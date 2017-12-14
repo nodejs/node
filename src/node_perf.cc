@@ -338,25 +338,25 @@ void Init(Local<Object> target,
   Local<FunctionTemplate> get_performance_entry_name_templ =
       FunctionTemplate::New(env->isolate(),
                             GetPerformanceEntryName,
-                            Local<Value>(),
+                            env->as_external(),
                             signature);
 
   Local<FunctionTemplate> get_performance_entry_type_templ =
       FunctionTemplate::New(env->isolate(),
                             GetPerformanceEntryType,
-                            Local<Value>(),
+                            env->as_external(),
                             signature);
 
   Local<FunctionTemplate> get_performance_entry_start_time_templ =
       FunctionTemplate::New(env->isolate(),
                             GetPerformanceEntryStartTime,
-                            Local<Value>(),
+                            env->as_external(),
                             signature);
 
   Local<FunctionTemplate> get_performance_entry_duration_templ =
       FunctionTemplate::New(env->isolate(),
                             GetPerformanceEntryDuration,
-                            Local<Value>(),
+                            env->as_external(),
                             signature);
 
   Local<ObjectTemplate> ot = pe->InstanceTemplate();
