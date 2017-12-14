@@ -81,6 +81,7 @@ namespace node {
 namespace crypto {
 
 using v8::AccessorSignature;
+using v8::Signature;
 using v8::Array;
 using v8::Boolean;
 using v8::Context;
@@ -544,14 +545,18 @@ void SecureContext::Initialize(Environment* env, Local<Object> target) {
   t->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "kTicketKeyIVIndex"),
          Integer::NewFromUnsigned(env->isolate(), kTicketKeyIVIndex));
 
-  t->PrototypeTemplate()->SetAccessor(
+  Local<FunctionTemplate> ctx_getter_templ =
+    FunctionTemplate::New(env->isolate(),
+                          CtxGetter,
+                          Local<Value>(),
+                          Signature::New(env->isolate(), t));
+
+
+  t->PrototypeTemplate()->SetAccessorProperty(
       FIXED_ONE_BYTE_STRING(env->isolate(), "_external"),
-      CtxGetter,
-      nullptr,
-      env->as_external(),
-      DEFAULT,
-      static_cast<PropertyAttribute>(ReadOnly | DontDelete),
-      AccessorSignature::New(env->isolate(), t));
+      ctx_getter_templ,
+      Local<FunctionTemplate>(),
+      static_cast<PropertyAttribute>(ReadOnly | DontDelete));
 
   target->Set(secureContextString, t->GetFunction());
   env->set_secure_context_constructor_template(t);
@@ -1565,8 +1570,7 @@ int SecureContext::TicketCompatibilityCallback(SSL* ssl,
 #endif
 
 
-void SecureContext::CtxGetter(Local<String> property,
-                              const PropertyCallbackInfo<Value>& info) {
+void SecureContext::CtxGetter(const FunctionCallbackInfo<Value>& info) {
   SecureContext* sc;
   ASSIGN_OR_RETURN_UNWRAP(&sc, info.This());
   Local<External> ext = External::New(info.GetIsolate(), sc->ctx_);
@@ -1636,14 +1640,17 @@ void SSLWrap<Base>::AddMethods(Environment* env, Local<FunctionTemplate> t) {
   env->SetProtoMethod(t, "getALPNNegotiatedProtocol", GetALPNNegotiatedProto);
   env->SetProtoMethod(t, "setALPNProtocols", SetALPNProtocols);
 
-  t->PrototypeTemplate()->SetAccessor(
+  Local<FunctionTemplate> ssl_getter_templ =
+    FunctionTemplate::New(env->isolate(),
+                          SSLGetter,
+                          Local<Value>(),
+                          Signature::New(env->isolate(), t));
+
+  t->PrototypeTemplate()->SetAccessorProperty(
       FIXED_ONE_BYTE_STRING(env->isolate(), "_external"),
-      SSLGetter,
-      nullptr,
-      env->as_external(),
-      DEFAULT,
-      static_cast<PropertyAttribute>(ReadOnly | DontDelete),
-      AccessorSignature::New(env->isolate(), t));
+      ssl_getter_templ,
+      Local<FunctionTemplate>(),
+      static_cast<PropertyAttribute>(ReadOnly | DontDelete));
 }
 
 
@@ -2804,8 +2811,7 @@ void SSLWrap<Base>::CertCbDone(const FunctionCallbackInfo<Value>& args) {
 
 
 template <class Base>
-void SSLWrap<Base>::SSLGetter(Local<String> property,
-                              const PropertyCallbackInfo<Value>& info) {
+void SSLWrap<Base>::SSLGetter(const FunctionCallbackInfo<Value>& info) {
   Base* base;
   ASSIGN_OR_RETURN_UNWRAP(&base, info.This());
   SSL* ssl = base->ssl_;
