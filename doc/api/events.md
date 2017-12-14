@@ -578,7 +578,7 @@ Returns a reference to the `EventEmitter`, so that calls can be chained.
 <!-- YAML
 added: REPLACEME
 -->
-- `eventName` {any}
+- `eventName` {string|symbol}
 
 Returns a copy of the array of listeners for the event named `eventName`,
 including any wrappers (such as those created by `.once`).
