@@ -80,7 +80,6 @@ static const int X509_NAME_FLAGS = ASN1_STRFLGS_ESC_CTRL
 namespace node {
 namespace crypto {
 
-using v8::AccessorSignature;
 using v8::Array;
 using v8::Boolean;
 using v8::Context;
@@ -103,7 +102,6 @@ using v8::Object;
 using v8::ObjectTemplate;
 using v8::Persistent;
 using v8::PropertyAttribute;
-using v8::PropertyCallbackInfo;
 using v8::ReadOnly;
 using v8::Signature;
 using v8::String;
@@ -546,10 +544,10 @@ void SecureContext::Initialize(Environment* env, Local<Object> target) {
          Integer::NewFromUnsigned(env->isolate(), kTicketKeyIVIndex));
 
   Local<FunctionTemplate> ctx_getter_templ =
-    FunctionTemplate::New(env->isolate(),
-                          CtxGetter,
-                          Local<Value>(),
-                          Signature::New(env->isolate(), t));
+      FunctionTemplate::New(env->isolate(),
+                            CtxGetter,
+                            env->as_external(),
+                            Signature::New(env->isolate(), t));
 
 
   t->PrototypeTemplate()->SetAccessorProperty(
@@ -1641,10 +1639,10 @@ void SSLWrap<Base>::AddMethods(Environment* env, Local<FunctionTemplate> t) {
   env->SetProtoMethod(t, "setALPNProtocols", SetALPNProtocols);
 
   Local<FunctionTemplate> ssl_getter_templ =
-    FunctionTemplate::New(env->isolate(),
-                          SSLGetter,
-                          Local<Value>(),
-                          Signature::New(env->isolate(), t));
+      FunctionTemplate::New(env->isolate(),
+                            SSLGetter,
+                            env->as_external(),
+                            Signature::New(env->isolate(), t));
 
   t->PrototypeTemplate()->SetAccessorProperty(
       FIXED_ONE_BYTE_STRING(env->isolate(), "_external"),
@@ -4786,10 +4784,10 @@ void DiffieHellman::Initialize(Environment* env, Local<Object> target) {
   env->SetProtoMethod(t, "setPrivateKey", SetPrivateKey);
 
   Local<FunctionTemplate> verify_error_getter_templ =
-    FunctionTemplate::New(env->isolate(),
-                          DiffieHellman::VerifyErrorGetter,
-                          Local<Value>(),
-                          Signature::New(env->isolate(), t));
+      FunctionTemplate::New(env->isolate(),
+                            DiffieHellman::VerifyErrorGetter,
+                            Local<Value>(),
+                            Signature::New(env->isolate(), t));
 
   t->InstanceTemplate()->SetAccessorProperty(
       env->verify_error_string(),
@@ -4811,10 +4809,10 @@ void DiffieHellman::Initialize(Environment* env, Local<Object> target) {
   env->SetProtoMethod(t2, "getPrivateKey", GetPrivateKey);
 
   Local<FunctionTemplate> verify_error_getter_templ2 =
-    FunctionTemplate::New(env->isolate(),
-                          DiffieHellman::VerifyErrorGetter,
-                          Local<Value>(),
-                          Signature::New(env->isolate(), t2));
+      FunctionTemplate::New(env->isolate(),
+                            DiffieHellman::VerifyErrorGetter,
+                            Local<Value>(),
+                            Signature::New(env->isolate(), t2));
 
   t2->InstanceTemplate()->SetAccessorProperty(
       env->verify_error_string(),
