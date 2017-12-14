@@ -919,7 +919,7 @@ timeout has fired, it will reset the regular inactivity timeout, i.e.,
 [`server.timeout`][].
 
 A value of `0` will disable the keep-alive timeout behavior on incoming connections.
-A value of `0` makes the http server behave similarly to earlier Node.js versions,
+A value of `0` makes the http server behave similarly to Node.js versions prior to 8.0.0,
 which did not have a keep-alive timeout.
 
 *Note*: The socket timeout logic is set up on connection, so changing this
