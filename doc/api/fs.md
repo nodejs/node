@@ -669,8 +669,10 @@ changes:
 * `callback` {Function}
   * `err` {Error}
 
-Asynchronous chmod(2). No arguments other than a possible exception are given
-to the completion callback.
+Asynchronously changes the permissions of a file. No arguments other than a
+possible exception are given to the completion callback.
+
+See also: chmod(2)
 
 ## fs.chmodSync(path, mode)
 <!-- YAML
@@ -685,7 +687,10 @@ changes:
 * `path` {string|Buffer|URL}
 * `mode` {integer}
 
-Synchronous chmod(2). Returns `undefined`.
+Synchronously changes the permissions of a file. Returns `undefined`.
+This is the synchronous version of [`fs.chmod()`][].
+
+See also: chmod(2)
 
 ## fs.chown(path, uid, gid, callback)
 <!-- YAML
@@ -707,8 +712,10 @@ changes:
 * `callback` {Function}
   * `err` {Error}
 
-Asynchronous chown(2). No arguments other than a possible exception are given
-to the completion callback.
+Asynchronously changes owner and group of a file. No arguments other than a
+possible exception are given to the completion callback.
+
+See also: chown(2)
 
 ## fs.chownSync(path, uid, gid)
 <!-- YAML
@@ -724,7 +731,10 @@ changes:
 * `uid` {integer}
 * `gid` {integer}
 
-Synchronous chown(2). Returns `undefined`.
+Synchronously changes owner and group of a file. Returns `undefined`.
+This is the synchronous version of [`fs.chown()`][].
+
+See also: chown(2)
 
 ## fs.close(fd, callback)
 <!-- YAML
@@ -1511,8 +1521,10 @@ changes:
 * `callback` {Function}
   * `err` {Error}
 
-Asynchronous mkdir(2). No arguments other than a possible exception are given
-to the completion callback. `mode` defaults to `0o777`.
+Asynchronously creates a directory. No arguments other than a possible exception
+are given to the completion callback. `mode` defaults to `0o777`.
+
+See also: mkdir(2)
 
 ## fs.mkdirSync(path[, mode])
 <!-- YAML
@@ -1527,7 +1539,10 @@ changes:
 * `path` {string|Buffer|URL}
 * `mode` {integer} **Default:** `0o777`
 
-Synchronous mkdir(2). Returns `undefined`.
+Synchronously creates a directory. Returns `undefined`.
+This is the synchronous version of [`fs.mkdir()`][].
+
+See also: mkdir(2)
 
 ## fs.mkdtemp(prefix[, options], callback)
 <!-- YAML
@@ -3026,10 +3041,13 @@ The following constants are meant for use with the [`fs.Stats`][] object's
 [`fs.Stats`]: #fs_class_fs_stats
 [`fs.access()`]: #fs_fs_access_path_mode_callback
 [`fs.appendFile()`]: fs.html#fs_fs_appendfile_file_data_options_callback
+[`fs.chmod()`]: #fs_fs_chmod_path_mode_callback
+[`fs.chown()`]: #fs_fs_chown_path_uid_gid_callback
 [`fs.exists()`]: fs.html#fs_fs_exists_path_callback
 [`fs.fstat()`]: #fs_fs_fstat_fd_callback
 [`fs.futimes()`]: #fs_fs_futimes_fd_atime_mtime_callback
 [`fs.lstat()`]: #fs_fs_lstat_path_callback
+[`fs.mkdir()`]: #fs_fs_mkdir_path_mode_callback
 [`fs.mkdtemp()`]: #fs_fs_mkdtemp_prefix_options_callback
 [`fs.open()`]: #fs_fs_open_path_flags_mode_callback
 [`fs.read()`]: #fs_fs_read_fd_buffer_offset_length_position_callback
