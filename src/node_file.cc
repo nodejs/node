@@ -153,10 +153,6 @@ void NewFSReqWrap(const FunctionCallbackInfo<Value>& args) {
 }
 
 
-inline bool IsInt64(double x) {
-  return x == static_cast<double>(static_cast<int64_t>(x));
-}
-
 void After(uv_fs_t *req) {
   FSReqWrap* req_wrap = static_cast<FSReqWrap*>(req->data);
   CHECK_EQ(req_wrap->req(), req);
