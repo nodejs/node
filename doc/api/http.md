@@ -765,6 +765,11 @@ object, so any HTTP response sent, including response headers and payload,
 *must* be written directly to the `socket` object. Care must be taken to
 ensure the response is a properly formatted HTTP response message.
 
+> `err` is an instance of `Error` with two extra columns:
+>
+> + `bytesParsed`: the bytes count of request packet that Node.js may parse correctly;
+> + `rawPacket`: the raw packet of current request.
+
 ### Event: 'close'
 <!-- YAML
 added: v0.1.4
