@@ -115,10 +115,10 @@ void UDPWrap::Initialize(Local<Object> target,
   Local<Signature> signature = Signature::New(env->isolate(), t);
 
   Local<FunctionTemplate> get_fd_templ =
-    FunctionTemplate::New(env->isolate(),
-                          UDPWrap::GetFD,
-                          Local<Value>(),
-                          signature);
+      FunctionTemplate::New(env->isolate(),
+                            UDPWrap::GetFD,
+                            Local<Value>(),
+                            signature);
 
   t->PrototypeTemplate()->SetAccessorProperty(env->fd_string(),
                                               get_fd_templ,

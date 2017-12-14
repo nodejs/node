@@ -337,28 +337,28 @@ void Init(Local<Object> target,
   Local<Signature> signature = Signature::New(env->isolate(), pe);
 
   Local<FunctionTemplate> get_performance_entry_name_templ =
-    FunctionTemplate::New(env->isolate(),
-                          GetPerformanceEntryName,
-                          Local<Value>(),
-                          signature);
+      FunctionTemplate::New(env->isolate(),
+                            GetPerformanceEntryName,
+                            Local<Value>(),
+                            signature);
 
   Local<FunctionTemplate> get_performance_entry_type_templ =
-    FunctionTemplate::New(env->isolate(),
-                          GetPerformanceEntryType,
-                          Local<Value>(),
-                          signature);
+      FunctionTemplate::New(env->isolate(),
+                            GetPerformanceEntryType,
+                            Local<Value>(),
+                            signature);
 
   Local<FunctionTemplate> get_performance_entry_start_time_templ =
-    FunctionTemplate::New(env->isolate(),
-                          GetPerformanceEntryStartTime,
-                          Local<Value>(),
-                          signature);
+      FunctionTemplate::New(env->isolate(),
+                            GetPerformanceEntryStartTime,
+                            Local<Value>(),
+                            signature);
 
   Local<FunctionTemplate> get_performance_entry_duration_templ =
-    FunctionTemplate::New(env->isolate(),
-                          GetPerformanceEntryDuration,
-                          Local<Value>(),
-                          signature);
+      FunctionTemplate::New(env->isolate(),
+                            GetPerformanceEntryDuration,
+                            Local<Value>(),
+                            signature);
 
   Local<ObjectTemplate> ot = pe->InstanceTemplate();
   ot->SetAccessorProperty(env->name_string(),
