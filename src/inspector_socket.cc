@@ -328,7 +328,7 @@ class WsHandler : public ProtocolHandler {
     } while (processed > 0 && !data->empty());
   }
 
-  void Write(const std::vector<char> data) {
+  void Write(const std::vector<char> data) override {
     std::vector<char> output = encode_frame_hybi17(data);
     WriteRaw(output, WriteRequest::Cleanup);
   }
@@ -446,7 +446,7 @@ class HttpHandler : public ProtocolHandler {
     }
   }
 
-  void CancelHandshake() {
+  void CancelHandshake() override {
     const char HANDSHAKE_FAILED_RESPONSE[] =
         "HTTP/1.0 400 Bad Request\r\n"
         "Content-Type: text/html; charset=UTF-8\r\n\r\n"
