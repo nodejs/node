@@ -2,17 +2,17 @@
 
 require('../common');
 
-// This tests that the accessor properties do not raise assersions
+// This tests that the accessor properties do not raise assertions
 // when called with incompatible receivers.
 
 const assert = require('assert');
 
-// Examples are things that calls StreamBase::AddMethods when setting up
+// Objects that call StreamBase::AddMethods, when setting up
 // their prototype
 const TTY = process.binding('tty_wrap').TTY;
 const UDP = process.binding('udp_wrap').UDP;
 
-// Or the accessor properties in crypto
+// There are accessor properties in crypto too
 const crypto = process.binding('crypto');
 
 {
