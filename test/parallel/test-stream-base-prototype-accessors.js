@@ -12,18 +12,17 @@ const TTY = process.binding('tty_wrap').TTY;
 
 {
   // Should throw instead of raise assertions
-  const msg = /TypeError: Illegal invocation/;
   assert.throws(() => {
     TTY.prototype.bytesRead;
-  }, msg);
+  }, TypeError);
 
   assert.throws(() => {
     TTY.prototype.fd;
-  }, msg);
+  }, TypeError);
 
   assert.throws(() => {
     TTY.prototype._externalStream;
-  }, msg);
+  }, TypeError);
 
   // Should not throw for Object.getOwnPropertyDescriptor
   assert.strictEqual(
