@@ -41,7 +41,6 @@ using v8::Integer;
 using v8::Local;
 using v8::Object;
 using v8::PropertyAttribute;
-using v8::PropertyCallbackInfo;
 using v8::Signature;
 using v8::String;
 using v8::Uint32;
