@@ -35,6 +35,20 @@ const stat = promisify(fs.stat);
 }
 
 {
+  common.expectsError(
+    () => promisify(undefined),
+    { code: 'ERR_INVALID_ARG_TYPE', type: TypeError }
+  );
+}
+
+{
+  common.expectsError(
+    () => promisify(null),
+    { code: 'ERR_INVALID_ARG_TYPE', type: TypeError }
+  );
+}
+
+{
   function fn() {}
   fn[promisify.custom] = 42;
   common.expectsError(
