@@ -22,6 +22,7 @@
 #include "node_buffer.h"
 #include "node_internals.h"
 #include "node_stat_watcher.h"
+#include "node_file.h"
 
 #include "req_wrap-inl.h"
 #include "string_bytes.h"
@@ -41,7 +42,42 @@
 #include <vector>
 
 namespace node {
-namespace {
+
+void FillStatsArray(double* fields, const uv_stat_t* s) {
+  fields[0] = s->st_dev;
+  fields[1] = s->st_mode;
+  fields[2] = s->st_nlink;
+  fields[3] = s->st_uid;
+  fields[4] = s->st_gid;
+  fields[5] = s->st_rdev;
+#if defined(__POSIX__)
+  fields[6] = s->st_blksize;
+#else
+  fields[6] = -1;
+#endif
+  fields[7] = s->st_ino;
+  fields[8] = s->st_size;
+#if defined(__POSIX__)
+  fields[9] = s->st_blocks;
+#else
+  fields[9] = -1;
+#endif
+// Dates.
+// NO-LINT because the fields are 'long' and we just want to cast to `unsigned`
+#define X(idx, name)                                           \
+  /* NOLINTNEXTLINE(runtime/int) */                            \
+  fields[idx] = ((unsigned long)(s->st_##name.tv_sec) * 1e3) + \
+  /* NOLINTNEXTLINE(runtime/int) */                            \
+                ((unsigned long)(s->st_##name.tv_nsec) / 1e6); \
+
+  X(10, atim)
+  X(11, mtim)
+  X(12, ctim)
+  X(13, birthtim)
+#undef X
+}
+
+namespace fs {
 
 using v8::Array;
 using v8::ArrayBuffer;
@@ -66,60 +102,6 @@ using v8::Value;
 #define TYPE_ERROR(msg) env->ThrowTypeError(msg)
 
 #define GET_OFFSET(a) ((a)->IsNumber() ? (a)->IntegerValue() : -1)
-
-class FSReqWrap: public ReqWrap<uv_fs_t> {
- public:
-  enum Ownership { COPY, MOVE };
-
-  inline static FSReqWrap* New(Environment* env,
-                               Local<Object> req,
-                               const char* syscall,
-                               const char* data = nullptr,
-                               enum encoding encoding = UTF8,
-                               Ownership ownership = COPY);
-
-  inline void Dispose();
-
-  void ReleaseEarly() {
-    if (data_ != inline_data()) {
-      delete[] data_;
-      data_ = nullptr;
-    }
-  }
-
-  const char* syscall() const { return syscall_; }
-  const char* data() const { return data_; }
-  const enum encoding encoding_;
-
-  size_t self_size() const override { return sizeof(*this); }
-
- private:
-  FSReqWrap(Environment* env,
-            Local<Object> req,
-            const char* syscall,
-            const char* data,
-            enum encoding encoding)
-      : ReqWrap(env, req, AsyncWrap::PROVIDER_FSREQWRAP),
-        encoding_(encoding),
-        syscall_(syscall),
-        data_(data) {
-    Wrap(object(), this);
-  }
-
-  ~FSReqWrap() {
-    ReleaseEarly();
-    ClearWrap(object());
-  }
-
-  void* operator new(size_t size) = delete;
-  void* operator new(size_t size, char* storage) { return storage; }
-  char* inline_data() { return reinterpret_cast<char*>(this + 1); }
-
-  const char* syscall_;
-  const char* data_;
-
-  DISALLOW_COPY_AND_ASSIGN(FSReqWrap);
-};
 
 #define ASSERT_PATH(path)                                                   \
   if (*path == nullptr)                                                     \
@@ -148,6 +130,19 @@ void FSReqWrap::Dispose() {
 }
 
 
+void FSReqWrap::Reject(Local<Value> reject) {
+  Local<Value> argv[1] { reject };
+  MakeCallback(env()->oncomplete_string(), arraysize(argv), argv);
+}
+
+void FSReqWrap::Resolve(Local<Value> value) {
+  Local<Value> argv[2] {
+    Null(env()->isolate()),
+    value
+  };
+  MakeCallback(env()->oncomplete_string(), arraysize(argv), argv);
+}
+
 void NewFSReqWrap(const FunctionCallbackInfo<Value>& args) {
   CHECK(args.IsConstructCall());
   ClearWrap(args.This());
@@ -163,29 +158,23 @@ void After(uv_fs_t *req) {
   HandleScope handle_scope(env->isolate());
   Context::Scope context_scope(env->context());
 
-  // there is always at least one argument. "error"
-  int argc = 1;
-
   // Allocate space for two args. We may only use one depending on the case.
   // (Feel free to increase this if you need more)
-  Local<Value> argv[2];
   MaybeLocal<Value> link;
   Local<Value> error;
 
   if (req->result < 0) {
     // An error happened.
-    argv[0] = UVException(env->isolate(),
-                          req->result,
-                          req_wrap->syscall(),
-                          nullptr,
-                          req->path,
-                          req_wrap->data());
+    req_wrap->Reject(UVException(env->isolate(),
+                                 req->result,
+                                 req_wrap->syscall(),
+                                 nullptr,
+                                 req->path,
+                                 req_wrap->data()));
   } else {
     // error value is empty or null for non-error.
-    argv[0] = Null(env->isolate());
-
-    // All have at least two args now.
-    argc = 2;
+    Local<Value> ret = Undefined(env->isolate());
+    bool reject = false;
 
     switch (req->fs_type) {
       // These all have no data to pass.
@@ -205,30 +194,24 @@ void After(uv_fs_t *req) {
       case UV_FS_CHOWN:
       case UV_FS_FCHOWN:
       case UV_FS_COPYFILE:
+      case UV_FS_UTIME:
+      case UV_FS_FUTIME:
         // These, however, don't.
-        argc = 1;
         break;
 
       case UV_FS_STAT:
       case UV_FS_LSTAT:
       case UV_FS_FSTAT:
-        argc = 1;
         FillStatsArray(env->fs_stats_field_array(),
                        static_cast<const uv_stat_t*>(req->ptr));
         break;
 
-      case UV_FS_UTIME:
-      case UV_FS_FUTIME:
-        argc = 0;
-        break;
-
       case UV_FS_OPEN:
-        argv[1] = Integer::New(env->isolate(), req->result);
+      case UV_FS_WRITE:
+      case UV_FS_READ:
+        ret = Integer::New(env->isolate(), req->result);
         break;
 
-      case UV_FS_WRITE:
-        argv[1] = Integer::New(env->isolate(), req->result);
-        break;
 
       case UV_FS_MKDTEMP:
       {
@@ -237,40 +220,26 @@ void After(uv_fs_t *req) {
                                    req_wrap->encoding_,
                                    &error);
         if (link.IsEmpty()) {
-          argv[0] = error;
+          reject = true;
+          ret = error;
         } else {
-          argv[1] = link.ToLocalChecked();
+          ret = link.ToLocalChecked();
         }
         break;
       }
 
       case UV_FS_READLINK:
-        link = StringBytes::Encode(env->isolate(),
-                                   static_cast<const char*>(req->ptr),
-                                   req_wrap->encoding_,
-                                   &error);
-        if (link.IsEmpty()) {
-          argv[0] = error;
-        } else {
-          argv[1] = link.ToLocalChecked();
-        }
-        break;
-
       case UV_FS_REALPATH:
         link = StringBytes::Encode(env->isolate(),
                                    static_cast<const char*>(req->ptr),
                                    req_wrap->encoding_,
                                    &error);
         if (link.IsEmpty()) {
-          argv[0] = error;
+          reject = true;
+          ret = error;
         } else {
-          argv[1] = link.ToLocalChecked();
+          ret = link.ToLocalChecked();
         }
-        break;
-
-      case UV_FS_READ:
-        // Buffer interface
-        argv[1] = Integer::New(env->isolate(), req->result);
         break;
 
       case UV_FS_SCANDIR:
@@ -288,10 +257,9 @@ void After(uv_fs_t *req) {
             if (r == UV_EOF)
               break;
             if (r != 0) {
-              argv[0] = UVException(r,
-                                    nullptr,
-                                    req_wrap->syscall(),
-                                    static_cast<const char*>(req->path));
+              reject = true;
+              ret = UVException(r, nullptr, req_wrap->syscall(),
+                                static_cast<const char*>(req->path));
               break;
             }
 
@@ -301,7 +269,8 @@ void After(uv_fs_t *req) {
                                     req_wrap->encoding_,
                                     &error);
             if (filename.IsEmpty()) {
-              argv[0] = error;
+              reject = true;
+              ret = error;
               break;
             }
             name_argv[name_idx++] = filename.ToLocalChecked();
@@ -318,16 +287,18 @@ void After(uv_fs_t *req) {
                 .ToLocalChecked();
           }
 
-          argv[1] = names;
+          ret = names;
         }
         break;
 
       default:
         CHECK(0 && "Unhandled eio response");
     }
+    if (!reject)
+      req_wrap->Resolve(ret);
+    else
+      req_wrap->Reject(ret);
   }
-
-  req_wrap->MakeCallback(env->oncomplete_string(), argc, argv);
 
   uv_fs_req_cleanup(req_wrap->req());
   req_wrap->Dispose();
@@ -471,41 +442,6 @@ void Close(const FunctionCallbackInfo<Value>& args) {
   }
 }
 
-}  // anonymous namespace
-
-void FillStatsArray(double* fields, const uv_stat_t* s) {
-  fields[0] = s->st_dev;
-  fields[1] = s->st_mode;
-  fields[2] = s->st_nlink;
-  fields[3] = s->st_uid;
-  fields[4] = s->st_gid;
-  fields[5] = s->st_rdev;
-#if defined(__POSIX__)
-  fields[6] = s->st_blksize;
-#else
-  fields[6] = -1;
-#endif
-  fields[7] = s->st_ino;
-  fields[8] = s->st_size;
-#if defined(__POSIX__)
-  fields[9] = s->st_blocks;
-#else
-  fields[9] = -1;
-#endif
-// Dates.
-// NO-LINT because the fields are 'long' and we just want to cast to `unsigned`
-#define X(idx, name)                                           \
-  /* NOLINTNEXTLINE(runtime/int) */                            \
-  fields[idx] = ((unsigned long)(s->st_##name.tv_sec) * 1e3) + \
-  /* NOLINTNEXTLINE(runtime/int) */                            \
-                ((unsigned long)(s->st_##name.tv_nsec) / 1e6); \
-
-  X(10, atim)
-  X(11, mtim)
-  X(12, ctim)
-  X(13, birthtim)
-#undef X
-}
 
 // Used to speed up module loading.  Returns the contents of the file as
 // a string or undefined when the file cannot be opened.  Returns an empty
@@ -1460,6 +1396,8 @@ void InitFs(Local<Object> target,
   target->Set(wrapString, fst->GetFunction());
 }
 
+}  // namespace fs
+
 }  // end namespace node
 
-NODE_BUILTIN_MODULE_CONTEXT_AWARE(fs, node::InitFs)
+NODE_BUILTIN_MODULE_CONTEXT_AWARE(fs, node::fs::InitFs)
