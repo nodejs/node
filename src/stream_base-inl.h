@@ -35,26 +35,25 @@ void StreamBase::AddMethods(Environment* env,
       static_cast<PropertyAttribute>(
           v8::ReadOnly | v8::DontDelete | v8::DontEnum);
 
-  Local<Signature> signature =
-      Signature::New(env->isolate(), t);
+  Local<Signature> signature = Signature::New(env->isolate(), t);
 
-  Local<FunctionTemplate> get_fd_templ = FunctionTemplate::New(
-    env->isolate(),
-    GetFD<Base>,
-    Local<Value>(),
-    signature);
+  Local<FunctionTemplate> get_fd_templ =
+    FunctionTemplate::New(env->isolate(),
+                          GetFD<Base>,
+                          Local<Value>(),
+                          signature);
 
-  Local<FunctionTemplate> get_external_templ = FunctionTemplate::New(
-    env->isolate(),
-    GetExternal<Base>,
-    Local<Value>(),
-    signature);
+  Local<FunctionTemplate> get_external_templ =
+    FunctionTemplate::New(env->isolate(),
+                          GetExternal<Base>,
+                          Local<Value>(),
+                          signature);
 
-  Local<FunctionTemplate> get_bytes_read = FunctionTemplate::New(
-    env->isolate(),
-    GetBytesRead<Base>,
-    Local<Value>(),
-    signature);
+  Local<FunctionTemplate> get_bytes_read_templ =
+    FunctionTemplate::New(env->isolate(),
+                          GetBytesRead<Base>,
+                          Local<Value>(),
+                          signature);
 
   t->PrototypeTemplate()->SetAccessorProperty(env->fd_string(),
                                               get_fd_templ,
@@ -67,7 +66,7 @@ void StreamBase::AddMethods(Environment* env,
                                               attributes);
 
   t->PrototypeTemplate()->SetAccessorProperty(env->bytes_read_string(),
-                                              get_bytes_read,
+                                              get_bytes_read_templ,
                                               Local<FunctionTemplate>(),
                                               attributes);
 
