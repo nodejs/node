@@ -151,6 +151,7 @@ class ModuleWrap;
   V(fd_string, "fd")                                                          \
   V(file_string, "file")                                                      \
   V(fingerprint_string, "fingerprint")                                        \
+  V(fingerprint256_string, "fingerprint256")                                  \
   V(flags_string, "flags")                                                    \
   V(get_data_clone_error_string, "_getDataCloneError")                        \
   V(get_shared_array_buffer_id_string, "_getSharedArrayBufferId")             \
