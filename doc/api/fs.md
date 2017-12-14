@@ -669,8 +669,8 @@ changes:
 * `callback` {Function}
   * `err` {Error}
 
-Asynchronously changes the mode of a file. No arguments other than a possible
-exception are given to the completion callback.
+Asynchronously changes the permissions of a file. No arguments other than a
+possible exception are given to the completion callback.
 
 See also: chmod(2)
 
