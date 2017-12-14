@@ -14,6 +14,7 @@ rules:
   prefer-common-mustnotcall: error
   crypto-check: error
   inspector-check: error
+  number-isnan: error
   ## common module is mandatory in tests
   required-modules: [error, common]
 
