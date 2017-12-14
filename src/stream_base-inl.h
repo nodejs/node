@@ -40,19 +40,19 @@ void StreamBase::AddMethods(Environment* env,
   Local<FunctionTemplate> get_fd_templ =
       FunctionTemplate::New(env->isolate(),
                             GetFD<Base>,
-                            Local<Value>(),
+                            env->as_external(),
                             signature);
 
   Local<FunctionTemplate> get_external_templ =
       FunctionTemplate::New(env->isolate(),
                             GetExternal<Base>,
-                            Local<Value>(),
+                            env->as_external(),
                             signature);
 
   Local<FunctionTemplate> get_bytes_read_templ =
       FunctionTemplate::New(env->isolate(),
                             GetBytesRead<Base>,
-                            Local<Value>(),
+                            env->as_external(),
                             signature);
 
   t->PrototypeTemplate()->SetAccessorProperty(env->fd_string(),
