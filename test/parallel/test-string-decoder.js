@@ -197,11 +197,10 @@ function unicodeEscape(str) {
 //   [ [ 0, 1 ], [ 1, 3 ] ],
 //   [ [ 0, 1 ], [ 1, 2 ], [ 2, 3 ] ]
 // ]
-function writeSequences(length, start, sequence) {
-  if (start === undefined) {
-    start = 0;
-    sequence = [];
-  } else if (start === length) {
+function writeSequences(length, start = 0, sequence = []) {
+  if (!start)
+    return [];
+  if (start === length) {
     return [sequence];
   }
   let sequences = [];
