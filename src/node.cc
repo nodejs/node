@@ -4350,7 +4350,9 @@ int EmitExit(Environment* env) {
   HandleScope handle_scope(env->isolate());
   Context::Scope context_scope(env->context());
   Local<Object> process_object = env->process_object();
-  process_object->Set(env->exiting_string(), True(env->isolate()));
+  process_object->SetPrivate(env->context(),
+                             env->is_exiting_private_symbol(),
+                             True(env->isolate()));
 
   Local<String> exitCode = env->exit_code_string();
   int code = process_object->Get(exitCode)->Int32Value();
