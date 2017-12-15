@@ -166,19 +166,19 @@ class StreamResource {
   virtual void ClearError();
 
   // Events
-  inline void OnAfterWrite(WriteWrap* w, int status) {
+  inline void EmitAfterWrite(WriteWrap* w, int status) {
     if (!after_write_cb_.is_empty())
       after_write_cb_.fn(w, status, after_write_cb_.ctx);
   }
 
-  inline void OnAlloc(size_t size, uv_buf_t* buf) {
+  inline void EmitAlloc(size_t size, uv_buf_t* buf) {
     if (!alloc_cb_.is_empty())
       alloc_cb_.fn(size, buf, alloc_cb_.ctx);
   }
 
-  inline void OnRead(ssize_t nread,
-                     const uv_buf_t* buf,
-                     uv_handle_type pending = UV_UNKNOWN_HANDLE) {
+  inline void EmitRead(ssize_t nread,
+                       const uv_buf_t* buf,
+                       uv_handle_type pending = UV_UNKNOWN_HANDLE) {
     if (nread > 0)
       bytes_read_ += static_cast<uint64_t>(nread);
     if (!read_cb_.is_empty())
