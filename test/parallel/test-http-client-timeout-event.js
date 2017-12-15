@@ -32,10 +32,10 @@ const options = {
 
 const server = http.createServer();
 
-server.listen(0, options.host, function() {
-  options.port = this.address().port;
+server.listen(0, options.host, () => {
+  options.port = server.address().port;
   const req = http.request(options);
-  req.on('error', function() {
+  req.on('error', () => {
     // this space is intentionally left blank
   });
   req.on('close', common.mustCall(() => server.close()));
