@@ -17,7 +17,6 @@ const server = http.createServer(function(req, res) {
       assert(req.connection._paused, '_paused must be true because it exceeds' +
                                      'highWaterMark by second request');
     }));
-    res.write(body);
   } else {
     // Case of needParse = true
     const resume = req.connection.parser.resume.bind(req.connection.parser);
@@ -28,9 +27,9 @@ const server = http.createServer(function(req, res) {
                       'highWaterMark');
       return resume(...args);
     });
-    assert(!res.write(body), 'res.write must return false because it will ' +
-                             'exceed highWaterMark on this call');
   }
+  assert(!res.write(body), 'res.write must return false because it will ' +
+                           'exceed highWaterMark on this call');
   res.end();
 }).on('listening', () => {
   const c = net.createConnection(server.address().port, () => {
