@@ -1,17 +1,15 @@
 # Contributing to Node.js
 
-Contributions to Node.js may come in many forms. Some contribute code changes,
-others contribute docs, others help answer questions from users, help keep the
-infrastructure running, or seek out ways of advocating for Node.js users of all
-types.
+Contributions to Node.js include code, documentation, answering user questions,
+running the project's infrastructure, and advocating for all types of Node.js
+users.
 
 The Node.js project welcomes all contributions from anyone willing to work in
-good faith both with other contributors and with the community. No contribution
-is too small and all contributions are valued.
+good faith with other contributors and the community. No contribution is too
+small and all contributions are valued.
 
-This guide details the basic steps for getting started contributing to the
-Node.js project's core `nodejs/node` GitHub Repository and describes what to
-expect throughout each step of the process.
+This guide explains the process for contributing to the Node.js project's core
+`nodejs/node` GitHub Repository and describes what to expect at each step.
 
 * [Code of Conduct](#code-of-conduct)
   * [Bad Actors](#bad-actors)
