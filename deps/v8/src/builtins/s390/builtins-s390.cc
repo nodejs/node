@@ -1081,22 +1081,15 @@ static void MaybeTailCallOptimizedCodeSlot(MacroAssembler* masm,
         Runtime::kCompileOptimized_Concurrent);
 
     {
-      // Otherwise, the marker is InOptimizationQueue.
+      // Otherwise, the marker is InOptimizationQueue, so fall through hoping
+      // that an interrupt will eventually update the slot with optimized code.
       if (FLAG_debug_code) {
         __ CmpSmiLiteral(
             optimized_code_entry,
             Smi::FromEnum(OptimizationMarker::kInOptimizationQueue), r0);
         __ Assert(eq, kExpectedOptimizationSentinel);
       }
-
-      // Checking whether the queued function is ready for install is optional,
-      // since we come across interrupts and stack checks elsewhere.  However,
-      // not checking may delay installing ready functions, and always checking
-      // would be quite expensive.  A good compromise is to first check against
-      // stack limit as a cue for an interrupt signal.
-      __ CmpLogicalP(sp, RootMemOperand(Heap::kStackLimitRootIndex));
-      __ bge(&fallthrough, Label::kNear);
-      GenerateTailCallToReturnedCode(masm, Runtime::kTryInstallOptimizedCode);
+      __ b(&fallthrough, Label::kNear);
     }
   }
 
