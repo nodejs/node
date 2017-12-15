@@ -15,7 +15,7 @@ const server = http.createServer(function(req, res) {
     // Case of needParse = false
     req.connection.once('pause', common.mustCall(() => {
       assert(req.connection._paused, '_paused must be true because it exceeds' +
-                                     'hightWaterMark by second request');
+                                     'highWaterMark by second request');
     }));
     res.write(body);
   } else {
@@ -25,11 +25,11 @@ const server = http.createServer(function(req, res) {
       const paused = req.connection._paused;
       assert(!paused, '_paused must be false because it become false by ' +
                       'socketOnDrain when outgoingData falls below ' +
-                      'hightWaterMark');
+                      'highWaterMark');
       return resume(...args);
     });
     assert(!res.write(body), 'res.write must be fail because it will exceed ' +
-                             'hightWaterMark on this call');
+                             'highWaterMark on this call');
   }
   res.end();
 }).on('listening', () => {
