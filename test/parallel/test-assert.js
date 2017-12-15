@@ -603,6 +603,7 @@ testAssertionMessage({ a: NaN, b: Infinity, c: -Infinity },
   } catch (e) {
     threw = true;
     assert.strictEqual(e.message, 'Missing expected exception.');
+    assert.ok(!e.stack.includes('throws'), e.stack);
   }
   assert.ok(threw);
 }
@@ -619,8 +620,8 @@ try {
   assert.strictEqual(1, 2, 'oh no'); // eslint-disable-line no-restricted-syntax
 } catch (e) {
   assert.strictEqual(e.message.split('\n')[0], 'oh no');
-  // Message should not be marked as generated.
-  assert.strictEqual(e.generatedMessage, false);
+  assert.strictEqual(e.generatedMessage, false,
+                     'Message incorrectly marked as generated');
 }
 
 {
