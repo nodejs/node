@@ -17,23 +17,24 @@ using v8::Value;
 
 namespace fs {
 
-class FSReqWrap: public ReqWrap<uv_fs_t> {
- public:
-  enum Ownership { COPY, MOVE };
+enum Ownership { COPY, MOVE };
 
-  inline static FSReqWrap* New(Environment* env,
-                               Local<Object> req,
-                               const char* syscall,
-                               const char* data = nullptr,
-                               enum encoding encoding = UTF8,
-                               Ownership ownership = COPY);
+class FSReqInfo {
+ public:
+  FSReqInfo(const char* syscall,
+            const char* data,
+            enum encoding encoding)
+      : encoding_(encoding),
+        syscall_(syscall),
+        data_(data) { }
+
+  virtual ~FSReqInfo() {
+    Release();
+  }
 
   inline void Dispose();
 
-  virtual void Reject(Local<Value> reject);
-  virtual void Resolve(Local<Value> value);
-
-  void ReleaseEarly() {
+  void Release() {
     if (data_ != inline_data()) {
       delete[] data_;
       data_ = nullptr;
@@ -42,27 +43,8 @@ class FSReqWrap: public ReqWrap<uv_fs_t> {
 
   const char* syscall() const { return syscall_; }
   const char* data() const { return data_; }
+  void SetData(const char* data) { data_ = data; }
   const enum encoding encoding_;
-
-  size_t self_size() const override { return sizeof(*this); }
-
- protected:
-  FSReqWrap(Environment* env,
-            Local<Object> req,
-            const char* syscall,
-            const char* data,
-            enum encoding encoding)
-      : ReqWrap(env, req, AsyncWrap::PROVIDER_FSREQWRAP),
-        encoding_(encoding),
-        syscall_(syscall),
-        data_(data) {
-    Wrap(object(), this);
-  }
-
-  virtual ~FSReqWrap() {
-    ReleaseEarly();
-    ClearWrap(object());
-  }
 
   void* operator new(size_t size) = delete;
   void* operator new(size_t size, char* storage) { return storage; }
@@ -71,6 +53,53 @@ class FSReqWrap: public ReqWrap<uv_fs_t> {
  private:
   const char* syscall_;
   const char* data_;
+
+  DISALLOW_COPY_AND_ASSIGN(FSReqInfo);
+};
+
+class FSReqWrap: public ReqWrap<uv_fs_t> {
+ public:
+  FSReqWrap(Environment* env, Local<Object> req)
+      : ReqWrap(env, req, AsyncWrap::PROVIDER_FSREQWRAP) {
+    Wrap(object(), this);
+  }
+
+  virtual ~FSReqWrap() {
+    ReleaseEarly();
+    ClearWrap(object());
+  }
+
+  inline void Init(const char* syscall,
+                   const char* data = nullptr,
+                   enum encoding encoding = UTF8,
+                   Ownership ownership = COPY);
+
+  inline void Dispose();
+
+  virtual void Reject(Local<Value> reject);
+  virtual void Resolve(Local<Value> value);
+
+  void ReleaseEarly() {
+    if (info_ != nullptr)
+      info_->Release();
+  }
+
+  const char* syscall() const {
+    return info_ != nullptr ? info_->syscall() : nullptr;
+  }
+
+  const char* data() const {
+    return info_ != nullptr ? info_->data() : nullptr;
+  }
+
+  enum encoding encoding() const {
+    return info_ != nullptr ? info_->encoding_ : UTF8;
+  }
+
+  size_t self_size() const override { return sizeof(*this); }
+
+ private:
+  FSReqInfo* info_ = nullptr;
 
   DISALLOW_COPY_AND_ASSIGN(FSReqWrap);
 };

@@ -103,28 +103,31 @@ using v8::Value;
   if (*path == nullptr)                                                     \
     return TYPE_ERROR( #path " must be a string or Buffer");
 
-FSReqWrap* FSReqWrap::New(Environment* env,
-                          Local<Object> req,
-                          const char* syscall,
-                          const char* data,
-                          enum encoding encoding,
-                          Ownership ownership) {
+void FSReqWrap::Init(const char* syscall,
+                     const char* data,
+                     enum encoding encoding,
+                     Ownership ownership) {
+  CHECK_EQ(info_, nullptr);  // Only initialize once.
   const bool copy = (data != nullptr && ownership == COPY);
   const size_t size = copy ? 1 + strlen(data) : 0;
-  FSReqWrap* that;
-  char* const storage = new char[sizeof(*that) + size];
-  that = new(storage) FSReqWrap(env, req, syscall, data, encoding);
-  if (copy)
-    that->data_ = static_cast<char*>(memcpy(that->inline_data(), data, size));
-  return that;
+  char* const storage = new char[sizeof(*info_) + size];
+  info_ = new(storage) FSReqInfo(syscall, data, encoding);
+  if (copy) {
+    info_->SetData(
+        static_cast<char*>(memcpy(info_->inline_data(), data, size)));
+  }
 }
-
 
 void FSReqWrap::Dispose() {
+  if (info_ != nullptr)
+    info_->Dispose();
   this->~FSReqWrap();
-  delete[] reinterpret_cast<char*>(this);
 }
 
+void FSReqInfo::Dispose() {
+  this->~FSReqInfo();
+  delete[] reinterpret_cast<char*>(this);
+}
 
 void FSReqWrap::Reject(Local<Value> reject) {
   Local<Value> argv[1] { reject };
@@ -141,7 +144,8 @@ void FSReqWrap::Resolve(Local<Value> value) {
 
 void NewFSReqWrap(const FunctionCallbackInfo<Value>& args) {
   CHECK(args.IsConstructCall());
-  ClearWrap(args.This());
+  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  new FSReqWrap(env, args.This());
 }
 
 
@@ -214,7 +218,7 @@ void AfterStringPath(uv_fs_t* req) {
   if (after.Proceed()) {
     link = StringBytes::Encode(req_wrap->env()->isolate(),
                                static_cast<const char*>(req->path),
-                               req_wrap->encoding_,
+                               req_wrap->encoding(),
                                &error);
     if (link.IsEmpty())
       req_wrap->Reject(error);
@@ -233,7 +237,7 @@ void AfterStringPtr(uv_fs_t* req) {
   if (after.Proceed()) {
     link = StringBytes::Encode(req_wrap->env()->isolate(),
                                static_cast<const char*>(req->ptr),
-                               req_wrap->encoding_,
+                               req_wrap->encoding(),
                                &error);
     if (link.IsEmpty())
       req_wrap->Reject(error);
@@ -270,7 +274,7 @@ void AfterScanDir(uv_fs_t* req) {
       MaybeLocal<Value> filename =
           StringBytes::Encode(env->isolate(),
                               ent.name,
-                              req_wrap->encoding_,
+                              req_wrap->encoding(),
                               &error);
       if (filename.IsEmpty())
         return req_wrap->Reject(error);
@@ -311,7 +315,9 @@ template <typename Func, typename... Args>
 inline FSReqWrap* AsyncDestCall(Environment* env, Local<Object> req,
     const char* dest, enum encoding enc, const char* syscall,
     uv_fs_cb after, Func fn, Args... args) {
-  FSReqWrap* req_wrap = FSReqWrap::New(env, req, syscall, dest, enc);
+  FSReqWrap* req_wrap = Unwrap<FSReqWrap>(req);
+  CHECK_NE(req_wrap, nullptr);
+  req_wrap->Init(syscall, dest, enc);
   int err = fn(env->event_loop(), req_wrap->req(), args..., after);
   req_wrap->Dispatched();
   if (err < 0) {
@@ -336,8 +342,9 @@ inline FSReqWrap* AsyncCall(Environment* env, Local<Object> req,
 #define ASYNC_DEST_CALL(after, func, request, dest, encoding, ...)            \
   Environment* env = Environment::GetCurrent(args);                           \
   CHECK(request->IsObject());                                                 \
-  FSReqWrap* req_wrap = FSReqWrap::New(env, request.As<Object>(),             \
-                                       #func, dest, encoding);                \
+  FSReqWrap* req_wrap = Unwrap<FSReqWrap>(request.As<Object>());              \
+  CHECK_NE(req_wrap, nullptr);                                                \
+  req_wrap->Init(#func, dest, encoding);                                      \
   int err = uv_fs_ ## func(env->event_loop(),                                 \
                            req_wrap->req(),                                   \
                            __VA_ARGS__,                                       \
@@ -1036,7 +1043,7 @@ static void WriteString(const FunctionCallbackInfo<Value>& args) {
   char* buf = nullptr;
   int64_t pos;
   size_t len;
-  FSReqWrap::Ownership ownership = FSReqWrap::COPY;
+  Ownership ownership = COPY;
 
   // will assign buf and len if string was external
   if (!StringBytes::GetExternalParts(string,
@@ -1048,7 +1055,7 @@ static void WriteString(const FunctionCallbackInfo<Value>& args) {
     // StorageSize may return too large a char, so correct the actual length
     // by the write size
     len = StringBytes::Write(env->isolate(), buf, len, args[1], enc);
-    ownership = FSReqWrap::MOVE;
+    ownership = MOVE;
   }
   pos = GET_OFFSET(args[2]);
   req = args[4];
@@ -1062,13 +1069,14 @@ static void WriteString(const FunctionCallbackInfo<Value>& args) {
       inline ~Delete() { delete[] pointer_; }
       char* const pointer_;
     };
-    Delete delete_on_return(ownership == FSReqWrap::MOVE ? buf : nullptr);
+    Delete delete_on_return(ownership == MOVE ? buf : nullptr);
     SYNC_CALL(write, nullptr, fd, &uvbuf, 1, pos)
     return args.GetReturnValue().Set(SYNC_RESULT);
   }
 
-  FSReqWrap* req_wrap =
-      FSReqWrap::New(env, req.As<Object>(), "write", buf, UTF8, ownership);
+  FSReqWrap* req_wrap = Unwrap<FSReqWrap>(req.As<Object>());
+  CHECK_NE(req_wrap, nullptr);
+  req_wrap->Init("write", buf, UTF8, ownership);
   int err = uv_fs_write(env->event_loop(),
                         req_wrap->req(),
                         fd,
