@@ -21,9 +21,9 @@ server.on('connect', common.mustCall((req, socket, firstBodyChunk) => {
   }));
 }));
 
-server.listen(0, common.mustCall(function() {
+server.listen(0, common.mustCall(() => {
   const req = http.request({
-    port: this.address().port,
+    port: server.address().port,
     method: 'CONNECT',
     path: 'google.com:443'
   }, common.mustNotCall());
