@@ -27,11 +27,11 @@ const http = require('http');
 const expected = 'This is a unicode text: سلام';
 let result = '';
 
-const server = http.Server(function(req, res) {
+const server = http.Server((req, res) => {
   req.setEncoding('utf8');
-  req.on('data', function(chunk) {
+  req.on('data', (chunk) => {
     result += chunk;
-  }).on('end', function() {
+  }).on('end', () => {
     server.close();
     res.writeHead(200);
     res.end('hello world\n');
@@ -44,15 +44,15 @@ server.listen(0, function() {
     port: this.address().port,
     path: '/',
     method: 'POST'
-  }, function(res) {
+  }, (res) => {
     console.log(res.statusCode);
     res.resume();
-  }).on('error', function(e) {
+  }).on('error', (e) => {
     console.log(e.message);
     process.exit(1);
   }).end(expected);
 });
 
-process.on('exit', function() {
+process.on('exit', () => {
   assert.strictEqual(expected, result);
 });
