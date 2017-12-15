@@ -43,5 +43,6 @@ const server = http.createServer(function(req, res) {
   c.on('end', () => {
     server.close();
   });
-})
-.listen(0);
+});
+
+server.listen(0);
