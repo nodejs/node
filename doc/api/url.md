@@ -1107,11 +1107,14 @@ forward slash (`/`) character is encoded as `%3C`.
 The [WHATWG URL Standard][] uses a more selective and fine grained approach to
 selecting encoded characters than that used by the Legacy API.
 
-The WHATWG algorithm defines three "percent-encode sets" that describe ranges
+The WHATWG algorithm defines four "percent-encode sets" that describe ranges
 of characters that must be percent-encoded:
 
 * The *C0 control percent-encode set* includes code points in range U+0000 to
   U+001F (inclusive) and all code points greater than U+007E.
+
+* The *fragment percent-encode set* includes the *C0 control percent-encode set*
+  and code points U+0020, U+0022, U+003C, U+003E, and U+0060.
 
 * The *path percent-encode set* includes the *C0 control percent-encode set*
   and code points U+0020, U+0022, U+0023, U+003C, U+003E, U+003F, U+0060,
@@ -1123,9 +1126,9 @@ of characters that must be percent-encoded:
 
 The *userinfo percent-encode set* is used exclusively for username and
 passwords encoded within the URL. The *path percent-encode set* is used for the
-path of most URLs. The *C0 control percent-encode set* is used for all
-other cases, including URL fragments in particular, but also host and path
-under certain specific conditions.
+path of most URLs. The *fragment percent-encode set* is used for URL fragments.
+The *C0 control percent-encode set* is used for host and path under certain
+specific conditions, in addition to all other cases.
 
 When non-ASCII characters appear within a hostname, the hostname is encoded
 using the [Punycode][] algorithm. Note, however, that a hostname *may* contain
