@@ -28,8 +28,8 @@ const server = http.createServer(function(req, res) {
                       'highWaterMark');
       return resume(...args);
     });
-    assert(!res.write(body), 'res.write must be fail because it will exceed ' +
-                             'highWaterMark on this call');
+    assert(!res.write(body), 'res.write must return false because it will ' +
+                             'exceed highWaterMark on this call');
   }
   res.end();
 }).on('listening', () => {
