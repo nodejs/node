@@ -340,27 +340,6 @@ RUNTIME_FUNCTION(Runtime_CompileForOnStackReplacement) {
   return NULL;
 }
 
-
-RUNTIME_FUNCTION(Runtime_TryInstallOptimizedCode) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(1, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
-
-  // First check if this is a real stack overflow.
-  StackLimitCheck check(isolate);
-  if (check.JsHasOverflowed(kStackSpaceRequiredForCompilation * KB)) {
-    return isolate->StackOverflow();
-  }
-
-  // Only try to install optimized functions if the interrupt was InstallCode.
-  if (isolate->stack_guard()->CheckAndClearInstallCode()) {
-    isolate->optimizing_compile_dispatcher()->InstallOptimizedFunctions();
-  }
-
-  return (function->IsOptimized()) ? function->code()
-                                   : function->shared()->code();
-}
-
 static Object* CompileGlobalEval(Isolate* isolate, Handle<String> source,
                                  Handle<SharedFunctionInfo> outer_info,
                                  LanguageMode language_mode,
