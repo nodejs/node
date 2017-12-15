@@ -26,7 +26,7 @@ const http = require('http');
 
 const testResBody = 'other stuff!\n';
 
-const server = http.createServer(function(req, res) {
+const server = http.createServer((req, res) => {
   assert.ok(!('date' in req.headers),
             'Request headers contained a Date.');
   res.writeHead(200, {
@@ -37,16 +37,16 @@ const server = http.createServer(function(req, res) {
 server.listen(0);
 
 
-server.addListener('listening', function() {
+server.addListener('listening', () => {
   const options = {
-    port: this.address().port,
+    port: server.address().port,
     path: '/',
     method: 'GET'
   };
-  const req = http.request(options, function(res) {
+  const req = http.request(options, (res) => {
     assert.ok('date' in res.headers,
               'Response headers didn\'t contain a Date.');
-    res.addListener('end', function() {
+    res.addListener('end', () => {
       server.close();
       process.exit();
     });
