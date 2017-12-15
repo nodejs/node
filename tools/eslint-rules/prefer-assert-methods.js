@@ -12,42 +12,32 @@ function parseError(method, op) {
   return `'assert.${method}' should be used instead of '${op}'`;
 }
 
-function checkExpression(arg) {
-  const type = arg.type;
-  return arg && (type === 'BinaryExpression');
-}
-
-function preferedAssertMethod(op) {
-  switch (op) {
-    case '===': return 'strictEqual';
-    case '!==': return 'notStrictEqual';
-    case '==': return 'equal';
-    case '!=': return 'notEqual';
-  }
-}
+const preferedAssertMethod = {
+  '===': 'strictEqual',
+  '!==': 'notStrictEqual',
+  '==': 'equal',
+  '!=': 'notEqual'
+};
 
 module.exports = function(context) {
   return {
-    ExpressionStatement(node) {
-      if (isAssert(node)) {
-        const arg = getFirstArg(node.expression);
-        if (checkExpression(arg)) {
-          const assertMethod = preferedAssertMethod(arg.operator);
-          if (assertMethod) {
-            context.report({
+    [astSelector]: function(node) {
+      const arg = node.expression.arguments[0];
+      const assertMethod = preferedAssertMethod[arg.operator];
+      if (assertMethod) {
+        context.report({
+          node,
+          message: parseError(assertMethod, arg.operator),
+          fix: (fixer) => {
+            const sourceCode = context.getSourceCode();
+            const left = sourceCode.getText(arg.left);
+            const right = sourceCode.getText(arg.right);
+            return fixer.replaceText(
               node,
-              message: parseError(assertMethod, arg.operator),
-              fix: (fixer) => {
-                const sourceCode = context.getSourceCode();
-                const args = `${sourceCode.getText(arg)}`;
-                return fixer.replaceText(
-                  node,
-                  `assert.${assertMethod}(${args});`
-                );
-              }
-            });
+              `assert.${assertMethod}(${left}, ${right});`
+            );
           }
-        }
+        });
       }
     }
   };
