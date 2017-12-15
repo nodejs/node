@@ -120,7 +120,6 @@ namespace internal {
   F(NotifyStubFailure, 0, 1)              \
   F(NotifyDeoptimized, 0, 1)              \
   F(CompileForOnStackReplacement, 1, 1)   \
-  F(TryInstallOptimizedCode, 1, 1)        \
   F(ResolvePossiblyDirectEval, 6, 1)      \
   F(InstantiateAsmJs, 4, 1)
 
