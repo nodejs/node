@@ -402,7 +402,7 @@ void StreamBase::AfterWrite(WriteWrap* req_wrap, int status) {
   // Unref handle property
   Local<Object> req_wrap_obj = req_wrap->object();
   req_wrap_obj->Delete(env->context(), env->handle_string()).FromJust();
-  OnAfterWrite(req_wrap, status);
+  EmitAfterWrite(req_wrap, status);
 
   Local<Value> argv[] = {
     Integer::New(env->isolate(), status),

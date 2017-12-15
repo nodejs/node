@@ -165,7 +165,7 @@ void LibuvStreamWrap::OnAlloc(uv_handle_t* handle,
 
   CHECK_EQ(wrap->stream(), reinterpret_cast<uv_stream_t*>(handle));
 
-  return static_cast<StreamBase*>(wrap)->OnAlloc(suggested_size, buf);
+  return wrap->EmitAlloc(suggested_size, buf);
 }
 
 
@@ -263,7 +263,7 @@ void LibuvStreamWrap::OnRead(uv_stream_t* handle,
     }
   }
 
-  static_cast<StreamBase*>(wrap)->OnRead(nread, buf, type);
+  wrap->EmitRead(nread, buf, type);
 }
 
 
