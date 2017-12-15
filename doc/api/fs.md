@@ -1099,7 +1099,7 @@ changes:
 * `path` {string|Buffer|URL}
 
 Synchronous version of [`fs.exists()`][].
-Returns `true` if the file exists, `false` otherwise.
+Returns `true` if the path exists, `false` otherwise.
 
 Note that `fs.exists()` is deprecated, but `fs.existsSync()` is not.
 (The `callback` parameter to `fs.exists()` accepts parameters that are
