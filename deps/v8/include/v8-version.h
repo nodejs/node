@@ -11,7 +11,7 @@
 #define V8_MAJOR_VERSION 6
 #define V8_MINOR_VERSION 2
 #define V8_BUILD_NUMBER 414
-#define V8_PATCH_LEVEL 47
+#define V8_PATCH_LEVEL 48
 
 // Use 1 for candidates and 0 otherwise.
 // (Boolean macro values are not supported by all preprocessors.)
