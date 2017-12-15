@@ -43,6 +43,15 @@ function parent() {
   test('f$oo', true, 'f$oo');
   test('f$oo', false, 'f.oo');
   test('no-bar-at-all', false, 'bar');
+
+  test('test-abc', true, 'test-abc');
+  test('test-a', false, 'test-abc');
+  test('test-*', true, 'test-abc');
+  test('test-*c', true, 'test-abc');
+  test('test-*abc', true, 'test-abc');
+  test('abc-test', true, 'abc-test');
+  test('a*-test', true, 'abc-test');
+  test('*-test', true, 'abc-test');
 }
 
 function test(environ, shouldWrite, section) {
