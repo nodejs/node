@@ -634,6 +634,7 @@ testAssertionMessage({ a: NaN, b: Infinity, c: -Infinity },
   } catch (e) {
     threw = true;
     assert.strictEqual(e.message, 'Missing expected exception.');
+    assert.ok(!e.stack.includes('throws'), e.stack);
   }
   assert.ok(threw);
 }
@@ -678,6 +679,7 @@ try {
     threw = true;
     assert.ok(e.message.includes(rangeError.message));
     assert.ok(e instanceof assert.AssertionError);
+    assert.ok(!e.stack.includes('doesNotThrow'), e.stack);
   }
   assert.ok(threw);
 }
