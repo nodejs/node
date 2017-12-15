@@ -222,6 +222,7 @@ class ModuleWrap;
   V(preference_string, "preference")                                          \
   V(priority_string, "priority")                                              \
   V(produce_cached_data_string, "produceCachedData")                          \
+  V(promise_string, "promise")                                                \
   V(raw_string, "raw")                                                        \
   V(read_host_object_string, "_readHostObject")                               \
   V(readable_string, "readable")                                              \
@@ -282,13 +283,14 @@ class ModuleWrap;
   V(async_hooks_after_function, v8::Function)                                 \
   V(async_hooks_promise_resolve_function, v8::Function)                       \
   V(binding_cache_object, v8::Object)                                         \
-  V(internal_binding_cache_object, v8::Object)                                \
   V(buffer_prototype_object, v8::Object)                                      \
   V(context, v8::Context)                                                     \
+  V(fd_constructor_template, v8::ObjectTemplate)                              \
   V(host_import_module_dynamically_callback, v8::Function)                    \
   V(http2ping_constructor_template, v8::ObjectTemplate)                       \
   V(http2stream_constructor_template, v8::ObjectTemplate)                     \
   V(inspector_console_api_object, v8::Object)                                 \
+  V(internal_binding_cache_object, v8::Object)                                \
   V(module_load_list_array, v8::Array)                                        \
   V(pbkdf2_constructor_template, v8::ObjectTemplate)                          \
   V(pipe_constructor_template, v8::FunctionTemplate)                          \
@@ -309,7 +311,7 @@ class ModuleWrap;
   V(udp_constructor_function, v8::Function)                                   \
   V(vm_parsing_context_symbol, v8::Symbol)                                    \
   V(url_constructor_function, v8::Function)                                   \
-  V(write_wrap_constructor_function, v8::Function)                            \
+  V(write_wrap_constructor_function, v8::Function)
 
 class Environment;
 
