@@ -38,7 +38,7 @@ $ node example.js
 Server running at http://127.0.0.1:3000/
 ```
 
-All of the examples in the documentation can be run similarly.
+Many of the examples in the documentation can be run similarly.
 
 [Command Line Options]: cli.html#cli_command_line_options
 [web server]: http.html
