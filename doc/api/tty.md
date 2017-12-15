@@ -12,9 +12,9 @@ However, it can be accessed using:
 const tty = require('tty');
 ```
 
-When Node.js detects that it is being run inside a text terminal ("TTY")
-context, the `process.stdin` will, by default, be initialized as an instance of
-`tty.ReadStream` and both `process.stdout` and `process.stderr` will, by
+When Node.js detects that it is being run with a text terminal ("TTY")
+attached, [`process.stdin`][] will, by default, be initialized as an instance of
+`tty.ReadStream` and both [`process.stdout`][] and [`process.stderr`][] will, by
 default be instances of `tty.WriteStream`. The preferred method of determining
 whether Node.js is being run within a TTY context is to check that the value of
 the `process.stdout.isTTY` property is `true`:
@@ -27,15 +27,16 @@ false
 ```
 
 In most cases, there should be little to no reason for an application to
-create instances of the `tty.ReadStream` and `tty.WriteStream` classes.
+manually create instances of the `tty.ReadStream` and `tty.WriteStream`
+classes.
 
 ## Class: tty.ReadStream
 <!-- YAML
 added: v0.5.8
 -->
 
-The `tty.ReadStream` class is a subclass of `net.Socket` that represents the
-readable side of a TTY. In normal circumstances `process.stdin` will be the
+The `tty.ReadStream` class is a subclass of [`net.Socket`][] that represents the
+readable side of a TTY. In normal circumstances [`process.stdin`][] will be the
 only `tty.ReadStream` instance in a Node.js process and there should be no
 reason to create additional instances.
 
@@ -52,7 +53,7 @@ raw device. Defaults to `false`.
 added: v0.5.8
 -->
 
-A `boolean` that is always `true`.
+A `boolean` that is always `true` for `tty.ReadStream` instances.
 
 ### readStream.setRawMode(mode)
 <!-- YAML
@@ -77,8 +78,8 @@ added: v0.5.8
 -->
 
 The `tty.WriteStream` class is a subclass of `net.Socket` that represents the
-writable side of a TTY. In normal circumstances, `process.stdout` and
-`process.stderr` will be the only `tty.WriteStream` instances created for a
+writable side of a TTY. In normal circumstances, [`process.stdout`][] and
+[`process.stderr`][] will be the only `tty.WriteStream` instances created for a
 Node.js process and there should be no reason to create additional instances.
 
 ### Event: 'resize'
@@ -130,3 +131,8 @@ added: v0.5.8
 The `tty.isatty()` method returns `true` if the given `fd` is associated with
 a TTY and `false` if it is not, including whenever `fd` is not a non-negative
 integer.
+
+[`net.Socket`]: net.html#net_class_net_socket
+[`process.stdin`]: process.html#process_process_stdin
+[`process.stdout`]: process.html#process_process_stdout
+[`process.stderr`]: process.html#process_process_stderr
