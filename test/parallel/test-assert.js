@@ -476,33 +476,21 @@ common.expectsError(
   }
 );
 
-{
-  let threw = false;
-  try {
-    assert.doesNotThrow(makeBlock(thrower, Error), 'user message');
-  } catch (e) {
-    threw = true;
-    common.expectsError({
-      code: 'ERR_ASSERTION',
-      message: /Got unwanted exception: user message\n\[object Object\]/
-    })(e);
+common.expectsError(
+  () => assert.doesNotThrow(makeBlock(thrower, Error), 'user message'),
+  {
+    code: 'ERR_ASSERTION',
+    message: /Got unwanted exception: user message\n\[object Object\]/
   }
-  assert.ok(threw);
-}
+);
 
-{
-  let threw = false;
-  try {
-    assert.doesNotThrow(makeBlock(thrower, Error));
-  } catch (e) {
-    threw = true;
-    common.expectsError({
-      code: 'ERR_ASSERTION',
-      message: /Got unwanted exception\.\n\[object Object\]/
-    })(e);
+common.expectsError(
+  () => assert.doesNotThrow(makeBlock(thrower, Error)),
+  {
+    code: 'ERR_ASSERTION',
+    message: /Got unwanted exception\.\n\[object Object\]/
   }
-  assert.ok(threw);
-}
+);
 
 // make sure that validating using constructor really works
 {
@@ -691,21 +679,15 @@ try {
   }
 
   const testBlockTypeError = (method, block) => {
-    let threw = true;
-
-    try {
-      method(block);
-      threw = false;
-    } catch (e) {
-      common.expectsError({
+    common.expectsError(
+      () => method(block),
+      {
         code: 'ERR_INVALID_ARG_TYPE',
         type: TypeError,
         message: 'The "block" argument must be of type Function. Received ' +
-                 `type ${typeName(block)}`
-      })(e);
-    }
-
-    assert.ok(threw);
+                `type ${typeName(block)}`
+      }
+    );
   };
 
   testBlockTypeError(assert.throws, 'string');
