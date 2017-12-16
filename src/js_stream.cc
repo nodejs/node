@@ -201,14 +201,14 @@ void JSStream::ReadBuffer(const FunctionCallbackInfo<Value>& args) {
   do {
     uv_buf_t buf;
     ssize_t avail = len;
-    wrap->OnAlloc(len, &buf);
+    wrap->EmitAlloc(len, &buf);
     if (static_cast<ssize_t>(buf.len) < avail)
       avail = buf.len;
 
     memcpy(buf.base, data, avail);
     data += avail;
     len -= avail;
-    wrap->OnRead(avail, &buf);
+    wrap->EmitRead(avail, &buf);
   } while (len != 0);
 }
 
@@ -217,7 +217,7 @@ void JSStream::EmitEOF(const FunctionCallbackInfo<Value>& args) {
   JSStream* wrap;
   ASSIGN_OR_RETURN_UNWRAP(&wrap, args.Holder());
 
-  wrap->OnRead(UV_EOF, nullptr);
+  wrap->EmitRead(UV_EOF, nullptr);
 }
 
 
