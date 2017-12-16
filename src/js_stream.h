@@ -37,7 +37,6 @@ class JSStream : public AsyncWrap, public StreamBase {
   AsyncWrap* GetAsyncWrap() override;
 
   static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void DoAfterWrite(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void ReadBuffer(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void EmitEOF(const v8::FunctionCallbackInfo<v8::Value>& args);
 

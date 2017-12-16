@@ -169,17 +169,6 @@ void JSStream::New(const FunctionCallbackInfo<Value>& args) {
 }
 
 
-void JSStream::DoAfterWrite(const FunctionCallbackInfo<Value>& args) {
-  JSStream* wrap;
-  CHECK(args[0]->IsObject());
-  WriteWrap* w;
-  ASSIGN_OR_RETURN_UNWRAP(&wrap, args.Holder());
-  ASSIGN_OR_RETURN_UNWRAP(&w, args[0].As<Object>());
-
-  w->Done(0);
-}
-
-
 template <class Wrap>
 void JSStream::Finish(const FunctionCallbackInfo<Value>& args) {
   Wrap* w;
@@ -234,7 +223,6 @@ void JSStream::Initialize(Local<Object> target,
 
   AsyncWrap::AddWrapMethods(env, t);
 
-  env->SetProtoMethod(t, "doAfterWrite", DoAfterWrite);
   env->SetProtoMethod(t, "finishWrite", Finish<WriteWrap>);
   env->SetProtoMethod(t, "finishShutdown", Finish<ShutdownWrap>);
   env->SetProtoMethod(t, "readBuffer", ReadBuffer);
