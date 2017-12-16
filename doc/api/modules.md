@@ -841,6 +841,13 @@ added: v9.3.0
 A list of the names of all modules provided by Node.js. Can be used to verify
 if a module is maintained by a third-party module or not.
 
+Note that `module` in this context isn't the same object that's provided
+by the [module wrapper][]. To access it, require the `Module` module:
+
+```js
+const builtin = require('module').builtinModules;
+```
+
 [`__dirname`]: #modules_dirname
 [`__filename`]: #modules_filename
 [`Error`]: errors.html#errors_class_error
@@ -848,4 +855,5 @@ if a module is maintained by a third-party module or not.
 [`path.dirname()`]: path.html#path_path_dirname_path
 [exports shortcut]: #modules_exports_shortcut
 [module resolution]: #modules_all_together
+[module wrapper]: #modules_the_module_wrapper
 [native addons]: addons.html
