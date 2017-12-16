@@ -112,8 +112,8 @@ changes:
     description: The implementation is now spec compliant (see
                  [web-api-assert][]) and does not throw anymore.
 -->
-* `value` {any}
-* `message` {any}
+* `value` {any} The value tested for being truthy.
+* `...message` {any} All arguments besides the first are used as error message.
 
 A simple assertion test that verifies whether `value` is truthy. If it is not,
 `Assertion failed` is logged. If provided, the error `message` is formatted
