@@ -47,7 +47,6 @@ When things need extra attention, are controversial, or `semver-major`:
 
 If you cannot find who to cc for a file, `git shortlog -n -s <file>` may help.
 
-
 ## Labels
 
 ### By Subsystem
@@ -63,7 +62,6 @@ part(s) of the codebase it touches.
 * `meta` for anything non-code (process) related
 
 There may be more than one subsystem valid for any particular issue / PR.
-
 
 ### General
 
@@ -136,7 +134,6 @@ need to be attached anymore, as only important bugfixes will be included.
   * `arm`, `mips`, `s390`, `ppc`
   * No x86{_64}, since that is the implied default
 
-
 ## Updating Node.js from Upstream
 
 * `git remote add upstream git://github.com/nodejs/node.git`
@@ -146,7 +143,6 @@ to update from nodejs/node:
 * `git checkout master`
 * `git remote update -p` OR `git fetch --all` (I prefer the former)
 * `git merge --ff-only upstream/master` (or `REMOTENAME/BRANCH`)
-
 
 ## best practices
 
