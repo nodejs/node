@@ -1344,4 +1344,9 @@ assert.doesNotThrow(() => util.inspect(process));
   out = util.inspect(o, { compact: false, breakLength: 3 });
   expect = '12 45 78 01 34 67 90 23';
   assert.strictEqual(out, expect);
+
+  o[util.inspect.custom] = () => ({ a: '12 45 78 01 34 67 90 23' });
+  out = util.inspect(o, { compact: false, breakLength: 3 });
+  expect = '{\n  a: \'12 45 78 01 34 \' +\n    \'67 90 23\'\n}';
+  assert.strictEqual(out, expect);
 }
