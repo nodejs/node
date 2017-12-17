@@ -238,8 +238,8 @@ const freelist = require('internal/freelist');
 
 When writing assertions, prefer the strict versions:
 
-* `assert.strictEqual()` over `assert.equal()`
-* `assert.deepStrictEqual()` over `assert.deepEqual()`
+- `assert.strictEqual()` over `assert.equal()`
+- `assert.deepStrictEqual()` over `assert.deepEqual()`
 
 When using `assert.throws()`, if possible, provide the full error message:
 
@@ -263,9 +263,9 @@ in each release.
 
 For example:
 
-* `let` and `const` over `var`
-* Template literals over string concatenation
-* Arrow functions when appropriate
+- `let` and `const` over `var`
+- Template literals over string concatenation
+- Arrow functions when appropriate
 
 ## Naming Test Files
 
