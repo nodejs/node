@@ -341,6 +341,13 @@ assert.strictEqual(
   );
 }
 
+// Test ERR_SCRIPT_EXECUTION_INTERRUPTED
+assert.strictEqual(
+  errors.message('ERR_SCRIPT_EXECUTION_INTERRUPTED'),
+  'Script execution interrupted.'
+);
+
+
 // Test that `code` property is mutable and that changing it does not change the
 // name.
 {
