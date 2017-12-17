@@ -157,8 +157,8 @@ process.
 
 * Unfixed bugs. The bug exists in the V8 master branch.
 * Fixed, but needs backport. The bug may need porting to one or more branches.
-    * Backporting to active branches.
-    * Backporting to abandoned branches.
+  * Backporting to active branches.
+  * Backporting to abandoned branches.
 * Backports identified by the V8 team. Bugs identified by upstream V8 that we
   haven't encountered in Node.js yet.
 
@@ -188,14 +188,14 @@ backport the fix:
 * Identify which version of V8 the bug was fixed in.
 * Identify if any active V8 branches still contain the bug:
 * A tracking bug is needed to request a backport.
-    * If there isn't already a V8 bug tracking the fix, open a new merge request
-      bug using this [Node.js specific template][V8TemplateMergeRequest].
-    * If a bug already exists
-        * Add a reference to the GitHub issue.
-        * Attach *merge-request-x.x* labels to the bug for any active branches
-          that still contain the bug. (e.g. merge-request-5.3,
-          merge-request-5.4)
-        * Add ofrobots-at-google.com to the cc list.
+  * If there isn't already a V8 bug tracking the fix, open a new merge request
+    bug using this [Node.js specific template][V8TemplateMergeRequest].
+  * If a bug already exists
+    * Add a reference to the GitHub issue.
+    * Attach *merge-request-x.x* labels to the bug for any active branches
+      that still contain the bug. (e.g. merge-request-5.3,
+      merge-request-5.4)
+    * Add ofrobots-at-google.com to the cc list.
 * Once the merge has been approved, it should be merged using the
   [merge script documented in the V8 wiki][V8MergingPatching]. Merging requires
   commit access to the V8 repository. If you don't have commit access you can
@@ -214,24 +214,24 @@ to be cherry-picked in the Node.js repository and V8-CI must test the change.
 
 * For each abandoned V8 branch corresponding to an LTS branch that is affected
   by the bug:
-    * Checkout a branch off the appropriate *vY.x-staging* branch (e.g.
-      *v6.x-staging* to fix an issue in V8 5.1).
-    * Cherry-pick the commit(s) from the V8 repository.
-    * On Node.js < 9.0.0: Increase the patch level version in `v8-version.h`.
-      This will not cause any problems with versioning because V8 will not
-      publish other patches for this branch, so Node.js can effectively bump the
-      patch version.
-    * On Node.js >= 9.0.0: Increase the `v8_embedder_string` number in
-      `common.gypi`.
-    * In some cases the patch may require extra effort to merge in case V8 has
-      changed substantially. For important issues we may be able to lean on the
-      V8 team to get help with reimplementing the patch.
-    * Open a cherry-pick PR on `nodejs/node` targeting the *vY.x-staging* branch
-      and notify the `@nodejs/v8` team.
-    * Run the Node.js [V8 CI] in addition to the [Node.js CI].
-      Note: The CI uses the `test-v8` target in the `Makefile`, which uses
-      `tools/make-v8.sh` to reconstruct a git tree in the `deps/v8` directory to
-      run V8 tests.
+  * Checkout a branch off the appropriate *vY.x-staging* branch (e.g.
+    *v6.x-staging* to fix an issue in V8 5.1).
+  * Cherry-pick the commit(s) from the V8 repository.
+  * On Node.js < 9.0.0: Increase the patch level version in `v8-version.h`.
+    This will not cause any problems with versioning because V8 will not
+    publish other patches for this branch, so Node.js can effectively bump the
+    patch version.
+  * On Node.js >= 9.0.0: Increase the `v8_embedder_string` number in
+    `common.gypi`.
+  * In some cases the patch may require extra effort to merge in case V8 has
+    changed substantially. For important issues we may be able to lean on the
+    V8 team to get help with reimplementing the patch.
+  * Open a cherry-pick PR on `nodejs/node` targeting the *vY.x-staging* branch
+    and notify the `@nodejs/v8` team.
+  * Run the Node.js [V8 CI] in addition to the [Node.js CI].
+    Note: The CI uses the `test-v8` target in the `Makefile`, which uses
+    `tools/make-v8.sh` to reconstruct a git tree in the `deps/v8` directory to
+    run V8 tests.
 
 The [`update-v8`] tool can be used to simplify this task. Run
 `update-v8 backport --sha=SHA` to cherry-pick a commit.
