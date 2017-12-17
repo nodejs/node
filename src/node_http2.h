@@ -91,8 +91,6 @@ void inline debug_vfprintf(const char* format, ...) {
 
 #define MAX_BUFFER_COUNT 16
 
-struct nghttp2_stream_write_t;
-
 enum nghttp2_session_type {
   NGHTTP2_SESSION_SERVER,
   NGHTTP2_SESSION_CLIENT
@@ -127,15 +125,9 @@ enum nghttp2_stream_options {
   STREAM_OPTION_GET_TRAILERS = 0x2,
 };
 
-// Callbacks
-typedef void (*nghttp2_stream_write_cb)(
-    nghttp2_stream_write_t* req,
-    int status);
-
 struct nghttp2_stream_write {
   unsigned int nbufs = 0;
-  nghttp2_stream_write_t* req = nullptr;
-  nghttp2_stream_write_cb cb = nullptr;
+  WriteWrap* req_wrap = nullptr;
   MaybeStackBuffer<uv_buf_t, MAX_BUFFER_COUNT> bufs;
 };
 
@@ -145,11 +137,6 @@ struct nghttp2_header {
   uint8_t flags = 0;
 };
 
-
-struct nghttp2_stream_write_t {
-  void* data;
-  int status;
-};
 
 // Unlike the HTTP/1 implementation, the HTTP/2 implementation is not limited
 // to a fixed number of known supported HTTP methods. These constants, therefore
@@ -557,13 +544,6 @@ class Http2Stream : public AsyncWrap,
   nghttp2_stream* operator*();
 
   Http2Session* session() { return session_; }
-
-  // Queue outbound chunks of data to be sent on this stream
-  inline int Write(
-      nghttp2_stream_write_t* req,
-      const uv_buf_t bufs[],
-      unsigned int nbufs,
-      nghttp2_stream_write_cb cb);
 
   inline bool HasDataChunks(bool ignore_eos = false);
 
