@@ -1,3 +1,5 @@
+// Flags: --expose_internals
+
 'use strict';
 
 const common = require('../common');
@@ -6,6 +8,8 @@ if (!common.hasCrypto)
 const assert = require('assert');
 const h2 = require('http2');
 const net = require('net');
+
+const { kTimeout } = require('internal/timers');
 
 // Tests behavior of the proxied socket on Http2Session
 
@@ -29,7 +33,7 @@ server.on('stream', common.mustCall(function(stream, headers) {
   assert.strictEqual(typeof socket.address(), 'object');
 
   socket.setTimeout(987);
-  assert.strictEqual(session._idleTimeout, 987);
+  assert.strictEqual(session[kTimeout]._idleTimeout, 987);
 
   common.expectsError(() => socket.destroy, errMsg);
   common.expectsError(() => socket.emit, errMsg);
@@ -58,9 +62,6 @@ server.on('stream', common.mustCall(function(stream, headers) {
   assert.strictEqual(socket.readable, 0);
 
   stream.end();
-
-  socket.setTimeout = undefined;
-  assert.strictEqual(session.setTimeout, undefined);
 
   stream.session.on('close', common.mustCall(() => {
     assert.strictEqual(session.socket, undefined);

@@ -1,3 +1,5 @@
+// Flags: --expose_internals
+
 'use strict';
 
 const common = require('../common');
@@ -6,6 +8,8 @@ if (!common.hasCrypto)
 const assert = require('assert');
 const h2 = require('http2');
 const net = require('net');
+
+const { kTimeout } = require('internal/timers');
 
 // Tests behavior of the proxied socket in Http2ServerRequest
 // & Http2ServerResponse - this proxy socket should mimic the
@@ -31,7 +35,7 @@ server.on('request', common.mustCall(function(request, response) {
   assert.strictEqual(request.socket.destroyed, false);
 
   request.socket.setTimeout(987);
-  assert.strictEqual(request.stream.session._idleTimeout, 987);
+  assert.strictEqual(request.stream.session[kTimeout]._idleTimeout, 987);
   request.socket.setTimeout(0);
 
   common.expectsError(() => request.socket.read(), errMsg);
