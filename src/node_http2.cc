@@ -1369,30 +1369,6 @@ inline void Http2Stream::AddChunk(const uint8_t* data, size_t len) {
   data_chunks_.emplace(uv_buf_init(buf, len));
 }
 
-// The Http2Stream class is a subclass of StreamBase. The DoWrite method
-// receives outbound chunks of data to send as outbound DATA frames. These
-// are queued in an internal linked list of uv_buf_t structs that are sent
-// when nghttp2 is ready to serialize the data frame.
-int Http2Stream::DoWrite(WriteWrap* req_wrap,
-                         uv_buf_t* bufs,
-                         size_t count,
-                         uv_stream_t* send_handle) {
-  CHECK(!this->IsDestroyed());
-  session_->SetChunksSinceLastWrite();
-
-  nghttp2_stream_write_t* req = new nghttp2_stream_write_t;
-  req->data = req_wrap;
-
-  auto AfterWrite = [](nghttp2_stream_write_t* req, int status) {
-    WriteWrap* wrap = static_cast<WriteWrap*>(req->data);
-    wrap->Done(status);
-    delete req;
-  };
-  req_wrap->Dispatched();
-  Write(req, bufs, count, AfterWrite);
-  return 0;
-}
-
 
 inline void Http2Stream::Close(int32_t code) {
   CHECK(!this->IsDestroyed());
@@ -1447,7 +1423,7 @@ inline void Http2Stream::Destroy() {
     // we still have qeueued outbound writes.
     while (!stream->queue_.empty()) {
       nghttp2_stream_write* head = stream->queue_.front();
-      head->cb(head->req, UV_ECANCELED);
+      head->req_wrap->Done(UV_ECANCELED);
       delete head;
       stream->queue_.pop();
     }
@@ -1616,26 +1592,32 @@ inline int Http2Stream::ReadStop() {
   return 0;
 }
 
+// The Http2Stream class is a subclass of StreamBase. The DoWrite method
+// receives outbound chunks of data to send as outbound DATA frames. These
+// are queued in an internal linked list of uv_buf_t structs that are sent
+// when nghttp2 is ready to serialize the data frame.
+//
 // Queue the given set of uv_but_t handles for writing to an
-// nghttp2_stream. The callback will be invoked once the chunks
-// of data have been flushed to the underlying nghttp2_session.
+// nghttp2_stream. The WriteWrap's Done callback will be invoked once the
+// chunks of data have been flushed to the underlying nghttp2_session.
 // Note that this does *not* mean that the data has been flushed
 // to the socket yet.
-inline int Http2Stream::Write(nghttp2_stream_write_t* req,
-                              const uv_buf_t bufs[],
-                              unsigned int nbufs,
-                              nghttp2_stream_write_cb cb) {
+inline int Http2Stream::DoWrite(WriteWrap* req_wrap,
+                                uv_buf_t* bufs,
+                                size_t nbufs,
+                                uv_stream_t* send_handle) {
   CHECK(!this->IsDestroyed());
+  CHECK_EQ(send_handle, nullptr);
   Http2Scope h2scope(this);
+  session_->SetChunksSinceLastWrite();
+  req_wrap->Dispatched();
   if (!IsWritable()) {
-    if (cb != nullptr)
-      cb(req, UV_EOF);
+    req_wrap->Done(UV_EOF);
     return 0;
   }
   DEBUG_HTTP2STREAM2(this, "queuing %d buffers to send", id_, nbufs);
   nghttp2_stream_write* item = new nghttp2_stream_write;
-  item->cb = cb;
-  item->req = req;
+  item->req_wrap = req_wrap;
   item->nbufs = nbufs;
   item->bufs.AllocateSufficientStorage(nbufs);
   memcpy(*(item->bufs), bufs, nbufs * sizeof(*bufs));
@@ -1824,7 +1806,7 @@ ssize_t Http2Stream::Provider::Stream::OnRead(nghttp2_session* handle,
       stream->queue_offset_ = 0;
     }
     if (stream->queue_index_ == head->nbufs) {
-      head->cb(head->req, 0);
+      head->req_wrap->Done(0);
       delete head;
       stream->queue_.pop();
       stream->queue_offset_ = 0;
