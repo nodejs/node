@@ -20,6 +20,7 @@ class StringView;
 namespace node {
 // Forward declaration to break recursive dependency chain with src/env.h.
 class Environment;
+struct ContextInfo;
 
 namespace inspector {
 
@@ -89,7 +90,7 @@ class Agent {
   void RequestIoThreadStart();
 
   DebugOptions& options() { return debug_options_; }
-  void ContextCreated(v8::Local<v8::Context> context);
+  void ContextCreated(v8::Local<v8::Context> context, const ContextInfo& info);
 
   void EnableAsyncHook();
   void DisableAsyncHook();
@@ -105,7 +106,6 @@ class Agent {
   bool enabled_;
   std::string path_;
   DebugOptions debug_options_;
-  int next_context_number_;
 
   bool pending_enable_async_hook_;
   bool pending_disable_async_hook_;
