@@ -1217,20 +1217,20 @@ assert.doesNotThrow(() => util.inspect(process));
 {
   const o = {
     a: [1, 2, [[
-      'Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do ' +
+      'Lorem ipsum dolor\nsit amet,\tconsectetur adipiscing elit, sed do ' +
         'eiusmod tempor incididunt ut labore et dolore magna aliqua.',
       'test',
       'foo']], 4],
     b: new Map([['za', 1], ['zb', 'test']])
   };
 
-  let out = util.inspect(o, { structured: false, depth: 5, breakLength: 80 });
+  let out = util.inspect(o, { compact: true, depth: 5, breakLength: 80 });
   let expect = [
     '{ a: ',
     '   [ 1,',
     '     2,',
-    "     [ [ 'Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed " +
-      "do eiusmod tempor incididunt ut labore et dolore magna aliqua.',",
+    "     [ [ 'Lorem ipsum dolor\\nsit amet,\\tconsectetur adipiscing elit, " +
+      "sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.',",
     "         'test',",
     "         'foo' ] ],",
     '     4 ],',
@@ -1238,7 +1238,7 @@ assert.doesNotThrow(() => util.inspect(process));
   ].join('\n');
   assert.strictEqual(out, expect);
 
-  out = util.inspect(o, { structured: true, depth: 5, breakLength: 60 });
+  out = util.inspect(o, { compact: false, depth: 5, breakLength: 60 });
   expect = [
     '{',
     '  a: [',
@@ -1246,7 +1246,7 @@ assert.doesNotThrow(() => util.inspect(process));
     '    2,',
     '    [',
     '      [',
-    '        \'Lorem ipsum dolor sit amet, consectetur \' +',
+    '        \'Lorem ipsum dolor\\nsit amet,\\tconsectetur \' +',
     '          \'adipiscing elit, sed do eiusmod tempor \' +',
     '          \'incididunt ut labore et dolore magna \' +',
     '          \'aliqua.\',',
@@ -1264,10 +1264,10 @@ assert.doesNotThrow(() => util.inspect(process));
   ].join('\n');
   assert.strictEqual(out, expect);
 
-  out = util.inspect(o.a[2][0][0], { structured: true, breakLength: 30 });
+  out = util.inspect(o.a[2][0][0], { compact: false, breakLength: 30 });
   expect = [
-    '\'Lorem ipsum dolor sit \' +',
-    '  \'amet, consectetur \' +',
+    '\'Lorem ipsum dolor\\nsit \' +',
+    '  \'amet,\\tconsectetur \' +',
     '  \'adipiscing elit, sed do \' +',
     '  \'eiusmod tempor incididunt \' +',
     '  \'ut labore et dolore magna \' +',
@@ -1277,13 +1277,13 @@ assert.doesNotThrow(() => util.inspect(process));
 
   out = util.inspect(
     '12345678901234567890123456789012345678901234567890',
-    { structured: true, breakLength: 3 });
+    { compact: false, breakLength: 3 });
   expect = '\'12345678901234567890123456789012345678901234567890\'';
   assert.strictEqual(out, expect);
 
   out = util.inspect(
     '12 45 78 01 34 67 90 23 56 89 123456789012345678901234567890',
-    { structured: true, breakLength: 3 });
+    { compact: false, breakLength: 3 });
   expect = [
     '\'12 45 78 01 34 \' +',
     '  \'67 90 23 56 89 \' +',
@@ -1293,7 +1293,7 @@ assert.doesNotThrow(() => util.inspect(process));
 
   out = util.inspect(
     '12 45 78 01 34 67 90 23 56 89 1234567890123 0',
-    { structured: true, breakLength: 3 });
+    { compact: false, breakLength: 3 });
   expect = [
     '\'12 45 78 01 34 \' +',
     '  \'67 90 23 56 89 \' +',
@@ -1303,7 +1303,7 @@ assert.doesNotThrow(() => util.inspect(process));
 
   out = util.inspect(
     '12 45 78 01 34 67 90 23 56 89 12345678901234567 0',
-    { structured: true, breakLength: 3 });
+    { compact: false, breakLength: 3 });
   expect = [
     '\'12 45 78 01 34 \' +',
     '  \'67 90 23 56 89 \' +',
@@ -1314,9 +1314,7 @@ assert.doesNotThrow(() => util.inspect(process));
 
   o.a = () => {};
   o.b = new Number(3);
-  out = util.inspect(
-    o,
-    { structured: true, breakLength: 3 });
+  out = util.inspect(o, { compact: false, breakLength: 3 });
   expect = [
     '{',
     '  a: [Function],',
@@ -1325,9 +1323,7 @@ assert.doesNotThrow(() => util.inspect(process));
   ].join('\n');
   assert.strictEqual(out, expect);
 
-  out = util.inspect(
-    o,
-    { structured: true, breakLength: 3, showHidden: 3 });
+  out = util.inspect(o, { compact: false, breakLength: 3, showHidden: true });
   expect = [
     '{',
     '  a: [Function] {',
@@ -1337,5 +1333,15 @@ assert.doesNotThrow(() => util.inspect(process));
     '  b: [Number: 3]',
     '}'
   ].join('\n');
+  assert.strictEqual(out, expect);
+
+  o[util.inspect.custom] = () => 42;
+  out = util.inspect(o, { compact: false, breakLength: 3 });
+  expect = '42';
+  assert.strictEqual(out, expect);
+
+  o[util.inspect.custom] = () => '12 45 78 01 34 67 90 23';
+  out = util.inspect(o, { compact: false, breakLength: 3 });
+  expect = '12 45 78 01 34 67 90 23';
   assert.strictEqual(out, expect);
 }
