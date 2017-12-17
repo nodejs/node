@@ -126,9 +126,12 @@ enum nghttp2_stream_options {
 };
 
 struct nghttp2_stream_write {
-  unsigned int nbufs = 0;
   WriteWrap* req_wrap = nullptr;
-  MaybeStackBuffer<uv_buf_t, MAX_BUFFER_COUNT> bufs;
+  uv_buf_t buf;
+
+  inline explicit nghttp2_stream_write(uv_buf_t buf_) : buf(buf_) {}
+  inline nghttp2_stream_write(WriteWrap* req, uv_buf_t buf_) :
+      req_wrap(req), buf(buf_) {}
 };
 
 struct nghttp2_header {
@@ -725,11 +728,12 @@ class Http2Stream : public AsyncWrap,
 
   // Outbound Data... This is the data written by the JS layer that is
   // waiting to be written out to the socket.
-  std::queue<nghttp2_stream_write*> queue_;
-  unsigned int queue_index_ = 0;
-  size_t queue_offset_ = 0;
+  std::queue<nghttp2_stream_write> queue_;
+  size_t available_outbound_length_ = 0;
   int64_t fd_offset_ = 0;
   int64_t fd_length_ = -1;
+
+  friend class Http2Session;
 };
 
 class Http2Stream::Provider {
@@ -860,6 +864,7 @@ class Http2Session : public AsyncWrap {
                                const uv_buf_t* bufs,
                                uv_handle_type pending,
                                void* ctx);
+  static void OnStreamAfterWriteImpl(WriteWrap* w, int status, void* ctx);
   static void OnStreamDestructImpl(void* ctx);
 
   // The JavaScript API
@@ -882,7 +887,6 @@ class Http2Session : public AsyncWrap {
   template <get_setting fn>
   static void GetSettings(const FunctionCallbackInfo<Value>& args);
 
-  void Send(WriteWrap* req, char* buf, size_t length);
   WriteWrap* AllocateSend();
 
   uv_loop_t* event_loop() const {
@@ -957,6 +961,13 @@ class Http2Session : public AsyncWrap {
       const char* message,
       size_t len,
       void* user_data);
+  static inline int OnSendData(
+      nghttp2_session* session,
+      nghttp2_frame* frame,
+      const uint8_t* framehd,
+      size_t length,
+      nghttp2_data_source* source,
+      void* user_data);
 
 
   static inline ssize_t OnStreamReadFD(
@@ -1014,6 +1025,12 @@ class Http2Session : public AsyncWrap {
 
   size_t max_outstanding_pings_ = DEFAULT_MAX_PINGS;
   std::queue<Http2Ping*> outstanding_pings_;
+
+  std::vector<nghttp2_stream_write> outgoing_buffers_;
+  std::vector<uint8_t> outgoing_storage_;
+
+  void CopyDataIntoOutgoing(const uint8_t* src, size_t src_length);
+  void ClearOutgoing(int status);
 
   friend class Http2Scope;
 };
