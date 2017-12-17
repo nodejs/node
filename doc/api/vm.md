@@ -175,6 +175,11 @@ added: v0.3.1
   * `timeout` {number} Specifies the number of milliseconds to execute `code`
     before terminating execution. If execution is terminated, an [`Error`][]
     will be thrown.
+  * `contextName` {string} Human-readable name of the newly created context.
+    **Default:** `'VM Context i'`, where `i` is an ascending numerical index of
+    the created context.
+  * `contextOrigin` {string} [Origin][origin] corresponding to the newly
+    created context for display purposes. **Default:** the empty string.
 
 First contextifies the given `sandbox`, runs the compiled code contained by
 the `vm.Script` object within the created sandbox, and returns the result.
@@ -242,12 +247,18 @@ console.log(globalVar);
 // 1000
 ```
 
-## vm.createContext([sandbox])
+## vm.createContext([sandbox[, options]])
 <!-- YAML
 added: v0.3.1
 -->
 
 * `sandbox` {Object}
+* `options` {Object}
+  * `name` {string} Human-readable name of the newly created context.
+    **Default:** `'VM Context i'`, where `i` is an ascending numerical index of
+    the created context.
+  * `origin` {string} [Origin][origin] corresponding to the newly created
+    context for display purposes. **Default:** the empty string.
 
 If given a `sandbox` object, the `vm.createContext()` method will [prepare
 that sandbox][contextified] so that it can be used in calls to
@@ -281,6 +292,9 @@ sandbox that can be used to run multiple scripts. For instance, if emulating a
 web browser, the method can be used to create a single sandbox representing a
 window's global object, then run all `<script>` tags together within the context
 of that sandbox.
+
+The provided `name` and `origin` of the context are made visible through the
+Inspector API.
 
 ## vm.isContext(sandbox)
 <!-- YAML
@@ -355,6 +369,11 @@ added: v0.3.1
   * `timeout` {number} Specifies the number of milliseconds to execute `code`
     before terminating execution. If execution is terminated, an [`Error`][]
     will be thrown.
+  * `contextName` {string} Human-readable name of the newly created context.
+    **Default:** `'VM Context i'`, where `i` is an ascending numerical index of
+    the created context.
+  * `contextOrigin` {string} [Origin][origin] corresponding to the newly
+    created context for display purposes. **Default:** the empty string.
 
 The `vm.runInNewContext()` first contextifies the given `sandbox` object (or
 creates a new `sandbox` if passed as `undefined`), compiles the `code`, runs it
@@ -490,3 +509,4 @@ associating it with the `sandbox` object is what this document refers to as
 [contextified]: #vm_what_does_it_mean_to_contextify_an_object
 [global object]: https://es5.github.io/#x15.1
 [indirect `eval()` call]: https://es5.github.io/#x10.4.2
+[origin]: https://developer.mozilla.org/en-US/docs/Glossary/Origin

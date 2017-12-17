@@ -360,6 +360,15 @@ class IsolateData {
   DISALLOW_COPY_AND_ASSIGN(IsolateData);
 };
 
+struct ContextInfo {
+  explicit ContextInfo(v8::Local<v8::String> name) : name(name) {
+    CHECK(!name.IsEmpty());
+  }
+  v8::Local<v8::String> name;
+  v8::Local<v8::String> origin;
+  bool is_default = false;
+};
+
 class Environment {
  public:
   class AsyncHooks {
@@ -507,8 +516,10 @@ class Environment {
              int exec_argc,
              const char* const* exec_argv,
              bool start_profiler_idle_notifier);
-  void AssignToContext(v8::Local<v8::Context> context);
   void CleanupHandles();
+
+  inline void AssignToContext(v8::Local<v8::Context> context,
+                              const ContextInfo& info);
 
   void StartProfilerIdleNotifier();
   void StopProfilerIdleNotifier();
