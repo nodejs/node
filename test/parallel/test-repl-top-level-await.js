@@ -160,7 +160,8 @@ async function ctrlCTest() {
     { ctrl: true, name: 'c' }
   ]), [
     'await timeout(100000)\r',
-    'Thrown: Error: Script execution interrupted.',
+    'Thrown: Error [ERR_SCRIPT_EXECUTION_INTERRUPTED]: ' +
+      'Script execution was interrupted by `SIGINT`.',
     PROMPT
   ]);
 }
