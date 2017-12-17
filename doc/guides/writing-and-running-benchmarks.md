@@ -144,6 +144,7 @@ arrays/zero-int.js n=25 type=Buffer: 90.49906662339653
 ```
 
 It is possible to execute more groups by adding extra process arguments.
+
 ```console
 $ node benchmark/run.js arrays buffers
 ```
@@ -439,6 +440,7 @@ function main(conf) {
 ```
 
 Supported options keys are:
+
 * `port` - defaults to `common.PORT`
 * `path` - defaults to `/`
 * `connections` - number of concurrent connections to use, defaults to 100

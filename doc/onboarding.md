@@ -107,6 +107,7 @@ onboarding session.
     [here](https://github.com/nodejs/TSC/blob/master/Moderation-Policy.md).
 
 ## Reviewing PRs
+
 * The primary goal is for the codebase to improve.
 * Secondary (but not far off) is for the person submitting code to succeed. A
     pull request from a new contributor is an opportunity to grow the community.
