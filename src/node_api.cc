@@ -2770,6 +2770,8 @@ napi_status napi_async_destroy(napi_env env,
       reinterpret_cast<node::async_context*>(async_context);
   node::EmitAsyncDestroy(isolate, *node_async_context);
 
+  delete node_async_context;
+
   return napi_clear_last_error(env);
 }
 
