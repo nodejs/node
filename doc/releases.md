@@ -252,8 +252,8 @@ $ git push <remote> <vx.y.z>
 
 On release proposal branch, edit `src/node_version.h` again and:
 
-* Increment `NODE_PATCH_VERSION` by one
-* Change `NODE_VERSION_IS_RELEASE` back to `0`
+- Increment `NODE_PATCH_VERSION` by one
+- Change `NODE_VERSION_IS_RELEASE` back to `0`
 
 Commit this change with the following commit message format:
 
