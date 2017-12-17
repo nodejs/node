@@ -217,10 +217,11 @@ inline void Environment::TickInfo::set_index(uint32_t value) {
   fields_[kIndex] = value;
 }
 
-inline void Environment::AssignToContext(v8::Local<v8::Context> context) {
+inline void Environment::AssignToContext(v8::Local<v8::Context> context,
+                                         const ContextInfo& info) {
   context->SetAlignedPointerInEmbedderData(kContextEmbedderDataIndex, this);
 #if HAVE_INSPECTOR
-  inspector_agent()->ContextCreated(context);
+  inspector_agent()->ContextCreated(context, info);
 #endif  // HAVE_INSPECTOR
 }
 
@@ -285,7 +286,7 @@ inline Environment::Environment(IsolateData* isolate_data,
 
   set_module_load_list_array(v8::Array::New(isolate()));
 
-  AssignToContext(context);
+  AssignToContext(context, ContextInfo(""));
 
   destroy_async_id_list_.reserve(512);
   performance_state_ = Calloc<performance::performance_state>(1);

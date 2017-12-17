@@ -102,8 +102,11 @@ class ContextifyContext {
   Persistent<Context> context_;
 
  public:
-  ContextifyContext(Environment* env, Local<Object> sandbox_obj) : env_(env) {
-    Local<Context> v8_context = CreateV8Context(env, sandbox_obj);
+  ContextifyContext(Environment* env,
+                    Local<Object> sandbox_obj,
+                    Local<Object> options_obj)
+      : env_(env) {
+    Local<Context> v8_context = CreateV8Context(env, sandbox_obj, options_obj);
     context_.Reset(env->isolate(), v8_context);
 
     // Allocation failure or maximum call stack size reached
@@ -156,7 +159,9 @@ class ContextifyContext {
   }
 
 
-  Local<Context> CreateV8Context(Environment* env, Local<Object> sandbox_obj) {
+  Local<Context> CreateV8Context(Environment* env,
+                                 Local<Object> sandbox_obj,
+                                 Local<Object> options_obj) {
     EscapableHandleScope scope(env->isolate());
     Local<FunctionTemplate> function_template =
         FunctionTemplate::New(env->isolate());
@@ -206,7 +211,25 @@ class ContextifyContext {
                             env->contextify_global_private_symbol(),
                             ctx->Global());
 
-    env->AssignToContext(ctx);
+    Local<Value> name =
+        options_obj->Get(env->context(), env->name_string())
+            .ToLocalChecked();
+    CHECK(name->IsString());
+    Utf8Value name_val(env->isolate(), name);
+
+    ContextInfo info(*name_val);
+
+    Local<Value> origin =
+        options_obj->Get(env->context(),
+                         FIXED_ONE_BYTE_STRING(env->isolate(), "origin"))
+            .ToLocalChecked();
+    if (!origin->IsUndefined()) {
+      CHECK(origin->IsString());
+      Utf8Value origin_val(env->isolate(), origin);
+      info.origin = *origin_val;
+    }
+
+    env->AssignToContext(ctx, info);
 
     return scope.Escape(ctx);
   }
@@ -268,8 +291,11 @@ class ContextifyContext {
             env->context(),
             env->contextify_context_private_symbol()).FromJust());
 
+    Local<Object> options = args[1].As<Object>();
+    CHECK(options->IsObject());
+
     TryCatch try_catch(env->isolate());
-    ContextifyContext* context = new ContextifyContext(env, sandbox);
+    ContextifyContext* context = new ContextifyContext(env, sandbox, options);
 
     if (try_catch.HasCaught()) {
       try_catch.ReThrow();
