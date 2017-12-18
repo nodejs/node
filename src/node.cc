@@ -126,9 +126,6 @@ typedef int mode_t;
 #elif !defined(_MSC_VER)
 extern char **environ;
 #endif
-#ifdef NODE_SHARED_MODE
-  #include "node_lib.h"
-#endif
 
 namespace node {
 
