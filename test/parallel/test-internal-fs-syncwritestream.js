@@ -49,8 +49,7 @@ const filename = path.join(common.tmpDir, 'sync-write-stream.txt');
   }, {
     code: 'ERR_INVALID_ARG_TYPE',
     type: TypeError,
-    message: 'The "data" argument must be of type Buffer without null bytes.' +
-            ' Received type number'
+    message: 'The "data" argument must be of type Buffer. Received type number'
   });
 }
 
