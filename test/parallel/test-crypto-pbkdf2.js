@@ -74,10 +74,10 @@ common.expectsError(
   }
 );
 
-['str', null, undefined, [], {}].forEach((i) => {
+['str', null, undefined, [], {}].forEach((notNumber) => {
   common.expectsError(
     () => {
-      crypto.pbkdf2Sync('password', 'salt', 1, i, 'sha256');
+      crypto.pbkdf2Sync('password', 'salt', 1, notNumber, 'sha256');
     }, {
       code: 'ERR_INVALID_ARG_TYPE',
       type: TypeError,
