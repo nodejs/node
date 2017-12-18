@@ -27,8 +27,6 @@ const net = require('net');
 const tcp = net.Server(common.mustCall((s) => {
   tcp.close();
 
-  console.log('tcp server connection');
-
   let buf = '';
   s.setEncoding('utf8');
   s.on('data', function(d) {
@@ -45,13 +43,11 @@ const tcp = net.Server(common.mustCall((s) => {
 tcp.listen(0, common.mustCall(function() {
   const socket = net.Stream({ highWaterMark: 0 });
 
-  console.log('Connecting to socket');
-
   let connected = false;
   socket.connect(this.address().port, common.mustCall(() => connected = true));
 
   assert.strictEqual(socket.connecting, true);
-  assert.strictEqual('opening', socket.readyState);
+  assert.strictEqual(socket.readyState, 'opening');
 
   // Make sure that anything besides a buffer or a string throws.
   common.expectsError(() => socket.write(null),
@@ -94,8 +90,8 @@ tcp.listen(0, common.mustCall(function() {
   }));
 
   assert.strictEqual(socket.bytesWritten, Buffer.from(a).length);
-  assert.strictEqual(false, r);
+  assert.strictEqual(r, false);
   socket.end(b);
 
-  assert.strictEqual('opening', socket.readyState);
+  assert.strictEqual(socket.readyState, 'opening');
 }));
