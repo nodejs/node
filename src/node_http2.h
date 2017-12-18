@@ -76,6 +76,9 @@ void inline debug_vfprintf(const char* format, ...) {
 // option.
 #define DEFAULT_MAX_PINGS 10
 
+// Also strictly limit the number of outstanding SETTINGS frames a user sends
+#define DEFAULT_MAX_SETTINGS 10
+
 // These are the standard HTTP/2 defaults as specified by the RFC
 #define DEFAULT_SETTINGS_HEADER_TABLE_SIZE 4096
 #define DEFAULT_SETTINGS_ENABLE_PUSH 1
@@ -484,41 +487,20 @@ class Http2Options {
     return max_outstanding_pings_;
   }
 
+  void SetMaxOutstandingSettings(size_t max) {
+    max_outstanding_settings_ = max;
+  }
+
+  size_t GetMaxOutstandingSettings() {
+    return max_outstanding_settings_;
+  }
+
  private:
   nghttp2_option* options_;
   uint32_t max_header_pairs_ = DEFAULT_MAX_HEADER_LIST_PAIRS;
   padding_strategy_type padding_strategy_ = PADDING_STRATEGY_NONE;
   size_t max_outstanding_pings_ = DEFAULT_MAX_PINGS;
-};
-
-// The Http2Settings class is used to parse the settings passed in for
-// an Http2Session, converting those into an array of nghttp2_settings_entry
-// structs.
-class Http2Settings {
- public:
-  explicit Http2Settings(Environment* env);
-
-  size_t length() const { return count_; }
-
-  nghttp2_settings_entry* operator*() {
-    return *entries_;
-  }
-
-  // Returns a Buffer instance with the serialized SETTINGS payload
-  inline Local<Value> Pack();
-
-  // Resets the default values in the settings buffer
-  static inline void RefreshDefaults(Environment* env);
-
-  // Update the local or remote settings for the given session
-  static inline void Update(Environment* env,
-                            Http2Session* session,
-                            get_setting fn);
-
- private:
-  Environment* env_;
-  size_t count_ = 0;
-  MaybeStackBuffer<nghttp2_settings_entry, IDX_SETTINGS_COUNT> entries_;
+  size_t max_outstanding_settings_ = DEFAULT_MAX_SETTINGS;
 };
 
 class Http2Priority {
@@ -792,6 +774,7 @@ class Http2Session : public AsyncWrap {
   ~Http2Session() override;
 
   class Http2Ping;
+  class Http2Settings;
 
   void Start();
   void Stop();
@@ -840,9 +823,6 @@ class Http2Session : public AsyncWrap {
 
   // Removes a stream instance from this session
   inline void RemoveStream(int32_t id);
-
-  // Submits a SETTINGS frame to the connected peer.
-  inline void Settings(const nghttp2_settings_entry iv[], size_t niv);
 
   // Write data to the session
   inline ssize_t Write(const uv_buf_t* bufs, size_t nbufs);
@@ -895,6 +875,9 @@ class Http2Session : public AsyncWrap {
 
   Http2Ping* PopPing();
   bool AddPing(Http2Ping* ping);
+
+  Http2Settings* PopSettings();
+  bool AddSettings(Http2Settings* settings);
 
  private:
   // Frame Padding Strategies
@@ -1026,6 +1009,9 @@ class Http2Session : public AsyncWrap {
   size_t max_outstanding_pings_ = DEFAULT_MAX_PINGS;
   std::queue<Http2Ping*> outstanding_pings_;
 
+  size_t max_outstanding_settings_ = DEFAULT_MAX_SETTINGS;
+  std::queue<Http2Settings*> outstanding_settings_;
+
   std::vector<nghttp2_stream_write> outgoing_buffers_;
   std::vector<uint8_t> outgoing_storage_;
 
@@ -1048,6 +1034,45 @@ class Http2Session::Http2Ping : public AsyncWrap {
  private:
   Http2Session* session_;
   uint64_t startTime_;
+};
+
+// The Http2Settings class is used to parse the settings passed in for
+// an Http2Session, converting those into an array of nghttp2_settings_entry
+// structs.
+class Http2Session::Http2Settings : public AsyncWrap {
+ public:
+  explicit Http2Settings(Environment* env);
+  explicit Http2Settings(Http2Session* session);
+  ~Http2Settings();
+
+  size_t self_size() const override { return sizeof(*this); }
+
+  void Send();
+  void Done(bool ack);
+
+  size_t length() const { return count_; }
+
+  nghttp2_settings_entry* operator*() {
+    return *entries_;
+  }
+
+  // Returns a Buffer instance with the serialized SETTINGS payload
+  inline Local<Value> Pack();
+
+  // Resets the default values in the settings buffer
+  static inline void RefreshDefaults(Environment* env);
+
+  // Update the local or remote settings for the given session
+  static inline void Update(Environment* env,
+                            Http2Session* session,
+                            get_setting fn);
+
+ private:
+  void Init();
+  Http2Session* session_;
+  uint64_t startTime_;
+  size_t count_ = 0;
+  MaybeStackBuffer<nghttp2_settings_entry, IDX_SETTINGS_COUNT> entries_;
 };
 
 class ExternalHeader :
