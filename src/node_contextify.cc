@@ -880,8 +880,6 @@ class ContextifyScript : public BaseObject {
 
     if (source.GetCachedData() != nullptr)
       compile_options = ScriptCompiler::kConsumeCodeCache;
-    else if (produce_cached_data)
-      compile_options = ScriptCompiler::kProduceCodeCache;
 
     Context::Scope scope(maybe_context.FromMaybe(env->context()));
 
@@ -903,8 +901,9 @@ class ContextifyScript : public BaseObject {
       args.This()->Set(
           env->cached_data_rejected_string(),
           Boolean::New(env->isolate(), source.GetCachedData()->rejected));
-    } else if (compile_options == ScriptCompiler::kProduceCodeCache) {
-      const ScriptCompiler::CachedData* cached_data = source.GetCachedData();
+    } else if (produce_cached_data) {
+      const ScriptCompiler::CachedData* cached_data =
+        ScriptCompiler::CreateCodeCache(v8_script.ToLocalChecked(), code);
       bool cached_data_produced = cached_data != nullptr;
       if (cached_data_produced) {
         MaybeLocal<Object> buf = Buffer::Copy(
