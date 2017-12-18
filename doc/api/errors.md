@@ -1333,7 +1333,7 @@ An attempt was made to `require()` an [ES6 module][].
 <a id="ERR_SCRIPT_EXECUTION_INTERRUPTED"></a>
 ### ERR_SCRIPT_EXECUTION_INTERRUPTED
 
-A script execution interrupted.
+Script execution was interrupted by `SIGINT` (Ctrl+C).
 
 <a id="ERR_SERVER_ALREADY_LISTEN"></a>
 ### ERR_SERVER_ALREADY_LISTEN
