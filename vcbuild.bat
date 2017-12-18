@@ -68,7 +68,7 @@ if /i "%1"=="test-pummel"   set test_args=%test_args% pummel&goto arg-ok
 if /i "%1"=="test-all"      set test_args=%test_args% sequential parallel message gc internet pummel&set buildnodeweak=1&set jslint=1&goto arg-ok
 if /i "%1"=="test-known-issues" set test_args=%test_args% known_issues --expect-fail&goto arg-ok
 if /i "%1"=="jslint"        set jslint=1&goto arg-ok
-if /i "%1"=="package"       set package=1&goto arg-ok
+if /i "%1"=="package"       set package=1&set download_arg="--download=all"&set i18n_arg=small-icu&goto arg-ok
 if /i "%1"=="msi"           set msi=1&set licensertf=1&set download_arg="--download=all"&set i18n_arg=small-icu&goto arg-ok
 if /i "%1"=="build-release" set build_release=1&goto arg-ok
 if /i "%1"=="upload"        set upload=1&goto arg-ok
@@ -78,7 +78,7 @@ if /i "%1"=="intl-none"     set i18n_arg=%1&goto arg-ok
 if /i "%1"=="download-all"  set download_arg="--download=all"&goto arg-ok
 if /i "%1"=="ignore-flaky"  set test_args=%test_args% --flaky-tests=dontcare&goto arg-ok
 if /i "%1"=="enable-vtune"  set enable_vtune_profiling="--enable-vtune-profiling"&goto arg-ok
-if /i "%1"=="dll"           set dll=1&goto arg-ok
+if /i "%1"=="dll"           set dll=1&set download_arg="--download=all"&set i18n_arg=small-icu&goto arg-ok
 
 echo Error: invalid command line option `%1`.
 exit /b 1
