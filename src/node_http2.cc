@@ -153,22 +153,28 @@ Http2Options::Http2Options(Environment* env) {
   if (flags & (1 << IDX_OPTIONS_MAX_OUTSTANDING_PINGS)) {
     SetMaxOutstandingPings(buffer[IDX_OPTIONS_MAX_OUTSTANDING_PINGS]);
   }
+
+  // The HTTP2 specification places no limits on the number of HTTP2
+  // SETTINGS frames that can be sent. In order to prevent PINGS from being
+  // abused as an attack vector, however, we place a strict upper limit
+  // on the number of unacknowledged SETTINGS that can be sent at any given
+  // time.
+  if (flags & (1 << IDX_OPTIONS_MAX_OUTSTANDING_SETTINGS)) {
+    SetMaxOutstandingSettings(buffer[IDX_OPTIONS_MAX_OUTSTANDING_SETTINGS]);
+  }
 }
 
-// The Http2Settings class is used to configure a SETTINGS frame that is
-// to be sent to the connected peer. The settings are set using a TypedArray
-// that is shared with the JavaScript side.
-Http2Settings::Http2Settings(Environment* env) : env_(env) {
+void Http2Session::Http2Settings::Init() {
   entries_.AllocateSufficientStorage(IDX_SETTINGS_COUNT);
   AliasedBuffer<uint32_t, v8::Uint32Array>& buffer =
-      env->http2_state()->settings_buffer;
+      env()->http2_state()->settings_buffer;
   uint32_t flags = buffer[IDX_SETTINGS_COUNT];
 
   size_t n = 0;
 
   if (flags & (1 << IDX_SETTINGS_HEADER_TABLE_SIZE)) {
     uint32_t val = buffer[IDX_SETTINGS_HEADER_TABLE_SIZE];
-    DEBUG_HTTP2("Http2Settings: setting header table size: %d\n", val);
+    DEBUG_HTTP2SESSION2(session, "setting header table size: %d\n", val);
     entries_[n].settings_id = NGHTTP2_SETTINGS_HEADER_TABLE_SIZE;
     entries_[n].value = val;
     n++;
@@ -176,7 +182,7 @@ Http2Settings::Http2Settings(Environment* env) : env_(env) {
 
   if (flags & (1 << IDX_SETTINGS_MAX_CONCURRENT_STREAMS)) {
     uint32_t val = buffer[IDX_SETTINGS_MAX_CONCURRENT_STREAMS];
-    DEBUG_HTTP2("Http2Settings: setting max concurrent streams: %d\n", val);
+    DEBUG_HTTP2SESSION2(session, "setting max concurrent streams: %d\n", val);
     entries_[n].settings_id = NGHTTP2_SETTINGS_MAX_CONCURRENT_STREAMS;
     entries_[n].value = val;
     n++;
@@ -184,7 +190,7 @@ Http2Settings::Http2Settings(Environment* env) : env_(env) {
 
   if (flags & (1 << IDX_SETTINGS_MAX_FRAME_SIZE)) {
     uint32_t val = buffer[IDX_SETTINGS_MAX_FRAME_SIZE];
-    DEBUG_HTTP2("Http2Settings: setting max frame size: %d\n", val);
+    DEBUG_HTTP2SESSION2(session, "setting max frame size: %d\n", val);
     entries_[n].settings_id = NGHTTP2_SETTINGS_MAX_FRAME_SIZE;
     entries_[n].value = val;
     n++;
@@ -192,7 +198,7 @@ Http2Settings::Http2Settings(Environment* env) : env_(env) {
 
   if (flags & (1 << IDX_SETTINGS_INITIAL_WINDOW_SIZE)) {
     uint32_t val = buffer[IDX_SETTINGS_INITIAL_WINDOW_SIZE];
-    DEBUG_HTTP2("Http2Settings: setting initial window size: %d\n", val);
+    DEBUG_HTTP2SESSION2(session, "setting initial window size: %d\n", val);
     entries_[n].settings_id = NGHTTP2_SETTINGS_INITIAL_WINDOW_SIZE;
     entries_[n].value = val;
     n++;
@@ -200,7 +206,7 @@ Http2Settings::Http2Settings(Environment* env) : env_(env) {
 
   if (flags & (1 << IDX_SETTINGS_MAX_HEADER_LIST_SIZE)) {
     uint32_t val = buffer[IDX_SETTINGS_MAX_HEADER_LIST_SIZE];
-    DEBUG_HTTP2("Http2Settings: setting max header list size: %d\n", val);
+    DEBUG_HTTP2SESSION2(session, "setting max header list size: %d\n", val);
     entries_[n].settings_id = NGHTTP2_SETTINGS_MAX_HEADER_LIST_SIZE;
     entries_[n].value = val;
     n++;
@@ -208,7 +214,7 @@ Http2Settings::Http2Settings(Environment* env) : env_(env) {
 
   if (flags & (1 << IDX_SETTINGS_ENABLE_PUSH)) {
     uint32_t val = buffer[IDX_SETTINGS_ENABLE_PUSH];
-    DEBUG_HTTP2("Http2Settings: setting enable push: %d\n", val);
+    DEBUG_HTTP2SESSION2(session, "setting enable push: %d\n", val);
     entries_[n].settings_id = NGHTTP2_SETTINGS_ENABLE_PUSH;
     entries_[n].value = val;
     n++;
@@ -217,13 +223,46 @@ Http2Settings::Http2Settings(Environment* env) : env_(env) {
   count_ = n;
 }
 
+Http2Session::Http2Settings::Http2Settings(
+    Environment* env)
+        : AsyncWrap(env,
+                    env->http2settings_constructor_template()
+                        ->NewInstance(env->context())
+                            .ToLocalChecked(),
+                    AsyncWrap::PROVIDER_HTTP2SETTINGS),
+          session_(nullptr),
+          startTime_(0) {
+  Init();
+}
+
+// The Http2Settings class is used to configure a SETTINGS frame that is
+// to be sent to the connected peer. The settings are set using a TypedArray
+// that is shared with the JavaScript side.
+Http2Session::Http2Settings::Http2Settings(
+    Http2Session* session)
+        : AsyncWrap(session->env(),
+                    session->env()->http2settings_constructor_template()
+                        ->NewInstance(session->env()->context())
+                            .ToLocalChecked(),
+                    AsyncWrap::PROVIDER_HTTP2SETTINGS),
+          session_(session),
+          startTime_(uv_hrtime()) {
+  Init();
+}
+
+Http2Session::Http2Settings::~Http2Settings() {
+  if (!object().IsEmpty())
+    ClearWrap(object());
+  persistent().Reset();
+  CHECK(persistent().IsEmpty());
+}
 
 // Generates a Buffer that contains the serialized payload of a SETTINGS
 // frame. This can be used, for instance, to create the Base64-encoded
 // content of an Http2-Settings header field.
-inline Local<Value> Http2Settings::Pack() {
+inline Local<Value> Http2Session::Http2Settings::Pack() {
   const size_t len = count_ * 6;
-  Local<Value> buf = Buffer::New(env_, len).ToLocalChecked();
+  Local<Value> buf = Buffer::New(env(), len).ToLocalChecked();
   ssize_t ret =
       nghttp2_pack_settings_payload(
         reinterpret_cast<uint8_t*>(Buffer::Data(buf)), len,
@@ -231,14 +270,14 @@ inline Local<Value> Http2Settings::Pack() {
   if (ret >= 0)
     return buf;
   else
-    return Undefined(env_->isolate());
+    return Undefined(env()->isolate());
 }
 
 // Updates the shared TypedArray with the current remote or local settings for
 // the session.
-inline void Http2Settings::Update(Environment* env,
-                                  Http2Session* session,
-                                  get_setting fn) {
+inline void Http2Session::Http2Settings::Update(Environment* env,
+                                                Http2Session* session,
+                                                get_setting fn) {
   AliasedBuffer<uint32_t, v8::Uint32Array>& buffer =
       env->http2_state()->settings_buffer;
   buffer[IDX_SETTINGS_HEADER_TABLE_SIZE] =
@@ -256,7 +295,7 @@ inline void Http2Settings::Update(Environment* env,
 }
 
 // Initializes the shared TypedArray with the default settings values.
-inline void Http2Settings::RefreshDefaults(Environment* env) {
+inline void Http2Session::Http2Settings::RefreshDefaults(Environment* env) {
   AliasedBuffer<uint32_t, v8::Uint32Array>& buffer =
       env->http2_state()->settings_buffer;
 
@@ -278,6 +317,24 @@ inline void Http2Settings::RefreshDefaults(Environment* env) {
     (1 << IDX_SETTINGS_MAX_HEADER_LIST_SIZE);
 }
 
+
+void Http2Session::Http2Settings::Send() {
+  Http2Scope h2scope(session_);
+  CHECK_EQ(nghttp2_submit_settings(**session_, NGHTTP2_FLAG_NONE,
+                                   *entries_, length()), 0);
+}
+
+void Http2Session::Http2Settings::Done(bool ack) {
+  uint64_t end = uv_hrtime();
+  double duration = (end - startTime_) / 1e6;
+
+  Local<Value> argv[2] = {
+    Boolean::New(env()->isolate(), ack),
+    Number::New(env()->isolate(), duration)
+  };
+  MakeCallback(env()->ondone_string(), arraysize(argv), argv);
+  delete this;
+}
 
 // The Http2Priority class initializes an appropriate nghttp2_priority_spec
 // struct used when either creating a stream or updating its priority
@@ -417,6 +474,7 @@ Http2Session::Http2Session(Environment* env,
           : std::max(maxHeaderPairs, 1);    // minimum # of response headers
 
   max_outstanding_pings_ = opts.GetMaxOutstandingPings();
+  max_outstanding_settings_ = opts.GetMaxOutstandingSettings();
 
   padding_strategy_ = opts.GetPaddingStrategy();
 
@@ -551,22 +609,6 @@ inline ssize_t Http2Session::OnCallbackPadding(size_t frameLen,
   retval = std::max(retval, static_cast<uint32_t>(frameLen));
   DEBUG_HTTP2SESSION2(this, "using padding size %d", retval);
   return retval;
-}
-
-
-// Sends a SETTINGS frame to the connected peer. This has the side effect of
-// changing the settings state within the nghttp2_session, but those will
-// only be considered active once the connected peer acknowledges the SETTINGS
-// frame.
-// Note: This *must* send a SETTINGS frame even if niv == 0
-inline void Http2Session::Settings(const nghttp2_settings_entry iv[],
-                                   size_t niv) {
-  DEBUG_HTTP2SESSION2(this, "submitting %d settings", niv);
-  Http2Scope h2scope(this);
-  // This will fail either if the system is out of memory, or if the settings
-  // values are not within the appropriate range. We should be catching the
-  // latter before it gets this far so crash in either case.
-  CHECK_EQ(nghttp2_submit_settings(session_, NGHTTP2_FLAG_NONE, iv, niv), 0);
 }
 
 
@@ -1044,15 +1086,17 @@ inline void Http2Session::HandlePingFrame(const nghttp2_frame* frame) {
 
 // Called by OnFrameReceived when a complete SETTINGS frame has been received.
 inline void Http2Session::HandleSettingsFrame(const nghttp2_frame* frame) {
-  Isolate* isolate = env()->isolate();
-  HandleScope scope(isolate);
-  Local<Context> context = env()->context();
-  Context::Scope context_scope(context);
-
   bool ack = frame->hd.flags & NGHTTP2_FLAG_ACK;
-
-  Local<Value> argv[1] = { Boolean::New(isolate, ack) };
-  MakeCallback(env()->onsettings_string(), arraysize(argv), argv);
+  if (ack) {
+    // If this is an acknowledgement, we should have an Http2Settings
+    // object for it.
+    Http2Settings* settings = PopSettings();
+    if (settings != nullptr)
+      settings->Done(true);
+  } else {
+    // Otherwise, notify the session about a new settings
+    MakeCallback(env()->onsettings_string(), 0, nullptr);
+  }
 }
 
 // Callback used when data has been written to the stream.
@@ -1954,7 +1998,7 @@ void HttpErrorString(const FunctionCallbackInfo<Value>& args) {
 // output for an HTTP2-Settings header field.
 void PackSettings(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
-  Http2Settings settings(env);
+  Http2Session::Http2Settings settings(env);
   args.GetReturnValue().Set(settings.Pack());
 }
 
@@ -1963,7 +2007,7 @@ void PackSettings(const FunctionCallbackInfo<Value>& args) {
 // default values.
 void RefreshDefaultSettings(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
-  Http2Settings::RefreshDefaults(env);
+  Http2Session::Http2Settings::RefreshDefaults(env);
 }
 
 // Sets the next stream ID the Http2Session. If successful, returns true.
@@ -2059,17 +2103,6 @@ void Http2Session::Destroy(const FunctionCallbackInfo<Value>& args) {
   bool socketDestroyed = args[1]->BooleanValue(context).ToChecked();
 
   session->Close(code, socketDestroyed);
-}
-
-// Submits a SETTINGS frame for the Http2Session
-void Http2Session::Settings(const FunctionCallbackInfo<Value>& args) {
-  Http2Session* session;
-  ASSIGN_OR_RETURN_UNWRAP(&session, args.Holder());
-  Environment* env = session->env();
-
-  Http2Settings settings(env);
-  session->Http2Session::Settings(*settings, settings.length());
-  DEBUG_HTTP2SESSION(session, "settings submitted");
 }
 
 // Submits a new request on the Http2Session and returns either an error code
@@ -2373,6 +2406,26 @@ void Http2Session::Ping(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(true);
 }
 
+// Submits a SETTINGS frame for the Http2Session
+void Http2Session::Settings(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  Http2Session* session;
+  ASSIGN_OR_RETURN_UNWRAP(&session, args.Holder());
+
+  Http2Session::Http2Settings* settings = new Http2Settings(session);
+  Local<Object> obj = settings->object();
+  obj->Set(env->context(), env->ondone_string(), args[0]).FromJust();
+
+  if (!session->AddSettings(settings)) {
+    settings->Done(false);
+    return args.GetReturnValue().Set(false);
+  }
+
+  settings->Send();
+  args.GetReturnValue().Set(true);
+}
+
+
 Http2Session::Http2Ping* Http2Session::PopPing() {
   Http2Ping* ping = nullptr;
   if (!outstanding_pings_.empty()) {
@@ -2389,6 +2442,21 @@ bool Http2Session::AddPing(Http2Session::Http2Ping* ping) {
   return true;
 }
 
+Http2Session::Http2Settings* Http2Session::PopSettings() {
+  Http2Settings* settings = nullptr;
+  if (!outstanding_settings_.empty()) {
+    settings = outstanding_settings_.front();
+    outstanding_settings_.pop();
+  }
+  return settings;
+}
+
+bool Http2Session::AddSettings(Http2Session::Http2Settings* settings) {
+  if (outstanding_settings_.size() == max_outstanding_settings_)
+    return false;
+  outstanding_settings_.push(settings);
+  return true;
+}
 
 Http2Session::Http2Ping::Http2Ping(
     Http2Session* session)
@@ -2487,6 +2555,13 @@ void Initialize(Local<Object> target,
   Local<ObjectTemplate> pingt = ping->InstanceTemplate();
   pingt->SetInternalFieldCount(1);
   env->set_http2ping_constructor_template(pingt);
+
+  Local<FunctionTemplate> setting = FunctionTemplate::New(env->isolate());
+  setting->SetClassName(FIXED_ONE_BYTE_STRING(env->isolate(), "Http2Setting"));
+  AsyncWrap::AddWrapMethods(env, setting);
+  Local<ObjectTemplate> settingt = setting->InstanceTemplate();
+  settingt->SetInternalFieldCount(1);
+  env->set_http2settings_constructor_template(settingt);
 
   Local<FunctionTemplate> stream = FunctionTemplate::New(env->isolate());
   stream->SetClassName(FIXED_ONE_BYTE_STRING(env->isolate(), "Http2Stream"));
