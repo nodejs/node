@@ -158,7 +158,6 @@ class ModuleWrap;
   V(homedir_string, "homedir")                                                \
   V(hostmaster_string, "hostmaster")                                          \
   V(ignore_string, "ignore")                                                  \
-  V(immediate_callback_string, "_immediateCallback")                          \
   V(infoaccess_string, "infoAccess")                                          \
   V(inherit_string, "inherit")                                                \
   V(input_string, "input")                                                    \
@@ -289,6 +288,7 @@ class ModuleWrap;
   V(http2ping_constructor_template, v8::ObjectTemplate)                       \
   V(http2stream_constructor_template, v8::ObjectTemplate)                     \
   V(http2settings_constructor_template, v8::ObjectTemplate)                   \
+  V(immediate_callback_function, v8::Function)                                \
   V(inspector_console_api_object, v8::Object)                                 \
   V(pbkdf2_constructor_template, v8::ObjectTemplate)                          \
   V(pipe_constructor_template, v8::FunctionTemplate)                          \
