@@ -3349,7 +3349,6 @@ The following constants are meant for use with the [`fs.Stats`][] object's
 [`kqueue`]: https://www.freebsd.org/cgi/man.cgi?kqueue
 [`net.Socket`]: net.html#net_class_net_socket
 [`stat()`]: fs.html#fs_fs_stat_path_callback
-[`util.inspect(stats)`]: util.html#util_util_inspect_object_options
 [`util.promisify()`]: util.html#util_util_promisify_original
 [Caveats]: #fs_caveats
 [Common System Errors]: errors.html#errors_common_system_errors
