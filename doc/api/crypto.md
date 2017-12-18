@@ -241,16 +241,21 @@ Once the `cipher.final()` method has been called, the `Cipher` object can no
 longer be used to encrypt data. Attempts to call `cipher.final()` more than
 once will result in an error being thrown.
 
-### cipher.setAAD(buffer)
+### cipher.setAAD(buffer[, options])
 <!-- YAML
 added: v1.0.0
 -->
 - `buffer` {Buffer}
+- `options` {object}
 - Returns the {Cipher} for method chaining.
 
-When using an authenticated encryption mode (only `GCM` is currently
+When using an authenticated encryption mode (only `GCM` and `CCM` are currently
 supported), the `cipher.setAAD()` method sets the value used for the
 _additional authenticated data_ (AAD) input parameter.
+
+The `options` argument is optional for `GCM`. When using `CCM`, the
+`plaintextLength` option must be specified and its value must match the length
+of the plaintext in bytes. See [CCM mode][].
 
 The `cipher.setAAD()` method must be called before [`cipher.update()`][].
 
@@ -1312,7 +1317,12 @@ deprecated: REPLACEME
 - `options` {Object} [`stream.transform` options][]
 
 Creates and returns a `Cipher` object that uses the given `algorithm` and
-`password`. Optional `options` argument controls stream behavior.
+`password`.
+
+The `options` argument controls stream behavior and is optional except when a
+cipher in CCM mode is used (e.g. `'aes-128-ccm'`). In that case, the
+`authTagLength` option is required and specifies the length of the
+authentication tag in bytes, see [CCM mode][].
 
 The `algorithm` is dependent on OpenSSL, examples are `'aes192'`, etc. On
 recent OpenSSL releases, `openssl list-cipher-algorithms` will display the
@@ -1353,8 +1363,10 @@ changes:
 - `options` {Object} [`stream.transform` options][]
 
 Creates and returns a `Cipher` object, with the given `algorithm`, `key` and
-initialization vector (`iv`). Optional `options` argument controls stream
-behavior.
+The `options` argument controls stream behavior and is optional except when a
+cipher in CCM mode is used (e.g. `'aes-128-ccm'`). In that case, the
+`authTagLength` option is required and specifies the length of the
+authentication tag in bytes, see [CCM mode][].
 
 The `algorithm` is dependent on OpenSSL, examples are `'aes192'`, etc. On
 recent OpenSSL releases, `openssl list-cipher-algorithms` will display the
@@ -1396,7 +1408,12 @@ deprecated: REPLACEME
 - `options` {Object} [`stream.transform` options][]
 
 Creates and returns a `Decipher` object that uses the given `algorithm` and
-`password` (key). Optional `options` argument controls stream behavior.
+`password` (key).
+
+The `options` argument controls stream behavior and is optional except when a
+cipher in CCM mode is used (e.g. `'aes-128-ccm'`). In that case, the
+`authTagLength` option is required and specifies the length of the
+authentication tag in bytes, see [CCM mode][].
 
 The implementation of `crypto.createDecipher()` derives keys using the OpenSSL
 function [`EVP_BytesToKey`][] with the digest algorithm set to MD5, one
@@ -1425,8 +1442,12 @@ changes:
 - `options` {Object} [`stream.transform` options][]
 
 Creates and returns a `Decipher` object that uses the given `algorithm`, `key`
-and initialization vector (`iv`). Optional `options` argument controls stream
-behavior.
+and initialization vector (`iv`).
+
+The `options` argument controls stream behavior and is optional except when a
+cipher in CCM mode is used (e.g. `'aes-128-ccm'`). In that case, the
+`authTagLength` option is required and specifies the length of the
+authentication tag in bytes, see [CCM mode][].
 
 The `algorithm` is dependent on OpenSSL, examples are `'aes192'`, etc. On
 recent OpenSSL releases, `openssl list-cipher-algorithms` will display the
@@ -2167,6 +2188,71 @@ Based on the recommendations of [NIST SP 800-131A][]:
 
 See the reference for other recommendations and details.
 
+### CCM mode
+
+CCM is one of the two supported [AEAD algorithms][]. Applications which use this
+mode must adhere to certain restrictions when using the cipher API:
+
+- The authentication tag length must be specified during cipher creation by
+  setting the `authTagLength` option and must be one of 4, 6, 8, 10, 12, 14 or
+  16 bytes.
+- The length of the initialization vector (nonce) `N` must be between 7 and 13
+  bytes (`7 ≤ N ≤ 13`).
+- The length of the plaintext is limited to `2^(8 * (15 - N))` bytes.
+- When decrypting, the authentication tag must be set via `setAuthTag()` before
+  specifying additional authenticated data and / or calling `update()`.
+  Otherwise, decryption will fail and `final()` will throw an error in
+  compliance with section 2.6 of [RFC 3610][].
+- It is not recommended to use stream methods such as `write(data)`, `end(data)`
+  or `pipe()` in CCM mode.
+- When passing additional authenticated data (AAD), the length of the actual
+  message in bytes must be passed to `setAAD()` via the `plaintextLength`
+  option. This is not necessary if no AAD is used.
+- As CCM processes the whole message at once, `update()` can only be called
+  once.
+- Even though calling `update()` is sufficient to encrypt / decrypt the message,
+  applications *must* call `final()` to compute and / or verify the
+  authentication tag.
+
+```js
+const crypto = require('crypto');
+
+const key = 'keykeykeykeykeykeykeykey';
+const nonce = crypto.randomBytes(12);
+
+const aad = Buffer.from('0123456789', 'hex');
+
+const cipher = crypto.createCipheriv('aes-192-ccm', key, nonce, {
+  authTagLength: 16
+});
+const plaintext = 'Hello world';
+cipher.setAAD(aad, {
+  plaintextLength: Buffer.byteLength(plaintext)
+});
+const ciphertext = cipher.update(plaintext, 'utf8');
+cipher.final();
+const tag = cipher.getAuthTag();
+
+// Now transmit { ciphertext, tag }.
+
+const decipher = crypto.createDecipheriv('aes-192-ccm', key, nonce, {
+  authTagLength: 16
+});
+decipher.setAuthTag(tag);
+decipher.setAAD(aad, {
+  plaintextLength: ciphertext.length
+});
+const receivedPlaintext = decipher.update(ciphertext, null, 'utf8');
+
+try {
+  decipher.final();
+} catch (err) {
+  console.error('Authentication failed!');
+}
+
+console.log(receivedPlaintext);
+```
+
 ## Crypto Constants
 
 The following constants exported by `crypto.constants` apply to various uses of
@@ -2525,7 +2611,9 @@ the `crypto`, `tls`, and `https` modules and are generally specific to OpenSSL.
 [`tls.createSecureContext()`]: tls.html#tls_tls_createsecurecontext_options
 [`verify.update()`]: #crypto_verify_update_data_inputencoding
 [`verify.verify()`]: #crypto_verify_verify_object_signature_signatureformat
+[AEAD algorithms]: https://en.wikipedia.org/wiki/Authenticated_encryption
 [Caveats]: #crypto_support_for_weak_or_compromised_algorithms
+[CCM mode]: #crypto_ccm_mode
 [Crypto Constants]: #crypto_crypto_constants_1
 [HTML 5.2]: https://www.w3.org/TR/html52/changes.html#features-removed
 [HTML5's `keygen` element]: https://developer.mozilla.org/en-US/docs/Web/HTML/Element/keygen
@@ -2536,6 +2624,7 @@ the `crypto`, `tls`, and `https` modules and are generally specific to OpenSSL.
 [OpenSSL's SPKAC implementation]: https://www.openssl.org/docs/man1.0.2/apps/spkac.html
 [RFC 2412]: https://www.rfc-editor.org/rfc/rfc2412.txt
 [RFC 3526]: https://www.rfc-editor.org/rfc/rfc3526.txt
+[RFC 3610]: https://www.rfc-editor.org/rfc/rfc3610.txt
 [RFC 4055]: https://www.rfc-editor.org/rfc/rfc4055.txt
 [initialization vector]: https://en.wikipedia.org/wiki/Initialization_vector
 [stream-writable-write]: stream.html#stream_writable_write_chunk_encoding_callback
