@@ -188,7 +188,7 @@ or availability of the Node.js application or its system for which the attacker
 does not already have the capability.
 
 To illustrate the point, here are some examples of past issues and what the
-Security Reponse Team thinks of them. When in doubt, however, please do send
+Security Response Team thinks of them. When in doubt, however, please do send
 us a report nonetheless.
 
 
