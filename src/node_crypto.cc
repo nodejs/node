@@ -3669,7 +3669,7 @@ void CipherBase::Init(const char* cipher_type,
                     nullptr,
                     reinterpret_cast<unsigned char*>(key),
                     reinterpret_cast<unsigned char*>(iv),
-                    kind_ == kCipher);
+                    encrypt);
 }
 
 
@@ -3738,7 +3738,7 @@ void CipherBase::InitIv(const char* cipher_type,
                     nullptr,
                     reinterpret_cast<const unsigned char*>(key),
                     reinterpret_cast<const unsigned char*>(iv),
-                    kind_ == kCipher);
+                    encrypt);
 }
 
 
