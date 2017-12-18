@@ -29,6 +29,14 @@ assert.strictEqual(dh2.verifyError, 0);
                                       'new instance when called without `new`');
 }
 
+{
+  const DiffieHellmanGroup = crypto.DiffieHellmanGroup;
+  const dh = DiffieHellmanGroup('modp5');
+  assert(dh instanceof DiffieHellmanGroup, 'DiffieHellmanGroup is expected to' +
+                                           ' return a new instance when ' +
+                                           'called without `new`');
+}
+
 [
   [0x1, 0x2],
   () => { },
