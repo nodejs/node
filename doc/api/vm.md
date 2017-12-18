@@ -179,7 +179,7 @@ added: v0.3.1
     **Default:** `'VM Context i'`, where `i` is an ascending numerical index of
     the created context.
   * `contextOrigin` {string} [Origin][origin] corresponding to the newly
-    created context for display purposes. **Default:** the empty string.
+    created context for display purposes. **Default:** `''`.
 
 First contextifies the given `sandbox`, runs the compiled code contained by
 the `vm.Script` object within the created sandbox, and returns the result.
@@ -258,7 +258,7 @@ added: v0.3.1
     **Default:** `'VM Context i'`, where `i` is an ascending numerical index of
     the created context.
   * `origin` {string} [Origin][origin] corresponding to the newly created
-    context for display purposes. **Default:** the empty string.
+    context for display purposes. **Default:** `''`.
 
 If given a `sandbox` object, the `vm.createContext()` method will [prepare
 that sandbox][contextified] so that it can be used in calls to
@@ -373,7 +373,7 @@ added: v0.3.1
     **Default:** `'VM Context i'`, where `i` is an ascending numerical index of
     the created context.
   * `contextOrigin` {string} [Origin][origin] corresponding to the newly
-    created context for display purposes. **Default:** the empty string.
+    created context for display purposes. **Default:** `''`.
 
 The `vm.runInNewContext()` first contextifies the given `sandbox` object (or
 creates a new `sandbox` if passed as `undefined`), compiles the `code`, runs it
