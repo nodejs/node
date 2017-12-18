@@ -65,6 +65,26 @@ common.expectsError(
   }
 );
 
+common.expectsError(
+  () => crypto.pbkdf2Sync('password', 'salt', -1, 20, null),
+  {
+    code: 'ERR_OUT_OF_RANGE',
+    type: RangeError,
+    message: 'The "iterations" argument is out of range'
+  }
+);
+
+['str', null, undefined, [], {}].forEach((notNumber) => {
+  common.expectsError(
+    () => {
+      crypto.pbkdf2Sync('password', 'salt', 1, notNumber, 'sha256');
+    }, {
+      code: 'ERR_INVALID_ARG_TYPE',
+      type: TypeError,
+      message: 'The "keylen" argument must be of type number'
+    });
+});
+
 [Infinity, -Infinity, NaN, -1, 4073741824, INT_MAX + 1].forEach((i) => {
   common.expectsError(
     () => {
