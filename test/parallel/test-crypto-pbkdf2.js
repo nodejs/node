@@ -65,6 +65,15 @@ common.expectsError(
   }
 );
 
+common.expectsError(
+  () => crypto.pbkdf2Sync('password', 'salt', -1, 20, null),
+  {
+    code: 'ERR_OUT_OF_RANGE',
+    type: RangeError,
+    message: 'The "iterations" argument is out of range'
+  }
+);
+
 [Infinity, -Infinity, NaN, -1, 4073741824, INT_MAX + 1].forEach((i) => {
   common.expectsError(
     () => {
