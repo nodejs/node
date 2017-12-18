@@ -31,17 +31,17 @@ assert.strictEqual(dh2.verifyError, 0);
 
 {
   const DiffieHellmanGroup = crypto.DiffieHellmanGroup;
-  const dh = DiffieHellmanGroup('modp5');
-  assert(dh instanceof DiffieHellmanGroup, 'DiffieHellmanGroup is expected to' +
-                                           ' return a new instance when ' +
-                                           'called without `new`');
+  const dhg = DiffieHellmanGroup('modp5');
+  assert(dhg instanceof DiffieHellmanGroup, 'DiffieHellmanGroup is expected ' +
+                                            'to return a new instance when ' +
+                                            'called without `new`');
 }
 
 {
   const ECDH = crypto.ECDH;
-  const dh = ECDH('prime256v1');
-  assert(dh instanceof ECDH, 'ECDH is expected to return a new instance when ' +
-                             'called without `new`');
+  const ecdh = ECDH('prime256v1');
+  assert(ecdh instanceof ECDH, 'ECDH is expected to return a new instance ' +
+                               'when called without `new`');
 }
 
 [
