@@ -169,6 +169,7 @@ using v8::SealHandleScope;
 using v8::String;
 using v8::TryCatch;
 using v8::Uint32Array;
+using v8::Uint8Array;
 using v8::Undefined;
 using v8::V8;
 using v8::Value;
@@ -1144,25 +1145,32 @@ void SetupNextTick(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
   CHECK(args[0]->IsFunction());
-  CHECK(args[1]->IsObject());
 
   env->set_tick_callback_function(args[0].As<Function>());
 
-  env->SetMethod(args[1].As<Object>(), "runMicrotasks", RunMicrotasks);
-
-  // Do a little housekeeping.
   env->process_object()->Delete(
       env->context(),
-      FIXED_ONE_BYTE_STRING(args.GetIsolate(), "_setupNextTick")).FromJust();
+      FIXED_ONE_BYTE_STRING(env->isolate(), "_setupNextTick")).FromJust();
 
   // Values use to cross communicate with processNextTick.
-  uint32_t* const fields = env->tick_info()->fields();
-  uint32_t const fields_count = env->tick_info()->fields_count();
+  uint8_t* const fields = env->tick_info()->fields();
+  uint8_t const fields_count = env->tick_info()->fields_count();
 
   Local<ArrayBuffer> array_buffer =
       ArrayBuffer::New(env->isolate(), fields, sizeof(*fields) * fields_count);
 
-  args.GetReturnValue().Set(Uint32Array::New(array_buffer, 0, fields_count));
+  v8::Local<v8::Function> run_microtasks_fn =
+      env->NewFunctionTemplate(RunMicrotasks)->GetFunction(env->context())
+          .ToLocalChecked();
+  run_microtasks_fn->SetName(
+      FIXED_ONE_BYTE_STRING(env->isolate(), "runMicrotasks"));
+
+  Local<Array> ret = Array::New(env->isolate(), 2);
+  ret->Set(env->context(), 0,
+           Uint8Array::New(array_buffer, 0, fields_count)).FromJust();
+  ret->Set(env->context(), 1, run_microtasks_fn).FromJust();
+
+  args.GetReturnValue().Set(ret);
 }
 
 void PromiseRejectCallback(PromiseRejectMessage message) {
@@ -1278,7 +1286,7 @@ void InternalCallbackScope::Close() {
 
   Environment::TickInfo* tick_info = env_->tick_info();
 
-  if (tick_info->length() == 0) {
+  if (tick_info->scheduled() == 0) {
     env_->isolate()->RunMicrotasks();
   }
 
@@ -1289,10 +1297,7 @@ void InternalCallbackScope::Close() {
     CHECK_EQ(env_->trigger_async_id(), 0);
   }
 
-  Local<Object> process = env_->process_object();
-
-  if (tick_info->length() == 0) {
-    tick_info->set_index(0);
+  if (tick_info->scheduled() == 0) {
     return;
   }
 
@@ -1300,6 +1305,8 @@ void InternalCallbackScope::Close() {
     CHECK_EQ(env_->execution_async_id(), 0);
     CHECK_EQ(env_->trigger_async_id(), 0);
   }
+
+  Local<Object> process = env_->process_object();
 
   if (env_->tick_callback_function()->Call(process, 0, nullptr).IsEmpty()) {
     failed_ = true;
