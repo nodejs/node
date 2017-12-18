@@ -65,10 +65,10 @@ assert.strictEqual(counts[NODE_PERFORMANCE_ENTRY_TYPE_FUNCTION], 0);
     new PerformanceObserver(common.mustCall(callback, 3));
 
   const countdown =
-    new Countdown(3, common.mustCall(() => {
+    new Countdown(3, () => {
       observer.disconnect();
       assert.strictEqual(counts[NODE_PERFORMANCE_ENTRY_TYPE_MARK], 1);
-    }));
+    });
 
   function callback(list, obs) {
     assert.strictEqual(obs, observer);

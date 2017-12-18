@@ -32,10 +32,10 @@ server.listen(0, common.mustCall(() => {
   const port = server.address().port;
   const client = http2.connect(`http://localhost:${port}`);
 
-  const countdown = new Countdown(2, common.mustCall(() => {
+  const countdown = new Countdown(2, () => {
     server.close();
     client.destroy();
-  }));
+  });
 
   const req = client.request({ ':method': 'POST' });
   req.on('response', common.mustCall());
