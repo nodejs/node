@@ -107,7 +107,7 @@ onboarding session.
         (especially if it just has nits left).
   * Approving a change
     * Collaborators indicate that they have reviewed and approve of the
-        the changes in a pull request using Github’s approval interface
+        changes in a pull request using Github’s approval interface
     * Some people like to comment `LGTM` (“Looks Good To Me”)
     * You have the authority to approve any other collaborator’s work.
     * You cannot approve your own pull requests.
