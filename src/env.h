@@ -453,23 +453,20 @@ class Environment {
 
   class TickInfo {
    public:
-    inline uint32_t* fields();
+    inline uint8_t* fields();
     inline int fields_count() const;
-    inline uint32_t index() const;
-    inline uint32_t length() const;
-    inline void set_index(uint32_t value);
+    inline uint8_t scheduled() const;
 
    private:
     friend class Environment;  // So we can call the constructor.
     inline TickInfo();
 
     enum Fields {
-      kIndex,
-      kLength,
+      kScheduled,
       kFieldsCount
     };
 
-    uint32_t fields_[kFieldsCount];
+    uint8_t fields_[kFieldsCount];
 
     DISALLOW_COPY_AND_ASSIGN(TickInfo);
   };
