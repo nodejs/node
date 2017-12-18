@@ -315,6 +315,7 @@ class ModuleWrap;
   V(domains_stack_array, v8::Array)                                           \
   V(http2ping_constructor_template, v8::ObjectTemplate)                       \
   V(http2stream_constructor_template, v8::ObjectTemplate)                     \
+  V(http2settings_constructor_template, v8::ObjectTemplate)                   \
   V(inspector_console_api_object, v8::Object)                                 \
   V(module_load_list_array, v8::Array)                                        \
   V(pbkdf2_constructor_template, v8::ObjectTemplate)                          \
