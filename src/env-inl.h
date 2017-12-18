@@ -222,7 +222,7 @@ inline Environment::TickInfo::TickInfo() {
     fields_[i] = 0;
 }
 
-inline uint32_t* Environment::TickInfo::fields() {
+inline uint8_t* Environment::TickInfo::fields() {
   return fields_;
 }
 
@@ -230,16 +230,8 @@ inline int Environment::TickInfo::fields_count() const {
   return kFieldsCount;
 }
 
-inline uint32_t Environment::TickInfo::index() const {
-  return fields_[kIndex];
-}
-
-inline uint32_t Environment::TickInfo::length() const {
-  return fields_[kLength];
-}
-
-inline void Environment::TickInfo::set_index(uint32_t value) {
-  fields_[kIndex] = value;
+inline uint8_t Environment::TickInfo::scheduled() const {
+  return fields_[kScheduled];
 }
 
 inline void Environment::AssignToContext(v8::Local<v8::Context> context,
