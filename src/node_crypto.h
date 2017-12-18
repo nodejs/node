@@ -354,19 +354,31 @@ class CipherBase : public BaseObject {
     kCipher,
     kDecipher
   };
+  enum UpdateResult {
+    kSuccess,
+    kErrorMessageSize,
+    kErrorState
+  };
 
-  void Init(const char* cipher_type, const char* key_buf, int key_buf_len);
+  void Init(const char* cipher_type,
+            const char* key_buf,
+            int key_buf_len,
+            int auth_tag_len);
   void InitIv(const char* cipher_type,
               const char* key,
               int key_len,
               const char* iv,
-              int iv_len);
-  bool Update(const char* data, int len, unsigned char** out, int* out_len);
+              int iv_len,
+              int auth_tag_len);
+  bool InitAuthenticated(const char *cipher_type, int iv_len, int auth_tag_len);
+  bool CheckCCMMessageLength(int message_len);
+  UpdateResult Update(const char* data, int len, unsigned char** out,
+                      int* out_len);
   bool Final(unsigned char** out, int *out_len);
   bool SetAutoPadding(bool auto_padding);
 
   bool IsAuthenticatedMode() const;
-  bool SetAAD(const char* data, unsigned int len);
+  bool SetAAD(const char* data, unsigned int len, int plaintext_len);
 
   static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Init(const v8::FunctionCallbackInfo<v8::Value>& args);
@@ -385,15 +397,20 @@ class CipherBase : public BaseObject {
       : BaseObject(env, wrap),
         ctx_(nullptr),
         kind_(kind),
-        auth_tag_len_(0) {
+        auth_tag_set_(false),
+        auth_tag_len_(0),
+        pending_auth_failed_(false) {
     MakeWeak<CipherBase>(this);
   }
 
  private:
   EVP_CIPHER_CTX* ctx_;
   const CipherKind kind_;
+  bool auth_tag_set_;
   unsigned int auth_tag_len_;
   char auth_tag_[EVP_GCM_TLS_TAG_LEN];
+  bool pending_auth_failed_;
+  int max_message_size_;
 };
 
 class Hmac : public BaseObject {
