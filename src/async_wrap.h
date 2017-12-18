@@ -43,6 +43,7 @@ namespace node {
   V(HTTP2SESSION)                                                             \
   V(HTTP2STREAM)                                                              \
   V(HTTP2PING)                                                                \
+  V(HTTP2SETTINGS)                                                            \
   V(HTTPPARSER)                                                               \
   V(JSSTREAM)                                                                 \
   V(PIPECONNECTWRAP)                                                          \

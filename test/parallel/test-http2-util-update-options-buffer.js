@@ -17,7 +17,8 @@ const IDX_OPTIONS_PEER_MAX_CONCURRENT_STREAMS = 3;
 const IDX_OPTIONS_PADDING_STRATEGY = 4;
 const IDX_OPTIONS_MAX_HEADER_LIST_PAIRS = 5;
 const IDX_OPTIONS_MAX_OUTSTANDING_PINGS = 6;
-const IDX_OPTIONS_FLAGS = 7;
+const IDX_OPTIONS_MAX_OUTSTANDING_SETTINGS = 7;
+const IDX_OPTIONS_FLAGS = 8;
 
 {
   updateOptionsBuffer({
@@ -27,7 +28,8 @@ const IDX_OPTIONS_FLAGS = 7;
     peerMaxConcurrentStreams: 4,
     paddingStrategy: 5,
     maxHeaderListPairs: 6,
-    maxOutstandingPings: 7
+    maxOutstandingPings: 7,
+    maxOutstandingSettings: 8
   });
 
   strictEqual(optionsBuffer[IDX_OPTIONS_MAX_DEFLATE_DYNAMIC_TABLE_SIZE], 1);
@@ -37,6 +39,7 @@ const IDX_OPTIONS_FLAGS = 7;
   strictEqual(optionsBuffer[IDX_OPTIONS_PADDING_STRATEGY], 5);
   strictEqual(optionsBuffer[IDX_OPTIONS_MAX_HEADER_LIST_PAIRS], 6);
   strictEqual(optionsBuffer[IDX_OPTIONS_MAX_OUTSTANDING_PINGS], 7);
+  strictEqual(optionsBuffer[IDX_OPTIONS_MAX_OUTSTANDING_SETTINGS], 8);
 
   const flags = optionsBuffer[IDX_OPTIONS_FLAGS];
 
@@ -47,6 +50,7 @@ const IDX_OPTIONS_FLAGS = 7;
   ok(flags & (1 << IDX_OPTIONS_PADDING_STRATEGY));
   ok(flags & (1 << IDX_OPTIONS_MAX_HEADER_LIST_PAIRS));
   ok(flags & (1 << IDX_OPTIONS_MAX_OUTSTANDING_PINGS));
+  ok(flags & (1 << IDX_OPTIONS_MAX_OUTSTANDING_SETTINGS));
 }
 
 {
