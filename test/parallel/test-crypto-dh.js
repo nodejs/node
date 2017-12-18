@@ -22,6 +22,28 @@ assert.strictEqual(secret2.toString('base64'), secret1);
 assert.strictEqual(dh1.verifyError, 0);
 assert.strictEqual(dh2.verifyError, 0);
 
+{
+  const DiffieHellman = crypto.DiffieHellman;
+  const dh = DiffieHellman(p1, 'buffer');
+  assert(dh instanceof DiffieHellman, 'DiffieHellman is expected to return a ' +
+                                      'new instance when called without `new`');
+}
+
+{
+  const DiffieHellmanGroup = crypto.DiffieHellmanGroup;
+  const dhg = DiffieHellmanGroup('modp5');
+  assert(dhg instanceof DiffieHellmanGroup, 'DiffieHellmanGroup is expected ' +
+                                            'to return a new instance when ' +
+                                            'called without `new`');
+}
+
+{
+  const ECDH = crypto.ECDH;
+  const ecdh = ECDH('prime256v1');
+  assert(ecdh instanceof ECDH, 'ECDH is expected to return a new instance ' +
+                               'when called without `new`');
+}
+
 [
   [0x1, 0x2],
   () => { },
