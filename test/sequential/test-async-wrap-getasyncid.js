@@ -26,6 +26,7 @@ const tmpdir = require('../common/tmpdir');
     delete providers.HTTP2SESSION;
     delete providers.HTTP2STREAM;
     delete providers.HTTP2PING;
+    delete providers.HTTP2SETTINGS;
 
     const obj_keys = Object.keys(providers);
     if (obj_keys.length > 0)
