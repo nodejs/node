@@ -41,18 +41,6 @@ const filename = path.join(common.tmpDir, 'sync-write-stream.txt');
   assert.strictEqual(fs.readFileSync(filename).equals(chunk), true);
 }
 
-// Throws if data is not of type Buffer.
-{
-  const stream = new SyncWriteStream(1);
-  common.expectsError(() => {
-    stream._write(42, null, function() {});
-  }, {
-    code: 'ERR_INVALID_ARG_TYPE',
-    type: TypeError,
-    message: 'The "data" argument must be of type Buffer. Received type number'
-  });
-}
-
 // Verify that the stream will unset the fd after destroy().
 {
   const fd = fs.openSync(filename, 'w');
