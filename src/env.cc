@@ -309,7 +309,7 @@ void Environment::CheckImmediate(uv_check_t* handle) {
 
   MakeCallback(env->isolate(),
                env->process_object(),
-               env->immediate_callback_string(),
+               env->immediate_callback_function(),
                0,
                nullptr,
                {0, 0}).ToLocalChecked();
