@@ -9,7 +9,7 @@
 The `fs` module provides an API for interacting with the file system in a
 manner closely modeled around standard POSIX functions.
 
-To use this module, use:
+To use this module:
 
 ```js
 const fs = require('fs');
@@ -51,7 +51,7 @@ try {
 
 Note that there is no guaranteed ordering when using asynchronous methods.
 So the following is prone to error because the `fs.stat()` operation may
-completely before the `fs.rename()` operation.
+complete before the `fs.rename()` operation.
 
 ```js
 fs.rename('/tmp/hello', '/tmp/world', (err) => {
@@ -109,7 +109,7 @@ Error: EISDIR: illegal operation on a directory, read
 Most `fs` operations accept filepaths that may be specified in the form of
 a string, a [`Buffer`][], or a [`URL`][] object using the `file:` protocol.
 
-String form paths are interpretted as UTF-8 character sequences identifying
+String form paths are interpreted as UTF-8 character sequences identifying
 the absolute or relative filename. Relative paths will be resolved relative
 to the current working directory as specified by `process.cwd()`.
 
@@ -146,7 +146,7 @@ be relative or absolute:
 Example using an absolute path on POSIX:
 
 ```js
-fs.open(Buffer.from('/open/some/file.txt'), (err, fd) => {
+fs.open(Buffer.from('/open/some/file.txt'), 'r', (err, fd) => {
   if (err) throw err;
   fs.close(fd, (err) => {
     if (err) throw err;
@@ -257,7 +257,7 @@ identifier called a *file descriptor*. At the system-level, all file system
 operations use these file descriptors to identify and track each specific
 file. Windows systems use a different but conceptually similar mechanism for
 tracking resources. To simplify things for users, Node.js abstracts away the
-specific differences between operating sytems and assigns all open files a
+specific differences between operating systems and assigns all open files a
 numeric file descriptor.
 
 The `fs.open()` method is used to allocate a new file descriptor. Once
@@ -401,7 +401,7 @@ changes:
     description: Added times as numbers.
 -->
 
-An `fs.Stats` object provides information about a file.
+A `fs.Stats` object provides information about a file.
 
 Objects returned from [`fs.stat()`][], [`fs.lstat()`][] and [`fs.fstat()`][] and
 their synchronous counterparts are of this type.
@@ -440,11 +440,13 @@ Returns `true` if the `fs.Stats` object describes a block device.
 * Returns: {boolean}
 
 Returns `true` if the `fs.Stats` object describes a character device.
+
 ### stats.isDirectory()
 
 * Returns: {boolean}
 
 Returns `true` if the `fs.Stats` object describes a file system directory.
+
 ### stats.isFIFO()
 
 * Returns: {boolean}
@@ -471,7 +473,6 @@ Returns `true` if the `fs.Stats` object describes a socket.
 Returns `true` if the `fs.Stats` object describes a symbolic link.
 
 *Note*: This method is only valid when using [`fs.lstat()`][]
-
 
 ### stats.dev
 
@@ -545,7 +546,7 @@ milliseconds since the POSIX Epoch.
 
 * Value: {number}
 
-The timestamp indicating the last time this files status was changed expressed
+The timestamp indicating the last time the file status was changed expressed
 in milliseconds since the POSIX Epoch.
 
 ### stats.birthtimeMs
@@ -571,7 +572,7 @@ The timestamp indicating the last time this file was modified.
 
 * Value: {Date}
 
-The timestamp indicating the last time this files status was changed.
+The timestamp indicating the last time the file status was changed.
 
 ### stats.birthtime
 
@@ -1937,9 +1938,9 @@ Functions based on `fs.open()` exhibit this behavior as well. eg.
 `fs.writeFile()`, `fs.readFile()`, etc.
 
 *Note:* On Windows, opening an existing hidden file using the `w` flag (either
-through `fs.open` or `fs.writeFile`) will fail with `EPERM`. Existing hidden
-files can be opened for writing with the `r+` flag. A call to `fs.ftruncate` can
-be used to reset the file contents.
+through `fs.open()` or `fs.writeFile()`) will fail with `EPERM`. Existing hidden
+files can be opened for writing with the `r+` flag. A call to `fs.ftruncate()`
+can be used to reset the file contents.
 
 ## fs.openSync(path, flags[, mode])
 <!-- YAML
@@ -3324,6 +3325,7 @@ The following constants are meant for use with the [`fs.Stats`][] object's
 [`URL`]: url.html#url_the_whatwg_url_api
 [`UV_THREADPOOL_SIZE`]: cli.html#cli_uv_threadpool_size_size
 [`WriteStream`]: #fs_class_fs_writestream
+[`EventEmitter']: events.html
 [`event ports`]: http://illumos.org/man/port_create
 [`fs.FSWatcher`]: #fs_class_fs_fswatcher
 [`fs.Stats`]: #fs_class_fs_stats
