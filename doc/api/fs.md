@@ -687,7 +687,8 @@ changes:
 * `path` {string|Buffer|URL}
 * `mode` {integer}
 
-The synchronous version of [`fs.chmod()`][]. Returns `undefined`.
+Synchronously changes the permissions of a file. Returns `undefined`.
+This is the synchronous version of [`fs.chmod()`][].
 
 See also: chmod(2)
 
@@ -730,7 +731,8 @@ changes:
 * `uid` {integer}
 * `gid` {integer}
 
-Synchronous version of [`fs.chown()`][]. Returns `undefined`.
+Synchronously changes owner and group of a file. Returns `undefined`.
+This is the synchronous version of [`fs.chown()`][].
 
 See also: chown(2)
 
@@ -1537,7 +1539,8 @@ changes:
 * `path` {string|Buffer|URL}
 * `mode` {integer} **Default:** `0o777`
 
-The synchronous version of [`fs.mkdir()`][]. Returns `undefined`.
+Synchronously creates a directory. Returns `undefined`.
+This is the synchronous version of [`fs.mkdir()`][]. 
 
 See also: mkdir(2)
 
