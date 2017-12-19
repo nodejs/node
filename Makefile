@@ -30,6 +30,7 @@ ifdef ENABLE_V8_TAP
   TAP_V8_BENCHMARKS := --junitout $(PWD)/v8-benchmarks-tap.xml
 endif
 
+V8_BUILD_OPTIONS += GYPFLAGS="-Dclang=0"
 V8_TEST_OPTIONS = $(V8_EXTRA_TEST_OPTIONS)
 ifdef DISABLE_V8_I18N
   V8_BUILD_OPTIONS += i18nsupport=off
