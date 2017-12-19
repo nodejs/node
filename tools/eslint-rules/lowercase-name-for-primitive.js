@@ -22,19 +22,20 @@ module.exports = function(context) {
 
     switch (names.type) {
       case 'Literal':
-        checkName(names, names.value);
+        checkName(names);
         break;
       case 'ArrayExpression':
-        names.elements.forEach((name, index) => {
-          checkName(names.elements[index], name.value);
+        names.elements.forEach((name) => {
+          checkName(name);
         });
         break;
     }
   }
 
-  function checkName(node, name) {
+  function checkName(node) {
+    const name = node.value;
     const lowercaseName = name.toLowerCase();
-    if (primitives.includes(lowercaseName) && !primitives.includes(name)) {
+    if (name !== lowercaseName && primitives.includes(lowercaseName)) {
       const msg = `primitive should use lowercase: ${name}`;
       context.report({
         node,
