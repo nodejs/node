@@ -24,6 +24,8 @@ namespace http2 {
 
 namespace {
 
+const char zero_bytes_256[256] = {};
+
 inline Http2Stream* GetStream(Http2Session* session,
                               int32_t id,
                               nghttp2_data_source* source) {
@@ -1113,15 +1115,10 @@ void Http2Session::ClearOutgoing(int status) {
 // Queue a given block of data for sending. This always creates a copy,
 // so it is used for the cases in which nghttp2 requests sending of a
 // small chunk of data.
-// If src == nullptr, this zero-fills instead (which is useful for padding).
 void Http2Session::CopyDataIntoOutgoing(const uint8_t* src, size_t src_length) {
   size_t offset = outgoing_storage_.size();
   outgoing_storage_.resize(offset + src_length);
-  if (src != nullptr) {
-    memcpy(&outgoing_storage_[offset], src, src_length);
-  } else {
-    memset(&outgoing_storage_[offset], 0, src_length);
-  }
+  memcpy(&outgoing_storage_[offset], src, src_length);
 
   // Store with a base of `nullptr` initially, since future resizes
   // of the outgoing_buffers_ vector may invalidate the pointer.
@@ -1269,7 +1266,9 @@ int Http2Session::OnSendData(
 
   if (frame->data.padlen > 0) {
     // Send padding if that was requested.
-    session->CopyDataIntoOutgoing(nullptr, frame->data.padlen - 1);
+    session->outgoing_buffers_.emplace_back(nghttp2_stream_write {
+      uv_buf_init(const_cast<char*>(zero_bytes_256), frame->data.padlen - 1)
+    });
   }
 
   return 0;
