@@ -50,7 +50,7 @@ function getExpectedSymbols() {
     // should only consist of postmortem constants, and some of them can be
     // relatively long.
     /* eslint-disable max-len */
-    'v8dbg_bit_field3_dictionary_map_shift',
+    'v8dbg_bit_field3_is_dictionary_map_shift',
     'v8dbg_bit_field3_number_of_own_descriptors_shift',
     'v8dbg_class_Code__instruction_size__int',
     'v8dbg_class_Code__instruction_start__uintptr_t',
