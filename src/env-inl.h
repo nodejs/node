@@ -66,6 +66,12 @@ inline Environment::AsyncHooks::AsyncHooks(v8::Isolate* isolate)
   // and flag changes won't be included.
   fields_[kCheck] = 1;
 
+  // kDefaultTriggerAsyncId should be -1, this indicates that there is no
+  // specified default value and it should fallback to the executionAsyncId.
+  // 0 is not used as the magic value, because that indicates a missing context
+  // which is different from a default context.
+  async_id_fields_[AsyncHooks::kDefaultTriggerAsyncId] = -1;
+
   // kAsyncIdCounter should start at 1 because that'll be the id the execution
   // context during bootstrap (code that runs before entering uv_run()).
   async_id_fields_[AsyncHooks::kAsyncIdCounter] = 1;
@@ -170,22 +176,26 @@ inline void Environment::AsyncHooks::clear_async_id_stack() {
   async_id_fields_[kTriggerAsyncId] = 0;
 }
 
-inline Environment::AsyncHooks::InitScope::InitScope(
-    Environment* env, double init_trigger_async_id)
-        : env_(env),
-          async_id_fields_ref_(env->async_hooks()->async_id_fields()) {
-  if (env_->async_hooks()->fields()[AsyncHooks::kCheck] > 0) {
-    CHECK_GE(init_trigger_async_id, -1);
+inline Environment::AsyncHooks::DefaultTriggerAsyncIdScope
+  ::DefaultTriggerAsyncIdScope(Environment* env,
+                               double default_trigger_async_id)
+    : async_id_fields_ref_(env->async_hooks()->async_id_fields()) {
+  if (env->async_hooks()->fields()[AsyncHooks::kCheck] > 0) {
+    CHECK_GE(default_trigger_async_id, 0);
   }
-  env->async_hooks()->push_async_ids(
-    async_id_fields_ref_[AsyncHooks::kExecutionAsyncId],
-    init_trigger_async_id);
+
+  old_default_trigger_async_id_ =
+    async_id_fields_ref_[AsyncHooks::kDefaultTriggerAsyncId];
+  async_id_fields_ref_[AsyncHooks::kDefaultTriggerAsyncId] =
+    default_trigger_async_id;
 }
 
-inline Environment::AsyncHooks::InitScope::~InitScope() {
-  env_->async_hooks()->pop_async_id(
-    async_id_fields_ref_[AsyncHooks::kExecutionAsyncId]);
+inline Environment::AsyncHooks::DefaultTriggerAsyncIdScope
+  ::~DefaultTriggerAsyncIdScope() {
+  async_id_fields_ref_[AsyncHooks::kDefaultTriggerAsyncId] =
+    old_default_trigger_async_id_;
 }
+
 
 inline Environment::AsyncCallbackScope::AsyncCallbackScope(Environment* env)
     : env_(env) {
@@ -447,17 +457,13 @@ inline double Environment::trigger_async_id() {
   return async_hooks()->async_id_fields()[AsyncHooks::kTriggerAsyncId];
 }
 
-inline double Environment::get_init_trigger_async_id() {
-  AliasedBuffer<double, v8::Float64Array>& async_id_fields =
-    async_hooks()->async_id_fields();
-  double tid = async_id_fields[AsyncHooks::kInitTriggerAsyncId];
-  async_id_fields[AsyncHooks::kInitTriggerAsyncId] = 0;
-  if (tid <= 0) tid = execution_async_id();
-  return tid;
-}
-
-inline void Environment::set_init_trigger_async_id(const double id) {
-  async_hooks()->async_id_fields()[AsyncHooks::kInitTriggerAsyncId] = id;
+inline double Environment::get_default_trigger_async_id() {
+  double default_trigger_async_id =
+    async_hooks()->async_id_fields()[AsyncHooks::kDefaultTriggerAsyncId];
+  // If defaultTriggerAsyncId isn't set, use the executionAsyncId
+  if (default_trigger_async_id < 0)
+    default_trigger_async_id = execution_async_id();
+  return default_trigger_async_id;
 }
 
 inline double* Environment::heap_statistics_buffer() const {

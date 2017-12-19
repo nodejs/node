@@ -308,12 +308,13 @@ static void PromiseHook(PromiseHookType type, Local<Promise> promise,
       if (parent_wrap == nullptr) {
         parent_wrap = PromiseWrap::New(env, parent_promise, nullptr, true);
       }
-      // get id from parentWrap
-      double trigger_async_id = parent_wrap->get_async_id();
-      env->set_init_trigger_async_id(trigger_async_id);
-    }
 
-    wrap = PromiseWrap::New(env, promise, parent_wrap, silent);
+      AsyncHooks::DefaultTriggerAsyncIdScope trigger_scope(
+        env, parent_wrap->get_async_id());
+      wrap = PromiseWrap::New(env, promise, parent_wrap, silent);
+    } else {
+      wrap = PromiseWrap::New(env, promise, nullptr, silent);
+    }
   }
 
   CHECK_NE(wrap, nullptr);
@@ -542,9 +543,10 @@ void AsyncWrap::Initialize(Local<Object> target,
   //
   // kAsyncUid: Maintains the state of the next unique id to be assigned.
   //
-  // kInitTriggerAsyncId: Write the id of the resource responsible for a
+  // kDefaultTriggerAsyncId: Write the id of the resource responsible for a
   //   handle's creation just before calling the new handle's constructor.
-  //   After the new handle is constructed kInitTriggerAsyncId is set back to 0.
+  //   After the new handle is constructed kDefaultTriggerAsyncId is set back
+  //   to 0.
   FORCE_SET_TARGET_FIELD(target,
                          "async_id_fields",
                          env->async_hooks()->async_id_fields().GetJSArray());
@@ -564,7 +566,7 @@ void AsyncWrap::Initialize(Local<Object> target,
   SET_HOOKS_CONSTANT(kExecutionAsyncId);
   SET_HOOKS_CONSTANT(kTriggerAsyncId);
   SET_HOOKS_CONSTANT(kAsyncIdCounter);
-  SET_HOOKS_CONSTANT(kInitTriggerAsyncId);
+  SET_HOOKS_CONSTANT(kDefaultTriggerAsyncId);
 #undef SET_HOOKS_CONSTANT
   FORCE_SET_TARGET_FIELD(target, "constants", constants);
 
@@ -677,7 +679,7 @@ void AsyncWrap::EmitDestroy(Environment* env, double async_id) {
 void AsyncWrap::AsyncReset(double execution_async_id, bool silent) {
   async_id_ =
     execution_async_id == -1 ? env()->new_async_id() : execution_async_id;
-  trigger_async_id_ = env()->get_init_trigger_async_id();
+  trigger_async_id_ = env()->get_default_trigger_async_id();
 
   switch (provider_type()) {
 #define V(PROVIDER)                                                           \
@@ -778,7 +780,7 @@ async_context EmitAsyncInit(Isolate* isolate,
 
   // Initialize async context struct
   if (trigger_async_id == -1)
-    trigger_async_id = env->get_init_trigger_async_id();
+    trigger_async_id = env->get_default_trigger_async_id();
 
   async_context context = {
     env->new_async_id(),  // async_id_
