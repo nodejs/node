@@ -416,10 +416,10 @@ const BSD_ONLY_SYSCALLS = new Set(['lchmod']);
 // '<a href="http://man7.org/linux/man-pages/man2/open.2.html">open(2)</a>'
 function linkManPages(text) {
   return text.replace(
-    / ([a-z.]+)\((\d)([a-z]?)\)/gm,
-    (match, name, number, optionalCharacter) => {
+    /(^|\s)([a-z.]+)\((\d)([a-z]?)\)/gm,
+    (match, beginning, name, number, optionalCharacter) => {
       // name consists of lowercase letters, number is a single digit
-      const displayAs = `${name}(${number}${optionalCharacter})`;
+      const displayAs = `${beginning}${name}(${number}${optionalCharacter})`;
       if (BSD_ONLY_SYSCALLS.has(name)) {
         return ` <a href="https://www.freebsd.org/cgi/man.cgi?query=${name}` +
           `&sektion=${number}">${displayAs}</a>`;
