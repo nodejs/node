@@ -26,7 +26,6 @@
 
 #include <stddef.h>  // size_t
 #include <stdint.h>
-#include <stdlib.h>  // nullptr
 
 namespace node {
 namespace crypto {
