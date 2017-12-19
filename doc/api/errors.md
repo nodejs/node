@@ -1364,7 +1364,14 @@ Script execution was interrupted by `SIGINT` (For example, when Ctrl+C was press
 
 The [`server.listen()`][] method was called while a `net.Server` was already
 listening. This applies to all instances of `net.Server`, including HTTP, HTTPS,
-and HTTP/2 Server instances.
+and HTTP/2 `Server` instances.
+
+<a id="ERR_SERVER_NOT_RUNNING"></a>
+### ERR_SERVER_NOT_RUNNING
+
+The [`server.close()`][] method was called when a `net.Server` was not
+running. This applies to all instances of `net.Server`, including HTTP, HTTPS,
+and HTTP/2 `Server` instances.
 
 <a id="ERR_SOCKET_ALREADY_BOUND"></a>
 ### ERR_SOCKET_ALREADY_BOUND
