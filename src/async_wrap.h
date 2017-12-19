@@ -123,7 +123,6 @@ class AsyncWrap : public BaseObject {
   static void GetAsyncId(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void PushAsyncIds(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void PopAsyncIds(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void AsyncIdStackSize(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void ClearAsyncIdStack(
     const v8::FunctionCallbackInfo<v8::Value>& args);
   static void AsyncReset(const v8::FunctionCallbackInfo<v8::Value>& args);
