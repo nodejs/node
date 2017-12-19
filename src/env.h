@@ -387,10 +387,7 @@ class Environment {
     AsyncHooks() = delete;
 
     inline AliasedBuffer<uint32_t, v8::Uint32Array>& fields();
-    inline int fields_count() const;
-
     inline AliasedBuffer<double, v8::Float64Array>& async_id_fields();
-    inline int async_id_fields_count() const;
 
     inline v8::Local<v8::String> provider_string(int idx);
 

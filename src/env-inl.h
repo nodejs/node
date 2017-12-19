@@ -90,17 +90,9 @@ Environment::AsyncHooks::fields() {
   return fields_;
 }
 
-inline int Environment::AsyncHooks::fields_count() const {
-  return kFieldsCount;
-}
-
 inline AliasedBuffer<double, v8::Float64Array>&
 Environment::AsyncHooks::async_id_fields() {
   return async_id_fields_;
-}
-
-inline int Environment::AsyncHooks::async_id_fields_count() const {
-  return kUidFieldsCount;
 }
 
 inline v8::Local<v8::String> Environment::AsyncHooks::provider_string(int idx) {
