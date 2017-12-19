@@ -313,11 +313,6 @@ class ModuleWrap;
 
 class Environment;
 
-struct node_async_ids {
-  double async_id;
-  double trigger_async_id;
-};
-
 class IsolateData {
  public:
   IsolateData(v8::Isolate* isolate, uv_loop_t* event_loop,
@@ -424,7 +419,7 @@ class Environment {
     // Used by provider_string().
     v8::Isolate* isolate_;
     // Stores the ids of the current execution context stack.
-    std::stack<struct node_async_ids> async_ids_stack_;
+    std::stack<async_context> async_ids_stack_;
     // Attached to a Uint32Array that tracks the number of active hooks for
     // each type.
     AliasedBuffer<uint32_t, v8::Uint32Array> fields_;
