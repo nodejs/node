@@ -421,10 +421,10 @@ function linkManPages(text) {
       // name consists of lowercase letters, number is a single digit
       const displayAs = `${beginning}${name}(${number}${optionalCharacter})`;
       if (BSD_ONLY_SYSCALLS.has(name)) {
-        return ` <a href="https://www.freebsd.org/cgi/man.cgi?query=${name}` +
+        return `<a href="https://www.freebsd.org/cgi/man.cgi?query=${name}` +
           `&sektion=${number}">${displayAs}</a>`;
       } else {
-        return ` <a href="http://man7.org/linux/man-pages/man${number}` +
+        return `<a href="http://man7.org/linux/man-pages/man${number}` +
           `/${name}.${number}${optionalCharacter}.html">${displayAs}</a>`;
       }
     });
