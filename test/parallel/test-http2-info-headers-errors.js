@@ -48,10 +48,6 @@ server.on('stream', common.mustCall((stream, headers) => {
   if (currentError.type === 'stream') {
     stream.session.on('error', errorMustNotCall);
     stream.on('error', errorMustCall);
-    stream.on('error', common.mustCall(() => {
-      stream.respond();
-      stream.end();
-    }));
   } else {
     stream.session.once('error', errorMustCall);
     stream.on('error', errorMustNotCall);
@@ -63,24 +59,21 @@ server.on('stream', common.mustCall((stream, headers) => {
 server.listen(0, common.mustCall(() => runTest(tests.shift())));
 
 function runTest(test) {
-  const port = server.address().port;
-  const url = `http://localhost:${port}`;
-  const headers = {
-    ':path': '/',
-    ':method': 'POST',
-    ':scheme': 'http',
-    ':authority': `localhost:${port}`
-  };
-
-  const client = http2.connect(url);
-  const req = client.request(headers);
+  const client = http2.connect(`http://localhost:${server.address().port}`);
+  const req = client.request({ ':method': 'POST' });
 
   currentError = test;
   req.resume();
   req.end();
 
-  req.on('end', common.mustCall(() => {
-    client.destroy();
+  req.on('error', common.expectsError({
+    code: 'ERR_HTTP2_STREAM_ERROR',
+    type: Error,
+    message: 'Stream closed with error code 2'
+  }));
+
+  req.on('close', common.mustCall(() => {
+    client.close();
 
     if (!tests.length) {
       server.close();

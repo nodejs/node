@@ -46,7 +46,7 @@ server.listen(0, () => {
   req.on('data', (chunk) => check += chunk);
   req.on('end', common.mustCall(() => {
     assert.strictEqual(check, data.toString('utf8', 8, 11));
-    client.destroy();
+    client.close();
     server.close();
   }));
   req.end();

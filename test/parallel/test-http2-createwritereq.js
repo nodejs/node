@@ -54,7 +54,7 @@ server.listen(0, common.mustCall(function() {
     req.resume();
 
     req.on('end', common.mustCall(function() {
-      client.destroy();
+      client.close();
       testsFinished++;
 
       if (testsFinished === testsToRun) {

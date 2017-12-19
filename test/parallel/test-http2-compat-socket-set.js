@@ -98,7 +98,7 @@ server.listen(0, common.mustCall(function() {
     };
     const request = client.request(headers);
     request.on('end', common.mustCall(() => {
-      client.destroy();
+      client.close();
       server.close();
     }));
     request.end();

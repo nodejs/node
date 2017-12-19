@@ -56,7 +56,8 @@ Local<Object> TCPWrap::Instantiate(Environment* env,
                                    AsyncWrap* parent,
                                    TCPWrap::SocketType type) {
   EscapableHandleScope handle_scope(env->isolate());
-  AsyncHooks::InitScope init_scope(env, parent->get_async_id());
+  AsyncHooks::DefaultTriggerAsyncIdScope trigger_scope(
+    env, parent->get_async_id());
   CHECK_EQ(env->tcp_constructor_template().IsEmpty(), false);
   Local<Function> constructor = env->tcp_constructor_template()->GetFunction();
   CHECK_EQ(constructor.IsEmpty(), false);
@@ -169,7 +170,6 @@ TCPWrap::TCPWrap(Environment* env, Local<Object> object, ProviderType provider)
   int r = uv_tcp_init(env->event_loop(), &handle_);
   CHECK_EQ(r, 0);  // How do we proxy this error up to javascript?
                    // Suggestion: uv_tcp_init() returns void.
-  UpdateWriteQueueSize();
 }
 
 
@@ -293,7 +293,8 @@ void TCPWrap::Connect(const FunctionCallbackInfo<Value>& args) {
   int err = uv_ip4_addr(*ip_address, port, &addr);
 
   if (err == 0) {
-    env->set_init_trigger_async_id(wrap->get_async_id());
+    AsyncHooks::DefaultTriggerAsyncIdScope trigger_scope(
+      env, wrap->get_async_id());
     ConnectWrap* req_wrap =
         new ConnectWrap(env, req_wrap_obj, AsyncWrap::PROVIDER_TCPCONNECTWRAP);
     err = uv_tcp_connect(req_wrap->req(),
@@ -329,7 +330,8 @@ void TCPWrap::Connect6(const FunctionCallbackInfo<Value>& args) {
   int err = uv_ip6_addr(*ip_address, port, &addr);
 
   if (err == 0) {
-    env->set_init_trigger_async_id(wrap->get_async_id());
+    AsyncHooks::DefaultTriggerAsyncIdScope trigger_scope(
+      env, wrap->get_async_id());
     ConnectWrap* req_wrap =
         new ConnectWrap(env, req_wrap_obj, AsyncWrap::PROVIDER_TCPCONNECTWRAP);
     err = uv_tcp_connect(req_wrap->req(),

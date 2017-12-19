@@ -157,6 +157,8 @@ were first added in this version. The relevant commits should already include
 `sed -i "s/REPLACEME/$VERSION/g" doc/api/*.md` or
 `perl -pi -e "s/REPLACEME/$VERSION/g" doc/api/*.md`.
 
+*Note*: `$VERSION` should be prefixed with a `v`
+
 If this release includes any new deprecations it is necessary to ensure that
 those are assigned a proper static deprecation code. These are listed in the
 docs (see `doc/api/deprecations.md`) and in the source as `DEP00XX`. The code

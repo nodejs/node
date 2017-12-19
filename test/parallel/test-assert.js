@@ -476,33 +476,21 @@ common.expectsError(
   }
 );
 
-{
-  let threw = false;
-  try {
-    assert.doesNotThrow(makeBlock(thrower, Error), 'user message');
-  } catch (e) {
-    threw = true;
-    common.expectsError({
-      code: 'ERR_ASSERTION',
-      message: /Got unwanted exception: user message\n\[object Object\]/
-    })(e);
+common.expectsError(
+  () => assert.doesNotThrow(makeBlock(thrower, Error), 'user message'),
+  {
+    code: 'ERR_ASSERTION',
+    message: /Got unwanted exception: user message\n\[object Object\]/
   }
-  assert.ok(threw);
-}
+);
 
-{
-  let threw = false;
-  try {
-    assert.doesNotThrow(makeBlock(thrower, Error));
-  } catch (e) {
-    threw = true;
-    common.expectsError({
-      code: 'ERR_ASSERTION',
-      message: /Got unwanted exception\.\n\[object Object\]/
-    })(e);
+common.expectsError(
+  () => assert.doesNotThrow(makeBlock(thrower, Error)),
+  {
+    code: 'ERR_ASSERTION',
+    message: /Got unwanted exception\.\n\[object Object\]/
   }
-  assert.ok(threw);
-}
+);
 
 // make sure that validating using constructor really works
 {
@@ -634,6 +622,7 @@ testAssertionMessage({ a: NaN, b: Infinity, c: -Infinity },
   } catch (e) {
     threw = true;
     assert.strictEqual(e.message, 'Missing expected exception.');
+    assert.ok(!e.stack.includes('throws'), e.stack);
   }
   assert.ok(threw);
 }
@@ -678,6 +667,7 @@ try {
     threw = true;
     assert.ok(e.message.includes(rangeError.message));
     assert.ok(e instanceof assert.AssertionError);
+    assert.ok(!e.stack.includes('doesNotThrow'), e.stack);
   }
   assert.ok(threw);
 }
@@ -689,21 +679,15 @@ try {
   }
 
   const testBlockTypeError = (method, block) => {
-    let threw = true;
-
-    try {
-      method(block);
-      threw = false;
-    } catch (e) {
-      common.expectsError({
+    common.expectsError(
+      () => method(block),
+      {
         code: 'ERR_INVALID_ARG_TYPE',
         type: TypeError,
         message: 'The "block" argument must be of type Function. Received ' +
-                 `type ${typeName(block)}`
-      })(e);
-    }
-
-    assert.ok(threw);
+                `type ${typeName(block)}`
+      }
+    );
   };
 
   testBlockTypeError(assert.throws, 'string');
@@ -787,5 +771,16 @@ common.expectsError(
     code: 'ERR_ASSERTION',
     type: assert.AssertionError,
     message: 'null == true'
+  }
+);
+
+common.expectsError(
+  // eslint-disable-next-line no-restricted-syntax
+  () => assert.throws(() => {}, 'Error message', 'message'),
+  {
+    code: 'ERR_INVALID_ARG_TYPE',
+    type: TypeError,
+    message: 'The "error" argument must be one of type Function or RegExp. ' +
+             'Received type string'
   }
 );

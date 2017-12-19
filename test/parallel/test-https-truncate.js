@@ -57,7 +57,7 @@ function httpsTest() {
 
 const test = common.mustCall(function(res) {
   res.on('end', common.mustCall(function() {
-    assert.strictEqual(res._readableState.length, 0);
+    assert.strictEqual(res.readableLength, 0);
     assert.strictEqual(bytes, data.length);
   }));
 

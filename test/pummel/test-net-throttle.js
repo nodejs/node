@@ -40,7 +40,7 @@ const server = net.createServer(function(connection) {
   assert.strictEqual(false, connection.write(body.slice(2 * part_N, N)));
   console.log(`bufferSize: ${connection.bufferSize}`, 'expecting', N);
   assert.ok(0 <= connection.bufferSize &&
-            connection._writableState.length <= N);
+            connection.writableLength <= N);
   connection.end();
 });
 

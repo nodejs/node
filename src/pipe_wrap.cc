@@ -53,7 +53,8 @@ Local<Object> PipeWrap::Instantiate(Environment* env,
                                     AsyncWrap* parent,
                                     PipeWrap::SocketType type) {
   EscapableHandleScope handle_scope(env->isolate());
-  AsyncHooks::InitScope init_scope(env, parent->get_async_id());
+  AsyncHooks::DefaultTriggerAsyncIdScope trigger_scope(env,
+                                                       parent->get_async_id());
   CHECK_EQ(false, env->pipe_constructor_template().IsEmpty());
   Local<Function> constructor = env->pipe_constructor_template()->GetFunction();
   CHECK_EQ(false, constructor.IsEmpty());
@@ -165,7 +166,6 @@ PipeWrap::PipeWrap(Environment* env,
   int r = uv_pipe_init(env->event_loop(), &handle_, ipc);
   CHECK_EQ(r, 0);  // How do we proxy this error up to javascript?
                    // Suggestion: uv_pipe_init() returns void.
-  UpdateWriteQueueSize();
 }
 
 
