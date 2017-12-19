@@ -59,7 +59,7 @@ server.listen(common.PIPE, common.mustCall(function() {
       server.close(common.mustCall(function(error) {
         assert.strictEqual(error, undefined);
         server.close(common.mustCall(function(error) {
-          assert.strictEqual(error && error.message, 'Not running');
+          assert.strictEqual(error && error.code, 'ERR_SERVER_NOT_RUNNING');
         }));
       }));
     }));
