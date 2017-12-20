@@ -47,9 +47,9 @@ NODE_EXTERN inline void MarkPerformanceMilestone(
 
 class PerformanceEntry {
  public:
-  static inline void Notify(Environment* env,
-                            PerformanceEntryType type,
-                            Local<Value> object);
+  static void Notify(Environment* env,
+                     PerformanceEntryType type,
+                     Local<Value> object);
 
   static void New(const FunctionCallbackInfo<Value>& args);
 

@@ -5,6 +5,7 @@
 
 #include "nghttp2/nghttp2.h"
 #include "node_http2_state.h"
+#include "node_perf.h"
 #include "stream_base-inl.h"
 #include "string_bytes.h"
 
@@ -18,6 +19,8 @@ using v8::Context;
 using v8::EscapableHandleScope;
 using v8::Isolate;
 using v8::MaybeLocal;
+
+using performance::PerformanceEntry;
 
 #ifdef NODE_DEBUG_HTTP2
 
@@ -531,6 +534,8 @@ class Http2Stream : public AsyncWrap,
 
   Http2Session* session() { return session_; }
 
+  inline void EmitStatistics();
+
   inline bool HasDataChunks(bool ignore_eos = false);
 
   inline void AddChunk(const uint8_t* data, size_t len);
@@ -690,6 +695,15 @@ class Http2Stream : public AsyncWrap,
 
   class Provider;
 
+  struct Statistics {
+    uint64_t start_time;
+    uint64_t end_time;
+    uint64_t first_header;  // Time first header was received
+    uint64_t first_byte;    // Time first data frame byte was received
+  };
+
+  Statistics statistics_ = {};
+
  private:
   Http2Session* session_;                       // The Parent HTTP/2 Session
   int32_t id_;                                  // The Stream Identifier
@@ -776,6 +790,8 @@ class Http2Session : public AsyncWrap {
 
   class Http2Ping;
   class Http2Settings;
+
+  inline void EmitStatistics();
 
   void Start();
   void Stop();
@@ -879,6 +895,17 @@ class Http2Session : public AsyncWrap {
 
   Http2Settings* PopSettings();
   bool AddSettings(Http2Settings* settings);
+
+  struct Statistics {
+    uint64_t start_time;
+    uint64_t end_time;
+    uint64_t ping_rtt;
+    uint32_t frame_count;
+    int32_t stream_count;
+    double stream_average_duration;
+  };
+
+  Statistics statistics_ = {};
 
  private:
   // Frame Padding Strategies
@@ -1022,6 +1049,62 @@ class Http2Session : public AsyncWrap {
   friend class Http2Scope;
 };
 
+class Http2SessionPerformanceEntry : public PerformanceEntry {
+ public:
+  Http2SessionPerformanceEntry(
+      Environment* env,
+      const Http2Session::Statistics& stats,
+      const char* kind) :
+          PerformanceEntry(env, "Http2Session", "http2",
+                           stats.start_time,
+                           stats.end_time),
+          ping_rtt_(stats.ping_rtt),
+          frame_count_(stats.frame_count),
+          stream_count_(stats.stream_count),
+          stream_average_duration_(stats.stream_average_duration),
+          kind_(kind) { }
+
+  uint64_t ping_rtt() const { return ping_rtt_; }
+  uint32_t frame_count() const { return frame_count_; }
+  int32_t stream_count() const { return stream_count_; }
+  double stream_average_duration() const { return stream_average_duration_; }
+  const char* typeName() const { return kind_; }
+
+  void Notify(Local<Value> obj) {
+    PerformanceEntry::Notify(env(), kind(), obj);
+  }
+
+ private:
+  uint64_t ping_rtt_;
+  uint32_t frame_count_;
+  int32_t stream_count_;
+  double stream_average_duration_;
+  const char* kind_;
+};
+
+class Http2StreamPerformanceEntry : public PerformanceEntry {
+ public:
+  Http2StreamPerformanceEntry(
+      Environment* env,
+      const Http2Stream::Statistics& stats) :
+          PerformanceEntry(env, "Http2Stream", "http2",
+                           stats.start_time,
+                           stats.end_time),
+          first_header_(stats.first_header),
+          first_byte_(stats.first_byte) { }
+
+  uint64_t first_header() const { return first_header_; }
+  uint64_t first_byte() const { return first_byte_; }
+
+  void Notify(Local<Value> obj) {
+    PerformanceEntry::Notify(env(), kind(), obj);
+  }
+
+ private:
+  uint64_t first_header_;
+  uint64_t first_byte_;
+};
+
 class Http2Session::Http2Ping : public AsyncWrap {
  public:
   explicit Http2Ping(Http2Session* session);
@@ -1035,6 +1118,8 @@ class Http2Session::Http2Ping : public AsyncWrap {
  private:
   Http2Session* session_;
   uint64_t startTime_;
+
+  friend class Http2Session;
 };
 
 // The Http2Settings class is used to parse the settings passed in for

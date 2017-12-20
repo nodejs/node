@@ -2800,6 +2800,55 @@ given newly created [`Http2Stream`] on `Http2ServerRespose`.
 The callback will be called with an error with code `ERR_HTTP2_STREAM_CLOSED`
 if the stream is closed.
 
+## Collecting HTTP/2 Performance Metrics
+
+The [Performance Observer][] API can be used to collect basic performance
+metrics for each `Http2Session` and `Http2Stream` instance.
+
+```js
+const { PerformanceObserver } = require('perf_hooks');
+
+const obs = new PerformanceObserver((items) => {
+  const entry = items.getEntries()[0];
+  console.log(entry.entryType);  // prints 'http2'
+  if (entry.name === 'Http2Session') {
+    // entry contains statistics about the Http2Session
+  } else if (entry.name === 'Http2Stream') {
+    // entry contains statistics about the Http2Stream
+  }
+});
+obs.observe({ entryTypes: ['http2'] });
+```
+
+The `entryType` property of the `PerformanceEntry` will be equal to `'http2'`.
+
+The `name` property of the `PerformanceEntry` will be equal to either
+`'Http2Stream'` or `'Http2Session'`.
+
+If `name` is equal to `Http2Stream`, the `PerformanceEntry` will contain the
+following additional properties:
+
+* `timeToFirstByte` {number} The number of milliseconds elapsed between the
+  `PerformanceEntry` `startTime` and the reception of the first `DATA` frame.
+* `timeToFirstHeader` {number} The number of milliseconds elapsed between the
+  `PerformanceEntry` `startTime` and the reception of the first header.
+
+If `name` is equal to `Http2Session`, the `PerformanceEntry` will contain the
+following additional properties:
+
+* `pingRTT` {number} The number of millseconds elapsed since the transmission
+  of a `PING` frame and the reception of it's acknowledgement. Only present if
+  a `PING` frame has been sent on the `Http2Session`.
+* `streamCount` {number} The number of `Http2Stream` instances processed by
+  the `Http2Session`.
+* `streamAverageDuration` {number} The average duration (in milliseconds) for
+  all `Http2Stream` instances.
+* `framesReceived` {number} The number of HTTP/2 frames received by the
+  `Http2Session`.
+* `type` {string} Either `'server'` or `'client'` to identify the type of
+  `Http2Session`.
+
+
 [ALPN negotiation]: #http2_alpn_negotiation
 [Compatibility API]: #http2_compatibility_api
 [HTTP/1]: http.html
@@ -2807,6 +2856,7 @@ if the stream is closed.
 [HTTPS]: https.html
 [Headers Object]: #http2_headers_object
 [Http2Session and Sockets]: #http2_http2session_and_sockets
+[Performance Hooks]: perf_hooks.html
 [Readable Stream]: stream.html#stream_class_stream_readable
 [Settings Object]: #http2_settings_object
 [Using options.selectPadding]: #http2_using_options_selectpadding
