@@ -225,6 +225,11 @@ without any formatting.
 util.format('%% %s'); // '%% %s'
 ```
 
+Please note that `util.format()` is a synchronous method that is mainly
+intended as a debugging tool. Some input values can have a significant
+performance overhead that can block the event loop. Use this function
+with care and never in a hot code path.
+
 ## util.getSystemErrorName(err)
 <!-- YAML
 added: v9.7.0
@@ -436,6 +441,11 @@ console.log(util.inspect(o, { compact: false, depth: 5, breakLength: 80 }));
 // Reducing the `breakLength` will split the "Lorem ipsum" text in smaller
 // chunks.
 ```
+
+Please note that `util.inspect()` is a synchronous method that is mainly
+intended as a debugging tool. Some input values can have a significant
+performance overhead that can block the event loop. Use this function
+with care and never in a hot code path.
 
 ### Customizing `util.inspect` colors
 
