@@ -798,16 +798,6 @@ exports.hijackStdout = hijackStdWritable.bind(null, 'stdout');
 exports.hijackStderr = hijackStdWritable.bind(null, 'stderr');
 exports.restoreStdout = restoreWritable.bind(null, 'stdout');
 exports.restoreStderr = restoreWritable.bind(null, 'stderr');
-
-let fd = 2;
-exports.firstInvalidFD = function firstInvalidFD() {
-  // Get first known bad file descriptor.
-  try {
-    while (fs.fstatSync(++fd));
-  } catch (e) {}
-  return fd;
-};
-
 exports.isCPPSymbolsNotMapped = exports.isWindows ||
                                 exports.isSunOS ||
                                 exports.isAIX ||
