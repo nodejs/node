@@ -81,14 +81,13 @@ void PerformanceEntry::New(const FunctionCallbackInfo<Value>& args) {
 }
 
 // Pass the PerformanceEntry object to the PerformanceObservers
-inline void PerformanceEntry::Notify(Environment* env,
-                                     PerformanceEntryType type,
-                                     Local<Value> object) {
+void PerformanceEntry::Notify(Environment* env,
+                              PerformanceEntryType type,
+                              Local<Value> object) {
   Context::Scope scope(env->context());
   AliasedBuffer<uint32_t, v8::Uint32Array>& observers =
       env->performance_state()->observers;
-  if (observers != nullptr &&
-      type != NODE_PERFORMANCE_ENTRY_TYPE_INVALID &&
+  if (type != NODE_PERFORMANCE_ENTRY_TYPE_INVALID &&
       observers[type]) {
     node::MakeCallback(env->isolate(),
                        env->process_object(),
