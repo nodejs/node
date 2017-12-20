@@ -906,13 +906,11 @@ added: v0.11.13
 * `targetStart` {integer} The offset within `target` at which to begin
   comparison. **Default:** `0`
 * `targetEnd` {integer} The offset with `target` at which to end comparison
-  (not inclusive). Ignored when `targetStart` is `undefined`.
-  **Default:** `target.length`
+  (not inclusive). **Default:** `target.length`
 * `sourceStart` {integer} The offset within `buf` at which to begin comparison.
-  Ignored when `targetStart` is `undefined`. **Default:** `0`
+  **Default:** `0`
 * `sourceEnd` {integer} The offset within `buf` at which to end comparison
-  (not inclusive). Ignored when `targetStart` is `undefined`.
-  **Default:** [`buf.length`]
+  (not inclusive). **Default:** [`buf.length`]
 * Returns: {integer}
 
 Compares `buf` with `target` and returns a number indicating whether `buf`
@@ -982,9 +980,9 @@ added: v0.1.90
 * `targetStart` {integer} The offset within `target` at which to begin
   copying to. **Default:** `0`
 * `sourceStart` {integer} The offset within `buf` at which to begin copying from.
-  Ignored when `targetStart` is `undefined`. **Default:** `0`
+  **Default:** `0`
 * `sourceEnd` {integer} The offset within `buf` at which to stop copying (not
-  inclusive). Ignored when `sourceStart` is `undefined`. **Default:** [`buf.length`]
+  inclusive). **Default:** [`buf.length`]
 * Returns: {integer} The number of bytes copied.
 
 Copies data from a region of `buf` to a region in `target` even if the `target`
