@@ -1502,6 +1502,12 @@ a hostname in the first parameter.
 An excessive amount of TLS renegotiations is detected, which is a potential
 vector for denial-of-service attacks.
 
+<a id="ERR_TLS_RENEGOTIATION_DISABLED"></a>
+### ERR_TLS_RENEGOTIATION_DISABLED
+
+This errors is triggered when attempts are made to renegotiate TLS on a socket 
+instance which has TLS  disabled 
+
 <a id="ERR_TRANSFORM_ALREADY_TRANSFORMING"></a>
 ### ERR_TRANSFORM_ALREADY_TRANSFORMING
 
