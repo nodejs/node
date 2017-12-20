@@ -29,7 +29,6 @@ using v8::Function;
 using v8::HandleScope;
 using v8::Isolate;
 using v8::Local;
-using v8::NewStringType;
 using v8::Object;
 using v8::Persistent;
 using v8::String;
@@ -55,9 +54,8 @@ class StartIoTask : public v8::Task {
   Agent* agent;
 };
 
-template <typename T>
 std::unique_ptr<StringBuffer> ToProtocolString(Isolate* isolate,
-                                               Local<T> value) {
+                                               Local<Value> value) {
   TwoByteValue buffer(isolate, value);
   return StringBuffer::create(StringView(*buffer, buffer.length()));
 }
@@ -307,10 +305,7 @@ class NodeInspectorClient : public V8InspectorClient {
         running_nested_loop_(false) {
     client_ = V8Inspector::create(env->isolate(), this);
     // TODO(bnoordhuis) Make name configurable from src/node.cc.
-    ContextInfo info(
-        String::NewFromUtf8(env->isolate(),
-                            GetHumanReadableProcessName().c_str(),
-                            NewStringType::kNormal).ToLocalChecked());
+    ContextInfo info(GetHumanReadableProcessName());
     info.is_default = true;
     contextCreated(env->context(), info);
   }
@@ -343,17 +338,13 @@ class NodeInspectorClient : public V8InspectorClient {
   }
 
   void contextCreated(Local<Context> context, const ContextInfo& info) {
-    std::unique_ptr<StringBuffer> name_buffer =
-        ToProtocolString(env_->isolate(), info.name);
-    std::unique_ptr<StringBuffer> origin_buffer;
+    auto name_buffer = Utf8ToStringView(info.name);
+    auto origin_buffer = Utf8ToStringView(info.origin);
     std::unique_ptr<StringBuffer> aux_data_buffer;
 
     v8_inspector::V8ContextInfo v8info(
         context, CONTEXT_GROUP_ID, name_buffer->string());
-    if (!info.origin.IsEmpty()) {
-      origin_buffer = ToProtocolString(env_->isolate(), info.origin);
-      v8info.origin = origin_buffer->string();
-    }
+    v8info.origin = origin_buffer->string();
 
     if (info.is_default) {
       aux_data_buffer = Utf8ToStringView("{\"isDefault\":true}");

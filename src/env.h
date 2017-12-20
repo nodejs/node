@@ -361,11 +361,9 @@ class IsolateData {
 };
 
 struct ContextInfo {
-  explicit ContextInfo(v8::Local<v8::String> name) : name(name) {
-    CHECK(!name.IsEmpty());
-  }
-  v8::Local<v8::String> name;
-  v8::Local<v8::String> origin;
+  explicit ContextInfo(std::string name) : name(name) {}
+  std::string name;
+  std::string origin;
   bool is_default = false;
 };
 

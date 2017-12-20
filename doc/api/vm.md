@@ -179,7 +179,11 @@ added: v0.3.1
     **Default:** `'VM Context i'`, where `i` is an ascending numerical index of
     the created context.
   * `contextOrigin` {string} [Origin][origin] corresponding to the newly
-    created context for display purposes. **Default:** `''`.
+    created context for display purposes. The origin should be formatted like a
+    URL, but with only the scheme, host, and port (if necessary), like the
+    value of the [`url.origin`][] property of a [`URL`][] object. Most notably,
+    this string should omit the trailing slash, as that denotes a path.
+    **Default:** `''`.
 
 First contextifies the given `sandbox`, runs the compiled code contained by
 the `vm.Script` object within the created sandbox, and returns the result.
@@ -373,7 +377,11 @@ added: v0.3.1
     **Default:** `'VM Context i'`, where `i` is an ascending numerical index of
     the created context.
   * `contextOrigin` {string} [Origin][origin] corresponding to the newly
-    created context for display purposes. **Default:** `''`.
+    created context for display purposes. The origin should be formatted like a
+    URL, but with only the scheme, host, and port (if necessary), like the
+    value of the [`url.origin`][] property of a [`URL`][] object. Most notably,
+    this string should omit the trailing slash, as that denotes a path.
+    **Default:** `''`.
 
 The `vm.runInNewContext()` first contextifies the given `sandbox` object (or
 creates a new `sandbox` if passed as `undefined`), compiles the `code`, runs it
@@ -499,10 +507,12 @@ associating it with the `sandbox` object is what this document refers to as
 "contextifying" the `sandbox`.
 
 [`Error`]: errors.html#errors_class_error
+[`URL`]: url.html#url_class_url
 [`eval()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/eval
 [`script.runInContext()`]: #vm_script_runincontext_contextifiedsandbox_options
 [`script.runInThisContext()`]: #vm_script_runinthiscontext_options
-[`vm.createContext()`]: #vm_vm_createcontext_sandbox
+[`url.origin`]: https://nodejs.org/api/url.html#url_url_origin
+[`vm.createContext()`]: #vm_vm_createcontext_sandbox_options
 [`vm.runInContext()`]: #vm_vm_runincontext_code_contextifiedsandbox_options
 [`vm.runInThisContext()`]: #vm_vm_runinthiscontext_code_options
 [V8 Embedder's Guide]: https://github.com/v8/v8/wiki/Embedder's%20Guide#contexts

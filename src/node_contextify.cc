@@ -210,12 +210,12 @@ class ContextifyContext {
                             ctx->Global());
 
     Local<Value> name =
-        options_obj->Get(env->context(),
-                         FIXED_ONE_BYTE_STRING(env->isolate(), "name"))
+        options_obj->Get(env->context(), env->name_string())
             .ToLocalChecked();
     CHECK(name->IsString());
+    Utf8Value name_val(env->isolate(), name);
 
-    ContextInfo info(name.As<String>());
+    ContextInfo info(*name_val);
 
     Local<Value> origin =
         options_obj->Get(env->context(),
@@ -223,7 +223,8 @@ class ContextifyContext {
             .ToLocalChecked();
     if (!origin->IsUndefined()) {
       CHECK(origin->IsString());
-      info.origin = origin.As<String>();
+      Utf8Value origin_val(env->isolate(), origin);
+      info.origin = *origin_val;
     }
 
     env->AssignToContext(ctx, info);

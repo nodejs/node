@@ -296,7 +296,7 @@ inline Environment::Environment(IsolateData* isolate_data,
 
   set_module_load_list_array(v8::Array::New(isolate()));
 
-  AssignToContext(context, ContextInfo(v8::String::Empty(isolate())));
+  AssignToContext(context, ContextInfo(""));
 
   destroy_async_id_list_.reserve(512);
   performance_state_ = Calloc<performance::performance_state>(1);
