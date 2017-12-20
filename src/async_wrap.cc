@@ -468,13 +468,6 @@ void AsyncWrap::PopAsyncIds(const FunctionCallbackInfo<Value>& args) {
 }
 
 
-void AsyncWrap::AsyncIdStackSize(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-  args.GetReturnValue().Set(
-      static_cast<double>(env->async_hooks()->stack_size()));
-}
-
-
 void AsyncWrap::ClearAsyncIdStack(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   env->async_hooks()->clear_async_id_stack();
@@ -513,7 +506,6 @@ void AsyncWrap::Initialize(Local<Object> target,
   env->SetMethod(target, "setupHooks", SetupHooks);
   env->SetMethod(target, "pushAsyncIds", PushAsyncIds);
   env->SetMethod(target, "popAsyncIds", PopAsyncIds);
-  env->SetMethod(target, "asyncIdStackSize", AsyncIdStackSize);
   env->SetMethod(target, "clearAsyncIdStack", ClearAsyncIdStack);
   env->SetMethod(target, "queueDestroyAsyncId", QueueDestroyAsyncId);
   env->SetMethod(target, "enablePromiseHook", EnablePromiseHook);
@@ -551,6 +543,11 @@ void AsyncWrap::Initialize(Local<Object> target,
                          "async_id_fields",
                          env->async_hooks()->async_id_fields().GetJSArray());
 
+  FORCE_SET_TARGET_FIELD(target,
+                         "async_ids_fast_stack",
+                         env->async_hooks()->async_ids_fast_stack()
+                            .GetJSArray());
+
   Local<Object> constants = Object::New(isolate);
 #define SET_HOOKS_CONSTANT(name)                                              \
   FORCE_SET_TARGET_FIELD(                                                     \
@@ -567,6 +564,8 @@ void AsyncWrap::Initialize(Local<Object> target,
   SET_HOOKS_CONSTANT(kTriggerAsyncId);
   SET_HOOKS_CONSTANT(kAsyncIdCounter);
   SET_HOOKS_CONSTANT(kDefaultTriggerAsyncId);
+  SET_HOOKS_CONSTANT(kStackLength);
+  SET_HOOKS_CONSTANT(kFastStackCapacity);
 #undef SET_HOOKS_CONSTANT
   FORCE_SET_TARGET_FIELD(target, "constants", constants);
 

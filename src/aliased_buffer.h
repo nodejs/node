@@ -111,9 +111,15 @@ class AliasedBuffer {
           index_(that.index_) {
     }
 
-    inline Reference& operator=(const NativeT &val) {
+    template <typename T>
+    inline Reference& operator=(const T& val) {
       aliased_buffer_->SetValue(index_, val);
       return *this;
+    }
+
+    // This is not caught by the template operator= above.
+    inline Reference& operator=(const Reference& val) {
+      return *this = static_cast<NativeT>(val);
     }
 
     operator NativeT() const {

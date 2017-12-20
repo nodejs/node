@@ -55,6 +55,7 @@ inline MultiIsolatePlatform* IsolateData::platform() const {
 
 inline Environment::AsyncHooks::AsyncHooks(v8::Isolate* isolate)
     : isolate_(isolate),
+      async_ids_fast_stack_(isolate, kFastStackCapacity * 2),
       fields_(isolate, kFieldsCount),
       async_id_fields_(isolate, kUidFieldsCount) {
   v8::HandleScope handle_scope(isolate_);
@@ -101,6 +102,11 @@ Environment::AsyncHooks::async_id_fields() {
   return async_id_fields_;
 }
 
+inline AliasedBuffer<double, v8::Float64Array>&
+Environment::AsyncHooks::async_ids_fast_stack() {
+  return async_ids_fast_stack_;
+}
+
 inline v8::Local<v8::String> Environment::AsyncHooks::provider_string(int idx) {
   return providers_[idx].Get(isolate_);
 }
@@ -110,6 +116,7 @@ inline void Environment::AsyncHooks::no_force_checks() {
   fields_[kCheck] = fields_[kCheck] - 1;
 }
 
+// Remember to keep this code aligned with pushAsyncIds() in JS.
 inline void Environment::AsyncHooks::push_async_ids(double async_id,
                                               double trigger_async_id) {
   // Since async_hooks is experimental, do only perform the check
@@ -119,16 +126,26 @@ inline void Environment::AsyncHooks::push_async_ids(double async_id,
     CHECK_GE(trigger_async_id, -1);
   }
 
-  async_ids_stack_.push({ async_id_fields_[kExecutionAsyncId],
-                    async_id_fields_[kTriggerAsyncId] });
+  uint32_t offset = fields_[kStackLength];
+  if (offset < kFastStackCapacity) {
+    async_ids_fast_stack_[2 * offset] = async_id_fields_[kExecutionAsyncId];
+    async_ids_fast_stack_[2 * offset + 1] = async_id_fields_[kTriggerAsyncId];
+  } else {
+    async_ids_stack_.push({
+      async_id_fields_[kExecutionAsyncId],
+      async_id_fields_[kTriggerAsyncId]
+    });
+  }
+  fields_[kStackLength] = fields_[kStackLength] + 1;
   async_id_fields_[kExecutionAsyncId] = async_id;
   async_id_fields_[kTriggerAsyncId] = trigger_async_id;
 }
 
+// Remember to keep this code aligned with popAsyncIds() in JS.
 inline bool Environment::AsyncHooks::pop_async_id(double async_id) {
   // In case of an exception then this may have already been reset, if the
   // stack was multiple MakeCallback()'s deep.
-  if (async_ids_stack_.empty()) return false;
+  if (fields_[kStackLength] == 0) return false;
 
   // Ask for the async_id to be restored as a check that the stack
   // hasn't been corrupted.
@@ -150,15 +167,18 @@ inline bool Environment::AsyncHooks::pop_async_id(double async_id) {
     ABORT_NO_BACKTRACE();
   }
 
-  auto async_ids = async_ids_stack_.top();
-  async_ids_stack_.pop();
-  async_id_fields_[kExecutionAsyncId] = async_ids.async_id;
-  async_id_fields_[kTriggerAsyncId] = async_ids.trigger_async_id;
-  return !async_ids_stack_.empty();
-}
-
-inline size_t Environment::AsyncHooks::stack_size() {
-  return async_ids_stack_.size();
+  uint32_t offset = fields_[kStackLength] - 1;
+  if (offset >= kFastStackCapacity) {
+    auto async_ids = async_ids_stack_.top();
+    async_ids_stack_.pop();
+    async_id_fields_[kExecutionAsyncId] = async_ids.async_id;
+    async_id_fields_[kTriggerAsyncId] = async_ids.trigger_async_id;
+  } else {
+    async_id_fields_[kExecutionAsyncId] = async_ids_fast_stack_[2 * offset];
+    async_id_fields_[kTriggerAsyncId] = async_ids_fast_stack_[2 * offset + 1];
+  }
+  fields_[kStackLength] = offset;
+  return fields_[kStackLength] > 0;
 }
 
 inline void Environment::AsyncHooks::clear_async_id_stack() {
@@ -166,6 +186,7 @@ inline void Environment::AsyncHooks::clear_async_id_stack() {
     async_ids_stack_.pop();
   async_id_fields_[kExecutionAsyncId] = 0;
   async_id_fields_[kTriggerAsyncId] = 0;
+  fields_[kStackLength] = 0;
 }
 
 inline Environment::AsyncHooks::DefaultTriggerAsyncIdScope

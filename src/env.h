@@ -369,6 +369,7 @@ class Environment {
       kPromiseResolve,
       kTotals,
       kCheck,
+      kStackLength,
       kFieldsCount,
     };
 
@@ -380,10 +381,15 @@ class Environment {
       kUidFieldsCount,
     };
 
+    enum FastStackFields {
+      kFastStackCapacity = 64
+    };
+
     AsyncHooks() = delete;
 
     inline AliasedBuffer<uint32_t, v8::Uint32Array>& fields();
     inline AliasedBuffer<double, v8::Float64Array>& async_id_fields();
+    inline AliasedBuffer<double, v8::Float64Array>& async_ids_fast_stack();
 
     inline v8::Local<v8::String> provider_string(int idx);
 
@@ -391,7 +397,6 @@ class Environment {
 
     inline void push_async_ids(double async_id, double trigger_async_id);
     inline bool pop_async_id(double async_id);
-    inline size_t stack_size();
     inline void clear_async_id_stack();  // Used in fatal exceptions.
 
     // Used to set the kDefaultTriggerAsyncId in a scope. This is instead of
@@ -420,6 +425,9 @@ class Environment {
     v8::Isolate* isolate_;
     // Stores the ids of the current execution context stack.
     std::stack<async_context> async_ids_stack_;
+    // Stores the ids of the current execution context stack with limited
+    // capacity, but with the benefit of much faster access from JS.
+    AliasedBuffer<double, v8::Float64Array> async_ids_fast_stack_;
     // Attached to a Uint32Array that tracks the number of active hooks for
     // each type.
     AliasedBuffer<uint32_t, v8::Uint32Array> fields_;
