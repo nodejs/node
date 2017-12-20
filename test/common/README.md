@@ -353,11 +353,6 @@ original state after calling [`common.hijackStdOut()`][].
 
 Path to the 'root' directory. either `/` or `c:\\` (windows)
 
-### projectDir
-* [&lt;String>]
-
-Path to the project directory.
-
 ### skip(msg)
 * `msg` [&lt;string>]
 
