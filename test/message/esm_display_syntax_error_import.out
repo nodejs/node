@@ -1,0 +1,7 @@
+(node:*) ExperimentalWarning: The ESM module loader is experimental.
+file:///*/test/message/esm_display_syntax_error_import.mjs:6
+  notfound
+  ^^^^^^^^
+SyntaxError: The requested module does not provide an export named 'notfound'
+    at ModuleJob._instantiate (internal/loader/ModuleJob.js:*:*)
+    at <anonymous>

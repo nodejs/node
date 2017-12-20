@@ -179,6 +179,7 @@ void ModuleWrap::Link(const FunctionCallbackInfo<Value>& args) {
 }
 
 void ModuleWrap::Instantiate(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
   Isolate* isolate = args.GetIsolate();
   Local<Object> that = args.This();
   Local<Context> context = that->CreationContext();
@@ -186,6 +187,7 @@ void ModuleWrap::Instantiate(const FunctionCallbackInfo<Value>& args) {
   ModuleWrap* obj = Unwrap<ModuleWrap>(that);
   CHECK_NE(obj, nullptr);
   Local<Module> module = obj->module_.Get(isolate);
+  TryCatch try_catch(isolate);
   Maybe<bool> ok =
       module->InstantiateModule(context, ModuleWrap::ResolveCallback);
 
@@ -195,6 +197,12 @@ void ModuleWrap::Instantiate(const FunctionCallbackInfo<Value>& args) {
   obj->resolve_cache_.clear();
 
   if (!ok.FromMaybe(false)) {
+    CHECK(try_catch.HasCaught());
+    CHECK(!try_catch.Message().IsEmpty());
+    CHECK(!try_catch.Exception().IsEmpty());
+    AppendExceptionLine(env, try_catch.Exception(), try_catch.Message(),
+                        ErrorHandlingMode::MODULE_ERROR);
+    try_catch.ReThrow();
     return;
   }
 }
