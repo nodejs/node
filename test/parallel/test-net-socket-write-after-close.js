@@ -28,7 +28,11 @@ const net = require('net');
     const client = net.connect({ port }, common.mustCall(() => {
       client.on('error', common.mustCall((err) => {
         server.close();
-        assert.strictEqual(err.code, 'ERR_SOCKET_CLOSED');
+        common.expectsError({
+          code: 'ERR_SOCKET_CLOSED',
+          message: 'Socket is closed',
+          type: Error
+        })(err);
       }));
       client._handle.close();
       client._handle = null;
