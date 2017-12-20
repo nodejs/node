@@ -361,8 +361,8 @@ class IsolateData {
 };
 
 struct ContextInfo {
-  explicit ContextInfo(std::string name) : name(name) {}
-  std::string name;
+  explicit ContextInfo(const std::string& name) : name(name) {}
+  const std::string name;
   std::string origin;
   bool is_default = false;
 };
