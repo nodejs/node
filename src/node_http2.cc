@@ -3,6 +3,7 @@
 #include "node_buffer.h"
 #include "node_http2.h"
 #include "node_http2_state.h"
+#include "node_perf.h"
 
 #include <algorithm>
 
@@ -20,6 +21,7 @@ using v8::Uint32;
 using v8::Uint32Array;
 using v8::Undefined;
 
+using node::performance::PerformanceEntry;
 namespace http2 {
 
 namespace {
@@ -468,6 +470,7 @@ Http2Session::Http2Session(Environment* env,
     : AsyncWrap(env, wrap, AsyncWrap::PROVIDER_HTTP2SESSION),
       session_type_(type) {
   MakeWeak<Http2Session>(this);
+  statistics_.start_time = uv_hrtime();
 
   // Capture the configuration options for this session
   Http2Options opts(env);
@@ -527,6 +530,86 @@ Http2Session::~Http2Session() {
   nghttp2_session_del(session_);
 }
 
+inline bool HasHttp2Observer(Environment* env) {
+  uint32_t* observers = env->performance_state()->observers;
+  return observers[performance::NODE_PERFORMANCE_ENTRY_TYPE_HTTP2] != 0;
+}
+
+inline void Http2Stream::EmitStatistics() {
+  if (!HasHttp2Observer(env()))
+    return;
+  Http2StreamPerformanceEntry* entry =
+    new Http2StreamPerformanceEntry(env(), statistics_);
+  env()->SetImmediate([](Environment* env, void* data) {
+    Local<Context> context = env->context();
+    Http2StreamPerformanceEntry* entry =
+      static_cast<Http2StreamPerformanceEntry*>(data);
+    if (HasHttp2Observer(env)) {
+      Local<Object> obj = entry->ToObject();
+      v8::PropertyAttribute attr =
+          static_cast<v8::PropertyAttribute>(v8::ReadOnly | v8::DontDelete);
+      obj->DefineOwnProperty(
+          context,
+          FIXED_ONE_BYTE_STRING(env->isolate(), "timeToFirstByte"),
+          Number::New(env->isolate(),
+                      (entry->first_byte() - entry->startTimeNano()) / 1e6),
+          attr);
+      obj->DefineOwnProperty(
+          context,
+          FIXED_ONE_BYTE_STRING(env->isolate(), "timeToFirstHeader"),
+          Number::New(env->isolate(),
+                      (entry->first_header() - entry->startTimeNano()) / 1e6),
+          attr);
+      entry->Notify(obj);
+    }
+    delete entry;
+  }, static_cast<void*>(entry));
+}
+
+inline void Http2Session::EmitStatistics() {
+  if (!HasHttp2Observer(env()))
+    return;
+  Http2SessionPerformanceEntry* entry =
+    new Http2SessionPerformanceEntry(env(), statistics_, TypeName());
+  env()->SetImmediate([](Environment* env, void* data) {
+    Local<Context> context = env->context();
+    Http2SessionPerformanceEntry* entry =
+      static_cast<Http2SessionPerformanceEntry*>(data);
+    if (HasHttp2Observer(env)) {
+      Local<Object> obj = entry->ToObject();
+      v8::PropertyAttribute attr =
+          static_cast<v8::PropertyAttribute>(v8::ReadOnly | v8::DontDelete);
+      obj->DefineOwnProperty(
+          context,
+          FIXED_ONE_BYTE_STRING(env->isolate(), "type"),
+          String::NewFromUtf8(env->isolate(),
+                              entry->typeName(),
+                              v8::NewStringType::kInternalized)
+                                  .ToLocalChecked(), attr);
+      if (entry->ping_rtt() != 0) {
+        obj->DefineOwnProperty(
+            context,
+            FIXED_ONE_BYTE_STRING(env->isolate(), "pingRTT"),
+            Number::New(env->isolate(), entry->ping_rtt() / 1e6), attr);
+      }
+      obj->DefineOwnProperty(
+          context,
+          FIXED_ONE_BYTE_STRING(env->isolate(), "framesReceived"),
+          Integer::NewFromUnsigned(env->isolate(), entry->frame_count()), attr);
+      obj->DefineOwnProperty(
+          context,
+          FIXED_ONE_BYTE_STRING(env->isolate(), "streamCount"),
+          Integer::New(env->isolate(), entry->stream_count()), attr);
+      obj->DefineOwnProperty(
+          context,
+          FIXED_ONE_BYTE_STRING(env->isolate(), "streamAverageDuration"),
+          Number::New(env->isolate(), entry->stream_average_duration()), attr);
+      entry->Notify(obj);
+    }
+    delete entry;
+  }, static_cast<void*>(entry));
+}
+
 // Closes the session and frees the associated resources
 void Http2Session::Close(uint32_t code, bool socket_closed) {
   DEBUG_HTTP2SESSION(this, "closing session");
@@ -560,6 +643,9 @@ void Http2Session::Close(uint32_t code, bool socket_closed) {
       static_cast<Http2Session::Http2Ping*>(data)->Done(false);
     }, static_cast<void*>(ping));
   }
+
+  statistics_.end_time = uv_hrtime();
+  EmitStatistics();
 }
 
 // Locates an existing known stream by ID. nghttp2 has a similar method
@@ -571,6 +657,7 @@ inline Http2Stream* Http2Session::FindStream(int32_t id) {
 
 
 inline void Http2Session::AddStream(Http2Stream* stream) {
+  CHECK_GE(++statistics_.stream_count, 0);
   streams_[stream->id()] = stream;
 }
 
@@ -720,6 +807,7 @@ inline int Http2Session::OnFrameReceive(nghttp2_session* handle,
                                         const nghttp2_frame* frame,
                                         void* user_data) {
   Http2Session* session = static_cast<Http2Session*>(user_data);
+  session->statistics_.frame_count++;
   DEBUG_HTTP2SESSION2(session, "complete frame received: type: %d",
                       frame->hd.type);
   switch (frame->hd.type) {
@@ -1447,6 +1535,7 @@ Http2Stream::Http2Stream(
                    id_(id),
                    current_headers_category_(category) {
   MakeWeak<Http2Stream>(this);
+  statistics_.start_time = uv_hrtime();
 
   // Limit the number of header pairs
   max_header_pairs_ = session->GetMaxHeaderPairs();
@@ -1530,6 +1619,8 @@ inline bool Http2Stream::HasDataChunks(bool ignore_eos) {
 // handles it's internal memory`.
 inline void Http2Stream::AddChunk(const uint8_t* data, size_t len) {
   CHECK(!this->IsDestroyed());
+  if (this->statistics_.first_byte == 0)
+    this->statistics_.first_byte = uv_hrtime();
   if (flags_ & NGHTTP2_STREAM_FLAG_EOS)
     return;
   char* buf = nullptr;
@@ -1590,7 +1681,6 @@ inline void Http2Stream::Destroy() {
   // may still be some pending operations queued for this stream.
   env()->SetImmediate([](Environment* env, void* data) {
     Http2Stream* stream = static_cast<Http2Stream*>(data);
-
     // Free any remaining outgoing data chunks here. This should be done
     // here because it's possible for destroy to have been called while
     // we still have qeueued outbound writes.
@@ -1603,6 +1693,12 @@ inline void Http2Stream::Destroy() {
 
     delete stream;
   }, this, this->object());
+
+  statistics_.end_time = uv_hrtime();
+  session_->statistics_.stream_average_duration =
+      ((statistics_.end_time - statistics_.start_time) /
+          session_->statistics_.stream_count) / 1e6;
+  EmitStatistics();
 }
 
 
@@ -1815,6 +1911,8 @@ inline bool Http2Stream::AddHeader(nghttp2_rcbuf* name,
                                    nghttp2_rcbuf* value,
                                    uint8_t flags) {
   CHECK(!this->IsDestroyed());
+  if (this->statistics_.first_header == 0)
+    this->statistics_.first_header = uv_hrtime();
   size_t length = GetBufferLength(name) + GetBufferLength(value) + 32;
   if (current_headers_.size() == max_header_pairs_ ||
       current_headers_length_ + length > max_header_length_) {
@@ -2493,8 +2591,8 @@ void Http2Session::Http2Ping::Send(uint8_t* payload) {
 }
 
 void Http2Session::Http2Ping::Done(bool ack, const uint8_t* payload) {
-  uint64_t end = uv_hrtime();
-  double duration = (end - startTime_) / 1e6;
+  session_->statistics_.ping_rtt = (uv_hrtime() - startTime_);
+  double duration = (session_->statistics_.ping_rtt - startTime_) / 1e6;
 
   Local<Value> buf = Undefined(env()->isolate());
   if (payload != nullptr) {

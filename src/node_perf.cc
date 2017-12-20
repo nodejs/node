@@ -81,9 +81,9 @@ void PerformanceEntry::New(const FunctionCallbackInfo<Value>& args) {
 }
 
 // Pass the PerformanceEntry object to the PerformanceObservers
-inline void PerformanceEntry::Notify(Environment* env,
-                                     PerformanceEntryType type,
-                                     Local<Value> object) {
+void PerformanceEntry::Notify(Environment* env,
+                              PerformanceEntryType type,
+                              Local<Value> object) {
   Context::Scope scope(env->context());
   uint32_t* observers = env->performance_state()->observers;
   if (observers != nullptr &&
