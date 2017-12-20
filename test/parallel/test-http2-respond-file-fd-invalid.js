@@ -3,8 +3,10 @@
 const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
-const http2 = require('http2');
+
 const assert = require('assert');
+const fs = require('fs');
+const http2 = require('http2');
 
 const {
   NGHTTP2_INTERNAL_ERROR
@@ -18,7 +20,16 @@ const errorCheck = common.expectsError({
 
 const server = http2.createServer();
 server.on('stream', (stream) => {
-  stream.respondWithFD(common.firstInvalidFD());
+  let fd = 2;
+
+  // Get first known bad file descriptor.
+  try {
+    while (fs.fstatSync(++fd));
+  } catch (e) {
+    // do nothing; we now have an invalid fd
+  }
+
+  stream.respondWithFD(fd);
   stream.on('error', common.mustCall(errorCheck));
 });
 server.listen(0, () => {
