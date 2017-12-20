@@ -11,7 +11,7 @@ const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
 
-const apiPath = path.resolve(common.projectDir, 'out', 'doc', 'api');
+const apiPath = path.resolve(__dirname, '..', '..', 'out', 'doc', 'api');
 const docs = fs.readdirSync(apiPath);
 assert.ok(docs.includes('_toc.html'));
 
