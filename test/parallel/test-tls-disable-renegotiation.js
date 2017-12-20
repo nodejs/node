@@ -18,10 +18,10 @@ const options = {
 const server = tls.Server(options, common.mustCall((socket) => {
   socket.on('error', common.mustCall((err) => {
     common.expectsError({
+      type: Error,
       code: 'ERR_TLS_RENEGOTIATION_DISABLED',
-      message: 'TLS session renegotiation disabled for this socket',
-      type: Error
-    })(error);
+      message: 'TLS session renegotiation disabled for this socket'
+    })(err);
     socket.destroy();
     server.close();
   }));
