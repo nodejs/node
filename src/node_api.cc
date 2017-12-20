@@ -898,7 +898,8 @@ const char* error_messages[] = {nullptr,
                                 "Unknown failure",
                                 "An exception is pending",
                                 "The async work item was cancelled",
-                                "napi_escape_handle already called on scope"};
+                                "napi_escape_handle already called on scope",
+                                "Invalid handle scope usage"};
 
 static inline napi_status napi_clear_last_error(napi_env env) {
   env->last_error.error_code = napi_ok;
@@ -929,9 +930,9 @@ napi_status napi_get_last_error_info(napi_env env,
   // We don't have a napi_status_last as this would result in an ABI
   // change each time a message was added.
   static_assert(
-      node::arraysize(error_messages) == napi_escape_called_twice + 1,
+      node::arraysize(error_messages) == napi_handle_scope_mismatch + 1,
       "Count of error messages must match count of error values");
-  CHECK_LE(env->last_error.error_code, napi_escape_called_twice);
+  CHECK_LE(env->last_error.error_code, napi_handle_scope_mismatch);
 
   // Wait until someone requests the last error information to fetch the error
   // message string
@@ -1216,7 +1217,7 @@ napi_status napi_delete_property(napi_env env,
   v8::Maybe<bool> delete_maybe = obj->Delete(context, k);
   CHECK_MAYBE_NOTHING(env, delete_maybe, napi_generic_failure);
 
-  if (result != NULL)
+  if (result != nullptr)
     *result = delete_maybe.FromMaybe(false);
 
   return GET_RETURN_STATUS(env);
@@ -1394,7 +1395,7 @@ napi_status napi_delete_element(napi_env env,
   v8::Maybe<bool> delete_maybe = obj->Delete(context, index);
   CHECK_MAYBE_NOTHING(env, delete_maybe, napi_generic_failure);
 
-  if (result != NULL)
+  if (result != nullptr)
     *result = delete_maybe.FromMaybe(false);
 
   return GET_RETURN_STATUS(env);

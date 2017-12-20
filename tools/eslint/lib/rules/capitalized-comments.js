@@ -247,7 +247,8 @@ module.exports = {
 
             if (capitalize === "always" && isLowercase) {
                 return false;
-            } else if (capitalize === "never" && isUppercase) {
+            }
+            if (capitalize === "never" && isUppercase) {
                 return false;
             }
 

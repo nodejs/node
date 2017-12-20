@@ -347,8 +347,9 @@ inline Environment::~Environment() {
   v8::HandleScope handle_scope(isolate());
 
 #if HAVE_INSPECTOR
-  // Destroy inspector agent before erasing the context.
-  delete inspector_agent_;
+  // Destroy inspector agent before erasing the context. The inspector
+  // destructor depends on the context still being accessible.
+  inspector_agent_.reset();
 #endif
 
   context()->SetAlignedPointerInEmbedderData(kContextEmbedderDataIndex,
@@ -360,7 +361,6 @@ inline Environment::~Environment() {
   delete[] heap_statistics_buffer_;
   delete[] heap_space_statistics_buffer_;
   delete[] http_parser_buffer_;
-  delete http2_state_;
   free(performance_state_);
 }
 
@@ -515,12 +515,13 @@ inline void Environment::set_http_parser_buffer(char* buffer) {
 }
 
 inline http2::http2_state* Environment::http2_state() const {
-  return http2_state_;
+  return http2_state_.get();
 }
 
-inline void Environment::set_http2_state(http2::http2_state* buffer) {
-  CHECK_EQ(http2_state_, nullptr);  // Should be set only once.
-  http2_state_ = buffer;
+inline void Environment::set_http2_state(
+    std::unique_ptr<http2::http2_state> buffer) {
+  CHECK(!http2_state_);  // Should be set only once.
+  http2_state_ = std::move(buffer);
 }
 
 inline double* Environment::fs_stats_field_array() const {

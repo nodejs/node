@@ -5,7 +5,7 @@
 > Stability: 2 - Stable
 
 The `crypto` module provides cryptographic functionality that includes a set of
-wrappers for OpenSSL's hash, HMAC, cipher, decipher, sign and verify functions.
+wrappers for OpenSSL's hash, HMAC, cipher, decipher, sign, and verify functions.
 
 Use `require('crypto')` to access this module.
 
@@ -1200,7 +1200,7 @@ In line with OpenSSL's recommendation to use pbkdf2 instead of
 [`EVP_BytesToKey`][] it is recommended that developers derive a key and IV on
 their own using [`crypto.pbkdf2()`][] and to use [`crypto.createCipheriv()`][]
 to create the `Cipher` object. Users should not use ciphers with counter mode
-(e.g. CTR, GCM or CCM) in `crypto.createCipher()`. A warning is emitted when
+(e.g. CTR, GCM, or CCM) in `crypto.createCipher()`. A warning is emitted when
 they are used in order to avoid the risk of IV reuse that causes
 vulnerabilities. For the case when IV is reused in GCM, see [Nonce-Disrespecting
 Adversaries][] for details.
@@ -1748,6 +1748,11 @@ Note that this API uses libuv's threadpool, which can have surprising and
 negative performance implications for some applications, see the
 [`UV_THREADPOOL_SIZE`][] documentation for more information.
 
+*Note*: The asynchronous version of `crypto.randomBytes()` is carried out
+in a single threadpool request. To minimize threadpool task length variation,
+partition large `randomBytes` requests when doing so as part of fulfilling a
+client request.
+
 ### crypto.randomFillSync(buffer[, offset][, size])
 <!-- YAML
 added: v7.10.0
@@ -1811,6 +1816,11 @@ crypto.randomFill(buf, 5, 5, (err, buf) => {
 Note that this API uses libuv's threadpool, which can have surprising and
 negative performance implications for some applications, see the
 [`UV_THREADPOOL_SIZE`][] documentation for more information.
+
+*Note*: The asynchronous version of `crypto.randomFill()` is carried out
+in a single threadpool request. To minimize threadpool task length variation,
+partition large `randomFill` requests when doing so as part of fulfilling a
+client request.
 
 ### crypto.setEngine(engine[, flags])
 <!-- YAML
@@ -1903,7 +1913,7 @@ Based on the recommendations of [NIST SP 800-131A][]:
 
 - MD5 and SHA-1 are no longer acceptable where collision resistance is
   required such as digital signatures.
-- The key used with RSA, DSA and DH algorithms is recommended to have
+- The key used with RSA, DSA, and DH algorithms is recommended to have
   at least 2048 bits and that of the curve of ECDSA and ECDH at least
   224 bits, to be safe to use for several years.
 - The DH groups of `modp1`, `modp2` and `modp5` have a key size
@@ -2275,7 +2285,7 @@ the `crypto`, `tls`, and `https` modules and are generally specific to OpenSSL.
 [`verify.verify()`]: #crypto_verify_verify_object_signature_signatureformat
 [Caveats]: #crypto_support_for_weak_or_compromised_algorithms
 [Crypto Constants]: #crypto_crypto_constants_1
-[HTML5's `keygen` element]: http://www.w3.org/TR/html5/forms.html#the-keygen-element
+[HTML5's `keygen` element]: https://www.w3.org/TR/html5/forms.html#the-keygen-element
 [NIST SP 800-131A]: http://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.800-131Ar1.pdf
 [NIST SP 800-132]: http://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-132.pdf
 [Nonce-Disrespecting Adversaries]: https://github.com/nonce-disrespect/nonce-disrespect

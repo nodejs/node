@@ -164,10 +164,10 @@ module.exports = {
         }
 
         /**
-        * Determines if a semicolon needs to be inserted after removing a set of curly brackets, in order to avoid a SyntaxError.
-        * @param {Token} closingBracket The } token
-        * @returns {boolean} `true` if a semicolon needs to be inserted after the last statement in the block.
-        */
+         * Determines if a semicolon needs to be inserted after removing a set of curly brackets, in order to avoid a SyntaxError.
+         * @param {Token} closingBracket The } token
+         * @returns {boolean} `true` if a semicolon needs to be inserted after the last statement in the block.
+         */
         function needsSemicolon(closingBracket) {
             const tokenBefore = sourceCode.getTokenBefore(closingBracket);
             const tokenAfter = sourceCode.getTokenAfter(closingBracket);
@@ -187,9 +187,11 @@ module.exports = {
 
             if (lastBlockNode.type === "BlockStatement" && lastBlockNode.parent.type !== "FunctionExpression" && lastBlockNode.parent.type !== "ArrowFunctionExpression") {
 
-                // If the last node surrounded by curly brackets is a BlockStatement (other than a FunctionExpression or an ArrowFunctionExpression),
-                // don't insert a semicolon. Otherwise, the semicolon would be parsed as a separate statement, which would cause
-                // a SyntaxError if it was followed by `else`.
+                /*
+                 * If the last node surrounded by curly brackets is a BlockStatement (other than a FunctionExpression or an ArrowFunctionExpression),
+                 * don't insert a semicolon. Otherwise, the semicolon would be parsed as a separate statement, which would cause
+                 * a SyntaxError if it was followed by `else`.
+                 */
                 return false;
             }
 
@@ -235,8 +237,10 @@ module.exports = {
                 },
                 fix(fixer) {
 
-                    // `do while` expressions sometimes need a space to be inserted after `do`.
-                    // e.g. `do{foo()} while (bar)` should be corrected to `do foo() while (bar)`
+                    /*
+                     * `do while` expressions sometimes need a space to be inserted after `do`.
+                     * e.g. `do{foo()} while (bar)` should be corrected to `do foo() while (bar)`
+                     */
                     const needsPrecedingSpace = node.type === "DoWhileStatement" &&
                         sourceCode.getTokenBefore(bodyNode).range[1] === bodyNode.range[0] &&
                         !astUtils.canTokensBeAdjacent("do", sourceCode.getFirstToken(bodyNode, { skip: 1 }));

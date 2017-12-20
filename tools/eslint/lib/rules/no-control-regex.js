@@ -31,7 +31,8 @@ module.exports = {
         function getRegExp(node) {
             if (node.value instanceof RegExp) {
                 return node.value;
-            } else if (typeof node.value === "string") {
+            }
+            if (typeof node.value === "string") {
 
                 const parent = context.getAncestors().pop();
 

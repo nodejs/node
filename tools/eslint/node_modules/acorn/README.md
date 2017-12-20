@@ -351,8 +351,8 @@ The `bin/acorn` utility can be used to parse a file from the command
 line. It accepts as arguments its input file and the following
 options:
 
-- `--ecma3|--ecma5|--ecma6|--ecma7`: Sets the ECMAScript version to parse. Default is
-  version 5.
+- `--ecma3|--ecma5|--ecma6|--ecma7|--ecma8|--ecma9`: Sets the ECMAScript version
+  to parse. Default is version 7.
 
 - `--module`: Sets the parsing mode to `"module"`. Is set to `"script"` otherwise.
 

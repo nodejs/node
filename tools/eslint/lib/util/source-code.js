@@ -25,7 +25,6 @@ const TokenStore = require("../token-store"),
  * @private
  */
 function validate(ast) {
-
     if (!ast.tokens) {
         throw new Error("AST is missing the tokens array.");
     }
@@ -44,34 +43,9 @@ function validate(ast) {
 }
 
 /**
- * Finds a JSDoc comment node in an array of comment nodes.
- * @param {ASTNode[]} comments The array of comment nodes to search.
- * @param {int} line Line number to look around
- * @returns {ASTNode} The node if found, null if not.
- * @private
- */
-function findJSDocComment(comments, line) {
-
-    if (comments) {
-        for (let i = comments.length - 1; i >= 0; i--) {
-            if (comments[i].type === "Block" && comments[i].value.charAt(0) === "*") {
-
-                if (line - comments[i].loc.end.line <= 1) {
-                    return comments[i];
-                }
-                break;
-
-            }
-        }
-    }
-
-    return null;
-}
-
-/**
- * Check to see if its a ES6 export declaration
- * @param {ASTNode} astNode - any node
- * @returns {boolean} whether the given node represents a export declaration
+ * Check to see if its a ES6 export declaration.
+ * @param {ASTNode} astNode An AST node.
+ * @returns {boolean} whether the given node represents an export declaration.
  * @private
  */
 function looksLikeExport(astNode) {
@@ -80,10 +54,11 @@ function looksLikeExport(astNode) {
 }
 
 /**
- * Merges two sorted lists into a larger sorted list in O(n) time
- * @param {Token[]} tokens The list of tokens
- * @param {Token[]} comments The list of comments
- * @returns {Token[]} A sorted list of tokens and comments
+ * Merges two sorted lists into a larger sorted list in O(n) time.
+ * @param {Token[]} tokens The list of tokens.
+ * @param {Token[]} comments The list of comments.
+ * @returns {Token[]} A sorted list of tokens and comments.
+ * @private
  */
 function sortedMerge(tokens, comments) {
     const result = [];
@@ -182,9 +157,9 @@ class SourceCode extends TokenStore {
     }
 
     /**
-     * Split the source code into multiple lines based on the line delimiters
-     * @param {string} text Source code as a string
-     * @returns {string[]} Array of source code lines
+     * Split the source code into multiple lines based on the line delimiters.
+     * @param {string} text Source code as a string.
+     * @returns {string[]} Array of source code lines.
      * @public
      */
     static splitLines(text) {
@@ -197,6 +172,7 @@ class SourceCode extends TokenStore {
      * @param {int=} beforeCount The number of characters before the node to retrieve.
      * @param {int=} afterCount The number of characters after the node to retrieve.
      * @returns {string} The text representing the AST node.
+     * @public
      */
     getText(node, beforeCount, afterCount) {
         if (node) {
@@ -209,6 +185,7 @@ class SourceCode extends TokenStore {
     /**
      * Gets the entire source text split into an array of lines.
      * @returns {Array} The source text as an array of lines.
+     * @public
      */
     getLines() {
         return this.lines;
@@ -217,6 +194,7 @@ class SourceCode extends TokenStore {
     /**
      * Retrieves an array containing all comments in the source code.
      * @returns {ASTNode[]} An array of comment nodes.
+     * @public
      */
     getAllComments() {
         return this.ast.comments;
@@ -225,7 +203,8 @@ class SourceCode extends TokenStore {
     /**
      * Gets all comments for the given node.
      * @param {ASTNode} node The AST node to get the comments for.
-     * @returns {Object} The list of comments indexed by their position.
+     * @returns {Object} An object containing a leading and trailing array
+     *      of comments indexed by their position.
      * @public
      */
     getComments(node) {
@@ -248,7 +227,8 @@ class SourceCode extends TokenStore {
             }
         } else {
 
-            /* Return comments as trailing comments of nodes that only contain
+            /*
+             * Return comments as trailing comments of nodes that only contain
              * comments (to mimic the comment attachment behavior present in Espree).
              */
             if ((node.type === "BlockStatement" || node.type === "ClassBody") && node.body.length === 0 ||
@@ -297,47 +277,68 @@ class SourceCode extends TokenStore {
     /**
      * Retrieves the JSDoc comment for a given node.
      * @param {ASTNode} node The AST node to get the comment for.
-     * @returns {ASTNode} The Block comment node containing the JSDoc for the
-     *      given node or null if not found.
+     * @returns {Token|null} The Block comment token containing the JSDoc comment
+     *      for the given node or null if not found.
      * @public
      */
     getJSDocComment(node) {
+
+        /**
+         * Checks for the presence of a JSDoc comment for the given node and returns it.
+         * @param {ASTNode} astNode The AST node to get the comment for.
+         * @returns {Token|null} The Block comment token containing the JSDoc comment
+         *      for the given node or null if not found.
+         * @private
+         */
+        const findJSDocComment = astNode => {
+            const tokenBefore = this.getTokenBefore(astNode, { includeComments: true });
+
+            if (
+                tokenBefore &&
+                astUtils.isCommentToken(tokenBefore) &&
+                tokenBefore.type === "Block" &&
+                tokenBefore.value.charAt(0) === "*" &&
+                astNode.loc.start.line - tokenBefore.loc.end.line <= 1
+            ) {
+                return tokenBefore;
+            }
+
+            return null;
+        };
         let parent = node.parent;
-        const leadingComments = this.getCommentsBefore(node);
 
         switch (node.type) {
             case "ClassDeclaration":
             case "FunctionDeclaration":
-                if (looksLikeExport(parent)) {
-                    return findJSDocComment(this.getCommentsBefore(parent), parent.loc.start.line);
-                }
-                return findJSDocComment(leadingComments, node.loc.start.line);
+                return findJSDocComment(looksLikeExport(parent) ? parent : node);
 
             case "ClassExpression":
-                return findJSDocComment(this.getCommentsBefore(parent.parent), parent.parent.loc.start.line);
+                return findJSDocComment(parent.parent);
 
             case "ArrowFunctionExpression":
             case "FunctionExpression":
                 if (parent.type !== "CallExpression" && parent.type !== "NewExpression") {
-                    let parentLeadingComments = this.getCommentsBefore(parent);
-
-                    while (!parentLeadingComments.length && !/Function/.test(parent.type) && parent.type !== "MethodDefinition" && parent.type !== "Property") {
+                    while (
+                        !this.getCommentsBefore(parent).length &&
+                        !/Function/.test(parent.type) &&
+                        parent.type !== "MethodDefinition" &&
+                        parent.type !== "Property"
+                    ) {
                         parent = parent.parent;
 
                         if (!parent) {
                             break;
                         }
-
-                        parentLeadingComments = this.getCommentsBefore(parent);
                     }
 
-                    return parent && parent.type !== "FunctionDeclaration" && parent.type !== "Program" ? findJSDocComment(parentLeadingComments, parent.loc.start.line) : null;
-                } else if (leadingComments.length) {
-                    return findJSDocComment(leadingComments, node.loc.start.line);
+                    if (parent && parent.type !== "FunctionDeclaration" && parent.type !== "Program") {
+                        return findJSDocComment(parent);
+                    }
                 }
 
-            // falls through
+                return findJSDocComment(node);
 
+            // falls through
             default:
                 return null;
         }
@@ -347,6 +348,7 @@ class SourceCode extends TokenStore {
      * Gets the deepest node containing a range index.
      * @param {int} index Range index of the desired node.
      * @returns {ASTNode} The node if found or null if not found.
+     * @public
      */
     getNodeByRangeIndex(index) {
         let result = null,
@@ -380,6 +382,7 @@ class SourceCode extends TokenStore {
      * @param {Token} second The token to check before.
      * @returns {boolean} True if there is only space between tokens, false
      *  if there is anything other than whitespace between tokens.
+     * @public
      */
     isSpaceBetweenTokens(first, second) {
         const text = this.text.slice(first.range[1], second.range[0]);
@@ -388,10 +391,11 @@ class SourceCode extends TokenStore {
     }
 
     /**
-    * Converts a source text index into a (line, column) pair.
-    * @param {number} index The index of a character in a file
-    * @returns {Object} A {line, column} location object with a 0-indexed column
-    */
+     * Converts a source text index into a (line, column) pair.
+     * @param {number} index The index of a character in a file
+     * @returns {Object} A {line, column} location object with a 0-indexed column
+     * @public
+     */
     getLocFromIndex(index) {
         if (typeof index !== "number") {
             throw new TypeError("Expected `index` to be a number.");
@@ -422,12 +426,13 @@ class SourceCode extends TokenStore {
     }
 
     /**
-    * Converts a (line, column) pair into a range index.
-    * @param {Object} loc A line/column location
-    * @param {number} loc.line The line number of the location (1-indexed)
-    * @param {number} loc.column The column number of the location (0-indexed)
-    * @returns {number} The range index of the location in the file.
-    */
+     * Converts a (line, column) pair into a range index.
+     * @param {Object} loc A line/column location
+     * @param {number} loc.line The line number of the location (1-indexed)
+     * @param {number} loc.column The column number of the location (0-indexed)
+     * @returns {number} The range index of the location in the file.
+     * @public
+     */
     getIndexFromLoc(loc) {
         if (typeof loc !== "object" || typeof loc.line !== "number" || typeof loc.column !== "number") {
             throw new TypeError("Expected `loc` to be an object with numeric `line` and `column` properties.");

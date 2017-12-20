@@ -122,8 +122,10 @@ SourceCodeFixer.applyFixes = function(sourceText, messages, shouldFix) {
             if (typeof shouldFix !== "function" || shouldFix(problem)) {
                 attemptFix(problem);
 
-                // The only time attemptFix will fail is if a previous fix was
-                // applied which conflicts with it.  So we can mark this as true.
+                /*
+                 * The only time attemptFix will fail is if a previous fix was
+                 * applied which conflicts with it.  So we can mark this as true.
+                 */
                 fixesWereApplied = true;
             } else {
                 remainingMessages.push(problem);

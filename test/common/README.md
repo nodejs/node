@@ -124,16 +124,17 @@ Returns a new promise that will propagate `promise` resolution or rejection if
 that happens within the `timeoutMs` timespan, or rejects with `error` as
 a reason otherwise.
 
-### fixturesDir
-* return [&lt;String>]
-
-Path to the 'fixtures' directory.
-
 ### getArrayBufferViews(buf)
 * `buf` [&lt;Buffer>]
 * return [&lt;ArrayBufferView&#91;&#93;>]
 
 Returns an instance of all possible `ArrayBufferView`s of the provided Buffer.
+
+### getCallSite(func)
+* `func` [&lt;Function>]
+* return [&lt;String>]
+
+Returns the file name and line number for the provided Function.
 
 ### globalCheck
 * return [&lt;Boolean>]
@@ -374,11 +375,6 @@ Synchronous version of `spawnPwd`.
 * return [&lt;String>]
 
 The realpath of the 'tmp' directory.
-
-### tmpDirName
-* return [&lt;String>]
-
-Name of the temp directory used by tests.
 
 ## Countdown Module
 

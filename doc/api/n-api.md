@@ -1,5 +1,7 @@
 # N-API
 
+<!--introduced_in=v7.10.0-->
+
 > Stability: 1 - Experimental
 
 N-API (pronounced N as in the letter, followed by API)
@@ -202,7 +204,7 @@ typedef void (*napi_async_complete_callback)(napi_env env,
 ```
 
 ## Error Handling
-N-API uses both return values and Javascript exceptions for error handling.
+N-API uses both return values and JavaScript exceptions for error handling.
 The following sections explain the approach for each case.
 
 ### Return values
@@ -293,7 +295,7 @@ must be called in order to determine if an exception is pending or not.
 
 When an exception is pending one of two approaches can be employed.
 
-The first appoach is to do any appropriate cleanup and then return so that
+The first approach is to do any appropriate cleanup and then return so that
 execution will return to JavaScript. As part of the transition back to
 JavaScript the exception will be thrown at the point in the JavaScript
 code where the native method was invoked. The behavior of most N-API calls
@@ -1788,7 +1790,7 @@ This API returns the C int32 primitive equivalent
 of the given JavaScript Number. If the number exceeds the range of the
 32 bit integer, then the result is truncated to the equivalent of the
 bottom 32 bits. This can result in a large positive number becoming
-a negative number if the the value is > 2^31 -1.
+a negative number if the value is > 2^31 -1.
 
 #### *napi_get_value_int64*
 <!-- YAML
@@ -2255,7 +2257,7 @@ following forms:
 - Named: a simple UTF8-encoded string
 - Integer-Indexed: an index value represented by `uint32_t`
 - JavaScript value: these are represented in N-API by `napi_value`. This can
-be a `napi_value` representing a String, Number or Symbol.
+be a `napi_value` representing a String, Number, or Symbol.
 
 N-API values are represented by the type `napi_value`.
 Any N-API call that requires a JavaScript value takes in a `napi_value`.
@@ -2861,7 +2863,7 @@ Returns `napi_ok` if the API succeeded.
 
 This API allows an add-on author to create a function object in native code.
 This is the primary mechanism to allow calling *into* the add-on's native code
-*from* Javascript.
+*from* JavaScript.
 
 *Note*: The newly created function is not automatically visible from
 script after this call. Instead, a property must be explicitly set on any
@@ -2877,15 +2879,17 @@ napi_value SayHello(napi_env env, napi_callback_info info) {
   return nullptr;
 }
 
-void Init(napi_env env, napi_value exports, napi_value module, void* priv) {
+napi_value Init(napi_env env, napi_value exports) {
   napi_status status;
 
   napi_value fn;
-  status =  napi_create_function(env, NULL, SayHello, NULL, &fn);
-  if (status != napi_ok) return;
+  status =  napi_create_function(env, nullptr, 0, SayHello, nullptr, &fn);
+  if (status != napi_ok) return nullptr;
 
   status = napi_set_named_property(env, exports, "sayHello", fn);
-  if (status != napi_ok) return;
+  if (status != napi_ok) return nullptr;
+
+  return exports;
 }
 
 NAPI_MODULE(NODE_GYP_MODULE_NAME, Init)
@@ -3013,7 +3017,7 @@ constructor and methods can be called from JavaScript.
 
  1. The [`napi_define_class`][] API defines a JavaScript class with constructor,
     static properties and methods, and instance properties and methods that
-    correspond to the The C++ class.
+    correspond to the C++ class.
  2. When JavaScript code invokes the constructor, the constructor callback
     uses [`napi_wrap`][] to wrap a new C++ instance in a JavaScript object,
     then returns the wrapper object.
@@ -3021,6 +3025,29 @@ constructor and methods can be called from JavaScript.
     the corresponding `napi_callback` C++ function is invoked. For an instance
     callback, [`napi_unwrap`][] obtains the C++ instance that is the target of
     the call.
+
+For wrapped objects it may be difficult to distinguish between a function
+called on a class prototype and a function called on an instance of a class.
+A common pattern used to address this problem is to save a persistent
+reference to the class constructor for later `instanceof` checks.
+
+As an example:
+
+```C
+napi_value MyClass_constructor = nullptr;
+status = napi_get_reference_value(env, MyClass::es_constructor, &MyClass_constructor);
+assert(napi_ok == status);
+bool is_instance = false;
+status = napi_instanceof(env, es_this, MyClass_constructor, &is_instance);
+assert(napi_ok == status);
+if (is_instance) {
+  // napi_unwrap() ...
+} else {
+  // otherwise...
+}
+```
+
+The reference must be freed once it is no longer needed.
 
 ### *napi_define_class*
 <!-- YAML
@@ -3446,8 +3473,8 @@ napi_status napi_get_node_version(napi_env env,
 
 Returns `napi_ok` if the API succeeded.
 
-This function fills the `version` struct with the major, minor and patch version
-of Node that is currently running, and the `release` field with the
+This function fills the `version` struct with the major, minor, and patch
+version of Node.js that is currently running, and the `release` field with the
 value of [`process.release.name`][`process.release`].
 
 The returned buffer is statically allocated and does not need to be freed.

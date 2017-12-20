@@ -453,7 +453,7 @@ The following signal constants are exported by `os.constants.signals`:
   <tr>
     <td><code>SIGILL</code></td>
     <td>Sent to a process to notify that it has attempted to perform an illegal,
-    malformed, unknown or privileged instruction.</td>
+    malformed, unknown, or privileged instruction.</td>
   </tr>
   <tr>
     <td><code>SIGTRAP</code></td>

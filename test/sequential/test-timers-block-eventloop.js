@@ -16,7 +16,7 @@ const t3 =
   setTimeout(common.mustNotCall('eventloop blocked!'), platformTimeout(200));
 
 setTimeout(function() {
-  fs.stat('/dev/nonexistent', (err, stats) => {
+  fs.stat('/dev/nonexistent', () => {
     clearInterval(t1);
     clearInterval(t2);
     clearTimeout(t3);

@@ -1,6 +1,6 @@
 # ECMAScript Modules
 
-<!--introduced_in=v9.x.x-->
+<!--introduced_in=v8.5.0-->
 
 > Stability: 1 - Experimental
 
@@ -128,10 +128,18 @@ argument to the resolver for easy compatibility workflows.
 
 In addition to returning the resolved file URL value, the resolve hook also
 returns a `format` property specifying the module format of the resolved
-module. This can be one of `"esm"`, `"cjs"`, `"json"`, `"builtin"` or
-`"addon"`.
+module. This can be one of the following:
 
-For example a dummy loader to load JavaScript restricted to browser resolution
+| `format` | Description |
+| --- | --- |
+| `"esm"` | Load a standard JavaScript module |
+| `"cjs"` | Load a node-style CommonJS module |
+| `"builtin"` | Load a node builtin CommonJS module |
+| `"json"` | Load a JSON file |
+| `"addon"` | Load a [C++ Addon][addons] |
+| `"dynamic"` | Use a [dynamic instantiate hook][] |
+
+For example, a dummy loader to load JavaScript restricted to browser resolution
 rules with only JS file extension and Node builtin modules support could
 be written:
 
@@ -139,15 +147,13 @@ be written:
 import url from 'url';
 import path from 'path';
 import process from 'process';
+import Module from 'module';
 
-const builtins = new Set(
-  Object.keys(process.binding('natives')).filter((str) =>
-    /^(?!(?:internal|node|v8)\/)/.test(str))
-);
+const builtins = Module.builtinModules;
 const JS_EXTENSIONS = new Set(['.js', '.mjs']);
 
 export function resolve(specifier, parentModuleURL/*, defaultResolve */) {
-  if (builtins.has(specifier)) {
+  if (builtins.includes(specifier)) {
     return {
       url: specifier,
       format: 'builtin'
@@ -205,3 +211,5 @@ then be called at the exact point of module evalutation order for that module
 in the import tree.
 
 [Node.js EP for ES Modules]: https://github.com/nodejs/node-eps/blob/master/002-es-modules.md
+[addons]: addons.html
+[dynamic instantiate hook]: #esm_dynamic_instantiate_hook

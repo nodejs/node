@@ -25,39 +25,44 @@ Let's analyze this basic test from the Node.js test suite:
 ```javascript
 'use strict';                                                          // 1
 const common = require('../common');                                   // 2
+const fixtures = require('../common/fixtures');                        // 3
 
-// This test ensures that the http-parser can handle UTF-8 characters  // 4
-// in the http header.                                                 // 5
+// This test ensures that the http-parser can handle UTF-8 characters  // 5
+// in the http header.                                                 // 6
 
-const assert = require('assert');                                      // 7
-const http = require('http');                                          // 8
+const assert = require('assert');                                      // 8
+const http = require('http');                                          // 9
 
-const server = http.createServer(common.mustCall((req, res) => {       // 10
-  res.end('ok');                                                       // 11
-}));                                                                   // 12
-server.listen(0, () => {                                               // 13
-  http.get({                                                           // 14
-    port: server.address().port,                                       // 15
-    headers: { 'Test': 'Düsseldorf' }                                  // 16
-  }, common.mustCall((res) => {                                        // 17
-    assert.strictEqual(res.statusCode, 200);                           // 18
-    server.close();                                                    // 19
-  }));                                                                 // 20
-});                                                                    // 21
+const server = http.createServer(common.mustCall((req, res) => {       // 11
+  res.end('ok');                                                       // 12
+}));                                                                   // 13
+server.listen(0, () => {                                               // 14
+  http.get({                                                           // 15
+    port: server.address().port,                                       // 16
+    headers: { 'Test': 'Düsseldorf' }                                  // 17
+  }, common.mustCall((res) => {                                        // 18
+    assert.strictEqual(res.statusCode, 200);                           // 19
+    server.close();                                                    // 20
+  }));                                                                 // 21
+});                                                                    // 22
+// ...                                                                 // 23
 ```
 
-### **Lines 1-2**
+### **Lines 1-3**
 
 ```javascript
 'use strict';
 const common = require('../common');
+const fixtures = require('../common/fixtures');
 ```
 
 The first line enables strict mode. All tests should be in strict mode unless
 the nature of the test requires that the test run without it.
 
 The second line loads the `common` module. The [`common` module][] is a helper
-module that provides useful tools for the tests.
+module that provides useful tools for the tests. Some common functionality has
+been extracted into submodules, which are required separately like the fixtures
+module here.
 
 Even if a test uses no functions or other properties exported by `common`,
 the test should still include the `common` module before any other modules. This
@@ -70,7 +75,7 @@ assigning it to an identifier:
 require('../common');
 ```
 
-### **Lines 4-5**
+### **Lines 5-6**
 
 ```javascript
 // This test ensures that the http-parser can handle UTF-8 characters
@@ -80,7 +85,7 @@ require('../common');
 A test should start with a comment containing a brief description of what it is
 designed to test.
 
-### **Lines 7-8**
+### **Lines 8-9**
 
 ```javascript
 const assert = require('assert');
@@ -95,7 +100,7 @@ The require statements are sorted in
 [ASCII][] order (digits, upper
 case, `_`, lower case).
 
-### **Lines 10-21**
+### **Lines 11-22**
 
 This is the body of the test. This test is simple, it just tests that an
 HTTP server accepts `non-ASCII` characters in the headers of an incoming
@@ -307,8 +312,8 @@ TEST_F(EnvTest, RunAtExit) {
   v8::Local<v8::Context> context = v8::Context::New(isolate_);
   node::IsolateData* isolateData = node::CreateIsolateData(isolate_, uv_default_loop());
   Argv argv{"node", "-e", ";"};
-  auto env = Environment:CreateEnvironment(isolateData, context, 1, *argv, 2, *argv);
-  node::AtExit(at_exit_callback);
+  auto env = node::CreateEnvironment(isolateData, context, 1, *argv, 2, *argv);
+  node::AtExit(env, at_exit_callback);
   node::RunAtExit(env);
   EXPECT_TRUE(called_cb);
 }
@@ -325,6 +330,11 @@ Next add the test to the `sources` in the `cctest` target in node.gyp:
   ...
 ],
 ```
+Note that the only sources that should be included in the cctest target are
+actual test or helper source files. There might be a need to include specific
+object files that are compiled by the `node` target and this can be done by
+adding them to the `libraries` section in the cctest target.
+
 The test can be executed by running the `cctest` target:
 ```console
 $ make cctest

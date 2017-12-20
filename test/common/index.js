@@ -36,11 +36,9 @@ const testRoot = process.env.NODE_TEST_DIR ?
 
 const noop = () => {};
 
-exports.fixturesDir = fixturesDir;
-
 // Using a `.` prefixed name, which is the convention for "hidden" on POSIX,
 // gets tools to ignore it by default or by simple rules, especially eslint.
-exports.tmpDirName = '.tmp';
+let tmpDirName = '.tmp';
 // PORT should match the definition in test/testpy/__init__.py.
 exports.PORT = +process.env.NODE_COMMON_PORT || 12346;
 exports.isWindows = process.platform === 'win32';
@@ -176,9 +174,9 @@ exports.refreshTmpDir = function() {
 
 if (process.env.TEST_THREAD_ID) {
   exports.PORT += process.env.TEST_THREAD_ID * 100;
-  exports.tmpDirName += `.${process.env.TEST_THREAD_ID}`;
+  tmpDirName += `.${process.env.TEST_THREAD_ID}`;
 }
-exports.tmpDir = path.join(testRoot, exports.tmpDirName);
+exports.tmpDir = path.join(testRoot, tmpDirName);
 
 let opensslCli = null;
 let inFreeBSDJail = null;
@@ -314,7 +312,7 @@ exports.childShouldThrowAndAbort = function() {
 
 exports.ddCommand = function(filename, kilobytes) {
   if (exports.isWindows) {
-    const p = path.resolve(exports.fixturesDir, 'create-file.js');
+    const p = path.resolve(fixturesDir, 'create-file.js');
     return `"${process.argv[0]}" "${p}" "${filename}" ${kilobytes * 1024}`;
   } else {
     return `dd if=/dev/zero of="${filename}" bs=1024 count=${kilobytes}`;
@@ -506,6 +504,8 @@ exports.mustCallAtLeast = function(fn, minimum) {
 };
 
 function _mustCallInner(fn, criteria = 1, field) {
+  if (process._exiting)
+    throw new Error('Cannot use common.mustCall*() in process exit handler');
   if (typeof fn === 'number') {
     criteria = fn;
     fn = noop;
@@ -535,9 +535,9 @@ function _mustCallInner(fn, criteria = 1, field) {
 }
 
 exports.hasMultiLocalhost = function hasMultiLocalhost() {
-  const TCP = process.binding('tcp_wrap').TCP;
-  const t = new TCP();
-  const ret = t.bind('127.0.0.2', exports.PORT);
+  const { TCP, constants: TCPConstants } = process.binding('tcp_wrap');
+  const t = new TCP(TCPConstants.SOCKET);
+  const ret = t.bind('127.0.0.2', 0);
   t.close();
   return ret === 0;
 };
@@ -579,9 +579,23 @@ exports.canCreateSymLink = function() {
   return true;
 };
 
+exports.getCallSite = function getCallSite(top) {
+  const originalStackFormatter = Error.prepareStackTrace;
+  Error.prepareStackTrace = (err, stack) =>
+    `${stack[0].getFileName()}:${stack[0].getLineNumber()}`;
+  const err = new Error();
+  Error.captureStackTrace(err, top);
+  // with the V8 Error API, the stack is not formatted until it is accessed
+  err.stack;
+  Error.prepareStackTrace = originalStackFormatter;
+  return err.stack;
+};
+
 exports.mustNotCall = function(msg) {
+  const callSite = exports.getCallSite(exports.mustNotCall);
   return function mustNotCall() {
-    assert.fail(msg || 'function should not have been called');
+    assert.fail(
+      `${msg || 'function should not have been called'} at ${callSite}`);
   };
 };
 

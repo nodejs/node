@@ -23,7 +23,7 @@ module.exports = {
             {
                 oneOf: [
                     {
-                        enum: ["always", "never"]
+                        enum: ["always", "never", "consistent"]
                     },
                     {
                         type: "object",
@@ -58,11 +58,15 @@ module.exports = {
          * @returns {{multiline: boolean, minItems: number}} Normalized option object.
          */
         function normalizeOptionValue(option) {
+            let consistent = false;
             let multiline = false;
             let minItems = 0;
 
             if (option) {
-                if (option === "always" || option.minItems === 0) {
+                if (option === "consistent") {
+                    consistent = true;
+                    minItems = Number.POSITIVE_INFINITY;
+                } else if (option === "always" || option.minItems === 0) {
                     minItems = 0;
                 } else if (option === "never") {
                     minItems = Number.POSITIVE_INFINITY;
@@ -71,11 +75,12 @@ module.exports = {
                     minItems = option.minItems || Number.POSITIVE_INFINITY;
                 }
             } else {
+                consistent = false;
                 multiline = true;
                 minItems = Number.POSITIVE_INFINITY;
             }
 
-            return { multiline, minItems };
+            return { consistent, multiline, minItems };
         }
 
         /**
@@ -91,11 +96,11 @@ module.exports = {
         }
 
         /**
-        * Reports that there shouldn't be a linebreak after the first token
-        * @param {ASTNode} node - The node to report in the event of an error.
-        * @param {Token} token - The token to use for the report.
-        * @returns {void}
-        */
+         * Reports that there shouldn't be a linebreak after the first token
+         * @param {ASTNode} node - The node to report in the event of an error.
+         * @param {Token} token - The token to use for the report.
+         * @returns {void}
+         */
         function reportNoBeginningLinebreak(node, token) {
             context.report({
                 node,
@@ -114,11 +119,11 @@ module.exports = {
         }
 
         /**
-        * Reports that there shouldn't be a linebreak before the last token
-        * @param {ASTNode} node - The node to report in the event of an error.
-        * @param {Token} token - The token to use for the report.
-        * @returns {void}
-        */
+         * Reports that there shouldn't be a linebreak before the last token
+         * @param {ASTNode} node - The node to report in the event of an error.
+         * @param {Token} token - The token to use for the report.
+         * @returns {void}
+         */
         function reportNoEndingLinebreak(node, token) {
             context.report({
                 node,
@@ -137,11 +142,11 @@ module.exports = {
         }
 
         /**
-        * Reports that there should be a linebreak after the first token
-        * @param {ASTNode} node - The node to report in the event of an error.
-        * @param {Token} token - The token to use for the report.
-        * @returns {void}
-        */
+         * Reports that there should be a linebreak after the first token
+         * @param {ASTNode} node - The node to report in the event of an error.
+         * @param {Token} token - The token to use for the report.
+         * @returns {void}
+         */
         function reportRequiredBeginningLinebreak(node, token) {
             context.report({
                 node,
@@ -154,11 +159,11 @@ module.exports = {
         }
 
         /**
-        * Reports that there should be a linebreak before the last token
-        * @param {ASTNode} node - The node to report in the event of an error.
-        * @param {Token} token - The token to use for the report.
-        * @returns {void}
-        */
+         * Reports that there should be a linebreak before the last token
+         * @param {ASTNode} node - The node to report in the event of an error.
+         * @param {Token} token - The token to use for the report.
+         * @returns {void}
+         */
         function reportRequiredEndingLinebreak(node, token) {
             context.report({
                 node,
@@ -173,8 +178,7 @@ module.exports = {
         /**
          * Reports a given node if it violated this rule.
          *
-         * @param {ASTNode} node - A node to check. This is an ObjectExpression node or an ObjectPattern node.
-         * @param {{multiline: boolean, minItems: number}} options - An option object.
+         * @param {ASTNode} node - A node to check. This is an ArrayExpression node or an ArrayPattern node.
          * @returns {void}
          */
         function check(node) {
@@ -194,6 +198,16 @@ module.exports = {
                     options.multiline &&
                     elements.length > 0 &&
                     firstIncComment.loc.start.line !== lastIncComment.loc.end.line
+                ) ||
+                (
+                    elements.length === 0 &&
+                    firstIncComment.type === "Block" &&
+                    firstIncComment.loc.start.line !== lastIncComment.loc.end.line &&
+                    firstIncComment === lastIncComment
+                ) ||
+                (
+                    options.consistent &&
+                    firstIncComment.loc.start.line !== openBracket.loc.end.line
                 )
             );
 

@@ -10,6 +10,7 @@
 #endif
 
 #include "node_debug_options.h"
+#include "node_platform.h"
 #include "v8.h"
 
 namespace v8_inspector {
@@ -19,7 +20,6 @@ class StringView;
 namespace node {
 // Forward declaration to break recursive dependency chain with src/env.h.
 class Environment;
-class NodePlatform;
 
 namespace inspector {
 
@@ -96,7 +96,8 @@ class Agent {
   void DisableAsyncHook();
 
  private:
-  void ToggleAsyncHook(v8::Isolate* isolate, v8::Local<v8::Function> fn);
+  void ToggleAsyncHook(v8::Isolate* isolate,
+                       const v8::Persistent<v8::Function>& fn);
 
   node::Environment* parent_env_;
   std::unique_ptr<NodeInspectorClient> client_;

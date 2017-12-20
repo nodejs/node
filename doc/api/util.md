@@ -31,7 +31,7 @@ For example:
 const util = require('util');
 
 async function fn() {
-  return await Promise.resolve('hello world');
+  return 'hello world';
 }
 const callbackFunction = util.callbackify(fn);
 
@@ -419,7 +419,7 @@ but may return a value of any type that will be formatted accordingly by
 const util = require('util');
 
 const obj = { foo: 'this will not show up in the inspect() output' };
-obj[util.inspect.custom] = function(depth) {
+obj[util.inspect.custom] = (depth) => {
   return { bar: 'baz' };
 };
 
@@ -514,7 +514,7 @@ function doSomething(foo, callback) {
   // ...
 }
 
-doSomething[util.promisify.custom] = function(foo) {
+doSomething[util.promisify.custom] = (foo) => {
   return getPromiseSomehow();
 };
 
@@ -529,8 +529,8 @@ standard format of taking an error-first callback as the last argument.
 For example, with a function that takes in `(foo, onSuccessCallback, onErrorCallback)`:
 
 ```js
-doSomething[util.promisify.custom] = function(foo) {
-  return new Promise(function(resolve, reject) {
+doSomething[util.promisify.custom] = (foo) => {
+  return new Promise((resolve, reject) => {
     doSomething(foo, resolve, reject);
   });
 };
@@ -657,7 +657,7 @@ supported encodings or an alias.
 * Returns: {string}
 
 Decodes the `input` and returns a string. If `options.stream` is `true`, any
-incomplete byte sequences occuring at the end of the `input` are buffered
+incomplete byte sequences occurring at the end of the `input` are buffered
 internally and emitted after the next call to `textDecoder.decode()`.
 
 If `textDecoder.fatal` is `true`, decoding errors that occur will result in a

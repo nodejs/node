@@ -127,16 +127,17 @@ module.exports = {
          * @param {ASTNode} property Property AST node
          * @returns {boolean} True if the property can have a shorthand form
          * @private
-         **/
+         *
+         */
         function canHaveShorthand(property) {
             return (property.kind !== "set" && property.kind !== "get" && property.type !== "SpreadProperty" && property.type !== "ExperimentalSpreadProperty");
         }
 
         /**
-          * Checks whether a node is a string literal.
-          * @param   {ASTNode} node - Any AST node.
-          * @returns {boolean} `true` if it is a string literal.
-          */
+         * Checks whether a node is a string literal.
+         * @param   {ASTNode} node - Any AST node.
+         * @returns {boolean} `true` if it is a string literal.
+         */
         function isStringLiteral(node) {
             return node.type === "Literal" && typeof node.value === "string";
         }
@@ -146,7 +147,8 @@ module.exports = {
          * @param {ASTNode} property Property AST node
          * @returns {boolean} True if the property is considered shorthand, false if not.
          * @private
-         **/
+         *
+         */
         function isShorthand(property) {
 
             // property.method is true when `{a(){}}`.
@@ -158,7 +160,8 @@ module.exports = {
          * @param {ASTNode} property Property AST node
          * @returns {boolean} True if the key and value are named equally, false if not.
          * @private
-         **/
+         *
+         */
         function isRedundant(property) {
             const value = property.value;
 
@@ -177,7 +180,8 @@ module.exports = {
          * @param   {ASTNode} node Property AST node
          * @param   {boolean} checkRedundancy Whether to check longform redundancy
          * @returns {void}
-         **/
+         *
+         */
         function checkConsistency(node, checkRedundancy) {
 
             // We are excluding getters/setters and spread properties as they are considered neither longform nor shorthand.
@@ -187,8 +191,10 @@ module.exports = {
             if (properties.length > 0) {
                 const shorthandProperties = properties.filter(isShorthand);
 
-                // If we do not have an equal number of longform properties as
-                // shorthand properties, we are using the annotations inconsistently
+                /*
+                 * If we do not have an equal number of longform properties as
+                 * shorthand properties, we are using the annotations inconsistently
+                 */
                 if (shorthandProperties.length !== properties.length) {
 
                     // We have at least 1 shorthand property
@@ -196,8 +202,10 @@ module.exports = {
                         context.report({ node, message: "Unexpected mix of shorthand and non-shorthand properties." });
                     } else if (checkRedundancy) {
 
-                        // If all properties of the object contain a method or value with a name matching it's key,
-                        // all the keys are redundant.
+                        /*
+                         * If all properties of the object contain a method or value with a name matching it's key,
+                         * all the keys are redundant.
+                         */
                         const canAlwaysUseShorthand = properties.every(isRedundant);
 
                         if (canAlwaysUseShorthand) {
@@ -209,14 +217,18 @@ module.exports = {
         }
 
         /**
-        * Fixes a FunctionExpression node by making it into a shorthand property.
-        * @param {SourceCodeFixer} fixer The fixer object
-        * @param {ASTNode} node A `Property` node that has a `FunctionExpression` or `ArrowFunctionExpression` as its value
-        * @returns {Object} A fix for this node
-        */
+         * Fixes a FunctionExpression node by making it into a shorthand property.
+         * @param {SourceCodeFixer} fixer The fixer object
+         * @param {ASTNode} node A `Property` node that has a `FunctionExpression` or `ArrowFunctionExpression` as its value
+         * @returns {Object} A fix for this node
+         */
         function makeFunctionShorthand(fixer, node) {
-            const firstKeyToken = node.computed ? sourceCode.getFirstToken(node, astUtils.isOpeningBracketToken) : sourceCode.getFirstToken(node.key);
-            const lastKeyToken = node.computed ? sourceCode.getFirstTokenBetween(node.key, node.value, astUtils.isClosingBracketToken) : sourceCode.getLastToken(node.key);
+            const firstKeyToken = node.computed
+                ? sourceCode.getFirstToken(node, astUtils.isOpeningBracketToken)
+                : sourceCode.getFirstToken(node.key);
+            const lastKeyToken = node.computed
+                ? sourceCode.getFirstTokenBetween(node.key, node.value, astUtils.isClosingBracketToken)
+                : sourceCode.getLastToken(node.key);
             const keyText = sourceCode.text.slice(firstKeyToken.range[0], lastKeyToken.range[1]);
             let keyPrefix = "";
 
@@ -249,11 +261,11 @@ module.exports = {
         }
 
         /**
-        * Fixes a FunctionExpression node by making it into a longform property.
-        * @param {SourceCodeFixer} fixer The fixer object
-        * @param {ASTNode} node A `Property` node that has a `FunctionExpression` as its value
-        * @returns {Object} A fix for this node
-        */
+         * Fixes a FunctionExpression node by making it into a longform property.
+         * @param {SourceCodeFixer} fixer The fixer object
+         * @param {ASTNode} node A `Property` node that has a `FunctionExpression` as its value
+         * @returns {Object} A fix for this node
+         */
         function makeFunctionLongform(fixer, node) {
             const firstKeyToken = node.computed ? sourceCode.getTokens(node).find(token => token.value === "[") : sourceCode.getFirstToken(node.key);
             const lastKeyToken = node.computed ? sourceCode.getTokensBetween(node.key, node.value).find(token => token.value === "]") : sourceCode.getLastToken(node.key);
@@ -284,10 +296,10 @@ module.exports = {
         const argumentsIdentifiers = new WeakSet();
 
         /**
-        * Enters a function. This creates a new lexical identifier scope, so a new Set of arrow functions is pushed onto the stack.
-        * Also, this marks all `arguments` identifiers so that they can be detected later.
-        * @returns {void}
-        */
+         * Enters a function. This creates a new lexical identifier scope, so a new Set of arrow functions is pushed onto the stack.
+         * Also, this marks all `arguments` identifiers so that they can be detected later.
+         * @returns {void}
+         */
         function enterFunction() {
             lexicalScopeStack.unshift(new Set());
             context.getScope().variables.filter(variable => variable.name === "arguments").forEach(variable => {
@@ -296,18 +308,18 @@ module.exports = {
         }
 
         /**
-        * Exits a function. This pops the current set of arrow functions off the lexical scope stack.
-        * @returns {void}
-        */
+         * Exits a function. This pops the current set of arrow functions off the lexical scope stack.
+         * @returns {void}
+         */
         function exitFunction() {
             lexicalScopeStack.shift();
         }
 
         /**
-        * Marks the current function as having a lexical keyword. This implies that all arrow functions
-        * in the current lexical scope contain a reference to this lexical keyword.
-        * @returns {void}
-        */
+         * Marks the current function as having a lexical keyword. This implies that all arrow functions
+         * in the current lexical scope contain a reference to this lexical keyword.
+         * @returns {void}
+         */
         function reportLexicalIdentifier() {
             lexicalScopeStack[0].forEach(arrowFunction => arrowsWithLexicalIdentifiers.add(arrowFunction));
         }

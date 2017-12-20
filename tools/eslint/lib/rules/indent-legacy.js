@@ -274,8 +274,10 @@ module.exports = {
                 foundStatement = `${actualSpaces} ${foundSpacesWord} and ${actualTabs} ${foundTabsWord}`; // e.g. "1 space and 2 tabs"
             } else if (actualSpaces > 0) {
 
-                // Abbreviate the message if the expected indentation is also spaces.
-                // e.g. 'Expected 4 spaces but found 2' rather than 'Expected 4 spaces but found 2 spaces'
+                /*
+                 * Abbreviate the message if the expected indentation is also spaces.
+                 * e.g. 'Expected 4 spaces but found 2' rather than 'Expected 4 spaces but found 2 spaces'
+                 */
                 foundStatement = indentType === "space" ? actualSpaces : `${actualSpaces} ${foundSpacesWord}`;
             } else if (actualTabs > 0) {
                 foundStatement = indentType === "tab" ? actualTabs : `${actualTabs} ${foundTabsWord}`;
@@ -323,8 +325,8 @@ module.exports = {
          * @param {ASTNode|Token} node Node to examine
          * @param {boolean} [byLastLine=false] get indent of node's last line
          * @returns {Object} The node's indent. Contains keys `space` and `tab`, representing the indent of each character. Also
-         contains keys `goodChar` and `badChar`, where `goodChar` is the amount of the user's desired indentation character, and
-         `badChar` is the amount of the other indentation character.
+         * contains keys `goodChar` and `badChar`, where `goodChar` is the amount of the user's desired indentation character, and
+         * `badChar` is the amount of the other indentation character.
          */
         function getNodeIndent(node, byLastLine) {
             const token = byLastLine ? sourceCode.getLastToken(node) : sourceCode.getFirstToken(node);
@@ -445,8 +447,10 @@ module.exports = {
          */
         function checkLastReturnStatementLineIndent(node, firstLineIndent) {
 
-            // in case if return statement ends with ');' we have traverse back to ')'
-            // otherwise we'll measure indent for ';' and replace ')'
+            /*
+             * in case if return statement ends with ');' we have traverse back to ')'
+             * otherwise we'll measure indent for ';' and replace ')'
+             */
             const lastToken = sourceCode.getLastToken(node, astUtils.isClosingParenToken);
             const textBeforeClosingParenthesis = sourceCode.getText(lastToken, lastToken.loc.start.column).slice(0, -1);
 
@@ -645,8 +649,10 @@ module.exports = {
                 }
             }
 
-            // function body indent should be indent + indent size, unless this
-            // is a FunctionDeclaration, FunctionExpression, or outer IIFE and the corresponding options are enabled.
+            /*
+             * function body indent should be indent + indent size, unless this
+             * is a FunctionDeclaration, FunctionExpression, or outer IIFE and the corresponding options are enabled.
+             */
             let functionOffset = indentSize;
 
             if (options.outerIIFEBody !== null && isOuterIIFE(calleeNode)) {
@@ -733,7 +739,9 @@ module.exports = {
                         } else if (parent.type === "ObjectExpression" || parent.type === "ArrayExpression") {
                             const parentElements = node.parent.type === "ObjectExpression" ? node.parent.properties : node.parent.elements;
 
-                            if (parentElements[0] && parentElements[0].loc.start.line === parent.loc.start.line && parentElements[0].loc.end.line !== parent.loc.start.line) {
+                            if (parentElements[0] &&
+                                    parentElements[0].loc.start.line === parent.loc.start.line &&
+                                    parentElements[0].loc.end.line !== parent.loc.start.line) {
 
                                 /*
                                  * If the first element of the array spans multiple lines, don't increase the expected indentation of the rest.
@@ -797,7 +805,8 @@ module.exports = {
                 }
             }
 
-            checkLastNodeLineIndent(node, nodeIndent + (isNodeInVarOnTop(node, parentVarNode) ? options.VariableDeclarator[parentVarNode.parent.kind] * indentSize : 0));
+            checkLastNodeLineIndent(node, nodeIndent +
+                (isNodeInVarOnTop(node, parentVarNode) ? options.VariableDeclarator[parentVarNode.parent.kind] * indentSize : 0));
         }
 
         /**
@@ -1024,10 +1033,12 @@ module.exports = {
                     return;
                 }
 
-                // The typical layout of variable declarations and assignments
-                // alter the expectation of correct indentation. Skip them.
-                // TODO: Add appropriate configuration options for variable
-                // declarations and assignments.
+                /*
+                 * The typical layout of variable declarations and assignments
+                 * alter the expectation of correct indentation. Skip them.
+                 * TODO: Add appropriate configuration options for variable
+                 * declarations and assignments.
+                 */
                 if (getParentNodeByType(node, "VariableDeclarator", ["FunctionExpression", "ArrowFunctionExpression"])) {
                     return;
                 }

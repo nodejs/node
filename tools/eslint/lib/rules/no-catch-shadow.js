@@ -51,8 +51,10 @@ module.exports = {
             CatchClause(node) {
                 let scope = context.getScope();
 
-                // When blockBindings is enabled, CatchClause creates its own scope
-                // so start from one upper scope to exclude the current node
+                /*
+                 * When ecmaVersion >= 6, CatchClause creates its own scope
+                 * so start from one upper scope to exclude the current node
+                 */
                 if (scope.block === node) {
                     scope = scope.upper;
                 }

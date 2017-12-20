@@ -49,7 +49,7 @@ module.exports = {
 
         const options = context.options[0] || {},
             skipBlankLines = options.skipBlankLines || false,
-            ignoreComments = typeof options.ignoreComments === "undefined" || options.ignoreComments;
+            ignoreComments = typeof options.ignoreComments === "boolean" && options.ignoreComments;
 
         /**
          * Report the error message
@@ -101,8 +101,10 @@ module.exports = {
 
             Program: function checkTrailingSpaces(node) {
 
-                // Let's hack. Since Espree does not return whitespace nodes,
-                // fetch the source code and do matching via regexps.
+                /*
+                 * Let's hack. Since Espree does not return whitespace nodes,
+                 * fetch the source code and do matching via regexps.
+                 */
 
                 const re = new RegExp(NONBLANK),
                     skipMatch = new RegExp(SKIP_BLANK),
@@ -117,9 +119,11 @@ module.exports = {
                 for (let i = 0, ii = lines.length; i < ii; i++) {
                     const matches = re.exec(lines[i]);
 
-                    // Always add linebreak length to line length to accommodate for line break (\n or \r\n)
-                    // Because during the fix time they also reserve one spot in the array.
-                    // Usually linebreak length is 2 for \r\n (CRLF) and 1 for \n (LF)
+                    /*
+                     * Always add linebreak length to line length to accommodate for line break (\n or \r\n)
+                     * Because during the fix time they also reserve one spot in the array.
+                     * Usually linebreak length is 2 for \r\n (CRLF) and 1 for \n (LF)
+                     */
                     const linebreakLength = linebreaks && linebreaks[i] ? linebreaks[i].length : 1;
                     const lineLength = lines[i].length + linebreakLength;
 
@@ -140,8 +144,10 @@ module.exports = {
                             continue;
                         }
 
-                        // If the line has only whitespace, and skipBlankLines
-                        // is true, don't report it
+                        /*
+                         * If the line has only whitespace, and skipBlankLines
+                         * is true, don't report it
+                         */
                         if (skipBlankLines && skipMatch.test(lines[i])) {
                             totalLength += lineLength;
                             continue;

@@ -74,7 +74,7 @@ for any individual to *act* in such a manner that is not in violation of the
 strict letter of the Code of Conduct guidelines while still going completely
 against the spirit of what that Code is intended to accomplish.
 
-Open, diverse and inclusive communities live and die on the basis of trust.
+Open, diverse, and inclusive communities live and die on the basis of trust.
 Contributors can disagree with one another so long as they trust that those
 disagreements are in good faith and everyone is working towards a common goal.
 
@@ -177,7 +177,7 @@ Node.js changed that broke the module.
 Once an issue has been opened, it is not uncommon for there to be discussion
 around it. Some contributors may have differing opinions about the issue,
 including whether the behavior being seen is a bug or a feature. This discussion
-is part of the process and should be kept focused, helpful and professional.
+is part of the process and should be kept focused, helpful, and professional.
 
 Short, clipped responses—that provide neither additional context nor supporting
 detail—are not helpful or professional. To many, such responses are simply
@@ -221,9 +221,9 @@ In case of doubt, open an issue in the
 [issue tracker](https://github.com/nodejs/node/issues/) or contact one of the
 [project Collaborators](https://github.com/nodejs/node/#current-project-team-members).
 Node.js has two IRC channels:
-[#Node.js](http://webchat.freenode.net/?channels=node.js) for general help and
+[#Node.js](https://webchat.freenode.net/?channels=node.js) for general help and
 questions, and
-[#Node-dev](http://webchat.freenode.net/?channels=node-dev) for development of
+[#Node-dev](https://webchat.freenode.net/?channels=node-dev) for development of
 Node.js core specifically.
 
 ### Setting up your local environment
@@ -862,7 +862,7 @@ By making a contribution to this project, I certify that:
 [benchmark results]: ./doc/guides/writing-and-running-benchmarks.md
 [Building guide]: ./BUILDING.md
 [CI (Continuous Integration) test run]: #ci-testing
-[Code of Conduct]: https://github.com/nodejs/TSC/blob/master/CODE_OF_CONDUCT.md
+[Code of Conduct]: https://github.com/nodejs/admin/blob/master/CODE_OF_CONDUCT.md
 [https://ci.nodejs.org/]: https://ci.nodejs.org/
 [IRC in the #node-dev channel]: https://webchat.freenode.net?channels=node-dev&uio=d4
 [Node.js help repository]: https://github.com/nodejs/help/issues

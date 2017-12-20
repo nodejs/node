@@ -60,9 +60,9 @@
         'V8_BASE': '<(PRODUCT_DIR)/libv8_base.a',
       }],
       ['openssl_fips != ""', {
-        'OPENSSL_PRODUCT': 'libcrypto.a',
+        'OPENSSL_PRODUCT': '<(STATIC_LIB_PREFIX)crypto<(STATIC_LIB_SUFFIX)',
       }, {
-        'OPENSSL_PRODUCT': 'libopenssl.a',
+        'OPENSSL_PRODUCT': '<(STATIC_LIB_PREFIX)openssl<(STATIC_LIB_SUFFIX)',
       }],
       ['OS=="mac"', {
         'clang%': 1,
@@ -207,8 +207,6 @@
         # and their sheer number drowns out other, more legitimate warnings.
         'DisableSpecificWarnings': ['4267'],
         'WarnAsError': 'false',
-      },
-      'VCLibrarianTool': {
       },
       'VCLinkerTool': {
         'conditions': [
@@ -416,7 +414,7 @@
       }],
       ['OS=="freebsd"', {
         'conditions': [
-          ['llvm_version < "4.0"', {
+          ['"0" < llvm_version < "4.0"', {
             # Use this flag because on FreeBSD std::pairs copy constructor is non-trivial.
             # Doesn't apply to llvm 4.0 (FreeBSD 11.1) or later.
             # Refs: https://lists.freebsd.org/pipermail/freebsd-toolchain/2016-March/002094.html

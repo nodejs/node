@@ -406,6 +406,31 @@ function createGlobalLinebreakMatcher() {
     return new RegExp(LINEBREAK_MATCHER.source, "g");
 }
 
+/**
+ * Checks whether or not the tokens of two given nodes are same.
+ * @param {ASTNode} left - A node 1 to compare.
+ * @param {ASTNode} right - A node 2 to compare.
+ * @param {SourceCode} sourceCode - The ESLint source code object.
+ * @returns {boolean} the source code for the given node.
+ */
+function equalTokens(left, right, sourceCode) {
+    const tokensL = sourceCode.getTokens(left);
+    const tokensR = sourceCode.getTokens(right);
+
+    if (tokensL.length !== tokensR.length) {
+        return false;
+    }
+    for (let i = 0; i < tokensL.length; ++i) {
+        if (tokensL[i].type !== tokensR[i].type ||
+            tokensL[i].value !== tokensR[i].value
+        ) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
 //------------------------------------------------------------------------------
 // Public Interface
 //------------------------------------------------------------------------------
@@ -438,6 +463,7 @@ module.exports = {
     isArrayFromMethod,
     isParenthesised,
     createGlobalLinebreakMatcher,
+    equalTokens,
 
     isArrowToken,
     isClosingBraceToken,
@@ -620,15 +646,17 @@ module.exports = {
                     node = parent;
                     break;
 
-                // If the upper function is IIFE, checks the destination of the return value.
-                // e.g.
-                //   obj.foo = (function() {
-                //     // setup...
-                //     return function foo() { ... };
-                //   })();
-                //   obj.foo = (() =>
-                //     function foo() { ... }
-                //   )();
+                /*
+                 * If the upper function is IIFE, checks the destination of the return value.
+                 * e.g.
+                 *   obj.foo = (function() {
+                 *     // setup...
+                 *     return function foo() { ... };
+                 *   })();
+                 *   obj.foo = (() =>
+                 *     function foo() { ... }
+                 *   )();
+                 */
                 case "ReturnStatement": {
                     const func = getUpperFunction(parent);
 
@@ -645,23 +673,27 @@ module.exports = {
                     node = parent.parent;
                     break;
 
-                // e.g.
-                //   var obj = { foo() { ... } };
-                //   var obj = { foo: function() { ... } };
-                //   class A { constructor() { ... } }
-                //   class A { foo() { ... } }
-                //   class A { get foo() { ... } }
-                //   class A { set foo() { ... } }
-                //   class A { static foo() { ... } }
+                /*
+                 * e.g.
+                 *   var obj = { foo() { ... } };
+                 *   var obj = { foo: function() { ... } };
+                 *   class A { constructor() { ... } }
+                 *   class A { foo() { ... } }
+                 *   class A { get foo() { ... } }
+                 *   class A { set foo() { ... } }
+                 *   class A { static foo() { ... } }
+                 */
                 case "Property":
                 case "MethodDefinition":
                     return parent.value !== node;
 
-                // e.g.
-                //   obj.foo = function foo() { ... };
-                //   Foo = function() { ... };
-                //   [obj.foo = function foo() { ... }] = a;
-                //   [Foo = function() { ... }] = a;
+                /*
+                 * e.g.
+                 *   obj.foo = function foo() { ... };
+                 *   Foo = function() { ... };
+                 *   [obj.foo = function foo() { ... }] = a;
+                 *   [Foo = function() { ... }] = a;
+                 */
                 case "AssignmentExpression":
                 case "AssignmentPattern":
                     if (parent.left.type === "MemberExpression") {
@@ -676,8 +708,10 @@ module.exports = {
                     }
                     return true;
 
-                // e.g.
-                //   var Foo = function() { ... };
+                /*
+                 * e.g.
+                 *   var Foo = function() { ... };
+                 */
                 case "VariableDeclarator":
                     return !(
                         isAnonymous &&
@@ -686,10 +720,12 @@ module.exports = {
                         startsWithUpperCase(parent.id.name)
                     );
 
-                // e.g.
-                //   var foo = function foo() { ... }.bind(obj);
-                //   (function foo() { ... }).call(obj);
-                //   (function foo() { ... }).apply(obj, []);
+                /*
+                 * e.g.
+                 *   var foo = function foo() { ... }.bind(obj);
+                 *   (function foo() { ... }).call(obj);
+                 *   (function foo() { ... }).apply(obj, []);
+                 */
                 case "MemberExpression":
                     return (
                         parent.object !== node ||
@@ -700,10 +736,12 @@ module.exports = {
                         isNullOrUndefined(parent.parent.arguments[0])
                     );
 
-                // e.g.
-                //   Reflect.apply(function() {}, obj, []);
-                //   Array.from([], function() {}, obj);
-                //   list.forEach(function() {}, obj);
+                /*
+                 * e.g.
+                 *   Reflect.apply(function() {}, obj, []);
+                 *   Array.from([], function() {}, obj);
+                 *   list.forEach(function() {}, obj);
+                 */
                 case "CallExpression":
                     if (isReflectApply(parent.callee)) {
                         return (
@@ -930,8 +968,10 @@ module.exports = {
             node.type === "FunctionDeclaration" ||
             node.type === "FunctionExpression" ||
 
-            // Do not check arrow functions with implicit return.
-            // `() => "use strict";` returns the string `"use strict"`.
+            /*
+             * Do not check arrow functions with implicit return.
+             * `() => "use strict";` returns the string `"use strict"`.
+             */
             (node.type === "ArrowFunctionExpression" && node.body.type === "BlockStatement")
         ) {
             const statements = node.type === "Program" ? node.body : node.body.body;
@@ -954,7 +994,7 @@ module.exports = {
 
     /**
      * Determines whether this node is a decimal integer literal. If a node is a decimal integer literal, a dot added
-     after the node will be parsed as a decimal point, rather than a property-access dot.
+     * after the node will be parsed as a decimal point, rather than a property-access dot.
      * @param {ASTNode} node - The node to check.
      * @returns {boolean} `true` if this node is a decimal integer.
      * @example
@@ -1041,7 +1081,8 @@ module.exports = {
         } else if (parent.type === "Property" || parent.type === "MethodDefinition") {
             if (parent.kind === "constructor") {
                 return "constructor";
-            } else if (parent.kind === "get") {
+            }
+            if (parent.kind === "get") {
                 tokens.push("getter");
             } else if (parent.kind === "set") {
                 tokens.push("setter");
@@ -1182,12 +1223,12 @@ module.exports = {
     },
 
     /**
-    * Gets the parenthesized text of a node. This is similar to sourceCode.getText(node), but it also includes any parentheses
-    * surrounding the node.
-    * @param {SourceCode} sourceCode The source code object
-    * @param {ASTNode} node An expression node
-    * @returns {string} The text representing the node, with all surrounding parentheses included
-    */
+     * Gets the parenthesized text of a node. This is similar to sourceCode.getText(node), but it also includes any parentheses
+     * surrounding the node.
+     * @param {SourceCode} sourceCode The source code object
+     * @param {ASTNode} node An expression node
+     * @returns {string} The text representing the node, with all surrounding parentheses included
+     */
     getParenthesisedText(sourceCode, node) {
         let leftToken = sourceCode.getFirstToken(node);
         let rightToken = sourceCode.getLastToken(node);

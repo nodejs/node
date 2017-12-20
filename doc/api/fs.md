@@ -865,6 +865,7 @@ changes:
   * `autoClose` {boolean}
   * `start` {integer}
   * `end` {integer}
+  * `highWaterMark` {integer}
 
 Returns a new [`ReadStream`][] object. (See [Readable Stream][]).
 
@@ -880,7 +881,8 @@ const defaults = {
   encoding: null,
   fd: null,
   mode: 0o666,
-  autoClose: true
+  autoClose: true,
+  highWaterMark: 64 * 1024
 };
 ```
 
@@ -1670,7 +1672,7 @@ The file is created if it does not exist.
 * `'ax+'` - Like `'a+'` but fails if `path` exists.
 
 `mode` sets the file mode (permission and sticky bits), but only if the file was
-created. It defaults to `0o666`, readable and writable.
+created. It defaults to `0o666` (readable and writable).
 
 The callback gets two arguments `(err, fd)`.
 
@@ -1879,7 +1881,7 @@ Linux, and Windows, an error will be returned. On FreeBSD, a representation
 of the directory's contents will be returned.
 
 ```js
-// macOS, Linux and Windows
+// macOS, Linux, and Windows
 fs.readFile('<directory>', (err, data) => {
   // => [Error: EISDIR: illegal operation on a directory, read <directory>]
 });
@@ -1894,6 +1896,11 @@ Any specified file descriptor has to support reading.
 
 *Note*: If a file descriptor is specified as the `path`, it will not be closed
 automatically.
+
+*Note*: `fs.readFile()` reads the entire file in a single threadpool request.
+To minimize threadpool task length variation, prefer the partitioned APIs
+`fs.read()` and `fs.createReadStream()` when reading files as part of
+fulfilling a client request.
 
 ## fs.readFileSync(path[, options])
 <!-- YAML
@@ -1922,7 +1929,7 @@ string. Otherwise it returns a buffer.
 behavior of `fs.readFileSync()` is platform-specific.
 
 ```js
-// macOS, Linux and Windows
+// macOS, Linux, and Windows
 fs.readFileSync('<directory>');
 // => [Error: EISDIR: illegal operation on a directory, read <directory>]
 
@@ -2484,12 +2491,9 @@ a new inode. The watch will emit an event for the delete but will continue
 watching the *original* inode. Events for the new inode will not be emitted.
 This is expected behavior.
 
-In AIX, save and close of a file being watched causes two notifications -
-one for adding new content, and one for truncation. Moreover, save and
-close operations on some platforms cause inode changes that force watch
-operations to become invalid and ineffective. AIX retains inode for the
-lifetime of a file, that way though this is different from Linux / macOS,
-this improves the usability of file watching. This is expected behavior.
+AIX files retain the same inode for the lifetime of a file. Saving and closing a
+watched file on AIX will result in two notifications (one for adding new
+content, and one for truncation).
 
 #### Filename Argument
 
@@ -2959,7 +2963,7 @@ The following constants are meant for use with the [`fs.Stats`][] object's
   </tr>
   <tr>
     <td><code>S_IRWXU</code></td>
-    <td>File mode indicating readable, writable and executable by owner.</td>
+    <td>File mode indicating readable, writable, and executable by owner.</td>
   </tr>
   <tr>
     <td><code>S_IRUSR</code></td>
@@ -2975,7 +2979,7 @@ The following constants are meant for use with the [`fs.Stats`][] object's
   </tr>
   <tr>
     <td><code>S_IRWXG</code></td>
-    <td>File mode indicating readable, writable and executable by group.</td>
+    <td>File mode indicating readable, writable, and executable by group.</td>
   </tr>
   <tr>
     <td><code>S_IRGRP</code></td>
@@ -2991,7 +2995,7 @@ The following constants are meant for use with the [`fs.Stats`][] object's
   </tr>
   <tr>
     <td><code>S_IRWXO</code></td>
-    <td>File mode indicating readable, writable and executable by others.</td>
+    <td>File mode indicating readable, writable, and executable by others.</td>
   </tr>
   <tr>
     <td><code>S_IROTH</code></td>

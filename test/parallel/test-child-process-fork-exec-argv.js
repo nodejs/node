@@ -20,7 +20,7 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 const child_process = require('child_process');
 const spawn = child_process.spawn;
@@ -43,7 +43,7 @@ if (process.argv[2] === 'fork') {
     out += chunk;
   });
 
-  child.on('exit', function() {
+  child.on('exit', common.mustCall(function() {
     assert.deepStrictEqual(JSON.parse(out), execArgv);
-  });
+  }));
 }

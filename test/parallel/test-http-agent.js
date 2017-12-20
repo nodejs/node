@@ -21,8 +21,10 @@
 
 'use strict';
 const common = require('../common');
+const Countdown = require('../common/countdown');
 const assert = require('assert');
 const http = require('http');
+common.crashOnUnhandledRejection();
 
 const N = 4;
 const M = 4;
@@ -32,14 +34,17 @@ const server = http.Server(common.mustCall(function(req, res) {
 }, (N * M))); // N * M = good requests (the errors will not be counted)
 
 function makeRequests(outCount, inCount, shouldFail) {
-  let responseCount = outCount * inCount;
+  const countdown = new Countdown(
+    outCount * inCount,
+    common.mustCall(() => server.close())
+  );
   let onRequest = common.mustNotCall(); // Temporary
   const p = new Promise((resolve) => {
     onRequest = common.mustCall((res) => {
-      if (--responseCount === 0) {
-        server.close();
+      if (countdown.dec() === 0) {
         resolve();
       }
+
       if (!shouldFail)
         res.resume();
     }, outCount * inCount);

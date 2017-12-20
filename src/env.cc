@@ -2,12 +2,6 @@
 #include "async-wrap.h"
 #include "v8-profiler.h"
 
-#if defined(_MSC_VER)
-#define getpid GetCurrentProcessId
-#else
-#include <unistd.h>
-#endif
-
 #include <stdio.h>
 #include <algorithm>
 
@@ -130,7 +124,8 @@ void Environment::PrintSyncTrace() const {
   Local<v8::StackTrace> stack =
       StackTrace::CurrentStackTrace(isolate(), 10, StackTrace::kDetailed);
 
-  fprintf(stderr, "(node:%d) WARNING: Detected use of sync API\n", getpid());
+  fprintf(stderr, "(node:%u) WARNING: Detected use of sync API\n",
+          GetProcessId());
 
   for (int i = 0; i < stack->GetFrameCount() - 1; i++) {
     Local<StackFrame> stack_frame = stack->GetFrame(i);

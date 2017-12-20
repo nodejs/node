@@ -102,7 +102,8 @@ module.exports = {
             }
         }
 
-        /** Checks whether a node means a getter function.
+        /**
+         * Checks whether a node means a getter function.
          * @param {ASTNode} node - a node to check.
          * @returns {boolean} if node means a getter, return true; else return false.
          */

@@ -366,8 +366,7 @@ By default, `child_process.fork()` will spawn new Node.js instances using the
 
 Node.js processes launched with a custom `execPath` will communicate with the
 parent process using the file descriptor (fd) identified using the
-environment variable `NODE_CHANNEL_FD` on the child process. The input and
-output on this fd is expected to be line delimited JSON objects.
+environment variable `NODE_CHANNEL_FD` on the child process.
 
 *Note*: Unlike the fork(2) POSIX system call, `child_process.fork()` does
 not clone the current process.
@@ -609,9 +608,7 @@ pipes between the parent and child. The value is one of the following:
 2. `'ipc'` - Create an IPC channel for passing messages/file descriptors
    between parent and child. A [`ChildProcess`][] may have at most *one* IPC stdio
    file descriptor. Setting this option enables the [`subprocess.send()`][]
-   method. If the child writes JSON messages to this file descriptor, the
-   [`subprocess.on('message')`][`'message'`] event handler will be triggered in
-   the parent. If the child is a Node.js process, the presence of an IPC channel
+   method. If the child is a Node.js process, the presence of an IPC channel
    will enable [`process.send()`][], [`process.disconnect()`][],
    [`process.on('disconnect')`][], and [`process.on('message')`] within the
    child.
@@ -628,7 +625,7 @@ pipes between the parent and child. The value is one of the following:
 5. Positive integer - The integer value is interpreted as a file descriptor
    that is is currently open in the parent process. It is shared with the child
    process, similar to how {Stream} objects can be shared.
-6. `null`, `undefined` - Use default value. For stdio fds 0, 1 and 2 (in other
+6. `null`, `undefined` - Use default value. For stdio fds 0, 1, and 2 (in other
    words, stdin, stdout, and stderr) a pipe is created. For fd 3 and up, the
    default is `'ignore'`.
 
@@ -933,9 +930,8 @@ added: v0.5.9
 The `'message'` event is triggered when a child process uses [`process.send()`][]
 to send messages.
 
-*Note*: The message goes through JSON serialization and parsing. The resulting
-message might not be the same as what is originally sent. See notes in
-[the `JSON.stringify()` specification][`JSON.stringify` spec].
+*Note*: The message goes through serialization and parsing. The resulting
+message might not be the same as what is originally sent.
 
 <a name="child_process_child_channel"></a>
 ### subprocess.channel
@@ -1103,9 +1099,8 @@ be used to send messages to the child process. When the child process is a
 Node.js instance, these messages can be received via the
 [`process.on('message')`][] event.
 
-*Note*: The message goes through JSON serialization and parsing. The resulting
-message might not be the same as what is originally sent. See notes in
-[the `JSON.stringify()` specification][`JSON.stringify` spec].
+*Note*: The message goes through serialization and parsing. The resulting
+message might not be the same as what is originally sent.
 
 For example, in the parent script:
 
@@ -1378,11 +1373,9 @@ unavailable.
 
 [`'error'`]: #child_process_event_error
 [`'exit'`]: #child_process_event_exit
-[`'message'`]: #child_process_event_message
 [`ChildProcess`]: #child_process_child_process
 [`Error`]: errors.html#errors_class_error
 [`EventEmitter`]: events.html#events_class_eventemitter
-[`JSON.stringify` spec]: https://tc39.github.io/ecma262/#sec-json.stringify
 [`subprocess.connected`]: #child_process_subprocess_connected
 [`subprocess.disconnect()`]: #child_process_subprocess_disconnect
 [`subprocess.kill()`]: #child_process_subprocess_kill_signal

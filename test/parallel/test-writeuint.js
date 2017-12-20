@@ -150,10 +150,10 @@ function testUint(clazz) {
   // Test 0 to 5 bytes.
   for (let i = 0; i <= 5; i++) {
     const errmsg = `byteLength: ${i}`;
-    assert.throws(function() {
+    assert.throws(() => {
       data.writeUIntBE(val, 0, i);
     }, /"value" argument is out of bounds/, errmsg);
-    assert.throws(function() {
+    assert.throws(() => {
       data.writeUIntLE(val, 0, i);
     }, /"value" argument is out of bounds/, errmsg);
     val *= 0x100;

@@ -1,3 +1,3 @@
 rules:
-    internal-no-invalid-meta: "error"
-    internal-consistent-docs-description: "error"
+    rulesdir/no-invalid-meta: "error"
+    rulesdir/consistent-docs-description: "error"

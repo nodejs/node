@@ -195,10 +195,12 @@ module.exports = {
         function containsAssignment(node) {
             if (node.type === "AssignmentExpression") {
                 return true;
-            } else if (node.type === "ConditionalExpression" &&
+            }
+            if (node.type === "ConditionalExpression" &&
                     (node.consequent.type === "AssignmentExpression" || node.alternate.type === "AssignmentExpression")) {
                 return true;
-            } else if ((node.left && node.left.type === "AssignmentExpression") ||
+            }
+            if ((node.left && node.left.type === "AssignmentExpression") ||
                     (node.right && node.right.type === "AssignmentExpression")) {
                 return true;
             }
@@ -219,7 +221,8 @@ module.exports = {
 
             if (node.type === "ReturnStatement") {
                 return node.argument && containsAssignment(node.argument);
-            } else if (node.type === "ArrowFunctionExpression" && node.body.type !== "BlockStatement") {
+            }
+            if (node.type === "ArrowFunctionExpression" && node.body.type !== "BlockStatement") {
                 return containsAssignment(node.body);
             }
             return containsAssignment(node);
@@ -369,8 +372,10 @@ module.exports = {
                     hasDoubleExcessParens(callee) ||
                     !isIIFE(node) && !hasNewParensException && !(
 
-                        // Allow extra parens around a new expression if
-                        // there are intervening parentheses.
+                        /*
+                         * Allow extra parens around a new expression if
+                         * there are intervening parentheses.
+                         */
                         callee.type === "MemberExpression" &&
                         doesMemberExpressionContainCallExpression(callee)
                     )
@@ -422,8 +427,10 @@ module.exports = {
                 return;
             }
 
-            // If `node.superClass` is a LeftHandSideExpression, parentheses are extra.
-            // Otherwise, parentheses are needed.
+            /*
+             * If `node.superClass` is a LeftHandSideExpression, parentheses are extra.
+             * Otherwise, parentheses are needed.
+             */
             const hasExtraParens = precedence(node.superClass) > PRECEDENCE_OF_UPDATE_EXPR
                 ? hasExcessParens(node.superClass)
                 : hasDoubleExcessParens(node.superClass);
@@ -557,12 +564,16 @@ module.exports = {
                     if (
                         firstLeftToken.value === "let" && (
 
-                            // If `let` is the only thing on the left side of the loop, it's the loop variable: `for ((let) of foo);`
-                            // Removing it will cause a syntax error, because it will be parsed as the start of a VariableDeclarator.
+                            /*
+                             * If `let` is the only thing on the left side of the loop, it's the loop variable: `for ((let) of foo);`
+                             * Removing it will cause a syntax error, because it will be parsed as the start of a VariableDeclarator.
+                             */
                             firstLeftToken.range[1] === node.left.range[1] ||
 
-                            // If `let` is followed by a `[` token, it's a property access on the `let` value: `for ((let[foo]) of bar);`
-                            // Removing it will cause the property access to be parsed as a destructuring declaration of `foo` instead.
+                            /*
+                             * If `let` is followed by a `[` token, it's a property access on the `let` value: `for ((let[foo]) of bar);`
+                             * Removing it will cause the property access to be parsed as a destructuring declaration of `foo` instead.
+                             */
                             astUtils.isOpeningBracketToken(
                                 sourceCode.getTokenAfter(firstLeftToken, astUtils.isNotClosingParenToken)
                             )

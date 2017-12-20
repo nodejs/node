@@ -24,6 +24,14 @@
 #include "node_internals.h"
 #include <stdio.h>
 
+#ifdef __POSIX__
+#include <unistd.h>  // getpid()
+#endif
+
+#ifdef _MSC_VER
+#include <windows.h>  // GetCurrentProcessId()
+#endif
+
 namespace node {
 
 using v8::Isolate;
@@ -103,6 +111,26 @@ void LowMemoryNotification() {
       isolate->LowMemoryNotification();
     }
   }
+}
+
+std::string GetHumanReadableProcessName() {
+  char name[1024];
+  GetHumanReadableProcessName(&name);
+  return name;
+}
+
+void GetHumanReadableProcessName(char (*name)[1024]) {
+  char title[1024] = "Node.js";
+  uv_get_process_title(title, sizeof(title));
+  snprintf(*name, sizeof(*name), "%s[%u]", title, GetProcessId());
+}
+
+uint32_t GetProcessId() {
+#ifdef _WIN32
+  return GetCurrentProcessId();
+#else
+  return getpid();
+#endif
 }
 
 }  // namespace node

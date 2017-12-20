@@ -43,11 +43,13 @@
 // StartComAndWoSignData.inc
 #include "StartComAndWoSignData.inc"
 
+#include <algorithm>
 #include <errno.h>
 #include <limits.h>  // INT_MAX
 #include <math.h>
 #include <stdlib.h>
 #include <string.h>
+#include <vector>
 
 #define THROW_AND_RETURN_IF_NOT_STRING_OR_BUFFER(val, prefix)                  \
   do {                                                                         \
@@ -270,44 +272,33 @@ void ThrowCryptoError(Environment* env,
   Local<Value> exception_v = Exception::Error(message);
   CHECK(!exception_v.IsEmpty());
   Local<Object> exception = exception_v.As<Object>();
-  ERR_STATE* es = ERR_get_state();
 
-  if (es->bottom != es->top) {
-    Local<Array> error_stack = Array::New(env->isolate());
-    int top = es->top;
-
-    // Build the error_stack array to be added to opensslErrorStack property.
-    for (unsigned int i = 0; es->bottom != es->top;) {
-      unsigned long err_buf = es->err_buffer[es->top];  // NOLINT(runtime/int)
-      // Only add error string if there is valid err_buffer.
-      if (err_buf) {
-        char tmp_str[256];
-        ERR_error_string_n(err_buf, tmp_str, sizeof(tmp_str));
-        error_stack->Set(env->context(), i,
-                        String::NewFromUtf8(env->isolate(), tmp_str,
-                                              v8::NewStringType::kNormal)
-                                                  .ToLocalChecked()).FromJust();
-        // Only increment if we added to error_stack.
-        i++;
-      }
-
-      // Since the ERR_STATE is a ring buffer, we need to use modular
-      // arithmetic to loop back around in the case where bottom is after top.
-      // Using ERR_NUM_ERRORS  macro defined in openssl.
-      es->top = (((es->top - 1) % ERR_NUM_ERRORS) + ERR_NUM_ERRORS) %
-          ERR_NUM_ERRORS;
+  std::vector<Local<String>> errors;
+  for (;;) {
+    unsigned long err = ERR_get_error();  // NOLINT(runtime/int)
+    if (err == 0) {
+      break;
     }
+    char tmp_str[256];
+    ERR_error_string_n(err, tmp_str, sizeof(tmp_str));
+    errors.push_back(String::NewFromUtf8(env->isolate(), tmp_str,
+                                         v8::NewStringType::kNormal)
+                     .ToLocalChecked());
+  }
 
-    // Restore top.
-    es->top = top;
-
-    // Add the opensslErrorStack property to the exception object.
-    // The new property will look like the following:
-    // opensslErrorStack: [
-    // 'error:0906700D:PEM routines:PEM_ASN1_read_bio:ASN1 lib',
-    // 'error:0D07803A:asn1 encoding routines:ASN1_ITEM_EX_D2I:nested asn1 err'
-    // ]
-    exception->Set(env->context(), env->openssl_error_stack(), error_stack)
+  // ERR_get_error returns errors in order of most specific to least
+  // specific. We wish to have the reverse ordering:
+  // opensslErrorStack: [
+  // 'error:0906700D:PEM routines:PEM_ASN1_read_bio:ASN1 lib',
+  // 'error:0D07803A:asn1 encoding routines:ASN1_ITEM_EX_D2I:nested asn1 err'
+  // ]
+  if (!errors.empty()) {
+    std::reverse(errors.begin(), errors.end());
+    Local<Array> errors_array = Array::New(env->isolate(), errors.size());
+    for (size_t i = 0; i < errors.size(); i++) {
+      errors_array->Set(env->context(), i, errors[i]).FromJust();
+    }
+    exception->Set(env->context(), env->openssl_error_stack(), errors_array)
         .FromJust();
   }
 
@@ -1356,7 +1347,7 @@ void SecureContext::GetCertificate(const FunctionCallbackInfo<Value>& args) {
   else
     cert = wrap->issuer_;
   if (cert == nullptr)
-    return args.GetReturnValue().Set(Null(env->isolate()));
+    return args.GetReturnValue().SetNull();
 
   int size = i2d_X509(cert, nullptr);
   Local<Object> buff = Buffer::New(env, size).ToLocalChecked();

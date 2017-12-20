@@ -65,9 +65,8 @@ inline Environment* BaseObject::env() const {
 template <typename Type>
 inline void BaseObject::WeakCallback(
     const v8::WeakCallbackInfo<Type>& data) {
-  Type* self = data.GetParameter();
+  std::unique_ptr<Type> self(data.GetParameter());
   self->persistent().Reset();
-  delete self;
 }
 
 

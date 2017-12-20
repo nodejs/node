@@ -105,8 +105,10 @@ function isSafe(loopNode, reference) {
         return true;
     }
 
-    // Variables which are declared by `let` in the loop is safe.
-    // It's a different instance from the next loop step's.
+    /*
+     * Variables which are declared by `let` in the loop is safe.
+     * It's a different instance from the next loop step's.
+     */
     if (kind === "let" &&
         declaration.range[0] > loopNode.range[0] &&
         declaration.range[1] < loopNode.range[1]
@@ -114,8 +116,10 @@ function isSafe(loopNode, reference) {
         return true;
     }
 
-    // WriteReferences which exist after this border are unsafe because those
-    // can modify the variable.
+    /*
+     * WriteReferences which exist after this border are unsafe because those
+     * can modify the variable.
+     */
     const border = getTopLoopNode(
         loopNode,
         (kind === "let") ? declaration : null

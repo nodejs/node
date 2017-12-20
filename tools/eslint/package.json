@@ -1,8 +1,8 @@
 {
   "_from": "eslint@latest",
-  "_id": "eslint@4.8.0",
+  "_id": "eslint@4.12.0",
   "_inBundle": false,
-  "_integrity": "sha1-Ip7w41Tg5h2DfHqA/fuoJeGZgV4=",
+  "_integrity": "sha512-Ohv4NU0FffkEe4so8DBrdfRUbGUtM4XnBTDll2pY7OdW3VkjBOZPerx3Bmuhg6S6D6r8+cli0EezN0xawUfYwg==",
   "_location": "/eslint",
   "_phantomChildren": {},
   "_requested": {
@@ -19,10 +19,10 @@
     "#USER",
     "/"
   ],
-  "_resolved": "https://registry.npmjs.org/eslint/-/eslint-4.8.0.tgz",
-  "_shasum": "229ef0e354e0e61d837c7a80fdfba825e199815e",
+  "_resolved": "https://registry.npmjs.org/eslint/-/eslint-4.12.0.tgz",
+  "_shasum": "a7ce78eba8cc8f2443acfbbc870cc31a65135884",
   "_spec": "eslint@latest",
-  "_where": "/Users/apapirovski/Web/nodejs/tools/eslint-tmp",
+  "_where": "/Users/cjihrig/iojs/node/tools/eslint-tmp",
   "author": {
     "name": "Nicholas C. Zakas",
     "email": "nicholas+npm@nczconsulting.com"
@@ -35,29 +35,29 @@
   },
   "bundleDependencies": false,
   "dependencies": {
-    "ajv": "^5.2.0",
+    "ajv": "^5.3.0",
     "babel-code-frame": "^6.22.0",
     "chalk": "^2.1.0",
     "concat-stream": "^1.6.0",
     "cross-spawn": "^5.1.0",
     "debug": "^3.0.1",
-    "doctrine": "^2.0.0",
+    "doctrine": "^2.0.2",
     "eslint-plugin-markdown": "^1.0.0-beta.7",
     "eslint-scope": "^3.7.1",
-    "espree": "^3.5.1",
+    "espree": "^3.5.2",
     "esquery": "^1.0.0",
     "estraverse": "^4.2.0",
     "esutils": "^2.0.2",
     "file-entry-cache": "^2.0.0",
     "functional-red-black-tree": "^1.0.1",
     "glob": "^7.1.2",
-    "globals": "^9.17.0",
+    "globals": "^11.0.1",
     "ignore": "^3.3.3",
     "imurmurhash": "^0.1.4",
     "inquirer": "^3.0.6",
     "is-resolvable": "^1.0.0",
     "js-yaml": "^3.9.1",
-    "json-stable-stringify": "^1.0.1",
+    "json-stable-stringify-without-jsonify": "^1.0.1",
     "levn": "^0.3.0",
     "lodash": "^4.17.4",
     "minimatch": "^3.0.2",
@@ -90,7 +90,9 @@
     "ejs": "^2.5.6",
     "eslint-plugin-eslint-plugin": "^1.2.0",
     "eslint-plugin-node": "^5.1.0",
+    "eslint-plugin-rulesdir": "^0.1.0",
     "eslint-release": "^0.10.1",
+    "eslint-rule-composer": "^0.1.0",
     "eslump": "1.6.0",
     "esprima": "^4.0.0",
     "esprima-fb": "^15001.1001.0-dev-harmony-fb",
@@ -110,7 +112,6 @@
     "phantomjs-prebuilt": "^2.1.14",
     "proxyquire": "^1.8.0",
     "shelljs": "^0.7.7",
-    "shelljs-nodecli": "~0.1.1",
     "sinon": "^3.2.1",
     "temp": "^0.8.3",
     "through": "^2.3.8"
@@ -145,7 +146,6 @@
     "alpharelease": "node Makefile.js prerelease -- alpha",
     "betarelease": "node Makefile.js prerelease -- beta",
     "browserify": "node Makefile.js browserify",
-    "check-commit": "node Makefile.js checkGitCommit",
     "ci-release": "node Makefile.js ciRelease",
     "coveralls": "cat ./coverage/lcov.info | coveralls",
     "docs": "node Makefile.js docs",
@@ -157,5 +157,5 @@
     "release": "node Makefile.js release",
     "test": "node Makefile.js test"
   },
-  "version": "4.8.0"
+  "version": "4.12.0"
 }

@@ -94,9 +94,8 @@ The listener callback is invoked with the following arguments:
 * `sendHandle` {Handle object} a [`net.Socket`][] or [`net.Server`][] object, or
   undefined.
 
-*Note*: The message goes through JSON serialization and parsing. The resulting
-message might not be the same as what is originally sent. See notes in
-[the `JSON.stringify()` specification][`JSON.stringify` spec].
+*Note*: The message goes through serialization and parsing. The resulting
+message might not be the same as what is originally sent.
 
 ### Event: 'rejectionHandled'
 <!-- YAML
@@ -275,7 +274,7 @@ A process warning is similar to an error in that it describes exceptional
 conditions that are being brought to the user's attention. However, warnings
 are not part of the normal Node.js and JavaScript error handling flow.
 Node.js can emit warnings whenever it detects bad coding practices that could
-lead to sub-optimal application performance, bugs or security vulnerabilities.
+lead to sub-optimal application performance, bugs, or security vulnerabilities.
 
 The listener function is called with a single `warning` argument whose value is
 an `Error` object. There are three key properties that describe the warning:
@@ -369,7 +368,7 @@ terminal programs.
 
 It is important to take note of the following:
 
-* `SIGUSR1` is reserved by Node.js to start the debugger.  It's possible to
+* `SIGUSR1` is reserved by Node.js to start the [debugger][]. It's possible to
   install a listener but doing so will _not_ stop the debugger from starting.
 * `SIGTERM` and `SIGINT` have default handlers on non-Windows platforms that
   resets the terminal mode before exiting with code `128 + signal number`. If
@@ -1244,7 +1243,7 @@ objects managed by V8. `rss`, Resident Set Size, is the amount of space
 occupied in the main memory device (that is a subset of the total allocated
 memory) for the process, which includes the _heap_, _code segment_ and _stack_.
 
-The _heap_ is where objects, strings and closures are stored. Variables are
+The _heap_ is where objects, strings, and closures are stored. Variables are
 stored in the _stack_ and the actual JavaScript code resides in the
 _code segment_.
 
@@ -1404,9 +1403,9 @@ tarball.
 * `lts` {string} a string label identifying the [LTS][] label for this release.
   This property only exists for LTS releases and is `undefined` for all other
   release types, including _Current_ releases.  Currently the valid values are:
-  - `'Argon'` for the v4.x LTS line beginning with v4.2.0.
-  - `'Boron'` for the v6.x LTS line beginning with v6.9.0.
-  - `'Carbon'` for the v8.x LTS line beginning with v8.9.1.
+  - `'Argon'` for the 4.x LTS line beginning with 4.2.0.
+  - `'Boron'` for the 6.x LTS line beginning with 6.9.0.
+  - `'Carbon'` for the 8.x LTS line beginning with 8.9.1.
 
 For example:
 
@@ -1443,9 +1442,8 @@ used to send messages to the parent process. Messages will be received as a
 If Node.js was not spawned with an IPC channel, `process.send()` will be
 `undefined`.
 
-*Note*: The message goes through JSON serialization and parsing. The resulting
-message might not be the same as what is originally sent. See notes in
-[the `JSON.stringify()` specification][`JSON.stringify` spec].
+*Note*: The message goes through serialization and parsing. The resulting
+message might not be the same as what is originally sent.
 
 ## process.setegid(id)
 <!-- YAML
@@ -1847,7 +1845,6 @@ cases:
 [`ChildProcess`]: child_process.html#child_process_class_childprocess
 [`Error`]: errors.html#errors_class_error
 [`EventEmitter`]: events.html#events_class_eventemitter
-[`JSON.stringify` spec]: https://tc39.github.io/ecma262/#sec-json.stringify
 [`console.error()`]: console.html#console_console_error_data_args
 [`console.log()`]: console.html#console_console_log_data_args
 [`end()`]: stream.html#stream_writable_end_chunk_encoding_callback
@@ -1863,6 +1860,7 @@ cases:
 [`setTimeout(fn, 0)`]: timers.html#timers_settimeout_callback_delay_args
 [Child Process]: child_process.html
 [Cluster]: cluster.html
+[debugger]: debugger.html
 [Duplex]: stream.html#stream_duplex_and_transform_streams
 [LTS]: https://github.com/nodejs/LTS/
 [note on process I/O]: process.html#process_a_note_on_process_i_o

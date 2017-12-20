@@ -105,7 +105,7 @@ if /i "%1"=="upload"        set upload=1&goto arg-ok
 if /i "%1"=="small-icu"     set i18n_arg=%1&goto arg-ok
 if /i "%1"=="full-icu"      set i18n_arg=%1&goto arg-ok
 if /i "%1"=="intl-none"     set i18n_arg=%1&goto arg-ok
-if /i "%1"=="without-intl"  set i18n_arg=%1&goto arg-ok
+if /i "%1"=="without-intl"  set i18n_arg=intl-none&goto arg-ok
 if /i "%1"=="download-all"  set download_arg="--download=all"&goto arg-ok
 if /i "%1"=="ignore-flaky"  set test_args=%test_args% --flaky-tests=dontcare&goto arg-ok
 if /i "%1"=="enable-vtune"  set enable_vtune_arg=1&goto arg-ok
@@ -146,26 +146,21 @@ set "node_gyp_exe="%node_exe%" deps\npm\node_modules\node-gyp\bin\node-gyp"
 if "%target_env%"=="vs2015" set "node_gyp_exe=%node_gyp_exe% --msvs_version=2015"
 if "%target_env%"=="vs2017" set "node_gyp_exe=%node_gyp_exe% --msvs_version=2017"
 
-if "%config%"=="Debug" set configure_flags=%configure_flags% --debug
-if defined nosnapshot set configure_flags=%configure_flags% --without-snapshot
-if defined noetw set configure_flags=%configure_flags% --without-etw& set noetw_msi_arg=/p:NoETW=1
-if defined noperfctr set configure_flags=%configure_flags% --without-perfctr& set noperfctr_msi_arg=/p:NoPerfCtr=1
-if defined release_urlbase set configure_flags=%configure_flags% --release-urlbase=%release_urlbase%
-if defined download_arg set configure_flags=%configure_flags% %download_arg%
+if "%config%"=="Debug"      set configure_flags=%configure_flags% --debug
+if defined nosnapshot       set configure_flags=%configure_flags% --without-snapshot
+if defined noetw            set configure_flags=%configure_flags% --without-etw& set noetw_msi_arg=/p:NoETW=1
+if defined noperfctr        set configure_flags=%configure_flags% --without-perfctr& set noperfctr_msi_arg=/p:NoPerfCtr=1
+if defined release_urlbase  set configure_flags=%configure_flags% --release-urlbase=%release_urlbase%
+if defined download_arg     set configure_flags=%configure_flags% %download_arg%
 if defined enable_vtune_arg set configure_flags=%configure_flags% --enable-vtune-profiling
-if defined dll set configure_flags=%configure_flags% --shared
-if defined enable_static set configure_flags=%configure_flags% --enable-static
-if defined no_NODE_OPTIONS set configure_flags=%configure_flags% --without-node-options
-
-REM if defined debug_http2 set configure_flags=%configure_flags% --debug-http2
-REM if defined debug_nghttp2 set configure_flags=%configure_flags% --debug-nghttp2
-
-if "%i18n_arg%"=="full-icu" set configure_flags=%configure_flags% --with-intl=full-icu
-if "%i18n_arg%"=="small-icu" set configure_flags=%configure_flags% --with-intl=small-icu
-if "%i18n_arg%"=="intl-none" set configure_flags=%configure_flags% --with-intl=none
-if "%i18n_arg%"=="without-intl" set configure_flags=%configure_flags% --without-intl
-
-if defined config_flags set configure_flags=%configure_flags% %config_flags%
+if defined dll              set configure_flags=%configure_flags% --shared
+if defined enable_static    set configure_flags=%configure_flags% --enable-static
+if defined no_NODE_OPTIONS  set configure_flags=%configure_flags% --without-node-options
+if defined link_module      set configure_flags=%configure_flags% %link_module%
+if defined i18n_arg         set configure_flags=%configure_flags% --with-intl=%i18n_arg%
+if defined config_flags     set configure_flags=%configure_flags% %config_flags%
+if defined target_arch      set configure_flags=%configure_flags% --dest-cpu=%target_arch%
+if defined TAG              set configure_flags=%configure_flags% --tag=%TAG%
 
 if not exist "%~dp0deps\icu" goto no-depsicu
 if "%target%"=="Clean" echo deleting %~dp0deps\icu
@@ -254,7 +249,7 @@ goto run
 if defined noprojgen goto msbuild
 
 @rem Generate the VS project.
-call :run-python configure %configure_flags% --dest-cpu=%target_arch% --tag=%TAG% %link_module%
+call :run-python configure %configure_flags%
 if errorlevel 1 goto create-msvs-files-failed
 if not exist node.sln goto create-msvs-files-failed
 echo Project files generated.
@@ -283,7 +278,7 @@ if errorlevel 1 echo Failed to sign exe&goto exit
 @rem Skip license.rtf generation if not requested.
 if not defined licensertf goto package
 
-%config%\node tools\license2rtf.js < LICENSE > %config%\license.rtf
+%config%\node.exe tools\license2rtf.js < LICENSE > %config%\license.rtf
 if errorlevel 1 echo Failed to generate license.rtf&goto exit
 
 :package

@@ -196,7 +196,9 @@ void PerformanceGCCallback(uv_async_t* handle) {
 
  cleanup:
   delete data;
-  auto closeCB = [](uv_handle_t* handle) { delete handle; };
+  auto closeCB = [](uv_handle_t* handle) {
+    delete reinterpret_cast<uv_async_t*>(handle);
+  };
   uv_close(reinterpret_cast<uv_handle_t*>(handle), closeCB);
 }
 
