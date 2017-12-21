@@ -69,7 +69,6 @@ exports.enoughTestCpu = Array.isArray(cpus) &&
                         (cpus.length > 1 || cpus[0].speed > 999);
 
 exports.rootDir = exports.isWindows ? 'c:\\' : '/';
-exports.projectDir = path.resolve(__dirname, '..', '..');
 
 exports.buildType = process.config.target_defaults.default_configuration;
 
@@ -824,23 +823,6 @@ exports.crashOnUnhandledRejection = function() {
              (err) => process.nextTick(() => { throw err; }));
 };
 
-exports.getTTYfd = function getTTYfd() {
-  const tty = require('tty');
-  let tty_fd = 0;
-  if (!tty.isatty(tty_fd)) tty_fd++;
-  else if (!tty.isatty(tty_fd)) tty_fd++;
-  else if (!tty.isatty(tty_fd)) tty_fd++;
-  else {
-    try {
-      tty_fd = fs.openSync('/dev/tty');
-    } catch (e) {
-      // There aren't any tty fd's available to use.
-      return -1;
-    }
-  }
-  return tty_fd;
-};
-
 // Hijack stdout and stderr
 const stdWrite = {};
 function hijackStdWritable(name, listener) {
@@ -869,12 +851,3 @@ exports.hijackStdout = hijackStdWritable.bind(null, 'stdout');
 exports.hijackStderr = hijackStdWritable.bind(null, 'stderr');
 exports.restoreStdout = restoreWritable.bind(null, 'stdout');
 exports.restoreStderr = restoreWritable.bind(null, 'stderr');
-
-let fd = 2;
-exports.firstInvalidFD = function firstInvalidFD() {
-  // Get first known bad file descriptor.
-  try {
-    while (fs.fstatSync(++fd));
-  } catch (e) {}
-  return fd;
-};

@@ -247,13 +247,27 @@ if (common.hasCrypto) { // eslint-disable-line crypto-check
 
 {
   // Do our best to grab a tty fd.
-  const tty_fd = common.getTTYfd();
-  if (tty_fd >= 0) {
+  function getTTYfd() {
+    const tty = require('tty');
+    let ttyFd = [0, 1, 2].find(tty.isatty);
+    if (ttyFd === undefined) {
+      try {
+        ttyFd = fs.openSync('/dev/tty');
+      } catch (e) {
+        // There aren't any tty fd's available to use.
+        return -1;
+      }
+    }
+    return ttyFd;
+  }
+
+  const ttyFd = getTTYfd();
+  if (ttyFd >= 0) {
     const tty_wrap = process.binding('tty_wrap');
     // fd may still be invalid, so guard against it.
     const handle = (() => {
       try {
-        return new tty_wrap.TTY(tty_fd, false);
+        return new tty_wrap.TTY(ttyFd, false);
       } catch (e) {
         return null;
       }
