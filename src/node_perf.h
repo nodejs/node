@@ -42,120 +42,51 @@ static inline PerformanceEntryType ToPerformanceEntryTypeEnum(
 NODE_EXTERN inline void MarkPerformanceMilestone(
     Environment* env,
     PerformanceMilestone milestone) {
-    env->performance_state()->milestones[milestone] = PERFORMANCE_NOW();
-  }
+  env->performance_state()->milestones[milestone] = PERFORMANCE_NOW();
+}
 
-class PerformanceEntry : public BaseObject {
+class PerformanceEntry {
  public:
-  // Used for temporary storage of performance entry details when the
-  // object cannot be created immediately.
-  class Data {
-   public:
-    Data(
-      Environment* env,
-      const char* name,
-      const char* type,
-      uint64_t startTime,
-      uint64_t endTime,
-      int data = 0) :
-      env_(env),
-      name_(name),
-      type_(type),
-      startTime_(startTime),
-      endTime_(endTime),
-      data_(data) {}
-
-    Environment* env() const {
-      return env_;
-    }
-
-    const std::string& name() const {
-      return name_;
-    }
-
-    const std::string& type() const {
-      return type_;
-    }
-
-    uint64_t startTime() const {
-      return startTime_;
-    }
-
-    uint64_t endTime() const {
-      return endTime_;
-    }
-
-    int data() const {
-      return data_;
-    }
-
-   private:
-    Environment* const env_;
-    const std::string name_;
-    const std::string type_;
-    const uint64_t startTime_;
-    const uint64_t endTime_;
-    const int data_;
-  };
-
-  static void NotifyObservers(Environment* env, PerformanceEntry* entry);
+  static inline void Notify(Environment* env,
+                            PerformanceEntryType type,
+                            Local<Value> object);
 
   static void New(const FunctionCallbackInfo<Value>& args);
 
   PerformanceEntry(Environment* env,
-                   Local<Object> wrap,
                    const char* name,
                    const char* type,
                    uint64_t startTime,
-                   uint64_t endTime) :
-                   BaseObject(env, wrap),
-                   name_(name),
-                   type_(type),
-                   startTime_(startTime),
-                   endTime_(endTime) {
-    MakeWeak<PerformanceEntry>(this);
-    NotifyObservers(env, this);
+                   uint64_t endTime) : env_(env),
+                                       name_(name),
+                                       type_(type),
+                                       startTime_(startTime),
+                                       endTime_(endTime) { }
+
+  virtual ~PerformanceEntry() { }
+
+  virtual Local<Object> ToObject();
+
+  Environment* env() { return env_; }
+
+  const std::string& name() const { return name_; }
+
+  const std::string& type() const { return type_; }
+
+  PerformanceEntryType kind() {
+    return ToPerformanceEntryTypeEnum(type().c_str());
   }
 
-  PerformanceEntry(Environment* env,
-                   Local<Object> wrap,
-                   Data* data) :
-                   BaseObject(env, wrap),
-                   name_(data->name()),
-                   type_(data->type()),
-                   startTime_(data->startTime()),
-                   endTime_(data->endTime()) {
-    MakeWeak<PerformanceEntry>(this);
-    NotifyObservers(env, this);
-  }
+  double startTime() const { return startTime_ / 1e6; }
 
-  ~PerformanceEntry() {}
+  double duration() const { return durationNano() / 1e6; }
 
-  const std::string& name() const {
-    return name_;
-  }
+  uint64_t startTimeNano() const { return startTime_; }
 
-  const std::string& type() const {
-    return type_;
-  }
-
-  double startTime() const {
-    return startTime_ / 1e6;
-  }
-
-  double duration() const {
-    return durationNano() / 1e6;
-  }
-
-  uint64_t startTimeNano() const {
-    return startTime_;
-  }
-
-  uint64_t durationNano() const {
-    return endTime_ - startTime_;
-  }
+  uint64_t durationNano() const { return endTime_ - startTime_; }
 
  private:
+  Environment* env_;
   const std::string name_;
   const std::string type_;
   const uint64_t startTime_;
@@ -167,6 +98,21 @@ enum PerformanceGCKind {
   NODE_PERFORMANCE_GC_MINOR = GCType::kGCTypeScavenge,
   NODE_PERFORMANCE_GC_INCREMENTAL = GCType::kGCTypeIncrementalMarking,
   NODE_PERFORMANCE_GC_WEAKCB = GCType::kGCTypeProcessWeakCallbacks
+};
+
+class GCPerformanceEntry : public PerformanceEntry {
+ public:
+  GCPerformanceEntry(Environment* env,
+                     PerformanceGCKind gckind,
+                     uint64_t startTime,
+                     uint64_t endTime) :
+                         PerformanceEntry(env, "gc", "gc", startTime, endTime),
+                         gckind_(gckind) { }
+
+  PerformanceGCKind gckind() const { return gckind_; }
+
+ private:
+  PerformanceGCKind gckind_;
 };
 
 }  // namespace performance
