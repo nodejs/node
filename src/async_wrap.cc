@@ -543,10 +543,9 @@ void AsyncWrap::Initialize(Local<Object> target,
                          "async_id_fields",
                          env->async_hooks()->async_id_fields().GetJSArray());
 
-  FORCE_SET_TARGET_FIELD(target,
-                         "async_ids_fast_stack",
-                         env->async_hooks()->async_ids_fast_stack()
-                            .GetJSArray());
+  target->Set(context,
+              env->async_ids_stack_string(),
+              env->async_hooks()->async_ids_stack().GetJSArray()).FromJust();
 
   Local<Object> constants = Object::New(isolate);
 #define SET_HOOKS_CONSTANT(name)                                              \
@@ -565,7 +564,7 @@ void AsyncWrap::Initialize(Local<Object> target,
   SET_HOOKS_CONSTANT(kAsyncIdCounter);
   SET_HOOKS_CONSTANT(kDefaultTriggerAsyncId);
   SET_HOOKS_CONSTANT(kStackLength);
-  SET_HOOKS_CONSTANT(kFastStackCapacity);
+  SET_HOOKS_CONSTANT(kStackCapacity);
 #undef SET_HOOKS_CONSTANT
   FORCE_SET_TARGET_FIELD(target, "constants", constants);
 
@@ -595,6 +594,7 @@ void AsyncWrap::Initialize(Local<Object> target,
   env->set_async_hooks_after_function(Local<Function>());
   env->set_async_hooks_destroy_function(Local<Function>());
   env->set_async_hooks_promise_resolve_function(Local<Function>());
+  env->set_async_hooks_binding(target);
 }
 
 

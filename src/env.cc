@@ -403,4 +403,22 @@ void Environment::CollectUVExceptionInfo(v8::Local<v8::Value> object,
                              syscall, message, path, dest);
 }
 
+
+void Environment::AsyncHooks::grow_async_ids_stack() {
+  const uint32_t old_capacity = fields_[kStackCapacity];
+  const uint32_t new_capacity = old_capacity * 1.5;
+  AliasedBuffer<double, v8::Float64Array> new_buffer(
+      env()->isolate(), new_capacity * 2);
+
+  for (uint32_t i = 0; i < old_capacity * 2; ++i)
+    new_buffer[i] = async_ids_stack_[i];
+  async_ids_stack_ = std::move(new_buffer);
+  fields_[kStackCapacity] = new_capacity;
+
+  env()->async_hooks_binding()->Set(
+      env()->context(),
+      env()->async_ids_stack_string(),
+      async_ids_stack_.GetJSArray()).FromJust();
+}
+
 }  // namespace node

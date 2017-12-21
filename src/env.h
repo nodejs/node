@@ -100,6 +100,7 @@ class ModuleWrap;
   V(address_string, "address")                                                \
   V(args_string, "args")                                                      \
   V(async, "async")                                                           \
+  V(async_ids_stack_string, "async_ids_stack")                                \
   V(buffer_string, "buffer")                                                  \
   V(bytes_string, "bytes")                                                    \
   V(bytes_parsed_string, "bytesParsed")                                       \
@@ -281,6 +282,7 @@ class ModuleWrap;
   V(async_hooks_before_function, v8::Function)                                \
   V(async_hooks_after_function, v8::Function)                                 \
   V(async_hooks_promise_resolve_function, v8::Function)                       \
+  V(async_hooks_binding, v8::Object)                                          \
   V(binding_cache_object, v8::Object)                                         \
   V(internal_binding_cache_object, v8::Object)                                \
   V(buffer_prototype_object, v8::Object)                                      \
@@ -370,6 +372,7 @@ class Environment {
       kTotals,
       kCheck,
       kStackLength,
+      kStackCapacity,
       kFieldsCount,
     };
 
@@ -381,19 +384,14 @@ class Environment {
       kUidFieldsCount,
     };
 
-    enum FastStackFields {
-      kFastStackCapacity = 64
-    };
-
-    AsyncHooks() = delete;
-
     inline AliasedBuffer<uint32_t, v8::Uint32Array>& fields();
     inline AliasedBuffer<double, v8::Float64Array>& async_id_fields();
-    inline AliasedBuffer<double, v8::Float64Array>& async_ids_fast_stack();
+    inline AliasedBuffer<double, v8::Float64Array>& async_ids_stack();
 
     inline v8::Local<v8::String> provider_string(int idx);
 
     inline void no_force_checks();
+    inline Environment* env();
 
     inline void push_async_ids(double async_id, double trigger_async_id);
     inline bool pop_async_id(double async_id);
@@ -418,21 +416,20 @@ class Environment {
 
    private:
     friend class Environment;  // So we can call the constructor.
-    inline explicit AsyncHooks(v8::Isolate* isolate);
+    inline AsyncHooks();
     // Keep a list of all Persistent strings used for Provider types.
     v8::Eternal<v8::String> providers_[AsyncWrap::PROVIDERS_LENGTH];
-    // Used by provider_string().
-    v8::Isolate* isolate_;
+    // Keep track of the environment copy itself.
+    Environment* env_;
     // Stores the ids of the current execution context stack.
-    std::stack<async_context> async_ids_stack_;
-    // Stores the ids of the current execution context stack with limited
-    // capacity, but with the benefit of much faster access from JS.
-    AliasedBuffer<double, v8::Float64Array> async_ids_fast_stack_;
+    AliasedBuffer<double, v8::Float64Array> async_ids_stack_;
     // Attached to a Uint32Array that tracks the number of active hooks for
     // each type.
     AliasedBuffer<uint32_t, v8::Uint32Array> fields_;
     // Attached to a Float64Array that tracks the state of async resources.
     AliasedBuffer<double, v8::Float64Array> async_id_fields_;
+
+    void grow_async_ids_stack();
 
     DISALLOW_COPY_AND_ASSIGN(AsyncHooks);
   };
@@ -688,6 +685,8 @@ class Environment {
   };
 
   inline bool inside_should_not_abort_on_uncaught_scope() const;
+
+  static inline Environment* ForAsyncHooks(AsyncHooks* hooks);
 
  private:
   inline void ThrowError(v8::Local<v8::Value> (*fun)(v8::Local<v8::String>),
