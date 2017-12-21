@@ -29,7 +29,6 @@ fi
 
 
 # Dependencies bundled in distributions
-addlicense "Acorn" "deps/acorn" "$(cat ${rootdir}/deps/acorn/LICENSE)"
 addlicense "c-ares" "deps/cares" "$(tail -n +3 ${rootdir}/deps/cares/LICENSE.md)"
 addlicense "HTTP Parser" "deps/http_parser" "$(cat deps/http_parser/LICENSE-MIT)"
 if [ -f "${rootdir}/deps/icu/LICENSE" ]; then
