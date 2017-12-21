@@ -470,6 +470,14 @@ init for PROMISE with id 6, trigger id: 5  # the Promise returned by then()
 
 #### `async_hooks.executionAsyncId()`
 
+<!-- YAML
+added: v8.1.0
+changes:
+  - version: v8.2.0
+    pr-url: https://github.com/nodejs/node/pull/13490
+    description: Renamed from currentId
+-->
+
 * Returns: {number} The `asyncId` of the current execution context. Useful to
   track when something calls.
 
