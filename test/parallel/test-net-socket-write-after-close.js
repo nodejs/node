@@ -26,14 +26,14 @@ const net = require('net');
   server.listen(common.mustCall(() => {
     const port = server.address().port;
     const client = net.connect({ port }, common.mustCall(() => {
-      client.on('error', common.mustCall((err) => {
-        server.close();
-        common.expectsError({
-          code: 'ERR_SOCKET_CLOSED',
-          message: 'Socket is closed',
-          type: Error
-        })(err);
+      client.on('error', common.expectsError({
+        code: 'ERR_SOCKET_CLOSED',
+        message: 'Socket is closed',
+        type: Error
       }));
+
+      server.close();
+
       client._handle.close();
       client._handle = null;
       client.write('foo');
