@@ -482,6 +482,9 @@ void QueryObjects(v8::Local<v8::Context> context,
                   QueryObjectPredicate* predicate,
                   v8::PersistentValueVector<v8::Object>* objects);
 
+void GlobalLexicalScopeNames(v8::Local<v8::Context> context,
+                             v8::PersistentValueVector<v8::String>* names);
+
 }  // namespace debug
 }  // namespace v8
 
