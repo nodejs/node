@@ -10011,6 +10011,25 @@ void debug::QueryObjects(v8::Local<v8::Context> v8_context,
                                          predicate, objects);
 }
 
+void debug::GlobalLexicalScopeNames(
+    v8::Local<v8::Context> v8_context,
+    v8::PersistentValueVector<v8::String>* names) {
+  i::Handle<i::Context> context = Utils::OpenHandle(*v8_context);
+  i::Handle<i::ScriptContextTable> table(
+      context->global_object()->native_context()->script_context_table());
+  for (int i = 0; i < table->used(); i++) {
+    i::Handle<i::Context> context = i::ScriptContextTable::GetContext(table, i);
+    DCHECK(context->IsScriptContext());
+    i::Handle<i::ScopeInfo> scope_info(context->scope_info());
+    int local_count = scope_info->ContextLocalCount();
+    for (int j = 0; j < local_count; ++j) {
+      i::String* name = scope_info->ContextLocalName(j);
+      if (i::ScopeInfo::VariableIsSynthetic(name)) continue;
+      names->Append(Utils::ToLocal(handle(name)));
+    }
+  }
+}
+
 Local<String> CpuProfileNode::GetFunctionName() const {
   const i::ProfileNode* node = reinterpret_cast<const i::ProfileNode*>(this);
   i::Isolate* isolate = node->isolate();
