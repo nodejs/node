@@ -26,9 +26,9 @@ function createObj(source, add = '') {
 }
 
 function main(conf) {
-  const size = +conf.size;
+  const size = conf.size;
   // TODO: Fix this "hack"
-  const n = (+conf.n) / size;
+  const n = conf.n / size;
   var i;
 
   const source = Array.apply(null, Array(size));
