@@ -1,7 +1,6 @@
 'use strict';
 
 const common = require('../common');
-const assert = require('assert');
 // The v8 modules when imported leak globals. Disable global check.
 common.globalCheck = false;
 
@@ -21,13 +20,6 @@ const deprecatedModules = [
   'v8/tools/tickprocessor-driver'
 ];
 
-// Newly added deps that do not have a deprecation wrapper around it would
-// throw an error, but no warning would be emitted.
-const deps = [
-  'acorn/dist/acorn',
-  'acorn/dist/walk'
-];
-
 common.expectWarning('DeprecationWarning', deprecatedModules.map((m) => {
   return `Requiring Node.js-bundled '${m}' module is deprecated. ` +
          'Please install the necessary module locally.';
@@ -37,8 +29,4 @@ for (const m of deprecatedModules) {
   try {
     require(m);
   } catch (err) {}
-}
-
-for (const m of deps) {
-  assert.throws(() => { require(m); }, /^Error: Cannot find module/);
 }
