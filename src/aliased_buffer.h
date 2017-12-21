@@ -207,6 +207,10 @@ class AliasedBuffer {
     return GetValue(index);
   }
 
+  size_t Length() const {
+    return count_;
+  }
+
  private:
   v8::Isolate* isolate_;
   size_t count_;

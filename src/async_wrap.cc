@@ -564,7 +564,6 @@ void AsyncWrap::Initialize(Local<Object> target,
   SET_HOOKS_CONSTANT(kAsyncIdCounter);
   SET_HOOKS_CONSTANT(kDefaultTriggerAsyncId);
   SET_HOOKS_CONSTANT(kStackLength);
-  SET_HOOKS_CONSTANT(kStackCapacity);
 #undef SET_HOOKS_CONSTANT
   FORCE_SET_TARGET_FIELD(target, "constants", constants);
 

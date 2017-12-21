@@ -66,9 +66,6 @@ inline Environment::AsyncHooks::AsyncHooks()
   // and flag changes won't be included.
   fields_[kCheck] = 1;
 
-  // async_ids_stack_ was initialized to store 16 async_context structs.
-  fields_[kStackCapacity] = 16;
-
   // kDefaultTriggerAsyncId should be -1, this indicates that there is no
   // specified default value and it should fallback to the executionAsyncId.
   // 0 is not used as the magic value, because that indicates a missing context
@@ -133,7 +130,7 @@ inline void Environment::AsyncHooks::push_async_ids(double async_id,
   }
 
   uint32_t offset = fields_[kStackLength];
-  if (offset >= fields_[kStackCapacity])
+  if (offset * 2 >= async_ids_stack_.Length())
     grow_async_ids_stack();
   async_ids_stack_[2 * offset] = async_id_fields_[kExecutionAsyncId];
   async_ids_stack_[2 * offset + 1] = async_id_fields_[kTriggerAsyncId];
@@ -168,7 +165,6 @@ inline bool Environment::AsyncHooks::pop_async_id(double async_id) {
   }
 
   uint32_t offset = fields_[kStackLength] - 1;
-  CHECK_LT(offset, fields_[kStackCapacity]);
   async_id_fields_[kExecutionAsyncId] = async_ids_stack_[2 * offset];
   async_id_fields_[kTriggerAsyncId] = async_ids_stack_[2 * offset + 1];
   fields_[kStackLength] = offset;

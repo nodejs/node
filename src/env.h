@@ -41,7 +41,6 @@
 #include <map>
 #include <stdint.h>
 #include <vector>
-#include <stack>
 #include <unordered_map>
 
 struct nghttp2_rcbuf;
@@ -372,7 +371,6 @@ class Environment {
       kTotals,
       kCheck,
       kStackLength,
-      kStackCapacity,
       kFieldsCount,
     };
 
