@@ -586,6 +586,27 @@ Response V8RuntimeAgentImpl::queryObjects(
       resultArray, scope.objectGroupName(), false, false, objects);
 }
 
+Response V8RuntimeAgentImpl::globalLexicalScopeNames(
+    Maybe<int> executionContextId,
+    std::unique_ptr<protocol::Array<String16>>* outNames) {
+  int contextId = 0;
+  Response response = ensureContext(m_inspector, m_session->contextGroupId(),
+                                    std::move(executionContextId), &contextId);
+  if (!response.isSuccess()) return response;
+
+  InjectedScript::ContextScope scope(m_session, contextId);
+  response = scope.initialize();
+  if (!response.isSuccess()) return response;
+
+  v8::PersistentValueVector<v8::String> names(m_inspector->isolate());
+  v8::debug::GlobalLexicalScopeNames(scope.context(), &names);
+  *outNames = protocol::Array<String16>::create();
+  for (size_t i = 0; i < names.Size(); ++i) {
+    (*outNames)->addItem(toProtocolString(names.Get(i)));
+  }
+  return Response::OK();
+}
+
 void V8RuntimeAgentImpl::restore() {
   if (!m_state->booleanProperty(V8RuntimeAgentImplState::runtimeEnabled, false))
     return;

@@ -101,6 +101,9 @@ class V8RuntimeAgentImpl : public protocol::Runtime::Backend {
   Response queryObjects(
       const String16& prototypeObjectId,
       std::unique_ptr<protocol::Runtime::RemoteObject>* objects) override;
+  Response globalLexicalScopeNames(
+      Maybe<int> executionContextId,
+      std::unique_ptr<protocol::Array<String16>>* outNames) override;
 
   void reset();
   void reportExecutionContextCreated(InspectedContext*);
