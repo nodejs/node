@@ -34,7 +34,7 @@ const fileTemp = path.join(common.tmpDir, 'a.js');
 common.refreshTmpDir();
 fs.copyFileSync(fileFixture, fileTemp);
 
-fs.open(fileFixture, 'a', 0o777, common.mustCall(function(err, fd) {
+fs.open(fileTemp, 'a', 0o777, common.mustCall(function(err, fd) {
   assert.ifError(err);
 
   fs.fdatasyncSync(fd);
