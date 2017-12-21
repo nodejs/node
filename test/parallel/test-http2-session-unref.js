@@ -9,9 +9,10 @@ const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
 const http2 = require('http2');
-const { PassThrough } = require('stream');
+const makeDuplexPair = require('../common/duplexpair');
 
 const server = http2.createServer();
+const { clientSide, serverSide } = makeDuplexPair();
 
 // 'session' event should be emitted 3 times:
 // - the vanilla client
@@ -25,22 +26,28 @@ server.listen(0, common.mustCall(() => {
   const port = server.address().port;
 
   // unref new client
-  let client = http2.connect(`http://localhost:${port}`);
-  client.unref();
+  {
+    const client = http2.connect(`http://localhost:${port}`);
+    client.unref();
+  }
 
   // unref destroyed client
-  client = http2.connect(`http://localhost:${port}`);
-  client.destroy();
-  client.unref();
+  {
+    const client = http2.connect(`http://localhost:${port}`);
+    client.destroy();
+    client.unref();
+  }
 
-  // unref client with generic Duplex stream
-  client = http2.connect(`http://localhost:${port}`, {
-    createConnection: common.mustCall(() => PassThrough())
-  });
-  client.unref();
+  // unref destroyed client
+  {
+    const client = http2.connect(`http://localhost:${port}`, {
+      createConnection: common.mustCall(() => clientSide)
+    });
+    client.destroy();
+    client.unref();
+  }
 }));
+server.emit('connection', serverSide);
 server.unref();
-
-server.emit('connection', PassThrough());
 
 setTimeout(common.mustNotCall(() => {}), 1000).unref();
