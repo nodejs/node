@@ -109,8 +109,8 @@ added: v0.1.101
 changes:
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/REPLACEME
-    description: The implementation is now spec compliant (see
-                 [web-api-assert][]) and does not throw anymore.
+    description: The implementation is now spec compliant and does not throw
+                 anymore.
 -->
 * `value` {any} The value tested for being truthy.
 * `...message` {any} All arguments besides `value` are used as error message.
@@ -499,4 +499,3 @@ This method does not display anything unless used in the inspector. The
 [customizing `util.inspect()` colors]: util.html#util_customizing_util_inspect_colors
 [inspector]: debugger.html
 [note on process I/O]: process.html#process_a_note_on_process_i_o
-[web-api-assert]: https://developer.mozilla.org/en-US/docs/Web/API/console/assert
