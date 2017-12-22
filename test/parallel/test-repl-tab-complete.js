@@ -203,6 +203,65 @@ testMe.complete('toSt', common.mustCall(function(error, data) {
   assert.deepStrictEqual(data, [['toString'], 'toSt']);
 }));
 
+// tab completion Symbol
+{
+  assert.strictEqual(typeof repl.replComplete, 'symbol');
+}
+
+// tab completion for function calls
+{
+  putIn.run(['.clear']);
+  putIn.run(['var repl = require(\'repl\')']);
+
+  putIn.run(['var completeMethod = () => [7, 13]']);
+
+  putIn.run(['var obj = { methodWithTabComplete: (i) => {} }']);
+  putIn.run(['obj.methodWithTabComplete[repl.replComplete] = completeMethod']);
+
+  putIn.run(['var fnWithTabComplete = (i) => {}']);
+  putIn.run(['fnWithTabComplete[repl.replComplete] = completeMethod']);
+
+
+  ['obj.methodWithTabComplete(', 'fnWithTabComplete('].forEach(input => {
+    testMe.complete(input, common.mustCall((err, data) => {
+      assert.strictEqual(err, null);
+      assert.strictEqual(data.length, 2);
+      assert.strictEqual(data[1], undefined);
+      assert.strictEqual(data[0].length, 2);
+      assert.ok(data[0].includes(7));
+      assert.ok(data[0].includes(13));
+    }));
+  })
+
+  // does not tab complete expressions without the `replComplete` method
+  putIn.run(['.clear']);
+  putIn.run(['var fnWithTabComplete = (i) => {} }']);
+
+  testMe.complete('fnWithTabComplete(', common.mustCall((err, data) => {
+    assert.strictEqual(err, null);
+    assert.strictEqual(data.length, 2);
+    assert.strictEqual(data[1], undefined);
+    assert.strictEqual(data[0].length, 0);
+  }));
+
+  // passes input params to the completer function
+  putIn.run(['.clear']);
+  putIn.run(['var repl = require(\'repl\')']);
+
+  putIn.run(['var completeMethod = (args) => args']);
+
+  putIn.run(['var fnWithTabComplete = (i) => {}']);
+  putIn.run(['fnWithTabComplete[repl.replComplete] = completeMethod']);
+
+  testMe.complete('fnWithTabComplete(\'hi', common.mustCall((err, data) => {
+    assert.strictEqual(err, null);
+    assert.strictEqual(data.length, 2);
+    assert.strictEqual(data[1], undefined);
+    assert.strictEqual(data[0].length, 1);
+    assert(data[0].includes('\'hi'));
+  }));
+
+}
 // Tab complete provides built in libs for require()
 putIn.run(['.clear']);
 
