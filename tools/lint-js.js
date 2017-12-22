@@ -10,8 +10,8 @@ const path = require('path');
 const fs = require('fs');
 const totalCPUs = require('os').cpus().length;
 
-const CLIEngine = require('./eslint').CLIEngine;
-const glob = require('./eslint/node_modules/glob');
+const CLIEngine = require('eslint').CLIEngine;
+const glob = require('eslint/node_modules/glob');
 
 const cliOptions = {
   rulePaths: rulesDirs,
