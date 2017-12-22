@@ -36,5 +36,7 @@ const r = repl.start({
 });
 
 r.write(`${command}\n`);
-assert.strictEqual(accum.replace(terminalCodeRegex, ''), expected);
+r.on('exit', common.mustCall(() => {
+  assert.strictEqual(accum.replace(terminalCodeRegex, ''), expected);
+}));
 r.close();

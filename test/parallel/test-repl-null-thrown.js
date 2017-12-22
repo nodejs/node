@@ -1,5 +1,5 @@
 'use strict';
-require('../common');
+const common = require('../common');
 const repl = require('repl');
 const assert = require('assert');
 const Stream = require('stream');
@@ -18,7 +18,6 @@ const replserver = repl.start({
 replserver.emit('line', 'process.nextTick(() => { throw null; })');
 replserver.emit('line', '.exit');
 
-setTimeout(() => {
-  console.log(text);
+replserver.on('exit', common.mustCall(() => {
   assert(text.includes('Thrown: null'));
-}, 0);
+}));

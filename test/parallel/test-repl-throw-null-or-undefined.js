@@ -1,18 +1,20 @@
 'use strict';
-require('../common');
+const common = require('../common');
 
 // This test ensures that the repl does not
 // crash or emit error when throwing `null|undefined`
 // ie `throw null` or `throw undefined`
 
-const assert = require('assert');
 const repl = require('repl');
 
-const r = repl.start();
+const replserver = repl.start();
+const $eval = replserver.eval;
+replserver.eval = function(code, context, file, cb) {
+  return $eval.call(this, code, context, file,
+                    common.mustNotCall(
+                      'repl crashes/throw error on `throw null|undefined`'));
+};
+replserver.write('throw null\n');
+replserver.write('throw undefined\n');
 
-assert.doesNotThrow(() => {
-  r.write('throw null\n');
-  r.write('throw undefined\n');
-}, TypeError, 'repl crashes/throw error on `throw null|undefined`');
-
-r.write('.exit\n');
+replserver.write('.exit\n');
