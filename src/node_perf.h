@@ -65,9 +65,9 @@ class PerformanceEntry {
 
   virtual ~PerformanceEntry() { }
 
-  virtual Local<Object> ToObject();
+  virtual const Local<Object> ToObject() const;
 
-  Environment* env() { return env_; }
+  Environment* env() const { return env_; }
 
   const std::string& name() const { return name_; }
 

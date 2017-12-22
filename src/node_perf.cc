@@ -30,8 +30,8 @@ uint64_t performance_last_gc_start_mark_ = 0;
 v8::GCType performance_last_gc_type_ = v8::GCType::kGCTypeAll;
 
 // Initialize the performance entry object properties
-inline void InitObject(PerformanceEntry* entry, Local<Object> obj) {
-  Environment* env = entry->env();
+inline void InitObject(const PerformanceEntry& entry, Local<Object> obj) {
+  Environment* env = entry.env();
   Isolate* isolate = env->isolate();
   Local<Context> context = env->context();
   v8::PropertyAttribute attr =
@@ -39,31 +39,31 @@ inline void InitObject(PerformanceEntry* entry, Local<Object> obj) {
   obj->DefineOwnProperty(context,
                          env->name_string(),
                          String::NewFromUtf8(isolate,
-                                             entry->name().c_str(),
+                                             entry.name().c_str(),
                                              String::kNormalString),
                          attr).FromJust();
   obj->DefineOwnProperty(context,
                          FIXED_ONE_BYTE_STRING(isolate, "entryType"),
                          String::NewFromUtf8(isolate,
-                                             entry->type().c_str(),
+                                             entry.type().c_str(),
                                              String::kNormalString),
                          attr).FromJust();
   obj->DefineOwnProperty(context,
                          FIXED_ONE_BYTE_STRING(isolate, "startTime"),
-                         Number::New(isolate, entry->startTime()),
+                         Number::New(isolate, entry.startTime()),
                          attr).FromJust();
   obj->DefineOwnProperty(context,
                          FIXED_ONE_BYTE_STRING(isolate, "duration"),
-                         Number::New(isolate, entry->duration()),
+                         Number::New(isolate, entry.duration()),
                          attr).FromJust();
 }
 
 // Create a new PerformanceEntry object
-Local<Object> PerformanceEntry::ToObject() {
+const Local<Object> PerformanceEntry::ToObject() const {
   Local<Object> obj =
-      env()->performance_entry_template()
-          ->NewInstance(env()->context()).ToLocalChecked();
-  InitObject(this, obj);
+      env_->performance_entry_template()
+          ->NewInstance(env_->context()).ToLocalChecked();
+  InitObject(*this, obj);
   return obj;
 }
 
@@ -76,7 +76,7 @@ void PerformanceEntry::New(const FunctionCallbackInfo<Value>& args) {
   uint64_t now = PERFORMANCE_NOW();
   PerformanceEntry entry(env, *name, *type, now, now);
   Local<Object> obj = args.This();
-  InitObject(&entry, obj);
+  InitObject(entry, obj);
   PerformanceEntry::Notify(env, entry.kind(), obj);
 }
 
