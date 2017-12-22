@@ -278,8 +278,9 @@ static ScriptOrigin GetScriptOriginForScript(i::Isolate* isolate,
                                              i::Handle<i::Script> script) {
   i::Handle<i::Object> scriptName(script->GetNameOrSourceURL(), isolate);
   i::Handle<i::Object> source_map_url(script->source_mapping_url(), isolate);
-  i::Handle<i::FixedArray> host_defined_options(script->host_defined_options(),
-                                                isolate);
+  // Backed out for ABI compatibility with V8 6.2
+  // i::Handle<i::FixedArray> host_defined_options(script->host_defined_options(),
+  //                                               isolate);
   v8::Isolate* v8_isolate =
       reinterpret_cast<v8::Isolate*>(script->GetIsolate());
   ScriptOriginOptions options(script->origin_options());
@@ -292,8 +293,9 @@ static ScriptOrigin GetScriptOriginForScript(i::Isolate* isolate,
       Utils::ToLocal(source_map_url),
       v8::Boolean::New(v8_isolate, options.IsOpaque()),
       v8::Boolean::New(v8_isolate, script->type() == i::Script::TYPE_WASM),
-      v8::Boolean::New(v8_isolate, options.IsModule()),
-      Utils::ToLocal(host_defined_options));
+      v8::Boolean::New(v8_isolate, options.IsModule()) /*,
+      // Backed out for ABI compatibility with V8 6.2
+      Utils::ToLocal(host_defined_options) */);
   return origin;
 }
 
@@ -2097,8 +2099,10 @@ Local<PrimitiveArray> ScriptOrModule::GetHostDefinedOptions() {
   i::Handle<i::Script> obj = Utils::OpenHandle(this);
   i::Isolate* isolate = obj->GetIsolate();
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(isolate);
-  i::Handle<i::FixedArray> val(obj->host_defined_options(), isolate);
-  return ToApiHandle<PrimitiveArray>(val);
+  // Backed out for ABI compatibility with V8 6.2
+  // i::Handle<i::FixedArray> val(obj->host_defined_options(), isolate);
+  // return ToApiHandle<PrimitiveArray>(val);
+  return Local<PrimitiveArray>();
 }
 
 Local<UnboundScript> Script::GetUnboundScript() {
@@ -2283,16 +2287,18 @@ MaybeLocal<UnboundScript> ScriptCompiler::CompileUnboundInternal(
     TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"), "V8.CompileScript");
     i::Handle<i::Object> name_obj;
     i::Handle<i::Object> source_map_url;
-    i::Handle<i::FixedArray> host_defined_options =
-        isolate->factory()->empty_fixed_array();
+    // Backed out for ABI compatibility with V8 6.2
+    // i::Handle<i::FixedArray> host_defined_options =
+    //     isolate->factory()->empty_fixed_array();
     int line_offset = 0;
     int column_offset = 0;
     if (!source->resource_name.IsEmpty()) {
       name_obj = Utils::OpenHandle(*(source->resource_name));
     }
-    if (!source->host_defined_options.IsEmpty()) {
-      host_defined_options = Utils::OpenHandle(*(source->host_defined_options));
-    }
+    // Backed out for ABI compatibility with V8 6.2
+    // if (!source->host_defined_options.IsEmpty()) {
+    //   host_defined_options = Utils::OpenHandle(*(source->host_defined_options));
+    // }
     if (!source->resource_line_offset.IsEmpty()) {
       line_offset = static_cast<int>(source->resource_line_offset->Value());
     }
@@ -2306,7 +2312,7 @@ MaybeLocal<UnboundScript> ScriptCompiler::CompileUnboundInternal(
     result = i::Compiler::GetSharedFunctionInfoForScript(
         str, name_obj, line_offset, column_offset, source->resource_options,
         source_map_url, isolate->native_context(), NULL, &script_data, options,
-        i::NOT_NATIVES_CODE, host_defined_options);
+        i::NOT_NATIVES_CODE /*, host_defined_options */);
     has_pending_exception = result.is_null();
     if (has_pending_exception && script_data != NULL) {
       // This case won't happen during normal operation; we have compiled
@@ -2571,10 +2577,10 @@ MaybeLocal<Script> ScriptCompiler::Compile(Local<Context> context,
   if (!origin.ResourceName().IsEmpty()) {
     script->set_name(*Utils::OpenHandle(*(origin.ResourceName())));
   }
-  if (!origin.HostDefinedOptions().IsEmpty()) {
-    script->set_host_defined_options(
-        *Utils::OpenHandle(*(origin.HostDefinedOptions())));
-  }
+  // if (!origin.HostDefinedOptions().IsEmpty()) {
+  //   script->set_host_defined_options(
+  //       *Utils::OpenHandle(*(origin.HostDefinedOptions())));
+  // }
   if (!origin.ResourceLineOffset().IsEmpty()) {
     script->set_line_offset(
         static_cast<int>(origin.ResourceLineOffset()->Value()));
@@ -9895,8 +9901,9 @@ MaybeLocal<UnboundScript> debug::CompileInspectorScript(Isolate* v8_isolate,
         i::Handle<i::Object>(), isolate->native_context(), NULL, &script_data,
         ScriptCompiler::kNoCompileOptions,
         i::FLAG_expose_inspector_scripts ? i::NOT_NATIVES_CODE
-                                         : i::INSPECTOR_CODE,
-        i::Handle<i::FixedArray>());
+                                         : i::INSPECTOR_CODE /*,
+        // Backed out for ABI compatibility with V8 6.2
+        i::Handle<i::FixedArray>() */);
     has_pending_exception = result.is_null();
     RETURN_ON_FAILED_EXECUTION(UnboundScript);
   }

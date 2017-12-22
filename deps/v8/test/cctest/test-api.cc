@@ -19108,18 +19108,21 @@ TEST(Regress528) {
 
 THREADED_TEST(ScriptOrigin) {
   LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
-  v8::HandleScope scope(isolate);
-  Local<v8::PrimitiveArray> array(v8::PrimitiveArray::New(isolate, 1));
-  Local<v8::Symbol> symbol(v8::Symbol::New(isolate));
-  array->Set(0, symbol);
+  // Backed out for ABI compatibility with V8 6.2
+  // v8::Isolate* isolate = env->GetIsolate();
+  // v8::HandleScope scope(isolate);
+  // Local<v8::PrimitiveArray> array(v8::PrimitiveArray::New(isolate, 1));
+  // Local<v8::Symbol> symbol(v8::Symbol::New(isolate));
+  // array->Set(0, symbol);
 
   v8::ScriptOrigin origin = v8::ScriptOrigin(
       v8_str("test"), v8::Integer::New(env->GetIsolate(), 1),
       v8::Integer::New(env->GetIsolate(), 1), v8::True(env->GetIsolate()),
       v8::Local<v8::Integer>(), v8_str("http://sourceMapUrl"),
       v8::True(env->GetIsolate()), v8::False(env->GetIsolate()),
-      v8::False(env->GetIsolate()), array);
+      // Backed out for ABI compatibility with V8 6.2
+      // v8::False(env->GetIsolate()), array);
+      v8::False(env->GetIsolate()));
   v8::Local<v8::String> script = v8_str("function f() {}\n\nfunction g() {}");
   v8::Script::Compile(env.local(), script, &origin)
       .ToLocalChecked()
@@ -19140,7 +19143,8 @@ THREADED_TEST(ScriptOrigin) {
   CHECK(script_origin_f.Options().IsSharedCrossOrigin());
   CHECK(script_origin_f.Options().IsOpaque());
   printf("is name = %d\n", script_origin_f.SourceMapUrl()->IsUndefined());
-  CHECK(script_origin_f.HostDefinedOptions()->Get(0)->IsSymbol());
+  // Backed out for ABI compatibility with V8 6.2
+  // CHECK(script_origin_f.HostDefinedOptions()->Get(0)->IsSymbol());
 
   CHECK_EQ(0, strcmp("http://sourceMapUrl",
                      *v8::String::Utf8Value(env->GetIsolate(),
@@ -19158,7 +19162,8 @@ THREADED_TEST(ScriptOrigin) {
   CHECK_EQ(0, strcmp("http://sourceMapUrl",
                      *v8::String::Utf8Value(env->GetIsolate(),
                                             script_origin_g.SourceMapUrl())));
-  CHECK(script_origin_g.HostDefinedOptions()->Get(0)->IsSymbol());
+  // Backed out for ABI compatibility with V8 6.2
+  // CHECK(script_origin_g.HostDefinedOptions()->Get(0)->IsSymbol());
 }
 
 
@@ -27082,7 +27087,8 @@ v8::MaybeLocal<v8::Promise> HostImportModuleDynamicallyCallbackResolve(
   String::Utf8Value referrer_utf8(
       context->GetIsolate(), Local<String>::Cast(referrer->GetResourceName()));
   CHECK_EQ(0, strcmp("www.google.com", *referrer_utf8));
-  CHECK(referrer->GetHostDefinedOptions()->Get(0)->IsSymbol());
+  // Backed out for ABI compatibility with V8 6.2
+  // CHECK(referrer->GetHostDefinedOptions()->Get(0)->IsSymbol());
 
   CHECK(!specifier.IsEmpty());
   String::Utf8Value specifier_utf8(context->GetIsolate(), specifier);
@@ -27109,12 +27115,14 @@ TEST(DynamicImport) {
   i::Handle<i::String> result(v8::Utils::OpenHandle(*v8_str("hello world")));
   i::Handle<i::String> source(v8::Utils::OpenHandle(*v8_str("foo")));
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  i::Handle<i::FixedArray> options = i_isolate->factory()->NewFixedArray(1);
-  i::Handle<i::Symbol> symbol = i_isolate->factory()->NewSymbol();
-  options->set(0, *symbol);
+  // Backed out for ABI compatibility with V8 6.2
+  // i::Handle<i::FixedArray> options = i_isolate->factory()->NewFixedArray(1);
+  // i::Handle<i::Symbol> symbol = i_isolate->factory()->NewSymbol();
+  // options->set(0, *symbol);
   i::Handle<i::Script> referrer = i_isolate->factory()->NewScript(source);
   referrer->set_name(*url);
-  referrer->set_host_defined_options(*options);
+  // Backed out for ABI compatibility with V8 6.2
+  // referrer->set_host_defined_options(*options);
   i::MaybeHandle<i::JSPromise> maybe_promise =
       i_isolate->RunHostImportModuleDynamicallyCallback(referrer, specifier);
   i::Handle<i::JSPromise> promise = maybe_promise.ToHandleChecked();

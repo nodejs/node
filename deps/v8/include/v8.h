@@ -1070,15 +1070,17 @@ class ScriptOrigin {
       Local<Value> source_map_url = Local<Value>(),
       Local<Boolean> resource_is_opaque = Local<Boolean>(),
       Local<Boolean> is_wasm = Local<Boolean>(),
-      Local<Boolean> is_module = Local<Boolean>(),
-      Local<PrimitiveArray> host_defined_options = Local<PrimitiveArray>());
+      Local<Boolean> is_module = Local<Boolean>() /*,
+      // Backed out for ABI compatibility with V8 6.2
+      Local<PrimitiveArray> host_defined_options = Local<PrimitiveArray>() */);
 
   V8_INLINE Local<Value> ResourceName() const;
   V8_INLINE Local<Integer> ResourceLineOffset() const;
   V8_INLINE Local<Integer> ResourceColumnOffset() const;
   V8_INLINE Local<Integer> ScriptID() const;
   V8_INLINE Local<Value> SourceMapUrl() const;
-  V8_INLINE Local<PrimitiveArray> HostDefinedOptions() const;
+  // Backed out for ABI compatibility with V8 6.2
+  // V8_INLINE Local<PrimitiveArray> HostDefinedOptions() const;
   V8_INLINE ScriptOriginOptions Options() const { return options_; }
 
  private:
@@ -1088,7 +1090,8 @@ class ScriptOrigin {
   ScriptOriginOptions options_;
   Local<Integer> script_id_;
   Local<Value> source_map_url_;
-  Local<PrimitiveArray> host_defined_options_;
+  // Backed out for ABI compatibility with V8 6.2
+  // Local<PrimitiveArray> host_defined_options_;
 };
 
 /**
@@ -1335,7 +1338,7 @@ class V8_EXPORT ScriptCompiler {
     Local<Integer> resource_column_offset;
     ScriptOriginOptions resource_options;
     Local<Value> source_map_url;
-    Local<PrimitiveArray> host_defined_options;
+    // Local<PrimitiveArray> host_defined_options;
 
     // Cached data from previous compilation (if a kConsume*Cache flag is
     // set), or hold newly generated cache data (kProduce*Cache flags) are
@@ -9593,8 +9596,9 @@ ScriptOrigin::ScriptOrigin(Local<Value> resource_name,
                            Local<Integer> script_id,
                            Local<Value> source_map_url,
                            Local<Boolean> resource_is_opaque,
-                           Local<Boolean> is_wasm, Local<Boolean> is_module,
-                           Local<PrimitiveArray> host_defined_options)
+                           Local<Boolean> is_wasm, Local<Boolean> is_module /*,
+                           // Backed out for ABI compatibility with V8 6.2
+                           Local<PrimitiveArray> host_defined_options */)
     : resource_name_(resource_name),
       resource_line_offset_(resource_line_offset),
       resource_column_offset_(resource_column_offset),
@@ -9604,14 +9608,16 @@ ScriptOrigin::ScriptOrigin(Local<Value> resource_name,
                !is_wasm.IsEmpty() && is_wasm->IsTrue(),
                !is_module.IsEmpty() && is_module->IsTrue()),
       script_id_(script_id),
-      source_map_url_(source_map_url),
-      host_defined_options_(host_defined_options) {}
+      source_map_url_(source_map_url) /*,
+      // Backed out for ABI compatibility with V8 6.2
+      host_defined_options_(host_defined_options) */ {}
 
 Local<Value> ScriptOrigin::ResourceName() const { return resource_name_; }
 
-Local<PrimitiveArray> ScriptOrigin::HostDefinedOptions() const {
-  return host_defined_options_;
-}
+// Backed out for ABI compatibility with V8 6.2
+// Local<PrimitiveArray> ScriptOrigin::HostDefinedOptions() const {
+//   return host_defined_options_;
+// }
 
 Local<Integer> ScriptOrigin::ResourceLineOffset() const {
   return resource_line_offset_;
@@ -9636,7 +9642,8 @@ ScriptCompiler::Source::Source(Local<String> string, const ScriptOrigin& origin,
       resource_column_offset(origin.ResourceColumnOffset()),
       resource_options(origin.Options()),
       source_map_url(origin.SourceMapUrl()),
-      host_defined_options(origin.HostDefinedOptions()),
+      // Backed out for ABI compatibility with V8 6.2
+      // host_defined_options(origin.HostDefinedOptions()),
       cached_data(data) {}
 
 ScriptCompiler::Source::Source(Local<String> string,
