@@ -7,8 +7,10 @@ env:
   node: true
   es6: true
 
+parser: babel-eslint
+
 parserOptions:
-  ecmaVersion: 2017
+  sourceType: script
 
 overrides:
   - files: ["doc/api/esm.md", "*.mjs", "test/es-module/test-esm-example-loader.js"]
