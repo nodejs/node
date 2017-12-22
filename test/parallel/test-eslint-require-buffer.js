@@ -2,7 +2,7 @@
 
 require('../common');
 
-const RuleTester = require('../../tools/eslint').RuleTester;
+const RuleTester = require('../../tools/node_modules/eslint').RuleTester;
 const rule = require('../../tools/eslint-rules/require-buffer');
 const ruleTester = new RuleTester({
   parserOptions: { ecmaVersion: 6 },

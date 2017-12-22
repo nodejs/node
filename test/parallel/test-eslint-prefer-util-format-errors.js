@@ -4,7 +4,7 @@
 
 require('../common');
 
-const RuleTester = require('../../tools/eslint').RuleTester;
+const RuleTester = require('../../tools/node_modules/eslint').RuleTester;
 const rule = require('../../tools/eslint-rules/prefer-util-format-errors');
 
 new RuleTester({ parserOptions: { ecmaVersion: 6 } })

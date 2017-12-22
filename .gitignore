@@ -2,7 +2,7 @@
 .*
 !deps/**/.*
 !test/fixtures/**/.*
-!tools/eslint/**/.*
+!tools/node_modules/**/.*
 !tools/doc/node_modules/**/.*
 !.editorconfig
 !.eslintignore

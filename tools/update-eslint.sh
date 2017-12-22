@@ -8,7 +8,7 @@
 # $BASH_SOURCE[0] to determine directories to work in.
 
 cd "$( dirname "${BASH_SOURCE[0]}" )"
-rm -rf eslint
+rm -rf node_modules/eslint
 mkdir eslint-tmp
 cd eslint-tmp
 npm init --yes
@@ -26,5 +26,5 @@ type -P dmn || npm install -g dmn
 dmn -f clean
 
 cd ..
-mv eslint-tmp/node_modules/eslint eslint
+mv eslint-tmp/node_modules/eslint node_modules/eslint
 rm -rf eslint-tmp/

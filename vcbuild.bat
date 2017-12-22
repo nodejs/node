@@ -535,9 +535,9 @@ goto exit
 :lint-js
 if defined lint_js_ci goto lint-js-ci
 if not defined lint_js goto exit
-if not exist tools\eslint goto no-lint
+if not exist tools\node_modules\eslint goto no-lint
 echo running lint-js
-%config%\node tools\eslint\bin\eslint.js --cache --rule "linebreak-style: 0" --rulesdir=tools\eslint-rules --ext=.js,.md benchmark doc lib test tools
+%config%\node tools\node_modules\eslint\bin\eslint.js --cache --rule "linebreak-style: 0" --rulesdir=tools\eslint-rules --ext=.js,.md benchmark doc lib test tools
 goto exit
 
 :lint-js-ci
