@@ -544,9 +544,6 @@ void Coverage::SelectMode(Isolate* isolate, debug::Coverage::Mode mode) {
             if (!shared->IsSubjectToDebugging()) continue;
             vector->clear_invocation_count();
             vectors.emplace_back(vector, isolate);
-          } else if (current_obj->IsJSFunction()) {
-            JSFunction* function = JSFunction::cast(current_obj);
-            function->set_code(function->shared()->code());
           }
         }
       }

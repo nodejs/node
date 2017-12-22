@@ -799,7 +799,7 @@ void TypedArrayBuiltinsAssembler::SetTypedArraySource(
   // means we're safe from overflows in the following multiplication.
   TNode<IntPtrT> source_byte_length = IntPtrMul(source_length, source_el_size);
   CSA_ASSERT(this,
-             IntPtrGreaterThanOrEqual(source_byte_length, IntPtrConstant(0)));
+             UintPtrGreaterThanOrEqual(source_byte_length, IntPtrConstant(0)));
 
   Label call_memmove(this), fast_c_call(this), out(this);
   Branch(Word32Equal(source_el_kind, target_el_kind), &call_memmove,
@@ -821,8 +821,8 @@ void TypedArrayBuiltinsAssembler::SetTypedArraySource(
 
     TNode<IntPtrT> target_byte_length =
         IntPtrMul(target_length, target_el_size);
-    CSA_ASSERT(this,
-               IntPtrGreaterThanOrEqual(target_byte_length, IntPtrConstant(0)));
+    CSA_ASSERT(
+        this, UintPtrGreaterThanOrEqual(target_byte_length, IntPtrConstant(0)));
 
     TNode<IntPtrT> target_data_end_ptr =
         IntPtrAdd(target_data_ptr, target_byte_length);
@@ -830,8 +830,8 @@ void TypedArrayBuiltinsAssembler::SetTypedArraySource(
         IntPtrAdd(source_data_ptr, source_byte_length);
 
     GotoIfNot(
-        Word32Or(IntPtrLessThanOrEqual(target_data_end_ptr, source_data_ptr),
-                 IntPtrLessThanOrEqual(source_data_end_ptr, target_data_ptr)),
+        Word32Or(UintPtrLessThanOrEqual(target_data_end_ptr, source_data_ptr),
+                 UintPtrLessThanOrEqual(source_data_end_ptr, target_data_ptr)),
         call_runtime);
 
     TNode<IntPtrT> source_length =
