@@ -43,7 +43,7 @@ The `OutgoingMessage.prototype.flush()` method is deprecated. Use
 <a id="DEP0002"></a>
 ### DEP0002: require('\_linklist')
 
-Type: Runtime
+Type: End-of-Life
 
 The `_linklist` module is deprecated. Please use a userland alternative.
 
