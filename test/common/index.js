@@ -790,23 +790,24 @@ exports.skipIf32Bits = function skipIf32Bits() {
   }
 };
 
-const arrayBufferViews = [
-  Int8Array,
-  Uint8Array,
-  Uint8ClampedArray,
-  Int16Array,
-  Uint16Array,
-  Int32Array,
-  Uint32Array,
-  Float32Array,
-  Float64Array,
-  DataView
-];
-
 exports.getArrayBufferViews = function getArrayBufferViews(buf) {
   const { buffer, byteOffset, byteLength } = buf;
 
   const out = [];
+
+  const arrayBufferViews = [
+    Int8Array,
+    Uint8Array,
+    Uint8ClampedArray,
+    Int16Array,
+    Uint16Array,
+    Int32Array,
+    Uint32Array,
+    Float32Array,
+    Float64Array,
+    DataView
+  ];
+
   for (const type of arrayBufferViews) {
     const { BYTES_PER_ELEMENT = 1 } = type;
     if (byteLength % BYTES_PER_ELEMENT === 0) {
