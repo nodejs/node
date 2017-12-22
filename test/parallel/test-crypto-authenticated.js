@@ -534,13 +534,8 @@ const expectedWarnings = common.hasFipsCrypto ?
     ['Use Cipheriv for counter mode of aes-256-ccm', common.noWarnCode]
   ];
 
-const expectedDeprecationWarnings = [0, 1, 2, 6, 9, 10, 11, 17]
-  .map((i) => [`Permitting authentication tag lengths of ${i} bytes is ` +
-            'deprecated. Valid GCM tag lengths are 4, 8, 12, 13, 14, 15, 16.',
-               'DEP0090']);
-
-expectedDeprecationWarnings.push(['crypto.DEFAULT_ENCODING is deprecated.',
-                                  'DEP0091']);
+const expectedDeprecationWarnings = ['crypto.DEFAULT_ENCODING is deprecated.',
+                                     'DEP0091'];
 
 common.expectWarning({
   Warning: expectedWarnings,
@@ -719,13 +714,18 @@ for (const test of TEST_CASES) {
 }
 
 // GCM only supports specific authentication tag lengths, invalid lengths should
-// produce warnings.
+// throw.
 {
-  for (const length of [0, 1, 2, 4, 6, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17]) {
-    const decrypt = crypto.createDecipheriv('aes-256-gcm',
-                                            'FxLKsqdmv0E9xrQhp0b1ZgI0K7JFZJM8',
-                                            'qkuZpJWCewa6Szih');
-    decrypt.setAuthTag(Buffer.from('1'.repeat(length)));
+  for (const length of [0, 1, 2, 6, 9, 10, 11, 17]) {
+    common.expectsError(() => {
+      const decrypt = crypto.createDecipheriv('aes-128-gcm',
+                                              'FxLKsqdmv0E9xrQh',
+                                              'qkuZpJWCewa6Szih');
+      decrypt.setAuthTag(Buffer.from('1'.repeat(length)));
+    }, {
+      type: Error,
+      message: `Invalid GCM authentication tag length: ${length}`
+    });
   }
 }
 
