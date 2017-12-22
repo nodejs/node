@@ -1615,8 +1615,8 @@ Creation of a [`zlib`][] object failed due to incorrect configuration.
 [`dgram.createSocket()`]: dgram.html#dgram_dgram_createsocket_options_callback
 [`ERR_INVALID_ARG_TYPE`]: #ERR_INVALID_ARG_TYPE
 [`EventEmitter`]: events.html#events_class_eventemitter
-[`fs.symlink()`]: fs.html#fs_symlink
-[`fs.symlinkSync()`]: fs.html#fs_symlinksync
+[`fs.symlink()`]: fs.html#fs_fs_symlink_target_path_type_callback
+[`fs.symlinkSync()`]: fs.html#fs_fs_symlinksync_target_path_type
 [`hash.digest()`]: crypto.html#crypto_hash_digest_encoding
 [`hash.update()`]: crypto.html#crypto_hash_update_data_inputencoding
 [`readable._read()`]: stream.html#stream_readable_read_size_1
