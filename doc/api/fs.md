@@ -679,19 +679,19 @@ Tests a user's permissions for the file or directory specified by `path`.
 The `mode` argument is an optional integer that specifies the accessibility
 checks to be performed. The following constants define the possible values of
 `mode`. It is possible to create a mask consisting of the bitwise OR of two or
-more values.
+more values (e.g. `fs.constants.W_OK | fs.constants.R_OK`).
 
-- `fs.constants.F_OK` - `path` is visible to the calling process. This is useful
+* `fs.constants.F_OK` - `path` is visible to the calling process. This is useful
 for determining if a file exists, but says nothing about `rwx` permissions.
 Default if no `mode` is specified.
-- `fs.constants.R_OK` - `path` can be read by the calling process.
-- `fs.constants.W_OK` - `path` can be written by the calling process.
-- `fs.constants.X_OK` - `path` can be executed by the calling process. This has
+* `fs.constants.R_OK` - `path` can be read by the calling process.
+* `fs.constants.W_OK` - `path` can be written by the calling process.
+* `fs.constants.X_OK` - `path` can be executed by the calling process. This has
 no effect on Windows (will behave like `fs.constants.F_OK`).
 
 The final argument, `callback`, is a callback function that is invoked with
 a possible error argument. If any of the accessibility checks fail, the error
-argument will be populated. The following example checks if the file
+argument will be an `Error` object. The following example checks if the file
 `/etc/passwd` can be read and written by the current process.
 
 ```js
@@ -783,7 +783,7 @@ The "not recommended" examples above check for accessibility and then use the
 file; the "recommended" examples are better because they use the file directly
 and handle the error, if any.
 
-In general, check for the accessibility of a file only if the file won’t be
+In general, check for the accessibility of a file only if the file will not be
 used directly, for example when its accessibility is a signal from another
 process.
 
@@ -799,9 +799,33 @@ changes:
 
 * `path` {string|Buffer|URL}
 * `mode` {integer} **Default:** `fs.constants.F_OK`
+* Returns: `undefined`
 
-Synchronous version of [`fs.access()`][]. This throws if any accessibility
-checks fail, and does nothing otherwise.
+Synchronously tests a user's permissions for the file or directory specified by
+`path`. The `mode` argument is an optional integer that specifies the
+accessibility checks to be performed. The following constants define the
+possible values of `mode`. It is possible to create a mask consisting of the
+bitwise OR of two or more values (e.g. `fs.constants.W_OK | fs.constants.R_OK`).
+
+* `fs.constants.F_OK` - `path` is visible to the calling process. This is useful
+for determining if a file exists, but says nothing about `rwx` permissions.
+Default if no `mode` is specified.
+* `fs.constants.R_OK` - `path` can be read by the calling process.
+* `fs.constants.W_OK` - `path` can be written by the calling process.
+* `fs.constants.X_OK` - `path` can be executed by the calling process. This has
+no effect on Windows (will behave like `fs.constants.F_OK`).
+
+If any of the accessibility checks fail, an `Error` will be thrown. Otherwise,
+the method will return `undefined`.
+
+```js
+try {
+  fs.accessSyc('etc/passwd', fs.constants.R_OK | fs.constants.W_OK);
+  console.log('can read/write');
+} catch (err) {
+  console.log('no access!');
+}
+```
 
 ## fs.appendFile(file, data[, options], callback)
 <!-- YAML
@@ -828,8 +852,8 @@ changes:
 * `callback` {Function}
   * `err` {Error}
 
-Asynchronously append data to a file, creating the file if it does not yet exist.
-`data` can be a string or a buffer.
+Asynchronously append data to a file, creating the file if it does not yet
+exist. `data` can be a string or a [`Buffer`][].
 
 Example:
 
@@ -846,10 +870,21 @@ If `options` is a string, then it specifies the encoding. Example:
 fs.appendFile('message.txt', 'data to append', 'utf8', callback);
 ```
 
-Any specified file descriptor has to have been opened for appending.
+The `file` may be specified as a numeric file descriptor that has been opened
+for appending (using `fs.open()` or `fs.openSync()`. It is important to note
+that the file descriptor will not be closed automatically.
 
-*Note*: If a file descriptor is specified as the `file`, it will not be closed
-automatically.
+```js
+fs.open('message.txt', 'a', (err, fd) => {
+  if (err) throw err;
+  fs.appendFile(fd, 'data to append', 'utf8', (err) => {
+    fs.close(fd, (err) => {
+      if (err) throw err;
+    });
+    if (err) throw err;
+  });
+});
+```
 
 ## fs.appendFileSync(file, data[, options])
 <!-- YAML
@@ -870,7 +905,43 @@ changes:
   * `mode` {integer} **Default:** `0o666`
   * `flag` {string} **Default:** `'a'`
 
-The synchronous version of [`fs.appendFile()`][]. Returns `undefined`.
+Synchronously append data to a file, creating the file if it does not yet
+exist. `data` can be a string or a [`Buffer`][].
+
+Example:
+
+```js
+try {
+  fs.appendFileSync('message.txt', 'data to append');
+  console.log('The "data to append" was appended to file!');
+} catch (err) {
+  /* Handle the error */
+}
+```
+
+If `options` is a string, then it specifies the encoding. Example:
+
+```js
+fs.appendFileSync('message.txt', 'data to append', 'utf8');
+```
+
+The `file` may be specified as a numeric file descriptor that has been opened
+for appending (using `fs.open()` or `fs.openSync()`. It is important to note
+that the file descriptor will not be closed automatically.
+
+```js
+let fd;
+
+try {
+  fd = fs.openSync('message.txt', 'a');
+  fs.appendFile(fd, 'data to append', 'utf8');
+} catch (err) {
+  /* Handle the error */
+} finally {
+  if (fd !== undefined)
+    fs.closeSync(fd);
+}
+```
 
 ## fs.chmod(path, mode, callback)
 <!-- YAML
@@ -895,6 +966,47 @@ Asynchronously changes the permissions of a file. No arguments other than a
 possible exception are given to the completion callback.
 
 See also: chmod(2)
+
+### File modes
+
+The `mode` argument used in both the `fs.chmod()` and `fs.chmodSync()`
+methods is a numeric bitmask created using a logical OR of the following
+constants:
+
+|       Constant         |  Octal  | Description              |
+| ---------------------- | ------- | ------------------------ |
+| `fs.constants.S_IRUSR` | `0o400` | read by owner            |
+| `fs.constants.S_IWUSR` | `0o200` | write by owner           |
+| `fs.constants.S_IXUSR` | `0o100` | execute/search by owner  |
+| `fs.constants.S_IRGRP` | `0o40`  | read by group            |
+| `fs.constants.S_IWGRP` | `0o20`  | write by group           |
+| `fs.constants.S_IXGRP` | `0o10`  | execute/search by group  |
+| `fs.constants.S_IROTH` | `0o4`   | read by others           |
+| `fs.constants.S_IWOTH` | `0o2`   | write by others          |
+| `fs.constants.S_IXOTH` | `0o1`   | execute/search by others |
+
+An easier method of constructing the `mode` is to use a sequence of three
+octal digits (e.g. `765`). The left-most digit (`7` in the example), specifies
+the permissions for the file owner. The middle digit (`6` in the example),
+specifies permissions for the group. The right most digit (`5` in the example),
+specifies the permissions for others.
+
+| Number  |       Description        |
+| ------- | ------------------------ |
+|   `7`   | read, write, and execute |
+|   `6`   | read and write           |
+|   `5`   | read and execute         |
+|   `4`   | read only                |
+|   `3`   | write and execute        |
+|   `2`   | write only               |
+|   `1`   | execute only             |
+|   `0`   | no permission            |
+
+For example, the octal value `0o765` means:
+
+* The owner may read, write and execute the file.
+* The group may read and write the file.
+* Others may read and execute the file.
 
 ## fs.chmodSync(path, mode)
 <!-- YAML
