@@ -7,7 +7,7 @@ const timers = require('timers');
 const OVERFLOW = Math.pow(2, 31); // TIMEOUT_MAX is 2^31-1
 
 function timerNotCanceled() {
-  common.fail('Timer should be canceled');
+  assert.fail('Timer should be canceled');
 }
 
 process.on('warning', common.mustCall((warning) => {
