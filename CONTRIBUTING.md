@@ -307,7 +307,7 @@ notes about [commit squashing](#commit-squashing)).
 A good commit message should describe what changed and why.
 
 1. The first line should:
-   - contain a short description of the change (preferably 50 characters or less,
+   - contain a short description of the change (preferably 50 characters or fewer,
      and no more than 72 characters)
    - be entirely in lowercase with the exception of proper nouns, acronyms, and
    the words that refer to code, like function/variable names
