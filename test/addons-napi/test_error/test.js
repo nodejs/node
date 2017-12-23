@@ -88,40 +88,29 @@ assert.strictEqual(error.message, 'error');
 error = test_error.createRangeError();
 assert.ok(error instanceof RangeError,
           'expected error to be an instance of RangeError');
-assert.strictEqual(error.message,
-                   'range error');
+assert.strictEqual(error.message, 'range error');
 
 error = test_error.createTypeError();
 assert.ok(error instanceof TypeError,
           'expected error to be an instance of TypeError');
-assert.strictEqual(error.message,
-                   'type error');
+assert.strictEqual(error.message, 'type error');
 
 error = test_error.createErrorCode();
 assert.ok(error instanceof Error, 'expected error to be an instance of Error');
-assert.strictEqual(error.code,
-                   'ERR_TEST_CODE');
-assert.strictEqual(error.message,
-                   'Error [error]');
-assert.strictEqual(error.name,
-                   'Error [ERR_TEST_CODE]');
+assert.strictEqual(error.code, 'ERR_TEST_CODE');
+assert.strictEqual(error.message, 'Error [error]');
+assert.strictEqual(error.name, 'Error [ERR_TEST_CODE]');
 
 error = test_error.createRangeErrorCode();
 assert.ok(error instanceof RangeError,
           'expected error to be an instance of RangeError');
-assert.strictEqual(error.message,
-                   'RangeError [range error]');
-assert.strictEqual(error.code,
-                   'ERR_TEST_CODE');
-assert.strictEqual(error.name,
-                   'RangeError [ERR_TEST_CODE]');
+assert.strictEqual(error.message, 'RangeError [range error]');
+assert.strictEqual(error.code, 'ERR_TEST_CODE');
+assert.strictEqual(error.name, 'RangeError [ERR_TEST_CODE]');
 
 error = test_error.createTypeErrorCode();
 assert.ok(error instanceof TypeError,
           'expected error to be an instance of TypeError');
-assert.strictEqual(error.message,
-                   'TypeError [type error]');
-assert.strictEqual(error.code,
-                   'ERR_TEST_CODE');
-assert.strictEqual(error.name,
-                   'TypeError [ERR_TEST_CODE]');
+assert.strictEqual(error.message, 'TypeError [type error]');
+assert.strictEqual(error.code, 'ERR_TEST_CODE');
+assert.strictEqual(error.name, 'TypeError [ERR_TEST_CODE]');
