@@ -258,6 +258,11 @@ std::string config_warning_file;  // NOLINT(runtime/string)
 // that is used by lib/internal/bootstrap_node.js
 bool config_expose_internals = false;
 
+// Set in node.cc by ParseArgs when --preserve-dns-order is used.
+// Used in node_config.cc to set a constant on process.binding('config')
+// that is used by lib/dns.js
+bool config_preserve_dns_order = false;
+
 bool v8_initialized = false;
 
 bool linux_at_secure = false;
@@ -3626,6 +3631,7 @@ static void CheckIfAllowedInEnv(const char* exe, bool is_env,
     "--pending-deprecation",
     "--no-warnings",
     "--napi-modules",
+    "--preserve-dns-order",
     "--expose-http2",   // keep as a non-op through v9.x
     "--experimental-modules",
     "--loader",
@@ -3848,6 +3854,9 @@ static void ParseArgs(int* argc,
     } else if (strcmp(arg, "--expose-http2") == 0 ||
                strcmp(arg, "--expose_http2") == 0) {
       // Keep as a non-op through v9.x
+    } else if (strcmp(arg, "--preserve-dns-order") == 0 ||
+               strcmp(arg, "--preserve_dns_order") == 0) {
+      config_preserve_dns_order = true;
     } else if (strcmp(arg, "-") == 0) {
       break;
     } else if (strcmp(arg, "--") == 0) {

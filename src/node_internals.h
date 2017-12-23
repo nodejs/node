@@ -171,6 +171,11 @@ extern bool config_preserve_symlinks;
 // that is used by lib/module.js
 extern bool config_experimental_modules;
 
+// Set in node.cc by ParseArgs when --preserve-dns-order is used.
+// Used in node_config.cc to set a constant on process.binding('config')
+// that is used by lib/dns.js
+extern bool config_preserve_dns_order;
+
 // Set in node.cc by ParseArgs when --loader is used.
 // Used in node_config.cc to set a constant on process.binding('config')
 // that is used by lib/internal/bootstrap_node.js
