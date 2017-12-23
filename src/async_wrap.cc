@@ -365,8 +365,7 @@ static void PromiseHook(PromiseHookType type, Local<Promise> promise,
 static void SetupHooks(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
-  if (!args[0]->IsObject())
-    return env->ThrowTypeError("first argument must be an object");
+  CHECK(args[0]->IsObject());
 
   // All of init, before, after, destroy are supplied by async_hooks
   // internally, so this should every only be called once. At which time all
