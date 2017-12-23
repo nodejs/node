@@ -26,7 +26,10 @@ const http = require('http');
 
 const server = http.Server(common.mustCall(function(req, res) {
   res.on('error', common.mustCall(function onResError(err) {
-    assert.strictEqual(err.message, 'write after end');
+    common.expectsError({
+      code: 'ERR_STREAM_WRITE_AFTER_END',
+      type: Error
+    })(err);
   }));
 
   res.write('This should write.');
