@@ -59,19 +59,9 @@ const UDP = process.binding('udp_wrap').UDP;
       crypto.SecureContext.prototype._external;
     }, TypeError);
 
-    assert.throws(() => {
-      crypto.Connection.prototype._external;
-    }, TypeError);
-
     assert.strictEqual(
       typeof Object.getOwnPropertyDescriptor(
         crypto.SecureContext.prototype, '_external'),
-      'object'
-    );
-
-    assert.strictEqual(
-      typeof Object.getOwnPropertyDescriptor(
-        crypto.Connection.prototype, '_external'),
       'object'
     );
   }

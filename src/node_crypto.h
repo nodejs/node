@@ -328,7 +328,6 @@ class SSLWrap {
                                 void* arg);
   static int TLSExtStatusCallback(SSL* s, void* arg);
   static int SSLCertCallback(SSL* s, void* arg);
-  static void SSLGetter(const v8::FunctionCallbackInfo<v8::Value>& info);
 
   void DestroySSL();
   void WaitForCertCb(CertCb cb, void* arg);
@@ -361,87 +360,6 @@ class SSLWrap {
   v8::Persistent<v8::Value> sni_context_;
 #endif
 
-  friend class SecureContext;
-};
-
-// Connection inherits from AsyncWrap because SSLWrap makes calls to
-// MakeCallback, but SSLWrap doesn't store the handle itself. Instead it
-// assumes that any args.This() called will be the handle from Connection.
-class Connection : public AsyncWrap, public SSLWrap<Connection> {
- public:
-  ~Connection() override {
-#ifdef SSL_CTRL_SET_TLSEXT_SERVERNAME_CB
-    sniObject_.Reset();
-    servername_.Reset();
-#endif
-  }
-
-  static void Initialize(Environment* env, v8::Local<v8::Object> target);
-  void NewSessionDoneCb();
-
-#ifndef OPENSSL_NO_NEXTPROTONEG
-  v8::Persistent<v8::Object> npnProtos_;
-  v8::Persistent<v8::Value> selectedNPNProto_;
-#endif
-
-#ifdef SSL_CTRL_SET_TLSEXT_SERVERNAME_CB
-  v8::Persistent<v8::Object> sniObject_;
-  v8::Persistent<v8::String> servername_;
-#endif
-
-  size_t self_size() const override { return sizeof(*this); }
-
- protected:
-  static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void EncIn(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void ClearOut(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void ClearPending(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void EncPending(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void EncOut(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void ClearIn(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void Start(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void Close(const v8::FunctionCallbackInfo<v8::Value>& args);
-
-#ifdef SSL_CTRL_SET_TLSEXT_SERVERNAME_CB
-  // SNI
-  static void GetServername(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void SetSNICallback(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static int SelectSNIContextCallback_(SSL* s, int* ad, void* arg);
-#endif
-
-  static void OnClientHelloParseEnd(void* arg);
-
-  int HandleBIOError(BIO* bio, const char* func, int rv);
-
-  enum ZeroStatus {
-    kZeroIsNotAnError,
-    kZeroIsAnError
-  };
-
-  enum SyscallStatus {
-    kIgnoreSyscall,
-    kSyscallError
-  };
-
-  int HandleSSLError(const char* func, int rv, ZeroStatus zs, SyscallStatus ss);
-
-  void SetShutdownFlags();
-
-  Connection(Environment* env,
-             v8::Local<v8::Object> wrap,
-             SecureContext* sc,
-             SSLWrap<Connection>::Kind kind);
-
- private:
-  static void SSLInfoCallback(const SSL *ssl, int where, int ret);
-
-  BIO *bio_read_;
-  BIO *bio_write_;
-
-  uint8_t hello_data_[18432];
-  size_t hello_offset_;
-
-  friend class ClientHelloParser;
   friend class SecureContext;
 };
 
