@@ -1,6 +1,8 @@
 'use strict';
 
 const common = require('../common');
+
+const assert = require('assert');
 const http = require('http');
 
 let time = Date.now();
@@ -16,7 +18,7 @@ const server = http.createServer((req, res) => {
   req.setTimeout(TIMEOUT, () => {
     if (!intervalWasInvoked)
       return common.skip('interval was not invoked quickly enough for test');
-    common.fail('Request timeout should not fire');
+    assert.fail('Request timeout should not fire');
   });
 
   req.resume();
