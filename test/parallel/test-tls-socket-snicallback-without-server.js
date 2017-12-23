@@ -12,13 +12,8 @@ const tls = require('tls');
 const fixtures = require('../common/fixtures');
 const makeDuplexPair = require('../common/duplexpair');
 
-const sslcontext = tls.createSecureContext({
-  cert: fixtures.readSync('test_cert.pem'),
-  key: fixtures.readSync('test_key.pem')
-});
-
 const { clientSide, serverSide } = makeDuplexPair();
-const tlsSocket = new tls.TLSSocket(serverSide, {
+new tls.TLSSocket(serverSide, {
   isServer: true,
   SNICallback: common.mustCall((servername, cb) => {
     assert.strictEqual('www.google.com', servername);
