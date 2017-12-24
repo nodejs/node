@@ -21,6 +21,7 @@
 
 'use strict';
 const common = require('../common');
+const fs = require('fs');
 
 // Test that fs.readFile fails correctly on a non-existent file.
 
@@ -54,3 +55,12 @@ test({ NODE_DEBUG: 'fs' }, common.mustCall((data) => {
   assert(/EISDIR/.test(data));
   assert(/test-fs-readfile-error/.test(data));
 }));
+
+common.expectsError(
+  () => { fs.readFile(() => {}); },
+  {
+    code: 'ERR_INVALID_ARG_TYPE',
+    message: 'The "path" argument must be one of type string, Buffer, or URL',
+    type: TypeError
+  }
+);
