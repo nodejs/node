@@ -16,7 +16,7 @@ const { clientSide, serverSide } = makeDuplexPair();
 new tls.TLSSocket(serverSide, {
   isServer: true,
   SNICallback: common.mustCall((servername, cb) => {
-    assert.strictEqual('www.google.com', servername);
+    assert.strictEqual(servername, 'www.google.com');
   })
 });
 
