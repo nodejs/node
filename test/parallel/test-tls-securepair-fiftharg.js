@@ -15,7 +15,7 @@ const sslcontext = tls.createSecureContext({
 
 const pair = tls.createSecurePair(sslcontext, true, false, false, {
   SNICallback: common.mustCall((servername, cb) => {
-    assert.strictEqual('www.google.com', servername);
+    assert.strictEqual(servername, 'www.google.com');
   })
 });
 
