@@ -980,9 +980,9 @@ added: v0.1.90
 
 * `signal` {string}
 
-The `subprocess.kill()` method sends a signal to the child process. If no
-argument is given, the process will be sent the `'SIGTERM'` signal. See
-signal(7) for a list of available signals.
+The `subprocess.kill()` method sends a signal to the child process.
+If no argument is given, the process will be sent the `'SIGTERM'` signal.
+See signal(7) for a list of available signals.
 
 ```js
 const { spawn } = require('child_process');
