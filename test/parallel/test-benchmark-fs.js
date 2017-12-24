@@ -3,6 +3,8 @@
 const common = require('../common');
 const runBenchmark = require('../common/benchmark');
 
+common.refreshTmpDir();
+
 runBenchmark('fs', [
   'n=1',
   'size=1',
