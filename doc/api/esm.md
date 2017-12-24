@@ -36,12 +36,17 @@ Only the CLI argument for the main entry point to the program can be an entry
 point into an ESM graph. Dynamic import can also be used to create entry points
 into ESM graphs at runtime.
 
+#### `import.meta`
+
+The `import.meta` metaproperty is an `Object` that contains the following
+property:
+* `url` {string} The absolute `file:` URL of the module
+
 ### Unsupported
 
 | Feature | Reason |
 | --- | --- |
 | `require('./foo.mjs')` | ES Modules have differing resolution and timing, use dynamic import |
-| `import.meta` | pending V8 implementation |
 
 ## Notable differences between `import` and `require`
 
