@@ -481,6 +481,8 @@ For more information about the governance of the Node.js project, see
 **Roman Reiss** &lt;me@silverwind.io&gt;
 * [srl295](https://github.com/srl295) -
 **Steven R Loomis** &lt;srloomis@us.ibm.com&gt;
+* [starkwang](https://github.com/starkwang) -
+**Weijia Wang** &lt;starkwang@126.com&gt;
 * [stefanmb](https://github.com/stefanmb) -
 **Stefan Budeanu** &lt;stefan@budeanu.com&gt;
 * [targos](https://github.com/targos) -
