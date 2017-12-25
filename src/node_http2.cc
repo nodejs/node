@@ -71,6 +71,11 @@ Http2Scope::Http2Scope(Http2Session* session) {
   }
   session->flags_ |= SESSION_STATE_HAS_SCOPE;
   session_ = session;
+
+  // Always keep the session object alive for at least as long as the
+  // this scope is active.
+  session_handle_ = session->object();
+  CHECK(!session_handle_.IsEmpty());
 }
 
 Http2Scope::~Http2Scope() {
@@ -512,6 +517,7 @@ void Http2Session::Unconsume() {
 }
 
 Http2Session::~Http2Session() {
+  CHECK_EQ(flags_ & SESSION_STATE_HAS_SCOPE, 0);
   if (!object().IsEmpty())
     ClearWrap(object());
   persistent().Reset();
@@ -1365,6 +1371,7 @@ void Http2Session::OnStreamReadImpl(ssize_t nread,
                                     void* ctx) {
   Http2Session* session = static_cast<Http2Session*>(ctx);
   Http2Scope h2scope(session);
+  CHECK_NE(session->stream_, nullptr);
   DEBUG_HTTP2SESSION2(session, "receiving %d bytes", nread);
   if (nread < 0) {
     uv_buf_t tmp_buf;
