@@ -64,7 +64,7 @@ const invalidCertRE = /^The "cert" argument must be one of type string, Buffer, 
   [false, [certStr, certStr2]],
   [[{ pem: keyBuff }], false],
   [[{ pem: keyBuff }, { pem: keyBuff }], false]
-].map((params) => {
+].forEach((params) => {
   assert.doesNotThrow(() => {
     https.createServer({
       key: params[0],
@@ -100,7 +100,7 @@ const invalidCertRE = /^The "cert" argument must be one of type string, Buffer, 
   [[keyStr, keyStr2], [true, false], invalidCertRE],
   [[keyStr, keyStr2], true, invalidCertRE],
   [true, [certBuff, certBuff2], invalidKeyRE]
-].map((params) => {
+].forEach((params) => {
   common.expectsError(() => {
     https.createServer({
       key: params[0],
@@ -123,7 +123,7 @@ const invalidCertRE = /^The "cert" argument must be one of type string, Buffer, 
   [keyBuff, certBuff, caArrBuff],
   [keyBuff, certBuff, caArrDataView],
   [keyBuff, certBuff, false],
-].map((params) => {
+].forEach((params) => {
   assert.doesNotThrow(() => {
     https.createServer({
       key: params[0],
@@ -141,7 +141,7 @@ const invalidCertRE = /^The "cert" argument must be one of type string, Buffer, 
   [keyBuff, certBuff, 1],
   [keyBuff, certBuff, true],
   [keyBuff, certBuff, [caCert, true]]
-].map((params) => {
+].forEach((params) => {
   common.expectsError(() => {
     https.createServer({
       key: params[0],
