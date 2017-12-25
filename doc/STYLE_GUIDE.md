@@ -9,9 +9,6 @@
 * The formatting described in `.editorconfig` is preferred.
   * A [plugin][] is available for some editors to automatically apply these
     rules.
-* Mechanical issues, like spelling and grammar, should be identified by tools,
-  insofar as is possible. If not caught by a tool, they should be pointed out by
-  human reviewers.
 * American English spelling is preferred. "Capitalize" vs. "Capitalise",
   "color" vs. "colour", etc.
 * Use [serial commas][].
