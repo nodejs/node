@@ -1,12 +1,13 @@
 'use strict';
 
-const common = require('../common');
+require('../common');
 const fs = require('fs');
 const path = require('path');
 
-common.refreshTmpDir();
+const tmpdir = require('../common/tmpdir');
+tmpdir.refresh();
 
-const s = fs.createWriteStream(path.join(common.tmpDir, 'nocallback'));
+const s = fs.createWriteStream(path.join(tmpdir.path, 'nocallback'));
 
 s.end('hello world');
 s.close();

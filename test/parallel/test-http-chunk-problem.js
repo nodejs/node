@@ -37,7 +37,9 @@ if (process.argv[2] === 'shasum') {
 const http = require('http');
 const cp = require('child_process');
 
-const filename = require('path').join(common.tmpDir, 'big');
+const tmpdir = require('../common/tmpdir');
+
+const filename = require('path').join(tmpdir.path, 'big');
 let server;
 
 function executeRequest(cb) {
@@ -59,7 +61,7 @@ function executeRequest(cb) {
 }
 
 
-common.refreshTmpDir();
+tmpdir.refresh();
 
 const ddcmd = common.ddCommand(filename, 10240);
 

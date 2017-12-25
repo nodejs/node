@@ -2,19 +2,20 @@
 const common = require('../common');
 const assert = require('assert');
 const cluster = require('cluster');
+const tmpdir = require('../common/tmpdir');
 
 if (cluster.isMaster) {
-  common.refreshTmpDir();
+  tmpdir.refresh();
 
   assert.strictEqual(cluster.settings.cwd, undefined);
   cluster.fork().on('message', common.mustCall((msg) => {
     assert.strictEqual(msg, process.cwd());
   }));
 
-  cluster.setupMaster({ cwd: common.tmpDir });
-  assert.strictEqual(cluster.settings.cwd, common.tmpDir);
+  cluster.setupMaster({ cwd: tmpdir.path });
+  assert.strictEqual(cluster.settings.cwd, tmpdir.path);
   cluster.fork().on('message', common.mustCall((msg) => {
-    assert.strictEqual(msg, common.tmpDir);
+    assert.strictEqual(msg, tmpdir.path);
   }));
 } else {
   process.send(process.cwd());

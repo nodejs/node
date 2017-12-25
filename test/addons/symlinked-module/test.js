@@ -12,10 +12,11 @@ const assert = require('assert');
 // This test should pass in Node.js v4 and v5. This test will pass in Node.js
 // with https://github.com/nodejs/node/pull/5950 reverted.
 
-common.refreshTmpDir();
+const tmpdir = require('../../common/tmpdir');
+tmpdir.refresh();
 
 const addonPath = path.join(__dirname, 'build', common.buildType);
-const addonLink = path.join(common.tmpDir, 'addon');
+const addonLink = path.join(tmpdir.path, 'addon');
 
 try {
   fs.symlinkSync(addonPath, addonLink);

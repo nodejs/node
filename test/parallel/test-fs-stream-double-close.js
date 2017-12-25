@@ -23,15 +23,16 @@
 const common = require('../common');
 const fs = require('fs');
 
-common.refreshTmpDir();
+const tmpdir = require('../common/tmpdir');
+tmpdir.refresh();
 
 test1(fs.createReadStream(__filename));
 test2(fs.createReadStream(__filename));
 test3(fs.createReadStream(__filename));
 
-test1(fs.createWriteStream(`${common.tmpDir}/dummy1`));
-test2(fs.createWriteStream(`${common.tmpDir}/dummy2`));
-test3(fs.createWriteStream(`${common.tmpDir}/dummy3`));
+test1(fs.createWriteStream(`${tmpdir.path}/dummy1`));
+test2(fs.createWriteStream(`${tmpdir.path}/dummy2`));
+test3(fs.createWriteStream(`${tmpdir.path}/dummy3`));
 
 function test1(stream) {
   stream.destroy();

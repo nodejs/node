@@ -8,7 +8,8 @@ const path = require('path');
 if (!common.isWindows)
   common.skip('This test is for Windows only.');
 
-common.refreshTmpDir();
+const tmpdir = require('../common/tmpdir');
+tmpdir.refresh();
 
 const DATA_VALUE = 'hello';
 
@@ -17,7 +18,7 @@ const DATA_VALUE = 'hello';
 const RESERVED_CHARACTERS = '<>"|?*';
 
 [...RESERVED_CHARACTERS].forEach((ch) => {
-  const pathname = path.join(common.tmpDir, `somefile_${ch}`);
+  const pathname = path.join(tmpdir.path, `somefile_${ch}`);
   assert.throws(
     () => {
       fs.writeFileSync(pathname, DATA_VALUE);
@@ -28,7 +29,7 @@ const RESERVED_CHARACTERS = '<>"|?*';
 
 // Test for ':' (NTFS data streams).
 // Refs: https://msdn.microsoft.com/en-us/library/windows/desktop/bb540537.aspx
-const pathname = path.join(common.tmpDir, 'foo:bar');
+const pathname = path.join(tmpdir.path, 'foo:bar');
 fs.writeFileSync(pathname, DATA_VALUE);
 
 let content = '';

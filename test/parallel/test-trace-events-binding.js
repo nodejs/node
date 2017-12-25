@@ -20,8 +20,9 @@ const CODE = `
 `;
 const FILE_NAME = 'node_trace.1.log';
 
-common.refreshTmpDir();
-process.chdir(common.tmpDir);
+const tmpdir = require('../common/tmpdir');
+tmpdir.refresh();
+process.chdir(tmpdir.path);
 
 const proc = cp.spawn(process.execPath,
                       [ '--trace-events-enabled',
