@@ -128,7 +128,8 @@ function pingPongTest(port, host) {
 }
 
 /* All are run at once, so run on different ports */
-common.refreshTmpDir();
+const tmpdir = require('../common/tmpdir');
+tmpdir.refresh();
 pingPongTest(common.PIPE);
 pingPongTest(0);
 pingPongTest(0, 'localhost');

@@ -25,7 +25,8 @@ const assert = require('assert');
 const util = require('util');
 const fs = require('fs');
 
-common.refreshTmpDir();
+const tmpdir = require('../common/tmpdir');
+tmpdir.refresh();
 
 let tests_ok = 0;
 let tests_run = 0;
@@ -73,8 +74,8 @@ function testIt(atime, mtime, callback) {
   // test synchronized code paths, these functions throw on failure
   //
   function syncTests() {
-    fs.utimesSync(common.tmpDir, atime, mtime);
-    expect_ok('utimesSync', common.tmpDir, undefined, atime, mtime);
+    fs.utimesSync(tmpdir.path, atime, mtime);
+    expect_ok('utimesSync', tmpdir.path, undefined, atime, mtime);
     tests_run++;
 
     // some systems don't have futimes
@@ -109,17 +110,17 @@ function testIt(atime, mtime, callback) {
   //
   // test async code paths
   //
-  fs.utimes(common.tmpDir, atime, mtime, common.mustCall(function(err) {
-    expect_ok('utimes', common.tmpDir, err, atime, mtime);
+  fs.utimes(tmpdir.path, atime, mtime, common.mustCall(function(err) {
+    expect_ok('utimes', tmpdir.path, err, atime, mtime);
 
     fs.utimes('foobarbaz', atime, mtime, common.mustCall(function(err) {
       expect_errno('utimes', 'foobarbaz', err, 'ENOENT');
 
       // don't close this fd
       if (common.isWindows) {
-        fd = fs.openSync(common.tmpDir, 'r+');
+        fd = fs.openSync(tmpdir.path, 'r+');
       } else {
-        fd = fs.openSync(common.tmpDir, 'r');
+        fd = fs.openSync(tmpdir.path, 'r');
       }
 
       fs.futimes(fd, atime, mtime, common.mustCall(function(err) {
@@ -139,7 +140,7 @@ function testIt(atime, mtime, callback) {
   tests_run++;
 }
 
-const stats = fs.statSync(common.tmpDir);
+const stats = fs.statSync(tmpdir.path);
 
 // run tests
 const runTest = common.mustCall(testIt, 6);
@@ -168,7 +169,7 @@ process.on('exit', function() {
 
 
 // Ref: https://github.com/nodejs/node/issues/13255
-const path = `${common.tmpDir}/test-utimes-precision`;
+const path = `${tmpdir.path}/test-utimes-precision`;
 fs.writeFileSync(path, '');
 
 // test Y2K38 for all platforms [except 'arm', and 'SunOS']

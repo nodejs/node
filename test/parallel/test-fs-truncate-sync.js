@@ -1,11 +1,12 @@
 'use strict';
-const common = require('../common');
+require('../common');
 const assert = require('assert');
 const path = require('path');
 const fs = require('fs');
-const tmp = common.tmpDir;
+const tmpdir = require('../common/tmpdir');
+const tmp = tmpdir.path;
 
-common.refreshTmpDir();
+tmpdir.refresh();
 
 const filename = path.resolve(tmp, 'truncate-sync-file.txt');
 

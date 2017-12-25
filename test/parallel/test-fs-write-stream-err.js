@@ -24,9 +24,10 @@ const common = require('../common');
 const assert = require('assert');
 const fs = require('fs');
 
-common.refreshTmpDir();
+const tmpdir = require('../common/tmpdir');
+tmpdir.refresh();
 
-const stream = fs.createWriteStream(`${common.tmpDir}/out`, {
+const stream = fs.createWriteStream(`${tmpdir.path}/out`, {
   highWaterMark: 10
 });
 const err = new Error('BAM');

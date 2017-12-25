@@ -4,9 +4,10 @@ const assert = require('assert');
 const path = require('path');
 const fs = require('fs');
 
-common.refreshTmpDir();
+const tmpdir = require('../common/tmpdir');
+tmpdir.refresh();
 
-const fn = path.join(common.tmpDir, 'write-string-coerce.txt');
+const fn = path.join(tmpdir.path, 'write-string-coerce.txt');
 const data = true;
 const expected = String(data);
 

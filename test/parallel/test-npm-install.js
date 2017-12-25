@@ -9,10 +9,11 @@ const assert = require('assert');
 const fs = require('fs');
 const fixtures = require('../common/fixtures');
 
-common.refreshTmpDir();
-const npmSandbox = path.join(common.tmpDir, 'npm-sandbox');
+const tmpdir = require('../common/tmpdir');
+tmpdir.refresh();
+const npmSandbox = path.join(tmpdir.path, 'npm-sandbox');
 fs.mkdirSync(npmSandbox);
-const installDir = path.join(common.tmpDir, 'install-dir');
+const installDir = path.join(tmpdir.path, 'install-dir');
 fs.mkdirSync(installDir);
 
 const npmPath = path.join(

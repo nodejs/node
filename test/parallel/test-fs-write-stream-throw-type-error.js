@@ -4,9 +4,11 @@ const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
 
-const example = path.join(common.tmpDir, 'dummy');
+const tmpdir = require('../common/tmpdir');
 
-common.refreshTmpDir();
+const example = path.join(tmpdir.path, 'dummy');
+
+tmpdir.refresh();
 
 assert.doesNotThrow(() => {
   fs.createWriteStream(example, undefined);
