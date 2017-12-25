@@ -1,5 +1,7 @@
 'use strict';
 
+// Flags: --expose-gc
+
 const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
@@ -61,6 +63,15 @@ server.listen(0, common.mustCall(function() {
         server.close();
       }
     }));
+
+    // Ref: https://github.com/nodejs/node/issues/17840
+    const origDestroy = req.destroy;
+    req.destroy = function(...args) {
+      // Schedule a garbage collection event at the end of the current
+      // MakeCallback() run.
+      process.nextTick(global.gc);
+      return origDestroy.call(this, ...args);
+    };
 
     req.end();
   });

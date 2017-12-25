@@ -445,6 +445,7 @@ class Http2Scope {
 
  private:
   Http2Session* session_ = nullptr;
+  Local<Object> session_handle_;
 };
 
 // The Http2Options class is used to parse the options object passed in to
