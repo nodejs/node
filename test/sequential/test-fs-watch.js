@@ -26,14 +26,16 @@ const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
 
+const tmpdir = require('../common/tmpdir');
+
 const expectFilePath = common.isWindows ||
                        common.isLinux ||
                        common.isOSX ||
                        common.isAIX;
 
-const testDir = common.tmpDir;
+const testDir = tmpdir.path;
 
-common.refreshTmpDir();
+tmpdir.refresh();
 
 {
   const filepath = path.join(testDir, 'watch.txt');

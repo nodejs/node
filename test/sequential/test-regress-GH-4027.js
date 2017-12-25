@@ -25,9 +25,10 @@ const assert = require('assert');
 const path = require('path');
 const fs = require('fs');
 
-common.refreshTmpDir();
+const tmpdir = require('../common/tmpdir');
+tmpdir.refresh();
 
-const filename = path.join(common.tmpDir, 'watched');
+const filename = path.join(tmpdir.path, 'watched');
 fs.writeFileSync(filename, 'quis custodiet ipsos custodes');
 
 fs.watchFile(filename, { interval: 50 }, common.mustCall(function(curr, prev) {

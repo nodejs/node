@@ -6,6 +6,8 @@ const net = require('net');
 const path = require('path');
 const fs = require('fs');
 
+const tmpdir = require('../common/tmpdir');
+
 if (common.isWindows)
   common.skip('On Windows named pipes live in their own ' +
               'filesystem and don\'t have a ~100 byte limit');
@@ -20,8 +22,8 @@ assert.strictEqual(path.resolve(socketDir, socketName).length > 100, true,
 
 if (cluster.isMaster) {
   // ensure that the worker exits peacefully
-  common.refreshTmpDir();
-  process.chdir(common.tmpDir);
+  tmpdir.refresh();
+  process.chdir(tmpdir.path);
   fs.mkdirSync(socketDir);
   cluster.fork().on('exit', common.mustCall(function(statusCode) {
     assert.strictEqual(statusCode, 0);

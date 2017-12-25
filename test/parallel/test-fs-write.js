@@ -24,13 +24,15 @@ const common = require('../common');
 const assert = require('assert');
 const path = require('path');
 const fs = require('fs');
-const fn = path.join(common.tmpDir, 'write.txt');
-const fn2 = path.join(common.tmpDir, 'write2.txt');
-const fn3 = path.join(common.tmpDir, 'write3.txt');
+const tmpdir = require('../common/tmpdir');
+
+tmpdir.refresh();
+
+const fn = path.join(tmpdir.path, 'write.txt');
+const fn2 = path.join(tmpdir.path, 'write2.txt');
+const fn3 = path.join(tmpdir.path, 'write3.txt');
 const expected = 'ümlaut.';
 const constants = fs.constants;
-
-common.refreshTmpDir();
 
 fs.open(fn, 'w', 0o644, common.mustCall(function(err, fd) {
   assert.ifError(err);

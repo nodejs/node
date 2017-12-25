@@ -8,7 +8,8 @@ const { checkInvocations } = require('./hook-checks');
 
 const net = require('net');
 
-common.refreshTmpDir();
+const tmpdir = require('../common/tmpdir');
+tmpdir.refresh();
 
 const hooks = initHooks();
 hooks.enable();

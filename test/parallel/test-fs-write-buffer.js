@@ -26,11 +26,12 @@ const path = require('path');
 const fs = require('fs');
 const expected = Buffer.from('hello');
 
-common.refreshTmpDir();
+const tmpdir = require('../common/tmpdir');
+tmpdir.refresh();
 
 // fs.write with all parameters provided:
 {
-  const filename = path.join(common.tmpDir, 'write1.txt');
+  const filename = path.join(tmpdir.path, 'write1.txt');
   fs.open(filename, 'w', 0o644, common.mustCall((err, fd) => {
     assert.ifError(err);
 
@@ -50,7 +51,7 @@ common.refreshTmpDir();
 
 // fs.write with a buffer, without the length parameter:
 {
-  const filename = path.join(common.tmpDir, 'write2.txt');
+  const filename = path.join(tmpdir.path, 'write2.txt');
   fs.open(filename, 'w', 0o644, common.mustCall((err, fd) => {
     assert.ifError(err);
 
@@ -70,7 +71,7 @@ common.refreshTmpDir();
 
 // fs.write with a buffer, without the offset and length parameters:
 {
-  const filename = path.join(common.tmpDir, 'write3.txt');
+  const filename = path.join(tmpdir.path, 'write3.txt');
   fs.open(filename, 'w', 0o644, common.mustCall(function(err, fd) {
     assert.ifError(err);
 
@@ -90,7 +91,7 @@ common.refreshTmpDir();
 
 // fs.write with the offset passed as undefined followed by the callback:
 {
-  const filename = path.join(common.tmpDir, 'write4.txt');
+  const filename = path.join(tmpdir.path, 'write4.txt');
   fs.open(filename, 'w', 0o644, common.mustCall(function(err, fd) {
     assert.ifError(err);
 
@@ -110,7 +111,7 @@ common.refreshTmpDir();
 
 // fs.write with offset and length passed as undefined followed by the callback:
 {
-  const filename = path.join(common.tmpDir, 'write5.txt');
+  const filename = path.join(tmpdir.path, 'write5.txt');
   fs.open(filename, 'w', 0o644, common.mustCall((err, fd) => {
     assert.ifError(err);
 
@@ -130,7 +131,7 @@ common.refreshTmpDir();
 
 // fs.write with a Uint8Array, without the offset and length parameters:
 {
-  const filename = path.join(common.tmpDir, 'write6.txt');
+  const filename = path.join(tmpdir.path, 'write6.txt');
   fs.open(filename, 'w', 0o644, common.mustCall((err, fd) => {
     assert.ifError(err);
 

@@ -25,7 +25,8 @@ const assert = require('assert');
 const join = require('path').join;
 const fs = require('fs');
 
-common.refreshTmpDir();
+const tmpdir = require('../common/tmpdir');
+tmpdir.refresh();
 
 const repl = require('repl');
 
@@ -39,7 +40,7 @@ const testFile = [
   'var top = function() {',
   'var inner = {one:1};'
 ];
-const saveFileName = join(common.tmpDir, 'test.save.js');
+const saveFileName = join(tmpdir.path, 'test.save.js');
 
 // input some data
 putIn.run(testFile);
@@ -91,7 +92,7 @@ testMe.complete('inner.o', function(error, data) {
 // clear the REPL
 putIn.run(['.clear']);
 
-let loadFile = join(common.tmpDir, 'file.does.not.exist');
+let loadFile = join(tmpdir.path, 'file.does.not.exist');
 
 // should not break
 putIn.write = function(data) {
@@ -103,7 +104,7 @@ putIn.write = function(data) {
 putIn.run([`.load ${loadFile}`]);
 
 // throw error on loading directory
-loadFile = common.tmpDir;
+loadFile = tmpdir.path;
 putIn.write = function(data) {
   assert.strictEqual(data, `Failed to load:${loadFile} is not a valid file\n`);
   putIn.write = () => {};
@@ -115,7 +116,7 @@ putIn.run(['.clear']);
 
 // NUL (\0) is disallowed in filenames in UNIX-like operating systems and
 // Windows so we can use that to test failed saves
-const invalidFileName = join(common.tmpDir, '\0\0\0\0\0');
+const invalidFileName = join(tmpdir.path, '\0\0\0\0\0');
 
 // should not break
 putIn.write = function(data) {

@@ -3,7 +3,8 @@ const common = require('../common');
 const assert = require('assert');
 const net = require('net');
 
-common.refreshTmpDir();
+const tmpdir = require('../common/tmpdir');
+tmpdir.refresh();
 
 function test(clazz, cb) {
   let have_ping = false;

@@ -27,7 +27,8 @@ const domain = require('domain');
 
 let d;
 
-common.refreshTmpDir();
+const tmpdir = require('../common/tmpdir');
+tmpdir.refresh();
 
 // first fire up a simple HTTP server
 const server = http.createServer(function(req, res) {
