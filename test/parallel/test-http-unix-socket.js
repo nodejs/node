@@ -34,7 +34,8 @@ const server = http.createServer(function(req, res) {
   res.end();
 });
 
-common.refreshTmpDir();
+const tmpdir = require('../common/tmpdir');
+tmpdir.refresh();
 
 server.listen(common.PIPE, common.mustCall(function() {
 

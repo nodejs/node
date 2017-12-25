@@ -4,7 +4,8 @@ const net = require('net');
 
 // This test should end immediately after `unref` is called
 
-common.refreshTmpDir();
+const tmpdir = require('../common/tmpdir');
+tmpdir.refresh();
 
 const s = net.Server();
 s.listen(common.PIPE);

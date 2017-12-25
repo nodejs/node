@@ -16,7 +16,8 @@ class Agent extends http.Agent {
 const server = http.createServer((req, res) => res.end());
 
 const socketPath = common.PIPE;
-common.refreshTmpDir();
+const tmpdir = require('../common/tmpdir');
+tmpdir.refresh();
 
 server.listen(socketPath, common.mustCall(() => {
   const agent = new Agent({

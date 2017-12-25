@@ -5,6 +5,8 @@ const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
 
+const tmpdir = require('../common/tmpdir');
+
 // Basic usage tests.
 common.expectsError(
   () => {
@@ -28,7 +30,7 @@ common.expectsError(function() {
   fs.watchFile(new Object(), common.mustNotCall());
 }, { code: 'ERR_INVALID_ARG_TYPE', type: TypeError });
 
-const enoentFile = path.join(common.tmpDir, 'non-existent-file');
+const enoentFile = path.join(tmpdir.path, 'non-existent-file');
 const expectedStatObject = new fs.Stats(
   0,                                        // dev
   0,                                        // mode
@@ -46,7 +48,7 @@ const expectedStatObject = new fs.Stats(
   Date.UTC(1970, 0, 1, 0, 0, 0)             // birthtime
 );
 
-common.refreshTmpDir();
+tmpdir.refresh();
 
 // If the file initially didn't exist, and gets created at a later point of
 // time, the callback should be invoked again with proper values in stat object
@@ -80,7 +82,7 @@ watcher.start();  // should not crash
 // Watch events should callback with a filename on supported systems.
 // Omitting AIX. It works but not reliably.
 if (common.isLinux || common.isOSX || common.isWindows) {
-  const dir = path.join(common.tmpDir, 'watch');
+  const dir = path.join(tmpdir.path, 'watch');
 
   fs.mkdir(dir, common.mustCall(function(err) {
     if (err) assert.fail(err);

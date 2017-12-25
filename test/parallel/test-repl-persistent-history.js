@@ -11,11 +11,12 @@ const fs = require('fs');
 const path = require('path');
 const os = require('os');
 
-common.refreshTmpDir();
+const tmpdir = require('../common/tmpdir');
+tmpdir.refresh();
 
 // Mock os.homedir()
 os.homedir = function() {
-  return common.tmpDir;
+  return tmpdir.path;
 };
 
 // Create an input stream specialized for testing an array of actions
@@ -55,16 +56,16 @@ const CLEAR = { ctrl: true, name: 'u' };
 
 // File paths
 const historyFixturePath = fixtures.path('.node_repl_history');
-const historyPath = path.join(common.tmpDir, '.fixture_copy_repl_history');
-const historyPathFail = path.join(common.tmpDir, '.node_repl\u0000_history');
+const historyPath = path.join(tmpdir.path, '.fixture_copy_repl_history');
+const historyPathFail = path.join(tmpdir.path, '.node_repl\u0000_history');
 const oldHistoryPathObj = fixtures.path('old-repl-history-file-obj.json');
 const oldHistoryPathFaulty = fixtures.path('old-repl-history-file-faulty.json');
 const oldHistoryPath = fixtures.path('old-repl-history-file.json');
 const enoentHistoryPath = fixtures.path('enoent-repl-history-file.json');
 const emptyHistoryPath = fixtures.path('.empty-repl-history-file');
-const defaultHistoryPath = path.join(common.tmpDir, '.node_repl_history');
+const defaultHistoryPath = path.join(tmpdir.path, '.node_repl_history');
 const emptyHiddenHistoryPath = fixtures.path('.empty-hidden-repl-history-file');
-const devNullHistoryPath = path.join(common.tmpDir,
+const devNullHistoryPath = path.join(tmpdir.path,
                                      '.dev-null-repl-history-file');
 // Common message bits
 const prompt = '> ';

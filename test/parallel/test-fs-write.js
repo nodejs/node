@@ -25,16 +25,18 @@ const common = require('../common');
 const assert = require('assert');
 const path = require('path');
 const fs = require('fs');
-const fn = path.join(common.tmpDir, 'write.txt');
-const fn2 = path.join(common.tmpDir, 'write2.txt');
-const fn3 = path.join(common.tmpDir, 'write3.txt');
+const tmpdir = require('../common/tmpdir');
+
+tmpdir.refresh();
+
+const fn = path.join(tmpdir.path, 'write.txt');
+const fn2 = path.join(tmpdir.path, 'write2.txt');
+const fn3 = path.join(tmpdir.path, 'write3.txt');
 const expected = 'ümlaut.';
 const constants = fs.constants;
 
 /* eslint-disable no-undef */
 common.allowGlobals(externalizeString, isOneByteString, x);
-
-common.refreshTmpDir();
 
 {
   const expected = 'ümlaut eins';  // Must be a unique string.
@@ -75,6 +77,7 @@ common.refreshTmpDir();
   fs.closeSync(fd);
   assert.strictEqual(expected, fs.readFileSync(fn, 'utf8'));
 }
+/* eslint-enable no-undef */
 
 fs.open(fn, 'w', 0o644, common.mustCall(function(err, fd) {
   assert.ifError(err);
