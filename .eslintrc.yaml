@@ -43,6 +43,7 @@ rules:
   # Best Practices
   # http://eslint.org/docs/rules/#best-practices
   accessor-pairs: error
+  array-callback-return: error
   dot-location: [error, property]
   eqeqeq: [error, smart]
   no-fallthrough: error
