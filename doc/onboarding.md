@@ -121,6 +121,9 @@ onboarding session.
   avoid stalling the pull request.
   * Note that they are nits when you comment: `Nit: change foo() to bar().`
   * If they are stalling the pull request, fix them yourself on merge.
+* Insofar as possible, issues should be identified by tools rather than human
+  reviewers. If you are leaving comments about issues that could be identified
+  by tools but are not, consider implementing the necessary tooling.
 * Minimum wait for comments time
   * There is a minimum waiting time which we try to respect for non-trivial
       changes, so that people who may have important input in such a distributed
