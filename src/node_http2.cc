@@ -72,7 +72,7 @@ Http2Scope::Http2Scope(Http2Session* session) {
   session->flags_ |= SESSION_STATE_HAS_SCOPE;
   session_ = session;
 
-  // Always keep the session object alive for at least as long as the
+  // Always keep the session object alive for at least as long as
   // this scope is active.
   session_handle_ = session->object();
   CHECK(!session_handle_.IsEmpty());
