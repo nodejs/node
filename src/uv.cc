@@ -27,10 +27,15 @@
 namespace node {
 namespace {
 
+using v8::Array;
 using v8::Context;
 using v8::FunctionCallbackInfo;
+using v8::Integer;
+using v8::Isolate;
 using v8::Local;
+using v8::Map;
 using v8::Object;
+using v8::String;
 using v8::Value;
 
 
@@ -47,14 +52,30 @@ void InitializeUV(Local<Object> target,
                   Local<Value> unused,
                   Local<Context> context) {
   Environment* env = Environment::GetCurrent(context);
-  target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "errname"),
+  Isolate* isolate = env->isolate();
+  target->Set(FIXED_ONE_BYTE_STRING(isolate, "errname"),
               env->NewFunctionTemplate(ErrName)->GetFunction());
 
 #define V(name, _) NODE_DEFINE_CONSTANT(target, UV_##name);
   UV_ERRNO_MAP(V)
 #undef V
-}
 
+  Local<Map> err_map = Map::New(isolate);
+
+#define V(name, msg) do {                                                     \
+  Local<Array> arr = Array::New(isolate, 2);                                  \
+  arr->Set(0, OneByteString(isolate, #name));                                 \
+  arr->Set(1, OneByteString(isolate, msg));                                   \
+  err_map->Set(context,                                                       \
+               Integer::New(isolate, UV_##name),                              \
+               arr).ToLocalChecked();                                         \
+} while (0);
+  UV_ERRNO_MAP(V)
+#undef V
+
+  target->Set(context, FIXED_ONE_BYTE_STRING(isolate, "errmap"),
+              err_map).FromJust();
+}
 
 }  // anonymous namespace
 }  // namespace node
