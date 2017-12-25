@@ -39,14 +39,16 @@ for (const m of deprecatedModules) {
   } catch (err) {}
 }
 
-// Instead of checking require, check that resolve isn't pointing toward
-// /node/deps, as user might already have node installed with acorn in
-// require.resolve range
+// Instead of checking require, check that resolve isn't pointing toward a
+// built-in module, as user might already have node installed with acorn in
+// require.resolve range.
+// Ref: https://github.com/nodejs/node/issues/17148
 for (const m of deps) {
   let path;
   try {
     path = require.resolve(m);
   } catch (err) {
+    assert.ok(err.toString().startsWith('Error: Cannot find module '));
     continue;
   }
   assert.notStrictEqual(path, m);
