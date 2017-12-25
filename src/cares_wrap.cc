@@ -1772,33 +1772,6 @@ class GetHostByAddrWrap: public QueryWrap {
 };
 
 
-class GetHostByNameWrap: public QueryWrap {
- public:
-  explicit GetHostByNameWrap(ChannelWrap* channel, Local<Object> req_wrap_obj)
-      : QueryWrap(channel, req_wrap_obj) {
-  }
-
-  int Send(const char* name, int family) override {
-    ares_gethostbyname(channel_->cares_channel(),
-                       name,
-                       family,
-                       Callback,
-                       static_cast<void*>(static_cast<QueryWrap*>(this)));
-    return 0;
-  }
-
- protected:
-  void Parse(struct hostent* host) override {
-    HandleScope scope(env()->isolate());
-
-    Local<Array> addresses = HostentToAddresses(env(), host);
-    Local<Integer> family = Integer::New(env()->isolate(), host->h_addrtype);
-
-    this->CallOnComplete(addresses, family);
-  }
-};
-
-
 template <class Wrap>
 static void Query(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
