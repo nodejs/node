@@ -33,7 +33,8 @@ const options = {
   cert: fixtures.readKey('agent1-cert.pem')
 };
 
-common.refreshTmpDir();
+const tmpdir = require('../common/tmpdir');
+tmpdir.refresh();
 
 const server = tls.Server(options, common.mustCall(function(socket) {
   server.close();

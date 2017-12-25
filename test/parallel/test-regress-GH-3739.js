@@ -5,10 +5,12 @@ const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
 
-let dir = path.resolve(common.tmpDir);
+const tmpdir = require('../common/tmpdir');
+
+let dir = path.resolve(tmpdir.path);
 
 // Make sure that the tmp directory is clean
-common.refreshTmpDir();
+tmpdir.refresh();
 
 // Make a long path.
 for (let i = 0; i < 50; i++) {

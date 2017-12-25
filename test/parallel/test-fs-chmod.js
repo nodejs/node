@@ -71,10 +71,11 @@ if (common.isWindows) {
   mode_sync = 0o644;
 }
 
-common.refreshTmpDir();
+const tmpdir = require('../common/tmpdir');
+tmpdir.refresh();
 
-const file1 = path.join(common.tmpDir, 'a.js');
-const file2 = path.join(common.tmpDir, 'a1.js');
+const file1 = path.join(tmpdir.path, 'a.js');
+const file2 = path.join(tmpdir.path, 'a1.js');
 
 // Create file1.
 fs.closeSync(fs.openSync(file1, 'w'));
@@ -121,7 +122,7 @@ fs.open(file2, 'w', common.mustCall((err, fd) => {
 
 // lchmod
 if (fs.lchmod) {
-  const link = path.join(common.tmpDir, 'symbolic-link');
+  const link = path.join(tmpdir.path, 'symbolic-link');
 
   fs.symlinkSync(file2, link);
 

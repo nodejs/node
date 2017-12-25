@@ -8,8 +8,10 @@ const assert = require('assert');
 const fs = require('fs');
 const spawn = require('child_process').spawn;
 
-const dirname = `${common.tmpDir}/cwd-does-not-exist-${process.pid}`;
-common.refreshTmpDir();
+const tmpdir = require('../common/tmpdir');
+
+const dirname = `${tmpdir.path}/cwd-does-not-exist-${process.pid}`;
+tmpdir.refresh();
 fs.mkdirSync(dirname);
 process.chdir(dirname);
 fs.rmdirSync(dirname);

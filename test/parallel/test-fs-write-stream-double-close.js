@@ -4,9 +4,10 @@ const common = require('../common');
 const fs = require('fs');
 const path = require('path');
 
-common.refreshTmpDir();
+const tmpdir = require('../common/tmpdir');
+tmpdir.refresh();
 
-const s = fs.createWriteStream(path.join(common.tmpDir, 'rw'));
+const s = fs.createWriteStream(path.join(tmpdir.path, 'rw'));
 
 s.close(common.mustCall());
 s.close(common.mustCall());

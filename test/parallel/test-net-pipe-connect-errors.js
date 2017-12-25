@@ -36,12 +36,13 @@ if (common.isWindows) {
   // file instead
   emptyTxt = fixtures.path('empty.txt');
 } else {
-  common.refreshTmpDir();
+  const tmpdir = require('../common/tmpdir');
+  tmpdir.refresh();
   // Keep the file name very short so that we don't exceed the 108 char limit
   // on CI for a POSIX socket. Even though this isn't actually a socket file,
   // the error will be different from the one we are expecting if we exceed the
   // limit.
-  emptyTxt = `${common.tmpDir}0.txt`;
+  emptyTxt = `${tmpdir.path}0.txt`;
 
   function cleanup() {
     try {

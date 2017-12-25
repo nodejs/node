@@ -255,11 +255,12 @@ const modSize = 1024;
       padding: crypto.constants.RSA_PKCS1_PSS_PADDING
     });
 
-  common.refreshTmpDir();
+  const tmpdir = require('../common/tmpdir');
+  tmpdir.refresh();
 
-  const sigfile = path.join(common.tmpDir, 's5.sig');
+  const sigfile = path.join(tmpdir.path, 's5.sig');
   fs.writeFileSync(sigfile, s5);
-  const msgfile = path.join(common.tmpDir, 's5.msg');
+  const msgfile = path.join(tmpdir.path, 's5.msg');
   fs.writeFileSync(msgfile, msg);
 
   const cmd =

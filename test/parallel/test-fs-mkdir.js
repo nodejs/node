@@ -24,10 +24,11 @@ const common = require('../common');
 const assert = require('assert');
 const fs = require('fs');
 
-common.refreshTmpDir();
+const tmpdir = require('../common/tmpdir');
+tmpdir.refresh();
 
 {
-  const pathname = `${common.tmpDir}/test1`;
+  const pathname = `${tmpdir.path}/test1`;
 
   fs.mkdir(pathname, common.mustCall(function(err) {
     assert.strictEqual(err, null);
@@ -36,7 +37,7 @@ common.refreshTmpDir();
 }
 
 {
-  const pathname = `${common.tmpDir}/test2`;
+  const pathname = `${tmpdir.path}/test2`;
 
   fs.mkdir(pathname, 0o777, common.mustCall(function(err) {
     assert.strictEqual(err, null);
@@ -45,7 +46,7 @@ common.refreshTmpDir();
 }
 
 {
-  const pathname = `${common.tmpDir}/test3`;
+  const pathname = `${tmpdir.path}/test3`;
 
   fs.mkdirSync(pathname);
 

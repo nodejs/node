@@ -14,9 +14,10 @@ if (process.argv[2] === 'child') {
   // The console.log() output is part of the test here.
   console.log(process.execPath);
 } else {
-  common.refreshTmpDir();
+  const tmpdir = require('../common/tmpdir');
+  tmpdir.refresh();
 
-  const symlinkedNode = path.join(common.tmpDir, 'symlinked-node');
+  const symlinkedNode = path.join(tmpdir.path, 'symlinked-node');
   fs.symlinkSync(process.execPath, symlinkedNode);
 
   const proc = child_process.spawnSync(symlinkedNode, [__filename, 'child']);
