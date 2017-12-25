@@ -1,13 +1,14 @@
 'use strict';
 const common = require('../common');
 const fixtures = require('../common/fixtures');
+const tmpdir = require('../common/tmpdir');
 const assert = require('assert');
 const { join } = require('path');
 const childProcess = require('child_process');
 const fs = require('fs');
 
 const stdoutScript = fixtures.path('echo-close-check.js');
-const tmpFile = join(common.tmpDir, 'stdin.txt');
+const tmpFile = join(tmpdir.path, 'stdin.txt');
 
 const cmd = `"${process.argv[0]}" "${stdoutScript}" < "${tmpFile}"`;
 
@@ -24,7 +25,7 @@ const string = 'abc\nümlaut.\nsomething else\n' +
                '有效的改善了岭南地区落后的政治、##济现状。\n';
 
 
-common.refreshTmpDir();
+tmpdir.refresh();
 
 console.log(`${cmd}\n\n`);
 

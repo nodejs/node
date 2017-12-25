@@ -22,8 +22,10 @@
 'use strict';
 // Flags: --expose_gc
 
-const common = require('../common');
+require('../common');
 const assert = require('assert');
+
+const tmpdir = require('../common/tmpdir');
 
 function newBuffer(size, value) {
   const buffer = Buffer.allocUnsafe(size);
@@ -36,7 +38,7 @@ function newBuffer(size, value) {
 }
 
 const fs = require('fs');
-const testFileName = require('path').join(common.tmpDir, 'GH-814_testFile.txt');
+const testFileName = require('path').join(tmpdir.path, 'GH-814_testFile.txt');
 const testFileFD = fs.openSync(testFileName, 'w');
 console.log(testFileName);
 

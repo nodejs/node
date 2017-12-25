@@ -4,8 +4,10 @@ const assert = require('assert');
 const path = require('path');
 const fs = require('fs');
 
-const file = path.join(common.tmpDir, 'write-autoclose-opt1.txt');
-common.refreshTmpDir();
+const tmpdir = require('../common/tmpdir');
+
+const file = path.join(tmpdir.path, 'write-autoclose-opt1.txt');
+tmpdir.refresh();
 let stream = fs.createWriteStream(file, { flags: 'w+', autoClose: false });
 stream.write('Test1');
 stream.end();

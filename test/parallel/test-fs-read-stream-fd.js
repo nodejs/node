@@ -20,15 +20,16 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-const common = require('../common');
+require('../common');
 const fs = require('fs');
 const assert = require('assert');
 const path = require('path');
-const file = path.join(common.tmpDir, '/read_stream_fd_test.txt');
+const tmpdir = require('../common/tmpdir');
+const file = path.join(tmpdir.path, '/read_stream_fd_test.txt');
 const input = 'hello world';
 
 let output = '';
-common.refreshTmpDir();
+tmpdir.refresh();
 fs.writeFileSync(file, input);
 
 const fd = fs.openSync(file, 'r');

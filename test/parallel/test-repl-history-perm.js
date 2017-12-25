@@ -31,8 +31,9 @@ stream._write = function(c, e, cb) {
 };
 stream.readable = stream.writable = true;
 
-common.refreshTmpDir();
-const replHistoryPath = path.join(common.tmpDir, '.node_repl_history');
+const tmpdir = require('../common/tmpdir');
+tmpdir.refresh();
+const replHistoryPath = path.join(tmpdir.path, '.node_repl_history');
 
 const checkResults = common.mustCall(function(err, r) {
   assert.ifError(err);

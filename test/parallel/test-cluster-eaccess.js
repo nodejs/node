@@ -33,7 +33,8 @@ const net = require('net');
 
 if (cluster.isMaster && process.argv.length !== 3) {
   // cluster.isMaster
-  common.refreshTmpDir();
+  const tmpdir = require('../common/tmpdir');
+  tmpdir.refresh();
   const PIPE_NAME = common.PIPE;
   const worker = cluster.fork({ PIPE_NAME });
 

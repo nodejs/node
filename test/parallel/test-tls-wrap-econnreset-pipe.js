@@ -8,7 +8,8 @@ const assert = require('assert');
 const tls = require('tls');
 const net = require('net');
 
-common.refreshTmpDir();
+const tmpdir = require('../common/tmpdir');
+tmpdir.refresh();
 
 const server = net.createServer((c) => {
   c.end();
