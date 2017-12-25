@@ -7,8 +7,9 @@ const CODE = `console.log(
   process.binding("trace_events").categoryGroupEnabled("custom")
 );`;
 
-common.refreshTmpDir();
-process.chdir(common.tmpDir);
+const tmpdir = require('../common/tmpdir');
+tmpdir.refresh();
+process.chdir(tmpdir.path);
 
 const procEnabled = cp.spawn(
   process.execPath,

@@ -13,9 +13,10 @@ const fs = require('fs');
 const path = require('path');
 const assert = require('assert');
 
-common.refreshTmpDir();
+const tmpdir = require('../common/tmpdir');
+tmpdir.refresh();
 
-const tmpDir = common.tmpDir;
+const tmpDir = tmpdir.path;
 
 // Creates the following structure
 // {tmpDir}

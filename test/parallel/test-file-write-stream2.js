@@ -20,14 +20,16 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-const common = require('../common');
+require('../common');
 const assert = require('assert');
 
 const path = require('path');
 const fs = require('fs');
 
+const tmpdir = require('../common/tmpdir');
 
-const filepath = path.join(common.tmpDir, 'write.txt');
+
+const filepath = path.join(tmpdir.path, 'write.txt');
 
 const EXPECTED = '012345678910';
 
@@ -58,7 +60,7 @@ function removeTestFile() {
 }
 
 
-common.refreshTmpDir();
+tmpdir.refresh();
 
 // drain at 0, return false at 10.
 const file = fs.createWriteStream(filepath, {

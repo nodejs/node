@@ -8,12 +8,13 @@ const callbackThrowValues = [null, true, false, 0, 1, 'foo', /foo/, [], {}];
 const { sep } = require('path');
 const warn = 'Calling an asynchronous function without callback is deprecated.';
 
-common.refreshTmpDir();
+const tmpdir = require('../common/tmpdir');
+tmpdir.refresh();
 
 function testMakeCallback(cb) {
   return function() {
     // fs.mkdtemp() calls makeCallback() on its third argument
-    fs.mkdtemp(`${common.tmpDir}${sep}`, {}, cb);
+    fs.mkdtemp(`${tmpdir.path}${sep}`, {}, cb);
   };
 }
 

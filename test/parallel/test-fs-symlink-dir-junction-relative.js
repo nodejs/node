@@ -28,12 +28,14 @@ const assert = require('assert');
 const path = require('path');
 const fs = require('fs');
 
-const linkPath1 = path.join(common.tmpDir, 'junction1');
-const linkPath2 = path.join(common.tmpDir, 'junction2');
+const tmpdir = require('../common/tmpdir');
+
+const linkPath1 = path.join(tmpdir.path, 'junction1');
+const linkPath2 = path.join(tmpdir.path, 'junction2');
 const linkTarget = fixtures.fixturesDir;
 const linkData = fixtures.fixturesDir;
 
-common.refreshTmpDir();
+tmpdir.refresh();
 
 // Test fs.symlink()
 fs.symlink(linkData, linkPath1, 'junction', common.mustCall(function(err) {

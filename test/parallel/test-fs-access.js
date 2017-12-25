@@ -3,16 +3,18 @@ const common = require('../common');
 const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
-const doesNotExist = path.join(common.tmpDir, '__this_should_not_exist');
-const readOnlyFile = path.join(common.tmpDir, 'read_only_file');
-const readWriteFile = path.join(common.tmpDir, 'read_write_file');
+
+const tmpdir = require('../common/tmpdir');
+const doesNotExist = path.join(tmpdir.path, '__this_should_not_exist');
+const readOnlyFile = path.join(tmpdir.path, 'read_only_file');
+const readWriteFile = path.join(tmpdir.path, 'read_write_file');
 
 function createFileWithPerms(file, mode) {
   fs.writeFileSync(file, '');
   fs.chmodSync(file, mode);
 }
 
-common.refreshTmpDir();
+tmpdir.refresh();
 createFileWithPerms(readOnlyFile, 0o444);
 createFileWithPerms(readWriteFile, 0o666);
 

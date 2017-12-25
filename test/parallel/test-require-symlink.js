@@ -14,12 +14,13 @@ const process = require('process');
 // Setup: Copy fixtures to tmp directory.
 
 const fixtures = require('../common/fixtures');
+const tmpdir = require('../common/tmpdir');
 const dirName = 'module-require-symlink';
 const fixtureSource = fixtures.path(dirName);
-const tmpDirTarget = path.join(common.tmpDir, dirName);
+const tmpDirTarget = path.join(tmpdir.path, dirName);
 
 // Copy fixtureSource to linkTarget recursively.
-common.refreshTmpDir();
+tmpdir.refresh();
 
 function copyDir(source, target) {
   fs.mkdirSync(target);
@@ -40,7 +41,7 @@ copyDir(fixtureSource, tmpDirTarget);
 // Move to tmp dir and do everything with relative paths there so that the test
 // doesn't incorrectly fail due to a symlink somewhere else in the absolute
 // path.
-process.chdir(common.tmpDir);
+process.chdir(tmpdir.path);
 
 const linkDir = path.join(dirName,
                           'node_modules',

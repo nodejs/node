@@ -1,11 +1,12 @@
 'use strict';
 const common = require('../common');
 const fixtures = require('../common/fixtures');
+const tmpdir = require('../common/tmpdir');
 const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
 const src = fixtures.path('a.js');
-const dest = path.join(common.tmpDir, 'copyfile.out');
+const dest = path.join(tmpdir.path, 'copyfile.out');
 const { COPYFILE_EXCL, UV_FS_COPYFILE_EXCL } = fs.constants;
 
 function verify(src, dest) {
@@ -19,7 +20,7 @@ function verify(src, dest) {
   assert.strictEqual(srcStat.size, destStat.size);
 }
 
-common.refreshTmpDir();
+tmpdir.refresh();
 
 // Verify that flags are defined.
 assert.strictEqual(typeof COPYFILE_EXCL, 'number');

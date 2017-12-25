@@ -22,10 +22,11 @@
 'use strict';
 const common = require('../common');
 const fixtures = require('../common/fixtures');
+const tmpdir = require('../common/tmpdir');
 const assert = require('assert');
 
 common.globalCheck = false;
-common.refreshTmpDir();
+tmpdir.refresh();
 
 const net = require('net');
 const repl = require('repl');

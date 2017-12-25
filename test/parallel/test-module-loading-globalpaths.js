@@ -10,10 +10,11 @@ const pkgName = 'foo';
 if (process.argv[2] === 'child') {
   console.log(require(pkgName).string);
 } else {
-  common.refreshTmpDir();
+  const tmpdir = require('../common/tmpdir');
+  tmpdir.refresh();
 
   // Copy node binary into a test $PREFIX directory.
-  const prefixPath = path.join(common.tmpDir, 'install');
+  const prefixPath = path.join(tmpdir.path, 'install');
   fs.mkdirSync(prefixPath);
   let testExecPath;
   if (common.isWindows) {
@@ -43,7 +44,7 @@ if (process.argv[2] === 'child') {
   delete env['NODE_PATH'];
 
   // Test empty global path.
-  const noPkgHomeDir = path.join(common.tmpDir, 'home-no-pkg');
+  const noPkgHomeDir = path.join(tmpdir.path, 'home-no-pkg');
   fs.mkdirSync(noPkgHomeDir);
   env['HOME'] = env['USERPROFILE'] = noPkgHomeDir;
   assert.throws(
