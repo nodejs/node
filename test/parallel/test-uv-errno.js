@@ -8,7 +8,7 @@ const uv = process.binding('uv');
 const keys = Object.keys(uv);
 
 keys.forEach((key) => {
-  if (key === 'errname')
+  if (!key.startsWith('UV_'))
     return;
 
   assert.doesNotThrow(() => {
