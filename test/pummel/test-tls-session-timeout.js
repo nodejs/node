@@ -28,6 +28,8 @@ if (!common.opensslCli)
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
+const tmpdir = require('../common/tmpdir');
+
 doTest();
 
 // This test consists of three TLS requests --
@@ -65,7 +67,7 @@ function doTest() {
 
   const sessionFileName = (function() {
     const ticketFileName = 'tls-session-ticket.txt';
-    const tmpPath = join(common.tmpDir, ticketFileName);
+    const tmpPath = join(tmpdir.path, ticketFileName);
     fs.writeFileSync(tmpPath, fixtures.readSync(ticketFileName));
     return tmpPath;
   }());

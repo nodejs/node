@@ -5,7 +5,8 @@ const net = require('net');
 // This file tests the option handling of net.connect,
 // net.createConnect, and new Socket().connect
 
-common.refreshTmpDir();
+const tmpdir = require('../common/tmpdir');
+tmpdir.refresh();
 
 const CLIENT_VARIANTS = 12;
 

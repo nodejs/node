@@ -8,7 +8,8 @@ const uv = process.binding('uv');
 const { TCP, constants: TCPConstants } = process.binding('tcp_wrap');
 const { Pipe, constants: PipeConstants } = process.binding('pipe_wrap');
 
-common.refreshTmpDir();
+const tmpdir = require('../common/tmpdir');
+tmpdir.refresh();
 
 function closeServer() {
   return common.mustCall(function() {

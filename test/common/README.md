@@ -10,6 +10,7 @@ This directory contains modules used to test the Node.js implementation.
 * [DNS module](#dns-module)
 * [Duplex pair helper](#duplex-pair-helper)
 * [Fixtures module](#fixtures-module)
+* [tmpdir module](#tmpdir-module)
 * [WPT module](#wpt-module)
 
 ## Benchmark Module
@@ -312,11 +313,6 @@ A port number for tests to use if one is needed.
 
 Logs '1..0 # Skipped: ' + `msg`
 
-### refreshTmpDir()
-* return [&lt;String>]
-
-Deletes the testing 'tmp' directory and recreates it.
-
 ### restoreStderr()
 
 Restore the original `process.stderr.write`. Used to restore `stderr` to its
@@ -368,11 +364,6 @@ Platform normalizes the `pwd` command.
 * return [&lt;Object>]
 
 Synchronous version of `spawnPwd`.
-
-### tmpDir
-* [&lt;String>]
-
-The realpath of the 'tmp' directory.
 
 ## Countdown Module
 
@@ -491,6 +482,19 @@ Returns the result of
 
 Returns the result of
 `fs.readFileSync(path.join(fixtures.fixturesDir, 'keys', arg), 'enc')`.
+
+## tmpdir Module
+
+The `tmpdir` module supports the use of a temporary directory for testing.
+
+### path
+* [&lt;String>]
+
+The realpath of the testing temporary directory.
+
+### refresh()
+
+Deletes and recreates the testing temporary directory.
 
 ## WPT Module
 

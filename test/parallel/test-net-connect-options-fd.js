@@ -8,7 +8,8 @@ const net = require('net');
 const path = require('path');
 const { Pipe, constants: PipeConstants } = process.binding('pipe_wrap');
 
-common.refreshTmpDir();
+const tmpdir = require('../common/tmpdir');
+tmpdir.refresh();
 
 function testClients(getSocketOpt, getConnectOpt, getConnectCb) {
   const cloneOptions = (index) =>

@@ -25,12 +25,14 @@ const assert = require('assert');
 const path = require('path');
 const fs = require('fs');
 
+const tmpdir = require('../common/tmpdir');
+
 let watchSeenOne = 0;
 let watchSeenTwo = 0;
 let watchSeenThree = 0;
 let watchSeenFour = 0;
 
-const testDir = common.tmpDir;
+const testDir = tmpdir.path;
 
 const filenameOne = 'watch.txt';
 const filepathOne = path.join(testDir, filenameOne);

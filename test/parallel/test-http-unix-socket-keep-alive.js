@@ -5,7 +5,8 @@ const http = require('http');
 
 const server = http.createServer((req, res) => res.end());
 
-common.refreshTmpDir();
+const tmpdir = require('../common/tmpdir');
+tmpdir.refresh();
 
 server.listen(common.PIPE, common.mustCall(() =>
   asyncLoop(makeKeepAliveRequest, 10, common.mustCall(() =>

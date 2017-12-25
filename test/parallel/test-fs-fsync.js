@@ -23,15 +23,16 @@
 const common = require('../common');
 const assert = require('assert');
 const fixtures = require('../common/fixtures');
+const tmpdir = require('../common/tmpdir');
 
 const fs = require('fs');
 const path = require('path');
 
 const fileFixture = fixtures.path('a.js');
-const fileTemp = path.join(common.tmpDir, 'a.js');
+const fileTemp = path.join(tmpdir.path, 'a.js');
 
 // Copy fixtures to temp.
-common.refreshTmpDir();
+tmpdir.refresh();
 fs.copyFileSync(fileFixture, fileTemp);
 
 fs.open(fileTemp, 'a', 0o777, common.mustCall(function(err, fd) {

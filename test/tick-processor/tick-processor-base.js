@@ -1,12 +1,13 @@
 'use strict';
-const common = require('../common');
+require('../common');
 const fs = require('fs');
 const cp = require('child_process');
 const path = require('path');
 
-common.refreshTmpDir();
+const tmpdir = require('../common/tmpdir');
+tmpdir.refresh();
 
-const LOG_FILE = path.join(common.tmpDir, 'tick-processor.log');
+const LOG_FILE = path.join(tmpdir.path, 'tick-processor.log');
 const RETRY_TIMEOUT = 150;
 
 function runTest(test) {

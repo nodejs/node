@@ -3,7 +3,8 @@
 const common = require('../common');
 const net = require('net');
 
-common.refreshTmpDir();
+const tmpdir = require('../common/tmpdir');
+tmpdir.refresh();
 
 function closeServer() {
   return common.mustCall(function() {

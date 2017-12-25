@@ -24,9 +24,11 @@ const common = require('../common');
 const assert = require('assert');
 const fs = require('fs');
 
-const filename = `${common.tmpDir}/truncate-file.txt`;
+const tmpdir = require('../common/tmpdir');
 
-common.refreshTmpDir();
+const filename = `${tmpdir.path}/truncate-file.txt`;
+
+tmpdir.refresh();
 
 // Synchronous test.
 {
