@@ -367,26 +367,6 @@ void ares_sockstate_cb(void* data,
 }
 
 
-Local<Array> HostentToAddresses(Environment* env,
-                                struct hostent* host,
-                                Local<Array> append_to = Local<Array>()) {
-  EscapableHandleScope scope(env->isolate());
-  auto context = env->context();
-  bool append = !append_to.IsEmpty();
-  Local<Array> addresses = append ? append_to : Array::New(env->isolate());
-  size_t offset = addresses->Length();
-
-  char ip[INET6_ADDRSTRLEN];
-  for (uint32_t i = 0; host->h_addr_list[i] != nullptr; ++i) {
-    uv_inet_ntop(host->h_addrtype, host->h_addr_list[i], ip, sizeof(ip));
-    Local<String> address = OneByteString(env->isolate(), ip);
-    addresses->Set(context, i + offset, address).FromJust();
-  }
-
-  return append ? addresses : scope.Escape(addresses);
-}
-
-
 Local<Array> HostentToNames(Environment* env,
                             struct hostent* host,
                             Local<Array> append_to = Local<Array>()) {
@@ -843,12 +823,17 @@ int ParseGeneralReply(Environment* env,
   } else if (*type == ns_t_ptr) {
     uint32_t offset = ret->Length();
     for (uint32_t i = 0; host->h_aliases[i] != nullptr; i++) {
-      ret->Set(context,
-               i + offset,
-               OneByteString(env->isolate(), host->h_aliases[i])).FromJust();
+      auto alias = OneByteString(env->isolate(), host->h_aliases[i]);
+      ret->Set(context, i + offset, alias).FromJust();
     }
   } else {
-    HostentToAddresses(env, host, ret);
+    uint32_t offset = ret->Length();
+    char ip[INET6_ADDRSTRLEN];
+    for (uint32_t i = 0; host->h_addr_list[i] != nullptr; ++i) {
+      uv_inet_ntop(host->h_addrtype, host->h_addr_list[i], ip, sizeof(ip));
+      auto address = OneByteString(env->isolate(), ip);
+      ret->Set(context, i + offset, address).FromJust();
+    }
   }
 
   ares_free_hostent(host);
