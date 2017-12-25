@@ -24,11 +24,12 @@ const common = require('../common');
 const assert = require('assert');
 const path = require('path');
 const fs = require('fs');
-const tmp = common.tmpDir;
+const tmpdir = require('../common/tmpdir');
+const tmp = tmpdir.path;
 const filename = path.resolve(tmp, 'truncate-file.txt');
 const data = Buffer.alloc(1024 * 16, 'x');
 
-common.refreshTmpDir();
+tmpdir.refresh();
 
 let stat;
 

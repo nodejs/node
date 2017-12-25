@@ -20,13 +20,14 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-const common = require('../common');
+require('../common');
 const assert = require('assert');
 
 const path = require('path');
 const fs = require('fs');
-const fn = path.join(common.tmpDir, 'write.txt');
-common.refreshTmpDir();
+const tmpdir = require('../common/tmpdir');
+const fn = path.join(tmpdir.path, 'write.txt');
+tmpdir.refresh();
 const file = fs.createWriteStream(fn, {
   highWaterMark: 10
 });

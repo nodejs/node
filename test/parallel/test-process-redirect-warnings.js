@@ -12,10 +12,11 @@ const fork = require('child_process').fork;
 const path = require('path');
 const assert = require('assert');
 
-common.refreshTmpDir();
+const tmpdir = require('../common/tmpdir');
+tmpdir.refresh();
 
 const warnmod = fixtures.path('warnings.js');
-const warnpath = path.join(common.tmpDir, 'warnings.txt');
+const warnpath = path.join(tmpdir.path, 'warnings.txt');
 
 fork(warnmod, { execArgv: [`--redirect-warnings=${warnpath}`] })
   .on('exit', common.mustCall(() => {

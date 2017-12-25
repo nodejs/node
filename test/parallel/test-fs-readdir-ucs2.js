@@ -8,9 +8,10 @@ const path = require('path');
 const fs = require('fs');
 const assert = require('assert');
 
-common.refreshTmpDir();
+const tmpdir = require('../common/tmpdir');
+tmpdir.refresh();
 const filename = '\uD83D\uDC04';
-const root = Buffer.from(`${common.tmpDir}${path.sep}`);
+const root = Buffer.from(`${tmpdir.path}${path.sep}`);
 const filebuff = Buffer.from(filename, 'ucs2');
 const fullpath = Buffer.concat([root, filebuff]);
 
@@ -22,7 +23,7 @@ try {
   throw e;
 }
 
-fs.readdir(common.tmpDir, 'ucs2', common.mustCall((err, list) => {
+fs.readdir(tmpdir.path, 'ucs2', common.mustCall((err, list) => {
   assert.ifError(err);
   assert.strictEqual(1, list.length);
   const fn = list[0];

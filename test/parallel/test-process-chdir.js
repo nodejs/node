@@ -1,9 +1,11 @@
 'use strict';
 
-const common = require('../common');
+require('../common');
 const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
+
+const tmpdir = require('../common/tmpdir');
 
 process.chdir('..');
 assert.notStrictEqual(process.cwd(), __dirname);
@@ -18,10 +20,10 @@ if (process.versions.icu) {
   // ICU is unavailable, use characters that can't be decomposed
   dirName = 'weird \ud83d\udc04 characters \ud83d\udc05';
 }
-const dir = path.resolve(common.tmpDir, dirName);
+const dir = path.resolve(tmpdir.path, dirName);
 
 // Make sure that the tmp directory is clean
-common.refreshTmpDir();
+tmpdir.refresh();
 
 fs.mkdirSync(dir);
 process.chdir(dir);
@@ -29,7 +31,7 @@ assert.strictEqual(process.cwd().normalize(), dir.normalize());
 
 process.chdir('..');
 assert.strictEqual(process.cwd().normalize(),
-                   path.resolve(common.tmpDir).normalize());
+                   path.resolve(tmpdir.path).normalize());
 
 const errMessage = /^TypeError: Bad argument\.$/;
 assert.throws(function() { process.chdir({}); },

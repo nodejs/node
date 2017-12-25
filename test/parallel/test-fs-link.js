@@ -4,11 +4,12 @@ const assert = require('assert');
 const path = require('path');
 const fs = require('fs');
 
-common.refreshTmpDir();
+const tmpdir = require('../common/tmpdir');
+tmpdir.refresh();
 
 // test creating and reading hard link
-const srcPath = path.join(common.tmpDir, 'hardlink-target.txt');
-const dstPath = path.join(common.tmpDir, 'link1.js');
+const srcPath = path.join(tmpdir.path, 'hardlink-target.txt');
+const dstPath = path.join(tmpdir.path, 'link1.js');
 fs.writeFileSync(srcPath, 'hello world');
 
 function callback(err) {

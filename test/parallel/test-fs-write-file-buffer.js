@@ -20,7 +20,7 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-const common = require('../common');
+require('../common');
 const join = require('path').join;
 const util = require('util');
 const fs = require('fs');
@@ -46,9 +46,10 @@ let data = [
 
 data = data.join('\n');
 
-common.refreshTmpDir();
+const tmpdir = require('../common/tmpdir');
+tmpdir.refresh();
 
 const buf = Buffer.from(data, 'base64');
-fs.writeFileSync(join(common.tmpDir, 'test.jpg'), buf);
+fs.writeFileSync(join(tmpdir.path, 'test.jpg'), buf);
 
 util.log('Done!');

@@ -25,7 +25,9 @@ const assert = require('assert');
 const path = require('path');
 const fs = require('fs');
 
-const FILENAME = path.join(common.tmpDir, 'watch-me');
+const tmpdir = require('../common/tmpdir');
+
+const FILENAME = path.join(tmpdir.path, 'watch-me');
 const TIMEOUT = 1300;
 
 let nevents = 0;

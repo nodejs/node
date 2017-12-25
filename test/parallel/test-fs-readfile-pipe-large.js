@@ -18,9 +18,11 @@ if (process.argv[2] === 'child') {
   return;
 }
 
-const filename = path.join(common.tmpDir, '/readfile_pipe_large_test.txt');
+const tmpdir = require('../common/tmpdir');
+
+const filename = path.join(tmpdir.path, '/readfile_pipe_large_test.txt');
 const dataExpected = 'a'.repeat(999999);
-common.refreshTmpDir();
+tmpdir.refresh();
 fs.writeFileSync(filename, dataExpected);
 
 const exec = require('child_process').exec;

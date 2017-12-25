@@ -32,11 +32,12 @@ const fs = require('fs');
 let linkTime;
 let fileTime;
 
-common.refreshTmpDir();
+const tmpdir = require('../common/tmpdir');
+tmpdir.refresh();
 
 // test creating and reading symbolic link
 const linkData = fixtures.path('/cycles/root.js');
-const linkPath = path.join(common.tmpDir, 'symlink1.js');
+const linkPath = path.join(tmpdir.path, 'symlink1.js');
 
 fs.symlink(linkData, linkPath, common.mustCall(function(err) {
   assert.ifError(err);

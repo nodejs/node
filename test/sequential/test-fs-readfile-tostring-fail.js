@@ -13,9 +13,10 @@ const kStringMaxLength = process.binding('buffer').kStringMaxLength;
 if (common.isAIX && (Number(cp.execSync('ulimit -f')) * 512) < kStringMaxLength)
   common.skip('intensive toString tests due to file size confinements');
 
-common.refreshTmpDir();
+const tmpdir = require('../common/tmpdir');
+tmpdir.refresh();
 
-const file = path.join(common.tmpDir, 'toobig.txt');
+const file = path.join(tmpdir.path, 'toobig.txt');
 const stream = fs.createWriteStream(file, {
   flags: 'a'
 });

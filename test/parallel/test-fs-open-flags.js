@@ -84,8 +84,9 @@ assert.throws(
 );
 
 if (common.isLinux || common.isOSX) {
-  common.refreshTmpDir();
-  const file = path.join(common.tmpDir, 'a.js');
+  const tmpdir = require('../common/tmpdir');
+  tmpdir.refresh();
+  const file = path.join(tmpdir.path, 'a.js');
   fs.copyFileSync(fixtures.path('a.js'), file);
   fs.open(file, O_DSYNC, common.mustCall(assert.ifError));
 }

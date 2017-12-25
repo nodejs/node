@@ -4,10 +4,12 @@ const assert = require('assert');
 const cp = require('child_process');
 const fs = require('fs');
 
+const tmpdir = require('../common/tmpdir');
+
 const FILE_NAME = 'node_trace.1.log';
 
-common.refreshTmpDir();
-process.chdir(common.tmpDir);
+tmpdir.refresh();
+process.chdir(tmpdir.path);
 
 const proc = cp.spawn(process.execPath,
                       [ '--trace-events-enabled',
