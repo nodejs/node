@@ -5,6 +5,7 @@
 #include "gtest/gtest.h"
 #include "node.h"
 #include "node_platform.h"
+#include "node_internals.h"
 #include "env.h"
 #include "v8.h"
 #include "libplatform/libplatform.h"
@@ -73,6 +74,13 @@ class NodeTestFixture : public ::testing::Test {
     v8::Isolate::CreateParams params_;
     params_.array_buffer_allocator = allocator_.get();
     isolate_ = v8::Isolate::New(params_);
+
+    // As the TracingController is stored globally, we only need to create it
+    // one time for all tests.
+    if (node::tracing::TraceEventHelper::GetTracingController() == nullptr) {
+      node::tracing::TraceEventHelper::SetTracingController(
+          new v8::TracingController());
+    }
   }
 
   virtual void TearDown() {
@@ -91,6 +99,50 @@ class NodeTestFixture : public ::testing::Test {
   node::NodePlatform* platform_ = nullptr;
   std::unique_ptr<v8::ArrayBuffer::Allocator> allocator_{
       v8::ArrayBuffer::Allocator::NewDefaultAllocator()};
+};
+
+
+class EnvironmentTestFixture : public NodeTestFixture {
+ public:
+  class Env {
+   public:
+    Env(const v8::HandleScope& handle_scope, const Argv& argv) {
+      auto isolate = handle_scope.GetIsolate();
+      context_ = v8::Context::New(isolate);
+      CHECK(!context_.IsEmpty());
+      context_->Enter();
+
+      isolate_data_ = node::CreateIsolateData(isolate,
+                                              NodeTestFixture::CurrentLoop());
+      CHECK_NE(nullptr, isolate_data_);
+      environment_ = node::CreateEnvironment(isolate_data_,
+                                             context_,
+                                             1, *argv,
+                                             argv.nr_args(), *argv);
+      CHECK_NE(nullptr, environment_);
+    }
+
+    ~Env() {
+      environment_->CleanupHandles();
+      node::FreeEnvironment(environment_);
+      node::FreeIsolateData(isolate_data_);
+      context_->Exit();
+    }
+
+    node::Environment* operator*() const {
+      return environment_;
+    }
+
+    v8::Local<v8::Context> context()  const {
+      return context_;
+    }
+
+   private:
+    v8::Local<v8::Context> context_;
+    node::IsolateData* isolate_data_;
+    node::Environment* environment_;
+    DISALLOW_COPY_AND_ASSIGN(Env);
+  };
 };
 
 #endif  // TEST_CCTEST_NODE_TEST_FIXTURE_H_
