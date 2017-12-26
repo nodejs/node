@@ -3170,6 +3170,14 @@ napi_status napi_create_dataview(napi_env env,
   RETURN_STATUS_IF_FALSE(env, value->IsArrayBuffer(), napi_invalid_arg);
 
   v8::Local<v8::ArrayBuffer> buffer = value.As<v8::ArrayBuffer>();
+  if (byte_length + byte_offset > buffer->ByteLength()) {
+    napi_throw_range_error(
+        env,
+        "ERR_NAPI_INVALID_DATAVIEW_ARGS",
+        "byte_offset + byte_length should be less than or "
+        "equal to the size in bytes of the array passed in");
+    return napi_set_last_error(env, napi_pending_exception);
+  }
   v8::Local<v8::DataView> DataView = v8::DataView::New(buffer, byte_offset,
                                                        byte_length);
 
