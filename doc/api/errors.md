@@ -991,6 +991,12 @@ While using `N-API`, a constructor passed was not a function.
 
 While using `N-API`, `Constructor.prototype` was not an object.
 
+<a id="ERR_NAPI_INVALID_DATAVIEW_ARGS"></a>
+### ERR_NAPI_INVALID_DATAVIEW_ARGS
+
+While calling `napi_create_dataview()`, a given `offset` was outside the bounds
+of the dataview or `offset + length` was larger than a length of given `buffer`.
+
 <a id="ERR_NO_ICU"></a>
 ### ERR_NO_ICU
 
