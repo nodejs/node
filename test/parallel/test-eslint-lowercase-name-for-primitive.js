@@ -22,28 +22,28 @@ new RuleTester().run('lowercase-name-for-primitive', rule, {
   ],
   invalid: [
     {
-      code: `new errors.TypeError('ERR_INVALID_ARG_TYPE', 'a',
-            'Number')`,
+      code: 'new errors.TypeError(\'ERR_INVALID_ARG_TYPE\', \'a\', ' +
+            '\'Number\')',
       errors: [{ message: 'primitive should use lowercase: Number' }],
-      output: `new errors.TypeError('ERR_INVALID_ARG_TYPE', 'a',
-              'number')`
+      output: 'new errors.TypeError(\'ERR_INVALID_ARG_TYPE\', \'a\', ' +
+              '\'number\')'
     },
     {
-      code: `new errors.TypeError('ERR_INVALID_ARG_TYPE', 'a',
-            'STRING')`,
+      code: 'new errors.TypeError(\'ERR_INVALID_ARG_TYPE\', \'a\', ' +
+            '\'STRING\')',
       errors: [{ message: 'primitive should use lowercase: STRING' }],
-      output: `new errors.TypeError('ERR_INVALID_ARG_TYPE', 'a',
-              'string')`
+      output: 'new errors.TypeError(\'ERR_INVALID_ARG_TYPE\', \'a\', ' +
+               '\'string\')'
     },
     {
-      code: `new errors.TypeError('ERR_INVALID_ARG_TYPE', 'a',
-            ['String', 'Number'])`,
+      code: 'new errors.TypeError(\'ERR_INVALID_ARG_TYPE\', \'a\', ' +
+            '[\'String\', \'Number\']) ',
       errors: [
         { message: 'primitive should use lowercase: String' },
         { message: 'primitive should use lowercase: Number' }
       ],
-      output: `new errors.TypeError('ERR_INVALID_ARG_TYPE', 'a',
-              ['string', 'number'])`
+      output: 'new errors.TypeError(\'ERR_INVALID_ARG_TYPE\', \'a\', ' +
+              '[\'string\', \'number\']) '
     }
   ]
 });
