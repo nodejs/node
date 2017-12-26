@@ -238,8 +238,8 @@ const freelist = require('internal/freelist');
 
 When writing assertions, prefer the strict versions:
 
-* `assert.strictEqual()` over `assert.equal()`
-* `assert.deepStrictEqual()` over `assert.deepEqual()`
+- `assert.strictEqual()` over `assert.equal()`
+- `assert.deepStrictEqual()` over `assert.deepEqual()`
 
 When using `assert.throws()`, if possible, provide the full error message:
 
@@ -263,9 +263,9 @@ in each release.
 
 For example:
 
-* `let` and `const` over `var`
-* Template literals over string concatenation
-* Arrow functions when appropriate
+- `let` and `const` over `var`
+- Template literals over string concatenation
+- Arrow functions when appropriate
 
 ## Naming Test Files
 
@@ -306,12 +306,14 @@ the upstream project, send another PR here to update Node.js accordingly.
 Be sure to update the hash in the URL following `WPT Refs:`.
 
 ## C++ Unit test
+
 C++ code can be tested using [Google Test][]. Most features in Node.js can be
 tested using the methods described previously in this document. But there are
 cases where these might not be enough, for example writing code for Node.js
 that will only be called when Node.js is embedded.
 
 ### Adding a new test
+
 The unit test should be placed in `test/cctest` and be named with the prefix
 `test` followed by the name of unit being tested. For example, the code below
 would be placed in `test/cctest/test_env.cc`:
@@ -345,18 +347,21 @@ static void at_exit_callback(void* arg) {
 ```
 
 Next add the test to the `sources` in the `cctest` target in node.gyp:
+
 ```console
 'sources': [
   'test/cctest/test_env.cc',
   ...
 ],
 ```
+
 Note that the only sources that should be included in the cctest target are
 actual test or helper source files. There might be a need to include specific
 object files that are compiled by the `node` target and this can be done by
 adding them to the `libraries` section in the cctest target.
 
 The test can be executed by running the `cctest` target:
+
 ```console
 $ make cctest
 ```
