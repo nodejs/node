@@ -1,7 +1,9 @@
 // Flags: --expose-internals
 'use strict';
 
-require('../common');
+const common = require('../common');
+if (!common.hasCrypto)
+  common.skip('missing crypto');
 
 // Test coverage for the updateOptionsBuffer method used internally
 // by the http2 implementation.
