@@ -281,14 +281,14 @@ void Environment::RunAndClearNativeImmediates() {
     }
 
 #ifdef DEBUG
-    CHECK_GE(scheduled_immediate_count_[0], count);
+    CHECK_GE(immediate_info()->count(), count);
 #endif
-    scheduled_immediate_count_[0] = scheduled_immediate_count_[0] - count;
+    immediate_info()->count_dec(count);
   }
 }
 
 static bool MaybeStopImmediate(Environment* env) {
-  if (env->scheduled_immediate_count()[0] == 0) {
+  if (env->immediate_info()->count() == 0) {
     uv_check_stop(env->immediate_check_handle());
     uv_idle_stop(env->immediate_idle_handle());
     return true;
@@ -307,12 +307,14 @@ void Environment::CheckImmediate(uv_check_t* handle) {
 
   env->RunAndClearNativeImmediates();
 
-  MakeCallback(env->isolate(),
-               env->process_object(),
-               env->immediate_callback_function(),
-               0,
-               nullptr,
-               {0, 0}).ToLocalChecked();
+  do {
+    MakeCallback(env->isolate(),
+                 env->process_object(),
+                 env->immediate_callback_function(),
+                 0,
+                 nullptr,
+                 {0, 0}).ToLocalChecked();
+  } while (env->immediate_info()->has_outstanding());
 
   MaybeStopImmediate(env);
 }
