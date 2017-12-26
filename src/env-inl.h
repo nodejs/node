@@ -217,6 +217,30 @@ inline bool Environment::AsyncCallbackScope::in_makecallback() const {
   return env_->makecallback_cntr_ > 1;
 }
 
+inline Environment::ImmediateInfo::ImmediateInfo(v8::Isolate* isolate)
+    : fields_(isolate, kFieldsCount) {}
+
+inline AliasedBuffer<uint32_t, v8::Uint32Array>&
+    Environment::ImmediateInfo::fields() {
+  return fields_;
+}
+
+inline uint32_t Environment::ImmediateInfo::count() const {
+  return fields_[kCount];
+}
+
+inline bool Environment::ImmediateInfo::has_outstanding() const {
+  return fields_[kHasOutstanding] == 1;
+}
+
+inline void Environment::ImmediateInfo::count_inc(uint32_t increment) {
+  fields_[kCount] = fields_[kCount] + increment;
+}
+
+inline void Environment::ImmediateInfo::count_dec(uint32_t decrement) {
+  fields_[kCount] = fields_[kCount] - decrement;
+}
+
 inline Environment::TickInfo::TickInfo(v8::Isolate* isolate)
     : fields_(isolate, kFieldsCount) {}
 
@@ -263,6 +287,7 @@ inline Environment::Environment(IsolateData* isolate_data,
                                 v8::Local<v8::Context> context)
     : isolate_(context->GetIsolate()),
       isolate_data_(isolate_data),
+      immediate_info_(context->GetIsolate()),
       tick_info_(context->GetIsolate()),
       timer_base_(uv_now(isolate_data->event_loop())),
       printed_error_(false),
@@ -270,7 +295,6 @@ inline Environment::Environment(IsolateData* isolate_data,
       abort_on_uncaught_exception_(false),
       emit_napi_warning_(true),
       makecallback_cntr_(0),
-      scheduled_immediate_count_(isolate_, 1),
       should_abort_on_uncaught_toggle_(isolate_, 1),
 #if HAVE_INSPECTOR
       inspector_agent_(new inspector::Agent(this)),
@@ -355,6 +379,10 @@ inline uv_loop_t* Environment::event_loop() const {
 
 inline Environment::AsyncHooks* Environment::async_hooks() {
   return &async_hooks_;
+}
+
+inline Environment::ImmediateInfo* Environment::immediate_info() {
+  return &immediate_info_;
 }
 
 inline Environment::TickInfo* Environment::tick_info() {
@@ -486,11 +514,6 @@ inline void Environment::set_fs_stats_field_array(double* fields) {
   fs_stats_field_array_ = fields;
 }
 
-inline AliasedBuffer<uint32_t, v8::Uint32Array>&
-Environment::scheduled_immediate_count() {
-  return scheduled_immediate_count_;
-}
-
 void Environment::SetImmediate(native_immediate_callback cb,
                                void* data,
                                v8::Local<v8::Object> obj) {
@@ -500,9 +523,9 @@ void Environment::SetImmediate(native_immediate_callback cb,
     std::unique_ptr<v8::Persistent<v8::Object>>(
         obj.IsEmpty() ? nullptr : new v8::Persistent<v8::Object>(isolate_, obj))
   });
-  if (scheduled_immediate_count_[0] == 0)
+  if (immediate_info()->count() == 0)
     ActivateImmediateCheck();
-  scheduled_immediate_count_[0] = scheduled_immediate_count_[0] + 1;
+  immediate_info()->count_inc(1);
 }
 
 inline performance::performance_state* Environment::performance_state() {
