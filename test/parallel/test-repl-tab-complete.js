@@ -544,7 +544,8 @@ editor.completer('var log = console.l', common.mustCall((error, data) => {
 
   ['Let', 'Const', 'Klass'].forEach((type) => {
     const query = `lexical${type[0]}`;
-    const expected = hasInspector ? [[`lexical${type}`], query] : [];
+    const expected = hasInspector ? [[`lexical${type}`], query] :
+      [[], `lexical${type[0]}`];
     testRepl.complete(query, common.mustCall((error, data) => {
       assert.deepStrictEqual(data, expected);
     }));
