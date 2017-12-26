@@ -308,6 +308,7 @@
         'src/node_os.cc',
         'src/node_platform.cc',
         'src/node_perf.cc',
+        'src/node_postmortem_metadata.cc',
         'src/node_serdes.cc',
         'src/node_trace_events.cc',
         'src/node_url.cc',
@@ -968,6 +969,7 @@
         'test/cctest/node_test_fixture.cc',
         'test/cctest/test_aliased_buffer.cc',
         'test/cctest/test_base64.cc',
+        'test/cctest/test_node_postmortem_metadata.cc',
         'test/cctest/test_environment.cc',
         'test/cctest/test_util.cc',
         'test/cctest/test_url.cc'
@@ -975,6 +977,7 @@
 
       'libraries': [
         '<(obj_path)<(obj_separator)async_wrap.<(obj_suffix)',
+        '<(obj_path)<(obj_separator)handle_wrap.<(obj_suffix)',
         '<(obj_path)<(obj_separator)env.<(obj_suffix)',
         '<(obj_path)<(obj_separator)node.<(obj_suffix)',
         '<(obj_path)<(obj_separator)node_buffer.<(obj_suffix)',
