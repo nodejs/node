@@ -90,8 +90,9 @@ class TimerWrap : public HandleWrap {
         env->NewFunctionTemplate(activate_cb)->GetFunction(env->context())
         .ToLocalChecked();
     auto result = Array::New(env->isolate(), 2);
-    result->Set(0, activate_function);
-    result->Set(1, env->scheduled_immediate_count().GetJSArray());
+    result->Set(env->context(), 0, activate_function).FromJust();
+    result->Set(env->context(), 1,
+                env->immediate_info()->fields().GetJSArray()).FromJust();
     args.GetReturnValue().Set(result);
   }
 
