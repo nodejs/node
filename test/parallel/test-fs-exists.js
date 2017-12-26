@@ -42,3 +42,14 @@ fs.exists(new URL('https://foo'), common.mustCall(function(y) {
 
 assert(fs.existsSync(f));
 assert(!fs.existsSync(`${f}-NO`));
+
+common.expectsError(
+  () => { fs.exists(() => {}); },
+  {
+    code: 'ERR_INVALID_ARG_TYPE',
+    message: 'The "path" argument must be one of type string, Buffer, or URL',
+    type: TypeError
+  }
+);
+
+assert(!fs.existsSync());
