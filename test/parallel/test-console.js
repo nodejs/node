@@ -140,6 +140,16 @@ console.timeEnd();
 console.time(NaN);
 console.timeEnd(NaN);
 
+assert.doesNotThrow(() => {
+  console.assert(false, '%s should', 'console.assert', 'not throw');
+  assert.strictEqual(errStrings[errStrings.length - 1],
+                     'Assertion failed: console.assert should not throw\n');
+});
+
+assert.doesNotThrow(() => {
+  console.assert(true, 'this should not throw');
+});
+
 assert.strictEqual(strings.length, process.stdout.writeTimes);
 assert.strictEqual(errStrings.length, process.stderr.writeTimes);
 common.restoreStdout();
@@ -199,17 +209,6 @@ assert.ok(/^NaN: \d+\.\d{3}ms$/.test(strings.shift().trim()));
 
 assert.strictEqual(errStrings.shift().split('\n').shift(),
                    'Trace: This is a {"formatted":"trace"} 10 foo');
-
-common.expectsError(() => {
-  console.assert(false, 'should throw');
-}, {
-  code: 'ERR_ASSERTION',
-  message: /^should throw$/
-});
-
-assert.doesNotThrow(() => {
-  console.assert(true, 'this should not throw');
-});
 
 // hijack stderr to catch `process.emitWarning` which is using
 // `process.nextTick`
