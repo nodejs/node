@@ -16,4 +16,4 @@ runBenchmark('fs', [
   'statSyncType=fstatSync',
   'encodingType=buf',
   'filesize=1024'
-], { NODE_TMPDIR: common.tmpDir });
+], { NODE_TMPDIR: common.tmpDir, NODEJS_BENCHMARK_ZERO_ALLOWED: 1 });
