@@ -820,10 +820,10 @@ the method will return `undefined`.
 
 ```js
 try {
-  fs.accessSyc('etc/passwd', fs.constants.R_OK | fs.constants.W_OK);
+  fs.accessSync('etc/passwd', fs.constants.R_OK | fs.constants.W_OK);
   console.log('can read/write');
 } catch (err) {
-  console.log('no access!');
+  console.error('no access!');
 }
 ```
 
@@ -871,8 +871,8 @@ fs.appendFile('message.txt', 'data to append', 'utf8', callback);
 ```
 
 The `file` may be specified as a numeric file descriptor that has been opened
-for appending (using `fs.open()` or `fs.openSync()`. It is important to note
-that the file descriptor will not be closed automatically.
+for appending (using `fs.open()` or `fs.openSync()`). The file descriptor will
+not be closed automatically.
 
 ```js
 fs.open('message.txt', 'a', (err, fd) => {
@@ -926,15 +926,15 @@ fs.appendFileSync('message.txt', 'data to append', 'utf8');
 ```
 
 The `file` may be specified as a numeric file descriptor that has been opened
-for appending (using `fs.open()` or `fs.openSync()`. It is important to note
-that the file descriptor will not be closed automatically.
+for appending (using `fs.open()` or `fs.openSync()`). The file descriptor will
+not be closed automatically.
 
 ```js
 let fd;
 
 try {
   fd = fs.openSync('message.txt', 'a');
-  fs.appendFile(fd, 'data to append', 'utf8');
+  fs.appendFileSync(fd, 'data to append', 'utf8');
 } catch (err) {
   /* Handle the error */
 } finally {
@@ -988,7 +988,7 @@ constants:
 An easier method of constructing the `mode` is to use a sequence of three
 octal digits (e.g. `765`). The left-most digit (`7` in the example), specifies
 the permissions for the file owner. The middle digit (`6` in the example),
-specifies permissions for the group. The right most digit (`5` in the example),
+specifies permissions for the group. The right-most digit (`5` in the example),
 specifies the permissions for others.
 
 | Number  |       Description        |
