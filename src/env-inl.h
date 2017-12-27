@@ -217,21 +217,15 @@ inline bool Environment::AsyncCallbackScope::in_makecallback() const {
   return env_->makecallback_cntr_ > 1;
 }
 
-inline Environment::TickInfo::TickInfo() {
-  for (int i = 0; i < kFieldsCount; ++i)
-    fields_[i] = 0;
-}
+inline Environment::TickInfo::TickInfo(v8::Isolate* isolate)
+    : fields_(isolate, kFieldsCount) {}
 
-inline uint8_t* Environment::TickInfo::fields() {
+inline AliasedBuffer<uint8_t, v8::Uint8Array>& Environment::TickInfo::fields() {
   return fields_;
 }
 
-inline int Environment::TickInfo::fields_count() const {
-  return kFieldsCount;
-}
-
-inline uint8_t Environment::TickInfo::scheduled() const {
-  return fields_[kScheduled];
+inline bool Environment::TickInfo::has_scheduled() const {
+  return fields_[kHasScheduled] == 1;
 }
 
 inline void Environment::AssignToContext(v8::Local<v8::Context> context,
@@ -269,6 +263,7 @@ inline Environment::Environment(IsolateData* isolate_data,
                                 v8::Local<v8::Context> context)
     : isolate_(context->GetIsolate()),
       isolate_data_(isolate_data),
+      tick_info_(context->GetIsolate()),
       timer_base_(uv_now(isolate_data->event_loop())),
       printed_error_(false),
       trace_sync_io_(false),

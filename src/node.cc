@@ -169,7 +169,6 @@ using v8::SealHandleScope;
 using v8::String;
 using v8::TryCatch;
 using v8::Uint32Array;
-using v8::Uint8Array;
 using v8::Undefined;
 using v8::V8;
 using v8::Value;
@@ -1152,13 +1151,6 @@ void SetupNextTick(const FunctionCallbackInfo<Value>& args) {
       env->context(),
       FIXED_ONE_BYTE_STRING(env->isolate(), "_setupNextTick")).FromJust();
 
-  // Values use to cross communicate with processNextTick.
-  uint8_t* const fields = env->tick_info()->fields();
-  uint8_t const fields_count = env->tick_info()->fields_count();
-
-  Local<ArrayBuffer> array_buffer =
-      ArrayBuffer::New(env->isolate(), fields, sizeof(*fields) * fields_count);
-
   v8::Local<v8::Function> run_microtasks_fn =
       env->NewFunctionTemplate(RunMicrotasks)->GetFunction(env->context())
           .ToLocalChecked();
@@ -1167,7 +1159,7 @@ void SetupNextTick(const FunctionCallbackInfo<Value>& args) {
 
   Local<Array> ret = Array::New(env->isolate(), 2);
   ret->Set(env->context(), 0,
-           Uint8Array::New(array_buffer, 0, fields_count)).FromJust();
+           env->tick_info()->fields().GetJSArray()).FromJust();
   ret->Set(env->context(), 1, run_microtasks_fn).FromJust();
 
   args.GetReturnValue().Set(ret);
@@ -1286,7 +1278,7 @@ void InternalCallbackScope::Close() {
 
   Environment::TickInfo* tick_info = env_->tick_info();
 
-  if (tick_info->scheduled() == 0) {
+  if (!tick_info->has_scheduled()) {
     env_->isolate()->RunMicrotasks();
   }
 
@@ -1297,7 +1289,7 @@ void InternalCallbackScope::Close() {
     CHECK_EQ(env_->trigger_async_id(), 0);
   }
 
-  if (tick_info->scheduled() == 0) {
+  if (!tick_info->has_scheduled()) {
     return;
   }
 
