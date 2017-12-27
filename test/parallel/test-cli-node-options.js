@@ -26,7 +26,7 @@ expect('--v8-pool-size=10', 'B\n');
 expect('--trace-event-categories node', 'B\n');
 expect('--perf-basic-prof', 'B\n');
 
-if (common.isLinux) {
+if (common.isLinux && ['arm', 'x64', 'ia32', 'mips'].includes(process.arch)) {
   // PerfJitLogger is only implemented in Linux.
   expect('--perf-prof', 'B\n');
 }
