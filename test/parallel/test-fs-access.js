@@ -1,8 +1,14 @@
 'use strict';
+
+// This tests that fs.access and fs.accessSync works as expected
+// and the errors thrown from these APIs include the desired properties
+
 const common = require('../common');
 const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
+const uv = process.binding('uv');
+
 const doesNotExist = path.join(common.tmpDir, '__this_should_not_exist');
 const readOnlyFile = path.join(common.tmpDir, 'read_only_file');
 const readWriteFile = path.join(common.tmpDir, 'read_write_file');
@@ -130,6 +136,24 @@ assert.throws(
       `ENOENT: no such file or directory, access '${doesNotExist}'`
     );
     assert.strictEqual(err.constructor, Error);
+    assert.strictEqual(err.syscall, 'access');
+    assert.strictEqual(err.errno, uv.UV_ENOENT);
+    return true;
+  }
+);
+
+assert.throws(
+  () => { fs.accessSync(Buffer.from(doesNotExist)); },
+  (err) => {
+    assert.strictEqual(err.code, 'ENOENT');
+    assert.strictEqual(err.path, doesNotExist);
+    assert.strictEqual(
+      err.message,
+      `ENOENT: no such file or directory, access '${doesNotExist}'`
+    );
+    assert.strictEqual(err.constructor, Error);
+    assert.strictEqual(err.syscall, 'access');
+    assert.strictEqual(err.errno, uv.UV_ENOENT);
     return true;
   }
 );

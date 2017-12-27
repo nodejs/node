@@ -9,10 +9,10 @@ const uv = process.binding('uv');
 
 const keys = Object.keys(uv);
 keys.forEach((key) => {
-  if (key === 'errname')
-    return; // skip this
-  const val = uv[key];
-  assert.throws(() => uv[key] = 1,
-                /^TypeError: Cannot assign to read only property/);
-  assert.strictEqual(uv[key], val);
+  if (key.startsWith('UV_')) {
+    const val = uv[key];
+    assert.throws(() => uv[key] = 1,
+                  /^TypeError: Cannot assign to read only property/);
+    assert.strictEqual(uv[key], val);
+  }
 });
