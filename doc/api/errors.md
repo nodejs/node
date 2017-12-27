@@ -997,11 +997,6 @@ While using `N-API`, `Constructor.prototype` was not an object.
 An attempt was made to use features that require [ICU][], but Node.js was not
 compiled with ICU support.
 
-<a id="ERR_OUTOFMEMORY"></a>
-### ERR_OUTOFMEMORY
-
-An operation caused an out-of-memory condition.
-
 <a id="ERR_SOCKET_ALREADY_BOUND"></a>
 ### ERR_SOCKET_ALREADY_BOUND
 
