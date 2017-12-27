@@ -453,20 +453,19 @@ class Environment {
 
   class TickInfo {
    public:
-    inline uint8_t* fields();
-    inline int fields_count() const;
-    inline uint8_t scheduled() const;
+    inline AliasedBuffer<uint8_t, v8::Uint8Array>& fields();
+    inline bool has_scheduled() const;
 
    private:
     friend class Environment;  // So we can call the constructor.
-    inline TickInfo();
+    inline explicit TickInfo(v8::Isolate* isolate);
 
     enum Fields {
-      kScheduled,
+      kHasScheduled,
       kFieldsCount
     };
 
-    uint8_t fields_[kFieldsCount];
+    AliasedBuffer<uint8_t, v8::Uint8Array> fields_;
 
     DISALLOW_COPY_AND_ASSIGN(TickInfo);
   };
