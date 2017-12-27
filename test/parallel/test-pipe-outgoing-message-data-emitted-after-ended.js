@@ -1,7 +1,6 @@
 'use strict';
 const common = require('../common');
 const http = require('http');
-const assert = require('assert');
 const stream = require('stream');
 
 // Verify that when piping a stream to an `OutgoingMessage` (or a type that
@@ -17,8 +16,9 @@ const server = http.createServer(common.mustCall(function(req, res) {
   process.nextTick(common.mustCall(() => {
     res.end();
     myStream.emit('data', 'some data');
-    res.on('error', common.mustCall(function(err) {
-      assert.strictEqual(err.message, 'write after end');
+    res.on('error', common.expectsError({
+      code: 'ERR_STREAM_WRITE_AFTER_END',
+      type: Error
     }));
 
     process.nextTick(common.mustCall(() => server.close()));
