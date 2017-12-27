@@ -1,8 +1,11 @@
 'use strict';
 
 const common = require('../common');
+
 const fixtures = require('../common/fixtures');
+
 const fs = require('fs');
+
 const filepath = fixtures.path('x.txt');
 const fd = fs.openSync(filepath, 'r');
 const expected = Buffer.from('xyz\n');
