@@ -2,8 +2,6 @@
 
 const common = require('../common');
 
-if (!common.hasCrypto)
-  common.skip('missing crypto');
 // This tests that the accessor properties do not raise assertions
 // when called with incompatible receivers.
 
@@ -13,9 +11,6 @@ const assert = require('assert');
 // their prototype
 const TTY = process.binding('tty_wrap').TTY;
 const UDP = process.binding('udp_wrap').UDP;
-
-// There are accessor properties in crypto too
-const crypto = process.binding('crypto');
 
 {
   // Should throw instead of raise assertions
@@ -34,15 +29,6 @@ const crypto = process.binding('crypto');
   assert.throws(() => {
     UDP.prototype.fd;
   }, TypeError);
-
-  assert.throws(() => {
-    crypto.SecureContext.prototype._external;
-  }, TypeError);
-
-  assert.throws(() => {
-    crypto.Connection.prototype._external;
-  }, TypeError);
-
 
   // Should not throw for Object.getOwnPropertyDescriptor
   assert.strictEqual(
@@ -65,15 +51,28 @@ const crypto = process.binding('crypto');
     'object'
   );
 
-  assert.strictEqual(
-    typeof Object.getOwnPropertyDescriptor(
-      crypto.SecureContext.prototype, '_external'),
-    'object'
-  );
+  if (common.hasCrypto) { // eslint-disable-line crypto-check
+    // There are accessor properties in crypto too
+    const crypto = process.binding('crypto');
 
-  assert.strictEqual(
-    typeof Object.getOwnPropertyDescriptor(
-      crypto.Connection.prototype, '_external'),
-    'object'
-  );
+    assert.throws(() => {
+      crypto.SecureContext.prototype._external;
+    }, TypeError);
+
+    assert.throws(() => {
+      crypto.Connection.prototype._external;
+    }, TypeError);
+
+    assert.strictEqual(
+      typeof Object.getOwnPropertyDescriptor(
+        crypto.SecureContext.prototype, '_external'),
+      'object'
+    );
+
+    assert.strictEqual(
+      typeof Object.getOwnPropertyDescriptor(
+        crypto.Connection.prototype, '_external'),
+      'object'
+    );
+  }
 }
