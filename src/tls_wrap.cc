@@ -118,20 +118,18 @@ TLSWrap::~TLSWrap() {
 
 
 void TLSWrap::MakePending() {
-  write_item_queue_.MoveBack(&pending_write_items_);
+  write_callback_scheduled_ = true;
 }
 
 
 bool TLSWrap::InvokeQueued(int status, const char* error_str) {
-  if (pending_write_items_.IsEmpty())
+  if (!write_callback_scheduled_)
     return false;
 
-  // Process old queue
-  WriteItemList queue;
-  pending_write_items_.MoveBack(&queue);
-  while (WriteItem* wi = queue.PopFront()) {
-    wi->w_->Done(status, error_str);
-    delete wi;
+  if (current_write_ != nullptr) {
+    WriteWrap* w = current_write_;
+    current_write_ = nullptr;
+    w->Done(status, error_str);
   }
 
   return true;
@@ -301,7 +299,7 @@ void TLSWrap::EncOut() {
     return;
 
   // Split-off queue
-  if (established_ && !write_item_queue_.IsEmpty())
+  if (established_ && current_write_ != nullptr)
     MakePending();
 
   if (ssl_ == nullptr)
@@ -619,8 +617,9 @@ int TLSWrap::DoWrite(WriteWrap* w,
     }
   }
 
-  // Queue callback to execute it on next tick
-  write_item_queue_.PushBack(new WriteItem(w));
+  // Store the current write wrap
+  CHECK_EQ(current_write_, nullptr);
+  current_write_ = w;
   w->Dispatched();
 
   // Write queued data
