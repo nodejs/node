@@ -28,80 +28,31 @@ const fd = fs.openSync(filepath, 'r');
 
 const expected = Buffer.from('xyz\n');
 
-//fs.read expects incorrect fd parameter
-function testFd(bufferAsync, offset, bufferSync, expected) {
-  common.expectsError(
-    fs.read.bind(fd,
-                 bufferAsync,
-                 offset,
-                 expected.length,
-                 0,
-                 common.mustNotCall()),
-    { code: 'ERR_INVALID_ARG_TYPE', type: TypeError }
-  );
-}
-
-//fs.read expects fd parameter out of range
-function testFdRangeOut(bufferAsync, offset, bufferSync, expected) {
-  common.expectsError(
-    fs.read.bind(undefined,
-                 -1,
-                 bufferAsync,
-                 offset,
-                 expected.length,
-                 0,
-                 common.mustNotCall()),
-    { code: 'ERR_OUT_OF_RANGE', type: RangeError }
-  );
-}
-
-//fs.read expects offset parameter out of range
-function testOffSet(bufferAsync, offset, length, expected) {
-  common.expectsError(
-    fs.read.bind(undefined,
-                 fd,
-                 bufferAsync,
-                 offset,
-                 expected.length,
-                 0,
-                 common.mustNotCall()),
-    { code: 'ERR_OUT_OF_RANGE', type: RangeError }
-  );
-}
-
-//fs.read expects length parameter out of range
-function testLenght(bufferAsync, offset, length) {
-  common.expectsError(
-    fs.read.bind(undefined,
-                 fd,
-                 bufferAsync,
-                 offset,
-                 length,
-                 0,
-                 common.mustNotCall()),
-    { code: 'ERR_OUT_OF_RANGE', type: RangeError }
-  );
-}
-
-//test fd parameter
-testFd(Buffer.allocUnsafe(expected.length),
-       0,
-       Buffer.allocUnsafe(expected.length),
-       expected);
-
-//test fd parameter out of range
-testFdRangeOut(Buffer.allocUnsafe(expected.length),
-               0,
+common.expectsError(
+  fs.read.bind(fd,
                Buffer.allocUnsafe(expected.length),
-               expected);
+               0,
+               expected.length,
+               0,
+               common.mustNotCall()),
+  { code: 'ERR_INVALID_ARG_TYPE', type: TypeError });
 
-//test offset parameter out of range
-testOffSet(Buffer.allocUnsafe(expected.length),
-           -1,
-           Buffer.allocUnsafe(expected.length),
-           expected);
+common.expectsError(
+  fs.read.bind(undefined,
+               fd,
+               Buffer.allocUnsafe(expected.length),
+               -1,
+               expected.length,
+               0,
+               common.mustNotCall()),
+  { code: 'ERR_OUT_OF_RANGE', type: RangeError });
 
-//test length parameter out of range
-testLenght(Buffer.allocUnsafe(expected.length),
-           0,
-           -1);
+common.expectsError(
+  fs.read.bind(undefined,
+               fd,
+               Buffer.allocUnsafe(expected.length),
+               0,
+               -1,
+               0,
+               common.mustNotCall()),
+  { code: 'ERR_OUT_OF_RANGE', type: RangeError });
