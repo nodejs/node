@@ -721,11 +721,16 @@ static inline void Swizzle(char* start, unsigned int len) {
 
 template <typename T, enum Endianness endianness>
 void ReadFloatGeneric(const FunctionCallbackInfo<Value>& args) {
-  THROW_AND_RETURN_UNLESS_BUFFER(Environment::GetCurrent(args), args[0]);
+  auto env = Environment::GetCurrent(args);
+  THROW_AND_RETURN_UNLESS_BUFFER(env, args[0]);
   SPREAD_BUFFER_ARG(args[0], ts_obj);
 
-  uint32_t offset = args[1]->Uint32Value();
-  CHECK_LE(offset + sizeof(T), ts_obj_length);
+  uint32_t offset;
+  if (!args[1]->Uint32Value(env->context()).To(&offset))
+    return;  // Exception pending.
+
+  if (ts_obj_length < Add32Clamp(offset, sizeof(T)))
+    return env->ThrowRangeError("Index out of range");
 
   union NoAlias {
     T val;
@@ -765,12 +770,9 @@ void ReadDoubleBE(const FunctionCallbackInfo<Value>& args) {
 template <typename T, enum Endianness endianness>
 void WriteFloatGeneric(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
+  THROW_AND_RETURN_UNLESS_BUFFER(env, args[0]);
 
   bool should_assert = args.Length() < 4;
-
-  if (should_assert) {
-    THROW_AND_RETURN_UNLESS_BUFFER(env, args[0]);
-  }
 
   Local<ArrayBufferView> ts_obj = args[0].As<ArrayBufferView>();
   ArrayBuffer::Contents ts_obj_c = ts_obj->Buffer()->GetContents();

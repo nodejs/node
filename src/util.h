@@ -269,6 +269,10 @@ inline bool StringEqualNoCase(const char* a, const char* b);
 // strncasecmp() is locale-sensitive.  Use StringEqualNoCaseN() instead.
 inline bool StringEqualNoCaseN(const char* a, const char* b, size_t length);
 
+// Saturating addition.
+inline uint32_t Add32Clamp(uint32_t x, uint32_t y);
+inline uint64_t Add64Clamp(uint64_t x, uint64_t y);
+
 // Allocates an array of member type T. For up to kStackStorageSize items,
 // the stack is used, otherwise malloc().
 template <typename T, size_t kStackStorageSize = 1024>

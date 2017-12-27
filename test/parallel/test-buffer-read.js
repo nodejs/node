@@ -142,3 +142,75 @@ assert.throws(() => Buffer.allocUnsafe(8).readFloatLE(-1), RangeError);
   assert.strictEqual(buf.readIntLE(0, 6), 0x060504030201);
   assert.strictEqual(buf.readIntBE(0, 6), 0x010203040506);
 }
+
+// https://github.com/nodejs/node/issues/8724 - specific to methods dealing
+// with floating point types because they call out to C++ code.
+{
+  // ERR_INDEX_OUT_OF_RANGE is optional, exceptions from the binding layer
+  // don't have it.
+  const re = /^RangeError( \[ERR_INDEX_OUT_OF_RANGE\])?: Index out of range$/;
+  const buf = Buffer.alloc(0);
+  assert.throws(() => buf.readFloatBE(0), re);
+  assert.throws(() => buf.readFloatLE(0), re);
+  assert.throws(() => buf.readDoubleBE(0), re);
+  assert.throws(() => buf.readDoubleLE(0), re);
+  for (const noAssert of [true, false]) {
+    assert.throws(() => buf.readFloatBE(0, noAssert), re);
+    assert.throws(() => buf.readFloatLE(0, noAssert), re);
+    assert.throws(() => buf.readDoubleBE(0, noAssert), re);
+    assert.throws(() => buf.readDoubleLE(0, noAssert), re);
+  }
+}
+
+{
+  const { readFloatBE, readFloatLE, readDoubleBE, readDoubleLE } =
+      Buffer.prototype;
+  const re = /^TypeError: argument should be a Buffer$/;
+  assert.throws(() => readFloatBE(0, true), re);
+  assert.throws(() => readFloatLE(0, true), re);
+  assert.throws(() => readDoubleBE(0, true), re);
+  assert.throws(() => readDoubleLE(0, true), re);
+}
+
+{
+  const { readFloatBE, readFloatLE, readDoubleBE, readDoubleLE } =
+      Buffer.prototype;
+  const re = /^TypeError: Cannot read property 'length' of undefined$/;
+  assert.throws(() => readFloatBE(0), re);
+  assert.throws(() => readFloatLE(0), re);
+  assert.throws(() => readDoubleBE(0), re);
+  assert.throws(() => readDoubleLE(0), re);
+  assert.throws(() => readFloatBE(0, false), re);
+  assert.throws(() => readFloatLE(0, false), re);
+  assert.throws(() => readDoubleBE(0, false), re);
+  assert.throws(() => readDoubleLE(0, false), re);
+}
+
+{
+  const re =
+      new RegExp('^TypeError: Method get TypedArray\\.prototype\\.length ' +
+                 'called on incompatible receiver \\[object Object\\]$');
+  assert.throws(() => Buffer.prototype.readFloatBE(0), re);
+  assert.throws(() => Buffer.prototype.readFloatLE(0), re);
+  assert.throws(() => Buffer.prototype.readDoubleBE(0), re);
+  assert.throws(() => Buffer.prototype.readDoubleLE(0), re);
+  assert.throws(() => Buffer.prototype.readFloatBE(0, false), re);
+  assert.throws(() => Buffer.prototype.readFloatLE(0, false), re);
+  assert.throws(() => Buffer.prototype.readDoubleBE(0, false), re);
+  assert.throws(() => Buffer.prototype.readDoubleLE(0, false), re);
+}
+
+for (const noAssert of [true, false]) {
+  const re = /^TypeError: argument should be a Buffer$/;
+  // Wrong receiver.
+  assert.throws(() => Buffer.prototype.readFloatBE.call({}, 0, noAssert), re);
+  assert.throws(() => Buffer.prototype.readFloatLE.call({}, 0, noAssert), re);
+  assert.throws(() => Buffer.prototype.readDoubleBE.call({}, 0, noAssert), re);
+  assert.throws(() => Buffer.prototype.readDoubleLE.call({}, 0, noAssert), re);
+  if (noAssert === false) continue;  // noAssert=false is tested above.
+  // Non-method call.
+  assert.throws(() => Buffer.prototype.readFloatBE(0, noAssert), re);
+  assert.throws(() => Buffer.prototype.readFloatLE(0, noAssert), re);
+  assert.throws(() => Buffer.prototype.readDoubleBE(0, noAssert), re);
+  assert.throws(() => Buffer.prototype.readDoubleLE(0, noAssert), re);
+}
