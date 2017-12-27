@@ -101,7 +101,6 @@ class TLSWrap : public AsyncWrap,
   void EncOutAfterWrite(WriteWrap* req_wrap, int status);
   bool ClearIn();
   void ClearOut();
-  void MakePending();
   bool InvokeQueued(int status, const char* error_str = nullptr);
 
   inline void Cycle() {
@@ -158,7 +157,7 @@ class TLSWrap : public AsyncWrap,
   StreamBase* stream_;
   BIO* enc_in_;
   BIO* enc_out_;
-  crypto::NodeBIO* clear_in_;
+  std::vector<uv_buf_t> pending_cleartext_input_;
   size_t write_size_;
   WriteWrap* current_write_ = nullptr;
   bool write_callback_scheduled_ = false;
