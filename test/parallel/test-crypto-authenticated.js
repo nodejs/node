@@ -343,9 +343,7 @@ common.expectWarning('Warning', (common.hasFipsCrypto ? [] : [
             'deprecated. Valid GCM tag lengths are 4, 8, 12, 13, 14, 15, 16.')
 ));
 
-for (const i in TEST_CASES) {
-  const test = TEST_CASES[i];
-
+for (const test of TEST_CASES) {
   if (!ciphers.includes(test.algo)) {
     common.printSkipMessage(`unsupported ${test.algo} test`);
     continue;
