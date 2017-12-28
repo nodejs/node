@@ -3,6 +3,7 @@
 require('../common');
 const assert = require('assert');
 const BufferList = require('internal/streams/BufferList');
+const util = require('util');
 
 // Test empty buffer list.
 const emptyList = new BufferList();
@@ -25,3 +26,10 @@ assert.strictEqual(list.join(','), 'foo');
 const shifted = list.shift();
 assert.strictEqual(shifted, 'foo');
 assert.deepStrictEqual(list, new BufferList());
+
+const tmp = util.inspect.defaultOptions.colors;
+util.inspect.defaultOptions = { colors: true };
+assert.strictEqual(
+  util.inspect(list),
+  'BufferList { length: \u001b[33m0\u001b[39m }');
+util.inspect.defaultOptions = { colors: tmp };
