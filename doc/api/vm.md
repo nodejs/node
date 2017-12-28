@@ -87,9 +87,8 @@ changes:
     depending on whether code cache data is produced successfully.
 
 Creating a new `vm.Script` object compiles `code` but does not run it. The
-compiled `vm.Script` can be run later multiple times. It is important to note
-that the `code` is not bound to any global object; rather, it is bound before
-each run, just for that run.
+compiled `vm.Script` can be run later multiple times. The `code` is not bound to
+any global object; rather, it is bound before each run, just for that run.
 
 ### script.runInContext(contextifiedSandbox[, options])
 <!-- YAML

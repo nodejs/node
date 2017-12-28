@@ -312,11 +312,10 @@ location information will be displayed for that frame. Otherwise, the
 determined function name will be displayed with location information appended
 in parentheses.
 
-It is important to note that frames are **only** generated for JavaScript
-functions. If, for example, execution synchronously passes through a C++ addon
-function called `cheetahify`, which itself calls a JavaScript function, the
-frame representing the `cheetahify` call will **not** be present in the stack
-traces:
+Frames are only generated for JavaScript functions. If, for example, execution
+synchronously passes through a C++ addon function called `cheetahify` which
+itself calls a JavaScript function, the frame representing the `cheetahify` call
+will not be present in the stack traces:
 
 ```js
 const cheetahify = require('./native-binding.node');
