@@ -2836,8 +2836,8 @@ following additional properties:
 If `name` is equal to `Http2Session`, the `PerformanceEntry` will contain the
 following additional properties:
 
-* `pingRTT` {number} The number of millseconds elapsed since the transmission
-  of a `PING` frame and the reception of it's acknowledgement. Only present if
+* `pingRTT` {number} The number of milliseconds elapsed since the transmission
+  of a `PING` frame and the reception of its acknowledgement. Only present if
   a `PING` frame has been sent on the `Http2Session`.
 * `streamCount` {number} The number of `Http2Stream` instances processed by
   the `Http2Session`.
@@ -2856,7 +2856,7 @@ following additional properties:
 [HTTPS]: https.html
 [Headers Object]: #http2_headers_object
 [Http2Session and Sockets]: #http2_http2session_and_sockets
-[Performance Hooks]: perf_hooks.html
+[Performance Observer]: perf_hooks.html
 [Readable Stream]: stream.html#stream_class_stream_readable
 [Settings Object]: #http2_settings_object
 [Using options.selectPadding]: #http2_using_options_selectpadding
