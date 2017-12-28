@@ -216,18 +216,17 @@ const rfc4231 = [
   }
 ];
 
-for (let i = 0, l = rfc4231.length; i < l; i++) {
-  for (const hash in rfc4231[i]['hmac']) {
-    let result = crypto.createHmac(hash, rfc4231[i]['key'])
-                     .update(rfc4231[i]['data'])
+for (const testCase of rfc4231) {
+  for (const hash in testCase.hmac) {
+    let result = crypto.createHmac(hash, testCase.key)
+                     .update(testCase.data)
                      .digest('hex');
-    if (rfc4231[i]['truncate']) {
+    if (testCase.truncate) {
       result = result.substr(0, 32); // first 128 bits == 32 hex chars
     }
     assert.strictEqual(
-      rfc4231[i]['hmac'][hash],
-      result,
-      `Test HMAC-${hash}: Test case ${i + 1} rfc 4231`
+      testCase.hmac[hash],
+      result
     );
   }
 }
@@ -341,24 +340,22 @@ const rfc2202_sha1 = [
   }
 ];
 
-for (let i = 0, l = rfc2202_md5.length; i < l; i++) {
-  if (!common.hasFipsCrypto) {
+if (!common.hasFipsCrypto) {
+  for (const testCase of rfc2202_md5) {
     assert.strictEqual(
-      rfc2202_md5[i]['hmac'],
-      crypto.createHmac('md5', rfc2202_md5[i]['key'])
-        .update(rfc2202_md5[i]['data'])
-        .digest('hex'),
-      `Test HMAC-MD5 : Test case ${i + 1} rfc 2202`
+      testCase.hmac,
+      crypto.createHmac('md5', testCase.key)
+        .update(testCase.data)
+        .digest('hex')
     );
   }
 }
-for (let i = 0, l = rfc2202_sha1.length; i < l; i++) {
+for (const testCase of rfc2202_sha1) {
   assert.strictEqual(
-    rfc2202_sha1[i]['hmac'],
-    crypto.createHmac('sha1', rfc2202_sha1[i]['key'])
-      .update(rfc2202_sha1[i]['data'])
-      .digest('hex'),
-    `Test HMAC-SHA1 : Test case ${i + 1} rfc 2202`
+    testCase.hmac,
+    crypto.createHmac('sha1', testCase.key)
+      .update(testCase.data)
+      .digest('hex')
   );
 }
 
