@@ -828,7 +828,7 @@ The following additional resources may be of assistance:
 * [How to create a Minimal, Complete, and Verifiable example](https://stackoverflow.com/help/mcve)
 * [core-validate-commit](https://github.com/evanlucas/core-validate-commit) -
   A utility that ensures commits follow the commit formatting guidelines.
-* How to respectfully and usefully review code part [one](https://mtlynch.io/human-code-reviews-1/) and [two](https://mtlynch.io/human-code-reviews-2/)
+* How to respectfully and usefully review code, part [one](https://mtlynch.io/human-code-reviews-1/) and [two](https://mtlynch.io/human-code-reviews-2/)
 * [How to write a positive code review](https://css-tricks.com/code-review-etiquette/)
 
 <a id="developers-certificate-of-origin"></a>
