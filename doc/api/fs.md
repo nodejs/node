@@ -691,12 +691,55 @@ no effect on Windows (will behave like `fs.constants.F_OK`).
 
 The final argument, `callback`, is a callback function that is invoked with
 a possible error argument. If any of the accessibility checks fail, the error
-argument will be populated. The following example checks if the file
-`/etc/passwd` can be read and written by the current process.
+argument will be populated. 
 
 ```js
-fs.access('/etc/passwd', fs.constants.R_OK | fs.constants.W_OK, (err) => {
-  console.log(err ? 'no access!' : 'can read/write');
+// Check if `package.json` exists in the current directory.
+fs.access('./package.json', fs.constants.F_OK, (err) => {
+  console.log(err ? 'No package.json file!' : 'package.json exists!');
+});
+```
+
+```js
+// Check if we can read `package.json` file.
+fs.access('./package.json', fs.constants.R_OK, (err) => {
+  console.log(err ? 'Can\'t read package.json!' : 'Ready to read!');
+});
+```
+
+```js
+// Check if we can write to `package.json` file.
+fs.access('./package.json', fs.constants.W_OK, (err) => {
+  console.log(err ? 'You cannot write to package.json.' : 'You can write to package.json.');
+});
+``` 
+
+```js
+// Check if `package.json` exists in the current directory and is writeable.
+fs.access('./package.json', fs.constants.F_OK | fs.constants.W_OK, (err) => {
+  
+  // If there is an error, print the error in console and exit.
+  if(err) {
+    if(err.code === 'ENOENT') 
+      console.error("File does not exist.");
+    if(err.code === 'EPERM') 
+      console.error("File is read-only.");
+      return;
+    }
+
+    console.log("The file exists. You can write to the file.");
+});
+```
+
+OR simply
+
+```js
+// Check if `package.json` exists in the current directory and is writeable.
+fs.access('./package.json', fs.constants.F_OK | fs.constants.W_OK, (err) => {
+  if(err)
+    console.error("Either the file does not exist or it is read-only.");
+  else
+    console.log("The file exists. You can write to the file.");
 });
 ```
 
