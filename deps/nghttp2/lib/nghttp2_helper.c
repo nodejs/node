@@ -322,6 +322,9 @@ const char *nghttp2_strerror(int error_code) {
     return "Internal error";
   case NGHTTP2_ERR_CANCEL:
     return "Cancel";
+  case NGHTTP2_ERR_SETTINGS_EXPECTED:
+    return "When a local endpoint expects to receive SETTINGS frame, it "
+           "receives an other type of frame";
   case NGHTTP2_ERR_NOMEM:
     return "Out of memory";
   case NGHTTP2_ERR_CALLBACK_FAILURE:

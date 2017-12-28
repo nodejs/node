@@ -70,7 +70,9 @@
 #define NGHTTP2_MAX_PADLEN 256
 
 /* Union of extension frame payload */
-typedef union { nghttp2_ext_altsvc altsvc; } nghttp2_ext_frame_payload;
+typedef union {
+  nghttp2_ext_altsvc altsvc;
+} nghttp2_ext_frame_payload;
 
 void nghttp2_frame_pack_frame_hd(uint8_t *buf, const nghttp2_frame_hd *hd);
 
