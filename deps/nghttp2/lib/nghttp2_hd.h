@@ -211,7 +211,9 @@ typedef struct {
 
 #define HD_MAP_SIZE 128
 
-typedef struct { nghttp2_hd_entry *table[HD_MAP_SIZE]; } nghttp2_hd_map;
+typedef struct {
+  nghttp2_hd_entry *table[HD_MAP_SIZE];
+} nghttp2_hd_map;
 
 struct nghttp2_hd_deflater {
   nghttp2_hd_context ctx;
@@ -313,7 +315,7 @@ void nghttp2_hd_deflate_free(nghttp2_hd_deflater *deflater);
  *
  * This function expands |bufs| as necessary to store the result. If
  * buffers is full and the process still requires more space, this
- * funtion fails and returns NGHTTP2_ERR_HEADER_COMP.
+ * function fails and returns NGHTTP2_ERR_HEADER_COMP.
  *
  * After this function returns, it is safe to delete the |nva|.
  *

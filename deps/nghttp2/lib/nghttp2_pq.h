@@ -35,7 +35,9 @@
 
 /* Implementation of priority queue */
 
-typedef struct { size_t index; } nghttp2_pq_entry;
+typedef struct {
+  size_t index;
+} nghttp2_pq_entry;
 
 typedef struct {
   /* The pointer to the pointer to the item stored */
@@ -71,7 +73,7 @@ void nghttp2_pq_free(nghttp2_pq *pq);
 /*
  * Adds |item| to the priority queue |pq|.
  *
- * This function returns 0 if it succeds, or one of the following
+ * This function returns 0 if it succeeds, or one of the following
  * negative error codes:
  *
  * NGHTTP2_ERR_NOMEM
