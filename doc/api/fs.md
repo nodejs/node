@@ -3457,7 +3457,6 @@ The following constants are meant for use with the [`fs.Stats`][] object's
 [`fs.FSWatcher`]: #fs_class_fs_fswatcher
 [`fs.Stats`]: #fs_class_fs_stats
 [`fs.access()`]: #fs_fs_access_path_mode_callback
-[`fs.appendFile()`]: fs.html#fs_fs_appendfile_file_data_options_callback
 [`fs.chmod()`]: #fs_fs_chmod_path_mode_callback
 [`fs.chown()`]: #fs_fs_chown_path_uid_gid_callback
 [`fs.exists()`]: fs.html#fs_fs_exists_path_callback
