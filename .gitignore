@@ -59,6 +59,7 @@ _UpgradeReport_Files/
 ipch/
 *.sdf
 *.opensdf
+*.VC.db
 *.VC.opendb
 .vs/
 .vscode/
