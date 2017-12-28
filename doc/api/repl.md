@@ -114,9 +114,8 @@ $ node repl_test.js
 'message'
 ```
 
-It is important to note that context properties are *not* read-only by default.
-To specify read-only globals, context properties must be defined using
-`Object.defineProperty()`:
+Context properties are not read-only by default. To specify read-only globals,
+context properties must be defined using `Object.defineProperty()`:
 
 ```js
 const repl = require('repl');
