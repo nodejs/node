@@ -116,6 +116,11 @@ oppose the PR, it can be landed. Where there is disagreement among TSC members
 or objections from one or more Collaborators, `semver-major` pull requests
 should be put on the TSC meeting agenda.
 
+#### Helpful resources
+
+* How to respectfully and usefully review code, part [one](https://mtlynch.io/human-code-reviews-1/) and [two](https://mtlynch.io/human-code-reviews-2/)
+* [How to write a positive code review](https://css-tricks.com/code-review-etiquette/)
+
 ### Waiting for Approvals
 
 Before landing pull requests, sufficient time should be left for input
