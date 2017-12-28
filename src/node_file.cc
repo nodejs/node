@@ -587,19 +587,24 @@ static void LStat(const FunctionCallbackInfo<Value>& args) {
 
 static void FStat(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
+  Local<Context> context = env->context();
 
   CHECK(args[0]->IsInt32());
 
-  int fd = args[0]->Int32Value();
+  int fd = static_cast<int>(args[0]->Int32Value(context).FromJust());
 
   if (args[1]->IsObject()) {  // fstat(fd, req)
     CHECK_EQ(args.Length(), 2);
     AsyncCall(env, args, "fstat", UTF8, AfterStat,
               uv_fs_fstat, fd);
-  } else {  // fstat(fd)
-    SYNC_CALL(fstat, nullptr, fd)
-    FillStatsArray(env->fs_stats_field_array(),
-                   static_cast<const uv_stat_t*>(SYNC_REQ.ptr));
+  } else {  // fstat(fd, undefined, ctx)
+    CHECK_EQ(args.Length(), 3);
+    fs_req_wrap req_wrap;
+    int err = SyncCall(env, args[2], &req_wrap, "fstat", uv_fs_fstat, fd);
+    if (err == 0) {
+      FillStatsArray(env->fs_stats_field_array(),
+                     static_cast<const uv_stat_t*>(req_wrap.req.ptr));
+    }
   }
 }
 
