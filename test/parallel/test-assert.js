@@ -753,6 +753,14 @@ common.expectsError(
   assert.equal(Object.keys(assert).length, Object.keys(a).length);
   /* eslint-enable no-restricted-properties */
   assert(7);
+  common.expectsError(
+    () => assert(),
+    {
+      code: 'ERR_ASSERTION',
+      type: assert.AssertionError,
+      message: 'undefined == true'
+    }
+  );
 }
 
 common.expectsError(
