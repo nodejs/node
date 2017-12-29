@@ -1332,11 +1332,6 @@ A Node.js API was called in an unsupported manner.
 
 For example: `Buffer.write(string, encoding, offset[, length])`
 
-<a id="ERR_OUTOFMEMORY"></a>
-### ERR_OUTOFMEMORY
-
-An operation caused an out-of-memory condition.
-
 <a id="ERR_OUT_OF_RANGE"></a>
 ### ERR_OUT_OF_RANGE
 
