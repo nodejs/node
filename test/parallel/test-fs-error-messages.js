@@ -64,6 +64,16 @@ fs.lstat(fn, common.mustCall((err) => {
   }));
 }
 
+fs.realpath(fn, common.mustCall((err) => {
+  assert.strictEqual(fn, err.path);
+  assert.strictEqual(
+    err.message,
+    `ENOENT: no such file or directory, lstat '${fn}'`);
+  assert.strictEqual(err.errno, uv.UV_ENOENT);
+  assert.strictEqual(err.code, 'ENOENT');
+  assert.strictEqual(err.syscall, 'lstat');
+}));
+
 fs.readlink(fn, common.mustCall((err) => {
   assert.ok(err.message.includes(fn));
 }));
@@ -179,6 +189,20 @@ try {
   assert.strictEqual(err.errno, uv.UV_EBADF);
   assert.strictEqual(err.code, 'EBADF');
   assert.strictEqual(err.syscall, 'fstat');
+}
+
+try {
+  ++expected;
+  fs.realpathSync(fn);
+} catch (err) {
+  errors.push('realpath');
+  assert.strictEqual(fn, err.path);
+  assert.strictEqual(
+    err.message,
+    `ENOENT: no such file or directory, lstat '${fn}'`);
+  assert.strictEqual(err.errno, uv.UV_ENOENT);
+  assert.strictEqual(err.code, 'ENOENT');
+  assert.strictEqual(err.syscall, 'lstat');
 }
 
 try {
