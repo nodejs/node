@@ -199,6 +199,7 @@ class ModuleWrap;
   V(nsname_string, "nsname")                                                  \
   V(nexttick_string, "nextTick")                                              \
   V(ocsp_request_string, "OCSPRequest")                                       \
+  V(onaltsvc_string, "onaltsvc")                                              \
   V(onchange_string, "onchange")                                              \
   V(onclienthello_string, "onclienthello")                                    \
   V(oncomplete_string, "oncomplete")                                          \
