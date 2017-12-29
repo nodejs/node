@@ -44,7 +44,7 @@ set enable_static=
 set build_addons_napi=
 set test_node_inspect=
 set test_check_deopts=
-set js_test_suites=default async-hooks known_issues
+set js_test_suites=default
 set v8_test_options=
 set v8_build_options=
 set "common_test_suites=%js_test_suites% doctool addons addons-napi&set build_addons=1&set build_addons_napi=1"
