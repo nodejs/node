@@ -15,7 +15,8 @@ const length = 4;
             length,
             0,
             common.mustNotCall());
-  }, { code: 'ERR_INVALID_ARG_TYPE', type: TypeError });
+  }, { code: 'ERR_INVALID_ARG_TYPE', type: TypeError,
+       message: 'The "fd" argument must be of type integer' });
 });
 
 common.expectsError(() => {
@@ -25,7 +26,8 @@ common.expectsError(() => {
           length,
           0,
           common.mustNotCall());
-}, { code: 'ERR_OUT_OF_RANGE', type: RangeError });
+}, { code: 'ERR_OUT_OF_RANGE', type: RangeError,
+     message: 'The value of "offset" is out of range.' });
 
 common.expectsError(() => {
   fs.read(fd,
@@ -34,4 +36,5 @@ common.expectsError(() => {
           -1,
           0,
           common.mustNotCall());
-}, { code: 'ERR_OUT_OF_RANGE', type: RangeError });
+}, { code: 'ERR_OUT_OF_RANGE', type: RangeError,
+     message: 'The value of "length" is out of range.' });
