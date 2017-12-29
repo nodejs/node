@@ -165,7 +165,6 @@ class ModuleWrap;
   V(internal_string, "internal")                                              \
   V(ipv4_string, "IPv4")                                                      \
   V(ipv6_string, "IPv6")                                                      \
-  V(isalive_string, "isAlive")                                                \
   V(isclosing_string, "isClosing")                                            \
   V(issuer_string, "issuer")                                                  \
   V(issuercert_string, "issuerCertificate")                                   \
