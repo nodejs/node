@@ -80,13 +80,7 @@ AsyncWrap* JSStream::GetAsyncWrap() {
 
 
 bool JSStream::IsAlive() {
-  HandleScope scope(env()->isolate());
-  Context::Scope context_scope(env()->context());
-  v8::Local<v8::Value> fn = object()->Get(env()->isalive_string());
-  if (!fn->IsFunction())
-    return false;
-  return MakeCallback(fn.As<v8::Function>(), 0, nullptr)
-      .ToLocalChecked()->IsTrue();
+  return true;
 }
 
 
