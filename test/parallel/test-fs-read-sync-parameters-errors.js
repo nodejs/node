@@ -5,29 +5,29 @@ const fixtures = require('../common/fixtures');
 const fs = require('fs');
 const filepath = fixtures.path('x.txt');
 const fd = fs.openSync(filepath, 'r');
-const expected = Buffer.from('xyz\n');
+const length = 4;
 
 [true, null, undefined, () => {}, {}].forEach((value) => {
   common.expectsError(() => {
-    fs.read(value,
-            Buffer.allocUnsafe(expected.length),
-            0,
-            expected.length,
-            0);
+    fs.readSync(value,
+                Buffer.allocUnsafe(length),
+                0,
+                length,
+                0);
   }, { code: 'ERR_INVALID_ARG_TYPE', type: TypeError });
 });
 
 common.expectsError(() => {
   fs.readSync(fd,
-              Buffer.allocUnsafe(expected.length),
+              Buffer.allocUnsafe(length),
               -1,
-              expected.length,
+              length,
               0);
 }, { code: 'ERR_OUT_OF_RANGE', type: RangeError });
 
 common.expectsError(() => {
   fs.readSync(fd,
-              Buffer.allocUnsafe(expected.length),
+              Buffer.allocUnsafe(length),
               0,
               -1,
               0);
