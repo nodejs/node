@@ -890,7 +890,7 @@ An operation was performed on a stream that had already been destroyed.
 ### ERR_HTTP2_MAX_PENDING_SETTINGS_ACK
 
 Whenever an HTTP/2 `SETTINGS` frame is sent to a connected peer, the peer is
-required to send an acknowledgement that it has received and applied the new
+required to send an acknowledgment that it has received and applied the new
 `SETTINGS`. By default, a maximum number of unacknowledged `SETTINGS` frames may
 be sent at any given time. This error code is used when that limit has been
 reached.
@@ -916,7 +916,7 @@ forbidden.
 <a id="ERR_HTTP2_PING_CANCEL"></a>
 ### ERR_HTTP2_PING_CANCEL
 
-An HTTP/2 ping was cancelled.
+An HTTP/2 ping was canceled.
 
 <a id="ERR_HTTP2_PING_LENGTH"></a>
 ### ERR_HTTP2_PING_LENGTH
@@ -1249,11 +1249,11 @@ A failure occurred resolving imports in an [ES6 module][].
 <a id="ERR_MULTIPLE_CALLBACK"></a>
 ### ERR_MULTIPLE_CALLBACK
 
-A callback was called more then once.
+A callback was called more than once.
 
 *Note*: A callback is almost always meant to only be called once as the query
 can either be fulfilled or rejected but not both at the same time. The latter
-would be possible by calling a callback more then once.
+would be possible by calling a callback more than once.
 
 <a id="ERR_NAPI_CONS_FUNCTION"></a>
 ### ERR_NAPI_CONS_FUNCTION
