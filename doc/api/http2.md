@@ -191,7 +191,7 @@ the handler function will receive three arguments:
 added: v8.4.0
 -->
 
-The `'localSettings'` event is emitted when an acknowledgement SETTINGS frame
+The `'localSettings'` event is emitted when an acknowledgment SETTINGS frame
 has been received. When invoked, the handler function will receive a copy of
 the local settings.
 
@@ -339,7 +339,7 @@ Once destroyed, the `Http2Session` will emit the `'close'` event. If `error`
 is not undefined, an `'error'` event will be emitted immediately after the
 `'close'` event.
 
-If there are any remaining open `Http2Streams` associatd with the
+If there are any remaining open `Http2Streams` associated with the
 `Http2Session`, those will also be destroyed.
 
 #### http2session.destroyed
@@ -406,7 +406,7 @@ added: v8.4.0
 * Value: {boolean}
 
 Indicates whether or not the `Http2Session` is currently waiting for an
-acknowledgement for a sent SETTINGS frame. Will be `true` after calling the
+acknowledgment for a sent SETTINGS frame. Will be `true` after calling the
 `http2session.settings()` method. Will be `false` once all sent SETTINGS
 frames have been acknowledged.
 
@@ -428,12 +428,12 @@ The maximum number of outstanding (unacknowledged) pings is determined by the
 
 If provided, the `payload` must be a `Buffer`, `TypedArray`, or `DataView`
 containing 8 bytes of data that will be transmitted with the `PING` and
-returned with the ping acknowledgement.
+returned with the ping acknowledgment.
 
 The callback will be invoked with three arguments: an error argument that will
 be `null` if the `PING` was successfully acknowledged, a `duration` argument
 that reports the number of milliseconds elapsed since the ping was sent and the
-acknowledgement was received, and a `Buffer` containing the 8-byte `PING`
+acknowledgment was received, and a `Buffer` containing the 8-byte `PING`
 payload.
 
 ```js
@@ -569,8 +569,8 @@ while the session is waiting for the remote peer to acknowledge the new
 settings.
 
 *Note*: The new settings will not become effective until the SETTINGS
-acknowledgement is received and the `'localSettings'` event is emitted. It
-is possible to send multiple SETTINGS frames while acknowledgement is still
+acknowledgment is received and the `'localSettings'` event is emitted. It
+is possible to send multiple SETTINGS frames while acknowledgment is still
 pending.
 
 #### http2session.type
@@ -873,7 +873,7 @@ added: v8.4.0
 -->
 
 The `'timeout'` event is emitted after no activity is received for this
-`'Http2Stream'` within the number of millseconds set using
+`'Http2Stream'` within the number of milliseconds set using
 `http2stream.setTimeout()`.
 
 #### Event: 'trailers'
