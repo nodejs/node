@@ -821,6 +821,16 @@ that.
 
 Occurs with multiple attempts to shutdown an HTTP/2 session.
 
+<a id="ERR_HTTP2_ALTSVC_INVALID_ORIGIN"></a>
+### ERR_HTTP2_ALTSVC_INVALID_ORIGIN
+
+HTTP/2 ALTSVC frames require a valid origin.
+
+<a id="ERR_HTTP2_ALTSVC_LENGTH"></a>
+### ERR_HTTP2_ALTSVC_LENGTH
+
+HTTP/2 ALTSVC frames are limited to a maximum of 16,382 payload bytes.
+
 <a id="ERR_HTTP2_CONNECT_AUTHORITY"></a>
 ### ERR_HTTP2_CONNECT_AUTHORITY
 

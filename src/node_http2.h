@@ -800,6 +800,11 @@ class Http2Session : public AsyncWrap {
   void Consume(Local<External> external);
   void Unconsume();
   void Goaway(uint32_t code, int32_t lastStreamID, uint8_t* data, size_t len);
+  void AltSvc(int32_t id,
+              uint8_t* origin,
+              size_t origin_len,
+              uint8_t* value,
+              size_t value_len);
 
   bool Ping(v8::Local<v8::Function> function);
 
@@ -877,6 +882,7 @@ class Http2Session : public AsyncWrap {
   static void UpdateChunksSent(const FunctionCallbackInfo<Value>& args);
   static void RefreshState(const FunctionCallbackInfo<Value>& args);
   static void Ping(const FunctionCallbackInfo<Value>& args);
+  static void AltSvc(const FunctionCallbackInfo<Value>& args);
 
   template <get_setting fn>
   static void RefreshSettings(const FunctionCallbackInfo<Value>& args);
@@ -921,6 +927,7 @@ class Http2Session : public AsyncWrap {
   inline void HandlePriorityFrame(const nghttp2_frame* frame);
   inline void HandleSettingsFrame(const nghttp2_frame* frame);
   inline void HandlePingFrame(const nghttp2_frame* frame);
+  inline void HandleAltSvcFrame(const nghttp2_frame* frame);
 
   // nghttp2 callbacks
   static inline int OnBeginHeadersCallback(

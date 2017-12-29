@@ -103,6 +103,11 @@ Http2Options::Http2Options(Environment* env) {
   // are required to buffer.
   nghttp2_option_set_no_auto_window_update(options_, 1);
 
+  // Enable built in support for ALTSVC frames. Once we add support for
+  // other non-built in extension frames, this will need to be handled
+  // a bit differently. For now, let's let nghttp2 take care of it.
+  nghttp2_option_set_builtin_recv_extension_type(options_, NGHTTP2_ALTSVC);
+
   AliasedBuffer<uint32_t, v8::Uint32Array>& buffer =
       env->http2_state()->options_buffer;
   uint32_t flags = buffer[IDX_OPTIONS_FLAGS];
@@ -830,6 +835,10 @@ inline int Http2Session::OnFrameReceive(nghttp2_session* handle,
       break;
     case NGHTTP2_PING:
       session->HandlePingFrame(frame);
+      break;
+    case NGHTTP2_ALTSVC:
+      session->HandleAltSvcFrame(frame);
+      break;
     default:
       break;
   }
@@ -1166,6 +1175,34 @@ inline void Http2Session::HandleGoawayFrame(const nghttp2_frame* frame) {
   }
 
   MakeCallback(env()->ongoawaydata_string(), arraysize(argv), argv);
+}
+
+// Called by OnFrameReceived when a complete ALTSVC frame has been received.
+inline void Http2Session::HandleAltSvcFrame(const nghttp2_frame* frame) {
+  Isolate* isolate = env()->isolate();
+  HandleScope scope(isolate);
+  Local<Context> context = env()->context();
+  Context::Scope context_scope(context);
+
+  int32_t id = GetFrameID(frame);
+
+  nghttp2_extension ext = frame->ext;
+  nghttp2_ext_altsvc* altsvc = static_cast<nghttp2_ext_altsvc*>(ext.payload);
+  DEBUG_HTTP2SESSION(this, "handling altsvc frame");
+
+  Local<Value> argv[3] = {
+    Integer::New(isolate, id),
+    String::NewFromOneByte(isolate,
+                           altsvc->origin,
+                           v8::NewStringType::kNormal,
+                           altsvc->origin_len).ToLocalChecked(),
+    String::NewFromOneByte(isolate,
+                           altsvc->field_value,
+                           v8::NewStringType::kNormal,
+                           altsvc->field_value_len).ToLocalChecked(),
+  };
+
+  MakeCallback(env()->onaltsvc_string(), arraysize(argv), argv);
 }
 
 // Called by OnFrameReceived when a complete PING frame has been received.
@@ -2477,6 +2514,44 @@ void Http2Stream::RefreshState(const FunctionCallbackInfo<Value>& args) {
   }
 }
 
+void Http2Session::AltSvc(int32_t id,
+                          uint8_t* origin,
+                          size_t origin_len,
+                          uint8_t* value,
+                          size_t value_len) {
+  Http2Scope h2scope(this);
+  CHECK_EQ(nghttp2_submit_altsvc(session_, NGHTTP2_FLAG_NONE, id,
+                                 origin, origin_len, value, value_len), 0);
+}
+
+// Submits an AltSvc frame to the sent to the connected peer.
+void Http2Session::AltSvc(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  Http2Session* session;
+  ASSIGN_OR_RETURN_UNWRAP(&session, args.Holder());
+
+  int32_t id = args[0]->Int32Value(env->context()).ToChecked();
+
+  // origin and value are both required to be ASCII, handle them as such.
+  Local<String> origin_str = args[1]->ToString(env->context()).ToLocalChecked();
+  Local<String> value_str = args[2]->ToString(env->context()).ToLocalChecked();
+
+  size_t origin_len = origin_str->Length();
+  size_t value_len = value_str->Length();
+
+  CHECK_LE(origin_len + value_len, 16382);  // Max permitted for ALTSVC
+  // Verify that origin len != 0 if stream id == 0, or
+  // that origin len == 0 if stream id != 0
+  CHECK((origin_len != 0 && id == 0) || (origin_len == 0 && id != 0));
+
+  MaybeStackBuffer<uint8_t> origin(origin_len);
+  MaybeStackBuffer<uint8_t> value(value_len);
+  origin_str->WriteOneByte(*origin);
+  value_str->WriteOneByte(*value);
+
+  session->AltSvc(id, *origin, origin_len, *value, value_len);
+}
+
 // Submits a PING frame to be sent to the connected peer.
 void Http2Session::Ping(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
@@ -2694,6 +2769,7 @@ void Initialize(Local<Object> target,
   session->SetClassName(http2SessionClassName);
   session->InstanceTemplate()->SetInternalFieldCount(1);
   AsyncWrap::AddWrapMethods(env, session);
+  env->SetProtoMethod(session, "altsvc", Http2Session::AltSvc);
   env->SetProtoMethod(session, "ping", Http2Session::Ping);
   env->SetProtoMethod(session, "consume", Http2Session::Consume);
   env->SetProtoMethod(session, "destroy", Http2Session::Destroy);

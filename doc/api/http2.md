@@ -558,10 +558,96 @@ added: REPLACEME
 Calls [`unref()`][`net.Socket.prototype.unref`] on this `Http2Session`
 instance's underlying [`net.Socket`].
 
+### Class: ServerHttp2Session
+<!-- YAML
+added: v8.4.0
+-->
+
+#### serverhttp2session.altsvc(alt, originOrStream)
+<!-- YAML
+added: REPLACEME
+-->
+
+* `alt` {string} A description of the alternative service configuration as
+  defined by [RFC 7838][].
+* `originOrStream` {string|number} Either a URL string specifying the origin or
+  the numeric identifier of an active `Http2Stream`.
+
+Submits an `ALTSVC` frame (as defined by [RFC 7838][]) to the connected client.
+
+```js
+const http2 = require('http2');
+
+const server = http2.createServer();
+server.on('session', (session) => {
+  // Set altsvc for origin https://example.org:80
+  session.altsvc('h2=":8000"', 'https://example.org:80');
+});
+
+server.on('stream', (stream) => {
+  // Set altsvc for a specific stream
+  stream.session.altsvc('h2=":8000"', stream.id);
+});
+```
+
+Sending an `ALTSVC` frame with a specific stream ID indicates that the alternate
+service is associated with the origin of the given `Http2Stream`.
+
+The `alt` and origin string *must* contain only ASCII bytes and are
+strictly interpreted as a sequence of ASCII bytes. The special value `'clear'`
+may be passed to clear any previously set alternative service for a given
+domain.
+
+When a string is passed for the `originOrStream` argument, it will be parsed as
+a URL and the origin will be derived. For insetance, the origin for the
+HTTP URL `'https://example.org/foo/bar'` is the ASCII string
+`'https://example.org'`. An error will be thrown if either the given string
+cannot be parsed as a URL or if a valid origin cannot be derived.
+
+#### Specifying alternative services
+
+The format of the `alt` parameter is strictly defined by [RFC 7838][] as an
+ASCII string containing a comma-delimited list of "alternative" protocols
+associated with a specific host and port.
+
+For example, the value `'h2="example.org:81"'` indicates that the HTTP/2
+protocol is available on the host `'example.org'` on TCP/IP port 81. The
+host and port *must* be contained within the quote (`"`) characters.
+
+Multiple alternatives may be specified, for instance: `'h2="example.org:81",
+h2=":82"'`
+
+The protocol identifier (`'h2'` in the examples) may be any valid
+[ALPN Protocol ID][].
+
+The syntax of these values is not validated by the Node.js implementation and
+are passed through as provided by the user or received from the peer.
+
 ### Class: ClientHttp2Session
 <!-- YAML
 added: v8.4.0
 -->
+
+#### Event: 'altsvc'
+<!-- YAML
+added: REPLACEME
+-->
+
+The `'altsvc'` event is emitted whenever an `ALTSVC` frame is received by
+the client. The event is emitted with the `ALTSVC` value, origin, and stream
+ID, if any. If no `origin` is provided in the `ALTSVC` frame, `origin` will
+be an empty string.
+
+```js
+const http2 = require('http2');
+const client = http2.connect('https://example.org');
+
+client.on('altsvc', (alt, origin, stream) => {
+  console.log(alt);
+  console.log(origin);
+  console.log(stream);
+});
+```
 
 #### clienthttp2session.request(headers[, options])
 <!-- YAML
@@ -2850,6 +2936,7 @@ following additional properties:
 
 
 [ALPN negotiation]: #http2_alpn_negotiation
+[ALPN Protocol ID]: https://www.iana.org/assignments/tls-extensiontype-values/tls-extensiontype-values.xhtml#alpn-protocol-ids
 [Compatibility API]: #http2_compatibility_api
 [HTTP/1]: http.html
 [HTTP/2]: https://tools.ietf.org/html/rfc7540
@@ -2858,6 +2945,7 @@ following additional properties:
 [Http2Session and Sockets]: #http2_http2session_and_sockets
 [Performance Observer]: perf_hooks.html
 [Readable Stream]: stream.html#stream_class_stream_readable
+[RFC 7838]: https://tools.ietf.org/html/rfc7838
 [Settings Object]: #http2_settings_object
 [Using options.selectPadding]: #http2_using_options_selectpadding
 [Writable Stream]: stream.html#stream_writable_streams
