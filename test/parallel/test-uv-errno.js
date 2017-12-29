@@ -35,9 +35,10 @@ keys.forEach((key) => {
   common.expectsError(
     () => util._errnoException(key),
     {
-      code: 'ERR_VALUE_OUT_OF_RANGE',
+      code: 'ERR_OUT_OF_RANGE',
       type: RangeError,
-      message: 'The value of "err" must be a negative integer. ' +
-               `Received "${key}"`
+      message: 'The value of "err" is out of range. ' +
+               'It must be a negative integer. ' +
+               `Received ${key}`
     });
 });
