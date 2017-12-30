@@ -14,10 +14,7 @@ const bench = common.createBenchmark(main, {
 });
 
 
-function main(conf) {
-  const n = conf.n >>> 0;
-  const pathType = conf.pathType;
-
+function main({ n, pathType }) {
   bench.start();
   if (pathType === 'relative')
     relativePath(n);

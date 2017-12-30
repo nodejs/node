@@ -13,10 +13,7 @@ const bench = common.createBenchmark(main, {
   size: [2, 1024, 65535, 1024 * 1024]
 });
 
-function main(conf) {
-  const dur = +conf.dur;
-  const encodingType = conf.encodingType;
-  const size = +conf.size;
+function main({ dur, encodingType, size }) {
   var encoding;
 
   var chunk;
