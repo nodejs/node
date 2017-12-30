@@ -7,9 +7,7 @@ const bench = common.createBenchmark(main, {
   n: [1e7]
 });
 
-function main(conf) {
-  const len = conf.len | 0;
-  const n = conf.n | 0;
+function main({ len, n }) {
   const buf = Buffer.alloc(len);
 
   for (let i = 0; i < buf.length; i++)

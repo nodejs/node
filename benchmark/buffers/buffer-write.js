@@ -45,13 +45,11 @@ const mod = {
   writeUInt32LE: UINT32
 };
 
-function main(conf) {
-  const noAssert = conf.noAssert === 'true';
-  const len = +conf.millions * 1e6;
-  const clazz = conf.buf === 'fast' ? Buffer : require('buffer').SlowBuffer;
+function main({ noAssert, millions, buf, type }) {
+  const len = millions * 1e6;
+  const clazz = buf === 'fast' ? Buffer : require('buffer').SlowBuffer;
   const buff = new clazz(8);
-  const type = conf.type || 'UInt8';
-  const fn = `write${type}`;
+  const fn = `write${type || 'UInt8'}`;
 
   if (/Int/.test(fn))
     benchInt(buff, fn, len, noAssert);
@@ -63,7 +61,7 @@ function benchInt(buff, fn, len, noAssert) {
   const m = mod[fn];
   const testFunction = new Function('buff', `
     for (var i = 0; i !== ${len}; i++) {
-      buff.${fn}(i & ${m}, 0, ${JSON.stringify(noAssert)});
+      buff.${fn}(i & ${m}, 0, ${noAssert});
     }
   `);
   bench.start();
@@ -74,7 +72,7 @@ function benchInt(buff, fn, len, noAssert) {
 function benchFloat(buff, fn, len, noAssert) {
   const testFunction = new Function('buff', `
     for (var i = 0; i !== ${len}; i++) {
-      buff.${fn}(i, 0, ${JSON.stringify(noAssert)});
+      buff.${fn}(i, 0, ${noAssert});
     }
   `);
   bench.start();
