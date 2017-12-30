@@ -16,10 +16,7 @@ var dur;
 var concurrency;
 var running = true;
 
-function main(conf) {
-  dur = +conf.dur;
-  concurrency = +conf.concurrency;
-
+function main({ dur, concurrency }) {
   const cert_dir = path.resolve(__dirname, '../../test/fixtures');
   const options = {
     key: fs.readFileSync(`${cert_dir}/test_key.pem`),
