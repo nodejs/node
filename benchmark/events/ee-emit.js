@@ -8,11 +8,7 @@ const bench = common.createBenchmark(main, {
   listeners: [1, 5, 10],
 });
 
-function main(conf) {
-  const n = conf.n | 0;
-  const argc = conf.argc | 0;
-  const listeners = Math.max(conf.listeners | 0, 1);
-
+function main({ n, argc, listeners }) {
   const ee = new EventEmitter();
 
   for (var k = 0; k < listeners; k += 1)
