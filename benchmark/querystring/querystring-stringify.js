@@ -7,10 +7,7 @@ const bench = common.createBenchmark(main, {
   n: [1e7],
 });
 
-function main(conf) {
-  const type = conf.type;
-  const n = conf.n | 0;
-
+function main({ type, n }) {
   const inputs = {
     noencode: {
       foo: 'bar',
