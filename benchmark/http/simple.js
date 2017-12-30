@@ -12,17 +12,16 @@ const bench = common.createBenchmark(main, {
   res: ['normal', 'setHeader', 'setHeaderWH']
 });
 
-function main(conf) {
+function main({ type, len, chunks, c, chunkedEnc, res }) {
   process.env.PORT = PORT;
   var server = require('../fixtures/simple-http-server.js')
   .listen(PORT)
   .on('listening', function() {
-    const path =
-      `/${conf.type}/${conf.len}/${conf.chunks}/${conf.res}/${conf.chunkedEnc}`;
+    const path = `/${type}/${len}/${chunks}/${res}/${chunkedEnc}`;
 
     bench.http({
       path: path,
-      connections: conf.c
+      connections: c
     }, function() {
       server.close();
     });
