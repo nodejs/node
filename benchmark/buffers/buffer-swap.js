@@ -72,13 +72,9 @@ function genMethod(method) {
   return (new Function(fnString))();
 }
 
-function main(conf) {
-  const method = conf.method || 'swap16';
-  const len = conf.len | 0;
-  const n = conf.n | 0;
-  const aligned = conf.aligned || 'true';
+function main({ method, len, n, aligned = 'true' }) {
   const buf = createBuffer(len, aligned === 'true');
-  const bufferSwap = genMethod(method);
+  const bufferSwap = genMethod(method || 'swap16');
 
   bufferSwap(n, buf);
   bench.start();
