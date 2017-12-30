@@ -14,27 +14,17 @@ const bench = common.createBenchmark(main, {
   dur: [5]
 });
 
+function fail(err, syscall) {
+  throw util._errnoException(err, syscall);
+}
+
 const { TCP, constants: TCPConstants } = process.binding('tcp_wrap');
 const TCPConnectWrap = process.binding('tcp_wrap').TCPConnectWrap;
 const WriteWrap = process.binding('stream_wrap').WriteWrap;
 const PORT = common.PORT;
 
-var dur;
-var len;
-var type;
-
-function main(conf) {
-  dur = +conf.dur;
-  len = +conf.len;
-  type = conf.type;
-  server();
-}
-
-function fail(err, syscall) {
-  throw util._errnoException(err, syscall);
-}
-
-function server() {
+function main({ dur, len, type }) {
+  // Server
   const serverHandle = new TCP(TCPConstants.SERVER);
   var err = serverHandle.bind('127.0.0.1', PORT);
   if (err)
@@ -70,10 +60,7 @@ function server() {
     clientHandle.readStart();
   };
 
-  client();
-}
-
-function client() {
+  // Client
   var chunk;
   switch (type) {
     case 'buf':
@@ -91,9 +78,9 @@ function client() {
 
   const clientHandle = new TCP(TCPConstants.SOCKET);
   const connectReq = new TCPConnectWrap();
-  const err = clientHandle.connect(connectReq, '127.0.0.1', PORT);
   var bytes = 0;
 
+  err = clientHandle.connect(connectReq, '127.0.0.1', PORT);
   if (err)
     fail(err, 'connect');
 
