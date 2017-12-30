@@ -9,9 +9,7 @@ const bench = common.createBenchmark(main, {
 });
 
 
-function main(conf) {
-  const n = conf.n >>> 0;
-
+function main({ n }) {
   bench.start();
   (function r(cntr) {
     if (cntr-- <= 0)

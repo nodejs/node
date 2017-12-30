@@ -18,7 +18,7 @@ const bench = common.createBenchmark(main, {
 
 function main(conf) {
   encodingType = conf.encodingType;
-  size = +conf.size;
+  size = conf.size;
   filesize = conf.filesize;
 
   switch (encodingType) {
