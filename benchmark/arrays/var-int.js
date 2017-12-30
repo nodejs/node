@@ -17,10 +17,8 @@ const bench = common.createBenchmark(main, {
   n: [25]
 });
 
-function main(conf) {
-  const type = conf.type;
+function main({ type, n }) {
   const clazz = global[type];
-  const n = +conf.n;
 
   bench.start();
   const arr = new clazz(n * 1e6);
