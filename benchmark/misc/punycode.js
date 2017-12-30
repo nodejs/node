@@ -62,10 +62,8 @@ function runICU(n, val) {
   bench.end(n);
 }
 
-function main(conf) {
-  const n = +conf.n;
-  const val = conf.val;
-  switch (conf.method) {
+function main({ n, val, method }) {
+  switch (method) {
     // '' is a default case for tests
     case '':
     case 'punycode':
