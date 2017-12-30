@@ -7,9 +7,7 @@ const bench = common.createBenchmark(main, {
   n: [1, 50000]
 });
 
-function main(conf) {
-  const n = +conf.n;
-
+function main({ n }) {
   var i = 0;
   var m = {};
   // First call dominates results
