@@ -11,9 +11,7 @@ const bench = common.createBenchmark(main, {
 });
 
 
-function main(conf) {
-  const len = +conf.len;
-  const num = +conf.n;
+function main({ len, n }) {
   var todo = [];
   const headers = [];
   // Chose 7 because 9 showed "Connection error" / "Connection closed"
@@ -78,7 +76,7 @@ function main(conf) {
       size = (size * mult + add) % mod;
       if (did) {
         count += 1;
-        if (count === num) {
+        if (count === n) {
           bench.end(count);
           process.exit(0);
         } else {

@@ -40,10 +40,7 @@ const bench = common.createBenchmark(main, {
   n: [1e6],
 });
 
-function main(conf) {
-  const n = +conf.n;
-  const key = conf.key;
-
+function main({ n, key }) {
   bench.start();
   for (var i = 0; i < n; i++) {
     _checkIsHttpToken(key);
