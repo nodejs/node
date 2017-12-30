@@ -13,9 +13,7 @@ const bench = common.createBenchmark(main, {
   ]
 });
 
-function main(conf) {
-  const n = +conf.n;
-  const len = +conf.len;
+function main({ len, n, method }) {
   var i;
 
   const data = Buffer.allocUnsafe(len + 1);
@@ -26,7 +24,7 @@ function main(conf) {
   data.copy(expected);
   data.copy(expectedWrong);
 
-  switch (conf.method) {
+  switch (method) {
     case '':
       // Empty string falls through to next line as default, mostly for tests.
     case 'deepEqual':
