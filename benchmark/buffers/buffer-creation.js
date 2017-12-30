@@ -15,10 +15,8 @@ const bench = common.createBenchmark(main, {
   n: [1024]
 });
 
-function main(conf) {
-  const len = +conf.len;
-  const n = +conf.n;
-  switch (conf.type) {
+function main({ len, n, type }) {
+  switch (type) {
     case '':
     case 'fast-alloc':
       bench.start();
