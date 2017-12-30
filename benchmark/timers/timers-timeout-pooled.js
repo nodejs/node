@@ -8,8 +8,8 @@ const bench = common.createBenchmark(main, {
   millions: [10],
 });
 
-function main(conf) {
-  const iterations = +conf.millions * 1e6;
+function main({ millions }) {
+  const iterations = millions * 1e6;
   let count = 0;
 
   // Function tracking on the hidden class in V8 can cause misleading
