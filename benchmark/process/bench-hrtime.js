@@ -8,13 +8,12 @@ const bench = common.createBenchmark(main, {
   type: ['raw', 'diff']
 });
 
-function main(conf) {
-  const n = conf.n | 0;
+function main({ n, type }) {
   const hrtime = process.hrtime;
   var noDead = hrtime();
   var i;
 
-  if (conf.type === 'raw') {
+  if (type === 'raw') {
     bench.start();
     for (i = 0; i < n; i++) {
       noDead = hrtime();
