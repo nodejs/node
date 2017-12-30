@@ -12,8 +12,8 @@ const bench = common.createBenchmark(main, {
   useCache: ['true', 'false']
 });
 
-function main(conf) {
-  const n = +conf.thousands * 1e3;
+function main({ thousands, fullPath, useCache }) {
+  const n = thousands * 1e3;
 
   refreshTmpDir();
   try { fs.mkdirSync(benchmarkDirectory); } catch (e) {}
@@ -30,10 +30,10 @@ function main(conf) {
     );
   }
 
-  if (conf.fullPath === 'true')
-    measureFull(n, conf.useCache === 'true');
+  if (fullPath === 'true')
+    measureFull(n, useCache === 'true');
   else
-    measureDir(n, conf.useCache === 'true');
+    measureDir(n, useCache === 'true');
 
   refreshTmpDir();
 }
