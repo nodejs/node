@@ -23,13 +23,11 @@ function compareUsingOffset(b0, b1, len, iter) {
   bench.end(iter / 1e6);
 }
 
-function main(conf) {
-  const iter = (conf.millions >>> 0) * 1e6;
-  const size = (conf.size >>> 0);
-  const method =
-    conf.method === 'slice' ? compareUsingSlice : compareUsingOffset;
-  method(Buffer.alloc(size, 'a'),
-         Buffer.alloc(size, 'b'),
-         size >> 1,
-         iter);
+function main({ millions, size, method }) {
+  const iter = millions * 1e6;
+  const fn = method === 'slice' ? compareUsingSlice : compareUsingOffset;
+  fn(Buffer.alloc(size, 'a'),
+     Buffer.alloc(size, 'b'),
+     size >> 1,
+     iter);
 }

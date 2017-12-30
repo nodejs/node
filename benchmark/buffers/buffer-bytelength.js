@@ -15,11 +15,7 @@ const chars = [
   '𠜎𠜱𠝹𠱓𠱸𠲖𠳏𠳕𠴕𠵼𠵿𠸎𠸏𠹷𠺝𠺢' // 4 bytes
 ];
 
-function main(conf) {
-  const n = conf.n | 0;
-  const len = conf.len | 0;
-  const encoding = conf.encoding;
-
+function main({ n, len, encoding }) {
   var strings = [];
   var results;
   if (encoding === 'buffer') {

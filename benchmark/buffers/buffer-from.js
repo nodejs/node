@@ -18,10 +18,7 @@ const bench = common.createBenchmark(main, {
   n: [2048]
 });
 
-function main(conf) {
-  const len = +conf.len;
-  const n = +conf.n;
-
+function main({ len, n, source }) {
   const array = new Array(len).fill(42);
   const arrayBuf = new ArrayBuffer(len);
   const str = 'a'.repeat(len);
@@ -31,7 +28,7 @@ function main(conf) {
 
   var i;
 
-  switch (conf.source) {
+  switch (source) {
     case 'array':
       bench.start();
       for (i = 0; i < n * 1024; i++) {
