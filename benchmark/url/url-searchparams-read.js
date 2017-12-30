@@ -37,11 +37,7 @@ function has(n, param) {
   bench.end(n);
 }
 
-function main(conf) {
-  const method = conf.method;
-  const param = conf.param;
-  const n = conf.n | 0;
-
+function main({ method, param, n }) {
   switch (method) {
     case 'get':
       get(n, param);

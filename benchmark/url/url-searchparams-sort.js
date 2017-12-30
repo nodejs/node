@@ -31,10 +31,9 @@ const bench = common.createBenchmark(main, {
   flags: ['--expose-internals']
 });
 
-function main(conf) {
+function main({ type, n }) {
   const searchParams = require('internal/url').searchParamsSymbol;
-  const input = inputs[conf.type];
-  const n = conf.n | 0;
+  const input = inputs[type];
   const params = new URLSearchParams();
   const array = getParams(input);
 
