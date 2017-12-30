@@ -52,17 +52,15 @@ function useForEach(n, items) {
   bench.end(n / 1e6);
 }
 
-function main(conf) {
-  const n = +conf.millions * 1e6;
-  const count = +conf.count;
-
+function main({ millions, count, method }) {
+  const n = millions * 1e6;
   const items = new Array(count);
   var i;
   var fn;
   for (i = 0; i < count; i++)
     items[i] = i;
 
-  switch (conf.method) {
+  switch (method) {
     case '':
       // Empty string falls through to next line as default, mostly for tests.
     case 'for':

@@ -60,10 +60,10 @@ function runUseArguments(n) {
   bench.end(n / 1e6);
 }
 
-function main(conf) {
-  const n = +conf.millions * 1e6;
+function main({ millions, method }) {
+  const n = millions * 1e6;
 
-  switch (conf.method) {
+  switch (method) {
     case '':
       // Empty string falls through to next line as default, mostly for tests.
     case 'copy':
