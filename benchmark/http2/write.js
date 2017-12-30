@@ -10,19 +10,16 @@ const bench = common.createBenchmark(main, {
   benchmarker: ['h2load']
 }, { flags: ['--no-warnings', '--expose-http2'] });
 
-function main(conf) {
-  const m = +conf.streams;
-  const l = +conf.length;
-  const s = +conf.size;
+function main({ streams, length, size }) {
   const http2 = require('http2');
   const server = http2.createServer();
   server.on('stream', (stream) => {
     stream.respond();
     let written = 0;
     function write() {
-      stream.write('ü'.repeat(s));
-      written += s;
-      if (written < l)
+      stream.write('ü'.repeat(size));
+      written += size;
+      if (written < length)
         setImmediate(write);
       else
         stream.end();
@@ -33,7 +30,7 @@ function main(conf) {
     bench.http({
       path: '/',
       requests: 10000,
-      maxConcurrentStreams: m,
+      maxConcurrentStreams: streams,
     }, () => { server.close(); });
   });
 }
