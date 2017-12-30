@@ -7,8 +7,7 @@ const bench = common.createBenchmark(main, {
   n: [2e6]
 });
 
-function main(conf) {
-  const n = +conf.n;
+function main({ n }) {
   const b = Buffer.allocUnsafe(1024);
   const s = new Writable();
   s._write = function(chunk, encoding, cb) {
