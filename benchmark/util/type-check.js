@@ -34,16 +34,15 @@ const bench = common.createBenchmark(main, {
   flags: ['--expose-internals']
 });
 
-function main(conf) {
+function main({ type, argument, version, n }) {
   // For testing, if supplied with an empty type, default to ArrayBufferView.
-  conf.type = conf.type || 'ArrayBufferView';
+  type = type || 'ArrayBufferView';
 
   const util = process.binding('util');
   const types = require('internal/util/types');
 
-  const n = (+conf.n) | 0;
-  const func = { native: util, js: types }[conf.version][`is${conf.type}`];
-  const arg = args[conf.type][conf.argument];
+  const func = { native: util, js: types }[version][`is${type}`];
+  const arg = args[type][argument];
 
   bench.start();
   for (var i = 0; i < n; i++) {
