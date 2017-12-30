@@ -12,18 +12,12 @@ const bench = common.createBenchmark(main, {
   flags: ['--expose-internals']
 });
 
-var dur;
-var len;
-var type;
 var chunk;
 var encoding;
-var JSStreamWrap;  // Can only require internals inside main().
 
-function main(conf) {
-  dur = +conf.dur;
-  len = +conf.len;
-  type = conf.type;
-  JSStreamWrap = require('internal/wrap_js_stream');
+function main({ dur, len, type }) {
+  // Can only require internals inside main().
+  const JSStreamWrap = require('internal/wrap_js_stream');
 
   switch (type) {
     case 'buf':
@@ -41,7 +35,21 @@ function main(conf) {
       throw new Error(`invalid type: ${type}`);
   }
 
-  doBenchmark();
+  const reader = new Reader();
+  const writer = new Writer();
+
+  // the actual benchmark.
+  const fakeSocket = new JSStreamWrap(new PassThrough());
+  bench.start();
+  reader.pipe(fakeSocket);
+  fakeSocket.pipe(writer);
+
+  setTimeout(function() {
+    const bytes = writer.received;
+    const gbits = (bytes * 8) / (1024 * 1024 * 1024);
+    bench.end(gbits);
+    process.exit(0);
+  }, dur * 1000);
 }
 
 function Writer() {
@@ -86,22 +94,3 @@ Reader.prototype.pipe = function(dest) {
   this.flow();
   return dest;
 };
-
-
-function doBenchmark() {
-  const reader = new Reader();
-  const writer = new Writer();
-
-  // the actual benchmark.
-  const fakeSocket = new JSStreamWrap(new PassThrough());
-  bench.start();
-  reader.pipe(fakeSocket);
-  fakeSocket.pipe(writer);
-
-  setTimeout(function() {
-    const bytes = writer.received;
-    const gbits = (bytes * 8) / (1024 * 1024 * 1024);
-    bench.end(gbits);
-    process.exit(0);
-  }, dur * 1000);
-}
