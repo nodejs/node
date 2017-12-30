@@ -31,15 +31,13 @@ const bench = common.createBenchmark(main, {
   n: [5e6]
 });
 
-function main(conf) {
-  const n = conf.n | 0;
-  const to = conf.to;
-  const input = inputs[conf.input][to];
+function main({ n, to, input }) {
+  const value = inputs[input][to];
   const method = to === 'ascii' ? domainToASCII : domainToUnicode;
 
   bench.start();
   for (var i = 0; i < n; i++) {
-    method(input);
+    method(value);
   }
   bench.end(n);
 }
