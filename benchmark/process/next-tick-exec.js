@@ -4,8 +4,8 @@ const bench = common.createBenchmark(main, {
   millions: [5]
 });
 
-function main(conf) {
-  var n = +conf.millions * 1e6;
+function main({ millions }) {
+  var n = millions * 1e6;
 
   bench.start();
   for (var i = 0; i < n; i++) {
@@ -13,6 +13,6 @@ function main(conf) {
   }
   function onNextTick(i) {
     if (i + 1 === n)
-      bench.end(+conf.millions);
+      bench.end(millions);
   }
 }
