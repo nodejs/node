@@ -44,10 +44,7 @@ function iterator(n) {
   assert.strictEqual(noDead[1], '3rd');
 }
 
-function main(conf) {
-  const method = conf.method;
-  const n = conf.n | 0;
-
+function main({ method, n }) {
   switch (method) {
     case 'forEach':
       forEach(n);
