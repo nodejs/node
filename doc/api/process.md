@@ -377,8 +377,8 @@ process.on('SIGTERM', handle);
 * `SIGUSR1` is reserved by Node.js to start the [debugger][]. It's possible to
   install a listener but doing so will _not_ stop the debugger from starting.
 * `SIGTERM` and `SIGINT` have default handlers on non-Windows platforms that
-  resets the terminal mode before exiting with code `128 + signal number`. If
-  one of these signals has a listener installed, its default behavior will be
+  reset the terminal mode before exiting with code `128 + signal number`. If one
+  of these signals has a listener installed, its default behavior will be
   removed (Node.js will no longer exit).
 * `SIGPIPE` is ignored by default. It can have a listener installed.
 * `SIGHUP` is generated on Windows when the console window is closed, and on
