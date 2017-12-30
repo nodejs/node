@@ -17,15 +17,13 @@ const configs = {
 const bench = common.createBenchmark(main, configs);
 
 
-function main(conf) {
-  const n = +conf.n;
-
+function main({ n, mode }) {
   const str = 'abc';
   const num = 123;
 
   let string;
 
-  switch (conf.mode) {
+  switch (mode) {
     case '':
       // Empty string falls through to next line as default, mostly for tests.
     case 'multi-concat':
