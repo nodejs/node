@@ -5,9 +5,7 @@ const bench = common.createBenchmark(main, {
 });
 
 const spawn = require('child_process').spawn;
-function main(conf) {
-  const n = +conf.n;
-
+function main({ n }) {
   bench.start();
   go(n, n);
 }

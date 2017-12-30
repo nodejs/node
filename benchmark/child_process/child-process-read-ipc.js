@@ -18,11 +18,9 @@ if (process.argv[2] === 'child') {
     dur: [5]
   });
   const spawn = require('child_process').spawn;
-  function main(conf) {
-    bench.start();
 
-    const dur = +conf.dur;
-    const len = +conf.len;
+  function main({ dur, len }) {
+    bench.start();
 
     const options = { 'stdio': ['ignore', 1, 2, 'ipc'] };
     const child = spawn(process.argv[0],
