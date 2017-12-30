@@ -374,9 +374,6 @@ process.on('SIGINT', handle);
 process.on('SIGTERM', handle);
 ```
 
-An easy way to send the `SIGINT` signal is with `<Ctrl>-C` in most terminal
-programs.
-
 * `SIGUSR1` is reserved by Node.js to start the [debugger][]. It's possible to
   install a listener but doing so will _not_ stop the debugger from starting.
 * `SIGTERM` and `SIGINT` have default handlers on non-Windows platforms that
@@ -392,7 +389,7 @@ programs.
   installed its default behavior will be removed.
 * `SIGTERM` is not supported on Windows, it can be listened on.
 * `SIGINT` from the terminal is supported on all platforms, and can usually be
-  generated with `CTRL+C` (though this may be configurable). It is not generated
+  generated with `<Ctrl>+C` (though this may be configurable). It is not generated
   when terminal raw mode is enabled.
 * `SIGBREAK` is delivered on Windows when `<Ctrl>+<Break>` is pressed, on
   non-Windows platforms it can be listened on, but there is no way to send or
