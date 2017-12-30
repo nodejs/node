@@ -2,6 +2,7 @@
 'use strict';
 
 const common = require('../common.js');
+const net = require('net');
 const PORT = common.PORT;
 
 const bench = common.createBenchmark(main, {
@@ -10,17 +11,10 @@ const bench = common.createBenchmark(main, {
   dur: [5],
 });
 
-var dur;
-var len;
-var type;
 var chunk;
 var encoding;
 
-function main(conf) {
-  dur = +conf.dur;
-  len = +conf.len;
-  type = conf.type;
-
+function main({ dur, len, type }) {
   switch (type) {
     case 'buf':
       chunk = Buffer.alloc(len, 'x');
@@ -37,34 +31,6 @@ function main(conf) {
       throw new Error(`invalid type: ${type}`);
   }
 
-  server();
-}
-
-const net = require('net');
-
-function Writer() {
-  this.received = 0;
-  this.writable = true;
-}
-
-Writer.prototype.write = function(chunk, encoding, cb) {
-  this.received += chunk.length;
-
-  if (typeof encoding === 'function')
-    encoding();
-  else if (typeof cb === 'function')
-    cb();
-
-  return true;
-};
-
-// doesn't matter, never emits anything.
-Writer.prototype.on = function() {};
-Writer.prototype.once = function() {};
-Writer.prototype.emit = function() {};
-Writer.prototype.prependListener = function() {};
-
-function server() {
   const writer = new Writer();
 
   // the actual benchmark.
@@ -95,3 +61,25 @@ function server() {
     });
   });
 }
+
+function Writer() {
+  this.received = 0;
+  this.writable = true;
+}
+
+Writer.prototype.write = function(chunk, encoding, cb) {
+  this.received += chunk.length;
+
+  if (typeof encoding === 'function')
+    encoding();
+  else if (typeof cb === 'function')
+    cb();
+
+  return true;
+};
+
+// doesn't matter, never emits anything.
+Writer.prototype.on = function() {};
+Writer.prototype.once = function() {};
+Writer.prototype.emit = function() {};
+Writer.prototype.prependListener = function() {};
