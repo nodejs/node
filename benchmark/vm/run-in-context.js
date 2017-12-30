@@ -10,10 +10,8 @@ const bench = common.createBenchmark(main, {
 
 const vm = require('vm');
 
-function main(conf) {
-  const n = +conf.n;
-  const options = conf.breakOnSigint ? { breakOnSigint: true } : {};
-  const withSigintListener = !!conf.withSigintListener;
+function main({ n, breakOnSigint, withSigintListener }) {
+  const options = breakOnSigint ? { breakOnSigint: true } : {};
 
   process.removeAllListeners('SIGINT');
   if (withSigintListener)

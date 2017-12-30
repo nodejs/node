@@ -11,9 +11,7 @@ const bench = common.createBenchmark(main, {
   n: [1e6]
 });
 
-function main(conf) {
-  const n = +conf.n;
-  const method = conf.method;
+function main({ method, n }) {
   var i = 0;
   bench.start();
   for (; i < n; i++)
