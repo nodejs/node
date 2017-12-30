@@ -12,10 +12,9 @@ const configs = {
 const bench = common.createBenchmark(main, configs);
 const noop = () => {};
 
-function main(conf) {
-  const n = +conf.n;
-  const port = conf.port === 'true' ? 0 : undefined;
-  const address = conf.address === 'true' ? '0.0.0.0' : undefined;
+function main({ n, port, address }) {
+  port = port === 'true' ? 0 : undefined;
+  address = address === 'true' ? '0.0.0.0' : undefined;
 
   if (port !== undefined && address !== undefined) {
     bench.start();
