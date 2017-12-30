@@ -6,9 +6,9 @@ const bench = common.createBenchmark(main, {
   type: ['depth', 'depth1', 'breadth', 'breadth1', 'breadth4', 'clear']
 });
 
-function main(conf) {
-  const N = +conf.thousands * 1e3;
-  switch (conf.type) {
+function main({ thousands, type }) {
+  const N = thousands * 1e3;
+  switch (type) {
     case 'depth':
       depth(N);
       break;
