@@ -15,9 +15,7 @@ const bench = common.createBenchmark(main, {
 });
 
 
-function main(conf) {
-  const len = conf.len >>> 0;
-  const n = conf.n >>> 0;
+function main({ len, n }) {
   var header = `GET /hello HTTP/1.1${CRLF}Content-Type: text/plain${CRLF}`;
 
   for (var i = 0; i < len; i++) {
