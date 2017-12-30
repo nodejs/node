@@ -24,12 +24,8 @@ const bench = common.createBenchmark(main, {
   len: [1e6]
 });
 
-function main(conf) {
-  const type = conf.type;
+function main({ type, n, len, method }) {
   const clazz = global[type];
-  const n = +conf.n;
-  const len = +conf.len;
-
   const actual = new clazz(len);
   const expected = new clazz(len);
   const expectedWrong = Buffer.alloc(len);
@@ -37,7 +33,7 @@ function main(conf) {
   expectedWrong[wrongIndex] = 123;
   var i;
 
-  switch (conf.method) {
+  switch (method) {
     case '':
       // Empty string falls through to next line as default, mostly for tests.
     case 'deepEqual':
