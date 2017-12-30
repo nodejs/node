@@ -13,9 +13,7 @@ function MyTransform() {
 inherits(MyTransform, Transform);
 MyTransform.prototype._transform = function() {};
 
-function main(conf) {
-  const n = +conf.n;
-
+function main({ n }) {
   bench.start();
   for (var i = 0; i < n; ++i)
     new MyTransform();
