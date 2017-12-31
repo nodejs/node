@@ -206,7 +206,7 @@ export async function dynamicInstantiate(url) {
 ```
 
 With the list of module exports provided upfront, the `execute` function will
-then be called at the exact point of module evalutation order for that module
+then be called at the exact point of module evaluation order for that module
 in the import tree.
 
 [Node.js EP for ES Modules]: https://github.com/nodejs/node-eps/blob/master/002-es-modules.md

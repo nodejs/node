@@ -22,7 +22,7 @@ const inspector = require('inspector');
   to false.
 
 Activate inspector on host and port. Equivalent to `node
---inspect=[[host:]port]`, but can be done programatically after node has
+--inspect=[[host:]port]`, but can be done programmatically after node has
 started.
 
 If wait is `true`, will block until a client has connected to the inspect port
