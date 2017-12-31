@@ -63,7 +63,7 @@ server.listen(0, function() {
   client.on('close', function() {
     // readyState is deprecated but we want to make
     // sure this isn't triggering an assert in lib/net.js
-    // See issue #1069.
+    // See https://github.com/nodejs/node-v0.x-archive/issues/1069.
     assert.strictEqual('closed', client.readyState);
 
     // Confirming the buffer string is encoded in ASCII
