@@ -56,7 +56,7 @@ or a pull request.
 
 Courtesy should always be shown to individuals submitting issues and pull
 requests to the Node.js project. Be welcoming to first-time contributors,
-identified by the GitHub ![badge](./doc/first_timer_badge.png) badge.
+identified by the GitHub ![First-time contributor](./doc/first_timer_badge.png) badge.
 
 For first-time contributors, check if the commit author is the same as the
 pull request author, and ask if they have configured their git
