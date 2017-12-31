@@ -476,8 +476,9 @@ process.setMaxListeners(256);
   }
 }
 
-// #5126, "FATAL ERROR: v8::Object::SetIndexedPropertiesToExternalArrayData()
-// length exceeds max acceptable value"
+// https://github.com/nodejs/node-v0.x-archive/issues/5126,
+// "FATAL ERROR: v8::Object::SetIndexedPropertiesToExternalArrayData() length
+// exceeds max acceptable value"
 common.expectsError(
   () => crypto.randomBytes((-1 >>> 0) + 1),
   {

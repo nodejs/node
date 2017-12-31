@@ -23,7 +23,8 @@
 const common = require('../common');
 const dns = require('dns');
 
-// Should not raise assertion error. Issue #7070
+// Should not raise assertion error.
+// Issue https://github.com/nodejs/node-v0.x-archive/issues/7070
 common.expectsError(() => dns.resolveNs([]), // bad name
                     {
                       code: 'ERR_INVALID_ARG_TYPE',
