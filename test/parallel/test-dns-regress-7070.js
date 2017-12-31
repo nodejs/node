@@ -24,7 +24,8 @@ require('../common');
 const assert = require('assert');
 const dns = require('dns');
 
-// Should not raise assertion error. Issue #7070
+// Should not raise assertion error.
+// Issue https://github.com/nodejs/node-v0.x-archive/issues/7070
 assert.throws(() => dns.resolveNs([]), // bad name
               /^Error: "name" argument must be a string$/);
 assert.throws(() => dns.resolveNs(''), // bad callback

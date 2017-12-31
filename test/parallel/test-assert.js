@@ -586,7 +586,7 @@ testAssertionMessage({ a: undefined, b: null }, '{ a: undefined, b: null }');
 testAssertionMessage({ a: NaN, b: Infinity, c: -Infinity },
                      '{ a: NaN, b: Infinity, c: -Infinity }');
 
-// #2893
+// https://github.com/nodejs/node-v0.x-archive/issues/2893
 {
   let threw = false;
   try {
@@ -601,7 +601,7 @@ testAssertionMessage({ a: NaN, b: Infinity, c: -Infinity },
   assert.ok(threw);
 }
 
-// #5292
+// https://github.com/nodejs/node-v0.x-archive/issues/5292
 try {
   assert.strictEqual(1, 2);
 } catch (e) {
