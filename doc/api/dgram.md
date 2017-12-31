@@ -392,7 +392,7 @@ added: v8.6.0
 
 * `multicastInterface` {String}
 
-*Note: All references to scope in this section are refering to
+*Note: All references to scope in this section are referring to
 [IPv6 Zone Indices][], which are defined by [RFC 4007][]. In string form, an IP
 with a scope index is written as `'IP%scope'` where scope is an interface name or
 interface number.*
@@ -486,7 +486,7 @@ packet is allowed to travel through, specifically for multicast traffic.  Each
 router or gateway that forwards a packet decrements the TTL. If the TTL is
 decremented to 0 by a router, it will not be forwarded.
 
-The argument passed to to `socket.setMulticastTTL()` is a number of hops
+The argument passed to `socket.setMulticastTTL()` is a number of hops
 between 0 and 255. The default on most systems is `1` but can vary.
 
 ### socket.setRecvBufferSize(size)
