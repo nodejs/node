@@ -393,7 +393,8 @@ fileStream.on('close', common.mustCall(function() {
   );
 }));
 
-// Issue #2227: unknown digest method should throw an error.
+// Unknown digest method should throw an error:
+// https://github.com/nodejs/node-v0.x-archive/issues/2227
 assert.throws(function() {
   crypto.createHash('xyzzy');
 }, /^Error: Digest method not supported$/);

@@ -230,8 +230,9 @@ const expectedErrorRegexp = /^TypeError: size must be a number >= 0$/;
   }
 }
 
-// #5126, "FATAL ERROR: v8::Object::SetIndexedPropertiesToExternalArrayData()
-// length exceeds max acceptable value"
+// https://github.com/nodejs/node-v0.x-archive/issues/5126,
+// "FATAL ERROR: v8::Object::SetIndexedPropertiesToExternalArrayData() length
+// exceeds max acceptable value"
 assert.throws(function() {
   crypto.randomBytes((-1 >>> 0) + 1);
 }, /^TypeError: size must be a number >= 0$/);

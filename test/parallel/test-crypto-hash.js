@@ -104,7 +104,8 @@ fileStream.on('close', common.mustCall(function() {
                      'Test SHA1 of sample.png');
 }));
 
-// Issue #2227: unknown digest method should throw an error.
+// Issue https://github.com/nodejs/node-v0.x-archive/issues/2227: unknown digest
+// method should throw an error.
 assert.throws(function() {
   crypto.createHash('xyzzy');
 }, /Digest method not supported/);
