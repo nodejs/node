@@ -181,7 +181,8 @@ const child = require('../fixtures/module-require/child/');
 assert.strictEqual(child.loaded, parent.loaded);
 
 
-// #1357 Loading JSON files with require()
+// Loading JSON files with require()
+// See https://github.com/nodejs/node-v0.x-archive/issues/1357.
 const json = require('../fixtures/packages/main/package.json');
 assert.deepStrictEqual(json, {
   name: 'package-name',
@@ -289,7 +290,8 @@ process.on('exit', function() {
 });
 
 
-// #1440 Loading files with a byte order marker.
+// Loading files with a byte order marker.
+// See https://github.com/nodejs/node-v0.x-archive/issues/1440.
 assert.strictEqual(42, require('../fixtures/utf8-bom.js'));
 assert.strictEqual(42, require('../fixtures/utf8-bom.json'));
 

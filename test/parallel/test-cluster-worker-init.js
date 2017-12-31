@@ -21,7 +21,7 @@ if (cluster.isMaster) {
     worker.send(msg);
   });
 } else {
-  // GH #7998
+  // https://github.com/nodejs/node-v0.x-archive/issues/7998
   cluster.worker.on('message', (message) => {
     process.send(message === msg);
   });
