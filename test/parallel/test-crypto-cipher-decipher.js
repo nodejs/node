@@ -145,7 +145,8 @@ testCipher2(Buffer.from('0123456789abcdef'));
     });
 }
 
-// Base64 padding regression test, see #4837.
+// Base64 padding regression test, see
+// https://github.com/nodejs/node-v0.x-archive/issues/4837.
 {
   const c = crypto.createCipher('aes-256-cbc', 'secret');
   const s = c.update('test', 'utf8', 'base64') + c.final('base64');
@@ -153,7 +154,7 @@ testCipher2(Buffer.from('0123456789abcdef'));
 }
 
 // Calling Cipher.final() or Decipher.final() twice should error but
-// not assert. See #4886.
+// not assert. See https://github.com/nodejs/node-v0.x-archive/issues/4886.
 {
   const c = crypto.createCipher('aes-256-cbc', 'secret');
   try { c.final('xxx'); } catch (e) { /* Ignore. */ }
@@ -165,14 +166,16 @@ testCipher2(Buffer.from('0123456789abcdef'));
   try { d.final('xxx'); } catch (e) { /* Ignore. */ }
 }
 
-// Regression test for #5482: string to Cipher#update() should not assert.
+// Regression test for https://github.com/nodejs/node-v0.x-archive/issues/5482:
+// string to Cipher#update() should not assert.
 {
   const c = crypto.createCipher('aes192', '0123456789abcdef');
   c.update('update');
   c.final();
 }
 
-// #5655 regression tests, 'utf-8' and 'utf8' are identical.
+// https://github.com/nodejs/node-v0.x-archive/issues/5655 regression tests,
+// 'utf-8' and 'utf8' are identical.
 {
   let c = crypto.createCipher('aes192', '0123456789abcdef');
   c.update('update', '');  // Defaults to "utf8".
