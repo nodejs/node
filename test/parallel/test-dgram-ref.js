@@ -2,7 +2,7 @@
 const common = require('../common');
 const dgram = require('dgram');
 
-// should not hang, see #1282
+// should not hang, see https://github.com/nodejs/node-v0.x-archive/issues/1282
 dgram.createSocket('udp4');
 dgram.createSocket('udp6');
 
