@@ -33,7 +33,7 @@
     - [How is an LTS release cut?](#how-is-an-lts-release-cut)
 
 This document contains information for Collaborators of the Node.js
-project regarding maintaining the code, documentation and issues.
+project regarding managing the project's code, documentation, and issue tracker.
 
 Collaborators should be familiar with the guidelines for new
 contributors in [CONTRIBUTING.md](./CONTRIBUTING.md) and also
@@ -206,11 +206,10 @@ Node.js API are internal:
 - Any native C/C++ APIs/ABIs exported by the Node.js `*.h` header files that
   are hidden behind the `NODE_WANT_INTERNALS` flag are internal.
 
-Exception to each of these points can be made if use or behavior of a given
-internal API can be demonstrated to be sufficiently relied upon by the Node.js
-ecosystem such that any changes would cause too much breakage. The threshold
-for what qualifies as too much breakage is to be decided on a case-by-case
-basis by the TSC.
+Exceptions can be made if use or behavior of a given internal API can be
+demonstrated to be sufficiently relied upon by the Node.js ecosystem such that
+any changes would cause too much breakage. The threshold for what qualifies as
+too much breakage is to be decided on a case-by-case basis by the TSC.
 
 If it is determined that a currently undocumented object, property, method,
 argument, or event *should* be documented, then a pull request adding the
@@ -249,14 +248,14 @@ properties to an options argument) are semver-minor changes.
 
 #### Breaking Changes and Deprecations
 
-With a few notable exceptions outlined below, when backwards incompatible
-changes to a *Public* API are necessary, the existing API *must* be deprecated
-*first* and the new API either introduced in parallel or added after the next
-major Node.js version following the deprecation as a replacement for the
-deprecated API. In other words, as a general rule, existing *Public* APIs
-*must not* change (in a backwards incompatible way) without a deprecation.
+With a few exceptions outlined below, when backward-incompatible changes to a
+*Public* API are necessary, the existing API *must* be deprecated *first* and
+the new API either introduced in parallel or added after the next major Node.js
+version following the deprecation as a replacement for the deprecated API. In
+other words, as a general rule, existing *Public* APIs *must not* change (in a
+backward-incompatible way) without a deprecation.
 
-Exception to this rule is given in the following cases:
+Exceptions to this rule may be made in the following cases:
 
 * Adding or removing errors thrown or reported by a Public API;
 * Changing error messages;
@@ -357,7 +356,7 @@ recommended but not required.
 ### Deprecations
 
 _Deprecation_ refers to the identification of Public APIs that should no longer
-be used and that may be removed or modified in non-backwards compatible ways in
+be used and that may be removed or modified in backward-incompatible ways in
 a future major release of Node.js. Deprecation may be used with internal APIs if
 there is expected impact on the user community.
 
@@ -497,7 +496,7 @@ Check and re-review the changes:
 $ git diff upstream/master
 ```
 
-Check number of commits and commit messages:
+Check the number of commits and commit messages:
 
 ```text
 $ git log upstream/master...master
@@ -658,7 +657,7 @@ commit final.
 #### What is LTS?
 
 Long Term Support (often referred to as *LTS*) guarantees application developers
-a 30 month support cycle with specific versions of Node.js.
+a 30-month support cycle with specific versions of Node.js.
 
 You can find more information
 [in the full release plan](https://github.com/nodejs/Release#release-plan).
@@ -671,7 +670,7 @@ certain performance improvements that can be demonstrated to not break existing
 applications. Semver-minor changes are only permitted if required for bug fixes
 and then only on a case-by-case basis with LTS WG and possibly Technical
 Steering Committee (TSC) review. Semver-major changes are permitted only if
-required for security related fixes.
+required for security-related fixes.
 
 Once a Current branch moves into Maintenance mode, only **critical** bugs,
 **critical** security fixes, and documentation updates will be permitted.
