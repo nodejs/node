@@ -4,7 +4,7 @@
 
 * [Issues and Pull Requests](#issues-and-pull-requests)
   - [Managing Issues and Pull Requests](#managing-issues-and-pull-requests)
-  - [Welcoming First-Time Contributiors](#welcoming-first-time-contributiors)
+  - [Welcoming First-Time Contributors](#welcoming-first-time-contributors)
   - [Closing Issues and Pull Requests](#closing-issues-and-pull-requests)
 * [Accepting Modifications](#accepting-modifications)
   - [Code Reviews and Consensus Seeking](#code-reviews-and-consensus-seeking)
@@ -52,7 +52,7 @@ may also notify other qualified parties for more input on an issue
 or a pull request.
 [See "Who to CC in issues"](./doc/onboarding-extras.md#who-to-cc-in-issues)
 
-### Welcoming First-Time Contributiors
+### Welcoming First-Time Contributors
 
 Courtesy should always be shown to individuals submitting issues and pull
 requests to the Node.js project. Be welcoming to first-time contributors,
