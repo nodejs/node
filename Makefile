@@ -245,7 +245,7 @@ test-cov: all
 	$(MAKE) lint
 
 test-parallel: all
-	$(PYTHON) tools/test.py --mode=release parallel -J
+	$(PYTHON) tools/test.py --mode=release parallel_iso -J
 
 test-valgrind: all
 	$(PYTHON) tools/test.py --mode=release --valgrind sequential parallel message

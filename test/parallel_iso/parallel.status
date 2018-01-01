@@ -1,0 +1,24 @@
+prefix parallel
+
+# To mark a test as flaky, list the test name in the appropriate section
+# below, without ".js", followed by ": PASS,FLAKY". Example:
+# sample-test                        : PASS,FLAKY
+
+[true] # This section applies to all platforms
+# Postmortem debugging data is prone to accidental removal during V8 updates.
+test-postmortem-metadata: PASS,FLAKY
+
+[$system==win32]
+
+[$system==linux]
+
+[$system==macos]
+
+[$arch==arm || $arch==arm64]
+test-npm-install:      PASS,FLAKY
+
+[$system==solaris] # Also applies to SmartOS
+
+[$system==freebsd]
+
+[$system==aix]

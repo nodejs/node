@@ -121,6 +121,7 @@
       'lib/internal/readline.js',
       'lib/internal/repl.js',
       'lib/internal/repl/await.js',
+      'lib/internal/repl/parser.js',
       'lib/internal/socket_list.js',
       'lib/internal/test/unicode.js',
       'lib/internal/timers.js',
@@ -156,6 +157,7 @@
       'deps/node-inspect/lib/internal/inspect_client.js',
       'deps/node-inspect/lib/internal/inspect_repl.js',
       'deps/acorn/dist/acorn.js',
+      'deps/acorn/dist/acorn_loose.js',
       'deps/acorn/dist/walk.js',
     ],
     'conditions': [

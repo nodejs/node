@@ -25,6 +25,7 @@ const deprecatedModules = [
 // throw an error, but no warning would be emitted.
 const deps = [
   'acorn/dist/acorn',
+  'acorn/dist/acorn_loose',
   'acorn/dist/walk'
 ];
 
