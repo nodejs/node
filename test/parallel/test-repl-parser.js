@@ -28,8 +28,6 @@ const { parseFunctionArgs } = require('internal/repl/parser');
 
   inputs.forEach(input => {
     const results = parseFunctionArgs(input.args);
-    console.log('input::', input)
-    console.log('results::', results)
     assert.strictEqual(results.length, input.expectedResult.length);
     assert.deepStrictEqual(results, input.expectedResult);
   })

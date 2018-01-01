@@ -269,15 +269,10 @@ testMe.complete('toSt', common.mustCall(function(error, data) {
     }];
 
     tabCompleteCases.forEach(tabCompleteCase => {
-      console.log("tabCompleteCase.input:", tabCompleteCase.input)
       testMe.complete(tabCompleteCase.input, common.mustCall((err, data) => {
         assert.strictEqual(err, null);
         assert.strictEqual(data.length, 2);
         assert.strictEqual(data[1], undefined);
-        console.log('data[0]', JSON.stringify(data[0], 2,2))
-        console.log('tabCompleteCase.expected', tabCompleteCase.expected)
-        console.log('data[0].length:', data[0].length)
-        console.log('tabCompleteCase.expected.length:', tabCompleteCase.expected.length)
         assert.strictEqual(data[0].length, tabCompleteCase.expected.length);
         tabCompleteCase.expected.forEach(expectedData => {
           assert(data[0].includes(expectedData));
