@@ -328,7 +328,7 @@ static void PromiseHook(PromiseHookType type, Local<Promise> promise,
     if (env->execution_async_id() == wrap->get_async_id()) {
       // This condition might not be true if async_hooks was enabled during
       // the promise callback execution.
-      // Popping it off the stack can be skipped in that case, because is is
+      // Popping it off the stack can be skipped in that case, because it is
       // known that it would correspond to exactly one call with
       // PromiseHookType::kBefore that was not witnessed by the PromiseHook.
       env->async_hooks()->pop_async_id(wrap->get_async_id());
