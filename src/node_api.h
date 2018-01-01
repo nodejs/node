@@ -177,7 +177,7 @@ NAPI_EXTERN napi_status napi_create_range_error(napi_env env,
                                                 napi_value msg,
                                                 napi_value* result);
 
-// Methods to get the the native napi_value from Primitive type
+// Methods to get the native napi_value from Primitive type
 NAPI_EXTERN napi_status napi_typeof(napi_env env,
                                     napi_value value,
                                     napi_valuetype* result);
