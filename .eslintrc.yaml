@@ -147,6 +147,12 @@ rules:
   }, {
     selector: "ThrowStatement > CallExpression[callee.name=/Error$/]",
     message: "Use new keyword when throwing an Error."
+  }, {
+    selector: "Literal[value=/\u2019/]",
+    message: "use an ASCII single quote (`'`) instead of a Unicode quote (`\u2019`)"
+  }, {
+    selector: "Literal[value=/[“”«»]/]",
+    message: "use an ASCII double quote (`\"`) instead of a Unicode double quote (`“`, `”`, `«`, `»`)"
   }]
   no-tabs: error
   no-trailing-spaces: error
