@@ -172,20 +172,19 @@ Node.js from source along with a list of officially supported platforms.
 
 ## Security
 
-All security bugs in Node.js are taken seriously and should be reported by
-emailing security@nodejs.org. This will be delivered to a subset of the project
-team who handle security issues. Please don't disclose security bugs
-publicly until they have been handled by the security team.
+Security flaws in Node.js should be reported by emailing security@nodejs.org.
+Please do not disclose security bugs publicly until they have been handled by
+the security team.
 
-Your email will be acknowledged within 24 hours, and you’ll receive a more
+Your email will be acknowledged within 24 hours, and you will receive a more
 detailed response to your email within 48 hours indicating the next steps in
 handling your report.
 
 There are no hard and fast rules to determine if a bug is worth reporting as
-a security issue. The general rule is any issue worth reporting
-must allow an attacker to compromise the confidentiality, integrity
-or availability of the Node.js application or its system for which the attacker
-does not already have the capability.
+a security issue. The general rule is an issue worth reporting should allow an
+attacker to compromise the confidentiality, integrity, or availability of the
+Node.js application or its system for which the attacker does not already have
+the capability.
 
 To illustrate the point, here are some examples of past issues and what the
 Security Response Team thinks of them. When in doubt, however, please do send
