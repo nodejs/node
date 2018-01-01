@@ -846,7 +846,7 @@ changes:
   * `servername`: {string} Server name for the SNI (Server Name Indication) TLS
     extension.
   * `checkServerIdentity(servername, cert)` {Function} A callback function
-    to be used (instead of the builtin `tls.checkServerIdentity()` function)
+    to be used (instead of the builtin `tls.checkServerIdentity()` function)
     when checking the server's hostname (or the provided `servername` when
     explicitly set) against the certificate. This should return an {Error} if
     verification fails. The method should return `undefined` if the `servername`
