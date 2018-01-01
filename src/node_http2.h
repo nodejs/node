@@ -356,6 +356,8 @@ HTTP_STATUS_CODES(V)
 enum padding_strategy_type {
   // No padding strategy. This is the default.
   PADDING_STRATEGY_NONE,
+  // Attempts to ensure that the frame is 8-byte aligned
+  PADDING_STRATEGY_ALIGNED,
   // Padding will ensure all data frames are maxFrameSize
   PADDING_STRATEGY_MAX,
   // Padding will be determined via a JS callback. Note that this can be
@@ -882,6 +884,8 @@ class Http2Session : public AsyncWrap {
 
  private:
   // Frame Padding Strategies
+  inline ssize_t OnDWordAlignedPadding(size_t frameLength,
+                                       size_t maxPayloadLen);
   inline ssize_t OnMaxFrameSizePadding(size_t frameLength,
                                        size_t maxPayloadLen);
   inline ssize_t OnCallbackPadding(size_t frame,
