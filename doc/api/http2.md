@@ -283,6 +283,18 @@ session.setTimeout(2000);
 session.on('timeout', () => { /** .. **/ });
 ```
 
+#### http2session.alpnProtocol
+<!-- YAML
+added: REPLACEME
+-->
+
+* Value: {string|undefined}
+
+Value will be `undefined` if the `Http2Session` is not yet connected to a
+socket, `h2c` if the `Http2Session` is not connected to a `TLSSocket`, or
+will return the value of the connected `TLSSocket`'s own `alpnProtocol`
+property.
+
 #### http2session.close([callback])
 <!-- YAML
 added: REPLACEME
@@ -340,6 +352,18 @@ added: v8.4.0
 Will be `true` if this `Http2Session` instance has been destroyed and must no
 longer be used, otherwise `false`.
 
+#### http2session.encrypted
+<!-- YAML
+added: REPLACEME
+-->
+
+* Value: {boolean|undefined}
+
+Value is `undefined` if the `Http2Session` session socket has not yet been
+connected, `true` if the `Http2Session` is connected with a `TLSSocket`,
+and `false` if the `Http2Session` is connected to any other kind of socket
+or stream.
+
 #### http2session.goaway([code, [lastStreamID, [opaqueData]]])
 <!-- YAML
 added: REPLACEME
@@ -362,6 +386,17 @@ added: v8.4.0
 
 A prototype-less object describing the current local settings of this
 `Http2Session`. The local settings are local to *this* `Http2Session` instance.
+
+#### http2session.originSet
+<!-- YAML
+added: REPLACEME
+-->
+
+* Value: {string[]|undefined}
+
+If the `Http2Session` is connected to a `TLSSocket`, the `originSet` property
+will return an Array of origins for which the `Http2Session` may be
+considered authoritative.
 
 #### http2session.pendingSettingsAck
 <!-- YAML
