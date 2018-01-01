@@ -34,9 +34,15 @@ server.listen(0);
 server.on('listening', common.mustCall(() => {
 
   const client = h2.connect(`http://localhost:${server.address().port}`);
-  client.setMaxListeners(100);
+  client.setMaxListeners(101);
 
   client.on('goaway', console.log);
+
+  client.on('connect', common.mustCall(() => {
+    assert(!client.encrypted);
+    assert(!client.originSet);
+    assert.strictEqual(client.alpnProtocol, 'h2c');
+  }));
 
   const countdown = new Countdown(count, () => {
     client.close();
