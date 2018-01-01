@@ -295,7 +295,7 @@ If `msg` is a `String`, then it is automatically converted to a `Buffer`
 with `'utf8'` encoding. With messages that
 contain  multi-byte characters, `offset` and `length` will be calculated with
 respect to [byte length][] and not the character position.
-If `msg` is an array, `offset` and `length` must not be specified.
+If `msg` is an array, `offset` and `length` must not be specified.
 
 The `address` argument is a string. If the value of `address` is a host name,
 DNS will be used to resolve the address of the host.  If `address` is not
