@@ -492,8 +492,7 @@ Http2Session::Http2Session(Environment* env,
   padding_strategy_ = opts.GetPaddingStrategy();
 
   bool hasGetPaddingCallback =
-      padding_strategy_ == PADDING_STRATEGY_MAX ||
-      padding_strategy_ == PADDING_STRATEGY_CALLBACK;
+      padding_strategy_ != PADDING_STRATEGY_NONE;
 
   nghttp2_session_callbacks* callbacks
       = callback_struct_saved[hasGetPaddingCallback ? 1 : 0].callbacks;
@@ -679,6 +678,25 @@ inline void Http2Session::AddStream(Http2Stream* stream) {
 
 inline void Http2Session::RemoveStream(int32_t id) {
   streams_.erase(id);
+}
+
+// Used as one of the Padding Strategy functions. Will attempt to ensure
+// that the total frame size, including header bytes, are 8-byte aligned.
+// If maxPayloadLen is smaller than the number of bytes necessary to align,
+// will return maxPayloadLen instead.
+inline ssize_t Http2Session::OnDWordAlignedPadding(size_t frameLen,
+                                                   size_t maxPayloadLen) {
+  size_t r = (frameLen + 9) % 8;
+  if (r == 0) return frameLen;  // If already a multiple of 8, return.
+
+  size_t pad = frameLen + (8 - r);
+
+  // If maxPayloadLen happens to be less than the calculated pad length,
+  // use the max instead, even tho this means the frame will not be
+  // aligned.
+  pad = std::min(maxPayloadLen, pad);
+  DEBUG_HTTP2SESSION2(this, "using frame size padding: %d", pad);
+  return pad;
 }
 
 // Used as one of the Padding Strategy functions. Uses the maximum amount
@@ -987,9 +1005,21 @@ inline ssize_t Http2Session::OnSelectPadding(nghttp2_session* handle,
   Http2Session* session = static_cast<Http2Session*>(user_data);
   ssize_t padding = frame->hd.length;
 
-  return session->padding_strategy_ == PADDING_STRATEGY_MAX
-    ? session->OnMaxFrameSizePadding(padding, maxPayloadLen)
-    : session->OnCallbackPadding(padding, maxPayloadLen);
+  switch (session->padding_strategy_) {
+    case PADDING_STRATEGY_NONE:
+      // Fall-through
+      break;
+    case PADDING_STRATEGY_MAX:
+      padding = session->OnMaxFrameSizePadding(padding, maxPayloadLen);
+      break;
+    case PADDING_STRATEGY_ALIGNED:
+      padding = session->OnDWordAlignedPadding(padding, maxPayloadLen);
+      break;
+    case PADDING_STRATEGY_CALLBACK:
+      padding = session->OnCallbackPadding(padding, maxPayloadLen);
+      break;
+  }
+  return padding;
 }
 
 #define BAD_PEER_MESSAGE "Remote peer returned unexpected data while we "     \
@@ -2872,6 +2902,7 @@ void Initialize(Local<Object> target,
   NODE_DEFINE_CONSTANT(constants, NGHTTP2_SETTINGS_MAX_HEADER_LIST_SIZE);
 
   NODE_DEFINE_CONSTANT(constants, PADDING_STRATEGY_NONE);
+  NODE_DEFINE_CONSTANT(constants, PADDING_STRATEGY_ALIGNED);
   NODE_DEFINE_CONSTANT(constants, PADDING_STRATEGY_MAX);
   NODE_DEFINE_CONSTANT(constants, PADDING_STRATEGY_CALLBACK);
 
