@@ -83,7 +83,7 @@ class Agent {
     return io_.get();
   }
 
-  // Can only be called from the the main thread.
+  // Can only be called from the main thread.
   bool StartIoThread(bool wait_for_connect);
 
   // Calls StartIoThread() from off the main thread.
