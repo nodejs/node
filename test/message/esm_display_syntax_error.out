@@ -4,4 +4,3 @@ await async () => 0;
 ^^^^^
 SyntaxError: Unexpected reserved word
     at translators.set (internal/loader/Translators.js:*:*)
-    at <anonymous>
