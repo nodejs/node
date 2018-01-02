@@ -79,6 +79,9 @@ void inline debug_vfprintf(const char* format, ...) {
 // Also strictly limit the number of outstanding SETTINGS frames a user sends
 #define DEFAULT_MAX_SETTINGS 10
 
+// Set the default slow post timeout
+#define DEFAULT_SLOW_POST_TIMEOUT 60000
+
 // These are the standard HTTP/2 defaults as specified by the RFC
 #define DEFAULT_SETTINGS_HEADER_TABLE_SIZE 4096
 #define DEFAULT_SETTINGS_ENABLE_PUSH 1
@@ -496,9 +499,18 @@ class Http2Options {
     return max_outstanding_settings_;
   }
 
+  void SetSlowHeadersTimeout(uint32_t timeout) {
+    slow_headers_timeout_ = timeout;
+  }
+
+  uint64_t GetSlowHeadersTimeout() {
+    return slow_headers_timeout_;
+  }
+
  private:
   nghttp2_option* options_;
   uint32_t max_header_pairs_ = DEFAULT_MAX_HEADER_LIST_PAIRS;
+  uint32_t slow_headers_timeout_ = DEFAULT_SLOW_POST_TIMEOUT;
   padding_strategy_type padding_strategy_ = PADDING_STRATEGY_NONE;
   size_t max_outstanding_pings_ = DEFAULT_MAX_PINGS;
   size_t max_outstanding_settings_ = DEFAULT_MAX_SETTINGS;
@@ -689,8 +701,17 @@ class Http2Stream : public AsyncWrap,
   static void RstStream(const FunctionCallbackInfo<Value>& args);
 
   class Provider;
+  class SlowHeadersTimeout;
+
+  inline void TouchSlowHeadersTimeout();
+  inline void SlowHeaders();
 
  private:
+  inline void StartSlowHeadersTimeout();
+  inline void StopSlowHeadersTimeout();
+
+  SlowHeadersTimeout* slow_headers_timeout_ = nullptr;
+
   Http2Session* session_;                       // The Parent HTTP/2 Session
   int32_t id_;                                  // The Stream Identifier
   int32_t code_ = NGHTTP2_NO_ERROR;             // The RST_STREAM code (if any)
@@ -717,6 +738,22 @@ class Http2Stream : public AsyncWrap,
   int64_t fd_length_ = -1;
 
   friend class Http2Session;
+};
+
+class Http2Stream::SlowHeadersTimeout {
+ public:
+  explicit SlowHeadersTimeout(Http2Stream* stream);
+  ~SlowHeadersTimeout() {}
+
+  void Stop();
+  void Touch();
+
+ private:
+  void Timeout();
+
+  bool stopped_ = false;
+  uv_timer_t timer_;
+  Http2Stream* stream_;
 };
 
 class Http2Stream::Provider {
@@ -880,6 +917,10 @@ class Http2Session : public AsyncWrap {
   Http2Settings* PopSettings();
   bool AddSettings(Http2Settings* settings);
 
+  int32_t GetSlowHeadersTimeout() const {
+    return slow_headers_timeout_;
+  }
+
  private:
   // Frame Padding Strategies
   inline ssize_t OnMaxFrameSizePadding(size_t frameLength,
@@ -1000,6 +1041,7 @@ class Http2Session : public AsyncWrap {
   StreamResource::Callback<StreamResource::AllocCb> prev_alloc_cb_;
   StreamResource::Callback<StreamResource::ReadCb> prev_read_cb_;
   padding_strategy_type padding_strategy_ = PADDING_STRATEGY_NONE;
+  uint32_t slow_headers_timeout_ = DEFAULT_SLOW_POST_TIMEOUT;
 
   // use this to allow timeout tracking during long-lasting writes
   uint32_t chunks_sent_since_last_write_ = 0;
