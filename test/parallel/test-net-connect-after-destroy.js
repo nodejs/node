@@ -1,4 +1,6 @@
 'use strict';
+// Regression test for https://github.com/nodejs/node-v0.x-archive/issues/819.
+
 require('../common');
 const net = require('net');
 
