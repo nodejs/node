@@ -992,6 +992,11 @@ class Http2Session : public AsyncWrap {
       size_t length,
       nghttp2_data_source* source,
       void* user_data);
+  static inline int OnInvalidFrame(
+      nghttp2_session* session,
+      const nghttp2_frame *frame,
+      int lib_error_code,
+      void* user_data);
 
 
   static inline ssize_t OnStreamReadFD(
