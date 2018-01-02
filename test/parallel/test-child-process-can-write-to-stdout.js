@@ -1,4 +1,7 @@
 'use strict';
+// Tests that a spawned child process can write to stdout without throwing.
+// See https://github.com/nodejs/node-v0.x-archive/issues/1899.
+
 require('../common');
 const fixtures = require('../common/fixtures');
 const assert = require('assert');
