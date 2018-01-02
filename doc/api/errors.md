@@ -994,6 +994,14 @@ send something other than a regular file.
 
 The `Http2Session` closed with a non-zero error code.
 
+<a id="ERR_HTTP2_SLOW_READ"></a>
+### ERR_HTTP2_SLOW_READ
+
+The connected HTTP/2 peer failed to consume sent data fast enough. By default,
+a connected peer has 60 seconds (60000 milliseconds) to consume the queued
+data. This value may be changed using the `slowReadTimeout` when creating a
+new `Http2Session`.
+
 <a id="ERR_HTTP2_SOCKET_BOUND"></a>
 ### ERR_HTTP2_SOCKET_BOUND
 
