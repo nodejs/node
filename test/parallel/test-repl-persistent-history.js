@@ -128,6 +128,7 @@ const tests = [
     expected: [prompt, convertMsg, prompt]
   },
   {
+    deprecated: true,
     env: { NODE_REPL_HISTORY_FILE: defaultHistoryPath },
     test: [UP],
     expected: [prompt, sameHistoryFilePaths, prompt]
@@ -274,7 +275,9 @@ function runTest(assertCleaned) {
   // set being to have deprecation warnings printed? :(
   if (deprecated) {
     common.hijackStderr(function(data) {
-      assert.ok(deprecated && depMsg.test(data));
+      if (data) {
+        assert.ok(deprecated && depMsg.test(data));
+      }
     });
   }
 
