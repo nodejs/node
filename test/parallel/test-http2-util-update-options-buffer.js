@@ -20,7 +20,8 @@ const IDX_OPTIONS_PADDING_STRATEGY = 4;
 const IDX_OPTIONS_MAX_HEADER_LIST_PAIRS = 5;
 const IDX_OPTIONS_MAX_OUTSTANDING_PINGS = 6;
 const IDX_OPTIONS_MAX_OUTSTANDING_SETTINGS = 7;
-const IDX_OPTIONS_FLAGS = 8;
+const IDX_OPTIONS_SLOW_HEADERS_TIMEOUT = 8;
+const IDX_OPTIONS_FLAGS = 9;
 
 {
   updateOptionsBuffer({
@@ -31,7 +32,8 @@ const IDX_OPTIONS_FLAGS = 8;
     paddingStrategy: 5,
     maxHeaderListPairs: 6,
     maxOutstandingPings: 7,
-    maxOutstandingSettings: 8
+    maxOutstandingSettings: 8,
+    slowHeadersTimeout: 9
   });
 
   strictEqual(optionsBuffer[IDX_OPTIONS_MAX_DEFLATE_DYNAMIC_TABLE_SIZE], 1);
@@ -42,6 +44,7 @@ const IDX_OPTIONS_FLAGS = 8;
   strictEqual(optionsBuffer[IDX_OPTIONS_MAX_HEADER_LIST_PAIRS], 6);
   strictEqual(optionsBuffer[IDX_OPTIONS_MAX_OUTSTANDING_PINGS], 7);
   strictEqual(optionsBuffer[IDX_OPTIONS_MAX_OUTSTANDING_SETTINGS], 8);
+  strictEqual(optionsBuffer[IDX_OPTIONS_SLOW_HEADERS_TIMEOUT], 9);
 
   const flags = optionsBuffer[IDX_OPTIONS_FLAGS];
 
@@ -53,6 +56,7 @@ const IDX_OPTIONS_FLAGS = 8;
   ok(flags & (1 << IDX_OPTIONS_MAX_HEADER_LIST_PAIRS));
   ok(flags & (1 << IDX_OPTIONS_MAX_OUTSTANDING_PINGS));
   ok(flags & (1 << IDX_OPTIONS_MAX_OUTSTANDING_SETTINGS));
+  ok(flags & (1 << IDX_OPTIONS_SLOW_HEADERS_TIMEOUT));
 }
 
 {
@@ -64,7 +68,8 @@ const IDX_OPTIONS_FLAGS = 8;
     maxReservedRemoteStreams: 2,
     peerMaxConcurrentStreams: 4,
     paddingStrategy: 5,
-    maxHeaderListPairs: 6
+    maxHeaderListPairs: 6,
+    slowHeadersTimeout: 7
   });
 
   strictEqual(optionsBuffer[IDX_OPTIONS_MAX_DEFLATE_DYNAMIC_TABLE_SIZE], 1);
@@ -74,6 +79,7 @@ const IDX_OPTIONS_FLAGS = 8;
   strictEqual(optionsBuffer[IDX_OPTIONS_MAX_HEADER_LIST_PAIRS], 6);
   strictEqual(optionsBuffer[IDX_OPTIONS_MAX_SEND_HEADER_BLOCK_LENGTH], 0);
   strictEqual(optionsBuffer[IDX_OPTIONS_MAX_OUTSTANDING_PINGS], 0);
+  strictEqual(optionsBuffer[IDX_OPTIONS_SLOW_HEADERS_TIMEOUT], 7);
 
   const flags = optionsBuffer[IDX_OPTIONS_FLAGS];
 
@@ -82,6 +88,7 @@ const IDX_OPTIONS_FLAGS = 8;
   ok(flags & (1 << IDX_OPTIONS_PEER_MAX_CONCURRENT_STREAMS));
   ok(flags & (1 << IDX_OPTIONS_PADDING_STRATEGY));
   ok(flags & (1 << IDX_OPTIONS_MAX_HEADER_LIST_PAIRS));
+  ok(flags & (1 << IDX_OPTIONS_SLOW_HEADERS_TIMEOUT));
 
   ok(!(flags & (1 << IDX_OPTIONS_MAX_SEND_HEADER_BLOCK_LENGTH)));
   ok(!(flags & (1 << IDX_OPTIONS_MAX_OUTSTANDING_PINGS)));

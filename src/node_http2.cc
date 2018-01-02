@@ -167,6 +167,10 @@ Http2Options::Http2Options(Environment* env) {
   if (flags & (1 << IDX_OPTIONS_MAX_OUTSTANDING_SETTINGS)) {
     SetMaxOutstandingSettings(buffer[IDX_OPTIONS_MAX_OUTSTANDING_SETTINGS]);
   }
+
+  if (flags & (1 << IDX_OPTIONS_SLOW_HEADERS_TIMEOUT)) {
+    SetSlowHeadersTimeout(buffer[IDX_OPTIONS_SLOW_HEADERS_TIMEOUT]);
+  }
 }
 
 void Http2Session::Http2Settings::Init() {
@@ -480,6 +484,7 @@ Http2Session::Http2Session(Environment* env,
 
   max_outstanding_pings_ = opts.GetMaxOutstandingPings();
   max_outstanding_settings_ = opts.GetMaxOutstandingSettings();
+  slow_headers_timeout_ = opts.GetSlowHeadersTimeout();
 
   padding_strategy_ = opts.GetPaddingStrategy();
 
@@ -678,13 +683,14 @@ inline int Http2Session::OnBeginHeadersCallback(nghttp2_session* handle,
 
   Http2Stream* stream = session->FindStream(id);
   if (stream == nullptr) {
-    new Http2Stream(session, id, frame->headers.cat);
+    stream = new Http2Stream(session, id, frame->headers.cat);
   } else {
     // If the stream has already been destroyed, ignore.
     if (stream->IsDestroyed())
       return 0;
     stream->StartHeaders(frame->headers.cat);
   }
+  stream->StartSlowHeadersTimeout();
   return 0;
 }
 
@@ -700,6 +706,7 @@ inline int Http2Session::OnHeaderCallback(nghttp2_session* handle,
   Http2Session* session = static_cast<Http2Session*>(user_data);
   int32_t id = GetFrameID(frame);
   Http2Stream* stream = session->FindStream(id);
+  stream->TouchSlowHeadersTimeout();
   CHECK_NE(stream, nullptr);
   // If the stream has already been destroyed, ignore.
   if (stream->IsDestroyed())
@@ -748,6 +755,73 @@ inline int Http2Session::OnFrameReceive(nghttp2_session* handle,
   return 0;
 }
 
+void Http2Stream::SlowHeaders() {
+  // Close stream because it is taking too long to receive data
+  SubmitRstStream(NGHTTP2_CANCEL);
+}
+
+// Starts a timer that is used to make sure receiving headers do not take
+// too long. We have to do this here because receiving headers occurs before
+// setting the timeout in javascript.
+Http2Stream::SlowHeadersTimeout::SlowHeadersTimeout(Http2Stream* stream)
+    : stream_(stream) {
+  uv_timer_init(stream->env()->event_loop(), &timer_);
+
+  auto fn = [](uv_timer_t* timer) {
+    Http2Stream::SlowHeadersTimeout* timeout =
+      ContainerOf(&Http2Stream::SlowHeadersTimeout::timer_, timer);
+    timeout->Timeout();
+  };
+
+  uint64_t timeout = stream->session()->GetSlowHeadersTimeout();
+  uv_timer_start(&timer_, fn, timeout, timeout);
+}
+
+// Notify the Http2Stream that the timeout has expired.
+void Http2Stream::SlowHeadersTimeout::Timeout() {
+  stream_->SlowHeaders();
+}
+
+// Stop the timeout.
+void Http2Stream::SlowHeadersTimeout::Stop() {
+  if (stopped_)
+    return;
+  stopped_ = true;
+  uv_timer_stop(&timer_);
+
+  auto OnClose = [](uv_handle_t* handle) {
+    uv_timer_t* timer = reinterpret_cast<uv_timer_t*>(handle);
+    Http2Stream::SlowHeadersTimeout* timeout =
+      ContainerOf(&Http2Stream::SlowHeadersTimeout::timer_, timer);
+    delete timeout;
+  };
+
+  uv_close(reinterpret_cast<uv_handle_t*>(&timer_), OnClose);
+}
+
+// Restarts the timeout clock.
+void Http2Stream::SlowHeadersTimeout::Touch() {
+  if (stopped_)
+    return;
+  uv_timer_again(&timer_);
+}
+
+inline void Http2Stream::TouchSlowHeadersTimeout() {
+  CHECK_NE(slow_headers_timeout_, nullptr);
+  slow_headers_timeout_->Touch();
+}
+
+inline void Http2Stream::StartSlowHeadersTimeout() {
+  CHECK_EQ(slow_headers_timeout_, nullptr);
+  slow_headers_timeout_ = new Http2Stream::SlowHeadersTimeout(this);
+}
+
+inline void Http2Stream::StopSlowHeadersTimeout() {
+  if (slow_headers_timeout_ == nullptr)
+    return;
+  slow_headers_timeout_->Stop();
+  slow_headers_timeout_ = nullptr;
+}
 
 // If nghttp2 is unable to send a queued up frame, it will call this callback
 // to let us know. If the failure occurred because we are in the process of
@@ -795,9 +869,13 @@ inline int Http2Session::OnStreamClose(nghttp2_session* handle,
   Context::Scope context_scope(context);
   DEBUG_HTTP2SESSION2(session, "stream %d closed with code: %d", id, code);
   Http2Stream* stream = session->FindStream(id);
+
   // Intentionally ignore the callback if the stream does not exist or has
   // already been destroyed
   if (stream != nullptr && !stream->IsDestroyed()) {
+    // Just in case it hasn't already been stopped
+    stream->StopSlowHeadersTimeout();
+
     stream->AddChunk(nullptr, 0);
     stream->Close(code);
     // It is possible for the stream close to occur before the stream is
@@ -954,6 +1032,8 @@ inline void Http2Session::HandleHeadersFrame(const nghttp2_frame* frame) {
   // If the stream has already been destroyed, ignore.
   if (stream->IsDestroyed())
     return;
+
+  stream->StopSlowHeadersTimeout();
 
   nghttp2_header* headers = stream->headers();
   size_t count = stream->headers_count();
