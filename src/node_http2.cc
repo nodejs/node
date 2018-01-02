@@ -559,13 +559,13 @@ inline void Http2Stream::EmitStatistics() {
           FIXED_ONE_BYTE_STRING(env->isolate(), "timeToFirstByte"),
           Number::New(env->isolate(),
                       (entry->first_byte() - entry->startTimeNano()) / 1e6),
-          attr);
+          attr).FromJust();
       obj->DefineOwnProperty(
           context,
           FIXED_ONE_BYTE_STRING(env->isolate(), "timeToFirstHeader"),
           Number::New(env->isolate(),
                       (entry->first_header() - entry->startTimeNano()) / 1e6),
-          attr);
+          attr).FromJust();
       entry->Notify(obj);
     }
     delete entry;
@@ -591,25 +591,29 @@ inline void Http2Session::EmitStatistics() {
           String::NewFromUtf8(env->isolate(),
                               entry->typeName(),
                               v8::NewStringType::kInternalized)
-                                  .ToLocalChecked(), attr);
+                                  .ToLocalChecked(), attr).FromJust();
       if (entry->ping_rtt() != 0) {
         obj->DefineOwnProperty(
             context,
             FIXED_ONE_BYTE_STRING(env->isolate(), "pingRTT"),
-            Number::New(env->isolate(), entry->ping_rtt() / 1e6), attr);
+            Number::New(env->isolate(), entry->ping_rtt() / 1e6),
+            attr).FromJust();
       }
       obj->DefineOwnProperty(
           context,
           FIXED_ONE_BYTE_STRING(env->isolate(), "framesReceived"),
-          Integer::NewFromUnsigned(env->isolate(), entry->frame_count()), attr);
+          Integer::NewFromUnsigned(env->isolate(), entry->frame_count()),
+          attr).FromJust();
       obj->DefineOwnProperty(
           context,
           FIXED_ONE_BYTE_STRING(env->isolate(), "streamCount"),
-          Integer::New(env->isolate(), entry->stream_count()), attr);
+          Integer::New(env->isolate(), entry->stream_count()),
+          attr).FromJust();
       obj->DefineOwnProperty(
           context,
           FIXED_ONE_BYTE_STRING(env->isolate(), "streamAverageDuration"),
-          Number::New(env->isolate(), entry->stream_average_duration()), attr);
+          Number::New(env->isolate(), entry->stream_average_duration()),
+          attr).FromJust();
       entry->Notify(obj);
     }
     delete entry;
