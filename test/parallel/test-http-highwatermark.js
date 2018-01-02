@@ -14,7 +14,7 @@ let requestReceived = 0;
 const server = http.createServer(function(req, res) {
   const id = ++requestReceived;
   const enoughToDrain = req.connection.writableHighWaterMark;
-  const body = 'x'.repeat(enoughToDrain);
+  const body = 'x'.repeat(enoughToDrain * 100);
 
   if (id === 1) {
     // Case of needParse = false
@@ -39,11 +39,11 @@ const server = http.createServer(function(req, res) {
 }).on('listening', () => {
   const c = net.createConnection(server.address().port, () => {
     c.write('GET / HTTP/1.1\r\n\r\n');
-    c.write('GET / HTTP/1.1\r\n\r\n');
+    c.write('GET / HTTP/1.1\r\n\r\n',
+            () => setImmediate(() => c.on('data', () => {})));
     c.end();
   });
 
-  c.on('data', () => {});
   c.on('end', () => {
     server.close();
   });
