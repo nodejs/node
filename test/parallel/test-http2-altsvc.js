@@ -6,6 +6,7 @@ if (!common.hasCrypto)
 
 const assert = require('assert');
 const http2 = require('http2');
+const { URL } = require('url');
 const Countdown = require('../common/countdown');
 
 const server = http2.createServer();
@@ -15,7 +16,13 @@ server.on('stream', common.mustCall((stream) => {
   stream.end('ok');
 }));
 server.on('session', common.mustCall((session) => {
+  // Origin may be specified by string, URL object, or object with an
+  // origin property. For string and URL object, origin is guaranteed
+  // to be an ASCII serialized origin. For object with an origin
+  // property, it is up to the user to ensure proper serialization.
   session.altsvc('h2=":8000"', 'https://example.org:8111/this');
+  session.altsvc('h2=":8000"', new URL('https://example.org:8111/this'));
+  session.altsvc('h2=":8000"', { origin: 'https://example.org:8111' });
 
   // Won't error, but won't send anything because the stream does not exist
   session.altsvc('h2=":8000"', 3);
@@ -62,7 +69,12 @@ server.on('session', common.mustCall((session) => {
     );
   });
 
-  ['abc:'].forEach((i) => {
+  [
+    'abc:',
+    new URL('abc:'),
+    { origin: 'null' },
+    { origin: '' }
+  ].forEach((i) => {
     common.expectsError(
       () => session.altsvc('h2=":8000', i),
       {
@@ -88,7 +100,7 @@ server.on('session', common.mustCall((session) => {
 server.listen(0, common.mustCall(() => {
   const client = http2.connect(`http://localhost:${server.address().port}`);
 
-  const countdown = new Countdown(2, () => {
+  const countdown = new Countdown(4, () => {
     client.close();
     server.close();
   });
@@ -106,7 +118,7 @@ server.listen(0, common.mustCall(() => {
         assert.fail('should not happen');
     }
     countdown.dec();
-  }, 2));
+  }, 4));
 
   const req = client.request();
   req.resume();

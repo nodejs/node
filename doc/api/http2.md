@@ -570,8 +570,9 @@ added: REPLACEME
 
 * `alt` {string} A description of the alternative service configuration as
   defined by [RFC 7838][].
-* `originOrStream` {string|number} Either a URL string specifying the origin or
-  the numeric identifier of an active `Http2Stream`.
+* `originOrStream` {number|string|URL|Object} Either a URL string specifying
+  the origin (or an Object with an `origin` property) or the numeric identifier
+  of an active `Http2Stream` as given by the `http2stream.id` property.
 
 Submits an `ALTSVC` frame (as defined by [RFC 7838][]) to the connected client.
 
@@ -603,6 +604,11 @@ a URL and the origin will be derived. For insetance, the origin for the
 HTTP URL `'https://example.org/foo/bar'` is the ASCII string
 `'https://example.org'`. An error will be thrown if either the given string
 cannot be parsed as a URL or if a valid origin cannot be derived.
+
+A `URL` object, or any object with an `origin` property, may be passed as
+`originOrStream`, in which case the value of the `origin` property will be
+used. The value of the `origin` property *must* be a properly serialized
+ASCII origin.
 
 #### Specifying alternative services
 
