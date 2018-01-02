@@ -452,6 +452,8 @@ Http2Session::Callbacks::Callbacks(bool kHasGetPaddingCallback) {
     callbacks, OnNghttpError);
   nghttp2_session_callbacks_set_send_data_callback(
     callbacks, OnSendData);
+  nghttp2_session_callbacks_set_on_invalid_frame_recv_callback(
+    callbacks, OnInvalidFrame);
 
   if (kHasGetPaddingCallback) {
     nghttp2_session_callbacks_set_select_padding_callback(
@@ -836,6 +838,31 @@ inline int Http2Session::OnFrameReceive(nghttp2_session* handle,
   return 0;
 }
 
+inline int Http2Session::OnInvalidFrame(nghttp2_session* handle,
+                                        const nghttp2_frame *frame,
+                                        int lib_error_code,
+                                        void* user_data) {
+  Http2Session* session = static_cast<Http2Session*>(user_data);
+
+  DEBUG_HTTP2SESSION2(session, "invalid frame received, code: %d",
+                      lib_error_code);
+
+  // If the error is fatal or if error code is ERR_STREAM_CLOSED... emit error
+  if (nghttp2_is_fatal(lib_error_code) ||
+      lib_error_code == NGHTTP2_ERR_STREAM_CLOSED) {
+    Environment* env = session->env();
+    Isolate* isolate = env->isolate();
+    HandleScope scope(isolate);
+    Local<Context> context = env->context();
+    Context::Scope context_scope(context);
+
+    Local<Value> argv[1] = {
+      Integer::New(isolate, lib_error_code),
+    };
+    session->MakeCallback(env->error_string(), arraysize(argv), argv);
+  }
+  return 0;
+}
 
 // If nghttp2 is unable to send a queued up frame, it will call this callback
 // to let us know. If the failure occurred because we are in the process of
