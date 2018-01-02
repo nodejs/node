@@ -584,7 +584,6 @@ added: v8.4.0
     and `256` (inclusive).
   * `getTrailers` {Function} Callback function invoked to collect trailer
     headers.
-
 * Returns: {ClientHttp2Stream}
 
 For HTTP/2 Client `Http2Session` instances only, the `http2session.request()`
@@ -739,6 +738,21 @@ send a frame. When invoked, the handler function will receive an integer
 argument identifying the frame type, and an integer argument identifying the
 error code. The `Http2Stream` instance will be destroyed immediately after the
 `'frameError'` event is emitted.
+
+#### Event: `slowRead`
+<!-- YAML
+added: REPLACEME
+-->
+
+The `'slowRead'` event is emitted when a connected peer takes too long to
+consume the queued data. This is typically evidence of a flow control issue
+or a slow read DOS attack. By default, the event will be emitted if the
+queued data is not fully read within 60 seconds, but the timeout may be
+configured using the `slowReadTimeout` option when using either
+`http2.connect()`, `http2.createServer()`, or `http2.createClientServer()`.
+
+If no handler is registered for the `slowRead` event, then the `Http2Stream`
+will be closed with a `FLOW_CONTROL_ERROR` and destroyed.
 
 #### Event: 'timeout'
 <!-- YAML
@@ -1534,6 +1548,9 @@ changes:
     used to determine the padding. See [Using options.selectPadding][].
   * `settings` {[Settings Object][]} The initial settings to send to the
     remote peer upon connection.
+  * `slowReadTimeout` {number} The number of milliseconds the connected peer
+    has to read sent/queued data before the `'slowRead'` event is emitted on
+    the `Http2Stream`. Defaults to `60000`.
 * `onRequestHandler` {Function} See [Compatibility API][]
 * Returns: {Http2Server}
 
@@ -1605,6 +1622,9 @@ changes:
     used to determine the padding. See [Using options.selectPadding][].
   * `settings` {[Settings Object][]} The initial settings to send to the
     remote peer upon connection.
+  * `slowReadTimeout` {number} The number of milliseconds the connected peer
+    has to read sent/queued data before the `'slowRead'` event is emitted on
+    the `Http2Stream`. Defaults to `60000`.
   * ...: Any [`tls.createServer()`][] options can be provided. For
     servers, the identity options (`pfx` or `key`/`cert`) are usually required.
 * `onRequestHandler` {Function} See [Compatibility API][]
@@ -1685,6 +1705,9 @@ changes:
     used to determine the padding. See [Using options.selectPadding][].
   * `settings` {[Settings Object][]} The initial settings to send to the
     remote peer upon connection.
+  * `slowReadTimeout` {number} The number of milliseconds the connected peer
+    has to read sent/queued data before the `'slowRead'` event is emitted on
+    the `Http2Stream`. Defaults to `60000`.
   * `createConnection` {Function} An optional callback that receives the `URL`
     instance passed to `connect` and the `options` object, and returns any
     [`Duplex`][] stream that is to be used as the connection for this session.
