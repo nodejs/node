@@ -187,6 +187,9 @@ property take precedence over `--trace-deprecation` and
 <!-- YAML
 added: v0.5.3
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/17907
+    description: The `%o` specifiers `depth` option is now set to Infinity.
   - version: v8.4.0
     pr-url: https://github.com/nodejs/node/pull/14558
     description: The `%o` and `%O` specifiers are supported now.
@@ -209,12 +212,11 @@ corresponding argument. Supported placeholders are:
 contains circular references.
 * `%o` - Object. A string representation of an object
   with generic JavaScript object formatting.
-  Similar to `util.inspect()` with options `{ showHidden: true, depth: 4, showProxy: true }`.
-  This will show the full object including non-enumerable symbols and properties.
-* `%O` - Object. A string representation of an object
-  with generic JavaScript object formatting.
-  Similar to `util.inspect()` without options.
-  This will show the full object not including non-enumerable symbols and properties.
+  Similar to `util.inspect()` with options `{ showHidden: true, showProxy: true }`.
+  This will show the full object including non-enumerable properties and proxies.
+* `%O` - Object. A string representation of an object with generic JavaScript
+  object formatting. Similar to `util.inspect()` without options. This will show
+  the full object not including non-enumerable properties and proxies.
 * `%%` - single percent sign (`'%'`). This does not consume an argument.
 
 If the placeholder does not have a corresponding argument, the placeholder is
