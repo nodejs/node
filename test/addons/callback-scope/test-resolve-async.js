@@ -9,5 +9,5 @@ testResolveAsync().then(common.mustCall(() => {
   called = true;
 }));
 
-setTimeout(common.mustCall(() => { assert(called); }),
-           common.platformTimeout(20));
+setTimeout(common.mustCall(() => assert(called)),
+           common.platformTimeout(50));
