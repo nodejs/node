@@ -56,9 +56,9 @@ function parent() {
       server.close();
     }));
 
-    server.setTimeout(200, common.mustCall(function() {
+    server.setTimeout(200, common.mustCallAtLeast(function() {
       child.kill();
-    }));
+    }, 1));
   });
 }
 
