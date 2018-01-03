@@ -1305,8 +1305,24 @@ inline void Http2Session::HandlePingFrame(const nghttp2_frame* frame) {
   bool ack = frame->hd.flags & NGHTTP2_FLAG_ACK;
   if (ack) {
     Http2Ping* ping = PopPing();
-    if (ping != nullptr)
+    if (ping != nullptr) {
       ping->Done(true, frame->ping.opaque_data);
+    } else {
+      // PING Ack is unsolicited. Treat as a connection error. The HTTP/2
+      // spec does not require this, but there is no legitimate reason to
+      // receive an unsolicited PING ack on a connection. Either the peer
+      // is buggy or malicious, and we're not going to tolerate such
+      // nonsense.
+      Isolate* isolate = env()->isolate();
+      HandleScope scope(isolate);
+      Local<Context> context = env()->context();
+      Context::Scope context_scope(context);
+
+      Local<Value> argv[1] = {
+        Integer::New(isolate, NGHTTP2_ERR_PROTO),
+      };
+      MakeCallback(env()->error_string(), arraysize(argv), argv);
+    }
   }
 }
 
@@ -1317,8 +1333,28 @@ inline void Http2Session::HandleSettingsFrame(const nghttp2_frame* frame) {
     // If this is an acknowledgement, we should have an Http2Settings
     // object for it.
     Http2Settings* settings = PopSettings();
-    if (settings != nullptr)
+    if (settings != nullptr) {
       settings->Done(true);
+    } else {
+      // SETTINGS Ack is unsolicited. Treat as a connection error. The HTTP/2
+      // spec does not require this, but there is no legitimate reason to
+      // receive an unsolicited SETTINGS ack on a connection. Either the peer
+      // is buggy or malicious, and we're not going to tolerate such
+      // nonsense.
+      // Note that nghttp2 currently prevents this from happening for SETTINGS
+      // frames, so this block is purely defensive just in case that behavior
+      // changes. Specifically, unlike unsolicited PING acks, unsolicited
+      // SETTINGS acks should *never* make it this far.
+      Isolate* isolate = env()->isolate();
+      HandleScope scope(isolate);
+      Local<Context> context = env()->context();
+      Context::Scope context_scope(context);
+
+      Local<Value> argv[1] = {
+        Integer::New(isolate, NGHTTP2_ERR_PROTO),
+      };
+      MakeCallback(env()->error_string(), arraysize(argv), argv);
+    }
   } else {
     // Otherwise, notify the session about a new settings
     MakeCallback(env()->onsettings_string(), 0, nullptr);
