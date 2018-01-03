@@ -5,6 +5,6 @@ const assert = require('assert');
 const { testResolveAsync } = require(`./build/${common.buildType}/binding`);
 
 let called = false;
-testResolveAsync().then(() => (called = true));
+testResolveAsync().then(() => { called = true; });
 
-setTimeout(() => assert(called), common.platformTimeout(50));
+setTimeout(() => { assert(called); }, common.platformTimeout(50));
