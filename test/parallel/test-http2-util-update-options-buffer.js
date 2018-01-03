@@ -20,7 +20,8 @@ const IDX_OPTIONS_PADDING_STRATEGY = 4;
 const IDX_OPTIONS_MAX_HEADER_LIST_PAIRS = 5;
 const IDX_OPTIONS_MAX_OUTSTANDING_PINGS = 6;
 const IDX_OPTIONS_MAX_OUTSTANDING_SETTINGS = 7;
-const IDX_OPTIONS_FLAGS = 8;
+const IDX_OPTIONS_MAX_SESSION_MEMORY = 8;
+const IDX_OPTIONS_FLAGS = 9;
 
 {
   updateOptionsBuffer({
@@ -31,7 +32,8 @@ const IDX_OPTIONS_FLAGS = 8;
     paddingStrategy: 5,
     maxHeaderListPairs: 6,
     maxOutstandingPings: 7,
-    maxOutstandingSettings: 8
+    maxOutstandingSettings: 8,
+    maxSessionMemory: 9
   });
 
   strictEqual(optionsBuffer[IDX_OPTIONS_MAX_DEFLATE_DYNAMIC_TABLE_SIZE], 1);
@@ -42,6 +44,7 @@ const IDX_OPTIONS_FLAGS = 8;
   strictEqual(optionsBuffer[IDX_OPTIONS_MAX_HEADER_LIST_PAIRS], 6);
   strictEqual(optionsBuffer[IDX_OPTIONS_MAX_OUTSTANDING_PINGS], 7);
   strictEqual(optionsBuffer[IDX_OPTIONS_MAX_OUTSTANDING_SETTINGS], 8);
+  strictEqual(optionsBuffer[IDX_OPTIONS_MAX_SESSION_MEMORY], 9);
 
   const flags = optionsBuffer[IDX_OPTIONS_FLAGS];
 
