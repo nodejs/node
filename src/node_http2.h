@@ -82,6 +82,9 @@ void inline debug_vfprintf(const char* format, ...) {
 // Also strictly limit the number of outstanding SETTINGS frames a user sends
 #define DEFAULT_MAX_SETTINGS 10
 
+// Default maximum total memory cap for Http2Session.
+#define DEFAULT_MAX_SESSION_MEMORY 1e7;
+
 // These are the standard HTTP/2 defaults as specified by the RFC
 #define DEFAULT_SETTINGS_HEADER_TABLE_SIZE 4096
 #define DEFAULT_SETTINGS_ENABLE_PUSH 1
@@ -501,8 +504,17 @@ class Http2Options {
     return max_outstanding_settings_;
   }
 
+  void SetMaxSessionMemory(uint64_t max) {
+    max_session_memory_ = max;
+  }
+
+  uint64_t GetMaxSessionMemory() {
+    return max_session_memory_;
+  }
+
  private:
   nghttp2_option* options_;
+  uint64_t max_session_memory_ = DEFAULT_MAX_SESSION_MEMORY;
   uint32_t max_header_pairs_ = DEFAULT_MAX_HEADER_LIST_PAIRS;
   padding_strategy_type padding_strategy_ = PADDING_STRATEGY_NONE;
   size_t max_outstanding_pings_ = DEFAULT_MAX_PINGS;
@@ -628,6 +640,9 @@ class Http2Stream : public AsyncWrap,
 
   // Returns the stream identifier for this stream
   inline int32_t id() const { return id_; }
+
+  inline void IncrementAvailableOutboundLength(size_t amount);
+  inline void DecrementAvailableOutboundLength(size_t amount);
 
   inline bool AddHeader(nghttp2_rcbuf* name,
                         nghttp2_rcbuf* value,
@@ -848,7 +863,7 @@ class Http2Session : public AsyncWrap {
   inline void AddStream(Http2Stream* stream);
 
   // Removes a stream instance from this session
-  inline void RemoveStream(int32_t id);
+  inline void RemoveStream(Http2Stream* stream);
 
   // Write data to the session
   inline ssize_t Write(const uv_buf_t* bufs, size_t nbufs);
@@ -905,6 +920,30 @@ class Http2Session : public AsyncWrap {
 
   Http2Settings* PopSettings();
   bool AddSettings(Http2Settings* settings);
+
+  void IncrementCurrentSessionMemory(uint64_t amount) {
+    current_session_memory_ += amount;
+  }
+
+  void DecrementCurrentSessionMemory(uint64_t amount) {
+    current_session_memory_ -= amount;
+  }
+
+  // Returns the current session memory including the current size of both
+  // the inflate and deflate hpack headers, the current outbound storage
+  // queue, and pending writes.
+  uint64_t GetCurrentSessionMemory() {
+    uint64_t total = current_session_memory_ + sizeof(Http2Session);
+    total += nghttp2_session_get_hd_deflate_dynamic_table_size(session_);
+    total += nghttp2_session_get_hd_inflate_dynamic_table_size(session_);
+    total += outgoing_storage_.size();
+    return total;
+  }
+
+  // Return true if current_session_memory + amount is less than the max
+  bool IsAvailableSessionMemory(uint64_t amount) {
+    return GetCurrentSessionMemory() + amount <= max_session_memory_;
+  }
 
   struct Statistics {
     uint64_t start_time;
@@ -1034,6 +1073,10 @@ class Http2Session : public AsyncWrap {
 
   // The maximum number of header pairs permitted for streams on this session
   uint32_t max_header_pairs_ = DEFAULT_MAX_HEADER_LIST_PAIRS;
+
+  // The maximum amount of memory allocated for this session
+  uint64_t max_session_memory_ = DEFAULT_MAX_SESSION_MEMORY;
+  uint64_t current_session_memory_ = 0;
 
   // The collection of active Http2Streams associated with this session
   std::unordered_map<int32_t, Http2Stream*> streams_;
