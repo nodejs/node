@@ -40,10 +40,6 @@ function main(conf) {
   var started = false;
   var ending = false;
   var ended = false;
-  setTimeout(function() {
-    ending = true;
-    f.end();
-  }, dur * 1000);
 
   var f = fs.createWriteStream(filename);
   f.on('drain', write);
@@ -65,6 +61,10 @@ function main(conf) {
 
     if (!started) {
       started = true;
+      setTimeout(function() {
+        ending = true;
+        f.end();
+      }, dur * 1000);
       bench.start();
     }
 
