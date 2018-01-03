@@ -40,7 +40,7 @@ const server = http.createServer(function(req, res) {
   const c = net.createConnection(server.address().port, () => {
     c.write('GET / HTTP/1.1\r\n\r\n');
     c.write('GET / HTTP/1.1\r\n\r\n',
-            () => setImmediate(() => c.on('data', () => {})));
+            () => setImmediate(() => c.resume()));
     c.end();
   });
 
