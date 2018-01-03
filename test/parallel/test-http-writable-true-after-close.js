@@ -12,16 +12,16 @@ let external;
 
 // Proxy server
 const server = createServer(common.mustCall((req, res) => {
+  const listener = common.mustCall(() => {
+    assert.strictEqual(res.writable, true);
+  });
+
+  // on CentOS 5, 'finish' is emitted
+  res.on('finish', listener);
+  // everywhere else, 'close' is emitted
+  res.on('close', listener);
+
   get(`http://127.0.0.1:${internal.address().port}`, common.mustCall((inner) => {
-    const listener = common.mustCall(() => {
-      assert.strictEqual(res.writable, true);
-    });
-
-    // on CentOS 5, 'finish' is emitted
-    res.on('finish', listener);
-    // everywhere else, 'close' is emitted
-    res.on('close', listener);
-
     inner.pipe(res);
   }));
 })).listen(0, () => {
