@@ -1633,6 +1633,15 @@ changes:
 * `options` {Object}
   * `maxDeflateDynamicTableSize` {number} Sets the maximum dynamic table size
     for deflating header fields. **Default:** `4Kib`
+  * `maxSessionMemory`{number} Sets the maximum memory that the `Http2Session`
+    is permitted to use. The value is expressed in terms of number of megabytes,
+    e.g. `1` equal 1 megabyte. The minimum value allowed is `1`. **Default:**
+    `10`. This is a credit based limit, existing `Http2Stream`s may cause this
+    limit to be exceeded, but new `Http2Stream` instances will be rejected
+    while this limit is exceeded. The current number of `Http2Stream` sessions,
+    the current memory use of the header compression tables, current data
+    queued to be sent, and unacknowledged PING and SETTINGS frames are all
+    counted towards the current limit.
   * `maxHeaderListPairs` {number} Sets the maximum number of header entries.
     **Default:** `128`. The minimum value is `4`.
   * `maxOutstandingPings` {number} Sets the maximum number of outstanding,
@@ -1711,6 +1720,15 @@ changes:
     `false`. See the [`'unknownProtocol'`][] event. See [ALPN negotiation][].
   * `maxDeflateDynamicTableSize` {number} Sets the maximum dynamic table size
     for deflating header fields. **Default:** `4Kib`
+  * `maxSessionMemory`{number} Sets the maximum memory that the `Http2Session`
+    is permitted to use. The value is expressed in terms of number of megabytes,
+    e.g. `1` equal 1 megabyte. The minimum value allowed is `1`. **Default:**
+    `10`. This is a credit based limit, existing `Http2Stream`s may cause this
+    limit to be exceeded, but new `Http2Stream` instances will be rejected
+    while this limit is exceeded. The current number of `Http2Stream` sessions,
+    the current memory use of the header compression tables, current data
+    queued to be sent, and unacknowledged PING and SETTINGS frames are all
+    counted towards the current limit.
   * `maxHeaderListPairs` {number} Sets the maximum number of header entries.
     **Default:** `128`. The minimum value is `4`.
   * `maxOutstandingPings` {number} Sets the maximum number of outstanding,
@@ -1794,6 +1812,15 @@ changes:
 * `options` {Object}
   * `maxDeflateDynamicTableSize` {number} Sets the maximum dynamic table size
     for deflating header fields. **Default:** `4Kib`
+  * `maxSessionMemory`{number} Sets the maximum memory that the `Http2Session`
+    is permitted to use. The value is expressed in terms of number of megabytes,
+    e.g. `1` equal 1 megabyte. The minimum value allowed is `1`. **Default:**
+    `10`. This is a credit based limit, existing `Http2Stream`s may cause this
+    limit to be exceeded, but new `Http2Stream` instances will be rejected
+    while this limit is exceeded. The current number of `Http2Stream` sessions,
+    the current memory use of the header compression tables, current data
+    queued to be sent, and unacknowledged PING and SETTINGS frames are all
+    counted towards the current limit.
   * `maxHeaderListPairs` {number} Sets the maximum number of header entries.
     **Default:** `128`. The minimum value is `1`.
   * `maxOutstandingPings` {number} Sets the maximum number of outstanding,
