@@ -174,6 +174,18 @@ Http2Options::Http2Options(Environment* env) {
   if (flags & (1 << IDX_OPTIONS_MAX_OUTSTANDING_SETTINGS)) {
     SetMaxOutstandingSettings(buffer[IDX_OPTIONS_MAX_OUTSTANDING_SETTINGS]);
   }
+
+  // The HTTP2 specification places no limits on the amount of memory
+  // that a session can consume. In order to prevent abuse, we place a
+  // cap on the amount of memory a session can consume at any given time.
+  // this is a credit based system. Existing streams may cause the limit
+  // to be temporarily exceeded but once over the limit, new streams cannot
+  // created.
+  // Important: The maxSessionMemory option in javascript is expressed in
+  //            terms of MB increments (i.e. the value 1 == 1 MB)
+  if (flags & (1 << IDX_OPTIONS_MAX_SESSION_MEMORY)) {
+    SetMaxSessionMemory(buffer[IDX_OPTIONS_MAX_SESSION_MEMORY] * 1e6);
+  }
 }
 
 void Http2Session::Http2Settings::Init() {
@@ -482,11 +494,13 @@ Http2Session::Http2Session(Environment* env,
   // Capture the configuration options for this session
   Http2Options opts(env);
 
-  int32_t maxHeaderPairs = opts.GetMaxHeaderPairs();
+  max_session_memory_ = opts.GetMaxSessionMemory();
+
+  uint32_t maxHeaderPairs = opts.GetMaxHeaderPairs();
   max_header_pairs_ =
       type == NGHTTP2_SESSION_SERVER
-          ? std::max(maxHeaderPairs, 4)     // minimum # of request headers
-          : std::max(maxHeaderPairs, 1);    // minimum # of response headers
+          ? std::max(maxHeaderPairs, 4U)     // minimum # of request headers
+          : std::max(maxHeaderPairs, 1U);    // minimum # of response headers
 
   max_outstanding_pings_ = opts.GetMaxOutstandingPings();
   max_outstanding_settings_ = opts.GetMaxOutstandingSettings();
@@ -672,18 +686,21 @@ inline bool Http2Session::CanAddStream() {
   size_t maxSize =
       std::min(streams_.max_size(), static_cast<size_t>(maxConcurrentStreams));
   // We can add a new stream so long as we are less than the current
-  // maximum on concurrent streams
-  return streams_.size() < maxSize;
+  // maximum on concurrent streams and there's enough available memory
+  return streams_.size() < maxSize &&
+         IsAvailableSessionMemory(sizeof(Http2Stream));
 }
 
 inline void Http2Session::AddStream(Http2Stream* stream) {
   CHECK_GE(++statistics_.stream_count, 0);
   streams_[stream->id()] = stream;
+  IncrementCurrentSessionMemory(stream->self_size());
 }
 
 
-inline void Http2Session::RemoveStream(int32_t id) {
-  streams_.erase(id);
+inline void Http2Session::RemoveStream(Http2Stream* stream) {
+  streams_.erase(stream->id());
+  DecrementCurrentSessionMemory(stream->self_size());
 }
 
 // Used as one of the Padding Strategy functions. Will attempt to ensure
@@ -1677,7 +1694,7 @@ Http2Stream::Http2Stream(
 
 Http2Stream::~Http2Stream() {
   if (session_ != nullptr) {
-    session_->RemoveStream(id_);
+    session_->RemoveStream(this);
     session_ = nullptr;
   }
 
@@ -2007,7 +2024,7 @@ inline int Http2Stream::DoWrite(WriteWrap* req_wrap,
       i == nbufs - 1 ? req_wrap : nullptr,
       bufs[i]
     });
-    available_outbound_length_ += bufs[i].len;
+    IncrementAvailableOutboundLength(bufs[i].len);
   }
   CHECK_NE(nghttp2_session_resume_data(**session_, id_), NGHTTP2_ERR_NOMEM);
   return 0;
@@ -2029,7 +2046,10 @@ inline bool Http2Stream::AddHeader(nghttp2_rcbuf* name,
   if (this->statistics_.first_header == 0)
     this->statistics_.first_header = uv_hrtime();
   size_t length = GetBufferLength(name) + GetBufferLength(value) + 32;
-  if (current_headers_.size() == max_header_pairs_ ||
+  // A header can only be added if we have not exceeded the maximum number
+  // of headers and the session has memory available for it.
+  if (!session_->IsAvailableSessionMemory(length) ||
+      current_headers_.size() == max_header_pairs_ ||
       current_headers_length_ + length > max_header_length_) {
     return false;
   }
@@ -2173,7 +2193,7 @@ ssize_t Http2Stream::Provider::Stream::OnRead(nghttp2_session* handle,
       // Just return the length, let Http2Session::OnSendData take care of
       // actually taking the buffers out of the queue.
       *flags |= NGHTTP2_DATA_FLAG_NO_COPY;
-      stream->available_outbound_length_ -= amount;
+      stream->DecrementAvailableOutboundLength(amount);
     }
   }
 
@@ -2196,6 +2216,15 @@ ssize_t Http2Stream::Provider::Stream::OnRead(nghttp2_session* handle,
   return amount;
 }
 
+inline void Http2Stream::IncrementAvailableOutboundLength(size_t amount) {
+  available_outbound_length_ += amount;
+  session_->IncrementCurrentSessionMemory(amount);
+}
+
+inline void Http2Stream::DecrementAvailableOutboundLength(size_t amount) {
+  available_outbound_length_ -= amount;
+  session_->DecrementCurrentSessionMemory(amount);
+}
 
 
 // Implementation of the JavaScript API
@@ -2689,6 +2718,7 @@ Http2Session::Http2Ping* Http2Session::PopPing() {
   if (!outstanding_pings_.empty()) {
     ping = outstanding_pings_.front();
     outstanding_pings_.pop();
+    DecrementCurrentSessionMemory(ping->self_size());
   }
   return ping;
 }
@@ -2697,6 +2727,7 @@ bool Http2Session::AddPing(Http2Session::Http2Ping* ping) {
   if (outstanding_pings_.size() == max_outstanding_pings_)
     return false;
   outstanding_pings_.push(ping);
+  IncrementCurrentSessionMemory(ping->self_size());
   return true;
 }
 
@@ -2705,6 +2736,7 @@ Http2Session::Http2Settings* Http2Session::PopSettings() {
   if (!outstanding_settings_.empty()) {
     settings = outstanding_settings_.front();
     outstanding_settings_.pop();
+    DecrementCurrentSessionMemory(settings->self_size());
   }
   return settings;
 }
@@ -2713,6 +2745,7 @@ bool Http2Session::AddSettings(Http2Session::Http2Settings* settings) {
   if (outstanding_settings_.size() == max_outstanding_settings_)
     return false;
   outstanding_settings_.push(settings);
+  IncrementCurrentSessionMemory(settings->self_size());
   return true;
 }
 
