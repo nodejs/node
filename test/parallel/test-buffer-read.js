@@ -57,8 +57,14 @@ read(buf, 'readUInt32BE', [1], 0xfd48eacf);
 read(buf, 'readUInt32LE', [1], 0xcfea48fd);
 
 // testing basic functionality of readUIntBE() and readUIntLE()
-read(buf, 'readUIntBE', [2, 0], 0xfd);
-read(buf, 'readUIntLE', [2, 0], 0x48);
+read(buf, 'readUIntBE', [2, 2], 0x48ea);
+read(buf, 'readUIntLE', [2, 2], 0xea48);
+
+// invalid byteLength parameter for readUIntBE() and readUIntLE()
+common.expectsError(() => { buf.readUIntBE(2, 0); },
+                    { code: 'ERR_OUT_OF_RANGE' });
+common.expectsError(() => { buf.readUIntLE(2, 7); },
+                    { code: 'ERR_OUT_OF_RANGE' });
 
 // attempt to overflow buffers, similar to previous bug in array buffers
 assert.throws(() => Buffer.allocUnsafe(8).readFloatBE(0xffffffff),

@@ -2,8 +2,10 @@
 const common = require('../common.js');
 
 const types = [
-  'IntLE',
   'IntBE',
+  'IntLE',
+  'UIntBE',
+  'UIntLE'
 ];
 
 const bench = common.createBenchmark(main, {
