@@ -10,7 +10,7 @@ file a new issue.
 
 ## Supported platforms
 
-This list of supported platforms is current as of the branch / release to
+This list of supported platforms is current as of the branch/release to
 which it is attached.
 
 ### Input
@@ -33,15 +33,15 @@ Support is divided into three tiers:
 
 ### Supported platforms
 
-The community does not build or test against end of life distributions (EoL).
-Thus we do not recommend that you use Node on end of life or unsupported platforms
+The community does not build or test against end-of-life distributions (EoL).
+Thus we do not recommend that you use Node on end-of-life or unsupported platforms
 in production.
 
 |  System      | Support type | Version                          | Architectures        | Notes            |
 |--------------|--------------|----------------------------------|----------------------|------------------|
 | GNU/Linux    | Tier 1       | kernel >= 2.6.32, glibc >= 2.12  | x64, arm, arm64      |                  |
 | macOS        | Tier 1       | >= 10.10                         | x64                  |                  |
-| Windows      | Tier 1       | >= Windows 7 / 2008 R2           | x86, x64             | vs2017           |
+| Windows      | Tier 1       | >= Windows 7/2008 R2             | x86, x64             | vs2017           |
 | SmartOS      | Tier 2       | >= 15 < 16.4                     | x86, x64             | see note1        |
 | FreeBSD      | Tier 2       | >= 10                            | x64                  |                  |
 | GNU/Linux    | Tier 2       | kernel >= 3.13.0, glibc >= 2.19  | ppc64le >=power8     |                  |
@@ -92,7 +92,7 @@ Depending on host platform, the selection of toolchains may vary.
 *Note:* All prerequisites can be easily installed by following
 [this bootstrapping guide](https://github.com/nodejs/node/blob/master/tools/bootstrap/README.md).
 
-### Unix / macOS
+### Unix/macOS
 
 Prerequisites:
 
@@ -101,7 +101,7 @@ Prerequisites:
 * Python 2.6 or 2.7
 * GNU Make 3.81 or newer
 
-On macOS you will need to install the `Xcode Command Line Tools` by running
+On macOS, you will need to install the `Xcode Command Line Tools` by running
 `xcode-select --install`. Alternatively, if you already have the full Xcode
 installed, you can find them under the menu `Xcode -> Open Developer Tool ->
 More Developer Tools...`. This step will install `clang`, `clang++`, and
@@ -114,7 +114,7 @@ If the path to your build directory contains a space, the build will likely fail
 ```console
 $ sudo ./tools/macosx-firewall.sh
 ```
-Running this script will add rules for the executable `node` in the out
+Running this script will add rules for the executable `node` in the `out`
 directory and the symbolic `node` link in the project's root directory.
 
 On FreeBSD and OpenBSD, you may also need:
@@ -233,7 +233,7 @@ To test if Node.js was built correctly:
 > Release\node -e "console.log('Hello from Node.js', process.version)"
 ```
 
-### Android / Android-based devices (e.g. Firefox OS)
+### Android/Android-based devices (e.g. Firefox OS)
 
 Although these instructions for building on Android are provided, please note
 that Android is not an officially supported platform at this time. Patches to
@@ -273,7 +273,7 @@ With the `--download=all`, this may download ICU if you don't have an
 ICU in `deps/icu`. (The embedded `small-icu` included in the default
 Node.js source does not include all locales.)
 
-##### Unix / macOS:
+##### Unix/macOS:
 
 ```console
 $ ./configure --with-intl=full-icu --download=all
@@ -290,7 +290,7 @@ $ ./configure --with-intl=full-icu --download=all
 The `Intl` object will not be available, nor some other APIs such as
 `String.normalize`.
 
-##### Unix / macOS:
+##### Unix/macOS:
 
 ```console
 $ ./configure --without-intl
@@ -302,7 +302,7 @@ $ ./configure --without-intl
 > .\vcbuild without-intl
 ```
 
-#### Use existing installed ICU (Unix / macOS only):
+#### Use existing installed ICU (Unix/macOS only):
 
 ```console
 $ pkg-config --modversion icu-i18n && ./configure --with-intl=system-icu
@@ -318,7 +318,7 @@ You can find other ICU releases at
 Download the file named something like `icu4c-**##.#**-src.tgz` (or
 `.zip`).
 
-##### Unix / macOS
+##### Unix/macOS
 
 From an already-unpacked ICU:
 ```console
@@ -366,7 +366,7 @@ and [user guide](https://openssl.org/docs/fips/UserGuide-2.0.pdf).
    through which you get the file complies with the requirements
    for a "secure installation" as described in section 6.6 in
    the [user guide](https://openssl.org/docs/fips/UserGuide-2.0.pdf).
-   For evaluation/experimentation you can simply download and verify
+   For evaluation/experimentation, you can simply download and verify
    `openssl-fips-x.x.x.tar.gz` from https://www.openssl.org/source/
 2. Extract source to `openssl-fips` folder and `cd openssl-fips`
 3. `./config`
