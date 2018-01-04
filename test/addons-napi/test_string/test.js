@@ -42,7 +42,9 @@ assert.strictEqual(test_string.TestUtf16Insufficient(str3), str3.slice(0, 3));
 assert.strictEqual(test_string.Utf16Length(str3), 27);
 assert.strictEqual(test_string.Utf8Length(str3), 27);
 
+/* eslint-disable no-restricted-syntax */
 const str4 = '¡¢£¤¥¦§¨©ª«¬­®¯°±²³´µ¶·¸¹º»¼½¾¿';
+/* eslint-enable no-restricted-syntax */
 assert.strictEqual(test_string.TestLatin1(str4), str4);
 assert.strictEqual(test_string.TestUtf8(str4), str4);
 assert.strictEqual(test_string.TestUtf16(str4), str4);

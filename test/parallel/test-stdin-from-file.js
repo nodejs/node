@@ -11,6 +11,7 @@ const tmpFile = join(common.tmpDir, 'stdin.txt');
 
 const cmd = `"${process.argv[0]}" "${stdoutScript}" < "${tmpFile}"`;
 
+/* eslint-disable no-restricted-syntax */
 const string = 'abc\nümlaut.\nsomething else\n' +
                '南越国是前203年至前111年存在于岭南地区的一个国家，国都位于番禺，' +
                '疆域包括今天中国的广东、广西两省区的大部份地区，福建省、湖南、贵州、' +
@@ -22,7 +23,7 @@ const string = 'abc\nümlaut.\nsomething else\n' +
                '采用封建制和郡县制并存的制度，' +
                '它的建立保证了秦末乱世岭南地区社会秩序的稳定，' +
                '有效的改善了岭南地区落后的政治、##济现状。\n';
-
+/* eslint-enable no-restricted-syntax */
 
 common.refreshTmpDir();
 
