@@ -10,9 +10,9 @@ This directory contains modules used to test the Node.js implementation.
 * [DNS module](#dns-module)
 * [Duplex pair helper](#duplex-pair-helper)
 * [Fixtures module](#fixtures-module)
+* [HTTP2 module](#http2-module)
 * [Internet module](#internet-module)
 * [WPT module](#wpt-module)
-* [HTTP2 module](#http2-module)
 
 ## Benchmark Module
 
@@ -523,49 +523,6 @@ Returns the result of
 Returns the result of
 `fs.readFileSync(path.join(fixtures.fixturesDir, 'keys', arg), 'enc')`.
 
-## Internet Module
-
-The `common/internet` module provides utilities for working with
-internet-related tests.
-
-### internet.addresses
-
-* [&lt;Object>]
-  * `INET_HOST` [&lt;String>] A generic host that has registered common
-    DNS records, supports both IPv4 and IPv6, and provides basic HTTP/HTTPS
-    services
-  * `INET4_HOST` [&lt;String>] A host that provides IPv4 services
-  * `INET6_HOST` [&lt;String>] A host that provides IPv6 services
-  * `INET4_IP` [&lt;String>] An accessible IPv4 IP, defaults to the
-    Google Public DNS IPv4 address
-  * `INET6_IP` [&lt;String>] An accessible IPv6 IP, defaults to the
-    Google Public DNS IPv6 address
-  * `INVALID_HOST` [&lt;String>] An invalid host that cannot be resolved
-  * `MX_HOST` [&lt;String>] A host with MX records registered
-  * `SRV_HOST` [&lt;String>] A host with SRV records registered
-  * `PTR_HOST` [&lt;String>] A host with PTR records registered
-  * `NAPTR_HOST` [&lt;String>] A host with NAPTR records registered
-  * `SOA_HOST` [&lt;String>] A host with SOA records registered
-  * `CNAME_HOST` [&lt;String>] A host with CNAME records registered
-  * `NS_HOST` [&lt;String>] A host with NS records registered
-  * `TXT_HOST` [&lt;String>] A host with TXT records registered
-  * `DNS4_SERVER` [&lt;String>] An accessible IPv4 DNS server
-  * `DNS6_SERVER` [&lt;String>] An accessible IPv6 DNS server
-
-A set of addresses for internet-related tests. All properties are configurable
-via `NODE_TEST_*` environment variables. For example, to configure
-`internet.addresses.INET_HOST`, set the environment
-vairable `NODE_TEST_INET_HOST` to a specified host.
-
-## WPT Module
-
-The wpt.js module is a port of parts of
-[W3C testharness.js](https://github.com/w3c/testharness.js) for testing the
-Node.js
-[WHATWG URL API](https://nodejs.org/api/url.html#url_the_whatwg_url_api)
-implementation with tests from
-[W3C Web Platform Tests](https://github.com/w3c/web-platform-tests).
-
 ## HTTP/2 Module
 
 The http2.js module provides a handful of utilities for creating mock HTTP/2
@@ -700,6 +657,49 @@ upon initial establishment of a connection.
 ```js
 socket.write(http2.kClientMagic);
 ```
+
+## Internet Module
+
+The `common/internet` module provides utilities for working with
+internet-related tests.
+
+### internet.addresses
+
+* [&lt;Object>]
+  * `INET_HOST` [&lt;String>] A generic host that has registered common
+    DNS records, supports both IPv4 and IPv6, and provides basic HTTP/HTTPS
+    services
+  * `INET4_HOST` [&lt;String>] A host that provides IPv4 services
+  * `INET6_HOST` [&lt;String>] A host that provides IPv6 services
+  * `INET4_IP` [&lt;String>] An accessible IPv4 IP, defaults to the
+    Google Public DNS IPv4 address
+  * `INET6_IP` [&lt;String>] An accessible IPv6 IP, defaults to the
+    Google Public DNS IPv6 address
+  * `INVALID_HOST` [&lt;String>] An invalid host that cannot be resolved
+  * `MX_HOST` [&lt;String>] A host with MX records registered
+  * `SRV_HOST` [&lt;String>] A host with SRV records registered
+  * `PTR_HOST` [&lt;String>] A host with PTR records registered
+  * `NAPTR_HOST` [&lt;String>] A host with NAPTR records registered
+  * `SOA_HOST` [&lt;String>] A host with SOA records registered
+  * `CNAME_HOST` [&lt;String>] A host with CNAME records registered
+  * `NS_HOST` [&lt;String>] A host with NS records registered
+  * `TXT_HOST` [&lt;String>] A host with TXT records registered
+  * `DNS4_SERVER` [&lt;String>] An accessible IPv4 DNS server
+  * `DNS6_SERVER` [&lt;String>] An accessible IPv6 DNS server
+
+A set of addresses for internet-related tests. All properties are configurable
+via `NODE_TEST_*` environment variables. For example, to configure
+`internet.addresses.INET_HOST`, set the environment
+vairable `NODE_TEST_INET_HOST` to a specified host.
+
+## WPT Module
+
+The wpt.js module is a port of parts of
+[W3C testharness.js](https://github.com/w3c/testharness.js) for testing the
+Node.js
+[WHATWG URL API](https://nodejs.org/api/url.html#url_the_whatwg_url_api)
+implementation with tests from
+[W3C Web Platform Tests](https://github.com/w3c/web-platform-tests).
 
 
 [&lt;Array>]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array
