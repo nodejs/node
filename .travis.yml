@@ -1,0 +1,36 @@
+language: cpp
+sudo: false
+dist: trusty
+
+os:
+  - linux
+  - osx
+
+compiler:
+  - gcc
+  - clang
+
+cache:
+  directories:
+    - out/Release
+
+matrix:
+  exclude:
+  - os: osx
+    compiler: gcc
+
+addons:
+  apt:
+    sources:
+      - ubuntu-toolchain-r-test
+    packages:
+      - g++-4.9
+
+before_install:
+  - if [ $TRAVIS_OS_NAME == linux ]; then CC=gcc-4.9 && CXX=g++-4.9; fi
+
+before_script:
+  - ./configure --shared
+
+script:
+  - make -j5
