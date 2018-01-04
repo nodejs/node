@@ -743,11 +743,11 @@ single object (with a `null` prototype) that the listener may used to specify
 the trailing header fields to send to the peer.
 
 *Note*: The HTTP/1 specification forbids trailers from containing HTTP/2
-"pseudo-header" fields (e.g. `':method'`, `':path'`, etc). An `'error'` event
+pseudo-header fields (e.g. `':method'`, `':path'`, etc). An `'error'` event
 will be emitted if the `getTrailers` callback attempts to set such header
 fields.
 
-The `:method` and `:path` pseudoheaders are not specified within `headers`,
+The `:method` and `:path` pseudo-headers are not specified within `headers`,
 they respectively default to:
 
 * `:method` = `'GET'`
@@ -1215,7 +1215,7 @@ server.on('stream', (stream) => {
 ```
 
 *Note*: The HTTP/1 specification forbids trailers from containing HTTP/2
-"pseudo-header" fields (e.g. `':status'`, `':path'`, etc). An `'error'` event
+pseudo-header fields (e.g. `':status'`, `':path'`, etc). An `'error'` event
 will be emitted if the `getTrailers` callback attempts to set such header
 fields.
 
@@ -1299,7 +1299,7 @@ server.on('close', () => fs.closeSync(fd));
 ```
 
 *Note*: The HTTP/1 specification forbids trailers from containing HTTP/2
-"pseudo-header" fields (e.g. `':status'`, `':path'`, etc). An `'error'` event
+pseudo-header fields (e.g. `':status'`, `':path'`, etc). An `'error'` event
 will be emitted if the `getTrailers` callback attempts to set such header
 fields.
 
@@ -1408,7 +1408,7 @@ server.on('stream', (stream) => {
 ```
 
 *Note*: The HTTP/1 specification forbids trailers from containing HTTP/2
-"pseudo-header" fields (e.g. `':status'`, `':path'`, etc). An `'error'` event
+pseudo-header fields (e.g. `':status'`, `':path'`, etc). An `'error'` event
 will be emitted if the `getTrailers` callback attempts to set such header
 fields.
 
