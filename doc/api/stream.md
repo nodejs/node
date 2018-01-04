@@ -747,6 +747,12 @@ The listener callback will be passed a single `Error` object.
 ##### Event: 'readable'
 <!-- YAML
 added: v0.9.4
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/17979
+    description: >
+      'readable' is always emitted in the next tick after
+      .push() is called
 -->
 
 The `'readable'` event is emitted when there is data available to be read from
@@ -1647,6 +1653,13 @@ const myReadable = new Readable({
 ```
 
 #### readable.\_read(size)
+<!-- YAML
+added: v0.9.4
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/17979
+    description: call _read() only once per microtick
+-->
 
 * `size` {number} Number of bytes to read asynchronously
 
@@ -1666,6 +1679,8 @@ additional data onto the queue.
 
 *Note*: Once the `readable._read()` method has been called, it will not be
 called again until the [`readable.push()`][stream-push] method is called.
+`readable._read()` is guaranteed to be called only once within a
+synchronous execution, i.e. a microtick.
 
 The `size` argument is advisory. For implementations where a "read" is a
 single operation that returns data can use the `size` argument to determine how
