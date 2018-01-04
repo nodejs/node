@@ -166,7 +166,7 @@ When invoked, the handler function will receive three arguments:
 
 If the `'frameError'` event is associated with a stream, the stream will be
 closed and destroyed immediately following the `'frameError'` event. If the
-event is not associated with a stream, the `Http2Session` will be shutdown
+event is not associated with a stream, the `Http2Session` will be shut down
 immediately following the `'frameError'` event.
 
 #### Event: 'goaway'
@@ -183,7 +183,7 @@ the handler function will receive three arguments:
 * `opaqueData` {Buffer} If additional opaque data was included in the GOAWAY
   frame, a `Buffer` instance will be passed containing that data.
 
-*Note*: The `Http2Session` instance will be shutdown automatically when the
+*Note*: The `Http2Session` instance will be shut down automatically when the
 `'goaway'` event is emitted.
 
 #### Event: 'localSettings'
@@ -499,7 +499,7 @@ added: v8.4.0
   has been completed.
 * Returns: {undefined}
 
-Attempts to shutdown this `Http2Session` using HTTP/2 defined procedures.
+Attempts to shut down this `Http2Session` using HTTP/2 defined procedures.
 If specified, the given `callback` function will be invoked once the shutdown
 process has completed.
 
