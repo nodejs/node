@@ -10,7 +10,7 @@ file a new issue.
 
 ## Supported platforms
 
-This list of supported platforms is current as of the branch / release to
+This list of supported platforms is current as of the branch/release to
 which it is attached.
 
 ### Input
@@ -41,7 +41,7 @@ in production.
 |--------------|--------------|----------------------------------|----------------------|------------------|
 | GNU/Linux    | Tier 1       | kernel >= 2.6.32, glibc >= 2.12  | x64, arm, arm64      |                  |
 | macOS        | Tier 1       | >= 10.10                         | x64                  |                  |
-| Windows      | Tier 1       | >= Windows 7 / 2008 R2           | x86, x64             | vs2017           |
+| Windows      | Tier 1       | >= Windows 7/2008 R2             | x86, x64             | vs2017           |
 | SmartOS      | Tier 2       | >= 15 < 16.4                     | x86, x64             | see note1        |
 | FreeBSD      | Tier 2       | >= 10                            | x64                  |                  |
 | GNU/Linux    | Tier 2       | kernel >= 3.13.0, glibc >= 2.19  | ppc64le >=power8     |                  |
@@ -92,7 +92,7 @@ Depending on host platform, the selection of toolchains may vary.
 *Note:* All prerequisites can be easily installed by following
 [this bootstrapping guide](https://github.com/nodejs/node/blob/master/tools/bootstrap/README.md).
 
-### Unix / macOS
+### Unix/macOS
 
 Prerequisites:
 
@@ -233,7 +233,7 @@ To test if Node.js was built correctly:
 > Release\node -e "console.log('Hello from Node.js', process.version)"
 ```
 
-### Android / Android-based devices (e.g. Firefox OS)
+### Android/Android-based devices (e.g. Firefox OS)
 
 Although these instructions for building on Android are provided, please note
 that Android is not an officially supported platform at this time. Patches to
@@ -273,7 +273,7 @@ With the `--download=all`, this may download ICU if you don't have an
 ICU in `deps/icu`. (The embedded `small-icu` included in the default
 Node.js source does not include all locales.)
 
-##### Unix / macOS:
+##### Unix/macOS:
 
 ```console
 $ ./configure --with-intl=full-icu --download=all
@@ -290,7 +290,7 @@ $ ./configure --with-intl=full-icu --download=all
 The `Intl` object will not be available, nor some other APIs such as
 `String.normalize`.
 
-##### Unix / macOS:
+##### Unix/macOS:
 
 ```console
 $ ./configure --without-intl
@@ -302,7 +302,7 @@ $ ./configure --without-intl
 > .\vcbuild without-intl
 ```
 
-#### Use existing installed ICU (Unix / macOS only):
+#### Use existing installed ICU (Unix/macOS only):
 
 ```console
 $ pkg-config --modversion icu-i18n && ./configure --with-intl=system-icu
@@ -318,7 +318,7 @@ You can find other ICU releases at
 Download the file named something like `icu4c-**##.#**-src.tgz` (or
 `.zip`).
 
-##### Unix / macOS
+##### Unix/macOS
 
 From an already-unpacked ICU:
 ```console
