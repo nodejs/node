@@ -101,7 +101,7 @@ Prerequisites:
 * Python 2.6 or 2.7
 * GNU Make 3.81 or newer
 
-On macOS you will need to install the `Xcode Command Line Tools` by running
+On macOS, you will need to install the `Xcode Command Line Tools` by running
 `xcode-select --install`. Alternatively, if you already have the full Xcode
 installed, you can find them under the menu `Xcode -> Open Developer Tool ->
 More Developer Tools...`. This step will install `clang`, `clang++`, and
