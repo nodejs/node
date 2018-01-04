@@ -2985,7 +2985,7 @@ If `name` is equal to `Http2Session`, the `PerformanceEntry` will contain the
 following additional properties:
 
 * `pingRTT` {number} The number of milliseconds elapsed since the transmission
-  of a `PING` frame and the reception of its acknowledgement. Only present if
+  of a `PING` frame and the reception of its acknowledgment. Only present if
   a `PING` frame has been sent on the `Http2Session`.
 * `streamCount` {number} The number of `Http2Stream` instances processed by
   the `Http2Session`.
