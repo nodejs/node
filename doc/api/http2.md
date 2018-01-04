@@ -166,7 +166,7 @@ When invoked, the handler function will receive three arguments:
 
 If the `'frameError'` event is associated with a stream, the stream will be
 closed and destroyed immediately following the `'frameError'` event. If the
-event is not associated with a stream, the `Http2Session` will be shutdown
+event is not associated with a stream, the `Http2Session` will be shut down
 immediately following the `'frameError'` event.
 
 #### Event: 'goaway'
@@ -183,7 +183,7 @@ the handler function will receive three arguments:
 * `opaqueData` {Buffer} If additional opaque data was included in the GOAWAY
   frame, a `Buffer` instance will be passed containing that data.
 
-*Note*: The `Http2Session` instance will be shutdown automatically when the
+*Note*: The `Http2Session` instance will be shut down automatically when the
 `'goaway'` event is emitted.
 
 #### Event: 'localSettings'
@@ -499,7 +499,7 @@ added: v8.4.0
   has been completed.
 * Returns: {undefined}
 
-Attempts to shutdown this `Http2Session` using HTTP/2 defined procedures.
+Attempts to shut down this `Http2Session` using HTTP/2 defined procedures.
 If specified, the given `callback` function will be invoked once the shutdown
 process has completed.
 
@@ -635,7 +635,7 @@ may be passed to clear any previously set alternative service for a given
 domain.
 
 When a string is passed for the `originOrStream` argument, it will be parsed as
-a URL and the origin will be derived. For insetance, the origin for the
+a URL and the origin will be derived. For instance, the origin for the
 HTTP URL `'https://example.org/foo/bar'` is the ASCII string
 `'https://example.org'`. An error will be thrown if either the given string
 cannot be parsed as a URL or if a valid origin cannot be derived.
@@ -739,15 +739,15 @@ req.on('response', (headers) => {
 
 When set, the `options.getTrailers()` function is called immediately after
 queuing the last chunk of payload data to be sent. The callback is passed a
-single object (with a `null` prototype) that the listener may used to specify
+single object (with a `null` prototype) that the listener may use to specify
 the trailing header fields to send to the peer.
 
 *Note*: The HTTP/1 specification forbids trailers from containing HTTP/2
-"pseudo-header" fields (e.g. `':method'`, `':path'`, etc). An `'error'` event
+pseudo-header fields (e.g. `':method'`, `':path'`, etc). An `'error'` event
 will be emitted if the `getTrailers` callback attempts to set such header
 fields.
 
-The `:method` and `:path` pseudoheaders are not specified within `headers`,
+The `:method` and `:path` pseudo-headers are not specified within `headers`,
 they respectively default to:
 
 * `:method` = `'GET'`
@@ -774,7 +774,7 @@ On the client, `Http2Stream` instances are created and returned when either the
 `'push'` event.
 
 *Note*: The `Http2Stream` class is a base for the [`ServerHttp2Stream`][] and
-[`ClientHttp2Stream`][] classes, each of which are used specifically by either
+[`ClientHttp2Stream`][] classes, each of which is used specifically by either
 the Server or Client side, respectively.
 
 All `Http2Stream` instances are [`Duplex`][] streams. The `Writable` side of the
@@ -798,7 +798,7 @@ On the client side, instances of [`ClientHttp2Stream`][] are created when the
 `http2session.request()` may not be immediately ready for use if the parent
 `Http2Session` has not yet been fully established. In such cases, operations
 called on the `Http2Stream` will be buffered until the `'ready'` event is
-emitted. User code should rarely, if ever, have need to handle the `'ready'`
+emitted. User code should rarely, if ever, need to handle the `'ready'`
 event directly. The ready status of an `Http2Stream` can be determined by
 checking the value of `http2stream.id`. If the value is `undefined`, the stream
 is not yet ready for use.
@@ -1048,7 +1048,7 @@ added: v8.4.0
 -->
 
 The `'headers'` event is emitted when an additional block of headers is received
-for a stream, such as when a block of `1xx` informational headers are received.
+for a stream, such as when a block of `1xx` informational headers is received.
 The listener callback is passed the [Headers Object][] and flags associated with
 the headers.
 
@@ -1198,7 +1198,7 @@ server.on('stream', (stream) => {
 
 When set, the `options.getTrailers()` function is called immediately after
 queuing the last chunk of payload data to be sent. The callback is passed a
-single object (with a `null` prototype) that the listener may used to specify
+single object (with a `null` prototype) that the listener may use to specify
 the trailing header fields to send to the peer.
 
 ```js
@@ -1215,7 +1215,7 @@ server.on('stream', (stream) => {
 ```
 
 *Note*: The HTTP/1 specification forbids trailers from containing HTTP/2
-"pseudo-header" fields (e.g. `':status'`, `':path'`, etc). An `'error'` event
+pseudo-header fields (e.g. `':status'`, `':path'`, etc). An `'error'` event
 will be emitted if the `getTrailers` callback attempts to set such header
 fields.
 
@@ -1272,7 +1272,7 @@ requests.
 
 When set, the `options.getTrailers()` function is called immediately after
 queuing the last chunk of payload data to be sent. The callback is passed a
-single object (with a `null` prototype) that the listener may used to specify
+single object (with a `null` prototype) that the listener may use to specify
 the trailing header fields to send to the peer.
 
 ```js
@@ -1299,7 +1299,7 @@ server.on('close', () => fs.closeSync(fd));
 ```
 
 *Note*: The HTTP/1 specification forbids trailers from containing HTTP/2
-"pseudo-header" fields (e.g. `':status'`, `':path'`, etc). An `'error'` event
+pseudo-header fields (e.g. `':status'`, `':path'`, etc). An `'error'` event
 will be emitted if the `getTrailers` callback attempts to set such header
 fields.
 
@@ -1331,7 +1331,7 @@ of the given file:
 
 If an error occurs while attempting to read the file data, the `Http2Stream`
 will be closed using an `RST_STREAM` frame using the standard `INTERNAL_ERROR`
-code. If the `onError` callback is defined it will be called, otherwise
+code. If the `onError` callback is defined, then it will be called. Otherwise
 the stream will be destroyed.
 
 Example using a file path:
@@ -1391,7 +1391,7 @@ default behavior is to destroy the stream.
 
 When set, the `options.getTrailers()` function is called immediately after
 queuing the last chunk of payload data to be sent. The callback is passed a
-single object (with a `null` prototype) that the listener may used to specify
+single object (with a `null` prototype) that the listener may use to specify
 the trailing header fields to send to the peer.
 
 ```js
@@ -1408,7 +1408,7 @@ server.on('stream', (stream) => {
 ```
 
 *Note*: The HTTP/1 specification forbids trailers from containing HTTP/2
-"pseudo-header" fields (e.g. `':status'`, `':path'`, etc). An `'error'` event
+pseudo-header fields (e.g. `':status'`, `':path'`, etc). An `'error'` event
 will be emitted if the `getTrailers` callback attempts to set such header
 fields.
 
@@ -1478,7 +1478,7 @@ an `Http2Session` object associated with the `Http2Server`.
 added: v8.5.0
 -->
 
-If an `ServerHttp2Stream` emits an `'error'` event, it will be forwarded here.
+If a `ServerHttp2Stream` emits an `'error'` event, it will be forwarded here.
 The stream will already be destroyed when this event is triggered.
 
 #### Event: 'stream'
@@ -1664,7 +1664,7 @@ changes:
      * `http2.constants.PADDING_STRATEGY_ALIGNED` - Will *attempt* to apply
        enough padding to ensure that the total frame length, including the
        9-byte header, is a multiple of 8. For each frame, however, there is a
-       maxmimum allowed number of padding bytes that is determined by current
+       maximum allowed number of padding bytes that is determined by current
        flow control state and settings. If this maximum is less than the
        calculated amount needed to ensure alignment, the maximum will be used
        and the total frame length will *not* necessarily be aligned at 8 bytes.
@@ -1751,7 +1751,7 @@ changes:
      * `http2.constants.PADDING_STRATEGY_ALIGNED` - Will *attempt* to apply
        enough padding to ensure that the total frame length, including the
        9-byte header, is a multiple of 8. For each frame, however, there is a
-       maxmimum allowed number of padding bytes that is determined by current
+       maximum allowed number of padding bytes that is determined by current
        flow control state and settings. If this maximum is less than the
        calculated amount needed to ensure alignment, the maximum will be used
        and the total frame length will *not* necessarily be aligned at 8 bytes.
@@ -1847,7 +1847,7 @@ changes:
      * `http2.constants.PADDING_STRATEGY_ALIGNED` - Will *attempt* to apply
        enough padding to ensure that the total frame length, including the
        9-byte header, is a multiple of 8. For each frame, however, there is a
-       maxmimum allowed number of padding bytes that is determined by current
+       maximum allowed number of padding bytes that is determined by current
        flow control state and settings. If this maximum is less than the
        calculated amount needed to ensure alignment, the maximum will be used
        and the total frame length will *not* necessarily be aligned at 8 bytes.
@@ -2189,8 +2189,8 @@ req.end('Jane');
 
 The Compatibility API has the goal of providing a similar developer experience
 of HTTP/1 when using HTTP/2, making it possible to develop applications
-that supports both [HTTP/1][] and HTTP/2. This API targets only the
-**public API** of the [HTTP/1][], however many modules uses internal
+that support both [HTTP/1][] and HTTP/2. This API targets only the
+**public API** of the [HTTP/1][]. However many modules use internal
 methods or state, and those _are not supported_ as it is a completely
 different implementation.
 
@@ -2218,7 +2218,7 @@ the status message for HTTP codes is ignored.
 
 ### ALPN negotiation
 
-ALPN negotiation allows to support both [HTTPS][] and HTTP/2 over
+ALPN negotiation allows supporting both [HTTPS][] and HTTP/2 over
 the same socket. The `req` and `res` objects can be either HTTP/1 or
 HTTP/2, and an application **must** restrict itself to the public API of
 [HTTP/1][], and detect if it is possible to use the more advanced
@@ -2260,7 +2260,7 @@ added: v8.4.0
 
 A `Http2ServerRequest` object is created by [`http2.Server`][] or
 [`http2.SecureServer`][] and passed as the first argument to the
-[`'request'`][] event. It may be used to access a request status, headers and
+[`'request'`][] event. It may be used to access a request status, headers, and
 data.
 
 It implements the [Readable Stream][] interface, as well as the
@@ -2321,7 +2321,7 @@ console.log(request.headers);
 
 See [Headers Object][].
 
-*Note*: In HTTP/2, the request path, host name, protocol, and method are
+*Note*: In HTTP/2, the request path, hostname, protocol, and method are
 represented as special headers prefixed with the `:` character (e.g. `':path'`).
 These special headers will be included in the `request.headers` object. Care
 must be taken not to inadvertently modify these special headers or errors may
@@ -2354,7 +2354,7 @@ added: v8.4.0
 
 * {string}
 
-The request method as a string. Read only. Example:
+The request method as a string. Read-only. Example:
 `'GET'`, `'DELETE'`.
 
 #### request.rawHeaders
@@ -3012,7 +3012,7 @@ If `name` is equal to `Http2Session`, the `PerformanceEntry` will contain the
 following additional properties:
 
 * `pingRTT` {number} The number of milliseconds elapsed since the transmission
-  of a `PING` frame and the reception of its acknowledgement. Only present if
+  of a `PING` frame and the reception of its acknowledgment. Only present if
   a `PING` frame has been sent on the `Http2Session`.
 * `streamCount` {number} The number of `Http2Stream` instances processed by
   the `Http2Session`.
