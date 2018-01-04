@@ -35,19 +35,19 @@ this example will use `projects` as the project folder.
 
 Linux and Mac:
 
-```txt
+```console
 $ mkdir ~/projects
 $ cd ~/projects
 ```
 Windows CMD:
-```txt
+```console
 > mkdir %USERPROFILE%\projects
 > cd %USERPROFILE%\projects
 ```
 
 Windows PowerShell:
 
-```txt
+```console
 > mkdir $env:USERPROFILE\projects
 > cd $env:USERPROFILE\projects
 ```
@@ -84,12 +84,12 @@ server.listen(port, hostname, () => {
 ```
 Save the file, go back to the terminal window enter the following command:
 
-```txt
+```console
 $ node hello-world.js
 ```
 an output like this should appear in the terminal to indicate Node.js 
 server is running:
- ```txt
+ ```console
  Server running at http://127.0.0.1:3000/
  ````
 Now, open any preferred web browser and visit `http://127.0.0.1:3000`.
