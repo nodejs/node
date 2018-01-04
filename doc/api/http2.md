@@ -798,7 +798,7 @@ On the client side, instances of [`ClientHttp2Stream`][] are created when the
 `http2session.request()` may not be immediately ready for use if the parent
 `Http2Session` has not yet been fully established. In such cases, operations
 called on the `Http2Stream` will be buffered until the `'ready'` event is
-emitted. User code should rarely, if ever, have need to handle the `'ready'`
+emitted. User code should rarely, if ever, need to handle the `'ready'`
 event directly. The ready status of an `Http2Stream` can be determined by
 checking the value of `http2stream.id`. If the value is `undefined`, the stream
 is not yet ready for use.
