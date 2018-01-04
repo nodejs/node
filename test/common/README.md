@@ -593,7 +593,7 @@ frame.
 // padlen is an 8-bit integer giving the number of padding bytes to include
 // final is a boolean indicating whether the End-of-stream flag should be set,
 // defaults to false.
-const data = new http2.DataFrame(id, payload, padlen, final);
+const frame = new http2.DataFrame(id, payload, padlen, final);
 
 socket.write(frame.data);
 ```
@@ -611,8 +611,7 @@ The `http2.HeadersFrame` is a subclass of `http2.Frame` that serializes a
 // padlen is an 8-bit integer giving the number of padding bytes to include
 // final is a boolean indicating whether the End-of-stream flag should be set,
 // defaults to false.
-const data = new http2.HeadersFrame(id, http2.kFakeRequestHeaders,
-                                    padlen, final);
+const frame = new http2.HeadersFrame(id, payload, padlen, final);
 
 socket.write(frame.data);
 ```
