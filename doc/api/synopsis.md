@@ -12,11 +12,11 @@ different options and ways to run scripts with Node.js.
 An example of a [web server][] written with Node.js which responds with
 `'Hello World!'`:
 
-Firstly, Make sure you have downloaded Node.js from [Node.js Official website](http://nodejs.org/#download).
-Then, Follow this [installation guide](https://nodejs.org/en/download/package-manager/).
+Firstly, make sure you have downloaded Node.js from [Node.js Official website](http://nodejs.org/#download).
+Then, follow this [installation guide](https://nodejs.org/en/download/package-manager/).
 
 
-Now, Create an empty project folder called `projects`, navigate into it:
+Now, create an empty project folder called `projects`, navigate into it:
 
 Linux and Mac:
 
@@ -37,14 +37,14 @@ Windows PowerShell:
 > cd $env:USERPROFILE\projects
 ```
 
-Next, create a new source file in the `projects` folder and call it `hello_world.js`.
+Next, create a new source file in the `projects` folder and call it `hello-world.js`.
 
-If you’re using more than one word in your filename, use an underscore(`_`) to separate them for simplicity and avoid using the space character in file names. 
+If you’re using more than one word in your filename, use an hyphen (`-`) or an underscore(`_`) to separate them for simplicity and avoid using the space character in file names. 
 
-For example, you’d use `hello_world.js` rather than `hello world.js`.
+For example, you’d use `hello-world.js` rather than `hello world.js`.
 Node.js files always end with the `.js` extension. 
 
-open `hello_world.js` in your favorite text editor and paste in the following content.
+Open `hello-world.js` in your favorite text editor and paste in the following content.
 
 
 ```js
@@ -63,16 +63,16 @@ server.listen(port, hostname, () => {
   console.log(`Server running at http://${hostname}:${port}/`);
 });
 ```
-Save the file, and go back to your terminal window enter the following command:
+Save the file, go back to your terminal window enter the following command:
 
 ```txt
-$ node hello_world.js
+$ node hello-world.js
 ```
-Your should see an output like this in your terminal to indicate Node.js server is running:
+you should see an output like this in your terminal to indicate Node.js server is running:
  ```javascript
  Server running at http://127.0.0.1:3000/
  ````
- Now, Open your favorite browser and visit `http://127.0.0.1:3000`.
+ Now, open your favorite browser and visit `http://127.0.0.1:3000`.
  
  You should see the string `Hello, world!`. 
 
