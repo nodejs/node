@@ -774,7 +774,7 @@ On the client, `Http2Stream` instances are created and returned when either the
 `'push'` event.
 
 *Note*: The `Http2Stream` class is a base for the [`ServerHttp2Stream`][] and
-[`ClientHttp2Stream`][] classes, each of which are used specifically by either
+[`ClientHttp2Stream`][] classes, each of which is used specifically by either
 the Server or Client side, respectively.
 
 All `Http2Stream` instances are [`Duplex`][] streams. The `Writable` side of the
