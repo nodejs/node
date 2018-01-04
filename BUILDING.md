@@ -114,7 +114,7 @@ If the path to your build directory contains a space, the build will likely fail
 ```console
 $ sudo ./tools/macosx-firewall.sh
 ```
-Running this script will add rules for the executable `node` in the out
+Running this script will add rules for the executable `node` in the `out`
 directory and the symbolic `node` link in the project's root directory.
 
 On FreeBSD and OpenBSD, you may also need:
