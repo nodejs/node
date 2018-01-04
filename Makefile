@@ -162,10 +162,10 @@ coverage-build: all
 	if [ ! -d gcovr ]; then git clone --depth=1 \
 		--single-branch git://github.com/gcovr/gcovr.git; fi
 	if [ ! -d testing ]; then git clone --depth=1 \
-		--single-branch https://github.com/nodejs/testing.git; fi
+		--single-branch https://github.com/nodejs/build.git; fi
 	if [ ! -f gcovr/scripts/gcovr.orig ]; then \
 		(cd gcovr && patch -N -p1 < \
-		"$(CURDIR)/testing/coverage/gcovr-patches.diff"); fi
+		"$(CURDIR)/build/jenkins/scripts/coverage/gcovr-patches.diff"); fi
 	if [ -d lib_ ]; then $(RM) -r lib; mv lib_ lib; fi
 	mv lib lib_
 	$(NODE) ./node_modules/.bin/nyc instrument --extension .js --extension .mjs lib_/ lib/
