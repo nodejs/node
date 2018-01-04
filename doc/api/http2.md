@@ -1655,7 +1655,7 @@ changes:
      * `http2.constants.PADDING_STRATEGY_ALIGNED` - Will *attempt* to apply
        enough padding to ensure that the total frame length, including the
        9-byte header, is a multiple of 8. For each frame, however, there is a
-       maxmimum allowed number of padding bytes that is determined by current
+       maximum allowed number of padding bytes that is determined by current
        flow control state and settings. If this maximum is less than the
        calculated amount needed to ensure alignment, the maximum will be used
        and the total frame length will *not* necessarily be aligned at 8 bytes.
@@ -1733,7 +1733,7 @@ changes:
      * `http2.constants.PADDING_STRATEGY_ALIGNED` - Will *attempt* to apply
        enough padding to ensure that the total frame length, including the
        9-byte header, is a multiple of 8. For each frame, however, there is a
-       maxmimum allowed number of padding bytes that is determined by current
+       maximum allowed number of padding bytes that is determined by current
        flow control state and settings. If this maximum is less than the
        calculated amount needed to ensure alignment, the maximum will be used
        and the total frame length will *not* necessarily be aligned at 8 bytes.
@@ -1820,7 +1820,7 @@ changes:
      * `http2.constants.PADDING_STRATEGY_ALIGNED` - Will *attempt* to apply
        enough padding to ensure that the total frame length, including the
        9-byte header, is a multiple of 8. For each frame, however, there is a
-       maxmimum allowed number of padding bytes that is determined by current
+       maximum allowed number of padding bytes that is determined by current
        flow control state and settings. If this maximum is less than the
        calculated amount needed to ensure alignment, the maximum will be used
        and the total frame length will *not* necessarily be aligned at 8 bytes.
