@@ -366,7 +366,7 @@ and [user guide](https://openssl.org/docs/fips/UserGuide-2.0.pdf).
    through which you get the file complies with the requirements
    for a "secure installation" as described in section 6.6 in
    the [user guide](https://openssl.org/docs/fips/UserGuide-2.0.pdf).
-   For evaluation/experimentation you can simply download and verify
+   For evaluation/experimentation, you can simply download and verify
    `openssl-fips-x.x.x.tar.gz` from https://www.openssl.org/source/
 2. Extract source to `openssl-fips` folder and `cd openssl-fips`
 3. `./config`
