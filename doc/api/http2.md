@@ -635,7 +635,7 @@ may be passed to clear any previously set alternative service for a given
 domain.
 
 When a string is passed for the `originOrStream` argument, it will be parsed as
-a URL and the origin will be derived. For insetance, the origin for the
+a URL and the origin will be derived. For instance, the origin for the
 HTTP URL `'https://example.org/foo/bar'` is the ASCII string
 `'https://example.org'`. An error will be thrown if either the given string
 cannot be parsed as a URL or if a valid origin cannot be derived.
