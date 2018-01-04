@@ -447,14 +447,6 @@ extern "C" NODE_EXTERN void node_module_register(void* mod);
 
 #ifdef NODE_SHARED_MODE
 # define NODE_CTOR_PREFIX
-  NODE_EXTERN bool initialize(std::string script);
-  NODE_EXTERN bool process_events();
-  NODE_EXTERN bool tear_down(int exitCode);
-  struct {
-      v8::Isolate *isolate;
-      node::Environment *env;
-      const char** exec_argv;
-  } node_lib_exec_env;
 #else
 # define NODE_CTOR_PREFIX static
 #endif
