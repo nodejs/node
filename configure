@@ -814,6 +814,23 @@ def host_arch_win():
   return matchup.get(arch, 'ia32')
 
 
+def libc():
+  try:
+    proc = subprocess.Popen(
+        ['ldd', '--version'],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT
+    )
+    output = proc.communicate()[0].strip().decode('utf-8')
+
+    for libc in ['glibc', 'musl']:
+        if libc in output.lower():
+            return libc
+  except OSError as e:
+    if e.errno != errno.ENOENT: raise e  # Unexpected error.
+
+  return 'unknown'
+
 def configure_arm(o):
   if options.arm_float_abi:
     arm_float_abi = options.arm_float_abi
@@ -867,6 +884,9 @@ def configure_node(o):
   o['variables']['host_arch'] = host_arch
   o['variables']['target_arch'] = target_arch
   o['variables']['node_byteorder'] = sys.byteorder
+
+  if flavor == 'linux':
+    o['variables']['libc'] = libc()
 
   cross_compiling = (options.cross_compiling
                      if options.cross_compiling is not None

@@ -3014,6 +3014,9 @@ void SetupProcessObject(Environment* env,
                     "platform",
                     OneByteString(env->isolate(), NODE_PLATFORM));
 
+  // process.libc
+  READONLY_PROPERTY(process, "libc", OneByteString(env->isolate(), NODE_LIBC));
+
   // process.release
   Local<Object> release = Object::New(env->isolate());
   READONLY_PROPERTY(process, "release", release);
