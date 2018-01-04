@@ -739,7 +739,7 @@ req.on('response', (headers) => {
 
 When set, the `options.getTrailers()` function is called immediately after
 queuing the last chunk of payload data to be sent. The callback is passed a
-single object (with a `null` prototype) that the listener may used to specify
+single object (with a `null` prototype) that the listener may use to specify
 the trailing header fields to send to the peer.
 
 *Note*: The HTTP/1 specification forbids trailers from containing HTTP/2
@@ -1198,7 +1198,7 @@ server.on('stream', (stream) => {
 
 When set, the `options.getTrailers()` function is called immediately after
 queuing the last chunk of payload data to be sent. The callback is passed a
-single object (with a `null` prototype) that the listener may used to specify
+single object (with a `null` prototype) that the listener may use to specify
 the trailing header fields to send to the peer.
 
 ```js
@@ -1272,7 +1272,7 @@ requests.
 
 When set, the `options.getTrailers()` function is called immediately after
 queuing the last chunk of payload data to be sent. The callback is passed a
-single object (with a `null` prototype) that the listener may used to specify
+single object (with a `null` prototype) that the listener may use to specify
 the trailing header fields to send to the peer.
 
 ```js
@@ -1391,7 +1391,7 @@ default behavior is to destroy the stream.
 
 When set, the `options.getTrailers()` function is called immediately after
 queuing the last chunk of payload data to be sent. The callback is passed a
-single object (with a `null` prototype) that the listener may used to specify
+single object (with a `null` prototype) that the listener may use to specify
 the trailing header fields to send to the peer.
 
 ```js
