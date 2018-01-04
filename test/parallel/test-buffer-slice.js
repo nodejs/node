@@ -62,12 +62,12 @@ const expectedSameBufs = [
   [buf.slice('0', '-111'), Buffer.from('', 'utf8')]
 ];
 
-for (let i = 0, s = buf; i < buf.length; ++i) {
+for (let i = 0, s = buf.toString(); i < buf.length; ++i) {
   expectedSameBufs.push(
-    [buf.slice(i), s.slice(i)],
-    [buf.slice(0, i), s.slice(0, i)],
-    [buf.slice(-i), s.slice(-i)],
-    [buf.slice(0, -i), s.slice(0, -i)]
+    [buf.slice(i), Buffer.from(s.slice(i))],
+    [buf.slice(0, i), Buffer.from(s.slice(0, i))],
+    [buf.slice(-i), Buffer.from(s.slice(-i))],
+    [buf.slice(0, -i), Buffer.from(s.slice(0, -i))]
   );
 }
 
