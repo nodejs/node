@@ -905,9 +905,9 @@ napi_value Init(napi_env env, napi_value exports) {
   napi_status status;
   napi_property_descriptor desc =
     {"hello", Method, 0, 0, 0, napi_default, 0};
-  if (status != napi_ok) return nullptr;
+  if (status != napi_ok) return NULL;
   status = napi_define_properties(env, exports, 1, &desc);
-  if (status != napi_ok) return nullptr;
+  if (status != napi_ok) return NULL;
   return exports;
 }
 ```
@@ -919,7 +919,7 @@ napi_value Init(napi_env env, napi_value exports) {
   napi_value method;
   napi_status status;
   status = napi_create_function(env, "exports", Method, NULL, &method));
-  if (status != napi_ok) return nullptr;
+  if (status != napi_ok) return NULL;
   return method;
 }
 ```
@@ -932,21 +932,21 @@ For example, to define a class so that new instances can be created
 napi_value Init(napi_env env, napi_value exports) {
   napi_status status;
   napi_property_descriptor properties[] = {
-    { "value", nullptr, GetValue, SetValue, 0, napi_default, 0 },
+    { "value", NULL, GetValue, SetValue, 0, napi_default, 0 },
     DECLARE_NAPI_METHOD("plusOne", PlusOne),
     DECLARE_NAPI_METHOD("multiply", Multiply),
   };
 
   napi_value cons;
   status =
-      napi_define_class(env, "MyObject", New, nullptr, 3, properties, &cons);
-  if (status != napi_ok) return nullptr;
+      napi_define_class(env, "MyObject", New, NULL, 3, properties, &cons);
+  if (status != napi_ok) return NULL;
 
   status = napi_create_reference(env, cons, 1, &constructor);
-  if (status != napi_ok) return nullptr;
+  if (status != napi_ok) return NULL;
 
   status = napi_set_named_property(env, exports, "MyObject", cons);
-  if (status != napi_ok) return nullptr;
+  if (status != napi_ok) return NULL;
 
   return exports;
 }
@@ -2364,8 +2364,8 @@ if (status != napi_ok) return status;
 
 // Set the properties
 napi_property_descriptor descriptors[] = {
-  { "foo", nullptr, 0, 0, 0, fooValue, napi_default, 0 },
-  { "bar", nullptr, 0, 0, 0, barValue, napi_default, 0 }
+  { "foo", NULL, 0, 0, 0, fooValue, napi_default, 0 },
+  { "bar", NULL, 0, 0, 0, barValue, napi_default, 0 }
 }
 status = napi_define_properties(env,
                                 obj,
@@ -2876,18 +2876,18 @@ object. A sample module might look as follows:
 ```C
 napi_value SayHello(napi_env env, napi_callback_info info) {
   printf("Hello\n");
-  return nullptr;
+  return NULL;
 }
 
 napi_value Init(napi_env env, napi_value exports) {
   napi_status status;
 
   napi_value fn;
-  status = napi_create_function(env, nullptr, 0, SayHello, nullptr, &fn);
-  if (status != napi_ok) return nullptr;
+  status = napi_create_function(env, NULL, 0, SayHello, nullptr, &fn);
+  if (status != napi_ok) return NULL;
 
   status = napi_set_named_property(env, exports, "sayHello", fn);
-  if (status != napi_ok) return nullptr;
+  if (status != napi_ok) return NULL;
 
   return exports;
 }
@@ -2952,7 +2952,7 @@ napi_status napi_get_new_target(napi_env env,
 Returns `napi_ok` if the API succeeded.
 
 This API returns the `new.target` of the constructor call. If the current
-callback is not a constructor call, the result is `nullptr`.
+callback is not a constructor call, the result is `NULL`.
 
 ### *napi_new_instance*
 <!-- YAML
@@ -3034,7 +3034,7 @@ reference to the class constructor for later `instanceof` checks.
 As an example:
 
 ```C
-napi_value MyClass_constructor = nullptr;
+napi_value MyClass_constructor = NULL;
 status = napi_get_reference_value(env, MyClass::es_constructor, &MyClass_constructor);
 assert(napi_ok == status);
 bool is_instance = false;
