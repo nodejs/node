@@ -36,7 +36,7 @@ common.expectsError(
   }, ''),
   {
     code: 'ERR_INVALID_OPT_VALUE',
-    type: Error,
+    type: TypeError,
     message: 'The value "undefined" is invalid for option "padding"'
   });
 
@@ -47,7 +47,7 @@ common.expectsError(
   }, ''),
   {
     code: 'ERR_INVALID_OPT_VALUE',
-    type: Error,
+    type: TypeError,
     message: 'The value "undefined" is invalid for option "saltLength"'
   });
 
