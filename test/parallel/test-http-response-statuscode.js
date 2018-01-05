@@ -8,14 +8,13 @@ const MAX_REQUESTS = 13;
 let reqNum = 0;
 
 function test(res, header, code) {
-  const errRegExp = common.expectsError({
+  common.expectsError(() => {
+    res.writeHead(header);
+  }, {
     code: 'ERR_HTTP_INVALID_STATUS_CODE',
     type: RangeError,
     message: `Invalid status code: ${code}`
   });
-  assert.throws(() => {
-    res.writeHead(header);
-  }, errRegExp);
 }
 
 const server = http.Server(common.mustCall(function(req, res) {
