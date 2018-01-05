@@ -1,4 +1,6 @@
 rules:
+  dot-notation: error
+
   # Custom rules in tools/eslint-rules
   require-buffer: error
   buffer-constructor: error
