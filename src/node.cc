@@ -28,6 +28,7 @@
 #include "node_revert.h"
 #include "node_debug_options.h"
 #include "node_perf.h"
+#include "node_lib.h"
 
 #if defined HAVE_PERFCTR
 #include "node_counters.h"
@@ -4795,6 +4796,23 @@ Local<Context> NewContext(Isolate* isolate,
   return context;
 }
 
+inline static bool TickEventLoop(Environment & env) {
+  bool more;
+  uv_run(env.event_loop(), UV_RUN_DEFAULT);
+
+  v8_platform.DrainVMTasks();
+
+  more = uv_loop_alive(env.event_loop());
+  if (more)
+    return more;
+
+  EmitBeforeExit(&env);
+
+  // Emit `beforeExit` if the loop became alive either after emitting
+  // event, or after running some callbacks.
+  more = uv_loop_alive(env.event_loop());
+  return more;
+}
 
 inline int Start(Isolate* isolate, IsolateData* isolate_data,
                  int argc, const char* const* argv,
@@ -4833,19 +4851,7 @@ inline int Start(Isolate* isolate, IsolateData* isolate_data,
     bool more;
     PERFORMANCE_MARK(&env, LOOP_START);
     do {
-      uv_run(env.event_loop(), UV_RUN_DEFAULT);
-
-      v8_platform.DrainVMTasks();
-
-      more = uv_loop_alive(env.event_loop());
-      if (more)
-        continue;
-
-      EmitBeforeExit(&env);
-
-      // Emit `beforeExit` if the loop became alive either after emitting
-      // event, or after running some callbacks.
-      more = uv_loop_alive(env.event_loop());
+      more = TickEventLoop(env);
     } while (more == true);
     PERFORMANCE_MARK(&env, LOOP_EXIT);
   }
@@ -4978,6 +4984,28 @@ int Start(int argc, char** argv) {
   return exit_code;
 }
 
+namespace lib {
+
+void RunEventLoop(const RunUserLoop & callback){
+  while (false/*events in queue*/) { // TODO: condition
+    ProcessEvents();
+    callback();
+  }
+}
+
+
+void Terminate() {
+  RequestTerminate();
+  while (false/*events in queue*/) { // TODO: condition
+    ProcessEvents();
+  }
+}
+
+void RequestTerminate() {
+//  Evaluate("process.exit()");
+}
+
+}  // namespace node::lib
 
 }  // namespace node
 

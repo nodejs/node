@@ -6,18 +6,18 @@
 #include <initializer_list>
 #include "v8.h"
 
-namespace node::lib {
+namespace node{ namespace lib {
     /*********************************************************
      * Function types
      *********************************************************/
 
-    using std::function<void()> = RunUserLoop;
+    using RunUserLoop = std::function<void()>;
 
-    using std::function<void(v8::Local<v8::Object> exports,
+    using CppModule = std::function<void(v8::Local<v8::Object> exports,
                                v8::Local<v8::Value> module,
-                               void * private_data)> = RegisterModule;
+                               void * private_data)>;
 
-    using std::function<void(v8::FunctionCallbackInfo<v8::Value> & info)> = ModuleFunction;
+    using ModuleFunction = std::function<void(v8::FunctionCallbackInfo<v8::Value> & info)>;
 
 
     /*********************************************************
@@ -26,7 +26,7 @@ namespace node::lib {
 
     /*
     Starts the Node.js engine without a concrete script file to execute.
-    *Important*: This requires the C++ developer to call `process_events()` periodically.
+    *Important*: This requires the C++ developer to call `ProcessEvents()` periodically OR call `Run()` to start the uv event loop.
     */
     bool Initialize();
 
@@ -35,8 +35,14 @@ namespace node::lib {
     calling the `callback` periodically.
     *Important*: This method will not return until the Node.js is stopped (e.g. by calling `terminate`).
     */
-    bool StartMainLoop(const std::string & path, const RunUserLoop & callback);
+    //bool StartMainLoop(const std::string & path, const RunUserLoop & callback);
 
+    /*
+    Executes a given JavaScript file and returns once the execution has finished. 
+    *Important*: Node.js has to have been initialized by calling Initialize().
+    */
+
+    bool Run(const std::string & path);
 
     /*********************************************************
      * Handle JavaScript events
@@ -48,11 +54,11 @@ namespace node::lib {
     bool ProcessEvents();
 
     /*
-    Starts the execution of the Node.js main loop, which processes any events in JavaScript.
+    Starts the execution of the Node.js event loop, which processes any events in JavaScript.
     Additionally, the given callback will be executed once per main loop run.
     *Important*: Call `initialize()` before using this method.
     */
-    bool Run(const RunUserLoop & callback);
+    void RunEventLoop(const RunUserLoop & callback);
 
 
     /*********************************************************
@@ -60,10 +66,15 @@ namespace node::lib {
      *********************************************************/
 
     /*
-    Stops the *running* Node.js engine.
+    Sends termination event into event queue and runs event queue, until all events have been handled.
     */
-    bool Terminate();
+    void Terminate();
 
+
+    /*
+    Stops the *running* Node.js engine. Clears all events and puts Node.js into idle.
+    */
+    void RequestTerminate();
 
     /*********************************************************
      * Basic operations
@@ -82,7 +93,7 @@ namespace node::lib {
     /*
     Registers a C++ module in the *running* Node.js engine.
     */
-    bool RegisterModule(const std::string & name, const RegisterModule & callback);
+    bool RegisterModule(const std::string & name, const CppModule & callback);
 
     /*
     Registers a C++ module in the *running* Node.js engine exporting the given set of functions.
@@ -128,4 +139,4 @@ namespace node::lib {
     *Important*: The amount of arguments must be known at compile time.
     */
     v8::Local<v8::Value> Call(v8::MaybeLocal<v8::Object> receiver, v8::MaybeLocal<v8::Function> function, std::initializer_list<v8::MaybeLocal<v8::Value>> args);
-}
+}}
