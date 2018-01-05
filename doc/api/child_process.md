@@ -25,7 +25,7 @@ ls.on('close', (code) => {
 });
 ```
 
-By default, pipes for `stdin`, `stdout` and `stderr` are established between
+By default, pipes for `stdin`, `stdout`, and `stderr` are established between
 the parent Node.js process and the spawned child. It is possible to stream data
 through these pipes in a non-blocking way. *Note, however, that some programs
 use line-buffered I/O internally. While that does not affect Node.js, it can
