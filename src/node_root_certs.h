@@ -1,3 +1,4 @@
+// clang-format off
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 /* GlobalSign Root CA */
@@ -3944,3 +3945,4 @@
 "8W0jq5Rm+K37DwhuJi1/FwcJsoz7UMCflo3Ptv0AnVoUmr8CRPXBwp8iXqIPoeM=\n"
 "-----END CERTIFICATE-----\n",
 #endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+// clang-format on

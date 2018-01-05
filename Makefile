@@ -988,6 +988,18 @@ bench: bench-net bench-http bench-fs bench-tls ## Run node benchmarks.
 
 bench-ci: bench
 
+CLANG_FORMAT = $(NODE) ./node_modules/.bin/clang-format -style=file -i
+
+format:
+	mkdir -p node_modules
+	if [ ! -d node_modules/clang-format ]; then \
+			./node ./deps/npm install clang-format --no-save --no-package-lock; fi
+	$(CLANG_FORMAT) --glob=src/**/*.cc
+	$(CLANG_FORMAT) --glob=src/**/*.h
+	# $(CLANG_FORMAT) --glob=test/**/*.cc
+	# $(CLANG_FORMAT) --glob=test/**/*.c
+	# $(CLANG_FORMAT) --glob=test/**/*.h
+
 lint-md-clean:
 	$(RM) -r tools/remark-cli/node_modules
 	$(RM) -r tools/remark-preset-lint-node/node_modules
