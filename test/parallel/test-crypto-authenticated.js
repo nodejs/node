@@ -389,7 +389,7 @@ for (const test of TEST_CASES) {
       assert.strictEqual(msg, test.plain);
     } else {
       // assert that final throws if input data could not be verified!
-      assert.throws(function() { decrypt.final('ascii'); }, errMessages.auth);
+      assert.throws(function() { decrypt.final('hex'); }, errMessages.auth);
     }
   }
 
