@@ -14,8 +14,8 @@ An example of a [web server][] written with Node.js which responds with
 
 Commands displayed in this document are shown starting with `$` or `>` 
 to replicate how they would appear in a user's terminal. 
-Do not include the `$` and `>` character they are there to 
-indicate the start of each command. 
+Do not include the `$` and `>` character.
+They are there to indicate the start of each command. 
 
 There are many tutorials and examples that follow this 
 convention: `$` or `>` for commands run as a regular user, and `#` 
@@ -33,7 +33,7 @@ Now, create an empty project folder called `projects`, navigate into it:
 Project folder can be named base on user's current project title but
 this example will use `projects` as the project folder. 
 
-Linux and Mac:
+UNIX :
 
 ```console
 $ mkdir ~/projects
