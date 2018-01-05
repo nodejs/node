@@ -170,7 +170,7 @@ exec('echo "The \\$HOME variable is $HOME"');
 //The $HOME variable is escaped in the first instance, but not in the second
 ```
 
-*Note*: Never pass unsanitised user input to this function. Any input
+*Note*: Never pass unsanitized user input to this function. Any input
 containing shell metacharacters may be used to trigger arbitrary command
 execution.
 
@@ -418,7 +418,7 @@ The `child_process.spawn()` method spawns a new process using the given
 `command`, with command line arguments in `args`. If omitted, `args` defaults
 to an empty array.
 
-*Note*: If the `shell` option is enabled, do not pass unsanitised user input to
+*Note*: If the `shell` option is enabled, do not pass unsanitized user input to
 this function. Any input containing shell metacharacters may be used to
 trigger arbitrary command execution.
 
@@ -771,7 +771,7 @@ If the process times out, or has a non-zero exit code, this method ***will***
 throw.  The [`Error`][] object will contain the entire result from
 [`child_process.spawnSync()`][]
 
-*Note*: Never pass unsanitised user input to this function. Any input
+*Note*: Never pass unsanitized user input to this function. Any input
 containing shell metacharacters may be used to trigger arbitrary command
 execution.
 
@@ -839,7 +839,7 @@ completely exited. Note that if the process intercepts and handles the
 `SIGTERM` signal and doesn't exit, the parent process will wait until the child
 process has exited.
 
-*Note*: If the `shell` option is enabled, do not pass unsanitised user input
+*Note*: If the `shell` option is enabled, do not pass unsanitized user input
 to this function. Any input containing shell metacharacters may be used to
 trigger arbitrary command execution.
 
