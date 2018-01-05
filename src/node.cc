@@ -4814,6 +4814,7 @@ inline static bool TickEventLoop(Environment & env) {
   return more;
 }
 
+// This is where the magic happens. Creates JavaScript context and a JS Environment, then runs the uv event loop until it is no longer alive (see TickEventLoop()), then tears down Env and context and returns JS exit code.
 inline int Start(Isolate* isolate, IsolateData* isolate_data,
                  int argc, const char* const* argv,
                  int exec_argc, const char* const* exec_argv) {
@@ -4871,6 +4872,7 @@ inline int Start(Isolate* isolate, IsolateData* isolate_data,
   return exit_code;
 }
 
+// Creates V8 Isolate, calls 3rd start, then disposes of isolate afterwards.
 inline int Start(uv_loop_t* event_loop,
                  int argc, const char* const* argv,
                  int exec_argc, const char* const* exec_argv) {
@@ -4920,6 +4922,7 @@ inline int Start(uv_loop_t* event_loop,
   return exit_code;
 }
 
+// Initializes V8, calls second Start(), then de-inits V8
 int Start(int argc, char** argv) {
   atexit([] () { uv_tty_reset_mode(); });
   PlatformInit();
@@ -5002,7 +5005,7 @@ void Terminate() {
 }
 
 void RequestTerminate() {
-//  Evaluate("process.exit()");
+//  Evaluate("process.exit()"); // TODO: why does the linker complain here?
 }
 
 }  // namespace node::lib
