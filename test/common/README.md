@@ -10,9 +10,9 @@ This directory contains modules used to test the Node.js implementation.
 * [DNS module](#dns-module)
 * [Duplex pair helper](#duplex-pair-helper)
 * [Fixtures module](#fixtures-module)
+* [HTTP2 module](#http2-module)
 * [Internet module](#internet-module)
 * [WPT module](#wpt-module)
-* [HTTP2 module](#http2-module)
 
 ## Benchmark Module
 
@@ -509,6 +509,117 @@ Returns the result of
 Returns the result of
 `fs.readFileSync(path.join(fixtures.fixturesDir, 'keys', arg), 'enc')`.
 
+## HTTP/2 Module
+
+The http2.js module provides a handful of utilities for creating mock HTTP/2
+frames for testing of HTTP/2 endpoints
+
+<!-- eslint-disable no-undef, no-unused-vars, required-modules, strict -->
+```js
+const http2 = require('../common/http2');
+```
+
+### Class: Frame
+
+The `http2.Frame` is a base class that creates a `Buffer` containing a
+serialized HTTP/2 frame header.
+
+<!-- eslint-disable no-undef, no-unused-vars, required-modules, strict -->
+```js
+// length is a 24-bit unsigned integer
+// type is an 8-bit unsigned integer identifying the frame type
+// flags is an 8-bit unsigned integer containing the flag bits
+// id is the 32-bit stream identifier, if any.
+const frame = new http2.Frame(length, type, flags, id);
+
+// Write the frame data to a socket
+socket.write(frame.data);
+```
+
+The serialized `Buffer` may be retrieved using the `frame.data` property.
+
+### Class: DataFrame extends Frame
+
+The `http2.DataFrame` is a subclass of `http2.Frame` that serializes a `DATA`
+frame.
+
+<!-- eslint-disable no-undef, no-unused-vars, required-modules, strict -->
+```js
+// id is the 32-bit stream identifier
+// payload is a Buffer containing the DATA payload
+// padlen is an 8-bit integer giving the number of padding bytes to include
+// final is a boolean indicating whether the End-of-stream flag should be set,
+// defaults to false.
+const frame = new http2.DataFrame(id, payload, padlen, final);
+
+socket.write(frame.data);
+```
+
+### Class: HeadersFrame
+
+The `http2.HeadersFrame` is a subclass of `http2.Frame` that serializes a
+`HEADERS` frame.
+
+<!-- eslint-disable no-undef, no-unused-vars, required-modules, strict -->
+```js
+// id is the 32-bit stream identifier
+// payload is a Buffer containing the HEADERS payload (see either
+// http2.kFakeRequestHeaders or http2.kFakeResponseHeaders).
+// padlen is an 8-bit integer giving the number of padding bytes to include
+// final is a boolean indicating whether the End-of-stream flag should be set,
+// defaults to false.
+const frame = new http2.HeadersFrame(id, payload, padlen, final);
+
+socket.write(frame.data);
+```
+
+### Class: SettingsFrame
+
+The `http2.SettingsFrame` is a subclass of `http2.Frame` that serializes an
+empty `SETTINGS` frame.
+
+<!-- eslint-disable no-undef, no-unused-vars, required-modules, strict -->
+```js
+// ack is a boolean indicating whether or not to set the ACK flag.
+const frame = new http2.SettingsFrame(ack);
+
+socket.write(frame.data);
+```
+
+### http2.kFakeRequestHeaders
+
+Set to a `Buffer` instance that contains a minimal set of serialized HTTP/2
+request headers to be used as the payload of a `http2.HeadersFrame`.
+
+<!-- eslint-disable no-undef, no-unused-vars, required-modules, strict -->
+```js
+const frame = new http2.HeadersFrame(1, http2.kFakeRequestHeaders, 0, true);
+
+socket.write(frame.data);
+```
+
+### http2.kFakeResponseHeaders
+
+Set to a `Buffer` instance that contains a minimal set of serialized HTTP/2
+response headers to be used as the payload a `http2.HeadersFrame`.
+
+<!-- eslint-disable no-undef, no-unused-vars, required-modules, strict -->
+```js
+const frame = new http2.HeadersFrame(1, http2.kFakeResponseHeaders, 0, true);
+
+socket.write(frame.data);
+```
+
+### http2.kClientMagic
+
+Set to a `Buffer` containing the preamble bytes an HTTP/2 client must send
+upon initial establishment of a connection.
+
+<!-- eslint-disable no-undef, no-unused-vars, required-modules, strict -->
+```js
+socket.write(http2.kClientMagic);
+```
+
 ## Internet Module
 
 The `common/internet` module provides utilities for working with
@@ -551,142 +662,6 @@ Node.js
 [WHATWG URL API](https://nodejs.org/api/url.html#url_the_whatwg_url_api)
 implementation with tests from
 [W3C Web Platform Tests](https://github.com/w3c/web-platform-tests).
-
-## HTTP/2 Module
-
-The http2.js module provides a handful of utilities for creating mock HTTP/2
-frames for testing of HTTP/2 endpoints
-
-<!-- eslint-disable strict -->
-<!-- eslint-disable required-modules -->
-<!-- eslint-disable no-unused-vars -->
-<!-- eslint-disable no-undef -->
-```js
-const http2 = require('../common/http2');
-```
-
-### Class: Frame
-
-The `http2.Frame` is a base class that creates a `Buffer` containing a
-serialized HTTP/2 frame header.
-
-<!-- eslint-disable strict -->
-<!-- eslint-disable required-modules -->
-<!-- eslint-disable no-unused-vars -->
-<!-- eslint-disable no-undef -->
-```js
-// length is a 24-bit unsigned integer
-// type is an 8-bit unsigned integer identifying the frame type
-// flags is an 8-bit unsigned integer containing the flag bits
-// id is the 32-bit stream identifier, if any.
-const frame = new http2.Frame(length, type, flags, id);
-
-// Write the frame data to a socket
-socket.write(frame.data);
-```
-
-The serialized `Buffer` may be retrieved using the `frame.data` property.
-
-### Class: DataFrame extends Frame
-
-The `http2.DataFrame` is a subclass of `http2.Frame` that serializes a `DATA`
-frame.
-
-<!-- eslint-disable strict -->
-<!-- eslint-disable required-modules -->
-<!-- eslint-disable no-unused-vars -->
-<!-- eslint-disable no-undef -->
-```js
-// id is the 32-bit stream identifier
-// payload is a Buffer containing the DATA payload
-// padlen is an 8-bit integer giving the number of padding bytes to include
-// final is a boolean indicating whether the End-of-stream flag should be set,
-// defaults to false.
-const data = new http2.DataFrame(id, payload, padlen, final);
-
-socket.write(frame.data);
-```
-
-### Class: HeadersFrame
-
-The `http2.HeadersFrame` is a subclass of `http2.Frame` that serializes a
-`HEADERS` frame.
-
-<!-- eslint-disable strict -->
-<!-- eslint-disable required-modules -->
-<!-- eslint-disable no-unused-vars -->
-<!-- eslint-disable no-undef -->
-```js
-// id is the 32-bit stream identifier
-// payload is a Buffer containing the HEADERS payload (see either
-// http2.kFakeRequestHeaders or http2.kFakeResponseHeaders).
-// padlen is an 8-bit integer giving the number of padding bytes to include
-// final is a boolean indicating whether the End-of-stream flag should be set,
-// defaults to false.
-const data = new http2.HeadersFrame(id, http2.kFakeRequestHeaders,
-                                    padlen, final);
-
-socket.write(frame.data);
-```
-
-### Class: SettingsFrame
-
-The `http2.SettingsFrame` is a subclass of `http2.Frame` that serializes an
-empty `SETTINGS` frame.
-
-<!-- eslint-disable strict -->
-<!-- eslint-disable required-modules -->
-<!-- eslint-disable no-unused-vars -->
-<!-- eslint-disable no-undef -->
-```js
-// ack is a boolean indicating whether or not to set the ACK flag.
-const frame = new http2.SettingsFrame(ack);
-
-socket.write(frame.data);
-```
-
-### http2.kFakeRequestHeaders
-
-Set to a `Buffer` instance that contains a minimal set of serialized HTTP/2
-request headers to be used as the payload of a `http2.HeadersFrame`.
-
-<!-- eslint-disable strict -->
-<!-- eslint-disable required-modules -->
-<!-- eslint-disable no-unused-vars -->
-<!-- eslint-disable no-undef -->
-```js
-const frame = new http2.HeadersFrame(1, http2.kFakeRequestHeaders, 0, true);
-
-socket.write(frame.data);
-```
-
-### http2.kFakeResponseHeaders
-
-Set to a `Buffer` instance that contains a minimal set of serialized HTTP/2
-response headers to be used as the payload a `http2.HeadersFrame`.
-
-<!-- eslint-disable strict -->
-<!-- eslint-disable required-modules -->
-<!-- eslint-disable no-unused-vars -->
-<!-- eslint-disable no-undef -->
-```js
-const frame = new http2.HeadersFrame(1, http2.kFakeResponseHeaders, 0, true);
-
-socket.write(frame.data);
-```
-
-### http2.kClientMagic
-
-Set to a `Buffer` containing the preamble bytes an HTTP/2 client must send
-upon initial establishment of a connection.
-
-<!-- eslint-disable strict -->
-<!-- eslint-disable required-modules -->
-<!-- eslint-disable no-unused-vars -->
-<!-- eslint-disable no-undef -->
-```js
-socket.write(http2.kClientMagic);
-```
 
 
 [&lt;Array>]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array
