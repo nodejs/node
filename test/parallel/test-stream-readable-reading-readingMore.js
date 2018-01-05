@@ -29,13 +29,10 @@ function onStreamEnd() {
   assert.strictEqual(state.reading, false);
 }
 
-const expected = [
-  true, // stream is not ended
-  false // stream is ended
-];
-
 readable.on('readable', common.mustCall(() => {
-  assert.strictEqual(state.readingMore, expected.shift());
+  // 'readable' always gets called before 'end'
+  // since 'end' hasn't been emitted, more data could be incoming
+  assert.strictEqual(state.readingMore, true);
 
   // if the stream has ended, we shouldn't be reading
   assert.strictEqual(state.ended, !state.reading);
