@@ -2029,7 +2029,9 @@ static void WaitForInspectorDisconnect(Environment* env) {
 
 static void Exit(const FunctionCallbackInfo<Value>& args) {
   WaitForInspectorDisconnect(Environment::GetCurrent(args));
-  v8_platform.StopTracingAgent();
+  if (trace_enabled) {
+    v8_platform.StopTracingAgent();
+  }
   exit(args[0]->Int32Value());
 }
 
