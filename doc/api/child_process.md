@@ -661,7 +661,7 @@ The [`child_process.spawnSync()`][], [`child_process.execSync()`][], and
 the Node.js event loop, pausing execution of any additional code until the
 spawned process exits.
 
-Blocking calls like these are mostly useful for simplifying general purpose
+Blocking calls like these are mostly useful for simplifying general-purpose
 scripting tasks and for simplifying the loading/processing of application
 configuration at startup.
 
