@@ -61,6 +61,29 @@ namespace http2 {
     PADDING_BUF_FIELD_COUNT
   };
 
+  enum Http2StreamStatisticsIndex {
+    IDX_STREAM_STATS_ID,
+    IDX_STREAM_STATS_TIMETOFIRSTBYTE,
+    IDX_STREAM_STATS_TIMETOFIRSTHEADER,
+    IDX_STREAM_STATS_TIMETOFIRSTBYTESENT,
+    IDX_STREAM_STATS_SENTBYTES,
+    IDX_STREAM_STATS_RECEIVEDBYTES,
+    IDX_STREAM_STATS_COUNT
+  };
+
+  enum Http2SessionStatisticsIndex {
+    IDX_SESSION_STATS_TYPE,
+    IDX_SESSION_STATS_PINGRTT,
+    IDX_SESSION_STATS_FRAMESRECEIVED,
+    IDX_SESSION_STATS_FRAMESSENT,
+    IDX_SESSION_STATS_STREAMCOUNT,
+    IDX_SESSION_STATS_STREAMAVERAGEDURATION,
+    IDX_SESSION_STATS_DATA_SENT,
+    IDX_SESSION_STATS_DATA_RECEIVED,
+    IDX_SESSION_STATS_MAX_CONCURRENT_STREAMS,
+    IDX_SESSION_STATS_COUNT
+  };
+
 class http2_state {
  public:
   explicit http2_state(v8::Isolate* isolate) :
@@ -76,6 +99,16 @@ class http2_state {
       isolate,
       offsetof(http2_state_internal, stream_state_buffer),
       IDX_STREAM_STATE_COUNT,
+      root_buffer),
+    stream_stats_buffer(
+      isolate,
+      offsetof(http2_state_internal, stream_stats_buffer),
+      IDX_STREAM_STATS_COUNT,
+      root_buffer),
+    session_stats_buffer(
+      isolate,
+      offsetof(http2_state_internal, session_stats_buffer),
+      IDX_SESSION_STATS_COUNT,
       root_buffer),
     padding_buffer(
       isolate,
@@ -97,6 +130,8 @@ class http2_state {
   AliasedBuffer<uint8_t, v8::Uint8Array> root_buffer;
   AliasedBuffer<double, v8::Float64Array> session_state_buffer;
   AliasedBuffer<double, v8::Float64Array> stream_state_buffer;
+  AliasedBuffer<double, v8::Float64Array> stream_stats_buffer;
+  AliasedBuffer<double, v8::Float64Array> session_stats_buffer;
   AliasedBuffer<uint32_t, v8::Uint32Array> padding_buffer;
   AliasedBuffer<uint32_t, v8::Uint32Array> options_buffer;
   AliasedBuffer<uint32_t, v8::Uint32Array> settings_buffer;
@@ -106,6 +141,8 @@ class http2_state {
     // doubles first so that they are always sizeof(double)-aligned
     double session_state_buffer[IDX_SESSION_STATE_COUNT];
     double stream_state_buffer[IDX_STREAM_STATE_COUNT];
+    double stream_stats_buffer[IDX_STREAM_STATS_COUNT];
+    double session_stats_buffer[IDX_SESSION_STATS_COUNT];
     uint32_t padding_buffer[PADDING_BUF_FIELD_COUNT];
     uint32_t options_buffer[IDX_OPTIONS_FLAGS + 1];
     uint32_t settings_buffer[IDX_SETTINGS_COUNT + 1];

@@ -715,8 +715,11 @@ class Http2Stream : public AsyncWrap,
   struct Statistics {
     uint64_t start_time;
     uint64_t end_time;
-    uint64_t first_header;  // Time first header was received
-    uint64_t first_byte;    // Time first data frame byte was received
+    uint64_t first_header;     // Time first header was received
+    uint64_t first_byte;       // Time first DATA frame byte was received
+    uint64_t first_byte_sent;  // Time first DATA frame byte was sent
+    uint64_t sent_bytes;
+    uint64_t received_bytes;
   };
 
   Statistics statistics_ = {};
@@ -949,8 +952,12 @@ class Http2Session : public AsyncWrap {
     uint64_t start_time;
     uint64_t end_time;
     uint64_t ping_rtt;
+    uint64_t data_sent;
+    uint64_t data_received;
     uint32_t frame_count;
+    uint32_t frame_sent;
     int32_t stream_count;
+    size_t max_concurrent_streams;
     double stream_average_duration;
   };
 
@@ -994,6 +1001,10 @@ class Http2Session : public AsyncWrap {
       nghttp2_session* session,
       const nghttp2_frame* frame,
       int error_code,
+      void* user_data);
+  static inline int OnFrameSent(
+      nghttp2_session* session,
+      const nghttp2_frame* frame,
       void* user_data);
   static inline int OnStreamClose(
       nghttp2_session* session,
@@ -1115,21 +1126,29 @@ class Http2SessionPerformanceEntry : public PerformanceEntry {
   Http2SessionPerformanceEntry(
       Environment* env,
       const Http2Session::Statistics& stats,
-      const char* kind) :
+      nghttp2_session_type type) :
           PerformanceEntry(env, "Http2Session", "http2",
                            stats.start_time,
                            stats.end_time),
           ping_rtt_(stats.ping_rtt),
+          data_sent_(stats.data_sent),
+          data_received_(stats.data_received),
           frame_count_(stats.frame_count),
+          frame_sent_(stats.frame_sent),
           stream_count_(stats.stream_count),
+          max_concurrent_streams_(stats.max_concurrent_streams),
           stream_average_duration_(stats.stream_average_duration),
-          kind_(kind) { }
+          session_type_(type) { }
 
   uint64_t ping_rtt() const { return ping_rtt_; }
+  uint64_t data_sent() const { return data_sent_; }
+  uint64_t data_received() const { return data_received_; }
   uint32_t frame_count() const { return frame_count_; }
+  uint32_t frame_sent() const { return frame_sent_; }
   int32_t stream_count() const { return stream_count_; }
+  size_t max_concurrent_streams() const { return max_concurrent_streams_; }
   double stream_average_duration() const { return stream_average_duration_; }
-  const char* typeName() const { return kind_; }
+  nghttp2_session_type type() const { return session_type_; }
 
   void Notify(Local<Value> obj) {
     PerformanceEntry::Notify(env(), kind(), obj);
@@ -1137,33 +1156,50 @@ class Http2SessionPerformanceEntry : public PerformanceEntry {
 
  private:
   uint64_t ping_rtt_;
+  uint64_t data_sent_;
+  uint64_t data_received_;
   uint32_t frame_count_;
+  uint32_t frame_sent_;
   int32_t stream_count_;
+  size_t max_concurrent_streams_;
   double stream_average_duration_;
-  const char* kind_;
+  nghttp2_session_type session_type_;
 };
 
 class Http2StreamPerformanceEntry : public PerformanceEntry {
  public:
   Http2StreamPerformanceEntry(
       Environment* env,
+      int32_t id,
       const Http2Stream::Statistics& stats) :
           PerformanceEntry(env, "Http2Stream", "http2",
                            stats.start_time,
                            stats.end_time),
+          id_(id),
           first_header_(stats.first_header),
-          first_byte_(stats.first_byte) { }
+          first_byte_(stats.first_byte),
+          first_byte_sent_(stats.first_byte_sent),
+          sent_bytes_(stats.sent_bytes),
+          received_bytes_(stats.received_bytes) { }
 
+  int32_t id() const { return id_; }
   uint64_t first_header() const { return first_header_; }
   uint64_t first_byte() const { return first_byte_; }
+  uint64_t first_byte_sent() const { return first_byte_sent_; }
+  uint64_t sent_bytes() const { return sent_bytes_; }
+  uint64_t received_bytes() const { return received_bytes_; }
 
   void Notify(Local<Value> obj) {
     PerformanceEntry::Notify(env(), kind(), obj);
   }
 
  private:
+  int32_t id_;
   uint64_t first_header_;
   uint64_t first_byte_;
+  uint64_t first_byte_sent_;
+  uint64_t sent_bytes_;
+  uint64_t received_bytes_;
 };
 
 class Http2Session::Http2Ping : public AsyncWrap {

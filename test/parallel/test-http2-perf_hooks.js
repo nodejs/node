@@ -8,7 +8,7 @@ const h2 = require('http2');
 
 const { PerformanceObserver } = require('perf_hooks');
 
-const obs = new PerformanceObserver((items) => {
+const obs = new PerformanceObserver(common.mustCall((items) => {
   const entry = items.getEntries()[0];
   assert.strictEqual(entry.entryType, 'http2');
   assert.strictEqual(typeof entry.startTime, 'number');
@@ -19,6 +19,10 @@ const obs = new PerformanceObserver((items) => {
       assert.strictEqual(typeof entry.streamAverageDuration, 'number');
       assert.strictEqual(typeof entry.streamCount, 'number');
       assert.strictEqual(typeof entry.framesReceived, 'number');
+      assert.strictEqual(typeof entry.framesSent, 'number');
+      assert.strictEqual(typeof entry.bytesWritten, 'number');
+      assert.strictEqual(typeof entry.bytesRead, 'number');
+      assert.strictEqual(typeof entry.maxConcurrentStreams, 'number');
       switch (entry.type) {
         case 'server':
           assert.strictEqual(entry.streamCount, 1);
@@ -34,12 +38,15 @@ const obs = new PerformanceObserver((items) => {
       break;
     case 'Http2Stream':
       assert.strictEqual(typeof entry.timeToFirstByte, 'number');
+      assert.strictEqual(typeof entry.timeToFirstByteSent, 'number');
       assert.strictEqual(typeof entry.timeToFirstHeader, 'number');
+      assert.strictEqual(typeof entry.bytesWritten, 'number');
+      assert.strictEqual(typeof entry.bytesRead, 'number');
       break;
     default:
       assert.fail('invalid entry name');
   }
-});
+}, 4));
 obs.observe({ entryTypes: ['http2'] });
 
 const body =
