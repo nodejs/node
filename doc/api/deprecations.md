@@ -807,6 +807,18 @@ Importing assert directly is not recommended as the exposed functions will use
 loose equality checks. Use `require('assert').strict` instead. The API is the
 same as the legacy assert but it will always use strict equality checks.
 
+<a id="DEP0090"></a>
+### DEP0090: Invalid GCM authentication tag lengths
+
+Type: Runtime
+
+Node.js supports all GCM authentication tag lengths which are accepted by
+OpenSSL when calling [`decipher.setAuthTag()`][]. This behavior will change in
+a future version at which point only authentication tag lengths of 128, 120,
+112, 104, 96, 64, and 32 bits will be allowed. Authentication tags whose length
+is not included in this list will be considered invalid in compliance with
+[NIST SP 800-38D][].
+
 [`Buffer.allocUnsafeSlow(size)`]: buffer.html#buffer_class_method_buffer_allocunsafeslow_size
 [`Buffer.from(array)`]: buffer.html#buffer_class_method_buffer_from_array
 [`Buffer.from(buffer)`]: buffer.html#buffer_class_method_buffer_from_buffer
@@ -821,6 +833,7 @@ same as the legacy assert but it will always use strict equality checks.
 [`console.log()`]: console.html#console_console_log_data_args
 [`crypto.createCredentials()`]: crypto.html#crypto_crypto_createcredentials_details
 [`crypto.pbkdf2()`]: crypto.html#crypto_crypto_pbkdf2_password_salt_iterations_keylen_digest_callback
+[`decipher.setAuthTag()`]: crypto.html#crypto_decipher_setauthtag_buffer
 [`domain`]: domain.html
 [`ecdh.setPublicKey()`]: crypto.html#crypto_ecdh_setpublickey_publickey_encoding
 [`emitter.listenerCount(eventName)`]: events.html#events_emitter_listenercount_eventname
@@ -871,4 +884,5 @@ same as the legacy assert but it will always use strict equality checks.
 [alloc_unsafe_size]: buffer.html#buffer_class_method_buffer_allocunsafe_size
 [from_arraybuffer]: buffer.html#buffer_class_method_buffer_from_arraybuffer_byteoffset_length
 [from_string_encoding]: buffer.html#buffer_class_method_buffer_from_string_encoding
+[NIST SP 800-38D]: http://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-38d.pdf
 [`REPLServer.clearBufferedCommand()`]: repl.html#repl_replserver_clearbufferedcommand
