@@ -65,7 +65,7 @@ writeChunks(inputChunks, () => {
   // trigger writing out the buffer
   w.uncork();
 
-  // buffered bytes shoud be seen in current tick
+  // buffered bytes should be seen in current tick
   assert.strictEqual(seenChunks.length, 4);
 
   // did the chunks match

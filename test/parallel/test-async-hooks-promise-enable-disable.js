@@ -11,13 +11,13 @@ let p_inits = 0;
 common.crashOnUnhandledRejection();
 
 // Not useful to place common.mustCall() around 'exit' event b/c it won't be
-// able to check it anway.
+// able to check it anyway.
 process.on('exit', (code) => {
   if (code !== 0)
     return;
   if (p_er !== null)
     throw p_er;
-  // Expecint exactly 2 PROMISE types to reach init.
+  // Expecting exactly 2 PROMISE types to reach init.
   assert.strictEqual(p_inits, EXPECTED_INITS);
 });
 

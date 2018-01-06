@@ -89,7 +89,7 @@ function remoteClose() {
       process.nextTick(common.mustCall(() => {
         assert.strictEqual(agent.sockets[name], undefined);
         assert.strictEqual(agent.freeSockets[name].length, 1);
-        // waitting remote server close the socket
+        // waiting remote server close the socket
         setTimeout(common.mustCall(() => {
           assert.strictEqual(agent.sockets[name], undefined);
           assert.strictEqual(agent.freeSockets[name], undefined,
@@ -102,7 +102,7 @@ function remoteClose() {
 }
 
 function remoteError() {
-  // remove server will destroy ths socket
+  // remote server will destroy the socket
   const req = get('/error', common.mustNotCall());
   req.on('error', common.mustCall((err) => {
     assert(err);

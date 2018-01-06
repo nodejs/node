@@ -13,7 +13,7 @@ const fs = require('fs');
 {
   const s = fs.createReadStream(__filename);
 
-  // this is a private API, but it is worth esting. close calls this
+  // this is a private API, but it is worth testing. close calls this
   s.destroy(null, common.mustCall());
   s.destroy(null, common.mustCall());
 }

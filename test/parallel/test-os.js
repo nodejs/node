@@ -113,7 +113,7 @@ is.string(arch);
 assert.ok(arch.length > 0);
 
 if (!common.isSunOS) {
-  // not implemeneted yet
+  // not implemented yet
   assert.ok(os.loadavg().length > 0);
   assert.ok(os.freemem() > 0);
   assert.ok(os.totalmem() > 0);
