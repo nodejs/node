@@ -2351,7 +2351,7 @@ changes:
 -->
 
 * `fd` {integer}
-* `buffer` {string|Buffer|Uint8Array}
+* `buffer` {Buffer|Uint8Array}
 * `offset` {integer}
 * `length` {integer}
 * `position` {integer}
