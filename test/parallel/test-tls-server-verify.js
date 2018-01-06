@@ -265,8 +265,8 @@ function runTest(port, testIndex) {
   let renegotiated = false;
   const server = tls.Server(serverOptions, function handleConnection(c) {
     c.on('error', function(e) {
-      // child.kill() leads ECONNRESET errro in the TLS connection of
-      // openssl s_client via spawn(). A Test result is already
+      // child.kill() leads ECONNRESET error in the TLS connection of
+      // openssl s_client via spawn(). A test result is already
       // checked by the data of client.stdout before child.kill() so
       // these tls errors can be ignored.
     });
