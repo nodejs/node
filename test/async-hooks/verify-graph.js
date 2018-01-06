@@ -32,7 +32,7 @@ function pruneTickObjects(activities) {
       foundTickObject = true;
 
       // point all triggerAsyncIds that point to the tickObject
-      // to its triggerAsyncId and findally remove it from the activities
+      // to its triggerAsyncId and finally remove it from the activities
       const tickObject = activities[tickObjectIdx];
       const newTriggerId = tickObject.triggerAsyncId;
       const oldTriggerId = tickObject.uid;

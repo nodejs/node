@@ -28,7 +28,7 @@ createFileWithPerms(readWriteFile, 0o666);
  * The change of user id is done after creating the fixtures files for the same
  * reason: the test may be run as the superuser within a directory in which
  * only the superuser can create files, and thus it may need superuser
- * priviledges to create them.
+ * privileges to create them.
  *
  * There's not really any point in resetting the process' user id to 0 after
  * changing it to 'nobody', since in the case that the test runs without

@@ -3,7 +3,7 @@
 const common = require('../common');
 
 // This tests ensures that the triggerId of both the internal and external
-// nexTick function sets the triggerAsyncId correctly.
+// nextTick function sets the triggerAsyncId correctly.
 
 const assert = require('assert');
 const async_hooks = require('async_hooks');

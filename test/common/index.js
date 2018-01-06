@@ -82,7 +82,7 @@ if (process.env.NODE_TEST_WITH_ASYNC_HOOKS) {
   const async_wrap = process.binding('async_wrap');
 
   process.on('exit', () => {
-    // itterate through handles to make sure nothing crashes
+    // iterate through handles to make sure nothing crashes
     for (const k in initHandles)
       util.inspect(initHandles[k]);
   });

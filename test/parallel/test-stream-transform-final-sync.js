@@ -7,7 +7,7 @@ let state = 0;
 
 /*
 What you do
-var stream = new tream.Transform({
+var stream = new stream.Transform({
   transform: function transformCallback(chunk, _, next) {
     // part 1
     this.push(chunk);

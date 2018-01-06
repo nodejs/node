@@ -27,9 +27,10 @@ async function testContextCreatedAndDestroyed() {
     const { name } = contextCreated.params.context;
     if (common.isSunOS || common.isWindows) {
       // uv_get_process_title() is unimplemented on Solaris-likes, it returns
-      // an empy string.  On the Windows CI buildbots it returns "Administrator:
-      // Windows PowerShell[42]" because of a GetConsoleTitle() quirk. Not much
-      // we can do about either, just verify that it contains the PID.
+      // an empty string.  On the Windows CI buildbots it returns
+      // "Administrator: Windows PowerShell[42]" because of a GetConsoleTitle()
+      // quirk. Not much we can do about either, just verify that it contains
+      // the PID.
       strictEqual(name.includes(`[${process.pid}]`), true);
     } else {
       strictEqual(`${process.argv0}[${process.pid}]`, name);
