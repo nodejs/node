@@ -42,7 +42,7 @@ server.listen(0, common.mustCall(function() {
       }, common.mustCall(function(res) {
         res.resume();
         globalAgent.once('free', common.mustCall(function() {
-          // Verify that two keep-alived connections are created
+          // Verify that two keep-alive connections are created
           // due to the different secureProtocol settings:
           const keys = Object.keys(globalAgent.freeSockets);
           assert.strictEqual(keys.length, 2);

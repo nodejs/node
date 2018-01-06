@@ -24,7 +24,7 @@
 const common = require('../common');
 
 // These test cases are in `sequential` rather than the analogous test file in
-// `parallel` because they become unrelaible under load. The unreliability under
+// `parallel` because they become unreliable under load. The unreliability under
 // load was determined empirically when the test cases were in `parallel` by
 // running:
 //   tools/test.py -j 96 --repeat 192 test/parallel/test-readline-interface.js

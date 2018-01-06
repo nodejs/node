@@ -19,7 +19,7 @@ server.on('stream', common.mustCall((stream) => {
   // c should never be greater than 1.
   assert.strictEqual(++c, 1);
   stream.respond();
-  // Force some asynchronos stuff.
+  // Force some asynchronous stuff.
   setImmediate(() => {
     stream.end('ok');
     assert.strictEqual(--c, 0);

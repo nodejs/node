@@ -137,7 +137,7 @@ assert.strictEqual(
 );
 
 
-// test usc2 encoding
+// test ucs2 encoding
 let twoByteString = Buffer.from('\u039a\u0391\u03a3\u03a3\u0395', 'ucs2');
 
 assert(twoByteString.includes('\u0395', 4, 'ucs2'));

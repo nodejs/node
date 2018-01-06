@@ -368,7 +368,7 @@ Buffer.alloc(8, '');
           return 0;
         } else {
           elseWasLast = true;
-          // Once buffer.js calls the C++ implemenation of fill, return -1
+          // Once buffer.js calls the C++ implementation of fill, return -1
           return -1;
         }
       }
@@ -405,7 +405,7 @@ common.expectsError(() => {
           return 1;
         } else {
           elseWasLast = true;
-          // Once buffer.js calls the C++ implemenation of fill, return -1
+          // Once buffer.js calls the C++ implementation of fill, return -1
           return -1;
         }
       }
