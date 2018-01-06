@@ -91,7 +91,7 @@ testHelper(
 // to try to call the fips setter, to try to detect this situation, as
 // that would throw an error:
 // ("Error: Cannot set FIPS mode in a non-FIPS build.").
-// Due to this uncertanty the following tests are skipped when configured
+// Due to this uncertainty the following tests are skipped when configured
 // with --shared-openssl.
 if (!sharedOpenSSL()) {
   // OpenSSL config file should be able to turn on FIPS mode

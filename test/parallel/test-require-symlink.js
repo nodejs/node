@@ -38,7 +38,8 @@ function copyDir(source, target) {
 copyDir(fixtureSource, tmpDirTarget);
 
 // Move to tmp dir and do everything with relative paths there so that the test
-// doesn't incorrectly fail due to a symlink somewhere else in the absolte path.
+// doesn't incorrectly fail due to a symlink somewhere else in the absolute
+// path.
 process.chdir(common.tmpDir);
 
 const linkDir = path.join(dirName,

@@ -8,7 +8,7 @@ const http = require('http');
 // Checks that an http.Agent properly asyncReset()s a reused socket handle, and
 // re-assigns the fresh async id to the reused `net.Socket` instance.
 
-// Make sure a single socket is transpartently reused for 2 requests.
+// Make sure a single socket is transparently reused for 2 requests.
 const agent = new http.Agent({
   keepAlive: true,
   keepAliveMsecs: Infinity,
