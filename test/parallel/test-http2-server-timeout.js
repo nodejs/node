@@ -18,12 +18,12 @@ server.once('timeout', onServerTimeout);
 server.listen(0, common.mustCall(() => {
   const url = `http://localhost:${server.address().port}`;
   const client = http2.connect(url);
-  // Because of the timeout, an ECONRESET error may or may not happen here.
+  // Because of the timeout, an ECONNRESET error may or may not happen here.
   // Keep this as a non-op and do not use common.mustCall()
   client.on('error', () => {});
   client.on('close', common.mustCall(() => {
     const client2 = http2.connect(url);
-    // Because of the timeout, an ECONRESET error may or may not happen here.
+    // Because of the timeout, an ECONNRESET error may or may not happen here.
     // Keep this as a non-op and do not use common.mustCall()
     client2.on('error', () => {});
     client2.on('close', common.mustCall(() => server.close()));

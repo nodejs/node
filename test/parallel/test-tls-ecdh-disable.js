@@ -19,7 +19,7 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-// Test that the usage of eliptic curves are not permitted if disabled during
+// Test that the usage of elliptic curves are not permitted if disabled during
 // server initialization.
 
 'use strict';

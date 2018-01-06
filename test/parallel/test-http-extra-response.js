@@ -51,7 +51,7 @@ const server = net.createServer(function(socket) {
 
     if (postBody.includes('\r\n')) {
       socket.write(fullResponse);
-      // omg, I wrote the response twice, what a terrible HTTP server I am.
+      // I wrote the response twice, what a terrible HTTP server I am.
       socket.end(fullResponse);
     }
   });
