@@ -471,6 +471,8 @@ Http2Session::Callbacks::Callbacks(bool kHasGetPaddingCallback) {
     callbacks, OnSendData);
   nghttp2_session_callbacks_set_on_invalid_frame_recv_callback(
     callbacks, OnInvalidFrame);
+  nghttp2_session_callbacks_set_on_frame_send_callback(
+    callbacks, OnFrameSent);
 
   if (kHasGetPaddingCallback) {
     nghttp2_session_callbacks_set_select_padding_callback(
@@ -559,28 +561,35 @@ inline void Http2Stream::EmitStatistics() {
   if (!HasHttp2Observer(env()))
     return;
   Http2StreamPerformanceEntry* entry =
-    new Http2StreamPerformanceEntry(env(), statistics_);
+    new Http2StreamPerformanceEntry(env(), id_, statistics_);
   env()->SetImmediate([](Environment* env, void* data) {
-    Local<Context> context = env->context();
     Http2StreamPerformanceEntry* entry =
       static_cast<Http2StreamPerformanceEntry*>(data);
     if (HasHttp2Observer(env)) {
-      Local<Object> obj = entry->ToObject();
-      v8::PropertyAttribute attr =
-          static_cast<v8::PropertyAttribute>(v8::ReadOnly | v8::DontDelete);
-      obj->DefineOwnProperty(
-          context,
-          FIXED_ONE_BYTE_STRING(env->isolate(), "timeToFirstByte"),
-          Number::New(env->isolate(),
-                      (entry->first_byte() - entry->startTimeNano()) / 1e6),
-          attr).FromJust();
-      obj->DefineOwnProperty(
-          context,
-          FIXED_ONE_BYTE_STRING(env->isolate(), "timeToFirstHeader"),
-          Number::New(env->isolate(),
-                      (entry->first_header() - entry->startTimeNano()) / 1e6),
-          attr).FromJust();
-      entry->Notify(obj);
+      AliasedBuffer<double, v8::Float64Array>& buffer =
+          env->http2_state()->stream_stats_buffer;
+      buffer[IDX_STREAM_STATS_ID] = entry->id();
+      if (entry->first_byte() != 0) {
+        buffer[IDX_STREAM_STATS_TIMETOFIRSTBYTE] =
+            (entry->first_byte() - entry->startTimeNano()) / 1e6;
+      } else {
+        buffer[IDX_STREAM_STATS_TIMETOFIRSTBYTE] = 0;
+      }
+      if (entry->first_header() != 0) {
+        buffer[IDX_STREAM_STATS_TIMETOFIRSTHEADER] =
+            (entry->first_header() - entry->startTimeNano()) / 1e6;
+      } else {
+        buffer[IDX_STREAM_STATS_TIMETOFIRSTHEADER] = 0;
+      }
+      if (entry->first_byte_sent() != 0) {
+        buffer[IDX_STREAM_STATS_TIMETOFIRSTBYTESENT] =
+            (entry->first_byte_sent() - entry->startTimeNano()) / 1e6;
+      } else {
+        buffer[IDX_STREAM_STATS_TIMETOFIRSTBYTESENT] = 0;
+      }
+      buffer[IDX_STREAM_STATS_SENTBYTES] = entry->sent_bytes();
+      buffer[IDX_STREAM_STATS_RECEIVEDBYTES] = entry->received_bytes();
+      entry->Notify(entry->ToObject());
     }
     delete entry;
   }, static_cast<void*>(entry));
@@ -590,45 +599,25 @@ inline void Http2Session::EmitStatistics() {
   if (!HasHttp2Observer(env()))
     return;
   Http2SessionPerformanceEntry* entry =
-    new Http2SessionPerformanceEntry(env(), statistics_, TypeName());
+    new Http2SessionPerformanceEntry(env(), statistics_, session_type_);
   env()->SetImmediate([](Environment* env, void* data) {
-    Local<Context> context = env->context();
     Http2SessionPerformanceEntry* entry =
       static_cast<Http2SessionPerformanceEntry*>(data);
     if (HasHttp2Observer(env)) {
-      Local<Object> obj = entry->ToObject();
-      v8::PropertyAttribute attr =
-          static_cast<v8::PropertyAttribute>(v8::ReadOnly | v8::DontDelete);
-      obj->DefineOwnProperty(
-          context,
-          FIXED_ONE_BYTE_STRING(env->isolate(), "type"),
-          String::NewFromUtf8(env->isolate(),
-                              entry->typeName(),
-                              v8::NewStringType::kInternalized)
-                                  .ToLocalChecked(), attr).FromJust();
-      if (entry->ping_rtt() != 0) {
-        obj->DefineOwnProperty(
-            context,
-            FIXED_ONE_BYTE_STRING(env->isolate(), "pingRTT"),
-            Number::New(env->isolate(), entry->ping_rtt() / 1e6),
-            attr).FromJust();
-      }
-      obj->DefineOwnProperty(
-          context,
-          FIXED_ONE_BYTE_STRING(env->isolate(), "framesReceived"),
-          Integer::NewFromUnsigned(env->isolate(), entry->frame_count()),
-          attr).FromJust();
-      obj->DefineOwnProperty(
-          context,
-          FIXED_ONE_BYTE_STRING(env->isolate(), "streamCount"),
-          Integer::New(env->isolate(), entry->stream_count()),
-          attr).FromJust();
-      obj->DefineOwnProperty(
-          context,
-          FIXED_ONE_BYTE_STRING(env->isolate(), "streamAverageDuration"),
-          Number::New(env->isolate(), entry->stream_average_duration()),
-          attr).FromJust();
-      entry->Notify(obj);
+      AliasedBuffer<double, v8::Float64Array>& buffer =
+          env->http2_state()->session_stats_buffer;
+      buffer[IDX_SESSION_STATS_TYPE] = entry->type();
+      buffer[IDX_SESSION_STATS_PINGRTT] = entry->ping_rtt() / 1e6;
+      buffer[IDX_SESSION_STATS_FRAMESRECEIVED] = entry->frame_count();
+      buffer[IDX_SESSION_STATS_FRAMESSENT] = entry->frame_sent();
+      buffer[IDX_SESSION_STATS_STREAMCOUNT] = entry->stream_count();
+      buffer[IDX_SESSION_STATS_STREAMAVERAGEDURATION] =
+          entry->stream_average_duration();
+      buffer[IDX_SESSION_STATS_DATA_SENT] = entry->data_sent();
+      buffer[IDX_SESSION_STATS_DATA_RECEIVED] = entry->data_received();
+      buffer[IDX_SESSION_STATS_MAX_CONCURRENT_STREAMS] =
+          entry->max_concurrent_streams();
+      entry->Notify(entry->ToObject());
     }
     delete entry;
   }, static_cast<void*>(entry));
@@ -694,6 +683,9 @@ inline bool Http2Session::CanAddStream() {
 inline void Http2Session::AddStream(Http2Stream* stream) {
   CHECK_GE(++statistics_.stream_count, 0);
   streams_[stream->id()] = stream;
+  size_t size = streams_.size();
+  if (size > statistics_.max_concurrent_streams)
+    statistics_.max_concurrent_streams = size;
   IncrementCurrentSessionMemory(stream->self_size());
 }
 
@@ -962,6 +954,14 @@ inline int Http2Session::OnFrameNotSent(nghttp2_session* handle,
   return 0;
 }
 
+inline int Http2Session::OnFrameSent(nghttp2_session* handle,
+                                     const nghttp2_frame* frame,
+                                     void* user_data) {
+  Http2Session* session = static_cast<Http2Session*>(user_data);
+  session->statistics_.frame_sent += 1;
+  return 0;
+}
+
 // Called by nghttp2 when a stream closes.
 inline int Http2Session::OnStreamClose(nghttp2_session* handle,
                                        int32_t id,
@@ -1039,6 +1039,7 @@ inline int Http2Session::OnDataChunkReceived(nghttp2_session* handle,
     // If the stream has been destroyed, ignore this chunk
     if (stream->IsDestroyed())
       return 0;
+    stream->statistics_.received_bytes += len;
     stream->AddChunk(data, len);
   }
   return 0;
@@ -1493,6 +1494,7 @@ void Http2Session::SendPendingData() {
   size_t offset = 0;
   size_t i = 0;
   for (const nghttp2_stream_write& write : outgoing_buffers_) {
+    statistics_.data_sent += write.buf.len;
     if (write.buf.base == nullptr) {
       bufs[i++] = uv_buf_init(
           reinterpret_cast<char*>(outgoing_storage_.data() + offset),
@@ -1642,6 +1644,7 @@ void Http2Session::OnStreamReadImpl(ssize_t nread,
   if (bufs->len > 0) {
     // Only pass data on if nread > 0
     uv_buf_t buf[] { uv_buf_init((*bufs).base, nread) };
+    session->statistics_.data_received += nread;
     ssize_t ret = session->Write(buf, 1);
 
     // Note: if ssize_t is not defined (e.g. on Win32), nghttp2 will typedef
@@ -2141,6 +2144,8 @@ ssize_t Http2Stream::Provider::FD::OnRead(nghttp2_session* handle,
                                           void* user_data) {
   Http2Session* session = static_cast<Http2Session*>(user_data);
   Http2Stream* stream = session->FindStream(id);
+  if (stream->statistics_.first_byte_sent == 0)
+    stream->statistics_.first_byte_sent = uv_hrtime();
 
   DEBUG_HTTP2SESSION2(session, "reading outbound file data for stream %d", id);
   CHECK_EQ(id, stream->id());
@@ -2191,6 +2196,7 @@ ssize_t Http2Stream::Provider::FD::OnRead(nghttp2_session* handle,
       return NGHTTP2_ERR_CALLBACK_FAILURE;
   }
 
+  stream->statistics_.sent_bytes += numchars;
   return numchars;
 }
 
@@ -2216,6 +2222,8 @@ ssize_t Http2Stream::Provider::Stream::OnRead(nghttp2_session* handle,
   Http2Session* session = static_cast<Http2Session*>(user_data);
   DEBUG_HTTP2SESSION2(session, "reading outbound data for stream %d", id);
   Http2Stream* stream = GetStream(session, id, source);
+  if (stream->statistics_.first_byte_sent == 0)
+    stream->statistics_.first_byte_sent = uv_hrtime();
   CHECK_EQ(id, stream->id());
 
   size_t amount = 0;          // amount of data being sent in this data frame.
@@ -2249,6 +2257,8 @@ ssize_t Http2Stream::Provider::Stream::OnRead(nghttp2_session* handle,
     if (session->IsDestroyed())
       return NGHTTP2_ERR_CALLBACK_FAILURE;
   }
+
+  stream->statistics_.sent_bytes += amount;
   return amount;
 }
 
@@ -2862,6 +2872,10 @@ void Initialize(Local<Object> target,
     "settingsBuffer", state->settings_buffer.GetJSArray());
   SET_STATE_TYPEDARRAY(
     "optionsBuffer", state->options_buffer.GetJSArray());
+  SET_STATE_TYPEDARRAY(
+    "streamStats", state->stream_stats_buffer.GetJSArray());
+  SET_STATE_TYPEDARRAY(
+    "sessionStats", state->session_stats_buffer.GetJSArray());
 #undef SET_STATE_TYPEDARRAY
 
   env->set_http2_state(std::move(state));
