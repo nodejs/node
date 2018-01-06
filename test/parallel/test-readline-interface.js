@@ -765,7 +765,7 @@ function isWarned(emitter) {
     assert.strictEqual(isWarned(process.stdout._events), false);
   }
 
-  // can create a new readline Interface with a null output arugument
+  // can create a new readline Interface with a null output argument
   {
     const fi = new FakeInput();
     const rli = new readline.Interface(

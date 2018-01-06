@@ -61,7 +61,7 @@ assert.strictEqual(c_bin.toString('latin1'), ucs2_control);
 assert.strictEqual(c_ucs.toString('latin1'), ucs2_control);
 
 
-// now let's test BASE64 and HEX ecoding/decoding
+// now let's test BASE64 and HEX encoding/decoding
 const RADIOS = 2;
 const PRE_HALF_APEX = Math.ceil(EXTERN_APEX / 2) - RADIOS;
 const PRE_3OF4_APEX = Math.ceil((EXTERN_APEX / 4) * 3) - RADIOS;

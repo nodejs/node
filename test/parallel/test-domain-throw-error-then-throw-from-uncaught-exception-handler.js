@@ -25,7 +25,7 @@ if (process.argv[2] === 'child') {
       // is not properly flushed in V8's Isolate::Throw right before the
       // process aborts due to an uncaught exception, and thus the error
       // message representing the error that was thrown cannot be read by the
-      // parent process. So instead of parsing the child process' stdandard
+      // parent process. So instead of parsing the child process' standard
       // error, the parent process will check that in the case
       // --abort-on-uncaught-exception was passed, the process did not exit
       // with exit code RAN_UNCAUGHT_EXCEPTION_HANDLER_EXIT_CODE.
