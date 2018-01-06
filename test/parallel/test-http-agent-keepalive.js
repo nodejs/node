@@ -102,7 +102,7 @@ function remoteClose() {
 }
 
 function remoteError() {
-  // remove server will destroy the socket
+  // remote server will destroy the socket
   const req = get('/error', common.mustNotCall());
   req.on('error', common.mustCall((err) => {
     assert(err);
