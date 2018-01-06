@@ -39,7 +39,7 @@ const server = net.createServer(common.mustCall(function(socket) {
 
 server.listen(0, function() {
   const client = net.connect(this.address().port, function() {
-    // cliend.end() will close both the readable and writable side
+    // client.end() will close both the readable and writable side
     // of the duplex because allowHalfOpen defaults to false.
     // Then 'end' will be emitted when it receives a FIN packet from
     // the other side.

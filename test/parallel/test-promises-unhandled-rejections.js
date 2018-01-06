@@ -293,7 +293,7 @@ asyncTest('While inside setImmediate, catching a rejected promise derived ' +
   });
 });
 
-// State adapation tests
+// State adaptation tests
 asyncTest('catching a promise which is asynchronously rejected (via ' +
           'resolution to an asynchronously-rejected promise) prevents' +
           ' unhandledRejection', function(done) {
