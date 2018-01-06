@@ -24,7 +24,7 @@ receiver = net.createServer(function(socket) {
   });
 });
 
-/* To signal the test runne we're up and listening */
+/* To signal the test runner we're up and listening */
 receiver.on('listening', function() {
   console.log('ready');
 });

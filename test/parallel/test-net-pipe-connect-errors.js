@@ -16,7 +16,7 @@ if (common.isWindows) {
   emptyTxt = fixtures.path('empty.txt');
 } else {
   common.refreshTmpDir();
-  // Keep the file name very short so tht we don't exceed the 108 char limit
+  // Keep the file name very short so that we don't exceed the 108 char limit
   // on CI for a POSIX socket. Even though this isn't actually a socket file,
   // the error will be different from the one we are expecting if we exceed the
   // limit.

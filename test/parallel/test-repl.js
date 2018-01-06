@@ -281,7 +281,7 @@ function error_test() {
     { client: client_unix,
       send: '/(.)(.)(.)(.)(.)(.)(.)(.)(.)/.test(\'123456789\')\n',
       expect: `true\n${prompt_unix}` },
-    // the following test's result depends on the RegEx's match from the above
+    // the following test's result depends on the RegExp's match from the above
     { client: client_unix,
       send: 'RegExp.$1\nRegExp.$2\nRegExp.$3\nRegExp.$4\nRegExp.$5\n' +
             'RegExp.$6\nRegExp.$7\nRegExp.$8\nRegExp.$9\n',
