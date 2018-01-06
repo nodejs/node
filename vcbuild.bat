@@ -92,6 +92,7 @@ if /i "%1"=="test-v8"       set test_v8=1&set custom_v8_test=1&goto arg-ok
 if /i "%1"=="test-v8-intl"  set test_v8_intl=1&set custom_v8_test=1&goto arg-ok
 if /i "%1"=="test-v8-benchmarks" set test_v8_benchmarks=1&set custom_v8_test=1&goto arg-ok
 if /i "%1"=="test-v8-all"       set test_v8=1&set test_v8_intl=1&set test_v8_benchmarks=1&set custom_v8_test=1&goto arg-ok
+if /i "%1"=="lint-cpp"      set lint_cpp=1&goto arg-ok
 if /i "%1"=="lint-js"       set lint_js=1&goto arg-ok
 if /i "%1"=="jslint"        set lint_js=1&echo Please use lint-js instead of jslint&goto arg-ok
 if /i "%1"=="lint-js-ci"    set lint_js_ci=1&goto arg-ok
@@ -507,22 +508,23 @@ call :run-python tools/cpplint.py %cppfilelist% > nul
 goto exit
 
 :add-to-list
-echo %1 | findstr /c:"src\node_root_certs.h"
+@rem Subroutine used to filter items from the cpplint file list
+echo %1 | findstr /c:"src\node_root_certs.h" > nul 2>&1
 if %errorlevel% equ 0 goto exit
 
-echo %1 | findstr /r /c:"src\\tracing\\trace_event.h"
+echo %1 | findstr /c:"src\tracing\trace_event.h" > nul 2>&1
 if %errorlevel% equ 0 goto exit
 
-echo %1 | findstr /r /c:"src\\tracing\\trace_event_common.h"
+echo %1 | findstr /c:"src\tracing\trace_event_common.h" > nul 2>&1
 if %errorlevel% equ 0 goto exit
 
-echo %1 | findstr /r /c:"test\\addons\\[0-9].*_.*\.h"
+echo %1 | findstr /r /c:"test\\addons\\[0-9].*_.*\.h" > nul 2>&1
 if %errorlevel% equ 0 goto exit
 
-echo %1 | findstr /r /c:"test\\addons\\[0-9].*_.*\.cc"
+echo %1 | findstr /r /c:"test\\addons\\[0-9].*_.*\.cc" > nul 2>&1
 if %errorlevel% equ 0 goto exit
 
-echo %1 | findstr /c:"test\\addons-napi\\common.h"
+echo %1 | findstr /c:"test\addons-napi\common.h" > nul 2>&1
 if %errorlevel% equ 0 goto exit
 
 set "localcppfilelist=%localcppfilelist% %1"
