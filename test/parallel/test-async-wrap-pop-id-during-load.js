@@ -8,7 +8,7 @@ if (process.argv[2] === 'async') {
     throw new Error();
   }
   (async function() { await fn(); })();
-  // While the above should error, just in case it dosn't the script shouldn't
+  // While the above should error, just in case it doesn't the script shouldn't
   // fork itself indefinitely so return early.
   return;
 }
