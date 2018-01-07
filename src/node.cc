@@ -91,6 +91,9 @@
 
 #include <string>
 #include <vector>
+#include <iostream>
+#include <cstring>
+#include <sstream>
 
 #if defined(NODE_HAVE_I18N_SUPPORT)
 #include <unicode/uvernum.h>
@@ -4798,7 +4801,7 @@ Local<Context> NewContext(Isolate* isolate,
 
 inline static bool TickEventLoop(Environment & env) {
   bool more;
-  uv_run(env.event_loop(), UV_RUN_DEFAULT);
+  uv_run(env.event_loop(), UV_RUN_ONCE);
 
   v8_platform.DrainVMTasks();
 
@@ -4988,25 +4991,258 @@ int Start(int argc, char** argv) {
 }
 
 namespace lib {
+  ArrayBufferAllocator *allocator;
+  Isolate::CreateParams params;
+  Locker *locker;
+  Isolate *isolate;
+  IsolateData *isolate_data;
+  Isolate::Scope *isolate_scope;
+  Environment *env;
+  Local<Context> context;
+  Context::Scope *context_scope;
+  Environment::AsyncCallbackScope *callback_scope;
 
-void RunEventLoop(const RunUserLoop & callback){
-  while (false/*events in queue*/) { // TODO: condition
-    ProcessEvents();
-    callback();
+  void Initialize(int argc, char **argv) {
+    //////////
+    // Start 1
+    //////////
+    atexit([] () { uv_tty_reset_mode(); });
+    PlatformInit();
+    node::performance::performance_node_start = PERFORMANCE_NOW();
+
+    // Hack around with the argv pointer. Used for process.title = "blah".
+    argv = uv_setup_args(argc, argv);
+
+    // This needs to run *before* V8::Initialize().  The const_cast is not
+    // optional, in case you're wondering.
+    int exec_argc;
+    const char** exec_argv;
+    Init(&argc, const_cast<const char**>(argv), &exec_argc, &exec_argv);
+
+  #if HAVE_OPENSSL
+    {
+      std::string extra_ca_certs;
+      if (SafeGetenv("NODE_EXTRA_CA_CERTS", &extra_ca_certs))
+        crypto::UseExtraCaCerts(extra_ca_certs);
+    }
+  #ifdef NODE_FIPS_MODE
+    // In the case of FIPS builds we should make sure
+    // the random source is properly initialized first.
+    OPENSSL_init();
+  #endif  // NODE_FIPS_MODE
+    // V8 on Windows doesn't have a good source of entropy. Seed it from
+    // OpenSSL's pool.
+    V8::SetEntropySource(crypto::EntropySource);
+  #endif  // HAVE_OPENSSL
+
+
+    v8_platform.Initialize(v8_thread_pool_size, uv_default_loop());
+    // Enable tracing when argv has --trace-events-enabled.
+    if (trace_enabled) {
+      fprintf(stderr, "Warning: Trace event is an experimental feature "
+              "and could change at any time.\n");
+      v8_platform.StartTracingAgent();
+    }
+    V8::Initialize();
+    node::performance::performance_v8_start = PERFORMANCE_NOW();
+    v8_initialized = true;
+
+
+    //////////
+    // Start 2
+    //////////
+
+    allocator = new ArrayBufferAllocator();
+    params.array_buffer_allocator = allocator;
+  #ifdef NODE_ENABLE_VTUNE_PROFILING
+    params.code_event_handler = vTune::GetVtuneCodeEventHandler();
+  #endif
+
+    isolate = Isolate::New(params);
+    if (isolate == nullptr) {
+      return; // TODO: Handle error
+      //return 12;  // Signal internal error.
+    }
+
+    isolate->AddMessageListener(OnMessage);
+    isolate->SetAbortOnUncaughtExceptionCallback(ShouldAbortOnUncaughtException);
+    isolate->SetAutorunMicrotasks(false);
+    isolate->SetFatalErrorHandler(OnFatalError);
+
+    if (track_heap_objects) {
+      isolate->GetHeapProfiler()->StartTrackingHeapObjects(true);
+    }
+
+
+
+    {
+      Mutex::ScopedLock scoped_lock(node_isolate_mutex);
+      CHECK_EQ(node_isolate, nullptr);
+      node_isolate = isolate;
+    }
+
+    int exit_code;
+    {
+      locker = new Locker(isolate);
+      isolate_scope = new Isolate::Scope(isolate);
+      static HandleScope handle_scope(isolate);
+      isolate_data = new IsolateData(isolate, uv_default_loop(), allocator->zero_fill_field());
+
+      //////////
+      // Start 3
+      //////////
+      //HandleScope handle_scope(isolate);
+      context = NewContext(isolate);
+      context_scope = new Context::Scope(context);
+      env = new Environment(isolate_data, context);
+      CHECK_EQ(0, uv_key_create(&thread_local_env));
+      uv_key_set(&thread_local_env, env);
+
+      //////////
+      // Start environment
+      //////////
+      std::string scriptName = "./build-unix/node-embed"; // TODO?!
+      int length = scriptName.length() + 1;
+
+      char *buf = new char[length];
+      std::strcpy(buf, scriptName.c_str());
+
+      int argc = 1;
+      char *argv[] = {buf};
+      int exec_argc = 0;
+      const char* const* exec_argv = nullptr;
+      _StartEnv(argc, (const char* const*)argv, exec_argc, exec_argv);
+    }
   }
-}
 
+  void _StartEnv(int argc,
+                 const char* const* argv,
+                 int exec_argc,
+                 const char* const* exec_argv) {
+      std::cout << "Starting environment" << std::endl;
+      /*std::cout << "argv" << std::endl;
+      for (int i = 0; i < argc; i++) {
+        std::cout << argv[i] << std::endl;
+      }
+      std::cout << "exec_argv" << std::endl;
+      for (int i = 0; i < exec_argc; i++) {
+        std::cout << exec_argv[i] << std::endl;
+      }*/
 
-void Terminate() {
-  RequestTerminate();
-  while (false/*events in queue*/) { // TODO: condition
-    ProcessEvents();
+      env->Start(argc, argv, exec_argc, exec_argv, v8_is_profiling);
+
+      const char* path = argc > 1 ? argv[1] : nullptr;
+      StartInspector(env, path, debug_options);
+
+      if (debug_options.inspector_enabled() && !v8_platform.InspectorStarted(env)) {
+        return; // TODO: Handle error
+        //return 12;  // Signal internal error.
+      }
+
+      env->set_abort_on_uncaught_exception(abort_on_uncaught_exception);
+
+      if (no_force_async_hooks_checks) {
+        env->async_hooks()->no_force_checks();
+      }
+
+      {
+        callback_scope = new Environment::AsyncCallbackScope(env);
+        env->async_hooks()->push_async_ids(1, 0);
+        LoadEnvironment(env);
+        env->async_hooks()->pop_async_id(1);
+      }
+
+      env->set_trace_sync_io(trace_sync_io);
   }
-}
 
-void RequestTerminate() {
-//  Evaluate("process.exit()"); // TODO: why does the linker complain here?
-}
+  v8::Local<v8::Value> Run(const std::string & path) {
+    // Read entire file into string. There is most certainly a better way ;)
+    // https://stackoverflow.com/a/2602258/2560557
+    std::ifstream t(path);
+    std::stringstream buffer;
+    buffer << t.rdbuf();
+
+    return Evaluate(buffer.str().c_str());
+  }
+
+  v8::Local<v8::Value> Evaluate(const std::string & java_script_code) {
+    EscapableHandleScope scope(env->isolate());
+    TryCatch try_catch(env->isolate());
+
+    // try_catch must be nonverbose to disable FatalException() handler,
+    // we will handle exceptions ourself.
+    try_catch.SetVerbose(false);
+
+    //ScriptOrigin origin(filename);
+    MaybeLocal<v8::Script> script = v8::Script::Compile(env->context(), v8::String::NewFromUtf8(isolate, java_script_code.c_str())/*, origin*/);
+    if (script.IsEmpty()) {
+      ReportException(env, try_catch);
+      exit(3);
+    }
+
+    Local<Value> result = script.ToLocalChecked()->Run();
+    if (result.IsEmpty()) {
+      ReportException(env, try_catch);
+      exit(4);
+    }
+
+    return scope.Escape(result);
+  }
+
+  void RunEventLoop(const RunUserLoop & callback){
+    bool more;
+    do {
+      more = ProcessEvents();
+      callback();
+    } while (more);
+  }
+
+  // TODO: Might not be working.
+  v8::Local<v8::Object> GetRootObject() {
+    return context->Global();
+  }
+
+  // TODO: Node.js has exceptions disabled.
+  // TODO: Doesn't work yet.
+  v8::Local<v8::Value> Call(v8::Local<v8::Object> object, const std::string & function_name, const std::vector<v8::Local<v8::Value>> & args) {
+    Local<v8::String> func = v8::String::NewFromUtf8(isolate, function_name.c_str());
+
+    Local<v8::Value> value = object->Get(func);
+    if (!value->IsFunction()) {
+      //throw new Exception(":((");
+    }
+    Local<v8::Function> _func = v8::Local<v8::Function>::Cast(value);
+
+    _func->Call(object, 1, const_cast<v8::Local<v8::Value>*>(&args[0]));
+  }
+
+  // TODO: Node.js has exceptions disabled.
+  // TODO: Doesn't work yet.
+  v8::Local<v8::Object> IncludeModule(const std::string & module_name) {
+    std::vector<v8::Local<v8::Value>> args;
+    args.push_back(v8::String::NewFromUtf8(isolate, module_name.c_str()));
+
+    auto module = Call(GetRootObject(), "require", args);
+    if (!module->IsObject()) {
+      //throw new Exception(":((");
+    }
+
+    return v8::Local<v8::Object>::Cast(module);
+  }
+
+
+  void Terminate() {
+    RequestTerminate();
+    while (ProcessEvents()) { }
+  }
+
+  void RequestTerminate() {
+    Evaluate("process.exit()");
+  }
+
+  bool ProcessEvents() {
+    return TickEventLoop(*env);
+  }
 
 }  // namespace node::lib
 

@@ -6,7 +6,15 @@
 #include <initializer_list>
 #include "v8.h"
 
-namespace node{ namespace lib {
+namespace node { namespace lib {
+    void _StartEnv(int argc,
+                   const char* const* argv,
+                   int exec_argc,
+                   const char* const* exec_argv);
+
+    int _StopEnv();
+
+
     /*********************************************************
      * Function types
      *********************************************************/
@@ -28,7 +36,7 @@ namespace node{ namespace lib {
     Starts the Node.js engine without a concrete script file to execute.
     *Important*: This requires the C++ developer to call `ProcessEvents()` periodically OR call `Run()` to start the uv event loop.
     */
-    bool Initialize();
+    NODE_EXTERN void Initialize(int argc, char **argv);
 
     /*
     Starts the Node.js engine with a given JavaScript file. Additionally, the Node.js engine will be kept alive
@@ -38,11 +46,11 @@ namespace node{ namespace lib {
     //bool StartMainLoop(const std::string & path, const RunUserLoop & callback);
 
     /*
-    Executes a given JavaScript file and returns once the execution has finished. 
+    Executes a given JavaScript file and returns once the execution has finished.
     *Important*: Node.js has to have been initialized by calling Initialize().
     */
 
-    bool Run(const std::string & path);
+    v8::Local<v8::Value> Run(const std::string & path);
 
     /*********************************************************
      * Handle JavaScript events
@@ -83,12 +91,12 @@ namespace node{ namespace lib {
     /*
     Executes a given piece of JavaScript code, using the *running* Node.js engine.
     */
-    bool Evaluate(const std::string & java_script_code);
+    v8::Local<v8::Value> Evaluate(const std::string & java_script_code);
 
     /*
     Returns the JavaScript root object for the running application
     */
-    v8::MaybeLocal<v8::Object> GetRootObject();
+    v8::Local<v8::Object> GetRootObject();
 
     /*
     Registers a C++ module in the *running* Node.js engine.
@@ -109,7 +117,7 @@ namespace node{ namespace lib {
     /*
     Adds a new JavaScript module to the *running* Node.js engine.
     */
-    v8::MaybeLocal<v8::Object> IncludeModule(const std::string & modul_name);
+    v8::Local<v8::Object> IncludeModule(const std::string & modul_name);
 
     /*
     Returns the local value (specified by its name) of the module (defined in the `exports`-object).
@@ -120,7 +128,7 @@ namespace node{ namespace lib {
     Calls a function (specified by its name) on a given object passing the given arguments.
     *Important*: Throws an exception if the receiver does not define the specified function.
     */
-    v8::Local<v8::Value> Call(v8::MaybeLocal<v8::Object> object, const std::string & function_name, const std::vector<v8::MaybeLocal<v8::Value>> & args = {});
+    v8::Local<v8::Value> Call(v8::Local<v8::Object> object, const std::string & function_name, const std::vector<v8::Local<v8::Value>> & args = {});
 
     /*
     Calls a function (specified by its name) on a given object passing the given arguments.
