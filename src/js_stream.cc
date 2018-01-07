@@ -14,9 +14,9 @@ using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
 using v8::HandleScope;
 using v8::Local;
-using v8::MaybeLocal;
 using v8::Object;
 using v8::String;
+using v8::TryCatch;
 using v8::Value;
 
 
@@ -87,24 +87,41 @@ bool JSStream::IsAlive() {
 bool JSStream::IsClosing() {
   HandleScope scope(env()->isolate());
   Context::Scope context_scope(env()->context());
-  return MakeCallback(env()->isclosing_string(), 0, nullptr)
-      .ToLocalChecked()->IsTrue();
+  TryCatch try_catch(env()->isolate());
+  Local<Value> value;
+  if (!MakeCallback(env()->isclosing_string(), 0, nullptr).ToLocal(&value)) {
+    FatalException(env()->isolate(), try_catch);
+    return true;
+  }
+  return value->IsTrue();
 }
 
 
 int JSStream::ReadStart() {
   HandleScope scope(env()->isolate());
   Context::Scope context_scope(env()->context());
-  return MakeCallback(env()->onreadstart_string(), 0, nullptr)
-      .ToLocalChecked()->Int32Value();
+  TryCatch try_catch(env()->isolate());
+  Local<Value> value;
+  int value_int = UV_EPROTO;
+  if (!MakeCallback(env()->onreadstart_string(), 0, nullptr).ToLocal(&value) ||
+      !value->Int32Value(env()->context()).To(&value_int)) {
+    FatalException(env()->isolate(), try_catch);
+  }
+  return value_int;
 }
 
 
 int JSStream::ReadStop() {
   HandleScope scope(env()->isolate());
   Context::Scope context_scope(env()->context());
-  return MakeCallback(env()->onreadstop_string(), 0, nullptr)
-      .ToLocalChecked()->Int32Value();
+  TryCatch try_catch(env()->isolate());
+  Local<Value> value;
+  int value_int = UV_EPROTO;
+  if (!MakeCallback(env()->onreadstop_string(), 0, nullptr).ToLocal(&value) ||
+      !value->Int32Value(env()->context()).To(&value_int)) {
+    FatalException(env()->isolate(), try_catch);
+  }
+  return value_int;
 }
 
 
@@ -117,10 +134,17 @@ int JSStream::DoShutdown(ShutdownWrap* req_wrap) {
   };
 
   req_wrap->Dispatched();
-  MaybeLocal<Value> res =
-      MakeCallback(env()->onshutdown_string(), arraysize(argv), argv);
 
-  return res.ToLocalChecked()->Int32Value();
+  TryCatch try_catch(env()->isolate());
+  Local<Value> value;
+  int value_int = UV_EPROTO;
+  if (!MakeCallback(env()->onshutdown_string(),
+                    arraysize(argv),
+                    argv).ToLocal(&value) ||
+      !value->Int32Value(env()->context()).To(&value_int)) {
+    FatalException(env()->isolate(), try_catch);
+  }
+  return value_int;
 }
 
 
@@ -146,10 +170,17 @@ int JSStream::DoWrite(WriteWrap* w,
   };
 
   w->Dispatched();
-  MaybeLocal<Value> res =
-      MakeCallback(env()->onwrite_string(), arraysize(argv), argv);
 
-  return res.ToLocalChecked()->Int32Value();
+  TryCatch try_catch(env()->isolate());
+  Local<Value> value;
+  int value_int = UV_EPROTO;
+  if (!MakeCallback(env()->onwrite_string(),
+                    arraysize(argv),
+                    argv).ToLocal(&value) ||
+      !value->Int32Value(env()->context()).To(&value_int)) {
+    FatalException(env()->isolate(), try_catch);
+  }
+  return value_int;
 }
 
 
