@@ -857,4 +857,16 @@ common.expectsError(
       message: "message: expected '', not 'foo'"
     }
   );
+
+  // eslint-disable-next-line no-throw-literal
+  assert.throws(() => { throw undefined; }, /undefined/);
+  common.expectsError(
+    // eslint-disable-next-line no-throw-literal
+    () => assert.doesNotThrow(() => { throw undefined; }),
+    {
+      type: assert.AssertionError,
+      code: 'ERR_ASSERTION',
+      message: 'Got unwanted exception.\nundefined'
+    }
+  );
 }
