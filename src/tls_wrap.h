@@ -90,19 +90,6 @@ class TLSWrap : public AsyncWrap,
   // Maximum number of buffers passed to uv_write()
   static const int kSimultaneousBufferCount = 10;
 
-  // Write callback queue's item
-  class WriteItem {
-   public:
-    explicit WriteItem(WriteWrap* w) : w_(w) {
-    }
-    ~WriteItem() {
-      w_ = nullptr;
-    }
-
-    WriteWrap* w_;
-    ListNode<WriteItem> member_;
-  };
-
   TLSWrap(Environment* env,
           Kind kind,
           StreamBase* stream,
@@ -114,7 +101,6 @@ class TLSWrap : public AsyncWrap,
   void EncOutAfterWrite(WriteWrap* req_wrap, int status);
   bool ClearIn();
   void ClearOut();
-  void MakePending();
   bool InvokeQueued(int status, const char* error_str = nullptr);
 
   inline void Cycle() {
@@ -171,11 +157,10 @@ class TLSWrap : public AsyncWrap,
   StreamBase* stream_;
   BIO* enc_in_;
   BIO* enc_out_;
-  crypto::NodeBIO* clear_in_;
+  std::vector<uv_buf_t> pending_cleartext_input_;
   size_t write_size_;
-  typedef ListHead<WriteItem, &WriteItem::member_> WriteItemList;
-  WriteItemList write_item_queue_;
-  WriteItemList pending_write_items_;
+  WriteWrap* current_write_ = nullptr;
+  bool write_callback_scheduled_ = false;
   bool started_;
   bool established_;
   bool shutdown_;

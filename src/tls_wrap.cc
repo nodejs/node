@@ -62,7 +62,6 @@ TLSWrap::TLSWrap(Environment* env,
       stream_(stream),
       enc_in_(nullptr),
       enc_out_(nullptr),
-      clear_in_(nullptr),
       write_size_(0),
       started_(false),
       established_(false),
@@ -95,8 +94,6 @@ TLSWrap::TLSWrap(Environment* env,
 TLSWrap::~TLSWrap() {
   enc_in_ = nullptr;
   enc_out_ = nullptr;
-  delete clear_in_;
-  clear_in_ = nullptr;
 
   sc_ = nullptr;
 
@@ -119,21 +116,14 @@ TLSWrap::~TLSWrap() {
 }
 
 
-void TLSWrap::MakePending() {
-  write_item_queue_.MoveBack(&pending_write_items_);
-}
-
-
 bool TLSWrap::InvokeQueued(int status, const char* error_str) {
-  if (pending_write_items_.IsEmpty())
+  if (!write_callback_scheduled_)
     return false;
 
-  // Process old queue
-  WriteItemList queue;
-  pending_write_items_.MoveBack(&queue);
-  while (WriteItem* wi = queue.PopFront()) {
-    wi->w_->Done(status, error_str);
-    delete wi;
+  if (current_write_ != nullptr) {
+    WriteWrap* w = current_write_;
+    current_write_ = nullptr;
+    w->Done(status, error_str);
   }
 
   return true;
@@ -185,10 +175,6 @@ void TLSWrap::InitSSL() {
     // Unexpected
     ABORT();
   }
-
-  // Initialize ring for queud clear data
-  clear_in_ = new crypto::NodeBIO();
-  clear_in_->AssignEnvironment(env());
 }
 
 
@@ -303,15 +289,15 @@ void TLSWrap::EncOut() {
     return;
 
   // Split-off queue
-  if (established_ && !write_item_queue_.IsEmpty())
-    MakePending();
+  if (established_ && current_write_ != nullptr)
+    write_callback_scheduled_ = true;
 
   if (ssl_ == nullptr)
     return;
 
   // No data to write
   if (BIO_pending(enc_out_) == 0) {
-    if (clear_in_->Length() == 0)
+    if (pending_cleartext_input_.empty())
       InvokeQueued(0);
     return;
   }
@@ -498,21 +484,24 @@ bool TLSWrap::ClearIn() {
   if (ssl_ == nullptr)
     return false;
 
+  std::vector<uv_buf_t> buffers;
+  buffers.swap(pending_cleartext_input_);
+
   crypto::MarkPopErrorOnReturn mark_pop_error_on_return;
 
+  size_t i;
   int written = 0;
-  while (clear_in_->Length() > 0) {
-    size_t avail = 0;
-    char* data = clear_in_->Peek(&avail);
+  for (i = 0; i < buffers.size(); ++i) {
+    size_t avail = buffers[i].len;
+    char* data = buffers[i].base;
     written = SSL_write(ssl_, data, avail);
     CHECK(written == -1 || written == static_cast<int>(avail));
     if (written == -1)
       break;
-    clear_in_->Read(nullptr, avail);
   }
 
   // All written
-  if (clear_in_->Length() == 0) {
+  if (i == buffers.size()) {
     CHECK_GE(written, 0);
     return true;
   }
@@ -522,9 +511,15 @@ bool TLSWrap::ClearIn() {
   std::string error_str;
   Local<Value> arg = GetSSLError(written, &err, &error_str);
   if (!arg.IsEmpty()) {
-    MakePending();
+    write_callback_scheduled_ = true;
     InvokeQueued(UV_EPROTO, error_str.c_str());
-    clear_in_->Reset();
+  } else {
+    // Push back the not-yet-written pending buffers into their queue.
+    // This can be skipped in the error case because no further writes
+    // would succeed anyway.
+    pending_cleartext_input_.insert(pending_cleartext_input_.end(),
+                                    &buffers[i],
+                                    &buffers[buffers.size()]);
   }
 
   return false;
@@ -606,21 +601,14 @@ int TLSWrap::DoWrite(WriteWrap* w,
     }
   }
 
-  // Queue callback to execute it on next tick
-  write_item_queue_.PushBack(new WriteItem(w));
+  // Store the current write wrap
+  CHECK_EQ(current_write_, nullptr);
+  current_write_ = w;
   w->Dispatched();
 
   // Write queued data
   if (empty) {
     EncOut();
-    return 0;
-  }
-
-  // Process enqueued data first
-  if (!ClearIn()) {
-    // If there're still data to process - enqueue current one
-    for (i = 0; i < count; i++)
-      clear_in_->Write(bufs[i].base, bufs[i].len);
     return 0;
   }
 
@@ -646,9 +634,9 @@ int TLSWrap::DoWrite(WriteWrap* w,
     if (!arg.IsEmpty())
       return UV_EPROTO;
 
-    // No errors, queue rest
-    for (; i < count; i++)
-      clear_in_->Write(bufs[i].base, bufs[i].len);
+    pending_cleartext_input_.insert(pending_cleartext_input_.end(),
+                                    &bufs[i],
+                                    &bufs[count]);
   }
 
   // Try writing data immediately
@@ -818,17 +806,14 @@ void TLSWrap::DestroySSL(const FunctionCallbackInfo<Value>& args) {
   TLSWrap* wrap;
   ASSIGN_OR_RETURN_UNWRAP(&wrap, args.Holder());
 
-  // Move all writes to pending
-  wrap->MakePending();
+  // If there is a write happening, mark it as finished.
+  wrap->write_callback_scheduled_ = true;
 
   // And destroy
   wrap->InvokeQueued(UV_ECANCELED, "Canceled because of SSL destruction");
 
   // Destroy the SSL structure and friends
   wrap->SSLWrap<TLSWrap>::DestroySSL();
-
-  delete wrap->clear_in_;
-  wrap->clear_in_ = nullptr;
 }
 
 
@@ -928,7 +913,7 @@ void TLSWrap::GetWriteQueueSize(const FunctionCallbackInfo<Value>& info) {
   TLSWrap* wrap;
   ASSIGN_OR_RETURN_UNWRAP(&wrap, info.This());
 
-  if (wrap->clear_in_ == nullptr) {
+  if (wrap->ssl_ == nullptr) {
     info.GetReturnValue().Set(0);
     return;
   }

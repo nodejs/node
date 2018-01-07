@@ -181,7 +181,6 @@ class ListHead {
 
   inline ListHead() = default;
   inline ~ListHead();
-  inline void MoveBack(ListHead* that);
   inline void PushBack(T* element);
   inline void PushFront(T* element);
   inline bool IsEmpty() const;
