@@ -16,4 +16,4 @@ const socket = new JSStreamWrap(new Duplex({
   })
 }));
 
-socket.end('foo');
+assert.throws(() => socket.end('foo'), /Error: write EPROTO/);

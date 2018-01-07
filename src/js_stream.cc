@@ -91,6 +91,7 @@ bool JSStream::IsClosing() {
   Local<Value> value;
   if (!MakeCallback(env()->isclosing_string(), 0, nullptr).ToLocal(&value)) {
     FatalException(env()->isolate(), try_catch);
+    return true;
   }
   return value->IsTrue();
 }
@@ -101,7 +102,7 @@ int JSStream::ReadStart() {
   Context::Scope context_scope(env()->context());
   TryCatch try_catch(env()->isolate());
   Local<Value> value;
-  int value_int = 0;
+  int value_int = UV_EPROTO;
   if (!MakeCallback(env()->onreadstart_string(), 0, nullptr).ToLocal(&value) ||
       !value->Int32Value(env()->context()).To(&value_int)) {
     FatalException(env()->isolate(), try_catch);
@@ -115,7 +116,7 @@ int JSStream::ReadStop() {
   Context::Scope context_scope(env()->context());
   TryCatch try_catch(env()->isolate());
   Local<Value> value;
-  int value_int = 0;
+  int value_int = UV_EPROTO;
   if (!MakeCallback(env()->onreadstop_string(), 0, nullptr).ToLocal(&value) ||
       !value->Int32Value(env()->context()).To(&value_int)) {
     FatalException(env()->isolate(), try_catch);
@@ -136,7 +137,7 @@ int JSStream::DoShutdown(ShutdownWrap* req_wrap) {
 
   TryCatch try_catch(env()->isolate());
   Local<Value> value;
-  int value_int = 0;
+  int value_int = UV_EPROTO;
   if (!MakeCallback(env()->onshutdown_string(),
                     arraysize(argv),
                     argv).ToLocal(&value) ||
@@ -172,7 +173,7 @@ int JSStream::DoWrite(WriteWrap* w,
 
   TryCatch try_catch(env()->isolate());
   Local<Value> value;
-  int value_int = 0;
+  int value_int = UV_EPROTO;
   if (!MakeCallback(env()->onwrite_string(),
                     arraysize(argv),
                     argv).ToLocal(&value) ||
