@@ -5013,8 +5013,8 @@ namespace lib {
     // we do not support additional commandline options for node, uv, or v8
     // we explicitily only set the first argument to the program name
     int argc = 1;
-    std::string* program_name_on_heap = new std::string(program_name);
-    char* program_name_c_string = const_cast<char*>(program_name_on_heap->c_str());
+    char *program_name_c_string = new char[program_name.length() + 1];
+    std::strcpy(program_name_c_string, program_name.c_str());
     char** argv = &program_name_c_string;
 
     // Hack around with the argv pointer. Used for process.title = "blah".
@@ -5220,7 +5220,7 @@ namespace lib {
     }
     Local<v8::Function> _func = v8::Local<v8::Function>::Cast(value);
 
-    _func->Call(object, 1, const_cast<v8::Local<v8::Value>*>(&args[0]));
+    return _func->Call(object, 1, const_cast<v8::Local<v8::Value>*>(&args[0]));
   }
 
   // TODO: Node.js has exceptions disabled.
