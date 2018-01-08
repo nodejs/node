@@ -2,7 +2,6 @@
 
 const common = require('../common');
 const { deepStrictEqual, throws } = require('assert');
-const { Buffer } = require('buffer');
 const { runInNewContext } = require('vm');
 
 const checkString = 'test';
