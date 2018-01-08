@@ -5002,13 +5002,20 @@ namespace lib {
   Context::Scope *context_scope;
   Environment::AsyncCallbackScope *callback_scope;
 
-  void Initialize(int argc, char **argv) {
+  void Initialize(const std::string& program_name) {
     //////////
     // Start 1
     //////////
     atexit([] () { uv_tty_reset_mode(); });
     PlatformInit();
     node::performance::performance_node_start = PERFORMANCE_NOW();
+
+    // we do not support additional commandline options for node, uv, or v8
+    // we explicitily only set the first argument to the program name
+    int argc = 1;
+    std::string* program_name_on_heap = new std::string(program_name);
+    char* program_name_c_string = const_cast<char*>(program_name_on_heap->c_str());
+    char** argv = &program_name_c_string;
 
     // Hack around with the argv pointer. Used for process.title = "blah".
     argv = uv_setup_args(argc, argv);
