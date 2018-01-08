@@ -37,7 +37,6 @@ assert.strictEqual(missing.length, 0, `Missing constants: ${missing}`);
 // pushed to the bottom of the file for improved readability.
 function getExpectedSymbols() {
   return [
-    'v8dbg_bit_field3_dictionary_map_shift',
     'v8dbg_bit_field3_number_of_own_descriptors_shift',
     'v8dbg_class_Code__instruction_size__int',
     'v8dbg_class_Code__instruction_start__uintptr_t',
@@ -64,10 +63,7 @@ function getExpectedSymbols() {
     'v8dbg_class_JSRegExp__source__Object',
     'v8dbg_class_Map__bit_field3__int',
     'v8dbg_class_Map__constructor_or_backpointer__Object',
-    'v8dbg_class_Map__inobject_properties_or_constructor_function_index__int',
-    'v8dbg_class_Map__instance_attributes__int',
     'v8dbg_class_Map__instance_descriptors__DescriptorArray',
-    'v8dbg_class_Map__instance_size__int',
     'v8dbg_class_Oddball__kind_offset__int',
     'v8dbg_class_Script__line_ends__Object',
     'v8dbg_class_Script__line_offset__SMI',
