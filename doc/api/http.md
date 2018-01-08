@@ -1880,6 +1880,49 @@ const req = http.request(options, (res) => {
 });
 ```
 
+In a successful request, the following events will be emitted in the following
+order:
+
+* `socket`
+* `response`
+  * `data` any number of times, on the `res` object
+    (`data` will not be emitted at all if the response body is empty, for
+    instance, in most redirects)
+  * `end` on the `res` object
+* `close`
+
+In the case of a connection error, the following events will be emitted:
+
+* `socket`
+* `error`
+* `close`
+
+If `req.abort()` is called before the connection succeeds, the following events
+will be emitted in the following order:
+
+* `socket`
+* (`req.abort()` called here)
+* `abort`
+* `close`
+* `error` with an error with message `Error: socket hang up` and code
+  `ECONNRESET`
+
+If `req.abort()` is called after the response is received, the following events
+will be emitted in the following order:
+
+* `socket`
+* `response`
+  * `data` any number of times, on the `res` object
+* (`req.abort()` called here)
+* `abort`
+* `close`
+  * `aborted` on the `res` object
+  * `end` on the `res` object
+  * `close` on the `res` object
+
+Note that setting the `timeout` option or using the `setTimeout` function will
+not abort the request or do anything besides add a `timeout` event.
+
 [`'checkContinue'`]: #http_event_checkcontinue
 [`'request'`]: #http_event_request
 [`'response'`]: #http_event_response
