@@ -56,6 +56,9 @@ let client;
 
 const server = h2.createServer({ settings: { initialWindowSize: 36 } });
 server.on('stream', (stream) => {
+  // Set the high water mark to zero, since otherwise we still accept
+  // reads from the source stream (if we can consume them).
+  stream._readableState.highWaterMark = 0;
   stream.pause();
   stream.on('error', common.expectsError({
     code: 'ERR_HTTP2_STREAM_ERROR',
