@@ -3,7 +3,6 @@ const common = require('../common');
 const assert = require('assert');
 
 const buffer = require('buffer');
-const Buffer = buffer.Buffer;
 const SlowBuffer = buffer.SlowBuffer;
 
 const kMaxLength = buffer.kMaxLength;
