@@ -25,52 +25,10 @@ JSStream::JSStream(Environment* env, Local<Object> obj)
       StreamBase(env) {
   node::Wrap(obj, this);
   MakeWeak<JSStream>(this);
-
-  set_alloc_cb({ OnAllocImpl, this });
-  set_read_cb({ OnReadImpl, this });
 }
 
 
 JSStream::~JSStream() {
-}
-
-
-void JSStream::OnAllocImpl(size_t size, uv_buf_t* buf, void* ctx) {
-  buf->base = Malloc(size);
-  buf->len = size;
-}
-
-
-void JSStream::OnReadImpl(ssize_t nread,
-                          const uv_buf_t* buf,
-                          uv_handle_type pending,
-                          void* ctx) {
-  JSStream* wrap = static_cast<JSStream*>(ctx);
-  CHECK_NE(wrap, nullptr);
-  Environment* env = wrap->env();
-  HandleScope handle_scope(env->isolate());
-  Context::Scope context_scope(env->context());
-
-  if (nread < 0)  {
-    if (buf != nullptr && buf->base != nullptr)
-      free(buf->base);
-    wrap->EmitData(nread, Local<Object>(), Local<Object>());
-    return;
-  }
-
-  if (nread == 0) {
-    if (buf->base != nullptr)
-      free(buf->base);
-    return;
-  }
-
-  CHECK_LE(static_cast<size_t>(nread), buf->len);
-  char* base = node::Realloc(buf->base, nread);
-
-  CHECK_EQ(pending, UV_UNKNOWN_HANDLE);
-
-  Local<Object> obj = Buffer::New(env, base, nread).ToLocalChecked();
-  wrap->EmitData(nread, obj, Local<Object>());
 }
 
 
@@ -212,18 +170,19 @@ void JSStream::ReadBuffer(const FunctionCallbackInfo<Value>& args) {
   char* data = Buffer::Data(args[0]);
   int len = Buffer::Length(args[0]);
 
-  do {
-    uv_buf_t buf;
+  // Repeatedly ask the stream's owner for memory, copy the data that we
+  // just read from JS into those buffers and emit them as reads.
+  while (len != 0) {
+    uv_buf_t buf = wrap->EmitAlloc(len);
     ssize_t avail = len;
-    wrap->EmitAlloc(len, &buf);
     if (static_cast<ssize_t>(buf.len) < avail)
       avail = buf.len;
 
     memcpy(buf.base, data, avail);
     data += avail;
     len -= avail;
-    wrap->EmitRead(avail, &buf);
-  } while (len != 0);
+    wrap->EmitRead(avail, buf);
+  }
 }
 
 
@@ -231,7 +190,7 @@ void JSStream::EmitEOF(const FunctionCallbackInfo<Value>& args) {
   JSStream* wrap;
   ASSIGN_OR_RETURN_UNWRAP(&wrap, args.Holder());
 
-  wrap->EmitRead(UV_EOF, nullptr);
+  wrap->EmitRead(UV_EOF);
 }
 
 
