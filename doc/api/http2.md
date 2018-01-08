@@ -989,6 +989,34 @@ destroyed after either receiving an `RST_STREAM` frame from the connected peer,
 calling `http2stream.close()`, or `http2stream.destroy()`. Will be
 `undefined` if the `Http2Stream` has not been closed.
 
+#### http2stream.sentHeaders
+<!-- YAML
+added: REPLACEME
+-->
+
+* Value: {[Headers Object][]}
+
+An object containing the outbound headers sent for this `Http2Stream`.
+
+#### http2stream.sentInfoHeaders
+<!-- YAML
+added: REPLACEME
+-->
+
+* Value: {[Headers Object][]\[\]}
+
+An array of objects containing the outbound informational (additional) headers
+sent for this `Http2Stream`.
+
+#### http2stream.sentTrailers
+<!-- YAML
+added: REPLACEME
+-->
+
+* Value: {[Headers Object][]}
+
+An object containing the outbound trailers sent for this this `HttpStream`.
+
 #### http2stream.session
 <!-- YAML
 added: v8.4.0
