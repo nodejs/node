@@ -501,6 +501,12 @@ exports.mustCallAtLeast = function(fn, minimum) {
   return _mustCallInner(fn, minimum, 'minimum');
 };
 
+exports.mustCallAsync = function(fn, exact) {
+  return exports.mustCall((...args) => {
+    return Promise.resolve(fn(...args)).then(exports.mustCall((val) => val));
+  }, exact);
+};
+
 function _mustCallInner(fn, criteria = 1, field) {
   if (process._exiting)
     throw new Error('Cannot use common.mustCall*() in process exit handler');
