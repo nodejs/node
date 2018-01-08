@@ -400,6 +400,37 @@ Emitted when the server sends a '100 Continue' HTTP response, usually because
 the request contained 'Expect: 100-continue'. This is an instruction that
 the client should send the request body.
 
+### Event: 'information'
+<!-- YAML
+added: REPLACEME
+-->
+
+Emitted when the server sends a 1xx response (excluding 101 Upgrade). This
+event is emitted with a callback containing an object with a status code.
+
+```js
+const http = require('http');
+
+const options = {
+  hostname: '127.0.0.1',
+  port: 8080,
+  path: '/length_request'
+};
+
+// Make a request
+const req = http.request(options);
+req.end();
+
+req.on('information', (res) => {
+  console.log('got information prior to main response: ' + res.statusCode);
+});
+```
+
+101 Upgrade statuses do not fire this event due to their break from the
+traditional HTTP request/response chain, such as web sockets, in-place TLS
+upgrades, or HTTP 2.0. To be notified of 101 Upgrade notices, listen for the
+[`'upgrade'`][] event instead.
+
 ### Event: 'response'
 <!-- YAML
 added: v0.1.0
@@ -1384,6 +1415,14 @@ which has been transmitted are equal or not.
 Attempting to set a header field name or value that contains invalid characters
 will result in a [`TypeError`][] being thrown.
 
+### response.writeProcessing()
+<!-- YAML
+added: REPLACEME
+-->
+
+Sends a HTTP/1.1 102 Processing message to the client, indicating that
+the request body should be sent.
+
 ## Class: http.IncomingMessage
 <!-- YAML
 added: v0.1.17
@@ -1937,6 +1976,7 @@ not abort the request or do anything besides add a `timeout` event.
 [`'checkContinue'`]: #http_event_checkcontinue
 [`'request'`]: #http_event_request
 [`'response'`]: #http_event_response
+[`'upgrade'`]: #http_event_upgrade
 [`Agent`]: #http_class_http_agent
 [`Duplex`]: stream.html#stream_class_stream_duplex
 [`EventEmitter`]: events.html#events_class_eventemitter
