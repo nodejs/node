@@ -997,6 +997,18 @@ While using `N-API`, `Constructor.prototype` was not an object.
 While calling `napi_create_dataview()`, a given `offset` was outside the bounds
 of the dataview or `offset + length` was larger than a length of given `buffer`.
 
+<a id="ERR_NAPI_INVALID_TYPEDARRAY_ALIGNMENT"></a>
+### ERR_NAPI_INVALID_TYPEDARRAY_ALIGNMENT
+
+While calling `napi_create_typedarray()`, the provided `offset` was not a
+multiple of the element size.
+
+<a id="ERR_NAPI_INVALID_TYPEDARRAY_LENGTH"></a>
+### ERR_NAPI_INVALID_TYPEDARRAY_LENGTH
+
+While calling `napi_create_typedarray()`, `(length * size_of_element) +
+byte_offset` was larger than the length of given `buffer`.
+
 <a id="ERR_NO_ICU"></a>
 ### ERR_NO_ICU
 
