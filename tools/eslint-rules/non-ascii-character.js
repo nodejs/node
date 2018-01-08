@@ -11,8 +11,7 @@
 // Rule Definition
 //------------------------------------------------------------------------------
 
-const nonAsciiSelector = 'Literal[value=/[^\n\x20-\x7e]/]';
-const nonAsciiRegexPattern = new RegExp(/[^\n\x20-\x7e]/);
+const nonAsciiRegexPattern = new RegExp(/[^\r\n\x20-\x7e]/);
 const suggestions = {
   '’': '\'',
   '‛': '\'',
@@ -27,10 +26,14 @@ const suggestions = {
 
 module.exports = (context) => {
 
-  const reportError = (node) => {
+  const reportIfError = (node, token) => {
 
-    const nodeValue = node.value;
-    const offendingCharacter = nodeValue.match(nonAsciiRegexPattern)[0];
+    const { value } = token;
+    const matches = value.match(nonAsciiRegexPattern);
+
+    if (!matches) return;
+
+    const offendingCharacter = matches[0];
     const suggestion = suggestions[offendingCharacter];
 
     let message = `Non-ASCII character '${offendingCharacter}' detected.`;
@@ -52,6 +55,13 @@ module.exports = (context) => {
   };
 
   return {
-    [nonAsciiSelector]: (node) => reportError(node, context)
+    Program: (node) => {
+      const source = context.getSourceCode();
+      const sourceTokens = source.getTokens(node);
+      const commentTokens = source.getAllComments();
+      const tokens = sourceTokens.concat(commentTokens);
+
+      tokens.forEach((token) => reportIfError(node, token));
+    }
   };
 };
