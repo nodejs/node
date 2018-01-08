@@ -2212,9 +2212,8 @@ Location Module::GetModuleRequestLocation(int i) const {
 
 Local<Value> Module::GetModuleNamespace() {
   Utils::ApiCheck(
-      GetStatus() == kEvaluated, "v8::Module::GetModuleNamespace",
-      "v8::Module::GetModuleNamespace can only be used on a module with "
-      "status kEvaluated");
+      GetStatus() >= kInstantiated, "v8::Module::GetModuleNamespace",
+      "v8::Module::GetModuleNamespace must be used on an instantiated module");
   i::Handle<i::Module> self = Utils::OpenHandle(this);
   i::Handle<i::JSModuleNamespace> module_namespace =
       i::Module::GetModuleNamespace(self);
