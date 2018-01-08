@@ -303,15 +303,14 @@ MaybeLocal<Object> New(Environment* env, size_t length) {
         data,
         length,
         ArrayBufferCreationMode::kInternalized);
-  Local<Uint8Array> ui = Uint8Array::New(ab, 0, length);
-  Maybe<bool> mb =
-      ui->SetPrototype(env->context(), env->buffer_prototype_object());
-  if (mb.FromMaybe(false))
-    return scope.Escape(ui);
+  MaybeLocal<Uint8Array> ui = Buffer::New(env, ab, 0, length);
 
-  // Object failed to be created. Clean up resources.
-  free(data);
-  return Local<Object>();
+  if (ui.IsEmpty()) {
+    // Object failed to be created. Clean up resources.
+    free(data);
+  }
+
+  return scope.Escape(ui.FromMaybe(Local<Uint8Array>()));
 }
 
 
@@ -349,15 +348,14 @@ MaybeLocal<Object> Copy(Environment* env, const char* data, size_t length) {
         new_data,
         length,
         ArrayBufferCreationMode::kInternalized);
-  Local<Uint8Array> ui = Uint8Array::New(ab, 0, length);
-  Maybe<bool> mb =
-      ui->SetPrototype(env->context(), env->buffer_prototype_object());
-  if (mb.FromMaybe(false))
-    return scope.Escape(ui);
+  MaybeLocal<Uint8Array> ui = Buffer::New(env, ab, 0, length);
 
-  // Object failed to be created. Clean up resources.
-  free(new_data);
-  return Local<Object>();
+  if (ui.IsEmpty()) {
+    // Object failed to be created. Clean up resources.
+    free(new_data);
+  }
+
+  return scope.Escape(ui.FromMaybe(Local<Uint8Array>()));
 }
 
 
@@ -392,15 +390,14 @@ MaybeLocal<Object> New(Environment* env,
   // correct.
   if (data == nullptr)
     ab->Neuter();
-  Local<Uint8Array> ui = Uint8Array::New(ab, 0, length);
-  Maybe<bool> mb =
-      ui->SetPrototype(env->context(), env->buffer_prototype_object());
+  MaybeLocal<Uint8Array> ui = Buffer::New(env, ab, 0, length);
 
-  if (!mb.FromMaybe(false))
+  if (ui.IsEmpty()) {
     return Local<Object>();
+  }
 
   CallbackInfo::New(env->isolate(), ab, callback, data, hint);
-  return scope.Escape(ui);
+  return scope.Escape(ui.ToLocalChecked());
 }
 
 
@@ -415,8 +412,6 @@ MaybeLocal<Object> New(Isolate* isolate, char* data, size_t length) {
 
 
 MaybeLocal<Object> New(Environment* env, char* data, size_t length) {
-  EscapableHandleScope scope(env->isolate());
-
   if (length > 0) {
     CHECK_NE(data, nullptr);
     CHECK(length <= kMaxLength);
@@ -427,12 +422,7 @@ MaybeLocal<Object> New(Environment* env, char* data, size_t length) {
                        data,
                        length,
                        ArrayBufferCreationMode::kInternalized);
-  Local<Uint8Array> ui = Uint8Array::New(ab, 0, length);
-  Maybe<bool> mb =
-      ui->SetPrototype(env->context(), env->buffer_prototype_object());
-  if (mb.FromMaybe(false))
-    return scope.Escape(ui);
-  return Local<Object>();
+  return Buffer::New(env, ab, 0, length).FromMaybe(Local<Object>());
 }
 
 namespace {
