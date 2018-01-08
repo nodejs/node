@@ -539,6 +539,12 @@ class Http2Priority {
   nghttp2_priority_spec spec;
 };
 
+class Http2StreamListener : public StreamListener {
+ public:
+  uv_buf_t OnStreamAlloc(size_t suggested_size) override;
+  void OnStreamRead(ssize_t nread, const uv_buf_t& buf) override;
+};
+
 class Http2Stream : public AsyncWrap,
                     public StreamBase {
  public:
@@ -751,6 +757,8 @@ class Http2Stream : public AsyncWrap,
   int64_t fd_offset_ = 0;
   int64_t fd_length_ = -1;
 
+  Http2StreamListener stream_listener_;
+
   friend class Http2Session;
 };
 
@@ -802,7 +810,7 @@ class Http2Stream::Provider::Stream : public Http2Stream::Provider {
 };
 
 
-class Http2Session : public AsyncWrap {
+class Http2Session : public AsyncWrap, public StreamListener {
  public:
   Http2Session(Environment* env,
                Local<Object> wrap,
@@ -876,21 +884,11 @@ class Http2Session : public AsyncWrap {
 
   size_t self_size() const override { return sizeof(*this); }
 
-  char* stream_alloc() {
-    return stream_buf_;
-  }
-
   inline void GetTrailers(Http2Stream* stream, uint32_t* flags);
 
-  static void OnStreamAllocImpl(size_t suggested_size,
-                                uv_buf_t* buf,
-                                void* ctx);
-  static void OnStreamReadImpl(ssize_t nread,
-                               const uv_buf_t* bufs,
-                               uv_handle_type pending,
-                               void* ctx);
-  static void OnStreamAfterWriteImpl(WriteWrap* w, int status, void* ctx);
-  static void OnStreamDestructImpl(void* ctx);
+  // Handle reads/writes from the underlying network transport.
+  void OnStreamRead(ssize_t nread, const uv_buf_t& buf) override;
+  void OnStreamAfterWrite(WriteWrap* w, int status) override;
 
   // The JavaScript API
   static void New(const FunctionCallbackInfo<Value>& args);
@@ -1078,16 +1076,12 @@ class Http2Session : public AsyncWrap {
   int flags_ = SESSION_STATE_NONE;
 
   // The StreamBase instance being used for i/o
-  StreamBase* stream_;
-  StreamResource::Callback<StreamResource::AllocCb> prev_alloc_cb_;
-  StreamResource::Callback<StreamResource::ReadCb> prev_read_cb_;
   padding_strategy_type padding_strategy_ = PADDING_STRATEGY_NONE;
 
   // use this to allow timeout tracking during long-lasting writes
   uint32_t chunks_sent_since_last_write_ = 0;
 
-  char* stream_buf_ = nullptr;
-  size_t stream_buf_size_ = 0;
+  uv_buf_t stream_buf_ = uv_buf_init(nullptr, 0);
   v8::Local<v8::ArrayBuffer> stream_buf_ab_;
 
   size_t max_outstanding_pings_ = DEFAULT_MAX_PINGS;
@@ -1103,6 +1097,7 @@ class Http2Session : public AsyncWrap {
   void ClearOutgoing(int status);
 
   friend class Http2Scope;
+  friend class Http2StreamListener;
 };
 
 class Http2SessionPerformanceEntry : public PerformanceEntry {

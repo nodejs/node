@@ -33,7 +33,9 @@
 
 namespace node {
 
-class LibuvStreamWrap : public HandleWrap, public StreamBase {
+class LibuvStreamWrap : public HandleWrap,
+                        public StreamListener,
+                        public StreamBase {
  public:
   static void Initialize(v8::Local<v8::Object> target,
                          v8::Local<v8::Value> unused,
@@ -79,9 +81,6 @@ class LibuvStreamWrap : public HandleWrap, public StreamBase {
                   uv_stream_t* stream,
                   AsyncWrap::ProviderType provider);
 
-  ~LibuvStreamWrap() {
-  }
-
   AsyncWrap* GetAsyncWrap() override;
 
   static void AddMethods(Environment* env,
@@ -105,11 +104,16 @@ class LibuvStreamWrap : public HandleWrap, public StreamBase {
   static void AfterUvShutdown(uv_shutdown_t* req, int status);
 
   // Resource interface implementation
-  static void OnAllocImpl(size_t size, uv_buf_t* buf, void* ctx);
-  static void OnReadImpl(ssize_t nread,
-                         const uv_buf_t* buf,
-                         uv_handle_type pending,
-                         void* ctx);
+  void OnStreamRead(ssize_t nread,
+                    const uv_buf_t& buf) override {
+    CHECK(0 && "must not be called");
+  }
+  void OnStreamRead(ssize_t nread,
+                    const uv_buf_t& buf,
+                    uv_handle_type pending) override;
+  void OnStreamAfterWrite(WriteWrap* w, int status) override {
+    previous_listener_->OnStreamAfterWrite(w, status);
+  }
 
   void AfterWrite(WriteWrap* req_wrap, int status) override;
 
