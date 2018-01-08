@@ -39,6 +39,13 @@ added: v8.5.0
 If `name` is not provided, removes all `PerformanceFunction` objects from the
 Performance Timeline. If `name` is provided, removes entries with `name`.
 
+### performance.clearHttp2()
+<!-- YAML
+added: REPLACEME
+-->
+
+Remove all `http2` performance entry objects from the Performance Timeline.
+
 ### performance.clearMarks([name])
 <!-- YAML
 added: v8.5.0

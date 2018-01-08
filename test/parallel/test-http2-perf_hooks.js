@@ -6,7 +6,7 @@ if (!common.hasCrypto)
 const assert = require('assert');
 const h2 = require('http2');
 
-const { PerformanceObserver } = require('perf_hooks');
+const { PerformanceObserver, performance } = require('perf_hooks');
 
 const obs = new PerformanceObserver(common.mustCall((items) => {
   const entry = items.getEntries()[0];
@@ -46,6 +46,7 @@ const obs = new PerformanceObserver(common.mustCall((items) => {
     default:
       assert.fail('invalid entry name');
   }
+  performance.clearHttp2();
 }, 4));
 obs.observe({ entryTypes: ['http2'] });
 
@@ -100,3 +101,8 @@ server.on('listening', common.mustCall(() => {
   }));
 
 }));
+
+process.on('exit', () => {
+  // There shouldn't be any http2 entries left over.
+  assert.strictEqual(performance.getEntries().length, 1);
+});
