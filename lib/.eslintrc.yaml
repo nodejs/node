@@ -6,3 +6,4 @@ rules:
   buffer-constructor: error
   no-let-in-for-declaration: error
   lowercase-name-for-primitive: error
+  non-ascii-character: error
