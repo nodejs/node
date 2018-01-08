@@ -555,7 +555,7 @@ Provides miscellaneous information about the current state of the
   * `lastProcStreamID` {number} The numeric id of the `Http2Stream`
     for which a `HEADERS` or `DATA` frame was most recently received.
   * `remoteWindowSize` {number} The number of bytes that this `Http2Session`
-    may sent without receiving a `WINDOW_UPDATE`.
+    may send without receiving a `WINDOW_UPDATE`.
   * `outboundQueueSize` {number} The number of frames currently within the
     outbound queue for this `Http2Session`.
   * `deflateDynamicTableSize` {number} The current size in bytes of the
