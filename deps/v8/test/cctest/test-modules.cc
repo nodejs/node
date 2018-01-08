@@ -281,4 +281,115 @@ TEST(ModuleEvaluationCompletion2) {
   CHECK(!try_catch.HasCaught());
 }
 
+TEST(ModuleNamespace) {
+  Isolate* isolate = CcTest::isolate();
+  HandleScope scope(isolate);
+  LocalContext env;
+  v8::TryCatch try_catch(isolate);
+
+  Local<v8::Object> ReferenceError =
+      CompileRun("ReferenceError")->ToObject(env.local()).ToLocalChecked();
+
+  Local<String> source_text = v8_str(
+      "import {a, b} from 'export var a = 1; export let b = 2';"
+      "export function geta() {return a};"
+      "export function getb() {return b};"
+      "export let radio = 3;"
+      "export var gaga = 4;");
+  ScriptOrigin origin = ModuleOrigin(v8_str("file.js"), CcTest::isolate());
+  ScriptCompiler::Source source(source_text, origin);
+  Local<Module> module =
+      ScriptCompiler::CompileModule(isolate, &source).ToLocalChecked();
+  CHECK_EQ(Module::kUninstantiated, module->GetStatus());
+  CHECK(module
+            ->InstantiateModule(env.local(),
+                                CompileSpecifierAsModuleResolveCallback)
+            .FromJust());
+  CHECK_EQ(Module::kInstantiated, module->GetStatus());
+  Local<Value> ns = module->GetModuleNamespace();
+  CHECK_EQ(Module::kInstantiated, module->GetStatus());
+  Local<v8::Object> nsobj = ns->ToObject(env.local()).ToLocalChecked();
+
+  // a, b
+  CHECK(nsobj->Get(env.local(), v8_str("a")).ToLocalChecked()->IsUndefined());
+  CHECK(nsobj->Get(env.local(), v8_str("b")).ToLocalChecked()->IsUndefined());
+
+  // geta
+  {
+    auto geta = nsobj->Get(env.local(), v8_str("geta")).ToLocalChecked();
+    auto a = geta.As<v8::Function>()
+                 ->Call(env.local(), geta, 0, nullptr)
+                 .ToLocalChecked();
+    CHECK(a->IsUndefined());
+  }
+
+  // getb
+  {
+    v8::TryCatch inner_try_catch(isolate);
+    auto getb = nsobj->Get(env.local(), v8_str("getb")).ToLocalChecked();
+    CHECK(
+        getb.As<v8::Function>()->Call(env.local(), getb, 0, nullptr).IsEmpty());
+    CHECK(inner_try_catch.HasCaught());
+    CHECK(inner_try_catch.Exception()
+              ->InstanceOf(env.local(), ReferenceError)
+              .FromJust());
+  }
+
+  // radio
+  {
+    v8::TryCatch inner_try_catch(isolate);
+    // https://bugs.chromium.org/p/v8/issues/detail?id=7235
+    // CHECK(nsobj->Get(env.local(), v8_str("radio")).IsEmpty());
+    CHECK(nsobj->Get(env.local(), v8_str("radio"))
+              .ToLocalChecked()
+              ->IsUndefined());
+    CHECK(inner_try_catch.HasCaught());
+    CHECK(inner_try_catch.Exception()
+              ->InstanceOf(env.local(), ReferenceError)
+              .FromJust());
+  }
+
+  // gaga
+  {
+    auto gaga = nsobj->Get(env.local(), v8_str("gaga")).ToLocalChecked();
+    CHECK(gaga->IsUndefined());
+  }
+
+  CHECK(!try_catch.HasCaught());
+  CHECK_EQ(Module::kInstantiated, module->GetStatus());
+  module->Evaluate(env.local()).ToLocalChecked();
+  CHECK_EQ(Module::kEvaluated, module->GetStatus());
+
+  // geta
+  {
+    auto geta = nsobj->Get(env.local(), v8_str("geta")).ToLocalChecked();
+    auto a = geta.As<v8::Function>()
+                 ->Call(env.local(), geta, 0, nullptr)
+                 .ToLocalChecked();
+    CHECK_EQ(1, a->Int32Value(env.local()).FromJust());
+  }
+
+  // getb
+  {
+    auto getb = nsobj->Get(env.local(), v8_str("getb")).ToLocalChecked();
+    auto b = getb.As<v8::Function>()
+                 ->Call(env.local(), getb, 0, nullptr)
+                 .ToLocalChecked();
+    CHECK_EQ(2, b->Int32Value(env.local()).FromJust());
+  }
+
+  // radio
+  {
+    auto radio = nsobj->Get(env.local(), v8_str("radio")).ToLocalChecked();
+    CHECK_EQ(3, radio->Int32Value(env.local()).FromJust());
+  }
+
+  // gaga
+  {
+    auto gaga = nsobj->Get(env.local(), v8_str("gaga")).ToLocalChecked();
+    CHECK_EQ(4, gaga->Int32Value(env.local()).FromJust());
+  }
+
+  CHECK(!try_catch.HasCaught());
+}
 }  // anonymous namespace
