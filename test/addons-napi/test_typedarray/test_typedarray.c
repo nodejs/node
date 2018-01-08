@@ -97,11 +97,11 @@ napi_value External(napi_env env, napi_callback_info info) {
 }
 
 napi_value CreateTypedArray(napi_env env, napi_callback_info info) {
-  size_t argc = 2;
-  napi_value args[2];
+  size_t argc = 4;
+  napi_value args[4];
   NAPI_CALL(env, napi_get_cb_info(env, info, &argc, args, NULL, NULL));
 
-  NAPI_ASSERT(env, argc == 2, "Wrong number of arguments");
+  NAPI_ASSERT(env, argc == 2 || argc == 4, "Wrong number of arguments");
 
   napi_value input_array = args[0];
   napi_valuetype valuetype0;
@@ -135,6 +135,28 @@ napi_value CreateTypedArray(napi_env env, napi_callback_info info) {
   size_t length;
   NAPI_CALL(env, napi_get_typedarray_info(
       env, input_array, &type, &length, NULL, &in_array_buffer, &byte_offset));
+
+  if (argc == 4) {
+    napi_valuetype valuetype2;
+    NAPI_CALL(env, napi_typeof(env, args[2], &valuetype2));
+
+    NAPI_ASSERT(env, valuetype2 == napi_number,
+        "Wrong type of arguments. Expects a number as third argument.");
+
+    uint32_t uint32_length;
+    NAPI_CALL(env, napi_get_value_uint32(env, args[2], &uint32_length));
+    length = uint32_length;
+
+    napi_valuetype valuetype3;
+    NAPI_CALL(env, napi_typeof(env, args[3], &valuetype3));
+
+    NAPI_ASSERT(env, valuetype3 == napi_number,
+        "Wrong type of arguments. Expects a number as third argument.");
+
+    uint32_t uint32_byte_offset;
+    NAPI_CALL(env, napi_get_value_uint32(env, args[3], &uint32_byte_offset));
+    byte_offset = uint32_byte_offset;
+  }
 
   napi_value output_array;
   NAPI_CALL(env, napi_create_typedarray(

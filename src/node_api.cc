@@ -149,6 +149,30 @@ struct napi_env__ {
   (!try_catch.HasCaught() ? napi_ok \
                          : napi_set_last_error((env), napi_pending_exception))
 
+#define THROW_RANGE_ERROR_IF_FALSE(env, condition, error, message) \
+  do {                                                             \
+    if (!(condition)) {                                            \
+      napi_throw_range_error((env), (error), (message));           \
+      return napi_set_last_error((env), napi_generic_failure);     \
+    }                                                              \
+  } while (0)
+
+#define CREATE_TYPED_ARRAY(                                                    \
+    env, type, size_of_element, buffer, byte_offset, length, out)              \
+  do {                                                                         \
+    if ((size_of_element) > 1) {                                               \
+      THROW_RANGE_ERROR_IF_FALSE(                                              \
+          (env), (byte_offset) % (size_of_element) == 0,                       \
+          "ERR_NAPI_INVALID_TYPEDARRAY_ALIGNMENT",                             \
+          "start offset of "#type" should be a multiple of "#size_of_element); \
+    }                                                                          \
+    THROW_RANGE_ERROR_IF_FALSE((env), (length) * (size_of_element) +           \
+        (byte_offset) <= buffer->ByteLength(),                                 \
+        "ERR_NAPI_INVALID_TYPEDARRAY_LENGTH",                                  \
+        "Invalid typed array length");                                         \
+    (out) = v8::type::New((buffer), (byte_offset), (length));                  \
+  } while (0)
+
 namespace v8impl {
 
 // convert from n-api property attributes to v8::PropertyAttribute
@@ -3157,31 +3181,40 @@ napi_status napi_create_typedarray(napi_env env,
 
   switch (type) {
     case napi_int8_array:
-      typedArray = v8::Int8Array::New(buffer, byte_offset, length);
+      CREATE_TYPED_ARRAY(
+          env, Int8Array, 1, buffer, byte_offset, length, typedArray);
       break;
     case napi_uint8_array:
-      typedArray = v8::Uint8Array::New(buffer, byte_offset, length);
+      CREATE_TYPED_ARRAY(
+          env, Uint8Array, 1, buffer, byte_offset, length, typedArray);
       break;
     case napi_uint8_clamped_array:
-      typedArray = v8::Uint8ClampedArray::New(buffer, byte_offset, length);
+      CREATE_TYPED_ARRAY(
+          env, Uint8ClampedArray, 1, buffer, byte_offset, length, typedArray);
       break;
     case napi_int16_array:
-      typedArray = v8::Int16Array::New(buffer, byte_offset, length);
+      CREATE_TYPED_ARRAY(
+          env, Int16Array, 2, buffer, byte_offset, length, typedArray);
       break;
     case napi_uint16_array:
-      typedArray = v8::Uint16Array::New(buffer, byte_offset, length);
+      CREATE_TYPED_ARRAY(
+          env, Uint16Array, 2, buffer, byte_offset, length, typedArray);
       break;
     case napi_int32_array:
-      typedArray = v8::Int32Array::New(buffer, byte_offset, length);
+      CREATE_TYPED_ARRAY(
+          env, Int32Array, 4, buffer, byte_offset, length, typedArray);
       break;
     case napi_uint32_array:
-      typedArray = v8::Uint32Array::New(buffer, byte_offset, length);
+      CREATE_TYPED_ARRAY(
+          env, Uint32Array, 4, buffer, byte_offset, length, typedArray);
       break;
     case napi_float32_array:
-      typedArray = v8::Float32Array::New(buffer, byte_offset, length);
+      CREATE_TYPED_ARRAY(
+          env, Float32Array, 4, buffer, byte_offset, length, typedArray);
       break;
     case napi_float64_array:
-      typedArray = v8::Float64Array::New(buffer, byte_offset, length);
+      CREATE_TYPED_ARRAY(
+          env, Float64Array, 8, buffer, byte_offset, length, typedArray);
       break;
     default:
       return napi_set_last_error(env, napi_invalid_arg);
