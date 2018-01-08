@@ -739,8 +739,8 @@ req.on('response', (headers) => {
 
 When set, the `options.getTrailers()` function is called immediately after
 queuing the last chunk of payload data to be sent. The callback is passed a
-single object (with a `null` prototype) that the listener may use to specify
-the trailing header fields to send to the peer.
+single object that the listener may use to specify the trailing header fields
+to send to the peer.
 
 *Note*: The HTTP/1 specification forbids trailers from containing HTTP/2
 pseudo-header fields (e.g. `':method'`, `':path'`, etc). An `'error'` event
@@ -1198,8 +1198,8 @@ server.on('stream', (stream) => {
 
 When set, the `options.getTrailers()` function is called immediately after
 queuing the last chunk of payload data to be sent. The callback is passed a
-single object (with a `null` prototype) that the listener may use to specify
-the trailing header fields to send to the peer.
+single object that the listener may use to specify the trailing header fields
+to send to the peer.
 
 ```js
 const http2 = require('http2');
@@ -1272,8 +1272,8 @@ requests.
 
 When set, the `options.getTrailers()` function is called immediately after
 queuing the last chunk of payload data to be sent. The callback is passed a
-single object (with a `null` prototype) that the listener may use to specify
-the trailing header fields to send to the peer.
+single object that the listener may use to specify the trailing header fields
+to send to the peer.
 
 ```js
 const http2 = require('http2');
@@ -1391,8 +1391,8 @@ default behavior is to destroy the stream.
 
 When set, the `options.getTrailers()` function is called immediately after
 queuing the last chunk of payload data to be sent. The callback is passed a
-single object (with a `null` prototype) that the listener may use to specify
-the trailing header fields to send to the peer.
+single object that the listener may use to specify the trailing header fields
+to send to the peer.
 
 ```js
 const http2 = require('http2');
@@ -1967,11 +1967,6 @@ const headers = {
 
 stream.respond(headers);
 ```
-
-*Note*: Header objects passed to callback functions will have a `null`
-prototype. This means that normal JavaScript object methods such as
-`Object.prototype.toString()` and `Object.prototype.hasOwnProperty()` will
-not work.
 
 ```js
 const http2 = require('http2');
