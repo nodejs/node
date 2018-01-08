@@ -1502,7 +1502,7 @@ static Local<Value> ExecuteString(Environment* env,
 
   // try_catch must be nonverbose to disable FatalException() handler,
   // we will handle exceptions ourself.
-  try_catch.SetVerbose(false);
+  CHECK_EQ(false, try_catch.IsVerbose());
 
   ScriptOrigin origin(filename);
   MaybeLocal<v8::Script> script =
@@ -2392,7 +2392,7 @@ void FatalException(Isolate* isolate,
     TryCatch fatal_try_catch(isolate);
 
     // Do not call FatalException when _fatalException handler throws
-    fatal_try_catch.SetVerbose(false);
+    CHECK_EQ(false, fatal_try_catch.IsVerbose());
 
     // this will return true if the JS layer handled it, false otherwise
     Local<Value> caught =
@@ -3377,10 +3377,10 @@ void LoadEnvironment(Environment* env) {
 
   TryCatch try_catch(env->isolate());
 
-  // Disable verbose mode to stop FatalException() handler from trying
+  // By default verbose is false to stop FatalException() handler from trying
   // to handle the exception. Errors this early in the start-up phase
   // are not safe to ignore.
-  try_catch.SetVerbose(false);
+  CHECK_EQ(false, try_catch.IsVerbose());
 
   // Execute the lib/internal/bootstrap_node.js file which was included as a
   // static C string in node_natives.h by node_js2c.
