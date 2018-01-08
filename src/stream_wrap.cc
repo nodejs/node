@@ -93,8 +93,7 @@ LibuvStreamWrap::LibuvStreamWrap(Environment* env,
                  provider),
       StreamBase(env),
       stream_(stream) {
-  set_alloc_cb({ OnAllocImpl, this });
-  set_read_cb({ OnReadImpl, this });
+  PushStreamListener(this);
 }
 
 
@@ -157,22 +156,17 @@ int LibuvStreamWrap::ReadStop() {
 
 
 void LibuvStreamWrap::OnAlloc(uv_handle_t* handle,
-                         size_t suggested_size,
-                         uv_buf_t* buf) {
+                              size_t suggested_size,
+                              uv_buf_t* buf) {
   LibuvStreamWrap* wrap = static_cast<LibuvStreamWrap*>(handle->data);
   HandleScope scope(wrap->env()->isolate());
   Context::Scope context_scope(wrap->env()->context());
 
   CHECK_EQ(wrap->stream(), reinterpret_cast<uv_stream_t*>(handle));
 
-  return wrap->EmitAlloc(suggested_size, buf);
+  *buf = wrap->EmitAlloc(suggested_size);
 }
 
-
-void LibuvStreamWrap::OnAllocImpl(size_t size, uv_buf_t* buf, void* ctx) {
-  buf->base = node::Malloc(size);
-  buf->len = size;
-}
 
 
 template <class WrapType, class UVType>
@@ -196,51 +190,41 @@ static Local<Object> AcceptHandle(Environment* env, LibuvStreamWrap* parent) {
 }
 
 
-void LibuvStreamWrap::OnReadImpl(ssize_t nread,
-                            const uv_buf_t* buf,
-                            uv_handle_type pending,
-                            void* ctx) {
-  LibuvStreamWrap* wrap = static_cast<LibuvStreamWrap*>(ctx);
-  Environment* env = wrap->env();
-  HandleScope handle_scope(env->isolate());
-  Context::Scope context_scope(env->context());
+void LibuvStreamWrap::OnStreamRead(ssize_t nread,
+                                   const uv_buf_t& buf,
+                                   uv_handle_type pending) {
+  HandleScope handle_scope(env()->isolate());
+  Context::Scope context_scope(env()->context());
+
+  if (nread <= 0) {
+    free(buf.base);
+    if (nread < 0)
+      CallJSOnreadMethod(nread, Local<Object>());
+    return;
+  }
+
+  CHECK_LE(static_cast<size_t>(nread), buf.len);
 
   Local<Object> pending_obj;
 
-  if (nread < 0)  {
-    if (buf->base != nullptr)
-      free(buf->base);
-    wrap->EmitData(nread, Local<Object>(), pending_obj);
-    return;
-  }
-
-  if (nread == 0) {
-    if (buf->base != nullptr)
-      free(buf->base);
-    return;
-  }
-
-  CHECK_LE(static_cast<size_t>(nread), buf->len);
-  char* base = node::Realloc(buf->base, nread);
-
   if (pending == UV_TCP) {
-    pending_obj = AcceptHandle<TCPWrap, uv_tcp_t>(env, wrap);
+    pending_obj = AcceptHandle<TCPWrap, uv_tcp_t>(env(), this);
   } else if (pending == UV_NAMED_PIPE) {
-    pending_obj = AcceptHandle<PipeWrap, uv_pipe_t>(env, wrap);
+    pending_obj = AcceptHandle<PipeWrap, uv_pipe_t>(env(), this);
   } else if (pending == UV_UDP) {
-    pending_obj = AcceptHandle<UDPWrap, uv_udp_t>(env, wrap);
+    pending_obj = AcceptHandle<UDPWrap, uv_udp_t>(env(), this);
   } else {
     CHECK_EQ(pending, UV_UNKNOWN_HANDLE);
   }
 
-  Local<Object> obj = Buffer::New(env, base, nread).ToLocalChecked();
-  wrap->EmitData(nread, obj, pending_obj);
+  Local<Object> obj = Buffer::New(env(), buf.base, nread).ToLocalChecked();
+  CallJSOnreadMethod(nread, obj, pending_obj);
 }
 
 
 void LibuvStreamWrap::OnRead(uv_stream_t* handle,
-                        ssize_t nread,
-                        const uv_buf_t* buf) {
+                             ssize_t nread,
+                             const uv_buf_t* buf) {
   LibuvStreamWrap* wrap = static_cast<LibuvStreamWrap*>(handle->data);
   HandleScope scope(wrap->env()->isolate());
   Context::Scope context_scope(wrap->env()->context());
@@ -263,7 +247,7 @@ void LibuvStreamWrap::OnRead(uv_stream_t* handle,
     }
   }
 
-  wrap->EmitRead(nread, buf, type);
+  wrap->EmitRead(nread, *buf, type);
 }
 
 

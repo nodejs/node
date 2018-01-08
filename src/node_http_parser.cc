@@ -144,7 +144,7 @@ struct StringPtr {
 };
 
 
-class Parser : public AsyncWrap {
+class Parser : public AsyncWrap, public StreamListener {
  public:
   Parser(Environment* env, Local<Object> wrap, enum http_parser_type type)
       : AsyncWrap(env, wrap, AsyncWrap::PROVIDER_HTTPPARSER),
@@ -494,14 +494,7 @@ class Parser : public AsyncWrap {
     Local<External> stream_obj = args[0].As<External>();
     StreamBase* stream = static_cast<StreamBase*>(stream_obj->Value());
     CHECK_NE(stream, nullptr);
-
-    stream->Consume();
-
-    parser->prev_alloc_cb_ = stream->alloc_cb();
-    parser->prev_read_cb_ = stream->read_cb();
-
-    stream->set_alloc_cb({ OnAllocImpl, parser });
-    stream->set_read_cb({ OnReadImpl, parser });
+    stream->PushStreamListener(parser);
   }
 
 
@@ -510,22 +503,10 @@ class Parser : public AsyncWrap {
     ASSIGN_OR_RETURN_UNWRAP(&parser, args.Holder());
 
     // Already unconsumed
-    if (parser->prev_alloc_cb_.is_empty())
+    if (parser->stream_ == nullptr)
       return;
 
-    // Restore stream's callbacks
-    if (args.Length() == 1 && args[0]->IsExternal()) {
-      Local<External> stream_obj = args[0].As<External>();
-      StreamBase* stream = static_cast<StreamBase*>(stream_obj->Value());
-      CHECK_NE(stream, nullptr);
-
-      stream->set_alloc_cb(parser->prev_alloc_cb_);
-      stream->set_read_cb(parser->prev_read_cb_);
-      stream->Unconsume();
-    }
-
-    parser->prev_alloc_cb_.clear();
-    parser->prev_read_cb_.clear();
+    parser->stream_->RemoveStreamListener(parser);
   }
 
 
@@ -544,33 +525,19 @@ class Parser : public AsyncWrap {
  protected:
   static const size_t kAllocBufferSize = 64 * 1024;
 
-  static void OnAllocImpl(size_t suggested_size, uv_buf_t* buf, void* ctx) {
-    Parser* parser = static_cast<Parser*>(ctx);
-    Environment* env = parser->env();
+  uv_buf_t OnStreamAlloc(size_t suggested_size) override {
+    if (env()->http_parser_buffer() == nullptr)
+      env()->set_http_parser_buffer(new char[kAllocBufferSize]);
 
-    if (env->http_parser_buffer() == nullptr)
-      env->set_http_parser_buffer(new char[kAllocBufferSize]);
-
-    buf->base = env->http_parser_buffer();
-    buf->len = kAllocBufferSize;
+    return uv_buf_init(env()->http_parser_buffer(), kAllocBufferSize);
   }
 
 
-  static void OnReadImpl(ssize_t nread,
-                         const uv_buf_t* buf,
-                         uv_handle_type pending,
-                         void* ctx) {
-    Parser* parser = static_cast<Parser*>(ctx);
-    HandleScope scope(parser->env()->isolate());
+  void OnStreamRead(ssize_t nread, const uv_buf_t& buf) override {
+    HandleScope scope(env()->isolate());
 
     if (nread < 0) {
-      uv_buf_t tmp_buf;
-      tmp_buf.base = nullptr;
-      tmp_buf.len = 0;
-      parser->prev_read_cb_.fn(nread,
-                               &tmp_buf,
-                               pending,
-                               parser->prev_read_cb_.ctx);
+      PassReadErrorToPreviousListener(nread);
       return;
     }
 
@@ -578,27 +545,27 @@ class Parser : public AsyncWrap {
     if (nread == 0)
       return;
 
-    parser->current_buffer_.Clear();
-    Local<Value> ret = parser->Execute(buf->base, nread);
+    current_buffer_.Clear();
+    Local<Value> ret = Execute(buf.base, nread);
 
     // Exception
     if (ret.IsEmpty())
       return;
 
-    Local<Object> obj = parser->object();
-    Local<Value> cb = obj->Get(kOnExecute);
+    Local<Value> cb =
+        object()->Get(env()->context(), kOnExecute).ToLocalChecked();
 
     if (!cb->IsFunction())
       return;
 
     // Hooks for GetCurrentBuffer
-    parser->current_buffer_len_ = nread;
-    parser->current_buffer_data_ = buf->base;
+    current_buffer_len_ = nread;
+    current_buffer_data_ = buf.base;
 
-    parser->MakeCallback(cb.As<Function>(), 1, &ret);
+    MakeCallback(cb.As<Function>(), 1, &ret);
 
-    parser->current_buffer_len_ = 0;
-    parser->current_buffer_data_ = nullptr;
+    current_buffer_len_ = 0;
+    current_buffer_data_ = nullptr;
   }
 
 
@@ -713,8 +680,6 @@ class Parser : public AsyncWrap {
   Local<Object> current_buffer_;
   size_t current_buffer_len_;
   char* current_buffer_data_;
-  StreamResource::Callback<StreamResource::AllocCb> prev_alloc_cb_;
-  StreamResource::Callback<StreamResource::ReadCb> prev_read_cb_;
 
   // These are helper functions for filling `http_parser_settings`, which turn
   // a member function of Parser into a C-style HTTP parser callback.

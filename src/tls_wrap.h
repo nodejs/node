@@ -48,7 +48,8 @@ class NodeBIO;
 
 class TLSWrap : public AsyncWrap,
                 public crypto::SSLWrap<TLSWrap>,
-                public StreamBase {
+                public StreamBase,
+                public StreamListener {
  public:
   ~TLSWrap() override;
 
@@ -76,8 +77,6 @@ class TLSWrap : public AsyncWrap,
 
   size_t self_size() const override { return sizeof(*this); }
 
-  void clear_stream() { stream_ = nullptr; }
-
  protected:
   static const int kClearOutChunkSize = 16384;
 
@@ -98,7 +97,6 @@ class TLSWrap : public AsyncWrap,
   static void SSLInfoCallback(const SSL* ssl_, int where, int ret);
   void InitSSL();
   void EncOut();
-  void EncOutAfterWrite(WriteWrap* req_wrap, int status);
   bool ClearIn();
   void ClearOut();
   bool InvokeQueued(int status, const char* error_str = nullptr);
@@ -119,20 +117,9 @@ class TLSWrap : public AsyncWrap,
   bool IsIPCPipe() override;
 
   // Resource implementation
-  static void OnAfterWriteImpl(WriteWrap* w, int status, void* ctx);
-  static void OnAllocImpl(size_t size, uv_buf_t* buf, void* ctx);
-  static void OnReadImpl(ssize_t nread,
-                         const uv_buf_t* buf,
-                         uv_handle_type pending,
-                         void* ctx);
-  static void OnAllocSelf(size_t size, uv_buf_t* buf, void* ctx);
-  static void OnReadSelf(ssize_t nread,
-                         const uv_buf_t* buf,
-                         uv_handle_type pending,
-                         void* ctx);
-  static void OnDestructImpl(void* ctx);
-
-  void DoRead(ssize_t nread, const uv_buf_t* buf, uv_handle_type pending);
+  void OnStreamAfterWrite(WriteWrap* w, int status) override;
+  uv_buf_t OnStreamAlloc(size_t size) override;
+  void OnStreamRead(ssize_t nread, const uv_buf_t& buf) override;
 
   v8::Local<v8::Value> GetSSLError(int status, int* err, std::string* msg);
 
@@ -154,7 +141,6 @@ class TLSWrap : public AsyncWrap,
 #endif  // SSL_CTRL_SET_TLSEXT_SERVERNAME_CB
 
   crypto::SecureContext* sc_;
-  StreamBase* stream_;
   BIO* enc_in_;
   BIO* enc_out_;
   std::vector<uv_buf_t> pending_cleartext_input_;
