@@ -29,6 +29,7 @@
 #include "node_buffer.h"
 #include "node_wrap.h"
 #include "connect_wrap.h"
+#include "stream_base-inl.h"
 #include "stream_wrap.h"
 #include "util-inl.h"
 

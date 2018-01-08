@@ -22,6 +22,7 @@
 #include "env-inl.h"
 #include "handle_wrap.h"
 #include "node_wrap.h"
+#include "stream_base-inl.h"
 #include "util-inl.h"
 
 #include <string.h>
