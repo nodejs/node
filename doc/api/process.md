@@ -1245,6 +1245,22 @@ process.kill(process.pid, 'SIGHUP');
 When `SIGUSR1` is received by a Node.js process, Node.js will start the
 debugger, see [Signal Events][].
 
+## process.libc
+<!-- YAML
+added:
+-->
+
+* {string}
+
+The `process.libc` property returns the C standard library used to compile
+the Node.js binary. For instance `glibc` or `musl`.
+
+<!-- eslint-disable semi -->
+```js
+console.log(`This binary was compiled using ${process.libc}`);
+```
+
+
 ## process.mainModule
 <!-- YAML
 added: v0.1.17
