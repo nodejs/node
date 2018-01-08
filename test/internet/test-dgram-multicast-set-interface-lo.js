@@ -22,7 +22,6 @@ if (common.isSunOS) {
 }
 
 const networkInterfaces = require('os').networkInterfaces();
-const Buffer = require('buffer').Buffer;
 const fork = require('child_process').fork;
 const MULTICASTS = {
   IPv4: ['224.0.0.115', '224.0.0.116', '224.0.0.117'],
