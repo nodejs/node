@@ -14,6 +14,7 @@ COVTESTS ?= test-cov
 GTEST_FILTER ?= "*"
 GNUMAKEFLAGS += --no-print-directory
 GCOV ?= gcov
+PWD = $(CURDIR)
 
 ifdef JOBS
   PARALLEL_ARGS = -j $(JOBS)
@@ -584,7 +585,7 @@ out/doc/api/assets/%: doc/api_assets/% out/doc/api/assets
 available-node = \
   if [ -x $(PWD)/$(NODE) ] && [ -e $(PWD)/$(NODE) ]; then \
 		$(PWD)/$(NODE) $(1); \
-	elif [ -x `which node` ] && [ -e `which node` ]; then \
+	elif [ -x `which node` ] && [ -e `which node` ] && [ `which node` ]; then \
 		`which node` $(1); \
 	else \
 		echo "No available node, cannot run \"node $(1)\""; \
