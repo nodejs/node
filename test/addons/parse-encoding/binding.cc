@@ -14,7 +14,14 @@ namespace {
 
 static_assert(node::BINARY == node::LATIN1, "BINARY == LATIN1");
 
-void ParseEncoding(const v8::FunctionCallbackInfo<v8::Value>& args) {
+using v8::FunctionCallbackInfo;
+using v8::NewStringType;
+using v8::Object;
+using v8::String;
+using v8::Local;
+using v8::Value;
+
+void ParseEncoding(const FunctionCallbackInfo<Value>& args) {
   const node::encoding encoding =
       node::ParseEncoding(args.GetIsolate(), args[0],
                           static_cast<node::encoding>(-1));
@@ -23,13 +30,13 @@ void ParseEncoding(const v8::FunctionCallbackInfo<v8::Value>& args) {
   ENCODING_MAP(V)
 #undef V
   auto encoding_string =
-      v8::String::NewFromUtf8(args.GetIsolate(), encoding_name,
-                              v8::NewStringType::kNormal)
+      String::NewFromUtf8(args.GetIsolate(), encoding_name,
+                              NewStringType::kNormal)
       .ToLocalChecked();
   args.GetReturnValue().Set(encoding_string);
 }
 
-void Initialize(v8::Local<v8::Object> exports) {
+void Initialize(Local<Object> exports) {
   NODE_SET_METHOD(exports, "parseEncoding", ParseEncoding);
 }
 

@@ -7,8 +7,20 @@
 
 namespace {
 
-void RunInCallbackScope(const v8::FunctionCallbackInfo<v8::Value>& args) {
-  v8::Isolate* isolate = args.GetIsolate();
+using v8::Isolate;
+using v8::FunctionCallbackInfo;
+using v8::Number;
+using v8::Local;
+using v8::MaybeLocal;
+using v8::Function;
+using v8::Persistent;
+using v8::Promise;
+using v8::HandleScope;
+using v8::Object;
+
+
+void RunInCallbackScope(const FunctionCallbackInfo<v8::Value>& args) {
+  Isolate* isolate = args.GetIsolate();
 
   assert(args.Length() == 4);
   assert(args[0]->IsObject());
@@ -17,38 +29,38 @@ void RunInCallbackScope(const v8::FunctionCallbackInfo<v8::Value>& args) {
   assert(args[3]->IsFunction());
 
   node::async_context asyncContext = {
-    args[1].As<v8::Number>()->Value(),
-    args[2].As<v8::Number>()->Value()
+    args[1].As<Number>()->Value(),
+    args[2].As<Number>()->Value()
   };
 
-  node::CallbackScope scope(isolate, args[0].As<v8::Object>(), asyncContext);
-  v8::Local<v8::Function> fn = args[3].As<v8::Function>();
+  node::CallbackScope scope(isolate, args[0].As<Object>(), asyncContext);
+  Local<Function> fn = args[3].As<Function>();
 
-  v8::MaybeLocal<v8::Value> ret =
+  MaybeLocal<v8::Value> ret =
       fn->Call(isolate->GetCurrentContext(), args[0], 0, nullptr);
 
   if (!ret.IsEmpty())
     args.GetReturnValue().Set(ret.ToLocalChecked());
 }
 
-static v8::Persistent<v8::Promise::Resolver> persistent;
+static Persistent<Promise::Resolver> persistent;
 
 static void Callback(uv_work_t* req, int ignored) {
-  v8::Isolate* isolate = v8::Isolate::GetCurrent();
-  v8::HandleScope scope(isolate);
-  node::CallbackScope callback_scope(isolate, v8::Object::New(isolate), {0, 0});
+  Isolate* isolate = Isolate::GetCurrent();
+  HandleScope scope(isolate);
+  node::CallbackScope callback_scope(isolate, Object::New(isolate), {0, 0});
 
-  v8::Local<v8::Promise::Resolver> local =
-      v8::Local<v8::Promise::Resolver>::New(isolate, persistent);
+  Local<Promise::Resolver> local =
+      Local<Promise::Resolver>::New(isolate, persistent);
   local->Resolve(v8::Undefined(isolate));
   delete req;
 }
 
-static void TestResolveAsync(const v8::FunctionCallbackInfo<v8::Value>& args) {
-  v8::Isolate* isolate = args.GetIsolate();
+static void TestResolveAsync(const FunctionCallbackInfo<v8::Value>& args) {
+  Isolate* isolate = args.GetIsolate();
 
   if (persistent.IsEmpty()) {
-    persistent.Reset(isolate, v8::Promise::Resolver::New(isolate));
+    persistent.Reset(isolate, Promise::Resolver::New(isolate));
 
     uv_work_t* req = new uv_work_t;
 
@@ -58,13 +70,13 @@ static void TestResolveAsync(const v8::FunctionCallbackInfo<v8::Value>& args) {
                   Callback);
   }
 
-  v8::Local<v8::Promise::Resolver> local =
-      v8::Local<v8::Promise::Resolver>::New(isolate, persistent);
+  Local<Promise::Resolver> local =
+      Local<Promise::Resolver>::New(isolate, persistent);
 
   args.GetReturnValue().Set(local->GetPromise());
 }
 
-void Initialize(v8::Local<v8::Object> exports) {
+void Initialize(Local<Object> exports) {
   NODE_SET_METHOD(exports, "runInCallbackScope", RunInCallbackScope);
   NODE_SET_METHOD(exports, "testResolveAsync", TestResolveAsync);
 }

@@ -5,11 +5,16 @@
 
 namespace {
 
-inline void Initialize(v8::Local<v8::Object> exports,
-                       v8::Local<v8::Value> module,
-                       v8::Local<v8::Context> context) {
+using v8::Local;
+using v8::String;
+using v8::Value;
+using v8::Context;
+
+inline void Initialize(Local<Object> exports,
+                       Local<Value> module,
+                       Local<Context> context) {
 }
 
-}
+}  // namespace
 
 NODE_MODULE_CONTEXT_AWARE(NODE_GYP_MODULE_NAME, Initialize)

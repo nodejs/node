@@ -4,9 +4,19 @@
 
 namespace {
 
-inline void RandomBytes(const v8::FunctionCallbackInfo<v8::Value>& info) {
+using v8::FunctionCallbackInfo;
+using v8::FunctionTemplate;
+using v8::ArrayBufferView;
+using v8::Object;
+using v8::Context;
+using v8::String;
+using v8::Local;
+using v8::Value;
+
+
+inline void RandomBytes(const FunctionCallbackInfo<Value>& info) {
   assert(info[0]->IsArrayBufferView());
-  auto view = info[0].As<v8::ArrayBufferView>();
+  auto view = info[0].As<ArrayBufferView>();
   auto byte_offset = view->ByteOffset();
   auto byte_length = view->ByteLength();
   assert(view->HasBuffer());
@@ -18,12 +28,12 @@ inline void RandomBytes(const v8::FunctionCallbackInfo<v8::Value>& info) {
   info.GetReturnValue().Set(rval > 0);
 }
 
-inline void Initialize(v8::Local<v8::Object> exports,
-                       v8::Local<v8::Value> module,
-                       v8::Local<v8::Context> context) {
+inline void Initialize(Local<Object> exports,
+                       Local<Value> module,
+                       Local<Context> context) {
   auto isolate = context->GetIsolate();
-  auto key = v8::String::NewFromUtf8(isolate, "randomBytes");
-  auto value = v8::FunctionTemplate::New(isolate, RandomBytes)->GetFunction();
+  auto key = String::NewFromUtf8(isolate, "randomBytes");
+  auto value = FunctionTemplate::New(isolate, RandomBytes)->GetFunction();
   assert(exports->Set(context, key, value).IsJust());
 }
 
