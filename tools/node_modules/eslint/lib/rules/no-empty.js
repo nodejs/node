@@ -19,7 +19,8 @@ module.exports = {
         docs: {
             description: "disallow empty block statements",
             category: "Possible Errors",
-            recommended: true
+            recommended: true,
+            url: "https://eslint.org/docs/rules/no-empty"
         },
 
         schema: [

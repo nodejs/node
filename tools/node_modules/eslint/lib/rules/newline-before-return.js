@@ -15,7 +15,8 @@ module.exports = {
             description: "require an empty line before `return` statements",
             category: "Stylistic Issues",
             recommended: false,
-            replacedBy: ["padding-line-between-statements"]
+            replacedBy: ["padding-line-between-statements"],
+            url: "https://eslint.org/docs/rules/newline-before-return"
         },
         fixable: "whitespace",
         schema: [],

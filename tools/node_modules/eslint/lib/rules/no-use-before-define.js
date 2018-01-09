@@ -139,7 +139,8 @@ module.exports = {
         docs: {
             description: "disallow the use of variables before they are defined",
             category: "Variables",
-            recommended: false
+            recommended: false,
+            url: "https://eslint.org/docs/rules/no-use-before-define"
         },
 
         schema: [

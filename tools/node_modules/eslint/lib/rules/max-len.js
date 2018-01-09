@@ -68,7 +68,8 @@ module.exports = {
         docs: {
             description: "enforce a maximum line length",
             category: "Stylistic Issues",
-            recommended: false
+            recommended: false,
+            url: "https://eslint.org/docs/rules/max-len"
         },
 
         schema: [

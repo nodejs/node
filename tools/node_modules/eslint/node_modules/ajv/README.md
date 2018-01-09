@@ -74,7 +74,7 @@ Currently Ajv is the fastest and the most standard compliant validator according
 
 Performance of different validators by [json-schema-benchmark](https://github.com/ebdrup/json-schema-benchmark):
 
-[![performance](https://chart.googleapis.com/chart?chxt=x,y&cht=bhs&chco=76A4FB&chls=2.0&chbh=32,4,1&chs=600x416&chxl=-1:%7Cajv%7Cis-my-json-valid%7Cjsen%7Cschemasaurus%7Cthemis%7Cz-schema%7Cjsck%7Cjsonschema%7Cskeemas%7Ctv4%7Cjayschema&chd=t:100,68,61,22.8,17.6,6.6,2.7,0.9,0.7,0.4,0.1)](https://github.com/ebdrup/json-schema-benchmark/blob/master/README.md#performance)
+[![performance](https://chart.googleapis.com/chart?chxt=x,y&cht=bhs&chco=76A4FB&chls=2.0&chbh=32,4,1&chs=600x416&chxl=-1:|djv|ajv|json-schema-validator-generator|jsen|is-my-json-valid|themis|z-schema|jsck|skeemas|json-schema-library|tv4&chd=t:100,98,72.1,66.8,50.1,15.1,6.1,3.8,1.2,0.7,0.2)](https://github.com/ebdrup/json-schema-benchmark/blob/master/README.md#performance)
 
 
 ## Features

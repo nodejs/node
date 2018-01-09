@@ -15,7 +15,8 @@ module.exports = {
         docs: {
             description: "enforce consistent spacing inside array brackets",
             category: "Stylistic Issues",
-            recommended: false
+            recommended: false,
+            url: "https://eslint.org/docs/rules/array-bracket-spacing"
         },
         fixable: "whitespace",
         schema: [

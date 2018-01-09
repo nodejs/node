@@ -20,7 +20,8 @@ module.exports = {
         docs: {
             description: "require the use of `===` and `!==`",
             category: "Best Practices",
-            recommended: false
+            recommended: false,
+            url: "https://eslint.org/docs/rules/eqeqeq"
         },
 
         schema: {

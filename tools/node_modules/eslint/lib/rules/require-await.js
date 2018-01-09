@@ -34,7 +34,8 @@ module.exports = {
         docs: {
             description: "disallow async functions which have no `await` expression",
             category: "Best Practices",
-            recommended: false
+            recommended: false,
+            url: "https://eslint.org/docs/rules/require-await"
         },
         schema: []
     },

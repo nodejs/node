@@ -22,7 +22,8 @@ module.exports = {
             description: "require or disallow an empty line after variable declarations",
             category: "Stylistic Issues",
             recommended: false,
-            replacedBy: ["padding-line-between-statements"]
+            replacedBy: ["padding-line-between-statements"],
+            url: "https://eslint.org/docs/rules/newline-after-var"
         },
 
         schema: [

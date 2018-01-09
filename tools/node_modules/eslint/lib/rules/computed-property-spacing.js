@@ -15,7 +15,8 @@ module.exports = {
         docs: {
             description: "enforce consistent spacing inside computed property brackets",
             category: "Stylistic Issues",
-            recommended: false
+            recommended: false,
+            url: "https://eslint.org/docs/rules/computed-property-spacing"
         },
 
         fixable: "whitespace",

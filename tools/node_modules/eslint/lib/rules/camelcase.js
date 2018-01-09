@@ -14,7 +14,8 @@ module.exports = {
         docs: {
             description: "enforce camelcase naming convention",
             category: "Stylistic Issues",
-            recommended: false
+            recommended: false,
+            url: "https://eslint.org/docs/rules/camelcase"
         },
 
         schema: [
@@ -92,34 +93,45 @@ module.exports = {
                     }
 
                     // Always report underscored object names
-                    if (node.parent.object.type === "Identifier" &&
-                            node.parent.object.name === node.name &&
-                            isUnderscored(name)) {
+                    if (node.parent.object.type === "Identifier" && node.parent.object.name === node.name && isUnderscored(name)) {
                         report(node);
 
                     // Report AssignmentExpressions only if they are the left side of the assignment
-                    } else if (effectiveParent.type === "AssignmentExpression" &&
-                            isUnderscored(name) &&
-                            (effectiveParent.right.type !== "MemberExpression" ||
-                            effectiveParent.left.type === "MemberExpression" &&
-                            effectiveParent.left.property.name === node.name)) {
+                    } else if (effectiveParent.type === "AssignmentExpression" && isUnderscored(name) && (effectiveParent.right.type !== "MemberExpression" || effectiveParent.left.type === "MemberExpression" && effectiveParent.left.property.name === node.name)) {
                         report(node);
                     }
 
-                // Properties have their own rules
-                } else if (node.parent.type === "Property") {
+                /*
+                 * Properties have their own rules, and
+                 * AssignmentPattern nodes can be treated like Properties:
+                 * e.g.: const { no_camelcased = false } = bar;
+                 */
+                } else if (node.parent.type === "Property" || node.parent.type === "AssignmentPattern") {
+
+                    if (node.parent.parent && node.parent.parent.type === "ObjectPattern") {
+
+                        if (node.parent.shorthand && node.parent.value.left && isUnderscored(name)) {
+
+                            report(node);
+                        }
+
+                        // prevent checking righthand side of destructured object
+                        if (node.parent.key === node && node.parent.value !== node) {
+                            return;
+                        }
+
+                        if (node.parent.value.name && isUnderscored(name)) {
+                            report(node);
+                        }
+                    }
 
                     // "never" check properties
                     if (properties === "never") {
                         return;
                     }
 
-                    if (node.parent.parent && node.parent.parent.type === "ObjectPattern" &&
-                            node.parent.key === node && node.parent.value !== node) {
-                        return;
-                    }
-
-                    if (isUnderscored(name) && !ALLOWED_PARENT_TYPES.has(effectiveParent.type)) {
+                    // don't check right hand side of AssignmentExpression to prevent duplicate warnings
+                    if (isUnderscored(name) && !ALLOWED_PARENT_TYPES.has(effectiveParent.type) && !(node.parent.right === node)) {
                         report(node);
                     }
 

@@ -74,7 +74,8 @@ module.exports = {
         docs: {
             description: "disallow mixed binary operators",
             category: "Stylistic Issues",
-            recommended: false
+            recommended: false,
+            url: "https://eslint.org/docs/rules/no-mixed-operators"
         },
         schema: [
             {

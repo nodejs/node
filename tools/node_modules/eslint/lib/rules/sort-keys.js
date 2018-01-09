@@ -76,7 +76,8 @@ module.exports = {
         docs: {
             description: "require object keys to be sorted",
             category: "Stylistic Issues",
-            recommended: false
+            recommended: false,
+            url: "https://eslint.org/docs/rules/sort-keys"
         },
         schema: [
             {

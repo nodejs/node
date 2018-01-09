@@ -18,7 +18,8 @@ module.exports = {
             description: "require or disallow newlines around directives",
             category: "Stylistic Issues",
             recommended: false,
-            replacedBy: ["padding-line-between-statements"]
+            replacedBy: ["padding-line-between-statements"],
+            url: "https://eslint.org/docs/rules/lines-around-directive"
         },
         schema: [{
             oneOf: [

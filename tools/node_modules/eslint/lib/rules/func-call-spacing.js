@@ -20,7 +20,8 @@ module.exports = {
         docs: {
             description: "require or disallow spacing between function identifiers and their invocations",
             category: "Stylistic Issues",
-            recommended: false
+            recommended: false,
+            url: "https://eslint.org/docs/rules/func-call-spacing"
         },
 
         fixable: "whitespace",

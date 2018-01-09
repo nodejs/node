@@ -13,7 +13,8 @@ module.exports = {
         docs: {
             description: "enforce consistent naming when capturing the current execution context",
             category: "Stylistic Issues",
-            recommended: false
+            recommended: false,
+            url: "https://eslint.org/docs/rules/consistent-this"
         },
 
         schema: {

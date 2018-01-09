@@ -84,13 +84,30 @@ class SourceCode extends TokenStore {
 
     /**
      * Represents parsed source code.
-     * @param {string} text - The source code text.
-     * @param {ASTNode} ast - The Program node of the AST representing the code. This AST should be created from the text that BOM was stripped.
+     * @param {string|Object} textOrConfig - The source code text or config object.
+     * @param {string} textOrConfig.text - The source code text.
+     * @param {ASTNode} textOrConfig.ast - The Program node of the AST representing the code. This AST should be created from the text that BOM was stripped.
+     * @param {Object|null} textOrConfig.parserServices - The parser srevices.
+     * @param {ScopeManager|null} textOrConfig.scopeManager - The scope of this source code.
+     * @param {Object|null} textOrConfig.visitorKeys - The visitor keys to traverse AST.
+     * @param {ASTNode} [ast] - The Program node of the AST representing the code. This AST should be created from the text that BOM was stripped.
      * @constructor
      */
-    constructor(text, ast) {
-        validate(ast);
+    constructor(textOrConfig, ast) {
+        let text, parserServices, scopeManager, visitorKeys;
 
+        // Process overloading.
+        if (typeof textOrConfig === "string") {
+            text = textOrConfig;
+        } else if (typeof textOrConfig === "object" && textOrConfig !== null) {
+            text = textOrConfig.text;
+            ast = textOrConfig.ast;
+            parserServices = textOrConfig.parserServices;
+            scopeManager = textOrConfig.scopeManager;
+            visitorKeys = textOrConfig.visitorKeys;
+        }
+
+        validate(ast);
         super(ast.tokens, ast.comments);
 
         /**
@@ -111,6 +128,24 @@ class SourceCode extends TokenStore {
          * @type ASTNode
          */
         this.ast = ast;
+
+        /**
+         * The parser services of this source code.
+         * @type {Object}
+         */
+        this.parserServices = parserServices || {};
+
+        /**
+         * The scope of this source code.
+         * @type {ScopeManager|null}
+         */
+        this.scopeManager = scopeManager || null;
+
+        /**
+         * The visitor keys to traverse AST.
+         * @type {Object}
+         */
+        this.visitorKeys = visitorKeys || Traverser.DEFAULT_VISITOR_KEYS;
 
         // Check the source text for the presence of a shebang since it is parsed as a standard line comment.
         const shebangMatched = this.text.match(astUtils.SHEBANG_MATCHER);
@@ -353,9 +388,9 @@ class SourceCode extends TokenStore {
     getNodeByRangeIndex(index) {
         let result = null,
             resultParent = null;
-        const traverser = new Traverser();
 
-        traverser.traverse(this.ast, {
+        Traverser.traverse(this.ast, {
+            visitorKeys: this.visitorKeys,
             enter(node, parent) {
                 if (node.range[0] <= index && index < node.range[1]) {
                     result = node;

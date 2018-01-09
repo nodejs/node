@@ -420,6 +420,10 @@ class CLIEngine {
         this.config = new Config(this.options, this.linter);
     }
 
+    getRules() {
+        return this.linter.getRules();
+    }
+
     /**
      * Returns results that only contains errors.
      * @param {LintResult[]} results The results to filter.

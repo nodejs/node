@@ -19,7 +19,8 @@ module.exports = {
         docs: {
             description: "require or disallow newline at the end of files",
             category: "Stylistic Issues",
-            recommended: false
+            recommended: false,
+            url: "https://eslint.org/docs/rules/eol-last"
         },
         fixable: "whitespace",
         schema: [
@@ -45,6 +46,14 @@ module.exports = {
                     LF = "\n",
                     CRLF = `\r${LF}`,
                     endsWithNewline = lodash.endsWith(src, LF);
+
+                /*
+                 * Empty source is always valid: No content in file so we don't
+                 * need to lint for a newline on the last line of content.
+                 */
+                if (!src.length) {
+                    return;
+                }
 
                 let mode = context.options[0] || "always",
                     appendCRLF = false;

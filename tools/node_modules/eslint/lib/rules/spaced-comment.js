@@ -158,7 +158,8 @@ module.exports = {
         docs: {
             description: "enforce consistent spacing after the `//` or `/*` in a comment",
             category: "Stylistic Issues",
-            recommended: false
+            recommended: false,
+            url: "https://eslint.org/docs/rules/spaced-comment"
         },
 
         fixable: "whitespace",

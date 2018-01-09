@@ -13,7 +13,8 @@ module.exports = {
         docs: {
             description: "require destructuring from arrays and/or objects",
             category: "ECMAScript 6",
-            recommended: false
+            recommended: false,
+            url: "https://eslint.org/docs/rules/prefer-destructuring"
         },
         schema: [
             {

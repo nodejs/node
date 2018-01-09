@@ -13,7 +13,8 @@ module.exports = {
         docs: {
             description: "disallow use of the Buffer() constructor",
             category: "Node.js and CommonJS",
-            recommended: false
+            recommended: false,
+            url: "https://eslint.org/docs/rules/no-buffer-constructor"
         },
         schema: []
     },

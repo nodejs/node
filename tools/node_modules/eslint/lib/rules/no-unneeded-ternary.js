@@ -27,7 +27,8 @@ module.exports = {
         docs: {
             description: "disallow ternary operators when simpler alternatives exist",
             category: "Stylistic Issues",
-            recommended: false
+            recommended: false,
+            url: "https://eslint.org/docs/rules/no-unneeded-ternary"
         },
 
         schema: [

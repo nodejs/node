@@ -68,7 +68,8 @@ module.exports = {
         docs: {
             description: "enforce consistent spacing before and after keywords",
             category: "Stylistic Issues",
-            recommended: false
+            recommended: false,
+            url: "https://eslint.org/docs/rules/keyword-spacing"
         },
 
         fixable: "whitespace",

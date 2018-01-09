@@ -15,7 +15,8 @@ module.exports = {
         docs: {
             description: "disallow unnecessary parentheses",
             category: "Possible Errors",
-            recommended: false
+            recommended: false,
+            url: "https://eslint.org/docs/rules/no-extra-parens"
         },
 
         fixable: "code",
@@ -582,7 +583,7 @@ module.exports = {
                         tokensToIgnore.add(firstLeftToken);
                     }
                 }
-                if (hasExcessParens(node.right)) {
+                if (!(node.type === "ForOfStatement" && node.right.type === "SequenceExpression") && hasExcessParens(node.right)) {
                     report(node.right);
                 }
                 if (hasExcessParens(node.left)) {

@@ -30,7 +30,8 @@ module.exports = {
         docs: {
             description: "disallow arrow functions where they could be confused with comparisons",
             category: "ECMAScript 6",
-            recommended: false
+            recommended: false,
+            url: "https://eslint.org/docs/rules/no-confusing-arrow"
         },
 
         fixable: "code",

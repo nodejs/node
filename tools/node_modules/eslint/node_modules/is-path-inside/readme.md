@@ -5,7 +5,7 @@
 
 ## Install
 
-```sh
+```
 $ npm install --save is-path-inside
 ```
 
@@ -15,14 +15,17 @@ $ npm install --save is-path-inside
 ```js
 var isPathInside = require('is-path-inside');
 
-isPathInside('a/b', 'a/b/c');
+isPathInside('a/b/c', 'a/b');
 //=> true
 
-isPathInside('x/y', 'a/b/c');
+isPathInside('a/b/c', 'x/y');
 //=> false
 
 isPathInside('a/b/c', 'a/b/c');
 //=> false
+
+isPathInside('/Users/sindresorhus/dev/unicorn', '/Users/sindresorhus');
+//=> true
 ```
 
 

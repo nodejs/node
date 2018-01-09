@@ -35,6 +35,7 @@ The primary method is `parse()`, which accepts two arguments: the JSDoc comment 
 * `recoverable` - set to `true` to keep parsing even when syntax errors occur. Default: `false`.
 * `sloppy` - set to `true` to allow optional parameters to be specified in brackets (`@param {string} [foo]`). Default: `false`.
 * `lineNumbers` - set to `true` to add `lineNumber` to each node, specifying the line on which the node is found in the source. Default: `false`.
+* `range` - set to `true` to add `range` to each node, specifying the start and end index of the node in the original comment. Default: `false`.
 
 Here's a simple example:
 

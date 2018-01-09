@@ -183,7 +183,8 @@ module.exports = {
         docs: {
             description: "require `let` or `const` instead of `var`",
             category: "ECMAScript 6",
-            recommended: false
+            recommended: false,
+            url: "https://eslint.org/docs/rules/no-var"
         },
 
         schema: [],

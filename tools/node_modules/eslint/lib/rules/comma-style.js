@@ -16,7 +16,8 @@ module.exports = {
         docs: {
             description: "enforce consistent comma style",
             category: "Stylistic Issues",
-            recommended: false
+            recommended: false,
+            url: "https://eslint.org/docs/rules/comma-style"
         },
         fixable: "code",
         schema: [

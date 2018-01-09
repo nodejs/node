@@ -14,7 +14,8 @@ module.exports = {
         docs: {
             description: "disallow the use of `eval()`-like methods",
             category: "Best Practices",
-            recommended: false
+            recommended: false,
+            url: "https://eslint.org/docs/rules/no-implied-eval"
         },
 
         schema: []

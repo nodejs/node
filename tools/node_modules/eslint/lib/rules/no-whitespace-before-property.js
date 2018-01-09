@@ -19,7 +19,8 @@ module.exports = {
         docs: {
             description: "disallow whitespace before properties",
             category: "Stylistic Issues",
-            recommended: false
+            recommended: false,
+            url: "https://eslint.org/docs/rules/no-whitespace-before-property"
         },
 
         fixable: "whitespace",

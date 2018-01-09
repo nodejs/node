@@ -47,7 +47,8 @@ const lodash = require("lodash"),
     ajv = require("../util/ajv"),
     Linter = require("../linter"),
     Environments = require("../config/environments"),
-    SourceCodeFixer = require("../util/source-code-fixer");
+    SourceCodeFixer = require("../util/source-code-fixer"),
+    interpolate = require("../util/interpolate");
 
 //------------------------------------------------------------------------------
 // Private Members
@@ -131,13 +132,31 @@ const DESCRIBE = Symbol("describe");
 const IT = Symbol("it");
 
 /**
- * This is `it` or `describe` if those don't exist.
+ * This is `it` default handler if `it` don't exist.
  * @this {Mocha}
  * @param {string} text - The description of the test case.
  * @param {Function} method - The logic of the test case.
  * @returns {any} Returned value of `method`.
  */
-function defaultHandler(text, method) {
+function itDefaultHandler(text, method) {
+    try {
+        return method.apply(this);
+    } catch (err) {
+        if (err instanceof assert.AssertionError) {
+            err.message += ` (${util.inspect(err.actual)} ${err.operator} ${util.inspect(err.expected)})`;
+        }
+        throw err;
+    }
+}
+
+/**
+ * This is `describe` default handler if `describe` don't exist.
+ * @this {Mocha}
+ * @param {string} text - The description of the test case.
+ * @param {Function} method - The logic of the test case.
+ * @returns {any} Returned value of `method`.
+ */
+function describeDefaultHandler(text, method) {
     return method.apply(this);
 }
 
@@ -212,7 +231,7 @@ class RuleTester {
     static get describe() {
         return (
             this[DESCRIBE] ||
-            (typeof describe === "function" ? describe : defaultHandler)
+            (typeof describe === "function" ? describe : describeDefaultHandler)
         );
     }
 
@@ -223,7 +242,7 @@ class RuleTester {
     static get it() {
         return (
             this[IT] ||
-            (typeof it === "function" ? it : defaultHandler)
+            (typeof it === "function" ? it : itDefaultHandler)
         );
     }
 
@@ -454,59 +473,73 @@ class RuleTester {
                 const hasMessageOfThisRule = messages.some(m => m.ruleId === ruleName);
 
                 for (let i = 0, l = item.errors.length; i < l; i++) {
-                    assert(!messages[i].fatal, `A fatal parsing error occurred: ${messages[i].message}`);
+                    const error = item.errors[i];
+                    const message = messages[i];
+
+                    assert(!message.fatal, `A fatal parsing error occurred: ${message.message}`);
                     assert(hasMessageOfThisRule, "Error rule name should be the same as the name of the rule being tested");
 
-                    if (typeof item.errors[i] === "string" || item.errors[i] instanceof RegExp) {
+                    if (typeof error === "string" || error instanceof RegExp) {
 
                         // Just an error message.
-                        assertMessageMatches(messages[i].message, item.errors[i]);
-                    } else if (typeof item.errors[i] === "object") {
+                        assertMessageMatches(message.message, error);
+                    } else if (typeof error === "object") {
 
                         /*
                          * Error object.
                          * This may have a message, node type, line, and/or
                          * column.
                          */
-                        if (item.errors[i].message) {
-                            assertMessageMatches(messages[i].message, item.errors[i].message);
+                        if (error.message) {
+                            assertMessageMatches(message.message, error.message);
                         }
 
-                        // The following checks use loose equality assertions for backwards compatibility.
+                        if (error.messageId) {
+                            const hOP = Object.hasOwnProperty.call.bind(Object.hasOwnProperty);
 
-                        if (item.errors[i].type) {
+                            // verify that `error.message` is `undefined`
+                            assert.strictEqual(error.message, void 0, "Error should not specify both a message and a messageId.");
+                            if (!hOP(rule, "meta") || !hOP(rule.meta, "messages")) {
+                                assert.fail("Rule must specify a messages hash in `meta`");
+                            }
+                            if (!hOP(rule.meta.messages, error.messageId)) {
+                                const friendlyIDList = `[${Object.keys(rule.meta.messages).map(key => `'${key}'`).join(", ")}]`;
 
-                            // eslint-disable-next-line no-restricted-properties
-                            assert.equal(messages[i].nodeType, item.errors[i].type, `Error type should be ${item.errors[i].type}, found ${messages[i].nodeType}`);
+                                assert.fail(`Invalid messageId '${error.messageId}'. Expected one of ${friendlyIDList}.`);
+                            }
+
+                            let expectedMessage = rule.meta.messages[error.messageId];
+
+                            if (error.data) {
+                                expectedMessage = interpolate(expectedMessage, error.data);
+                            }
+
+                            assertMessageMatches(message.message, expectedMessage);
                         }
 
-                        if (item.errors[i].hasOwnProperty("line")) {
-
-                            // eslint-disable-next-line no-restricted-properties
-                            assert.equal(messages[i].line, item.errors[i].line, `Error line should be ${item.errors[i].line}`);
+                        if (error.type) {
+                            assert.strictEqual(message.nodeType, error.type, `Error type should be ${error.type}, found ${message.nodeType}`);
                         }
 
-                        if (item.errors[i].hasOwnProperty("column")) {
-
-                            // eslint-disable-next-line no-restricted-properties
-                            assert.equal(messages[i].column, item.errors[i].column, `Error column should be ${item.errors[i].column}`);
+                        if (error.hasOwnProperty("line")) {
+                            assert.strictEqual(message.line, error.line, `Error line should be ${error.line}`);
                         }
 
-                        if (item.errors[i].hasOwnProperty("endLine")) {
-
-                            // eslint-disable-next-line no-restricted-properties
-                            assert.equal(messages[i].endLine, item.errors[i].endLine, `Error endLine should be ${item.errors[i].endLine}`);
+                        if (error.hasOwnProperty("column")) {
+                            assert.strictEqual(message.column, error.column, `Error column should be ${error.column}`);
                         }
 
-                        if (item.errors[i].hasOwnProperty("endColumn")) {
+                        if (error.hasOwnProperty("endLine")) {
+                            assert.strictEqual(message.endLine, error.endLine, `Error endLine should be ${error.endLine}`);
+                        }
 
-                            // eslint-disable-next-line no-restricted-properties
-                            assert.equal(messages[i].endColumn, item.errors[i].endColumn, `Error endColumn should be ${item.errors[i].endColumn}`);
+                        if (error.hasOwnProperty("endColumn")) {
+                            assert.strictEqual(message.endColumn, error.endColumn, `Error endColumn should be ${error.endColumn}`);
                         }
                     } else {
 
                         // Message was an unexpected type
-                        assert.fail(messages[i], null, "Error should be a string, object, or RegExp.");
+                        assert.fail(message, null, "Error should be a string, object, or RegExp.");
                     }
                 }
             }

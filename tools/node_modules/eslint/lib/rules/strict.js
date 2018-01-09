@@ -83,7 +83,8 @@ module.exports = {
         docs: {
             description: "require or disallow strict mode directives",
             category: "Strict Mode",
-            recommended: false
+            recommended: false,
+            url: "https://eslint.org/docs/rules/strict"
         },
 
         schema: [

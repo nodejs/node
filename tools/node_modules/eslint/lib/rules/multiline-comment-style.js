@@ -15,7 +15,8 @@ module.exports = {
         docs: {
             description: "enforce a particular style for multiline comments",
             category: "Stylistic Issues",
-            recommended: false
+            recommended: false,
+            url: "https://eslint.org/docs/rules/multiline-comment-style"
         },
         fixable: "whitespace",
         schema: [{ enum: ["starred-block", "separate-lines", "bare-block"] }]

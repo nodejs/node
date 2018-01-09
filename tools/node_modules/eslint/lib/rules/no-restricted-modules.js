@@ -50,7 +50,8 @@ module.exports = {
         docs: {
             description: "disallow specified modules when loaded by `require`",
             category: "Node.js and CommonJS",
-            recommended: false
+            recommended: false,
+            url: "https://eslint.org/docs/rules/no-restricted-modules"
         },
 
         schema: {

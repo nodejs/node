@@ -159,7 +159,8 @@ module.exports = {
         docs: {
             description: "disallow `function` declarations and expressions inside loop statements",
             category: "Best Practices",
-            recommended: false
+            recommended: false,
+            url: "https://eslint.org/docs/rules/no-loop-func"
         },
 
         schema: []

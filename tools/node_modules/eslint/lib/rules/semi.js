@@ -20,7 +20,8 @@ module.exports = {
         docs: {
             description: "require or disallow semicolons instead of ASI",
             category: "Stylistic Issues",
-            recommended: false
+            recommended: false,
+            url: "https://eslint.org/docs/rules/semi"
         },
 
         fixable: "code",

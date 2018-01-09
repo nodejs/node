@@ -92,7 +92,8 @@ module.exports = {
         docs: {
             description: "require or disallow assignment operator shorthand where possible",
             category: "Stylistic Issues",
-            recommended: false
+            recommended: false,
+            url: "https://eslint.org/docs/rules/operator-assignment"
         },
 
         schema: [

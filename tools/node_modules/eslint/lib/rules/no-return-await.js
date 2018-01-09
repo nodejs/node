@@ -17,7 +17,11 @@ module.exports = {
         docs: {
             description: "disallow unnecessary `return await`",
             category: "Best Practices",
-            recommended: false // TODO: set to true
+
+            // TODO: set to true
+            recommended: false,
+
+            url: "https://eslint.org/docs/rules/no-return-await"
         },
         fixable: null,
         schema: [

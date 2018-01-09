@@ -104,7 +104,8 @@ module.exports = {
         docs: {
             description: "disallow unreachable code after `return`, `throw`, `continue`, and `break` statements",
             category: "Possible Errors",
-            recommended: true
+            recommended: true,
+            url: "https://eslint.org/docs/rules/no-unreachable"
         },
 
         schema: []

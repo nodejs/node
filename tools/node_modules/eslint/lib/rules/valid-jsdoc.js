@@ -19,7 +19,8 @@ module.exports = {
         docs: {
             description: "enforce valid JSDoc comments",
             category: "Possible Errors",
-            recommended: false
+            recommended: false,
+            url: "https://eslint.org/docs/rules/valid-jsdoc"
         },
 
         schema: [

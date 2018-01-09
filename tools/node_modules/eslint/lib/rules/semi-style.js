@@ -68,7 +68,8 @@ module.exports = {
         docs: {
             description: "enforce location of semicolons",
             category: "Stylistic Issues",
-            recommended: false
+            recommended: false,
+            url: "https://eslint.org/docs/rules/semi-style"
         },
         schema: [{ enum: ["last", "first"] }],
         fixable: "whitespace"

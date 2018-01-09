@@ -21,7 +21,8 @@ module.exports = {
         docs: {
             description: "disallow unnecessary computed property keys in object literals",
             category: "ECMAScript 6",
-            recommended: false
+            recommended: false,
+            url: "https://eslint.org/docs/rules/no-useless-computed-key"
         },
 
         schema: [],

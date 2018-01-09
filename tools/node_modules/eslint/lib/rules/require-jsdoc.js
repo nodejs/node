@@ -9,7 +9,8 @@ module.exports = {
         docs: {
             description: "require JSDoc comments",
             category: "Stylistic Issues",
-            recommended: false
+            recommended: false,
+            url: "https://eslint.org/docs/rules/require-jsdoc"
         },
 
         schema: [

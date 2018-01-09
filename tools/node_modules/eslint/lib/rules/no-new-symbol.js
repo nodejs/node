@@ -14,7 +14,8 @@ module.exports = {
         docs: {
             description: "disallow `new` operators with the `Symbol` object",
             category: "ECMAScript 6",
-            recommended: true
+            recommended: true,
+            url: "https://eslint.org/docs/rules/no-new-symbol"
         },
 
         schema: []
