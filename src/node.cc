@@ -5003,29 +5003,41 @@ Local<Context> context;
 Context::Scope* context_scope;
 Environment::AsyncCallbackScope* callback_scope;
 
+struct CmdArgs {
+  int argc;
+  char** argv;
+};
+
+CmdArgs generateCmdArgsFromProgramName(const std::string& program_name) {
+  int argc = 1;
+  char* program_name_c_string = new char[program_name.length() + 1];
+  std::strcpy(program_name_c_string, program_name.c_str());
+  char** argv = &program_name_c_string;
+  return CmdArgs{argc, argv};
+}
+
 void Initialize(const std::string& program_name) {
   //////////
   // Start 1
   //////////
+  fprintf(stdout, "refactored\n");
+  fflush(stdout);
   atexit([] () { uv_tty_reset_mode(); });
   PlatformInit();
   node::performance::performance_node_start = PERFORMANCE_NOW();
 
   // we do not support additional commandline options for node, uv, or v8
   // we explicitily only set the first argument to the program name
-  int argc = 1;
-  char* program_name_c_string = new char[program_name.length() + 1];
-  std::strcpy(program_name_c_string, program_name.c_str());
-  char** argv = &program_name_c_string;
+  CmdArgs cmd_args = generateCmdArgsFromProgramName(program_name);
 
   // Hack around with the argv pointer. Used for process.title = "blah".
-  argv = uv_setup_args(argc, argv);
+  cmd_args.argv = uv_setup_args(cmd_args.argc, cmd_args.argv);
 
   // This needs to run *before* V8::Initialize().  The const_cast is not
   // optional, in case you're wondering.
-  int exec_argc;
-  const char** exec_argv;
-  Init(&argc, const_cast<const char**>(argv), &exec_argc, &exec_argv);
+  int exec_argc = 0;
+  const char** exec_argv = nullptr;
+  Init(&cmd_args.argc, const_cast<const char**>(cmd_args.argv), &exec_argc, &exec_argv);
 
 #if HAVE_OPENSSL
   {
@@ -5080,8 +5092,6 @@ void Initialize(const std::string& program_name) {
   if (track_heap_objects) {
     isolate->GetHeapProfiler()->StartTrackingHeapObjects(true);
   }
-
-
 
   {
     Mutex::ScopedLock scoped_lock(node_isolate_mutex);
