@@ -51,3 +51,13 @@ const kinds = [
   // Keep the event loop alive to witness the GC async callback happen.
   setImmediate(() => setImmediate(() => 0));
 }
+
+// GC should not keep the event loop alive
+{
+  let didCall = false;
+  process.on('beforeExit', () => {
+    assert(!didCall);
+    didCall = true;
+    global.gc();
+  });
+}
