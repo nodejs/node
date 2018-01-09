@@ -856,11 +856,27 @@ Using `assert.fail()` with more than one argument has no benefit over writing an
 individual error message. Either use `assert.fail()` with one argument or switch
 to one of the other assert methods.
 
+<a id="DEP00XX"></a>
+### DEP00XX: timers.enroll()
+
+Type: Runtime
+
+`timers.enroll()` is deprecated. Please use the publicly documented [`setTimeout()`][] or [`setInterval()`][] instead.
+
+<a id="DEP00XX"></a>
+### DEP00XX: timers.unenroll()
+
+Type: Runtime
+
+`timers.unenroll()` is deprecated. Please use the publicly documented [`clearTimeout()`][] or [`clearInterval()`][] instead.
+
 [`--pending-deprecation`]: cli.html#cli_pending_deprecation
 [`Buffer.allocUnsafeSlow(size)`]: buffer.html#buffer_class_method_buffer_allocunsafeslow_size
 [`Buffer.from(array)`]: buffer.html#buffer_class_method_buffer_from_array
 [`Buffer.from(buffer)`]: buffer.html#buffer_class_method_buffer_from_buffer
 [`Buffer.isBuffer()`]: buffer.html#buffer_class_method_buffer_isbuffer_obj
+[`clearInterval()`]: timers.html#timers_clearinterval_timeout
+[`clearTimeout()`]: timers.html#timers_cleartimeout_timeout
 [`EventEmitter.listenerCount(emitter, eventName)`]: events.html#events_eventemitter_listenercount_emitter_eventname
 [`Server.connections`]: net.html#net_server_connections
 [`Server.getConnections()`]: net.html#net_server_getconnections_callback
@@ -890,6 +906,8 @@ to one of the other assert methods.
 [`os.tmpdir()`]: os.html#os_os_tmpdir
 [`punycode`]: punycode.html
 [`require.extensions`]: modules.html#modules_require_extensions
+[`setInterval()`]: timers.html#timers_setinterval_callback_delay_args
+[`setTimeout()`]: timers.html#timers_settimeout_callback_delay_args
 [`tls.CryptoStream`]: tls.html#tls_class_cryptostream
 [`tls.SecureContext`]: tls.html#tls_tls_createsecurecontext_options
 [`tls.SecurePair`]: tls.html#tls_class_securepair
