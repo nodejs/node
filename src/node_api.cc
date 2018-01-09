@@ -18,8 +18,6 @@
 #include "node_api.h"
 #include "node_internals.h"
 
-#define NAPI_VERSION  2
-
 static
 napi_status napi_set_last_error(napi_env env, napi_status error_code,
                                 uint32_t engine_error_code = 0,
