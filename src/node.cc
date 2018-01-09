@@ -3374,6 +3374,12 @@ void SetupProcessObject(Environment* env,
                     "nghttp2",
                     FIXED_ONE_BYTE_STRING(env->isolate(), NGHTTP2_VERSION));
 
+  const char node_napi_version[] = NODE_STRINGIFY(NAPI_VERSION);
+  READONLY_PROPERTY(
+      versions,
+      "napi",
+      FIXED_ONE_BYTE_STRING(env->isolate(), node_napi_version));
+
   // process._promiseRejectEvent
   Local<Object> promiseRejectEvent = Object::New(env->isolate());
   READONLY_DONT_ENUM_PROPERTY(process,
