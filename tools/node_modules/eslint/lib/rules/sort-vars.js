@@ -14,7 +14,8 @@ module.exports = {
         docs: {
             description: "require variables within the same declaration block to be sorted",
             category: "Stylistic Issues",
-            recommended: false
+            recommended: false,
+            url: "https://eslint.org/docs/rules/sort-vars"
         },
 
         schema: [

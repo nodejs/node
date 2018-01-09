@@ -16,7 +16,8 @@ module.exports = {
         docs: {
             description: "disallow reassigning exceptions in `catch` clauses",
             category: "Possible Errors",
-            recommended: true
+            recommended: true,
+            url: "https://eslint.org/docs/rules/no-ex-assign"
         },
 
         schema: []

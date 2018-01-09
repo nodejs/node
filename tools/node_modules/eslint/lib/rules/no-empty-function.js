@@ -93,7 +93,8 @@ module.exports = {
         docs: {
             description: "disallow empty functions",
             category: "Best Practices",
-            recommended: false
+            recommended: false,
+            url: "https://eslint.org/docs/rules/no-empty-function"
         },
 
         schema: [

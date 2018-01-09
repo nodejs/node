@@ -65,26 +65,6 @@ module.exports = optionator({
             description: "Specify parser options"
         },
         {
-            heading: "Caching"
-        },
-        {
-            option: "cache",
-            type: "Boolean",
-            default: "false",
-            description: "Only check changed files"
-        },
-        {
-            option: "cache-file",
-            type: "path::String",
-            default: ".eslintcache",
-            description: "Path to the cache file. Deprecated: use --cache-location"
-        },
-        {
-            option: "cache-location",
-            type: "path::String",
-            description: "Path to the cache file or directory"
-        },
-        {
             heading: "Specifying rules and plugins"
         },
         {
@@ -101,6 +81,21 @@ module.exports = optionator({
             option: "rule",
             type: "Object",
             description: "Specify rules"
+        },
+        {
+            heading: "Fixing problems"
+        },
+        {
+            option: "fix",
+            type: "Boolean",
+            default: false,
+            description: "Automatically fix problems"
+        },
+        {
+            option: "fix-dry-run",
+            type: "Boolean",
+            default: false,
+            description: "Automatically fix problems without saving the changes to the file system"
         },
         {
             heading: "Ignoring files"
@@ -176,6 +171,41 @@ module.exports = optionator({
             description: "Force enabling/disabling of color"
         },
         {
+            heading: "Inline configuration comments"
+        },
+        {
+            option: "inline-config",
+            type: "Boolean",
+            default: "true",
+            description: "Prevent comments from changing config or rules"
+        },
+        {
+            option: "report-unused-disable-directives",
+            type: "Boolean",
+            default: false,
+            description: "Adds reported errors for unused eslint-disable directives"
+        },
+        {
+            heading: "Caching"
+        },
+        {
+            option: "cache",
+            type: "Boolean",
+            default: "false",
+            description: "Only check changed files"
+        },
+        {
+            option: "cache-file",
+            type: "path::String",
+            default: ".eslintcache",
+            description: "Path to the cache file. Deprecated: use --cache-location"
+        },
+        {
+            option: "cache-location",
+            type: "path::String",
+            description: "Path to the cache file or directory"
+        },
+        {
             heading: "Miscellaneous"
         },
         {
@@ -183,18 +213,6 @@ module.exports = optionator({
             type: "Boolean",
             default: "false",
             description: "Run config initialization wizard"
-        },
-        {
-            option: "fix",
-            type: "Boolean",
-            default: false,
-            description: "Automatically fix problems"
-        },
-        {
-            option: "fix-dry-run",
-            type: "Boolean",
-            default: false,
-            description: "Automatically fix problems without saving the changes to the file system"
         },
         {
             option: "debug",
@@ -213,18 +231,6 @@ module.exports = optionator({
             alias: "v",
             type: "Boolean",
             description: "Output the version number"
-        },
-        {
-            option: "inline-config",
-            type: "Boolean",
-            default: "true",
-            description: "Prevent comments from changing config or rules"
-        },
-        {
-            option: "report-unused-disable-directives",
-            type: "Boolean",
-            default: false,
-            description: "Adds reported errors for unused eslint-disable directives"
         },
         {
             option: "print-config",

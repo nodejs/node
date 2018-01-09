@@ -19,7 +19,8 @@ module.exports = {
         docs: {
             description: "enforce consistent line breaks inside function parentheses",
             category: "Stylistic Issues",
-            recommended: false
+            recommended: false,
+            url: "https://eslint.org/docs/rules/function-paren-newline"
         },
         fixable: "whitespace",
         schema: [

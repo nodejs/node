@@ -14,7 +14,8 @@ module.exports = {
         docs: {
             description: "disallow control characters in regular expressions",
             category: "Possible Errors",
-            recommended: true
+            recommended: true,
+            url: "https://eslint.org/docs/rules/no-control-regex"
         },
 
         schema: []

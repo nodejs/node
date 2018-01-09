@@ -16,7 +16,8 @@ module.exports = {
         docs: {
             description: "enforce linebreaks after opening and before closing array brackets",
             category: "Stylistic Issues",
-            recommended: false
+            recommended: false,
+            url: "https://eslint.org/docs/rules/array-bracket-newline"
         },
         fixable: "whitespace",
         schema: [

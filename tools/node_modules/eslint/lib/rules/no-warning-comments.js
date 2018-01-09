@@ -16,7 +16,8 @@ module.exports = {
         docs: {
             description: "disallow specified warning terms in comments",
             category: "Best Practices",
-            recommended: false
+            recommended: false,
+            url: "https://eslint.org/docs/rules/no-warning-comments"
         },
 
         schema: [

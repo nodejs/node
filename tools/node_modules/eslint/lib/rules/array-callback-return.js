@@ -142,13 +142,27 @@ module.exports = {
         docs: {
             description: "enforce `return` statements in callbacks of array methods",
             category: "Best Practices",
-            recommended: false
+            recommended: false,
+            url: "https://eslint.org/docs/rules/array-callback-return"
         },
 
-        schema: []
+        schema: [
+            {
+                type: "object",
+                properties: {
+                    allowImplicit: {
+                        type: "boolean"
+                    }
+                },
+                additionalProperties: false
+            }
+        ]
     },
 
     create(context) {
+
+        const options = context.options[0] || { allowImplicit: false };
+
         let funcInfo = {
             upper: null,
             codePath: null,
@@ -212,7 +226,8 @@ module.exports = {
                 if (funcInfo.shouldCheck) {
                     funcInfo.hasReturn = true;
 
-                    if (!node.argument) {
+                    // if allowImplicit: false, should also check node.argument
+                    if (!options.allowImplicit && !node.argument) {
                         context.report({
                             node,
                             message: "{{name}} expected a return value.",

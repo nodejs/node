@@ -15,7 +15,8 @@ module.exports = {
         docs: {
             description: "require `default` cases in `switch` statements",
             category: "Best Practices",
-            recommended: false
+            recommended: false,
+            url: "https://eslint.org/docs/rules/default-case"
         },
 
         schema: [{

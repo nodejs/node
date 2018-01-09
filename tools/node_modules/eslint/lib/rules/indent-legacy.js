@@ -25,7 +25,8 @@ module.exports = {
             description: "enforce consistent indentation",
             category: "Stylistic Issues",
             recommended: false,
-            replacedBy: ["indent"]
+            replacedBy: ["indent"],
+            url: "https://eslint.org/docs/rules/indent-legacy"
         },
 
         deprecated: true,

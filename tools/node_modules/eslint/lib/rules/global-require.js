@@ -51,7 +51,8 @@ module.exports = {
         docs: {
             description: "require `require()` calls to be placed at top-level module scope",
             category: "Node.js and CommonJS",
-            recommended: false
+            recommended: false,
+            url: "https://eslint.org/docs/rules/global-require"
         },
 
         schema: []

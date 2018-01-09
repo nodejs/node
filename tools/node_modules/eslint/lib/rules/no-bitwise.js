@@ -25,7 +25,8 @@ module.exports = {
         docs: {
             description: "disallow bitwise operators",
             category: "Stylistic Issues",
-            recommended: false
+            recommended: false,
+            url: "https://eslint.org/docs/rules/no-bitwise"
         },
 
         schema: [

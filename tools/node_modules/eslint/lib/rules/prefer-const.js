@@ -233,7 +233,8 @@ module.exports = {
         docs: {
             description: "require `const` declarations for variables that are never reassigned after declared",
             category: "ECMAScript 6",
-            recommended: false
+            recommended: false,
+            url: "https://eslint.org/docs/rules/prefer-const"
         },
 
         fixable: "code",

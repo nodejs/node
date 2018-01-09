@@ -21,7 +21,8 @@ module.exports = {
         docs: {
             description: "disallow unused variables",
             category: "Variables",
-            recommended: true
+            recommended: true,
+            url: "https://eslint.org/docs/rules/no-unused-vars"
         },
 
         schema: [
@@ -105,24 +106,19 @@ module.exports = {
          * @returns {string} The warning message to be used with this unused variable.
          */
         function getDefinedMessage(unusedVar) {
+            const defType = unusedVar.defs && unusedVar.defs[0] && unusedVar.defs[0].type;
             let type;
             let pattern;
 
-            if (config.varsIgnorePattern) {
+            if (defType === "CatchClause" && config.caughtErrorsIgnorePattern) {
+                type = "args";
+                pattern = config.caughtErrorsIgnorePattern.toString();
+            } else if (defType === "Parameter" && config.argsIgnorePattern) {
+                type = "args";
+                pattern = config.argsIgnorePattern.toString();
+            } else if (defType !== "Parameter" && config.varsIgnorePattern) {
                 type = "vars";
                 pattern = config.varsIgnorePattern.toString();
-            }
-
-            if (unusedVar.defs && unusedVar.defs[0] && unusedVar.defs[0].type) {
-                const defType = unusedVar.defs[0].type;
-
-                if (defType === "CatchClause" && config.caughtErrorsIgnorePattern) {
-                    type = "args";
-                    pattern = config.caughtErrorsIgnorePattern.toString();
-                } else if (defType === "Parameter" && config.argsIgnorePattern) {
-                    type = "args";
-                    pattern = config.argsIgnorePattern.toString();
-                }
             }
 
             const additional = type ? ` Allowed unused ${type} must match ${pattern}.` : "";

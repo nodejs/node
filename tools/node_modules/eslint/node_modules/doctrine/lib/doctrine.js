@@ -90,59 +90,49 @@
             title === 'public' || title === 'private' || title === 'protected';
     }
 
+    // A regex character class that contains all whitespace except linebreak characters (\r, \n, \u2028, \u2029)
+    var WHITESPACE = '[ \\f\\t\\v\\u00a0\\u1680\\u180e\\u2000-\\u200a\\u202f\\u205f\\u3000\\ufeff]';
+
+    var STAR_MATCHER = '(' + WHITESPACE + '*(?:\\*' + WHITESPACE + '?)?)(.+|[\r\n\u2028\u2029])';
+
     function unwrapComment(doc) {
         // JSDoc comment is following form
         //   /**
         //    * .......
         //    */
-        // remove /**, */ and *
-        var BEFORE_STAR = 0,
-            STAR = 1,
-            AFTER_STAR = 2,
-            index,
-            len,
-            mode,
-            result,
-            ch;
 
-        doc = doc.replace(/^\/\*\*?/, '').replace(/\*\/$/, '');
-        index = 0;
-        len = doc.length;
-        mode = BEFORE_STAR;
-        result = '';
+        return doc.
+            // remove /**
+            replace(/^\/\*\*?/, '').
+            // remove */
+            replace(/\*\/$/, '').
+            // remove ' * ' at the beginning of a line
+            replace(new RegExp(STAR_MATCHER, 'g'), '$2').
+            // remove trailing whitespace
+            replace(/\s*$/, '');
+    }
 
-        while (index < len) {
-            ch = doc.charCodeAt(index);
-            switch (mode) {
-            case BEFORE_STAR:
-                if (esutils.code.isLineTerminator(ch)) {
-                    result += String.fromCharCode(ch);
-                } else if (ch === 0x2A  /* '*' */) {
-                    mode = STAR;
-                } else if (!esutils.code.isWhiteSpace(ch)) {
-                    result += String.fromCharCode(ch);
-                    mode = AFTER_STAR;
-                }
-                break;
+    /**
+     * Converts an index in an "unwrapped" JSDoc comment to the corresponding index in the original "wrapped" version
+     * @param {string} originalSource The original wrapped comment
+     * @param {number} unwrappedIndex The index of a character in the unwrapped string
+     * @returns {number} The index of the corresponding character in the original wrapped string
+     */
+    function convertUnwrappedCommentIndex(originalSource, unwrappedIndex) {
+        var replacedSource = originalSource.replace(/^\/\*\*?/, '');
+        var numSkippedChars = 0;
+        var matcher = new RegExp(STAR_MATCHER, 'g');
+        var match;
 
-            case STAR:
-                if (!esutils.code.isWhiteSpace(ch)) {
-                    result += String.fromCharCode(ch);
-                }
-                mode = esutils.code.isLineTerminator(ch) ? BEFORE_STAR : AFTER_STAR;
-                break;
+        while ((match = matcher.exec(replacedSource))) {
+            numSkippedChars += match[1].length;
 
-            case AFTER_STAR:
-                result += String.fromCharCode(ch);
-                if (esutils.code.isLineTerminator(ch)) {
-                    mode = BEFORE_STAR;
-                }
-                break;
+            if (match.index + match[0].length > unwrappedIndex + numSkippedChars) {
+                return unwrappedIndex + numSkippedChars + originalSource.length - replacedSource.length;
             }
-            index += 1;
         }
 
-        return result.replace(/\s+$/, '');
+        return originalSource.replace(/\*\/$/, '').replace(/\s*$/, '').length;
     }
 
     // JSDoc Tag Parser
@@ -153,6 +143,7 @@
             lineNumber,
             length,
             source,
+            originalSource,
             recoverable,
             sloppy,
             strict;
@@ -203,8 +194,8 @@
         // { { ok: string } }
         //
         // therefore, scanning type expression with balancing braces.
-        function parseType(title, last) {
-            var ch, brace, type, direct = false;
+        function parseType(title, last, addRange) {
+            var ch, brace, type, startIndex, direct = false;
 
 
             // search '{'
@@ -244,6 +235,9 @@
                     } else if (ch === 0x7B  /* '{' */) {
                         brace += 1;
                     }
+                    if (type === '') {
+                        startIndex = index;
+                    }
                     type += advance();
                 }
             }
@@ -254,10 +248,10 @@
             }
 
             if (isAllowedOptional(title)) {
-                return typed.parseParamType(type);
+                return typed.parseParamType(type, {startIndex: convertIndex(startIndex), range: addRange});
             }
 
-            return typed.parseType(type);
+            return typed.parseType(type, {startIndex: convertIndex(startIndex), range: addRange});
         }
 
         function scanIdentifier(last) {
@@ -402,6 +396,13 @@
             return true;
         }
 
+        function convertIndex(rangeIndex) {
+            if (source === originalSource) {
+                return rangeIndex;
+            }
+            return convertUnwrappedCommentIndex(originalSource, rangeIndex);
+        }
+
         function TagParser(options, title) {
             this._options = options;
             this._title = title.toLowerCase();
@@ -412,6 +413,7 @@
             if (this._options.lineNumbers) {
                 this._tag.lineNumber = lineNumber;
             }
+            this._first = index - title.length - 1;
             this._last = 0;
             // space to save special information for title parsers.
             this._extra = { };
@@ -442,7 +444,7 @@
             // type required titles
             if (isTypeParameterRequired(this._title)) {
                 try {
-                    this._tag.type = parseType(this._title, this._last);
+                    this._tag.type = parseType(this._title, this._last, this._options.range);
                     if (!this._tag.type) {
                         if (!isParamTitle(this._title) && !isReturnTitle(this._title)) {
                             if (!this.addError('Missing or invalid tag type')) {
@@ -459,7 +461,7 @@
             } else if (isAllowedType(this._title)) {
                 // optional types
                 try {
-                    this._tag.type = parseType(this._title, this._last);
+                    this._tag.type = parseType(this._title, this._last, this._options.range);
                 } catch (e) {
                     //For optional types, lets drop the thrown error when we hit the end of the file
                 }
@@ -751,6 +753,10 @@
             // Seek to content last index.
             this._last = seekContent(this._title);
 
+            if (this._options.range) {
+                this._tag.range = [this._first, source.slice(0, this._last).replace(/\s*$/, '').length].map(convertIndex);
+            }
+
             if (hasOwnProperty(Rules, this._title)) {
                 sequences = Rules[this._title];
             } else {
@@ -830,6 +836,8 @@
             } else {
                 source = comment;
             }
+
+            originalSource = comment;
 
             // array of relevant tags
             if (options.tags) {

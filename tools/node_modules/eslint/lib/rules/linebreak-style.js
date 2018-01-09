@@ -20,7 +20,8 @@ module.exports = {
         docs: {
             description: "enforce consistent linebreak style",
             category: "Stylistic Issues",
-            recommended: false
+            recommended: false,
+            url: "https://eslint.org/docs/rules/linebreak-style"
         },
 
         fixable: "whitespace",

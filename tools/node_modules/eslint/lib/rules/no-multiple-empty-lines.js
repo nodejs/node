@@ -14,7 +14,8 @@ module.exports = {
         docs: {
             description: "disallow multiple empty lines",
             category: "Stylistic Issues",
-            recommended: false
+            recommended: false,
+            url: "https://eslint.org/docs/rules/no-multiple-empty-lines"
         },
 
         fixable: "whitespace",

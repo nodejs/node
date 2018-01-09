@@ -14,7 +14,8 @@ module.exports = {
         docs: {
             description: "enforce that class methods utilize `this`",
             category: "Best Practices",
-            recommended: false
+            recommended: false,
+            url: "https://eslint.org/docs/rules/class-methods-use-this"
         },
         schema: [{
             type: "object",

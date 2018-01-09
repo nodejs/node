@@ -14,7 +14,8 @@ module.exports = {
         docs: {
             description: "disallow `require` calls to be mixed with regular variable declarations",
             category: "Node.js and CommonJS",
-            recommended: false
+            recommended: false,
+            url: "https://eslint.org/docs/rules/no-mixed-requires"
         },
 
         schema: [

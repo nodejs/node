@@ -22,7 +22,8 @@ module.exports = {
         docs: {
             description: "enforce dot notation whenever possible",
             category: "Best Practices",
-            recommended: false
+            recommended: false,
+            url: "https://eslint.org/docs/rules/dot-notation"
         },
 
         schema: [

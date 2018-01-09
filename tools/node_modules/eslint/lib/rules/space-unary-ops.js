@@ -19,7 +19,8 @@ module.exports = {
         docs: {
             description: "enforce consistent spacing before or after unary operators",
             category: "Stylistic Issues",
-            recommended: false
+            recommended: false,
+            url: "https://eslint.org/docs/rules/space-unary-ops"
         },
 
         fixable: "whitespace",

@@ -20,7 +20,8 @@ module.exports = {
         docs: {
             description: "enforce a maximum number of lines per file",
             category: "Stylistic Issues",
-            recommended: false
+            recommended: false,
+            url: "https://eslint.org/docs/rules/max-lines"
         },
 
         schema: [

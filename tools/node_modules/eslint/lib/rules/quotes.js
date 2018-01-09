@@ -79,7 +79,8 @@ module.exports = {
         docs: {
             description: "enforce the consistent use of either backticks, double, or single quotes",
             category: "Stylistic Issues",
-            recommended: false
+            recommended: false,
+            url: "https://eslint.org/docs/rules/quotes"
         },
 
         fixable: "code",

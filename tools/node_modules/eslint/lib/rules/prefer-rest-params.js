@@ -65,7 +65,8 @@ module.exports = {
         docs: {
             description: "require rest parameters instead of `arguments`",
             category: "ECMAScript 6",
-            recommended: false
+            recommended: false,
+            url: "https://eslint.org/docs/rules/prefer-rest-params"
         },
 
         schema: []

@@ -79,7 +79,8 @@ module.exports = {
         docs: {
             description: "disallow the use of `eval()`",
             category: "Best Practices",
-            recommended: false
+            recommended: false,
+            url: "https://eslint.org/docs/rules/no-eval"
         },
 
         schema: [

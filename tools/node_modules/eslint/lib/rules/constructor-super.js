@@ -95,7 +95,8 @@ module.exports = {
         docs: {
             description: "require `super()` calls in constructors",
             category: "ECMAScript 6",
-            recommended: true
+            recommended: true,
+            url: "https://eslint.org/docs/rules/constructor-super"
         },
 
         schema: []

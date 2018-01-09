@@ -20,7 +20,8 @@ module.exports = {
         docs: {
             description: "require parentheses around immediate `function` invocations",
             category: "Best Practices",
-            recommended: false
+            recommended: false,
+            url: "https://eslint.org/docs/rules/wrap-iife"
         },
 
         schema: [

@@ -82,7 +82,8 @@ module.exports = {
         docs: {
             description: "disallow unnecessary escape characters",
             category: "Best Practices",
-            recommended: true
+            recommended: true,
+            url: "https://eslint.org/docs/rules/no-useless-escape"
         },
 
         schema: []

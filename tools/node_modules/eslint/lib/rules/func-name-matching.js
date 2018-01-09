@@ -70,7 +70,8 @@ module.exports = {
         docs: {
             description: "require function names to match the name of the variable or property to which they are assigned",
             category: "Stylistic Issues",
-            recommended: false
+            recommended: false,
+            url: "https://eslint.org/docs/rules/func-name-matching"
         },
 
         schema: {

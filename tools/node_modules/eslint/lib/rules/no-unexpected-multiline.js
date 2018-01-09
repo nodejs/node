@@ -19,7 +19,8 @@ module.exports = {
         docs: {
             description: "disallow confusing multiline expressions",
             category: "Possible Errors",
-            recommended: true
+            recommended: true,
+            url: "https://eslint.org/docs/rules/no-unexpected-multiline"
         },
 
         schema: []

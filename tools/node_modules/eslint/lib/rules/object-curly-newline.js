@@ -97,7 +97,8 @@ module.exports = {
         docs: {
             description: "enforce consistent line breaks inside braces",
             category: "Stylistic Issues",
-            recommended: false
+            recommended: false,
+            url: "https://eslint.org/docs/rules/object-curly-newline"
         },
         fixable: "whitespace",
         schema: [

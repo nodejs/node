@@ -14,7 +14,8 @@ module.exports = {
         docs: {
             description: "disallow duplicate class members",
             category: "ECMAScript 6",
-            recommended: true
+            recommended: true,
+            url: "https://eslint.org/docs/rules/no-dupe-class-members"
         },
 
         schema: []

@@ -16,7 +16,8 @@ module.exports = {
         docs: {
             description: "disallow initializing variables to `undefined`",
             category: "Variables",
-            recommended: false
+            recommended: false,
+            url: "https://eslint.org/docs/rules/no-undef-init"
         },
 
         schema: [],

@@ -56,7 +56,8 @@ module.exports = {
         docs: {
             description: "disallow specified modules when loaded by `import`",
             category: "ECMAScript 6",
-            recommended: false
+            recommended: false,
+            url: "https://eslint.org/docs/rules/no-restricted-imports"
         },
 
         schema: {

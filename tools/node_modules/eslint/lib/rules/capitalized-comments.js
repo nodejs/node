@@ -113,7 +113,8 @@ module.exports = {
         docs: {
             description: "enforce or disallow capitalization of the first letter of a comment",
             category: "Stylistic Issues",
-            recommended: false
+            recommended: false,
+            url: "https://eslint.org/docs/rules/capitalized-comments"
         },
         fixable: "code",
         schema: [

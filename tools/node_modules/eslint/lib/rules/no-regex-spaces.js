@@ -16,7 +16,8 @@ module.exports = {
         docs: {
             description: "disallow multiple spaces in regular expressions",
             category: "Possible Errors",
-            recommended: true
+            recommended: true,
+            url: "https://eslint.org/docs/rules/no-regex-spaces"
         },
 
         schema: [],

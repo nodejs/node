@@ -11,6 +11,7 @@
 
 const assert = require("assert");
 const ruleFixer = require("./util/rule-fixer");
+const interpolate = require("./util/interpolate");
 
 //------------------------------------------------------------------------------
 // Typedefs
@@ -41,7 +42,9 @@ function normalizeMultiArgReportCall() {
 
     // If there is one argument, it is considered to be a new-style call already.
     if (arguments.length === 1) {
-        return arguments[0];
+
+        // Shallow clone the object to avoid surprises if reusing the descriptor
+        return Object.assign({}, arguments[0]);
     }
 
     // If the second argument is a string, the arguments are interpreted as [node, message, data, fix].
@@ -100,16 +103,7 @@ function normalizeReportLoc(descriptor) {
  * @returns {string} The interpolated message for the descriptor
  */
 function normalizeMessagePlaceholders(descriptor) {
-    if (!descriptor.data) {
-        return descriptor.message;
-    }
-    return descriptor.message.replace(/\{\{\s*([^{}]+?)\s*\}\}/g, (fullMatch, term) => {
-        if (term in descriptor.data) {
-            return descriptor.data[term];
-        }
-
-        return fullMatch;
-    });
+    return interpolate(descriptor.message, descriptor.data);
 }
 
 /**
@@ -216,6 +210,14 @@ function createProblem(options) {
         source: options.sourceLines[options.loc.start.line - 1] || ""
     };
 
+    /*
+     * If this isn’t in the conditional, some of the tests fail
+     * because `messageId` is present in the problem object
+     */
+    if (options.messageId) {
+        problem.messageId = options.messageId;
+    }
+
     if (options.loc.end) {
         problem.endLine = options.loc.end.line;
         problem.endColumn = options.loc.end.column + 1;
@@ -231,12 +233,13 @@ function createProblem(options) {
 /**
  * Returns a function that converts the arguments of a `context.report` call from a rule into a reported
  * problem for the Node.js API.
- * @param {{ruleId: string, severity: number, sourceCode: SourceCode}} metadata Metadata for the reported problem
+ * @param {{ruleId: string, severity: number, sourceCode: SourceCode, messageIds: Object}} metadata Metadata for the reported problem
  * @param {SourceCode} sourceCode The `SourceCode` instance for the text being linted
  * @returns {function(...args): {
  *      ruleId: string,
  *      severity: (0|1|2),
- *      message: string,
+ *      message: (string|undefined),
+ *      messageId: (string|undefined),
  *      line: number,
  *      column: number,
  *      endLine: (number|undefined),
@@ -261,11 +264,29 @@ module.exports = function createReportTranslator(metadata) {
 
         assertValidNodeInfo(descriptor);
 
+        if (descriptor.messageId) {
+            if (!metadata.messageIds) {
+                throw new TypeError("context.report() called with a messageId, but no messages were present in the rule metadata.");
+            }
+            const id = descriptor.messageId;
+            const messages = metadata.messageIds;
+
+            if (descriptor.message) {
+                throw new TypeError("context.report() called with a message and a messageId. Please only pass one.");
+            }
+            if (!messages || !Object.prototype.hasOwnProperty.call(messages, id)) {
+                throw new TypeError(`context.report() called with a messageId of '${id}' which is not present in the 'messages' config: ${JSON.stringify(messages, null, 2)}`);
+            }
+            descriptor.message = messages[id];
+        }
+
+
         return createProblem({
             ruleId: metadata.ruleId,
             severity: metadata.severity,
             node: descriptor.node,
             message: normalizeMessagePlaceholders(descriptor),
+            messageId: descriptor.messageId,
             loc: normalizeReportLoc(descriptor),
             fix: normalizeFixes(descriptor, metadata.sourceCode),
             sourceLines: metadata.sourceCode.lines

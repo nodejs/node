@@ -28,7 +28,8 @@ module.exports = {
         docs: {
             description: "disallow the use of undeclared variables unless mentioned in `/*global */` comments",
             category: "Variables",
-            recommended: true
+            recommended: true,
+            url: "https://eslint.org/docs/rules/no-undef"
         },
 
         schema: [

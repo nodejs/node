@@ -20,7 +20,8 @@ module.exports = {
         docs: {
             description: "require quotes around object literal property names",
             category: "Stylistic Issues",
-            recommended: false
+            recommended: false,
+            url: "https://eslint.org/docs/rules/quote-props"
         },
 
         schema: {

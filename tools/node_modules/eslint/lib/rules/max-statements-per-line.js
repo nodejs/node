@@ -19,7 +19,8 @@ module.exports = {
         docs: {
             description: "enforce a maximum number of statements allowed per line",
             category: "Stylistic Issues",
-            recommended: false
+            recommended: false,
+            url: "https://eslint.org/docs/rules/max-statements-per-line"
         },
 
         schema: [

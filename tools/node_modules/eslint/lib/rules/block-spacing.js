@@ -16,7 +16,8 @@ module.exports = {
         docs: {
             description: "disallow or enforce spaces inside of blocks after opening block and before closing block",
             category: "Stylistic Issues",
-            recommended: false
+            recommended: false,
+            url: "https://eslint.org/docs/rules/block-spacing"
         },
 
         fixable: "whitespace",

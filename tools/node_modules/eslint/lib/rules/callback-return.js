@@ -13,7 +13,8 @@ module.exports = {
         docs: {
             description: "require `return` statements after callbacks",
             category: "Node.js and CommonJS",
-            recommended: false
+            recommended: false,
+            url: "https://eslint.org/docs/rules/callback-return"
         },
 
         schema: [{

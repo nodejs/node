@@ -47,7 +47,8 @@ module.exports = {
         docs: {
             description: "enforce `return` statements in getters",
             category: "Possible Errors",
-            recommended: false
+            recommended: false,
+            url: "https://eslint.org/docs/rules/getter-return"
         },
         fixable: null,
         schema: [

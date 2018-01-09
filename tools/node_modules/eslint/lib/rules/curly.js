@@ -19,7 +19,8 @@ module.exports = {
         docs: {
             description: "enforce consistent brace style for all control statements",
             category: "Best Practices",
-            recommended: false
+            recommended: false,
+            url: "https://eslint.org/docs/rules/curly"
         },
 
         schema: {
