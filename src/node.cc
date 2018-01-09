@@ -5003,6 +5003,8 @@ Local<Context> context;
 Context::Scope* context_scope;
 Environment::AsyncCallbackScope* callback_scope;
 
+namespace initialize {
+
 struct CmdArgs {
   int argc;
   char** argv;
@@ -5016,44 +5018,7 @@ CmdArgs generateCmdArgsFromProgramName(const std::string& program_name) {
   return CmdArgs{argc, argv};
 }
 
-void Initialize(const std::string& program_name) {
-  //////////
-  // Start 1
-  //////////
-  atexit([] () { uv_tty_reset_mode(); });
-  PlatformInit();
-  node::performance::performance_node_start = PERFORMANCE_NOW();
-
-  // we do not support additional commandline options for node, uv, or v8
-  // we explicitily only set the first argument to the program name
-  CmdArgs cmd_args = generateCmdArgsFromProgramName(program_name);
-
-  // Hack around with the argv pointer. Used for process.title = "blah".
-  cmd_args.argv = uv_setup_args(cmd_args.argc, cmd_args.argv);
-
-  // This needs to run *before* V8::Initialize().  The const_cast is not
-  // optional, in case you're wondering.
-  int exec_argc = 0;
-  const char** exec_argv = nullptr;
-  Init(&cmd_args.argc, const_cast<const char**>(cmd_args.argv), &exec_argc, &exec_argv);
-
-#if HAVE_OPENSSL
-  {
-    std::string extra_ca_certs;
-    if (SafeGetenv("NODE_EXTRA_CA_CERTS", &extra_ca_certs))
-      crypto::UseExtraCaCerts(extra_ca_certs);
-  }
-#ifdef NODE_FIPS_MODE
-  // In the case of FIPS builds we should make sure
-  // the random source is properly initialized first.
-  OPENSSL_init();
-#endif  // NODE_FIPS_MODE
-  // V8 on Windows doesn't have a good source of entropy. Seed it from
-  // OpenSSL's pool.
-  V8::SetEntropySource(crypto::EntropySource);
-#endif  // HAVE_OPENSSL
-
-
+void initV8() {
   v8_platform.Initialize(v8_thread_pool_size, uv_default_loop());
   // Enable tracing when argv has --trace-events-enabled.
   if (trace_enabled) {
@@ -5064,20 +5029,13 @@ void Initialize(const std::string& program_name) {
   V8::Initialize();
   node::performance::performance_v8_start = PERFORMANCE_NOW();
   v8_initialized = true;
+}
 
-
-  //////////
-  // Start 2
-  //////////
-
-  allocator = new ArrayBufferAllocator();
-  params.array_buffer_allocator = allocator;
-#ifdef NODE_ENABLE_VTUNE_PROFILING
-  params.code_event_handler = vTune::GetVtuneCodeEventHandler();
-#endif
-
+void createIsolate() {
   isolate = Isolate::New(params);
   if (isolate == nullptr) {
+    fprintf(stderr, "Could not create isolate.");
+    fflush(stderr);
     return; // TODO: Handle error
     //return 12;  // Signal internal error.
   }
@@ -5096,31 +5054,90 @@ void Initialize(const std::string& program_name) {
     CHECK_EQ(node_isolate, nullptr);
     node_isolate = isolate;
   }
+}
 
-  int exit_code = 0;  // TODO: ?
+void createInitialEnvironment() {
+  locker = new Locker(isolate);
+  isolate_scope = new Isolate::Scope(isolate);
+  static HandleScope handle_scope(isolate);
+  isolate_data = new IsolateData(isolate, uv_default_loop(), allocator->zero_fill_field());
+
+  //////////
+  // Start 3
+  //////////
+  //HandleScope handle_scope(isolate);
+  context = NewContext(isolate);
+  context_scope = new Context::Scope(context);
+  env = new Environment(isolate_data, context);
+  CHECK_EQ(0, uv_key_create(&thread_local_env));
+  uv_key_set(&thread_local_env, env);
+}
+
+void configureOpenSsl() {
+#if HAVE_OPENSSL
   {
-    locker = new Locker(isolate);
-    isolate_scope = new Isolate::Scope(isolate);
-    static HandleScope handle_scope(isolate);
-    isolate_data = new IsolateData(isolate, uv_default_loop(), allocator->zero_fill_field());
-
-    //////////
-    // Start 3
-    //////////
-    //HandleScope handle_scope(isolate);
-    context = NewContext(isolate);
-    context_scope = new Context::Scope(context);
-    env = new Environment(isolate_data, context);
-    CHECK_EQ(0, uv_key_create(&thread_local_env));
-    uv_key_set(&thread_local_env, env);
-
-    //////////
-    // Start environment
-    //////////
-    int exec_argc = 0;
-    const char* const* exec_argv = nullptr;
-    _StartEnv(cmd_args.argc, (const char* const*)cmd_args.argv, exec_argc, exec_argv);
+    std::string extra_ca_certs;
+    if (SafeGetenv("NODE_EXTRA_CA_CERTS", &extra_ca_certs))
+      crypto::UseExtraCaCerts(extra_ca_certs);
   }
+#ifdef NODE_FIPS_MODE
+  // In the case of FIPS builds we should make sure
+  // the random source is properly initialized first.
+  OPENSSL_init();
+#endif  // NODE_FIPS_MODE
+  // V8 on Windows doesn't have a good source of entropy. Seed it from
+  // OpenSSL's pool.
+  V8::SetEntropySource(crypto::EntropySource);
+#endif  // HAVE_OPENSSL
+}
+
+}  // namespace initialize
+
+void Initialize(const std::string& program_name) {
+  //////////
+  // Start 1
+  //////////
+  atexit([] () { uv_tty_reset_mode(); });
+  PlatformInit();
+  node::performance::performance_node_start = PERFORMANCE_NOW();
+
+  // we do not support additional commandline options for node, uv, or v8
+  // we explicitily only set the first argument to the program name
+  initialize::CmdArgs cmd_args = initialize::generateCmdArgsFromProgramName(program_name);
+
+  // Hack around with the argv pointer. Used for process.title = "blah".
+  cmd_args.argv = uv_setup_args(cmd_args.argc, cmd_args.argv);
+
+  // This needs to run *before* V8::Initialize().  The const_cast is not
+  // optional, in case you're wondering.
+  int exec_argc = 0;
+  const char** exec_argv = nullptr;
+  Init(&cmd_args.argc, const_cast<const char**>(cmd_args.argv), &exec_argc, &exec_argv);
+
+  initialize::configureOpenSsl();
+
+  initialize::initV8();
+
+  //////////
+  // Start 2
+  //////////
+
+  allocator = new ArrayBufferAllocator();
+  params.array_buffer_allocator = allocator;
+#ifdef NODE_ENABLE_VTUNE_PROFILING
+  params.code_event_handler = vTune::GetVtuneCodeEventHandler();
+#endif
+
+  initialize::createIsolate();
+
+  initialize::createInitialEnvironment();
+
+  //////////
+  // Start environment
+  //////////
+  int exec_argc2 = 0;
+  const char* const* exec_argv2 = nullptr;
+  _StartEnv(cmd_args.argc, (const char* const*)cmd_args.argv, exec_argc2, exec_argv2);
 }
 
 void _StartEnv(int argc,
