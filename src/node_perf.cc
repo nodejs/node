@@ -182,8 +182,9 @@ void SetupPerformanceObservers(const FunctionCallbackInfo<Value>& args) {
 }
 
 // Creates a GC Performance Entry and passes it to observers
-void PerformanceGCCallback(Environment* env, void* ptr) {
-  GCPerformanceEntry* entry = static_cast<GCPerformanceEntry*>(ptr);
+void PerformanceGCCallback(uv_async_t* handle) {
+  GCPerformanceEntry* entry = static_cast<GCPerformanceEntry*>(handle->data);
+  Environment* env = entry->env();
   HandleScope scope(env->isolate());
   Local<Context> context = env->context();
 
@@ -200,6 +201,10 @@ void PerformanceGCCallback(Environment* env, void* ptr) {
   }
 
   delete entry;
+  auto closeCB = [](uv_handle_t* handle) {
+    delete reinterpret_cast<uv_async_t*>(handle);
+  };
+  uv_close(reinterpret_cast<uv_handle_t*>(handle), closeCB);
 }
 
 // Marks the start of a GC cycle
@@ -216,11 +221,16 @@ void MarkGarbageCollectionEnd(Isolate* isolate,
                               v8::GCCallbackFlags flags,
                               void* data) {
   Environment* env = static_cast<Environment*>(data);
-  env->SetImmediate(PerformanceGCCallback,
-                    new GCPerformanceEntry(env,
-                                           static_cast<PerformanceGCKind>(type),
-                                           performance_last_gc_start_mark_,
-                                           PERFORMANCE_NOW()));
+  uv_async_t* async = new uv_async_t();
+  if (uv_async_init(env->event_loop(), async, PerformanceGCCallback))
+    return delete async;
+  uv_unref(reinterpret_cast<uv_handle_t*>(async));
+  async->data =
+      new GCPerformanceEntry(env,
+                             static_cast<PerformanceGCKind>(type),
+                             performance_last_gc_start_mark_,
+                             PERFORMANCE_NOW());
+  CHECK_EQ(0, uv_async_send(async));
 }
 
 
