@@ -5012,7 +5012,7 @@ CmdArgs generateCmdArgsFromProgramName(const std::string& program_name) {
   int argc = 1;
   char* program_name_c_string = new char[program_name.length() + 1];
   std::strcpy(program_name_c_string, program_name.c_str());
-  char** argv = &program_name_c_string;
+  char** argv = new char*(program_name_c_string);
   return CmdArgs{argc, argv};
 }
 
@@ -5020,8 +5020,6 @@ void Initialize(const std::string& program_name) {
   //////////
   // Start 1
   //////////
-  fprintf(stdout, "refactored\n");
-  fflush(stdout);
   atexit([] () { uv_tty_reset_mode(); });
   PlatformInit();
   node::performance::performance_node_start = PERFORMANCE_NOW();
@@ -5119,17 +5117,9 @@ void Initialize(const std::string& program_name) {
     //////////
     // Start environment
     //////////
-    std::string scriptName = "./build-unix/node-embed"; // TODO?!
-    int length = scriptName.length() + 1;
-
-    char* buf = new char[length];
-    std::strcpy(buf, scriptName.c_str());
-
-    int argc = 1;
-    char* argv[] = {buf};
     int exec_argc = 0;
     const char* const* exec_argv = nullptr;
-    _StartEnv(argc, (const char* const*)argv, exec_argc, exec_argv);
+    _StartEnv(cmd_args.argc, (const char* const*)cmd_args.argv, exec_argc, exec_argv);
   }
 }
 
