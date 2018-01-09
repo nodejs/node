@@ -3,7 +3,7 @@ const common = require('../common');
 const assert = require('assert');
 
 const expected_keys = ['ares', 'http_parser', 'modules', 'node',
-                       'uv', 'v8', 'zlib'];
+                       'uv', 'v8', 'zlib', 'napi'];
 
 if (common.hasCrypto) {
   expected_keys.push('openssl');

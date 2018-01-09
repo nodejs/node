@@ -22,8 +22,6 @@
 #include "node_api_backport.h"
 #include "util.h"
 
-#define NAPI_VERSION  2
-
 static
 napi_status napi_set_last_error(napi_env env, napi_status error_code,
                                 uint32_t engine_error_code = 0,
