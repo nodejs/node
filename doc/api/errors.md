@@ -1530,6 +1530,12 @@ a hostname in the first parameter.
 An excessive amount of TLS renegotiations is detected, which is a potential
 vector for denial-of-service attacks.
 
+<a id="ERR_TLS_SNI_FROM_SERVER"></a>
+### ERR_TLS_SNI_FROM_SERVER
+
+An attempt was made to issue Server Name Indication from a TLS server-side
+socket, which is only valid from a client.
+
 <a id="ERR_TLS_RENEGOTIATION_DISABLED"></a>
 ### ERR_TLS_RENEGOTIATION_DISABLED
 
