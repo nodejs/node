@@ -225,13 +225,11 @@ void TLSWrap::Receive(const FunctionCallbackInfo<Value>& args) {
 
 
 void TLSWrap::Start(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-
   TLSWrap* wrap;
   ASSIGN_OR_RETURN_UNWRAP(&wrap, args.Holder());
 
-  if (wrap->started_)
-    return env->ThrowError("Already started.");
+  CHECK(!wrap->started_);
+
   wrap->started_ = true;
 
   // Send ClientHello handshake
@@ -747,17 +745,13 @@ int TLSWrap::DoShutdown(ShutdownWrap* req_wrap) {
 
 
 void TLSWrap::SetVerifyMode(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-
   TLSWrap* wrap;
   ASSIGN_OR_RETURN_UNWRAP(&wrap, args.Holder());
 
   CHECK_EQ(args.Length(), 2);
   CHECK(args[0]->IsBoolean());
   CHECK(args[1]->IsBoolean());
-
-  if (wrap->ssl_ == nullptr)
-    return env->ThrowTypeError("SetVerifyMode after destroySSL");
+  CHECK_NE(wrap->ssl_, nullptr);
 
   int verify_mode;
   if (wrap->is_server()) {
@@ -785,10 +779,7 @@ void TLSWrap::EnableSessionCallbacks(
     const FunctionCallbackInfo<Value>& args) {
   TLSWrap* wrap;
   ASSIGN_OR_RETURN_UNWRAP(&wrap, args.Holder());
-  if (wrap->ssl_ == nullptr) {
-    return wrap->env()->ThrowTypeError(
-        "EnableSessionCallbacks after destroySSL");
-  }
+  CHECK_NE(wrap->ssl_, nullptr);
   wrap->enable_session_callbacks();
   crypto::NodeBIO::FromBIO(wrap->enc_in_)->set_initial(kMaxHelloLength);
   wrap->hello_parser_.Start(SSLWrap<TLSWrap>::OnClientHello,
@@ -852,12 +843,8 @@ void TLSWrap::SetServername(const FunctionCallbackInfo<Value>& args) {
 
   CHECK_EQ(args.Length(), 1);
   CHECK(args[0]->IsString());
-
-  if (wrap->started_)
-    return env->ThrowError("Already started.");
-
-  if (!wrap->is_client())
-    return;
+  CHECK(!wrap->started_);
+  CHECK(wrap->is_client());
 
   CHECK_NE(wrap->ssl_, nullptr);
 
