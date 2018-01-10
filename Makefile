@@ -144,7 +144,7 @@ check: test
 coverage-clean:
 	if [ -d lib_ ]; then $(RM) -r lib; mv lib_ lib; fi
 	$(RM) -r node_modules
-	$(RM) -r gcovr testing
+	$(RM) -r gcovr build
 	$(RM) -r out/$(BUILDTYPE)/.coverage
 	$(RM) -r .cov_tmp
 	$(RM) out/$(BUILDTYPE)/obj.target/node/{src,gen}/*.gcda
@@ -171,7 +171,7 @@ coverage-build: all
 		$(NODE) ./deps/npm install nyc --no-save --no-package-lock; fi
 	if [ ! -d gcovr ]; then git clone --depth=1 \
 		--single-branch git://github.com/gcovr/gcovr.git; fi
-	if [ ! -d testing ]; then git clone --depth=1 \
+	if [ ! -d build ]; then git clone --depth=1 \
 		--single-branch https://github.com/nodejs/build.git; fi
 	if [ ! -f gcovr/scripts/gcovr.orig ]; then \
 		(cd gcovr && patch -N -p1 < \
