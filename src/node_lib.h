@@ -9,9 +9,7 @@
 
 namespace node { namespace lib {
     void _StartEnv(int argc,
-                   const char* const* argv,
-                   int exec_argc,
-                   const char* const* exec_argv);
+                   const char* const* argv);
 
     int _StopEnv();
 

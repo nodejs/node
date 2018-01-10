@@ -5032,6 +5032,12 @@ void initV8() {
 }
 
 void createIsolate() {
+  allocator = new ArrayBufferAllocator();
+  params.array_buffer_allocator = allocator;
+#ifdef NODE_ENABLE_VTUNE_PROFILING
+  params.code_event_handler = vTune::GetVtuneCodeEventHandler();
+#endif
+
   isolate = Isolate::New(params);
   if (isolate == nullptr) {
     fprintf(stderr, "Could not create isolate.");
@@ -5110,6 +5116,8 @@ void Initialize(const std::string& program_name) {
 
   // This needs to run *before* V8::Initialize().  The const_cast is not
   // optional, in case you're wondering.
+  // Init() puts the v8 specific cmd args in exec_argc and exec_argv, but as we
+  // don't support these, they are not used.
   int exec_argc = 0;
   const char** exec_argv = nullptr;
   Init(&cmd_args.argc, const_cast<const char**>(cmd_args.argv), &exec_argc, &exec_argv);
@@ -5122,12 +5130,6 @@ void Initialize(const std::string& program_name) {
   // Start 2
   //////////
 
-  allocator = new ArrayBufferAllocator();
-  params.array_buffer_allocator = allocator;
-#ifdef NODE_ENABLE_VTUNE_PROFILING
-  params.code_event_handler = vTune::GetVtuneCodeEventHandler();
-#endif
-
   initialize::createIsolate();
 
   initialize::createInitialEnvironment();
@@ -5135,15 +5137,11 @@ void Initialize(const std::string& program_name) {
   //////////
   // Start environment
   //////////
-  int exec_argc2 = 0;
-  const char* const* exec_argv2 = nullptr;
-  _StartEnv(cmd_args.argc, (const char* const*)cmd_args.argv, exec_argc2, exec_argv2);
+  _StartEnv(cmd_args.argc, (const char* const*)cmd_args.argv);
 }
 
 void _StartEnv(int argc,
-               const char* const* argv,
-               int exec_argc,
-               const char* const* exec_argv) {
+               const char* const* argv) {
     std::cout << "Starting environment" << std::endl;
     /*std::cout << "argv" << std::endl;
     for (int i = 0; i < argc; i++) {
@@ -5154,7 +5152,9 @@ void _StartEnv(int argc,
       std::cout << exec_argv[i] << std::endl;
     }*/
 
-    env->Start(argc, argv, exec_argc, exec_argv, v8_is_profiling);
+    int v8_argc = 0;
+    const char* const* v8_argv = nullptr;
+    env->Start(argc, argv, v8_argc, v8_argv, v8_is_profiling);
 
     const char* path = argc > 1 ? argv[1] : nullptr;
     StartInspector(env, path, debug_options);
