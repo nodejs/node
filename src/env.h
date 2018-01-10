@@ -560,11 +560,8 @@ class Environment {
   inline uint32_t watched_providers() const;
 
   static inline Environment* from_immediate_check_handle(uv_check_t* handle);
-  static inline Environment* from_destroy_async_ids_timer_handle(
-    uv_timer_t* handle);
   inline uv_check_t* immediate_check_handle();
   inline uv_idle_t* immediate_idle_handle();
-  inline uv_timer_t* destroy_async_ids_timer_handle();
 
   // Register clean-up cb to be called on environment destruction.
   inline void RegisterHandleCleanup(uv_handle_t* handle,
@@ -617,6 +614,8 @@ class Environment {
 
   inline double* fs_stats_field_array() const;
   inline void set_fs_stats_field_array(double* fields);
+
+  inline AliasedBuffer<uint32_t, v8::Uint32Array>& scheduled_immediate_count();
 
   inline performance::performance_state* performance_state();
   inline std::map<std::string, uint64_t>* performance_marks();
@@ -690,6 +689,11 @@ class Environment {
   bool RemovePromiseHook(promise_hook_func fn, void* arg);
   bool EmitNapiWarning();
 
+  typedef void (*native_immediate_callback)(Environment* env, void* data);
+  inline void SetImmediate(native_immediate_callback cb, void* data);
+  // This needs to be available for the JS-land setImmediate().
+  void ActivateImmediateCheck();
+
  private:
   inline void ThrowError(v8::Local<v8::Value> (*fun)(v8::Local<v8::String>),
                          const char* errmsg);
@@ -698,7 +702,6 @@ class Environment {
   IsolateData* const isolate_data_;
   uv_check_t immediate_check_handle_;
   uv_idle_t immediate_idle_handle_;
-  uv_timer_t destroy_async_ids_timer_handle_;
   uv_prepare_t idle_prepare_handle_;
   uv_check_t idle_check_handle_;
 
@@ -713,6 +716,8 @@ class Environment {
   bool emit_napi_warning_;
   size_t makecallback_cntr_;
   std::vector<double> destroy_async_id_list_;
+
+  AliasedBuffer<uint32_t, v8::Uint32Array> scheduled_immediate_count_;
 
   performance::performance_state* performance_state_ = nullptr;
   std::map<std::string, uint64_t> performance_marks_;
@@ -747,6 +752,14 @@ class Environment {
     size_t enable_count_;
   };
   std::vector<PromiseHookCallback> promise_hooks_;
+
+  struct NativeImmediateCallback {
+    native_immediate_callback cb_;
+    void* data_;
+  };
+  std::vector<NativeImmediateCallback> native_immediate_callbacks_;
+  void RunAndClearNativeImmediates();
+  static void CheckImmediate(uv_check_t* handle);
 
   static void EnvPromiseHook(v8::PromiseHookType type,
                              v8::Local<v8::Promise> promise,

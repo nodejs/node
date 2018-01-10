@@ -304,6 +304,7 @@ inline Environment::Environment(IsolateData* isolate_data,
       abort_on_uncaught_exception_(false),
       emit_napi_warning_(true),
       makecallback_cntr_(0),
+      scheduled_immediate_count_(isolate_, 1),
 #if HAVE_INSPECTOR
       inspector_agent_(new inspector::Agent(this)),
 #endif
@@ -385,15 +386,6 @@ inline uv_check_t* Environment::immediate_check_handle() {
 
 inline uv_idle_t* Environment::immediate_idle_handle() {
   return &immediate_idle_handle_;
-}
-
-inline Environment* Environment::from_destroy_async_ids_timer_handle(
-    uv_timer_t* handle) {
-  return ContainerOf(&Environment::destroy_async_ids_timer_handle_, handle);
-}
-
-inline uv_timer_t* Environment::destroy_async_ids_timer_handle() {
-  return &destroy_async_ids_timer_handle_;
 }
 
 inline void Environment::RegisterHandleCleanup(uv_handle_t* handle,
@@ -531,6 +523,18 @@ inline double* Environment::fs_stats_field_array() const {
 inline void Environment::set_fs_stats_field_array(double* fields) {
   CHECK_EQ(fs_stats_field_array_, nullptr);  // Should be set only once.
   fs_stats_field_array_ = fields;
+}
+
+inline AliasedBuffer<uint32_t, v8::Uint32Array>&
+Environment::scheduled_immediate_count() {
+  return scheduled_immediate_count_;
+}
+
+void Environment::SetImmediate(native_immediate_callback cb, void* data) {
+  native_immediate_callbacks_.push_back({ cb, data });
+  if (scheduled_immediate_count_[0] == 0)
+    ActivateImmediateCheck();
+  scheduled_immediate_count_[0] = scheduled_immediate_count_[0] + 1;
 }
 
 inline performance::performance_state* Environment::performance_state() {
