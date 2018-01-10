@@ -125,6 +125,20 @@ Creates a new `PerformanceMark` entry in the Performance Timeline. A
 `performanceEntry.duration` is always `0`. Performance marks are used
 to mark specific significant moments in the Performance Timeline.
 
+### performance.maxEntries
+<!-- YAML
+added: REPLACEME
+-->
+
+Value: {number}
+
+The maximum number of Performance Entry items that should be added to the
+Performance Timeline. This limit is not strictly enforced, but a process
+warning will be emitted if the number of entries in the timeline exceeds
+this limit.
+
+Defaults to 150.
+
 ### performance.measure(name, startMark, endMark)
 <!-- YAML
 added: v8.5.0
