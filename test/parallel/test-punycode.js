@@ -200,10 +200,7 @@ const tests = [
 let errors = 0;
 const handleError = (error, name) => {
   console.error(
-    'FAIL: %s expected %j, got %j',
-    name,
-    error.expected,
-    error.actual
+    `FAIL: ${name} expected ${error.expected}, got ${error.actual}`
   );
   errors++;
 };

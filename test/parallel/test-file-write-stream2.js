@@ -41,8 +41,8 @@ process.on('exit', function() {
   removeTestFile();
   if (cb_occurred !== cb_expected) {
     console.log('  Test callback events missing or out of order:');
-    console.log('    expected: %j', cb_expected);
-    console.log('    occurred: %j', cb_occurred);
+    console.log(`    expected: ${cb_expected}`);
+    console.log(`    occurred: ${cb_occurred}`);
     assert.strictEqual(
       cb_occurred, cb_expected,
       `events missing or out of order: "${cb_occurred}" !== "${cb_expected}"`);
@@ -78,7 +78,7 @@ file.on('drain', function() {
   if (countDrains === 1) {
     console.error('drain=1, write again');
     assert.strictEqual(fs.readFileSync(filepath, 'utf8'), EXPECTED);
-    console.error('ondrain write ret=%j', file.write(EXPECTED));
+    console.error(`ondrain write ret= ${file.write(EXPECTED)}`);
     cb_occurred += 'write ';
   } else if (countDrains === 2) {
     console.error('second drain, end');
@@ -102,7 +102,7 @@ file.on('error', function(err) {
 
 for (let i = 0; i < 11; i++) {
   const ret = file.write(String(i));
-  console.error('%d %j', i, ret);
+  console.error(`${i} ${ret}`);
 
   // return false when i hits 10
   assert.strictEqual(ret, i !== 10);
