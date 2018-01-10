@@ -1174,14 +1174,16 @@ added: v8.4.0
 * Returns: {undefined}
 
 Initiates a push stream. The callback is invoked with the new `Http2Stream`
-instance created for the push stream.
+instance created for the push stream passed as the second argument, or an
+`Error` passed as the first argument.
 
 ```js
 const http2 = require('http2');
 const server = http2.createServer();
 server.on('stream', (stream) => {
   stream.respond({ ':status': 200 });
-  stream.pushStream({ ':path': '/' }, (pushStream) => {
+  stream.pushStream({ ':path': '/' }, (err, pushStream) => {
+    if (err) throw err;
     pushStream.respond({ ':status': 200 });
     pushStream.end('some pushed data');
   });
