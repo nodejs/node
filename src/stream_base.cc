@@ -192,6 +192,13 @@ int StreamBase::Writev(const FunctionCallbackInfo<Value>& args) {
       offset += str_size;
       bytes += str_size;
     }
+
+    err = DoTryWrite(&buf_list, &count);
+    if (err != 0 || count == 0) {
+      req_wrap->Dispatched();
+      req_wrap->Dispose();
+      goto done;
+    }
   }
 
   err = DoWrite(req_wrap, buf_list, count, nullptr);
