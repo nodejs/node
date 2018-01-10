@@ -27,6 +27,7 @@
 #include "req_wrap-inl.h"
 #include "util-inl.h"
 #include "uv.h"
+#include "node_perf.h"
 
 #include <errno.h>
 #include <stdlib.h>
@@ -67,6 +68,8 @@ using v8::Null;
 using v8::Object;
 using v8::String;
 using v8::Value;
+
+using node::performance::PerformanceEntry;
 
 namespace {
 
@@ -178,6 +181,11 @@ class ChannelWrap : public AsyncWrap {
   node_ares_task_list task_list_;
 };
 
+inline bool HasDNSObserver(Environment* env) {
+  uint32_t* observers = env->performance_state()->observers;
+  return observers[performance::NODE_PERFORMANCE_ENTRY_TYPE_DNS] != 0;
+}
+
 ChannelWrap::ChannelWrap(Environment* env,
                          Local<Object> object)
   : AsyncWrap(env, object, PROVIDER_DNSCHANNEL),
@@ -204,21 +212,29 @@ class GetAddrInfoReqWrap : public ReqWrap<uv_getaddrinfo_t> {
  public:
   GetAddrInfoReqWrap(Environment* env,
                      Local<Object> req_wrap_obj,
-                     bool verbatim);
+                     bool verbatim,
+                     const char* name);
   ~GetAddrInfoReqWrap();
 
   size_t self_size() const override { return sizeof(*this); }
   bool verbatim() const { return verbatim_; }
 
+  void EmitStatistics();
+
  private:
   const bool verbatim_;
+  uint64_t start_time_;
+  std::string name_;
 };
 
 GetAddrInfoReqWrap::GetAddrInfoReqWrap(Environment* env,
                                        Local<Object> req_wrap_obj,
-                                       bool verbatim)
+                                       bool verbatim,
+                                       const char* name)
     : ReqWrap(env, req_wrap_obj, AsyncWrap::PROVIDER_GETADDRINFOREQWRAP)
-    , verbatim_(verbatim) {
+    , verbatim_(verbatim)
+    , start_time_(uv_hrtime())
+    , name_(name) {
   Wrap(req_wrap_obj, this);
 }
 
@@ -226,18 +242,46 @@ GetAddrInfoReqWrap::~GetAddrInfoReqWrap() {
   ClearWrap(object());
 }
 
+void GetAddrInfoReqWrap::EmitStatistics() {
+  if (!HasDNSObserver(env()))
+    return;
+  PerformanceEntry* entry =
+      new PerformanceEntry(env(), name_.c_str(), "dns",
+                           start_time_, uv_hrtime());
+  env()->SetImmediate([](Environment* env, void* data) {
+    PerformanceEntry* entry =
+      static_cast<PerformanceEntry*>(data);
+    if (HasDNSObserver(env)) {
+      entry->Notify(env,
+                    node::performance::NODE_PERFORMANCE_ENTRY_TYPE_DNS,
+                    entry->ToObject());
+    }
+    delete entry;
+  }, static_cast<void*>(entry));
+}
+
 
 class GetNameInfoReqWrap : public ReqWrap<uv_getnameinfo_t> {
  public:
-  GetNameInfoReqWrap(Environment* env, Local<Object> req_wrap_obj);
+  GetNameInfoReqWrap(Environment* env,
+                     Local<Object> req_wrap_obj,
+                     const char* name);
   ~GetNameInfoReqWrap();
 
   size_t self_size() const override { return sizeof(*this); }
+
+  void EmitStatistics();
+ private:
+  uint64_t start_time_;
+  std::string name_;
 };
 
 GetNameInfoReqWrap::GetNameInfoReqWrap(Environment* env,
-                                       Local<Object> req_wrap_obj)
-    : ReqWrap(env, req_wrap_obj, AsyncWrap::PROVIDER_GETNAMEINFOREQWRAP) {
+                                       Local<Object> req_wrap_obj,
+                                       const char* name)
+    : ReqWrap(env, req_wrap_obj, AsyncWrap::PROVIDER_GETNAMEINFOREQWRAP)
+    , start_time_(uv_hrtime())
+    , name_(name) {
   Wrap(req_wrap_obj, this);
 }
 
@@ -245,6 +289,23 @@ GetNameInfoReqWrap::~GetNameInfoReqWrap() {
   ClearWrap(object());
 }
 
+void GetNameInfoReqWrap::EmitStatistics() {
+  if (!HasDNSObserver(env()))
+    return;
+  PerformanceEntry* entry =
+      new PerformanceEntry(env(), name_.c_str(), "dns",
+                           start_time_, uv_hrtime());
+  env()->SetImmediate([](Environment* env, void* data) {
+    PerformanceEntry* entry =
+      static_cast<PerformanceEntry*>(data);
+    if (HasDNSObserver(env)) {
+      entry->Notify(env,
+                    node::performance::NODE_PERFORMANCE_ENTRY_TYPE_DNS,
+                    entry->ToObject());
+    }
+    delete entry;
+  }, static_cast<void*>(entry));
+}
 
 /* This is called once per second by loop->timer. It is used to constantly */
 /* call back into c-ares for possibly processing timeouts. */
@@ -581,12 +642,15 @@ void ChannelWrap::EnsureServers() {
   Setup();
 }
 
-
 class QueryWrap : public AsyncWrap {
  public:
-  QueryWrap(ChannelWrap* channel, Local<Object> req_wrap_obj)
+  QueryWrap(ChannelWrap* channel,
+            Local<Object> req_wrap_obj,
+            const char* name)
       : AsyncWrap(channel->env(), req_wrap_obj, AsyncWrap::PROVIDER_QUERYWRAP),
-        channel_(channel) {
+        channel_(channel),
+        start_time_(uv_hrtime()),
+        name_(name) {
     Wrap(req_wrap_obj, this);
 
     // Make sure the channel object stays alive during the query lifetime.
@@ -704,6 +768,24 @@ class QueryWrap : public AsyncWrap {
     uv_async_send(async_handle);
   }
 
+  void EmitStatistics() {
+    Environment* env = this->env();
+    if (!HasDNSObserver(env))
+      return;
+    PerformanceEntry* entry =
+      new PerformanceEntry(env, name_.c_str(), "dns", start_time_, uv_hrtime());
+    env->SetImmediate([](Environment* env, void* data) {
+      PerformanceEntry* entry =
+        static_cast<PerformanceEntry*>(data);
+      if (HasDNSObserver(env)) {
+        entry->Notify(env,
+                      node::performance::NODE_PERFORMANCE_ENTRY_TYPE_DNS,
+                      entry->ToObject());
+      }
+      delete entry;
+    }, static_cast<void*>(entry));
+  }
+
   void CallOnComplete(Local<Value> answer,
                       Local<Value> extra = Local<Value>()) {
     HandleScope handle_scope(env()->isolate());
@@ -714,6 +796,7 @@ class QueryWrap : public AsyncWrap {
       extra
     };
     const int argc = arraysize(argv) - extra.IsEmpty();
+    EmitStatistics();
     MakeCallback(env()->oncomplete_string(), argc, argv);
   }
 
@@ -736,6 +819,8 @@ class QueryWrap : public AsyncWrap {
   }
 
   ChannelWrap* channel_;
+  uint64_t start_time_;
+  std::string name_;
 };
 
 
@@ -1180,8 +1265,10 @@ int ParseSoaReply(Environment* env,
 
 class QueryAnyWrap: public QueryWrap {
  public:
-  QueryAnyWrap(ChannelWrap* channel, Local<Object> req_wrap_obj)
-    : QueryWrap(channel, req_wrap_obj) {
+  QueryAnyWrap(ChannelWrap* channel,
+               Local<Object> req_wrap_obj,
+               const char* name)
+    : QueryWrap(channel, req_wrap_obj, name) {
   }
 
   int Send(const char* name) override {
@@ -1357,8 +1444,10 @@ class QueryAnyWrap: public QueryWrap {
 
 class QueryAWrap: public QueryWrap {
  public:
-  QueryAWrap(ChannelWrap* channel, Local<Object> req_wrap_obj)
-      : QueryWrap(channel, req_wrap_obj) {
+  QueryAWrap(ChannelWrap* channel,
+             Local<Object> req_wrap_obj,
+             const char* name)
+      : QueryWrap(channel, req_wrap_obj, name) {
   }
 
   int Send(const char* name) override {
@@ -1401,8 +1490,10 @@ class QueryAWrap: public QueryWrap {
 
 class QueryAaaaWrap: public QueryWrap {
  public:
-  QueryAaaaWrap(ChannelWrap* channel, Local<Object> req_wrap_obj)
-      : QueryWrap(channel, req_wrap_obj) {
+  QueryAaaaWrap(ChannelWrap* channel,
+                Local<Object> req_wrap_obj,
+                const char* name)
+      : QueryWrap(channel, req_wrap_obj, name) {
   }
 
   int Send(const char* name) override {
@@ -1445,8 +1536,10 @@ class QueryAaaaWrap: public QueryWrap {
 
 class QueryCnameWrap: public QueryWrap {
  public:
-  QueryCnameWrap(ChannelWrap* channel, Local<Object> req_wrap_obj)
-      : QueryWrap(channel, req_wrap_obj) {
+  QueryCnameWrap(ChannelWrap* channel,
+                 Local<Object> req_wrap_obj,
+                 const char* name)
+      : QueryWrap(channel, req_wrap_obj, name) {
   }
 
   int Send(const char* name) override {
@@ -1476,8 +1569,10 @@ class QueryCnameWrap: public QueryWrap {
 
 class QueryMxWrap: public QueryWrap {
  public:
-  QueryMxWrap(ChannelWrap* channel, Local<Object> req_wrap_obj)
-      : QueryWrap(channel, req_wrap_obj) {
+  QueryMxWrap(ChannelWrap* channel,
+              Local<Object> req_wrap_obj,
+              const char* name)
+      : QueryWrap(channel, req_wrap_obj, name) {
   }
 
   int Send(const char* name) override {
@@ -1507,8 +1602,10 @@ class QueryMxWrap: public QueryWrap {
 
 class QueryNsWrap: public QueryWrap {
  public:
-  QueryNsWrap(ChannelWrap* channel, Local<Object> req_wrap_obj)
-      : QueryWrap(channel, req_wrap_obj) {
+  QueryNsWrap(ChannelWrap* channel,
+              Local<Object> req_wrap_obj,
+              const char* name)
+      : QueryWrap(channel, req_wrap_obj, name) {
   }
 
   int Send(const char* name) override {
@@ -1538,8 +1635,10 @@ class QueryNsWrap: public QueryWrap {
 
 class QueryTxtWrap: public QueryWrap {
  public:
-  QueryTxtWrap(ChannelWrap* channel, Local<Object> req_wrap_obj)
-      : QueryWrap(channel, req_wrap_obj) {
+  QueryTxtWrap(ChannelWrap* channel,
+               Local<Object> req_wrap_obj,
+               const char* name)
+      : QueryWrap(channel, req_wrap_obj, name) {
   }
 
   int Send(const char* name) override {
@@ -1568,8 +1667,10 @@ class QueryTxtWrap: public QueryWrap {
 
 class QuerySrvWrap: public QueryWrap {
  public:
-  explicit QuerySrvWrap(ChannelWrap* channel, Local<Object> req_wrap_obj)
-      : QueryWrap(channel, req_wrap_obj) {
+  explicit QuerySrvWrap(ChannelWrap* channel,
+                        Local<Object> req_wrap_obj,
+                        const char* name)
+      : QueryWrap(channel, req_wrap_obj, name) {
   }
 
   int Send(const char* name) override {
@@ -1597,8 +1698,10 @@ class QuerySrvWrap: public QueryWrap {
 
 class QueryPtrWrap: public QueryWrap {
  public:
-  explicit QueryPtrWrap(ChannelWrap* channel, Local<Object> req_wrap_obj)
-      : QueryWrap(channel, req_wrap_obj) {
+  explicit QueryPtrWrap(ChannelWrap* channel,
+                        Local<Object> req_wrap_obj,
+                        const char* name)
+      : QueryWrap(channel, req_wrap_obj, name) {
   }
 
   int Send(const char* name) override {
@@ -1628,8 +1731,10 @@ class QueryPtrWrap: public QueryWrap {
 
 class QueryNaptrWrap: public QueryWrap {
  public:
-  explicit QueryNaptrWrap(ChannelWrap* channel, Local<Object> req_wrap_obj)
-      : QueryWrap(channel, req_wrap_obj) {
+  explicit QueryNaptrWrap(ChannelWrap* channel,
+                          Local<Object> req_wrap_obj,
+                          const char* name)
+      : QueryWrap(channel, req_wrap_obj, name) {
   }
 
   int Send(const char* name) override {
@@ -1658,8 +1763,10 @@ class QueryNaptrWrap: public QueryWrap {
 
 class QuerySoaWrap: public QueryWrap {
  public:
-  QuerySoaWrap(ChannelWrap* channel, Local<Object> req_wrap_obj)
-      : QueryWrap(channel, req_wrap_obj) {
+  QuerySoaWrap(ChannelWrap* channel,
+               Local<Object> req_wrap_obj,
+               const char* name)
+      : QueryWrap(channel, req_wrap_obj, name) {
   }
 
   int Send(const char* name) override {
@@ -1719,8 +1826,10 @@ class QuerySoaWrap: public QueryWrap {
 
 class GetHostByAddrWrap: public QueryWrap {
  public:
-  explicit GetHostByAddrWrap(ChannelWrap* channel, Local<Object> req_wrap_obj)
-      : QueryWrap(channel, req_wrap_obj) {
+  explicit GetHostByAddrWrap(ChannelWrap* channel,
+                             Local<Object> req_wrap_obj,
+                             const char* name)
+      : QueryWrap(channel, req_wrap_obj, name) {
   }
 
   int Send(const char* name) override {
@@ -1769,9 +1878,10 @@ static void Query(const FunctionCallbackInfo<Value>& args) {
 
   Local<Object> req_wrap_obj = args[0].As<Object>();
   Local<String> string = args[1].As<String>();
-  Wrap* wrap = new Wrap(channel, req_wrap_obj);
 
   node::Utf8Value name(env->isolate(), string);
+  Wrap* wrap = new Wrap(channel, req_wrap_obj, *name);
+
   channel->ModifyActivityQueryCount(1);
   int err = wrap->Send(*name);
   if (err) {
@@ -1840,6 +1950,7 @@ void AfterGetAddrInfo(uv_getaddrinfo_t* req, int status, struct addrinfo* res) {
   uv_freeaddrinfo(res);
 
   // Make the callback into JavaScript
+  req_wrap->EmitStatistics();
   req_wrap->MakeCallback(env->oncomplete_string(), arraysize(argv), argv);
 
   delete req_wrap;
@@ -1871,6 +1982,7 @@ void AfterGetNameInfo(uv_getnameinfo_t* req,
   }
 
   // Make the callback into JavaScript
+  req_wrap->EmitStatistics();
   req_wrap->MakeCallback(env->oncomplete_string(), arraysize(argv), argv);
 
   delete req_wrap;
@@ -1964,7 +2076,9 @@ void GetAddrInfo(const FunctionCallbackInfo<Value>& args) {
     CHECK(0 && "bad address family");
   }
 
-  auto req_wrap = new GetAddrInfoReqWrap(env, req_wrap_obj, args[4]->IsTrue());
+  auto req_wrap = new GetAddrInfoReqWrap(env, req_wrap_obj,
+                                         args[4]->IsTrue(),
+                                         *hostname);
 
   struct addrinfo hints;
   memset(&hints, 0, sizeof(struct addrinfo));
@@ -1979,9 +2093,10 @@ void GetAddrInfo(const FunctionCallbackInfo<Value>& args) {
                            nullptr,
                            &hints);
   req_wrap->Dispatched();
-  if (err)
+  if (err) {
+    req_wrap->EmitStatistics();
     delete req_wrap;
-
+  }
   args.GetReturnValue().Set(err);
 }
 
@@ -2000,7 +2115,7 @@ void GetNameInfo(const FunctionCallbackInfo<Value>& args) {
   CHECK(uv_ip4_addr(*ip, port, reinterpret_cast<sockaddr_in*>(&addr)) == 0 ||
         uv_ip6_addr(*ip, port, reinterpret_cast<sockaddr_in6*>(&addr)) == 0);
 
-  GetNameInfoReqWrap* req_wrap = new GetNameInfoReqWrap(env, req_wrap_obj);
+  GetNameInfoReqWrap* req_wrap = new GetNameInfoReqWrap(env, req_wrap_obj, *ip);
 
   int err = uv_getnameinfo(env->event_loop(),
                            req_wrap->req(),
@@ -2008,9 +2123,10 @@ void GetNameInfo(const FunctionCallbackInfo<Value>& args) {
                            (struct sockaddr*)&addr,
                            NI_NAMEREQD);
   req_wrap->Dispatched();
-  if (err)
+  if (err) {
+    req_wrap->EmitStatistics();
     delete req_wrap;
-
+  }
   args.GetReturnValue().Set(err);
 }
 
