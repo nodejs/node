@@ -46,7 +46,7 @@ const obs = new PerformanceObserver(common.mustCall((items) => {
     default:
       assert.fail('invalid entry name');
   }
-  performance.clearHttp2();
+  performance.clearEntries('http2');
 }, 4));
 obs.observe({ entryTypes: ['http2'] });
 
@@ -103,6 +103,8 @@ server.on('listening', common.mustCall(() => {
 }));
 
 process.on('exit', () => {
+  const entries = performance.getEntries();
   // There shouldn't be any http2 entries left over.
-  assert.strictEqual(performance.getEntries().length, 1);
+  assert.strictEqual(entries.length, 1);
+  assert.strictEqual(entries[0], performance.nodeTiming);
 });
