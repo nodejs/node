@@ -181,16 +181,10 @@ void TLSWrap::InitSSL() {
 void TLSWrap::Wrap(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
-  if (args.Length() < 1 || !args[0]->IsObject()) {
-    return env->ThrowTypeError(
-        "First argument should be a LibuvStreamWrap instance");
-  }
-  if (args.Length() < 2 || !args[1]->IsObject()) {
-    return env->ThrowTypeError(
-        "Second argument should be a SecureContext instance");
-  }
-  if (args.Length() < 3 || !args[2]->IsBoolean())
-    return env->ThrowTypeError("Third argument should be boolean");
+  CHECK_EQ(args.Length(), 3);
+  CHECK(args[0]->IsObject());
+  CHECK(args[1]->IsObject());
+  CHECK(args[2]->IsBoolean());
 
   Local<External> stream_obj = args[0].As<External>();
   Local<Object> sc = args[1].As<Object>();
@@ -758,8 +752,9 @@ void TLSWrap::SetVerifyMode(const FunctionCallbackInfo<Value>& args) {
   TLSWrap* wrap;
   ASSIGN_OR_RETURN_UNWRAP(&wrap, args.Holder());
 
-  if (args.Length() < 2 || !args[0]->IsBoolean() || !args[1]->IsBoolean())
-    return env->ThrowTypeError("Bad arguments, expected two booleans");
+  CHECK_EQ(args.Length(), 2);
+  CHECK(args[0]->IsBoolean());
+  CHECK(args[1]->IsBoolean());
 
   if (wrap->ssl_ == nullptr)
     return env->ThrowTypeError("SetVerifyMode after destroySSL");
@@ -855,8 +850,8 @@ void TLSWrap::SetServername(const FunctionCallbackInfo<Value>& args) {
   TLSWrap* wrap;
   ASSIGN_OR_RETURN_UNWRAP(&wrap, args.Holder());
 
-  if (args.Length() < 1 || !args[0]->IsString())
-    return env->ThrowTypeError("First argument should be a string");
+  CHECK_EQ(args.Length(), 1);
+  CHECK(args[0]->IsString());
 
   if (wrap->started_)
     return env->ThrowError("Already started.");
