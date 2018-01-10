@@ -286,7 +286,7 @@ Compression strategy.
 <!-- YAML
 added: v0.11.1
 changes:
-  - version: REPLACEME
+  - version: v9.4.0
     pr-url: https://github.com/nodejs/node/pull/16042
     description: The `dictionary` option can be an ArrayBuffer.
   - version: v8.0.0
@@ -526,7 +526,7 @@ without a callback.
 <!-- YAML
 added: v0.6.0
 changes:
-  - version: REPLACEME
+  - version: v9.4.0
     pr-url: https://github.com/nodejs/node/pull/16042
     description: The `buffer` parameter can be an ArrayBuffer.
   - version: v8.0.0
@@ -540,7 +540,7 @@ changes:
 <!-- YAML
 added: v0.11.12
 changes:
-  - version: REPLACEME
+  - version: v9.4.0
     pr-url: https://github.com/nodejs/node/pull/16042
     description: The `buffer` parameter can be an ArrayBuffer.
   - version: v8.0.0
@@ -570,7 +570,7 @@ changes:
 <!-- YAML
 added: v0.11.12
 changes:
-  - version: REPLACEME
+  - version: v9.4.0
     pr-url: https://github.com/nodejs/node/pull/16042
     description: The `buffer` parameter can be an ArrayBuffer.
   - version: v8.0.0
@@ -589,7 +589,7 @@ Compress a chunk of data with [DeflateRaw][].
 <!-- YAML
 added: v0.6.0
 changes:
-  - version: REPLACEME
+  - version: v9.4.0
     pr-url: https://github.com/nodejs/node/pull/16042
     description: The `buffer` parameter can be an ArrayBuffer.
   - version: v8.0.0
@@ -603,7 +603,7 @@ changes:
 <!-- YAML
 added: v0.11.12
 changes:
-  - version: REPLACEME
+  - version: v9.4.0
     pr-url: https://github.com/nodejs/node/pull/16042
     description: The `buffer` parameter can be an ArrayBuffer.
   - version: v8.0.0
@@ -622,7 +622,7 @@ Decompress a chunk of data with [Gunzip][].
 <!-- YAML
 added: v0.6.0
 changes:
-  - version: REPLACEME
+  - version: v9.4.0
     pr-url: https://github.com/nodejs/node/pull/16042
     description: The `buffer` parameter can be an ArrayBuffer.
   - version: v8.0.0
@@ -636,7 +636,7 @@ changes:
 <!-- YAML
 added: v0.11.12
 changes:
-  - version: REPLACEME
+  - version: v9.4.0
     pr-url: https://github.com/nodejs/node/pull/16042
     description: The `buffer` parameter can be an ArrayBuffer.
   - version: v8.0.0
@@ -655,7 +655,7 @@ Compress a chunk of data with [Gzip][].
 <!-- YAML
 added: v0.6.0
 changes:
-  - version: REPLACEME
+  - version: v9.4.0
     pr-url: https://github.com/nodejs/node/pull/16042
     description: The `buffer` parameter can be an ArrayBuffer.
   - version: v8.0.0
@@ -669,7 +669,7 @@ changes:
 <!-- YAML
 added: v0.11.12
 changes:
-  - version: REPLACEME
+  - version: v9.4.0
     pr-url: https://github.com/nodejs/node/pull/16042
     description: The `buffer` parameter can be an ArrayBuffer.
   - version: v8.0.0
@@ -688,7 +688,7 @@ Decompress a chunk of data with [Inflate][].
 <!-- YAML
 added: v0.6.0
 changes:
-  - version: REPLACEME
+  - version: v9.4.0
     pr-url: https://github.com/nodejs/node/pull/16042
     description: The `buffer` parameter can be an ArrayBuffer.
   - version: v8.0.0
@@ -702,7 +702,7 @@ changes:
 <!-- YAML
 added: v0.11.12
 changes:
-  - version: REPLACEME
+  - version: v9.4.0
     pr-url: https://github.com/nodejs/node/pull/16042
     description: The `buffer` parameter can be an ArrayBuffer.
   - version: v8.0.0
@@ -721,7 +721,7 @@ Decompress a chunk of data with [InflateRaw][].
 <!-- YAML
 added: v0.6.0
 changes:
-  - version: REPLACEME
+  - version: v9.4.0
     pr-url: https://github.com/nodejs/node/pull/16042
     description: The `buffer` parameter can be an ArrayBuffer.
   - version: v8.0.0
@@ -735,7 +735,7 @@ changes:
 <!-- YAML
 added: v0.11.12
 changes:
-  - version: REPLACEME
+  - version: v9.4.0
     pr-url: https://github.com/nodejs/node/pull/16042
     description: The `buffer` parameter can be an ArrayBuffer.
   - version: v8.0.0

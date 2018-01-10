@@ -576,7 +576,7 @@ Returns a reference to the `EventEmitter`, so that calls can be chained.
 
 ### emitter.rawListeners(eventName)
 <!-- YAML
-added: REPLACEME
+added: v9.4.0
 -->
 - `eventName` {string|symbol}
 

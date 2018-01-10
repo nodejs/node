@@ -446,7 +446,7 @@ Return the value of `highWaterMark` passed when constructing this
 
 ##### writable.writableLength
 <!-- YAML
-added: REPLACEME
+added: v9.4.0
 -->
 
 This property contains the number of bytes (or objects) in the queue
@@ -955,7 +955,7 @@ event has been emitted will return `null`. No runtime error will be raised.
 
 ##### readable.readableLength
 <!-- YAML
-added: REPLACEME
+added: v9.4.0
 -->
 
 This property contains the number of bytes (or objects) in the queue
