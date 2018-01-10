@@ -259,7 +259,7 @@ function runTest(port, testIndex) {
   const tcase = testCases[testIndex];
   if (!tcase) return;
 
-  console.error(`${prefix}Running '%s'`, tcase.title);
+  console.error(`${prefix}Running '${tcase.title}'`);
 
   const cas = tcase.CAs.map(loadPEM);
 

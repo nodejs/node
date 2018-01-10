@@ -38,7 +38,7 @@ function parent() {
 
   child.stderr.setEncoding('utf8');
   child.stderr.on('data', function(c) {
-    console.error('%j', c);
+    console.error(`${c}`);
     throw new Error('should not get stderr data');
   });
 

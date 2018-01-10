@@ -93,7 +93,7 @@ function parent() {
       assert.strictEqual(
         code, exit,
         `wrong exit for ${arg}\nexpected:${exit} but got:${code}`);
-      console.log('ok - %s exited with %d', arg, exit);
+      console.log(`ok - ${arg} exited with ${exit}`);
     });
   };
 

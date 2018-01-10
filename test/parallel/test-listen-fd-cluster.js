@@ -85,7 +85,7 @@ function test(cb) {
     conn.end('hello from parent\n');
   }).listen(0, function() {
     const port = this.address().port;
-    console.error('server listening on %d', port);
+    console.error(`server listening on ${port}`);
 
     const spawn = require('child_process').spawn;
     const master = spawn(process.execPath, [__filename, 'master'], {
