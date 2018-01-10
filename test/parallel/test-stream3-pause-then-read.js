@@ -60,7 +60,7 @@ function read100() {
 }
 
 function readn(n, then) {
-  console.error('read %d', n);
+  console.error(`read ${n}`);
   expectEndingData -= n;
   (function read() {
     const c = r.read(n);

@@ -19,8 +19,8 @@ fs.open(fn, 'w', 0o644, common.mustCall(function(err, fd) {
     assert.strictEqual(Buffer.byteLength(expected), written);
     fs.closeSync(fd);
     const found = fs.readFileSync(fn, 'utf8');
-    console.log('expected: "%s"', expected);
-    console.log('found: "%s"', found);
+    console.log(`expected: "${expected}"`);
+    console.log(`found: "${found}"`);
     fs.unlinkSync(fn);
     assert.strictEqual(expected, found);
   }));

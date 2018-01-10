@@ -43,9 +43,9 @@ r.on('readable', function() {
   console.error('>> readable');
   let ret;
   do {
-    console.error('  > read(%d)', READSIZE);
+    console.error(`  > read(${READSIZE})`);
     ret = r.read(READSIZE);
-    console.error('  < %j (%d remain)', ret && ret.length, rs.length);
+    console.error(`  < ${ret && ret.length} (${rs.length} remain)`);
   } while (ret && ret.length === READSIZE);
 
   console.error('<< after read()',
@@ -68,7 +68,7 @@ function push() {
     return r.push(null);
   }
 
-  console.error('   push #%d', pushes);
+  console.error(`   push #${pushes}`);
   if (r.push(Buffer.allocUnsafe(PUSHSIZE)))
     setTimeout(push, 1);
 }
