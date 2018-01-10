@@ -5,7 +5,6 @@
 #include <functional>
 #include <initializer_list>
 #include "v8.h"
-#include "node.h"
 
 namespace node { namespace lib {
     void _StartEnv(int argc,
@@ -133,7 +132,7 @@ namespace node { namespace lib {
     Calls a function (specified by its name) on a given object passing the given arguments.
     *Important*: Throws an exception if the receiver does not define the specified function.
     */
-    NODE_EXTERN v8::Local<v8::Value> Call(v8::MaybeLocal<v8::Object> object, const std::string & function_name, std::initializer_list<v8::MaybeLocal<v8::Value>> args);
+    NODE_EXTERN v8::Local<v8::Value> Call(v8::Local<v8::Object> object, const std::string & function_name, std::initializer_list<v8::Local<v8::Value>> args);
 
     /*
     Calls a given function on a given receiver passing the given arguments.

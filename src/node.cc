@@ -5222,33 +5222,42 @@ void RunEventLoop(const RunUserLoop& callback){
   } while (more);
 }
 
-// TODO: Might not be working.
 v8::Local<v8::Object> GetRootObject() {
   return context->Global();
 }
 
-// TODO: Node.js has exceptions disabled.
-// TODO: Doesn't work yet.
-v8::Local<v8::Value> Call(v8::Local<v8::Object> object, const std::string& function_name, const std::vector<v8::Local<v8::Value>>& args) {
-  Local<v8::String> func = v8::String::NewFromUtf8(isolate, function_name.c_str());
 
-  Local<v8::Value> value = object->Get(func);
+v8::Local<v8::Value> Call(v8::Local<v8::Object> receiver, v8::Local<v8::Function> function, const std::vector<v8::Local<v8::Value>> & args = {}) {
+    return function->Call(receiver, args.size(), const_cast<v8::Local<v8::Value>*>(&args[0]));
+}
+
+v8::Local<v8::Value> Call(v8::Local<v8::Object> receiver, v8::Local<v8::Function> function, std::initializer_list<v8::Local<v8::Value>> args) {
+    return Call(receiver, function, std::vector<v8::Local<v8::Value>>(args));
+}
+
+// TODO: Error handling: Node.js has exceptions disabled.
+v8::Local<v8::Value> Call(v8::Local<v8::Object> object, const std::string& function_name, const std::vector<v8::Local<v8::Value>>& args) {
+  Local<v8::String> v8_function_name = v8::String::NewFromUtf8(isolate, function_name.c_str());
+
+  Local<v8::Value> value = object->Get(v8_function_name);
   if (!value->IsFunction()) {
     //throw new Exception(":((");
   }
-  Local<v8::Function> _func = v8::Local<v8::Function>::Cast(value);
 
-  return _func->Call(object, 1, const_cast<v8::Local<v8::Value>*>(&args[0]));
+  return Call(object, v8::Local<v8::Function>::Cast(value), args);
+}
+
+v8::Local<v8::Value> Call(v8::Local<v8::Object> object, const std::string & function_name, std::initializer_list<v8::Local<v8::Value>> args) {
+    return Call(object, function_name, std::vector<v8::Local<v8::Value>>(args));
 }
 
 // TODO: Node.js has exceptions disabled.
-// TODO: Doesn't work yet.
 v8::Local<v8::Object> IncludeModule(const std::string& module_name) {
-  std::vector<v8::Local<v8::Value>> args;
-  args.push_back(v8::String::NewFromUtf8(isolate, module_name.c_str()));
+  std::vector<v8::Local<v8::Value>> args = {v8::String::NewFromUtf8(isolate, module_name.c_str())};
 
   auto module = Call(GetRootObject(), "require", args);
   if (!module->IsObject()) {
+    // TODO: Can modules not be objects?
     //throw new Exception(":((");
   }
 
