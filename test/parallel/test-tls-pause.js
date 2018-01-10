@@ -36,7 +36,7 @@ server.listen(0, function() {
     function send() {
       console.error('sending');
       const ret = client.write(Buffer.allocUnsafe(bufSize));
-      console.error('write => %j', ret);
+      console.error(`write => ${ret}`);
       if (false !== ret) {
         console.error('write again');
         sent += bufSize;

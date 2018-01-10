@@ -37,19 +37,19 @@ function write(out) {
   // that 'finish' isn't emitted until the stream is fully flushed.
   out.on('finish', function() {
     finishEvent = true;
-    console.error('%s finish event', name);
+    console.error(`${name} finish event`);
     process.nextTick(function() {
       assert(endCb, `${name} got finish event before endcb!`);
-      console.log('ok - %s finishEvent', name);
+      console.log(`ok - ${name} finishEvent`);
     });
   });
 
   out.end(buf, function() {
     endCb = true;
-    console.error('%s endCb', name);
+    console.error(`${name} endCb`);
     process.nextTick(function() {
       assert(finishEvent, `${name} got endCb event before finishEvent!`);
-      console.log('ok - %s endCb', name);
+      console.log(`ok - ${name} endCb`);
     });
   });
 }

@@ -17,7 +17,7 @@ function parent() {
 
     child.on('close', function() {
       assert.strictEqual(err, `child ${c}\nfoo\nbar\nbaz\n`);
-      console.log('ok %d child #%d', ++i, c);
+      console.log(`ok ${++i} child #${c}`);
       if (i === children.length)
         console.log(`1..${i}`);
     });

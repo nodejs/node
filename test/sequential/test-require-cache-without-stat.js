@@ -31,7 +31,7 @@ require('../fixtures/a.js');
 require('./../fixtures/a.js');
 require('http');
 
-console.log('counterBefore = %d', counter);
+console.log(`counterBefore = ${counter}`);
 const counterBefore = counter;
 
 // Now load the module a bunch of times with equivalent paths.
@@ -47,7 +47,7 @@ for (let i = 0; i < 100; i++) {
   require('http');
 }
 
-console.log('counterAfter = %d', counter);
+console.log(`counterAfter = ${counter}`);
 const counterAfter = counter;
 
 assert.strictEqual(counterBefore, counterAfter);
