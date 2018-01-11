@@ -18,7 +18,7 @@
 #include "node_api.h"
 #include "node_internals.h"
 
-#define NAPI_VERSION  2
+#define NAPI_VERSION  3
 
 static
 napi_status napi_set_last_error(napi_env env, napi_status error_code,
@@ -3521,4 +3521,190 @@ napi_status napi_run_script(napi_env env,
 
   *result = v8impl::JsValueFromV8LocalValue(script_result.ToLocalChecked());
   return GET_RETURN_STATUS(env);
+}
+
+struct napi_threadsafe_function__ {
+  uv_async_t async;
+  napi_ref ref;
+  napi_env env;
+  size_t argc;
+  void* data;
+  void* context;
+  napi_threadsafe_function_marshal marshal_cb;
+  napi_threadsafe_function_process_result process_result_cb;
+};
+
+static napi_value napi_threadsafe_function_error(napi_env env,
+                                                 const char* message) {
+  napi_value result, js_message;
+  if (napi_create_string_utf8(env, message, NAPI_AUTO_LENGTH, &js_message) ==
+      napi_ok) {
+    if (napi_create_error(env, nullptr, js_message, &result) == napi_ok) {
+      return result;
+    }
+  }
+
+  napi_fatal_error("N-API thread-safe function", NAPI_AUTO_LENGTH,
+      (std::string("Failed to create JS error: ") +
+      std::string(message)).c_str(), NAPI_AUTO_LENGTH);
+  return nullptr;
+}
+
+static void napi_threadsafe_function_cb(uv_async_t* uv_async) {
+  napi_threadsafe_function async =
+      node::ContainerOf(&napi_threadsafe_function__::async, uv_async);
+  v8::HandleScope handle_scope(async->env->isolate);
+
+  napi_value js_cb;
+  napi_value recv;
+  napi_value js_result = nullptr;
+  napi_value exception = nullptr;
+  std::vector<napi_value> argv(async->argc);
+
+  napi_status status = napi_get_reference_value(async->env, async->ref, &js_cb);
+  if (status != napi_ok) {
+    exception = napi_threadsafe_function_error(async->env,
+        "Failed to retrieve JS callback");
+    goto done;
+  }
+
+  status = async->marshal_cb(async->env, async->data, &recv, async->argc,
+      argv.data());
+  if (status != napi_ok) {
+    exception = napi_threadsafe_function_error(async->env,
+        "Failed to marshal JS callback arguments");
+    goto done;
+  }
+
+  status = napi_make_callback(async->env, nullptr, recv, js_cb, async->argc,
+      argv.data(), &js_result);
+  if (status != napi_ok) {
+    if (status == napi_pending_exception) {
+      status = napi_get_and_clear_last_exception(async->env, &exception);
+      if (status != napi_ok) {
+        exception = napi_threadsafe_function_error(async->env,
+            "Failed to retrieve JS callback exception");
+        goto done;
+      }
+    } else {
+      exception = napi_threadsafe_function_error(async->env,
+          "Failed to call JS callback");
+      goto done;
+    }
+  }
+
+done:
+  async->process_result_cb(async->env, async->data, exception, js_result);
+}
+
+static napi_status napi_threadsafe_function_default_marshal(napi_env env,
+                                                            void* data,
+                                                            napi_value* recv,
+                                                            size_t argc,
+                                                            napi_value* argv) {
+  napi_status status;
+  for (size_t index = 0; index < argc; index++) {
+    status = napi_get_undefined(env, &argv[index]);
+    if (status != napi_ok) {
+      return status;
+    }
+  }
+  return napi_get_global(env, recv);
+}
+
+static void napi_threadsafe_function_default_process_result(napi_env env,
+                                                            void* data,
+                                                            napi_value error,
+                                                            napi_value result) {
+  if (error != nullptr) {
+    napi_throw(env, error);
+  }
+}
+
+NAPI_EXTERN napi_status
+napi_create_threadsafe_function(napi_env env,
+                                napi_value func,
+                                void* data,
+                                size_t argc,
+                                napi_threadsafe_function_marshal marshal_cb,
+                                napi_threadsafe_function_process_result
+                                    process_result_cb,
+                                napi_threadsafe_function* result) {
+  CHECK_ENV(env);
+  CHECK_ARG(env, func);
+  CHECK_ARG(env, result);
+
+  napi_valuetype func_type;
+  napi_status status = napi_typeof(env, func, &func_type);
+  if (status != napi_ok) {
+    return status;
+  }
+
+  if (func_type != napi_function) {
+    return napi_set_last_error(env, napi_function_expected);
+  }
+
+  napi_threadsafe_function async = new napi_threadsafe_function__;
+  if (async == nullptr) {
+    return napi_set_last_error(env, napi_generic_failure);
+  }
+
+  status = napi_create_reference(env, func, 1, &async->ref);
+  if (status != napi_ok) {
+    delete async;
+    return status;
+  }
+
+  if (uv_async_init(uv_default_loop(), &async->async,
+      napi_threadsafe_function_cb) != 0) {
+    napi_delete_reference(env, async->ref);
+    delete async;
+    return napi_set_last_error(env, napi_generic_failure);
+  }
+
+  async->argc = argc;
+  async->marshal_cb = marshal_cb == nullptr ?
+      napi_threadsafe_function_default_marshal : marshal_cb;
+  async->process_result_cb =
+      process_result_cb == nullptr ?
+          napi_threadsafe_function_default_process_result : process_result_cb;
+  async->data = data;
+  async->env = env;
+
+  *result = async;
+  return napi_clear_last_error(env);
+}
+
+NAPI_EXTERN napi_status
+napi_get_threadsafe_function_data(napi_threadsafe_function async,
+                                  void** data) {
+  if (data != nullptr) {
+    *data = async->data;
+  }
+  return napi_ok;
+}
+
+NAPI_EXTERN napi_status
+napi_call_threadsafe_function(napi_threadsafe_function async) {
+  return uv_async_send(&async->async) == 0 ?
+      napi_ok : napi_generic_failure;
+}
+
+NAPI_EXTERN napi_status
+napi_delete_threadsafe_function(napi_env env,
+                                napi_threadsafe_function async) {
+  CHECK_ENV(env);
+  CHECK_ARG(env, async);
+
+  napi_status status = napi_delete_reference(env, async->ref);
+  if (status != napi_ok) {
+    return status;
+  }
+
+  uv_close(reinterpret_cast<uv_handle_t*>(&async->async),
+      [] (uv_handle_t* handle) -> void {
+        delete handle;
+      });
+
+  return napi_clear_last_error(env);
 }

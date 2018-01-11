@@ -587,6 +587,28 @@ NAPI_EXTERN napi_status napi_run_script(napi_env env,
 NAPI_EXTERN napi_status napi_get_uv_event_loop(napi_env env,
                                                struct uv_loop_s** loop);
 
+// Calling into JS from other threads
+NAPI_EXTERN napi_status
+napi_create_threadsafe_function(napi_env env,
+                                napi_value func,
+                                void* data,
+                                size_t argc,
+                                napi_threadsafe_function_marshal marshal_cb,
+                                napi_threadsafe_function_process_result
+                                    process_result_cb,
+                                napi_threadsafe_function* result);
+
+NAPI_EXTERN napi_status
+napi_call_threadsafe_function(napi_threadsafe_function func);
+
+NAPI_EXTERN napi_status
+napi_get_threadsafe_function_data(napi_threadsafe_function func,
+                                  void** data);
+
+NAPI_EXTERN napi_status
+napi_delete_threadsafe_function(napi_env env,
+                                napi_threadsafe_function func);
+
 EXTERN_C_END
 
 #endif  // SRC_NODE_API_H_

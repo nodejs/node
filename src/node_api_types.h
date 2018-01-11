@@ -19,6 +19,7 @@ typedef struct napi_callback_info__ *napi_callback_info;
 typedef struct napi_async_context__ *napi_async_context;
 typedef struct napi_async_work__ *napi_async_work;
 typedef struct napi_deferred__ *napi_deferred;
+typedef struct napi_threadsafe_function__ *napi_threadsafe_function;
 
 typedef enum {
   napi_default = 0,
@@ -83,6 +84,15 @@ typedef void (*napi_async_execute_callback)(napi_env env,
 typedef void (*napi_async_complete_callback)(napi_env env,
                                              napi_status status,
                                              void* data);
+typedef napi_status(*napi_threadsafe_function_marshal)(napi_env env,
+                                                       void* data,
+                                                       napi_value* recv,
+                                                       size_t argc,
+                                                       napi_value* argv);
+typedef void(*napi_threadsafe_function_process_result)(napi_env env,
+                                                       void* data,
+                                                       napi_value error,
+                                                       napi_value result);
 
 typedef struct {
   // One of utf8name or name should be NULL.

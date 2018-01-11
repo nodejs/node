@@ -47,6 +47,7 @@ The documentation for N-API is structured as follows:
 * [Custom Asynchronous Operations][]
 * [Promises][]
 * [Script Execution][]
+* [Asynchronous Thread-safe Function Calls][]
 
 The N-API is a C API that ensures ABI stability across Node.js versions
 and different compiler levels. However, we also understand that a C++
@@ -201,6 +202,36 @@ operations. Callback functions must statisfy the following signature:
 typedef void (*napi_async_complete_callback)(napi_env env,
                                              napi_status status,
                                              void* data);
+```
+
+#### napi_threadsafe_function_marshal
+Function pointer used with asynchronous thread-safe function calls. The callback
+will be called on the main thread. Its purpose is to compute the JavaScript
+function context and its arguments from the native data associated with the
+thread-safe function and store them in `recv` and `argv`, respectively.
+Callback functions must satisfy the following signature:
+
+```C
+typedef napi_status(*napi_threadsafe_function_marshal)(napi_env env,
+                                                       void* data,
+                                                       napi_value* recv,
+                                                       size_t argc,
+                                                       napi_value* argv);
+```
+
+#### napi_threadsafe_function_process_result
+Function pointer used with asynchronous thread-safe function calls. The callback
+will be called on the main thread after the JavaScript function has returned.
+If an exception was thrown during the execution of the JavaScript function, it
+will be made available in the `error` parameter. The `result` parameter will
+have the function's return value. Both parameters may be `NULL`, but one of them
+will always be set.
+
+```C
+typedef void(*napi_threadsafe_function_process_result)(napi_env env,
+                                                       void* data,
+                                                       napi_value error,
+                                                       napi_value result);
 ```
 
 ## Error Handling
@@ -3705,6 +3736,105 @@ NAPI_EXTERN napi_status napi_get_uv_event_loop(napi_env env,
 - `[in] env`: The environment that the API is invoked under.
 - `[out] loop`: The current libuv loop instance.
 
+<!-- it's very convenient to have all the anchors indexed -->
+<!--lint disable no-unused-definitions remark-lint-->
+## Asynchronous Thread-safe Function Calls
+JavaScript functions can normally only be called from a native addon's main
+thread. If an addon creates additional threads then N-API functions that require
+a `napi_env`, `napi_value`, or `napi_ref` must not be called from those threads.
+
+This API provides the type `napi_threadsafe_function` as well as APIs to create,
+destroy, and call objects of this type. `napi_threadsafe_function` creates a
+permanent reference to a `napi_value` that holds a JavaScript function, and
+uses `uv_async_t` from libuv to coordinate calls to the JavaScript function from
+all threads.
+
+The user provides callbacks `marshal_cb` and `process_result_cb` to handle the
+conversion of the native data to JavaScript function argfuments, and to process
+the JavaScript function return value or a possible error condition,
+respectively.
+
+`napi_threadsafe_function` objects are destroyed by passing them to
+`napi_delete_threadsafe_function()`. Make sure that all threads that have
+references to the `napi_threadsafe_function` object are stopped before deleting
+the object.
+
+Since `uv_async_t` is used in the implementation, the caveat whereby multiple
+invocations on the secondary thread may result in only one invocation of the
+JavaScript function also applies to `napi_threadsafe_function`.
+
+### napi_create_threadsafe_function
+<!-- YAML
+added: REPLACEME
+-->
+```C
+NAPI_EXTERN napi_status
+napi_create_threadsafe_function(napi_env env,
+                                napi_value func,
+                                void* data,
+                                size_t argc,
+                                napi_threadsafe_function_marshal marshal_cb,
+                                napi_threadsafe_function_process_result
+                                    process_result_cb,
+                                napi_threadsafe_function* result);
+```
+
+- `[in] env`: The environment that the API is invoked under.
+- `[in] func`: The JavaScript function to call from another thread.
+- `[in] data`: Optional data to attach to the resulting `napi_threadsafe_function`.
+- `[in] context`: Optional context associated with `data`.
+- `[in] argc`: Number of arguments the JavaScript function will have.
+- `[in] marshal_cb`: Optional callback to convert `data` and `context` to
+JavaScript function arguments. The callback will always be called on the main
+thread.
+- `[in] process_result_cb`: Optional callback to handle the return value and/or
+exception resulting from the invocation of the JavaScript function. The callback
+will always be called on the main thread.
+- `[out] result`: The asynchronous thread-safe JavaScript function.
+
+### napi_call_threadsafe_function
+<!-- YAML
+added: REPLACEME
+-->
+```C
+NAPI_EXTERN napi_status
+napi_call_threadsafe_function(napi_threadsafe_function func);
+```
+
+- `[in] func`: The asynchronous thread-safe JavaScript function to invoke. This
+API may be called from any thread.
+
+### napi_get_threadsafe_function_data
+<!-- YAML
+added: REPLACEME
+-->
+```C
+NAPI_EXTERN napi_status
+napi_get_threadsafe_function_data(napi_threadsafe_function func,
+                                  void** data);
+```
+
+- `[in] func`: The asynchronous thread-safe JavaScript function whose associated
+data to retrieve.
+- `[out] data`: Optional pointer to receive the data associated with the
+thread-safe JavaScript function.
+- `[out]: context`: Optional pointer to receive the context associated with the
+thread-safe JavaScript function.
+
+### napi_delete_threadsafe_function
+<!-- YAML
+added: REPLACEME
+-->
+```C
+NAPI_EXTERN napi_status
+napi_delete_threadsafe_function(napi_env env,
+                                napi_threadsafe_function func);
+```
+
+- `[in] env`: The environment that the API is invoked under.
+- `[in] func`: The asynchronous thread-safe JavaScript function to delete.
+
+[Asynchronous Thread-safe Function Calls]: #n_api_asynchronous_thread-safe_function_calls
 [Promises]: #n_api_promises
 [Simple Asynchronous Operations]: #n_api_simple_asynchronous_operations
 [Custom Asynchronous Operations]: #n_api_custom_asynchronous_operations

@@ -33,8 +33,8 @@ assert.ok(test_general.testGetPrototype(baseObject) !==
           'Prototypes for base and extended should be different');
 
 // test version management functions
-// expected version is currently 1
-assert.strictEqual(test_general.testGetVersion(), 2);
+// expected version is currently 3
+assert.strictEqual(test_general.testGetVersion(), 3);
 
 const [ major, minor, patch, release ] = test_general.testGetNodeVersion();
 assert.strictEqual(process.version.split('-')[0],
