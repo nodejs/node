@@ -119,8 +119,8 @@ likely be required.
 
 ### Class: errors.Error(key[, args...])
 
-* `key` {String} The static error identifier
-* `args...` {Any} Zero or more optional arguments
+* `key` {string} The static error identifier
+* `args...` {any} Zero or more optional arguments
 
 ```js
 const errors = require('internal/errors');
@@ -139,8 +139,8 @@ The `myError` object will have a `code` property equal to the `key` and a
 
 ### Class: errors.TypeError(key[, args...])
 
-* `key` {String} The static error identifier
-* `args...` {Any} Zero or more optional arguments
+* `key` {string} The static error identifier
+* `args...` {any} Zero or more optional arguments
 
 ```js
 const errors = require('internal/errors');
@@ -159,8 +159,8 @@ The `myError` object will have a `code` property equal to the `key` and a
 
 ### Class: errors.RangeError(key[, args...])
 
-* `key` {String} The static error identifier
-* `args...` {Any} Zero or more optional arguments
+* `key` {string} The static error identifier
+* `args...` {any} Zero or more optional arguments
 
 ```js
 const errors = require('internal/errors');
@@ -179,8 +179,8 @@ The `myError` object will have a `code` property equal to the `key` and a
 
 ### Method: errors.message(key, args)
 
-* `key` {String} The static error identifier
+* `key` {string} The static error identifier
 * `args` {Array} Zero or more optional arguments passed as an Array
-* Returns: {String}
+* Returns: {string}
 
 Returns the formatted error message string for the given `key`.
