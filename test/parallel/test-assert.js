@@ -110,6 +110,7 @@ assert.throws(() => thrower(TypeError));
   } catch (e) {
     threw = true;
     assert.ok(e instanceof a.AssertionError);
+    assert.ok(!e.stack.includes('at Function.doesNotThrow'));
   }
   assert.ok(threw, 'a.doesNotThrow is not catching type matching errors');
 }
@@ -220,6 +221,16 @@ a.throws(() => thrower(TypeError), (err) => {
       code: 'ERR_ASSERTION',
       message: /^Missing expected exception \(TypeError\): fhqwhgads$/
     }));
+
+  let threw = false;
+  try {
+    a.throws(noop);
+  } catch (e) {
+    threw = true;
+    assert.ok(e instanceof a.AssertionError);
+    assert.ok(!e.stack.includes('at Function.throws'));
+  }
+  assert.ok(threw);
 }
 
 const circular = { y: 1 };
