@@ -23,8 +23,7 @@ For example, at the time of this writing:
 * **Beta**: V8 5.5 is currently in beta. It will be promoted to stable next; approximately 6 weeks after V8 5.4 shipped as stable.
 * **Master**: V8 tip-of-tree corresponds to V8 5.6. This branch gets regularly released as part of the Chromium **canary** builds. This branch will be promoted to beta next when V8 5.5 ships as stable.
 
-All older branches are considered **abandoned**, and are not maintained by the
-V8 team.
+All older branches are abandoned and are not maintained by the V8 team.
 
 ## V8 merge process overview
 
