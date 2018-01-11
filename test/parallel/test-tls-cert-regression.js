@@ -68,8 +68,8 @@ sPWhSOb9VQjMXekI4Y2l8fqAVTS2Fn6+8jkVKxXBywSVCw==
 
 function test(cert, key, cb) {
   const server = tls.createServer({
-    cert: cert,
-    key: key
+    cert,
+    key
   }).listen(0, function() {
     server.close(cb);
   });

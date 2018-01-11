@@ -44,10 +44,7 @@ exports.connect = function connect(options, callback) {
 
   const server = {};
   const client = {};
-  const pair = {
-    server: server,
-    client: client,
-  };
+  const pair = { server, client };
 
   tls.createServer(options.server, function(conn) {
     server.conn = conn;
