@@ -48,7 +48,13 @@
         'V8_BASE': '<(PRODUCT_DIR)/obj/deps/v8/src/libv8_base.a',
        }, {
          'OBJ_DIR%': '<(PRODUCT_DIR)/obj.target',
-         'V8_BASE%': '<(PRODUCT_DIR)/obj.target/deps/v8/src/libv8_base.a',
+         'conditions': [
+           [ 'build_v8_with_gn=="true"', {
+             'V8_BASE': '<(PRODUCT_DIR)/obj.target/v8_monolith/geni/gn/obj/libv8_monolith.a',
+           }, {
+             'V8_BASE': '<(PRODUCT_DIR)/obj.target/deps/v8/src/libv8_base.a',
+           }],
+         ],
       }],
       ['OS == "win"', {
         'os_posix': 0,
@@ -59,9 +65,15 @@
         'os_posix': 1,
         'v8_postmortem_support%': 'true',
       }],
-      ['OS== "mac"', {
+      ['OS == "mac"', {
         'OBJ_DIR%': '<(PRODUCT_DIR)/obj.target',
-        'V8_BASE': '<(PRODUCT_DIR)/libv8_base.a',
+        'conditions': [
+          [ 'build_v8_with_gn=="true"', {
+            'V8_BASE': '<(PRODUCT_DIR)/obj.target/v8_monolith/geni/gn/obj/libv8_monolith.a',
+          }, {
+            'V8_BASE': '<(PRODUCT_DIR)/libv8_base.a',
+          }],
+        ],
       }],
       ['openssl_fips != ""', {
         'OPENSSL_PRODUCT': '<(STATIC_LIB_PREFIX)crypto<(STATIC_LIB_SUFFIX)',

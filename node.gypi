@@ -41,9 +41,15 @@
       'dependencies': [ 'deps/v8/src/d8.gyp:d8' ],
     }],
     [ 'node_use_bundled_v8=="true"', {
-      'dependencies': [
-        'deps/v8/src/v8.gyp:v8',
-        'deps/v8/src/v8.gyp:v8_libplatform'
+      'conditions': [
+        [ 'build_v8_with_gn=="true"', {
+          'dependencies': ['deps/v8/src/v8.gyp:v8_monolith'],
+        }, {
+          'dependencies': [
+            'deps/v8/src/v8.gyp:v8',
+            'deps/v8/src/v8.gyp:v8_libplatform',
+          ],
+        }],
       ],
     }],
     [ 'node_use_v8_platform=="true"', {
@@ -93,7 +99,6 @@
       'defines': [ 'NODE_NO_BROWSER_GLOBALS' ],
     } ],
     [ 'node_use_bundled_v8=="true" and v8_postmortem_support=="true"', {
-      'dependencies': [ 'deps/v8/src/v8.gyp:postmortem-metadata' ],
       'conditions': [
         # -force_load is not applicable for the static library
         [ 'force_load=="true"', {
@@ -102,6 +107,10 @@
               '-Wl,-force_load,<(V8_BASE)',
             ],
           },
+        }],
+        # when building with GN, the v8_monolith target already includes postmortem metadata
+        [ 'build_v8_with_gn=="false"', {
+          'dependencies': [ 'deps/v8/src/v8.gyp:postmortem-metadata' ],
         }],
       ],
     }],
