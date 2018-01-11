@@ -102,7 +102,7 @@ function worker() {
 
     // Every 10 messages, notify the master.
     if (received === PACKETS_PER_WORKER) {
-      process.send({ received: received });
+      process.send({ received });
       socket.close();
     }
   }, PACKETS_PER_WORKER));
