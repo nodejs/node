@@ -1015,7 +1015,7 @@ const { NGHTTP2_CANCEL } = http2.constants;
 const req = client.request({ ':path': '/' });
 
 // Cancel the stream if there's no activity after 5 seconds
-req.setTimeout(5000, () => req.rstStream(NGHTTP2_CANCEL));
+req.setTimeout(5000, () => req.close(NGHTTP2_CANCEL));
 ```
 
 #### http2stream.state
