@@ -21,13 +21,13 @@ for (encoding in expected) {
   const expected_value = expected[encoding];
   let result;
 
-  result = fs.realpathSync(string_dir, { encoding: encoding });
+  result = fs.realpathSync(string_dir, { encoding });
   assert.strictEqual(result, expected_value);
 
   result = fs.realpathSync(string_dir, encoding);
   assert.strictEqual(result, expected_value);
 
-  result = fs.realpathSync(buffer_dir, { encoding: encoding });
+  result = fs.realpathSync(buffer_dir, { encoding });
   assert.strictEqual(result, expected_value);
 
   result = fs.realpathSync(buffer_dir, encoding);
@@ -53,7 +53,7 @@ for (encoding in expected) {
 
   fs.realpath(
     string_dir,
-    { encoding: encoding },
+    { encoding },
     common.mustCall((err, res) => {
       assert.ifError(err);
       assert.strictEqual(res, expected_value);
@@ -65,7 +65,7 @@ for (encoding in expected) {
   }));
   fs.realpath(
     buffer_dir,
-    { encoding: encoding },
+    { encoding },
     common.mustCall((err, res) => {
       assert.ifError(err);
       assert.strictEqual(res, expected_value);
