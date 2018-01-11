@@ -11,7 +11,7 @@
 // Rule Definition
 //------------------------------------------------------------------------------
 
-const nonAsciiRegexPattern = new RegExp(/[^\r\n\x20-\x7e]/);
+const nonAsciiRegexPattern = /[^\r\n\x20-\x7e]/;
 const suggestions = {
   '’': '\'',
   '‛': '\'',
@@ -26,10 +26,9 @@ const suggestions = {
 
 module.exports = (context) => {
 
-  const reportIfError = (node, token) => {
+  const reportIfError = (node, text) => {
 
-    const { value } = token;
-    const matches = value.match(nonAsciiRegexPattern);
+    const matches = text.match(nonAsciiRegexPattern);
 
     if (!matches) return;
 
@@ -55,13 +54,6 @@ module.exports = (context) => {
   };
 
   return {
-    Program: (node) => {
-      const source = context.getSourceCode();
-      const sourceTokens = source.getTokens(node);
-      const commentTokens = source.getAllComments();
-      const tokens = sourceTokens.concat(commentTokens);
-
-      tokens.forEach((token) => reportIfError(node, token));
-    }
+    Program: (node) => reportIfError(node, context.getSourceCode().text)
   };
 };
