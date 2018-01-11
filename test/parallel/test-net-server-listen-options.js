@@ -17,7 +17,7 @@ function close() { this.close(); }
     .on('listening', common.mustCall(close));
 }
 
-// Test listen(port, cb) and listen({port: port}, cb) combinations
+// Test listen(port, cb) and listen({ port }, cb) combinations
 const listenOnPort = [
   (port, cb) => net.createServer().listen({ port }, cb),
   (port, cb) => net.createServer().listen(port, cb)

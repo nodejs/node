@@ -31,7 +31,7 @@ const tls = require('tls');
 const key = fixtures.readKey('agent1-key.pem');
 const cert = fixtures.readKey('agent1-cert.pem');
 
-tls.createServer({ key: key, cert: cert }, common.mustCall(function(conn) {
+tls.createServer({ key, cert }, common.mustCall(function(conn) {
   conn.end();
   this.close();
 })).listen(0, common.mustCall(function() {

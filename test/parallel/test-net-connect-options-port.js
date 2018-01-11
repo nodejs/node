@@ -60,7 +60,7 @@ const net = require('net');
 {
   // connect({hint}, cb) and connect({hint})
   const hints = (dns.ADDRCONFIG | dns.V4MAPPED) + 42;
-  const hintOptBlocks = doConnect([{ hints: hints }],
+  const hintOptBlocks = doConnect([{ hints }],
                                   () => common.mustNotCall());
   for (const block of hintOptBlocks) {
     common.expectsError(block, {

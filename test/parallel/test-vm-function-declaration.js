@@ -24,7 +24,7 @@ require('../common');
 const assert = require('assert');
 
 const vm = require('vm');
-const o = vm.createContext({ console: console });
+const o = vm.createContext({ console });
 
 // Function declaration and expression should both be copied to the
 // sandboxed context.
