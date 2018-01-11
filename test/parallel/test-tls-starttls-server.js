@@ -21,10 +21,7 @@ const server = net.createServer(common.mustCall((s) => {
     isServer: true,
     server: server,
 
-    secureContext: tls.createSecureContext({
-      key: key,
-      cert: cert
-    }),
+    secureContext: tls.createSecureContext({ key, cert }),
 
     SNICallback: common.mustCall((hostname, callback) => {
       assert.strictEqual(hostname, 'test.test');

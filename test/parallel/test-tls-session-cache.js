@@ -71,10 +71,7 @@ function doTest(testOptions, callback) {
     // Emulate asynchronous store
     setTimeout(function() {
       assert.ok(!session);
-      session = {
-        id: id,
-        data: data
-      };
+      session = { id, data };
       cb();
     }, 1000);
   });

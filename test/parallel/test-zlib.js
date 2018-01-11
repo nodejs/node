@@ -191,10 +191,7 @@ testKeys.forEach(common.mustCall((file) => {
               zlibPairs.forEach(common.mustCall((pair) => {
                 const Def = pair[0];
                 const Inf = pair[1];
-                const opts = { level: level,
-                               windowBits: windowBits,
-                               memLevel: memLevel,
-                               strategy: strategy };
+                const opts = { level, windowBits, memLevel, strategy };
 
                 const def = new Def(opts);
                 const inf = new Inf(opts);

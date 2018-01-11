@@ -29,8 +29,7 @@ const EE = require('events').EventEmitter;
 function runTest(highWaterMark, objectMode, produce) {
 
   const old = new EE();
-  const r = new Readable({ highWaterMark: highWaterMark,
-                           objectMode: objectMode });
+  const r = new Readable({ highWaterMark, objectMode });
   assert.strictEqual(r, r.wrap(old));
 
   r.on('end', common.mustCall());
@@ -63,7 +62,7 @@ function runTest(highWaterMark, objectMode, produce) {
   }
 
   const w = new Writable({ highWaterMark: highWaterMark * 2,
-                           objectMode: objectMode });
+                           objectMode });
   const written = [];
   w._write = function(chunk, encoding, cb) {
     written.push(chunk);

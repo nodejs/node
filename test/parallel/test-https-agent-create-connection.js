@@ -51,10 +51,7 @@ function createServer() {
       port: port,
       host: host,
       rejectUnauthorized: false,
-      _agentKey: agent.getName({
-        port: port,
-        host: host,
-      }),
+      _agentKey: agent.getName({ port, host })
     };
 
     const socket = agent.createConnection(options);
@@ -70,10 +67,7 @@ function createServer() {
     const host = 'localhost';
     const options = {
       rejectUnauthorized: false,
-      _agentKey: agent.getName({
-        port: port,
-        host: host,
-      }),
+      _agentKey: agent.getName({ port, host })
     };
     const socket = agent.createConnection(port, options);
     checkRequest(socket, server);
@@ -88,10 +82,7 @@ function createServer() {
     const host = 'localhost';
     const options = {
       rejectUnauthorized: false,
-      _agentKey: agent.getName({
-        port: port,
-        host: host,
-      }),
+      _agentKey: agent.getName({ port, host })
     };
     const socket = agent.createConnection(port, host, options);
     checkRequest(socket, server);

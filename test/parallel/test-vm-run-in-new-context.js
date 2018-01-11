@@ -65,7 +65,7 @@ assert.strictEqual(global.foo, 100);
 
 // Modify an object by reference
 const f = { a: 1 };
-vm.runInNewContext('f.a = 2', { f: f });
+vm.runInNewContext('f.a = 2', { f });
 assert.strictEqual(f.a, 2);
 
 // Use function in context without referencing context

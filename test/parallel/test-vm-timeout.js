@@ -47,7 +47,7 @@ assert.throws(function() {
   const context = {
     log: console.log,
     runInVM: function(timeout) {
-      vm.runInNewContext('while(true) {}', context, { timeout: timeout });
+      vm.runInNewContext('while(true) {}', context, { timeout });
     }
   };
   vm.runInNewContext('runInVM(10)', context, { timeout: 10000 });
@@ -58,7 +58,7 @@ assert.throws(function() {
 assert.throws(function() {
   const context = {
     runInVM: function(timeout) {
-      vm.runInNewContext('while(true) {}', context, { timeout: timeout });
+      vm.runInNewContext('while(true) {}', context, { timeout });
     }
   };
   vm.runInNewContext('runInVM(10000)', context, { timeout: 100 });
@@ -69,9 +69,7 @@ assert.throws(function() {
 assert.throws(function() {
   const context = {
     runInVM: function(timeout) {
-      vm.runInNewContext('throw new Error(\'foobar\')', context, {
-        timeout: timeout
-      });
+      vm.runInNewContext('throw new Error(\'foobar\')', context, { timeout });
     }
   };
   vm.runInNewContext('runInVM(10000)', context, { timeout: 100000 });

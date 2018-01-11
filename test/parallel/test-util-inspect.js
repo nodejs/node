@@ -141,7 +141,7 @@ for (const showHidden of [true, false]) {
 // Now do the same checks but from a different context
 for (const showHidden of [true, false]) {
   const ab = vm.runInNewContext('new ArrayBuffer(4)');
-  const dv = vm.runInNewContext('new DataView(ab, 1, 2)', { ab: ab });
+  const dv = vm.runInNewContext('new DataView(ab, 1, 2)', { ab });
   assert.strictEqual(
     util.inspect(ab, showHidden),
     'ArrayBuffer { byteLength: 4 }'

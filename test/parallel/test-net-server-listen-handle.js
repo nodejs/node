@@ -144,7 +144,7 @@ if (!common.isWindows) {  // Windows doesn't support {fd: <n>}
   // Test invalid fd
   const fd = fs.openSync(__filename, 'r');
   net.createServer()
-    .listen({ fd: fd }, common.mustNotCall())
+    .listen({ fd }, common.mustNotCall())
     .on('error', common.mustCall(function(err) {
       assert.strictEqual(String(err), 'Error: listen EINVAL');
       this.close();

@@ -60,7 +60,7 @@ if (cluster.isMaster) {
 
     worker = cluster.fork()
       .on('online', function() {
-        this.send({ port: port });
+        this.send({ port });
       });
   });
   process.on('exit', function() {
