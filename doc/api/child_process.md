@@ -1130,10 +1130,10 @@ process.send({ foo: 'bar', baz: NaN });
 Child Node.js processes will have a [`process.send()`][] method of their own that
 allows the child to send messages back to the parent.
 
-There is a special case when sending a `{cmd: 'NODE_foo'}` message. All messages
-containing a `NODE_` prefix in its `cmd` property are considered to be reserved
-for use within Node.js core and will not be emitted in the child's
-[`process.on('message')`][] event. Rather, such messages are emitted using the
+There is a special case when sending a `{cmd: 'NODE_foo'}` message. Messages
+containing a `NODE_` prefix in the `cmd` property are reserved for use within
+Node.js core and will not be emitted in the child's [`process.on('message')`][]
+event. Rather, such messages are emitted using the
 `process.on('internalMessage')` event and are consumed internally by Node.js.
 Applications should avoid using such messages or listening for
 `'internalMessage'` events as it is subject to change without notice.
