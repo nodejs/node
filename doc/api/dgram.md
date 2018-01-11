@@ -161,7 +161,7 @@ added: v0.11.14
 -->
 
 * `options` {Object} Required. Supports the following properties:
-  * `port` {Integer}
+  * `port` {integer}
   * `address` {string}
   * `exclusive` {boolean}
 * `callback` {Function}
@@ -390,7 +390,7 @@ packets may be sent to a local interface's broadcast address.
 added: v8.6.0
 -->
 
-* `multicastInterface` {String}
+* `multicastInterface` {string}
 
 *Note: All references to scope in this section are referring to
 [IPv6 Zone Indices][], which are defined by [RFC 4007][]. In string form, an IP
