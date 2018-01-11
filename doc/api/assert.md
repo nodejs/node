@@ -312,6 +312,45 @@ parameter is undefined, a default error message is assigned. If the `message`
 parameter is an instance of an [`Error`][] then it will be thrown instead of the
 `AssertionError`.
 
+## assert.doesNotReject(block[, error][, message])
+<!-- YAML
+added: REPLACEME
+-->
+* `block` {Function}
+* `error` {RegExp|Function}
+* `message` {any}
+
+> Stability: 1 - Experimental
+
+Awaits for the promise returned by function `block` to complete and not be
+rejected. See [`assert.rejects()`][] for more details.
+
+When `assert.doesNotReject()` is called, it will immediately call the `block`
+function, and awaits for completion.
+
+Besides the async nature to await the completion it behaves identical to
+[`assert.doesNotThrow()`][].
+
+```js
+(async () => {
+  await assert.doesNotReject(
+    async () => {
+      throw new TypeError('Wrong value');
+    },
+    SyntaxError
+  );
+})();
+```
+
+```js
+assert.doesNotReject(
+  () => Promise.reject(new TypeError('Wrong value')),
+  SyntaxError
+).then(() => {
+  // ...
+});
+```
+
 ## assert.doesNotThrow(block[, error][, message])
 <!-- YAML
 added: v0.1.21
@@ -836,6 +875,50 @@ If the values are not strictly equal, an `AssertionError` is thrown with a
 `message` parameter is an instance of an [`Error`][] then it will be thrown
 instead of the `AssertionError`.
 
+## assert.rejects(block[, error][, message])
+<!-- YAML
+added: REPLACEME
+-->
+* `block` {Function}
+* `error` {RegExp|Function|Object}
+* `message` {any}
+
+> Stability: 1 - Experimental
+
+Awaits for promise returned by function `block` to be rejected.
+
+When `assert.rejects()` is called, it will immediately call the `block`
+function, and awaits for completion.
+
+If specified, `error` can be a constructor, [`RegExp`][], a validation
+function, or an object where each property will be tested for.
+
+If specified, `message` will be the message provided by the `AssertionError` if
+the block fails to throw.
+
+Besides the async nature to await the completion it behaves identical to
+[`assert.throws()`][].
+
+```js
+(async () => {
+  await assert.rejects(
+    async () => {
+      throw new Error('Wrong value');
+    },
+    Error
+  );
+})();
+```
+
+```js
+assert.rejects(
+  () => Promise.reject(new Error('Wrong value')),
+  Error
+).then(() => {
+  // ...
+});
+```
+
 ## assert.throws(block[, error][, message])
 <!-- YAML
 added: v0.1.21
@@ -972,6 +1055,7 @@ second argument. This might lead to difficult-to-spot errors.
 [`assert.ok()`]: #assert_assert_ok_value_message
 [`assert.strictEqual()`]: #assert_assert_strictequal_actual_expected_message
 [`assert.throws()`]: #assert_assert_throws_block_error_message
+[`assert.rejects()`]: #assert_assert_rejects_block_error_message
 [`strict mode`]: #assert_strict_mode
 [Abstract Equality Comparison]: https://tc39.github.io/ecma262/#sec-abstract-equality-comparison
 [Object.prototype.toString()]: https://tc39.github.io/ecma262/#sec-object.prototype.tostring
