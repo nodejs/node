@@ -91,7 +91,7 @@ const Script = require('vm').Script;
 {
   const script = new Script('f.a = 2');
   const f = { a: 1 };
-  script.runInNewContext({ f: f });
+  script.runInNewContext({ f });
   assert.strictEqual(f.a, 2);
 
   assert.throws(() => {

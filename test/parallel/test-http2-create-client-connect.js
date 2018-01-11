@@ -22,8 +22,8 @@ const URL = url.URL;
       [`http://localhost:${port}`],
       [new URL(`http://localhost:${port}`)],
       [url.parse(`http://localhost:${port}`)],
-      [{ port: port }, { protocol: 'http:' }],
-      [{ port: port, hostname: '127.0.0.1' }, { protocol: 'http:' }]
+      [{ port }, { protocol: 'http:' }],
+      [{ port, hostname: '127.0.0.1' }, { protocol: 'http:' }]
     ];
 
     const serverClose = new Countdown(items.length + 1,
