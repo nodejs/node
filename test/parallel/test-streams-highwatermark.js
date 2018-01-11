@@ -18,7 +18,7 @@ assert.strictEqual(readable._readableState.highWaterMark, ovfl);
 const writable = stream.Writable({ highWaterMark: ovfl });
 assert.strictEqual(writable._writableState.highWaterMark, ovfl);
 
-for (const invalidHwm of [true, false, '5', {}, -5]) {
+for (const invalidHwm of [true, false, '5', {}, -5, NaN]) {
   for (const type of [stream.Readable, stream.Writable]) {
     common.expectsError(() => {
       type({ highWaterMark: invalidHwm });
