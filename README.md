@@ -405,6 +405,8 @@ For more information about the governance of the Node.js project, see
 **Kunal Pathak** &lt;kunal.pathak@microsoft.com&gt;
 * [lance](https://github.com/lance) -
 **Lance Ball** &lt;lball@redhat.com&gt;
+* [Leko](https://github.com/Leko) -
+**Shingo Inoue** &lt;leko.noor@gmail.com&gt; (he/him)
 * [lpinca](https://github.com/lpinca) -
 **Luigi Pinca** &lt;luigipinca@gmail.com&gt; (he/him)
 * [lucamaraschi](https://github.com/lucamaraschi) -
