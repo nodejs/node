@@ -1165,6 +1165,31 @@ readable stream will release any internal resources.
 Implementors should not override this method, but instead implement
 [`readable._destroy`][readable-_destroy].
 
+##### readable[@@asyncIterator]
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+Returns an [AsyncIterator][async-iterator] to fully consume the stream.
+
+```js
+async function print(readable) {
+  readable.setEncoding('utf8');
+  let data = '';
+  for await (const k of readable) {
+    data += k;
+  }
+  console.log(data);
+}
+
+print(fs.createReadStream('file')).catch(console.log);
+```
+
+If the loop terminates with a `break` or a `throw`, the stream will be destroyed.
+In other terms, iterating over a stream will consume the stream fully.
+
 ### Duplex and Transform Streams
 
 #### Class: stream.Duplex
@@ -2328,3 +2353,4 @@ contain multi-byte characters.
 [readable-destroy]: #stream_readable_destroy_error
 [writable-_destroy]: #stream_writable_destroy_err_callback
 [writable-destroy]: #stream_writable_destroy_error
+[async-iterator]: https://github.com/tc39/proposal-async-iteration

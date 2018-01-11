@@ -138,6 +138,7 @@
       'lib/internal/v8_prof_polyfill.js',
       'lib/internal/v8_prof_processor.js',
       'lib/internal/streams/lazy_transform.js',
+      'lib/internal/streams/async_iterator.js',
       'lib/internal/streams/BufferList.js',
       'lib/internal/streams/legacy.js',
       'lib/internal/streams/destroy.js',
