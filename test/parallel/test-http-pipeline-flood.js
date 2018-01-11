@@ -66,7 +66,7 @@ function child() {
   const net = require('net');
 
   const port = +process.argv[3];
-  const conn = net.connect({ port: port });
+  const conn = net.connect({ port });
 
   let req = `GET / HTTP/1.1\r\nHost: localhost:${port}\r\nAccept: */*\r\n\r\n`;
 
