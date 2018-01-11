@@ -165,6 +165,12 @@ if (common.hasCrypto) { // eslint-disable-line crypto-check
   testInitialized(new Signal(), 'Signal');
 }
 
+{
+  fs.openFD(__filename, 'r', (err, fd) => {
+    assert.ifError(err);
+    testInitialized(fd, 'FD');
+  });
+}
 
 {
   const binding = process.binding('stream_wrap');

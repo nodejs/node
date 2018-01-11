@@ -291,6 +291,44 @@ explicitly synchronous use libuv's threadpool, which can have surprising and
 negative performance implications for some applications, see the
 [`UV_THREADPOOL_SIZE`][] documentation for more information.
 
+## class: fs.FD
+<!-- YAML
+added: REPLACEME
+-->
+
+An `fs.FD` object is a wrapper for a numeric file descriptor. Instances of
+`fs.FD` are distinct from numeric file descriptors in that, if the `fs.FD` is
+not explicitly closed using the `fd.close()` method, they will automatically
+close the file descriptor and will emit a process warning, thereby helping to
+prevent memory leaks.
+
+Instances of the `fs.FD` object are created internally by the `fs.openFD()`
+and `fs.openFDSync()` methods.
+
+### fd.close()
+<!-- YAML
+added: REPLACEME
+-->
+
+* Returns: {Promise} A `Promise` that will be resolved once the underlying
+  file descriptor is closed, or will reject if an error occurs while closing.
+
+Closes the file descriptor.
+
+```js
+const fd = fs.openFDSync('thefile.txt', 'r');
+fd.close()
+  .then(() => console.log('ok'))
+  .catch(() => console.log('not ok'));
+```
+
+### fd.fd
+<!-- YAML
+added: REPLACEME
+-->
+
+Value: {number} The numeric file descriptor managed by the `FD` object.
+
 ## Class: fs.FSWatcher
 <!-- YAML
 added: v0.5.8
@@ -2068,6 +2106,117 @@ Functions based on `fs.open()` exhibit this behavior as well. eg.
 through `fs.open()` or `fs.writeFile()`) will fail with `EPERM`. Existing hidden
 files can be opened for writing with the `r+` flag. A call to `fs.ftruncate()`
 can be used to reset the file contents.
+
+## fs.openFD(path, flags[, mode], callback)
+<!-- YAML
+added: REPLACEME
+-->
+
+* `path` {string|Buffer|URL}
+* `flags` {string|number}
+* `mode` {integer} **Default:** `0o666`
+* `callback` {Function}
+  * `err` {Error}
+  * `fd` {[fs.FD][#fs_class_fs_fd]}
+
+Asynchronous file open that returns an `fs.FD` object. See open(2).
+
+The `flags` argument can be:
+
+* `'r'` - Open file for reading.
+An exception occurs if the file does not exist.
+
+* `'r+'` - Open file for reading and writing.
+An exception occurs if the file does not exist.
+
+* `'rs+'` - Open file for reading and writing in synchronous mode. Instructs
+  the operating system to bypass the local file system cache.
+
+  This is primarily useful for opening files on NFS mounts as it allows skipping
+  the potentially stale local cache. It has a very real impact on I/O
+  performance so using this flag is not recommended unless it is needed.
+
+  Note that this doesn't turn `fs.openFD()` into a synchronous blocking call.
+  If synchronous operation is desired `fs.openFDSync()` should be used.
+
+* `'w'` - Open file for writing.
+The file is created (if it does not exist) or truncated (if it exists).
+
+* `'wx'` - Like `'w'` but fails if `path` exists.
+
+* `'w+'` - Open file for reading and writing.
+The file is created (if it does not exist) or truncated (if it exists).
+
+* `'wx+'` - Like `'w+'` but fails if `path` exists.
+
+* `'a'` - Open file for appending.
+The file is created if it does not exist.
+
+* `'ax'` - Like `'a'` but fails if `path` exists.
+
+* `'a+'` - Open file for reading and appending.
+The file is created if it does not exist.
+
+* `'ax+'` - Like `'a+'` but fails if `path` exists.
+
+`mode` sets the file mode (permission and sticky bits), but only if the file was
+created. It defaults to `0o666` (readable and writable).
+
+The callback gets two arguments `(err, fd)`.
+
+The exclusive flag `'x'` (`O_EXCL` flag in open(2)) ensures that `path` is newly
+created. On POSIX systems, `path` is considered to exist even if it is a symlink
+to a non-existent file. The exclusive flag may or may not work with network file
+systems.
+
+`flags` can also be a number as documented by open(2); commonly used constants
+are available from `fs.constants`.  On Windows, flags are translated to
+their equivalent ones where applicable, e.g. `O_WRONLY` to `FILE_GENERIC_WRITE`,
+or `O_EXCL|O_CREAT` to `CREATE_NEW`, as accepted by CreateFileW.
+
+On Linux, positional writes don't work when the file is opened in append mode.
+The kernel ignores the position argument and always appends the data to
+the end of the file.
+
+*Note*: The behavior of `fs.openFD()` is platform-specific for some flags. As
+such, opening a directory on macOS and Linux with the `'a+'` flag - see example
+below - will return an error. In contrast, on Windows and FreeBSD, a file
+descriptor will be returned.
+
+```js
+// macOS and Linux
+fs.openFD('<directory>', 'a+', (err, fd) => {
+  // => [Error: EISDIR: illegal operation on a directory, open <directory>]
+});
+
+// Windows and FreeBSD
+fs.openFD('<directory>', 'a+', (err, fd) => {
+  // => null, <fd>
+});
+```
+
+Some characters (`< > : " / \ | ? *`) are reserved under Windows as documented
+by [Naming Files, Paths, and Namespaces][]. Under NTFS, if the filename contains
+a colon, Node.js will open a file system stream, as described by
+[this MSDN page][MSDN-Using-Streams].
+
+*Note:* On Windows, opening an existing hidden file using the `w` flag (e.g.
+using `fs.openFD()`) will fail with `EPERM`. Existing hidden
+files can be opened for writing with the `r+` flag. A call to `fs.ftruncate()`
+can be used to reset the file contents.
+
+## fs.openFDSync(path, flags[, mode])
+<!-- YAML
+added: REPLACEME
+-->
+
+* `path` {string|Buffer|URL}
+* `flags` {string|number}
+* `mode` {integer} **Default:** `0o666`
+* Returns: {[fs.FD][#fs_class_fs_fd]}
+
+Synchronous version of [`fs.openFD()`][]. Returns an `fs.FD` object representing
+the file descriptor.
 
 ## fs.openSync(path, flags[, mode])
 <!-- YAML
