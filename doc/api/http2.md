@@ -1183,7 +1183,7 @@ added: v8.4.0
 * `options` {Object}
   * `endStream` {boolean} Set to `true` to indicate that the response will not
     include payload data.
-  * `getTrailers` {function} Callback function invoked to collect trailer
+  * `getTrailers` {Function} Callback function invoked to collect trailer
     headers.
 * Returns: {undefined}
 
