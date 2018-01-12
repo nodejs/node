@@ -1,17 +1,14 @@
 'use strict';
 const common = require('../common');
-
 const net = require('net');
 const cluster = require('cluster');
-
 const assert = require('assert');
-
-cluster.schedulingPolicy = cluster.SCHED_STICKY;
-//cluster.schedulingPolicy = cluster.SCHED_RR;
 
 const nbConnectionsPerWorker = 10;
 
 if (cluster.isMaster) {
+
+  cluster.schedulingPolicy = cluster.SCHED_RR;
 
   let clusterId;
   let nbMessages = 0;
@@ -34,7 +31,6 @@ if (cluster.isMaster) {
 
       // when all connections are done
       if (nbMessages === nbWorkers * nbConnectionsPerWorker) {
-        cluster.disconnect();
         process.exit(0);
       }
     });
