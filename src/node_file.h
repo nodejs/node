@@ -17,60 +17,39 @@ using v8::Value;
 
 namespace fs {
 
-class FSReqWrap: public ReqWrap<uv_fs_t> {
+class FSReqWrap : public ReqWrap<uv_fs_t> {
  public:
-  enum Ownership { COPY, MOVE };
-
-  inline static FSReqWrap* New(Environment* env,
-                               Local<Object> req,
-                               const char* syscall,
-                               const char* data = nullptr,
-                               enum encoding encoding = UTF8,
-                               Ownership ownership = COPY);
-
-  inline void Dispose();
-
-  virtual void Reject(Local<Value> reject);
-  virtual void Resolve(Local<Value> value);
-
-  void ReleaseEarly() {
-    if (data_ != inline_data()) {
-      delete[] data_;
-      data_ = nullptr;
-    }
-  }
-
-  const char* syscall() const { return syscall_; }
-  const char* data() const { return data_; }
-  const enum encoding encoding_;
-
-  size_t self_size() const override { return sizeof(*this); }
-
- protected:
-  FSReqWrap(Environment* env,
-            Local<Object> req,
-            const char* syscall,
-            const char* data,
-            enum encoding encoding)
-      : ReqWrap(env, req, AsyncWrap::PROVIDER_FSREQWRAP),
-        encoding_(encoding),
-        syscall_(syscall),
-        data_(data) {
+  FSReqWrap(Environment* env, Local<Object> req)
+      : ReqWrap(env, req, AsyncWrap::PROVIDER_FSREQWRAP) {
     Wrap(object(), this);
   }
 
   virtual ~FSReqWrap() {
-    ReleaseEarly();
     ClearWrap(object());
   }
 
-  void* operator new(size_t size) = delete;
-  void* operator new(size_t size, char* storage) { return storage; }
-  char* inline_data() { return reinterpret_cast<char*>(this + 1); }
+  void Init(const char* syscall,
+            const char* data = nullptr,
+            size_t len = 0,
+            enum encoding encoding = UTF8);
+
+  virtual void FillStatsArray(const uv_stat_t* stat);
+  virtual void Reject(Local<Value> reject);
+  virtual void Resolve(Local<Value> value);
+  virtual void ResolveStat();
+
+  const char* syscall() const { return syscall_; }
+  const char* data() const { return data_; }
+  enum encoding encoding() const { return encoding_; }
+
+  size_t self_size() const override { return sizeof(*this); }
 
  private:
+  enum encoding encoding_ = UTF8;
   const char* syscall_;
-  const char* data_;
+
+  const char* data_ = nullptr;
+  MaybeStackBuffer<char> buffer_;
 
   DISALLOW_COPY_AND_ASSIGN(FSReqWrap);
 };
