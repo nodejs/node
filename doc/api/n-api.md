@@ -3368,7 +3368,7 @@ scenario, because with those the async execution still happens on the main
 event loop. When using any other async mechanism, the following APIs are
 necessary to ensure an async operation is properly tracked by the runtime.
 
-### *napi_async_init**
+### napi_async_init
 <!-- YAML
 added: v8.6.0
 -->
@@ -3389,7 +3389,7 @@ napi_status napi_async_init(napi_env env,
 
 Returns `napi_ok` if the API succeeded.
 
-### *napi_async_destroy**
+### napi_async_destroy
 <!-- YAML
 added: v8.6.0
 -->
@@ -3403,7 +3403,7 @@ napi_status napi_async_destroy(napi_env env,
 
 Returns `napi_ok` if the API succeeded.
 
-### *napi_make_callback*
+### napi_make_callback
 <!-- YAML
 added: v8.0.0
 changes:
