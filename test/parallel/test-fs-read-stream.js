@@ -158,6 +158,20 @@ assert.throws(function() {
 }
 
 {
+  // Verify that end works when start is not specified.
+  const stream = new fs.createReadStream(rangeFile, { end: 1 });
+  stream.data = '';
+
+  stream.on('data', function(chunk) {
+    stream.data += chunk;
+  });
+
+  stream.on('end', common.mustCall(function() {
+    assert.strictEqual('xy', stream.data);
+  }));
+}
+
+{
   // pause and then resume immediately.
   const pauseRes = fs.createReadStream(rangeFile);
   pauseRes.pause();
