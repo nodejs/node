@@ -8,7 +8,7 @@ const nbConnectionsPerWorker = 10;
 
 if (cluster.isMaster) {
 
-  cluster.schedulingPolicy = cluster.SCHED_RR;
+  cluster.schedulingPolicy = cluster.SCHED_STICKY;
 
   let clusterId;
   let nbMessages = 0;
