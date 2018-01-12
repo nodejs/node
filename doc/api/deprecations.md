@@ -2293,6 +2293,20 @@ Type: Runtime
 Please use `Server.prototype.setSecureContext()` instead.
 
 
+<a id="DEP0123"></a>
+### DEP0123: setting the TLS ServerName to an IP address
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/REPLACEME
+    description: Runtime deprecation.
+-->
+
+Type: Runtime
+
+Setting the TLS ServerName to an IP address is not permitted by
+[RFC 6066][]. This will be ignored in a future version.
+
 [`--pending-deprecation`]: cli.html#cli_pending_deprecation
 [`Buffer.allocUnsafeSlow(size)`]: buffer.html#buffer_class_method_buffer_allocunsafeslow_size
 [`Buffer.from(array)`]: buffer.html#buffer_class_method_buffer_from_array
@@ -2393,3 +2407,4 @@ Please use `Server.prototype.setSecureContext()` instead.
 [legacy `urlObject`]: url.html#url_legacy_urlobject
 [NIST SP 800-38D]: https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-38d.pdf
 [WHATWG URL API]: url.html#url_the_whatwg_url_api
+[RFC 6066]: https://tools.ietf.org/html/rfc6066#section-3
