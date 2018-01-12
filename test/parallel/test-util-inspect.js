@@ -113,6 +113,14 @@ assert(!/Object/.test(
   util.inspect({ a: { a: { a: { a: {} } } } }, undefined, null, true)
 ));
 
+for (const [input, output] of [
+  [{ a: 1 }, '{}'],
+  [[1, 2], '[]'],
+  [new Map([['a', 1], [1, 'a']]), 'Map {}'],
+  [new Set([1, 2, 3]), 'Set {}'],
+])
+  assert.strictEqual(util.inspect(input, { tagOnly: true }), output);
+
 for (const showHidden of [true, false]) {
   const ab = new ArrayBuffer(4);
   const dv = new DataView(ab, 1, 2);
