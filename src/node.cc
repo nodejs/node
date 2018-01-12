@@ -2687,28 +2687,15 @@ static void EnvGetter(Local<Name> property,
   if (property->IsSymbol()) {
     return info.GetReturnValue().SetUndefined();
   }
-#ifdef __POSIX__
   node::Utf8Value key(isolate, property);
-  const char* val = getenv(*key);
-  if (val) {
-    return info.GetReturnValue().Set(String::NewFromUtf8(isolate, val));
+  // On POSIX there is not explicitly defined size limit, but on Windows
+  // environment variables have a maximum size limit of 2**15 - 1.
+  char buffer[32768];
+  size_t buf_size = sizeof(buffer);
+  int ret = uv_os_getenv(*key, buffer, &buf_size);
+  if (!ret) {
+    return info.GetReturnValue().Set(String::NewFromUtf8(isolate, buffer));
   }
-#else  // _WIN32
-  node::TwoByteValue key(isolate, property);
-  WCHAR buffer[32767];  // The maximum size allowed for environment variables.
-  DWORD result = GetEnvironmentVariableW(reinterpret_cast<WCHAR*>(*key),
-                                         buffer,
-                                         arraysize(buffer));
-  // If result >= sizeof buffer the buffer was too small. That should never
-  // happen. If result == 0 and result != ERROR_SUCCESS the variable was not
-  // not found.
-  if ((result > 0 || GetLastError() == ERROR_SUCCESS) &&
-      result < arraysize(buffer)) {
-    const uint16_t* two_byte_buffer = reinterpret_cast<const uint16_t*>(buffer);
-    Local<String> rc = String::NewFromTwoByte(isolate, two_byte_buffer);
-    return info.GetReturnValue().Set(rc);
-  }
-#endif
 }
 
 
@@ -2737,24 +2724,22 @@ static void EnvQuery(Local<Name> property,
                      const PropertyCallbackInfo<Integer>& info) {
   int32_t rc = -1;  // Not found unless proven otherwise.
   if (property->IsString()) {
-#ifdef __POSIX__
     node::Utf8Value key(info.GetIsolate(), property);
-    if (getenv(*key))
+    // We are only interested in existence, so we can keep the buffer small.
+    char buffer[256];
+    size_t buf_size = sizeof(buffer);
+    int ret = uv_os_getenv(*key, buffer, &buf_size);
+    if (ret != UV_ENOENT) {
       rc = 0;
-#else  // _WIN32
-    node::TwoByteValue key(info.GetIsolate(), property);
-    WCHAR* key_ptr = reinterpret_cast<WCHAR*>(*key);
-    if (GetEnvironmentVariableW(key_ptr, nullptr, 0) > 0 ||
-        GetLastError() == ERROR_SUCCESS) {
-      rc = 0;
-      if (key_ptr[0] == L'=') {
+#ifdef _WIN32
+      if (key[0] == L'=') {
         // Environment variables that start with '=' are hidden and read-only.
         rc = static_cast<int32_t>(v8::ReadOnly) |
              static_cast<int32_t>(v8::DontDelete) |
              static_cast<int32_t>(v8::DontEnum);
       }
-    }
 #endif
+    }
   }
   if (rc != -1)
     info.GetReturnValue().Set(rc);
