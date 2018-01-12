@@ -15,13 +15,22 @@ async function runTests() {
                                  }, 10);`);
   const session = await child.connectInspectorSession();
 
+  let stderrString = await child.nextStderrString();
+  while (!stderrString.includes('Debugger listening on')) {
+    stderrString += await child.nextStderrString();
+  }
+
   session.send([
     { 'method': 'Profiler.setSamplingInterval', 'params': { 'interval': 100 } },
     { 'method': 'Profiler.enable' },
     { 'method': 'Runtime.runIfWaitingForDebugger' },
-    { 'method': 'Profiler.start' }]);
-  while (await child.nextStderrString() !==
-         'Waiting for the debugger to disconnect...');
+    { 'method': 'Profiler.start' }
+  ]);
+
+  while (!stderrString.includes('Waiting for the debugger to disconnect...')) {
+    stderrString += await child.nextStderrString();
+  }
+
   await session.send({ 'method': 'Profiler.stop' });
   session.disconnect();
   assert.strictEqual(0, (await child.expectShutdown()).exitCode);
