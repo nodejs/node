@@ -24,6 +24,15 @@ void* SetImmediate(napi_env env, T&& cb) {
 
     assert(cb() != nullptr);
   });
+  // Idle handle is needed only to stop the event loop from blocking in poll.
+  uv_idle_t* idle = new uv_idle_t;
+  uv_idle_init(loop, idle);
+  uv_idle_start(idle, [](uv_idle_t* idle) {
+    uv_close(reinterpret_cast<uv_handle_t*>(idle), [](uv_handle_t* handle) {
+      delete reinterpret_cast<uv_check_t*>(handle);
+    });
+  });
+
   return nullptr;
 }
 
