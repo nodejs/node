@@ -68,3 +68,16 @@ w.on('results', function(res) {
 });
 
 r.pipe(w);
+
+const optionsEnd = 3;
+const optionsEndExpectLength = optionsEnd + 1;
+const rOfEnd = new FSReadable(file, {
+  end: optionsEnd,
+});
+const wOfEnd = new TestWriter();
+
+wOfEnd.on('results', function(res) {
+  assert.strictEqual(wOfEnd.length, optionsEndExpectLength);
+});
+
+rOfEnd.pipe(wOfEnd);
