@@ -90,18 +90,35 @@ if (common.hasIntl) {
 }
 
 {
-  const fn = TextDecoder.prototype[inspect];
-  assert.doesNotThrow(() => {
-    fn.call(new TextDecoder(), Infinity, {});
-  });
+  const inspectFn = TextDecoder.prototype[inspect];
+  const decodeFn = TextDecoder.prototype.decode;
+  const {
+    encoding: { get: encodingGetter },
+    fatal: { get: fatalGetter },
+    ignoreBOM: { get: ignoreBOMGetter },
+  } = Object.getOwnPropertyDescriptors(TextDecoder.prototype);
 
-  [{}, [], true, 1, '', new TextEncoder()].forEach((i) => {
-    assert.throws(() => fn.call(i, Infinity, {}),
-                  common.expectsError({
-                    code: 'ERR_INVALID_THIS',
-                    type: TypeError,
-                    message: 'Value of "this" must be of type TextDecoder'
-                  }));
+  const instance = new TextDecoder();
+
+  const expectedError = {
+    code: 'ERR_INVALID_THIS',
+    type: TypeError,
+    message: 'Value of "this" must be of type TextDecoder'
+  };
+
+  assert.doesNotThrow(() => inspectFn.call(instance, Infinity, {}));
+  assert.doesNotThrow(() => decodeFn.call(instance));
+  assert.doesNotThrow(() => encodingGetter.call(instance));
+  assert.doesNotThrow(() => fatalGetter.call(instance));
+  assert.doesNotThrow(() => ignoreBOMGetter.call(instance));
+
+  const invalidThisArgs = [{}, [], true, 1, '', new TextEncoder()];
+  invalidThisArgs.forEach((i) => {
+    common.expectsError(() => inspectFn.call(i, Infinity, {}), expectedError);
+    common.expectsError(() => decodeFn.call(i), expectedError);
+    common.expectsError(() => encodingGetter.call(i), expectedError);
+    common.expectsError(() => fatalGetter.call(i), expectedError);
+    common.expectsError(() => ignoreBOMGetter.call(i), expectedError);
   });
 }
 
