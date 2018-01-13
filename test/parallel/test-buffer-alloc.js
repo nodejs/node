@@ -1024,3 +1024,10 @@ common.expectsError(() => {
   code: 'ERR_INVALID_ARG_VALUE',
   type: TypeError
 });
+
+common.expectsError(() => {
+  Buffer.alloc(1, Buffer.alloc(0));
+}, {
+  code: 'ERR_INVALID_ARG_VALUE',
+  type: TypeError
+});

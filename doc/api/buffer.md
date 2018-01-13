@@ -519,6 +519,10 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/17427
     description: Specifying an invalid string for `fill` triggers a thrown
                  exception.
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/18129
+    description: Attempting to fill a non-zero length buffer with a zero length
+                 buffer triggers a thrown exception.
 -->
 
 * `size` {integer} The desired length of the new `Buffer`.
@@ -1231,6 +1235,10 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/17427
     description: Specifying an invalid string for `value` triggers a thrown
                  exception.
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/18129
+    description: Attempting to fill a non-zero length buffer with a zero length
+                 buffer triggers a thrown exception.
 -->
 
 * `value` {string|Buffer|integer} The value to fill `buf` with.
