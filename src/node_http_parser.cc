@@ -378,8 +378,7 @@ class Parser : public AsyncWrap {
     Parser* parser;
     ASSIGN_OR_RETURN_UNWRAP(&parser, args.Holder());
 
-    if (--parser->refcount_ == 0)
-      delete parser;
+    delete parser;
   }
 
 
@@ -545,22 +544,6 @@ class Parser : public AsyncWrap {
   }
 
  protected:
-  class ScopedRetainParser {
-   public:
-    explicit ScopedRetainParser(Parser* p) : p_(p) {
-      CHECK_GT(p_->refcount_, 0);
-      p_->refcount_++;
-    }
-
-    ~ScopedRetainParser() {
-      if (0 == --p_->refcount_)
-        delete p_;
-    }
-
-   private:
-    Parser* const p_;
-  };
-
   static const size_t kAllocBufferSize = 64 * 1024;
 
   static void OnAllocImpl(size_t suggested_size, uv_buf_t* buf, void* ctx) {
@@ -596,8 +579,6 @@ class Parser : public AsyncWrap {
     // Ignore, empty reads have special meaning in http parser
     if (nread == 0)
       return;
-
-    ScopedRetainParser retain(parser);
 
     parser->current_buffer_.Clear();
     Local<Value> ret = parser->Execute(buf->base, nread);
@@ -736,7 +717,6 @@ class Parser : public AsyncWrap {
   char* current_buffer_data_;
   StreamResource::Callback<StreamResource::AllocCb> prev_alloc_cb_;
   StreamResource::Callback<StreamResource::ReadCb> prev_read_cb_;
-  int refcount_ = 1;
 
   // These are helper functions for filling `http_parser_settings`, which turn
   // a member function of Parser into a C-style HTTP parser callback.
@@ -753,8 +733,6 @@ class Parser : public AsyncWrap {
   typedef int (Parser::*DataCall)(const char* at, size_t length);
 
   static const struct http_parser_settings settings;
-
-  friend class ScopedRetainParser;
 };
 
 const struct http_parser_settings Parser::settings = {
