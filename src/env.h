@@ -455,10 +455,14 @@ class Environment {
    public:
     inline AliasedBuffer<uint32_t, v8::Uint32Array>& fields();
     inline uint32_t count() const;
+    inline uint32_t ref_count() const;
     inline bool has_outstanding() const;
 
     inline void count_inc(uint32_t increment);
     inline void count_dec(uint32_t decrement);
+
+    inline void ref_count_inc(uint32_t increment);
+    inline void ref_count_dec(uint32_t decrement);
 
    private:
     friend class Environment;  // So we can call the constructor.
@@ -466,6 +470,7 @@ class Environment {
 
     enum Fields {
       kCount,
+      kRefCount,
       kHasOutstanding,
       kFieldsCount
     };
@@ -680,8 +685,12 @@ class Environment {
   inline void SetImmediate(native_immediate_callback cb,
                            void* data,
                            v8::Local<v8::Object> obj = v8::Local<v8::Object>());
+  inline void SetUnrefImmediate(native_immediate_callback cb,
+                                void* data,
+                                v8::Local<v8::Object> obj =
+                                    v8::Local<v8::Object>());
   // This needs to be available for the JS-land setImmediate().
-  void ActivateImmediateCheck();
+  void ToggleImmediateRef(bool ref);
 
   class ShouldNotAbortOnUncaughtScope {
    public:
@@ -698,6 +707,11 @@ class Environment {
   static inline Environment* ForAsyncHooks(AsyncHooks* hooks);
 
  private:
+  inline void CreateImmediate(native_immediate_callback cb,
+                              void* data,
+                              v8::Local<v8::Object> obj,
+                              bool ref);
+
   inline void ThrowError(v8::Local<v8::Value> (*fun)(v8::Local<v8::String>),
                          const char* errmsg);
 
@@ -761,6 +775,7 @@ class Environment {
     native_immediate_callback cb_;
     void* data_;
     std::unique_ptr<v8::Persistent<v8::Object>> keep_alive_;
+    bool refed_;
   };
   std::vector<NativeImmediateCallback> native_immediate_callbacks_;
   void RunAndClearNativeImmediates();
