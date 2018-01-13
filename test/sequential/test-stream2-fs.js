@@ -20,7 +20,7 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-require('../common');
+const common = require('../common');
 const fixtures = require('../common/fixtures');
 const assert = require('assert');
 
@@ -69,15 +69,15 @@ w.on('results', function(res) {
 
 r.pipe(w);
 
-const optionsEnd = 3;
-const optionsEndExpectLength = optionsEnd + 1;
-const rOfEnd = new FSReadable(file, {
-  end: optionsEnd,
-});
-const wOfEnd = new TestWriter();
+{
+  // Verify that end works when start is not specified.
+  const end = 3;
+  const r = new FSReadable(file, { end });
+  const w = new TestWriter();
 
-wOfEnd.on('results', function(res) {
-  assert.strictEqual(wOfEnd.length, optionsEndExpectLength);
-});
+  w.on('results', common.mustCall((res) => {
+    assert.strictEqual(w.length, end + 1);
+  }));
 
-rOfEnd.pipe(wOfEnd);
+  r.pipe(w);
+}
