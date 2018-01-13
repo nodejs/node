@@ -586,6 +586,227 @@ void ContextifyContext::IndexedPropertyDeleterCallback(
   args.GetReturnValue().Set(false);
 }
 
+Maybe<bool> GetBreakOnSigintArg(Environment* env,
+                                Local<Value> options) {
+  if (options->IsUndefined() || options->IsString()) {
+    return Just(false);
+  }
+  if (!options->IsObject()) {
+    env->ThrowTypeError("options must be an object");
+    return Nothing<bool>();
+  }
+
+  Local<String> key = FIXED_ONE_BYTE_STRING(env->isolate(), "breakOnSigint");
+  MaybeLocal<Value> maybe_value =
+      options.As<Object>()->Get(env->context(), key);
+  if (maybe_value.IsEmpty())
+    return Nothing<bool>();
+
+  Local<Value> value = maybe_value.ToLocalChecked();
+  return Just(value->IsTrue());
+}
+
+Maybe<int64_t> GetTimeoutArg(Environment* env, Local<Value> options) {
+  if (options->IsUndefined() || options->IsString()) {
+    return Just<int64_t>(-1);
+  }
+  if (!options->IsObject()) {
+    env->ThrowTypeError("options must be an object");
+    return Nothing<int64_t>();
+  }
+
+  MaybeLocal<Value> maybe_value =
+      options.As<Object>()->Get(env->context(), env->timeout_string());
+  if (maybe_value.IsEmpty())
+    return Nothing<int64_t>();
+
+  Local<Value> value = maybe_value.ToLocalChecked();
+  if (value->IsUndefined()) {
+    return Just<int64_t>(-1);
+  }
+
+  Maybe<int64_t> timeout = value->IntegerValue(env->context());
+
+  if (timeout.IsJust() && timeout.ToChecked() <= 0) {
+    env->ThrowRangeError("timeout must be a positive number");
+    return Nothing<int64_t>();
+  }
+
+  return timeout;
+}
+
+MaybeLocal<Integer> GetLineOffsetArg(Environment* env,
+                                     Local<Value> options) {
+  Local<Integer> defaultLineOffset = Integer::New(env->isolate(), 0);
+
+  if (!options->IsObject()) {
+    return defaultLineOffset;
+  }
+
+  Local<String> key = FIXED_ONE_BYTE_STRING(env->isolate(), "lineOffset");
+  MaybeLocal<Value> maybe_value =
+      options.As<Object>()->Get(env->context(), key);
+  if (maybe_value.IsEmpty())
+    return MaybeLocal<Integer>();
+
+  Local<Value> value = maybe_value.ToLocalChecked();
+  if (value->IsUndefined())
+    return defaultLineOffset;
+
+  return value->ToInteger(env->context());
+}
+
+MaybeLocal<Integer> GetColumnOffsetArg(Environment* env,
+                                       Local<Value> options) {
+  Local<Integer> defaultColumnOffset = Integer::New(env->isolate(), 0);
+
+  if (!options->IsObject()) {
+    return defaultColumnOffset;
+  }
+
+  Local<String> key = FIXED_ONE_BYTE_STRING(env->isolate(), "columnOffset");
+  MaybeLocal<Value> maybe_value =
+    options.As<Object>()->Get(env->context(), key);
+  if (maybe_value.IsEmpty())
+    return MaybeLocal<Integer>();
+
+  Local<Value> value = maybe_value.ToLocalChecked();
+  if (value->IsUndefined())
+    return defaultColumnOffset;
+
+  return value->ToInteger(env->context());
+}
+
+MaybeLocal<Context> GetContextArg(Environment* env,
+                                  Local<Value> options) {
+  if (!options->IsObject())
+    return MaybeLocal<Context>();
+
+  MaybeLocal<Value> maybe_value =
+      options.As<Object>()->Get(env->context(),
+                                env->vm_parsing_context_symbol());
+  Local<Value> value;
+  if (!maybe_value.ToLocal(&value))
+    return MaybeLocal<Context>();
+
+  if (!value->IsObject()) {
+    if (!value->IsNullOrUndefined()) {
+      env->ThrowTypeError(
+          "contextifiedSandbox argument must be an object.");
+    }
+    return MaybeLocal<Context>();
+  }
+
+  ContextifyContext* sandbox =
+      ContextifyContext::ContextFromContextifiedSandbox(
+          env, value.As<Object>());
+  if (!sandbox) {
+    env->ThrowTypeError(
+        "sandbox argument must have been converted to a context.");
+    return MaybeLocal<Context>();
+  }
+
+  Local<Context> context = sandbox->context();
+  if (context.IsEmpty())
+    return MaybeLocal<Context>();
+  return context;
+}
+
+namespace {
+
+Maybe<bool> GetDisplayErrorsArg(Environment* env,
+                                Local<Value> options) {
+  if (options->IsUndefined() || options->IsString()) {
+    return Just(true);
+  }
+  if (!options->IsObject()) {
+    env->ThrowTypeError("options must be an object");
+    return Nothing<bool>();
+  }
+
+  Local<String> key = FIXED_ONE_BYTE_STRING(env->isolate(), "displayErrors");
+  MaybeLocal<Value> maybe_value =
+      options.As<Object>()->Get(env->context(), key);
+  if (maybe_value.IsEmpty())
+    return Nothing<bool>();
+
+  Local<Value> value = maybe_value.ToLocalChecked();
+  if (value->IsUndefined())
+    return Just(true);
+
+  return value->BooleanValue(env->context());
+}
+
+MaybeLocal<String> GetFilenameArg(Environment* env,
+                                  Local<Value> options) {
+  Local<String> defaultFilename =
+      FIXED_ONE_BYTE_STRING(env->isolate(), "evalmachine.<anonymous>");
+
+  if (options->IsUndefined()) {
+    return defaultFilename;
+  }
+  if (options->IsString()) {
+    return options.As<String>();
+  }
+  if (!options->IsObject()) {
+    env->ThrowTypeError("options must be an object");
+    return Local<String>();
+  }
+
+  Local<String> key = FIXED_ONE_BYTE_STRING(env->isolate(), "filename");
+  MaybeLocal<Value> maybe_value =
+      options.As<Object>()->Get(env->context(), key);
+  if (maybe_value.IsEmpty())
+    return MaybeLocal<String>();
+
+  Local<Value> value = maybe_value.ToLocalChecked();
+  if (value->IsUndefined())
+    return defaultFilename;
+  return value->ToString(env->context());
+}
+
+MaybeLocal<Uint8Array> GetCachedData(Environment* env,
+                                     Local<Value> options) {
+  if (!options->IsObject()) {
+    return MaybeLocal<Uint8Array>();
+  }
+
+  MaybeLocal<Value> maybe_value =
+      options.As<Object>()->Get(env->context(), env->cached_data_string());
+  if (maybe_value.IsEmpty())
+    return MaybeLocal<Uint8Array>();
+
+  Local<Value> value = maybe_value.ToLocalChecked();
+  if (value->IsUndefined()) {
+    return MaybeLocal<Uint8Array>();
+  }
+
+  if (!value->IsUint8Array()) {
+    env->ThrowTypeError("options.cachedData must be a Buffer instance");
+    return MaybeLocal<Uint8Array>();
+  }
+
+  return value.As<Uint8Array>();
+}
+
+Maybe<bool> GetProduceCachedData(Environment* env,
+                                 Local<Value> options) {
+  if (!options->IsObject()) {
+    return Just(false);
+  }
+
+  MaybeLocal<Value> maybe_value =
+      options.As<Object>()->Get(env->context(),
+                                env->produce_cached_data_string());
+  if (maybe_value.IsEmpty())
+    return Nothing<bool>();
+
+  Local<Value> value = maybe_value.ToLocalChecked();
+  return Just(value->IsTrue());
+}
+
+}  // anonymous namespace
+
 class ContextifyScript : public BaseObject {
  private:
   Persistent<UnboundScript> script_;
@@ -639,7 +860,7 @@ class ContextifyScript : public BaseObject {
     MaybeLocal<Integer> columnOffset = GetColumnOffsetArg(env, options);
     MaybeLocal<Uint8Array> cached_data_buf = GetCachedData(env, options);
     Maybe<bool> maybe_produce_cached_data = GetProduceCachedData(env, options);
-    MaybeLocal<Context> maybe_context = GetContext(env, options);
+    MaybeLocal<Context> maybe_context = GetContextArg(env, options);
     if (try_catch.HasCaught()) {
       no_abort_scope.Close();
       try_catch.ReThrow();
@@ -830,230 +1051,6 @@ class ContextifyScript : public BaseObject {
         env->decorated_private_symbol(),
         True(env->isolate()));
   }
-
-  static Maybe<bool> GetBreakOnSigintArg(Environment* env,
-                                         Local<Value> options) {
-    if (options->IsUndefined() || options->IsString()) {
-      return Just(false);
-    }
-    if (!options->IsObject()) {
-      env->ThrowTypeError("options must be an object");
-      return Nothing<bool>();
-    }
-
-    Local<String> key = FIXED_ONE_BYTE_STRING(env->isolate(), "breakOnSigint");
-    MaybeLocal<Value> maybe_value =
-        options.As<Object>()->Get(env->context(), key);
-    if (maybe_value.IsEmpty())
-      return Nothing<bool>();
-
-    Local<Value> value = maybe_value.ToLocalChecked();
-    return Just(value->IsTrue());
-  }
-
-  static Maybe<int64_t> GetTimeoutArg(Environment* env, Local<Value> options) {
-    if (options->IsUndefined() || options->IsString()) {
-      return Just<int64_t>(-1);
-    }
-    if (!options->IsObject()) {
-      env->ThrowTypeError("options must be an object");
-      return Nothing<int64_t>();
-    }
-
-    MaybeLocal<Value> maybe_value =
-        options.As<Object>()->Get(env->context(), env->timeout_string());
-    if (maybe_value.IsEmpty())
-      return Nothing<int64_t>();
-
-    Local<Value> value = maybe_value.ToLocalChecked();
-    if (value->IsUndefined()) {
-      return Just<int64_t>(-1);
-    }
-
-    Maybe<int64_t> timeout = value->IntegerValue(env->context());
-
-    if (timeout.IsJust() && timeout.ToChecked() <= 0) {
-      env->ThrowRangeError("timeout must be a positive number");
-      return Nothing<int64_t>();
-    }
-
-    return timeout;
-  }
-
-
-  static Maybe<bool> GetDisplayErrorsArg(Environment* env,
-                                         Local<Value> options) {
-    if (options->IsUndefined() || options->IsString()) {
-      return Just(true);
-    }
-    if (!options->IsObject()) {
-      env->ThrowTypeError("options must be an object");
-      return Nothing<bool>();
-    }
-
-    Local<String> key = FIXED_ONE_BYTE_STRING(env->isolate(), "displayErrors");
-    MaybeLocal<Value> maybe_value =
-        options.As<Object>()->Get(env->context(), key);
-    if (maybe_value.IsEmpty())
-      return Nothing<bool>();
-
-    Local<Value> value = maybe_value.ToLocalChecked();
-    if (value->IsUndefined())
-      return Just(true);
-
-    return value->BooleanValue(env->context());
-  }
-
-
-  static MaybeLocal<String> GetFilenameArg(Environment* env,
-                                           Local<Value> options) {
-    Local<String> defaultFilename =
-        FIXED_ONE_BYTE_STRING(env->isolate(), "evalmachine.<anonymous>");
-
-    if (options->IsUndefined()) {
-      return defaultFilename;
-    }
-    if (options->IsString()) {
-      return options.As<String>();
-    }
-    if (!options->IsObject()) {
-      env->ThrowTypeError("options must be an object");
-      return Local<String>();
-    }
-
-    Local<String> key = FIXED_ONE_BYTE_STRING(env->isolate(), "filename");
-    MaybeLocal<Value> maybe_value =
-        options.As<Object>()->Get(env->context(), key);
-    if (maybe_value.IsEmpty())
-      return MaybeLocal<String>();
-
-    Local<Value> value = maybe_value.ToLocalChecked();
-    if (value->IsUndefined())
-      return defaultFilename;
-    return value->ToString(env->context());
-  }
-
-
-  static MaybeLocal<Uint8Array> GetCachedData(Environment* env,
-                                              Local<Value> options) {
-    if (!options->IsObject()) {
-      return MaybeLocal<Uint8Array>();
-    }
-
-    MaybeLocal<Value> maybe_value =
-        options.As<Object>()->Get(env->context(), env->cached_data_string());
-    if (maybe_value.IsEmpty())
-      return MaybeLocal<Uint8Array>();
-
-    Local<Value> value = maybe_value.ToLocalChecked();
-    if (value->IsUndefined()) {
-      return MaybeLocal<Uint8Array>();
-    }
-
-    if (!value->IsUint8Array()) {
-      env->ThrowTypeError("options.cachedData must be a Buffer instance");
-      return MaybeLocal<Uint8Array>();
-    }
-
-    return value.As<Uint8Array>();
-  }
-
-
-  static Maybe<bool> GetProduceCachedData(Environment* env,
-                                          Local<Value> options) {
-    if (!options->IsObject()) {
-      return Just(false);
-    }
-
-    MaybeLocal<Value> maybe_value =
-        options.As<Object>()->Get(env->context(),
-                                  env->produce_cached_data_string());
-    if (maybe_value.IsEmpty())
-      return Nothing<bool>();
-
-    Local<Value> value = maybe_value.ToLocalChecked();
-    return Just(value->IsTrue());
-  }
-
-
-  static MaybeLocal<Integer> GetLineOffsetArg(Environment* env,
-                                              Local<Value> options) {
-    Local<Integer> defaultLineOffset = Integer::New(env->isolate(), 0);
-
-    if (!options->IsObject()) {
-      return defaultLineOffset;
-    }
-
-    Local<String> key = FIXED_ONE_BYTE_STRING(env->isolate(), "lineOffset");
-    MaybeLocal<Value> maybe_value =
-        options.As<Object>()->Get(env->context(), key);
-    if (maybe_value.IsEmpty())
-      return MaybeLocal<Integer>();
-
-    Local<Value> value = maybe_value.ToLocalChecked();
-    if (value->IsUndefined())
-      return defaultLineOffset;
-
-    return value->ToInteger(env->context());
-  }
-
-
-  static MaybeLocal<Integer> GetColumnOffsetArg(Environment* env,
-                                                Local<Value> options) {
-    Local<Integer> defaultColumnOffset = Integer::New(env->isolate(), 0);
-
-    if (!options->IsObject()) {
-      return defaultColumnOffset;
-    }
-
-    Local<String> key = FIXED_ONE_BYTE_STRING(env->isolate(), "columnOffset");
-    MaybeLocal<Value> maybe_value =
-      options.As<Object>()->Get(env->context(), key);
-    if (maybe_value.IsEmpty())
-      return MaybeLocal<Integer>();
-
-    Local<Value> value = maybe_value.ToLocalChecked();
-    if (value->IsUndefined())
-      return defaultColumnOffset;
-
-    return value->ToInteger(env->context());
-  }
-
-  static MaybeLocal<Context> GetContext(Environment* env,
-                                        Local<Value> options) {
-    if (!options->IsObject())
-      return MaybeLocal<Context>();
-
-    MaybeLocal<Value> maybe_value =
-        options.As<Object>()->Get(env->context(),
-                                  env->vm_parsing_context_symbol());
-    Local<Value> value;
-    if (!maybe_value.ToLocal(&value))
-      return MaybeLocal<Context>();
-
-    if (!value->IsObject()) {
-      if (!value->IsNullOrUndefined()) {
-        env->ThrowTypeError(
-            "contextifiedSandbox argument must be an object.");
-      }
-      return MaybeLocal<Context>();
-    }
-
-    ContextifyContext* sandbox =
-        ContextifyContext::ContextFromContextifiedSandbox(
-            env, value.As<Object>());
-    if (!sandbox) {
-      env->ThrowTypeError(
-          "sandbox argument must have been converted to a context.");
-      return MaybeLocal<Context>();
-    }
-
-    Local<Context> context = sandbox->context();
-    if (context.IsEmpty())
-      return MaybeLocal<Context>();
-    return context;
-  }
-
 
   static bool EvalMachine(Environment* env,
                           const int64_t timeout,
