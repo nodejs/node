@@ -229,6 +229,10 @@ inline uint32_t Environment::ImmediateInfo::count() const {
   return fields_[kCount];
 }
 
+inline uint32_t Environment::ImmediateInfo::ref_count() const {
+  return fields_[kRefCount];
+}
+
 inline bool Environment::ImmediateInfo::has_outstanding() const {
   return fields_[kHasOutstanding] == 1;
 }
@@ -239,6 +243,14 @@ inline void Environment::ImmediateInfo::count_inc(uint32_t increment) {
 
 inline void Environment::ImmediateInfo::count_dec(uint32_t decrement) {
   fields_[kCount] = fields_[kCount] - decrement;
+}
+
+inline void Environment::ImmediateInfo::ref_count_inc(uint32_t increment) {
+  fields_[kRefCount] = fields_[kRefCount] + increment;
+}
+
+inline void Environment::ImmediateInfo::ref_count_dec(uint32_t decrement) {
+  fields_[kRefCount] = fields_[kRefCount] - decrement;
 }
 
 inline Environment::TickInfo::TickInfo(v8::Isolate* isolate)
@@ -514,18 +526,34 @@ inline void Environment::set_fs_stats_field_array(double* fields) {
   fs_stats_field_array_ = fields;
 }
 
-void Environment::SetImmediate(native_immediate_callback cb,
+void Environment::CreateImmediate(native_immediate_callback cb,
                                void* data,
-                               v8::Local<v8::Object> obj) {
+                               v8::Local<v8::Object> obj,
+                               bool ref) {
   native_immediate_callbacks_.push_back({
     cb,
     data,
-    std::unique_ptr<v8::Persistent<v8::Object>>(
-        obj.IsEmpty() ? nullptr : new v8::Persistent<v8::Object>(isolate_, obj))
+    std::unique_ptr<v8::Persistent<v8::Object>>(obj.IsEmpty() ?
+        nullptr : new v8::Persistent<v8::Object>(isolate_, obj)),
+    ref
   });
-  if (immediate_info()->count() == 0)
-    ActivateImmediateCheck();
   immediate_info()->count_inc(1);
+}
+
+void Environment::SetImmediate(native_immediate_callback cb,
+                               void* data,
+                               v8::Local<v8::Object> obj) {
+  CreateImmediate(cb, data, obj, true);
+
+  if (immediate_info()->ref_count() == 0)
+    ToggleImmediateRef(true);
+  immediate_info()->ref_count_inc(1);
+}
+
+void Environment::SetUnrefImmediate(native_immediate_callback cb,
+                                    void* data,
+                                    v8::Local<v8::Object> obj) {
+  CreateImmediate(cb, data, obj, false);
 }
 
 inline performance::performance_state* Environment::performance_state() {

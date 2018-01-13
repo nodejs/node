@@ -80,6 +80,8 @@ void Environment::Start(int argc,
 
   uv_idle_init(event_loop(), immediate_idle_handle());
 
+  uv_check_start(immediate_check_handle(), CheckImmediate);
+
   // Inform V8's CPU profiler when we're idle.  The profiler is sampling-based
   // but not all samples are created equal; mark the wall clock time spent in
   // epoll_wait() and friends so profiling tools can filter it out.  The samples
@@ -272,38 +274,34 @@ void Environment::EnvPromiseHook(v8::PromiseHookType type,
 void Environment::RunAndClearNativeImmediates() {
   size_t count = native_immediate_callbacks_.size();
   if (count > 0) {
+    size_t ref_count = 0;
     std::vector<NativeImmediateCallback> list;
     native_immediate_callbacks_.swap(list);
     for (const auto& cb : list) {
       cb.cb_(this, cb.data_);
       if (cb.keep_alive_)
         cb.keep_alive_->Reset();
+      if (cb.refed_)
+        ref_count++;
     }
 
 #ifdef DEBUG
     CHECK_GE(immediate_info()->count(), count);
 #endif
     immediate_info()->count_dec(count);
+    immediate_info()->ref_count_dec(ref_count);
   }
-}
-
-static bool MaybeStopImmediate(Environment* env) {
-  if (env->immediate_info()->count() == 0) {
-    uv_check_stop(env->immediate_check_handle());
-    uv_idle_stop(env->immediate_idle_handle());
-    return true;
-  }
-  return false;
 }
 
 
 void Environment::CheckImmediate(uv_check_t* handle) {
   Environment* env = Environment::from_immediate_check_handle(handle);
+
+  if (env->immediate_info()->count() == 0)
+    return;
+
   HandleScope scope(env->isolate());
   Context::Scope context_scope(env->context());
-
-  if (MaybeStopImmediate(env))
-    return;
 
   env->RunAndClearNativeImmediates();
 
@@ -316,13 +314,17 @@ void Environment::CheckImmediate(uv_check_t* handle) {
                  {0, 0}).ToLocalChecked();
   } while (env->immediate_info()->has_outstanding());
 
-  MaybeStopImmediate(env);
+  if (env->immediate_info()->ref_count() == 0)
+    env->ToggleImmediateRef(false);
 }
 
-void Environment::ActivateImmediateCheck() {
-  uv_check_start(&immediate_check_handle_, CheckImmediate);
-  // Idle handle is needed only to stop the event loop from blocking in poll.
-  uv_idle_start(&immediate_idle_handle_, [](uv_idle_t*){ });
+void Environment::ToggleImmediateRef(bool ref) {
+  if (ref) {
+    // Idle handle is needed only to stop the event loop from blocking in poll.
+    uv_idle_start(immediate_idle_handle(), [](uv_idle_t*){ });
+  } else {
+    uv_idle_stop(immediate_idle_handle());
+  }
 }
 
 void Environment::AsyncHooks::grow_async_ids_stack() {
