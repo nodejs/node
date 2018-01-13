@@ -72,22 +72,6 @@ const uint32_t kOnMessageComplete = 3;
 const uint32_t kOnExecute = 4;
 
 
-#define HTTP_CB(name)                                                         \
-  static int name(http_parser* p_) {                                          \
-    Parser* self = ContainerOf(&Parser::parser_, p_);                         \
-    return self->name##_();                                                   \
-  }                                                                           \
-  int name##_()
-
-
-#define HTTP_DATA_CB(name)                                                    \
-  static int name(http_parser* p_, const char* at, size_t length) {           \
-    Parser* self = ContainerOf(&Parser::parser_, p_);                         \
-    return self->name##_(at, length);                                         \
-  }                                                                           \
-  int name##_(const char* at, size_t length)
-
-
 // helper class for the Parser
 struct StringPtr {
   StringPtr() {
@@ -182,7 +166,7 @@ class Parser : public AsyncWrap {
   }
 
 
-  HTTP_CB(on_message_begin) {
+  int on_message_begin() {
     num_fields_ = num_values_ = 0;
     url_.Reset();
     status_message_.Reset();
@@ -190,19 +174,19 @@ class Parser : public AsyncWrap {
   }
 
 
-  HTTP_DATA_CB(on_url) {
+  int on_url(const char* at, size_t length) {
     url_.Update(at, length);
     return 0;
   }
 
 
-  HTTP_DATA_CB(on_status) {
+  int on_status(const char* at, size_t length) {
     status_message_.Update(at, length);
     return 0;
   }
 
 
-  HTTP_DATA_CB(on_header_field) {
+  int on_header_field(const char* at, size_t length) {
     if (num_fields_ == num_values_) {
       // start of new field name
       num_fields_++;
@@ -224,7 +208,7 @@ class Parser : public AsyncWrap {
   }
 
 
-  HTTP_DATA_CB(on_header_value) {
+  int on_header_value(const char* at, size_t length) {
     if (num_values_ != num_fields_) {
       // start of new header value
       num_values_++;
@@ -240,7 +224,7 @@ class Parser : public AsyncWrap {
   }
 
 
-  HTTP_CB(on_headers_complete) {
+  int on_headers_complete() {
     // Arguments for the on-headers-complete javascript callback. This
     // list needs to be kept in sync with the actual argument list for
     // `parserOnHeadersComplete` in lib/_http_common.js.
@@ -317,7 +301,7 @@ class Parser : public AsyncWrap {
   }
 
 
-  HTTP_DATA_CB(on_body) {
+  int on_body(const char* at, size_t length) {
     EscapableHandleScope scope(env()->isolate());
 
     Local<Object> obj = object();
@@ -354,7 +338,7 @@ class Parser : public AsyncWrap {
   }
 
 
-  HTTP_CB(on_message_complete) {
+  int on_message_complete() {
     HandleScope scope(env()->isolate());
 
     if (num_fields_)
@@ -751,21 +735,39 @@ class Parser : public AsyncWrap {
   StreamResource::Callback<StreamResource::AllocCb> prev_alloc_cb_;
   StreamResource::Callback<StreamResource::ReadCb> prev_read_cb_;
   int refcount_ = 1;
+
+  // These are helper functions for filling `http_parser_settings`, which turn
+  // a member function of Parser into a C-style HTTP parser callback.
+  template <int (Parser::* Member)()>
+  struct HTTPCallback {
+    static int Raw(http_parser* p) {
+      Parser* parser = ContainerOf(&Parser::parser_, p);
+      return (parser->*Member)();
+    }
+  };
+
+  template <int (Parser::* Member)(const char* at, size_t length)>
+  struct HTTPDataCallback {
+    static int Raw(http_parser* p, const char* at, size_t length) {
+      Parser* parser = ContainerOf(&Parser::parser_, p);
+      return (parser->*Member)(at, length);
+    }
+  };
+
   static const struct http_parser_settings settings;
 
   friend class ScopedRetainParser;
 };
 
-
 const struct http_parser_settings Parser::settings = {
-  Parser::on_message_begin,
-  Parser::on_url,
-  Parser::on_status,
-  Parser::on_header_field,
-  Parser::on_header_value,
-  Parser::on_headers_complete,
-  Parser::on_body,
-  Parser::on_message_complete,
+  HTTPCallback<&Parser::on_message_begin>::Raw,
+  HTTPDataCallback<&Parser::on_url>::Raw,
+  HTTPDataCallback<&Parser::on_status>::Raw,
+  HTTPDataCallback<&Parser::on_header_field>::Raw,
+  HTTPDataCallback<&Parser::on_header_value>::Raw,
+  HTTPCallback<&Parser::on_headers_complete>::Raw,
+  HTTPDataCallback<&Parser::on_body>::Raw,
+  HTTPCallback<&Parser::on_message_complete>::Raw,
   nullptr,  // on_chunk_header
   nullptr   // on_chunk_complete
 };
