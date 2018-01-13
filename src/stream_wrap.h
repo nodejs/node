@@ -55,7 +55,6 @@ class LibuvStreamWrap : public HandleWrap, public StreamBase {
               uv_buf_t* bufs,
               size_t count,
               uv_stream_t* send_handle) override;
-  bool HasWriteQueue() override;
 
   inline uv_stream_t* stream() const {
     return stream_;

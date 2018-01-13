@@ -380,10 +380,6 @@ int LibuvStreamWrap::DoWrite(WriteWrap* w,
 }
 
 
-bool LibuvStreamWrap::HasWriteQueue() {
-  return stream()->write_queue_size > 0;
-}
-
 
 void LibuvStreamWrap::AfterUvWrite(uv_write_t* req, int status) {
   WriteWrap* req_wrap = WriteWrap::from_req(req);

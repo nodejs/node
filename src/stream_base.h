@@ -162,7 +162,6 @@ class StreamResource {
                       uv_buf_t* bufs,
                       size_t count,
                       uv_stream_t* send_handle) = 0;
-  virtual bool HasWriteQueue();
   virtual const char* Error() const;
   virtual void ClearError();
 
