@@ -738,21 +738,17 @@ class Parser : public AsyncWrap {
 
   // These are helper functions for filling `http_parser_settings`, which turn
   // a member function of Parser into a C-style HTTP parser callback.
-  template <int (Parser::* Member)()>
-  struct HTTPCallback {
-    static int Raw(http_parser* p) {
+  template <typename Parser, Parser> struct Proxy;
+  template <typename Parser, typename ...Args, int (Parser::*Member)(Args...)>
+  struct Proxy<int (Parser::*)(Args...), Member> {
+    static int Raw(http_parser* p, Args ... args) {
       Parser* parser = ContainerOf(&Parser::parser_, p);
-      return (parser->*Member)();
+      return (parser->*Member)(std::forward<Args>(args)...);
     }
   };
 
-  template <int (Parser::* Member)(const char* at, size_t length)>
-  struct HTTPDataCallback {
-    static int Raw(http_parser* p, const char* at, size_t length) {
-      Parser* parser = ContainerOf(&Parser::parser_, p);
-      return (parser->*Member)(at, length);
-    }
-  };
+  typedef int (Parser::*Call)();
+  typedef int (Parser::*DataCall)(const char* at, size_t length);
 
   static const struct http_parser_settings settings;
 
@@ -760,14 +756,14 @@ class Parser : public AsyncWrap {
 };
 
 const struct http_parser_settings Parser::settings = {
-  HTTPCallback<&Parser::on_message_begin>::Raw,
-  HTTPDataCallback<&Parser::on_url>::Raw,
-  HTTPDataCallback<&Parser::on_status>::Raw,
-  HTTPDataCallback<&Parser::on_header_field>::Raw,
-  HTTPDataCallback<&Parser::on_header_value>::Raw,
-  HTTPCallback<&Parser::on_headers_complete>::Raw,
-  HTTPDataCallback<&Parser::on_body>::Raw,
-  HTTPCallback<&Parser::on_message_complete>::Raw,
+  Proxy<Call, &Parser::on_message_begin>::Raw,
+  Proxy<DataCall, &Parser::on_url>::Raw,
+  Proxy<DataCall, &Parser::on_status>::Raw,
+  Proxy<DataCall, &Parser::on_header_field>::Raw,
+  Proxy<DataCall, &Parser::on_header_value>::Raw,
+  Proxy<Call, &Parser::on_headers_complete>::Raw,
+  Proxy<DataCall, &Parser::on_body>::Raw,
+  Proxy<Call, &Parser::on_message_complete>::Raw,
   nullptr,  // on_chunk_header
   nullptr   // on_chunk_complete
 };
