@@ -35,17 +35,27 @@ assert(TextEncoder);
 }
 
 {
-  const fn = TextEncoder.prototype[inspect];
-  assert.doesNotThrow(() => {
-    fn.call(new TextEncoder(), Infinity, {});
-  });
+  const inspectFn = TextEncoder.prototype[inspect];
+  const encodeFn = TextEncoder.prototype.encode;
+  const encodingGetter =
+    Object.getOwnPropertyDescriptor(TextEncoder.prototype, 'encoding').get;
 
-  [{}, [], true, 1, '', new TextDecoder()].forEach((i) => {
-    assert.throws(() => fn.call(i, Infinity, {}),
-                  common.expectsError({
-                    code: 'ERR_INVALID_THIS',
-                    type: TypeError,
-                    message: 'Value of "this" must be of type TextEncoder'
-                  }));
+  const instance = new TextEncoder();
+
+  const expectedError = {
+    code: 'ERR_INVALID_THIS',
+    type: TypeError,
+    message: 'Value of "this" must be of type TextEncoder'
+  };
+
+  assert.doesNotThrow(() => inspectFn.call(instance, Infinity, {}));
+  assert.doesNotThrow(() => encodeFn.call(instance));
+  assert.doesNotThrow(() => encodingGetter.call(instance));
+
+  const invalidThisArgs = [{}, [], true, 1, '', new TextDecoder()];
+  invalidThisArgs.forEach((i) => {
+    common.expectsError(() => inspectFn.call(i, Infinity, {}), expectedError);
+    common.expectsError(() => encodeFn.call(i), expectedError);
+    common.expectsError(() => encodingGetter.call(i), expectedError);
   });
 }
