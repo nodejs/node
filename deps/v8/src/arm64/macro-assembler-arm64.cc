@@ -1958,6 +1958,15 @@ void TurboAssembler::Call(Handle<Code> code, RelocInfo::Mode rmode) {
 #endif
 }
 
+void TurboAssembler::Call(ExternalReference target) {
+  UseScratchRegisterScope temps(this);
+  Register temp = temps.AcquireX();
+  // Immediate is in charge of setting the relocation mode to
+  // EXTERNAL_REFERENCE.
+  Ldr(temp, Immediate(target));
+  Call(temp);
+}
+
 int TurboAssembler::CallSize(Register target) {
   USE(target);
   return kInstructionSize;
@@ -3399,7 +3408,7 @@ void TurboAssembler::CallPrintf(int arg_count, const CPURegister* args) {
     dc32(arg_pattern_list);   // kPrintfArgPatternListOffset
   }
 #else
-  Call(FUNCTION_ADDR(printf), RelocInfo::EXTERNAL_REFERENCE);
+  Call(ExternalReference::printf_function(isolate()));
 #endif
 }
 
