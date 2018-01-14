@@ -20,7 +20,8 @@
 * [Others](#others)
   * [Type casting](#type-casting)
   * [Do not include `*.h` if `*-inl.h` has already been included](#do-not-include-h-if--inlh-has-already-been-included)
-  * [Avoid throwing JavaScript errors in nested C++ methods](#avoid-throwing-javascript-errors-in-nested-c-methods)
+  * [Avoid throwing JavaScript errors in C++ methods](#avoid-throwing-javascript-errors-in-c)
+    * [Avoid throwing JavaScript errors in nested C++ methods](#avoid-throwing-javascript-errors-in-nested-c-methods)
 
 Unfortunately, the C++ linter (based on
 [Google’s `cpplint`](https://github.com/google/styleguide)), which can be run
@@ -213,12 +214,65 @@ instead of
 #include "util-inl.h"
 ```
 
-## Avoid throwing JavaScript errors in nested C++ methods
+## Avoid throwing JavaScript errors in C++
 
-If you need to throw JavaScript errors from a C++ binding method, try to do it
-at the top level and not inside of nested calls.
+When there is a need to throw errors from a C++ binding method, try to
+return the data necessary for constructing the errors to JavaScript,
+then construct and throw the errors [using `lib/internal/errors.js`][errors].
 
-A lot of code inside Node.js is written so that typechecking etc. is performed
-in JavaScript.
+Note that in general, type-checks on arguments should be done in JavaScript
+before the arguments are passed into C++. Then in the C++ binding, simply using
+`CHECK` assertions to guard against invalid arguments should be enough.
+
+If the return value of the binding cannot be used to signal failures or return
+the necessary data for constructing errors in JavaScript, pass a context object
+to the binding and put the necessary data inside in C++. For example:
+
+```cpp
+void Foo(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  // Let the JavaScript handle the actual type-checking,
+  // only assertions are placed in C++
+  CHECK_EQ(args.Length(), 2);
+  CHECK(args[0]->IsString());
+  CHECK(args[1]->IsObject());
+
+  int err = DoSomethingWith(args[0].As<String>());
+  if (err) {
+    // Put the data inside the error context
+    Local<Object> ctx = args[1].As<Object>();
+    Local<String> key = FIXED_ONE_BYTE_STRING(env->isolate(), "code");
+    ctx->Set(env->context(), key, err).FromJust();
+  } else {
+    args.GetReturnValue().Set(something_to_return);
+  }
+}
+
+// In the initialize function
+env->SetMethod(target, "foo", Foo);
+```
+
+```js
+exports.foo = function(str) {
+  // Prefer doing the type-checks in JavaScript
+  if (typeof str !== 'string') {
+    throw new errors.TypeError('ERR_INVALID_ARG_TYPE', 'str', 'string');
+  }
+
+  const ctx = {};
+  const result = binding.foo(str, ctx);
+  if (ctx.code !== undefined) {
+    throw new errors.Error('ERR_ERROR_NAME', ctx.code);
+  }
+  return result;
+};
+```
+
+### Avoid throwing JavaScript errors in nested C++ methods
+
+When you have to throw the errors from C++, try to do it at the top level and
+not inside of nested calls.
 
 Using C++ `throw` is not allowed.
+
+[errors]: https://github.com/nodejs/node/blob/master/doc/guides/using-internal-errors.md
