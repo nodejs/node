@@ -12,7 +12,7 @@ napi_value Test(napi_env env, napi_callback_info info) {
   NAPI_CALL(env, napi_typeof(env, args[0], &valuetype));
 
   NAPI_ASSERT(env, valuetype == napi_symbol,
-      "Wrong type of argments. Expects a symbol.");
+      "Wrong type of arguments. Expects a symbol.");
 
   char buffer[128];
   size_t buffer_size = 128;
