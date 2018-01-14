@@ -5,6 +5,7 @@
 #include <functional>
 #include <initializer_list>
 #include "v8.h"
+#include "node.h"
 
 namespace node { namespace lib {
     void _StartEnv(int argc,
