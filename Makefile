@@ -1020,57 +1020,13 @@ ifeq ($(XZ), 0)
 	ssh $(STAGINGSERVER) "touch nodejs/$(DISTTYPEDIR)/$(FULLVERSION)/$(TARNAME)-$(OSTYPE)-$(ARCH).tar.xz.done"
 endif
 
-.PHONY: bench-net
-bench-net: all
-	@$(NODE) benchmark/run.js net
-
-bench-crypto: all
-	@$(NODE) benchmark/run.js crypto
-
-.PHONY: bench-tls
-bench-tls: all
-	@$(NODE) benchmark/run.js tls
-
-.PHONY: bench-http
-bench-http: all
-	@$(NODE) benchmark/run.js http
-
-.PHONY: bench-fs
-bench-fs: all
-	@$(NODE) benchmark/run.js fs
-
-.PHONY: bench-misc
-bench-misc: benchmark/misc/function_call/build/Release/binding.node
-	@$(NODE) benchmark/run.js misc
-
-.PHONY: bench-array
-bench-array: all
-	@$(NODE) benchmark/run.js arrays
-
-.PHONY: bench-buffer
-bench-buffer: all
-	@$(NODE) benchmark/run.js buffers
-
-bench-url: all
-	@$(NODE) benchmark/run.js url
-
-bench-events: all
-	@$(NODE) benchmark/run.js events
-
-bench-util: all
-	@$(NODE) benchmark/run.js util
-
-bench-dgram: all
-	@$(NODE) benchmark/run.js dgram
-
 .PHONY: bench-all
-bench-all: bench bench-misc bench-array bench-buffer bench-url bench-events bench-dgram bench-util
+bench-all:
+	@echo "Please use benchmark/run.js or benchmark/compare.js to run the benchmarks."
 
 .PHONY: bench
-bench: bench-net bench-http bench-fs bench-tls
-
-.PHONY: bench-ci
-bench-ci: bench
+bench:
+	@echo "Please use benchmark/run.js or benchmark/compare.js to run the benchmarks."
 
 .PHONY: lint-md-clean
 lint-md-clean:
