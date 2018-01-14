@@ -13,20 +13,20 @@ napi_value Multiply(napi_env env, napi_callback_info info) {
   NAPI_CALL(env, napi_typeof(env, args[0], &valuetype0));
 
   NAPI_ASSERT(env, valuetype0 == napi_object,
-      "Wrong type of argments. Expects a typed array as first argument.");
+      "Wrong type of arguments. Expects a typed array as first argument.");
 
   napi_value input_array = args[0];
   bool is_typedarray;
   NAPI_CALL(env, napi_is_typedarray(env, input_array, &is_typedarray));
 
   NAPI_ASSERT(env, is_typedarray,
-      "Wrong type of argments. Expects a typed array as first argument.");
+      "Wrong type of arguments. Expects a typed array as first argument.");
 
   napi_valuetype valuetype1;
   NAPI_CALL(env, napi_typeof(env, args[1], &valuetype1));
 
   NAPI_ASSERT(env, valuetype1 == napi_number,
-      "Wrong type of argments. Expects a number as second argument.");
+      "Wrong type of arguments. Expects a number as second argument.");
 
   double multiplier;
   NAPI_CALL(env, napi_get_value_double(env, args[1], &multiplier));
@@ -108,26 +108,26 @@ napi_value CreateTypedArray(napi_env env, napi_callback_info info) {
   NAPI_CALL(env, napi_typeof(env, input_array, &valuetype0));
 
   NAPI_ASSERT(env, valuetype0 == napi_object,
-      "Wrong type of argments. Expects a typed array as first argument.");
+      "Wrong type of arguments. Expects a typed array as first argument.");
 
   bool is_typedarray;
   NAPI_CALL(env, napi_is_typedarray(env, input_array, &is_typedarray));
 
   NAPI_ASSERT(env, is_typedarray,
-      "Wrong type of argments. Expects a typed array as first argument.");
+      "Wrong type of arguments. Expects a typed array as first argument.");
 
   napi_valuetype valuetype1;
   napi_value input_buffer = args[1];
   NAPI_CALL(env, napi_typeof(env, input_buffer, &valuetype1));
 
   NAPI_ASSERT(env, valuetype1 == napi_object,
-      "Wrong type of argments. Expects an array buffer as second argument.");
+      "Wrong type of arguments. Expects an array buffer as second argument.");
 
   bool is_arraybuffer;
   NAPI_CALL(env, napi_is_arraybuffer(env, input_buffer, &is_arraybuffer));
 
   NAPI_ASSERT(env, is_arraybuffer,
-      "Wrong type of argments. Expects an array buffer as second argument.");
+      "Wrong type of arguments. Expects an array buffer as second argument.");
 
   napi_typedarray_type type;
   napi_value in_array_buffer;
