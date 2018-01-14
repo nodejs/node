@@ -20,11 +20,10 @@ namespace node { namespace lib {
 
     using RunUserLoop = std::function<void()>;
 
-    using CppModule = std::function<void(v8::Local<v8::Object> exports,
-                               v8::Local<v8::Value> module,
-                               void * private_data)>;
-
-    using ModuleFunction = std::function<void(v8::FunctionCallbackInfo<v8::Value> & info)>;
+    void _RegisterModuleCallback(v8::Local<v8::Object> exports,
+              v8::Local<v8::Value> module,
+              v8::Local<v8::Context> context,
+              void* priv);
 
 
     /*********************************************************
@@ -100,13 +99,13 @@ namespace node { namespace lib {
     /*
     Registers a C++ module in the *running* Node.js engine.
     */
-    NODE_EXTERN bool RegisterModule(const std::string & name, const CppModule & callback);
+    NODE_EXTERN void RegisterModule(const std::string & name, const addon_context_register_func & callback, void *priv = nullptr);
 
     /*
     Registers a C++ module in the *running* Node.js engine exporting the given set of functions.
     */
-    NODE_EXTERN bool RegisterModule(const std::string & name,
-                        const std::map<std::string, ModuleFunction> & module_functions);
+    NODE_EXTERN void RegisterModule(const std::string & name,
+                        const std::map<std::string, v8::FunctionCallback> & module_functions);
 
 
     /*********************************************************
