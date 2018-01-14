@@ -15,7 +15,7 @@ There are three main build files that may be directly run when building Node.js:
   Makefile mentioned below is maintained separately by humans). For a detailed
   guide on this script, see [configure](#configure).
 - `vcbuild.bat`: A Windows Batch Script that locates build tools, provides a
-  subset of the targets avilable in the [Makefile](#makefile), and a few targets
+  subset of the targets available in the [Makefile](#makefile), and a few targets
   of its own. For a detailed guide on this script, see
   [vcbuild.bat](#vcbuild.bat).
 - `Makefile`: A Makefile that can be run with GNU Make. It provides a set of
