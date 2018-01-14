@@ -1048,24 +1048,6 @@ class Http2Session : public AsyncWrap {
       int lib_error_code,
       void* user_data);
 
-
-  static inline ssize_t OnStreamReadFD(
-      nghttp2_session* session,
-      int32_t id,
-      uint8_t* buf,
-      size_t length,
-      uint32_t* flags,
-      nghttp2_data_source* source,
-      void* user_data);
-  static inline ssize_t OnStreamRead(
-      nghttp2_session* session,
-      int32_t id,
-      uint8_t* buf,
-      size_t length,
-      uint32_t* flags,
-      nghttp2_data_source* source,
-      void* user_data);
-
   struct Callbacks {
     inline explicit Callbacks(bool kHasGetPaddingCallback);
     inline ~Callbacks();
