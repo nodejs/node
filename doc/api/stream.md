@@ -1457,7 +1457,7 @@ added: v8.0.0
   argument.
 
 The `_destroy()` method is called by [`writable.destroy()`][writable-destroy].
-It can be overriden by child classes but it **must not** be called directly.
+It can be overridden by child classes but it **must not** be called directly.
 
 #### writable.\_final(callback)
 <!-- YAML
@@ -1670,7 +1670,7 @@ added: v8.0.0
   argument.
 
 The `_destroy()` method is called by [`readable.destroy()`][readable-destroy].
-It can be overriden by child classes but it **must not** be called directly.
+It can be overridden by child classes but it **must not** be called directly.
 
 #### readable.push(chunk[, encoding])
 <!-- YAML
