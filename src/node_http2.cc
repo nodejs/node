@@ -831,7 +831,7 @@ inline int Http2Session::OnBeginHeadersCallback(nghttp2_session* handle,
 }
 
 // Called by nghttp2 for each header name/value pair in a HEADERS block.
-// This had to have been preceeded by a call to OnBeginHeadersCallback so
+// This had to have been preceded by a call to OnBeginHeadersCallback so
 // the Http2Stream is guaranteed to already exist.
 inline int Http2Session::OnHeaderCallback(nghttp2_session* handle,
                                           const nghttp2_frame* frame,
@@ -2731,7 +2731,7 @@ void Http2Session::Ping(const FunctionCallbackInfo<Value>& args) {
     return args.GetReturnValue().Set(false);
   }
 
-  // The Ping itself is an Async resource. When the acknowledgement is recieved,
+  // The Ping itself is an Async resource. When the acknowledgement is received,
   // the callback will be invoked and a notification sent out to JS land. The
   // notification will include the duration of the ping, allowing the round
   // trip to be measured.

@@ -657,7 +657,7 @@ internet-related tests.
 A set of addresses for internet-related tests. All properties are configurable
 via `NODE_TEST_*` environment variables. For example, to configure
 `internet.addresses.INET_HOST`, set the environment
-vairable `NODE_TEST_INET_HOST` to a specified host.
+variable `NODE_TEST_INET_HOST` to a specified host.
 
 ## WPT Module
 
