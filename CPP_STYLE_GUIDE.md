@@ -220,7 +220,7 @@ When there is a need to throw errors from a C++ binding method, try to
 return the data necessary for constructing the errors to JavaScript,
 then construct and throw the errors [using `lib/internal/errors.js`][errors].
 
-Note that in general, type-checks on arguments should done in JavaScript
+Note that in general, type-checks on arguments should be done in JavaScript
 before the arguments are passed into C++.
 
 If the return value of the binding cannot be used to signal failures or return
