@@ -4,15 +4,14 @@ const Timer = process.binding('timer_wrap').Timer;
 const assert = require('assert');
 
 let cntr = 0;
-let first, second;
+let first;
 const t = setInterval(() => {
-  common.busyLoop(50);
   cntr++;
   if (cntr === 1) {
     first = Timer.now();
+    common.busyLoop(100);
   } else if (cntr === 2) {
-    second = Timer.now();
-    assert(Math.abs(second - first - 100) < 10);
+    assert(Timer.now() - first < 120);
     clearInterval(t);
   }
 }, 100);
