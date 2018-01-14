@@ -193,14 +193,12 @@ class ModuleWrap;
   V(onheaders_string, "onheaders")                                            \
   V(onmessage_string, "onmessage")                                            \
   V(onnewsession_string, "onnewsession")                                      \
-  V(onnewsessiondone_string, "onnewsessiondone")                              \
   V(onocspresponse_string, "onocspresponse")                                  \
   V(ongoawaydata_string, "ongoawaydata")                                      \
   V(onpriority_string, "onpriority")                                          \
   V(onread_string, "onread")                                                  \
   V(onreadstart_string, "onreadstart")                                        \
   V(onreadstop_string, "onreadstop")                                          \
-  V(onselect_string, "onselect")                                              \
   V(onsettings_string, "onsettings")                                          \
   V(onshutdown_string, "onshutdown")                                          \
   V(onsignal_string, "onsignal")                                              \
@@ -224,7 +222,6 @@ class ModuleWrap;
   V(raw_string, "raw")                                                        \
   V(read_host_object_string, "_readHostObject")                               \
   V(readable_string, "readable")                                              \
-  V(received_shutdown_string, "receivedShutdown")                             \
   V(refresh_string, "refresh")                                                \
   V(regexp_string, "regexp")                                                  \
   V(rename_string, "rename")                                                  \
@@ -232,7 +229,6 @@ class ModuleWrap;
   V(retry_string, "retry")                                                    \
   V(serial_string, "serial")                                                  \
   V(scopeid_string, "scopeid")                                                \
-  V(sent_shutdown_string, "sentShutdown")                                     \
   V(serial_number_string, "serialNumber")                                     \
   V(service_string, "service")                                                \
   V(servername_string, "servername")                                          \
