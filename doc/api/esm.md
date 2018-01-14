@@ -34,7 +34,7 @@ node --experimental-modules my-app.mjs
 
 Only the CLI argument for the main entry point to the program can be an entry
 point into an ESM graph. Dynamic import can also be used with the flag
-`--harmony-dynamic-import` to create entry points into ESM graphs at run time.
+`--harmony-dynamic-import` to create entry points into ESM graphs at runtime.
 
 ### Unsupported
 
