@@ -1,6 +1,9 @@
 'use strict';
 
 const common = require('../common');
+if (!common.hasIPv6)
+  common.skip('IPv6 support required');
+
 const initHooks = require('./init-hooks');
 const verifyGraph = require('./verify-graph');
 const http = require('http');
@@ -13,7 +16,11 @@ const server = http.createServer(common.mustCall(function(req, res) {
   this.close(common.mustCall());
 }));
 server.listen(0, common.mustCall(function() {
-  http.get(`http://127.0.0.1:${server.address().port}`, common.mustCall());
+  http.get({
+    host: '::1',
+    family: 6,
+    port: server.address().port
+  }, common.mustCall());
 }));
 
 process.on('exit', function() {
