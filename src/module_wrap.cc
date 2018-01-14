@@ -7,12 +7,15 @@
 #include "node_url.h"
 #include "util-inl.h"
 #include "node_internals.h"
+#include "node_contextify.h"
+#include "node_watchdog.h"
 
 namespace node {
 namespace loader {
 
 using node::url::URL;
 using node::url::URL_FLAGS_FAILED;
+using v8::Array;
 using v8::Context;
 using v8::Function;
 using v8::FunctionCallbackInfo;
@@ -58,6 +61,7 @@ ModuleWrap::~ModuleWrap() {
   }
 
   module_.Reset();
+  context_.Reset();
 }
 
 void ModuleWrap::New(const FunctionCallbackInfo<Value>& args) {
@@ -67,12 +71,6 @@ void ModuleWrap::New(const FunctionCallbackInfo<Value>& args) {
 
   if (!args.IsConstructCall()) {
     env->ThrowError("constructor must be called using new");
-    return;
-  }
-
-  if (args.Length() != 2) {
-    env->ThrowError("constructor must have exactly 2 arguments "
-                    "(string, string)");
     return;
   }
 
@@ -90,20 +88,39 @@ void ModuleWrap::New(const FunctionCallbackInfo<Value>& args) {
 
   Local<String> url = args[1].As<String>();
 
+  Local<Object> that = args.This();
+
+  Environment::ShouldNotAbortOnUncaughtScope no_abort_scope(env);
+  TryCatch try_catch(isolate);
+
+  Local<Value> options = args[2];
+  MaybeLocal<Integer> line_offset = contextify::GetLineOffsetArg(env, options);
+  MaybeLocal<Integer> column_offset =
+      contextify::GetColumnOffsetArg(env, options);
+  MaybeLocal<Context> maybe_context = contextify::GetContextArg(env, options);
+
+
+  if (try_catch.HasCaught()) {
+    no_abort_scope.Close();
+    try_catch.ReThrow();
+    return;
+  }
+
+  Local<Context> context = maybe_context.FromMaybe(that->CreationContext());
   Local<Module> module;
 
   // compile
   {
     ScriptOrigin origin(url,
-                        Integer::New(isolate, 0),             // line offset
-                        Integer::New(isolate, 0),             // column offset
+                        line_offset.ToLocalChecked(),         // line offset
+                        column_offset.ToLocalChecked(),       // column offset
                         False(isolate),                       // is cross origin
                         Local<Integer>(),                     // script id
                         Local<Value>(),                       // source map URL
                         False(isolate),                       // is opaque (?)
                         False(isolate),                       // is WASM
                         True(isolate));                       // is ES6 module
-    TryCatch try_catch(isolate);
+    Context::Scope context_scope(context);
     ScriptCompiler::Source source(source_text, origin);
     if (!ScriptCompiler::CompileModule(isolate, &source).ToLocal(&module)) {
       CHECK(try_catch.HasCaught());
@@ -116,8 +133,6 @@ void ModuleWrap::New(const FunctionCallbackInfo<Value>& args) {
     }
   }
 
-  Local<Object> that = args.This();
-  Local<Context> context = that->CreationContext();
   Local<String> url_str = FIXED_ONE_BYTE_STRING(isolate, "url");
 
   if (!that->Set(context, url_str, url).FromMaybe(false)) {
@@ -125,6 +140,7 @@ void ModuleWrap::New(const FunctionCallbackInfo<Value>& args) {
   }
 
   ModuleWrap* obj = new ModuleWrap(env, that, module, url);
+  obj->context_.Reset(isolate, context);
 
   env->module_map.emplace(module->GetIdentityHash(), obj);
   Wrap(that, obj);
@@ -141,15 +157,19 @@ void ModuleWrap::Link(const FunctionCallbackInfo<Value>& args) {
     return;
   }
 
+  Local<Object> that = args.This();
+
+  ModuleWrap* obj;
+  ASSIGN_OR_RETURN_UNWRAP(&obj, that);
+
+  if (obj->linked_)
+    return;
+  obj->linked_ = true;
+
   Local<Function> resolver_arg = args[0].As<Function>();
 
-  Local<Object> that = args.This();
-  ModuleWrap* obj = Unwrap<ModuleWrap>(that);
-  CHECK_NE(obj, nullptr);
-  Local<Context> mod_context = that->CreationContext();
-  if (obj->linked_) return;
-  obj->linked_ = true;
-  Local<Module> module(obj->module_.Get(isolate));
+  Local<Context> mod_context = obj->context_.Get(isolate);
+  Local<Module> module = obj->module_.Get(isolate);
 
   // call the dependency resolve callbacks
   for (int i = 0; i < module->GetModuleRequestsLength(); i++) {
@@ -181,11 +201,9 @@ void ModuleWrap::Link(const FunctionCallbackInfo<Value>& args) {
 void ModuleWrap::Instantiate(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   Isolate* isolate = args.GetIsolate();
-  Local<Object> that = args.This();
-  Local<Context> context = that->CreationContext();
-
-  ModuleWrap* obj = Unwrap<ModuleWrap>(that);
-  CHECK_NE(obj, nullptr);
+  ModuleWrap* obj;
+  ASSIGN_OR_RETURN_UNWRAP(&obj, args.This());
+  Local<Context> context = obj->context_.Get(isolate);
   Local<Module> module = obj->module_.Get(isolate);
   TryCatch try_catch(isolate);
   Maybe<bool> ok =
@@ -208,14 +226,61 @@ void ModuleWrap::Instantiate(const FunctionCallbackInfo<Value>& args) {
 }
 
 void ModuleWrap::Evaluate(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
   Isolate* isolate = args.GetIsolate();
-  Local<Object> that = args.This();
-  Local<Context> context = that->CreationContext();
-  ModuleWrap* obj = Unwrap<ModuleWrap>(that);
-  CHECK_NE(obj, nullptr);
-  MaybeLocal<Value> result = obj->module_.Get(isolate)->Evaluate(context);
+  ModuleWrap* obj;
+  ASSIGN_OR_RETURN_UNWRAP(&obj, args.This());
+  Local<Context> context = obj->context_.Get(isolate);
+  Local<Module> module = obj->module_.Get(isolate);
 
-  if (result.IsEmpty()) {
+  Environment::ShouldNotAbortOnUncaughtScope no_abort_scope(env);
+  TryCatch try_catch(isolate);
+  Maybe<int64_t> maybe_timeout =
+    contextify::GetTimeoutArg(env, args[0]);
+  Maybe<bool> maybe_break_on_sigint =
+    contextify::GetBreakOnSigintArg(env, args[0]);
+
+  if (try_catch.HasCaught()) {
+    no_abort_scope.Close();
+    try_catch.ReThrow();
+    return;
+  }
+
+  int64_t timeout = maybe_timeout.ToChecked();
+  bool break_on_sigint = maybe_break_on_sigint.ToChecked();
+
+  bool timed_out = false;
+  bool received_signal = false;
+  Watchdog wd(isolate, 1000, &timed_out);
+  MaybeLocal<Value> result;
+  if (break_on_sigint && timeout != -1) {
+    Watchdog wd(isolate, timeout, &timed_out);
+    SigintWatchdog swd(isolate, &received_signal);
+    result = module->Evaluate(context);
+  } else if (break_on_sigint) {
+    SigintWatchdog swd(isolate, &received_signal);
+    result = module->Evaluate(context);
+  } else if (timeout != -1) {
+    Watchdog wd(isolate, timeout, &timed_out);
+    result = module->Evaluate(context);
+  } else {
+    result = module->Evaluate(context);
+  }
+
+  if (timed_out || received_signal) {
+    // It is possible that execution was terminated by another timeout in
+    // which this timeout is nested, so check whether one of the watchdogs
+    // from this invocation is responsible for termination.
+    if (timed_out) {
+      env->ThrowError("Script execution timed out.");
+    } else if (received_signal) {
+      env->ThrowError("Script execution interrupted.");
+    }
+    env->isolate()->CancelTerminateExecution();
+  }
+
+  if (try_catch.HasCaught()) {
+    try_catch.ReThrow();
     return;
   }
 
@@ -225,9 +290,8 @@ void ModuleWrap::Evaluate(const FunctionCallbackInfo<Value>& args) {
 void ModuleWrap::Namespace(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   Isolate* isolate = args.GetIsolate();
-  Local<Object> that = args.This();
-  ModuleWrap* obj = Unwrap<ModuleWrap>(that);
-  CHECK_NE(obj, nullptr);
+  ModuleWrap* obj;
+  ASSIGN_OR_RETURN_UNWRAP(&obj, args.This());
 
   Local<Module> module = obj->module_.Get(isolate);
 
@@ -243,6 +307,44 @@ void ModuleWrap::Namespace(const FunctionCallbackInfo<Value>& args) {
 
   Local<Value> result = module->GetModuleNamespace();
   args.GetReturnValue().Set(result);
+}
+
+void ModuleWrap::GetStatus(const FunctionCallbackInfo<Value>& args) {
+  Isolate* isolate = args.GetIsolate();
+  ModuleWrap* obj;
+  ASSIGN_OR_RETURN_UNWRAP(&obj, args.This());
+
+  Local<Module> module = obj->module_.Get(isolate);
+
+  args.GetReturnValue().Set(module->GetStatus());
+}
+
+void ModuleWrap::GetStaticDependencySpecifiers(
+    const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  ModuleWrap* obj;
+  ASSIGN_OR_RETURN_UNWRAP(&obj, args.This());
+
+  Local<Module> module = obj->module_.Get(env->isolate());
+
+  int count = module->GetModuleRequestsLength();
+
+  Local<Array> specifiers = Array::New(env->isolate(), count);
+
+  for (int i = 0; i < count; i++)
+    specifiers->Set(env->context(), i, module->GetModuleRequest(i)).FromJust();
+
+  args.GetReturnValue().Set(specifiers);
+}
+
+void ModuleWrap::GetError(const FunctionCallbackInfo<Value>& args) {
+  Isolate* isolate = args.GetIsolate();
+  ModuleWrap* obj;
+  ASSIGN_OR_RETURN_UNWRAP(&obj, args.This());
+
+  Local<Module> module = obj->module_.Get(isolate);
+
+  args.GetReturnValue().Set(module->GetException());
 }
 
 MaybeLocal<Module> ModuleWrap::ResolveCallback(Local<Context> context,
@@ -636,12 +738,29 @@ void ModuleWrap::Initialize(Local<Object> target,
   env->SetProtoMethod(tpl, "instantiate", Instantiate);
   env->SetProtoMethod(tpl, "evaluate", Evaluate);
   env->SetProtoMethod(tpl, "namespace", Namespace);
+  env->SetProtoMethod(tpl, "getStatus", GetStatus);
+  env->SetProtoMethod(tpl, "getError", GetError);
+  env->SetProtoMethod(tpl, "getStaticDependencySpecifiers",
+                      GetStaticDependencySpecifiers);
 
   target->Set(FIXED_ONE_BYTE_STRING(isolate, "ModuleWrap"), tpl->GetFunction());
   env->SetMethod(target, "resolve", node::loader::ModuleWrap::Resolve);
   env->SetMethod(target,
                  "setImportModuleDynamicallyCallback",
                  node::loader::ModuleWrap::SetImportModuleDynamicallyCallback);
+
+#define V(name)                                                                \
+    target->Set(context,                                                       \
+      FIXED_ONE_BYTE_STRING(env->isolate(), #name),                            \
+      Integer::New(env->isolate(), Module::Status::name))                      \
+        .FromJust()
+    V(kUninstantiated);
+    V(kInstantiating);
+    V(kInstantiated);
+    V(kEvaluating);
+    V(kEvaluated);
+    V(kErrored);
+#undef V
 }
 
 }  // namespace loader

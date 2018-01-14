@@ -43,6 +43,171 @@ console.log(x); // 1; y is not defined.
 *Note*: The vm module is not a security mechanism.
 **Do not use it to run untrusted code**.
 
+## Class: vm.Module
+<!-- YAML
+added: REPLACEME
+-->
+
+Instances of the`vm.Module` class contain compiled module code that can
+be evaluated in a set context. This class tries to mirror [`ES Module`][]
+specification as much as possible.
+
+```javascript
+(async () => {
+  const foo = new vm.Module('export default 5;');
+
+  const bar = new vm.Module('import five from "foo"; five');
+
+  await bar.link(async (specifier) => {
+    if (specifier === 'foo')
+      return foo;
+    throw new Error(`Unable to resolve dependency: ${specifier}`);
+  });
+
+  bar.instantiate();
+
+  const { result: five } = await bar.evaluate();
+
+  five + 5; //> 10
+})();
+```
+
+### Static: vm.Module.setImportDynamicallyCallback(callback);
+<!-- YAML
+added: REPLACEME
+-->
+
+* `callback` {Function}
+  * `referrer` {String} url of the module which made the dynamic import request
+  * `specifier` {String} url of the module being requested.
+
+Handle dynamic import requests from vm.Module instances that are evaluating.
+The callback should return a module namespace, not a module. See the example
+below for more details.
+
+```javascript
+vm.Module.setImportDynamicallyCallback(async (referrer, specifier) => {
+  if (specifier === 'random') {
+    const m = new vm.Module('export default Math.random()');
+    await m.link();
+    m.instantiate();
+    await m.evaluate();
+    return m.namespace;
+  }
+
+  return null;
+});
+```
+
+### Constructor: new vm.Module(code[, options])
+<!-- YAML
+added: REPLACEME
+-->
+
+* `code` {string} the JavaScript code to evaluate.
+* `options`
+  * `url` {string} Specifies the url used in module resolving and stack traces
+  * `context` {vm.Context} The context to compile and evaluate this code in
+  * `lineOffset` {number} Specifies the line number offset that is displayed
+    in stack traces produced by this script.
+  * `columnOffset` {number} Spcifies the column number offset that is displayed
+    in stack traces produced by this script.
+
+### module.status
+<!-- YAML
+added: REPLACEME
+-->
+
+* {string}
+
+The current status of the module. Will be one of:
+- `uninstantiated`
+- `instantiating`
+- `instantiated`
+- `evaluating`
+- `evaluated`
+- `errored`
+
+### module.url
+<!-- YAML
+added: REPLACEME
+-->
+
+* {string}
+
+### module.dependencySpecifiers
+<!-- YAML
+added: REPLACEME
+-->
+
+* {Array<String>}
+
+### module.namespace
+<!-- YAML
+added: REPLACEME
+-->
+
+* {object}
+
+The namespace of the module, only available after evaluation.
+
+### module.error
+<!-- YAML
+added: REPLACEME
+-->
+
+* {Error}
+
+### module.link([fn])
+<!-- YAML
+added: REPLACEME
+-->
+
+* Returns: {Promise}
+
+Link module dependencies. The linking function may return a promise if desired.
+
+```javascript
+(async () => {
+  const foo = new vm.Module('export default 5', { url: 'foo' });
+  const bar = new vm.Module('import five from "foo"', { url: 'bar' });
+
+  await bar.link(async (specifier) => {
+    if (specifier === 'foo')
+      return foo;
+    throw new Error(`Unable to resolve dependency: ${specifier}`);
+  });
+
+  bar.instantiate();
+  bar.evaluate();
+})();
+```
+
+### module.instantiate()
+<!-- YAML
+added: REPLACEME
+-->
+
+Instantiate the module.
+
+### module.evaluate([options])
+<!-- YAML
+added: REPLACEME
+-->
+
+* Returns: {Promise<{ result }>}
+
+* `options`
+  * `timeout` {number} Specifies the number of milliseconds to evaluate
+    before terminating execution. If execution is terminated, an [`Error`][]
+    will be thrown.
+  * `breakOnSigint`: if `true`, the execution will be terminated when
+    `SIGINT` (Ctrl+C) is received. Existing handlers for the
+    event that have been attached via `process.on("SIGINT")` will be disabled
+    during script execution, but will continue to work after that.
+    If execution is terminated, an [`Error`][] will be thrown.
+
+
 ## Class: vm.Script
 <!-- YAML
 added: v0.3.1
@@ -523,3 +688,4 @@ associating it with the `sandbox` object is what this document refers to as
 [global object]: https://es5.github.io/#x15.1
 [indirect `eval()` call]: https://es5.github.io/#x10.4.2
 [origin]: https://developer.mozilla.org/en-US/docs/Glossary/Origin
+[`ES Modules`]: https://tc39.github.io/ecma262/#sec-modules

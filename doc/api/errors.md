@@ -1639,6 +1639,31 @@ entry types were found.
 
 Superseded by `ERR_OUT_OF_RANGE`
 
+<a id="ERR_VM_MODULE_ALREADY_LINKED"></a>
+### ERR_VM_MODULE_ALREADY_LINKED
+
+The module has already been linked.
+
+<a id="ERR_VM_MODULE_STATUS"></a>
+### ERR_VM_MODULE_STATUS
+
+You're trying to do something to a module but it isn't in the right state.
+
+<a id="ERR_VM_MODULE_MATCHING_CONTEXT"></a>
+### ERR_VM_MODULE_MATCHING_CONTEXT
+
+Linked modules must share the same context.
+
+<a id="ERR_VM_MODULE_NOT_MODULE"></a>
+### ERR_VM_MODULE_NOT_MODULE
+
+The fulfilled value of a linking promise was not a module (`vm.Module`).
+
+<a id="ERR_VM_MODULE_NOT_LINKED"></a>
+### ERR_VM_MODULE_NOT_LINKED
+
+The module must be linked.
+
 <a id="ERR_ZLIB_BINDING_CLOSED"></a>
 ### ERR_ZLIB_BINDING_CLOSED
 
