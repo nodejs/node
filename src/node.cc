@@ -241,6 +241,11 @@ bool config_preserve_symlinks = false;
 // that is used by lib/module.js
 bool config_experimental_modules = false;
 
+// Set in node.cc by ParseArgs when --experimental-vm-modules is used.
+// Used in node_config.cc to set a constant on process.binding('config')
+// that is used by lib/vm.js
+bool config_experimental_vm_modules = false;
+
 // Set in node.cc by ParseArgs when --loader is used.
 // Used in node_config.cc to set a constant on process.binding('config')
 // that is used by lib/internal/bootstrap_node.js
@@ -3775,6 +3780,8 @@ static void PrintHelp() {
          "  --preserve-symlinks        preserve symbolic links when resolving\n"
          "  --experimental-modules     experimental ES Module support\n"
          "                             and caching modules\n"
+         "  --experimental-vm-modules  experimental ES Module support\n"
+         "                             in vm module\n"
 #endif
          "\n"
          "Environment variables:\n"
@@ -3854,6 +3861,7 @@ static void CheckIfAllowedInEnv(const char* exe, bool is_env,
     "--napi-modules",
     "--expose-http2",   // keep as a non-op through v9.x
     "--experimental-modules",
+    "--experimental-vm-modules",
     "--loader",
     "--trace-warnings",
     "--redirect-warnings",
@@ -4025,7 +4033,9 @@ static void ParseArgs(int* argc,
       config_experimental_modules = true;
       new_v8_argv[new_v8_argc] = "--harmony-dynamic-import";
       new_v8_argc += 1;
-    }  else if (strcmp(arg, "--loader") == 0) {
+    } else if (strcmp(arg, "--experimental-vm-modules") == 0) {
+      config_experimental_vm_modules = true;
+    } else if (strcmp(arg, "--loader") == 0) {
       const char* module = argv[index + 1];
       if (!config_experimental_modules) {
         fprintf(stderr, "%s: %s requires --experimental-modules be enabled\n",
