@@ -317,10 +317,12 @@ class fs_req_wrap {
 template <typename Func, typename... Args>
 inline FSReqWrap* AsyncDestCall(Environment* env,
     const FunctionCallbackInfo<Value>& args,
-    const char* dest, const char* syscall, enum encoding enc, uv_fs_cb after,
-    Func fn, Args... fn_args) {
+    const char* syscall, const char* dest,
+    enum encoding enc, FSReqWrap::Ownership ownership,
+    uv_fs_cb after, Func fn, Args... fn_args) {
   Local<Object> req = args[args.Length() - 1].As<Object>();
-  FSReqWrap* req_wrap = FSReqWrap::New(env, req, syscall, dest, enc);
+  FSReqWrap* req_wrap = FSReqWrap::New(env, req,
+                                       syscall, dest, enc, ownership);
   int err = fn(env->event_loop(), req_wrap->req(), fn_args..., after);
   req_wrap->Dispatched();
   if (err < 0) {
@@ -337,12 +339,36 @@ inline FSReqWrap* AsyncDestCall(Environment* env,
   return req_wrap;
 }
 
+// Defaults to COPY ownership.
+template <typename Func, typename... Args>
+inline FSReqWrap* AsyncDestCall(Environment* env,
+    const FunctionCallbackInfo<Value>& args,
+    const char* syscall, const char* dest, enum encoding enc,
+    uv_fs_cb after, Func fn, Args... fn_args) {
+  return AsyncDestCall(env, args,
+                       syscall, dest, enc, FSReqWrap::COPY,
+                       after, fn, fn_args...);
+}
+
 template <typename Func, typename... Args>
 inline FSReqWrap* AsyncCall(Environment* env,
     const FunctionCallbackInfo<Value>& args,
-    const char* syscall, enum encoding enc, uv_fs_cb after,
-    Func fn, Args... fn_args) {
-  return AsyncDestCall(env, args, nullptr, syscall, enc, after, fn, fn_args...);
+    const char* syscall, enum encoding enc, FSReqWrap::Ownership ownership,
+    uv_fs_cb after, Func fn, Args... fn_args) {
+  return AsyncDestCall(env, args,
+                       syscall, nullptr, enc, ownership,
+                       after, fn, fn_args...);
+}
+
+// Defaults to COPY ownership.
+template <typename Func, typename... Args>
+inline FSReqWrap* AsyncCall(Environment* env,
+    const FunctionCallbackInfo<Value>& args,
+    const char* syscall, enum encoding enc,
+    uv_fs_cb after, Func fn, Args... fn_args) {
+  return AsyncCall(env, args,
+                   syscall, enc, FSReqWrap::COPY,
+                   after, fn, fn_args...);
 }
 
 // Template counterpart of SYNC_CALL, except that it only puts
@@ -580,7 +606,7 @@ static void Symlink(const FunctionCallbackInfo<Value>& args) {
 
   if (args[3]->IsObject()) {  // symlink(target, path, flags, req)
     CHECK_EQ(args.Length(), 4);
-    AsyncDestCall(env, args, *path, "symlink", UTF8, AfterNoArgs,
+    AsyncDestCall(env, args, "symlink", *path, UTF8, AfterNoArgs,
                   uv_fs_symlink, *target, *path, flags);
   } else {  // symlink(target, path, flags)
     SYNC_DEST_CALL(symlink, *target, *path, *target, *path, flags)
@@ -600,7 +626,7 @@ static void Link(const FunctionCallbackInfo<Value>& args) {
 
   if (args[2]->IsObject()) {  // link(src, dest, req)
     CHECK_EQ(args.Length(), 3);
-    AsyncDestCall(env, args, *dest, "link", UTF8, AfterNoArgs,
+    AsyncDestCall(env, args, "link", *dest, UTF8, AfterNoArgs,
                   uv_fs_link, *src, *dest);
   } else {  // link(src, dest)
     SYNC_DEST_CALL(link, *src, *dest, *src, *dest)
@@ -652,7 +678,7 @@ static void Rename(const FunctionCallbackInfo<Value>& args) {
 
   if (args[2]->IsObject()) {
     CHECK_EQ(args.Length(), 3);
-    AsyncDestCall(env, args, *new_path, "rename", UTF8, AfterNoArgs,
+    AsyncDestCall(env, args, "rename", *new_path, UTF8, AfterNoArgs,
                   uv_fs_rename, *old_path, *new_path);
   } else {
     SYNC_DEST_CALL(rename, *old_path, *new_path, *old_path, *new_path)
@@ -1018,7 +1044,8 @@ static void WriteString(const FunctionCallbackInfo<Value>& args) {
 
   if (args[4]->IsObject()) {
     CHECK_EQ(args.Length(), 5);
-    AsyncCall(env, args, "write", UTF8, AfterInteger,
+    AsyncCall(env, args,
+              "write", UTF8, ownership, AfterInteger,
               uv_fs_write, fd, &uvbuf, 1, pos);
   } else {
     // SYNC_CALL returns on error.  Make sure to always free the memory.
