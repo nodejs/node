@@ -645,6 +645,11 @@ parameter is an instance of an [`Error`][] then it will be thrown instead of the
 ## assert.ok(value[, message])
 <!-- YAML
 added: v0.1.21
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/17581
+    description: assert.ok() will throw a `ERR_MISSING_ARGS` error.
+                 Use assert.fail() instead.
 -->
 * `value` {any}
 * `message` {any}
