@@ -18,23 +18,35 @@ async function rejects(fn, re) {
       assert.fail(full);
     else if (!re.test(full))
       assert.fail(`'${full}' did not match regex ${re}`);
+    else
+      return;
   }
+  assert.fail('No exception detected');
 }
 
 assert.throws(() => new Module(), /INVALID_ARG_TYPE/);
 
+const notFunctions = [0, 1, undefined, null, true, 'str', {}, Symbol.iterator];
+
+for (const invalidLinker of notFunctions) {
+  rejects(async () => {
+    const m = new Module('');
+    await m.link(notFunctions);
+  }, /INVALID_ARG_TYPE/);
+}
+
 rejects(async () => {
   const m = new Module('');
-  await m.link();
+  await m.link(common.mustNotCall());
   assert.strictEqual(m.linkingStatus, 'linked');
-  await m.link();
+  await m.link(common.mustNotCall());
 }, /MODULE_ALREADY_LINKED/);
 
 rejects(async () => {
   const m = new Module('');
-  m.link();
+  m.link(common.mustNotCall());
   assert.strictEqual(m.linkingStatus, 'linking');
-  await m.link();
+  await m.link(common.mustNotCall());
 }, /MODULE_ALREADY_LINKED/);
 
 rejects(async () => {
@@ -51,10 +63,10 @@ rejects(async () => {
 rejects(async () => {
   const c = createContext({ a: 1 });
   const foo = new Module('', { context: c });
-  await foo.link(() => {});
+  await foo.link(common.mustNotCall());
   const bar = new Module('import "foo";');
   try {
-    await bar.link(() => foo);
+    await bar.link(common.mustCall(() => foo, 1));
   } catch (err) {
     assert.strictEqual(bar.linkingStatus, 'errored');
     throw err;
@@ -69,15 +81,17 @@ assert.throws(() => {
 
 (async () => {
   const m = new Module('import "foo";');
-  await m.link(async () => {
+  await m.link(common.mustCall(async (module, specifier) => {
+    assert.strictEqual(module, m);
+    assert.strictEqual(specifier, 'foo');
     assert.strictEqual(m.linkingStatus, 'linking');
     assert.throws(() => {
       m.instantiate();
     }, /MODULE_NOT_LINKED/);
     const sub = new Module('');
-    await sub.link(() => {});
+    await sub.link(common.mustNotCall());
     return sub;
-  });
+  }, 1));
   m.instantiate();
   await m.evaluate();
 })();
@@ -100,7 +114,7 @@ rejects(async () => {
 
 rejects(async () => {
   const m = new Module('');
-  await m.link();
+  await m.link(common.mustNotCall());
   await m.evaluate();
 }, /MODULE_STATUS/);
 
@@ -111,7 +125,7 @@ assert.throws(() => {
 
 rejects(async () => {
   const m = new Module('');
-  await m.link();
+  await m.link(common.mustNotCall());
   await m.evaluate();
   m.error;
 }, /MODULE_STATUS/);
@@ -123,13 +137,13 @@ assert.throws(() => {
 
 rejects(async () => {
   const m = new Module('');
-  await m.link();
+  await m.link(common.mustNotCall());
   m.namespace;
 }, /MODULE_STATUS/);
 
 (async () => {
   const m = new Module('throw new Error();');
-  await m.link();
+  await m.link(common.mustNotCall());
   m.instantiate();
   const evaluatePromise = m.evaluate();
   await evaluatePromise.catch(() => {});

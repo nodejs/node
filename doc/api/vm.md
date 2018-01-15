@@ -87,10 +87,11 @@ const contextifiedSandbox = vm.createContext({ secret: 42 });
   //
   // "Link" the imported dependencies of this Module to it.
   //
-  // The provided linking callback (the "linker") accepts an argument that is
-  // the specifier of the imported module. The callback is expected to return a
-  // Module that corresponds to the provided specifier with certain requirements
-  // documented in `module.link()`.
+  // The provided linking callback (the "linker") accepts two arguments: the
+  // parent module (`bar` in this case) and the string that is the specifier of
+  // the imported module. The callback is expected to return a Module that
+  // corresponds to the provided specifier with certain requirements documented
+  // in `module.link()`.
   //
   // Even Modules without dependencies must be explicitly linked. The callback
   // provided would never be called, however.
@@ -102,7 +103,7 @@ const contextifiedSandbox = vm.createContext({ secret: 42 });
   // dependency. To form a proper Module system, the linker would be fully
   // recursive.
 
-  await bar.link(async (specifier) => {
+  await bar.link(async (referencingModule, specifier) => {
     if (specifier === 'foo') {
       // The `secret` variable refers to the global variable we added to
       // `contextifiedSandbox` when creating the context.

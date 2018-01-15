@@ -10,7 +10,7 @@ const { Module, createContext } = require('vm');
 
 (async function() {
   const m = new Module('import("foo")', { context: createContext() });
-  await m.link();
+  await m.link(common.mustNotCall());
   m.instantiate();
   const { result } = await m.evaluate();
   let threw = false;

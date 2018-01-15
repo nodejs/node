@@ -19,7 +19,7 @@ common.crashOnUnhandledRejection();
     { context }
   );
   assert.strictEqual(m.status, 'uninstantiated');
-  await m.link();
+  await m.link(common.mustNotCall());
   m.instantiate();
   assert.strictEqual(m.status, 'instantiated');
   const result = await m.evaluate();
@@ -37,7 +37,7 @@ common.crashOnUnhandledRejection();
   const m = new Module(
     'global.vmResult = "foo"; Object.prototype.toString.call(process);'
   );
-  await m.link();
+  await m.link(common.mustNotCall());
   m.instantiate();
   const { result } = await m.evaluate();
   assert.strictEqual(global.vmResult, 'foo');
@@ -47,7 +47,7 @@ common.crashOnUnhandledRejection();
 
 (async () => {
   const m = new Module('while (true) {}');
-  await m.link();
+  await m.link(common.mustNotCall());
   m.instantiate();
   await m.evaluate({ timeout: 500 })
     .then(() => assert(false), () => {});

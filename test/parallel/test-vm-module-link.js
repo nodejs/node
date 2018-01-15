@@ -11,13 +11,14 @@ const { Module } = require('vm');
 
 (async function main() {
   const foo = new Module('export default 5;');
-  await foo.link(() => {});
+  await foo.link(common.mustNotCall());
 
   const bar = new Module('import five from "foo"; five');
 
   assert.deepStrictEqual(bar.dependencySpecifiers, ['foo']);
 
-  await bar.link((url) => {
+  await bar.link((module, url) => {
+    assert.strictEqual(module, bar);
     assert.strictEqual(url, 'foo');
     return foo;
   });

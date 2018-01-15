@@ -12,7 +12,7 @@ const { Module } = require('vm');
 (async () => {
   {
     const m = new Module('1');
-    await m.link(() => {});
+    await m.link(common.mustNotCall());
     m.instantiate();
     assert.strictEqual((await m.evaluate()).result, 1);
     assert.strictEqual((await m.evaluate()).result, undefined);
@@ -21,7 +21,7 @@ const { Module } = require('vm');
 
   {
     const m = new Module('throw new Error()');
-    await m.link(() => {});
+    await m.link(common.mustNotCall());
     m.instantiate();
 
     let threw = false;
