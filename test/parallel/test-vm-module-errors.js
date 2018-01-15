@@ -9,148 +9,236 @@ const assert = require('assert');
 
 const { Module, createContext } = require('vm');
 
-async function rejects(fn, re) {
+async function rejects(fn, validateError) {
   try {
     await fn();
   } catch (err) {
-    const full = `${err.code || ''} ${err.message}`.trim();
-    if (/An invalid error message key was used/.test(full))
-      assert.fail(full);
-    else if (!re.test(full))
-      assert.fail(`'${full}' did not match regex ${re}`);
-    else
-      return;
+    validateError(err);
+    return;
   }
-  assert.fail('No exception detected');
+  assert.fail('Missing expected exception');
 }
 
-assert.throws(() => new Module(), /INVALID_ARG_TYPE/);
+async function createEmptyModule() {
+  const m = new Module('');
+  await m.link(common.mustNotCall());
+  return m;
+}
 
-const notFunctions = [0, 1, undefined, null, true, 'str', {}, Symbol.iterator];
+async function checkArgType() {
+  assert.throws(() => {
+    new Module();
+  }, common.expectsError({
+    code: 'ERR_INVALID_ARG_TYPE',
+    type: TypeError
+  }));
 
-for (const invalidLinker of notFunctions) {
-  rejects(async () => {
+  for (const invalidOptions of [
+    0, 1, null, true, 'str', () => {}, Symbol.iterator
+  ]) {
+    assert.throws(() => {
+      new Module('', invalidOptions);
+    }, common.expectsError({
+      code: 'ERR_INVALID_ARG_TYPE',
+      type: TypeError
+    }));
+  }
+
+  for (const invalidLinker of [
+    0, 1, undefined, null, true, 'str', {}, Symbol.iterator
+  ]) {
+    await rejects(async () => {
+      const m = new Module('');
+      await m.link(invalidLinker);
+    }, common.expectsError({
+      code: 'ERR_INVALID_ARG_TYPE',
+      type: TypeError
+    }));
+  }
+}
+
+// Check methods/properties can only be used under a specific state.
+async function checkModuleState() {
+  await rejects(async () => {
     const m = new Module('');
-    await m.link(notFunctions);
-  }, /INVALID_ARG_TYPE/);
+    await m.link(common.mustNotCall());
+    assert.strictEqual(m.linkingStatus, 'linked');
+    await m.link(common.mustNotCall());
+  }, common.expectsError({
+    code: 'ERR_VM_MODULE_ALREADY_LINKED'
+  }));
+
+  await rejects(async () => {
+    const m = new Module('');
+    m.link(common.mustNotCall());
+    assert.strictEqual(m.linkingStatus, 'linking');
+    await m.link(common.mustNotCall());
+  }, common.expectsError({
+    code: 'ERR_VM_MODULE_ALREADY_LINKED'
+  }));
+
+  assert.throws(() => {
+    const m = new Module('');
+    m.instantiate();
+  }, common.expectsError({
+    code: 'ERR_VM_MODULE_NOT_LINKED'
+  }));
+
+  await rejects(async () => {
+    const m = new Module('import "foo";');
+    try {
+      await m.link(common.mustCall(() => ({})));
+    } catch (err) {
+      assert.strictEqual(m.linkingStatus, 'errored');
+      m.instantiate();
+    }
+    assert.fail('Unreachable');
+  }, common.expectsError({
+    code: 'ERR_VM_MODULE_NOT_LINKED'
+  }));
+
+  {
+    const m = new Module('import "foo";');
+    await m.link(common.mustCall(async (module, specifier) => {
+      assert.strictEqual(module, m);
+      assert.strictEqual(specifier, 'foo');
+      assert.strictEqual(m.linkingStatus, 'linking');
+      assert.throws(() => {
+        m.instantiate();
+      }, common.expectsError({
+        code: 'ERR_VM_MODULE_NOT_LINKED'
+      }));
+      return createEmptyModule();
+    }));
+    m.instantiate();
+    await m.evaluate();
+  }
+
+  await rejects(async () => {
+    const m = new Module('');
+    await m.evaluate();
+  }, common.expectsError({
+    code: 'ERR_VM_MODULE_STATUS',
+    message: 'Module status must be one of instantiated, evaluated, and errored'
+  }));
+
+  await rejects(async () => {
+    const m = await createEmptyModule();
+    await m.evaluate();
+  }, common.expectsError({
+    code: 'ERR_VM_MODULE_STATUS',
+    message: 'Module status must be one of instantiated, evaluated, and errored'
+  }));
+
+  assert.throws(() => {
+    const m = new Module('');
+    m.error;
+  }, common.expectsError({
+    code: 'ERR_VM_MODULE_STATUS',
+    message: 'Module status must be errored'
+  }));
+
+  await rejects(async () => {
+    const m = await createEmptyModule();
+    m.instantiate();
+    await m.evaluate();
+    m.error;
+  }, common.expectsError({
+    code: 'ERR_VM_MODULE_STATUS',
+    message: 'Module status must be errored'
+  }));
+
+  assert.throws(() => {
+    const m = new Module('');
+    m.namespace;
+  }, common.expectsError({
+    code: 'ERR_VM_MODULE_STATUS',
+    message: 'Module status must not be uninstantiated or instantiating'
+  }));
+
+  await rejects(async () => {
+    const m = await createEmptyModule();
+    m.namespace;
+  }, common.expectsError({
+    code: 'ERR_VM_MODULE_STATUS',
+    message: 'Module status must not be uninstantiated or instantiating'
+  }));
 }
 
-rejects(async () => {
-  const m = new Module('');
-  await m.link(common.mustNotCall());
-  assert.strictEqual(m.linkingStatus, 'linked');
-  await m.link(common.mustNotCall());
-}, /MODULE_ALREADY_LINKED/);
+// Check link() fails when the returned module is not valid.
+async function checkLinking() {
+  await rejects(async () => {
+    const m = new Module('import "foo";');
+    try {
+      await m.link(common.mustCall(() => ({})));
+    } catch (err) {
+      assert.strictEqual(m.linkingStatus, 'errored');
+      throw err;
+    }
+    assert.fail('Unreachable');
+  }, common.expectsError({
+    code: 'ERR_VM_MODULE_NOT_MODULE'
+  }));
 
-rejects(async () => {
-  const m = new Module('');
-  m.link(common.mustNotCall());
-  assert.strictEqual(m.linkingStatus, 'linking');
-  await m.link(common.mustNotCall());
-}, /MODULE_ALREADY_LINKED/);
+  await rejects(async () => {
+    const c = createContext({ a: 1 });
+    const foo = new Module('', { context: c });
+    await foo.link(common.mustNotCall());
+    const bar = new Module('import "foo";');
+    try {
+      await bar.link(common.mustCall(() => foo));
+    } catch (err) {
+      assert.strictEqual(bar.linkingStatus, 'errored');
+      throw err;
+    }
+    assert.fail('Unreachable');
+  }, common.expectsError({
+    code: 'ERR_VM_MODULE_DIFFERENT_CONTEXT'
+  }));
 
-rejects(async () => {
-  const m = new Module('import "foo";');
-  try {
-    await m.link(() => ({}));
-  } catch (err) {
-    assert.strictEqual(m.linkingStatus, 'errored');
-    throw err;
-  }
-  assert.fail('Unreachable');
-}, /MODULE_NOT_MODULE/);
+  await rejects(async () => {
+    const m = new Module('import "foo";');
+    await m.link(common.mustCall(() => new Module('')));
+  }, common.expectsError({
+    code: 'ERR_VM_MODULE_NOT_LINKED'
+  }));
+}
 
-rejects(async () => {
-  const c = createContext({ a: 1 });
-  const foo = new Module('', { context: c });
-  await foo.link(common.mustNotCall());
-  const bar = new Module('import "foo";');
-  try {
-    await bar.link(common.mustCall(() => foo, 1));
-  } catch (err) {
-    assert.strictEqual(bar.linkingStatus, 'errored');
-    throw err;
-  }
-  assert.fail('Unreachable');
-}, /MODULE_DIFFERENT_CONTEXT/);
+// Check the JavaScript engine deals with exceptions correctly
+async function checkExecution() {
+  await (async () => {
+    const m = new Module('import { nonexistent } from "module";');
+    await m.link(common.mustCall(createEmptyModule));
 
-assert.throws(() => {
-  const m = new Module('');
-  m.instantiate();
-}, /MODULE_NOT_LINKED/);
-
-(async () => {
-  const m = new Module('import "foo";');
-  await m.link(common.mustCall(async (module, specifier) => {
-    assert.strictEqual(module, m);
-    assert.strictEqual(specifier, 'foo');
-    assert.strictEqual(m.linkingStatus, 'linking');
+    // There is no code for this exception since it is thrown by the JavaScript
+    // engine.
     assert.throws(() => {
       m.instantiate();
-    }, /MODULE_NOT_LINKED/);
-    const sub = new Module('');
-    await sub.link(common.mustNotCall());
-    return sub;
-  }, 1));
-  m.instantiate();
-  await m.evaluate();
-})();
+    }, SyntaxError);
+  })();
 
-rejects(async () => {
-  const m = new Module('import "foo";');
-  try {
-    await m.link(() => ({}));
-  } catch (err) {
-    assert.strictEqual(m.linkingStatus, 'errored');
+  await (async () => {
+    const m = new Module('throw new Error();');
+    await m.link(common.mustNotCall());
     m.instantiate();
-  }
-  assert.fail('Unreachable');
-}, /MODULE_NOT_LINKED/);
+    const evaluatePromise = m.evaluate();
+    await evaluatePromise.catch(() => {});
+    assert.strictEqual(m.status, 'errored');
+    try {
+      await evaluatePromise;
+    } catch (err) {
+      assert.strictEqual(m.error, err);
+      return;
+    }
+    assert.fail('Missing expected exception');
+  })();
+}
 
-rejects(async () => {
-  const m = new Module('');
-  await m.evaluate();
-}, /MODULE_STATUS/);
+async function main() {
+  await checkArgType();
+  await checkModuleState();
+  await checkLinking();
+  await checkExecution();
+}
 
-rejects(async () => {
-  const m = new Module('');
-  await m.link(common.mustNotCall());
-  await m.evaluate();
-}, /MODULE_STATUS/);
-
-assert.throws(() => {
-  const m = new Module('');
-  m.error;
-}, /MODULE_STATUS/);
-
-rejects(async () => {
-  const m = new Module('');
-  await m.link(common.mustNotCall());
-  await m.evaluate();
-  m.error;
-}, /MODULE_STATUS/);
-
-assert.throws(() => {
-  const m = new Module('');
-  m.namespace;
-}, /MODULE_STATUS/);
-
-rejects(async () => {
-  const m = new Module('');
-  await m.link(common.mustNotCall());
-  m.namespace;
-}, /MODULE_STATUS/);
-
-(async () => {
-  const m = new Module('throw new Error();');
-  await m.link(common.mustNotCall());
-  m.instantiate();
-  const evaluatePromise = m.evaluate();
-  await evaluatePromise.catch(() => {});
-  assert.strictEqual(m.status, 'errored');
-  try {
-    await evaluatePromise;
-  } catch (err) {
-    assert.strictEqual(m.error, err);
-  }
-})();
+main();
