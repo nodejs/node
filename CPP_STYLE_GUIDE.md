@@ -221,13 +221,14 @@ return the data necessary for constructing the errors to JavaScript,
 then construct and throw the errors [using `lib/internal/errors.js`][errors].
 
 Note that in general, type-checks on arguments should be done in JavaScript
-before the arguments are passed into C++.
+before the arguments are passed into C++. Then in the C++ binding, simply using
+`CHECK` assertions to guard against invalid arguments should be enough.
 
 If the return value of the binding cannot be used to signal failures or return
 the necessary data for constructing errors in JavaScript, pass a context object
 to the binding and put the necessary data inside in C++. For example:
 
-```c++
+```cpp
 void Foo(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   // Let the JavaScript handle the actual type-checking,
@@ -240,8 +241,8 @@ void Foo(const FunctionCallbackInfo<Value>& args) {
   if (err) {
     // Put the data inside the error context
     Local<Object> ctx = args[1].As<Object>();
-    Local<String> key = FIXED_ONE_BYTE_STRING(env->isolate(), "code")
-    ctx->Set(env->context(), key, err);
+    Local<String> key = FIXED_ONE_BYTE_STRING(env->isolate(), "code");
+    ctx->Set(env->context(), key, err).FromJust();
   } else {
     args.GetReturnValue().Set(something_to_return);
   }
@@ -261,10 +262,10 @@ exports.foo = function(str) {
   const ctx = {};
   const result = binding.foo(str, ctx);
   if (ctx.code !== undefined) {
-    throw errors.Error('ERR_ERROR_NAME', ctx.code);
+    throw new errors.Error('ERR_ERROR_NAME', ctx.code);
   }
   return result;
-}
+};
 ```
 
 ### Avoid throwing JavaScript errors in nested C++ methods
