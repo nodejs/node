@@ -1,11 +1,12 @@
 'use strict';
 
-// Flags: --vm-modules
+// Flags: --experimental-modules
 
 const common = require('../common');
 common.crashOnUnhandledRejection();
 
 const assert = require('assert');
+const { URL } = require('url');
 
 const { Module } = require('vm');
 
@@ -83,10 +84,62 @@ async function circular() {
   foo.instantiate();
   await foo.evaluate();
   assert.strictEqual(foo.namespace.default, 42);
+  console.log('here');
 }
 
-(async function main() {
-  await simple();
-  await depth();
-  await circular();
-}());
+async function circular2() {
+  const sourceMap = {
+    root: `
+      import * as a from './a.mjs';
+      import * as b from './b.mjs';
+      if (!('fromA' in a))
+        throw new Error();
+      if (!('fromB' in a))
+        throw new Error();
+      if (!('fromA' in b))
+        throw new Error();
+      if (!('fromB' in b))
+        throw new Error();
+      console.log('made it to the end');
+    `,
+    './a.mjs': `
+      export * from './b.mjs';
+      export var fromA;
+    `,
+    './b.mjs': `
+      export * from './a.mjs';
+      export var fromB;
+    `
+  };
+  const moduleMap = new Map();
+  const rootModule = new Module(sourceMap.root, { url: 'vm:root' });
+  async function link(referencingModule, specifier) {
+    if (moduleMap.has(specifier)) {
+      return moduleMap.get(specifier);
+    }
+    const mod = new Module(sourceMap[specifier], { url: new URL(specifier, 'file:///').href });
+    moduleMap.set(specifier, mod);
+    return mod;
+  }
+  console.log('bleh');
+  const prom = rootModule.link(link);
+  console.log(prom);
+  await prom;
+  console.log(prom);
+  console.log('here');
+  rootModule.instantiate();
+  console.log('here');
+  await rootModule.evaluate();
+  console.log('there');
+}
+
+// circular();
+circular2();
+
+// (async function main() {
+//   await simple();
+//   await depth();
+//   await circular();
+//   await circular2();
+// }());
+

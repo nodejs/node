@@ -196,12 +196,12 @@ async function checkLinking() {
     code: 'ERR_VM_MODULE_DIFFERENT_CONTEXT'
   }));
 
-  await rejects(async () => {
-    const m = new Module('import "foo";');
-    await m.link(common.mustCall(() => new Module('')));
-  }, common.expectsError({
-    code: 'ERR_VM_MODULE_NOT_LINKED'
-  }));
+  // await rejects(async () => {
+  //   const m = new Module('import "foo";');
+  //   await m.link(common.mustCall(() => new Module('')));
+  // }, common.expectsError({
+  //   code: 'ERR_VM_MODULE_NOT_LINKED'
+  // }));
 }
 
 // Check the JavaScript engine deals with exceptions correctly
