@@ -240,7 +240,7 @@ shouldBe("'a' + null", "'anull'");
 shouldBe("true+1", "2");
 shouldBe("false+null", "0");
 
-// substraction
+// subtraction
 shouldBe("1-3", "-2");
 shouldBe("isNaN('a'-3)", "true");
 shouldBe("'3'-'-1'", "4");

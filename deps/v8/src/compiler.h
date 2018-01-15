@@ -47,14 +47,15 @@ class V8_EXPORT_PRIVATE Compiler : public AllStatic {
   // whereas successful compilation ensures the {is_compiled} predicate on the
   // given function holds (except for live-edit, which compiles the world).
 
+  static bool Compile(Handle<SharedFunctionInfo> shared,
+                      ClearExceptionFlag flag);
   static bool Compile(Handle<JSFunction> function, ClearExceptionFlag flag);
   static bool CompileOptimized(Handle<JSFunction> function, ConcurrencyMode);
-  static bool CompileDebugCode(Handle<SharedFunctionInfo> shared);
   static MaybeHandle<JSArray> CompileForLiveEdit(Handle<Script> script);
 
   // Prepare a compilation job for unoptimized code. Requires ParseAndAnalyse.
-  static CompilationJob* PrepareUnoptimizedCompilationJob(
-      CompilationInfo* info);
+  static CompilationJob* PrepareUnoptimizedCompilationJob(ParseInfo* parse_info,
+                                                          Isolate* isolate);
 
   // Generate and install code from previously queued compilation job.
   static bool FinalizeCompilationJob(CompilationJob* job);
@@ -68,18 +69,13 @@ class V8_EXPORT_PRIVATE Compiler : public AllStatic {
       EagerInnerFunctionLiterals;
 
   // Parser::Parse, then Compiler::Analyze.
-  static bool ParseAndAnalyze(ParseInfo* info, Isolate* isolate);
-  // Convenience function
-  static bool ParseAndAnalyze(CompilationInfo* info);
+  static bool ParseAndAnalyze(ParseInfo* parse_info,
+                              Handle<SharedFunctionInfo> shared_info,
+                              Isolate* isolate);
   // Rewrite, analyze scopes, and renumber. If |eager_literals| is non-null, it
   // is appended with inner function literals which should be eagerly compiled.
-  static bool Analyze(ParseInfo* info, Isolate* isolate,
+  static bool Analyze(ParseInfo* parse_info,
                       EagerInnerFunctionLiterals* eager_literals = nullptr);
-  // Convenience function
-  static bool Analyze(CompilationInfo* info,
-                      EagerInnerFunctionLiterals* eager_literals = nullptr);
-  // Ensures that bytecode is generated, calls ParseAndAnalyze internally.
-  static bool EnsureBytecode(CompilationInfo* info);
 
   // ===========================================================================
   // The following family of methods instantiates new functions for scripts or
@@ -125,8 +121,9 @@ class V8_EXPORT_PRIVATE Compiler : public AllStatic {
       Handle<Script> script, ParseInfo* info, int source_length);
 
   // Create a shared function info object (the code may be lazily compiled).
-  static Handle<SharedFunctionInfo> GetSharedFunctionInfo(
-      FunctionLiteral* node, Handle<Script> script, CompilationInfo* outer);
+  static Handle<SharedFunctionInfo> GetSharedFunctionInfo(FunctionLiteral* node,
+                                                          Handle<Script> script,
+                                                          Isolate* isolate);
 
   // Create a shared function info object for a native function literal.
   static Handle<SharedFunctionInfo> GetSharedFunctionInfoForNative(
@@ -143,7 +140,7 @@ class V8_EXPORT_PRIVATE Compiler : public AllStatic {
 
   // Generate and return optimized code for OSR, or empty handle on failure.
   MUST_USE_RESULT static MaybeHandle<Code> GetOptimizedCodeForOSR(
-      Handle<JSFunction> function, BailoutId osr_ast_id,
+      Handle<JSFunction> function, BailoutId osr_offset,
       JavaScriptFrame* osr_frame);
 };
 
@@ -167,7 +164,7 @@ class V8_EXPORT_PRIVATE CompilationJob {
     kFailed,
   };
 
-  CompilationJob(Isolate* isolate, CompilationInfo* info,
+  CompilationJob(Isolate* isolate, ParseInfo* parse_info, CompilationInfo* info,
                  const char* compiler_name,
                  State initial_state = State::kReadyToPrepare);
   virtual ~CompilationJob() {}
@@ -204,7 +201,8 @@ class V8_EXPORT_PRIVATE CompilationJob {
     return executed_on_background_thread_;
   }
   State state() const { return state_; }
-  CompilationInfo* info() const { return info_; }
+  ParseInfo* parse_info() const { return parse_info_; }
+  CompilationInfo* compilation_info() const { return compilation_info_; }
   Isolate* isolate() const;
   virtual size_t AllocatedMemory() const { return 0; }
 
@@ -215,7 +213,9 @@ class V8_EXPORT_PRIVATE CompilationJob {
   virtual Status FinalizeJobImpl() = 0;
 
  private:
-  CompilationInfo* info_;
+  // TODO(6409): Remove parse_info once Fullcode and AstGraphBuilder are gone.
+  ParseInfo* parse_info_;
+  CompilationInfo* compilation_info_;
   ThreadId isolate_thread_id_;
   base::TimeDelta time_taken_to_prepare_;
   base::TimeDelta time_taken_to_execute_;

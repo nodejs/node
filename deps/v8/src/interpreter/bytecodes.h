@@ -178,7 +178,7 @@ namespace interpreter {
   V(CallUndefinedReceiver2, AccumulatorUse::kWrite, OperandType::kReg,         \
     OperandType::kReg, OperandType::kReg, OperandType::kIdx)                   \
   V(CallWithSpread, AccumulatorUse::kWrite, OperandType::kReg,                 \
-    OperandType::kRegList, OperandType::kRegCount)                             \
+    OperandType::kRegList, OperandType::kRegCount, OperandType::kIdx)          \
   V(CallRuntime, AccumulatorUse::kWrite, OperandType::kRuntimeId,              \
     OperandType::kRegList, OperandType::kRegCount)                             \
   V(CallRuntimeForPair, AccumulatorUse::kNone, OperandType::kRuntimeId,        \
@@ -194,7 +194,7 @@ namespace interpreter {
   V(Construct, AccumulatorUse::kReadWrite, OperandType::kReg,                  \
     OperandType::kRegList, OperandType::kRegCount, OperandType::kIdx)          \
   V(ConstructWithSpread, AccumulatorUse::kReadWrite, OperandType::kReg,        \
-    OperandType::kRegList, OperandType::kRegCount)                             \
+    OperandType::kRegList, OperandType::kRegCount, OperandType::kIdx)          \
                                                                                \
   /* Test Operators */                                                         \
   V(TestEqual, AccumulatorUse::kReadWrite, OperandType::kReg,                  \
@@ -222,19 +222,15 @@ namespace interpreter {
   V(ToNumber, AccumulatorUse::kRead, OperandType::kRegOut, OperandType::kIdx)  \
   V(ToObject, AccumulatorUse::kRead, OperandType::kRegOut)                     \
                                                                                \
-  /* String concatenation */                                                   \
-  V(ToPrimitiveToString, AccumulatorUse::kRead, OperandType::kRegOut,          \
-    OperandType::kIdx)                                                         \
-  V(StringConcat, AccumulatorUse::kWrite, OperandType::kRegList,               \
-    OperandType::kRegCount)                                                    \
-                                                                               \
   /* Literals */                                                               \
   V(CreateRegExpLiteral, AccumulatorUse::kWrite, OperandType::kIdx,            \
     OperandType::kIdx, OperandType::kFlag8)                                    \
   V(CreateArrayLiteral, AccumulatorUse::kWrite, OperandType::kIdx,             \
     OperandType::kIdx, OperandType::kFlag8)                                    \
+  V(CreateEmptyArrayLiteral, AccumulatorUse::kWrite, OperandType::kIdx)        \
   V(CreateObjectLiteral, AccumulatorUse::kNone, OperandType::kIdx,             \
     OperandType::kIdx, OperandType::kFlag8, OperandType::kRegOut)              \
+  V(CreateEmptyObjectLiteral, AccumulatorUse::kWrite)                          \
                                                                                \
   /* Closure allocation */                                                     \
   V(CreateClosure, AccumulatorUse::kWrite, OperandType::kIdx,                  \
@@ -315,8 +311,8 @@ namespace interpreter {
                                                                                \
   /* Generators */                                                             \
   V(RestoreGeneratorState, AccumulatorUse::kWrite, OperandType::kReg)          \
-  V(SuspendGenerator, AccumulatorUse::kRead, OperandType::kReg,                \
-    OperandType::kRegList, OperandType::kRegCount)                             \
+  V(SuspendGenerator, AccumulatorUse::kNone, OperandType::kReg,                \
+    OperandType::kRegList, OperandType::kRegCount, OperandType::kUImm)         \
   V(RestoreGeneratorRegisters, AccumulatorUse::kNone, OperandType::kReg,       \
     OperandType::kRegOutList, OperandType::kRegCount)                          \
                                                                                \
@@ -343,7 +339,7 @@ namespace interpreter {
   V(IncBlockCounter, AccumulatorUse::kNone, OperandType::kIdx)                 \
                                                                                \
   /* Illegal bytecode (terminates execution) */                                \
-  V(Illegal, AccumulatorUse::kNone)                                            \
+  V(Illegal, AccumulatorUse::kNone)
 
 // List of debug break bytecodes.
 #define DEBUG_BREAK_PLAIN_BYTECODE_LIST(V) \
@@ -444,6 +440,9 @@ class V8_EXPORT_PRIVATE Bytecodes final {
  public:
   // The maximum number of operands a bytecode may have.
   static const int kMaxOperands = 5;
+
+  // The total number of bytecodes used.
+  static const int kBytecodeCount = static_cast<int>(Bytecode::kLast) + 1;
 
   // Returns string representation of |bytecode|.
   static const char* ToString(Bytecode bytecode);
@@ -732,7 +731,7 @@ class V8_EXPORT_PRIVATE Bytecodes final {
     STATIC_ASSERT(static_cast<int>(OperandScale::kQuadruple) == 4 &&
                   OperandScale::kLast == OperandScale::kQuadruple);
     int scale_index = static_cast<int>(operand_scale) >> 1;
-    return kOperandSizes[static_cast<size_t>(bytecode)][scale_index];
+    return kOperandSizes[scale_index][static_cast<size_t>(bytecode)];
   }
 
   // Returns the offset of the i-th operand of |bytecode| relative to the start
@@ -747,7 +746,7 @@ class V8_EXPORT_PRIVATE Bytecodes final {
     STATIC_ASSERT(static_cast<int>(OperandScale::kQuadruple) == 4 &&
                   OperandScale::kLast == OperandScale::kQuadruple);
     int scale_index = static_cast<int>(operand_scale) >> 1;
-    return kBytecodeSizes[static_cast<size_t>(bytecode)][scale_index];
+    return kBytecodeSizes[scale_index][static_cast<size_t>(bytecode)];
   }
 
   // Returns a debug break bytecode to replace |bytecode|.
@@ -835,7 +834,7 @@ class V8_EXPORT_PRIVATE Bytecodes final {
     STATIC_ASSERT(static_cast<int>(OperandScale::kQuadruple) == 4 &&
                   OperandScale::kLast == OperandScale::kQuadruple);
     int scale_index = static_cast<int>(operand_scale) >> 1;
-    return kOperandKindSizes[static_cast<size_t>(operand_type)][scale_index];
+    return kOperandKindSizes[scale_index][static_cast<size_t>(operand_type)];
   }
 
   // Returns true if |operand_type| is a runtime-id operand (kRuntimeId).
@@ -883,6 +882,10 @@ class V8_EXPORT_PRIVATE Bytecodes final {
     }
   }
 
+  static Address bytecode_size_table_address() {
+    return reinterpret_cast<Address>(const_cast<int*>(&kBytecodeSizes[0][0]));
+  }
+
  private:
   static const OperandType* const kOperandTypes[];
   static const OperandTypeInfo* const kOperandTypeInfos[];
@@ -890,9 +893,10 @@ class V8_EXPORT_PRIVATE Bytecodes final {
   static const int kNumberOfRegisterOperands[];
   static const AccumulatorUse kAccumulatorUse[];
   static const bool kIsScalable[];
-  static const int kBytecodeSizes[][3];
-  static const OperandSize* const kOperandSizes[][3];
-  static OperandSize const kOperandKindSizes[][3];
+  static const int kBytecodeSizes[3][kBytecodeCount];
+  static const OperandSize* const kOperandSizes[3][kBytecodeCount];
+  static OperandSize const
+      kOperandKindSizes[3][BytecodeOperands::kOperandTypeCount];
 };
 
 V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,

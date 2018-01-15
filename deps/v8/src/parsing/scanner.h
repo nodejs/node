@@ -92,6 +92,9 @@ class Utf16CharacterStream {
     }
   }
 
+  // Returns true if the stream could access the V8 heap after construction.
+  virtual bool can_access_heap() = 0;
+
  protected:
   Utf16CharacterStream(const uint16_t* buffer_start,
                        const uint16_t* buffer_cursor,

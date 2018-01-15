@@ -27,13 +27,15 @@ enum class MemoryPressureLevel;
 
 namespace internal {
 
+class AstValueFactory;
 class CancelableTaskManager;
-class CompileJobFinishCallback;
 class CompilerDispatcherJob;
+class UnoptimizedCompileJob;
 class CompilerDispatcherTracer;
 class DeferredHandles;
 class FunctionLiteral;
 class Isolate;
+class ParseInfo;
 class SharedFunctionInfo;
 class Zone;
 
@@ -82,33 +84,10 @@ class V8_EXPORT_PRIVATE CompilerDispatcher {
   // Enqueue a job for parse and compile. Returns true if a job was enqueued.
   bool Enqueue(Handle<SharedFunctionInfo> function);
 
-  // Enqueue a job for initial parse. Returns true if a job was enqueued.
-  bool Enqueue(Handle<String> source, int start_pos, int end_position,
-               LanguageMode language_mode, int function_literal_id, bool native,
-               bool module, bool is_named_expression, int compiler_hints,
-               CompileJobFinishCallback* finish_callback, JobId* job_id);
-
   // Like Enqueue, but also advances the job so that it can potentially
   // continue running on a background thread (if at all possible). Returns
   // true if the job was enqueued.
   bool EnqueueAndStep(Handle<SharedFunctionInfo> function);
-
-  // Enqueue a job for compilation. Function must have already been parsed and
-  // analyzed and be ready for compilation. Returns true if a job was enqueued.
-  bool Enqueue(Handle<Script> script, Handle<SharedFunctionInfo> function,
-               FunctionLiteral* literal, std::shared_ptr<Zone> parse_zone,
-               std::shared_ptr<DeferredHandles> parse_handles,
-               std::shared_ptr<DeferredHandles> compile_handles);
-
-  // Like Enqueue, but also advances the job so that it can potentially
-  // continue running on a background thread (if at all possible). Returns
-  // true if the job was enqueued.
-  bool EnqueueAndStep(Handle<Script> script,
-                      Handle<SharedFunctionInfo> function,
-                      FunctionLiteral* literal,
-                      std::shared_ptr<Zone> parse_zone,
-                      std::shared_ptr<DeferredHandles> parse_handles,
-                      std::shared_ptr<DeferredHandles> compile_handles);
 
   // Returns true if there is a pending job for the given function.
   bool IsEnqueued(Handle<SharedFunctionInfo> function) const;
@@ -168,6 +147,8 @@ class V8_EXPORT_PRIVATE CompilerDispatcher {
   JobId EnqueueAndStep(std::unique_ptr<CompilerDispatcherJob> job);
   // Returns job if not removed otherwise iterator following the removed job.
   JobMap::const_iterator RemoveIfFinished(JobMap::const_iterator job);
+  // Returns iterator to the inserted job.
+  JobMap::const_iterator InsertJob(std::unique_ptr<CompilerDispatcherJob> job);
   // Returns iterator following the removed job.
   JobMap::const_iterator RemoveJob(JobMap::const_iterator job);
   bool FinishNow(CompilerDispatcherJob* job);
@@ -189,8 +170,9 @@ class V8_EXPORT_PRIVATE CompilerDispatcher {
   // Mapping from job_id to job.
   JobMap jobs_;
 
-  // Mapping from SharedFunctionInfo to corresponding JobId;
-  SharedToJobIdMap shared_to_job_id_;
+  // Mapping from SharedFunctionInfo to the corresponding unoptimized
+  // compilation's JobId;
+  SharedToJobIdMap shared_to_unoptimized_job_id_;
 
   base::AtomicValue<v8::MemoryPressureLevel> memory_pressure_level_;
 

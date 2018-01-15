@@ -9,6 +9,7 @@
 #include "src/compiler/simplified-operator.h"
 #include "src/compiler/type-cache.h"
 #include "src/counters.h"
+#include "src/frame-constants.h"
 
 namespace v8 {
 namespace internal {

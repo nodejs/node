@@ -287,6 +287,25 @@ class SourceProcessor(SourceFileProcessor):
   RELEVANT_EXTENSIONS = ['.js', '.cc', '.h', '.py', '.c',
                          '.status', '.gyp', '.gypi']
 
+  def __init__(self):
+    self.runtime_function_call_pattern = self.CreateRuntimeFunctionCallMatcher()
+
+  def CreateRuntimeFunctionCallMatcher(self):
+    runtime_h_path = join(dirname(TOOLS_PATH), 'src/runtime/runtime.h')
+    pattern = re.compile(r'\s+F\(([^,]*),.*\)')
+    runtime_functions = []
+    with open(runtime_h_path) as f:
+      for line in f.readlines():
+        m = pattern.match(line)
+        if m:
+          runtime_functions.append(m.group(1))
+    if len(runtime_functions) < 500:
+      print ("Runtime functions list is suspiciously short. "
+             "Consider updating the presubmit script.")
+      sys.exit(1)
+    str = '(\%\s+(' + '|'.join(runtime_functions) + '))[\s\(]'
+    return re.compile(str)
+
   # Overwriting the one in the parent class.
   def FindFilesIn(self, path):
     if os.path.exists(path+'/.git'):
@@ -420,6 +439,11 @@ class SourceProcessor(SourceFileProcessor):
           print "%s Flag --no-always-opt should be set if " \
                 "assertUnoptimized() is used" % name
           result = False
+
+      match = self.runtime_function_call_pattern.search(contents)
+      if match:
+        print "%s has unexpected spaces in a runtime call '%s'" % (name, match.group(1))
+        result = False
     return result
 
   def ProcessFiles(self, files):

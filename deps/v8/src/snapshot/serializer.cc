@@ -21,7 +21,8 @@ Serializer::Serializer(Isolate* isolate)
       code_address_map_(NULL),
       num_maps_(0),
       large_objects_total_size_(0),
-      seen_large_objects_index_(0) {
+      seen_large_objects_index_(0),
+      seen_backing_stores_index_(1) {
   // The serializer is meant to be used only to generate initial heap images
   // from a context in which there is only one isolate.
   for (int i = 0; i < kNumberOfPreallocatedSpaces; i++) {
@@ -92,13 +93,16 @@ void Serializer::OutputStatistics(const char* name) {
 }
 
 void Serializer::SerializeDeferredObjects() {
-  while (deferred_objects_.length() > 0) {
-    HeapObject* obj = deferred_objects_.RemoveLast();
+  while (!deferred_objects_.empty()) {
+    HeapObject* obj = deferred_objects_.back();
+    deferred_objects_.pop_back();
     ObjectSerializer obj_serializer(this, obj, &sink_, kPlain, kStartOfObject);
     obj_serializer.SerializeDeferred();
   }
   sink_.Put(kSynchronize, "Finished with deferred objects");
 }
+
+bool Serializer::MustBeDeferred(HeapObject* object) { return false; }
 
 void Serializer::VisitRootPointers(Root root, Object** start, Object** end) {
   for (Object** current = start; current < end; current++) {
@@ -111,21 +115,21 @@ void Serializer::VisitRootPointers(Root root, Object** start, Object** end) {
 }
 
 void Serializer::EncodeReservations(
-    List<SerializedData::Reservation>* out) const {
+    std::vector<SerializedData::Reservation>* out) const {
   for (int i = 0; i < kNumberOfPreallocatedSpaces; i++) {
-    for (int j = 0; j < completed_chunks_[i].length(); j++) {
-      out->Add(SerializedData::Reservation(completed_chunks_[i][j]));
+    for (size_t j = 0; j < completed_chunks_[i].size(); j++) {
+      out->push_back(SerializedData::Reservation(completed_chunks_[i][j]));
     }
 
-    if (pending_chunk_[i] > 0 || completed_chunks_[i].length() == 0) {
-      out->Add(SerializedData::Reservation(pending_chunk_[i]));
+    if (pending_chunk_[i] > 0 || completed_chunks_[i].size() == 0) {
+      out->push_back(SerializedData::Reservation(pending_chunk_[i]));
     }
-    out->last().mark_as_last();
+    out->back().mark_as_last();
   }
-  out->Add(SerializedData::Reservation(num_maps_ * Map::kSize));
-  out->last().mark_as_last();
-  out->Add(SerializedData::Reservation(large_objects_total_size_));
-  out->last().mark_as_last();
+  out->push_back(SerializedData::Reservation(num_maps_ * Map::kSize));
+  out->back().mark_as_last();
+  out->push_back(SerializedData::Reservation(large_objects_total_size_));
+  out->back().mark_as_last();
 }
 
 #ifdef DEBUG
@@ -138,18 +142,18 @@ bool Serializer::BackReferenceIsAlreadyAllocated(
   } else if (space == MAP_SPACE) {
     return reference.map_index() < num_maps_;
   } else {
-    int chunk_index = reference.chunk_index();
-    if (chunk_index == completed_chunks_[space].length()) {
+    size_t chunk_index = reference.chunk_index();
+    if (chunk_index == completed_chunks_[space].size()) {
       return reference.chunk_offset() < pending_chunk_[space];
     } else {
-      return chunk_index < completed_chunks_[space].length() &&
+      return chunk_index < completed_chunks_[space].size() &&
              reference.chunk_offset() < completed_chunks_[space][chunk_index];
     }
   }
 }
 
 void Serializer::PrintStack() {
-  for (const auto& o : stack_) {
+  for (const auto o : stack_) {
     o->Print();
     PrintF("\n");
   }
@@ -263,7 +267,6 @@ void Serializer::PutAttachedReference(SerializerReference reference,
                                       WhereToPoint where_to_point) {
   DCHECK(reference.is_attached_reference());
   DCHECK((how_to_code == kPlain && where_to_point == kStartOfObject) ||
-         (how_to_code == kPlain && where_to_point == kInnerPointer) ||
          (how_to_code == kFromCode && where_to_point == kStartOfObject) ||
          (how_to_code == kFromCode && where_to_point == kInnerPointer));
   sink_.Put(kAttachedReference + how_to_code + where_to_point, "AttachedRef");
@@ -279,6 +282,12 @@ int Serializer::PutAlignmentPrefix(HeapObject* object) {
     return Heap::GetMaximumFillToAlign(alignment);
   }
   return 0;
+}
+
+SerializerReference Serializer::AllocateOffHeapBackingStore() {
+  DCHECK_NE(0, seen_backing_stores_index_);
+  return SerializerReference::OffHeapBackingStoreReference(
+      seen_backing_stores_index_++);
 }
 
 SerializerReference Serializer::AllocateLargeObject(int size) {
@@ -302,14 +311,14 @@ SerializerReference Serializer::Allocate(AllocationSpace space, int size) {
     // current chunk and start a new one.
     sink_.Put(kNextChunk, "NextChunk");
     sink_.Put(space, "NextChunkSpace");
-    completed_chunks_[space].Add(pending_chunk_[space]);
+    completed_chunks_[space].push_back(pending_chunk_[space]);
     pending_chunk_[space] = 0;
     new_chunk_size = size;
   }
   uint32_t offset = pending_chunk_[space];
   pending_chunk_[space] = new_chunk_size;
   return SerializerReference::BackReference(
-      space, completed_chunks_[space].length(), offset);
+      space, static_cast<uint32_t>(completed_chunks_[space].size()), offset);
 }
 
 void Serializer::Pad() {
@@ -330,36 +339,18 @@ void Serializer::InitializeCodeAddressMap() {
 }
 
 Code* Serializer::CopyCode(Code* code) {
-  code_buffer_.Rewind(0);  // Clear buffer without deleting backing store.
+  code_buffer_.clear();  // Clear buffer without deleting backing store.
   int size = code->CodeSize();
-  code_buffer_.AddAll(Vector<byte>(code->address(), size));
-  return Code::cast(HeapObject::FromAddress(&code_buffer_.first()));
+  code_buffer_.insert(code_buffer_.end(), code->address(),
+                      code->address() + size);
+  return Code::cast(HeapObject::FromAddress(&code_buffer_.front()));
 }
 
 bool Serializer::HasNotExceededFirstPageOfEachSpace() {
   for (int i = 0; i < kNumberOfPreallocatedSpaces; i++) {
-    if (!completed_chunks_[i].is_empty()) return false;
+    if (!completed_chunks_[i].empty()) return false;
   }
   return true;
-}
-
-bool Serializer::ObjectSerializer::TryEncodeDeoptimizationEntry(
-    HowToCode how_to_code, Address target, int skip) {
-  for (int bailout_type = 0; bailout_type <= Deoptimizer::kLastBailoutType;
-       ++bailout_type) {
-    int id = Deoptimizer::GetDeoptimizationId(
-        serializer_->isolate(), target,
-        static_cast<Deoptimizer::BailoutType>(bailout_type));
-    if (id == Deoptimizer::kNotDeoptimizationEntry) continue;
-    sink_->Put(how_to_code == kPlain ? kDeoptimizerEntryPlain
-                                     : kDeoptimizerEntryFromCode,
-               "DeoptimizationEntry");
-    sink_->PutInt(skip, "SkipB4DeoptimizationEntry");
-    sink_->Put(bailout_type, "BailoutType");
-    sink_->PutInt(id, "EntryId");
-    return true;
-  }
-  return false;
 }
 
 void Serializer::ObjectSerializer::SerializePrologue(AllocationSpace space,
@@ -406,6 +397,74 @@ void Serializer::ObjectSerializer::SerializePrologue(AllocationSpace space,
 
   // Serialize the map (first word of the object).
   serializer_->SerializeObject(map, kPlain, kStartOfObject, 0);
+}
+
+int32_t Serializer::ObjectSerializer::SerializeBackingStore(
+    void* backing_store, int32_t byte_length) {
+  SerializerReference reference =
+      serializer_->reference_map()->Lookup(backing_store);
+
+  // Serialize the off-heap backing store.
+  if (!reference.is_valid()) {
+    sink_->Put(kOffHeapBackingStore, "Off-heap backing store");
+    sink_->PutInt(byte_length, "length");
+    sink_->PutRaw(static_cast<byte*>(backing_store), byte_length,
+                  "BackingStore");
+    reference = serializer_->AllocateOffHeapBackingStore();
+    // Mark this backing store as already serialized.
+    serializer_->reference_map()->Add(backing_store, reference);
+  }
+
+  return static_cast<int32_t>(reference.off_heap_backing_store_index());
+}
+
+// When a JSArrayBuffer is neutered, the FixedTypedArray that points to the
+// same backing store does not know anything about it. This fixup step finds
+// neutered TypedArrays and clears the values in the FixedTypedArray so that
+// we don't try to serialize the now invalid backing store.
+void Serializer::ObjectSerializer::FixupIfNeutered() {
+  JSTypedArray* array = JSTypedArray::cast(object_);
+  if (!array->WasNeutered()) return;
+
+  FixedTypedArrayBase* fta = FixedTypedArrayBase::cast(array->elements());
+  DCHECK(fta->base_pointer() == nullptr);
+  fta->set_external_pointer(Smi::kZero);
+  fta->set_length(0);
+}
+
+void Serializer::ObjectSerializer::SerializeJSArrayBuffer() {
+  JSArrayBuffer* buffer = JSArrayBuffer::cast(object_);
+  void* backing_store = buffer->backing_store();
+  // We cannot store byte_length larger than Smi range in the snapshot.
+  // Attempt to make sure that NumberToInt32 produces something sensible.
+  CHECK(buffer->byte_length()->IsSmi());
+  int32_t byte_length = NumberToInt32(buffer->byte_length());
+
+  // The embedder-allocated backing store only exists for the off-heap case.
+  if (backing_store != nullptr) {
+    int32_t ref = SerializeBackingStore(backing_store, byte_length);
+    buffer->set_backing_store(Smi::FromInt(ref));
+  }
+  SerializeContent();
+}
+
+void Serializer::ObjectSerializer::SerializeFixedTypedArray() {
+  FixedTypedArrayBase* fta = FixedTypedArrayBase::cast(object_);
+  void* backing_store = fta->DataPtr();
+  // We cannot store byte_length larger than Smi range in the snapshot.
+  CHECK(fta->ByteLength() < Smi::kMaxValue);
+  int32_t byte_length = static_cast<int32_t>(fta->ByteLength());
+
+  // The heap contains empty FixedTypedArrays for each type, with a byte_length
+  // of 0 (e.g. empty_fixed_uint8_array). These look like they are are 'on-heap'
+  // but have no data to copy, so we skip the backing store here.
+
+  // The embedder-allocated backing store only exists for the off-heap case.
+  if (byte_length > 0 && fta->base_pointer() == nullptr) {
+    int32_t ref = SerializeBackingStore(backing_store, byte_length);
+    fta->set_external_pointer(Smi::FromInt(ref));
+  }
+  SerializeContent();
 }
 
 void Serializer::ObjectSerializer::SerializeExternalString() {
@@ -496,11 +555,7 @@ void Serializer::ObjectSerializer::SerializeExternalStringAsSequentialString() {
 class UnlinkWeakNextScope {
  public:
   explicit UnlinkWeakNextScope(HeapObject* object) : object_(nullptr) {
-    if (object->IsWeakCell()) {
-      object_ = object;
-      next_ = WeakCell::cast(object)->next();
-      WeakCell::cast(object)->clear_next(object->GetHeap()->the_hole_value());
-    } else if (object->IsAllocationSite()) {
+    if (object->IsAllocationSite()) {
       object_ = object;
       next_ = AllocationSite::cast(object)->weak_next();
       AllocationSite::cast(object)->set_weak_next(
@@ -510,12 +565,8 @@ class UnlinkWeakNextScope {
 
   ~UnlinkWeakNextScope() {
     if (object_ != nullptr) {
-      if (object_->IsWeakCell()) {
-        WeakCell::cast(object_)->set_next(next_, UPDATE_WEAK_WRITE_BARRIER);
-      } else {
-        AllocationSite::cast(object_)->set_weak_next(next_,
-                                                     UPDATE_WEAK_WRITE_BARRIER);
-      }
+      AllocationSite::cast(object_)->set_weak_next(next_,
+                                                   UPDATE_WEAK_WRITE_BARRIER);
     }
   }
 
@@ -535,10 +586,24 @@ void Serializer::ObjectSerializer::Serialize() {
   if (object_->IsExternalString()) {
     SerializeExternalString();
     return;
+  } else if (object_->IsSeqOneByteString()) {
+    // Clear padding bytes at the end. Done here to avoid having to do this
+    // at allocation sites in generated code.
+    SeqOneByteString::cast(object_)->clear_padding();
+  } else if (object_->IsSeqTwoByteString()) {
+    SeqTwoByteString::cast(object_)->clear_padding();
   }
-
-  // We cannot serialize typed array objects correctly.
-  DCHECK(!object_->IsJSTypedArray());
+  if (object_->IsJSTypedArray()) {
+    FixupIfNeutered();
+  }
+  if (object_->IsJSArrayBuffer()) {
+    SerializeJSArrayBuffer();
+    return;
+  }
+  if (object_->IsFixedTypedArrayBase()) {
+    SerializeFixedTypedArray();
+    return;
+  }
 
   // We don't expect fillers.
   DCHECK(!object_->IsFiller());
@@ -566,7 +631,8 @@ void Serializer::ObjectSerializer::SerializeContent() {
   RecursionScope recursion(serializer_);
   // Objects that are immediately post processed during deserialization
   // cannot be deferred, since post processing requires the object content.
-  if (recursion.ExceedsMaximum() && CanBeDeferred(object_)) {
+  if ((recursion.ExceedsMaximum() && CanBeDeferred(object_)) ||
+      serializer_->MustBeDeferred(object_)) {
     serializer_->QueueDeferredObject(object_);
     sink_->Put(kDeferred, "Deferring object content");
     return;
@@ -661,11 +727,14 @@ void Serializer::ObjectSerializer::VisitExternalReference(Foreign* host,
   int skip = OutputRawData(reinterpret_cast<Address>(p),
                            kCanReturnSkipInsteadOfSkipping);
   Address target = *p;
-  if (!TryEncodeDeoptimizationEntry(kPlain, target, skip)) {
+  auto encoded_reference = serializer_->EncodeExternalReference(target);
+  if (encoded_reference.is_from_api()) {
+    sink_->Put(kApiReference, "ApiRef");
+  } else {
     sink_->Put(kExternalReference + kPlain + kStartOfObject, "ExternalRef");
-    sink_->PutInt(skip, "SkipB4ExternalRef");
-    sink_->PutInt(serializer_->EncodeExternalReference(target), "reference id");
   }
+  sink_->PutInt(skip, "SkipB4ExternalRef");
+  sink_->PutInt(encoded_reference.index(), "reference index");
   bytes_processed_so_far_ += kPointerSize;
 }
 
@@ -673,15 +742,19 @@ void Serializer::ObjectSerializer::VisitExternalReference(Code* host,
                                                           RelocInfo* rinfo) {
   int skip = OutputRawData(rinfo->target_address_address(),
                            kCanReturnSkipInsteadOfSkipping);
-  HowToCode how_to_code = rinfo->IsCodedSpecially() ? kFromCode : kPlain;
   Address target = rinfo->target_external_reference();
-  if (!TryEncodeDeoptimizationEntry(how_to_code, target, skip)) {
+  auto encoded_reference = serializer_->EncodeExternalReference(target);
+  if (encoded_reference.is_from_api()) {
+    DCHECK(!rinfo->IsCodedSpecially());
+    sink_->Put(kApiReference, "ApiRef");
+  } else {
+    HowToCode how_to_code = rinfo->IsCodedSpecially() ? kFromCode : kPlain;
     sink_->Put(kExternalReference + how_to_code + kStartOfObject,
                "ExternalRef");
-    sink_->PutInt(skip, "SkipB4ExternalRef");
-    DCHECK_NOT_NULL(target);  // Code does not reference null.
-    sink_->PutInt(serializer_->EncodeExternalReference(target), "reference id");
   }
+  sink_->PutInt(skip, "SkipB4ExternalRef");
+  DCHECK_NOT_NULL(target);  // Code does not reference null.
+  sink_->PutInt(encoded_reference.index(), "reference index");
   bytes_processed_so_far_ += rinfo->target_address_size();
 }
 
@@ -716,12 +789,11 @@ void Serializer::ObjectSerializer::VisitRuntimeEntry(Code* host,
                            kCanReturnSkipInsteadOfSkipping);
   HowToCode how_to_code = rinfo->IsCodedSpecially() ? kFromCode : kPlain;
   Address target = rinfo->target_address();
-  if (!TryEncodeDeoptimizationEntry(how_to_code, target, skip)) {
-    sink_->Put(kExternalReference + how_to_code + kStartOfObject,
-               "ExternalRef");
-    sink_->PutInt(skip, "SkipB4ExternalRef");
-    sink_->PutInt(serializer_->EncodeExternalReference(target), "reference id");
-  }
+  auto encoded_reference = serializer_->EncodeExternalReference(target);
+  DCHECK(!encoded_reference.is_from_api());
+  sink_->Put(kExternalReference + how_to_code + kStartOfObject, "ExternalRef");
+  sink_->PutInt(skip, "SkipB4ExternalRef");
+  sink_->PutInt(encoded_reference.index(), "reference index");
   bytes_processed_so_far_ += rinfo->target_address_size();
 }
 
@@ -732,22 +804,6 @@ void Serializer::ObjectSerializer::VisitCodeTarget(Code* host,
   Code* object = Code::GetCodeFromTargetAddress(rinfo->target_address());
   serializer_->SerializeObject(object, kFromCode, kInnerPointer, skip);
   bytes_processed_so_far_ += rinfo->target_address_size();
-}
-
-void Serializer::ObjectSerializer::VisitCodeEntry(JSFunction* host,
-                                                  Address entry_address) {
-  int skip = OutputRawData(entry_address, kCanReturnSkipInsteadOfSkipping);
-  Code* object = Code::cast(Code::GetObjectFromEntryAddress(entry_address));
-  serializer_->SerializeObject(object, kPlain, kInnerPointer, skip);
-  bytes_processed_so_far_ += kPointerSize;
-}
-
-void Serializer::ObjectSerializer::VisitCellPointer(Code* host,
-                                                    RelocInfo* rinfo) {
-  int skip = OutputRawData(rinfo->pc(), kCanReturnSkipInsteadOfSkipping);
-  Cell* object = Cell::cast(rinfo->target_cell());
-  serializer_->SerializeObject(object, kPlain, kInnerPointer, skip);
-  bytes_processed_so_far_ += kPointerSize;
 }
 
 Address Serializer::ObjectSerializer::PrepareCode() {
@@ -770,8 +826,6 @@ Address Serializer::ObjectSerializer::PrepareCode() {
     // relocations, because some of these fields are needed for the latter.
     code->WipeOutHeader();
   }
-  // Code age headers are not serializable.
-  code->MakeYoung(serializer_->isolate());
   return code->address();
 }
 
@@ -810,6 +864,10 @@ int Serializer::ObjectSerializer::OutputRawData(
     if (is_code_object) object_start = PrepareCode();
 
     const char* description = is_code_object ? "Code" : "Byte";
+#ifdef MEMORY_SANITIZER
+    // Check that we do not serialize uninitialized memory.
+    __msan_check_mem_is_initialized(object_start + base, bytes_to_output);
+#endif  // MEMORY_SANITIZER
     sink_->PutRaw(object_start + base, bytes_to_output, description);
   }
   if (to_skip != 0 && return_skip == kIgnoringReturn) {

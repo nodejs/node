@@ -174,6 +174,7 @@ void LiveRangeMerger::Merge() {
   }
 }
 
+#undef TRACE
 
 }  // namespace compiler
 }  // namespace internal

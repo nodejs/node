@@ -7,6 +7,73 @@
 load("test/mjsunit/wasm/wasm-constants.js");
 load("test/mjsunit/wasm/wasm-module-builder.js");
 
+// The following method doesn't attempt to catch an raised exception.
+var test_throw = (function () {
+  var builder = new WasmModuleBuilder();
+
+  builder.addException(kSig_v_v);
+
+  builder.addFunction("throw_if_param_not_zero", kSig_i_i)
+      .addBody([
+        kExprGetLocal, 0,
+        kExprI32Const, 0,
+        kExprI32Ne,
+        kExprIf, kWasmStmt,
+        kExprThrow, 0,
+        kExprEnd,
+        kExprI32Const, 1
+      ]).exportFunc();
+
+  return builder.instantiate();
+})();
+
+// Check the test_throw exists.
+assertFalse(test_throw === undefined);
+assertFalse(test_throw === null);
+assertFalse(test_throw === 0);
+assertEquals("object", typeof test_throw.exports);
+assertEquals("function", typeof test_throw.exports.throw_if_param_not_zero);
+
+// Test expected behavior of throws
+assertEquals(1, test_throw.exports.throw_if_param_not_zero(0));
+assertWasmThrows([], function() { test_throw.exports.throw_if_param_not_zero(10) });
+assertWasmThrows([], function() { test_throw.exports.throw_if_param_not_zero(-1) });
+
+// Now that we know throwing works, we test catching the exceptions we raise.
+var test_catch = (function () {
+  var builder = new WasmModuleBuilder();
+
+  builder.addException(kSig_v_v);
+  builder.addFunction("simple_throw_catch_to_0_1", kSig_i_i)
+      .addBody([
+        kExprTry, kWasmI32,
+          kExprGetLocal, 0,
+          kExprI32Eqz,
+          kExprIf, kWasmStmt,
+            kExprThrow, 0,
+          kExprEnd,
+          kExprI32Const, 1,
+        kExprCatch, 0,
+          kExprI32Const, 0,
+        kExprEnd
+      ]).exportFunc();
+
+  return builder.instantiate();
+})();
+
+// Check the test_catch exists.
+assertFalse(test_catch === undefined);
+assertFalse(test_catch === null);
+assertFalse(test_catch === 0);
+assertEquals("object", typeof test_catch.exports);
+assertEquals("function", typeof test_catch.exports.simple_throw_catch_to_0_1);
+
+// Test expected behavior of simple catch.
+assertEquals(0, test_catch.exports.simple_throw_catch_to_0_1(0));
+assertEquals(1, test_catch.exports.simple_throw_catch_to_0_1(1));
+
+/* TODO(kschimpf) Convert these tests to work for the proposed exceptions.
+
 // The following methods do not attempt to catch the exception they raise.
 var test_throw = (function () {
   var builder = new WasmModuleBuilder();
@@ -229,16 +296,16 @@ var test_catch = (function () {
             kExprI32Eq,
             kExprIf, kWasmStmt,
               kExprGetLocal, 2,
-              kExprI32Const, /*64=*/ 192, 0,
+              kExprI32Const, / *64=* / 192, 0,
               kExprI32Ior,
               kExprThrow,
               kExprUnreachable,
             kExprEnd,
-            kExprI32Const, /*128=*/ 128, 1,
+            kExprI32Const, / *128=* / 128, 1,
             kExprI32Ior,
           kExprCatch, 1,
             kExprGetLocal, 1,
-            kExprI32Const, /*256=*/ 128, 2,
+            kExprI32Const, / *256=* / 128, 2,
             kExprI32Ior,
           kExprEnd,
       ])
@@ -252,7 +319,7 @@ var test_catch = (function () {
           kExprTry, kWasmI32,
             kExprGetLocal, 0,
             kExprCallFunction, kWasmThrowFunction,
-            kExprI32Const, /*-1=*/ 127,
+            kExprI32Const, / *-1=* / 127,
           kExprCatch, 1,
             kExprGetLocal, 1,
           kExprEnd
@@ -287,7 +354,7 @@ var test_catch = (function () {
           kExprGetLocal, 0,
           kExprI32Const, 0,
           kExprCallFunction, kFromIndirectCalleeHelper,
-          kExprI32Const, /*-1=*/ 127,
+          kExprI32Const, / *-1=* / 127,
         kExprCatch, 1,
           kExprGetLocal, 1,
         kExprEnd
@@ -301,7 +368,7 @@ var test_catch = (function () {
         kExprTry, kWasmI32,
           kExprGetLocal, 0,
           kExprCallFunction, kJSThrowI,
-          kExprI32Const, /*-1=*/ 127,
+          kExprI32Const, / *-1=* / 127,
         kExprCatch, 1,
           kExprGetLocal, 1,
         kExprEnd,
@@ -381,3 +448,4 @@ assertEquals(-10, test_catch.exports.from_js(-10));
 assertThrowsEquals(test_catch.exports.string_from_js, "use wasm;");
 assertThrowsEquals(test_catch.exports.large_from_js, 1e+28);
 assertThrowsEquals(test_catch.exports.undefined_from_js, undefined);
+*/

@@ -73,6 +73,8 @@ class PropertyAccessBuilder {
   CompilationDependencies* dependencies_;
 };
 
+bool HasOnlyStringMaps(MapHandles const& maps);
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

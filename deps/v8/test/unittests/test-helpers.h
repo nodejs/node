@@ -40,17 +40,6 @@ class ScriptResource : public v8::String::ExternalOneByteStringResource {
   DISALLOW_COPY_AND_ASSIGN(ScriptResource);
 };
 
-class FinishCallback : public CompileJobFinishCallback {
- public:
-  void ParseFinished(std::unique_ptr<ParseInfo> result) override {
-    result_ = std::move(result);
-  }
-  ParseInfo* result() const { return result_.get(); }
-
- private:
-  std::unique_ptr<ParseInfo> result_;
-};
-
 Handle<Object> RunJS(v8::Isolate* isolate, const char* script);
 Handle<String> CreateSource(
     Isolate* isolate,

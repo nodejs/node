@@ -24,3 +24,28 @@ try {
   assertEquals("k", frames[4].getMethodName());
   assertEquals(null, frames[5].getMethodName());
 }
+
+function testMethodName(f, frameNumber, expectedName) {
+  try {
+    Error.prepareStackTrace = function(e, frames) { return frames; }
+    f();
+    assertUnreachable();
+  } catch (e) {
+    const frame = e.stack[frameNumber];
+    assertEquals(expectedName, frame.getMethodName());
+  } finally {
+    Error.prepareStackTrace = undefined;
+  }
+}
+
+const thrower = { valueOf: () => { throw new Error(); }};
+
+{
+  const str = "";
+  testMethodName(() => { str.indexOf(str, thrower); }, 1, "indexOf");
+}
+
+{
+  const nr = 42;
+  testMethodName(() => { nr.toString(thrower); }, 1, "toString");
+}

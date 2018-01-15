@@ -6,13 +6,13 @@
 
 #include "src/arm/macro-assembler-arm.h"
 #include "src/assembler-inl.h"
+#include "src/boxed-float.h"
 #include "src/compilation-info.h"
 #include "src/compiler/code-generator-impl.h"
 #include "src/compiler/gap-resolver.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/osr.h"
 #include "src/double.h"
-#include "src/float.h"
 #include "src/heap/heap-inl.h"
 
 namespace v8 {
@@ -593,16 +593,6 @@ void FlushPendingPushRegisters(TurboAssembler* tasm,
   pending_pushes->resize(0);
 }
 
-void AddPendingPushRegister(TurboAssembler* tasm,
-                            FrameAccessState* frame_access_state,
-                            ZoneVector<Register>* pending_pushes,
-                            Register reg) {
-  pending_pushes->push_back(reg);
-  if (pending_pushes->size() == 3 || reg.is(ip)) {
-    FlushPendingPushRegisters(tasm, frame_access_state, pending_pushes);
-  }
-}
-
 void AdjustStackPointerForTailCall(
     TurboAssembler* tasm, FrameAccessState* state, int new_slot_above_sp,
     ZoneVector<Register>* pending_pushes = nullptr,
@@ -629,9 +619,8 @@ void AdjustStackPointerForTailCall(
 
 void CodeGenerator::AssembleTailCallBeforeGap(Instruction* instr,
                                               int first_unused_stack_slot) {
-  CodeGenerator::PushTypeFlags flags(kImmediatePush | kScalarPush);
   ZoneVector<MoveOperands*> pushes(zone());
-  GetPushCompatibleMoves(instr, flags, &pushes);
+  GetPushCompatibleMoves(instr, kRegisterPush, &pushes);
 
   if (!pushes.empty() &&
       (LocationOperand::cast(pushes.back()->destination()).index() + 1 ==
@@ -646,21 +635,15 @@ void CodeGenerator::AssembleTailCallBeforeGap(Instruction* instr,
           tasm(), frame_access_state(),
           destination_location.index() - pending_pushes.size(),
           &pending_pushes);
-      if (source.IsStackSlot()) {
-        LocationOperand source_location(LocationOperand::cast(source));
-        __ ldr(ip, g.SlotToMemOperand(source_location.index()));
-        AddPendingPushRegister(tasm(), frame_access_state(), &pending_pushes,
-                               ip);
-      } else if (source.IsRegister()) {
-        LocationOperand source_location(LocationOperand::cast(source));
-        AddPendingPushRegister(tasm(), frame_access_state(), &pending_pushes,
-                               source_location.GetRegister());
-      } else if (source.IsImmediate()) {
-        AddPendingPushRegister(tasm(), frame_access_state(), &pending_pushes,
-                               ip);
-      } else {
-        // Pushes of non-scalar data types is not supported.
-        UNIMPLEMENTED();
+      // Pushes of non-register data types are not supported.
+      DCHECK(source.IsRegister());
+      LocationOperand source_location(LocationOperand::cast(source));
+      pending_pushes.push_back(source_location.GetRegister());
+      // TODO(arm): We can push more than 3 registers at once. Add support in
+      // the macro-assembler for pushing a list of registers.
+      if (pending_pushes.size() == 3) {
+        FlushPendingPushRegisters(tasm(), frame_access_state(),
+                                  &pending_pushes);
       }
       move->Eliminate();
     }
@@ -691,7 +674,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       internal::Assembler::BlockCodeTargetSharingScope scope;
       if (info()->IsWasm()) scope.Open(tasm());
 
-      EnsureSpaceForLazyDeopt();
       if (instr->InputAt(0)->IsImmediate()) {
         __ Call(i.InputCode(0), RelocInfo::CODE_TARGET);
       } else {
@@ -738,7 +720,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kArchCallJSFunction: {
-      EnsureSpaceForLazyDeopt();
       Register func = i.InputRegister(0);
       if (FLAG_debug_code) {
         // Check the function's context matches the context argument.
@@ -746,29 +727,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ cmp(cp, kScratchReg);
         __ Assert(eq, kWrongFunctionContext);
       }
-      __ ldr(ip, FieldMemOperand(func, JSFunction::kCodeEntryOffset));
+      __ ldr(ip, FieldMemOperand(func, JSFunction::kCodeOffset));
+      __ add(ip, ip, Operand(Code::kHeaderSize - kHeapObjectTag));
       __ Call(ip);
       RecordCallPosition(instr);
       DCHECK_EQ(LeaveCC, i.OutputSBit());
       frame_access_state()->ClearSPDelta();
-      break;
-    }
-    case kArchTailCallJSFunctionFromJSFunction: {
-      Register func = i.InputRegister(0);
-      if (FLAG_debug_code) {
-        // Check the function's context matches the context argument.
-        __ ldr(kScratchReg, FieldMemOperand(func, JSFunction::kContextOffset));
-        __ cmp(cp, kScratchReg);
-        __ Assert(eq, kWrongFunctionContext);
-      }
-      AssemblePopArgumentsAdaptorFrame(kJavaScriptCallArgCountRegister,
-                                       i.TempRegister(0), i.TempRegister(1),
-                                       i.TempRegister(2));
-      __ ldr(ip, FieldMemOperand(func, JSFunction::kCodeEntryOffset));
-      __ Jump(ip);
-      DCHECK_EQ(LeaveCC, i.OutputSBit());
-      frame_access_state()->ClearSPDelta();
-      frame_access_state()->SetFrameAccessToDefault();
       break;
     }
     case kArchPrepareCallCFunction: {
@@ -776,6 +740,16 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ PrepareCallCFunction(num_parameters);
       // Frame alignment requires using FP-relative frame addressing.
       frame_access_state()->SetFrameAccessToFP();
+      break;
+    }
+    case kArchSaveCallerRegisters: {
+      // kReturnRegister0 should have been saved before entering the stub.
+      __ PushCallerSaved(kSaveFPRegs, kReturnRegister0);
+      break;
+    }
+    case kArchRestoreCallerRegisters: {
+      // Don't overwrite the returned value.
+      __ PopCallerSaved(kSaveFPRegs, kReturnRegister0);
       break;
     }
     case kArchPrepareTailCall:
@@ -805,6 +779,20 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArchTableSwitch:
       AssembleArchTableSwitch(instr);
       DCHECK_EQ(LeaveCC, i.OutputSBit());
+      break;
+    case kArchDebugAbort:
+      DCHECK(i.InputRegister(0).is(r1));
+      if (!frame_access_state()->has_frame()) {
+        // We don't actually want to generate a pile of code for this, so just
+        // claim there is a stack frame, without generating one.
+        FrameScope scope(tasm(), StackFrame::NONE);
+        __ Call(isolate()->builtins()->builtin_handle(Builtins::kAbortJS),
+                RelocInfo::CODE_TARGET);
+      } else {
+        __ Call(isolate()->builtins()->builtin_handle(Builtins::kAbortJS),
+                RelocInfo::CODE_TARGET);
+      }
+      __ stop("kArchDebugAbort");
       break;
     case kArchDebugBreak:
       __ stop("kArchDebugBreak");
@@ -1612,7 +1600,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArmF32x4Splat: {
       int src_code = i.InputFloatRegister(0).code();
       __ vdup(Neon32, i.OutputSimd128Register(),
-              DwVfpRegister::from_code(src_code / 2), src_code & 0x1);
+              DwVfpRegister::from_code(src_code / 2), src_code % 2);
       break;
     }
     case kArmF32x4ExtractLane: {
@@ -2121,6 +2109,18 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArmS128Zero: {
       __ veor(i.OutputSimd128Register(), i.OutputSimd128Register(),
               i.OutputSimd128Register());
+      break;
+    }
+    case kArmS128Dup: {
+      NeonSize size = static_cast<NeonSize>(i.InputInt32(1));
+      int lanes = kSimd128Size >> size;
+      int index = i.InputInt32(2);
+      DCHECK(index < lanes);
+      int d_lanes = lanes / 2;
+      int src_d_index = index & (d_lanes - 1);
+      int src_d_code = i.InputSimd128Register(0).low().code() + index / d_lanes;
+      __ vdup(size, i.OutputSimd128Register(),
+              DwVfpRegister::from_code(src_d_code), src_d_index);
       break;
     }
     case kArmS128And: {
@@ -2708,28 +2708,6 @@ void CodeGenerator::AssembleArchTableSwitch(Instruction* instr) {
   }
 }
 
-CodeGenerator::CodeGenResult CodeGenerator::AssembleDeoptimizerCall(
-    int deoptimization_id, SourcePosition pos) {
-  DeoptimizeKind deoptimization_kind = GetDeoptimizationKind(deoptimization_id);
-  DeoptimizeReason deoptimization_reason =
-      GetDeoptimizationReason(deoptimization_id);
-  Deoptimizer::BailoutType bailout_type =
-      deoptimization_kind == DeoptimizeKind::kSoft ? Deoptimizer::SOFT
-                                                   : Deoptimizer::EAGER;
-  Address deopt_entry = Deoptimizer::GetDeoptimizationEntry(
-      __ isolate(), deoptimization_id, bailout_type);
-  // TODO(turbofan): We should be able to generate better code by sharing the
-  // actual final call site and just bl'ing to it here, similar to what we do
-  // in the lithium backend.
-  if (deopt_entry == nullptr) return kTooManyDeoptimizationBailouts;
-  if (info()->is_source_positions_enabled()) {
-    __ RecordDeoptReason(deoptimization_reason, pos, deoptimization_id);
-  }
-  __ Call(deopt_entry, RelocInfo::RUNTIME_ENTRY);
-  __ CheckConstPool(false, false);
-  return kSuccess;
-}
-
 void CodeGenerator::FinishFrame(Frame* frame) {
   CallDescriptor* descriptor = linkage()->GetIncomingDescriptor();
 
@@ -2762,7 +2740,7 @@ void CodeGenerator::AssembleConstructFrame() {
       __ Push(lr, fp);
       __ mov(fp, sp);
     } else if (descriptor->IsJSFunctionCall()) {
-      __ Prologue(this->info()->GeneratePreagedPrologue());
+      __ Prologue();
       if (descriptor->PushArgumentCount()) {
         __ Push(kJavaScriptCallArgCountRegister);
       }
@@ -2770,9 +2748,7 @@ void CodeGenerator::AssembleConstructFrame() {
       __ StubPrologue(info()->GetOutputStackFrameType());
     }
 
-    if (!info()->GeneratePreagedPrologue()) {
-      unwinding_info_writer_.MarkFrameConstructed(__ pc_offset());
-    }
+    unwinding_info_writer_.MarkFrameConstructed(__ pc_offset());
   }
 
   int shrink_slots =
@@ -2972,8 +2948,9 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
     } else if (src.type() == Constant::kFloat32) {
       if (destination->IsFloatStackSlot()) {
         MemOperand dst = g.ToMemOperand(destination);
-        __ mov(ip, Operand(bit_cast<int32_t>(src.ToFloat32())));
-        __ str(ip, dst);
+        Register temp = kScratchReg;
+        __ mov(temp, Operand(bit_cast<int32_t>(src.ToFloat32())));
+        __ str(temp, dst);
       } else {
         SwVfpRegister dst = g.ToFloatRegister(destination);
         __ vmov(dst, Float32(src.ToFloat32AsInt()));
@@ -3189,28 +3166,6 @@ void CodeGenerator::AssembleSwap(InstructionOperand* source,
 void CodeGenerator::AssembleJumpTable(Label** targets, size_t target_count) {
   // On 32-bit ARM we emit the jump tables inline.
   UNREACHABLE();
-}
-
-
-void CodeGenerator::EnsureSpaceForLazyDeopt() {
-  if (!info()->ShouldEnsureSpaceForLazyDeopt()) {
-    return;
-  }
-
-  int space_needed = Deoptimizer::patch_size();
-  // Ensure that we have enough space after the previous lazy-bailout
-  // instruction for patching the code here.
-  int current_pc = tasm()->pc_offset();
-  if (current_pc < last_lazy_deopt_pc_ + space_needed) {
-    // Block literal pool emission for duration of padding.
-    v8::internal::Assembler::BlockConstPoolScope block_const_pool(tasm());
-    int padding_size = last_lazy_deopt_pc_ + space_needed - current_pc;
-    DCHECK_EQ(0, padding_size % v8::internal::Assembler::kInstrSize);
-    while (padding_size > 0) {
-      __ nop();
-      padding_size -= v8::internal::Assembler::kInstrSize;
-    }
-  }
 }
 
 #undef __

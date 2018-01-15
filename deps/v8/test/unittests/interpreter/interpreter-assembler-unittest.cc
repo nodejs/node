@@ -616,27 +616,6 @@ TARGET_TEST_F(InterpreterAssemblerTest, CallRuntime) {
   }
 }
 
-TARGET_TEST_F(InterpreterAssemblerTest, CallJS) {
-  TRACED_FOREACH(interpreter::Bytecode, bytecode, kBytecodes) {
-    if (Bytecodes::IsCallOrConstruct(bytecode) &&
-        bytecode != Bytecode::kCallWithSpread) {
-      InterpreterAssemblerTestState state(this, bytecode);
-      InterpreterAssemblerForTest m(&state, bytecode);
-      ConvertReceiverMode receiver_mode = Bytecodes::GetReceiverMode(bytecode);
-      Callable builtin = CodeFactory::InterpreterPushArgsThenCall(
-          isolate(), receiver_mode, InterpreterPushArgsMode::kOther);
-      Node* function = m.IntPtrConstant(0);
-      Node* first_arg = m.IntPtrConstant(1);
-      Node* arg_count = m.Int32Constant(2);
-      Node* context = m.IntPtrConstant(3);
-      Node* call_js =
-          m.CallJS(function, context, first_arg, arg_count, receiver_mode);
-      EXPECT_THAT(call_js, IsCall(_, IsHeapConstant(builtin.code()), arg_count,
-                                  first_arg, function, context, _, _));
-    }
-  }
-}
-
 TARGET_TEST_F(InterpreterAssemblerTest, LoadFeedbackVector) {
   TRACED_FOREACH(interpreter::Bytecode, bytecode, kBytecodes) {
     InterpreterAssemblerTestState state(this, bytecode);

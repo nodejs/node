@@ -45,7 +45,7 @@ class V8_EXPORT_PRIVATE MoveOptimizer final {
 
   const Instruction* LastInstruction(const InstructionBlock* block) const;
 
-  // Consolidate common moves appearing accross all predecessors of a block.
+  // Consolidate common moves appearing across all predecessors of a block.
   void OptimizeMerge(InstructionBlock* block);
   void FinalizeMoves(Instruction* instr);
 

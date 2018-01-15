@@ -332,6 +332,14 @@
 }],  # 'arch == ppc64 and simulator_run'
 
 ##############################################################################
+['arch == ppc or arch == ppc64 or arch == s390 or arch == s390x', {
+
+  # TODO(ppc/s390): implement atomic operations
+  'test-run-wasm-atomics/*': [SKIP],
+
+}],  # 'arch == ppc or arch == ppc64 or arch == s390 or arch == s390x'
+
+##############################################################################
 ['variant == wasm_traps', {
   'test-accessors/*': [SKIP],
   'test-api-interceptors/*': [SKIP],

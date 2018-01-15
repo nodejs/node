@@ -147,7 +147,7 @@ assertTraps(kTrapFuncInvalid, "module.exports.main(12, 3)");
         kExprCallIndirect, 0, kTableZero])  // --
       .exportAs("main");
 
-    builder.setFunctionTableLength(length);
+    builder.setFunctionTableBounds(length, length);
     builder.addFunctionTableInit(base, false, [f.add.index, f.sub.index, f.mul.index]);
 
     return builder.instantiate();
@@ -184,7 +184,7 @@ assertTraps(kTrapFuncInvalid, "module.exports.main(12, 3)");
       kExprCallIndirect, 0, kTableZero])  // --
     .exportAs("main");
 
-  builder.setFunctionTableLength(10);
+  builder.setFunctionTableBounds(10, 10);
   var g = builder.addImportedGlobal("fff", "base", kWasmI32);
   builder.addFunctionTableInit(g, true, [f.mul.index, f.add.index, f.sub.index]);
 

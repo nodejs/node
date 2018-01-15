@@ -42,7 +42,8 @@
 #include "test/cctest/cctest.h"
 #include "test/cctest/heap/heap-utils.h"
 
-using namespace v8::internal;
+namespace v8 {
+namespace internal {
 
 static Isolate* GetIsolateFrom(LocalContext* context) {
   return reinterpret_cast<Isolate*>((*context)->GetIsolate());
@@ -97,7 +98,7 @@ TEST(WeakSet_Weakness) {
   {
     HandleScope scope(isolate);
     Handle<Smi> smi(Smi::FromInt(23), isolate);
-    int32_t hash = Object::GetOrCreateHash(isolate, key)->value();
+    int32_t hash = key->GetOrCreateHash(isolate)->value();
     JSWeakCollection::Set(weakset, key, smi, hash);
   }
   CHECK_EQ(1, ObjectHashTable::cast(weakset->table())->NumberOfElements());
@@ -141,7 +142,7 @@ TEST(WeakSet_Shrinking) {
     for (int i = 0; i < 32; i++) {
       Handle<JSObject> object = factory->NewJSObjectFromMap(map);
       Handle<Smi> smi(Smi::FromInt(i), isolate);
-      int32_t hash = Object::GetOrCreateHash(isolate, object)->value();
+      int32_t hash = object->GetOrCreateHash(isolate)->value();
       JSWeakCollection::Set(weakset, object, smi, hash);
     }
   }
@@ -189,7 +190,7 @@ TEST(WeakSet_Regress2060a) {
       Handle<JSObject> object = factory->NewJSObject(function, TENURED);
       CHECK(!heap->InNewSpace(*object));
       CHECK(!first_page->Contains(object->address()));
-      int32_t hash = Object::GetOrCreateHash(isolate, key)->value();
+      int32_t hash = key->GetOrCreateHash(isolate)->value();
       JSWeakCollection::Set(weakset, key, object, hash);
     }
   }
@@ -231,7 +232,7 @@ TEST(WeakSet_Regress2060b) {
   Handle<JSWeakSet> weakset = AllocateJSWeakSet(isolate);
   for (int i = 0; i < 32; i++) {
     Handle<Smi> smi(Smi::FromInt(i), isolate);
-    int32_t hash = Object::GetOrCreateHash(isolate, keys[i])->value();
+    int32_t hash = keys[i]->GetOrCreateHash(isolate)->value();
     JSWeakCollection::Set(weakset, keys[i], smi, hash);
   }
 
@@ -242,3 +243,6 @@ TEST(WeakSet_Regress2060b) {
   CcTest::CollectAllGarbage();
   CcTest::CollectAllGarbage();
 }
+
+}  // namespace internal
+}  // namespace v8

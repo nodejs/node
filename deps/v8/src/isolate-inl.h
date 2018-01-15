@@ -47,6 +47,17 @@ bool Isolate::has_pending_exception() {
   return !thread_local_top_.pending_exception_->IsTheHole(this);
 }
 
+Object* Isolate::get_wasm_caught_exception() const {
+  return thread_local_top_.wasm_caught_exception_;
+}
+
+void Isolate::set_wasm_caught_exception(Object* exception_obj) {
+  thread_local_top_.wasm_caught_exception_ = exception_obj;
+}
+
+void Isolate::clear_wasm_caught_exception() {
+  thread_local_top_.wasm_caught_exception_ = nullptr;
+}
 
 void Isolate::clear_pending_message() {
   thread_local_top_.pending_message_obj_ = heap_.the_hole_value();
@@ -77,8 +88,13 @@ bool Isolate::is_catchable_by_javascript(Object* exception) {
 }
 
 bool Isolate::is_catchable_by_wasm(Object* exception) {
-  return is_catchable_by_javascript(exception) &&
-         (exception->IsNumber() || exception->IsSmi());
+  if (!is_catchable_by_javascript(exception) || !exception->IsJSError())
+    return false;
+  HandleScope scope(this);
+  Handle<Object> exception_handle(exception, this);
+  return JSReceiver::HasProperty(Handle<JSReceiver>::cast(exception_handle),
+                                 factory()->WasmExceptionTag_string())
+      .IsJust();
 }
 
 void Isolate::FireBeforeCallEnteredCallback() {
@@ -134,7 +150,7 @@ bool Isolate::IsArraySpeciesLookupChainIntact() {
 }
 
 bool Isolate::IsStringLengthOverflowIntact() {
-  PropertyCell* string_length_cell = heap()->string_length_protector();
+  Cell* string_length_cell = heap()->string_length_protector();
   return string_length_cell->value() == Smi::FromInt(kProtectorValid);
 }
 

@@ -9,16 +9,18 @@
 #include "src/heap/concurrent-marking.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/heap.h"
+#include "src/heap/mark-compact.h"
 #include "src/heap/worklist.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/heap/heap-utils.h"
 
 namespace v8 {
 namespace internal {
+namespace heap {
 
 void PublishSegment(ConcurrentMarking::MarkingWorklist* worklist,
                     HeapObject* object) {
-  for (int i = 0; i <= ConcurrentMarking::MarkingWorklist::kSegmentCapacity;
+  for (size_t i = 0; i <= ConcurrentMarking::MarkingWorklist::kSegmentCapacity;
        i++) {
     worklist->Push(0, object);
   }
@@ -30,8 +32,9 @@ TEST(ConcurrentMarking) {
   CcTest::InitializeVM();
   Heap* heap = CcTest::heap();
   ConcurrentMarking::MarkingWorklist shared, bailout;
+  WeakObjects weak_objects;
   ConcurrentMarking* concurrent_marking =
-      new ConcurrentMarking(heap, &shared, &bailout);
+      new ConcurrentMarking(heap, &shared, &bailout, &weak_objects);
   PublishSegment(&shared, heap->undefined_value());
   concurrent_marking->ScheduleTasks();
   concurrent_marking->EnsureCompleted();
@@ -43,8 +46,9 @@ TEST(ConcurrentMarkingReschedule) {
   CcTest::InitializeVM();
   Heap* heap = CcTest::heap();
   ConcurrentMarking::MarkingWorklist shared, bailout;
+  WeakObjects weak_objects;
   ConcurrentMarking* concurrent_marking =
-      new ConcurrentMarking(heap, &shared, &bailout);
+      new ConcurrentMarking(heap, &shared, &bailout, &weak_objects);
   PublishSegment(&shared, heap->undefined_value());
   concurrent_marking->ScheduleTasks();
   concurrent_marking->EnsureCompleted();
@@ -54,5 +58,6 @@ TEST(ConcurrentMarkingReschedule) {
   delete concurrent_marking;
 }
 
+}  // namespace heap
 }  // namespace internal
 }  // namespace v8

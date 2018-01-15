@@ -22,7 +22,7 @@
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 description(
-"This test puts an item in a big index and then tries to change it. It shoudl change successfully."
+"This test puts an item in a big index and then tries to change it. It should change successfully."
 );
 
 var array = [];

@@ -5,8 +5,6 @@
 #ifndef V8_DEBUG_DEBUG_INTERFACE_H_
 #define V8_DEBUG_DEBUG_INTERFACE_H_
 
-#include <functional>
-
 #include "include/v8-debug.h"
 #include "include/v8-util.h"
 #include "include/v8.h"
@@ -96,6 +94,7 @@ enum ExceptionBreakState {
  */
 void ChangeBreakOnException(Isolate* isolate, ExceptionBreakState state);
 
+void RemoveBreakpoint(Isolate* isolate, BreakpointId id);
 void SetBreakPointsActive(Isolate* isolate, bool is_active);
 
 enum StepAction {
@@ -148,6 +147,10 @@ class V8_EXPORT_PRIVATE Script {
       std::vector<debug::BreakLocation>* locations) const;
   int GetSourceOffset(const debug::Location& location) const;
   v8::debug::Location GetSourceLocation(int offset) const;
+  bool SetScriptSource(v8::Local<v8::String> newSource, bool preview,
+                       bool* stack_changed) const;
+  bool SetBreakpoint(v8::Local<v8::String> condition, debug::Location* location,
+                     BreakpointId* id) const;
 };
 
 // Specialization for wasm Scripts.
@@ -173,11 +176,15 @@ class DebugDelegate {
   virtual ~DebugDelegate() {}
   virtual void PromiseEventOccurred(debug::PromiseDebugActionType type, int id,
                                     int parent_id, bool created_by_user) {}
-  virtual void ScriptCompiled(v8::Local<Script> script,
+  virtual void ScriptCompiled(v8::Local<Script> script, bool is_live_edited,
                               bool has_compile_error) {}
-  virtual void BreakProgramRequested(v8::Local<v8::Context> paused_context,
-                                     v8::Local<v8::Object> exec_state,
-                                     v8::Local<v8::Value> break_points_hit) {}
+  // |break_points_hit| contains installed by JS debug API breakpoint objects.
+  // |inspector_break_points_hit| contains id of breakpoints installed with
+  // debug::Script::SetBreakpoint API.
+  virtual void BreakProgramRequested(
+      v8::Local<v8::Context> paused_context, v8::Local<v8::Object> exec_state,
+      v8::Local<v8::Value> break_points_hit,
+      const std::vector<debug::BreakpointId>& inspector_break_points_hit) {}
   virtual void ExceptionThrown(v8::Local<v8::Context> paused_context,
                                v8::Local<v8::Object> exec_state,
                                v8::Local<v8::Value> exception,
@@ -319,6 +326,81 @@ class V8_EXPORT_PRIVATE Coverage {
   explicit Coverage(i::Coverage* coverage) : coverage_(coverage) {}
   i::Coverage* coverage_;
 };
+
+class ScopeIterator {
+ public:
+  static std::unique_ptr<ScopeIterator> CreateForFunction(
+      v8::Isolate* isolate, v8::Local<v8::Function> func);
+  static std::unique_ptr<ScopeIterator> CreateForGeneratorObject(
+      v8::Isolate* isolate, v8::Local<v8::Object> generator);
+
+  ScopeIterator() = default;
+  virtual ~ScopeIterator() = default;
+
+  enum ScopeType {
+    ScopeTypeGlobal = 0,
+    ScopeTypeLocal,
+    ScopeTypeWith,
+    ScopeTypeClosure,
+    ScopeTypeCatch,
+    ScopeTypeBlock,
+    ScopeTypeScript,
+    ScopeTypeEval,
+    ScopeTypeModule
+  };
+
+  virtual bool Done() = 0;
+  virtual void Advance() = 0;
+  virtual ScopeType GetType() = 0;
+  virtual v8::Local<v8::Object> GetObject() = 0;
+  virtual v8::Local<v8::Function> GetFunction() = 0;
+  virtual debug::Location GetStartLocation() = 0;
+  virtual debug::Location GetEndLocation() = 0;
+
+  virtual bool SetVariableValue(v8::Local<v8::String> name,
+                                v8::Local<v8::Value> value) = 0;
+
+ private:
+  DISALLOW_COPY_AND_ASSIGN(ScopeIterator);
+};
+
+class StackTraceIterator {
+ public:
+  static std::unique_ptr<StackTraceIterator> Create(Isolate* isolate,
+                                                    int index = 0);
+  StackTraceIterator() = default;
+  virtual ~StackTraceIterator() = default;
+
+  virtual bool Done() const = 0;
+  virtual void Advance() = 0;
+
+  virtual int GetContextId() const = 0;
+  virtual v8::Local<v8::Value> GetReceiver() const = 0;
+  virtual v8::Local<v8::Value> GetReturnValue() const = 0;
+  virtual v8::Local<v8::String> GetFunctionName() const = 0;
+  virtual v8::Local<v8::debug::Script> GetScript() const = 0;
+  virtual debug::Location GetSourceLocation() const = 0;
+  virtual v8::Local<v8::Function> GetFunction() const = 0;
+  virtual std::unique_ptr<ScopeIterator> GetScopeIterator() const = 0;
+
+  virtual bool Restart() = 0;
+  virtual v8::MaybeLocal<v8::Value> Evaluate(v8::Local<v8::String> source,
+                                             bool throw_on_side_effect) = 0;
+
+ private:
+  DISALLOW_COPY_AND_ASSIGN(StackTraceIterator);
+};
+
+class QueryObjectPredicate {
+ public:
+  virtual ~QueryObjectPredicate() = default;
+  virtual bool Filter(v8::Local<v8::Object> object) = 0;
+};
+
+void QueryObjects(v8::Local<v8::Context> context,
+                  QueryObjectPredicate* predicate,
+                  v8::PersistentValueVector<v8::Object>* objects);
+
 }  // namespace debug
 }  // namespace v8
 

@@ -298,24 +298,6 @@ UnaryMathFunctionWithIsolate CreateSqrtFunction(Isolate* isolate) {
 
 #undef __
 
-
-// -------------------------------------------------------------------------
-// Platform-specific RuntimeCallHelper functions.
-
-void StubRuntimeCallHelper::BeforeCall(MacroAssembler* masm) const {
-  masm->EnterFrame(StackFrame::INTERNAL);
-  DCHECK(!masm->has_frame());
-  masm->set_has_frame(true);
-}
-
-
-void StubRuntimeCallHelper::AfterCall(MacroAssembler* masm) const {
-  masm->LeaveFrame(StackFrame::INTERNAL);
-  DCHECK(masm->has_frame());
-  masm->set_has_frame(false);
-}
-
-
 // -------------------------------------------------------------------------
 // Code generators
 
@@ -415,67 +397,6 @@ void StringCharLoadGenerator::Generate(MacroAssembler* masm,
 }
 
 #undef __
-
-#ifdef DEBUG
-// add(r0, pc, Operand(-8))
-static const uint32_t kCodeAgePatchFirstInstruction = 0xe24f0008;
-#endif
-
-CodeAgingHelper::CodeAgingHelper(Isolate* isolate) {
-  USE(isolate);
-  DCHECK(young_sequence_.length() == kNoCodeAgeSequenceLength);
-  // Since patcher is a large object, allocate it dynamically when needed,
-  // to avoid overloading the stack in stress conditions.
-  // DONT_FLUSH is used because the CodeAgingHelper is initialized early in
-  // the process, before ARM simulator ICache is setup.
-  std::unique_ptr<CodePatcher> patcher(
-      new CodePatcher(isolate, young_sequence_.start(),
-                      young_sequence_.length() / Assembler::kInstrSize,
-                      CodePatcher::DONT_FLUSH));
-  PredictableCodeSizeScope scope(patcher->masm(), young_sequence_.length());
-  patcher->masm()->PushStandardFrame(r1);
-  patcher->masm()->nop(ip.code());
-}
-
-
-#ifdef DEBUG
-bool CodeAgingHelper::IsOld(byte* candidate) const {
-  return Memory::uint32_at(candidate) == kCodeAgePatchFirstInstruction;
-}
-#endif
-
-
-bool Code::IsYoungSequence(Isolate* isolate, byte* sequence) {
-  bool result = isolate->code_aging_helper()->IsYoung(sequence);
-  DCHECK(result || isolate->code_aging_helper()->IsOld(sequence));
-  return result;
-}
-
-Code::Age Code::GetCodeAge(Isolate* isolate, byte* sequence) {
-  if (IsYoungSequence(isolate, sequence)) return kNoAgeCodeAge;
-
-  Address target_address = Memory::Address_at(
-      sequence + (kNoCodeAgeSequenceLength - Assembler::kInstrSize));
-  Code* stub = GetCodeFromTargetAddress(target_address);
-  return GetAgeOfCodeAgeStub(stub);
-}
-
-void Code::PatchPlatformCodeAge(Isolate* isolate, byte* sequence,
-                                Code::Age age) {
-  uint32_t young_length = isolate->code_aging_helper()->young_sequence_length();
-  if (age == kNoAgeCodeAge) {
-    isolate->code_aging_helper()->CopyYoungSequenceTo(sequence);
-    Assembler::FlushICache(isolate, sequence, young_length);
-  } else {
-    Code* stub = GetCodeAgeStub(isolate, age);
-    PatchingAssembler patcher(Assembler::IsolateData(isolate), sequence,
-                              young_length / Assembler::kInstrSize);
-    patcher.add(r0, pc, Operand(-8));
-    patcher.ldr(pc, MemOperand(pc, -4));
-    patcher.emit_code_stub_address(stub);
-    patcher.FlushICache(isolate);
-  }
-}
 
 }  // namespace internal
 }  // namespace v8

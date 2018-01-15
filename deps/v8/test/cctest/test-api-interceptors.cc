@@ -102,7 +102,7 @@ void StringInterceptorGetter(
     Local<String> name,
     const v8::PropertyCallbackInfo<v8::Value>&
         info) {  // Intercept names that start with 'interceptor_'.
-  String::Utf8Value utf8(name);
+  String::Utf8Value utf8(info.GetIsolate(), name);
   char* name_str = *utf8;
   char prefix[] = "interceptor_";
   int i;
@@ -122,7 +122,7 @@ void StringInterceptorSetter(Local<String> name, Local<Value> value,
                              const v8::PropertyCallbackInfo<v8::Value>& info) {
   // Intercept accesses that set certain integer values, for which the name does
   // not start with 'accessor_'.
-  String::Utf8Value utf8(name);
+  String::Utf8Value utf8(info.GetIsolate(), name);
   char* name_str = *utf8;
   char prefix[] = "accessor_";
   int i;
@@ -161,7 +161,7 @@ void GenericInterceptorGetter(Local<Name> generic_name,
     str = String::Concat(v8_str("_sym_"), Local<String>::Cast(name));
   } else {
     Local<String> name = Local<String>::Cast(generic_name);
-    String::Utf8Value utf8(name);
+    String::Utf8Value utf8(info.GetIsolate(), name);
     char* name_str = *utf8;
     if (*name_str == '_') return;
     str = String::Concat(v8_str("_str_"), name);
@@ -181,7 +181,7 @@ void GenericInterceptorSetter(Local<Name> generic_name, Local<Value> value,
     str = String::Concat(v8_str("_sym_"), Local<String>::Cast(name));
   } else {
     Local<String> name = Local<String>::Cast(generic_name);
-    String::Utf8Value utf8(name);
+    String::Utf8Value utf8(info.GetIsolate(), name);
     char* name_str = *utf8;
     if (*name_str == '_') return;
     str = String::Concat(v8_str("_str_"), name);
@@ -1587,7 +1587,7 @@ THREADED_TEST(NamedPropertyHandlerGetter) {
   CHECK_EQ(1, echo_named_call_count);
   const char* code = "var str = 'oddle'; obj[str] + obj.poddle;";
   v8::Local<Value> str = CompileRun(code);
-  String::Utf8Value value(str);
+  String::Utf8Value value(CcTest::isolate(), str);
   CHECK_EQ(0, strcmp(*value, "oddlepoddle"));
   // Check default behavior
   CHECK_EQ(10, v8_compile("obj.flob = 10;")

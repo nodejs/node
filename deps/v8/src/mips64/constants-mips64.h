@@ -276,7 +276,13 @@ const int kBp2Shift = 6;
 const int kBp2Bits = 2;
 const int kBp3Shift = 6;
 const int kBp3Bits = 3;
+const int kBaseShift = 21;
+const int kBaseBits = 5;
+const int kBit6Shift = 6;
+const int kBit6Bits = 1;
 
+const int kImm9Shift = 7;
+const int kImm9Bits = 9;
 const int kImm16Shift = 0;
 const int kImm16Bits = 16;
 const int kImm18Shift = 0;
@@ -328,6 +334,7 @@ const int kWdShift = 6;
 // ----- Miscellaneous useful masks.
 // Instruction bit masks.
 const int kOpcodeMask = ((1 << kOpcodeBits) - 1) << kOpcodeShift;
+const int kImm9Mask = ((1 << kImm9Bits) - 1) << kImm9Shift;
 const int kImm16Mask = ((1 << kImm16Bits) - 1) << kImm16Shift;
 const int kImm18Mask = ((1 << kImm18Bits) - 1) << kImm18Shift;
 const int kImm19Mask = ((1 << kImm19Bits) - 1) << kImm19Shift;
@@ -421,6 +428,7 @@ enum Opcode : uint32_t {
   SDR = ((5U << 3) + 5) << kOpcodeShift,
   SWR = ((5U << 3) + 6) << kOpcodeShift,
 
+  LL = ((6U << 3) + 0) << kOpcodeShift,
   LWC1 = ((6U << 3) + 1) << kOpcodeShift,
   BC = ((6U << 3) + 2) << kOpcodeShift,
   LLD = ((6U << 3) + 4) << kOpcodeShift,
@@ -430,6 +438,7 @@ enum Opcode : uint32_t {
 
   PREF = ((6U << 3) + 3) << kOpcodeShift,
 
+  SC = ((7U << 3) + 0) << kOpcodeShift,
   SWC1 = ((7U << 3) + 1) << kOpcodeShift,
   BALC = ((7U << 3) + 2) << kOpcodeShift,
   PCREL = ((7U << 3) + 3) << kOpcodeShift,
@@ -557,6 +566,10 @@ enum SecondaryField : uint32_t {
 
   BSHFL = ((4U << 3) + 0),
   DBSHFL = ((4U << 3) + 4),
+  SC_R6 = ((4U << 3) + 6),
+  SCD_R6 = ((4U << 3) + 7),
+  LL_R6 = ((6U << 3) + 6),
+  LLD_R6 = ((6U << 3) + 7),
 
   // SPECIAL3 Encoding of sa Field.
   BITSWAP = ((0U << 3) + 0),
@@ -1442,6 +1455,11 @@ class InstructionGetters : public T {
     return this->Bits(kRdShift + kRdBits - 1, kRdShift);
   }
 
+  inline int BaseValue() const {
+    DCHECK(this->InstructionType() == InstructionBase::kImmediateType);
+    return this->Bits(kBaseShift + kBaseBits - 1, kBaseShift);
+  }
+
   inline int SaValue() const {
     DCHECK(this->InstructionType() == InstructionBase::kRegisterType);
     return this->Bits(kSaShift + kSaBits - 1, kSaShift);
@@ -1565,6 +1583,11 @@ class InstructionGetters : public T {
   inline int32_t ImmValue(int bits) const {
     DCHECK(this->InstructionType() == InstructionBase::kImmediateType);
     return this->Bits(bits - 1, 0);
+  }
+
+  inline int32_t Imm9Value() const {
+    DCHECK(this->InstructionType() == InstructionBase::kImmediateType);
+    return this->Bits(kImm9Shift + kImm9Bits - 1, kImm9Shift);
   }
 
   inline int32_t Imm16Value() const {
@@ -1776,6 +1799,13 @@ InstructionBase::Type InstructionBase::InstructionType() const {
             default:
               return kUnsupported;
           }
+        }
+        case LL_R6:
+        case LLD_R6:
+        case SC_R6:
+        case SCD_R6: {
+          DCHECK(kArchVariant == kMips64r6);
+          return kImmediateType;
         }
         case DBSHFL: {
           int sa = SaFieldRaw() >> kSaShift;

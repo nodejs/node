@@ -8,7 +8,6 @@
 #include "src/macro-assembler.h"
 #include "src/regexp/regexp-macro-assembler.h"
 #include "src/s390/assembler-s390.h"
-#include "src/s390/frames-s390.h"
 
 namespace v8 {
 namespace internal {

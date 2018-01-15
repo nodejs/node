@@ -4,7 +4,7 @@
 
 // Flags: --allow-natives-syntax
 
-const maxLength = 268435440;
+const maxLength = %StringMaxLength();
 const s = 'A'.repeat(maxLength);
 
 function foo(s) {

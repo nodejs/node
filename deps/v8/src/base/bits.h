@@ -333,7 +333,7 @@ FromCheckedNumeric(const internal::CheckedNumeric<int64_t> value);
 // checks and returns the result.
 V8_BASE_EXPORT int64_t SignedSaturatedAdd64(int64_t lhs, int64_t rhs);
 
-// SignedSaturatedSub64(lhs, rhs) substracts |lhs| by |rhs|,
+// SignedSaturatedSub64(lhs, rhs) subtracts |lhs| by |rhs|,
 // checks and returns the result.
 V8_BASE_EXPORT int64_t SignedSaturatedSub64(int64_t lhs, int64_t rhs);
 

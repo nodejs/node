@@ -355,7 +355,8 @@ def read_stats(path, domain, args):
         ('Group-Parse', re.compile(".*Parse.*")),
         ('Group-Callback', re.compile(".*Callback.*")),
         ('Group-API', re.compile(".*API.*")),
-        ('Group-GC', re.compile("GC|AllocateInTargetSpace")),
+        ('Group-GC-Custom', re.compile("GC_Custom_.*")),
+        ('Group-GC', re.compile("GC_.*|AllocateInTargetSpace")),
         ('Group-JavaScript', re.compile("JS_Execution")),
         ('Group-Runtime', re.compile(".*"))]
   with open(path, "rt") as f:

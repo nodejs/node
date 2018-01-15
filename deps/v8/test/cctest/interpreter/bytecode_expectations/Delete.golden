@@ -14,7 +14,7 @@ parameter count: 1
 bytecode array length: 14
 bytecodes: [
   /*   30 E> */ B(StackCheck),
-  /*   42 S> */ B(CreateObjectLiteral), U8(0), U8(3), U8(41), R(1),
+  /*   42 S> */ B(CreateObjectLiteral), U8(0), U8(0), U8(41), R(1),
                 B(Mov), R(1), R(0),
   /*   56 S> */ B(LdaConstant), U8(1),
                 B(DeletePropertySloppy), R(1),
@@ -36,7 +36,7 @@ parameter count: 1
 bytecode array length: 14
 bytecodes: [
   /*   30 E> */ B(StackCheck),
-  /*   56 S> */ B(CreateObjectLiteral), U8(0), U8(3), U8(41), R(1),
+  /*   56 S> */ B(CreateObjectLiteral), U8(0), U8(0), U8(41), R(1),
                 B(Mov), R(1), R(0),
   /*   70 S> */ B(LdaConstant), U8(1),
                 B(DeletePropertyStrict), R(1),
@@ -58,7 +58,7 @@ parameter count: 1
 bytecode array length: 14
 bytecodes: [
   /*   30 E> */ B(StackCheck),
-  /*   42 S> */ B(CreateObjectLiteral), U8(0), U8(3), U8(41), R(1),
+  /*   42 S> */ B(CreateObjectLiteral), U8(0), U8(0), U8(41), R(1),
                 B(Mov), R(1), R(0),
   /*   56 S> */ B(LdaSmi), I8(2),
                 B(DeletePropertySloppy), R(1),
@@ -103,10 +103,10 @@ bytecodes: [
                 B(CreateFunctionContext), U8(1),
                 B(PushContext), R(0),
   /*   30 E> */ B(StackCheck),
-  /*   56 S> */ B(CreateObjectLiteral), U8(0), U8(3), U8(41), R(1),
+  /*   56 S> */ B(CreateObjectLiteral), U8(0), U8(0), U8(41), R(1),
                 B(Ldar), R(1),
   /*   56 E> */ B(StaCurrentContextSlot), U8(4),
-  /*   64 S> */ B(CreateClosure), U8(1), U8(4), U8(2),
+  /*   64 S> */ B(CreateClosure), U8(1), U8(1), U8(2),
   /*   93 S> */ B(LdaImmutableCurrentContextSlot), U8(4),
                 B(Star), R(1),
                 B(LdaSmi), I8(1),

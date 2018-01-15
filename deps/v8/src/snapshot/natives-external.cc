@@ -5,8 +5,6 @@
 #include "src/snapshot/natives.h"
 
 #include "src/base/logging.h"
-#include "src/list.h"
-#include "src/list-inl.h"
 #include "src/snapshot/snapshot-source-sink.h"
 #include "src/vector.h"
 
@@ -29,12 +27,12 @@ namespace internal {
 class NativesStore {
  public:
   ~NativesStore() {
-    for (int i = 0; i < native_names_.length(); i++) {
+    for (size_t i = 0; i < native_names_.size(); i++) {
       native_names_[i].Dispose();
     }
   }
 
-  int GetBuiltinsCount() { return native_ids_.length(); }
+  int GetBuiltinsCount() { return static_cast<int>(native_ids_.size()); }
   int GetDebuggerCount() { return debugger_count_; }
 
   Vector<const char> GetScriptSource(int index) {
@@ -44,20 +42,18 @@ class NativesStore {
   Vector<const char> GetScriptName(int index) { return native_names_[index]; }
 
   int GetIndex(const char* id) {
-    for (int i = 0; i < native_ids_.length(); ++i) {
+    for (int i = 0; i < static_cast<int>(native_ids_.size()); ++i) {
       int native_id_length = native_ids_[i].length();
       if ((static_cast<int>(strlen(id)) == native_id_length) &&
           (strncmp(id, native_ids_[i].start(), native_id_length) == 0)) {
         return i;
       }
     }
-    DCHECK(false);
-    return -1;
+    UNREACHABLE();
   }
 
   Vector<const char> GetScriptsSource() {
-    DCHECK(false);  // Not implemented.
-    return Vector<const char>();
+    UNREACHABLE();  // Not implemented.
   }
 
   static NativesStore* MakeFromScriptsSource(SnapshotByteSource* source) {
@@ -98,17 +94,15 @@ class NativesStore {
     const byte* source;
     int id_length = bytes->GetBlob(&id);
     int source_length = bytes->GetBlob(&source);
-    Vector<const char> id_vector(reinterpret_cast<const char*>(id), id_length);
-    Vector<const char> source_vector(reinterpret_cast<const char*>(source),
-                                     source_length);
-    native_ids_.Add(id_vector);
-    native_source_.Add(source_vector);
-    native_names_.Add(NameFromId(id, id_length));
+    native_ids_.emplace_back(reinterpret_cast<const char*>(id), id_length);
+    native_source_.emplace_back(reinterpret_cast<const char*>(source),
+                                source_length);
+    native_names_.push_back(NameFromId(id, id_length));
   }
 
-  List<Vector<const char> > native_ids_;
-  List<Vector<const char> > native_names_;
-  List<Vector<const char> > native_source_;
+  std::vector<Vector<const char>> native_ids_;
+  std::vector<Vector<const char>> native_names_;
+  std::vector<Vector<const char>> native_source_;
   int debugger_count_;
 
   DISALLOW_COPY_AND_ASSIGN(NativesStore);

@@ -60,7 +60,8 @@ class MachineRepresentationInferrer {
         CHECK_LE(index, static_cast<size_t>(1));
         return index == 0 ? MachineRepresentation::kWord64
                           : MachineRepresentation::kBit;
-      case IrOpcode::kCall: {
+      case IrOpcode::kCall:
+      case IrOpcode::kCallWithCallerSavedRegisters: {
         CallDescriptor const* desc = CallDescriptorOf(input->op());
         return desc->GetReturnType(index).representation();
       }
@@ -133,7 +134,8 @@ class MachineRepresentationInferrer {
             representation_vector_[node->id()] =
                 PhiRepresentationOf(node->op());
             break;
-          case IrOpcode::kCall: {
+          case IrOpcode::kCall:
+          case IrOpcode::kCallWithCallerSavedRegisters: {
             CallDescriptor const* desc = CallDescriptorOf(node->op());
             if (desc->ReturnCount() > 0) {
               representation_vector_[node->id()] =
@@ -310,6 +312,7 @@ class MachineRepresentationChecker {
         }
         switch (node->opcode()) {
           case IrOpcode::kCall:
+          case IrOpcode::kCallWithCallerSavedRegisters:
           case IrOpcode::kTailCall:
             CheckCallInputs(node);
             break;
@@ -446,6 +449,9 @@ class MachineRepresentationChecker {
 #undef LABEL
           case IrOpcode::kParameter:
           case IrOpcode::kProjection:
+            break;
+          case IrOpcode::kDebugAbort:
+            CheckValueInputIsTagged(node, 0);
             break;
           case IrOpcode::kLoad:
           case IrOpcode::kAtomicLoad:

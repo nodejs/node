@@ -58,7 +58,6 @@ class JSNativeContextSpecialization final : public AdvancedReducer {
 
  private:
   Reduction ReduceJSAdd(Node* node);
-  Reduction ReduceJSStringConcat(Node* node);
   Reduction ReduceJSGetSuperConstructor(Node* node);
   Reduction ReduceJSInstanceOf(Node* node);
   Reduction ReduceJSHasInPrototypeChain(Node* node);

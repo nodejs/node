@@ -54,8 +54,7 @@ void Assembler::emitw(uint16_t x) {
 }
 
 void Assembler::emit_code_target(Handle<Code> target, RelocInfo::Mode rmode) {
-  DCHECK(RelocInfo::IsCodeTarget(rmode) ||
-      rmode == RelocInfo::CODE_AGE_SEQUENCE);
+  DCHECK(RelocInfo::IsCodeTarget(rmode));
   RecordRelocInfo(rmode);
   int current = code_targets_.length();
   if (current > 0 && !target.is_null() &&
@@ -322,11 +321,6 @@ Address Assembler::runtime_entry_at(Address pc) {
 void RelocInfo::apply(intptr_t delta) {
   if (IsCodeTarget(rmode_) || IsRuntimeEntry(rmode_)) {
     Memory::int32_at(pc_) -= static_cast<int32_t>(delta);
-  } else if (IsCodeAgeSequence(rmode_)) {
-    if (*pc_ == kCallOpcode) {
-      int32_t* p = reinterpret_cast<int32_t*>(pc_ + 1);
-      *p -= static_cast<int32_t>(delta);  // Relocate entry.
-    }
   } else if (IsInternalReference(rmode_)) {
     // absolute code pointer inside code object moves with the code object.
     Memory::Address_at(pc_) += delta;
@@ -422,36 +416,6 @@ void RelocInfo::set_target_runtime_entry(Isolate* isolate, Address target,
   }
 }
 
-
-Handle<Cell> RelocInfo::target_cell_handle() {
-  DCHECK(rmode_ == RelocInfo::CELL);
-  Address address = Memory::Address_at(pc_);
-  return Handle<Cell>(reinterpret_cast<Cell**>(address));
-}
-
-
-Cell* RelocInfo::target_cell() {
-  DCHECK(rmode_ == RelocInfo::CELL);
-  return Cell::FromValueAddress(Memory::Address_at(pc_));
-}
-
-
-void RelocInfo::set_target_cell(Cell* cell,
-                                WriteBarrierMode write_barrier_mode,
-                                ICacheFlushMode icache_flush_mode) {
-  DCHECK(rmode_ == RelocInfo::CELL);
-  Address address = cell->address() + Cell::kValueOffset;
-  Memory::Address_at(pc_) = address;
-  if (icache_flush_mode != SKIP_ICACHE_FLUSH) {
-    Assembler::FlushICache(cell->GetIsolate(), pc_, sizeof(Address));
-  }
-  if (write_barrier_mode == UPDATE_WRITE_BARRIER &&
-      host() != NULL) {
-    host()->GetHeap()->incremental_marking()->RecordWriteIntoCode(host(), this,
-                                                                  cell);
-  }
-}
-
 void RelocInfo::WipeOut(Isolate* isolate) {
   if (IsEmbeddedObject(rmode_) || IsExternalReference(rmode_) ||
       IsInternalReference(rmode_)) {
@@ -465,50 +429,6 @@ void RelocInfo::WipeOut(Isolate* isolate) {
   }
 }
 
-Handle<Code> RelocInfo::code_age_stub_handle(Assembler* origin) {
-  DCHECK(rmode_ == RelocInfo::CODE_AGE_SEQUENCE);
-  DCHECK(*pc_ == kCallOpcode);
-  return origin->code_target_object_handle_at(pc_ + 1);
-}
-
-
-Code* RelocInfo::code_age_stub() {
-  DCHECK(rmode_ == RelocInfo::CODE_AGE_SEQUENCE);
-  DCHECK(*pc_ == kCallOpcode);
-  return Code::GetCodeFromTargetAddress(
-      Assembler::target_address_at(pc_ + 1, host_));
-}
-
-
-void RelocInfo::set_code_age_stub(Code* stub,
-                                  ICacheFlushMode icache_flush_mode) {
-  DCHECK(*pc_ == kCallOpcode);
-  DCHECK(rmode_ == RelocInfo::CODE_AGE_SEQUENCE);
-  Assembler::set_target_address_at(stub->GetIsolate(), pc_ + 1, host_,
-                                   stub->instruction_start(),
-                                   icache_flush_mode);
-}
-
-
-Address RelocInfo::debug_call_address() {
-  DCHECK(IsDebugBreakSlot(rmode()) && IsPatchedDebugBreakSlotSequence());
-  return Memory::Address_at(pc_ + Assembler::kPatchDebugBreakSlotAddressOffset);
-}
-
-void RelocInfo::set_debug_call_address(Isolate* isolate, Address target) {
-  DCHECK(IsDebugBreakSlot(rmode()) && IsPatchedDebugBreakSlotSequence());
-  Memory::Address_at(pc_ + Assembler::kPatchDebugBreakSlotAddressOffset) =
-      target;
-  Assembler::FlushICache(isolate,
-                         pc_ + Assembler::kPatchDebugBreakSlotAddressOffset,
-                         sizeof(Address));
-  if (host() != NULL) {
-    Code* target_code = Code::GetCodeFromTargetAddress(target);
-    host()->GetHeap()->incremental_marking()->RecordWriteIntoCode(host(), this,
-                                                                  target_code);
-  }
-}
-
 template <typename ObjectVisitor>
 void RelocInfo::Visit(Isolate* isolate, ObjectVisitor* visitor) {
   RelocInfo::Mode mode = rmode();
@@ -517,47 +437,14 @@ void RelocInfo::Visit(Isolate* isolate, ObjectVisitor* visitor) {
     Assembler::FlushICache(isolate, pc_, sizeof(Address));
   } else if (RelocInfo::IsCodeTarget(mode)) {
     visitor->VisitCodeTarget(host(), this);
-  } else if (mode == RelocInfo::CELL) {
-    visitor->VisitCellPointer(host(), this);
   } else if (mode == RelocInfo::EXTERNAL_REFERENCE) {
     visitor->VisitExternalReference(host(), this);
   } else if (mode == RelocInfo::INTERNAL_REFERENCE) {
     visitor->VisitInternalReference(host(), this);
-  } else if (RelocInfo::IsCodeAgeSequence(mode)) {
-    visitor->VisitCodeAgeSequence(host(), this);
-  } else if (RelocInfo::IsDebugBreakSlot(mode) &&
-             IsPatchedDebugBreakSlotSequence()) {
-    visitor->VisitDebugTarget(host(), this);
   } else if (RelocInfo::IsRuntimeEntry(mode)) {
     visitor->VisitRuntimeEntry(host(), this);
   }
 }
-
-
-template<typename StaticVisitor>
-void RelocInfo::Visit(Heap* heap) {
-  RelocInfo::Mode mode = rmode();
-  if (mode == RelocInfo::EMBEDDED_OBJECT) {
-    StaticVisitor::VisitEmbeddedPointer(heap, this);
-    Assembler::FlushICache(heap->isolate(), pc_, sizeof(Address));
-  } else if (RelocInfo::IsCodeTarget(mode)) {
-    StaticVisitor::VisitCodeTarget(heap, this);
-  } else if (mode == RelocInfo::CELL) {
-    StaticVisitor::VisitCell(heap, this);
-  } else if (mode == RelocInfo::EXTERNAL_REFERENCE) {
-    StaticVisitor::VisitExternalReference(this);
-  } else if (mode == RelocInfo::INTERNAL_REFERENCE) {
-    StaticVisitor::VisitInternalReference(this);
-  } else if (RelocInfo::IsCodeAgeSequence(mode)) {
-    StaticVisitor::VisitCodeAgeSequence(heap, this);
-  } else if (RelocInfo::IsDebugBreakSlot(mode) &&
-             IsPatchedDebugBreakSlotSequence()) {
-    StaticVisitor::VisitDebugTarget(heap, this);
-  } else if (RelocInfo::IsRuntimeEntry(mode)) {
-    StaticVisitor::VisitRuntimeEntry(this);
-  }
-}
-
 
 // -----------------------------------------------------------------------------
 // Implementation of Operand

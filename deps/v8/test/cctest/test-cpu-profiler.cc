@@ -265,21 +265,21 @@ TEST(TickEvents) {
   CHECK(profile);
 
   // Check call trees.
-  const i::List<ProfileNode*>* top_down_root_children =
+  const std::vector<ProfileNode*>* top_down_root_children =
       profile->top_down()->root()->children();
-  CHECK_EQ(1, top_down_root_children->length());
-  CHECK_EQ(0, strcmp("bbb", top_down_root_children->last()->entry()->name()));
-  const i::List<ProfileNode*>* top_down_bbb_children =
-      top_down_root_children->last()->children();
-  CHECK_EQ(1, top_down_bbb_children->length());
-  CHECK_EQ(0, strcmp("5", top_down_bbb_children->last()->entry()->name()));
-  const i::List<ProfileNode*>* top_down_stub_children =
-      top_down_bbb_children->last()->children();
-  CHECK_EQ(1, top_down_stub_children->length());
-  CHECK_EQ(0, strcmp("ddd", top_down_stub_children->last()->entry()->name()));
-  const i::List<ProfileNode*>* top_down_ddd_children =
-      top_down_stub_children->last()->children();
-  CHECK_EQ(0, top_down_ddd_children->length());
+  CHECK_EQ(1, top_down_root_children->size());
+  CHECK_EQ(0, strcmp("bbb", top_down_root_children->back()->entry()->name()));
+  const std::vector<ProfileNode*>* top_down_bbb_children =
+      top_down_root_children->back()->children();
+  CHECK_EQ(1, top_down_bbb_children->size());
+  CHECK_EQ(0, strcmp("5", top_down_bbb_children->back()->entry()->name()));
+  const std::vector<ProfileNode*>* top_down_stub_children =
+      top_down_bbb_children->back()->children();
+  CHECK_EQ(1, top_down_stub_children->size());
+  CHECK_EQ(0, strcmp("ddd", top_down_stub_children->back()->entry()->name()));
+  const std::vector<ProfileNode*>* top_down_ddd_children =
+      top_down_stub_children->back()->children();
+  CHECK(top_down_ddd_children->empty());
 
   isolate->code_event_dispatcher()->RemoveListener(&profiler_listener);
 }
@@ -337,8 +337,8 @@ TEST(Issue1398) {
 
   unsigned actual_depth = 0;
   const ProfileNode* node = profile->top_down()->root();
-  while (node->children()->length() > 0) {
-    node = node->children()->last();
+  while (!node->children()->empty()) {
+    node = node->children()->back();
     ++actual_depth;
   }
 
@@ -1903,7 +1903,6 @@ TEST(CollectDeoptEvents) {
 
 TEST(SourceLocation) {
   i::FLAG_always_opt = true;
-  i::FLAG_hydrogen_track_positions = true;
   LocalContext env;
   v8::HandleScope scope(CcTest::isolate());
 
@@ -2186,37 +2185,9 @@ TEST(TracingCpuProfiler) {
   std::string code = profile_checker + profile_json + ")";
   v8::Local<v8::Value> result =
       CompileRunChecked(CcTest::isolate(), code.c_str());
-  v8::String::Utf8Value value(result);
+  v8::String::Utf8Value value(CcTest::isolate(), result);
   printf("Check result: %*s\n", value.length(), *value);
   CHECK_EQ(0, value.length());
 
   i::V8::SetPlatformForTesting(old_platform);
-}
-
-TEST(CodeEntriesMemoryLeak) {
-  v8::HandleScope scope(CcTest::isolate());
-  v8::Local<v8::Context> env = CcTest::NewContext(PROFILER_EXTENSION);
-  v8::Context::Scope context_scope(env);
-
-  std::string source = "function start() {}\n";
-  for (int i = 0; i < 1000; ++i) {
-    source += "function foo" + std::to_string(i) + "() { return " +
-              std::to_string(i) +
-              "; }\n"
-              "foo" +
-              std::to_string(i) + "();\n";
-  }
-  CompileRun(source.c_str());
-  v8::Local<v8::Function> function = GetFunction(env, "start");
-
-  ProfilerHelper helper(env);
-
-  for (int j = 0; j < 100; ++j) {
-    v8::CpuProfile* profile = helper.Run(function, nullptr, 0);
-    profile->Delete();
-  }
-  ProfilerListener* profiler_listener =
-      CcTest::i_isolate()->logger()->profiler_listener();
-
-  CHECK_GE(10000ul, profiler_listener->entries_count_for_test());
 }

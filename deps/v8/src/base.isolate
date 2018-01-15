@@ -24,14 +24,6 @@
         ],
       },
     }],
-    ['OS=="linux" and (asan==1 or cfi_vptr==1 or msan==1 or tsan==1)', {
-      'variables': {
-        'files': [
-          # For llvm-symbolizer.
-          '../third_party/llvm-build/Release+Asserts/lib/libstdc++.so.6',
-        ],
-      },
-    }],
     ['asan==1 or cfi_vptr==1 or msan==1 or tsan==1', {
       'variables': {
         'files': [

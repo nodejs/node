@@ -94,6 +94,20 @@
   assertEquals('b1', instance2.arg2);
 })();
 
+(function testConstructTrapNonConstructor() {
+  function target() {
+  };
+  var p = new Proxy(target, {
+    construct: function() {
+      return 0;
+    }
+  });
+
+  assertThrows(function() {
+    new p();
+  }, TypeError);
+})();
+
 (function testConstructCrossRealm() {
   var realm1 = Realm.create();
   var handler = {

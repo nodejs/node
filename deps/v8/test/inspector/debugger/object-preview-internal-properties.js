@@ -8,6 +8,8 @@ Protocol.Debugger.enable();
 Protocol.Runtime.enable();
 Protocol.Runtime.onConsoleAPICalled(dumpInternalPropertiesAndEntries);
 
+contextGroup.setupInjectedScriptEnvironment();
+
 InspectorTest.runTestSuite([
   function boxedObjects(next)
   {
@@ -95,10 +97,8 @@ function dumpInternalPropertiesAndEntries(message)
     InspectorTest.logMessage(message);
     return;
   }
-  for (var property of properties) {
-    if (property.name.startsWith("[["))
-      InspectorTest.logMessage(property);
-  }
+  for (var property of properties)
+    InspectorTest.logMessage(property);
   if (entries) {
     InspectorTest.log("[[Entries]]:");
     InspectorTest.logMessage(entries);

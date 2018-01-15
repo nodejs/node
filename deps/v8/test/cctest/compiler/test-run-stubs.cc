@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "src/bootstrapper.h"
+#include "src/callable.h"
 #include "src/code-stubs.h"
 #include "src/compilation-info.h"
 #include "src/compiler/common-operator.h"
@@ -19,54 +20,105 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
+class StubTester {
+ public:
+  StubTester(Isolate* isolate, Zone* zone, CodeStub* stub)
+      : zone_(zone),
+        info_(ArrayVector("test"), isolate, zone,
+              Code::ComputeFlags(Code::HANDLER)),
+        interface_descriptor_(stub->GetCallInterfaceDescriptor()),
+        descriptor_(Linkage::GetStubCallDescriptor(
+            isolate, zone, interface_descriptor_,
+            stub->GetStackParameterCount(), CallDescriptor::kNoFlags,
+            Operator::kNoProperties)),
+        graph_(zone_),
+        common_(zone_),
+        tester_(InitializeFunctionTester(stub->GetCode()),
+                GetParameterCountWithContext()) {}
+
+  StubTester(Isolate* isolate, Zone* zone, Builtins::Name name)
+      : zone_(zone),
+        info_(ArrayVector("test"), isolate, zone,
+              Code::ComputeFlags(Code::HANDLER)),
+        interface_descriptor_(
+            Builtins::CallableFor(isolate, name).descriptor()),
+        descriptor_(Linkage::GetStubCallDescriptor(
+            isolate, zone, interface_descriptor_,
+            interface_descriptor_.GetStackParameterCount(),
+            CallDescriptor::kNoFlags, Operator::kNoProperties)),
+        graph_(zone_),
+        common_(zone_),
+        tester_(InitializeFunctionTester(
+                    Handle<Code>(isolate->builtins()->builtin(name))),
+                GetParameterCountWithContext()) {}
+
+  template <typename... Args>
+  Handle<Object> Call(Args... args) {
+    DCHECK_EQ(interface_descriptor_.GetParameterCount(), sizeof...(args));
+    MaybeHandle<Object> result =
+        tester_.Call(args..., Handle<HeapObject>(tester_.function->context()))
+            .ToHandleChecked();
+    return result.ToHandleChecked();
+  }
+
+  FunctionTester& ft() { return tester_; }
+
+ private:
+  Graph* InitializeFunctionTester(Handle<Code> stub) {
+    // Add target, effect and control.
+    int node_count = GetParameterCountWithContext() + 3;
+    // Add extra inputs for the JSFunction parameter and the receiver (which for
+    // the tester is always undefined) to the start node.
+    Node* start =
+        graph_.NewNode(common_.Start(GetParameterCountWithContext() + 2));
+    Node** node_array = zone_->NewArray<Node*>(node_count);
+    node_array[0] = graph_.NewNode(common_.HeapConstant(stub));
+    for (int i = 0; i < GetParameterCountWithContext(); ++i) {
+      CHECK(IsAnyTagged(descriptor_->GetParameterType(i).representation()));
+      node_array[i + 1] = graph_.NewNode(common_.Parameter(i + 1), start);
+    }
+    node_array[node_count - 2] = start;
+    node_array[node_count - 1] = start;
+    Node* call =
+        graph_.NewNode(common_.Call(descriptor_), node_count, &node_array[0]);
+
+    Node* zero = graph_.NewNode(common_.Int32Constant(0));
+    Node* ret = graph_.NewNode(common_.Return(), zero, call, call, start);
+    Node* end = graph_.NewNode(common_.End(1), ret);
+    graph_.SetStart(start);
+    graph_.SetEnd(end);
+    return &graph_;
+  }
+
+  int GetParameterCountWithContext() {
+    return interface_descriptor_.GetParameterCount() + 1;
+  }
+
+  Zone* zone_;
+  CompilationInfo info_;
+  CallInterfaceDescriptor interface_descriptor_;
+  CallDescriptor* descriptor_;
+  Graph graph_;
+  CommonOperatorBuilder common_;
+  FunctionTester tester_;
+};
 
 TEST(RunStringLengthStub) {
   HandleAndZoneScope scope;
   Isolate* isolate = scope.main_isolate();
   Zone* zone = scope.main_zone();
 
-  // Create code and an accompanying descriptor.
   StringLengthStub stub(isolate);
-  Handle<Code> code = stub.GenerateCode();
-  CompilationInfo info(ArrayVector("test"), isolate, zone,
-                       Code::ComputeFlags(Code::HANDLER));
-  CallInterfaceDescriptor interface_descriptor =
-      stub.GetCallInterfaceDescriptor();
-  CallDescriptor* descriptor = Linkage::GetStubCallDescriptor(
-      isolate, zone, interface_descriptor, stub.GetStackParameterCount(),
-      CallDescriptor::kNoFlags, Operator::kNoProperties);
-
-  // Create a function to call the code using the descriptor.
-  Graph graph(zone);
-  CommonOperatorBuilder common(zone);
-  // FunctionTester (ab)uses a 4-argument function
-  Node* start = graph.NewNode(common.Start(6));
-  // Parameter 0 is the receiver
-  Node* receiverParam = graph.NewNode(common.Parameter(1), start);
-  Node* nameParam = graph.NewNode(common.Parameter(2), start);
-  Node* slotParam = graph.NewNode(common.Parameter(3), start);
-  Node* vectorParam = graph.NewNode(common.Parameter(4), start);
-  Node* theCode = graph.NewNode(common.HeapConstant(code));
-  Node* dummyContext = graph.NewNode(common.NumberConstant(0.0));
-  Node* zero = graph.NewNode(common.Int32Constant(0));
-  Node* call =
-      graph.NewNode(common.Call(descriptor), theCode, receiverParam, nameParam,
-                    slotParam, vectorParam, dummyContext, start, start);
-  Node* ret = graph.NewNode(common.Return(), zero, call, call, start);
-  Node* end = graph.NewNode(common.End(1), ret);
-  graph.SetStart(start);
-  graph.SetEnd(end);
-  FunctionTester ft(&graph, 4);
+  StubTester tester(isolate, zone, &stub);
 
   // Actuall call through to the stub, verifying its result.
   const char* testString = "Und das Lamm schrie HURZ!";
-  Handle<JSReceiver> receiverArg =
-      Object::ToObject(isolate, ft.Val(testString)).ToHandleChecked();
-  Handle<String> nameArg = ft.Val("length");
-  Handle<Object> slot = ft.Val(0.0);
-  Handle<Object> vector = ft.Val(0.0);
-  Handle<Object> result =
-      ft.Call(receiverArg, nameArg, slot, vector).ToHandleChecked();
+  Handle<Object> receiverArg =
+      Object::ToObject(isolate, tester.ft().Val(testString)).ToHandleChecked();
+  Handle<Object> nameArg = tester.ft().Val("length");
+  Handle<Object> slot = tester.ft().Val(0.0);
+  Handle<Object> vector = tester.ft().Val(0.0);
+  Handle<Object> result = tester.Call(receiverArg, nameArg, slot, vector);
   CHECK_EQ(static_cast<int>(strlen(testString)), Smi::ToInt(*result));
 }
 

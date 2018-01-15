@@ -31,39 +31,70 @@ class SourcePositionTable;
 }  // namespace compiler
 
 namespace wasm {
-// Forward declarations for some wasm data structures.
-struct ModuleBytesEnv;
-struct ModuleEnv;
-struct WasmFunction;
-struct WasmModule;
-class ErrorThrower;
 struct DecodeStruct;
-
+class SignatureMap;
 // Expose {Node} and {Graph} opaquely as {wasm::TFNode} and {wasm::TFGraph}.
 typedef compiler::Node TFNode;
 typedef compiler::JSGraph TFGraph;
 }  // namespace wasm
 
 namespace compiler {
+
+// The {ModuleEnv} encapsulates the module data that is used by the
+// {WasmGraphBuilder} during graph building. It represents the parameters to
+// which the  compiled code should be specialized, including which code to call
+// for direct calls {function_code}, which tables to use for indirect calls
+// {function_tables}, memory start address and size {mem_start, mem_size},
+// globals start address {globals_start}, as well as signature maps
+// {signature_maps} and the module itself {module}.
+// ModuleEnvs are shareable across multiple compilations.
+struct ModuleEnv {
+  // A pointer to the decoded module's static representation.
+  const wasm::WasmModule* module;
+  // The function tables are FixedArrays of code used to dispatch indirect
+  // calls. (the same length as module.function_tables). We use the address
+  // to a global handle to the FixedArray.
+  const std::vector<Address> function_tables;
+  // The signatures tables are FixedArrays of SMIs used to check signatures
+  // match at runtime.
+  // (the same length as module.function_tables)
+  //  We use the address to a global handle to the FixedArray.
+  const std::vector<Address> signature_tables;
+  // Signature maps canonicalize {FunctionSig*} to indexes. New entries can be
+  // added to a signature map during graph building.
+  // Normally, these signature maps correspond to the signature maps in the
+  // function tables stored in the {module}.
+  const std::vector<wasm::SignatureMap*> signature_maps;
+  // Contains the code objects to call for each indirect call.
+  // (the same length as module.functions)
+  const std::vector<Handle<Code>> function_code;
+  // If the default code is not a null handle, always use it for direct calls.
+  const Handle<Code> default_function_code;
+  // Address of the start of memory.
+  const uintptr_t mem_start;
+  // Size of memory in bytes.
+  const uint32_t mem_size;
+  // Address of the start of the globals region.
+  const uintptr_t globals_start;
+};
+
 class WasmCompilationUnit final {
  public:
   // Use the following constructors if you know you are running on the
   // foreground thread.
-  WasmCompilationUnit(Isolate* isolate, wasm::ModuleBytesEnv* module_env,
-                      const wasm::WasmFunction* function,
+  WasmCompilationUnit(Isolate* isolate, const wasm::ModuleWireBytes& wire_bytes,
+                      ModuleEnv* env, const wasm::WasmFunction* function,
                       Handle<Code> centry_stub);
-  WasmCompilationUnit(Isolate* isolate, wasm::ModuleEnv* module_env,
-                      wasm::FunctionBody body, wasm::WasmName name, int index,
-                      Handle<Code> centry_stub);
+  WasmCompilationUnit(Isolate* isolate, ModuleEnv* env, wasm::FunctionBody body,
+                      wasm::WasmName name, int index, Handle<Code> centry_stub);
   // Use the following constructors if the compilation may run on a background
   // thread.
-  WasmCompilationUnit(Isolate* isolate, wasm::ModuleBytesEnv* module_env,
-                      const wasm::WasmFunction* function,
+  WasmCompilationUnit(Isolate* isolate, const wasm::ModuleWireBytes& wire_bytes,
+                      ModuleEnv* env, const wasm::WasmFunction* function,
                       Handle<Code> centry_stub,
                       const std::shared_ptr<Counters>& async_counters);
-  WasmCompilationUnit(Isolate* isolate, wasm::ModuleEnv* module_env,
-                      wasm::FunctionBody body, wasm::WasmName name, int index,
-                      Handle<Code> centry_stub,
+  WasmCompilationUnit(Isolate* isolate, ModuleEnv* env, wasm::FunctionBody body,
+                      wasm::WasmName name, int index, Handle<Code> centry_stub,
                       const std::shared_ptr<Counters>& async_counters);
 
   int func_index() const { return func_index_; }
@@ -73,7 +104,8 @@ class WasmCompilationUnit final {
 
   static MaybeHandle<Code> CompileWasmFunction(
       wasm::ErrorThrower* thrower, Isolate* isolate,
-      wasm::ModuleBytesEnv* module_env, const wasm::WasmFunction* function);
+      const wasm::ModuleWireBytes& wire_bytes, ModuleEnv* env,
+      const wasm::WasmFunction* function);
 
   void set_memory_cost(size_t memory_cost) { memory_cost_ = memory_cost; }
   size_t memory_cost() const { return memory_cost_; }
@@ -82,7 +114,7 @@ class WasmCompilationUnit final {
   SourcePositionTable* BuildGraphForWasmFunction(double* decode_ms);
 
   Isolate* isolate_;
-  wasm::ModuleEnv* module_env_;
+  ModuleEnv* env_;
   wasm::FunctionBody func_body_;
   wasm::WasmName func_name_;
   Counters* counters_;
@@ -114,8 +146,7 @@ Handle<Code> CompileWasmToJSWrapper(Isolate* isolate, Handle<JSReceiver> target,
                                     wasm::ModuleOrigin origin);
 
 // Wraps a given wasm code object, producing a code object.
-Handle<Code> CompileJSToWasmWrapper(Isolate* isolate,
-                                    const wasm::WasmModule* module,
+Handle<Code> CompileJSToWasmWrapper(Isolate* isolate, wasm::WasmModule* module,
                                     Handle<Code> wasm_code, uint32_t index);
 
 // Compiles a stub that redirects a call to a wasm function to the wasm
@@ -124,14 +155,26 @@ Handle<Code> CompileWasmInterpreterEntry(Isolate* isolate, uint32_t func_index,
                                          wasm::FunctionSig* sig,
                                          Handle<WasmInstanceObject> instance);
 
+enum CWasmEntryParameters {
+  kCodeObject,
+  kArgumentsBuffer,
+  // marker:
+  kNumParameters
+};
+
+// Compiles a stub with JS linkage, taking parameters as described by
+// {CWasmEntryParameters}. It loads the wasm parameters from the argument
+// buffer and calls the wasm function given as first parameter.
+Handle<Code> CompileCWasmEntry(Isolate* isolate, wasm::FunctionSig* sig);
+
 // Abstracts details of building TurboFan graph nodes for wasm to separate
 // the wasm decoder from the internal details of TurboFan.
 typedef ZoneVector<Node*> NodeVector;
 class WasmGraphBuilder {
  public:
   WasmGraphBuilder(
-      wasm::ModuleEnv* module_env, Zone* z, JSGraph* g,
-      Handle<Code> centry_stub_, wasm::FunctionSig* sig,
+      ModuleEnv* env, Zone* z, JSGraph* g, Handle<Code> centry_stub_,
+      wasm::FunctionSig* sig,
       compiler::SourcePositionTable* source_position_table = nullptr);
 
   Node** Buffer(size_t count) {
@@ -168,6 +211,7 @@ class WasmGraphBuilder {
              wasm::WasmCodePosition position = wasm::kNoCodePosition);
   Node* GrowMemory(Node* input);
   Node* Throw(Node* input);
+  Node* Rethrow();
   Node* Catch(Node* input, wasm::WasmCodePosition position);
   unsigned InputCount(Node* node);
   bool IsPhiWithMerge(Node* phi, Node* merge);
@@ -217,10 +261,11 @@ class WasmGraphBuilder {
   Node* CallIndirect(uint32_t index, Node** args, Node*** rets,
                      wasm::WasmCodePosition position);
 
-  void BuildJSToWasmWrapper(Handle<Code> wasm_code, wasm::FunctionSig* sig);
-  void BuildWasmToJSWrapper(Handle<JSReceiver> target, wasm::FunctionSig* sig);
-  void BuildWasmInterpreterEntry(uint32_t func_index, wasm::FunctionSig* sig,
+  void BuildJSToWasmWrapper(Handle<Code> wasm_code);
+  void BuildWasmToJSWrapper(Handle<JSReceiver> target);
+  void BuildWasmInterpreterEntry(uint32_t func_index,
                                  Handle<WasmInstanceObject> instance);
+  void BuildCWasmEntry();
 
   Node* ToJS(Node* node, wasm::ValueType type);
   Node* FromJS(Node* node, Node* context, wasm::ValueType type);
@@ -238,7 +283,7 @@ class WasmGraphBuilder {
                 wasm::WasmCodePosition position);
   Node* StoreMem(MachineType memtype, Node* index, uint32_t offset,
                  uint32_t alignment, Node* val, wasm::WasmCodePosition position,
-                 wasm::ValueType type = wasm::kWasmStmt);
+                 wasm::ValueType type);
   static void PrintDebugName(Node* node);
 
   Node* Control() { return *control_; }
@@ -250,7 +295,7 @@ class WasmGraphBuilder {
 
   wasm::FunctionSig* GetFunctionSignature() { return sig_; }
 
-  void Int64LoweringForTesting();
+  void LowerInt64();
 
   void SimdScalarLoweringForTesting();
 
@@ -270,9 +315,16 @@ class WasmGraphBuilder {
 
   Node* Simd8x16ShuffleOp(const uint8_t shuffle[16], Node* const* inputs);
 
+  Node* AtomicOp(wasm::WasmOpcode opcode, Node* const* inputs,
+                 wasm::WasmCodePosition position);
+
   bool has_simd() const { return has_simd_; }
 
-  wasm::ModuleEnv* module_env() const { return module_; }
+  void SetRuntimeExceptionSupport(bool value) {
+    has_runtime_exception_support_ = value;
+  }
+
+  const wasm::WasmModule* module() { return env_ ? env_->module : nullptr; }
 
  private:
   static const int kDefaultBufferSize = 16;
@@ -280,7 +332,7 @@ class WasmGraphBuilder {
   Zone* zone_;
   JSGraph* jsgraph_;
   Node* centry_stub_node_;
-  wasm::ModuleEnv* module_ = nullptr;
+  ModuleEnv* env_ = nullptr;
   Node* mem_buffer_ = nullptr;
   Node* mem_size_ = nullptr;
   NodeVector signature_tables_;
@@ -293,6 +345,10 @@ class WasmGraphBuilder {
   Node* def_buffer_[kDefaultBufferSize];
   bool has_simd_ = false;
   bool needs_stack_check_ = false;
+  // If the runtime doesn't support exception propagation,
+  // we won't generate stack checks, and trap handling will also
+  // be generated differently.
+  bool has_runtime_exception_support_ = true;
 
   wasm::FunctionSig* sig_;
   SetOncePointer<const Operator> allocate_heap_number_operator_;
@@ -308,6 +364,7 @@ class WasmGraphBuilder {
   Node* MemBuffer(uint32_t offset);
   void BoundsCheckMem(MachineType memtype, Node* index, uint32_t offset,
                       wasm::WasmCodePosition position);
+  const Operator* GetSafeLoadOperator(int offset, wasm::ValueType type);
   const Operator* GetSafeStoreOperator(int offset, wasm::ValueType type);
   Node* BuildChangeEndiannessStore(Node* node, MachineType type,
                                    wasm::ValueType wasmtype = wasm::kWasmStmt);
@@ -434,6 +491,7 @@ class WasmGraphBuilder {
                                       Node** parameters, int parameter_count);
 
   Node* BuildModifyThreadInWasmFlag(bool new_value);
+  Builtins::Name GetBuiltinIdForTrap(wasm::TrapReason reason);
 };
 
 V8_EXPORT_PRIVATE CallDescriptor* GetWasmCallDescriptor(Zone* zone,

@@ -45,7 +45,7 @@
 #include "src/runtime-profiler.h"
 #include "src/setup-isolate.h"
 #include "src/simulator.h"
-#include "src/snapshot/deserializer.h"
+#include "src/snapshot/startup-deserializer.h"
 #include "src/tracing/tracing-category-observer.h"
 #include "src/v8.h"
 #include "src/version.h"
@@ -103,6 +103,7 @@ void ThreadLocalTop::InitializeInternal() {
   // These members are re-initialized later after deserialization
   // is complete.
   pending_exception_ = NULL;
+  wasm_caught_exception_ = NULL;
   rethrowing_message_ = false;
   pending_message_obj_ = NULL;
   scheduled_exception_ = NULL;
@@ -215,6 +216,7 @@ void Isolate::IterateThread(ThreadVisitor* v, char* t) {
 void Isolate::Iterate(RootVisitor* v, ThreadLocalTop* thread) {
   // Visit the roots from the top for a given thread.
   v->VisitRootPointer(Root::kTop, &thread->pending_exception_);
+  v->VisitRootPointer(Root::kTop, &thread->wasm_caught_exception_);
   v->VisitRootPointer(Root::kTop, &thread->pending_message_obj_);
   v->VisitRootPointer(Root::kTop, bit_cast<Object**>(&(thread->context_)));
   v->VisitRootPointer(Root::kTop, &thread->scheduled_exception_);
@@ -502,21 +504,23 @@ Handle<Object> Isolate::CaptureSimpleStackTrace(Handle<JSReceiver> error_object,
         JavaScriptFrame* js_frame = JavaScriptFrame::cast(frame);
         // Set initial size to the maximum inlining level + 1 for the outermost
         // function.
-        List<FrameSummary> frames(FLAG_max_inlining_levels + 1);
+        std::vector<FrameSummary> frames;
+        frames.reserve(FLAG_max_inlining_levels + 1);
         js_frame->Summarize(&frames);
-        for (int i = frames.length() - 1;
-             i >= 0 && elements->FrameCount() < limit; i--) {
-          const auto& summ = frames[i].AsJavaScript();
+        for (size_t i = frames.size(); i != 0 && elements->FrameCount() < limit;
+             i--) {
+          const FrameSummary& summary = frames[i - 1];
+          const auto& summ = summary.AsJavaScript();
           Handle<JSFunction> fun = summ.function();
 
           // Filter out internal frames that we do not want to show.
           if (!helper.IsVisibleInStackTrace(*fun)) continue;
 
-          Handle<Object> recv = frames[i].receiver();
+          Handle<Object> recv = summary.receiver();
           Handle<AbstractCode> abstract_code = summ.abstract_code();
-          const int offset = frames[i].code_offset();
+          const int offset = summary.code_offset();
 
-          bool is_constructor = frames[i].is_constructor();
+          bool is_constructor = summary.is_constructor();
           if (frame->type() == StackFrame::BUILTIN) {
             // Help CallSite::IsConstructor correctly detect hand-written
             // construct stubs.
@@ -764,10 +768,11 @@ Handle<FixedArray> Isolate::CaptureCurrentStackTrace(
     StandardFrame* frame = it.frame();
     // Set initial size to the maximum inlining level + 1 for the outermost
     // function.
-    List<FrameSummary> frames(FLAG_max_inlining_levels + 1);
+    std::vector<FrameSummary> frames;
+    frames.reserve(FLAG_max_inlining_levels + 1);
     frame->Summarize(&frames);
-    for (int i = frames.length() - 1; i >= 0 && frames_seen < limit; i--) {
-      FrameSummary& frame = frames[i];
+    for (size_t i = frames.size(); i != 0 && frames_seen < limit; i--) {
+      FrameSummary& frame = frames[i - 1];
       if (!frame.is_subject_to_debugging()) continue;
       // Filter frames from other security contexts.
       if (!(options & StackTrace::kExposeFramesAcrossSecurityOrigins) &&
@@ -924,7 +929,7 @@ bool Isolate::MayAccess(Handle<Context> accessing_context,
 
 
 Object* Isolate::StackOverflow() {
-  if (FLAG_abort_on_stack_overflow) {
+  if (FLAG_abort_on_stack_or_string_length_overflow) {
     FATAL("Aborting on stack overflow");
   }
 
@@ -1008,7 +1013,7 @@ void ReportBootstrappingException(Handle<Object> exception,
   // We are bootstrapping and caught an error where the location is set
   // and we have a script for the location.
   // In this case we could have an extension (or an internal error
-  // somewhere) and we print out the line number at which the error occured
+  // somewhere) and we print out the line number at which the error occurred
   // to the console for easier debugging.
   int line_number =
       location->script()->GetLineNumber(location->start_pos()) + 1;
@@ -1203,7 +1208,7 @@ Object* Isolate::UnwindAndFindHandler() {
 
     switch (frame->type()) {
       case StackFrame::ENTRY:
-      case StackFrame::ENTRY_CONSTRUCT: {
+      case StackFrame::CONSTRUCT_ENTRY: {
         // For JSEntryStub frames we always have a handler.
         StackHandler* handler = frame->top_handler();
 
@@ -1222,8 +1227,9 @@ Object* Isolate::UnwindAndFindHandler() {
           trap_handler::ClearThreadInWasm();
         }
 
-        if (!FLAG_experimental_wasm_eh || !is_catchable_by_wasm(exception))
+        if (!FLAG_experimental_wasm_eh || !is_catchable_by_wasm(exception)) {
           break;
+        }
         int stack_slots = 0;  // Will contain stack slot count of frame.
         WasmCompiledFrame* wasm_frame = static_cast<WasmCompiledFrame*>(frame);
         int offset = wasm_frame->LookupExceptionHandlerInTable(&stack_slots);
@@ -1322,7 +1328,8 @@ Object* Isolate::UnwindAndFindHandler() {
             Context::cast(js_frame->ReadInterpreterRegister(context_reg));
         js_frame->PatchBytecodeOffset(static_cast<int>(offset));
 
-        Code* code = *builtins()->InterpreterEnterBytecodeDispatch();
+        Code* code =
+            builtins()->builtin(Builtins::kInterpreterEnterBytecodeDispatch);
         return FoundHandler(context, code, 0, return_sp, frame->fp());
       }
 
@@ -1372,10 +1379,10 @@ HandlerTable::CatchPrediction PredictException(JavaScriptFrame* frame) {
       // This optimized frame will catch. It's handler table does not include
       // exception prediction, and we need to use the corresponding handler
       // tables on the unoptimized code objects.
-      List<FrameSummary> summaries;
+      std::vector<FrameSummary> summaries;
       frame->Summarize(&summaries);
-      for (int i = summaries.length() - 1; i >= 0; i--) {
-        const FrameSummary& summary = summaries[i];
+      for (size_t i = summaries.size(); i != 0; i--) {
+        const FrameSummary& summary = summaries[i - 1];
         Handle<AbstractCode> code = summary.AsJavaScript().abstract_code();
         if (code->IsCode() && code->kind() == AbstractCode::BUILTIN) {
           prediction = code->GetCode()->GetBuiltinCatchPrediction();
@@ -1383,11 +1390,6 @@ HandlerTable::CatchPrediction PredictException(JavaScriptFrame* frame) {
           return prediction;
         }
 
-        if (code->kind() == AbstractCode::OPTIMIZED_FUNCTION) {
-          DCHECK(summary.AsJavaScript().function()->shared()->asm_function());
-          // asm code cannot contain try-catch.
-          continue;
-        }
         // Must have been constructed from a bytecode array.
         CHECK_EQ(AbstractCode::INTERPRETED_FUNCTION, code->kind());
         int code_offset = summary.code_offset();
@@ -1433,7 +1435,7 @@ Isolate::CatchType Isolate::PredictExceptionCatcher() {
 
     switch (frame->type()) {
       case StackFrame::ENTRY:
-      case StackFrame::ENTRY_CONSTRUCT: {
+      case StackFrame::CONSTRUCT_ENTRY: {
         Address entry_handler = frame->top_handler()->next()->address();
         // The exception has been externally caught if and only if there is an
         // external handler which is on top of the top-most JS_ENTRY handler.
@@ -1555,9 +1557,10 @@ bool Isolate::ComputeLocation(MessageLocation* target) {
   // Compute the location from the function and the relocation info of the
   // baseline code. For optimized code this will use the deoptimization
   // information to get canonical location information.
-  List<FrameSummary> frames(FLAG_max_inlining_levels + 1);
+  std::vector<FrameSummary> frames;
+  frames.reserve(FLAG_max_inlining_levels + 1);
   frame->Summarize(&frames);
-  FrameSummary& summary = frames.last();
+  FrameSummary& summary = frames.back();
   int pos = summary.SourcePosition();
   Handle<SharedFunctionInfo> shared;
   Handle<Object> script = summary.script();
@@ -2306,7 +2309,6 @@ Isolate::Isolate(bool enable_serializer)
       logger_(NULL),
       load_stub_cache_(NULL),
       store_stub_cache_(NULL),
-      code_aging_helper_(NULL),
       deoptimizer_data_(NULL),
       deoptimizer_lazy_throw_(false),
       materialized_object_store_(NULL),
@@ -2559,8 +2561,6 @@ Isolate::~Isolate() {
   load_stub_cache_ = NULL;
   delete store_stub_cache_;
   store_stub_cache_ = NULL;
-  delete code_aging_helper_;
-  code_aging_helper_ = NULL;
 
   delete materialized_object_store_;
   materialized_object_store_ = NULL;
@@ -2669,13 +2669,15 @@ void PrintBuiltinSizes(Isolate* isolate) {
   Builtins* builtins = isolate->builtins();
   for (int i = 0; i < Builtins::builtin_count; i++) {
     const char* name = builtins->name(i);
+    const char* kind = Builtins::KindNameOf(i);
     Code* code = builtins->builtin(static_cast<Builtins::Name>(i));
-    PrintF(stdout, "%s: %d\n", name, code->instruction_size());
+    PrintF(stdout, "%s Builtin, %s, %d\n", kind, name,
+           code->instruction_size());
   }
 }
 }  // namespace
 
-bool Isolate::Init(Deserializer* des) {
+bool Isolate::Init(StartupDeserializer* des) {
   TRACE_ISOLATE(init);
 
   stress_deopt_count_ = FLAG_deopt_every_n_times;
@@ -2752,8 +2754,6 @@ bool Isolate::Init(Deserializer* des) {
     return false;
   }
 
-  code_aging_helper_ = new CodeAgingHelper(this);
-
 // Initialize the interface descriptors ahead of time.
 #define INTERFACE_DESCRIPTOR(Name, ...) \
   { Name##Descriptor(this); }
@@ -2770,7 +2770,7 @@ bool Isolate::Init(Deserializer* des) {
 
   if (create_heap_objects) {
     // Terminate the partial snapshot cache so we can iterate.
-    partial_snapshot_cache_.Add(heap_.undefined_value());
+    partial_snapshot_cache_.push_back(heap_.undefined_value());
   }
 
   InitializeThreadLocal();
@@ -2786,8 +2786,7 @@ bool Isolate::Init(Deserializer* des) {
     set_event_logger(Logger::DefaultEventLoggerSentinel);
   }
 
-  if (FLAG_trace_hydrogen || FLAG_trace_hydrogen_stubs || FLAG_trace_turbo ||
-      FLAG_trace_turbo_graph) {
+  if (FLAG_trace_turbo || FLAG_trace_turbo_graph) {
     PrintF("Concurrent recompilation has been disabled for tracing.\n");
   } else if (OptimizingCompileDispatcher::Enabled()) {
     optimizing_compile_dispatcher_ = new OptimizingCompileDispatcher(this);
@@ -2801,9 +2800,7 @@ bool Isolate::Init(Deserializer* des) {
   {
     AlwaysAllocateScope always_allocate(this);
 
-    if (!create_heap_objects) {
-      des->Deserialize(this);
-    }
+    if (!create_heap_objects) des->DeserializeInto(this);
     load_stub_cache_->Initialize();
     store_stub_cache_->Initialize();
     setup_delegate_->SetupInterpreter(interpreter_, create_heap_objects);
@@ -2840,6 +2837,9 @@ bool Isolate::Init(Deserializer* des) {
            Internals::kExternalMemoryOffset);
   CHECK_EQ(static_cast<int>(OFFSET_OF(Isolate, heap_.external_memory_limit_)),
            Internals::kExternalMemoryLimitOffset);
+  CHECK_EQ(static_cast<int>(
+               OFFSET_OF(Isolate, heap_.external_memory_at_last_mark_compact_)),
+           Internals::kExternalMemoryAtLastMarkCompactOffset);
 
   time_millis_at_init_ = heap_.MonotonicallyIncreasingTimeInMs();
 
@@ -2989,18 +2989,6 @@ CodeTracer* Isolate::GetCodeTracer() {
   return code_tracer();
 }
 
-Map* Isolate::get_initial_js_array_map(ElementsKind kind) {
-  if (IsFastElementsKind(kind)) {
-    DisallowHeapAllocation no_gc;
-    Object* const initial_js_array_map =
-        context()->native_context()->get(Context::ArrayMapIndex(kind));
-    if (!initial_js_array_map->IsUndefined(this)) {
-      return Map::cast(initial_js_array_map);
-    }
-  }
-  return nullptr;
-}
-
 bool Isolate::use_optimizer() {
   return FLAG_opt && !serializer_enabled_ &&
          CpuFeatures::SupportsCrankshaft() &&
@@ -3052,7 +3040,7 @@ bool Isolate::IsFastArrayConstructorPrototypeChainIntact() {
 
 #ifdef DEBUG
   Map* root_array_map =
-      get_initial_js_array_map(GetInitialFastElementsKind());
+      raw_native_context()->GetInitialJSArrayMap(GetInitialFastElementsKind());
   Context* native_context = context()->native_context();
   JSObject* initial_array_proto = JSObject::cast(
       native_context->get(Context::INITIAL_ARRAY_PROTOTYPE_INDEX));
@@ -3108,7 +3096,8 @@ bool Isolate::IsIsConcatSpreadableLookupChainIntact() {
   bool is_is_concat_spreadable_set =
       Smi::ToInt(is_concat_spreadable_cell->value()) == kProtectorInvalid;
 #ifdef DEBUG
-  Map* root_array_map = get_initial_js_array_map(GetInitialFastElementsKind());
+  Map* root_array_map =
+      raw_native_context()->GetInitialJSArrayMap(GetInitialFastElementsKind());
   if (root_array_map == NULL) {
     // Ignore the value of is_concat_spreadable during bootstrap.
     return !is_is_concat_spreadable_set;
@@ -3162,9 +3151,8 @@ void Isolate::InvalidateArraySpeciesProtector() {
 void Isolate::InvalidateStringLengthOverflowProtector() {
   DCHECK(factory()->string_length_protector()->value()->IsSmi());
   DCHECK(IsStringLengthOverflowIntact());
-  PropertyCell::SetValueWithInvalidation(
-      factory()->string_length_protector(),
-      handle(Smi::FromInt(kProtectorInvalid), this));
+  factory()->string_length_protector()->set_value(
+      Smi::FromInt(kProtectorInvalid));
   DCHECK(!IsStringLengthOverflowIntact());
 }
 
@@ -3755,6 +3743,10 @@ SaveContext::SaveContext(Isolate* isolate)
 SaveContext::~SaveContext() {
   isolate_->set_context(context_.is_null() ? NULL : *context_);
   isolate_->set_save_context(prev_);
+}
+
+bool SaveContext::IsBelowFrame(StandardFrame* frame) {
+  return (c_entry_fp_ == 0) || (c_entry_fp_ > frame->sp());
 }
 
 #ifdef DEBUG

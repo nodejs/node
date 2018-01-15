@@ -14,6 +14,15 @@ namespace v8 {
 namespace internal {
 namespace interpreter {
 
+namespace {
+void PrintBuiltinSize(Bytecode bytecode, OperandScale operand_scale,
+                      Handle<Code> code) {
+  PrintF(stdout, "Ignition Handler, %s, %d\n",
+         Bytecodes::ToString(bytecode, operand_scale).c_str(),
+         code->instruction_size());
+}
+}  // namespace
+
 // static
 void SetupInterpreter::InstallBytecodeHandlers(Interpreter* interpreter) {
   DCHECK(!interpreter->IsDispatchTableInitialized());
@@ -87,6 +96,8 @@ void SetupInterpreter::InstallBytecodeHandler(Isolate* isolate,
   size_t index = Interpreter::GetDispatchTableIndex(bytecode, operand_scale);
   Handle<Code> code = GenerateBytecodeHandler(isolate, bytecode, operand_scale);
   dispatch_table[index] = code->entry();
+
+  if (FLAG_print_builtin_size) PrintBuiltinSize(bytecode, operand_scale, code);
 }
 
 }  // namespace interpreter

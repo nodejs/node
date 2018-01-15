@@ -304,6 +304,19 @@ class IncrementalStringBuilder {
     return part_length_ - current_index_ > length;
   }
 
+  // We make a rough estimate to find out if the current string can be
+  // serialized without allocating a new string part. The worst case length of
+  // an escaped character is 6. Shifting the remaining string length right by 3
+  // is a more pessimistic estimate, but faster to calculate.
+  INLINE(int EscapedLengthIfCurrentPartFits(int length)) {
+    if (length > kMaxPartLength) return 0;
+    STATIC_ASSERT((kMaxPartLength << 3) <= String::kMaxLength);
+    // This shift will not overflow because length is already less than the
+    // maximum part length.
+    int worst_case_length = length << 3;
+    return CurrentPartCanFit(worst_case_length) ? worst_case_length : 0;
+  }
+
   void AppendString(Handle<String> string);
 
   MaybeHandle<String> Finish();

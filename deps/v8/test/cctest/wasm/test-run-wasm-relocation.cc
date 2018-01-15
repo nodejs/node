@@ -26,19 +26,19 @@ using namespace v8::internal::compiler;
     WasmRunner<C_TYPE, C_TYPE> r(kExecuteCompiled);                            \
     Isolate* isolate = CcTest::i_isolate();                                    \
                                                                                \
-    r.module().AddGlobal<C_TYPE>();                                            \
-    r.module().AddGlobal<C_TYPE>();                                            \
+    r.builder().AddGlobal<C_TYPE>();                                           \
+    r.builder().AddGlobal<C_TYPE>();                                           \
                                                                                \
     /* global = global + p0 */                                                 \
     BUILD(r, WASM_SET_GLOBAL(1, ADD(WASM_GET_GLOBAL(0), WASM_GET_LOCAL(0))),   \
           WASM_GET_GLOBAL(0));                                                 \
-    CHECK_EQ(1, r.module().instance->function_code.size());                    \
+    CHECK_EQ(1, r.builder().CodeTableLength());                                \
                                                                                \
     int filter = 1 << RelocInfo::WASM_GLOBAL_REFERENCE;                        \
                                                                                \
-    Handle<Code> code = r.module().instance->function_code[0];                 \
+    Handle<Code> code = r.builder().GetFunctionCode(0);                        \
                                                                                \
-    Address old_start = r.module().instance->globals_start;                    \
+    Address old_start = r.builder().globals_start();                           \
     Address new_start = old_start + 1;                                         \
                                                                                \
     Address old_addresses[4];                                                  \

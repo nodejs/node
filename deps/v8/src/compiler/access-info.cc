@@ -601,58 +601,58 @@ bool AccessInfoFactory::LookupTransition(Handle<Map> map, Handle<Name> name,
                                          MaybeHandle<JSObject> holder,
                                          PropertyAccessInfo* access_info) {
   // Check if the {map} has a data transition with the given {name}.
-  Handle<Map> transition_map;
-  if (TransitionArray::SearchTransition(map, kData, name, NONE)
-          .ToHandle(&transition_map)) {
-    int const number = transition_map->LastAdded();
-    PropertyDetails const details =
-        transition_map->instance_descriptors()->GetDetails(number);
-    // Don't bother optimizing stores to read-only properties.
-    if (details.IsReadOnly()) return false;
-    // TODO(bmeurer): Handle transition to data constant?
-    if (details.location() != kField) return false;
-    int const index = details.field_index();
-    Representation details_representation = details.representation();
-    FieldIndex field_index = FieldIndex::ForPropertyIndex(
-        *transition_map, index, details_representation.IsDouble());
-    Type* field_type = Type::NonInternal();
-    MaybeHandle<Map> field_map;
-    MachineRepresentation field_representation = MachineRepresentation::kTagged;
-    if (details_representation.IsSmi()) {
-      field_type = Type::SignedSmall();
-      field_representation = MachineRepresentation::kTaggedSigned;
-    } else if (details_representation.IsDouble()) {
-      field_type = type_cache_.kFloat64;
-      field_representation = MachineRepresentation::kFloat64;
-    } else if (details_representation.IsHeapObject()) {
-      // Extract the field type from the property details (make sure its
-      // representation is TaggedPointer to reflect the heap object case).
-      field_representation = MachineRepresentation::kTaggedPointer;
-      Handle<FieldType> descriptors_field_type(
-          transition_map->instance_descriptors()->GetFieldType(number),
-          isolate());
-      if (descriptors_field_type->IsNone()) {
-        // Store is not safe if the field type was cleared.
-        return false;
-      } else if (descriptors_field_type->IsClass()) {
-        // Add proper code dependencies in case of stable field map(s).
-        Handle<Map> field_owner_map(transition_map->FindFieldOwner(number),
-                                    isolate());
-        dependencies()->AssumeFieldOwner(field_owner_map);
+  Map* transition =
+      TransitionsAccessor(map).SearchTransition(*name, kData, NONE);
+  if (transition == nullptr) return false;
 
-        // Remember the field map, and try to infer a useful type.
-        field_type = Type::For(descriptors_field_type->AsClass());
-        field_map = descriptors_field_type->AsClass();
-      }
+  Handle<Map> transition_map(transition);
+  int const number = transition_map->LastAdded();
+  PropertyDetails const details =
+      transition_map->instance_descriptors()->GetDetails(number);
+  // Don't bother optimizing stores to read-only properties.
+  if (details.IsReadOnly()) return false;
+  // TODO(bmeurer): Handle transition to data constant?
+  if (details.location() != kField) return false;
+  int const index = details.field_index();
+  Representation details_representation = details.representation();
+  FieldIndex field_index = FieldIndex::ForPropertyIndex(
+      *transition_map, index, details_representation.IsDouble());
+  Type* field_type = Type::NonInternal();
+  MaybeHandle<Map> field_map;
+  MachineRepresentation field_representation = MachineRepresentation::kTagged;
+  if (details_representation.IsSmi()) {
+    field_type = Type::SignedSmall();
+    field_representation = MachineRepresentation::kTaggedSigned;
+  } else if (details_representation.IsDouble()) {
+    field_type = type_cache_.kFloat64;
+    field_representation = MachineRepresentation::kFloat64;
+  } else if (details_representation.IsHeapObject()) {
+    // Extract the field type from the property details (make sure its
+    // representation is TaggedPointer to reflect the heap object case).
+    field_representation = MachineRepresentation::kTaggedPointer;
+    Handle<FieldType> descriptors_field_type(
+        transition_map->instance_descriptors()->GetFieldType(number),
+        isolate());
+    if (descriptors_field_type->IsNone()) {
+      // Store is not safe if the field type was cleared.
+      return false;
+    } else if (descriptors_field_type->IsClass()) {
+      // Add proper code dependencies in case of stable field map(s).
+      Handle<Map> field_owner_map(transition_map->FindFieldOwner(number),
+                                  isolate());
+      dependencies()->AssumeFieldOwner(field_owner_map);
+
+      // Remember the field map, and try to infer a useful type.
+      field_type = Type::For(descriptors_field_type->AsClass());
+      field_map = descriptors_field_type->AsClass();
     }
-    dependencies()->AssumeMapNotDeprecated(transition_map);
-    // Transitioning stores are never stores to constant fields.
-    *access_info = PropertyAccessInfo::DataField(
-        kMutable, MapHandles{map}, field_index, field_representation,
-        field_type, field_map, holder, transition_map);
-    return true;
   }
-  return false;
+  dependencies()->AssumeMapNotDeprecated(transition_map);
+  // Transitioning stores are never stores to constant fields.
+  *access_info = PropertyAccessInfo::DataField(
+      kMutable, MapHandles{map}, field_index, field_representation, field_type,
+      field_map, holder, transition_map);
+  return true;
 }
 
 

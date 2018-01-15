@@ -81,12 +81,13 @@ Atomic32 Barrier_AtomicIncrement(volatile Atomic32* ptr,
 
 // These following lower-level operations are typically useful only to people
 // implementing higher-level synchronization operations like spinlocks,
-// mutexes, and condition-variables.  They combine CompareAndSwap(), a load, or
-// a store with appropriate memory-ordering instructions.  "Acquire" operations
-// ensure that no later memory access can be reordered ahead of the operation.
-// "Release" operations ensure that no previous memory access can be reordered
-// after the operation.  "Fence" operations have both "Acquire" and "Release"
-// semantics. A MemoryFence() has "Fence" semantics, but does no memory access.
+// mutexes, and condition-variables.  They combine CompareAndSwap(), a load,
+// or a store with appropriate memory-ordering instructions.  "Acquire"
+// operations ensure that no later memory access can be reordered ahead of the
+// operation. "Release" operations ensure that no previous memory access can
+// be reordered after the operation.  "Fence" operations have both "Acquire"
+// and "Release" semantics. A SeqCst_MemoryFence() has "Fence" semantics, but
+// does no memory access.
 Atomic32 Acquire_CompareAndSwap(volatile Atomic32* ptr,
                                 Atomic32 old_value,
                                 Atomic32 new_value);
@@ -94,7 +95,7 @@ Atomic32 Release_CompareAndSwap(volatile Atomic32* ptr,
                                 Atomic32 old_value,
                                 Atomic32 new_value);
 
-void MemoryFence();
+void SeqCst_MemoryFence();
 void Relaxed_Store(volatile Atomic8* ptr, Atomic8 value);
 void Relaxed_Store(volatile Atomic32* ptr, Atomic32 value);
 void Release_Store(volatile Atomic32* ptr, Atomic32 value);
@@ -127,10 +128,10 @@ Atomic64 Acquire_Load(volatile const Atomic64* ptr);
 }  // namespace v8
 
 #if defined(V8_OS_WIN)
-// TODO(hpayer): The MSVC header includes windows.h, which other files end up
-//               relying on. Fix this as part of crbug.com/559247.
-#include "src/base/atomicops_internals_x86_msvc.h"
+#include "src/base/atomicops_internals_std.h"
 #else
+// TODO(ulan): Switch to std version after performance regression with Wheezy
+// sysroot is no longer relevant. Debian Wheezy LTS ends on 31st of May 2018.
 #include "src/base/atomicops_internals_portable.h"
 #endif
 

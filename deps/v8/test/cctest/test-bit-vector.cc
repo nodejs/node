@@ -32,7 +32,8 @@
 #include "src/bit-vector.h"
 #include "test/cctest/cctest.h"
 
-using namespace v8::internal;
+namespace v8 {
+namespace internal {
 
 TEST(BitVector) {
   v8::internal::AccountingAllocator allocator;
@@ -143,3 +144,6 @@ TEST(BitVector) {
     CHECK(!v.Contains(243));
   }
 }
+
+}  // namespace internal
+}  // namespace v8

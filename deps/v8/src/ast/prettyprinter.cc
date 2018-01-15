@@ -22,13 +22,22 @@ CallPrinter::CallPrinter(Isolate* isolate, bool is_user_js)
   num_prints_ = 0;
   found_ = false;
   done_ = false;
-  iterator_hint_ = IteratorHint::kNone;
+  is_call_error_ = false;
+  is_iterator_error_ = false;
+  is_async_iterator_error_ = false;
   is_user_js_ = is_user_js;
   InitializeAstVisitor(isolate);
 }
 
-CallPrinter::IteratorHint CallPrinter::GetIteratorHint() const {
-  return iterator_hint_;
+CallPrinter::ErrorHint CallPrinter::GetErrorHint() const {
+  if (is_call_error_) {
+    if (is_iterator_error_) return ErrorHint::kCallAndNormalIterator;
+    if (is_async_iterator_error_) return ErrorHint::kCallAndAsyncIterator;
+  } else {
+    if (is_iterator_error_) return ErrorHint::kNormalIterator;
+    if (is_async_iterator_error_) return ErrorHint::kAsyncIterator;
+  }
+  return ErrorHint::kNone;
 }
 
 Handle<String> CallPrinter::Print(FunctionLiteral* program, int position) {
@@ -40,7 +49,6 @@ Handle<String> CallPrinter::Print(FunctionLiteral* program, int position) {
 
 
 void CallPrinter::Find(AstNode* node, bool print) {
-  if (done_) return;
   if (found_) {
     if (print) {
       int prev_num_prints = num_prints_;
@@ -261,6 +269,10 @@ void CallPrinter::VisitAssignment(Assignment* node) {
   Find(node->value());
 }
 
+void CallPrinter::VisitCompoundAssignment(CompoundAssignment* node) {
+  VisitAssignment(node);
+}
+
 void CallPrinter::VisitYield(Yield* node) { Find(node->expression()); }
 
 void CallPrinter::VisitYieldStar(YieldStar* node) { Find(node->expression()); }
@@ -287,7 +299,11 @@ void CallPrinter::VisitProperty(Property* node) {
 
 
 void CallPrinter::VisitCall(Call* node) {
-  bool was_found = !found_ && node->position() == position_;
+  bool was_found = false;
+  if (node->position() == position_) {
+    is_call_error_ = true;
+    was_found = !found_;
+  }
   if (was_found) {
     // Bail out if the error is caused by a direct call to a variable in
     // non-user JS code. The variable name is meaningless due to minification.
@@ -300,12 +316,19 @@ void CallPrinter::VisitCall(Call* node) {
   Find(node->expression(), true);
   if (!was_found) Print("(...)");
   FindArguments(node->arguments());
-  if (was_found) done_ = true;
+  if (was_found) {
+    done_ = true;
+    found_ = false;
+  }
 }
 
 
 void CallPrinter::VisitCallNew(CallNew* node) {
-  bool was_found = !found_ && node->position() == position_;
+  bool was_found = false;
+  if (node->position() == position_) {
+    is_call_error_ = true;
+    was_found = !found_;
+  }
   if (was_found) {
     // Bail out if the error is caused by a direct call to a variable in
     // non-user JS code. The variable name is meaningless due to minification.
@@ -317,7 +340,10 @@ void CallPrinter::VisitCallNew(CallNew* node) {
   }
   Find(node->expression(), was_found);
   FindArguments(node->arguments());
-  if (was_found) done_ = true;
+  if (was_found) {
+    done_ = true;
+    found_ = false;
+  }
 }
 
 
@@ -381,15 +407,20 @@ void CallPrinter::VisitEmptyParentheses(EmptyParentheses* node) {
 }
 
 void CallPrinter::VisitGetIterator(GetIterator* node) {
-  bool was_found = !found_ && node->position() == position_;
-  if (was_found) {
-    found_ = true;
-    iterator_hint_ = node->hint() == IteratorType::kNormal
-                         ? IteratorHint::kNormal
-                         : IteratorHint::kAsync;
+  bool was_found = false;
+  if (node->position() == position_) {
+    is_async_iterator_error_ = node->hint() == IteratorType::kAsync;
+    is_iterator_error_ = !is_async_iterator_error_;
+    was_found = !found_;
+    if (was_found) {
+      found_ = true;
+    }
   }
   Find(node->iterable_for_call_printer(), true);
-  if (was_found) done_ = true;
+  if (was_found) {
+    done_ = true;
+    found_ = false;
+  }
 }
 
 void CallPrinter::VisitImportCallExpression(ImportCallExpression* node) {
@@ -1112,6 +1143,10 @@ void AstPrinter::VisitAssignment(Assignment* node) {
   IndentedScope indent(this, Token::Name(node->op()), node->position());
   Visit(node->target());
   Visit(node->value());
+}
+
+void AstPrinter::VisitCompoundAssignment(CompoundAssignment* node) {
+  VisitAssignment(node);
 }
 
 void AstPrinter::VisitYield(Yield* node) {

@@ -2,128 +2,117 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-let {session, contextGroup, Protocol} = InspectorTest.start("Tests that Runtime.callFunctionOn works with awaitPromise flag.");
+let {session, contextGroup, Protocol} = InspectorTest.start('Tests that Runtime.callFunctionOn works with awaitPromise flag.');
+let callFunctionOn = Protocol.Runtime.callFunctionOn.bind(Protocol.Runtime);
 
-InspectorTest.runTestSuite([
-  function testArguments(next)
-  {
-    callFunctionOn(
-      "({a : 1})",
-      "function(arg1, arg2, arg3, arg4) { return \"\" + arg1 + \"|\" + arg2 + \"|\" + arg3 + \"|\" + arg4; }",
-      [ "undefined", "NaN", "({a:2})", "this"],
-      /* returnByValue */ true,
-      /* generatePreview */ false,
-      /* awaitPromise */ false)
-      .then((result) => InspectorTest.logMessage(result))
-      .then(() => next());
+let remoteObject1;
+let remoteObject2;
+
+InspectorTest.runAsyncTestSuite([
+  async function prepareTestSuite() {
+    let result = await Protocol.Runtime.evaluate({ expression: '({a : 1})' });
+    remoteObject1 = result.result.result;
+    result = await Protocol.Runtime.evaluate({ expression: '({a : 2})' });
+    remoteObject2 = result.result.result;
   },
 
-  function testSyntaxErrorInFunction(next)
-  {
-    callFunctionOn(
-      "({a : 1})",
-      "\n  }",
-      [],
-      /* returnByValue */ false,
-      /* generatePreview */ false,
-      /* awaitPromise */ true)
-      .then((result) => InspectorTest.logMessage(result))
-      .then(() => next());
+  async function testArguments() {
+    InspectorTest.logMessage(await callFunctionOn({
+      objectId: remoteObject1.objectId,
+      functionDeclaration: 'function(arg1, arg2, arg3, arg4) { return \'\' + arg1 + \'|\' + arg2 + \'|\' + arg3 + \'|\' + arg4; }',
+      arguments: prepareArguments([undefined, NaN, remoteObject2, remoteObject1]),
+      returnByValue: true,
+      generatePreview: false,
+      awaitPromise: false
+    }));
   },
 
-  function testExceptionInFunctionExpression(next)
-  {
-    callFunctionOn(
-       "({a : 1})",
-       "(function() { throw new Error() })()",
-       [],
-        /* returnByValue */ false,
-        /* generatePreview */ false,
-        /* awaitPromise */ true)
-        .then((result) => InspectorTest.logMessage(result))
-        .then(() => next());
+  async function testComplexArguments() {
+    InspectorTest.logMessage(await callFunctionOn({
+      objectId: remoteObject1.objectId,
+      functionDeclaration: 'function(arg) { return arg.foo; }',
+      arguments: prepareArguments([{foo: 'bar'}]),
+      returnByValue: true,
+      generatePreview: false,
+      awaitPromise: false
+    }));
   },
 
-  function testFunctionReturnNotPromise(next)
-  {
-    callFunctionOn(
-      "({a : 1})",
-      "(function() { return 239; })",
-      [],
-      /* returnByValue */ false,
-      /* generatePreview */ false,
-      /* awaitPromise */ true)
-      .then((result) => InspectorTest.logMessage(result.error))
-      .then(() => next());
+  async function testSyntaxErrorInFunction() {
+    InspectorTest.logMessage(await callFunctionOn({
+      objectId: remoteObject1.objectId,
+      functionDeclaration: '\n  }',
+      arguments: prepareArguments([]),
+      returnByValue: false,
+      generatePreview: false,
+      awaitPromise: true
+    }));
   },
 
-  function testFunctionReturnResolvedPromiseReturnByValue(next)
-  {
-    callFunctionOn(
-      "({a : 1})",
-      "(function(arg) { return Promise.resolve({a : this.a + arg.a}); })",
-      [ "({a:2})" ],
-      /* returnByValue */ true,
-      /* generatePreview */ false,
-      /* awaitPromise */ true)
-      .then((result) => InspectorTest.logMessage(result))
-      .then(() => next());
+  async function testExceptionInFunctionExpression() {
+    InspectorTest.logMessage(await callFunctionOn({
+      objectId: remoteObject1.objectId,
+      functionDeclaration: '(function() { throw new Error() })()',
+      arguments: prepareArguments([]),
+      returnByValue: false,
+      generatePreview: false,
+      awaitPromise: true
+    }));
   },
 
-  function testFunctionReturnResolvedPromiseWithPreview(next)
-  {
-    callFunctionOn(
-      "({a : 1})",
-      "(function(arg) { return Promise.resolve({a : this.a + arg.a}); })",
-      [ "({a:2})" ],
-      /* returnByValue */ false,
-      /* generatePreview */ true,
-      /* awaitPromise */ true)
-      .then((result) => InspectorTest.logMessage(result))
-      .then(() => next());
+  async function testFunctionReturnNotPromise() {
+   InspectorTest.logMessage(await callFunctionOn({
+      objectId: remoteObject1.objectId,
+      functionDeclaration: '(function() { return 239; })',
+      arguments: prepareArguments([]),
+      returnByValue: true,
+      generatePreview: false,
+      awaitPromise: true
+    }));
   },
 
-  function testFunctionReturnRejectedPromise(next)
-  {
-    callFunctionOn(
-      "({a : 1})",
-      "(function(arg) { return Promise.reject({a : this.a + arg.a}); })",
-      [ "({a:2})" ],
-      /* returnByValue */ true,
-      /* generatePreview */ false,
-      /* awaitPromise */ true)
-      .then((result) => InspectorTest.logMessage(result))
-      .then(() => next());
+  async function testFunctionReturnResolvedPromiseReturnByValue() {
+    InspectorTest.logMessage(await callFunctionOn({
+      objectId: remoteObject1.objectId,
+      functionDeclaration: '(function(arg) { return Promise.resolve({a : this.a + arg.a}); })',
+      arguments: prepareArguments([ remoteObject2 ]),
+      returnByValue: true,
+      generatePreview: false,
+      awaitPromise: true
+    }));
+  },
+
+  async function testFunctionReturnResolvedPromiseWithPreview() {
+    InspectorTest.logMessage(await callFunctionOn({
+      objectId: remoteObject1.objectId,
+      functionDeclaration: '(function(arg) { return Promise.resolve({a : this.a + arg.a}); })',
+      arguments: prepareArguments([ remoteObject2 ]),
+      returnByValue: false,
+      generatePreview: true,
+      awaitPromise: true
+    }));
+  },
+
+  async function testFunctionReturnRejectedPromise() {
+    InspectorTest.logMessage(await callFunctionOn({
+      objectId: remoteObject1.objectId,
+      functionDeclaration: '(function(arg) { return Promise.reject({a : this.a + arg.a}); })',
+      arguments: prepareArguments([ remoteObject2 ]),
+      returnByValue: true,
+      generatePreview: false,
+      awaitPromise: true
+    }));
   }
 ]);
 
-function callFunctionOn(objectExpression, functionDeclaration, argumentExpressions, returnByValue, generatePreview, awaitPromise)
-{
-  var objectId;
-  var callArguments = [];
-  var promise = Protocol.Runtime.evaluate({ expression: objectExpression })
-    .then((result) => objectId = result.result.result.objectId);
-  for (let argumentExpression of argumentExpressions) {
-    promise = promise
-      .then(() => Protocol.Runtime.evaluate({ expression: argumentExpression }))
-      .then((result) => addArgument(result.result.result));
-  }
-  return promise.then(() => Protocol.Runtime.callFunctionOn({ objectId: objectId, functionDeclaration: functionDeclaration, arguments: callArguments, returnByValue: returnByValue, generatePreview: generatePreview, awaitPromise: awaitPromise }));
-
-  function addArgument(result)
-  {
-    if (result.objectId) {
-      callArguments.push({ objectId: result.objectId });
-    } else if (result.value) {
-      callArguments.push({ value: result.value })
-    } else if (result.unserializableValue) {
-      callArguments.push({ unserializableValue: result.unserializableValue });
-    } else if (result.type === "undefined") {
-      callArguments.push({});
-    } else {
-      InspectorTest.log("Unexpected argument object:");
-      InspectorTest.logMessage(result);
-      InspectorTest.completeTest();
-    }
-  }
+function prepareArguments(args) {
+  return args.map(arg => {
+    if (Object.is(arg, -0))
+      return {unserializableValue: '-0'};
+    if (Object.is(arg, NaN) || Object.is(arg, Infinity) || Object.is(arg, -Infinity))
+      return {unserializableValue: arg + ''};
+    if (arg && arg.objectId)
+      return {objectId: arg.objectId};
+    return {value: arg};
+  });
 }

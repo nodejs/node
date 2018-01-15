@@ -31,6 +31,8 @@
 namespace v8 {
 namespace internal {
 
+class JavaScriptFrame;
+
 // This class collects some specific information on structure of functions
 // in a particular script.
 //

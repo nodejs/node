@@ -45,6 +45,8 @@ class ConstantElementsPair : public Tuple2 {
   DECL_INT_ACCESSORS(elements_kind)
   DECL_ACCESSORS(constant_values, FixedArrayBase)
 
+  inline bool is_empty() const;
+
   DECL_CAST(ConstantElementsPair)
 
   static const int kElementsKindOffset = kValue1Offset;

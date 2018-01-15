@@ -9,6 +9,7 @@
 #include "src/base/bits.h"
 #include "src/external-reference-table.h"
 #include "src/globals.h"
+#include "src/utils.h"
 #include "src/visitors.h"
 
 namespace v8 {
@@ -18,16 +19,36 @@ class Isolate;
 
 class ExternalReferenceEncoder {
  public:
-  explicit ExternalReferenceEncoder(Isolate* isolate);
+  class Value {
+   public:
+    explicit Value(uint32_t raw) : value_(raw) {}
+    static uint32_t Encode(uint32_t index, bool is_from_api) {
+      return Index::encode(index) | IsFromAPI::encode(is_from_api);
+    }
 
-  uint32_t Encode(Address key) const;
+    bool is_from_api() const { return IsFromAPI::decode(value_); }
+    uint32_t index() const { return Index::decode(value_); }
+    uint32_t raw() const { return value_; }
+
+   private:
+    class Index : public BitField<uint32_t, 0, 31> {};
+    class IsFromAPI : public BitField<bool, 31, 1> {};
+    uint32_t value_;
+  };
+
+  explicit ExternalReferenceEncoder(Isolate* isolate);
+  ~ExternalReferenceEncoder();
+
+  Value Encode(Address key);
 
   const char* NameOfAddress(Isolate* isolate, Address address) const;
 
  private:
   AddressToIndexHashMap* map_;
+
 #ifdef DEBUG
-  ExternalReferenceTable* table_;
+  std::vector<int> count_;
+  const intptr_t* api_references_;
 #endif  // DEBUG
 
   DISALLOW_COPY_AND_ASSIGN(ExternalReferenceEncoder);
@@ -88,7 +109,8 @@ class SerializerDeserializer : public RootVisitor {
  protected:
   static bool CanBeDeferred(HeapObject* o);
 
-  void RestoreExternalReferenceRedirectors(List<AccessorInfo*>* accessor_infos);
+  void RestoreExternalReferenceRedirectors(
+      const std::vector<AccessorInfo*>& accessor_infos);
 
   // ---------- byte code range 0x00..0x7f ----------
   // Byte codes in this range represent Where, HowToCode and WhereToPoint.
@@ -174,6 +196,12 @@ class SerializerDeserializer : public RootVisitor {
   // Used for embedder-provided serialization data for embedder fields.
   static const int kEmbedderFieldsData = 0x1f;
 
+  // Used for embedder-allocated backing stores for TypedArrays.
+  static const int kOffHeapBackingStore = 0x35;
+
+  // Used to encode external referenced provided through the API.
+  static const int kApiReference = 0x36;
+
   // 8 hot (recently seen or back-referenced) objects with optional skip.
   static const int kNumberOfHotObjects = 8;
   STATIC_ASSERT(kNumberOfHotObjects == HotObjectsList::kSize);
@@ -183,7 +211,7 @@ class SerializerDeserializer : public RootVisitor {
   static const int kHotObjectWithSkip = 0x58;
   static const int kHotObjectMask = 0x07;
 
-  // 0x35..0x37, 0x55..0x57, 0x75..0x7f unused.
+  // 0x37, 0x55..0x57, 0x75..0x7f unused.
 
   // ---------- byte code range 0x80..0xff ----------
   // First 32 root array items.
@@ -249,54 +277,39 @@ class SerializedData {
   }
 
   uint32_t GetMagicNumber() const { return GetHeaderValue(kMagicNumberOffset); }
-  uint32_t GetExtraReferences() const {
-    return GetHeaderValue(kExtraExternalReferencesOffset);
-  }
 
   class ChunkSizeBits : public BitField<uint32_t, 0, 31> {};
   class IsLastChunkBits : public BitField<bool, 31, 1> {};
 
   static uint32_t ComputeMagicNumber(ExternalReferenceTable* table) {
-    uint32_t external_refs = table->size() - table->num_api_references();
+    uint32_t external_refs = table->size();
     return 0xC0DE0000 ^ external_refs;
   }
-  static uint32_t GetExtraReferences(ExternalReferenceTable* table) {
-    return table->num_api_references();
-  }
 
-  static const int kMagicNumberOffset = 0;
-  static const int kExtraExternalReferencesOffset =
-      kMagicNumberOffset + kInt32Size;
-  static const int kVersionHashOffset =
-      kExtraExternalReferencesOffset + kInt32Size;
+  static const uint32_t kMagicNumberOffset = 0;
+  static const uint32_t kVersionHashOffset = kMagicNumberOffset + kUInt32Size;
 
  protected:
-  void SetHeaderValue(int offset, uint32_t value) {
-    memcpy(data_ + offset, &value, sizeof(value));
+  void SetHeaderValue(uint32_t offset, uint32_t value) {
+    WriteLittleEndianValue(data_ + offset, value);
   }
 
-  uint32_t GetHeaderValue(int offset) const {
-    uint32_t value;
-    memcpy(&value, data_ + offset, sizeof(value));
-    return value;
+  uint32_t GetHeaderValue(uint32_t offset) const {
+    return ReadLittleEndianValue<uint32_t>(data_ + offset);
   }
 
-  void AllocateData(int size);
+  void AllocateData(uint32_t size);
 
   static uint32_t ComputeMagicNumber(Isolate* isolate) {
     return ComputeMagicNumber(ExternalReferenceTable::instance(isolate));
   }
-  static uint32_t GetExtraReferences(Isolate* isolate) {
-    return GetExtraReferences(ExternalReferenceTable::instance(isolate));
-  }
 
   void SetMagicNumber(Isolate* isolate) {
     SetHeaderValue(kMagicNumberOffset, ComputeMagicNumber(isolate));
-    SetHeaderValue(kExtraExternalReferencesOffset, GetExtraReferences(isolate));
   }
 
   byte* data_;
-  int size_;
+  uint32_t size_;
   bool owns_data_;
 
  private:

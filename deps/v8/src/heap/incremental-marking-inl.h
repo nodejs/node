@@ -21,17 +21,9 @@ void IncrementalMarking::RecordWrite(HeapObject* obj, Object** slot,
 
 void IncrementalMarking::RecordWrites(HeapObject* obj) {
   if (IsMarking()) {
-    if (FLAG_concurrent_marking ||
-        ObjectMarking::IsBlack<kAtomicity>(obj, marking_state(obj))) {
+    if (FLAG_concurrent_marking || marking_state()->IsBlack(obj)) {
       RevisitObject(obj);
     }
-  }
-}
-
-void IncrementalMarking::RecordWriteOfCodeEntry(JSFunction* host, Object** slot,
-                                                Code* value) {
-  if (IsMarking()) {
-    RecordWriteOfCodeEntrySlow(host, slot, value);
   }
 }
 
