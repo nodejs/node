@@ -146,7 +146,8 @@ const contextifiedSandbox = vm.createContext({ secret: 42 });
 
 * `code` {string} JavaScript Module code to parse
 * `options`
-  * `url` {string} URL used in module resolution and stack traces
+  * `url` {string} URL used in module resolution and stack traces. **Default**:
+    `'vm:module(i)'` where `i` is a context-specific ascending index.
   * `context` {Object} The [contextified][] object as returned by the
     `vm.createContext()` method, to compile and evaluate this Module in.
   * `lineOffset` {integer} Specifies the line number offset that is displayed
@@ -154,13 +155,31 @@ const contextifiedSandbox = vm.createContext({ secret: 42 });
   * `columnOffset` {integer} Spcifies the column number offset that is displayed
     in stack traces produced by this Module.
 
+Creates a new ES `Module` object.
+
 ### module.dependencySpecifiers
 
 * {string[]}
 
+The specifiers of all dependencies of this module. The returned array is frozen
+to disallow any changes to it.
+
+Corresponds to the [[RequestedModules]] field of [Source Text Module Record][]s
+in the ECMAScript specification.
+
 ### module.error
 
 * {any}
+
+If the `module.status` is `'errored'`, this property contains the exception thrown
+by the module during evaluation. If the status is anything else, accessing this
+property will result in a thrown exception.
+
+*Note*: `undefined` cannot be used for cases where there is not a thrown
+exception due to possible ambiguity with `throw undefined;`.
+
+Corresponds to the [[EvaluationError]] field of [Source Text Module Record][]s
+in the ECMAScript specification.
 
 ### module.linkingStatus
 
@@ -183,6 +202,9 @@ The current linking status of `module`. It will be one of the following values:
 
 The namespace object of the module. This is only available after instantiation
 (`module.instantiate()`) has completed.
+
+Corresponds to the [GetModuleNamespace][] abstract operation in the ECMAScript
+specification.
 
 ### module.status
 
@@ -222,6 +244,8 @@ that is not `undefined`.
 
 * {string}
 
+The URL of the current module, as set in the constructor.
+
 ### module.evaluate([options])
 
 * `options` {Object}
@@ -249,6 +273,9 @@ evaluated, in which case it will do one of the following two things:
 This method cannot be called while the module is being evaluated
 (`module.status` is `'evaluating'`) to prevent infinite recursion.
 
+Corresponds to the [Evaluate() concrete method][] field of [Source Text Module
+Record][]s in the ECMAScript specification.
+
 ### module.instantiate()
 
 Instantiate the module. This must be called after linking has completed
@@ -262,6 +289,9 @@ specification.
 
 Unlike other methods operating on `Module`, this function completes
 synchronously and returns nothing.
+
+Corresponds to the [Instantiate() concrete method][] field of [Source Text
+Module Record][]s in the ECMAScript specification.
 
 ### module.link(linker)
 
@@ -296,6 +326,24 @@ any of the following:
 - returns a `Promise` that eventually gets rejected
 - returns a `Promise` fulfilled with an invalid `Module` (or not a `Module`
   object at all)
+
+The linker function roughly corresponds to the implementation-defined
+[HostResolveImportedModule][] abstract operation in the ECMAScript
+specification, with a few key differences:
+
+- The linker function is allowed to be asynchronous while
+  [HostResolveImportedModule][] is synchronous.
+- The linker function is executed during linking, a Node.js-specific stage
+  before instantiation, while [HostResolveImportedModule][] is called during
+  instantiation.
+- The linker function is expected to return a module that has begun linking,
+  while there are no such requirements for [HostResolveImportedModule][].
+
+The actual [HostResolveImportedModule][] implementation used during module
+instantiation is one that returns the modules linked during linking. But since
+at that point all modules would have been fully linked already, the
+[HostResolveImportedModule][] implementation can be fully synchronous per
+specification.
 
 ## Class: vm.Script
 <!-- YAML
@@ -772,6 +820,10 @@ associating it with the `sandbox` object is what this document refers to as
 [`vm.createContext()`]: #vm_vm_createcontext_sandbox_options
 [`vm.runInContext()`]: #vm_vm_runincontext_code_contextifiedsandbox_options
 [`vm.runInThisContext()`]: #vm_vm_runinthiscontext_code_options
+[GetModuleNamespace]: https://tc39.github.io/ecma262/#sec-getmodulenamespace
+[Evaluate() concrete method]: https://tc39.github.io/ecma262/#sec-moduleevaluation
+[HostResolveImportedModule]: https://tc39.github.io/ecma262/#sec-hostresolveimportedmodule
+[Instantiate() concrete method]: https://tc39.github.io/ecma262/#sec-moduledeclarationinstantiation
 [V8 Embedder's Guide]: https://github.com/v8/v8/wiki/Embedder's%20Guide#contexts
 [contextified]: #vm_what_does_it_mean_to_contextify_an_object
 [global object]: https://es5.github.io/#x15.1
