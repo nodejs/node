@@ -22,6 +22,7 @@
 'use strict';
 const common = require('../common');
 const assert = require('assert');
+const os = require('os');
 
 const spawn = require('child_process').spawn;
 
@@ -59,5 +60,5 @@ process.on('exit', function() {
   assert.ok(!response.includes('FOO='));
   assert.ok(!response.includes('UNDEFINED=undefined'));
   assert.ok(response.includes('NULL=null'));
-  assert.ok(response.includes('EMPTY=\n'));
+  assert.ok(response.includes(`EMPTY=${os.EOL}`));
 });
