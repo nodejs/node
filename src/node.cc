@@ -2697,6 +2697,18 @@ static void ProcessTitleSetter(Local<Name> property,
 }
 
 
+inline void RemovePropertyFromEnv(Isolate* isolate, Local<Name> property) {
+#ifdef __POSIX__
+  node::Utf8Value key(isolate, property);
+  unsetenv(*key);
+#else
+  node::TwoByteValue key(isolate, property);
+  WCHAR* key_ptr = reinterpret_cast<WCHAR*>(*key);
+  SetEnvironmentVariableW(key_ptr, nullptr);
+#endif
+}
+
+
 static void EnvGetter(Local<Name> property,
                       const PropertyCallbackInfo<Value>& info) {
   Isolate* isolate = info.GetIsolate();
@@ -2731,6 +2743,11 @@ static void EnvGetter(Local<Name> property,
 static void EnvSetter(Local<Name> property,
                       Local<Value> value,
                       const PropertyCallbackInfo<Value>& info) {
+  if (value->IsUndefined()) {
+    RemovePropertyFromEnv(info.GetIsolate(), property);
+    info.GetReturnValue().Set(value);
+    return;
+  }
 #ifdef __POSIX__
   node::Utf8Value key(info.GetIsolate(), property);
   node::Utf8Value val(info.GetIsolate(), value);
@@ -2780,14 +2797,7 @@ static void EnvQuery(Local<Name> property,
 static void EnvDeleter(Local<Name> property,
                        const PropertyCallbackInfo<Boolean>& info) {
   if (property->IsString()) {
-#ifdef __POSIX__
-    node::Utf8Value key(info.GetIsolate(), property);
-    unsetenv(*key);
-#else
-    node::TwoByteValue key(info.GetIsolate(), property);
-    WCHAR* key_ptr = reinterpret_cast<WCHAR*>(*key);
-    SetEnvironmentVariableW(key_ptr, nullptr);
-#endif
+    RemovePropertyFromEnv(info.GetIsolate(), property);
   }
 
   // process.env never has non-configurable properties, so always

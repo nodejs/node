@@ -100,3 +100,12 @@ if (common.isWindows) {
   assert.strictEqual(process.env.test, undefined);
   assert.strictEqual(process.env.teST, undefined);
 }
+
+{
+  // Setting an environment variable to undefined should act like a delete.
+  process.env.UNDEF = 'test';
+  assert.strictEqual(process.env.UNDEF, 'test');
+  process.env.UNDEF = undefined;
+  assert.strictEqual(process.env.UNDEF, undefined);
+  assert.strictEqual('UNDEF' in process.env, false);
+}
