@@ -1095,12 +1095,12 @@ LINT_MD_FILES := $(shell find $(LINT_MD_TARGETS) -type f \
   -not -path '*node_modules*' -name '*.md') $(LINT_MD_ROOT_DOCS)
 LINT_DOC_MD_FILES = $(shell ls doc/**/*.md)
 
-tools/.docmdlintstamp: $(LINT_DOC_MD_FILES)
+tools/.docmdlintstamp: $(LINT_DOC_MD_FILES) tools/remark-cli
 	@echo "Running Markdown linter on docs..."
 	@$(NODE) tools/remark-cli/cli.js -q -f $(LINT_DOC_MD_FILES)
 	@touch $@
 
-tools/.miscmdlintstamp: $(LINT_MD_FILES)
+tools/.miscmdlintstamp: $(LINT_MD_FILES) tools/remark-cli
 	@echo "Running Markdown linter on misc docs..."
 	@$(NODE) tools/remark-cli/cli.js -q -f $(LINT_MD_FILES)
 	@touch $@
@@ -1192,13 +1192,12 @@ ADDON_DOC_LINT_FLAGS=-whitespace/ending_newline,-build/header_guard
 # Lints the C++ code with cpplint.py and check-imports.py.
 lint-cpp: tools/.cpplintstamp
 
-tools/.cpplintstamp: $(LINT_CPP_FILES)
-	@echo "Running C++ linter..."
-	@$(PYTHON) tools/cpplint.py $?
+tools/.cpplintstamp: $(LINT_CPP_FILES) tools/cpplint.py tools/check-imports.py
+	@$(PYTHON) tools/cpplint.py $(LINT_CPP_FILES)
 	@$(PYTHON) tools/check-imports.py
 	@touch $@
 
-lint-addon-docs: test/addons/.docbuildstamp
+lint-addon-docs: test/addons/.docbuildstamp tools/cpplint.py
 	@echo "Running C++ linter on addon docs..."
 	@$(PYTHON) tools/cpplint.py --filter=$(ADDON_DOC_LINT_FLAGS) $(LINT_CPP_ADDON_DOC_FILES)
 
