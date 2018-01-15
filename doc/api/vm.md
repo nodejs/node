@@ -48,165 +48,253 @@ console.log(x); // 1; y is not defined.
 added: REPLACEME
 -->
 
-Instances of the`vm.Module` class contain compiled module code that can
-be evaluated in a set context. This class tries to mirror [`ES Module`][]
-specification as much as possible.
+The `vm.Module` class provides a way to use ECMAScript modules in VM contexts.
+It is the counterpart of the `vm.Script` class that closely mirrors [Source Text
+Module Record][]s as defined in the ECMAScript specification.
 
-```javascript
+Unlike `vm.Script` however, every `vm.Module` object is bound to a context from
+its creation. Operations on `vm.Module` objects are intrinsically asynchronous,
+in constrast with the synchronous nature of `vm.Script` objects. With the help
+of async functions, however, manipulating `vm.Module` objects are fairly
+straightforward.
+
+Using a `vm.Module` object requires four distinct steps: creation/parsing,
+linking, instantiating, and evaluation. These four steps are illustrated in the
+following example.
+
+```js
+const vm = require('vm');
+
+const contextifiedSandbox = vm.createContext({ secret: 42 });
+
 (async () => {
-  const foo = new vm.Module('export default 5;');
+  // Step 1
+  //
+  // Create a Module by constructing a new `vm.Module` object. This parses the
+  // provided source text, throwing a `SyntaxError` if anything goes wrong. By
+  // default, a Module is created in the top context. But here, we specify
+  // `contextifiedSandbox` as the context this Module belongs to.
+  //
+  // Here, we attempt to obtain the default export from the module "foo", and
+  // put it into local binding "secret".
 
-  const bar = new vm.Module('import five from "foo"; five');
+  const bar = new vm.Module('import secret from "foo"; secret;', {
+    context: contextifiedSandbox
+  });
+
+
+  // Step 2
+  //
+  // "Link" the imported dependencies of this Module to it.
+  //
+  // The provided linking callback (the "linker") accepts an argument that is
+  // the specifier of the imported module. The callback is expected to return a
+  // Module that corresponds to the provided specifier with certain requirements
+  // documented in `module.link()`.
+  //
+  // Even Modules without dependencies must be explicitly linked. The callback
+  // provided would never be called, however.
+  //
+  // The link() method returns a Promise that will be resolved when all the
+  // Promises returned by the linker resolve.
+  //
+  // Note: This is a contrived example in that there is only one layer of
+  // dependency. To form a proper Module system, the linker would be fully
+  // recursive.
 
   await bar.link(async (specifier) => {
-    if (specifier === 'foo')
+    if (specifier === 'foo') {
+      // The `secret` variable refers to the global variable we added to
+      // `contextifiedSandbox` when creating the context.
+      const foo = new vm.Module('export default secret;', {
+        context: contextifiedSandbox
+      });
+      await foo.link(() => {});
       return foo;
+    }
     throw new Error(`Unable to resolve dependency: ${specifier}`);
   });
 
+
+  // Step 3
+  //
+  // Instantiate the top-level Module.
+  //
+  // Only the top-level Module needs to be explicitly instantiated; its
+  // dependencies will be recursively instantiated by instantiate().
+
   bar.instantiate();
 
-  const { result: five } = await bar.evaluate();
 
-  five + 5; //> 10
+  // Step 4
+  //
+  // Evaluate the Module. The evaluate() method returns a Promise with a single
+  // property "result" that contains the result of the very last statement
+  // executed in the Module. In the case of `bar`, it is `secret;`, which refers
+  // to the default export of the `foo` module, the `secret` we set in the
+  // beginning to 42.
+
+  const { result } = await bar.evaluate();
+
+  console.log(result);
+  // Prints 42.
 })();
 ```
 
-### Static: vm.Module.setImportDynamicallyCallback(callback);
-<!-- YAML
-added: REPLACEME
--->
-
-* `callback` {Function}
-  * `referrer` {String} url of the module which made the dynamic import request
-  * `specifier` {String} url of the module being requested.
-
-Handle dynamic import requests from vm.Module instances that are evaluating.
-The callback should return a module namespace, not a module. See the example
-below for more details.
-
-```javascript
-vm.Module.setImportDynamicallyCallback(async (referrer, specifier) => {
-  if (specifier === 'random') {
-    const m = new vm.Module('export default Math.random()');
-    await m.link();
-    m.instantiate();
-    await m.evaluate();
-    return m.namespace;
-  }
-
-  return null;
-});
-```
-
 ### Constructor: new vm.Module(code[, options])
-<!-- YAML
-added: REPLACEME
--->
 
-* `code` {string} the JavaScript code to evaluate.
+* `code` {string} JavaScript Module code to parse
 * `options`
-  * `url` {string} Specifies the url used in module resolving and stack traces
-  * `context` {vm.Context} The context to compile and evaluate this code in
-  * `lineOffset` {number} Specifies the line number offset that is displayed
-    in stack traces produced by this script.
-  * `columnOffset` {number} Spcifies the column number offset that is displayed
-    in stack traces produced by this script.
+  * `url` {string} URL used in module resolution and stack traces
+  * `context` {Object} The [contextified][] object as returned by the
+    `vm.createContext()` method, to compile and evaluate this Module in.
+  * `lineOffset` {integer} Specifies the line number offset that is displayed
+    in stack traces produced by this Module.
+  * `columnOffset` {integer} Spcifies the column number offset that is displayed
+    in stack traces produced by this Module.
+
+### module.dependencySpecifiers
+
+* {string[]}
+
+### module.error
+
+* {any}
+
+### module.linkingStatus
+
+* {string}
+
+The current linking status of `module`. It will be one of the following values:
+
+- `'unlinked'`: `module.link()` has not yet been called.
+- `'linking'`: `module.link()` has been called, but not all Promises returned by
+  the linker function have been resolved yet.
+- `'linked'`: `module.link()` has been called, and all its dependencies have
+  been successfully linked.
+- `'errored'`: `module.link()` has been called, but at least one of its
+  dependencies failed to link, either because the callback returned a Promise
+  that is rejected, or because the Module the callback returned is invalid.
+
+### module.namespace
+
+* {Object}
+
+The namespace object of the module. This is only available after instantiation
+(`module.instantiate()`) has completed.
 
 ### module.status
-<!-- YAML
-added: REPLACEME
--->
 
 * {string}
 
 The current status of the module. Will be one of:
-- `uninstantiated`
-- `instantiating`
-- `instantiated`
-- `evaluating`
-- `evaluated`
-- `errored`
+
+- `'uninstantiated'`: The module is not instantiated. It may because of any of
+  the following reasons:
+
+  - The module was just created.
+  - `module.instantiate()` has been called on this module, but it failed for
+    some reason.
+
+  This status does not convey any information regarding if `module.link()` has
+  been called. See `module.linkingStatus` for that.
+
+- `'instantiating'`: The module is currently being instantiated through a
+  `module.instantiate()` call on itself or a parent module.
+
+- `'instantiated'`: The module has been instantiated successfully, but
+  `module.evaluate()` has not yet been called.
+
+- `'evaluating'`: The module is being evaluated through a `module.evaluate()` on
+  itself or a parent module.
+
+- `'evaluated'`: The module has been successfully evaluated.
+
+- `'errored'`: The module has been evaluated, but an exception was thrown.
+
+Other than `'errored'`, this status string corresponds to the specification's
+[Source Text Module Record][]'s [[Status]] field. `'errored'` corresponds to
+`'evaluated'` in the specification, but with [[EvaluationError]] set to a value
+that is not `undefined`.
 
 ### module.url
-<!-- YAML
-added: REPLACEME
--->
 
 * {string}
 
-### module.dependencySpecifiers
-<!-- YAML
-added: REPLACEME
--->
+### module.evaluate([options])
 
-* {Array<String>}
-
-### module.namespace
-<!-- YAML
-added: REPLACEME
--->
-
-* {object}
-
-The namespace of the module, only available after evaluation.
-
-### module.error
-<!-- YAML
-added: REPLACEME
--->
-
-* {Error}
-
-### module.link([fn])
-<!-- YAML
-added: REPLACEME
--->
-
+* `options` {Object}
+  * `timeout` {number} Specifies the number of milliseconds to evaluate
+    before terminating execution. If execution is interrupted, an [`Error`][]
+    will be thrown.
+  * `breakOnSigint` {boolean} If `true`, the execution will be terminated when
+    `SIGINT` (Ctrl+C) is received. Existing handlers for the event that have
+    been attached via `process.on("SIGINT")` will be disabled during script
+    execution, but will continue to work after that. If execution is
+    interrupted, an [`Error`][] will be thrown.
 * Returns: {Promise}
 
-Link module dependencies. The linking function may return a promise if desired.
+Evaluate the module.
 
-```javascript
-(async () => {
-  const foo = new vm.Module('export default 5', { url: 'foo' });
-  const bar = new vm.Module('import five from "foo"', { url: 'bar' });
+This must be called after the module has been instantiated; otherwise it will
+throw an error. It could be called also when the module has already been
+evaluated, in which case it will do one of the following two things:
 
-  await bar.link(async (specifier) => {
-    if (specifier === 'foo')
-      return foo;
-    throw new Error(`Unable to resolve dependency: ${specifier}`);
-  });
+- return `undefined` if the initial evaluation ended in success (`module.status`
+  is `'evaluated'`)
+- rethrow the same exception the initial evaluation threw if the initial
+  evaluation ended in an error (`module.status` is `'errored'`)
 
-  bar.instantiate();
-  bar.evaluate();
-})();
-```
+This method cannot be called while the module is being evaluated
+(`module.status` is `'evaluating'`) to prevent infinite recursion.
 
 ### module.instantiate()
-<!-- YAML
-added: REPLACEME
--->
 
-Instantiate the module.
+Instantiate the module. This must be called after linking has completed
+(`linkingStatus` is `'linked'`); otherwise it will throw an error. It may also
+throw an exception if one of the dependencies does not provide an export the
+parent module requires.
 
-### module.evaluate([options])
-<!-- YAML
-added: REPLACEME
--->
+However, if this function succeeded, further calls to this function after the
+initial instantiation will be no-ops, to be consistent with the ECMAScript
+specification.
 
-* Returns: {Promise<{ result }>}
+Unlike other methods operating on `Module`, this function completes
+synchronously and returns nothing.
 
-* `options`
-  * `timeout` {number} Specifies the number of milliseconds to evaluate
-    before terminating execution. If execution is terminated, an [`Error`][]
-    will be thrown.
-  * `breakOnSigint`: if `true`, the execution will be terminated when
-    `SIGINT` (Ctrl+C) is received. Existing handlers for the
-    event that have been attached via `process.on("SIGINT")` will be disabled
-    during script execution, but will continue to work after that.
-    If execution is terminated, an [`Error`][] will be thrown.
+### module.link(linker)
 
+* `linker` {Function}
+* Returns: {Promise}
+
+Link module dependencies. This method must be called before instantiation, and
+can only be called once per module.
+
+Two parameters will be passed to the `linker` function:
+
+- `referencingModule` The `Module` object `link()` is called on.
+- `specifier` The specifier of the requested module:
+
+  ```js
+  import foo from 'foo';
+  //              ^^^^^ the module specifier
+  ```
+
+The function is expected to return a `Module` object or a `Promise` that
+eventually resolves to a `Module` object. The returned `Module` must satisfy two
+requirements:
+
+- It must belong to the same context as the parent `Module`.
+- It must be already linked or currently linking (for cyclical imports).
+
+`link()` returns a `Promise` that will either get resolved when all linking
+instances resolve to a valid `Module`, or rejected if the linker function does
+any of the following:
+
+- throws an exception
+- returns a `Promise` that eventually gets rejected
+- returns a `Promise` fulfilled with an invalid `Module` (or not a `Module`
+  object at all)
 
 ## Class: vm.Script
 <!-- YAML
@@ -688,4 +776,4 @@ associating it with the `sandbox` object is what this document refers to as
 [global object]: https://es5.github.io/#x15.1
 [indirect `eval()` call]: https://es5.github.io/#x10.4.2
 [origin]: https://developer.mozilla.org/en-US/docs/Glossary/Origin
-[`ES Modules`]: https://tc39.github.io/ecma262/#sec-modules
+[Source Text Module Record]: https://tc39.github.io/ecma262/#sec-source-text-module-records

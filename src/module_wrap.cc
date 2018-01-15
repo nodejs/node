@@ -251,7 +251,6 @@ void ModuleWrap::Evaluate(const FunctionCallbackInfo<Value>& args) {
 
   bool timed_out = false;
   bool received_signal = false;
-  Watchdog wd(isolate, 1000, &timed_out);
   MaybeLocal<Value> result;
   if (break_on_sigint && timeout != -1) {
     Watchdog wd(isolate, timeout, &timed_out);

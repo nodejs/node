@@ -11,6 +11,7 @@ const { Module } = require('vm');
 
 (async function main() {
   const foo = new Module('export default 5;');
+  await foo.link(() => {});
 
   const bar = new Module('import five from "foo"; five');
 

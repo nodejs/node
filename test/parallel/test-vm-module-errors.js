@@ -51,6 +51,7 @@ rejects(async () => {
 rejects(async () => {
   const c = createContext({ a: 1 });
   const foo = new Module('', { context: c });
+  await foo.link(() => {});
   const bar = new Module('import "foo";');
   try {
     await bar.link(() => foo);
@@ -59,7 +60,7 @@ rejects(async () => {
     throw err;
   }
   assert.fail('Unreachable');
-}, /MODULE_MATCHING_CONTEXT/);
+}, /MODULE_DIFFERENT_CONTEXT/);
 
 assert.throws(() => {
   const m = new Module('');
@@ -68,12 +69,14 @@ assert.throws(() => {
 
 (async () => {
   const m = new Module('import "foo";');
-  await m.link(() => {
+  await m.link(async () => {
     assert.strictEqual(m.linkingStatus, 'linking');
     assert.throws(() => {
       m.instantiate();
     }, /MODULE_NOT_LINKED/);
-    return new Module('');
+    const sub = new Module('');
+    await sub.link(() => {});
+    return sub;
   });
   m.instantiate();
   await m.evaluate();
