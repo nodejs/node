@@ -187,6 +187,9 @@ property take precedence over `--trace-deprecation` and
 <!-- YAML
 added: v0.5.3
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/17907
+    description: The `%o` specifiers `depth` option is now set to Infinity.
   - version: v8.4.0
     pr-url: https://github.com/nodejs/node/pull/14558
     description: The `%o` and `%O` specifiers are supported now.
@@ -209,12 +212,11 @@ corresponding argument. Supported placeholders are:
 contains circular references.
 * `%o` - Object. A string representation of an object
   with generic JavaScript object formatting.
-  Similar to `util.inspect()` with options `{ showHidden: true, depth: 4, showProxy: true }`.
-  This will show the full object including non-enumerable symbols and properties.
-* `%O` - Object. A string representation of an object
-  with generic JavaScript object formatting.
-  Similar to `util.inspect()` without options.
-  This will show the full object not including non-enumerable symbols and properties.
+  Similar to `util.inspect()` with options `{ showHidden: true, showProxy: true }`.
+  This will show the full object including non-enumerable properties and proxies.
+* `%O` - Object. A string representation of an object with generic JavaScript
+  object formatting. Similar to `util.inspect()` without options. This will show
+  the full object not including non-enumerable properties and proxies.
 * `%%` - single percent sign (`'%'`). This does not consume an argument.
 
 If the placeholder does not have a corresponding argument, the placeholder is
@@ -328,6 +330,9 @@ stream.write('With ES6');
 added: v0.3.0
 changes:
   - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/17907
+    description: The `depth` default changed to Infinity.
+  - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/REPLACEME
     description: The `compact` option is supported now.
   - version: v6.6.0
@@ -349,9 +354,6 @@ changes:
 * `options` {Object}
   * `showHidden` {boolean} If `true`, the `object`'s non-enumerable symbols and
     properties will be included in the formatted result. Defaults to `false`.
-  * `depth` {number} Specifies the number of times to recurse while formatting
-    the `object`. This is useful for inspecting large complicated objects.
-    Defaults to `2`. To make it recurse indefinitely pass `null`.
   * `colors` {boolean} If `true`, the output will be styled with ANSI color
     codes. Defaults to `false`. Colors are customizable, see
     [Customizing `util.inspect` colors][].
@@ -362,8 +364,8 @@ changes:
     objects. Defaults to `false`.
   * `maxArrayLength` {number} Specifies the maximum number of array and
     `TypedArray` elements to include when formatting. Defaults to `100`. Set to
-    `null` to show all array elements. Set to `0` or negative to show no array
-    elements.
+    `null` or `Infinity` to show all array elements. Set to `0` or negative to
+    show no array elements.
   * `breakLength` {number} The length at which an object's keys are split
     across multiple lines. Set to `Infinity` to format an object as a single
     line. Defaults to 60 for legacy compatibility.
@@ -374,6 +376,10 @@ changes:
     objects the same as arrays. Note that no text will be reduced below 16
     characters, no matter the `breakLength` size. For more information, see the
     example below. Defaults to `true`.
+  * `depth` {number} Specifies the number visible nested Objects in an `object`.
+    This is useful to minimize the inspection output for large complicated
+    objects. To make it recurse indefinitely pass `null` or `Infinity`. Defaults
+    to `Infinity`.
 
 The `util.inspect()` method returns a string representation of `object` that is
 intended for debugging. The output of `util.inspect` may change at any time
@@ -398,12 +404,23 @@ util.inspect(new Bar()); // 'Bar {}'
 util.inspect(baz);       // '[foo] {}'
 ```
 
-The following example inspects all properties of the `util` object:
+The following example limits the inspected output of the `paths` property:
 
 ```js
 const util = require('util');
 
-console.log(util.inspect(util, { showHidden: true, depth: null }));
+console.log(util.inspect(module, { depth: 0 }));
+// Instead of showing all entries in `paths` `[Array]` is used to limit the
+// output for readability:
+
+// Module {
+//   id: '<repl>',
+//   exports: {},
+//   parent: undefined,
+//   filename: null,
+//   loaded: false,
+//   children: [],
+//   paths: [Array] }
 ```
 
 Values may supply their own custom `inspect(depth, opts)` functions, when
@@ -423,7 +440,7 @@ const o = {
     'foo']], 4],
   b: new Map([['za', 1], ['zb', 'test']])
 };
-console.log(util.inspect(o, { compact: true, depth: 5, breakLength: 80 }));
+console.log(util.inspect(o, { compact: true, breakLength: 80 }));
 
 // This will print
 
@@ -437,7 +454,7 @@ console.log(util.inspect(o, { compact: true, depth: 5, breakLength: 80 }));
 //   b: Map { 'za' => 1, 'zb' => 'test' } }
 
 // Setting `compact` to false changes the output to be more reader friendly.
-console.log(util.inspect(o, { compact: false, depth: 5, breakLength: 80 }));
+console.log(util.inspect(o, { compact: false, breakLength: 80 }));
 
 // {
 //   a: [
