@@ -754,6 +754,20 @@ common.expectsError(
   assert.equal(Object.keys(assert).length, Object.keys(a).length);
   /* eslint-enable no-restricted-properties */
   assert(7);
+  common.expectsError(
+    () => assert(),
+    {
+      code: 'ERR_MISSING_ARGS',
+      type: TypeError
+    }
+  );
+  common.expectsError(
+    () => a(),
+    {
+      code: 'ERR_MISSING_ARGS',
+      type: TypeError
+    }
+  );
 
   // Test setting the limit to zero and that assert.strict works properly.
   const tmpLimit = Error.stackTraceLimit;
