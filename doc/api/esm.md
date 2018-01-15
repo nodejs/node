@@ -133,7 +133,7 @@ module. This can be one of the following:
 | `format` | Description |
 | --- | --- |
 | `"esm"` | Load a standard JavaScript module |
-| `"cjs"` | Load a node-style CommonJS module |
+| `"commonjs"` | Load a node-style CommonJS module |
 | `"builtin"` | Load a node builtin CommonJS module |
 | `"json"` | Load a JSON file |
 | `"addon"` | Load a [C++ Addon][addons] |
