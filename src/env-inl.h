@@ -548,7 +548,7 @@ inline void Environment::set_fs_stats_field_array(double* fields) {
   fs_stats_field_array_ = fields;
 }
 
-void Environment::SetImmediate(native_immediate_callback cb,
+void Environment::CreateImmediate(native_immediate_callback cb,
                                void* data,
                                v8::Local<v8::Object> obj,
                                bool ref) {
@@ -560,17 +560,22 @@ void Environment::SetImmediate(native_immediate_callback cb,
     ref
   });
   immediate_info()->count_inc(1);
-  if (ref) {
-    if (immediate_info()->ref_count() == 0)
-      ToggleImmediateRef(true);
-    immediate_info()->ref_count_inc(1);
-  }
+}
+
+void Environment::SetImmediate(native_immediate_callback cb,
+                               void* data,
+                               v8::Local<v8::Object> obj) {
+  CreateImmediate(cb, data, obj, true);
+
+  if (immediate_info()->ref_count() == 0)
+    ToggleImmediateRef(true);
+  immediate_info()->ref_count_inc(1);
 }
 
 void Environment::SetUnrefImmediate(native_immediate_callback cb,
                                     void* data,
                                     v8::Local<v8::Object> obj) {
-  SetImmediate(cb, data, obj, false);
+  CreateImmediate(cb, data, obj, false);
 }
 
 inline performance::performance_state* Environment::performance_state() {

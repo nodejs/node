@@ -702,8 +702,7 @@ class Environment {
   // obj will be kept alive between now and after the callback has run.
   inline void SetImmediate(native_immediate_callback cb,
                            void* data,
-                           v8::Local<v8::Object> obj = v8::Local<v8::Object>(),
-                           bool ref = true);
+                           v8::Local<v8::Object> obj = v8::Local<v8::Object>());
   inline void SetUnrefImmediate(native_immediate_callback cb,
                                 void* data,
                                 v8::Local<v8::Object> obj =
@@ -726,6 +725,11 @@ class Environment {
   static inline Environment* ForAsyncHooks(AsyncHooks* hooks);
 
  private:
+  inline void CreateImmediate(native_immediate_callback cb,
+                              void* data,
+                              v8::Local<v8::Object> obj,
+                              bool ref);
+
   inline void ThrowError(v8::Local<v8::Value> (*fun)(v8::Local<v8::String>),
                          const char* errmsg);
 
