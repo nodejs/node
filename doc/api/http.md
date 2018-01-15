@@ -159,6 +159,42 @@ socket/stream from this function, or by passing the socket/stream to `callback`.
 
 `callback` has a signature of `(err, stream)`.
 
+### agent.keepSocketAlive(socket)
+<!-- YAML
+added: REPLACEME
+-->
+
+* `socket` {net.Socket}
+
+Called when `socket` is detached from a request and could be persisted by the
+Agent. Default behavior is to:
+
+```js
+socket.unref();
+socket.setKeepAlive(agent.keepAliveMsecs);
+```
+
+This method can be overridden by a particular `Agent` subclass. If this
+method returns a falsy value, the socket will be destroyed instead of persisting
+it for use with the next request.
+
+### agent.reuseSocket(socket, request)
+<!-- YAML
+added: REPLACEME
+-->
+
+* `socket` {net.Socket}
+* `request` {http.ClientRequest}
+
+Called when `socket` is attached to `request` after being persisted because of
+the keep-alive options. Default behavior is to:
+
+```js
+socket.ref();
+```
+
+This method can be overridden by a particular `Agent` subclass.
+
 ### agent.destroy()
 <!-- YAML
 added: v0.11.4
