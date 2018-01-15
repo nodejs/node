@@ -39,8 +39,13 @@ assert.throws(() => tls.createServer({ ticketKeys: 'abcd' }),
 assert.throws(() => tls.createServer({ ticketKeys: Buffer.alloc(0) }),
               /TypeError: Ticket keys length must be 48 bytes/);
 
-assert.throws(() => tls.createSecurePair({}),
-              /TypeError: Second argument should be a SecureContext instance/);
+common.expectsError(
+  () => tls.createSecurePair({}),
+  {
+    code: 'ERR_ASSERTION',
+    message: 'context.context must be a NativeSecureContext'
+  }
+);
 
 {
   const buffer = Buffer.from('abcd');
