@@ -25,6 +25,10 @@ namespace compiler {
 class CodeAssemblerState;
 }
 
+// Convenience macro to avoid generating named accessors for all builtins.
+#define BUILTIN_CODE(isolate, name) \
+  (isolate)->builtins()->builtin_handle(Builtins::k##name)
+
 class Builtins {
  public:
   ~Builtins();
@@ -44,13 +48,11 @@ class Builtins {
         builtin_count
   };
 
+  // The different builtin kinds are documented in builtins-definitions.h.
+  enum Kind { CPP, API, TFJ, TFC, TFS, TFH, ASM };
+
   static BailoutId GetContinuationBailoutId(Name name);
   static Name GetBuiltinFromBailoutId(BailoutId);
-
-#define DECLARE_BUILTIN_ACCESSOR(Name, ...) \
-  V8_EXPORT_PRIVATE Handle<Code> Name();
-  BUILTIN_LIST_ALL(DECLARE_BUILTIN_ACCESSOR)
-#undef DECLARE_BUILTIN_ACCESSOR
 
   // Convenience wrappers.
   Handle<Code> CallFunction(ConvertReceiverMode = ConvertReceiverMode::kAny);
@@ -75,13 +77,11 @@ class Builtins {
     return reinterpret_cast<Address>(&builtins_[name]);
   }
 
-  Handle<Code> builtin_handle(Name name);
-
-  static int GetBuiltinParameterCount(Name name);
+  V8_EXPORT_PRIVATE Handle<Code> builtin_handle(Name name);
 
   V8_EXPORT_PRIVATE static Callable CallableFor(Isolate* isolate, Name name);
 
-  static int GetStackParameterCount(Isolate* isolate, Name name);
+  static int GetStackParameterCount(Name name);
 
   static const char* name(int index);
 
@@ -89,8 +89,10 @@ class Builtins {
   // Address otherwise.
   static Address CppEntryOf(int index);
 
+  static Kind KindOf(int index);
+  static const char* KindNameOf(int index);
+
   static bool IsCpp(int index);
-  static bool IsApi(int index);
   static bool HasCppImplementation(int index);
 
   bool is_initialized() const { return initialized_; }
@@ -124,9 +126,11 @@ class Builtins {
 
   static void Generate_Call(MacroAssembler* masm, ConvertReceiverMode mode);
 
+  enum class CallOrConstructMode { kCall, kConstruct };
   static void Generate_CallOrConstructVarargs(MacroAssembler* masm,
                                               Handle<Code> code);
   static void Generate_CallOrConstructForwardVarargs(MacroAssembler* masm,
+                                                     CallOrConstructMode mode,
                                                      Handle<Code> code);
 
   static void Generate_InterpreterPushArgsThenCallImpl(
@@ -142,7 +146,7 @@ class Builtins {
   static void Generate_##Name(compiler::CodeAssemblerState* state);
 
   BUILTIN_LIST(IGNORE_BUILTIN, IGNORE_BUILTIN, DECLARE_TF, DECLARE_TF,
-               DECLARE_TF, DECLARE_TF, DECLARE_ASM, DECLARE_ASM)
+               DECLARE_TF, DECLARE_TF, DECLARE_ASM)
 
 #undef DECLARE_ASM
 #undef DECLARE_TF

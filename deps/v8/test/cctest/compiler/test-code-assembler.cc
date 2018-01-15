@@ -410,12 +410,15 @@ TEST(TestOutOfScopeVariable) {
   Label block2(&m);
   Label block3(&m);
   Label block4(&m);
-  m.Branch(m.WordEqual(m.Parameter(0), m.IntPtrConstant(0)), &block1, &block4);
+  m.Branch(m.WordEqual(m.UncheckedCast<IntPtrT>(m.Parameter(0)),
+                       m.IntPtrConstant(0)),
+           &block1, &block4);
   m.Bind(&block4);
   {
     Variable var_object(&m, MachineRepresentation::kTagged);
-    m.Branch(m.WordEqual(m.Parameter(0), m.IntPtrConstant(0)), &block2,
-             &block3);
+    m.Branch(m.WordEqual(m.UncheckedCast<IntPtrT>(m.Parameter(0)),
+                         m.IntPtrConstant(0)),
+             &block2, &block3);
 
     m.Bind(&block2);
     var_object.Bind(m.IntPtrConstant(55));

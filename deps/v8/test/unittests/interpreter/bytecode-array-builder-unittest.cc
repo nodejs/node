@@ -158,7 +158,7 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
       .CallRuntime(Runtime::kIsArray, reg)
       .CallRuntimeForPair(Runtime::kLoadLookupSlotForCall, reg_list, pair)
       .CallJSRuntime(Context::SPREAD_ITERABLE_INDEX, reg_list)
-      .CallWithSpread(reg, reg_list);
+      .CallWithSpread(reg, reg_list, 1);
 
   // Emit binary operator invocations.
   builder.BinaryOperation(Token::Value::ADD, reg, 1)
@@ -190,9 +190,6 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
       .BinaryOperationSmiLiteral(Token::Value::SAR, Smi::FromInt(42), 2)
       .BinaryOperationSmiLiteral(Token::Value::SHR, Smi::FromInt(42), 2);
 
-  // Emit StringConcat operations.
-  builder.ToPrimitiveToString(reg, 1).StringConcat(pair);
-
   // Emit count operatior invocations
   builder.CountOperation(Token::Value::ADD, 1)
       .CountOperation(Token::Value::SUB, 1);
@@ -206,7 +203,7 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
   builder.Delete(reg, LanguageMode::SLOPPY).Delete(reg, LanguageMode::STRICT);
 
   // Emit construct.
-  builder.Construct(reg, reg_list, 1).ConstructWithSpread(reg, reg_list);
+  builder.Construct(reg, reg_list, 1).ConstructWithSpread(reg, reg_list, 1);
 
   // Emit test operator invocations.
   builder.CompareOperation(Token::Value::EQ, reg, 1)
@@ -354,7 +351,9 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
   builder
       .CreateRegExpLiteral(ast_factory.GetOneByteString("wide_literal"), 0, 0)
       .CreateArrayLiteral(0, 0, 0)
-      .CreateObjectLiteral(0, 0, 0, reg);
+      .CreateEmptyArrayLiteral(0)
+      .CreateObjectLiteral(0, 0, 0, reg)
+      .CreateEmptyObjectLiteral();
 
   // Emit load and store operations for module variables.
   builder.LoadModuleVariable(-1, 42)
@@ -365,7 +364,7 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
       .StoreModuleVariable(1, 42);
 
   // Emit generator operations.
-  builder.SuspendGenerator(reg, reg_list)
+  builder.SuspendGenerator(reg, reg_list, 0)
       .RestoreGeneratorState(reg)
       .RestoreGeneratorRegisters(reg, reg_list);
 

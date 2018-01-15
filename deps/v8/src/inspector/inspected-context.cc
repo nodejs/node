@@ -9,7 +9,6 @@
 #include "src/inspector/string-util.h"
 #include "src/inspector/v8-console.h"
 #include "src/inspector/v8-inspector-impl.h"
-#include "src/inspector/v8-value-copier.h"
 
 #include "include/v8-inspector.h"
 

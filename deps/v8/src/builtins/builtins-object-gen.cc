@@ -20,22 +20,8 @@ class ObjectBuiltinsAssembler : public CodeStubAssembler {
       : CodeStubAssembler(state) {}
 
  protected:
-  void IsString(Node* object, Label* if_string, Label* if_notstring);
   void ReturnToStringFormat(Node* context, Node* string);
 };
-
-void ObjectBuiltinsAssembler::IsString(Node* object, Label* if_string,
-                                       Label* if_notstring) {
-  Label if_notsmi(this);
-  Branch(TaggedIsSmi(object), if_notstring, &if_notsmi);
-
-  BIND(&if_notsmi);
-  {
-    Node* instance_type = LoadInstanceType(object);
-
-    Branch(IsStringInstanceType(instance_type), if_string, if_notstring);
-  }
-}
 
 void ObjectBuiltinsAssembler::ReturnToStringFormat(Node* context,
                                                    Node* string) {
@@ -49,7 +35,7 @@ void ObjectBuiltinsAssembler::ReturnToStringFormat(Node* context,
                   rhs));
 }
 
-TF_BUILTIN(ObjectHasOwnProperty, ObjectBuiltinsAssembler) {
+TF_BUILTIN(ObjectPrototypeHasOwnProperty, ObjectBuiltinsAssembler) {
   Node* object = Parameter(Descriptor::kReceiver);
   Node* key = Parameter(Descriptor::kKey);
   Node* context = Parameter(Descriptor::kContext);
@@ -162,9 +148,6 @@ TF_BUILTIN(ObjectKeys, ObjectBuiltinsAssembler) {
     std::tie(array, elements) = AllocateUninitializedJSArrayWithElements(
         PACKED_ELEMENTS, array_map, array_length, nullptr, object_enum_length,
         INTPTR_PARAMETERS);
-    StoreMapNoWriteBarrier(elements, Heap::kFixedArrayMapRootIndex);
-    StoreObjectFieldNoWriteBarrier(elements, FixedArray::kLengthOffset,
-                                   array_length);
     CopyFixedArrayElements(PACKED_ELEMENTS, object_enum_cache, elements,
                            object_enum_length, SKIP_WRITE_BARRIER);
     Return(array);
@@ -246,165 +229,259 @@ TF_BUILTIN(ObjectPrototypeIsPrototypeOf, ObjectBuiltinsAssembler) {
   Return(FalseConstant());
 }
 
-// ES6 #sec-object.prototype.tostring
-TF_BUILTIN(ObjectProtoToString, ObjectBuiltinsAssembler) {
-  Label return_undefined(this, Label::kDeferred),
-      return_null(this, Label::kDeferred),
-      return_arguments(this, Label::kDeferred), return_array(this),
-      return_api(this, Label::kDeferred), return_object(this),
-      return_regexp(this), return_function(this), return_error(this),
-      return_date(this), return_jsvalue(this),
-      return_jsproxy(this, Label::kDeferred);
-
-  Label if_isproxy(this, Label::kDeferred);
-
-  Label checkstringtag(this);
-  Label if_tostringtag(this), if_notostringtag(this);
+// ES #sec-object.prototype.tostring
+TF_BUILTIN(ObjectPrototypeToString, ObjectBuiltinsAssembler) {
+  Label checkstringtag(this), if_apiobject(this, Label::kDeferred),
+      if_arguments(this), if_array(this), if_boolean(this), if_date(this),
+      if_error(this), if_function(this), if_number(this, Label::kDeferred),
+      if_object(this), if_primitive(this), if_proxy(this, Label::kDeferred),
+      if_regexp(this), if_string(this), if_symbol(this, Label::kDeferred),
+      if_value(this);
 
   Node* receiver = Parameter(Descriptor::kReceiver);
   Node* context = Parameter(Descriptor::kContext);
 
-  GotoIf(WordEqual(receiver, UndefinedConstant()), &return_undefined);
+  // This is arranged to check the likely cases first.
+  VARIABLE(var_default, MachineRepresentation::kTagged);
+  VARIABLE(var_holder, MachineRepresentation::kTagged, receiver);
+  GotoIf(TaggedIsSmi(receiver), &if_number);
+  Node* receiver_map = LoadMap(receiver);
+  Node* receiver_instance_type = LoadMapInstanceType(receiver_map);
+  GotoIf(IsPrimitiveInstanceType(receiver_instance_type), &if_primitive);
+  const struct {
+    InstanceType value;
+    Label* label;
+  } kJumpTable[] = {{JS_OBJECT_TYPE, &if_object},
+                    {JS_ARRAY_TYPE, &if_array},
+                    {JS_FUNCTION_TYPE, &if_function},
+                    {JS_REGEXP_TYPE, &if_regexp},
+                    {JS_ARGUMENTS_TYPE, &if_arguments},
+                    {JS_DATE_TYPE, &if_date},
+                    {JS_BOUND_FUNCTION_TYPE, &if_function},
+                    {JS_API_OBJECT_TYPE, &if_apiobject},
+                    {JS_SPECIAL_API_OBJECT_TYPE, &if_apiobject},
+                    {JS_PROXY_TYPE, &if_proxy},
+                    {JS_ERROR_TYPE, &if_error},
+                    {JS_VALUE_TYPE, &if_value}};
+  size_t const kNumCases = arraysize(kJumpTable);
+  Label* case_labels[kNumCases];
+  int32_t case_values[kNumCases];
+  for (size_t i = 0; i < kNumCases; ++i) {
+    case_labels[i] = kJumpTable[i].label;
+    case_values[i] = kJumpTable[i].value;
+  }
+  Switch(receiver_instance_type, &if_object, case_values, case_labels,
+         arraysize(case_values));
 
-  GotoIf(WordEqual(receiver, NullConstant()), &return_null);
-
-  receiver = CallBuiltin(Builtins::kToObject, context, receiver);
-
-  Node* receiver_instance_type = LoadInstanceType(receiver);
-
-  // for proxies, check IsArray before getting @@toStringTag
-  VARIABLE(var_proxy_is_array, MachineRepresentation::kTagged);
-  var_proxy_is_array.Bind(BooleanConstant(false));
-
-  Branch(Word32Equal(receiver_instance_type, Int32Constant(JS_PROXY_TYPE)),
-         &if_isproxy, &checkstringtag);
-
-  BIND(&if_isproxy);
+  BIND(&if_apiobject);
   {
-    // This can throw
-    var_proxy_is_array.Bind(
-        CallRuntime(Runtime::kArrayIsArray, context, receiver));
+    // Lookup the @@toStringTag property on the {receiver}.
+    VARIABLE(var_tag, MachineRepresentation::kTagged,
+             GetProperty(context, receiver,
+                         isolate()->factory()->to_string_tag_symbol()));
+    Label if_tagisnotstring(this), if_tagisstring(this);
+    GotoIf(TaggedIsSmi(var_tag.value()), &if_tagisnotstring);
+    Branch(IsString(var_tag.value()), &if_tagisstring, &if_tagisnotstring);
+    BIND(&if_tagisnotstring);
+    {
+      var_tag.Bind(
+          CallStub(Builtins::CallableFor(isolate(), Builtins::kClassOf),
+                   context, receiver));
+      Goto(&if_tagisstring);
+    }
+    BIND(&if_tagisstring);
+    ReturnToStringFormat(context, var_tag.value());
+  }
+
+  BIND(&if_arguments);
+  {
+    var_default.Bind(LoadRoot(Heap::karguments_to_stringRootIndex));
     Goto(&checkstringtag);
+  }
+
+  BIND(&if_array);
+  {
+    var_default.Bind(LoadRoot(Heap::karray_to_stringRootIndex));
+    Goto(&checkstringtag);
+  }
+
+  BIND(&if_boolean);
+  {
+    Node* native_context = LoadNativeContext(context);
+    Node* boolean_constructor =
+        LoadContextElement(native_context, Context::BOOLEAN_FUNCTION_INDEX);
+    Node* boolean_initial_map = LoadObjectField(
+        boolean_constructor, JSFunction::kPrototypeOrInitialMapOffset);
+    Node* boolean_prototype =
+        LoadObjectField(boolean_initial_map, Map::kPrototypeOffset);
+    var_default.Bind(LoadRoot(Heap::kboolean_to_stringRootIndex));
+    var_holder.Bind(boolean_prototype);
+    Goto(&checkstringtag);
+  }
+
+  BIND(&if_date);
+  {
+    var_default.Bind(LoadRoot(Heap::kdate_to_stringRootIndex));
+    Goto(&checkstringtag);
+  }
+
+  BIND(&if_error);
+  {
+    var_default.Bind(LoadRoot(Heap::kerror_to_stringRootIndex));
+    Goto(&checkstringtag);
+  }
+
+  BIND(&if_function);
+  {
+    var_default.Bind(LoadRoot(Heap::kfunction_to_stringRootIndex));
+    Goto(&checkstringtag);
+  }
+
+  BIND(&if_number);
+  {
+    Node* native_context = LoadNativeContext(context);
+    Node* number_constructor =
+        LoadContextElement(native_context, Context::NUMBER_FUNCTION_INDEX);
+    Node* number_initial_map = LoadObjectField(
+        number_constructor, JSFunction::kPrototypeOrInitialMapOffset);
+    Node* number_prototype =
+        LoadObjectField(number_initial_map, Map::kPrototypeOffset);
+    var_default.Bind(LoadRoot(Heap::knumber_to_stringRootIndex));
+    var_holder.Bind(number_prototype);
+    Goto(&checkstringtag);
+  }
+
+  BIND(&if_object);
+  {
+    CSA_ASSERT(this, IsJSReceiver(receiver));
+    var_default.Bind(LoadRoot(Heap::kobject_to_stringRootIndex));
+    Goto(&checkstringtag);
+  }
+
+  BIND(&if_primitive);
+  {
+    Label return_null(this), return_undefined(this);
+
+    GotoIf(IsStringInstanceType(receiver_instance_type), &if_string);
+    GotoIf(IsBooleanMap(receiver_map), &if_boolean);
+    GotoIf(IsHeapNumberMap(receiver_map), &if_number);
+    GotoIf(IsSymbolMap(receiver_map), &if_symbol);
+    Branch(IsUndefined(receiver), &return_undefined, &return_null);
+
+    BIND(&return_undefined);
+    Return(LoadRoot(Heap::kundefined_to_stringRootIndex));
+
+    BIND(&return_null);
+    Return(LoadRoot(Heap::knull_to_stringRootIndex));
+  }
+
+  BIND(&if_proxy);
+  {
+    // If {receiver} is a proxy for a JSArray, we default to "[object Array]",
+    // otherwise we default to "[object Object]" or "[object Function]" here,
+    // depending on whether the {receiver} is callable. The order matters here,
+    // i.e. we need to execute the %ArrayIsArray check before the [[Get]] below,
+    // as the exception is observable.
+    Node* receiver_is_array =
+        CallRuntime(Runtime::kArrayIsArray, context, receiver);
+    Node* builtin_tag = SelectTaggedConstant<Object>(
+        IsTrue(receiver_is_array), LoadRoot(Heap::kArray_stringRootIndex),
+        SelectTaggedConstant<Object>(IsCallableMap(receiver_map),
+                                     LoadRoot(Heap::kFunction_stringRootIndex),
+                                     LoadRoot(Heap::kObject_stringRootIndex)));
+
+    // Lookup the @@toStringTag property on the {receiver}.
+    VARIABLE(var_tag, MachineRepresentation::kTagged,
+             GetProperty(context, receiver,
+                         isolate()->factory()->to_string_tag_symbol()));
+    Label if_tagisnotstring(this), if_tagisstring(this);
+    GotoIf(TaggedIsSmi(var_tag.value()), &if_tagisnotstring);
+    Branch(IsString(var_tag.value()), &if_tagisstring, &if_tagisnotstring);
+    BIND(&if_tagisnotstring);
+    {
+      var_tag.Bind(builtin_tag);
+      Goto(&if_tagisstring);
+    }
+    BIND(&if_tagisstring);
+    ReturnToStringFormat(context, var_tag.value());
+  }
+
+  BIND(&if_regexp);
+  {
+    var_default.Bind(LoadRoot(Heap::kregexp_to_stringRootIndex));
+    Goto(&checkstringtag);
+  }
+
+  BIND(&if_string);
+  {
+    Node* native_context = LoadNativeContext(context);
+    Node* string_constructor =
+        LoadContextElement(native_context, Context::STRING_FUNCTION_INDEX);
+    Node* string_initial_map = LoadObjectField(
+        string_constructor, JSFunction::kPrototypeOrInitialMapOffset);
+    Node* string_prototype =
+        LoadObjectField(string_initial_map, Map::kPrototypeOffset);
+    var_default.Bind(LoadRoot(Heap::kstring_to_stringRootIndex));
+    var_holder.Bind(string_prototype);
+    Goto(&checkstringtag);
+  }
+
+  BIND(&if_symbol);
+  {
+    Node* native_context = LoadNativeContext(context);
+    Node* symbol_constructor =
+        LoadContextElement(native_context, Context::SYMBOL_FUNCTION_INDEX);
+    Node* symbol_initial_map = LoadObjectField(
+        symbol_constructor, JSFunction::kPrototypeOrInitialMapOffset);
+    Node* symbol_prototype =
+        LoadObjectField(symbol_initial_map, Map::kPrototypeOffset);
+    var_default.Bind(LoadRoot(Heap::kobject_to_stringRootIndex));
+    var_holder.Bind(symbol_prototype);
+    Goto(&checkstringtag);
+  }
+
+  BIND(&if_value);
+  {
+    Node* receiver_value = LoadJSValueValue(receiver);
+    GotoIf(TaggedIsSmi(receiver_value), &if_number);
+    Node* receiver_value_map = LoadMap(receiver_value);
+    GotoIf(IsHeapNumberMap(receiver_value_map), &if_number);
+    GotoIf(IsBooleanMap(receiver_value_map), &if_boolean);
+    Branch(IsSymbolMap(receiver_value_map), &if_symbol, &if_string);
   }
 
   BIND(&checkstringtag);
   {
-    Node* to_string_tag_symbol =
-        HeapConstant(isolate()->factory()->to_string_tag_symbol());
-
-    GetPropertyStub stub(isolate());
-    Callable get_property =
-        Callable(stub.GetCode(), stub.GetCallInterfaceDescriptor());
-    Node* to_string_tag_value =
-        CallStub(get_property, context, receiver, to_string_tag_symbol);
-
-    IsString(to_string_tag_value, &if_tostringtag, &if_notostringtag);
-
-    BIND(&if_tostringtag);
-    ReturnToStringFormat(context, to_string_tag_value);
-  }
-  BIND(&if_notostringtag);
-  {
-    size_t const kNumCases = 11;
-    Label* case_labels[kNumCases];
-    int32_t case_values[kNumCases];
-    case_labels[0] = &return_api;
-    case_values[0] = JS_API_OBJECT_TYPE;
-    case_labels[1] = &return_api;
-    case_values[1] = JS_SPECIAL_API_OBJECT_TYPE;
-    case_labels[2] = &return_arguments;
-    case_values[2] = JS_ARGUMENTS_TYPE;
-    case_labels[3] = &return_array;
-    case_values[3] = JS_ARRAY_TYPE;
-    case_labels[4] = &return_function;
-    case_values[4] = JS_BOUND_FUNCTION_TYPE;
-    case_labels[5] = &return_function;
-    case_values[5] = JS_FUNCTION_TYPE;
-    case_labels[6] = &return_error;
-    case_values[6] = JS_ERROR_TYPE;
-    case_labels[7] = &return_date;
-    case_values[7] = JS_DATE_TYPE;
-    case_labels[8] = &return_regexp;
-    case_values[8] = JS_REGEXP_TYPE;
-    case_labels[9] = &return_jsvalue;
-    case_values[9] = JS_VALUE_TYPE;
-    case_labels[10] = &return_jsproxy;
-    case_values[10] = JS_PROXY_TYPE;
-
-    Switch(receiver_instance_type, &return_object, case_values, case_labels,
-           arraysize(case_values));
-
-    BIND(&return_undefined);
-    Return(HeapConstant(isolate()->factory()->undefined_to_string()));
-
-    BIND(&return_null);
-    Return(HeapConstant(isolate()->factory()->null_to_string()));
-
-    BIND(&return_arguments);
-    Return(HeapConstant(isolate()->factory()->arguments_to_string()));
-
-    BIND(&return_array);
-    Return(HeapConstant(isolate()->factory()->array_to_string()));
-
-    BIND(&return_function);
-    Return(HeapConstant(isolate()->factory()->function_to_string()));
-
-    BIND(&return_error);
-    Return(HeapConstant(isolate()->factory()->error_to_string()));
-
-    BIND(&return_date);
-    Return(HeapConstant(isolate()->factory()->date_to_string()));
-
-    BIND(&return_regexp);
-    Return(HeapConstant(isolate()->factory()->regexp_to_string()));
-
-    BIND(&return_api);
+    // Check if all relevant maps (including the prototype maps) don't
+    // have any interesting symbols (i.e. that none of them have the
+    // @@toStringTag property).
+    Label loop(this, &var_holder), return_default(this),
+        return_generic(this, Label::kDeferred);
+    Goto(&loop);
+    BIND(&loop);
     {
-      Node* class_name = CallRuntime(Runtime::kClassOf, context, receiver);
-      ReturnToStringFormat(context, class_name);
+      Node* holder = var_holder.value();
+      GotoIf(IsNull(holder), &return_default);
+      Node* holder_map = LoadMap(holder);
+      Node* holder_bit_field3 = LoadMapBitField3(holder_map);
+      GotoIf(IsSetWord32<Map::MayHaveInterestingSymbols>(holder_bit_field3),
+             &return_generic);
+      var_holder.Bind(LoadMapPrototype(holder_map));
+      Goto(&loop);
     }
 
-    BIND(&return_jsvalue);
+    BIND(&return_generic);
     {
-      Label return_boolean(this), return_number(this), return_string(this);
-
-      Node* value = LoadJSValueValue(receiver);
-      GotoIf(TaggedIsSmi(value), &return_number);
-      Node* instance_type = LoadInstanceType(value);
-
-      GotoIf(IsStringInstanceType(instance_type), &return_string);
-      GotoIf(Word32Equal(instance_type, Int32Constant(HEAP_NUMBER_TYPE)),
-             &return_number);
-      GotoIf(Word32Equal(instance_type, Int32Constant(ODDBALL_TYPE)),
-             &return_boolean);
-
-      CSA_ASSERT(this, Word32Equal(instance_type, Int32Constant(SYMBOL_TYPE)));
-      Goto(&return_object);
-
-      BIND(&return_string);
-      Return(HeapConstant(isolate()->factory()->string_to_string()));
-
-      BIND(&return_number);
-      Return(HeapConstant(isolate()->factory()->number_to_string()));
-
-      BIND(&return_boolean);
-      Return(HeapConstant(isolate()->factory()->boolean_to_string()));
+      Node* tag = GetProperty(
+          context, CallBuiltin(Builtins::kToObject, context, receiver),
+          LoadRoot(Heap::kto_string_tag_symbolRootIndex));
+      GotoIf(TaggedIsSmi(tag), &return_default);
+      GotoIfNot(IsString(tag), &return_default);
+      ReturnToStringFormat(context, tag);
     }
 
-    BIND(&return_jsproxy);
-    {
-      GotoIf(WordEqual(var_proxy_is_array.value(), BooleanConstant(true)),
-             &return_array);
-
-      Node* map = LoadMap(receiver);
-
-      // Return object if the proxy {receiver} is not callable.
-      Branch(IsCallableMap(map), &return_function, &return_object);
-    }
-
-    // Default
-    BIND(&return_object);
-    Return(HeapConstant(isolate()->factory()->object_to_string()));
+    BIND(&return_default);
+    Return(var_default.value());
   }
 }
 
@@ -532,7 +609,7 @@ TF_BUILTIN(HasProperty, ObjectBuiltinsAssembler) {
   Node* object = Parameter(Descriptor::kObject);
   Node* context = Parameter(Descriptor::kContext);
 
-  Return(HasProperty(object, key, context, Runtime::kHasProperty));
+  Return(HasProperty(object, key, context, kHasProperty));
 }
 
 TF_BUILTIN(InstanceOf, ObjectBuiltinsAssembler) {

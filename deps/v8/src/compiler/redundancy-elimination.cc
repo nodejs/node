@@ -28,7 +28,6 @@ Reduction RedundancyElimination::Reduce(Node* node) {
     case IrOpcode::kCheckSmi:
     case IrOpcode::kCheckString:
     case IrOpcode::kCheckSeqString:
-    case IrOpcode::kCheckNonEmptyString:
     case IrOpcode::kCheckNotTaggedHole:
     case IrOpcode::kCheckedFloat64ToInt32:
     case IrOpcode::kCheckedInt32Add:
@@ -125,11 +124,9 @@ namespace {
 
 bool IsCompatibleCheck(Node const* a, Node const* b) {
   if (a->op() != b->op()) {
-    if (b->opcode() == IrOpcode::kCheckString &&
-        (a->opcode() == IrOpcode::kCheckInternalizedString ||
-         a->opcode() == IrOpcode::kCheckSeqString ||
-         a->opcode() == IrOpcode::kCheckNonEmptyString)) {
-      // Check[Internalized,Seq,NonEmpty]String(node) implies CheckString(node)
+    if (a->opcode() == IrOpcode::kCheckInternalizedString &&
+        b->opcode() == IrOpcode::kCheckString) {
+      // CheckInternalizedString(node) implies CheckString(node)
     } else {
       return false;
     }

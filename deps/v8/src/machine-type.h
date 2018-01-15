@@ -33,6 +33,8 @@ enum class MachineRepresentation {
   kLastRepresentation = kSimd128
 };
 
+bool IsSubtype(MachineRepresentation rep1, MachineRepresentation rep2);
+
 static_assert(static_cast<int>(MachineRepresentation::kLastRepresentation) <
                   kIntSize * kBitsPerByte,
               "Bit masks of MachineRepresentation should fit in an int");
@@ -49,6 +51,8 @@ enum class MachineSemantic {
   kNumber,
   kAny
 };
+
+V8_EXPORT_PRIVATE inline int ElementSizeLog2Of(MachineRepresentation rep);
 
 class MachineType {
  public:
@@ -210,6 +214,10 @@ class MachineType {
       default:
         UNREACHABLE();
     }
+  }
+
+  bool LessThanOrEqualPointerSize() {
+    return ElementSizeLog2Of(this->representation()) <= kPointerSizeLog2;
   }
 
  private:

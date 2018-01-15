@@ -9,9 +9,7 @@
 
 #include "src/builtins/builtins-arguments-gen.h"
 #include "src/builtins/builtins-constructor-gen.h"
-#include "src/builtins/builtins-conversion-gen.h"
 #include "src/builtins/builtins-forin-gen.h"
-#include "src/builtins/builtins-string-gen.h"
 #include "src/code-events.h"
 #include "src/code-factory.h"
 #include "src/factory.h"
@@ -1094,9 +1092,9 @@ IGNITION_HANDLER(ShiftRightLogical, InterpreterBitwiseBinaryOpAssembler) {
   BitwiseBinaryOpWithFeedback(Token::SHR);
 }
 
-// BitwiseOr <imm>
+// BitwiseOrSmi <imm>
 //
-// BitwiseOr accumulator with <imm>.
+// BitwiseOrSmi accumulator with <imm>.
 IGNITION_HANDLER(BitwiseOrSmi, InterpreterAssembler) {
   Node* left = GetAccumulator();
   Node* right = BytecodeOperandImmSmi(0);
@@ -1120,9 +1118,9 @@ IGNITION_HANDLER(BitwiseOrSmi, InterpreterAssembler) {
   Dispatch();
 }
 
-// BitwiseXor <imm>
+// BitwiseXorSmi <imm>
 //
-// BitwiseXor accumulator with <imm>.
+// BitwiseXorSmi accumulator with <imm>.
 IGNITION_HANDLER(BitwiseXorSmi, InterpreterAssembler) {
   Node* left = GetAccumulator();
   Node* right = BytecodeOperandImmSmi(0);
@@ -1146,9 +1144,9 @@ IGNITION_HANDLER(BitwiseXorSmi, InterpreterAssembler) {
   Dispatch();
 }
 
-// BitwiseAnd <imm>
+// BitwiseAndSmi <imm>
 //
-// BitwiseAnd accumulator with <imm>.
+// BitwiseAndSmi accumulator with <imm>.
 IGNITION_HANDLER(BitwiseAndSmi, InterpreterAssembler) {
   Node* left = GetAccumulator();
   Node* right = BytecodeOperandImmSmi(0);
@@ -1331,53 +1329,6 @@ IGNITION_HANDLER(ToObject, InterpreterAssembler) {
   Node* context = GetContext();
   Node* result = CallStub(callable.descriptor(), target, context, accumulator);
   StoreRegister(result, BytecodeOperandReg(0));
-  Dispatch();
-}
-
-// ToPrimitiveToString <dst>
-//
-// Convert the object referenced by the accumulator to a primitive, and then
-// convert the operand to a string, in preparation to be used by StringConcat.
-IGNITION_HANDLER(ToPrimitiveToString, InterpreterAssembler) {
-  VARIABLE(feedback, MachineRepresentation::kTagged);
-  ConversionBuiltinsAssembler conversions_assembler(state());
-  Node* result = conversions_assembler.ToPrimitiveToString(
-      GetContext(), GetAccumulator(), &feedback);
-
-  Node* function = LoadRegister(Register::function_closure());
-  UpdateFeedback(feedback.value(), LoadFeedbackVector(), BytecodeOperandIdx(1),
-                 function);
-  StoreRegister(result, BytecodeOperandReg(0));
-  Dispatch();
-}
-
-// StringConcat <first_reg> <reg_count>
-//
-// Concatenates the string values in registers <first_reg> to
-// <first_reg> + <reg_count - 1> and saves the result in the accumulator.
-IGNITION_HANDLER(StringConcat, InterpreterAssembler) {
-  Label call_runtime(this, Label::kDeferred), done(this);
-
-  Node* first_reg_ptr = RegisterLocation(BytecodeOperandReg(0));
-  Node* reg_count = BytecodeOperandCount(1);
-  Node* context = GetContext();
-
-  VARIABLE(result, MachineRepresentation::kTagged);
-  StringBuiltinsAssembler string_assembler(state());
-  result.Bind(string_assembler.ConcatenateStrings(context, first_reg_ptr,
-                                                  reg_count, &call_runtime));
-  Goto(&done);
-
-  BIND(&call_runtime);
-  {
-    Comment("Call runtime.");
-    Node* runtime_id = Int32Constant(Runtime::kStringConcat);
-    result.Bind(CallRuntimeN(runtime_id, context, first_reg_ptr, reg_count));
-    Goto(&done);
-  }
-
-  BIND(&done);
-  SetAccumulator(result.value());
   Dispatch();
 }
 
@@ -1767,10 +1718,12 @@ class InterpreterJSCallAssembler : public InterpreterAssembler {
     Node* slot_id = BytecodeOperandIdx(3);
     Node* feedback_vector = LoadFeedbackVector();
     Node* context = GetContext();
-    Node* result = CallJSWithFeedback(function, context, first_arg, args_count,
-                                      slot_id, feedback_vector, receiver_mode);
-    SetAccumulator(result);
-    Dispatch();
+
+    // Collect the {function} feedback.
+    CollectCallFeedback(function, context, feedback_vector, slot_id);
+
+    // Call the function and dispatch to the next handler.
+    CallJSAndDispatch(function, context, first_arg, args_count, receiver_mode);
   }
 
   // Generates code to perform a JS call with a known number of arguments that
@@ -1780,48 +1733,45 @@ class InterpreterJSCallAssembler : public InterpreterAssembler {
     const int kFirstArgumentOperandIndex = 1;
     const int kReceiverOperandCount =
         (receiver_mode == ConvertReceiverMode::kNullOrUndefined) ? 0 : 1;
+    const int kRecieverAndArgOperandCount = kReceiverOperandCount + arg_count;
     const int kSlotOperandIndex =
-        kFirstArgumentOperandIndex + kReceiverOperandCount + arg_count;
-    // Indices and counts of parameters to the call stub.
-    const int kBoilerplateParameterCount = 7;
-    const int kReceiverParameterIndex = 5;
-    const int kReceiverParameterCount = 1;
-    // Only used in a DCHECK.
-    USE(kReceiverParameterCount);
+        kFirstArgumentOperandIndex + kRecieverAndArgOperandCount;
 
     Node* function_reg = BytecodeOperandReg(0);
     Node* function = LoadRegister(function_reg);
-    std::array<Node*, Bytecodes::kMaxOperands + kBoilerplateParameterCount>
-        temp;
-    Callable call_ic = CodeFactory::CallIC(isolate());
-    temp[0] = HeapConstant(call_ic.code());
-    temp[1] = function;
-    temp[2] = Int32Constant(arg_count);
-    temp[3] = BytecodeOperandIdxInt32(kSlotOperandIndex);
-    temp[4] = LoadFeedbackVector();
+    Node* slot_id = BytecodeOperandIdx(kSlotOperandIndex);
+    Node* feedback_vector = LoadFeedbackVector();
+    Node* context = GetContext();
 
-    int parameter_index = kReceiverParameterIndex;
-    if (receiver_mode == ConvertReceiverMode::kNullOrUndefined) {
-      // The first argument parameter (the receiver) is implied to be undefined.
-      Node* undefined_value =
-          HeapConstant(isolate()->factory()->undefined_value());
-      temp[parameter_index++] = undefined_value;
+    // Collect the {function} feedback.
+    CollectCallFeedback(function, context, feedback_vector, slot_id);
+
+    switch (kRecieverAndArgOperandCount) {
+      case 0:
+        CallJSAndDispatch(function, context, Int32Constant(arg_count),
+                          receiver_mode);
+        break;
+      case 1:
+        CallJSAndDispatch(
+            function, context, Int32Constant(arg_count), receiver_mode,
+            LoadRegister(BytecodeOperandReg(kFirstArgumentOperandIndex)));
+        break;
+      case 2:
+        CallJSAndDispatch(
+            function, context, Int32Constant(arg_count), receiver_mode,
+            LoadRegister(BytecodeOperandReg(kFirstArgumentOperandIndex)),
+            LoadRegister(BytecodeOperandReg(kFirstArgumentOperandIndex + 1)));
+        break;
+      case 3:
+        CallJSAndDispatch(
+            function, context, Int32Constant(arg_count), receiver_mode,
+            LoadRegister(BytecodeOperandReg(kFirstArgumentOperandIndex)),
+            LoadRegister(BytecodeOperandReg(kFirstArgumentOperandIndex + 1)),
+            LoadRegister(BytecodeOperandReg(kFirstArgumentOperandIndex + 2)));
+        break;
+      default:
+        UNREACHABLE();
     }
-    // The bytecode argument operands are copied into the remaining argument
-    // parameters.
-    for (int i = 0; i < (kReceiverOperandCount + arg_count); ++i) {
-      Node* reg = BytecodeOperandReg(kFirstArgumentOperandIndex + i);
-      temp[parameter_index++] = LoadRegister(reg);
-    }
-
-    DCHECK_EQ(parameter_index,
-              kReceiverParameterIndex + kReceiverParameterCount + arg_count);
-    temp[parameter_index] = GetContext();
-
-    Node* result = CallStubN(call_ic.descriptor(), 1,
-                             arg_count + kBoilerplateParameterCount, &temp[0]);
-    SetAccumulator(result);
-    Dispatch();
   }
 };
 
@@ -1941,10 +1891,8 @@ IGNITION_HANDLER(CallJSRuntime, InterpreterAssembler) {
   Node* function = LoadContextElement(native_context, context_index);
 
   // Call the function.
-  Node* result = CallJS(function, context, first_arg, args_count,
-                        ConvertReceiverMode::kAny);
-  SetAccumulator(result);
-  Dispatch();
+  CallJSAndDispatch(function, context, first_arg, args_count,
+                    ConvertReceiverMode::kAny);
 }
 
 // CallWithSpread <callable> <first_arg> <arg_count>
@@ -1961,12 +1909,13 @@ IGNITION_HANDLER(CallWithSpread, InterpreterAssembler) {
   Node* receiver_args_count = BytecodeOperandCount(2);
   Node* receiver_count = Int32Constant(1);
   Node* args_count = Int32Sub(receiver_args_count, receiver_count);
+  Node* slot_id = BytecodeOperandIdx(3);
+  Node* feedback_vector = LoadFeedbackVector();
   Node* context = GetContext();
 
   // Call into Runtime function CallWithSpread which does everything.
-  Node* result = CallJSWithSpread(callable, context, receiver_arg, args_count);
-  SetAccumulator(result);
-  Dispatch();
+  CallJSWithSpreadAndDispatch(callable, context, receiver_arg, args_count,
+                              slot_id, feedback_vector);
 }
 
 // ConstructWithSpread <first_arg> <arg_count>
@@ -1982,9 +1931,12 @@ IGNITION_HANDLER(ConstructWithSpread, InterpreterAssembler) {
   Node* first_arg_reg = BytecodeOperandReg(1);
   Node* first_arg = RegisterLocation(first_arg_reg);
   Node* args_count = BytecodeOperandCount(2);
+  Node* slot_id = BytecodeOperandIdx(3);
+  Node* feedback_vector = LoadFeedbackVector();
   Node* context = GetContext();
-  Node* result = ConstructWithSpread(constructor, context, new_target,
-                                     first_arg, args_count);
+  Node* result =
+      ConstructWithSpread(constructor, context, new_target, first_arg,
+                          args_count, slot_id, feedback_vector);
   SetAccumulator(result);
   Dispatch();
 }
@@ -2132,7 +2084,8 @@ IGNITION_HANDLER(TestIn, InterpreterAssembler) {
   Node* property = LoadRegister(reg_index);
   Node* object = GetAccumulator();
   Node* context = GetContext();
-  SetAccumulator(HasProperty(object, property, context));
+
+  SetAccumulator(HasProperty(object, property, context, kHasProperty));
   Dispatch();
 }
 
@@ -2213,16 +2166,15 @@ IGNITION_HANDLER(TestTypeOf, InterpreterAssembler) {
   int32_t cases[] = {TYPEOF_LITERAL_LIST(CASE)};
 #undef CASE
 
-  Label if_true(this), if_false(this), end(this), abort(this, Label::kDeferred);
+  Label if_true(this), if_false(this), end(this);
 
-  Switch(literal_flag, &abort, cases, labels, arraysize(cases));
+  // We juse use the final label as the default and properly CSA_ASSERT
+  // that the {literal_flag} is valid here; this significantly improves
+  // the generated code (compared to having a default label that aborts).
+  unsigned const num_cases = arraysize(cases);
+  CSA_ASSERT(this, Uint32LessThan(literal_flag, Int32Constant(num_cases)));
+  Switch(literal_flag, labels[num_cases - 1], cases, labels, num_cases - 1);
 
-  BIND(&abort);
-  {
-    Comment("Abort");
-    Abort(BailoutReason::kUnexpectedTestTypeofLiteralFlag);
-    Goto(&if_false);
-  }
   BIND(&if_number);
   {
     Comment("IfNumber");
@@ -2697,6 +2649,20 @@ IGNITION_HANDLER(CreateArrayLiteral, InterpreterAssembler) {
   }
 }
 
+// CreateEmptyArrayLiteral <literal_idx>
+//
+// Creates an empty JSArray literal for literal index <literal_idx>.
+IGNITION_HANDLER(CreateEmptyArrayLiteral, InterpreterAssembler) {
+  Node* literal_index = BytecodeOperandIdxSmi(0);
+  Node* closure = LoadRegister(Register::function_closure());
+  Node* context = GetContext();
+  ConstructorBuiltinsAssembler constructor_assembler(state());
+  Node* result = constructor_assembler.EmitCreateEmptyArrayLiteral(
+      closure, literal_index, context);
+  SetAccumulator(result);
+  Dispatch();
+}
+
 // CreateObjectLiteral <element_idx> <literal_idx> <flags>
 //
 // Creates an object literal for literal index <literal_idx> with
@@ -2739,6 +2705,17 @@ IGNITION_HANDLER(CreateObjectLiteral, InterpreterAssembler) {
     // TODO(klaasb) build a single dispatch once the call is inlined
     Dispatch();
   }
+}
+
+// CreateEmptyObjectLiteral
+//
+// Creates an empty JSObject literal.
+IGNITION_HANDLER(CreateEmptyObjectLiteral, InterpreterAssembler) {
+  Node* context = GetContext();
+  ConstructorBuiltinsAssembler constructor_assembler(state());
+  Node* result = constructor_assembler.EmitCreateEmptyObjectLiteral(context);
+  SetAccumulator(result);
+  Dispatch();
 }
 
 // CreateClosure <index> <slot> <tenured>
@@ -3160,6 +3137,8 @@ IGNITION_HANDLER(ForInNext, InterpreterAssembler) {
   Node* cache_type = LoadRegister(cache_type_reg);
   Node* cache_array_reg = NextRegister(cache_type_reg);
   Node* cache_array = LoadRegister(cache_array_reg);
+  Node* vector_index = BytecodeOperandIdx(3);
+  Node* feedback_vector = LoadFeedbackVector();
 
   // Load the next key from the enumeration array.
   Node* key = LoadFixedArrayElement(cache_array, index, 0,
@@ -3171,19 +3150,34 @@ IGNITION_HANDLER(ForInNext, InterpreterAssembler) {
   Branch(WordEqual(receiver_map, cache_type), &if_fast, &if_slow);
   BIND(&if_fast);
   {
+    // Check if we need to transition to megamorphic state.
+    Node* feedback_value =
+        LoadFeedbackVectorSlot(feedback_vector, vector_index);
+    Node* uninitialized_sentinel =
+        HeapConstant(FeedbackVector::UninitializedSentinel(isolate()));
+    Label if_done(this);
+    GotoIfNot(WordEqual(feedback_value, uninitialized_sentinel), &if_done);
+    {
+      // Transition to megamorphic state.
+      Node* megamorphic_sentinel =
+          HeapConstant(FeedbackVector::MegamorphicSentinel(isolate()));
+      StoreFeedbackVectorSlot(feedback_vector, vector_index,
+                              megamorphic_sentinel, SKIP_WRITE_BARRIER);
+    }
+    Goto(&if_done);
+
     // Enum cache in use for {receiver}, the {key} is definitely valid.
+    BIND(&if_done);
     SetAccumulator(key);
     Dispatch();
   }
   BIND(&if_slow);
   {
     // Record the fact that we hit the for-in slow path.
-    Node* vector_index = BytecodeOperandIdx(3);
-    Node* feedback_vector = LoadFeedbackVector();
-    Node* megamorphic_sentinel =
-        HeapConstant(FeedbackVector::MegamorphicSentinel(isolate()));
-    StoreFixedArrayElement(feedback_vector, vector_index, megamorphic_sentinel,
-                           SKIP_WRITE_BARRIER);
+    Node* generic_sentinel =
+        HeapConstant(FeedbackVector::GenericSentinel(isolate()));
+    StoreFeedbackVectorSlot(feedback_vector, vector_index, generic_sentinel,
+                            SKIP_WRITE_BARRIER);
 
     // Need to filter the {key} for the {receiver}.
     Node* context = GetContext();
@@ -3252,10 +3246,11 @@ IGNITION_HANDLER(ExtraWide, InterpreterAssembler) {
 IGNITION_HANDLER(Illegal, InterpreterAssembler) { Abort(kInvalidBytecode); }
 
 // SuspendGenerator <generator> <first input register> <register count>
+// <suspend_id>
 //
 // Exports the register file and stores it into the generator.  Also stores the
-// current context, the state given in the accumulator, and the current bytecode
-// offset (for debugging purposes) into the generator.
+// current context, |suspend_id|, and the current bytecode offset (for debugging
+// purposes) into the generator.
 IGNITION_HANDLER(SuspendGenerator, InterpreterAssembler) {
   Node* generator_reg = BytecodeOperandReg(0);
 
@@ -3274,7 +3269,7 @@ IGNITION_HANDLER(SuspendGenerator, InterpreterAssembler) {
   Node* array =
       LoadObjectField(generator, JSGeneratorObject::kRegisterFileOffset);
   Node* context = GetContext();
-  Node* state = GetAccumulator();
+  Node* suspend_id = BytecodeOperandUImmSmi(3);
 
   // Bytecode operand 1 should be always 0 (we are always store registers
   // from the beginning).
@@ -3284,7 +3279,8 @@ IGNITION_HANDLER(SuspendGenerator, InterpreterAssembler) {
   Node* register_count = ChangeUint32ToWord(BytecodeOperandCount(2));
   ExportRegisterFile(array, register_count);
   StoreObjectField(generator, JSGeneratorObject::kContextOffset, context);
-  StoreObjectField(generator, JSGeneratorObject::kContinuationOffset, state);
+  StoreObjectField(generator, JSGeneratorObject::kContinuationOffset,
+                   suspend_id);
 
   // Store the bytecode offset in the [input_or_debug_pos] field, to be used by
   // the inspector.

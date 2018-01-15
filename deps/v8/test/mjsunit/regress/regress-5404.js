@@ -13,9 +13,9 @@ foo("a");
 %OptimizeFunctionOnNextCall(foo);
 foo("a");
 
-var a = "a".repeat(268435440);
-assertThrows(function() { foo(a); });
+var a = "a".repeat(%StringMaxLength());
+assertThrows(function() { foo(a); }, RangeError);
 
 %OptimizeFunctionOnNextCall(foo);
-assertThrows(function() { foo(a); });
+assertThrows(function() { foo(a); }, RangeError);
 assertOptimized(foo);

@@ -32,6 +32,7 @@
 #define V8_INSPECTOR_V8INSPECTORIMPL_H_
 
 #include <functional>
+#include <map>
 
 #include "src/base/macros.h"
 #include "src/inspector/protocol/Protocol.h"
@@ -58,8 +59,8 @@ class V8InspectorImpl : public V8Inspector {
   v8::Isolate* isolate() const { return m_isolate; }
   V8InspectorClient* client() { return m_client; }
   V8Debugger* debugger() { return m_debugger.get(); }
-  int contextGroupId(v8::Local<v8::Context>);
-  int contextGroupId(int contextId);
+  int contextGroupId(v8::Local<v8::Context>) const;
+  int contextGroupId(int contextId) const;
 
   v8::MaybeLocal<v8::Value> compileAndRunInternalScript(v8::Local<v8::Context>,
                                                         v8::Local<v8::String>);
@@ -107,6 +108,7 @@ class V8InspectorImpl : public V8Inspector {
   void disconnect(V8InspectorSessionImpl*);
   V8InspectorSessionImpl* sessionById(int contextGroupId, int sessionId);
   InspectedContext* getContext(int groupId, int contextId) const;
+  InspectedContext* getContext(int contextId) const;
   V8Console* console();
   void forEachContext(int contextGroupId,
                       std::function<void(InspectedContext*)> callback);
@@ -133,8 +135,7 @@ class V8InspectorImpl : public V8Inspector {
   ContextsByGroupMap m_contexts;
 
   // contextGroupId -> sessionId -> session
-  protocol::HashMap<int, protocol::HashMap<int, V8InspectorSessionImpl*>>
-      m_sessions;
+  protocol::HashMap<int, std::map<int, V8InspectorSessionImpl*>> m_sessions;
 
   using ConsoleStorageMap =
       protocol::HashMap<int, std::unique_ptr<V8ConsoleMessageStorage>>;

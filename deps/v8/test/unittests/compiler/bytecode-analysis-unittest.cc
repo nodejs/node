@@ -232,28 +232,35 @@ TEST_F(BytecodeAnalysisTest, SimpleLoop) {
   interpreter::Register reg_1(1);
   interpreter::Register reg_2(2);
 
+  // Kill r0.
   builder.StoreAccumulatorInRegister(reg_0);
-  expected_liveness.emplace_back("..LL", "L.LL");
+  expected_liveness.emplace_back("..LL", "L.L.");
 
   {
     interpreter::LoopBuilder loop_builder(&builder, nullptr, nullptr);
     loop_builder.LoopHeader();
 
+    builder.LoadUndefined();
+    expected_liveness.emplace_back("L.L.", "L.LL");
+
     builder.JumpIfTrue(ToBooleanMode::kConvertToBoolean,
                        loop_builder.break_labels()->New());
     expected_liveness.emplace_back("L.LL", "L.L.");
 
+    // Gen r0.
     builder.LoadAccumulatorWithRegister(reg_0);
     expected_liveness.emplace_back("L...", "L..L");
 
+    // Kill r2.
     builder.StoreAccumulatorInRegister(reg_2);
-    expected_liveness.emplace_back("L..L", "L.LL");
+    expected_liveness.emplace_back("L..L", "L.L.");
 
     loop_builder.BindContinueTarget();
     loop_builder.JumpToHeader(0);
-    expected_liveness.emplace_back("L.LL", "L.LL");
+    expected_liveness.emplace_back("L.L.", "L.L.");
   }
 
+  // Gen r2.
   builder.LoadAccumulatorWithRegister(reg_2);
   expected_liveness.emplace_back("..L.", "...L");
 
@@ -273,15 +280,18 @@ TEST_F(BytecodeAnalysisTest, TryCatch) {
   interpreter::Register reg_1(1);
   interpreter::Register reg_context(2);
 
+  // Kill r0.
   builder.StoreAccumulatorInRegister(reg_0);
   expected_liveness.emplace_back(".LLL", "LLL.");
 
   interpreter::TryCatchBuilder try_builder(&builder, HandlerTable::CAUGHT);
   try_builder.BeginTry(reg_context);
   {
+    // Gen r0.
     builder.LoadAccumulatorWithRegister(reg_0);
     expected_liveness.emplace_back("LLL.", ".LLL");
 
+    // Kill r0.
     builder.StoreAccumulatorInRegister(reg_0);
     expected_liveness.emplace_back(".LLL", ".LL.");
 
@@ -311,20 +321,21 @@ TEST_F(BytecodeAnalysisTest, TryCatch) {
 }
 
 TEST_F(BytecodeAnalysisTest, DiamondInLoop) {
+  // For a logic diamond inside a loop, the liveness down one path of the
+  // diamond should eventually propagate up the other path when the loop is
+  // reprocessed.
+
   interpreter::BytecodeArrayBuilder builder(isolate(), zone(), 3, 3);
   std::vector<std::pair<std::string, std::string>> expected_liveness;
 
   interpreter::Register reg_0(0);
-  interpreter::Register reg_1(1);
-  interpreter::Register reg_2(2);
-
-  builder.StoreAccumulatorInRegister(reg_0);
-  expected_liveness.emplace_back("...L", "L..L");
 
   {
     interpreter::LoopBuilder loop_builder(&builder, nullptr, nullptr);
     loop_builder.LoopHeader();
 
+    builder.LoadUndefined();
+    expected_liveness.emplace_back("L...", "L..L");
     builder.JumpIfTrue(ToBooleanMode::kConvertToBoolean,
                        loop_builder.break_labels()->New());
     expected_liveness.emplace_back("L..L", "L..L");
@@ -332,26 +343,29 @@ TEST_F(BytecodeAnalysisTest, DiamondInLoop) {
     interpreter::BytecodeLabel ld1_label;
     interpreter::BytecodeLabel end_label;
     builder.JumpIfTrue(ToBooleanMode::kConvertToBoolean, &ld1_label);
-    expected_liveness.emplace_back("L..L", "L..L");
+    expected_liveness.emplace_back("L..L", "L...");
 
     {
       builder.Jump(&end_label);
-      expected_liveness.emplace_back("L..L", "L..L");
+      expected_liveness.emplace_back("L...", "L...");
     }
 
     builder.Bind(&ld1_label);
     {
+      // Gen r0.
       builder.LoadAccumulatorWithRegister(reg_0);
-      expected_liveness.emplace_back("L...", "L..L");
+      expected_liveness.emplace_back("L...", "L...");
     }
 
     builder.Bind(&end_label);
 
     loop_builder.BindContinueTarget();
     loop_builder.JumpToHeader(0);
-    expected_liveness.emplace_back("L..L", "L..L");
+    expected_liveness.emplace_back("L...", "L...");
   }
 
+  builder.LoadUndefined();
+  expected_liveness.emplace_back("....", "...L");
   builder.Return();
   expected_liveness.emplace_back("...L", "....");
 
@@ -361,43 +375,65 @@ TEST_F(BytecodeAnalysisTest, DiamondInLoop) {
 }
 
 TEST_F(BytecodeAnalysisTest, KillingLoopInsideLoop) {
+  // For a loop inside a loop, the inner loop has to be processed after the
+  // outer loop has been processed, to ensure that it can propagate the
+  // information in its header. Consider
+  //
+  //     0: do {
+  //     1:   acc = r0;
+  //     2:   acc = r1;
+  //     3:   do {
+  //     4:     r0 = acc;
+  //     5:     break;
+  //     6:   } while(true);
+  //     7: } while(true);
+  //
+  // r0 should should be dead at 3 and 6, while r1 is live throughout. On the
+  // initial pass, r1 is dead from 3-7. On the outer loop pass, it becomes live
+  // in 3 and 7 (but not 4-6 because 6 only reads liveness from 3). Only after
+  // the inner loop pass does it become live in 4-6. It's necessary, however, to
+  // still process the inner loop when processing the outer loop, to ensure that
+  // r1 becomes live in 3 (via 5), but r0 stays dead (because of 4).
+
   interpreter::BytecodeArrayBuilder builder(isolate(), zone(), 3, 3);
   std::vector<std::pair<std::string, std::string>> expected_liveness;
 
   interpreter::Register reg_0(0);
   interpreter::Register reg_1(1);
 
-  builder.StoreAccumulatorInRegister(reg_0);
-  expected_liveness.emplace_back(".L.L", "LL..");
-
   {
     interpreter::LoopBuilder loop_builder(&builder, nullptr, nullptr);
     loop_builder.LoopHeader();
 
+    // Gen r0.
     builder.LoadAccumulatorWithRegister(reg_0);
     expected_liveness.emplace_back("LL..", ".L..");
 
+    // Gen r1.
     builder.LoadAccumulatorWithRegister(reg_1);
     expected_liveness.emplace_back(".L..", ".L.L");
 
     builder.JumpIfTrue(ToBooleanMode::kConvertToBoolean,
                        loop_builder.break_labels()->New());
-    expected_liveness.emplace_back(".L.L", ".L.L");
+    expected_liveness.emplace_back(".L.L", ".L..");
 
     {
       interpreter::LoopBuilder inner_loop_builder(&builder, nullptr, nullptr);
       inner_loop_builder.LoopHeader();
 
+      // Kill r0.
+      builder.LoadUndefined();
+      expected_liveness.emplace_back(".L..", ".L.L");
       builder.StoreAccumulatorInRegister(reg_0);
       expected_liveness.emplace_back(".L.L", "LL.L");
 
       builder.JumpIfTrue(ToBooleanMode::kConvertToBoolean,
                          inner_loop_builder.break_labels()->New());
-      expected_liveness.emplace_back("LL.L", "LL.L");
+      expected_liveness.emplace_back("LL.L", "LL..");
 
       inner_loop_builder.BindContinueTarget();
       inner_loop_builder.JumpToHeader(1);
-      expected_liveness.emplace_back(".L.L", ".L.L");
+      expected_liveness.emplace_back(".L..", ".L..");
     }
 
     loop_builder.BindContinueTarget();
@@ -405,6 +441,8 @@ TEST_F(BytecodeAnalysisTest, KillingLoopInsideLoop) {
     expected_liveness.emplace_back("LL..", "LL..");
   }
 
+  builder.LoadUndefined();
+  expected_liveness.emplace_back("....", "...L");
   builder.Return();
   expected_liveness.emplace_back("...L", "....");
 

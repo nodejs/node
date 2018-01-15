@@ -7,14 +7,12 @@
 
 #include "src/cancelable-task.h"
 #include "src/globals.h"
-#include "src/heap/gc-tracer.h"
 
 namespace v8 {
 namespace internal {
 
 class Heap;
 class Isolate;
-
 
 // This class posts idle tasks and performs scavenges in the idle tasks.
 class V8_EXPORT_PRIVATE ScavengeJob {

@@ -1048,6 +1048,11 @@
     ApplySingleChunkPatch: ApplySingleChunkPatch
   };
 
+  // Functions needed by the debugger runtime.
+  utils.InstallConstants(utils, [
+    "SetScriptSource", LiveEdit.SetScriptSource,
+  ]);
+
   global.Debug.LiveEdit = LiveEdit;
 
 })

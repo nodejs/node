@@ -7,7 +7,6 @@
 
 #include "src/factory.h"
 #include "src/feedback-vector.h"
-#include "src/ic/ic-state.h"
 #include "src/macro-assembler.h"
 #include "src/messages.h"
 #include "src/objects/map.h"
@@ -26,6 +25,8 @@ class IC {
   // The IC code is either invoked with no extra frames on the stack
   // or with a single extra frame for supporting calls.
   enum FrameDepth { NO_EXTRA_FRAME = 0, EXTRA_CALL_FRAME = 1 };
+
+  static constexpr int kMaxKeyedPolymorphism = 4;
 
   // A polymorphic IC can handle at most 4 distinct maps before transitioning
   // to megamorphic state.
@@ -49,9 +50,6 @@ class IC {
     state_ = RECOMPUTE_HANDLER;
   }
 
-  // Clear the inline cache to initial state.
-  static void Clear(Isolate* isolate, Address address, Address constant_pool);
-
   bool IsAnyLoad() const {
     return IsLoadIC() || IsLoadGlobalIC() || IsKeyedLoadIC();
   }
@@ -64,12 +62,11 @@ class IC {
   // save/restore them in the dispatcher.
   static bool ShouldPushPopSlotAndVector(Code::Kind kind);
 
-  static InlineCacheState StateFromCode(Code* code);
-
   static inline bool IsHandler(Object* object);
 
   // Nofity the IC system that a feedback has changed.
-  static void OnFeedbackChanged(Isolate* isolate, JSFunction* host_function);
+  static void OnFeedbackChanged(Isolate* isolate, FeedbackVector* vector,
+                                JSFunction* host_function);
 
  protected:
   Address fp() const { return fp_; }
@@ -87,8 +84,6 @@ class IC {
   inline static bool AddressIsDeoptimizedCode(Isolate* isolate,
                                               Address address);
 
-  // Set the call-site target.
-  inline void set_target(Code* code);
   bool is_vector_set() { return vector_set_; }
 
   // Configure for most states.
@@ -108,13 +103,6 @@ class IC {
   MaybeHandle<Object> TypeError(MessageTemplate::Template,
                                 Handle<Object> object, Handle<Object> key);
   MaybeHandle<Object> ReferenceError(Handle<Name> name);
-
-  // Access the target code for the given IC address.
-  static inline Code* GetTargetAtAddress(Address address,
-                                         Address constant_pool);
-  static inline void SetTargetAtAddress(Address address, Code* target,
-                                        Address constant_pool);
-  static void PostPatching(Address address, Code* target, Code* old_target);
 
   void TraceHandlerCacheHitStats(LookupIterator* lookup);
 
@@ -186,8 +174,6 @@ class IC {
     return static_cast<NexusClass*>(nexus_);
   }
   FeedbackNexus* nexus() const { return nexus_; }
-
-  inline Code* target() const;
 
  private:
   inline Address constant_pool() const;
@@ -263,7 +249,7 @@ class LoadIC : public IC {
 
  protected:
   virtual Handle<Code> slow_stub() const {
-    return isolate()->builtins()->LoadIC_Slow();
+    return BUILTIN_CODE(isolate(), LoadIC_Slow);
   }
 
   // Update the inline cache and the global stub cache based on the
@@ -282,7 +268,7 @@ class LoadIC : public IC {
   // by given Smi-handler that encoded a load from the holder.
   // Can be used only if GetPrototypeCheckCount() returns non negative value.
   Handle<Object> LoadFromPrototype(Handle<Map> receiver_map,
-                                   Handle<JSObject> holder, Handle<Name> name,
+                                   Handle<JSReceiver> holder, Handle<Name> name,
                                    Handle<Smi> smi_handler);
 
   // Creates a data handler that represents a load of a non-existent property.
@@ -304,7 +290,7 @@ class LoadGlobalIC : public LoadIC {
 
  protected:
   Handle<Code> slow_stub() const override {
-    return isolate()->builtins()->LoadGlobalIC_Slow();
+    return BUILTIN_CODE(isolate(), LoadGlobalIC_Slow);
   }
 };
 
@@ -355,13 +341,14 @@ class StoreIC : public IC {
   // Stub accessors.
   Handle<Code> slow_stub() const {
     // All StoreICs share the same slow stub.
-    return isolate()->builtins()->KeyedStoreIC_Slow();
+    return BUILTIN_CODE(isolate(), KeyedStoreIC_Slow);
   }
 
   // Update the inline cache and the global stub cache based on the
   // lookup result.
   void UpdateCaches(LookupIterator* lookup, Handle<Object> value,
-                    JSReceiver::StoreFromKeyed store_mode);
+                    JSReceiver::StoreFromKeyed store_mode,
+                    MaybeHandle<Object> cached_handler);
   Handle<Object> GetMapIndependentHandler(LookupIterator* lookup) override;
   Handle<Code> CompileHandler(LookupIterator* lookup) override;
 
@@ -371,6 +358,8 @@ class StoreIC : public IC {
                                  Handle<Map> transition, Handle<Name> name);
 
   friend class IC;
+
+  bool created_new_transition_ = false;
 };
 
 class StoreGlobalIC : public StoreIC {
@@ -419,39 +408,6 @@ class KeyedStoreIC : public StoreIC {
 
   friend class IC;
 };
-
-
-class CompareIC : public IC {
- public:
-  CompareIC(Isolate* isolate, Token::Value op)
-      : IC(EXTRA_CALL_FRAME, isolate), op_(op) {}
-
-  // Update the inline cache for the given operands.
-  Code* UpdateCaches(Handle<Object> x, Handle<Object> y);
-
-  // Helper function for computing the condition for a compare operation.
-  static Condition ComputeCondition(Token::Value op);
-
- private:
-  static bool HasInlinedSmiCode(Address address);
-
-  bool strict() const { return op_ == Token::EQ_STRICT; }
-  Condition GetCondition() const { return ComputeCondition(op_); }
-
-  static Code* GetRawUninitialized(Isolate* isolate, Token::Value op);
-
-  static void Clear(Isolate* isolate, Address address, Code* target,
-                    Address constant_pool);
-
-  Token::Value op_;
-
-  friend class IC;
-};
-
-// Helper for CompareIC.
-enum InlinedSmiCheck { ENABLE_INLINED_SMI_CHECK, DISABLE_INLINED_SMI_CHECK };
-void PatchInlinedSmiCode(Isolate* isolate, Address address,
-                         InlinedSmiCheck check);
 
 }  // namespace internal
 }  // namespace v8

@@ -153,7 +153,7 @@ Object* FutexEmulation::Wait(Isolate* isolate,
     mutex_.Pointer()->Lock();
 
     if (node->interrupted_) {
-      // An interrupt occured while the mutex_ was unlocked. Don't wait yet.
+      // An interrupt occurred while the mutex_ was unlocked. Don't wait yet.
       continue;
     }
 

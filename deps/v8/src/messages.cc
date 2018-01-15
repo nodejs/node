@@ -341,11 +341,11 @@ Handle<Object> JSStackFrame::GetFunctionName() {
 
 namespace {
 
-bool CheckMethodName(Isolate* isolate, Handle<JSObject> obj, Handle<Name> name,
-                     Handle<JSFunction> fun,
+bool CheckMethodName(Isolate* isolate, Handle<JSReceiver> receiver,
+                     Handle<Name> name, Handle<JSFunction> fun,
                      LookupIterator::Configuration config) {
   LookupIterator iter =
-      LookupIterator::PropertyOrElement(isolate, obj, name, config);
+      LookupIterator::PropertyOrElement(isolate, receiver, name, config);
   if (iter.state() == LookupIterator::DATA) {
     return iter.GetDataValue().is_identical_to(fun);
   } else if (iter.state() == LookupIterator::ACCESSOR) {
@@ -376,13 +376,14 @@ Handle<Object> JSStackFrame::GetMethodName() {
     return isolate_->factory()->null_value();
   }
 
-  Handle<JSReceiver> receiver =
-      Object::ToObject(isolate_, receiver_).ToHandleChecked();
-  if (!receiver->IsJSObject()) {
+  Handle<JSReceiver> receiver;
+  if (!Object::ToObject(isolate_, receiver_).ToHandle(&receiver)) {
+    DCHECK(isolate_->has_pending_exception());
+    isolate_->clear_pending_exception();
+    isolate_->set_external_caught_exception(false);
     return isolate_->factory()->null_value();
   }
 
-  Handle<JSObject> obj = Handle<JSObject>::cast(receiver);
   Handle<String> name(function_->shared()->name(), isolate_);
   // ES2015 gives getters and setters name prefixes which must
   // be stripped to find the property name.
@@ -390,15 +391,15 @@ Handle<Object> JSStackFrame::GetMethodName() {
       name->IsUtf8EqualTo(CStrVector("set "), true)) {
     name = isolate_->factory()->NewProperSubString(name, 4, name->length());
   }
-  if (CheckMethodName(isolate_, obj, name, function_,
+  if (CheckMethodName(isolate_, receiver, name, function_,
                       LookupIterator::PROTOTYPE_CHAIN_SKIP_INTERCEPTOR)) {
     return name;
   }
 
   HandleScope outer_scope(isolate_);
   Handle<Object> result;
-  for (PrototypeIterator iter(isolate_, obj, kStartAtReceiver); !iter.IsAtEnd();
-       iter.Advance()) {
+  for (PrototypeIterator iter(isolate_, receiver, kStartAtReceiver);
+       !iter.IsAtEnd(); iter.Advance()) {
     Handle<Object> current = PrototypeIterator::GetCurrent(iter);
     if (!current->IsJSObject()) break;
     Handle<JSObject> current_obj = Handle<JSObject>::cast(current);
@@ -426,14 +427,21 @@ Handle<Object> JSStackFrame::GetTypeName() {
   // TODO(jgruber): Check for strict/constructor here as in
   // CallSitePrototypeGetThis.
 
-  if (receiver_->IsNullOrUndefined(isolate_))
+  if (receiver_->IsNullOrUndefined(isolate_)) {
     return isolate_->factory()->null_value();
+  } else if (receiver_->IsJSProxy()) {
+    return isolate_->factory()->Proxy_string();
+  }
 
-  if (receiver_->IsJSProxy()) return isolate_->factory()->Proxy_string();
+  Handle<JSReceiver> receiver;
+  if (!Object::ToObject(isolate_, receiver_).ToHandle(&receiver)) {
+    DCHECK(isolate_->has_pending_exception());
+    isolate_->clear_pending_exception();
+    isolate_->set_external_caught_exception(false);
+    return isolate_->factory()->null_value();
+  }
 
-  Handle<JSReceiver> receiver_object =
-      Object::ToObject(isolate_, receiver_).ToHandleChecked();
-  return JSReceiver::GetConstructorName(receiver_object);
+  return JSReceiver::GetConstructorName(receiver);
 }
 
 int JSStackFrame::GetLineNumber() {
@@ -570,8 +578,10 @@ void AppendMethodCall(Isolate* isolate, JSStackFrame* call_site,
       }
     }
   } else {
-    builder->AppendString(Handle<String>::cast(type_name));
-    builder->AppendCharacter('.');
+    if (IsNonEmptyString(type_name)) {
+      builder->AppendString(Handle<String>::cast(type_name));
+      builder->AppendCharacter('.');
+    }
     if (IsNonEmptyString(method_name)) {
       builder->AppendString(Handle<String>::cast(method_name));
     } else {

@@ -27,7 +27,7 @@ HeapSnapshot* HeapGraphEdge::snapshot() const {
 
 
 int HeapEntry::index() const {
-  return static_cast<int>(this - &snapshot_->entries().first());
+  return static_cast<int>(this - &snapshot_->entries().front());
 }
 
 

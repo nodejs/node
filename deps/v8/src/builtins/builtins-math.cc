@@ -21,7 +21,8 @@ BUILTIN(MathHypot) {
   DCHECK_LT(0, length);
   double max = 0;
   bool one_arg_is_nan = false;
-  List<double> abs_values(length);
+  std::vector<double> abs_values;
+  abs_values.reserve(length);
   for (int i = 0; i < length; i++) {
     Handle<Object> x = args.at(i + 1);
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, x, Object::ToNumber(x));
@@ -30,7 +31,7 @@ BUILTIN(MathHypot) {
     if (std::isnan(abs_value)) {
       one_arg_is_nan = true;
     } else {
-      abs_values.Add(abs_value);
+      abs_values.push_back(abs_value);
       if (max < abs_value) {
         max = abs_value;
       }
@@ -55,7 +56,7 @@ BUILTIN(MathHypot) {
   double sum = 0;
   double compensation = 0;
   for (int i = 0; i < length; i++) {
-    double n = abs_values.at(i) / max;
+    double n = abs_values[i] / max;
     double summand = n * n - compensation;
     double preliminary = sum + summand;
     compensation = (preliminary - sum) - summand;

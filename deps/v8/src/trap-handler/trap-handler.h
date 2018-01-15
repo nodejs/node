@@ -21,7 +21,12 @@ namespace v8 {
 namespace internal {
 namespace trap_handler {
 
+// TODO(eholk): Support trap handlers on other platforms.
+#if V8_TARGET_ARCH_X64 && V8_OS_LINUX && !V8_OS_ANDROID
+#define V8_TRAP_HANDLER_SUPPORTED 1
+#else
 #define V8_TRAP_HANDLER_SUPPORTED 0
+#endif
 
 struct ProtectedInstructionData {
   // The offset of this instruction from the start of its code object.

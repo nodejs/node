@@ -6329,11 +6329,10 @@ TEST(Dsubu) {
   struct TestCaseDsubu tc[] = {
       //        imm, expected_res, num_instr
       {0xffffffffffff8000, 0x8000, 2},  // min_int16
-      // The test case above generates ori + daddu instruction sequence.
+      // The test case above generates daddiu + dsubu instruction sequence.
       // We can't have just daddiu because -min_int16 > max_int16 so use
-      // register. We can load min_int16 to at register with daddiu and then
-      // subtract at with dsubu, but now we use ori + daddu because -min_int16
-      // can be loaded using ori.
+      // register, but we can load min_int16 to at register with daddiu and then
+      // subtract at with dsubu.
       {0x8000, 0xffffffffffff8000, 1},  // max_int16 + 1
       // Generates daddiu
       // max_int16 + 1 is not int16 but -(max_int16 + 1) is, just use daddiu.
@@ -6363,13 +6362,13 @@ TEST(Dsubu) {
       // r6 - Generates daddiu + dati + dsubu
       {0x8000000000000000, 0x8000000000000000, 3},  // min_int64
       // The test case above generates:
-      // r2 - daddiu + dsrl32 + dsubu instruction sequence,
+      // r2 - daddiu + dsll32 + dsubu instruction sequence,
       // r6 - ori + dati + dsubu.
       // The result of 0 - min_int64 eqauls max_int64 + 1, which wraps around to
       // min_int64 again.
       {0xffff0000ffffffff, 0x0000ffff00000001, 4},
       // The test case above generates:
-      // r2 - ori + dsrl32 + ori + daddu instruction sequence,
+      // r2 - ori + dsll32 + ori + daddu instruction sequence,
       // r6 - daddiu + dahi + dati + dsubu.
       // For r2 loading imm would take more instructions than loading -imm so we
       // can load -imm and add with daddu.
@@ -7860,6 +7859,654 @@ TEST(MSA_vector) {
                      return (ws & ~wd) | (wt & wd);
                    });
   }
+}
+
+struct TestCaseMsaBit {
+  uint64_t wd_lo;
+  uint64_t wd_hi;
+  uint64_t ws_lo;
+  uint64_t ws_hi;
+  uint32_t m;
+};
+
+template <typename InstFunc, typename OperFunc>
+void run_msa_bit(struct TestCaseMsaBit* input, InstFunc GenerateInstructionFunc,
+                 OperFunc GenerateOperationFunc) {
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+
+  MacroAssembler assm(isolate, NULL, 0, v8::internal::CodeObjectRequired::kYes);
+  CpuFeatureScope fscope(&assm, MIPS_SIMD);
+  msa_reg_t res;
+
+#define LOAD_W_REG(lo, hi, w_reg) \
+  __ li(t0, lo);                  \
+  __ li(t1, hi);                  \
+  __ insert_d(w_reg, 0, t0);      \
+  __ insert_d(w_reg, 1, t1)
+
+  LOAD_W_REG(input->ws_lo, input->ws_hi, w0);
+  LOAD_W_REG(input->wd_lo, input->wd_hi, w2);
+#undef LOAD_W_REG
+
+  GenerateInstructionFunc(assm, input->m);
+
+  __ copy_u_w(t2, w2, 0);
+  __ sw(t2, MemOperand(a0, 0));
+  __ copy_u_w(t2, w2, 1);
+  __ sw(t2, MemOperand(a0, 4));
+  __ copy_u_w(t2, w2, 2);
+  __ sw(t2, MemOperand(a0, 8));
+  __ copy_u_w(t2, w2, 3);
+  __ sw(t2, MemOperand(a0, 12));
+
+  __ jr(ra);
+  __ nop();
+
+  CodeDesc desc;
+  assm.GetCode(isolate, &desc);
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+#ifdef OBJECT_PRINT
+  code->Print(std::cout);
+#endif
+  F3 f = FUNCTION_CAST<F3>(code->entry());
+
+  (CALL_GENERATED_CODE(isolate, f, &res, 0, 0, 0, 0));
+
+  CHECK_EQ(GenerateOperationFunc(input->wd_lo, input->ws_lo, input->m),
+           res.d[0]);
+  CHECK_EQ(GenerateOperationFunc(input->wd_hi, input->ws_hi, input->m),
+           res.d[1]);
+}
+
+TEST(MSA_slli_srai_srli) {
+  if ((kArchVariant != kMips64r6) || !CpuFeatures::IsSupported(MIPS_SIMD))
+    return;
+
+  CcTest::InitializeVM();
+
+  struct TestCaseMsaBit tc[] = {
+      // wd_lo, wd_hi     ws_lo,              ws_hi, m
+      {0, 0, 0xf35862e13e38f8b0, 0x4f41ffdef2bfe636, 3},
+      {0, 0, 0x64be4f6dbe9caa51, 0x6b23de1a687d9cb9, 5},
+      {0, 0, 0x1169751bb9a7d9c3, 0xf7a594aec8ef8a9c, 9},
+      {0, 0, 0x2b665362c4e812df, 0x3a0d80d68b3f8bc8, 13},
+      {0, 0, 0x566be7ba4365b70a, 0x01ebbc1937d76cb4, 21},
+      {0, 0, 0x380e2deb9d3f8aae, 0x017e0de0bcc6ca42, 30},
+      {0, 0, 0xa46a3a9bcb43f4e5, 0x1c62c8473bdfcffb, 45},
+      {0, 0, 0xf6759d85f23b5a2b, 0x5c042ae42c6d12c1, 61}};
+
+#define SLLI_SRLI_DF(lanes, mask, func)      \
+  [](uint64_t wd, uint64_t ws, uint32_t m) { \
+    uint64_t res = 0;                        \
+    int elem_size = kMSARegSize / lanes;     \
+    for (int i = 0; i < lanes / 2; ++i) {    \
+      int shift = elem_size * i;             \
+      uint64_t elem = (ws >> shift) & mask;  \
+      res |= ((func)&mask) << shift;         \
+    }                                        \
+    return res;                              \
+  }
+
+#define SRAI_DF(lanes, mask, func)                                            \
+  [](uint64_t wd, uint64_t ws, uint32_t m) {                                  \
+    uint64_t res = 0;                                                         \
+    int elem_size = kMSARegSize / lanes;                                      \
+    for (int i = 0; i < lanes / 2; ++i) {                                     \
+      int shift = elem_size * i;                                              \
+      int64_t elem =                                                          \
+          static_cast<int64_t>(((ws >> shift) & mask) << (64 - elem_size)) >> \
+          (64 - elem_size);                                                   \
+      res |= static_cast<uint64_t>((func)&mask) << shift;                     \
+    }                                                                         \
+    return res;                                                               \
+  }
+
+  for (size_t i = 0; i < sizeof(tc) / sizeof(TestCaseMsaBit); ++i) {
+    run_msa_bit(
+        &tc[i],
+        [](MacroAssembler& assm, uint32_t m) { __ slli_b(w2, w0, m % 8); },
+        SLLI_SRLI_DF(kMSALanesByte, UINT8_MAX, (elem << (m % elem_size))));
+    run_msa_bit(
+        &tc[i],
+        [](MacroAssembler& assm, uint32_t m) { __ slli_h(w2, w0, m % 16); },
+        SLLI_SRLI_DF(kMSALanesHalf, UINT16_MAX, (elem << (m % elem_size))));
+    run_msa_bit(
+        &tc[i],
+        [](MacroAssembler& assm, uint32_t m) { __ slli_w(w2, w0, m % 32); },
+        SLLI_SRLI_DF(kMSALanesWord, UINT32_MAX, (elem << (m % elem_size))));
+    run_msa_bit(
+        &tc[i],
+        [](MacroAssembler& assm, uint32_t m) { __ slli_d(w2, w0, m % 64); },
+        SLLI_SRLI_DF(kMSALanesDword, UINT64_MAX, (elem << (m % elem_size))));
+
+    run_msa_bit(
+        &tc[i],
+        [](MacroAssembler& assm, uint32_t m) { __ srli_b(w2, w0, m % 8); },
+        SLLI_SRLI_DF(kMSALanesByte, UINT8_MAX, (elem >> (m % elem_size))));
+    run_msa_bit(
+        &tc[i],
+        [](MacroAssembler& assm, uint32_t m) { __ srli_h(w2, w0, m % 16); },
+        SLLI_SRLI_DF(kMSALanesHalf, UINT16_MAX, (elem >> (m % elem_size))));
+    run_msa_bit(
+        &tc[i],
+        [](MacroAssembler& assm, uint32_t m) { __ srli_w(w2, w0, m % 32); },
+        SLLI_SRLI_DF(kMSALanesWord, UINT32_MAX, (elem >> (m % elem_size))));
+    run_msa_bit(
+        &tc[i],
+        [](MacroAssembler& assm, uint32_t m) { __ srli_d(w2, w0, m % 64); },
+        SLLI_SRLI_DF(kMSALanesDword, UINT64_MAX, (elem >> (m % elem_size))));
+
+    run_msa_bit(
+        &tc[i],
+        [](MacroAssembler& assm, uint32_t m) { __ srlri_b(w2, w0, m % 8); },
+        SLLI_SRLI_DF(
+            kMSALanesByte, UINT8_MAX,
+            (elem >> (m % elem_size)) + ((elem >> (m % elem_size - 1)) & 0x1)));
+    run_msa_bit(
+        &tc[i],
+        [](MacroAssembler& assm, uint32_t m) { __ srlri_h(w2, w0, m % 16); },
+        SLLI_SRLI_DF(
+            kMSALanesHalf, UINT16_MAX,
+            (elem >> (m % elem_size)) + ((elem >> (m % elem_size - 1)) & 0x1)));
+    run_msa_bit(
+        &tc[i],
+        [](MacroAssembler& assm, uint32_t m) { __ srlri_w(w2, w0, m % 32); },
+        SLLI_SRLI_DF(
+            kMSALanesWord, UINT32_MAX,
+            (elem >> (m % elem_size)) + ((elem >> (m % elem_size - 1)) & 0x1)));
+    run_msa_bit(
+        &tc[i],
+        [](MacroAssembler& assm, uint32_t m) { __ srlri_d(w2, w0, m % 64); },
+        SLLI_SRLI_DF(
+            kMSALanesDword, UINT64_MAX,
+            (elem >> (m % elem_size)) + ((elem >> (m % elem_size - 1)) & 0x1)));
+
+    run_msa_bit(
+        &tc[i],
+        [](MacroAssembler& assm, uint32_t m) { __ srai_b(w2, w0, m % 8); },
+        SRAI_DF(kMSALanesByte, UINT8_MAX,
+                ArithmeticShiftRight(elem, m % elem_size)));
+    run_msa_bit(
+        &tc[i],
+        [](MacroAssembler& assm, uint32_t m) { __ srai_h(w2, w0, m % 16); },
+        SRAI_DF(kMSALanesHalf, UINT16_MAX,
+                ArithmeticShiftRight(elem, m % elem_size)));
+    run_msa_bit(
+        &tc[i],
+        [](MacroAssembler& assm, uint32_t m) { __ srai_w(w2, w0, m % 32); },
+        SRAI_DF(kMSALanesWord, UINT32_MAX,
+                ArithmeticShiftRight(elem, m % elem_size)));
+    run_msa_bit(
+        &tc[i],
+        [](MacroAssembler& assm, uint32_t m) { __ srai_d(w2, w0, m % 64); },
+        SRAI_DF(kMSALanesDword, UINT64_MAX,
+                ArithmeticShiftRight(elem, m % elem_size)));
+
+    run_msa_bit(
+        &tc[i],
+        [](MacroAssembler& assm, uint32_t m) { __ srari_b(w2, w0, m % 8); },
+        SRAI_DF(kMSALanesByte, UINT8_MAX,
+                ArithmeticShiftRight(elem, m % elem_size) +
+                    ((elem >> (m % elem_size - 1)) & 0x1)));
+    run_msa_bit(
+        &tc[i],
+        [](MacroAssembler& assm, uint32_t m) { __ srari_h(w2, w0, m % 16); },
+        SRAI_DF(kMSALanesHalf, UINT16_MAX,
+                ArithmeticShiftRight(elem, m % elem_size) +
+                    ((elem >> (m % elem_size - 1)) & 0x1)));
+    run_msa_bit(
+        &tc[i],
+        [](MacroAssembler& assm, uint32_t m) { __ srari_w(w2, w0, m % 32); },
+        SRAI_DF(kMSALanesWord, UINT32_MAX,
+                ArithmeticShiftRight(elem, m % elem_size) +
+                    ((elem >> (m % elem_size - 1)) & 0x1)));
+    run_msa_bit(
+        &tc[i],
+        [](MacroAssembler& assm, uint32_t m) { __ srari_d(w2, w0, m % 64); },
+        SRAI_DF(kMSALanesDword, UINT64_MAX,
+                ArithmeticShiftRight(elem, m % elem_size) +
+                    ((elem >> (m % elem_size - 1)) & 0x1)));
+  }
+#undef SLLI_SRLI_DF
+#undef SRAI_DF
+}
+
+TEST(MSA_bclri_bseti_bnegi) {
+  if ((kArchVariant != kMips64r6) || !CpuFeatures::IsSupported(MIPS_SIMD))
+    return;
+
+  CcTest::InitializeVM();
+
+  struct TestCaseMsaBit tc[] = {
+      // wd_lo, wd_hi,    ws_lo,              ws_hi, m
+      {0, 0, 0xf35862e13e38f8b0, 0x4f41ffdef2bfe636, 3},
+      {0, 0, 0x64be4f6dbe9caa51, 0x6b23de1a687d9cb9, 5},
+      {0, 0, 0x1169751bb9a7d9c3, 0xf7a594aec8ef8a9c, 9},
+      {0, 0, 0x2b665362c4e812df, 0x3a0d80d68b3f8bc8, 13},
+      {0, 0, 0x566be7ba4365b70a, 0x01ebbc1937d76cb4, 21},
+      {0, 0, 0x380e2deb9d3f8aae, 0x017e0de0bcc6ca42, 30},
+      {0, 0, 0xa46a3a9bcb43f4e5, 0x1c62c8473bdfcffb, 45},
+      {0, 0, 0xf6759d85f23b5a2b, 0x5c042ae42c6d12c1, 61}};
+
+#define BCLRI_BSETI_BNEGI_DF(lanes, mask, func) \
+  [](uint64_t wd, uint64_t ws, uint32_t m) {    \
+    uint64_t res = 0;                           \
+    int elem_size = kMSARegSize / lanes;        \
+    for (int i = 0; i < lanes / 2; ++i) {       \
+      int shift = elem_size * i;                \
+      uint64_t elem = (ws >> shift) & mask;     \
+      res |= ((func)&mask) << shift;            \
+    }                                           \
+    return res;                                 \
+  }
+
+  for (size_t i = 0; i < sizeof(tc) / sizeof(TestCaseMsaBit); ++i) {
+    run_msa_bit(
+        &tc[i],
+        [](MacroAssembler& assm, uint32_t m) { __ bclri_b(w2, w0, m % 8); },
+        BCLRI_BSETI_BNEGI_DF(kMSALanesByte, UINT8_MAX,
+                             (~(1ull << (m % elem_size)) & elem)));
+    run_msa_bit(
+        &tc[i],
+        [](MacroAssembler& assm, uint32_t m) { __ bclri_h(w2, w0, m % 16); },
+        BCLRI_BSETI_BNEGI_DF(kMSALanesHalf, UINT16_MAX,
+                             (~(1ull << (m % elem_size)) & elem)));
+    run_msa_bit(
+        &tc[i],
+        [](MacroAssembler& assm, uint32_t m) { __ bclri_w(w2, w0, m % 32); },
+        BCLRI_BSETI_BNEGI_DF(kMSALanesWord, UINT32_MAX,
+                             (~(1ull << (m % elem_size)) & elem)));
+    run_msa_bit(
+        &tc[i],
+        [](MacroAssembler& assm, uint32_t m) { __ bclri_d(w2, w0, m % 64); },
+        BCLRI_BSETI_BNEGI_DF(kMSALanesDword, UINT64_MAX,
+                             (~(1ull << (m % elem_size)) & elem)));
+
+    run_msa_bit(
+        &tc[i],
+        [](MacroAssembler& assm, uint32_t m) { __ bseti_b(w2, w0, m % 8); },
+        BCLRI_BSETI_BNEGI_DF(kMSALanesByte, UINT8_MAX,
+                             ((1ull << (m % elem_size)) | elem)));
+    run_msa_bit(
+        &tc[i],
+        [](MacroAssembler& assm, uint32_t m) { __ bseti_h(w2, w0, m % 16); },
+        BCLRI_BSETI_BNEGI_DF(kMSALanesHalf, UINT16_MAX,
+                             ((1ull << (m % elem_size)) | elem)));
+    run_msa_bit(
+        &tc[i],
+        [](MacroAssembler& assm, uint32_t m) { __ bseti_w(w2, w0, m % 32); },
+        BCLRI_BSETI_BNEGI_DF(kMSALanesWord, UINT32_MAX,
+                             ((1ull << (m % elem_size)) | elem)));
+    run_msa_bit(
+        &tc[i],
+        [](MacroAssembler& assm, uint32_t m) { __ bseti_d(w2, w0, m % 64); },
+        BCLRI_BSETI_BNEGI_DF(kMSALanesDword, UINT64_MAX,
+                             ((1ull << (m % elem_size)) | elem)));
+
+    run_msa_bit(
+        &tc[i],
+        [](MacroAssembler& assm, uint32_t m) { __ bnegi_b(w2, w0, m % 8); },
+        BCLRI_BSETI_BNEGI_DF(kMSALanesByte, UINT8_MAX,
+                             ((1ull << (m % elem_size)) ^ elem)));
+    run_msa_bit(
+        &tc[i],
+        [](MacroAssembler& assm, uint32_t m) { __ bnegi_h(w2, w0, m % 16); },
+        BCLRI_BSETI_BNEGI_DF(kMSALanesHalf, UINT16_MAX,
+                             ((1ull << (m % elem_size)) ^ elem)));
+    run_msa_bit(
+        &tc[i],
+        [](MacroAssembler& assm, uint32_t m) { __ bnegi_w(w2, w0, m % 32); },
+        BCLRI_BSETI_BNEGI_DF(kMSALanesWord, UINT32_MAX,
+                             ((1ull << (m % elem_size)) ^ elem)));
+    run_msa_bit(
+        &tc[i],
+        [](MacroAssembler& assm, uint32_t m) { __ bnegi_d(w2, w0, m % 64); },
+        BCLRI_BSETI_BNEGI_DF(kMSALanesDword, UINT64_MAX,
+                             ((1ull << (m % elem_size)) ^ elem)));
+  }
+#undef BCLRI_BSETI_BNEGI_DF
+}
+
+TEST(MSA_binsli_binsri) {
+  if ((kArchVariant != kMips64r6) || !CpuFeatures::IsSupported(MIPS_SIMD))
+    return;
+
+  CcTest::InitializeVM();
+
+  struct TestCaseMsaBit tc[] = {// wd_lo, wd_hi, ws_lo, ws_hi, m
+                                {0x53f4457553bbd5b4, 0x5fb8250eacc296b2,
+                                 0xf35862e13e38f8b0, 0x4f41ffdef2bfe636, 3},
+                                {0xf61bfdb0f312e6fc, 0xc9437568dd1ea925,
+                                 0x64be4f6dbe9caa51, 0x6b23de1a687d9cb9, 5},
+                                {0x53f4457553bbd5b4, 0x5fb8250eacc296b2,
+                                 0x1169751bb9a7d9c3, 0xf7a594aec8ef8a9c, 9},
+                                {0xf61bfdb0f312e6fc, 0xc9437568dd1ea925,
+                                 0x2b665362c4e812df, 0x3a0d80d68b3f8bc8, 13},
+                                {0x53f4457553bbd5b4, 0x5fb8250eacc296b2,
+                                 0x566be7ba4365b70a, 0x01ebbc1937d76cb4, 21},
+                                {0xf61bfdb0f312e6fc, 0xc9437568dd1ea925,
+                                 0x380e2deb9d3f8aae, 0x017e0de0bcc6ca42, 30},
+                                {0x53f4457553bbd5b4, 0x5fb8250eacc296b2,
+                                 0xa46a3a9bcb43f4e5, 0x1c62c8473bdfcffb, 45},
+                                {0xf61bfdb0f312e6fc, 0xc9437568dd1ea925,
+                                 0xf6759d85f23b5a2b, 0x5c042ae42c6d12c1, 61}};
+
+#define BINSLI_BINSRI_DF(lanes, mask, func)             \
+  [](uint64_t wd, uint64_t ws, uint32_t m) {            \
+    uint64_t res = 0;                                   \
+    int elem_size = kMSARegSize / lanes;                \
+    int bits = m % elem_size + 1;                       \
+    for (int i = 0; i < lanes / 2; ++i) {               \
+      int shift = elem_size * i;                        \
+      uint64_t ws_elem = (ws >> shift) & mask;          \
+      if (bits == elem_size) {                          \
+        res |= (ws_elem & mask) << shift;               \
+      } else {                                          \
+        uint64_t r_mask = (1ull << bits) - 1;           \
+        uint64_t l_mask = r_mask << (elem_size - bits); \
+        USE(l_mask);                                    \
+        uint64_t wd_elem = (wd >> shift) & mask;        \
+        res |= ((func)&mask) << shift;                  \
+      }                                                 \
+    }                                                   \
+    return res;                                         \
+  }
+
+  for (size_t i = 0; i < sizeof(tc) / sizeof(TestCaseMsaBit); ++i) {
+    run_msa_bit(
+        &tc[i],
+        [](MacroAssembler& assm, uint32_t m) { __ binsli_b(w2, w0, m % 8); },
+        BINSLI_BINSRI_DF(kMSALanesByte, UINT8_MAX,
+                         ((ws_elem & l_mask) | (wd_elem & ~l_mask))));
+    run_msa_bit(
+        &tc[i],
+        [](MacroAssembler& assm, uint32_t m) { __ binsli_h(w2, w0, m % 16); },
+        BINSLI_BINSRI_DF(kMSALanesHalf, UINT16_MAX,
+                         ((ws_elem & l_mask) | (wd_elem & ~l_mask))));
+    run_msa_bit(
+        &tc[i],
+        [](MacroAssembler& assm, uint32_t m) { __ binsli_w(w2, w0, m % 32); },
+        BINSLI_BINSRI_DF(kMSALanesWord, UINT32_MAX,
+                         ((ws_elem & l_mask) | (wd_elem & ~l_mask))));
+    run_msa_bit(
+        &tc[i],
+        [](MacroAssembler& assm, uint32_t m) { __ binsli_d(w2, w0, m % 64); },
+        BINSLI_BINSRI_DF(kMSALanesDword, UINT64_MAX,
+                         ((ws_elem & l_mask) | (wd_elem & ~l_mask))));
+
+    run_msa_bit(
+        &tc[i],
+        [](MacroAssembler& assm, uint32_t m) { __ binsri_b(w2, w0, m % 8); },
+        BINSLI_BINSRI_DF(kMSALanesByte, UINT8_MAX,
+                         ((ws_elem & r_mask) | (wd_elem & ~r_mask))));
+    run_msa_bit(
+        &tc[i],
+        [](MacroAssembler& assm, uint32_t m) { __ binsri_h(w2, w0, m % 16); },
+        BINSLI_BINSRI_DF(kMSALanesHalf, UINT16_MAX,
+                         ((ws_elem & r_mask) | (wd_elem & ~r_mask))));
+    run_msa_bit(
+        &tc[i],
+        [](MacroAssembler& assm, uint32_t m) { __ binsri_w(w2, w0, m % 32); },
+        BINSLI_BINSRI_DF(kMSALanesWord, UINT32_MAX,
+                         ((ws_elem & r_mask) | (wd_elem & ~r_mask))));
+    run_msa_bit(
+        &tc[i],
+        [](MacroAssembler& assm, uint32_t m) { __ binsri_d(w2, w0, m % 64); },
+        BINSLI_BINSRI_DF(kMSALanesDword, UINT64_MAX,
+                         ((ws_elem & r_mask) | (wd_elem & ~r_mask))));
+  }
+#undef BINSLI_BINSRI_DF
+}
+
+TEST(MSA_sat_s_sat_u) {
+  if ((kArchVariant != kMips64r6) || !CpuFeatures::IsSupported(MIPS_SIMD))
+    return;
+
+  CcTest::InitializeVM();
+
+  struct TestCaseMsaBit tc[] = {
+      // wd_lo, wd_hi,    ws_lo,              ws_hi, m
+      {0, 0, 0xf35862e13e3808b0, 0x4f41ffdef2bfe636, 3},
+      {0, 0, 0x64be4f6dbe9caa51, 0x6b23de1a687d9cb9, 5},
+      {0, 0, 0x1169751bb9a7d9c3, 0xf7a594aec8ef8a9c, 9},
+      {0, 0, 0x2b665362c4e812df, 0x3a0d80d68b3f8bc8, 13},
+      {0, 0, 0x566be7ba4365b70a, 0x01ebbc1937d76cb4, 21},
+      {0, 0, 0x380e2deb9d3f8aae, 0x017e0de0bcc6ca42, 30},
+      {0, 0, 0xa46a3a9bcb43f4e5, 0x1c62c8473bdfcffb, 45},
+      {0, 0, 0xf6759d85f23b5a2b, 0x5c042ae42c6d12c1, 61}};
+
+#define SAT_DF(lanes, mask, func)                                              \
+  [](uint64_t wd, uint64_t ws, uint32_t m) {                                   \
+    uint64_t res = 0;                                                          \
+    int elem_size = kMSARegSize / lanes;                                       \
+    m %= elem_size;                                                            \
+    for (int i = 0; i < lanes / 2; ++i) {                                      \
+      int shift = elem_size * i;                                               \
+      uint64_t elem_u64 = (ws >> shift) & mask;                                \
+      int64_t elem_i64 = static_cast<int64_t>(elem_u64 << (64 - elem_size)) >> \
+                         (64 - elem_size);                                     \
+      USE(elem_i64);                                                           \
+      res |= ((func)&mask) << shift;                                           \
+    }                                                                          \
+    return res;                                                                \
+  }
+
+#define M_MAX_INT(x) static_cast<int64_t>((1LL << ((x)-1)) - 1)
+#define M_MIN_INT(x) static_cast<int64_t>(-(1LL << ((x)-1)))
+#define M_MAX_UINT(x) static_cast<uint64_t>(-1ULL >> (64 - (x)))
+
+  for (size_t i = 0; i < sizeof(tc) / sizeof(TestCaseMsaBit); ++i) {
+    run_msa_bit(
+        &tc[i],
+        [](MacroAssembler& assm, uint32_t m) { __ sat_u_b(w2, w0, m % 8); },
+        SAT_DF(kMSALanesByte, UINT8_MAX,
+               (elem_u64 < M_MAX_UINT(m + 1) ? elem_u64 : M_MAX_UINT(m + 1))));
+    run_msa_bit(
+        &tc[i],
+        [](MacroAssembler& assm, uint32_t m) { __ sat_u_h(w2, w0, m % 16); },
+        SAT_DF(kMSALanesHalf, UINT16_MAX,
+               (elem_u64 < M_MAX_UINT(m + 1) ? elem_u64 : M_MAX_UINT(m + 1))));
+    run_msa_bit(
+        &tc[i],
+        [](MacroAssembler& assm, uint32_t m) { __ sat_u_w(w2, w0, m % 32); },
+        SAT_DF(kMSALanesWord, UINT32_MAX,
+               (elem_u64 < M_MAX_UINT(m + 1) ? elem_u64 : M_MAX_UINT(m + 1))));
+    run_msa_bit(
+        &tc[i],
+        [](MacroAssembler& assm, uint32_t m) { __ sat_u_d(w2, w0, m % 64); },
+        SAT_DF(kMSALanesDword, UINT64_MAX,
+               (elem_u64 < M_MAX_UINT(m + 1) ? elem_u64 : M_MAX_UINT(m + 1))));
+
+    run_msa_bit(
+        &tc[i],
+        [](MacroAssembler& assm, uint32_t m) { __ sat_s_b(w2, w0, m % 8); },
+        SAT_DF(
+            kMSALanesByte, UINT8_MAX,
+            (elem_i64 < M_MIN_INT(m + 1)
+                 ? M_MIN_INT(m + 1)
+                 : elem_i64 > M_MAX_INT(m + 1) ? M_MAX_INT(m + 1) : elem_i64)));
+    run_msa_bit(
+        &tc[i],
+        [](MacroAssembler& assm, uint32_t m) { __ sat_s_h(w2, w0, m % 16); },
+        SAT_DF(
+            kMSALanesHalf, UINT16_MAX,
+            (elem_i64 < M_MIN_INT(m + 1)
+                 ? M_MIN_INT(m + 1)
+                 : elem_i64 > M_MAX_INT(m + 1) ? M_MAX_INT(m + 1) : elem_i64)));
+    run_msa_bit(
+        &tc[i],
+        [](MacroAssembler& assm, uint32_t m) { __ sat_s_w(w2, w0, m % 32); },
+        SAT_DF(
+            kMSALanesWord, UINT32_MAX,
+            (elem_i64 < M_MIN_INT(m + 1)
+                 ? M_MIN_INT(m + 1)
+                 : elem_i64 > M_MAX_INT(m + 1) ? M_MAX_INT(m + 1) : elem_i64)));
+    run_msa_bit(
+        &tc[i],
+        [](MacroAssembler& assm, uint32_t m) { __ sat_s_d(w2, w0, m % 64); },
+        SAT_DF(
+            kMSALanesDword, UINT64_MAX,
+            (elem_i64 < M_MIN_INT(m + 1)
+                 ? M_MIN_INT(m + 1)
+                 : elem_i64 > M_MAX_INT(m + 1) ? M_MAX_INT(m + 1) : elem_i64)));
+  }
+
+#undef SAT_DF
+#undef M_MAX_INT
+#undef M_MIN_INT
+#undef M_MAX_UINT
+}
+
+template <typename InstFunc, typename OperFunc>
+void run_msa_i10(int32_t input, InstFunc GenerateVectorInstructionFunc,
+                 OperFunc GenerateOperationFunc) {
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+
+  MacroAssembler assm(isolate, NULL, 0, v8::internal::CodeObjectRequired::kYes);
+  CpuFeatureScope fscope(&assm, MIPS_SIMD);
+  msa_reg_t res;
+
+  GenerateVectorInstructionFunc(assm, input);
+
+  __ copy_u_w(t2, w0, 0);
+  __ sw(t2, MemOperand(a0, 0));
+  __ copy_u_w(t2, w0, 1);
+  __ sw(t2, MemOperand(a0, 4));
+  __ copy_u_w(t2, w0, 2);
+  __ sw(t2, MemOperand(a0, 8));
+  __ copy_u_w(t2, w0, 3);
+  __ sw(t2, MemOperand(a0, 12));
+
+  __ jr(ra);
+  __ nop();
+
+  CodeDesc desc;
+  assm.GetCode(isolate, &desc);
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+#ifdef OBJECT_PRINT
+  code->Print(std::cout);
+#endif
+  F3 f = FUNCTION_CAST<F3>(code->entry());
+
+  (CALL_GENERATED_CODE(isolate, f, &res, 0, 0, 0, 0));
+
+  CHECK_EQ(GenerateOperationFunc(input), res.d[0]);
+  CHECK_EQ(GenerateOperationFunc(input), res.d[1]);
+}
+
+TEST(MSA_ldi) {
+  if ((kArchVariant != kMips64r6) || !CpuFeatures::IsSupported(MIPS_SIMD))
+    return;
+
+  CcTest::InitializeVM();
+
+  // signed 10bit integers: -512 .. 511
+  int32_t tc[] = {0, -1, 1, 256, -256, -178, 352, -512, 511};
+
+#define LDI_DF(lanes, mask)                                        \
+  [](int32_t s10) {                                                \
+    uint64_t res = 0;                                              \
+    int elem_size = kMSARegSize / lanes;                           \
+    int64_t s10_64 =                                               \
+        ArithmeticShiftRight(static_cast<int64_t>(s10) << 54, 54); \
+    for (int i = 0; i < lanes / 2; ++i) {                          \
+      int shift = elem_size * i;                                   \
+      res |= static_cast<uint64_t>(s10_64 & mask) << shift;        \
+    }                                                              \
+    return res;                                                    \
+  }
+
+  for (size_t i = 0; i < sizeof(tc) / sizeof(int32_t); ++i) {
+    run_msa_i10(tc[i],
+                [](MacroAssembler& assm, int32_t s10) { __ ldi_b(w0, s10); },
+                LDI_DF(kMSALanesByte, UINT8_MAX));
+    run_msa_i10(tc[i],
+                [](MacroAssembler& assm, int32_t s10) { __ ldi_h(w0, s10); },
+                LDI_DF(kMSALanesHalf, UINT16_MAX));
+    run_msa_i10(tc[i],
+                [](MacroAssembler& assm, int32_t s10) { __ ldi_w(w0, s10); },
+                LDI_DF(kMSALanesWord, UINT32_MAX));
+    run_msa_i10(tc[i],
+                [](MacroAssembler& assm, int32_t s10) { __ ldi_d(w0, s10); },
+                LDI_DF(kMSALanesDword, UINT64_MAX));
+  }
+#undef LDI_DF
+}
+
+template <typename T, typename InstFunc>
+void run_msa_mi10(InstFunc GenerateVectorInstructionFunc) {
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+
+  MacroAssembler assm(isolate, NULL, 0, v8::internal::CodeObjectRequired::kYes);
+  CpuFeatureScope fscope(&assm, MIPS_SIMD);
+  T in_test_vector[1024];
+  T out_test_vector[1024];
+
+  T* in_array_middle = in_test_vector + arraysize(in_test_vector) / 2;
+  T* out_array_middle = out_test_vector + arraysize(out_test_vector) / 2;
+
+  v8::base::RandomNumberGenerator rand_gen(FLAG_random_seed);
+  for (unsigned int i = 0; i < arraysize(in_test_vector); i++) {
+    in_test_vector[i] = static_cast<T>(rand_gen.NextInt());
+    out_test_vector[i] = 0;
+  }
+
+  GenerateVectorInstructionFunc(assm);
+
+  __ jr(ra);
+  __ nop();
+
+  CodeDesc desc;
+  assm.GetCode(isolate, &desc);
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+#ifdef OBJECT_PRINT
+  code->Print(std::cout);
+#endif
+  F5 f = FUNCTION_CAST<F5>(code->entry());
+
+  (CALL_GENERATED_CODE(isolate, f, in_array_middle, out_array_middle, 0, 0, 0));
+
+  CHECK_EQ(memcmp(in_test_vector, out_test_vector, arraysize(in_test_vector)),
+           0);
+}
+
+TEST(MSA_load_store_vector) {
+  if ((kArchVariant != kMips64r6) || !CpuFeatures::IsSupported(MIPS_SIMD))
+    return;
+
+  CcTest::InitializeVM();
+
+  run_msa_mi10<uint8_t>([](MacroAssembler& assm) {
+    for (int i = -512; i < 512; i += 16) {
+      __ ld_b(w0, MemOperand(a0, i));
+      __ st_b(w0, MemOperand(a1, i));
+    }
+  });
+  run_msa_mi10<uint16_t>([](MacroAssembler& assm) {
+    for (int i = -512; i < 512; i += 8) {
+      __ ld_h(w0, MemOperand(a0, i));
+      __ st_h(w0, MemOperand(a1, i));
+    }
+  });
+  run_msa_mi10<uint32_t>([](MacroAssembler& assm) {
+    for (int i = -512; i < 512; i += 4) {
+      __ ld_w(w0, MemOperand(a0, i));
+      __ st_w(w0, MemOperand(a1, i));
+    }
+  });
+  run_msa_mi10<uint64_t>([](MacroAssembler& assm) {
+    for (int i = -512; i < 512; i += 2) {
+      __ ld_d(w0, MemOperand(a0, i));
+      __ st_d(w0, MemOperand(a1, i));
+    }
+  });
+#undef LDI_DF
 }
 
 #undef __

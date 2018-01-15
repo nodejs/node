@@ -7,6 +7,7 @@
       '../run-tests.py',
     ],
     'files': [
+      '<(PRODUCT_DIR)/v8_build_config.json',
       '../run-tests.py',
       './'
     ],
@@ -17,13 +18,6 @@
         'files': [
           '../sanitizers/sancov_merger.py',
           '../../third_party/llvm/projects/compiler-rt/lib/sanitizer_common/scripts/sancov.py',
-        ],
-      },
-    }],
-    ['is_gn==1', {
-      'variables': {
-        'files': [
-          '<(PRODUCT_DIR)/v8_build_config.json',
         ],
       },
     }],

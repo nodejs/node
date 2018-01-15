@@ -13,15 +13,17 @@ namespace v8 {
 namespace internal {
 
 void SequentialMarkingDeque::SetUp() {
-  backing_store_ =
-      new base::VirtualMemory(kMaxSize, heap_->GetRandomMmapAddr());
-  backing_store_committed_size_ = 0;
-  if (backing_store_ == nullptr) {
+  base::VirtualMemory reservation;
+  if (!AllocVirtualMemory(kMaxSize, heap_->GetRandomMmapAddr(), &reservation)) {
     V8::FatalProcessOutOfMemory("SequentialMarkingDeque::SetUp");
   }
+  backing_store_committed_size_ = 0;
+  backing_store_.TakeControl(&reservation);
 }
 
-void SequentialMarkingDeque::TearDown() { delete backing_store_; }
+void SequentialMarkingDeque::TearDown() {
+  if (backing_store_.IsReserved()) backing_store_.Release();
+}
 
 void SequentialMarkingDeque::StartUsing() {
   base::LockGuard<base::Mutex> guard(&mutex_);
@@ -32,7 +34,7 @@ void SequentialMarkingDeque::StartUsing() {
   }
   in_use_ = true;
   EnsureCommitted();
-  array_ = reinterpret_cast<HeapObject**>(backing_store_->address());
+  array_ = reinterpret_cast<HeapObject**>(backing_store_.address());
   size_t size = FLAG_force_marking_deque_overflows
                     ? 64 * kPointerSize
                     : backing_store_committed_size_;
@@ -64,8 +66,8 @@ void SequentialMarkingDeque::Clear() {
 
 void SequentialMarkingDeque::Uncommit() {
   DCHECK(!in_use_);
-  bool success = backing_store_->Uncommit(backing_store_->address(),
-                                          backing_store_committed_size_);
+  bool success = backing_store_.Uncommit(backing_store_.address(),
+                                         backing_store_committed_size_);
   backing_store_committed_size_ = 0;
   CHECK(success);
 }
@@ -75,7 +77,7 @@ void SequentialMarkingDeque::EnsureCommitted() {
   if (backing_store_committed_size_ > 0) return;
 
   for (size_t size = kMaxSize; size >= kMinSize; size /= 2) {
-    if (backing_store_->Commit(backing_store_->address(), size, false)) {
+    if (backing_store_.Commit(backing_store_.address(), size, false)) {
       backing_store_committed_size_ = size;
       break;
     }

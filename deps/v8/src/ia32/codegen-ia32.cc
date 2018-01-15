@@ -13,24 +13,6 @@
 namespace v8 {
 namespace internal {
 
-
-// -------------------------------------------------------------------------
-// Platform-specific RuntimeCallHelper functions.
-
-void StubRuntimeCallHelper::BeforeCall(MacroAssembler* masm) const {
-  masm->EnterFrame(StackFrame::INTERNAL);
-  DCHECK(!masm->has_frame());
-  masm->set_has_frame(true);
-}
-
-
-void StubRuntimeCallHelper::AfterCall(MacroAssembler* masm) const {
-  masm->LeaveFrame(StackFrame::INTERNAL);
-  DCHECK(masm->has_frame());
-  masm->set_has_frame(false);
-}
-
-
 #define __ masm.
 
 
@@ -596,56 +578,6 @@ void StringCharLoadGenerator::Generate(MacroAssembler* masm,
 }
 
 #undef __
-
-
-CodeAgingHelper::CodeAgingHelper(Isolate* isolate) {
-  USE(isolate);
-  DCHECK(young_sequence_.length() == kNoCodeAgeSequenceLength);
-  CodePatcher patcher(isolate, young_sequence_.start(),
-                      young_sequence_.length());
-  patcher.masm()->push(ebp);
-  patcher.masm()->mov(ebp, esp);
-  patcher.masm()->push(esi);
-  patcher.masm()->push(edi);
-}
-
-
-#ifdef DEBUG
-bool CodeAgingHelper::IsOld(byte* candidate) const {
-  return *candidate == kCallOpcode;
-}
-#endif
-
-
-bool Code::IsYoungSequence(Isolate* isolate, byte* sequence) {
-  bool result = isolate->code_aging_helper()->IsYoung(sequence);
-  DCHECK(result || isolate->code_aging_helper()->IsOld(sequence));
-  return result;
-}
-
-Code::Age Code::GetCodeAge(Isolate* isolate, byte* sequence) {
-  if (IsYoungSequence(isolate, sequence)) return kNoAgeCodeAge;
-
-  sequence++;  // Skip the kCallOpcode byte
-  Address target_address = sequence + *reinterpret_cast<int*>(sequence) +
-                           Assembler::kCallTargetAddressOffset;
-  Code* stub = GetCodeFromTargetAddress(target_address);
-  return GetAgeOfCodeAgeStub(stub);
-}
-
-void Code::PatchPlatformCodeAge(Isolate* isolate, byte* sequence,
-                                Code::Age age) {
-  uint32_t young_length = isolate->code_aging_helper()->young_sequence_length();
-  if (age == kNoAgeCodeAge) {
-    isolate->code_aging_helper()->CopyYoungSequenceTo(sequence);
-    Assembler::FlushICache(isolate, sequence, young_length);
-  } else {
-    Code* stub = GetCodeAgeStub(isolate, age);
-    CodePatcher patcher(isolate, sequence, young_length);
-    patcher.masm()->call(stub->instruction_start(), RelocInfo::NONE32);
-  }
-}
-
 
 }  // namespace internal
 }  // namespace v8

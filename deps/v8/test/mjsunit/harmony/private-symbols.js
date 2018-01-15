@@ -28,7 +28,8 @@ for (var key in object2) assertUnreachable();
 
 // Private symbols must never leak to proxy traps.
 
-var proxy = new Proxy({}, new Proxy({}, {get() {return () => {throw 666}}}));
+var proxy = new Proxy({}, new Proxy({}, {get() {return () => {
+  throw new Error()}}}));
 var object = {__proto__: proxy};
 
 // [[Set]]

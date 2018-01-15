@@ -738,11 +738,6 @@ int DisassemblerIA32::AVXInstruction(byte* data) {
     int mod, regop, rm, vvvv = vex_vreg();
     get_modrm(*current, &mod, &regop, &rm);
     switch (opcode) {
-      case 0x00:
-        AppendToBuffer("vpshufb %s,%s,", NameOfXMMRegister(regop),
-                       NameOfXMMRegister(vvvv));
-        current += PrintRightXMMOperand(current);
-        break;
       case 0x99:
         AppendToBuffer("vfmadd132s%c %s,%s,", float_size_code(),
                        NameOfXMMRegister(regop), NameOfXMMRegister(vvvv));
@@ -817,6 +812,7 @@ int DisassemblerIA32::AVXInstruction(byte* data) {
     break;                                                                  \
   }
 
+        SSSE3_INSTRUCTION_LIST(DECLARE_SSE_AVX_DIS_CASE)
         SSE4_INSTRUCTION_LIST(DECLARE_SSE_AVX_DIS_CASE)
 #undef DECLARE_SSE_AVX_DIS_CASE
       default:
@@ -1885,24 +1881,21 @@ int DisassemblerIA32::InstructionDecode(v8::internal::Vector<char> out_buffer,
             int mod, regop, rm;
             get_modrm(*data, &mod, &regop, &rm);
             switch (op) {
-              case 0x00:
-                AppendToBuffer("pshufb %s,", NameOfXMMRegister(regop));
-                data += PrintRightXMMOperand(data);
-                break;
               case 0x17:
                 AppendToBuffer("ptest %s,%s", NameOfXMMRegister(regop),
                                NameOfXMMRegister(rm));
                 data++;
                 break;
-#define SSE4_DIS_CASE(instruction, notUsed1, notUsed2, notUsed3, opcode) \
-  case 0x##opcode: {                                                     \
-    AppendToBuffer(#instruction " %s,", NameOfXMMRegister(regop));       \
-    data += PrintRightXMMOperand(data);                                  \
-    break;                                                               \
+#define SSE34_DIS_CASE(instruction, notUsed1, notUsed2, notUsed3, opcode) \
+  case 0x##opcode: {                                                      \
+    AppendToBuffer(#instruction " %s,", NameOfXMMRegister(regop));        \
+    data += PrintRightXMMOperand(data);                                   \
+    break;                                                                \
   }
 
-                SSE4_INSTRUCTION_LIST(SSE4_DIS_CASE)
-#undef SSE4_DIS_CASE
+                SSSE3_INSTRUCTION_LIST(SSE34_DIS_CASE)
+                SSE4_INSTRUCTION_LIST(SSE34_DIS_CASE)
+#undef SSE34_DIS_CASE
               default:
                 UnimplementedInstruction();
             }

@@ -55,14 +55,15 @@ class JSTypeHintLowering {
                                   Node* effect, Node* control,
                                   FeedbackSlot slot) const;
 
+  // Potential reduction to ForInNext operations
+  Reduction ReduceForInNextOperation(Node* receiver, Node* cache_array,
+                                     Node* cache_type, Node* index,
+                                     Node* effect, Node* control,
+                                     FeedbackSlot slot) const;
+
   // Potential reduction to ToNumber operations
   Reduction ReduceToNumberOperation(Node* value, Node* effect, Node* control,
                                     FeedbackSlot slot) const;
-
-  // Potential reduction to ToPrimitiveToString operations
-  Reduction ReduceToPrimitiveToStringOperation(Node* value, Node* effect,
-                                               Node* control,
-                                               FeedbackSlot slot) const;
 
   // Potential reduction of call operations.
   Reduction ReduceCallOperation(const Operator* op, Node* const* args,

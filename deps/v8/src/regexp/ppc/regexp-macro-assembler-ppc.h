@@ -7,7 +7,6 @@
 
 #include "src/macro-assembler.h"
 #include "src/ppc/assembler-ppc.h"
-#include "src/ppc/frames-ppc.h"
 #include "src/regexp/regexp-macro-assembler.h"
 
 namespace v8 {

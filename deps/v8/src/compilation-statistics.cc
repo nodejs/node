@@ -100,7 +100,7 @@ static void WriteFullLine(std::ostream& os) {
 
 static void WriteHeader(std::ostream& os) {
   WriteFullLine(os);
-  os << "             Turbonfan phase        Time (ms)             "
+  os << "             Turbofan phase         Time (ms)             "
      << "          Space (bytes)             Function\n"
      << "                                                         "
      << "  Total          Max.     Abs. max.\n";

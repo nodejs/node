@@ -333,6 +333,8 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
   void VisitProjection(Node* node);
   void VisitConstant(Node* node);
   void VisitCall(Node* call, BasicBlock* handler = nullptr);
+  void VisitCallWithCallerSavedRegisters(Node* call,
+                                         BasicBlock* handler = nullptr);
   void VisitDeoptimizeIf(Node* node);
   void VisitDeoptimizeUnless(Node* node);
   void VisitTrapIf(Node* node, Runtime::FunctionId func_id);
@@ -352,6 +354,51 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
 
   void EmitIdentity(Node* node);
   bool CanProduceSignalingNaN(Node* node);
+
+  // ===========================================================================
+  // ============= Vector instruction (SIMD) helper fns. =======================
+  // ===========================================================================
+
+  // Tries to match a byte shuffle to a scalar splat operation. Returns the
+  // index of the lane if successful.
+  template <int LANES>
+  static bool TryMatchDup(const uint8_t* shuffle, int* index) {
+    const int kBytesPerLane = kSimd128Size / LANES;
+    // Get the first lane's worth of bytes and check that indices start at a
+    // lane boundary and are consecutive.
+    uint8_t lane0[kBytesPerLane];
+    lane0[0] = shuffle[0];
+    if (lane0[0] % kBytesPerLane != 0) return false;
+    for (int i = 1; i < kBytesPerLane; ++i) {
+      lane0[i] = shuffle[i];
+      if (lane0[i] != lane0[0] + i) return false;
+    }
+    // Now check that the other lanes are identical to lane0.
+    for (int i = 1; i < LANES; ++i) {
+      for (int j = 0; j < kBytesPerLane; ++j) {
+        if (lane0[j] != shuffle[i * kBytesPerLane + j]) return false;
+      }
+    }
+    *index = lane0[0] / kBytesPerLane;
+    return true;
+  }
+
+  // Tries to match 8x16 byte shuffle to an equivalent 32x4 word shuffle. If
+  // successful, it writes the 32x4 shuffle word indices.
+  static bool TryMatch32x4Shuffle(const uint8_t* shuffle, uint8_t* shuffle32x4);
+
+  // Tries to match a byte shuffle to a concatenate operation. If successful,
+  // it writes the byte offset.
+  static bool TryMatchConcat(const uint8_t* shuffle, uint8_t mask,
+                             uint8_t* offset);
+
+  // Packs 4 bytes of shuffle into a 32 bit immediate, using a mask from
+  // CanonicalizeShuffle to convert unary shuffles.
+  static int32_t Pack4Lanes(const uint8_t* shuffle, uint8_t mask);
+
+  // Canonicalize shuffles to make pattern matching simpler. Returns a mask that
+  // will ignore the high bit of indices if shuffle is unary.
+  uint8_t CanonicalizeShuffle(Node* node);
 
   // ===========================================================================
 

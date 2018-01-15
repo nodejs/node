@@ -249,7 +249,7 @@ void SimdScalarLowering::SetLoweredType(Node* node, Node* output) {
   }
 }
 
-static int GetParameterIndexAfterLowering(
+static int GetParameterIndexAfterLoweringSimd128(
     Signature<MachineRepresentation>* signature, int old_index) {
   // In function calls, the simd128 types are passed as 4 Int32 types. The
   // parameters are typecast to the types as needed for various operations.
@@ -264,15 +264,15 @@ static int GetParameterIndexAfterLowering(
 
 int SimdScalarLowering::GetParameterCountAfterLowering() {
   if (parameter_count_after_lowering_ == -1) {
-    // GetParameterIndexAfterLowering(parameter_count) returns the parameter
-    // count after lowering.
-    parameter_count_after_lowering_ = GetParameterIndexAfterLowering(
+    // GetParameterIndexAfterLoweringSimd128(parameter_count) returns the
+    // parameter count after lowering.
+    parameter_count_after_lowering_ = GetParameterIndexAfterLoweringSimd128(
         signature(), static_cast<int>(signature()->parameter_count()));
   }
   return parameter_count_after_lowering_;
 }
 
-static int GetReturnCountAfterLowering(
+static int GetReturnCountAfterLoweringSimd128(
     Signature<MachineRepresentation>* signature) {
   int result = static_cast<int>(signature->return_count());
   for (int i = 0; i < static_cast<int>(signature->return_count()); ++i) {
@@ -714,7 +714,8 @@ void SimdScalarLowering::LowerNode(Node* node) {
       if (GetParameterCountAfterLowering() !=
           static_cast<int>(signature()->parameter_count())) {
         int old_index = ParameterIndexOf(node->op());
-        int new_index = GetParameterIndexAfterLowering(signature(), old_index);
+        int new_index =
+            GetParameterIndexAfterLoweringSimd128(signature(), old_index);
         if (old_index == new_index) {
           NodeProperties::ChangeOp(node, common()->Parameter(new_index));
 
@@ -772,7 +773,7 @@ void SimdScalarLowering::LowerNode(Node* node) {
     }
     case IrOpcode::kReturn: {
       DefaultLowering(node);
-      int new_return_count = GetReturnCountAfterLowering(signature());
+      int new_return_count = GetReturnCountAfterLoweringSimd128(signature());
       if (static_cast<int>(signature()->return_count()) != new_return_count) {
         NodeProperties::ChangeOp(node, common()->Return(new_return_count));
       }

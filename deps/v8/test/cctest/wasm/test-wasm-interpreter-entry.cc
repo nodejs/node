@@ -38,7 +38,7 @@ class ArgPassingHelper {
       : isolate_(runner.main_isolate()),
         expected_lambda_(expected_lambda),
         debug_info_(WasmInstanceObject::GetOrCreateDebugInfo(
-            runner.module().instance_object())) {
+            runner.builder().instance_object())) {
     std::vector<uint8_t> inner_code{bytes_inner_function};
     inner_compiler.Build(inner_code.data(),
                          inner_code.data() + inner_code.size());
@@ -49,7 +49,7 @@ class ArgPassingHelper {
     int funcs_to_redict[] = {static_cast<int>(inner_compiler.function_index())};
     WasmDebugInfo::RedirectToInterpreter(debug_info_,
                                          ArrayVector(funcs_to_redict));
-    main_fun_wrapper_ = runner.module().WrapCode(runner.function_index());
+    main_fun_wrapper_ = runner.builder().WrapCode(runner.function_index());
   }
 
   template <typename... Args>

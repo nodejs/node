@@ -265,6 +265,10 @@ void AstExpressionRewriter::VisitAssignment(Assignment* node) {
   AST_REWRITE_PROPERTY(Expression, node, value);
 }
 
+void AstExpressionRewriter::VisitCompoundAssignment(CompoundAssignment* node) {
+  VisitAssignment(node);
+}
+
 void AstExpressionRewriter::VisitYield(Yield* node) {
   REWRITE_THIS(node);
   AST_REWRITE_PROPERTY(Expression, node, expression);

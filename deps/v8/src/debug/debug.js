@@ -29,7 +29,7 @@ var Debug = {};
 // comments.
 var sourceLineBeginningSkip = /^(?:\s*(?:\/\*.*?\*\/)*)*/;
 
-// Debug events which can occour in the V8 JavaScript engine. These originate
+// Debug events which can occur in the V8 JavaScript engine. These originate
 // from the API include file debug.h.
 Debug.DebugEvent = { Break: 1,
                      Exception: 2,

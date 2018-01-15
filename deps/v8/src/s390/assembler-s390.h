@@ -98,6 +98,141 @@ namespace internal {
   V(d8)  V(d9)  V(d10) V(d11) V(d12) V(d15) V(d0)
 // clang-format on
 
+// Register list in load/store instructions
+// Note that the bit values must match those used in actual instruction encoding
+const int kNumRegs = 16;
+
+// Caller-saved/arguments registers
+const RegList kJSCallerSaved = 1 << 1 | 1 << 2 |  // r2  a1
+                               1 << 3 |           // r3  a2
+                               1 << 4 |           // r4  a3
+                               1 << 5;            // r5  a4
+
+const int kNumJSCallerSaved = 5;
+
+// Callee-saved registers preserved when switching from C to JavaScript
+const RegList kCalleeSaved =
+    1 << 6 |   // r6 (argument passing in CEntryStub)
+               //    (HandleScope logic in MacroAssembler)
+    1 << 7 |   // r7 (argument passing in CEntryStub)
+               //    (HandleScope logic in MacroAssembler)
+    1 << 8 |   // r8 (argument passing in CEntryStub)
+               //    (HandleScope logic in MacroAssembler)
+    1 << 9 |   // r9 (HandleScope logic in MacroAssembler)
+    1 << 10 |  // r10 (Roots register in Javascript)
+    1 << 11 |  // r11 (fp in Javascript)
+    1 << 12 |  // r12 (ip in Javascript)
+    1 << 13;   // r13 (cp in Javascript)
+// 1 << 15;   // r15 (sp in Javascript)
+
+const int kNumCalleeSaved = 8;
+
+#ifdef V8_TARGET_ARCH_S390X
+
+const RegList kCallerSavedDoubles = 1 << 0 |  // d0
+                                    1 << 1 |  // d1
+                                    1 << 2 |  // d2
+                                    1 << 3 |  // d3
+                                    1 << 4 |  // d4
+                                    1 << 5 |  // d5
+                                    1 << 6 |  // d6
+                                    1 << 7;   // d7
+
+const int kNumCallerSavedDoubles = 8;
+
+const RegList kCalleeSavedDoubles = 1 << 8 |   // d8
+                                    1 << 9 |   // d9
+                                    1 << 10 |  // d10
+                                    1 << 11 |  // d11
+                                    1 << 12 |  // d12
+                                    1 << 13 |  // d12
+                                    1 << 14 |  // d12
+                                    1 << 15;   // d13
+
+const int kNumCalleeSavedDoubles = 8;
+
+#else
+
+const RegList kCallerSavedDoubles = 1 << 14 |  // d14
+                                    1 << 15 |  // d15
+                                    1 << 0 |   // d0
+                                    1 << 1 |   // d1
+                                    1 << 2 |   // d2
+                                    1 << 3 |   // d3
+                                    1 << 5 |   // d5
+                                    1 << 7 |   // d7
+                                    1 << 8 |   // d8
+                                    1 << 9 |   // d9
+                                    1 << 10 |  // d10
+                                    1 << 11 |  // d10
+                                    1 << 12 |  // d10
+                                    1 << 13;   // d11
+
+const int kNumCallerSavedDoubles = 14;
+
+const RegList kCalleeSavedDoubles = 1 << 4 |  // d4
+                                    1 << 6;   // d6
+
+const int kNumCalleeSavedDoubles = 2;
+
+#endif
+
+// Number of registers for which space is reserved in safepoints. Must be a
+// multiple of 8.
+// TODO(regis): Only 8 registers may actually be sufficient. Revisit.
+const int kNumSafepointRegisters = 16;
+
+// Define the list of registers actually saved at safepoints.
+// Note that the number of saved registers may be smaller than the reserved
+// space, i.e. kNumSafepointSavedRegisters <= kNumSafepointRegisters.
+// const RegList kSafepointSavedRegisters = kJSCallerSaved | kCalleeSaved;
+// const int kNumSafepointSavedRegisters = kNumJSCallerSaved + kNumCalleeSaved;
+
+// The following constants describe the stack frame linkage area as
+// defined by the ABI.
+
+#if V8_TARGET_ARCH_S390X
+// [0] Back Chain
+// [1] Reserved for compiler use
+// [2] GPR 2
+// [3] GPR 3
+// ...
+// [15] GPR 15
+// [16] FPR 0
+// [17] FPR 2
+// [18] FPR 4
+// [19] FPR 6
+const int kNumRequiredStackFrameSlots = 20;
+const int kStackFrameRASlot = 14;
+const int kStackFrameSPSlot = 15;
+const int kStackFrameExtraParamSlot = 20;
+#else
+// [0] Back Chain
+// [1] Reserved for compiler use
+// [2] GPR 2
+// [3] GPR 3
+// ...
+// [15] GPR 15
+// [16..17] FPR 0
+// [18..19] FPR 2
+// [20..21] FPR 4
+// [22..23] FPR 6
+const int kNumRequiredStackFrameSlots = 24;
+const int kStackFrameRASlot = 14;
+const int kStackFrameSPSlot = 15;
+const int kStackFrameExtraParamSlot = 24;
+#endif
+
+// zLinux ABI requires caller frames to include sufficient space for
+// callee preserved register save area.
+#if V8_TARGET_ARCH_S390X
+const int kCalleeRegisterSaveAreaSize = 160;
+#elif V8_TARGET_ARCH_S390
+const int kCalleeRegisterSaveAreaSize = 96;
+#else
+const int kCalleeRegisterSaveAreaSize = 0;
+#endif
+
 // CPU Registers.
 //
 // 1) We would prefer to use an enum, but enum values are assignment-
@@ -530,33 +665,6 @@ class Assembler : public AssemblerBase {
 #else
   static constexpr int kCallSequenceLength = 8;
 #endif
-
-  // This is the length of the BreakLocationIterator::SetDebugBreakAtReturn()
-  // code patch FIXED_SEQUENCE in bytes!
-  // JS Return Sequence = Call Sequence + BKPT
-  // static constexpr int kJSReturnSequenceLength = kCallSequenceLength + 2;
-
-  // This is the length of the code sequence from SetDebugBreakAtSlot()
-  // FIXED_SEQUENCE in bytes!
-  static constexpr int kDebugBreakSlotLength = kCallSequenceLength;
-  static constexpr int kPatchDebugBreakSlotReturnOffset =
-      kCallTargetAddressOffset;
-
-  // Length to patch between the start of the JS return sequence
-  // from SetDebugBreakAtReturn and the address from
-  // break_address_from_return_address.
-  //
-  // frame->pc() in Debug::SetAfterBreakTarget will point to BKPT in
-  // JS return sequence, so the length to patch will not include BKPT
-  // instruction length.
-  // static constexpr int kPatchReturnSequenceAddressOffset =
-  //     kCallSequenceLength - kPatchDebugBreakSlotReturnOffset;
-
-  // Length to patch between the start of the FIXED call sequence from
-  // SetDebugBreakAtSlot() and the the address from
-  // break_address_from_return_address.
-  static constexpr int kPatchDebugBreakSlotAddressOffset =
-      kDebugBreakSlotLength - kPatchDebugBreakSlotReturnOffset;
 
   static inline int encode_crbit(const CRegister& cr, enum CRBit crbit) {
     return ((cr.code() * CRWIDTH) + crbit);
@@ -1288,11 +1396,6 @@ class Assembler : public AssemblerBase {
   int SizeOfCodeGeneratedSince(Label* label) {
     return pc_offset() - label->pos();
   }
-
-  // Debugging
-
-  // Mark address of a debug break slot.
-  void RecordDebugBreakSlot(RelocInfo::Mode mode);
 
   // Record a comment relocation entry that can be used by a disassembler.
   // Use --code-comments to enable.

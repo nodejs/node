@@ -16,6 +16,7 @@ namespace interpreter {
 #define INTRINSICS_LIST(V)                                            \
   V(AsyncGeneratorReject, async_generator_reject, 2)                  \
   V(AsyncGeneratorResolve, async_generator_resolve, 3)                \
+  V(AsyncGeneratorYield, async_generator_yield, 3)                    \
   V(CreateJSGeneratorObject, create_js_generator_object, 2)           \
   V(GeneratorGetContext, generator_get_context, 1)                    \
   V(GeneratorGetResumeMode, generator_get_resume_mode, 1)             \

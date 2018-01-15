@@ -14,7 +14,10 @@ namespace base {
 namespace debug {
 
 bool EnableInProcessStackDumping() {
-  CHECK(false);  // TODO(fuchsia): Port, https://crbug.com/731217.
+  // The system crashlogger captures and prints backtraces which are then
+  // symbolized by a host-side script that runs addr2line. Because symbols are
+  // not available on device, there's not much use in implementing in-process
+  // capture.
   return false;
 }
 

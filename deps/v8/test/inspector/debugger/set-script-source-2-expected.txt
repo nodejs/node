@@ -1,0 +1,73 @@
+Tests Debugger.setScriptSource
+
+Running test: addLineAfter
+var x = 1;
+#debugger;
+return x + 2;
+
+---
+Break location after LiveEdit:
+var x = 1;
+#debugger;
+var x = 3;
+
+stackChanged: true
+Protocol.Debugger.stepInto
+function foo() {
+var x = #1;
+debugger;
+
+
+Running test: addLineBefore
+var x = 1;
+#debugger;
+return x + 2;
+
+---
+Break location after LiveEdit:
+var x = 1;
+var x = #3;
+debugger;
+
+stackChanged: true
+Protocol.Debugger.stepInto
+function foo() {
+var x = #1;
+var x = 3;
+
+
+Running test: breakAtFirstLineAddLineAfter
+function boo() {
+#debugger;
+var x = 1;
+
+---
+Break location after LiveEdit:
+function boo() {
+#debugger;
+var x = 3;
+
+stackChanged: true
+Protocol.Debugger.stepInto
+function boo() {
+#debugger;
+var x = 3;
+
+
+Running test: breakAtFirstLineAddLineBefore
+function boo() {
+#debugger;
+var x = 1;
+
+---
+Break location after LiveEdit:
+function boo() {
+var x = #3;
+debugger;
+
+stackChanged: true
+Protocol.Debugger.stepInto
+var x = 3;
+#debugger;
+var x = 1;
+

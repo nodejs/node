@@ -138,6 +138,7 @@ VirtualMemory::VirtualMemory(size_t size, void* hint)
 VirtualMemory::VirtualMemory(size_t size, size_t alignment, void* hint)
     : address_(NULL), size_(0) {
   DCHECK((alignment % OS::AllocateAlignment()) == 0);
+  hint = AlignedAddress(hint, alignment);
   size_t request_size =
       RoundUp(size + alignment, static_cast<intptr_t>(OS::AllocateAlignment()));
   void* reservation = mmap(hint, request_size, PROT_NONE,

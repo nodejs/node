@@ -16,8 +16,8 @@ TEST(CompilerDispatcherTracerTest, EstimateWithoutSamples) {
   EXPECT_EQ(1.0, tracer.EstimateParseInMs(42));
   EXPECT_EQ(0.0, tracer.EstimateFinalizeParsingInMs());
   EXPECT_EQ(0.0, tracer.EstimatePrepareToCompileInMs());
-  EXPECT_EQ(1.0, tracer.EstimateCompileInMs(0));
-  EXPECT_EQ(1.0, tracer.EstimateCompileInMs(42));
+  EXPECT_EQ(0.0, tracer.EstimateCompileInMs());
+  EXPECT_EQ(0.0, tracer.EstimateCompileInMs());
   EXPECT_EQ(0.0, tracer.EstimateFinalizeCompilingInMs());
 }
 

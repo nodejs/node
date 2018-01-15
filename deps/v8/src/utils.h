@@ -9,6 +9,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <cmath>
+#include <type_traits>
 
 #include "include/v8.h"
 #include "src/allocation.h"
@@ -18,7 +19,6 @@
 #include "src/base/macros.h"
 #include "src/base/platform/platform.h"
 #include "src/globals.h"
-#include "src/list.h"
 #include "src/vector.h"
 #include "src/zone/zone.h"
 
@@ -185,9 +185,15 @@ T JSMin(T x, T y) {
 
 // Returns the absolute value of its argument.
 template <typename T,
-          typename = typename std::enable_if<std::is_integral<T>::value>::type>
+          typename = typename std::enable_if<std::is_signed<T>::value>::type>
 typename std::make_unsigned<T>::type Abs(T a) {
-  return a < 0 ? -a : a;
+  // This is a branch-free implementation of the absolute value function and is
+  // described in Warren's "Hacker's Delight", chapter 2. It avoids undefined
+  // behavior with the arithmetic negation operation on signed values as well.
+  typedef typename std::make_unsigned<T>::type unsignedT;
+  unsignedT x = static_cast<unsignedT>(a);
+  unsignedT y = static_cast<unsignedT>(a >> (sizeof(T) * 8 - 1));
+  return (x ^ y) - y;
 }
 
 // Floor(-0.0) == 0.0
@@ -791,16 +797,16 @@ class EnumSet {
   T ToIntegral() const { return bits_; }
   bool operator==(const EnumSet& set) { return bits_ == set.bits_; }
   bool operator!=(const EnumSet& set) { return bits_ != set.bits_; }
-  EnumSet<E, T> operator|(const EnumSet& set) const {
-    return EnumSet<E, T>(bits_ | set.bits_);
+  EnumSet operator|(const EnumSet& set) const {
+    return EnumSet(bits_ | set.bits_);
   }
 
  private:
+  static_assert(std::is_enum<E>::value, "EnumSet can only be used with enums");
+
   T Mask(E element) const {
-    // The strange typing in DCHECK is necessary to avoid stupid warnings, see:
-    // http://gcc.gnu.org/bugzilla/show_bug.cgi?id=43680
-    DCHECK(static_cast<int>(element) < static_cast<int>(sizeof(T) * CHAR_BIT));
-    return static_cast<T>(1) << element;
+    DCHECK_GT(sizeof(T) * CHAR_BIT, static_cast<int>(element));
+    return T{1} << static_cast<typename std::underlying_type<E>::type>(element);
   }
 
   T bits_;

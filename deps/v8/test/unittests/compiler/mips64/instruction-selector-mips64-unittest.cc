@@ -1561,8 +1561,8 @@ TEST_P(InstructionSelectorMemoryAccessUnalignedImmTest, StoreZero) {
   const MemoryAccessImm2 memacc = GetParam();
   TRACED_FOREACH(int32_t, index, memacc.immediates) {
     StreamBuilder m(this, MachineType::Int32(), MachineType::Pointer());
-    bool unaligned_store_supported = m.machine()->UnalignedStoreSupported(
-        MachineType::TypeForRepresentation(memacc.type.representation()), 1);
+    bool unaligned_store_supported =
+        m.machine()->UnalignedStoreSupported(memacc.type.representation());
     m.UnalignedStore(memacc.type.representation(), m.Parameter(0),
                      m.Int32Constant(index), m.Int32Constant(0));
     m.Return(m.Int32Constant(0));

@@ -4,7 +4,7 @@
 
 // Flags: --allow-natives-syntax --expose-gc --turbo-inline-array-builtins
 
-var a = [0, 1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,0,0];
+var a = [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,0,0];
 var b = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25];
 var c = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25];
 
@@ -217,15 +217,47 @@ var c = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25];
   lazyDeopt();
 })();
 
+// Call to a.forEach is done inside a try-catch block and the callback function
+// being called throws into a deoptimized caller function.
+(function TestThrowIntoDeoptimizedOuter() {
+  var a = [1,2,3,4];
+  var lazyDeopt = function(deopt) {
+    var sum = function(v,i,o) {
+      result += v;
+      if (i == 1 && deopt) {
+        %DeoptimizeFunction(lazyDeopt);
+        throw "some exception";
+      }
+    };
+    %NeverOptimizeFunction(sum);
+    var result = 0;
+    try {
+      a.forEach(sum);
+    } catch (e) {
+      assertEquals("some exception", e)
+      result += 100;
+    }
+    return result;
+  }
+  assertEquals(10, lazyDeopt(false));
+  assertEquals(10, lazyDeopt(false));
+  assertEquals(103, lazyDeopt(true));
+  assertEquals(103, lazyDeopt(true));
+  %OptimizeFunctionOnNextCall(lazyDeopt);
+  assertEquals(10, lazyDeopt(false));
+  assertEquals(103, lazyDeopt(true));
+})();
+
 (function() {
   var re = /Array\.forEach/;
-  var lazyDeopt = function(deopt) {
+  var lazyDeopt = function foobar(deopt) {
     var b = [1,2,3];
     var result = 0;
     var sum = function(v,i,o) {
       result += v;
       if (i == 1) {
         var e = new Error();
+        print(e.stack);
         assertTrue(re.exec(e.stack) !== null);
       }
     };

@@ -516,13 +516,13 @@ TEST(EquivalenceOfLoggingAndTraversal) {
     v8::TryCatch try_catch(isolate);
     v8::Local<v8::Script> script = CompileWithOrigin(source_str, "");
     if (script.IsEmpty()) {
-      v8::String::Utf8Value exception(try_catch.Exception());
+      v8::String::Utf8Value exception(isolate, try_catch.Exception());
       printf("compile: %s\n", *exception);
       CHECK(false);
     }
     v8::Local<v8::Value> result;
     if (!script->Run(initialize_logger.env()).ToLocal(&result)) {
-      v8::String::Utf8Value exception(try_catch.Exception());
+      v8::String::Utf8Value exception(isolate, try_catch.Exception());
       printf("run: %s\n", *exception);
       CHECK(false);
     }

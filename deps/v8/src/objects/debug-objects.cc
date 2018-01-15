@@ -12,13 +12,18 @@ bool DebugInfo::IsEmpty() const { return flags() == kNone; }
 
 bool DebugInfo::HasBreakInfo() const { return (flags() & kHasBreakInfo) != 0; }
 
+bool DebugInfo::IsPreparedForBreakpoints() const {
+  DCHECK(HasBreakInfo());
+  return (flags() & kPreparedForBreakpoints) != 0;
+}
+
 bool DebugInfo::ClearBreakInfo() {
   Isolate* isolate = GetIsolate();
 
   set_debug_bytecode_array(isolate->heap()->undefined_value());
   set_break_points(isolate->heap()->empty_fixed_array());
 
-  int new_flags = flags() & ~kHasBreakInfo;
+  int new_flags = flags() & ~kHasBreakInfo & ~kPreparedForBreakpoints;
   set_flags(new_flags);
 
   return new_flags == kNone;
@@ -171,16 +176,28 @@ bool DebugInfo::HasCoverageInfo() const {
 
 bool DebugInfo::ClearCoverageInfo() {
   DCHECK(FLAG_block_coverage);
-  DCHECK(HasCoverageInfo());
-  Isolate* isolate = GetIsolate();
+  if (HasCoverageInfo()) {
+    Isolate* isolate = GetIsolate();
 
-  set_coverage_info(isolate->heap()->undefined_value());
+    set_coverage_info(isolate->heap()->undefined_value());
 
-  int new_flags = flags() & ~kHasCoverageInfo;
-  set_flags(new_flags);
-
-  return new_flags == kNone;
+    int new_flags = flags() & ~kHasCoverageInfo;
+    set_flags(new_flags);
+  }
+  return flags() == kNone;
 }
+
+namespace {
+bool IsEqual(Object* break_point1, Object* break_point2) {
+  // TODO(kozyatinskiy): remove non-BreakPoint logic once the JS debug API has
+  // been removed.
+  if (break_point1->IsBreakPoint() != break_point2->IsBreakPoint())
+    return false;
+  if (!break_point1->IsBreakPoint()) return break_point1 == break_point2;
+  return BreakPoint::cast(break_point1)->id() ==
+         BreakPoint::cast(break_point2)->id();
+}
+}  // namespace
 
 // Remove the specified break point object.
 void BreakPointInfo::ClearBreakPoint(Handle<BreakPointInfo> break_point_info,
@@ -190,7 +207,7 @@ void BreakPointInfo::ClearBreakPoint(Handle<BreakPointInfo> break_point_info,
   if (break_point_info->break_point_objects()->IsUndefined(isolate)) return;
   // If there is a single break point clear it if it is the same.
   if (!break_point_info->break_point_objects()->IsFixedArray()) {
-    if (break_point_info->break_point_objects() == *break_point_object) {
+    if (IsEqual(break_point_info->break_point_objects(), *break_point_object)) {
       break_point_info->set_break_point_objects(
           isolate->heap()->undefined_value());
     }
@@ -204,7 +221,7 @@ void BreakPointInfo::ClearBreakPoint(Handle<BreakPointInfo> break_point_info,
       isolate->factory()->NewFixedArray(old_array->length() - 1);
   int found_count = 0;
   for (int i = 0; i < old_array->length(); i++) {
-    if (old_array->get(i) == *break_point_object) {
+    if (IsEqual(old_array->get(i), *break_point_object)) {
       DCHECK(found_count == 0);
       found_count++;
     } else {
@@ -242,7 +259,7 @@ void BreakPointInfo::SetBreakPoint(Handle<BreakPointInfo> break_point_info,
       isolate->factory()->NewFixedArray(old_array->length() + 1);
   for (int i = 0; i < old_array->length(); i++) {
     // If the break point was there before just ignore.
-    if (old_array->get(i) == *break_point_object) return;
+    if (IsEqual(old_array->get(i), *break_point_object)) return;
     new_array->set(i, old_array->get(i));
   }
   // Add the new break point.
@@ -260,12 +277,13 @@ bool BreakPointInfo::HasBreakPointObject(
   }
   // Single break point.
   if (!break_point_info->break_point_objects()->IsFixedArray()) {
-    return break_point_info->break_point_objects() == *break_point_object;
+    return IsEqual(break_point_info->break_point_objects(),
+                   *break_point_object);
   }
   // Multiple break points.
   FixedArray* array = FixedArray::cast(break_point_info->break_point_objects());
   for (int i = 0; i < array->length(); i++) {
-    if (array->get(i) == *break_point_object) {
+    if (IsEqual(array->get(i), *break_point_object)) {
       return true;
     }
   }
@@ -331,6 +349,26 @@ void CoverageInfo::ResetBlockCount(int slot_index) {
   DCHECK_LT(slot_index, SlotCount());
   const int slot_start = CoverageInfo::FirstIndexForSlot(slot_index);
   set(slot_start + kSlotBlockCountIndex, Smi::kZero);
+}
+
+void CoverageInfo::Print(String* function_name) {
+  DCHECK(FLAG_trace_block_coverage);
+  DisallowHeapAllocation no_gc;
+
+  OFStream os(stdout);
+  os << "Coverage info (";
+  if (function_name->length() > 0) {
+    auto function_name_cstr = function_name->ToCString();
+    os << function_name_cstr.get();
+  } else {
+    os << "{anonymous}";
+  }
+  os << "):" << std::endl;
+
+  for (int i = 0; i < SlotCount(); i++) {
+    os << "{" << StartSourcePosition(i) << "," << EndSourcePosition(i) << "}"
+       << std::endl;
+  }
 }
 
 }  // namespace internal

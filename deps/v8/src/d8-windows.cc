@@ -10,6 +10,11 @@ namespace v8 {
 
 void Shell::AddOSMethods(Isolate* isolate, Local<ObjectTemplate> os_templ) {}
 
+char* Shell::ReadCharsFromTcpPort(const char* name, int* size_out) {
+  // TODO(leszeks): No reason this shouldn't exist on windows.
+  return nullptr;
+}
+
 void Shell::Exit(int exit_code) {
   // Use TerminateProcess avoid races between isolate threads and
   // static destructors.

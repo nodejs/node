@@ -121,6 +121,15 @@ if (this.Worker) {
     w.postMessage([], transferList);
   });
 
+  // Test console.log in transfer list.
+  (function() {
+    var val = [undefined];
+    Object.defineProperty(val, '0', {get: () => console.log()});
+    assertThrows(function() {
+      w.postMessage(val, [val]);
+    });
+  })();
+
   // Clone ArrayBuffer
   var ab1 = createArrayBuffer(16);
   w.postMessage(ab1);

@@ -25,7 +25,7 @@ class ReverseZoneChunkListIterator;
 // collection that
 // * needs to grow indefinitely,
 // * will mostly grow at the back, but may sometimes grow in front as well
-// (preferrably in batches),
+// (preferably in batches),
 // * needs to have very low overhead,
 // * offers forward- and backwards-iteration,
 // * offers relatively fast seeking,

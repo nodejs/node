@@ -6,6 +6,8 @@
 
 #include "src/objects-inl.h"
 #include "src/parsing/parser.h"
+#include "src/parsing/scanner-character-streams.h"
+#include "src/vm-state-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -26,29 +28,36 @@ BackgroundParsingTask::BackgroundParsingTask(
          options == ScriptCompiler::kProduceCodeCache ||
          options == ScriptCompiler::kNoCompileOptions);
 
+  VMState<PARSER> state(isolate);
+
   // Prepare the data for the internalization phase and compilation phase, which
   // will happen in the main thread after parsing.
   ParseInfo* info = new ParseInfo(isolate->allocator());
   info->InitFromIsolate(isolate);
-  info->set_toplevel();
-  source->info.reset(info);
-  info->set_source_stream(source->source_stream.get());
-  info->set_source_stream_encoding(source->encoding);
-  info->set_unicode_cache(&source_->unicode_cache);
-  info->set_compile_options(options);
-  info->set_allow_lazy_parsing();
   if (V8_UNLIKELY(FLAG_runtime_stats)) {
     info->set_runtime_call_stats(new (info->zone()) RuntimeCallStats());
   }
+  info->set_toplevel();
+  std::unique_ptr<Utf16CharacterStream> stream(
+      ScannerStream::For(source->source_stream.get(), source->encoding,
+                         info->runtime_call_stats()));
+  info->set_character_stream(std::move(stream));
+  info->set_unicode_cache(&source_->unicode_cache);
+  info->set_compile_options(options);
+  info->set_allow_lazy_parsing();
+  if (V8_UNLIKELY(info->block_coverage_enabled())) {
+    info->AllocateSourceRangeMap();
+  }
+  info->set_cached_data(&script_data_);
 
-  source_->info->set_cached_data(&script_data_);
+  source->info.reset(info);
+
   // Parser needs to stay alive for finalizing the parsing on the main
   // thread.
   source_->parser.reset(new Parser(source_->info.get()));
   source_->parser->DeserializeScopeChain(source_->info.get(),
                                          MaybeHandle<ScopeInfo>());
 }
-
 
 void BackgroundParsingTask::Run() {
   DisallowHeapAllocation no_allocation;
@@ -71,5 +80,6 @@ void BackgroundParsingTask::Run() {
     script_data_ = nullptr;
   }
 }
+
 }  // namespace internal
 }  // namespace v8

@@ -6,6 +6,7 @@
 #define V8_OBJECTS_SHARED_FUNCTION_INFO_INL_H_
 
 #include "src/heap/heap-inl.h"
+#include "src/objects/scope-info.h"
 #include "src/objects/shared-function-info.h"
 
 // Has to be the last include (doesn't have include guards):
@@ -57,11 +58,6 @@ INT_ACCESSORS(SharedFunctionInfo, start_position_and_type,
 INT_ACCESSORS(SharedFunctionInfo, function_token_position,
               kFunctionTokenPositionOffset)
 INT_ACCESSORS(SharedFunctionInfo, compiler_hints, kCompilerHintsOffset)
-INT_ACCESSORS(SharedFunctionInfo, opt_count_and_bailout_reason,
-              kOptCountAndBailoutReasonOffset)
-INT_ACCESSORS(SharedFunctionInfo, counters, kCountersOffset)
-INT_ACCESSORS(SharedFunctionInfo, ast_node_count, kAstNodeCountOffset)
-INT_ACCESSORS(SharedFunctionInfo, profiler_ticks, kProfilerTicksOffset)
 
 bool SharedFunctionInfo::has_shared_name() const {
   return raw_name() != kNoSharedNameSentinel;
@@ -93,8 +89,6 @@ BIT_FIELD_ACCESSORS(SharedFunctionInfo, compiler_hints, uses_arguments,
 BIT_FIELD_ACCESSORS(SharedFunctionInfo, compiler_hints,
                     has_duplicate_parameters,
                     SharedFunctionInfo::HasDuplicateParametersBit)
-BIT_FIELD_ACCESSORS(SharedFunctionInfo, compiler_hints, asm_function,
-                    SharedFunctionInfo::IsAsmFunctionBit)
 BIT_FIELD_ACCESSORS(SharedFunctionInfo, compiler_hints, is_declaration,
                     SharedFunctionInfo::IsDeclarationBit)
 
@@ -104,8 +98,14 @@ BIT_FIELD_ACCESSORS(SharedFunctionInfo, compiler_hints, force_inline,
                     SharedFunctionInfo::ForceInlineBit)
 BIT_FIELD_ACCESSORS(SharedFunctionInfo, compiler_hints, is_asm_wasm_broken,
                     SharedFunctionInfo::IsAsmWasmBrokenBit)
-BIT_FIELD_ACCESSORS(SharedFunctionInfo, compiler_hints, optimization_disabled,
-                    SharedFunctionInfo::OptimizationDisabledBit)
+
+bool SharedFunctionInfo::optimization_disabled() const {
+  return disable_optimization_reason() != BailoutReason::kNoReason;
+}
+
+BailoutReason SharedFunctionInfo::disable_optimization_reason() const {
+  return DisabledOptimizationReasonBits::decode(compiler_hints());
+}
 
 LanguageMode SharedFunctionInfo::language_mode() {
   STATIC_ASSERT(LANGUAGE_END == 2);
@@ -161,6 +161,10 @@ void SharedFunctionInfo::set_function_map_index(int index) {
   DCHECK_LE(index, Context::LAST_FUNCTION_MAP_INDEX);
   index -= Context::FIRST_FUNCTION_MAP_INDEX;
   set_compiler_hints(FunctionMapIndexBits::update(compiler_hints(), index));
+}
+
+void SharedFunctionInfo::clear_padding() {
+  memset(this->address() + kSize, 0, kAlignedSize - kSize);
 }
 
 void SharedFunctionInfo::UpdateFunctionMapIndex() {
@@ -269,11 +273,6 @@ bool SharedFunctionInfo::HasDebugInfo() const {
   return has_debug_info;
 }
 
-bool SharedFunctionInfo::HasDebugCode() const {
-  if (HasBaselineCode()) return code()->has_debug_break_slots();
-  return HasBytecodeArray();
-}
-
 bool SharedFunctionInfo::IsApiFunction() {
   return function_data()->IsFunctionTemplateInfo();
 }
@@ -355,42 +354,6 @@ String* SharedFunctionInfo::inferred_name() {
 void SharedFunctionInfo::set_inferred_name(String* inferred_name) {
   DCHECK(function_identifier()->IsUndefined(GetIsolate()) || HasInferredName());
   set_function_identifier(inferred_name);
-}
-
-BIT_FIELD_ACCESSORS(SharedFunctionInfo, counters, ic_age,
-                    SharedFunctionInfo::ICAgeBits)
-
-BIT_FIELD_ACCESSORS(SharedFunctionInfo, counters, deopt_count,
-                    SharedFunctionInfo::DeoptCountBits)
-
-void SharedFunctionInfo::increment_deopt_count() {
-  int value = counters();
-  int deopt_count = DeoptCountBits::decode(value);
-  // Saturate the deopt count when incrementing, rather than overflowing.
-  if (deopt_count < DeoptCountBits::kMax) {
-    set_counters(DeoptCountBits::update(value, deopt_count + 1));
-  }
-}
-
-BIT_FIELD_ACCESSORS(SharedFunctionInfo, counters, opt_reenable_tries,
-                    SharedFunctionInfo::OptReenableTriesBits)
-
-BIT_FIELD_ACCESSORS(SharedFunctionInfo, opt_count_and_bailout_reason, opt_count,
-                    SharedFunctionInfo::OptCountBits)
-
-BIT_FIELD_ACCESSORS(SharedFunctionInfo, opt_count_and_bailout_reason,
-                    disable_optimization_reason,
-                    SharedFunctionInfo::DisabledOptimizationReasonBits)
-
-void SharedFunctionInfo::TryReenableOptimization() {
-  int tries = opt_reenable_tries();
-  set_opt_reenable_tries((tries + 1) & OptReenableTriesBits::kMax);
-  // We reenable optimization whenever the number of tries is a large
-  // enough power of 2.
-  if (tries >= 16 && (((tries - 1) & tries) == 0)) {
-    set_optimization_disabled(false);
-    set_deopt_count(0);
-  }
 }
 
 bool SharedFunctionInfo::IsUserJavaScript() {

@@ -25,8 +25,7 @@ Node* ForInBuiltinsAssembler::ForInFilter(Node* key, Node* object,
 
   VARIABLE(var_result, MachineRepresentation::kTagged, key);
 
-  Node* has_property =
-      HasProperty(object, key, context, Runtime::kForInHasProperty);
+  Node* has_property = HasProperty(object, key, context, kForInHasProperty);
 
   Label end(this);
   GotoIf(WordEqual(has_property, BooleanConstant(true)), &end);
@@ -82,7 +81,12 @@ void ForInBuiltinsAssembler::CheckPrototypeEnumCache(Node* receiver, Node* map,
   BIND(&loop);
   {
     Label if_elements(this), if_no_elements(this);
-    Node* elements = LoadElements(current_js_object.value());
+    TNode<JSReceiver> receiver = CAST(current_js_object.value());
+    // The following relies on the elements only aliasing with JSProxy::target,
+    // which is a Javascript value and hence cannot be confused with an elements
+    // backing store.
+    STATIC_ASSERT(JSObject::kElementsOffset == JSProxy::kTargetOffset);
+    Node* elements = LoadObjectField(receiver, JSObject::kElementsOffset);
     Node* empty_fixed_array = LoadRoot(Heap::kEmptyFixedArrayRootIndex);
     // Check that there are no elements.
     Branch(WordEqual(elements, empty_fixed_array), &if_no_elements,
@@ -143,7 +147,7 @@ void ForInBuiltinsAssembler::CheckEnumCache(Node* receiver, Label* use_cache,
   {
     // Avoid runtime-call for empty dictionary receivers.
     GotoIfNot(IsDictionaryMap(map), use_runtime);
-    Node* properties = LoadProperties(receiver);
+    Node* properties = LoadSlowProperties(receiver);
     Node* length = LoadFixedArrayElement(
         properties, NameDictionary::kNumberOfElementsIndex);
     GotoIfNot(WordEqual(length, SmiConstant(0)), use_runtime);

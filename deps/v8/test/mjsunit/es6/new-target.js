@@ -410,3 +410,65 @@ function get_new_target() { return new.target; }
   assertThrows(function() { Function("++(new.target)"); }, ReferenceError);
   assertThrows(function() { Function("for (new.target of {});"); }, SyntaxError);
 })();
+
+(function TestOperatorPrecedence() {
+  function A() {}
+  function constructNewTargetDotProp() { return new new.target.Prop }
+  constructNewTargetDotProp.Prop = A;
+  assertInstanceof(new constructNewTargetDotProp, A);
+
+  function constructNewTargetBracketProp() { return new new.target['Prop'] }
+  constructNewTargetBracketProp.Prop = A;
+  assertInstanceof(new constructNewTargetBracketProp, A);
+
+  function refNewTargetDotProp() { return new.target.Prop; }
+  function B() {}
+  refNewTargetDotProp.Prop = B;
+  assertEquals(new refNewTargetDotProp, B);
+
+  function refNewTargetBracketProp() { return new.target['Prop']; }
+  refNewTargetBracketProp.Prop = B;
+  assertEquals(new refNewTargetBracketProp, B);
+
+  var calls = 0;
+  function constructNewTargetArgsDotProp(safe) {
+    this.Prop = ++calls;
+    return safe ? Object(new new.target().Prop) : this;
+  }
+  assertInstanceof(new constructNewTargetArgsDotProp,
+                   constructNewTargetArgsDotProp);
+  assertEquals(3, new constructNewTargetArgsDotProp(true) | 0);
+
+  function constructNewTargetArgsBracketProp(safe) {
+    this.Prop = ++calls;
+    return safe ? Object(new new.target()['Prop']) : this;
+  }
+  assertInstanceof(new constructNewTargetArgsBracketProp,
+                   constructNewTargetArgsBracketProp);
+  assertEquals(6, new constructNewTargetArgsBracketProp(true) | 0);
+
+  function callNewTargetArgsDotProp(safe) {
+    this.Prop = ++calls;
+    return safe ? Object(new.target().Prop) : this;
+  }
+  assertInstanceof(new callNewTargetArgsDotProp(), callNewTargetArgsDotProp);
+  assertEquals(new callNewTargetArgsDotProp(true) | 0, 9);
+
+  function callNewTargetArgsBracketProp(safe) {
+    this.Prop = ++calls;
+    return safe ? Object(new.target()['Prop']) : this;
+  }
+  assertInstanceof(new callNewTargetArgsBracketProp(),
+                   callNewTargetArgsBracketProp);
+  assertEquals(new callNewTargetArgsBracketProp(true) | 0, 12);
+
+  function tagNewTarget(callSite, ...subs) {
+    return callSite ? subs : new.target`${new.target.name}`;
+  }
+  assertEquals(new tagNewTarget, ["tagNewTarget"]);
+
+  function C(callSite, ...subs) { return subs; }
+  function tagNewTargetProp() { return new.target.Prop`${new.target.name}`; }
+  tagNewTargetProp.Prop = C;
+  assertEquals(new tagNewTargetProp, ["tagNewTargetProp"]);
+})();

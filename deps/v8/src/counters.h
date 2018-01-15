@@ -11,6 +11,8 @@
 #include "src/base/platform/elapsed-timer.h"
 #include "src/base/platform/time.h"
 #include "src/globals.h"
+#include "src/heap-symbols.h"
+#include "src/isolate.h"
 #include "src/objects.h"
 #include "src/runtime/runtime.h"
 #include "src/tracing/trace-event.h"
@@ -601,6 +603,8 @@ class RuntimeCallTimer final {
   base::TimeDelta elapsed_;
 };
 
+#define FOR_EACH_GC_COUNTER(V) TRACER_SCOPES(V)
+
 #define FOR_EACH_API_COUNTER(V)                            \
   V(ArrayBuffer_Cast)                                      \
   V(ArrayBuffer_Neuter)                                    \
@@ -751,12 +755,11 @@ class RuntimeCallTimer final {
 #define FOR_EACH_MANUAL_COUNTER(V)                  \
   V(AccessorGetterCallback)                         \
   V(AccessorNameGetterCallback)                     \
-  V(AccessorNameGetterCallback_ArrayLength)         \
-  V(AccessorNameGetterCallback_BoundFunctionLength) \
-  V(AccessorNameGetterCallback_BoundFunctionName)   \
-  V(AccessorNameGetterCallback_FunctionPrototype)   \
-  V(AccessorNameGetterCallback_StringLength)        \
   V(AccessorNameSetterCallback)                     \
+  V(ArrayLengthGetter)                              \
+  V(ArrayLengthSetter)                              \
+  V(BoundFunctionNameGetter)                        \
+  V(BoundFunctionLengthGetter)                      \
   V(CompileCodeLazy)                                \
   V(CompileDeserialize)                             \
   V(CompileEval)                                    \
@@ -765,7 +768,6 @@ class RuntimeCallTimer final {
   V(CompileBackgroundIgnition)                      \
   V(CompileFunction)                                \
   V(CompileGetFromOptimizedCodeMap)                 \
-  V(CompileGetUnoptimizedCode)                      \
   V(CompileIgnition)                                \
   V(CompileIgnitionFinalization)                    \
   V(CompileInnerFunction)                           \
@@ -777,11 +779,11 @@ class RuntimeCallTimer final {
   V(CompileWaitForDispatcher)                       \
   V(DeoptimizeCode)                                 \
   V(FunctionCallback)                               \
-  V(GC)                                             \
-  V(GC_AllAvailableGarbage)                         \
-  V(GC_IncrementalMarkingJob)                       \
-  V(GC_IncrementalMarkingObserver)                  \
-  V(GC_SlowAllocateRaw)                             \
+  V(FunctionPrototypeGetter)                        \
+  V(FunctionPrototypeSetter)                        \
+  V(GC_Custom_AllAvailableGarbage)                  \
+  V(GC_Custom_IncrementalMarkingObserver)           \
+  V(GC_Custom_SlowAllocateRaw)                      \
   V(GCEpilogueCallback)                             \
   V(GCPrologueCallback)                             \
   V(GenericNamedPropertyDefinerCallback)            \
@@ -823,6 +825,8 @@ class RuntimeCallTimer final {
   V(PrototypeObject_DeleteProperty)                 \
   V(RecompileConcurrent)                            \
   V(RecompileSynchronous)                           \
+  V(ReconfigureToDataProperty)                      \
+  V(StringLengthGetter)                             \
   V(TestCounter1)                                   \
   V(TestCounter2)                                   \
   V(TestCounter3)                                   \
@@ -885,6 +889,9 @@ class RuntimeCallStats final : public ZoneObject {
   typedef RuntimeCallCounter RuntimeCallStats::*CounterId;
   V8_EXPORT_PRIVATE RuntimeCallStats();
 
+#define CALL_RUNTIME_COUNTER(name) RuntimeCallCounter GC_##name;
+  FOR_EACH_GC_COUNTER(CALL_RUNTIME_COUNTER)
+#undef CALL_RUNTIME_COUNTER
 #define CALL_RUNTIME_COUNTER(name) RuntimeCallCounter name;
   FOR_EACH_MANUAL_COUNTER(CALL_RUNTIME_COUNTER)
 #undef CALL_RUNTIME_COUNTER
@@ -928,6 +935,7 @@ class RuntimeCallStats final : public ZoneObject {
   V8_EXPORT_PRIVATE void Print(std::ostream& os);
   V8_NOINLINE void Dump(v8::tracing::TracedValue* value);
 
+  ThreadId thread_id() const { return thread_id_; }
   RuntimeCallTimer* current_timer() { return current_timer_.Value(); }
   RuntimeCallCounter* current_counter() { return current_counter_.Value(); }
   bool InUse() { return in_use_; }
@@ -939,6 +947,7 @@ class RuntimeCallStats final : public ZoneObject {
   base::AtomicValue<RuntimeCallCounter*> current_counter_;
   // Used to track nested tracing scopes.
   bool in_use_;
+  ThreadId thread_id_;
 };
 
 #define CHANGE_CURRENT_RUNTIME_COUNTER(runtime_call_stats, counter_name) \
@@ -964,7 +973,11 @@ class RuntimeCallTimerScope {
   inline RuntimeCallTimerScope(HeapObject* heap_object,
                                RuntimeCallStats::CounterId counter_id);
   inline RuntimeCallTimerScope(RuntimeCallStats* stats,
-                               RuntimeCallStats::CounterId counter_id);
+                               RuntimeCallStats::CounterId counter_id) {
+    if (V8_LIKELY(!FLAG_runtime_stats || stats == nullptr)) return;
+    stats_ = stats;
+    RuntimeCallStats::Enter(stats_, &timer_, counter_id);
+  }
 
   inline ~RuntimeCallTimerScope() {
     if (V8_UNLIKELY(stats_ != nullptr)) {
@@ -973,27 +986,20 @@ class RuntimeCallTimerScope {
   }
 
  private:
-  V8_INLINE void Initialize(RuntimeCallStats* stats,
-                            RuntimeCallStats::CounterId counter_id) {
-    stats_ = stats;
-    RuntimeCallStats::Enter(stats_, &timer_, counter_id);
-  }
-
   RuntimeCallStats* stats_ = nullptr;
   RuntimeCallTimer timer_;
+
+  DISALLOW_COPY_AND_ASSIGN(RuntimeCallTimerScope);
 };
 
 #define HISTOGRAM_RANGE_LIST(HR)                                              \
-  /* Generic range histograms */                                              \
+  /* Generic range histograms: HR(name, caption, min, max, num_buckets) */    \
   HR(detached_context_age_in_gc, V8.DetachedContextAgeInGC, 0, 20, 21)        \
-  HR(gc_idle_time_allotted_in_ms, V8.GCIdleTimeAllottedInMS, 0, 10000, 101)   \
-  HR(gc_idle_time_limit_overshot, V8.GCIdleTimeLimit.Overshot, 0, 10000, 101) \
-  HR(gc_idle_time_limit_undershot, V8.GCIdleTimeLimit.Undershot, 0, 10000,    \
-     101)                                                                     \
   HR(code_cache_reject_reason, V8.CodeCacheRejectReason, 1, 6, 6)             \
   HR(errors_thrown_per_context, V8.ErrorsThrownPerContext, 0, 200, 20)        \
   HR(debug_feature_usage, V8.DebugFeatureUsage, 1, 7, 7)                      \
   HR(incremental_marking_reason, V8.GCIncrementalMarkingReason, 0, 21, 22)    \
+  HR(incremental_marking_sum, V8.GCIncrementalMarkingSum, 0, 10000, 101)      \
   HR(mark_compact_reason, V8.GCMarkCompactReason, 0, 21, 22)                  \
   HR(scavenge_reason, V8.GCScavengeReason, 0, 21, 22)                         \
   HR(young_generation_handling, V8.GCYoungGenerationHandling, 0, 2, 3)        \
@@ -1058,26 +1064,30 @@ class RuntimeCallTimerScope {
   HT(asm_wasm_translation_time, V8.AsmWasmTranslationMicroSeconds, 1000000,    \
      MICROSECOND)                                                              \
   HT(wasm_lazy_compilation_time, V8.WasmLazyCompilationMicroSeconds, 1000000,  \
+     MICROSECOND)                                                              \
+  HT(wasm_execution_time, V8.WasmExecutionTimeMicroSeconds, 10000000,          \
      MICROSECOND)
 
-#define TIMED_HISTOGRAM_LIST(HT)                                              \
-  HT(wasm_decode_asm_module_time, V8.WasmDecodeModuleMicroSeconds.asm,        \
-     1000000, MICROSECOND)                                                    \
-  HT(wasm_decode_wasm_module_time, V8.WasmDecodeModuleMicroSeconds.wasm,      \
-     1000000, MICROSECOND)                                                    \
-  HT(wasm_decode_asm_function_time, V8.WasmDecodeFunctionMicroSeconds.asm,    \
-     1000000, MICROSECOND)                                                    \
-  HT(wasm_decode_wasm_function_time, V8.WasmDecodeFunctionMicroSeconds.wasm,  \
-     1000000, MICROSECOND)                                                    \
-  HT(wasm_compile_asm_module_time, V8.WasmCompileModuleMicroSeconds.asm,      \
-     10000000, MICROSECOND)                                                   \
-  HT(wasm_compile_wasm_module_time, V8.WasmCompileModuleMicroSeconds.wasm,    \
-     10000000, MICROSECOND)                                                   \
-  HT(wasm_compile_function_time, V8.WasmCompileFunctionMicroSeconds, 1000000, \
-     MICROSECOND)                                                             \
-  HT(wasm_instantiate_wasm_module_time,                                       \
-     V8.WasmInstantiateModuleMicroSeconds.wasm, 10000000, MICROSECOND)        \
-  HT(wasm_instantiate_asm_module_time,                                        \
+#define TIMED_HISTOGRAM_LIST(HT)                                               \
+  HT(wasm_decode_asm_module_time, V8.WasmDecodeModuleMicroSeconds.asm,         \
+     1000000, MICROSECOND)                                                     \
+  HT(wasm_decode_wasm_module_time, V8.WasmDecodeModuleMicroSeconds.wasm,       \
+     1000000, MICROSECOND)                                                     \
+  HT(wasm_decode_asm_function_time, V8.WasmDecodeFunctionMicroSeconds.asm,     \
+     1000000, MICROSECOND)                                                     \
+  HT(wasm_decode_wasm_function_time, V8.WasmDecodeFunctionMicroSeconds.wasm,   \
+     1000000, MICROSECOND)                                                     \
+  HT(wasm_compile_asm_module_time, V8.WasmCompileModuleMicroSeconds.asm,       \
+     10000000, MICROSECOND)                                                    \
+  HT(wasm_compile_wasm_module_time, V8.WasmCompileModuleMicroSeconds.wasm,     \
+     10000000, MICROSECOND)                                                    \
+  HT(wasm_compile_asm_function_time, V8.WasmCompileFunctionMicroSeconds.asm,   \
+     1000000, MICROSECOND)                                                     \
+  HT(wasm_compile_wasm_function_time, V8.WasmCompileFunctionMicroSeconds.wasm, \
+     1000000, MICROSECOND)                                                     \
+  HT(wasm_instantiate_wasm_module_time,                                        \
+     V8.WasmInstantiateModuleMicroSeconds.wasm, 10000000, MICROSECOND)         \
+  HT(wasm_instantiate_asm_module_time,                                         \
      V8.WasmInstantiateModuleMicroSeconds.asm, 10000000, MICROSECOND)
 
 #define AGGREGATABLE_HISTOGRAM_TIMER_LIST(AHT) \
@@ -1338,14 +1348,6 @@ class Counters : public std::enable_shared_from_this<Counters> {
   FIXED_ARRAY_SUB_INSTANCE_TYPE_LIST(SC)
 #undef SC
 
-#define SC(name) \
-  StatsCounter* count_of_CODE_AGE_##name() \
-    { return &count_of_CODE_AGE_##name##_; } \
-  StatsCounter* size_of_CODE_AGE_##name() \
-    { return &size_of_CODE_AGE_##name##_; }
-  CODE_AGE_LIST_COMPLETE(SC)
-#undef SC
-
   // clang-format off
   enum Id {
 #define RATE_ID(name, caption, max, res) k_##name,
@@ -1377,10 +1379,6 @@ class Counters : public std::enable_shared_from_this<Counters> {
 #define COUNTER_ID(name) kCountOfFIXED_ARRAY__##name, \
     kSizeOfFIXED_ARRAY__##name,
     FIXED_ARRAY_SUB_INSTANCE_TYPE_LIST(COUNTER_ID)
-#undef COUNTER_ID
-#define COUNTER_ID(name) kCountOfCODE_AGE__##name, \
-    kSizeOfCODE_AGE__##name,
-    CODE_AGE_LIST_COMPLETE(COUNTER_ID)
 #undef COUNTER_ID
     stats_counter_count
   };
@@ -1472,12 +1470,6 @@ class Counters : public std::enable_shared_from_this<Counters> {
   FIXED_ARRAY_SUB_INSTANCE_TYPE_LIST(SC)
 #undef SC
 
-#define SC(name) \
-  StatsCounter size_of_CODE_AGE_##name##_; \
-  StatsCounter count_of_CODE_AGE_##name##_;
-  CODE_AGE_LIST_COMPLETE(SC)
-#undef SC
-
   RuntimeCallStats runtime_call_stats_;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(Counters);
@@ -1489,6 +1481,13 @@ void HistogramTimer::Start() {
 
 void HistogramTimer::Stop() {
   TimedHistogram::Stop(&timer_, counters()->isolate());
+}
+
+RuntimeCallTimerScope::RuntimeCallTimerScope(
+    Isolate* isolate, RuntimeCallStats::CounterId counter_id) {
+  if (V8_LIKELY(!FLAG_runtime_stats)) return;
+  stats_ = isolate->counters()->runtime_call_stats();
+  RuntimeCallStats::Enter(stats_, &timer_, counter_id);
 }
 
 }  // namespace internal

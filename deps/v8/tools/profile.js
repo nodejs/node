@@ -210,6 +210,21 @@ Profile.prototype.deleteCode = function(start) {
   }
 };
 
+/**
+ * Adds source positions for given code.
+ */
+Profile.prototype.addSourcePositions = function(
+    start, script, startPos, endPos, sourcePositions, inliningPositions,
+    inlinedFunctions) {
+  // CLI does not need source code => ignore.
+};
+
+/**
+ * Adds script source code.
+ */
+Profile.prototype.addScriptSource = function(script, source) {
+  // CLI does not need source code => ignore.
+};
 
 /**
  * Reports about moving of a dynamic code entry.
@@ -850,6 +865,7 @@ function JsonProfile() {
   this.codeEntries_ = [];
   this.functionEntries_ = [];
   this.ticks_ = [];
+  this.scripts_ = [];
 }
 
 JsonProfile.prototype.addLibrary = function(
@@ -952,6 +968,71 @@ JsonProfile.prototype.moveCode = function(from, to) {
   }
 };
 
+JsonProfile.prototype.addSourcePositions = function(
+    start, script, startPos, endPos, sourcePositions, inliningPositions,
+    inlinedFunctions) {
+  var entry = this.codeMap_.findDynamicEntryByStartAddress(start);
+  if (!entry) return;
+  var codeId = entry.codeId;
+
+  // Resolve the inlined fucntions list.
+  if (inlinedFunctions.length > 0) {
+    inlinedFunctions = inlinedFunctions.substring(1).split("S");
+    for (var i = 0; i < inlinedFunctions.length; i++) {
+      var funcAddr = parseInt(inlinedFunctions[i]);
+      var func = this.codeMap_.findDynamicEntryByStartAddress(funcAddr);
+      if (!func || func.funcId === undefined) {
+        printErr("Could not find function " + inlinedFunctions[i]);
+        inlinedFunctions[i] = null;
+      } else {
+        inlinedFunctions[i] = func.funcId;
+      }
+    }
+  } else {
+    inlinedFunctions = [];
+  }
+
+  this.codeEntries_[entry.codeId].source = {
+    script : script,
+    start : startPos,
+    end : endPos,
+    positions : sourcePositions,
+    inlined : inliningPositions,
+    fns : inlinedFunctions
+  };
+};
+
+function unescapeString(s) {
+  s = s.split("\\");
+  for (var i = 1; i < s.length; i++) {
+    if (s[i] === "") {
+      // Double backslash.
+      s[i] = "\\";
+    } else if (i > 0 && s[i].startsWith("x")) {
+      // Escaped Ascii character.
+      s[i] = String.fromCharCode(parseInt(s[i].substring(1, 3), 16)) +
+          s[i].substring(3);
+    } else if (i > 0 && s[i].startsWith("u")) {
+      // Escaped unicode character.
+      s[i] = String.fromCharCode(parseInt(s[i].substring(1, 5), 16)) +
+          s[i].substring(5);
+    } else {
+      if (i > 0 && s[i - 1] !== "\\") {
+        printErr("Malformed source string");
+      }
+    }
+  }
+  return s.join("");
+}
+
+JsonProfile.prototype.addScriptSource = function(script, url, source) {
+  this.scripts_[script] = {
+    name : unescapeString(url),
+    source : unescapeString(source)
+  };
+};
+
+
 JsonProfile.prototype.deoptCode = function(
     timestamp, code, inliningId, scriptOffset, bailoutType,
     sourcePositionText, deoptReasonText) {
@@ -1007,21 +1088,37 @@ JsonProfile.prototype.recordTick = function(time_ns, vmState, stack) {
   this.ticks_.push({ tm : time_ns, vm : vmState, s : processedStack });
 };
 
+function writeJson(s) {
+  write(JSON.stringify(s, null, 2));
+}
+
 JsonProfile.prototype.writeJson = function() {
   // Write out the JSON in a partially manual way to avoid creating too-large
   // strings in one JSON.stringify call when there are a lot of ticks.
   write('{\n')
-  write('  "code": ' + JSON.stringify(this.codeEntries_) + ',\n');
-  write('  "functions": ' + JSON.stringify(this.functionEntries_) + ',\n');
+
+  write('  "code": ');
+  writeJson(this.codeEntries_);
+  write(',\n');
+
+  write('  "functions": ');
+  writeJson(this.functionEntries_);
+  write(',\n');
+
   write('  "ticks": [\n');
   for (var i = 0; i < this.ticks_.length; i++) {
-    write('    ' + JSON.stringify(this.ticks_[i]));
+    write('    ');
+    writeJson(this.ticks_[i]);
     if (i < this.ticks_.length - 1) {
       write(',\n');
     } else {
       write('\n');
     }
   }
-  write('  ]\n');
+  write('  ],\n');
+
+  write('  "scripts": ');
+  writeJson(this.scripts_);
+
   write('}\n');
 };

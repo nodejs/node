@@ -166,10 +166,9 @@ Node* CreateJavaScriptBuiltinContinuationFrameState(
   // the deoptimizer and not explicitly specified in the frame state. Check that
   // there is not a mismatch between the number of frame state parameters and
   // the stack parameters required by the builtin taking this into account.
-  DCHECK_EQ(
-      Builtins::GetStackParameterCount(isolate, name) + 1,  // add receiver
-      stack_parameter_count +
-          (mode == ContinuationFrameStateMode::EAGER ? 0 : 1));
+  DCHECK_EQ(Builtins::GetStackParameterCount(name) + 1,  // add receiver
+            stack_parameter_count +
+                (mode == ContinuationFrameStateMode::EAGER ? 0 : 1));
 
   Node* argc =
       js_graph->Constant(stack_parameter_count -

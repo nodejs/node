@@ -35,7 +35,7 @@ v8::Local<v8::String> ToString(v8::Isolate* isolate,
 
 void Print(v8::Isolate* isolate, const v8_inspector::StringView& string) {
   v8::Local<v8::String> v8_string = ToString(isolate, string);
-  v8::String::Utf8Value utf8_string(v8_string);
+  v8::String::Utf8Value utf8_string(isolate, v8_string);
   fwrite(*utf8_string, sizeof(**utf8_string), utf8_string.length(), stdout);
 }
 
@@ -70,6 +70,12 @@ IsolateData::IsolateData(TaskRunner* task_runner,
     isolate_->SetPromiseRejectCallback(&IsolateData::PromiseRejectHandler);
     inspector_ = v8_inspector::V8Inspector::create(isolate_, this);
   }
+  v8::HandleScope handle_scope(isolate_);
+  not_inspectable_private_.Reset(
+      isolate_, v8::Private::ForApi(isolate_, v8::String::NewFromUtf8(
+                                                  isolate_, "notInspectable",
+                                                  v8::NewStringType::kNormal)
+                                                  .ToLocalChecked()));
 }
 
 IsolateData* IsolateData::FromContext(v8::Local<v8::Context> context) {
@@ -127,8 +133,8 @@ void IsolateData::RegisterModule(v8::Local<v8::Context> context,
 v8::MaybeLocal<v8::Module> IsolateData::ModuleResolveCallback(
     v8::Local<v8::Context> context, v8::Local<v8::String> specifier,
     v8::Local<v8::Module> referrer) {
-  std::string str = *v8::String::Utf8Value(specifier);
   IsolateData* data = IsolateData::FromContext(context);
+  std::string str = *v8::String::Utf8Value(data->isolate_, specifier);
   return data->modules_[ToVector(specifier)].Get(data->isolate_);
 }
 
@@ -332,6 +338,15 @@ bool IsolateData::formatAccessorsAsProperties(v8::Local<v8::Value> object) {
       .FromMaybe(false);
 }
 
+bool IsolateData::isInspectableHeapObject(v8::Local<v8::Object> object) {
+  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+  v8::Local<v8::Context> context = isolate->GetCurrentContext();
+  v8::MicrotasksScope microtasks_scope(
+      isolate, v8::MicrotasksScope::kDoNotRunMicrotasks);
+  return !object->HasPrivate(context, not_inspectable_private_.Get(isolate))
+              .FromMaybe(false);
+}
+
 v8::Local<v8::Context> IsolateData::ensureDefaultContextInGroup(
     int context_group_id) {
   return GetContext(context_group_id);
@@ -353,10 +368,6 @@ void IsolateData::SetMemoryInfo(v8::Local<v8::Value> memory_info) {
 
 void IsolateData::SetLogConsoleApiMessageCalls(bool log) {
   log_console_api_message_calls_ = log;
-}
-
-void IsolateData::SetLogMaxAsyncCallStackDepthChanged(bool log) {
-  log_max_async_call_stack_depth_changed_ = log;
 }
 
 v8::MaybeLocal<v8::Value> IsolateData::memoryInfo(v8::Isolate* isolate,
@@ -384,9 +395,4 @@ void IsolateData::consoleAPIMessage(int contextGroupId,
   fprintf(stdout, ":%d:%d)", lineNumber, columnNumber);
   Print(isolate_, stack->toString()->string());
   fprintf(stdout, "\n");
-}
-
-void IsolateData::maxAsyncCallStackDepthChanged(int depth) {
-  if (!log_max_async_call_stack_depth_changed_) return;
-  fprintf(stdout, "maxAsyncCallStackDepthChanged: %d\n", depth);
 }
