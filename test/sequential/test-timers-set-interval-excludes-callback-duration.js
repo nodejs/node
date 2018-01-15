@@ -8,10 +8,10 @@ let first;
 const t = setInterval(() => {
   cntr++;
   if (cntr === 1) {
-    first = Timer.now();
     common.busyLoop(100);
+    first = Timer.now();
   } else if (cntr === 2) {
-    assert(Timer.now() - first < 120);
+    assert(Timer.now() - first < 100);
     clearInterval(t);
   }
 }, 100);
