@@ -8,11 +8,26 @@ const Countdown = require('../common/countdown');
 setImmediate(common.mustCall(firstStep)).ref().unref().unref().ref();
 
 function firstStep() {
-  const countdown = new Countdown(2, () => setImmediate(finalStep));
+  const countdown =
+    new Countdown(2, common.mustCall(() => setImmediate(secondStep)));
   // Unrefed setImmediate executes if it was unrefed but something else keeps
   // the loop open
-  setImmediate(common.mustCall(() => countdown.dec())).unref();
-  setTimeout(common.mustCall(() => countdown.dec()), 50);
+  setImmediate(() => countdown.dec()).unref();
+  setTimeout(() => countdown.dec(), 50);
+}
+
+function secondStep() {
+  // clearImmediate works just fine with unref'd immediates
+  const immA = setImmediate(() => {
+    clearImmediate(immA);
+    clearImmediate(immB);
+    // this should not keep the event loop open indefinitely
+    // or do anything else weird
+    immA.ref();
+    immB.ref();
+  }).unref();
+  const immB = setImmediate(common.mustNotCall()).unref();
+  setImmediate(common.mustCall(finalStep));
 }
 
 function finalStep() {
