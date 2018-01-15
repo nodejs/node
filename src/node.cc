@@ -5278,7 +5278,8 @@ void RegisterModule(const std::string & name, const addon_context_register_func 
 
 void RegisterModule(const std::string & name,
                     const std::map<std::string, v8::FunctionCallback> & module_functions) {
-    RegisterModule(name, node::lib::_RegisterModuleCallback, const_cast<std::map<std::string, v8::FunctionCallback>*>(&module_functions));
+    auto map_on_heap = new const std::map<std::string, v8::FunctionCallback>(module_functions);
+    RegisterModule(name, node::lib::_RegisterModuleCallback, const_cast<std::map<std::string, v8::FunctionCallback>*>(map_on_heap));
 }
 
 void _RegisterModuleCallback(v8::Local<v8::Object> exports,
@@ -5286,10 +5287,15 @@ void _RegisterModuleCallback(v8::Local<v8::Object> exports,
           v8::Local<v8::Context> context,
           void* priv) {
     auto module_functions = static_cast<std::map<std::string, v8::FunctionCallback>*>(priv);
-
+    if (!module_functions) {
+      fprintf(stderr, "_RegisterModuleCallback: module_functions is null");
+      return;
+    }
     for (std::pair<std::string, v8::FunctionCallback> element : *module_functions) {
         NODE_SET_METHOD(exports, element.first.c_str(), element.second);
     }
+
+    delete module_functions;
 }
 
 
