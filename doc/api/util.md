@@ -379,7 +379,7 @@ changes:
   * `depth` {number} Specifies the number visible nested Objects in an `object`.
     This is useful to minimize the inspection output for large complicated
     objects. To make it recurse indefinitely pass `null` or `Infinity`. Defaults
-    to `null`.
+    to `Infinity`.
 
 The `util.inspect()` method returns a string representation of `object` that is
 intended for debugging. The output of `util.inspect` may change at any time
