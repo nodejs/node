@@ -125,6 +125,19 @@ const int kStackSpaceRequiredForCompilation = 40;
 #define V8_SFI_HAS_UNIQUE_ID 1
 #endif
 
+// Superclass for classes only using static method functions.
+// The subclass of AllStatic cannot be instantiated at all.
+class AllStatic {
+#ifdef DEBUG
+ public:
+  AllStatic() = delete;
+#endif
+};
+
+// DEPRECATED
+// TODO(leszeks): Delete this during a quiet period
+#define BASE_EMBEDDED
+
 typedef uint8_t byte;
 typedef byte* Address;
 
@@ -158,6 +171,7 @@ const int kSizetSize = sizeof(size_t);
 const int kFloatSize = sizeof(float);
 const int kDoubleSize = sizeof(double);
 const int kIntptrSize = sizeof(intptr_t);
+const int kUIntptrSize = sizeof(uintptr_t);
 const int kPointerSize = sizeof(void*);
 #if V8_TARGET_ARCH_X64 && V8_TARGET_ARCH_32_BIT
 const int kRegisterSize = kPointerSize + kPointerSize;
@@ -348,7 +362,7 @@ const int kNoSourcePosition = -1;
 const int kNoDeoptimizationId = -1;
 
 // Deoptimize bailout kind.
-enum class DeoptimizeKind : uint8_t { kEager, kSoft };
+enum class DeoptimizeKind : uint8_t { kEager, kSoft, kLazy };
 inline size_t hash_value(DeoptimizeKind kind) {
   return static_cast<size_t>(kind);
 }
@@ -358,6 +372,8 @@ inline std::ostream& operator<<(std::ostream& os, DeoptimizeKind kind) {
       return os << "Eager";
     case DeoptimizeKind::kSoft:
       return os << "Soft";
+    case DeoptimizeKind::kLazy:
+      return os << "Lazy";
   }
   UNREACHABLE();
 }
@@ -506,7 +522,6 @@ class Struct;
 class FeedbackVector;
 class Variable;
 class RelocInfo;
-class Deserializer;
 class MessageLocation;
 
 typedef bool (*WeakSlotCallback)(Object** pointer);
@@ -1239,8 +1254,8 @@ inline uint32_t ObjectHash(Address address) {
 // Type feedback is encoded in such a way that, we can combine the feedback
 // at different points by performing an 'OR' operation. Type feedback moves
 // to a more generic type when we combine feedback.
-// kSignedSmall -> kNumber  -> kNumberOrOddball -> kAny
-//          kNonEmptyString -> kString          -> kAny
+// kSignedSmall -> kSignedSmallInputs -> kNumber  -> kNumberOrOddball -> kAny
+//                                                   kString          -> kAny
 // TODO(mythria): Remove kNumber type when crankshaft can handle Oddballs
 // similar to Numbers. We don't need kNumber feedback for Turbofan. Extra
 // information about Number might reduce few instructions but causes more
@@ -1251,10 +1266,10 @@ class BinaryOperationFeedback {
   enum {
     kNone = 0x0,
     kSignedSmall = 0x1,
-    kNumber = 0x3,
-    kNumberOrOddball = 0x7,
-    kNonEmptyString = 0x8,
-    kString = 0x18,
+    kSignedSmallInputs = 0x3,
+    kNumber = 0x7,
+    kNumberOrOddball = 0xF,
+    kString = 0x10,
     kAny = 0x3F
   };
 };

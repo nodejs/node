@@ -12,12 +12,12 @@ namespace compiler {
 
 namespace {
 
-base::LazyInstance<TypeCache>::type kCache = LAZY_INSTANCE_INITIALIZER;
+base::LazyInstance<TypeCache>::type kTypeCache = LAZY_INSTANCE_INITIALIZER;
 
 }  // namespace
 
 // static
-TypeCache const& TypeCache::Get() { return kCache.Get(); }
+TypeCache const& TypeCache::Get() { return kTypeCache.Get(); }
 
 }  // namespace compiler
 }  // namespace internal

@@ -5,7 +5,7 @@
 #ifndef V8_VISITORS_H_
 #define V8_VISITORS_H_
 
-#include "src/allocation.h"
+#include "src/globals.h"
 
 namespace v8 {
 namespace internal {
@@ -48,7 +48,9 @@ enum class Root {
   // TODO(ulan): Merge with the ROOT_ID_LIST.
   kCodeFlusher,
   kPartialSnapshotCache,
-  kWeakCollections
+  kWeakCollections,
+  kWrapperTracing,
+  kUnknown
 };
 
 // Abstract base class for visiting, and optionally modifying, the

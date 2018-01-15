@@ -18,7 +18,8 @@
 
 #include "test/cctest/cctest.h"
 
-using namespace v8::internal;
+namespace v8 {
+namespace internal {
 
 namespace {
 
@@ -105,3 +106,6 @@ TEST(CommaFunctionSequence) {
   DCHECK(is_compiled["b"]);
   DCHECK(is_compiled["c"]);
 }
+
+}  // namespace internal
+}  // namespace v8

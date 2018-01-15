@@ -75,12 +75,12 @@ def CreateCommit(options):
   body = subprocess.check_output(
       ["git", "log", options.commit, "-1", "--format=%B"],
       cwd=options.v8_path).strip()
-  body = '\n'.join("    " + line for line in body.splitlines())
+  body = '\n'.join("  " + line for line in body.splitlines())
 
   message = title + "\n\nOriginal commit message:\n\n" + body
 
   # Create commit at target.
-  review_message = "" if options.no_review else "-e"
+  review_message = "--no-edit" if options.no_review else "--edit"
   git_commands = [
     ["git", "checkout", "-b", "backport_%s" % shorthash],  # new branch
     ["git", "add", TARGET_SUBDIR],                         # add files

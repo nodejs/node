@@ -25,7 +25,7 @@ namespace base {
 // the Draft Technical Report on C++ Library Extensions (TR1)).
 //
 // base::hash is implemented by calling the hash_value function. The namespace
-// isn't specified so that it can detect overloads via argument dependant
+// isn't specified so that it can detect overloads via argument dependent
 // lookup. So if there is a free function hash_value in the same namespace as a
 // custom type, it will get called.
 //
@@ -171,7 +171,6 @@ struct hash<T*> : public std::unary_function<T*, size_t> {
     return ::v8::base::hash_value(v);
   }
 };
-
 
 // base::bit_equal_to is a function object class for bitwise equality
 // comparison, similar to std::equal_to, except that the comparison is performed

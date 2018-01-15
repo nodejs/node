@@ -33,9 +33,8 @@
 #include "src/diy-fp.h"
 #include "test/cctest/cctest.h"
 
-
-using namespace v8::internal;
-
+namespace v8 {
+namespace internal {
 
 TEST(Subtract) {
   DiyFp diy_fp1 = DiyFp(3, 0);
@@ -90,3 +89,6 @@ TEST(Multiply) {
   CHECK(V8_2PART_UINT64_C(0xFFFFFFFF, FFFFFFFe) == product.f());
   CHECK_EQ(11 + 13 + 64, product.e());
 }
+
+}  // namespace internal
+}  // namespace v8

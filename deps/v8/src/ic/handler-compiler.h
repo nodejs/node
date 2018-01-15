@@ -6,7 +6,6 @@
 #define V8_IC_HANDLER_COMPILER_H_
 
 #include "src/ic/access-compiler.h"
-#include "src/ic/ic-state.h"
 
 namespace v8 {
 namespace internal {

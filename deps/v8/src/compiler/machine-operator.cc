@@ -144,7 +144,7 @@ MachineType AtomicOpRepresentationOf(Operator const* op) {
   V(Uint64LessThan, Operator::kNoProperties, 2, 0, 1)                    \
   V(Uint64LessThanOrEqual, Operator::kNoProperties, 2, 0, 1)
 
-#define PURE_OP_LIST(V)                                                   \
+#define MACHINE_PURE_OP_LIST(V)                                           \
   PURE_BINARY_OP_LIST_32(V)                                               \
   PURE_BINARY_OP_LIST_64(V)                                               \
   V(Word32Clz, Operator::kNoProperties, 1, 0, 1)                          \
@@ -443,7 +443,7 @@ struct MachineOperatorGlobalCache {
                    0) {}                                                       \
   };                                                                           \
   Name##Operator k##Name;
-  PURE_OP_LIST(PURE)
+  MACHINE_PURE_OP_LIST(PURE)
   PURE_OPTIONAL_OP_LIST(PURE)
 #undef PURE
 
@@ -648,10 +648,17 @@ struct MachineOperatorGlobalCache {
   };
   BitcastWordToTaggedOperator kBitcastWordToTagged;
 
+  struct DebugAbortOperator : public Operator {
+    DebugAbortOperator()
+        : Operator(IrOpcode::kDebugAbort, Operator::kNoThrow, "DebugAbort", 1,
+                   1, 1, 0, 1, 0) {}
+  };
+  DebugAbortOperator kDebugAbort;
+
   struct DebugBreakOperator : public Operator {
     DebugBreakOperator()
         : Operator(IrOpcode::kDebugBreak, Operator::kNoThrow, "DebugBreak", 0,
-                   0, 0, 0, 0, 0) {}
+                   1, 1, 0, 1, 0) {}
   };
   DebugBreakOperator kDebugBreak;
 
@@ -669,14 +676,14 @@ struct CommentOperator : public Operator1<const char*> {
                                "Comment", 0, 0, 0, 0, 0, 0, msg) {}
 };
 
-static base::LazyInstance<MachineOperatorGlobalCache>::type kCache =
-    LAZY_INSTANCE_INITIALIZER;
+static base::LazyInstance<MachineOperatorGlobalCache>::type
+    kMachineOperatorGlobalCache = LAZY_INSTANCE_INITIALIZER;
 
 MachineOperatorBuilder::MachineOperatorBuilder(
     Zone* zone, MachineRepresentation word, Flags flags,
     AlignmentRequirements alignmentRequirements)
     : zone_(zone),
-      cache_(kCache.Get()),
+      cache_(kMachineOperatorGlobalCache.Get()),
       word_(word),
       flags_(flags),
       alignment_requirements_(alignmentRequirements) {
@@ -713,7 +720,7 @@ const Operator* MachineOperatorBuilder::UnalignedStore(
 #define PURE(Name, properties, value_input_count, control_input_count, \
              output_count)                                             \
   const Operator* MachineOperatorBuilder::Name() { return &cache_.k##Name; }
-PURE_OP_LIST(PURE)
+MACHINE_PURE_OP_LIST(PURE)
 #undef PURE
 
 #define PURE(Name, properties, value_input_count, control_input_count, \
@@ -814,6 +821,10 @@ const Operator* MachineOperatorBuilder::UnsafePointerAdd() {
 
 const Operator* MachineOperatorBuilder::BitcastWordToTagged() {
   return &cache_.kBitcastWordToTagged;
+}
+
+const Operator* MachineOperatorBuilder::DebugAbort() {
+  return &cache_.kDebugAbort;
 }
 
 const Operator* MachineOperatorBuilder::DebugBreak() {

@@ -21,9 +21,20 @@
 #define MAX_NUM_FUNCTIONS 3
 #define MAX_NUM_PARAMS 3
 
+#if __clang__
+// TODO(mostynb@opera.com): remove the using statements and these pragmas.
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wheader-hygiene"
+#endif
+
 using namespace v8::internal;
 using namespace v8::internal::wasm;
 using namespace v8::internal::wasm::fuzzer;
+
+#if __clang__
+// TODO(mostynb@opera.com): remove the using statements and these pragmas.
+#pragma clang diagnostic pop
+#endif
 
 class WasmCallFuzzer : public WasmExecutionFuzzer {
   template <typename V>
@@ -114,6 +125,7 @@ class WasmCallFuzzer : public WasmExecutionFuzzer {
       }
     }
 
+    builder.SetMaxMemorySize(32);
     builder.WriteTo(buffer);
 
     if (!ok) {

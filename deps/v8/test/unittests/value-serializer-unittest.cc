@@ -256,8 +256,8 @@ class ValueSerializerTest : public TestWithIsolate {
         .ToLocalChecked();
   }
 
-  static std::string Utf8Value(Local<Value> value) {
-    String::Utf8Value utf8(value);
+  std::string Utf8Value(Local<Value> value) {
+    String::Utf8Value utf8(isolate(), value);
     return std::string(*utf8, utf8.length());
   }
 
@@ -434,21 +434,21 @@ TEST_F(ValueSerializerTest, RoundTripString) {
                 });
   // Inside ASCII.
   RoundTripTest([this]() { return StringFromUtf8(kHelloString); },
-                [](Local<Value> value) {
+                [this](Local<Value> value) {
                   ASSERT_TRUE(value->IsString());
                   EXPECT_EQ(5, String::Cast(*value)->Length());
                   EXPECT_EQ(kHelloString, Utf8Value(value));
                 });
   // Inside Latin-1 (i.e. one-byte string), but not ASCII.
   RoundTripTest([this]() { return StringFromUtf8(kQuebecString); },
-                [](Local<Value> value) {
+                [this](Local<Value> value) {
                   ASSERT_TRUE(value->IsString());
                   EXPECT_EQ(6, String::Cast(*value)->Length());
                   EXPECT_EQ(kQuebecString, Utf8Value(value));
                 });
   // An emoji (decodes to two 16-bit chars).
   RoundTripTest([this]() { return StringFromUtf8(kEmojiString); },
-                [](Local<Value> value) {
+                [this](Local<Value> value) {
                   ASSERT_TRUE(value->IsString());
                   EXPECT_EQ(2, String::Cast(*value)->Length());
                   EXPECT_EQ(kEmojiString, Utf8Value(value));
@@ -463,19 +463,19 @@ TEST_F(ValueSerializerTest, DecodeString) {
                EXPECT_EQ(0, String::Cast(*value)->Length());
              });
   DecodeTest({0xff, 0x09, 0x53, 0x05, 'H', 'e', 'l', 'l', 'o'},
-             [](Local<Value> value) {
+             [this](Local<Value> value) {
                ASSERT_TRUE(value->IsString());
                EXPECT_EQ(5, String::Cast(*value)->Length());
                EXPECT_EQ(kHelloString, Utf8Value(value));
              });
   DecodeTest({0xff, 0x09, 0x53, 0x07, 'Q', 'u', 0xc3, 0xa9, 'b', 'e', 'c'},
-             [](Local<Value> value) {
+             [this](Local<Value> value) {
                ASSERT_TRUE(value->IsString());
                EXPECT_EQ(6, String::Cast(*value)->Length());
                EXPECT_EQ(kQuebecString, Utf8Value(value));
              });
   DecodeTest({0xff, 0x09, 0x53, 0x04, 0xf0, 0x9f, 0x91, 0x8a},
-             [](Local<Value> value) {
+             [this](Local<Value> value) {
                ASSERT_TRUE(value->IsString());
                EXPECT_EQ(2, String::Cast(*value)->Length());
                EXPECT_EQ(kEmojiString, Utf8Value(value));
@@ -487,13 +487,13 @@ TEST_F(ValueSerializerTest, DecodeString) {
     EXPECT_EQ(0, String::Cast(*value)->Length());
   });
   DecodeTest({0xff, 0x0a, 0x22, 0x05, 'H', 'e', 'l', 'l', 'o'},
-             [](Local<Value> value) {
+             [this](Local<Value> value) {
                ASSERT_TRUE(value->IsString());
                EXPECT_EQ(5, String::Cast(*value)->Length());
                EXPECT_EQ(kHelloString, Utf8Value(value));
              });
   DecodeTest({0xff, 0x0a, 0x22, 0x06, 'Q', 'u', 0xe9, 'b', 'e', 'c'},
-             [](Local<Value> value) {
+             [this](Local<Value> value) {
                ASSERT_TRUE(value->IsString());
                EXPECT_EQ(6, String::Cast(*value)->Length());
                EXPECT_EQ(kQuebecString, Utf8Value(value));
@@ -508,20 +508,20 @@ TEST_F(ValueSerializerTest, DecodeString) {
              });
   DecodeTest({0xff, 0x09, 0x63, 0x0a, 'H', '\0', 'e', '\0', 'l', '\0', 'l',
               '\0', 'o', '\0'},
-             [](Local<Value> value) {
+             [this](Local<Value> value) {
                ASSERT_TRUE(value->IsString());
                EXPECT_EQ(5, String::Cast(*value)->Length());
                EXPECT_EQ(kHelloString, Utf8Value(value));
              });
   DecodeTest({0xff, 0x09, 0x63, 0x0c, 'Q', '\0', 'u', '\0', 0xe9, '\0', 'b',
               '\0', 'e', '\0', 'c', '\0'},
-             [](Local<Value> value) {
+             [this](Local<Value> value) {
                ASSERT_TRUE(value->IsString());
                EXPECT_EQ(6, String::Cast(*value)->Length());
                EXPECT_EQ(kQuebecString, Utf8Value(value));
              });
   DecodeTest({0xff, 0x09, 0x63, 0x04, 0x3d, 0xd8, 0x4a, 0xdc},
-             [](Local<Value> value) {
+             [this](Local<Value> value) {
                ASSERT_TRUE(value->IsString());
                EXPECT_EQ(2, String::Cast(*value)->Length());
                EXPECT_EQ(kEmojiString, Utf8Value(value));
@@ -784,7 +784,7 @@ TEST_F(ValueSerializerTest, RoundTripTrickyGetters) {
   // If an exception is thrown by script, encoding must fail and the exception
   // must be thrown.
   InvalidEncodeTest("({ get a() { throw new Error('sentinel'); } })",
-                    [](Local<Message> message) {
+                    [this](Local<Message> message) {
                       ASSERT_FALSE(message.IsEmpty());
                       EXPECT_NE(std::string::npos,
                                 Utf8Value(message->Get()).find("sentinel"));

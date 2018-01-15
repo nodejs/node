@@ -64,7 +64,7 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
       'state', 'key', 'map', 'reason', 'file',
     ];
 
-    // For compatiblity with console scripts:
+    // For compatibility with console scripts:
     print = console.log;
 
     class CustomIcProcessor extends IcProcessor {
@@ -83,17 +83,6 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
         let fnName = this.functionName(pc);
         this.entries.push(new Entry(type, fnName, line, column, key,
           old_state, new_state, map, slow_reason));
-
-      }
-
-      processCompareIC(pc, line, column, stub, op, old_left, old_right,
-          old_state, new_left, new_right, new_state) {
-        let fnName = this.functionName(pc);
-        this.entries.push(new Entry("CompareIC", fnName, line, column, name,
-          old_state, new_state));
-      }
-
-      processPatchIC(pc, test, delta) {
 
       }
     };

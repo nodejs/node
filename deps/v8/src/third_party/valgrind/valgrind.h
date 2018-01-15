@@ -3758,7 +3758,7 @@ VALGRIND_PRINTF_BACKTRACE(const char *format, ...)
 
 
 /* These requests allow control to move from the simulated CPU to the
-   real CPU, calling an arbitary function.
+   real CPU, calling an arbitrary function.
 
    Note that the current ThreadId is inserted as the first argument.
    So this call:

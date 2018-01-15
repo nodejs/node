@@ -265,7 +265,7 @@ let exportingModuleBinary2 = (() => {
   builder.addFunction('foo', kSig_v_v).addBody([]).exportAs('a');
   builder.addMemory(1, 1, false);
   builder.exportMemoryAs('b');
-  builder.setFunctionTableLength(1);
+  builder.setFunctionTableBounds(1, 1);
   builder.addExportOfKind('c', kExternalTable, 0);
   var o = builder.addGlobal(kWasmI32, false).exportAs('x');
   return new Int8Array(builder.toBuffer());
@@ -307,12 +307,6 @@ assertEq(arr.length, 0);
 assertErrorMessage(
     () => moduleCustomSections(1), TypeError,
     'first argument must be a WebAssembly.Module');
-assertErrorMessage(
-    () => moduleCustomSections(emptyModule), TypeError,
-    'second argument must be a String');
-assertErrorMessage(
-    () => moduleCustomSections(emptyModule, 3), TypeError,
-    'second argument must be a String');
 
 let customSectionModuleBinary2 = (() => {
   let builder = new WasmModuleBuilder();
@@ -334,6 +328,15 @@ assertArrayBuffer(arr[1], [91, 92, 93]);
 var arr = moduleCustomSections(new Module(customSectionModuleBinary2), 'bar');
 assertEq(arr instanceof Array, true);
 assertEq(arr.length, 0);
+var o = {toString() { return "foo" }}
+var arr = moduleCustomSections(new Module(customSectionModuleBinary2), o);
+assertEq(arr instanceof Array, true);
+assertEq(arr.length, 2);
+assertArrayBuffer(arr[0], [66, 77]);
+assertArrayBuffer(arr[1], [91, 92, 93]);
+var o = {toString() { throw "boo!" }}
+assertThrows(
+  () => moduleCustomSections(new Module(customSectionModuleBinary2), o));
 
 // 'WebAssembly.Instance' data property
 let instanceDesc = Object.getOwnPropertyDescriptor(WebAssembly, 'Instance');
@@ -389,12 +392,12 @@ assertEq(typeof exportingInstance, 'object');
 assertEq(String(exportingInstance), '[object WebAssembly.Instance]');
 assertEq(Object.getPrototypeOf(exportingInstance), instanceProto);
 
-// 'WebAssembly.Instance' 'exports' data property
+// 'WebAssembly.Instance' 'exports' getter property
 let instanceExportsDesc =
-    Object.getOwnPropertyDescriptor(exportingInstance, 'exports');
-assertEq(typeof instanceExportsDesc.value, 'object');
-assertTrue(instanceExportsDesc.writable);
-assertTrue(instanceExportsDesc.enumerable);
+    Object.getOwnPropertyDescriptor(instanceProto, 'exports');
+assertEq(typeof instanceExportsDesc.get, 'function');
+assertEq(instanceExportsDesc.set, undefined);
+assertFalse(instanceExportsDesc.enumerable);
 assertTrue(instanceExportsDesc.configurable);
 
 exportsObj = exportingInstance.exports;
@@ -516,6 +519,13 @@ buf = mem.buffer;
 assertEq(buf.byteLength, 2 * kPageSize);
 assertErrorMessage(() => mem.grow(1), Error, /failed to grow memory/);
 assertEq(buf, mem.buffer);
+
+let empty_mem = new Memory({initial: 0, maximum: 5});
+let empty_buf = empty_mem.buffer;
+assertEq(empty_buf.byteLength, 0);
+assertEq(empty_mem.grow(0), 0);
+assertEq(empty_mem.buffer.byteLength, 0);
+assertTrue(empty_buf !== empty_mem.buffer);
 
 // 'WebAssembly.Table' data property
 let tableDesc = Object.getOwnPropertyDescriptor(WebAssembly, 'Table');

@@ -627,9 +627,15 @@ InjectedScript.prototype = {
             return className;
         }
 
-        if (subtype === "map" || subtype === "set") {
+        if (subtype === "map" || subtype === "set" || subtype === "blob") {
             if (typeof obj.size === "number")
                 return className + "(" + obj.size + ")";
+            return className;
+        }
+
+        if (subtype === "arraybuffer" || subtype === "dataview") {
+            if (typeof obj.byteLength === "number")
+                return className + "(" + obj.byteLength + ")";
             return className;
         }
 
@@ -850,6 +856,7 @@ InjectedScript.RemoteObject.prototype = {
             properties: [],
             __proto__: null
         };
+        InjectedScriptHost.nullifyPrototype(preview.properties);
         if (this.subtype)
             preview.subtype = /** @type {!RuntimeAgent.ObjectPreviewSubtype.<string>} */ (this.subtype);
         return preview;
@@ -873,19 +880,25 @@ InjectedScript.RemoteObject.prototype = {
             __proto__: null
         };
         var subtype = this.subtype;
+        var primitiveString;
 
         try {
-            var descriptors = injectedScript._propertyDescriptors(object, addPropertyIfNeeded, false /* ownProperties */, undefined /* accessorPropertiesOnly */, firstLevelKeys);
+            var descriptors = [];
+            InjectedScriptHost.nullifyPrototype(descriptors);
 
             // Add internal properties to preview.
             var rawInternalProperties = InjectedScriptHost.getInternalProperties(object) || [];
             var internalProperties = [];
+            InjectedScriptHost.nullifyPrototype(rawInternalProperties);
+            InjectedScriptHost.nullifyPrototype(internalProperties);
             var entries = null;
             for (var i = 0; i < rawInternalProperties.length; i += 2) {
                 if (rawInternalProperties[i] === "[[Entries]]") {
                     entries = /** @type {!Array<*>} */(rawInternalProperties[i + 1]);
                     continue;
                 }
+                if (rawInternalProperties[i] === "[[PrimitiveValue]]" && typeof rawInternalProperties[i + 1] === 'string')
+                    primitiveString = rawInternalProperties[i + 1];
                 var internalPropertyDescriptor = {
                     name: rawInternalProperties[i],
                     value: rawInternalProperties[i + 1],
@@ -893,9 +906,12 @@ InjectedScript.RemoteObject.prototype = {
                     enumerable: true,
                     __proto__: null
                 };
-                if (!addPropertyIfNeeded(descriptors, internalPropertyDescriptor))
-                    break;
+                push(descriptors, internalPropertyDescriptor);
             }
+            var naturalDescriptors = injectedScript._propertyDescriptors(object, addPropertyIfNeeded, false /* ownProperties */, undefined /* accessorPropertiesOnly */, firstLevelKeys);
+            for (var i = 0; i < naturalDescriptors.length; i++)
+                push(descriptors, naturalDescriptors[i]);
+
             this._appendPropertyPreviewDescriptors(preview, descriptors, secondLevelKeys, isTable);
 
             if (subtype === "map" || subtype === "set" || subtype === "weakmap" || subtype === "weakset" || subtype === "iterator")
@@ -932,6 +948,10 @@ InjectedScript.RemoteObject.prototype = {
 
             // Ignore computed properties unless they have getters.
             if (!("value" in descriptor) && !descriptor.get)
+                return true;
+
+            // Ignore index properties when there is a primitive string.
+            if (primitiveString && primitiveString[descriptor.name] === descriptor.value)
                 return true;
 
             if (toString(descriptor.name >>> 0) === descriptor.name)
@@ -1022,6 +1042,7 @@ InjectedScript.RemoteObject.prototype = {
             return;
         }
         preview.entries = [];
+        InjectedScriptHost.nullifyPrototype(preview.entries);
         var entriesThreshold = 5;
         for (var i = 0; i < entries.length; ++i) {
             if (preview.entries.length >= entriesThreshold) {

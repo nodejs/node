@@ -37,6 +37,7 @@ class V8_EXPORT_PRIVATE SignatureMap {
     bool operator()(FunctionSig* a, FunctionSig* b) const;
   };
   uint32_t next_ = 0;
+  // TODO(wasm): performance-critical, replace with a reader-writer lock
   std::unique_ptr<base::Mutex> mutex_;
   std::map<FunctionSig*, uint32_t, CompareFunctionSigs> map_;
 

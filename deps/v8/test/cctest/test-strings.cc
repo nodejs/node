@@ -95,9 +95,8 @@ class MyRandomNumberGenerator {
   uint32_t i;
 };
 
-
-using namespace v8::internal;
-
+namespace v8 {
+namespace internal {
 
 static const int DEEP_DEPTH = 8 * 1024;
 static const int SUPER_DEEP_DEPTH = 80 * 1024;
@@ -1100,7 +1099,8 @@ TEST(JSONStringifySliceMadeExternal) {
 
   CHECK_EQ(0,
            strcmp("\"bcdefghijklmnopqrstuvwxyz\"",
-                  *v8::String::Utf8Value(CompileRun("JSON.stringify(slice)"))));
+                  *v8::String::Utf8Value(CcTest::isolate(),
+                                         CompileRun("JSON.stringify(slice)"))));
 }
 
 
@@ -1301,7 +1301,7 @@ TEST(SliceFromSlice) {
 UNINITIALIZED_TEST(OneByteArrayJoin) {
   v8::Isolate::CreateParams create_params;
   // Set heap limits.
-  create_params.constraints.set_max_semi_space_size(1);
+  create_params.constraints.set_max_semi_space_size_in_kb(1024);
   create_params.constraints.set_max_old_space_size(7);
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
   v8::Isolate* isolate = v8::Isolate::New(create_params);
@@ -1667,3 +1667,6 @@ TEST(ExternalStringIndexOf) {
                    ->Int32Value(context.local())
                    .FromJust());
 }
+
+}  // namespace internal
+}  // namespace v8

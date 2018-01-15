@@ -16,6 +16,7 @@ namespace U_ICU_NAMESPACE {
 class BreakIterator;
 class Collator;
 class DecimalFormat;
+class PluralRules;
 class SimpleDateFormat;
 }
 
@@ -96,6 +97,43 @@ class Collator {
 
  private:
   Collator();
+};
+
+class PluralRules {
+ public:
+  // Create a PluralRules and DecimalFormat for the specificied locale and
+  // options. Returns false on an ICU failure.
+  static bool InitializePluralRules(Isolate* isolate, Handle<String> locale,
+                                    Handle<JSObject> options,
+                                    Handle<JSObject> resolved,
+                                    icu::PluralRules** plural_rules,
+                                    icu::DecimalFormat** decimal_format);
+
+  // Unpacks PluralRules object from corresponding JavaScript object.
+  static icu::PluralRules* UnpackPluralRules(Isolate* isolate,
+                                             Handle<JSObject> obj);
+
+  // Unpacks NumberFormat object from corresponding JavaScript PluralRUles
+  // object.
+  static icu::DecimalFormat* UnpackNumberFormat(Isolate* isolate,
+                                                Handle<JSObject> obj);
+
+  // Release memory we allocated for the Collator once the JS object that holds
+  // the pointer gets garbage collected.
+  static void DeletePluralRules(const v8::WeakCallbackInfo<void>& data);
+
+  // Layout description.
+  static const int kPluralRules = JSObject::kHeaderSize;
+  // Values are formatted with this NumberFormat and then parsed as a Number
+  // to round them based on the options passed into the PluralRules objct.
+  // TODO(littledan): If a future version of ICU supports the rounding
+  // built-in to PluralRules, switch to that, see this bug:
+  // http://bugs.icu-project.org/trac/ticket/12763
+  static const int kNumberFormat = kPluralRules + kPointerSize;
+  static const int kSize = kNumberFormat + kPointerSize;
+
+ private:
+  PluralRules();
 };
 
 class V8BreakIterator {

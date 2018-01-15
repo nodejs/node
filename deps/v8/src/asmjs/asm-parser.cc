@@ -68,8 +68,9 @@ namespace wasm {
 #define TOK(name) AsmJsScanner::kToken_##name
 
 AsmJsParser::AsmJsParser(Zone* zone, uintptr_t stack_limit,
-                         std::unique_ptr<Utf16CharacterStream> stream)
+                         Utf16CharacterStream* stream)
     : zone_(zone),
+      scanner_(stream),
       module_builder_(new (zone) WasmModuleBuilder(zone)),
       return_type_(nullptr),
       stack_limit_(stack_limit),
@@ -87,8 +88,8 @@ AsmJsParser::AsmJsParser(Zone* zone, uintptr_t stack_limit,
       call_coercion_deferred_(nullptr),
       pending_label_(0),
       global_imports_(zone) {
+  module_builder_->SetMinMemorySize(0);
   InitializeStdlibTypes();
-  scanner_.SetStream(std::move(stream));
 }
 
 void AsmJsParser::InitializeStdlibTypes() {
@@ -550,7 +551,7 @@ void AsmJsParser::ValidateModuleVarNewStdlib(VarInfo* info) {
 #define V(name, _junk1, _junk2, _junk3)                          \
   case TOK(name):                                                \
     DeclareStdlibFunc(info, VarKind::kSpecial, AsmType::name()); \
-    stdlib_uses_.insert(StandardMember::k##name);                \
+    stdlib_uses_.Add(StandardMember::k##name);                   \
     break;
     STDLIB_ARRAY_TYPE_LIST(V)
 #undef V
@@ -573,14 +574,14 @@ void AsmJsParser::ValidateModuleVarStdlib(VarInfo* info) {
   case TOK(name):                                           \
     DeclareGlobal(info, false, AsmType::Double(), kWasmF64, \
                   WasmInitExpr(const_value));               \
-    stdlib_uses_.insert(StandardMember::kMath##name);       \
+    stdlib_uses_.Add(StandardMember::kMath##name);          \
     break;
       STDLIB_MATH_VALUE_LIST(V)
 #undef V
 #define V(name, Name, op, sig)                                      \
   case TOK(name):                                                   \
     DeclareStdlibFunc(info, VarKind::kMath##Name, stdlib_##sig##_); \
-    stdlib_uses_.insert(StandardMember::kMath##Name);               \
+    stdlib_uses_.Add(StandardMember::kMath##Name);                  \
     break;
       STDLIB_MATH_FUNCTION_LIST(V)
 #undef V
@@ -590,11 +591,11 @@ void AsmJsParser::ValidateModuleVarStdlib(VarInfo* info) {
   } else if (Check(TOK(Infinity))) {
     DeclareGlobal(info, false, AsmType::Double(), kWasmF64,
                   WasmInitExpr(std::numeric_limits<double>::infinity()));
-    stdlib_uses_.insert(StandardMember::kInfinity);
+    stdlib_uses_.Add(StandardMember::kInfinity);
   } else if (Check(TOK(NaN))) {
     DeclareGlobal(info, false, AsmType::Double(), kWasmF64,
                   WasmInitExpr(std::numeric_limits<double>::quiet_NaN()));
-    stdlib_uses_.insert(StandardMember::kNaN);
+    stdlib_uses_.Add(StandardMember::kNaN);
   } else {
     FAIL("Invalid member of stdlib");
   }
@@ -1781,13 +1782,44 @@ AsmType* AsmJsParser::AdditiveExpression() {
 AsmType* AsmJsParser::ShiftExpression() {
   AsmType* a = nullptr;
   RECURSEn(a = AdditiveExpression());
+  heap_access_shift_position_ = kNoHeapAccessShift;
+  // TODO(bradnelson): Implement backtracking to avoid emitting code
+  // for the x >>> 0 case (similar to what's there for |0).
   for (;;) {
     switch (scanner_.Token()) {
-// TODO(bradnelson): Implement backtracking to avoid emitting code
-// for the x >>> 0 case (similar to what's there for |0).
+      case TOK(SAR): {
+        EXPECT_TOKENn(TOK(SAR));
+        heap_access_shift_position_ = kNoHeapAccessShift;
+        // Remember position allowing this shift-expression to be used as part
+        // of a heap access operation expecting `a >> n:NumericLiteral`.
+        bool imm = false;
+        size_t old_pos;
+        size_t old_code;
+        uint32_t shift_imm;
+        if (a->IsA(AsmType::Intish()) && CheckForUnsigned(&shift_imm)) {
+          old_pos = scanner_.Position();
+          old_code = current_function_builder_->GetPosition();
+          scanner_.Rewind();
+          imm = true;
+        }
+        AsmType* b = nullptr;
+        RECURSEn(b = AdditiveExpression());
+        // Check for `a >> n:NumericLiteral` pattern.
+        if (imm && old_pos == scanner_.Position()) {
+          heap_access_shift_position_ = old_code;
+          heap_access_shift_value_ = shift_imm;
+        }
+        if (!(a->IsA(AsmType::Intish()) && b->IsA(AsmType::Intish()))) {
+          FAILn("Expected intish for operator >>.");
+        }
+        current_function_builder_->Emit(kExprI32ShrS);
+        a = AsmType::Signed();
+        continue;
+      }
 #define HANDLE_CASE(op, opcode, name, result)                        \
   case TOK(op): {                                                    \
     EXPECT_TOKENn(TOK(op));                                          \
+    heap_access_shift_position_ = kNoHeapAccessShift;                \
     AsmType* b = nullptr;                                            \
     RECURSEn(b = AdditiveExpression());                              \
     if (!(a->IsA(AsmType::Intish()) && b->IsA(AsmType::Intish()))) { \
@@ -1797,9 +1829,8 @@ AsmType* AsmJsParser::ShiftExpression() {
     a = AsmType::result();                                           \
     continue;                                                        \
   }
-      HANDLE_CASE(SHL, I32Shl, "<<", Signed);
-      HANDLE_CASE(SAR, I32ShrS, ">>", Signed);
-      HANDLE_CASE(SHR, I32ShrU, ">>>", Unsigned);
+        HANDLE_CASE(SHL, I32Shl, "<<", Signed);
+        HANDLE_CASE(SHR, I32ShrU, ">>>", Unsigned);
 #undef HANDLE_CASE
       default:
         return a;
@@ -2353,18 +2384,18 @@ void AsmJsParser::ValidateHeapAccess() {
       info->type->IsA(AsmType::Uint8Array())) {
     RECURSE(index_type = Expression(nullptr));
   } else {
-    RECURSE(index_type = AdditiveExpression());
-    EXPECT_TOKEN(TOK(SAR));
-    uint32_t shift;
-    if (!CheckForUnsigned(&shift)) {
+    RECURSE(index_type = ShiftExpression());
+    if (heap_access_shift_position_ == kNoHeapAccessShift) {
       FAIL("Expected shift of word size");
     }
-    if (shift > 3) {
+    if (heap_access_shift_value_ > 3) {
       FAIL("Expected valid heap access shift");
     }
-    if ((1 << shift) != size) {
+    if ((1 << heap_access_shift_value_) != size) {
       FAIL("Expected heap access shift to match heap view");
     }
+    // Delete the code of the actual shift operation.
+    current_function_builder_->DeleteCodeAfter(heap_access_shift_position_);
     // Mask bottom bits to match asm.js behavior.
     current_function_builder_->EmitI32Const(~(size - 1));
     current_function_builder_->Emit(kExprI32And);
@@ -2449,7 +2480,8 @@ void AsmJsParser::GatherCases(ZoneVector<int32_t>* cases) {
         value = static_cast<int32_t>(uvalue);
       }
       cases->push_back(value);
-    } else if (Peek(AsmJsScanner::kEndOfInput)) {
+    } else if (Peek(AsmJsScanner::kEndOfInput) ||
+               Peek(AsmJsScanner::kParseError)) {
       break;
     }
     scanner_.Next();
@@ -2460,3 +2492,5 @@ void AsmJsParser::GatherCases(ZoneVector<int32_t>* cases) {
 }  // namespace wasm
 }  // namespace internal
 }  // namespace v8
+
+#undef RECURSE

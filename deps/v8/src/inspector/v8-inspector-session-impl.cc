@@ -111,13 +111,12 @@ V8InspectorSessionImpl::V8InspectorSessionImpl(V8InspectorImpl* inspector,
 }
 
 V8InspectorSessionImpl::~V8InspectorSessionImpl() {
+  discardInjectedScripts();
   m_consoleAgent->disable();
   m_profilerAgent->disable();
   m_heapProfilerAgent->disable();
   m_debuggerAgent->disable();
   m_runtimeAgent->disable();
-
-  discardInjectedScripts();
   m_inspector->disconnect(this);
 }
 

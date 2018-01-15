@@ -365,6 +365,12 @@ class Simulator {
   inline double ReadD(int32_t addr, Instruction* instr);
   inline void WriteD(int32_t addr, double value, Instruction* instr);
 
+  template <typename T>
+  T ReadMem(int32_t addr, Instruction* instr);
+
+  template <typename T>
+  void WriteMem(int32_t addr, T value, Instruction* instr);
+
   void TraceRegWr(int32_t value, TraceType t = WORD);
   void TraceRegWr(int64_t value, TraceType t = DWORD);
   template <typename T>
@@ -375,6 +381,10 @@ class Simulator {
   void TraceMemRd(int32_t addr, int32_t value, TraceType t = WORD);
   void TraceMemWr(int32_t addr, int64_t value, TraceType t = DWORD);
   void TraceMemRd(int32_t addr, int64_t value, TraceType t = DWORD);
+  template <typename T>
+  void TraceMemRd(int32_t addr, T value);
+  template <typename T>
+  void TraceMemWr(int32_t addr, T value);
   EmbeddedVector<char, 128> trace_buf_;
 
   // Operations depending on endianness.
@@ -424,6 +434,8 @@ class Simulator {
   void DecodeTypeMsa2RF();
   template <typename T>
   T MsaI5InstrHelper(uint32_t opcode, T ws, int32_t i5);
+  template <typename T>
+  T MsaBitInstrHelper(uint32_t opcode, T wd, T ws, int32_t m);
 
   inline int32_t rs_reg() const { return instr_.RsValue(); }
   inline int32_t rs() const { return get_register(rs_reg()); }

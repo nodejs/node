@@ -1679,6 +1679,7 @@ class V8Heap(object):
     "MAP_TYPE": Map,
     "ODDBALL_TYPE": Oddball,
     "FIXED_ARRAY_TYPE": FixedArray,
+    "HASH_TABLE_TYPE": FixedArray,
     "JS_FUNCTION_TYPE": JSFunction,
     "SHARED_FUNCTION_INFO_TYPE": SharedFunctionInfo,
     "SCRIPT_TYPE": Script,
@@ -3118,7 +3119,7 @@ class InspectionWebFormatter(object):
         self.output_find_results(f, unaligned_res)
 
       if len(aligned_res) + len(unaligned_res) == 0:
-        f.write("<h3>No occurences of 0x%x found in the dump</h3>" % address)
+        f.write("<h3>No occurrences of 0x%x found in the dump</h3>" % address)
 
       self.output_footer(f)
 

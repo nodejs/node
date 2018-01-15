@@ -36,7 +36,8 @@ class InstructionSequence;
 // site matches the definition of this pending operand: either the phi inputs
 // match, or, if it's not a phi, all the predecessors at the point the pending
 // assessment was defined have that operand assigned to the given virtual
-// register.
+// register. If all checks out, we record in the assessment that the virtual
+// register is aliased by the specific operand.
 // If a block is a loop header - so one or more of its predecessors are it or
 // below - we still treat uses of operands as above, but we record which operand
 // assessments haven't been made yet, and what virtual register they must
@@ -66,26 +67,38 @@ class Assessment : public ZoneObject {
 // PendingAssessments are associated to operands coming from the multiple
 // predecessors of a block. We only record the operand and the block, and
 // will determine if the way the operand is defined (from the predecessors)
-// matches a particular use. This handles scenarios where multiple phis are
+// matches a particular use. We allow more than one vreg association with
+// an operand - this handles scenarios where multiple phis are
 // defined with identical operands, and the move optimizer moved down the moves
 // separating the 2 phis in the block defining them.
 class PendingAssessment final : public Assessment {
  public:
-  explicit PendingAssessment(const InstructionBlock* origin,
+  explicit PendingAssessment(Zone* zone, const InstructionBlock* origin,
                              InstructionOperand operand)
-      : Assessment(Pending), origin_(origin), operand_(operand) {}
+      : Assessment(Pending),
+        origin_(origin),
+        operand_(operand),
+        aliases_(zone) {}
 
   static const PendingAssessment* cast(const Assessment* assessment) {
     CHECK(assessment->kind() == Pending);
     return static_cast<const PendingAssessment*>(assessment);
   }
 
+  static PendingAssessment* cast(Assessment* assessment) {
+    CHECK(assessment->kind() == Pending);
+    return static_cast<PendingAssessment*>(assessment);
+  }
+
   const InstructionBlock* origin() const { return origin_; }
   InstructionOperand operand() const { return operand_; }
+  bool IsAliasOf(int vreg) const { return aliases_.count(vreg) > 0; }
+  void AddAlias(int vreg) { aliases_.insert(vreg); }
 
  private:
   const InstructionBlock* const origin_;
   InstructionOperand operand_;
+  ZoneSet<int> aliases_;
 
   DISALLOW_COPY_AND_ASSIGN(PendingAssessment);
 };
@@ -94,11 +107,8 @@ class PendingAssessment final : public Assessment {
 // virtual register.
 class FinalAssessment final : public Assessment {
  public:
-  explicit FinalAssessment(int virtual_register,
-                           const PendingAssessment* original_pending = nullptr)
-      : Assessment(Final),
-        virtual_register_(virtual_register),
-        original_pending_assessment_(original_pending) {}
+  explicit FinalAssessment(int virtual_register)
+      : Assessment(Final), virtual_register_(virtual_register) {}
 
   int virtual_register() const { return virtual_register_; }
   static const FinalAssessment* cast(const Assessment* assessment) {
@@ -106,13 +116,8 @@ class FinalAssessment final : public Assessment {
     return static_cast<const FinalAssessment*>(assessment);
   }
 
-  const PendingAssessment* original_pending_assessment() const {
-    return original_pending_assessment_;
-  }
-
  private:
   int virtual_register_;
-  const PendingAssessment* original_pending_assessment_;
 
   DISALLOW_COPY_AND_ASSIGN(FinalAssessment);
 };
@@ -240,14 +245,12 @@ class RegisterAllocatorVerifier final : public ZoneObject {
                        const OperandConstraint* constraint);
   BlockAssessments* CreateForBlock(const InstructionBlock* block);
 
+  // Prove that this operand is an alias of this virtual register in the given
+  // block. Update the assessment if that's the case.
   void ValidatePendingAssessment(RpoNumber block_id, InstructionOperand op,
-                                 BlockAssessments* current_assessments,
-                                 const PendingAssessment* assessment,
+                                 const BlockAssessments* current_assessments,
+                                 PendingAssessment* const assessment,
                                  int virtual_register);
-  void ValidateFinalAssessment(RpoNumber block_id, InstructionOperand op,
-                               BlockAssessments* current_assessments,
-                               const FinalAssessment* assessment,
-                               int virtual_register);
   void ValidateUse(RpoNumber block_id, BlockAssessments* current_assessments,
                    InstructionOperand op, int virtual_register);
 

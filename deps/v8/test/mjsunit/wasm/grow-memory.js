@@ -7,8 +7,6 @@
 load("test/mjsunit/wasm/wasm-constants.js");
 load("test/mjsunit/wasm/wasm-module-builder.js");
 
-var kPageSize = 0x10000;
-var kV8MaxPages = 32767;
 
 function genGrowMemoryBuilder() {
   var builder = new WasmModuleBuilder();
@@ -479,9 +477,8 @@ testGrowMemoryDeclaredMaxTraps();
 function testGrowMemoryDeclaredSpecMaxTraps() {
   // The spec maximum is higher than the internal V8 maximum. This test only
   // checks that grow_memory does not grow past the internally defined maximum
-  // to reflect the currentl implementation.
+  // to reflect the current implementation.
   var builder = genGrowMemoryBuilder();
-  var kSpecMaxPages = 65535;
   builder.addMemory(1, kSpecMaxPages, false);
   var module = builder.instantiate();
   function poke(value) { return module.exports.store(offset, value); }

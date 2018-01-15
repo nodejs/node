@@ -15,6 +15,7 @@
 
 namespace v8 {
 namespace internal {
+namespace heap {
 
 static Address AllocateLabBackingStore(Heap* heap, intptr_t size_in_bytes) {
   AllocationResult result = heap->old_space()->AllocateRaw(
@@ -283,5 +284,6 @@ TEST(AllocateAligned) {
 }
 #endif  // V8_HOST_ARCH_32_BIT
 
+}  // namespace heap
 }  // namespace internal
 }  // namespace v8

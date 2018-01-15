@@ -57,7 +57,7 @@
   assertEquals(50, array.length);
 
   // At this point "array" should have been trimmed from the left with
-  // marking bits being correctly transfered to the new object start.
+  // marking bits being correctly transferred to the new object start.
   // Scavenging operations cause concurrent sweeping to advance and verify
   // that marking bit patterns are still sane.
   for (var i = 0; i < 200; i++) {

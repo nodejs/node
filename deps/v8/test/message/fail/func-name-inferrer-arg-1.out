@@ -1,8 +1,0 @@
-*%(basename)s:5: Error: boom
-(function (param = function() { throw new Error('boom') }) {
-                                ^
-Error: boom
-    at param (*%(basename)s:5:39)
-    at *%(basename)s:7:5
-    at *%(basename)s:8:5
-    at *%(basename)s:10:3

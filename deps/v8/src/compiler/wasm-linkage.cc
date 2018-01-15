@@ -38,14 +38,6 @@ MachineType MachineTypeFor(ValueType type) {
   }
 }
 
-LinkageLocation regloc(Register reg, MachineType type) {
-  return LinkageLocation::ForRegister(reg.code(), type);
-}
-
-LinkageLocation regloc(DoubleRegister reg, MachineType type) {
-  return LinkageLocation::ForRegister(reg.code(), type);
-}
-
 LinkageLocation stackloc(int i, MachineType type) {
   return LinkageLocation::ForCallerFrameSlot(i, type);
 }
@@ -136,13 +128,19 @@ LinkageLocation stackloc(int i, MachineType type) {
 // ===========================================================================
 // == unknown ================================================================
 // ===========================================================================
-// Don't define anything. We'll just always use the stack.
+// Do not use any registers, we will just always use the stack.
+#define GP_PARAM_REGISTERS
+#define GP_RETURN_REGISTERS
+#define FP_PARAM_REGISTERS
+#define FP_RETURN_REGISTERS
+
 #endif
 
 
 // Helper for allocating either an GP or FP reg, or the next stack slot.
 struct Allocator {
-  Allocator(const Register* gp, int gpc, const DoubleRegister* fp, int fpc)
+  constexpr Allocator(const Register* gp, int gpc, const DoubleRegister* fp,
+                      int fpc)
       : gp_count(gpc),
         gp_offset(0),
         gp_regs(gp),
@@ -173,11 +171,12 @@ struct Allocator {
         if (type == wasm::kWasmF32) {
           int float_reg_code = reg.code() * 2;
           DCHECK(float_reg_code < RegisterConfiguration::kMaxFPRegisters);
-          return regloc(DoubleRegister::from_code(float_reg_code),
-                        MachineTypeFor(type));
+          return LinkageLocation::ForRegister(
+              DoubleRegister::from_code(float_reg_code).code(),
+              MachineTypeFor(type));
         }
 #endif
-        return regloc(reg, MachineTypeFor(type));
+        return LinkageLocation::ForRegister(reg.code(), MachineTypeFor(type));
       } else {
         int offset = -1 - stack_offset;
         stack_offset += Words(type);
@@ -186,7 +185,8 @@ struct Allocator {
     } else {
       // Allocate a general purpose register/stack location.
       if (gp_offset < gp_count) {
-        return regloc(gp_regs[gp_offset++], MachineTypeFor(type));
+        return LinkageLocation::ForRegister(gp_regs[gp_offset++].code(),
+                                            MachineTypeFor(type));
       } else {
         int offset = -1 - stack_offset;
         stack_offset += Words(type);
@@ -205,70 +205,28 @@ struct Allocator {
     return 1;
   }
 };
+
+static constexpr Register kGPReturnRegisters[] = {GP_RETURN_REGISTERS};
+static constexpr DoubleRegister kFPReturnRegisters[] = {FP_RETURN_REGISTERS};
+static constexpr Register kGPParamRegisters[] = {GP_PARAM_REGISTERS};
+static constexpr DoubleRegister kFPParamRegisters[] = {FP_PARAM_REGISTERS};
+static constexpr Allocator return_registers(kGPReturnRegisters,
+                                            arraysize(kGPReturnRegisters),
+                                            kFPReturnRegisters,
+                                            arraysize(kFPReturnRegisters));
+static constexpr Allocator parameter_registers(kGPParamRegisters,
+                                               arraysize(kGPParamRegisters),
+                                               kFPParamRegisters,
+                                               arraysize(kFPParamRegisters));
+
 }  // namespace
-
-struct ParameterRegistersCreateTrait {
-  static void Construct(Allocator* allocated_ptr) {
-#ifdef GP_PARAM_REGISTERS
-    static const Register kGPParamRegisters[] = {GP_PARAM_REGISTERS};
-    static const int kGPParamRegistersCount =
-        static_cast<int>(arraysize(kGPParamRegisters));
-#else
-    static const Register* kGPParamRegisters = nullptr;
-    static const int kGPParamRegistersCount = 0;
-#endif
-
-#ifdef FP_PARAM_REGISTERS
-    static const DoubleRegister kFPParamRegisters[] = {FP_PARAM_REGISTERS};
-    static const int kFPParamRegistersCount =
-        static_cast<int>(arraysize(kFPParamRegisters));
-#else
-    static const DoubleRegister* kFPParamRegisters = nullptr;
-    static const int kFPParamRegistersCount = 0;
-#endif
-
-    new (allocated_ptr) Allocator(kGPParamRegisters, kGPParamRegistersCount,
-                                  kFPParamRegisters, kFPParamRegistersCount);
-  }
-};
-
-static base::LazyInstance<Allocator, ParameterRegistersCreateTrait>::type
-    parameter_registers = LAZY_INSTANCE_INITIALIZER;
-
-struct ReturnRegistersCreateTrait {
-  static void Construct(Allocator* allocated_ptr) {
-#ifdef GP_RETURN_REGISTERS
-    static const Register kGPReturnRegisters[] = {GP_RETURN_REGISTERS};
-    static const int kGPReturnRegistersCount =
-        static_cast<int>(arraysize(kGPReturnRegisters));
-#else
-    static const Register* kGPReturnRegisters = nullptr;
-    static const int kGPReturnRegistersCount = 0;
-#endif
-
-#ifdef FP_RETURN_REGISTERS
-    static const DoubleRegister kFPReturnRegisters[] = {FP_RETURN_REGISTERS};
-    static const int kFPReturnRegistersCount =
-        static_cast<int>(arraysize(kFPReturnRegisters));
-#else
-    static const DoubleRegister* kFPReturnRegisters = nullptr;
-    static const int kFPReturnRegistersCount = 0;
-#endif
-
-    new (allocated_ptr) Allocator(kGPReturnRegisters, kGPReturnRegistersCount,
-                                  kFPReturnRegisters, kFPReturnRegistersCount);
-  }
-};
-
-static base::LazyInstance<Allocator, ReturnRegistersCreateTrait>::type
-    return_registers = LAZY_INSTANCE_INITIALIZER;
 
 // General code uses the above configuration data.
 CallDescriptor* GetWasmCallDescriptor(Zone* zone, wasm::FunctionSig* fsig) {
   LocationSignature::Builder locations(zone, fsig->return_count(),
                                        fsig->parameter_count());
 
-  Allocator rets = return_registers.Get();
+  Allocator rets = return_registers;
 
   // Add return location(s).
   const int return_count = static_cast<int>(locations.return_count_);
@@ -277,7 +235,7 @@ CallDescriptor* GetWasmCallDescriptor(Zone* zone, wasm::FunctionSig* fsig) {
     locations.AddReturn(rets.Next(ret));
   }
 
-  Allocator params = parameter_registers.Get();
+  Allocator params = parameter_registers;
 
   // Add register and/or stack parameter(s).
   const int parameter_count = static_cast<int>(fsig->parameter_count());
@@ -328,7 +286,7 @@ CallDescriptor* ReplaceTypeInCallDescriptorWith(
 
   LocationSignature::Builder locations(zone, return_count, parameter_count);
 
-  Allocator rets = return_registers.Get();
+  Allocator rets = return_registers;
 
   for (size_t i = 0; i < descriptor->ReturnCount(); i++) {
     if (descriptor->GetReturnType(i) == input_type) {
@@ -341,7 +299,7 @@ CallDescriptor* ReplaceTypeInCallDescriptorWith(
     }
   }
 
-  Allocator params = parameter_registers.Get();
+  Allocator params = parameter_registers;
 
   for (size_t i = 0; i < descriptor->ParameterCount(); i++) {
     if (descriptor->GetParameterType(i) == input_type) {

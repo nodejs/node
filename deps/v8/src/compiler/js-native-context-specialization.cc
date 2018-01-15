@@ -39,13 +39,6 @@ bool HasOnlyJSArrayMaps(MapHandles const& maps) {
   return true;
 }
 
-bool HasOnlyStringMaps(MapHandles const& maps) {
-  for (auto map : maps) {
-    if (!map->IsStringMap()) return false;
-  }
-  return true;
-}
-
 }  // namespace
 
 struct JSNativeContextSpecialization::ScriptContextTableLookupResult {
@@ -72,8 +65,6 @@ Reduction JSNativeContextSpecialization::Reduce(Node* node) {
   switch (node->opcode()) {
     case IrOpcode::kJSAdd:
       return ReduceJSAdd(node);
-    case IrOpcode::kJSStringConcat:
-      return ReduceJSStringConcat(node);
     case IrOpcode::kJSGetSuperConstructor:
       return ReduceJSGetSuperConstructor(node);
     case IrOpcode::kJSInstanceOf:
@@ -128,59 +119,6 @@ Reduction JSNativeContextSpecialization::ReduceJSAdd(Node* node) {
     }
   }
   return NoChange();
-}
-
-Reduction JSNativeContextSpecialization::ReduceJSStringConcat(Node* node) {
-  // TODO(turbofan): This has to run together with the inlining and
-  // native context specialization to be able to leverage the string
-  // constant-folding for optimizing property access, but we should
-  // nevertheless find a better home for this at some point.
-  DCHECK_EQ(IrOpcode::kJSStringConcat, node->opcode());
-  Node* effect = NodeProperties::GetEffectInput(node);
-  Node* control = NodeProperties::GetControlInput(node);
-  DCHECK_GE(StringConcatParameterOf(node->op()).operand_count(), 3);
-
-  // Constant-fold string concatenation.
-  HeapObjectMatcher last_operand(NodeProperties::GetValueInput(node, 0));
-  int operand_count = StringConcatParameterOf(node->op()).operand_count();
-  for (int i = 1; i < operand_count; ++i) {
-    HeapObjectMatcher current_operand(NodeProperties::GetValueInput(node, i));
-
-    if (last_operand.HasValue() && current_operand.HasValue()) {
-      Handle<String> left = Handle<String>::cast(last_operand.Value());
-      Handle<String> right = Handle<String>::cast(current_operand.Value());
-      if (left->length() + right->length() <= String::kMaxLength) {
-        Handle<String> result =
-            factory()->NewConsString(left, right).ToHandleChecked();
-        Node* value = jsgraph()->HeapConstant(result);
-        node->ReplaceInput(i - 1, value);
-        node->RemoveInput(i);
-        last_operand = HeapObjectMatcher(value);
-        i--;
-        operand_count--;
-        continue;
-      }
-    }
-    last_operand = current_operand;
-  }
-
-  if (operand_count == StringConcatParameterOf(node->op()).operand_count()) {
-    return NoChange();
-  } else if (operand_count == 1) {
-    // Replace with input if there is only one input left.
-    Node* value = NodeProperties::GetValueInput(node, 0);
-    ReplaceWithValue(node, value, effect, control);
-    return Replace(value);
-  } else if (operand_count == 2) {
-    // Replace with JSAdd if we only have two operands left.
-    NodeProperties::ChangeOp(node,
-                             javascript()->Add(BinaryOperationHint::kString));
-    return Changed(node);
-  } else {
-    // Otherwise update operand count.
-    NodeProperties::ChangeOp(node, javascript()->StringConcat(operand_count));
-    return Changed(node);
-  }
 }
 
 Reduction JSNativeContextSpecialization::ReduceJSGetSuperConstructor(
@@ -628,7 +566,7 @@ Reduction JSNativeContextSpecialization::ReduceGlobalAccess(
           value = effect = graph()->NewNode(simplified()->CheckHeapObject(),
                                             value, effect, control);
 
-          // Check {value} map agains the {property_cell} map.
+          // Check {value} map against the {property_cell} map.
           effect =
               graph()->NewNode(simplified()->CheckMaps(
                                    CheckMapsFlag::kNone,
@@ -827,12 +765,6 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
           access_builder.BuildCheckHeapObject(receiver, &effect, control);
     }
 
-    // Load the {receiver} map. The resulting effect is the dominating effect
-    // for all (polymorphic) branches.
-    Node* receiver_map = effect =
-        graph()->NewNode(simplified()->LoadField(AccessBuilder::ForMap()),
-                         receiver, effect, control);
-
     // Generate code for the various different property access patterns.
     Node* fallthrough_control = control;
     for (size_t j = 0; j < access_infos.size(); ++j) {
@@ -845,29 +777,35 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
       // Perform map check on {receiver}.
       MapHandles const& receiver_maps = access_info.receiver_maps();
       {
-        // Emit a (sequence of) map checks for other {receiver}s.
-        ZoneVector<Node*> this_controls(zone());
-        ZoneVector<Node*> this_effects(zone());
+        // Whether to insert a dedicated MapGuard node into the
+        // effect to be able to learn from the control flow.
+        bool insert_map_guard = true;
+
+        // Check maps for the {receiver}s.
         if (j == access_infos.size() - 1) {
           // Last map check on the fallthrough control path, do a
           // conditional eager deoptimization exit here.
           access_builder.BuildCheckMaps(receiver, &this_effect, this_control,
                                         receiver_maps);
-          this_effects.push_back(this_effect);
-          this_controls.push_back(fallthrough_control);
           fallthrough_control = nullptr;
+
+          // Don't insert a MapGuard in this case, as the CheckMaps
+          // node already gives you all the information you need
+          // along the effect chain.
+          insert_map_guard = false;
         } else {
-          for (auto map : receiver_maps) {
-            Node* check =
-                graph()->NewNode(simplified()->ReferenceEqual(), receiver_map,
-                                 jsgraph()->Constant(map));
-            Node* branch = graph()->NewNode(common()->Branch(), check,
-                                            fallthrough_control);
-            fallthrough_control = graph()->NewNode(common()->IfFalse(), branch);
-            this_controls.push_back(
-                graph()->NewNode(common()->IfTrue(), branch));
-            this_effects.push_back(this_effect);
+          // Explicitly branch on the {receiver_maps}.
+          ZoneHandleSet<Map> maps;
+          for (Handle<Map> map : receiver_maps) {
+            maps.insert(map, graph()->zone());
           }
+          Node* check = this_effect =
+              graph()->NewNode(simplified()->CompareMaps(maps), receiver,
+                               this_effect, this_control);
+          Node* branch =
+              graph()->NewNode(common()->Branch(), check, this_control);
+          fallthrough_control = graph()->NewNode(common()->IfFalse(), branch);
+          this_control = graph()->NewNode(common()->IfTrue(), branch);
         }
 
         // The Number case requires special treatment to also deal with Smis.
@@ -875,24 +813,25 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
           // Join this check with the "receiver is smi" check above.
           DCHECK_NOT_NULL(receiverissmi_effect);
           DCHECK_NOT_NULL(receiverissmi_control);
-          this_effects.push_back(receiverissmi_effect);
-          this_controls.push_back(receiverissmi_control);
+          this_control = graph()->NewNode(common()->Merge(2), this_control,
+                                          receiverissmi_control);
+          this_effect = graph()->NewNode(common()->EffectPhi(2), this_effect,
+                                         receiverissmi_effect, this_control);
           receiverissmi_effect = receiverissmi_control = nullptr;
+
+          // The {receiver} can also be a Smi in this case, so
+          // a MapGuard doesn't make sense for this at all.
+          insert_map_guard = false;
         }
 
-        // Create single chokepoint for the control.
-        int const this_control_count = static_cast<int>(this_controls.size());
-        if (this_control_count == 1) {
-          this_control = this_controls.front();
-          this_effect = this_effects.front();
-        } else {
-          this_control =
-              graph()->NewNode(common()->Merge(this_control_count),
-                               this_control_count, &this_controls.front());
-          this_effects.push_back(this_control);
-          this_effect =
-              graph()->NewNode(common()->EffectPhi(this_control_count),
-                               this_control_count + 1, &this_effects.front());
+        // Introduce a MapGuard to learn from this on the effect chain.
+        if (insert_map_guard) {
+          ZoneHandleSet<Map> maps;
+          for (auto receiver_map : receiver_maps) {
+            maps.insert(receiver_map, graph()->zone());
+          }
+          this_effect = graph()->NewNode(common()->MapGuard(maps), receiver,
+                                         this_effect, this_control);
         }
       }
 
@@ -1598,7 +1537,7 @@ Node* JSNativeContextSpecialization::InlineApiCall(
   CallDescriptor* call_descriptor = Linkage::GetStubCallDescriptor(
       isolate(), graph()->zone(), call_interface_descriptor,
       call_interface_descriptor.GetStackParameterCount() + argc +
-          1 /* implicit receiver */,
+          1 /* implicit receiver */ + 1 /* accessor holder */,
       CallDescriptor::kNeedsFrameState, Operator::kNoProperties,
       MachineType::AnyTagged(), 1);
 
@@ -1610,8 +1549,9 @@ Node* JSNativeContextSpecialization::InlineApiCall(
   Node* code = jsgraph()->HeapConstant(stub.GetCode());
 
   // Add CallApiCallbackStub's register argument as well.
-  Node* inputs[11] = {code, target, data, holder, function_reference, receiver};
-  int index = 6 + argc;
+  Node* inputs[12] = {code,   target,  data, holder, function_reference,
+                      holder, receiver};
+  int index = 7 + argc;
   inputs[index++] = context;
   inputs[index++] = frame_state;
   inputs[index++] = *effect;
@@ -1619,7 +1559,7 @@ Node* JSNativeContextSpecialization::InlineApiCall(
   // This needs to stay here because of the edge case described in
   // http://crbug.com/675648.
   if (value != nullptr) {
-    inputs[6] = value;
+    inputs[7] = value;
   }
 
   return *effect = *control =
@@ -1716,7 +1656,7 @@ JSNativeContextSpecialization::BuildPropertyStore(
     Node* storage = receiver;
     if (!field_index.is_inobject()) {
       storage = effect = graph()->NewNode(
-          simplified()->LoadField(AccessBuilder::ForJSObjectProperties()),
+          simplified()->LoadField(AccessBuilder::ForJSObjectPropertiesOrHash()),
           storage, effect, control);
     }
     FieldAccess field_access = {
@@ -1862,7 +1802,7 @@ JSNativeContextSpecialization::BuildPropertyStore(
                                   storage, value, effect, control);
 
         // Atomically switch to the new properties below.
-        field_access = AccessBuilder::ForJSObjectProperties();
+        field_access = AccessBuilder::ForJSObjectPropertiesOrHash();
         value = storage;
         storage = receiver;
       }
@@ -2303,9 +2243,30 @@ Node* JSNativeContextSpecialization::BuildExtendPropertiesBackingStore(
   for (int i = 0; i < JSObject::kFieldsAdded; ++i) {
     values.push_back(jsgraph()->UndefinedConstant());
   }
+
   // Allocate and initialize the new properties.
-  effect = graph()->NewNode(
-      common()->BeginRegion(RegionObservability::kNotObservable), effect);
+  Node* hash;
+  if (length == 0) {
+    effect = graph()->NewNode(
+        common()->BeginRegion(RegionObservability::kNotObservable), effect);
+    hash = graph()->NewNode(
+        common()->Select(MachineRepresentation::kTaggedSigned),
+        graph()->NewNode(simplified()->ObjectIsSmi(), properties), properties,
+        jsgraph()->SmiConstant(PropertyArray::kNoHashSentinel));
+    hash = graph()->NewNode(common()->TypeGuard(Type::SignedSmall()), hash,
+                            control);
+  } else {
+    hash = effect = graph()->NewNode(
+        simplified()->LoadField(AccessBuilder::ForPropertyArrayLengthAndHash()),
+        properties, effect, control);
+    effect = graph()->NewNode(
+        common()->BeginRegion(RegionObservability::kNotObservable), effect);
+    hash = graph()->NewNode(simplified()->NumberBitwiseAnd(), hash,
+                            jsgraph()->Constant(JSReceiver::kHashMask));
+  }
+
+  Node* new_length_and_hash = graph()->NewNode(
+      simplified()->NumberBitwiseOr(), jsgraph()->Constant(new_length), hash);
   Node* new_properties = effect = graph()->NewNode(
       simplified()->Allocate(Type::OtherInternal(), NOT_TENURED),
       jsgraph()->Constant(PropertyArray::SizeFor(new_length)), effect, control);
@@ -2313,8 +2274,8 @@ Node* JSNativeContextSpecialization::BuildExtendPropertiesBackingStore(
       simplified()->StoreField(AccessBuilder::ForMap()), new_properties,
       jsgraph()->PropertyArrayMapConstant(), effect, control);
   effect = graph()->NewNode(
-      simplified()->StoreField(AccessBuilder::ForFixedArrayLength()),
-      new_properties, jsgraph()->Constant(new_length), effect, control);
+      simplified()->StoreField(AccessBuilder::ForPropertyArrayLengthAndHash()),
+      new_properties, new_length_and_hash, effect, control);
   for (int i = 0; i < new_length; ++i) {
     effect = graph()->NewNode(
         simplified()->StoreField(AccessBuilder::ForFixedArraySlot(i)),
@@ -2353,18 +2314,20 @@ bool JSNativeContextSpecialization::ExtractReceiverMaps(
   DCHECK_EQ(0, receiver_maps->size());
   // See if we can infer a concrete type for the {receiver}.
   if (InferReceiverMaps(receiver, effect, receiver_maps)) {
-    // We can assume that the {receiver} still has the infered {receiver_maps}.
+    // We can assume that the {receiver} still has the inferred {receiver_maps}.
     return true;
   }
   // Try to extract some maps from the {nexus}.
   if (nexus.ExtractMaps(receiver_maps) != 0) {
-    // Try to filter impossible candidates based on infered root map.
+    // Try to filter impossible candidates based on inferred root map.
     Handle<Map> receiver_map;
     if (InferReceiverRootMap(receiver).ToHandle(&receiver_map)) {
+      DCHECK(!receiver_map->is_abandoned_prototype_map());
       receiver_maps->erase(
           std::remove_if(receiver_maps->begin(), receiver_maps->end(),
                          [receiver_map](const Handle<Map>& map) {
-                           return map->FindRootMap() != *receiver_map;
+                           return map->is_abandoned_prototype_map() ||
+                                  map->FindRootMap() != *receiver_map;
                          }),
           receiver_maps->end());
     }

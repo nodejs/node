@@ -267,6 +267,11 @@ void InstructionSelector::VisitStackSlot(Node* node) {
        sequence()->AddImmediate(Constant(alignment)), 0, nullptr);
 }
 
+void InstructionSelector::VisitDebugAbort(Node* node) {
+  MipsOperandGenerator g(this);
+  Emit(kArchDebugAbort, g.NoOutput(), g.UseFixed(node->InputAt(0), a0));
+}
+
 void InstructionSelector::VisitLoad(Node* node) {
   LoadRepresentation load_rep = LoadRepresentationOf(node->op());
   MipsOperandGenerator g(this);
@@ -1918,15 +1923,59 @@ void InstructionSelector::VisitAtomicCompareExchange(Node* node) {
   UNIMPLEMENTED();
 }
 
-void InstructionSelector::VisitAtomicAdd(Node* node) { UNIMPLEMENTED(); }
+void InstructionSelector::VisitAtomicBinaryOperation(
+    Node* node, ArchOpcode int8_op, ArchOpcode uint8_op, ArchOpcode int16_op,
+    ArchOpcode uint16_op, ArchOpcode word32_op) {
+  MipsOperandGenerator g(this);
+  Node* base = node->InputAt(0);
+  Node* index = node->InputAt(1);
+  Node* value = node->InputAt(2);
+  ArchOpcode opcode = kArchNop;
+  MachineType type = AtomicOpRepresentationOf(node->op());
+  if (type == MachineType::Int8()) {
+    opcode = int8_op;
+  } else if (type == MachineType::Uint8()) {
+    opcode = uint8_op;
+  } else if (type == MachineType::Int16()) {
+    opcode = int16_op;
+  } else if (type == MachineType::Uint16()) {
+    opcode = uint16_op;
+  } else if (type == MachineType::Int32() || type == MachineType::Uint32()) {
+    opcode = word32_op;
+  } else {
+    UNREACHABLE();
+    return;
+  }
 
-void InstructionSelector::VisitAtomicSub(Node* node) { UNIMPLEMENTED(); }
+  AddressingMode addressing_mode = kMode_MRI;
+  InstructionOperand inputs[3];
+  size_t input_count = 0;
+  inputs[input_count++] = g.UseUniqueRegister(base);
+  inputs[input_count++] = g.UseUniqueRegister(index);
+  inputs[input_count++] = g.UseUniqueRegister(value);
+  InstructionOperand outputs[1];
+  outputs[0] = g.UseUniqueRegister(node);
+  InstructionOperand temps[4];
+  temps[0] = g.TempRegister();
+  temps[1] = g.TempRegister();
+  temps[2] = g.TempRegister();
+  temps[3] = g.TempRegister();
+  InstructionCode code = opcode | AddressingModeField::encode(addressing_mode);
+  Emit(code, 1, outputs, input_count, inputs, 4, temps);
+}
 
-void InstructionSelector::VisitAtomicAnd(Node* node) { UNIMPLEMENTED(); }
-
-void InstructionSelector::VisitAtomicOr(Node* node) { UNIMPLEMENTED(); }
-
-void InstructionSelector::VisitAtomicXor(Node* node) { UNIMPLEMENTED(); }
+#define VISIT_ATOMIC_BINOP(op)                                              \
+  void InstructionSelector::VisitAtomic##op(Node* node) {                   \
+    VisitAtomicBinaryOperation(node, kAtomic##op##Int8, kAtomic##op##Uint8, \
+                               kAtomic##op##Int16, kAtomic##op##Uint16,     \
+                               kAtomic##op##Word32);                        \
+  }
+VISIT_ATOMIC_BINOP(Add)
+VISIT_ATOMIC_BINOP(Sub)
+VISIT_ATOMIC_BINOP(And)
+VISIT_ATOMIC_BINOP(Or)
+VISIT_ATOMIC_BINOP(Xor)
+#undef VISIT_ATOMIC_BINOP
 
 void InstructionSelector::VisitInt32AbsWithOverflow(Node* node) {
   UNREACHABLE();
@@ -2107,35 +2156,6 @@ void InstructionSelector::VisitS128Select(Node* node) {
 
 namespace {
 
-// Tries to match 8x16 byte shuffle to equivalent 32x4 word shuffle.
-bool TryMatch32x4Shuffle(const uint8_t* shuffle, uint8_t* shuffle32x4) {
-  static const int kLanes = 4;
-  static const int kLaneSize = 4;
-  for (int i = 0; i < kLanes; ++i) {
-    if (shuffle[i * kLaneSize] % kLaneSize != 0) return false;
-    for (int j = 1; j < kLaneSize; ++j) {
-      if (shuffle[i * kLaneSize + j] - shuffle[i * kLaneSize + j - 1] != 1)
-        return false;
-    }
-    shuffle32x4[i] = shuffle[i * kLaneSize] / kLaneSize;
-  }
-  return true;
-}
-
-// Tries to match byte shuffle to concatenate (sldi) operation.
-bool TryMatchConcat(const uint8_t* shuffle, uint8_t mask, uint8_t* offset) {
-  uint8_t start = shuffle[0];
-  for (int i = 1; i < kSimd128Size - start; ++i) {
-    if ((shuffle[i] & mask) != ((shuffle[i - 1] + 1) & mask)) return false;
-  }
-  uint8_t wrap = kSimd128Size;
-  for (int i = kSimd128Size - start; i < kSimd128Size; ++i, ++wrap) {
-    if ((shuffle[i] & mask) != (wrap & mask)) return false;
-  }
-  *offset = start;
-  return true;
-}
-
 struct ShuffleEntry {
   uint8_t shuffle[kSimd128Size];
   ArchOpcode opcode;
@@ -2204,53 +2224,11 @@ bool TryMatchArchShuffle(const uint8_t* shuffle, const ShuffleEntry* table,
   return false;
 }
 
-// Canonicalize shuffles to make pattern matching simpler. Returns a mask that
-// will ignore the high bit of indices in some cases.
-uint8_t CanonicalizeShuffle(InstructionSelector* selector, Node* node) {
-  static const int kUnaryShuffleMask = kSimd128Size - 1;
-  const uint8_t* shuffle = OpParameter<uint8_t*>(node);
-  uint8_t mask = 0xff;
-  // If shuffle is unary, set 'mask' to ignore the high bit of the indices.
-  // Replace any unused source with the other.
-  if (selector->GetVirtualRegister(node->InputAt(0)) ==
-      selector->GetVirtualRegister(node->InputAt(1))) {
-    // unary, src0 == src1.
-    mask = kUnaryShuffleMask;
-  } else {
-    bool src0_is_used = false;
-    bool src1_is_used = false;
-    for (int i = 0; i < kSimd128Size; i++) {
-      if (shuffle[i] < kSimd128Size) {
-        src0_is_used = true;
-      } else {
-        src1_is_used = true;
-      }
-    }
-    if (src0_is_used && !src1_is_used) {
-      node->ReplaceInput(1, node->InputAt(0));
-      mask = kUnaryShuffleMask;
-    } else if (src1_is_used && !src0_is_used) {
-      node->ReplaceInput(0, node->InputAt(1));
-      mask = kUnaryShuffleMask;
-    }
-  }
-  return mask;
-}
-
-int32_t Pack4Lanes(const uint8_t* shuffle, uint8_t mask) {
-  int32_t result = 0;
-  for (int i = 3; i >= 0; --i) {
-    result <<= 8;
-    result |= shuffle[i] & mask;
-  }
-  return result;
-}
-
 }  // namespace
 
 void InstructionSelector::VisitS8x16Shuffle(Node* node) {
   const uint8_t* shuffle = OpParameter<uint8_t*>(node);
-  uint8_t mask = CanonicalizeShuffle(this, node);
+  uint8_t mask = CanonicalizeShuffle(node);
   uint8_t shuffle32x4[4];
   ArchOpcode opcode;
   if (TryMatchArchShuffle(shuffle, arch_shuffles, arraysize(arch_shuffles),

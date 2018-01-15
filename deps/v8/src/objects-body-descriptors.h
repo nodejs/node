@@ -26,29 +26,15 @@ namespace internal {
 //   template <typename ObjectVisitor>
 //   static inline void IterateBody(HeapObject* obj, int object_size,
 //                                  ObjectVisitor* v);
-//
-//
-// 3) Iterate object's body using stateless object visitor.
-//
-//   template <typename StaticVisitor>
-//   static inline void IterateBody(HeapObject* obj, int object_size);
-//
 class BodyDescriptorBase BASE_EMBEDDED {
  public:
   template <typename ObjectVisitor>
   static inline void IteratePointers(HeapObject* obj, int start_offset,
                                      int end_offset, ObjectVisitor* v);
 
-  template <typename StaticVisitor>
-  static inline void IteratePointers(Heap* heap, HeapObject* obj,
-                                     int start_offset, int end_offset);
-
   template <typename ObjectVisitor>
   static inline void IteratePointer(HeapObject* obj, int offset,
                                     ObjectVisitor* v);
-
-  template <typename StaticVisitor>
-  static inline void IteratePointer(Heap* heap, HeapObject* obj, int offset);
 
  protected:
   // Returns true for all header and embedder fields.
@@ -58,11 +44,6 @@ class BodyDescriptorBase BASE_EMBEDDED {
   template <typename ObjectVisitor>
   static inline void IterateBodyImpl(HeapObject* obj, int start_offset,
                                      int end_offset, ObjectVisitor* v);
-
-  // Treats all header and embedder fields in the range as tagged.
-  template <typename StaticVisitor>
-  static inline void IterateBodyImpl(Heap* heap, HeapObject* obj,
-                                     int start_offset, int end_offset);
 };
 
 
@@ -91,17 +72,6 @@ class FixedBodyDescriptor final : public BodyDescriptorBase {
     IterateBody(obj, v);
   }
 
-  template <typename StaticVisitor>
-  static inline void IterateBody(HeapObject* obj) {
-    Heap* heap = obj->GetHeap();
-    IteratePointers<StaticVisitor>(heap, obj, start_offset, end_offset);
-  }
-
-  template <typename StaticVisitor>
-  static inline void IterateBody(HeapObject* obj, int object_size) {
-    IterateBody<StaticVisitor>(obj);
-  }
-
   static inline int SizeOf(Map* map, HeapObject* object) { return kSize; }
 };
 
@@ -122,12 +92,6 @@ class FlexibleBodyDescriptor final : public BodyDescriptorBase {
   static inline void IterateBody(HeapObject* obj, int object_size,
                                  ObjectVisitor* v) {
     IteratePointers(obj, start_offset, object_size, v);
-  }
-
-  template <typename StaticVisitor>
-  static inline void IterateBody(HeapObject* obj, int object_size) {
-    Heap* heap = obj->GetHeap();
-    IteratePointers<StaticVisitor>(heap, obj, start_offset, object_size);
   }
 
   static inline int SizeOf(Map* map, HeapObject* object);

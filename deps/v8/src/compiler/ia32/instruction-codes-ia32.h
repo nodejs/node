@@ -115,10 +115,39 @@ namespace compiler {
   V(IA32I32x4ExtractLane)          \
   V(SSEI32x4ReplaceLane)           \
   V(AVXI32x4ReplaceLane)           \
+  V(IA32I32x4Neg)                  \
+  V(SSEI32x4Shl)                   \
+  V(AVXI32x4Shl)                   \
+  V(SSEI32x4ShrS)                  \
+  V(AVXI32x4ShrS)                  \
   V(SSEI32x4Add)                   \
   V(AVXI32x4Add)                   \
   V(SSEI32x4Sub)                   \
   V(AVXI32x4Sub)                   \
+  V(SSEI32x4Mul)                   \
+  V(AVXI32x4Mul)                   \
+  V(SSEI32x4MinS)                  \
+  V(AVXI32x4MinS)                  \
+  V(SSEI32x4MaxS)                  \
+  V(AVXI32x4MaxS)                  \
+  V(SSEI32x4Eq)                    \
+  V(AVXI32x4Eq)                    \
+  V(SSEI32x4Ne)                    \
+  V(AVXI32x4Ne)                    \
+  V(SSEI32x4GtS)                   \
+  V(AVXI32x4GtS)                   \
+  V(SSEI32x4GeS)                   \
+  V(AVXI32x4GeS)                   \
+  V(SSEI32x4ShrU)                  \
+  V(AVXI32x4ShrU)                  \
+  V(SSEI32x4MinU)                  \
+  V(AVXI32x4MinU)                  \
+  V(SSEI32x4MaxU)                  \
+  V(AVXI32x4MaxU)                  \
+  V(SSEI32x4GtU)                   \
+  V(AVXI32x4GtU)                   \
+  V(SSEI32x4GeU)                   \
+  V(AVXI32x4GeU)                   \
   V(IA32I16x8Splat)                \
   V(IA32I16x8ExtractLane)          \
   V(SSEI16x8ReplaceLane)           \

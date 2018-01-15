@@ -54,7 +54,7 @@ class TestUpdateNode(unittest.TestCase):
 
     # Check message.
     message = subprocess.check_output(['git', 'log', '-1', '--format=%B'], cwd=node_cwd)
-    self.assertIn('Original commit message:\n\n    Title\n\n    Body', message)
+    self.assertIn('Original commit message:\n\n  Title\n\n  Body', message)
 
     # Check patch.
     gitlog = subprocess.check_output(

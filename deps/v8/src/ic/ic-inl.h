@@ -40,49 +40,6 @@ Address IC::raw_constant_pool() const {
 }
 
 
-Code* IC::GetTargetAtAddress(Address address, Address constant_pool) {
-  // Get the target address of the IC.
-  Address target = Assembler::target_address_at(address, constant_pool);
-  // Convert target address to the code object. Code::GetCodeFromTargetAddress
-  // is safe for use during GC where the map might be marked.
-  Code* result = Code::GetCodeFromTargetAddress(target);
-  // The result can be an IC dispatcher (for vector-based ICs), an IC handler
-  // (for old-style patching ICs) or CEntryStub (for IC dispatchers inlined to
-  // bytecode handlers).
-  DCHECK(result->is_inline_cache_stub() || result->is_stub());
-  return result;
-}
-
-
-void IC::SetTargetAtAddress(Address address, Code* target,
-                            Address constant_pool) {
-  if (AddressIsDeoptimizedCode(target->GetIsolate(), address)) return;
-
-  // Only one old-style ICs still does code patching.
-  DCHECK(target->is_compare_ic_stub());
-
-  Heap* heap = target->GetHeap();
-  Code* old_target = GetTargetAtAddress(address, constant_pool);
-
-  Assembler::set_target_address_at(heap->isolate(), address, constant_pool,
-                                   target->instruction_start());
-  if (heap->gc_state() == Heap::MARK_COMPACT) {
-    heap->mark_compact_collector()->RecordCodeTargetPatch(address, target);
-  } else {
-    heap->incremental_marking()->RecordCodeTargetPatch(address, target);
-  }
-  PostPatching(address, target, old_target);
-}
-
-
-void IC::set_target(Code* code) {
-  SetTargetAtAddress(address(), code, constant_pool());
-}
-
-Code* IC::target() const {
-  return GetTargetAtAddress(address(), constant_pool());
-}
-
 bool IC::IsHandler(Object* object) {
   return (object->IsSmi() && (object != nullptr)) || object->IsTuple2() ||
          object->IsTuple3() || object->IsFixedArray() || object->IsWeakCell() ||

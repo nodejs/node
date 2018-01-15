@@ -161,9 +161,6 @@ class DescriptorArray : public FixedArray {
   // Is the descriptor array sorted and without duplicates?
   bool IsSortedNoDuplicates(int valid_descriptors = -1);
 
-  // Is the descriptor array consistent with the back pointers in targets?
-  bool IsConsistentWithBackPointers(Map* current_map);
-
   // Are two DescriptorArrays equal?
   bool IsEqualTo(DescriptorArray* other);
 #endif

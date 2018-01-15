@@ -133,6 +133,15 @@ class Platform {
   virtual ~Platform() = default;
 
   /**
+   * Enables the embedder to respond in cases where V8 can't allocate large
+   * blocks of memory. V8 retries the failed allocation once after calling this
+   * method. On success, execution continues; otherwise V8 exits with a fatal
+   * error.
+   * Embedder overrides of this function must NOT call back into V8.
+   */
+  virtual void OnCriticalMemoryPressure() {}
+
+  /**
    * Gets the number of threads that are used to execute background tasks. Is
    * used to estimate the number of tasks a work package should be split into.
    * A return value of 0 means that there are no background threads available.
@@ -195,6 +204,16 @@ class Platform {
    * the epoch.
    **/
   virtual double MonotonicallyIncreasingTime() = 0;
+
+  /**
+   * Current wall-clock time in milliseconds since epoch.
+   * This function is expected to return at least millisecond-precision values.
+   */
+  virtual double CurrentClockTimeMillis() {
+    // TODO(dats): Make pure virtual after V8 roll in Chromium.
+    return 0.0;
+  }
+
   typedef void (*StackTracePrinter)();
 
   /**
@@ -208,79 +227,13 @@ class Platform {
    */
   virtual TracingController* GetTracingController() = 0;
 
-  // DEPRECATED methods, use TracingController interface instead.
-
+ protected:
   /**
-   * Called by TRACE_EVENT* macros, don't call this directly.
-   * The name parameter is a category group for example:
-   * TRACE_EVENT0("v8,parse", "V8.Parse")
-   * The pointer returned points to a value with zero or more of the bits
-   * defined in CategoryGroupEnabledFlags.
-   **/
-  virtual const uint8_t* GetCategoryGroupEnabled(const char* name) {
-    static uint8_t no = 0;
-    return &no;
-  }
-
-  /**
-   * Gets the category group name of the given category_enabled_flag pointer.
-   * Usually used while serliazing TRACE_EVENTs.
-   **/
-  virtual const char* GetCategoryGroupName(
-      const uint8_t* category_enabled_flag) {
-    static const char dummy[] = "dummy";
-    return dummy;
-  }
-
-  /**
-   * Adds a trace event to the platform tracing system. This function call is
-   * usually the result of a TRACE_* macro from trace_event_common.h when
-   * tracing and the category of the particular trace are enabled. It is not
-   * advisable to call this function on its own; it is really only meant to be
-   * used by the trace macros. The returned handle can be used by
-   * UpdateTraceEventDuration to update the duration of COMPLETE events.
+   * Default implementation of current wall-clock time in milliseconds
+   * since epoch. Useful for implementing |CurrentClockTimeMillis| if
+   * nothing special needed.
    */
-  virtual uint64_t AddTraceEvent(
-      char phase, const uint8_t* category_enabled_flag, const char* name,
-      const char* scope, uint64_t id, uint64_t bind_id, int32_t num_args,
-      const char** arg_names, const uint8_t* arg_types,
-      const uint64_t* arg_values, unsigned int flags) {
-    return 0;
-  }
-
-  /**
-   * Adds a trace event to the platform tracing system. This function call is
-   * usually the result of a TRACE_* macro from trace_event_common.h when
-   * tracing and the category of the particular trace are enabled. It is not
-   * advisable to call this function on its own; it is really only meant to be
-   * used by the trace macros. The returned handle can be used by
-   * UpdateTraceEventDuration to update the duration of COMPLETE events.
-   */
-  virtual uint64_t AddTraceEvent(
-      char phase, const uint8_t* category_enabled_flag, const char* name,
-      const char* scope, uint64_t id, uint64_t bind_id, int32_t num_args,
-      const char** arg_names, const uint8_t* arg_types,
-      const uint64_t* arg_values,
-      std::unique_ptr<ConvertableToTraceFormat>* arg_convertables,
-      unsigned int flags) {
-    return AddTraceEvent(phase, category_enabled_flag, name, scope, id, bind_id,
-                         num_args, arg_names, arg_types, arg_values, flags);
-  }
-
-  /**
-   * Sets the duration field of a COMPLETE trace event. It must be called with
-   * the handle returned from AddTraceEvent().
-   **/
-  virtual void UpdateTraceEventDuration(const uint8_t* category_enabled_flag,
-                                        const char* name, uint64_t handle) {}
-
-  typedef v8::TracingController::TraceStateObserver TraceStateObserver;
-
-  /** Adds tracing state change observer. */
-  virtual void AddTraceStateObserver(TraceStateObserver*) {}
-
-  /** Removes tracing state change observer. */
-  virtual void RemoveTraceStateObserver(TraceStateObserver*) {}
+  static double SystemClockTimeMillis();
 };
 
 }  // namespace v8

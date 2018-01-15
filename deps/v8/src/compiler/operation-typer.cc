@@ -987,6 +987,18 @@ SPECULATIVE_NUMBER_BINOP(NumberShiftRight)
 SPECULATIVE_NUMBER_BINOP(NumberShiftRightLogical)
 #undef SPECULATIVE_NUMBER_BINOP
 
+Type* OperationTyper::SpeculativeSafeIntegerAdd(Type* lhs, Type* rhs) {
+  lhs = SpeculativeToNumber(lhs);
+  rhs = SpeculativeToNumber(rhs);
+  return NumberAdd(lhs, rhs);
+}
+
+Type* OperationTyper::SpeculativeSafeIntegerSubtract(Type* lhs, Type* rhs) {
+  lhs = SpeculativeToNumber(lhs);
+  rhs = SpeculativeToNumber(rhs);
+  return NumberSubtract(lhs, rhs);
+}
+
 Type* OperationTyper::SpeculativeToNumber(Type* type) {
   return ToNumber(Type::Intersect(type, Type::NumberOrOddball(), zone()));
 }
@@ -1041,6 +1053,15 @@ Type* OperationTyper::CheckNumber(Type* type) {
 
 Type* OperationTyper::TypeTypeGuard(const Operator* sigma_op, Type* input) {
   return Type::Intersect(input, TypeGuardTypeOf(sigma_op), zone());
+}
+
+Type* OperationTyper::ConvertTaggedHoleToUndefined(Type* input) {
+  if (input->Maybe(Type::Hole())) {
+    // Turn "the hole" into undefined.
+    Type* type = Type::Intersect(input, Type::NonInternal(), zone());
+    return Type::Union(type, Type::Undefined(), zone());
+  }
+  return input;
 }
 
 }  // namespace compiler

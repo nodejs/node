@@ -18,6 +18,7 @@
 
 namespace v8 {
 namespace internal {
+namespace heap {
 
 namespace {
 
@@ -26,7 +27,11 @@ void CheckInvariantsOfAbortedPage(Page* page) {
   // 1) Markbits are cleared
   // 2) The page is not marked as evacuation candidate anymore
   // 3) The page is not marked as aborted compaction anymore.
-  CHECK(MarkingState::Internal(page).bitmap()->IsClean());
+  CHECK(page->heap()
+            ->mark_compact_collector()
+            ->non_atomic_marking_state()
+            ->bitmap(page)
+            ->IsClean());
   CHECK(!page->IsEvacuationCandidate());
   CHECK(!page->IsFlagSet(Page::COMPACTION_WAS_ABORTED));
 }
@@ -370,5 +375,6 @@ HEAP_TEST(CompactionPartiallyAbortedPageWithStoreBufferEntries) {
   }
 }
 
+}  // namespace heap
 }  // namespace internal
 }  // namespace v8

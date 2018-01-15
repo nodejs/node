@@ -18,14 +18,11 @@ namespace internal {
 const char* const Log::kLogToTemporaryFile = "&";
 const char* const Log::kLogToConsole = "-";
 
-
 Log::Log(Logger* logger)
-  : is_stopped_(false),
-    output_handle_(NULL),
-    message_buffer_(NULL),
-    logger_(logger) {
-}
-
+    : is_stopped_(false),
+      output_handle_(NULL),
+      message_buffer_(NULL),
+      logger_(logger) {}
 
 void Log::Initialize(const char* log_file_name) {
   message_buffer_ = NewArray<char>(kMessageBufferSize);
@@ -80,7 +77,6 @@ void Log::OpenFile(const char* name) {
   DCHECK(!IsEnabled());
   output_handle_ = base::OS::FOpen(name, base::OS::LogFileOpenMode);
 }
-
 
 FILE* Log::Close() {
   FILE* result = NULL;
@@ -211,6 +207,41 @@ void Log::MessageBuilder::AppendDetailed(String* str, bool show_impl_info) {
   }
 }
 
+void Log::MessageBuilder::AppendUnbufferedHeapString(String* str) {
+  if (str == NULL) return;
+  DisallowHeapAllocation no_gc;  // Ensure string stay valid.
+  ScopedVector<char> buffer(16);
+  int len = str->length();
+  for (int i = 0; i < len; i++) {
+    uc32 c = str->Get(i);
+    if (c >= 32 && c <= 126) {
+      if (c == '\"') {
+        AppendUnbufferedCString("\"\"");
+      } else if (c == '\\') {
+        AppendUnbufferedCString("\\\\");
+      } else {
+        AppendUnbufferedChar(c);
+      }
+    } else if (c > 0xff) {
+      int length = v8::internal::SNPrintF(buffer, "\\u%04x", c);
+      DCHECK_EQ(6, length);
+      log_->WriteToFile(buffer.start(), length);
+    } else {
+      DCHECK(c <= 0xffff);
+      int length = v8::internal::SNPrintF(buffer, "\\x%02x", c);
+      DCHECK_EQ(4, length);
+      log_->WriteToFile(buffer.start(), length);
+    }
+  }
+}
+
+void Log::MessageBuilder::AppendUnbufferedChar(char c) {
+  log_->WriteToFile(&c, 1);
+}
+
+void Log::MessageBuilder::AppendUnbufferedCString(const char* str) {
+  log_->WriteToFile(str, static_cast<int>(strlen(str)));
+}
 
 void Log::MessageBuilder::AppendStringPart(const char* str, int len) {
   if (pos_ + len > Log::kMessageBufferSize) {
@@ -225,7 +256,6 @@ void Log::MessageBuilder::AppendStringPart(const char* str, int len) {
   DCHECK(pos_ <= Log::kMessageBufferSize);
 }
 
-
 void Log::MessageBuilder::WriteToLogFile() {
   DCHECK(pos_ <= Log::kMessageBufferSize);
   // Assert that we do not already have a new line at the end.
@@ -238,7 +268,6 @@ void Log::MessageBuilder::WriteToLogFile() {
     log_->logger_->LogFailure();
   }
 }
-
 
 }  // namespace internal
 }  // namespace v8

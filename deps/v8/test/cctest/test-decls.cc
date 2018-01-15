@@ -33,7 +33,7 @@
 #include "src/heap/heap.h"
 #include "test/cctest/cctest.h"
 
-using namespace v8;
+namespace v8 {
 
 namespace {
 
@@ -1174,3 +1174,5 @@ TEST(Regress3941_Reads) {
     context.Check("'use strict'; f(); let x = 2; x", EXPECT_EXCEPTION);
   }
 }
+
+}  // namespace v8

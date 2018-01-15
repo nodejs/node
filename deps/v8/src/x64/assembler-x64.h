@@ -83,6 +83,19 @@ namespace internal {
 // The length of pushq(rbp), movp(rbp, rsp), Push(rsi) and Push(rdi).
 constexpr int kNoCodeAgeSequenceLength = kPointerSize == kInt64Size ? 6 : 17;
 
+const int kNumRegs = 16;
+const RegList kJSCallerSaved =
+    1 << 0 |  // rax
+    1 << 1 |  // rcx
+    1 << 2 |  // rdx
+    1 << 3 |  // rbx - used as a caller-saved register in JavaScript code
+    1 << 7;   // rdi - callee function
+
+const int kNumJSCallerSaved = 5;
+
+// Number of registers for which space is reserved in safepoints.
+const int kNumSafepointRegisters = 16;
+
 // CPU Registers.
 //
 // 1) We would prefer to use an enum, but enum values are assignment-
@@ -554,13 +567,6 @@ class Assembler : public AssemblerBase {
   static constexpr int kCallSequenceLength =
       kMoveAddressIntoScratchRegisterInstructionLength +
       kCallScratchRegisterInstructionLength;
-
-  // The debug break slot must be able to contain an indirect call sequence.
-  static constexpr int kDebugBreakSlotLength = kCallSequenceLength;
-  // Distance between start of patched debug break slot and the emitted address
-  // to jump to.
-  static constexpr int kPatchDebugBreakSlotAddressOffset =
-      kMoveAddressIntoScratchRegisterInstructionLength - kPointerSize;
 
   // One byte opcode for test eax,0xXXXXXXXX.
   static constexpr byte kTestEaxByte = 0xA9;
@@ -1989,9 +1995,6 @@ class Assembler : public AssemblerBase {
     return pc_offset() - label->pos();
   }
 
-  // Mark address of a debug break slot.
-  void RecordDebugBreakSlot(RelocInfo::Mode mode);
-
   // Record a comment relocation entry that can be used by a disassembler.
   // Use --code-comments to enable.
   void RecordComment(const char* msg);
@@ -2479,7 +2482,7 @@ class Assembler : public AssemblerBase {
     arithmetic_op(0x31, src, dst, size);
   }
 
-  // Most BMI instructions are similiar.
+  // Most BMI instructions are similar.
   void bmi1q(byte op, Register reg, Register vreg, Register rm);
   void bmi1q(byte op, Register reg, Register vreg, const Operand& rm);
   void bmi1l(byte op, Register reg, Register vreg, Register rm);
@@ -2490,6 +2493,11 @@ class Assembler : public AssemblerBase {
   void bmi2l(SIMDPrefix pp, byte op, Register reg, Register vreg, Register rm);
   void bmi2l(SIMDPrefix pp, byte op, Register reg, Register vreg,
              const Operand& rm);
+
+  // record the position of jmp/jcc instruction
+  void record_farjmp_position(Label* L, int pos);
+
+  bool is_optimizable_farjmp(int idx);
 
   friend class CodePatcher;
   friend class EnsureSpace;
@@ -2517,6 +2525,11 @@ class Assembler : public AssemblerBase {
   void AllocateAndInstallRequestedHeapObjects(Isolate* isolate);
 
   std::forward_list<HeapObjectRequest> heap_object_requests_;
+
+  // Variables for this instance of assembler
+  int farjmp_num_ = 0;
+  std::deque<int> farjmp_positions_;
+  std::map<Label*, std::vector<int>> label_farjmp_maps_;
 };
 
 
