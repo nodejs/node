@@ -1822,18 +1822,19 @@ Will generate an object similar to:
 
 <!-- eslint-skip -->
 ```js
-{
-  http_parser: '2.3.0',
-  node: '1.1.1',
-  v8: '4.1.0.14',
-  uv: '1.3.0',
-  zlib: '1.2.8',
-  ares: '1.10.0-DEV',
-  modules: '43',
-  icu: '55.1',
-  openssl: '1.0.1k',
-  unicode: '8.0',
-  cldr: '29.0',
+{ http_parser: '2.7.0',
+  node: '8.9.0',
+  v8: '6.3.292.48-node.6',
+  uv: '1.18.0',
+  zlib: '1.2.11',
+  ares: '1.13.0',
+  modules: '60',
+  nghttp2: '1.29.0',
+  napi: '2',
+  openssl: '1.0.2n',
+  icu: '60.1',
+  unicode: '10.0',
+  cldr: '32.0',
   tz: '2016b' }
 ```
 
