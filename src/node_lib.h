@@ -8,8 +8,7 @@
 #include "node.h"
 
 namespace node { namespace lib {
-    void _StartEnv(int argc,
-                   const char* const* argv);
+    void _StartEnv(int argc, const char* const* argv);
 
     int _StopEnv();
 
@@ -32,9 +31,16 @@ namespace node { namespace lib {
 
     /*
     Starts the Node.js engine without a concrete script file to execute.
-    *Important*: This requires the C++ developer to call `ProcessEvents()` periodically OR call `Run()` to start the uv event loop.
+    *Important*: This requires the C++ developer to call `ProcessEvents()` periodically OR call `RunMainLoop()` to start the uv event loop.
     */
-    NODE_EXTERN void Initialize(const std::string& program_name);
+    NODE_EXTERN void Initialize(const std::string& program_name = "node_lib_executable");
+
+
+    /*
+    Stops the existing Node.js engine. Eventloop should not be running at this point.
+    *Important*: Once this was called, Initialize() will have to be called again for Node.js' library functions to be available again.
+    */
+    NODE_EXTERN void Deinitialize();
 
     /*
     Starts the Node.js engine with a given JavaScript file. Additionally, the Node.js engine will be kept alive
@@ -74,13 +80,13 @@ namespace node { namespace lib {
     /*
     Sends termination event into event queue and runs event queue, until all events have been handled.
     */
-    NODE_EXTERN void Terminate();
+    NODE_EXTERN void StopEventLoop();
 
 
     /*
     Stops the *running* Node.js engine. Clears all events and puts Node.js into idle.
     */
-    NODE_EXTERN void RequestTerminate();
+    NODE_EXTERN void RequestStopEventLoop();
 
     /*********************************************************
      * Basic operations
@@ -115,7 +121,7 @@ namespace node { namespace lib {
     /*
     Adds a new JavaScript module to the *running* Node.js engine.
     */
-    NODE_EXTERN v8::Local<v8::Object> IncludeModule(const std::string & modul_name);
+    NODE_EXTERN v8::Local<v8::Object> IncludeModule(const std::string & module_name);
 
     /*
     Returns the local value (specified by its name) of the module (defined in the `exports`-object).
