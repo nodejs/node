@@ -375,11 +375,10 @@ inline FSReqWrap* AsyncCall(Environment* env,
 // the error number and the syscall in the context instead of
 // creating an error in the C++ land.
 template <typename Func, typename... Args>
-inline void SyncCall(Environment* env, Local<Value> ctx,
+inline int SyncCall(Environment* env, Local<Value> ctx, fs_req_wrap* req_wrap,
     const char* syscall, Func fn, Args... args) {
-  fs_req_wrap req_wrap;
   env->PrintSyncTrace();
-  int err = fn(env->event_loop(), &req_wrap.req, args..., nullptr);
+  int err = fn(env->event_loop(), &(req_wrap->req), args..., nullptr);
   if (err < 0) {
     Local<Context> context = env->context();
     Local<Object> ctx_obj = ctx->ToObject(context).ToLocalChecked();
@@ -391,6 +390,7 @@ inline void SyncCall(Environment* env, Local<Value> ctx,
              env->syscall_string(),
              OneByteString(isolate, syscall)).FromJust();
   }
+  return err;
 }
 
 #define SYNC_DEST_CALL(func, path, dest, ...)                                 \
@@ -426,7 +426,8 @@ void Access(const FunctionCallbackInfo<Value>& args) {
     AsyncCall(env, args, "access", UTF8, AfterNoArgs,
               uv_fs_access, *path, mode);
   } else {  // access(path, mode, undefined, ctx)
-    SyncCall(env, args[3], "access", uv_fs_access, *path, mode);
+    fs_req_wrap req_wrap;
+    SyncCall(env, args[3], &req_wrap, "access", uv_fs_access, *path, mode);
   }
 }
 
@@ -446,7 +447,8 @@ void Close(const FunctionCallbackInfo<Value>& args) {
     AsyncCall(env, args, "close", UTF8, AfterNoArgs,
               uv_fs_close, fd);
   } else {  // close(fd, undefined, ctx)
-    SyncCall(env, args[2], "close", uv_fs_close, fd);
+    fs_req_wrap req_wrap;
+    SyncCall(env, args[2], &req_wrap, "close", uv_fs_close, fd);
   }
 }
 
@@ -537,6 +539,7 @@ static void InternalModuleStat(const FunctionCallbackInfo<Value>& args) {
 
 static void Stat(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
+  Local<Context> context = env->context();
 
   CHECK_GE(args.Length(), 1);
 
@@ -547,15 +550,20 @@ static void Stat(const FunctionCallbackInfo<Value>& args) {
     CHECK_EQ(args.Length(), 2);
     AsyncCall(env, args, "stat", UTF8, AfterStat,
               uv_fs_stat, *path);
-  } else {  // stat(path)
-    SYNC_CALL(stat, *path, *path)
-    FillStatsArray(env->fs_stats_field_array(),
-                   static_cast<const uv_stat_t*>(SYNC_REQ.ptr));
+  } else {  // stat(path, undefined, ctx)
+    CHECK_EQ(args.Length(), 3);
+    fs_req_wrap req_wrap;
+    int err = SyncCall(env, args[2], &req_wrap, "stat", uv_fs_stat, *path);
+    if (err == 0) {
+      FillStatsArray(env->fs_stats_field_array(),
+                     static_cast<const uv_stat_t*>(req_wrap.req.ptr));
+    }
   }
 }
 
 static void LStat(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
+  Local<Context> context = env->context();
 
   CHECK_GE(args.Length(), 1);
 
@@ -566,28 +574,37 @@ static void LStat(const FunctionCallbackInfo<Value>& args) {
     CHECK_EQ(args.Length(), 2);
     AsyncCall(env, args, "lstat", UTF8, AfterStat,
               uv_fs_lstat, *path);
-  } else {  // lstat(path)
-    SYNC_CALL(lstat, *path, *path)
-    FillStatsArray(env->fs_stats_field_array(),
-                   static_cast<const uv_stat_t*>(SYNC_REQ.ptr));
+  } else {  // lstat(path, undefined, ctx)
+    CHECK_EQ(args.Length(), 3);
+    fs_req_wrap req_wrap;
+    int err = SyncCall(env, args[2], &req_wrap, "lstat", uv_fs_lstat, *path);
+    if (err == 0) {
+      FillStatsArray(env->fs_stats_field_array(),
+                     static_cast<const uv_stat_t*>(req_wrap.req.ptr));
+    }
   }
 }
 
 static void FStat(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
+  Local<Context> context = env->context();
 
   CHECK(args[0]->IsInt32());
 
-  int fd = args[0]->Int32Value();
+  int fd = static_cast<int>(args[0]->Int32Value(context).FromJust());
 
   if (args[1]->IsObject()) {  // fstat(fd, req)
     CHECK_EQ(args.Length(), 2);
     AsyncCall(env, args, "fstat", UTF8, AfterStat,
               uv_fs_fstat, fd);
-  } else {  // fstat(fd)
-    SYNC_CALL(fstat, nullptr, fd)
-    FillStatsArray(env->fs_stats_field_array(),
-                   static_cast<const uv_stat_t*>(SYNC_REQ.ptr));
+  } else {  // fstat(fd, undefined, ctx)
+    CHECK_EQ(args.Length(), 3);
+    fs_req_wrap req_wrap;
+    int err = SyncCall(env, args[2], &req_wrap, "fstat", uv_fs_fstat, fd);
+    if (err == 0) {
+      FillStatsArray(env->fs_stats_field_array(),
+                     static_cast<const uv_stat_t*>(req_wrap.req.ptr));
+    }
   }
 }
 
