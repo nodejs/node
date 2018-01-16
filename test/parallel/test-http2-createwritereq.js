@@ -60,7 +60,7 @@ server.listen(0, common.mustCall(function() {
       testsFinished++;
 
       if (testsFinished === testsToRun) {
-        server.close();
+        server.close(common.mustCall());
       }
     }));
 
