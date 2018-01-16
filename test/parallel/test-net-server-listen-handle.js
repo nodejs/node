@@ -4,7 +4,7 @@ const common = require('../common');
 const assert = require('assert');
 const net = require('net');
 const fs = require('fs');
-const { getErrorName } = require('util');
+const { getSystemErrorName } = require('util');
 const { TCP, constants: TCPConstants } = process.binding('tcp_wrap');
 const { Pipe, constants: PipeConstants } = process.binding('pipe_wrap');
 
@@ -47,7 +47,7 @@ function randomHandle(type) {
   }
 
   if (errno < 0) {
-    assert.fail(`unable to bind ${handleName}: ${getErrorName(errno)}`);
+    assert.fail(`unable to bind ${handleName}: ${getSystemErrorName(errno)}`);
   }
 
   if (!common.isWindows) {  // fd doesn't work on windows

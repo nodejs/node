@@ -257,7 +257,7 @@ intended as a debugging tool. Some input values can have a significant
 performance overhead that can block the event loop. Use this function
 with care and never in a hot code path.
 
-## util.getErrorName(code)
+## util.getSystemErrorName(code)
 <!-- YAML
 added: REPLACEME
 -->
@@ -271,7 +271,7 @@ See [Common System Errors][] for the names of common errors.
 
 ```js
 fs.access('file/that/does/not/exist', (err) => {
-  const name = util.getErrorName(err.errno);
+  const name = util.getSystemErrorName(err.errno);
   console.log(name);  // ENOENT
 });
 ```
