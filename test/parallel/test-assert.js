@@ -763,10 +763,13 @@ common.expectsError(
   );
 
   // Test error diffs
+  const colors = process.stdout.isTTY && process.stdout.getColorDepth() > 1;
   const start = 'Input A expected to deepStrictEqual input B:';
-  const actExp = '\u001b[32m+ expected\u001b[39m \u001b[31m- actual\u001b[39m';
-  const plus = '\u001b[32m+\u001b[39m';
-  const minus = '\u001b[31m-\u001b[39m';
+  const actExp = colors ?
+    '\u001b[32m+ expected\u001b[39m \u001b[31m- actual\u001b[39m' :
+    '+ expected - actual';
+  const plus = colors ? '\u001b[32m+\u001b[39m' : '+';
+  const minus = colors ? '\u001b[31m-\u001b[39m' : '-';
   let message = [
     start,
     `${actExp} ... Lines skipped`,
