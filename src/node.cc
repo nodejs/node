@@ -4801,7 +4801,7 @@ Local<Context> NewContext(Isolate* isolate,
 
 inline static bool TickEventLoop(Environment & env) {
   bool more;
-  uv_run(env.event_loop(), UV_RUN_ONCE);
+  uv_run(env.event_loop(), UV_RUN_NOWAIT);
 
   v8_platform.DrainVMTasks();
 
