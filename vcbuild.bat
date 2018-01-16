@@ -481,6 +481,7 @@ call :run-python tools/cpplint.py %cppfilelist% > nul
 goto exit
 
 :add-to-list
+@rem Subroutine used to filter items from the cpplint file list
 echo %1 | findstr /c:"src\node_root_certs.h" > nul 2>&1
 if %errorlevel% equ 0 goto exit
 
