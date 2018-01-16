@@ -25,6 +25,7 @@
 
 const common = require('../common');
 const assert = require('assert');
+const { EOL } = require('os');
 const a = assert;
 
 function makeBlock(f) {
@@ -756,11 +757,35 @@ common.expectsError(
   common.expectsError(
     () => assert(),
     {
-      code: 'ERR_ASSERTION',
-      type: assert.AssertionError,
-      message: 'undefined == true'
+      code: 'ERR_MISSING_ARGS',
+      type: TypeError
     }
   );
+  common.expectsError(
+    () => a(),
+    {
+      code: 'ERR_MISSING_ARGS',
+      type: TypeError
+    }
+  );
+
+  // Test setting the limit to zero and that assert.strict works properly.
+  const tmpLimit = Error.stackTraceLimit;
+  Error.stackTraceLimit = 0;
+  common.expectsError(
+    () => {
+      assert.ok(
+        typeof 123 === 'string'
+      );
+    },
+    {
+      code: 'ERR_ASSERTION',
+      type: assert.AssertionError,
+      message: `The expression evaluated to a falsy value:${EOL}${EOL}  ` +
+               `assert.ok(typeof 123 === 'string')${EOL}`
+    }
+  );
+  Error.stackTraceLimit = tmpLimit;
 }
 
 common.expectsError(
@@ -768,7 +793,108 @@ common.expectsError(
   {
     code: 'ERR_ASSERTION',
     type: assert.AssertionError,
-    message: 'null == true'
+    message: `The expression evaluated to a falsy value:${EOL}${EOL}  ` +
+             `assert.ok(null)${EOL}`
+  }
+);
+common.expectsError(
+  () => assert(typeof 123 === 'string'),
+  {
+    code: 'ERR_ASSERTION',
+    type: assert.AssertionError,
+    message: `The expression evaluated to a falsy value:${EOL}${EOL}  ` +
+             `assert(typeof 123 === 'string')${EOL}`
+  }
+);
+
+{
+  // Test caching
+  const fs = process.binding('fs');
+  const tmp = fs.close;
+  fs.close = common.mustCall(tmp, 1);
+  function throwErr() {
+    // eslint-disable-next-line prefer-assert-methods
+    assert(
+      (Buffer.from('test') instanceof Error)
+    );
+  }
+  common.expectsError(
+    () => throwErr(),
+    {
+      code: 'ERR_ASSERTION',
+      type: assert.AssertionError,
+      message: `The expression evaluated to a falsy value:${EOL}${EOL}  ` +
+               `assert(Buffer.from('test') instanceof Error)${EOL}`
+    }
+  );
+  common.expectsError(
+    () => throwErr(),
+    {
+      code: 'ERR_ASSERTION',
+      type: assert.AssertionError,
+      message: `The expression evaluated to a falsy value:${EOL}${EOL}  ` +
+               `assert(Buffer.from('test') instanceof Error)${EOL}`
+    }
+  );
+  fs.close = tmp;
+}
+
+common.expectsError(
+  () => {
+    a(
+      (() => 'string')()
+      // eslint-disable-next-line
+      ===
+      123 instanceof
+          Buffer
+    );
+  },
+  {
+    code: 'ERR_ASSERTION',
+    type: assert.AssertionError,
+    message: `The expression evaluated to a falsy value:${EOL}${EOL}  ` +
+             `assert((() => 'string')()${EOL}` +
+             `      // eslint-disable-next-line${EOL}` +
+             `      ===${EOL}` +
+             `      123 instanceof${EOL}` +
+             `          Buffer)${EOL}`
+  }
+);
+
+common.expectsError(
+  () => assert(null, undefined),
+  {
+    code: 'ERR_ASSERTION',
+    type: assert.AssertionError,
+    message: `The expression evaluated to a falsy value:${EOL}${EOL}  ` +
+             `assert(null, undefined)${EOL}`
+  }
+);
+
+common.expectsError(
+  () => assert.ok.apply(null, [0]),
+  {
+    code: 'ERR_ASSERTION',
+    type: assert.AssertionError,
+    message: '0 == true'
+  }
+);
+
+common.expectsError(
+  () => assert.ok.call(null, 0),
+  {
+    code: 'ERR_ASSERTION',
+    type: assert.AssertionError,
+    message: '0 == true'
+  }
+);
+
+common.expectsError(
+  () => assert.ok.call(null, 0, 'test'),
+  {
+    code: 'ERR_ASSERTION',
+    type: assert.AssertionError,
+    message: 'test'
   }
 );
 

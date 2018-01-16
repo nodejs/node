@@ -645,6 +645,11 @@ parameter is an instance of an [`Error`][] then it will be thrown instead of the
 ## assert.ok(value[, message])
 <!-- YAML
 added: v0.1.21
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/17581
+    description: assert.ok() will throw a `ERR_MISSING_ARGS` error.
+                 Use assert.fail() instead.
 -->
 * `value` {any}
 * `message` {any}
@@ -658,6 +663,9 @@ parameter is `undefined`, a default error message is assigned. If the `message`
 parameter is an instance of an [`Error`][] then it will be thrown instead of the
 `AssertionError`.
 
+Be aware that in the `repl` the error message will be different to the one
+thrown in a file! See below for further details.
+
 ```js
 const assert = require('assert').strict;
 
@@ -665,12 +673,40 @@ assert.ok(true);
 // OK
 assert.ok(1);
 // OK
-assert.ok(false);
-// throws "AssertionError: false == true"
-assert.ok(0);
-// throws "AssertionError: 0 == true"
+
 assert.ok(false, 'it\'s false');
 // throws "AssertionError: it's false"
+
+// In the repl:
+assert.ok(typeof 123 === 'string');
+// throws:
+// "AssertionError: false == true
+
+// In a file (e.g. test.js):
+assert.ok(typeof 123 === 'string');
+// throws:
+// "AssertionError: The expression evaluated to a falsy value:
+//
+//   assert.ok(typeof 123 === 'string')
+
+assert.ok(false);
+// throws:
+// "AssertionError: The expression evaluated to a falsy value:
+//
+//   assert.ok(false)
+
+assert.ok(0);
+// throws:
+// "AssertionError: The expression evaluated to a falsy value:
+//
+//   assert.ok(0)
+
+// Using `assert()` works the same:
+assert(0);
+// throws:
+// "AssertionError: The expression evaluated to a falsy value:
+//
+//   assert(0)
 ```
 
 ## assert.strictEqual(actual, expected[, message])
