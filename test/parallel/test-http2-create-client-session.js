@@ -29,6 +29,8 @@ function onStream(stream, headers, flags) {
   stream.end(body.slice(20));
 }
 
+server.on('close', common.mustCall());
+
 server.listen(0);
 
 server.on('listening', common.mustCall(() => {
@@ -46,7 +48,7 @@ server.on('listening', common.mustCall(() => {
 
   const countdown = new Countdown(count, () => {
     client.close();
-    server.close();
+    server.close(common.mustCall());
   });
 
   for (let n = 0; n < count; n++) {

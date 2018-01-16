@@ -72,13 +72,15 @@ server.on('stream', (stream) => {
     message: 'Stream closed with error code 3'
   }));
   stream.on('close', common.mustCall(() => {
-    server.close();
+    server.close(common.mustCall());
     client.destroy();
   }));
   stream.resume();
   stream.respond();
   stream.end('ok');
 });
+
+server.on('close', common.mustCall());
 
 server.listen(0, () => {
   client = net.connect(server.address().port, () => {
