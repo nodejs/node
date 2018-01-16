@@ -5,7 +5,9 @@ const fs = require('fs');
 const http = require('http');
 const fixtures = require('../common/fixtures');
 const { spawn } = require('child_process');
-const url = require('url');
+const { URL, parse: parseURL } = require('url');
+const { getURLFromFilePath } = require('internal/url');
+const path = require('path');
 
 const _MAINSCRIPT = fixtures.path('loop.js');
 const DEBUG = false;
@@ -171,8 +173,9 @@ class InspectorSession {
         const scriptId = script['scriptId'];
         const url = script['url'];
         this._scriptsIdsByUrl.set(scriptId, url);
-        if (url === _MAINSCRIPT)
+        if (getURLFromFilePath(url).toString() === this.scriptURL().toString()) {
           this.mainScriptId = scriptId;
+        }
       }
 
       if (this._notificationCallback) {
@@ -238,11 +241,13 @@ class InspectorSession {
     return notification;
   }
 
-  _isBreakOnLineNotification(message, line, url) {
+  _isBreakOnLineNotification(message, line, expectedScriptPath) {
     if ('Debugger.paused' === message['method']) {
       const callFrame = message['params']['callFrames'][0];
       const location = callFrame['location'];
-      assert.strictEqual(url, this._scriptsIdsByUrl.get(location['scriptId']));
+      const scriptPath = this._scriptsIdsByUrl.get(location['scriptId']);
+      assert(scriptPath.toString() === expectedScriptPath.toString(),
+        `${scriptPath} !== ${expectedScriptPath}`);
       assert.strictEqual(line, location['lineNumber']);
       return true;
     }
@@ -291,12 +296,26 @@ class InspectorSession {
               'Waiting for the debugger to disconnect...');
     await this.disconnect();
   }
+
+  scriptPath() {
+    return this._instance.scriptPath();
+  }
+
+  script() {
+    return this._instance.script();
+  }
+
+  scriptURL() {
+    return getURLFromFilePath(this.scriptPath());
+  }
 }
 
 class NodeInstance {
   constructor(inspectorFlags = ['--inspect-brk=0'],
               scriptContents = '',
               scriptFile = _MAINSCRIPT) {
+    this._scriptPath = scriptFile;
+    this._script = scriptFile ? null : scriptContents;
     this._portCallback = null;
     this.portPromise = new Promise((resolve) => this._portCallback = resolve);
     this._process = spawnChildProcess(inspectorFlags, scriptContents,
@@ -375,7 +394,7 @@ class NodeInstance {
     const port = await this.portPromise;
     return http.get({
       port,
-      path: url.parse(devtoolsUrl).path,
+      path: parseURL(devtoolsUrl).path,
       headers: {
         'Connection': 'Upgrade',
         'Upgrade': 'websocket',
@@ -425,10 +444,16 @@ class NodeInstance {
   kill() {
     this._process.kill();
   }
-}
 
-function readMainScriptSource() {
-  return fs.readFileSync(_MAINSCRIPT, 'utf8');
+  scriptPath() {
+    return this._scriptPath;
+  }
+
+  script() {
+    if (this._script === null)
+      this._script = fs.readFileSync(this.scriptPath(), 'utf8');
+    return this._script;
+  }
 }
 
 function onResolvedOrRejected(promise, callback) {
@@ -469,7 +494,5 @@ function fires(promise, error, timeoutMs) {
 }
 
 module.exports = {
-  mainScriptPath: _MAINSCRIPT,
-  readMainScriptSource,
   NodeInstance
 };
