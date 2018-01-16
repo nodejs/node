@@ -5107,7 +5107,7 @@ void Initialize(const std::string& program_name) {
   PlatformInit();
   node::performance::performance_node_start = PERFORMANCE_NOW();
 
-  // we do not support additional commandline options for node, uv, or v8
+  // currently we do not support additional commandline options for node, uv, or v8
   // we explicitily only set the first argument to the program name
   initialize::CmdArgs cmd_args = initialize::generateCmdArgsFromProgramName(program_name);
 
@@ -5187,7 +5187,7 @@ v8::Local<v8::Value> Run(const std::string& path) {
   std::stringstream buffer;
   buffer << t.rdbuf();
 
-  return Evaluate(buffer.str().c_str());
+  return Evaluate(buffer.str());
 }
 
 v8::Local<v8::Value> Evaluate(const std::string& java_script_code) {
@@ -5198,17 +5198,17 @@ v8::Local<v8::Value> Evaluate(const std::string& java_script_code) {
   // we will handle exceptions ourself.
   try_catch.SetVerbose(false);
 
-  //ScriptOrigin origin(filename);
+  //ScriptOrigin origin(filename); // TODO jh: set reasonable ScriptOrigin. This is used for debugging
   MaybeLocal<v8::Script> script = v8::Script::Compile(env->context(), v8::String::NewFromUtf8(isolate, java_script_code.c_str())/*, origin*/);
   if (script.IsEmpty()) {
     ReportException(env, try_catch);
-    exit(3);
+    exit(3); //TODO jh: don't exit process when function breaks. Handle error differently.
   }
 
   Local<Value> result = script.ToLocalChecked()->Run();
   if (result.IsEmpty()) {
     ReportException(env, try_catch);
-    exit(4);
+    exit(4); //TODO jh: don't exit process when function breaks. Handle error differently.
   }
 
   return scope.Escape(result);
@@ -5256,9 +5256,8 @@ v8::Local<v8::Object> IncludeModule(const std::string& module_name) {
   std::vector<v8::Local<v8::Value>> args = {v8::String::NewFromUtf8(isolate, module_name.c_str())};
 
   auto module = Call(GetRootObject(), "require", args);
-  if (!module->IsObject()) {
-    // TODO: Can modules not be objects?
-    //throw new Exception(":((");
+  if (module->IsUndefined()) {
+    //TODO jh: throw new Exception(":(("); // repuire() call failed, but did not throw a JS exception.
   }
 
   return v8::Local<v8::Object>::Cast(module);
@@ -5279,7 +5278,8 @@ void RegisterModule(const std::string & name, const addon_context_register_func 
 
 void RegisterModule(const std::string & name,
                     const std::map<std::string, v8::FunctionCallback> & module_functions) {
-    RegisterModule(name, node::lib::_RegisterModuleCallback, const_cast<std::map<std::string, v8::FunctionCallback>*>(&module_functions));
+    auto map_on_heap = new const std::map<std::string, v8::FunctionCallback>(module_functions);
+    RegisterModule(name, node::lib::_RegisterModuleCallback, const_cast<std::map<std::string, v8::FunctionCallback>*>(map_on_heap));
 }
 
 void _RegisterModuleCallback(v8::Local<v8::Object> exports,
@@ -5287,19 +5287,24 @@ void _RegisterModuleCallback(v8::Local<v8::Object> exports,
           v8::Local<v8::Context> context,
           void* priv) {
     auto module_functions = static_cast<std::map<std::string, v8::FunctionCallback>*>(priv);
-
+    if (!module_functions) {
+      fprintf(stderr, "_RegisterModuleCallback: module_functions is null");
+      return;
+    }
     for (std::pair<std::string, v8::FunctionCallback> element : *module_functions) {
         NODE_SET_METHOD(exports, element.first.c_str(), element.second);
     }
+
+    delete module_functions;
 }
 
 
-void Terminate() {
-  RequestTerminate();
+void StopEventLoop() {
+  RequestStopEventLoop();
   while (ProcessEvents()) { }
 }
 
-void RequestTerminate() {
+void RequestStopEventLoop() {
   Evaluate("process.exit()");
 }
 
