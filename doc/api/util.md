@@ -217,6 +217,25 @@ without any formatting.
 util.format('%% %s'); // '%% %s'
 ```
 
+## util.getSystemErrorName(err)
+<!-- YAML
+added: REPLACEME
+-->
+
+* `err` {number}
+* Returns: {string}
+
+Returns the string name for a numeric error code that comes from a Node.js API.
+The mapping between error codes and error names is platform-dependent.
+See [Common System Errors][] for the names of common errors.
+
+```js
+fs.access('file/that/does/not/exist', (err) => {
+  const name = util.getSystemErrorName(err.errno);
+  console.error(name);  // ENOENT
+});
+```
+
 ## util.inherits(constructor, superConstructor)
 <!-- YAML
 added: v0.3.0
@@ -1196,6 +1215,7 @@ Deprecated predecessor of `console.log`.
 [`console.log()`]: console.html#console_console_log_data_args
 [`util.inspect()`]: #util_util_inspect_object_options
 [`util.promisify()`]: #util_util_promisify_original
+[Common System Errors]: errors.html#errors_common_system_errors
 [Custom inspection functions on Objects]: #util_custom_inspection_functions_on_objects
 [Custom promisified functions]: #util_custom_promisified_functions
 [Customizing `util.inspect` colors]: #util_customizing_util_inspect_colors

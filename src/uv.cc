@@ -39,6 +39,8 @@ using v8::String;
 using v8::Value;
 
 
+// TODO(joyeecheung): deprecate this function in favor of
+// lib/util.getSystemErrorName()
 void ErrName(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   int err = args[0]->Int32Value();
