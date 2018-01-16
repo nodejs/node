@@ -4,7 +4,7 @@ const common = require('../common');
 const assert = require('assert');
 const net = require('net');
 const fs = require('fs');
-const uv = process.binding('uv');
+const { getErrorName } = require('util');
 const { TCP, constants: TCPConstants } = process.binding('tcp_wrap');
 const { Pipe, constants: PipeConstants } = process.binding('pipe_wrap');
 
@@ -46,9 +46,10 @@ function randomHandle(type) {
     handleName = `pipe ${path}`;
   }
 
-  if (errno < 0) {  // uv.errname requires err < 0
-    assert(errno >= 0, `unable to bind ${handleName}: ${uv.errname(errno)}`);
+  if (errno < 0) {
+    assert.fail(`unable to bind ${handleName}: ${getErrorName(errno)}`);
   }
+
   if (!common.isWindows) {  // fd doesn't work on windows
     // err >= 0 but fd = -1, should not happen
     assert.notStrictEqual(handle.fd, -1,

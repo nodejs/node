@@ -6,6 +6,7 @@ const fs = require('fs');
 const net = require('net');
 const providers = Object.assign({}, process.binding('async_wrap').Providers);
 const fixtures = require('../common/fixtures');
+const { getErrorName } = require('util');
 
 // Make sure that all Providers are tested.
 {
@@ -204,7 +205,7 @@ if (common.hasCrypto) { // eslint-disable-line crypto-check
       // Use a long string to make sure the write happens asynchronously.
       const err = handle.writeLatin1String(wreq, 'hi'.repeat(100000));
       if (err)
-        throw new Error(`write failed: ${process.binding('uv').errname(err)}`);
+        throw new Error(`write failed: ${getErrorName(err)}`);
       testInitialized(wreq, 'WriteWrap');
     });
     req.address = common.localhostIPv4;
