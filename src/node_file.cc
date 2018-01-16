@@ -87,6 +87,7 @@ using v8::Function;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
 using v8::HandleScope;
+using v8::Int32;
 using v8::Integer;
 using v8::Isolate;
 using v8::Local;
@@ -351,6 +352,7 @@ inline FSReqWrap* AsyncCall(Environment* env,
 // Template counterpart of SYNC_CALL, except that it only puts
 // the error number and the syscall in the context instead of
 // creating an error in the C++ land.
+// ctx must be checked using value->IsObject() before being passed.
 template <typename Func, typename... Args>
 inline int SyncCall(Environment* env, Local<Value> ctx, fs_req_wrap* req_wrap,
     const char* syscall, Func fn, Args... args) {
@@ -358,7 +360,7 @@ inline int SyncCall(Environment* env, Local<Value> ctx, fs_req_wrap* req_wrap,
   int err = fn(env->event_loop(), &(req_wrap->req), args..., nullptr);
   if (err < 0) {
     Local<Context> context = env->context();
-    Local<Object> ctx_obj = ctx->ToObject(context).ToLocalChecked();
+    Local<Object> ctx_obj = ctx.As<Object>();
     Isolate *isolate = env->isolate();
     ctx_obj->Set(context,
              env->errno_string(),
@@ -391,19 +393,22 @@ inline int SyncCall(Environment* env, Local<Value> ctx, fs_req_wrap* req_wrap,
 void Access(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args.GetIsolate());
   HandleScope scope(env->isolate());
-  Local<Context> context = env->context();
-  CHECK_GE(args.Length(), 2);
+
+  const int argc = args.Length();
+  CHECK_GE(argc, 2);
+
   CHECK(args[1]->IsInt32());
+  int mode = args[1].As<Int32>()->Value();
 
   BufferValue path(env->isolate(), args[0]);
-  int mode = static_cast<int>(args[1]->Int32Value(context).FromJust());
+  CHECK_NE(*path, nullptr);
 
   if (args[2]->IsObject()) {  // access(path, mode, req)
-    CHECK_EQ(args.Length(), 3);
+    CHECK_EQ(argc, 3);
     AsyncCall(env, args, "access", UTF8, AfterNoArgs,
               uv_fs_access, *path, mode);
   } else {  // access(path, mode, undefined, ctx)
-    CHECK_EQ(args.Length(), 4);
+    CHECK_EQ(argc, 4);
     fs_req_wrap req_wrap;
     SyncCall(env, args[3], &req_wrap, "access", uv_fs_access, *path, mode);
   }
@@ -412,20 +417,19 @@ void Access(const FunctionCallbackInfo<Value>& args) {
 
 void Close(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
-  Local<Context> context = env->context();
 
-  int length = args.Length();
-  CHECK_GE(length, 2);
+  const int argc = args.Length();
+  CHECK_GE(argc, 2);
+
   CHECK(args[0]->IsInt32());
-
-  int fd = static_cast<int>(args[0]->Int32Value(context).FromJust());
+  int fd = args[0].As<Int32>()->Value();
 
   if (args[1]->IsObject()) {  // close(fd, req)
-    CHECK_EQ(args.Length(), 2);
+    CHECK_EQ(argc, 2);
     AsyncCall(env, args, "close", UTF8, AfterNoArgs,
               uv_fs_close, fd);
   } else {  // close(fd, undefined, ctx)
-    CHECK_EQ(args.Length(), 3);
+    CHECK_EQ(argc, 3);
     fs_req_wrap req_wrap;
     SyncCall(env, args[2], &req_wrap, "close", uv_fs_close, fd);
   }
@@ -519,17 +523,18 @@ static void InternalModuleStat(const FunctionCallbackInfo<Value>& args) {
 static void Stat(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
-  CHECK_GE(args.Length(), 1);
+  const int argc = args.Length();
+  CHECK_GE(argc, 1);
 
   BufferValue path(env->isolate(), args[0]);
   CHECK_NE(*path, nullptr);
 
   if (args[1]->IsObject()) {  // stat(path, req)
-    CHECK_EQ(args.Length(), 2);
+    CHECK_EQ(argc, 2);
     AsyncCall(env, args, "stat", UTF8, AfterStat,
               uv_fs_stat, *path);
   } else {  // stat(path, undefined, ctx)
-    CHECK_EQ(args.Length(), 3);
+    CHECK_EQ(argc, 3);
     fs_req_wrap req_wrap;
     int err = SyncCall(env, args[2], &req_wrap, "stat", uv_fs_stat, *path);
     if (err == 0) {
@@ -542,17 +547,18 @@ static void Stat(const FunctionCallbackInfo<Value>& args) {
 static void LStat(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
-  CHECK_GE(args.Length(), 1);
+  const int argc = args.Length();
+  CHECK_GE(argc, 1);
 
   BufferValue path(env->isolate(), args[0]);
   CHECK_NE(*path, nullptr);
 
   if (args[1]->IsObject()) {  // lstat(path, req)
-    CHECK_EQ(args.Length(), 2);
+    CHECK_EQ(argc, 2);
     AsyncCall(env, args, "lstat", UTF8, AfterStat,
               uv_fs_lstat, *path);
   } else {  // lstat(path, undefined, ctx)
-    CHECK_EQ(args.Length(), 3);
+    CHECK_EQ(argc, 3);
     fs_req_wrap req_wrap;
     int err = SyncCall(env, args[2], &req_wrap, "lstat", uv_fs_lstat, *path);
     if (err == 0) {
@@ -564,18 +570,19 @@ static void LStat(const FunctionCallbackInfo<Value>& args) {
 
 static void FStat(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
-  Local<Context> context = env->context();
+
+  const int argc = args.Length();
+  CHECK_GE(argc, 1);
 
   CHECK(args[0]->IsInt32());
-
-  int fd = static_cast<int>(args[0]->Int32Value(context).FromJust());
+  int fd = args[0].As<Int32>()->Value();
 
   if (args[1]->IsObject()) {  // fstat(fd, req)
-    CHECK_EQ(args.Length(), 2);
+    CHECK_EQ(argc, 2);
     AsyncCall(env, args, "fstat", UTF8, AfterStat,
               uv_fs_fstat, fd);
   } else {  // fstat(fd, undefined, ctx)
-    CHECK_EQ(args.Length(), 3);
+    CHECK_EQ(argc, 3);
     fs_req_wrap req_wrap;
     int err = SyncCall(env, args[2], &req_wrap, "fstat", uv_fs_fstat, fd);
     if (err == 0) {
