@@ -1642,27 +1642,39 @@ Superseded by `ERR_OUT_OF_RANGE`
 <a id="ERR_VM_MODULE_ALREADY_LINKED"></a>
 ### ERR_VM_MODULE_ALREADY_LINKED
 
-The module has already been linked.
+The module attempted to be linked is not eligible for linking, because of one of
+the following reasons:
 
-<a id="ERR_VM_MODULE_STATUS"></a>
-### ERR_VM_MODULE_STATUS
+- It has already been linked (`linkingStatus` is `'linked'`)
+- It is being linked (`linkingStatus` is `'linking'`)
+- Linking has failed for this module (`linkingStatus` is `'errored'`)
 
-You're trying to do something to a module but it isn't in the right state.
+<a id="ERR_VM_MODULE_DIFFERENT_CONTEXT"></a>
+### ERR_VM_MODULE_DIFFERENT_CONTEXT
 
-<a id="ERR_VM_MODULE_MATCHING_CONTEXT"></a>
-### ERR_VM_MODULE_MATCHING_CONTEXT
+The module being returned from the linker function is from a different context
+than the parent module. Linked modules must share the same context.
 
-Linked modules must share the same context.
+<a id="ERR_VM_MODULE_LINKING_ERRORED"></a>
+### ERR_VM_MODULE_LINKING_ERRORED
 
-<a id="ERR_VM_MODULE_NOT_MODULE"></a>
-### ERR_VM_MODULE_NOT_MODULE
-
-The fulfilled value of a linking promise was not a module (`vm.Module`).
+The linker function returned a module for which linking has failed.
 
 <a id="ERR_VM_MODULE_NOT_LINKED"></a>
 ### ERR_VM_MODULE_NOT_LINKED
 
-The module must be linked.
+The module must be successfully linked before instantiation.
+
+<a id="ERR_VM_MODULE_NOT_MODULE"></a>
+### ERR_VM_MODULE_NOT_MODULE
+
+The fulfilled value of a linking promise is not a `vm.Module` object.
+
+<a id="ERR_VM_MODULE_STATUS"></a>
+### ERR_VM_MODULE_STATUS
+
+The current module's status does not allow for this operation. The specific
+meaning of the error depends on the specific function.
 
 <a id="ERR_ZLIB_BINDING_CLOSED"></a>
 ### ERR_ZLIB_BINDING_CLOSED

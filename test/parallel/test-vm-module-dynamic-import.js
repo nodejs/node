@@ -1,6 +1,6 @@
 'use strict';
 
-// Flags: --experimental-modules --harmony-dynamic-import
+// Flags: --experimental-vm-modules --experimental-modules --harmony-dynamic-import
 
 const common = require('../common');
 common.crashOnUnhandledRejection();

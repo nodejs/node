@@ -48,19 +48,25 @@ console.log(x); // 1; y is not defined.
 added: REPLACEME
 -->
 
-The `vm.Module` class provides a way to use ECMAScript modules in VM contexts.
-It is the counterpart of the `vm.Script` class that closely mirrors [Source Text
-Module Record][]s as defined in the ECMAScript specification.
+> Stability: 1 - Experimental
+
+The `vm.Module` class provides a low-level interface for using ECMAScript
+modules in VM contexts. It is the counterpart of the `vm.Script` class that
+closely mirrors [Source Text Module Record][]s as defined in the ECMAScript
+specification.
 
 Unlike `vm.Script` however, every `vm.Module` object is bound to a context from
 its creation. Operations on `vm.Module` objects are intrinsically asynchronous,
-in constrast with the synchronous nature of `vm.Script` objects. With the help
+in contrast with the synchronous nature of `vm.Script` objects. With the help
 of async functions, however, manipulating `vm.Module` objects are fairly
 straightforward.
 
 Using a `vm.Module` object requires four distinct steps: creation/parsing,
 linking, instantiating, and evaluation. These four steps are illustrated in the
 following example.
+
+This feature is only available with the `--experimental-vm-modules` command
+flag enabled.
 
 *Note*: This implementation lies at a lower level than the [ECMAScript Module
 loader][]. There is also currently no way to interact with the Loader, though
@@ -85,9 +91,7 @@ const contextifiedSandbox = vm.createContext({ secret: 42 });
   const bar = new vm.Module(`
     import secret from 'foo';
     secret;
-  `, {
-    context: contextifiedSandbox
-  });
+  `, { context: contextifiedSandbox });
 
 
   // Step 2
@@ -119,9 +123,7 @@ const contextifiedSandbox = vm.createContext({ secret: 42 });
         // The "secret" variable refers to the global variable we added to
         // "contextifiedSandbox" when creating the context.
         export default secret;
-      `, {
-        context: contextifiedSandbox
-      });
+      `, { context: contextifiedSandbox });
     }
     throw new Error(`Unable to resolve dependency: ${specifier}`);
   }
@@ -317,6 +319,7 @@ Two parameters will be passed to the `linker` function:
 - `referencingModule` The `Module` object `link()` is called on.
 - `specifier` The specifier of the requested module:
 
+  <!-- eslint-skip -->
   ```js
   import foo from 'foo';
   //              ^^^^^ the module specifier

@@ -1,6 +1,6 @@
 'use strict';
 
-// Flags: --experimental-modules
+// Flags: --experimental-vm-modules
 
 const common = require('../common');
 common.crashOnUnhandledRejection();
