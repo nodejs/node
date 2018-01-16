@@ -13,11 +13,14 @@ if (cluster.isMaster) {
   let clusterId;
   let nbMessages = 0;
   const nbWorkers = 3;
+  const nbMessagePerWorker = {};
 
   for (let i = 0; i < nbWorkers; i++) {
     const worker = cluster.fork({ id: i + 1 });
 
-    worker.on('message', function(msg) {
+    nbMessagePerWorker[worker.id] = 0;
+
+    worker.on('message', common.mustCallAtLeast(function(msg) {
 
       // save first worker's id
       // all connections should land to this worker (same IP)
@@ -29,11 +32,15 @@ if (cluster.isMaster) {
       }
       nbMessages++;
 
+      if (nbConnectionsPerWorker[this.id] === nbConnectionsPerWorker) {
+        worker.kill();
+      }
+
       // when all connections are done
       if (nbMessages === nbWorkers * nbConnectionsPerWorker) {
         process.exit(0);
       }
-    });
+    }, 0));
   }
 } else {
   const server = net.createServer();
@@ -44,9 +51,14 @@ if (cluster.isMaster) {
 
   server.on('listening', function() {
     for (let i = 0; i < nbConnectionsPerWorker; i++) {
-      net.connect(common.PORT, common.localhostIPv4);
+      net.connect(server.address().port, common.localhostIPv4);
     }
   });
 
-  server.listen(common.PORT, common.localhostIPv4);
+  process.on('disconnect', function() {
+    process.exit();
+    server.close();
+  });
+
+  server.listen(0, common.localhostIPv4);
 }
