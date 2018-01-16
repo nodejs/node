@@ -1912,7 +1912,7 @@ Will generate an object similar to:
 <!-- eslint-skip -->
 ```js
 { http_parser: '2.7.0',
-  node: '10.0.0-pre',
+  node: '8.9.0',
   v8: '6.3.292.48-node.6',
   uv: '1.18.0',
   zlib: '1.2.11',
