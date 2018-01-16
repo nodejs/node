@@ -5,9 +5,8 @@ const fs = require('fs');
 const http = require('http');
 const fixtures = require('../common/fixtures');
 const { spawn } = require('child_process');
-const { URL, parse: parseURL } = require('url');
+const url = require('url');
 const { getURLFromFilePath } = require('internal/url');
-const path = require('path');
 
 const _MAINSCRIPT = fixtures.path('loop.js');
 const DEBUG = false;
@@ -173,7 +172,9 @@ class InspectorSession {
         const scriptId = script['scriptId'];
         const url = script['url'];
         this._scriptsIdsByUrl.set(scriptId, url);
-        if (getURLFromFilePath(url).toString() === this.scriptURL().toString()) {
+        if (this.scriptURL().toString() ===
+            url.startsWith('file:') ? url :
+          getURLFromFilePath(url).toString()) {
           this.mainScriptId = scriptId;
         }
       }
@@ -246,8 +247,7 @@ class InspectorSession {
       const callFrame = message['params']['callFrames'][0];
       const location = callFrame['location'];
       const scriptPath = this._scriptsIdsByUrl.get(location['scriptId']);
-      assert(scriptPath.toString() === expectedScriptPath.toString(),
-        `${scriptPath} !== ${expectedScriptPath}`);
+      assert.strictEqual(scriptPath.toString(), expectedScriptPath.toString());
       assert.strictEqual(line, location['lineNumber']);
       return true;
     }
@@ -306,6 +306,9 @@ class InspectorSession {
   }
 
   scriptURL() {
+    const scriptPath = this.scriptPath();
+    if (scriptPath.startsWith('file:'))
+      return scriptPath;
     return getURLFromFilePath(this.scriptPath());
   }
 }
@@ -394,7 +397,7 @@ class NodeInstance {
     const port = await this.portPromise;
     return http.get({
       port,
-      path: parseURL(devtoolsUrl).path,
+      path: url.parse(devtoolsUrl).path,
       headers: {
         'Connection': 'Upgrade',
         'Upgrade': 'websocket',
