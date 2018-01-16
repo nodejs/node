@@ -62,6 +62,10 @@ Using a `vm.Module` object requires four distinct steps: creation/parsing,
 linking, instantiating, and evaluation. These four steps are illustrated in the
 following example.
 
+*Note*: This implementation lies at a lower level than the [ECMAScript Module
+loader][]. There is also currently no way to interact with the Loader, though
+support is planned.
+
 ```js
 const vm = require('vm');
 
@@ -78,7 +82,10 @@ const contextifiedSandbox = vm.createContext({ secret: 42 });
   // Here, we attempt to obtain the default export from the module "foo", and
   // put it into local binding "secret".
 
-  const bar = new vm.Module('import secret from "foo"; secret;', {
+  const bar = new vm.Module(`
+    import secret from 'foo';
+    secret;
+  `, {
     context: contextifiedSandbox
   });
 
@@ -90,31 +97,35 @@ const contextifiedSandbox = vm.createContext({ secret: 42 });
   // The provided linking callback (the "linker") accepts two arguments: the
   // parent module (`bar` in this case) and the string that is the specifier of
   // the imported module. The callback is expected to return a Module that
-  // corresponds to the provided specifier with certain requirements documented
+  // corresponds to the provided specifier, with certain requirements documented
   // in `module.link()`.
   //
-  // Even Modules without dependencies must be explicitly linked. The callback
-  // provided would never be called, however.
+  // If linking has not started for the returned Module, the same linker
+  // callback will be called on the returned Module.
+  //
+  // Even top-level Modules without dependencies must be explicitly linked. The
+  // callback provided would never be called, however.
   //
   // The link() method returns a Promise that will be resolved when all the
   // Promises returned by the linker resolve.
   //
-  // Note: This is a contrived example in that there is only one layer of
-  // dependency. To form a proper Module system, the linker would be fully
-  // recursive.
+  // Note: This is a contrived example in that the linker function creates a new
+  // "foo" module every time it is called. In a full-fledged module system, a
+  // cache would probably be used to avoid duplicated modules.
 
-  await bar.link(async (referencingModule, specifier) => {
+  async function linker(referencingModule, specifier) {
     if (specifier === 'foo') {
-      // The `secret` variable refers to the global variable we added to
-      // `contextifiedSandbox` when creating the context.
-      const foo = new vm.Module('export default secret;', {
+      return new vm.Module(`
+        // The "secret" variable refers to the global variable we added to
+        // "contextifiedSandbox" when creating the context.
+        export default secret;
+      `, {
         context: contextifiedSandbox
       });
-      await foo.link(() => {});
-      return foo;
     }
     throw new Error(`Unable to resolve dependency: ${specifier}`);
-  });
+  }
+  await bar.link(linker);
 
 
   // Step 3
@@ -312,20 +323,19 @@ Two parameters will be passed to the `linker` function:
   ```
 
 The function is expected to return a `Module` object or a `Promise` that
-eventually resolves to a `Module` object. The returned `Module` must satisfy two
-requirements:
+eventually resolves to a `Module` object. The returned `Module` must satisfy the
+following two invariants:
 
 - It must belong to the same context as the parent `Module`.
-- It must be already linked or currently linking (for cyclical imports).
+- Its `linkingStatus` must not be `'errored'`.
+
+If the returned `Module`'s `linkingStatus` is `'unlinked'`, this method will be
+recursively called on the returned `Module` with the same provided `linker`
+function.
 
 `link()` returns a `Promise` that will either get resolved when all linking
-instances resolve to a valid `Module`, or rejected if the linker function does
-any of the following:
-
-- throws an exception
-- returns a `Promise` that eventually gets rejected
-- returns a `Promise` fulfilled with an invalid `Module` (or not a `Module`
-  object at all)
+instances resolve to a valid `Module`, or rejected if the linker function either
+throws an exception or returns an invalid `Module`.
 
 The linker function roughly corresponds to the implementation-defined
 [HostResolveImportedModule][] abstract operation in the ECMAScript
@@ -336,13 +346,11 @@ specification, with a few key differences:
 - The linker function is executed during linking, a Node.js-specific stage
   before instantiation, while [HostResolveImportedModule][] is called during
   instantiation.
-- The linker function is expected to return a module that has begun linking,
-  while there are no such requirements for [HostResolveImportedModule][].
 
 The actual [HostResolveImportedModule][] implementation used during module
-instantiation is one that returns the modules linked during linking. But since
-at that point all modules would have been fully linked already, the
-[HostResolveImportedModule][] implementation can be fully synchronous per
+instantiation is one that returns the modules linked during linking. Since at
+that point all modules would have been fully linked already, the
+[HostResolveImportedModule][] implementation is fully synchronous per
 specification.
 
 ## Class: vm.Script
@@ -821,6 +829,7 @@ associating it with the `sandbox` object is what this document refers to as
 [`vm.runInContext()`]: #vm_vm_runincontext_code_contextifiedsandbox_options
 [`vm.runInThisContext()`]: #vm_vm_runinthiscontext_code_options
 [GetModuleNamespace]: https://tc39.github.io/ecma262/#sec-getmodulenamespace
+[ECMAScript Module Loader]: esm.html#esm_ecmascript_modules
 [Evaluate() concrete method]: https://tc39.github.io/ecma262/#sec-moduleevaluation
 [HostResolveImportedModule]: https://tc39.github.io/ecma262/#sec-hostresolveimportedmodule
 [Instantiate() concrete method]: https://tc39.github.io/ecma262/#sec-moduledeclarationinstantiation

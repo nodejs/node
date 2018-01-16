@@ -84,7 +84,6 @@ async function circular() {
   foo.instantiate();
   await foo.evaluate();
   assert.strictEqual(foo.namespace.default, 42);
-  console.log('here');
 }
 
 async function circular2() {
@@ -100,7 +99,6 @@ async function circular2() {
         throw new Error();
       if (!('fromB' in b))
         throw new Error();
-      console.log('made it to the end');
     `,
     './a.mjs': `
       export * from './b.mjs';
@@ -121,25 +119,17 @@ async function circular2() {
     moduleMap.set(specifier, mod);
     return mod;
   }
-  console.log('bleh');
-  const prom = rootModule.link(link);
-  console.log(prom);
-  await prom;
-  console.log(prom);
-  console.log('here');
+  await rootModule.link(link);
   rootModule.instantiate();
-  console.log('here');
   await rootModule.evaluate();
-  console.log('there');
 }
 
-// circular();
-circular2();
+const finished = common.mustCall();
 
-// (async function main() {
-//   await simple();
-//   await depth();
-//   await circular();
-//   await circular2();
-// }());
-
+(async function main() {
+  await simple();
+  await depth();
+  await circular();
+  await circular2();
+  finished();
+})();

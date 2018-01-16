@@ -234,11 +234,12 @@ async function checkExecution() {
   })();
 }
 
-async function main() {
+const finished = common.mustCall();
+
+(async function main() {
   await checkArgType();
   await checkModuleState();
   await checkLinking();
   await checkExecution();
-}
-
-main();
+  finished();
+})();

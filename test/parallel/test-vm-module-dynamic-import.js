@@ -8,6 +8,8 @@ common.crashOnUnhandledRejection();
 const assert = require('assert');
 const { Module, createContext } = require('vm');
 
+const finished = common.mustCall();
+
 (async function() {
   const m = new Module('import("foo")', { context: createContext() });
   await m.link(common.mustNotCall());
@@ -21,4 +23,5 @@ const { Module, createContext } = require('vm');
     assert.strictEqual(err.message, 'import() called outside of main context');
   }
   assert(threw);
+  finished();
 }());

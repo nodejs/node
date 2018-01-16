@@ -9,7 +9,9 @@ const assert = require('assert');
 
 const { Module } = require('vm');
 
-(async () => {
+const finished = common.mustCall();
+
+(async function main() {
   {
     const m = new Module('1');
     await m.link(common.mustNotCall());
@@ -42,4 +44,6 @@ const { Module } = require('vm');
     }
     assert(threw);
   }
+
+  finished();
 })();
