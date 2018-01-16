@@ -65,6 +65,9 @@ AssertionError [ERR_ASSERTION]: Input A expected to deepStrictEqual input B:
   ]
 ```
 
+To deactivate the colors, use the `NODE_DISABLE_COLORS` environment variable.
+Please note that this will also deactivate the colors in the REPL.
+
 ## Legacy mode
 
 > Stability: 0 - Deprecated: Use strict mode instead.
