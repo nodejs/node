@@ -224,6 +224,25 @@ without any formatting.
 util.format('%% %s'); // '%% %s'
 ```
 
+## util.getSystemErrorName(err)
+<!-- YAML
+added: REPLACEME
+-->
+
+* `err` {number}
+* Returns: {string}
+
+Returns the string name for a numeric error code that comes from a Node.js API.
+The mapping between error codes and error names is platform-dependent.
+See [Common System Errors][] for the names of common errors.
+
+```js
+fs.access('file/that/does/not/exist', (err) => {
+  const name = util.getSystemErrorName(err.errno);
+  console.error(name);  // ENOENT
+});
+```
+
 ## util.inherits(constructor, superConstructor)
 <!-- YAML
 added: v0.3.0
@@ -1222,5 +1241,6 @@ Deprecated predecessor of `console.log`.
 [Customizing `util.inspect` colors]: #util_customizing_util_inspect_colors
 [Internationalization]: intl.html
 [WHATWG Encoding Standard]: https://encoding.spec.whatwg.org/
-[constructor]: https://developer.mozilla.org/en-US/JavaScript/Reference/Global_Objects/Object/constructor
+[Common System Errors]: errors.html#errors_common_system_errors
+[constructor]: https://developer.mozilla.org/en/JavaScript/Reference/Global_Objects/Object/constructor
 [semantically incompatible]: https://github.com/nodejs/node/issues/4179
