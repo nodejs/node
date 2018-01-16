@@ -1,8 +1,9 @@
 'use strict';
+
 const common = require('../common');
 const assert = require('assert');
 const execFile = require('child_process').execFile;
-const uv = process.binding('uv');
+const { getSystemErrorName } = require('util');
 const fixtures = require('../common/fixtures');
 
 const fixture = fixtures.path('exit.js');
@@ -27,7 +28,7 @@ const execOpts = { encoding: 'utf8', shell: true };
   const code = -1;
   const callback = common.mustCall((err, stdout, stderr) => {
     assert.strictEqual(err.toString().trim(), errorString);
-    assert.strictEqual(err.code, uv.errname(code));
+    assert.strictEqual(err.code, getSystemErrorName(code));
     assert.strictEqual(err.killed, true);
     assert.strictEqual(err.signal, null);
     assert.strictEqual(err.cmd, process.execPath);
