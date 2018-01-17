@@ -9,6 +9,7 @@
 
 #include "src/base/atomicops.h"
 #include "src/base/platform/mutex.h"
+#include "src/base/platform/time.h"
 
 namespace v8 {
 namespace platform {
@@ -48,6 +49,14 @@ void TracingController::Initialize(TraceBuffer* trace_buffer) {
   mutex_.reset(new base::Mutex());
 }
 
+int64_t TracingController::CurrentTimestampMicroseconds() {
+  return base::TimeTicks::HighResolutionNow().ToInternalValue();
+}
+
+int64_t TracingController::CurrentCpuTimestampMicroseconds() {
+  return base::ThreadTicks::Now().ToInternalValue();
+}
+
 uint64_t TracingController::AddTraceEvent(
     char phase, const uint8_t* category_enabled_flag, const char* name,
     const char* scope, uint64_t id, uint64_t bind_id, int num_args,
@@ -58,9 +67,10 @@ uint64_t TracingController::AddTraceEvent(
   uint64_t handle;
   TraceObject* trace_object = trace_buffer_->AddTraceEvent(&handle);
   if (trace_object) {
-    trace_object->Initialize(phase, category_enabled_flag, name, scope, id,
-                             bind_id, num_args, arg_names, arg_types,
-                             arg_values, arg_convertables, flags);
+    trace_object->Initialize(
+        phase, category_enabled_flag, name, scope, id, bind_id, num_args,
+        arg_names, arg_types, arg_values, arg_convertables, flags,
+        CurrentTimestampMicroseconds(), CurrentCpuTimestampMicroseconds());
   }
   return handle;
 }
@@ -69,7 +79,8 @@ void TracingController::UpdateTraceEventDuration(
     const uint8_t* category_enabled_flag, const char* name, uint64_t handle) {
   TraceObject* trace_object = trace_buffer_->GetEventByHandle(handle);
   if (!trace_object) return;
-  trace_object->UpdateDuration();
+  trace_object->UpdateDuration(CurrentTimestampMicroseconds(),
+                               CurrentCpuTimestampMicroseconds());
 }
 
 const uint8_t* TracingController::GetCategoryGroupEnabled(
