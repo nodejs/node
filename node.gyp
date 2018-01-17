@@ -227,7 +227,7 @@
             },
           },
           'conditions': [
-            ['OS in "linux freebsd openbsd solaris android"', {
+            ['OS!="aix"', {
               'ldflags': [
                 '-Wl,--whole-archive,<(obj_dir)/<(STATIC_LIB_PREFIX)'
                     '<(node_core_target_name)<(STATIC_LIB_SUFFIX)',
