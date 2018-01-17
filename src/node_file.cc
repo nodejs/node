@@ -539,7 +539,6 @@ static void InternalModuleStat(const FunctionCallbackInfo<Value>& args) {
 
 static void Stat(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
-  Local<Context> context = env->context();
 
   CHECK_GE(args.Length(), 1);
 
@@ -563,7 +562,6 @@ static void Stat(const FunctionCallbackInfo<Value>& args) {
 
 static void LStat(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
-  Local<Context> context = env->context();
 
   CHECK_GE(args.Length(), 1);
 
