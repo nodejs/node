@@ -3,7 +3,7 @@
 const common = require('../common');
 const fs = require('fs');
 
-['', false, null, undefined, {}, []].forEach((i) => {
+['', false, null, undefined, {}, [], Infinity, -1].forEach((i) => {
   common.expectsError(
     () => fs.fchown(i),
     {
