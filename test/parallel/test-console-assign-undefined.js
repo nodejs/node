@@ -1,27 +1,31 @@
 'use strict';
 
-// Should be above require, because code in require read console
-// what we are trying to avoid
-// set should be earlier than get
+// Patch global.console before importing modules that may modify the console
+// object.
 
-global.console = undefined;
+const tmp = global.console;
+global.console = 42;
 
-// Initially, the `console` variable is `undefined`, since console will be
-// lazily loaded in the getter.
-
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 
-// global.console's getter is called
-// Since the `console` cache variable is `undefined` and therefore false-y,
-// the getter still calls NativeModule.require() and returns the object
-// obtained from it, instead of returning `undefined` as expected.
+// Originally the console had a getter. Test twice to verify it had no side
+// effect.
+assert.strictEqual(global.console, 42);
+assert.strictEqual(global.console, 42);
 
-assert.strictEqual(global.console, undefined, 'first read');
-assert.strictEqual(global.console, undefined, 'second read');
+common.expectsError(
+  () => console.log('foo'),
+  {
+    type: TypeError,
+    message: 'console.log is not a function'
+  }
+);
 
 global.console = 1;
-assert.strictEqual(global.console, 1, 'set true-like primitive');
+assert.strictEqual(global.console, 1);
+assert.strictEqual(console, 1);
 
-global.console = 0;
-assert.strictEqual(global.console, 0, 'set false-like primitive, again');
+// Reset the console
+global.console = tmp;
+console.log('foo');
