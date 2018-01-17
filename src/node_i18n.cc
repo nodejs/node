@@ -788,7 +788,8 @@ static int GetColumnWidth(UChar32 codepoint,
       if (ambiguous_as_full_width) {
         return 2;
       }
-      // Fall through if ambiguous_as_full_width if false.
+      // If ambiguous_as_full_width is false:
+      // Fall through
     case U_EA_NEUTRAL:
       if (u_hasBinaryProperty(codepoint, UCHAR_EMOJI_PRESENTATION)) {
         return 2;
