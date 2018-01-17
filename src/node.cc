@@ -4800,7 +4800,7 @@ Local<Context> NewContext(Isolate* isolate,
 }
 
 inline static bool TickEventLoop(Environment & env) {
-  bool more;
+  bool more = false;
   uv_run(env.event_loop(), UV_RUN_NOWAIT);
 
   v8_platform.DrainVMTasks();
@@ -5065,13 +5065,13 @@ void createIsolate() {
 void createInitialEnvironment() {
   locker = new Locker(isolate);
   isolate_scope = new Isolate::Scope(isolate);
-  static HandleScope handle_scope(isolate);
+  static HandleScope handle_scope(isolate); // TODO (jh): Once we write a Deinit(), we need to put this on the heap to call the deconstructor.
   isolate_data = new IsolateData(isolate, uv_default_loop(), allocator->zero_fill_field());
 
   //////////
   // Start 3
   //////////
-  //HandleScope handle_scope(isolate);
+  //HandleScope handle_scope(isolate); // (jh) in the initial Start functions, two handle scopes were created (one in Start() 2 and one in Start() 3). Currently, we have no idea why.
   context = NewContext(isolate);
   context_scope = new Context::Scope(context);
   env = new Environment(isolate_data, context);
@@ -5160,7 +5160,7 @@ void _StartEnv(int argc,
     StartInspector(env, path, debug_options);
 
     if (debug_options.inspector_enabled() && !v8_platform.InspectorStarted(env)) {
-      return; // TODO: Handle error
+      return; // TODO (jh): Handle error
       //return 12;  // Signal internal error.
     }
 
@@ -5172,6 +5172,7 @@ void _StartEnv(int argc,
 
     {
       callback_scope = new Environment::AsyncCallbackScope(env);
+      //Environment::AsyncCallbackScope callback_scope(env); // TODO (jh): one line allows the CLI app to run, with the other the qt app works. Investigate!
       env->async_hooks()->push_async_ids(1, 0);
       LoadEnvironment(env);
       env->async_hooks()->pop_async_id(1);
@@ -5215,6 +5216,7 @@ v8::Local<v8::Value> Evaluate(const std::string& java_script_code) {
 }
 
 void RunEventLoop(const RunUserLoop& callback){
+  //SealHandleScope seal(isolate); // TODO (jh): this was missing after building RunEventLoop from the Start() functions. We are not sure why the sealed scope is necessary. Please investigate.
   bool more = false;
   do {
     more = ProcessEvents();
@@ -5305,6 +5307,7 @@ void StopEventLoop() {
 }
 
 void RequestStopEventLoop() {
+
   Evaluate("process.exit()");
 }
 
