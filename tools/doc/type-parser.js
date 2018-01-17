@@ -38,6 +38,8 @@ const typeMap = {
   'http.IncomingMessage': 'http.html#http_class_http_incomingmessage',
   'http.Server': 'http.html#http_class_http_server',
   'http.ServerResponse': 'http.html#http_class_http_serverresponse',
+  'URL': 'url.html#url_the_whatwg_url_api',
+  'URLSearchParams': 'url.html#url_class_urlsearchparams'
 };
 
 const arrayPart = /(?:\[])+$/;

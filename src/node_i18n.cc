@@ -77,12 +77,11 @@ bool InitializeICUDirectory(const std::string& path) {
   }
 }
 
-static int32_t ToUnicode(MaybeStackBuffer<char>* buf,
-                         const char* input,
-                         size_t length) {
+int32_t ToUnicode(MaybeStackBuffer<char>* buf,
+                  const char* input,
+                  size_t length) {
   UErrorCode status = U_ZERO_ERROR;
-  uint32_t options = UIDNA_DEFAULT;
-  options |= UIDNA_NONTRANSITIONAL_TO_UNICODE;
+  uint32_t options = UIDNA_NONTRANSITIONAL_TO_UNICODE;
   UIDNA* uidna = uidna_openUTS46(options, &status);
   if (U_FAILURE(status))
     return -1;
@@ -90,33 +89,52 @@ static int32_t ToUnicode(MaybeStackBuffer<char>* buf,
 
   int32_t len = uidna_nameToUnicodeUTF8(uidna,
                                         input, length,
-                                        **buf, buf->length(),
+                                        **buf, buf->capacity(),
                                         &info,
                                         &status);
+
+  // Do not check info.errors like we do with ToASCII since ToUnicode always
+  // returns a string, despite any possible errors that may have occurred.
 
   if (status == U_BUFFER_OVERFLOW_ERROR) {
     status = U_ZERO_ERROR;
     buf->AllocateSufficientStorage(len);
     len = uidna_nameToUnicodeUTF8(uidna,
                                   input, length,
-                                  **buf, buf->length(),
+                                  **buf, buf->capacity(),
                                   &info,
                                   &status);
   }
 
-  if (U_FAILURE(status))
+  // info.errors is ignored as UTS #46 ToUnicode always produces a Unicode
+  // string, regardless of whether an error occurred.
+
+  if (U_FAILURE(status)) {
     len = -1;
+    buf->SetLength(0);
+  } else {
+    buf->SetLength(len);
+  }
 
   uidna_close(uidna);
   return len;
 }
 
-static int32_t ToASCII(MaybeStackBuffer<char>* buf,
-                       const char* input,
-                       size_t length) {
+int32_t ToASCII(MaybeStackBuffer<char>* buf,
+                const char* input,
+                size_t length,
+                enum idna_mode mode) {
   UErrorCode status = U_ZERO_ERROR;
-  uint32_t options = UIDNA_DEFAULT;
-  options |= UIDNA_NONTRANSITIONAL_TO_ASCII;
+  uint32_t options =                  // CheckHyphens = false; handled later
+    UIDNA_CHECK_BIDI |                // CheckBidi = true
+    UIDNA_CHECK_CONTEXTJ |            // CheckJoiners = true
+    UIDNA_NONTRANSITIONAL_TO_ASCII;   // Nontransitional_Processing
+  if (mode == IDNA_STRICT) {
+    options |= UIDNA_USE_STD3_RULES;  // UseSTD3ASCIIRules = beStrict
+                                      // VerifyDnsLength = beStrict;
+                                      //   handled later
+  }
+
   UIDNA* uidna = uidna_openUTS46(options, &status);
   if (U_FAILURE(status))
     return -1;
@@ -124,7 +142,7 @@ static int32_t ToASCII(MaybeStackBuffer<char>* buf,
 
   int32_t len = uidna_nameToASCII_UTF8(uidna,
                                        input, length,
-                                       **buf, buf->length(),
+                                       **buf, buf->capacity(),
                                        &info,
                                        &status);
 
@@ -133,13 +151,45 @@ static int32_t ToASCII(MaybeStackBuffer<char>* buf,
     buf->AllocateSufficientStorage(len);
     len = uidna_nameToASCII_UTF8(uidna,
                                  input, length,
-                                 **buf, buf->length(),
+                                 **buf, buf->capacity(),
                                  &info,
                                  &status);
   }
 
-  if (U_FAILURE(status))
+  // In UTS #46 which specifies ToASCII, certain error conditions are
+  // configurable through options, and the WHATWG URL Standard promptly elects
+  // to disable some of them to accommodate for real-world use cases.
+  // Unfortunately, ICU4C's IDNA module does not support disabling some of
+  // these options through `options` above, and thus continues throwing
+  // unnecessary errors. To counter this situation, we just filter out the
+  // errors that may have happened afterwards, before deciding whether to
+  // return an error from this function.
+
+  // CheckHyphens = false
+  // (Specified in the current UTS #46 draft rev. 18.)
+  // Refs:
+  // - https://github.com/whatwg/url/issues/53
+  // - https://github.com/whatwg/url/pull/309
+  // - http://www.unicode.org/review/pri317/
+  // - http://www.unicode.org/reports/tr46/tr46-18.html
+  // - https://www.icann.org/news/announcement-2000-01-07-en
+  info.errors &= ~UIDNA_ERROR_HYPHEN_3_4;
+  info.errors &= ~UIDNA_ERROR_LEADING_HYPHEN;
+  info.errors &= ~UIDNA_ERROR_TRAILING_HYPHEN;
+
+  if (mode != IDNA_STRICT) {
+    // VerifyDnsLength = beStrict
+    info.errors &= ~UIDNA_ERROR_EMPTY_LABEL;
+    info.errors &= ~UIDNA_ERROR_LABEL_TOO_LONG;
+    info.errors &= ~UIDNA_ERROR_DOMAIN_NAME_TOO_LONG;
+  }
+
+  if (U_FAILURE(status) || (mode != IDNA_LENIENT && info.errors != 0)) {
     len = -1;
+    buf->SetLength(0);
+  } else {
+    buf->SetLength(len);
+  }
 
   uidna_close(uidna);
   return len;
@@ -169,8 +219,12 @@ static void ToASCII(const FunctionCallbackInfo<Value>& args) {
   CHECK_GE(args.Length(), 1);
   CHECK(args[0]->IsString());
   Utf8Value val(env->isolate(), args[0]);
+  // optional arg
+  bool lenient = args[1]->BooleanValue(env->context()).FromJust();
+  enum idna_mode mode = lenient ? IDNA_LENIENT : IDNA_DEFAULT;
+
   MaybeStackBuffer<char> buf;
-  int32_t len = ToASCII(&buf, *val, val.length());
+  int32_t len = ToASCII(&buf, *val, val.length(), mode);
 
   if (len < 0) {
     return env->ThrowError("Cannot convert name to ASCII");
