@@ -119,11 +119,11 @@ class TracingController {
   }
 
   /**
-   * Adds a trace event to the platform tracing system. This function call is
+   * Adds a trace event to the platform tracing system. These function calls are
    * usually the result of a TRACE_* macro from trace_event_common.h when
    * tracing and the category of the particular trace are enabled. It is not
-   * advisable to call this function on its own; it is really only meant to be
-   * used by the trace macros. The returned handle can be used by
+   * advisable to call these functions on their own; they are really only meant
+   * to be used by the trace macros. The returned handle can be used by
    * UpdateTraceEventDuration to update the duration of COMPLETE events.
    */
   virtual uint64_t AddTraceEvent(
@@ -133,6 +133,15 @@ class TracingController {
       const uint64_t* arg_values,
       std::unique_ptr<ConvertableToTraceFormat>* arg_convertables,
       unsigned int flags) {
+    return 0;
+  }
+  virtual uint64_t AddTraceEventWithTimestamp(
+      char phase, const uint8_t* category_enabled_flag, const char* name,
+      const char* scope, uint64_t id, uint64_t bind_id, int32_t num_args,
+      const char** arg_names, const uint8_t* arg_types,
+      const uint64_t* arg_values,
+      std::unique_ptr<ConvertableToTraceFormat>* arg_convertables,
+      unsigned int flags, int64_t timestamp) {
     return 0;
   }
 
