@@ -216,6 +216,7 @@
         'src/node_file.cc',
         'src/node_http2.cc',
         'src/node_http_parser.cc',
+        'src/node_io.cc',
         'src/node_main.cc',
         'src/node_os.cc',
         'src/node_platform.cc',
