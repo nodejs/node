@@ -709,7 +709,7 @@ const uint8array = encoder.encode('this is some data');
 UTF-8 encodes the `input` string and returns a `Uint8Array` containing the
 encoded bytes.
 
-### textDecoder.encoding
+### textEncoder.encoding
 
 * {string}
 
