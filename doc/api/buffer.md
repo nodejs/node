@@ -511,18 +511,18 @@ console.log(buf2.toString());
 <!-- YAML
 added: v5.10.0
 changes:
-  - version: v8.9.3
-    pr-url: https://github.com/nodejs/node/pull/17428
-    description: Specifying an invalid string for `fill` now results in a
-                 zero-filled buffer.
-  - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/17427
-    description: Specifying an invalid string for `fill` triggers a thrown
-                 exception.
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/18129
     description: Attempting to fill a non-zero length buffer with a zero length
                  buffer triggers a thrown exception.
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/17427
+    description: Specifying an invalid string for `fill` triggers a thrown
+                 exception.
+  - version: v8.9.3
+    pr-url: https://github.com/nodejs/node/pull/17428
+    description: Specifying an invalid string for `fill` now results in a
+                 zero-filled buffer.
 -->
 
 * `size` {integer} The desired length of the new `Buffer`.
@@ -1228,17 +1228,17 @@ console.log(buf1.equals(buf3));
 <!-- YAML
 added: v0.5.0
 changes:
-  - version: v5.7.0
-    pr-url: https://github.com/nodejs/node/pull/4935
-    description: The `encoding` parameter is supported now.
-  - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/17427
-    description: Specifying an invalid string for `value` triggers a thrown
-                 exception.
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/18129
     description: Attempting to fill a non-zero length buffer with a zero length
                  buffer triggers a thrown exception.
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/17427
+    description: Specifying an invalid string for `value` triggers a thrown
+                 exception.
+  - version: v5.7.0
+    pr-url: https://github.com/nodejs/node/pull/4935
+    description: The `encoding` parameter is supported now.
 -->
 
 * `value` {string|Buffer|integer} The value to fill `buf` with.
