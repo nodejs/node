@@ -19,3 +19,7 @@ node --trace-events-enabled --trace-event-categories v8,node,node.async_hooks se
 Running Node.js with tracing enabled will produce log files that can be opened
 in the [`chrome://tracing`](https://www.chromium.org/developers/how-tos/trace-event-profiling-tool)
 tab of Chrome.
+
+Starting with Node 10.0.0, the tracing system uses the same time source as the
+one used by `process.hrtime()` however the trace-event timestamps are expressed
+in microseconds, unlike `process.hrtime()` which returns nanoseconds.
