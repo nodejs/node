@@ -684,3 +684,16 @@ asyncTest('Throwing an error inside a rejectionHandled handler goes to' +
     }
   }, 1);
 });
+
+asyncTest('Rejected promise inside unhandledRejection allows nextTick loop' +
+          ' to proceed first', function(done) {
+  clean();
+  Promise.reject(0);
+  let didCall = false;
+  process.on('unhandledRejection', () => {
+    assert(!didCall);
+    didCall = true;
+    const promise = Promise.reject(0);
+    process.nextTick(() => promise.catch(() => done()));
+  });
+});

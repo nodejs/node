@@ -1168,19 +1168,33 @@ void SetupNextTick(const FunctionCallbackInfo<Value>& args) {
 void PromiseRejectCallback(PromiseRejectMessage message) {
   Local<Promise> promise = message.GetPromise();
   Isolate* isolate = promise->GetIsolate();
-  Local<Value> value = message.GetValue();
-  Local<Integer> event = Integer::New(isolate, message.GetEvent());
+  v8::PromiseRejectEvent event = message.GetEvent();
 
   Environment* env = Environment::GetCurrent(isolate);
-  Local<Function> callback = env->promise_reject_function();
+  Local<Function> callback;
+  Local<Value> value;
 
-  if (value.IsEmpty())
+  if (event == v8::kPromiseRejectWithNoHandler) {
+    callback = env->promise_reject_unhandled_function();
+    value = message.GetValue();
+
+    if (value.IsEmpty())
+      value = Undefined(isolate);
+  } else if (event == v8::kPromiseHandlerAddedAfterReject) {
+    callback = env->promise_reject_handled_function();
     value = Undefined(isolate);
+  } else {
+    UNREACHABLE();
+  }
 
-  Local<Value> args[] = { event, promise, value };
-  Local<Object> process = env->process_object();
+  Local<Value> args[] = { promise, value };
+  MaybeLocal<Value> ret = callback->Call(env->context(),
+                                         Undefined(isolate),
+                                         arraysize(args),
+                                         args);
 
-  callback->Call(process, arraysize(args), args);
+  if (!ret.IsEmpty() && ret.ToLocalChecked()->IsTrue())
+    env->tick_info()->promise_rejections_toggle_on();
 }
 
 void SetupPromises(const FunctionCallbackInfo<Value>& args) {
@@ -1188,9 +1202,11 @@ void SetupPromises(const FunctionCallbackInfo<Value>& args) {
   Isolate* isolate = env->isolate();
 
   CHECK(args[0]->IsFunction());
+  CHECK(args[1]->IsFunction());
 
   isolate->SetPromiseRejectCallback(PromiseRejectCallback);
-  env->set_promise_reject_function(args[0].As<Function>());
+  env->set_promise_reject_unhandled_function(args[0].As<Function>());
+  env->set_promise_reject_handled_function(args[1].As<Function>());
 
   env->process_object()->Delete(
       env->context(),
@@ -1289,7 +1305,7 @@ void InternalCallbackScope::Close() {
     CHECK_EQ(env_->trigger_async_id(), 0);
   }
 
-  if (!tick_info->has_scheduled()) {
+  if (!tick_info->has_scheduled() && !tick_info->has_promise_rejections()) {
     return;
   }
 
@@ -3259,20 +3275,6 @@ void SetupProcessObject(Environment* env,
       versions,
       "napi",
       FIXED_ONE_BYTE_STRING(env->isolate(), node_napi_version));
-
-  // process._promiseRejectEvent
-  Local<Object> promiseRejectEvent = Object::New(env->isolate());
-  READONLY_DONT_ENUM_PROPERTY(process,
-                              "_promiseRejectEvent",
-                              promiseRejectEvent);
-  READONLY_PROPERTY(promiseRejectEvent,
-                    "unhandled",
-                    Integer::New(env->isolate(),
-                                 v8::kPromiseRejectWithNoHandler));
-  READONLY_PROPERTY(promiseRejectEvent,
-                    "handled",
-                    Integer::New(env->isolate(),
-                                 v8::kPromiseHandlerAddedAfterReject));
 
 #if HAVE_OPENSSL
   // Stupid code to slice out the version string.

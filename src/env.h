@@ -295,7 +295,8 @@ class ModuleWrap;
   V(performance_entry_callback, v8::Function)                                 \
   V(performance_entry_template, v8::Function)                                 \
   V(process_object, v8::Object)                                               \
-  V(promise_reject_function, v8::Function)                                    \
+  V(promise_reject_handled_function, v8::Function)                            \
+  V(promise_reject_unhandled_function, v8::Function)                          \
   V(promise_wrap_template, v8::ObjectTemplate)                                \
   V(push_values_to_array_function, v8::Function)                              \
   V(randombytes_constructor_template, v8::ObjectTemplate)                     \
@@ -484,6 +485,9 @@ class Environment {
    public:
     inline AliasedBuffer<uint8_t, v8::Uint8Array>& fields();
     inline bool has_scheduled() const;
+    inline bool has_promise_rejections() const;
+
+    inline void promise_rejections_toggle_on();
 
    private:
     friend class Environment;  // So we can call the constructor.
@@ -491,6 +495,7 @@ class Environment {
 
     enum Fields {
       kHasScheduled,
+      kHasPromiseRejections,
       kFieldsCount
     };
 

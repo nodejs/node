@@ -264,6 +264,14 @@ inline bool Environment::TickInfo::has_scheduled() const {
   return fields_[kHasScheduled] == 1;
 }
 
+inline bool Environment::TickInfo::has_promise_rejections() const {
+  return fields_[kHasPromiseRejections] == 1;
+}
+
+inline void Environment::TickInfo::promise_rejections_toggle_on() {
+  fields_[kHasPromiseRejections] = 1;
+}
+
 inline void Environment::AssignToContext(v8::Local<v8::Context> context,
                                          const ContextInfo& info) {
   context->SetAlignedPointerInEmbedderData(kContextEmbedderDataIndex, this);
