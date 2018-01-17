@@ -1136,8 +1136,8 @@ is not supported.
 ### ERR_INVALID_SYNC_FORK_INPUT
 
 A `Buffer`, `Uint8Array` or `string` was provided as stdio input to a
-synchronous fork. See the documentation for the
-[`child_process`](child_process.html) module for more information.
+synchronous fork. See the documentation for the [`child_process`][] module
+for more information.
 
 <a id="ERR_INVALID_THIS"></a>
 ### ERR_INVALID_THIS
@@ -1193,22 +1193,22 @@ An attempt was made to use an IPC communication channel that was already closed.
 ### ERR_IPC_DISCONNECTED
 
 An attempt was made to disconnect an IPC communication channel that was already
-disconnected. See the documentation for the
-[`child_process`](child_process.html) module for more information.
+disconnected. See the documentation for the [`child_process`][] module
+for more information.
 
 <a id="ERR_IPC_ONE_PIPE"></a>
 ### ERR_IPC_ONE_PIPE
 
 An attempt was made to create a child Node.js process using more than one IPC
-communication channel. See the documentation for the
-[`child_process`](child_process.html) module for more information.
+communication channel. See the documentation for the [`child_process`][] module
+for more information.
 
 <a id="ERR_IPC_SYNC_FORK"></a>
 ### ERR_IPC_SYNC_FORK
 
 An attempt was made to open an IPC communication channel with a synchronously
-forked Node.js process. See the documentation for the
-[`child_process`](child_process.html) module for more information.
+forked Node.js process. See the documentation for the [`child_process`][] module
+for more information.
 
 <a id="ERR_METHOD_NOT_IMPLEMENTED"></a>
 ### ERR_METHOD_NOT_IMPLEMENTED
@@ -1563,6 +1563,7 @@ An attempt was made to use a `zlib` object after it has already been closed.
 Creation of a [`zlib`][] object failed due to incorrect configuration.
 
 [`--force-fips`]: cli.html#cli_force_fips
+[`child_process`]: child_process.html
 [`crypto.timingSafeEqual()`]: crypto.html#crypto_crypto_timingsafeequal_a_b
 [`dgram.createSocket()`]: dgram.html#dgram_dgram_createsocket_options_callback
 [`ERR_INVALID_ARG_TYPE`]: #ERR_INVALID_ARG_TYPE

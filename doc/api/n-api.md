@@ -1016,8 +1016,7 @@ typedef enum {
 
 This represents the underlying binary scalar datatype of the TypedArray.
 Elements of this enum correspond to
-[Section 22.2](https://tc39.github.io/ecma262/#sec-typedarray-objects)
-of the [ECMAScript Language Specification][].
+[Section 22.2][] of the [ECMAScript Language Specification][].
 
 ### Object Creation Functions
 #### napi_create_array
@@ -1035,8 +1034,7 @@ Returns `napi_ok` if the API succeeded.
 
 This API returns an N-API value corresponding to a JavaScript Array type.
 JavaScript arrays are described in
-[Section 22.1](https://tc39.github.io/ecma262/#sec-array-objects) of the
-ECMAScript Language Specification.
+[Section 22.1][] of the ECMAScript Language Specification.
 
 #### napi_create_array_with_length
 <!-- YAML
@@ -1064,8 +1062,7 @@ directly read and/or written via C, consider using
 [`napi_create_external_arraybuffer`][].
 
 JavaScript arrays are described in
-[Section 22.1](https://tc39.github.io/ecma262/#sec-array-objects) of the
-ECMAScript Language Specification.
+[Section 22.1][] of the ECMAScript Language Specification.
 
 #### napi_create_arraybuffer
 <!-- YAML
@@ -1096,8 +1093,7 @@ written to directly from native code. To write to this buffer from JavaScript,
 a typed array or DataView object would need to be created.
 
 JavaScript ArrayBuffer objects are described in
-[Section 24.1](https://tc39.github.io/ecma262/#sec-arraybuffer-objects)
-of the ECMAScript Language Specification.
+[Section 24.1][] of the ECMAScript Language Specification.
 
 #### napi_create_buffer
 <!-- YAML
@@ -1209,8 +1205,7 @@ managed. The caller must ensure that the byte buffer remains valid until the
 finalize callback is called.
 
 JavaScript ArrayBuffers are described in
-[Section 24.1](https://tc39.github.io/ecma262/#sec-arraybuffer-objects)
-of the ECMAScript Language Specification.
+[Section 24.1][] of the ECMAScript Language Specification.
 
 #### napi_create_external_buffer
 <!-- YAML
@@ -1351,8 +1346,7 @@ be <= the size in bytes of the array passed in. If not, a RangeError exception i
 raised.
 
 JavaScript TypedArray Objects are described in
-[Section 22.2](https://tc39.github.io/ecma262/#sec-typedarray-objects)
-of the ECMAScript Language Specification.
+[Section 22.2][] of the ECMAScript Language Specification.
 
 
 #### napi_create_dataview
@@ -1407,8 +1401,7 @@ This API is used to convert from the C `int32_t` type to the JavaScript
 Number type.
 
 The JavaScript Number type is described in
-[Section 6.1.6](https://tc39.github.io/ecma262/#sec-ecmascript-language-types-number-type)
-of the ECMAScript Language Specification.
+[Section 6.1.6][] of the ECMAScript Language Specification.
 
 #### napi_create_uint32
 <!-- YAML
@@ -1428,8 +1421,7 @@ This API is used to convert from the C `uint32_t` type to the JavaScript
 Number type.
 
 The JavaScript Number type is described in
-[Section 6.1.6](https://tc39.github.io/ecma262/#sec-ecmascript-language-types-number-type)
-of the ECMAScript Language Specification.
+[Section 6.1.6][] of the ECMAScript Language Specification.
 
 #### napi_create_int64
 <!-- YAML
@@ -1448,8 +1440,7 @@ Returns `napi_ok` if the API succeeded.
 This API is used to convert from the C `int64_t` type to the JavaScript
 Number type.
 
-The JavaScript Number type is described in
-[Section 6.1.6](https://tc39.github.io/ecma262/#sec-ecmascript-language-types-number-type)
+The JavaScript Number type is described in [Section 6.1.6][]
 of the ECMAScript Language Specification. Note the complete range of `int64_t`
 cannot be represented with full precision in JavaScript. Integer values
 outside the range of
@@ -1476,8 +1467,7 @@ This API is used to convert from the C `double` type to the JavaScript
 Number type.
 
 The JavaScript Number type is described in
-[Section 6.1.6](https://tc39.github.io/ecma262/#sec-ecmascript-language-types-number-type)
-of the ECMAScript Language Specification.
+[Section 6.1.6][] of the ECMAScript Language Specification.
 
 #### napi_create_string_latin1
 <!-- YAML
@@ -1501,8 +1491,7 @@ Returns `napi_ok` if the API succeeded.
 This API creates a JavaScript String object from a ISO-8859-1-encoded C string.
 
 The JavaScript String type is described in
-[Section 6.1.4](https://tc39.github.io/ecma262/#sec-ecmascript-language-types-string-type)
-of the ECMAScript Language Specification.
+[Section 6.1.4][] of the ECMAScript Language Specification.
 
 #### napi_create_string_utf16
 <!-- YAML
@@ -1526,8 +1515,7 @@ Returns `napi_ok` if the API succeeded.
 This API creates a JavaScript String object from a UTF16-LE-encoded C string
 
 The JavaScript String type is described in
-[Section 6.1.4](https://tc39.github.io/ecma262/#sec-ecmascript-language-types-string-type)
-of the ECMAScript Language Specification.
+[Section 6.1.4][] of the ECMAScript Language Specification.
 
 #### napi_create_string_utf8
 <!-- YAML
@@ -1551,8 +1539,7 @@ Returns `napi_ok` if the API succeeded.
 This API creates a JavaScript String object from a UTF8-encoded C string
 
 The JavaScript String type is described in
-[Section 6.1.4](https://tc39.github.io/ecma262/#sec-ecmascript-language-types-string-type)
-of the ECMAScript Language Specification.
+[Section 6.1.4][] of the ECMAScript Language Specification.
 
 ### Functions to convert from N-API to C types
 #### napi_get_array_length
@@ -1981,7 +1968,7 @@ This API returns the Undefined object.
 N-API exposes a set of APIs to perform some abstract operations on JavaScript
 values. Some of these operations are documented under
 [Section 7](https://tc39.github.io/ecma262/#sec-abstract-operations)
-of the [ECMAScript Language Specification](https://tc39.github.io/ecma262/).
+of the [ECMAScript Language Specification][].
 
 These APIs support doing one of the following:
 1. Coerce JavaScript values to specific JavaScript types (such as Number or
@@ -2249,7 +2236,7 @@ of the ECMAScript Language Specification.
 N-API exposes a set of APIs to get and set properties on JavaScript
 objects. Some of these types are documented under
 [Section 7](https://tc39.github.io/ecma262/#sec-operations-on-objects) of the
-[ECMAScript Language Specification](https://tc39.github.io/ecma262/).
+[ECMAScript Language Specification][].
 
 Properties in JavaScript are represented as a tuple of a key and a value.
 Fundamentally, all property keys in N-API can be represented in one of the
@@ -2391,8 +2378,8 @@ typedef enum {
 
 `napi_property_attributes` are flags used to control the behavior of properties
 set on a JavaScript object. Other than `napi_static` they correspond to the
-attributes listed in [Section 6.1.7.1](https://tc39.github.io/ecma262/#table-2)
-of the [ECMAScript Language Specification](https://tc39.github.io/ecma262/).
+attributes listed in [Section 6.1.7.1][]
+of the [ECMAScript Language Specification][].
 They can be one or more of the following bitflags:
 
 - `napi_default` - Used to indicate that no explicit attributes are set on the
@@ -2400,10 +2387,8 @@ given property. By default, a property is read only, not enumerable and not
 configurable.
 - `napi_writable`  - Used to indicate that a given property is writable.
 - `napi_enumerable` - Used to indicate that a given property is enumerable.
-- `napi_configurable` - Used to indicate that a given property is
-configurable, as defined in
-[Section 6.1.7.1](https://tc39.github.io/ecma262/#table-2) of the
-[ECMAScript Language Specification](https://tc39.github.io/ecma262/).
+- `napi_configurable` - Used to indicate that a given property is configurable,
+as defined in [Section 6.1.7.1][] of the [ECMAScript Language Specification][].
 - `napi_static` - Used to indicate that the property will be defined as
 a static property on a class as opposed to an instance property, which is the
 default. This is used only by [`napi_define_class`][]. It is ignored by
@@ -3716,8 +3701,14 @@ NAPI_EXTERN napi_status napi_get_uv_event_loop(napi_env env,
 [Object Lifetime Management]: #n_api_object_lifetime_management
 [Object Wrap]: #n_api_object_wrap
 [Script Execution]: #n_api_script_execution
+[Section 6.1.4]: https://tc39.github.io/ecma262/#sec-ecmascript-language-types-string-type
+[Section 6.1.6]: https://tc39.github.io/ecma262/#sec-ecmascript-language-types-number-type
+[Section 6.1.7.1]: https://tc39.github.io/ecma262/#table-2
 [Section 9.1.6]: https://tc39.github.io/ecma262/#sec-ordinary-object-internal-methods-and-internal-slots-defineownproperty-p-desc
 [Section 12.5.5]: https://tc39.github.io/ecma262/#sec-typeof-operator
+[Section 22.1]: https://tc39.github.io/ecma262/#sec-array-objects
+[Section 22.2]: https://tc39.github.io/ecma262/#sec-typedarray-objects
+[Section 24.1]: https://tc39.github.io/ecma262/#sec-arraybuffer-objects
 [Section 24.3]: https://tc39.github.io/ecma262/#sec-dataview-objects
 [Section 25.4]: https://tc39.github.io/ecma262/#sec-promise-objects
 [Working with JavaScript Functions]: #n_api_working_with_javascript_functions
