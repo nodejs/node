@@ -899,8 +899,6 @@ def configure_node(o):
       if options.systemtap_includes:
         o['include_dirs'] += [options.systemtap_includes]
     o['variables']['node_use_dtrace'] = b(use_dtrace)
-    o['variables']['uv_use_dtrace'] = b(use_dtrace)
-    o['variables']['uv_parent_path'] = '/deps/uv/'
   elif options.with_dtrace:
     raise Exception(
        'DTrace is currently only supported on SunOS, MacOS or Linux systems.')
@@ -977,7 +975,6 @@ def configure_node(o):
     o['variables']['library_files'] = options.linked_module
 
   o['variables']['asan'] = int(options.enable_asan or 0)
-  o['variables']['debug_devtools'] = 'node'
 
   if options.use_xcode and options.use_ninja:
     raise Exception('--xcode and --ninja cannot be used together.')
@@ -1352,8 +1349,6 @@ def configure_intl(o):
   # this is the input '.dat' file to use .. icudt*.dat
   # may be little-endian if from a icu-project.org tarball
   o['variables']['icu_data_in'] = icu_data_in
-  # this is the icudt*.dat file which node will be using (platform endianness)
-  o['variables']['icu_data_file'] = icu_data_file
   if not os.path.isfile(icu_data_path):
     print('Error: ICU prebuilt data file %s does not exist.' % icu_data_path)
     print('See the README.md.')
