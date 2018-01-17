@@ -42,7 +42,7 @@ TEST(TestTraceObject) {
   uint8_t category_enabled_flag = 41;
   trace_object.Initialize('X', &category_enabled_flag, "Test.Trace",
                           "Test.Scope", 42, 123, 0, nullptr, nullptr, nullptr,
-                          nullptr, 0);
+                          nullptr, 0, 1729, 4104);
   CHECK_EQ('X', trace_object.phase());
   CHECK_EQ(category_enabled_flag, *trace_object.category_enabled_flag());
   CHECK_EQ(std::string("Test.Trace"), std::string(trace_object.name()));
@@ -96,7 +96,7 @@ TEST(TestTraceBufferRingBuffer) {
     CHECK_NOT_NULL(trace_object);
     trace_object->Initialize('X', &category_enabled_flag, names[i].c_str(),
                              "Test.Scope", 42, 123, 0, nullptr, nullptr,
-                             nullptr, nullptr, 0);
+                             nullptr, nullptr, 0, 1729, 4104);
     trace_object = ring_buffer->GetEventByHandle(handles[i]);
     CHECK_NOT_NULL(trace_object);
     CHECK_EQ('X', trace_object->phase());
