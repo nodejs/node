@@ -13,7 +13,7 @@ const fixtures = require('../common/fixtures');
 
 const cert = fixtures.readSync('test_cert.pem');
 const key = fixtures.readSync('test_key.pem');
-const server = tls.createServer({ cert: cert, key: key }, common.mustNotCall());
+const server = tls.createServer({ cert, key }, common.mustNotCall());
 const errors = [];
 let stderr = '';
 

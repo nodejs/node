@@ -74,7 +74,7 @@ process.on('exit', function() {
     unsupportedCurves.push('brainpoolP256r1');
 
   unsupportedCurves.forEach((ecdhCurve) => {
-    assert.throws(() => tls.createServer({ ecdhCurve: ecdhCurve }),
+    assert.throws(() => tls.createServer({ ecdhCurve }),
                   /Error: Failed to set ECDH curve/);
   });
 });

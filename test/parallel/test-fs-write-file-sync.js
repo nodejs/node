@@ -51,7 +51,7 @@ common.refreshTmpDir();
 // Test writeFileSync
 const file1 = path.join(common.tmpDir, 'testWriteFileSync.txt');
 
-fs.writeFileSync(file1, '123', { mode: mode });
+fs.writeFileSync(file1, '123', { mode });
 
 content = fs.readFileSync(file1, { encoding: 'utf8' });
 assert.strictEqual(content, '123');
@@ -61,7 +61,7 @@ assert.strictEqual(fs.statSync(file1).mode & 0o777, mode);
 // Test appendFileSync
 const file2 = path.join(common.tmpDir, 'testAppendFileSync.txt');
 
-fs.appendFileSync(file2, 'abc', { mode: mode });
+fs.appendFileSync(file2, 'abc', { mode });
 
 content = fs.readFileSync(file2, { encoding: 'utf8' });
 assert.strictEqual(content, 'abc');

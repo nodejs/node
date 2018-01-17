@@ -81,7 +81,7 @@ const contextifiedSandboxErrorMsg =
 script = vm.createScript('const assert = require(\'assert\'); assert.throws(' +
                          'function() { throw "hello world"; }, /hello/);',
                          'some.js');
-script.runInNewContext({ require: require });
+script.runInNewContext({ require });
 
 // Issue GH-7529
 script = vm.createScript('delete b');

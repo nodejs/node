@@ -38,7 +38,7 @@ const server = tls.createServer(options, common.mustCall(function(s) {
     NODE_EXTRA_CA_CERTS: fixtures.path('keys', 'ca1-cert.pem')
   });
 
-  fork(__filename, { env: env }).on('exit', common.mustCall(function(status) {
+  fork(__filename, { env }).on('exit', common.mustCall(function(status) {
     assert.strictEqual(status, 0, 'client did not succeed in connecting');
   }));
 }));
