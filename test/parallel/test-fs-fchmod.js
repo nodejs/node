@@ -44,8 +44,8 @@ const fs = require('fs');
 
 // Check for mode values range
 const modeUpperBoundaryValue = 0o777;
-common.mustCall(() => fs.fchmod(1, modeUpperBoundaryValue);
-common.mustCall(() => fs.fchmodSync(1, modeUpperBoundaryValue);
+common.mustCall(() => fs.fchmod(1, modeUpperBoundaryValue));
+common.mustCall(() => fs.fchmodSync(1, modeUpperBoundaryValue));
 
 // umask of 0o777 is equal to 775
 const modeOutsideUpperBoundValue = 776;
