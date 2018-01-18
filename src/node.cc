@@ -4317,6 +4317,14 @@ void AtExit(Environment* env, void (*cb)(void* arg), void* arg) {
 }
 
 
+void RunBeforeExit(Environment* env) {
+  env->RunBeforeExitCallbacks();
+
+  if (!uv_loop_alive(env->event_loop()))
+    EmitBeforeExit(env);
+}
+
+
 void EmitBeforeExit(Environment* env) {
   HandleScope handle_scope(env->isolate());
   Context::Scope context_scope(env->context());
@@ -4467,7 +4475,7 @@ inline int Start(Isolate* isolate, IsolateData* isolate_data,
       if (more)
         continue;
 
-      EmitBeforeExit(&env);
+      RunBeforeExit(&env);
 
       // Emit `beforeExit` if the loop became alive either after emitting
       // event, or after running some callbacks.
