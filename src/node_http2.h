@@ -550,12 +550,6 @@ class Http2Stream : public AsyncWrap,
 
   inline void EmitStatistics();
 
-  inline bool HasDataChunks(bool ignore_eos = false);
-
-  inline void AddChunk(const uint8_t* data, size_t len);
-
-  inline void FlushDataChunks();
-
   // Process a Data Chunk
   void OnDataChunk(uv_buf_t* chunk);
 
@@ -740,8 +734,11 @@ class Http2Stream : public AsyncWrap,
   uint32_t current_headers_length_ = 0;  // total number of octets
   std::vector<nghttp2_header> current_headers_;
 
-  // Inbound Data... This is the data received via DATA frames for this stream.
-  std::queue<uv_buf_t> data_chunks_;
+  // This keeps track of the amount of data read from the socket while the
+  // socket was in paused mode. When `ReadStart()` is called (and not before
+  // then), we tell nghttp2 that we consumed that data to get proper
+  // backpressure handling.
+  size_t inbound_consumed_data_while_paused_ = 0;
 
   // Outbound Data... This is the data written by the JS layer that is
   // waiting to be written out to the socket.
@@ -1085,8 +1082,9 @@ class Http2Session : public AsyncWrap {
   // use this to allow timeout tracking during long-lasting writes
   uint32_t chunks_sent_since_last_write_ = 0;
 
-  uv_prepare_t* prep_ = nullptr;
-  char stream_buf_[kAllocBufferSize];
+  char* stream_buf_ = nullptr;
+  size_t stream_buf_size_ = 0;
+  v8::Local<v8::ArrayBuffer> stream_buf_ab_;
 
   size_t max_outstanding_pings_ = DEFAULT_MAX_PINGS;
   std::queue<Http2Ping*> outstanding_pings_;
