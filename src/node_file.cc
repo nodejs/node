@@ -539,7 +539,6 @@ static void InternalModuleStat(const FunctionCallbackInfo<Value>& args) {
 
 static void Stat(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
-  Local<Context> context = env->context();
 
   CHECK_GE(args.Length(), 1);
 
@@ -550,14 +549,10 @@ static void Stat(const FunctionCallbackInfo<Value>& args) {
     CHECK_EQ(args.Length(), 2);
     AsyncCall(env, args, "stat", UTF8, AfterStat,
               uv_fs_stat, *path);
-  } else {  // stat(path, undefined, ctx)
-    CHECK_EQ(args.Length(), 3);
-    fs_req_wrap req_wrap;
-    int err = SyncCall(env, args[2], &req_wrap, "stat", uv_fs_stat, *path);
-    if (err == 0) {
-      FillStatsArray(env->fs_stats_field_array(),
-                     static_cast<const uv_stat_t*>(req_wrap.req.ptr));
-    }
+  } else {  // stat(path)
+    SYNC_CALL(stat, *path, *path)
+    FillStatsArray(env->fs_stats_field_array(),
+                   static_cast<const uv_stat_t*>(SYNC_REQ.ptr));
   }
 }
 
