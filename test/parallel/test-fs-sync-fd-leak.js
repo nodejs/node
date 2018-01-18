@@ -23,7 +23,6 @@
 require('../common');
 const assert = require('assert');
 const fs = require('fs');
-const uv = process.binding('uv');
 
 // ensure that (read|write|append)FileSync() closes the file descriptor
 fs.openSync = function() {
@@ -40,30 +39,29 @@ fs.writeSync = function() {
   throw new Error('BAM');
 };
 
-process.binding('fs').fstat = function(fd, _, ctx) {
-  ctx.errno = uv.UV_EBADF;
-  ctx.syscall = 'fstat';
+process.binding('fs').fstat = function() {
+  throw new Error('BAM');
 };
 
 let close_called = 0;
 ensureThrows(function() {
   fs.readFileSync('dummy');
-}, 'EBADF: bad file descriptor, fstat');
+});
 ensureThrows(function() {
   fs.writeFileSync('dummy', 'xxx');
-}, 'BAM');
+});
 ensureThrows(function() {
   fs.appendFileSync('dummy', 'xxx');
-}, 'BAM');
+});
 
-function ensureThrows(cb, message) {
+function ensureThrows(cb) {
   let got_exception = false;
 
   close_called = 0;
   try {
     cb();
   } catch (e) {
-    assert.strictEqual(e.message, message);
+    assert.strictEqual(e.message, 'BAM');
     got_exception = true;
   }
 
