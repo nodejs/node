@@ -41,17 +41,29 @@ if (cluster.isMaster) {
     }
   };
 
+  const handleTCP3 = {
+    getpeername: function(out) {
+      return out;
+    }
+  };
+
   handle.distribute(null, handleTCP);
   const workerIdTCP1 = currentWorkerId;
 
   handle.distribute(null, handleTCP2);
   const workerIdTCP2 = currentWorkerId;
 
+  handle.distribute(null, handleTCP3);
+  const workerIdTCP3 = currentWorkerId;
+
   handle.distribute(null, handleTCP);
   assert.strictEqual(workerIdTCP1, currentWorkerId);
 
   handle.distribute(null, handleTCP2);
   assert.strictEqual(workerIdTCP2, currentWorkerId);
+
+  handle.distribute(null, handleTCP3);
+  assert.strictEqual(workerIdTCP3, currentWorkerId);
 
   assert.notStrictEqual(workerIdTCP1, workerIdTCP2);
 

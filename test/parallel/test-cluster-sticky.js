@@ -11,14 +11,10 @@ if (cluster.isMaster) {
   cluster.schedulingPolicy = cluster.SCHED_STICKY;
 
   let clusterId;
-  let nbMessages = 0;
   const nbWorkers = 3;
-  const nbMessagePerWorker = {};
 
   for (let i = 0; i < nbWorkers; i++) {
     const worker = cluster.fork({ id: i + 1 });
-
-    nbMessagePerWorker[worker.id] = 0;
 
     worker.on('message', common.mustCallAtLeast(function(msg) {
 
@@ -30,17 +26,10 @@ if (cluster.isMaster) {
         // check if current worker is the same for the first any connection
         assert.strictEqual(this.id, clusterId);
       }
-      nbMessages++;
-
-      if (nbConnectionsPerWorker[this.id] === nbConnectionsPerWorker) {
-        worker.kill();
-      }
-
-      // when all connections are done
-      if (nbMessages === nbWorkers * nbConnectionsPerWorker) {
-        process.exit(0);
-      }
     }, 0));
+
+    worker.on('disconnect', common.mustCall());
+    worker.on('exit', common.mustCall());
   }
 } else {
   const server = net.createServer();
@@ -53,10 +42,13 @@ if (cluster.isMaster) {
     for (let i = 0; i < nbConnectionsPerWorker; i++) {
       net.connect(server.address().port, common.localhostIPv4);
     }
+    setTimeout(function() {
+      cluster.worker.disconnect();
+      cluster.worker.destroy();
+    }, 100);
   });
 
-  process.on('disconnect', function() {
-    process.exit();
+  process.on('exit', function() {
     server.close();
   });
 
