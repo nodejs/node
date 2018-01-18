@@ -337,6 +337,8 @@ argument in callbacks.
 ```js
 const assert = require('assert');
 
+assert.ifError(null);
+// OK
 assert.ifError(0);
 // OK
 assert.ifError(1);
