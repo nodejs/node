@@ -44,7 +44,7 @@ implemented on top of [`child_process.spawn()`][] or [`child_process.spawnSync()
   * [`child_process.exec()`][]: spawns a shell and runs a command within that shell,
     passing the `stdout` and `stderr` to a callback function when complete.
   * [`child_process.execFile()`][]: similar to [`child_process.exec()`][] except that
-    it spawns the command directly without first spawning a shell.
+    it spawns the command directly without first spawning a shell by default.
   * [`child_process.fork()`][]: spawns a new Node.js process and invokes a
     specified module with an IPC communication channel established that allows
     sending messages between parent and child.
@@ -78,7 +78,7 @@ when the child process terminates.
 The importance of the distinction between [`child_process.exec()`][] and
 [`child_process.execFile()`][] can vary based on platform. On Unix-type operating
 systems (Unix, Linux, macOS) [`child_process.execFile()`][] can be more efficient
-because it does not spawn a shell. On Windows, however, `.bat` and `.cmd`
+because it does not spawn a shell by default. On Windows, however, `.bat` and `.cmd`
 files are not executable on their own without a terminal, and therefore cannot
 be launched using [`child_process.execFile()`][]. When running on Windows, `.bat`
 and `.cmd` files can be invoked using [`child_process.spawn()`][] with the `shell`
@@ -266,6 +266,10 @@ changes:
     normally be created on Windows systems. **Default:** `false`.
   * `windowsVerbatimArguments` {boolean} No quoting or escaping of arguments is
     done on Windows. Ignored on Unix. **Default:** `false`.
+  * `shell` {boolean|string} If `true`, runs `command` inside of a shell. Uses
+    `'/bin/sh'` on UNIX, and `process.env.ComSpec` on Windows. A different
+    shell can be specified as a string. See [Shell Requirements][] and
+    [Default Windows Shell][]. **Default:** `false` (no shell).
 * `callback` {Function} Called with the output when process terminates.
   * `error` {Error}
   * `stdout` {string|Buffer}
@@ -273,7 +277,7 @@ changes:
 * Returns: {ChildProcess}
 
 The `child_process.execFile()` function is similar to [`child_process.exec()`][]
-except that it does not spawn a shell. Rather, the specified executable `file`
+except that it does not spawn a shell by default. Rather, the specified executable `file`
 is spawned directly as a new process making it slightly more efficient than
 [`child_process.exec()`][].
 
@@ -311,6 +315,10 @@ async function getVersion() {
 }
 getVersion();
 ```
+
+*Note*: If the `shell` option is enabled, do not pass unsanitized user input
+to this function. Any input containing shell metacharacters may be used to
+trigger arbitrary command execution.
 
 ### child_process.fork(modulePath[, args][, options])
 <!-- YAML
@@ -703,6 +711,10 @@ changes:
   * `encoding` {string} The encoding used for all stdio inputs and outputs. **Default:** `'buffer'`
   * `windowsHide` {boolean} Hide the subprocess console window that would
     normally be created on Windows systems. **Default:** `false`.
+  * `shell` {boolean|string} If `true`, runs `command` inside of a shell. Uses
+    `'/bin/sh'` on UNIX, and `process.env.ComSpec` on Windows. A different
+    shell can be specified as a string. See [Shell Requirements][] and
+    [Default Windows Shell][]. **Default:** `false` (no shell).
 * Returns: {Buffer|string} The stdout from the command.
 
 The `child_process.execFileSync()` method is generally identical to
@@ -718,6 +730,10 @@ exited.
 If the process times out or has a non-zero exit code, this method ***will***
 throw an [`Error`][] that will include the full result of the underlying
 [`child_process.spawnSync()`][].
+
+*Note*: If the `shell` option is enabled, do not pass unsanitized user input
+to this function. Any input containing shell metacharacters may be used to
+trigger arbitrary command execution.
 
 ### child_process.execSync(command[, options])
 <!-- YAML
