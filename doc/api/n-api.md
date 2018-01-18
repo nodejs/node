@@ -3268,7 +3268,7 @@ napi_status napi_create_async_work(napi_env env,
 - `[in] env`: The environment that the API is invoked under.
 - `[in] async_resource`: An optional object associated with the async work
   that will be passed to possible async_hooks [`init` hooks][].
-- `[in] async_resource_name`: An identifier for the kind of resource that is
+- `[in] async_resource_name`: Identifier for the kind of resource that is
 being provided for diagnostic information exposed by the `async_hooks` API.
 - `[in] execute`: The native function which should be called to excute
 the logic asynchronously.
@@ -3367,7 +3367,7 @@ napi_status napi_async_init(napi_env env,
 - `[in] env`: The environment that the API is invoked under.
 - `[in] async_resource`: An optional object associated with the async work
   that will be passed to possible `async_hooks` [`init` hooks][].
-- `[in] async_resource_name`: Required identifier for the kind of resource
+- `[in] async_resource_name`: Identifier for the kind of resource
   that is being provided for diagnostic information exposed by the
   `async_hooks` API.
 - `[out] result`: The initialized async context.
