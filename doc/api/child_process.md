@@ -266,6 +266,9 @@ changes:
     normally be created on Windows systems. **Default:** `false`.
   * `windowsVerbatimArguments` {boolean} No quoting or escaping of arguments is
     done on Windows. Ignored on Unix. **Default:** `false`.
+  * `shell` {string} Shell to execute the command with.
+    **Default:** `'/bin/sh'` on UNIX, `process.env.ComSpec` on Windows. See
+    [Shell Requirements][] and [Default Windows Shell][].
 * `callback` {Function} Called with the output when process terminates.
   * `error` {Error}
   * `stdout` {string|Buffer}
@@ -705,6 +708,9 @@ changes:
   * `encoding` {string} The encoding used for all stdio inputs and outputs. **Default:** `'buffer'`
   * `windowsHide` {boolean} Hide the subprocess console window that would
     normally be created on Windows systems. **Default:** `false`.
+  * `shell` {string} Shell to execute the command with.
+    **Default:** `'/bin/sh'` on UNIX, `process.env.ComSpec` on Windows. See
+    [Shell Requirements][] and [Default Windows Shell][].
 * Returns: {Buffer|string} The stdout from the command.
 
 The `child_process.execFileSync()` method is generally identical to
