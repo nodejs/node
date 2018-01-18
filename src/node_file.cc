@@ -563,7 +563,6 @@ static void Stat(const FunctionCallbackInfo<Value>& args) {
 
 static void LStat(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
-  Local<Context> context = env->context();
 
   CHECK_GE(args.Length(), 1);
 
@@ -574,14 +573,10 @@ static void LStat(const FunctionCallbackInfo<Value>& args) {
     CHECK_EQ(args.Length(), 2);
     AsyncCall(env, args, "lstat", UTF8, AfterStat,
               uv_fs_lstat, *path);
-  } else {  // lstat(path, undefined, ctx)
-    CHECK_EQ(args.Length(), 3);
-    fs_req_wrap req_wrap;
-    int err = SyncCall(env, args[2], &req_wrap, "lstat", uv_fs_lstat, *path);
-    if (err == 0) {
-      FillStatsArray(env->fs_stats_field_array(),
-                     static_cast<const uv_stat_t*>(req_wrap.req.ptr));
-    }
+  } else {  // lstat(path)
+    SYNC_CALL(lstat, *path, *path)
+    FillStatsArray(env->fs_stats_field_array(),
+                   static_cast<const uv_stat_t*>(SYNC_REQ.ptr));
   }
 }
 
