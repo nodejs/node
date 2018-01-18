@@ -375,10 +375,11 @@ inline FSReqWrap* AsyncCall(Environment* env,
 // the error number and the syscall in the context instead of
 // creating an error in the C++ land.
 template <typename Func, typename... Args>
-inline int SyncCall(Environment* env, Local<Value> ctx, fs_req_wrap* req_wrap,
+inline void SyncCall(Environment* env, Local<Value> ctx,
     const char* syscall, Func fn, Args... args) {
+  fs_req_wrap req_wrap;
   env->PrintSyncTrace();
-  int err = fn(env->event_loop(), &(req_wrap->req), args..., nullptr);
+  int err = fn(env->event_loop(), &req_wrap.req, args..., nullptr);
   if (err < 0) {
     Local<Context> context = env->context();
     Local<Object> ctx_obj = ctx->ToObject(context).ToLocalChecked();
@@ -390,7 +391,6 @@ inline int SyncCall(Environment* env, Local<Value> ctx, fs_req_wrap* req_wrap,
              env->syscall_string(),
              OneByteString(isolate, syscall)).FromJust();
   }
-  return err;
 }
 
 #define SYNC_DEST_CALL(func, path, dest, ...)                                 \
@@ -426,8 +426,7 @@ void Access(const FunctionCallbackInfo<Value>& args) {
     AsyncCall(env, args, "access", UTF8, AfterNoArgs,
               uv_fs_access, *path, mode);
   } else {  // access(path, mode, undefined, ctx)
-    fs_req_wrap req_wrap;
-    SyncCall(env, args[3], &req_wrap, "access", uv_fs_access, *path, mode);
+    SyncCall(env, args[3], "access", uv_fs_access, *path, mode);
   }
 }
 
@@ -447,8 +446,7 @@ void Close(const FunctionCallbackInfo<Value>& args) {
     AsyncCall(env, args, "close", UTF8, AfterNoArgs,
               uv_fs_close, fd);
   } else {  // close(fd, undefined, ctx)
-    fs_req_wrap req_wrap;
-    SyncCall(env, args[2], &req_wrap, "close", uv_fs_close, fd);
+    SyncCall(env, args[2], "close", uv_fs_close, fd);
   }
 }
 
