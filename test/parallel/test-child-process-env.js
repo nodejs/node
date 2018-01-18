@@ -57,7 +57,7 @@ child.stdout.on('data', function(chunk) {
 
 process.on('exit', function() {
   assert.ok(response.includes('HELLO=WORLD'));
-  assert.ok(!response.includes('FOO='));
+  assert.ok(response.includes('FOO=BAR'));
   assert.ok(!response.includes('UNDEFINED=undefined'));
   assert.ok(response.includes('NULL=null'));
   assert.ok(response.includes(`EMPTY=${os.EOL}`));
