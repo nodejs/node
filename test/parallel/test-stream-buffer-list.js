@@ -14,14 +14,19 @@ assert.strictEqual(emptyList.join(','), '');
 
 assert.deepStrictEqual(emptyList.concat(0), Buffer.alloc(0));
 
+const buf = Buffer.from('foo');
+
 // Test buffer list with one element.
 const list = new BufferList();
-list.push('foo');
+list.push(buf);
 
-assert.strictEqual(list.concat(1), 'foo');
+const copy = list.concat(3);
+
+assert.notStrictEqual(copy, buf);
+assert.deepStrictEqual(copy, buf);
 
 assert.strictEqual(list.join(','), 'foo');
 
 const shifted = list.shift();
-assert.strictEqual(shifted, 'foo');
+assert.strictEqual(shifted, buf);
 assert.deepStrictEqual(list, new BufferList());
