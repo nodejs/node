@@ -1571,6 +1571,7 @@ Creation of a [`zlib`][] object failed due to incorrect configuration.
 [`hash.digest()`]: crypto.html#crypto_hash_digest_encoding
 [`hash.update()`]: crypto.html#crypto_hash_update_data_inputencoding
 [`readable._read()`]: stream.html#stream_readable_read_size_1
+[`server.close()`]: net.html#net_server_close_callback
 [`sign.sign()`]: crypto.html#crypto_sign_sign_privatekey_outputformat
 [`stream.pipe()`]: stream.html#stream_readable_pipe_destination_options
 [`stream.push()`]: stream.html#stream_readable_push_chunk_encoding
