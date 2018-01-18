@@ -209,6 +209,17 @@ void Environment::PrintSyncTrace() const {
   fflush(stderr);
 }
 
+void Environment::RunBeforeExitCallbacks() {
+  for (BeforeExitCallback before_exit : before_exit_functions_) {
+    before_exit.cb_(before_exit.arg_);
+  }
+  before_exit_functions_.clear();
+}
+
+void Environment::BeforeExit(void (*cb)(void* arg), void* arg) {
+  before_exit_functions_.push_back(BeforeExitCallback{cb, arg});
+}
+
 void Environment::RunAtExitCallbacks() {
   for (AtExitCallback at_exit : at_exit_functions_) {
     at_exit.cb_(at_exit.arg_);

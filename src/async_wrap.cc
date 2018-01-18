@@ -159,6 +159,12 @@ static void DestroyAsyncIdsCallback(Environment* env, void* data) {
   } while (!env->destroy_async_id_list()->empty());
 }
 
+static void DestroyAsyncIdsCallback(void* arg) {
+  Environment* env = static_cast<Environment*>(arg);
+  if (!env->destroy_async_id_list()->empty())
+    DestroyAsyncIdsCallback(env, nullptr);
+}
+
 
 void AsyncWrap::EmitPromiseResolve(Environment* env, double async_id) {
   AsyncHooks* async_hooks = env->async_hooks();
@@ -501,6 +507,8 @@ void AsyncWrap::Initialize(Local<Object> target,
   Isolate* isolate = env->isolate();
   HandleScope scope(isolate);
 
+  env->BeforeExit(DestroyAsyncIdsCallback, env);
+
   env->SetMethod(target, "setupHooks", SetupHooks);
   env->SetMethod(target, "pushAsyncIds", PushAsyncIds);
   env->SetMethod(target, "popAsyncIds", PopAsyncIds);
@@ -662,7 +670,7 @@ void AsyncWrap::EmitDestroy(Environment* env, double async_id) {
     return;
 
   if (env->destroy_async_id_list()->empty()) {
-    env->SetImmediate(DestroyAsyncIdsCallback, nullptr);
+    env->SetUnrefImmediate(DestroyAsyncIdsCallback, nullptr);
   }
 
   env->destroy_async_id_list()->push_back(async_id);
