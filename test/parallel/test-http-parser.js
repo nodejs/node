@@ -20,15 +20,11 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-const common = require('../common');
+const { mustCall, mustNotCall } = require('../common');
 const assert = require('assert');
 
-const binding = process.binding('http_parser');
-const methods = binding.methods;
-const HTTPParser = binding.HTTPParser;
-
-const REQUEST = HTTPParser.REQUEST;
-const RESPONSE = HTTPParser.RESPONSE;
+const { methods, HTTPParser } = process.binding('http_parser');
+const { REQUEST, RESPONSE } = HTTPParser;
 
 const kOnHeaders = HTTPParser.kOnHeaders | 0;
 const kOnHeadersComplete = HTTPParser.kOnHeadersComplete | 0;
@@ -55,27 +51,12 @@ function newParser(type) {
   parser[kOnHeadersComplete] = function() {
   };
 
-  parser[kOnBody] = common.mustNotCall('kOnBody should not be called');
+  parser[kOnBody] = mustNotCall('kOnBody should not be called');
 
   parser[kOnMessageComplete] = function() {
   };
 
   return parser;
-}
-
-
-function mustCall(f, times) {
-  let actual = 0;
-
-  process.setMaxListeners(256);
-  process.on('exit', function() {
-    assert.strictEqual(actual, times || 1);
-  });
-
-  return function() {
-    actual++;
-    return f.apply(this, Array.prototype.slice.call(arguments));
-  };
 }
 
 
