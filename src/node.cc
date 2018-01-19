@@ -5006,7 +5006,6 @@ Isolate::Scope* isolate_scope;
 Environment* env;
 Local<Context> context;
 Context::Scope* context_scope;
-Environment::AsyncCallbackScope* callback_scope;
 bool request_stop = false;
 CmdArgs* cmd_args = nullptr;
 
@@ -5152,14 +5151,6 @@ void configureOpenSsl() {
 void _StartEnv(int argc,
                const char* const* argv) {
     std::cout << "Starting environment" << std::endl;
-    /*std::cout << "argv" << std::endl;
-    for (int i = 0; i < argc; i++) {
-      std::cout << argv[i] << std::endl;
-    }
-    std::cout << "exec_argv" << std::endl;
-    for (int i = 0; i < exec_argc; i++) {
-      std::cout << exec_argv[i] << std::endl;
-    }*/
 
     int v8_argc = 0;
     const char* const* v8_argv = nullptr;
@@ -5180,8 +5171,7 @@ void _StartEnv(int argc,
     }
 
     {
-      callback_scope = new Environment::AsyncCallbackScope(env);
-      //Environment::AsyncCallbackScope callback_scope(env); // TODO (jh): one line allows the CLI app to run, with the other the qt app works. Investigate!
+      Environment::AsyncCallbackScope callback_scope(env);
       env->async_hooks()->push_async_ids(1, 0);
       LoadEnvironment(env);
       env->async_hooks()->pop_async_id(1);
@@ -5248,9 +5238,9 @@ int Deinitialize() {
   deinitialize::deleteIsolate();
 
   deinitialize::deinitV8();
-   
+
   deinitialize::deleteCmdArgs();
-  
+
   return exit_code;
 }
 
