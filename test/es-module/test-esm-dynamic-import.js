@@ -15,7 +15,7 @@ targetURL.pathname = absolutePath;
 function expectErrorProperty(result, propertyKey, value) {
   Promise.resolve(result)
     .catch(common.mustCall(error => {
-      assert.equal(error[propertyKey], value);
+      assert.strictEqual(error[propertyKey], value);
     }));
 }
 
@@ -51,7 +51,7 @@ function expectOkNamespace(result) {
 function expectFsNamespace(result) {
   Promise.resolve(result)
     .then(common.mustCall(ns => {
-      assert.equal(typeof ns.default.writeFile, 'function');
+      assert.strictEqual(typeof ns.default.writeFile, 'function');
     }));
 }
 
