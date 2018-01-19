@@ -127,6 +127,11 @@ TEST_F(DebugSymbolsTest, ReqWrapList) {
       obj_template->GetFunction()->NewInstance(env.context()).ToLocalChecked();
   TestReqWrap obj(*env, object);
 
+  // NOTE (mmarchini): Workaround to fix failing tests on ARM64 machines with
+  // older GCC. Should be removed once we upgrade the GCC version used on our
+  // ARM64 CI machinies.
+  for (auto it : *(*env)->req_wrap_queue()) {}
+
   auto queue = reinterpret_cast<uintptr_t>((*env)->req_wrap_queue());
   auto head = queue +
       nodedbg_offset_Environment_ReqWrapQueue__head___ListNode_ReqWrapQueue;
