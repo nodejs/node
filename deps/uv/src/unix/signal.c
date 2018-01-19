@@ -28,6 +28,9 @@
 #include <string.h>
 #include <unistd.h>
 
+#ifndef SA_RESTART
+# define SA_RESTART 0
+#endif
 
 typedef struct {
   uv_signal_t* handle;
@@ -216,7 +219,9 @@ static int uv__signal_register_handler(int signum, int oneshot) {
   if (sigfillset(&sa.sa_mask))
     abort();
   sa.sa_handler = uv__signal_handler;
-  sa.sa_flags = oneshot ? SA_RESETHAND : 0;
+  sa.sa_flags = SA_RESTART;
+  if (oneshot)
+    sa.sa_flags |= SA_RESETHAND;
 
   /* XXX save old action so we can restore it later on? */
   if (sigaction(signum, &sa, NULL))

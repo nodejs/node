@@ -40,7 +40,14 @@
 #include <unistd.h>
 #include <time.h>
 
+static uv_mutex_t process_title_mutex;
+static uv_once_t process_title_mutex_once = UV_ONCE_INIT;
 static char *process_title;
+
+
+static void init_process_title_mutex_once(void) {
+  uv_mutex_init(&process_title_mutex);
+}
 
 
 int uv__platform_loop_init(uv_loop_t* loop) {
@@ -137,11 +144,20 @@ int uv_set_process_title(const char* title) {
   char* new_title;
 
   new_title = uv__strdup(title);
-  if (process_title == NULL)
+
+  uv_once(&process_title_mutex_once, init_process_title_mutex_once);
+  uv_mutex_lock(&process_title_mutex);
+
+  if (process_title == NULL) {
+    uv_mutex_unlock(&process_title_mutex);
     return -ENOMEM;
+  }
+
   uv__free(process_title);
   process_title = new_title;
   setproctitle("%s", title);
+
+  uv_mutex_unlock(&process_title_mutex);
 
   return 0;
 }
@@ -153,16 +169,23 @@ int uv_get_process_title(char* buffer, size_t size) {
   if (buffer == NULL || size == 0)
     return -EINVAL;
 
+  uv_once(&process_title_mutex_once, init_process_title_mutex_once);
+  uv_mutex_lock(&process_title_mutex);
+
   if (process_title) {
     len = strlen(process_title) + 1;
 
-    if (size < len)
+    if (size < len) {
+      uv_mutex_unlock(&process_title_mutex);
       return -ENOBUFS;
+    }
 
     memcpy(buffer, process_title, len);
   } else {
     len = 0;
   }
+
+  uv_mutex_unlock(&process_title_mutex);
 
   buffer[len] = '\0';
 

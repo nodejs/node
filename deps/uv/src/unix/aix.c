@@ -65,10 +65,17 @@
 #define RDWR_BUF_SIZE   4096
 #define EQ(a,b)         (strcmp(a,b) == 0)
 
+static uv_mutex_t process_title_mutex;
+static uv_once_t process_title_mutex_once = UV_ONCE_INIT;
 static void* args_mem = NULL;
 static char** process_argv = NULL;
 static int process_argc = 0;
 static char* process_title_ptr = NULL;
+
+static void init_process_title_mutex_once(void) {
+  uv_mutex_init(&process_title_mutex);
+}
+
 
 int uv__platform_loop_init(uv_loop_t* loop) {
   loop->fs_fd = -1;
@@ -856,6 +863,9 @@ int uv_set_process_title(const char* title) {
   if (new_title == NULL)
     return -ENOMEM;
 
+  uv_once(&process_title_mutex_once, init_process_title_mutex_once);
+  uv_mutex_lock(&process_title_mutex);
+
   /* If this is the first time this is set,
    * don't free and set argv[1] to NULL.
    */
@@ -867,6 +877,8 @@ int uv_set_process_title(const char* title) {
   process_argv[0] = process_title_ptr;
   if (process_argc > 1)
      process_argv[1] = NULL;
+
+  uv_mutex_unlock(&process_title_mutex);
 
   return 0;
 }
@@ -880,7 +892,12 @@ int uv_get_process_title(char* buffer, size_t size) {
   else if (size <= len)
     return -ENOBUFS;
 
+  uv_once(&process_title_mutex_once, init_process_title_mutex_once);
+  uv_mutex_lock(&process_title_mutex);
+
   memcpy(buffer, process_argv[0], len + 1);
+
+  uv_mutex_unlock(&process_title_mutex);
 
   return 0;
 }
