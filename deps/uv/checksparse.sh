@@ -53,6 +53,7 @@ src/unix/tty.c
 src/unix/udp.c
 src/uv-common.c
 src/uv-common.h
+src/uv-data-getter-setters.c
 "
 
 TESTS="
@@ -100,6 +101,7 @@ test/test-fs-copyfile.c
 test/test-fs-event.c
 test/test-fs-poll.c
 test/test-fs.c
+test/test-getters-setters.c
 test/test-get-currentexe.c
 test/test-get-loadavg.c
 test/test-get-memory.c
@@ -126,6 +128,7 @@ test/test-platform-output.c
 test/test-poll-close.c
 test/test-poll.c
 test/test-process-title.c
+test/test-process-title-threadsafe.c
 test/test-ref.c
 test/test-run-nowait.c
 test/test-run-once.c

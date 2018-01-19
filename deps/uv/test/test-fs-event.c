@@ -396,6 +396,8 @@ static void timer_cb_watch_twice(uv_timer_t* handle) {
 TEST_IMPL(fs_event_watch_dir) {
 #if defined(NO_FS_EVENTS)
   RETURN_SKIP(NO_FS_EVENTS);
+#elif defined(__MVS__)
+  RETURN_SKIP("Directory watching not supported on this platform.");
 #endif
 
   uv_loop_t* loop = uv_default_loop();
@@ -820,6 +822,8 @@ static void fs_event_cb_close(uv_fs_event_t* handle, const char* filename,
 TEST_IMPL(fs_event_close_in_callback) {
 #if defined(NO_FS_EVENTS)
   RETURN_SKIP(NO_FS_EVENTS);
+#elif defined(__MVS__)
+  RETURN_SKIP("Directory watching not supported on this platform.");
 #endif
   uv_loop_t* loop;
   int r;

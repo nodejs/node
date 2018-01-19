@@ -92,7 +92,7 @@ static void kill_cb(uv_process_t* process,
 #else
   ASSERT(exit_status == 0);
 #endif
-#if defined(__APPLE__)
+#if defined(__APPLE__) || defined(__MVS__)
   /*
    * At least starting with Darwin Kernel Version 16.4.0, sending a SIGTERM to a
    * process that is still starting up kills it with SIGKILL instead of SIGTERM.
@@ -804,6 +804,8 @@ TEST_IMPL(spawn_detached) {
   ASSERT(r == 0);
 
   ASSERT(exit_cb_called == 0);
+
+  ASSERT(process.pid == uv_process_get_pid(&process));
 
   r = uv_kill(process.pid, 0);
   ASSERT(r == 0);
@@ -1560,9 +1562,6 @@ TEST_IMPL(spawn_fs_open) {
 
 #ifndef _WIN32
 TEST_IMPL(closed_fd_events) {
-#if defined(__MVS__)
-  RETURN_SKIP("Filesystem watching not supported on this platform.");
-#endif
   uv_stdio_container_t stdio[3];
   uv_pipe_t pipe_handle;
   int fd[2];

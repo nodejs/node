@@ -26,6 +26,8 @@
 #include <unistd.h>
 #include <sys/ps.h>
 #include <builtins.h>
+#include <termios.h>
+#include <sys/msg.h>
 #if defined(__clang__)
 #include "csrsic.h"
 #else
@@ -684,11 +686,124 @@ int uv__io_check_fd(uv_loop_t* loop, int fd) {
   return 0;
 }
 
+
+void uv__fs_event_close(uv_fs_event_t* handle) {
+  uv_fs_event_stop(handle);
+}
+
+
+int uv_fs_event_init(uv_loop_t* loop, uv_fs_event_t* handle) {
+  uv__handle_init(loop, (uv_handle_t*)handle, UV_FS_EVENT);
+  return 0;
+}
+
+
+int uv_fs_event_start(uv_fs_event_t* handle, uv_fs_event_cb cb,
+                      const char* filename, unsigned int flags) {
+  uv__os390_epoll* ep;
+  _RFIS reg_struct;
+  char* path;
+  int rc;
+
+  if (uv__is_active(handle))
+    return -EINVAL;
+
+  ep = handle->loop->ep;
+  assert(ep->msg_queue != -1);
+
+  reg_struct.__rfis_cmd  = _RFIS_REG;
+  reg_struct.__rfis_qid  = ep->msg_queue;
+  reg_struct.__rfis_type = 1;
+  memcpy(reg_struct.__rfis_utok, &handle, sizeof(handle));
+
+  path = uv__strdup(filename);
+  if (path == NULL)
+    return -ENOMEM;
+
+  rc = __w_pioctl(path, _IOCC_REGFILEINT, sizeof(reg_struct), &reg_struct);
+  if (rc != 0)
+    return -errno;
+
+  uv__handle_start(handle);
+  handle->path = path;
+  handle->cb = cb;
+  memcpy(handle->rfis_rftok, reg_struct.__rfis_rftok,
+         sizeof(handle->rfis_rftok));
+
+  return 0;
+}
+
+
+int uv_fs_event_stop(uv_fs_event_t* handle) {
+  uv__os390_epoll* ep;
+  _RFIS reg_struct;
+  int rc;
+
+  if (!uv__is_active(handle))
+    return 0;
+
+  ep = handle->loop->ep;
+  assert(ep->msg_queue != -1);
+
+  reg_struct.__rfis_cmd  = _RFIS_UNREG;
+  reg_struct.__rfis_qid  = ep->msg_queue;
+  reg_struct.__rfis_type = 1;
+  memcpy(reg_struct.__rfis_rftok, handle->rfis_rftok,
+         sizeof(handle->rfis_rftok));
+
+  /* 
+   * This call will take "/" as the path argument in case we
+   * don't care to supply the correct path. The system will simply
+   * ignore it.
+   */
+  rc = __w_pioctl("/", _IOCC_REGFILEINT, sizeof(reg_struct), &reg_struct);
+  if (rc != 0 && errno != EALREADY && errno != ENOENT)
+    abort();
+
+  uv__handle_stop(handle);
+
+  return 0;
+}
+
+
+static int os390_message_queue_handler(uv__os390_epoll* ep) {
+  uv_fs_event_t* handle;
+  int msglen;
+  int events;
+  _RFIM msg;
+
+  if (ep->msg_queue == -1)
+    return 0;
+
+  msglen = msgrcv(ep->msg_queue, &msg, sizeof(msg), 0, IPC_NOWAIT);
+
+  if (msglen == -1 && errno == ENOMSG)
+    return 0;
+
+  if (msglen == -1)
+    abort();
+
+  events = 0;
+  if (msg.__rfim_event == _RFIM_ATTR || msg.__rfim_event == _RFIM_WRITE)
+    events = UV_CHANGE;
+  else if (msg.__rfim_event == _RFIM_RENAME)
+    events = UV_RENAME;
+  else
+    /* Some event that we are not interested in. */
+    return 0;
+
+  handle = *(uv_fs_event_t**)(msg.__rfim_utok);
+  handle->cb(handle, uv__basename_r(handle->path), events, 0);
+  return 1;
+}
+
+
 void uv__io_poll(uv_loop_t* loop, int timeout) {
   static const int max_safe_timeout = 1789569;
   struct epoll_event events[1024];
   struct epoll_event* pe;
   struct epoll_event e;
+  uv__os390_epoll* ep;
   int real_timeout;
   QUEUE* q;
   uv__io_t* w;
@@ -802,6 +917,12 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
       if (fd == -1)
         continue;
 
+      ep = loop->ep;
+      if (fd == ep->msg_queue) {
+        os390_message_queue_handler(ep);
+        continue;
+      }
+
       assert(fd >= 0);
       assert((unsigned) fd < loop->nwatchers);
 
@@ -866,7 +987,12 @@ void uv__set_process_title(const char* title) {
 }
 
 int uv__io_fork(uv_loop_t* loop) {
-  uv__platform_loop_delete(loop);
+  /* 
+    Nullify the msg queue but don't close it because
+    it is still being used by the parent.
+  */
+  loop->ep = NULL;
 
+  uv__platform_loop_delete(loop);
   return uv__platform_loop_init(loop);
 }

@@ -22,6 +22,26 @@
 #include "uv.h"
 #include "task.h"
 
+#ifndef _WIN32
+#include <unistd.h>
+#endif
+
+TEST_IMPL(kill_invalid_signum) {
+  uv_pid_t pid;
+
+  pid = uv_os_getpid();
+
+  ASSERT(uv_kill(pid, -1) == UV_EINVAL);
+#ifdef _WIN32
+  /* NSIG is not available on all platforms. */
+  ASSERT(uv_kill(pid, NSIG) == UV_EINVAL);
+#endif
+  ASSERT(uv_kill(pid, 4096) == UV_EINVAL);
+
+  MAKE_VALGRIND_HAPPY();
+  return 0;
+}
+
 /* For Windows we test only signum handling */
 #ifdef _WIN32
 static void signum_test_cb(uv_signal_t* handle, int signum) {

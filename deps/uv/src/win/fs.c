@@ -1785,7 +1785,7 @@ static void fs__symlink(uv_fs_t* req) {
   }
 
   if (req->fs.info.file_flags & UV_FS_SYMLINK_DIR)
-    flags = SYMBOLIC_LINK_FLAG_DIRECTORY;
+    flags = SYMBOLIC_LINK_FLAG_DIRECTORY | uv__file_symlink_usermode_flag;
   else
     flags = uv__file_symlink_usermode_flag;
 
