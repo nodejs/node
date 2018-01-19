@@ -10,10 +10,10 @@ const http = require('http');
 
 const expected = '/café🐶';
 
+//Sanity check for café🐶 is café🐶
 assert.strictEqual(
   expected,
-  '/caf\u{e9}\u{1f436}',
-  'Sanity check that string literal produced the expected string'
+  '/caf\u{e9}\u{1f436}'
 );
 
 const server = http.createServer(common.mustCall(function(req, res) {
