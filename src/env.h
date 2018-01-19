@@ -249,7 +249,6 @@ class ModuleWrap;
   V(subject_string, "subject")                                                \
   V(subjectaltname_string, "subjectaltname")                                  \
   V(syscall_string, "syscall")                                                \
-  V(tick_domain_cb_string, "_tickDomainCallback")                             \
   V(ticketkeycallback_string, "onticketkeycallback")                          \
   V(timeout_string, "timeout")                                                \
   V(tls_ticket_string, "tlsTicket")                                           \
