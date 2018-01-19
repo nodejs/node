@@ -220,6 +220,7 @@ class ModuleWrap;
   V(preference_string, "preference")                                          \
   V(priority_string, "priority")                                              \
   V(produce_cached_data_string, "produceCachedData")                          \
+  V(promise_string, "promise")                                                \
   V(raw_string, "raw")                                                        \
   V(read_host_object_string, "_readHostObject")                               \
   V(readable_string, "readable")                                              \
@@ -241,6 +242,7 @@ class ModuleWrap;
   V(sni_context_string, "sni_context")                                        \
   V(stack_string, "stack")                                                    \
   V(status_string, "status")                                                  \
+  V(statfields_string, "statFields")                                          \
   V(stdio_string, "stdio")                                                    \
   V(subject_string, "subject")                                                \
   V(subjectaltname_string, "subjectaltname")                                  \

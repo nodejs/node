@@ -17,26 +17,37 @@ using v8::Value;
 
 namespace fs {
 
-class FSReqWrap : public ReqWrap<uv_fs_t> {
+class FSReqBase : public ReqWrap<uv_fs_t> {
  public:
-  FSReqWrap(Environment* env, Local<Object> req)
-      : ReqWrap(env, req, AsyncWrap::PROVIDER_FSREQWRAP) {
+  FSReqBase(Environment* env, Local<Object> req, AsyncWrap::ProviderType type)
+      : ReqWrap(env, req, type) {
     Wrap(object(), this);
   }
 
-  virtual ~FSReqWrap() {
+  virtual ~FSReqBase() {
     ClearWrap(object());
   }
 
   void Init(const char* syscall,
             const char* data = nullptr,
             size_t len = 0,
-            enum encoding encoding = UTF8);
+            enum encoding encoding = UTF8) {
+    syscall_ = syscall;
+    encoding_ = encoding;
 
-  virtual void FillStatsArray(const uv_stat_t* stat);
-  virtual void Reject(Local<Value> reject);
-  virtual void Resolve(Local<Value> value);
-  virtual void ResolveStat();
+    if (data != nullptr) {
+      CHECK_EQ(data_, nullptr);
+      buffer_.AllocateSufficientStorage(len + 1);
+      buffer_.SetLengthAndZeroTerminate(len);
+      memcpy(*buffer_, data, len);
+      data_ = *buffer_;
+    }
+  }
+
+  virtual void FillStatsArray(const uv_stat_t* stat) = 0;
+  virtual void Reject(Local<Value> reject) = 0;
+  virtual void Resolve(Local<Value> value) = 0;
+  virtual void ResolveStat() = 0;
 
   const char* syscall() const { return syscall_; }
   const char* data() const { return data_; }
@@ -51,12 +62,43 @@ class FSReqWrap : public ReqWrap<uv_fs_t> {
   const char* data_ = nullptr;
   MaybeStackBuffer<char> buffer_;
 
+  DISALLOW_COPY_AND_ASSIGN(FSReqBase);
+};
+
+class FSReqWrap : public FSReqBase {
+ public:
+  FSReqWrap(Environment* env, Local<Object> req)
+      : FSReqBase(env, req, AsyncWrap::PROVIDER_FSREQWRAP) { }
+
+  void FillStatsArray(const uv_stat_t* stat) override;
+  void Reject(Local<Value> reject) override;
+  void Resolve(Local<Value> value) override;
+  void ResolveStat() override;
+
+ private:
   DISALLOW_COPY_AND_ASSIGN(FSReqWrap);
+};
+
+class FSReqPromise : public FSReqBase {
+ public:
+  FSReqPromise(Environment* env, Local<Object> req);
+
+  ~FSReqPromise() override;
+
+  void FillStatsArray(const uv_stat_t* stat) override;
+  void Reject(Local<Value> reject) override;
+  void Resolve(Local<Value> value) override;
+  void ResolveStat() override;
+
+ private:
+  bool finished_ = false;
+  double statFields_[14] {};
+  DISALLOW_COPY_AND_ASSIGN(FSReqPromise);
 };
 
 class FSReqAfterScope {
  public:
-  FSReqAfterScope(FSReqWrap* wrap, uv_fs_t* req);
+  FSReqAfterScope(FSReqBase* wrap, uv_fs_t* req);
   ~FSReqAfterScope();
 
   bool Proceed();
@@ -64,7 +106,7 @@ class FSReqAfterScope {
   void Reject(uv_fs_t* req);
 
  private:
-  FSReqWrap* wrap_ = nullptr;
+  FSReqBase* wrap_ = nullptr;
   uv_fs_t* req_ = nullptr;
   HandleScope handle_scope_;
   Context::Scope context_scope_;
