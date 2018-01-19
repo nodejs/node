@@ -403,6 +403,7 @@ void Access(const FunctionCallbackInfo<Value>& args) {
     AsyncCall(env, args, "access", UTF8, AfterNoArgs,
               uv_fs_access, *path, mode);
   } else {  // access(path, mode, undefined, ctx)
+    CHECK_EQ(args.Length(), 4);
     fs_req_wrap req_wrap;
     SyncCall(env, args[3], &req_wrap, "access", uv_fs_access, *path, mode);
   }
@@ -424,6 +425,7 @@ void Close(const FunctionCallbackInfo<Value>& args) {
     AsyncCall(env, args, "close", UTF8, AfterNoArgs,
               uv_fs_close, fd);
   } else {  // close(fd, undefined, ctx)
+    CHECK_EQ(args.Length(), 3);
     fs_req_wrap req_wrap;
     SyncCall(env, args[2], &req_wrap, "close", uv_fs_close, fd);
   }
