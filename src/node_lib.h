@@ -8,16 +8,16 @@
 #include "node.h"
 
 namespace node { namespace lib {
-    void _StartEnv(int argc, const char* const* argv);
 
-    int _StopEnv();
+    namespace { // private variables
+        bool _event_loop_running = false;
+    }
 
+    bool EventLoopIsRunning() { return _event_loop_running; }
 
     /*********************************************************
      * Function types
      *********************************************************/
-
-    using RunUserLoop = std::function<void()>;
 
     void _RegisterModuleCallback(v8::Local<v8::Object> exports,
               v8::Local<v8::Value> module,
@@ -40,20 +40,12 @@ namespace node { namespace lib {
     Stops the existing Node.js engine. Eventloop should not be running at this point.
     *Important*: Once this was called, Initialize() will have to be called again for Node.js' library functions to be available again.
     */
-    NODE_EXTERN void Deinitialize();
-
-    /*
-    Starts the Node.js engine with a given JavaScript file. Additionally, the Node.js engine will be kept alive
-    calling the `callback` periodically.
-    *Important*: This method will not return until the Node.js is stopped (e.g. by calling `terminate`).
-    */
-    //bool StartMainLoop(const std::string & path, const RunUserLoop & callback);
+    NODE_EXTERN int Deinitialize();
 
     /*
     Executes a given JavaScript file and returns once the execution has finished.
     *Important*: Node.js has to have been initialized by calling Initialize().
     */
-
     NODE_EXTERN v8::Local<v8::Value> Run(const std::string & path);
 
     /*********************************************************
@@ -68,9 +60,9 @@ namespace node { namespace lib {
     /*
     Starts the execution of the Node.js event loop, which processes any events in JavaScript.
     Additionally, the given callback will be executed once per main loop run.
-    *Important*: Call `initialize()` before using this method.
+    *Important*: Call `Initialize()` before using this method.
     */
-    NODE_EXTERN void RunEventLoop(const RunUserLoop & callback);
+    NODE_EXTERN void RunEventLoop(const std::function<void()> & callback);
 
 
     /*********************************************************
@@ -78,15 +70,9 @@ namespace node { namespace lib {
      *********************************************************/
 
     /*
-    Sends termination event into event queue and runs event queue, until all events have been handled.
+    Stops the Node.js event loop after its current execution. Execution can be resumed by calling RunEventLoop() again.
     */
     NODE_EXTERN void StopEventLoop();
-
-
-    /*
-    Stops the *running* Node.js engine. Clears all events and puts Node.js into idle.
-    */
-    NODE_EXTERN void RequestStopEventLoop();
 
     /*********************************************************
      * Basic operations
