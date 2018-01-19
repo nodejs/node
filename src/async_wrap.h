@@ -38,6 +38,7 @@ namespace node {
   V(DNSCHANNEL)                                                               \
   V(FSEVENTWRAP)                                                              \
   V(FSREQWRAP)                                                                \
+  V(FSREQPROMISE)                                                             \
   V(GETADDRINFOREQWRAP)                                                       \
   V(GETNAMEINFOREQWRAP)                                                       \
   V(HTTP2SESSION)                                                             \

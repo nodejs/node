@@ -97,6 +97,7 @@ using v8::Local;
 using v8::MaybeLocal;
 using v8::Number;
 using v8::Object;
+using v8::Promise;
 using v8::String;
 using v8::Undefined;
 using v8::Value;
@@ -127,30 +128,75 @@ void FSReqWrap::Resolve(Local<Value> value) {
   MakeCallback(env()->oncomplete_string(), arraysize(argv), argv);
 }
 
-void FSReqWrap::Init(const char* syscall,
-                     const char* data,
-                     size_t len,
-                     enum encoding encoding) {
-  syscall_ = syscall;
-  encoding_ = encoding;
-
-  if (data != nullptr) {
-    CHECK_EQ(data_, nullptr);
-    buffer_.AllocateSufficientStorage(len + 1);
-    buffer_.SetLengthAndZeroTerminate(len);
-    memcpy(*buffer_, data, len);
-    data_ = *buffer_;
-  }
-}
-
 void NewFSReqWrap(const FunctionCallbackInfo<Value>& args) {
   CHECK(args.IsConstructCall());
   Environment* env = Environment::GetCurrent(args.GetIsolate());
   new FSReqWrap(env, args.This());
 }
 
+FSReqPromise::FSReqPromise(Environment* env, Local<Object> req)
+    : FSReqBase(env, req, AsyncWrap::PROVIDER_FSREQPROMISE) {
+  auto resolver = Promise::Resolver::New(env->context()).ToLocalChecked();
+  req->Set(env->context(), env->promise_string(),
+           resolver.As<Promise>()).FromJust();
 
-FSReqAfterScope::FSReqAfterScope(FSReqWrap* wrap, uv_fs_t* req)
+  Local<ArrayBuffer> ab =
+      ArrayBuffer::New(env->isolate(), statFields_,
+                       sizeof(double) * 14,
+                       v8::ArrayBufferCreationMode::kInternalized);
+  object()->Set(env->context(),
+                env->statfields_string(),
+                Float64Array::New(ab, 0, 14)).FromJust();
+}
+
+FSReqPromise::~FSReqPromise() {
+  // Validate that the promise was explicitly resolved or rejected.
+  CHECK(finished_);
+}
+
+void FSReqPromise::Reject(Local<Value> reject) {
+  finished_ = true;
+  InternalCallbackScope callback_scope(this);
+  HandleScope scope(env()->isolate());
+  Local<Value> value =
+      object()->Get(env()->context(),
+                    env()->promise_string()).ToLocalChecked();
+  CHECK(value->IsPromise());
+  Local<Promise> promise = value.As<Promise>();
+  Local<Promise::Resolver> resolver = promise.As<Promise::Resolver>();
+  resolver->Reject(env()->context(), reject);
+}
+
+void FSReqPromise::FillStatsArray(const uv_stat_t* stat) {
+  node::FillStatsArray(statFields_, stat);
+}
+
+void FSReqPromise::ResolveStat() {
+  Resolve(
+      object()->Get(env()->context(),
+                    env()->statfields_string()).ToLocalChecked());
+}
+
+void FSReqPromise::Resolve(Local<Value> value) {
+  finished_ = true;
+  InternalCallbackScope callback_scope(this);
+  HandleScope scope(env()->isolate());
+  Local<Value> val =
+      object()->Get(env()->context(),
+                    env()->promise_string()).ToLocalChecked();
+  CHECK(val->IsPromise());
+  Local<Promise> promise = val.As<Promise>();
+  Local<Promise::Resolver> resolver = promise.As<Promise::Resolver>();
+  resolver->Resolve(env()->context(), value);
+}
+
+void NewFSReqPromise(const FunctionCallbackInfo<Value>& args) {
+  CHECK(args.IsConstructCall());
+  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  new FSReqPromise(env, args.This());
+}
+
+FSReqAfterScope::FSReqAfterScope(FSReqBase* wrap, uv_fs_t* req)
     : wrap_(wrap),
       req_(req),
       handle_scope_(wrap->env()->isolate()),
@@ -190,7 +236,7 @@ bool FSReqAfterScope::Proceed() {
 }
 
 void AfterNoArgs(uv_fs_t* req) {
-  FSReqWrap* req_wrap = static_cast<FSReqWrap*>(req->data);
+  FSReqBase* req_wrap = static_cast<FSReqBase*>(req->data);
   FSReqAfterScope after(req_wrap, req);
 
   if (after.Proceed())
@@ -198,7 +244,7 @@ void AfterNoArgs(uv_fs_t* req) {
 }
 
 void AfterStat(uv_fs_t* req) {
-  FSReqWrap* req_wrap = static_cast<FSReqWrap*>(req->data);
+  FSReqBase* req_wrap = static_cast<FSReqBase*>(req->data);
   FSReqAfterScope after(req_wrap, req);
 
   if (after.Proceed()) {
@@ -208,7 +254,7 @@ void AfterStat(uv_fs_t* req) {
 }
 
 void AfterInteger(uv_fs_t* req) {
-  FSReqWrap* req_wrap = static_cast<FSReqWrap*>(req->data);
+  FSReqBase* req_wrap = static_cast<FSReqBase*>(req->data);
   FSReqAfterScope after(req_wrap, req);
 
   if (after.Proceed())
@@ -216,7 +262,7 @@ void AfterInteger(uv_fs_t* req) {
 }
 
 void AfterStringPath(uv_fs_t* req) {
-  FSReqWrap* req_wrap = static_cast<FSReqWrap*>(req->data);
+  FSReqBase* req_wrap = static_cast<FSReqBase*>(req->data);
   FSReqAfterScope after(req_wrap, req);
 
   MaybeLocal<Value> link;
@@ -235,7 +281,7 @@ void AfterStringPath(uv_fs_t* req) {
 }
 
 void AfterStringPtr(uv_fs_t* req) {
-  FSReqWrap* req_wrap = static_cast<FSReqWrap*>(req->data);
+  FSReqBase* req_wrap = static_cast<FSReqBase*>(req->data);
   FSReqAfterScope after(req_wrap, req);
 
   MaybeLocal<Value> link;
@@ -254,7 +300,7 @@ void AfterStringPtr(uv_fs_t* req) {
 }
 
 void AfterScanDir(uv_fs_t* req) {
-  FSReqWrap* req_wrap = static_cast<FSReqWrap*>(req->data);
+  FSReqBase* req_wrap = static_cast<FSReqBase*>(req->data);
   FSReqAfterScope after(req_wrap, req);
 
   if (after.Proceed()) {
@@ -318,12 +364,12 @@ class fs_req_wrap {
 };
 
 template <typename Func, typename... Args>
-inline FSReqWrap* AsyncDestCall(Environment* env,
+inline FSReqBase* AsyncDestCall(Environment* env,
     const FunctionCallbackInfo<Value>& args,
     const char* syscall, const char* dest, size_t len,
     enum encoding enc, uv_fs_cb after, Func fn, Args... fn_args) {
   Local<Object> req = args[args.Length() - 1].As<Object>();
-  FSReqWrap* req_wrap = Unwrap<FSReqWrap>(req);
+  FSReqBase* req_wrap = Unwrap<FSReqBase>(req);
   CHECK_NE(req_wrap, nullptr);
   req_wrap->Init(syscall, dest, len, enc);
   int err = fn(env->event_loop(), req_wrap->req(), fn_args..., after);
@@ -343,7 +389,7 @@ inline FSReqWrap* AsyncDestCall(Environment* env,
 }
 
 template <typename Func, typename... Args>
-inline FSReqWrap* AsyncCall(Environment* env,
+inline FSReqBase* AsyncCall(Environment* env,
     const FunctionCallbackInfo<Value>& args,
     const char* syscall, enum encoding enc,
     uv_fs_cb after, Func fn, Args... fn_args) {
@@ -1396,6 +1442,16 @@ void InitFs(Local<Object> target,
       FIXED_ONE_BYTE_STRING(env->isolate(), "FSReqWrap");
   fst->SetClassName(wrapString);
   target->Set(context, wrapString, fst->GetFunction()).FromJust();
+
+  // Create Function Template for FSReqPromise
+  Local<FunctionTemplate> fpt =
+      FunctionTemplate::New(env->isolate(), NewFSReqPromise);
+  fpt->InstanceTemplate()->SetInternalFieldCount(1);
+  AsyncWrap::AddWrapMethods(env, fpt);
+  Local<String> promiseString =
+      FIXED_ONE_BYTE_STRING(env->isolate(), "FSReqPromise");
+  fpt->SetClassName(promiseString);
+  target->Set(context, promiseString, fpt->GetFunction()).FromJust();
 }
 
 }  // namespace fs
