@@ -97,6 +97,7 @@ using v8::Local;
 using v8::MaybeLocal;
 using v8::Number;
 using v8::Object;
+using v8::ObjectTemplate;
 using v8::Promise;
 using v8::String;
 using v8::Undefined;
@@ -107,6 +108,150 @@ using v8::Value;
 #endif
 
 #define GET_OFFSET(a) ((a)->IsNumber() ? (a)->IntegerValue() : -1)
+
+// The FileHandle object wraps a file descriptor and will close it on garbage
+// collection if necessary. If that happens, a process warning will be
+// emitted (or a fatal exception will occur if the fd cannot be closed.)
+FileHandle::FileHandle(Environment* env, int fd)
+    : AsyncWrap(env,
+                env->fd_constructor_template()
+                    ->NewInstance(env->context()).ToLocalChecked(),
+                AsyncWrap::PROVIDER_FILEHANDLE), fd_(fd) {
+  MakeWeak<FileHandle>(this);
+  v8::PropertyAttribute attr =
+      static_cast<v8::PropertyAttribute>(v8::ReadOnly | v8::DontDelete);
+  object()->DefineOwnProperty(env->context(),
+                              FIXED_ONE_BYTE_STRING(env->isolate(), "fd"),
+                              Integer::New(env->isolate(), fd),
+                              attr).FromJust();
+}
+
+FileHandle::~FileHandle() {
+  CHECK(!closing_);  // We should not be deleting while explicitly closing!
+  Close();           // Close synchronously and emit warning
+  CHECK(closed_);    // We have to be closed at the point
+  CHECK(persistent().IsEmpty());
+}
+
+
+// Close the file descriptor if it hasn't already been closed. A process
+// warning will be emitted using a SetImmediate to avoid calling back to
+// JS during GC. If closing the fd fails at this point, a fatal exception
+// will crash the process immediately.
+inline void FileHandle::Close() {
+  if (closed_) return;
+  closed_ = true;
+  uv_fs_t req;
+  int ret = uv_fs_close(env()->event_loop(), &req, fd_, nullptr);
+  uv_fs_req_cleanup(&req);
+
+  struct err_detail { int ret; int fd; };
+
+  err_detail* detail = new err_detail { ret, fd_ };
+
+  if (ret < 0) {
+    // Do not unref this
+    env()->SetImmediate([](Environment* env, void* data) {
+      char msg[70];
+      err_detail* detail = static_cast<err_detail*>(data);
+      snprintf(msg, arraysize(msg),
+              "Closing file descriptor %d on garbage collection failed",
+              detail->fd);
+      // This exception will end up being fatal for the process because
+      // it is being thrown from within the SetImmediate handler and
+      // there is no JS stack to bubble it to. In other words, tearing
+      // down the process is the only reasonable thing we can do here.
+      env->ThrowUVException(detail->ret, "close", msg);
+      delete detail;
+    }, detail);
+    return;
+  }
+
+  // If the close was successful, we still want to emit a process warning
+  // to notify that the file descriptor was gc'd. We want to be noisy about
+  // this because not explicitly closing the garbage collector is a bug.
+  env()->SetUnrefImmediate([](Environment* env, void* data) {
+    char msg[70];
+    err_detail* detail = static_cast<err_detail*>(data);
+    snprintf(msg, arraysize(msg),
+            "Closing file descriptor %d on garbage collection",
+            detail->fd);
+    delete detail;
+    ProcessEmitWarning(env, msg);
+  }, detail);
+}
+
+void FileHandle::CloseReq::Resolve() {
+  InternalCallbackScope callback_scope(this);
+  HandleScope scope(env()->isolate());
+  Local<Promise> promise = promise_.Get(env()->isolate());
+  Local<Promise::Resolver> resolver = promise.As<Promise::Resolver>();
+  resolver->Resolve(env()->context(), Undefined(env()->isolate()));
+}
+
+void FileHandle::CloseReq::Reject(Local<Value> reason) {
+  InternalCallbackScope callback_scope(this);
+  HandleScope scope(env()->isolate());
+  Local<Promise> promise = promise_.Get(env()->isolate());
+  Local<Promise::Resolver> resolver = promise.As<Promise::Resolver>();
+  resolver->Reject(env()->context(), reason);
+}
+
+FileHandle* FileHandle::CloseReq::fd() {
+  HandleScope scope(env()->isolate());
+  Local<Value> val = ref_.Get(env()->isolate());
+  Local<Object> obj = val.As<Object>();
+  return Unwrap<FileHandle>(obj);
+}
+
+// Closes this FileHandle asynchronously and returns a Promise that will be
+// resolved when the callback is invoked, or rejects with a UVException if
+// there was a problem closing the fd. This is the preferred mechanism for
+// closing the FD object even tho the object will attempt to close
+// automatically on gc.
+inline Local<Promise> FileHandle::ClosePromise() {
+  Isolate* isolate = env()->isolate();
+  HandleScope scope(isolate);
+  Local<Context> context = env()->context();
+  auto maybe_resolver = Promise::Resolver::New(context);
+  CHECK(!maybe_resolver.IsEmpty());
+  Local<Promise::Resolver> resolver = maybe_resolver.ToLocalChecked();
+  Local<Promise> promise = resolver.As<Promise>();
+  if (!closed_ && !closing_) {
+    closing_ = true;
+    CloseReq* req = new CloseReq(env(), promise, object());
+    auto AfterClose = [](uv_fs_t* req) {
+      CloseReq* close = static_cast<CloseReq*>(req->data);
+      CHECK_NE(close, nullptr);
+      close->fd()->closing_ = false;
+      Isolate* isolate = close->env()->isolate();
+      if (req->result < 0) {
+        close->Reject(UVException(isolate, req->result, "close"));
+      } else {
+        close->fd()->closed_ = true;
+        close->Resolve();
+      }
+      delete close;
+    };
+    req->Dispatched();
+    int ret = uv_fs_close(env()->event_loop(), req->req(), fd_, AfterClose);
+    if (ret < 0) {
+      req->Reject(UVException(isolate, ret, "close"));
+      delete req;
+    }
+  } else {
+    // Already closed. Just reject the promise immediately
+    resolver->Reject(context, UVException(isolate, UV_EBADF, "close"));
+  }
+  return promise;
+}
+
+void FileHandle::Close(const FunctionCallbackInfo<Value>& args) {
+  FileHandle* fd;
+  ASSIGN_OR_RETURN_UNWRAP(&fd, args.Holder());
+  args.GetReturnValue().Set(fd->ClosePromise());
+}
+
 
 void FSReqWrap::Reject(Local<Value> reject) {
   MakeCallback(env()->oncomplete_string(), 1, &reject);
@@ -142,8 +287,7 @@ FSReqPromise::FSReqPromise(Environment* env, Local<Object> req)
 
   Local<ArrayBuffer> ab =
       ArrayBuffer::New(env->isolate(), statFields_,
-                       sizeof(double) * 14,
-                       v8::ArrayBufferCreationMode::kInternalized);
+                       sizeof(double) * 14);
   object()->Set(env->context(),
                 env->statfields_string(),
                 Float64Array::New(ab, 0, 14)).FromJust();
@@ -259,6 +403,16 @@ void AfterInteger(uv_fs_t* req) {
 
   if (after.Proceed())
     req_wrap->Resolve(Integer::New(req_wrap->env()->isolate(), req->result));
+}
+
+void AfterOpenFileHandle(uv_fs_t* req) {
+  FSReqWrap* req_wrap = static_cast<FSReqWrap*>(req->data);
+  FSReqAfterScope after(req_wrap, req);
+
+  if (after.Proceed()) {
+    FileHandle* fd = new FileHandle(req_wrap->env(), req->result);
+    req_wrap->Resolve(fd->object());
+  }
 }
 
 void AfterStringPath(uv_fs_t* req) {
@@ -969,6 +1123,7 @@ static void ReadDir(const FunctionCallbackInfo<Value>& args) {
 
 static void Open(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
+  Local<Context> context = env->context();
 
   CHECK_GE(args.Length(), 3);
   CHECK(args[1]->IsInt32());
@@ -977,8 +1132,8 @@ static void Open(const FunctionCallbackInfo<Value>& args) {
   BufferValue path(env->isolate(), args[0]);
   CHECK_NE(*path, nullptr);
 
-  int flags = args[1]->Int32Value();
-  int mode = static_cast<int>(args[2]->Int32Value());
+  int flags = args[1]->Int32Value(context).ToChecked();
+  int mode = args[2]->Int32Value(context).ToChecked();
 
   if (args[3]->IsObject()) {
     CHECK_EQ(args.Length(), 4);
@@ -990,6 +1145,35 @@ static void Open(const FunctionCallbackInfo<Value>& args) {
   }
 }
 
+static void OpenFileHandle(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  Local<Context> context = env->context();
+
+  CHECK_GE(args.Length(), 3);
+  CHECK(args[1]->IsInt32());
+  CHECK(args[2]->IsInt32());
+
+  BufferValue path(env->isolate(), args[0]);
+  CHECK_NE(*path, nullptr);
+
+  int flags = args[1]->Int32Value(context).ToChecked();
+  int mode = args[2]->Int32Value(context).ToChecked();
+
+  if (args[3]->IsObject()) {
+    CHECK_EQ(args.Length(), 4);
+    AsyncCall(env, args, "open", UTF8, AfterOpenFileHandle,
+              uv_fs_open, *path, flags, mode);
+  } else {
+    SYNC_CALL(open, *path, *path, flags, mode)
+    if (SYNC_RESULT < 0) {
+      args.GetReturnValue().Set(SYNC_RESULT);
+    } else {
+      HandleScope scope(env->isolate());
+      FileHandle* fd = new FileHandle(env, SYNC_RESULT);
+      args.GetReturnValue().Set(fd->object());
+    }
+  }
+}
 
 static void CopyFile(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
@@ -1391,6 +1575,7 @@ void InitFs(Local<Object> target,
   env->SetMethod(target, "access", Access);
   env->SetMethod(target, "close", Close);
   env->SetMethod(target, "open", Open);
+  env->SetMethod(target, "openFileHandle", OpenFileHandle);
   env->SetMethod(target, "read", Read);
   env->SetMethod(target, "fdatasync", Fdatasync);
   env->SetMethod(target, "fsync", Fsync);
@@ -1452,6 +1637,27 @@ void InitFs(Local<Object> target,
       FIXED_ONE_BYTE_STRING(env->isolate(), "FSReqPromise");
   fpt->SetClassName(promiseString);
   target->Set(context, promiseString, fpt->GetFunction()).FromJust();
+
+  // Create FunctionTemplate for FileHandle
+  Local<FunctionTemplate> fd = FunctionTemplate::New(env->isolate());
+  AsyncWrap::AddWrapMethods(env, fd);
+  env->SetProtoMethod(fd, "close", FileHandle::Close);
+  Local<ObjectTemplate> fdt = fd->InstanceTemplate();
+  fdt->SetInternalFieldCount(1);
+  Local<String> handleString =
+       FIXED_ONE_BYTE_STRING(env->isolate(), "FileHandle");
+  fd->SetClassName(handleString);
+  target->Set(context, handleString, fd->GetFunction()).FromJust();
+  env->set_fd_constructor_template(fdt);
+
+  // Create FunctionTemplate for FileHandle::CloseReq
+  Local<FunctionTemplate> fdclose = FunctionTemplate::New(env->isolate());
+  fdclose->SetClassName(FIXED_ONE_BYTE_STRING(env->isolate(),
+                        "FileHandleCloseReq"));
+  AsyncWrap::AddWrapMethods(env, fdclose);
+  Local<ObjectTemplate> fdcloset = fdclose->InstanceTemplate();
+  fdcloset->SetInternalFieldCount(1);
+  env->set_fdclose_constructor_template(fdcloset);
 }
 
 }  // namespace fs
