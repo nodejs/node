@@ -75,10 +75,10 @@ class FSReqAfterScope {
 
 // A wrapper for a file descriptor that will automatically close the fd when
 // the object is garbage collected
-class FD : public AsyncWrap {
+class FileHandle : public AsyncWrap {
  public:
-  FD(Environment* env, int fd);
-  virtual ~FD();
+  FileHandle(Environment* env, int fd);
+  virtual ~FileHandle();
 
   int fd() const { return fd_; }
   size_t self_size() const override { return sizeof(*this); }
@@ -91,32 +91,34 @@ class FD : public AsyncWrap {
   // Synchronous close that emits a warning
   inline void Close();
 
-  class CloseReq {
+  class CloseReq : public ReqWrap<uv_fs_t> {
    public:
     CloseReq(Environment* env,
              Local<Promise> promise,
-             Local<Value> ref) : env_(env) {
+             Local<Value> ref)
+        : ReqWrap(env,
+                  env->fdclose_constructor_template()
+                      ->NewInstance(env->context()).ToLocalChecked(),
+                  AsyncWrap::PROVIDER_FILEHANDLECLOSEREQ) {
+      Wrap(object(), this);
       promise_.Reset(env->isolate(), promise);
       ref_.Reset(env->isolate(), ref);
     }
     ~CloseReq() {
-      uv_fs_req_cleanup(&req);
+      uv_fs_req_cleanup(req());
       promise_.Empty();
       ref_.Empty();
     }
 
-    Environment* env() const { return env_; }
+    FileHandle* fd();
 
-    FD* fd();
+    size_t self_size() const override { return sizeof(*this); }
 
     void Resolve();
 
     void Reject(Local<Value> reason);
 
-    uv_fs_t req;
-
    private:
-    Environment* env_;
     Persistent<Promise> promise_;
     Persistent<Value> ref_;
   };
@@ -128,7 +130,7 @@ class FD : public AsyncWrap {
   bool closing_ = false;
   bool closed_ = false;
 
-  DISALLOW_COPY_AND_ASSIGN(FD);
+  DISALLOW_COPY_AND_ASSIGN(FileHandle);
 };
 
 }  // namespace fs

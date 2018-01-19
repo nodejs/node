@@ -35,7 +35,7 @@ common.expectsError(
 );
 
 common.expectsError(
-  () => fs.openFDSync('/path/to/file/that/does/not/exist', 'r'),
+  () => fs.openFileHandleSync('/path/to/file/that/does/not/exist', 'r'),
   {
     code: 'ENOENT',
     type: Error
@@ -52,7 +52,7 @@ fs.open(__filename, 'rs', common.mustCall((err, fd) => {
   assert.strictEqual(typeof fd, 'number');
 }));
 
-fs.openFD(__filename, 'r', common.mustCall((err, fd) => {
+fs.openFileHandle(__filename, 'r', common.mustCall((err, fd) => {
   assert.ifError(err);
   assert.strictEqual(typeof fd, 'object');
   assert.strictEqual(typeof fd.fd, 'number');
@@ -60,7 +60,7 @@ fs.openFD(__filename, 'r', common.mustCall((err, fd) => {
   fd.close().then(common.mustNotCall()).catch(common.mustCall());
 }));
 
-fs.openFD(__filename, 'rs', common.mustCall((err, fd) => {
+fs.openFileHandle(__filename, 'rs', common.mustCall((err, fd) => {
   assert.ifError(err);
   assert.strictEqual(typeof fd, 'object');
   assert.strictEqual(typeof fd.fd, 'number');
@@ -84,14 +84,14 @@ fs.openFD(__filename, 'rs', common.mustCall((err, fd) => {
     }
   );
   common.expectsError(
-    () => fs.openFD(i, 'r', common.mustNotCall()),
+    () => fs.openFileHandle(i, 'r', common.mustNotCall()),
     {
       code: 'ERR_INVALID_ARG_TYPE',
       type: TypeError
     }
   );
   common.expectsError(
-    () => fs.openFDSync(i, 'r', common.mustNotCall()),
+    () => fs.openFileHandleSync(i, 'r', common.mustNotCall()),
     {
       code: 'ERR_INVALID_ARG_TYPE',
       type: TypeError

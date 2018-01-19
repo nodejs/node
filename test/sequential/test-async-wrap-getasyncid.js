@@ -7,6 +7,8 @@ const net = require('net');
 const providers = Object.assign({}, process.binding('async_wrap').Providers);
 const fixtures = require('../common/fixtures');
 
+common.crashOnUnhandledRejection();
+
 // Make sure that all Providers are tested.
 {
   const hooks = require('async_hooks').createHook({
@@ -166,9 +168,10 @@ if (common.hasCrypto) { // eslint-disable-line crypto-check
 }
 
 {
-  fs.openFD(__filename, 'r', (err, fd) => {
+  fs.openFileHandle(__filename, 'r', (err, fd) => {
     assert.ifError(err);
-    testInitialized(fd, 'FD');
+    testInitialized(fd, 'FileHandle');
+    fd.close().then(common.mustCall()).catch(common.mustNotCall());
   });
 }
 

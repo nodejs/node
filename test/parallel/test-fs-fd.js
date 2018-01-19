@@ -8,12 +8,13 @@ const fs = require('fs');
 common.crashOnUnhandledRejection();
 
 {
+  const fdnum = fs.openFileHandleSync(__filename, 'r').fd;
+
   common.expectWarning(
     'Warning',
-    'File descriptor closed on garbage collection'
+    `Closing file descriptor ${fdnum} on garbage collection`
   );
 
-  const fdnum = fs.openFDSync(__filename, 'r').fd;
 
   // No garbage collection should have run by this point so the FD object,
   // and more importantly the file descriptor number itself, it still usable
@@ -33,7 +34,7 @@ common.crashOnUnhandledRejection();
 }
 
 {
-  fs.openFD(__filename, 'r', (err, fd) => {
+  fs.openFileHandle(__filename, 'r', (err, fd) => {
     assert.ifError(err);
     fd.close().then(common.mustCall()).catch(common.mustNotCall());
     gc();  // eslint-disable-line no-undef

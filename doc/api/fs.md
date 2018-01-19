@@ -291,21 +291,21 @@ explicitly synchronous use libuv's threadpool, which can have surprising and
 negative performance implications for some applications, see the
 [`UV_THREADPOOL_SIZE`][] documentation for more information.
 
-## class: fs.FD
+## class: fs.FileHandle
 <!-- YAML
 added: REPLACEME
 -->
 
-An `fs.FD` object is a wrapper for a numeric file descriptor. Instances of
-`fs.FD` are distinct from numeric file descriptors in that, if the `fs.FD` is
-not explicitly closed using the `fd.close()` method, they will automatically
-close the file descriptor and will emit a process warning, thereby helping to
-prevent memory leaks.
+A `fs.FileHandle` object is a wrapper for a numeric file descriptor. Instances
+of `fs.FileHandle` are distinct from numeric file descriptors in that, if the
+`fs.FileHandle` is not explicitly closed using the `fd.close()` method, they
+will automatically close the file descriptor and will emit a process warning,
+thereby helping to prevent memory leaks.
 
-Instances of the `fs.FD` object are created internally by the `fs.openFD()`
-and `fs.openFDSync()` methods.
+Instances of the `fs.FileHandle` object are created internally by the
+`fs.openFileHandle()` and `fs.openFileHandleSync()` methods.
 
-### fd.close()
+### filehandle.close()
 <!-- YAML
 added: REPLACEME
 -->
@@ -316,18 +316,18 @@ added: REPLACEME
 Closes the file descriptor.
 
 ```js
-const fd = fs.openFDSync('thefile.txt', 'r');
-fd.close()
+const filehandle = fs.openFileHandleSync('thefile.txt', 'r');
+filehandle.close()
   .then(() => console.log('ok'))
   .catch(() => console.log('not ok'));
 ```
 
-### fd.fd
+### filehandle.fd
 <!-- YAML
 added: REPLACEME
 -->
 
-Value: {number} The numeric file descriptor managed by the `FD` object.
+Value: {number} The numeric file descriptor managed by the `FileHandle` object.
 
 ## Class: fs.FSWatcher
 <!-- YAML
@@ -2107,7 +2107,7 @@ through `fs.open()` or `fs.writeFile()`) will fail with `EPERM`. Existing hidden
 files can be opened for writing with the `r+` flag. A call to `fs.ftruncate()`
 can be used to reset the file contents.
 
-## fs.openFD(path, flags[, mode], callback)
+## fs.openFileHandle(path, flags[, mode], callback)
 <!-- YAML
 added: REPLACEME
 -->
@@ -2117,9 +2117,9 @@ added: REPLACEME
 * `mode` {integer} **Default:** `0o666`
 * `callback` {Function}
   * `err` {Error}
-  * `fd` {[fs.FD][#fs_class_fs_fd]}
+  * `fd` {[fs.FileHandle][#fs_class_fs_filehandle]}
 
-Asynchronous file open that returns an `fs.FD` object. See open(2).
+Asynchronous file open that returns a `fs.FileHandle` object. See open(2).
 
 The `flags` argument can be:
 
@@ -2136,8 +2136,9 @@ An exception occurs if the file does not exist.
   the potentially stale local cache. It has a very real impact on I/O
   performance so using this flag is not recommended unless it is needed.
 
-  Note that this doesn't turn `fs.openFD()` into a synchronous blocking call.
-  If synchronous operation is desired `fs.openFDSync()` should be used.
+  Note that this doesn't turn `fs.openFileHAndle()` into a synchronous blocking
+  call. If synchronous operation is desired `fs.openFileHandleSync()` should be
+  used.
 
 * `'w'` - Open file for writing.
 The file is created (if it does not exist) or truncated (if it exists).
@@ -2162,7 +2163,7 @@ The file is created if it does not exist.
 `mode` sets the file mode (permission and sticky bits), but only if the file was
 created. It defaults to `0o666` (readable and writable).
 
-The callback gets two arguments `(err, fd)`.
+The callback gets two arguments `(err, filehandle)`.
 
 The exclusive flag `'x'` (`O_EXCL` flag in open(2)) ensures that `path` is newly
 created. On POSIX systems, `path` is considered to exist even if it is a symlink
@@ -2178,20 +2179,20 @@ On Linux, positional writes don't work when the file is opened in append mode.
 The kernel ignores the position argument and always appends the data to
 the end of the file.
 
-*Note*: The behavior of `fs.openFD()` is platform-specific for some flags. As
-such, opening a directory on macOS and Linux with the `'a+'` flag - see example
-below - will return an error. In contrast, on Windows and FreeBSD, a file
-descriptor will be returned.
+*Note*: The behavior of `fs.openFileHandle()` is platform-specific for some
+flags. As such, opening a directory on macOS and Linux with the `'a+'` flag -
+see example below - will return an error. In contrast, on Windows and FreeBSD,
+a file descriptor will be returned.
 
 ```js
 // macOS and Linux
-fs.openFD('<directory>', 'a+', (err, fd) => {
+fs.openFileHandle('<directory>', 'a+', (err, filehandle) => {
   // => [Error: EISDIR: illegal operation on a directory, open <directory>]
 });
 
 // Windows and FreeBSD
-fs.openFD('<directory>', 'a+', (err, fd) => {
-  // => null, <fd>
+fs.openFileHandle('<directory>', 'a+', (err, filehandle) => {
+  // => null, <filehandle>
 });
 ```
 
@@ -2201,11 +2202,11 @@ a colon, Node.js will open a file system stream, as described by
 [this MSDN page][MSDN-Using-Streams].
 
 *Note:* On Windows, opening an existing hidden file using the `w` flag (e.g.
-using `fs.openFD()`) will fail with `EPERM`. Existing hidden
+using `fs.openFileHandle()`) will fail with `EPERM`. Existing hidden
 files can be opened for writing with the `r+` flag. A call to `fs.ftruncate()`
 can be used to reset the file contents.
 
-## fs.openFDSync(path, flags[, mode])
+## fs.openFileHandleSync(path, flags[, mode])
 <!-- YAML
 added: REPLACEME
 -->
@@ -2213,10 +2214,10 @@ added: REPLACEME
 * `path` {string|Buffer|URL}
 * `flags` {string|number}
 * `mode` {integer} **Default:** `0o666`
-* Returns: {[fs.FD][#fs_class_fs_fd]}
+* Returns: {[fs.FileHandle][#fs_class_fs_filehandle]}
 
-Synchronous version of [`fs.openFD()`][]. Returns an `fs.FD` object representing
-the file descriptor.
+Synchronous version of [`fs.openFileHandle()`][]. Returns a `fs.FileHandle`
+object representing the file descriptor.
 
 ## fs.openSync(path, flags[, mode])
 <!-- YAML
