@@ -91,7 +91,6 @@ class ModuleWrap;
   V(decorated_private_symbol, "node:decorated")                               \
   V(npn_buffer_private_symbol, "node:npnBuffer")                              \
   V(selected_npn_buffer_private_symbol, "node:selectedNpnBuffer")             \
-  V(domain_private_symbol, "node:domain")                                     \
 
 // Strings are per-isolate primitives but Environment proxies them
 // for the sake of convenience.  Strings should be ASCII-only.
@@ -128,7 +127,6 @@ class ModuleWrap;
   V(dns_soa_string, "SOA")                                                    \
   V(dns_srv_string, "SRV")                                                    \
   V(dns_txt_string, "TXT")                                                    \
-  V(domain_string, "domain")                                                  \
   V(emit_warning_string, "emitWarning")                                       \
   V(exchange_string, "exchange")                                              \
   V(encoding_string, "encoding")                                              \
@@ -280,6 +278,7 @@ class ModuleWrap;
   V(internal_binding_cache_object, v8::Object)                                \
   V(buffer_prototype_object, v8::Object)                                      \
   V(context, v8::Context)                                                     \
+  V(domain_callback, v8::Function)                                            \
   V(host_import_module_dynamically_callback, v8::Function)                    \
   V(http2ping_constructor_template, v8::ObjectTemplate)                       \
   V(http2stream_constructor_template, v8::ObjectTemplate)                     \
@@ -567,9 +566,6 @@ class Environment {
 
   inline IsolateData* isolate_data() const;
 
-  inline bool using_domains() const;
-  inline void set_using_domains(bool value);
-
   inline bool printed_error() const;
   inline void set_printed_error(bool value);
 
@@ -745,7 +741,6 @@ class Environment {
   ImmediateInfo immediate_info_;
   TickInfo tick_info_;
   const uint64_t timer_base_;
-  bool using_domains_;
   bool printed_error_;
   bool trace_sync_io_;
   bool abort_on_uncaught_exception_;

@@ -310,7 +310,6 @@ inline Environment::Environment(IsolateData* isolate_data,
       immediate_info_(context->GetIsolate()),
       tick_info_(context->GetIsolate()),
       timer_base_(uv_now(isolate_data->event_loop())),
-      using_domains_(false),
       printed_error_(false),
       trace_sync_io_(false),
       abort_on_uncaught_exception_(false),
@@ -424,14 +423,6 @@ inline Environment::TickInfo* Environment::tick_info() {
 
 inline uint64_t Environment::timer_base() const {
   return timer_base_;
-}
-
-inline bool Environment::using_domains() const {
-  return using_domains_;
-}
-
-inline void Environment::set_using_domains(bool value) {
-  using_domains_ = value;
 }
 
 inline bool Environment::printed_error() const {
