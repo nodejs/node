@@ -796,6 +796,9 @@ changes:
     description: The `path` parameter can be a WHATWG `URL` object using `file:`
                  protocol. Support is currently still *experimental*.
 -->
+Note that this is a blocking call. Avoid this method in an asynchronous
+environment. See [Overview of Blocking vs Non-Blocking][]
+for more information.
 
 * `path` {string|Buffer|URL}
 * `mode` {integer} **Default:** `fs.constants.F_OK`
@@ -897,6 +900,9 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/3163
     description: The `file` parameter can be a file descriptor now.
 -->
+Note that this is a blocking call. Avoid this method in an asynchronous
+environment. See [Overview of Blocking vs Non-Blocking][]
+for more information.
 
 * `file` {string|Buffer|number} filename or file descriptor
 * `data` {string|Buffer}
@@ -1060,6 +1066,9 @@ changes:
     description: The `path` parameter can be a WHATWG `URL` object using `file:`
                  protocol. Support is currently still *experimental*.
 -->
+Note that this is a blocking call. Avoid this method in an asynchronous
+environment. See [Overview of Blocking vs Non-Blocking][]
+for more information.
 
 * `path` {string|Buffer|URL}
 * `uid` {integer}
@@ -1091,6 +1100,9 @@ to the completion callback.
 <!-- YAML
 added: v0.1.21
 -->
+Note that this is a blocking call. Avoid this method in an asynchronous
+environment. See [Overview of Blocking vs Non-Blocking][]
+for more information.
 
 * `fd` {integer}
 
@@ -1149,6 +1161,9 @@ fs.copyFile('source.txt', 'destination.txt', COPYFILE_EXCL, callback);
 <!-- YAML
 added: v8.5.0
 -->
+Note that this is a blocking call. Avoid this method in an asynchronous
+environment. See [Overview of Blocking vs Non-Blocking][]
+for more information.
 
 * `src` {string|Buffer|URL} source filename to copy
 * `dest` {string|Buffer|URL} destination filename of the copy operation
@@ -1472,6 +1487,9 @@ are given to the completion callback.
 <!-- YAML
 added: v0.4.7
 -->
+Note that this is a blocking call. Avoid this method in an asynchronous
+environment. See [Overview of Blocking vs Non-Blocking][]
+for more information.
 
 * `fd` {integer}
 * `mode` {integer}
@@ -1501,6 +1519,9 @@ to the completion callback.
 <!-- YAML
 added: v0.4.7
 -->
+Note that this is a blocking call. Avoid this method in an asynchronous
+environment. See [Overview of Blocking vs Non-Blocking][]
+for more information.
 
 * `fd` {integer}
 * `uid` {integer}
@@ -1529,6 +1550,9 @@ given to the completion callback.
 <!-- YAML
 added: v0.1.96
 -->
+Note that this is a blocking call. Avoid this method in an asynchronous
+environment. See [Overview of Blocking vs Non-Blocking][]
+for more information.
 
 * `fd` {integer}
 
@@ -1557,6 +1581,9 @@ except that the file to be stat-ed is specified by the file descriptor `fd`.
 <!-- YAML
 added: v0.1.95
 -->
+Note that this is a blocking call. Avoid this method in an asynchronous
+environment. See [Overview of Blocking vs Non-Blocking][]
+for more information.
 
 * `fd` {integer}
 
@@ -1583,6 +1610,9 @@ to the completion callback.
 <!-- YAML
 added: v0.1.96
 -->
+Note that this is a blocking call. Avoid this method in an asynchronous
+environment. See [Overview of Blocking vs Non-Blocking][]
+for more information.
 
 * `fd` {integer}
 
@@ -1651,6 +1681,9 @@ The last three bytes are null bytes ('\0'), to compensate the over-truncation.
 <!-- YAML
 added: v0.8.6
 -->
+Note that this is a blocking call. Avoid this method in an asynchronous
+environment. See [Overview of Blocking vs Non-Blocking][]
+for more information.
 
 * `fd` {integer}
 * `len` {integer} **Default:** `0`
@@ -1692,6 +1725,9 @@ changes:
     description: Numeric strings, `NaN` and `Infinity` are now allowed
                  time specifiers.
 -->
+Note that this is a blocking call. Avoid this method in an asynchronous
+environment. See [Overview of Blocking vs Non-Blocking][]
+for more information.
 
 * `fd` {integer}
 * `atime` {integer}
@@ -1723,6 +1759,9 @@ Only available on macOS.
 <!-- YAML
 deprecated: v0.4.7
 -->
+Note that this is a blocking call. Avoid this method in an asynchronous
+environment. See [Overview of Blocking vs Non-Blocking][]
+for more information.
 
 * `path` {string|Buffer}
 * `mode` {integer}
@@ -1792,6 +1831,9 @@ changes:
                  `URL` objects using `file:` protocol. Support is currently
                  still *experimental*.
 -->
+Note that this is a blocking call. Avoid this method in an asynchronous
+environment. See [Overview of Blocking vs Non-Blocking][]
+for more information.
 
 * `existingPath` {string|Buffer|URL}
 * `newPath` {string|Buffer|URL}
@@ -1831,6 +1873,9 @@ changes:
     description: The `path` parameter can be a WHATWG `URL` object using `file:`
                  protocol. Support is currently still *experimental*.
 -->
+Note that this is a blocking call. Avoid this method in an asynchronous
+environment. See [Overview of Blocking vs Non-Blocking][]
+for more information.
 
 * `path` {string|Buffer|URL}
 
@@ -1869,6 +1914,9 @@ changes:
     description: The `path` parameter can be a WHATWG `URL` object using `file:`
                  protocol. Support is currently still *experimental*.
 -->
+Note that this is a blocking call. Avoid this method in an asynchronous
+environment. See [Overview of Blocking vs Non-Blocking][]
+for more information.
 
 * `path` {string|Buffer|URL}
 * `mode` {integer} **Default:** `0o777`
@@ -1954,6 +2002,9 @@ fs.mkdtemp(`${tmpDir}${sep}`, (err, folder) => {
 <!-- YAML
 added: v5.10.0
 -->
+Note that this is a blocking call. Avoid this method in an asynchronous
+environment. See [Overview of Blocking vs Non-Blocking][]
+for more information.
 
 * `prefix` {string}
 * `options` {string|Object}
@@ -2078,6 +2129,9 @@ changes:
     description: The `path` parameter can be a WHATWG `URL` object using `file:`
                  protocol. Support is currently still *experimental*.
 -->
+Note that this is a blocking call. Avoid this method in an asynchronous
+environment. See [Overview of Blocking vs Non-Blocking][]
+for more information.
 
 * `path` {string|Buffer|URL}
 * `flags` {string|number}
@@ -2168,6 +2222,9 @@ changes:
     description: The `path` parameter can be a WHATWG `URL` object using `file:`
                  protocol. Support is currently still *experimental*.
 -->
+Note that this is a blocking call. Avoid this method in an asynchronous
+environment. See [Overview of Blocking vs Non-Blocking][]
+for more information.
 
 * `path` {string|Buffer|URL}
 * `options` {string|Object}
@@ -2268,6 +2325,9 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/3163
     description: The `path` parameter can be a file descriptor now.
 -->
+Note that this is a blocking call. Avoid this method in an asynchronous
+environment. See [Overview of Blocking vs Non-Blocking][]
+for more information.
 
 * `path` {string|Buffer|URL|integer} filename or file descriptor
 * `options` {Object|string}
@@ -2329,6 +2389,9 @@ changes:
     description: The `path` parameter can be a WHATWG `URL` object using `file:`
                  protocol. Support is currently still *experimental*.
 -->
+Note that this is a blocking call. Avoid this method in an asynchronous
+environment. See [Overview of Blocking vs Non-Blocking][]
+for more information.
 
 * `path` {string|Buffer|URL}
 * `options` {string|Object}
@@ -2349,6 +2412,9 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/4518
     description: The `length` parameter can now be `0`.
 -->
+Note that this is a blocking call. Avoid this method in an asynchronous
+environment. See [Overview of Blocking vs Non-Blocking][]
+for more information.
 
 * `fd` {integer}
 * `buffer` {Buffer|Uint8Array}
@@ -2461,6 +2527,9 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/3594
     description: The `cache` parameter was removed.
 -->
+Note that this is a blocking call. Avoid this method in an asynchronous
+environment. See [Overview of Blocking vs Non-Blocking][]
+for more information.
 
 * `path` {string|Buffer|URL}
 * `options` {string|Object}
@@ -2542,6 +2611,9 @@ changes:
                  objects using `file:` protocol. Support is currently still
                  *experimental*.
 -->
+Note that this is a blocking call. Avoid this method in an asynchronous
+environment. See [Overview of Blocking vs Non-Blocking][]
+for more information.
 
 * `oldPath` {string|Buffer|URL}
 * `newPath` {string|Buffer|URL}
@@ -2581,6 +2653,9 @@ changes:
     description: The `path` parameters can be a WHATWG `URL` object using
                  `file:` protocol. Support is currently still *experimental*.
 -->
+Note that this is a blocking call. Avoid this method in an asynchronous
+environment. See [Overview of Blocking vs Non-Blocking][]
+for more information.
 
 * `path` {string|Buffer|URL}
 
@@ -2630,6 +2705,9 @@ changes:
     description: The `path` parameter can be a WHATWG `URL` object using `file:`
                  protocol. Support is currently still *experimental*.
 -->
+Note that this is a blocking call. Avoid this method in an asynchronous
+environment. See [Overview of Blocking vs Non-Blocking][]
+for more information.
 
 * `path` {string|Buffer|URL}
 
@@ -2677,6 +2755,9 @@ changes:
                  using `file:` protocol. Support is currently still
                  *experimental*.
 -->
+Note that this is a blocking call. Avoid this method in an asynchronous
+environment. See [Overview of Blocking vs Non-Blocking][]
+for more information.
 
 * `target` {string|Buffer|URL}
 * `path` {string|Buffer|URL}
@@ -2710,6 +2791,9 @@ being thrown in the future.
 <!-- YAML
 added: v0.8.6
 -->
+Note that this is a blocking call. Avoid this method in an asynchronous
+environment. See [Overview of Blocking vs Non-Blocking][]
+for more information.
 
 * `path` {string|Buffer}
 * `len` {integer} **Default:** `0`
@@ -2750,6 +2834,9 @@ changes:
     description: The `path` parameter can be a WHATWG `URL` object using `file:`
                  protocol. Support is currently still *experimental*.
 -->
+Note that this is a blocking call. Avoid this method in an asynchronous
+environment. See [Overview of Blocking vs Non-Blocking][]
+for more information.
 
 * `path` {string|Buffer|URL}
 
@@ -2829,6 +2916,9 @@ changes:
     description: Numeric strings, `NaN` and `Infinity` are now allowed
                  time specifiers.
 -->
+Note that this is a blocking call. Avoid this method in an asynchronous
+environment. See [Overview of Blocking vs Non-Blocking][]
+for more information.
 
 * `path` {string|Buffer|URL}
 * `atime` {integer}
@@ -3171,6 +3261,9 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/3163
     description: The `file` parameter can be a file descriptor now.
 -->
+Note that this is a blocking call. Avoid this method in an asynchronous
+environment. See [Overview of Blocking vs Non-Blocking][]
+for more information.
 
 * `file` {string|Buffer|integer} filename or file descriptor
 * `data` {string|Buffer|Uint8Array}
@@ -3192,6 +3285,9 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/7856
     description: The `offset` and `length` parameters are optional now.
 -->
+Note that this is a blocking call. Avoid this method in an asynchronous
+environment. See [Overview of Blocking vs Non-Blocking][]
+for more information.
 
 * `fd` {integer}
 * `buffer` {Buffer|Uint8Array}
@@ -3207,6 +3303,9 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/7856
     description: The `position` parameter is optional now.
 -->
+Note that this is a blocking call. Avoid this method in an asynchronous
+environment. See [Overview of Blocking vs Non-Blocking][]
+for more information.
 
 * `fd` {integer}
 * `string` {string}
@@ -3490,3 +3589,4 @@ The following constants are meant for use with the [`fs.Stats`][] object's
 [inode]: https://en.wikipedia.org/wiki/Inode
 [Naming Files, Paths, and Namespaces]: https://msdn.microsoft.com/en-us/library/windows/desktop/aa365247(v=vs.85).aspx
 [MSDN-Using-Streams]: https://msdn.microsoft.com/en-us/library/windows/desktop/bb540537.aspx
+[Overview of Blocking vs Non-Blocking]: https://nodejs.org/en/docs/guides/blocking-vs-non-blocking/
