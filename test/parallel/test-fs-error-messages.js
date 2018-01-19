@@ -20,7 +20,7 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-const common = require('../common');
+require('../common');
 const fixtures = require('../common/fixtures');
 const assert = require('assert');
 const fs = require('fs');
@@ -29,105 +29,72 @@ const existingFile = fixtures.path('exit.js');
 const existingFile2 = fixtures.path('create-file.js');
 const existingDir = fixtures.path('empty');
 const existingDir2 = fixtures.path('keys');
-const uv = process.binding('uv');
 
 // ASYNC_CALL
 
-fs.stat(fn, common.mustCall((err) => {
+fs.stat(fn, function(err) {
   assert.strictEqual(fn, err.path);
-  assert.strictEqual(
-    err.message,
-    `ENOENT: no such file or directory, stat '${fn}'`);
-  assert.strictEqual(err.errno, uv.UV_ENOENT);
-  assert.strictEqual(err.code, 'ENOENT');
-  assert.strictEqual(err.syscall, 'stat');
-}));
-
-fs.lstat(fn, common.mustCall((err) => {
-  assert.strictEqual(fn, err.path);
-  assert.strictEqual(
-    err.message,
-    `ENOENT: no such file or directory, lstat '${fn}'`);
-  assert.strictEqual(err.errno, uv.UV_ENOENT);
-  assert.strictEqual(err.code, 'ENOENT');
-  assert.strictEqual(err.syscall, 'lstat');
-}));
-
-{
-  const fd = fs.openSync(existingFile, 'r');
-  fs.closeSync(fd);
-  fs.fstat(fd, common.mustCall((err) => {
-    assert.strictEqual(err.message, 'EBADF: bad file descriptor, fstat');
-    assert.strictEqual(err.errno, uv.UV_EBADF);
-    assert.strictEqual(err.code, 'EBADF');
-    assert.strictEqual(err.syscall, 'fstat');
-  }));
-}
-
-fs.realpath(fn, common.mustCall((err) => {
-  assert.strictEqual(fn, err.path);
-  assert.strictEqual(
-    err.message,
-    `ENOENT: no such file or directory, lstat '${fn}'`);
-  assert.strictEqual(err.errno, uv.UV_ENOENT);
-  assert.strictEqual(err.code, 'ENOENT');
-  assert.strictEqual(err.syscall, 'lstat');
-}));
-
-fs.readlink(fn, common.mustCall((err) => {
   assert.ok(err.message.includes(fn));
-}));
+});
 
-fs.link(fn, 'foo', common.mustCall((err) => {
+fs.lstat(fn, function(err) {
   assert.ok(err.message.includes(fn));
-}));
+});
 
-fs.link(existingFile, existingFile2, common.mustCall((err) => {
+fs.readlink(fn, function(err) {
+  assert.ok(err.message.includes(fn));
+});
+
+fs.link(fn, 'foo', function(err) {
+  assert.ok(err.message.includes(fn));
+});
+
+fs.link(existingFile, existingFile2, function(err) {
   assert.ok(err.message.includes(existingFile));
   assert.ok(err.message.includes(existingFile2));
-}));
+});
 
-fs.symlink(existingFile, existingFile2, common.mustCall((err) => {
+fs.symlink(existingFile, existingFile2, function(err) {
   assert.ok(err.message.includes(existingFile));
   assert.ok(err.message.includes(existingFile2));
-}));
+});
 
-fs.unlink(fn, common.mustCall((err) => {
+fs.unlink(fn, function(err) {
   assert.ok(err.message.includes(fn));
-}));
+});
 
-fs.rename(fn, 'foo', common.mustCall((err) => {
+fs.rename(fn, 'foo', function(err) {
   assert.ok(err.message.includes(fn));
-}));
+});
 
-fs.rename(existingDir, existingDir2, common.mustCall((err) => {
+fs.rename(existingDir, existingDir2, function(err) {
   assert.ok(err.message.includes(existingDir));
   assert.ok(err.message.includes(existingDir2));
-}));
+});
 
-fs.rmdir(fn, common.mustCall((err) => {
+fs.rmdir(fn, function(err) {
   assert.ok(err.message.includes(fn));
-}));
+});
 
-fs.mkdir(existingFile, 0o666, common.mustCall((err) => {
+fs.mkdir(existingFile, 0o666, function(err) {
   assert.ok(err.message.includes(existingFile));
-}));
+});
 
-fs.rmdir(existingFile, common.mustCall((err) => {
+fs.rmdir(existingFile, function(err) {
   assert.ok(err.message.includes(existingFile));
-}));
+});
 
-fs.chmod(fn, 0o666, common.mustCall((err) => {
+fs.chmod(fn, 0o666, function(err) {
   assert.ok(err.message.includes(fn));
-}));
+});
 
-fs.open(fn, 'r', 0o666, common.mustCall((err) => {
+fs.open(fn, 'r', 0o666, function(err) {
   assert.ok(err.message.includes(fn));
-}));
+});
 
-fs.readFile(fn, common.mustCall((err) => {
+fs.readFile(fn, function(err) {
   assert.ok(err.message.includes(fn));
-}));
+});
 
 // Sync
 
@@ -139,13 +106,7 @@ try {
   fs.statSync(fn);
 } catch (err) {
   errors.push('stat');
-  assert.strictEqual(fn, err.path);
-  assert.strictEqual(
-    err.message,
-    `ENOENT: no such file or directory, stat '${fn}'`);
-  assert.strictEqual(err.errno, uv.UV_ENOENT);
-  assert.strictEqual(err.code, 'ENOENT');
-  assert.strictEqual(err.syscall, 'stat');
+  assert.ok(err.message.includes(fn));
 }
 
 try {
@@ -169,40 +130,7 @@ try {
   fs.lstatSync(fn);
 } catch (err) {
   errors.push('lstat');
-  assert.strictEqual(fn, err.path);
-  assert.strictEqual(
-    err.message,
-    `ENOENT: no such file or directory, lstat '${fn}'`);
-  assert.strictEqual(err.errno, uv.UV_ENOENT);
-  assert.strictEqual(err.code, 'ENOENT');
-  assert.strictEqual(err.syscall, 'lstat');
-}
-
-try {
-  ++expected;
-  const fd = fs.openSync(existingFile, 'r');
-  fs.closeSync(fd);
-  fs.fstatSync(fd);
-} catch (err) {
-  errors.push('fstat');
-  assert.strictEqual(err.message, 'EBADF: bad file descriptor, fstat');
-  assert.strictEqual(err.errno, uv.UV_EBADF);
-  assert.strictEqual(err.code, 'EBADF');
-  assert.strictEqual(err.syscall, 'fstat');
-}
-
-try {
-  ++expected;
-  fs.realpathSync(fn);
-} catch (err) {
-  errors.push('realpath');
-  assert.strictEqual(fn, err.path);
-  assert.strictEqual(
-    err.message,
-    `ENOENT: no such file or directory, lstat '${fn}'`);
-  assert.strictEqual(err.errno, uv.UV_ENOENT);
-  assert.strictEqual(err.code, 'ENOENT');
-  assert.strictEqual(err.syscall, 'lstat');
+  assert.ok(err.message.includes(fn));
 }
 
 try {
@@ -296,4 +224,9 @@ try {
   assert.ok(err.message.includes(fn));
 }
 
-assert.strictEqual(expected, errors.length);
+process.on('exit', function() {
+  assert.strictEqual(
+    expected, errors.length,
+    `Test fs sync exceptions raised, got ${errors.length} expected ${expected}`
+  );
+});
