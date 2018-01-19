@@ -1199,6 +1199,10 @@ added: v8.4.0
     created stream is dependent on.
 * `callback` {Function} Callback that is called once the push stream has been
   initiated.
+  * `err` {Error}
+  * `pushStream` {[`ServerHttp2Stream`][]} The returned pushStream object.
+  * `headers` {[Headers Object][]} Headers object the pushStream was initiated
+  with.
 * Returns: {undefined}
 
 Initiates a push stream. The callback is invoked with the new `Http2Stream`
@@ -1210,7 +1214,7 @@ const http2 = require('http2');
 const server = http2.createServer();
 server.on('stream', (stream) => {
   stream.respond({ ':status': 200 });
-  stream.pushStream({ ':path': '/' }, (err, pushStream) => {
+  stream.pushStream({ ':path': '/' }, (err, pushStream, headers) => {
     if (err) throw err;
     pushStream.respond({ ':status': 200 });
     pushStream.end('some pushed data');
