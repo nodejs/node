@@ -283,6 +283,8 @@ class ModuleWrap;
   V(buffer_prototype_object, v8::Object)                                      \
   V(context, v8::Context)                                                     \
   V(domain_callback, v8::Function)                                            \
+  V(fd_constructor_template, v8::ObjectTemplate)                              \
+  V(fdclose_constructor_template, v8::ObjectTemplate)                         \
   V(host_import_module_dynamically_callback, v8::Function)                    \
   V(host_initialize_import_meta_object_callback, v8::Function)                \
   V(http2ping_constructor_template, v8::ObjectTemplate)                       \
