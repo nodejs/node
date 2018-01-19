@@ -26,13 +26,14 @@ const suggestions = {
 
 module.exports = (context) => {
 
-  const reportIfError = (node, text) => {
+  const reportIfError = (node, sourceCode) => {
 
-    const matches = text.match(nonAsciiRegexPattern);
+    const matches = sourceCode.text.match(nonAsciiRegexPattern);
 
     if (!matches) return;
 
     const offendingCharacter = matches[0];
+    const offendingCharacterPosition = matches.index;
     const suggestion = suggestions[offendingCharacter];
 
     let message = `Non-ASCII character '${offendingCharacter}' detected.`;
@@ -44,6 +45,7 @@ module.exports = (context) => {
     context.report({
       node,
       message,
+      loc: sourceCode.getLocFromIndex(offendingCharacterPosition),
       fix: (fixer) => {
         return fixer.replaceText(
           node,
@@ -54,6 +56,6 @@ module.exports = (context) => {
   };
 
   return {
-    Program: (node) => reportIfError(node, context.getSourceCode().text)
+    Program: (node) => reportIfError(node, context.getSourceCode())
   };
 };
