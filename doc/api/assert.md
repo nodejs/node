@@ -213,7 +213,8 @@ are recursively evaluated also by the following rules.
 * Map keys and Set items are compared unordered.
 * Recursion stops when both sides differ or both sides encounter a circular
   reference.
-* `WeakMap` and `WeakSet` will return true, no matter what values they contain.
+* [`WeakMap`][] and [`WeakSet`][] will return true, no matter what values they
+  contain.
 
 ```js
 const assert = require('assert').strict;
@@ -257,7 +258,7 @@ assert.deepStrictEqual({ [symbol1]: 1 }, { [symbol2]: 1 });
 // Fails because symbol1 !== symbol2!
 
 const weakMap1 = new WeakMap();
-const weakMap2 = new WeakMap([1, 1]);
+const weakMap2 = new WeakMap([[{}, {}]]);
 const weakMap3 = new WeakMap();
 weakMap3.unequal = true;
 
