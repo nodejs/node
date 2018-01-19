@@ -29,6 +29,7 @@ libuv_la_SOURCES = src/fs-poll.c \
                    src/inet.c \
                    src/queue.h \
                    src/threadpool.c \
+                   src/uv-data-getter-setters.c \
                    src/uv-common.c \
                    src/uv-common.h \
                    src/version.c
@@ -158,6 +159,7 @@ test_run_tests_SOURCES = test/blackhole-server.c \
                          test/test-close-fd.c \
                          test/test-close-order.c \
                          test/test-condvar.c \
+                         test/test-connect-unspecified.c \
                          test/test-connection-fail.c \
                          test/test-cwd-and-chdir.c \
                          test/test-default-loop-close.c \
@@ -174,6 +176,7 @@ test_run_tests_SOURCES = test/blackhole-server.c \
                          test/test-fs-poll.c \
                          test/test-fs.c \
                          test/test-fork.c \
+                         test/test-getters-setters.c \
                          test/test-get-currentexe.c \
                          test/test-get-loadavg.c \
                          test/test-get-memory.c \
@@ -220,6 +223,7 @@ test_run_tests_SOURCES = test/blackhole-server.c \
                          test/test-poll-closesocket.c \
                          test/test-poll-oob.c \
                          test/test-process-title.c \
+                         test/test-process-title-threadsafe.c \
                          test/test-queue-foreach-delete.c \
                          test/test-ref.c \
                          test/test-run-nowait.c \
@@ -455,13 +459,10 @@ libuv_la_CFLAGS += -D_UNIX03_THREADS \
                    -qFLOAT=IEEE
 libuv_la_LDFLAGS += -qXPLINK
 libuv_la_SOURCES += src/unix/pthread-fixes.c \
-                    src/unix/no-fsevents.c \
                     src/unix/os390.c \
                     src/unix/os390-syscalls.c \
                     src/unix/proctitle.c
 endif
 
-if HAVE_PKG_CONFIG
 pkgconfigdir = $(libdir)/pkgconfig
 pkgconfig_DATA = @PACKAGE_NAME@.pc
-endif

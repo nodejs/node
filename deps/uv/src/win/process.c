@@ -1173,6 +1173,10 @@ int uv_spawn(uv_loop_t* loop,
 
 
 static int uv__kill(HANDLE process_handle, int signum) {
+  if (signum < 0 || signum >= NSIG) {
+    return UV_EINVAL;
+  }
+
   switch (signum) {
     case SIGTERM:
     case SIGKILL:
@@ -1237,8 +1241,15 @@ int uv_process_kill(uv_process_t* process, int signum) {
 
 int uv_kill(int pid, int signum) {
   int err;
-  HANDLE process_handle = OpenProcess(PROCESS_TERMINATE |
-    PROCESS_QUERY_INFORMATION, FALSE, pid);
+  HANDLE process_handle;
+
+  if (pid == 0) {
+    process_handle = GetCurrentProcess();
+  } else {
+    process_handle = OpenProcess(PROCESS_TERMINATE | PROCESS_QUERY_INFORMATION,
+                                 FALSE,
+                                 pid);
+  }
 
   if (process_handle == NULL) {
     err = GetLastError();

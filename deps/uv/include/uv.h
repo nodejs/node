@@ -425,7 +425,17 @@ struct uv_handle_s {
 };
 
 UV_EXTERN size_t uv_handle_size(uv_handle_type type);
+UV_EXTERN uv_handle_type uv_handle_get_type(const uv_handle_t* handle);
+UV_EXTERN const char* uv_handle_type_name(uv_handle_type type);
+UV_EXTERN void* uv_handle_get_data(const uv_handle_t* handle);
+UV_EXTERN uv_loop_t* uv_handle_get_loop(const uv_handle_t* handle);
+UV_EXTERN void uv_handle_set_data(uv_handle_t* handle, void* data);
+
 UV_EXTERN size_t uv_req_size(uv_req_type type);
+UV_EXTERN void* uv_req_get_data(const uv_req_t* req);
+UV_EXTERN void uv_req_set_data(uv_req_t* req, void* data);
+UV_EXTERN uv_req_type uv_req_get_type(const uv_req_t* req);
+UV_EXTERN const char* uv_req_type_name(uv_req_type type);
 
 UV_EXTERN int uv_is_active(const uv_handle_t* handle);
 
@@ -464,6 +474,8 @@ struct uv_stream_s {
   UV_HANDLE_FIELDS
   UV_STREAM_FIELDS
 };
+
+UV_EXTERN size_t uv_stream_get_write_queue_size(const uv_stream_t* stream);
 
 UV_EXTERN int uv_listen(uv_stream_t* stream, int backlog, uv_connection_cb cb);
 UV_EXTERN int uv_accept(uv_stream_t* server, uv_stream_t* client);
@@ -642,6 +654,8 @@ UV_EXTERN int uv_udp_recv_start(uv_udp_t* handle,
                                 uv_alloc_cb alloc_cb,
                                 uv_udp_recv_cb recv_cb);
 UV_EXTERN int uv_udp_recv_stop(uv_udp_t* handle);
+UV_EXTERN size_t uv_udp_get_send_queue_size(const uv_udp_t* handle);
+UV_EXTERN size_t uv_udp_get_send_queue_count(const uv_udp_t* handle);
 
 
 /*
@@ -962,6 +976,7 @@ UV_EXTERN int uv_spawn(uv_loop_t* loop,
                        const uv_process_options_t* options);
 UV_EXTERN int uv_process_kill(uv_process_t*, int signum);
 UV_EXTERN int uv_kill(int pid, int signum);
+UV_EXTERN uv_pid_t uv_process_get_pid(const uv_process_t*);
 
 
 /*
@@ -1134,6 +1149,12 @@ struct uv_fs_s {
   uv_stat_t statbuf;  /* Stores the result of uv_fs_stat() and uv_fs_fstat(). */
   UV_FS_PRIVATE_FIELDS
 };
+
+UV_EXTERN uv_fs_type uv_fs_get_type(const uv_fs_t*);
+UV_EXTERN ssize_t uv_fs_get_result(const uv_fs_t*);
+UV_EXTERN void* uv_fs_get_ptr(const uv_fs_t*);
+UV_EXTERN const char* uv_fs_get_path(const uv_fs_t*);
+UV_EXTERN uv_stat_t* uv_fs_get_statbuf(uv_fs_t*);
 
 UV_EXTERN void uv_fs_req_cleanup(uv_fs_t* req);
 UV_EXTERN int uv_fs_close(uv_loop_t* loop,
@@ -1516,6 +1537,8 @@ struct uv_loop_s {
   UV_LOOP_PRIVATE_FIELDS
 };
 
+UV_EXTERN void* uv_loop_get_data(const uv_loop_t*);
+UV_EXTERN void uv_loop_set_data(uv_loop_t*, void* data);
 
 /* Don't export the private CPP symbols. */
 #undef UV_HANDLE_TYPE_PRIVATE

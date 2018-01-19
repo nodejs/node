@@ -1,3 +1,66 @@
+2018.01.20, Version 1.19.1 (Stable), 8202d1751196c2374ad370f7f3779daef89befae
+
+Changes since version 1.19.0:
+
+* Revert "unix,tcp: avoid marking server sockets connected" (Ben Noordhuis)
+
+* Revert "unix,fs: fix for potential partial reads/writes" (Ben Noordhuis)
+
+* Revert "win: use RemoveDirectoryW() instead of _wmrmdir()" (Ben Noordhuis)
+
+* cygwin: fix compilation of ifaddrs impl (Brad King)
+
+
+2018.01.18, Version 1.19.0 (Stable), effbb7c9d29090b2e085a40867f8cdfa916a66df
+
+Changes since version 1.18.0:
+
+* core: add getter/setter functions for easier ABI compat (Anna Henningsen)
+
+* unix: make get(set)_process_title MT-safe (Matt Harrison)
+
+* unix,win: wait for threads to start (Ben Noordhuis)
+
+* test: add threadpool init/teardown test (Bartosz Sosnowski)
+
+* win, process: uv_kill improvements (Bartosz Sosnowski)
+
+* win: set _WIN32_WINNT to 0x0600 (cjihrig)
+
+* zos: implement uv_fs_event* functions (jBarz)
+
+* unix,tcp: avoid marking server sockets connected (Jameson Nash)
+
+* doc: mark Windows 7 as Tier 1 support (Bartosz Sosnowski)
+
+* win: map 0.0.0.0 and :: addresses to localhost (Bartosz Sosnowski)
+
+* build: install libuv.pc unconditionally (Ben Noordhuis)
+
+* test: remove custom timeout for thread test on ppc (Ben Noordhuis)
+
+* test: allow multicast not permitted status (Jérémy Lal)
+
+* test: allow net unreachable status in udp test (Ben Noordhuis)
+
+* unix: use SA_RESTART when setting our sighandler (Brad King)
+
+* unix,fs: fix for potential partial reads/writes (Ben Wijen)
+
+* win,build: do not build executable installer for dll (Bert Belder)
+
+* win: allow directory symlinks to be created in a non-elevated context (Bert
+  Belder)
+
+* zos,test: accept SIGKILL for flaky test (jBarz)
+
+* win: use RemoveDirectoryW() instead of _wmrmdir() (Ben Noordhuis)
+
+* unix: fix uv_cpu_info() error on FreeBSD (elephantp)
+
+* zos,test: decrease pings to avoid timeout (jBarz)
+
+
 2017.12.02, Version 1.18.0 (Stable), 1489c98b7fc17f1702821a269eb0c5e730c5c813
 
 Changes since version 1.17.0:

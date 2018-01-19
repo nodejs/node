@@ -1861,7 +1861,7 @@ TEST_IMPL(fs_symlink) {
 }
 
 
-TEST_IMPL(fs_symlink_dir) {
+int test_symlink_dir_impl(int type) {
   uv_fs_t req;
   int r;
   char* test_dir;
@@ -1895,8 +1895,12 @@ TEST_IMPL(fs_symlink_dir) {
   test_dir = "test_dir";
 #endif
 
-  r = uv_fs_symlink(NULL, &req, test_dir, "test_dir_symlink",
-    UV_FS_SYMLINK_JUNCTION, NULL);
+  r = uv_fs_symlink(NULL, &req, test_dir, "test_dir_symlink", type, NULL);
+  if (type == UV_FS_SYMLINK_DIR && (r == UV_ENOTSUP || r == UV_EPERM)) {
+    uv_fs_req_cleanup(&req);
+    RETURN_SKIP("this version of Windows doesn't support unprivileged "
+                "creation of directory symlinks");
+  }
   fprintf(stderr, "r == %i\n", r);
   ASSERT(r == 0);
   ASSERT(req.result == 0);
@@ -2005,6 +2009,13 @@ TEST_IMPL(fs_symlink_dir) {
   return 0;
 }
 
+TEST_IMPL(fs_symlink_dir) {
+  return test_symlink_dir_impl(UV_FS_SYMLINK_DIR);
+}
+
+TEST_IMPL(fs_symlink_junction) {
+  return test_symlink_dir_impl(UV_FS_SYMLINK_JUNCTION);
+}
 
 #ifdef _WIN32
 TEST_IMPL(fs_non_symlink_reparse_point) {
