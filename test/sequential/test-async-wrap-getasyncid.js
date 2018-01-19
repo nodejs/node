@@ -145,6 +145,8 @@ if (common.hasCrypto) { // eslint-disable-line crypto-check
 }
 
 {
+  common.refreshTmpDir();
+
   const server = net.createServer(common.mustCall((socket) => {
     server.close();
   })).listen(common.PIPE, common.mustCall(() => {
