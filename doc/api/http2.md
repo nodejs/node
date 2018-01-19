@@ -1197,7 +1197,8 @@ added: v8.4.0
     **Default:** `false`
   * `parent` {number} Specifies the numeric identifier of a stream the newly
     created stream is dependent on.
-* `callback` {Function} Callback that is called once the push stream has been initiated.
+* `callback` {Function} Callback that is called once the push stream has been  
+initiated.
   * `err` {Error}
   * `pushStream` {[`ServerHttp2Stream`][]} The returned pushStream object.
   * `headers` {[Headers Object][]} Headers object the pushStream was initiated with.
