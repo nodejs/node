@@ -31,11 +31,12 @@ using v8::Value;
 
 void Method(const FunctionCallbackInfo<Value>& args) {
   Isolate* isolate = args.GetIsolate();
-  node::MakeCallback(isolate,
-                     isolate->GetCurrentContext()->Global(),
-                     args[0].As<Function>(),
-                     0,
-                     nullptr);
+  Local<Value> ret = node::MakeCallback(isolate,
+                                        isolate->GetCurrentContext()->Global(),
+                                        args[0].As<Function>(),
+                                        0,
+                                        nullptr);
+  assert(ret->IsTrue());
 }
 
 void init(Local<Object> exports) {

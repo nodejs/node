@@ -790,62 +790,6 @@ bool ShouldAbortOnUncaughtException(Isolate* isolate) {
 }
 
 
-Local<Value> GetDomainProperty(Environment* env, Local<Object> object) {
-  Local<Value> domain_v =
-      object->GetPrivate(env->context(), env->domain_private_symbol())
-          .ToLocalChecked();
-  if (domain_v->IsObject()) {
-    return domain_v;
-  }
-  return object->Get(env->context(), env->domain_string()).ToLocalChecked();
-}
-
-
-void DomainEnter(Environment* env, Local<Object> object) {
-  Local<Value> domain_v = GetDomainProperty(env, object);
-  if (domain_v->IsObject()) {
-    Local<Object> domain = domain_v.As<Object>();
-    Local<Value> enter_v = domain->Get(env->enter_string());
-    if (enter_v->IsFunction()) {
-      if (enter_v.As<Function>()->Call(domain, 0, nullptr).IsEmpty()) {
-        FatalError("node::AsyncWrap::MakeCallback",
-                   "domain enter callback threw, please report this");
-      }
-    }
-  }
-}
-
-
-void DomainExit(Environment* env, v8::Local<v8::Object> object) {
-  Local<Value> domain_v = GetDomainProperty(env, object);
-  if (domain_v->IsObject()) {
-    Local<Object> domain = domain_v.As<Object>();
-    Local<Value> exit_v = domain->Get(env->exit_string());
-    if (exit_v->IsFunction()) {
-      if (exit_v.As<Function>()->Call(domain, 0, nullptr).IsEmpty()) {
-        FatalError("node::AsyncWrap::MakeCallback",
-                  "domain exit callback threw, please report this");
-      }
-    }
-  }
-}
-
-void SetupDomainUse(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-
-  if (env->using_domains())
-    return;
-  env->set_using_domains(true);
-
-  HandleScope scope(env->isolate());
-
-  // Do a little housekeeping.
-  env->process_object()->Delete(
-      env->context(),
-      FIXED_ONE_BYTE_STRING(args.GetIsolate(), "_setupDomainUse")).FromJust();
-}
-
-
 void RunMicrotasks(const FunctionCallbackInfo<Value>& args) {
   args.GetIsolate()->RunMicrotasks();
 }
@@ -982,11 +926,6 @@ InternalCallbackScope::InternalCallbackScope(Environment* env,
   // If you hit this assertion, you forgot to enter the v8::Context first.
   CHECK_EQ(Environment::GetCurrent(env->isolate()), env);
 
-  if (asyncContext.async_id == 0 && env->using_domains() &&
-      !object_.IsEmpty()) {
-    DomainEnter(env, object_);
-  }
-
   if (asyncContext.async_id != 0) {
     // No need to check a return value because the application will exit if
     // an exception occurs.
@@ -1014,11 +953,6 @@ void InternalCallbackScope::Close() {
 
   if (async_context_.async_id != 0) {
     AsyncWrap::EmitAfter(env_, async_context_.async_id);
-  }
-
-  if (async_context_.async_id == 0 && env_->using_domains() &&
-      !object_.IsEmpty()) {
-    DomainExit(env_, object_);
   }
 
   if (IsInnerMakeCallback()) {
@@ -1061,7 +995,18 @@ MaybeLocal<Value> InternalMakeCallback(Environment* env,
     return Undefined(env->isolate());
   }
 
-  MaybeLocal<Value> ret = callback->Call(env->context(), recv, argc, argv);
+  Local<Function> domain_cb = env->domain_callback();
+  MaybeLocal<Value> ret;
+  if (asyncContext.async_id != 0 || domain_cb.IsEmpty() || recv.IsEmpty()) {
+    ret = callback->Call(env->context(), recv, argc, argv);
+  } else {
+    Local<Array> argv_array = Array::New(env->isolate(), argc);
+    for (int i = 0; i < argc; i++) {
+      argv_array->Set(env->context(), i, argv[i]).FromJust();
+    }
+    Local<Value> domain_argv[] = { callback, argv_array };
+    ret = domain_cb->Call(env->context(), recv, 2, domain_argv);
+  }
 
   if (ret.IsEmpty()) {
     // NOTE: For backwards compatibility with public API we return Undefined()
@@ -3339,7 +3284,6 @@ void SetupProcessObject(Environment* env,
   env->SetMethod(process, "_setupProcessObject", SetupProcessObject);
   env->SetMethod(process, "_setupNextTick", SetupNextTick);
   env->SetMethod(process, "_setupPromises", SetupPromises);
-  env->SetMethod(process, "_setupDomainUse", SetupDomainUse);
 }
 
 
