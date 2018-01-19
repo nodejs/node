@@ -433,6 +433,11 @@ suppressFrame();
 ## assert.ifError(value)
 <!-- YAML
 added: v0.1.97
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/18247
+    description: Instead of throwing the original error it is now wrapped into
+                 a AssertionError that contains the full stack trace.
 -->
 * `value` {any}
 
@@ -447,11 +452,11 @@ assert.ifError(null);
 assert.ifError(0);
 // OK
 assert.ifError(1);
-// Throws 1
+// AssertionError [ERR_ASSERTION]: ifError got unwanted exception: 1
 assert.ifError('error');
-// Throws 'error'
+// AssertionError [ERR_ASSERTION]: ifError got unwanted exception: 'error'
 assert.ifError(new Error());
-// Throws Error
+// AssertionError [ERR_ASSERTION]: ifError got unwanted exception: Error
 ```
 
 ## assert.notDeepEqual(actual, expected[, message])
