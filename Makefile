@@ -1045,37 +1045,29 @@ lint-md:
 endif
 
 LINT_JS_TARGETS = benchmark doc lib test tools
-LINT_JS_CMD = tools/eslint/bin/eslint.js --cache \
-	--rulesdir=tools/eslint-rules --ext=.js,.mjs,.md \
-	$(LINT_JS_TARGETS)
+
+run-lint-js = tools/eslint/bin/eslint.js --cache \
+	--rulesdir=tools/eslint-rules --ext=.js,.mjs,.md $(LINT_JS_TARGETS)
+run-lint-js-fix = $(run-lint-js) --fix
 
 lint-js-fix:
-	@if [ -x $(NODE) ]; then \
-		$(NODE) $(LINT_JS_CMD) --fix; \
-	else \
-		node $(LINT_JS_CMD) --fix; \
-	fi
+	@$(call available-node,$(run-lint-js-fix))
 
 lint-js:
 	@echo "Running JS linter..."
-	@if [ -x $(NODE) ]; then \
-		$(NODE) $(LINT_JS_CMD); \
-	else \
-		node $(LINT_JS_CMD); \
-	fi
+	@$(call available-node,$(run-lint-js))
 
 jslint: lint-js
 	@echo "Please use lint-js instead of jslint"
 
+run-lint-js-ci = tools/lint-js.js $(PARALLEL_ARGS) -f tap -o test-eslint.tap \
+		$(LINT_JS_TARGETS)
+
+.PHONY: lint-js-ci
+# On the CI the output is emitted in the TAP format.
 lint-js-ci:
 	@echo "Running JS linter..."
-	@if [ -x $(NODE) ]; then \
-		$(NODE) tools/lint-js.js $(PARALLEL_ARGS) -f tap -o test-eslint.tap \
-		$(LINT_JS_TARGETS); \
-	else \
-		node tools/lint-js.js $(PARALLEL_ARGS) -f tap -o test-eslint.tap \
-		$(LINT_JS_TARGETS); \
-	fi
+	@$(call available-node,$(run-lint-js-ci))
 
 jslint-ci: lint-js-ci
 	@echo "Please use lint-js-ci instead of jslint-ci"
