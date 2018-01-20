@@ -225,7 +225,7 @@ v8:
 
 .PHONY: test
 # This does not run tests of third-party libraries inside deps.
-test: all build-addons	## Runs default tests, linters, and builds docs.
+test: all check-doc-addons build-addons	## Runs default tests, linters, and builds docs.
 	$(MAKE) -s doc-only
 	$(MAKE) -s lint
 	$(MAKE) -s cctest
@@ -233,6 +233,10 @@ test: all build-addons	## Runs default tests, linters, and builds docs.
 		$(CI_JS_SUITES) \
 		$(CI_NATIVE_SUITES) \
 		$(CI_DOC)
+
+.PHONY: check-doc-addons
+check-doc-addons: $(NODE)
+	$(NODE) tools/doc/addon-verify.js --check
 
 .PHONY: test-only
 test-only: all build-addons	## For a quick test, does not run linter or build docs.
