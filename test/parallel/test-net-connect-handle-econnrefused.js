@@ -27,10 +27,10 @@ const assert = require('assert');
 const server = net.createServer();
 server.listen(0);
 const port = server.address().port;
-server.close(() => {
+server.close(common.mustCall(() => {
   const c = net.createConnection(port);
   c.on('connect', common.mustNotCall());
   c.on('error', common.mustCall((e) => {
     assert.strictEqual('ECONNREFUSED', e.code);
   }));
-});
+}));
