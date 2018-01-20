@@ -1008,26 +1008,31 @@ lint-md-clean:
 lint-md-build:
 	@if [ ! -d tools/remark-cli/node_modules ]; then \
 		echo "Markdown linter: installing remark-cli into tools/"; \
-		cd tools/remark-cli && ../../$(NODE) ../../$(NPM) install; fi
+		cd tools/remark-cli && $(call available-node,$(run-npm-install)) fi
 	@if [ ! -d tools/remark-preset-lint-node/node_modules ]; then \
 		echo "Markdown linter: installing remark-preset-lint-node into tools/"; \
-		cd tools/remark-preset-lint-node && ../../$(NODE) ../../$(NPM) install; fi
+		cd tools/remark-preset-lint-node && $(call available-node,$(run-npm-install)) fi
+
 
 ifneq ("","$(wildcard tools/remark-cli/node_modules/)")
-LINT_MD_TARGETS = src lib benchmark tools/doc tools/icu
-LINT_MD_ROOT_DOCS := $(wildcard *.md)
-LINT_MD_FILES := $(shell find $(LINT_MD_TARGETS) -type f \
-  -not -path '*node_modules*' -name '*.md') $(LINT_MD_ROOT_DOCS)
-LINT_DOC_MD_FILES = $(shell ls doc/**/*.md)
 
-tools/.docmdlintstamp: $(LINT_DOC_MD_FILES)
+LINT_MD_DOC_FILES = $(shell ls doc/**/*.md)
+run-lint-doc-md = tools/remark-cli/cli.js -q -f $(LINT_MD_DOC_FILES)
+# Lint all changed markdown files under doc/
+tools/.docmdlintstamp: $(LINT_MD_DOC_FILES)
 	@echo "Running Markdown linter on docs..."
-	@$(NODE) tools/remark-cli/cli.js -q -f $(LINT_DOC_MD_FILES)
+	@$(call available-node,$(run-lint-doc-md))
 	@touch $@
 
-tools/.miscmdlintstamp: $(LINT_MD_FILES)
+LINT_MD_TARGETS = src lib benchmark tools/doc tools/icu
+LINT_MD_ROOT_DOCS := $(wildcard *.md)
+LINT_MD_MISC_FILES := $(shell find $(LINT_MD_TARGETS) -type f \
+  -not -path '*node_modules*' -name '*.md') $(LINT_MD_ROOT_DOCS)
+run-lint-misc-md = tools/remark-cli/cli.js -q -f $(LINT_MD_MISC_FILES)
+# Lint other changed markdown files maintained by us
+tools/.miscmdlintstamp: $(LINT_MD_MISC_FILES)
 	@echo "Running Markdown linter on misc docs..."
-	@$(NODE) tools/remark-cli/cli.js -q -f $(LINT_MD_FILES)
+	@$(call available-node,$(run-lint-misc-md))
 	@touch $@
 
 tools/.mdlintstamp: tools/.miscmdlintstamp tools/.docmdlintstamp
