@@ -50,6 +50,8 @@ NODE_EXE = node$(EXEEXT)
 NODE ?= ./$(NODE_EXE)
 NODE_G_EXE = node_g$(EXEEXT)
 NPM ?= ./deps/npm/bin/npm-cli.js
+NODE_FULL_PATH = $(PWD)/$(NODE_EXE)
+NODE_GYP ?= deps/npm/node_modules/node-gyp/bin/node-gyp
 
 # Flags for packaging.
 BUILD_DOWNLOAD_FLAGS ?= --download=all
@@ -271,22 +273,46 @@ test-valgrind: all
 test-check-deopts: all
 	$(PYTHON) tools/test.py --mode=release --check-deopts parallel sequential -J
 
+ADDON_PREREQS = config.gypi \
+	deps/npm/node_modules/node-gyp/package.json \
+	deps/uv/include/*.h deps/v8/include/*.h \
+	src/node.h src/node_buffer.h src/node_object_wrap.h src/node_version.h
+
+build-single-addon = \
+	$(NODE_FULL_PATH) $(NODE_GYP) \
+		--loglevel=$(LOGLEVEL) rebuild \
+		--python="$(PYTHON)" \
+		--directory="$(1)" \
+		--nodedir="$(PWD)"
+
+# Ignore folders without binding.gyp
+# (https://github.com/nodejs/node/issues/14843)
+# Exit if the local node build is not valid
+build-multiple-addon = \
+	for dirname in $(1); do \
+		if [ ! -f $(PWD)/$$dirname/binding.gyp ]; then \
+			continue; \
+		fi; \
+		if [ ! -x $(NODE_FULL_PATH) ] || [ ! -e $(NODE_FULL_PATH) ]; then \
+			echo "$(NODE_FULL_PATH) is not a valid link"; \
+			exit 1; \
+		fi; \
+		printf "\nBuilding addon $(PWD)/$$dirname\n" ; \
+		env MAKEFLAGS="-j1" $(call build-single-addon,$(PWD)/$$dirname) || exit 1; \
+	done
+
 benchmark/misc/function_call/build/Release/binding.node: all \
+		$(ADDON_PREREQS) \
 		benchmark/misc/function_call/binding.cc \
 		benchmark/misc/function_call/binding.gyp
-	$(NODE) deps/npm/node_modules/node-gyp/bin/node-gyp rebuild \
-		--python="$(PYTHON)" \
-		--directory="$(shell pwd)/benchmark/misc/function_call" \
-		--nodedir="$(shell pwd)"
+	$(call build-single-addon,$(PWD)/benchmark/misc/function_call)
 
 # Implicitly depends on $(NODE_EXE).  We don't depend on it explicitly because
 # it always triggers a rebuild due to it being a .PHONY rule.  See the comment
 # near the build-addons rule for more background.
-test/gc/build/Release/binding.node: test/gc/binding.cc test/gc/binding.gyp
-	$(NODE) deps/npm/node_modules/node-gyp/bin/node-gyp rebuild \
-		--python="$(PYTHON)" \
-		--directory="$(shell pwd)/test/gc" \
-		--nodedir="$(shell pwd)"
+test/gc/build/Release/binding.node: $(ADDON_PREREQS) \
+	test/gc/binding.cc test/gc/binding.gyp
+	$(call build-single-addon,$(PWD)/test/gc)
 
 DOCBUILDSTAMP_PREREQS = tools/doc/addon-verify.js doc/api/addons.md
 
@@ -310,26 +336,12 @@ ADDONS_BINDING_SOURCES := \
 # Implicitly depends on $(NODE_EXE), see the build-addons rule for rationale.
 # Depends on node-gyp package.json so that build-addons is (re)executed when
 # node-gyp is updated as part of an npm update.
-test/addons/.buildstamp: config.gypi \
-	deps/npm/node_modules/node-gyp/package.json \
+test/addons/.buildstamp: $(ADDON_PREREQS) \
 	$(ADDONS_BINDING_GYPS) $(ADDONS_BINDING_SOURCES) \
-	deps/uv/include/*.h deps/v8/include/*.h \
-	src/node.h src/node_buffer.h src/node_object_wrap.h src/node_version.h \
 	test/addons/.docbuildstamp
 #	Cannot use $(wildcard test/addons/*/) here, it's evaluated before
 #	embedded addons have been generated from the documentation.
-#	Ignore folders without binding.gyp
-#	(https://github.com/nodejs/node/issues/14843)
-	@for dirname in test/addons/*/; do \
-		if [ ! -f "$$PWD/$${dirname}binding.gyp" ]; then \
-			continue; fi ; \
-		printf "\nBuilding addon $$PWD/$$dirname\n" ; \
-		env MAKEFLAGS="-j1" $(NODE) deps/npm/node_modules/node-gyp/bin/node-gyp \
-		        --loglevel=$(LOGLEVEL) rebuild \
-			--python="$(PYTHON)" \
-			--directory="$$PWD/$$dirname" \
-			--nodedir="$$PWD" || exit 1 ; \
-	done
+	@$(call build-multiple-addon,test/addons/*)
 	touch $@
 
 .PHONY: build-addons
@@ -350,26 +362,12 @@ ADDONS_NAPI_BINDING_SOURCES := \
 	$(filter-out test/addons-napi/??_*/*.h, $(wildcard test/addons-napi/*/*.h))
 
 # Implicitly depends on $(NODE_EXE), see the build-addons-napi rule for rationale.
-test/addons-napi/.buildstamp: config.gypi \
-	deps/npm/node_modules/node-gyp/package.json \
+test/addons-napi/.buildstamp: $(ADDON_PREREQS) \
 	$(ADDONS_NAPI_BINDING_GYPS) $(ADDONS_NAPI_BINDING_SOURCES) \
-	deps/uv/include/*.h deps/v8/include/*.h \
-	src/node.h src/node_buffer.h src/node_object_wrap.h src/node_version.h \
 	src/node_api.h src/node_api_types.h
 #	Cannot use $(wildcard test/addons-napi/*/) here, it's evaluated before
 #	embedded addons have been generated from the documentation.
-#	Ignore folders without binding.gyp
-#	(https://github.com/nodejs/node/issues/14843)
-	@for dirname in test/addons-napi/*/; do \
-		if [ ! -f "$$PWD/$${dirname}binding.gyp" ]; then \
-			continue; fi ; \
-		printf "\nBuilding addon $$PWD/$$dirname\n" ; \
-		env MAKEFLAGS="-j1" $(NODE) deps/npm/node_modules/node-gyp/bin/node-gyp \
-		        --loglevel=$(LOGLEVEL) rebuild \
-			--python="$(PYTHON)" \
-			--directory="$$PWD/$$dirname" \
-			--nodedir="$$PWD" || exit 1 ; \
-	done
+	@$(call build-multiple-addon,test/addons-napi/*)
 	touch $@
 
 .PHONY: build-addons-napi
@@ -439,7 +437,8 @@ test-ci-js: | clear-stalled
 .PHONY: test-ci
 # Related CI jobs: most CI tests, excluding node-test-commit-arm-fanned
 test-ci: LOGLEVEL := info
-test-ci: | clear-stalled build-addons build-addons-napi doc-only
+test-ci: | clear-stalled test/addons/.buildstamp \
+	test/addons-napi/.buildstamp doc-only
 	out/Release/cctest --gtest_output=tap:cctest.tap
 	$(PYTHON) tools/test.py $(PARALLEL_ARGS) -p tap --logfile test.tap \
 		--mode=release --flaky-tests=$(FLAKY_TESTS) \
