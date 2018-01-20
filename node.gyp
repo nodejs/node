@@ -542,8 +542,8 @@
             }],
             [ 'OS!="mac" and OS!="linux"', {
               'sources': [
-                '<(OBJ_DIR)/node/src/node_dtrace_provider.o',
-                '<(OBJ_DIR)/node/src/node_dtrace_ustack.o',
+                '<(OBJ_DIR)/<(node_lib_target_name)/src/node_dtrace_provider.o',
+                '<(OBJ_DIR)/<(node_lib_target_name)/src/node_dtrace_ustack.o',
               ]
             }
           ] ]
