@@ -33,7 +33,7 @@ source.unpipe(dest1);
 assert.strictEqual(source._readableState.pipes, null);
 
 {
-  // test `cleanup()` if we unpipe all streams. 
+  // test `cleanup()` if we unpipe all streams.
   const source = Readable({ read: () => {} });
   const dest1 = Writable({ write: () => {} });
   const dest2 = Writable({ write: () => {} });
@@ -47,7 +47,7 @@ assert.strictEqual(source._readableState.pipes, null);
     assert.strictEqual(source._readableState.pipesCount, 0);
     assert.strictEqual(source._readableState.flowing, false);
 
-    srcCheckEventNames.forEach(eventName => {
+    srcCheckEventNames.forEach((eventName) => {
       assert.strictEqual(
         source.listenerCount(eventName), 0,
         `source's '${eventName}' event listeners don't be cleaned up`
@@ -62,13 +62,15 @@ assert.strictEqual(source._readableState.pipes, null);
     const unpipeChecker = common.mustCall(() => {
       assert.strictEqual(
         dest.listenerCount('unpipe'), 1,
-        `destination{${currentDestId}} should have a 'unpipe' event listener which is \`unpipeChecker\``
+        `destination{${currentDestId}} should have a 'unpipe' event ` +
+        'listener which is `unpipeChecker`'
       );
       dest.removeListener('unpipe', unpipeChecker);
-      destCheckEventNames.forEach(eventName => {
+      destCheckEventNames.forEach((eventName) => {
         assert.strictEqual(
           dest.listenerCount(eventName), 0,
-          `destination{${currentDestId}}'s '${eventName}' event listeners don't be cleaned up`
+          `destination{${currentDestId}}'s '${eventName}' event ` +
+          "listeners don't be cleaned up"
         );
       });
 
