@@ -20,6 +20,7 @@ assert.strictEqual(path.resolve(socketDir, socketName).length > 100, true,
 
 if (cluster.isMaster) {
   // ensure that the worker exits peacefully
+  common.refreshTmpDir();
   process.chdir(common.tmpDir);
   fs.mkdirSync(socketDir);
   cluster.fork().on('exit', common.mustCall(function(statusCode) {
