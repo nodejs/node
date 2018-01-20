@@ -3,7 +3,7 @@ const common = require('../../common');
 const assert = require('assert');
 
 // Testing api calls for arrays
-const test_typedarray = require(`./build/${common.buildType}/test_typedarray`);
+const test_typedarray = require(`./build/${common.buildType}/binding`);
 
 const byteArray = new Uint8Array(3);
 byteArray[0] = 0;

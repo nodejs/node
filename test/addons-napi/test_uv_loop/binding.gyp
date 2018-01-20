@@ -1,7 +1,7 @@
 {
   "targets": [
     {
-      "target_name": "test_uv_loop",
+      "target_name": "binding",
       "sources": [ "test_uv_loop.cc" ]
     }
   ]

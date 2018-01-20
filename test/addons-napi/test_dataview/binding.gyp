@@ -1,7 +1,7 @@
 {
   "targets": [
     {
-      "target_name": "test_dataview",
+      "target_name": "binding",
       "sources": [ "test_dataview.c" ]
     }
   ]

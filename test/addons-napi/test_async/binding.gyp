@@ -1,7 +1,7 @@
 {
   "targets": [
     {
-      "target_name": "test_async",
+      "target_name": "binding",
       "sources": [ "test_async.cc" ]
     }
   ]

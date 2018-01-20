@@ -2,7 +2,7 @@
 const common = require('../../common');
 const assert = require('assert');
 const async_hooks = require('async_hooks');
-const test_async = require(`./build/${common.buildType}/test_async`);
+const test_async = require(`./build/${common.buildType}/binding`);
 
 const events = [];
 let testId;

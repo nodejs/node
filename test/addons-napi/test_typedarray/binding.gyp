@@ -1,7 +1,7 @@
 {
   "targets": [
     {
-      "target_name": "test_typedarray",
+      "target_name": "binding",
       "sources": [ "test_typedarray.c" ]
     }
   ]

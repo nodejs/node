@@ -1,7 +1,7 @@
 'use strict';
 const common = require('../../common');
 const assert = require('assert');
-const test = require(`./build/${common.buildType}/test_conversions`);
+const test = require(`./build/${common.buildType}/binding`);
 
 const boolExpected = /boolean was expected/;
 const numberExpected = /number was expected/;

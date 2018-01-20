@@ -1,7 +1,7 @@
 {
   "targets": [
     {
-      "target_name": "store_env",
+      "target_name": "binding",
       "sources": [ "store_env.c" ]
     },
     {
