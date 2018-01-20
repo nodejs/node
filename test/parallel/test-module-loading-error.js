@@ -78,3 +78,10 @@ common.expectsError(
     code: 'ERR_INVALID_ARG_VALUE',
     message: 'The argument \'id\' must be a non-empty string. Received \'\''
   });
+
+common.expectsError(
+  () => { require('../fixtures/packages/is-dir'); },
+  {
+    code: 'MODULE_NOT_FOUND',
+    message: 'Cannot find module \'../fixtures/packages/is-dir\''
+  });
