@@ -1,7 +1,7 @@
 {
   "targets": [
     {
-      "target_name": "test_promise",
+      "target_name": "binding",
       "sources": [ "test_promise.c" ]
     }
   ]

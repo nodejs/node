@@ -3,7 +3,7 @@ const common = require('../../common');
 const assert = require('assert');
 
 // testing api calls for symbol
-const test_symbol = require(`./build/${common.buildType}/test_symbol`);
+const test_symbol = require(`./build/${common.buildType}/binding`);
 
 assert.notStrictEqual(test_symbol.New(), test_symbol.New());
 assert.notStrictEqual(test_symbol.New('foo'), test_symbol.New('foo'));

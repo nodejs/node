@@ -4,7 +4,7 @@
 const common = require('../../common');
 const assert = require('assert');
 
-const test_reference = require(`./build/${common.buildType}/test_reference`);
+const test_reference = require(`./build/${common.buildType}/binding`);
 
 // This test script uses external values with finalizer callbacks
 // in order to track when values get garbage-collected. Each invocation

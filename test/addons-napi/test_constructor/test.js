@@ -3,7 +3,7 @@ const common = require('../../common');
 const assert = require('assert');
 
 // Testing api calls for a constructor that defines properties
-const TestConstructor = require(`./build/${common.buildType}/test_constructor`);
+const TestConstructor = require(`./build/${common.buildType}/binding`);
 const test_object = new TestConstructor();
 
 assert.strictEqual(test_object.echo('hello'), 'hello');

@@ -2,7 +2,7 @@
 
 if (process.argv[2] === 'child') {
   const common = require('../../common');
-  console.log(require(`./build/${common.buildType}/test_warning`));
+  console.log(require(`./build/${common.buildType}/binding`));
   console.log(require(`./build/${common.buildType}/test_warning2`));
 } else {
   const run = require('child_process').spawnSync;
