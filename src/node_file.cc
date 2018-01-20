@@ -504,10 +504,6 @@ static void InternalModuleReadJSON(const FunctionCallbackInfo<Value>& args) {
     offset += numchars;
   } while (static_cast<size_t>(numchars) == kBlockSize);
 
-  uv_fs_t close_req;
-  CHECK_EQ(0, uv_fs_close(loop, &close_req, fd, nullptr));
-  uv_fs_req_cleanup(&close_req);
-
   size_t start = 0;
   if (offset >= 3 && 0 == memcmp(&chars[0], "\xEF\xBB\xBF", 3)) {
     start = 3;  // Skip UTF-8 BOM.
