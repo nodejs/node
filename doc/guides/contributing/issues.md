@@ -1,8 +1,16 @@
 # Issues
 
-Issues in `nodejs/node` are the primary means by which bug reports and
-general discussions are made. For any issue, there are fundamentally three
-ways an individual can contribute:
+* [How to Contribute in Issues](#how-to-contribute-in-issues)
+* [Asking for General Help](#asking-for-general-help)
+* [Discussing non-technical topics](#discussing-non-technical-topics)
+* [Submitting a Bug Report](#submitting-a-bug-report)
+* [Triaging a Bug Report](#triaging-a-bug-report)
+* [Resolving a Bug Report](#resolving-a-bug-report)
+
+## How to Contribute in Issues
+
+For any issue, there are fundamentally three ways an individual can
+contribute:
 
 1. By opening the issue for discussion: For instance, if you believe that you
    have uncovered a bug in Node.js, creating a new issue in the `nodejs/node`
@@ -14,12 +22,6 @@ ways an individual can contribute:
    of demonstrating that the issue reported is not a problem after all, or more
    often, by opening a Pull Request that changes some bit of something in
    `nodejs/node` in a concrete and reviewable manner.
-
-* [Asking for General Help](#asking-for-general-help)
-* [Discussing non-technical topics](#discussing-non-technical-topics)
-* [Submitting a Bug Report](#submitting-a-bug-report)
-* [Triaging a Bug Report](#triaging-a-bug-report)
-* [Resolving a Bug Report](#resolving-a-bug-report)
 
 ## Asking for General Help
 

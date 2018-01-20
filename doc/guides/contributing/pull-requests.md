@@ -1,8 +1,5 @@
 # Pull Requests
 
-Pull Requests are the way concrete changes are made to the code, documentation,
-dependencies, and tools contained in the `nodejs/node` repository.
-
 There are two fundamental components of the Pull Request process: one concrete
 and technical, and one more process oriented. The concrete and technical
 component involves the specific details of setting up your local environment
