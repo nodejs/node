@@ -31,3 +31,26 @@ source.unpipe(dest2);
 source.unpipe(dest1);
 
 assert.strictEqual(source._readableState.pipes, null);
+
+{
+  // unpipe all
+  const source = Readable({ read: () => {} });
+  const dest1 = Writable({ write: () => {} });
+  const dest2 = Writable({ write: () => {} });
+
+  source.pipe(dest1);
+  source.pipe(dest2);
+
+  checkDestCleanup(dest1);
+  checkDestCleanup(dest2);
+
+  source.unpipe();
+
+  function checkDestCleanup(dest) {
+    const unpipeChecker = common.mustCall(() => {
+      dest.removeListener('unpipe', unpipeChecker);
+      assert.strictEqual(dest.listenerCount('unpipe'), 0);
+    });
+    dest.on('unpipe', unpipeChecker);
+  }
+}
