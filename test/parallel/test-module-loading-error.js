@@ -72,3 +72,10 @@ common.expectsError(
     code: 'ERR_ASSERTION',
     message: /^path must be a string$/
   });
+
+common.expectsError(
+  () => { require('../fixtures/packages/is-dir'); },
+  {
+    code: 'MODULE_NOT_FOUND',
+    message: 'Cannot find module \'../fixtures/packages/is-dir\''
+  });
