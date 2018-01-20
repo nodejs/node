@@ -9,6 +9,8 @@ onboarding session.
   GitHub account. Unless two-factor authentication is enabled, do not give an
   account elevated privileges such as the ability to land code in the main
   repository or to start continuous integration (CI) jobs.
+* Announce the accepted nomination in a TSC meeting and in the TSC
+  mailing list.
 
 ## Fifteen minutes before the onboarding session
 
