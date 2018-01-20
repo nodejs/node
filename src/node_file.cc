@@ -39,6 +39,7 @@
 # include <io.h>
 #endif
 
+#include <memory>
 #include <vector>
 
 namespace node {
@@ -458,6 +459,12 @@ static void InternalModuleReadJSON(const FunctionCallbackInfo<Value>& args) {
     return;
   }
 
+  std::shared_ptr<void> defer_close(nullptr, [fd, loop] (...) {
+    uv_fs_t close_req;
+    CHECK_EQ(0, uv_fs_close(loop, &close_req, fd, nullptr));
+    uv_fs_req_cleanup(&close_req);
+  });
+
   const size_t kBlockSize = 32 << 10;
   std::vector<char> chars;
   int64_t offset = 0;
@@ -474,13 +481,11 @@ static void InternalModuleReadJSON(const FunctionCallbackInfo<Value>& args) {
     numchars = uv_fs_read(loop, &read_req, fd, &buf, 1, offset, nullptr);
     uv_fs_req_cleanup(&read_req);
 
-    CHECK_GE(numchars, 0);
+    if (numchars < 0)
+      return;
+
     offset += numchars;
   } while (static_cast<size_t>(numchars) == kBlockSize);
-
-  uv_fs_t close_req;
-  CHECK_EQ(0, uv_fs_close(loop, &close_req, fd, nullptr));
-  uv_fs_req_cleanup(&close_req);
 
   size_t start = 0;
   if (offset >= 3 && 0 == memcmp(&chars[0], "\xEF\xBB\xBF", 3)) {
