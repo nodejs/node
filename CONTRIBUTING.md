@@ -41,10 +41,7 @@ dependencies, and tools contained in the `nodejs/node` repository.
 * [Setting up your local environment](./doc/guides/contributing/pull-requests.md#setting-up-your-local-environment)
 * [The Process of Making Changes](./doc/guides/contributing/pull-requests.md#the-process-of-making-changes)
 * [Reviewing Pull Requests](./doc/guides/contributing/pull-requests.md#reviewing-pull-requests)
-
-## Additional Notes
-
-See [additional notes](./doc/guides/contributing/additional-notes.md).
+* [Additional Notes](./doc/guides/contributing/pull-requests.md#additional-notes)
 
 <a id="developers-certificate-of-origin"></a>
 ## Developer's Certificate of Origin 1.1
