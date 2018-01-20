@@ -80,6 +80,8 @@ If the bug occurs only when you're using a specific userland module, there is
 a very good chance that either (a) the module has a bug or (b) something in
 Node.js changed that broke the module.
 
+See [How to create a Minimal, Complete, and Verifiable example](https://stackoverflow.com/help/mcve).
+
 ## Triaging a Bug Report
 
 Once an issue has been opened, it is not uncommon for there to be discussion

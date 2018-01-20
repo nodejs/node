@@ -36,7 +36,6 @@ so that you can make the actual changes. This is where we will start.
   * [CI Testing](#ci-testing)
   * [Waiting Until the Pull Request Gets Landed](#waiting-until-the-pull-request-gets-landed)
   * [Check Out the Collaborator's Guide](#check-out-the-collaborators-guide)
-  * [Helpful Resources](#helpful-resources)
 
 ## Dependencies
 
@@ -193,6 +192,9 @@ conforming to these guidelines, but do not worry if you get something wrong.
 One of the existing contributors will help get things situated and the
 contributor landing the Pull Request will ensure that everything follows
 the project guidelines.
+
+See [core-validate-commit](https://github.com/evanlucas/core-validate-commit) -
+A utility that ensures commits follow the commit formatting guidelines.
 
 ### Step 5: Rebase
 
@@ -649,14 +651,6 @@ widely used, so don't be discouraged!
 If you want to know more about the code review and the landing process,
 you can take a look at the
 [collaborator's guide](https://github.com/nodejs/node/blob/master/COLLABORATOR_GUIDE.md).
-
-### Helpful Resources
-
-The following additional resources may be of assistance:
-
-* [How to create a Minimal, Complete, and Verifiable example](https://stackoverflow.com/help/mcve)
-* [core-validate-commit](https://github.com/evanlucas/core-validate-commit) -
-  A utility that ensures commits follow the commit formatting guidelines.
 
 [approved]: #getting-approvals-for-your-pull-request
 [benchmark results]: ../writing-and-running-benchmarks.md
