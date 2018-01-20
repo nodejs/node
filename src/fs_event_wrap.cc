@@ -114,13 +114,10 @@ void FSEventWrap::Start(const FunctionCallbackInfo<Value>& args) {
   if (wrap->initialized_)
     return args.GetReturnValue().Set(0);
 
-  static const char kErrMsg[] = "filename must be a string or Buffer";
-  if (args.Length() < 1)
-    return env->ThrowTypeError(kErrMsg);
+  CHECK_GE(args.Length(), 4);
 
   BufferValue path(env->isolate(), args[0]);
-  if (*path == nullptr)
-    return env->ThrowTypeError(kErrMsg);
+  CHECK_NE(*path, nullptr);
 
   unsigned int flags = 0;
   if (args[2]->IsTrue())

@@ -114,6 +114,22 @@ tmpdir.refresh();
 
 }
 
+{
+  const msg = 'The "filename" argument must be one of type' +
+    ' string, Buffer, or URL';
+
+  [false, 1, [], {}, null, undefined].forEach((i) => {
+    common.expectsError(
+      () => fs.watch(i, common.mustNotCall()),
+      {
+        code: 'ERR_INVALID_ARG_TYPE',
+        type: TypeError,
+        message: msg
+      }
+    );
+  });
+}
+
 // https://github.com/joyent/node/issues/2293 - non-persistent watcher should
 // not block the event loop
 {
