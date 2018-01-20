@@ -148,7 +148,7 @@ not limited to:
 * Commits in the [nodejs/node][] repository.
   * Can be shown using the link
     `https://github.com/nodejs/node/commits?author=${GITHUB_ID}`
-    (replace `${GITHUB_ID}` with their GitHub ID).
+    (replace `${GITHUB_ID}` with the nominee's GitHub ID).
 * Pull requests and issues opened in the [nodejs/node][] repository.
   * Can be shown using the link
     `https://github.com/nodejs/node/pulls?q=author%3A${GITHUB_ID}+`
@@ -179,8 +179,9 @@ objections from any TSC members.
 Prior to the public nomination, the collaborator initiating it can seek
 feedback from other collaborators in private using
 [the GitHub discussion page][collaborators-discussions] of the
-collaborators team, and work with the nominee to improve their contribution
-profile, in order to make the nomination as frictionless as possible.
+collaborators team, and work with the nominee to improve the nominee's
+contribution profile, in order to make the nomination as frictionless
+as possible.
 
 If individuals making valuable contributions do not believe they have been
 considered for a nomination, they may log an issue or contact a collaborator
