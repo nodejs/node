@@ -658,6 +658,8 @@ class Environment {
                                 const char* name,
                                 v8::FunctionCallback callback);
 
+  void BeforeExit(void (*cb)(void* arg), void* arg);
+  void RunBeforeExitCallbacks();
   void AtExit(void (*cb)(void* arg), void* arg);
   void RunAtExitCallbacks();
 
@@ -777,6 +779,12 @@ class Environment {
   std::unique_ptr<http2::http2_state> http2_state_;
 
   double* fs_stats_field_array_;
+
+  struct BeforeExitCallback {
+    void (*cb_)(void* arg);
+    void* arg_;
+  };
+  std::list<BeforeExitCallback> before_exit_functions_;
 
   struct AtExitCallback {
     void (*cb_)(void* arg);
