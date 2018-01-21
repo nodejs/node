@@ -42,10 +42,10 @@ const uv = process.binding('uv');
     assert.strictEqual(err.code, 'ENOENT');
     assert.strictEqual(err.syscall, 'stat');
     return true;
-  }
-  
+  };
+
   fs.stat(nonexistentFile, common.mustCall(validateError));
-  
+
   assert.throws(
     () => fs.statSync(nonexistentFile),
     validateError
@@ -139,7 +139,9 @@ const uv = process.binding('uv');
 {
   const validateError = (err) => {
     assert.strictEqual(nonexistentFile, err.path);
-    assert.strictEqual('foo', err.dest);
+    // Could be resolved to an absolute path
+    assert.ok(err.dest.endsWith('foo'),
+              `expect ${err.dest} to ends with 'foo'`);
     assert.strictEqual(
       err.message,
       `ENOENT: no such file or directory, link '${nonexistentFile}' -> 'foo'`);
@@ -228,7 +230,9 @@ const uv = process.binding('uv');
 {
   const validateError = (err) => {
     assert.strictEqual(nonexistentFile, err.path);
-    assert.strictEqual('foo', err.dest);
+    // Could be resolved to an absolute path
+    assert.ok(err.dest.endsWith('foo'),
+              `expect ${err.dest} to ends with 'foo'`);
     assert.strictEqual(
       err.message,
       `ENOENT: no such file or directory, rename '${nonexistentFile}' ` +
@@ -252,13 +256,23 @@ const uv = process.binding('uv');
   const validateError = (err) => {
     assert.strictEqual(existingDir, err.path);
     assert.strictEqual(existingDir2, err.dest);
-    assert.strictEqual(
-      err.message,
-      `ENOTEMPTY: directory not empty, rename '${existingDir}' -> ` +
-      `'${existingDir2}'`);
-    assert.strictEqual(err.errno, uv.UV_ENOTEMPTY);
-    assert.strictEqual(err.code, 'ENOTEMPTY');
     assert.strictEqual(err.syscall, 'rename');
+    // Could be ENOTEMPTY or EEXIST, depending on the platform
+    if (err.code === 'ENOTEMPTY') {
+      assert.strictEqual(
+        err.message,
+        `ENOTEMPTY: directory not empty, rename '${existingDir}' -> ` +
+        `'${existingDir2}'`);
+      assert.strictEqual(err.errno, uv.UV_ENOTEMPTY);
+      assert.strictEqual(err.code, 'ENOTEMPTY');
+    } else {
+      assert.strictEqual(
+        err.message,
+        `EEXIST: file already exists, rename '${existingDir}' -> ` +
+        `'${existingDir2}'`);
+      assert.strictEqual(err.errno, uv.UV_EEXIST);
+      assert.strictEqual(err.code, 'EEXIST');
+    }
     return true;
   };
 
