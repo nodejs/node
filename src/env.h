@@ -242,7 +242,6 @@ class ModuleWrap;
   V(sni_context_string, "sni_context")                                        \
   V(stack_string, "stack")                                                    \
   V(status_string, "status")                                                  \
-  V(statfields_string, "statFields")                                          \
   V(stdio_string, "stdio")                                                    \
   V(subject_string, "subject")                                                \
   V(subjectaltname_string, "subjectaltname")                                  \
@@ -284,6 +283,7 @@ class ModuleWrap;
   V(context, v8::Context)                                                     \
   V(domain_callback, v8::Function)                                            \
   V(fd_constructor_template, v8::ObjectTemplate)                              \
+  V(fsreqpromise_constructor_template, v8::ObjectTemplate)                    \
   V(fdclose_constructor_template, v8::ObjectTemplate)                         \
   V(host_import_module_dynamically_callback, v8::Function)                    \
   V(host_initialize_import_meta_object_callback, v8::Function)                \
@@ -313,6 +313,7 @@ class ModuleWrap;
   V(vm_parsing_context_symbol, v8::Symbol)                                    \
   V(url_constructor_function, v8::Function)                                   \
   V(write_wrap_constructor_function, v8::Function)                            \
+  V(fs_use_promises_symbol, v8::Symbol)
 
 class Environment;
 
