@@ -17,3 +17,4 @@ function checkError(fn) {
 checkError(() => readable.push([]));
 checkError(() => readable.push({}));
 checkError(() => readable.push(0));
+checkError(() => readable.push());
