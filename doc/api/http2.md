@@ -2186,7 +2186,6 @@ An HTTP/2 CONNECT proxy:
 const http2 = require('http2');
 const { NGHTTP2_REFUSED_STREAM } = http2.constants;
 const net = require('net');
-const { URL } = require('url');
 
 const proxy = http2.createServer();
 proxy.on('stream', (stream, headers) => {

@@ -143,7 +143,6 @@ rules with only JS file extension and Node builtin modules support could
 be written:
 
 ```js
-import url from 'url';
 import path from 'path';
 import process from 'process';
 import Module from 'module';
@@ -164,7 +163,7 @@ export function resolve(specifier, parentModuleURL/*, defaultResolve */) {
     throw new Error(
       `imports must begin with '/', './', or '../'; '${specifier}' does not`);
   }
-  const resolved = new url.URL(specifier, parentModuleURL);
+  const resolved = new URL(specifier, parentModuleURL);
   const ext = path.extname(resolved.pathname);
   if (!JS_EXTENSIONS.has(ext)) {
     throw new Error(
