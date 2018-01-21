@@ -1379,17 +1379,13 @@ MaybeLocal<Value> InternalMakeCallback(Environment* env,
     return Undefined(env->isolate());
   }
 
-  MaybeLocal<Value> ret;
+  MaybeLocal<Value> ret = callback->Call(env->context(), recv, argc, argv);
 
-  {
-    ret = callback->Call(env->context(), recv, argc, argv);
-
-    if (ret.IsEmpty()) {
-      // NOTE: For backwards compatibility with public API we return Undefined()
-      // if the top level call threw.
-      scope.MarkAsFailed();
-      return scope.IsInnerMakeCallback() ? ret : Undefined(env->isolate());
-    }
+  if (ret.IsEmpty()) {
+    // NOTE: For backwards compatibility with public API we return Undefined()
+    // if the top level call threw.
+    scope.MarkAsFailed();
+    return scope.IsInnerMakeCallback() ? ret : Undefined(env->isolate());
   }
 
   scope.Close();
