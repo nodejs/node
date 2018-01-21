@@ -3212,6 +3212,997 @@ changes:
 
 Synchronous versions of [`fs.write()`][]. Returns the number of bytes written.
 
+## fs Promises API
+
+> Stability: 1 - Experimental
+
+The `fs.promises` API provides an alternative set of asynchronous file system
+methods that return `Promise` objects rather than using callbacks. The
+API is accessible via `fs.promises`.
+
+### class: FileHandle
+<!-- YAML
+added: REPLACEME
+-->
+
+A `FileHandle` object is a wrapper for a numeric file descriptor.
+Instances of `FileHandle` are distinct from numeric file descriptors
+in that, if the `FileHandle` is not explicitly closed using the
+`filehandle.close()` method, they will automatically close the file descriptor
+and will emit a process warning, thereby helping to prevent memory leaks.
+
+Instances of the `FileHandle` object are created internally by the
+`fs.promises.open()` method.
+
+Unlike callback-based such as `fs.fstat()`, `fs.fchown()`, `fs.fchmod()`,
+`fs.ftruncate()`, `fs.read()`, and `fs.write()`, operations -- all of which
+use a simple numeric file descriptor, all `fs.promises.*` variations use the
+`FileHandle` class in order to help protect against accidental leaking of
+unclosed file descriptors after a `Promise` is resolved or rejected.
+
+#### filehandle.fd
+<!-- YAML
+added: REPLACEME
+-->
+
+Value: {number} The numeric file descriptor managed by the `FileHandle` object.
+
+#### filehandle.appendFile(data, options)
+<!-- YAML
+added: REPLACEME
+-->
+* `data` {string|Buffer}
+* `options` {Object|string}
+  * `encoding` {string|null} **Default:** `'utf8'`
+  * `mode` {integer} **Default:** `0o666`
+  * `flag` {string} **Default:** `'a'`
+* Returns: {Promise}
+
+Asynchronously append data to this file, creating the file if it does not yet
+exist. `data` can be a string or a [`Buffer`][]. The `Promise` will be
+resolved with no arguments upon success.
+
+If `options` is a string, then it specifies the encoding.
+
+The `FileHandle` must have been opened for appending.
+
+#### filehandle.chmod(mode)
+<!-- YAML
+added: REPLACEME
+-->
+* `mode` {integer}
+* Returns: {Promise}
+
+Modifies the permissions on the file. The `Promise` is resolved with no
+arguments upon success.
+
+#### filehandle.chown(uid, gid)
+<!-- YAML
+added: REPLACEME
+-->
+* `uid` {integer}
+* `gid` {integer}
+* Returns: {Promise}
+
+Changes the ownership of the file then resolves the `Promise` with no arguments
+upon success.
+
+#### filehandle.close()
+<!-- YAML
+added: REPLACEME
+-->
+
+* Returns: {Promise} A `Promise` that will be resolved once the underlying
+  file descriptor is closed, or will be rejected if an error occurs while
+  closing.
+
+Closes the file descriptor.
+
+```js
+async function openAndClose() {
+  let filehandle;
+  try {
+    filehandle = await fs.promises.open('thefile.txt', 'r');
+  } finally {
+    if (filehandle !== undefined)
+      await filehandle.close();
+  }
+}
+```
+
+#### filehandle.datasync()
+<!-- YAML
+added: REPLACEME
+-->
+* Returns: {Promise}
+
+Asynchronous fdatasync(2). The `Promise` is resolved with no arguments upon
+success.
+
+#### filehandle.read(buffer, offset, length, position)
+<!-- YAML
+added: REPLACEME
+-->
+* `buffer` {Buffer|Uint8Array}
+* `offset` {integer}
+* `length` {integer}
+* `position` {integer}
+* Returns: {Promise}
+
+Read data from the file.
+
+`buffer` is the buffer that the data will be written to.
+
+`offset` is the offset in the buffer to start writing at.
+
+`length` is an integer specifying the number of bytes to read.
+
+`position` is an argument specifying where to begin reading from in the file.
+If `position` is `null`, data will be read from the current file position,
+and the file position will be updated.
+If `position` is an integer, the file position will remain unchanged.
+
+Following successful read, the `Promise` is resolved with an object with a
+`bytesRead` property specifying the number of bytes read, and a `buffer` property
+that is a reference to the passed in `buffer` argument.
+
+#### filehandle.readFile(options)
+<!-- YAML
+added: REPLACEME
+-->
+* `options` {Object|string}
+  * `encoding` {string|null} **Default:** `null`
+  * `flag` {string} **Default:** `'r'`
+* Returns: {Promise}
+
+Asynchronously reads the entire contents of a file.
+
+The `Promise` is resolved with the contents of the file. If no encoding is
+specified (using `options.encoding`), the data is returned as a `Buffer`
+object. Otherwise, the data will be a string.
+
+If `options` is a string, then it specifies the encoding.
+
+When the `path` is a directory, the behavior of `fs.promises.readFile()` is
+platform-specific. On macOS, Linux, and Windows, the promise will be rejected
+with an error. On FreeBSD, a representation of the directory's contents will be
+returned.
+
+The `FileHandle` has to support reading.
+
+#### filehandle.stat()
+<!-- YAML
+added: REPLACEME
+-->
+* Returns: {Promise}
+
+Retrieves the [`fs.Stats`][] for the file.
+
+#### filehandle.sync()
+<!-- YAML
+added: REPLACEME
+-->
+* Returns: {Promise}
+
+Asynchronous fsync(2). The `Promise` is resolved with no arguments upon
+success.
+
+#### filehandle.truncate(len = 0)
+<!-- YAML
+added: REPLACEME
+-->
+* `len` {integer} **Default:** `0`
+* Returns: {Promise}
+
+Truncates the file then resolves the `Promise` with no arguments upon success.
+
+If the file was larger than `len` bytes, only the first `len` bytes will be
+retained in the file.
+
+For example, the following program retains only the first four bytes of the
+file:
+
+```js
+console.log(fs.readFileSync('temp.txt', 'utf8'));
+// Prints: Node.js
+
+async function doTruncate() {
+  const fd = await fs.promises.open('temp.txt', 'r+');
+  await fs.promises.ftruncate(fd, 4);
+  console.log(fs.readFileSync('temp.txt', 'utf8'));  // Prints: Node
+}
+
+doTruncate().catch(console.error);
+```
+
+If the file previously was shorter than `len` bytes, it is extended, and the
+extended part is filled with null bytes ('\0'). For example,
+
+```js
+console.log(fs.readFileSync('temp.txt', 'utf8'));
+// Prints: Node.js
+
+async function doTruncate() {
+  const fd = await fs.promises.open('temp.txt', 'r+');
+  await fs.promises.ftruncate(fd, 10);
+  console.log(fs.readFileSync('temp.txt', 'utf8'));  // Prints Node.js\0\0\0
+}
+
+doTruncate().catch(console.error);
+```
+
+The last three bytes are null bytes ('\0'), to compensate the over-truncation.
+
+#### filehandle.utimes(atime, mtime)
+<!-- YAML
+added: REPLACEME
+-->
+* `atime` {number|string|Date}
+* `mtime` {number|string|Date}`
+* Returns: {Promise}
+
+Change the file system timestamps of the object referenced by the `FileHandle`
+then resolves the `Promise` with no arguments upon success.
+
+This function does not work on AIX versions before 7.1, it will resolve the
+`Promise` with an error using code `UV_ENOSYS`.
+
+#### filehandle.write(buffer, offset, length, position)
+<!-- YAML
+added: REPLACEME
+-->
+* `buffer` {Buffer|Uint8Array}
+* `offset` {integer}
+* `length` {integer}
+* `position` {integer}
+* Returns: {Promise}
+
+Write `buffer` to the file.
+
+The `Promise` is resolved with an object containing a `bytesWritten` property
+identifying the number of bytes written, and a `buffer` property containing
+a reference to the `buffer` written.
+
+`offset` determines the part of the buffer to be written, and `length` is
+an integer specifying the number of bytes to write.
+
+`position` refers to the offset from the beginning of the file where this data
+should be written. If `typeof position !== 'number'`, the data will be written
+at the current position. See pwrite(2).
+
+It is unsafe to use `filehandle.write()` multiple times on the same file
+without waiting for the `Promise` to be resolved (or rejected). For this
+scenario, `fs.createWriteStream` is strongly recommended.
+
+On Linux, positional writes do not work when the file is opened in append mode.
+The kernel ignores the position argument and always appends the data to
+the end of the file.
+
+#### filehandle.writeFile(data, options)
+<!-- YAML
+added: REPLACEME
+-->
+* `data` {string|Buffer|Uint8Array}
+* `options` {Object|string}
+  * `encoding` {string|null} **Default:** `'utf8'`
+  * `mode` {integer} **Default:** `0o666`
+  * `flag` {string} **Default:** `'w'`
+* Returns: {Promise}
+
+Asynchronously writes data to a file, replacing the file if it already exists.
+`data` can be a string or a buffer. The `Promise` will be resolved with no
+arguments upon success.
+
+The `encoding` option is ignored if `data` is a buffer. It defaults
+to `'utf8'`.
+
+If `options` is a string, then it specifies the encoding.
+
+The `FileHandle` has to support writing.
+
+It is unsafe to use `filehandle.writeFile()` multiple times on the same file
+without waiting for the `Promise` to be resolved (or rejected).
+
+### fs.promises.access(path[, mode])
+<!-- YAML
+added: REPLACEME
+-->
+
+* `path` {string|Buffer|URL}
+* `mode` {integer} **Default:** `fs.constants.F_OK`
+* Returns: {Promise}
+
+Tests a user's permissions for the file or directory specified by `path`.
+The `mode` argument is an optional integer that specifies the accessibility
+checks to be performed. The following constants define the possible values of
+`mode`. It is possible to create a mask consisting of the bitwise OR of two or
+more values (e.g. `fs.constants.W_OK | fs.constants.R_OK`).
+
+* `fs.constants.F_OK` - `path` is visible to the calling process. This is useful
+for determining if a file exists, but says nothing about `rwx` permissions.
+Default if no `mode` is specified.
+* `fs.constants.R_OK` - `path` can be read by the calling process.
+* `fs.constants.W_OK` - `path` can be written by the calling process.
+* `fs.constants.X_OK` - `path` can be executed by the calling process. This has
+no effect on Windows (will behave like `fs.constants.F_OK`).
+
+If the accessibility check is successful, the `Promise` is resolved with no
+value. If any of the accessibility checks fail, the `Promise` is rejected
+with an `Error` object. The following example checks if the file
+`/etc/passwd` can be read and written by the current process.
+
+```js
+fs.promises.access('/etc/passwd', fs.constants.R_OK | fs.constants.W_OK)
+  .then(() => console.log('can access'))
+  .catch(() => console.error('cannot access'));
+```
+
+Using `fs.promises.access()` to check for the accessibility of a file before
+calling `fs.promises.open()` is not recommended. Doing so introduces a race
+condition, since other processes may change the file's state between the two
+calls. Instead, user code should open/read/write the file directly and handle
+the error raised if the file is not accessible.
+
+### fs.promises.appendFile(file, data[, options])
+<!-- YAML
+added: REPLACEME
+-->
+
+* `file` {string|Buffer|[FileHandle][]} filename or `FileHandle`
+* `data` {string|Buffer}
+* `options` {Object|string}
+  * `encoding` {string|null} **Default:** `'utf8'`
+  * `mode` {integer} **Default:** `0o666`
+  * `flag` {string} **Default:** `'a'`
+* Returns: {Promise}
+
+Asynchronously append data to a file, creating the file if it does not yet
+exist. `data` can be a string or a [`Buffer`][]. The `Promise` will be
+resolved with no arguments upon success.
+
+If `options` is a string, then it specifies the encoding.
+
+The `file` may be specified as a `FileHandle` that has been opened
+for appending (using `fs.promises.open()`).
+
+### fs.promises.chmod(path, mode)
+<!-- YAML
+added: REPLACEME
+-->
+
+* `path` {string|Buffer|URL}
+* `mode` {integer}
+* Returns: {Promise}
+
+Changes the permissions of a file then resolves the `Promise` with no
+arguments upon succces.
+
+### fs.promises.chown(path, uid, gid)
+<!-- YAML
+added: REPLACEME
+-->
+
+* `path` {string|Buffer|URL}
+* `uid` {integer}
+* `gid` {integer}
+* Returns: {Promise}
+
+Changes the ownership of a file then resolves the `Promise` with no arguments
+upon success.
+
+### fs.promises.copyFile(src, dest[, flags])
+<!-- YAML
+added: REPLACEME
+-->
+
+* `src` {string|Buffer|URL} source filename to copy
+* `dest` {string|Buffer|URL} destination filename of the copy operation
+* `flags` {number} modifiers for copy operation. **Default:** `0`
+* Returns: {Promise}
+
+Asynchronously copies `src` to `dest`. By default, `dest` is overwritten if it
+already exists. The `Promise` will be resolved with no arguments upon success.
+
+Node.js makes no guarantees about the atomicity of the copy operation. If an
+error occurs after the destination file has been opened for writing, Node.js
+will attempt to remove the destination.
+
+`flags` is an optional integer that specifies the behavior
+of the copy operation. The only supported flag is `fs.constants.COPYFILE_EXCL`,
+which causes the copy operation to fail if `dest` already exists.
+
+Example:
+
+```js
+const fs = require('fs');
+
+// destination.txt will be created or overwritten by default.
+fs.promises.copyFile('source.txt', 'destination.txt')
+  .then(() => console.log('source.txt was copied to destination.txt'))
+  .catch(() => console.log('The file could not be copied'));
+```
+
+If the third argument is a number, then it specifies `flags`, as shown in the
+following example.
+
+```js
+const fs = require('fs');
+const { COPYFILE_EXCL } = fs.constants;
+
+// By using COPYFILE_EXCL, the operation will fail if destination.txt exists.
+fs.promises.copyFile('source.txt', 'destination.txt', COPYFILE_EXCL)
+  .then(() => console.log('source.txt was copied to destination.txt'))
+  .catch(() => console.log('The file could not be copied'));
+```
+
+### fs.promises.fchmod(filehandle, mode)
+<!-- YAML
+added: REPLACEME
+-->
+
+* `filehandle` {[FileHandle][]}
+* `mode` {integer}
+* Returns: {Promise}
+
+Asynchronous fchmod(2). The `Promise` is resolved with no arguments upon
+success.
+
+### fs.promises.fchown(filehandle, uid, gid)
+<!-- YAML
+added: REPLACEME
+-->
+
+* `filehandle` {[FileHandle][]}
+* `uid` {integer}
+* `gid` {integer}
+* Returns: {Promise}
+
+Changes the ownership of the file represented by `filehandle` then resolves
+the `Promise` with no arguments upon success.
+
+### fs.promises.fdatasync(filehandle)
+<!-- YAML
+added: REPLACEME
+-->
+
+* `filehandle` {[FileHandle][]}
+* Returns: {Promise}
+
+Asynchronous fdatasync(2). The `Promise` is resolved with no arguments upon
+success.
+
+### fs.promises.fstat(filehandle)
+<!-- YAML
+added: REPLACEME
+-->
+
+* `filehandle` {[FileHandle][]}
+* Returns: {Promise}
+
+Retrieves the [`fs.Stats`][] for the given `filehandle`.
+
+### fs.promises.fsync(filehandle)
+<!-- YAML
+added: REPLACEME
+-->
+
+* `filehandle` {[FileHandle][]}
+* Returns: {Promise}
+
+Asynchronous fsync(2). The `Promise` is resolved with no arguments upon
+success.
+
+### fs.promises.ftruncate(filehandle[, len])
+<!-- YAML
+added: REPLACEME
+-->
+
+* `filehandle` {[FileHandle][]}
+* `len` {integer} **Default:** `0`
+* Returns: {Promise}
+
+Truncates the file represented by `filehandle` then resolves the `Promise`
+with no arguments upon success.
+
+If the file referred to by the `FileHandle` was larger than `len` bytes, only
+the first `len` bytes will be retained in the file.
+
+For example, the following program retains only the first four bytes of the
+file:
+
+```js
+console.log(fs.readFileSync('temp.txt', 'utf8'));
+// Prints: Node.js
+
+async function doTruncate() {
+  const fd = await fs.promises.open('temp.txt', 'r+');
+  await fs.promises.ftruncate(fd, 4);
+  console.log(fs.readFileSync('temp.txt', 'utf8'));  // Prints: Node
+}
+
+doTruncate().catch(console.error);
+```
+
+If the file previously was shorter than `len` bytes, it is extended, and the
+extended part is filled with null bytes ('\0'). For example,
+
+```js
+console.log(fs.readFileSync('temp.txt', 'utf8'));
+// Prints: Node.js
+
+async function doTruncate() {
+  const fd = await fs.promises.open('temp.txt', 'r+');
+  await fs.promises.ftruncate(fd, 10);
+  console.log(fs.readFileSync('temp.txt', 'utf8'));  // Prints Node.js\0\0\0
+}
+
+doTruncate().catch(console.error);
+```
+
+The last three bytes are null bytes ('\0'), to compensate the over-truncation.
+
+### fs.promises.futimes(filehandle, atime, mtime)
+<!-- YAML
+added: REPLACEME
+-->
+
+* `filehandle` {[FileHandle][]}
+* `atime` {number|string|Date}
+* `mtime` {number|string|Date}`
+* Returns: {Promise}
+
+Change the file system timestamps of the object referenced by the supplied
+`FileHandle` then resolves the `Promise` with no arguments upon success.
+
+This function does not work on AIX versions before 7.1, it will resolve the
+`Promise` with an error using code `UV_ENOSYS`.
+
+### fs.promises.lchmod(path, mode)
+<!-- YAML
+deprecated: REPLACEME
+-->
+
+* `path` {string|Buffer}
+* `mode` {integer}
+* Returns: {Promise}
+
+Changes the permissions on a symbolic link then resolves the `Promise` with
+no arguments upon success. This method is only implemented on macOS.
+
+### fs.promises.lchown(path, uid, gid)
+<!-- YAML
+deprecated: REPLACEME
+-->
+
+* `path` {string|Buffer}
+* `uid` {integer}
+* `gid` {integer}
+* Returns: {Promise}
+
+Changes the ownership on a symbolic link then resolves the `Promise` with
+no arguments upon success. This method is only implemented on macOS.
+
+### fs.promises.link(existingPath, newPath)
+<!-- YAML
+added: REPLACEME
+-->
+
+* `existingPath` {string|Buffer|URL}
+* `newPath` {string|Buffer|URL}
+* Returns: {Promise}
+
+Asynchronous link(2). The `Promise` is resolved with no arguments upon success.
+
+### fs.promises.lstat(path)
+<!-- YAML
+added: REPLACEME
+-->
+
+* `path` {string|Buffer|URL}
+* Returns: {Promise}
+
+Asynchronous lstat(2). The `Promise` is resolved with the [`fs.Stats`][] object
+for the given symbolic link `path`.
+
+### fs.promises.mkdir(path[, mode])
+<!-- YAML
+added: REPLACEME
+-->
+
+* `path` {string|Buffer|URL}
+* `mode` {integer} **Default:** `0o777`
+* Returns: {Promise}
+
+Asynchronously creates a directory then resolves the `Promise` with no
+arguments upon success.
+
+### fs.promises.mkdtemp(prefix[, options])
+<!-- YAML
+added: REPLACEME
+-->
+
+* `prefix` {string}
+* `options` {string|Object}
+  * `encoding` {string} **Default:** `'utf8'`
+* Returns: {Promise}
+
+Creates a unique temporary directory then resolves the `Promise` with the
+created folder path. A unique directory name is generated by appending six
+random characters to the end of the provided `prefix`.
+
+The optional `options` argument can be a string specifying an encoding, or an
+object with an `encoding` property specifying the character encoding to use.
+
+Example:
+
+```js
+fs.promises.mkdtemp(path.join(os.tmpdir(), 'foo-'))
+  .catch(console.error);
+```
+
+The `fs.mkdtemp()` method will append the six randomly selected characters
+directly to the `prefix` string. For instance, given a directory `/tmp`, if the
+intention is to create a temporary directory *within* `/tmp`, the `prefix`
+*must* end with a trailing platform-specific path separator
+(`require('path').sep`).
+
+### fs.promises.open(path, flags[, mode])
+<!-- YAML
+added: REPLACEME
+-->
+
+* `path` {string|Buffer|URL}
+* `flags` {string|number}
+* `mode` {integer} **Default:** `0o666`
+* Return: {Promise}
+
+Asynchronous file open that returns a `Promise` that, when resolved, yields a
+`FileHandle` object. See open(2).
+
+The `flags` argument can be:
+
+* `'r'` - Open file for reading.
+An exception occurs if the file does not exist.
+
+* `'r+'` - Open file for reading and writing.
+An exception occurs if the file does not exist.
+
+* `'rs+'` - Open file for reading and writing in synchronous mode. Instructs
+  the operating system to bypass the local file system cache.
+
+  This is primarily useful for opening files on NFS mounts as it allows skipping
+  the potentially stale local cache. It has a very real impact on I/O
+  performance so using this flag is not recommended unless it is needed.
+
+  Note that this does not turn `fs.promises.open()` into a synchronous blocking
+  call.
+
+* `'w'` - Open file for writing.
+The file is created (if it does not exist) or truncated (if it exists).
+
+* `'wx'` - Like `'w'` but fails if `path` exists.
+
+* `'w+'` - Open file for reading and writing.
+The file is created (if it does not exist) or truncated (if it exists).
+
+* `'wx+'` - Like `'w+'` but fails if `path` exists.
+
+* `'a'` - Open file for appending.
+The file is created if it does not exist.
+
+* `'ax'` - Like `'a'` but fails if `path` exists.
+
+* `'a+'` - Open file for reading and appending.
+The file is created if it does not exist.
+
+* `'ax+'` - Like `'a+'` but fails if `path` exists.
+
+`mode` sets the file mode (permission and sticky bits), but only if the file was
+created. It defaults to `0o666` (readable and writable).
+
+The exclusive flag `'x'` (`O_EXCL` flag in open(2)) ensures that `path` is newly
+created. On POSIX systems, `path` is considered to exist even if it is a symlink
+to a non-existent file. The exclusive flag may or may not work with network file
+systems.
+
+`flags` can also be a number as documented by open(2); commonly used constants
+are available from `fs.constants`.  On Windows, flags are translated to
+their equivalent ones where applicable, e.g. `O_WRONLY` to `FILE_GENERIC_WRITE`,
+or `O_EXCL|O_CREAT` to `CREATE_NEW`, as accepted by CreateFileW.
+
+On Linux, positional writes don't work when the file is opened in append mode.
+The kernel ignores the position argument and always appends the data to
+the end of the file.
+
+The behavior of `fs.promises.open()` is platform-specific for some
+flags. As such, opening a directory on macOS and Linux with the `'a+'` flag will
+return an error. In contrast, on Windows and FreeBSD, a `FileHandle` will be
+returned.
+
+Some characters (`< > : " / \ | ? *`) are reserved under Windows as documented
+by [Naming Files, Paths, and Namespaces][]. Under NTFS, if the filename contains
+a colon, Node.js will open a file system stream, as described by
+[this MSDN page][MSDN-Using-Streams].
+
+*Note:* On Windows, opening an existing hidden file using the `w` flag (e.g.
+using `fs.promises.open()`) will fail with `EPERM`. Existing hidden
+files can be opened for writing with the `r+` flag. A call to
+`fs.promises.ftruncate()` can be used to reset the file contents.
+
+### fs.promises.read(filehandle, buffer, offset, length, position)
+<!-- YAML
+added: REPLACEME
+-->
+
+* `filehandle` {[FileHandle][]}
+* `buffer` {Buffer|Uint8Array}
+* `offset` {integer}
+* `length` {integer}
+* `position` {integer}
+* Returns: {Promise}
+
+Read data from the file specified by `filehandle`.
+
+`buffer` is the buffer that the data will be written to.
+
+`offset` is the offset in the buffer to start writing at.
+
+`length` is an integer specifying the number of bytes to read.
+
+`position` is an argument specifying where to begin reading from in the file.
+If `position` is `null`, data will be read from the current file position,
+and the file position will be updated.
+If `position` is an integer, the file position will remain unchanged.
+
+Following successful read, the `Promise` is resolved with an object with a
+`bytesRead` property specifying the number of bytes read, and a `buffer` property
+that is a reference to the passed in `buffer` argument.
+
+### fs.promises.readdir(path[, options])
+<!-- YAML
+added: REPLACEME
+-->
+
+* `path` {string|Buffer|URL}
+* `options` {string|Object}
+  * `encoding` {string} **Default:** `'utf8'`
+* Returns: {Promise}
+
+Reads the contents of a directory then resolves the `Promise` with an array
+of the names of the files in the directory excludiing `'.'` and `'..'`.
+
+The optional `options` argument can be a string specifying an encoding, or an
+object with an `encoding` property specifying the character encoding to use for
+the filenames. If the `encoding` is set to `'buffer'`, the filenames returned
+will be passed as `Buffer` objects.
+
+### fs.promises.readFile(path[, options])
+<!-- YAML
+added: REPLACEME
+-->
+
+* `path` {string|Buffer|URL|[FileHandle][]} filename or `FileHandle`
+* `options` {Object|string}
+  * `encoding` {string|null} **Default:** `null`
+  * `flag` {string} **Default:** `'r'`
+* Returns: {Promise}
+
+Asynchronously reads the entire contents of a file.
+
+The `Promise` is resolved with the contents of the file. If no encoding is
+specified (using `options.encoding`), the data is returned as a `Buffer`
+object. Otherwise, the data will be a string.
+
+If `options` is a string, then it specifies the encoding.
+
+When the `path` is a directory, the behavior of `fs.promises.readFile()` is
+platform-specific. On macOS, Linux, and Windows, the promise will be rejected
+with an error. On FreeBSD, a representation of the directory's contents will be
+returned.
+
+Any specified `FileHandle` has to support reading.
+
+### fs.promises.readlink(path[, options])
+<!-- YAML
+added: REPLACEME
+-->
+
+* `path` {string|Buffer|URL}
+* `options` {string|Object}
+  * `encoding` {string} **Default:** `'utf8'`
+* Returns: {Promise}
+
+Asynchronous readlink(2). The `Promise` is resolved with the `linkString` upon
+success.
+
+The optional `options` argument can be a string specifying an encoding, or an
+object with an `encoding` property specifying the character encoding to use for
+the link path returned. If the `encoding` is set to `'buffer'`, the link path
+returned will be passed as a `Buffer` object.
+
+### fs.promises.realpath(path[, options])
+<!-- YAML
+added: REPLACEME
+-->
+
+* `path` {string|Buffer|URL}
+* `options` {string|Object}
+  * `encoding` {string} **Default:** `'utf8'`
+* Returns: {Promise}
+
+Determines the actual location of `path` using the same semantics as the
+`fs.realpath.native()` function then resolves the `Promise` with the resolved
+path.
+
+Only paths that can be converted to UTF8 strings are supported.
+
+The optional `options` argument can be a string specifying an encoding, or an
+object with an `encoding` property specifying the character encoding to use for
+the path. If the `encoding` is set to `'buffer'`, the path returned will be
+passed as a `Buffer` object.
+
+On Linux, when Node.js is linked against musl libc, the procfs file system must
+be mounted on `/proc` in order for this function to work.  Glibc does not have
+this restriction.
+
+### fs.promises.rename(oldPath, newPath)
+<!-- YAML
+added: REPLACEME
+-->
+
+* `oldPath` {string|Buffer|URL}
+* `newPath` {string|Buffer|URL}
+* Returns: {Promise}
+
+Renames `oldPath` to `newPath` and resolves the `Promise` with no arguments
+upon success.
+
+### fs.promises.rmdir(path)
+<!-- YAML
+added: REPLACEME
+-->
+
+* `path` {string|Buffer|URL}
+* Returns: {Promise}
+
+Removes the directory identified by `path` then resolves the `Promise` with
+no arguments upon success.
+
+Using `fs.promises.rmdir()` on a file (not a directory) results in the
+`Promise` being rejected with an `ENOENT` error on Windows and an `ENOTDIR`
+error on POSIX.
+
+### fs.promises.stat(path)
+<!-- YAML
+added: REPLACEME
+-->
+
+* `path` {string|Buffer|URL}
+* Returns: {Promise}
+
+The `Promise` is resolved with the [`fs.Stats`][] object for the given `path`.
+
+### fs.promises.symlink(target, path[, type])
+<!-- YAML
+added: REPLACEME
+-->
+
+* `target` {string|Buffer|URL}
+* `path` {string|Buffer|URL}
+* `type` {string} **Default:** `'file'`
+* Returns: {Promise}
+
+Creates a symbolic link then resolves the `Promise` with no arguments upon
+success.
+
+The `type` argument is only used on Windows platforms and can be one of `'dir'`,
+`'file'`, or `'junction'` (default is `'file'`). Note that Windows junction
+points require the destination path to be absolute. When using `'junction'`,
+the `target` argument will automatically be normalized to absolute path.
+
+### fs.promises.truncate(path[, len])
+<!-- YAML
+added: REPLACEME
+-->
+
+* `path` {string|Buffer}
+* `len` {integer} **Default:** `0`
+* Returns: {Promise}
+
+Truncates the `path` then resolves the `Promise` with no arguments upon
+success. The `path` *must* be a string or `Buffer`.
+
+### fs.promises.unlink(path)
+<!-- YAML
+added: REPLACEME
+-->
+
+* `path` {string|Buffer|URL}
+* Returns: {Promise}
+
+Asynchronous unlink(2). The `Promise` is resolved with no arguments upon
+success.
+
+### fs.promises.utimes(path, atime, mtime)
+<!-- YAML
+added: REPLACEME
+-->
+
+* `path` {string|Buffer|URL}
+* `atime` {number|string|Date}
+* `mtime` {number|string|Date}
+* Returns: {Promise}
+
+Change the file system timestamps of the object referenced by `path` then
+resolves the `Promise` with no arguments upon success.
+
+The `atime` and `mtime` arguments follow these rules:
+- Values can be either numbers representing Unix epoch time, `Date`s, or a
+  numeric string like `'123456789.0'`.
+- If the value can not be converted to a number, or is `NaN`, `Infinity` or
+  `-Infinity`, an `Error` will be thrown.
+
+### fs.promises.write(filehandle, buffer[, offset[, length[, position]]])
+<!-- YAML
+added: REPLACEME
+-->
+
+* `filehandle` {[FileHandle][]}
+* `buffer` {Buffer|Uint8Array}
+* `offset` {integer}
+* `length` {integer}
+* `position` {integer}
+* Returns: {Promise}
+
+Write `buffer` to the file specified by `filehandle`.
+
+The `Promise` is resolved with an object containing a `bytesWritten` property
+identifying the number of bytes written, and a `buffer` property containing
+a reference to the `buffer` written.
+
+`offset` determines the part of the buffer to be written, and `length` is
+an integer specifying the number of bytes to write.
+
+`position` refers to the offset from the beginning of the file where this data
+should be written. If `typeof position !== 'number'`, the data will be written
+at the current position. See pwrite(2).
+
+It is unsafe to use `fs.promises.write()` multiple times on the same file
+without waiting for the `Promise` to be resolved (or rejected). For this
+scenario, `fs.createWriteStream` is strongly recommended.
+
+On Linux, positional writes do not work when the file is opened in append mode.
+The kernel ignores the position argument and always appends the data to
+the end of the file.
+
+### fs.promises.writeFile(file, data[, options])
+<!-- YAML
+added: REPLACEME
+-->
+
+* `file` {string|Buffer|[FileHandle][]} filename or `FileHandle`
+* `data` {string|Buffer|Uint8Array}
+* `options` {Object|string}
+  * `encoding` {string|null} **Default:** `'utf8'`
+  * `mode` {integer} **Default:** `0o666`
+  * `flag` {string} **Default:** `'w'`
+* Returns: {Promise}
+
+Asynchronously writes data to a file, replacing the file if it already exists.
+`data` can be a string or a buffer. The `Promise` will be resolved with no
+arguments upon success.
+
+The `encoding` option is ignored if `data` is a buffer. It defaults
+to `'utf8'`.
+
+If `options` is a string, then it specifies the encoding.
+
+Any specified `FileHandle` has to support writing.
+
+It is unsafe to use `fs.promises.writeFile()` multiple times on the same file
+without waiting for the `Promise` to be resolved (or rejected).
+
+
 ## FS Constants
 
 The following constants are exported by `fs.constants`.
@@ -3478,6 +4469,7 @@ The following constants are meant for use with the [`fs.Stats`][] object's
 [`util.promisify()`]: util.html#util_util_promisify_original
 [Caveats]: #fs_caveats
 [Common System Errors]: errors.html#errors_common_system_errors
+[FileHandle]: #fs_class_filehandle
 [FS Constants]: #fs_fs_constants_1
 [MDN-Date]: https://developer.mozilla.org/en/JavaScript/Reference/Global_Objects/Date
 [MDN-Number]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#Number_type

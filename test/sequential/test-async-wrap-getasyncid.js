@@ -9,6 +9,8 @@ const fixtures = require('../common/fixtures');
 const tmpdir = require('../common/tmpdir');
 const { getSystemErrorName } = require('util');
 
+common.crashOnUnhandledRejection();
+
 // Make sure that all Providers are tested.
 {
   const hooks = require('async_hooks').createHook({
@@ -167,6 +169,14 @@ if (common.hasCrypto) { // eslint-disable-line crypto-check
   testInitialized(new Signal(), 'Signal');
 }
 
+{
+  async function openTest() {
+    const fd = await fs.promises.open(__filename, 'r');
+    testInitialized(fd, 'FileHandle');
+    await fd.close();
+  }
+  openTest().then(common.mustCall()).catch(common.mustNotCall());
+}
 
 {
   const binding = process.binding('stream_wrap');

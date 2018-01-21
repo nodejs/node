@@ -12,6 +12,7 @@ using v8::Context;
 using v8::FunctionCallbackInfo;
 using v8::HandleScope;
 using v8::Local;
+using v8::MaybeLocal;
 using v8::Object;
 using v8::Persistent;
 using v8::Promise;
@@ -51,6 +52,7 @@ class FSReqBase : public ReqWrap<uv_fs_t> {
   virtual void Reject(Local<Value> reject) = 0;
   virtual void Resolve(Local<Value> value) = 0;
   virtual void ResolveStat() = 0;
+  virtual void SetReturnValue(const FunctionCallbackInfo<Value>& args) = 0;
 
   const char* syscall() const { return syscall_; }
   const char* data() const { return data_; }
@@ -77,6 +79,7 @@ class FSReqWrap : public FSReqBase {
   void Reject(Local<Value> reject) override;
   void Resolve(Local<Value> value) override;
   void ResolveStat() override;
+  void SetReturnValue(const FunctionCallbackInfo<Value>& args) override;
 
  private:
   DISALLOW_COPY_AND_ASSIGN(FSReqWrap);
@@ -84,7 +87,7 @@ class FSReqWrap : public FSReqBase {
 
 class FSReqPromise : public FSReqBase {
  public:
-  FSReqPromise(Environment* env, Local<Object> req);
+  explicit FSReqPromise(Environment* env);
 
   ~FSReqPromise() override;
 
@@ -92,10 +95,11 @@ class FSReqPromise : public FSReqBase {
   void Reject(Local<Value> reject) override;
   void Resolve(Local<Value> value) override;
   void ResolveStat() override;
+  void SetReturnValue(const FunctionCallbackInfo<Value>& args) override;
 
  private:
   bool finished_ = false;
-  double statFields_[14] {};
+  AliasedBuffer<double, v8::Float64Array> stats_field_array_;
   DISALLOW_COPY_AND_ASSIGN(FSReqPromise);
 };
 
@@ -152,7 +156,7 @@ class FileHandle : public AsyncWrap {
       ref_.Empty();
     }
 
-    FileHandle* fd();
+    FileHandle* file_handle();
 
     size_t self_size() const override { return sizeof(*this); }
 
@@ -166,7 +170,7 @@ class FileHandle : public AsyncWrap {
   };
 
   // Asynchronous close
-  inline Local<Promise> ClosePromise();
+  inline MaybeLocal<Promise> ClosePromise();
 
   int fd_;
   bool closing_ = false;
