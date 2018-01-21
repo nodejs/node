@@ -57,14 +57,9 @@ properties of a WHATWG `URL` object.
 Parsing the URL string using the WHATWG API:
 
 ```js
-const { URL } = require('url');
 const myURL =
   new URL('https://user:pass@sub.host.com:8080/p/a/t/h?query=string#hash');
 ```
-
-*Note*: In Web Browsers, the WHATWG `URL` class is a global that is always
-available. In Node.js, however, the `URL` class must be accessed via
-`require('url').URL`.
 
 Parsing the URL string using the Legacy API:
 
@@ -75,14 +70,19 @@ const myURL =
 ```
 
 ## The WHATWG URL API
-<!-- YAML
-added: v7.0.0
--->
 
 ### Class: URL
+<!-- YAML
+added: v7.0.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/18281
+    description: The class is now available on the global object.
+-->
 
 Browser-compatible `URL` class, implemented by following the WHATWG URL
 Standard. [Examples of parsed URLs][] may be found in the Standard itself.
+The `URL` class is also available on the global object.
 
 *Note*: In accordance with browser conventions, all properties of `URL` objects
 are implemented as getters and setters on the class prototype, rather than as
@@ -101,7 +101,6 @@ Creates a new `URL` object by parsing the `input` relative to the `base`. If
 `base` is passed as a string, it will be parsed equivalent to `new URL(base)`.
 
 ```js
-const { URL } = require('url');
 const myURL = new URL('/foo', 'https://example.org/');
 // https://example.org/foo
 ```
@@ -111,7 +110,6 @@ that an effort will be made to coerce the given values into strings. For
 instance:
 
 ```js
-const { URL } = require('url');
 const myURL = new URL({ toString: () => 'https://example.org/' });
 // https://example.org/
 ```
@@ -120,7 +118,6 @@ Unicode characters appearing within the hostname of `input` will be
 automatically converted to ASCII using the [Punycode][] algorithm.
 
 ```js
-const { URL } = require('url');
 const myURL = new URL('https://你好你好');
 // https://xn--6qqa088eba/
 ```
@@ -135,7 +132,6 @@ with [ICU][] enabled. If not, the domain names are passed through unchanged.
 Gets and sets the fragment portion of the URL.
 
 ```js
-const { URL } = require('url');
 const myURL = new URL('https://example.org/foo#bar');
 console.log(myURL.hash);
 // Prints #bar
@@ -157,7 +153,6 @@ percent-encode may vary somewhat from what the [`url.parse()`][] and
 Gets and sets the host portion of the URL.
 
 ```js
-const { URL } = require('url');
 const myURL = new URL('https://example.org:81/foo');
 console.log(myURL.host);
 // Prints example.org:81
@@ -178,7 +173,6 @@ Gets and sets the hostname portion of the URL. The key difference between
 port.
 
 ```js
-const { URL } = require('url');
 const myURL = new URL('https://example.org:81/foo');
 console.log(myURL.hostname);
 // Prints example.org
@@ -197,7 +191,6 @@ Invalid hostname values assigned to the `hostname` property are ignored.
 Gets and sets the serialized URL.
 
 ```js
-const { URL } = require('url');
 const myURL = new URL('https://example.org/foo');
 console.log(myURL.href);
 // Prints https://example.org/foo
@@ -224,14 +217,12 @@ will be thrown.
 Gets the read-only serialization of the URL's origin.
 
 ```js
-const { URL } = require('url');
 const myURL = new URL('https://example.org/foo/bar?baz');
 console.log(myURL.origin);
 // Prints https://example.org
 ```
 
 ```js
-const { URL } = require('url');
 const idnURL = new URL('https://你好你好');
 console.log(idnURL.origin);
 // Prints https://xn--6qqa088eba
@@ -247,7 +238,6 @@ console.log(idnURL.hostname);
 Gets and sets the password portion of the URL.
 
 ```js
-const { URL } = require('url');
 const myURL = new URL('https://abc:xyz@example.com');
 console.log(myURL.password);
 // Prints xyz
@@ -269,7 +259,6 @@ percent-encode may vary somewhat from what the [`url.parse()`][] and
 Gets and sets the path portion of the URL.
 
 ```js
-const { URL } = require('url');
 const myURL = new URL('https://example.org/abc/xyz?123');
 console.log(myURL.pathname);
 // Prints /abc/xyz
@@ -291,7 +280,6 @@ to percent-encode may vary somewhat from what the [`url.parse()`][] and
 Gets and sets the port portion of the URL.
 
 ```js
-const { URL } = require('url');
 const myURL = new URL('https://example.org:8888');
 console.log(myURL.port);
 // Prints 8888
@@ -347,7 +335,6 @@ lies outside the range denoted above, it is ignored.
 Gets and sets the protocol portion of the URL.
 
 ```js
-const { URL } = require('url');
 const myURL = new URL('https://example.org');
 console.log(myURL.protocol);
 // Prints https:
@@ -366,7 +353,6 @@ Invalid URL protocol values assigned to the `protocol` property are ignored.
 Gets and sets the serialized query portion of the URL.
 
 ```js
-const { URL } = require('url');
 const myURL = new URL('https://example.org/abc?123');
 console.log(myURL.search);
 // Prints ?123
@@ -397,7 +383,6 @@ documentation for details.
 Gets and sets the username portion of the URL.
 
 ```js
-const { URL } = require('url');
 const myURL = new URL('https://abc:xyz@example.com');
 console.log(myURL.username);
 // Prints abc
@@ -435,7 +420,6 @@ This method is automatically called when an `URL` object is serialized
 with [`JSON.stringify()`][].
 
 ```js
-const { URL } = require('url');
 const myURLs = [
   new URL('https://www.example.com'),
   new URL('https://test.example.org')
@@ -447,11 +431,16 @@ console.log(JSON.stringify(myURLs));
 ### Class: URLSearchParams
 <!-- YAML
 added: v7.5.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/18281
+    description: The class is now available on the global object.
 -->
 
 The `URLSearchParams` API provides read and write access to the query of a
 `URL`. The `URLSearchParams` class can also be used standalone with one of the
 four following constructors.
+The `URLSearchParams` class is also available on the global object.
 
 The WHATWG `URLSearchParams` interface and the [`querystring`][] module have
 similar purpose, but the purpose of the [`querystring`][] module is more
@@ -459,8 +448,6 @@ general, as it allows the customization of delimiter characters (`&` and `=`).
 On the other hand, this API is designed purely for URL query strings.
 
 ```js
-const { URL, URLSearchParams } = require('url');
-
 const myURL = new URL('https://example.org/?abc=123');
 console.log(myURL.searchParams.get('abc'));
 // Prints 123
@@ -505,7 +492,6 @@ Parse the `string` as a query string, and use it to instantiate a new
 `URLSearchParams` object. A leading `'?'`, if present, is ignored.
 
 ```js
-const { URLSearchParams } = require('url');
 let params;
 
 params = new URLSearchParams('user=abc&query=xyz');
@@ -534,7 +520,6 @@ values are not allowed. Arrays are stringified using [`array.toString()`][],
 which simply joins all array elements with commas.
 
 ```js
-const { URLSearchParams } = require('url');
 const params = new URLSearchParams({
   user: 'abc',
   query: ['first', 'second']
@@ -562,7 +547,6 @@ themselves be any iterable object.
 Duplicate keys are allowed.
 
 ```js
-const { URLSearchParams } = require('url');
 let params;
 
 // Using an array
@@ -631,7 +615,6 @@ Alias for [`urlSearchParams[@@iterator]()`][`urlSearchParams@@iterator()`].
 Iterates over each name-value pair in the query and invokes the given function.
 
 ```js
-const { URL } = require('url');
 const myURL = new URL('https://example.org/?a=b&c=d');
 myURL.searchParams.forEach((value, name, searchParams) => {
   console.log(name, value, myURL.searchParams === searchParams);
@@ -672,7 +655,6 @@ Returns `true` if there is at least one name-value pair whose name is `name`.
 Returns an ES6 Iterator over the names of each name-value pair.
 
 ```js
-const { URLSearchParams } = require('url');
 const params = new URLSearchParams('foo=bar&foo=baz');
 for (const name of params.keys()) {
   console.log(name);
@@ -693,8 +675,6 @@ set the first such pair's value to `value` and remove all others. If not,
 append the name-value pair to the query string.
 
 ```js
-const { URLSearchParams } = require('url');
-
 const params = new URLSearchParams();
 params.append('foo', 'bar');
 params.append('foo', 'baz');
@@ -720,7 +700,6 @@ with the same name is preserved.
 This method can be used, in particular, to increase cache hits.
 
 ```js
-const { URLSearchParams } = require('url');
 const params = new URLSearchParams('query[]=abc&type=search&query[]=123');
 params.sort();
 console.log(params.toString());
@@ -751,7 +730,6 @@ is the `name`, the second item of the Array is the `value`.
 Alias for [`urlSearchParams.entries()`][].
 
 ```js
-const { URLSearchParams } = require('url');
 const params = new URLSearchParams('foo=bar&xyz=baz');
 for (const [name, value] of params) {
   console.log(name, value);
@@ -835,7 +813,6 @@ of the output.
 For example:
 
 ```js
-const { URL } = require('url');
 const myURL = new URL('https://a:b@你好你好?abc#foo');
 
 console.log(myURL.href);
@@ -1135,7 +1112,6 @@ using the [Punycode][] algorithm. Note, however, that a hostname *may* contain
 *both* Punycode encoded and percent-encoded characters. For example:
 
 ```js
-const { URL } = require('url');
 const myURL = new URL('https://%CF%80.com/foo');
 console.log(myURL.href);
 // Prints https://xn--1xa.com/foo

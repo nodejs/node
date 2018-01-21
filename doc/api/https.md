@@ -242,8 +242,6 @@ const req = https.request(options, (res) => {
 Example using a [`URL`][] as `options`:
 
 ```js
-const { URL } = require('url');
-
 const options = new URL('https://abc:xyz@example.com');
 
 const req = https.request(options, (res) => {
