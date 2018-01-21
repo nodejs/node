@@ -101,4 +101,3 @@ Many of the examples in the documentation can be run similarly.
 [Command Line Options]: cli.html#cli_command_line_options
 [web server]: http.html
 [this guide]: https://nodejs.org/en/download/package-manager/
-[Node.js Official website]: http://nodejs.org/#download
