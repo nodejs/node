@@ -1,7 +1,7 @@
 {
   "targets": [
     {
-      "target_name": "test_exception",
+      "target_name": "binding",
       "sources": [ "test_exception.c" ]
     }
   ]

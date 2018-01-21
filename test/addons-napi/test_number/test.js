@@ -1,7 +1,7 @@
 'use strict';
 const common = require('../../common');
 const assert = require('assert');
-const test_number = require(`./build/${common.buildType}/test_number`);
+const test_number = require(`./build/${common.buildType}/binding`);
 
 
 // testing api calls for number

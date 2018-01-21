@@ -2,7 +2,7 @@
 // Flags: --expose-gc
 
 const common = require('../../common');
-const test_general = require(`./build/${common.buildType}/test_general`);
+const test_general = require(`./build/${common.buildType}/binding`);
 const assert = require('assert');
 
 const val1 = '1';

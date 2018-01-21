@@ -1,7 +1,7 @@
 'use strict';
 
 const common = require('../../common');
-const addon = require(`./build/${common.buildType}/test_general`);
+const addon = require(`./build/${common.buildType}/binding`);
 const assert = require('assert');
 
 addon.createNapiError();

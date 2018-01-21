@@ -2,7 +2,7 @@
 // Flags: --expose-gc
 
 const common = require('../../common');
-const binding = require(`./build/${common.buildType}/test_buffer`);
+const binding = require(`./build/${common.buildType}/binding`);
 const assert = require('assert');
 
 assert.strictEqual(binding.newBuffer().toString(), binding.theText);

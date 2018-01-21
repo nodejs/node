@@ -3,7 +3,7 @@ const common = require('../../common');
 const assert = require('assert');
 
 // testing api calls for function
-const test_function = require(`./build/${common.buildType}/test_function`);
+const test_function = require(`./build/${common.buildType}/binding`);
 
 
 function func1() {

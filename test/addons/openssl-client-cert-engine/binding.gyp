@@ -1,6 +1,10 @@
 {
   'targets': [
     {
+      'target_name': 'binding',
+      'sources': [ 'binding.cc' ],
+    },
+    {
       'target_name': 'testengine',
       'type': 'none',
       'conditions': [
