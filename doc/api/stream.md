@@ -1749,6 +1749,10 @@ class SourceWrapper extends Readable {
 *Note*: The `readable.push()` method is intended be called only by Readable
 Implementers, and only from within the `readable._read()` method.
 
+For streams not operating in object mode, if the `chunk` parameter of
+`readable.push()` is `undefined`, it will be treated as empty string or
+buffer. See [`readable.push('')`][] for more information.
+
 #### Errors While Reading
 
 It is recommended that errors occurring during the processing of the
@@ -2264,6 +2268,7 @@ contain multi-byte characters.
 [`stream.uncork()`]: #stream_writable_uncork
 [`stream.unpipe()`]: #stream_readable_unpipe_destination
 [`stream.wrap()`]: #stream_readable_wrap_stream
+[`readable.push('')`]: #stream_readable_push
 [`writable.cork()`]: #stream_writable_cork
 [`writable.uncork()`]: #stream_writable_uncork
 [`zlib.createDeflate()`]: zlib.html#zlib_zlib_createdeflate_options
