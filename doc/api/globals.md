@@ -138,6 +138,24 @@ added: v0.0.1
 
 [`setTimeout`] is described in the [timers][] section.
 
+## URL
+<!-- YAML
+added: REPLACEME
+-->
+
+<!-- type=global -->
+
+The WHATWG `URL` class. See the [`URL`][] section.
+
+## URLSearchParams
+<!-- YAML
+added: REPLACEME
+-->
+
+<!-- type=global -->
+
+The WHATWG `URLSearchParams` class. See the [`URLSearchParams`][] section.
+
 [`__dirname`]: modules.html#modules_dirname
 [`__filename`]: modules.html#modules_filename
 [`clearImmediate`]: timers.html#timers_clearimmediate_immediate
@@ -151,6 +169,8 @@ added: v0.0.1
 [`setImmediate`]: timers.html#timers_setimmediate_callback_args
 [`setInterval`]: timers.html#timers_setinterval_callback_delay_args
 [`setTimeout`]: timers.html#timers_settimeout_callback_delay_args
+[`URL`]: url.html#url_class_url
+[`URLSearchParams`]: url.html#url_class_urlsearchparams
 [buffer section]: buffer.html
 [built-in objects]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects
 [module system documentation]: modules.html

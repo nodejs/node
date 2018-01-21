@@ -1958,7 +1958,6 @@ An HTTP/2 CONNECT proxy:
 ```js
 const http2 = require('http2');
 const net = require('net');
-const { URL } = require('url');
 
 const proxy = http2.createServer();
 proxy.on('stream', (stream, headers) => {
