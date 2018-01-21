@@ -322,7 +322,7 @@ inline Environment::Environment(IsolateData* isolate_data,
 #endif
       handle_cleanup_waiting_(0),
       http_parser_buffer_(nullptr),
-      fs_stats_field_array_(nullptr),
+      fs_stats_field_array_(isolate_, kFsStatsFieldsLength),
       context_(context->GetIsolate(), context) {
   // We'll be creating new objects so make sure we've entered the context.
   v8::HandleScope handle_scope(isolate());
@@ -547,13 +547,9 @@ inline void Environment::set_http2_state(
   http2_state_ = std::move(buffer);
 }
 
-inline double* Environment::fs_stats_field_array() const {
-  return fs_stats_field_array_;
-}
-
-inline void Environment::set_fs_stats_field_array(double* fields) {
-  CHECK_EQ(fs_stats_field_array_, nullptr);  // Should be set only once.
-  fs_stats_field_array_ = fields;
+inline AliasedBuffer<double, v8::Float64Array>*
+Environment::fs_stats_field_array() {
+  return &fs_stats_field_array_;
 }
 
 void Environment::CreateImmediate(native_immediate_callback cb,

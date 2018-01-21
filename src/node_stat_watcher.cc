@@ -89,7 +89,7 @@ void StatWatcher::Callback(uv_fs_poll_t* handle,
   Context::Scope context_scope(env->context());
 
   FillStatsArray(env->fs_stats_field_array(), curr);
-  FillStatsArray(env->fs_stats_field_array() + 14, prev);
+  FillStatsArray(env->fs_stats_field_array(), prev, 14);
   Local<Value> arg = Integer::New(env->isolate(), status);
   wrap->MakeCallback(env->onchange_string(), 1, &arg);
 }

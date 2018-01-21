@@ -610,8 +610,7 @@ class Environment {
   inline http2::http2_state* http2_state() const;
   inline void set_http2_state(std::unique_ptr<http2::http2_state> state);
 
-  inline double* fs_stats_field_array() const;
-  inline void set_fs_stats_field_array(double* fields);
+  inline AliasedBuffer<double, v8::Float64Array>* fs_stats_field_array();
 
   inline performance::performance_state* performance_state();
   inline std::map<std::string, uint64_t>* performance_marks();
@@ -778,7 +777,10 @@ class Environment {
   char* http_parser_buffer_;
   std::unique_ptr<http2::http2_state> http2_state_;
 
-  double* fs_stats_field_array_;
+  // stat fields contains twice the number of entries because `fs.StatWatcher`
+  // needs room to store data for *two* `fs.Stats` instances.
+  static const int kFsStatsFieldsLength = 2 * 14;
+  AliasedBuffer<double, v8::Float64Array> fs_stats_field_array_;
 
   struct BeforeExitCallback {
     void (*cb_)(void* arg);
