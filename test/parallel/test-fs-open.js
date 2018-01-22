@@ -24,24 +24,48 @@ const common = require('../common');
 const assert = require('assert');
 const fs = require('fs');
 
-let caughtException = false;
+common.crashOnUnhandledRejection();
 
-try {
-  // should throw ENOENT, not EBADF
-  // see https://github.com/joyent/node/pull/1228
-  fs.openSync('/path/to/file/that/does/not/exist', 'r');
-} catch (e) {
-  assert.strictEqual(e.code, 'ENOENT');
-  caughtException = true;
-}
-assert.strictEqual(caughtException, true);
+common.expectsError(
+  () => fs.openSync('/path/to/file/that/does/not/exist', 'r'),
+  {
+    code: 'ENOENT',
+    type: Error
+  }
+);
 
-fs.open(__filename, 'r', common.mustCall((err) => {
+common.expectsError(
+  () => fs.openFileHandleSync('/path/to/file/that/does/not/exist', 'r'),
+  {
+    code: 'ENOENT',
+    type: Error
+  }
+);
+
+fs.open(__filename, 'r', common.mustCall((err, fd) => {
   assert.ifError(err);
+  assert.strictEqual(typeof fd, 'number');
 }));
 
-fs.open(__filename, 'rs', common.mustCall((err) => {
+fs.open(__filename, 'rs', common.mustCall((err, fd) => {
   assert.ifError(err);
+  assert.strictEqual(typeof fd, 'number');
+}));
+
+fs.openFileHandle(__filename, 'r', common.mustCall((err, fd) => {
+  assert.ifError(err);
+  assert.strictEqual(typeof fd, 'object');
+  assert.strictEqual(typeof fd.fd, 'number');
+  fd.close().then(common.mustCall()).catch(common.mustNotCall());
+  fd.close().then(common.mustNotCall()).catch(common.mustCall());
+}));
+
+fs.openFileHandle(__filename, 'rs', common.mustCall((err, fd) => {
+  assert.ifError(err);
+  assert.strictEqual(typeof fd, 'object');
+  assert.strictEqual(typeof fd.fd, 'number');
+  fd.close().then(common.mustCall()).catch(common.mustNotCall());
+  fd.close().then(common.mustNotCall()).catch(common.mustCall());
 }));
 
 [false, 1, [], {}, null, undefined].forEach((i) => {
@@ -54,6 +78,20 @@ fs.open(__filename, 'rs', common.mustCall((err) => {
   );
   common.expectsError(
     () => fs.openSync(i, 'r', common.mustNotCall()),
+    {
+      code: 'ERR_INVALID_ARG_TYPE',
+      type: TypeError
+    }
+  );
+  common.expectsError(
+    () => fs.openFileHandle(i, 'r', common.mustNotCall()),
+    {
+      code: 'ERR_INVALID_ARG_TYPE',
+      type: TypeError
+    }
+  );
+  common.expectsError(
+    () => fs.openFileHandleSync(i, 'r', common.mustNotCall()),
     {
       code: 'ERR_INVALID_ARG_TYPE',
       type: TypeError

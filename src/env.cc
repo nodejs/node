@@ -291,7 +291,11 @@ void Environment::RunAndClearNativeImmediates() {
     std::vector<NativeImmediateCallback> list;
     native_immediate_callbacks_.swap(list);
     for (const auto& cb : list) {
+      v8::TryCatch try_catch(isolate());
       cb.cb_(this, cb.data_);
+      if (try_catch.HasCaught()) {
+        FatalException(isolate(), try_catch);
+      }
       if (cb.keep_alive_)
         cb.keep_alive_->Reset();
       if (cb.refed_)

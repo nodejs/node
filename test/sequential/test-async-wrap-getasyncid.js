@@ -8,6 +8,8 @@ const providers = Object.assign({}, process.binding('async_wrap').Providers);
 const fixtures = require('../common/fixtures');
 const { getSystemErrorName } = require('util');
 
+common.crashOnUnhandledRejection();
+
 // Make sure that all Providers are tested.
 {
   const hooks = require('async_hooks').createHook({
@@ -166,6 +168,13 @@ if (common.hasCrypto) { // eslint-disable-line crypto-check
   testInitialized(new Signal(), 'Signal');
 }
 
+{
+  fs.openFileHandle(__filename, 'r', (err, fd) => {
+    assert.ifError(err);
+    testInitialized(fd, 'FileHandle');
+    fd.close().then(common.mustCall()).catch(common.mustNotCall());
+  });
+}
 
 {
   const binding = process.binding('stream_wrap');

@@ -9,9 +9,12 @@
 namespace node {
 
 using v8::Context;
+using v8::FunctionCallbackInfo;
 using v8::HandleScope;
 using v8::Local;
 using v8::Object;
+using v8::Persistent;
+using v8::Promise;
 using v8::Undefined;
 using v8::Value;
 
@@ -68,6 +71,66 @@ class FSReqAfterScope {
   uv_fs_t* req_ = nullptr;
   HandleScope handle_scope_;
   Context::Scope context_scope_;
+};
+
+// A wrapper for a file descriptor that will automatically close the fd when
+// the object is garbage collected
+class FileHandle : public AsyncWrap {
+ public:
+  FileHandle(Environment* env, int fd);
+  virtual ~FileHandle();
+
+  int fd() const { return fd_; }
+  size_t self_size() const override { return sizeof(*this); }
+
+  // Will asynchronously close the FD and return a Promise that will
+  // be resolved once closing is complete.
+  static void Close(const FunctionCallbackInfo<Value>& args);
+
+ private:
+  // Synchronous close that emits a warning
+  inline void Close();
+
+  class CloseReq : public ReqWrap<uv_fs_t> {
+   public:
+    CloseReq(Environment* env,
+             Local<Promise> promise,
+             Local<Value> ref)
+        : ReqWrap(env,
+                  env->fdclose_constructor_template()
+                      ->NewInstance(env->context()).ToLocalChecked(),
+                  AsyncWrap::PROVIDER_FILEHANDLECLOSEREQ) {
+      Wrap(object(), this);
+      promise_.Reset(env->isolate(), promise);
+      ref_.Reset(env->isolate(), ref);
+    }
+    ~CloseReq() {
+      uv_fs_req_cleanup(req());
+      promise_.Empty();
+      ref_.Empty();
+    }
+
+    FileHandle* fd();
+
+    size_t self_size() const override { return sizeof(*this); }
+
+    void Resolve();
+
+    void Reject(Local<Value> reason);
+
+   private:
+    Persistent<Promise> promise_;
+    Persistent<Value> ref_;
+  };
+
+  // Asynchronous close
+  inline Local<Promise> ClosePromise();
+
+  int fd_;
+  bool closing_ = false;
+  bool closed_ = false;
+
+  DISALLOW_COPY_AND_ASSIGN(FileHandle);
 };
 
 }  // namespace fs
