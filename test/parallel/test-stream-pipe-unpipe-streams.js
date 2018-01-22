@@ -50,7 +50,7 @@ assert.strictEqual(source._readableState.pipes, null);
     srcCheckEventNames.forEach((eventName) => {
       assert.strictEqual(
         source.listenerCount(eventName), 0,
-        `source's '${eventName}' event listeners don't be cleaned up`
+        `source's '${eventName}' event listeners not removed`
       );
     });
   });
@@ -60,8 +60,8 @@ assert.strictEqual(source._readableState.pipes, null);
     source.pipe(dest);
 
     const unpipeChecker = common.mustCall(() => {
-      assert.strictEqual(
-        dest.listenerCount('unpipe'), 1,
+      assert.deepStrictEqual(
+        dest.listeners('unpipe'), [unpipeChecker],
         `destination{${currentDestId}} should have a 'unpipe' event ` +
         'listener which is `unpipeChecker`'
       );
@@ -70,7 +70,7 @@ assert.strictEqual(source._readableState.pipes, null);
         assert.strictEqual(
           dest.listenerCount(eventName), 0,
           `destination{${currentDestId}}'s '${eventName}' event ` +
-          "listeners don't be cleaned up"
+          'listeners not removed'
         );
       });
 
