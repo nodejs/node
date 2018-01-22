@@ -60,10 +60,33 @@ enum PerformanceEntryType {
                          node::performance::NODE_PERFORMANCE_MILESTONE_##n);  \
   } while (0);
 
-struct performance_state {
-  // doubles first so that they are always sizeof(double)-aligned
-  double milestones[NODE_PERFORMANCE_MILESTONE_INVALID];
-  uint32_t observers[NODE_PERFORMANCE_ENTRY_TYPE_INVALID];
+class performance_state {
+ public:
+  explicit performance_state(v8::Isolate* isolate) :
+    root(
+      isolate,
+      sizeof(performance_state_internal)),
+    milestones(
+      isolate,
+      offsetof(performance_state_internal, milestones),
+      NODE_PERFORMANCE_MILESTONE_INVALID,
+      root),
+    observers(
+      isolate,
+      offsetof(performance_state_internal, observers),
+      NODE_PERFORMANCE_ENTRY_TYPE_INVALID,
+      root) {}
+
+  AliasedBuffer<uint8_t, v8::Uint8Array> root;
+  AliasedBuffer<double, v8::Float64Array> milestones;
+  AliasedBuffer<uint32_t, v8::Uint32Array> observers;
+
+ private:
+  struct performance_state_internal {
+    // doubles first so that they are always sizeof(double)-aligned
+    double milestones[NODE_PERFORMANCE_MILESTONE_INVALID];
+    uint32_t observers[NODE_PERFORMANCE_ENTRY_TYPE_INVALID];
+  };
 };
 
 }  // namespace performance
