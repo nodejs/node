@@ -327,12 +327,19 @@ function re(literals, ...values) {
 {
   const validateError = (err) => {
     assert.strictEqual(existingFile, err.path);
-    assert.strictEqual(
-      err.message,
-      `ENOTDIR: not a directory, rmdir '${existingFile}'`);
-    assert.strictEqual(err.errno, uv.UV_ENOTDIR);
-    assert.strictEqual(err.code, 'ENOTDIR');
     assert.strictEqual(err.syscall, 'rmdir');
+    if (err.code === 'ENOTDIR') {
+      assert.strictEqual(
+        err.message,
+        `ENOTDIR: not a directory, rmdir '${existingFile}'`);
+      assert.strictEqual(err.errno, uv.UV_ENOTDIR);
+    } else {  // windows
+      assert.strictEqual(
+        err.message,
+        `ENOENT: no such file or directory, rmdir '${existingFile}'`);
+      assert.strictEqual(err.errno, uv.UV_ENOENT);
+      assert.strictEqual(err.code, 'ENOENT');
+    }
     return true;
   };
 
