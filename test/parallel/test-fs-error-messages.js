@@ -31,6 +31,18 @@ const existingDir = fixtures.path('empty');
 const existingDir2 = fixtures.path('keys');
 const uv = process.binding('uv');
 
+// Template tag function for escaping special characters in strings so that:
+// new RegExp(re`${str}`).test(str) === true
+function re(literals, ...values) {
+  const escapeRE = /[\\^$.*+?()[\]{}|=!<>:-]/g;
+  let result = literals[0].replace(escapeRE, '\\$&');
+  for (const [i, value] of values.entries()) {
+    result += value.replace(escapeRE, '\\$&');
+    result += literals[i + 1].replace(escapeRE, '\\$&');
+  }
+  return result;
+}
+
 // stat
 {
   const validateError = (err) => {
@@ -141,10 +153,11 @@ const uv = process.binding('uv');
     assert.strictEqual(nonexistentFile, err.path);
     // Could be resolved to an absolute path
     assert.ok(err.dest.endsWith('foo'),
-              `expect ${err.dest} to ends with 'foo'`);
-    assert.strictEqual(
-      err.message,
-      `ENOENT: no such file or directory, link '${nonexistentFile}' -> 'foo'`);
+              `expect ${err.dest} to end with 'foo'`);
+    const regexp = new RegExp('^ENOENT: no such file or directory, link ' +
+                              re`'${nonexistentFile}' -> ` + '\'.*foo\'');
+    assert.ok(regexp.test(err.message),
+              `Expect ${err.message} to match ${regexp}`);
     assert.strictEqual(err.errno, uv.UV_ENOENT);
     assert.strictEqual(err.code, 'ENOENT');
     assert.strictEqual(err.syscall, 'link');
@@ -232,11 +245,11 @@ const uv = process.binding('uv');
     assert.strictEqual(nonexistentFile, err.path);
     // Could be resolved to an absolute path
     assert.ok(err.dest.endsWith('foo'),
-              `expect ${err.dest} to ends with 'foo'`);
-    assert.strictEqual(
-      err.message,
-      `ENOENT: no such file or directory, rename '${nonexistentFile}' ` +
-      '-> \'foo\'');
+              `expect ${err.dest} to end with 'foo'`);
+    const regexp = new RegExp('ENOENT: no such file or directory, rename ' +
+                              re`'${nonexistentFile}' -> ` + '\'.*foo\'');
+    assert.ok(regexp.test(err.message),
+              `Expect ${err.message} to match ${regexp}`);
     assert.strictEqual(err.errno, uv.UV_ENOENT);
     assert.strictEqual(err.code, 'ENOENT');
     assert.strictEqual(err.syscall, 'rename');
@@ -257,21 +270,26 @@ const uv = process.binding('uv');
     assert.strictEqual(existingDir, err.path);
     assert.strictEqual(existingDir2, err.dest);
     assert.strictEqual(err.syscall, 'rename');
-    // Could be ENOTEMPTY or EEXIST, depending on the platform
+    // Could be ENOTEMPTY, EEXIST, or EPERM, depending on the platform
     if (err.code === 'ENOTEMPTY') {
       assert.strictEqual(
         err.message,
         `ENOTEMPTY: directory not empty, rename '${existingDir}' -> ` +
         `'${existingDir2}'`);
       assert.strictEqual(err.errno, uv.UV_ENOTEMPTY);
-      assert.strictEqual(err.code, 'ENOTEMPTY');
-    } else {
+    } else if (err.code === 'EEXIST') {  // smartos and aix
       assert.strictEqual(
         err.message,
         `EEXIST: file already exists, rename '${existingDir}' -> ` +
         `'${existingDir2}'`);
       assert.strictEqual(err.errno, uv.UV_EEXIST);
-      assert.strictEqual(err.code, 'EEXIST');
+    } else {  // windows
+      assert.strictEqual(
+        err.message,
+        `EPERM: operation not permitted, rename '${existingDir}' -> ` +
+        `'${existingDir2}'`);
+      assert.strictEqual(err.errno, uv.UV_EPERM);
+      assert.strictEqual(err.code, 'EPERM');
     }
     return true;
   };
@@ -305,6 +323,27 @@ const uv = process.binding('uv');
   );
 }
 
+// rmdir a file
+{
+  const validateError = (err) => {
+    assert.strictEqual(existingFile, err.path);
+    assert.strictEqual(
+      err.message,
+      `ENOTDIR: not a directory, rmdir '${existingFile}'`);
+    assert.strictEqual(err.errno, uv.UV_ENOTDIR);
+    assert.strictEqual(err.code, 'ENOTDIR');
+    assert.strictEqual(err.syscall, 'rmdir');
+    return true;
+  };
+
+  fs.rmdir(existingFile, common.mustCall(validateError));
+
+  assert.throws(
+    () => fs.rmdirSync(existingFile),
+    validateError
+  );
+}
+
 // mkdir
 {
   const validateError = (err) => {
@@ -322,27 +361,6 @@ const uv = process.binding('uv');
 
   assert.throws(
     () => fs.mkdirSync(existingFile, 0o666),
-    validateError
-  );
-}
-
-// rmdir
-{
-  const validateError = (err) => {
-    assert.strictEqual(existingFile, err.path);
-    assert.strictEqual(
-      err.message,
-      `ENOTDIR: not a directory, rmdir '${existingFile}'`);
-    assert.strictEqual(err.errno, uv.UV_ENOTDIR);
-    assert.strictEqual(err.code, 'ENOTDIR');
-    assert.strictEqual(err.syscall, 'rmdir');
-    return true;
-  };
-
-  fs.rmdir(existingFile, common.mustCall(validateError));
-
-  assert.throws(
-    () => fs.rmdirSync(existingFile),
     validateError
   );
 }
@@ -389,7 +407,7 @@ const uv = process.binding('uv');
   );
 }
 
-// read
+// readFile
 {
   const validateError = (err) => {
     assert.strictEqual(nonexistentFile, err.path);
