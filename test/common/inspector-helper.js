@@ -5,9 +5,8 @@ const fs = require('fs');
 const http = require('http');
 const fixtures = require('../common/fixtures');
 const { spawn } = require('child_process');
-const { URL, parse: parseURL } = require('url');
+const { parse: parseURL } = require('url');
 const { getURLFromFilePath } = require('internal/url');
-const path = require('path');
 
 const _MAINSCRIPT = fixtures.path('loop.js');
 const DEBUG = false;
@@ -173,7 +172,9 @@ class InspectorSession {
         const scriptId = script['scriptId'];
         const url = script['url'];
         this._scriptsIdsByUrl.set(scriptId, url);
-        if (getURLFromFilePath(url).toString() === this.scriptURL().toString()) {
+        if (
+          getURLFromFilePath(url).toString() === this.scriptURL().toString()
+        ) {
           this.mainScriptId = scriptId;
         }
       }
@@ -246,8 +247,9 @@ class InspectorSession {
       const callFrame = message['params']['callFrames'][0];
       const location = callFrame['location'];
       const scriptPath = this._scriptsIdsByUrl.get(location['scriptId']);
-      assert(scriptPath.toString() === expectedScriptPath.toString(),
-        `${scriptPath} !== ${expectedScriptPath}`);
+      assert.strictEqual(scriptPath.toString(),
+                         expectedScriptPath.toString(),
+                         `${scriptPath} !== ${expectedScriptPath}`);
       assert.strictEqual(line, location['lineNumber']);
       return true;
     }
