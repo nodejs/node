@@ -207,7 +207,7 @@ onboarding session.
     metadata.
   * [`core-validate-commit`][] automates the validation of commit messages.
   * [`node-core-utils`][] automates the generation of metadata and the landing
-    process. See the documentation of [git-node][].
+    process. See the documentation of [`git-node`][].
 
 ## Final notes
 
