@@ -1745,6 +1745,85 @@ TEST(FunctionDetails) {
                        script_a->GetUnboundScript()->GetId(), 5, 14);
 }
 
+TEST(FunctionDetailsInlining) {
+  if (!CcTest::i_isolate()->use_optimizer() || i::FLAG_always_opt) return;
+  i::FLAG_allow_natives_syntax = true;
+  v8::HandleScope scope(CcTest::isolate());
+  v8::Local<v8::Context> env = CcTest::NewContext(PROFILER_EXTENSION);
+  v8::Context::Scope context_scope(env);
+  ProfilerHelper helper(env);
+
+  // alpha is in a_script, beta in b_script. beta is
+  // inlined in alpha, but it should be attributed to b_script.
+
+  v8::Local<v8::Script> script_b = CompileWithOrigin(
+      "function beta(k) {\n"
+      "  let sum = 2;\n"
+      "  for(let i = 0; i < k; i ++) {\n"
+      "    sum += i;\n"
+      "    sum = sum + 'a';\n"
+      "  }\n"
+      "  return sum;\n"
+      "}\n"
+      "\n",
+      "script_b");
+
+  v8::Local<v8::Script> script_a = CompileWithOrigin(
+      "function alpha(p) {\n"
+      "  let res = beta(p);\n"
+      "  res = res + res;\n"
+      "  return res;\n"
+      "}\n"
+      "let p = 2;\n"
+      "\n"
+      "\n"
+      "// Warm up before profiling or the inlining doesn't happen.\n"
+      "p = alpha(p);\n"
+      "p = alpha(p);\n"
+      "%OptimizeFunctionOnNextCall(alpha);\n"
+      "p = alpha(p);\n"
+      "\n"
+      "\n"
+      "startProfiling();\n"
+      "for(let i = 0; i < 10000; i++) {\n"
+      "  p = alpha(p);\n"
+      "}\n"
+      "stopProfiling();\n"
+      "\n"
+      "\n",
+      "script_a");
+
+  script_b->Run(env).ToLocalChecked();
+  script_a->Run(env).ToLocalChecked();
+
+  const v8::CpuProfile* profile = i::ProfilerExtension::last_profile;
+  const v8::CpuProfileNode* current = profile->GetTopDownRoot();
+  reinterpret_cast<ProfileNode*>(const_cast<v8::CpuProfileNode*>(current))
+      ->Print(0);
+  //   The tree should look like this:
+  //  0  (root) 0 #1
+  //  5    (program) 0 #6
+  //  2     14 #2 script_a:1
+  //    ;;; deopted at script_id: 14 position: 299 with reason 'Insufficient
+  //    type feedback for call'.
+  //  1      alpha 14 #4 script_a:1
+  //  9        beta 13 #5 script_b:0
+  //  0      startProfiling 0 #3
+
+  const v8::CpuProfileNode* root = profile->GetTopDownRoot();
+  const v8::CpuProfileNode* script = GetChild(env, root, "");
+  CheckFunctionDetails(env->GetIsolate(), script, "", "script_a",
+                       script_a->GetUnboundScript()->GetId(), 1, 1);
+  const v8::CpuProfileNode* alpha = FindChild(env, script, "alpha");
+  // Return early if profiling didn't sample alpha.
+  if (!alpha) return;
+  CheckFunctionDetails(env->GetIsolate(), alpha, "alpha", "script_a",
+                       script_a->GetUnboundScript()->GetId(), 1, 15);
+  const v8::CpuProfileNode* beta = FindChild(env, alpha, "beta");
+  if (!beta) return;
+  CheckFunctionDetails(env->GetIsolate(), beta, "beta", "script_b",
+                       script_b->GetUnboundScript()->GetId(), 0, 0);
+}
 
 TEST(DontStopOnFinishedProfileDelete) {
   v8::HandleScope scope(CcTest::isolate());
