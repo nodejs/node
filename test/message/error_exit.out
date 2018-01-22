@@ -1,6 +1,6 @@
 Exiting with code=1
 assert.js:*
-  throw new errors.AssertionError(obj);
+  throw new AssertionError(obj);
   ^
 
 AssertionError [ERR_ASSERTION]: 1 === 2
