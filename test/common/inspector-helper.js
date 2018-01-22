@@ -172,9 +172,9 @@ class InspectorSession {
         const scriptId = script['scriptId'];
         const url = script['url'];
         this._scriptsIdsByUrl.set(scriptId, url);
-        if (
-          getURLFromFilePath(url).toString() === this.scriptURL().toString()
-        ) {
+        const fileUrl = url.startsWith('file:') ?
+          url : getURLFromFilePath(url).toString();
+        if (fileUrl === this.scriptURL().toString()) {
           this.mainScriptId = scriptId;
         }
       }
