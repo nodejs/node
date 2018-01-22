@@ -492,7 +492,7 @@ fs.open(path, 'r', (err, fd) => {
 });
 ```
 
-The ID returned fom `executionAsyncId()` is related to execution timing, not
+The ID returned from `executionAsyncId()` is related to execution timing, not
 causality (which is covered by `triggerAsyncId()`). For example:
 
 ```js
