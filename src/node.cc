@@ -28,6 +28,7 @@
 #include "node_revert.h"
 #include "node_debug_options.h"
 #include "node_perf.h"
+#include "node_lib.h"
 
 #if defined HAVE_PERFCTR
 #include "node_counters.h"
@@ -90,6 +91,9 @@
 
 #include <string>
 #include <vector>
+#include <iostream>
+#include <cstring>
+#include <sstream>
 
 #if defined(NODE_HAVE_I18N_SUPPORT)
 #include <unicode/uvernum.h>
@@ -4795,7 +4799,25 @@ Local<Context> NewContext(Isolate* isolate,
   return context;
 }
 
+inline static bool TickEventLoop(Environment & env) {
+  bool more = false;
+  uv_run(env.event_loop(), UV_RUN_NOWAIT);
 
+  v8_platform.DrainVMTasks();
+
+  more = uv_loop_alive(env.event_loop());
+  if (more)
+    return more;
+
+  EmitBeforeExit(&env);
+
+  // Emit `beforeExit` if the loop became alive either after emitting
+  // event, or after running some callbacks.
+  more = uv_loop_alive(env.event_loop());
+  return more;
+}
+
+// This is where the magic happens. Creates JavaScript context and a JS Environment, then runs the uv event loop until it is no longer alive (see TickEventLoop()), then tears down Env and context and returns JS exit code.
 inline int Start(Isolate* isolate, IsolateData* isolate_data,
                  int argc, const char* const* argv,
                  int exec_argc, const char* const* exec_argv) {
@@ -4833,19 +4855,7 @@ inline int Start(Isolate* isolate, IsolateData* isolate_data,
     bool more;
     PERFORMANCE_MARK(&env, LOOP_START);
     do {
-      uv_run(env.event_loop(), UV_RUN_DEFAULT);
-
-      v8_platform.DrainVMTasks();
-
-      more = uv_loop_alive(env.event_loop());
-      if (more)
-        continue;
-
-      EmitBeforeExit(&env);
-
-      // Emit `beforeExit` if the loop became alive either after emitting
-      // event, or after running some callbacks.
-      more = uv_loop_alive(env.event_loop());
+      more = TickEventLoop(env);
     } while (more == true);
     PERFORMANCE_MARK(&env, LOOP_EXIT);
   }
@@ -4865,6 +4875,7 @@ inline int Start(Isolate* isolate, IsolateData* isolate_data,
   return exit_code;
 }
 
+// Creates V8 Isolate, calls 3rd start, then disposes of isolate afterwards.
 inline int Start(uv_loop_t* event_loop,
                  int argc, const char* const* argv,
                  int exec_argc, const char* const* exec_argv) {
@@ -4914,6 +4925,7 @@ inline int Start(uv_loop_t* event_loop,
   return exit_code;
 }
 
+// Initializes V8, calls second Start(), then de-inits V8
 int Start(int argc, char** argv) {
   atexit([] () { uv_tty_reset_mode(); });
   PlatformInit();
@@ -4978,6 +4990,401 @@ int Start(int argc, char** argv) {
   return exit_code;
 }
 
+namespace lib {
+
+struct CmdArgs {
+  int argc;
+  char** argv;
+};
+
+ArrayBufferAllocator* allocator;
+Isolate::CreateParams params;
+Locker* locker;
+Isolate* isolate;
+IsolateData* isolate_data;
+Isolate::Scope* isolate_scope;
+Environment* env;
+Local<Context> context;
+Context::Scope* context_scope;
+bool request_stop = false;
+CmdArgs* cmd_args = nullptr;
+
+namespace deinitialize {
+
+void deleteCmdArgs() {
+  if (!cmd_args) {
+    return;
+  }
+  delete[] cmd_args->argv;
+  delete cmd_args;
+}
+
+int _StopEnv() {
+  env->set_trace_sync_io(false);
+
+  int exit_code = EmitExit(env);
+  RunAtExit(env);
+  uv_key_delete(&thread_local_env);
+
+  v8_platform.DrainVMTasks();
+  WaitForInspectorDisconnect(env);
+
+  return exit_code;
+}
+
+void deleteIsolate() {
+  Mutex::ScopedLock scoped_lock(node_isolate_mutex);
+  CHECK_EQ(node_isolate, isolate);
+  node_isolate = nullptr;
+  isolate->Dispose();
+}
+
+void deinitV8() {
+  if (trace_enabled) {
+    v8_platform.StopTracingAgent();
+  }
+  v8_initialized = false;
+  V8::Dispose();
+
+  // uv_run cannot be called from the time before the beforeExit callback
+  // runs until the program exits unless the event loop has any referenced
+  // handles after beforeExit terminates. This prevents unrefed timers
+  // that happen to terminate during shutdown from being run unsafely.
+  // Since uv_run cannot be called, uv_async handles held by the platform
+  // will never be fully cleaned up.
+  v8_platform.Dispose();
+}
+
+} // namespace deinitialize
+
+
+namespace initialize {
+
+void generateCmdArgsFromProgramName(const std::string& program_name) {
+  deinitialize::deleteCmdArgs();
+  int argc = 1;
+  char* program_name_c_string = new char[program_name.length() + 1];
+  std::strcpy(program_name_c_string, program_name.c_str());
+  char** argv = new char*(program_name_c_string);
+  cmd_args = new CmdArgs{argc, argv};
+}
+
+void initV8() {
+  v8_platform.Initialize(v8_thread_pool_size, uv_default_loop());
+  // Enable tracing when argv has --trace-events-enabled.
+  if (trace_enabled) {
+    fprintf(stderr, "Warning: Trace event is an experimental feature "
+            "and could change at any time.\n");
+    v8_platform.StartTracingAgent();
+  }
+  V8::Initialize();
+  node::performance::performance_v8_start = PERFORMANCE_NOW();
+  v8_initialized = true;
+}
+
+void createIsolate() {
+  allocator = new ArrayBufferAllocator();
+  params.array_buffer_allocator = allocator;
+#ifdef NODE_ENABLE_VTUNE_PROFILING
+  params.code_event_handler = vTune::GetVtuneCodeEventHandler();
+#endif
+
+  isolate = Isolate::New(params);
+  if (isolate == nullptr) {
+    fprintf(stderr, "Could not create isolate.");
+    fflush(stderr);
+    return; // TODO: Handle error
+    //return 12;  // Signal internal error.
+  }
+
+  isolate->AddMessageListener(OnMessage);
+  isolate->SetAbortOnUncaughtExceptionCallback(ShouldAbortOnUncaughtException);
+  isolate->SetAutorunMicrotasks(false);
+  isolate->SetFatalErrorHandler(OnFatalError);
+
+  if (track_heap_objects) {
+    isolate->GetHeapProfiler()->StartTrackingHeapObjects(true);
+  }
+
+  {
+    Mutex::ScopedLock scoped_lock(node_isolate_mutex);
+    CHECK_EQ(node_isolate, nullptr);
+    node_isolate = isolate;
+  }
+}
+
+void createInitialEnvironment() {
+  locker = new Locker(isolate);
+  isolate_scope = new Isolate::Scope(isolate);
+  static HandleScope handle_scope(isolate); // TODO (jh): Once we write a Deinit(), we need to put this on the heap to call the deconstructor.
+  isolate_data = new IsolateData(isolate, uv_default_loop(), allocator->zero_fill_field());
+
+  //////////
+  // Start 3
+  //////////
+  //HandleScope handle_scope(isolate); // (jh) in the initial Start functions, two handle scopes were created (one in Start() 2 and one in Start() 3). Currently, we have no idea why.
+  context = NewContext(isolate);
+  context_scope = new Context::Scope(context);
+  env = new Environment(isolate_data, context);
+  CHECK_EQ(0, uv_key_create(&thread_local_env));
+  uv_key_set(&thread_local_env, env);
+}
+
+void configureOpenSsl() {
+#if HAVE_OPENSSL
+  {
+    std::string extra_ca_certs;
+    if (SafeGetenv("NODE_EXTRA_CA_CERTS", &extra_ca_certs))
+      crypto::UseExtraCaCerts(extra_ca_certs);
+  }
+#ifdef NODE_FIPS_MODE
+  // In the case of FIPS builds we should make sure
+  // the random source is properly initialized first.
+  OPENSSL_init();
+#endif  // NODE_FIPS_MODE
+  // V8 on Windows doesn't have a good source of entropy. Seed it from
+  // OpenSSL's pool.
+  V8::SetEntropySource(crypto::EntropySource);
+#endif  // HAVE_OPENSSL
+}
+
+void _StartEnv(int argc,
+               const char* const* argv) {
+    std::cout << "Starting environment" << std::endl;
+
+    int v8_argc = 0;
+    const char* const* v8_argv = nullptr;
+    env->Start(argc, argv, v8_argc, v8_argv, v8_is_profiling);
+
+    const char* path = argc > 1 ? argv[1] : nullptr;
+    StartInspector(env, path, debug_options);
+
+    if (debug_options.inspector_enabled() && !v8_platform.InspectorStarted(env)) {
+      return; // TODO (jh): Handle error
+      //return 12;  // Signal internal error.
+    }
+
+    env->set_abort_on_uncaught_exception(abort_on_uncaught_exception);
+
+    if (no_force_async_hooks_checks) {
+      env->async_hooks()->no_force_checks();
+    }
+
+    {
+      Environment::AsyncCallbackScope callback_scope(env);
+      env->async_hooks()->push_async_ids(1, 0);
+      LoadEnvironment(env);
+      env->async_hooks()->pop_async_id(1);
+    }
+
+    env->set_trace_sync_io(trace_sync_io);
+}
+
+}  // namespace initialize
+
+void Initialize(const std::string& program_name) {
+  //////////
+  // Start 1
+  //////////
+  atexit([] () { uv_tty_reset_mode(); });
+  PlatformInit();
+  node::performance::performance_node_start = PERFORMANCE_NOW();
+
+  // currently we do not support additional commandline options for node, uv, or v8
+  // we explicitily only set the first argument to the program name
+  initialize::generateCmdArgsFromProgramName(program_name);
+
+  // Hack around with the argv pointer. Used for process.title = "blah".
+  cmd_args->argv = uv_setup_args(cmd_args->argc, cmd_args->argv);
+
+  // This needs to run *before* V8::Initialize().  The const_cast is not
+  // optional, in case you're wondering.
+  // Init() puts the v8 specific cmd args in exec_argc and exec_argv, but as we
+  // don't support these, they are not used.
+  int exec_argc = 0;
+  const char** exec_argv = nullptr;
+  Init(&cmd_args->argc, const_cast<const char**>(cmd_args->argv), &exec_argc, &exec_argv);
+
+  initialize::configureOpenSsl();
+
+  initialize::initV8();
+
+  //////////
+  // Start 2
+  //////////
+
+  initialize::createIsolate();
+
+  initialize::createInitialEnvironment();
+
+  //////////
+  // Start environment
+  //////////
+
+  initialize::_StartEnv(cmd_args->argc, (const char* const*)cmd_args->argv);
+}
+
+int Deinitialize() {
+  // Empty event queue
+  Evaluate("process.exit();");
+  while (ProcessEvents()) { }
+
+  auto exit_code = deinitialize::_StopEnv();
+
+#if defined(LEAK_SANITIZER)
+  __lsan_do_leak_check();
+#endif
+
+  deinitialize::deleteIsolate();
+
+  deinitialize::deinitV8();
+
+  deinitialize::deleteCmdArgs();
+
+  return exit_code;
+}
+
+v8::Local<v8::Value> Run(const std::string& path) {
+  // Read entire file into string. There is most certainly a better way ;)
+  // https://stackoverflow.com/a/2602258/2560557
+  std::ifstream t(path);
+  std::stringstream buffer;
+  buffer << t.rdbuf();
+
+  return Evaluate(buffer.str());
+}
+
+v8::Local<v8::Value> Evaluate(const std::string& java_script_code) {
+  EscapableHandleScope scope(env->isolate());
+  TryCatch try_catch(env->isolate());
+
+  // try_catch must be nonverbose to disable FatalException() handler,
+  // we will handle exceptions ourself.
+  try_catch.SetVerbose(false);
+
+  //ScriptOrigin origin(filename); // TODO jh: set reasonable ScriptOrigin. This is used for debugging
+  MaybeLocal<v8::Script> script = v8::Script::Compile(env->context(), v8::String::NewFromUtf8(isolate, java_script_code.c_str())/*, origin*/);
+  if (script.IsEmpty()) {
+    ReportException(env, try_catch);
+    exit(3); //TODO jh: don't exit process when function breaks. Handle error differently.
+  }
+
+  Local<Value> result = script.ToLocalChecked()->Run();
+  if (result.IsEmpty()) {
+    ReportException(env, try_catch);
+    exit(4); //TODO jh: don't exit process when function breaks. Handle error differently.
+  }
+
+  return scope.Escape(result);
+}
+
+void RunEventLoop(const std::function<void()>& callback) {
+  if (_event_loop_running) {
+    return; // TODO: return error
+  }
+  //SealHandleScope seal(isolate); // TODO (jh): this was missing after building RunEventLoop from the Start() functions. We are not sure why the sealed scope is necessary. Please investigate.
+  bool more = false;
+  _event_loop_running = true;
+  request_stop = false;
+  do {
+    more = ProcessEvents();
+    callback();
+  } while (more && !request_stop);
+  request_stop = false;
+  _event_loop_running = false;
+}
+
+v8::Local<v8::Object> GetRootObject() {
+  return context->Global();
+}
+
+
+v8::Local<v8::Value> Call(v8::Local<v8::Object> receiver, v8::Local<v8::Function> function, const std::vector<v8::Local<v8::Value>> & args = {}) {
+    return function->Call(receiver, args.size(), const_cast<v8::Local<v8::Value>*>(&args[0]));
+}
+
+v8::Local<v8::Value> Call(v8::Local<v8::Object> receiver, v8::Local<v8::Function> function, std::initializer_list<v8::Local<v8::Value>> args) {
+    return Call(receiver, function, std::vector<v8::Local<v8::Value>>(args));
+}
+
+// TODO: Error handling: Node.js has exceptions disabled.
+v8::Local<v8::Value> Call(v8::Local<v8::Object> object, const std::string& function_name, const std::vector<v8::Local<v8::Value>>& args) {
+  Local<v8::String> v8_function_name = v8::String::NewFromUtf8(isolate, function_name.c_str());
+
+  Local<v8::Value> value = object->Get(v8_function_name);
+  if (!value->IsFunction()) {
+    //throw new Exception(":((");
+    // TODO (js): at least return at this point
+  }
+
+  return Call(object, v8::Local<v8::Function>::Cast(value), args);
+}
+
+v8::Local<v8::Value> Call(v8::Local<v8::Object> object, const std::string & function_name, std::initializer_list<v8::Local<v8::Value>> args) {
+    return Call(object, function_name, std::vector<v8::Local<v8::Value>>(args));
+}
+
+// TODO: Node.js has exceptions disabled.
+v8::Local<v8::Object> IncludeModule(const std::string& module_name) {
+  std::vector<v8::Local<v8::Value>> args = {v8::String::NewFromUtf8(isolate, module_name.c_str())};
+
+  auto module = Call(GetRootObject(), "require", args);
+  if (module->IsUndefined()) {
+    //TODO jh: throw new Exception(":(("); // repuire() call failed, but did not throw a JS exception.
+    // TODO (js): at least return at this point
+  }
+
+  return v8::Local<v8::Object>::Cast(module);
+}
+
+void RegisterModule(const std::string & name, const addon_context_register_func & callback, void *priv) {
+    node::node_module* module = new node::node_module();
+
+    module->nm_version = NODE_MODULE_VERSION;
+    module->nm_flags = NM_F_BUILTIN;
+    module->nm_filename = __FILE__;
+    module->nm_context_register_func = callback;
+    module->nm_modname = name.c_str();
+    module->nm_priv = priv;
+
+    node_module_register(module);
+}
+
+void RegisterModule(const std::string & name,
+                    const std::map<std::string, v8::FunctionCallback> & module_functions) {
+    auto map_on_heap = new const std::map<std::string, v8::FunctionCallback>(module_functions);
+    RegisterModule(name, node::lib::_RegisterModuleCallback, const_cast<std::map<std::string, v8::FunctionCallback>*>(map_on_heap));
+}
+
+void _RegisterModuleCallback(v8::Local<v8::Object> exports,
+          v8::Local<v8::Value> module,
+          v8::Local<v8::Context> context,
+          void* priv) {
+    auto module_functions = static_cast<std::map<std::string, v8::FunctionCallback>*>(priv);
+    if (!module_functions) {
+      fprintf(stderr, "_RegisterModuleCallback: module_functions is null");
+      return;
+    }
+    for (std::pair<std::string, v8::FunctionCallback> element : *module_functions) {
+        NODE_SET_METHOD(exports, element.first.c_str(), element.second);
+    }
+
+    delete module_functions;
+}
+
+void StopEventLoop() {
+  if (!_event_loop_running) {
+    return;
+  }
+  request_stop = true;
+  //while (request_stop && _event_loop_running) { }
+}
+
+bool ProcessEvents() {
+  return TickEventLoop(*env);
+}
+
+}  // namespace node::lib
 
 }  // namespace node
 
