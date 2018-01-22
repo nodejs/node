@@ -1000,12 +1000,10 @@ MaybeLocal<Value> InternalMakeCallback(Environment* env,
   if (asyncContext.async_id != 0 || domain_cb.IsEmpty() || recv.IsEmpty()) {
     ret = callback->Call(env->context(), recv, argc, argv);
   } else {
-    Local<Array> argv_array = Array::New(env->isolate(), argc);
-    for (int i = 0; i < argc; i++) {
-      argv_array->Set(env->context(), i, argv[i]).FromJust();
-    }
-    Local<Value> domain_argv[] = { callback, argv_array };
-    ret = domain_cb->Call(env->context(), recv, 2, domain_argv);
+    std::vector<Local<Value>> args(1 + argc);
+    args[0] = callback;
+    std::copy(&argv[0], &argv[argc], &args[1]);
+    ret = domain_cb->Call(env->context(), recv, args.size(), &args[0]);
   }
 
   if (ret.IsEmpty()) {
