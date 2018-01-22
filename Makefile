@@ -301,6 +301,10 @@ $(1)build/Release/.buildstamp: $(1)build/Makefile $(2) $(ADDON_PREREQS)
 	$(NODE_GYP) --directory=$(1) build
 	@touch $$@
 $(1)build/Release/binding.node: $(1)build/Release/.buildstamp
+$(1)build/Debug/.buildstamp: $(1)build/Makefile $(2) $(ADDON_PREREQS)
+	$(NODE_GYP) --directory=$(1) --debug build
+	@touch $$@
+$(1)build/Debug/binding.node: $(1)build/Debug/.buildstamp
 endef
 
 $(foreach x, $(ADDON_DIRS), \
