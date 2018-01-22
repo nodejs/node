@@ -41,10 +41,10 @@ void PerformanceEntry::New(const FunctionCallbackInfo<Value>& args) {
 
 void PerformanceEntry::NotifyObservers(Environment* env,
                                        PerformanceEntry* entry) {
-  uint32_t* observers = env->performance_state()->observers;
+  AliasedBuffer<uint32_t, v8::Uint32Array>& observers =
+      env->performance_state()->observers;
   PerformanceEntryType type = ToPerformanceEntryTypeEnum(entry->type().c_str());
-  if (observers == nullptr ||
-      type == NODE_PERFORMANCE_ENTRY_TYPE_INVALID ||
+  if (type == NODE_PERFORMANCE_ENTRY_TYPE_INVALID ||
       !observers[type]) {
     return;
   }
@@ -88,7 +88,8 @@ void Measure(const FunctionCallbackInfo<Value>& args) {
   Utf8Value startMark(isolate, args[1]);
   Utf8Value endMark(isolate, args[2]);
 
-  double* milestones = env->performance_state()->milestones;
+  AliasedBuffer<double, v8::Float64Array>& milestones =
+      env->performance_state()->milestones;
 
   uint64_t startTimestamp = timeOrigin;
   uint64_t start = GetPerformanceMark(env, *startMark);
@@ -155,7 +156,8 @@ void GetPerformanceEntryDuration(const Local<String> prop,
 void MarkMilestone(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   Local<Context> context = env->context();
-  double* milestones = env->performance_state()->milestones;
+  AliasedBuffer<double, v8::Float64Array>& milestones =
+      env->performance_state()->milestones;
   PerformanceMilestone milestone =
       static_cast<PerformanceMilestone>(
           args[0]->Int32Value(context).ToChecked());
@@ -182,7 +184,8 @@ void PerformanceGCCallback(uv_async_t* handle) {
   Local<Object> obj;
   PerformanceGCKind kind = static_cast<PerformanceGCKind>(data->data());
 
-  uint32_t* observers = env->performance_state()->observers;
+  AliasedBuffer<uint32_t, v8::Uint32Array>& observers =
+      env->performance_state()->observers;
   if (!observers[NODE_PERFORMANCE_ENTRY_TYPE_GC]) {
     goto cleanup;
   }
@@ -285,8 +288,8 @@ void TimerFunctionCall(const FunctionCallbackInfo<Value>& args) {
     args.GetReturnValue().Set(ret.ToLocalChecked());
   }
 
-
-  uint32_t* observers = env->performance_state()->observers;
+  AliasedBuffer<uint32_t, v8::Uint32Array>& observers =
+      env->performance_state()->observers;
   if (!observers[NODE_PERFORMANCE_ENTRY_TYPE_FUNCTION])
     return;
 
@@ -319,16 +322,12 @@ void Init(Local<Object> target,
   performance_state* state = env->performance_state();
   auto state_ab = ArrayBuffer::New(isolate, state, sizeof(*state));
 
-  #define SET_STATE_TYPEDARRAY(name, type, field)                         \
-    target->Set(context,                                                  \
-                FIXED_ONE_BYTE_STRING(isolate, (name)),                   \
-                type::New(state_ab,                                       \
-                          offsetof(performance_state, field),             \
-                          arraysize(state->field)))                       \
-                                    .FromJust()
-    SET_STATE_TYPEDARRAY("observerCounts", v8::Uint32Array, observers);
-    SET_STATE_TYPEDARRAY("milestones", v8::Float64Array, milestones);
-  #undef SET_STATE_TYPEDARRAY
+  target->Set(context,
+              FIXED_ONE_BYTE_STRING(isolate, "observerCounts"),
+              state->observers.GetJSArray()).FromJust();
+  target->Set(context,
+              FIXED_ONE_BYTE_STRING(isolate, "milestones"),
+              state->milestones.GetJSArray()).FromJust();
 
   Local<String> performanceEntryString =
       FIXED_ONE_BYTE_STRING(isolate, "PerformanceEntry");
