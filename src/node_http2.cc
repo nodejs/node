@@ -554,7 +554,8 @@ Http2Session::~Http2Session() {
 }
 
 inline bool HasHttp2Observer(Environment* env) {
-  uint32_t* observers = env->performance_state()->observers;
+  AliasedBuffer<uint32_t, v8::Uint32Array>& observers =
+      env->performance_state()->observers;
   return observers[performance::NODE_PERFORMANCE_ENTRY_TYPE_HTTP2] != 0;
 }
 
