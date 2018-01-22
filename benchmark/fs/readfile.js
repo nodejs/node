@@ -15,8 +15,7 @@ const bench = common.createBenchmark(main, {
   concurrent: [1, 10]
 });
 
-function main(conf) {
-  const len = +conf.len;
+function main({ len, dur, concurrent }) {
   try { fs.unlinkSync(filename); } catch (e) {}
   var data = Buffer.alloc(len, 'x');
   fs.writeFileSync(filename, data);
@@ -30,7 +29,7 @@ function main(conf) {
     bench.end(reads);
     try { fs.unlinkSync(filename); } catch (e) {}
     process.exit(0);
-  }, +conf.dur * 1000);
+  }, dur * 1000);
 
   function read() {
     fs.readFile(filename, afterRead);
@@ -48,6 +47,5 @@ function main(conf) {
       read();
   }
 
-  var cur = +conf.concurrent;
-  while (cur--) read();
+  while (concurrent--) read();
 }

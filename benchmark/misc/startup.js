@@ -8,8 +8,7 @@ const bench = common.createBenchmark(startNode, {
   dur: [1]
 });
 
-function startNode(conf) {
-  const dur = +conf.dur;
+function startNode({ dur }) {
   var go = true;
   var starts = 0;
 

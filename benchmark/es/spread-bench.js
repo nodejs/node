@@ -23,16 +23,16 @@ function makeTest(count, rest) {
   }
 }
 
-function main(conf) {
-  const n = +conf.millions * 1e6;
-  const ctx = conf.context === 'context' ? {} : null;
-  var fn = makeTest(conf.count, conf.rest);
-  const args = new Array(conf.count);
+function main({ millions, context, count, rest, method }) {
+  const n = millions * 1e6;
+  const ctx = context === 'context' ? {} : null;
+  var fn = makeTest(count, rest);
+  const args = new Array(count);
   var i;
-  for (i = 0; i < conf.count; i++)
+  for (i = 0; i < count; i++)
     args[i] = i;
 
-  switch (conf.method) {
+  switch (method) {
     case '':
       // Empty string falls through to next line as default, mostly for tests.
     case 'apply':

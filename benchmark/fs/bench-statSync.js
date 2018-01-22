@@ -9,9 +9,7 @@ const bench = common.createBenchmark(main, {
 });
 
 
-function main(conf) {
-  const n = conf.n >>> 0;
-  const statSyncType = conf.statSyncType;
+function main({ n, statSyncType }) {
   const arg = (statSyncType === 'fstatSync' ?
     fs.openSync(__filename, 'r') :
     __dirname);

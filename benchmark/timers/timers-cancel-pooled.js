@@ -6,8 +6,8 @@ const bench = common.createBenchmark(main, {
   millions: [5],
 });
 
-function main(conf) {
-  const iterations = +conf.millions * 1e6;
+function main({ millions }) {
+  const iterations = millions * 1e6;
 
   var timer = setTimeout(() => {}, 1);
   for (var i = 0; i < iterations; i++) {

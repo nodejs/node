@@ -30,11 +30,7 @@ function useWHATWG(n, input, prop) {
   bench.end(n);
 }
 
-function main(conf) {
-  const type = conf.type;
-  const n = conf.n | 0;
-  const method = conf.method;
-
+function main({ type, n, method }) {
   const input = inputs[type];
   if (!input) {
     throw new Error('Unknown input type');

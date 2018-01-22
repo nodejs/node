@@ -8,10 +8,7 @@ const bench = common.createBenchmark(main, {
   n: [1e6]
 });
 
-function main(conf) {
-  const len = +conf.len;
-  const n = +conf.n;
-
+function main({ len, n }) {
   const path = '/'.repeat(len);
   const opts = { path: path, createConnection: function() {} };
 

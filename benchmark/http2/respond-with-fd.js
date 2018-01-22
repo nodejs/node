@@ -14,15 +14,11 @@ const bench = common.createBenchmark(main, {
   benchmarker: ['h2load']
 }, { flags: ['--no-warnings', '--expose-http2'] });
 
-function main(conf) {
-
+function main({ requests, streams, clients }) {
   fs.open(file, 'r', (err, fd) => {
     if (err)
       throw err;
 
-    const n = +conf.requests;
-    const m = +conf.streams;
-    const c = +conf.clients;
     const http2 = require('http2');
     const server = http2.createServer();
     server.on('stream', (stream) => {
@@ -32,10 +28,10 @@ function main(conf) {
     server.listen(PORT, () => {
       bench.http({
         path: '/',
-        requests: n,
-        maxConcurrentStreams: m,
-        clients: c,
-        threads: c
+        requests,
+        maxConcurrentStreams: streams,
+        clients,
+        threads: clients
       }, () => server.close());
     });
 

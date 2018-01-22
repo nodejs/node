@@ -16,10 +16,9 @@ const bench = common.createBenchmark(main, {
   flags: ['--expose-internals']
 });
 
-function main(conf) {
+function main({ input, n }) {
   const { toUSVString } = require('internal/url');
-  const str = inputs[conf.input];
-  const n = conf.n | 0;
+  const str = inputs[input];
 
   bench.start();
   for (var i = 0; i < n; i++)

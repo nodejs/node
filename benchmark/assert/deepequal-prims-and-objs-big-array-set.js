@@ -15,7 +15,7 @@ const primValues = {
 };
 
 const bench = common.createBenchmark(main, {
-  prim: Object.keys(primValues),
+  primitive: Object.keys(primValues),
   n: [25],
   len: [1e5],
   method: [
@@ -30,10 +30,8 @@ const bench = common.createBenchmark(main, {
   ]
 });
 
-function main(conf) {
-  const prim = primValues[conf.prim];
-  const n = +conf.n;
-  const len = +conf.len;
+function main({ n, len, primitive, method }) {
+  const prim = primValues[primitive];
   const actual = [];
   const expected = [];
   const expectedWrong = [];
@@ -52,7 +50,7 @@ function main(conf) {
   const expectedSet = new Set(expected);
   const expectedWrongSet = new Set(expectedWrong);
 
-  switch (conf.method) {
+  switch (method) {
     case '':
       // Empty string falls through to next line as default, mostly for tests.
     case 'deepEqual_Array':

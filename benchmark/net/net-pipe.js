@@ -2,6 +2,7 @@
 'use strict';
 
 const common = require('../common.js');
+const net = require('net');
 const PORT = common.PORT;
 
 const bench = common.createBenchmark(main, {
@@ -10,17 +11,10 @@ const bench = common.createBenchmark(main, {
   dur: [5],
 });
 
-var dur;
-var len;
-var type;
 var chunk;
 var encoding;
 
-function main(conf) {
-  dur = +conf.dur;
-  len = +conf.len;
-  type = conf.type;
-
+function main({ dur, len, type }) {
   switch (type) {
     case 'buf':
       chunk = Buffer.alloc(len, 'x');
@@ -37,10 +31,33 @@ function main(conf) {
       throw new Error(`invalid type: ${type}`);
   }
 
-  server();
-}
+  const reader = new Reader();
+  const writer = new Writer();
 
-const net = require('net');
+  // the actual benchmark.
+  const server = net.createServer(function(socket) {
+    socket.pipe(socket);
+  });
+
+  server.listen(PORT, function() {
+    const socket = net.connect(PORT);
+    socket.on('connect', function() {
+      bench.start();
+
+      reader.pipe(socket);
+      socket.pipe(writer);
+
+      setTimeout(function() {
+        // multiply by 2 since we're sending it first one way
+        // then then back again.
+        const bytes = writer.received * 2;
+        const gbits = (bytes * 8) / (1024 * 1024 * 1024);
+        bench.end(gbits);
+        process.exit(0);
+      }, dur * 1000);
+    });
+  });
+}
 
 function Writer() {
   this.received = 0;
@@ -84,33 +101,3 @@ Reader.prototype.pipe = function(dest) {
   this.flow();
   return dest;
 };
-
-
-function server() {
-  const reader = new Reader();
-  const writer = new Writer();
-
-  // the actual benchmark.
-  const server = net.createServer(function(socket) {
-    socket.pipe(socket);
-  });
-
-  server.listen(PORT, function() {
-    const socket = net.connect(PORT);
-    socket.on('connect', function() {
-      bench.start();
-
-      reader.pipe(socket);
-      socket.pipe(writer);
-
-      setTimeout(function() {
-        // multiply by 2 since we're sending it first one way
-        // then then back again.
-        const bytes = writer.received * 2;
-        const gbits = (bytes * 8) / (1024 * 1024 * 1024);
-        bench.end(gbits);
-        process.exit(0);
-      }, dur * 1000);
-    });
-  });
-}

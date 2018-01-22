@@ -21,10 +21,8 @@ function endAfterGC(n) {
   });
 }
 
-function main(conf) {
-  const n = +conf.n;
-
-  switch (conf.method) {
+function main({ n, method }) {
+  switch (method) {
     case 'trackingEnabled':
       bench.start();
       for (let i = 0; i < n; i++) {
