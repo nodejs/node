@@ -621,7 +621,7 @@ changes:
     description: The `file` parameter can be a file descriptor now.
 -->
 
-* `file` {string|Buffer|number} filename or file descriptor
+* `file` {string|Buffer|URL|number} filename or file descriptor
 * `data` {string|Buffer}
 * `options` {Object|string}
   * `encoding` {string|null} **Default:** `'utf8'`
@@ -676,7 +676,7 @@ changes:
     description: The `file` parameter can be a file descriptor now.
 -->
 
-* `file` {string|Buffer|number} filename or file descriptor
+* `file` {string|Buffer|URL|number} filename or file descriptor
 * `data` {string|Buffer}
 * `options` {Object|string}
   * `encoding` {string|null} **Default:** `'utf8'`
@@ -1487,7 +1487,7 @@ changes:
                  it will emit a deprecation warning.
 -->
 
-* `path` {string|Buffer}
+* `path` {string|Buffer|URL}
 * `mode` {integer}
 * `callback` {Function}
   * `err` {Error}
@@ -1502,7 +1502,7 @@ Only available on macOS.
 deprecated: v0.4.7
 -->
 
-* `path` {string|Buffer}
+* `path` {string|Buffer|URL}
 * `mode` {integer}
 
 Synchronous lchmod(2). Returns `undefined`.
@@ -1517,7 +1517,7 @@ changes:
                  it will emit a deprecation warning.
 -->
 
-* `path` {string|Buffer}
+* `path` {string|Buffer|URL}
 * `uid` {integer}
 * `gid` {integer}
 * `callback` {Function}
@@ -1531,7 +1531,7 @@ to the completion callback.
 deprecated: v0.4.7
 -->
 
-* `path` {string|Buffer}
+* `path` {string|Buffer|URL}
 * `uid` {integer}
 * `gid` {integer}
 
@@ -2396,7 +2396,7 @@ changes:
                  it will emit a deprecation warning.
 -->
 
-* `path` {string|Buffer}
+* `path` {string|Buffer|URL}
 * `len` {integer} **Default:** `0`
 * `callback` {Function}
   * `err` {Error}
@@ -2410,7 +2410,7 @@ first argument. In this case, `fs.ftruncate()` is called.
 added: v0.8.6
 -->
 
-* `path` {string|Buffer}
+* `path` {string|Buffer|URL}
 * `len` {integer} **Default:** `0`
 
 Synchronous truncate(2). Returns `undefined`. A file descriptor can also be
@@ -2456,7 +2456,7 @@ Synchronous unlink(2). Returns `undefined`.
 added: v0.1.31
 -->
 
-* `filename` {string|Buffer}
+* `filename` {string|Buffer|URL}
 * `listener` {Function} Optional, a listener previously attached using
   `fs.watchFile()`
 
@@ -2816,7 +2816,7 @@ changes:
     description: The `file` parameter can be a file descriptor now.
 -->
 
-* `file` {string|Buffer|integer} filename or file descriptor
+* `file` {string|Buffer|URL|integer} filename or file descriptor
 * `data` {string|Buffer|Uint8Array}
 * `options` {Object|string}
   * `encoding` {string|null} **Default:** `'utf8'`
@@ -2867,7 +2867,7 @@ changes:
     description: The `file` parameter can be a file descriptor now.
 -->
 
-* `file` {string|Buffer|integer} filename or file descriptor
+* `file` {string|Buffer|URL|integer} filename or file descriptor
 * `data` {string|Buffer|Uint8Array}
 * `options` {Object|string}
   * `encoding` {string|null} **Default:** `'utf8'`
