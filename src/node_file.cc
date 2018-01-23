@@ -39,6 +39,7 @@
 # include <io.h>
 #endif
 
+#include <memory>
 #include <vector>
 
 namespace node {
@@ -1019,40 +1020,53 @@ static void WriteString(const FunctionCallbackInfo<Value>& args) {
 
   CHECK(args[0]->IsInt32());
 
+  std::unique_ptr<char[]> delete_on_return;
   Local<Value> req;
-  Local<Value> string = args[1];
+  Local<Value> value = args[1];
   int fd = args[0]->Int32Value();
   char* buf = nullptr;
-  int64_t pos;
   size_t len;
+  const int64_t pos = GET_OFFSET(args[2]);
+  const auto enc = ParseEncoding(env->isolate(), args[3], UTF8);
+  const auto is_async = args[4]->IsObject();
 
-  // will assign buf and len if string was external
-  if (!StringBytes::GetExternalParts(string,
-                                     const_cast<const char**>(&buf),
-                                     &len)) {
-    enum encoding enc = ParseEncoding(env->isolate(), args[3], UTF8);
-    len = StringBytes::StorageSize(env->isolate(), string, enc);
+  // Avoid copying the string when it is externalized but only when:
+  // 1. The target encoding is compatible with the string's encoding, and
+  // 2. The write is synchronous, otherwise the string might get neutered
+  //    while the request is in flight, and
+  // 3. For UCS2, when the host system is little-endian.  Big-endian systems
+  //    need to call StringBytes::Write() to ensure proper byte swapping.
+  // The const_casts are conceptually sound: memory is read but not written.
+  if (!is_async && value->IsString()) {
+    auto string = value.As<String>();
+    if ((enc == ASCII || enc == LATIN1) && string->IsExternalOneByte()) {
+      auto ext = string->GetExternalOneByteStringResource();
+      buf = const_cast<char*>(ext->data());
+      len = ext->length();
+    } else if (enc == UCS2 && IsLittleEndian() && string->IsExternal()) {
+      auto ext = string->GetExternalStringResource();
+      buf = reinterpret_cast<char*>(const_cast<uint16_t*>(ext->data()));
+      len = ext->length() * sizeof(*ext->data());
+    }
+  }
+
+  if (buf == nullptr) {
+    len = StringBytes::StorageSize(env->isolate(), value, enc);
     buf = new char[len];
+    // SYNC_CALL returns on error.  Make sure to always free the memory.
+    if (!is_async) delete_on_return.reset(buf);
     // StorageSize may return too large a char, so correct the actual length
     // by the write size
     len = StringBytes::Write(env->isolate(), buf, len, args[1], enc);
   }
-  pos = GET_OFFSET(args[2]);
 
-  uv_buf_t uvbuf = uv_buf_init(const_cast<char*>(buf), len);
+  uv_buf_t uvbuf = uv_buf_init(buf, len);
 
-  if (args[4]->IsObject()) {
+  if (is_async) {
     CHECK_EQ(args.Length(), 5);
     AsyncCall(env, args, "write", UTF8, AfterInteger,
               uv_fs_write, fd, &uvbuf, 1, pos);
   } else {
-    // SYNC_CALL returns on error.  Make sure to always free the memory.
-    struct Delete {
-      inline explicit Delete(char* pointer) : pointer_(pointer) {}
-      inline ~Delete() { delete[] pointer_; }
-      char* const pointer_;
-    };
-    Delete delete_on_return(buf);
     SYNC_CALL(write, nullptr, fd, &uvbuf, 1, pos)
     return args.GetReturnValue().Set(SYNC_RESULT);
   }
