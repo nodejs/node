@@ -7,12 +7,10 @@ const bench = common.createBenchmark(main, {
   v: ['crypto', 'tls']
 });
 
-function main(conf) {
-  const n = +conf.n;
-  const v = conf.v;
+function main({ n, v }) {
   const method = require(v).getCiphers;
   var i = 0;
-  // first call to getChipers will dominate the results
+  // First call to getChipers will dominate the results
   if (n > 1) {
     for (; i < n; i++)
       method();

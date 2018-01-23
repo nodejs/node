@@ -13,8 +13,7 @@ const bench = common.createBenchmark(main, {
   api: ['legacy', 'stream']
 });
 
-function main(conf) {
-  var api = conf.api;
+function main({ api, type, len, out, writes, algo }) {
   if (api === 'stream' && /^v0\.[0-8]\./.test(process.version)) {
     console.error('Crypto streams not available until v0.10');
     // use the legacy, just so that we can compare them.
@@ -23,26 +22,26 @@ function main(conf) {
 
   var message;
   var encoding;
-  switch (conf.type) {
+  switch (type) {
     case 'asc':
-      message = 'a'.repeat(conf.len);
+      message = 'a'.repeat(len);
       encoding = 'ascii';
       break;
     case 'utf':
-      message = 'ü'.repeat(conf.len / 2);
+      message = 'ü'.repeat(len / 2);
       encoding = 'utf8';
       break;
     case 'buf':
-      message = Buffer.alloc(conf.len, 'b');
+      message = Buffer.alloc(len, 'b');
       break;
     default:
-      throw new Error(`unknown message type: ${conf.type}`);
+      throw new Error(`unknown message type: ${type}`);
   }
 
   const fn = api === 'stream' ? streamWrite : legacyWrite;
 
   bench.start();
-  fn(conf.algo, message, encoding, conf.writes, conf.len, conf.out);
+  fn(algo, message, encoding, writes, len, out);
 }
 
 function legacyWrite(algo, message, encoding, writes, len, outEnc) {

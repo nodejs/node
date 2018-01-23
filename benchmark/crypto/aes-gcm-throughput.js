@@ -8,13 +8,13 @@ const bench = common.createBenchmark(main, {
   len: [1024, 4 * 1024, 16 * 1024, 64 * 1024, 256 * 1024, 1024 * 1024]
 });
 
-function main(conf) {
-  const message = Buffer.alloc(conf.len, 'b');
-  const key = crypto.randomBytes(keylen[conf.cipher]);
+function main({ n, len, cipher }) {
+  const message = Buffer.alloc(len, 'b');
+  const key = crypto.randomBytes(keylen[cipher]);
   const iv = crypto.randomBytes(12);
   const associate_data = Buffer.alloc(16, 'z');
   bench.start();
-  AEAD_Bench(conf.cipher, message, associate_data, key, iv, conf.n, conf.len);
+  AEAD_Bench(cipher, message, associate_data, key, iv, n, len);
 }
 
 function AEAD_Bench(cipher, message, associate_data, key, iv, n, len) {
