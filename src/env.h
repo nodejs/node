@@ -93,6 +93,8 @@ class ModuleWrap;
   V(processed_private_symbol, "node:processed")                               \
   V(selected_npn_buffer_private_symbol, "node:selectedNpnBuffer")             \
   V(domain_private_symbol, "node:domain")                                     \
+  V(napi_env, "node:napi:env")                                                \
+  V(napi_wrapper, "node:napi:wrapper")                                        \
 
 // Strings are per-isolate primitives but Environment proxies them
 // for the sake of convenience.  Strings should be ASCII-only.
