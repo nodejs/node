@@ -92,6 +92,15 @@ class URLHost {
   Value value_;
   HostType type_ = HostType::H_FAILED;
 
+  inline void Reset() {
+    using string = std::string;
+    switch (type_) {
+      case HostType::H_DOMAIN: value_.domain.~string(); break;
+      case HostType::H_OPAQUE: value_.opaque.~string(); break;
+      default: break;
+    }
+  }
+
   // Setting the string members of the union with = is brittle because
   // it relies on them being initialized to a state that requires no
   // destruction of old data.
@@ -112,12 +121,7 @@ class URLHost {
 };
 
 URLHost::~URLHost() {
-  using string = std::string;
-  switch (type_) {
-    case HostType::H_DOMAIN: value_.domain.~string(); break;
-    case HostType::H_OPAQUE: value_.opaque.~string(); break;
-    default: break;
-  }
+  Reset();
 }
 
 #define ARGS(XX)                                                              \
