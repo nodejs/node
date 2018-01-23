@@ -2136,7 +2136,6 @@ def GenerateOutput(target_list, target_dicts, data, params):
     for target in gyp.common.AllTargets(target_list, target_dicts, build_file):
       needed_targets.add(target)
 
-  all_deps = set()
   build_files = set()
   include_list = set()
   for qualified_target in target_list:
@@ -2185,12 +2184,6 @@ def GenerateOutput(target_list, target_dicts, data, params):
                                               os.path.dirname(makefile_path))
     include_list.add(mkfile_rel_path)
 
-    if 'actions' in spec:
-      for action in spec['actions']:
-        all_deps.update(map(writer.Absolutify, action['inputs']))
-    if 'sources' in spec:
-      all_deps.update(map(writer.Absolutify, spec['sources']))
-
   # Write out per-gyp (sub-project) Makefiles.
   depth_rel_path = gyp.common.RelativePath(options.depth, os.getcwd())
   for build_file in build_files:
@@ -2234,10 +2227,3 @@ def GenerateOutput(target_list, target_dicts, data, params):
   root_makefile.write(SHARED_FOOTER)
 
   root_makefile.close()
-
-  # Hack to get rid of $(obj)/path/to/foo.o deps that node.gyp adds manually.
-  all_deps = [s for s in all_deps if not '$' in s]
-  all_deps_path = os.path.join(options.toplevel_dir, '.deps')
-  with open(all_deps_path, 'w') as f:
-    f.write('ALL_DEPS := \\\n\t')
-    f.write(' \\\n\t'.join(sorted(all_deps)))
