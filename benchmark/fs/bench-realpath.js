@@ -16,10 +16,8 @@ function main({ n, pathType }) {
   bench.start();
   if (pathType === 'relative')
     relativePath(n);
-  else if (pathType === 'resolved')
-    resolvedPath(n);
   else
-    throw new Error(`unknown "pathType": ${pathType}`);
+    resolvedPath(n);
 }
 
 function relativePath(n) {

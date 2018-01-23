@@ -18,14 +18,13 @@ function main({ n, len, type }) {
   var arr = Array(len);
   var i, opts;
 
-  // For testing, if supplied with an empty type, default to denseArray.
-  type = type || 'denseArray';
-
   switch (type) {
     case 'denseArray_showHidden':
       opts = { showHidden: true };
       arr = arr.fill('denseArray');
       break;
+      // For testing, if supplied with an empty type, default to denseArray.
+    case '':
     case 'denseArray':
       arr = arr.fill('denseArray');
       break;
