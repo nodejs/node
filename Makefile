@@ -141,9 +141,11 @@ coverage-clean:
 	$(RM) -r gcovr build
 	$(RM) -r out/$(BUILDTYPE)/.coverage
 	$(RM) -r .cov_tmp
-	$(RM) out/$(BUILDTYPE)/obj.target/node/{src,gen}/*.gcda
+	$(RM) out/$(BUILDTYPE)/obj.target/node/gen/*.gcda
+	$(RM) out/$(BUILDTYPE)/obj.target/node/src/*.gcda
 	$(RM) out/$(BUILDTYPE)/obj.target/node/src/tracing/*.gcda
-	$(RM) out/$(BUILDTYPE)/obj.target/node/{src,gen}/*.gcno
+	$(RM) out/$(BUILDTYPE)/obj.target/node/gen/*.gcno
+	$(RM) out/$(BUILDTYPE)/obj.target/node/src/*.gcno
 	$(RM) out/$(BUILDTYPE)/obj.target/node/src/tracing/*.gcno
 	$(RM) out/$(BUILDTYPE)/obj.target/cctest/src/*.gcno
 	$(RM) out/$(BUILDTYPE)/obj.target/cctest/test/cctest/*.gcno
@@ -179,7 +181,8 @@ coverage-build: all
 coverage-test: coverage-build
 	$(RM) -r out/$(BUILDTYPE)/.coverage
 	$(RM) -r .cov_tmp
-	$(RM) out/$(BUILDTYPE)/obj.target/node/{src,gen}/*.gcda
+	$(RM) out/$(BUILDTYPE)/obj.target/node/gen/*.gcda
+	$(RM) out/$(BUILDTYPE)/obj.target/node/src/*.gcda
 	$(RM) out/$(BUILDTYPE)/obj.target/node/src/tracing/*.gcda
 	-$(MAKE) $(COVTESTS)
 	mv lib lib__
@@ -829,15 +832,31 @@ $(TARBALL): release-only $(NODE_EXE) doc
 	mkdir -p $(TARNAME)/doc/api
 	cp doc/node.1 $(TARNAME)/doc/node.1
 	cp -r out/doc/api/* $(TARNAME)/doc/api/
-	$(RM) -r $(TARNAME)/deps/v8/{test,samples,tools/profviz,tools/run-tests.py}
-	$(RM) -r $(TARNAME)/doc/images # too big
-	$(RM) -r $(TARNAME)/deps/uv/{docs,samples,test}
-	$(RM) -r $(TARNAME)/deps/openssl/openssl/{doc,demos,test}
+	$(RM) -r $(TARNAME)/.editorconfig
+	$(RM) -r $(TARNAME)/.git*
+	$(RM) -r $(TARNAME)/.mailmap
+	$(RM) -r $(TARNAME)/deps/openssl/openssl/demos
+	$(RM) -r $(TARNAME)/deps/openssl/openssl/doc
+	$(RM) -r $(TARNAME)/deps/openssl/openssl/test
+	$(RM) -r $(TARNAME)/deps/uv/docs
+	$(RM) -r $(TARNAME)/deps/uv/samples
+	$(RM) -r $(TARNAME)/deps/uv/test
+	$(RM) -r $(TARNAME)/deps/v8/samples
+	$(RM) -r $(TARNAME)/deps/v8/test
+	$(RM) -r $(TARNAME)/deps/v8/tools/profviz
+	$(RM) -r $(TARNAME)/deps/v8/tools/run-tests.py
 	$(RM) -r $(TARNAME)/deps/zlib/contrib # too big, unused
-	$(RM) -r $(TARNAME)/.{editorconfig,git*,mailmap}
-	$(RM) -r $(TARNAME)/tools/{eslint-rules,node_modules,osx-pkg.pmdoc,pkgsrc,remark-cli,remark-preset-lint-node}
-	$(RM) -r $(TARNAME)/tools/{osx-*,license-builder.sh,cpplint.py}
+	$(RM) -r $(TARNAME)/doc/images # too big
 	$(RM) -r $(TARNAME)/test*.tap
+	$(RM) -r $(TARNAME)/tools/cpplint.py
+	$(RM) -r $(TARNAME)/tools/eslint-rules
+	$(RM) -r $(TARNAME)/tools/license-builder.sh
+	$(RM) -r $(TARNAME)/tools/node_modules
+	$(RM) -r $(TARNAME)/tools/osx-*
+	$(RM) -r $(TARNAME)/tools/osx-pkg.pmdoc
+	$(RM) -r $(TARNAME)/tools/pkgsrc
+	$(RM) -r $(TARNAME)/tools/remark-cli
+	$(RM) -r $(TARNAME)/tools/remark-preset-lint-node
 	find $(TARNAME)/ -name ".eslint*" -maxdepth 2 | xargs $(RM)
 	find $(TARNAME)/ -type l | xargs $(RM) # annoying on windows
 	tar -cf $(TARNAME).tar $(TARNAME)
