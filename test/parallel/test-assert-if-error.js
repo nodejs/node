@@ -60,10 +60,16 @@ assert.throws(
   }
 );
 
+assert.throws(
+  () => { assert.ifError(false); },
+  {
+    message: 'ifError got unwanted exception: false'
+  }
+);
+
 assert.doesNotThrow(() => { assert.ifError(null); });
 assert.doesNotThrow(() => { assert.ifError(); });
 assert.doesNotThrow(() => { assert.ifError(undefined); });
-assert.doesNotThrow(() => { assert.ifError(false); });
 
 // https://github.com/nodejs/node-v0.x-archive/issues/2893
 {
