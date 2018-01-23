@@ -23,5 +23,5 @@ function main({ millions }) {
 }
 
 function cb() {
-  assert(false, `Timer ${this._idleTimeout} should not call callback`);
+  assert.fail(`Timer ${this._idleTimeout} should not call callback`);
 }
