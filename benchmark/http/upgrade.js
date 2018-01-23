@@ -1,7 +1,6 @@
 'use strict';
 
 const common = require('../common.js');
-const PORT = common.PORT;
 const net = require('net');
 
 const bench = common.createBenchmark(main, {
@@ -20,7 +19,6 @@ const resData = 'HTTP/1.1 101 Web Socket Protocol Handshake\r\n' +
                 '\r\n\r\n';
 
 function main({ n }) {
-  process.env.PORT = PORT;
   var server = require('../fixtures/simple-http-server.js')
     .listen(common.PORT)
     .on('listening', function() {
