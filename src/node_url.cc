@@ -92,6 +92,16 @@ class URLHost {
   Value value_;
   HostType type_ = HostType::H_FAILED;
 
+  inline void Reset() {
+    using string = std::string;
+    switch (type_) {
+      case HostType::H_DOMAIN: value_.domain.~string(); break;
+      case HostType::H_OPAQUE: value_.opaque.~string(); break;
+      default: break;
+    }
+    type_ = HostType::H_FAILED;
+  }
+
   // Setting the string members of the union with = is brittle because
   // it relies on them being initialized to a state that requires no
   // destruction of old data.
@@ -101,23 +111,20 @@ class URLHost {
   // These helpers are the easiest solution but we might want to consider
   // just not forcing strings into an union.
   inline void SetOpaque(std::string&& string) {
+    Reset();
     type_ = HostType::H_OPAQUE;
     new(&value_.opaque) std::string(std::move(string));
   }
 
   inline void SetDomain(std::string&& string) {
+    Reset();
     type_ = HostType::H_DOMAIN;
     new(&value_.domain) std::string(std::move(string));
   }
 };
 
 URLHost::~URLHost() {
-  using string = std::string;
-  switch (type_) {
-    case HostType::H_DOMAIN: value_.domain.~string(); break;
-    case HostType::H_OPAQUE: value_.opaque.~string(); break;
-    default: break;
-  }
+  Reset();
 }
 
 #define ARGS(XX)                                                              \
