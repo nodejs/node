@@ -57,7 +57,7 @@ const CLEAR = { ctrl: true, name: 'u' };
 // File paths
 const historyFixturePath = fixtures.path('.node_repl_history');
 const historyPath = path.join(tmpdir.path, '.fixture_copy_repl_history');
-const historyPathFail = path.join(tmpdir.path, '.node_repl\u0000_history');
+const historyPathFail = fixtures.path('nonexistent_folder', 'filename');
 const oldHistoryPathObj = fixtures.path('old-repl-history-file-obj.json');
 const oldHistoryPathFaulty = fixtures.path('old-repl-history-file-faulty.json');
 const oldHistoryPath = fixtures.path('old-repl-history-file.json');
