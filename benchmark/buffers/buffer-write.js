@@ -45,39 +45,31 @@ const mod = {
   writeUInt32LE: UINT32
 };
 
-function main(conf) {
-  const noAssert = conf.noAssert === 'true';
-  const len = +conf.millions * 1e6;
-  const clazz = conf.buf === 'fast' ? Buffer : require('buffer').SlowBuffer;
+function main({ noAssert, millions, buf, type }) {
+  const clazz = buf === 'fast' ? Buffer : require('buffer').SlowBuffer;
   const buff = new clazz(8);
   const type = conf.type || 'UInt8';
   const fn = `write${type}`;
 
   if (/Int/.test(fn))
-    benchInt(buff, fn, len, noAssert);
+    benchInt(buff, fn, millions, noAssert);
   else
-    benchFloat(buff, fn, len, noAssert);
+    benchFloat(buff, fn, millions, noAssert);
 }
 
-function benchInt(buff, fn, len, noAssert) {
+function benchInt(buff, fn, millions, noAssert) {
   const m = mod[fn];
-  const testFunction = new Function('buff', `
-    for (var i = 0; i !== ${len}; i++) {
-      buff.${fn}(i & ${m}, 0, ${JSON.stringify(noAssert)});
-    }
-  `);
   bench.start();
-  testFunction(buff);
-  bench.end(len / 1e6);
+  for (var i = 0; i !== millions * 1e6; i++) {
+    buff[fn](i & m, 0, noAssert);
+  }
+  bench.end(millions);
 }
 
-function benchFloat(buff, fn, len, noAssert) {
-  const testFunction = new Function('buff', `
-    for (var i = 0; i !== ${len}; i++) {
-      buff.${fn}(i, 0, ${JSON.stringify(noAssert)});
-    }
-  `);
+function benchFloat(buff, fn, millions, noAssert) {
   bench.start();
-  testFunction(buff);
-  bench.end(len / 1e6);
+  for (var i = 0; i !== millions * 1e6; i++) {
+    buff[fn](i, 0, noAssert);
+  }
+  bench.end(millions);
 }

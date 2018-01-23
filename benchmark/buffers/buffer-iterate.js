@@ -26,33 +26,23 @@ function main(conf) {
   methods[method](buffer, conf.n);
 }
 
-
 function benchFor(buffer, n) {
-  bench.start();
-
   for (var k = 0; k < n; k++) {
     for (var i = 0; i < buffer.length; i++) {
       assert(buffer[i] === 0);
     }
   }
-
-  bench.end(n);
 }
 
 function benchForOf(buffer, n) {
-  bench.start();
-
   for (var k = 0; k < n; k++) {
     for (const b of buffer) {
       assert(b === 0);
     }
   }
-  bench.end(n);
 }
 
 function benchIterator(buffer, n) {
-  bench.start();
-
   for (var k = 0; k < n; k++) {
     const iter = buffer[Symbol.iterator]();
     var cur = iter.next();
@@ -63,6 +53,4 @@ function benchIterator(buffer, n) {
     }
 
   }
-
-  bench.end(n);
 }

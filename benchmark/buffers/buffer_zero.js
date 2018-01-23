@@ -10,14 +10,10 @@ const bench = common.createBenchmark(main, {
 const zeroBuffer = Buffer.alloc(0);
 const zeroString = '';
 
-function main(conf) {
-  const n = +conf.n;
+function main({ n, type }) {
+  const data = type === 'buffer' ? zeroBuffer : zeroString;
+
   bench.start();
-
-  if (conf.type === 'buffer')
-    for (let i = 0; i < n * 1024; i++) Buffer.from(zeroBuffer);
-  else if (conf.type === 'string')
-    for (let i = 0; i < n * 1024; i++) Buffer.from(zeroString);
-
+  for (var i = 0; i < n * 1024; i++) Buffer.from(data);
   bench.end(n);
 }
