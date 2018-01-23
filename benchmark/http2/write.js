@@ -1,7 +1,6 @@
 'use strict';
 
 const common = require('../common.js');
-const PORT = common.PORT;
 
 const bench = common.createBenchmark(main, {
   streams: [100, 200, 1000],
@@ -26,7 +25,7 @@ function main({ streams, length, size }) {
     }
     write();
   });
-  server.listen(PORT, () => {
+  server.listen(common.PORT, () => {
     bench.http({
       path: '/',
       requests: 10000,
