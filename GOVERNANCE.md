@@ -73,9 +73,8 @@ may request that the TSC restore them to active status.
 
 ## Technical Steering Committee
 
-A subgroup of the Collaborators form the Technical Steering Committee (TSC),
-who admits and oversees all top-level Projects in the Node.js Foundation,
-and has final authority over this project, including:
+A subset of the Collaborators form the Technical Steering Committee (TSC).
+The TSC has final authority over this project, including:
 
 * Technical direction
 * Project governance and process (including this policy)
@@ -84,8 +83,8 @@ and has final authority over this project, including:
 * Conduct guidelines
 * Maintaining the list of additional Collaborators
 
-The current list of TSC members can be found
-[here](./README.md#current-project-team-members).
+The current list of TSC members can be found in
+[the project README](./README.md#current-project-team-members).
 
 The operations of the TSC are governed by the [TSC Charter][] as approved by
 the Node.js Foundation Board of Directors.
@@ -141,9 +140,8 @@ Any existing Collaborator can nominate an individual making significant
 and valuable contributions across the Node.js organization to become a new
 Collaborator.
 
-To nominate a new collaborator, open an issue in the [nodejs/node][]
-repository, with a summary of the nominee's contributions, including but
-not limited to:
+To nominate a new Collaborator, open an issue in the [nodejs/node][]
+repository, with a summary of the nominee's contributions, for example:
 
 * Commits in the [nodejs/node][] repository.
   * Can be shown using the link
@@ -166,25 +164,25 @@ not limited to:
     `https://github.com/search?q=commenter%3A${GITHUB_ID}++org%3Anodejs&type=Issues`
 * Other participation in the wider Node.js community
 
-Mention @nodejs/tsc and @nodejs/collaborators in the issue to notify the TSC
-and other collaborators about the nomination.
+Mention @nodejs/collaborators in the issue to notify other Collaborators about
+the nomination.
 
-If there are no objections raised by any collaborators one week after
+If there are no objections raised by any Collaborators one week after
 the issue is opened, the nomination will be considered as accepted.
 Should there be any objections against the nomination, the TSC is responsible
 for working with the individuals involved and finding a resolution.
 The nomination must be approved by the TSC, which is assumed when there are no
 objections from any TSC members.
 
-Prior to the public nomination, the collaborator initiating it can seek
-feedback from other collaborators in private using
+Prior to the public nomination, the Collaborator initiating it can seek
+feedback from other Collaborators in private using
 [the GitHub discussion page][collaborators-discussions] of the
-collaborators team, and work with the nominee to improve the nominee's
+Collaborators team, and work with the nominee to improve the nominee's
 contribution profile, in order to make the nomination as frictionless
 as possible.
 
 If individuals making valuable contributions do not believe they have been
-considered for a nomination, they may log an issue or contact a collaborator
+considered for a nomination, they may log an issue or contact a Collaborator
 directly.
 
 ### Onboarding
