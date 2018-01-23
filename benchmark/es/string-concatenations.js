@@ -16,7 +16,6 @@ const configs = {
 
 const bench = common.createBenchmark(main, configs);
 
-
 function main({ n, mode }) {
   const str = 'abc';
   const num = 123;
@@ -63,7 +62,7 @@ function main({ n, mode }) {
       bench.end(n);
       break;
     default:
-      throw new Error('Unexpected method');
+      throw new Error(`Unexpected method "${mode}"`);
   }
 
   return string;
