@@ -598,22 +598,26 @@ static void FStat(const FunctionCallbackInfo<Value>& args) {
 static void Symlink(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
-  CHECK_GE(args.Length(), 3);
+  int argc = args.Length();
+  CHECK_GE(argc, 4);
 
   BufferValue target(env->isolate(), args[0]);
   CHECK_NE(*target, nullptr);
   BufferValue path(env->isolate(), args[1]);
   CHECK_NE(*path, nullptr);
 
-  CHECK(args[2]->IsUint32());
-  int flags = args[2]->Uint32Value(env->context()).ToChecked();
+  CHECK(args[2]->IsInt32());
+  int flags = args[2].As<Int32>()->Value();
 
   if (args[3]->IsObject()) {  // symlink(target, path, flags, req)
     CHECK_EQ(args.Length(), 4);
     AsyncDestCall(env, args, "symlink", *path, path.length(), UTF8,
                   AfterNoArgs, uv_fs_symlink, *target, *path, flags);
-  } else {  // symlink(target, path, flags)
-    SYNC_DEST_CALL(symlink, *target, *path, *target, *path, flags)
+  } else {  // symlink(target, path, flags, undefinec, ctx)
+    CHECK_EQ(argc, 5);
+    fs_req_wrap req_wrap;
+    SyncCall(env, args[4], &req_wrap, "symlink",
+             uv_fs_symlink, *target, *path, flags);
   }
 }
 
