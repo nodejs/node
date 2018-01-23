@@ -452,6 +452,10 @@
             'FD_SETSIZE=1024',
             # we need to use node's preferred "win32" rather than gyp's preferred "win"
             'NODE_PLATFORM="win32"',
+            # Stop <windows.h> from defining macros that conflict with
+            # std::min() and std::max().  We don't use <windows.h> (much)
+            # but we still inherit it from uv.h.
+            'NOMINMAX',
             '_UNICODE=1',
           ],
           'libraries': [ '-lpsapi.lib' ]
