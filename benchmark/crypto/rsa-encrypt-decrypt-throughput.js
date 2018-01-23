@@ -22,10 +22,10 @@ const bench = common.createBenchmark(main, {
   len: [16, 32, 64]
 });
 
-function main(conf) {
-  const message = Buffer.alloc(conf.len, 'b');
+function main({ len, algo, keylen, n }) {
+  const message = Buffer.alloc(len, 'b');
   bench.start();
-  StreamWrite(conf.algo, conf.keylen, message, conf.n, conf.len);
+  StreamWrite(algo, keylen, message, n, len);
 }
 
 function StreamWrite(algo, keylen, message, n, len) {
