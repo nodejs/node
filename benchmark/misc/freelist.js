@@ -13,7 +13,6 @@ function main(conf) {
   const n = conf.n;
   const poolSize = 1000;
   const list = new FreeList('test', poolSize, Object);
-  var i;
   var j;
   const used = [];
 
@@ -24,7 +23,7 @@ function main(conf) {
 
   bench.start();
 
-  for (i = 0; i < n; i++) {
+  for (var i = 0; i < n; i++) {
     // Return all the items to the pool
     for (j = 0; j < poolSize; j++) {
       list.free(used[j]);

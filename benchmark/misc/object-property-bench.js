@@ -78,6 +78,6 @@ function main(conf) {
       runSymbol(n);
       break;
     default:
-      throw new Error('Unexpected method');
+      throw new Error(`Unexpected method "${method}"`);
   }
 }

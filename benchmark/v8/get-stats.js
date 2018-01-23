@@ -11,12 +11,9 @@ const bench = common.createBenchmark(main, {
   n: [1e6]
 });
 
-function main(conf) {
-  const n = +conf.n;
-  const method = conf.method;
-  var i = 0;
+function main({ method, n }) {
   bench.start();
-  for (; i < n; i++)
+  for (var i = 0; i < n; i++)
     v8[method]();
   bench.end(n);
 }

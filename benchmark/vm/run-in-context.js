@@ -19,12 +19,10 @@ function main(conf) {
   if (withSigintListener)
     process.on('SIGINT', () => {});
 
-  var i = 0;
-
   const contextifiedSandbox = vm.createContext();
 
   bench.start();
-  for (; i < n; i++)
+  for (var i = 0; i < n; i++)
     vm.runInContext('0', contextifiedSandbox, options);
   bench.end(n);
 }

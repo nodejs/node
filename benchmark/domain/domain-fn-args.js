@@ -30,15 +30,6 @@ function main(conf) {
   bench.end(n);
 }
 
-function fn(a, b, c) {
-  if (!a)
-    a = 1;
-
-  if (!b)
-    b = 2;
-
-  if (!c)
-    c = 3;
-
+function fn(a = 1, b = 2, c = 3) {
   return a + b + c;
 }
