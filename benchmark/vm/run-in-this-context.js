@@ -17,10 +17,8 @@ function main({ n, breakOnSigint, withSigintListener }) {
   if (withSigintListener)
     process.on('SIGINT', () => {});
 
-  var i = 0;
-
   bench.start();
-  for (; i < n; i++)
+  for (var i = 0; i < n; i++)
     vm.runInThisContext('0', options);
   bench.end(n);
 }

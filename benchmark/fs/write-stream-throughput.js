@@ -36,7 +36,6 @@ function main({ dur, encodingType, size }) {
   try { fs.unlinkSync(filename); } catch (e) {}
 
   var started = false;
-  var ending = false;
   var ended = false;
 
   var f = fs.createWriteStream(filename);
@@ -52,15 +51,9 @@ function main({ dur, encodingType, size }) {
 
 
   function write() {
-    // don't try to write after we end, even if a 'drain' event comes.
-    // v0.8 streams are so sloppy!
-    if (ending)
-      return;
-
     if (!started) {
       started = true;
       setTimeout(function() {
-        ending = true;
         f.end();
       }, dur * 1000);
       bench.start();
