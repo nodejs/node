@@ -12,9 +12,8 @@ const bench = common.createBenchmark(main, {
 });
 
 function main({ method, n }) {
-  var i = 0;
   bench.start();
-  for (; i < n; i++)
+  for (var i = 0; i < n; i++)
     v8[method]();
   bench.end(n);
 }

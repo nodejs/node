@@ -32,11 +32,9 @@ const bench = common.createBenchmark(main, {
 });
 
 function main({ millions, type }) {
-  const n = millions * 1e6;
-
   const fn = type === 'cxx' ? cxx : js;
   bench.start();
-  for (var i = 0; i < n; i++) {
+  for (var i = 0; i < millions * 1e6; i++) {
     fn();
   }
   bench.end(millions);
