@@ -35,7 +35,7 @@ function main(conf) {
       bench.end(n);
       break;
     default:
-      throw new Error('Unexpected method');
+      throw new Error(`Unexpected method "${mode}"`);
   }
 
   assert.strictEqual([...str].length, size);

@@ -16,10 +16,14 @@ const configs = {
 
 const bench = common.createBenchmark(main, configs);
 
+<<<<<<< HEAD
 
 function main(conf) {
   const n = +conf.n;
 
+=======
+function main({ n, mode }) {
+>>>>>>> 2072f343ad... benchmark: (es) refactor
   const str = 'abc';
   const num = 123;
 
@@ -65,7 +69,7 @@ function main(conf) {
       bench.end(n);
       break;
     default:
-      throw new Error('Unexpected method');
+      throw new Error(`Unexpected method "${mode}"`);
   }
 
   return string;
