@@ -35,7 +35,7 @@ function main(conf) {
 
   const input = inputs[type];
   if (!input) {
-    throw new Error('Unknown input type');
+    throw new Error(`Unknown input type "${type}"`);
   }
 
   switch (method) {
@@ -46,6 +46,6 @@ function main(conf) {
       useWHATWG(n, input);
       break;
     default:
-      throw new Error('Unknown method');
+      throw new Error(`Unknown method ${method}`);
   }
 }

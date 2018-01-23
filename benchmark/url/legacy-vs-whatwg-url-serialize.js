@@ -40,7 +40,7 @@ function main(conf) {
 
   const input = inputs[type];
   if (!input) {
-    throw new Error('Unknown input type');
+    throw new Error(`Unknown input type "${type}"`);
   }
 
   var noDead;  // Avoid dead code elimination.
@@ -52,7 +52,7 @@ function main(conf) {
       noDead = useWHATWG(n, input);
       break;
     default:
-      throw new Error('Unknown method');
+      throw new Error(`Unknown method ${method}`);
   }
 
   assert.ok(noDead);

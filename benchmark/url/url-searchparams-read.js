@@ -10,49 +10,14 @@ const bench = common.createBenchmark(main, {
 
 const str = 'one=single&two=first&three=first&two=2nd&three=2nd&three=3rd';
 
-function get(n, param) {
+function main({ method, param, n }) {
   const params = new URLSearchParams(str);
+  const fn = params[method];
+  if (!fn)
+    throw new Error(`Unknown method ${method}`);
 
   bench.start();
   for (var i = 0; i < n; i += 1)
-    params.get(param);
+    fn(param);
   bench.end(n);
-}
-
-function getAll(n, param) {
-  const params = new URLSearchParams(str);
-
-  bench.start();
-  for (var i = 0; i < n; i += 1)
-    params.getAll(param);
-  bench.end(n);
-}
-
-function has(n, param) {
-  const params = new URLSearchParams(str);
-
-  bench.start();
-  for (var i = 0; i < n; i += 1)
-    params.has(param);
-  bench.end(n);
-}
-
-function main(conf) {
-  const method = conf.method;
-  const param = conf.param;
-  const n = conf.n | 0;
-
-  switch (method) {
-    case 'get':
-      get(n, param);
-      break;
-    case 'getAll':
-      getAll(n, param);
-      break;
-    case 'has':
-      has(n, param);
-      break;
-    default:
-      throw new Error('Unknown method');
-  }
 }
