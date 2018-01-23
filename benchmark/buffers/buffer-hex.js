@@ -9,15 +9,16 @@ const bench = common.createBenchmark(main, {
 
 function main({ len, n }) {
   const buf = Buffer.alloc(len);
+  var i;
 
-  for (let i = 0; i < buf.length; i++)
+  for (i = 0; i < buf.length; i++)
     buf[i] = i & 0xff;
 
   const hex = buf.toString('hex');
 
   bench.start();
 
-  for (let i = 0; i < n; i += 1)
+  for (i = 0; i < n; i += 1)
     Buffer.from(hex, 'hex');
 
   bench.end(n);
