@@ -10,9 +10,6 @@ const rootDir = path.resolve(__dirname, '..', '..');
 const doc = path.resolve(rootDir, 'doc', 'api', 'addons.md');
 const verifyDir = path.resolve(rootDir, 'test', 'addons');
 
-const changed = [];
-const checkOnly = process.argv.includes('--check');
-
 let id = 0;
 let currentHeader;
 
@@ -79,6 +76,12 @@ for (const header in addons) {
     })
   });
 
+  try {
+    fs.mkdirSync(dir);
+  } catch (e) {
+    strictEqual(e.code, 'EEXIST');
+  }
+
   for (const file of files) {
     let content;
     try {
@@ -88,27 +91,11 @@ for (const header in addons) {
     }
 
     // Only update when file content has changed to prevent unneeded rebuilds.
-    if (content === file.content) continue;
-    changed.push(file);
-
-    if (checkOnly) continue;
-
-    try {
-      fs.mkdirSync(dir);
-    } catch (e) {
-      strictEqual(e.code, 'EEXIST');
+    if (content !== file.content) {
+      fs.writeFileSync(file.path, file.content);
+      console.log('wrote', file.path);
     }
-
-    fs.writeFileSync(file.path, file.content);
-    console.log('wrote', file.path);
   }
-}
-
-if (checkOnly && changed.length > 0) {
-  console.error('The following files are out of date:');
-  for (const { path } of changed) console.error('  ', path);
-  console.error('Run `node tools/doc/addon-verify.js` to update.');
-  process.exit(1);
 }
 
 function boilerplate(name, content) {
