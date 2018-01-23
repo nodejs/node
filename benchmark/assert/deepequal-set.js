@@ -126,6 +126,6 @@ function main({ n, len, method }) {
       benchmark(assert.notDeepEqual, n, values, values2);
       break;
     default:
-      throw new Error('Unsupported method');
+      throw new Error(`Unsupported method "${method}"`);
   }
 }
