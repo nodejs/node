@@ -39,6 +39,14 @@ added: v8.5.0
 If `name` is not provided, removes all `PerformanceFunction` objects from the
 Performance Timeline. If `name` is provided, removes entries with `name`.
 
+### performance.clearGC()
+<!-- YAML
+added: v8.5.0
+-->
+
+Remove all performance entry objects with `entryType` equal to `gc` from the
+Performance Timeline.
+
 ### performance.clearMarks([name])
 <!-- YAML
 added: v8.5.0
