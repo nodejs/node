@@ -74,6 +74,7 @@ ipch/
 /npm.wxs
 /tools/msvs/npm.wixobj
 /tools/msvs/genfiles/
+/test/addons/??_*/
 email.md
 deps/v8-*
 deps/icu

@@ -1,7 +1,7 @@
 'use strict';
 
 const common = require('../../common');
-const test_error = require(`./build/${common.buildType}/binding`);
+const test_error = require(`./build/${common.buildType}/test_error`);
 const assert = require('assert');
 const theError = new Error('Some error');
 const theTypeError = new TypeError('Some type error');
