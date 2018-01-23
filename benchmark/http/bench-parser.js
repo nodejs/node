@@ -14,10 +14,7 @@ const bench = common.createBenchmark(main, {
   n: [1e5],
 });
 
-
-function main(conf) {
-  const len = conf.len >>> 0;
-  const n = conf.n >>> 0;
+function main({ len, n }) {
   var header = `GET /hello HTTP/1.1${CRLF}Content-Type: text/plain${CRLF}`;
 
   for (var i = 0; i < len; i++) {
@@ -27,7 +24,6 @@ function main(conf) {
 
   processHeader(Buffer.from(header), n);
 }
-
 
 function processHeader(header, n) {
   const parser = newParser(REQUEST);
@@ -39,7 +35,6 @@ function processHeader(header, n) {
   }
   bench.end(n);
 }
-
 
 function newParser(type) {
   const parser = new HTTPParser(type);

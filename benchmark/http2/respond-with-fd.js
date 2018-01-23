@@ -1,7 +1,6 @@
 'use strict';
 
 const common = require('../common.js');
-const PORT = common.PORT;
 const path = require('path');
 const fs = require('fs');
 
@@ -29,7 +28,7 @@ function main(conf) {
       stream.respondWithFD(fd);
       stream.on('error', (err) => {});
     });
-    server.listen(PORT, () => {
+    server.listen(common.PORT, () => {
       bench.http({
         path: '/',
         requests: n,

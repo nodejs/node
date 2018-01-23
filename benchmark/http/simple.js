@@ -1,6 +1,5 @@
 'use strict';
 const common = require('../common.js');
-const PORT = common.PORT;
 
 const bench = common.createBenchmark(main, {
   // unicode confuses ab on os x.
@@ -15,7 +14,7 @@ const bench = common.createBenchmark(main, {
 function main(conf) {
   process.env.PORT = PORT;
   var server = require('../fixtures/simple-http-server.js')
-  .listen(PORT)
+  .listen(common.PORT)
   .on('listening', function() {
     const path =
       `/${conf.type}/${conf.len}/${conf.chunks}/${conf.res}/${conf.chunkedEnc}`;
