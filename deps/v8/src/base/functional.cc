@@ -69,8 +69,8 @@ V8_INLINE size_t hash_value_unsigned(T v) {
 // This code was taken from MurmurHash.
 size_t hash_combine(size_t seed, size_t value) {
 #if V8_HOST_ARCH_32_BIT
-  const uint32_t c1 = 0xcc9e2d51;
-  const uint32_t c2 = 0x1b873593;
+  const uint32_t c1 = 0xCC9E2D51;
+  const uint32_t c2 = 0x1B873593;
 
   value *= c1;
   value = bits::RotateRight32(value, 15);
@@ -78,9 +78,9 @@ size_t hash_combine(size_t seed, size_t value) {
 
   seed ^= value;
   seed = bits::RotateRight32(seed, 13);
-  seed = seed * 5 + 0xe6546b64;
+  seed = seed * 5 + 0xE6546B64;
 #else
-  const uint64_t m = V8_UINT64_C(0xc6a4a7935bd1e995);
+  const uint64_t m = uint64_t{0xC6A4A7935BD1E995};
   const uint32_t r = 47;
 
   value *= m;

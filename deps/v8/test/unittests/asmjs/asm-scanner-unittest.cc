@@ -35,10 +35,10 @@ class AsmJsScannerTest : public ::testing::Test {
     scanner->Next();
   }
 
-  void CheckForEnd() { CHECK(scanner->Token() == AsmJsScanner::kEndOfInput); }
+  void CheckForEnd() { CHECK_EQ(scanner->Token(), AsmJsScanner::kEndOfInput); }
 
   void CheckForParseError() {
-    CHECK(scanner->Token() == AsmJsScanner::kParseError);
+    CHECK_EQ(scanner->Token(), AsmJsScanner::kParseError);
   }
 
   std::unique_ptr<Utf16CharacterStream> stream;
@@ -190,7 +190,7 @@ TEST_F(AsmJsScannerTest, LocalScope) {
 }
 
 TEST_F(AsmJsScannerTest, Numbers) {
-  SetupScanner("1 1.2 0x1f 1.e3");
+  SetupScanner("1 1.2 0x1F 1.e3");
 
   CHECK(scanner->IsUnsigned());
   CHECK_EQ(1, scanner->AsUnsigned());
@@ -212,10 +212,10 @@ TEST_F(AsmJsScannerTest, Numbers) {
 }
 
 TEST_F(AsmJsScannerTest, UnsignedNumbers) {
-  SetupScanner("0x7fffffff 0x80000000 0xffffffff 0x100000000");
+  SetupScanner("0x7FFFFFFF 0x80000000 0xFFFFFFFF 0x100000000");
 
   CHECK(scanner->IsUnsigned());
-  CHECK_EQ(0x7fffffff, scanner->AsUnsigned());
+  CHECK_EQ(0x7FFFFFFF, scanner->AsUnsigned());
   scanner->Next();
 
   CHECK(scanner->IsUnsigned());
@@ -223,7 +223,7 @@ TEST_F(AsmJsScannerTest, UnsignedNumbers) {
   scanner->Next();
 
   CHECK(scanner->IsUnsigned());
-  CHECK_EQ(0xffffffff, scanner->AsUnsigned());
+  CHECK_EQ(0xFFFFFFFF, scanner->AsUnsigned());
   scanner->Next();
 
   // Numeric "unsigned" literals with a payload of more than 32-bit are rejected

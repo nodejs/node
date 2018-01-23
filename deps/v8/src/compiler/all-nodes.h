@@ -25,12 +25,12 @@ class AllNodes {
   // reachable from the End node.
   AllNodes(Zone* local_zone, const Graph* graph, bool only_inputs = true);
 
-  bool IsLive(Node* node) {
+  bool IsLive(const Node* node) const {
     CHECK(only_inputs_);
     return IsReachable(node);
   }
 
-  bool IsReachable(Node* node) {
+  bool IsReachable(const Node* node) const {
     if (!node) return false;
     size_t id = node->id();
     return id < is_reachable_.size() && is_reachable_[id];

@@ -14,6 +14,7 @@
 namespace v8 {
 namespace internal {
 
+class BytecodeArray;
 class CoverageInfo;
 class DebugInfo;
 
@@ -136,7 +137,7 @@ class SharedFunctionInfo : public HeapObject {
 #endif
 
   // [instance class name]: class name for instances.
-  DECL_ACCESSORS(instance_class_name, Object)
+  DECL_ACCESSORS(instance_class_name, String)
 
   // [function data]: This field holds some additional data for function.
   // Currently it has one of:
@@ -144,6 +145,7 @@ class SharedFunctionInfo : public HeapObject {
   //  - a BytecodeArray for the interpreter [HasBytecodeArray()].
   //  - a FixedArray with Asm->Wasm conversion [HasAsmWasmData()].
   //  - a Smi containing the builtin id [HasLazyDeserializationBuiltinId()]
+  //  - a PreParsedScopeData for the parser [HasPreParsedScopeData()]
   DECL_ACCESSORS(function_data, Object)
 
   inline bool IsApiFunction();
@@ -164,7 +166,10 @@ class SharedFunctionInfo : public HeapObject {
   // mainly used during optimization).
   inline bool HasLazyDeserializationBuiltinId() const;
   inline int lazy_deserialization_builtin_id() const;
-  inline void set_lazy_deserialization_builtin_id(int builtin_id);
+  inline bool HasPreParsedScopeData() const;
+  inline PreParsedScopeData* preparsed_scope_data() const;
+  inline void set_preparsed_scope_data(PreParsedScopeData* data);
+  inline void ClearPreParsedScopeData();
 
   // [function identifier]: This field holds an additional identifier for the
   // function.
@@ -210,11 +215,6 @@ class SharedFunctionInfo : public HeapObject {
   // [debug info]: Debug information.
   DECL_ACCESSORS(debug_info, Object)
 
-  // PreParsedScopeData or null.
-  DECL_ACCESSORS(preparsed_scope_data, Object)
-
-  inline bool HasPreParsedScopeData() const;
-
   // Bit field containing various information collected for debugging.
   // This field is either stored on the kDebugInfo slot or inside the
   // debug info struct.
@@ -254,7 +254,7 @@ class SharedFunctionInfo : public HeapObject {
   String* DebugName();
 
   // The function cannot cause any side effects.
-  bool HasNoSideEffect();
+  static bool HasNoSideEffect(Handle<SharedFunctionInfo> info);
 
   // Used for flags such as --turbo-filter.
   bool PassesFilter(const char* raw_filter);
@@ -288,8 +288,8 @@ class SharedFunctionInfo : public HeapObject {
   inline LanguageMode language_mode();
   inline void set_language_mode(LanguageMode language_mode);
 
-  // False if the function definitely does not allocate an arguments object.
-  DECL_BOOLEAN_ACCESSORS(uses_arguments)
+  // Indicates whether the source is implicitly wrapped in a function.
+  DECL_BOOLEAN_ACCESSORS(is_wrapped)
 
   // True if the function has any duplicated parameter names.
   DECL_BOOLEAN_ACCESSORS(has_duplicate_parameters)
@@ -331,10 +331,16 @@ class SharedFunctionInfo : public HeapObject {
   // shared function info.
   void DisableOptimization(BailoutReason reason);
 
+  // This class constructor needs to call out to an instance fields
+  // initializer. This flag is set when creating the
+  // SharedFunctionInfo as a reminder to emit the initializer call
+  // when generating code later.
+  DECL_BOOLEAN_ACCESSORS(requires_instance_fields_initializer)
+
   // [source code]: Source code for the function.
   bool HasSourceCode() const;
-  Handle<Object> GetSourceCode();
-  Handle<Object> GetSourceCodeHarmony();
+  static Handle<Object> GetSourceCode(Handle<SharedFunctionInfo> shared);
+  static Handle<Object> GetSourceCodeHarmony(Handle<SharedFunctionInfo> shared);
 
   // Tells whether this function should be subject to debugging.
   inline bool IsSubjectToDebugging();
@@ -424,7 +430,6 @@ class SharedFunctionInfo : public HeapObject {
   V(kDebugInfoOffset, kPointerSize)           \
   V(kFunctionIdentifierOffset, kPointerSize)  \
   V(kFeedbackMetadataOffset, kPointerSize)    \
-  V(kPreParsedScopeDataOffset, kPointerSize)  \
   V(kEndOfPointerFieldsOffset, 0)             \
   /* Raw data fields. */                      \
   V(kFunctionLiteralIdOffset, kInt32Size)     \
@@ -460,25 +465,28 @@ class SharedFunctionInfo : public HeapObject {
 #undef START_POSITION_AND_TYPE_BIT_FIELDS
 
 // Bit positions in |compiler_hints|.
-#define COMPILER_HINTS_BIT_FIELDS(V, _)    \
-  V(IsNativeBit, bool, 1, _)               \
-  V(IsStrictBit, bool, 1, _)               \
-  V(FunctionKindBits, FunctionKind, 10, _) \
-  V(HasDuplicateParametersBit, bool, 1, _) \
-  V(AllowLazyCompilationBit, bool, 1, _)   \
-  V(UsesArgumentsBit, bool, 1, _)          \
-  V(NeedsHomeObjectBit, bool, 1, _)        \
-  V(IsDeclarationBit, bool, 1, _)          \
-  V(IsAsmWasmBrokenBit, bool, 1, _)        \
-  V(FunctionMapIndexBits, int, 5, _)       \
-  V(DisabledOptimizationReasonBits, BailoutReason, 7, _)
+#define COMPILER_HINTS_BIT_FIELDS(V, _)                  \
+  V(IsNativeBit, bool, 1, _)                             \
+  V(IsStrictBit, bool, 1, _)                             \
+  V(IsWrappedBit, bool, 1, _)                            \
+  V(FunctionKindBits, FunctionKind, 11, _)               \
+  V(HasDuplicateParametersBit, bool, 1, _)               \
+  V(AllowLazyCompilationBit, bool, 1, _)                 \
+  V(NeedsHomeObjectBit, bool, 1, _)                      \
+  V(IsDeclarationBit, bool, 1, _)                        \
+  V(IsAsmWasmBrokenBit, bool, 1, _)                      \
+  V(FunctionMapIndexBits, int, 5, _)                     \
+  V(DisabledOptimizationReasonBits, BailoutReason, 4, _) \
+  V(RequiresInstanceFieldsInitializer, bool, 1, _)
 
   DEFINE_BIT_FIELDS(COMPILER_HINTS_BIT_FIELDS)
 #undef COMPILER_HINTS_BIT_FIELDS
 
   // Bailout reasons must fit in the DisabledOptimizationReason bitfield.
-  STATIC_ASSERT(kLastErrorMessage <= DisabledOptimizationReasonBits::kMax);
+  STATIC_ASSERT(BailoutReason::kLastErrorMessage <=
+                DisabledOptimizationReasonBits::kMax);
 
+  STATIC_ASSERT(kLastFunctionKind <= FunctionKindBits::kMax);
   // Masks for checking if certain FunctionKind bits are set without fully
   // decoding of the FunctionKind bit field.
   static const int kClassConstructorMask = FunctionKind::kClassConstructor
@@ -500,16 +508,18 @@ class SharedFunctionInfo : public HeapObject {
   DEFINE_BIT_FIELDS(DEBUGGER_HINTS_BIT_FIELDS)
 #undef DEBUGGER_HINTS_BIT_FIELDS
 
+  // Indicates that this function uses a super property (or an eval that may
+  // use a super property).
+  // This is needed to set up the [[HomeObject]] on the function instance.
+  inline bool needs_home_object() const;
+
  private:
   // [raw_name]: Function name string or kNoSharedNameSentinel.
   DECL_ACCESSORS(raw_name, Object)
 
   inline void set_kind(FunctionKind kind);
 
-  // Indicates that this function uses a super property (or an eval that may
-  // use a super property).
-  // This is needed to set up the [[HomeObject]] on the function instance.
-  DECL_BOOLEAN_ACCESSORS(needs_home_object)
+  inline void set_needs_home_object(bool value);
 
   friend class Factory;
   friend class V8HeapExplorer;

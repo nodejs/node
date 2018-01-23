@@ -7,6 +7,7 @@
 
 #include "src/globals.h"
 #include "src/wasm/function-body-decoder.h"
+#include "src/wasm/wasm-constants.h"
 #include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-result.h"
 
@@ -18,41 +19,6 @@ struct ModuleEnv;
 }
 
 namespace wasm {
-
-const uint8_t kWasmFunctionTypeForm = 0x60;
-const uint8_t kWasmAnyFunctionTypeForm = 0x70;
-const uint8_t kResizableMaximumFlag = 1;
-const uint8_t kNoMaximumFlag = 0;
-
-enum MemoryFlags : uint8_t {
-  kNoMaximum = 0,
-  kMaximum = 1,
-  kSharedNoMaximum = 2,
-  kSharedAndMaximum = 3
-};
-
-enum SectionCode : int8_t {
-  kUnknownSectionCode = 0,     // code for unknown sections
-  kTypeSectionCode = 1,        // Function signature declarations
-  kImportSectionCode = 2,      // Import declarations
-  kFunctionSectionCode = 3,    // Function declarations
-  kTableSectionCode = 4,       // Indirect function table and other tables
-  kMemorySectionCode = 5,      // Memory attributes
-  kGlobalSectionCode = 6,      // Global declarations
-  kExportSectionCode = 7,      // Exports
-  kStartSectionCode = 8,       // Start function declaration
-  kElementSectionCode = 9,     // Elements section
-  kCodeSectionCode = 10,       // Function code
-  kDataSectionCode = 11,       // Data segments
-  kNameSectionCode = 12,       // Name section (encoded as a string)
-  kExceptionSectionCode = 13,  // Exception section
-
-  // Helper values
-  kFirstSectionInModule = kTypeSectionCode,
-  kLastKnownModuleSection = kExceptionSectionCode,
-};
-
-enum NameSectionType : uint8_t { kModule = 0, kFunction = 1, kLocal = 2 };
 
 inline bool IsValidSectionCode(uint8_t byte) {
   return kTypeSectionCode <= byte && byte <= kLastKnownModuleSection;

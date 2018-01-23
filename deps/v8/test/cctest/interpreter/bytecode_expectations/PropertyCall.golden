@@ -16,9 +16,9 @@ parameter count: 2
 bytecode array length: 12
 bytecodes: [
   /*   10 E> */ B(StackCheck),
-  /*   25 S> */ B(LdaNamedProperty), R(arg0), U8(0), U8(2),
+  /*   25 S> */ B(LdaNamedProperty), R(arg0), U8(0), U8(0),
                 B(Star), R(0),
-  /*   25 E> */ B(CallProperty0), R(0), R(arg0), U8(0),
+  /*   25 E> */ B(CallProperty0), R(0), R(arg0), U8(2),
   /*   32 S> */ B(Return),
 ]
 constant pool: [
@@ -37,9 +37,9 @@ parameter count: 4
 bytecode array length: 14
 bytecodes: [
   /*   10 E> */ B(StackCheck),
-  /*   31 S> */ B(LdaNamedProperty), R(arg0), U8(0), U8(2),
+  /*   31 S> */ B(LdaNamedProperty), R(arg0), U8(0), U8(0),
                 B(Star), R(0),
-  /*   31 E> */ B(CallProperty2), R(0), R(arg0), R(arg1), R(arg2), U8(0),
+  /*   31 E> */ B(CallProperty2), R(0), R(arg0), R(arg1), R(arg2), U8(2),
   /*   42 S> */ B(Return),
 ]
 constant pool: [
@@ -58,12 +58,12 @@ parameter count: 3
 bytecode array length: 21
 bytecodes: [
   /*   10 E> */ B(StackCheck),
-  /*   28 S> */ B(LdaNamedProperty), R(arg0), U8(0), U8(2),
+  /*   28 S> */ B(LdaNamedProperty), R(arg0), U8(0), U8(0),
                 B(Star), R(0),
                 B(Ldar), R(arg1),
-  /*   35 E> */ B(Add), R(arg1), U8(4),
+  /*   35 E> */ B(Add), R(arg1), U8(2),
                 B(Star), R(2),
-  /*   28 E> */ B(CallProperty2), R(0), R(arg0), R(2), R(arg1), U8(0),
+  /*   28 E> */ B(CallProperty2), R(0), R(arg0), R(2), R(arg1), U8(3),
   /*   43 S> */ B(Return),
 ]
 constant pool: [
@@ -339,9 +339,9 @@ bytecodes: [
   /* 1144 S> */ B(LdaNamedProperty), R(arg0), U8(0), U8(250),
   /* 1153 S> */ B(LdaNamedProperty), R(arg0), U8(0), U8(252),
   /* 1162 S> */ B(LdaNamedProperty), R(arg0), U8(0), U8(254),
-  /* 1178 S> */ B(Wide), B(LdaNamedProperty), R16(arg0), U16(0), U16(258),
+  /* 1178 S> */ B(Wide), B(LdaNamedProperty), R16(arg0), U16(0), U16(256),
                 B(Star), R(0),
-  /* 1178 E> */ B(Wide), B(CallProperty0), R16(0), R16(arg0), U16(256),
+  /* 1178 E> */ B(Wide), B(CallProperty0), R16(0), R16(arg0), U16(258),
   /* 1185 S> */ B(Return),
 ]
 constant pool: [
@@ -360,23 +360,23 @@ parameter count: 2
 bytecode array length: 51
 bytecodes: [
   /*   10 E> */ B(StackCheck),
-  /*   25 S> */ B(LdaNamedProperty), R(arg0), U8(0), U8(6),
+  /*   25 S> */ B(LdaNamedProperty), R(arg0), U8(0), U8(0),
                 B(Star), R(2),
                 B(LdaSmi), I8(1),
                 B(Star), R(4),
-  /*   25 E> */ B(CallProperty1), R(2), R(arg0), R(4), U8(4),
+  /*   25 E> */ B(CallProperty1), R(2), R(arg0), R(4), U8(2),
                 B(Star), R(2),
-  /*   32 E> */ B(LdaNamedProperty), R(2), U8(0), U8(8),
+  /*   32 E> */ B(LdaNamedProperty), R(2), U8(0), U8(4),
                 B(Star), R(1),
                 B(LdaSmi), I8(2),
                 B(Star), R(3),
-  /*   33 E> */ B(CallProperty1), R(1), R(2), R(3), U8(2),
+  /*   33 E> */ B(CallProperty1), R(1), R(2), R(3), U8(6),
                 B(Star), R(1),
-  /*   40 E> */ B(LdaNamedProperty), R(1), U8(0), U8(10),
+  /*   40 E> */ B(LdaNamedProperty), R(1), U8(0), U8(8),
                 B(Star), R(0),
                 B(LdaSmi), I8(3),
                 B(Star), R(2),
-  /*   41 E> */ B(CallProperty1), R(0), R(1), R(2), U8(0),
+  /*   41 E> */ B(CallProperty1), R(0), R(1), R(2), U8(10),
   /*   49 S> */ B(Return),
 ]
 constant pool: [

@@ -5,71 +5,77 @@
 let {session, contextGroup, Protocol} = InspectorTest.start('Checks Runtime.getProperties method');
 
 InspectorTest.runAsyncTestSuite([
-  async function testObject5() {
-    let objectId = (await Protocol.Runtime.evaluate({
-      expression: '(function(){var r = Object(5); r.foo = \'cat\';return r;})()'
-    })).result.result.objectId;
+  function testObject5() {
+    return logExpressionProperties('(function(){var r = Object(5); r.foo = \'cat\';return r;})()');
+  },
+
+  function testNotOwn() {
+    return logExpressionProperties('({ a: 2, set b(_) {}, get b() {return 5;}, __proto__: { a: 3, c: 4, get d() {return 6;} }})', { ownProperties: false });
+  },
+
+  function testAccessorsOnly() {
+    return logExpressionProperties('({ a: 2, set b(_) {}, get b() {return 5;}, c: \'c\', set d(_){} })', { ownProperties: true, accessorPropertiesOnly: true});
+  },
+
+  function testArray() {
+    return logExpressionProperties('[\'red\', \'green\', \'blue\']');
+  },
+
+  function testBound() {
+    return logExpressionProperties('Number.bind({}, 5)');
+  },
+
+  function testObjectThrowsLength() {
+    return logExpressionProperties('({get length() { throw \'Length called\'; }})');
+  },
+
+  function testTypedArrayWithoutLength() {
+    return logExpressionProperties('({__proto__: Uint8Array.prototype})');
+  },
+
+  async function testArrayBuffer() {
+    let objectId = await evaluateToObjectId('new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8]).buffer');
     let props = await Protocol.Runtime.getProperties({ objectId, ownProperties: true });
-    logGetPropertiesResult(props.result);
+    for (let prop of props.result.result) {
+      if (prop.name === '__proto__')
+        continue;
+      InspectorTest.log(prop.name);
+      await logGetPropertiesResult(prop.value.objectId);
+    }
   },
 
-  async function testNotOwn() {
-    let objectId = (await Protocol.Runtime.evaluate({
-      expression: '({ a: 2, set b(_) {}, get b() {return 5;}, __proto__: { a: 3, c: 4, get d() {return 6;} }})'
-    })).result.result.objectId;
-    let props = await Protocol.Runtime.getProperties({ objectId, ownProperties: false });
-    logGetPropertiesResult(props.result);
-  },
-
-  async function testAccessorsOnly() {
-    let objectId = (await Protocol.Runtime.evaluate({
-      expression: '({ a: 2, set b(_) {}, get b() {return 5;}, c: \'c\', set d(_){} })'
-    })).result.result.objectId;
-    let props = await Protocol.Runtime.getProperties({ objectId, ownProperties: true, accessorPropertiesOnly: true });
-    logGetPropertiesResult(props.result);
-  },
-
-  async function testArray() {
-    let objectId = (await Protocol.Runtime.evaluate({
-      expression: '[\'red\', \'green\', \'blue\']'
-    })).result.result.objectId;
-    let props = await Protocol.Runtime.getProperties({ objectId, ownProperties: true });
-    logGetPropertiesResult(props.result);
-  },
-
-  async function testBound() {
-    let objectId = (await Protocol.Runtime.evaluate({
-      expression: 'Number.bind({}, 5)'
-    })).result.result.objectId;
-    let props = await Protocol.Runtime.getProperties({ objectId, ownProperties: true });
-    logGetPropertiesResult(props.result);
-  },
-
-  async function testObjectThrowsLength() {
-    let objectId = (await Protocol.Runtime.evaluate({
-      expression: '({get length() { throw \'Length called\'; }})'
-    })).result.result.objectId;
-    let props = await Protocol.Runtime.getProperties({ objectId, ownProperties: true });
-    logGetPropertiesResult(props.result);
-  },
-
-  async function testTypedArrayWithoutLength() {
-    let objectId = (await Protocol.Runtime.evaluate({
-      expression: '({__proto__: Uint8Array.prototype})'
-    })).result.result.objectId;
-    let props = await Protocol.Runtime.getProperties({ objectId, ownProperties: true });
-    logGetPropertiesResult(props.result);
-  },
+  async function testArrayBufferWithBrokenUintCtor() {
+    await evaluateToObjectId(`(function() {
+      this.uint8array_old = this.Uint8Array;
+      this.Uint8Array = 42;
+    })()`);
+    await logExpressionProperties('new Int8Array([1, 2, 3, 4, 5, 6, 7]).buffer');
+    await evaluateToObjectId(`(function() {
+      this.Uint8Array = this.uint8array_old;
+      delete this.uint8array_old;
+    })()`);
+  }
 ]);
 
-function logGetPropertiesResult(protocolResult) {
+async function logExpressionProperties(expression, flags) {
+  const objectId = await evaluateToObjectId(expression);
+  return await logGetPropertiesResult(objectId, flags);
+}
+
+async function evaluateToObjectId(expression) {
+  return (await Protocol.Runtime.evaluate({ expression })).result.result.objectId;
+}
+
+async function logGetPropertiesResult(objectId, flags = { ownProperties: true }) {
   function hasGetterSetter(property, fieldName) {
     var v = property[fieldName];
     if (!v) return false;
     return v.type !== "undefined"
   }
 
-  var propertyArray = protocolResult.result;
+  flags.objectId = objectId;
+  let props = await Protocol.Runtime.getProperties(flags);
+  var propertyArray = props.result.result;
   propertyArray.sort(NamedThingComparator);
   for (var i = 0; i < propertyArray.length; i++) {
     var p = propertyArray[i];
@@ -81,7 +87,7 @@ function logGetPropertiesResult(protocolResult) {
       InspectorTest.log("  " + p.name + " " + own + " no value" +
         (hasGetterSetter(p, "get") ? ", getter" : "") + (hasGetterSetter(p, "set") ? ", setter" : ""));
   }
-  var internalPropertyArray = protocolResult.internalProperties;
+  var internalPropertyArray = props.result.internalProperties;
   if (internalPropertyArray) {
     InspectorTest.log("Internal properties");
     internalPropertyArray.sort(NamedThingComparator);

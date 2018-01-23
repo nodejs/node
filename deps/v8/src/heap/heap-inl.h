@@ -7,14 +7,16 @@
 
 #include <cmath>
 
+// Clients of this interface shouldn't depend on lots of heap internals.
+// Do not include anything from src/heap other than src/heap/heap.h here!
+#include "src/heap/heap.h"
+
 #include "src/base/platform/platform.h"
 #include "src/counters-inl.h"
 #include "src/feedback-vector.h"
-#include "src/heap/heap.h"
+// TODO(mstarzinger): There are 3 more includes to remove in order to no longer
+// leak heap internals to users of this interface!
 #include "src/heap/incremental-marking-inl.h"
-#include "src/heap/mark-compact.h"
-#include "src/heap/object-stats.h"
-#include "src/heap/remembered-set.h"
 #include "src/heap/spaces-inl.h"
 #include "src/heap/store-buffer.h"
 #include "src/isolate.h"
@@ -50,6 +52,13 @@ ROOT_LIST(ROOT_ACCESSOR)
 STRUCT_LIST(STRUCT_MAP_ACCESSOR)
 #undef STRUCT_MAP_ACCESSOR
 
+#define DATA_HANDLER_MAP_ACCESSOR(NAME, Name, Size, name)  \
+  Map* Heap::name##_map() {                                \
+    return Map::cast(roots_[k##Name##Size##MapRootIndex]); \
+  }
+DATA_HANDLER_LIST(DATA_HANDLER_MAP_ACCESSOR)
+#undef DATA_HANDLER_MAP_ACCESSOR
+
 #define STRING_ACCESSOR(name, str) \
   String* Heap::name() { return String::cast(roots_[k##name##RootIndex]); }
 INTERNALIZED_STRING_LIST(STRING_ACCESSOR)
@@ -65,6 +74,13 @@ PRIVATE_SYMBOL_LIST(SYMBOL_ACCESSOR)
 PUBLIC_SYMBOL_LIST(SYMBOL_ACCESSOR)
 WELL_KNOWN_SYMBOL_LIST(SYMBOL_ACCESSOR)
 #undef SYMBOL_ACCESSOR
+
+#define ACCESSOR_INFO_ACCESSOR(accessor_name, AccessorName)                \
+  AccessorInfo* Heap::accessor_name##_accessor() {                         \
+    return AccessorInfo::cast(roots_[k##AccessorName##AccessorRootIndex]); \
+  }
+ACCESSOR_INFO_LIST(ACCESSOR_INFO_ACCESSOR)
+#undef ACCESSOR_INFO_ACCESSOR
 
 #define ROOT_ACCESSOR(type, name, camel_name)                                 \
   void Heap::set_##name(type* value) {                                        \
@@ -217,8 +233,16 @@ AllocationResult Heap::CopyFixedDoubleArray(FixedDoubleArray* src) {
   return CopyFixedDoubleArrayWithMap(src, src->map());
 }
 
+AllocationResult Heap::AllocateFixedArrayWithMap(RootListIndex map_root_index,
+                                                 int length,
+                                                 PretenureFlag pretenure) {
+  return AllocateFixedArrayWithFiller(map_root_index, length, pretenure,
+                                      undefined_value());
+}
+
 AllocationResult Heap::AllocateFixedArray(int length, PretenureFlag pretenure) {
-  return AllocateFixedArrayWithFiller(length, pretenure, undefined_value());
+  return AllocateFixedArrayWithFiller(Heap::kFixedArrayMapRootIndex, length,
+                                      pretenure, undefined_value());
 }
 
 AllocationResult Heap::AllocateRaw(int size_in_bytes, AllocationSpace space,
@@ -226,11 +250,14 @@ AllocationResult Heap::AllocateRaw(int size_in_bytes, AllocationSpace space,
   DCHECK(AllowHandleAllocation::IsAllowed());
   DCHECK(AllowHeapAllocation::IsAllowed());
   DCHECK(gc_state_ == NOT_IN_GC);
-#ifdef DEBUG
-  if (FLAG_gc_interval >= 0 && !always_allocate() &&
-      Heap::allocation_timeout_-- <= 0) {
-    return AllocationResult::Retry(space);
+#ifdef V8_ENABLE_ALLOCATION_TIMEOUT
+  if (FLAG_random_gc_interval > 0 || FLAG_gc_interval >= 0) {
+    if (!always_allocate() && Heap::allocation_timeout_-- <= 0) {
+      return AllocationResult::Retry(space);
+    }
   }
+#endif
+#ifdef DEBUG
   isolate_->counters()->objs_since_last_full()->Increment();
   isolate_->counters()->objs_since_last_young()->Increment();
 #endif
@@ -297,10 +324,10 @@ void Heap::OnAllocationEvent(HeapObject* object, int size_in_bytes) {
     if (allocations_count_ % FLAG_dump_allocations_digest_at_alloc == 0) {
       PrintAllocationsHash();
     }
-  }
-
-  if (FLAG_trace_allocation_stack_interval > 0) {
-    if (!FLAG_verify_predictable) ++allocations_count_;
+  } else if (FLAG_fuzzer_gc_analysis) {
+    ++allocations_count_;
+  } else if (FLAG_trace_allocation_stack_interval > 0) {
+    ++allocations_count_;
     if (allocations_count_ % FLAG_trace_allocation_stack_interval == 0) {
       isolate()->PrintStack(stdout, Isolate::kPrintStackConcise);
     }
@@ -332,9 +359,10 @@ void Heap::OnMoveEvent(HeapObject* target, HeapObject* source,
     if (allocations_count_ % FLAG_dump_allocations_digest_at_alloc == 0) {
       PrintAllocationsHash();
     }
+  } else if (FLAG_fuzzer_gc_analysis) {
+    ++allocations_count_;
   }
 }
-
 
 void Heap::UpdateAllocationsHash(HeapObject* object) {
   Address object_address = object->address();
@@ -373,9 +401,9 @@ void Heap::FinalizeExternalString(String* string) {
           kHeapObjectTag);
 
   // Dispose of the C++ object if it has not already been disposed.
-  if (*resource_addr != NULL) {
+  if (*resource_addr != nullptr) {
     (*resource_addr)->Dispose();
-    *resource_addr = NULL;
+    *resource_addr = nullptr;
   }
 }
 
@@ -588,6 +616,51 @@ AlwaysAllocateScope::AlwaysAllocateScope(Isolate* isolate)
 
 AlwaysAllocateScope::~AlwaysAllocateScope() {
   heap_->always_allocate_scope_count_.Decrement(1);
+}
+
+CodeSpaceMemoryModificationScope::CodeSpaceMemoryModificationScope(Heap* heap)
+    : heap_(heap) {
+  heap_->increment_code_space_memory_modification_scope_depth();
+  heap_->code_space()->SetReadAndWritable();
+  LargePage* page = heap_->lo_space()->first_page();
+  while (page != nullptr) {
+    if (page->IsFlagSet(MemoryChunk::IS_EXECUTABLE)) {
+      CHECK(heap_->memory_allocator()->IsMemoryChunkExecutable(page));
+      page->SetReadAndWritable();
+    }
+    page = page->next_page();
+  }
+}
+
+CodeSpaceMemoryModificationScope::~CodeSpaceMemoryModificationScope() {
+  heap_->decrement_code_space_memory_modification_scope_depth();
+  heap_->code_space()->SetReadAndExecutable();
+  LargePage* page = heap_->lo_space()->first_page();
+  while (page != nullptr) {
+    if (page->IsFlagSet(MemoryChunk::IS_EXECUTABLE)) {
+      CHECK(heap_->memory_allocator()->IsMemoryChunkExecutable(page));
+      page->SetReadAndExecutable();
+    }
+    page = page->next_page();
+  }
+}
+
+CodePageMemoryModificationScope::CodePageMemoryModificationScope(
+    MemoryChunk* chunk)
+    : chunk_(chunk),
+      scope_active_(chunk_->IsFlagSet(MemoryChunk::IS_EXECUTABLE)) {
+  if (scope_active_) {
+    DCHECK(chunk_->owner()->identity() == CODE_SPACE ||
+           (chunk_->owner()->identity() == LO_SPACE &&
+            chunk_->IsFlagSet(MemoryChunk::IS_EXECUTABLE)));
+    chunk_->SetReadAndWritable();
+  }
+}
+
+CodePageMemoryModificationScope::~CodePageMemoryModificationScope() {
+  if (scope_active_) {
+    chunk_->SetReadAndExecutable();
+  }
 }
 
 }  // namespace internal

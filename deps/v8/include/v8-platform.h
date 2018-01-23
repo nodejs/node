@@ -119,11 +119,11 @@ class TracingController {
   }
 
   /**
-   * Adds a trace event to the platform tracing system. This function call is
+   * Adds a trace event to the platform tracing system. These function calls are
    * usually the result of a TRACE_* macro from trace_event_common.h when
    * tracing and the category of the particular trace are enabled. It is not
-   * advisable to call this function on its own; it is really only meant to be
-   * used by the trace macros. The returned handle can be used by
+   * advisable to call these functions on their own; they are really only meant
+   * to be used by the trace macros. The returned handle can be used by
    * UpdateTraceEventDuration to update the duration of COMPLETE events.
    */
   virtual uint64_t AddTraceEvent(
@@ -133,6 +133,15 @@ class TracingController {
       const uint64_t* arg_values,
       std::unique_ptr<ConvertableToTraceFormat>* arg_convertables,
       unsigned int flags) {
+    return 0;
+  }
+  virtual uint64_t AddTraceEventWithTimestamp(
+      char phase, const uint8_t* category_enabled_flag, const char* name,
+      const char* scope, uint64_t id, uint64_t bind_id, int32_t num_args,
+      const char** arg_names, const uint8_t* arg_types,
+      const uint64_t* arg_values,
+      std::unique_ptr<ConvertableToTraceFormat>* arg_convertables,
+      unsigned int flags, int64_t timestamp) {
     return 0;
   }
 
@@ -158,6 +167,72 @@ class TracingController {
 };
 
 /**
+ * A V8 memory page allocator.
+ *
+ * Can be implemented by an embedder to manage large host OS allocations.
+ */
+class PageAllocator {
+ public:
+  virtual ~PageAllocator() = default;
+
+  /**
+   * Gets the page granularity for AllocatePages and FreePages. Addresses and
+   * lengths for those calls should be multiples of AllocatePageSize().
+   */
+  virtual size_t AllocatePageSize() = 0;
+
+  /**
+   * Gets the page granularity for SetPermissions and ReleasePages. Addresses
+   * and lengths for those calls should be multiples of CommitPageSize().
+   */
+  virtual size_t CommitPageSize() = 0;
+
+  /**
+   * Sets the random seed so that GetRandomMmapAddr() will generate repeatable
+   * sequences of random mmap addresses.
+   */
+  virtual void SetRandomMmapSeed(int64_t seed) = 0;
+
+  /**
+   * Returns a randomized address, suitable for memory allocation under ASLR.
+   * The address will be aligned to AllocatePageSize.
+   */
+  virtual void* GetRandomMmapAddr() = 0;
+
+  /**
+   * Memory permissions. Note that V8 is W^X compliant.
+   */
+  enum Permission {
+    kNoAccess,
+    kReadWrite,
+    kReadExecute
+  };
+
+  /**
+   * Allocates memory in range with the given alignment and permission.
+   */
+  virtual void* AllocatePages(void* address, size_t length, size_t alignment,
+                              Permission permissions) = 0;
+
+  /**
+   * Frees memory in a range that was allocated by a call to AllocatePages.
+   */
+  virtual bool FreePages(void* address, size_t length) = 0;
+
+  /**
+   * Releases memory in a range that was allocated by a call to AllocatePages.
+   */
+  virtual bool ReleasePages(void* address, size_t length,
+                            size_t new_length) = 0;
+
+  /**
+   * Sets permissions on pages in an allocated range.
+   */
+  virtual bool SetPermissions(void* address, size_t length,
+                              Permission permissions) = 0;
+};
+
+/**
  * V8 Platform abstraction layer.
  *
  * The embedder has to provide an implementation of this interface before
@@ -178,13 +253,35 @@ class Platform {
   virtual ~Platform() = default;
 
   /**
+   * Allows the embedder to manage memory page allocations.
+   */
+  virtual PageAllocator* GetPageAllocator() {
+    // TODO(bbudge) Make this abstract after all embedders implement this.
+    return nullptr;
+  }
+
+  /**
    * Enables the embedder to respond in cases where V8 can't allocate large
    * blocks of memory. V8 retries the failed allocation once after calling this
    * method. On success, execution continues; otherwise V8 exits with a fatal
    * error.
    * Embedder overrides of this function must NOT call back into V8.
    */
-  virtual void OnCriticalMemoryPressure() {}
+  virtual void OnCriticalMemoryPressure() {
+    // TODO(bbudge) Remove this when embedders override the following method.
+    // See crbug.com/634547.
+  }
+
+  /**
+   * Enables the embedder to respond in cases where V8 can't allocate large
+   * memory regions. The |length| parameter is the amount of memory needed.
+   * Returns true if memory is now available. Returns false if no memory could
+   * be made available. V8 will retry allocations until this method returns
+   * false.
+   *
+   * Embedder overrides of this function must NOT call back into V8.
+   */
+  virtual bool OnCriticalMemoryPressure(size_t length) { return false; }
 
   /**
    * Gets the number of threads that are used to execute background tasks. Is

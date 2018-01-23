@@ -51,13 +51,13 @@ enum ExceptionBreakType {
   BreakUncaughtException = 1
 };
 
-
 enum DebugBreakType {
   NOT_DEBUG_BREAK,
   DEBUGGER_STATEMENT,
   DEBUG_BREAK_SLOT,
   DEBUG_BREAK_SLOT_AT_CALL,
   DEBUG_BREAK_SLOT_AT_RETURN,
+  DEBUG_BREAK_SLOT_AT_SUSPEND,
 };
 
 enum IgnoreBreakMode {
@@ -74,7 +74,11 @@ class BreakLocation {
                                     JavaScriptFrame* frame,
                                     std::vector<BreakLocation>* result_out);
 
+  inline bool IsSuspend() const { return type_ == DEBUG_BREAK_SLOT_AT_SUSPEND; }
   inline bool IsReturn() const { return type_ == DEBUG_BREAK_SLOT_AT_RETURN; }
+  inline bool IsReturnOrSuspend() const {
+    return type_ >= DEBUG_BREAK_SLOT_AT_RETURN;
+  }
   inline bool IsCall() const { return type_ == DEBUG_BREAK_SLOT_AT_CALL; }
   inline bool IsDebugBreakSlot() const { return type_ >= DEBUG_BREAK_SLOT; }
   inline bool IsDebuggerStatement() const {
@@ -87,13 +91,17 @@ class BreakLocation {
 
   debug::BreakLocationType type() const;
 
+  JSGeneratorObject* GetGeneratorObjectForSuspendedFrame(
+      JavaScriptFrame* frame) const;
+
  private:
   BreakLocation(Handle<AbstractCode> abstract_code, DebugBreakType type,
-                int code_offset, int position)
+                int code_offset, int position, int generator_obj_reg_index)
       : abstract_code_(abstract_code),
         code_offset_(code_offset),
         type_(type),
-        position_(position) {
+        position_(position),
+        generator_obj_reg_index_(generator_obj_reg_index) {
     DCHECK_NE(NOT_DEBUG_BREAK, type_);
   }
 
@@ -108,6 +116,7 @@ class BreakLocation {
   int code_offset_;
   DebugBreakType type_;
   int position_;
+  int generator_obj_reg_index_;
 
   friend class BreakIterator;
 };
@@ -207,8 +216,6 @@ class Debug {
   void OnPromiseReject(Handle<Object> promise, Handle<Object> value);
   void OnCompileError(Handle<Script> script);
   void OnAfterCompile(Handle<Script> script);
-  void OnAsyncTaskEvent(debug::PromiseDebugActionType type, int id,
-                        int parent_id);
 
   MUST_USE_RESULT MaybeHandle<Object> Call(Handle<Object> fun,
                                            Handle<Object> data);
@@ -258,9 +265,7 @@ class Debug {
                               int end_position, bool restrict_to_function,
                               std::vector<BreakLocation>* locations);
 
-  void RecordGenerator(Handle<JSGeneratorObject> generator_object);
-
-  void RunPromiseHook(PromiseHookType type, Handle<JSPromise> promise,
+  void RunPromiseHook(PromiseHookType hook_type, Handle<JSPromise> promise,
                       Handle<Object> parent);
 
   int NextAsyncTaskId(Handle<JSObject> promise);
@@ -574,7 +579,7 @@ class LegacyDebugDelegate : public v8::debug::DebugDelegate {
  public:
   explicit LegacyDebugDelegate(Isolate* isolate) : isolate_(isolate) {}
   void PromiseEventOccurred(v8::debug::PromiseDebugActionType type, int id,
-                            int parent_id, bool created_by_user) override;
+                            bool is_blackboxed) override;
   void ScriptCompiled(v8::Local<v8::debug::Script> script, bool is_live_edited,
                       bool has_compile_error) override;
   void BreakProgramRequested(v8::Local<v8::Context> paused_context,

@@ -47,7 +47,7 @@ TEST(Ostream, AsHexBytes) {
   testAsHexBytes("23 01", AsHexBytes(0x123, 1));
   testAsHexBytes("23 01", AsHexBytes(0x123, 2));
   testAsHexBytes("23 01 00", AsHexBytes(0x123, 3));
-  testAsHexBytes("ff ff ff ff", AsHexBytes(0xffffffff));
+  testAsHexBytes("ff ff ff ff", AsHexBytes(0xFFFFFFFF));
   testAsHexBytes("00 00 00 00", AsHexBytes(0, 4));
   testAsHexBytes("56 34 12", AsHexBytes(0x123456));
 
@@ -58,7 +58,7 @@ TEST(Ostream, AsHexBytes) {
   testAsHexBytes("01 23", AsHexBytes(0x123, 1, AsHexBytes::kBigEndian));
   testAsHexBytes("01 23", AsHexBytes(0x123, 2, AsHexBytes::kBigEndian));
   testAsHexBytes("00 01 23", AsHexBytes(0x123, 3, AsHexBytes::kBigEndian));
-  testAsHexBytes("ff ff ff ff", AsHexBytes(0xffffffff, AsHexBytes::kBigEndian));
+  testAsHexBytes("ff ff ff ff", AsHexBytes(0xFFFFFFFF, AsHexBytes::kBigEndian));
   testAsHexBytes("00 00 00 00", AsHexBytes(0, 4, AsHexBytes::kBigEndian));
   testAsHexBytes("12 34 56", AsHexBytes(0x123456, 1, AsHexBytes::kBigEndian));
 }

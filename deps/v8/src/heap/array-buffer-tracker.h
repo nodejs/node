@@ -34,9 +34,9 @@ class ArrayBufferTracker : public AllStatic {
   inline static void RegisterNew(Heap* heap, JSArrayBuffer* buffer);
   inline static void Unregister(Heap* heap, JSArrayBuffer* buffer);
 
-  // Frees all backing store pointers for dead JSArrayBuffers in new space.
+  // Identifies all backing store pointers for dead JSArrayBuffers in new space.
   // Does not take any locks and can only be called during Scavenge.
-  static void FreeDeadInNewSpace(Heap* heap);
+  static void PrepareToFreeDeadInNewSpace(Heap* heap);
 
   // Number of array buffer bytes retained from new space.
   static size_t RetainedInNewSpace(Heap* heap);
@@ -101,7 +101,14 @@ class LocalArrayBufferTracker {
   size_t retained_size() const { return retained_size_; }
 
  private:
-  typedef std::unordered_set<JSArrayBuffer*> TrackingData;
+  class Hasher {
+   public:
+    size_t operator()(JSArrayBuffer* buffer) const {
+      return reinterpret_cast<size_t>(buffer) >> 3;
+    }
+  };
+
+  typedef std::unordered_set<JSArrayBuffer*, Hasher> TrackingData;
 
   Heap* heap_;
   // The set contains raw heap pointers which are removed by the GC upon

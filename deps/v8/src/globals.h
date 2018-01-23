@@ -8,6 +8,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include <limits>
 #include <ostream>
 
 #include "src/base/build_config.h"
@@ -41,21 +42,7 @@
 
 #endif  // V8_OS_WIN
 
-// Unfortunately, the INFINITY macro cannot be used with the '-pedantic'
-// warning flag and certain versions of GCC due to a bug:
-// http://gcc.gnu.org/bugzilla/show_bug.cgi?id=11931
-// For now, we use the more involved template-based version from <limits>, but
-// only when compiling with GCC versions affected by the bug (2.96.x - 4.0.x)
-#if V8_CC_GNU && V8_GNUC_PREREQ(2, 96, 0) && !V8_GNUC_PREREQ(4, 1, 0)
-# include <limits>  // NOLINT
-# define V8_INFINITY std::numeric_limits<double>::infinity()
-#elif V8_LIBC_MSVCRT
-# define V8_INFINITY HUGE_VAL
-#elif V8_OS_AIX
-#define V8_INFINITY (__builtin_inff())
-#else
-# define V8_INFINITY INFINITY
-#endif
+#define V8_INFINITY std::numeric_limits<double>::infinity()
 
 namespace v8 {
 
@@ -161,8 +148,10 @@ const int kMinUInt16 = 0;
 const uint32_t kMaxUInt32 = 0xFFFFFFFFu;
 const int kMinUInt32 = 0;
 
+const int kUInt8Size = sizeof(uint8_t);
 const int kCharSize = sizeof(char);
 const int kShortSize = sizeof(short);  // NOLINT
+const int kUInt16Size = sizeof(uint16_t);
 const int kIntSize = sizeof(int);
 const int kInt32Size = sizeof(int32_t);
 const int kInt64Size = sizeof(int64_t);
@@ -188,11 +177,13 @@ const int kElidedFrameSlots = 0;
 #endif
 
 const int kDoubleSizeLog2 = 3;
+const size_t kMaxWasmCodeMemory = 256 * MB;
 
 #if V8_HOST_ARCH_64_BIT
 const int kPointerSizeLog2 = 3;
-const intptr_t kIntptrSignBit = V8_INT64_C(0x8000000000000000);
-const uintptr_t kUintptrAllBitsSet = V8_UINT64_C(0xFFFFFFFFFFFFFFFF);
+const intptr_t kIntptrSignBit =
+    static_cast<intptr_t>(uintptr_t{0x8000000000000000});
+const uintptr_t kUintptrAllBitsSet = uintptr_t{0xFFFFFFFFFFFFFFFF};
 const bool kRequiresCodeRange = true;
 #if V8_TARGET_ARCH_MIPS64
 // To use pseudo-relative jumps such as j/jal instructions which have 28-bit
@@ -314,43 +305,51 @@ F FUNCTION_CAST(Address addr) {
 
 
 // -----------------------------------------------------------------------------
-// Forward declarations for frequently used classes
-// (sorted alphabetically)
-
-class FreeStoreAllocationPolicy;
-template <typename T, class P = FreeStoreAllocationPolicy> class List;
-
-// -----------------------------------------------------------------------------
 // Declarations for use in both the preparser and the rest of V8.
 
 // The Strict Mode (ECMA-262 5th edition, 4.2.2).
 
-enum LanguageMode : uint32_t { SLOPPY, STRICT, LANGUAGE_END };
+enum class LanguageMode : bool { kSloppy, kStrict };
+static const size_t LanguageModeSize = 2;
+
+inline size_t hash_value(LanguageMode mode) {
+  return static_cast<size_t>(mode);
+}
 
 inline std::ostream& operator<<(std::ostream& os, const LanguageMode& mode) {
   switch (mode) {
-    case SLOPPY: return os << "sloppy";
-    case STRICT: return os << "strict";
-    case LANGUAGE_END:
-      UNREACHABLE();
+    case LanguageMode::kSloppy:
+      return os << "sloppy";
+    case LanguageMode::kStrict:
+      return os << "strict";
   }
   UNREACHABLE();
 }
 
 inline bool is_sloppy(LanguageMode language_mode) {
-  return language_mode == SLOPPY;
+  return language_mode == LanguageMode::kSloppy;
 }
 
 inline bool is_strict(LanguageMode language_mode) {
-  return language_mode != SLOPPY;
+  return language_mode != LanguageMode::kSloppy;
 }
 
 inline bool is_valid_language_mode(int language_mode) {
-  return language_mode == SLOPPY || language_mode == STRICT;
+  return language_mode == static_cast<int>(LanguageMode::kSloppy) ||
+         language_mode == static_cast<int>(LanguageMode::kStrict);
 }
 
 inline LanguageMode construct_language_mode(bool strict_bit) {
   return static_cast<LanguageMode>(strict_bit);
+}
+
+// Return kStrict if either of the language modes is kStrict, or kSloppy
+// otherwise.
+inline LanguageMode stricter_language_mode(LanguageMode mode1,
+                                           LanguageMode mode2) {
+  STATIC_ASSERT(LanguageModeSize == 2);
+  return static_cast<LanguageMode>(static_cast<int>(mode1) |
+                                   static_cast<int>(mode2));
 }
 
 enum TypeofMode : int { INSIDE_TYPEOF, NOT_INSIDE_TYPEOF };
@@ -414,30 +413,24 @@ const int kCodeAlignmentBits = 5;
 const intptr_t kCodeAlignment = 1 << kCodeAlignmentBits;
 const intptr_t kCodeAlignmentMask = kCodeAlignment - 1;
 
-// The owner field of a page is tagged with the page header tag. We need that
-// to find out if a slot is part of a large object. If we mask out the lower
-// 0xfffff bits (1M pages), go to the owner offset, and see that this field
-// is tagged with the page header tag, we can just look up the owner.
-// Otherwise, we know that we are somewhere (not within the first 1M) in a
-// large object.
-const int kPageHeaderTag = 3;
-const int kPageHeaderTagSize = 2;
-const intptr_t kPageHeaderTagMask = (1 << kPageHeaderTagSize) - 1;
-
+// Weak references are tagged using the second bit in a pointer.
+const int kWeakReferenceTag = 3;
+const int kWeakReferenceTagSize = 2;
+const intptr_t kWeakReferenceTagMask = (1 << kWeakReferenceTagSize) - 1;
 
 // Zap-value: The value used for zapping dead objects.
 // Should be a recognizable hex value tagged as a failure.
 #ifdef V8_HOST_ARCH_64_BIT
 const Address kZapValue =
-    reinterpret_cast<Address>(V8_UINT64_C(0xdeadbeedbeadbeef));
+    reinterpret_cast<Address>(uint64_t{0xdeadbeedbeadbeef});
 const Address kHandleZapValue =
-    reinterpret_cast<Address>(V8_UINT64_C(0x1baddead0baddeaf));
+    reinterpret_cast<Address>(uint64_t{0x1baddead0baddeaf});
 const Address kGlobalHandleZapValue =
-    reinterpret_cast<Address>(V8_UINT64_C(0x1baffed00baffedf));
+    reinterpret_cast<Address>(uint64_t{0x1baffed00baffedf});
 const Address kFromSpaceZapValue =
-    reinterpret_cast<Address>(V8_UINT64_C(0x1beefdad0beefdaf));
-const uint64_t kDebugZapValue = V8_UINT64_C(0xbadbaddbbadbaddb);
-const uint64_t kSlotsZapValue = V8_UINT64_C(0xbeefdeadbeefdeef);
+    reinterpret_cast<Address>(uint64_t{0x1beefdad0beefdaf});
+const uint64_t kDebugZapValue = uint64_t{0xbadbaddbbadbaddb};
+const uint64_t kSlotsZapValue = uint64_t{0xbeefdeadbeefdeef};
 const uint64_t kFreeListZapValue = 0xfeed1eaffeed1eaf;
 #else
 const Address kZapValue = reinterpret_cast<Address>(0xdeadbeef);
@@ -466,11 +459,9 @@ const uint32_t kQuietNaNHighBitsMask = 0xfff << (51 - 32);
 // Forward declarations for frequently used classes
 
 class AccessorInfo;
-class Allocation;
 class Arguments;
 class Assembler;
 class Code;
-class CodeGenerator;
 class CodeStub;
 class Context;
 class Debug;
@@ -480,10 +471,10 @@ class DescriptorArray;
 class TransitionArray;
 class ExternalReference;
 class FixedArray;
+class FreeStoreAllocationPolicy;
 class FunctionTemplateInfo;
 class MemoryChunk;
-class SeededNumberDictionary;
-class UnseededNumberDictionary;
+class NumberDictionary;
 class NameDictionary;
 class GlobalDictionary;
 template <typename T> class MaybeHandle;
@@ -547,7 +538,6 @@ enum AllocationSpace {
   LAST_PAGED_SPACE = MAP_SPACE
 };
 const int kSpaceTagSize = 3;
-const int kSpaceTagMask = (1 << kSpaceTagSize) - 1;
 
 enum AllocationAlignment { kWordAligned, kDoubleAligned, kDoubleUnaligned };
 
@@ -623,6 +613,8 @@ enum GarbageCollector { SCAVENGER, MARK_COMPACTOR, MINOR_MARK_COMPACTOR };
 
 enum Executability { NOT_EXECUTABLE, EXECUTABLE };
 
+enum Movability { kMovable, kImmovable };
+
 enum VisitMode {
   VISIT_ALL,
   VISIT_ALL_IN_MINOR_MC_MARK,
@@ -630,8 +622,7 @@ enum VisitMode {
   VISIT_ALL_IN_SCAVENGE,
   VISIT_ALL_IN_SWEEP_NEWSPACE,
   VISIT_ONLY_STRONG,
-  VISIT_ONLY_STRONG_FOR_SERIALIZATION,
-  VISIT_ONLY_STRONG_ROOT_LIST,
+  VISIT_FOR_SERIALIZATION,
 };
 
 // Flag indicating whether code is built into the VM (one of the natives files).
@@ -712,6 +703,8 @@ enum InlineCacheState {
 enum WhereToStart { kStartAtReceiver, kStartAtPrototype };
 
 enum ResultSentinel { kNotFound = -1, kUnsupported = -2 };
+
+enum ShouldThrow { kThrowOnError, kDontThrow };
 
 // The Store Buffer (GC).
 typedef enum {
@@ -823,8 +816,6 @@ enum CpuFeature {
   MIPSr2,
   MIPSr6,
   MIPS_SIMD,  // MSA instructions
-  // ARM64
-  ALWAYS_ALIGN_CSP,
   // PPC
   FPR_GPR_MOV,
   LWSYNC,
@@ -1095,7 +1086,6 @@ enum FunctionKind : uint16_t {
   kArrowFunction = 1 << 0,
   kGeneratorFunction = 1 << 1,
   kConciseMethod = 1 << 2,
-  kConciseGeneratorMethod = kGeneratorFunction | kConciseMethod,
   kDefaultConstructor = 1 << 3,
   kDerivedConstructor = 1 << 4,
   kBaseConstructor = 1 << 5,
@@ -1103,6 +1093,10 @@ enum FunctionKind : uint16_t {
   kSetterFunction = 1 << 7,
   kAsyncFunction = 1 << 8,
   kModule = 1 << 9,
+  kClassFieldsInitializerFunction = 1 << 10 | kConciseMethod,
+  kLastFunctionKind = kClassFieldsInitializerFunction,
+
+  kConciseGeneratorMethod = kGeneratorFunction | kConciseMethod,
   kAccessorFunction = kGetterFunction | kSetterFunction,
   kDefaultBaseConstructor = kDefaultConstructor | kBaseConstructor,
   kDefaultDerivedConstructor = kDefaultConstructor | kDerivedConstructor,
@@ -1134,7 +1128,8 @@ inline bool IsValidFunctionKind(FunctionKind kind) {
          kind == FunctionKind::kAsyncArrowFunction ||
          kind == FunctionKind::kAsyncConciseMethod ||
          kind == FunctionKind::kAsyncConciseGeneratorMethod ||
-         kind == FunctionKind::kAsyncGeneratorFunction;
+         kind == FunctionKind::kAsyncGeneratorFunction ||
+         kind == FunctionKind::kClassFieldsInitializerFunction;
 }
 
 
@@ -1212,6 +1207,11 @@ inline bool IsClassConstructor(FunctionKind kind) {
   return (kind & FunctionKind::kClassConstructor) != 0;
 }
 
+inline bool IsClassFieldsInitializerFunction(FunctionKind kind) {
+  DCHECK(IsValidFunctionKind(kind));
+  return kind == FunctionKind::kClassFieldsInitializerFunction;
+}
+
 inline bool IsConstructable(FunctionKind kind) {
   if (IsAccessorFunction(kind)) return false;
   if (IsConciseMethod(kind)) return false;
@@ -1254,14 +1254,17 @@ inline uint32_t ObjectHash(Address address) {
 // Type feedback is encoded in such a way that, we can combine the feedback
 // at different points by performing an 'OR' operation. Type feedback moves
 // to a more generic type when we combine feedback.
-// kSignedSmall -> kSignedSmallInputs -> kNumber  -> kNumberOrOddball -> kAny
-//                                                   kString          -> kAny
-// kBigInt -> kAny
-// TODO(mythria): Remove kNumber type when crankshaft can handle Oddballs
-// similar to Numbers. We don't need kNumber feedback for Turbofan. Extra
-// information about Number might reduce few instructions but causes more
-// deopts. We collect Number only because crankshaft does not handle all
-// cases of oddballs.
+//
+//   kSignedSmall -> kSignedSmallInputs -> kNumber  -> kNumberOrOddball -> kAny
+//                                                     kString          -> kAny
+//                                                     kBigInt          -> kAny
+//
+// Technically we wouldn't need the separation between the kNumber and the
+// kNumberOrOddball values here, since for binary operations, we always
+// truncate oddballs to numbers. In practice though it causes TurboFan to
+// generate quite a lot of unused code though if we always handle numbers
+// and oddballs everywhere, although in 99% of the use sites they are only
+// used with numbers.
 class BinaryOperationFeedback {
  public:
   enum {
@@ -1279,11 +1282,15 @@ class BinaryOperationFeedback {
 // Type feedback is encoded in such a way that, we can combine the feedback
 // at different points by performing an 'OR' operation. Type feedback moves
 // to a more generic type when we combine feedback.
-// kSignedSmall        -> kNumber   -> kAny
-// kInternalizedString -> kString   -> kAny
-//                        kSymbol   -> kAny
-//                        kReceiver -> kAny
-// TODO(epertoso): consider unifying this with BinaryOperationFeedback.
+//
+//   kSignedSmall -> kNumber             -> kNumberOrOddball -> kAny
+//                   kInternalizedString -> kString          -> kAny
+//                                          kSymbol          -> kAny
+//                                          kBigInt          -> kAny
+//                                          kReceiver        -> kAny
+//
+// This is distinct from BinaryOperationFeedback on purpose, because the
+// feedback that matters differs greatly as well as the way it is consumed.
 class CompareOperationFeedback {
  public:
   enum {
@@ -1294,9 +1301,38 @@ class CompareOperationFeedback {
     kInternalizedString = 0x8,
     kString = 0x18,
     kSymbol = 0x20,
+    kBigInt = 0x30,
     kReceiver = 0x40,
     kAny = 0xff
   };
+};
+
+enum class Operation {
+  // Binary operations.
+  kAdd,
+  kSubtract,
+  kMultiply,
+  kDivide,
+  kModulus,
+  kExponentiate,
+  kBitwiseAnd,
+  kBitwiseOr,
+  kBitwiseXor,
+  kShiftLeft,
+  kShiftRight,
+  kShiftRightLogical,
+  // Unary operations.
+  kBitwiseNot,
+  kNegate,
+  kIncrement,
+  kDecrement,
+  // Compare operations.
+  kEqual,
+  kStrictEqual,
+  kLessThan,
+  kLessThanOrEqual,
+  kGreaterThan,
+  kGreaterThanOrEqual,
 };
 
 // Type feedback is encoded in such a way that, we can combine the feedback
@@ -1392,6 +1428,7 @@ inline std::ostream& operator<<(std::ostream& os,
 }
 
 enum class OptimizationMarker {
+  kLogFirstExecution,
   kNone,
   kCompileOptimized,
   kCompileOptimizedConcurrent,
@@ -1401,6 +1438,8 @@ enum class OptimizationMarker {
 inline std::ostream& operator<<(std::ostream& os,
                                 const OptimizationMarker& marker) {
   switch (marker) {
+    case OptimizationMarker::kLogFirstExecution:
+      return os << "OptimizationMarker::kLogFirstExecution";
     case OptimizationMarker::kNone:
       return os << "OptimizationMarker::kNone";
     case OptimizationMarker::kCompileOptimized:
@@ -1414,21 +1453,37 @@ inline std::ostream& operator<<(std::ostream& os,
   return os;
 }
 
+enum class SpeculationMode { kAllowSpeculation, kDisallowSpeculation };
+
+inline std::ostream& operator<<(std::ostream& os,
+                                SpeculationMode speculation_mode) {
+  switch (speculation_mode) {
+    case SpeculationMode::kAllowSpeculation:
+      return os << "SpeculationMode::kAllowSpeculation";
+    case SpeculationMode::kDisallowSpeculation:
+      return os << "SpeculationMode::kDisallowSpeculation";
+  }
+  UNREACHABLE();
+  return os;
+}
+
 enum class ConcurrencyMode { kNotConcurrent, kConcurrent };
 
-#define FOR_EACH_ISOLATE_ADDRESS_NAME(C)                \
-  C(Handler, handler)                                   \
-  C(CEntryFP, c_entry_fp)                               \
-  C(CFunction, c_function)                              \
-  C(Context, context)                                   \
-  C(PendingException, pending_exception)                \
-  C(PendingHandlerContext, pending_handler_context)     \
-  C(PendingHandlerCode, pending_handler_code)           \
-  C(PendingHandlerOffset, pending_handler_offset)       \
-  C(PendingHandlerFP, pending_handler_fp)               \
-  C(PendingHandlerSP, pending_handler_sp)               \
-  C(ExternalCaughtException, external_caught_exception) \
-  C(JSEntrySP, js_entry_sp)
+#define FOR_EACH_ISOLATE_ADDRESS_NAME(C)                       \
+  C(Handler, handler)                                          \
+  C(CEntryFP, c_entry_fp)                                      \
+  C(CFunction, c_function)                                     \
+  C(Context, context)                                          \
+  C(PendingException, pending_exception)                       \
+  C(PendingHandlerContext, pending_handler_context)            \
+  C(PendingHandlerEntrypoint, pending_handler_entrypoint)      \
+  C(PendingHandlerConstantPool, pending_handler_constant_pool) \
+  C(PendingHandlerFP, pending_handler_fp)                      \
+  C(PendingHandlerSP, pending_handler_sp)                      \
+  C(ExternalCaughtException, external_caught_exception)        \
+  C(JSEntrySP, js_entry_sp)                                    \
+  C(MicrotaskQueueBailoutIndex, microtask_queue_bailout_index) \
+  C(MicrotaskQueueBailoutCount, microtask_queue_bailout_count)
 
 enum IsolateAddressId {
 #define DECLARE_ENUM(CamelName, hacker_name) k##CamelName##Address,

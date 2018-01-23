@@ -38,8 +38,8 @@ bool IsReservedPredicate(uc16 c) {
 bool IsReplacementCharacter(const uint8_t* octets, int length) {
   // The replacement character is at codepoint U+FFFD in the Unicode Specials
   // table. Its UTF-8 encoding is 0xEF 0xBF 0xBD.
-  if (length != 3 || octets[0] != 0xef || octets[1] != 0xbf ||
-      octets[2] != 0xbd) {
+  if (length != 3 || octets[0] != 0xEF || octets[1] != 0xBF ||
+      octets[2] != 0xBD) {
     return false;
   }
   return true;
@@ -360,7 +360,7 @@ MaybeHandle<String> UnescapeSlow(Isolate* isolate, Handle<String> string,
 
   int dest_position = 0;
   Handle<String> second_part;
-  DCHECK(unescaped_length <= String::kMaxLength);
+  DCHECK_LE(unescaped_length, String::kMaxLength);
   if (one_byte) {
     Handle<SeqOneByteString> dest = isolate->factory()
                                         ->NewRawOneByteString(unescaped_length)
@@ -444,7 +444,7 @@ static MaybeHandle<String> EscapePrivate(Isolate* isolate,
       }
 
       // We don't allow strings that are longer than a maximal length.
-      DCHECK(String::kMaxLength < 0x7fffffff - 6);     // Cannot overflow.
+      DCHECK_LT(String::kMaxLength, 0x7FFFFFFF - 6);   // Cannot overflow.
       if (escaped_length > String::kMaxLength) break;  // Provoke exception.
     }
   }
@@ -468,10 +468,10 @@ static MaybeHandle<String> EscapePrivate(Isolate* isolate,
         dest->SeqOneByteStringSet(dest_position + 1, 'u');
         dest->SeqOneByteStringSet(dest_position + 2, HexCharOfValue(c >> 12));
         dest->SeqOneByteStringSet(dest_position + 3,
-                                  HexCharOfValue((c >> 8) & 0xf));
+                                  HexCharOfValue((c >> 8) & 0xF));
         dest->SeqOneByteStringSet(dest_position + 4,
-                                  HexCharOfValue((c >> 4) & 0xf));
-        dest->SeqOneByteStringSet(dest_position + 5, HexCharOfValue(c & 0xf));
+                                  HexCharOfValue((c >> 4) & 0xF));
+        dest->SeqOneByteStringSet(dest_position + 5, HexCharOfValue(c & 0xF));
         dest_position += 6;
       } else if (IsNotEscaped(c)) {
         dest->SeqOneByteStringSet(dest_position, c);
@@ -479,7 +479,7 @@ static MaybeHandle<String> EscapePrivate(Isolate* isolate,
       } else {
         dest->SeqOneByteStringSet(dest_position, '%');
         dest->SeqOneByteStringSet(dest_position + 1, HexCharOfValue(c >> 4));
-        dest->SeqOneByteStringSet(dest_position + 2, HexCharOfValue(c & 0xf));
+        dest->SeqOneByteStringSet(dest_position + 2, HexCharOfValue(c & 0xF));
         dest_position += 3;
       }
     }

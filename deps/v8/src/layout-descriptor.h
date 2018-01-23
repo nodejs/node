@@ -7,7 +7,7 @@
 
 #include <iosfwd>
 
-#include "src/objects.h"
+#include "src/objects/fixed-array.h"
 
 namespace v8 {
 namespace internal {

@@ -84,19 +84,6 @@ namespace internal {
 // The length of pushq(rbp), movp(rbp, rsp), Push(rsi) and Push(rdi).
 constexpr int kNoCodeAgeSequenceLength = kPointerSize == kInt64Size ? 6 : 17;
 
-const int kNumRegs = 16;
-const RegList kJSCallerSaved =
-    1 << 0 |  // rax
-    1 << 1 |  // rcx
-    1 << 2 |  // rdx
-    1 << 3 |  // rbx - used as a caller-saved register in JavaScript code
-    1 << 7;   // rdi - callee function
-
-const int kNumJSCallerSaved = 5;
-
-// Number of registers for which space is reserved in safepoints.
-const int kNumSafepointRegisters = 16;
-
 enum RegisterCode {
 #define REGISTER_CODE(R) kRegCode_##R,
   GENERAL_REGISTERS(REGISTER_CODE)
@@ -128,6 +115,19 @@ static_assert(IS_TRIVIALLY_COPYABLE(Register) &&
 GENERAL_REGISTERS(DECLARE_REGISTER)
 #undef DECLARE_REGISTER
 constexpr Register no_reg = Register::no_reg();
+
+constexpr int kNumRegs = 16;
+
+constexpr RegList kJSCallerSaved =
+    Register::ListOf<rax, rcx, rdx,
+                     rbx,  // used as a caller-saved register in JavaScript code
+                     rdi   // callee function
+                     >();
+
+constexpr int kNumJSCallerSaved = 5;
+
+// Number of registers for which space is reserved in safepoints.
+constexpr int kNumSafepointRegisters = 16;
 
 #ifdef _WIN64
   // Windows calling convention
@@ -182,6 +182,7 @@ constexpr Register arg_reg_4 = rcx;
   V(xmm13)                              \
   V(xmm14)
 
+constexpr bool kPadArguments = false;
 constexpr bool kSimpleFPAliasing = true;
 constexpr bool kSimdMaskRegisters = false;
 
@@ -315,7 +316,7 @@ class Immediate BASE_EMBEDDED {
 
  private:
   int32_t value_;
-  RelocInfo::Mode rmode_ = RelocInfo::NONE32;
+  RelocInfo::Mode rmode_ = RelocInfo::NONE;
 
   friend class Assembler;
 };
@@ -446,14 +447,15 @@ class Assembler : public AssemblerBase {
   // relocation information starting from the end of the buffer. See CodeDesc
   // for a detailed comment on the layout (globals.h).
   //
-  // If the provided buffer is NULL, the assembler allocates and grows its own
-  // buffer, and buffer_size determines the initial buffer size. The buffer is
-  // owned by the assembler and deallocated upon destruction of the assembler.
+  // If the provided buffer is nullptr, the assembler allocates and grows its
+  // own buffer, and buffer_size determines the initial buffer size. The buffer
+  // is owned by the assembler and deallocated upon destruction of the
+  // assembler.
   //
-  // If the provided buffer is not NULL, the assembler uses the provided buffer
-  // for code generation and assumes its size to be buffer_size. If the buffer
-  // is too small, a fatal error occurs. No deallocation of the buffer is done
-  // upon destruction of the assembler.
+  // If the provided buffer is not nullptr, the assembler uses the provided
+  // buffer for code generation and assumes its size to be buffer_size. If the
+  // buffer is too small, a fatal error occurs. No deallocation of the buffer is
+  // done upon destruction of the assembler.
   Assembler(Isolate* isolate, void* buffer, int buffer_size)
       : Assembler(IsolateData(isolate), buffer, buffer_size) {}
   Assembler(IsolateData isolate_data, void* buffer, int buffer_size);
@@ -476,10 +478,6 @@ class Assembler : public AssemblerBase {
   static inline void set_target_address_at(
       Isolate* isolate, Address pc, Address constant_pool, Address target,
       ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
-  static inline Address target_address_at(Address pc, Code* code);
-  static inline void set_target_address_at(
-      Isolate* isolate, Address pc, Code* code, Address target,
-      ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
 
   // Return the code target address at a call site from the return address
   // of that call in the instruction stream.
@@ -495,15 +493,6 @@ class Assembler : public AssemblerBase {
   inline static void deserialization_set_target_internal_reference_at(
       Isolate* isolate, Address pc, Address target,
       RelocInfo::Mode mode = RelocInfo::INTERNAL_REFERENCE);
-
-  static inline RelocInfo::Mode RelocInfoNone() {
-    if (kPointerSize == kInt64Size) {
-      return RelocInfo::NONE64;
-    } else {
-      DCHECK(kPointerSize == kInt32Size);
-      return RelocInfo::NONE32;
-    }
-  }
 
   inline Handle<Code> code_target_object_handle_at(Address pc);
   inline Address runtime_entry_at(Address pc);
@@ -669,9 +658,9 @@ class Assembler : public AssemblerBase {
 
   // Loads a 64-bit immediate into a register.
   void movq(Register dst, int64_t value,
-            RelocInfo::Mode rmode = RelocInfo::NONE64);
+            RelocInfo::Mode rmode = RelocInfo::NONE);
   void movq(Register dst, uint64_t value,
-            RelocInfo::Mode rmode = RelocInfo::NONE64);
+            RelocInfo::Mode rmode = RelocInfo::NONE);
 
   void movsxbl(Register dst, Register src);
   void movsxbl(Register dst, const Operand& src);
@@ -884,6 +873,8 @@ class Assembler : public AssemblerBase {
   // Call near relative 32-bit displacement, relative to next instruction.
   void call(Label* L);
   void call(Address entry, RelocInfo::Mode rmode);
+  void near_call(Address entry, RelocInfo::Mode rmode);
+  void near_jmp(Address entry, RelocInfo::Mode rmode);
   void call(CodeStub* stub);
   void call(Handle<Code> target,
             RelocInfo::Mode rmode = RelocInfo::CODE_TARGET);
@@ -1208,6 +1199,9 @@ class Assembler : public AssemblerBase {
   void xorpd(XMMRegister dst, const Operand& src);
   void sqrtsd(XMMRegister dst, XMMRegister src);
   void sqrtsd(XMMRegister dst, const Operand& src);
+
+  void haddps(XMMRegister dst, XMMRegister src);
+  void haddps(XMMRegister dst, const Operand& src);
 
   void ucomisd(XMMRegister dst, XMMRegister src);
   void ucomisd(XMMRegister dst, const Operand& src);
@@ -1902,6 +1896,9 @@ class Assembler : public AssemblerBase {
   void rorxl(Register dst, Register src, byte imm8);
   void rorxl(Register dst, const Operand& src, byte imm8);
 
+  void lfence();
+  void pause();
+
   // Check the code size generated from label to here.
   int SizeOfCodeGeneratedSince(Label* label) {
     return pc_offset() - label->pos();
@@ -1922,8 +1919,6 @@ class Assembler : public AssemblerBase {
     // No embedded constant pool support.
     UNREACHABLE();
   }
-
-  void RecordProtectedInstructionLanding(int pc_offset);
 
   // Writes a single word of data in the code stream.
   // Used for inline tables, e.g., jump-tables.
@@ -2068,7 +2063,7 @@ class Assembler : public AssemblerBase {
     if (size == kInt64Size) {
       emit_rex_64();
     } else {
-      DCHECK(size == kInt32Size);
+      DCHECK_EQ(size, kInt32Size);
     }
   }
 
@@ -2077,7 +2072,7 @@ class Assembler : public AssemblerBase {
     if (size == kInt64Size) {
       emit_rex_64(p1);
     } else {
-      DCHECK(size == kInt32Size);
+      DCHECK_EQ(size, kInt32Size);
       emit_optional_rex_32(p1);
     }
   }
@@ -2087,7 +2082,7 @@ class Assembler : public AssemblerBase {
     if (size == kInt64Size) {
       emit_rex_64(p1, p2);
     } else {
-      DCHECK(size == kInt32Size);
+      DCHECK_EQ(size, kInt32Size);
       emit_optional_rex_32(p1, p2);
     }
   }
@@ -2411,7 +2406,6 @@ class Assembler : public AssemblerBase {
 
   bool is_optimizable_farjmp(int idx);
 
-  friend class CodePatcher;
   friend class EnsureSpace;
   friend class RegExpMacroAssemblerX64;
 

@@ -75,7 +75,11 @@ void MemoryOptimizer::VisitNode(Node* node, AllocationState const* state) {
   DCHECK_LT(0, node->op()->EffectInputCount());
   switch (node->opcode()) {
     case IrOpcode::kAllocate:
-      return VisitAllocate(node, state);
+      // Allocate nodes were purged from the graph in effect-control
+      // linearization.
+      UNREACHABLE();
+    case IrOpcode::kAllocateRaw:
+      return VisitAllocateRaw(node, state);
     case IrOpcode::kCall:
       return VisitCall(node, state);
     case IrOpcode::kCallWithCallerSavedRegisters:
@@ -88,8 +92,6 @@ void MemoryOptimizer::VisitNode(Node* node, AllocationState const* state) {
       return VisitStoreElement(node, state);
     case IrOpcode::kStoreField:
       return VisitStoreField(node, state);
-    case IrOpcode::kCheckedLoad:
-    case IrOpcode::kCheckedStore:
     case IrOpcode::kDeoptimizeIf:
     case IrOpcode::kDeoptimizeUnless:
     case IrOpcode::kIfException:
@@ -100,6 +102,7 @@ void MemoryOptimizer::VisitNode(Node* node, AllocationState const* state) {
     case IrOpcode::kRetain:
     case IrOpcode::kUnsafePointerAdd:
     case IrOpcode::kDebugBreak:
+    case IrOpcode::kUnreachable:
       return VisitOtherEffect(node, state);
     default:
       break;
@@ -109,8 +112,9 @@ void MemoryOptimizer::VisitNode(Node* node, AllocationState const* state) {
 
 #define __ gasm()->
 
-void MemoryOptimizer::VisitAllocate(Node* node, AllocationState const* state) {
-  DCHECK_EQ(IrOpcode::kAllocate, node->opcode());
+void MemoryOptimizer::VisitAllocateRaw(Node* node,
+                                       AllocationState const* state) {
+  DCHECK_EQ(IrOpcode::kAllocateRaw, node->opcode());
   Node* value;
   Node* size = node->InputAt(0);
   Node* effect = node->InputAt(1);
@@ -129,7 +133,7 @@ void MemoryOptimizer::VisitAllocate(Node* node, AllocationState const* state) {
       Node* const user = edge.from();
       if (user->opcode() == IrOpcode::kStoreField && edge.index() == 0) {
         Node* const child = user->InputAt(1);
-        if (child->opcode() == IrOpcode::kAllocate &&
+        if (child->opcode() == IrOpcode::kAllocateRaw &&
             PretenureFlagOf(child->op()) == NOT_TENURED) {
           NodeProperties::ChangeOp(child, node->op());
           break;
@@ -142,7 +146,7 @@ void MemoryOptimizer::VisitAllocate(Node* node, AllocationState const* state) {
       Node* const user = edge.from();
       if (user->opcode() == IrOpcode::kStoreField && edge.index() == 1) {
         Node* const parent = user->InputAt(0);
-        if (parent->opcode() == IrOpcode::kAllocate &&
+        if (parent->opcode() == IrOpcode::kAllocateRaw &&
             PretenureFlagOf(parent->op()) == TENURED) {
           pretenure = TENURED;
           break;
@@ -297,7 +301,6 @@ void MemoryOptimizer::VisitAllocate(Node* node, AllocationState const* state) {
 
   effect = __ ExtractCurrentEffect();
   control = __ ExtractCurrentControl();
-  USE(control);  // Floating control, dropped on the floor.
 
   // Replace all effect uses of {node} with the {effect}, enqueue the
   // effect uses for further processing, and replace all value uses of
@@ -306,9 +309,11 @@ void MemoryOptimizer::VisitAllocate(Node* node, AllocationState const* state) {
     if (NodeProperties::IsEffectEdge(edge)) {
       EnqueueUse(edge.from(), edge.index(), state);
       edge.UpdateTo(effect);
-    } else {
-      DCHECK(NodeProperties::IsValueEdge(edge));
+    } else if (NodeProperties::IsValueEdge(edge)) {
       edge.UpdateTo(value);
+    } else {
+      DCHECK(NodeProperties::IsControlEdge(edge));
+      edge.UpdateTo(control);
     }
   }
 

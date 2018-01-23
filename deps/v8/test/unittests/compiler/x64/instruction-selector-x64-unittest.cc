@@ -1519,12 +1519,11 @@ TEST_F(InstructionSelectorTest, Word64ShlWithChangeUint32ToUint64) {
   }
 }
 
-
-TEST_F(InstructionSelectorTest, Word32AndWith0xff) {
+TEST_F(InstructionSelectorTest, Word32AndWith0xFF) {
   {
     StreamBuilder m(this, MachineType::Int32(), MachineType::Int32());
     Node* const p0 = m.Parameter(0);
-    Node* const n = m.Word32And(p0, m.Int32Constant(0xff));
+    Node* const n = m.Word32And(p0, m.Int32Constant(0xFF));
     m.Return(n);
     Stream s = m.Build();
     ASSERT_EQ(1U, s.size());
@@ -1537,7 +1536,7 @@ TEST_F(InstructionSelectorTest, Word32AndWith0xff) {
   {
     StreamBuilder m(this, MachineType::Int32(), MachineType::Int32());
     Node* const p0 = m.Parameter(0);
-    Node* const n = m.Word32And(m.Int32Constant(0xff), p0);
+    Node* const n = m.Word32And(m.Int32Constant(0xFF), p0);
     m.Return(n);
     Stream s = m.Build();
     ASSERT_EQ(1U, s.size());
@@ -1549,12 +1548,11 @@ TEST_F(InstructionSelectorTest, Word32AndWith0xff) {
   }
 }
 
-
-TEST_F(InstructionSelectorTest, Word32AndWith0xffff) {
+TEST_F(InstructionSelectorTest, Word32AndWith0xFFFF) {
   {
     StreamBuilder m(this, MachineType::Int32(), MachineType::Int32());
     Node* const p0 = m.Parameter(0);
-    Node* const n = m.Word32And(p0, m.Int32Constant(0xffff));
+    Node* const n = m.Word32And(p0, m.Int32Constant(0xFFFF));
     m.Return(n);
     Stream s = m.Build();
     ASSERT_EQ(1U, s.size());
@@ -1567,7 +1565,7 @@ TEST_F(InstructionSelectorTest, Word32AndWith0xffff) {
   {
     StreamBuilder m(this, MachineType::Int32(), MachineType::Int32());
     Node* const p0 = m.Parameter(0);
-    Node* const n = m.Word32And(m.Int32Constant(0xffff), p0);
+    Node* const n = m.Word32And(m.Int32Constant(0xFFFF), p0);
     m.Return(n);
     Stream s = m.Build();
     ASSERT_EQ(1U, s.size());
@@ -1641,6 +1639,15 @@ TEST_F(InstructionSelectorTest, LoadAndWord64ShiftRight32) {
     ASSERT_EQ(1U, s[0]->OutputCount());
     EXPECT_EQ(s.ToVreg(shift), s.ToVreg(s[0]->Output()));
   }
+}
+
+TEST_F(InstructionSelectorTest, SpeculationFence) {
+  StreamBuilder m(this, MachineType::Int32());
+  m.SpeculationFence();
+  m.Return(m.Int32Constant(0));
+  Stream s = m.Build();
+  ASSERT_EQ(1U, s.size());
+  EXPECT_EQ(kLFence, s[0]->arch_opcode());
 }
 
 }  // namespace compiler

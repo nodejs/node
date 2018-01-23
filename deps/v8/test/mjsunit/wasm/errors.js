@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --expose-wasm
+// Flags: --expose-wasm --allow-natives-syntax
 
 'use strict';
 
@@ -169,4 +169,20 @@ function assertConversionError(bytes, imports, msg) {
   assertConversionError(builder().addFunction("run", kSig_l_v).addBody([
     kExprI64Const, 0
   ]).exportFunc().end().toBuffer(), {}, "invalid type");
+})();
+
+
+(function InternalDebugTrace() {
+  var builder = new WasmModuleBuilder();
+  var sig = builder.addType(kSig_i_dd);
+  builder.addImport("mod", "func", sig);
+  builder.addFunction("main", sig)
+    .addBody([kExprGetLocal, 0, kExprGetLocal, 1, kExprCallFunction, 0])
+    .exportAs("main")
+  var main = builder.instantiate({
+    mod: {
+      func: ()=>{%DebugTrace();}
+    }
+  }).exports.main;
+  main();
 })();

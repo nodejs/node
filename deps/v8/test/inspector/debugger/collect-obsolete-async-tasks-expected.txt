@@ -1,37 +1,25 @@
 Checks that we collect obsolete async tasks with async stacks.
-Async stacks count: 2
+Async stacks count: 1
 Scheduled async tasks: 1
-Created async tasks: 1
-Async tasks with parent: 0
-Recurring async tasks: 1
+Recurring async tasks: 0
 
 Async stacks count: 0
 Scheduled async tasks: 0
-Created async tasks: 0
-Async tasks with parent: 0
 Recurring async tasks: 0
 
 Async stacks count: 2
-Scheduled async tasks: 0
-Created async tasks: 2
-Async tasks with parent: 2
+Scheduled async tasks: 2
 Recurring async tasks: 0
 
 Async stacks count: 0
 Scheduled async tasks: 0
-Created async tasks: 0
-Async tasks with parent: 0
 Recurring async tasks: 0
 
 Async stacks count: 1
 Scheduled async tasks: 1
-Created async tasks: 0
-Async tasks with parent: 0
 Recurring async tasks: 0
 
 Async stacks count: 0
 Scheduled async tasks: 0
-Created async tasks: 0
-Async tasks with parent: 0
 Recurring async tasks: 0
 

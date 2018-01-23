@@ -72,9 +72,68 @@ class FreeStoreAllocationPolicy {
   INLINE(static void Delete(void* p)) { Malloced::Delete(p); }
 };
 
+// Performs a malloc, with retry logic on failure. Returns nullptr on failure.
+// Call free to release memory allocated with this function.
+void* AllocWithRetry(size_t size);
 
 void* AlignedAlloc(size_t size, size_t alignment);
 void AlignedFree(void *ptr);
+
+// Gets the page granularity for AllocatePages and FreePages. Addresses returned
+// by AllocatePages and AllocatePage are aligned to this size.
+V8_EXPORT_PRIVATE size_t AllocatePageSize();
+
+// Gets the granularity at which the permissions and release calls can be made.
+V8_EXPORT_PRIVATE size_t CommitPageSize();
+
+// Sets the random seed so that GetRandomMmapAddr() will generate repeatable
+// sequences of random mmap addresses.
+V8_EXPORT_PRIVATE void SetRandomMmapSeed(int64_t seed);
+
+// Generate a random address to be used for hinting allocation calls.
+V8_EXPORT_PRIVATE void* GetRandomMmapAddr();
+
+// Allocates memory. Permissions are set according to the access argument.
+// |address| is a hint. |size| and |alignment| must be multiples of
+// AllocatePageSize(). Returns the address of the allocated memory, with the
+// specified size and alignment, or nullptr on failure.
+V8_EXPORT_PRIVATE
+V8_WARN_UNUSED_RESULT void* AllocatePages(void* address, size_t size,
+                                          size_t alignment,
+                                          PageAllocator::Permission access);
+
+// Frees memory allocated by a call to AllocatePages. |address| and |size| must
+// be multiples of AllocatePageSize(). Returns true on success, otherwise false.
+V8_EXPORT_PRIVATE
+V8_WARN_UNUSED_RESULT bool FreePages(void* address, const size_t size);
+
+// Releases memory that is no longer needed. The range specified by |address|
+// and |size| must be an allocated memory region. |size| and |new_size| must be
+// multiples of CommitPageSize(). Memory from |new_size| to |size| is released.
+// Released memory is left in an undefined state, so it should not be accessed.
+// Returns true on success, otherwise false.
+V8_EXPORT_PRIVATE
+V8_WARN_UNUSED_RESULT bool ReleasePages(void* address, size_t size,
+                                        size_t new_size);
+
+// Sets permissions according to |access|. |address| and |size| must be
+// multiples of CommitPageSize(). Setting permission to kNoAccess may
+// cause the memory contents to be lost. Returns true on success, otherwise
+// false.
+V8_EXPORT_PRIVATE
+V8_WARN_UNUSED_RESULT bool SetPermissions(void* address, size_t size,
+                                          PageAllocator::Permission access);
+
+// Convenience function that allocates a single system page with read and write
+// permissions. |address| is a hint. Returns the base address of the memory and
+// the page size via |allocated| on success. Returns nullptr on failure.
+V8_EXPORT_PRIVATE
+V8_WARN_UNUSED_RESULT byte* AllocatePage(void* address, size_t* allocated);
+
+// Function that may release reserved memory regions to allow failed allocations
+// to succeed. |length| is the amount of memory needed. Returns |true| if memory
+// could be released, false otherwise.
+V8_EXPORT_PRIVATE bool OnCriticalMemoryPressure(size_t length);
 
 // Represents and controls an area of reserved memory.
 class V8_EXPORT_PRIVATE VirtualMemory {
@@ -82,13 +141,10 @@ class V8_EXPORT_PRIVATE VirtualMemory {
   // Empty VirtualMemory object, controlling no reserved memory.
   VirtualMemory();
 
-  // Reserves virtual memory with size.
-  explicit VirtualMemory(size_t size, void* hint);
-
-  // Reserves virtual memory containing an area of the given size that
-  // is aligned per alignment. This may not be at the position returned
-  // by address().
-  VirtualMemory(size_t size, size_t alignment, void* hint);
+  // Reserves virtual memory containing an area of the given size that is
+  // aligned per alignment. This may not be at the position returned by
+  // address().
+  VirtualMemory(size_t size, void* hint, size_t alignment = AllocatePageSize());
 
   // Construct a virtual memory by assigning it some already mapped address
   // and size.
@@ -125,19 +181,16 @@ class V8_EXPORT_PRIVATE VirtualMemory {
   // than the requested size.
   size_t size() const { return size_; }
 
-  // Commits real memory. Returns whether the operation succeeded.
-  bool Commit(void* address, size_t size, bool is_executable);
+  // Sets permissions according to the access argument. address and size must be
+  // multiples of CommitPageSize(). Returns true on success, otherwise false.
+  bool SetPermissions(void* address, size_t size,
+                      PageAllocator::Permission access);
 
-  // Uncommit real memory.  Returns whether the operation succeeded.
-  bool Uncommit(void* address, size_t size);
+  // Releases memory after |free_start|. Returns the number of bytes released.
+  size_t Release(void* free_start);
 
-  // Creates a single guard page at the given address.
-  bool Guard(void* address);
-
-  // Releases the memory after |free_start|. Returns the bytes released.
-  size_t ReleasePartial(void* free_start);
-
-  void Release();
+  // Frees all memory.
+  void Free();
 
   // Assign control of the reserved region to a different VirtualMemory object.
   // The old object is no longer functional (IsReserved() returns false).
@@ -158,9 +211,6 @@ class V8_EXPORT_PRIVATE VirtualMemory {
 bool AllocVirtualMemory(size_t size, void* hint, VirtualMemory* result);
 bool AlignedAllocVirtualMemory(size_t size, size_t alignment, void* hint,
                                VirtualMemory* result);
-
-// Generate a random address to be used for hinting mmap().
-V8_EXPORT_PRIVATE void* GetRandomMmapAddr();
 
 }  // namespace internal
 }  // namespace v8

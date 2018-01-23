@@ -10,6 +10,7 @@
 #include "src/base/platform/platform.h"
 #include "src/cancelable-task.h"
 #include "src/globals.h"
+#include "src/heap/gc-tracer.h"
 #include "src/heap/remembered-set.h"
 #include "src/heap/slot-set.h"
 
@@ -167,14 +168,19 @@ class StoreBuffer {
   class Task : public CancelableTask {
    public:
     Task(Isolate* isolate, StoreBuffer* store_buffer)
-        : CancelableTask(isolate), store_buffer_(store_buffer) {}
+        : CancelableTask(isolate),
+          store_buffer_(store_buffer),
+          tracer_(isolate->heap()->tracer()) {}
     virtual ~Task() {}
 
    private:
     void RunInternal() override {
+      TRACE_BACKGROUND_GC(tracer_,
+                          GCTracer::BackgroundScope::BACKGROUND_STORE_BUFFER);
       store_buffer_->ConcurrentlyProcessStoreBuffer();
     }
     StoreBuffer* store_buffer_;
+    GCTracer* tracer_;
     DISALLOW_COPY_AND_ASSIGN(Task);
   };
 

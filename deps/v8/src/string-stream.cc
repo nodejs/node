@@ -48,7 +48,7 @@ bool StringStream::Put(char c) {
       buffer_ = new_buffer;
     } else {
       // Reached the end of the available buffer.
-      DCHECK(capacity_ >= 5);
+      DCHECK_GE(capacity_, 5);
       length_ = capacity_ - 1;  // Indicate fullness of the stream.
       buffer_[length_ - 4] = '.';
       buffer_[length_ - 3] = '.';
@@ -129,7 +129,7 @@ void StringStream::Add(Vector<const char> format, Vector<FmtElm> elms) {
       int value = current.data_.u_int_;
       if (0x20 <= value && value <= 0x7F) {
         Put(value);
-      } else if (value <= 0xff) {
+      } else if (value <= 0xFF) {
         Add("\\x%02x", value);
       } else {
         Add("\\u%04x", value);
@@ -173,7 +173,7 @@ void StringStream::Add(Vector<const char> format, Vector<FmtElm> elms) {
   }
 
   // Verify that the buffer is 0-terminated
-  DCHECK(buffer_[length_] == '\0');
+  DCHECK_EQ(buffer_[length_], '\0');
 }
 
 
@@ -242,8 +242,8 @@ Handle<String> StringStream::ToString(Isolate* isolate) {
 
 
 void StringStream::ClearMentionedObjectCache(Isolate* isolate) {
-  isolate->set_string_stream_current_security_token(NULL);
-  if (isolate->string_stream_debug_object_cache() == NULL) {
+  isolate->set_string_stream_current_security_token(nullptr);
+  if (isolate->string_stream_debug_object_cache() == nullptr) {
     isolate->set_string_stream_debug_object_cache(new DebugObjectCache());
   }
   isolate->string_stream_debug_object_cache()->clear();
@@ -529,7 +529,7 @@ char* HeapStringAllocator::grow(unsigned* bytes) {
     return space_;
   }
   char* new_space = NewArray<char>(new_bytes);
-  if (new_space == NULL) {
+  if (new_space == nullptr) {
     return space_;
   }
   MemCopy(new_space, space_, *bytes);

@@ -1225,7 +1225,9 @@
           'OBJECT_PRINT',
           'VERIFY_HEAP',
           'DEBUG',
-          'V8_TRACE_MAPS'
+          'V8_TRACE_MAPS',
+          'V8_ENABLE_ALLOCATION_TIMEOUT',
+          'V8_ENABLE_FORCE_SLOW_PATH',
         ],
         'conditions': [
           ['OS=="linux" or OS=="freebsd" or OS=="openbsd" or OS=="netbsd" or \

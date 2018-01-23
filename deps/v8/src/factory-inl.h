@@ -29,6 +29,14 @@ ROOT_LIST(ROOT_ACCESSOR)
 STRUCT_LIST(STRUCT_MAP_ACCESSOR)
 #undef STRUCT_MAP_ACCESSOR
 
+#define DATA_HANDLER_MAP_ACCESSOR(NAME, Name, Size, name)                \
+  Handle<Map> Factory::name##_map() {                                    \
+    return Handle<Map>(bit_cast<Map**>(                                  \
+        &isolate()->heap()->roots_[Heap::k##Name##Size##MapRootIndex])); \
+  }
+DATA_HANDLER_LIST(DATA_HANDLER_MAP_ACCESSOR)
+#undef DATA_HANDLER_MAP_ACCESSOR
+
 #define STRING_ACCESSOR(name, str)                              \
   Handle<String> Factory::name() {                              \
     return Handle<String>(bit_cast<String**>(                   \
@@ -53,6 +61,16 @@ PRIVATE_SYMBOL_LIST(SYMBOL_ACCESSOR)
 PUBLIC_SYMBOL_LIST(SYMBOL_ACCESSOR)
 WELL_KNOWN_SYMBOL_LIST(SYMBOL_ACCESSOR)
 #undef SYMBOL_ACCESSOR
+
+#define ACCESSOR_INFO_ACCESSOR(accessor_name, AccessorName)        \
+  Handle<AccessorInfo> Factory::accessor_name##_accessor() {       \
+    return Handle<AccessorInfo>(bit_cast<AccessorInfo**>(          \
+        &isolate()                                                 \
+             ->heap()                                              \
+             ->roots_[Heap::k##AccessorName##AccessorRootIndex])); \
+  }
+ACCESSOR_INFO_LIST(ACCESSOR_INFO_ACCESSOR)
+#undef ACCESSOR_INFO_ACCESSOR
 
 Handle<String> Factory::InternalizeString(Handle<String> string) {
   if (string->IsInternalizedString()) return string;

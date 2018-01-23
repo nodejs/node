@@ -98,10 +98,10 @@ void SymbolAccessorSetter(Local<Name> name, Local<Value> value,
   SimpleAccessorSetter(Local<String>::Cast(sym->Name()), value, info);
 }
 
-void StringInterceptorGetter(
-    Local<String> name,
-    const v8::PropertyCallbackInfo<v8::Value>&
-        info) {  // Intercept names that start with 'interceptor_'.
+void InterceptorGetter(Local<Name> generic_name,
+                       const v8::PropertyCallbackInfo<v8::Value>& info) {
+  if (generic_name->IsSymbol()) return;
+  Local<String> name = Local<String>::Cast(generic_name);
   String::Utf8Value utf8(info.GetIsolate(), name);
   char* name_str = *utf8;
   char prefix[] = "interceptor_";
@@ -117,9 +117,10 @@ void StringInterceptorGetter(
           .ToLocalChecked());
 }
 
-
-void StringInterceptorSetter(Local<String> name, Local<Value> value,
-                             const v8::PropertyCallbackInfo<v8::Value>& info) {
+void InterceptorSetter(Local<Name> generic_name, Local<Value> value,
+                       const v8::PropertyCallbackInfo<v8::Value>& info) {
+  if (generic_name->IsSymbol()) return;
+  Local<String> name = Local<String>::Cast(generic_name);
   // Intercept accesses that set certain integer values, for which the name does
   // not start with 'accessor_'.
   String::Utf8Value utf8(info.GetIsolate(), name);
@@ -138,18 +139,6 @@ void StringInterceptorSetter(Local<String> name, Local<Value> value,
     self->SetPrivate(context, symbol, value).FromJust();
     info.GetReturnValue().Set(value);
   }
-}
-
-void InterceptorGetter(Local<Name> generic_name,
-                       const v8::PropertyCallbackInfo<v8::Value>& info) {
-  if (generic_name->IsSymbol()) return;
-  StringInterceptorGetter(Local<String>::Cast(generic_name), info);
-}
-
-void InterceptorSetter(Local<Name> generic_name, Local<Value> value,
-                       const v8::PropertyCallbackInfo<v8::Value>& info) {
-  if (generic_name->IsSymbol()) return;
-  StringInterceptorSetter(Local<String>::Cast(generic_name), value, info);
 }
 
 void GenericInterceptorGetter(Local<Name> generic_name,
@@ -198,17 +187,18 @@ void AddAccessor(Local<FunctionTemplate> templ, Local<String> name,
   templ->PrototypeTemplate()->SetAccessor(name, getter, setter);
 }
 
-void AddInterceptor(Local<FunctionTemplate> templ,
-                    v8::NamedPropertyGetterCallback getter,
-                    v8::NamedPropertySetterCallback setter) {
-  templ->InstanceTemplate()->SetNamedPropertyHandler(getter, setter);
-}
-
-
 void AddAccessor(Local<FunctionTemplate> templ, Local<Name> name,
                  v8::AccessorNameGetterCallback getter,
                  v8::AccessorNameSetterCallback setter) {
   templ->PrototypeTemplate()->SetAccessor(name, getter, setter);
+}
+
+void AddStringOnlyInterceptor(Local<FunctionTemplate> templ,
+                              v8::GenericNamedPropertyGetterCallback getter,
+                              v8::GenericNamedPropertySetterCallback setter) {
+  templ->InstanceTemplate()->SetHandler(v8::NamedPropertyHandlerConfiguration(
+      getter, setter, nullptr, nullptr, nullptr, Local<v8::Value>(),
+      v8::PropertyHandlerFlags::kOnlyInterceptStrings));
 }
 
 void AddInterceptor(Local<FunctionTemplate> templ,
@@ -1517,7 +1507,7 @@ THREADED_TEST(LegacyInterceptorDoesNotSeeSymbols) {
 
   child->Inherit(parent);
   AddAccessor(parent, age, SymbolAccessorGetter, SymbolAccessorSetter);
-  AddInterceptor(child, StringInterceptorGetter, StringInterceptorSetter);
+  AddStringOnlyInterceptor(child, InterceptorGetter, InterceptorSetter);
 
   env->Global()
       ->Set(env.local(), v8_str("Child"),
@@ -2284,7 +2274,7 @@ THREADED_TEST(PrePropertyHandler) {
   desc->InstanceTemplate()->SetHandler(v8::NamedPropertyHandlerConfiguration(
       PrePropertyHandlerGet, 0, PrePropertyHandlerQuery));
   is_bootstrapping = true;
-  LocalContext env(NULL, desc->InstanceTemplate());
+  LocalContext env(nullptr, desc->InstanceTemplate());
   is_bootstrapping = false;
   CompileRun("var pre = 'Object: pre'; var on = 'Object: on';");
   v8::Local<Value> result_pre = CompileRun("pre");
@@ -3252,10 +3242,10 @@ THREADED_TEST(Deleter) {
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
   v8::Local<v8::ObjectTemplate> obj = ObjectTemplate::New(isolate);
-  obj->SetHandler(v8::NamedPropertyHandlerConfiguration(NoBlockGetterX, NULL,
-                                                        NULL, PDeleter, NULL));
+  obj->SetHandler(v8::NamedPropertyHandlerConfiguration(
+      NoBlockGetterX, nullptr, nullptr, PDeleter, nullptr));
   obj->SetHandler(v8::IndexedPropertyHandlerConfiguration(
-      NoBlockGetterI, NULL, NULL, IDeleter, NULL));
+      NoBlockGetterI, nullptr, nullptr, IDeleter, nullptr));
   LocalContext context;
   context->Global()
       ->Set(context.local(), v8_str("k"),
@@ -3361,10 +3351,10 @@ THREADED_TEST(Enumerators) {
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
   v8::Local<v8::ObjectTemplate> obj = ObjectTemplate::New(isolate);
-  obj->SetHandler(
-      v8::NamedPropertyHandlerConfiguration(GetK, NULL, NULL, NULL, NamedEnum));
+  obj->SetHandler(v8::NamedPropertyHandlerConfiguration(GetK, nullptr, nullptr,
+                                                        nullptr, NamedEnum));
   obj->SetHandler(v8::IndexedPropertyHandlerConfiguration(
-      IndexedGetK, NULL, NULL, NULL, IndexedEnum));
+      IndexedGetK, nullptr, nullptr, nullptr, IndexedEnum));
   LocalContext context;
   context->Global()
       ->Set(context.local(), v8_str("k"),
@@ -4387,7 +4377,7 @@ THREADED_TEST(Regress625155) {
   CompileRun(
       "Number.prototype.__proto__ = new Bug;"
       "var x;"
-      "x = 0xdead;"
+      "x = 0xDEAD;"
       "x.boom = 0;"
       "x = 's';"
       "x.boom = 0;"
@@ -4453,9 +4443,9 @@ THREADED_TEST(GetOwnPropertyNamesWithInterceptor) {
   obj_template->Set(v8_str("7"), v8::Integer::New(CcTest::isolate(), 7));
   obj_template->Set(v8_str("x"), v8::Integer::New(CcTest::isolate(), 42));
   obj_template->SetHandler(v8::IndexedPropertyHandlerConfiguration(
-      NULL, NULL, NULL, NULL, IndexedPropertyEnumerator));
+      nullptr, nullptr, nullptr, nullptr, IndexedPropertyEnumerator));
   obj_template->SetHandler(v8::NamedPropertyHandlerConfiguration(
-      NULL, NULL, NULL, NULL, NamedPropertyEnumerator));
+      nullptr, nullptr, nullptr, nullptr, NamedPropertyEnumerator));
 
   LocalContext context;
   v8::Local<v8::Object> global = context->Global();
@@ -4520,7 +4510,7 @@ THREADED_TEST(GetOwnPropertyNamesWithIndexedInterceptorExceptions_regress4026) {
   obj_template->Set(v8_str("x"), v8::Integer::New(CcTest::isolate(), 42));
   // First just try a failing indexed interceptor.
   obj_template->SetHandler(v8::IndexedPropertyHandlerConfiguration(
-      NULL, NULL, NULL, NULL, IndexedPropertyEnumeratorException));
+      nullptr, nullptr, nullptr, nullptr, IndexedPropertyEnumeratorException));
 
   LocalContext context;
   v8::Local<v8::Object> global = context->Global();
@@ -4566,7 +4556,7 @@ THREADED_TEST(GetOwnPropertyNamesWithNamedInterceptorExceptions_regress4026) {
   obj_template->Set(v8_str("x"), v8::Integer::New(CcTest::isolate(), 42));
   // First just try a failing indexed interceptor.
   obj_template->SetHandler(v8::NamedPropertyHandlerConfiguration(
-      NULL, NULL, NULL, NULL, NamedPropertyEnumeratorException));
+      nullptr, nullptr, nullptr, nullptr, NamedPropertyEnumeratorException));
 
   LocalContext context;
   v8::Local<v8::Object> global = context->Global();
@@ -5068,7 +5058,7 @@ THREADED_TEST(EnumeratorsAndUnenumerableNamedProperties) {
   v8::HandleScope scope(isolate);
   v8::Local<v8::ObjectTemplate> obj = ObjectTemplate::New(isolate);
   obj->SetHandler(v8::NamedPropertyHandlerConfiguration(
-      ConcatNamedPropertyGetter, NULL, RestrictiveNamedQuery, NULL,
+      ConcatNamedPropertyGetter, nullptr, RestrictiveNamedQuery, nullptr,
       EnumCallbackWithNames));
   LocalContext context;
   context->Global()
@@ -5119,7 +5109,7 @@ THREADED_TEST(EnumeratorsAndUnenumerableNamedPropertiesWithoutSet) {
   v8::HandleScope scope(isolate);
   v8::Local<v8::ObjectTemplate> obj = ObjectTemplate::New(isolate);
   obj->SetHandler(v8::NamedPropertyHandlerConfiguration(
-      ConcatNamedPropertyGetter, NULL, QueryInterceptorForFoo, NULL,
+      ConcatNamedPropertyGetter, nullptr, QueryInterceptorForFoo, nullptr,
       EnumCallbackWithNames));
   LocalContext context;
   context->Global()
@@ -5141,7 +5131,7 @@ THREADED_TEST(EnumeratorsAndUnenumerableIndexedPropertiesArgumentsElements) {
   v8::HandleScope scope(isolate);
   v8::Local<v8::ObjectTemplate> obj = ObjectTemplate::New(isolate);
   obj->SetHandler(v8::IndexedPropertyHandlerConfiguration(
-      ConcatIndexedPropertyGetter, NULL, RestrictiveIndexedQuery, NULL,
+      ConcatIndexedPropertyGetter, nullptr, RestrictiveIndexedQuery, nullptr,
       SloppyArgsIndexedPropertyEnumerator));
   LocalContext context;
   context->Global()
@@ -5176,7 +5166,7 @@ THREADED_TEST(EnumeratorsAndUnenumerableIndexedProperties) {
   v8::HandleScope scope(isolate);
   v8::Local<v8::ObjectTemplate> obj = ObjectTemplate::New(isolate);
   obj->SetHandler(v8::IndexedPropertyHandlerConfiguration(
-      ConcatIndexedPropertyGetter, NULL, RestrictiveIndexedQuery, NULL,
+      ConcatIndexedPropertyGetter, nullptr, RestrictiveIndexedQuery, nullptr,
       EnumCallbackWithIndices));
   LocalContext context;
   context->Global()
@@ -5208,7 +5198,8 @@ THREADED_TEST(EnumeratorsAndForIn) {
   v8::HandleScope scope(isolate);
   v8::Local<v8::ObjectTemplate> obj = ObjectTemplate::New(isolate);
   obj->SetHandler(v8::NamedPropertyHandlerConfiguration(
-      ConcatNamedPropertyGetter, NULL, RestrictiveNamedQuery, NULL, NamedEnum));
+      ConcatNamedPropertyGetter, nullptr, RestrictiveNamedQuery, nullptr,
+      NamedEnum));
   LocalContext context;
   context->Global()
       ->Set(context.local(), v8_str("obj"),

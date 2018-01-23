@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --harmony-async-iteration --allow-natives-syntax
+// Flags: --allow-natives-syntax
 
 function assertThrowsAsync(run, errorType, message) {
   var actual;
@@ -153,7 +153,7 @@ async function* asyncGeneratorForToString() {}
 assertEquals("async function* asyncGeneratorForToString() {}",
              asyncGeneratorForToString.toString());
 
-assertEquals("async function* () {}", async function*() {}.toString());
+assertEquals("async function*() {}", async function*() {}.toString());
 assertEquals("async function* namedAsyncGeneratorForToString() {}",
              async function* namedAsyncGeneratorForToString() {}.toString());
 
@@ -164,9 +164,9 @@ assertEquals("async *method() { }",
 assertEquals("async *method() { }",
              (new (class { async *method() { } })).method.toString());
 
-assertEquals("async function* anonymous() {\n\n}",
+assertEquals("async function* anonymous(\n) {\n\n}",
              AsyncGeneratorFunction().toString());
-assertEquals("async function* anonymous() {\n\n}",
+assertEquals("async function* anonymous(\n) {\n\n}",
              (new AsyncGeneratorFunction()).toString());
 
 // ----------------------------------------------------------------------------

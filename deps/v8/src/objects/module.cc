@@ -199,29 +199,69 @@ void Module::SetStatus(Status new_status) {
   set_status(new_status);
 }
 
+void Module::ResetGraph(Handle<Module> module) {
+  DCHECK_NE(module->status(), kInstantiating);
+  DCHECK_NE(module->status(), kEvaluating);
+  if (module->status() != kPreInstantiating) return;
+  Isolate* isolate = module->GetIsolate();
+  Handle<FixedArray> requested_modules(module->requested_modules(), isolate);
+  Reset(module);
+  for (int i = 0; i < requested_modules->length(); ++i) {
+    Handle<Object> descendant(requested_modules->get(i), isolate);
+    if (descendant->IsModule()) {
+      ResetGraph(Handle<Module>::cast(descendant));
+    } else {
+      DCHECK(descendant->IsUndefined(isolate));
+    }
+  }
+}
+
+void Module::Reset(Handle<Module> module) {
+  Isolate* isolate = module->GetIsolate();
+  Factory* factory = isolate->factory();
+
+  DCHECK(module->status() == kPreInstantiating ||
+         module->status() == kInstantiating);
+  DCHECK(module->exception()->IsTheHole(isolate));
+  DCHECK(module->import_meta()->IsTheHole(isolate));
+  // The namespace object cannot exist, because it would have been created
+  // by RunInitializationCode, which is called only after this module's SCC
+  // succeeds instantiation.
+  DCHECK(!module->module_namespace()->IsJSModuleNamespace());
+
+  Handle<ObjectHashTable> exports =
+      ObjectHashTable::New(isolate, module->info()->RegularExportCount());
+  Handle<FixedArray> regular_exports =
+      factory->NewFixedArray(module->regular_exports()->length());
+  Handle<FixedArray> regular_imports =
+      factory->NewFixedArray(module->regular_imports()->length());
+  Handle<FixedArray> requested_modules =
+      factory->NewFixedArray(module->requested_modules()->length());
+
+  if (module->status() == kInstantiating) {
+    module->set_code(JSFunction::cast(module->code())->shared());
+  }
+#ifdef DEBUG
+  module->PrintStatusTransition(kUninstantiated);
+#endif  // DEBUG
+  module->set_status(kUninstantiated);
+  module->set_exports(*exports);
+  module->set_regular_exports(*regular_exports);
+  module->set_regular_imports(*regular_imports);
+  module->set_requested_modules(*requested_modules);
+  module->set_dfs_index(-1);
+  module->set_dfs_ancestor_index(-1);
+}
+
 void Module::RecordError() {
   DisallowHeapAllocation no_alloc;
-
   Isolate* isolate = GetIsolate();
+
+  DCHECK(exception()->IsTheHole(isolate));
   Object* the_exception = isolate->pending_exception();
   DCHECK(!the_exception->IsTheHole(isolate));
 
-  switch (status()) {
-    case Module::kUninstantiated:
-    case Module::kPreInstantiating:
-    case Module::kInstantiating:
-    case Module::kEvaluating:
-      break;
-    case Module::kErrored:
-      DCHECK_EQ(exception(), the_exception);
-      return;
-    default:
-      UNREACHABLE();
-  }
-
   set_code(info());
-
-  DCHECK(exception()->IsTheHole(isolate));
 #ifdef DEBUG
   PrintStatusTransition(Module::kErrored);
 #endif  // DEBUG
@@ -232,9 +272,8 @@ void Module::RecordError() {
 Object* Module::GetException() {
   DisallowHeapAllocation no_alloc;
   DCHECK_EQ(status(), Module::kErrored);
-  Object* the_exception = exception();
-  DCHECK(!the_exception->IsTheHole(GetIsolate()));
-  return the_exception;
+  DCHECK(!exception()->IsTheHole(GetIsolate()));
+  return exception();
 }
 
 MaybeHandle<Cell> Module::ResolveImport(Handle<Module> module,
@@ -244,29 +283,25 @@ MaybeHandle<Cell> Module::ResolveImport(Handle<Module> module,
   Isolate* isolate = module->GetIsolate();
   Handle<Module> requested_module(
       Module::cast(module->requested_modules()->get(module_request)), isolate);
-  MaybeHandle<Cell> result = Module::ResolveExport(requested_module, name, loc,
-                                                   must_resolve, resolve_set);
-  if (isolate->has_pending_exception()) {
-    DCHECK(result.is_null());
-    if (must_resolve) module->RecordError();
-    // If {must_resolve} is false and there's an exception, then either that
-    // exception was already recorded where it happened, or it's the
-    // kAmbiguousExport exception (see ResolveExportUsingStarExports) and the
-    // culprit module is still to be determined.
-  }
+  Handle<String> specifier(
+      String::cast(module->info()->module_requests()->get(module_request)),
+      isolate);
+  MaybeHandle<Cell> result = Module::ResolveExport(
+      requested_module, specifier, name, loc, must_resolve, resolve_set);
+  DCHECK_IMPLIES(isolate->has_pending_exception(), result.is_null());
   return result;
 }
 
 MaybeHandle<Cell> Module::ResolveExport(Handle<Module> module,
-                                        Handle<String> name,
+                                        Handle<String> module_specifier,
+                                        Handle<String> export_name,
                                         MessageLocation loc, bool must_resolve,
                                         Module::ResolveSet* resolve_set) {
-  DCHECK_NE(module->status(), kErrored);
-  DCHECK_NE(module->status(), kEvaluating);
   DCHECK_GE(module->status(), kPreInstantiating);
+  DCHECK_NE(module->status(), kEvaluating);
 
   Isolate* isolate = module->GetIsolate();
-  Handle<Object> object(module->exports()->Lookup(name), isolate);
+  Handle<Object> object(module->exports()->Lookup(export_name), isolate);
   if (object->IsCell()) {
     // Already resolved (e.g. because it's a local export).
     return Handle<Cell>::cast(object);
@@ -282,17 +317,18 @@ MaybeHandle<Cell> Module::ResolveExport(Handle<Module> module,
       Zone* zone = resolve_set->zone();
       name_set =
           new (zone->New(sizeof(UnorderedStringSet))) UnorderedStringSet(zone);
-    } else if (name_set->count(name)) {
+    } else if (name_set->count(export_name)) {
       // Cycle detected.
       if (must_resolve) {
         return isolate->Throw<Cell>(
             isolate->factory()->NewSyntaxError(
-                MessageTemplate::kCyclicModuleDependency, name),
+                MessageTemplate::kCyclicModuleDependency, export_name,
+                module_specifier),
             &loc);
       }
       return MaybeHandle<Cell>();
     }
-    name_set->insert(name);
+    name_set->insert(export_name);
   }
 
   if (object->IsModuleInfoEntry()) {
@@ -313,23 +349,24 @@ MaybeHandle<Cell> Module::ResolveExport(Handle<Module> module,
     // The export table may have changed but the entry in question should be
     // unchanged.
     Handle<ObjectHashTable> exports(module->exports(), isolate);
-    DCHECK(exports->Lookup(name)->IsModuleInfoEntry());
+    DCHECK(exports->Lookup(export_name)->IsModuleInfoEntry());
 
-    exports = ObjectHashTable::Put(exports, name, cell);
+    exports = ObjectHashTable::Put(exports, export_name, cell);
     module->set_exports(*exports);
     return cell;
   }
 
   DCHECK(object->IsTheHole(isolate));
-  return Module::ResolveExportUsingStarExports(module, name, loc, must_resolve,
-                                               resolve_set);
+  return Module::ResolveExportUsingStarExports(
+      module, module_specifier, export_name, loc, must_resolve, resolve_set);
 }
 
 MaybeHandle<Cell> Module::ResolveExportUsingStarExports(
-    Handle<Module> module, Handle<String> name, MessageLocation loc,
-    bool must_resolve, Module::ResolveSet* resolve_set) {
+    Handle<Module> module, Handle<String> module_specifier,
+    Handle<String> export_name, MessageLocation loc, bool must_resolve,
+    Module::ResolveSet* resolve_set) {
   Isolate* isolate = module->GetIsolate();
-  if (!name->Equals(isolate->heap()->default_string())) {
+  if (!export_name->Equals(isolate->heap()->default_string())) {
     // Go through all star exports looking for the given name.  If multiple star
     // exports provide the name, make sure they all map it to the same cell.
     Handle<Cell> unique_cell;
@@ -346,15 +383,15 @@ MaybeHandle<Cell> Module::ResolveExportUsingStarExports(
       MessageLocation new_loc(script, entry->beg_pos(), entry->end_pos());
 
       Handle<Cell> cell;
-      if (ResolveImport(module, name, entry->module_request(), new_loc, false,
-                        resolve_set)
+      if (ResolveImport(module, export_name, entry->module_request(), new_loc,
+                        false, resolve_set)
               .ToHandle(&cell)) {
         if (unique_cell.is_null()) unique_cell = cell;
         if (*unique_cell != *cell) {
-          return isolate->Throw<Cell>(
-              isolate->factory()->NewSyntaxError(
-                  MessageTemplate::kAmbiguousExport, name),
-              &loc);
+          return isolate->Throw<Cell>(isolate->factory()->NewSyntaxError(
+                                          MessageTemplate::kAmbiguousExport,
+                                          module_specifier, export_name),
+                                      &loc);
         }
       } else if (isolate->has_pending_exception()) {
         return MaybeHandle<Cell>();
@@ -364,8 +401,8 @@ MaybeHandle<Cell> Module::ResolveExportUsingStarExports(
     if (!unique_cell.is_null()) {
       // Found a unique star export for this name.
       Handle<ObjectHashTable> exports(module->exports(), isolate);
-      DCHECK(exports->Lookup(name)->IsTheHole(isolate));
-      exports = ObjectHashTable::Put(exports, name, unique_cell);
+      DCHECK(exports->Lookup(export_name)->IsTheHole(isolate));
+      exports = ObjectHashTable::Put(exports, export_name, unique_cell);
       module->set_exports(*exports);
       return unique_cell;
     }
@@ -373,9 +410,10 @@ MaybeHandle<Cell> Module::ResolveExportUsingStarExports(
 
   // Unresolvable.
   if (must_resolve) {
-    return isolate->Throw<Cell>(isolate->factory()->NewSyntaxError(
-                                    MessageTemplate::kUnresolvableExport, name),
-                                &loc);
+    return isolate->Throw<Cell>(
+        isolate->factory()->NewSyntaxError(MessageTemplate::kUnresolvableExport,
+                                           module_specifier, export_name),
+        &loc);
   }
   return MaybeHandle<Cell>();
 }
@@ -393,27 +431,24 @@ bool Module::Instantiate(Handle<Module> module, v8::Local<v8::Context> context,
   }
 #endif  // DEBUG
 
-  Isolate* isolate = module->GetIsolate();
-  if (module->status() == kErrored) {
-    isolate->Throw(module->GetException());
-    return false;
-  }
-
   if (!PrepareInstantiate(module, context, callback)) {
+    ResetGraph(module);
     return false;
   }
 
+  Isolate* isolate = module->GetIsolate();
   Zone zone(isolate->allocator(), ZONE_NAME);
   ZoneForwardList<Handle<Module>> stack(&zone);
   unsigned dfs_index = 0;
   if (!FinishInstantiate(module, &stack, &dfs_index, &zone)) {
     for (auto& descendant : stack) {
-      descendant->RecordError();
+      Reset(descendant);
     }
-    DCHECK_EQ(module->GetException(), isolate->pending_exception());
+    DCHECK_EQ(module->status(), kUninstantiated);
     return false;
   }
-  DCHECK(module->status() == kInstantiated || module->status() == kEvaluated);
+  DCHECK(module->status() == kInstantiated || module->status() == kEvaluated ||
+         module->status() == kErrored);
   DCHECK(stack.empty());
   return true;
 }
@@ -421,7 +456,6 @@ bool Module::Instantiate(Handle<Module> module, v8::Local<v8::Context> context,
 bool Module::PrepareInstantiate(Handle<Module> module,
                                 v8::Local<v8::Context> context,
                                 v8::Module::ResolveCallback callback) {
-  DCHECK_NE(module->status(), kErrored);
   DCHECK_NE(module->status(), kEvaluating);
   DCHECK_NE(module->status(), kInstantiating);
   if (module->status() >= kPreInstantiating) return true;
@@ -439,17 +473,9 @@ bool Module::PrepareInstantiate(Handle<Module> module,
                   v8::Utils::ToLocal(module))
              .ToLocal(&api_requested_module)) {
       isolate->PromoteScheduledException();
-      module->RecordError();
       return false;
     }
     Handle<Module> requested_module = Utils::OpenHandle(*api_requested_module);
-    if (requested_module->status() == kErrored) {
-      // TODO(neis): Move this into callback?
-      isolate->Throw(requested_module->GetException());
-      module->RecordError();
-      DCHECK_EQ(module->GetException(), requested_module->GetException());
-      return false;
-    }
     requested_modules->set(i, *requested_module);
   }
 
@@ -458,8 +484,6 @@ bool Module::PrepareInstantiate(Handle<Module> module,
     Handle<Module> requested_module(Module::cast(requested_modules->get(i)),
                                     isolate);
     if (!PrepareInstantiate(requested_module, context, callback)) {
-      module->RecordError();
-      DCHECK_EQ(module->GetException(), requested_module->GetException());
       return false;
     }
   }
@@ -531,7 +555,6 @@ void Module::MaybeTransitionComponent(Handle<Module> module,
 bool Module::FinishInstantiate(Handle<Module> module,
                                ZoneForwardList<Handle<Module>>* stack,
                                unsigned* dfs_index, Zone* zone) {
-  DCHECK_NE(module->status(), kErrored);
   DCHECK_NE(module->status(), kEvaluating);
   if (module->status() >= kInstantiating) return true;
   DCHECK_EQ(module->status(), kPreInstantiating);
@@ -560,7 +583,6 @@ bool Module::FinishInstantiate(Handle<Module> module,
       return false;
     }
 
-    DCHECK_NE(requested_module->status(), kErrored);
     DCHECK_NE(requested_module->status(), kEvaluating);
     DCHECK_GE(requested_module->status(), kInstantiating);
     SLOW_DCHECK(
@@ -606,8 +628,8 @@ bool Module::FinishInstantiate(Handle<Module> module,
     if (name->IsUndefined(isolate)) continue;  // Star export.
     MessageLocation loc(script, entry->beg_pos(), entry->end_pos());
     ResolveSet resolve_set(zone);
-    if (ResolveExport(module, Handle<String>::cast(name), loc, true,
-                      &resolve_set)
+    if (ResolveExport(module, Handle<String>(), Handle<String>::cast(name), loc,
+                      true, &resolve_set)
             .is_null()) {
       return false;
     }
@@ -722,7 +744,6 @@ namespace {
 
 void FetchStarExports(Handle<Module> module, Zone* zone,
                       UnorderedModuleSet* visited) {
-  DCHECK_NE(module->status(), Module::kErrored);
   DCHECK_GE(module->status(), Module::kInstantiating);
 
   if (module->module_namespace()->IsJSModuleNamespace()) return;  // Shortcut.
@@ -848,10 +869,10 @@ Handle<JSModuleNamespace> Module::GetModuleNamespace(Handle<Module> module) {
                                 "JSModuleNamespace");
   for (const auto& name : names) {
     JSObject::SetNormalizedProperty(
-        ns, name, Accessors::ModuleNamespaceEntryInfo(isolate, name, attr),
+        ns, name, Accessors::MakeModuleNamespaceEntryInfo(isolate, name),
         PropertyDetails(kAccessor, attr, PropertyCellType::kMutable));
   }
-  JSObject::PreventExtensions(ns, THROW_ON_ERROR).ToChecked();
+  JSObject::PreventExtensions(ns, kThrowOnError).ToChecked();
 
   // Optimize the namespace object as a prototype, for two reasons:
   // - The object's map is guaranteed not to be shared. ICs rely on this.

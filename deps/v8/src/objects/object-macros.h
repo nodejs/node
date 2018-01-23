@@ -12,17 +12,15 @@
 // for fields that can be written to and read from multiple threads at the same
 // time. See comments in src/base/atomicops.h for the memory ordering sematics.
 
-#define DECL_BOOLEAN_ACCESSORS(name) \
-  inline bool name() const;          \
-  inline void set_##name(bool value);
+#define DECL_PRIMITIVE_ACCESSORS(name, type) \
+  inline type name() const;                  \
+  inline void set_##name(type value);
 
-#define DECL_INT_ACCESSORS(name) \
-  inline int name() const;       \
-  inline void set_##name(int value);
+#define DECL_BOOLEAN_ACCESSORS(name) DECL_PRIMITIVE_ACCESSORS(name, bool)
 
-#define DECL_INT32_ACCESSORS(name) \
-  inline int32_t name() const;     \
-  inline void set_##name(int32_t value);
+#define DECL_INT_ACCESSORS(name) DECL_PRIMITIVE_ACCESSORS(name, int)
+
+#define DECL_INT32_ACCESSORS(name) DECL_PRIMITIVE_ACCESSORS(name, int32_t)
 
 #define DECL_ACCESSORS(name, type)    \
   inline type* name() const;          \
@@ -56,8 +54,9 @@
 #define ACCESSORS_CHECKED2(holder, name, type, offset, get_condition, \
                            set_condition)                             \
   type* holder::name() const {                                        \
+    type* value = type::cast(READ_FIELD(this, offset));               \
     DCHECK(get_condition);                                            \
-    return type::cast(READ_FIELD(this, offset));                      \
+    return value;                                                     \
   }                                                                   \
   void holder::set_##name(type* value, WriteBarrierMode mode) {       \
     DCHECK(set_condition);                                            \
@@ -285,18 +284,16 @@
 #define DECL_VERIFIER(Name)
 #endif
 
-#define DEFINE_DEOPT_ELEMENT_ACCESSORS(name, type)       \
-  type* DeoptimizationInputData::name() {                \
-    return type::cast(get(k##name##Index));              \
-  }                                                      \
-  void DeoptimizationInputData::Set##name(type* value) { \
-    set(k##name##Index, value);                          \
+#define DEFINE_DEOPT_ELEMENT_ACCESSORS(name, type)                             \
+  type* DeoptimizationData::name() { return type::cast(get(k##name##Index)); } \
+  void DeoptimizationData::Set##name(type* value) {                            \
+    set(k##name##Index, value);                                                \
   }
 
 #define DEFINE_DEOPT_ENTRY_ACCESSORS(name, type)                \
-  type* DeoptimizationInputData::name(int i) {                  \
+  type* DeoptimizationData::name(int i) {                       \
     return type::cast(get(IndexForEntry(i) + k##name##Offset)); \
   }                                                             \
-  void DeoptimizationInputData::Set##name(int i, type* value) { \
+  void DeoptimizationData::Set##name(int i, type* value) {      \
     set(IndexForEntry(i) + k##name##Offset, value);             \
   }

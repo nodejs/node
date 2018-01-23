@@ -18,12 +18,33 @@ namespace internal {
 
 class Label {
  public:
-  enum Distance { kNear, kFar };
+  enum Distance {
+    kNear,  // near jump: 8 bit displacement (signed)
+    kFar    // far jump: 32 bit displacement (signed)
+  };
 
-  INLINE(Label()) {
-    Unuse();
-    UnuseNear();
+  Label() = default;
+
+// On ARM64, the Assembler keeps track of pointers to Labels to resolve
+// branches to distant targets. Copying labels would confuse the Assembler.
+// On other platforms, allow move construction.
+#if !V8_TARGET_ARCH_ARM64
+// In debug builds, the old Label has to be cleared in order to avoid a DCHECK
+// failure in it's destructor.
+#ifdef DEBUG
+  Label(Label&& other) { *this = std::move(other); }
+  Label& operator=(Label&& other) {
+    pos_ = other.pos_;
+    near_link_pos_ = other.near_link_pos_;
+    other.Unuse();
+    other.UnuseNear();
+    return *this;
   }
+#else
+  Label(Label&&) = default;
+  Label& operator=(Label&&) = default;
+#endif
+#endif
 
   INLINE(~Label()) {
     DCHECK(!is_linked());
@@ -55,10 +76,10 @@ class Label {
   // pos_ <  0  bound label, pos() returns the jump target position
   // pos_ == 0  unused label
   // pos_ >  0  linked label, pos() returns the last reference position
-  int pos_;
+  int pos_ = 0;
 
   // Behaves like |pos_| in the "> 0" case, but for near jumps to this label.
-  int near_link_pos_;
+  int near_link_pos_ = 0;
 
   void bind_to(int pos) {
     pos_ = -pos - 1;
@@ -78,11 +99,9 @@ class Label {
   friend class Displacement;
   friend class RegExpMacroAssemblerIrregexp;
 
-#if V8_TARGET_ARCH_ARM64
-  // On ARM64, the Assembler keeps track of pointers to Labels to resolve
-  // branches to distant targets. Copying labels would confuse the Assembler.
-  DISALLOW_COPY_AND_ASSIGN(Label);  // NOLINT
-#endif
+  // Disallow copy construction and assignment, but allow move construction and
+  // move assignment on selected platforms (see above).
+  DISALLOW_COPY_AND_ASSIGN(Label);
 };
 
 }  // namespace internal

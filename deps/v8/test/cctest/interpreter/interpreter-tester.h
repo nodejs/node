@@ -83,6 +83,11 @@ class InterpreterTester {
 
   static const char kFunctionName[];
 
+  // Expose raw RegisterList construction to tests.
+  static RegisterList NewRegisterList(int first_reg_index, int register_count) {
+    return RegisterList(first_reg_index, register_count);
+  }
+
  private:
   Isolate* isolate_;
   const char* source_;

@@ -202,5 +202,30 @@ TEST(ZoneChunkList, BigCopyToTest) {
   }
 }
 
+void TestForwardIterationOfConstList(
+    const ZoneChunkList<uintptr_t>& zone_chunk_list) {
+  size_t count = 0;
+
+  for (uintptr_t item : zone_chunk_list) {
+    EXPECT_EQ(static_cast<size_t>(item), count);
+    count++;
+  }
+
+  EXPECT_EQ(count, kItemCount);
+}
+
+TEST(ZoneChunkList, ConstForwardIterationTest) {
+  AccountingAllocator allocator;
+  Zone zone(&allocator, ZONE_NAME);
+
+  ZoneChunkList<uintptr_t> zone_chunk_list(&zone);
+
+  for (size_t i = 0; i < kItemCount; ++i) {
+    zone_chunk_list.push_back(static_cast<uintptr_t>(i));
+  }
+
+  TestForwardIterationOfConstList(zone_chunk_list);
+}
+
 }  // namespace internal
 }  // namespace v8

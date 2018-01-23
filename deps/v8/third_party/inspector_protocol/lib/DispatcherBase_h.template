@@ -85,8 +85,6 @@ public:
     explicit DispatcherBase(FrontendChannel*);
     virtual ~DispatcherBase();
 
-    static bool getCommandName(const String& message, String* result);
-
     virtual DispatchResponse::Status dispatch(int callId, const String& method, std::unique_ptr<protocol::DictionaryValue> messageObject) = 0;
 
     void sendResponse(int callId, const DispatchResponse&, std::unique_ptr<protocol::DictionaryValue> result);
@@ -113,15 +111,18 @@ class {{config.lib.export_macro}} UberDispatcher {
 public:
     explicit UberDispatcher(FrontendChannel*);
     void registerBackend(const String& name, std::unique_ptr<protocol::DispatcherBase>);
-    DispatchResponse::Status dispatch(std::unique_ptr<Value> message);
+    void setupRedirects(const HashMap<String, String>&);
+    DispatchResponse::Status dispatch(std::unique_ptr<Value> message, int* callId = nullptr, String* method = nullptr);
     FrontendChannel* channel() { return m_frontendChannel; }
     bool fallThroughForNotFound() { return m_fallThroughForNotFound; }
     void setFallThroughForNotFound(bool);
+    bool getCommandName(const String& message, String* method, std::unique_ptr<protocol::DictionaryValue>* parsedMessage);
     virtual ~UberDispatcher();
 
 private:
     FrontendChannel* m_frontendChannel;
     bool m_fallThroughForNotFound;
+    HashMap<String, String> m_redirects;
     protocol::HashMap<String, std::unique_ptr<protocol::DispatcherBase>> m_dispatchers;
 };
 

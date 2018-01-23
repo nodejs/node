@@ -118,6 +118,10 @@
   # Invalid according to ES2015 syntax. (Details: crbug.com/726625)
   'ecma_3/extensions/regress-368516': [FAIL],
 
+  # Function.prototype.toString revision.
+  # (https://chromium-review.googlesource.com/c/546941#message-5dc0f5efe277388501e8870e39ec70383dfc7db8)
+  'js1_5/Scope/regress-185485': [FAIL],
+
   ##################### SKIPPED TESTS #####################
 
   # This test checks that we behave properly in an out-of-memory
@@ -151,6 +155,10 @@
   'js1_5/decompilation/regress-443071-01': [SKIP],
 
   ##################### SLOW TESTS #####################
+
+  # Compiles a long chain of && or || operations, can time out under slower
+  # variants.
+  'js1_5/Expressions/regress-394673': [PASS, NO_VARIANTS],
 
   # This takes a long time to run (~100 seconds). It should only be run
   # by the really patient.
@@ -300,6 +308,9 @@
   # d8 does not implement a window object.
   'js1_5/Regress/regress-317476': [FAIL],
   'js1_5/Regress/regress-314401': [FAIL],
+
+  # d8 implements setTimeout, but not clearTimeout.
+  'js1_5/GC/regress-319980-01': [FAIL],
 
   # Any local 'arguments' variable should not be allowed to shadow the value
   # returned via the indirect 'arguments' property accessor.
@@ -674,10 +685,6 @@
   # is given null or undefined as this argument (and so does firefox nightly).
   'js1_5/Regress/regress-295052': [FAIL],
 
-  # Bug 1202597: New js1_5/Expressions/regress-394673 is failing.
-  # Marked as: Will not fix. V8 throws an acceptable RangeError.
-  'js1_5/Expressions/regress-394673': [FAIL],
-
   # Bug 762: http://code.google.com/p/v8/issues/detail?id=762
   # We do not correctly handle assignments within "with"
   'ecma_3/Statements/12.10-01': [FAIL],
@@ -808,8 +815,8 @@
   # error message in debug mode.
   'js1_5/extensions/regress-336410-1': [FAIL_OK, ['mode == debug and arch == x64', NO_VARIANTS]],
 
-  # These tests fail when --harmony-strict-legacy-accessor-builtins
-  # is enabled.
+  # These tests fail due to __defineGetter__ & friends throwing
+  # for undefined receivers.
   'js1_5/extensions/regress-313500': [SKIP],
   'js1_5/extensions/regress-325269': [SKIP],
 
@@ -876,10 +883,10 @@
 
 ['no_i18n == True and mode == debug', {
   # Tests too slow for no18n debug.
-  'ecma_3/Statements/regress-302439': [PASS, FAST_VARIANTS],
+  'ecma_3/Statements/regress-302439': [PASS, NO_VARIANTS],
   'js1_5/Regress/regress-98901': [SKIP],
-  'ecma_3/RegExp/perlstress-001': [PASS, FAST_VARIANTS],
-  'js1_5/extensions/regress-311161': [FAIL_OK, FAST_VARIANTS],
+  'ecma_3/RegExp/perlstress-001': [PASS, NO_VARIANTS],
+  'js1_5/extensions/regress-311161': [FAIL_OK, NO_VARIANTS],
 }],  # 'no_i18n == True and mode == debug'
 
 
@@ -935,7 +942,7 @@
 }], # 'arch == mipsel and simulator_run'
 
 ['arch == mips64el and simulator_run', {
-  'js1_5/extensions/regress-355497': [FAIL_OK, 'Flags: --sim-stack-size=512'],
+  'js1_5/extensions/regress-355497': [FAIL_OK, '--sim-stack-size=512'],
 }], # 'arch == mips64el and simulator_run'
 
 ['arch == mips', {
@@ -984,7 +991,7 @@
   'js1_5/extensions/regress-336410-1': [SKIP],
 
   #BUG(3152): Avoid C stack overflow.
-  'js1_5/extensions/regress-355497': [FAIL_OK, 'Flags: --sim-stack-size=512'],
+  'js1_5/extensions/regress-355497': [FAIL_OK, '--sim-stack-size=512'],
 }],  # 'arch == arm64 and simulator_run'
 
 ['variant == wasm_traps', {

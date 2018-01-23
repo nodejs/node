@@ -41,6 +41,11 @@ class ZoneVector : public std::vector<T, ZoneAllocator<T>> {
   ZoneVector(size_t size, T def, Zone* zone)
       : std::vector<T, ZoneAllocator<T>>(size, def, ZoneAllocator<T>(zone)) {}
 
+  // Constructs a new vector and fills it with the contents of the given
+  // initializer list.
+  ZoneVector(std::initializer_list<T> list, Zone* zone)
+      : std::vector<T, ZoneAllocator<T>>(list, ZoneAllocator<T>(zone)) {}
+
   // Constructs a new vector and fills it with the contents of the range
   // [first, last).
   template <class InputIt>

@@ -48,6 +48,8 @@ class Builtins {
         builtin_count
   };
 
+  static const int32_t kNoBuiltinId = -1;
+
   static bool IsBuiltinId(int maybe_id) {
     return 0 <= maybe_id && maybe_id < builtin_count;
   }

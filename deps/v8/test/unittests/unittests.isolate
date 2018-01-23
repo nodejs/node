@@ -5,6 +5,7 @@
   'variables': {
     'files': [
       '<(PRODUCT_DIR)/unittests<(EXECUTABLE_SUFFIX)',
+      './testcfg.py',
       './unittests.status',
     ],
   },

@@ -83,7 +83,7 @@ RegExpMacroAssemblerIA32::RegExpMacroAssemblerIA32(Isolate* isolate, Zone* zone,
                                                    Mode mode,
                                                    int registers_to_save)
     : NativeRegExpMacroAssembler(isolate, zone),
-      masm_(new MacroAssembler(isolate, NULL, kRegExpCodeSize,
+      masm_(new MacroAssembler(isolate, nullptr, kRegExpCodeSize,
                                CodeObjectRequired::kYes)),
       mode_(mode),
       num_registers_(registers_to_save),
@@ -531,12 +531,12 @@ bool RegExpMacroAssemblerIA32::CheckSpecialCharacterClass(uc16 type,
       Label success;
       __ cmp(current_character(), ' ');
       __ j(equal, &success, Label::kNear);
-      // Check range 0x09..0x0d
+      // Check range 0x09..0x0D
       __ lea(eax, Operand(current_character(), -'\t'));
       __ cmp(eax, '\r' - '\t');
       __ j(below_equal, &success, Label::kNear);
       // \u00a0 (NBSP).
-      __ cmp(eax, 0x00a0 - '\t');
+      __ cmp(eax, 0x00A0 - '\t');
       BranchOrBacktrack(not_equal, on_no_match);
       __ bind(&success);
       return true;
@@ -558,18 +558,18 @@ bool RegExpMacroAssemblerIA32::CheckSpecialCharacterClass(uc16 type,
     BranchOrBacktrack(below_equal, on_no_match);
     return true;
   case '.': {
-    // Match non-newlines (not 0x0a('\n'), 0x0d('\r'), 0x2028 and 0x2029)
+    // Match non-newlines (not 0x0A('\n'), 0x0D('\r'), 0x2028 and 0x2029)
     __ mov(eax, current_character());
     __ xor_(eax, Immediate(0x01));
-    // See if current character is '\n'^1 or '\r'^1, i.e., 0x0b or 0x0c
-    __ sub(eax, Immediate(0x0b));
-    __ cmp(eax, 0x0c - 0x0b);
+    // See if current character is '\n'^1 or '\r'^1, i.e., 0x0B or 0x0C
+    __ sub(eax, Immediate(0x0B));
+    __ cmp(eax, 0x0C - 0x0B);
     BranchOrBacktrack(below_equal, on_no_match);
     if (mode_ == UC16) {
       // Compare original value to 0x2028 and 0x2029, using the already
-      // computed (current_char ^ 0x01 - 0x0b). I.e., check for
-      // 0x201d (0x2028 - 0x0b) or 0x201e.
-      __ sub(eax, Immediate(0x2028 - 0x0b));
+      // computed (current_char ^ 0x01 - 0x0B). I.e., check for
+      // 0x201D (0x2028 - 0x0B) or 0x201E.
+      __ sub(eax, Immediate(0x2028 - 0x0B));
       __ cmp(eax, 0x2029 - 0x2028);
       BranchOrBacktrack(below_equal, on_no_match);
     }
@@ -610,13 +610,13 @@ bool RegExpMacroAssemblerIA32::CheckSpecialCharacterClass(uc16 type,
     // Match any character.
     return true;
   case 'n': {
-    // Match newlines (0x0a('\n'), 0x0d('\r'), 0x2028 or 0x2029).
+    // Match newlines (0x0A('\n'), 0x0D('\r'), 0x2028 or 0x2029).
     // The opposite of '.'.
     __ mov(eax, current_character());
     __ xor_(eax, Immediate(0x01));
-    // See if current character is '\n'^1 or '\r'^1, i.e., 0x0b or 0x0c
-    __ sub(eax, Immediate(0x0b));
-    __ cmp(eax, 0x0c - 0x0b);
+    // See if current character is '\n'^1 or '\r'^1, i.e., 0x0B or 0x0C
+    __ sub(eax, Immediate(0x0B));
+    __ cmp(eax, 0x0C - 0x0B);
     if (mode_ == LATIN1) {
       BranchOrBacktrack(above, on_no_match);
     } else {
@@ -624,9 +624,9 @@ bool RegExpMacroAssemblerIA32::CheckSpecialCharacterClass(uc16 type,
       BranchOrBacktrack(below_equal, &done);
       DCHECK_EQ(UC16, mode_);
       // Compare original value to 0x2028 and 0x2029, using the already
-      // computed (current_char ^ 0x01 - 0x0b). I.e., check for
-      // 0x201d (0x2028 - 0x0b) or 0x201e.
-      __ sub(eax, Immediate(0x2028 - 0x0b));
+      // computed (current_char ^ 0x01 - 0x0B). I.e., check for
+      // 0x201D (0x2028 - 0x0B) or 0x201E.
+      __ sub(eax, Immediate(0x2028 - 0x0B));
       __ cmp(eax, 1);
       BranchOrBacktrack(above, on_no_match);
       __ bind(&done);
@@ -913,7 +913,7 @@ Handle<HeapObject> RegExpMacroAssemblerIA32::GetCode(Handle<String> source) {
     ExternalReference grow_stack =
         ExternalReference::re_grow_stack(isolate());
     __ CallCFunction(grow_stack, num_arguments);
-    // If return NULL, we have failed to grow the stack, and
+    // If return nullptr, we have failed to grow the stack, and
     // must exit with a stack-overflow exception.
     __ or_(eax, eax);
     __ j(equal, &exit_with_exception);
@@ -1154,14 +1154,14 @@ void RegExpMacroAssemblerIA32::CheckPosition(int cp_offset,
 void RegExpMacroAssemblerIA32::BranchOrBacktrack(Condition condition,
                                                  Label* to) {
   if (condition < 0) {  // No condition
-    if (to == NULL) {
+    if (to == nullptr) {
       Backtrack();
       return;
     }
     __ jmp(to);
     return;
   }
-  if (to == NULL) {
+  if (to == nullptr) {
     __ j(condition, &backtrack_label_);
     return;
   }

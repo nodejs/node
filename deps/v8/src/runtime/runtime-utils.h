@@ -94,9 +94,9 @@ namespace internal {
 // Cast the given argument to PropertyAttributes and store its value in a
 // variable with the given name.  If the argument is not a Smi or the
 // enum value is out of range, we crash safely.
-#define CONVERT_PROPERTY_ATTRIBUTES_CHECKED(name, index)                     \
-  CHECK(args[index]->IsSmi());                                               \
-  CHECK((args.smi_at(index) & ~(READ_ONLY | DONT_ENUM | DONT_DELETE)) == 0); \
+#define CONVERT_PROPERTY_ATTRIBUTES_CHECKED(name, index)                    \
+  CHECK(args[index]->IsSmi());                                              \
+  CHECK_EQ(args.smi_at(index) & ~(READ_ONLY | DONT_ENUM | DONT_DELETE), 0); \
   PropertyAttributes name = static_cast<PropertyAttributes>(args.smi_at(index));
 
 // A mechanism to return a pair of Object pointers in registers (if possible).

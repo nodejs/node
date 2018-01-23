@@ -15,29 +15,25 @@ BUILTIN(BigIntConstructor) {
   HandleScope scope(isolate);
   Handle<Object> value = args.atOrUndefined(isolate, 1);
 
-  // TODO(jkummerow): Implement properly.
+  if (value->IsJSReceiver()) {
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+        isolate, value,
+        JSReceiver::ToPrimitive(Handle<JSReceiver>::cast(value),
+                                ToPrimitiveHint::kNumber));
+  }
 
-  // Dummy implementation only takes Smi args.
-  if (!value->IsSmi()) return isolate->heap()->undefined_value();
-  int num = Smi::ToInt(*value);
-  return *isolate->factory()->NewBigIntFromInt(num);
+  if (value->IsNumber()) {
+    RETURN_RESULT_OR_FAILURE(isolate, BigInt::FromNumber(isolate, value));
+  } else {
+    RETURN_RESULT_OR_FAILURE(isolate, BigInt::FromObject(isolate, value));
+  }
 }
 
 BUILTIN(BigIntConstructor_ConstructStub) {
   HandleScope scope(isolate);
-  Handle<Object> value = args.atOrUndefined(isolate, 1);
-  Handle<JSFunction> target = args.target();
-  Handle<JSReceiver> new_target = Handle<JSReceiver>::cast(args.new_target());
-  DCHECK(*target == target->native_context()->bigint_function());
-  Handle<JSObject> result;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, result,
-                                     JSObject::New(target, new_target));
-
-  // TODO(jkummerow): Implement.
-  USE(value);
-  USE(result);
-
-  UNIMPLEMENTED();
+  THROW_NEW_ERROR_RETURN_FAILURE(
+      isolate, NewTypeError(MessageTemplate::kNotConstructor,
+                            isolate->factory()->BigInt_string()));
 }
 
 BUILTIN(BigIntParseInt) {
@@ -48,8 +44,7 @@ BUILTIN(BigIntParseInt) {
   // Convert {string} to a String and flatten it.
   // Fast path: avoid back-and-forth conversion for Smi inputs.
   if (string->IsSmi() && radix->IsUndefined(isolate)) {
-    int num = Smi::ToInt(*string);
-    return *isolate->factory()->NewBigIntFromInt(num);
+    RETURN_RESULT_OR_FAILURE(isolate, BigInt::FromNumber(isolate, string));
   }
   Handle<String> subject;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, subject,
@@ -65,7 +60,7 @@ BUILTIN(BigIntParseInt) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewSyntaxError(MessageTemplate::kToRadixFormatRange));
   }
-  RETURN_RESULT_OR_FAILURE(isolate, StringToBigInt(isolate, subject, radix32));
+  RETURN_RESULT_OR_FAILURE(isolate, BigIntParseInt(isolate, subject, radix32));
 }
 
 BUILTIN(BigIntAsUintN) {
@@ -73,11 +68,16 @@ BUILTIN(BigIntAsUintN) {
   Handle<Object> bits_obj = args.atOrUndefined(isolate, 1);
   Handle<Object> bigint_obj = args.atOrUndefined(isolate, 2);
 
-  // TODO(jkummerow): Implement.
-  USE(bits_obj);
-  USE(bigint_obj);
+  Handle<Object> bits;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, bits,
+      Object::ToIndex(isolate, bits_obj, MessageTemplate::kInvalidIndex));
 
-  UNIMPLEMENTED();
+  Handle<BigInt> bigint;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, bigint,
+                                     BigInt::FromObject(isolate, bigint_obj));
+
+  RETURN_RESULT_OR_FAILURE(isolate, BigInt::AsUintN(bits->Number(), bigint));
 }
 
 BUILTIN(BigIntAsIntN) {
@@ -85,11 +85,16 @@ BUILTIN(BigIntAsIntN) {
   Handle<Object> bits_obj = args.atOrUndefined(isolate, 1);
   Handle<Object> bigint_obj = args.atOrUndefined(isolate, 2);
 
-  // TODO(jkummerow): Implement.
-  USE(bits_obj);
-  USE(bigint_obj);
+  Handle<Object> bits;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, bits,
+      Object::ToIndex(isolate, bits_obj, MessageTemplate::kInvalidIndex));
 
-  UNIMPLEMENTED();
+  Handle<BigInt> bigint;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, bigint,
+                                     BigInt::FromObject(isolate, bigint_obj));
+
+  return *BigInt::AsIntN(bits->Number(), bigint);
 }
 
 BUILTIN(BigIntPrototypeToLocaleString) {

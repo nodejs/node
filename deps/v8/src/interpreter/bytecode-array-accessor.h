@@ -14,6 +14,9 @@
 
 namespace v8 {
 namespace internal {
+
+class BytecodeArray;
+
 namespace interpreter {
 
 class BytecodeArrayAccessor;

@@ -20,10 +20,12 @@ let buffer = (function CreateBuffer() {
 })();
 
 %DisallowCodegenFromStrings(true);
+%DisallowWasmCodegen(true);
 
 async function SyncTestOk() {
   print('sync module compile (ok)...');
   %DisallowCodegenFromStrings(false);
+  %DisallowWasmCodegen(false);
   let module = new WebAssembly.Module(buffer);
   assertInstanceof(module, WebAssembly.Module);
 }
@@ -31,6 +33,20 @@ async function SyncTestOk() {
 async function SyncTestFail() {
   print('sync module compile (fail)...');
   %DisallowCodegenFromStrings(true);
+  %DisallowWasmCodegen(false);
+  try {
+    let module = new WebAssembly.Module(buffer);
+    assertUnreachable();
+  } catch (e) {
+    print("  " + e);
+    assertInstanceof(e, WebAssembly.CompileError);
+  }
+}
+
+async function SyncTestWasmFail(disallow_codegen) {
+  print('sync wasm module compile (fail)...');
+  %DisallowCodegenFromStrings(disallow_codegen);
+  %DisallowWasmCodegen(true);
   try {
     let module = new WebAssembly.Module(buffer);
     assertUnreachable();
@@ -43,6 +59,7 @@ async function SyncTestFail() {
 async function AsyncTestOk() {
   print('async module compile (ok)...');
   %DisallowCodegenFromStrings(false);
+  %DisallowWasmCodegen(false);
   let promise = WebAssembly.compile(buffer);
   assertPromiseResult(
     promise, module => assertInstanceof(module, WebAssembly.Module));
@@ -51,6 +68,20 @@ async function AsyncTestOk() {
 async function AsyncTestFail() {
   print('async module compile (fail)...');
   %DisallowCodegenFromStrings(true);
+  %DisallowWasmCodegen(false);
+  try {
+    let m = await WebAssembly.compile(buffer);
+    assertUnreachable();
+  } catch (e) {
+    print("  " + e);
+    assertInstanceof(e, WebAssembly.CompileError);
+  }
+}
+
+async function AsyncTestWasmFail(disallow_codegen) {
+  print('async wasm module compile (fail)...');
+  %DisallowCodegenFromStrings(disallow_codegen);
+  %DisallowWasmCodegen(true);
   try {
     let m = await WebAssembly.compile(buffer);
     assertUnreachable();
@@ -65,6 +96,7 @@ async function StreamingTestOk() {
   // TODO(titzer): compileStreaming must be supplied by embedder.
   // (and it takes a response, not a buffer)
   %DisallowCodegenFromStrings(false);
+  %DisallowWasmCodegen(false);
   if ("Function" != typeof WebAssembly.compileStreaming) {
     print("  no embedder for streaming compilation");
     return;
@@ -77,6 +109,27 @@ async function StreamingTestOk() {
 async function StreamingTestFail() {
   print('streaming module compile (fail)...');
   %DisallowCodegenFromStrings(true);
+  %DisallowWasmCodegen(false);
+  // TODO(titzer): compileStreaming must be supplied by embedder.
+  // (and it takes a response, not a buffer)
+  if ("Function" != typeof WebAssembly.compileStreaming) {
+    print("  no embedder for streaming compilation");
+    return;
+  }
+  try {
+    let m = await WebAssembly.compileStreaming(buffer);
+    assertUnreachable();
+  } catch (e) {
+    print("  " + e);
+    assertInstanceof(e, WebAssembly.CompileError);
+  }
+}
+
+
+async function StreamingTestWasmFail(disallow_codegen) {
+  print('streaming wasm module compile (fail)...');
+  %DisallowCodegenFromStrings(disallow_codegen);
+  %DisallowWasmCodegen(true);
   // TODO(titzer): compileStreaming must be supplied by embedder.
   // (and it takes a response, not a buffer)
   if ("Function" != typeof WebAssembly.compileStreaming) {
@@ -99,6 +152,14 @@ async function RunAll() {
   await AsyncTestFail();
   await StreamingTestOk();
   await StreamingTestFail();
+
+  disallow_codegen = false;
+  for (count = 0; count < 2; ++count) {
+    SyncTestWasmFail(disallow_codegen);
+    AsyncTestWasmFail(disallow_codegen);
+    StreamingTestWasmFail(disallow_codegen)
+    disallow_codegen = true;
+  }
 }
 
 assertPromiseResult(RunAll());

@@ -24,6 +24,8 @@ static void UpdateFunctionTableSizeReferences(Handle<Code> code,
                                               uint32_t old_size,
                                               uint32_t new_size) {
   Isolate* isolate = CcTest::i_isolate();
+  // TODO(6792): No longer needed once WebAssembly code is off heap.
+  CodeSpaceMemoryModificationScope modification_scope(isolate->heap());
   bool modified = false;
   int mode_mask =
       RelocInfo::ModeMask(RelocInfo::WASM_FUNCTION_TABLE_SIZE_REFERENCE);
@@ -48,7 +50,8 @@ static void RunLoadStoreRelocation(MachineType rep) {
   CType new_buffer[kNumElems];
   byte* raw = reinterpret_cast<byte*>(buffer);
   byte* new_raw = reinterpret_cast<byte*>(new_buffer);
-  WasmContext wasm_context = {raw, sizeof(buffer)};
+  WasmContext wasm_context;
+  wasm_context.SetRawMemory(raw, sizeof(buffer));
   for (size_t i = 0; i < sizeof(buffer); i++) {
     raw[i] = static_cast<byte>((i + sizeof(CType)) ^ 0xAA);
     new_raw[i] = static_cast<byte>((i + sizeof(CType)) ^ 0xAA);
@@ -68,8 +71,7 @@ static void RunLoadStoreRelocation(MachineType rep) {
   CHECK(buffer[0] != buffer[1]);
   CHECK_EQ(OK, m.Call());
   CHECK(buffer[0] == buffer[1]);
-  wasm_context.mem_size = sizeof(new_buffer);
-  wasm_context.mem_start = new_raw;
+  wasm_context.SetRawMemory(new_raw, sizeof(new_buffer));
   CHECK(new_buffer[0] != new_buffer[1]);
   CHECK_EQ(OK, m.Call());
   CHECK(new_buffer[0] == new_buffer[1]);
@@ -99,7 +101,7 @@ static void RunLoadStoreRelocationOffset(MachineType rep) {
     int32_t y = kNumElems - x - 1;
     // initialize the buffer with raw data.
     byte* raw = reinterpret_cast<byte*>(buffer);
-    wasm_context = {raw, sizeof(buffer)};
+    wasm_context.SetRawMemory(raw, sizeof(buffer));
     for (size_t i = 0; i < sizeof(buffer); i++) {
       raw[i] = static_cast<byte>((i + sizeof(buffer)) ^ 0xAA);
     }
@@ -128,8 +130,7 @@ static void RunLoadStoreRelocationOffset(MachineType rep) {
       new_raw[i] = static_cast<byte>((i + sizeof(buffer)) ^ 0xAA);
     }
 
-    wasm_context.mem_size = sizeof(new_buffer);
-    wasm_context.mem_start = new_raw;
+    wasm_context.SetRawMemory(new_raw, sizeof(new_buffer));
 
     CHECK(new_buffer[x] != new_buffer[y]);
     CHECK_EQ(OK, m.Call());
@@ -152,7 +153,8 @@ TEST(RunLoadStoreRelocationOffset) {
 TEST(Uint32LessThanMemoryRelocation) {
   RawMachineAssemblerTester<uint32_t> m;
   RawMachineLabel within_bounds, out_of_bounds;
-  WasmContext wasm_context = {reinterpret_cast<Address>(1234), 0x200};
+  WasmContext wasm_context;
+  wasm_context.SetRawMemory(reinterpret_cast<void*>(1234), 0x200);
   Node* index = m.Int32Constant(0x200);
   Node* wasm_context_node =
       m.RelocatableIntPtrConstant(reinterpret_cast<uintptr_t>(&wasm_context),
@@ -162,14 +164,14 @@ TEST(Uint32LessThanMemoryRelocation) {
   Node* cond = m.AddNode(m.machine()->Uint32LessThan(), index, limit);
   m.Branch(cond, &within_bounds, &out_of_bounds);
   m.Bind(&within_bounds);
-  m.Return(m.Int32Constant(0xaced));
+  m.Return(m.Int32Constant(0xACED));
   m.Bind(&out_of_bounds);
-  m.Return(m.Int32Constant(0xdeadbeef));
+  m.Return(m.Int32Constant(0xDEADBEEF));
   // Check that index is out of bounds with current size
-  CHECK_EQ(0xdeadbeef, m.Call());
-  wasm_context.mem_size = 0x400;
+  CHECK_EQ(0xDEADBEEF, m.Call());
+  wasm_context.SetRawMemory(wasm_context.mem_start, 0x400);
   // Check that after limit is increased, index is within bounds.
-  CHECK_EQ(0xacedu, m.Call());
+  CHECK_EQ(0xACEDu, m.Call());
 }
 
 TEST(Uint32LessThanFunctionTableRelocation) {
@@ -181,17 +183,17 @@ TEST(Uint32LessThanFunctionTableRelocation) {
   Node* cond = m.AddNode(m.machine()->Uint32LessThan(), index, limit);
   m.Branch(cond, &within_bounds, &out_of_bounds);
   m.Bind(&within_bounds);
-  m.Return(m.Int32Constant(0xaced));
+  m.Return(m.Int32Constant(0xACED));
   m.Bind(&out_of_bounds);
-  m.Return(m.Int32Constant(0xdeadbeef));
+  m.Return(m.Int32Constant(0xDEADBEEF));
   // Check that index is out of bounds with current size
-  CHECK_EQ(0xdeadbeef, m.Call());
+  CHECK_EQ(0xDEADBEEF, m.Call());
   m.GenerateCode();
 
   Handle<Code> code = m.GetCode();
   UpdateFunctionTableSizeReferences(code, 0x200, 0x400);
   // Check that after limit is increased, index is within bounds.
-  CHECK_EQ(0xaced, m.Call());
+  CHECK_EQ(0xACED, m.Call());
 }
 
 }  // namespace compiler

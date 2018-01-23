@@ -68,34 +68,38 @@ bool Type::Contains(RangeType* range, i::Object* val) {
 
 double Type::Min() {
   DCHECK(this->Is(Number()));
+  DCHECK(!this->Is(NaN()));
   if (this->IsBitset()) return BitsetType::Min(this->AsBitset());
   if (this->IsUnion()) {
     double min = +V8_INFINITY;
-    for (int i = 0, n = this->AsUnion()->Length(); i < n; ++i) {
+    for (int i = 1, n = this->AsUnion()->Length(); i < n; ++i) {
       min = std::min(min, this->AsUnion()->Get(i)->Min());
     }
+    Type* bitset = this->AsUnion()->Get(0);
+    if (!bitset->Is(NaN())) min = std::min(min, bitset->Min());
     return min;
   }
   if (this->IsRange()) return this->AsRange()->Min();
-  if (this->IsOtherNumberConstant())
-    return this->AsOtherNumberConstant()->Value();
-  UNREACHABLE();
+  DCHECK(this->IsOtherNumberConstant());
+  return this->AsOtherNumberConstant()->Value();
 }
 
 double Type::Max() {
   DCHECK(this->Is(Number()));
+  DCHECK(!this->Is(NaN()));
   if (this->IsBitset()) return BitsetType::Max(this->AsBitset());
   if (this->IsUnion()) {
     double max = -V8_INFINITY;
-    for (int i = 0, n = this->AsUnion()->Length(); i < n; ++i) {
+    for (int i = 1, n = this->AsUnion()->Length(); i < n; ++i) {
       max = std::max(max, this->AsUnion()->Get(i)->Max());
     }
+    Type* bitset = this->AsUnion()->Get(0);
+    if (!bitset->Is(NaN())) max = std::max(max, bitset->Max());
     return max;
   }
   if (this->IsRange()) return this->AsRange()->Max();
-  if (this->IsOtherNumberConstant())
-    return this->AsOtherNumberConstant()->Value();
-  UNREACHABLE();
+  DCHECK(this->IsOtherNumberConstant());
+  return this->AsOtherNumberConstant()->Value();
 }
 
 // -----------------------------------------------------------------------------
@@ -173,6 +177,8 @@ Type::bitset BitsetType::Lub(i::Map* map) {
       return kInternalizedSeqString;
     case SYMBOL_TYPE:
       return kSymbol;
+    case BIGINT_TYPE:
+      return kBigInt;
     case ODDBALL_TYPE: {
       Heap* heap = map->GetHeap();
       if (map == heap->undefined_map()) return kUndefined;
@@ -236,7 +242,6 @@ Type::bitset BitsetType::Lub(i::Map* map) {
 
     case JS_WEAK_MAP_TYPE:
     case JS_WEAK_SET_TYPE:
-    case PROMISE_CAPABILITY_TYPE:
     case JS_PROMISE_TYPE:
     case WASM_MODULE_TYPE:
     case WASM_INSTANCE_TYPE:
@@ -266,8 +271,9 @@ Type::bitset BitsetType::Lub(i::Map* map) {
     case FIXED_DOUBLE_ARRAY_TYPE:
     case BYTE_ARRAY_TYPE:
     case BYTECODE_ARRAY_TYPE:
-    case FEEDBACK_VECTOR_TYPE:
+    case DESCRIPTOR_ARRAY_TYPE:
     case TRANSITION_ARRAY_TYPE:
+    case FEEDBACK_VECTOR_TYPE:
     case PROPERTY_ARRAY_TYPE:
     case FOREIGN_TYPE:
     case SCRIPT_TYPE:
@@ -276,7 +282,6 @@ Type::bitset BitsetType::Lub(i::Map* map) {
     case MODULE_TYPE:
     case MODULE_INFO_ENTRY_TYPE:
     case CELL_TYPE:
-    case BIGINT_TYPE:
       return kOtherInternal;
 
     // Remaining instance types are unsupported for now. If any of them do
@@ -304,8 +309,11 @@ Type::bitset BitsetType::Lub(i::Map* map) {
     case PROTOTYPE_INFO_TYPE:
     case TUPLE2_TYPE:
     case TUPLE3_TYPE:
+    case LOAD_HANDLER_TYPE:
+    case STORE_HANDLER_TYPE:
     case CONTEXT_EXTENSION_TYPE:
     case ASYNC_GENERATOR_REQUEST_TYPE:
+    case CODE_DATA_CONTAINER_TYPE:
       UNREACHABLE();
   }
   UNREACHABLE();
@@ -394,6 +402,7 @@ Type::bitset BitsetType::Glb(double min, double max) {
 double BitsetType::Min(bitset bits) {
   DisallowHeapAllocation no_allocation;
   DCHECK(Is(bits, kNumber));
+  DCHECK(!Is(bits, kNaN));
   const Boundary* mins = Boundaries();
   bool mz = bits & kMinusZero;
   for (size_t i = 0; i < BoundariesSize(); ++i) {
@@ -401,13 +410,14 @@ double BitsetType::Min(bitset bits) {
       return mz ? std::min(0.0, mins[i].min) : mins[i].min;
     }
   }
-  if (mz) return 0;
-  return std::numeric_limits<double>::quiet_NaN();
+  DCHECK(mz);
+  return 0;
 }
 
 double BitsetType::Max(bitset bits) {
   DisallowHeapAllocation no_allocation;
   DCHECK(Is(bits, kNumber));
+  DCHECK(!Is(bits, kNaN));
   const Boundary* mins = Boundaries();
   bool mz = bits & kMinusZero;
   if (BitsetType::Is(mins[BoundariesSize() - 1].internal, bits)) {
@@ -418,8 +428,8 @@ double BitsetType::Max(bitset bits) {
       return mz ? std::max(0.0, mins[i + 1].min - 1) : mins[i + 1].min - 1;
     }
   }
-  if (mz) return 0;
-  return std::numeric_limits<double>::quiet_NaN();
+  DCHECK(mz);
+  return 0;
 }
 
 // static
@@ -517,8 +527,7 @@ bool Type::SlowIs(Type* that) {
 bool Type::Maybe(Type* that) {
   DisallowHeapAllocation no_allocation;
 
-  if (!BitsetType::IsInhabited(this->BitsetLub() & that->BitsetLub()))
-    return false;
+  if (BitsetType::IsNone(this->BitsetLub() & that->BitsetLub())) return false;
 
   // (T1 \/ ... \/ Tn) overlaps T  if  (T1 overlaps T) \/ ... \/ (Tn overlaps T)
   if (this->IsUnion()) {
@@ -561,14 +570,14 @@ bool Type::Maybe(Type* that) {
   return this->SimplyEquals(that);
 }
 
-// Return the range in [this], or [NULL].
+// Return the range in [this], or [nullptr].
 Type* Type::GetRange() {
   DisallowHeapAllocation no_allocation;
   if (this->IsRange()) return this;
   if (this->IsUnion() && this->AsUnion()->Get(1)->IsRange()) {
     return this->AsUnion()->Get(1);
   }
-  return NULL;
+  return nullptr;
 }
 
 bool UnionType::Wellformed() {
@@ -715,9 +724,7 @@ int Type::IntersectAux(Type* lhs, Type* rhs, UnionType* result, int size,
     return size;
   }
 
-  if (!BitsetType::IsInhabited(lhs->BitsetLub() & rhs->BitsetLub())) {
-    return size;
-  }
+  if (BitsetType::IsNone(lhs->BitsetLub() & rhs->BitsetLub())) return size;
 
   if (lhs->IsRange()) {
     if (rhs->IsBitset()) {
@@ -852,15 +859,15 @@ Type* Type::Union(Type* type1, Type* type2, Zone* zone) {
   Type* range = None();
   Type* range1 = type1->GetRange();
   Type* range2 = type2->GetRange();
-  if (range1 != NULL && range2 != NULL) {
+  if (range1 != nullptr && range2 != nullptr) {
     RangeType::Limits lims =
         RangeType::Limits::Union(RangeType::Limits(range1->AsRange()),
                                  RangeType::Limits(range2->AsRange()));
     Type* union_range = RangeType::New(lims, zone);
     range = NormalizeRangeAndBitset(union_range, &new_bitset, zone);
-  } else if (range1 != NULL) {
+  } else if (range1 != nullptr) {
     range = NormalizeRangeAndBitset(range1, &new_bitset, zone);
-  } else if (range2 != NULL) {
+  } else if (range2 != nullptr) {
     range = NormalizeRangeAndBitset(range2, &new_bitset, zone);
   }
   Type* bits = BitsetType::New(new_bitset);
@@ -938,7 +945,7 @@ const char* BitsetType::Name(bitset bits) {
 #undef RETURN_NAMED_TYPE
 
     default:
-      return NULL;
+      return nullptr;
   }
 }
 
@@ -946,7 +953,7 @@ void BitsetType::Print(std::ostream& os,  // NOLINT
                        bitset bits) {
   DisallowHeapAllocation no_allocation;
   const char* name = Name(bits);
-  if (name != NULL) {
+  if (name != nullptr) {
     os << name;
     return;
   }

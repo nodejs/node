@@ -31,7 +31,7 @@ bool FeedbackMetadata::is_empty() const {
 
 int FeedbackMetadata::slot_count() const {
   if (length() == 0) return 0;
-  DCHECK(length() > kReservedIndexCount);
+  DCHECK_GT(length(), kReservedIndexCount);
   return Smi::ToInt(get(kSlotsCountIndex));
 }
 
@@ -44,6 +44,7 @@ FeedbackVector* FeedbackVector::cast(Object* obj) {
 int FeedbackMetadata::GetSlotSize(FeedbackSlotKind kind) {
   switch (kind) {
     case FeedbackSlotKind::kForIn:
+    case FeedbackSlotKind::kInstanceOf:
     case FeedbackSlotKind::kCompareOp:
     case FeedbackSlotKind::kBinaryOp:
     case FeedbackSlotKind::kLiteral:
@@ -116,7 +117,8 @@ bool FeedbackVector::has_optimized_code() const {
 }
 
 bool FeedbackVector::has_optimization_marker() const {
-  return optimization_marker() != OptimizationMarker::kNone;
+  return optimization_marker() != OptimizationMarker::kLogFirstExecution &&
+         optimization_marker() != OptimizationMarker::kNone;
 }
 
 // Conversion from an integer index to either a slot or an ic slot.
@@ -170,9 +172,7 @@ BinaryOperationHint BinaryOperationHintFromFeedback(int type_feedback) {
     case BinaryOperationFeedback::kString:
       return BinaryOperationHint::kString;
     case BinaryOperationFeedback::kBigInt:
-    // TODO(jarin/jkummerow/neis): Support BigInts in TF.
-    // Fall through for now.
-    case BinaryOperationFeedback::kAny:
+      return BinaryOperationHint::kBigInt;
     default:
       return BinaryOperationHint::kAny;
   }
@@ -196,6 +196,8 @@ CompareOperationHint CompareOperationHintFromFeedback(int type_feedback) {
       return CompareOperationHint::kString;
     case CompareOperationFeedback::kSymbol:
       return CompareOperationHint::kSymbol;
+    case CompareOperationFeedback::kBigInt:
+      return CompareOperationHint::kBigInt;
     case CompareOperationFeedback::kReceiver:
       return CompareOperationHint::kReceiver;
     default:
@@ -288,6 +290,16 @@ void FeedbackVector::ComputeCounts(int* with_type_info, int* generic,
           gen++;
         }
         if (hint != ForInHint::kNone) {
+          with++;
+        }
+        total++;
+        break;
+      }
+      case FeedbackSlotKind::kInstanceOf: {
+        if (obj->IsWeakCell()) {
+          with++;
+        } else if (obj == megamorphic_sentinel) {
+          gen++;
           with++;
         }
         total++;

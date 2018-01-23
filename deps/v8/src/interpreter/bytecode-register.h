@@ -61,9 +61,9 @@ class V8_EXPORT_PRIVATE Register final {
   }
 
   static bool AreContiguous(Register reg1, Register reg2,
-                            Register reg3 = Register(),
-                            Register reg4 = Register(),
-                            Register reg5 = Register());
+                            Register reg3 = invalid_value(),
+                            Register reg4 = invalid_value(),
+                            Register reg5 = invalid_value());
 
   std::string ToString(int parameter_count) const;
 
@@ -98,13 +98,10 @@ class V8_EXPORT_PRIVATE Register final {
 
 class RegisterList {
  public:
-  RegisterList() : first_reg_index_(Register().index()), register_count_(0) {}
-  RegisterList(int first_reg_index, int register_count)
-      : first_reg_index_(first_reg_index), register_count_(register_count) {}
+  RegisterList()
+      : first_reg_index_(Register::invalid_value().index()),
+        register_count_(0) {}
   explicit RegisterList(Register r) : RegisterList(r.index(), 1) {}
-
-  // Increases the size of the register list by one.
-  void IncrementRegisterCount() { register_count_++; }
 
   // Returns a new RegisterList which is a truncated version of this list, with
   // |count| registers.
@@ -130,6 +127,17 @@ class RegisterList {
   int register_count() const { return register_count_; }
 
  private:
+  friend class BytecodeRegisterAllocator;
+  friend class BytecodeDecoder;
+  friend class InterpreterTester;
+  friend class BytecodeUtils;
+
+  RegisterList(int first_reg_index, int register_count)
+      : first_reg_index_(first_reg_index), register_count_(register_count) {}
+
+  // Increases the size of the register list by one.
+  void IncrementRegisterCount() { register_count_++; }
+
   int first_reg_index_;
   int register_count_;
 };

@@ -31,16 +31,16 @@ static int LengthWithoutIncompleteUtf8(char* buffer, int len) {
   static const int kUtf8SingleByteMask = 0x80;
   static const int kUtf8SingleByteValue = 0x00;
   // 2-byte encoding.
-  static const int kUtf8TwoByteMask = 0xe0;
-  static const int kUtf8TwoByteValue = 0xc0;
+  static const int kUtf8TwoByteMask = 0xE0;
+  static const int kUtf8TwoByteValue = 0xC0;
   // 3-byte encoding.
-  static const int kUtf8ThreeByteMask = 0xf0;
-  static const int kUtf8ThreeByteValue = 0xe0;
+  static const int kUtf8ThreeByteMask = 0xF0;
+  static const int kUtf8ThreeByteValue = 0xE0;
   // 4-byte encoding.
-  static const int kUtf8FourByteMask = 0xf8;
-  static const int kUtf8FourByteValue = 0xf0;
+  static const int kUtf8FourByteMask = 0xF8;
+  static const int kUtf8FourByteValue = 0xF0;
   // Subsequent bytes of a multi-byte encoding.
-  static const int kMultiByteMask = 0xc0;
+  static const int kMultiByteMask = 0xC0;
   static const int kMultiByteValue = 0x80;
   int multi_byte_bytes_seen = 0;
   while (answer > 0) {
@@ -87,7 +87,7 @@ static bool WaitOnFD(int fd,
   int gone = 0;
   if (total_timeout != -1) {
     struct timeval time_now;
-    gettimeofday(&time_now, NULL);
+    gettimeofday(&time_now, nullptr);
     time_t seconds = time_now.tv_sec - start_time.tv_sec;
     gone = static_cast<int>(seconds * 1000 +
                             (time_now.tv_usec - start_time.tv_usec) / 1000);
@@ -104,11 +104,8 @@ static bool WaitOnFD(int fd,
   }
   timeout.tv_usec = (read_timeout % 1000) * 1000;
   timeout.tv_sec = read_timeout / 1000;
-  int number_of_fds_ready = select(fd + 1,
-                                   &readfds,
-                                   &writefds,
-                                   &exceptfds,
-                                   read_timeout != -1 ? &timeout : NULL);
+  int number_of_fds_ready = select(fd + 1, &readfds, &writefds, &exceptfds,
+                                   read_timeout != -1 ? &timeout : nullptr);
   return number_of_fds_ready == 1;
 }
 
@@ -118,7 +115,7 @@ static bool WaitOnFD(int fd,
 static bool TimeIsOut(const struct timeval& start_time, const int& total_time) {
   if (total_time == -1) return false;
   struct timeval time_now;
-  gettimeofday(&time_now, NULL);
+  gettimeofday(&time_now, nullptr);
   // Careful about overflow.
   int seconds = static_cast<int>(time_now.tv_sec - start_time.tv_sec);
   if (seconds > 100) {
@@ -139,7 +136,9 @@ static bool TimeIsOut(const struct timeval& start_time, const int& total_time) {
 class ZombieProtector {
  public:
   explicit ZombieProtector(int pid): pid_(pid) { }
-  ~ZombieProtector() { if (pid_ != 0) waitpid(pid_, NULL, 0); }
+  ~ZombieProtector() {
+    if (pid_ != 0) waitpid(pid_, nullptr, 0);
+  }
   void ChildIsDeadNow() { pid_ = 0; }
  private:
   int pid_;
@@ -161,12 +160,10 @@ class OpenFDCloser {
 // scope.
 class ExecArgs {
  public:
-  ExecArgs() {
-    exec_args_[0] = NULL;
-  }
+  ExecArgs() { exec_args_[0] = nullptr; }
   bool Init(Isolate* isolate, Local<Value> arg0, Local<Array> command_args) {
     String::Utf8Value prog(isolate, arg0);
-    if (*prog == NULL) {
+    if (*prog == nullptr) {
       const char* message =
           "os.system(): String conversion of program name failed";
       isolate->ThrowException(
@@ -184,8 +181,8 @@ class ExecArgs {
           command_args->Get(isolate->GetCurrentContext(),
                             Integer::New(isolate, j)).ToLocalChecked());
       String::Utf8Value utf8_arg(isolate, arg);
-      if (*utf8_arg == NULL) {
-        exec_args_[i] = NULL;  // Consistent state for destructor.
+      if (*utf8_arg == nullptr) {
+        exec_args_[i] = nullptr;  // Consistent state for destructor.
         const char* message =
             "os.system(): String conversion of argument failed.";
         isolate->ThrowException(
@@ -198,12 +195,12 @@ class ExecArgs {
       snprintf(c_arg, len, "%s", *utf8_arg);
       exec_args_[i] = c_arg;
     }
-    exec_args_[i] = NULL;
+    exec_args_[i] = nullptr;
     return true;
   }
   ~ExecArgs() {
     for (unsigned i = 0; i < kMaxArgs; i++) {
-      if (exec_args_[i] == NULL) {
+      if (exec_args_[i] == nullptr) {
         return;
       }
       delete [] exec_args_[i];
@@ -490,7 +487,7 @@ void Shell::System(const v8::FunctionCallbackInfo<v8::Value>& args) {
   }
 
   struct timeval start_time;
-  gettimeofday(&start_time, NULL);
+  gettimeofday(&start_time, nullptr);
 
   ExecArgs exec_args;
   if (!exec_args.Init(args.GetIsolate(), args[0], command_args)) {
@@ -554,7 +551,7 @@ void Shell::ChangeDirectory(const v8::FunctionCallbackInfo<v8::Value>& args) {
     return;
   }
   String::Utf8Value directory(args.GetIsolate(), args[0]);
-  if (*directory == NULL) {
+  if (*directory == nullptr) {
     const char* message = "os.chdir(): String conversion of argument failed.";
     args.GetIsolate()->ThrowException(
         String::NewFromUtf8(args.GetIsolate(), message, NewStringType::kNormal)
@@ -619,7 +616,7 @@ static bool mkdirp(Isolate* isolate, char* directory, mode_t mask) {
     return CheckItsADirectory(isolate, directory);
   } else if (errno == ENOENT) {  // Intermediate path element is missing.
     char* last_slash = strrchr(directory, '/');
-    if (last_slash == NULL) {
+    if (last_slash == nullptr) {
       isolate->ThrowException(
           String::NewFromUtf8(isolate, strerror(errno), NewStringType::kNormal)
               .ToLocalChecked());
@@ -668,7 +665,7 @@ void Shell::MakeDirectory(const v8::FunctionCallbackInfo<v8::Value>& args) {
     return;
   }
   String::Utf8Value directory(args.GetIsolate(), args[0]);
-  if (*directory == NULL) {
+  if (*directory == nullptr) {
     const char* message = "os.mkdirp(): String conversion of argument failed.";
     args.GetIsolate()->ThrowException(
         String::NewFromUtf8(args.GetIsolate(), message, NewStringType::kNormal)
@@ -688,7 +685,7 @@ void Shell::RemoveDirectory(const v8::FunctionCallbackInfo<v8::Value>& args) {
     return;
   }
   String::Utf8Value directory(args.GetIsolate(), args[0]);
-  if (*directory == NULL) {
+  if (*directory == nullptr) {
     const char* message = "os.rmdir(): String conversion of argument failed.";
     args.GetIsolate()->ThrowException(
         String::NewFromUtf8(args.GetIsolate(), message, NewStringType::kNormal)
@@ -709,7 +706,7 @@ void Shell::SetEnvironment(const v8::FunctionCallbackInfo<v8::Value>& args) {
   }
   String::Utf8Value var(args.GetIsolate(), args[0]);
   String::Utf8Value value(args.GetIsolate(), args[1]);
-  if (*var == NULL) {
+  if (*var == nullptr) {
     const char* message =
         "os.setenv(): String conversion of variable name failed.";
     args.GetIsolate()->ThrowException(
@@ -717,7 +714,7 @@ void Shell::SetEnvironment(const v8::FunctionCallbackInfo<v8::Value>& args) {
             .ToLocalChecked());
     return;
   }
-  if (*value == NULL) {
+  if (*value == nullptr) {
     const char* message =
         "os.setenv(): String conversion of variable contents failed.";
     args.GetIsolate()->ThrowException(
@@ -738,7 +735,7 @@ void Shell::UnsetEnvironment(const v8::FunctionCallbackInfo<v8::Value>& args) {
     return;
   }
   String::Utf8Value var(args.GetIsolate(), args[0]);
-  if (*var == NULL) {
+  if (*var == nullptr) {
     const char* message =
         "os.setenv(): String conversion of variable name failed.";
     args.GetIsolate()->ThrowException(
@@ -825,7 +822,7 @@ char* Shell::ReadCharsFromTcpPort(const char* name, int* size_out) {
     fprintf(stderr, "Received length %d for %s from localhost:%d\n",
             file_length, name, Shell::options.read_from_tcp_port);
     close(sockfd);
-    return NULL;
+    return nullptr;
   }
 
   // Allocate the output array.
@@ -841,7 +838,7 @@ char* Shell::ReadCharsFromTcpPort(const char* name, int* size_out) {
               Shell::options.read_from_tcp_port);
       close(sockfd);
       delete[] chars;
-      return NULL;
+      return nullptr;
     }
     total_received += received;
   }

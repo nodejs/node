@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/mips/codegen-mips.h"
-
 #if V8_TARGET_ARCH_MIPS
 
 #include <memory>
@@ -15,26 +13,25 @@
 namespace v8 {
 namespace internal {
 
-
 #define __ masm.
 
 #if defined(V8_HOST_ARCH_MIPS)
+
 MemCopyUint8Function CreateMemCopyUint8Function(Isolate* isolate,
                                                 MemCopyUint8Function stub) {
 #if defined(USE_SIMULATOR) || defined(_MIPS_ARCH_MIPS32R6) || \
     defined(_MIPS_ARCH_MIPS32RX)
   return stub;
 #else
-  size_t actual_size;
-  byte* buffer =
-      static_cast<byte*>(base::OS::Allocate(3 * KB, &actual_size, true));
-  if (buffer == nullptr) return stub;
+  size_t allocated = 0;
+  byte* buffer = AllocatePage(isolate->heap()->GetRandomMmapAddr(), &allocated);
+  if (buffer == nullptr) return nullptr;
+
+  MacroAssembler masm(isolate, buffer, static_cast<int>(allocated),
+                      CodeObjectRequired::kNo);
 
   // This code assumes that cache lines are 32 bytes and if the cache line is
   // larger it will not work correctly.
-  MacroAssembler masm(isolate, buffer, static_cast<int>(actual_size),
-                      CodeObjectRequired::kNo);
-
   {
     Label lastb, unaligned, aligned, chkw,
           loop16w, chk1w, wordCopy_loop, skip_pref, lastbloop,
@@ -99,7 +96,7 @@ MemCopyUint8Function CreateMemCopyUint8Function(Isolate* isolate,
     // copied and a3 to the dst pointer after all the 64 byte chunks have been
     // copied. We will loop, incrementing a0 and a1 until a0 equals a3.
     __ bind(&aligned);
-    __ andi(t8, a2, 0x3f);
+    __ andi(t8, a2, 0x3F);
     __ beq(a2, t8, &chkw);  // Less than 64?
     __ subu(a3, a2, t8);  // In delay slot.
     __ addu(a3, a0, a3);  // Now a3 is the final dst after loop.
@@ -182,7 +179,7 @@ MemCopyUint8Function CreateMemCopyUint8Function(Isolate* isolate,
     // down to chk1w to handle the tail end of the copy.
     __ bind(&chkw);
     __ Pref(pref_hint_load, MemOperand(a1, 0 * pref_chunk));
-    __ andi(t8, a2, 0x1f);
+    __ andi(t8, a2, 0x1F);
     __ beq(a2, t8, &chk1w);  // Less than 32?
     __ nop();  // In delay slot.
     __ lw(t0, MemOperand(a1));
@@ -266,7 +263,7 @@ MemCopyUint8Function CreateMemCopyUint8Function(Isolate* isolate,
     // the dst pointer after all the 64 byte chunks have been copied. We will
     // loop, incrementing a0 and a1 until a0 equals a3.
     __ bind(&ua_chk16w);
-    __ andi(t8, a2, 0x3f);
+    __ andi(t8, a2, 0x3F);
     __ beq(a2, t8, &ua_chkw);
     __ subu(a3, a2, t8);  // In delay slot.
     __ addu(a3, a0, a3);
@@ -438,7 +435,7 @@ MemCopyUint8Function CreateMemCopyUint8Function(Isolate* isolate,
     // ua_chk1w to handle the tail end of the copy.
     __ bind(&ua_chkw);
     __ Pref(pref_hint_load, MemOperand(a1));
-    __ andi(t8, a2, 0x1f);
+    __ andi(t8, a2, 0x1F);
 
     __ beq(a2, t8, &ua_chk1w);
     __ nop();  // In delay slot.
@@ -546,8 +543,8 @@ MemCopyUint8Function CreateMemCopyUint8Function(Isolate* isolate,
   masm.GetCode(isolate, &desc);
   DCHECK(!RelocInfo::RequiresRelocation(isolate, desc));
 
-  Assembler::FlushICache(isolate, buffer, actual_size);
-  base::OS::ProtectCode(buffer, actual_size);
+  Assembler::FlushICache(isolate, buffer, allocated);
+  CHECK(SetPermissions(buffer, allocated, PageAllocator::kReadExecute));
   return FUNCTION_CAST<MemCopyUint8Function>(buffer);
 #endif
 }
@@ -557,12 +554,11 @@ UnaryMathFunctionWithIsolate CreateSqrtFunction(Isolate* isolate) {
 #if defined(USE_SIMULATOR)
   return nullptr;
 #else
-  size_t actual_size;
-  byte* buffer =
-      static_cast<byte*>(base::OS::Allocate(1 * KB, &actual_size, true));
+  size_t allocated = 0;
+  byte* buffer = AllocatePage(isolate->heap()->GetRandomMmapAddr(), &allocated);
   if (buffer == nullptr) return nullptr;
 
-  MacroAssembler masm(isolate, buffer, static_cast<int>(actual_size),
+  MacroAssembler masm(isolate, buffer, static_cast<int>(allocated),
                       CodeObjectRequired::kNo);
 
   __ MovFromFloatParameter(f12);
@@ -574,112 +570,10 @@ UnaryMathFunctionWithIsolate CreateSqrtFunction(Isolate* isolate) {
   masm.GetCode(isolate, &desc);
   DCHECK(!RelocInfo::RequiresRelocation(isolate, desc));
 
-  Assembler::FlushICache(isolate, buffer, actual_size);
-  base::OS::ProtectCode(buffer, actual_size);
+  Assembler::FlushICache(isolate, buffer, allocated);
+  CHECK(SetPermissions(buffer, allocated, PageAllocator::kReadExecute));
   return FUNCTION_CAST<UnaryMathFunctionWithIsolate>(buffer);
 #endif
-}
-
-#undef __
-
-// -------------------------------------------------------------------------
-// Code generators
-
-#define __ ACCESS_MASM(masm)
-
-void StringCharLoadGenerator::Generate(MacroAssembler* masm,
-                                       Register string,
-                                       Register index,
-                                       Register result,
-                                       Label* call_runtime) {
-  Label indirect_string_loaded;
-  __ bind(&indirect_string_loaded);
-
-  // Fetch the instance type of the receiver into result register.
-  __ lw(result, FieldMemOperand(string, HeapObject::kMapOffset));
-  __ lbu(result, FieldMemOperand(result, Map::kInstanceTypeOffset));
-
-  // We need special handling for indirect strings.
-  Label check_sequential;
-  __ And(at, result, Operand(kIsIndirectStringMask));
-  __ Branch(&check_sequential, eq, at, Operand(zero_reg));
-
-  // Dispatch on the indirect string shape: slice or cons.
-  Label cons_string, thin_string;
-  __ And(at, result, Operand(kStringRepresentationMask));
-  __ Branch(&cons_string, eq, at, Operand(kConsStringTag));
-  __ Branch(&thin_string, eq, at, Operand(kThinStringTag));
-
-  // Handle slices.
-  __ lw(result, FieldMemOperand(string, SlicedString::kOffsetOffset));
-  __ lw(string, FieldMemOperand(string, SlicedString::kParentOffset));
-  __ sra(at, result, kSmiTagSize);
-  __ Addu(index, index, at);
-  __ jmp(&indirect_string_loaded);
-
-  // Handle thin strings.
-  __ bind(&thin_string);
-  __ lw(string, FieldMemOperand(string, ThinString::kActualOffset));
-  __ jmp(&indirect_string_loaded);
-
-  // Handle cons strings.
-  // Check whether the right hand side is the empty string (i.e. if
-  // this is really a flat string in a cons string). If that is not
-  // the case we would rather go to the runtime system now to flatten
-  // the string.
-  __ bind(&cons_string);
-  __ lw(result, FieldMemOperand(string, ConsString::kSecondOffset));
-  __ LoadRoot(at, Heap::kempty_stringRootIndex);
-  __ Branch(call_runtime, ne, result, Operand(at));
-  // Get the first of the two strings and load its instance type.
-  __ lw(string, FieldMemOperand(string, ConsString::kFirstOffset));
-  __ jmp(&indirect_string_loaded);
-
-  // Distinguish sequential and external strings. Only these two string
-  // representations can reach here (slices and flat cons strings have been
-  // reduced to the underlying sequential or external string).
-  Label external_string, check_encoding;
-  __ bind(&check_sequential);
-  STATIC_ASSERT(kSeqStringTag == 0);
-  __ And(at, result, Operand(kStringRepresentationMask));
-  __ Branch(&external_string, ne, at, Operand(zero_reg));
-
-  // Prepare sequential strings
-  STATIC_ASSERT(SeqTwoByteString::kHeaderSize == SeqOneByteString::kHeaderSize);
-  __ Addu(string,
-          string,
-          SeqTwoByteString::kHeaderSize - kHeapObjectTag);
-  __ jmp(&check_encoding);
-
-  // Handle external strings.
-  __ bind(&external_string);
-  if (FLAG_debug_code) {
-    // Assert that we do not have a cons or slice (indirect strings) here.
-    // Sequential strings have already been ruled out.
-    __ And(at, result, Operand(kIsIndirectStringMask));
-    __ Assert(eq, kExternalStringExpectedButNotFound,
-        at, Operand(zero_reg));
-  }
-  // Rule out short external strings.
-  STATIC_ASSERT(kShortExternalStringTag != 0);
-  __ And(at, result, Operand(kShortExternalStringMask));
-  __ Branch(call_runtime, ne, at, Operand(zero_reg));
-  __ lw(string, FieldMemOperand(string, ExternalString::kResourceDataOffset));
-
-  Label one_byte, done;
-  __ bind(&check_encoding);
-  STATIC_ASSERT(kTwoByteStringTag == 0);
-  __ And(at, result, Operand(kStringEncodingMask));
-  __ Branch(&one_byte, ne, at, Operand(zero_reg));
-  // Two-byte string.
-  __ Lsa(at, string, index, 1);
-  __ lhu(result, MemOperand(at));
-  __ jmp(&done);
-  __ bind(&one_byte);
-  // One_byte string.
-  __ Addu(at, string, index);
-  __ lbu(result, MemOperand(at));
-  __ bind(&done);
 }
 
 #undef __

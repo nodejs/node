@@ -97,14 +97,12 @@ class ExpressionClassifier {
       : base_(base),
         previous_(base->classifier_),
         zone_(base->impl()->zone()),
-        non_patterns_to_rewrite_(base->impl()->GetNonPatternList()),
         reported_errors_(base->impl()->GetReportedErrorList()),
         duplicate_finder_(duplicate_finder),
         invalid_productions_(0),
         function_properties_(0) {
     base->classifier_ = this;
     reported_errors_begin_ = reported_errors_end_ = reported_errors_->length();
-    non_pattern_begin_ = non_patterns_to_rewrite_->length();
   }
 
   V8_INLINE ~ExpressionClassifier() {
@@ -291,19 +289,10 @@ class ExpressionClassifier {
     Add(Error(loc, message, kLetPatternProduction, arg));
   }
 
-  void Accumulate(ExpressionClassifier* inner, unsigned productions,
-                  bool merge_non_patterns = true) {
+  void Accumulate(ExpressionClassifier* inner, unsigned productions) {
     DCHECK_EQ(inner->reported_errors_, reported_errors_);
     DCHECK_EQ(inner->reported_errors_begin_, reported_errors_end_);
     DCHECK_EQ(inner->reported_errors_end_, reported_errors_->length());
-    DCHECK_EQ(inner->non_patterns_to_rewrite_, non_patterns_to_rewrite_);
-    DCHECK_LE(non_pattern_begin_, inner->non_pattern_begin_);
-    DCHECK_LE(inner->non_pattern_begin_, non_patterns_to_rewrite_->length());
-    // Merge non-patterns from the inner classifier, or discard them.
-    if (merge_non_patterns)
-      inner->non_pattern_begin_ = non_patterns_to_rewrite_->length();
-    else
-      non_patterns_to_rewrite_->Rewind(inner->non_pattern_begin_);
     // Propagate errors from inner, but don't overwrite already recorded
     // errors.
     unsigned non_arrow_inner_invalid_productions =
@@ -368,16 +357,12 @@ class ExpressionClassifier {
         reported_errors_end_;
   }
 
-  V8_INLINE int GetNonPatternBegin() const { return non_pattern_begin_; }
-
   V8_INLINE void Discard() {
     if (reported_errors_end_ == reported_errors_->length()) {
       reported_errors_->Rewind(reported_errors_begin_);
       reported_errors_end_ = reported_errors_begin_;
     }
     DCHECK_EQ(reported_errors_begin_, reported_errors_end_);
-    DCHECK_LE(non_pattern_begin_, non_patterns_to_rewrite_->length());
-    non_patterns_to_rewrite_->Rewind(non_pattern_begin_);
   }
 
   ExpressionClassifier* previous() const { return previous_; }
@@ -424,16 +409,8 @@ class ExpressionClassifier {
   typename Types::Base* base_;
   ExpressionClassifier* previous_;
   Zone* zone_;
-  ZoneList<typename Types::Expression>* non_patterns_to_rewrite_;
   ZoneList<Error>* reported_errors_;
   DuplicateFinder* duplicate_finder_;
-  // The uint16_t for non_pattern_begin_ will not be enough in the case,
-  // e.g., of an array literal containing more than 64K inner array
-  // literals with spreads, as in:
-  // var N=65536; eval("var x=[];" + "[" + "[...x],".repeat(N) + "].length");
-  // An implementation limit error in ParserBase::AddNonPatternForRewriting
-  // will be triggered in this case.
-  uint16_t non_pattern_begin_;
   unsigned invalid_productions_ : 14;
   unsigned function_properties_ : 2;
   // The uint16_t for reported_errors_begin_ and reported_errors_end_ will

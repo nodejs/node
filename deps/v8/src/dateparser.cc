@@ -190,7 +190,7 @@ int DateParser::ReadMilliseconds(DateToken token) {
     // most significant digits.
     int factor = 1;
     do {
-      DCHECK(factor <= 100000000);  // factor won't overflow.
+      DCHECK_LE(factor, 100000000);  // factor won't overflow.
       factor *= 10;
       length--;
     } while (length > 3);

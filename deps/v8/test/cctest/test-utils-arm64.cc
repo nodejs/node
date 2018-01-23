@@ -114,7 +114,7 @@ bool Equal32(uint32_t expected, const RegisterDump* core, const Register& reg) {
   // Retrieve the corresponding X register so we can check that the upper part
   // was properly cleared.
   int64_t result_x = core->xreg(reg.code());
-  if ((result_x & 0xffffffff00000000L) != 0) {
+  if ((result_x & 0xFFFFFFFF00000000L) != 0) {
     printf("Expected 0x%08" PRIx32 "\t Found 0x%016" PRIx64 "\n",
            expected, result_x);
     return false;
@@ -146,7 +146,7 @@ bool EqualFP32(float expected, const RegisterDump* core,
   // Retrieve the corresponding D register so we can check that the upper part
   // was properly cleared.
   uint64_t result_64 = core->dreg_bits(fpreg.code());
-  if ((result_64 & 0xffffffff00000000L) != 0) {
+  if ((result_64 & 0xFFFFFFFF00000000L) != 0) {
     printf("Expected 0x%08" PRIx32 " (%f)\t Found 0x%016" PRIx64 "\n",
            bit_cast<uint32_t>(expected), expected, result_64);
     return false;
@@ -193,8 +193,8 @@ static char FlagV(uint32_t flags) {
 
 
 bool EqualNzcv(uint32_t expected, uint32_t result) {
-  CHECK((expected & ~NZCVFlag) == 0);
-  CHECK((result & ~NZCVFlag) == 0);
+  CHECK_EQ(expected & ~NZCVFlag, 0);
+  CHECK_EQ(result & ~NZCVFlag, 0);
   if (result != expected) {
     printf("Expected: %c%c%c%c\t Found: %c%c%c%c\n",
         FlagN(expected), FlagZ(expected), FlagC(expected), FlagV(expected),
@@ -286,8 +286,8 @@ void Clobber(MacroAssembler* masm, RegList reg_list, uint64_t const value) {
   for (unsigned i = 0; i < kNumberOfRegisters; i++) {
     if (reg_list & (1UL << i)) {
       Register xn = Register::Create(i, kXRegSizeInBits);
-      // We should never write into csp here.
-      CHECK(!xn.Is(csp));
+      // We should never write into sp here.
+      CHECK(!xn.Is(sp));
       if (!xn.IsZero()) {
         if (!first.IsValid()) {
           // This is the first register we've hit, so construct the literal.
@@ -337,8 +337,6 @@ void Clobber(MacroAssembler* masm, CPURegList reg_list) {
 
 
 void RegisterDump::Dump(MacroAssembler* masm) {
-  CHECK(__ StackPointer().Is(csp));
-
   // Ensure that we don't unintentionally clobber any registers.
   RegList old_tmp_list = masm->TmpList()->list();
   RegList old_fptmp_list = masm->FPTmpList()->list();
@@ -368,13 +366,13 @@ void RegisterDump::Dump(MacroAssembler* masm) {
   // Load the address where we will dump the state.
   __ Mov(dump_base, reinterpret_cast<uint64_t>(&dump_));
 
-  // Dump the stack pointer (csp and wcsp).
+  // Dump the stack pointer (sp and wsp).
   // The stack pointer cannot be stored directly; it needs to be moved into
   // another register first. Also, we pushed four X registers, so we need to
   // compensate here.
-  __ Add(tmp, csp, 4 * kXRegSize);
+  __ Add(tmp, sp, 4 * kXRegSize);
   __ Str(tmp, MemOperand(dump_base, sp_offset));
-  __ Add(tmp_w, wcsp, 4 * kXRegSize);
+  __ Add(tmp_w, wsp, 4 * kXRegSize);
   __ Str(tmp_w, MemOperand(dump_base, wsp_offset));
 
   // Dump X registers.
@@ -451,3 +449,5 @@ void RegisterDump::Dump(MacroAssembler* masm) {
 
 }  // namespace internal
 }  // namespace v8
+
+#undef __

@@ -27,37 +27,36 @@ On success, you will see a series of "PASS" messages, followed by "TEST COMPLETE
 
 
 PASS isNaN(new Date("")) is true
-PASS new Date(1111).getTime() is 1111
-PASS new Date(object).getTime() is 1111
-PASS new Date(new Date(1111)).getTime() is 1111
-PASS new Date(new Date(1111).toString()).getTime() is 1000
-PASS new Date(1111, 1).getTime() - timeZoneOffset is -27104803200000
-PASS new Date(1111, 1, 1).getTime() - timeZoneOffset is -27104803200000
-PASS new Date(1111, 1, 1, 1).getTime() - timeZoneOffset is -27104799600000
-PASS new Date(1111, 1, 1, 1, 1).getTime() - timeZoneOffset is -27104799540000
-PASS new Date(1111, 1, 1, 1, 1, 1).getTime() - timeZoneOffset is -27104799539000
-PASS new Date(1111, 1, 1, 1, 1, 1, 1).getTime() - timeZoneOffset is -27104799538999
-PASS new Date(1111, 1, 1, 1, 1, 1, 1, 1).getTime() - timeZoneOffset is -27104799538999
-PASS new Date(1111, 1, 1, 1, 1, 1, 1, 1, 1).getTime() - timeZoneOffset is -27104799538999
-PASS new Date(1111, 1, 1, 1, 1, 1, 1, 1, 1).getTime() - timeZoneOffset is -27104799538999
-PASS new Date(new Date(1111, 1)).getTime() - timeZoneOffset is -27104803200000
-PASS new Date(new Date(1111, 1, 1)).getTime() - timeZoneOffset is -27104803200000
-PASS new Date(new Date(1111, 1, 1, 1)).getTime() - timeZoneOffset is -27104799600000
-PASS new Date(new Date(1111, 1, 1, 1, 1, 1)).getTime() - timeZoneOffset is -27104799539000
-PASS new Date(new Date(1111, 1, 1, 1, 1, 1, 1)).getTime() - timeZoneOffset is -27104799538999
-PASS new Date(new Date(1111, 1, 1, 1, 1, 1, 1, 1)).getTime() - timeZoneOffset is -27104799538999
-PASS new Date(new Date(1111, 1, 1, 1, 1, 1, 1, 1, 1)).getTime() - timeZoneOffset is -27104799538999
+PASS new Date(1995).getTime() is 1995
+PASS new Date(object).getTime() is 1995
+PASS new Date(new Date(1995)).getTime() is 1995
+PASS new Date(new Date(1995).toString()).getTime() is 1000
+PASS new Date(1995, 1).getTime() - timeZoneOffset is 791596800000
+PASS new Date(1995, 1, 1).getTime() - timeZoneOffset is 791596800000
+PASS new Date(1995, 1, 1, 1).getTime() - timeZoneOffset is 791600400000
+PASS new Date(1995, 1, 1, 1, 1).getTime() - timeZoneOffset is 791600460000
+PASS new Date(1995, 1, 1, 1, 1, 1).getTime() - timeZoneOffset is 791600461000
+PASS new Date(1995, 1, 1, 1, 1, 1, 1).getTime() - timeZoneOffset is 791600461001
+PASS new Date(1995, 1, 1, 1, 1, 1, 1, 1).getTime() - timeZoneOffset is 791600461001
+PASS new Date(1995, 1, 1, 1, 1, 1, 1, 1, 1).getTime() - timeZoneOffset is 791600461001
+PASS new Date(new Date(1995, 1)).getTime() - timeZoneOffset is 791596800000
+PASS new Date(new Date(1995, 1, 1)).getTime() - timeZoneOffset is 791596800000
+PASS new Date(new Date(1995, 1, 1, 1)).getTime() - timeZoneOffset is 791600400000
+PASS new Date(new Date(1995, 1, 1, 1, 1)).getTime() - timeZoneOffset is 791600460000
+PASS new Date(new Date(1995, 1, 1, 1, 1, 1)).getTime() - timeZoneOffset is 791600461000
+PASS new Date(new Date(1995, 1, 1, 1, 1, 1, 1)).getTime() - timeZoneOffset is 791600461001
+PASS new Date(new Date(1995, 1, 1, 1, 1, 1, 1, 1)).getTime() - timeZoneOffset is 791600461001
+PASS new Date(new Date(1995, 1, 1, 1, 1, 1, 1, 1, 1)).getTime() - timeZoneOffset is 791600461001
 PASS Number(new Date(new Date(Infinity, 1, 1, 1, 1, 1, 1, 1, 1)).getTime() - timeZoneOffset) is Number.NaN
-PASS Number(new Date(new Date(1, Infinity, 1, 1, 1, 1, 1, 1, 1)).getTime() - timeZoneOffset) is Number.NaN
-PASS Number(new Date(new Date(1, 1, Infinity, 1, 1, 1, 1, 1, 1)).getTime() - timeZoneOffset) is Number.NaN
-PASS Number(new Date(new Date(1, 1, 1, Infinity, 1, 1, 1, 1, 1)).getTime() - timeZoneOffset) is Number.NaN
-PASS Number(new Date(new Date(1, 1, 1, 1, Infinity, 1, 1, 1, 1)).getTime() - timeZoneOffset) is Number.NaN
-PASS Number(new Date(new Date(1, 1, 1, 1, 1, Infinity, 1, 1, 1)).getTime() - timeZoneOffset) is Number.NaN
-PASS Number(new Date(new Date(1, 1, 1, 1, 1, 1, Infinity, 1, 1)).getTime() - timeZoneOffset) is Number.NaN
-PASS Number(new Date(new Date(1, 1, 1, 1, 1, 1, 1, 1, Infinity)).getTime() - timeZoneOffset) is -2174770738999
+PASS Number(new Date(new Date(95, Infinity, 1, 1, 1, 1, 1, 1, 1)).getTime() - timeZoneOffset) is Number.NaN
+PASS Number(new Date(new Date(95, 1, Infinity, 1, 1, 1, 1, 1, 1)).getTime() - timeZoneOffset) is Number.NaN
+PASS Number(new Date(new Date(95, 1, 1, Infinity, 1, 1, 1, 1, 1)).getTime() - timeZoneOffset) is Number.NaN
+PASS Number(new Date(new Date(95, 1, 1, 1, Infinity, 1, 1, 1, 1)).getTime() - timeZoneOffset) is Number.NaN
+PASS Number(new Date(new Date(95, 1, 1, 1, 1, Infinity, 1, 1, 1)).getTime() - timeZoneOffset) is Number.NaN
+PASS Number(new Date(new Date(95, 1, 1, 1, 1, 1, Infinity, 1, 1)).getTime() - timeZoneOffset) is Number.NaN
+PASS Number(new Date(new Date(95, 1, 1, 1, 1, 1, 1, 1, Infinity)).getTime() - timeZoneOffset) is 791600461001
 PASS testStr is "1234567"
 PASS testStr is "1234567"
 PASS successfullyParsed is true
 
 TEST COMPLETE
-

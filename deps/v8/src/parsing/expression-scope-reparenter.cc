@@ -27,6 +27,7 @@ class Reparenter final : public AstTraversalVisitor<Reparenter> {
   void VisitFunctionLiteral(FunctionLiteral* expr);
   void VisitClassLiteral(ClassLiteral* expr);
   void VisitVariableProxy(VariableProxy* expr);
+  void VisitRewritableExpression(RewritableExpression* expr);
 
   void VisitBlock(Block* stmt);
   void VisitTryCatchStatement(TryCatchStatement* stmt);
@@ -45,6 +46,12 @@ void Reparenter::VisitClassLiteral(ClassLiteral* class_literal) {
   // scope on its scope chain.
   DCHECK_EQ(class_literal->constructor()->scope()->outer_scope(),
             class_literal->scope());
+
+  if (class_literal->static_fields_initializer() != nullptr) {
+    DCHECK_EQ(
+        class_literal->static_fields_initializer()->scope()->outer_scope(),
+        class_literal->scope());
+  }
 #if DEBUG
   // The same goes for the rest of the class, but we do some
   // sanity checking in debug mode.
@@ -72,8 +79,13 @@ void Reparenter::VisitVariableProxy(VariableProxy* proxy) {
   }
 }
 
+void Reparenter::VisitRewritableExpression(RewritableExpression* expr) {
+  Visit(expr->expression());
+  expr->set_scope(scope_);
+}
+
 void Reparenter::VisitBlock(Block* stmt) {
-  if (stmt->scope() != nullptr)
+  if (stmt->scope())
     stmt->scope()->ReplaceOuterScope(scope_);
   else
     VisitStatements(stmt->statements());
@@ -81,7 +93,11 @@ void Reparenter::VisitBlock(Block* stmt) {
 
 void Reparenter::VisitTryCatchStatement(TryCatchStatement* stmt) {
   Visit(stmt->try_block());
-  stmt->scope()->ReplaceOuterScope(scope_);
+  if (stmt->scope()) {
+    stmt->scope()->ReplaceOuterScope(scope_);
+  } else {
+    Visit(stmt->catch_block());
+  }
 }
 
 void Reparenter::VisitWithStatement(WithStatement* stmt) {

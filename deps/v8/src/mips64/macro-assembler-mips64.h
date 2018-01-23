@@ -144,7 +144,7 @@ inline MemOperand UntagSmiFieldMemOperand(Register rm, int offset) {
 //              n64, and used in RegExp code, and other places
 //              with more than 8 arguments.
 inline MemOperand CFunctionArgumentOperand(int index) {
-  DCHECK(index > kCArgSlotCount);
+  DCHECK_GT(index, kCArgSlotCount);
   // Argument 5 takes the slot just past the four Arg-slots.
   int offset = (index - 5) * kPointerSize + kCArgsSlotsSize;
   return MemOperand(sp, offset);
@@ -195,13 +195,13 @@ class TurboAssembler : public Assembler {
 
   // Calls Abort(msg) if the condition cc is not satisfied.
   // Use --debug_code to enable.
-  void Assert(Condition cc, BailoutReason reason, Register rs, Operand rt);
+  void Assert(Condition cc, AbortReason reason, Register rs, Operand rt);
 
   // Like Assert(), but always enabled.
-  void Check(Condition cc, BailoutReason reason, Register rs, Operand rt);
+  void Check(Condition cc, AbortReason reason, Register rs, Operand rt);
 
   // Print a message to stdout and abort execution.
-  void Abort(BailoutReason msg);
+  void Abort(AbortReason msg);
 
   inline bool AllowThisStubCall(CodeStub* stub);
 
@@ -942,18 +942,6 @@ class MacroAssembler : public TurboAssembler {
 
   bool IsNear(Label* L, Condition cond, int rs_reg);
 
-  // Emit code that loads |parameter_index|'th parameter from the stack to
-  // the register according to the CallInterfaceDescriptor definition.
-  // |sp_to_caller_sp_offset_in_words| specifies the number of words pushed
-  // below the caller's sp.
-  template <class Descriptor>
-  void LoadParameterFromStack(
-      Register reg, typename Descriptor::ParameterIndices parameter_index,
-      int sp_to_ra_offset_in_words = 0) {
-    DCHECK(Descriptor::kPassLastArgsOnStack);
-    UNIMPLEMENTED();
-  }
-
   // Swap two registers.  If the scratch register is omitted then a slightly
   // less efficient form using xor instead of mov is emitted.
   void Swap(Register reg1, Register reg2, Register scratch = no_reg);
@@ -984,51 +972,6 @@ class MacroAssembler : public TurboAssembler {
 
   // ---------------------------------------------------------------------------
   // GC Support
-
-  void IncrementalMarkingRecordWriteHelper(Register object,
-                                           Register value,
-                                           Register address);
-
-  // Record in the remembered set the fact that we have a pointer to new space
-  // at the address pointed to by the addr register.  Only works if addr is not
-  // in new space.
-  void RememberedSetHelper(Register object,  // Used for debug code.
-                           Register addr, Register scratch,
-                           SaveFPRegsMode save_fp);
-
-  // Check if object is in new space.  Jumps if the object is not in new space.
-  // The register scratch can be object itself, but it will be clobbered.
-  void JumpIfNotInNewSpace(Register object,
-                           Register scratch,
-                           Label* branch) {
-    InNewSpace(object, scratch, eq, branch);
-  }
-
-  // Check if object is in new space.  Jumps if the object is in new space.
-  // The register scratch can be object itself, but scratch will be clobbered.
-  void JumpIfInNewSpace(Register object,
-                        Register scratch,
-                        Label* branch) {
-    InNewSpace(object, scratch, ne, branch);
-  }
-
-  // Check if an object has a given incremental marking color.
-  void HasColor(Register object,
-                Register scratch0,
-                Register scratch1,
-                Label* has_color,
-                int first_bit,
-                int second_bit);
-
-  void JumpIfBlack(Register object,
-                   Register scratch0,
-                   Register scratch1,
-                   Label* on_black);
-
-  // Checks the color of an object.  If the object is white we jump to the
-  // incremental marker.
-  void JumpIfWhite(Register value, Register scratch1, Register scratch2,
-                   Register scratch3, Label* value_is_white);
 
   // Notify the garbage collector that we wrote a pointer into an object.
   // |object| is the object being stored into, |value| is the object being
@@ -1108,7 +1051,7 @@ class MacroAssembler : public TurboAssembler {
 
   // Leave the current exit frame.
   void LeaveExitFrame(bool save_doubles, Register arg_count,
-                      bool restore_context, bool do_return = NO_EMIT_RETURN,
+                      bool do_return = NO_EMIT_RETURN,
                       bool argument_count_is_length = false);
 
   // Make sure the stack is aligned. Only emits code in debug mode.
@@ -1167,21 +1110,9 @@ class MacroAssembler : public TurboAssembler {
   // -------------------------------------------------------------------------
   // Support functions.
 
-  // Machine code version of Map::GetConstructor().
-  // |temp| holds |result|'s map when done, and |temp2| its instance type.
-  void GetMapConstructor(Register result, Register map, Register temp,
-                         Register temp2);
-
   void GetObjectType(Register function,
                      Register map,
                      Register type_reg);
-
-  // Get value of the weak cell.
-  void GetWeakValue(Register value, Handle<WeakCell> cell);
-
-  // Load the value of the weak cell in the value register. Branch to the
-  // given miss label is the weak cell was cleared.
-  void LoadWeakValue(Register value, Handle<WeakCell> cell, Label* miss);
 
   // -------------------------------------------------------------------------
   // Runtime calls.
@@ -1256,7 +1187,7 @@ const Operand& rt = Operand(zero_reg), BranchDelaySlot bd = PROTECT
       // The int portion is upper 32-bits of 64-bit word.
       dsra(dst, src, kSmiShift - scale);
     } else {
-      DCHECK(scale >= kSmiTagSize);
+      DCHECK_GE(scale, kSmiTagSize);
       sll(dst, src, scale - kSmiTagSize);
     }
   }
@@ -1303,15 +1234,6 @@ const Operand& rt = Operand(zero_reg), BranchDelaySlot bd = PROTECT
   // via --debug-code.
   void AssertUndefinedOrAllocationSite(Register object, Register scratch);
 
-  // -------------------------------------------------------------------------
-  // String utilities.
-
-  void JumpIfNotUniqueNameInstanceType(Register reg, Label* not_unique_name);
-
-  void LoadInstanceDescriptors(Register map, Register descriptors);
-  void LoadAccessor(Register dst, Register holder, int accessor_index,
-                    AccessorComponent accessor);
-
   template<typename Field>
   void DecodeField(Register dst, Register src) {
     Ext(dst, src, Field::kShift, Field::kSize);
@@ -1331,61 +1253,12 @@ const Operand& rt = Operand(zero_reg), BranchDelaySlot bd = PROTECT
                       const ParameterCount& actual, Label* done,
                       bool* definitely_mismatches, InvokeFlag flag);
 
-  // Helper for implementing JumpIfNotInNewSpace and JumpIfInNewSpace.
-  void InNewSpace(Register object, Register scratch,
-                  Condition cond,  // ne for new space, eq otherwise.
-                  Label* branch);
-
-  // Helper for finding the mark bits for an address.  Afterwards, the
-  // bitmap register points at the word with the mark bits and the mask
-  // the position of the first bit.  Leaves addr_reg unchanged.
-  inline void GetMarkBits(Register addr_reg,
-                          Register bitmap_reg,
-                          Register mask_reg);
-
   // Compute memory operands for safepoint stack slots.
   static int SafepointRegisterStackIndex(int reg_code);
 
   // Needs access to SafepointRegisterStackIndex for compiled frame
   // traversal.
   friend class StandardFrame;
-};
-
-
-// The code patcher is used to patch (typically) small parts of code e.g. for
-// debugging and other types of instrumentation. When using the code patcher
-// the exact number of bytes specified must be emitted. It is not legal to emit
-// relocation information. If any of these constraints are violated it causes
-// an assertion to fail.
-class CodePatcher {
- public:
-  enum FlushICache {
-    FLUSH,
-    DONT_FLUSH
-  };
-
-  CodePatcher(Isolate* isolate, byte* address, int instructions,
-              FlushICache flush_cache = FLUSH);
-  ~CodePatcher();
-
-  // Macro assembler to emit code.
-  MacroAssembler* masm() { return &masm_; }
-
-  // Emit an instruction directly.
-  void Emit(Instr instr);
-
-  // Emit an address directly.
-  void Emit(Address addr);
-
-  // Change the condition part of an instruction leaving the rest of the current
-  // instruction unchanged.
-  void ChangeBranchCondition(Instr current_instr, uint32_t new_opcode);
-
- private:
-  byte* address_;  // The address of the code being patched.
-  int size_;  // Number of bytes of the expected patch size.
-  MacroAssembler masm_;  // Macro assembler used to generate the code.
-  FlushICache flush_cache_;  // Whether to flush the I cache after patching.
 };
 
 template <typename Func>

@@ -215,6 +215,11 @@ class OutOfLineCode : public ZoneObject {
   OutOfLineCode* const next_;
 };
 
+inline bool HasCallDescriptorFlag(Instruction* instr,
+                                  CallDescriptor::Flag flag) {
+  return MiscField::decode(instr->opcode()) & flag;
+}
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

@@ -126,6 +126,15 @@
 })();
 
 (function() {
+  function foo(o) { return Object.is(String(o), "foo"); }
+  assertFalse(foo("bar"));
+  assertTrue(foo("foo"));
+  %OptimizeFunctionOnNextCall(foo);
+  assertFalse(foo("bar"));
+  assertTrue(foo("foo"));
+})();
+
+(function() {
   function foo(o) { return Object.is(o, o); }
   assertTrue(foo(-0));
   assertTrue(foo(0));
@@ -140,4 +149,26 @@
   assertTrue(foo(''));
   assertTrue(foo([]));
   assertTrue(foo({}));
+})();
+
+(function() {
+  function foo(o) { return Object.is(o|0, 0); }
+  assertTrue(foo(0));
+  assertTrue(foo(-0));
+  assertTrue(foo(NaN));
+  assertFalse(foo(1));
+  %OptimizeFunctionOnNextCall(foo);
+  assertTrue(foo(0));
+  assertTrue(foo(-0));
+  assertTrue(foo(NaN));
+  assertFalse(foo(1));
+})();
+
+(function() {
+  const s = Symbol();
+  function foo() { return Object.is(s, Symbol()); }
+  assertFalse(foo());
+  assertFalse(foo());
+  %OptimizeFunctionOnNextCall(foo);
+  assertFalse(foo());
 })();

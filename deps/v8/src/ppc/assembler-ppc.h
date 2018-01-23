@@ -303,6 +303,7 @@ constexpr Register kConstantPoolRegister = r28;  // Constant pool.
 constexpr Register kRootRegister = r29;          // Roots array pointer.
 constexpr Register cp = r30;                     // JavaScript context pointer.
 
+constexpr bool kPadArguments = false;
 constexpr bool kSimpleFPAliasing = true;
 constexpr bool kSimdMaskRegisters = false;
 
@@ -341,7 +342,7 @@ typedef DoubleRegister Simd128Register;
   constexpr DoubleRegister R = DoubleRegister::from_code<kDoubleCode_##R>();
 DOUBLE_REGISTERS(DEFINE_REGISTER)
 #undef DEFINE_REGISTER
-constexpr Register no_dreg = Register::no_reg();
+constexpr DoubleRegister no_dreg = DoubleRegister::no_reg();
 
 constexpr DoubleRegister kFirstCalleeSavedDoubleReg = d14;
 constexpr DoubleRegister kLastCalleeSavedDoubleReg = d31;
@@ -372,18 +373,12 @@ C_REGISTERS(DECLARE_C_REGISTER)
 // -----------------------------------------------------------------------------
 // Machine instruction Operands
 
-#if V8_TARGET_ARCH_PPC64
-constexpr RelocInfo::Mode kRelocInfo_NONEPTR = RelocInfo::NONE64;
-#else
-constexpr RelocInfo::Mode kRelocInfo_NONEPTR = RelocInfo::NONE32;
-#endif
-
 // Class Operand represents a shifter operand in data processing instructions
 class Operand BASE_EMBEDDED {
  public:
   // immediate
   INLINE(explicit Operand(intptr_t immediate,
-                          RelocInfo::Mode rmode = kRelocInfo_NONEPTR)
+                          RelocInfo::Mode rmode = RelocInfo::NONE)
          : rmode_(rmode)) {
     value_.immediate = immediate;
   }
@@ -393,7 +388,7 @@ class Operand BASE_EMBEDDED {
     value_.immediate = reinterpret_cast<intptr_t>(f.address());
   }
   explicit Operand(Handle<HeapObject> handle);
-  INLINE(explicit Operand(Smi* value) : rmode_(kRelocInfo_NONEPTR)) {
+  INLINE(explicit Operand(Smi* value) : rmode_(RelocInfo::NONE)) {
     value_.immediate = reinterpret_cast<intptr_t>(value);
   }
   // rm
@@ -461,12 +456,10 @@ class MemOperand BASE_EMBEDDED {
 
   // PowerPC - base register
   Register ra() const {
-    DCHECK(ra_ != no_reg);
     return ra_;
   }
 
   Register rb() const {
-    DCHECK(offset_ == 0 && rb_ != no_reg);
     return rb_;
   }
 
@@ -503,14 +496,15 @@ class Assembler : public AssemblerBase {
   // relocation information starting from the end of the buffer. See CodeDesc
   // for a detailed comment on the layout (globals.h).
   //
-  // If the provided buffer is NULL, the assembler allocates and grows its own
-  // buffer, and buffer_size determines the initial buffer size. The buffer is
-  // owned by the assembler and deallocated upon destruction of the assembler.
+  // If the provided buffer is nullptr, the assembler allocates and grows its
+  // own buffer, and buffer_size determines the initial buffer size. The buffer
+  // is owned by the assembler and deallocated upon destruction of the
+  // assembler.
   //
-  // If the provided buffer is not NULL, the assembler uses the provided buffer
-  // for code generation and assumes its size to be buffer_size. If the buffer
-  // is too small, a fatal error occurs. No deallocation of the buffer is done
-  // upon destruction of the assembler.
+  // If the provided buffer is not nullptr, the assembler uses the provided
+  // buffer for code generation and assumes its size to be buffer_size. If the
+  // buffer is too small, a fatal error occurs. No deallocation of the buffer is
+  // done upon destruction of the assembler.
   Assembler(Isolate* isolate, void* buffer, int buffer_size)
       : Assembler(IsolateData(isolate), buffer, buffer_size) {}
   Assembler(IsolateData isolate_data, void* buffer, int buffer_size);
@@ -582,10 +576,6 @@ class Assembler : public AssemblerBase {
   INLINE(static Address target_address_at(Address pc, Address constant_pool));
   INLINE(static void set_target_address_at(
       Isolate* isolate, Address pc, Address constant_pool, Address target,
-      ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED));
-  INLINE(static Address target_address_at(Address pc, Code* code));
-  INLINE(static void set_target_address_at(
-      Isolate* isolate, Address pc, Code* code, Address target,
       ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED));
 
   // Return the code target address at a call site from the return address
@@ -1641,7 +1631,6 @@ class Assembler : public AssemblerBase {
 
   friend class RegExpMacroAssemblerPPC;
   friend class RelocInfo;
-  friend class CodePatcher;
   friend class BlockTrampolinePoolScope;
   friend class EnsureSpace;
 

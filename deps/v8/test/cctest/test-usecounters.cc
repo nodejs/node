@@ -10,68 +10,11 @@ namespace v8 {
 namespace internal {
 namespace test_usecounters {
 
-int* global_use_counts = NULL;
+int* global_use_counts = nullptr;
 
 void MockUseCounterCallback(v8::Isolate* isolate,
                             v8::Isolate::UseCounterFeature feature) {
   ++global_use_counts[feature];
-}
-
-TEST(DefineGetterSetterThrowUseCount) {
-  i::FLAG_harmony_strict_legacy_accessor_builtins = false;
-  v8::Isolate* isolate = CcTest::isolate();
-  v8::HandleScope scope(isolate);
-  LocalContext env;
-  int use_counts[v8::Isolate::kUseCounterFeatureCount] = {};
-  global_use_counts = use_counts;
-  CcTest::isolate()->SetUseCounterCallback(MockUseCounterCallback);
-
-  // __defineGetter__ and __defineSetter__ do not increment
-  // kDefineGetterOrSetterWouldThrow on success
-  CompileRun(
-      "var a = {};"
-      "Object.defineProperty(a, 'b', { value: 0, configurable: true });"
-      "a.__defineGetter__('b', ()=>{});");
-  CHECK_EQ(0, use_counts[v8::Isolate::kDefineGetterOrSetterWouldThrow]);
-  CompileRun(
-      "var a = {};"
-      "Object.defineProperty(a, 'b', { value: 0, configurable: true });"
-      "a.__defineSetter__('b', ()=>{});");
-  CHECK_EQ(0, use_counts[v8::Isolate::kDefineGetterOrSetterWouldThrow]);
-
-  // __defineGetter__ and __defineSetter__ do not increment
-  // kDefineGetterOrSetterWouldThrow on other errors
-  v8::Local<v8::Value> resultProxyThrow = CompileRun(
-      "var exception;"
-      "try {"
-      "var a = new Proxy({}, { defineProperty: ()=>{throw new Error;} });"
-      "a.__defineGetter__('b', ()=>{});"
-      "} catch (e) { exception = e; }"
-      "exception");
-  CHECK_EQ(0, use_counts[v8::Isolate::kDefineGetterOrSetterWouldThrow]);
-  CHECK(resultProxyThrow->IsObject());
-  resultProxyThrow = CompileRun(
-      "var exception;"
-      "try {"
-      "var a = new Proxy({}, { defineProperty: ()=>{throw new Error;} });"
-      "a.__defineSetter__('b', ()=>{});"
-      "} catch (e) { exception = e; }"
-      "exception");
-  CHECK_EQ(0, use_counts[v8::Isolate::kDefineGetterOrSetterWouldThrow]);
-  CHECK(resultProxyThrow->IsObject());
-
-  // __defineGetter__ and __defineSetter__ increment
-  // kDefineGetterOrSetterWouldThrow when they would throw per spec (B.2.2.2)
-  CompileRun(
-      "var a = {};"
-      "Object.defineProperty(a, 'b', { value: 0, configurable: false });"
-      "a.__defineGetter__('b', ()=>{});");
-  CHECK_EQ(1, use_counts[v8::Isolate::kDefineGetterOrSetterWouldThrow]);
-  CompileRun(
-      "var a = {};"
-      "Object.defineProperty(a, 'b', { value: 0, configurable: false });"
-      "a.__defineSetter__('b', ()=>{});");
-  CHECK_EQ(2, use_counts[v8::Isolate::kDefineGetterOrSetterWouldThrow]);
 }
 
 TEST(AssigmentExpressionLHSIsCall) {
@@ -115,31 +58,6 @@ TEST(AssigmentExpressionLHSIsCall) {
   CHECK_EQ(0, use_counts[v8::Isolate::kAssigmentExpressionLHSIsCallInSloppy]);
   CHECK_NE(0, use_counts[v8::Isolate::kAssigmentExpressionLHSIsCallInStrict]);
   use_counts[v8::Isolate::kAssigmentExpressionLHSIsCallInStrict] = 0;
-}
-
-TEST(LabeledExpressionStatement) {
-  v8::Isolate* isolate = CcTest::isolate();
-  v8::HandleScope scope(isolate);
-  LocalContext env;
-  int use_counts[v8::Isolate::kUseCounterFeatureCount] = {};
-  global_use_counts = use_counts;
-  CcTest::isolate()->SetUseCounterCallback(MockUseCounterCallback);
-
-  CompileRun("typeof a");
-  CHECK_EQ(0, use_counts[v8::Isolate::kLabeledExpressionStatement]);
-
-  CompileRun("foo: null");
-  CHECK_EQ(1, use_counts[v8::Isolate::kLabeledExpressionStatement]);
-
-  CompileRun("foo: bar: baz: undefined");
-  CHECK_EQ(2, use_counts[v8::Isolate::kLabeledExpressionStatement]);
-
-  CompileRun(
-      "foo: if (false);"
-      "bar: { }"
-      "baz: switch (false) { }"
-      "bat: do { } while (false);");
-  CHECK_EQ(2, use_counts[v8::Isolate::kLabeledExpressionStatement]);
 }
 
 }  // namespace test_usecounters

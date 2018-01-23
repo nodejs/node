@@ -37,7 +37,8 @@ static Handle<JSFunction> Compile(const char* source) {
       Compiler::GetSharedFunctionInfoForScript(
           source_code, MaybeHandle<String>(), 0, 0, v8::ScriptOriginOptions(),
           MaybeHandle<Object>(), Handle<Context>(isolate->native_context()),
-          NULL, NULL, v8::ScriptCompiler::kNoCompileOptions, NOT_NATIVES_CODE,
+          nullptr, nullptr, v8::ScriptCompiler::kNoCompileOptions,
+          ScriptCompiler::kNoCacheNoReason, NOT_NATIVES_CODE,
           MaybeHandle<FixedArray>())
           .ToHandleChecked();
   return isolate->factory()->NewFunctionFromSharedFunctionInfo(
@@ -107,7 +108,7 @@ TEST(TestLinkageStubCall) {
   Isolate* isolate = CcTest::InitIsolateOnce();
   Zone zone(isolate->allocator(), ZONE_NAME);
   Callable callable = Builtins::CallableFor(isolate, Builtins::kToNumber);
-  CompilationInfo info(ArrayVector("test"), isolate, &zone, Code::STUB);
+  CompilationInfo info(ArrayVector("test"), &zone, Code::STUB);
   CallDescriptor* descriptor = Linkage::GetStubCallDescriptor(
       isolate, &zone, callable.descriptor(), 0, CallDescriptor::kNoFlags,
       Operator::kNoProperties);

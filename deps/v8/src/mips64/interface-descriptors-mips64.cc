@@ -43,8 +43,6 @@ const Register LoadDescriptor::SlotRegister() { return a0; }
 
 const Register LoadWithVectorDescriptor::VectorRegister() { return a3; }
 
-const Register LoadICProtoArrayDescriptor::HandlerRegister() { return a4; }
-
 const Register StoreDescriptor::ReceiverRegister() { return a1; }
 const Register StoreDescriptor::NameRegister() { return a2; }
 const Register StoreDescriptor::ValueRegister() { return a0; }
@@ -55,9 +53,6 @@ const Register StoreWithVectorDescriptor::VectorRegister() { return a3; }
 const Register StoreTransitionDescriptor::SlotRegister() { return a4; }
 const Register StoreTransitionDescriptor::VectorRegister() { return a3; }
 const Register StoreTransitionDescriptor::MapRegister() { return a5; }
-
-const Register StringCompareDescriptor::LeftRegister() { return a1; }
-const Register StringCompareDescriptor::RightRegister() { return a0; }
 
 const Register ApiGetterDescriptor::HolderRegister() { return a0; }
 const Register ApiGetterDescriptor::CallbackRegister() { return a3; }
@@ -76,7 +71,7 @@ const Register GrowArrayElementsDescriptor::KeyRegister() { return a3; }
 void FastNewClosureDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   Register registers[] = {a1, a2, a3};
-  data->InitializePlatformSpecific(arraysize(registers), registers, NULL);
+  data->InitializePlatformSpecific(arraysize(registers), registers, nullptr);
 }
 
 // static
@@ -85,13 +80,13 @@ const Register TypeConversionDescriptor::ArgumentRegister() { return a0; }
 void TypeofDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   Register registers[] = {a3};
-  data->InitializePlatformSpecific(arraysize(registers), registers, NULL);
+  data->InitializePlatformSpecific(arraysize(registers), registers, nullptr);
 }
 
 void CallFunctionDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   Register registers[] = {a1};
-  data->InitializePlatformSpecific(arraysize(registers), registers, NULL);
+  data->InitializePlatformSpecific(arraysize(registers), registers, nullptr);
 }
 
 void CallTrampolineDescriptor::InitializePlatformSpecific(
@@ -202,9 +197,14 @@ void ConstructTrampolineDescriptor::InitializePlatformSpecific(
 void TransitionElementsKindDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   Register registers[] = {a0, a1};
-  data->InitializePlatformSpecific(arraysize(registers), registers, NULL);
+  data->InitializePlatformSpecific(arraysize(registers), registers, nullptr);
 }
 
+void AbortJSDescriptor::InitializePlatformSpecific(
+    CallInterfaceDescriptorData* data) {
+  Register registers[] = {a0};
+  data->InitializePlatformSpecific(arraysize(registers), registers);
+}
 
 void AllocateHeapNumberDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
@@ -216,7 +216,7 @@ void ArrayConstructorDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   // kTarget, kNewTarget, kActualArgumentsCount, kAllocationSite
   Register registers[] = {a1, a3, a0, a2};
-  data->InitializePlatformSpecific(arraysize(registers), registers, NULL);
+  data->InitializePlatformSpecific(arraysize(registers), registers, nullptr);
 }
 
 void ArrayNoArgumentConstructorDescriptor::InitializePlatformSpecific(
@@ -226,7 +226,7 @@ void ArrayNoArgumentConstructorDescriptor::InitializePlatformSpecific(
   // a1 -- function
   // a2 -- allocation site with elements kind
   Register registers[] = {a1, a2, a0};
-  data->InitializePlatformSpecific(arraysize(registers), registers, NULL);
+  data->InitializePlatformSpecific(arraysize(registers), registers, nullptr);
 }
 
 void ArraySingleArgumentConstructorDescriptor::InitializePlatformSpecific(
@@ -236,7 +236,7 @@ void ArraySingleArgumentConstructorDescriptor::InitializePlatformSpecific(
   // a1 -- function
   // a2 -- allocation site with elements kind
   Register registers[] = {a1, a2, a0};
-  data->InitializePlatformSpecific(arraysize(registers), registers, NULL);
+  data->InitializePlatformSpecific(arraysize(registers), registers, nullptr);
 }
 
 void ArrayNArgumentsConstructorDescriptor::InitializePlatformSpecific(
@@ -249,20 +249,20 @@ void ArrayNArgumentsConstructorDescriptor::InitializePlatformSpecific(
 void CompareDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   Register registers[] = {a1, a0};
-  data->InitializePlatformSpecific(arraysize(registers), registers, NULL);
+  data->InitializePlatformSpecific(arraysize(registers), registers, nullptr);
 }
 
 
 void BinaryOpDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   Register registers[] = {a1, a0};
-  data->InitializePlatformSpecific(arraysize(registers), registers, NULL);
+  data->InitializePlatformSpecific(arraysize(registers), registers, nullptr);
 }
 
 void StringAddDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   Register registers[] = {a1, a0};
-  data->InitializePlatformSpecific(arraysize(registers), registers, NULL);
+  data->InitializePlatformSpecific(arraysize(registers), registers, nullptr);
 }
 
 void ArgumentAdaptorDescriptor::InitializePlatformSpecific(
@@ -279,10 +279,10 @@ void ArgumentAdaptorDescriptor::InitializePlatformSpecific(
 void ApiCallbackDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   Register registers[] = {
-      a0,  // callee
-      a4,  // call_data
-      a2,  // holder
-      a1,  // api_function_address
+      JavaScriptFrame::context_register(),  // callee context
+      a4,                                   // call_data
+      a2,                                   // holder
+      a1,                                   // api_function_address
   };
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }
@@ -331,8 +331,7 @@ void ResumeGeneratorDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   Register registers[] = {
       v0,  // the value to pass to the generator
-      a1,  // the JSGeneratorObject to resume
-      a2   // the resume mode (tagged)
+      a1   // the JSGeneratorObject to resume
   };
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }

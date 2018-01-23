@@ -94,8 +94,7 @@ class MoveOptimizerTest : public InstructionSequenceTest {
       default:
         break;
     }
-    CHECK(false);
-    return InstructionOperand();
+    UNREACHABLE();
   }
 };
 

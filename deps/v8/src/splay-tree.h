@@ -36,7 +36,7 @@ class SplayTree {
   class Locator;
 
   explicit SplayTree(AllocationPolicy allocator = AllocationPolicy())
-      : root_(NULL), allocator_(allocator) {}
+      : root_(nullptr), allocator_(allocator) {}
   ~SplayTree();
 
   INLINE(void* operator new(size_t size,
@@ -89,7 +89,7 @@ class SplayTree {
   // Remove all keys from the tree.
   void Clear() { ResetRoot(); }
 
-  bool is_empty() { return root_ == NULL; }
+  bool is_empty() { return root_ == nullptr; }
 
   // Perform the splay operation for the given key. Moves the node with
   // the given key to the top of the tree.  If no node has the given
@@ -100,10 +100,7 @@ class SplayTree {
   class Node {
    public:
     Node(const Key& key, const Value& value)
-        : key_(key),
-          value_(value),
-          left_(NULL),
-          right_(NULL) { }
+        : key_(key), value_(value), left_(nullptr), right_(nullptr) {}
 
     INLINE(void* operator new(size_t size, AllocationPolicy allocator)) {
       return allocator.New(static_cast<int>(size));
@@ -136,7 +133,7 @@ class SplayTree {
   class Locator BASE_EMBEDDED {
    public:
     explicit Locator(Node* node) : node_(node) { }
-    Locator() : node_(NULL) { }
+    Locator() : node_(nullptr) {}
     const Key& key() { return node_->key_; }
     Value& value() { return node_->value_; }
     void set_value(const Value& value) { node_->value_ = value; }
@@ -151,7 +148,7 @@ class SplayTree {
 
  protected:
   // Resets tree root. Existing nodes become unreachable.
-  void ResetRoot() { root_ = NULL; }
+  void ResetRoot() { root_ = nullptr; }
 
  private:
   // Search for a node with a given key. If found, root_ points

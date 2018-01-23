@@ -66,6 +66,11 @@ bool AreAliased(Register reg1, Register reg2, Register reg3 = no_reg,
                 Register reg6 = no_reg, Register reg7 = no_reg,
                 Register reg8 = no_reg, Register reg9 = no_reg,
                 Register reg10 = no_reg);
+bool AreAliased(DoubleRegister reg1, DoubleRegister reg2,
+                DoubleRegister reg3 = no_dreg, DoubleRegister reg4 = no_dreg,
+                DoubleRegister reg5 = no_dreg, DoubleRegister reg6 = no_dreg,
+                DoubleRegister reg7 = no_dreg, DoubleRegister reg8 = no_dreg,
+                DoubleRegister reg9 = no_dreg, DoubleRegister reg10 = no_dreg);
 #endif
 
 // These exist to provide portability between 32 and 64bit
@@ -339,6 +344,21 @@ class TurboAssembler : public Assembler {
   void LoadRoot(Register destination, Heap::RootListIndex index,
                 Condition cond = al);
 
+  void SwapP(Register src, Register dst, Register scratch);
+  void SwapP(Register src, MemOperand dst, Register scratch);
+  void SwapP(MemOperand src, MemOperand dst, Register scratch_0,
+             Register scratch_1);
+  void SwapFloat32(DoubleRegister src, DoubleRegister dst,
+                   DoubleRegister scratch);
+  void SwapFloat32(DoubleRegister src, MemOperand dst, DoubleRegister scratch);
+  void SwapFloat32(MemOperand src, MemOperand dst, DoubleRegister scratch_0,
+                   DoubleRegister scratch_1);
+  void SwapDouble(DoubleRegister src, DoubleRegister dst,
+                  DoubleRegister scratch);
+  void SwapDouble(DoubleRegister src, MemOperand dst, DoubleRegister scratch);
+  void SwapDouble(MemOperand src, MemOperand dst, DoubleRegister scratch_0,
+                  DoubleRegister scratch_1);
+
   // Before calling a C-function from generated code, align arguments on stack.
   // After aligning the frame, non-register arguments must be stored in
   // sp[0], sp[4], etc., not pushed. The argument count assumes all arguments
@@ -384,13 +404,13 @@ class TurboAssembler : public Assembler {
 
   // Calls Abort(msg) if the condition cond is not satisfied.
   // Use --debug_code to enable.
-  void Assert(Condition cond, BailoutReason reason, CRegister cr = cr7);
+  void Assert(Condition cond, AbortReason reason, CRegister cr = cr7);
 
   // Like Assert(), but always enabled.
-  void Check(Condition cond, BailoutReason reason, CRegister cr = cr7);
+  void Check(Condition cond, AbortReason reason, CRegister cr = cr7);
 
   // Print a message to stdout and abort execution.
-  void Abort(BailoutReason reason);
+  void Abort(AbortReason reason);
 
   inline bool AllowThisStubCall(CodeStub* stub);
 #if !V8_TARGET_ARCH_PPC64
@@ -649,18 +669,6 @@ class MacroAssembler : public TurboAssembler {
   MacroAssembler(Isolate* isolate, void* buffer, int size,
                  CodeObjectRequired create_code_object);
 
-  // Emit code that loads |parameter_index|'th parameter from the stack to
-  // the register according to the CallInterfaceDescriptor definition.
-  // |sp_to_caller_sp_offset_in_words| specifies the number of words pushed
-  // below the caller's sp.
-  template <class Descriptor>
-  void LoadParameterFromStack(
-      Register reg, typename Descriptor::ParameterIndices parameter_index,
-      int sp_to_ra_offset_in_words = 0) {
-    DCHECK(Descriptor::kPassLastArgsOnStack);
-    UNIMPLEMENTED();
-  }
-
   // ---------------------------------------------------------------------------
   // GC Support
 
@@ -743,7 +751,6 @@ class MacroAssembler : public TurboAssembler {
   // Expect the number of values, pushed prior to the exit frame, to
   // remove in a register (or no_reg, if there is nothing to remove).
   void LeaveExitFrame(bool save_doubles, Register argument_count,
-                      bool restore_context,
                       bool argument_count_is_length = false);
 
   // Load the global proxy from the current context.
@@ -842,11 +849,6 @@ class MacroAssembler : public TurboAssembler {
   // ---------------------------------------------------------------------------
   // Support functions.
 
-  // Machine code version of Map::GetConstructor().
-  // |temp| holds |result|'s map when done, and |temp2| its instance type.
-  void GetMapConstructor(Register result, Register map, Register temp,
-                         Register temp2);
-
   // Compare object type for heap object.  heap_object contains a non-Smi
   // whose object type should be compared with the given type.  This both
   // sets the flags and leaves the object type in the type_reg register.
@@ -862,12 +864,6 @@ class MacroAssembler : public TurboAssembler {
   // object type should be compared with the given type.  This both
   // sets the flags and leaves the object type in the type_reg register.
   void CompareInstanceType(Register map, Register type_reg, InstanceType type);
-
-  void GetWeakValue(Register value, Handle<WeakCell> cell);
-
-  // Load the value of the weak cell in the value register. Branch to the given
-  // miss label if the weak cell was cleared.
-  void LoadWeakValue(Register value, Handle<WeakCell> cell, Label* miss);
 
   // Compare the object in a register to a value from the root list.
   // Uses the ip register as scratch.
@@ -889,9 +885,6 @@ class MacroAssembler : public TurboAssembler {
     CompareRoot(with, index);
     bne(if_not_equal);
   }
-
-  // Load the value of a smi object into a double register.
-  void SmiToDouble(DoubleRegister value, Register smi);
 
   // Try to convert a double to a signed 32-bit integer.
   // CR_EQ in cr7 is set and result assigned if the conversion is exact.
@@ -1015,16 +1008,7 @@ class MacroAssembler : public TurboAssembler {
   void AssertUndefinedOrAllocationSite(Register object, Register scratch);
 
   // ---------------------------------------------------------------------------
-  // String utilities
-
-  void JumpIfNotUniqueNameInstanceType(Register reg, Label* not_unique_name);
-
-  // ---------------------------------------------------------------------------
   // Patching helpers.
-
-  void LoadInstanceDescriptors(Register map, Register descriptors);
-  void LoadAccessor(Register dst, Register holder, int accessor_index,
-                    AccessorComponent accessor);
 
   template <typename Field>
   void DecodeField(Register dst, Register src, RCBit rc = LeaveRC) {
@@ -1036,9 +1020,6 @@ class MacroAssembler : public TurboAssembler {
   void DecodeField(Register reg, RCBit rc = LeaveRC) {
     DecodeField<Field>(reg, reg, rc);
   }
-
-  void EnterBuiltinFrame(Register context, Register target, Register argc);
-  void LeaveBuiltinFrame(Register context, Register target, Register argc);
 
  private:
   static const int kSmiShift = kSmiTagSize + kSmiShiftSize;
@@ -1053,12 +1034,6 @@ class MacroAssembler : public TurboAssembler {
                   Condition cond,  // eq for new space, ne otherwise.
                   Label* branch);
 
-  // Helper for finding the mark bits for an address.  Afterwards, the
-  // bitmap register points at the word with the mark bits and the mask
-  // the position of the first bit.  Leaves addr_reg unchanged.
-  inline void GetMarkBits(Register addr_reg, Register bitmap_reg,
-                          Register mask_reg);
-
   // Compute memory operands for safepoint stack slots.
   static int SafepointRegisterStackIndex(int reg_code);
 
@@ -1066,37 +1041,6 @@ class MacroAssembler : public TurboAssembler {
   // traversal.
   friend class StandardFrame;
 };
-
-// The code patcher is used to patch (typically) small parts of code e.g. for
-// debugging and other types of instrumentation. When using the code patcher
-// the exact number of bytes specified must be emitted. It is not legal to emit
-// relocation information. If any of these constraints are violated it causes
-// an assertion to fail.
-class CodePatcher {
- public:
-  enum FlushICache { FLUSH, DONT_FLUSH };
-
-  CodePatcher(Isolate* isolate, byte* address, int instructions,
-              FlushICache flush_cache = FLUSH);
-  ~CodePatcher();
-
-  // Macro assembler to emit code.
-  MacroAssembler* masm() { return &masm_; }
-
-  // Emit an instruction directly.
-  void Emit(Instr instr);
-
-  // Emit the condition part of an instruction leaving the rest of the current
-  // instruction unchanged.
-  void EmitCondition(Condition cond);
-
- private:
-  byte* address_;            // The address of the code being patched.
-  int size_;                 // Number of bytes of the expected patch size.
-  MacroAssembler masm_;      // Macro assembler used to generate the code.
-  FlushICache flush_cache_;  // Whether to flush the I cache after patching.
-};
-
 
 // -----------------------------------------------------------------------------
 // Static helper functions.

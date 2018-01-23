@@ -11,11 +11,16 @@
 #include "src/objects.h"
 #include "src/objects/hash-table.h"
 #include "src/objects/string.h"
+#include "src/visitors.h"
 
 namespace v8 {
 namespace internal {
 
 class BigInt;
+class BytecodeArray;
+class JSArrayBuffer;
+class JSRegExp;
+class JSWeakCollection;
 
 #define TYPED_VISITOR_ID_LIST(V) \
   V(AllocationSite)              \
@@ -24,6 +29,7 @@ class BigInt;
   V(BytecodeArray)               \
   V(Cell)                        \
   V(Code)                        \
+  V(CodeDataContainer)           \
   V(ConsString)                  \
   V(FeedbackVector)              \
   V(FixedArray)                  \
@@ -87,6 +93,9 @@ class HeapVisitor : public ObjectVisitor {
   V8_INLINE ResultType VisitJSApiObject(Map* map, JSObject* object);
   V8_INLINE ResultType VisitStruct(Map* map, HeapObject* object);
   V8_INLINE ResultType VisitFreeSpace(Map* map, FreeSpace* object);
+
+  template <typename T>
+  static V8_INLINE T* Cast(HeapObject* object);
 };
 
 template <typename ConcreteVisitor>
@@ -109,38 +118,6 @@ class NewSpaceVisitor : public HeapVisitor<int, ConcreteVisitor> {
     UNREACHABLE();
     return 0;
   }
-};
-
-template <typename ConcreteVisitor>
-class MarkingVisitor : public HeapVisitor<int, ConcreteVisitor> {
- public:
-  explicit MarkingVisitor(Heap* heap, MarkCompactCollector* collector)
-      : heap_(heap), collector_(collector) {}
-
-  V8_INLINE bool ShouldVisitMapPointer() { return false; }
-
-  V8_INLINE int VisitJSFunction(Map* map, JSFunction* object);
-  V8_INLINE int VisitWeakCell(Map* map, WeakCell* object);
-  V8_INLINE int VisitTransitionArray(Map* map, TransitionArray* object);
-  V8_INLINE int VisitNativeContext(Map* map, Context* object);
-  V8_INLINE int VisitJSWeakCollection(Map* map, JSWeakCollection* object);
-  V8_INLINE int VisitBytecodeArray(Map* map, BytecodeArray* object);
-  V8_INLINE int VisitCode(Map* map, Code* object);
-  V8_INLINE int VisitMap(Map* map, Map* object);
-  V8_INLINE int VisitJSApiObject(Map* map, JSObject* object);
-  V8_INLINE int VisitAllocationSite(Map* map, AllocationSite* object);
-
-  // ObjectVisitor implementation.
-  V8_INLINE void VisitEmbeddedPointer(Code* host, RelocInfo* rinfo) final;
-  V8_INLINE void VisitCodeTarget(Code* host, RelocInfo* rinfo) final;
-  // Skip weak next code link.
-  V8_INLINE void VisitNextCodeLink(Code* host, Object** p) final {}
-
- protected:
-  V8_INLINE void MarkMapContents(Map* map);
-
-  Heap* heap_;
-  MarkCompactCollector* collector_;
 };
 
 class WeakObjectRetainer;

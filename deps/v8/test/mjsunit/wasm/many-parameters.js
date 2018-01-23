@@ -12,10 +12,13 @@ let type_const = [wasmI32Const, wasmF32Const, wasmF64Const];
 function f(values, shift, num_const_params, ...args) {
   assertEquals(
       values.length + num_const_params, args.length, 'number of arguments');
+  const expected = idx =>
+      idx < values.length ? values[(idx + shift) % values.length] : idx;
+  const msg = 'shifted by ' + shift + ': ' +
+      'expected [' + args.map((_, i) => expected(i)).join(', ') + '], got [' +
+      args.join(', ') + ']';
   args.forEach((arg_val, idx) => {
-    const expected =
-        idx < values.length ? values[(idx + shift) % values.length] : idx;
-    assertEquals(expected, arg_val, 'arg #' + idx + ', shifted by ' + shift);
+    assertEquals(expected(idx), arg_val, 'arg #' + idx + ', ' + msg);
   });
 }
 

@@ -105,7 +105,7 @@ void ScopeIterator::TryParseAndRetrieveScopes(ScopeIterator::Option option) {
       // Retrieve it from shared function info.
       info->set_language_mode(shared_info->language_mode());
     } else if (scope_info->scope_type() == MODULE_SCOPE) {
-      info->set_module();
+      DCHECK(info->is_module());
     } else {
       DCHECK(scope_info->scope_type() == SCRIPT_SCOPE);
     }
@@ -253,7 +253,7 @@ void ScopeIterator::Next() {
   } else {
     do {
       if (LastNestedScopeChain().scope_info->HasContext()) {
-        DCHECK(context_->previous() != NULL);
+        DCHECK(context_->previous() != nullptr);
         context_ = Handle<Context>(context_->previous(), isolate_);
       }
       nested_scope_chain_.pop_back();

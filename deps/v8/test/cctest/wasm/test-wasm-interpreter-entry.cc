@@ -47,6 +47,7 @@ class ArgPassingHelper {
     runner.Build(outer_code.data(), outer_code.data() + outer_code.size());
 
     int funcs_to_redict[] = {static_cast<int>(inner_compiler.function_index())};
+    runner.builder().Link();
     WasmDebugInfo::RedirectToInterpreter(debug_info_,
                                          ArrayVector(funcs_to_redict));
     main_fun_wrapper_ = runner.builder().WrapCode(runner.function_index());
@@ -90,7 +91,7 @@ static ArgPassingHelper<T> GetHelper(
 
 // Pass int32_t, return int32_t.
 TEST(TestArgumentPassing_int32) {
-  WasmRunner<int32_t, int32_t> runner(kExecuteCompiled);
+  WasmRunner<int32_t, int32_t> runner(kExecuteTurbofan);
   WasmFunctionCompiler& f2 = runner.NewFunction<int32_t, int32_t>();
 
   auto helper = GetHelper(
@@ -101,13 +102,12 @@ TEST(TestArgumentPassing_int32) {
        WASM_GET_LOCAL(0), WASM_CALL_FUNCTION0(f2.function_index())},
       [](int32_t a) { return 2 * a + 1; });
 
-  std::vector<int32_t> test_values = compiler::ValueHelper::int32_vector();
-  for (int32_t v : test_values) helper.CheckCall(v);
+  FOR_INT32_INPUTS(v) { helper.CheckCall(*v); }
 }
 
 // Pass int64_t, return double.
 TEST(TestArgumentPassing_double_int64) {
-  WasmRunner<double, int32_t, int32_t> runner(kExecuteCompiled);
+  WasmRunner<double, int32_t, int32_t> runner(kExecuteTurbofan);
   WasmFunctionCompiler& f2 = runner.NewFunction<double, int64_t>();
 
   auto helper = GetHelper(
@@ -120,22 +120,18 @@ TEST(TestArgumentPassing_double_int64) {
                                  WASM_I64V_1(32))),
        WASM_CALL_FUNCTION0(f2.function_index())},
       [](int32_t a, int32_t b) {
-        int64_t a64 = static_cast<int64_t>(a) & 0xffffffff;
+        int64_t a64 = static_cast<int64_t>(a) & 0xFFFFFFFF;
         int64_t b64 = static_cast<int64_t>(b) << 32;
         return static_cast<double>(a64 | b64);
       });
 
-  std::vector<int32_t> test_values_i32 = compiler::ValueHelper::int32_vector();
-  for (int32_t v1 : test_values_i32) {
-    for (int32_t v2 : test_values_i32) {
-      helper.CheckCall(v1, v2);
-    }
+  FOR_INT32_INPUTS(v1) {
+    FOR_INT32_INPUTS(v2) { helper.CheckCall(*v1, *v2); }
   }
 
-  std::vector<int64_t> test_values_i64 = compiler::ValueHelper::int64_vector();
-  for (int64_t v : test_values_i64) {
-    int32_t v1 = static_cast<int32_t>(v);
-    int32_t v2 = static_cast<int32_t>(v >> 32);
+  FOR_INT64_INPUTS(v) {
+    int32_t v1 = static_cast<int32_t>(*v);
+    int32_t v2 = static_cast<int32_t>(*v >> 32);
     helper.CheckCall(v1, v2);
     helper.CheckCall(v2, v1);
   }
@@ -144,7 +140,7 @@ TEST(TestArgumentPassing_double_int64) {
 // Pass double, return int64_t.
 TEST(TestArgumentPassing_int64_double) {
   // Outer function still returns double.
-  WasmRunner<double, double> runner(kExecuteCompiled);
+  WasmRunner<double, double> runner(kExecuteTurbofan);
   WasmFunctionCompiler& f2 = runner.NewFunction<int64_t, double>();
 
   auto helper = GetHelper(
@@ -163,7 +159,7 @@ TEST(TestArgumentPassing_int64_double) {
 
 // Pass float, return double.
 TEST(TestArgumentPassing_float_double) {
-  WasmRunner<double, float> runner(kExecuteCompiled);
+  WasmRunner<double, float> runner(kExecuteTurbofan);
   WasmFunctionCompiler& f2 = runner.NewFunction<double, float>();
 
   auto helper = GetHelper(
@@ -176,13 +172,12 @@ TEST(TestArgumentPassing_float_double) {
        WASM_GET_LOCAL(0), WASM_CALL_FUNCTION0(f2.function_index())},
       [](float f) { return 2. * static_cast<double>(f) + 1.; });
 
-  std::vector<float> test_values = compiler::ValueHelper::float32_vector();
-  for (float f : test_values) helper.CheckCall(f);
+  FOR_FLOAT32_INPUTS(f) { helper.CheckCall(*f); }
 }
 
 // Pass two doubles, return double.
 TEST(TestArgumentPassing_double_double) {
-  WasmRunner<double, double, double> runner(kExecuteCompiled);
+  WasmRunner<double, double, double> runner(kExecuteTurbofan);
   WasmFunctionCompiler& f2 = runner.NewFunction<double, double, double>();
 
   auto helper = GetHelper(runner, f2,
@@ -193,11 +188,8 @@ TEST(TestArgumentPassing_double_double) {
                            WASM_CALL_FUNCTION0(f2.function_index())},
                           [](double a, double b) { return a + b; });
 
-  std::vector<double> test_values = compiler::ValueHelper::float64_vector();
-  for (double d1 : test_values) {
-    for (double d2 : test_values) {
-      helper.CheckCall(d1, d2);
-    }
+  FOR_FLOAT64_INPUTS(d1) {
+    FOR_FLOAT64_INPUTS(d2) { helper.CheckCall(*d1, *d2); }
   }
 }
 
@@ -205,7 +197,7 @@ TEST(TestArgumentPassing_double_double) {
 TEST(TestArgumentPassing_AllTypes) {
   // The second and third argument will be combined to an i64.
   WasmRunner<double, int32_t, int32_t, int32_t, float, double> runner(
-      kExecuteCompiled);
+      kExecuteTurbofan);
   WasmFunctionCompiler& f2 =
       runner.NewFunction<double, int32_t, int64_t, float, double>();
 
@@ -231,8 +223,8 @@ TEST(TestArgumentPassing_AllTypes) {
        WASM_GET_LOCAL(4),  // fourth arg
        WASM_CALL_FUNCTION0(f2.function_index())},
       [](int32_t a, int32_t b, int32_t c, float d, double e) {
-        return 0. + a + (static_cast<int64_t>(b) & 0xffffffff) +
-               ((static_cast<int64_t>(c) & 0xffffffff) << 32) + d + e;
+        return 0. + a + (static_cast<int64_t>(b) & 0xFFFFFFFF) +
+               ((static_cast<int64_t>(c) & 0xFFFFFFFF) << 32) + d + e;
       });
 
   auto CheckCall = [&](int32_t a, int64_t b, float c, double d) {
@@ -242,10 +234,11 @@ TEST(TestArgumentPassing_AllTypes) {
     helper.CheckCall(a, b1, b0, c, d);
   };
 
-  std::vector<int32_t> test_values_i32 = compiler::ValueHelper::int32_vector();
-  std::vector<int64_t> test_values_i64 = compiler::ValueHelper::int64_vector();
-  std::vector<float> test_values_f32 = compiler::ValueHelper::float32_vector();
-  std::vector<double> test_values_f64 = compiler::ValueHelper::float64_vector();
+  Vector<const int32_t> test_values_i32 = compiler::ValueHelper::int32_vector();
+  Vector<const int64_t> test_values_i64 = compiler::ValueHelper::int64_vector();
+  Vector<const float> test_values_f32 = compiler::ValueHelper::float32_vector();
+  Vector<const double> test_values_f64 =
+      compiler::ValueHelper::float64_vector();
   size_t max_len =
       std::max(std::max(test_values_i32.size(), test_values_i64.size()),
                std::max(test_values_f32.size(), test_values_f64.size()));

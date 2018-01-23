@@ -99,7 +99,7 @@ TEST_F(HeapTest, ASLR) {
   }
   if (hints.size() == 1) {
     EXPECT_TRUE((*hints.begin()) == nullptr);
-    EXPECT_TRUE(v8::internal::GetRandomMmapAddr() == nullptr);
+    EXPECT_TRUE(i::GetRandomMmapAddr() == nullptr);
   } else {
     // It is unlikely that 1000 random samples will collide to less then 500
     // values.

@@ -5,7 +5,9 @@
 #ifndef V8_SNAPSHOT_BUILTIN_DESERIALIZER_H_
 #define V8_SNAPSHOT_BUILTIN_DESERIALIZER_H_
 
-#include "src/heap/heap.h"
+#include "src/interpreter/interpreter.h"
+#include "src/snapshot/builtin-deserializer-allocator.h"
+#include "src/snapshot/builtin-snapshot-utils.h"
 #include "src/snapshot/deserializer.h"
 
 namespace v8 {
@@ -14,7 +16,12 @@ namespace internal {
 class BuiltinSnapshotData;
 
 // Deserializes the builtins blob.
-class BuiltinDeserializer final : public Deserializer {
+class BuiltinDeserializer final
+    : public Deserializer<BuiltinDeserializerAllocator> {
+  using BSU = BuiltinSnapshotUtils;
+  using Bytecode = interpreter::Bytecode;
+  using OperandScale = interpreter::OperandScale;
+
  public:
   BuiltinDeserializer(Isolate* isolate, const BuiltinSnapshotData* data);
 
@@ -25,45 +32,27 @@ class BuiltinDeserializer final : public Deserializer {
   //
   // After this, the instruction cache must be flushed by the caller (we don't
   // do it ourselves since the startup serializer batch-flushes all code pages).
-  void DeserializeEagerBuiltins();
+  void DeserializeEagerBuiltinsAndHandlers();
 
-  // Deserializes the single given builtin. Assumes that reservations have
-  // already been allocated.
+  // Deserializes the single given builtin. This is used whenever a builtin is
+  // lazily deserialized at runtime.
   Code* DeserializeBuiltin(int builtin_id);
 
-  // These methods are used to pre-allocate builtin objects prior to
-  // deserialization.
-  // TODO(jgruber): Refactor reservation/allocation logic in deserializers to
-  // make this less messy.
-  Heap::Reservation CreateReservationsForEagerBuiltins();
-  void InitializeBuiltinsTable(const Heap::Reservation& reservation);
-
-  // Creates reservations and initializes the builtins table in preparation for
-  // lazily deserializing a single builtin.
-  void ReserveAndInitializeBuiltinsTableForBuiltin(int builtin_id);
+  // Deserializes the single given handler. This is used whenever a handler is
+  // lazily deserialized at runtime.
+  Code* DeserializeHandler(Bytecode bytecode, OperandScale operand_scale);
 
  private:
-  // TODO(jgruber): Remove once allocations have been refactored.
-  void SetPositionToBuiltin(int builtin_id);
+  // Deserializes the single given builtin. Assumes that reservations have
+  // already been allocated.
+  Code* DeserializeBuiltinRaw(int builtin_id);
+
+  // Deserializes the single given bytecode handler. Assumes that reservations
+  // have already been allocated.
+  Code* DeserializeHandlerRaw(Bytecode bytecode, OperandScale operand_scale);
 
   // Extracts the size builtin Code objects (baked into the snapshot).
-  uint32_t ExtractBuiltinSize(int builtin_id);
-
-  // Used after memory allocation prior to isolate initialization, to register
-  // the newly created object in code space and add it to the builtins table.
-  void InitializeBuiltinFromReservation(const Heap::Chunk& chunk,
-                                        int builtin_id);
-
-  // Allocation works differently here than in other deserializers. Instead of
-  // a statically-known memory area determined at serialization-time, our
-  // memory requirements here are determined at runtime. Another major
-  // difference is that we create builtin Code objects up-front (before
-  // deserialization) in order to avoid having to patch builtin references
-  // later on. See also the kBuiltin case in deserializer.cc.
-  //
-  // Allocate simply returns the pre-allocated object prepared by
-  // InitializeBuiltinsTable.
-  Address Allocate(int space_index, int size) override;
+  uint32_t ExtractCodeObjectSize(int builtin_id);
 
   // BuiltinDeserializer implements its own builtin iteration logic. Make sure
   // the RootVisitor API is not used accidentally.
@@ -71,16 +60,29 @@ class BuiltinDeserializer final : public Deserializer {
     UNREACHABLE();
   }
 
-  // Stores the builtin currently being deserialized. We need this to determine
-  // where to 'allocate' from during deserialization.
-  static const int kNoBuiltinId = -1;
-  int current_builtin_id_ = kNoBuiltinId;
+  int CurrentCodeObjectId() const { return current_code_object_id_; }
+
+  // Convenience function to grab the handler off the heap's strong root list.
+  Code* GetDeserializeLazyHandler(OperandScale operand_scale) const;
+
+ private:
+  // Stores the code object currently being deserialized. The
+  // {current_code_object_id} stores the index of the currently-deserialized
+  // code object within the snapshot (and within {code_offsets_}). We need this
+  // to determine where to 'allocate' from during deserialization.
+  static const int kNoCodeObjectId = -1;
+  int current_code_object_id_ = kNoCodeObjectId;
 
   // The offsets of each builtin within the serialized data. Equivalent to
   // BuiltinSerializer::builtin_offsets_ but on the deserialization side.
-  Vector<const uint32_t> builtin_offsets_;
+  Vector<const uint32_t> code_offsets_;
 
-  friend class DeserializingBuiltinScope;
+  // For current_code_object_id_.
+  friend class DeserializingCodeObjectScope;
+
+  // For isolate(), IsLazyDeserializationEnabled(), CurrentCodeObjectId() and
+  // ExtractBuiltinSize().
+  friend class BuiltinDeserializerAllocator;
 };
 
 }  // namespace internal

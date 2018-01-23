@@ -21,26 +21,26 @@ namespace internal {
 // then move this code back into instructions-arm64.cc with the same types
 // that client code uses.
 
-extern const uint16_t kFP16PositiveInfinity = 0x7c00;
-extern const uint16_t kFP16NegativeInfinity = 0xfc00;
-extern const uint32_t kFP32PositiveInfinity = 0x7f800000;
-extern const uint32_t kFP32NegativeInfinity = 0xff800000;
-extern const uint64_t kFP64PositiveInfinity = 0x7ff0000000000000UL;
-extern const uint64_t kFP64NegativeInfinity = 0xfff0000000000000UL;
+extern const uint16_t kFP16PositiveInfinity = 0x7C00;
+extern const uint16_t kFP16NegativeInfinity = 0xFC00;
+extern const uint32_t kFP32PositiveInfinity = 0x7F800000;
+extern const uint32_t kFP32NegativeInfinity = 0xFF800000;
+extern const uint64_t kFP64PositiveInfinity = 0x7FF0000000000000UL;
+extern const uint64_t kFP64NegativeInfinity = 0xFFF0000000000000UL;
 
 // This value is a signalling NaN as both a double and as a float (taking the
 // least-significant word).
-extern const uint64_t kFP64SignallingNaN = 0x7ff000007f800001;
-extern const uint32_t kFP32SignallingNaN = 0x7f800001;
+extern const uint64_t kFP64SignallingNaN = 0x7FF000007F800001;
+extern const uint32_t kFP32SignallingNaN = 0x7F800001;
 
 // A similar value, but as a quiet NaN.
-extern const uint64_t kFP64QuietNaN = 0x7ff800007fc00001;
-extern const uint32_t kFP32QuietNaN = 0x7fc00001;
+extern const uint64_t kFP64QuietNaN = 0x7FF800007FC00001;
+extern const uint32_t kFP32QuietNaN = 0x7FC00001;
 
 // The default NaN values (for FPCR.DN=1).
-extern const uint64_t kFP64DefaultNaN = 0x7ff8000000000000UL;
-extern const uint32_t kFP32DefaultNaN = 0x7fc00000;
-extern const uint16_t kFP16DefaultNaN = 0x7e00;
+extern const uint64_t kFP64DefaultNaN = 0x7FF8000000000000UL;
+extern const uint32_t kFP32DefaultNaN = 0x7FC00000;
+extern const uint16_t kFP16DefaultNaN = 0x7E00;
 
 }  // namespace internal
 }  // namespace v8

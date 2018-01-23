@@ -34,9 +34,13 @@ namespace internal {
 //
 // Note: The implementation is inherently not thread safe. Do not use
 // from multi-threaded code.
+
+enum class SegmentSize { kLarge, kDefault };
+
 class V8_EXPORT_PRIVATE Zone final {
  public:
-  Zone(AccountingAllocator* allocator, const char* name);
+  Zone(AccountingAllocator* allocator, const char* name,
+       SegmentSize segment_size = SegmentSize::kDefault);
   ~Zone();
 
   // Allocate 'size' bytes of memory in the Zone; expands the Zone by
@@ -109,6 +113,7 @@ class V8_EXPORT_PRIVATE Zone final {
   Segment* segment_head_;
   const char* name_;
   bool sealed_;
+  SegmentSize segment_size_;
 };
 
 // ZoneObject is an abstraction that helps define classes of objects
@@ -204,8 +209,8 @@ class ZoneList final {
 
   INLINE(void Initialize(int capacity, Zone* zone)) {
     DCHECK_GE(capacity, 0);
-    data_ =
-        (capacity > 0) ? NewData(capacity, ZoneAllocationPolicy(zone)) : NULL;
+    data_ = (capacity > 0) ? NewData(capacity, ZoneAllocationPolicy(zone))
+                           : nullptr;
     capacity_ = capacity;
     length_ = 0;
   }
@@ -313,5 +318,18 @@ typedef base::CustomMatcherTemplateHashMapImpl<ZoneAllocationPolicy>
 
 }  // namespace internal
 }  // namespace v8
+
+// The accidential pattern
+//    new (zone) SomeObject()
+// where SomeObject does not inherit from ZoneObject leads to nasty crashes.
+// This triggers a compile-time error instead.
+template <class T, typename = typename std::enable_if<std::is_convertible<
+                       T, const v8::internal::Zone*>::value>::type>
+void* operator new(size_t size, T zone) {
+  static_assert(false && sizeof(T),
+                "Placement new with a zone is only permitted for classes "
+                "inheriting from ZoneObject");
+  UNREACHABLE();
+}
 
 #endif  // V8_ZONE_ZONE_H_

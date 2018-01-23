@@ -136,7 +136,7 @@ TEST(AssemblerIa322) {
 
   // some relocated stuff here, not executed
   __ mov(eax, isolate->factory()->true_value());
-  __ jmp(NULL, RelocInfo::RUNTIME_ENTRY);
+  __ jmp(nullptr, RelocInfo::RUNTIME_ENTRY);
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
@@ -220,7 +220,7 @@ TEST(AssemblerIa325) {
   v8::internal::byte buffer[256];
   Assembler assm(isolate, buffer, sizeof buffer);
 
-  __ mov(eax, Operand(reinterpret_cast<intptr_t>(&baz), RelocInfo::NONE32));
+  __ mov(eax, Operand(reinterpret_cast<intptr_t>(&baz), RelocInfo::NONE));
   __ ret(0);
 
   CodeDesc desc;
@@ -308,7 +308,7 @@ TEST(AssemblerIa3210) {
   CcTest::InitializeVM();
   Isolate* isolate = reinterpret_cast<Isolate*>(CcTest::isolate());
   HandleScope scope(isolate);
-  Assembler assm(isolate, NULL, 0);
+  Assembler assm(isolate, nullptr, 0);
 
   Label target;
   __ j(equal, &target);
@@ -442,7 +442,7 @@ TEST(StackAlignmentForSSE2) {
   global_template->Set(v8_str("do_sse2"),
                        v8::FunctionTemplate::New(isolate, DoSSE2));
 
-  LocalContext env(NULL, global_template);
+  LocalContext env(nullptr, global_template);
   CompileRun(
       "function foo(vec) {"
       "  return do_sse2(vec);"
@@ -521,6 +521,7 @@ TEST(AssemblerIa32SSE) {
     __ mulps(xmm2, xmm1);
     __ subps(xmm2, xmm0);
     __ divps(xmm2, xmm1);
+    __ haddps(xmm1, xmm0);
     __ cvttss2si(eax, xmm2);
     __ ret(0);
   }
@@ -1054,12 +1055,12 @@ TEST(AssemblerIa32BMI1) {
     // blsmsk
     __ inc(eax);
     __ blsmsk(ebx, ecx);
-    __ cmp(ebx, Immediate(0x0000000fu));  // expected result
+    __ cmp(ebx, Immediate(0x0000000Fu));  // expected result
     __ j(not_equal, &exit);
 
     __ inc(eax);
     __ blsmsk(ebx, Operand(esp, 0));
-    __ cmp(ebx, Immediate(0x0000000fu));  // expected result
+    __ cmp(ebx, Immediate(0x0000000Fu));  // expected result
     __ j(not_equal, &exit);
 
     // blsr
@@ -1250,7 +1251,7 @@ TEST(AssemblerIa32BMI2) {
     __ j(not_equal, &exit);
 
     // pdep
-    __ mov(edx, Immediate(0xfffffff0u));
+    __ mov(edx, Immediate(0xFFFFFFF0u));
 
     __ inc(eax);
     __ pdep(ebx, edx, ecx);
@@ -1263,16 +1264,16 @@ TEST(AssemblerIa32BMI2) {
     __ j(not_equal, &exit);
 
     // pext
-    __ mov(edx, Immediate(0xfffffff0u));
+    __ mov(edx, Immediate(0xFFFFFFF0u));
 
     __ inc(eax);
     __ pext(ebx, edx, ecx);
-    __ cmp(ebx, Immediate(0x0000fffeu));  // expected result
+    __ cmp(ebx, Immediate(0x0000FFFEu));  // expected result
     __ j(not_equal, &exit);
 
     __ inc(eax);
     __ pext(ebx, edx, Operand(esp, 0));
-    __ cmp(ebx, Immediate(0x0000fffeu));  // expected result
+    __ cmp(ebx, Immediate(0x0000FFFEu));  // expected result
     __ j(not_equal, &exit);
 
     // sarx

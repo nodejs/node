@@ -22,22 +22,18 @@ class RawMachineAssemblerTester : public HandleAndZoneScope,
                                   public CallHelper<ReturnType>,
                                   public RawMachineAssembler {
  public:
-  RawMachineAssemblerTester(MachineType p0 = MachineType::None(),
-                            MachineType p1 = MachineType::None(),
-                            MachineType p2 = MachineType::None(),
-                            MachineType p3 = MachineType::None(),
-                            MachineType p4 = MachineType::None())
+  template <typename... ParamMachTypes>
+  explicit RawMachineAssemblerTester(ParamMachTypes... p)
       : HandleAndZoneScope(),
         CallHelper<ReturnType>(
             main_isolate(),
-            CSignature::New(main_zone(), MachineTypeForC<ReturnType>(), p0, p1,
-                            p2, p3, p4)),
+            CSignature::New(main_zone(), MachineTypeForC<ReturnType>(), p...)),
         RawMachineAssembler(
             main_isolate(), new (main_zone()) Graph(main_zone()),
             Linkage::GetSimplifiedCDescriptor(
                 main_zone(),
-                CSignature::New(main_zone(), MachineTypeForC<ReturnType>(), p0,
-                                p1, p2, p3, p4),
+                CSignature::New(main_zone(), MachineTypeForC<ReturnType>(),
+                                p...),
                 true),
             MachineType::PointerRepresentation(),
             InstructionSelector::SupportedMachineOperatorFlags(),
@@ -68,10 +64,9 @@ class RawMachineAssemblerTester : public HandleAndZoneScope,
       Schedule* schedule = this->Export();
       CallDescriptor* call_descriptor = this->call_descriptor();
       Graph* graph = this->graph();
-      CompilationInfo info(ArrayVector("testing"), main_isolate(), main_zone(),
-                           Code::STUB);
-      code_ = Pipeline::GenerateCodeForTesting(&info, call_descriptor, graph,
-                                               schedule);
+      CompilationInfo info(ArrayVector("testing"), main_zone(), Code::STUB);
+      code_ = Pipeline::GenerateCodeForTesting(
+          &info, main_isolate(), call_descriptor, graph, schedule);
     }
     return this->code_.ToHandleChecked()->entry();
   }
@@ -80,17 +75,24 @@ class RawMachineAssemblerTester : public HandleAndZoneScope,
   MaybeHandle<Code> code_;
 };
 
-
 template <typename ReturnType>
 class BufferedRawMachineAssemblerTester
     : public RawMachineAssemblerTester<int32_t> {
  public:
-  BufferedRawMachineAssemblerTester(MachineType p0 = MachineType::None(),
-                                    MachineType p1 = MachineType::None(),
-                                    MachineType p2 = MachineType::None(),
-                                    MachineType p3 = MachineType::None())
-      : BufferedRawMachineAssemblerTester(ComputeParameterCount(p0, p1, p2, p3),
-                                          p0, p1, p2, p3) {}
+  template <typename... ParamMachTypes>
+  explicit BufferedRawMachineAssemblerTester(ParamMachTypes... p)
+      : RawMachineAssemblerTester<int32_t>(
+            MachineType::Pointer(), ((void)p, MachineType::Pointer())...),
+        test_graph_signature_(
+            CSignature::New(this->main_zone(), MachineType::Int32(), p...)),
+        return_parameter_index_(sizeof...(p)) {
+    static_assert(sizeof...(p) <= arraysize(parameter_nodes_),
+                  "increase parameter_nodes_ array");
+    std::array<MachineType, sizeof...(p)> p_arr{{p...}};
+    for (size_t i = 0; i < p_arr.size(); ++i) {
+      parameter_nodes_[i] = Load(p_arr[i], RawMachineAssembler::Parameter(i));
+    }
+  }
 
   virtual byte* Generate() { return RawMachineAssemblerTester::Generate(); }
 
@@ -100,7 +102,7 @@ class BufferedRawMachineAssemblerTester
   // parameters from memory. Thereby it is possible to pass 64 bit parameters
   // to the IR graph.
   Node* Parameter(size_t index) {
-    CHECK_GT(4, index);
+    CHECK_GT(arraysize(parameter_nodes_), index);
     return parameter_nodes_[index];
   }
 
@@ -115,141 +117,37 @@ class BufferedRawMachineAssemblerTester
     RawMachineAssembler::Return(Int32Constant(1234));
   }
 
-  ReturnType Call() {
+  template <typename... Params>
+  ReturnType Call(Params... p) {
     ReturnType return_value;
-    CSignature::VerifyParams(test_graph_signature_);
-    CallHelper<int32_t>::Call(reinterpret_cast<void*>(&return_value));
-    return return_value;
-  }
-
-  template <typename P0>
-  ReturnType Call(P0 p0) {
-    ReturnType return_value;
-    CSignature::VerifyParams<P0>(test_graph_signature_);
-    CallHelper<int32_t>::Call(reinterpret_cast<void*>(&p0),
+    CSignature::VerifyParams<Params...>(test_graph_signature_);
+    CallHelper<int32_t>::Call(reinterpret_cast<void*>(&p)...,
                               reinterpret_cast<void*>(&return_value));
-    return return_value;
-  }
-
-  template <typename P0, typename P1>
-  ReturnType Call(P0 p0, P1 p1) {
-    ReturnType return_value;
-    CSignature::VerifyParams<P0, P1>(test_graph_signature_);
-    CallHelper<int32_t>::Call(reinterpret_cast<void*>(&p0),
-                              reinterpret_cast<void*>(&p1),
-                              reinterpret_cast<void*>(&return_value));
-    return return_value;
-  }
-
-  template <typename P0, typename P1, typename P2>
-  ReturnType Call(P0 p0, P1 p1, P2 p2) {
-    ReturnType return_value;
-    CSignature::VerifyParams<P0, P1, P2>(test_graph_signature_);
-    CallHelper<int32_t>::Call(
-        reinterpret_cast<void*>(&p0), reinterpret_cast<void*>(&p1),
-        reinterpret_cast<void*>(&p2), reinterpret_cast<void*>(&return_value));
-    return return_value;
-  }
-
-  template <typename P0, typename P1, typename P2, typename P3>
-  ReturnType Call(P0 p0, P1 p1, P2 p2, P3 p3) {
-    ReturnType return_value;
-    CSignature::VerifyParams<P0, P1, P2, P3>(test_graph_signature_);
-    CallHelper<int32_t>::Call(
-        reinterpret_cast<void*>(&p0), reinterpret_cast<void*>(&p1),
-        reinterpret_cast<void*>(&p2), reinterpret_cast<void*>(&p3),
-        reinterpret_cast<void*>(&return_value));
     return return_value;
   }
 
  private:
-  BufferedRawMachineAssemblerTester(uint32_t return_parameter_index,
-                                    MachineType p0, MachineType p1,
-                                    MachineType p2, MachineType p3)
-      : RawMachineAssemblerTester<int32_t>(
-            MachineType::Pointer(),
-            p0 == MachineType::None() ? MachineType::None()
-                                      : MachineType::Pointer(),
-            p1 == MachineType::None() ? MachineType::None()
-                                      : MachineType::Pointer(),
-            p2 == MachineType::None() ? MachineType::None()
-                                      : MachineType::Pointer(),
-            p3 == MachineType::None() ? MachineType::None()
-                                      : MachineType::Pointer()),
-        test_graph_signature_(
-            CSignature::New(main_zone(), MachineType::Int32(), p0, p1, p2, p3)),
-        return_parameter_index_(return_parameter_index) {
-    parameter_nodes_[0] = p0 == MachineType::None()
-                              ? nullptr
-                              : Load(p0, RawMachineAssembler::Parameter(0));
-    parameter_nodes_[1] = p1 == MachineType::None()
-                              ? nullptr
-                              : Load(p1, RawMachineAssembler::Parameter(1));
-    parameter_nodes_[2] = p2 == MachineType::None()
-                              ? nullptr
-                              : Load(p2, RawMachineAssembler::Parameter(2));
-    parameter_nodes_[3] = p3 == MachineType::None()
-                              ? nullptr
-                              : Load(p3, RawMachineAssembler::Parameter(3));
-  }
-
-
-  static uint32_t ComputeParameterCount(MachineType p0, MachineType p1,
-                                        MachineType p2, MachineType p3) {
-    if (p0 == MachineType::None()) {
-      return 0;
-    }
-    if (p1 == MachineType::None()) {
-      return 1;
-    }
-    if (p2 == MachineType::None()) {
-      return 2;
-    }
-    if (p3 == MachineType::None()) {
-      return 3;
-    }
-    return 4;
-  }
-
-
   CSignature* test_graph_signature_;
   Node* parameter_nodes_[4];
   uint32_t return_parameter_index_;
 };
 
-
 template <>
 class BufferedRawMachineAssemblerTester<void>
     : public RawMachineAssemblerTester<void> {
  public:
-  BufferedRawMachineAssemblerTester(MachineType p0 = MachineType::None(),
-                                    MachineType p1 = MachineType::None(),
-                                    MachineType p2 = MachineType::None(),
-                                    MachineType p3 = MachineType::None())
-      : RawMachineAssemblerTester<void>(
-            p0 == MachineType::None() ? MachineType::None()
-                                      : MachineType::Pointer(),
-            p1 == MachineType::None() ? MachineType::None()
-                                      : MachineType::Pointer(),
-            p2 == MachineType::None() ? MachineType::None()
-                                      : MachineType::Pointer(),
-            p3 == MachineType::None() ? MachineType::None()
-                                      : MachineType::Pointer()),
+  template <typename... ParamMachTypes>
+  explicit BufferedRawMachineAssemblerTester(ParamMachTypes... p)
+      : RawMachineAssemblerTester<void>(((void)p, MachineType::Pointer())...),
         test_graph_signature_(
             CSignature::New(RawMachineAssemblerTester<void>::main_zone(),
-                            MachineType::None(), p0, p1, p2, p3)) {
-    parameter_nodes_[0] = p0 == MachineType::None()
-                              ? nullptr
-                              : Load(p0, RawMachineAssembler::Parameter(0));
-    parameter_nodes_[1] = p1 == MachineType::None()
-                              ? nullptr
-                              : Load(p1, RawMachineAssembler::Parameter(1));
-    parameter_nodes_[2] = p2 == MachineType::None()
-                              ? nullptr
-                              : Load(p2, RawMachineAssembler::Parameter(2));
-    parameter_nodes_[3] = p3 == MachineType::None()
-                              ? nullptr
-                              : Load(p3, RawMachineAssembler::Parameter(3));
+                            MachineType::None(), p...)) {
+    static_assert(sizeof...(p) <= arraysize(parameter_nodes_),
+                  "increase parameter_nodes_ array");
+    std::array<MachineType, sizeof...(p)> p_arr{{p...}};
+    for (size_t i = 0; i < p_arr.size(); ++i) {
+      parameter_nodes_[i] = Load(p_arr[i], RawMachineAssembler::Parameter(i));
+    }
   }
 
   virtual byte* Generate() { return RawMachineAssemblerTester::Generate(); }
@@ -260,49 +158,21 @@ class BufferedRawMachineAssemblerTester<void>
   // parameters from memory. Thereby it is possible to pass 64 bit parameters
   // to the IR graph.
   Node* Parameter(size_t index) {
-    CHECK_GT(4, index);
+    CHECK_GT(arraysize(parameter_nodes_), index);
     return parameter_nodes_[index];
   }
 
-
-  void Call() {
-    CSignature::VerifyParams(test_graph_signature_);
-    CallHelper<void>::Call();
-  }
-
-  template <typename P0>
-  void Call(P0 p0) {
-    CSignature::VerifyParams<P0>(test_graph_signature_);
-    CallHelper<void>::Call(reinterpret_cast<void*>(&p0));
-  }
-
-  template <typename P0, typename P1>
-  void Call(P0 p0, P1 p1) {
-    CSignature::VerifyParams<P0, P1>(test_graph_signature_);
-    CallHelper<void>::Call(reinterpret_cast<void*>(&p0),
-                           reinterpret_cast<void*>(&p1));
-  }
-
-  template <typename P0, typename P1, typename P2>
-  void Call(P0 p0, P1 p1, P2 p2) {
-    CSignature::VerifyParams<P0, P1, P2>(test_graph_signature_);
-    CallHelper<void>::Call(reinterpret_cast<void*>(&p0),
-                           reinterpret_cast<void*>(&p1),
-                           reinterpret_cast<void*>(&p2));
-  }
-
-  template <typename P0, typename P1, typename P2, typename P3>
-  void Call(P0 p0, P1 p1, P2 p2, P3 p3) {
-    CSignature::VerifyParams<P0, P1, P2, P3>(test_graph_signature_);
-    CallHelper<void>::Call(
-        reinterpret_cast<void*>(&p0), reinterpret_cast<void*>(&p1),
-        reinterpret_cast<void*>(&p2), reinterpret_cast<void*>(&p3));
+  template <typename... Params>
+  void Call(Params... p) {
+    CSignature::VerifyParams<Params...>(test_graph_signature_);
+    CallHelper<void>::Call(reinterpret_cast<void*>(&p)...);
   }
 
  private:
   CSignature* test_graph_signature_;
   Node* parameter_nodes_[4];
 };
+
 static const bool USE_RESULT_BUFFER = true;
 static const bool USE_RETURN_REGISTER = false;
 static const int32_t CHECK_VALUE = 0x99BEEDCE;
@@ -475,7 +345,7 @@ class CompareWrapper {
       default:
         UNREACHABLE();
     }
-    return NULL;
+    return nullptr;
   }
 
   bool Int32Compare(int32_t a, int32_t b) {

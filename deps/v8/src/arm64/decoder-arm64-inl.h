@@ -96,10 +96,10 @@ void Decoder<V>::Decode(Instruction *instr) {
 
 template<typename V>
 void Decoder<V>::DecodePCRelAddressing(Instruction* instr) {
-  DCHECK(instr->Bits(27, 24) == 0x0);
+  DCHECK_EQ(0x0, instr->Bits(27, 24));
   // We know bit 28 is set, as <b28:b27> = 0 is filtered out at the top level
   // decode.
-  DCHECK(instr->Bit(28) == 0x1);
+  DCHECK_EQ(0x1, instr->Bit(28));
   V::VisitPCRelAddressing(instr);
 }
 
@@ -339,7 +339,7 @@ void Decoder<V>::DecodeLoadStore(Instruction* instr) {
 
 template<typename V>
 void Decoder<V>::DecodeLogical(Instruction* instr) {
-  DCHECK(instr->Bits(27, 24) == 0x2);
+  DCHECK_EQ(0x2, instr->Bits(27, 24));
 
   if (instr->Mask(0x80400000) == 0x00400000) {
     V::VisitUnallocated(instr);
@@ -359,7 +359,7 @@ void Decoder<V>::DecodeLogical(Instruction* instr) {
 
 template<typename V>
 void Decoder<V>::DecodeBitfieldExtract(Instruction* instr) {
-  DCHECK(instr->Bits(27, 24) == 0x3);
+  DCHECK_EQ(0x3, instr->Bits(27, 24));
 
   if ((instr->Mask(0x80400000) == 0x80000000) ||
       (instr->Mask(0x80400000) == 0x00400000) ||
@@ -385,7 +385,7 @@ void Decoder<V>::DecodeBitfieldExtract(Instruction* instr) {
 
 template<typename V>
 void Decoder<V>::DecodeAddSubImmediate(Instruction* instr) {
-  DCHECK(instr->Bits(27, 24) == 0x1);
+  DCHECK_EQ(0x1, instr->Bits(27, 24));
   if (instr->Bit(23) == 1) {
     V::VisitUnallocated(instr);
   } else {
@@ -623,7 +623,7 @@ void Decoder<V>::DecodeFP(Instruction* instr) {
           }
         } else {
           // Bit 30 == 1 has been handled earlier.
-          DCHECK(instr->Bit(30) == 0);
+          DCHECK_EQ(0, instr->Bit(30));
           if (instr->Mask(0xA0800000) != 0) {
             V::VisitUnallocated(instr);
           } else {
@@ -639,7 +639,7 @@ void Decoder<V>::DecodeFP(Instruction* instr) {
 
 template <typename V>
 void Decoder<V>::DecodeNEONLoadStore(Instruction* instr) {
-  DCHECK(instr->Bits(29, 25) == 0x6);
+  DCHECK_EQ(0x6, instr->Bits(29, 25));
   if (instr->Bit(31) == 0) {
     if ((instr->Bit(24) == 0) && (instr->Bit(21) == 1)) {
       V::VisitUnallocated(instr);
@@ -670,7 +670,7 @@ void Decoder<V>::DecodeNEONLoadStore(Instruction* instr) {
 
 template <typename V>
 void Decoder<V>::DecodeNEONVectorDataProcessing(Instruction* instr) {
-  DCHECK(instr->Bits(28, 25) == 0x7);
+  DCHECK_EQ(0x7, instr->Bits(28, 25));
   if (instr->Bit(31) == 0) {
     if (instr->Bit(24) == 0) {
       if (instr->Bit(21) == 0) {
@@ -748,7 +748,7 @@ void Decoder<V>::DecodeNEONVectorDataProcessing(Instruction* instr) {
 
 template <typename V>
 void Decoder<V>::DecodeNEONScalarDataProcessing(Instruction* instr) {
-  DCHECK(instr->Bits(28, 25) == 0xF);
+  DCHECK_EQ(0xF, instr->Bits(28, 25));
   if (instr->Bit(24) == 0) {
     if (instr->Bit(21) == 0) {
       if (instr->Bit(15) == 0) {

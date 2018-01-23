@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-"use strict"
+"use strict";
 
 let codeKinds = [
     "UNKNOWN",
@@ -80,13 +80,13 @@ function resolveCodeKindAndVmState(code, vmState) {
 
 function codeEquals(code1, code2, allowDifferentKinds = false) {
   if (!code1 || !code2) return false;
-  if (code1.name != code2.name || code1.type != code2.type) return false;
+  if (code1.name !== code2.name || code1.type !== code2.type) return false;
 
-  if (code1.type == 'CODE') {
-    if (!allowDifferentKinds && code1.kind != code2.kind) return false;
-  } else if (code1.type == 'JS') {
-    if (!allowDifferentKinds && code1.kind != code2.kind) return false;
-    if (code1.func != code2.func) return false;
+  if (code1.type === 'CODE') {
+    if (!allowDifferentKinds && code1.kind !== code2.kind) return false;
+  } else if (code1.type === 'JS') {
+    if (!allowDifferentKinds && code1.kind !== code2.kind) return false;
+    if (code1.func !== code2.func) return false;
   }
   return true;
 }
@@ -409,7 +409,7 @@ class CategorySampler {
     let { tm : timestamp, vm : vmState, s : stack } = file.ticks[tickIndex];
 
     let i = Math.floor((timestamp - this.firstTime) / this.step);
-    if (i == this.buckets.length) i--;
+    if (i === this.buckets.length) i--;
     console.assert(i >= 0 && i < this.buckets.length);
 
     let bucket = this.buckets[i];
@@ -440,7 +440,7 @@ class FunctionTimelineProcessor {
     // ignoring any filtered entries.
     let stackCode = undefined;
     let functionPosInStack = -1;
-    let filteredI = 0
+    let filteredI = 0;
     for (let i = 0; i < stack.length - 1; i += 2) {
       let codeId = stack[i];
       let code = codeId >= 0 ? file.code[codeId] : undefined;
@@ -461,7 +461,7 @@ class FunctionTimelineProcessor {
     if (functionPosInStack >= 0) {
       let stackKind = resolveCodeKindAndVmState(stackCode, vmState);
 
-      let codeIsTopOfStack = (functionPosInStack == 0);
+      let codeIsTopOfStack = (functionPosInStack === 0);
 
       if (this.currentBlock !== null) {
         this.currentBlock.end = timestamp;

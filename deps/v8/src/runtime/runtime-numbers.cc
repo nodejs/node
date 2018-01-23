@@ -7,7 +7,6 @@
 #include "src/arguments.h"
 #include "src/base/bits.h"
 #include "src/bootstrapper.h"
-#include "src/codegen.h"
 #include "src/isolate-inl.h"
 
 namespace v8 {
@@ -70,16 +69,6 @@ RUNTIME_FUNCTION(Runtime_StringParseFloat) {
   return *isolate->factory()->NewNumber(value);
 }
 
-
-RUNTIME_FUNCTION(Runtime_NumberToString) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(1, args.length());
-  CONVERT_NUMBER_ARG_HANDLE_CHECKED(number, 0);
-
-  return *isolate->factory()->NumberToString(number);
-}
-
-
 RUNTIME_FUNCTION(Runtime_NumberToStringSkipCache) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
@@ -108,9 +97,11 @@ RUNTIME_FUNCTION(Runtime_NumberToSmi) {
   return isolate->heap()->nan_value();
 }
 
-
-// Compare two Smis as if they were converted to strings and then
-// compared lexicographically.
+// Compare two Smis x, y as if they were converted to strings and then
+// compared lexicographically. Returns:
+// -1 if x < y
+//  0 if x == y
+//  1 if x > y
 RUNTIME_FUNCTION(Runtime_SmiLexicographicCompare) {
   SealHandleScope shs(isolate);
   DCHECK_EQ(2, args.length());
@@ -118,12 +109,12 @@ RUNTIME_FUNCTION(Runtime_SmiLexicographicCompare) {
   CONVERT_SMI_ARG_CHECKED(y_value, 1);
 
   // If the integers are equal so are the string representations.
-  if (x_value == y_value) return Smi::FromInt(EQUAL);
+  if (x_value == y_value) return Smi::FromInt(0);
 
   // If one of the integers is zero the normal integer order is the
   // same as the lexicographic order of the string representations.
   if (x_value == 0 || y_value == 0)
-    return Smi::FromInt(x_value < y_value ? LESS : GREATER);
+    return Smi::FromInt(x_value < y_value ? -1 : 1);
 
   // If only one of the integers is negative the negative number is
   // smallest because the char code of '-' is less than the char code
@@ -134,8 +125,8 @@ RUNTIME_FUNCTION(Runtime_SmiLexicographicCompare) {
   uint32_t x_scaled = x_value;
   uint32_t y_scaled = y_value;
   if (x_value < 0 || y_value < 0) {
-    if (y_value >= 0) return Smi::FromInt(LESS);
-    if (x_value >= 0) return Smi::FromInt(GREATER);
+    if (y_value >= 0) return Smi::FromInt(-1);
+    if (x_value >= 0) return Smi::FromInt(1);
     x_scaled = -x_value;
     y_scaled = -y_value;
   }
@@ -153,15 +144,15 @@ RUNTIME_FUNCTION(Runtime_SmiLexicographicCompare) {
   // integer comes first in the lexicographic order.
 
   // From http://graphics.stanford.edu/~seander/bithacks.html#IntegerLog10
-  int x_log2 = 31 - base::bits::CountLeadingZeros32(x_scaled);
+  int x_log2 = 31 - base::bits::CountLeadingZeros(x_scaled);
   int x_log10 = ((x_log2 + 1) * 1233) >> 12;
   x_log10 -= x_scaled < kPowersOf10[x_log10];
 
-  int y_log2 = 31 - base::bits::CountLeadingZeros32(y_scaled);
+  int y_log2 = 31 - base::bits::CountLeadingZeros(y_scaled);
   int y_log10 = ((y_log2 + 1) * 1233) >> 12;
   y_log10 -= y_scaled < kPowersOf10[y_log10];
 
-  int tie = EQUAL;
+  int tie = 0;
 
   if (x_log10 < y_log10) {
     // X has fewer digits.  We would like to simply scale up X but that
@@ -172,15 +163,15 @@ RUNTIME_FUNCTION(Runtime_SmiLexicographicCompare) {
     // past the length of the shorter integer.
     x_scaled *= kPowersOf10[y_log10 - x_log10 - 1];
     y_scaled /= 10;
-    tie = LESS;
+    tie = -1;
   } else if (y_log10 < x_log10) {
     y_scaled *= kPowersOf10[x_log10 - y_log10 - 1];
     x_scaled /= 10;
-    tie = GREATER;
+    tie = 1;
   }
 
-  if (x_scaled < y_scaled) return Smi::FromInt(LESS);
-  if (x_scaled > y_scaled) return Smi::FromInt(GREATER);
+  if (x_scaled < y_scaled) return Smi::FromInt(-1);
+  if (x_scaled > y_scaled) return Smi::FromInt(1);
   return Smi::FromInt(tie);
 }
 

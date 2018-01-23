@@ -16,11 +16,7 @@ namespace internal {
 ProfilerListener::ProfilerListener(Isolate* isolate)
     : function_and_resource_names_(isolate->heap()) {}
 
-ProfilerListener::~ProfilerListener() {
-  for (auto code_entry : code_entries_) {
-    delete code_entry;
-  }
-}
+ProfilerListener::~ProfilerListener() = default;
 
 void ProfilerListener::CallbackEvent(Name* name, Address entry_point) {
   CodeEventsContainer evt_rec(CodeEventRecord::CODE_CREATION);
@@ -39,7 +35,7 @@ void ProfilerListener::CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
   rec->entry = NewCodeEntry(
       tag, GetFunctionName(name), CodeEntry::kEmptyNamePrefix,
       CodeEntry::kEmptyResourceName, CpuProfileNode::kNoLineNumberInfo,
-      CpuProfileNode::kNoColumnNumberInfo, NULL, code->instruction_start());
+      CpuProfileNode::kNoColumnNumberInfo, nullptr, code->instruction_start());
   RecordInliningInfo(rec->entry, code);
   rec->size = code->ExecutableSize();
   DispatchCodeEvent(evt_rec);
@@ -53,7 +49,7 @@ void ProfilerListener::CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
   rec->entry = NewCodeEntry(
       tag, GetFunctionName(name), CodeEntry::kEmptyNamePrefix,
       CodeEntry::kEmptyResourceName, CpuProfileNode::kNoLineNumberInfo,
-      CpuProfileNode::kNoColumnNumberInfo, NULL, code->instruction_start());
+      CpuProfileNode::kNoColumnNumberInfo, nullptr, code->instruction_start());
   RecordInliningInfo(rec->entry, code);
   rec->size = code->ExecutableSize();
   DispatchCodeEvent(evt_rec);
@@ -70,7 +66,7 @@ void ProfilerListener::CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
       tag, GetFunctionName(shared->DebugName()), CodeEntry::kEmptyNamePrefix,
       GetName(InferScriptName(script_name, shared)),
       CpuProfileNode::kNoLineNumberInfo, CpuProfileNode::kNoColumnNumberInfo,
-      NULL, code->instruction_start());
+      nullptr, code->instruction_start());
   RecordInliningInfo(rec->entry, code);
   rec->entry->FillFunctionInfo(shared);
   rec->size = code->ExecutableSize();
@@ -85,7 +81,7 @@ void ProfilerListener::CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
   CodeEventsContainer evt_rec(CodeEventRecord::CODE_CREATION);
   CodeCreateEventRecord* rec = &evt_rec.CodeCreateEventRecord_;
   rec->start = abstract_code->address();
-  JITLineInfoTable* line_table = NULL;
+  JITLineInfoTable* line_table = nullptr;
   if (shared->script()->IsScript()) {
     Script* script = Script::cast(shared->script());
     line_table = new JITLineInfoTable();
@@ -111,20 +107,6 @@ void ProfilerListener::CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
   RecordDeoptInlinedFrames(rec->entry, abstract_code);
   rec->entry->FillFunctionInfo(shared);
   rec->size = abstract_code->ExecutableSize();
-  DispatchCodeEvent(evt_rec);
-}
-
-void ProfilerListener::CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
-                                       AbstractCode* code, int args_count) {
-  CodeEventsContainer evt_rec(CodeEventRecord::CODE_CREATION);
-  CodeCreateEventRecord* rec = &evt_rec.CodeCreateEventRecord_;
-  rec->start = code->address();
-  rec->entry = NewCodeEntry(
-      tag, GetName(args_count), "args_count: ", CodeEntry::kEmptyResourceName,
-      CpuProfileNode::kNoLineNumberInfo, CpuProfileNode::kNoColumnNumberInfo,
-      NULL, code->instruction_start());
-  RecordInliningInfo(rec->entry, code);
-  rec->size = code->ExecutableSize();
   DispatchCodeEvent(evt_rec);
 }
 
@@ -173,10 +155,11 @@ void ProfilerListener::RegExpCodeCreateEvent(AbstractCode* code,
   CodeEventsContainer evt_rec(CodeEventRecord::CODE_CREATION);
   CodeCreateEventRecord* rec = &evt_rec.CodeCreateEventRecord_;
   rec->start = code->address();
-  rec->entry = NewCodeEntry(
-      CodeEventListener::REG_EXP_TAG, GetName(source), "RegExp: ",
-      CodeEntry::kEmptyResourceName, CpuProfileNode::kNoLineNumberInfo,
-      CpuProfileNode::kNoColumnNumberInfo, NULL, code->instruction_start());
+  rec->entry = NewCodeEntry(CodeEventListener::REG_EXP_TAG, GetName(source),
+                            "RegExp: ", CodeEntry::kEmptyResourceName,
+                            CpuProfileNode::kNoLineNumberInfo,
+                            CpuProfileNode::kNoColumnNumberInfo, nullptr,
+                            code->instruction_start());
   rec->size = code->ExecutableSize();
   DispatchCodeEvent(evt_rec);
 }
@@ -203,8 +186,8 @@ void ProfilerListener::RecordInliningInfo(CodeEntry* entry,
   if (!abstract_code->IsCode()) return;
   Code* code = abstract_code->GetCode();
   if (code->kind() != Code::OPTIMIZED_FUNCTION) return;
-  DeoptimizationInputData* deopt_input_data =
-      DeoptimizationInputData::cast(code->deoptimization_data());
+  DeoptimizationData* deopt_input_data =
+      DeoptimizationData::cast(code->deoptimization_data());
   int deopt_count = deopt_input_data->DeoptCount();
   for (int i = 0; i < deopt_count; i++) {
     int pc_offset = deopt_input_data->Pc(i)->value();
@@ -230,11 +213,19 @@ void ProfilerListener::RecordInliningInfo(CodeEntry* entry,
       SharedFunctionInfo* shared_info = SharedFunctionInfo::cast(
           deopt_input_data->LiteralArray()->get(shared_info_id));
       if (!depth++) continue;  // Skip the current function itself.
-      CodeEntry* inline_entry = new CodeEntry(
-          entry->tag(), GetFunctionName(shared_info->DebugName()),
-          CodeEntry::kEmptyNamePrefix, entry->resource_name(),
-          CpuProfileNode::kNoLineNumberInfo,
-          CpuProfileNode::kNoColumnNumberInfo, NULL, code->instruction_start());
+
+      const char* resource_name =
+          (shared_info->script()->IsScript() &&
+           Script::cast(shared_info->script())->name()->IsName())
+              ? GetName(Name::cast(Script::cast(shared_info->script())->name()))
+              : CodeEntry::kEmptyResourceName;
+
+      CodeEntry* inline_entry =
+          new CodeEntry(entry->tag(), GetFunctionName(shared_info->DebugName()),
+                        CodeEntry::kEmptyNamePrefix, resource_name,
+                        CpuProfileNode::kNoLineNumberInfo,
+                        CpuProfileNode::kNoColumnNumberInfo, nullptr,
+                        code->instruction_start());
       inline_entry->FillFunctionInfo(shared_info);
       inline_stack.push_back(inline_entry);
     }
@@ -268,7 +259,7 @@ void ProfilerListener::RecordDeoptInlinedFrames(CodeEntry* entry,
       DCHECK(last_position.IsKnown());
       std::vector<CpuProfileDeoptFrame> inlined_frames;
       for (SourcePositionInfo& pos_info : last_position.InliningStack(code)) {
-        DCHECK(pos_info.position.ScriptOffset() != kNoSourcePosition);
+        if (pos_info.position.ScriptOffset() == kNoSourcePosition) continue;
         if (!pos_info.function->script()->IsScript()) continue;
         int script_id = Script::cast(pos_info.function->script())->id();
         size_t offset = static_cast<size_t>(pos_info.position.ScriptOffset());
@@ -286,19 +277,23 @@ CodeEntry* ProfilerListener::NewCodeEntry(
     CodeEventListener::LogEventsAndTags tag, const char* name,
     const char* name_prefix, const char* resource_name, int line_number,
     int column_number, JITLineInfoTable* line_info, Address instruction_start) {
-  CodeEntry* code_entry =
-      new CodeEntry(tag, name, name_prefix, resource_name, line_number,
-                    column_number, line_info, instruction_start);
-  code_entries_.push_back(code_entry);
-  return code_entry;
+  std::unique_ptr<CodeEntry> code_entry = base::make_unique<CodeEntry>(
+      tag, name, name_prefix, resource_name, line_number, column_number,
+      line_info, instruction_start);
+  CodeEntry* raw_code_entry = code_entry.get();
+  code_entries_.push_back(std::move(code_entry));
+  return raw_code_entry;
 }
 
 void ProfilerListener::AddObserver(CodeEventObserver* observer) {
   base::LockGuard<base::Mutex> guard(&mutex_);
-  if (std::find(observers_.begin(), observers_.end(), observer) !=
-      observers_.end())
-    return;
-  observers_.push_back(observer);
+  if (observers_.empty()) {
+    code_entries_.clear();
+  }
+  if (std::find(observers_.begin(), observers_.end(), observer) ==
+      observers_.end()) {
+    observers_.push_back(observer);
+  }
 }
 
 void ProfilerListener::RemoveObserver(CodeEventObserver* observer) {

@@ -200,7 +200,7 @@ class SlotSet : public Malloced {
             uint32_t old_cell = cell;
             uint32_t mask = 0;
             while (cell) {
-              int bit_offset = base::bits::CountTrailingZeros32(cell);
+              int bit_offset = base::bits::CountTrailingZeros(cell);
               uint32_t bit_mask = 1u << bit_offset;
               uint32_t slot = (cell_offset + bit_offset) << kPointerSizeLog2;
               if (callback(page_start_ + slot) == KEEP_SLOT) {

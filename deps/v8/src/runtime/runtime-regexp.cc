@@ -21,6 +21,20 @@ namespace internal {
 
 namespace {
 
+// Returns -1 for failure.
+uint32_t GetArgcForReplaceCallable(uint32_t num_captures,
+                                   bool has_named_captures) {
+  const uint32_t kAdditionalArgsWithoutNamedCaptures = 2;
+  const uint32_t kAdditionalArgsWithNamedCaptures = 3;
+  if (num_captures > Code::kMaxArguments) return -1;
+  uint32_t argc = has_named_captures
+                      ? num_captures + kAdditionalArgsWithNamedCaptures
+                      : num_captures + kAdditionalArgsWithoutNamedCaptures;
+  STATIC_ASSERT(Code::kMaxArguments < std::numeric_limits<uint32_t>::max() -
+                                          kAdditionalArgsWithNamedCaptures);
+  return (argc > Code::kMaxArguments) ? -1 : argc;
+}
+
 // Looks up the capture of the given name. Returns the (1-based) numbered
 // capture index or -1 on failure.
 int LookupNamedCapture(std::function<bool(String*)> name_matches,
@@ -404,7 +418,7 @@ void FindOneByteStringIndices(Vector<const uint8_t> subject, uint8_t pattern,
   while (limit > 0) {
     pos = reinterpret_cast<const uint8_t*>(
         memchr(pos, pattern, subject_end - pos));
-    if (pos == NULL) return;
+    if (pos == nullptr) return;
     indices->push_back(static_cast<int>(pos - subject_start));
     pos++;
     limit--;
@@ -530,7 +544,7 @@ MUST_USE_RESULT static Object* StringReplaceGlobalAtomRegExpWithString(
   int pattern_len = pattern->length();
   int replacement_len = replacement->length();
 
-  FindStringIndicesDispatch(isolate, *subject, pattern, indices, 0xffffffff);
+  FindStringIndicesDispatch(isolate, *subject, pattern, indices, 0xFFFFFFFF);
 
   if (indices->empty()) return *subject;
 
@@ -633,7 +647,7 @@ MUST_USE_RESULT static Object* StringReplaceGlobalRegExpWithString(
   if (global_cache.HasException()) return isolate->heap()->exception();
 
   int32_t* current_match = global_cache.FetchNext();
-  if (current_match == NULL) {
+  if (current_match == nullptr) {
     if (global_cache.HasException()) return isolate->heap()->exception();
     return *subject;
   }
@@ -669,7 +683,7 @@ MUST_USE_RESULT static Object* StringReplaceGlobalRegExpWithString(
     prev = end;
 
     current_match = global_cache.FetchNext();
-  } while (current_match != NULL);
+  } while (current_match != nullptr);
 
   if (global_cache.HasException()) return isolate->heap()->exception();
 
@@ -706,7 +720,7 @@ MUST_USE_RESULT static Object* StringReplaceGlobalRegExpWithEmptyString(
   if (global_cache.HasException()) return isolate->heap()->exception();
 
   int32_t* current_match = global_cache.FetchNext();
-  if (current_match == NULL) {
+  if (current_match == nullptr) {
     if (global_cache.HasException()) return isolate->heap()->exception();
     return *subject;
   }
@@ -742,7 +756,7 @@ MUST_USE_RESULT static Object* StringReplaceGlobalRegExpWithEmptyString(
     prev = end;
 
     current_match = global_cache.FetchNext();
-  } while (current_match != NULL);
+  } while (current_match != nullptr);
 
   if (global_cache.HasException()) return isolate->heap()->exception();
 
@@ -808,19 +822,6 @@ Object* StringReplaceGlobalRegExpWithStringHelper(
 
 }  // namespace
 
-RUNTIME_FUNCTION(Runtime_StringReplaceGlobalRegExpWithString) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(4, args.length());
-
-  CONVERT_ARG_HANDLE_CHECKED(String, subject, 0);
-  CONVERT_ARG_HANDLE_CHECKED(String, replacement, 2);
-  CONVERT_ARG_HANDLE_CHECKED(JSRegExp, regexp, 1);
-  CONVERT_ARG_HANDLE_CHECKED(RegExpMatchInfo, last_match_info, 3);
-
-  return StringReplaceGlobalRegExpWithStringHelper(
-      isolate, regexp, subject, replacement, last_match_info);
-}
-
 RUNTIME_FUNCTION(Runtime_StringSplit) {
   HandleScope handle_scope(isolate);
   DCHECK_EQ(3, args.length());
@@ -833,7 +834,7 @@ RUNTIME_FUNCTION(Runtime_StringSplit) {
   int pattern_length = pattern->length();
   CHECK_LT(0, pattern_length);
 
-  if (limit == 0xffffffffu) {
+  if (limit == 0xFFFFFFFFu) {
     FixedArray* last_match_cache_unused;
     Handle<Object> cached_answer(
         RegExpResultsCache::Lookup(isolate->heap(), *subject, *pattern,
@@ -848,7 +849,7 @@ RUNTIME_FUNCTION(Runtime_StringSplit) {
     }
   }
 
-  // The limit can be very large (0xffffffffu), but since the pattern
+  // The limit can be very large (0xFFFFFFFFu), but since the pattern
   // isn't empty, we can never create more parts than ~half the length
   // of the subject.
 
@@ -889,7 +890,7 @@ RUNTIME_FUNCTION(Runtime_StringSplit) {
     });
   }
 
-  if (limit == 0xffffffffu) {
+  if (limit == 0xFFFFFFFFu) {
     if (result->HasObjectElements()) {
       RegExpResultsCache::Enter(isolate, subject, pattern, elements,
                                 isolate->factory()->empty_fixed_array(),
@@ -900,33 +901,6 @@ RUNTIME_FUNCTION(Runtime_StringSplit) {
   TruncateRegexpIndicesList(isolate);
 
   return *result;
-}
-
-// ES##sec-regexpcreate
-// RegExpCreate ( P, F )
-RUNTIME_FUNCTION(Runtime_RegExpCreate) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(1, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(Object, source_object, 0);
-
-  Handle<String> source;
-  if (source_object->IsUndefined(isolate)) {
-    source = isolate->factory()->empty_string();
-  } else {
-    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-        isolate, source, Object::ToString(isolate, source_object));
-  }
-
-  Handle<Map> map(isolate->regexp_function()->initial_map());
-  Handle<JSRegExp> regexp =
-      Handle<JSRegExp>::cast(isolate->factory()->NewJSObjectFromMap(map));
-
-  JSRegExp::Flags flags = JSRegExp::kNone;
-
-  RETURN_FAILURE_ON_EXCEPTION(isolate,
-                              JSRegExp::Initialize(regexp, source, flags));
-
-  return *regexp;
 }
 
 RUNTIME_FUNCTION(Runtime_RegExpExec) {
@@ -1216,7 +1190,7 @@ static Object* SearchRegExpMultiple(Isolate* isolate, Handle<String> subject,
 
   while (true) {
     int32_t* current_match = global_cache.FetchNext();
-    if (current_match == NULL) break;
+    if (current_match == nullptr) break;
     match_start = current_match[0];
     builder.EnsureCapacity(kMaxBuilderEntriesPerRegExpMatch);
     if (match_end < match_start) {
@@ -1358,7 +1332,7 @@ MUST_USE_RESULT MaybeHandle<String> RegExpReplace(Isolate* isolate,
                                  String);
       last_index = PositiveNumberToUint32(*last_index_obj);
 
-      if (static_cast<int>(last_index) > string->length()) last_index = 0;
+      if (last_index > static_cast<uint32_t>(string->length())) last_index = 0;
     }
 
     Handle<Object> match_indices_obj;
@@ -1477,7 +1451,7 @@ RUNTIME_FUNCTION(Runtime_StringReplaceNonGlobalRegExpWithFunction) {
         isolate, last_index_obj, Object::ToLength(isolate, last_index_obj));
     last_index = PositiveNumberToUint32(*last_index_obj);
 
-    if (static_cast<int>(last_index) > subject->length()) last_index = 0;
+    if (last_index > static_cast<uint32_t>(subject->length())) last_index = 0;
   }
 
   Handle<Object> match_indices_obj;
@@ -1523,7 +1497,11 @@ RUNTIME_FUNCTION(Runtime_StringReplaceNonGlobalRegExpWithFunction) {
   }
 
   DCHECK_IMPLIES(has_named_captures, FLAG_harmony_regexp_named_captures);
-  const int argc = has_named_captures ? m + 3 : m + 2;
+  const uint32_t argc = GetArgcForReplaceCallable(m, has_named_captures);
+  if (argc == static_cast<uint32_t>(-1)) {
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate, NewRangeError(MessageTemplate::kTooManyArguments));
+  }
   ScopedVector<Handle<Object>> argv(argc);
 
   int cursor = 0;
@@ -1668,7 +1646,7 @@ RUNTIME_FUNCTION(Runtime_RegExpSplit) {
 
   static const int kInitialArraySize = 8;
   Handle<FixedArray> elems = factory->NewFixedArrayWithHoles(kInitialArraySize);
-  int num_elems = 0;
+  uint32_t num_elems = 0;
 
   uint32_t string_index = 0;
   uint32_t prev_string_index = 0;
@@ -1682,8 +1660,8 @@ RUNTIME_FUNCTION(Runtime_RegExpSplit) {
                                                  factory->undefined_value()));
 
     if (result->IsNull(isolate)) {
-      string_index = RegExpUtils::AdvanceStringIndex(isolate, string,
-                                                     string_index, unicode);
+      string_index = static_cast<uint32_t>(RegExpUtils::AdvanceStringIndex(
+          isolate, string, string_index, unicode));
       continue;
     }
 
@@ -1697,8 +1675,8 @@ RUNTIME_FUNCTION(Runtime_RegExpSplit) {
     const uint32_t end =
         std::min(PositiveNumberToUint32(*last_index_obj), length);
     if (end == prev_string_index) {
-      string_index = RegExpUtils::AdvanceStringIndex(isolate, string,
-                                                     string_index, unicode);
+      string_index = static_cast<uint32_t>(RegExpUtils::AdvanceStringIndex(
+          isolate, string, string_index, unicode));
       continue;
     }
 
@@ -1706,7 +1684,7 @@ RUNTIME_FUNCTION(Runtime_RegExpSplit) {
       Handle<String> substr =
           factory->NewSubString(string, prev_string_index, string_index);
       elems = FixedArray::SetAndGrow(elems, num_elems++, substr);
-      if (static_cast<uint32_t>(num_elems) == limit) {
+      if (num_elems == limit) {
         return *NewJSArrayWithElements(isolate, elems, num_elems);
       }
     }
@@ -1720,14 +1698,14 @@ RUNTIME_FUNCTION(Runtime_RegExpSplit) {
 
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
         isolate, num_captures_obj, Object::ToLength(isolate, num_captures_obj));
-    const int num_captures = PositiveNumberToUint32(*num_captures_obj);
+    const uint32_t num_captures = PositiveNumberToUint32(*num_captures_obj);
 
-    for (int i = 1; i < num_captures; i++) {
+    for (uint32_t i = 1; i < num_captures; i++) {
       Handle<Object> capture;
       ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
           isolate, capture, Object::GetElement(isolate, result, i));
       elems = FixedArray::SetAndGrow(elems, num_elems++, capture);
-      if (static_cast<uint32_t>(num_elems) == limit) {
+      if (num_elems == limit) {
         return *NewJSArrayWithElements(isolate, elems, num_elems);
       }
     }
@@ -1826,6 +1804,7 @@ RUNTIME_FUNCTION(Runtime_RegExpReplace) {
   uint32_t next_source_position = 0;
 
   for (const auto& result : results) {
+    HandleScope handle_scope(isolate);
     Handle<Object> captures_length_obj;
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
         isolate, captures_length_obj,
@@ -1834,7 +1813,8 @@ RUNTIME_FUNCTION(Runtime_RegExpReplace) {
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
         isolate, captures_length_obj,
         Object::ToLength(isolate, captures_length_obj));
-    const int captures_length = PositiveNumberToUint32(*captures_length_obj);
+    const uint32_t captures_length =
+        PositiveNumberToUint32(*captures_length_obj);
 
     Handle<Object> match_obj;
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, match_obj,
@@ -1859,7 +1839,7 @@ RUNTIME_FUNCTION(Runtime_RegExpReplace) {
     // Do not reserve capacity since captures_length is user-controlled.
     ZoneVector<Handle<Object>> captures(&zone);
 
-    for (int n = 0; n < captures_length; n++) {
+    for (uint32_t n = 0; n < captures_length; n++) {
       Handle<Object> capture;
       ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
           isolate, capture, Object::GetElement(isolate, result, n));
@@ -1883,12 +1863,17 @@ RUNTIME_FUNCTION(Runtime_RegExpReplace) {
 
     Handle<String> replacement;
     if (functional_replace) {
-      const int argc =
-          has_named_captures ? captures_length + 3 : captures_length + 2;
+      const uint32_t argc =
+          GetArgcForReplaceCallable(captures_length, has_named_captures);
+      if (argc == static_cast<uint32_t>(-1)) {
+        THROW_NEW_ERROR_RETURN_FAILURE(
+            isolate, NewRangeError(MessageTemplate::kTooManyArguments));
+      }
+
       ScopedVector<Handle<Object>> argv(argc);
 
       int cursor = 0;
-      for (int j = 0; j < captures_length; j++) {
+      for (uint32_t j = 0; j < captures_length; j++) {
         argv[cursor++] = captures[j];
       }
 
@@ -1946,6 +1931,9 @@ RUNTIME_FUNCTION(Runtime_RegExpExecReThrow) {
 RUNTIME_FUNCTION(Runtime_RegExpInitializeAndCompile) {
   HandleScope scope(isolate);
   DCHECK_EQ(3, args.length());
+  // TODO(pwong): To follow the spec more closely and simplify calling code,
+  // this could handle the canonicalization of pattern and flags. See
+  // https://tc39.github.io/ecma262/#sec-regexpinitialize
   CONVERT_ARG_HANDLE_CHECKED(JSRegExp, regexp, 0);
   CONVERT_ARG_HANDLE_CHECKED(String, source, 1);
   CONVERT_ARG_HANDLE_CHECKED(String, flags, 2);

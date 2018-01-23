@@ -12,6 +12,7 @@
 #include "include/v8-profiler.h"
 #include "src/base/platform/time.h"
 #include "src/objects.h"
+#include "src/objects/fixed-array.h"
 #include "src/profiler/strings-storage.h"
 #include "src/string-hasher.h"
 #include "src/visitors.h"
@@ -25,6 +26,9 @@ class HeapEntry;
 class HeapIterator;
 class HeapProfiler;
 class HeapSnapshot;
+class JSArrayBuffer;
+class JSCollection;
+class JSWeakCollection;
 class SnapshotFiller;
 
 class HeapGraphEdge BASE_EMBEDDED {
@@ -430,17 +434,14 @@ class V8HeapExplorer : public HeapEntriesAllocator {
                         int index,
                         Object* child_obj,
                         int field_offset);
-  void SetPropertyReference(HeapObject* parent_obj,
-                            int parent,
-                            Name* reference_name,
-                            Object* child,
-                            const char* name_format_string = NULL,
+  void SetPropertyReference(HeapObject* parent_obj, int parent,
+                            Name* reference_name, Object* child,
+                            const char* name_format_string = nullptr,
                             int field_offset = -1);
-  void SetDataOrAccessorPropertyReference(PropertyKind kind,
-                                          JSObject* parent_obj, int parent,
-                                          Name* reference_name, Object* child,
-                                          const char* name_format_string = NULL,
-                                          int field_offset = -1);
+  void SetDataOrAccessorPropertyReference(
+      PropertyKind kind, JSObject* parent_obj, int parent, Name* reference_name,
+      Object* child, const char* name_format_string = nullptr,
+      int field_offset = -1);
 
   void SetUserGlobalReference(Object* user_global);
   void SetRootGcRootsReference();
@@ -572,8 +573,7 @@ class HeapSnapshotJSONSerializer {
         strings_(StringsMatch),
         next_node_id_(1),
         next_string_id_(1),
-        writer_(NULL) {
-  }
+        writer_(nullptr) {}
   void Serialize(v8::OutputStream* stream);
 
  private:

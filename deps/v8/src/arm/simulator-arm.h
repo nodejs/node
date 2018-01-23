@@ -2,11 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-
 // Declares a Simulator for ARM instructions if we are not generating a native
 // ARM binary. This Simulator allows us to run and debug ARM code generation on
 // regular desktop machines.
-// V8 calls into generated code by "calling" the CALL_GENERATED_CODE macro,
+// V8 calls into generated code by using the GeneratedCode class,
 // which will start execution in the Simulator or forwards to the real entry
 // on a ARM HW platform.
 
@@ -16,57 +15,15 @@
 #include "src/allocation.h"
 #include "src/base/lazy-instance.h"
 #include "src/base/platform/mutex.h"
+#include "src/boxed-float.h"
 
-#if !defined(USE_SIMULATOR)
-// Running without a simulator on a native arm platform.
-
-namespace v8 {
-namespace internal {
-
-// When running without a simulator we call the entry directly.
-#define CALL_GENERATED_CODE(isolate, entry, p0, p1, p2, p3, p4) \
-  (entry(p0, p1, p2, p3, p4))
-
-typedef int (*arm_regexp_matcher)(String*, int, const byte*, const byte*, int*,
-                                  int, Address, int, Isolate*);
-
-// Call the generated regexp code directly. The code at the entry address
-// should act as a function matching the type arm_regexp_matcher.
-#define CALL_GENERATED_REGEXP_CODE(isolate, entry, p0, p1, p2, p3, p4, p5, p6, \
-                                   p7, p8)                                     \
-  (FUNCTION_CAST<arm_regexp_matcher>(entry)(p0, p1, p2, p3, p4, p5, p6, p7, p8))
-
-// The stack limit beyond which we will throw stack overflow errors in
-// generated code. Because generated code on arm uses the C stack, we
-// just use the C stack limit.
-class SimulatorStack : public v8::internal::AllStatic {
- public:
-  static inline uintptr_t JsLimitFromCLimit(v8::internal::Isolate* isolate,
-                                            uintptr_t c_limit) {
-    USE(isolate);
-    return c_limit;
-  }
-
-  static inline uintptr_t RegisterCTryCatch(v8::internal::Isolate* isolate,
-                                            uintptr_t try_catch_address) {
-    USE(isolate);
-    return try_catch_address;
-  }
-
-  static inline void UnregisterCTryCatch(v8::internal::Isolate* isolate) {
-    USE(isolate);
-  }
-};
-
-}  // namespace internal
-}  // namespace v8
-
-#else  // !defined(USE_SIMULATOR)
+#if defined(USE_SIMULATOR)
 // Running with a simulator.
 
 #include "src/arm/constants-arm.h"
 #include "src/assembler.h"
 #include "src/base/hashmap.h"
+#include "src/simulator-base.h"
 
 namespace v8 {
 namespace internal {
@@ -101,8 +58,7 @@ class CachePage {
   char validity_map_[kValidityMapSize];  // One byte per line.
 };
 
-
-class Simulator {
+class Simulator : public SimulatorBase {
  public:
   friend class ArmDebugger;
   enum Register {
@@ -133,7 +89,7 @@ class Simulator {
 
   // The currently executing Simulator instance. Potentially there can be one
   // for each native thread.
-  static Simulator* current(v8::internal::Isolate* isolate);
+  V8_EXPORT_PRIVATE static Simulator* current(v8::internal::Isolate* isolate);
 
   // Accessors for register state. Reading the pc value adheres to the ARM
   // architecture specification and is off by a 8 from the currently executing
@@ -158,20 +114,26 @@ class Simulator {
   void set_s_register(int reg, unsigned int value);
   unsigned int get_s_register(int reg) const;
 
-  void set_d_register_from_double(int dreg, const double& dbl) {
+  void set_d_register_from_double(int dreg, const Float64 dbl) {
+    SetVFPRegister<Float64, 2>(dreg, dbl);
+  }
+  void set_d_register_from_double(int dreg, const double dbl) {
     SetVFPRegister<double, 2>(dreg, dbl);
   }
 
-  double get_double_from_d_register(int dreg) {
-    return GetFromVFPRegister<double, 2>(dreg);
+  Float64 get_double_from_d_register(int dreg) {
+    return GetFromVFPRegister<Float64, 2>(dreg);
   }
 
+  void set_s_register_from_float(int sreg, const Float32 flt) {
+    SetVFPRegister<Float32, 1>(sreg, flt);
+  }
   void set_s_register_from_float(int sreg, const float flt) {
     SetVFPRegister<float, 1>(sreg, flt);
   }
 
-  float get_float_from_s_register(int sreg) {
-    return GetFromVFPRegister<float, 1>(sreg);
+  Float32 get_float_from_s_register(int sreg) {
+    return GetFromVFPRegister<Float32, 1>(sreg);
   }
 
   void set_s_register_from_sinteger(int sreg, const int sint) {
@@ -196,19 +158,16 @@ class Simulator {
   // Executes ARM instructions until the PC reaches end_sim_pc.
   void Execute();
 
-  // Call on program start.
-  static void Initialize(Isolate* isolate);
+  template <typename Return, typename... Args>
+  Return Call(byte* entry, Args... args) {
+    return VariadicCall<Return>(this, &Simulator::CallImpl, entry, args...);
+  }
 
-  static void TearDown(base::CustomMatcherHashMap* i_cache, Redirection* first);
-
-  // V8 generally calls into generated JS code with 5 parameters and into
-  // generated RegExp code with 7 parameters. This is a convenience function,
-  // which sets up the simulator state and grabs the result on return.
-  int32_t Call(byte* entry, int argument_count, ...);
   // Alternative: call a 2-argument double function.
-  void CallFP(byte* entry, double d0, double d1);
-  int32_t CallFPReturnsInt(byte* entry, double d0, double d1);
-  double CallFPReturnsDouble(byte* entry, double d0, double d1);
+  template <typename Return>
+  Return CallFP(byte* entry, double d0, double d1) {
+    return ConvertReturn<Return>(CallFPImpl(entry, d0, d1));
+  }
 
   // Push an address onto the JS stack.
   uintptr_t PushAddress(uintptr_t address);
@@ -219,6 +178,9 @@ class Simulator {
   // Debugger input.
   void set_last_debugger_input(char* input);
   char* last_debugger_input() { return last_debugger_input_; }
+
+  // Redirection support.
+  static void SetRedirectInstruction(Instruction* instruction);
 
   // ICache checking.
   static void FlushICache(base::CustomMatcherHashMap* i_cache, void* start,
@@ -249,6 +211,10 @@ class Simulator {
     end_sim_pc = -2
   };
 
+  V8_EXPORT_PRIVATE intptr_t CallImpl(byte* entry, int argument_count,
+                                      const intptr_t* arguments);
+  intptr_t CallFPImpl(byte* entry, double d0, double d1);
+
   // Unsupported instructions use Format to print an error and stop execution.
   void Format(Instruction* instr, const char* format);
 
@@ -277,6 +243,8 @@ class Simulator {
   void Copy_FPSCR_to_APSR();
   inline float canonicalizeNaN(float value);
   inline double canonicalizeNaN(double value);
+  inline Float32 canonicalizeNaN(Float32 value);
+  inline Float64 canonicalizeNaN(Float64 value);
 
   // Helper functions to decode common "addressing" modes
   int32_t GetShiftRm(Instruction* instr, bool* carry_out);
@@ -360,11 +328,6 @@ class Simulator {
                            int size);
   static CachePage* GetCachePage(base::CustomMatcherHashMap* i_cache,
                                  void* page);
-
-  // Runtime call support. Uses the isolate in a thread-safe way.
-  static void* RedirectExternalReference(
-      Isolate* isolate, void* external_function,
-      v8::internal::ExternalReference::Type type);
 
   // Handle arguments and return value for runtime FP functions.
   void GetFpArgs(double* x, double* y, int32_t* z);
@@ -533,45 +496,8 @@ class Simulator {
   static base::LazyInstance<GlobalMonitor>::type global_monitor_;
 };
 
-
-// When running with the simulator transition into simulated execution at this
-// point.
-#define CALL_GENERATED_CODE(isolate, entry, p0, p1, p2, p3, p4) \
-  reinterpret_cast<Object*>(Simulator::current(isolate)->Call(  \
-      FUNCTION_ADDR(entry), 5, p0, p1, p2, p3, p4))
-
-#define CALL_GENERATED_FP_INT(isolate, entry, p0, p1) \
-  Simulator::current(isolate)->CallFPReturnsInt(FUNCTION_ADDR(entry), p0, p1)
-
-#define CALL_GENERATED_REGEXP_CODE(isolate, entry, p0, p1, p2, p3, p4, p5, p6, \
-                                   p7, p8)                                     \
-  Simulator::current(isolate)->Call(entry, 9, p0, p1, p2, p3, p4, p5, p6, p7,  \
-                                    p8)
-
-// The simulator has its own stack. Thus it has a different stack limit from
-// the C-based native code.  The JS-based limit normally points near the end of
-// the simulator stack.  When the C-based limit is exhausted we reflect that by
-// lowering the JS-based limit as well, to make stack checks trigger.
-class SimulatorStack : public v8::internal::AllStatic {
- public:
-  static inline uintptr_t JsLimitFromCLimit(v8::internal::Isolate* isolate,
-                                            uintptr_t c_limit) {
-    return Simulator::current(isolate)->StackLimit(c_limit);
-  }
-
-  static inline uintptr_t RegisterCTryCatch(v8::internal::Isolate* isolate,
-                                            uintptr_t try_catch_address) {
-    Simulator* sim = Simulator::current(isolate);
-    return sim->PushAddress(try_catch_address);
-  }
-
-  static inline void UnregisterCTryCatch(v8::internal::Isolate* isolate) {
-    Simulator::current(isolate)->PopAddress();
-  }
-};
-
 }  // namespace internal
 }  // namespace v8
 
-#endif  // !defined(USE_SIMULATOR)
+#endif  // defined(USE_SIMULATOR)
 #endif  // V8_ARM_SIMULATOR_ARM_H_

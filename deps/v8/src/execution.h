@@ -8,6 +8,7 @@
 #include "src/allocation.h"
 #include "src/base/atomicops.h"
 #include "src/globals.h"
+#include "src/objects/code.h"
 #include "src/utils.h"
 
 namespace v8 {
@@ -20,6 +21,7 @@ class Execution final : public AllStatic {
  public:
   // Whether to report pending messages, or keep them pending on the isolate.
   enum class MessageHandling { kReport, kKeepPending };
+  enum class Target { kCallable, kRunMicrotasks };
 
   // Call a function, the caller supplies a receiver and an array
   // of arguments.
@@ -54,7 +56,12 @@ class Execution final : public AllStatic {
                                      Handle<Object> receiver, int argc,
                                      Handle<Object> argv[],
                                      MessageHandling message_handling,
-                                     MaybeHandle<Object>* exception_out);
+                                     MaybeHandle<Object>* exception_out,
+                                     Target target = Target::kCallable);
+  // Convenience method for performing RunMicrotasks
+  static MaybeHandle<Object> RunMicrotasks(Isolate* isolate,
+                                           MessageHandling message_handling,
+                                           MaybeHandle<Object>* exception_out);
 };
 
 
@@ -162,8 +169,8 @@ class V8_EXPORT_PRIVATE StackGuard final {
   void DisableInterrupts();
 
 #if V8_TARGET_ARCH_64_BIT
-  static const uintptr_t kInterruptLimit = V8_UINT64_C(0xfffffffffffffffe);
-  static const uintptr_t kIllegalLimit = V8_UINT64_C(0xfffffffffffffff8);
+  static const uintptr_t kInterruptLimit = uintptr_t{0xfffffffffffffffe};
+  static const uintptr_t kIllegalLimit = uintptr_t{0xfffffffffffffff8};
 #else
   static const uintptr_t kInterruptLimit = 0xfffffffe;
   static const uintptr_t kIllegalLimit = 0xfffffff8;

@@ -15,7 +15,7 @@ namespace {
 // Immediates (random subset).
 const int32_t kImmediates[] = {kMinInt, -42, -1,   0,      1,          2,
                                3,       4,   5,    6,      7,          8,
-                               16,      42,  0xff, 0xffff, 0x0f0f0f0f, kMaxInt};
+                               16,      42,  0xFF, 0xFFFF, 0x0F0F0F0F, kMaxInt};
 
 }  // namespace
 
@@ -862,6 +862,15 @@ TEST_F(InstructionSelectorTest, Word32Clz) {
   EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(0)));
   ASSERT_EQ(1U, s[0]->OutputCount());
   EXPECT_EQ(s.ToVreg(n), s.ToVreg(s[0]->Output()));
+}
+
+TEST_F(InstructionSelectorTest, SpeculationFence) {
+  StreamBuilder m(this, MachineType::Int32());
+  m.SpeculationFence();
+  m.Return(m.Int32Constant(0));
+  Stream s = m.Build();
+  ASSERT_EQ(1U, s.size());
+  EXPECT_EQ(kLFence, s[0]->arch_opcode());
 }
 
 }  // namespace compiler

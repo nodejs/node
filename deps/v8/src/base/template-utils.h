@@ -22,8 +22,9 @@ struct make_array_helper;
 
 template <class Function, std::size_t... Indexes>
 struct make_array_helper<Function, 0, Indexes...> {
-  constexpr static auto make_array(Function f)
-      -> std::array<decltype(f(std::size_t{0})), sizeof...(Indexes) + 1> {
+  constexpr static std::array<typename std::result_of<Function(size_t)>::type,
+                              sizeof...(Indexes) + 1>
+  make_array(Function f) {
     return {{f(0), f(Indexes)...}};
   }
 };
@@ -41,8 +42,8 @@ struct make_array_helper<Function, FirstIndex, Indexes...>
 //       [](std::size_t i) { return static_cast<int>(2 * i); });
 // The resulting array will be constexpr if the passed function is constexpr.
 template <std::size_t Size, class Function>
-constexpr auto make_array(Function f)
-    -> std::array<decltype(f(std::size_t{0})), Size> {
+constexpr std::array<typename std::result_of<Function(size_t)>::type, Size>
+make_array(Function f) {
   static_assert(Size > 0, "Can only create non-empty arrays");
   return detail::make_array_helper<Function, Size - 1>::make_array(f);
 }
@@ -92,6 +93,40 @@ struct has_output_operator {
   using ptr_t = typename std::add_pointer<T>::type;
   static constexpr bool value = sizeof(__check_operator(ptr_t{nullptr})) == 1;
 };
+
+namespace detail {
+
+template <typename Func, typename T, typename... Ts>
+struct fold_helper {
+  static_assert(sizeof...(Ts) == 0, "this is the base case");
+  using result_t = typename std::remove_reference<T>::type;
+  static constexpr T&& fold(Func func, T&& first) {
+    return std::forward<T>(first);
+  }
+};
+
+template <typename Func, typename T1, typename T2, typename... Ts>
+struct fold_helper<Func, T1, T2, Ts...> {
+  using folded_t = typename std::result_of<Func(T1, T2)>::type;
+  using next_fold_helper = fold_helper<Func, folded_t&&, Ts...>;
+  using result_t = typename next_fold_helper::result_t;
+  static constexpr result_t fold(Func func, T1&& first, T2&& second,
+                                 Ts&&... more) {
+    return next_fold_helper::fold(
+        func, func(std::forward<T1>(first), std::forward<T2>(second)),
+        std::forward<Ts>(more)...);
+  }
+};
+
+}  // namespace detail
+
+// Fold all arguments from left to right with a given function.
+template <typename Func, typename... Ts>
+constexpr auto fold(Func func, Ts&&... more) ->
+    typename detail::fold_helper<Func, Ts...>::result_t {
+  return detail::fold_helper<Func, Ts...>::fold(func,
+                                                std::forward<Ts>(more)...);
+}
 
 }  // namespace base
 }  // namespace v8

@@ -1,0 +1,5 @@
+*modules-cycle3.js:7: SyntaxError: Detected cycle while resolving name 'a' in 'modules-skip-cycle3.js'
+export {a as x} from "modules-skip-cycle3.js";
+        ^^^^^^
+SyntaxError: Detected cycle while resolving name 'a' in 'modules-skip-cycle3.js'
+

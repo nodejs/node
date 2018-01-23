@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --harmony-async-iteration
-
 assertTrue(Symbol.hasOwnProperty('asyncIterator'));
 assertEquals('symbol', typeof Symbol.asyncIterator);
 assertInstanceof(Object(Symbol.asyncIterator), Symbol);

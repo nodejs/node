@@ -50,10 +50,12 @@ def ToCArray(byte_sequence):
   return textwrap.fill(joined, 80)
 
 
-def RemoveCommentsAndTrailingWhitespace(lines):
+def RemoveCommentsEmptyLinesAndWhitespace(lines):
+  lines = re.sub(r'\n+', '\n', lines) # empty lines
   lines = re.sub(r'//.*\n', '\n', lines) # end-of-line comments
   lines = re.sub(re.compile(r'/\*.*?\*/', re.DOTALL), '', lines) # comments.
-  lines = re.sub(r'\s+\n+', '\n', lines) # trailing whitespace
+  lines = re.sub(r'\s+\n', '\n', lines) # trailing whitespace
+  lines = re.sub(r'\n\s+', '\n', lines) # initial whitespace
   return lines
 
 
@@ -125,6 +127,9 @@ def ExpandMacroDefinition(lines, pos, name_pattern, macro, expander):
       end = end + 1
     # Remember to add the last match.
     add_arg(lines[last_match:end-1])
+    if arg_index[0] < len(macro.args) -1:
+      lineno = lines.count(os.linesep, 0, start) + 1
+      raise Error('line %s: Too few arguments for macro "%s"' % (lineno, name_pattern.pattern))
     result = macro.expand(mapping)
     # Replace the occurrence of the macro with the expansion
     lines = lines[:start] + result + lines[end:]
@@ -339,7 +344,7 @@ def BuildFilterChain(macro_filename, message_template_file):
     filter_chain.append(lambda l: ExpandConstants(l, message_templates))
 
   filter_chain.extend([
-    RemoveCommentsAndTrailingWhitespace,
+    RemoveCommentsEmptyLinesAndWhitespace,
     ExpandInlineMacros,
     ExpandInlineConstants,
     Validate,
@@ -352,7 +357,7 @@ def BuildFilterChain(macro_filename, message_template_file):
   return reduce(chain, filter_chain)
 
 def BuildExtraFilterChain():
-  return lambda x: RemoveCommentsAndTrailingWhitespace(Validate(x))
+  return lambda x: RemoveCommentsEmptyLinesAndWhitespace(Validate(x))
 
 class Sources:
   def __init__(self):
@@ -362,7 +367,7 @@ class Sources:
 
 
 def IsDebuggerFile(filename):
-  return "debug" in filename
+  return os.path.basename(os.path.dirname(filename)) == "debug"
 
 def IsMacroFile(filename):
   return filename.endswith("macros.py")

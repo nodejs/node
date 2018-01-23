@@ -80,6 +80,21 @@ void UpdateInLiveness(Bytecode bytecode, BytecodeLivenessState& in_liveness,
   int num_operands = Bytecodes::NumberOfOperands(bytecode);
   const OperandType* operand_types = Bytecodes::GetOperandTypes(bytecode);
 
+  // Special case Suspend and Resume to just pass through liveness.
+  if (bytecode == Bytecode::kSuspendGenerator) {
+    // The generator object has to be live.
+    in_liveness.MarkRegisterLive(accessor.GetRegisterOperand(0).index());
+    // Suspend additionally reads and returns the accumulator
+    DCHECK(Bytecodes::ReadsAccumulator(bytecode));
+    in_liveness.MarkAccumulatorDead();
+    return;
+  }
+  if (bytecode == Bytecode::kResumeGenerator) {
+    // The generator object has to be live.
+    in_liveness.MarkRegisterLive(accessor.GetRegisterOperand(0).index());
+    return;
+  }
+
   if (Bytecodes::WritesAccumulator(bytecode)) {
     in_liveness.MarkAccumulatorDead();
   }
@@ -174,6 +189,13 @@ void UpdateOutLiveness(Bytecode bytecode, BytecodeLivenessState& out_liveness,
                        const BytecodeLivenessMap& liveness_map) {
   int current_offset = accessor.current_offset();
   const Handle<BytecodeArray>& bytecode_array = accessor.bytecode_array();
+
+  // Special case Suspend and Resume to just pass through liveness.
+  if (bytecode == Bytecode::kSuspendGenerator ||
+      bytecode == Bytecode::kResumeGenerator) {
+    out_liveness.Union(*next_bytecode_in_liveness);
+    return;
+  }
 
   // Update from jump target (if any). Skip loops, we update these manually in
   // the liveness iterations.
@@ -316,7 +338,6 @@ void BytecodeAnalysis::Analyze(BailoutId osr_bailout_id) {
                         iterator, liveness_map_);
       liveness.in->CopyFrom(*liveness.out);
       UpdateInLiveness(bytecode, *liveness.in, iterator);
-
       next_bytecode_in_liveness = liveness.in;
     }
   }

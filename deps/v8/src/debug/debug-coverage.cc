@@ -344,6 +344,16 @@ bool IsBlockMode(debug::Coverage::Mode mode) {
   }
 }
 
+bool IsBinaryMode(debug::Coverage::Mode mode) {
+  switch (mode) {
+    case debug::Coverage::kBlockBinary:
+    case debug::Coverage::kPreciseBinary:
+      return true;
+    default:
+      return false;
+  }
+}
+
 void CollectBlockCoverage(Isolate* isolate, CoverageFunction* function,
                           SharedFunctionInfo* info,
                           debug::Coverage::Mode mode) {
@@ -382,11 +392,12 @@ std::unique_ptr<Coverage> Coverage::CollectPrecise(Isolate* isolate) {
   DCHECK(!isolate->is_best_effort_code_coverage());
   std::unique_ptr<Coverage> result =
       Collect(isolate, isolate->code_coverage_mode());
-  if (isolate->is_precise_binary_code_coverage() ||
-      isolate->is_block_binary_code_coverage()) {
+  if (!isolate->is_collecting_type_profile() &&
+      (isolate->is_precise_binary_code_coverage() ||
+       isolate->is_block_binary_code_coverage())) {
     // We do not have to hold onto feedback vectors for invocations we already
     // reported. So we can reset the list.
-    isolate->SetCodeCoverageList(*ArrayList::New(isolate, 0));
+    isolate->SetFeedbackVectorsForProfilingTools(*ArrayList::New(isolate, 0));
   }
   return result;
 }
@@ -407,9 +418,11 @@ std::unique_ptr<Coverage> Coverage::Collect(
     case v8::debug::Coverage::kPreciseBinary:
     case v8::debug::Coverage::kPreciseCount: {
       // Feedback vectors are already listed to prevent losing them to GC.
-      DCHECK(isolate->factory()->code_coverage_list()->IsArrayList());
-      Handle<ArrayList> list =
-          Handle<ArrayList>::cast(isolate->factory()->code_coverage_list());
+      DCHECK(isolate->factory()
+                 ->feedback_vectors_for_profiling_tools()
+                 ->IsArrayList());
+      Handle<ArrayList> list = Handle<ArrayList>::cast(
+          isolate->factory()->feedback_vectors_for_profiling_tools());
       for (int i = 0; i < list->Length(); i++) {
         FeedbackVector* vector = FeedbackVector::cast(list->Get(i));
         SharedFunctionInfo* shared = vector->shared_function_info();
@@ -421,7 +434,9 @@ std::unique_ptr<Coverage> Coverage::Collect(
       break;
     }
     case v8::debug::Coverage::kBestEffort: {
-      DCHECK(!isolate->factory()->code_coverage_list()->IsArrayList());
+      DCHECK(!isolate->factory()
+                  ->feedback_vectors_for_profiling_tools()
+                  ->IsArrayList());
       DCHECK_EQ(v8::debug::Coverage::kBestEffort, collectionMode);
       HeapIterator heap_iterator(isolate->heap());
       while (HeapObject* current_obj = heap_iterator.next()) {
@@ -520,39 +535,39 @@ void Coverage::SelectMode(Isolate* isolate, debug::Coverage::Mode mode) {
       // following coverage recording (without reloads) will be at function
       // granularity.
       isolate->debug()->RemoveAllCoverageInfos();
-      isolate->SetCodeCoverageList(isolate->heap()->undefined_value());
+      if (!isolate->is_collecting_type_profile()) {
+        isolate->SetFeedbackVectorsForProfilingTools(
+            isolate->heap()->undefined_value());
+      }
       break;
     case debug::Coverage::kBlockBinary:
     case debug::Coverage::kBlockCount:
     case debug::Coverage::kPreciseBinary:
     case debug::Coverage::kPreciseCount: {
       HandleScope scope(isolate);
+
       // Remove all optimized function. Optimized and inlined functions do not
       // increment invocation count.
       Deoptimizer::DeoptimizeAll(isolate);
-      // Collect existing feedback vectors.
-      std::vector<Handle<FeedbackVector>> vectors;
-      {
-        HeapIterator heap_iterator(isolate->heap());
-        while (HeapObject* current_obj = heap_iterator.next()) {
-          if (current_obj->IsSharedFunctionInfo()) {
-            SharedFunctionInfo* shared = SharedFunctionInfo::cast(current_obj);
-            shared->set_has_reported_binary_coverage(false);
-          } else if (current_obj->IsFeedbackVector()) {
-            FeedbackVector* vector = FeedbackVector::cast(current_obj);
-            SharedFunctionInfo* shared = vector->shared_function_info();
-            if (!shared->IsSubjectToDebugging()) continue;
-            vector->clear_invocation_count();
-            vectors.emplace_back(vector, isolate);
-          }
+
+      // Root all feedback vectors to avoid early collection.
+      isolate->MaybeInitializeVectorListFromHeap();
+
+      HeapIterator heap_iterator(isolate->heap());
+      while (HeapObject* o = heap_iterator.next()) {
+        if (IsBinaryMode(mode) && o->IsSharedFunctionInfo()) {
+          // If collecting binary coverage, reset
+          // SFI::has_reported_binary_coverage to avoid optimizing / inlining
+          // functions before they have reported coverage.
+          SharedFunctionInfo* shared = SharedFunctionInfo::cast(o);
+          shared->set_has_reported_binary_coverage(false);
+        } else if (o->IsFeedbackVector()) {
+          // In any case, clear any collected invocation counts.
+          FeedbackVector* vector = FeedbackVector::cast(o);
+          vector->clear_invocation_count();
         }
       }
-      // Add collected feedback vectors to the root list lest we lose them to
-      // GC.
-      Handle<ArrayList> list =
-          ArrayList::New(isolate, static_cast<int>(vectors.size()));
-      for (const auto& vector : vectors) list = ArrayList::Add(list, vector);
-      isolate->SetCodeCoverageList(*list);
+
       break;
     }
   }

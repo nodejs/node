@@ -45,6 +45,9 @@ declare_args() {
 
   # Use static libraries instead of source_sets.
   v8_static_library = false
+
+  # Enable monolithic static library for embedders.
+  v8_monolithic = false
 }
 
 if (v8_use_external_startup_data == "") {
@@ -97,7 +100,7 @@ if (v8_code_coverage && !is_clang) {
   ]
 }
 
-if (is_posix && v8_enable_backtrace) {
+if (is_posix && (v8_enable_backtrace || v8_monolithic)) {
   v8_remove_configs += [ "//build/config/gcc:symbol_visibility_hidden" ]
   v8_add_configs += [ "//build/config/gcc:symbol_visibility_default" ]
 }
@@ -168,6 +171,16 @@ template("v8_executable") {
 
 template("v8_component") {
   component(target_name) {
+    forward_variables_from(invoker, "*", [ "configs" ])
+    configs += invoker.configs
+    configs -= v8_remove_configs
+    configs += v8_add_configs
+  }
+}
+
+template("v8_static_library") {
+  static_library(target_name) {
+    complete_static_lib = true
     forward_variables_from(invoker, "*", [ "configs" ])
     configs += invoker.configs
     configs -= v8_remove_configs

@@ -348,7 +348,7 @@ TEST(AccessCheckWithExceptionThrowingInterceptor) {
   isolate->SetFailedAccessCheckCallbackFunction([](v8::Local<v8::Object> target,
                                                    v8::AccessType type,
                                                    v8::Local<v8::Value> data) {
-    CHECK(false);  // This should never be called.
+    UNREACHABLE();  // This should never be called.
   });
 
   v8::HandleScope scope(isolate);

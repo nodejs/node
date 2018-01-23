@@ -40,7 +40,7 @@ void Version::GetString(Vector<char> str) {
 
 // Calculate the SONAME for the V8 shared library.
 void Version::GetSONAME(Vector<char> str) {
-  if (soname_ == NULL || *soname_ == '\0') {
+  if (soname_ == nullptr || *soname_ == '\0') {
     // Generate generic SONAME if no specific SONAME is defined.
     const char* candidate = IsCandidate() ? "-candidate" : "";
     if (GetPatch() > 0) {

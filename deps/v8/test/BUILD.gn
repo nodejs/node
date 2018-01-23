@@ -28,6 +28,7 @@ group("gn_all") {
       ":benchmarks_run",
       ":bot_default_run",
       ":default_run",
+      ":d8_default_run",
       ":mozilla_run",
       "test262:test262_run",
     ]
@@ -44,6 +45,7 @@ group("default_tests") {
   if (v8_test_isolation_mode != "noop") {
     deps = [
       ":cctest_run",
+      ":debugger_run",
       ":fuzzer_run",
       ":inspector-test_run",
       ":intl_run",
@@ -72,6 +74,19 @@ v8_isolate_run("default") {
   ]
 
   isolate = "default.isolate"
+}
+
+v8_isolate_run("d8_default") {
+  deps = [
+    ":debugger_run",
+    ":intl_run",
+    ":message_run",
+    ":mjsunit_run",
+    ":preparser_run",
+    ":webkit_run",
+  ]
+
+  isolate = "d8_default.isolate"
 }
 
 v8_isolate_run("optimize_for_size") {
@@ -121,6 +136,14 @@ v8_isolate_run("cctest_exe") {
   ]
 
   isolate = "cctest/cctest_exe.isolate"
+}
+
+v8_isolate_run("debugger") {
+  deps = [
+    "..:d8_run",
+  ]
+
+  isolate = "debugger/debugger.isolate"
 }
 
 v8_isolate_run("fuzzer") {

@@ -99,16 +99,32 @@ function test_stringtonumber(c, postfix) {
   }
 }
 
-for (var i = 0; i < 0x10000; i++) {
-  c = String.fromCharCode(i);
-  test_regexp(c + onebyte);
-  test_regexp(c + twobyte);
-  test_trim(c, onebyte + "trim");
-  test_trim(c, twobyte + "trim");
-  test_parseInt(c, onebyte);
-  test_parseInt(c, twobyte);
-  test_eval(c, onebyte);
-  test_eval(c, twobyte);
-  test_stringtonumber(c, onebytespace);
-  test_stringtonumber(c, twobytespace);
+// Test is split into parts to increase parallelism.
+const number_of_tests = 10;
+const max_codepoint = 0x10000;
+
+function firstCodePointOfRange(i) {
+  return Math.floor(i * (max_codepoint / number_of_tests));
+}
+
+function testCodePointRange(i) {
+  assertTrue(i >= 0 && i < number_of_tests);
+
+  const from = firstCodePointOfRange(i);
+  const to = (i == number_of_tests - 1)
+      ? max_codepoint : firstCodePointOfRange(i + 1);
+
+  for (let i = from; i < to; i++) {
+    c = String.fromCharCode(i);
+    test_regexp(c + onebyte);
+    test_regexp(c + twobyte);
+    test_trim(c, onebyte + "trim");
+    test_trim(c, twobyte + "trim");
+    test_parseInt(c, onebyte);
+    test_parseInt(c, twobyte);
+    test_eval(c, onebyte);
+    test_eval(c, twobyte);
+    test_stringtonumber(c, onebytespace);
+    test_stringtonumber(c, twobytespace);
+  }
 }

@@ -6,12 +6,12 @@
 
 var buffer1 = new ArrayBuffer(100 * 1024);
 
-var array1 = new Uint8Array(buffer1, {valueOf : function() {
-  %ArrayBufferNeuter(buffer1);
-  return 0;
-}});
-
-assertEquals(0, array1.length);
+assertThrows(function() {
+  var array1 = new Uint8Array(buffer1, {valueOf : function() {
+    %ArrayBufferNeuter(buffer1);
+    return 0;
+  }});
+}, TypeError);
 
 var buffer2 = new ArrayBuffer(100 * 1024);
 
@@ -20,8 +20,21 @@ assertThrows(function() {
       %ArrayBufferNeuter(buffer2);
       return 100 * 1024;
   }});
-}, RangeError);
+}, TypeError);
 
+let convertedOffset = false;
+let convertedLength = false;
+assertThrows(() =>
+  new Uint8Array(buffer1, {valueOf : function() {
+      convertedOffset = true;
+      return 0;
+    }}, {valueOf : function() {
+      convertedLength = true;
+      %ArrayBufferNeuter(buffer1);
+      return 0;
+  }}), TypeError);
+assertTrue(convertedOffset);
+assertTrue(convertedLength);
 
 var buffer3 = new ArrayBuffer(100 * 1024 * 1024);
 var dataView1 = new DataView(buffer3, {valueOf : function() {

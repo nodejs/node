@@ -46,8 +46,10 @@ class BuiltinArguments : public Arguments {
   static const int kNewTargetOffset = 0;
   static const int kTargetOffset = 1;
   static const int kArgcOffset = 2;
-  static const int kNumExtraArgs = 3;
-  static const int kNumExtraArgsWithReceiver = 4;
+  static const int kPaddingOffset = 3;
+
+  static const int kNumExtraArgs = 4;
+  static const int kNumExtraArgsWithReceiver = 5;
 
   Handle<JSFunction> target() {
     return Arguments::at<JSFunction>(Arguments::length() - 1 - kTargetOffset);
@@ -83,7 +85,8 @@ class BuiltinArguments : public Arguments {
   V8_NOINLINE static Object* Builtin_Impl_Stats_##name(                       \
       int args_length, Object** args_object, Isolate* isolate) {              \
     BuiltinArguments args(args_length, args_object);                          \
-    RuntimeCallTimerScope timer(isolate, &RuntimeCallStats::Builtin_##name);  \
+    RuntimeCallTimerScope timer(isolate,                                      \
+                                RuntimeCallCounterId::kBuiltin_##name);       \
     TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.runtime"),                     \
                  "V8.Builtin_" #name);                                        \
     return Builtin_Impl_##name(args, isolate);                                \

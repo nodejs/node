@@ -356,6 +356,7 @@ def read_stats(path, domain, args):
         ('Group-Callback', re.compile(".*Callback.*")),
         ('Group-API', re.compile(".*API.*")),
         ('Group-GC-Custom', re.compile("GC_Custom_.*")),
+        ('Group-GC-Background', re.compile(".*GC.*BACKGROUND.*")),
         ('Group-GC', re.compile("GC_.*|AllocateInTargetSpace")),
         ('Group-JavaScript', re.compile("JS_Execution")),
         ('Group-Runtime', re.compile(".*"))]

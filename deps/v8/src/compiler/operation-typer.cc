@@ -24,6 +24,8 @@ OperationTyper::OperationTyper(Isolate* isolate, Zone* zone)
   Type* truncating_to_zero = Type::MinusZeroOrNaN();
   DCHECK(!truncating_to_zero->Maybe(Type::Integral32()));
 
+  singleton_NaN_string_ = Type::HeapConstant(factory->NaN_string(), zone);
+  singleton_zero_string_ = Type::HeapConstant(factory->zero_string(), zone);
   singleton_false_ = Type::HeapConstant(factory->false_value(), zone);
   singleton_true_ = Type::HeapConstant(factory->true_value(), zone);
   singleton_the_hole_ = Type::HeapConstant(factory->the_hole_value(), zone);
@@ -116,15 +118,7 @@ Type* OperationTyper::Rangify(Type* type) {
   if (!type->Is(cache_.kInteger)) {
     return type;  // Give up on non-integer types.
   }
-  double min = type->Min();
-  double max = type->Max();
-  // Handle the degenerate case of empty bitset types (such as
-  // OtherUnsigned31 and OtherSigned32 on 64-bit architectures).
-  if (std::isnan(min)) {
-    DCHECK(std::isnan(max));
-    return type;
-  }
-  return Type::Range(min, max, zone());
+  return Type::Range(type->Min(), type->Max(), zone());
 }
 
 namespace {
@@ -241,7 +235,19 @@ Type* OperationTyper::MultiplyRanger(Type* lhs, Type* rhs) {
                          : range;
 }
 
-Type* OperationTyper::ToNumber(Type* type) {
+Type* OperationTyper::ConvertReceiver(Type* type) {
+  if (type->Is(Type::Receiver())) return type;
+  bool const maybe_primitive = type->Maybe(Type::Primitive());
+  type = Type::Intersect(type, Type::Receiver(), zone());
+  if (maybe_primitive) {
+    // ConvertReceiver maps null and undefined to the JSGlobalProxy of the
+    // target function, and all other primitives are wrapped into a JSValue.
+    type = Type::Union(type, Type::OtherObject(), zone());
+  }
+  return type;
+}
+
+Type* OperationTyper::ToNumberOrNumeric(Object::Conversion mode, Type* type) {
   if (type->Is(Type::Number())) return type;
   if (type->Is(Type::NullOrUndefined())) {
     if (type->Is(Type::Null())) return cache_.kSingletonZero;
@@ -265,28 +271,42 @@ Type* OperationTyper::ToNumber(Type* type) {
     }
     return Type::Intersect(type, Type::Number(), zone());
   }
-  return Type::Number();
+  if (type->Is(Type::BigInt())) {
+    return mode == Object::Conversion::kToNumber ? Type::None() : type;
+  }
+  return mode == Object::Conversion::kToNumber ? Type::Number()
+                                               : Type::Numeric();
+}
+
+Type* OperationTyper::ToNumber(Type* type) {
+  return ToNumberOrNumeric(Object::Conversion::kToNumber, type);
+}
+
+Type* OperationTyper::ToNumeric(Type* type) {
+  return ToNumberOrNumeric(Object::Conversion::kToNumeric, type);
 }
 
 Type* OperationTyper::NumberAbs(Type* type) {
   DCHECK(type->Is(Type::Number()));
-
-  if (!type->IsInhabited()) {
-    return Type::None();
-  }
+  if (type->IsNone()) return type;
 
   bool const maybe_nan = type->Maybe(Type::NaN());
   bool const maybe_minuszero = type->Maybe(Type::MinusZero());
+
   type = Type::Intersect(type, Type::PlainNumber(), zone());
-  double const max = type->Max();
-  double const min = type->Min();
-  if (min < 0) {
-    if (type->Is(cache_.kInteger)) {
-      type = Type::Range(0.0, std::max(std::fabs(min), std::fabs(max)), zone());
-    } else {
-      type = Type::PlainNumber();
+  if (!type->IsNone()) {
+    double const max = type->Max();
+    double const min = type->Min();
+    if (min < 0) {
+      if (type->Is(cache_.kInteger)) {
+        type =
+            Type::Range(0.0, std::max(std::fabs(min), std::fabs(max)), zone());
+      } else {
+        type = Type::PlainNumber();
+      }
     }
   }
+
   if (maybe_minuszero) {
     type = Type::Union(type, cache_.kSingletonZero, zone());
   }
@@ -334,8 +354,9 @@ Type* OperationTyper::NumberCbrt(Type* type) {
 Type* OperationTyper::NumberCeil(Type* type) {
   DCHECK(type->Is(Type::Number()));
   if (type->Is(cache_.kIntegerOrMinusZeroOrNaN)) return type;
-  // TODO(bmeurer): We could infer a more precise type here.
-  return cache_.kIntegerOrMinusZeroOrNaN;
+  type = Type::Intersect(type, Type::NaN(), zone());
+  type = Type::Union(type, cache_.kIntegerOrMinusZero, zone());
+  return type;
 }
 
 Type* OperationTyper::NumberClz32(Type* type) {
@@ -399,8 +420,9 @@ Type* OperationTyper::NumberLog10(Type* type) {
 Type* OperationTyper::NumberRound(Type* type) {
   DCHECK(type->Is(Type::Number()));
   if (type->Is(cache_.kIntegerOrMinusZeroOrNaN)) return type;
-  // TODO(bmeurer): We could infer a more precise type here.
-  return cache_.kIntegerOrMinusZeroOrNaN;
+  type = Type::Intersect(type, Type::NaN(), zone());
+  type = Type::Union(type, cache_.kIntegerOrMinusZero, zone());
+  return type;
 }
 
 Type* OperationTyper::NumberSign(Type* type) {
@@ -409,7 +431,9 @@ Type* OperationTyper::NumberSign(Type* type) {
   bool maybe_minuszero = type->Maybe(Type::MinusZero());
   bool maybe_nan = type->Maybe(Type::NaN());
   type = Type::Intersect(type, Type::PlainNumber(), zone());
-  if (type->Max() < 0.0) {
+  if (type->IsNone()) {
+    // Do nothing.
+  } else if (type->Max() < 0.0) {
     type = cache_.kSingletonMinusOne;
   } else if (type->Max() <= 0.0) {
     type = cache_.kMinusOneOrZero;
@@ -422,6 +446,7 @@ Type* OperationTyper::NumberSign(Type* type) {
   }
   if (maybe_minuszero) type = Type::Union(type, Type::MinusZero(), zone());
   if (maybe_nan) type = Type::Union(type, Type::NaN(), zone());
+  DCHECK(!type->IsNone());
   return type;
 }
 
@@ -453,13 +478,14 @@ Type* OperationTyper::NumberTanh(Type* type) {
 Type* OperationTyper::NumberTrunc(Type* type) {
   DCHECK(type->Is(Type::Number()));
   if (type->Is(cache_.kIntegerOrMinusZeroOrNaN)) return type;
-  // TODO(bmeurer): We could infer a more precise type here.
-  return cache_.kIntegerOrMinusZeroOrNaN;
+  type = Type::Intersect(type, Type::NaN(), zone());
+  type = Type::Union(type, cache_.kIntegerOrMinusZero, zone());
+  return type;
 }
 
 Type* OperationTyper::NumberToBoolean(Type* type) {
   DCHECK(type->Is(Type::Number()));
-  if (!type->IsInhabited()) return Type::None();
+  if (type->IsNone()) return type;
   if (type->Is(cache_.kZeroish)) return singleton_false_;
   if (type->Is(Type::PlainNumber()) && (type->Max() < 0 || 0 < type->Min())) {
     return singleton_true_;  // Ruled out nan, -0 and +0.
@@ -477,6 +503,14 @@ Type* OperationTyper::NumberToInt32(Type* type) {
                            Type::Signed32(), zone());
   }
   return Type::Signed32();
+}
+
+Type* OperationTyper::NumberToString(Type* type) {
+  DCHECK(type->Is(Type::Number()));
+
+  if (type->Is(Type::NaN())) return singleton_NaN_string_;
+  if (type->Is(cache_.kZeroOrMinusZero)) return singleton_zero_string_;
+  return Type::SeqString();
 }
 
 Type* OperationTyper::NumberToUint32(Type* type) {
@@ -511,9 +545,7 @@ Type* OperationTyper::NumberAdd(Type* lhs, Type* rhs) {
   DCHECK(lhs->Is(Type::Number()));
   DCHECK(rhs->Is(Type::Number()));
 
-  if (!lhs->IsInhabited() || !rhs->IsInhabited()) {
-    return Type::None();
-  }
+  if (lhs->IsNone() || rhs->IsNone()) return Type::None();
 
   // Addition can return NaN if either input can be NaN or we try to compute
   // the sum of two infinities of opposite sign.
@@ -536,7 +568,7 @@ Type* OperationTyper::NumberAdd(Type* lhs, Type* rhs) {
   Type* type = Type::None();
   lhs = Type::Intersect(lhs, Type::PlainNumber(), zone());
   rhs = Type::Intersect(rhs, Type::PlainNumber(), zone());
-  if (lhs->IsInhabited() && rhs->IsInhabited()) {
+  if (!lhs->IsNone() && !rhs->IsNone()) {
     if (lhs->Is(cache_.kInteger) && rhs->Is(cache_.kInteger)) {
       type = AddRanger(lhs->Min(), lhs->Max(), rhs->Min(), rhs->Max());
     } else {
@@ -558,9 +590,7 @@ Type* OperationTyper::NumberSubtract(Type* lhs, Type* rhs) {
   DCHECK(lhs->Is(Type::Number()));
   DCHECK(rhs->Is(Type::Number()));
 
-  if (!lhs->IsInhabited() || !rhs->IsInhabited()) {
-    return Type::None();
-  }
+  if (lhs->IsNone() || rhs->IsNone()) return Type::None();
 
   // Subtraction can return NaN if either input can be NaN or we try to
   // compute the sum of two infinities of opposite sign.
@@ -581,7 +611,7 @@ Type* OperationTyper::NumberSubtract(Type* lhs, Type* rhs) {
   Type* type = Type::None();
   lhs = Type::Intersect(lhs, Type::PlainNumber(), zone());
   rhs = Type::Intersect(rhs, Type::PlainNumber(), zone());
-  if (lhs->IsInhabited() && rhs->IsInhabited()) {
+  if (!lhs->IsNone() && !rhs->IsNone()) {
     if (lhs->Is(cache_.kInteger) && rhs->Is(cache_.kInteger)) {
       type = SubtractRanger(lhs->Min(), lhs->Max(), rhs->Min(), rhs->Max());
     } else {
@@ -606,7 +636,7 @@ Type* OperationTyper::SpeculativeSafeIntegerAdd(Type* lhs, Type* rhs) {
   // In either case the result will be in the safe integer range, so we
   // can bake in the type here. This needs to be in sync with
   // SimplifiedLowering::VisitSpeculativeAdditiveOp.
-  return Type::Intersect(result, cache_.kSafeInteger, zone());
+  return Type::Intersect(result, cache_.kSafeIntegerOrMinusZero, zone());
 }
 
 Type* OperationTyper::SpeculativeSafeIntegerSubtract(Type* lhs, Type* rhs) {
@@ -623,9 +653,7 @@ Type* OperationTyper::NumberMultiply(Type* lhs, Type* rhs) {
   DCHECK(lhs->Is(Type::Number()));
   DCHECK(rhs->Is(Type::Number()));
 
-  if (!lhs->IsInhabited() || !rhs->IsInhabited()) {
-    return Type::None();
-  }
+  if (lhs->IsNone() || rhs->IsNone()) return Type::None();
 
   lhs = Rangify(lhs);
   rhs = Rangify(rhs);
@@ -640,10 +668,7 @@ Type* OperationTyper::NumberDivide(Type* lhs, Type* rhs) {
   DCHECK(lhs->Is(Type::Number()));
   DCHECK(rhs->Is(Type::Number()));
 
-  if (!lhs->IsInhabited() || !rhs->IsInhabited()) {
-    return Type::None();
-  }
-
+  if (lhs->IsNone() || rhs->IsNone()) return Type::None();
   if (lhs->Is(Type::NaN()) || rhs->Is(Type::NaN())) return Type::NaN();
 
   // Division is tricky, so all we do is try ruling out -0 and NaN.
@@ -652,7 +677,9 @@ Type* OperationTyper::NumberDivide(Type* lhs, Type* rhs) {
       ((lhs->Min() == -V8_INFINITY || lhs->Max() == +V8_INFINITY) &&
        (rhs->Min() == -V8_INFINITY || rhs->Max() == +V8_INFINITY));
   lhs = Type::Intersect(lhs, Type::OrderedNumber(), zone());
+  DCHECK(!lhs->IsNone());
   rhs = Type::Intersect(rhs, Type::OrderedNumber(), zone());
+  DCHECK(!rhs->IsNone());
 
   // Try to rule out -0.
   bool maybe_minuszero =
@@ -670,6 +697,8 @@ Type* OperationTyper::NumberDivide(Type* lhs, Type* rhs) {
 Type* OperationTyper::NumberModulus(Type* lhs, Type* rhs) {
   DCHECK(lhs->Is(Type::Number()));
   DCHECK(rhs->Is(Type::Number()));
+
+  if (lhs->IsNone() || rhs->IsNone()) return Type::None();
 
   // Modulus can yield NaN if either {lhs} or {rhs} are NaN, or
   // {lhs} is not finite, or the {rhs} is a zero value.
@@ -693,7 +722,7 @@ Type* OperationTyper::NumberModulus(Type* lhs, Type* rhs) {
 
   // We can only derive a meaningful type if both {lhs} and {rhs} are inhabited,
   // and the {rhs} is not 0, otherwise the result is NaN independent of {lhs}.
-  if (lhs->IsInhabited() && !rhs->Is(cache_.kSingletonZero)) {
+  if (!lhs->IsNone() && !rhs->Is(cache_.kSingletonZero)) {
     // Determine the bounds of {lhs} and {rhs}.
     double const lmin = lhs->Min();
     double const lmax = lhs->Max();
@@ -738,10 +767,10 @@ Type* OperationTyper::NumberBitwiseOr(Type* lhs, Type* rhs) {
   DCHECK(lhs->Is(Type::Number()));
   DCHECK(rhs->Is(Type::Number()));
 
-  if (!lhs->IsInhabited() || !rhs->IsInhabited()) return Type::None();
-
   lhs = NumberToInt32(lhs);
   rhs = NumberToInt32(rhs);
+
+  if (lhs->IsNone() || rhs->IsNone()) return Type::None();
 
   double lmin = lhs->Min();
   double rmin = rhs->Min();
@@ -775,10 +804,10 @@ Type* OperationTyper::NumberBitwiseAnd(Type* lhs, Type* rhs) {
   DCHECK(lhs->Is(Type::Number()));
   DCHECK(rhs->Is(Type::Number()));
 
-  if (!lhs->IsInhabited() || !rhs->IsInhabited()) return Type::None();
-
   lhs = NumberToInt32(lhs);
   rhs = NumberToInt32(rhs);
+
+  if (lhs->IsNone() || rhs->IsNone()) return Type::None();
 
   double lmin = lhs->Min();
   double rmin = rhs->Min();
@@ -806,10 +835,10 @@ Type* OperationTyper::NumberBitwiseXor(Type* lhs, Type* rhs) {
   DCHECK(lhs->Is(Type::Number()));
   DCHECK(rhs->Is(Type::Number()));
 
-  if (!lhs->IsInhabited() || !rhs->IsInhabited()) return Type::None();
-
   lhs = NumberToInt32(lhs);
   rhs = NumberToInt32(rhs);
+
+  if (lhs->IsNone() || rhs->IsNone()) return Type::None();
 
   double lmin = lhs->Min();
   double rmin = rhs->Min();
@@ -831,10 +860,10 @@ Type* OperationTyper::NumberShiftLeft(Type* lhs, Type* rhs) {
   DCHECK(lhs->Is(Type::Number()));
   DCHECK(rhs->Is(Type::Number()));
 
-  if (!lhs->IsInhabited() || !rhs->IsInhabited()) return Type::None();
-
   lhs = NumberToInt32(lhs);
   rhs = NumberToUint32(rhs);
+
+  if (lhs->IsNone() || rhs->IsNone()) return Type::None();
 
   int32_t min_lhs = lhs->Min();
   int32_t max_lhs = lhs->Max();
@@ -866,10 +895,10 @@ Type* OperationTyper::NumberShiftRight(Type* lhs, Type* rhs) {
   DCHECK(lhs->Is(Type::Number()));
   DCHECK(rhs->Is(Type::Number()));
 
-  if (!lhs->IsInhabited() || !rhs->IsInhabited()) return Type::None();
-
   lhs = NumberToInt32(lhs);
   rhs = NumberToUint32(rhs);
+
+  if (lhs->IsNone() || rhs->IsNone()) return Type::None();
 
   int32_t min_lhs = lhs->Min();
   int32_t max_lhs = lhs->Max();
@@ -891,10 +920,10 @@ Type* OperationTyper::NumberShiftRightLogical(Type* lhs, Type* rhs) {
   DCHECK(lhs->Is(Type::Number()));
   DCHECK(rhs->Is(Type::Number()));
 
-  if (!lhs->IsInhabited() || !rhs->IsInhabited()) return Type::None();
-
   lhs = NumberToUint32(lhs);
   rhs = NumberToUint32(rhs);
+
+  if (lhs->IsNone() || rhs->IsNone()) return Type::None();
 
   uint32_t min_lhs = lhs->Min();
   uint32_t max_lhs = lhs->Max();
@@ -932,19 +961,19 @@ Type* OperationTyper::NumberImul(Type* lhs, Type* rhs) {
 Type* OperationTyper::NumberMax(Type* lhs, Type* rhs) {
   DCHECK(lhs->Is(Type::Number()));
   DCHECK(rhs->Is(Type::Number()));
-  if (!lhs->IsInhabited() || !rhs->IsInhabited()) {
-    return Type::None();
-  }
-  if (lhs->Is(Type::NaN()) || rhs->Is(Type::NaN())) {
-    return Type::NaN();
-  }
+
+  if (lhs->IsNone() || rhs->IsNone()) return Type::None();
+  if (lhs->Is(Type::NaN()) || rhs->Is(Type::NaN())) return Type::NaN();
+
   Type* type = Type::None();
   // TODO(turbofan): Improve minus zero handling here.
   if (lhs->Maybe(Type::NaN()) || rhs->Maybe(Type::NaN())) {
     type = Type::Union(type, Type::NaN(), zone());
   }
   lhs = Type::Intersect(lhs, Type::OrderedNumber(), zone());
+  DCHECK(!lhs->IsNone());
   rhs = Type::Intersect(rhs, Type::OrderedNumber(), zone());
+  DCHECK(!rhs->IsNone());
   if (lhs->Is(cache_.kInteger) && rhs->Is(cache_.kInteger)) {
     double max = std::max(lhs->Max(), rhs->Max());
     double min = std::max(lhs->Min(), rhs->Min());
@@ -958,19 +987,19 @@ Type* OperationTyper::NumberMax(Type* lhs, Type* rhs) {
 Type* OperationTyper::NumberMin(Type* lhs, Type* rhs) {
   DCHECK(lhs->Is(Type::Number()));
   DCHECK(rhs->Is(Type::Number()));
-  if (!lhs->IsInhabited() || !rhs->IsInhabited()) {
-    return Type::None();
-  }
-  if (lhs->Is(Type::NaN()) || rhs->Is(Type::NaN())) {
-    return Type::NaN();
-  }
+
+  if (lhs->IsNone() || rhs->IsNone()) return Type::None();
+  if (lhs->Is(Type::NaN()) || rhs->Is(Type::NaN())) return Type::NaN();
+
   Type* type = Type::None();
   // TODO(turbofan): Improve minus zero handling here.
   if (lhs->Maybe(Type::NaN()) || rhs->Maybe(Type::NaN())) {
     type = Type::Union(type, Type::NaN(), zone());
   }
   lhs = Type::Intersect(lhs, Type::OrderedNumber(), zone());
+  DCHECK(!lhs->IsNone());
   rhs = Type::Intersect(rhs, Type::OrderedNumber(), zone());
+  DCHECK(!rhs->IsNone());
   if (lhs->Is(cache_.kInteger) && rhs->Is(cache_.kInteger)) {
     double max = std::min(lhs->Max(), rhs->Max());
     double min = std::min(lhs->Min(), rhs->Min());
@@ -1012,7 +1041,7 @@ Type* OperationTyper::SpeculativeToNumber(Type* type) {
 }
 
 Type* OperationTyper::ToPrimitive(Type* type) {
-  if (type->Is(Type::Primitive()) && !type->Maybe(Type::Receiver())) {
+  if (type->Is(Type::Primitive())) {
     return type;
   }
   return Type::Primitive();
@@ -1020,7 +1049,7 @@ Type* OperationTyper::ToPrimitive(Type* type) {
 
 Type* OperationTyper::Invert(Type* type) {
   DCHECK(type->Is(Type::Boolean()));
-  DCHECK(type->IsInhabited());
+  DCHECK(!type->IsNone());
   if (type->Is(singleton_false())) return singleton_true();
   if (type->Is(singleton_true())) return singleton_false();
   return type;
@@ -1044,6 +1073,61 @@ Type* OperationTyper::FalsifyUndefined(ComparisonOutcome outcome) {
   // Type should be non empty, so we know it should be true.
   DCHECK_NE(0, outcome & kComparisonTrue);
   return singleton_true();
+}
+
+namespace {
+
+Type* JSType(Type* type) {
+  if (type->Is(Type::Boolean())) return Type::Boolean();
+  if (type->Is(Type::String())) return Type::String();
+  if (type->Is(Type::Number())) return Type::Number();
+  if (type->Is(Type::BigInt())) return Type::BigInt();
+  if (type->Is(Type::Undefined())) return Type::Undefined();
+  if (type->Is(Type::Null())) return Type::Null();
+  if (type->Is(Type::Symbol())) return Type::Symbol();
+  if (type->Is(Type::Receiver())) return Type::Receiver();  // JS "Object"
+  return Type::Any();
+}
+
+}  // namespace
+
+Type* OperationTyper::SameValue(Type* lhs, Type* rhs) {
+  if (!JSType(lhs)->Maybe(JSType(rhs))) return singleton_false();
+  if (lhs->Is(Type::NaN())) {
+    if (rhs->Is(Type::NaN())) return singleton_true();
+    if (!rhs->Maybe(Type::NaN())) return singleton_false();
+  } else if (rhs->Is(Type::NaN())) {
+    if (!lhs->Maybe(Type::NaN())) return singleton_false();
+  }
+  if (lhs->Is(Type::MinusZero())) {
+    if (rhs->Is(Type::MinusZero())) return singleton_true();
+    if (!rhs->Maybe(Type::MinusZero())) return singleton_false();
+  } else if (rhs->Is(Type::MinusZero())) {
+    if (!lhs->Maybe(Type::MinusZero())) return singleton_false();
+  }
+  if (lhs->Is(Type::OrderedNumber()) && rhs->Is(Type::OrderedNumber()) &&
+      (lhs->Max() < rhs->Min() || lhs->Min() > rhs->Max())) {
+    return singleton_false();
+  }
+  return Type::Boolean();
+}
+
+Type* OperationTyper::StrictEqual(Type* lhs, Type* rhs) {
+  if (!JSType(lhs)->Maybe(JSType(rhs))) return singleton_false();
+  if (lhs->Is(Type::NaN()) || rhs->Is(Type::NaN())) return singleton_false();
+  if (lhs->Is(Type::Number()) && rhs->Is(Type::Number()) &&
+      (lhs->Max() < rhs->Min() || lhs->Min() > rhs->Max())) {
+    return singleton_false();
+  }
+  if ((lhs->Is(Type::Hole()) || rhs->Is(Type::Hole())) && !lhs->Maybe(rhs)) {
+    return singleton_false();
+  }
+  if (lhs->IsHeapConstant() && rhs->Is(lhs)) {
+    // Types are equal and are inhabited only by a single semantic value,
+    // which is not nan due to the earlier check.
+    return singleton_true();
+  }
+  return Type::Boolean();
 }
 
 Type* OperationTyper::CheckFloat64Hole(Type* type) {

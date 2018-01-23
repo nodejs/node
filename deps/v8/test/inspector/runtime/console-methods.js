@@ -29,6 +29,9 @@ function testFunction() {
   }
   foo();
   foo();
+  console.count();
+  console.count(undefined);
+  console.count('default');
 }
 //# sourceURL=test.js`, 7, 26);
 

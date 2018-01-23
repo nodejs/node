@@ -211,32 +211,38 @@ class V8_EXPORT_PRIVATE StreamingDecoder {
 
   void ProcessModuleHeader() {
     if (!ok_) return;
-    ok_ &= processor_->ProcessModuleHeader(
-        Vector<const uint8_t>(state_->buffer(),
-                              static_cast<int>(state_->size())),
-        0);
+    if (!processor_->ProcessModuleHeader(
+            Vector<const uint8_t>(state_->buffer(),
+                                  static_cast<int>(state_->size())),
+            0)) {
+      ok_ = false;
+    }
   }
 
   void ProcessSection(SectionBuffer* buffer) {
     if (!ok_) return;
-    ok_ &= processor_->ProcessSection(
-        buffer->section_code(), buffer->payload(),
-        buffer->module_offset() +
-            static_cast<uint32_t>(buffer->payload_offset()));
+    if (!processor_->ProcessSection(
+            buffer->section_code(), buffer->payload(),
+            buffer->module_offset() +
+                static_cast<uint32_t>(buffer->payload_offset()))) {
+      ok_ = false;
+    }
   }
 
   void StartCodeSection(size_t num_functions) {
     if (!ok_) return;
     // The offset passed to {ProcessCodeSectionHeader} is an error offset and
     // not the start offset of a buffer. Therefore we need the -1 here.
-    ok_ &= processor_->ProcessCodeSectionHeader(num_functions,
-                                                module_offset() - 1);
+    if (!processor_->ProcessCodeSectionHeader(num_functions,
+                                              module_offset() - 1)) {
+      ok_ = false;
+    }
   }
 
   void ProcessFunctionBody(Vector<const uint8_t> bytes,
                            uint32_t module_offset) {
     if (!ok_) return;
-    ok_ &= processor_->ProcessFunctionBody(bytes, module_offset);
+    if (!processor_->ProcessFunctionBody(bytes, module_offset)) ok_ = false;
   }
 
   bool ok() const { return ok_; }

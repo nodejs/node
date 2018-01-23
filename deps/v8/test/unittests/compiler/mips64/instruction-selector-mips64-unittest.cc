@@ -400,11 +400,11 @@ TEST_F(InstructionSelectorTest, Word32ShrWithWord32AndWithImmediate) {
   // The available shift operand range is `0 <= imm < 32`, but we also test
   // that immediates outside this range are handled properly (modulo-32).
   TRACED_FORRANGE(int32_t, shift, -32, 63) {
-    int32_t lsb = shift & 0x1f;
+    int32_t lsb = shift & 0x1F;
     TRACED_FORRANGE(int32_t, width, 1, 32 - lsb) {
       uint32_t jnk = rng()->NextInt();
       jnk = (lsb > 0) ? (jnk >> (32 - lsb)) : 0;
-      uint32_t msk = ((0xffffffffu >> (32 - width)) << lsb) | jnk;
+      uint32_t msk = ((0xFFFFFFFFu >> (32 - width)) << lsb) | jnk;
       StreamBuilder m(this, MachineType::Int32(), MachineType::Int32());
       m.Return(m.Word32Shr(m.Word32And(m.Parameter(0), m.Int32Constant(msk)),
                            m.Int32Constant(shift)));
@@ -417,11 +417,11 @@ TEST_F(InstructionSelectorTest, Word32ShrWithWord32AndWithImmediate) {
     }
   }
   TRACED_FORRANGE(int32_t, shift, -32, 63) {
-    int32_t lsb = shift & 0x1f;
+    int32_t lsb = shift & 0x1F;
     TRACED_FORRANGE(int32_t, width, 1, 32 - lsb) {
       uint32_t jnk = rng()->NextInt();
       jnk = (lsb > 0) ? (jnk >> (32 - lsb)) : 0;
-      uint32_t msk = ((0xffffffffu >> (32 - width)) << lsb) | jnk;
+      uint32_t msk = ((0xFFFFFFFFu >> (32 - width)) << lsb) | jnk;
       StreamBuilder m(this, MachineType::Int32(), MachineType::Int32());
       m.Return(m.Word32Shr(m.Word32And(m.Int32Constant(msk), m.Parameter(0)),
                            m.Int32Constant(shift)));
@@ -440,12 +440,12 @@ TEST_F(InstructionSelectorTest, Word64ShrWithWord64AndWithImmediate) {
   // The available shift operand range is `0 <= imm < 64`, but we also test
   // that immediates outside this range are handled properly (modulo-64).
   TRACED_FORRANGE(int32_t, shift, -64, 127) {
-    int32_t lsb = shift & 0x3f;
+    int32_t lsb = shift & 0x3F;
     TRACED_FORRANGE(int32_t, width, 1, 64 - lsb) {
       uint64_t jnk = rng()->NextInt64();
       jnk = (lsb > 0) ? (jnk >> (64 - lsb)) : 0;
       uint64_t msk =
-          ((V8_UINT64_C(0xffffffffffffffff) >> (64 - width)) << lsb) | jnk;
+          ((uint64_t{0xFFFFFFFFFFFFFFFF} >> (64 - width)) << lsb) | jnk;
       StreamBuilder m(this, MachineType::Int64(), MachineType::Int64());
       m.Return(m.Word64Shr(m.Word64And(m.Parameter(0), m.Int64Constant(msk)),
                            m.Int64Constant(shift)));
@@ -458,12 +458,12 @@ TEST_F(InstructionSelectorTest, Word64ShrWithWord64AndWithImmediate) {
     }
   }
   TRACED_FORRANGE(int32_t, shift, -64, 127) {
-    int32_t lsb = shift & 0x3f;
+    int32_t lsb = shift & 0x3F;
     TRACED_FORRANGE(int32_t, width, 1, 64 - lsb) {
       uint64_t jnk = rng()->NextInt64();
       jnk = (lsb > 0) ? (jnk >> (64 - lsb)) : 0;
       uint64_t msk =
-          ((V8_UINT64_C(0xffffffffffffffff) >> (64 - width)) << lsb) | jnk;
+          ((uint64_t{0xFFFFFFFFFFFFFFFF} >> (64 - width)) << lsb) | jnk;
       StreamBuilder m(this, MachineType::Int64(), MachineType::Int64());
       m.Return(m.Word64Shr(m.Word64And(m.Int64Constant(msk), m.Parameter(0)),
                            m.Int64Constant(shift)));
@@ -649,7 +649,7 @@ TEST_F(InstructionSelectorTest, Word32AndWithImmediateWithWord32Shr) {
   // The available shift operand range is `0 <= imm < 32`, but we also test
   // that immediates outside this range are handled properly (modulo-32).
   TRACED_FORRANGE(int32_t, shift, -32, 63) {
-    int32_t lsb = shift & 0x1f;
+    int32_t lsb = shift & 0x1F;
     TRACED_FORRANGE(int32_t, width, 1, 31) {
       uint32_t msk = (1 << width) - 1;
       StreamBuilder m(this, MachineType::Int32(), MachineType::Int32());
@@ -665,7 +665,7 @@ TEST_F(InstructionSelectorTest, Word32AndWithImmediateWithWord32Shr) {
     }
   }
   TRACED_FORRANGE(int32_t, shift, -32, 63) {
-    int32_t lsb = shift & 0x1f;
+    int32_t lsb = shift & 0x1F;
     TRACED_FORRANGE(int32_t, width, 1, 31) {
       uint32_t msk = (1 << width) - 1;
       StreamBuilder m(this, MachineType::Int32(), MachineType::Int32());
@@ -688,9 +688,9 @@ TEST_F(InstructionSelectorTest, Word64AndWithImmediateWithWord64Shr) {
   // The available shift operand range is `0 <= imm < 64`, but we also test
   // that immediates outside this range are handled properly (modulo-64).
   TRACED_FORRANGE(int64_t, shift, -64, 127) {
-    int64_t lsb = shift & 0x3f;
+    int64_t lsb = shift & 0x3F;
     TRACED_FORRANGE(int64_t, width, 1, 63) {
-      uint64_t msk = (V8_UINT64_C(1) << width) - 1;
+      uint64_t msk = (uint64_t{1} << width) - 1;
       StreamBuilder m(this, MachineType::Int64(), MachineType::Int64());
       m.Return(m.Word64And(m.Word64Shr(m.Parameter(0), m.Int64Constant(shift)),
                            m.Int64Constant(msk)));
@@ -704,9 +704,9 @@ TEST_F(InstructionSelectorTest, Word64AndWithImmediateWithWord64Shr) {
     }
   }
   TRACED_FORRANGE(int64_t, shift, -64, 127) {
-    int64_t lsb = shift & 0x3f;
+    int64_t lsb = shift & 0x3F;
     TRACED_FORRANGE(int64_t, width, 1, 63) {
-      uint64_t msk = (V8_UINT64_C(1) << width) - 1;
+      uint64_t msk = (uint64_t{1} << width) - 1;
       StreamBuilder m(this, MachineType::Int64(), MachineType::Int64());
       m.Return(
           m.Word64And(m.Int64Constant(msk),

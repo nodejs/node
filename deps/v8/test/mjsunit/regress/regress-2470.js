@@ -46,4 +46,4 @@ assertThrows('Function("a", "", "//", "//")', SyntaxError);
 // Some embedders rely on the string representation of the resulting
 // function in cases where no formal parameters are specified.
 var asString = Function("return 23").toString();
-assertSame("function anonymous() {\nreturn 23\n}", asString);
+assertSame("function anonymous(\n) {\nreturn 23\n}", asString);

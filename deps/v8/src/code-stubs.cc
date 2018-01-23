@@ -34,7 +34,7 @@ CodeStubDescriptor::CodeStubDescriptor(CodeStub* stub)
       stack_parameter_count_(no_reg),
       hint_stack_parameter_count_(-1),
       function_mode_(NOT_JS_FUNCTION_STUB_MODE),
-      deoptimization_handler_(NULL),
+      deoptimization_handler_(nullptr),
       miss_handler_(),
       has_miss_handler_(false) {
   stub->InitializeDescriptor(this);
@@ -45,7 +45,7 @@ CodeStubDescriptor::CodeStubDescriptor(Isolate* isolate, uint32_t stub_key)
       stack_parameter_count_(no_reg),
       hint_stack_parameter_count_(-1),
       function_mode_(NOT_JS_FUNCTION_STUB_MODE),
-      deoptimization_handler_(NULL),
+      deoptimization_handler_(nullptr),
       miss_handler_(),
       has_miss_handler_(false) {
   CodeStub::InitializeDescriptor(isolate, stub_key, this);
@@ -71,9 +71,9 @@ void CodeStubDescriptor::Initialize(Register stack_parameter_count,
 
 
 bool CodeStub::FindCodeInCache(Code** code_out) {
-  UnseededNumberDictionary* stubs = isolate()->heap()->code_stubs();
+  NumberDictionary* stubs = isolate()->heap()->code_stubs();
   int index = stubs->FindEntry(isolate(), GetKey());
-  if (index != UnseededNumberDictionary::kNotFound) {
+  if (index != NumberDictionary::kNotFound) {
     *code_out = Code::cast(stubs->ValueAt(index));
     return true;
   }
@@ -97,10 +97,10 @@ void CodeStub::RecordCodeGeneration(Handle<Code> code) {
 
 void CodeStub::DeleteStubFromCacheForTesting() {
   Heap* heap = isolate_->heap();
-  Handle<UnseededNumberDictionary> dict(heap->code_stubs());
+  Handle<NumberDictionary> dict(heap->code_stubs());
   int entry = dict->FindEntry(GetKey());
-  DCHECK_NE(UnseededNumberDictionary::kNotFound, entry);
-  dict = UnseededNumberDictionary::DeleteEntry(dict, entry);
+  DCHECK_NE(NumberDictionary::kNotFound, entry);
+  dict = NumberDictionary::DeleteEntry(dict, entry);
   heap->SetRootCodeStubs(*dict);
 }
 
@@ -108,7 +108,7 @@ Handle<Code> PlatformCodeStub::GenerateCode() {
   Factory* factory = isolate()->factory();
 
   // Generate the new code.
-  MacroAssembler masm(isolate(), NULL, 256, CodeObjectRequired::kYes);
+  MacroAssembler masm(isolate(), nullptr, 256, CodeObjectRequired::kYes);
 
   {
     // Update the static counter each time a new code stub is generated.
@@ -121,12 +121,17 @@ Handle<Code> PlatformCodeStub::GenerateCode() {
     Generate(&masm);
   }
 
+  // Allocate the handler table.
+  Handle<HandlerTable> table = GenerateHandlerTable();
+
   // Create the code object.
   CodeDesc desc;
   masm.GetCode(isolate(), &desc);
   // Copy the generated code into a heap object.
   Handle<Code> new_object = factory->NewCode(
-      desc, Code::STUB, masm.CodeObject(), NeedsImmovableCode());
+      desc, Code::STUB, masm.CodeObject(), Builtins::kNoBuiltinId, table,
+      MaybeHandle<ByteArray>(), DeoptimizationData::Empty(isolate()),
+      NeedsImmovableCode(), GetKey());
   return new_object;
 }
 
@@ -146,8 +151,7 @@ Handle<Code> CodeStub::GetCode() {
     CanonicalHandleScope canonical(isolate());
 
     Handle<Code> new_object = GenerateCode();
-    new_object->set_stub_key(GetKey());
-    FinishCode(new_object);
+    DCHECK_EQ(GetKey(), new_object->stub_key());
     RecordCodeGeneration(new_object);
 
 #ifdef ENABLE_DISASSEMBLER
@@ -162,15 +166,14 @@ Handle<Code> CodeStub::GetCode() {
 #endif
 
     // Update the dictionary and the root in Heap.
-    Handle<UnseededNumberDictionary> dict = UnseededNumberDictionary::Set(
-        handle(heap->code_stubs()), GetKey(), new_object);
+    Handle<NumberDictionary> dict =
+        NumberDictionary::Set(handle(heap->code_stubs()), GetKey(), new_object);
     heap->SetRootCodeStubs(*dict);
     code = *new_object;
   }
 
   Activate(code);
-  DCHECK(!NeedsImmovableCode() || Heap::IsImmovable(code) ||
-         heap->code_space()->FirstPage()->Contains(code->address()));
+  DCHECK(!NeedsImmovableCode() || Heap::IsImmovable(code));
   return Handle<Code>(code, isolate());
 }
 
@@ -188,7 +191,7 @@ const char* CodeStub::MajorName(CodeStub::Major major_key) {
     case NUMBER_OF_IDS:
       UNREACHABLE();
   }
-  return NULL;
+  return nullptr;
 }
 
 
@@ -222,6 +225,9 @@ void CodeStub::Dispatch(Isolate* isolate, uint32_t key, void** value_out,
   }
 }
 
+Handle<HandlerTable> PlatformCodeStub::GenerateHandlerTable() {
+  return HandlerTable::Empty(isolate());
+}
 
 static void InitializeDescriptorDispatchedCall(CodeStub* stub,
                                                void** value_out) {
@@ -267,13 +273,13 @@ TF_STUB(StringAddStub, CodeStubAssembler) {
   Node* context = Parameter(Descriptor::kContext);
 
   if ((flags & STRING_ADD_CHECK_LEFT) != 0) {
-    DCHECK((flags & STRING_ADD_CONVERT) != 0);
+    DCHECK_NE(flags & STRING_ADD_CONVERT, 0);
     // TODO(danno): The ToString and JSReceiverToPrimitive below could be
     // combined to avoid duplicate smi and instance type checks.
     left = ToString(context, JSReceiverToPrimitive(context, left));
   }
   if ((flags & STRING_ADD_CHECK_RIGHT) != 0) {
-    DCHECK((flags & STRING_ADD_CONVERT) != 0);
+    DCHECK_NE(flags & STRING_ADD_CONVERT, 0);
     // TODO(danno): The ToString and JSReceiverToPrimitive below could be
     // combined to avoid duplicate smi and instance type checks.
     right = ToString(context, JSReceiverToPrimitive(context, right));
@@ -296,7 +302,7 @@ Handle<Code> TurboFanCodeStub::GenerateCode() {
   Zone zone(isolate()->allocator(), ZONE_NAME);
   CallInterfaceDescriptor descriptor(GetCallInterfaceDescriptor());
   compiler::CodeAssemblerState state(isolate(), &zone, descriptor, Code::STUB,
-                                     name);
+                                     name, 1, GetKey());
   GenerateAssembly(&state);
   return compiler::CodeAssembler::GenerateCode(&state);
 }
@@ -355,23 +361,6 @@ TF_STUB(TransitionElementsKindStub, CodeStubAssembler) {
   }
 }
 
-// TODO(ishell): move to builtins.
-TF_STUB(NumberToStringStub, CodeStubAssembler) {
-  Node* context = Parameter(Descriptor::kContext);
-  Node* argument = Parameter(Descriptor::kArgument);
-  Return(NumberToString(context, argument));
-}
-
-// TODO(ishell): move to builtins.
-TF_STUB(SubStringStub, CodeStubAssembler) {
-  Node* context = Parameter(Descriptor::kContext);
-  Node* string = Parameter(Descriptor::kString);
-  Node* from = Parameter(Descriptor::kFrom);
-  Node* to = Parameter(Descriptor::kTo);
-
-  Return(SubString(context, string, from, to));
-}
-
 // TODO(ishell): move to builtins-handler-gen.
 TF_STUB(KeyedLoadSloppyArgumentsStub, CodeStubAssembler) {
   Node* receiver = Parameter(Descriptor::kReceiver);
@@ -415,30 +404,6 @@ TF_STUB(KeyedStoreSloppyArgumentsStub, CodeStubAssembler) {
   }
 }
 
-TF_STUB(LoadScriptContextFieldStub, CodeStubAssembler) {
-  Comment("LoadScriptContextFieldStub: context_index=%d, slot=%d",
-          stub->context_index(), stub->slot_index());
-
-  Node* context = Parameter(Descriptor::kContext);
-
-  Node* script_context = LoadScriptContext(context, stub->context_index());
-  Node* result = LoadFixedArrayElement(script_context, stub->slot_index());
-  Return(result);
-}
-
-TF_STUB(StoreScriptContextFieldStub, CodeStubAssembler) {
-  Comment("StoreScriptContextFieldStub: context_index=%d, slot=%d",
-          stub->context_index(), stub->slot_index());
-
-  Node* value = Parameter(Descriptor::kValue);
-  Node* context = Parameter(Descriptor::kContext);
-
-  Node* script_context = LoadScriptContext(context, stub->context_index());
-  StoreFixedArrayElement(script_context, IntPtrConstant(stub->slot_index()),
-                         value);
-  Return(value);
-}
-
 // TODO(ishell): move to builtins-handler-gen.
 TF_STUB(StoreInterceptorStub, CodeStubAssembler) {
   Node* receiver = Parameter(Descriptor::kReceiver);
@@ -469,11 +434,11 @@ TF_STUB(LoadIndexedInterceptorStub, CodeStubAssembler) {
                   vector);
 }
 
-void JSEntryStub::FinishCode(Handle<Code> code) {
+Handle<HandlerTable> JSEntryStub::GenerateHandlerTable() {
   Handle<FixedArray> handler_table =
-      code->GetIsolate()->factory()->NewFixedArray(1, TENURED);
+      isolate()->factory()->NewFixedArray(1, TENURED);
   handler_table->set(0, Smi::FromInt(handler_offset_));
-  code->set_handler_table(*handler_table);
+  return Handle<HandlerTable>::cast(handler_table);
 }
 
 
@@ -591,7 +556,7 @@ void ProfileEntryHookStub::EntryHookTrampoline(intptr_t function,
                                                intptr_t stack_pointer,
                                                Isolate* isolate) {
   FunctionEntryHook entry_hook = isolate->function_entry_hook();
-  DCHECK(entry_hook != NULL);
+  DCHECK_NOT_NULL(entry_hook);
   entry_hook(function, stack_pointer);
 }
 
@@ -651,7 +616,7 @@ void ArrayConstructorAssembler::GenerateConstructor(
     Branch(SmiEqual(array_size, SmiConstant(0)), &small_smi_size, &abort);
 
     BIND(&abort);
-    Node* reason = SmiConstant(kAllocatingNonEmptyPackedArray);
+    Node* reason = SmiConstant(AbortReason::kAllocatingNonEmptyPackedArray);
     TailCallRuntime(Runtime::kAbort, context, reason);
   } else {
     int element_size =
@@ -710,32 +675,6 @@ TF_STUB(InternalArraySingleArgumentConstructorStub, ArrayConstructorAssembler) {
 
   GenerateConstructor(context, function, array_map, array_size, allocation_site,
                       stub->elements_kind(), DONT_TRACK_ALLOCATION_SITE);
-}
-
-TF_STUB(GrowArrayElementsStub, CodeStubAssembler) {
-  Label runtime(this, CodeStubAssembler::Label::kDeferred);
-
-  Node* object = Parameter(Descriptor::kObject);
-  Node* key = Parameter(Descriptor::kKey);
-  Node* context = Parameter(Descriptor::kContext);
-  ElementsKind kind = stub->elements_kind();
-
-  Node* elements = LoadElements(object);
-  Node* new_elements =
-      TryGrowElementsCapacity(object, elements, kind, key, &runtime);
-  Return(new_elements);
-
-  BIND(&runtime);
-  // TODO(danno): Make this a tail call when the stub is only used from TurboFan
-  // code. This musn't be a tail call for now, since the caller site in lithium
-  // creates a safepoint. This safepoint musn't have a different number of
-  // arguments on the stack in the case that a GC happens from the slow-case
-  // allocation path (zero, since all the stubs inputs are in registers) and
-  // when the call happens (it would be two in the tail call case due to the
-  // tail call pushing the arguments on the stack for the runtime call). By not
-  // tail-calling, the runtime call case also has zero arguments on the stack
-  // for the stub frame.
-  Return(CallRuntime(Runtime::kGrowArrayElements, context, object, key));
 }
 
 ArrayConstructorStub::ArrayConstructorStub(Isolate* isolate)

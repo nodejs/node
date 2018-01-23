@@ -207,7 +207,7 @@ class Scanner {
   static const int kNoOctalLocation = -1;
   static const uc32 kEndOfInput = Utf16CharacterStream::kEndOfInput;
 
-  explicit Scanner(UnicodeCache* scanner_contants, int* use_counts_);
+  explicit Scanner(UnicodeCache* scanner_contants);
 
   void Initialize(Utf16CharacterStream* source, bool is_module);
 
@@ -259,6 +259,8 @@ class Scanner {
       AstValueFactory* ast_value_factory) const;
 
   double DoubleValue();
+
+  const char* CurrentLiteralAsCString(Zone* zone) const;
 
   inline bool CurrentMatches(Token::Value token) const {
     DCHECK(Token::IsKeyword(token));
@@ -356,6 +358,15 @@ class Scanner {
 
   bool FoundHtmlComment() const { return found_html_comment_; }
 
+  bool allow_harmony_bigint() const { return allow_harmony_bigint_; }
+  void set_allow_harmony_bigint(bool allow) { allow_harmony_bigint_ = allow; }
+  bool allow_harmony_private_fields() const {
+    return allow_harmony_private_fields_;
+  }
+  void set_allow_harmony_private_fields(bool allow) {
+    allow_harmony_private_fields_ = allow;
+  }
+
  private:
   // Scoped helper for saving & restoring scanner error state.
   // This is used for tagged template literals, in which normally forbidden
@@ -409,7 +420,7 @@ class Scanner {
 
     Vector<const uint16_t> two_byte_literal() const {
       DCHECK(!is_one_byte_);
-      DCHECK((position_ & 0x1) == 0);
+      DCHECK_EQ(position_ & 0x1, 0);
       return Vector<const uint16_t>(
           reinterpret_cast<const uint16_t*>(backing_store_.start()),
           position_ >> 1);
@@ -494,18 +505,18 @@ class Scanner {
     // Initialize current_ to not refer to a literal.
     current_.token = Token::UNINITIALIZED;
     current_.contextual_token = Token::UNINITIALIZED;
-    current_.literal_chars = NULL;
-    current_.raw_literal_chars = NULL;
+    current_.literal_chars = nullptr;
+    current_.raw_literal_chars = nullptr;
     current_.invalid_template_escape_message = MessageTemplate::kNone;
     next_.token = Token::UNINITIALIZED;
     next_.contextual_token = Token::UNINITIALIZED;
-    next_.literal_chars = NULL;
-    next_.raw_literal_chars = NULL;
+    next_.literal_chars = nullptr;
+    next_.raw_literal_chars = nullptr;
     next_.invalid_template_escape_message = MessageTemplate::kNone;
     next_next_.token = Token::UNINITIALIZED;
     next_next_.contextual_token = Token::UNINITIALIZED;
-    next_next_.literal_chars = NULL;
-    next_next_.raw_literal_chars = NULL;
+    next_next_.literal_chars = nullptr;
+    next_next_.raw_literal_chars = nullptr;
     next_next_.invalid_template_escape_message = MessageTemplate::kNone;
     found_html_comment_ = false;
     scanner_error_ = MessageTemplate::kNone;
@@ -572,8 +583,8 @@ class Scanner {
   // Stops scanning of a literal and drop the collected characters,
   // e.g., due to an encountered error.
   inline void DropLiteral() {
-    next_.literal_chars = NULL;
-    next_.raw_literal_chars = NULL;
+    next_.literal_chars = nullptr;
+    next_.raw_literal_chars = nullptr;
   }
 
   inline void AddLiteralCharAdvance() {
@@ -662,10 +673,6 @@ class Scanner {
   bool is_literal_one_byte() const {
     return !current_.literal_chars || current_.literal_chars->is_one_byte();
   }
-  int literal_length() const {
-    if (current_.literal_chars) return current_.literal_chars->length();
-    return Token::StringLength(current_.token);
-  }
   // Returns the literal string for the next token (the token that
   // would be returned if Next() were called).
   Vector<const uint8_t> next_literal_one_byte_string() const {
@@ -716,9 +723,11 @@ class Scanner {
   void ScanDecimalDigits();
   Token::Value ScanNumber(bool seen_period);
   Token::Value ScanIdentifierOrKeyword();
+  Token::Value ScanIdentifierOrKeywordInner(LiteralScope* literal);
   Token::Value ScanIdentifierSuffix(LiteralScope* literal, bool escaped);
 
   Token::Value ScanString();
+  Token::Value ScanPrivateName();
 
   // Scans an escape-sequence which is part of a string and adds the
   // decoded character to the current literal. Returns true if a pattern
@@ -734,8 +743,6 @@ class Scanner {
   uc32 ScanUnicodeEscape();
 
   bool is_module_;
-
-  bool IsLineTerminator(uc32 c);
 
   Token::Value ScanTemplateSpan();
 
@@ -801,7 +808,9 @@ class Scanner {
   // Whether this scanner encountered an HTML comment.
   bool found_html_comment_;
 
-  int* use_counts_;
+  // Harmony flags to allow ESNext features.
+  bool allow_harmony_bigint_;
+  bool allow_harmony_private_fields_;
 
   MessageTemplate::Template scanner_error_;
   Location scanner_error_location_;

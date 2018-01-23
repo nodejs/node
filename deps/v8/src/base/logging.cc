@@ -119,8 +119,6 @@ DEFINE_CHECK_OP_IMPL(GT)
 }  // namespace base
 }  // namespace v8
 
-
-// Contains protection against recursive calls (faults while handling faults).
 void V8_Fatal(const char* file, int line, const char* format, ...) {
   fflush(stdout);
   fflush(stderr);

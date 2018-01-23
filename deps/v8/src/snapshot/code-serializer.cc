@@ -13,6 +13,7 @@
 #include "src/objects-inl.h"
 #include "src/snapshot/object-deserializer.h"
 #include "src/snapshot/snapshot.h"
+#include "src/trap-handler/trap-handler.h"
 #include "src/version.h"
 #include "src/visitors.h"
 #include "src/wasm/wasm-module.h"
@@ -81,7 +82,7 @@ void CodeSerializer::SerializeObject(HeapObject* obj, HowToCode how_to_code,
       case Code::REGEXP:              // No regexp literals initialized yet.
       case Code::NUMBER_OF_KINDS:     // Pseudo enum value.
       case Code::BYTECODE_HANDLER:    // No direct references to handlers.
-        CHECK(false);
+        break;                        // hit UNREACHABLE below.
       case Code::BUILTIN:
         SerializeBuiltinReference(code_object, how_to_code, where_to_point, 0);
         return;
@@ -105,12 +106,37 @@ void CodeSerializer::SerializeObject(HeapObject* obj, HowToCode how_to_code,
   }
 
   if (obj->IsScript()) {
+    Script* script_obj = Script::cast(obj);
+    DCHECK_NE(script_obj->compilation_type(), Script::COMPILATION_TYPE_EVAL);
     // Wrapper object is a context-dependent JSValue. Reset it here.
-    Script::cast(obj)->set_wrapper(isolate()->heap()->undefined_value());
+    script_obj->set_wrapper(isolate()->heap()->undefined_value());
+    // We want to differentiate between undefined and uninitialized_symbol for
+    // context_data for now. It is hack to allow debugging for scripts that are
+    // included as a part of custom snapshot. (see debug::Script::IsEmbedded())
+    Object* context_data = script_obj->context_data();
+    if (context_data != isolate()->heap()->undefined_value() &&
+        context_data != isolate()->heap()->uninitialized_symbol()) {
+      script_obj->set_context_data(isolate()->heap()->undefined_value());
+    }
+    // We don't want to serialize host options to avoid serializing unnecessary
+    // object graph.
+    FixedArray* host_options = script_obj->host_defined_options();
+    script_obj->set_host_defined_options(
+        isolate()->heap()->empty_fixed_array());
+    SerializeGeneric(obj, how_to_code, where_to_point);
+    script_obj->set_host_defined_options(host_options);
+    script_obj->set_context_data(context_data);
+    return;
   }
 
   if (obj->IsSharedFunctionInfo()) {
     SharedFunctionInfo* sfi = SharedFunctionInfo::cast(obj);
+    // TODO(7110): Enable serializing of Asm modules once the AsmWasmData
+    // is context independent.
+    DCHECK(!sfi->IsApiFunction() && !sfi->HasAsmWasmData());
+    // Do not serialize when a debugger is active.
+    DCHECK(sfi->debug_info()->IsSmi());
+
     // Mark SFI to indicate whether the code is cached.
     bool was_deserialized = sfi->deserialized();
     sfi->set_deserialized(sfi->is_compiled());
@@ -119,12 +145,17 @@ void CodeSerializer::SerializeObject(HeapObject* obj, HowToCode how_to_code,
     return;
   }
 
+  if (obj->IsBytecodeArray()) {
+    // Clear the stack frame cache if present
+    BytecodeArray::cast(obj)->ClearFrameCacheFromSourcePositionTable();
+  }
+
   // Past this point we should not see any (context-specific) maps anymore.
   CHECK(!obj->IsMap());
   // There should be no references to the global object embedded.
   CHECK(!obj->IsJSGlobalProxy() && !obj->IsJSGlobalObject());
-  // There should be no hash table embedded. They would require rehashing.
-  CHECK(!obj->IsHashTable());
+  // Embedded FixedArrays that need rehashing must support rehashing.
+  CHECK_IMPLIES(obj->NeedsRehashing(), obj->CanBeRehashed());
   // We expect no instantiated function objects or contexts.
   CHECK(!obj->IsJSFunction() && !obj->IsContext());
 
@@ -220,8 +251,9 @@ std::unique_ptr<ScriptData> WasmCompiledModuleSerializer::SerializeWasmModule(
     Isolate* isolate, Handle<FixedArray> input) {
   Handle<WasmCompiledModule> compiled_module =
       Handle<WasmCompiledModule>::cast(input);
-  WasmCompiledModuleSerializer wasm_cs(isolate, 0, isolate->native_context(),
-                                       handle(compiled_module->module_bytes()));
+  WasmCompiledModuleSerializer wasm_cs(
+      isolate, 0, isolate->native_context(),
+      handle(compiled_module->shared()->module_bytes()));
   ScriptData* data = wasm_cs.Serialize(compiled_module);
   return std::unique_ptr<ScriptData>(data);
 }
@@ -242,6 +274,8 @@ MaybeHandle<FixedArray> WasmCompiledModuleSerializer::DeserializeWasmModule(
     return nothing;
   }
 
+  // TODO(6792): No longer needed once WebAssembly code is off heap.
+  CodeSpaceMemoryModificationScope modification_scope(isolate->heap());
   MaybeHandle<WasmCompiledModule> maybe_result =
       ObjectDeserializer::DeserializeWasmCompiledModule(isolate, &scd,
                                                         wire_bytes);
@@ -260,6 +294,8 @@ void WasmCompiledModuleSerializer::SerializeCodeObject(
   switch (kind) {
     case Code::WASM_FUNCTION:
     case Code::JS_TO_WASM_FUNCTION: {
+      // TODO(6792): No longer needed once WebAssembly code is off heap.
+      CodeSpaceMemoryModificationScope modification_scope(isolate()->heap());
       // Because the trap handler index is not meaningful across copies and
       // serializations, we need to serialize it as kInvalidIndex. We do this by
       // saving the old value, setting the index to kInvalidIndex and then
@@ -276,6 +312,7 @@ void WasmCompiledModuleSerializer::SerializeCodeObject(
     }
     case Code::WASM_INTERPRETER_ENTRY:
     case Code::WASM_TO_JS_FUNCTION:
+    case Code::WASM_TO_WASM_FUNCTION:
       // Serialize the illegal builtin instead. On instantiation of a
       // deserialized module, these will be replaced again.
       SerializeBuiltinReference(*BUILTIN_CODE(isolate(), Illegal), how_to_code,
@@ -422,15 +459,17 @@ ScriptData* SerializedCodeData::GetScriptData() {
   ScriptData* result = new ScriptData(data_, size_);
   result->AcquireDataOwnership();
   owns_data_ = false;
-  data_ = NULL;
+  data_ = nullptr;
   return result;
 }
 
-Vector<const SerializedData::Reservation> SerializedCodeData::Reservations()
+std::vector<SerializedData::Reservation> SerializedCodeData::Reservations()
     const {
-  return Vector<const Reservation>(
-      reinterpret_cast<const Reservation*>(data_ + kHeaderSize),
-      GetHeaderValue(kNumReservationsOffset));
+  uint32_t size = GetHeaderValue(kNumReservationsOffset);
+  std::vector<Reservation> reservations(size);
+  memcpy(reservations.data(), data_ + kHeaderSize,
+         size * sizeof(SerializedData::Reservation));
+  return reservations;
 }
 
 Vector<const byte> SerializedCodeData::Payload() const {

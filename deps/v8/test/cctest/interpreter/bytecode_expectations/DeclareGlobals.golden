@@ -22,7 +22,7 @@ bytecodes: [
                 B(CallRuntime), U16(Runtime::kDeclareGlobalsForInterpreter), R(1), U8(3),
   /*    0 E> */ B(StackCheck),
   /*    8 S> */ B(LdaSmi), I8(1),
-  /*    8 E> */ B(StaGlobalSloppy), U8(1), U8(2),
+  /*    8 E> */ B(StaGlobal), U8(1), U8(2),
                 B(LdaUndefined),
   /*   10 S> */ B(Return),
 ]
@@ -74,9 +74,9 @@ bytecodes: [
                 B(CallRuntime), U16(Runtime::kDeclareGlobalsForInterpreter), R(1), U8(3),
   /*    0 E> */ B(StackCheck),
   /*    8 S> */ B(LdaSmi), I8(1),
-  /*    8 E> */ B(StaGlobalSloppy), U8(1), U8(2),
+  /*    8 E> */ B(StaGlobal), U8(1), U8(2),
   /*   11 S> */ B(LdaSmi), I8(2),
-  /*   12 E> */ B(StaGlobalSloppy), U8(1), U8(4),
+  /*   12 E> */ B(StaGlobal), U8(1), U8(4),
                 B(Star), R(0),
   /*   15 S> */ B(Return),
 ]

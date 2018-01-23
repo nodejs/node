@@ -39,7 +39,7 @@ class SimulatorHelper {
                      ->thread_local_top()
                      ->simulator_;
     // Check if there is active simulator.
-    return simulator_ != NULL;
+    return simulator_ != nullptr;
   }
 
   inline void FillRegisters(v8::RegisterState* state) {
@@ -104,26 +104,26 @@ class SamplingTestHelper {
     v8::Local<v8::ObjectTemplate> global = v8::ObjectTemplate::New(isolate_);
     global->Set(v8_str("CollectSample"),
                 v8::FunctionTemplate::New(isolate_, CollectSample));
-    LocalContext env(isolate_, NULL, global);
+    LocalContext env(isolate_, nullptr, global);
     isolate_->SetJitCodeEventHandler(v8::kJitCodeEventDefault,
                                      JitCodeEventHandler);
     CompileRun(v8_str(test_function.c_str()));
   }
 
   ~SamplingTestHelper() {
-    isolate_->SetJitCodeEventHandler(v8::kJitCodeEventDefault, NULL);
-    instance_ = NULL;
+    isolate_->SetJitCodeEventHandler(v8::kJitCodeEventDefault, nullptr);
+    instance_ = nullptr;
   }
 
   Sample& sample() { return sample_; }
 
   const CodeEventEntry* FindEventEntry(const void* address) {
     CodeEntries::const_iterator it = code_entries_.upper_bound(address);
-    if (it == code_entries_.begin()) return NULL;
+    if (it == code_entries_.begin()) return nullptr;
     const CodeEventEntry& entry = (--it)->second;
     const void* code_end =
         static_cast<const uint8_t*>(entry.code_start) + entry.code_len;
-    return address < code_end ? &entry : NULL;
+    return address < code_end ? &entry : nullptr;
   }
 
  private:
@@ -143,7 +143,7 @@ class SamplingTestHelper {
     if (!simulator_helper.Init(isolate_)) return;
     simulator_helper.FillRegisters(&state);
 #else
-    state.pc = NULL;
+    state.pc = nullptr;
     state.fp = &state;
     state.sp = &state;
 #endif

@@ -343,3 +343,53 @@ var c = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25];
     assertTrue(re.exec(e.stack) !== null);
   }
 })();
+
+// Verify holes are skipped.
+(() => {
+  const a = [1, 2, , 3, 4];
+  function withHoles() {
+    const callback_values = [];
+    a.forEach(v => {
+      callback_values.push(v);
+    });
+    return callback_values;
+  }
+  withHoles();
+  withHoles();
+  %OptimizeFunctionOnNextCall(withHoles);
+  assertArrayEquals([1, 2, 3, 4], withHoles());
+})();
+
+(() => {
+  const a = [1.5, 2.5, , 3.5, 4.5];
+  function withHoles() {
+    const callback_values = [];
+    a.forEach(v => {
+      callback_values.push(v);
+    });
+    return callback_values;
+  }
+  withHoles();
+  withHoles();
+  %OptimizeFunctionOnNextCall(withHoles);
+  assertArrayEquals([1.5, 2.5, 3.5, 4.5], withHoles());
+})();
+
+// Ensure that we handle side-effects between load and call.
+(() => {
+  function side_effect(a, b) { if (b) a.foo = 3; return a; }
+  %NeverOptimizeFunction(side_effect);
+
+  function unreliable(a, b) {
+    let sum = 0;
+    return a.forEach(x => sum += x, side_effect(a, b));
+  }
+
+  let a = [1, 2, 3];
+  unreliable(a, false);
+  unreliable(a, false);
+  %OptimizeFunctionOnNextCall(unreliable);
+  unreliable(a, false);
+  // Now actually do change the map.
+  unreliable(a, true);
+})();

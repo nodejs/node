@@ -23,7 +23,7 @@ class ElementsAccessor {
 
   // Returns a shared ElementsAccessor for the specified ElementsKind.
   static ElementsAccessor* ForKind(ElementsKind elements_kind) {
-    DCHECK(static_cast<int>(elements_kind) < kElementsKindCount);
+    DCHECK_LT(static_cast<int>(elements_kind), kElementsKindCount);
     return elements_accessors_[elements_kind];
   }
 
@@ -34,7 +34,7 @@ class ElementsAccessor {
   // Returns true if a holder contains an element with the specified index
   // without iterating up the prototype chain.  The caller can optionally pass
   // in the backing store to use for the check, which must be compatible with
-  // the ElementsKind of the ElementsAccessor. If backing_store is NULL, the
+  // the ElementsKind of the ElementsAccessor. If backing_store is nullptr, the
   // holder->elements() is used as the backing store. If a |filter| is
   // specified the PropertyAttributes of the element at the given index
   // are compared to the given |filter|. If they match/overlap the given
@@ -54,9 +54,10 @@ class ElementsAccessor {
   // typed array elements.
   virtual bool HasEntry(JSObject* holder, uint32_t entry) = 0;
 
+  // TODO(cbruni): HasEntry and Get should not be exposed publicly with the
+  // entry parameter.
   virtual Handle<Object> Get(Handle<JSObject> holder, uint32_t entry) = 0;
 
-  virtual PropertyDetails GetDetails(JSObject* holder, uint32_t entry) = 0;
   virtual bool HasAccessors(JSObject* holder) = 0;
   virtual uint32_t NumberOfElements(JSObject* holder) = 0;
 
@@ -67,8 +68,6 @@ class ElementsAccessor {
   // element that is non-deletable.
   virtual void SetLength(Handle<JSArray> holder, uint32_t new_length) = 0;
 
-  // Deletes an element in an object.
-  virtual void Delete(Handle<JSObject> holder, uint32_t entry) = 0;
 
   // If kCopyToEnd is specified as the copy_size to CopyElements, it copies all
   // of elements from source after source_start to the destination array.
@@ -126,11 +125,6 @@ class ElementsAccessor {
 
   virtual void Set(Handle<JSObject> holder, uint32_t entry, Object* value) = 0;
 
-  virtual void Reconfigure(Handle<JSObject> object,
-                           Handle<FixedArrayBase> backing_store, uint32_t entry,
-                           Handle<Object> value,
-                           PropertyAttributes attributes) = 0;
-
   virtual void Add(Handle<JSObject> object, uint32_t index,
                    Handle<Object> value, PropertyAttributes attributes,
                    uint32_t new_capacity) = 0;
@@ -158,7 +152,7 @@ class ElementsAccessor {
 
   virtual Handle<Object> Shift(Handle<JSArray> receiver) = 0;
 
-  virtual Handle<SeededNumberDictionary> Normalize(Handle<JSObject> object) = 0;
+  virtual Handle<NumberDictionary> Normalize(Handle<JSObject> object) = 0;
 
   virtual uint32_t GetCapacity(JSObject* holder,
                                FixedArrayBase* backing_store) = 0;
@@ -213,6 +207,15 @@ class ElementsAccessor {
   virtual uint32_t GetEntryForIndex(Isolate* isolate, JSObject* holder,
                                     FixedArrayBase* backing_store,
                                     uint32_t index) = 0;
+
+  virtual PropertyDetails GetDetails(JSObject* holder, uint32_t entry) = 0;
+  virtual void Reconfigure(Handle<JSObject> object,
+                           Handle<FixedArrayBase> backing_store, uint32_t entry,
+                           Handle<Object> value,
+                           PropertyAttributes attributes) = 0;
+
+  // Deletes an element in an object.
+  virtual void Delete(Handle<JSObject> holder, uint32_t entry) = 0;
 
   // NOTE: this method violates the handlified function signature convention:
   // raw pointer parameter |source_holder| in the function that allocates.

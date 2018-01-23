@@ -150,6 +150,44 @@ tests.push(function TestConstructFromTypedArray(constr) {
   }
 });
 
+tests.push(function TestFromTypedArraySpecies(constr) {
+  var b = new ArrayBuffer(16);
+  var a1 = new constr(b);
+
+  var constructor_read = 0;
+  var cons = b.constructor;
+
+  Object.defineProperty(b, 'constructor', {
+    get: function() {
+      constructor_read++;
+      return cons;
+    }
+  });
+
+  var a2 = new constr(a1);
+
+  assertEquals(1, constructor_read);
+});
+
+tests.push(function TestFromTypedArraySpeciesNeutersBuffer(constr) {
+  var b = new ArrayBuffer(16);
+  var a1 = new constr(b);
+
+  var constructor_read = 0;
+  var cons = b.constructor;
+
+  Object.defineProperty(b, 'constructor', {
+    get: function() {
+      %ArrayBufferNeuter(b);
+      return cons;
+    }
+  });
+
+  var a2 = new constr(a1);
+
+  assertArrayEquals([], a2);
+});
+
 tests.push(function TestLengthIsMaxSmi(constr) {
   var myObject = { 0: 5, 1: 6, length: %_MaxSmi() + 1 };
 

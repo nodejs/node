@@ -12,6 +12,7 @@ using testing::ElementsAre;
 namespace v8 {
 namespace internal {
 namespace compiler {
+namespace schedule_unittest {
 
 typedef TestWithIsolateAndZone BasicBlockTest;
 
@@ -71,16 +72,12 @@ TEST_F(BasicBlockTest, GetCommonDominator3) {
 typedef TestWithZone ScheduleTest;
 
 
-namespace {
-
 const Operator kCallOperator(IrOpcode::kCall, Operator::kNoProperties,
                              "MockCall", 0, 0, 0, 0, 0, 0);
 const Operator kBranchOperator(IrOpcode::kBranch, Operator::kNoProperties,
                                "MockBranch", 0, 0, 0, 0, 0, 0);
 const Operator kDummyOperator(IrOpcode::kParameter, Operator::kNoProperties,
                               "Dummy", 0, 0, 0, 0, 0, 0);
-
-}  // namespace
 
 
 TEST_F(ScheduleTest, Constructor) {
@@ -244,6 +241,7 @@ TEST_F(ScheduleTest, InsertBranch) {
   EXPECT_THAT(end->predecessors(), ElementsAre(mblock));
 }
 
+}  // namespace schedule_unittest
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

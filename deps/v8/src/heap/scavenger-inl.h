@@ -58,8 +58,6 @@ bool Scavenger::MigrateObject(Map* map, HeapObject* source, HeapObject* target,
   }
 
   if (V8_UNLIKELY(is_logging_)) {
-    // Update NewSpace stats if necessary.
-    RecordCopiedObject(target);
     heap()->OnMoveEvent(target, source, size);
   }
 
@@ -116,7 +114,7 @@ bool Scavenger::PromoteObject(Map* map, HeapObject** slot, HeapObject* object,
     }
     *slot = target;
 
-    if (!ContainsOnlyData(static_cast<VisitorId>(map->visitor_id()))) {
+    if (!ContainsOnlyData(map->visitor_id())) {
       promotion_list_.Push(ObjectAndSize(target, object_size));
     }
     promoted_size_ += object_size;
@@ -206,7 +204,7 @@ void Scavenger::EvacuateObject(HeapObject** slot, Map* map,
   int size = source->SizeFromMap(map);
   // Cannot use ::cast() below because that would add checks in debug mode
   // that require re-reading the map.
-  switch (static_cast<VisitorId>(map->visitor_id())) {
+  switch (map->visitor_id()) {
     case kVisitThinString:
       EvacuateThinString(map, slot, reinterpret_cast<ThinString*>(source),
                          size);

@@ -5,6 +5,9 @@
 #ifndef V8_BASE_UTILS_RANDOM_NUMBER_GENERATOR_H_
 #define V8_BASE_UTILS_RANDOM_NUMBER_GENERATOR_H_
 
+#include <unordered_set>
+#include <vector>
+
 #include "src/base/base-export.h"
 #include "src/base/macros.h"
 
@@ -85,6 +88,23 @@ class V8_BASE_EXPORT RandomNumberGenerator final {
   // Fills the elements of a specified array of bytes with random numbers.
   void NextBytes(void* buffer, size_t buflen);
 
+  // Returns the next pseudorandom set of n unique uint64 values smaller than
+  // max.
+  // n must be less or equal to max.
+  std::vector<uint64_t> NextSample(uint64_t max, size_t n) WARN_UNUSED_RESULT;
+
+  // Returns the next pseudorandom set of n unique uint64 values smaller than
+  // max.
+  // n must be less or equal to max.
+  // max - |excluded| must be less or equal to n.
+  //
+  // Generates list of all possible values and removes random values from it
+  // until size reaches n.
+  std::vector<uint64_t> NextSampleSlow(
+      uint64_t max, size_t n,
+      const std::unordered_set<uint64_t>& excluded =
+          std::unordered_set<uint64_t>{}) WARN_UNUSED_RESULT;
+
   // Override the current ssed.
   void SetSeed(int64_t seed);
 
@@ -93,8 +113,8 @@ class V8_BASE_EXPORT RandomNumberGenerator final {
   // Static and exposed for external use.
   static inline double ToDouble(uint64_t state0, uint64_t state1) {
     // Exponent for double values for [1.0 .. 2.0)
-    static const uint64_t kExponentBits = V8_UINT64_C(0x3FF0000000000000);
-    static const uint64_t kMantissaMask = V8_UINT64_C(0x000FFFFFFFFFFFFF);
+    static const uint64_t kExponentBits = uint64_t{0x3FF0000000000000};
+    static const uint64_t kMantissaMask = uint64_t{0x000FFFFFFFFFFFFF};
     uint64_t random = ((state0 + state1) & kMantissaMask) | kExponentBits;
     return bit_cast<double>(random) - 1;
   }

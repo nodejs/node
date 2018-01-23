@@ -214,7 +214,8 @@ def Main():
     issues = APIRequest(key, **args)
     assert issues is not None
     for issue in issues:
-      if re.match(spec["crash_state"], issue["crash_state"]):
+      if (re.match(spec["crash_state"], issue["crash_state"]) and
+          not issue.get('has_bug_flag')):
         results.append(issue["id"])
 
   if options.results_file:

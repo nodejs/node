@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --harmony-async-iteration
-
 let {session, contextGroup, Protocol} = InspectorTest.start('Checks that async chains for for-await-of are correct.');
 
 contextGroup.addScript(`

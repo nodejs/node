@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --no-always-opt --block-coverage
-// Flags: --harmony-async-iteration --no-opt
+// Flags: --allow-natives-syntax --no-always-opt
+// Flags: --no-opt
 // Files: test/mjsunit/code-coverage-utils.js
 
 %DebugToggleBlockCoverage(true);

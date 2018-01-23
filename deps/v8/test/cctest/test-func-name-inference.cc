@@ -555,3 +555,31 @@ TEST(ReturnAnonymousFunction) {
   script->Run(CcTest::isolate()->GetCurrentContext()).ToLocalChecked();
   CheckFunctionName(script, "return 2012", "");
 }
+
+TEST(IgnoreExtendsClause) {
+  CcTest::InitializeVM();
+  v8::HandleScope scope(CcTest::isolate());
+
+  v8::Local<v8::Script> script =
+      Compile(CcTest::isolate(),
+              "(function() {\n"
+              "  var foo = {};\n"
+              "  foo.C = class {}\n"
+              "  class D extends foo.C {}\n"
+              "  foo.bar = function() { return 1; };\n"
+              "})()");
+  script->Run(CcTest::isolate()->GetCurrentContext()).ToLocalChecked();
+  CheckFunctionName(script, "return 1", "foo.bar");
+}
+
+TEST(ParameterAndArrow) {
+  CcTest::InitializeVM();
+  v8::HandleScope scope(CcTest::isolate());
+
+  v8::Local<v8::Script> script = Compile(CcTest::isolate(),
+                                         "(function(param) {\n"
+                                         "  (() => { return 2017 })();\n"
+                                         "})()");
+  script->Run(CcTest::isolate()->GetCurrentContext()).ToLocalChecked();
+  CheckFunctionName(script, "return 2017", "");
+}

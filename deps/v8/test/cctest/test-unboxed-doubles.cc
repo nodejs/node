@@ -118,7 +118,7 @@ static Handle<DescriptorArray> CreateDescriptorArray(Isolate* isolate,
     Descriptor d;
     if (kind == PROP_ACCESSOR_INFO) {
       Handle<AccessorInfo> info =
-          Accessors::MakeAccessor(isolate, name, nullptr, nullptr, NONE);
+          Accessors::MakeAccessor(isolate, name, nullptr, nullptr);
       d = Descriptor::AccessorConstant(name, info, NONE);
 
     } else {
@@ -227,7 +227,7 @@ TEST(LayoutDescriptorBasicSlow) {
     CHECK_NE(LayoutDescriptor::FastPointerLayout(), *layout_descriptor);
     CHECK(layout_descriptor->IsSlowLayout());
     CHECK(!layout_descriptor->IsFastPointerLayout());
-    CHECK(layout_descriptor->capacity() > kSmiValueSize);
+    CHECK_GT(layout_descriptor->capacity(), kSmiValueSize);
 
     CHECK(!layout_descriptor->IsTagged(0));
     CHECK(!layout_descriptor->IsTagged(kPropsCount - 1));
@@ -307,7 +307,7 @@ static void TestLayoutDescriptorQueries(int layout_descriptor_length,
       int sequence_length;
       CHECK_EQ(tagged,
                layout_desc->IsTagged(i, max_sequence_length, &sequence_length));
-      CHECK(sequence_length > 0);
+      CHECK_GT(sequence_length, 0);
 
       CHECK_EQ(expected_sequence_length, sequence_length);
     }
@@ -328,7 +328,7 @@ static void TestLayoutDescriptorQueriesFast(int max_sequence_length) {
     for (int i = 0; i < kNumberOfBits; i++) {
       CHECK_EQ(true,
                layout_desc->IsTagged(i, max_sequence_length, &sequence_length));
-      CHECK(sequence_length > 0);
+      CHECK_GT(sequence_length, 0);
       CHECK_EQ(max_sequence_length, sequence_length);
     }
   }
@@ -437,7 +437,7 @@ static void TestLayoutDescriptorQueriesSlow(int max_sequence_length) {
       bit_flip_positions[i] = cur;
       cur = (cur + 1) * 2;
     }
-    CHECK(cur < 10000);
+    CHECK_LT(cur, 10000);
     bit_flip_positions[kMaxNumberOfDescriptors] = 10000;
     TestLayoutDescriptorQueries(kMaxNumberOfDescriptors, bit_flip_positions,
                                 max_sequence_length);
@@ -450,7 +450,7 @@ static void TestLayoutDescriptorQueriesSlow(int max_sequence_length) {
       bit_flip_positions[i] = cur;
       cur = (cur + 1) * 2;
     }
-    CHECK(cur < 10000);
+    CHECK_LT(cur, 10000);
     bit_flip_positions[kMaxNumberOfDescriptors] = 10000;
     TestLayoutDescriptorQueries(kMaxNumberOfDescriptors, bit_flip_positions,
                                 max_sequence_length);
@@ -642,7 +642,7 @@ static Handle<LayoutDescriptor> TestLayoutDescriptorAppend(
     Descriptor d;
     if (kind == PROP_ACCESSOR_INFO) {
       Handle<AccessorInfo> info =
-          Accessors::MakeAccessor(isolate, name, nullptr, nullptr, NONE);
+          Accessors::MakeAccessor(isolate, name, nullptr, nullptr);
       d = Descriptor::AccessorConstant(name, info, NONE);
 
     } else {
@@ -1235,8 +1235,8 @@ static void TestLayoutDescriptorHelper(Isolate* isolate,
     CHECK_EQ(expected_tagged, helper.IsTagged(index.offset()));
     CHECK_EQ(expected_tagged, helper.IsTagged(index.offset(), instance_size,
                                               &end_of_region_offset));
-    CHECK(end_of_region_offset > 0);
-    CHECK(end_of_region_offset % kPointerSize == 0);
+    CHECK_GT(end_of_region_offset, 0);
+    CHECK_EQ(end_of_region_offset % kPointerSize, 0);
     CHECK(end_of_region_offset <= instance_size);
 
     for (int offset = index.offset(); offset < end_of_region_offset;
@@ -1519,7 +1519,7 @@ static void TestIncrementalWriteBarrier(Handle<Map> map, Handle<Map> new_map,
   // barrier.
   JSObject::MigrateToMap(obj, new_map);
 
-  uint64_t boom_value = UINT64_C(0xbaad0176a37c28e1);
+  uint64_t boom_value = UINT64_C(0xBAAD0176A37C28E1);
 
   FieldIndex double_field_index =
       FieldIndex::ForDescriptor(*new_map, double_descriptor);

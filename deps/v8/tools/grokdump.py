@@ -579,6 +579,9 @@ MD_CPU_ARCHITECTURE_ARM = 5
 MD_CPU_ARCHITECTURE_ARM64 = 0x8003
 MD_CPU_ARCHITECTURE_AMD64 = 9
 
+OBJDUMP_BIN = None
+DEFAULT_OBJDUMP_BIN = '/usr/bin/objdump'
+
 class FuncSymbol:
   def __init__(self, start, size, name):
     self.start = start
@@ -623,6 +626,11 @@ class MinidumpReader(object):
     self.modules_with_symbols = []
     self.symbols = []
 
+    self._ReadArchitecture(directories)
+    self._ReadDirectories(directories)
+    self._FindObjdump(options)
+
+  def _ReadArchitecture(self, directories):
     # Find MDRawSystemInfo stream and determine arch.
     for d in directories:
       if d.stream_type == MD_SYSTEM_INFO_STREAM:
@@ -635,6 +643,7 @@ class MinidumpReader(object):
                              MD_CPU_ARCHITECTURE_X86]
     assert not self.arch is None
 
+  def _ReadDirectories(self, directories):
     for d in directories:
       DebugPrint(d)
       if d.stream_type == MD_EXCEPTION_STREAM:
@@ -679,6 +688,44 @@ class MinidumpReader(object):
           self.minidump, d.location.rva)
         assert ctypes.sizeof(self.memory_list64) == d.location.data_size
         DebugPrint(self.memory_list64)
+
+  def _FindObjdump(self, options):
+    if options.objdump:
+        objdump_bin = options.objdump
+    else:
+      objdump_bin = self._FindThirdPartyObjdump()
+    if not objdump_bin or not os.path.exists(objdump_bin):
+      print "# Cannot find '%s', falling back to default objdump '%s'" % (
+          objdump_bin, DEFAULT_OBJDUMP_BIN)
+      objdump_bin  = DEFAULT_OBJDUMP_BIN
+    global OBJDUMP_BIN
+    OBJDUMP_BIN = objdump_bin
+    disasm.OBJDUMP_BIN = objdump_bin
+
+  def _FindThirdPartyObjdump(self):
+      # Try to find the platform specific objdump
+      third_party_dir = os.path.join(
+          os.path.dirname(os.path.dirname(__file__)), 'third_party')
+      objdumps = []
+      for root, dirs, files in os.walk(third_party_dir):
+        for file in files:
+          if file.endswith("objdump"):
+            objdumps.append(os.path.join(root, file))
+      if self.arch == MD_CPU_ARCHITECTURE_ARM:
+        platform_filter = 'arm-linux'
+      elif self.arch == MD_CPU_ARCHITECTURE_ARM64:
+        platform_filter = 'aarch64'
+      else:
+        # use default otherwise
+        return None
+      print ("# Looking for platform specific (%s) objdump in "
+             "third_party directory.") % platform_filter
+      objdumps = filter(lambda file: platform_filter in file >= 0, objdumps)
+      if len(objdumps) == 0:
+        print "# Could not find platform specific objdump in third_party."
+        print "# Make sure you installed the correct SDK."
+        return None
+      return objdumps[0]
 
   def ContextDescriptor(self):
     if self.arch == MD_CPU_ARCHITECTURE_X86:
@@ -3008,9 +3055,16 @@ class InspectionWebFormatter(object):
     marker = ""
     if stack_slot:
       marker = "=>"
-    op_offset = 3 * num_bytes - 1
 
     code = line[1]
+
+    # Some disassemblers insert spaces between each byte,
+    # while some do not.
+    if code[2] == " ":
+        op_offset = 3 * num_bytes - 1
+    else:
+        op_offset = 2 * num_bytes
+
     # Compute the actual call target which the disassembler is too stupid
     # to figure out (it adds the call offset to the disassembly offset rather
     # than the absolute instruction address).
@@ -3807,15 +3861,10 @@ if __name__ == "__main__":
                     help="dump all information contained in the minidump")
   parser.add_option("--symdir", dest="symdir", default=".",
                     help="directory containing *.pdb.sym file with symbols")
-  parser.add_option("--objdump",
-                    default="/usr/bin/objdump",
-                    help="objdump tool to use [default: %default]")
+  parser.add_option("--objdump", default="",
+                    help="objdump tool to use [default: %s]" % (
+                        DEFAULT_OBJDUMP_BIN))
   options, args = parser.parse_args()
-  if os.path.exists(options.objdump):
-    disasm.OBJDUMP_BIN = options.objdump
-    OBJDUMP_BIN = options.objdump
-  else:
-    print "Cannot find %s, falling back to default objdump" % options.objdump
   if len(args) != 1:
     parser.print_help()
     sys.exit(1)

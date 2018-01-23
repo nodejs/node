@@ -6,6 +6,7 @@
 #define V8_OBJECTS_DESCRIPTOR_ARRAY_H_
 
 #include "src/objects.h"
+#include "src/objects/fixed-array.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -46,12 +47,12 @@ class EnumCache : public Tuple2 {
 class DescriptorArray : public FixedArray {
  public:
   // Returns the number of descriptors in the array.
-  inline int number_of_descriptors();
-  inline int number_of_descriptors_storage();
-  inline int NumberOfSlackDescriptors();
+  inline int number_of_descriptors() const;
+  inline int number_of_descriptors_storage() const;
+  inline int NumberOfSlackDescriptors() const;
 
   inline void SetNumberOfDescriptors(int number_of_descriptors);
-  inline int number_of_entries();
+  inline int number_of_entries() const;
 
   inline EnumCache* GetEnumCache();
 
@@ -141,16 +142,17 @@ class DescriptorArray : public FixedArray {
   static const int kEntryValueIndex = 2;
   static const int kEntrySize = 3;
 
+  // Print all the descriptors.
+  void PrintDescriptors(std::ostream& os);  // NOLINT
+  void PrintDescriptorDetails(std::ostream& os, int descriptor,
+                              PropertyDetails::PrintMode mode);
+
 #if defined(DEBUG) || defined(OBJECT_PRINT)
   // For our gdb macros, we should perhaps change these in the future.
   void Print();
-
-  // Print all the descriptors.
-  void PrintDescriptors(std::ostream& os);  // NOLINT
-
-  void PrintDescriptorDetails(std::ostream& os, int descriptor,
-                              PropertyDetails::PrintMode mode);
 #endif
+
+  DECL_VERIFIER(DescriptorArray)
 
 #ifdef DEBUG
   // Is the descriptor array sorted and without duplicates?

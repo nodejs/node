@@ -45,10 +45,12 @@ TEST_F(StateValuesIteratorTest, SimpleIteration) {
 TEST_F(StateValuesIteratorTest, EmptyIteration) {
   NodeVector inputs(zone());
   Node* state_values = StateValuesFromVector(&inputs);
+  bool empty = true;
   for (auto node : StateValuesAccess(state_values)) {
     USE(node);
-    FAIL();
+    empty = false;
   }
+  EXPECT_TRUE(empty);
 }
 
 

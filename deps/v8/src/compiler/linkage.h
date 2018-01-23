@@ -166,28 +166,25 @@ class V8_EXPORT_PRIVATE CallDescriptor final
  public:
   // Describes the kind of this call, which determines the target.
   enum Kind {
-    kCallCodeObject,  // target is a Code object
-    kCallJSFunction,  // target is a JSFunction object
-    kCallAddress      // target is a machine pointer
+    kCallCodeObject,   // target is a Code object
+    kCallJSFunction,   // target is a JSFunction object
+    kCallAddress,      // target is a machine pointer
+    kCallWasmFunction  // target is a wasm function
   };
 
   enum Flag {
     kNoFlags = 0u,
     kNeedsFrameState = 1u << 0,
     kHasExceptionHandler = 1u << 1,
-    kSupportsTailCalls = 1u << 2,
-    kCanUseRoots = 1u << 3,
-    // (arm64 only) native stack should be used for arguments.
-    kUseNativeStack = 1u << 4,
-    // (arm64 only) call instruction has to restore JSSP or CSP.
-    kRestoreJSSP = 1u << 5,
-    kRestoreCSP = 1u << 6,
+    kCanUseRoots = 1u << 2,
     // Causes the code generator to initialize the root register.
-    kInitializeRootRegister = 1u << 7,
+    kInitializeRootRegister = 1u << 3,
     // Does not ever try to allocate space on our heap.
-    kNoAllocate = 1u << 8,
+    kNoAllocate = 1u << 4,
     // Push argument count as part of function prologue.
-    kPushArgumentCount = 1u << 9
+    kPushArgumentCount = 1u << 5,
+    // Use retpoline for this call if indirect.
+    kRetpoline = 1u << 6
   };
   typedef base::Flags<Flag> Flags;
 
@@ -197,12 +194,14 @@ class V8_EXPORT_PRIVATE CallDescriptor final
                  RegList callee_saved_registers,
                  RegList callee_saved_fp_registers, Flags flags,
                  const char* debug_name = "",
-                 const RegList allocatable_registers = 0)
+                 const RegList allocatable_registers = 0,
+                 size_t stack_return_count = 0)
       : kind_(kind),
         target_type_(target_type),
         target_loc_(target_loc),
         location_sig_(location_sig),
         stack_param_count_(stack_param_count),
+        stack_return_count_(stack_return_count),
         properties_(properties),
         callee_saved_registers_(callee_saved_registers),
         callee_saved_fp_registers_(callee_saved_fp_registers),
@@ -232,6 +231,9 @@ class V8_EXPORT_PRIVATE CallDescriptor final
   // The number of stack parameters to the call.
   size_t StackParameterCount() const { return stack_param_count_; }
 
+  // The number of stack return values from the call.
+  size_t StackReturnCount() const { return stack_return_count_; }
+
   // The number of parameters to the JS function call.
   size_t JSParameterCount() const {
     DCHECK(IsJSFunctionCall());
@@ -248,8 +250,6 @@ class V8_EXPORT_PRIVATE CallDescriptor final
   Flags flags() const { return flags_; }
 
   bool NeedsFrameState() const { return flags() & kNeedsFrameState; }
-  bool SupportsTailCalls() const { return flags() & kSupportsTailCalls; }
-  bool UseNativeStack() const { return flags() & kUseNativeStack; }
   bool PushArgumentCount() const { return flags() & kPushArgumentCount; }
   bool InitializeRootRegister() const {
     return flags() & kInitializeRootRegister;
@@ -294,7 +294,10 @@ class V8_EXPORT_PRIVATE CallDescriptor final
 
   bool HasSameReturnLocationsAs(const CallDescriptor* other) const;
 
-  int GetStackParameterDelta(const CallDescriptor* tail_caller = nullptr) const;
+  // Returns the first stack slot that is not used by the stack parameters.
+  int GetFirstUnusedStackSlot() const;
+
+  int GetStackParameterDelta(const CallDescriptor* tail_caller) const;
 
   bool CanTailCall(const Node* call) const;
 
@@ -319,6 +322,7 @@ class V8_EXPORT_PRIVATE CallDescriptor final
   const LinkageLocation target_loc_;
   const LocationSignature* const location_sig_;
   const size_t stack_param_count_;
+  const size_t stack_return_count_;
   const Operator::Properties properties_;
   const RegList callee_saved_registers_;
   const RegList callee_saved_fp_registers_;

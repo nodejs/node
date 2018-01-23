@@ -133,7 +133,7 @@ InfoVectorPair CompilationCacheScript::Lookup(
   // into the caller's handle scope.
   { HandleScope scope(isolate());
     const int generation = 0;
-    DCHECK(generations() == 1);
+    DCHECK_EQ(generations(), 1);
     Handle<CompilationCacheTable> table = GetTable(generation);
     InfoVectorPair probe = table->LookupScript(source, context, language_mode);
     if (probe.has_shared()) {
@@ -195,7 +195,7 @@ InfoVectorPair CompilationCacheEval::Lookup(
   // having cleared the cache.
   InfoVectorPair result;
   const int generation = 0;
-  DCHECK(generations() == 1);
+  DCHECK_EQ(generations(), 1);
   Handle<CompilationCacheTable> table = GetTable(generation);
   result = table->LookupEval(source, outer_info, native_context, language_mode,
                              position);
@@ -284,7 +284,7 @@ InfoVectorPair CompilationCache::LookupEval(
     result = eval_global_.Lookup(source, outer_info, context, language_mode,
                                  position);
   } else {
-    DCHECK(position != kNoSourcePosition);
+    DCHECK_NE(position, kNoSourcePosition);
     Handle<Context> native_context(context->native_context(), isolate());
     result = eval_contextual_.Lookup(source, outer_info, native_context,
                                      language_mode, position);
@@ -321,7 +321,7 @@ void CompilationCache::PutEval(Handle<String> source,
     eval_global_.Put(source, outer_info, function_info, context, literals,
                      position);
   } else {
-    DCHECK(position != kNoSourcePosition);
+    DCHECK_NE(position, kNoSourcePosition);
     Handle<Context> native_context(context->native_context(), isolate());
     eval_contextual_.Put(source, outer_info, function_info, native_context,
                          literals, position);

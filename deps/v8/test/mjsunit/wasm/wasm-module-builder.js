@@ -121,9 +121,25 @@ class WasmFunctionBuilder {
     return this;
   }
 
+  getNumLocals() {
+    let total_locals = 0;
+    for (let l of this.locals || []) {
+      for (let type of ["i32", "i64", "f32", "f64", "s128"]) {
+        total_locals += l[type + "_count"] || 0;
+      }
+    }
+    return total_locals;
+  }
+
   addLocals(locals, names) {
-    this.locals = locals;
-    this.local_names = names;
+    const old_num_locals = this.getNumLocals();
+    if (!this.locals) this.locals = []
+    this.locals.push(locals);
+    if (names) {
+      if (!this.local_names) this.local_names = [];
+      const missing_names = old_num_locals - this.local_names.length;
+      this.local_names.push(...new Array(missing_names), ...names);
+    }
     return this;
   }
 
@@ -409,7 +425,6 @@ class WasmModuleBuilder {
         }
         section.emit_u32v(wasm.memory.min);
         if (has_max) section.emit_u32v(wasm.memory.max);
-        if (wasm.memory.shared) section.emit_u8(1);
       });
     }
 
@@ -538,9 +553,7 @@ class WasmModuleBuilder {
         for (let func of wasm.functions) {
           // Function body length will be patched later.
           let local_decls = [];
-          let l = func.locals;
-          if (l !== undefined) {
-            let local_decls_count = 0;
+          for (let l of func.locals || []) {
             if (l.i32_count > 0) {
               local_decls.push({count: l.i32_count, type: kWasmI32});
             }

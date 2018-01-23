@@ -172,3 +172,26 @@ function testOOBThrows() {
 }
 
 testOOBThrows();
+
+function testAddressSpaceLimit() {
+  // 1TiB, see wasm-memory.h
+  const kMaxAddressSpace = 1 * 1024 * 1024 * 1024 * 1024;
+  const kAddressSpacePerMemory = 8 * 1024 * 1024 * 1024;
+
+  try {
+    let memories = [];
+    let address_space = 0;
+    while (address_space <= kMaxAddressSpace + 1) {
+      memories.push(new WebAssembly.Memory({initial: 1}));
+      address_space += kAddressSpacePerMemory;
+    }
+  } catch (e) {
+    assertTrue(e instanceof RangeError);
+    return;
+  }
+  failWithMessage("allocated too much memory");
+}
+
+if(%IsWasmTrapHandlerEnabled()) {
+  testAddressSpaceLimit();
+}

@@ -63,13 +63,13 @@ class CounterMap {
   Counter* Lookup(const char* name) {
     base::HashMap::Entry* answer =
         hash_map_.Lookup(const_cast<char*>(name), Hash(name));
-    if (!answer) return NULL;
+    if (!answer) return nullptr;
     return reinterpret_cast<Counter*>(answer->value);
   }
   void Set(const char* name, Counter* value) {
     base::HashMap::Entry* answer =
         hash_map_.LookupOrInsert(const_cast<char*>(name), Hash(name));
-    DCHECK(answer != NULL);
+    DCHECK_NOT_NULL(answer);
     answer->value = value;
   }
   class Iterator {
@@ -77,7 +77,7 @@ class CounterMap {
     explicit Iterator(CounterMap* map)
         : map_(&map->hash_map_), entry_(map_->Start()) { }
     void Next() { entry_ = map_->Next(entry_); }
-    bool More() { return entry_ != NULL; }
+    bool More() { return entry_ != nullptr; }
     const char* CurrentKey() { return static_cast<const char*>(entry_->key); }
     Counter* CurrentValue() { return static_cast<Counter*>(entry_->value); }
    private:
@@ -94,13 +94,13 @@ class CounterMap {
 
 class SourceGroup {
  public:
-  SourceGroup() :
-      next_semaphore_(0),
-      done_semaphore_(0),
-      thread_(NULL),
-      argv_(NULL),
-      begin_offset_(0),
-      end_offset_(0) {}
+  SourceGroup()
+      : next_semaphore_(0),
+        done_semaphore_(0),
+        thread_(nullptr),
+        argv_(nullptr),
+        begin_offset_(0),
+        end_offset_(0) {}
 
   ~SourceGroup();
 
@@ -120,8 +120,7 @@ class SourceGroup {
  private:
   class IsolateThread : public base::Thread {
    public:
-    explicit IsolateThread(SourceGroup* group)
-        : base::Thread(GetThreadOptions()), group_(group) {}
+    explicit IsolateThread(SourceGroup* group);
 
     virtual void Run() {
       group_->ExecuteInThread();
@@ -131,7 +130,6 @@ class SourceGroup {
     SourceGroup* group_;
   };
 
-  static base::Thread::Options GetThreadOptions();
   void ExecuteInThread();
 
   base::Semaphore next_semaphore_;
@@ -151,28 +149,36 @@ class SourceGroup {
 class ExternalizedContents {
  public:
   explicit ExternalizedContents(const ArrayBuffer::Contents& contents)
-      : data_(contents.Data()), size_(contents.ByteLength()) {}
+      : base_(contents.AllocationBase()),
+        length_(contents.AllocationLength()),
+        mode_(contents.AllocationMode()) {}
   explicit ExternalizedContents(const SharedArrayBuffer::Contents& contents)
-      : data_(contents.Data()), size_(contents.ByteLength()) {}
+      : base_(contents.AllocationBase()),
+        length_(contents.AllocationLength()),
+        mode_(contents.AllocationMode()) {}
   ExternalizedContents(ExternalizedContents&& other)
-      : data_(other.data_), size_(other.size_) {
-    other.data_ = nullptr;
-    other.size_ = 0;
+      : base_(other.base_), length_(other.length_), mode_(other.mode_) {
+    other.base_ = nullptr;
+    other.length_ = 0;
+    other.mode_ = ArrayBuffer::Allocator::AllocationMode::kNormal;
   }
   ExternalizedContents& operator=(ExternalizedContents&& other) {
     if (this != &other) {
-      data_ = other.data_;
-      size_ = other.size_;
-      other.data_ = nullptr;
-      other.size_ = 0;
+      base_ = other.base_;
+      length_ = other.length_;
+      mode_ = other.mode_;
+      other.base_ = nullptr;
+      other.length_ = 0;
+      other.mode_ = ArrayBuffer::Allocator::AllocationMode::kNormal;
     }
     return *this;
   }
   ~ExternalizedContents();
 
  private:
-  void* data_;
-  size_t size_;
+  void* base_;
+  size_t length_;
+  ArrayBuffer::Allocator::AllocationMode mode_;
 
   DISALLOW_COPY_AND_ASSIGN(ExternalizedContents);
 };
@@ -282,6 +288,12 @@ class Worker {
 
 class ShellOptions {
  public:
+  enum CodeCacheOptions {
+    kNoProduceCache,
+    kProduceCache,
+    kProduceCacheAfterExecute
+  };
+
   ShellOptions()
       : script_executed(false),
         send_idle_notification(false),
@@ -297,13 +309,16 @@ class ShellOptions {
         enable_inspector(false),
         num_isolates(1),
         compile_options(v8::ScriptCompiler::kNoCompileOptions),
-        isolate_sources(NULL),
-        icu_data_file(NULL),
-        natives_blob(NULL),
-        snapshot_blob(NULL),
+        stress_background_compile(false),
+        code_cache_options(CodeCacheOptions::kNoProduceCache),
+        isolate_sources(nullptr),
+        icu_data_file(nullptr),
+        natives_blob(nullptr),
+        snapshot_blob(nullptr),
         trace_enabled(false),
-        trace_config(NULL),
-        lcov_file(NULL),
+        trace_path(nullptr),
+        trace_config(nullptr),
+        lcov_file(nullptr),
         disable_in_process_stack_traces(false),
         read_from_tcp_port(-1) {}
 
@@ -329,23 +344,24 @@ class ShellOptions {
   bool enable_inspector;
   int num_isolates;
   v8::ScriptCompiler::CompileOptions compile_options;
+  bool stress_background_compile;
+  CodeCacheOptions code_cache_options;
   SourceGroup* isolate_sources;
   const char* icu_data_file;
   const char* natives_blob;
   const char* snapshot_blob;
   bool trace_enabled;
+  const char* trace_path;
   const char* trace_config;
   const char* lcov_file;
   bool disable_in_process_stack_traces;
   int read_from_tcp_port;
   bool enable_os_system = false;
+  bool quiet_load = false;
 };
 
 class Shell : public i::AllStatic {
  public:
-  static MaybeLocal<Script> CompileString(
-      Isolate* isolate, Local<String> source, Local<Value> name,
-      v8::ScriptCompiler::CompileOptions compile_options);
   static bool ExecuteString(Isolate* isolate, Local<String> source,
                             Local<Value> name, bool print_result,
                             bool report_exceptions);
@@ -358,7 +374,7 @@ class Shell : public i::AllStatic {
   static void Exit(int exit_code);
   static void OnExit(Isolate* isolate);
   static void CollectGarbage(Isolate* isolate);
-  static void EmptyMessageQueues(Isolate* isolate);
+  static bool EmptyMessageQueues(Isolate* isolate);
   static void EnsureEventLoopInitialized(Isolate* isolate);
   static void CompleteMessageLoop(Isolate* isolate);
 
@@ -450,6 +466,9 @@ class Shell : public i::AllStatic {
   static MaybeLocal<Promise> HostImportModuleDynamically(
       Local<Context> context, Local<ScriptOrModule> referrer,
       Local<String> specifier);
+  static void HostInitializeImportMetaObject(Local<Context> context,
+                                             Local<Module> module,
+                                             Local<Object> meta);
 
   // Data is of type DynamicImportData*. We use void* here to be able
   // to conform with MicrotaskCallback interface and enqueue this
@@ -500,10 +519,18 @@ class Shell : public i::AllStatic {
                            int index);
   static MaybeLocal<Module> FetchModuleTree(v8::Local<v8::Context> context,
                                             const std::string& file_name);
+  static ScriptCompiler::CachedData* LookupCodeCache(Isolate* isolate,
+                                                     Local<Value> name);
+  static void StoreInCodeCache(Isolate* isolate, Local<Value> name,
+                               const ScriptCompiler::CachedData* data);
   // We may have multiple isolates running concurrently, so the access to
   // the isolate_status_ needs to be concurrency-safe.
   static base::LazyMutex isolate_status_lock_;
   static std::map<Isolate*, bool> isolate_status_;
+
+  static base::LazyMutex cached_code_mutex_;
+  static std::map<std::string, std::unique_ptr<ScriptCompiler::CachedData>>
+      cached_code_map_;
 };
 
 

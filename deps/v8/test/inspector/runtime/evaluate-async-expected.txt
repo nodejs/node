@@ -43,7 +43,7 @@ Running test: testRejectedPromiseWithError
             columnNumber : 11
             exception : {
                 className : Error
-                description : Error: MyError     at foo (<anonymous>:13:11)     at throwError (<anonymous>:15:3)     at <anonymous>
+                description : Error: MyError     at foo (<anonymous>:13:11)     at throwError (<anonymous>:15:3)
                 objectId : <objectId>
                 subtype : error
                 type : object
@@ -58,14 +58,14 @@ Running test: testRejectedPromiseWithError
                         functionName : foo
                         lineNumber : 12
                         scriptId : <scriptId>
-                        url : 
+                        url :
                     }
                     [1] : {
                         columnNumber : 2
                         functionName : throwError
                         lineNumber : 14
                         scriptId : <scriptId>
-                        url : 
+                        url :
                     }
                 ]
             }
@@ -73,7 +73,7 @@ Running test: testRejectedPromiseWithError
         }
         result : {
             className : Error
-            description : Error: MyError     at foo (<anonymous>:13:11)     at throwError (<anonymous>:15:3)     at <anonymous>
+            description : Error: MyError     at foo (<anonymous>:13:11)     at throwError (<anonymous>:15:3)
             objectId : <objectId>
             subtype : error
             type : object
@@ -89,7 +89,7 @@ Running test: testRejectedPromiseWithSyntaxError
             columnNumber : 5
             exception : {
                 className : SyntaxError
-                description : SyntaxError: Unexpected token }     at foo (<anonymous>:21:5)     at throwSyntaxError (<anonymous>:23:3)     at <anonymous>
+                description : SyntaxError: Unexpected token }     at foo (<anonymous>:21:5)     at throwSyntaxError (<anonymous>:23:3)
                 objectId : <objectId>
                 subtype : error
                 type : object
@@ -104,14 +104,14 @@ Running test: testRejectedPromiseWithSyntaxError
                         functionName : foo
                         lineNumber : 20
                         scriptId : <scriptId>
-                        url : 
+                        url :
                     }
                     [1] : {
                         columnNumber : 2
                         functionName : throwSyntaxError
                         lineNumber : 22
                         scriptId : <scriptId>
-                        url : 
+                        url :
                     }
                 ]
             }
@@ -119,7 +119,7 @@ Running test: testRejectedPromiseWithSyntaxError
         }
         result : {
             className : SyntaxError
-            description : SyntaxError: Unexpected token }     at foo (<anonymous>:21:5)     at throwSyntaxError (<anonymous>:23:3)     at <anonymous>
+            description : SyntaxError: Unexpected token }     at foo (<anonymous>:21:5)     at throwSyntaxError (<anonymous>:23:3)
             objectId : <objectId>
             subtype : error
             type : object

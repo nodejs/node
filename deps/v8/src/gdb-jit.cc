@@ -121,7 +121,7 @@ class Writer BASE_EMBEDDED {
     if (delta == 0) return;
     uintptr_t padding = align - delta;
     Ensure(position_ += padding);
-    DCHECK((position_ % align) == 0);
+    DCHECK_EQ(position_ % align, 0);
   }
 
   void WriteULEB128(uintptr_t value) {
@@ -222,7 +222,7 @@ class MachOSection : public DebugSectionBase<MachOSectionHeader> {
  public:
   enum Type {
     S_REGULAR = 0x0u,
-    S_ATTR_COALESCED = 0xbu,
+    S_ATTR_COALESCED = 0xBu,
     S_ATTR_SOME_INSTRUCTIONS = 0x400u,
     S_ATTR_DEBUG = 0x02000000u,
     S_ATTR_PURE_INSTRUCTIONS = 0x80000000u
@@ -297,9 +297,9 @@ class ELFSection : public DebugSectionBase<ELFSectionHeader> {
     TYPE_DYNSYM = 11,
     TYPE_LOPROC = 0x70000000,
     TYPE_X86_64_UNWIND = 0x70000001,
-    TYPE_HIPROC = 0x7fffffff,
+    TYPE_HIPROC = 0x7FFFFFFF,
     TYPE_LOUSER = 0x80000000,
-    TYPE_HIUSER = 0xffffffff
+    TYPE_HIUSER = 0xFFFFFFFF
   };
 
   enum Flags {
@@ -308,9 +308,7 @@ class ELFSection : public DebugSectionBase<ELFSectionHeader> {
     FLAG_EXEC = 4
   };
 
-  enum SpecialIndexes {
-    INDEX_ABSOLUTE = 0xfff1
-  };
+  enum SpecialIndexes { INDEX_ABSOLUTE = 0xFFF1 };
 
   ELFSection(const char* name, Type type, uintptr_t align)
       : name_(name), type_(type), align_(align) { }
@@ -416,8 +414,10 @@ class FullHeaderELFSection : public ELFSection {
 class ELFStringTable : public ELFSection {
  public:
   explicit ELFStringTable(const char* name)
-      : ELFSection(name, TYPE_STRTAB, 1), writer_(NULL), offset_(0), size_(0) {
-  }
+      : ELFSection(name, TYPE_STRTAB, 1),
+        writer_(nullptr),
+        offset_(0),
+        size_(0) {}
 
   uintptr_t Add(const char* str) {
     if (*str == '\0') return 0;
@@ -435,12 +435,10 @@ class ELFStringTable : public ELFSection {
     WriteString("");
   }
 
-  void DetachWriter() {
-    writer_ = NULL;
-  }
+  void DetachWriter() { writer_ = nullptr; }
 
   virtual void WriteBody(Writer::Slot<Header> header, Writer* w) {
-    DCHECK(writer_ == NULL);
+    DCHECK_NULL(writer_);
     header->offset = offset_;
     header->size = size_;
   }
@@ -533,7 +531,7 @@ class MachO BASE_EMBEDDED {
 
 
   Writer::Slot<MachOHeader> WriteHeader(Writer* w) {
-    DCHECK(w->position() == 0);
+    DCHECK_EQ(w->position(), 0);
     Writer::Slot<MachOHeader> header = w->CreateSlotHere<MachOHeader>();
 #if V8_TARGET_ARCH_IA32
     header->magic = 0xFEEDFACEu;
@@ -646,24 +644,24 @@ class ELF BASE_EMBEDDED {
 
 
   void WriteHeader(Writer* w) {
-    DCHECK(w->position() == 0);
+    DCHECK_EQ(w->position(), 0);
     Writer::Slot<ELFHeader> header = w->CreateSlotHere<ELFHeader>();
 #if (V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_ARM || \
      (V8_TARGET_ARCH_X64 && V8_TARGET_ARCH_32_BIT))
-    const uint8_t ident[16] =
-        { 0x7f, 'E', 'L', 'F', 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+    const uint8_t ident[16] = {0x7F, 'E', 'L', 'F', 1, 1, 1, 0,
+                               0,    0,   0,   0,   0, 0, 0, 0};
 #elif(V8_TARGET_ARCH_X64 && V8_TARGET_ARCH_64_BIT) || \
     (V8_TARGET_ARCH_PPC64 && V8_TARGET_LITTLE_ENDIAN)
-    const uint8_t ident[16] =
-        { 0x7f, 'E', 'L', 'F', 2, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+    const uint8_t ident[16] = {0x7F, 'E', 'L', 'F', 2, 1, 1, 0,
+                               0,    0,   0,   0,   0, 0, 0, 0};
 #elif V8_TARGET_ARCH_PPC64 && V8_TARGET_BIG_ENDIAN && V8_OS_LINUX
-    const uint8_t ident[16] = {0x7f, 'E', 'L', 'F', 2, 2, 1, 0,
+    const uint8_t ident[16] = {0x7F, 'E', 'L', 'F', 2, 2, 1, 0,
                                0,    0,   0,   0,   0, 0, 0, 0};
 #elif V8_TARGET_ARCH_S390X
-    const uint8_t ident[16] = {0x7f, 'E', 'L', 'F', 2, 2, 1, 3,
+    const uint8_t ident[16] = {0x7F, 'E', 'L', 'F', 2, 2, 1, 3,
                                0,    0,   0,   0,   0, 0, 0, 0};
 #elif V8_TARGET_ARCH_S390
-    const uint8_t ident[16] = {0x7f, 'E', 'L', 'F', 1, 2, 1, 3,
+    const uint8_t ident[16] = {0x7F, 'E', 'L', 'F', 1, 2, 1, 3,
                                0,    0,   0,   0,   0, 0, 0, 0};
 #else
 #error Unsupported target architecture.
@@ -973,7 +971,7 @@ class CodeDescription BASE_EMBEDDED {
     return kind == Code::OPTIMIZED_FUNCTION;
   }
 
-  bool has_scope_info() const { return shared_info_ != NULL; }
+  bool has_scope_info() const { return shared_info_ != nullptr; }
 
   ScopeInfo* scope_info() const {
     DCHECK(has_scope_info());
@@ -993,7 +991,7 @@ class CodeDescription BASE_EMBEDDED {
   }
 
   bool has_script() {
-    return shared_info_ != NULL && shared_info_->script()->IsScript();
+    return shared_info_ != nullptr && shared_info_->script()->IsScript();
   }
 
   Script* script() { return Script::cast(shared_info_->script()); }
@@ -1001,7 +999,7 @@ class CodeDescription BASE_EMBEDDED {
   bool IsLineInfoAvailable() {
     return has_script() && script()->source()->IsString() &&
            script()->HasValidSource() && script()->name()->IsString() &&
-           lineinfo_ != NULL;
+           lineinfo_ != nullptr;
   }
 
 #if V8_TARGET_ARCH_X64
@@ -1089,12 +1087,12 @@ class DebugInfoSection : public DebugSection {
     DW_OP_reg7 = 0x57,
     DW_OP_reg8 = 0x58,
     DW_OP_reg9 = 0x59,
-    DW_OP_reg10 = 0x5a,
-    DW_OP_reg11 = 0x5b,
-    DW_OP_reg12 = 0x5c,
-    DW_OP_reg13 = 0x5d,
-    DW_OP_reg14 = 0x5e,
-    DW_OP_reg15 = 0x5f,
+    DW_OP_reg10 = 0x5A,
+    DW_OP_reg11 = 0x5B,
+    DW_OP_reg12 = 0x5C,
+    DW_OP_reg13 = 0x5D,
+    DW_OP_reg14 = 0x5E,
+    DW_OP_reg15 = 0x5F,
     DW_OP_reg16 = 0x60,
     DW_OP_reg17 = 0x61,
     DW_OP_reg18 = 0x62,
@@ -1105,12 +1103,12 @@ class DebugInfoSection : public DebugSection {
     DW_OP_reg23 = 0x67,
     DW_OP_reg24 = 0x68,
     DW_OP_reg25 = 0x69,
-    DW_OP_reg26 = 0x6a,
-    DW_OP_reg27 = 0x6b,
-    DW_OP_reg28 = 0x6c,
-    DW_OP_reg29 = 0x6d,
-    DW_OP_reg30 = 0x6e,
-    DW_OP_reg31 = 0x6f,
+    DW_OP_reg26 = 0x6A,
+    DW_OP_reg27 = 0x6B,
+    DW_OP_reg28 = 0x6C,
+    DW_OP_reg29 = 0x6D,
+    DW_OP_reg30 = 0x6E,
+    DW_OP_reg31 = 0x6F,
     DW_OP_fbreg = 0x91  // 1 param: SLEB128 offset
   };
 
@@ -1198,11 +1196,11 @@ class DebugInfoSection : public DebugSection {
       }
 
       // See contexts.h for more information.
-      DCHECK(Context::MIN_CONTEXT_SLOTS == 4);
-      DCHECK(Context::CLOSURE_INDEX == 0);
-      DCHECK(Context::PREVIOUS_INDEX == 1);
-      DCHECK(Context::EXTENSION_INDEX == 2);
-      DCHECK(Context::NATIVE_CONTEXT_INDEX == 3);
+      DCHECK_EQ(Context::MIN_CONTEXT_SLOTS, 4);
+      DCHECK_EQ(Context::CLOSURE_INDEX, 0);
+      DCHECK_EQ(Context::PREVIOUS_INDEX, 1);
+      DCHECK_EQ(Context::EXTENSION_INDEX, 2);
+      DCHECK_EQ(Context::NATIVE_CONTEXT_INDEX, 3);
       w->WriteULEB128(current_abbreviation++);
       w->WriteString(".closure");
       w->WriteULEB128(current_abbreviation++);
@@ -1286,11 +1284,11 @@ class DebugAbbrevSection : public DebugSection {
   // DWARF2 standard, figure 14.
   enum DWARF2Tags {
     DW_TAG_FORMAL_PARAMETER = 0x05,
-    DW_TAG_POINTER_TYPE = 0xf,
+    DW_TAG_POINTER_TYPE = 0xF,
     DW_TAG_COMPILE_UNIT = 0x11,
     DW_TAG_STRUCTURE_TYPE = 0x13,
     DW_TAG_BASE_TYPE = 0x24,
-    DW_TAG_SUBPROGRAM = 0x2e,
+    DW_TAG_SUBPROGRAM = 0x2E,
     DW_TAG_VARIABLE = 0x34
   };
 
@@ -1304,11 +1302,11 @@ class DebugAbbrevSection : public DebugSection {
   enum DWARF2Attribute {
     DW_AT_LOCATION = 0x2,
     DW_AT_NAME = 0x3,
-    DW_AT_BYTE_SIZE = 0xb,
+    DW_AT_BYTE_SIZE = 0xB,
     DW_AT_STMT_LIST = 0x10,
     DW_AT_LOW_PC = 0x11,
     DW_AT_HIGH_PC = 0x12,
-    DW_AT_ENCODING = 0x3e,
+    DW_AT_ENCODING = 0x3E,
     DW_AT_FRAME_BASE = 0x40,
     DW_AT_TYPE = 0x49
   };
@@ -1320,8 +1318,8 @@ class DebugAbbrevSection : public DebugSection {
     DW_FORM_STRING = 0x8,
     DW_FORM_DATA4 = 0x6,
     DW_FORM_BLOCK = 0x9,
-    DW_FORM_DATA1 = 0xb,
-    DW_FORM_FLAG = 0xc,
+    DW_FORM_DATA1 = 0xB,
+    DW_FORM_FLAG = 0xC,
     DW_FORM_REF4 = 0x13
   };
 
@@ -1684,7 +1682,7 @@ void UnwindInfoSection::WriteLength(Writer* w,
     }
   }
 
-  DCHECK((w->position() - initial_position) % kPointerSize == 0);
+  DCHECK_EQ((w->position() - initial_position) % kPointerSize, 0);
   length_slot->set(static_cast<uint32_t>(w->position() - initial_position));
 }
 
@@ -1897,7 +1895,7 @@ static JITCodeEntry* CreateCodeEntry(Address symfile_addr,
   entry->symfile_size_ = symfile_size;
   MemCopy(entry->symfile_addr_, symfile_addr, symfile_size);
 
-  entry->prev_ = entry->next_ = NULL;
+  entry->prev_ = entry->next_ = nullptr;
 
   return entry;
 }
@@ -1910,7 +1908,7 @@ static void DestroyCodeEntry(JITCodeEntry* entry) {
 
 static void RegisterCodeEntry(JITCodeEntry* entry) {
   entry->next_ = __jit_debug_descriptor.first_entry_;
-  if (entry->next_ != NULL) entry->next_->prev_ = entry;
+  if (entry->next_ != nullptr) entry->next_->prev_ = entry;
   __jit_debug_descriptor.first_entry_ =
       __jit_debug_descriptor.relevant_entry_ = entry;
 
@@ -1920,13 +1918,13 @@ static void RegisterCodeEntry(JITCodeEntry* entry) {
 
 
 static void UnregisterCodeEntry(JITCodeEntry* entry) {
-  if (entry->prev_ != NULL) {
+  if (entry->prev_ != nullptr) {
     entry->prev_->next_ = entry->next_;
   } else {
     __jit_debug_descriptor.first_entry_ = entry->next_;
   }
 
-  if (entry->next_ != NULL) {
+  if (entry->next_ != nullptr) {
     entry->next_->prev_ = entry->prev_;
   }
 
@@ -1984,7 +1982,7 @@ struct SplayTreeConfig {
   typedef AddressRange Key;
   typedef JITCodeEntry* Value;
   static const AddressRange kNoKey;
-  static Value NoValue() { return NULL; }
+  static Value NoValue() { return nullptr; }
   static int Compare(const AddressRange& a, const AddressRange& b) {
     // ptrdiff_t probably doesn't fit in an int.
     if (a.start < b.start) return -1;
@@ -1997,8 +1995,8 @@ const AddressRange SplayTreeConfig::kNoKey = {0, 0};
 typedef SplayTree<SplayTreeConfig> CodeMap;
 
 static CodeMap* GetCodeMap() {
-  static CodeMap* code_map = NULL;
-  if (code_map == NULL) code_map = new CodeMap();
+  static CodeMap* code_map = nullptr;
+  if (code_map == nullptr) code_map = new CodeMap();
   return code_map;
 }
 
@@ -2010,8 +2008,8 @@ static uint32_t HashCodeAddress(Address addr) {
 }
 
 static base::HashMap* GetLineMap() {
-  static base::HashMap* line_map = NULL;
-  if (line_map == NULL) {
+  static base::HashMap* line_map = nullptr;
+  if (line_map == nullptr) {
     line_map = new base::HashMap();
   }
   return line_map;
@@ -2022,7 +2020,7 @@ static void PutLineInfo(Address addr, LineInfo* info) {
   base::HashMap* line_map = GetLineMap();
   base::HashMap::Entry* e =
       line_map->LookupOrInsert(addr, HashCodeAddress(addr));
-  if (e->value != NULL) delete static_cast<LineInfo*>(e->value);
+  if (e->value != nullptr) delete static_cast<LineInfo*>(e->value);
   e->value = info;
 }
 
@@ -2115,7 +2113,7 @@ static void AddJITCodeEntry(CodeMap* map, const AddressRange& range,
     char file_name[64];
 
     SNPrintF(Vector<char>(file_name, kMaxFileNameSize), "/tmp/elfdump%s%d.o",
-             (name_hint != NULL) ? name_hint : "", file_num++);
+             (name_hint != nullptr) ? name_hint : "", file_num++);
     WriteBytes(file_name, entry->symfile_addr_,
                static_cast<int>(entry->symfile_size_));
   }
@@ -2152,15 +2150,15 @@ static void AddCode(const char* name, Code* code, SharedFunctionInfo* shared,
 
   delete lineinfo;
 
-  const char* name_hint = NULL;
+  const char* name_hint = nullptr;
   bool should_dump = false;
   if (FLAG_gdbjit_dump) {
     if (strlen(FLAG_gdbjit_dump_filter) == 0) {
       name_hint = name;
       should_dump = true;
-    } else if (name != NULL) {
+    } else if (name != nullptr) {
       name_hint = strstr(name, FLAG_gdbjit_dump_filter);
-      should_dump = (name_hint != NULL);
+      should_dump = (name_hint != nullptr);
     }
   }
   AddJITCodeEntry(code_map, range, entry, should_dump, name_hint);
@@ -2179,8 +2177,9 @@ void EventHandler(const v8::JitCodeEvent* event) {
       StringBuilder builder(buffer.start(), buffer.length());
       builder.AddSubstring(event->name.str, static_cast<int>(event->name.len));
       // It's called UnboundScript in the API but it's a SharedFunctionInfo.
-      SharedFunctionInfo* shared =
-          event->script.IsEmpty() ? NULL : *Utils::OpenHandle(*event->script);
+      SharedFunctionInfo* shared = event->script.IsEmpty()
+                                       ? nullptr
+                                       : *Utils::OpenHandle(*event->script);
       AddCode(builder.Finalize(), code, shared, lineinfo);
       break;
     }

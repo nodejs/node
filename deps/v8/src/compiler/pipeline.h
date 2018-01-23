@@ -9,6 +9,7 @@
 // Do not include anything from src/compiler here!
 #include "src/globals.h"
 #include "src/objects.h"
+#include "src/objects/code.h"
 #include "src/zone/zone-containers.h"
 
 namespace v8 {
@@ -44,29 +45,28 @@ class Pipeline : public AllStatic {
 
   // Returns a new compilation job for the WebAssembly compilation info.
   static CompilationJob* NewWasmCompilationJob(
-      CompilationInfo* info, JSGraph* jsgraph, CallDescriptor* descriptor,
-      SourcePositionTable* source_positions,
-      ZoneVector<trap_handler::ProtectedInstructionData>*
+      CompilationInfo* info, Isolate* isolate, JSGraph* jsgraph,
+      CallDescriptor* descriptor, SourcePositionTable* source_positions,
+      std::vector<trap_handler::ProtectedInstructionData>*
           protected_instructions,
       wasm::ModuleOrigin wasm_origin);
 
   // Run the pipeline on a machine graph and generate code. The {schedule} must
   // be valid, hence the given {graph} does not need to be schedulable.
-  static Handle<Code> GenerateCodeForCodeStub(Isolate* isolate,
-                                              CallDescriptor* call_descriptor,
-                                              Graph* graph, Schedule* schedule,
-                                              Code::Kind kind,
-                                              const char* debug_name,
-                                              JumpOptimizationInfo* jump_opt);
+  static Handle<Code> GenerateCodeForCodeStub(
+      Isolate* isolate, CallDescriptor* call_descriptor, Graph* graph,
+      Schedule* schedule, Code::Kind kind, const char* debug_name,
+      uint32_t stub_key, int32_t builtin_index, JumpOptimizationInfo* jump_opt);
 
   // Run the entire pipeline and generate a handle to a code object suitable for
   // testing.
-  static Handle<Code> GenerateCodeForTesting(CompilationInfo* info);
+  static Handle<Code> GenerateCodeForTesting(CompilationInfo* info,
+                                             Isolate* isolate);
 
   // Run the pipeline on a machine graph and generate code. If {schedule} is
   // {nullptr}, then compute a new schedule for code generation.
   static Handle<Code> GenerateCodeForTesting(CompilationInfo* info,
-                                             Graph* graph,
+                                             Isolate* isolate, Graph* graph,
                                              Schedule* schedule = nullptr);
 
   // Run just the register allocator phases.
@@ -76,9 +76,9 @@ class Pipeline : public AllStatic {
 
   // Run the pipeline on a machine graph and generate code. If {schedule} is
   // {nullptr}, then compute a new schedule for code generation.
-  static Handle<Code> GenerateCodeForTesting(
-      CompilationInfo* info, CallDescriptor* call_descriptor, Graph* graph,
-      Schedule* schedule = nullptr,
+  V8_EXPORT_PRIVATE static Handle<Code> GenerateCodeForTesting(
+      CompilationInfo* info, Isolate* isolate, CallDescriptor* call_descriptor,
+      Graph* graph, Schedule* schedule = nullptr,
       SourcePositionTable* source_positions = nullptr);
 
  private:

@@ -33,6 +33,7 @@
             '../test/benchmarks/benchmarks.gyp:*',
             '../test/debugger/debugger.gyp:*',
             '../test/default.gyp:*',
+            '../test/d8_default.gyp:*',
             '../test/intl/intl.gyp:*',
             '../test/message/message.gyp:*',
             '../test/mjsunit/mjsunit.gyp:*',
@@ -45,8 +46,7 @@
             '../tools/check-static-initializers.gyp:*',
             '../tools/gcmole/run_gcmole.gyp:*',
             '../tools/jsfunfuzz/jsfunfuzz.gyp:*',
-            '../tools/run-deopt-fuzzer.gyp:*',
-            '../tools/run-valgrind.gyp:*',
+            '../tools/run-num-fuzzer.gyp:*',
           ],
         }],
       ]

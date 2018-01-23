@@ -33,6 +33,7 @@
 .pydevproject
 .settings
 .vscode
+/Default/
 /_*
 /build
 /buildtools
@@ -49,10 +50,8 @@
 /test/benchmarks/data
 /test/fuzzer/wasm_corpus
 /test/fuzzer/wasm_corpus.tar.gz
+!/test/mjsunit/d8
 /test/mozilla/data
-/test/promises-aplus/promises-tests
-/test/promises-aplus/promises-tests.tar.gz
-/test/promises-aplus/sinon
 /test/test262/data
 /test/test262/data.tar
 /test/test262/harness
@@ -68,8 +67,12 @@
 !/testing/gtest/include/gtest/gtest_prod.h
 /third_party/*
 !/third_party/binutils
+!/third_party/colorama
+/third_party/colorama/src
 !/third_party/eu-strip
 !/third_party/inspector_protocol
+!/third_party/jinja2
+!/third_party/markupsafe
 /tools/clang
 /tools/gcmole/gcmole-tools
 /tools/gcmole/gcmole-tools.tar.gz
@@ -103,5 +106,3 @@ turbo*.cfg
 turbo*.dot
 turbo*.json
 v8.ignition_dispatches_table.json
-!/third_party/jinja2
-!/third_party/markupsafe

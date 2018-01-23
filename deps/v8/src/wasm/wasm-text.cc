@@ -101,17 +101,19 @@ void PrintWasmText(const WasmModule* module, const ModuleWireBytes& wire_bytes,
       case kExprIf:
       case kExprBlock:
       case kExprTry: {
-        BlockTypeOperand<false> operand(&i, i.pc());
+        BlockTypeOperand<Decoder::kNoValidate> operand(&i, i.pc());
         os << WasmOpcodes::OpcodeName(opcode);
-        for (unsigned i = 0; i < operand.arity; i++) {
-          os << " " << WasmOpcodes::TypeName(operand.read_entry(i));
+        if (operand.type == kWasmVar) {
+          os << " (type " << operand.sig_index << ")";
+        } else if (operand.out_arity() > 0) {
+          os << " " << WasmOpcodes::TypeName(operand.out_type(0));
         }
         control_depth++;
         break;
       }
       case kExprBr:
       case kExprBrIf: {
-        BreakDepthOperand<false> operand(&i, i.pc());
+        BreakDepthOperand<Decoder::kNoValidate> operand(&i, i.pc());
         os << WasmOpcodes::OpcodeName(opcode) << ' ' << operand.depth;
         break;
       }
@@ -123,45 +125,45 @@ void PrintWasmText(const WasmModule* module, const ModuleWireBytes& wire_bytes,
         os << "end";
         break;
       case kExprBrTable: {
-        BranchTableOperand<false> operand(&i, i.pc());
-        BranchTableIterator<false> iterator(&i, operand);
+        BranchTableOperand<Decoder::kNoValidate> operand(&i, i.pc());
+        BranchTableIterator<Decoder::kNoValidate> iterator(&i, operand);
         os << "br_table";
         while (iterator.has_next()) os << ' ' << iterator.next();
         break;
       }
       case kExprCallIndirect: {
-        CallIndirectOperand<false> operand(&i, i.pc());
+        CallIndirectOperand<Decoder::kNoValidate> operand(&i, i.pc());
         DCHECK_EQ(0, operand.table_index);
-        os << "call_indirect " << operand.index;
+        os << "call_indirect " << operand.sig_index;
         break;
       }
       case kExprCallFunction: {
-        CallFunctionOperand<false> operand(&i, i.pc());
+        CallFunctionOperand<Decoder::kNoValidate> operand(&i, i.pc());
         os << "call " << operand.index;
         break;
       }
       case kExprGetLocal:
       case kExprSetLocal:
       case kExprTeeLocal: {
-        LocalIndexOperand<false> operand(&i, i.pc());
+        LocalIndexOperand<Decoder::kNoValidate> operand(&i, i.pc());
         os << WasmOpcodes::OpcodeName(opcode) << ' ' << operand.index;
         break;
       }
       case kExprThrow:
       case kExprCatch: {
-        ExceptionIndexOperand<false> operand(&i, i.pc());
+        ExceptionIndexOperand<Decoder::kNoValidate> operand(&i, i.pc());
         os << WasmOpcodes::OpcodeName(opcode) << ' ' << operand.index;
         break;
       }
       case kExprGetGlobal:
       case kExprSetGlobal: {
-        GlobalIndexOperand<false> operand(&i, i.pc());
+        GlobalIndexOperand<Decoder::kNoValidate> operand(&i, i.pc());
         os << WasmOpcodes::OpcodeName(opcode) << ' ' << operand.index;
         break;
       }
 #define CASE_CONST(type, str, cast_type)                           \
   case kExpr##type##Const: {                                       \
-    Imm##type##Operand<false> operand(&i, i.pc());                 \
+    Imm##type##Operand<Decoder::kNoValidate> operand(&i, i.pc());  \
     os << #str ".const " << static_cast<cast_type>(operand.value); \
     break;                                                         \
   }
@@ -174,7 +176,8 @@ void PrintWasmText(const WasmModule* module, const ModuleWireBytes& wire_bytes,
 #define CASE_OPCODE(opcode, _, __) case kExpr##opcode:
         FOREACH_LOAD_MEM_OPCODE(CASE_OPCODE)
         FOREACH_STORE_MEM_OPCODE(CASE_OPCODE) {
-          MemoryAccessOperand<false> operand(&i, i.pc(), kMaxUInt32);
+          MemoryAccessOperand<Decoder::kNoValidate> operand(&i, i.pc(),
+                                                            kMaxUInt32);
           os << WasmOpcodes::OpcodeName(opcode) << " offset=" << operand.offset
              << " align=" << (1ULL << operand.alignment);
           break;
@@ -194,7 +197,8 @@ void PrintWasmText(const WasmModule* module, const ModuleWireBytes& wire_bytes,
         WasmOpcode atomic_opcode = i.prefixed_opcode();
         switch (atomic_opcode) {
           FOREACH_ATOMIC_OPCODE(CASE_OPCODE) {
-            MemoryAccessOperand<false> operand(&i, i.pc(), kMaxUInt32);
+            MemoryAccessOperand<Decoder::kNoValidate> operand(&i, i.pc(),
+                                                              kMaxUInt32);
             os << WasmOpcodes::OpcodeName(atomic_opcode)
                << " offset=" << operand.offset
                << " align=" << (1ULL << operand.alignment);

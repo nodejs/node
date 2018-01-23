@@ -220,13 +220,11 @@ assertThrows('fold(sum, 0, unreachable({}))', TypeError);
 assertThrows('fold(sum, 0, unreachable(false))', TypeError);
 assertThrows('fold(sum, 0, unreachable(37))', TypeError);
 
-// "next" is looked up each time.
-assertThrows('fold(sum, 0, remove_next_after(integers_until(10), 5))',
-             TypeError);
-// It is not called at any other time.
+// "next" is looked up only once during the iteration prologue (see
+// https://github.com/tc39/ecma262/pull/988)
+assertEquals(45, fold(sum, 0, remove_next_after(integers_until(10), 5)));
 assertEquals(45,
              fold(sum, 0, remove_next_after(integers_until(10), 10)));
-// It is not looked up too many times.
 assertEquals(45,
              fold(sum, 0, poison_next_after(integers_until(10), 10)));
 

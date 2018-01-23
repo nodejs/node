@@ -59,12 +59,15 @@ def read_config():
         jinja_dir = arg_options.jinja_dir
         if not jinja_dir:
             raise Exception("jinja directory must be specified")
+        jinja_dir = jinja_dir.decode('utf8')
         output_base = arg_options.output_base
         if not output_base:
             raise Exception("Base output directory must be specified")
+        output_base = output_base.decode('utf8')
         config_file = arg_options.config
         if not config_file:
             raise Exception("Config file name must be specified")
+        config_file = config_file.decode('utf8')
         config_base = os.path.dirname(config_file)
         config_values = arg_options.config_value
         if not config_values:
@@ -322,6 +325,7 @@ class Protocol(object):
         self.patch_full_qualified_refs()
         self.create_notification_types()
         self.create_type_definitions()
+        self.generate_used_types()
 
 
     def read_protocol_file(self, file_name):
@@ -357,6 +361,56 @@ class Protocol(object):
 
         for domain in self.json_api["domains"]:
             patch_full_qualified_refs_in_domain(domain, domain["domain"])
+
+
+    def all_references(self, json):
+        refs = set()
+        if isinstance(json, list):
+            for item in json:
+                refs |= self.all_references(item)
+        if not isinstance(json, dict):
+            return refs
+        for key in json:
+            if key != "$ref":
+                refs |= self.all_references(json[key])
+            else:
+                refs.add(json["$ref"])
+        return refs
+
+    def generate_used_types(self):
+        all_refs = set()
+        for domain in self.json_api["domains"]:
+            domain_name = domain["domain"]
+            if "commands" in domain:
+                for command in domain["commands"]:
+                    if self.generate_command(domain_name, command["name"]):
+                        all_refs |= self.all_references(command)
+            if "events" in domain:
+                for event in domain["events"]:
+                    if self.generate_event(domain_name, event["name"]):
+                        all_refs |= self.all_references(event)
+                        all_refs.add(domain_name + "." + to_title_case(event["name"]) + "Notification")
+
+        dependencies = self.generate_type_dependencies()
+        queue = set(all_refs)
+        while len(queue):
+            ref = queue.pop()
+            if ref in dependencies:
+                queue |= dependencies[ref] - all_refs
+                all_refs |= dependencies[ref]
+        self.used_types = all_refs
+
+
+    def generate_type_dependencies(self):
+        dependencies = dict()
+        domains_with_types = (x for x in self.json_api["domains"] if "types" in x)
+        for domain in domains_with_types:
+            domain_name = domain["domain"]
+            for type in domain["types"]:
+                related_types = self.all_references(type)
+                if len(related_types):
+                    dependencies[domain_name + "." + type["id"]] = related_types
+        return dependencies
 
 
     def create_notification_types(self):
@@ -440,6 +494,10 @@ class Protocol(object):
         return self.check_options(self.config.protocol.options, domain, event, "include_events", "exclude_events", True)
 
 
+    def generate_type(self, domain, typename):
+        return domain + "." + typename in self.used_types
+
+
     def is_async_command(self, domain, command):
         if not self.config.protocol.options:
             return False
@@ -471,6 +529,10 @@ class Protocol(object):
             if command["name"] == "disable" and self.generate_command(domain["domain"], "disable"):
                 return False
         return True
+
+
+    def is_imported_dependency(self, domain):
+        return domain in self.generate_domains or domain in self.imported_domains
 
 
 def main():

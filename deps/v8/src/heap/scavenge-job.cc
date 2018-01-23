@@ -103,7 +103,7 @@ void ScavengeJob::ScheduleIdleTaskIfNeeded(Heap* heap, int bytes_allocated) {
 
 
 void ScavengeJob::ScheduleIdleTask(Heap* heap) {
-  if (!idle_task_pending_) {
+  if (!idle_task_pending_ && heap->use_tasks()) {
     v8::Isolate* isolate = reinterpret_cast<v8::Isolate*>(heap->isolate());
     if (V8::GetCurrentPlatform()->IdleTasksEnabled(isolate)) {
       idle_task_pending_ = true;

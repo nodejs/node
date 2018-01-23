@@ -7,8 +7,12 @@
 #include "src/base/platform/platform.h"
 #include "test/cctest/cctest.h"
 
-#ifdef V8_CC_GNU
+using OS = v8::base::OS;
 
+namespace v8 {
+namespace internal {
+
+#ifdef V8_CC_GNU
 static uintptr_t sp_addr = 0;
 
 void GetStackPointer(const v8::FunctionCallbackInfo<v8::Value>& args) {
@@ -40,7 +44,6 @@ void GetStackPointer(const v8::FunctionCallbackInfo<v8::Value>& args) {
       args.GetIsolate(), static_cast<uint32_t>(sp_addr)));
 }
 
-
 TEST(StackAlignment) {
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope handle_scope(isolate);
@@ -49,7 +52,7 @@ TEST(StackAlignment) {
   global_template->Set(v8_str("get_stack_pointer"),
                        v8::FunctionTemplate::New(isolate, GetStackPointer));
 
-  LocalContext env(NULL, global_template);
+  LocalContext env(nullptr, global_template);
   CompileRun(
       "function foo() {"
       "  return get_stack_pointer();"
@@ -61,10 +64,12 @@ TEST(StackAlignment) {
           .ToLocalChecked());
 
   v8::Local<v8::Value> result =
-      foo->Call(isolate->GetCurrentContext(), global_object, 0, NULL)
+      foo->Call(isolate->GetCurrentContext(), global_object, 0, nullptr)
           .ToLocalChecked();
   CHECK_EQ(0u, result->Uint32Value(isolate->GetCurrentContext()).FromJust() %
-                   v8::base::OS::ActivationFrameAlignment());
+                   OS::ActivationFrameAlignment());
 }
-
 #endif  // V8_CC_GNU
+
+}  // namespace internal
+}  // namespace v8

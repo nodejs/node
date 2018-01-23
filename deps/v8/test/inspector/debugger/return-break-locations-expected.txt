@@ -26,4 +26,10 @@ Running test: testTailCall
         scriptId : <scriptId>
         type : return
     }
+    [4] : {
+        columnNumber : 1
+        lineNumber : 6
+        scriptId : <scriptId>
+        type : return
+    }
 ]

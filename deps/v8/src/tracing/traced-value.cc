@@ -43,7 +43,7 @@ void EscapeAndAppendString(const char* value, std::string* result) {
         *result += "\\\\";
         break;
       default:
-        if (c < '\040') {
+        if (c < '\x20') {
           base::OS::SNPrintF(
               number_buffer, arraysize(number_buffer), "\\u%04X",
               static_cast<unsigned>(static_cast<unsigned char>(c)));

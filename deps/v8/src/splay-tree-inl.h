@@ -50,11 +50,11 @@ void SplayTree<Config, Allocator>::InsertInternal(int cmp, Node* node) {
   if (cmp > 0) {
     node->left_ = root_;
     node->right_ = root_->right_;
-    root_->right_ = NULL;
+    root_->right_ = nullptr;
   } else {
     node->right_ = root_;
     node->left_ = root_->left_;
-    root_->left_ = NULL;
+    root_->left_ = nullptr;
   }
   root_ = node;
 }
@@ -139,8 +139,7 @@ bool SplayTree<Config, Allocator>::FindGreatest(Locator* locator) {
   if (is_empty())
     return false;
   Node* current = root_;
-  while (current->right_ != NULL)
-    current = current->right_;
+  while (current->right_ != nullptr) current = current->right_;
   locator->bind(current);
   return true;
 }
@@ -151,8 +150,7 @@ bool SplayTree<Config, Allocator>::FindLeast(Locator* locator) {
   if (is_empty())
     return false;
   Node* current = root_;
-  while (current->left_ != NULL)
-    current = current->left_;
+  while (current->left_ != nullptr) current = current->left_;
   locator->bind(current);
   return true;
 }
@@ -191,7 +189,7 @@ bool SplayTree<Config, Allocator>::Remove(const Key& key) {
 
 template<typename Config, class Allocator>
 void SplayTree<Config, Allocator>::RemoveRootNode(const Key& key) {
-  if (root_->left_ == NULL) {
+  if (root_->left_ == nullptr) {
     // No left child, so the new tree is just the right child.
     root_ = root_->right_;
   } else {
@@ -225,32 +223,28 @@ void SplayTree<Config, Allocator>::Splay(const Key& key) {
   while (true) {
     int cmp = Config::Compare(key, current->key_);
     if (cmp < 0) {
-      if (current->left_ == NULL)
-        break;
+      if (current->left_ == nullptr) break;
       if (Config::Compare(key, current->left_->key_) < 0) {
         // Rotate right.
         Node* temp = current->left_;
         current->left_ = temp->right_;
         temp->right_ = current;
         current = temp;
-        if (current->left_ == NULL)
-          break;
+        if (current->left_ == nullptr) break;
       }
       // Link right.
       right->left_ = current;
       right = current;
       current = current->left_;
     } else if (cmp > 0) {
-      if (current->right_ == NULL)
-        break;
+      if (current->right_ == nullptr) break;
       if (Config::Compare(key, current->right_->key_) > 0) {
         // Rotate left.
         Node* temp = current->right_;
         current->right_ = temp->left_;
         temp->left_ = current;
         current = temp;
-        if (current->right_ == NULL)
-          break;
+        if (current->right_ == nullptr) break;
       }
       // Link left.
       left->right_ = current;
@@ -278,15 +272,15 @@ void SplayTree<Config, Allocator>::ForEach(Callback* callback) {
 
 template <typename Config, class Allocator> template <class Callback>
 void SplayTree<Config, Allocator>::ForEachNode(Callback* callback) {
-  if (root_ == NULL) return;
+  if (root_ == nullptr) return;
   // Pre-allocate some space for tiny trees.
   std::vector<Node*> nodes_to_visit;
   nodes_to_visit.push_back(root_);
   size_t pos = 0;
   while (pos < nodes_to_visit.size()) {
     Node* node = nodes_to_visit[pos++];
-    if (node->left() != NULL) nodes_to_visit.push_back(node->left());
-    if (node->right() != NULL) nodes_to_visit.push_back(node->right());
+    if (node->left() != nullptr) nodes_to_visit.push_back(node->left());
+    if (node->right() != nullptr) nodes_to_visit.push_back(node->right());
     callback->Call(node);
   }
 }

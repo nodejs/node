@@ -20,23 +20,13 @@
 V8_BASE_EXPORT V8_NOINLINE void V8_Dcheck(const char* file, int line,
                                           const char* message);
 
-// The FATAL, UNREACHABLE and UNIMPLEMENTED macros are useful during
-// development, but they should not be relied on in the final product.
 #ifdef DEBUG
-#define FATAL(msg)                              \
-  V8_Fatal(__FILE__, __LINE__, "%s", (msg))
-#define UNIMPLEMENTED()                         \
-  V8_Fatal(__FILE__, __LINE__, "unimplemented code")
-#define UNREACHABLE()                           \
-  V8_Fatal(__FILE__, __LINE__, "unreachable code")
+#define FATAL(...) V8_Fatal(__FILE__, __LINE__, __VA_ARGS__)
 #else
-#define FATAL(msg)                              \
-  V8_Fatal("", 0, "%s", (msg))
-#define UNIMPLEMENTED()                         \
-  V8_Fatal("", 0, "unimplemented code")
-#define UNREACHABLE() V8_Fatal("", 0, "unreachable code")
+#define FATAL(...) V8_Fatal("", 0, __VA_ARGS__)
 #endif
-
+#define UNIMPLEMENTED() FATAL("unimplemented code")
+#define UNREACHABLE() FATAL("unreachable code")
 
 namespace v8 {
 namespace base {
@@ -192,7 +182,8 @@ EXPLICIT_CHECK_OP_INSTANTIATION(void const*)
 #undef EXPLICIT_CHECK_OP_INSTANTIATION
 
 // comparison_underlying_type provides the underlying integral type of an enum,
-// or std::decay<T>::type if T is not an enum.
+// or std::decay<T>::type if T is not an enum. Booleans are converted to
+// "unsigned int", to allow "unsigned int == bool" comparisons.
 template <typename T>
 struct comparison_underlying_type {
   // std::underlying_type must only be used with enum types, thus use this
@@ -202,8 +193,15 @@ struct comparison_underlying_type {
   static constexpr bool is_enum = std::is_enum<decay>::value;
   using underlying = typename std::underlying_type<
       typename std::conditional<is_enum, decay, Dummy>::type>::type;
-  using type = typename std::conditional<is_enum, underlying, decay>::type;
+  using type_or_bool =
+      typename std::conditional<is_enum, underlying, decay>::type;
+  using type =
+      typename std::conditional<std::is_same<type_or_bool, bool>::value,
+                                unsigned int, type_or_bool>::type;
 };
+// Cast a value to its underlying type
+#define MAKE_UNDERLYING(Type, value) \
+  static_cast<typename comparison_underlying_type<Type>::type>(value)
 
 // is_signed_vs_unsigned::value is true if both types are integral, Lhs is
 // signed, and Rhs is unsigned. False in all other cases.
@@ -233,11 +231,14 @@ struct is_unsigned_vs_signed : public is_signed_vs_unsigned<Rhs, Lhs> {};
     return IMPL;                                                        \
   }
 DEFINE_SIGNED_MISMATCH_COMP(is_signed_vs_unsigned, EQ,
-                            lhs >= 0 && MAKE_UNSIGNED(Lhs, lhs) == rhs)
+                            lhs >= 0 && MAKE_UNSIGNED(Lhs, lhs) ==
+                                            MAKE_UNDERLYING(Rhs, rhs))
 DEFINE_SIGNED_MISMATCH_COMP(is_signed_vs_unsigned, LT,
-                            lhs < 0 || MAKE_UNSIGNED(Lhs, lhs) < rhs)
+                            lhs < 0 || MAKE_UNSIGNED(Lhs, lhs) <
+                                           MAKE_UNDERLYING(Rhs, rhs))
 DEFINE_SIGNED_MISMATCH_COMP(is_signed_vs_unsigned, LE,
-                            lhs <= 0 || MAKE_UNSIGNED(Lhs, lhs) <= rhs)
+                            lhs <= 0 || MAKE_UNSIGNED(Lhs, lhs) <=
+                                            MAKE_UNDERLYING(Rhs, rhs))
 DEFINE_SIGNED_MISMATCH_COMP(is_signed_vs_unsigned, NE, !CmpEQImpl(lhs, rhs))
 DEFINE_SIGNED_MISMATCH_COMP(is_signed_vs_unsigned, GT, !CmpLEImpl(lhs, rhs))
 DEFINE_SIGNED_MISMATCH_COMP(is_signed_vs_unsigned, GE, !CmpLTImpl(lhs, rhs))

@@ -35,17 +35,17 @@ CAST_ACCESSOR(ThinString)
 StringShape::StringShape(const String* str)
     : type_(str->map()->instance_type()) {
   set_valid();
-  DCHECK((type_ & kIsNotStringMask) == kStringTag);
+  DCHECK_EQ(type_ & kIsNotStringMask, kStringTag);
 }
 
 StringShape::StringShape(Map* map) : type_(map->instance_type()) {
   set_valid();
-  DCHECK((type_ & kIsNotStringMask) == kStringTag);
+  DCHECK_EQ(type_ & kIsNotStringMask, kStringTag);
 }
 
 StringShape::StringShape(InstanceType t) : type_(static_cast<uint32_t>(t)) {
   set_valid();
-  DCHECK((type_ & kIsNotStringMask) == kStringTag);
+  DCHECK_EQ(type_ & kIsNotStringMask, kStringTag);
 }
 
 bool StringShape::IsInternalized() {
@@ -378,25 +378,25 @@ ConsString* String::VisitFlat(Visitor* visitor, String* string,
         visitor->VisitOneByteString(
             SeqOneByteString::cast(string)->GetChars() + slice_offset,
             length - offset);
-        return NULL;
+        return nullptr;
 
       case kSeqStringTag | kTwoByteStringTag:
         visitor->VisitTwoByteString(
             SeqTwoByteString::cast(string)->GetChars() + slice_offset,
             length - offset);
-        return NULL;
+        return nullptr;
 
       case kExternalStringTag | kOneByteStringTag:
         visitor->VisitOneByteString(
             ExternalOneByteString::cast(string)->GetChars() + slice_offset,
             length - offset);
-        return NULL;
+        return nullptr;
 
       case kExternalStringTag | kTwoByteStringTag:
         visitor->VisitTwoByteString(
             ExternalTwoByteString::cast(string)->GetChars() + slice_offset,
             length - offset);
-        return NULL;
+        return nullptr;
 
       case kSlicedStringTag | kOneByteStringTag:
       case kSlicedStringTag | kTwoByteStringTag: {
@@ -525,9 +525,40 @@ void ConsString::set_second(String* value, WriteBarrierMode mode) {
 
 ACCESSORS(ThinString, actual, String, kActualOffset);
 
+HeapObject* ThinString::unchecked_actual() const {
+  return reinterpret_cast<HeapObject*>(READ_FIELD(this, kActualOffset));
+}
+
 bool ExternalString::is_short() {
   InstanceType type = map()->instance_type();
   return (type & kShortExternalStringMask) == kShortExternalStringTag;
+}
+
+Address ExternalString::resource_as_address() {
+  return *reinterpret_cast<Address*>(FIELD_ADDR(this, kResourceOffset));
+}
+
+void ExternalString::set_address_as_resource(Address address) {
+  DCHECK(IsAligned(reinterpret_cast<intptr_t>(address), kPointerSize));
+  *reinterpret_cast<Address*>(FIELD_ADDR(this, kResourceOffset)) = address;
+  if (IsExternalOneByteString()) {
+    ExternalOneByteString::cast(this)->update_data_cache();
+  } else {
+    ExternalTwoByteString::cast(this)->update_data_cache();
+  }
+}
+
+uint32_t ExternalString::resource_as_uint32() {
+  return static_cast<uint32_t>(
+      *reinterpret_cast<uintptr_t*>(FIELD_ADDR(this, kResourceOffset)));
+}
+
+void ExternalString::set_uint32_as_resource(uint32_t value) {
+  *reinterpret_cast<uintptr_t*>(FIELD_ADDR(this, kResourceOffset)) = value;
+  if (is_short()) return;
+  const char** data_field =
+      reinterpret_cast<const char**>(FIELD_ADDR(this, kResourceDataOffset));
+  *data_field = nullptr;
 }
 
 const ExternalOneByteString::Resource* ExternalOneByteString::resource() {
@@ -546,7 +577,7 @@ void ExternalOneByteString::set_resource(
   DCHECK(IsAligned(reinterpret_cast<intptr_t>(resource), kPointerSize));
   *reinterpret_cast<const Resource**>(FIELD_ADDR(this, kResourceOffset)) =
       resource;
-  if (resource != NULL) update_data_cache();
+  if (resource != nullptr) update_data_cache();
 }
 
 const uint8_t* ExternalOneByteString::GetChars() {
@@ -573,7 +604,7 @@ void ExternalTwoByteString::set_resource(
     const ExternalTwoByteString::Resource* resource) {
   *reinterpret_cast<const Resource**>(FIELD_ADDR(this, kResourceOffset)) =
       resource;
-  if (resource != NULL) update_data_cache();
+  if (resource != nullptr) update_data_cache();
 }
 
 const uint16_t* ExternalTwoByteString::GetChars() { return resource()->data(); }
@@ -604,13 +635,13 @@ void ConsStringIterator::AdjustMaximumDepth() {
 }
 
 void ConsStringIterator::Pop() {
-  DCHECK(depth_ > 0);
+  DCHECK_GT(depth_, 0);
   DCHECK(depth_ <= maximum_depth_);
   depth_--;
 }
 
 uint16_t StringCharacterStream::GetNext() {
-  DCHECK(buffer8_ != NULL && end_ != NULL);
+  DCHECK(buffer8_ != nullptr && end_ != nullptr);
   // Advance cursor if needed.
   if (buffer8_ == end_) HasMore();
   DCHECK(buffer8_ < end_);
@@ -623,13 +654,13 @@ StringCharacterStream::StringCharacterStream(String* string, int offset)
 }
 
 void StringCharacterStream::Reset(String* string, int offset) {
-  buffer8_ = NULL;
-  end_ = NULL;
+  buffer8_ = nullptr;
+  end_ = nullptr;
   ConsString* cons_string = String::VisitFlat(this, string, offset);
   iter_.Reset(cons_string, offset);
-  if (cons_string != NULL) {
+  if (cons_string != nullptr) {
     string = iter_.Next(&offset);
-    if (string != NULL) String::VisitFlat(this, string, offset);
+    if (string != nullptr) String::VisitFlat(this, string, offset);
   }
 }
 
@@ -638,7 +669,7 @@ bool StringCharacterStream::HasMore() {
   int offset;
   String* string = iter_.Next(&offset);
   DCHECK_EQ(offset, 0);
-  if (string == NULL) return false;
+  if (string == nullptr) return false;
   String::VisitFlat(this, string);
   DCHECK(buffer8_ != end_);
   return true;
@@ -664,30 +695,6 @@ bool String::AsArrayIndex(uint32_t* index) {
     return false;
   }
   return SlowAsArrayIndex(index);
-}
-
-void String::SetForwardedInternalizedString(String* canonical) {
-  DCHECK(IsInternalizedString());
-  DCHECK(HasHashCode());
-  if (canonical == this) return;  // No need to forward.
-  DCHECK(SlowEquals(canonical));
-  DCHECK(canonical->IsInternalizedString());
-  DCHECK(canonical->HasHashCode());
-  WRITE_FIELD(this, kHashFieldSlot, canonical);
-  // Setting the hash field to a tagged value sets the LSB, causing the hash
-  // code to be interpreted as uninitialized.  We use this fact to recognize
-  // that we have a forwarded string.
-  DCHECK(!HasHashCode());
-}
-
-String* String::GetForwardedInternalizedString() {
-  DCHECK(IsInternalizedString());
-  if (HasHashCode()) return this;
-  String* canonical = String::cast(READ_FIELD(this, kHashFieldSlot));
-  DCHECK(canonical->IsInternalizedString());
-  DCHECK(SlowEquals(canonical));
-  DCHECK(canonical->HasHashCode());
-  return canonical;
 }
 
 String::SubStringRange::SubStringRange(String* string, int first, int length)

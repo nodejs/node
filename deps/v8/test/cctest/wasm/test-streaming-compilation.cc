@@ -10,6 +10,7 @@
 #include "src/wasm/compilation-manager.h"
 #include "src/wasm/module-decoder.h"
 #include "src/wasm/streaming-decoder.h"
+#include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-module-builder.h"
 #include "src/wasm/wasm-module.h"
 
@@ -24,44 +25,66 @@ namespace wasm {
 
 class MockPlatform final : public TestPlatform {
  public:
-  MockPlatform() : old_platform_(i::V8::GetCurrentPlatform()) {
+  MockPlatform() : task_runner_(std::make_shared<MockTaskRunner>()) {
     // Now that it's completely constructed, make this the current platform.
     i::V8::SetPlatformForTesting(this);
   }
-  virtual ~MockPlatform() {
-    // Delete all remaining tasks in the queue.
-    while (!tasks_.empty()) {
-      Task* task = tasks_.back();
-      tasks_.pop_back();
-      delete task;
-    }
-    i::V8::SetPlatformForTesting(old_platform_);
+
+  std::shared_ptr<TaskRunner> GetForegroundTaskRunner(
+      v8::Isolate* isolate) override {
+    return task_runner_;
+  }
+
+  std::shared_ptr<TaskRunner> GetBackgroundTaskRunner(
+      v8::Isolate* isolate) override {
+    return task_runner_;
   }
 
   void CallOnForegroundThread(v8::Isolate* isolate, Task* task) override {
-    tasks_.push_back(task);
+    task_runner_->PostTask(std::unique_ptr<Task>(task));
   }
 
   void CallOnBackgroundThread(v8::Task* task,
                               ExpectedRuntime expected_runtime) override {
-    tasks_.push_back(task);
+    task_runner_->PostTask(std::unique_ptr<Task>(task));
   }
 
   bool IdleTasksEnabled(v8::Isolate* isolate) override { return false; }
 
-  void ExecuteTasks() {
-    while (!tasks_.empty()) {
-      Task* task = tasks_.back();
-      tasks_.pop_back();
-      task->Run();
-      delete task;
-    }
-  }
+  void ExecuteTasks() { task_runner_->ExecuteTasks(); }
 
  private:
-  // We do not execute tasks concurrently, so we only need one list of tasks.
-  std::vector<Task*> tasks_;
-  v8::Platform* old_platform_;
+  class MockTaskRunner final : public TaskRunner {
+   public:
+    void PostTask(std::unique_ptr<v8::Task> task) override {
+      tasks_.push_back(std::move(task));
+    }
+
+    void PostDelayedTask(std::unique_ptr<Task> task,
+                         double delay_in_seconds) override {
+      UNREACHABLE();
+    };
+
+    void PostIdleTask(std::unique_ptr<IdleTask> task) override {
+      UNREACHABLE();
+    }
+
+    bool IdleTasksEnabled() override { return false; };
+
+    void ExecuteTasks() {
+      while (!tasks_.empty()) {
+        std::unique_ptr<Task> task = std::move(tasks_.back());
+        tasks_.pop_back();
+        task->Run();
+      }
+    }
+
+   private:
+    // We do not execute tasks concurrently, so we only need one list of tasks.
+    std::vector<std::unique_ptr<v8::Task>> tasks_;
+  };
+
+  std::shared_ptr<MockTaskRunner> task_runner_;
 };
 
 namespace {
@@ -81,8 +104,10 @@ class StreamTester {
 
     i::Handle<i::JSPromise> i_promise = v8::Utils::OpenHandle(*promise_);
 
-    stream_ = i_isolate->wasm_compilation_manager()->StartStreamingCompilation(
-        i_isolate, v8::Utils::OpenHandle(*context), i_promise);
+    stream_ = i_isolate->wasm_engine()
+                  ->compilation_manager()
+                  ->StartStreamingCompilation(
+                      i_isolate, v8::Utils::OpenHandle(*context), i_promise);
   }
 
   std::shared_ptr<StreamingDecoder> stream() { return stream_; }
@@ -305,12 +330,12 @@ ZoneBuffer GetModuleWithInvalidSectionSize(Zone* zone) {
   ZoneBuffer buffer = GetValidModuleBytes(zone);
   // 9 == 4 (wasm magic) + 4 (version) + 1 (section code)
   uint8_t* section_size_address = const_cast<uint8_t*>(buffer.begin()) + 9;
-  // 0x808080800f is an invalid module size in leb encoding.
+  // 0x808080800F is an invalid module size in leb encoding.
   section_size_address[0] = 0x80;
   section_size_address[1] = 0x80;
   section_size_address[2] = 0x80;
   section_size_address[3] = 0x80;
-  section_size_address[4] = 0x0f;
+  section_size_address[4] = 0x0F;
   return buffer;
 }
 
@@ -813,6 +838,142 @@ STREAM_TEST(TestAbortAfterCompilationError2) {
   tester.RunCompilerTasks();
 }
 
+STREAM_TEST(TestOnlyModuleHeader) {
+  StreamTester tester;
+
+  const uint8_t bytes[] = {
+      WASM_MODULE_HEADER,  // module header
+  };
+
+  tester.OnBytesReceived(bytes, arraysize(bytes));
+  tester.FinishStream();
+  tester.RunCompilerTasks();
+
+  CHECK(tester.IsPromiseFulfilled());
+}
+
+STREAM_TEST(TestModuleWithZeroFunctions) {
+  StreamTester tester;
+
+  const uint8_t bytes[] = {
+      WASM_MODULE_HEADER,    // module header
+      kTypeSectionCode,      // section code
+      U32V_1(1),             // section size
+      U32V_1(0),             // type count
+      kFunctionSectionCode,  // section code
+      U32V_1(1),             // section size
+      U32V_1(0),             // functions count
+      kCodeSectionCode,      // section code
+      U32V_1(1),             // section size
+      U32V_1(0),             // functions count
+  };
+
+  tester.OnBytesReceived(bytes, arraysize(bytes));
+  tester.FinishStream();
+  tester.RunCompilerTasks();
+  CHECK(tester.IsPromiseFulfilled());
+}
+
+STREAM_TEST(TestModuleWithMultipleFunctions) {
+  StreamTester tester;
+
+  uint8_t code[] = {
+      U32V_1(4),                  // body size
+      U32V_1(0),                  // locals count
+      kExprGetLocal, 0, kExprEnd  // body
+  };
+
+  const uint8_t bytes[] = {
+      WASM_MODULE_HEADER,                   // module header
+      kTypeSectionCode,                     // section code
+      U32V_1(1 + SIZEOF_SIG_ENTRY_x_x),     // section size
+      U32V_1(1),                            // type count
+      SIG_ENTRY_x_x(kLocalI32, kLocalI32),  // signature entry
+      kFunctionSectionCode,                 // section code
+      U32V_1(1 + 3),                        // section size
+      U32V_1(3),                            // functions count
+      0,                                    // signature index
+      0,                                    // signature index
+      0,                                    // signature index
+      kCodeSectionCode,                     // section code
+      U32V_1(1 + arraysize(code) * 3),      // section size
+      U32V_1(3),                            // functions count
+  };
+
+  tester.OnBytesReceived(bytes, arraysize(bytes));
+  tester.OnBytesReceived(code, arraysize(code));
+  tester.OnBytesReceived(code, arraysize(code));
+  tester.RunCompilerTasks();
+  tester.OnBytesReceived(code, arraysize(code));
+  tester.FinishStream();
+  tester.RunCompilerTasks();
+  CHECK(tester.IsPromiseFulfilled());
+}
+
+STREAM_TEST(TestModuleWithDataSection) {
+  StreamTester tester;
+
+  uint8_t code[] = {
+      U32V_1(4),                  // body size
+      U32V_1(0),                  // locals count
+      kExprGetLocal, 0, kExprEnd  // body
+  };
+
+  const uint8_t bytes[] = {
+      WASM_MODULE_HEADER,                   // module header
+      kTypeSectionCode,                     // section code
+      U32V_1(1 + SIZEOF_SIG_ENTRY_x_x),     // section size
+      U32V_1(1),                            // type count
+      SIG_ENTRY_x_x(kLocalI32, kLocalI32),  // signature entry
+      kFunctionSectionCode,                 // section code
+      U32V_1(1 + 3),                        // section size
+      U32V_1(3),                            // functions count
+      0,                                    // signature index
+      0,                                    // signature index
+      0,                                    // signature index
+      kCodeSectionCode,                     // section code
+      U32V_1(1 + arraysize(code) * 3),      // section size
+      U32V_1(3),                            // functions count
+  };
+
+  const uint8_t data_section[] = {
+      kDataSectionCode,  // section code
+      U32V_1(1),         // section size
+      U32V_1(0),         // data segment count
+  };
+  tester.OnBytesReceived(bytes, arraysize(bytes));
+  tester.OnBytesReceived(code, arraysize(code));
+  tester.OnBytesReceived(code, arraysize(code));
+  tester.OnBytesReceived(code, arraysize(code));
+  tester.RunCompilerTasks();
+  tester.OnBytesReceived(data_section, arraysize(data_section));
+  tester.RunCompilerTasks();
+  tester.FinishStream();
+  tester.RunCompilerTasks();
+  CHECK(tester.IsPromiseFulfilled());
+}
+// Test that all bytes arrive before doing any compilation. FinishStream is
+// called immediately.
+STREAM_TEST(TestModuleWithImportedFunction) {
+  StreamTester tester;
+  ZoneBuffer buffer(tester.zone());
+  TestSignatures sigs;
+  WasmModuleBuilder builder(tester.zone());
+  builder.AddImport(ArrayVector("Test"), sigs.i_iii());
+  {
+    WasmFunctionBuilder* f = builder.AddFunction(sigs.i_iii());
+    uint8_t code[] = {kExprGetLocal, 0, kExprEnd};
+    f->EmitCode(code, arraysize(code));
+  }
+  builder.WriteTo(buffer);
+
+  tester.OnBytesReceived(buffer.begin(), buffer.end() - buffer.begin());
+  tester.FinishStream();
+
+  tester.RunCompilerTasks();
+
+  CHECK(tester.IsPromiseFulfilled());
+}
 #undef STREAM_TEST
 
 }  // namespace wasm

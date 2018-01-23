@@ -8,6 +8,7 @@
 #include "src/compiler/js-graph.h"
 #include "src/compiler/node.h"
 #include "src/compiler/simplified-operator.h"
+#include "src/vector-slot-pair.h"
 
 namespace v8 {
 namespace internal {
@@ -28,8 +29,7 @@ namespace compiler {
   V(RoundFloat64ToInt32)                 \
   V(TruncateFloat64ToWord32)             \
   V(Float64ExtractHighWord32)            \
-  V(Float64Abs)                          \
-  V(BitcastWordToTagged)
+  V(Float64Abs)
 
 #define PURE_ASSEMBLER_MACH_BINOP_LIST(V) \
   V(WordShl)                              \
@@ -40,6 +40,7 @@ namespace compiler {
   V(Word32Xor)                            \
   V(Word32Shr)                            \
   V(Word32Shl)                            \
+  V(Word32Sar)                            \
   V(IntAdd)                               \
   V(IntSub)                               \
   V(IntMul)                               \
@@ -74,6 +75,7 @@ namespace compiler {
 #define JSGRAPH_SINGLETON_CONSTANT_LIST(V) \
   V(TrueConstant)                          \
   V(FalseConstant)                         \
+  V(NullConstant)                          \
   V(HeapNumberMapConstant)                 \
   V(NoContextConstant)                     \
   V(EmptyStringConstant)                   \
@@ -191,9 +193,12 @@ class GraphAssembler {
   // Debugging
   Node* DebugBreak();
 
+  Node* Unreachable();
+
   Node* Float64RoundDown(Node* value);
 
   Node* ToNumber(Node* value);
+  Node* BitcastWordToTagged(Node* value);
   Node* Allocate(PretenureFlag pretenure, Node* size);
   Node* LoadField(FieldAccess const&, Node* object);
   Node* LoadElement(ElementAccess const&, Node* object, Node* index);
@@ -207,12 +212,13 @@ class GraphAssembler {
   Node* Retain(Node* buffer);
   Node* UnsafePointerAdd(Node* base, Node* external);
 
-  Node* DeoptimizeIf(DeoptimizeReason reason, Node* condition,
-                     Node* frame_state);
+  Node* DeoptimizeIf(DeoptimizeReason reason, VectorSlotPair const& feedback,
+                     Node* condition, Node* frame_state);
   Node* DeoptimizeIfNot(DeoptimizeKind kind, DeoptimizeReason reason,
-                        Node* condition, Node* frame_state);
-  Node* DeoptimizeIfNot(DeoptimizeReason reason, Node* condition,
+                        VectorSlotPair const& feedback, Node* condition,
                         Node* frame_state);
+  Node* DeoptimizeIfNot(DeoptimizeReason reason, VectorSlotPair const& feedback,
+                        Node* condition, Node* frame_state);
   template <typename... Args>
   Node* Call(const CallDescriptor* desc, Args... args);
   template <typename... Args>
@@ -284,6 +290,9 @@ void GraphAssembler::MergeState(GraphAssemblerLabel<sizeof...(Vars)>* label,
                                          current_control_);
       label->effect_ = graph()->NewNode(common()->EffectPhi(2), current_effect_,
                                         current_effect_, label->control_);
+      Node* terminate = graph()->NewNode(common()->Terminate(), label->effect_,
+                                         label->control_);
+      NodeProperties::MergeControlToEnd(graph(), common(), terminate);
       for (size_t i = 0; i < sizeof...(vars); i++) {
         label->bindings_[i] = graph()->NewNode(
             common()->Phi(label->representations_[i], 2), var_array[i + 1],

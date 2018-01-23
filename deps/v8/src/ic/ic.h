@@ -36,7 +36,7 @@ class IC {
 
   // Construct the IC structure with the given number of extra
   // JavaScript frames on the stack.
-  IC(FrameDepth depth, Isolate* isolate, FeedbackNexus* nexus = NULL);
+  IC(FrameDepth depth, Isolate* isolate, FeedbackNexus* nexus = nullptr);
   virtual ~IC() {}
 
   State state() const { return state_; }
@@ -64,7 +64,8 @@ class IC {
 
   // Nofity the IC system that a feedback has changed.
   static void OnFeedbackChanged(Isolate* isolate, FeedbackVector* vector,
-                                JSFunction* host_function);
+                                FeedbackSlot slot, JSFunction* host_function,
+                                const char* reason);
 
  protected:
   Address fp() const { return fp_; }
@@ -72,7 +73,6 @@ class IC {
 
   void set_slow_stub_reason(const char* reason) { slow_stub_reason_ = reason; }
 
-  Address GetAbstractPC(int* line, int* column) const;
   Isolate* isolate() const { return isolate_; }
 
   // Get the caller function object.
@@ -90,7 +90,7 @@ class IC {
   }
 
   // Configure for most states.
-  void ConfigureVectorState(IC::State new_state, Handle<Object> key);
+  bool ConfigureVectorState(IC::State new_state, Handle<Object> key);
   // Configure the vector for MONOMORPHIC.
   void ConfigureVectorState(Handle<Name> name, Handle<Map> map,
                             Handle<Object> handler);
@@ -109,15 +109,6 @@ class IC {
 
   void TraceHandlerCacheHitStats(LookupIterator* lookup);
 
-  // Compute the handler either by compiling or by retrieving a cached version.
-  Handle<Object> ComputeHandler(LookupIterator* lookup);
-  virtual Handle<Object> GetMapIndependentHandler(LookupIterator* lookup) {
-    UNREACHABLE();
-  }
-  virtual Handle<Code> CompileHandler(LookupIterator* lookup) {
-    UNREACHABLE();
-  }
-
   void UpdateMonomorphicIC(Handle<Object> handler, Handle<Name> name);
   bool UpdatePolymorphicIC(Handle<Name> name, Handle<Object> code);
   void UpdateMegamorphicCache(Map* map, Name* name, Object* code);
@@ -128,6 +119,7 @@ class IC {
   bool IsTransitionOfMonomorphicTarget(Map* source_map, Map* target_map);
   void PatchCache(Handle<Name> name, Handle<Object> code);
   FeedbackSlotKind kind() const { return kind_; }
+  bool IsGlobalIC() const { return IsLoadGlobalIC() || IsStoreGlobalIC(); }
   bool IsLoadIC() const { return IsLoadICKind(kind_); }
   bool IsLoadGlobalIC() const { return IsLoadGlobalICKind(kind_); }
   bool IsKeyedLoadIC() const { return IsKeyedLoadICKind(kind_); }
@@ -156,7 +148,7 @@ class IC {
 
   Map* FirstTargetMap() {
     FindTargetMaps();
-    return !target_maps_.empty() ? *target_maps_[0] : NULL;
+    return !target_maps_.empty() ? *target_maps_[0] : nullptr;
   }
 
   Handle<FeedbackVector> vector() const { return nexus()->vector_handle(); }
@@ -218,7 +210,7 @@ class CallIC : public IC {
  public:
   CallIC(Isolate* isolate, CallICNexus* nexus)
       : IC(EXTRA_CALL_FRAME, isolate, nexus) {
-    DCHECK(nexus != NULL);
+    DCHECK_NOT_NULL(nexus);
   }
 };
 
@@ -227,7 +219,7 @@ class LoadIC : public IC {
  public:
   LoadIC(Isolate* isolate, FeedbackNexus* nexus)
       : IC(NO_EXTRA_FRAME, isolate, nexus) {
-    DCHECK(nexus != NULL);
+    DCHECK_NOT_NULL(nexus);
     DCHECK(IsAnyLoad());
   }
 
@@ -251,13 +243,8 @@ class LoadIC : public IC {
   // lookup result.
   void UpdateCaches(LookupIterator* lookup);
 
-  Handle<Object> GetMapIndependentHandler(LookupIterator* lookup) override;
-
-  Handle<Code> CompileHandler(LookupIterator* lookup) override;
-
  private:
-  // Creates a data handler that represents a load of a field by given index.
-  static Handle<Smi> SimpleFieldLoad(Isolate* isolate, FieldIndex index);
+  Handle<Object> ComputeHandler(LookupIterator* lookup);
 
   friend class IC;
   friend class NamedLoadHandlerCompiler;
@@ -280,7 +267,7 @@ class KeyedLoadIC : public LoadIC {
  public:
   KeyedLoadIC(Isolate* isolate, KeyedLoadICNexus* nexus)
       : LoadIC(isolate, nexus) {
-    DCHECK(nexus != NULL);
+    DCHECK_NOT_NULL(nexus);
   }
 
   MUST_USE_RESULT MaybeHandle<Object> Load(Handle<Object> object,
@@ -288,15 +275,23 @@ class KeyedLoadIC : public LoadIC {
 
  protected:
   // receiver is HeapObject because it could be a String or a JSObject
-  void UpdateLoadElement(Handle<HeapObject> receiver);
+  void UpdateLoadElement(Handle<HeapObject> receiver,
+                         KeyedAccessLoadMode load_mode);
 
  private:
   friend class IC;
 
-  Handle<Object> LoadElementHandler(Handle<Map> receiver_map);
+  Handle<Object> LoadElementHandler(Handle<Map> receiver_map,
+                                    KeyedAccessLoadMode load_mode);
 
   void LoadElementPolymorphicHandlers(MapHandles* receiver_maps,
-                                      ObjectHandles* handlers);
+                                      ObjectHandles* handlers,
+                                      KeyedAccessLoadMode load_mode);
+
+  // Returns true if the receiver_map has a kElement or kIndexedString
+  // handler in the nexus currently but didn't yet allow out of bounds
+  // accesses.
+  bool CanChangeToAllowOutOfBounds(Handle<Map> receiver_map);
 };
 
 
@@ -321,7 +316,7 @@ class StoreIC : public IC {
 
  protected:
   // Stub accessors.
-  Handle<Code> slow_stub() const {
+  virtual Handle<Code> slow_stub() const {
     // All StoreICs share the same slow stub.
     return BUILTIN_CODE(isolate(), KeyedStoreIC_Slow);
   }
@@ -331,10 +326,10 @@ class StoreIC : public IC {
   void UpdateCaches(LookupIterator* lookup, Handle<Object> value,
                     JSReceiver::StoreFromKeyed store_mode,
                     MaybeHandle<Object> cached_handler);
-  Handle<Object> GetMapIndependentHandler(LookupIterator* lookup) override;
-  Handle<Code> CompileHandler(LookupIterator* lookup) override;
 
  private:
+  Handle<Object> ComputeHandler(LookupIterator* lookup);
+
   friend class IC;
 
   bool created_new_transition_ = false;
@@ -345,9 +340,13 @@ class StoreGlobalIC : public StoreIC {
   StoreGlobalIC(Isolate* isolate, FeedbackNexus* nexus)
       : StoreIC(isolate, nexus) {}
 
-  MUST_USE_RESULT MaybeHandle<Object> Store(Handle<Object> object,
-                                            Handle<Name> name,
+  MUST_USE_RESULT MaybeHandle<Object> Store(Handle<Name> name,
                                             Handle<Object> value);
+
+ protected:
+  Handle<Code> slow_stub() const override {
+    return BUILTIN_CODE(isolate(), StoreGlobalIC_Slow);
+  }
 };
 
 enum KeyedStoreCheckMap { kDontCheckMap, kCheckMap };

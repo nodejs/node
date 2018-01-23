@@ -24,7 +24,7 @@ static int BitSize(S value) {
 
 // Guaranteed to lie in one Bigit.
 void Bignum::AssignUInt16(uint16_t value) {
-  DCHECK(kBigitSize >= BitSize(value));
+  DCHECK_GE(kBigitSize, BitSize(value));
   Zero();
   if (value == 0) return;
 
@@ -169,7 +169,7 @@ void Bignum::AddBignum(const Bignum& other) {
   EnsureCapacity(1 + Max(BigitLength(), other.BigitLength()) - exponent_);
   Chunk carry = 0;
   int bigit_pos = other.exponent_ - exponent_;
-  DCHECK(bigit_pos >= 0);
+  DCHECK_GE(bigit_pos, 0);
   for (int i = 0; i < other.used_digits_; ++i) {
     Chunk sum = bigits_[bigit_pos] + other.bigits_[i] + carry;
     bigits_[bigit_pos] = sum & kBigitMask;
@@ -234,7 +234,7 @@ void Bignum::MultiplyByUInt32(uint32_t factor) {
 
   // The product of a bigit with the factor is of size kBigitSize + 32.
   // Assert that this number + 1 (for the carry) fits into double chunk.
-  DCHECK(kDoubleChunkSize >= kBigitSize + 32 + 1);
+  DCHECK_GE(kDoubleChunkSize, kBigitSize + 32 + 1);
   DoubleChunk carry = 0;
   for (int i = 0; i < used_digits_; ++i) {
     DoubleChunk product = static_cast<DoubleChunk>(factor) * bigits_[i] + carry;
@@ -256,7 +256,7 @@ void Bignum::MultiplyByUInt64(uint64_t factor) {
     Zero();
     return;
   }
-  DCHECK(kBigitSize < 32);
+  DCHECK_LT(kBigitSize, 32);
   uint64_t carry = 0;
   uint64_t low = factor & 0xFFFFFFFF;
   uint64_t high = factor >> 32;
@@ -278,7 +278,7 @@ void Bignum::MultiplyByUInt64(uint64_t factor) {
 
 
 void Bignum::MultiplyByPowerOfTen(int exponent) {
-  const uint64_t kFive27 = V8_2PART_UINT64_C(0x6765c793, fa10079d);
+  const uint64_t kFive27 = V8_2PART_UINT64_C(0x6765C793, fa10079d);
   const uint16_t kFive1 = 5;
   const uint16_t kFive2 = kFive1 * 5;
   const uint16_t kFive3 = kFive2 * 5;
@@ -296,7 +296,7 @@ void Bignum::MultiplyByPowerOfTen(int exponent) {
       { kFive1, kFive2, kFive3, kFive4, kFive5, kFive6,
         kFive7, kFive8, kFive9, kFive10, kFive11, kFive12 };
 
-  DCHECK(exponent >= 0);
+  DCHECK_GE(exponent, 0);
   if (exponent == 0) return;
   if (used_digits_ == 0) return;
 
@@ -380,7 +380,7 @@ void Bignum::Square() {
   }
   // Since the result was guaranteed to lie inside the number the
   // accumulator must be 0 now.
-  DCHECK(accumulator == 0);
+  DCHECK_EQ(accumulator, 0);
 
   // Don't forget to update the used_digits and the exponent.
   used_digits_ = product_length;
@@ -390,8 +390,8 @@ void Bignum::Square() {
 
 
 void Bignum::AssignPowerUInt16(uint16_t base, int power_exponent) {
-  DCHECK(base != 0);
-  DCHECK(power_exponent >= 0);
+  DCHECK_NE(base, 0);
+  DCHECK_GE(power_exponent, 0);
   if (power_exponent == 0) {
     AssignUInt16(1);
     return;
@@ -466,7 +466,7 @@ void Bignum::AssignPowerUInt16(uint16_t base, int power_exponent) {
 uint16_t Bignum::DivideModuloIntBignum(const Bignum& other) {
   DCHECK(IsClamped());
   DCHECK(other.IsClamped());
-  DCHECK(other.used_digits_ > 0);
+  DCHECK_GT(other.used_digits_, 0);
 
   // Easy case: if we have less digits than the divisor than the result is 0.
   // Note: this handles the case where this == 0, too.
@@ -528,7 +528,7 @@ uint16_t Bignum::DivideModuloIntBignum(const Bignum& other) {
 
 template<typename S>
 static int SizeInHexChars(S number) {
-  DCHECK(number > 0);
+  DCHECK_GT(number, 0);
   int result = 0;
   while (number != 0) {
     number >>= 4;
@@ -541,7 +541,7 @@ static int SizeInHexChars(S number) {
 bool Bignum::ToHexString(char* buffer, int buffer_size) const {
   DCHECK(IsClamped());
   // Each bigit must be printable as separate hex-character.
-  DCHECK(kBigitSize % 4 == 0);
+  DCHECK_EQ(kBigitSize % 4, 0);
   const int kHexCharsPerBigit = kBigitSize / 4;
 
   if (used_digits_ == 0) {
@@ -683,15 +683,15 @@ void Bignum::Align(const Bignum& other) {
     }
     used_digits_ += zero_digits;
     exponent_ -= zero_digits;
-    DCHECK(used_digits_ >= 0);
-    DCHECK(exponent_ >= 0);
+    DCHECK_GE(used_digits_, 0);
+    DCHECK_GE(exponent_, 0);
   }
 }
 
 
 void Bignum::BigitsShiftLeft(int shift_amount) {
-  DCHECK(shift_amount < kBigitSize);
-  DCHECK(shift_amount >= 0);
+  DCHECK_LT(shift_amount, kBigitSize);
+  DCHECK_GE(shift_amount, 0);
   Chunk carry = 0;
   for (int i = 0; i < used_digits_; ++i) {
     Chunk new_carry = bigits_[i] >> (kBigitSize - shift_amount);

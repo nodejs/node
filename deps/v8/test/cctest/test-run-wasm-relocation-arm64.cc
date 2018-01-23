@@ -31,7 +31,7 @@ TEST(WasmRelocationArm64ContextReference) {
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
   v8::internal::byte buffer[4096];
-  DummyStaticFunction(NULL);
+  DummyStaticFunction(nullptr);
   int64_t imm = 1234567;
 
   MacroAssembler masm(isolate, buffer, sizeof buffer,
@@ -45,7 +45,7 @@ TEST(WasmRelocationArm64ContextReference) {
   Handle<Code> code =
       isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 
-  compiler::CSignature0<int64_t> csig;
+  compiler::CSignatureOf<int64_t> csig;
   compiler::CodeRunner<int64_t> runnable(isolate, code, &csig);
   int64_t ret_value = runnable.Call();
   CHECK_EQ(ret_value, imm);
@@ -60,6 +60,8 @@ TEST(WasmRelocationArm64ContextReference) {
   // Relocating reference by offset
   int mode_mask = (1 << RelocInfo::WASM_CONTEXT_REFERENCE);
   for (RelocIterator it(*code, mode_mask); !it.done(); it.next()) {
+    // TODO(6792): No longer needed once WebAssembly code is off heap.
+    CodeSpaceMemoryModificationScope modification_scope(isolate->heap());
     DCHECK(RelocInfo::IsWasmContextReference(it.rinfo()->rmode()));
     it.rinfo()->set_wasm_context_reference(
         isolate, it.rinfo()->wasm_context_reference() + offset,

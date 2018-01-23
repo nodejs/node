@@ -85,7 +85,10 @@
     'v8_check_microtasks_scopes_consistency%': 'false',
 
     # Enable concurrent marking.
-    'v8_enable_concurrent_marking%': 0,
+    'v8_enable_concurrent_marking%': 1,
+
+    # Enables various testing features.
+    'v8_enable_test_features%': 0,
 
     # Controls the threshold for on-heap/off-heap Typed Arrays.
     'v8_typed_array_max_size_in_heap%': 64,
@@ -115,6 +118,9 @@
       }],
       ['v8_trace_maps==1', {
         'defines': ['V8_TRACE_MAPS',],
+      }],
+      ['v8_enable_test_features==1', {
+        'defines': ['V8_ENABLE_ALLOCATION_TIMEOUT', 'V8_ENABLE_FORCE_SLOW_PATH'],
       }],
       ['v8_enable_verify_predictable==1', {
         'defines': ['VERIFY_PREDICTABLE',],
@@ -158,7 +164,7 @@
       },  # Debug
       'Release': {
         'variables': {
-          'v8_enable_handle_zapping%': 0,
+          'v8_enable_handle_zapping%': 1,
         },
         'conditions': [
           ['v8_enable_handle_zapping==1', {

@@ -500,7 +500,7 @@ TEST(Regress6377) {
       "\xbf\0",         // third chunk - end of 2-byte seq
   };
   const std::vector<std::vector<uint16_t>> unicode_expected = {
-      {0xd800, 0xdc00, 97}, {0xfff, 97}, {0xff, 97}, {0xd800, 0xdc00, 97, 0xff},
+      {0xD800, 0xDC00, 97}, {0xFFF, 97}, {0xFF, 97}, {0xD800, 0xDC00, 97, 0xFF},
   };
   CHECK_EQ(unicode_expected.size(), arraysize(cases));
   TestChunkStreamAgainstReference(cases, unicode_expected);
@@ -508,7 +508,7 @@ TEST(Regress6377) {
 
 TEST(Regress6836) {
   const char* cases[] = {
-      // 0xc2 is a lead byte, but there's no continuation. The bug occurs when
+      // 0xC2 is a lead byte, but there's no continuation. The bug occurs when
       // this happens near the chunk end.
       "X\xc2Y\0",
       // Last chunk ends with a 2-byte char lead.
@@ -518,7 +518,7 @@ TEST(Regress6836) {
       "X\xe0\xbf\0",
   };
   const std::vector<std::vector<uint16_t>> unicode_expected = {
-      {0x58, 0xfffd, 0x59}, {0x58, 0xfffd}, {0x58, 0xfffd},
+      {0x58, 0xFFFD, 0x59}, {0x58, 0xFFFD}, {0x58, 0xFFFD},
   };
   CHECK_EQ(unicode_expected.size(), arraysize(cases));
   TestChunkStreamAgainstReference(cases, unicode_expected);
@@ -540,12 +540,12 @@ TEST(TestOverlongAndInvalidSequences) {
       "X\xf4\x90\x80\x80Y\0",
   };
   const std::vector<std::vector<uint16_t>> unicode_expected = {
-      {0x58, 0xfffd, 0xfffd, 0x59},
-      {0x58, 0xfffd, 0xfffd, 0x59},
-      {0x58, 0xfffd, 0xfffd, 0xfffd, 0x59},
-      {0x58, 0xfffd, 0xfffd, 0xfffd, 0xfffd, 0x59},
-      {0x58, 0xfffd, 0xfffd, 0xfffd, 0x59},
-      {0x58, 0xfffd, 0xfffd, 0xfffd, 0xfffd, 0x59},
+      {0x58, 0xFFFD, 0xFFFD, 0x59},
+      {0x58, 0xFFFD, 0xFFFD, 0x59},
+      {0x58, 0xFFFD, 0xFFFD, 0xFFFD, 0x59},
+      {0x58, 0xFFFD, 0xFFFD, 0xFFFD, 0xFFFD, 0x59},
+      {0x58, 0xFFFD, 0xFFFD, 0xFFFD, 0x59},
+      {0x58, 0xFFFD, 0xFFFD, 0xFFFD, 0xFFFD, 0x59},
   };
   CHECK_EQ(unicode_expected.size(), arraysize(cases));
   TestChunkStreamAgainstReference(cases, unicode_expected);

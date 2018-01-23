@@ -18,7 +18,7 @@ uint32_t RoundUpToPowerOfTwo32(uint32_t value) {
   if (value) --value;
 // Use computation based on leading zeros if we have compiler support for that.
 #if V8_HAS_BUILTIN_CLZ || V8_CC_MSVC
-  return 1u << (32 - CountLeadingZeros32(value));
+  return 1u << (32 - CountLeadingZeros(value));
 #else
   value |= value >> 1;
   value |= value >> 2;
@@ -34,7 +34,7 @@ uint64_t RoundUpToPowerOfTwo64(uint64_t value) {
   if (value) --value;
 // Use computation based on leading zeros if we have compiler support for that.
 #if V8_HAS_BUILTIN_CLZ
-  return uint64_t{1} << (64 - CountLeadingZeros64(value));
+  return uint64_t{1} << (64 - CountLeadingZeros(value));
 #else
   value |= value >> 1;
   value |= value >> 2;

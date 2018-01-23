@@ -6,6 +6,7 @@
 
 #include <memory>
 
+#include "src/api.h"
 #include "src/arguments.h"
 #include "src/ast/prettyprinter.h"
 #include "src/bootstrapper.h"
@@ -59,7 +60,7 @@ RUNTIME_FUNCTION(Runtime_InstallToContext) {
     if (index == Context::kNotFound) {
       index = Context::IntrinsicIndexForName(name);
     }
-    CHECK(index != Context::kNotFound);
+    CHECK_NE(index, Context::kNotFound);
     native_context->set(index, *object);
   }
   return isolate->heap()->undefined_value();
@@ -317,8 +318,8 @@ RUNTIME_FUNCTION(Runtime_AllocateInNewSpace) {
   DCHECK_EQ(1, args.length());
   CONVERT_SMI_ARG_CHECKED(size, 0);
   CHECK(IsAligned(size, kPointerSize));
-  CHECK(size > 0);
-  CHECK(size <= kMaxRegularHeapObjectSize);
+  CHECK_GT(size, 0);
+  CHECK_LE(size, kMaxRegularHeapObjectSize);
   return *isolate->factory()->NewFillerObject(size, false, NEW_SPACE);
 }
 
@@ -328,7 +329,7 @@ RUNTIME_FUNCTION(Runtime_AllocateInTargetSpace) {
   CONVERT_SMI_ARG_CHECKED(size, 0);
   CONVERT_SMI_ARG_CHECKED(flags, 1);
   CHECK(IsAligned(size, kPointerSize));
-  CHECK(size > 0);
+  CHECK_GT(size, 0);
   bool double_align = AllocateDoubleAlignFlag::decode(flags);
   AllocationSpace space = AllocateTargetSpace::decode(flags);
   CHECK(size <= kMaxRegularHeapObjectSize || space == LO_SPACE);
@@ -370,7 +371,6 @@ bool ComputeLocation(Isolate* isolate, MessageLocation* target) {
     // baseline code. For optimized code this will use the deoptimization
     // information to get canonical location information.
     std::vector<FrameSummary> frames;
-    frames.reserve(FLAG_max_inlining_levels + 1);
     it.frame()->Summarize(&frames);
     auto& summary = frames.back().AsJavaScript();
     Handle<SharedFunctionInfo> shared(summary.function()->shared());
@@ -527,7 +527,7 @@ RUNTIME_FUNCTION(Runtime_DeserializeLazy) {
   DCHECK_EQ(Builtins::TFJ, Builtins::KindOf(builtin_id));
 
   if (FLAG_trace_lazy_deserialization) {
-    PrintF("Lazy-deserializing %s\n", Builtins::name(builtin_id));
+    PrintF("Lazy-deserializing builtin %s\n", Builtins::name(builtin_id));
   }
 
   Code* code = Snapshot::DeserializeBuiltin(isolate, builtin_id);
@@ -649,6 +649,23 @@ RUNTIME_FUNCTION(Runtime_GetTemplateObject) {
 
   return *TemplateObjectDescription::GetTemplateObject(
       description, isolate->native_context());
+}
+
+RUNTIME_FUNCTION(Runtime_ReportMessage) {
+  // Helper to report messages and continue JS execution. This is intended to
+  // behave similarly to reporting exceptions which reach the top-level in
+  // Execution.cc, but allow the JS code to continue. This is useful for
+  // implementing algorithms such as RunMicrotasks in JS.
+  HandleScope scope(isolate);
+  DCHECK_EQ(1, args.length());
+
+  CONVERT_ARG_HANDLE_CHECKED(Object, message_obj, 0);
+
+  DCHECK(!isolate->has_pending_exception());
+  isolate->set_pending_exception(*message_obj);
+  isolate->ReportPendingMessagesFromJavaScript();
+  isolate->clear_pending_exception();
+  return isolate->heap()->undefined_value();
 }
 
 }  // namespace internal

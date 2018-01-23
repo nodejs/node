@@ -41,7 +41,7 @@ inline StackHandler* StackFrame::top_handler() const {
 
 
 inline Address* StackFrame::ResolveReturnAddressLocation(Address* pc_address) {
-  if (return_address_location_resolver_ == NULL) {
+  if (return_address_location_resolver_ == nullptr) {
     return pc_address;
   } else {
     return reinterpret_cast<Address*>(
@@ -50,18 +50,22 @@ inline Address* StackFrame::ResolveReturnAddressLocation(Address* pc_address) {
   }
 }
 
+inline NativeFrame::NativeFrame(StackFrameIteratorBase* iterator)
+    : StackFrame(iterator) {}
+
+inline Address NativeFrame::GetCallerStackPointer() const {
+  return fp() + CommonFrameConstants::kCallerSPOffset;
+}
 
 inline EntryFrame::EntryFrame(StackFrameIteratorBase* iterator)
-    : StackFrame(iterator) {
-}
+    : StackFrame(iterator) {}
 
 inline ConstructEntryFrame::ConstructEntryFrame(
     StackFrameIteratorBase* iterator)
     : EntryFrame(iterator) {}
 
 inline ExitFrame::ExitFrame(StackFrameIteratorBase* iterator)
-    : StackFrame(iterator) {
-}
+    : StackFrame(iterator) {}
 
 inline BuiltinExitFrame::BuiltinExitFrame(StackFrameIteratorBase* iterator)
     : ExitFrame(iterator) {}
@@ -200,6 +204,9 @@ inline WasmToJsFrame::WasmToJsFrame(StackFrameIteratorBase* iterator)
     : StubFrame(iterator) {}
 
 inline JsToWasmFrame::JsToWasmFrame(StackFrameIteratorBase* iterator)
+    : StubFrame(iterator) {}
+
+inline WasmToWasmFrame::WasmToWasmFrame(StackFrameIteratorBase* iterator)
     : StubFrame(iterator) {}
 
 inline CWasmEntryFrame::CWasmEntryFrame(StackFrameIteratorBase* iterator)

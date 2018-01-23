@@ -7,6 +7,7 @@
 
 #include "src/base/flags.h"
 #include "src/compiler/opcodes.h"
+#include "src/objects.h"
 
 namespace v8 {
 namespace internal {
@@ -31,15 +32,16 @@ class V8_EXPORT_PRIVATE OperationTyper {
   Type* Merge(Type* left, Type* right);
 
   Type* ToPrimitive(Type* type);
-
-  // Helpers for number operation typing.
   Type* ToNumber(Type* type);
+  Type* ToNumeric(Type* type);
+
   Type* WeakenRange(Type* current_range, Type* previous_range);
 
 // Number unary operators.
 #define DECLARE_METHOD(Name) Type* Name(Type* type);
   SIMPLIFIED_NUMBER_UNOP_LIST(DECLARE_METHOD)
   SIMPLIFIED_SPECULATIVE_NUMBER_UNOP_LIST(DECLARE_METHOD)
+  DECLARE_METHOD(ConvertReceiver)
 #undef DECLARE_METHOD
 
 // Number binary operators.
@@ -47,6 +49,10 @@ class V8_EXPORT_PRIVATE OperationTyper {
   SIMPLIFIED_NUMBER_BINOP_LIST(DECLARE_METHOD)
   SIMPLIFIED_SPECULATIVE_NUMBER_BINOP_LIST(DECLARE_METHOD)
 #undef DECLARE_METHOD
+
+  // Comparison operators.
+  Type* SameValue(Type* lhs, Type* rhs);
+  Type* StrictEqual(Type* lhs, Type* rhs);
 
   // Check operators.
   Type* CheckFloat64Hole(Type* type);
@@ -68,6 +74,8 @@ class V8_EXPORT_PRIVATE OperationTyper {
  private:
   typedef base::Flags<ComparisonOutcomeFlags> ComparisonOutcome;
 
+  Type* ToNumberOrNumeric(Object::Conversion mode, Type* type);
+
   ComparisonOutcome Invert(ComparisonOutcome);
   Type* Invert(Type*);
   Type* FalsifyUndefined(ComparisonOutcome);
@@ -86,6 +94,8 @@ class V8_EXPORT_PRIVATE OperationTyper {
 
   Type* infinity_;
   Type* minus_infinity_;
+  Type* singleton_NaN_string_;
+  Type* singleton_zero_string_;
   Type* singleton_false_;
   Type* singleton_true_;
   Type* singleton_the_hole_;

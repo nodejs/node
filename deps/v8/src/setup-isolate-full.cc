@@ -17,7 +17,7 @@ void SetupIsolateDelegate::SetupBuiltins(Isolate* isolate) {
   if (create_heap_objects_) {
     SetupBuiltinsInternal(isolate);
   } else {
-    DCHECK(isolate->snapshot_available());
+    CHECK(isolate->snapshot_available());
   }
 }
 
@@ -26,7 +26,7 @@ void SetupIsolateDelegate::SetupInterpreter(
   if (create_heap_objects_) {
     interpreter::SetupInterpreter::InstallBytecodeHandlers(interpreter);
   } else {
-    DCHECK(interpreter->IsDispatchTableInitialized());
+    CHECK(interpreter->IsDispatchTableInitialized());
   }
 }
 
@@ -34,7 +34,7 @@ bool SetupIsolateDelegate::SetupHeap(Heap* heap) {
   if (create_heap_objects_) {
     return SetupHeapInternal(heap);
   } else {
-    DCHECK(heap->isolate()->snapshot_available());
+    CHECK(heap->isolate()->snapshot_available());
     return true;
   }
 }

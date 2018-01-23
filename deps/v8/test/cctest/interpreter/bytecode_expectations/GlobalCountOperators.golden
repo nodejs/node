@@ -18,8 +18,8 @@ bytecode array length: 10
 bytecodes: [
   /*   26 E> */ B(StackCheck),
   /*   31 S> */ B(LdaGlobal), U8(0), U8(0),
-                B(Inc), U8(4),
-  /*   40 E> */ B(StaGlobalSloppy), U8(0), U8(2),
+                B(Inc), U8(2),
+  /*   40 E> */ B(StaGlobal), U8(0), U8(3),
   /*   47 S> */ B(Return),
 ]
 constant pool: [
@@ -40,10 +40,10 @@ bytecode array length: 16
 bytecodes: [
   /*   26 E> */ B(StackCheck),
   /*   31 S> */ B(LdaGlobal), U8(0), U8(0),
-                B(ToNumber), U8(4),
+                B(ToNumeric), U8(2),
                 B(Star), R(0),
-                B(Dec), U8(4),
-  /*   44 E> */ B(StaGlobalSloppy), U8(0), U8(2),
+                B(Dec), U8(2),
+  /*   44 E> */ B(StaGlobal), U8(0), U8(3),
                 B(Ldar), R(0),
   /*   47 S> */ B(Return),
 ]
@@ -65,8 +65,8 @@ bytecode array length: 10
 bytecodes: [
   /*   27 E> */ B(StackCheck),
   /*   46 S> */ B(LdaGlobal), U8(0), U8(0),
-                B(Dec), U8(4),
-  /*   55 E> */ B(StaGlobalStrict), U8(0), U8(2),
+                B(Dec), U8(2),
+  /*   55 E> */ B(StaGlobal), U8(0), U8(3),
   /*   67 S> */ B(Return),
 ]
 constant pool: [
@@ -87,10 +87,10 @@ bytecode array length: 16
 bytecodes: [
   /*   27 E> */ B(StackCheck),
   /*   32 S> */ B(LdaGlobal), U8(0), U8(0),
-                B(ToNumber), U8(4),
+                B(ToNumeric), U8(2),
                 B(Star), R(0),
-                B(Inc), U8(4),
-  /*   50 E> */ B(StaGlobalSloppy), U8(0), U8(2),
+                B(Inc), U8(2),
+  /*   50 E> */ B(StaGlobal), U8(0), U8(3),
                 B(Ldar), R(0),
   /*   53 S> */ B(Return),
 ]

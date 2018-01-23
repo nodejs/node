@@ -26,18 +26,11 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 import os
-import re
 
 from testrunner.local import testsuite
 from testrunner.objects import testcase
 
-FLAGS_PATTERN = re.compile(r"//\s+Flags:(.*)")
-
-class IntlTestSuite(testsuite.TestSuite):
-
-  def __init__(self, name, root):
-    super(IntlTestSuite, self).__init__(name, root)
-
+class TestSuite(testsuite.TestSuite):
   def ListTests(self, context):
     tests = []
     for dirname, dirs, files in os.walk(self.root):
@@ -52,35 +45,42 @@ class IntlTestSuite(testsuite.TestSuite):
           fullpath = os.path.join(dirname, filename)
           relpath = fullpath[len(self.root) + 1 : -3]
           testname = relpath.replace(os.path.sep, "/")
-          test = testcase.TestCase(self, testname)
+          test = self._create_test(testname)
           tests.append(test)
     return tests
 
-  def GetFlagsForTestCase(self, testcase, context):
-    source = self.GetSourceForTest(testcase)
-    flags = ["--allow-natives-syntax"] + context.mode_flags
-    flags_match = re.findall(FLAGS_PATTERN, source)
-    for match in flags_match:
-      flags += match.strip().split()
+  def _test_class(self):
+    return TestCase
 
-    files = []
-    files.append(os.path.join(self.root, "assert.js"))
-    files.append(os.path.join(self.root, "utils.js"))
-    files.append(os.path.join(self.root, "regexp-prepare.js"))
-    files.append(os.path.join(self.root, testcase.path + self.suffix()))
-    files.append(os.path.join(self.root, "regexp-assert.js"))
 
-    flags += files
-    if context.isolates:
-      flags.append("--isolate")
-      flags += files
+class TestCase(testcase.TestCase):
+  def __init__(self, *args, **kwargs):
+    super(TestCase, self).__init__(*args, **kwargs)
 
-    return testcase.flags + flags
+    self._source_flags = self._parse_source_flags()
 
-  def GetSourceForTest(self, testcase):
-    filename = os.path.join(self.root, testcase.path + self.suffix())
-    with open(filename) as f:
-      return f.read()
+  def _get_files_params(self, ctx):
+    files = map(lambda f: os.path.join(self.suite.root, f), [
+        'assert.js',
+        'utils.js',
+        'regexp-prepare.js',
+        self.path + self._get_suffix(),
+        'regexp-assert.js',
+    ])
+
+    if ctx.isolates:
+      files += ['--isolate'] + files
+    return files
+
+  def _get_source_flags(self):
+    return self._source_flags
+
+  def _get_suite_flags(self, ctx):
+    return ['--allow-natives-syntax']
+
+  def _get_source_path(self):
+    return os.path.join(self.suite.root, self.path + self._get_suffix())
+
 
 def GetSuite(name, root):
-  return IntlTestSuite(name, root)
+  return TestSuite(name, root)

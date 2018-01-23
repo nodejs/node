@@ -111,7 +111,7 @@ void ZoneList<T>::Clear() {
   DeleteData(data_);
   // We don't call Initialize(0) since that requires passing a Zone,
   // which we don't really need.
-  data_ = NULL;
+  data_ = nullptr;
   capacity_ = 0;
   length_ = 0;
 }

@@ -34,6 +34,13 @@
 
   # Modules which are only meant to be imported from by other tests, not to be
   # tested standalone.
-  'modules-skip*': [SKIP],
+  'fail/modules-skip*': [SKIP],
 }],  # ALWAYS
+
+# Liftoff is currently only sufficiently implemented on x64 and ia32.
+# TODO(clemensh): Implement on all other platforms (crbug.com/v8/6600).
+['arch != x64 and arch != ia32', {
+  'wasm-trace-memory-liftoff': [SKIP],
+}], # arch != x64 and arch != ia32
+
 ]

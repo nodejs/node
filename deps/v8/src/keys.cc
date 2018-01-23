@@ -472,21 +472,18 @@ void FilterForEnumerableProperties(Handle<JSReceiver> receiver,
 
     // args are invalid after args.Call(), create a new one in every iteration.
     PropertyCallbackArguments args(accumulator->isolate(), interceptor->data(),
-                                   *receiver, *object, Object::DONT_THROW);
+                                   *receiver, *object, kDontThrow);
 
     Handle<Object> element = accessor->Get(result, i);
     Handle<Object> attributes;
     if (type == kIndexed) {
       uint32_t number;
       CHECK(element->ToUint32(&number));
-      attributes = args.Call(
-          v8::ToCData<v8::IndexedPropertyQueryCallback>(interceptor->query()),
-          number);
+      attributes = args.CallIndexedQuery(interceptor, number);
     } else {
       CHECK(element->IsName());
-      attributes = args.Call(v8::ToCData<v8::GenericNamedPropertyQueryCallback>(
-                                 interceptor->query()),
-                             Handle<Name>::cast(element));
+      attributes =
+          args.CallNamedQuery(interceptor, Handle<Name>::cast(element));
     }
 
     if (!attributes.is_null()) {
@@ -507,25 +504,15 @@ Maybe<bool> CollectInterceptorKeysInternal(Handle<JSReceiver> receiver,
                                            IndexedOrNamed type) {
   Isolate* isolate = accumulator->isolate();
   PropertyCallbackArguments enum_args(isolate, interceptor->data(), *receiver,
-                                      *object, Object::DONT_THROW);
+                                      *object, kDontThrow);
 
   Handle<JSObject> result;
   if (!interceptor->enumerator()->IsUndefined(isolate)) {
     if (type == kIndexed) {
-      v8::IndexedPropertyEnumeratorCallback enum_fun =
-          v8::ToCData<v8::IndexedPropertyEnumeratorCallback>(
-              interceptor->enumerator());
-      const char* log_tag = "interceptor-indexed-enum";
-      LOG(isolate, ApiObjectAccess(log_tag, *object));
-      result = enum_args.Call(enum_fun);
+      result = enum_args.CallIndexedEnumerator(interceptor);
     } else {
-      DCHECK(type == kNamed);
-      v8::GenericNamedPropertyEnumeratorCallback enum_fun =
-          v8::ToCData<v8::GenericNamedPropertyEnumeratorCallback>(
-              interceptor->enumerator());
-      const char* log_tag = "interceptor-named-enum";
-      LOG(isolate, ApiObjectAccess(log_tag, *object));
-      result = enum_args.Call(enum_fun);
+      DCHECK_EQ(type, kNamed);
+      result = enum_args.CallNamedEnumerator(interceptor);
     }
   }
   RETURN_VALUE_IF_SCHEDULED_EXCEPTION(isolate, Nothing<bool>());
@@ -726,7 +713,7 @@ Maybe<bool> KeyAccumulator::CollectOwnKeys(Handle<JSReceiver> receiver,
       return Just(false);
     }
     // ...whereas [[OwnPropertyKeys]] shall return whitelisted properties.
-    DCHECK(KeyCollectionMode::kOwnOnly == mode_);
+    DCHECK_EQ(KeyCollectionMode::kOwnOnly, mode_);
     Handle<AccessCheckInfo> access_check_info;
     {
       DisallowHeapAllocation no_gc;
@@ -790,7 +777,7 @@ Maybe<bool> KeyAccumulator::CollectOwnJSProxyKeys(Handle<JSReceiver> receiver,
     return Nothing<bool>();
   }
   // 4. Let target be the value of the [[ProxyTarget]] internal slot of O.
-  Handle<JSReceiver> target(proxy->target(), isolate_);
+  Handle<JSReceiver> target(JSReceiver::cast(proxy->target()), isolate_);
   // 5. Let trap be ? GetMethod(handler, "ownKeys").
   Handle<Object> trap;
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(

@@ -13,6 +13,7 @@
 #include "src/globals.h"
 #include "src/handles.h"
 #include "src/parsing/preparsed-scope-data.h"
+#include "src/pending-compilation-error-handler.h"
 
 namespace v8 {
 
@@ -27,6 +28,7 @@ class AstValueFactory;
 class DeclarationScope;
 class FunctionLiteral;
 class RuntimeCallStats;
+class Logger;
 class ScriptData;
 class SourceRangeMap;
 class UnicodeCache;
@@ -73,13 +75,16 @@ class V8_EXPORT_PRIVATE ParseInfo {
   FLAG_ACCESSOR(kAllowLazyParsing, allow_lazy_parsing, set_allow_lazy_parsing)
   FLAG_ACCESSOR(kIsNamedExpression, is_named_expression,
                 set_is_named_expression)
-  FLAG_ACCESSOR(kSerializing, will_serialize, set_will_serialize)
   FLAG_ACCESSOR(kLazyCompile, lazy_compile, set_lazy_compile)
   FLAG_ACCESSOR(kCollectTypeProfile, collect_type_profile,
                 set_collect_type_profile)
   FLAG_ACCESSOR(kIsAsmWasmBroken, is_asm_wasm_broken, set_asm_wasm_broken)
   FLAG_ACCESSOR(kBlockCoverageEnabled, block_coverage_enabled,
                 set_block_coverage_enabled)
+  FLAG_ACCESSOR(kOnBackgroundThread, on_background_thread,
+                set_on_background_thread)
+  FLAG_ACCESSOR(kWrappedAsFunction, is_wrapped_as_function,
+                set_wrapped_as_function)
 #undef FLAG_ACCESSOR
 
   void set_parse_restriction(ParseRestriction restriction) {
@@ -186,6 +191,8 @@ class V8_EXPORT_PRIVATE ParseInfo {
   void set_runtime_call_stats(RuntimeCallStats* runtime_call_stats) {
     runtime_call_stats_ = runtime_call_stats;
   }
+  Logger* logger() const { return logger_; }
+  void set_logger(Logger* logger) { logger_ = logger; }
 
   void AllocateSourceRangeMap();
   SourceRangeMap* source_range_map() const { return source_range_map_; }
@@ -193,9 +200,14 @@ class V8_EXPORT_PRIVATE ParseInfo {
     source_range_map_ = source_range_map;
   }
 
+  PendingCompilationErrorHandler* pending_error_handler() {
+    return &pending_error_handler_;
+  }
+
   // Getters for individual compiler hints.
   bool is_declaration() const;
   FunctionKind function_kind() const;
+  bool requires_instance_fields_initializer() const;
 
   //--------------------------------------------------------------------------
   // TODO(titzer): these should not be part of ParseInfo.
@@ -215,7 +227,7 @@ class V8_EXPORT_PRIVATE ParseInfo {
     return construct_language_mode(is_strict_mode());
   }
   void set_language_mode(LanguageMode language_mode) {
-    STATIC_ASSERT(LANGUAGE_END == 2);
+    STATIC_ASSERT(LanguageModeSize == 2);
     set_strict_mode(is_strict(language_mode));
   }
 
@@ -229,7 +241,8 @@ class V8_EXPORT_PRIVATE ParseInfo {
     }
   }
 
-  void UpdateStatisticsAfterBackgroundParse(Isolate* isolate);
+  void EmitBackgroundParseStatisticsOnBackgroundThread();
+  void UpdateBackgroundParseStatisticsOnMainThread(Isolate* isolate);
 
  private:
   // Various configuration flags for parsing.
@@ -244,11 +257,12 @@ class V8_EXPORT_PRIVATE ParseInfo {
     kModule = 1 << 6,
     kAllowLazyParsing = 1 << 7,
     kIsNamedExpression = 1 << 8,
-    kSerializing = 1 << 9,
-    kLazyCompile = 1 << 10,
-    kCollectTypeProfile = 1 << 11,
-    kBlockCoverageEnabled = 1 << 12,
-    kIsAsmWasmBroken = 1 << 13,
+    kLazyCompile = 1 << 9,
+    kCollectTypeProfile = 1 << 10,
+    kBlockCoverageEnabled = 1 << 11,
+    kIsAsmWasmBroken = 1 << 12,
+    kOnBackgroundThread = 1 << 13,
+    kWrappedAsFunction = 1 << 14,  // Implicitly wrapped as function.
   };
 
   //------------- Inputs to parsing and scope analysis -----------------------
@@ -279,11 +293,13 @@ class V8_EXPORT_PRIVATE ParseInfo {
   const class AstStringConstants* ast_string_constants_;
   const AstRawString* function_name_;
   RuntimeCallStats* runtime_call_stats_;
+  Logger* logger_;
   SourceRangeMap* source_range_map_;  // Used when block coverage is enabled.
 
   //----------- Output of parsing and scope analysis ------------------------
   FunctionLiteral* literal_;
   std::shared_ptr<DeferredHandles> deferred_handles_;
+  PendingCompilationErrorHandler pending_error_handler_;
 
   void SetFlag(Flag f) { flags_ |= f; }
   void SetFlag(Flag f, bool v) { flags_ = v ? flags_ | f : flags_ & ~f; }

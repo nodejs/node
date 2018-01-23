@@ -5,6 +5,8 @@
 #ifndef V8_BASE_MACROS_H_
 #define V8_BASE_MACROS_H_
 
+#include <limits>
+
 #include "src/base/compiler-specific.h"
 #include "src/base/format-macros.h"
 #include "src/base/logging.h"
@@ -167,17 +169,22 @@ V8_INLINE Dest bit_cast(Source const& source) {
 #define DISABLE_ASAN
 #endif
 
-// DISABLE_CFI_PERF -- Disable Control Flow Integrity checks for Perf reasons.
-#if !defined(DISABLE_CFI_PERF)
+// Helper macro to define no_sanitize attributes only with clang.
 #if defined(__clang__) && defined(__has_attribute)
 #if __has_attribute(no_sanitize)
-#define DISABLE_CFI_PERF __attribute__((no_sanitize("cfi")))
+#define CLANG_NO_SANITIZE(what) __attribute__((no_sanitize(what)))
 #endif
 #endif
+#if !defined(CLANG_NO_SANITIZE)
+#define CLANG_NO_SANITIZE(what)
 #endif
-#if !defined(DISABLE_CFI_PERF)
-#define DISABLE_CFI_PERF
-#endif
+
+// DISABLE_CFI_PERF -- Disable Control Flow Integrity checks for Perf reasons.
+#define DISABLE_CFI_PERF CLANG_NO_SANITIZE("cfi")
+
+// DISABLE_CFI_ICALL -- Disable Control Flow Integrity indirect call checks,
+// useful because calls into JITed code can not be CFI verified.
+#define DISABLE_CFI_ICALL CLANG_NO_SANITIZE("cfi-icall")
 
 #if V8_CC_GNU
 #define V8_IMMEDIATE_CRASH() __builtin_trap()
@@ -214,34 +221,16 @@ struct Use {
 // than defining __STDC_CONSTANT_MACROS before including <stdint.h>, and it
 // works on compilers that don't have it (like MSVC).
 #if V8_CC_MSVC
-# define V8_UINT64_C(x)   (x ## UI64)
-# define V8_INT64_C(x)    (x ## I64)
 # if V8_HOST_ARCH_64_BIT
-#  define V8_INTPTR_C(x)  (x ## I64)
 #  define V8_PTR_PREFIX   "ll"
 # else
-#  define V8_INTPTR_C(x)  (x)
 #  define V8_PTR_PREFIX   ""
 # endif  // V8_HOST_ARCH_64_BIT
 #elif V8_CC_MINGW64
-# define V8_UINT64_C(x)   (x ## ULL)
-# define V8_INT64_C(x)    (x ## LL)
-# define V8_INTPTR_C(x)   (x ## LL)
 # define V8_PTR_PREFIX    "I64"
 #elif V8_HOST_ARCH_64_BIT
-# if V8_OS_MACOSX || V8_OS_OPENBSD
-#  define V8_UINT64_C(x)   (x ## ULL)
-#  define V8_INT64_C(x)    (x ## LL)
-# else
-#  define V8_UINT64_C(x)   (x ## UL)
-#  define V8_INT64_C(x)    (x ## L)
-# endif
-# define V8_INTPTR_C(x)   (x ## L)
 # define V8_PTR_PREFIX    "l"
 #else
-# define V8_UINT64_C(x)   (x ## ULL)
-# define V8_INT64_C(x)    (x ## LL)
-# define V8_INTPTR_C(x)   (x)
 #if V8_OS_AIX
 #define V8_PTR_PREFIX "l"
 #else
@@ -327,6 +316,26 @@ inline void* AlignedAddress(void* address, size_t alignment) {
   DCHECK_EQ(alignment & (alignment - 1), 0u);
   return reinterpret_cast<void*>(reinterpret_cast<uintptr_t>(address) &
                                  ~static_cast<uintptr_t>(alignment - 1));
+}
+
+// Bounds checks for float to integer conversions, which does truncation. Hence,
+// the range of legal values is (min - 1, max + 1).
+template <typename int_t, typename float_t, typename biggest_int_t = int64_t>
+bool is_inbounds(float_t v) {
+  static_assert(sizeof(int_t) < sizeof(biggest_int_t),
+                "int_t can't be bounds checked by the compiler");
+  constexpr float_t kLowerBound =
+      static_cast<float_t>(std::numeric_limits<int_t>::min()) - 1;
+  constexpr float_t kUpperBound =
+      static_cast<float_t>(std::numeric_limits<int_t>::max()) + 1;
+  constexpr bool kLowerBoundIsMin =
+      static_cast<biggest_int_t>(kLowerBound) ==
+      static_cast<biggest_int_t>(std::numeric_limits<int_t>::min());
+  constexpr bool kUpperBoundIsMax =
+      static_cast<biggest_int_t>(kUpperBound) ==
+      static_cast<biggest_int_t>(std::numeric_limits<int_t>::max());
+  return (kLowerBoundIsMin ? (kLowerBound <= v) : (kLowerBound < v)) &&
+         (kUpperBoundIsMax ? (v <= kUpperBound) : (v < kUpperBound));
 }
 
 #endif   // V8_BASE_MACROS_H_

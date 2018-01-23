@@ -30,6 +30,7 @@ import os
 
 from testrunner.local import testsuite
 from testrunner.objects import testcase
+from testrunner.outproc import mozilla
 
 EXCLUDED = ["CVS", ".svn"]
 
@@ -54,10 +55,9 @@ TEST_DIRS = """
 """.split()
 
 
-class MozillaTestSuite(testsuite.TestSuite):
-
+class TestSuite(testsuite.TestSuite):
   def __init__(self, name, root):
-    super(MozillaTestSuite, self).__init__(name, root)
+    super(TestSuite, self).__init__(name, root)
     self.testroot = os.path.join(root, "data")
 
   def ListTests(self, context):
@@ -77,39 +77,46 @@ class MozillaTestSuite(testsuite.TestSuite):
             fullpath = os.path.join(dirname, filename)
             relpath = fullpath[len(self.testroot) + 1 : -3]
             testname = relpath.replace(os.path.sep, "/")
-            case = testcase.TestCase(self, testname)
+            case = self._create_test(testname)
             tests.append(case)
     return tests
 
-  def GetFlagsForTestCase(self, testcase, context):
-    result = []
-    result += context.mode_flags
-    result += ["--expose-gc"]
-    result += [os.path.join(self.root, "mozilla-shell-emulation.js")]
-    testfilename = testcase.path + ".js"
+  def _test_class(self):
+    return TestCase
+
+
+class TestCase(testcase.TestCase):
+  def _get_files_params(self, ctx):
+    files = [os.path.join(self.suite.root, "mozilla-shell-emulation.js")]
+    testfilename = self.path + ".js"
     testfilepath = testfilename.split("/")
     for i in xrange(len(testfilepath)):
-      script = os.path.join(self.testroot,
+      script = os.path.join(self.suite.testroot,
                             reduce(os.path.join, testfilepath[:i], ""),
                             "shell.js")
       if os.path.exists(script):
-        result.append(script)
-    result.append(os.path.join(self.testroot, testfilename))
-    return testcase.flags + result
+        files.append(script)
 
-  def GetSourceForTest(self, testcase):
-    filename = os.path.join(self.testroot, testcase.path + ".js")
-    with open(filename) as f:
-      return f.read()
+    files.append(os.path.join(self.suite.testroot, testfilename))
+    return files
 
-  def IsNegativeTest(self, testcase):
-    return testcase.path.endswith("-n")
+  def _get_suite_flags(self, ctx):
+    return ['--expose-gc']
 
-  def IsFailureOutput(self, testcase):
-    if testcase.output.exit_code != 0:
-      return True
-    return "FAILED!" in testcase.output.stdout
+  def _get_source_path(self):
+    return os.path.join(self.suite.testroot, self.path + self._get_suffix())
+
+  @property
+  def output_proc(self):
+    if not self.expected_outcomes:
+      if self.path.endswith('-n'):
+        return mozilla.MOZILLA_PASS_NEGATIVE
+      return mozilla.MOZILLA_PASS_DEFAULT
+    if self.path.endswith('-n'):
+      return mozilla.NegOutProc(self.expected_outcomes)
+    return mozilla.OutProc(self.expected_outcomes)
+
 
 
 def GetSuite(name, root):
-  return MozillaTestSuite(name, root)
+  return TestSuite(name, root)

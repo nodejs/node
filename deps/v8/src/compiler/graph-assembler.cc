@@ -97,8 +97,8 @@ Node* GraphAssembler::Projection(int index, Node* value) {
 }
 
 Node* GraphAssembler::Allocate(PretenureFlag pretenure, Node* size) {
-  return current_effect_ =
-             graph()->NewNode(simplified()->Allocate(Type::Any(), NOT_TENURED),
+  return current_control_ = current_effect_ =
+             graph()->NewNode(simplified()->AllocateRaw(Type::Any(), pretenure),
                               size, current_effect_, current_control_);
 }
 
@@ -134,6 +134,11 @@ Node* GraphAssembler::DebugBreak() {
                                             current_effect_, current_control_);
 }
 
+Node* GraphAssembler::Unreachable() {
+  return current_effect_ = graph()->NewNode(common()->Unreachable(),
+                                            current_effect_, current_control_);
+}
+
 Node* GraphAssembler::Store(StoreRepresentation rep, Node* object, Node* offset,
                             Node* value) {
   return current_effect_ =
@@ -164,24 +169,33 @@ Node* GraphAssembler::ToNumber(Node* value) {
                               value, NoContextConstant(), current_effect_);
 }
 
-Node* GraphAssembler::DeoptimizeIf(DeoptimizeReason reason, Node* condition,
-                                   Node* frame_state) {
+Node* GraphAssembler::BitcastWordToTagged(Node* value) {
+  return current_effect_ =
+             graph()->NewNode(machine()->BitcastWordToTagged(), value,
+                              current_effect_, current_control_);
+}
+
+Node* GraphAssembler::DeoptimizeIf(DeoptimizeReason reason,
+                                   VectorSlotPair const& feedback,
+                                   Node* condition, Node* frame_state) {
   return current_control_ = current_effect_ = graph()->NewNode(
-             common()->DeoptimizeIf(DeoptimizeKind::kEager, reason), condition,
-             frame_state, current_effect_, current_control_);
+             common()->DeoptimizeIf(DeoptimizeKind::kEager, reason, feedback),
+             condition, frame_state, current_effect_, current_control_);
 }
 
 Node* GraphAssembler::DeoptimizeIfNot(DeoptimizeKind kind,
-                                      DeoptimizeReason reason, Node* condition,
-                                      Node* frame_state) {
+                                      DeoptimizeReason reason,
+                                      VectorSlotPair const& feedback,
+                                      Node* condition, Node* frame_state) {
   return current_control_ = current_effect_ = graph()->NewNode(
-             common()->DeoptimizeUnless(kind, reason), condition, frame_state,
-             current_effect_, current_control_);
+             common()->DeoptimizeUnless(kind, reason, feedback), condition,
+             frame_state, current_effect_, current_control_);
 }
 
-Node* GraphAssembler::DeoptimizeIfNot(DeoptimizeReason reason, Node* condition,
-                                      Node* frame_state) {
-  return DeoptimizeIfNot(DeoptimizeKind::kEager, reason, condition,
+Node* GraphAssembler::DeoptimizeIfNot(DeoptimizeReason reason,
+                                      VectorSlotPair const& feedback,
+                                      Node* condition, Node* frame_state) {
+  return DeoptimizeIfNot(DeoptimizeKind::kEager, reason, feedback, condition,
                          frame_state);
 }
 

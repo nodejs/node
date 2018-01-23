@@ -28,14 +28,9 @@ class Scavenger {
   Scavenger(Heap* heap, bool is_logging, CopiedList* copied_list,
             PromotionList* promotion_list, int task_id);
 
-  // Scavenges an object |object| referenced from slot |p|. |object| is required
-  // to be in from space.
-  inline void ScavengeObject(HeapObject** p, HeapObject* object);
-
-  // Potentially scavenges an object referenced from |slot_address| if it is
-  // indeed a HeapObject and resides in from space.
-  inline SlotCallbackResult CheckAndScavengeObject(Heap* heap,
-                                                   Address slot_address);
+  // Entry point for scavenging an old generation page. For scavenging single
+  // objects see RootScavengingVisitor and ScavengeVisitor below.
+  void ScavengePage(MemoryChunk* page);
 
   // Processes remaining work (=objects) after single objects have been
   // manually scavenged using ScavengeObject or CheckAndScavengeObject.
@@ -47,10 +42,6 @@ class Scavenger {
   size_t bytes_copied() const { return copied_size_; }
   size_t bytes_promoted() const { return promoted_size_; }
 
-  void AnnounceLockedPage(MemoryChunk* chunk) {
-    allocator_.AnnounceLockedPage(chunk);
-  }
-
  private:
   // Number of objects to process before interrupting for potentially waking
   // up other tasks.
@@ -60,6 +51,17 @@ class Scavenger {
   inline Heap* heap() { return heap_; }
 
   inline void PageMemoryFence(Object* object);
+
+  void AddPageToSweeperIfNecessary(MemoryChunk* page);
+
+  // Potentially scavenges an object referenced from |slot_address| if it is
+  // indeed a HeapObject and resides in from space.
+  inline SlotCallbackResult CheckAndScavengeObject(Heap* heap,
+                                                   Address slot_address);
+
+  // Scavenges an object |object| referenced from slot |p|. |object| is required
+  // to be in from space.
+  inline void ScavengeObject(HeapObject** p, HeapObject* object);
 
   // Copies |source| to |target| and sets the forwarding pointer in |source|.
   V8_INLINE bool MigrateObject(Map* map, HeapObject* source, HeapObject* target,
@@ -90,8 +92,6 @@ class Scavenger {
 
   void IterateAndScavengePromotedObject(HeapObject* target, int size);
 
-  void RecordCopiedObject(HeapObject* obj);
-
   static inline bool ContainsOnlyData(VisitorId visitor_id);
 
   Heap* const heap_;
@@ -106,6 +106,8 @@ class Scavenger {
   const bool is_compacting_;
 
   friend class IterateAndScavengePromotedObjectsVisitor;
+  friend class RootScavengeVisitor;
+  friend class ScavengeVisitor;
 };
 
 // Helper class for turning the scavenger into an object visitor that is also

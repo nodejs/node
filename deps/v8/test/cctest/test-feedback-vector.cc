@@ -257,12 +257,12 @@ TEST(VectorCallCounts) {
 
   CompileRun("f(foo); f(foo);");
   CHECK_EQ(MONOMORPHIC, nexus.StateFromFeedback());
-  CHECK_EQ(3, nexus.ExtractCallCount());
+  CHECK_EQ(3, nexus.GetCallCount());
 
   // Send the IC megamorphic, but we should still have incrementing counts.
   CompileRun("f(function() { return 12; });");
   CHECK_EQ(GENERIC, nexus.StateFromFeedback());
-  CHECK_EQ(4, nexus.ExtractCallCount());
+  CHECK_EQ(4, nexus.GetCallCount());
 }
 
 TEST(VectorConstructCounts) {
@@ -288,12 +288,42 @@ TEST(VectorConstructCounts) {
 
   CompileRun("f(Foo); f(Foo);");
   CHECK_EQ(MONOMORPHIC, nexus.StateFromFeedback());
-  CHECK_EQ(3, nexus.ExtractCallCount());
+  CHECK_EQ(3, nexus.GetCallCount());
 
   // Send the IC megamorphic, but we should still have incrementing counts.
   CompileRun("f(function() {});");
   CHECK_EQ(GENERIC, nexus.StateFromFeedback());
-  CHECK_EQ(4, nexus.ExtractCallCount());
+  CHECK_EQ(4, nexus.GetCallCount());
+}
+
+TEST(VectorSpeculationMode) {
+  if (i::FLAG_always_opt) return;
+  CcTest::InitializeVM();
+  LocalContext context;
+  v8::HandleScope scope(context->GetIsolate());
+  Isolate* isolate = CcTest::i_isolate();
+
+  // Make sure function f has a call that uses a type feedback slot.
+  CompileRun(
+      "function Foo() {}"
+      "function f(a) { new a(); } f(Foo);");
+  Handle<JSFunction> f = GetFunction("f");
+  Handle<FeedbackVector> feedback_vector =
+      Handle<FeedbackVector>(f->feedback_vector(), isolate);
+
+  FeedbackSlot slot(0);
+  CallICNexus nexus(feedback_vector, slot);
+  CHECK_EQ(SpeculationMode::kAllowSpeculation, nexus.GetSpeculationMode());
+
+  CompileRun("f(Foo); f(Foo);");
+  CHECK_EQ(3, nexus.GetCallCount());
+  CHECK_EQ(SpeculationMode::kAllowSpeculation, nexus.GetSpeculationMode());
+
+  nexus.SetSpeculationMode(SpeculationMode::kAllowSpeculation);
+  nexus.SetSpeculationMode(SpeculationMode::kDisallowSpeculation);
+  CHECK_EQ(SpeculationMode::kDisallowSpeculation, nexus.GetSpeculationMode());
+  nexus.SetSpeculationMode(SpeculationMode::kAllowSpeculation);
+  CHECK_EQ(SpeculationMode::kAllowSpeculation, nexus.GetSpeculationMode());
 }
 
 TEST(VectorLoadICStates) {
@@ -574,9 +604,9 @@ TEST(ReferenceContextAllocatesNoSlots) {
     CHECK_SLOT_KIND(helper, 1, FeedbackSlotKind::kStoreNamedStrict);
     CHECK_SLOT_KIND(helper, 2, FeedbackSlotKind::kStoreNamedStrict);
     CHECK_SLOT_KIND(helper, 3, FeedbackSlotKind::kStoreNamedStrict);
-    CHECK_SLOT_KIND(helper, 4, FeedbackSlotKind::kLoadProperty);
+    CHECK_SLOT_KIND(helper, 4, FeedbackSlotKind::kBinaryOp);
     CHECK_SLOT_KIND(helper, 5, FeedbackSlotKind::kLoadProperty);
-    CHECK_SLOT_KIND(helper, 6, FeedbackSlotKind::kBinaryOp);
+    CHECK_SLOT_KIND(helper, 6, FeedbackSlotKind::kLoadProperty);
   }
 }
 

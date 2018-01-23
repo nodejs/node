@@ -17,18 +17,19 @@ StartupSerializer::StartupSerializer(
     : Serializer(isolate),
       clear_function_code_(function_code_handling ==
                            v8::SnapshotCreator::FunctionCodeHandling::kClear),
-      serializing_builtins_(false),
       can_be_rehashed_(true) {
   InitializeCodeAddressMap();
 }
 
 StartupSerializer::~StartupSerializer() {
   RestoreExternalReferenceRedirectors(accessor_infos_);
+  RestoreExternalReferenceRedirectors(call_handler_infos_);
   OutputStatistics("StartupSerializer");
 }
 
 void StartupSerializer::SerializeObject(HeapObject* obj, HowToCode how_to_code,
                                         WhereToPoint where_to_point, int skip) {
+  DCHECK(!ObjectIsBytecodeHandler(obj));  // Only referenced in dispatch table.
   DCHECK(!obj->IsJSFunction());
 
   if (clear_function_code() && obj->IsBytecodeArray()) {
@@ -36,9 +37,7 @@ void StartupSerializer::SerializeObject(HeapObject* obj, HowToCode how_to_code,
   }
 
   BuiltinReferenceSerializationMode mode =
-      (clear_function_code() && !serializing_builtins_)
-          ? kCanonicalizeCompileLazy
-          : kDefault;
+      clear_function_code() ? kCanonicalizeCompileLazy : kDefault;
   if (SerializeBuiltinReference(obj, how_to_code, where_to_point, skip, mode)) {
     return;
   }
@@ -64,6 +63,13 @@ void StartupSerializer::SerializeObject(HeapObject* obj, HowToCode how_to_code,
     Address original_address = Foreign::cast(info->getter())->foreign_address();
     Foreign::cast(info->js_getter())->set_foreign_address(original_address);
     accessor_infos_.push_back(info);
+  } else if (isolate()->external_reference_redirector() &&
+             obj->IsCallHandlerInfo()) {
+    CallHandlerInfo* info = CallHandlerInfo::cast(obj);
+    Address original_address =
+        Foreign::cast(info->callback())->foreign_address();
+    Foreign::cast(info->js_callback())->set_foreign_address(original_address);
+    call_handler_infos_.push_back(info);
   } else if (obj->IsScript() && Script::cast(obj)->IsUserJavaScript()) {
     Script::cast(obj)->set_context_data(
         isolate()->heap()->uninitialized_symbol());
@@ -75,7 +81,7 @@ void StartupSerializer::SerializeObject(HeapObject* obj, HowToCode how_to_code,
     }
   }
 
-  if (obj->IsHashTable()) CheckRehashability(obj);
+  CheckRehashability(obj);
 
   // Object has not yet been serialized.  Serialize it here.
   ObjectSerializer object_serializer(this, obj, &sink_, how_to_code,
@@ -89,7 +95,7 @@ void StartupSerializer::SerializeWeakReferencesAndDeferred() {
   // one entry with 'undefined' to terminate the partial snapshot cache.
   Object* undefined = isolate()->heap()->undefined_value();
   VisitRootPointer(Root::kPartialSnapshotCache, &undefined);
-  isolate()->heap()->IterateWeakRoots(this, VISIT_ALL);
+  isolate()->heap()->IterateWeakRoots(this, VISIT_FOR_SERIALIZATION);
   SerializeDeferredObjects();
   Pad();
 }
@@ -107,9 +113,6 @@ int StartupSerializer::PartialSnapshotCacheIndex(HeapObject* heap_object) {
 }
 
 void StartupSerializer::Synchronize(VisitorSynchronization::SyncTag tag) {
-  // We expect the builtins tag after builtins have been serialized.
-  DCHECK(!serializing_builtins_ || tag == VisitorSynchronization::kBuiltins);
-  serializing_builtins_ = (tag == VisitorSynchronization::kHandleScope);
   sink_.Put(kSynchronize, "Synchronize");
 }
 
@@ -119,23 +122,15 @@ void StartupSerializer::SerializeStrongReferences() {
   CHECK_NULL(isolate->thread_manager()->FirstThreadStateInUse());
   // No active or weak handles.
   CHECK(isolate->handle_scope_implementer()->blocks()->empty());
-  CHECK_EQ(0, isolate->global_handles()->global_handles_count());
-  CHECK_EQ(0, isolate->eternal_handles()->NumberOfHandles());
-  // First visit immortal immovables to make sure they end up in the first page.
-  serializing_immortal_immovables_roots_ = true;
-  isolate->heap()->IterateStrongRoots(this, VISIT_ONLY_STRONG_ROOT_LIST);
-  // Check that immortal immovable roots are allocated on the first page.
-  DCHECK(allocator()->HasNotExceededFirstPageOfEachSpace());
-  serializing_immortal_immovables_roots_ = false;
-  // Visit the rest of the strong roots.
+
+  // Visit smi roots.
   // Clear the stack limits to make the snapshot reproducible.
   // Reset it again afterwards.
   isolate->heap()->ClearStackLimits();
   isolate->heap()->IterateSmiRoots(this);
   isolate->heap()->SetStackLimits();
-
-  isolate->heap()->IterateStrongRoots(this,
-                                      VISIT_ONLY_STRONG_FOR_SERIALIZATION);
+  // First visit immortal immovables to make sure they end up in the first page.
+  isolate->heap()->IterateStrongRoots(this, VISIT_FOR_SERIALIZATION);
 }
 
 void StartupSerializer::VisitRootPointers(Root root, Object** start,
@@ -149,20 +144,15 @@ void StartupSerializer::VisitRootPointers(Root root, Object** start,
     int skip = 0;
     for (Object** current = start; current < end; current++) {
       int root_index = static_cast<int>(current - start);
-      if (RootShouldBeSkipped(root_index)) {
-        skip += kPointerSize;
-        continue;
+      if ((*current)->IsSmi()) {
+        FlushSkip(skip);
+        PutSmi(Smi::cast(*current));
       } else {
-        if ((*current)->IsSmi()) {
-          FlushSkip(skip);
-          PutSmi(Smi::cast(*current));
-        } else {
-          SerializeObject(HeapObject::cast(*current), kPlain, kStartOfObject,
-                          skip);
-        }
-        root_has_been_serialized_.set(root_index);
-        skip = 0;
+        SerializeObject(HeapObject::cast(*current), kPlain, kStartOfObject,
+                        skip);
       }
+      root_has_been_serialized_.set(root_index);
+      skip = 0;
     }
     FlushSkip(skip);
   } else {
@@ -170,26 +160,10 @@ void StartupSerializer::VisitRootPointers(Root root, Object** start,
   }
 }
 
-bool StartupSerializer::RootShouldBeSkipped(int root_index) {
-  if (root_index == Heap::kStackLimitRootIndex ||
-      root_index == Heap::kRealStackLimitRootIndex) {
-    return true;
-  }
-  return Heap::RootIsImmortalImmovable(root_index) !=
-         serializing_immortal_immovables_roots_;
-}
-
-void StartupSerializer::CheckRehashability(HeapObject* table) {
-  DCHECK(table->IsHashTable());
+void StartupSerializer::CheckRehashability(HeapObject* obj) {
   if (!can_be_rehashed_) return;
-  // We can only correctly rehash if the four hash tables below are the only
-  // ones that we deserialize.
-  if (table->IsUnseededNumberDictionary()) return;
-  if (table == isolate()->heap()->empty_ordered_hash_table()) return;
-  if (table == isolate()->heap()->empty_slow_element_dictionary()) return;
-  if (table == isolate()->heap()->empty_property_dictionary()) return;
-  if (table == isolate()->heap()->weak_object_to_code_table()) return;
-  if (table == isolate()->heap()->string_table()) return;
+  if (!obj->NeedsRehashing()) return;
+  if (obj->CanBeRehashed()) return;
   can_be_rehashed_ = false;
 }
 
@@ -207,6 +181,37 @@ bool StartupSerializer::MustBeDeferred(HeapObject* object) {
   // serialized. But we must serialize Map objects since deserializer checks
   // that these root objects are indeed Maps.
   return !object->IsMap();
+}
+
+SerializedHandleChecker::SerializedHandleChecker(
+    Isolate* isolate, std::vector<Context*>* contexts)
+    : isolate_(isolate) {
+  AddToSet(isolate->heap()->serialized_objects());
+  for (auto const& context : *contexts) {
+    AddToSet(context->serialized_objects());
+  }
+}
+
+void SerializedHandleChecker::AddToSet(FixedArray* serialized) {
+  int length = serialized->length();
+  for (int i = 0; i < length; i++) serialized_.insert(serialized->get(i));
+}
+
+void SerializedHandleChecker::VisitRootPointers(Root root, Object** start,
+                                                Object** end) {
+  for (Object** p = start; p < end; p++) {
+    if (serialized_.find(*p) != serialized_.end()) continue;
+    PrintF("%s handle not serialized: ",
+           root == Root::kGlobalHandles ? "global" : "eternal");
+    (*p)->Print();
+    ok_ = false;
+  }
+}
+
+bool SerializedHandleChecker::CheckGlobalAndEternalHandles() {
+  isolate_->global_handles()->IterateAllRoots(this);
+  isolate_->eternal_handles()->IterateAllRoots(this);
+  return ok_;
 }
 
 }  // namespace internal

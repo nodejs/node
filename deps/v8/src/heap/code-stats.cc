@@ -49,7 +49,7 @@ void CodeStatistics::ResetCodeAndMetadataStatistics(Isolate* isolate) {
 void CodeStatistics::CollectCodeStatistics(PagedSpace* space,
                                            Isolate* isolate) {
   HeapObjectIterator obj_it(space);
-  for (HeapObject* obj = obj_it.Next(); obj != NULL; obj = obj_it.Next()) {
+  for (HeapObject* obj = obj_it.Next(); obj != nullptr; obj = obj_it.Next()) {
     RecordCodeAndMetadataStatistics(obj, isolate);
   }
 }
@@ -61,7 +61,7 @@ void CodeStatistics::CollectCodeStatistics(PagedSpace* space,
 void CodeStatistics::CollectCodeStatistics(LargeObjectSpace* space,
                                            Isolate* isolate) {
   LargeObjectIterator obj_it(space);
-  for (HeapObject* obj = obj_it.Next(); obj != NULL; obj = obj_it.Next()) {
+  for (HeapObject* obj = obj_it.Next(); obj != nullptr; obj = obj_it.Next()) {
     RecordCodeAndMetadataStatistics(obj, isolate);
   }
 }
@@ -136,7 +136,7 @@ void CodeStatistics::EnterComment(Isolate* isolate, const char* comment,
   // Search for a free or matching entry in 'comments_statistics': 'cs'
   // points to result.
   for (int i = 0; i < CommentStatistic::kMaxComments; i++) {
-    if (comments_statistics[i].comment == NULL) {
+    if (comments_statistics[i].comment == nullptr) {
       cs = &comments_statistics[i];
       cs->comment = comment;
       break;

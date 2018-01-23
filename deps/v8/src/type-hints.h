@@ -20,6 +20,7 @@ enum class BinaryOperationHint : uint8_t {
   kNumber,
   kNumberOrOddball,
   kString,
+  kBigInt,
   kAny
 };
 
@@ -38,6 +39,7 @@ enum class CompareOperationHint : uint8_t {
   kInternalizedString,
   kString,
   kSymbol,
+  kBigInt,
   kReceiver,
   kAny
 };
@@ -57,33 +59,6 @@ enum class ForInHint : uint8_t {
 };
 
 std::ostream& operator<<(std::ostream&, ForInHint);
-
-// Type hints for the ToBoolean type conversion.
-enum class ToBooleanHint : uint16_t {
-  kNone = 0u,
-  kUndefined = 1u << 0,
-  kBoolean = 1u << 1,
-  kNull = 1u << 2,
-  kSmallInteger = 1u << 3,
-  kReceiver = 1u << 4,
-  kString = 1u << 5,
-  kSymbol = 1u << 6,
-  kHeapNumber = 1u << 7,
-  kAny = kUndefined | kBoolean | kNull | kSmallInteger | kReceiver | kString |
-         kSymbol | kHeapNumber,
-  kNeedsMap = kReceiver | kString | kSymbol | kHeapNumber,
-  kCanBeUndetectable = kReceiver,
-};
-
-std::ostream& operator<<(std::ostream&, ToBooleanHint);
-std::string ToString(ToBooleanHint);
-
-typedef base::Flags<ToBooleanHint, uint16_t> ToBooleanHints;
-
-std::ostream& operator<<(std::ostream&, ToBooleanHints);
-std::string ToString(ToBooleanHints);
-
-DEFINE_OPERATORS_FOR_FLAGS(ToBooleanHints)
 
 enum StringAddFlags {
   // Omit both parameter checks.

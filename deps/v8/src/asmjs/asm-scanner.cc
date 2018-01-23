@@ -15,7 +15,7 @@ namespace internal {
 namespace {
 // Cap number of identifiers to ensure we can assign both global and
 // local ones a token id in the range of an int32_t.
-static const int kMaxIdentifierCount = 0xf000000;
+static const int kMaxIdentifierCount = 0xF000000;
 };
 
 AsmJsScanner::AsmJsScanner(Utf16CharacterStream* stream)
@@ -255,15 +255,15 @@ void AsmJsScanner::ConsumeIdentifier(uc32 ch) {
     }
   }
   if (preceding_token_ == '.') {
-    CHECK(global_count_ < kMaxIdentifierCount);
+    CHECK_LT(global_count_, kMaxIdentifierCount);
     token_ = kGlobalsStart + global_count_++;
     property_names_[identifier_string_] = token_;
   } else if (in_local_scope_) {
-    CHECK(local_names_.size() < kMaxIdentifierCount);
+    CHECK_LT(local_names_.size(), kMaxIdentifierCount);
     token_ = kLocalsStart - static_cast<token_t>(local_names_.size());
     local_names_[identifier_string_] = token_;
   } else {
-    CHECK(global_count_ < kMaxIdentifierCount);
+    CHECK_LT(global_count_, kMaxIdentifierCount);
     token_ = kGlobalsStart + global_count_++;
     global_names_[identifier_string_] = token_;
   }

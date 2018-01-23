@@ -116,7 +116,7 @@ static void CheckParseEq(const char* input, const char* expected,
   if (unicode) flags |= JSRegExp::kUnicode;
   CHECK(v8::internal::RegExpParser::ParseRegExp(CcTest::i_isolate(), &zone,
                                                 &reader, flags, &result));
-  CHECK(result.tree != NULL);
+  CHECK_NOT_NULL(result.tree);
   CHECK(result.error.is_null());
   std::ostringstream os;
   result.tree->Print(os, &zone);
@@ -134,7 +134,7 @@ static bool CheckSimple(const char* input) {
   RegExpCompileData result;
   CHECK(v8::internal::RegExpParser::ParseRegExp(
       CcTest::i_isolate(), &zone, &reader, JSRegExp::kNone, &result));
-  CHECK(result.tree != NULL);
+  CHECK_NOT_NULL(result.tree);
   CHECK(result.error.is_null());
   return result.simple;
 }
@@ -152,7 +152,7 @@ static MinMaxPair CheckMinMaxMatch(const char* input) {
   RegExpCompileData result;
   CHECK(v8::internal::RegExpParser::ParseRegExp(
       CcTest::i_isolate(), &zone, &reader, JSRegExp::kNone, &result));
-  CHECK(result.tree != NULL);
+  CHECK_NOT_NULL(result.tree);
   CHECK(result.error.is_null());
   int min_match = result.tree->min_match();
   int max_match = result.tree->max_match();
@@ -169,10 +169,7 @@ static MinMaxPair CheckMinMaxMatch(const char* input) {
     CHECK_EQ(max, min_max.max_match);                                          \
   }
 
-
-void TestRegExpParser(bool lookbehind) {
-  FLAG_harmony_regexp_lookbehind = lookbehind;
-
+TEST(RegExpParser) {
   CHECK_PARSE_ERROR("?");
 
   CheckParseEq("abc", "'abc'");
@@ -204,13 +201,8 @@ void TestRegExpParser(bool lookbehind) {
   CheckParseEq("foo|(bar|baz)|quux", "(| 'foo' (^ (| 'bar' 'baz')) 'quux')");
   CheckParseEq("foo(?=bar)baz", "(: 'foo' (-> + 'bar') 'baz')");
   CheckParseEq("foo(?!bar)baz", "(: 'foo' (-> - 'bar') 'baz')");
-  if (lookbehind) {
-    CheckParseEq("foo(?<=bar)baz", "(: 'foo' (<- + 'bar') 'baz')");
-    CheckParseEq("foo(?<!bar)baz", "(: 'foo' (<- - 'bar') 'baz')");
-  } else {
-    CHECK_PARSE_ERROR("foo(?<=bar)baz");
-    CHECK_PARSE_ERROR("foo(?<!bar)baz");
-  }
+  CheckParseEq("foo(?<=bar)baz", "(: 'foo' (<- + 'bar') 'baz')");
+  CheckParseEq("foo(?<!bar)baz", "(: 'foo' (<- - 'bar') 'baz')");
   CheckParseEq("()", "(^ %)");
   CheckParseEq("(?=)", "(-> + %)");
   CheckParseEq("[]", "^[\\x00-\\u{10ffff}]");  // Doesn't compile on windows
@@ -294,10 +286,8 @@ void TestRegExpParser(bool lookbehind) {
                "(: (-> - (: (<- 1) (^ 'a') (<- 1))) (<- 1))");
   CheckParseEq("\\1\\2(a(?:\\1(b\\1\\2))\\2)\\1",
                "(: (<- 1) (<- 2) (^ (: 'a' (?: (^ 'b')) (<- 2))) (<- 1))");
-  if (lookbehind) {
-    CheckParseEq("\\1\\2(a(?<=\\1(b\\1\\2))\\2)\\1",
-                 "(: (<- 1) (<- 2) (^ (: 'a' (<- + (^ 'b')) (<- 2))) (<- 1))");
-  }
+  CheckParseEq("\\1\\2(a(?<=\\1(b\\1\\2))\\2)\\1",
+               "(: (<- 1) (<- 2) (^ (: 'a' (<- + (^ 'b')) (<- 2))) (<- 1))");
   CheckParseEq("[\\0]", "[\\x00]");
   CheckParseEq("[\\11]", "[\\x09]");
   CheckParseEq("[\\11a]", "[\\x09 a]");
@@ -460,16 +450,6 @@ void TestRegExpParser(bool lookbehind) {
   FLAG_harmony_regexp_named_captures = false;
 }
 
-
-TEST(ParserWithLookbehind) {
-  TestRegExpParser(true);  // Lookbehind enabled.
-}
-
-
-TEST(ParserWithoutLookbehind) {
-  TestRegExpParser(true);  // Lookbehind enabled.
-}
-
 TEST(ParserRegression) {
   CheckParseEq("[A-Z$-][x]", "(! [A-Z $ -] [x])");
   CheckParseEq("a{3,4*}", "(: 'a{3,' (# 0 - g '4') '}')");
@@ -487,7 +467,7 @@ static void ExpectError(const char* input, const char* expected,
   if (unicode) flags |= JSRegExp::kUnicode;
   CHECK(!v8::internal::RegExpParser::ParseRegExp(CcTest::i_isolate(), &zone,
                                                  &reader, flags, &result));
-  CHECK(result.tree == NULL);
+  CHECK_NULL(result.tree);
   CHECK(!result.error.is_null());
   std::unique_ptr<char[]> str = result.error->ToCString(ALLOW_NULLS);
   CHECK_EQ(0, strcmp(expected, str.get()));
@@ -604,7 +584,7 @@ static RegExpNode* Compile(const char* input, bool multiline, bool unicode,
   if (unicode) flags = JSRegExp::kUnicode;
   if (!v8::internal::RegExpParser::ParseRegExp(CcTest::i_isolate(), zone,
                                                &reader, flags, &compile_data))
-    return NULL;
+    return nullptr;
   Handle<String> pattern = isolate->factory()
                                ->NewStringFromUtf8(CStrVector(input))
                                .ToHandleChecked();
@@ -883,13 +863,13 @@ TEST(MacroAssemblerNativeSimple) {
 
   Label fail, backtrack;
   m.PushBacktrack(&fail);
-  m.CheckNotAtStart(0, NULL);
-  m.LoadCurrentCharacter(2, NULL);
-  m.CheckNotCharacter('o', NULL);
-  m.LoadCurrentCharacter(1, NULL, false);
-  m.CheckNotCharacter('o', NULL);
-  m.LoadCurrentCharacter(0, NULL, false);
-  m.CheckNotCharacter('f', NULL);
+  m.CheckNotAtStart(0, nullptr);
+  m.LoadCurrentCharacter(2, nullptr);
+  m.CheckNotCharacter('o', nullptr);
+  m.LoadCurrentCharacter(1, nullptr, false);
+  m.CheckNotCharacter('o', nullptr);
+  m.LoadCurrentCharacter(0, nullptr, false);
+  m.CheckNotCharacter('f', nullptr);
   m.WriteCurrentPositionToRegister(0, 0);
   m.WriteCurrentPositionToRegister(1, 3);
   m.AdvanceCurrentPosition(3);
@@ -950,13 +930,13 @@ TEST(MacroAssemblerNativeSimpleUC16) {
 
   Label fail, backtrack;
   m.PushBacktrack(&fail);
-  m.CheckNotAtStart(0, NULL);
-  m.LoadCurrentCharacter(2, NULL);
-  m.CheckNotCharacter('o', NULL);
-  m.LoadCurrentCharacter(1, NULL, false);
-  m.CheckNotCharacter('o', NULL);
-  m.LoadCurrentCharacter(0, NULL, false);
-  m.CheckNotCharacter('f', NULL);
+  m.CheckNotAtStart(0, nullptr);
+  m.LoadCurrentCharacter(2, nullptr);
+  m.CheckNotCharacter('o', nullptr);
+  m.LoadCurrentCharacter(1, nullptr, false);
+  m.CheckNotCharacter('o', nullptr);
+  m.LoadCurrentCharacter(0, nullptr, false);
+  m.CheckNotCharacter('f', nullptr);
   m.WriteCurrentPositionToRegister(0, 0);
   m.WriteCurrentPositionToRegister(1, 3);
   m.AdvanceCurrentPosition(3);
@@ -1027,7 +1007,7 @@ TEST(MacroAssemblerNativeBacktrack) {
   m.Succeed();
   m.Bind(&fail);
   m.PushBacktrack(&backtrack);
-  m.LoadCurrentCharacter(10, NULL);
+  m.LoadCurrentCharacter(10, nullptr);
   m.Succeed();
   m.Bind(&backtrack);
   m.Fail();
@@ -1040,13 +1020,8 @@ TEST(MacroAssemblerNativeBacktrack) {
   Handle<SeqOneByteString> seq_input = Handle<SeqOneByteString>::cast(input);
   Address start_adr = seq_input->GetCharsAddress();
 
-  NativeRegExpMacroAssembler::Result result =
-      Execute(*code,
-              *input,
-              0,
-              start_adr,
-              start_adr + input->length(),
-              NULL);
+  NativeRegExpMacroAssembler::Result result = Execute(
+      *code, *input, 0, start_adr, start_adr + input->length(), nullptr);
 
   CHECK_EQ(NativeRegExpMacroAssembler::FAILURE, result);
 }
@@ -1194,22 +1169,13 @@ TEST(MacroAssemblernativeAtStart) {
   Handle<SeqOneByteString> seq_input = Handle<SeqOneByteString>::cast(input);
   Address start_adr = seq_input->GetCharsAddress();
 
-  NativeRegExpMacroAssembler::Result result =
-      Execute(*code,
-              *input,
-              0,
-              start_adr,
-              start_adr + input->length(),
-              NULL);
+  NativeRegExpMacroAssembler::Result result = Execute(
+      *code, *input, 0, start_adr, start_adr + input->length(), nullptr);
 
   CHECK_EQ(NativeRegExpMacroAssembler::SUCCESS, result);
 
-  result = Execute(*code,
-                   *input,
-                   3,
-                   start_adr + 3,
-                   start_adr + input->length(),
-                   NULL);
+  result = Execute(*code, *input, 3, start_adr + 3, start_adr + input->length(),
+                   nullptr);
 
   CHECK_EQ(NativeRegExpMacroAssembler::SUCCESS, result);
 }
@@ -1401,13 +1367,8 @@ TEST(MacroAssemblerStackOverflow) {
   Handle<SeqOneByteString> seq_input = Handle<SeqOneByteString>::cast(input);
   Address start_adr = seq_input->GetCharsAddress();
 
-  NativeRegExpMacroAssembler::Result result =
-      Execute(*code,
-              *input,
-              0,
-              start_adr,
-              start_adr + input->length(),
-              NULL);
+  NativeRegExpMacroAssembler::Result result = Execute(
+      *code, *input, 0, start_adr, start_adr + input->length(), nullptr);
 
   CHECK_EQ(NativeRegExpMacroAssembler::EXCEPTION, result);
   CHECK(isolate->has_pending_exception());
@@ -1481,13 +1442,13 @@ TEST(MacroAssembler) {
   m.Fail();
   m.Bind(&start);
   m.PushBacktrack(&fail);
-  m.CheckNotAtStart(0, NULL);
-  m.LoadCurrentCharacter(0, NULL);
-  m.CheckNotCharacter('f', NULL);
-  m.LoadCurrentCharacter(1, NULL);
-  m.CheckNotCharacter('o', NULL);
-  m.LoadCurrentCharacter(2, NULL);
-  m.CheckNotCharacter('o', NULL);
+  m.CheckNotAtStart(0, nullptr);
+  m.LoadCurrentCharacter(0, nullptr);
+  m.CheckNotCharacter('f', nullptr);
+  m.LoadCurrentCharacter(1, nullptr);
+  m.CheckNotCharacter('o', nullptr);
+  m.LoadCurrentCharacter(2, nullptr);
+  m.CheckNotCharacter('o', nullptr);
   m.WriteCurrentPositionToRegister(0, 0);
   m.WriteCurrentPositionToRegister(1, 3);
   m.WriteCurrentPositionToRegister(2, 1);
@@ -1572,7 +1533,7 @@ TEST(AddInverseToTable) {
 
 static uc32 canonicalize(uc32 c) {
   unibrow::uchar canon[unibrow::Ecma262Canonicalize::kMaxWidth];
-  int count = unibrow::Ecma262Canonicalize::Convert(c, '\0', canon, NULL);
+  int count = unibrow::Ecma262Canonicalize::Convert(c, '\0', canon, nullptr);
   if (count == 0) {
     return c;
   } else {
@@ -1616,7 +1577,7 @@ TEST(LatinCanonicalize) {
 
 static uc32 CanonRangeEnd(uc32 c) {
   unibrow::uchar canon[unibrow::CanonicalizationRange::kMaxWidth];
-  int count = unibrow::CanonicalizationRange::Convert(c, '\0', canon, NULL);
+  int count = unibrow::CanonicalizationRange::Convert(c, '\0', canon, nullptr);
   if (count == 0) {
     return c;
   } else {
@@ -1729,8 +1690,7 @@ TEST(CharacterRangeCaseIndependence) {
 
 
 static bool InClass(uc32 c, ZoneList<CharacterRange>* ranges) {
-  if (ranges == NULL)
-    return false;
+  if (ranges == nullptr) return false;
   for (int i = 0; i < ranges->length(); i++) {
     CharacterRange range = ranges->at(i);
     if (range.from() <= c && c <= range.to())
@@ -1747,35 +1707,35 @@ TEST(UnicodeRangeSplitter) {
   base->Add(CharacterRange::Everything(), &zone);
   UnicodeRangeSplitter splitter(&zone, base);
   // BMP
-  for (uc32 c = 0; c < 0xd800; c++) {
+  for (uc32 c = 0; c < 0xD800; c++) {
     CHECK(InClass(c, splitter.bmp()));
     CHECK(!InClass(c, splitter.lead_surrogates()));
     CHECK(!InClass(c, splitter.trail_surrogates()));
     CHECK(!InClass(c, splitter.non_bmp()));
   }
   // Lead surrogates
-  for (uc32 c = 0xd800; c < 0xdbff; c++) {
+  for (uc32 c = 0xD800; c < 0xDBFF; c++) {
     CHECK(!InClass(c, splitter.bmp()));
     CHECK(InClass(c, splitter.lead_surrogates()));
     CHECK(!InClass(c, splitter.trail_surrogates()));
     CHECK(!InClass(c, splitter.non_bmp()));
   }
   // Trail surrogates
-  for (uc32 c = 0xdc00; c < 0xdfff; c++) {
+  for (uc32 c = 0xDC00; c < 0xDFFF; c++) {
     CHECK(!InClass(c, splitter.bmp()));
     CHECK(!InClass(c, splitter.lead_surrogates()));
     CHECK(InClass(c, splitter.trail_surrogates()));
     CHECK(!InClass(c, splitter.non_bmp()));
   }
   // BMP
-  for (uc32 c = 0xe000; c < 0xffff; c++) {
+  for (uc32 c = 0xE000; c < 0xFFFF; c++) {
     CHECK(InClass(c, splitter.bmp()));
     CHECK(!InClass(c, splitter.lead_surrogates()));
     CHECK(!InClass(c, splitter.trail_surrogates()));
     CHECK(!InClass(c, splitter.non_bmp()));
   }
   // Non-BMP
-  for (uc32 c = 0x10000; c < 0x10ffff; c++) {
+  for (uc32 c = 0x10000; c < 0x10FFFF; c++) {
     CHECK(!InClass(c, splitter.bmp()));
     CHECK(!InClass(c, splitter.lead_surrogates()));
     CHECK(!InClass(c, splitter.trail_surrogates()));
@@ -1939,7 +1899,7 @@ TEST(Graph) {
 
 namespace {
 
-int* global_use_counts = NULL;
+int* global_use_counts = nullptr;
 
 void MockUseCounterCallback(v8::Isolate* isolate,
                             v8::Isolate::UseCounterFeature feature) {

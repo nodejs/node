@@ -34,8 +34,8 @@ class Int64LoweringTest : public GraphTest {
       : GraphTest(),
         machine_(zone(), MachineRepresentation::kWord32,
                  MachineOperatorBuilder::Flag::kAllOptionalOps) {
-    value_[0] = 0x1234567890abcdef;
-    value_[1] = 0x1edcba098765432f;
+    value_[0] = 0x1234567890ABCDEF;
+    value_[1] = 0x1EDCBA098765432F;
     value_[2] = 0x1133557799886644;
   }
 
@@ -85,7 +85,7 @@ class Int64LoweringTest : public GraphTest {
   int64_t value(int i) { return value_[i]; }
 
   int32_t low_word_value(int i) {
-    return static_cast<int32_t>(value_[i] & 0xffffffff);
+    return static_cast<int32_t>(value_[i] & 0xFFFFFFFF);
   }
 
   int32_t high_word_value(int i) {
@@ -760,7 +760,7 @@ TEST_F(Int64LoweringTest, I64Ror) {
       IsMerge(IsIfTrue(branch_lt32_matcher), IsIfFalse(branch_lt32_matcher)));
 
   Matcher<Node*> shift_matcher =
-      IsWord32And(IsParameter(0), IsInt32Constant(0x1f));
+      IsWord32And(IsParameter(0), IsInt32Constant(0x1F));
 
   Matcher<Node*> bit_mask_matcher = IsWord32Shl(
       IsWord32Sar(IsInt32Constant(std::numeric_limits<int32_t>::min()),

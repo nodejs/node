@@ -93,109 +93,13 @@ TimezoneCache* OS::CreateTimezoneCache() {
   return new PosixDefaultTimezoneCache();
 }
 
-// Constants used for mmap.
-static const int kMmapFd = -1;
-static const int kMmapFdOffset = 0;
-
-void* OS::Allocate(const size_t requested, size_t* allocated,
-                   OS::MemoryPermission access, void* hint) {
-  const size_t msize = RoundUp(requested, AllocateAlignment());
-  int prot = GetProtectionFromMemoryPermission(access);
-  void* mbase = mmap(hint, msize, prot, MAP_PRIVATE | MAP_ANONYMOUS, kMmapFd,
-                     kMmapFdOffset);
-  if (mbase == MAP_FAILED) return nullptr;
-  *allocated = msize;
-  return mbase;
-}
-
-// static
-void* OS::ReserveRegion(size_t size, void* hint) {
-  void* result =
-      mmap(hint, size, PROT_NONE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE,
-           kMmapFd, kMmapFdOffset);
-
-  if (result == MAP_FAILED) return nullptr;
-  return result;
-}
-
-// static
-void* OS::ReserveAlignedRegion(size_t size, size_t alignment, void* hint,
-                               size_t* allocated) {
-  DCHECK((alignment % OS::AllocateAlignment()) == 0);
-  hint = AlignedAddress(hint, alignment);
-  size_t request_size =
-      RoundUp(size + alignment, static_cast<intptr_t>(OS::AllocateAlignment()));
-  void* result = ReserveRegion(request_size, hint);
-  if (result == nullptr) {
-    *allocated = 0;
-    return nullptr;
-  }
-
-  uint8_t* base = static_cast<uint8_t*>(result);
-  uint8_t* aligned_base = RoundUp(base, alignment);
-  DCHECK_LE(base, aligned_base);
-
-  // Unmap extra memory reserved before and after the desired block.
-  if (aligned_base != base) {
-    size_t prefix_size = static_cast<size_t>(aligned_base - base);
-    OS::Free(base, prefix_size);
-    request_size -= prefix_size;
-  }
-
-  size_t aligned_size = RoundUp(size, OS::AllocateAlignment());
-  DCHECK_LE(aligned_size, request_size);
-
-  if (aligned_size != request_size) {
-    size_t suffix_size = request_size - aligned_size;
-    OS::Free(aligned_base + aligned_size, suffix_size);
-    request_size -= suffix_size;
-  }
-
-  DCHECK(aligned_size == request_size);
-
-  *allocated = aligned_size;
-  return static_cast<void*>(aligned_base);
-}
-
-// static
-bool OS::CommitRegion(void* address, size_t size, bool is_executable) {
-  int prot = PROT_READ | PROT_WRITE | (is_executable ? PROT_EXEC : 0);
-  if (MAP_FAILED == mmap(address, size, prot,
-                         MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED, kMmapFd,
-                         kMmapFdOffset)) {
-    return false;
-  }
-
-  return true;
-}
-
-// static
-bool OS::UncommitRegion(void* address, size_t size) {
-  return mmap(address, size, PROT_NONE,
-              MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE | MAP_FIXED, kMmapFd,
-              kMmapFdOffset) != MAP_FAILED;
-}
-
-// static
-bool OS::ReleaseRegion(void* address, size_t size) {
-  return munmap(address, size) == 0;
-}
-
-// static
-bool OS::ReleasePartialRegion(void* address, size_t size) {
-  return munmap(address, size) == 0;
-}
-
-// static
-bool OS::HasLazyCommits() { return true; }
-
 std::vector<OS::SharedLibraryAddress> OS::GetSharedLibraryAddresses() {
   std::vector<SharedLibraryAddress> result;
   // This function assumes that the layout of the file is as follows:
   // hex_start_addr-hex_end_addr rwxp <unused data> [binary_file_name]
   // If we encounter an unexpected situation we abort scanning further entries.
   FILE* fp = fopen("/proc/self/maps", "r");
-  if (fp == NULL) return result;
+  if (fp == nullptr) return result;
 
   // Allocate enough room to be able to store a full file name.
   const int kLibNameLen = FILENAME_MAX + 1;
@@ -203,11 +107,15 @@ std::vector<OS::SharedLibraryAddress> OS::GetSharedLibraryAddresses() {
 
   // This loop will terminate once the scanning hits an EOF.
   while (true) {
-    uintptr_t start, end;
+    uintptr_t start, end, offset;
     char attr_r, attr_w, attr_x, attr_p;
     // Parse the addresses and permission bits at the beginning of the line.
     if (fscanf(fp, "%" V8PRIxPTR "-%" V8PRIxPTR, &start, &end) != 2) break;
     if (fscanf(fp, " %c%c%c%c", &attr_r, &attr_w, &attr_x, &attr_p) != 4) break;
+    if (fscanf(fp, "%" V8PRIxPTR, &offset) != 1) break;
+
+    // Adjust {start} based on {offset}.
+    start -= offset;
 
     int c;
     if (attr_r == 'r' && attr_w != 'w' && attr_x == 'x') {
@@ -224,7 +132,7 @@ std::vector<OS::SharedLibraryAddress> OS::GetSharedLibraryAddresses() {
         ungetc(c, fp);
 
         // Read to the end of the line. Exit if the read fails.
-        if (fgets(lib_name, kLibNameLen, fp) == NULL) break;
+        if (fgets(lib_name, kLibNameLen, fp) == nullptr) break;
 
         // Drop the newline character read by fgets. We do not need to check
         // for a zero-length string because we know that we at least read the
@@ -250,7 +158,7 @@ std::vector<OS::SharedLibraryAddress> OS::GetSharedLibraryAddresses() {
   return result;
 }
 
-void OS::SignalCodeMovingGC(void* hint) {
+void OS::SignalCodeMovingGC() {
   // Support for ll_prof.py.
   //
   // The Linux profiler built into the kernel logs all mmap's with
@@ -261,14 +169,14 @@ void OS::SignalCodeMovingGC(void* hint) {
   // kernel log.
   long size = sysconf(_SC_PAGESIZE);  // NOLINT(runtime/int)
   FILE* f = fopen(OS::GetGCFakeMMapFile(), "w+");
-  if (f == NULL) {
+  if (f == nullptr) {
     OS::PrintError("Failed to open %s\n", OS::GetGCFakeMMapFile());
     OS::Abort();
   }
-  void* addr =
-      mmap(hint, size, PROT_READ | PROT_EXEC, MAP_PRIVATE, fileno(f), 0);
+  void* addr = mmap(OS::GetRandomMmapAddr(), size, PROT_READ | PROT_EXEC,
+                    MAP_PRIVATE, fileno(f), 0);
   DCHECK_NE(MAP_FAILED, addr);
-  OS::Free(addr, size);
+  CHECK(Free(addr, size));
   fclose(f);
 }
 

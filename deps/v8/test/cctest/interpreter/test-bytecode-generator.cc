@@ -331,10 +331,6 @@ TEST(HeapNumberConstants) {
       "var a = 1.2; return 2.6;\n",
 
       "var a = 3.14; return 3.14;\n",
-
-      "var a;"                    //
-      REPEAT_256("\na = 1.414;")  //
-      " a = 3.14;\n",
   };
 
   CHECK(CompareTexts(BuildActual(printer, snippets),
@@ -950,25 +946,6 @@ TEST(BasicLoops) {
                      LoadGolden("BasicLoops.golden")));
 }
 
-TEST(JumpsRequiringConstantWideOperands) {
-  InitializedIgnitionHandleScope scope;
-  BytecodeExpectationsPrinter printer(CcTest::isolate());
-  const char* snippets[] = {
-    REPEAT_256("var x = 0.1;\n")
-    REPEAT_32("var x = 0.2;\n")
-    REPEAT_16("var x = 0.3;\n")
-    REPEAT_8("var x = 0.4;\n")
-    "for (var i = 0; i < 3; i++) {\n"
-    "  if (i == 1) continue;\n"
-    "  if (i == 2) break;\n"
-    "}\n"
-    "return 3;\n",
-  };
-
-  CHECK(CompareTexts(BuildActual(printer, snippets),
-                     LoadGolden("JumpsRequiringConstantWideOperands.golden")));
-}
-
 TEST(UnaryOperators) {
   InitializedIgnitionHandleScope scope;
   BytecodeExpectationsPrinter printer(CcTest::isolate());
@@ -1197,20 +1174,6 @@ TEST(RegExpLiterals) {
                      LoadGolden("RegExpLiterals.golden")));
 }
 
-TEST(RegExpLiteralsWide) {
-  InitializedIgnitionHandleScope scope;
-  BytecodeExpectationsPrinter printer(CcTest::isolate());
-
-  const char* snippets[] = {
-      "var a;"                   //
-      REPEAT_256("\na = 1.23;")  //
-      "\nreturn /ab+d/;\n",
-  };
-
-  CHECK(CompareTexts(BuildActual(printer, snippets),
-                     LoadGolden("RegExpLiteralsWide.golden")));
-}
-
 TEST(ArrayLiterals) {
   InitializedIgnitionHandleScope scope;
   BytecodeExpectationsPrinter printer(CcTest::isolate());
@@ -1227,20 +1190,6 @@ TEST(ArrayLiterals) {
 
   CHECK(CompareTexts(BuildActual(printer, snippets),
                      LoadGolden("ArrayLiterals.golden")));
-}
-
-TEST(ArrayLiteralsWide) {
-  InitializedIgnitionHandleScope scope;
-  BytecodeExpectationsPrinter printer(CcTest::isolate());
-
-  const char* snippets[] = {
-      "var a;"                   //
-      REPEAT_256("\na = 1.23;")  //
-      "\nreturn [ 1 , 2 ];\n",
-  };
-
-  CHECK(CompareTexts(BuildActual(printer, snippets),
-                     LoadGolden("ArrayLiteralsWide.golden")));
 }
 
 TEST(ObjectLiterals) {
@@ -1281,19 +1230,6 @@ TEST(ObjectLiterals) {
 
   CHECK(CompareTexts(BuildActual(printer, snippets),
                      LoadGolden("ObjectLiterals.golden")));
-}
-
-TEST(ObjectLiteralsWide) {
-  InitializedIgnitionHandleScope scope;
-  BytecodeExpectationsPrinter printer(CcTest::isolate());
-  const char* snippets[] = {
-      "var a;"                   //
-      REPEAT_256("\na = 1.23;")  //
-      "\nreturn { name: 'string', val: 9.2 };\n",
-  };
-
-  CHECK(CompareTexts(BuildActual(printer, snippets),
-                     LoadGolden("ObjectLiteralsWide.golden")));
 }
 
 TEST(TopLevelObjectLiterals) {
@@ -2016,41 +1952,6 @@ TEST(LookupSlotInEval) {
   CHECK(CompareTexts(actual, LoadGolden("LookupSlotInEval.golden")));
 }
 
-TEST(LookupSlotWideInEval) {
-  InitializedIgnitionHandleScope scope;
-  BytecodeExpectationsPrinter printer(CcTest::isolate());
-  printer.set_wrap(false);
-  printer.set_test_function_name("f");
-
-  const char* snippets[] = {
-      REPEAT_256("    \"var y = 2.3;\" +\n")  //
-      "    \"return x;\" +\n",
-
-      REPEAT_256("    \"var y = 2.3;\" +\n")  //
-      "    \"return typeof x;\" +\n",
-
-      REPEAT_256("    \"var y = 2.3;\" +\n")  //
-      "    \"x = 10;\" +\n",
-
-      "    \"'use strict';\" +\n"             //
-      REPEAT_256("    \"var y = 2.3;\" +\n")  //
-      "    \"x = 10;\" +\n",
-  };
-
-  std::string actual = BuildActual(printer, snippets,
-                                   "var f;\n"
-                                   "var x = 1;\n"
-                                   "function f1() {\n"
-                                   "  eval(\"function t() {\" +\n",
-
-                                   "  \"};\" +\n"
-                                   "  \"f = t; f();\"\n);\n"
-                                   "}\n"
-                                   "f1();");
-
-  CHECK(CompareTexts(actual, LoadGolden("LookupSlotWideInEval.golden")));
-}
-
 TEST(DeleteLookupSlotInEval) {
   InitializedIgnitionHandleScope scope;
   BytecodeExpectationsPrinter printer(CcTest::isolate());
@@ -2332,6 +2233,127 @@ TEST(ClassAndSuperClass) {
                      LoadGolden("ClassAndSuperClass.golden")));
 }
 
+TEST(ClassFields) {
+  bool old_flag = i::FLAG_harmony_public_fields;
+  i::FLAG_harmony_public_fields = true;
+  InitializedIgnitionHandleScope scope;
+  BytecodeExpectationsPrinter printer(CcTest::isolate());
+
+  const char* snippets[] = {
+      "{\n"
+      "  class A {\n"
+      "    a;\n"
+      "    ['b'];\n"
+      "  }\n"
+      "\n"
+      "  class B {\n"
+      "    a = 1;\n"
+      "    ['b'] = this.a;\n"
+      "  }\n"
+      "  new A;\n"
+      "  new B;\n"
+      "}\n",
+
+      "{\n"
+      "  class A extends class {} {\n"
+      "    a;\n"
+      "    ['b'];\n"
+      "  }\n"
+      "\n"
+      "  class B extends class {} {\n"
+      "    a = 1;\n"
+      "    ['b'] = this.a;\n"
+      "    foo() { return 1; }\n"
+      "    constructor() {\n"
+      "      super();\n"
+      "    }\n"
+      "  }\n"
+      "\n"
+      "  class C extends B {\n"
+      "    a = 1;\n"
+      "    ['b'] = this.a;\n"
+      "    constructor() {\n"
+      "      (() => super())();\n"
+      "    }\n"
+      "  }\n"
+      "\n"
+      "  new A;\n"
+      "  new B;\n"
+      "  new C;\n"
+      "}\n"};
+
+  CHECK(CompareTexts(BuildActual(printer, snippets),
+                     LoadGolden("ClassFields.golden")));
+  i::FLAG_harmony_public_fields = old_flag;
+}
+
+TEST(StaticClassFields) {
+  bool old_flag = i::FLAG_harmony_public_fields;
+  bool old_static_flag = i::FLAG_harmony_static_fields;
+  i::FLAG_harmony_public_fields = true;
+  i::FLAG_harmony_static_fields = true;
+  InitializedIgnitionHandleScope scope;
+  BytecodeExpectationsPrinter printer(CcTest::isolate());
+
+  const char* snippets[] = {
+      "{\n"
+      "  class A {\n"
+      "    a;\n"
+      "    ['b'];\n"
+      "    static c;\n"
+      "    static ['d'];\n"
+      "  }\n"
+      "\n"
+      "  class B {\n"
+      "    a = 1;\n"
+      "    ['b'] = this.a;\n"
+      "    static c = 3;\n"
+      "    static ['d'] = this.c;\n"
+      "  }\n"
+      "  new A;\n"
+      "  new B;\n"
+      "}\n",
+
+      "{\n"
+      "  class A extends class {} {\n"
+      "    a;\n"
+      "    ['b'];\n"
+      "    static c;\n"
+      "    static ['d'];\n"
+      "  }\n"
+      "\n"
+      "  class B extends class {} {\n"
+      "    a = 1;\n"
+      "    ['b'] = this.a;\n"
+      "    static c = 3;\n"
+      "    static ['d'] = this.c;\n"
+      "    foo() { return 1; }\n"
+      "    constructor() {\n"
+      "      super();\n"
+      "    }\n"
+      "  }\n"
+      "\n"
+      "  class C extends B {\n"
+      "    a = 1;\n"
+      "    ['b'] = this.a;\n"
+      "    static c = 3;\n"
+      "    static ['d'] = super.foo();\n"
+      "    constructor() {\n"
+      "      (() => super())();\n"
+      "    }\n"
+      "  }\n"
+      "\n"
+      "  new A;\n"
+      "  new B;\n"
+      "  new C;\n"
+      "}\n"};
+
+  CHECK(CompareTexts(BuildActual(printer, snippets),
+                     LoadGolden("StaticClassFields.golden")));
+  i::FLAG_harmony_public_fields = old_flag;
+  i::FLAG_harmony_static_fields = old_static_flag;
+}
+
 TEST(Generators) {
   InitializedIgnitionHandleScope scope;
   BytecodeExpectationsPrinter printer(CcTest::isolate());
@@ -2358,8 +2380,6 @@ TEST(Generators) {
 }
 
 TEST(AsyncGenerators) {
-  bool old_flag = i::FLAG_harmony_async_iteration;
-  i::FLAG_harmony_async_iteration = true;
   InitializedIgnitionHandleScope scope;
   BytecodeExpectationsPrinter printer(CcTest::isolate());
   printer.set_wrap(false);
@@ -2382,7 +2402,6 @@ TEST(AsyncGenerators) {
 
   CHECK(CompareTexts(BuildActual(printer, snippets),
                      LoadGolden("AsyncGenerators.golden")));
-  i::FLAG_harmony_async_iteration = old_flag;
 }
 
 TEST(Modules) {
@@ -2500,8 +2519,6 @@ TEST(NewAndSpread) {
 }
 
 TEST(ForAwaitOf) {
-  bool old_flag = i::FLAG_harmony_async_iteration;
-  i::FLAG_harmony_async_iteration = true;
   InitializedIgnitionHandleScope scope;
   BytecodeExpectationsPrinter printer(CcTest::isolate());
   printer.set_wrap(false);
@@ -2534,8 +2551,6 @@ TEST(ForAwaitOf) {
 
   CHECK(CompareTexts(BuildActual(printer, snippets),
                      LoadGolden("ForAwaitOf.golden")));
-
-  i::FLAG_harmony_async_iteration = old_flag;
 }
 
 TEST(StandardForLoop) {

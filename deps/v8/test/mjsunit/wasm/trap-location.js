@@ -86,7 +86,7 @@ let buffer = builder.toBuffer();
 
 // Test async compilation and instantiation.
 assertPromiseResult(WebAssembly.instantiate(buffer), pair => {
-  testTrapLocations(pair.instance, 6);
+  testTrapLocations(pair.instance, 5);
 });
 
 // Test sync compilation and instantiation.

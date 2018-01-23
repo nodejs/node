@@ -164,8 +164,6 @@ class CodeView extends View {
         }
       }
     }
-
-    view.resizeToParent();
   }
 
   deleteContent() {}

@@ -87,6 +87,11 @@ class BytecodeRegisterAllocator final {
     return reg.index() < next_register_index_;
   }
 
+  // Returns a register list for all currently live registers.
+  RegisterList AllLiveRegisters() const {
+    return RegisterList(0, next_register_index());
+  }
+
   void set_observer(Observer* observer) { observer_ = observer; }
 
   int next_register_index() const { return next_register_index_; }

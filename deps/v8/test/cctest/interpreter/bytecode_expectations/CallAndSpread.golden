@@ -14,13 +14,13 @@ parameter count: 1
 bytecode array length: 25
 bytecodes: [
   /*   30 E> */ B(StackCheck),
-  /*   34 S> */ B(LdaGlobal), U8(0), U8(2),
+  /*   34 S> */ B(LdaGlobal), U8(0), U8(0),
                 B(Star), R(1),
-  /*   39 E> */ B(LdaNamedProperty), R(1), U8(1), U8(4),
+  /*   39 E> */ B(LdaNamedProperty), R(1), U8(1), U8(2),
                 B(Star), R(0),
-                B(CreateArrayLiteral), U8(2), U8(6), U8(37),
+                B(CreateArrayLiteral), U8(2), U8(4), U8(37),
                 B(Star), R(2),
-  /*   39 E> */ B(CallWithSpread), R(0), R(1), U8(2), U8(0),
+  /*   39 E> */ B(CallWithSpread), R(0), R(1), U8(2), U8(5),
                 B(LdaUndefined),
   /*   58 S> */ B(Return),
 ]
@@ -41,15 +41,15 @@ parameter count: 1
 bytecode array length: 28
 bytecodes: [
   /*   30 E> */ B(StackCheck),
-  /*   34 S> */ B(LdaGlobal), U8(0), U8(2),
+  /*   34 S> */ B(LdaGlobal), U8(0), U8(0),
                 B(Star), R(1),
-  /*   39 E> */ B(LdaNamedProperty), R(1), U8(1), U8(4),
+  /*   39 E> */ B(LdaNamedProperty), R(1), U8(1), U8(2),
                 B(Star), R(0),
                 B(LdaZero),
                 B(Star), R(2),
-                B(CreateArrayLiteral), U8(2), U8(6), U8(37),
+                B(CreateArrayLiteral), U8(2), U8(4), U8(37),
                 B(Star), R(3),
-  /*   39 E> */ B(CallWithSpread), R(0), R(1), U8(3), U8(0),
+  /*   39 E> */ B(CallWithSpread), R(0), R(1), U8(3), U8(5),
                 B(LdaUndefined),
   /*   61 S> */ B(Return),
 ]

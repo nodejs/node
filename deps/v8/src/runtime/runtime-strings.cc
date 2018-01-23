@@ -237,8 +237,9 @@ RUNTIME_FUNCTION(Runtime_SubString) {
   } else {
     return isolate->ThrowIllegalOperation();
   }
-  // The following condition is intentionally robust because the SubStringStub
-  // delegates here and we test this in cctest/test-strings/RobustSubStringStub.
+  // The following condition is intentionally robust because the SubString
+  // builtin delegates here and we test this in
+  // cctest/test-strings/RobustSubStringStub.
   if (end < start || start < 0 || end > string->length()) {
     return isolate->ThrowIllegalOperation();
   }
@@ -284,25 +285,6 @@ RUNTIME_FUNCTION(Runtime_StringCharCodeAt) {
   return Smi::FromInt(subject->Get(i));
 }
 
-RUNTIME_FUNCTION(Runtime_StringCompare) {
-  HandleScope handle_scope(isolate);
-  DCHECK_EQ(2, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(String, x, 0);
-  CONVERT_ARG_HANDLE_CHECKED(String, y, 1);
-  isolate->counters()->string_compare_runtime()->Increment();
-  switch (String::Compare(x, y)) {
-    case ComparisonResult::kLessThan:
-      return Smi::FromInt(LESS);
-    case ComparisonResult::kEqual:
-      return Smi::FromInt(EQUAL);
-    case ComparisonResult::kGreaterThan:
-      return Smi::FromInt(GREATER);
-    case ComparisonResult::kUndefined:
-      break;
-  }
-  UNREACHABLE();
-}
-
 RUNTIME_FUNCTION(Runtime_StringBuilderConcat) {
   HandleScope scope(isolate);
   DCHECK_EQ(3, args.length());
@@ -315,11 +297,11 @@ RUNTIME_FUNCTION(Runtime_StringBuilderConcat) {
 
   size_t actual_array_length = 0;
   CHECK(TryNumberToSize(array->length(), &actual_array_length));
-  CHECK(array_length >= 0);
+  CHECK_GE(array_length, 0);
   CHECK(static_cast<size_t>(array_length) <= actual_array_length);
 
   // This assumption is used by the slice encoding in one or two smis.
-  DCHECK(Smi::kMaxValue >= String::kMaxLength);
+  DCHECK_GE(Smi::kMaxValue, String::kMaxLength);
 
   CHECK(array->HasFastElements());
   JSObject::EnsureCanContainHeapObjectElements(array);
@@ -385,7 +367,7 @@ RUNTIME_FUNCTION(Runtime_StringBuilderJoin) {
   }
   CONVERT_ARG_HANDLE_CHECKED(String, separator, 2);
   CHECK(array->HasObjectElements());
-  CHECK(array_length >= 0);
+  CHECK_GE(array_length, 0);
 
   Handle<FixedArray> fixed_array(FixedArray::cast(array->elements()));
   if (fixed_array->length() < array_length) {
@@ -401,7 +383,7 @@ RUNTIME_FUNCTION(Runtime_StringBuilderJoin) {
   }
 
   int separator_length = separator->length();
-  CHECK(separator_length > 0);
+  CHECK_GT(separator_length, 0);
   int max_nof_separators =
       (String::kMaxLength + separator_length - 1) / separator_length;
   if (max_nof_separators < (array_length - 1)) {
@@ -508,7 +490,7 @@ static void JoinSparseArrayWithSeparator(FixedArray* elements,
   int last_array_index = static_cast<int>(array_length - 1);
   // Array length must be representable as a signed 32-bit number,
   // otherwise the total string length would have been too large.
-  DCHECK(array_length <= 0x7fffffff);  // Is int32_t.
+  DCHECK_LE(array_length, 0x7FFFFFFF);  // Is int32_t.
   int repeat = last_array_index - previous_separator_position;
   WriteRepeatToFlat<Char>(separator, buffer, cursor, repeat, separator_length);
   cursor += repeat * separator_length;
@@ -526,7 +508,7 @@ RUNTIME_FUNCTION(Runtime_SparseJoinWithSeparator) {
   CHECK(elements_array->HasSmiOrObjectElements());
   // array_length is length of original array (used to add separators);
   // separator is string to put between elements. Assumed to be non-empty.
-  CHECK(array_length > 0);
+  CHECK_GT(array_length, 0);
 
   // Find total length of join result.
   int string_length = 0;
@@ -534,7 +516,7 @@ RUNTIME_FUNCTION(Runtime_SparseJoinWithSeparator) {
   bool overflow = false;
   CONVERT_NUMBER_CHECKED(int, elements_length, Int32, elements_array->length());
   CHECK(elements_length <= elements_array->elements()->length());
-  CHECK((elements_length & 1) == 0);  // Even length.
+  CHECK_EQ(elements_length & 1, 0);  // Even length.
   FixedArray* elements = FixedArray::cast(elements_array->elements());
   {
     DisallowHeapAllocation no_gc;
@@ -555,7 +537,7 @@ RUNTIME_FUNCTION(Runtime_SparseJoinWithSeparator) {
 
   int separator_length = separator->length();
   if (!overflow && separator_length > 0) {
-    if (array_length <= 0x7fffffffu) {
+    if (array_length <= 0x7FFFFFFFu) {
       int separator_count = static_cast<int>(array_length) - 1;
       int remaining_length = String::kMaxLength - string_length;
       if ((remaining_length / separator_length) >= separator_count) {
@@ -567,7 +549,7 @@ RUNTIME_FUNCTION(Runtime_SparseJoinWithSeparator) {
     } else {
       // Nonempty separator and at least 2^31-1 separators necessary
       // means that the string is too large to create.
-      STATIC_ASSERT(String::kMaxLength < 0x7fffffff);
+      STATIC_ASSERT(String::kMaxLength < 0x7FFFFFFF);
       overflow = true;
     }
   }
@@ -616,7 +598,7 @@ static int CopyCachedOneByteCharsToArray(Heap* heap, const uint8_t* chars,
     elements->set(i, value, mode);
   }
   if (i < length) {
-    DCHECK(Smi::kZero == 0);
+    static_assert(Smi::kZero == 0, "Can use memset since Smi::kZero is 0");
     memset(elements->data_start() + i, 0, kPointerSize * (length - i));
   }
 #ifdef DEBUG
@@ -669,7 +651,7 @@ RUNTIME_FUNCTION(Runtime_StringToArray) {
 
 #ifdef DEBUG
   for (int i = 0; i < length; ++i) {
-    DCHECK(String::cast(elements->get(i))->length() == 1);
+    DCHECK_EQ(String::cast(elements->get(i))->length(), 1);
   }
 #endif
 
@@ -681,16 +663,10 @@ RUNTIME_FUNCTION(Runtime_StringLessThan) {
   DCHECK_EQ(2, args.length());
   CONVERT_ARG_HANDLE_CHECKED(String, x, 0);
   CONVERT_ARG_HANDLE_CHECKED(String, y, 1);
-  switch (String::Compare(x, y)) {
-    case ComparisonResult::kLessThan:
-      return isolate->heap()->true_value();
-    case ComparisonResult::kEqual:
-    case ComparisonResult::kGreaterThan:
-      return isolate->heap()->false_value();
-    case ComparisonResult::kUndefined:
-      break;
-  }
-  UNREACHABLE();
+  ComparisonResult result = String::Compare(x, y);
+  DCHECK_NE(result, ComparisonResult::kUndefined);
+  return isolate->heap()->ToBoolean(
+      ComparisonResultToBool(Operation::kLessThan, result));
 }
 
 RUNTIME_FUNCTION(Runtime_StringLessThanOrEqual) {
@@ -698,16 +674,10 @@ RUNTIME_FUNCTION(Runtime_StringLessThanOrEqual) {
   DCHECK_EQ(2, args.length());
   CONVERT_ARG_HANDLE_CHECKED(String, x, 0);
   CONVERT_ARG_HANDLE_CHECKED(String, y, 1);
-  switch (String::Compare(x, y)) {
-    case ComparisonResult::kEqual:
-    case ComparisonResult::kLessThan:
-      return isolate->heap()->true_value();
-    case ComparisonResult::kGreaterThan:
-      return isolate->heap()->false_value();
-    case ComparisonResult::kUndefined:
-      break;
-  }
-  UNREACHABLE();
+  ComparisonResult result = String::Compare(x, y);
+  DCHECK_NE(result, ComparisonResult::kUndefined);
+  return isolate->heap()->ToBoolean(
+      ComparisonResultToBool(Operation::kLessThanOrEqual, result));
 }
 
 RUNTIME_FUNCTION(Runtime_StringGreaterThan) {
@@ -715,16 +685,10 @@ RUNTIME_FUNCTION(Runtime_StringGreaterThan) {
   DCHECK_EQ(2, args.length());
   CONVERT_ARG_HANDLE_CHECKED(String, x, 0);
   CONVERT_ARG_HANDLE_CHECKED(String, y, 1);
-  switch (String::Compare(x, y)) {
-    case ComparisonResult::kGreaterThan:
-      return isolate->heap()->true_value();
-    case ComparisonResult::kEqual:
-    case ComparisonResult::kLessThan:
-      return isolate->heap()->false_value();
-    case ComparisonResult::kUndefined:
-      break;
-  }
-  UNREACHABLE();
+  ComparisonResult result = String::Compare(x, y);
+  DCHECK_NE(result, ComparisonResult::kUndefined);
+  return isolate->heap()->ToBoolean(
+      ComparisonResultToBool(Operation::kGreaterThan, result));
 }
 
 RUNTIME_FUNCTION(Runtime_StringGreaterThanOrEqual) {
@@ -732,16 +696,10 @@ RUNTIME_FUNCTION(Runtime_StringGreaterThanOrEqual) {
   DCHECK_EQ(2, args.length());
   CONVERT_ARG_HANDLE_CHECKED(String, x, 0);
   CONVERT_ARG_HANDLE_CHECKED(String, y, 1);
-  switch (String::Compare(x, y)) {
-    case ComparisonResult::kEqual:
-    case ComparisonResult::kGreaterThan:
-      return isolate->heap()->true_value();
-    case ComparisonResult::kLessThan:
-      return isolate->heap()->false_value();
-    case ComparisonResult::kUndefined:
-      break;
-  }
-  UNREACHABLE();
+  ComparisonResult result = String::Compare(x, y);
+  DCHECK_NE(result, ComparisonResult::kUndefined);
+  return isolate->heap()->ToBoolean(
+      ComparisonResultToBool(Operation::kGreaterThanOrEqual, result));
 }
 
 RUNTIME_FUNCTION(Runtime_StringEqual) {
@@ -772,7 +730,7 @@ RUNTIME_FUNCTION(Runtime_StringCharFromCode) {
   DCHECK_EQ(1, args.length());
   if (args[0]->IsNumber()) {
     CONVERT_NUMBER_CHECKED(uint32_t, code, Uint32, args[0]);
-    code &= 0xffff;
+    code &= 0xFFFF;
     return *isolate->factory()->LookupSingleCharacterStringFromCode(code);
   }
   return isolate->heap()->empty_string();

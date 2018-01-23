@@ -18,14 +18,14 @@ class Register;
 
 class SafepointEntry BASE_EMBEDDED {
  public:
-  SafepointEntry() : info_(0), bits_(NULL), trampoline_pc_(-1) {}
+  SafepointEntry() : info_(0), bits_(nullptr), trampoline_pc_(-1) {}
 
   SafepointEntry(unsigned info, uint8_t* bits, int trampoline_pc)
       : info_(info), bits_(bits), trampoline_pc_(trampoline_pc) {
     DCHECK(is_valid());
   }
 
-  bool is_valid() const { return bits_ != NULL; }
+  bool is_valid() const { return bits_ != nullptr; }
 
   bool Equals(const SafepointEntry& other) const {
     return info_ == other.info_ && bits_ == other.bits_;
@@ -33,7 +33,7 @@ class SafepointEntry BASE_EMBEDDED {
 
   void Reset() {
     info_ = 0;
-    bits_ = NULL;
+    bits_ = nullptr;
   }
 
   int deoptimization_index() const {
@@ -90,6 +90,9 @@ class SafepointEntry BASE_EMBEDDED {
 class SafepointTable BASE_EMBEDDED {
  public:
   explicit SafepointTable(Code* code);
+  explicit SafepointTable(Address instruction_start,
+                          size_t safepoint_table_offset, uint32_t stack_slots,
+                          bool has_deopt = false);
 
   int size() const {
     return kHeaderSize + (length_ * (kFixedEntrySize + entry_size_));
@@ -113,7 +116,8 @@ class SafepointTable BASE_EMBEDDED {
     DCHECK(index < length_);
     unsigned info = Memory::uint32_at(GetInfoLocation(index));
     uint8_t* bits = &Memory::uint8_at(entries_ + (index * entry_size_));
-    int trampoline_pc = Memory::int_at(GetTrampolineLocation(index));
+    int trampoline_pc =
+        has_deopt_ ? Memory::int_at(GetTrampolineLocation(index)) : -1;
     return SafepointEntry(info, bits, trampoline_pc);
   }
 
@@ -151,12 +155,14 @@ class SafepointTable BASE_EMBEDDED {
                         uint8_t byte, int digits);
 
   DisallowHeapAllocation no_allocation_;
-  Code* code_;
+  Address instruction_start_;
+  uint32_t stack_slots_;
   unsigned length_;
   unsigned entry_size_;
 
   Address pc_and_deoptimization_indexes_;
   Address entries_;
+  bool has_deopt_;
 
   friend class SafepointTableBuilder;
   friend class SafepointEntry;
@@ -188,8 +194,8 @@ class Safepoint BASE_EMBEDDED {
  private:
   Safepoint(ZoneList<int>* indexes, ZoneList<int>* registers)
       : indexes_(indexes), registers_(registers) {}
-  ZoneList<int>* indexes_;
-  ZoneList<int>* registers_;
+  ZoneList<int>* const indexes_;
+  ZoneList<int>* const registers_;
 
   friend class SafepointTableBuilder;
 };
@@ -199,9 +205,6 @@ class SafepointTableBuilder BASE_EMBEDDED {
  public:
   explicit SafepointTableBuilder(Zone* zone)
       : deoptimization_info_(32, zone),
-        deopt_index_list_(32, zone),
-        indexes_(32, zone),
-        registers_(32, zone),
         emitted_(false),
         last_lazy_safepoint_(0),
         zone_(zone) { }
@@ -219,7 +222,7 @@ class SafepointTableBuilder BASE_EMBEDDED {
   // outstanding safepoints.
   void RecordLazyDeoptimizationIndex(int index);
   void BumpLastLazySafepointIndex() {
-    last_lazy_safepoint_ = deopt_index_list_.length();
+    last_lazy_safepoint_ = deoptimization_info_.length();
   }
 
   // Emit the safepoint table after the body. The number of bits per
@@ -238,18 +241,30 @@ class SafepointTableBuilder BASE_EMBEDDED {
     unsigned arguments;
     bool has_doubles;
     int trampoline;
+    ZoneList<int>* indexes;
+    ZoneList<int>* registers;
+    unsigned deopt_index;
+    DeoptimizationInfo(Zone* zone, unsigned pc, unsigned arguments,
+                       Safepoint::Kind kind)
+        : pc(pc),
+          arguments(arguments),
+          has_doubles(kind & Safepoint::kWithDoubles),
+          trampoline(-1),
+          indexes(new (zone) ZoneList<int>(8, zone)),
+          registers(kind & Safepoint::kWithRegisters
+                        ? new (zone) ZoneList<int>(4, zone)
+                        : nullptr),
+          deopt_index(Safepoint::kNoDeoptimizationIndex) {}
   };
 
-  uint32_t EncodeExceptPC(const DeoptimizationInfo& info, unsigned index);
+  uint32_t EncodeExceptPC(const DeoptimizationInfo&);
 
-  bool IsIdenticalExceptForPc(int index1, int index2) const;
+  bool IsIdenticalExceptForPc(const DeoptimizationInfo&,
+                              const DeoptimizationInfo&) const;
   // If all entries are identical, replace them by 1 entry with pc = kMaxUInt32.
   void RemoveDuplicates();
 
   ZoneList<DeoptimizationInfo> deoptimization_info_;
-  ZoneList<unsigned> deopt_index_list_;
-  ZoneList<ZoneList<int>*> indexes_;
-  ZoneList<ZoneList<int>*> registers_;
 
   unsigned offset_;
   bool emitted_;

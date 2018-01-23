@@ -6,6 +6,7 @@
 #define V8_TEST_CCTEST_COMPILER_CODE_ASSEMBLER_TESTER_H_
 
 #include "src/compiler/code-assembler.h"
+#include "src/compiler/raw-machine-assembler.h"
 #include "src/handles.h"
 #include "src/interface-descriptors.h"
 #include "src/isolate.h"
@@ -30,14 +31,23 @@ class CodeAssemblerTester {
         scope_(isolate),
         state_(isolate, &zone_, parameter_count, kind, "test") {}
 
-  // This constructor is intended to be used for creating code objects with
-  // specific flags.
   CodeAssemblerTester(Isolate* isolate, Code::Kind kind)
       : zone_(isolate->allocator(), ZONE_NAME),
         scope_(isolate),
         state_(isolate, &zone_, 0, kind, "test") {}
 
+  CodeAssemblerTester(Isolate* isolate, CallDescriptor* call_descriptor,
+                      const char* name = "test")
+      : zone_(isolate->allocator(), ZONE_NAME),
+        scope_(isolate),
+        state_(isolate, &zone_, call_descriptor, Code::STUB, name, 0, -1) {}
+
   CodeAssemblerState* state() { return &state_; }
+
+  // Direct low-level access to the machine assembler, for testing only.
+  RawMachineAssembler* raw_assembler_for_testing() {
+    return state_.raw_assembler_.get();
+  }
 
   Handle<Code> GenerateCode() { return CodeAssembler::GenerateCode(&state_); }
 

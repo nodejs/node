@@ -50,3 +50,40 @@ Running test: testObjectThrowsLength
 
 Running test: testTypedArrayWithoutLength
   __proto__ own object undefined
+
+Running test: testArrayBuffer
+[[Int8Array]]
+  0 own number 1
+  1 own number 2
+  2 own number 3
+  3 own number 4
+  4 own number 5
+  5 own number 6
+  6 own number 7
+  7 own number 8
+  __proto__ own object undefined
+[[Uint8Array]]
+  0 own number 1
+  1 own number 2
+  2 own number 3
+  3 own number 4
+  4 own number 5
+  5 own number 6
+  6 own number 7
+  7 own number 8
+  __proto__ own object undefined
+[[Int16Array]]
+  0 own number 513
+  1 own number 1027
+  2 own number 1541
+  3 own number 2055
+  __proto__ own object undefined
+[[Int32Array]]
+  0 own number 67305985
+  1 own number 134678021
+  __proto__ own object undefined
+
+Running test: testArrayBufferWithBrokenUintCtor
+  [[Int8Array]] own object undefined
+  [[Uint8Array]] own object undefined
+  __proto__ own object undefined

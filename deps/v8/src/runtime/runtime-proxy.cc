@@ -38,14 +38,6 @@ RUNTIME_FUNCTION(Runtime_JSProxyGetTarget) {
 }
 
 
-RUNTIME_FUNCTION(Runtime_JSProxyRevoke) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(1, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(JSProxy, proxy, 0);
-  JSProxy::Revoke(proxy);
-  return isolate->heap()->undefined_value();
-}
-
 RUNTIME_FUNCTION(Runtime_GetPropertyWithReceiver) {
   HandleScope scope(isolate);
 

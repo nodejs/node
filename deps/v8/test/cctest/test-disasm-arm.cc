@@ -73,6 +73,12 @@ bool DisassembleAndCompare(byte* begin, S... expected_strings) {
     }
   }
 
+  // Fail after printing expected disassembly if we expected a different number
+  // of instructions.
+  if (disassembly.size() != expected_disassembly.size()) {
+    return false;
+  }
+
   return test_passed;
 }
 
@@ -268,7 +274,7 @@ TEST(Type0) {
           "e3e03000       mvn r3, #0");
   COMPARE(mov(r4, Operand(-2), SetCC, al),
           "e3f04001       mvns r4, #1");
-  COMPARE(mov(r5, Operand(0x0ffffff0), SetCC, ne),
+  COMPARE(mov(r5, Operand(0x0FFFFFF0), SetCC, ne),
           "13f052ff       mvnnes r5, #-268435441");
   COMPARE(mov(r6, Operand(-1), LeaveCC, ne),
           "13e06000       mvnne r6, #0");
@@ -278,7 +284,7 @@ TEST(Type0) {
           "e3a03000       mov r3, #0");
   COMPARE(mvn(r4, Operand(-2), SetCC, al),
           "e3b04001       movs r4, #1");
-  COMPARE(mvn(r5, Operand(0x0ffffff0), SetCC, ne),
+  COMPARE(mvn(r5, Operand(0x0FFFFFF0), SetCC, ne),
           "13b052ff       movnes r5, #-268435441");
   COMPARE(mvn(r6, Operand(-1), LeaveCC, ne),
           "13a06000       movne r6, #0");
@@ -306,20 +312,20 @@ TEST(Type0) {
 
     COMPARE(movt(r5, 0x4321, ne),
             "13445321       movtne r5, #17185");
-    COMPARE(movw(r5, 0xabcd, eq),
+    COMPARE(movw(r5, 0xABCD, eq),
             "030a5bcd       movweq r5, #43981");
   }
 
   // Eor doesn't have an eor-negative variant, but we can do an mvn followed by
   // an eor to get the same effect.
-  COMPARE(eor(r5, r4, Operand(0xffffff34), SetCC, ne),
+  COMPARE(eor(r5, r4, Operand(0xFFFFFF34), SetCC, ne),
           "13e050cb       mvnne r5, #203",
           "10345005       eornes r5, r4, r5");
 
   // and <-> bic.
-  COMPARE(and_(r3, r5, Operand(0xfc03ffff)),
+  COMPARE(and_(r3, r5, Operand(0xFC03FFFF)),
           "e3c537ff       bic r3, r5, #66846720");
-  COMPARE(bic(r3, r5, Operand(0xfc03ffff)),
+  COMPARE(bic(r3, r5, Operand(0xFC03FFFF)),
           "e20537ff       and r3, r5, #66846720");
 
   // sub <-> add.
@@ -339,7 +345,7 @@ TEST(Type0) {
           "e12fff3c       blx ip");
   COMPARE(bkpt(0),
           "e1200070       bkpt 0");
-  COMPARE(bkpt(0xffff),
+  COMPARE(bkpt(0xFFFF),
           "e12fff7f       bkpt 65535");
   COMPARE(clz(r6, r7),
           "e16f6f17       clz r6, r7");
@@ -510,7 +516,7 @@ TEST(msr_mrs_disasm) {
           "e169f007       msr SPSR_fc, r7");
   // MSR with no mask is UNPREDICTABLE, and checked by the assembler, but check
   // that the disassembler does something sensible.
-  COMPARE(dd(0xe120f008), "e120f008       msr CPSR_(none), r8");
+  COMPARE(dd(0xE120F008), "e120f008       msr CPSR_(none), r8");
 
   COMPARE(mrs(r0, CPSR),     "e10f0000       mrs r0, CPSR");
   COMPARE(mrs(r1, SPSR),     "e14f1000       mrs r1, SPSR");
@@ -1472,7 +1478,7 @@ static void TestLoadLiteral(byte* buffer, Assembler* assm, bool* failure,
                             int offset) {
   int pc_offset = assm->pc_offset();
   byte *progcounter = &buffer[pc_offset];
-  assm->ldr(r0, MemOperand(pc, offset));
+  assm->ldr_pcrel(r0, offset);
 
   const char *expected_string_template =
     (offset >= 0) ?
@@ -1575,6 +1581,36 @@ TEST(LoadStoreExclusive) {
   COMPARE(strexh(r0, r1, r2), "e1e20f91       strexh r0, r1, [r2]");
   COMPARE(ldrex(r0, r1), "e1910f9f       ldrex r0, [r1]");
   COMPARE(strex(r0, r1, r2), "e1820f91       strex r0, r1, [r2]");
+
+  VERIFY_RUN();
+}
+
+TEST(SplitAddImmediate) {
+  SET_UP();
+
+  // Re-use the destination as a scratch.
+  COMPARE(add(r0, r1, Operand(0x12345678)),
+          "e3050678       movw r0, #22136",
+          "e3410234       movt r0, #4660",
+          "e0810000       add r0, r1, r0");
+
+  // Use ip as a scratch.
+  COMPARE(add(r0, r0, Operand(0x12345678)),
+          "e305c678       movw ip, #22136",
+          "e341c234       movt ip, #4660",
+          "e080000c       add r0, r0, ip");
+
+  // If ip is not available, split the operation into multiple additions.
+  {
+    UseScratchRegisterScope temps(&assm);
+    Register reserved = temps.Acquire();
+    USE(reserved);
+    COMPARE(add(r2, r2, Operand(0x12345678)),
+            "e2822f9e       add r2, r2, #632",
+            "e2822b15       add r2, r2, #21504",
+            "e282278d       add r2, r2, #36962304",
+            "e2822201       add r2, r2, #268435456");
+  }
 
   VERIFY_RUN();
 }

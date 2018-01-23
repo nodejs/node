@@ -222,7 +222,8 @@ class InjectedScript::ProtocolPromiseHandler {
             .setException(wrappedValue->clone())
             .build();
     if (stack)
-      exceptionDetails->setStackTrace(stack->buildInspectorObjectImpl());
+      exceptionDetails->setStackTrace(
+          stack->buildInspectorObjectImpl(m_inspector->debugger()));
     if (stack && !stack->isEmpty())
       exceptionDetails->setScriptId(toString16(stack->topScriptId()));
     callback->sendSuccess(std::move(wrappedValue), std::move(exceptionDetails));
@@ -279,8 +280,9 @@ std::unique_ptr<InjectedScript> InjectedScript::create(
   if (!inspectedContext->inspector()
            ->compileAndRunInternalScript(
                context, toV8String(isolate, injectedScriptSource))
-           .ToLocal(&value))
+           .ToLocal(&value)) {
     return nullptr;
+  }
   DCHECK(value->IsFunction());
   v8::Local<v8::Object> scriptHostWrapper =
       V8InjectedScriptHost::create(context, inspectedContext->inspector());
@@ -388,43 +390,6 @@ Response InjectedScript::wrapObject(
       protocol::Runtime::RemoteObject::fromValue(protocolValue.get(), &errors);
   if (!result->get()) return Response::Error(errors.errors());
   return Response::OK();
-}
-
-Response InjectedScript::wrapObjectProperty(v8::Local<v8::Object> object,
-                                            v8::Local<v8::Name> key,
-                                            const String16& groupName,
-                                            bool forceValueType,
-                                            bool generatePreview) const {
-  v8::Local<v8::Value> property;
-  v8::Local<v8::Context> context = m_context->context();
-  if (!object->Get(context, key).ToLocal(&property))
-    return Response::InternalError();
-  v8::Local<v8::Value> wrappedProperty;
-  Response response = wrapValue(property, groupName, forceValueType,
-                                generatePreview, &wrappedProperty);
-  if (!response.isSuccess()) return response;
-  v8::Maybe<bool> success =
-      createDataProperty(context, object, key, wrappedProperty);
-  if (success.IsNothing() || !success.FromJust())
-    return Response::InternalError();
-  return Response::OK();
-}
-
-Response InjectedScript::wrapPropertyInArray(v8::Local<v8::Array> array,
-                                             v8::Local<v8::String> property,
-                                             const String16& groupName,
-                                             bool forceValueType,
-                                             bool generatePreview) const {
-  V8FunctionCall function(m_context->inspector(), m_context->context(),
-                          v8Value(), "wrapPropertyInArray");
-  function.appendArgument(array);
-  function.appendArgument(property);
-  function.appendArgument(groupName);
-  function.appendArgument(forceValueType);
-  function.appendArgument(generatePreview);
-  bool hadException = false;
-  function.call(hadException);
-  return hadException ? Response::InternalError() : Response::OK();
 }
 
 Response InjectedScript::wrapValue(v8::Local<v8::Value> value,
@@ -606,10 +571,11 @@ Response InjectedScript::createExceptionDetails(
         static_cast<int>(message->GetScriptOrigin().ScriptID()->Value())));
     v8::Local<v8::StackTrace> stackTrace = message->GetStackTrace();
     if (!stackTrace.IsEmpty() && stackTrace->GetFrameCount() > 0)
-      exceptionDetails->setStackTrace(m_context->inspector()
-                                          ->debugger()
-                                          ->createStackTrace(stackTrace)
-                                          ->buildInspectorObjectImpl());
+      exceptionDetails->setStackTrace(
+          m_context->inspector()
+              ->debugger()
+              ->createStackTrace(stackTrace)
+              ->buildInspectorObjectImpl(m_context->inspector()->debugger()));
   }
   if (!exception.IsEmpty()) {
     std::unique_ptr<protocol::Runtime::RemoteObject> wrapped;

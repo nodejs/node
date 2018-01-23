@@ -12,9 +12,8 @@ local:foo1
 module
 [
     [0] : a1 = 10
-    [1] : g1 = 1
-    [2] : b1 = 11
-    [3] : foo1 = function foo1() {   let c1 = 12;   let g1 = 2;   debugger;   return a1 + b1 + c1 + g1; }
+    [1] : b1 = 11
+    [2] : foo1 = function foo1() {   let c1 = 12;   let g1 = 2;   debugger;   return a1 + b1 + c1 + g1; }
 ]
 global
 [
@@ -180,9 +179,8 @@ foo2 =
 }
 module
 [
-    [0] : a3 = 30
-    [1] : foo2 = function foo2() {   let c2 = 22;   return foo1() + a2 + b2 + c2; }
-    [2] : b3 = 31
+    [0] : foo2 = function foo2() {   let c2 = 22;   return foo1() + a2 + b2 + c2; }
+    [1] : b3 = 31
 ]
 global
 [
@@ -200,20 +198,6 @@ Array =
     objectId : <objectId>
     type : function
 }
-a3 = 
-{
-    description : 30
-    type : number
-    value : 30
-}
-Evaluating: ++a3
-updated a3 = 
-{
-    description : 31
-    type : number
-    value : 31
-}
-Evaluating: --a3
 foo2 = 
 {
     className : Function
@@ -247,12 +231,6 @@ closure:bar
 [
     [0] : a = 0
 ]
-module
-[
-    [0] : a = 1
-    [1] : b = 2
-    [2] : bar = function bar() {   let a = 0;   (() => {a; debugger;})(); }
-]
 global
 [
   ...
@@ -283,36 +261,9 @@ updated a =
     value : 1
 }
 Evaluating: --a
-b = 
-{
-    description : 2
-    type : number
-    value : 2
-}
-Evaluating: ++b
-updated b = 
-{
-    description : 3
-    type : number
-    value : 3
-}
-Evaluating: --b
-bar = 
-{
-    className : Function
-    description : function bar() {   let a = 0;   (() => {a; debugger;})(); }
-    objectId : <objectId>
-    type : function
-}
 local:bar
 [
     [0] : a = 0
-]
-module
-[
-    [0] : a = 1
-    [1] : b = 2
-    [2] : bar = function bar() {   let a = 0;   (() => {a; debugger;})(); }
 ]
 global
 [
@@ -344,33 +295,6 @@ updated a =
     value : 1
 }
 Evaluating: --a
-b = 
-{
-    description : 2
-    type : number
-    value : 2
-}
-Evaluating: ++b
-updated b = 
-{
-    description : 3
-    type : number
-    value : 3
-}
-Evaluating: --b
-bar = 
-{
-    className : Function
-    description : function bar() {   let a = 0;   (() => {a; debugger;})(); }
-    objectId : <objectId>
-    type : function
-}
-module
-[
-    [0] : a = 1
-    [1] : b = 2
-    [2] : bar = function bar() {   let a = 0;   (() => {a; debugger;})(); }
-]
 global
 [
   ...
@@ -383,41 +307,6 @@ Array =
 {
     className : Function
     description : function Array() { [native code] }
-    objectId : <objectId>
-    type : function
-}
-a = 
-{
-    description : 1
-    type : number
-    value : 1
-}
-Evaluating: ++a
-updated a = 
-{
-    description : 2
-    type : number
-    value : 2
-}
-Evaluating: --a
-b = 
-{
-    description : 2
-    type : number
-    value : 2
-}
-Evaluating: ++b
-updated b = 
-{
-    description : 3
-    type : number
-    value : 3
-}
-Evaluating: --b
-bar = 
-{
-    className : Function
-    description : function bar() {   let a = 0;   (() => {a; debugger;})(); }
     objectId : <objectId>
     type : function
 }
@@ -503,3 +392,112 @@ updated c =
     value : 1
 }
 Evaluating: --c
+
+Running test: testCapturedLocalVariable
+(anonymous) (module6:2:25)
+(anonymous) (module6:2:37)
+local
+[
+    [0] : y = 5
+]
+module
+[
+    [0] : x = 5
+]
+global
+[
+  ...
+]
+Check variables in frame#0
+let x = 5;
+(function() { let y = x; #debugger; })()
+
+
+Array = 
+{
+    className : Function
+    description : function Array() { [native code] }
+    objectId : <objectId>
+    type : function
+}
+y = 
+{
+    description : 5
+    type : number
+    value : 5
+}
+Evaluating: ++y
+updated y = 
+{
+    description : 6
+    type : number
+    value : 6
+}
+Evaluating: --y
+x = 
+{
+    description : 5
+    type : number
+    value : 5
+}
+Evaluating: ++x
+updated x = 
+{
+    description : 6
+    type : number
+    value : 6
+}
+Evaluating: --x
+module
+[
+    [0] : x = 5
+]
+global
+[
+  ...
+]
+Check variables in frame#1
+let x = 5;
+(function() { let y = x; debugger; })#()
+
+
+Array = 
+{
+    className : Function
+    description : function Array() { [native code] }
+    objectId : <objectId>
+    type : function
+}
+x = 
+{
+    description : 5
+    type : number
+    value : 5
+}
+Evaluating: ++x
+updated x = 
+{
+    description : 6
+    type : number
+    value : 6
+}
+Evaluating: --x
+
+Running test: testLocalVariableToplevel
+(anonymous) (module7:2:0)
+global
+[
+  ...
+]
+Check variables in frame#0
+let x = 5;
+#debugger;
+
+
+Array = 
+{
+    className : Function
+    description : function Array() { [native code] }
+    objectId : <objectId>
+    type : function
+}

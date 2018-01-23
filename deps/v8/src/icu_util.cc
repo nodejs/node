@@ -32,7 +32,7 @@ namespace internal {
 
 #if defined(V8_INTL_SUPPORT) && (ICU_UTIL_DATA_IMPL == ICU_UTIL_DATA_FILE)
 namespace {
-char* g_icu_data_ptr = NULL;
+char* g_icu_data_ptr = nullptr;
 
 void free_icu_data_ptr() {
   delete[] g_icu_data_ptr;
@@ -62,7 +62,7 @@ bool InitializeICUDefaultLocation(const char* exec_path,
   free(icu_data_file_default);
   return result;
 #else
-  return InitializeICU(NULL);
+  return InitializeICU(nullptr);
 #endif
 #endif
 }
@@ -100,7 +100,7 @@ bool InitializeICU(const char* icu_data_file) {
   g_icu_data_ptr = new char[size];
   if (fread(g_icu_data_ptr, 1, size, inf) != size) {
     delete[] g_icu_data_ptr;
-    g_icu_data_ptr = NULL;
+    g_icu_data_ptr = nullptr;
     fclose(inf);
     return false;
   }

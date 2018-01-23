@@ -1,0 +1,5 @@
+*%(basename)s:8: SyntaxError: Detected cycle while resolving name 'foo' in 'modules-cycle5.js'
+export {foo} from "modules-cycle5.js";
+        ^^^
+SyntaxError: Detected cycle while resolving name 'foo' in 'modules-cycle5.js'
+

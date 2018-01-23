@@ -24,7 +24,10 @@ f(new C());
 var o = new C();
 %HeapObjectVerify(o);
 
-m.set(o, 1);  // This creates hash code on o.
+// We need at least 2 elements in the Map.
+m.set({}, 3);
+// This creates hash code on o.
+m.set(o, 1);
 
 // Add an out-of-object property.
 o.x = true;
@@ -41,3 +44,10 @@ f(o);
 
 %HeapObjectVerify(o);
 assertEquals(1, m.get(o));
+
+// Grow the Map and ensure the object is still found.
+for (let i = 0; i < 1000; i++) {
+  let object = {};
+  m.set(object, object);
+  assertEquals(1, m.get(o));
+}

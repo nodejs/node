@@ -8,6 +8,7 @@
 
 #include "src/runtime/runtime-utils.h"
 
+#include <cmath>
 #include <memory>
 
 #include "src/api-natives.h"
@@ -45,12 +46,8 @@
 #include "unicode/uloc.h"
 #include "unicode/unistr.h"
 #include "unicode/unum.h"
-#include "unicode/uvernum.h"
 #include "unicode/uversion.h"
 
-#if U_ICU_VERSION_MAJOR_NUM >= 59
-#include "unicode/char16ptr.h"
-#endif
 
 namespace v8 {
 namespace internal {
@@ -105,7 +102,7 @@ RUNTIME_FUNCTION(Runtime_AvailableLocalesOf) {
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(String, service, 0);
 
-  const icu::Locale* available_locales = NULL;
+  const icu::Locale* available_locales = nullptr;
   int32_t count = 0;
 
   if (service->IsUtf8EqualTo(CStrVector("collator"))) {
@@ -217,7 +214,7 @@ RUNTIME_FUNCTION(Runtime_MarkAsInitializedIntlObjectOfType) {
   CONVERT_ARG_HANDLE_CHECKED(String, type, 1);
 
   Handle<Symbol> marker = isolate->factory()->intl_initialized_marker_symbol();
-  JSObject::SetProperty(input, marker, type, STRICT).Assert();
+  JSObject::SetProperty(input, marker, type, LanguageMode::kStrict).Assert();
 
   return isolate->heap()->undefined_value();
 }
@@ -260,17 +257,21 @@ RUNTIME_FUNCTION(Runtime_InternalDateFormat) {
   DCHECK_EQ(2, args.length());
 
   CONVERT_ARG_HANDLE_CHECKED(JSObject, date_format_holder, 0);
-  CONVERT_ARG_HANDLE_CHECKED(JSDate, date, 1);
+  CONVERT_NUMBER_ARG_HANDLE_CHECKED(date, 1);
 
-  Handle<Object> value;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, value, Object::ToNumber(date));
+  double date_value = date->Number();
+  // Check for +-Infinity and Nan
+  if (!std::isfinite(date_value)) {
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate, NewRangeError(MessageTemplate::kInvalidTimeValue));
+  }
 
   icu::SimpleDateFormat* date_format =
       DateFormat::UnpackDateFormat(isolate, date_format_holder);
   CHECK_NOT_NULL(date_format);
 
   icu::UnicodeString result;
-  date_format->format(value->Number(), result);
+  date_format->format(date_value, result);
 
   RETURN_RESULT_OR_FAILURE(
       isolate, isolate->factory()->NewStringFromTwoByte(Vector<const uint16_t>(
@@ -362,10 +363,13 @@ RUNTIME_FUNCTION(Runtime_InternalDateFormatToParts) {
   DCHECK_EQ(2, args.length());
 
   CONVERT_ARG_HANDLE_CHECKED(JSObject, date_format_holder, 0);
-  CONVERT_ARG_HANDLE_CHECKED(JSDate, date, 1);
+  CONVERT_NUMBER_ARG_HANDLE_CHECKED(date, 1);
 
-  Handle<Object> value;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, value, Object::ToNumber(date));
+  double date_value = date->Number();
+  if (!std::isfinite(date_value)) {
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate, NewRangeError(MessageTemplate::kInvalidTimeValue));
+  }
 
   icu::SimpleDateFormat* date_format =
       DateFormat::UnpackDateFormat(isolate, date_format_holder);
@@ -375,7 +379,7 @@ RUNTIME_FUNCTION(Runtime_InternalDateFormatToParts) {
   icu::FieldPositionIterator fp_iter;
   icu::FieldPosition fp;
   UErrorCode status = U_ZERO_ERROR;
-  date_format->format(value->Number(), formatted, &fp_iter, status);
+  date_format->format(date_value, formatted, &fp_iter, status);
   if (U_FAILURE(status)) return isolate->heap()->undefined_value();
 
   Handle<JSArray> result = factory->NewJSArray(0);
@@ -473,21 +477,12 @@ RUNTIME_FUNCTION(Runtime_CurrencyDigits) {
 
   CONVERT_ARG_HANDLE_CHECKED(String, currency, 0);
 
-  // TODO(littledan): Avoid transcoding the string twice
-  v8::String::Utf8Value currency_string(v8_isolate,
-                                        v8::Utils::ToLocal(currency));
-  icu::UnicodeString currency_icu =
-      icu::UnicodeString::fromUTF8(*currency_string);
+  v8::String::Value currency_string(v8_isolate, v8::Utils::ToLocal(currency));
 
   DisallowHeapAllocation no_gc;
   UErrorCode status = U_ZERO_ERROR;
-#if U_ICU_VERSION_MAJOR_NUM >= 59
   uint32_t fraction_digits = ucurr_getDefaultFractionDigits(
-      icu::toUCharPtr(currency_icu.getTerminatedBuffer()), &status);
-#else
-  uint32_t fraction_digits = ucurr_getDefaultFractionDigits(
-      currency_icu.getTerminatedBuffer(), &status);
-#endif
+      reinterpret_cast<const UChar*>(*currency_string), &status);
   // For missing currency codes, default to the most common, 2
   if (!U_SUCCESS(status)) fraction_digits = 2;
   return Smi::FromInt(fraction_digits);
@@ -660,7 +655,7 @@ RUNTIME_FUNCTION(Runtime_CreateBreakIterator) {
   if (!break_iterator) return isolate->ThrowIllegalOperation();
 
   local_object->SetEmbedderField(0, reinterpret_cast<Smi*>(break_iterator));
-  // Make sure that the pointer to adopted text is NULL.
+  // Make sure that the pointer to adopted text is nullptr.
   local_object->SetEmbedderField(1, static_cast<Smi*>(nullptr));
 
   // Make object handle weak so we can delete the break iterator once GC kicks
@@ -800,7 +795,7 @@ RUNTIME_FUNCTION(Runtime_StringLocaleConvertCase) {
 
   // Primary language tag can be up to 8 characters long in theory.
   // https://tools.ietf.org/html/bcp47#section-2.2.1
-  DCHECK(lang_arg->length() <= 8);
+  DCHECK_LE(lang_arg->length(), 8);
   lang_arg = String::Flatten(lang_arg);
   s = String::Flatten(s);
 

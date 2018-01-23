@@ -7,7 +7,6 @@
 #include "src/debug/debug.h"
 
 #include "src/arm64/macro-assembler-arm64-inl.h"
-#include "src/codegen.h"
 #include "src/debug/liveedit.h"
 #include "src/frame-constants.h"
 #include "src/frames-inl.h"
@@ -36,10 +35,9 @@ void DebugCodegen::GenerateFrameDropperTrampoline(MacroAssembler* masm) {
   // - Leave the frame.
   // - Restart the frame by calling the function.
   __ Mov(fp, x1);
-  __ AssertStackConsistency();
   __ Ldr(x1, MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset));
 
-  __ Mov(masm->StackPointer(), Operand(fp));
+  __ Mov(sp, fp);
   __ Pop(fp, lr);  // Frame, Return address.
 
   __ Ldr(x0, FieldMemOperand(x1, JSFunction::kSharedFunctionInfoOffset));
@@ -57,5 +55,7 @@ const bool LiveEdit::kFrameDropperSupported = true;
 
 }  // namespace internal
 }  // namespace v8
+
+#undef __
 
 #endif  // V8_TARGET_ARCH_ARM64

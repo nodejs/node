@@ -144,14 +144,14 @@ if (failure) { \
 #define COMPARE_PC_JUMP(asm_, compare_string, target)                          \
   {                                                                            \
     int pc_offset = assm.pc_offset();                                          \
-    byte *progcounter = &buffer[pc_offset];                                    \
+    byte* progcounter = &buffer[pc_offset];                                    \
     char str_with_address[100];                                                \
     int instr_index = (target >> 2) & kImm26Mask;                              \
     snprintf(                                                                  \
         str_with_address, sizeof(str_with_address), "%s %p -> %p",             \
-        compare_string, reinterpret_cast<void *>(target),                      \
-        reinterpret_cast<void *>(((uint64_t)(progcounter + 1) & ~0xfffffff) |  \
-                                 (instr_index << 2)));                         \
+        compare_string, reinterpret_cast<void*>(target),                       \
+        reinterpret_cast<void*>(((uint64_t)(progcounter + 1) & ~0xFFFFFFF) |   \
+                                (instr_index << 2)));                          \
     assm.asm_;                                                                 \
     if (!DisassembleAndCompare(progcounter, str_with_address)) failure = true; \
   }
@@ -159,10 +159,9 @@ if (failure) { \
 #define GET_PC_REGION(pc_region)                                         \
   {                                                                      \
     int pc_offset = assm.pc_offset();                                    \
-    byte *progcounter = &buffer[pc_offset];                              \
-    pc_region = reinterpret_cast<int64_t>(progcounter + 4) & ~0xfffffff; \
+    byte* progcounter = &buffer[pc_offset];                              \
+    pc_region = reinterpret_cast<int64_t>(progcounter + 4) & ~0xFFFFFFF; \
   }
-
 
 TEST(Type0) {
   SET_UP();
@@ -972,7 +971,7 @@ TEST(Type3) {
                            "60a48000       bnvc  a1, a0, -32768", -32768);
 
     COMPARE_PC_REL_COMPACT(beqzc(a0, 0), "d8800000       beqzc   a0, 0", 0);
-    COMPARE_PC_REL_COMPACT(beqzc(a0, 1048575),  // 0x0fffff ==  1048575.
+    COMPARE_PC_REL_COMPACT(beqzc(a0, 1048575),  // 0x0FFFFF ==  1048575.
                            "d88fffff       beqzc   a0, 1048575", 1048575);
     COMPARE_PC_REL_COMPACT(beqzc(a0, -1048576),  // 0x100000 == -1048576.
                            "d8900000       beqzc   a0, -1048576", -1048576);
@@ -1184,12 +1183,12 @@ TEST(Type3) {
 
   int64_t target = pc_region | 0x4;
   COMPARE_PC_JUMP(j(target), "08000001       j      ", target);
-  target = pc_region | 0xffffffc;
+  target = pc_region | 0xFFFFFFC;
   COMPARE_PC_JUMP(j(target), "0bffffff       j      ", target);
 
   target = pc_region | 0x4;
   COMPARE_PC_JUMP(jal(target), "0c000001       jal    ", target);
-  target = pc_region | 0xffffffc;
+  target = pc_region | 0xFFFFFFC;
   COMPARE_PC_JUMP(jal(target), "0fffffff       jal    ", target);
 
   VERIFY_RUN();

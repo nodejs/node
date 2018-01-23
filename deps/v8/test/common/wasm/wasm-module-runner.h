@@ -29,14 +29,14 @@ std::unique_ptr<WasmModule> DecodeWasmModuleForTesting(
 
 // Returns a MaybeHandle to the JsToWasm wrapper of the wasm function exported
 // with the given name by the provided instance.
-MaybeHandle<WasmExportedFunction> GetExportedFunction(Isolate* isolate,
-                                                      Handle<JSObject> instance,
-                                                      const char* name);
+MaybeHandle<WasmExportedFunction> GetExportedFunction(
+    Isolate* isolate, Handle<WasmInstanceObject> instance, const char* name);
 
 // Call an exported wasm function by name. Returns -1 if the export does not
 // exist or throws an error. Errors are cleared from the isolate before
 // returning.
-int32_t CallWasmFunctionForTesting(Isolate* isolate, Handle<JSObject> instance,
+int32_t CallWasmFunctionForTesting(Isolate* isolate,
+                                   Handle<WasmInstanceObject> instance,
                                    ErrorThrower* thrower, const char* name,
                                    int argc, Handle<Object> argv[]);
 
@@ -54,6 +54,10 @@ bool InterpretWasmModuleForTesting(Isolate* isolate,
 int32_t CompileAndRunWasmModule(Isolate* isolate, const byte* module_start,
                                 const byte* module_end);
 
+// Decode, compile, and instantiate the given module with no imports.
+MaybeHandle<WasmInstanceObject> CompileAndInstantiateForTesting(
+    Isolate* isolate, ErrorThrower* thrower, const ModuleWireBytes& bytes);
+
 // Interprets the given module, starting at the function specified by
 // {function_index}. The return type of the function has to be int32. The module
 // should not have any imports or exports
@@ -63,8 +67,9 @@ int32_t InterpretWasmModule(Isolate* isolate,
                             WasmValue* args, bool* possible_nondeterminism);
 
 // Runs the module instance with arguments.
-int32_t RunWasmModuleForTesting(Isolate* isolate, Handle<JSObject> instance,
-                                int argc, Handle<Object> argv[]);
+int32_t RunWasmModuleForTesting(Isolate* isolate,
+                                Handle<WasmInstanceObject> instance, int argc,
+                                Handle<Object> argv[]);
 
 // Install function map, module symbol for testing
 void SetupIsolateForWasmModule(Isolate* isolate);

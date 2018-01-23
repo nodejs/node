@@ -63,6 +63,12 @@ if (v8_snapshot_toolchain == "") {
   } else if (current_os == "win" && host_os == "mac" && is_clang) {
     # This is a mac -> win cross-compile, which is only supported w/ clang.
     v8_snapshot_toolchain = "//build/toolchain/mac:clang_${v8_current_cpu}"
+  } else if (host_cpu == "x64" &&
+             (v8_current_cpu == "mips" || v8_current_cpu == "mips64")) {
+    # We don't support snapshot generation for big-endian targets,
+    # therefore snapshots will need to be built using native mksnapshot
+    # in combination with qemu
+    v8_snapshot_toolchain = current_toolchain
   } else if (host_cpu == "x64") {
     # This is a cross-compile from an x64 host to either a non-Intel target
     # cpu or a different target OS. Clang will always be used by default on the
@@ -76,11 +82,9 @@ if (v8_snapshot_toolchain == "") {
 
     if (v8_current_cpu == "x64" || v8_current_cpu == "x86") {
       _cpus = v8_current_cpu
-    } else if (v8_current_cpu == "arm64" || v8_current_cpu == "mips64el" ||
-               v8_current_cpu == "mips64") {
+    } else if (v8_current_cpu == "arm64" || v8_current_cpu == "mips64el") {
       _cpus = "x64_v8_${v8_current_cpu}"
-    } else if (v8_current_cpu == "arm" || v8_current_cpu == "mipsel" ||
-               v8_current_cpu == "mips") {
+    } else if (v8_current_cpu == "arm" || v8_current_cpu == "mipsel") {
       _cpus = "x86_v8_${v8_current_cpu}"
     } else {
       # This branch should not be reached; leave _cpus blank so the assert

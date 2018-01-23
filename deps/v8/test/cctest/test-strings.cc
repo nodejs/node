@@ -50,8 +50,8 @@ class MyRandomNumberGenerator {
     init();
   }
 
-  void init(uint32_t seed = 0x5688c73e) {
-    static const uint32_t phi = 0x9e3779b9;
+  void init(uint32_t seed = 0x5688C73E) {
+    static const uint32_t phi = 0x9E3779B9;
     c = 362436;
     i = kQSize-1;
     Q[0] = seed;
@@ -64,7 +64,7 @@ class MyRandomNumberGenerator {
 
   uint32_t next() {
     uint64_t a = 18782;
-    uint32_t r = 0xfffffffe;
+    uint32_t r = 0xFFFFFFFE;
     i = (i + 1) & (kQSize-1);
     uint64_t t = a * Q[i] + c;
     c = (t >> 32);
@@ -364,7 +364,7 @@ void AccumulateStatsWithOperator(
   ConsStringIterator iter(cons_string);
   String* string;
   int offset;
-  while (NULL != (string = iter.Next(&offset))) {
+  while (nullptr != (string = iter.Next(&offset))) {
     // Accumulate stats.
     CHECK_EQ(0, offset);
     stats->leaves_++;
@@ -1070,6 +1070,7 @@ TEST(ExternalShortStringAdd) {
 
 
 TEST(JSONStringifySliceMadeExternal) {
+  if (!FLAG_string_slices) return;
   CcTest::InitializeVM();
   // Create a sliced string from a one-byte string.  The latter is turned
   // into a two-byte external string.  Check that JSON.stringify works.
@@ -1155,6 +1156,7 @@ TEST(CachedHashOverflow) {
 
 
 TEST(SliceFromCons) {
+  if (!FLAG_string_slices) return;
   CcTest::InitializeVM();
   Factory* factory = CcTest::i_isolate()->factory();
   v8::HandleScope scope(CcTest::isolate());
@@ -1221,6 +1223,7 @@ TEST(InternalizeExternal) {
 }
 
 TEST(SliceFromExternal) {
+  if (!FLAG_string_slices) return;
   CcTest::InitializeVM();
   Factory* factory = CcTest::i_isolate()->factory();
   v8::HandleScope scope(CcTest::isolate());
@@ -1241,6 +1244,7 @@ TEST(SliceFromExternal) {
 TEST(TrivialSlice) {
   // This tests whether a slice that contains the entire parent string
   // actually creates a new string (it should not).
+  if (!FLAG_string_slices) return;
   CcTest::InitializeVM();
   Factory* factory = CcTest::i_isolate()->factory();
   v8::HandleScope scope(CcTest::isolate());
@@ -1270,6 +1274,7 @@ TEST(TrivialSlice) {
 TEST(SliceFromSlice) {
   // This tests whether a slice that contains the entire parent string
   // actually creates a new string (it should not).
+  if (!FLAG_string_slices) return;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
   v8::Local<v8::Value> result;
@@ -1299,7 +1304,11 @@ UNINITIALIZED_TEST(OneByteArrayJoin) {
   v8::Isolate::CreateParams create_params;
   // Set heap limits.
   create_params.constraints.set_max_semi_space_size_in_kb(1024);
+#ifdef DEBUG
+  create_params.constraints.set_max_old_space_size(20);
+#else
   create_params.constraints.set_max_old_space_size(7);
+#endif
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
   v8::Isolate* isolate = v8::Isolate::New(create_params);
   isolate->Enter();
@@ -1421,7 +1430,7 @@ TEST(RobustSubStringStubExternalStrings) {
 
 namespace {
 
-int* global_use_counts = NULL;
+int* global_use_counts = nullptr;
 
 void MockUseCounterCallback(v8::Isolate* isolate,
                             v8::Isolate::UseCounterFeature feature) {
@@ -1466,7 +1475,7 @@ TEST(StringReplaceAtomTwoByteResult) {
       "subject.replace(/~/g, replace);  ");
   CHECK(result->IsString());
   Handle<String> string = v8::Utils::OpenHandle(v8::String::Cast(*result));
-  CHECK(string->IsSeqTwoByteString());
+  CHECK(string->IsTwoByteRepresentation());
 
   v8::Local<v8::String> expected = v8_str("one_byte\x80only\x80string\x80");
   CHECK(expected->Equals(context.local(), result).FromJust());
@@ -1474,8 +1483,8 @@ TEST(StringReplaceAtomTwoByteResult) {
 
 
 TEST(IsAscii) {
-  CHECK(String::IsAscii(static_cast<char*>(NULL), 0));
-  CHECK(String::IsOneByte(static_cast<uc16*>(NULL), 0));
+  CHECK(String::IsAscii(static_cast<char*>(nullptr), 0));
+  CHECK(String::IsOneByte(static_cast<uc16*>(nullptr), 0));
 }
 
 
@@ -1484,7 +1493,7 @@ template<typename Op, bool return_first>
 static uint16_t ConvertLatin1(uint16_t c) {
   uint32_t result[Op::kMaxWidth];
   int chars;
-  chars = Op::Convert(c, 0, result, NULL);
+  chars = Op::Convert(c, 0, result, nullptr);
   if (chars == 0) return 0;
   CHECK_LE(chars, static_cast<int>(sizeof(result)));
   if (!return_first && chars > 1) {
@@ -1538,14 +1547,14 @@ TEST(Latin1IgnoreCase) {
 
 class DummyResource: public v8::String::ExternalStringResource {
  public:
-  virtual const uint16_t* data() const { return NULL; }
+  virtual const uint16_t* data() const { return nullptr; }
   virtual size_t length() const { return 1 << 30; }
 };
 
 
 class DummyOneByteResource: public v8::String::ExternalOneByteStringResource {
  public:
-  virtual const char* data() const { return NULL; }
+  virtual const char* data() const { return nullptr; }
   virtual size_t length() const { return 1 << 30; }
 };
 

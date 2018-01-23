@@ -23,7 +23,6 @@ class HandleScopeImplementer;
 class Isolate;
 class Object;
 
-
 // ----------------------------------------------------------------------------
 // Base class for Handle instantiations.  Don't use directly.
 class HandleBase {
@@ -39,7 +38,7 @@ class HandleBase {
                 (that.location_ == nullptr ||
                  that.IsDereferenceAllowed(NO_DEFERRED_CHECK)));
     if (this->location_ == that.location_) return true;
-    if (this->location_ == NULL || that.location_ == NULL) return false;
+    if (this->location_ == nullptr || that.location_ == nullptr) return false;
     return *this->location_ == *that.location_;
   }
 
@@ -94,7 +93,8 @@ class Handle final : public HandleBase {
   V8_INLINE explicit Handle(T** location = nullptr)
       : HandleBase(reinterpret_cast<Object**>(location)) {
     // Type check:
-    static_assert(std::is_base_of<Object, T>::value, "static type violation");
+    static_assert(std::is_convertible<T*, Object*>::value,
+                  "static type violation");
   }
 
   V8_INLINE explicit Handle(T* object);
@@ -105,11 +105,9 @@ class Handle final : public HandleBase {
 
   // Constructor for handling automatic up casting.
   // Ex. Handle<JSFunction> can be passed when Handle<Object> is expected.
-  template <typename S>
-  V8_INLINE Handle(Handle<S> handle) : HandleBase(handle) {
-    // Type check:
-    static_assert(std::is_base_of<T, S>::value, "static type violation");
-  }
+  template <typename S, typename = typename std::enable_if<
+                            std::is_convertible<S*, T*>::value>::type>
+  V8_INLINE Handle(Handle<S> handle) : HandleBase(handle) {}
 
   V8_INLINE T* operator->() const { return operator*(); }
 
@@ -172,11 +170,10 @@ V8_INLINE Handle<T> handle(T* object) {
   return Handle<T>(object);
 }
 
-
 // ----------------------------------------------------------------------------
 // A Handle can be converted into a MaybeHandle. Converting a MaybeHandle
-// into a Handle requires checking that it does not point to NULL.  This
-// ensures NULL checks before use.
+// into a Handle requires checking that it does not point to nullptr.  This
+// ensures nullptr checks before use.
 //
 // Also note that Handles do not provide default equality comparison or hashing
 // operators on purpose. Such operators would be misleading, because intended
@@ -188,24 +185,19 @@ class MaybeHandle final {
 
   // Constructor for handling automatic up casting from Handle.
   // Ex. Handle<JSArray> can be passed when MaybeHandle<Object> is expected.
-  template <typename S>
+  template <typename S, typename = typename std::enable_if<
+                            std::is_convertible<S*, T*>::value>::type>
   V8_INLINE MaybeHandle(Handle<S> handle)
-      : location_(reinterpret_cast<T**>(handle.location_)) {
-    // Type check:
-    static_assert(std::is_base_of<T, S>::value, "static type violation");
-  }
+      : location_(reinterpret_cast<T**>(handle.location_)) {}
 
   // Constructor for handling automatic up casting.
   // Ex. MaybeHandle<JSArray> can be passed when Handle<Object> is expected.
-  template <typename S>
+  template <typename S, typename = typename std::enable_if<
+                            std::is_convertible<S*, T*>::value>::type>
   V8_INLINE MaybeHandle(MaybeHandle<S> maybe_handle)
-      : location_(reinterpret_cast<T**>(maybe_handle.location_)) {
-    // Type check:
-    static_assert(std::is_base_of<T, S>::value, "static type violation");
-  }
+      : location_(reinterpret_cast<T**>(maybe_handle.location_)) {}
 
-  template <typename S>
-  V8_INLINE MaybeHandle(S* object, Isolate* isolate)
+  V8_INLINE MaybeHandle(T* object, Isolate* isolate)
       : MaybeHandle(handle(object, isolate)) {}
 
   V8_INLINE void Assert() const { DCHECK_NOT_NULL(location_); }
@@ -425,9 +417,9 @@ struct HandleScopeData final {
   CanonicalHandleScope* canonical_scope;
 
   void Initialize() {
-    next = limit = NULL;
+    next = limit = nullptr;
     sealed_level = level = 0;
-    canonical_scope = NULL;
+    canonical_scope = nullptr;
   }
 };
 

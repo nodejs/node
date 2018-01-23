@@ -281,6 +281,8 @@ def _CommonChecks(input_api, output_api):
   results.extend(_CheckMissingFiles(input_api, output_api))
   results.extend(_CheckJSONFiles(input_api, output_api))
   results.extend(_CheckMacroUndefs(input_api, output_api))
+  results.extend(input_api.RunTests(
+    input_api.canned_checks.CheckVPythonSpec(input_api, output_api)))
   return results
 
 
@@ -428,6 +430,6 @@ def PostUploadHook(cl, change, output_api):
   return output_api.EnsureCQIncludeTrybotsAreAdded(
       cl,
       [
-        'master.tryserver.v8:v8_linux_noi18n_rel_ng'
+        'luci.v8.try:v8_linux_noi18n_rel_ng'
       ],
       'Automatically added noi18n trybots to run tests on CQ.')

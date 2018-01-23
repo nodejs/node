@@ -129,8 +129,9 @@ HEAP_TEST(MarkCompactCollector) {
   { HandleScope scope(isolate);
     // allocate a garbage
     Handle<String> func_name = factory->InternalizeUtf8String("theFunction");
-    Handle<JSFunction> function = factory->NewFunction(func_name);
-    JSReceiver::SetProperty(global, func_name, function, SLOPPY).Check();
+    Handle<JSFunction> function = factory->NewFunctionForTest(func_name);
+    JSReceiver::SetProperty(global, func_name, function, LanguageMode::kSloppy)
+        .Check();
 
     factory->NewJSObject(function);
   }
@@ -147,10 +148,12 @@ HEAP_TEST(MarkCompactCollector) {
     Handle<JSObject> obj = factory->NewJSObject(function);
 
     Handle<String> obj_name = factory->InternalizeUtf8String("theObject");
-    JSReceiver::SetProperty(global, obj_name, obj, SLOPPY).Check();
+    JSReceiver::SetProperty(global, obj_name, obj, LanguageMode::kSloppy)
+        .Check();
     Handle<String> prop_name = factory->InternalizeUtf8String("theSlot");
     Handle<Smi> twenty_three(Smi::FromInt(23), isolate);
-    JSReceiver::SetProperty(obj, prop_name, twenty_three, SLOPPY).Check();
+    JSReceiver::SetProperty(obj, prop_name, twenty_three, LanguageMode::kSloppy)
+        .Check();
   }
 
   CcTest::CollectGarbage(OLD_SPACE);
@@ -328,7 +331,7 @@ TEST(Regress5829) {
   array->set_length(9);
   heap->CreateFillerObjectAt(old_end - kPointerSize, kPointerSize,
                              ClearRecordedSlots::kNo);
-  heap->old_space()->EmptyAllocationInfo();
+  heap->old_space()->FreeLinearAllocationArea();
   Page* page = Page::FromAddress(array->address());
   IncrementalMarking::MarkingState* marking_state = marking->marking_state();
   for (auto object_and_size :

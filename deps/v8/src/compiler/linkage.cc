@@ -37,6 +37,9 @@ std::ostream& operator<<(std::ostream& os, const CallDescriptor::Kind& k) {
     case CallDescriptor::kCallAddress:
       os << "Addr";
       break;
+    case CallDescriptor::kCallWasmFunction:
+      os << "Wasm";
+      break;
   }
   return os;
 }
@@ -46,7 +49,7 @@ std::ostream& operator<<(std::ostream& os, const CallDescriptor& d) {
   // TODO(svenpanne) Output properties etc. and be less cryptic.
   return os << d.kind() << ":" << d.debug_name() << ":r" << d.ReturnCount()
             << "s" << d.StackParameterCount() << "i" << d.InputCount() << "f"
-            << d.FrameStateCount() << "t" << d.SupportsTailCalls();
+            << d.FrameStateCount();
 }
 
 MachineSignature* CallDescriptor::GetMachineSignature(Zone* zone) const {
@@ -72,33 +75,42 @@ bool CallDescriptor::HasSameReturnLocationsAs(
   return true;
 }
 
-int CallDescriptor::GetStackParameterDelta(
-    CallDescriptor const* tail_caller) const {
-  int callee_slots_above_sp = 0;
+int CallDescriptor::GetFirstUnusedStackSlot() const {
+  int slots_above_sp = 0;
   for (size_t i = 0; i < InputCount(); ++i) {
     LinkageLocation operand = GetInputLocation(i);
     if (!operand.IsRegister()) {
       int new_candidate =
           -operand.GetLocation() + operand.GetSizeInPointers() - 1;
-      if (new_candidate > callee_slots_above_sp) {
-        callee_slots_above_sp = new_candidate;
+      if (new_candidate > slots_above_sp) {
+        slots_above_sp = new_candidate;
       }
     }
   }
-  int tail_caller_slots_above_sp = 0;
-  if (tail_caller != nullptr) {
-    for (size_t i = 0; i < tail_caller->InputCount(); ++i) {
-      LinkageLocation operand = tail_caller->GetInputLocation(i);
-      if (!operand.IsRegister()) {
-        int new_candidate =
-            -operand.GetLocation() + operand.GetSizeInPointers() - 1;
-        if (new_candidate > tail_caller_slots_above_sp) {
-          tail_caller_slots_above_sp = new_candidate;
-        }
+  return slots_above_sp;
+}
+
+int CallDescriptor::GetStackParameterDelta(
+    CallDescriptor const* tail_caller) const {
+  int callee_slots_above_sp = GetFirstUnusedStackSlot();
+  int tail_caller_slots_above_sp = tail_caller->GetFirstUnusedStackSlot();
+  int stack_param_delta = callee_slots_above_sp - tail_caller_slots_above_sp;
+  if (kPadArguments) {
+    // Adjust stack delta when it is odd.
+    if (stack_param_delta % 2 != 0) {
+      if (callee_slots_above_sp % 2 != 0) {
+        // The delta is odd due to the callee - we will need to add one slot
+        // of padding.
+        ++stack_param_delta;
+      } else {
+        // The delta is odd because of the caller. We already have one slot of
+        // padding that we can reuse for arguments, so we will need one fewer
+        // slot.
+        --stack_param_delta;
       }
     }
   }
-  return callee_slots_above_sp - tail_caller_slots_above_sp;
+  return stack_param_delta;
 }
 
 bool CallDescriptor::CanTailCall(const Node* node) const {
@@ -117,6 +129,7 @@ int CallDescriptor::CalculateFixedFrameSize() const {
              CommonFrameConstants::kCPSlotCount;
       break;
     case kCallCodeObject:
+    case kCallWasmFunction:
       return TypedFrameConstants::kFixedSlotCount;
   }
   UNREACHABLE();
@@ -144,7 +157,6 @@ bool Linkage::NeedsFrameStateInput(Runtime::FunctionId function) {
     // deoptimize are whitelisted here and can be called without a FrameState.
     case Runtime::kAbort:
     case Runtime::kAllocateInTargetSpace:
-    case Runtime::kConvertReceiver:
     case Runtime::kCreateIterResultObject:
     case Runtime::kGeneratorGetContinuation:
     case Runtime::kIncBlockCounter:
@@ -155,7 +167,6 @@ bool Linkage::NeedsFrameStateInput(Runtime::FunctionId function) {
     case Runtime::kPushBlockContext:
     case Runtime::kPushCatchContext:
     case Runtime::kReThrow:
-    case Runtime::kStringCompare:
     case Runtime::kStringEqual:
     case Runtime::kStringNotEqual:
     case Runtime::kStringLessThan:
@@ -451,17 +462,16 @@ CallDescriptor* Linkage::GetBytecodeDispatchCallDescriptor(
   // The target for interpreter dispatches is a code entry address.
   MachineType target_type = MachineType::Pointer();
   LinkageLocation target_loc = LinkageLocation::ForAnyRegister(target_type);
-  return new (zone) CallDescriptor(            // --
-      CallDescriptor::kCallAddress,            // kind
-      target_type,                             // target MachineType
-      target_loc,                              // target location
-      locations.Build(),                       // location_sig
-      stack_parameter_count,                   // stack_parameter_count
-      Operator::kNoProperties,                 // properties
-      kNoCalleeSaved,                          // callee-saved registers
-      kNoCalleeSaved,                          // callee-saved fp
-      CallDescriptor::kCanUseRoots |           // flags
-          CallDescriptor::kSupportsTailCalls,  // flags
+  return new (zone) CallDescriptor(  // --
+      CallDescriptor::kCallAddress,  // kind
+      target_type,                   // target MachineType
+      target_loc,                    // target location
+      locations.Build(),             // location_sig
+      stack_parameter_count,         // stack_parameter_count
+      Operator::kNoProperties,       // properties
+      kNoCalleeSaved,                // callee-saved registers
+      kNoCalleeSaved,                // callee-saved fp
+      CallDescriptor::kCanUseRoots,  // flags
       descriptor.DebugName(isolate));
 }
 

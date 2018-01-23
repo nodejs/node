@@ -109,7 +109,7 @@ int StateValuesHashKey(Node** nodes, size_t count) {
   for (size_t i = 0; i < count; i++) {
     hash = hash * 23 + (nodes[i] == nullptr ? 0 : nodes[i]->id());
   }
-  return static_cast<int>(hash & 0x7fffffff);
+  return static_cast<int>(hash & 0x7FFFFFFF);
 }
 
 }  // namespace

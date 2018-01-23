@@ -15,7 +15,7 @@ class SharedFunctionInfo;
 class WasmCompiledModule;
 
 // Deserializes the object graph rooted at a given object.
-class ObjectDeserializer final : public Deserializer {
+class ObjectDeserializer final : public Deserializer<> {
  public:
   static MaybeHandle<SharedFunctionInfo> DeserializeSharedFunctionInfo(
       Isolate* isolate, const SerializedCodeData* data, Handle<String> source);

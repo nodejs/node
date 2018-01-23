@@ -14,26 +14,13 @@
 
 namespace v8_fuzzer {
 
-namespace {
-
-FuzzerSupport* g_fuzzer_support = nullptr;
-
-void DeleteFuzzerSupport() {
-  if (g_fuzzer_support) {
-    delete g_fuzzer_support;
-    g_fuzzer_support = nullptr;
-  }
-}
-
-}  // namespace
-
 FuzzerSupport::FuzzerSupport(int* argc, char*** argv) {
   v8::internal::FLAG_expose_gc = true;
   v8::V8::SetFlagsFromCommandLine(argc, *argv, true);
   v8::V8::InitializeICUDefaultLocation((*argv)[0]);
   v8::V8::InitializeExternalStartupData((*argv)[0]);
-  platform_ = v8::platform::CreateDefaultPlatform();
-  v8::V8::InitializePlatform(platform_);
+  platform_ = v8::platform::NewDefaultPlatform();
+  v8::V8::InitializePlatform(platform_.get());
   v8::V8::Initialize();
 
   allocator_ = v8::ArrayBuffer::Allocator::NewDefaultAllocator();
@@ -47,7 +34,7 @@ FuzzerSupport::FuzzerSupport(int* argc, char*** argv) {
     context_.Reset(isolate_, v8::Context::New(isolate_));
   }
 
-  v8::platform::EnsureEventLoopInitialized(platform_, isolate_);
+  v8::platform::EnsureEventLoopInitialized(platform_.get(), isolate_);
 }
 
 FuzzerSupport::~FuzzerSupport() {
@@ -70,15 +57,22 @@ FuzzerSupport::~FuzzerSupport() {
 
   v8::V8::Dispose();
   v8::V8::ShutdownPlatform();
+}
 
-  delete platform_;
-  platform_ = nullptr;
+std::unique_ptr<FuzzerSupport> FuzzerSupport::fuzzer_support_;
+
+// static
+void FuzzerSupport::InitializeFuzzerSupport(int* argc, char*** argv) {
+  DCHECK_NULL(FuzzerSupport::fuzzer_support_);
+  FuzzerSupport::fuzzer_support_ =
+      v8::base::make_unique<v8_fuzzer::FuzzerSupport>(argc, argv);
 }
 
 // static
-FuzzerSupport* FuzzerSupport::Get() { return g_fuzzer_support; }
-
-v8::Isolate* FuzzerSupport::GetIsolate() const { return isolate_; }
+FuzzerSupport* FuzzerSupport::Get() {
+  DCHECK_NOT_NULL(FuzzerSupport::fuzzer_support_);
+  return FuzzerSupport::fuzzer_support_.get();
+}
 
 v8::Local<v8::Context> FuzzerSupport::GetContext() {
   v8::Isolate::Scope isolate_scope(isolate_);
@@ -90,13 +84,19 @@ v8::Local<v8::Context> FuzzerSupport::GetContext() {
 
 bool FuzzerSupport::PumpMessageLoop(
     v8::platform::MessageLoopBehavior behavior) {
-  return v8::platform::PumpMessageLoop(platform_, isolate_, behavior);
+  return v8::platform::PumpMessageLoop(platform_.get(), isolate_, behavior);
 }
 
 }  // namespace v8_fuzzer
 
-extern "C" int LLVMFuzzerInitialize(int* argc, char*** argv) {
-  v8_fuzzer::g_fuzzer_support = new v8_fuzzer::FuzzerSupport(argc, argv);
-  atexit(&v8_fuzzer::DeleteFuzzerSupport);
+// Explicitly specify some attributes to avoid issues with the linker dead-
+// stripping the following function on macOS, as it is not called directly
+// by fuzz target. LibFuzzer runtime uses dlsym() to resolve that function.
+#if V8_OS_MACOSX
+__attribute__((used)) __attribute__((visibility("default")))
+#endif  // V8_OS_MACOSX
+extern "C" int
+LLVMFuzzerInitialize(int* argc, char*** argv) {
+  v8_fuzzer::FuzzerSupport::InitializeFuzzerSupport(argc, argv);
   return 0;
 }

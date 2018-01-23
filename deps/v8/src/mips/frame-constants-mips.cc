@@ -22,6 +22,11 @@ int InterpreterFrameConstants::RegisterStackSlotCount(int register_count) {
   return register_count;
 }
 
+int BuiltinContinuationFrameConstants::PaddingSlotCount(int register_count) {
+  USE(register_count);
+  return 0;
+}
+
 }  // namespace internal
 }  // namespace v8
 

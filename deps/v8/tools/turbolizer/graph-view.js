@@ -706,6 +706,7 @@ class GraphView extends View {
       .on("mousedown", function(d){
         graph.pathMouseDown.call(graph, d3.select(this), d);
       })
+      .attr("adjacentToHover", "false");
 
     // Set the correct styles on all of the paths
     visibleEdges.classed('value', function(e) {
@@ -740,7 +741,8 @@ class GraphView extends View {
     var newGs = graph.visibleNodes.enter()
       .append("g");
 
-    newGs.classed("control", function(n) { return n.isControl(); })
+    newGs.classed("turbonode", function(n) { return true; })
+      .classed("control", function(n) { return n.isControl(); })
       .classed("live", function(n) { return n.isLive(); })
       .classed("dead", function(n) { return !n.isLive(); })
       .classed("javascript", function(n) { return n.isJavaScript(); })
@@ -753,6 +755,34 @@ class GraphView extends View {
       })
       .on("mouseup", function(d){
         graph.nodeMouseUp.call(graph, d3.select(this), d);
+      })
+      .on('mouseover', function(d){
+        var nodeSelection = d3.select(this);
+        let node = graph.nodeMap[d.id];
+        let adjInputEdges = graph.visibleEdges.filter(e => { return e.target === node; });
+        let adjOutputEdges = graph.visibleEdges.filter(e => { return e.source === node; });
+        adjInputEdges.attr('relToHover', "input");
+        adjOutputEdges.attr('relToHover', "output");
+        let adjInputNodes = adjInputEdges.data().map(e => e.source);
+        graph.visibleNodes.data(adjInputNodes, function(d) {
+          return d.id;
+        }).attr('relToHover', "input");
+        let adjOutputNodes = adjOutputEdges.data().map(e => e.target);
+        graph.visibleNodes.data(adjOutputNodes, function(d) {
+          return d.id;
+        }).attr('relToHover', "output");
+        graph.updateGraphVisibility();
+      })
+      .on('mouseout', function(d){
+        var nodeSelection = d3.select(this);
+        let node = graph.nodeMap[d.id];
+        let adjEdges = graph.visibleEdges.filter(e => { return e.target === node  || e.source === node; });
+        adjEdges.attr('relToHover', "none");
+        let adjNodes = adjEdges.data().map(e => e.target).concat(adjEdges.data().map(e => e.source));
+        let nodes = graph.visibleNodes.data(adjNodes, function(d) {
+          return d.id;
+        }).attr('relToHover', "none");
+        graph.updateGraphVisibility();
       })
       .call(graph.drag);
 

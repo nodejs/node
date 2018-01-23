@@ -214,7 +214,7 @@ WASM_EXEC_TEST(I64ShlUseOnlyLowWord) {
                WASM_I64_SHL(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1))));
   FOR_INT64_INPUTS(i) {
     FOR_INT64_INPUTS(j) {
-      int32_t expected = static_cast<int32_t>((*i) << (*j & 0x3f));
+      int32_t expected = static_cast<int32_t>((*i) << (*j & 0x3F));
       CHECK_EQ(expected, r.Call(*i, *j));
     }
   }
@@ -228,7 +228,7 @@ WASM_EXEC_TEST(I64ShrUseOnlyLowWord) {
                WASM_I64_SHR(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1))));
   FOR_UINT64_INPUTS(i) {
     FOR_UINT64_INPUTS(j) {
-      int32_t expected = static_cast<int32_t>((*i) >> (*j & 0x3f));
+      int32_t expected = static_cast<int32_t>((*i) >> (*j & 0x3F));
       CHECK_EQ(expected, r.Call(*i, *j));
     }
   }
@@ -242,7 +242,7 @@ WASM_EXEC_TEST(I64SarUseOnlyLowWord) {
                WASM_I64_SAR(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1))));
   FOR_INT64_INPUTS(i) {
     FOR_INT64_INPUTS(j) {
-      int32_t expected = static_cast<int32_t>((*i) >> (*j & 0x3f));
+      int32_t expected = static_cast<int32_t>((*i) >> (*j & 0x3F));
       CHECK_EQ(expected, r.Call(*i, *j));
     }
   }
@@ -318,11 +318,11 @@ WASM_EXEC_TEST(I64DivU_Trap) {
 
 WASM_EXEC_TEST(I64DivU_Byzero_Const) {
   REQUIRE(I64DivU);
-  for (uint64_t denom = 0xfffffffffffffffe; denom < 8; denom++) {
+  for (uint64_t denom = 0xFFFFFFFFFFFFFFFE; denom < 8; denom++) {
     WasmRunner<uint64_t, uint64_t> r(execution_mode);
     BUILD(r, WASM_I64_DIVU(WASM_GET_LOCAL(0), WASM_I64V_1(denom)));
 
-    for (uint64_t val = 0xfffffffffffffff0; val < 8; val++) {
+    for (uint64_t val = 0xFFFFFFFFFFFFFFF0; val < 8; val++) {
       if (denom == 0) {
         CHECK_TRAP64(r.Call(val));
       } else {
@@ -418,7 +418,7 @@ WASM_EXEC_TEST(I64Shl) {
 
     FOR_UINT64_INPUTS(i) {
       FOR_UINT64_INPUTS(j) {
-        uint64_t expected = (*i) << (*j & 0x3f);
+        uint64_t expected = (*i) << (*j & 0x3F);
         CHECK_EQ(expected, r.Call(*i, *j));
       }
     }
@@ -453,7 +453,7 @@ WASM_EXEC_TEST(I64ShrU) {
 
     FOR_UINT64_INPUTS(i) {
       FOR_UINT64_INPUTS(j) {
-        uint64_t expected = (*i) >> (*j & 0x3f);
+        uint64_t expected = (*i) >> (*j & 0x3F);
         CHECK_EQ(expected, r.Call(*i, *j));
       }
     }
@@ -488,7 +488,7 @@ WASM_EXEC_TEST(I64ShrS) {
 
     FOR_INT64_INPUTS(i) {
       FOR_INT64_INPUTS(j) {
-        int64_t expected = (*i) >> (*j & 0x3f);
+        int64_t expected = (*i) >> (*j & 0x3F);
         CHECK_EQ(expected, r.Call(*i, *j));
       }
     }
@@ -632,11 +632,11 @@ WASM_EXEC_TEST(I64Popcnt) {
   struct {
     int64_t expected;
     uint64_t input;
-  } values[] = {{64, 0xffffffffffffffff},
+  } values[] = {{64, 0xFFFFFFFFFFFFFFFF},
                 {0, 0x0000000000000000},
                 {2, 0x0000080000008000},
                 {26, 0x1123456782345678},
-                {38, 0xffedcba09edcba09}};
+                {38, 0xFFEDCBA09EDCBA09}};
 
   WasmRunner<int64_t, uint64_t> r(execution_mode);
   BUILD(r, WASM_I64_POPCNT(WASM_GET_LOCAL(0)));
@@ -658,81 +658,81 @@ WASM_EXEC_TEST(F32UConvertI64) {
     uint64_t input;
     uint32_t expected;
   } values[] = {{0x0, 0x0},
-                {0x1, 0x3f800000},
-                {0xffffffff, 0x4f800000},
-                {0x1b09788b, 0x4dd84bc4},
-                {0x4c5fce8, 0x4c98bf9d},
-                {0xcc0de5bf, 0x4f4c0de6},
+                {0x1, 0x3F800000},
+                {0xFFFFFFFF, 0x4F800000},
+                {0x1B09788B, 0x4DD84BC4},
+                {0x4C5FCE8, 0x4C98BF9D},
+                {0xCC0DE5BF, 0x4F4C0DE6},
                 {0x2, 0x40000000},
                 {0x3, 0x40400000},
                 {0x4, 0x40800000},
-                {0x5, 0x40a00000},
+                {0x5, 0x40A00000},
                 {0x8, 0x41000000},
                 {0x9, 0x41100000},
-                {0xffffffffffffffff, 0x5f800000},
-                {0xfffffffffffffffe, 0x5f800000},
-                {0xfffffffffffffffd, 0x5f800000},
+                {0xFFFFFFFFFFFFFFFF, 0x5F800000},
+                {0xFFFFFFFFFFFFFFFE, 0x5F800000},
+                {0xFFFFFFFFFFFFFFFD, 0x5F800000},
                 {0x0, 0x0},
-                {0x100000000, 0x4f800000},
-                {0xffffffff00000000, 0x5f800000},
-                {0x1b09788b00000000, 0x5dd84bc4},
-                {0x4c5fce800000000, 0x5c98bf9d},
-                {0xcc0de5bf00000000, 0x5f4c0de6},
+                {0x100000000, 0x4F800000},
+                {0xFFFFFFFF00000000, 0x5F800000},
+                {0x1B09788B00000000, 0x5DD84BC4},
+                {0x4C5FCE800000000, 0x5C98BF9D},
+                {0xCC0DE5BF00000000, 0x5F4C0DE6},
                 {0x200000000, 0x50000000},
                 {0x300000000, 0x50400000},
                 {0x400000000, 0x50800000},
-                {0x500000000, 0x50a00000},
+                {0x500000000, 0x50A00000},
                 {0x800000000, 0x51000000},
                 {0x900000000, 0x51100000},
-                {0x273a798e187937a3, 0x5e1ce9e6},
-                {0xece3af835495a16b, 0x5f6ce3b0},
-                {0xb668ecc11223344, 0x5d3668ed},
-                {0x9e, 0x431e0000},
+                {0x273A798E187937A3, 0x5E1CE9E6},
+                {0xECE3AF835495A16B, 0x5F6CE3B0},
+                {0xB668ECC11223344, 0x5D3668ED},
+                {0x9E, 0x431E0000},
                 {0x43, 0x42860000},
-                {0xaf73, 0x472f7300},
-                {0x116b, 0x458b5800},
-                {0x658ecc, 0x4acb1d98},
-                {0x2b3b4c, 0x4a2ced30},
-                {0x88776655, 0x4f087766},
-                {0x70000000, 0x4ee00000},
-                {0x7200000, 0x4ce40000},
-                {0x7fffffff, 0x4f000000},
-                {0x56123761, 0x4eac246f},
-                {0x7fffff00, 0x4efffffe},
-                {0x761c4761eeeeeeee, 0x5eec388f},
-                {0x80000000eeeeeeee, 0x5f000000},
-                {0x88888888dddddddd, 0x5f088889},
-                {0xa0000000dddddddd, 0x5f200000},
-                {0xddddddddaaaaaaaa, 0x5f5dddde},
-                {0xe0000000aaaaaaaa, 0x5f600000},
-                {0xeeeeeeeeeeeeeeee, 0x5f6eeeef},
-                {0xfffffffdeeeeeeee, 0x5f800000},
-                {0xf0000000dddddddd, 0x5f700000},
-                {0x7fffffdddddddd, 0x5b000000},
-                {0x3fffffaaaaaaaa, 0x5a7fffff},
-                {0x1fffffaaaaaaaa, 0x59fffffd},
-                {0xfffff, 0x497ffff0},
-                {0x7ffff, 0x48ffffe0},
-                {0x3ffff, 0x487fffc0},
-                {0x1ffff, 0x47ffff80},
-                {0xffff, 0x477fff00},
-                {0x7fff, 0x46fffe00},
-                {0x3fff, 0x467ffc00},
-                {0x1fff, 0x45fff800},
-                {0xfff, 0x457ff000},
-                {0x7ff, 0x44ffe000},
-                {0x3ff, 0x447fc000},
-                {0x1ff, 0x43ff8000},
-                {0x3fffffffffff, 0x56800000},
-                {0x1fffffffffff, 0x56000000},
-                {0xfffffffffff, 0x55800000},
-                {0x7ffffffffff, 0x55000000},
-                {0x3ffffffffff, 0x54800000},
-                {0x1ffffffffff, 0x54000000},
-                {0x8000008000000000, 0x5f000000},
-                {0x8000008000000001, 0x5f000001},
-                {0x8000000000000400, 0x5f000000},
-                {0x8000000000000401, 0x5f000000}};
+                {0xAF73, 0x472F7300},
+                {0x116B, 0x458B5800},
+                {0x658ECC, 0x4ACB1D98},
+                {0x2B3B4C, 0x4A2CED30},
+                {0x88776655, 0x4F087766},
+                {0x70000000, 0x4EE00000},
+                {0x7200000, 0x4CE40000},
+                {0x7FFFFFFF, 0x4F000000},
+                {0x56123761, 0x4EAC246F},
+                {0x7FFFFF00, 0x4EFFFFFE},
+                {0x761C4761EEEEEEEE, 0x5EEC388F},
+                {0x80000000EEEEEEEE, 0x5F000000},
+                {0x88888888DDDDDDDD, 0x5F088889},
+                {0xA0000000DDDDDDDD, 0x5F200000},
+                {0xDDDDDDDDAAAAAAAA, 0x5F5DDDDE},
+                {0xE0000000AAAAAAAA, 0x5F600000},
+                {0xEEEEEEEEEEEEEEEE, 0x5F6EEEEF},
+                {0xFFFFFFFDEEEEEEEE, 0x5F800000},
+                {0xF0000000DDDDDDDD, 0x5F700000},
+                {0x7FFFFFDDDDDDDD, 0x5B000000},
+                {0x3FFFFFAAAAAAAA, 0x5A7FFFFF},
+                {0x1FFFFFAAAAAAAA, 0x59FFFFFD},
+                {0xFFFFF, 0x497FFFF0},
+                {0x7FFFF, 0x48FFFFE0},
+                {0x3FFFF, 0x487FFFC0},
+                {0x1FFFF, 0x47FFFF80},
+                {0xFFFF, 0x477FFF00},
+                {0x7FFF, 0x46FFFE00},
+                {0x3FFF, 0x467FFC00},
+                {0x1FFF, 0x45FFF800},
+                {0xFFF, 0x457FF000},
+                {0x7FF, 0x44FFE000},
+                {0x3FF, 0x447FC000},
+                {0x1FF, 0x43FF8000},
+                {0x3FFFFFFFFFFF, 0x56800000},
+                {0x1FFFFFFFFFFF, 0x56000000},
+                {0xFFFFFFFFFFF, 0x55800000},
+                {0x7FFFFFFFFFF, 0x55000000},
+                {0x3FFFFFFFFFF, 0x54800000},
+                {0x1FFFFFFFFFF, 0x54000000},
+                {0x8000008000000000, 0x5F000000},
+                {0x8000008000000001, 0x5F000001},
+                {0x8000000000000400, 0x5F000000},
+                {0x8000000000000401, 0x5F000000}};
   WasmRunner<float, uint64_t> r(execution_mode);
   BUILD(r, WASM_F32_UCONVERT_I64(WASM_GET_LOCAL(0)));
   for (size_t i = 0; i < arraysize(values); i++) {
@@ -753,80 +753,80 @@ WASM_EXEC_TEST(F64UConvertI64) {
     uint64_t input;
     uint64_t expected;
   } values[] = {{0x0, 0x0},
-                {0x1, 0x3ff0000000000000},
-                {0xffffffff, 0x41efffffffe00000},
-                {0x1b09788b, 0x41bb09788b000000},
-                {0x4c5fce8, 0x419317f3a0000000},
-                {0xcc0de5bf, 0x41e981bcb7e00000},
+                {0x1, 0x3FF0000000000000},
+                {0xFFFFFFFF, 0x41EFFFFFFFE00000},
+                {0x1B09788B, 0x41BB09788B000000},
+                {0x4C5FCE8, 0x419317F3A0000000},
+                {0xCC0DE5BF, 0x41E981BCB7E00000},
                 {0x2, 0x4000000000000000},
                 {0x3, 0x4008000000000000},
                 {0x4, 0x4010000000000000},
                 {0x5, 0x4014000000000000},
                 {0x8, 0x4020000000000000},
                 {0x9, 0x4022000000000000},
-                {0xffffffffffffffff, 0x43f0000000000000},
-                {0xfffffffffffffffe, 0x43f0000000000000},
-                {0xfffffffffffffffd, 0x43f0000000000000},
-                {0x100000000, 0x41f0000000000000},
-                {0xffffffff00000000, 0x43efffffffe00000},
-                {0x1b09788b00000000, 0x43bb09788b000000},
-                {0x4c5fce800000000, 0x439317f3a0000000},
-                {0xcc0de5bf00000000, 0x43e981bcb7e00000},
+                {0xFFFFFFFFFFFFFFFF, 0x43F0000000000000},
+                {0xFFFFFFFFFFFFFFFE, 0x43F0000000000000},
+                {0xFFFFFFFFFFFFFFFD, 0x43F0000000000000},
+                {0x100000000, 0x41F0000000000000},
+                {0xFFFFFFFF00000000, 0x43EFFFFFFFE00000},
+                {0x1B09788B00000000, 0x43BB09788B000000},
+                {0x4C5FCE800000000, 0x439317F3A0000000},
+                {0xCC0DE5BF00000000, 0x43E981BCB7E00000},
                 {0x200000000, 0x4200000000000000},
                 {0x300000000, 0x4208000000000000},
                 {0x400000000, 0x4210000000000000},
                 {0x500000000, 0x4214000000000000},
                 {0x800000000, 0x4220000000000000},
                 {0x900000000, 0x4222000000000000},
-                {0x273a798e187937a3, 0x43c39d3cc70c3c9c},
-                {0xece3af835495a16b, 0x43ed9c75f06a92b4},
-                {0xb668ecc11223344, 0x43a6cd1d98224467},
-                {0x9e, 0x4063c00000000000},
-                {0x43, 0x4050c00000000000},
-                {0xaf73, 0x40e5ee6000000000},
-                {0x116b, 0x40b16b0000000000},
-                {0x658ecc, 0x415963b300000000},
-                {0x2b3b4c, 0x41459da600000000},
-                {0x88776655, 0x41e10eeccaa00000},
-                {0x70000000, 0x41dc000000000000},
-                {0x7200000, 0x419c800000000000},
-                {0x7fffffff, 0x41dfffffffc00000},
-                {0x56123761, 0x41d5848dd8400000},
-                {0x7fffff00, 0x41dfffffc0000000},
-                {0x761c4761eeeeeeee, 0x43dd8711d87bbbbc},
-                {0x80000000eeeeeeee, 0x43e00000001dddde},
-                {0x88888888dddddddd, 0x43e11111111bbbbc},
-                {0xa0000000dddddddd, 0x43e40000001bbbbc},
-                {0xddddddddaaaaaaaa, 0x43ebbbbbbbb55555},
-                {0xe0000000aaaaaaaa, 0x43ec000000155555},
-                {0xeeeeeeeeeeeeeeee, 0x43edddddddddddde},
-                {0xfffffffdeeeeeeee, 0x43efffffffbdddde},
-                {0xf0000000dddddddd, 0x43ee0000001bbbbc},
-                {0x7fffffdddddddd, 0x435ffffff7777777},
-                {0x3fffffaaaaaaaa, 0x434fffffd5555555},
-                {0x1fffffaaaaaaaa, 0x433fffffaaaaaaaa},
-                {0xfffff, 0x412ffffe00000000},
-                {0x7ffff, 0x411ffffc00000000},
-                {0x3ffff, 0x410ffff800000000},
-                {0x1ffff, 0x40fffff000000000},
-                {0xffff, 0x40efffe000000000},
-                {0x7fff, 0x40dfffc000000000},
-                {0x3fff, 0x40cfff8000000000},
-                {0x1fff, 0x40bfff0000000000},
-                {0xfff, 0x40affe0000000000},
-                {0x7ff, 0x409ffc0000000000},
-                {0x3ff, 0x408ff80000000000},
-                {0x1ff, 0x407ff00000000000},
-                {0x3fffffffffff, 0x42cfffffffffff80},
-                {0x1fffffffffff, 0x42bfffffffffff00},
-                {0xfffffffffff, 0x42affffffffffe00},
-                {0x7ffffffffff, 0x429ffffffffffc00},
-                {0x3ffffffffff, 0x428ffffffffff800},
-                {0x1ffffffffff, 0x427ffffffffff000},
-                {0x8000008000000000, 0x43e0000010000000},
-                {0x8000008000000001, 0x43e0000010000000},
-                {0x8000000000000400, 0x43e0000000000000},
-                {0x8000000000000401, 0x43e0000000000001}};
+                {0x273A798E187937A3, 0x43C39D3CC70C3C9C},
+                {0xECE3AF835495A16B, 0x43ED9C75F06A92B4},
+                {0xB668ECC11223344, 0x43A6CD1D98224467},
+                {0x9E, 0x4063C00000000000},
+                {0x43, 0x4050C00000000000},
+                {0xAF73, 0x40E5EE6000000000},
+                {0x116B, 0x40B16B0000000000},
+                {0x658ECC, 0x415963B300000000},
+                {0x2B3B4C, 0x41459DA600000000},
+                {0x88776655, 0x41E10EECCAA00000},
+                {0x70000000, 0x41DC000000000000},
+                {0x7200000, 0x419C800000000000},
+                {0x7FFFFFFF, 0x41DFFFFFFFC00000},
+                {0x56123761, 0x41D5848DD8400000},
+                {0x7FFFFF00, 0x41DFFFFFC0000000},
+                {0x761C4761EEEEEEEE, 0x43DD8711D87BBBBC},
+                {0x80000000EEEEEEEE, 0x43E00000001DDDDE},
+                {0x88888888DDDDDDDD, 0x43E11111111BBBBC},
+                {0xA0000000DDDDDDDD, 0x43E40000001BBBBC},
+                {0xDDDDDDDDAAAAAAAA, 0x43EBBBBBBBB55555},
+                {0xE0000000AAAAAAAA, 0x43EC000000155555},
+                {0xEEEEEEEEEEEEEEEE, 0x43EDDDDDDDDDDDDE},
+                {0xFFFFFFFDEEEEEEEE, 0x43EFFFFFFFBDDDDE},
+                {0xF0000000DDDDDDDD, 0x43EE0000001BBBBC},
+                {0x7FFFFFDDDDDDDD, 0x435FFFFFF7777777},
+                {0x3FFFFFAAAAAAAA, 0x434FFFFFD5555555},
+                {0x1FFFFFAAAAAAAA, 0x433FFFFFAAAAAAAA},
+                {0xFFFFF, 0x412FFFFE00000000},
+                {0x7FFFF, 0x411FFFFC00000000},
+                {0x3FFFF, 0x410FFFF800000000},
+                {0x1FFFF, 0x40FFFFF000000000},
+                {0xFFFF, 0x40EFFFE000000000},
+                {0x7FFF, 0x40DFFFC000000000},
+                {0x3FFF, 0x40CFFF8000000000},
+                {0x1FFF, 0x40BFFF0000000000},
+                {0xFFF, 0x40AFFE0000000000},
+                {0x7FF, 0x409FFC0000000000},
+                {0x3FF, 0x408FF80000000000},
+                {0x1FF, 0x407FF00000000000},
+                {0x3FFFFFFFFFFF, 0x42CFFFFFFFFFFF80},
+                {0x1FFFFFFFFFFF, 0x42BFFFFFFFFFFF00},
+                {0xFFFFFFFFFFF, 0x42AFFFFFFFFFFE00},
+                {0x7FFFFFFFFFF, 0x429FFFFFFFFFFC00},
+                {0x3FFFFFFFFFF, 0x428FFFFFFFFFF800},
+                {0x1FFFFFFFFFF, 0x427FFFFFFFFFF000},
+                {0x8000008000000000, 0x43E0000010000000},
+                {0x8000008000000001, 0x43E0000010000000},
+                {0x8000000000000400, 0x43E0000000000000},
+                {0x8000000000000401, 0x43E0000000000001}};
   WasmRunner<double, uint64_t> r(execution_mode);
   BUILD(r, WASM_F64_UCONVERT_I64(WASM_GET_LOCAL(0)));
   for (size_t i = 0; i < arraysize(values); i++) {
@@ -907,20 +907,38 @@ WASM_EXEC_TEST(CallI64Parameter) {
     BUILD(
         r,
         WASM_I32_CONVERT_I64(WASM_CALL_FUNCTION(
-            t.function_index(), WASM_I64V_9(0xbcd12340000000b),
-            WASM_I64V_9(0xbcd12340000000c), WASM_I32V_1(0xd),
-            WASM_I32_CONVERT_I64(WASM_I64V_9(0xbcd12340000000e)),
-            WASM_I64V_9(0xbcd12340000000f), WASM_I64V_10(0xbcd1234000000010),
-            WASM_I64V_10(0xbcd1234000000011), WASM_I64V_10(0xbcd1234000000012),
-            WASM_I64V_10(0xbcd1234000000013), WASM_I64V_10(0xbcd1234000000014),
-            WASM_I64V_10(0xbcd1234000000015), WASM_I64V_10(0xbcd1234000000016),
-            WASM_I64V_10(0xbcd1234000000017), WASM_I64V_10(0xbcd1234000000018),
-            WASM_I64V_10(0xbcd1234000000019), WASM_I64V_10(0xbcd123400000001a),
-            WASM_I64V_10(0xbcd123400000001b), WASM_I64V_10(0xbcd123400000001c),
-            WASM_I64V_10(0xbcd123400000001d))));
+            t.function_index(), WASM_I64V_9(0xBCD12340000000B),
+            WASM_I64V_9(0xBCD12340000000C), WASM_I32V_1(0xD),
+            WASM_I32_CONVERT_I64(WASM_I64V_9(0xBCD12340000000E)),
+            WASM_I64V_9(0xBCD12340000000F), WASM_I64V_10(0xBCD1234000000010),
+            WASM_I64V_10(0xBCD1234000000011), WASM_I64V_10(0xBCD1234000000012),
+            WASM_I64V_10(0xBCD1234000000013), WASM_I64V_10(0xBCD1234000000014),
+            WASM_I64V_10(0xBCD1234000000015), WASM_I64V_10(0xBCD1234000000016),
+            WASM_I64V_10(0xBCD1234000000017), WASM_I64V_10(0xBCD1234000000018),
+            WASM_I64V_10(0xBCD1234000000019), WASM_I64V_10(0xBCD123400000001A),
+            WASM_I64V_10(0xBCD123400000001B), WASM_I64V_10(0xBCD123400000001C),
+            WASM_I64V_10(0xBCD123400000001D))));
 
-    CHECK_EQ(i + 0xb, r.Call());
+    CHECK_EQ(i + 0xB, r.Call());
   }
+}
+
+WASM_EXEC_TEST(CallI64Return) {
+  ValueType return_types[3];  // TODO(rossberg): support more in the future
+  for (int i = 0; i < 3; i++) return_types[i] = kWasmI64;
+  return_types[1] = kWasmI32;
+  FunctionSig sig(2, 1, return_types);
+
+  WasmRunner<int64_t> r(execution_mode);
+  // Build the target function.
+  WasmFunctionCompiler& t = r.NewFunction(&sig);
+  BUILD(t, WASM_GET_LOCAL(0), WASM_I32V(7));
+
+  // Build the first calling function.
+  BUILD(r, WASM_CALL_FUNCTION(t.function_index(), WASM_I64V(0xBCD12340000000B)),
+        WASM_DROP);
+
+  CHECK_EQ(0xBCD12340000000B, r.Call());
 }
 
 void TestI64Binop(WasmExecutionMode execution_mode, WasmOpcode opcode,
@@ -962,35 +980,35 @@ void TestI64Cmp(WasmExecutionMode execution_mode, WasmOpcode opcode,
   } while (false)
 
 WASM_EXEC_TEST(I64Binops) {
-  TEST_I64_BINOP(I64Add, -5586332274295447011, 0x501b72ebabc26847,
-                 0x625de9793d8f79d6);
-  TEST_I64_BINOP(I64Sub, 9001903251710731490, 0xf24fe6474640002e,
-                 0x7562b6f711991b4c);
-  TEST_I64_BINOP(I64Mul, -4569547818546064176, 0x231a263c2cbc6451,
-                 0xead44de6bd3e23d0);
-  TEST_I64_BINOP(I64Mul, -25963122347507043, 0x4da1fa47c9352b73,
-                 0x91fe82317aa035af);
-  TEST_I64_BINOP(I64Mul, 7640290486138131960, 0x185731abe8eea47c,
-                 0x714ec59f1380d4c2);
-  TEST_I64_BINOP(I64DivS, -91517, 0x93b1190a34de56a0, 0x00004d8f68863948);
-  TEST_I64_BINOP(I64DivU, 149016, 0xe15b3727e8a2080a, 0x0000631bfa72db8b);
-  TEST_I64_BINOP(I64RemS, -664128064149968, 0x9a78b4e4fe708692,
-                 0x0003e0b6b3be7609);
-  TEST_I64_BINOP(I64RemU, 1742040017332765, 0x0ce84708c6258c81,
-                 0x000a6fde82016697);
-  TEST_I64_BINOP(I64And, 2531040582801836054, 0xaf257d1602644a16,
-                 0x33b290a91a10d997);
-  TEST_I64_BINOP(I64Ior, 8556201506536114940, 0x169d9be7bd3f0a5c,
-                 0x66bca28d77af40e8);
-  TEST_I64_BINOP(I64Xor, -4605655183785456377, 0xb6ea20a5d48e85b8,
-                 0x76ff4da6c80688bf);
-  TEST_I64_BINOP(I64Shl, -7240704056088331264, 0xef4dc1ed030e8ffe, 9);
-  TEST_I64_BINOP(I64ShrU, 12500673744059159, 0xb1a52fa7deec5d14, 10);
-  TEST_I64_BINOP(I64ShrS, 1725103446999874, 0x3107c791461a112b, 11);
-  TEST_I64_BINOP(I64Ror, -8960135652432576946, 0x73418d1717e4e83a, 12);
-  TEST_I64_BINOP(I64Ror, 7617662827409989779, 0xebff67cf0c126d36, 13);
-  TEST_I64_BINOP(I64Rol, -2097714064174346012, 0x43938b8db0b0f230, 14);
-  TEST_I64_BINOP(I64Rol, 8728493013947314237, 0xe07af243ac4d219d, 15);
+  TEST_I64_BINOP(I64Add, -5586332274295447011, 0x501B72EBABC26847,
+                 0x625DE9793D8F79D6);
+  TEST_I64_BINOP(I64Sub, 9001903251710731490, 0xF24FE6474640002E,
+                 0x7562B6F711991B4C);
+  TEST_I64_BINOP(I64Mul, -4569547818546064176, 0x231A263C2CBC6451,
+                 0xEAD44DE6BD3E23D0);
+  TEST_I64_BINOP(I64Mul, -25963122347507043, 0x4DA1FA47C9352B73,
+                 0x91FE82317AA035AF);
+  TEST_I64_BINOP(I64Mul, 7640290486138131960, 0x185731ABE8EEA47C,
+                 0x714EC59F1380D4C2);
+  TEST_I64_BINOP(I64DivS, -91517, 0x93B1190A34DE56A0, 0x00004D8F68863948);
+  TEST_I64_BINOP(I64DivU, 149016, 0xE15B3727E8A2080A, 0x0000631BFA72DB8B);
+  TEST_I64_BINOP(I64RemS, -664128064149968, 0x9A78B4E4FE708692,
+                 0x0003E0B6B3BE7609);
+  TEST_I64_BINOP(I64RemU, 1742040017332765, 0x0CE84708C6258C81,
+                 0x000A6FDE82016697);
+  TEST_I64_BINOP(I64And, 2531040582801836054, 0xAF257D1602644A16,
+                 0x33B290A91A10D997);
+  TEST_I64_BINOP(I64Ior, 8556201506536114940, 0x169D9BE7BD3F0A5C,
+                 0x66BCA28D77AF40E8);
+  TEST_I64_BINOP(I64Xor, -4605655183785456377, 0xB6EA20A5D48E85B8,
+                 0x76FF4DA6C80688BF);
+  TEST_I64_BINOP(I64Shl, -7240704056088331264, 0xEF4DC1ED030E8FFE, 9);
+  TEST_I64_BINOP(I64ShrU, 12500673744059159, 0xB1A52FA7DEEC5D14, 10);
+  TEST_I64_BINOP(I64ShrS, 1725103446999874, 0x3107C791461A112B, 11);
+  TEST_I64_BINOP(I64Ror, -8960135652432576946, 0x73418D1717E4E83A, 12);
+  TEST_I64_BINOP(I64Ror, 7617662827409989779, 0xEBFF67CF0C126D36, 13);
+  TEST_I64_BINOP(I64Rol, -2097714064174346012, 0x43938B8DB0B0F230, 14);
+  TEST_I64_BINOP(I64Rol, 8728493013947314237, 0xE07AF243AC4D219D, 15);
 }
 
 #undef TEST_I64_BINOP
@@ -1024,9 +1042,9 @@ WASM_EXEC_TEST(I64Clz) {
   } values[] = {{0, 0x8000100000000000},  {1, 0x4000050000000000},
                 {2, 0x2000030000000000},  {3, 0x1000000300000000},
                 {4, 0x0805000000000000},  {5, 0x0400600000000000},
-                {6, 0x0200000000000000},  {7, 0x010000a000000000},
-                {8, 0x00800c0000000000},  {9, 0x0040000000000000},
-                {10, 0x0020000d00000000}, {11, 0x00100f0000000000},
+                {6, 0x0200000000000000},  {7, 0x010000A000000000},
+                {8, 0x00800C0000000000},  {9, 0x0040000000000000},
+                {10, 0x0020000D00000000}, {11, 0x00100F0000000000},
                 {12, 0x0008000000000000}, {13, 0x0004100000000000},
                 {14, 0x0002002000000000}, {15, 0x0001030000000000},
                 {16, 0x0000804000000000}, {17, 0x0000400500000000},
@@ -1040,9 +1058,9 @@ WASM_EXEC_TEST(I64Clz) {
                 {32, 0x0000000080001000}, {33, 0x0000000040000500},
                 {34, 0x0000000020000300}, {35, 0x0000000010000003},
                 {36, 0x0000000008050000}, {37, 0x0000000004006000},
-                {38, 0x0000000002000000}, {39, 0x00000000010000a0},
-                {40, 0x0000000000800c00}, {41, 0x0000000000400000},
-                {42, 0x000000000020000d}, {43, 0x0000000000100f00},
+                {38, 0x0000000002000000}, {39, 0x00000000010000A0},
+                {40, 0x0000000000800C00}, {41, 0x0000000000400000},
+                {42, 0x000000000020000D}, {43, 0x0000000000100F00},
                 {44, 0x0000000000080000}, {45, 0x0000000000041000},
                 {46, 0x0000000000020020}, {47, 0x0000000000010300},
                 {48, 0x0000000000008040}, {49, 0x0000000000004005},
@@ -1069,37 +1087,37 @@ WASM_EXEC_TEST(I64Ctz) {
     uint64_t input;
   } values[] = {{64, 0x0000000000000000}, {63, 0x8000000000000000},
                 {62, 0x4000000000000000}, {61, 0x2000000000000000},
-                {60, 0x1000000000000000}, {59, 0xa800000000000000},
-                {58, 0xf400000000000000}, {57, 0x6200000000000000},
-                {56, 0x9100000000000000}, {55, 0xcd80000000000000},
-                {54, 0x0940000000000000}, {53, 0xaf20000000000000},
-                {52, 0xac10000000000000}, {51, 0xe0b8000000000000},
-                {50, 0x9ce4000000000000}, {49, 0xc792000000000000},
-                {48, 0xb8f1000000000000}, {47, 0x3b9f800000000000},
-                {46, 0xdb4c400000000000}, {45, 0xe9a3200000000000},
-                {44, 0xfca6100000000000}, {43, 0x6c8a780000000000},
-                {42, 0x8ce5a40000000000}, {41, 0xcb7d020000000000},
-                {40, 0xcb4dc10000000000}, {39, 0xdfbec58000000000},
-                {38, 0x27a9db4000000000}, {37, 0xde3bcb2000000000},
-                {36, 0xd7e8a61000000000}, {35, 0x9afdbc8800000000},
-                {34, 0x9afdbc8400000000}, {33, 0x9afdbc8200000000},
-                {32, 0x9afdbc8100000000}, {31, 0x0000000080000000},
+                {60, 0x1000000000000000}, {59, 0xA800000000000000},
+                {58, 0xF400000000000000}, {57, 0x6200000000000000},
+                {56, 0x9100000000000000}, {55, 0xCD80000000000000},
+                {54, 0x0940000000000000}, {53, 0xAF20000000000000},
+                {52, 0xAC10000000000000}, {51, 0xE0B8000000000000},
+                {50, 0x9CE4000000000000}, {49, 0xC792000000000000},
+                {48, 0xB8F1000000000000}, {47, 0x3B9F800000000000},
+                {46, 0xDB4C400000000000}, {45, 0xE9A3200000000000},
+                {44, 0xFCA6100000000000}, {43, 0x6C8A780000000000},
+                {42, 0x8CE5A40000000000}, {41, 0xCB7D020000000000},
+                {40, 0xCB4DC10000000000}, {39, 0xDFBEC58000000000},
+                {38, 0x27A9DB4000000000}, {37, 0xDE3BCB2000000000},
+                {36, 0xD7E8A61000000000}, {35, 0x9AFDBC8800000000},
+                {34, 0x9AFDBC8400000000}, {33, 0x9AFDBC8200000000},
+                {32, 0x9AFDBC8100000000}, {31, 0x0000000080000000},
                 {30, 0x0000000040000000}, {29, 0x0000000020000000},
-                {28, 0x0000000010000000}, {27, 0x00000000a8000000},
-                {26, 0x00000000f4000000}, {25, 0x0000000062000000},
-                {24, 0x0000000091000000}, {23, 0x00000000cd800000},
-                {22, 0x0000000009400000}, {21, 0x00000000af200000},
-                {20, 0x00000000ac100000}, {19, 0x00000000e0b80000},
-                {18, 0x000000009ce40000}, {17, 0x00000000c7920000},
-                {16, 0x00000000b8f10000}, {15, 0x000000003b9f8000},
-                {14, 0x00000000db4c4000}, {13, 0x00000000e9a32000},
-                {12, 0x00000000fca61000}, {11, 0x000000006c8a7800},
-                {10, 0x000000008ce5a400}, {9, 0x00000000cb7d0200},
-                {8, 0x00000000cb4dc100},  {7, 0x00000000dfbec580},
-                {6, 0x0000000027a9db40},  {5, 0x00000000de3bcb20},
-                {4, 0x00000000d7e8a610},  {3, 0x000000009afdbc88},
-                {2, 0x000000009afdbc84},  {1, 0x000000009afdbc82},
-                {0, 0x000000009afdbc81}};
+                {28, 0x0000000010000000}, {27, 0x00000000A8000000},
+                {26, 0x00000000F4000000}, {25, 0x0000000062000000},
+                {24, 0x0000000091000000}, {23, 0x00000000CD800000},
+                {22, 0x0000000009400000}, {21, 0x00000000AF200000},
+                {20, 0x00000000AC100000}, {19, 0x00000000E0B80000},
+                {18, 0x000000009CE40000}, {17, 0x00000000C7920000},
+                {16, 0x00000000B8F10000}, {15, 0x000000003B9F8000},
+                {14, 0x00000000DB4C4000}, {13, 0x00000000E9A32000},
+                {12, 0x00000000FCA61000}, {11, 0x000000006C8A7800},
+                {10, 0x000000008CE5A400}, {9, 0x00000000CB7D0200},
+                {8, 0x00000000CB4DC100},  {7, 0x00000000DFBEC580},
+                {6, 0x0000000027A9DB40},  {5, 0x00000000DE3BCB20},
+                {4, 0x00000000D7E8A610},  {3, 0x000000009AFDBC88},
+                {2, 0x000000009AFDBC84},  {1, 0x000000009AFDBC82},
+                {0, 0x000000009AFDBC81}};
 
   WasmRunner<int64_t, uint64_t> r(execution_mode);
   BUILD(r, WASM_I64_CTZ(WASM_GET_LOCAL(0)));
@@ -1113,11 +1131,11 @@ WASM_EXEC_TEST(I64Popcnt2) {
   struct {
     int64_t expected;
     uint64_t input;
-  } values[] = {{64, 0xffffffffffffffff},
+  } values[] = {{64, 0xFFFFFFFFFFFFFFFF},
                 {0, 0x0000000000000000},
                 {2, 0x0000080000008000},
                 {26, 0x1123456782345678},
-                {38, 0xffedcba09edcba09}};
+                {38, 0xFFEDCBA09EDCBA09}};
 
   WasmRunner<int64_t, uint64_t> r(execution_mode);
   BUILD(r, WASM_I64_POPCNT(WASM_GET_LOCAL(0)));
@@ -1324,10 +1342,10 @@ WASM_EXEC_TEST(SignallingNanSurvivesI64ReinterpretF64) {
   REQUIRE(I64ReinterpretF64);
   WasmRunner<int64_t> r(execution_mode);
   BUILD(r, WASM_I64_REINTERPRET_F64(WASM_SEQ(kExprF64Const, 0x00, 0x00, 0x00,
-                                             0x00, 0x00, 0x00, 0xf4, 0x7f)));
+                                             0x00, 0x00, 0x00, 0xF4, 0x7F)));
 
   // This is a signalling nan.
-  CHECK_EQ(0x7ff4000000000000, r.Call());
+  CHECK_EQ(0x7FF4000000000000, r.Call());
 }
 
 WASM_EXEC_TEST(F64ReinterpretI64) {
@@ -1354,11 +1372,11 @@ WASM_EXEC_TEST(LoadMemI64) {
 
   BUILD(r, WASM_LOAD_MEM(MachineType::Int64(), WASM_ZERO));
 
-  r.builder().WriteMemory<int64_t>(&memory[0], 0x1abbccdd00112233LL);
-  CHECK_EQ(0x1abbccdd00112233LL, r.Call());
+  r.builder().WriteMemory<int64_t>(&memory[0], 0x1ABBCCDD00112233LL);
+  CHECK_EQ(0x1ABBCCDD00112233LL, r.Call());
 
-  r.builder().WriteMemory<int64_t>(&memory[0], 0x33aabbccdd001122LL);
-  CHECK_EQ(0x33aabbccdd001122LL, r.Call());
+  r.builder().WriteMemory<int64_t>(&memory[0], 0x33AABBCCDD001122LL);
+  CHECK_EQ(0x33AABBCCDD001122LL, r.Call());
 
   r.builder().WriteMemory<int64_t>(&memory[0], 77777777);
   CHECK_EQ(77777777, r.Call());
@@ -1374,11 +1392,11 @@ WASM_EXEC_TEST(LoadMemI64_alignment) {
     BUILD(r,
           WASM_LOAD_MEM_ALIGNMENT(MachineType::Int64(), WASM_ZERO, alignment));
 
-    r.builder().WriteMemory<int64_t>(&memory[0], 0x1abbccdd00112233LL);
-    CHECK_EQ(0x1abbccdd00112233LL, r.Call());
+    r.builder().WriteMemory<int64_t>(&memory[0], 0x1ABBCCDD00112233LL);
+    CHECK_EQ(0x1ABBCCDD00112233LL, r.Call());
 
-    r.builder().WriteMemory<int64_t>(&memory[0], 0x33aabbccdd001122LL);
-    CHECK_EQ(0x33aabbccdd001122LL, r.Call());
+    r.builder().WriteMemory<int64_t>(&memory[0], 0x33AABBCCDD001122LL);
+    CHECK_EQ(0x33AABBCCDD001122LL, r.Call());
 
     r.builder().WriteMemory<int64_t>(&memory[0], 77777777);
     CHECK_EQ(77777777, r.Call());
@@ -1419,7 +1437,7 @@ WASM_EXEC_TEST(MemI64_Sum) {
 }
 
 WASM_EXEC_TEST(StoreMemI64_alignment) {
-  const int64_t kWritten = 0x12345678abcd0011ll;
+  const int64_t kWritten = 0x12345678ABCD0011ll;
 
   for (byte i = 0; i <= 3; i++) {
     WasmRunner<int64_t, int64_t> r(execution_mode);
@@ -1475,7 +1493,7 @@ WASM_EXEC_TEST(I64Ror) {
 
   FOR_UINT64_INPUTS(i) {
     FOR_UINT64_INPUTS(j) {
-      int64_t expected = base::bits::RotateRight64(*i, *j & 0x3f);
+      int64_t expected = base::bits::RotateRight64(*i, *j & 0x3F);
       CHECK_EQ(expected, r.Call(*i, *j));
     }
   }
@@ -1488,7 +1506,7 @@ WASM_EXEC_TEST(I64Rol) {
 
   FOR_UINT64_INPUTS(i) {
     FOR_UINT64_INPUTS(j) {
-      int64_t expected = base::bits::RotateLeft64(*i, *j & 0x3f);
+      int64_t expected = base::bits::RotateLeft64(*i, *j & 0x3F);
       CHECK_EQ(expected, r.Call(*i, *j));
     }
   }
@@ -1496,7 +1514,7 @@ WASM_EXEC_TEST(I64Rol) {
 
 WASM_EXEC_TEST(StoreMem_offset_oob_i64) {
   // TODO(eholk): Fix this test for the trap handler.
-  if (trap_handler::UseTrapHandler()) return;
+  if (trap_handler::IsTrapHandlerEnabled()) return;
   static const MachineType machineTypes[] = {
       MachineType::Int8(),   MachineType::Uint8(),  MachineType::Int16(),
       MachineType::Uint16(), MachineType::Int32(),  MachineType::Uint32(),
@@ -1523,6 +1541,36 @@ WASM_EXEC_TEST(StoreMem_offset_oob_i64) {
   }
 }
 
+WASM_EXEC_TEST(Store_i64_narrowed) {
+  constexpr byte kOpcodes[] = {kExprI64StoreMem8, kExprI64StoreMem16,
+                               kExprI64StoreMem32, kExprI64StoreMem};
+  int stored_size_in_bytes = 0;
+  for (auto opcode : kOpcodes) {
+    stored_size_in_bytes = std::max(1, stored_size_in_bytes * 2);
+    constexpr int kBytes = 24;
+    uint8_t expected_memory[kBytes] = {0};
+    WasmRunner<int32_t, int32_t, int64_t> r(execution_mode);
+    uint8_t* memory = r.builder().AddMemoryElems<uint8_t>(kBytes);
+    constexpr uint64_t kPattern = 0x0123456789abcdef;
+
+    BUILD(r, WASM_GET_LOCAL(0),                 // index
+          WASM_GET_LOCAL(1),                    // value
+          opcode, ZERO_ALIGNMENT, ZERO_OFFSET,  // store
+          WASM_ZERO);                           // return value
+
+    for (int i = 0; i <= kBytes - stored_size_in_bytes; ++i) {
+      uint64_t pattern = base::bits::RotateLeft64(kPattern, i % 64);
+      r.Call(i, pattern);
+      for (int b = 0; b < stored_size_in_bytes; ++b) {
+        expected_memory[i + b] = static_cast<uint8_t>(pattern >> (b * 8));
+      }
+      for (int w = 0; w < kBytes; ++w) {
+        CHECK_EQ(expected_memory[w], memory[w]);
+      }
+    }
+  }
+}
+
 WASM_EXEC_TEST(UnalignedInt64Load) {
   WasmRunner<uint64_t> r(execution_mode);
   r.builder().AddMemoryElems<int64_t>(8);
@@ -1545,12 +1593,12 @@ WASM_EXEC_TEST(UnalignedInt64Store) {
     for (size_t i = 0; i < sizeof(__buf); i++) vec.push_back(__buf[i]); \
   } while (false)
 
-static void CompileCallIndirectMany(ValueType param) {
+static void CompileCallIndirectMany(WasmExecutionMode mode, ValueType param) {
   // Make sure we don't run out of registers when compiling indirect calls
   // with many many parameters.
   TestSignatures sigs;
   for (byte num_params = 0; num_params < 40; num_params++) {
-    WasmRunner<void> r(kExecuteCompiled);
+    WasmRunner<void> r(mode);
     FunctionSig* sig = sigs.many(r.zone(), kWasmStmt, param, num_params);
 
     r.builder().AddSignature(sig);
@@ -1570,7 +1618,9 @@ static void CompileCallIndirectMany(ValueType param) {
   }
 }
 
-TEST(Compile_Wasm_CallIndirect_Many_i64) { CompileCallIndirectMany(kWasmI64); }
+WASM_EXEC_TEST(Compile_Wasm_CallIndirect_Many_i64) {
+  CompileCallIndirectMany(execution_mode, kWasmI64);
+}
 
 static void Run_WasmMixedCall_N(WasmExecutionMode execution_mode, int start) {
   const int kExpected = 6333;

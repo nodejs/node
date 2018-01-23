@@ -26,7 +26,8 @@ ACCESSORS(Script, context_data, Object, kContextOffset)
 ACCESSORS(Script, wrapper, HeapObject, kWrapperOffset)
 SMI_ACCESSORS(Script, type, kTypeOffset)
 ACCESSORS(Script, line_ends, Object, kLineEndsOffset)
-ACCESSORS_CHECKED(Script, eval_from_shared, Object, kEvalFromSharedOffset,
+ACCESSORS_CHECKED(Script, eval_from_shared_or_wrapped_arguments, Object,
+                  kEvalFromSharedOrWrappedArgumentsOffset,
                   this->type() != TYPE_WASM)
 SMI_ACCESSORS_CHECKED(Script, eval_from_position, kEvalFromPositionOffset,
                       this->type() != TYPE_WASM)
@@ -35,8 +36,38 @@ SMI_ACCESSORS(Script, flags, kFlagsOffset)
 ACCESSORS(Script, source_url, Object, kSourceUrlOffset)
 ACCESSORS(Script, source_mapping_url, Object, kSourceMappingUrlOffset)
 ACCESSORS(Script, host_defined_options, FixedArray, kHostDefinedOptionsOffset)
-ACCESSORS_CHECKED(Script, wasm_compiled_module, Object, kEvalFromSharedOffset,
+ACCESSORS_CHECKED(Script, wasm_compiled_module, Object,
+                  kEvalFromSharedOrWrappedArgumentsOffset,
                   this->type() == TYPE_WASM)
+
+bool Script::is_wrapped() const {
+  return eval_from_shared_or_wrapped_arguments()->IsFixedArray();
+}
+
+bool Script::has_eval_from_shared() const {
+  return eval_from_shared_or_wrapped_arguments()->IsSharedFunctionInfo();
+}
+
+void Script::set_eval_from_shared(SharedFunctionInfo* shared,
+                                  WriteBarrierMode mode) {
+  DCHECK(!is_wrapped());
+  set_eval_from_shared_or_wrapped_arguments(shared, mode);
+}
+
+SharedFunctionInfo* Script::eval_from_shared() const {
+  DCHECK(has_eval_from_shared());
+  return SharedFunctionInfo::cast(eval_from_shared_or_wrapped_arguments());
+}
+
+void Script::set_wrapped_arguments(FixedArray* value, WriteBarrierMode mode) {
+  DCHECK(!has_eval_from_shared());
+  set_eval_from_shared_or_wrapped_arguments(value, mode);
+}
+
+FixedArray* Script::wrapped_arguments() const {
+  DCHECK(is_wrapped());
+  return FixedArray::cast(eval_from_shared_or_wrapped_arguments());
+}
 
 Script::CompilationType Script::compilation_type() {
   return BooleanBit::get(flags(), kCompilationTypeBit) ? COMPILATION_TYPE_EVAL
@@ -71,9 +102,9 @@ bool Script::HasValidSource() {
   String* src_str = String::cast(src);
   if (!StringShape(src_str).IsExternal()) return true;
   if (src_str->IsOneByteRepresentation()) {
-    return ExternalOneByteString::cast(src)->resource() != NULL;
+    return ExternalOneByteString::cast(src)->resource() != nullptr;
   } else if (src_str->IsTwoByteRepresentation()) {
-    return ExternalTwoByteString::cast(src)->resource() != NULL;
+    return ExternalTwoByteString::cast(src)->resource() != nullptr;
   }
   return true;
 }

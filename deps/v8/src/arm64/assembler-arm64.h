@@ -39,7 +39,8 @@ namespace internal {
 #define ALLOCATABLE_GENERAL_REGISTERS(R)                  \
   R(x0)  R(x1)  R(x2)  R(x3)  R(x4)  R(x5)  R(x6)  R(x7)  \
   R(x8)  R(x9)  R(x10) R(x11) R(x12) R(x13) R(x14) R(x15) \
-  R(x18) R(x19) R(x20) R(x21) R(x22) R(x23) R(x24) R(x27)
+  R(x18) R(x19) R(x20) R(x21) R(x22) R(x23) R(x24) R(x27) \
+  R(x28)
 
 #define FLOAT_REGISTERS(V)                                \
   V(s0)  V(s1)  V(s2)  V(s3)  V(s4)  V(s5)  V(s6)  V(s7)  \
@@ -132,7 +133,7 @@ class CPURegister : public RegisterBase<CPURegister, kRegAfterLast> {
   }
   int SizeInBytes() const {
     DCHECK(IsValid());
-    DCHECK(SizeInBits() % 8 == 0);
+    DCHECK_EQ(SizeInBits() % 8, 0);
     return reg_size_ / 8;
   }
   bool Is8Bits() const {
@@ -280,6 +281,12 @@ class Register : public CPURegister {
     return Register::Create(code, kXRegSizeInBits);
   }
 
+  template <int code>
+  static Register from_code() {
+    // Always return an X register.
+    return Register::Create<code, kXRegSizeInBits>();
+  }
+
   // End of V8 compatibility section -----------------------
   //
  private:
@@ -289,6 +296,7 @@ class Register : public CPURegister {
 static_assert(IS_TRIVIALLY_COPYABLE(Register),
               "Register can efficiently be passed by value");
 
+constexpr bool kPadArguments = true;
 constexpr bool kSimpleFPAliasing = true;
 constexpr bool kSimdMaskRegisters = false;
 
@@ -447,8 +455,8 @@ constexpr Register no_reg = NoReg;
 GENERAL_REGISTER_CODE_LIST(DEFINE_REGISTERS)
 #undef DEFINE_REGISTERS
 
-DEFINE_REGISTER(Register, wcsp, kSPRegInternalCode, kWRegSizeInBits);
-DEFINE_REGISTER(Register, csp, kSPRegInternalCode, kXRegSizeInBits);
+DEFINE_REGISTER(Register, wsp, kSPRegInternalCode, kWRegSizeInBits);
+DEFINE_REGISTER(Register, sp, kSPRegInternalCode, kXRegSizeInBits);
 
 #define DEFINE_VREGISTERS(N)                            \
   DEFINE_REGISTER(VRegister, b##N, N, kBRegSizeInBits); \
@@ -473,13 +481,6 @@ ALIAS_REGISTER(Register, root, x26);
 ALIAS_REGISTER(Register, rr, x26);
 // Context pointer register.
 ALIAS_REGISTER(Register, cp, x27);
-// We use a register as a JS stack pointer to overcome the restriction on the
-// architectural SP alignment.
-// We chose x28 because it is contiguous with the other specific purpose
-// registers.
-STATIC_ASSERT(kJSSPCode == 28);
-ALIAS_REGISTER(Register, jssp, x28);
-ALIAS_REGISTER(Register, wjssp, w28);
 ALIAS_REGISTER(Register, fp, x29);
 ALIAS_REGISTER(Register, lr, x30);
 ALIAS_REGISTER(Register, xzr, x31);
@@ -502,13 +503,6 @@ ALIAS_REGISTER(VRegister, fp_scratch1, d30);
 ALIAS_REGISTER(VRegister, fp_scratch2, d31);
 
 #undef ALIAS_REGISTER
-
-
-Register GetAllocatableRegisterThatIsNotOneOf(Register reg1,
-                                              Register reg2 = NoReg,
-                                              Register reg3 = NoReg,
-                                              Register reg4 = NoReg);
-
 
 // AreAliased returns true if any of the named registers overlap. Arguments set
 // to NoReg are ignored. The system stack pointer may be specified.
@@ -671,7 +665,7 @@ class CPURegList {
 
   int RegisterSizeInBytes() const {
     int size_in_bits = RegisterSizeInBits();
-    DCHECK((size_in_bits % kBitsPerByte) == 0);
+    DCHECK_EQ(size_in_bits % kBitsPerByte, 0);
     return size_in_bits / kBitsPerByte;
   }
 
@@ -935,14 +929,15 @@ class Assembler : public AssemblerBase {
   // relocation information starting from the end of the buffer. See CodeDesc
   // for a detailed comment on the layout (globals.h).
   //
-  // If the provided buffer is NULL, the assembler allocates and grows its own
-  // buffer, and buffer_size determines the initial buffer size. The buffer is
-  // owned by the assembler and deallocated upon destruction of the assembler.
+  // If the provided buffer is nullptr, the assembler allocates and grows its
+  // own buffer, and buffer_size determines the initial buffer size. The buffer
+  // is owned by the assembler and deallocated upon destruction of the
+  // assembler.
   //
-  // If the provided buffer is not NULL, the assembler uses the provided buffer
-  // for code generation and assumes its size to be buffer_size. If the buffer
-  // is too small, a fatal error occurs. No deallocation of the buffer is done
-  // upon destruction of the assembler.
+  // If the provided buffer is not nullptr, the assembler uses the provided
+  // buffer for code generation and assumes its size to be buffer_size. If the
+  // buffer is too small, a fatal error occurs. No deallocation of the buffer is
+  // done upon destruction of the assembler.
   Assembler(Isolate* isolate, void* buffer, int buffer_size)
       : Assembler(IsolateData(isolate), buffer, buffer_size) {}
   Assembler(IsolateData isolate_data, void* buffer, int buffer_size);
@@ -965,8 +960,8 @@ class Assembler : public AssemblerBase {
   // desc. GetCode() is idempotent; it returns the same result if no other
   // Assembler functions are invoked in between GetCode() calls.
   //
-  // The descriptor (desc) can be NULL. In that case, the code is finalized as
-  // usual, but the descriptor is not populated.
+  // The descriptor (desc) can be nullptr. In that case, the code is finalized
+  // as usual, but the descriptor is not populated.
   void GetCode(Isolate* isolate, CodeDesc* desc);
 
   // Insert the smallest number of nop instructions
@@ -1000,10 +995,6 @@ class Assembler : public AssemblerBase {
   inline static Address target_address_at(Address pc, Address constant_pool);
   inline static void set_target_address_at(
       Isolate* isolate, Address pc, Address constant_pool, Address target,
-      ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
-  static inline Address target_address_at(Address pc, Code* code);
-  static inline void set_target_address_at(
-      Isolate* isolate, Address pc, Code* code, Address target,
       ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
 
   // Return the code target address at a call site from the return address of
@@ -1064,7 +1055,7 @@ class Assembler : public AssemblerBase {
   // TODO(jbramley): Work out what sign to use for these things and if possible,
   // change things to be consistent.
   void AssertSizeOfCodeGeneratedSince(const Label* label, ptrdiff_t size) {
-    DCHECK(size >= 0);
+    DCHECK_GE(size, 0);
     DCHECK(static_cast<uint64_t>(size) == SizeOfCodeGeneratedSince(label));
   }
 
@@ -1408,14 +1399,14 @@ class Assembler : public AssemblerBase {
   // Bfm aliases.
   // Bitfield insert.
   void bfi(const Register& rd, const Register& rn, int lsb, int width) {
-    DCHECK(width >= 1);
+    DCHECK_GE(width, 1);
     DCHECK(lsb + width <= rn.SizeInBits());
     bfm(rd, rn, (rd.SizeInBits() - lsb) & (rd.SizeInBits() - 1), width - 1);
   }
 
   // Bitfield extract and insert low.
   void bfxil(const Register& rd, const Register& rn, int lsb, int width) {
-    DCHECK(width >= 1);
+    DCHECK_GE(width, 1);
     DCHECK(lsb + width <= rn.SizeInBits());
     bfm(rd, rn, lsb, lsb + width - 1);
   }
@@ -1429,14 +1420,14 @@ class Assembler : public AssemblerBase {
 
   // Signed bitfield insert in zero.
   void sbfiz(const Register& rd, const Register& rn, int lsb, int width) {
-    DCHECK(width >= 1);
+    DCHECK_GE(width, 1);
     DCHECK(lsb + width <= rn.SizeInBits());
     sbfm(rd, rn, (rd.SizeInBits() - lsb) & (rd.SizeInBits() - 1), width - 1);
   }
 
   // Signed bitfield extract.
   void sbfx(const Register& rd, const Register& rn, int lsb, int width) {
-    DCHECK(width >= 1);
+    DCHECK_GE(width, 1);
     DCHECK(lsb + width <= rn.SizeInBits());
     sbfm(rd, rn, lsb, lsb + width - 1);
   }
@@ -1472,14 +1463,14 @@ class Assembler : public AssemblerBase {
 
   // Unsigned bitfield insert in zero.
   void ubfiz(const Register& rd, const Register& rn, int lsb, int width) {
-    DCHECK(width >= 1);
+    DCHECK_GE(width, 1);
     DCHECK(lsb + width <= rn.SizeInBits());
     ubfm(rd, rn, (rd.SizeInBits() - lsb) & (rd.SizeInBits() - 1), width - 1);
   }
 
   // Unsigned bitfield extract.
   void ubfx(const Register& rd, const Register& rn, int lsb, int width) {
-    DCHECK(width >= 1);
+    DCHECK_GE(width, 1);
     DCHECK(lsb + width <= rn.SizeInBits());
     ubfm(rd, rn, lsb, lsb + width - 1);
   }
@@ -2872,9 +2863,9 @@ class Assembler : public AssemblerBase {
   // Emit an address in the instruction stream.
   void dcptr(Label* label);
 
-  // Copy a string into the instruction stream, including the terminating NULL
-  // character. The instruction pointer (pc_) is then aligned correctly for
-  // subsequent instructions.
+  // Copy a string into the instruction stream, including the terminating
+  // nullptr character. The instruction pointer (pc_) is then aligned correctly
+  // for subsequent instructions.
   void EmitStringData(const char* string);
 
   // Pseudo-instructions ------------------------------------------------------
@@ -3353,9 +3344,8 @@ class Assembler : public AssemblerBase {
   // Remove the specified branch from the unbound label link chain.
   // If available, a veneer for this label can be used for other branches in the
   // chain if the link chain cannot be fixed up without this branch.
-  void RemoveBranchFromLabelLinkChain(Instruction* branch,
-                                      Label* label,
-                                      Instruction* label_veneer = NULL);
+  void RemoveBranchFromLabelLinkChain(Instruction* branch, Label* label,
+                                      Instruction* label_veneer = nullptr);
 
   // Prevent sharing of code target constant pool entries until
   // EndBlockCodeTargetSharing is called. Calls to this function can be nested
@@ -3497,7 +3487,7 @@ class Assembler : public AssemblerBase {
 
   // Emit data inline in the instruction stream.
   void EmitData(void const * data, unsigned size) {
-    DCHECK(sizeof(*pc_) == 1);
+    DCHECK_EQ(sizeof(*pc_), 1);
     DCHECK((pc_ + size) <= (buffer_ + buffer_size_));
 
     // TODO(all): Somehow register we have some data here. Then we can

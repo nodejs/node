@@ -67,10 +67,8 @@ v8::Local<v8::FunctionTemplate> TraceExtension::GetNativeFunctionTemplate(
                               .ToLocalChecked())
                  .FromJust()) {
     return v8::FunctionTemplate::New(isolate, TraceExtension::JSEntrySPLevel2);
-  } else {
-    CHECK(false);
-    return v8::Local<v8::FunctionTemplate>();
   }
+  UNREACHABLE();
 }
 
 

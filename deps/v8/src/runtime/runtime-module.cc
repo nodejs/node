@@ -19,11 +19,9 @@ RUNTIME_FUNCTION(Runtime_DynamicImportCall) {
 
   Handle<Script> script(Script::cast(function->shared()->script()));
 
-  while (script->eval_from_shared()->IsSharedFunctionInfo()) {
-    script = handle(
-        Script::cast(
-            SharedFunctionInfo::cast(script->eval_from_shared())->script()),
-        isolate);
+  while (script->has_eval_from_shared()) {
+    script =
+        handle(Script::cast(script->eval_from_shared()->script()), isolate);
   }
 
   RETURN_RESULT_OR_FAILURE(
@@ -55,6 +53,13 @@ RUNTIME_FUNCTION(Runtime_StoreModuleVariable) {
   Handle<Module> module(isolate->context()->module());
   Module::StoreVariable(module, index, value);
   return isolate->heap()->undefined_value();
+}
+
+RUNTIME_FUNCTION(Runtime_GetImportMetaObject) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(0, args.length());
+  Handle<Module> module(isolate->context()->module());
+  return *isolate->RunHostInitializeImportMetaObjectCallback(module);
 }
 
 }  // namespace internal

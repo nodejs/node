@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --harmony-regexp-lookbehind
-
 var r = /./ug;
 assertEquals(["\ud800\udc00"], r.exec("\ud800\udc00\ud801\udc01"));
 assertEquals(2, r.lastIndex);

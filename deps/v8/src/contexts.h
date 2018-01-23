@@ -5,7 +5,7 @@
 #ifndef V8_CONTEXTS_H_
 #define V8_CONTEXTS_H_
 
-#include "src/objects.h"
+#include "src/objects/fixed-array.h"
 
 namespace v8 {
 namespace internal {
@@ -63,12 +63,10 @@ enum ContextLookupFlags {
   V(REFLECT_DELETE_PROPERTY_INDEX, JSFunction, reflect_delete_property)     \
   V(SPREAD_ARGUMENTS_INDEX, JSFunction, spread_arguments)                   \
   V(SPREAD_ITERABLE_INDEX, JSFunction, spread_iterable)                     \
-  V(TYPED_ARRAY_CONSTRUCT_BY_ARRAY_BUFFER_INDEX, JSFunction,                \
-    typed_array_construct_by_array_buffer)                                  \
   V(TYPED_ARRAY_CONSTRUCT_BY_ARRAY_LIKE_INDEX, JSFunction,                  \
     typed_array_construct_by_array_like)                                    \
-  V(TYPED_ARRAY_CONSTRUCT_BY_LENGTH_INDEX, JSFunction,                      \
-    typed_array_construct_by_length)                                        \
+  V(TYPED_ARRAY_CONSTRUCT_BY_ITERABLE_INDEX, JSFunction,                    \
+    typed_array_construct_by_iterable)                                      \
   V(MATH_FLOOR_INDEX, JSFunction, math_floor)                               \
   V(MATH_POW_INDEX, JSFunction, math_pow)                                   \
   V(NEW_PROMISE_CAPABILITY_INDEX, JSFunction, new_promise_capability)       \
@@ -121,7 +119,10 @@ enum ContextLookupFlags {
   V(WASM_COMPILE_ERROR_FUNCTION_INDEX, JSFunction,                        \
     wasm_compile_error_function)                                          \
   V(WASM_LINK_ERROR_FUNCTION_INDEX, JSFunction, wasm_link_error_function) \
-  V(WASM_RUNTIME_ERROR_FUNCTION_INDEX, JSFunction, wasm_runtime_error_function)
+  V(WASM_RUNTIME_ERROR_FUNCTION_INDEX, JSFunction,                        \
+    wasm_runtime_error_function)                                          \
+  V(WEAKMAP_SET_INDEX, JSFunction, weakmap_set)                           \
+  V(WEAKSET_ADD_INDEX, JSFunction, weakset_add)
 
 #define NATIVE_CONTEXT_JS_ARRAY_ITERATOR_MAPS(V)                               \
   V(TYPED_ARRAY_KEY_ITERATOR_MAP_INDEX, Map, typed_array_key_iterator_map)     \
@@ -197,6 +198,7 @@ enum ContextLookupFlags {
   V(ACCESSOR_PROPERTY_DESCRIPTOR_MAP_INDEX, Map,                               \
     accessor_property_descriptor_map)                                          \
   V(ALLOW_CODE_GEN_FROM_STRINGS_INDEX, Object, allow_code_gen_from_strings)    \
+  V(ALLOW_WASM_EVAL_INDEX, Object, allow_wasm_eval)                            \
   V(ARRAY_BUFFER_FUN_INDEX, JSFunction, array_buffer_fun)                      \
   V(ARRAY_BUFFER_MAP_INDEX, Map, array_buffer_map)                             \
   V(ARRAY_BUFFER_NOINIT_FUN_INDEX, JSFunction, array_buffer_noinit_fun)        \
@@ -265,7 +267,12 @@ enum ContextLookupFlags {
   V(INITIAL_ASYNC_GENERATOR_PROTOTYPE_INDEX, JSObject,                         \
     initial_async_generator_prototype)                                         \
   V(INITIAL_ITERATOR_PROTOTYPE_INDEX, JSObject, initial_iterator_prototype)    \
+  V(INITIAL_MAP_PROTOTYPE_MAP_INDEX, Map, initial_map_prototype_map)           \
   V(INITIAL_OBJECT_PROTOTYPE_INDEX, JSObject, initial_object_prototype)        \
+  V(INITIAL_SET_PROTOTYPE_MAP_INDEX, Map, initial_set_prototype_map)           \
+  V(INITIAL_STRING_PROTOTYPE_INDEX, JSObject, initial_string_prototype)        \
+  V(INITIAL_WEAKMAP_PROTOTYPE_MAP_INDEX, Map, initial_weakmap_prototype_map)   \
+  V(INITIAL_WEAKSET_PROTOTYPE_MAP_INDEX, Map, initial_weakset_prototype_map)   \
   V(INT16_ARRAY_FUN_INDEX, JSFunction, int16_array_fun)                        \
   V(INT32_ARRAY_FUN_INDEX, JSFunction, int32_array_fun)                        \
   V(INT8_ARRAY_FUN_INDEX, JSFunction, int8_array_fun)                          \
@@ -314,6 +321,8 @@ enum ContextLookupFlags {
   V(PROXY_CONSTRUCTOR_MAP_INDEX, Map, proxy_constructor_map)                   \
   V(PROXY_FUNCTION_INDEX, JSFunction, proxy_function)                          \
   V(PROXY_MAP_INDEX, Map, proxy_map)                                           \
+  V(PROXY_REVOCABLE_RESULT_MAP_INDEX, Map, proxy_revocable_result_map)         \
+  V(PROXY_REVOKE_SHARED_FUN, SharedFunctionInfo, proxy_revoke_shared_fun)      \
   V(PROMISE_GET_CAPABILITIES_EXECUTOR_SHARED_FUN, SharedFunctionInfo,          \
     promise_get_capabilities_executor_shared_fun)                              \
   V(PROMISE_RESOLVE_SHARED_FUN, SharedFunctionInfo,                            \
@@ -341,6 +350,7 @@ enum ContextLookupFlags {
   V(SCRIPT_FUNCTION_INDEX, JSFunction, script_function)                        \
   V(SECURITY_TOKEN_INDEX, Object, security_token)                              \
   V(SELF_WEAK_CELL_INDEX, WeakCell, self_weak_cell)                            \
+  V(SERIALIZED_OBJECTS, FixedArray, serialized_objects)                        \
   V(SET_VALUE_ITERATOR_MAP_INDEX, Map, set_value_iterator_map)                 \
   V(SET_KEY_VALUE_ITERATOR_MAP_INDEX, Map, set_key_value_iterator_map)         \
   V(SHARED_ARRAY_BUFFER_FUN_INDEX, JSFunction, shared_array_buffer_fun)        \
@@ -351,7 +361,7 @@ enum ContextLookupFlags {
     slow_object_with_null_prototype_map)                                       \
   V(SLOW_OBJECT_WITH_OBJECT_PROTOTYPE_MAP, Map,                                \
     slow_object_with_object_prototype_map)                                     \
-  V(SLOW_TEMPLATE_INSTANTIATIONS_CACHE_INDEX, UnseededNumberDictionary,        \
+  V(SLOW_TEMPLATE_INSTANTIATIONS_CACHE_INDEX, NumberDictionary,                \
     slow_template_instantiations_cache)                                        \
   /* All *_FUNCTION_MAP_INDEX definitions used by Context::FunctionMapIndex */ \
   /* must remain together. */                                                  \
@@ -448,15 +458,8 @@ class ScriptContextTable : public FixedArray {
   static Handle<ScriptContextTable> Extend(Handle<ScriptContextTable> table,
                                            Handle<Context> script_context);
 
-  static int GetContextOffset(int context_index) {
-    return kFirstContextOffset + context_index * kPointerSize;
-  }
-
- private:
-  static const int kUsedSlot = 0;
-  static const int kFirstContextSlot = kUsedSlot + 1;
-  static const int kFirstContextOffset =
-      FixedArray::kHeaderSize + kFirstContextSlot * kPointerSize;
+  static const int kUsedSlotIndex = 0;
+  static const int kFirstContextSlotIndex = 1;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(ScriptContextTable);
 };
@@ -563,6 +566,9 @@ class Context: public FixedArray {
   // by Builtins::kFastNewClosure.
   static const int FIRST_FUNCTION_MAP_INDEX = SLOPPY_FUNCTION_MAP_INDEX;
   static const int LAST_FUNCTION_MAP_INDEX = CLASS_FUNCTION_MAP_INDEX;
+
+  static const int kNoContext = 0;
+  static const int kInvalidContext = 1;
 
   void ResetErrorsThrown();
   void IncrementErrorsThrown();
@@ -680,7 +686,8 @@ class Context: public FixedArray {
   }
 
   static inline int FunctionMapIndex(LanguageMode language_mode,
-                                     FunctionKind kind, bool has_shared_name,
+                                     FunctionKind kind, bool has_prototype_slot,
+                                     bool has_shared_name,
                                      bool needs_home_object);
 
   static int ArrayMapIndex(ElementsKind elements_kind) {

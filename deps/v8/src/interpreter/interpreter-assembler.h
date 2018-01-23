@@ -119,14 +119,21 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
 
   // Increment the call count for a CALL_IC or construct call.
   // The call count is located at feedback_vector[slot_id + 1].
-  compiler::Node* IncrementCallCount(compiler::Node* feedback_vector,
-                                     compiler::Node* slot_id);
+  void IncrementCallCount(compiler::Node* feedback_vector,
+                          compiler::Node* slot_id);
+
+  // Collect the callable |target| feedback for either a CALL_IC or
+  // an INSTANCEOF_IC in the |feedback_vector| at |slot_id|.
+  void CollectCallableFeedback(compiler::Node* target, compiler::Node* context,
+                               compiler::Node* feedback_vector,
+                               compiler::Node* slot_id);
 
   // Collect CALL_IC feedback for |target| function in the
-  // |feedback_vector| at |slot_id|.
+  // |feedback_vector| at |slot_id|, and the call counts in
+  // the |feedback_vector| at |slot_id+1|.
   void CollectCallFeedback(compiler::Node* target, compiler::Node* context,
-                           compiler::Node* slot_id,
-                           compiler::Node* feedback_vector);
+                           compiler::Node* feedback_vector,
+                           compiler::Node* slot_id);
 
   // Call JSFunction or Callable |function| with |arg_count| arguments (not
   // including receiver) and the first argument located at |first_arg|, possibly
@@ -201,9 +208,6 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
   void JumpIfWordNotEqual(compiler::Node* lhs, compiler::Node* rhs,
                           compiler::Node* jump_offset);
 
-  // Returns true if the stack guard check triggers an interrupt.
-  compiler::Node* StackCheckTriggeredInterrupt();
-
   // Updates the profiler interrupt budget for a return.
   void UpdateInterruptBudgetOnReturn();
 
@@ -221,16 +225,10 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
   // Dispatch bytecode as wide operand variant.
   void DispatchWide(OperandScale operand_scale);
 
-  // Truncate tagged |value| to word32 and store the type feedback in
-  // |var_type_feedback|.
-  compiler::Node* TruncateTaggedToWord32WithFeedback(
-      compiler::Node* context, compiler::Node* value,
-      Variable* var_type_feedback);
-
-  // Abort with the given bailout reason.
-  void Abort(BailoutReason bailout_reason);
+  // Abort with the given abort reason.
+  void Abort(AbortReason abort_reason);
   void AbortIfWordNotEqual(compiler::Node* lhs, compiler::Node* rhs,
-                           BailoutReason bailout_reason);
+                           AbortReason abort_reason);
   // Abort if |register_count| is invalid for given register file array.
   void AbortIfRegisterCountInvalid(compiler::Node* register_file,
                                    compiler::Node* register_count);
@@ -244,6 +242,11 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
  protected:
   Bytecode bytecode() const { return bytecode_; }
   static bool TargetSupportsUnalignedAccess();
+
+  void ToNumberOrNumeric(Object::Conversion mode);
+
+  // Lazily deserializes the current bytecode's handler and tail-calls into it.
+  void DeserializeLazyAndDispatch();
 
  private:
   // Returns a tagged pointer to the current function's BytecodeArray object.

@@ -8,6 +8,7 @@
 #include <memory>
 
 #include "src/compilation-dependencies.h"
+#include "src/feedback-vector.h"
 #include "src/frames.h"
 #include "src/globals.h"
 #include "src/handles.h"
@@ -31,6 +32,8 @@ class Zone;
 
 // CompilationInfo encapsulates some information known at compile time.  It
 // is constructed based on the resources available at compile-time.
+// TODO(rmcilroy): Split CompilationInfo into two classes, one for unoptimized
+// compilation and one for optimized compilation, since they don't share much.
 class V8_EXPORT_PRIVATE CompilationInfo final {
  public:
   // Various configuration flags for a compilation, as well as some properties
@@ -38,7 +41,7 @@ class V8_EXPORT_PRIVATE CompilationInfo final {
   enum Flag {
     kIsEval = 1 << 0,
     kIsNative = 1 << 1,
-    kSerializing = 1 << 2,
+    kCollectTypeProfile = 1 << 2,
     kAccessorInliningEnabled = 1 << 3,
     kFunctionContextSpecializing = 1 << 4,
     kInliningEnabled = 1 << 5,
@@ -47,17 +50,29 @@ class V8_EXPORT_PRIVATE CompilationInfo final {
     kSourcePositionsEnabled = 1 << 8,
     kBailoutOnUninitialized = 1 << 9,
     kLoopPeelingEnabled = 1 << 10,
+    kUntrustedCodeMitigations = 1 << 11,
+  };
+
+  // TODO(mtrofin): investigate if this might be generalized outside wasm, with
+  // the goal of better separating the compiler from where compilation lands. At
+  // that point, the Handle<Code> member of CompilationInfo would also be
+  // removed.
+  struct WasmCodeDesc {
+    CodeDesc code_desc;
+    size_t safepoint_table_offset = 0;
+    uint32_t frame_slot_count = 0;
+    Handle<ByteArray> source_positions_table;
+    MaybeHandle<HandlerTable> handler_table;
   };
 
   // Construct a compilation info for unoptimized compilation.
-  CompilationInfo(Zone* zone, Isolate* isolate, ParseInfo* parse_info,
-                  FunctionLiteral* literal);
+  CompilationInfo(Zone* zone, ParseInfo* parse_info, FunctionLiteral* literal);
   // Construct a compilation info for optimized compilation.
   CompilationInfo(Zone* zone, Isolate* isolate,
                   Handle<SharedFunctionInfo> shared,
                   Handle<JSFunction> closure);
   // Construct a compilation info for stub compilation (or testing).
-  CompilationInfo(Vector<const char> debug_name, Isolate* isolate, Zone* zone,
+  CompilationInfo(Vector<const char> debug_name, Zone* zone,
                   Code::Kind code_kind);
   ~CompilationInfo();
 
@@ -75,7 +90,6 @@ class V8_EXPORT_PRIVATE CompilationInfo final {
 
   DeclarationScope* scope() const;
 
-  Isolate* isolate() const { return isolate_; }
   Zone* zone() { return zone_; }
   bool is_osr() const { return !osr_offset_.IsNone(); }
   Handle<SharedFunctionInfo> shared_info() const { return shared_info_; }
@@ -86,6 +100,10 @@ class V8_EXPORT_PRIVATE CompilationInfo final {
   Handle<JSFunction> closure() const { return closure_; }
   Handle<Code> code() const { return code_; }
   Code::Kind code_kind() const { return code_kind_; }
+  uint32_t stub_key() const { return stub_key_; }
+  void set_stub_key(uint32_t stub_key) { stub_key_ = stub_key; }
+  int32_t builtin_index() const { return builtin_index_; }
+  void set_builtin_index(int32_t index) { builtin_index_ = index; }
   BailoutId osr_offset() const { return osr_offset_; }
   JavaScriptFrame* osr_frame() const { return osr_frame_; }
   int num_parameters() const;
@@ -105,14 +123,14 @@ class V8_EXPORT_PRIVATE CompilationInfo final {
 
   // Flags used by unoptimized compilation.
 
-  void MarkAsSerializing() { SetFlag(kSerializing); }
-  bool will_serialize() const { return GetFlag(kSerializing); }
-
   void MarkAsEval() { SetFlag(kIsEval); }
   bool is_eval() const { return GetFlag(kIsEval); }
 
   void MarkAsNative() { SetFlag(kIsNative); }
   bool is_native() const { return GetFlag(kIsNative); }
+
+  void MarkAsCollectTypeProfile() { SetFlag(kCollectTypeProfile); }
+  bool collect_type_profile() const { return GetFlag(kCollectTypeProfile); }
 
   // Flags used by optimized compilation.
 
@@ -147,6 +165,10 @@ class V8_EXPORT_PRIVATE CompilationInfo final {
   void MarkAsLoopPeelingEnabled() { SetFlag(kLoopPeelingEnabled); }
   bool is_loop_peeling_enabled() const { return GetFlag(kLoopPeelingEnabled); }
 
+  bool has_untrusted_code_mitigations() const {
+    return GetFlag(kUntrustedCodeMitigations);
+  }
+
   // Code getters and setters.
 
   void SetCode(Handle<Code> code) { code_ = code; }
@@ -158,6 +180,8 @@ class V8_EXPORT_PRIVATE CompilationInfo final {
   void SetAsmWasmData(Handle<FixedArray> asm_wasm_data) {
     asm_wasm_data_ = asm_wasm_data;
   }
+
+  FeedbackVectorSpec* feedback_vector_spec() { return &feedback_vector_spec_; }
 
   bool has_context() const;
   Context* context() const;
@@ -187,34 +211,24 @@ class V8_EXPORT_PRIVATE CompilationInfo final {
   void ReopenHandlesInNewHandleScope();
 
   void AbortOptimization(BailoutReason reason) {
-    DCHECK(reason != kNoReason);
-    if (bailout_reason_ == kNoReason) bailout_reason_ = reason;
+    DCHECK_NE(reason, BailoutReason::kNoReason);
+    if (bailout_reason_ == BailoutReason::kNoReason) bailout_reason_ = reason;
     SetFlag(kDisableFutureOptimization);
   }
 
   void RetryOptimization(BailoutReason reason) {
-    DCHECK(reason != kNoReason);
+    DCHECK_NE(reason, BailoutReason::kNoReason);
     if (GetFlag(kDisableFutureOptimization)) return;
     bailout_reason_ = reason;
   }
 
   BailoutReason bailout_reason() const { return bailout_reason_; }
 
-  CompilationDependencies* dependencies() { return &dependencies_; }
+  CompilationDependencies* dependencies() { return dependencies_.get(); }
 
   int optimization_id() const {
     DCHECK(IsOptimizing());
     return optimization_id_;
-  }
-
-  int osr_expr_stack_height() {
-    DCHECK_GE(osr_expr_stack_height_, 0);
-    return osr_expr_stack_height_;
-  }
-  void set_osr_expr_stack_height(int height) {
-    DCHECK_EQ(osr_expr_stack_height_, -1);
-    osr_expr_stack_height_ = height;
-    DCHECK_GE(osr_expr_stack_height_, 0);
   }
 
   bool has_simple_parameters();
@@ -229,7 +243,7 @@ class V8_EXPORT_PRIVATE CompilationInfo final {
         : shared_info(inlined_shared_info) {
       position.position = pos;
       // initialized when generating the deoptimization literals
-      position.inlined_function_id = DeoptimizationInputData::kNotInlinedIndex;
+      position.inlined_function_id = DeoptimizationData::kNotInlinedIndex;
     }
 
     void RegisterInlinedFunctionId(size_t inlined_function_id) {
@@ -258,6 +272,8 @@ class V8_EXPORT_PRIVATE CompilationInfo final {
     coverage_info_ = coverage_info;
   }
 
+  WasmCodeDesc* wasm_code_desc() { return &wasm_code_desc_; }
+
  private:
   // Compilation mode.
   // BASE is generated by the full codegen, optionally prepared for bailouts.
@@ -265,7 +281,7 @@ class V8_EXPORT_PRIVATE CompilationInfo final {
   enum Mode { BASE, OPTIMIZE, STUB };
 
   CompilationInfo(Vector<const char> debug_name, Code::Kind code_kind,
-                  Mode mode, Isolate* isolate, Zone* zone);
+                  Mode mode, Zone* zone);
 
   void SetMode(Mode mode) { mode_ = mode; }
 
@@ -277,13 +293,14 @@ class V8_EXPORT_PRIVATE CompilationInfo final {
 
   bool GetFlag(Flag flag) const { return (flags_ & flag) != 0; }
 
-  Isolate* isolate_;
   FunctionLiteral* literal_;
   SourceRangeMap* source_range_map_;  // Used when block coverage is enabled.
 
   unsigned flags_;
 
   Code::Kind code_kind_;
+  uint32_t stub_key_;
+  int32_t builtin_index_;
 
   Handle<SharedFunctionInfo> shared_info_;
 
@@ -291,6 +308,7 @@ class V8_EXPORT_PRIVATE CompilationInfo final {
 
   // The compiled code.
   Handle<Code> code_;
+  WasmCodeDesc wasm_code_desc_;
 
   // Compilation mode flag and whether deoptimization is allowed.
   Mode mode_;
@@ -304,6 +322,9 @@ class V8_EXPORT_PRIVATE CompilationInfo final {
   // Holds the asm_wasm array generated by the asmjs compiler.
   Handle<FixedArray> asm_wasm_data_;
 
+  // Holds the feedback vector spec generated during compilation
+  FeedbackVectorSpec feedback_vector_spec_;
+
   // The zone from which the compilation pipeline working on this
   // CompilationInfo allocates.
   Zone* zone_;
@@ -311,7 +332,7 @@ class V8_EXPORT_PRIVATE CompilationInfo final {
   std::shared_ptr<DeferredHandles> deferred_handles_;
 
   // Dependencies for this compilation, e.g. stable maps.
-  CompilationDependencies dependencies_;
+  std::unique_ptr<CompilationDependencies> dependencies_;
 
   BailoutReason bailout_reason_;
 
@@ -321,8 +342,6 @@ class V8_EXPORT_PRIVATE CompilationInfo final {
   int parameter_count_;
 
   int optimization_id_;
-
-  int osr_expr_stack_height_;
 
   // The current OSR frame for specialization or {nullptr}.
   JavaScriptFrame* osr_frame_ = nullptr;

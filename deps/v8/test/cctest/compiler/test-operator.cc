@@ -261,7 +261,7 @@ TEST(TestOpParameter_Operator1float) {
 
 
 TEST(TestOpParameter_Operator1int) {
-  int values[] = {7777, -66, 0, 11, 1, 0x666aff};
+  int values[] = {7777, -66, 0, 11, 1, 0x666AFF};
 
   for (size_t i = 0; i < arraysize(values); i++) {
     Operator1<int> op(33, NONE, "Scurvy", 0, 0, 0, 0, 0, 0, values[i]);

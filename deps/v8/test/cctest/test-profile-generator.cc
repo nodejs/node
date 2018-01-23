@@ -90,17 +90,16 @@ class ProfileTreeTestHelper {
   explicit ProfileTreeTestHelper(const ProfileTree* tree)
       : tree_(tree) { }
 
-  ProfileNode* Walk(CodeEntry* entry1,
-                    CodeEntry* entry2 = NULL,
-                    CodeEntry* entry3 = NULL) {
+  ProfileNode* Walk(CodeEntry* entry1, CodeEntry* entry2 = nullptr,
+                    CodeEntry* entry3 = nullptr) {
     ProfileNode* node = tree_->root();
     node = node->FindChild(entry1);
-    if (node == NULL) return NULL;
-    if (entry2 != NULL) {
+    if (node == nullptr) return nullptr;
+    if (entry2 != nullptr) {
       node = node->FindChild(entry2);
-      if (node == NULL) return NULL;
+      if (node == nullptr) return nullptr;
     }
-    if (entry3 != NULL) {
+    if (entry3 != nullptr) {
       node = node->FindChild(entry3);
     }
     return node;
@@ -124,7 +123,8 @@ TEST(ProfileTreeAddPathFromEnd) {
   CHECK(!helper.Walk(&entry2));
   CHECK(!helper.Walk(&entry3));
 
-  CodeEntry* path[] = {NULL, &entry3, NULL, &entry2, NULL, NULL, &entry1, NULL};
+  CodeEntry* path[] = {nullptr, &entry3, nullptr, &entry2,
+                       nullptr, nullptr, &entry1, nullptr};
   std::vector<CodeEntry*> path_vec(path, path + arraysize(path));
   tree.AddPathFromEnd(path_vec);
   CHECK(!helper.Walk(&entry2));
@@ -500,7 +500,7 @@ static const ProfileNode* PickChild(const ProfileNode* parent,
   for (const ProfileNode* child : *parent->children()) {
     if (strcmp(child->entry()->name(), name) == 0) return child;
   }
-  return NULL;
+  return nullptr;
 }
 
 
@@ -578,7 +578,7 @@ static const v8::CpuProfileNode* PickChild(const v8::CpuProfileNode* parent,
                                         child->GetFunctionName());
     if (strcmp(*function_name, name) == 0) return child;
   }
-  return NULL;
+  return nullptr;
 }
 
 
@@ -649,8 +649,7 @@ int GetFunctionLineNumber(CpuProfiler& profiler, LocalContext& env,
       v8::Utils::OpenHandle(*v8::Local<v8::Function>::Cast(
           env->Global()->Get(env.local(), v8_str(name)).ToLocalChecked())));
   CodeEntry* func_entry = code_map->FindEntry(func->abstract_code()->address());
-  if (!func_entry)
-    FATAL(name);
+  if (!func_entry) FATAL("%s", name);
   return func_entry->line_number();
 }
 

@@ -16,6 +16,8 @@ class D8Console : public debug::ConsoleDelegate {
   explicit D8Console(Isolate* isolate);
 
  private:
+  void Assert(const debug::ConsoleCallArguments& args,
+              const v8::debug::ConsoleContext&) override;
   void Log(const debug::ConsoleCallArguments& args,
            const v8::debug::ConsoleContext&) override;
   void Error(const debug::ConsoleCallArguments& args,
@@ -30,6 +32,10 @@ class D8Console : public debug::ConsoleDelegate {
             const v8::debug::ConsoleContext&) override;
   void TimeEnd(const debug::ConsoleCallArguments& args,
                const v8::debug::ConsoleContext&) override;
+  void TimeStamp(const debug::ConsoleCallArguments& args,
+                 const v8::debug::ConsoleContext&) override;
+  void Trace(const debug::ConsoleCallArguments& args,
+             const v8::debug::ConsoleContext&) override;
 
   Isolate* isolate_;
   std::map<std::string, base::TimeTicks> timers_;

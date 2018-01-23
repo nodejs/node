@@ -21,8 +21,6 @@ class PosixTimezoneCache : public TimezoneCache {
   static const int msPerSecond = 1000;
 };
 
-int GetProtectionFromMemoryPermission(OS::MemoryPermission access);
-
 }  // namespace base
 }  // namespace v8
 

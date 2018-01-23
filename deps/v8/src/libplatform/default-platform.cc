@@ -10,10 +10,12 @@
 #include "include/libplatform/libplatform.h"
 #include "src/base/debug/stack_trace.h"
 #include "src/base/logging.h"
+#include "src/base/page-allocator.h"
 #include "src/base/platform/platform.h"
 #include "src/base/platform/time.h"
 #include "src/base/sys-info.h"
-#include "src/libplatform/worker-thread.h"
+#include "src/libplatform/default-background-task-runner.h"
+#include "src/libplatform/default-foreground-task-runner.h"
 
 namespace v8 {
 namespace platform {
@@ -29,18 +31,28 @@ void PrintStackTrace() {
 
 }  // namespace
 
+std::unique_ptr<v8::Platform> NewDefaultPlatform(
+    int thread_pool_size, IdleTaskSupport idle_task_support,
+    InProcessStackDumping in_process_stack_dumping,
+    std::unique_ptr<v8::TracingController> tracing_controller) {
+  if (in_process_stack_dumping == InProcessStackDumping::kEnabled) {
+    v8::base::debug::EnableInProcessStackDumping();
+  }
+  std::unique_ptr<DefaultPlatform> platform(
+      new DefaultPlatform(idle_task_support, std::move(tracing_controller)));
+  platform->SetThreadPoolSize(thread_pool_size);
+  platform->EnsureBackgroundTaskRunnerInitialized();
+  return std::move(platform);
+}
+
 v8::Platform* CreateDefaultPlatform(
     int thread_pool_size, IdleTaskSupport idle_task_support,
     InProcessStackDumping in_process_stack_dumping,
     v8::TracingController* tracing_controller) {
-  if (in_process_stack_dumping == InProcessStackDumping::kEnabled) {
-    v8::base::debug::EnableInProcessStackDumping();
-  }
-  DefaultPlatform* platform =
-      new DefaultPlatform(idle_task_support, tracing_controller);
-  platform->SetThreadPoolSize(thread_pool_size);
-  platform->EnsureInitialized();
-  return platform;
+  return NewDefaultPlatform(
+             thread_pool_size, idle_task_support, in_process_stack_dumping,
+             std::unique_ptr<v8::TracingController>(tracing_controller))
+      .release();
 }
 
 bool PumpMessageLoop(v8::Platform* platform, v8::Isolate* isolate,
@@ -50,8 +62,6 @@ bool PumpMessageLoop(v8::Platform* platform, v8::Isolate* isolate,
 }
 
 void EnsureEventLoopInitialized(v8::Platform* platform, v8::Isolate* isolate) {
-  return static_cast<DefaultPlatform*>(platform)->EnsureEventLoopInitialized(
-      isolate);
 }
 
 void RunIdleTasks(v8::Platform* platform, v8::Isolate* isolate,
@@ -64,19 +74,20 @@ void SetTracingController(
     v8::Platform* platform,
     v8::platform::tracing::TracingController* tracing_controller) {
   static_cast<DefaultPlatform*>(platform)->SetTracingController(
-      tracing_controller);
+      std::unique_ptr<v8::TracingController>(tracing_controller));
 }
 
 const int DefaultPlatform::kMaxThreadPoolSize = 8;
 
-DefaultPlatform::DefaultPlatform(IdleTaskSupport idle_task_support,
-                                 v8::TracingController* tracing_controller)
-    : initialized_(false),
-      thread_pool_size_(0),
-      idle_task_support_(idle_task_support) {
-  if (tracing_controller) {
-    tracing_controller_.reset(tracing_controller);
-  } else {
+DefaultPlatform::DefaultPlatform(
+    IdleTaskSupport idle_task_support,
+    std::unique_ptr<v8::TracingController> tracing_controller)
+    : thread_pool_size_(0),
+      idle_task_support_(idle_task_support),
+      tracing_controller_(std::move(tracing_controller)),
+      page_allocator_(new v8::base::PageAllocator()),
+      time_function_for_testing_(nullptr) {
+  if (!tracing_controller_) {
     tracing::TracingController* controller = new tracing::TracingController();
     controller->Initialize(nullptr);
     tracing_controller_.reset(controller);
@@ -85,38 +96,15 @@ DefaultPlatform::DefaultPlatform(IdleTaskSupport idle_task_support,
 
 DefaultPlatform::~DefaultPlatform() {
   base::LockGuard<base::Mutex> guard(&lock_);
-  queue_.Terminate();
-  if (initialized_) {
-    for (auto i = thread_pool_.begin(); i != thread_pool_.end(); ++i) {
-      delete *i;
-    }
-  }
-  for (auto i = main_thread_queue_.begin(); i != main_thread_queue_.end();
-       ++i) {
-    while (!i->second.empty()) {
-      delete i->second.front();
-      i->second.pop();
-    }
-  }
-  for (auto i = main_thread_delayed_queue_.begin();
-       i != main_thread_delayed_queue_.end(); ++i) {
-    while (!i->second.empty()) {
-      delete i->second.top().second;
-      i->second.pop();
-    }
-  }
-  for (auto& i : main_thread_idle_queue_) {
-    while (!i.second.empty()) {
-      delete i.second.front();
-      i.second.pop();
-    }
+  if (background_task_runner_) background_task_runner_->Terminate();
+  for (auto it : foreground_task_runner_map_) {
+    it.second->Terminate();
   }
 }
 
-
 void DefaultPlatform::SetThreadPoolSize(int thread_pool_size) {
   base::LockGuard<base::Mutex> guard(&lock_);
-  DCHECK(thread_pool_size >= 0);
+  DCHECK_GE(thread_pool_size, 0);
   if (thread_pool_size < 1) {
     thread_pool_size = base::SysInfo::NumberOfProcessors() - 1;
   }
@@ -124,149 +112,117 @@ void DefaultPlatform::SetThreadPoolSize(int thread_pool_size) {
       std::max(std::min(thread_pool_size, kMaxThreadPoolSize), 1);
 }
 
-
-void DefaultPlatform::EnsureInitialized() {
+void DefaultPlatform::EnsureBackgroundTaskRunnerInitialized() {
   base::LockGuard<base::Mutex> guard(&lock_);
-  if (initialized_) return;
-  initialized_ = true;
-
-  for (int i = 0; i < thread_pool_size_; ++i)
-    thread_pool_.push_back(new WorkerThread(&queue_));
+  if (!background_task_runner_) {
+    background_task_runner_ =
+        std::make_shared<DefaultBackgroundTaskRunner>(thread_pool_size_);
+  }
 }
 
+namespace {
 
-Task* DefaultPlatform::PopTaskInMainThreadQueue(v8::Isolate* isolate) {
-  auto it = main_thread_queue_.find(isolate);
-  if (it == main_thread_queue_.end() || it->second.empty()) {
-    return NULL;
-  }
-  Task* task = it->second.front();
-  it->second.pop();
-  return task;
+double DefaultTimeFunction() {
+  return base::TimeTicks::HighResolutionNow().ToInternalValue() /
+         static_cast<double>(base::Time::kMicrosecondsPerSecond);
 }
 
+}  // namespace
 
-Task* DefaultPlatform::PopTaskInMainThreadDelayedQueue(v8::Isolate* isolate) {
-  auto it = main_thread_delayed_queue_.find(isolate);
-  if (it == main_thread_delayed_queue_.end() || it->second.empty()) {
-    return NULL;
-  }
-  double now = MonotonicallyIncreasingTime();
-  std::pair<double, Task*> deadline_and_task = it->second.top();
-  if (deadline_and_task.first > now) {
-    return NULL;
-  }
-  it->second.pop();
-  return deadline_and_task.second;
-}
-
-IdleTask* DefaultPlatform::PopTaskInMainThreadIdleQueue(v8::Isolate* isolate) {
-  auto it = main_thread_idle_queue_.find(isolate);
-  if (it == main_thread_idle_queue_.end() || it->second.empty()) {
-    return nullptr;
-  }
-  IdleTask* task = it->second.front();
-  it->second.pop();
-  return task;
-}
-
-void DefaultPlatform::EnsureEventLoopInitialized(v8::Isolate* isolate) {
+void DefaultPlatform::SetTimeFunctionForTesting(
+    DefaultPlatform::TimeFunction time_function) {
   base::LockGuard<base::Mutex> guard(&lock_);
-  if (event_loop_control_.count(isolate) == 0) {
-    event_loop_control_.insert(std::make_pair(
-        isolate, std::unique_ptr<base::Semaphore>(new base::Semaphore(0))));
-  }
-}
-
-void DefaultPlatform::WaitForForegroundWork(v8::Isolate* isolate) {
-  base::Semaphore* semaphore = nullptr;
-  {
-    base::LockGuard<base::Mutex> guard(&lock_);
-    DCHECK_EQ(event_loop_control_.count(isolate), 1);
-    semaphore = event_loop_control_[isolate].get();
-  }
-  DCHECK_NOT_NULL(semaphore);
-  semaphore->Wait();
+  time_function_for_testing_ = time_function;
+  // The time function has to be right after the construction of the platform.
+  DCHECK(foreground_task_runner_map_.empty());
 }
 
 bool DefaultPlatform::PumpMessageLoop(v8::Isolate* isolate,
                                       MessageLoopBehavior behavior) {
-  if (behavior == MessageLoopBehavior::kWaitForWork) {
-    WaitForForegroundWork(isolate);
-  }
-  Task* task = NULL;
+  bool failed_result = behavior == MessageLoopBehavior::kWaitForWork;
+  std::shared_ptr<DefaultForegroundTaskRunner> task_runner;
   {
     base::LockGuard<base::Mutex> guard(&lock_);
-
-    // Move delayed tasks that hit their deadline to the main queue.
-    task = PopTaskInMainThreadDelayedQueue(isolate);
-    while (task != NULL) {
-      ScheduleOnForegroundThread(isolate, task);
-      task = PopTaskInMainThreadDelayedQueue(isolate);
+    if (foreground_task_runner_map_.find(isolate) ==
+        foreground_task_runner_map_.end()) {
+      return failed_result;
     }
-
-    task = PopTaskInMainThreadQueue(isolate);
-
-    if (task == NULL) {
-      return behavior == MessageLoopBehavior::kWaitForWork;
-    }
+    task_runner = foreground_task_runner_map_[isolate];
   }
+  if (behavior == MessageLoopBehavior::kWaitForWork) {
+    task_runner->WaitForTask();
+  }
+
+  std::unique_ptr<Task> task = task_runner->PopTaskFromQueue();
+  if (!task) return failed_result;
+
   task->Run();
-  delete task;
   return true;
 }
 
 void DefaultPlatform::RunIdleTasks(v8::Isolate* isolate,
                                    double idle_time_in_seconds) {
-  DCHECK(IdleTaskSupport::kEnabled == idle_task_support_);
+  DCHECK_EQ(IdleTaskSupport::kEnabled, idle_task_support_);
+  std::shared_ptr<DefaultForegroundTaskRunner> task_runner;
+  {
+    base::LockGuard<base::Mutex> guard(&lock_);
+    if (foreground_task_runner_map_.find(isolate) ==
+        foreground_task_runner_map_.end()) {
+      return;
+    }
+    task_runner = foreground_task_runner_map_[isolate];
+  }
   double deadline_in_seconds =
       MonotonicallyIncreasingTime() + idle_time_in_seconds;
+
   while (deadline_in_seconds > MonotonicallyIncreasingTime()) {
-    {
-      IdleTask* task;
-      {
-        base::LockGuard<base::Mutex> guard(&lock_);
-        task = PopTaskInMainThreadIdleQueue(isolate);
-      }
-      if (task == nullptr) return;
-      task->Run(deadline_in_seconds);
-      delete task;
-    }
+    std::unique_ptr<IdleTask> task = task_runner->PopTaskFromIdleQueue();
+    if (!task) return;
+    task->Run(deadline_in_seconds);
   }
+}
+
+std::shared_ptr<TaskRunner> DefaultPlatform::GetForegroundTaskRunner(
+    v8::Isolate* isolate) {
+  base::LockGuard<base::Mutex> guard(&lock_);
+  if (foreground_task_runner_map_.find(isolate) ==
+      foreground_task_runner_map_.end()) {
+    foreground_task_runner_map_.insert(std::make_pair(
+        isolate, std::make_shared<DefaultForegroundTaskRunner>(
+                     idle_task_support_, time_function_for_testing_
+                                             ? time_function_for_testing_
+                                             : DefaultTimeFunction)));
+  }
+  return foreground_task_runner_map_[isolate];
+}
+
+std::shared_ptr<TaskRunner> DefaultPlatform::GetBackgroundTaskRunner(
+    v8::Isolate*) {
+  EnsureBackgroundTaskRunnerInitialized();
+  return background_task_runner_;
 }
 
 void DefaultPlatform::CallOnBackgroundThread(Task* task,
                                              ExpectedRuntime expected_runtime) {
-  EnsureInitialized();
-  queue_.Append(task);
-}
-
-void DefaultPlatform::ScheduleOnForegroundThread(v8::Isolate* isolate,
-                                                 Task* task) {
-  main_thread_queue_[isolate].push(task);
-  if (event_loop_control_.count(isolate) != 0) {
-    event_loop_control_[isolate]->Signal();
-  }
+  GetBackgroundTaskRunner(nullptr)->PostTask(std::unique_ptr<Task>(task));
 }
 
 void DefaultPlatform::CallOnForegroundThread(v8::Isolate* isolate, Task* task) {
-  base::LockGuard<base::Mutex> guard(&lock_);
-  ScheduleOnForegroundThread(isolate, task);
+  GetForegroundTaskRunner(isolate)->PostTask(std::unique_ptr<Task>(task));
 }
 
 
 void DefaultPlatform::CallDelayedOnForegroundThread(Isolate* isolate,
                                                     Task* task,
                                                     double delay_in_seconds) {
-  base::LockGuard<base::Mutex> guard(&lock_);
-  double deadline = MonotonicallyIncreasingTime() + delay_in_seconds;
-  main_thread_delayed_queue_[isolate].push(std::make_pair(deadline, task));
+  GetForegroundTaskRunner(isolate)->PostDelayedTask(std::unique_ptr<Task>(task),
+                                                    delay_in_seconds);
 }
 
 void DefaultPlatform::CallIdleOnForegroundThread(Isolate* isolate,
                                                  IdleTask* task) {
-  base::LockGuard<base::Mutex> guard(&lock_);
-  main_thread_idle_queue_[isolate].push(task);
+  GetForegroundTaskRunner(isolate)->PostIdleTask(
+      std::unique_ptr<IdleTask>(task));
 }
 
 bool DefaultPlatform::IdleTasksEnabled(Isolate* isolate) {
@@ -274,8 +230,8 @@ bool DefaultPlatform::IdleTasksEnabled(Isolate* isolate) {
 }
 
 double DefaultPlatform::MonotonicallyIncreasingTime() {
-  return base::TimeTicks::HighResolutionNow().ToInternalValue() /
-         static_cast<double>(base::Time::kMicrosecondsPerSecond);
+  if (time_function_for_testing_) return time_function_for_testing_();
+  return DefaultTimeFunction();
 }
 
 double DefaultPlatform::CurrentClockTimeMillis() {
@@ -287,9 +243,9 @@ TracingController* DefaultPlatform::GetTracingController() {
 }
 
 void DefaultPlatform::SetTracingController(
-    v8::TracingController* tracing_controller) {
-  DCHECK_NOT_NULL(tracing_controller);
-  tracing_controller_.reset(tracing_controller);
+    std::unique_ptr<v8::TracingController> tracing_controller) {
+  DCHECK_NOT_NULL(tracing_controller.get());
+  tracing_controller_ = std::move(tracing_controller);
 }
 
 size_t DefaultPlatform::NumberOfAvailableBackgroundThreads() {
@@ -298,6 +254,10 @@ size_t DefaultPlatform::NumberOfAvailableBackgroundThreads() {
 
 Platform::StackTracePrinter DefaultPlatform::GetStackTracePrinter() {
   return PrintStackTrace;
+}
+
+v8::PageAllocator* DefaultPlatform::GetPageAllocator() {
+  return page_allocator_.get();
 }
 
 }  // namespace platform

@@ -113,8 +113,8 @@ unsigned Utf8::Encode(char* str,
 uchar Utf8::ValueOf(const byte* bytes, size_t length, size_t* cursor) {
   if (length <= 0) return kBadChar;
   byte first = bytes[0];
-  // Characters between 0000 and 0007F are encoded as a single character
-  if (first <= kMaxOneByteChar) {
+  // Characters between 0000 and 007F are encoded as a single character
+  if (V8_LIKELY(first <= kMaxOneByteChar)) {
     *cursor += 1;
     return first;
   }

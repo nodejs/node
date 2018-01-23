@@ -217,7 +217,8 @@ class ArgumentsAdaptorFrameConstants : public TypedFrameConstants {
   // FP-relative.
   static const int kFunctionOffset = TYPED_FRAME_PUSHED_VALUE_OFFSET(0);
   static const int kLengthOffset = TYPED_FRAME_PUSHED_VALUE_OFFSET(1);
-  DEFINE_TYPED_FRAME_SIZES(2);
+  static const int kPaddingOffset = TYPED_FRAME_PUSHED_VALUE_OFFSET(2);
+  DEFINE_TYPED_FRAME_SIZES(3);
 };
 
 class BuiltinFrameConstants : public TypedFrameConstants {
@@ -241,9 +242,10 @@ class ConstructFrameConstants : public TypedFrameConstants {
   static const int kContextOffset = TYPED_FRAME_PUSHED_VALUE_OFFSET(0);
   static const int kLengthOffset = TYPED_FRAME_PUSHED_VALUE_OFFSET(1);
   static const int kConstructorOffset = TYPED_FRAME_PUSHED_VALUE_OFFSET(2);
+  static const int kPaddingOffset = TYPED_FRAME_PUSHED_VALUE_OFFSET(3);
   static const int kNewTargetOrImplicitReceiverOffset =
-      TYPED_FRAME_PUSHED_VALUE_OFFSET(3);
-  DEFINE_TYPED_FRAME_SIZES(4);
+      TYPED_FRAME_PUSHED_VALUE_OFFSET(4);
+  DEFINE_TYPED_FRAME_SIZES(5);
 };
 
 class BuiltinContinuationFrameConstants : public TypedFrameConstants {
@@ -251,8 +253,16 @@ class BuiltinContinuationFrameConstants : public TypedFrameConstants {
   // FP-relative.
   static const int kFunctionOffset = TYPED_FRAME_PUSHED_VALUE_OFFSET(0);
   static const int kBuiltinOffset = TYPED_FRAME_PUSHED_VALUE_OFFSET(1);
+  // The argument count is in the first allocatable register, stored below the
+  // fixed part of the frame and therefore is not part of the fixed frame size.
   static const int kArgCOffset = TYPED_FRAME_PUSHED_VALUE_OFFSET(2);
   DEFINE_TYPED_FRAME_SIZES(2);
+
+  // Returns the number of padding stack slots needed when we have
+  // 'register_count' register slots.
+  // This is needed on some architectures to ensure the stack pointer is
+  // aligned.
+  static int PaddingSlotCount(int register_count);
 };
 
 // Behaves like an exit frame but with target and new target args.
@@ -261,6 +271,9 @@ class BuiltinExitFrameConstants : public CommonFrameConstants {
   static const int kNewTargetOffset = kCallerPCOffset + 1 * kPointerSize;
   static const int kTargetOffset = kNewTargetOffset + 1 * kPointerSize;
   static const int kArgcOffset = kTargetOffset + 1 * kPointerSize;
+  static const int kPaddingOffset = kArgcOffset + 1 * kPointerSize;
+  static const int kFirstArgumentOffset = kPaddingOffset + 1 * kPointerSize;
+  static const int kNumExtraArgsWithReceiver = 5;
 };
 
 class InterpreterFrameConstants : public AllStatic {

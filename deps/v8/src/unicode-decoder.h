@@ -47,13 +47,11 @@ class Utf8Decoder : public Utf8DecoderBase {
   uint16_t buffer_[kBufferSize];
 };
 
-
 Utf8DecoderBase::Utf8DecoderBase()
-    : unbuffered_start_(NULL),
+    : unbuffered_start_(nullptr),
       unbuffered_length_(0),
       utf16_length_(0),
       last_byte_of_buffer_unused_(false) {}
-
 
 Utf8DecoderBase::Utf8DecoderBase(uint16_t* buffer, size_t buffer_length,
                                  const uint8_t* stream, size_t stream_length) {
@@ -77,7 +75,7 @@ void Utf8Decoder<kBufferSize>::Reset(const char* stream, size_t length) {
 template <size_t kBufferSize>
 size_t Utf8Decoder<kBufferSize>::WriteUtf16(uint16_t* data,
                                             size_t length) const {
-  DCHECK(length > 0);
+  DCHECK_GT(length, 0);
   if (length > utf16_length_) length = utf16_length_;
   // memcpy everything in buffer.
   size_t buffer_length =
@@ -85,7 +83,7 @@ size_t Utf8Decoder<kBufferSize>::WriteUtf16(uint16_t* data,
   size_t memcpy_length = length <= buffer_length ? length : buffer_length;
   v8::internal::MemCopy(data, buffer_, memcpy_length * sizeof(uint16_t));
   if (length <= buffer_length) return length;
-  DCHECK(unbuffered_start_ != NULL);
+  DCHECK_NOT_NULL(unbuffered_start_);
   // Copy the rest the slow way.
   WriteUtf16Slow(unbuffered_start_, unbuffered_length_, data + buffer_length,
                  length - buffer_length);
@@ -103,7 +101,7 @@ class Latin1 {
 
 
 uint16_t Latin1::ConvertNonLatin1ToLatin1(uint16_t c) {
-  DCHECK(c > Latin1::kMaxChar);
+  DCHECK_GT(c, Latin1::kMaxChar);
   switch (c) {
     // This are equivalent characters in unicode.
     case 0x39c:

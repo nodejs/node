@@ -27,7 +27,7 @@ base::Atomic32 g_locker_was_ever_used_ = 0;
 // Once the Locker is initialized, the current thread will be guaranteed to have
 // the lock for a given isolate.
 void Locker::Initialize(v8::Isolate* isolate) {
-  DCHECK(isolate != NULL);
+  DCHECK_NOT_NULL(isolate);
   has_lock_ = false;
   top_level_ = true;
   isolate_ = reinterpret_cast<i::Isolate*>(isolate);
@@ -53,7 +53,7 @@ void Locker::Initialize(v8::Isolate* isolate) {
 
 
 bool Locker::IsLocked(v8::Isolate* isolate) {
-  DCHECK(isolate != NULL);
+  DCHECK_NOT_NULL(isolate);
   i::Isolate* internal_isolate = reinterpret_cast<i::Isolate*>(isolate);
   return internal_isolate->thread_manager()->IsLockedByCurrentThread();
 }
@@ -78,7 +78,7 @@ Locker::~Locker() {
 
 
 void Unlocker::Initialize(v8::Isolate* isolate) {
-  DCHECK(isolate != NULL);
+  DCHECK_NOT_NULL(isolate);
   isolate_ = reinterpret_cast<i::Isolate*>(isolate);
   DCHECK(isolate_->thread_manager()->IsLockedByCurrentThread());
   isolate_->thread_manager()->ArchiveThread();
@@ -105,12 +105,12 @@ bool ThreadManager::RestoreThread() {
     lazily_archived_thread_ = ThreadId::Invalid();
     Isolate::PerIsolateThreadData* per_thread =
         isolate_->FindPerThreadDataForThisThread();
-    DCHECK(per_thread != NULL);
+    DCHECK_NOT_NULL(per_thread);
     DCHECK(per_thread->thread_state() == lazily_archived_thread_state_);
     lazily_archived_thread_state_->set_id(ThreadId::Invalid());
     lazily_archived_thread_state_->LinkInto(ThreadState::FREE_LIST);
-    lazily_archived_thread_state_ = NULL;
-    per_thread->set_thread_state(NULL);
+    lazily_archived_thread_state_ = nullptr;
+    per_thread->set_thread_state(nullptr);
     return true;
   }
 
@@ -125,7 +125,7 @@ bool ThreadManager::RestoreThread() {
   }
   Isolate::PerIsolateThreadData* per_thread =
       isolate_->FindPerThreadDataForThisThread();
-  if (per_thread == NULL || per_thread->thread_state() == NULL) {
+  if (per_thread == nullptr || per_thread->thread_state() == nullptr) {
     // This is a new thread.
     isolate_->stack_guard()->InitThread(access);
     return false;
@@ -139,7 +139,7 @@ bool ThreadManager::RestoreThread() {
   from = isolate_->stack_guard()->RestoreStackGuard(from);
   from = isolate_->regexp_stack()->RestoreStack(from);
   from = isolate_->bootstrapper()->RestoreState(from);
-  per_thread->set_thread_state(NULL);
+  per_thread->set_thread_state(nullptr);
   if (state->terminate_on_restore()) {
     isolate_->stack_guard()->RequestTerminateExecution();
     state->set_terminate_on_restore(false);
@@ -174,16 +174,13 @@ static int ArchiveSpacePerThread() {
                     Relocatable::ArchiveSpacePerThread();
 }
 
-
 ThreadState::ThreadState(ThreadManager* thread_manager)
     : id_(ThreadId::Invalid()),
       terminate_on_restore_(false),
-      data_(NULL),
+      data_(nullptr),
       next_(this),
       previous_(this),
-      thread_manager_(thread_manager) {
-}
-
+      thread_manager_(thread_manager) {}
 
 ThreadState::~ThreadState() {
   DeleteArray<char>(data_);
@@ -230,10 +227,9 @@ ThreadState* ThreadManager::FirstThreadStateInUse() {
 
 
 ThreadState* ThreadState::Next() {
-  if (next_ == thread_manager_->in_use_anchor_) return NULL;
+  if (next_ == thread_manager_->in_use_anchor_) return nullptr;
   return next_;
 }
-
 
 // Thread ids must start with 1, because in TLS having thread id 0 can't
 // be distinguished from not having a thread id at all (since NULL is
@@ -241,9 +237,9 @@ ThreadState* ThreadState::Next() {
 ThreadManager::ThreadManager()
     : mutex_owner_(ThreadId::Invalid()),
       lazily_archived_thread_(ThreadId::Invalid()),
-      lazily_archived_thread_state_(NULL),
-      free_anchor_(NULL),
-      in_use_anchor_(NULL) {
+      lazily_archived_thread_state_(nullptr),
+      free_anchor_(nullptr),
+      in_use_anchor_(nullptr) {
   free_anchor_ = new ThreadState(this);
   in_use_anchor_ = new ThreadState(this);
 }
@@ -298,14 +294,14 @@ void ThreadManager::EagerlyArchiveThread() {
   to = isolate_->regexp_stack()->ArchiveStack(to);
   to = isolate_->bootstrapper()->ArchiveState(to);
   lazily_archived_thread_ = ThreadId::Invalid();
-  lazily_archived_thread_state_ = NULL;
+  lazily_archived_thread_state_ = nullptr;
 }
 
 
 void ThreadManager::FreeThreadResources() {
   DCHECK(!isolate_->has_pending_exception());
   DCHECK(!isolate_->external_caught_exception());
-  DCHECK(isolate_->try_catch_handler() == NULL);
+  DCHECK_NULL(isolate_->try_catch_handler());
   isolate_->handle_scope_implementer()->FreeThreadResources();
   isolate_->FreeThreadResources();
   isolate_->debug()->FreeThreadResources();
@@ -318,13 +314,12 @@ void ThreadManager::FreeThreadResources() {
 bool ThreadManager::IsArchived() {
   Isolate::PerIsolateThreadData* data =
       isolate_->FindPerThreadDataForThisThread();
-  return data != NULL && data->thread_state() != NULL;
+  return data != nullptr && data->thread_state() != nullptr;
 }
 
 void ThreadManager::Iterate(RootVisitor* v) {
   // Expecting no threads during serialization/deserialization
-  for (ThreadState* state = FirstThreadStateInUse();
-       state != NULL;
+  for (ThreadState* state = FirstThreadStateInUse(); state != nullptr;
        state = state->Next()) {
     char* data = state->data();
     data = HandleScopeImplementer::Iterate(v, data);
@@ -335,8 +330,7 @@ void ThreadManager::Iterate(RootVisitor* v) {
 
 
 void ThreadManager::IterateArchivedThreads(ThreadVisitor* v) {
-  for (ThreadState* state = FirstThreadStateInUse();
-       state != NULL;
+  for (ThreadState* state = FirstThreadStateInUse(); state != nullptr;
        state = state->Next()) {
     char* data = state->data();
     data += HandleScopeImplementer::ArchiveSpacePerThread();
@@ -351,8 +345,7 @@ ThreadId ThreadManager::CurrentId() {
 
 
 void ThreadManager::TerminateExecution(ThreadId thread_id) {
-  for (ThreadState* state = FirstThreadStateInUse();
-       state != NULL;
+  for (ThreadState* state = FirstThreadStateInUse(); state != nullptr;
        state = state->Next()) {
     if (thread_id.Equals(state->id())) {
       state->set_terminate_on_restore(true);

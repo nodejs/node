@@ -40,6 +40,10 @@ class V8_EXPORT_PRIVATE JSTypedLowering final
   friend class JSBinopReduction;
 
   Reduction ReduceJSAdd(Node* node);
+  Reduction ReduceJSBitwiseNot(Node* node);
+  Reduction ReduceJSDecrement(Node* node);
+  Reduction ReduceJSIncrement(Node* node);
+  Reduction ReduceJSNegate(Node* node);
   Reduction ReduceJSComparison(Node* node);
   Reduction ReduceJSLoadNamed(Node* node);
   Reduction ReduceJSHasInPrototypeChain(Node* node);
@@ -50,16 +54,14 @@ class V8_EXPORT_PRIVATE JSTypedLowering final
   Reduction ReduceJSStoreModule(Node* node);
   Reduction ReduceJSEqual(Node* node);
   Reduction ReduceJSStrictEqual(Node* node);
-  Reduction ReduceJSToBoolean(Node* node);
   Reduction ReduceJSToInteger(Node* node);
   Reduction ReduceJSToLength(Node* node);
   Reduction ReduceJSToName(Node* node);
-  Reduction ReduceJSToNumberInput(Node* input);
-  Reduction ReduceJSToNumber(Node* node);
+  Reduction ReduceJSToNumberOrNumericInput(Node* input);
+  Reduction ReduceJSToNumberOrNumeric(Node* node);
   Reduction ReduceJSToStringInput(Node* input);
   Reduction ReduceJSToString(Node* node);
   Reduction ReduceJSToObject(Node* node);
-  Reduction ReduceJSConvertReceiver(Node* node);
   Reduction ReduceJSConstructForwardVarargs(Node* node);
   Reduction ReduceJSConstruct(Node* node);
   Reduction ReduceJSCallForwardVarargs(Node* node);
@@ -71,7 +73,7 @@ class V8_EXPORT_PRIVATE JSTypedLowering final
   Reduction ReduceJSGeneratorStore(Node* node);
   Reduction ReduceJSGeneratorRestoreContinuation(Node* node);
   Reduction ReduceJSGeneratorRestoreRegister(Node* node);
-  Reduction ReduceJSTypeOf(Node* node);
+  Reduction ReduceJSGeneratorRestoreInputOrDebugPos(Node* node);
   Reduction ReduceNumberBinop(Node* node);
   Reduction ReduceInt32Binop(Node* node);
   Reduction ReduceUI32Shift(Node* node, Signedness signedness);
@@ -84,8 +86,8 @@ class V8_EXPORT_PRIVATE JSTypedLowering final
   // Helper for ReduceJSLoadModule and ReduceJSStoreModule.
   Node* BuildGetModuleCell(Node* node);
 
-  // Helpers for ReduceJSCreateConsString and ReduceJSStringConcat.
-  Node* BuildGetStringLength(Node* value, Node** effect, Node* control);
+  // Helpers for ReduceJSCreateConsString.
+  Node* BuildGetStringLength(Node* value);
 
   Factory* factory() const;
   Graph* graph() const;

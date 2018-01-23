@@ -4,6 +4,7 @@
 
 #include "src/compiler/loop-peeling.h"
 #include "src/compiler/common-operator.h"
+#include "src/compiler/compiler-source-position-table.h"
 #include "src/compiler/graph.h"
 #include "src/compiler/node-marker.h"
 #include "src/compiler/node-properties.h"
@@ -107,7 +108,7 @@ struct Peeling {
   // The vector which contains the mapped nodes.
   NodeVector* pairs;
 
-  Peeling(Graph* graph, Zone* tmp_zone, size_t max, NodeVector* p)
+  Peeling(Graph* graph, size_t max, NodeVector* p)
       : node_map(graph, static_cast<uint32_t>(max)), pairs(p) {}
 
   Node* map(Node* node) {
@@ -121,10 +122,13 @@ struct Peeling {
     pairs->push_back(copy);
   }
 
-  void CopyNodes(Graph* graph, Zone* tmp_zone, Node* dead, NodeRange nodes) {
-    NodeVector inputs(tmp_zone);
+  void CopyNodes(Graph* graph, Zone* tmp_zone_, Node* dead, NodeRange nodes,
+                 SourcePositionTable* source_positions) {
+    NodeVector inputs(tmp_zone_);
     // Copy all the nodes first.
     for (Node* node : nodes) {
+      SourcePositionTable::Scope position(
+          source_positions, source_positions->GetSourcePosition(node));
       inputs.clear();
       for (Node* input : node->inputs()) {
         inputs.push_back(map(input));
@@ -166,13 +170,13 @@ Node* PeeledIteration::map(Node* node) {
   return node;
 }
 
-bool LoopPeeler::CanPeel(LoopTree* loop_tree, LoopTree::Loop* loop) {
+bool LoopPeeler::CanPeel(LoopTree::Loop* loop) {
   // Look for returns and if projections that are outside the loop but whose
   // control input is inside the loop.
-  Node* loop_node = loop_tree->GetLoopControl(loop);
-  for (Node* node : loop_tree->LoopNodes(loop)) {
+  Node* loop_node = loop_tree_->GetLoopControl(loop);
+  for (Node* node : loop_tree_->LoopNodes(loop)) {
     for (Node* use : node->uses()) {
-      if (!loop_tree->Contains(loop, use)) {
+      if (!loop_tree_->Contains(loop, use)) {
         bool unmarked_exit;
         switch (node->opcode()) {
           case IrOpcode::kLoopExit:
@@ -187,7 +191,7 @@ bool LoopPeeler::CanPeel(LoopTree* loop_tree, LoopTree::Loop* loop) {
         }
         if (unmarked_exit) {
           if (FLAG_trace_turbo_loop) {
-            Node* loop_node = loop_tree->GetLoopControl(loop);
+            Node* loop_node = loop_tree_->GetLoopControl(loop);
             PrintF(
                 "Cannot peel loop %i. Loop exit without explicit mark: Node %i "
                 "(%s) is inside "
@@ -203,47 +207,45 @@ bool LoopPeeler::CanPeel(LoopTree* loop_tree, LoopTree::Loop* loop) {
   return true;
 }
 
-
-PeeledIteration* LoopPeeler::Peel(Graph* graph, CommonOperatorBuilder* common,
-                                  LoopTree* loop_tree, LoopTree::Loop* loop,
-                                  Zone* tmp_zone) {
-  if (!CanPeel(loop_tree, loop)) return nullptr;
+PeeledIteration* LoopPeeler::Peel(LoopTree::Loop* loop) {
+  if (!CanPeel(loop)) return nullptr;
 
   //============================================================================
   // Construct the peeled iteration.
   //============================================================================
-  PeeledIterationImpl* iter = new (tmp_zone) PeeledIterationImpl(tmp_zone);
+  PeeledIterationImpl* iter = new (tmp_zone_) PeeledIterationImpl(tmp_zone_);
   size_t estimated_peeled_size = 5 + (loop->TotalSize()) * 2;
-  Peeling peeling(graph, tmp_zone, estimated_peeled_size, &iter->node_pairs_);
+  Peeling peeling(graph_, estimated_peeled_size, &iter->node_pairs_);
 
-  Node* dead = graph->NewNode(common->Dead());
+  Node* dead = graph_->NewNode(common_->Dead());
 
   // Map the loop header nodes to their entry values.
-  for (Node* node : loop_tree->HeaderNodes(loop)) {
+  for (Node* node : loop_tree_->HeaderNodes(loop)) {
     peeling.Insert(node, node->InputAt(kAssumedLoopEntryIndex));
   }
 
   // Copy all the nodes of loop body for the peeled iteration.
-  peeling.CopyNodes(graph, tmp_zone, dead, loop_tree->BodyNodes(loop));
+  peeling.CopyNodes(graph_, tmp_zone_, dead, loop_tree_->BodyNodes(loop),
+                    source_positions_);
 
   //============================================================================
   // Replace the entry to the loop with the output of the peeled iteration.
   //============================================================================
-  Node* loop_node = loop_tree->GetLoopControl(loop);
+  Node* loop_node = loop_tree_->GetLoopControl(loop);
   Node* new_entry;
   int backedges = loop_node->InputCount() - 1;
   if (backedges > 1) {
     // Multiple backedges from original loop, therefore multiple output edges
     // from the peeled iteration.
-    NodeVector inputs(tmp_zone);
+    NodeVector inputs(tmp_zone_);
     for (int i = 1; i < loop_node->InputCount(); i++) {
       inputs.push_back(peeling.map(loop_node->InputAt(i)));
     }
     Node* merge =
-        graph->NewNode(common->Merge(backedges), backedges, &inputs[0]);
+        graph_->NewNode(common_->Merge(backedges), backedges, &inputs[0]);
 
     // Merge values from the multiple output edges of the peeled iteration.
-    for (Node* node : loop_tree->HeaderNodes(loop)) {
+    for (Node* node : loop_tree_->HeaderNodes(loop)) {
       if (node->opcode() == IrOpcode::kLoop) continue;  // already done.
       inputs.clear();
       for (int i = 0; i < backedges; i++) {
@@ -252,8 +254,8 @@ PeeledIteration* LoopPeeler::Peel(Graph* graph, CommonOperatorBuilder* common,
       for (Node* input : inputs) {
         if (input != inputs[0]) {  // Non-redundant phi.
           inputs.push_back(merge);
-          const Operator* op = common->ResizeMergeOrPhi(node->op(), backedges);
-          Node* phi = graph->NewNode(op, backedges + 1, &inputs[0]);
+          const Operator* op = common_->ResizeMergeOrPhi(node->op(), backedges);
+          Node* phi = graph_->NewNode(op, backedges + 1, &inputs[0]);
           node->ReplaceInput(0, phi);
           break;
         }
@@ -263,7 +265,7 @@ PeeledIteration* LoopPeeler::Peel(Graph* graph, CommonOperatorBuilder* common,
   } else {
     // Only one backedge, simply replace the input to loop with output of
     // peeling.
-    for (Node* node : loop_tree->HeaderNodes(loop)) {
+    for (Node* node : loop_tree_->HeaderNodes(loop)) {
       node->ReplaceInput(0, peeling.map(node->InputAt(1)));
     }
     new_entry = peeling.map(loop_node->InputAt(1));
@@ -273,23 +275,23 @@ PeeledIteration* LoopPeeler::Peel(Graph* graph, CommonOperatorBuilder* common,
   //============================================================================
   // Change the exit and exit markers to merge/phi/effect-phi.
   //============================================================================
-  for (Node* exit : loop_tree->ExitNodes(loop)) {
+  for (Node* exit : loop_tree_->ExitNodes(loop)) {
     switch (exit->opcode()) {
       case IrOpcode::kLoopExit:
         // Change the loop exit node to a merge node.
         exit->ReplaceInput(1, peeling.map(exit->InputAt(0)));
-        NodeProperties::ChangeOp(exit, common->Merge(2));
+        NodeProperties::ChangeOp(exit, common_->Merge(2));
         break;
       case IrOpcode::kLoopExitValue:
         // Change exit marker to phi.
-        exit->InsertInput(graph->zone(), 1, peeling.map(exit->InputAt(0)));
+        exit->InsertInput(graph_->zone(), 1, peeling.map(exit->InputAt(0)));
         NodeProperties::ChangeOp(
-            exit, common->Phi(MachineRepresentation::kTagged, 2));
+            exit, common_->Phi(MachineRepresentation::kTagged, 2));
         break;
       case IrOpcode::kLoopExitEffect:
         // Change effect exit marker to effect phi.
-        exit->InsertInput(graph->zone(), 1, peeling.map(exit->InputAt(0)));
-        NodeProperties::ChangeOp(exit, common->EffectPhi(2));
+        exit->InsertInput(graph_->zone(), 1, peeling.map(exit->InputAt(0)));
+        NodeProperties::ChangeOp(exit, common_->EffectPhi(2));
         break;
       default:
         break;
@@ -298,15 +300,11 @@ PeeledIteration* LoopPeeler::Peel(Graph* graph, CommonOperatorBuilder* common,
   return iter;
 }
 
-namespace {
-
-void PeelInnerLoops(Graph* graph, CommonOperatorBuilder* common,
-                    LoopTree* loop_tree, LoopTree::Loop* loop,
-                    Zone* temp_zone) {
+void LoopPeeler::PeelInnerLoops(LoopTree::Loop* loop) {
   // If the loop has nested loops, peel inside those.
   if (!loop->children().empty()) {
     for (LoopTree::Loop* inner_loop : loop->children()) {
-      PeelInnerLoops(graph, common, loop_tree, inner_loop, temp_zone);
+      PeelInnerLoops(inner_loop);
     }
     return;
   }
@@ -314,14 +312,16 @@ void PeelInnerLoops(Graph* graph, CommonOperatorBuilder* common,
   if (loop->TotalSize() > LoopPeeler::kMaxPeeledNodes) return;
   if (FLAG_trace_turbo_loop) {
     PrintF("Peeling loop with header: ");
-    for (Node* node : loop_tree->HeaderNodes(loop)) {
+    for (Node* node : loop_tree_->HeaderNodes(loop)) {
       PrintF("%i ", node->id());
     }
     PrintF("\n");
   }
 
-  LoopPeeler::Peel(graph, common, loop_tree, loop, temp_zone);
+  Peel(loop);
 }
+
+namespace {
 
 void EliminateLoopExit(Node* node) {
   DCHECK_EQ(IrOpcode::kLoopExit, node->opcode());
@@ -347,21 +347,18 @@ void EliminateLoopExit(Node* node) {
 
 }  // namespace
 
-// static
-void LoopPeeler::PeelInnerLoopsOfTree(Graph* graph,
-                                      CommonOperatorBuilder* common,
-                                      LoopTree* loop_tree, Zone* temp_zone) {
-  for (LoopTree::Loop* loop : loop_tree->outer_loops()) {
-    PeelInnerLoops(graph, common, loop_tree, loop, temp_zone);
+void LoopPeeler::PeelInnerLoopsOfTree() {
+  for (LoopTree::Loop* loop : loop_tree_->outer_loops()) {
+    PeelInnerLoops(loop);
   }
 
-  EliminateLoopExits(graph, temp_zone);
+  EliminateLoopExits(graph_, tmp_zone_);
 }
 
 // static
-void LoopPeeler::EliminateLoopExits(Graph* graph, Zone* temp_zone) {
-  ZoneQueue<Node*> queue(temp_zone);
-  ZoneVector<bool> visited(graph->NodeCount(), false, temp_zone);
+void LoopPeeler::EliminateLoopExits(Graph* graph, Zone* tmp_zone) {
+  ZoneQueue<Node*> queue(tmp_zone);
+  ZoneVector<bool> visited(graph->NodeCount(), false, tmp_zone);
   queue.push(graph->end());
   while (!queue.empty()) {
     Node* node = queue.front();

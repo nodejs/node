@@ -34,6 +34,11 @@ TESTFLAGS ?=
 ANDROID_NDK_HOST_ARCH ?=
 ANDROID_V8 ?= /data/local/tmp/v8
 
+$(warning Make (gyp) is deprecated. Please use GN instead.)
+$(warning See https://github.com/v8/v8/wiki/Building-with-GN)
+$(warning Or contact yangguo@chromium.org.)
+$(error Expect the Makefile to be removed soon)
+
 # Special build flags. Use them like this: "make library=shared"
 
 # library=shared || component=shared_library

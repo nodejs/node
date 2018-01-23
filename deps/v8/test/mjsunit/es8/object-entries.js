@@ -284,8 +284,8 @@ TestMutateDuringEnumeration();
     HOLEY_DOUBLE_ELEMENTS: [ [, , NaN], [ ["2", NaN] ] ],
 
     DICTIONARY_ELEMENTS: [ Object.defineProperties({ 10000: "world" }, {
-        100: { enumerable: true, value: "hello" },
-        99: { enumerable: false, value: "nope" }
+       100: { enumerable: true, value: "hello", configurable: true},
+        99: { enumerable: false, value: "nope", configurable: true}
       }), [ ["100", "hello"], ["10000", "world" ] ] ],
     FAST_SLOPPY_ARGUMENTS_ELEMENTS: [
         fastSloppyArguments("a", "b", "c"),
@@ -298,17 +298,42 @@ TestMutateDuringEnumeration();
         [ ["0", "s"], ["1", "t"], ["2", "r"]] ],
     SLOW_STRING_WRAPPER_ELEMENTS: [
         Object.defineProperties(new String("str"), {
-          10000: { enumerable: false, value: "X" },
-          9999: { enumerable: true, value: "Y" }
+          10000: { enumerable: false, value: "X", configurable: true},
+          9999: { enumerable: true, value: "Y", configurable: true}
         }), [["0", "s"], ["1", "t"], ["2", "r"], ["9999", "Y"]] ],
   };
 
   for (let [kind, [object, expected]] of Object.entries(element_kinds)) {
     let result1 = Object.entries(object);
+    %HeapObjectVerify(object);
+    %HeapObjectVerify(result1);
     assertEquals(expected, result1, `fast Object.entries() with ${kind}`);
 
     let proxy = new Proxy(object, {});
     let result2 = Object.entries(proxy);
+    %HeapObjectVerify(result2);
     assertEquals(result1, result2, `slow Object.entries() with ${kind}`);
   }
+
+  function makeFastElements(array) {
+    // Remove all possible getters.
+    for (let k of Object.getOwnPropertyNames(this)) {
+      if (k == "length") continue;
+      delete this[k];
+    }
+    // Make the array large enough to trigger re-checking for compaction.
+    this[1000] = 1;
+    // Make the elements fast again.
+    Array.prototype.unshift.call(this, 1.1);
+  }
+
+  // Test that changing the elements kind is supported.
+  for (let [kind, [object, expected]] of Object.entries(element_kinds)) {
+    if (kind == "FAST_STRING_WRAPPER_ELEMENTS") break;
+    object.__defineGetter__(1, makeFastElements);
+    let result1 = Object.entries(object).toString();
+    %HeapObjectVerify(object);
+    %HeapObjectVerify(result1);
+  }
+
 })();

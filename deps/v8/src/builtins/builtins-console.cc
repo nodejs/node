@@ -35,10 +35,7 @@ namespace internal {
   V(Profile, profile)               \
   V(ProfileEnd, profileEnd)         \
   V(Timeline, timeline)             \
-  V(TimelineEnd, timelineEnd)       \
-  V(Time, time)                     \
-  V(TimeEnd, timeEnd)               \
-  V(TimeStamp, timeStamp)
+  V(TimelineEnd, timelineEnd)
 
 namespace {
 void ConsoleCall(
@@ -63,6 +60,20 @@ void ConsoleCall(
       wrapper,
       v8::debug::ConsoleContext(context_id, Utils::ToLocal(context_name)));
 }
+
+void LogTimerEvent(Isolate* isolate, BuiltinArguments args,
+                   Logger::StartEnd se) {
+  if (!isolate->logger()->is_logging()) return;
+  HandleScope scope(isolate);
+  std::unique_ptr<char[]> name;
+  const char* raw_name = "default";
+  if (args.length() > 1 && args[1]->IsString()) {
+    // Try converting the first argument to a string.
+    name = args.at<String>(1)->ToCString();
+    raw_name = name.get();
+  }
+  LOG(isolate, TimerEvent(se, raw_name));
+}
 }  // namespace
 
 #define CONSOLE_BUILTIN_IMPLEMENTATION(call, name)             \
@@ -74,19 +85,42 @@ void ConsoleCall(
 CONSOLE_METHOD_LIST(CONSOLE_BUILTIN_IMPLEMENTATION)
 #undef CONSOLE_BUILTIN_IMPLEMENTATION
 
+BUILTIN(ConsoleTime) {
+  LogTimerEvent(isolate, args, Logger::START);
+  ConsoleCall(isolate, args, &debug::ConsoleDelegate::Time);
+  RETURN_FAILURE_IF_SCHEDULED_EXCEPTION(isolate);
+  return isolate->heap()->undefined_value();
+}
+
+BUILTIN(ConsoleTimeEnd) {
+  LogTimerEvent(isolate, args, Logger::END);
+  ConsoleCall(isolate, args, &debug::ConsoleDelegate::TimeEnd);
+  RETURN_FAILURE_IF_SCHEDULED_EXCEPTION(isolate);
+  return isolate->heap()->undefined_value();
+}
+
+BUILTIN(ConsoleTimeStamp) {
+  LogTimerEvent(isolate, args, Logger::STAMP);
+  ConsoleCall(isolate, args, &debug::ConsoleDelegate::TimeStamp);
+  RETURN_FAILURE_IF_SCHEDULED_EXCEPTION(isolate);
+  return isolate->heap()->undefined_value();
+}
+
 namespace {
 void InstallContextFunction(Handle<JSObject> target, const char* name,
-                            Builtins::Name call, int context_id,
+                            Builtins::Name builtin_id, int context_id,
                             Handle<Object> context_name) {
   Factory* const factory = target->GetIsolate()->factory();
 
-  Handle<Code> call_code(target->GetIsolate()->builtins()->builtin(call));
+  Handle<Code> code(target->GetIsolate()->builtins()->builtin(builtin_id));
 
   Handle<String> name_string =
       Name::ToFunctionName(factory->InternalizeUtf8String(name))
           .ToHandleChecked();
-  Handle<JSFunction> fun =
-      factory->NewFunctionWithoutPrototype(name_string, call_code, SLOPPY);
+  NewFunctionArgs args = NewFunctionArgs::ForBuiltinWithoutPrototype(
+      name_string, code, builtin_id, i::LanguageMode::kSloppy);
+  Handle<JSFunction> fun = factory->NewFunction(args);
+
   fun->shared()->set_native(true);
   fun->shared()->DontAdaptArguments();
   fun->shared()->set_length(1);
@@ -107,9 +141,13 @@ BUILTIN(ConsoleContext) {
 
   Factory* const factory = isolate->factory();
   Handle<String> name = factory->InternalizeUtf8String("Context");
-  Handle<JSFunction> cons = factory->NewFunction(name);
-  Handle<JSObject> empty = factory->NewJSObject(isolate->object_function());
-  JSFunction::SetPrototype(cons, empty);
+  NewFunctionArgs arguments = NewFunctionArgs::ForFunctionWithoutCode(
+      name, isolate->sloppy_function_map(), LanguageMode::kSloppy);
+  Handle<JSFunction> cons = factory->NewFunction(arguments);
+
+  Handle<JSObject> prototype = factory->NewJSObject(isolate->object_function());
+  JSFunction::SetPrototype(cons, prototype);
+
   Handle<JSObject> context = factory->NewJSObject(cons, TENURED);
   DCHECK(context->IsJSObject());
   int id = isolate->last_console_context_id() + 1;
@@ -120,6 +158,12 @@ BUILTIN(ConsoleContext) {
                          args.at(1));
   CONSOLE_METHOD_LIST(CONSOLE_BUILTIN_SETUP)
 #undef CONSOLE_BUILTIN_SETUP
+  InstallContextFunction(context, "time", Builtins::kConsoleTime, id,
+                         args.at(1));
+  InstallContextFunction(context, "timeEnd", Builtins::kConsoleTimeEnd, id,
+                         args.at(1));
+  InstallContextFunction(context, "timeStamp", Builtins::kConsoleTimeStamp, id,
+                         args.at(1));
 
   return *context;
 }

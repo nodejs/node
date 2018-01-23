@@ -52,6 +52,14 @@ FieldAccess AccessBuilder::ForHeapNumberValue() {
   return access;
 }
 
+// static
+FieldAccess AccessBuilder::ForBigIntBitfield() {
+  FieldAccess access = {
+      kTaggedBase,        BigInt::kBitfieldOffset, MaybeHandle<Name>(),
+      MaybeHandle<Map>(), TypeCache::Get().kInt32, MachineType::Int32(),
+      kNoWriteBarrier};
+  return access;
+}
 
 // static
 FieldAccess AccessBuilder::ForJSObjectPropertiesOrHash() {
@@ -550,7 +558,7 @@ FieldAccess AccessBuilder::ForMapDescriptors() {
 FieldAccess AccessBuilder::ForMapInstanceType() {
   FieldAccess access = {
       kTaggedBase,        Map::kInstanceTypeOffset, Handle<Name>(),
-      MaybeHandle<Map>(), TypeCache::Get().kUint8,  MachineType::Uint8(),
+      MaybeHandle<Map>(), TypeCache::Get().kUint16, MachineType::Uint16(),
       kNoWriteBarrier};
   return access;
 }
@@ -704,6 +712,16 @@ FieldAccess AccessBuilder::ForJSGlobalObjectGlobalProxy() {
 FieldAccess AccessBuilder::ForJSGlobalObjectNativeContext() {
   FieldAccess access = {
       kTaggedBase,         JSGlobalObject::kNativeContextOffset,
+      Handle<Name>(),      MaybeHandle<Map>(),
+      Type::Internal(),    MachineType::TaggedPointer(),
+      kPointerWriteBarrier};
+  return access;
+}
+
+// static
+FieldAccess AccessBuilder::ForJSGlobalProxyNativeContext() {
+  FieldAccess access = {
+      kTaggedBase,         JSGlobalProxy::kNativeContextOffset,
       Handle<Name>(),      MaybeHandle<Map>(),
       Type::Internal(),    MachineType::TaggedPointer(),
       kPointerWriteBarrier};
@@ -1092,7 +1110,7 @@ ElementAccess AccessBuilder::ForOrderedHashMapEntryValue() {
 FieldAccess AccessBuilder::ForDictionaryMaxNumberKey() {
   FieldAccess access = {
       kTaggedBase,
-      FixedArray::OffsetOfElementAt(SeededNumberDictionary::kMaxNumberKeyIndex),
+      FixedArray::OffsetOfElementAt(NumberDictionary::kMaxNumberKeyIndex),
       MaybeHandle<Name>(),
       MaybeHandle<Map>(),
       Type::Any(),

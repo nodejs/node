@@ -50,6 +50,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. -->
   <script src="profile.js"></script>
   <script src="profile_view.js"></script>
   <script src="logreader.js"></script>
+  <script src="arguments.js"></script>
   <script src="tickprocessor.js"></script>
 
   <script type="text/javascript">
@@ -80,7 +81,7 @@ function print(arg) {
 }
 
 function start_process() {
-  ArgumentsProcessor.DEFAULTS = {
+  let DEFAULTS = {
     logFileName: 'v8.log',
     platform: 'unix',
     stateFilter: null,
@@ -98,13 +99,10 @@ function start_process() {
   };
 
   var tickProcessor = new TickProcessor(
-    new (entriesProviders[ArgumentsProcessor.DEFAULTS.platform])(
-        ArgumentsProcessor.DEFAULTS.nm,
-        ArgumentsProcessor.DEFAULTS.targetRootFS),
-    ArgumentsProcessor.DEFAULTS.separateIc,
-    ArgumentsProcessor.DEFAULTS.callGraphSize,
-    ArgumentsProcessor.DEFAULTS.ignoreUnknown,
-    ArgumentsProcessor.DEFAULTS.stateFilter);
+    new (entriesProviders[DEFAULTS.platform])(
+        DEFAULTS.nm, DEFAULTS.targetRootFS),
+    DEFAULTS.separateIc, DEFAULTS.callGraphSize,
+    DEFAULTS.ignoreUnknown, DEFAULTS.stateFilter);
 
   tickProcessor.processLogChunk(v8log_content);
   tickProcessor.printStatistics();

@@ -19,50 +19,54 @@ class DecoderTest : public TestWithZone {
   Decoder decoder;
 };
 
-#define CHECK_UINT32V_INLINE(expected, expected_length, ...)            \
-  do {                                                                  \
-    const byte data[] = {__VA_ARGS__};                                  \
-    decoder.Reset(data, data + sizeof(data));                           \
-    unsigned length;                                                    \
-    EXPECT_EQ(static_cast<uint32_t>(expected),                          \
-              decoder.read_u32v<true>(decoder.start(), &length));       \
-    EXPECT_EQ(static_cast<unsigned>(expected_length), length);          \
-    EXPECT_EQ(data, decoder.pc());                                      \
-    EXPECT_TRUE(decoder.ok());                                          \
-    EXPECT_EQ(static_cast<uint32_t>(expected), decoder.consume_u32v()); \
-    EXPECT_EQ(data + expected_length, decoder.pc());                    \
+#define CHECK_UINT32V_INLINE(expected, expected_length, ...)              \
+  do {                                                                    \
+    const byte data[] = {__VA_ARGS__};                                    \
+    decoder.Reset(data, data + sizeof(data));                             \
+    unsigned length;                                                      \
+    EXPECT_EQ(                                                            \
+        static_cast<uint32_t>(expected),                                  \
+        decoder.read_u32v<Decoder::kValidate>(decoder.start(), &length)); \
+    EXPECT_EQ(static_cast<unsigned>(expected_length), length);            \
+    EXPECT_EQ(data, decoder.pc());                                        \
+    EXPECT_TRUE(decoder.ok());                                            \
+    EXPECT_EQ(static_cast<uint32_t>(expected), decoder.consume_u32v());   \
+    EXPECT_EQ(data + expected_length, decoder.pc());                      \
   } while (false)
 
-#define CHECK_INT32V_INLINE(expected, expected_length, ...)                 \
-  do {                                                                      \
-    const byte data[] = {__VA_ARGS__};                                      \
-    decoder.Reset(data, data + sizeof(data));                               \
-    unsigned length;                                                        \
-    EXPECT_EQ(expected, decoder.read_i32v<true>(decoder.start(), &length)); \
-    EXPECT_EQ(static_cast<unsigned>(expected_length), length);              \
-    EXPECT_EQ(data, decoder.pc());                                          \
-    EXPECT_TRUE(decoder.ok());                                              \
-    EXPECT_EQ(expected, decoder.consume_i32v());                            \
-    EXPECT_EQ(data + expected_length, decoder.pc());                        \
+#define CHECK_INT32V_INLINE(expected, expected_length, ...)                    \
+  do {                                                                         \
+    const byte data[] = {__VA_ARGS__};                                         \
+    decoder.Reset(data, data + sizeof(data));                                  \
+    unsigned length;                                                           \
+    EXPECT_EQ(expected, decoder.read_i32v<Decoder::kValidate>(decoder.start(), \
+                                                              &length));       \
+    EXPECT_EQ(static_cast<unsigned>(expected_length), length);                 \
+    EXPECT_EQ(data, decoder.pc());                                             \
+    EXPECT_TRUE(decoder.ok());                                                 \
+    EXPECT_EQ(expected, decoder.consume_i32v());                               \
+    EXPECT_EQ(data + expected_length, decoder.pc());                           \
   } while (false)
 
-#define CHECK_UINT64V_INLINE(expected, expected_length, ...)       \
-  do {                                                             \
-    const byte data[] = {__VA_ARGS__};                             \
-    decoder.Reset(data, data + sizeof(data));                      \
-    unsigned length;                                               \
-    EXPECT_EQ(static_cast<uint64_t>(expected),                     \
-              decoder.read_u64v<false>(decoder.start(), &length)); \
-    EXPECT_EQ(static_cast<unsigned>(expected_length), length);     \
+#define CHECK_UINT64V_INLINE(expected, expected_length, ...)              \
+  do {                                                                    \
+    const byte data[] = {__VA_ARGS__};                                    \
+    decoder.Reset(data, data + sizeof(data));                             \
+    unsigned length;                                                      \
+    EXPECT_EQ(                                                            \
+        static_cast<uint64_t>(expected),                                  \
+        decoder.read_u64v<Decoder::kValidate>(decoder.start(), &length)); \
+    EXPECT_EQ(static_cast<unsigned>(expected_length), length);            \
   } while (false)
 
-#define CHECK_INT64V_INLINE(expected, expected_length, ...)                  \
-  do {                                                                       \
-    const byte data[] = {__VA_ARGS__};                                       \
-    decoder.Reset(data, data + sizeof(data));                                \
-    unsigned length;                                                         \
-    EXPECT_EQ(expected, decoder.read_i64v<false>(decoder.start(), &length)); \
-    EXPECT_EQ(static_cast<unsigned>(expected_length), length);               \
+#define CHECK_INT64V_INLINE(expected, expected_length, ...)                    \
+  do {                                                                         \
+    const byte data[] = {__VA_ARGS__};                                         \
+    decoder.Reset(data, data + sizeof(data));                                  \
+    unsigned length;                                                           \
+    EXPECT_EQ(expected, decoder.read_i64v<Decoder::kValidate>(decoder.start(), \
+                                                              &length));       \
+    EXPECT_EQ(static_cast<unsigned>(expected_length), length);                 \
   } while (false)
 
 TEST_F(DecoderTest, ReadU32v_OneByte) {
@@ -181,7 +185,7 @@ TEST_F(DecoderTest, ReadU32v_FiveByte) {
   const uint32_t max = 0xFFFFFFFFu;
 
   for (uint32_t i = 1; i < 32; i++) {
-    uint32_t val = 0x983489aau << i;
+    uint32_t val = 0x983489AAu << i;
     CHECK_UINT32V_INLINE(val, 5, U32V_5(val), 0);
   }
 
@@ -374,7 +378,7 @@ TEST_F(DecoderTest, ReadU32v_off_end1) {
   static const byte data[] = {U32V_1(11)};
   unsigned length = 0;
   decoder.Reset(data, data);
-  decoder.read_u32v<true>(decoder.start(), &length);
+  decoder.read_u32v<Decoder::kValidate>(decoder.start(), &length);
   EXPECT_EQ(0u, length);
   EXPECT_FALSE(decoder.ok());
 }
@@ -384,7 +388,7 @@ TEST_F(DecoderTest, ReadU32v_off_end2) {
   for (size_t i = 0; i < sizeof(data); i++) {
     unsigned length = 0;
     decoder.Reset(data, data + i);
-    decoder.read_u32v<true>(decoder.start(), &length);
+    decoder.read_u32v<Decoder::kValidate>(decoder.start(), &length);
     EXPECT_EQ(i, length);
     EXPECT_FALSE(decoder.ok());
   }
@@ -395,7 +399,7 @@ TEST_F(DecoderTest, ReadU32v_off_end3) {
   for (size_t i = 0; i < sizeof(data); i++) {
     unsigned length = 0;
     decoder.Reset(data, data + i);
-    decoder.read_u32v<true>(decoder.start(), &length);
+    decoder.read_u32v<Decoder::kValidate>(decoder.start(), &length);
     EXPECT_EQ(i, length);
     EXPECT_FALSE(decoder.ok());
   }
@@ -406,7 +410,7 @@ TEST_F(DecoderTest, ReadU32v_off_end4) {
   for (size_t i = 0; i < sizeof(data); i++) {
     unsigned length = 0;
     decoder.Reset(data, data + i);
-    decoder.read_u32v<true>(decoder.start(), &length);
+    decoder.read_u32v<Decoder::kValidate>(decoder.start(), &length);
     EXPECT_EQ(i, length);
     EXPECT_FALSE(decoder.ok());
   }
@@ -417,7 +421,7 @@ TEST_F(DecoderTest, ReadU32v_off_end5) {
   for (size_t i = 0; i < sizeof(data); i++) {
     unsigned length = 0;
     decoder.Reset(data, data + i);
-    decoder.read_u32v<true>(decoder.start(), &length);
+    decoder.read_u32v<Decoder::kValidate>(decoder.start(), &length);
     EXPECT_EQ(i, length);
     EXPECT_FALSE(decoder.ok());
   }
@@ -429,7 +433,7 @@ TEST_F(DecoderTest, ReadU32v_extra_bits) {
     data[4] = static_cast<byte>(i << 4);
     unsigned length = 0;
     decoder.Reset(data, data + sizeof(data));
-    decoder.read_u32v<true>(decoder.start(), &length);
+    decoder.read_u32v<Decoder::kValidate>(decoder.start(), &length);
     EXPECT_EQ(5u, length);
     EXPECT_FALSE(decoder.ok());
   }
@@ -438,9 +442,9 @@ TEST_F(DecoderTest, ReadU32v_extra_bits) {
 TEST_F(DecoderTest, ReadI32v_extra_bits_negative) {
   // OK for negative signed values to have extra ones.
   unsigned length = 0;
-  byte data[] = {0xff, 0xff, 0xff, 0xff, 0x7f};
+  byte data[] = {0xFF, 0xFF, 0xFF, 0xFF, 0x7F};
   decoder.Reset(data, data + sizeof(data));
-  decoder.read_i32v<true>(decoder.start(), &length);
+  decoder.read_i32v<Decoder::kValidate>(decoder.start(), &length);
   EXPECT_EQ(5u, length);
   EXPECT_TRUE(decoder.ok());
 }
@@ -450,7 +454,7 @@ TEST_F(DecoderTest, ReadI32v_extra_bits_positive) {
   unsigned length = 0;
   byte data[] = {0x80, 0x80, 0x80, 0x80, 0x77};
   decoder.Reset(data, data + sizeof(data));
-  decoder.read_i32v<true>(decoder.start(), &length);
+  decoder.read_i32v<Decoder::kValidate>(decoder.start(), &length);
   EXPECT_EQ(5u, length);
   EXPECT_FALSE(decoder.ok());
 }
@@ -459,11 +463,11 @@ TEST_F(DecoderTest, ReadU32v_Bits) {
   // A more exhaustive test.
   const int kMaxSize = 5;
   const uint32_t kVals[] = {
-      0xaabbccdd, 0x11223344, 0x33445566, 0xffeeddcc, 0xF0F0F0F0, 0x0F0F0F0F,
-      0xEEEEEEEE, 0xAAAAAAAA, 0x12345678, 0x9abcdef0, 0x80309488, 0x729ed997,
-      0xc4a0cf81, 0x16c6eb85, 0x4206db8e, 0xf3b089d5, 0xaa2e223e, 0xf99e29c8,
-      0x4a4357d8, 0x1890b1c1, 0x8d80a085, 0xacb6ae4c, 0x1b827e10, 0xeb5c7bd9,
-      0xbb1bc146, 0xdf57a33l};
+      0xAABBCCDD, 0x11223344, 0x33445566, 0xFFEEDDCC, 0xF0F0F0F0, 0x0F0F0F0F,
+      0xEEEEEEEE, 0xAAAAAAAA, 0x12345678, 0x9ABCDEF0, 0x80309488, 0x729ED997,
+      0xC4A0CF81, 0x16C6EB85, 0x4206DB8E, 0xF3B089D5, 0xAA2E223E, 0xF99E29C8,
+      0x4A4357D8, 0x1890B1C1, 0x8D80A085, 0xACB6AE4C, 0x1B827E10, 0xEB5C7BD9,
+      0xBB1BC146, 0xDF57A33l};
   byte data[kMaxSize];
 
   // foreach value in above array
@@ -485,7 +489,7 @@ TEST_F(DecoderTest, ReadU32v_Bits) {
       for (unsigned limit = 0; limit <= kMaxSize; limit++) {
         decoder.Reset(data, data + limit);
         unsigned rlen;
-        uint32_t result = decoder.read_u32v<true>(data, &rlen);
+        uint32_t result = decoder.read_u32v<Decoder::kValidate>(data, &rlen);
         if (limit < length) {
           EXPECT_FALSE(decoder.ok());
         } else {
@@ -541,7 +545,7 @@ TEST_F(DecoderTest, ReadU64v_PowerOf2) {
     for (unsigned limit = 0; limit <= kMaxSize; limit++) {
       decoder.Reset(data, data + limit);
       unsigned length;
-      uint64_t result = decoder.read_u64v<true>(data, &length);
+      uint64_t result = decoder.read_u64v<Decoder::kValidate>(data, &length);
       if (limit <= index) {
         EXPECT_FALSE(decoder.ok());
       } else {
@@ -556,11 +560,11 @@ TEST_F(DecoderTest, ReadU64v_PowerOf2) {
 TEST_F(DecoderTest, ReadU64v_Bits) {
   const int kMaxSize = 10;
   const uint64_t kVals[] = {
-      0xaabbccdd11223344ull, 0x33445566ffeeddccull, 0xF0F0F0F0F0F0F0F0ull,
+      0xAABBCCDD11223344ull, 0x33445566FFEEDDCCull, 0xF0F0F0F0F0F0F0F0ull,
       0x0F0F0F0F0F0F0F0Full, 0xEEEEEEEEEEEEEEEEull, 0xAAAAAAAAAAAAAAAAull,
-      0x123456789abcdef0ull, 0x80309488729ed997ull, 0xc4a0cf8116c6eb85ull,
-      0x4206db8ef3b089d5ull, 0xaa2e223ef99e29c8ull, 0x4a4357d81890b1c1ull,
-      0x8d80a085acb6ae4cull, 0x1b827e10eb5c7bd9ull, 0xbb1bc146df57a338ull};
+      0x123456789ABCDEF0ull, 0x80309488729ED997ull, 0xC4A0CF8116C6EB85ull,
+      0x4206DB8EF3B089D5ull, 0xAA2E223EF99E29C8ull, 0x4A4357D81890B1C1ull,
+      0x8D80A085ACB6AE4Cull, 0x1B827E10EB5C7BD9ull, 0xBB1BC146DF57A338ull};
   byte data[kMaxSize];
 
   // foreach value in above array
@@ -582,7 +586,7 @@ TEST_F(DecoderTest, ReadU64v_Bits) {
       for (unsigned limit = 0; limit <= kMaxSize; limit++) {
         decoder.Reset(data, data + limit);
         unsigned rlen;
-        uint64_t result = decoder.read_u64v<true>(data, &rlen);
+        uint64_t result = decoder.read_u64v<Decoder::kValidate>(data, &rlen);
         if (limit < length) {
           EXPECT_FALSE(decoder.ok());
         } else {
@@ -599,11 +603,11 @@ TEST_F(DecoderTest, ReadI64v_Bits) {
   const int kMaxSize = 10;
   // Exhaustive signedness test.
   const uint64_t kVals[] = {
-      0xaabbccdd11223344ull, 0x33445566ffeeddccull, 0xF0F0F0F0F0F0F0F0ull,
+      0xAABBCCDD11223344ull, 0x33445566FFEEDDCCull, 0xF0F0F0F0F0F0F0F0ull,
       0x0F0F0F0F0F0F0F0Full, 0xEEEEEEEEEEEEEEEEull, 0xAAAAAAAAAAAAAAAAull,
-      0x123456789abcdef0ull, 0x80309488729ed997ull, 0xc4a0cf8116c6eb85ull,
-      0x4206db8ef3b089d5ull, 0xaa2e223ef99e29c8ull, 0x4a4357d81890b1c1ull,
-      0x8d80a085acb6ae4cull, 0x1b827e10eb5c7bd9ull, 0xbb1bc146df57a338ull};
+      0x123456789ABCDEF0ull, 0x80309488729ED997ull, 0xC4A0CF8116C6EB85ull,
+      0x4206DB8EF3B089D5ull, 0xAA2E223EF99E29C8ull, 0x4A4357D81890B1C1ull,
+      0x8D80A085ACB6AE4Cull, 0x1B827E10EB5C7BD9ull, 0xBB1BC146DF57A338ull};
   byte data[kMaxSize];
 
   // foreach value in above array
@@ -624,7 +628,7 @@ TEST_F(DecoderTest, ReadI64v_Bits) {
       for (unsigned limit = 0; limit <= kMaxSize; limit++) {
         decoder.Reset(data, data + limit);
         unsigned rlen;
-        int64_t result = decoder.read_i64v<true>(data, &rlen);
+        int64_t result = decoder.read_i64v<Decoder::kValidate>(data, &rlen);
         if (limit < length) {
           EXPECT_FALSE(decoder.ok());
         } else {
@@ -643,7 +647,7 @@ TEST_F(DecoderTest, ReadU64v_extra_bits) {
     data[9] = static_cast<byte>(i << 1);
     unsigned length = 0;
     decoder.Reset(data, data + sizeof(data));
-    decoder.read_u64v<true>(decoder.start(), &length);
+    decoder.read_u64v<Decoder::kValidate>(decoder.start(), &length);
     EXPECT_EQ(10u, length);
     EXPECT_FALSE(decoder.ok());
   }
@@ -652,9 +656,9 @@ TEST_F(DecoderTest, ReadU64v_extra_bits) {
 TEST_F(DecoderTest, ReadI64v_extra_bits_negative) {
   // OK for negative signed values to have extra ones.
   unsigned length = 0;
-  byte data[] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x7f};
+  byte data[] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x7F};
   decoder.Reset(data, data + sizeof(data));
-  decoder.read_i64v<true>(decoder.start(), &length);
+  decoder.read_i64v<Decoder::kValidate>(decoder.start(), &length);
   EXPECT_EQ(10u, length);
   EXPECT_TRUE(decoder.ok());
 }
@@ -664,7 +668,7 @@ TEST_F(DecoderTest, ReadI64v_extra_bits_positive) {
   unsigned length = 0;
   byte data[] = {0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x77};
   decoder.Reset(data, data + sizeof(data));
-  decoder.read_i64v<true>(decoder.start(), &length);
+  decoder.read_i64v<Decoder::kValidate>(decoder.start(), &length);
   EXPECT_EQ(10u, length);
   EXPECT_FALSE(decoder.ok());
 }

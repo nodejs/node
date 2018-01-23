@@ -5,6 +5,7 @@
 
 load('../base.js');
 load('harmony-string.js');
+load('string-indexof.js');
 
 
 var success = true;

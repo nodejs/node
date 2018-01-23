@@ -11,6 +11,7 @@
 #include "src/detachable-vector.h"
 #include "src/factory.h"
 #include "src/isolate.h"
+#include "src/objects/js-collection.h"
 
 namespace v8 {
 
@@ -108,7 +109,6 @@ class RegisteredExtension {
   V(StackTrace, FixedArray)                    \
   V(StackFrame, StackFrameInfo)                \
   V(Proxy, JSProxy)                            \
-  V(NativeWeakMap, JSWeakMap)                  \
   V(debug::GeneratorObject, JSGeneratorObject) \
   V(debug::Script, Script)                     \
   V(Promise, JSPromise)                        \
@@ -208,8 +208,6 @@ class Utils {
       v8::internal::Handle<v8::internal::FunctionTemplateInfo> obj);
   static inline Local<External> ExternalToLocal(
       v8::internal::Handle<v8::internal::JSObject> obj);
-  static inline Local<NativeWeakMap> NativeWeakMapToLocal(
-      v8::internal::Handle<v8::internal::JSWeakMap> obj);
   static inline Local<Function> CallableToLocal(
       v8::internal::Handle<v8::internal::JSReceiver> obj);
   static inline Local<Primitive> ToLocalPrimitive(
@@ -332,7 +330,6 @@ MAKE_TO_LOCAL(NumberToLocal, Object, Number)
 MAKE_TO_LOCAL(IntegerToLocal, Object, Integer)
 MAKE_TO_LOCAL(Uint32ToLocal, Object, Uint32)
 MAKE_TO_LOCAL(ExternalToLocal, JSObject, External)
-MAKE_TO_LOCAL(NativeWeakMapToLocal, JSWeakMap, NativeWeakMap)
 MAKE_TO_LOCAL(CallableToLocal, JSReceiver, Function)
 MAKE_TO_LOCAL(ToLocalPrimitive, Object, Primitive)
 MAKE_TO_LOCAL(ToLocal, FixedArray, PrimitiveArray)
@@ -347,8 +344,8 @@ MAKE_TO_LOCAL(ScriptOrModuleToLocal, Script, ScriptOrModule)
 #define MAKE_OPEN_HANDLE(From, To)                                             \
   v8::internal::Handle<v8::internal::To> Utils::OpenHandle(                    \
       const v8::From* that, bool allow_empty_handle) {                         \
-    DCHECK(allow_empty_handle || that != NULL);                                \
-    DCHECK(that == NULL ||                                                     \
+    DCHECK(allow_empty_handle || that != nullptr);                             \
+    DCHECK(that == nullptr ||                                                  \
            (*reinterpret_cast<v8::internal::Object* const*>(that))->Is##To()); \
     return v8::internal::Handle<v8::internal::To>(                             \
         reinterpret_cast<v8::internal::To**>(const_cast<v8::From*>(that)));    \
@@ -370,8 +367,8 @@ class V8_EXPORT_PRIVATE DeferredHandles {
 
  private:
   DeferredHandles(Object** first_block_limit, Isolate* isolate)
-      : next_(NULL),
-        previous_(NULL),
+      : next_(nullptr),
+        previous_(nullptr),
         first_block_limit_(first_block_limit),
         isolate_(isolate) {
     isolate->LinkDeferredHandles(this);
@@ -404,16 +401,17 @@ class HandleScopeImplementer {
   explicit HandleScopeImplementer(Isolate* isolate)
       : isolate_(isolate),
         microtask_context_(nullptr),
-        spare_(NULL),
+        spare_(nullptr),
         call_depth_(0),
         microtasks_depth_(0),
         microtasks_suppressions_(0),
+        entered_contexts_count_(0),
         entered_context_count_during_microtasks_(0),
 #ifdef DEBUG
         debug_microtasks_depth_(0),
 #endif
         microtasks_policy_(v8::MicrotasksPolicy::kAuto),
-        last_handle_before_deferred_block_(NULL) {
+        last_handle_before_deferred_block_(nullptr) {
   }
 
   ~HandleScopeImplementer() {
@@ -487,8 +485,8 @@ class HandleScopeImplementer {
   Isolate* isolate() const { return isolate_; }
 
   void ReturnBlock(Object** block) {
-    DCHECK(block != NULL);
-    if (spare_ != NULL) DeleteArray(spare_);
+    DCHECK_NOT_NULL(block);
+    if (spare_ != nullptr) DeleteArray(spare_);
     spare_ = block;
   }
 
@@ -499,8 +497,8 @@ class HandleScopeImplementer {
     saved_contexts_.detach();
     microtask_context_ = nullptr;
     entered_context_count_during_microtasks_ = 0;
-    spare_ = NULL;
-    last_handle_before_deferred_block_ = NULL;
+    spare_ = nullptr;
+    last_handle_before_deferred_block_ = nullptr;
     call_depth_ = 0;
   }
 
@@ -513,11 +511,11 @@ class HandleScopeImplementer {
     blocks_.free();
     entered_contexts_.free();
     saved_contexts_.free();
-    if (spare_ != NULL) {
+    if (spare_ != nullptr) {
       DeleteArray(spare_);
-      spare_ = NULL;
+      spare_ = nullptr;
     }
-    DCHECK(call_depth_ == 0);
+    DCHECK_EQ(call_depth_, 0);
   }
 
   void BeginDeferredScope();
@@ -534,6 +532,7 @@ class HandleScopeImplementer {
   int call_depth_;
   int microtasks_depth_;
   int microtasks_suppressions_;
+  size_t entered_contexts_count_;
   size_t entered_context_count_during_microtasks_;
 #ifdef DEBUG
   int debug_microtasks_depth_;
@@ -549,10 +548,25 @@ class HandleScopeImplementer {
 
   friend class DeferredHandles;
   friend class DeferredHandleScope;
+  friend class HandleScopeImplementerOffsets;
 
   DISALLOW_COPY_AND_ASSIGN(HandleScopeImplementer);
 };
 
+class HandleScopeImplementerOffsets {
+ public:
+  enum Offsets {
+    kMicrotaskContext = offsetof(HandleScopeImplementer, microtask_context_),
+    kEnteredContexts = offsetof(HandleScopeImplementer, entered_contexts_),
+    kEnteredContextsCount =
+        offsetof(HandleScopeImplementer, entered_contexts_count_),
+    kEnteredContextCountDuringMicrotasks = offsetof(
+        HandleScopeImplementer, entered_context_count_during_microtasks_)
+  };
+
+ private:
+  DISALLOW_IMPLICIT_CONSTRUCTORS(HandleScopeImplementerOffsets);
+};
 
 const int kHandleBlockSize = v8::internal::KB - 2;  // fit in one page
 
@@ -587,9 +601,13 @@ bool HandleScopeImplementer::HasSavedContexts() {
 
 void HandleScopeImplementer::EnterContext(Handle<Context> context) {
   entered_contexts_.push_back(*context);
+  entered_contexts_count_ = entered_contexts_.size();
 }
 
-void HandleScopeImplementer::LeaveContext() { entered_contexts_.pop_back(); }
+void HandleScopeImplementer::LeaveContext() {
+  entered_contexts_.pop_back();
+  entered_contexts_count_ = entered_contexts_.size();
+}
 
 bool HandleScopeImplementer::LastEnteredContextWas(Handle<Context> context) {
   return !entered_contexts_.empty() && entered_contexts_.back() == *context;
@@ -620,10 +638,10 @@ Handle<Context> HandleScopeImplementer::MicrotaskContext() {
 
 // If there's a spare block, use it for growing the current scope.
 internal::Object** HandleScopeImplementer::GetSpareOrNewBlock() {
-  internal::Object** block = (spare_ != NULL) ?
-      spare_ :
-      NewArray<internal::Object*>(kHandleBlockSize);
-  spare_ = NULL;
+  internal::Object** block =
+      (spare_ != nullptr) ? spare_
+                          : NewArray<internal::Object*>(kHandleBlockSize);
+  spare_ = nullptr;
   return block;
 }
 
@@ -645,13 +663,13 @@ void HandleScopeImplementer::DeleteExtensions(internal::Object** prev_limit) {
 #ifdef ENABLE_HANDLE_ZAPPING
     internal::HandleScope::ZapRange(block_start, block_limit);
 #endif
-    if (spare_ != NULL) {
+    if (spare_ != nullptr) {
       DeleteArray(spare_);
     }
     spare_ = block_start;
   }
-  DCHECK((blocks_.empty() && prev_limit == NULL) ||
-         (!blocks_.empty() && prev_limit != NULL));
+  DCHECK((blocks_.empty() && prev_limit == nullptr) ||
+         (!blocks_.empty() && prev_limit != nullptr));
 }
 
 // Interceptor functions called from generated inline caches to notify

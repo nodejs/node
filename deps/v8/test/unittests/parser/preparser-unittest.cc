@@ -11,7 +11,7 @@
 namespace v8 {
 namespace internal {
 
-class PreParserTest : public TestWithContext {
+class PreParserTest : public TestWithNativeContext {
  public:
   PreParserTest() {}
 
@@ -22,16 +22,12 @@ class PreParserTest : public TestWithContext {
 TEST_F(PreParserTest, LazyFunctionLength) {
   const char* script_source = "function lazy(a, b, c) { } lazy";
 
-  Handle<Object> lazy_object = test::RunJS(isolate(), script_source);
+  Handle<JSFunction> lazy_function = RunJS<JSFunction>(script_source);
 
-  Handle<SharedFunctionInfo> shared(
-      Handle<JSFunction>::cast(lazy_object)->shared(), i_isolate());
+  Handle<SharedFunctionInfo> shared(lazy_function->shared());
   CHECK_EQ(shared->length(), SharedFunctionInfo::kInvalidLength);
 
-  const char* get_length_source = "lazy.length";
-
-  Handle<Object> length = test::RunJS(isolate(), get_length_source);
-  CHECK(length->IsSmi());
+  Handle<Smi> length = RunJS<Smi>("lazy.length");
   int32_t value;
   CHECK(length->ToInt32(&value));
   CHECK_EQ(3, value);

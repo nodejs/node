@@ -19,46 +19,37 @@ from testrunner.objects.testcase import TestCase
 class TestSuiteTest(unittest.TestCase):
   def test_filter_testcases_by_status_first_pass(self):
     suite = TestSuite('foo', 'bar')
-    suite.tests = [
-      TestCase(suite, 'foo/bar'),
-      TestCase(suite, 'baz/bar'),
-    ]
     suite.rules = {
       '': {
         'foo/bar': set(['PASS', 'SKIP']),
         'baz/bar': set(['PASS', 'FAIL']),
       },
     }
-    suite.wildcards = {
+    suite.prefix_rules = {
       '': {
-        'baz/*': set(['PASS', 'SLOW']),
+        'baz/': set(['PASS', 'SLOW']),
       },
     }
-    suite.FilterTestCasesByStatus(warn_unused_rules=False)
+    suite.tests = [
+      TestCase(suite, 'foo/bar', 'foo/bar'),
+      TestCase(suite, 'baz/bar', 'baz/bar'),
+    ]
+    suite.FilterTestCasesByStatus()
     self.assertEquals(
-        [TestCase(suite, 'baz/bar')],
+        [TestCase(suite, 'baz/bar', 'baz/bar')],
         suite.tests,
     )
-    self.assertEquals(set(['PASS', 'FAIL', 'SLOW']), suite.tests[0].outcomes)
+    outcomes = suite.GetStatusFileOutcomes(suite.tests[0].name,
+                                           suite.tests[0].variant)
+    self.assertEquals(set(['PASS', 'FAIL', 'SLOW']), outcomes)
 
   def test_filter_testcases_by_status_second_pass(self):
     suite = TestSuite('foo', 'bar')
 
-    test1 = TestCase(suite, 'foo/bar')
-    test2 = TestCase(suite, 'baz/bar')
-
-    # Contrived outcomes from filtering by variant-independent rules.
-    test1.outcomes = set(['PREV'])
-    test2.outcomes = set(['PREV'])
-
-    suite.tests = [
-      test1.CopyAddingFlags(variant='default', flags=[]),
-      test1.CopyAddingFlags(variant='stress', flags=['-v']),
-      test2.CopyAddingFlags(variant='default', flags=[]),
-      test2.CopyAddingFlags(variant='stress', flags=['-v']),
-    ]
-
     suite.rules = {
+      '': {
+        'foo/bar': set(['PREV']),
+      },
       'default': {
         'foo/bar': set(['PASS', 'SKIP']),
         'baz/bar': set(['PASS', 'FAIL']),
@@ -67,31 +58,63 @@ class TestSuiteTest(unittest.TestCase):
         'baz/bar': set(['SKIP']),
       },
     }
-    suite.wildcards = {
+    suite.prefix_rules = {
+      '': {
+        'baz/': set(['PREV']),
+      },
       'default': {
-        'baz/*': set(['PASS', 'SLOW']),
+        'baz/': set(['PASS', 'SLOW']),
       },
       'stress': {
-        'foo/*': set(['PASS', 'SLOW']),
+        'foo/': set(['PASS', 'SLOW']),
       },
     }
-    suite.FilterTestCasesByStatus(warn_unused_rules=False, variants=True)
+
+    test1 = TestCase(suite, 'foo/bar', 'foo/bar')
+    test2 = TestCase(suite, 'baz/bar', 'baz/bar')
+    suite.tests = [
+      test1.create_variant(variant='default', flags=[]),
+      test1.create_variant(variant='stress', flags=['-v']),
+      test2.create_variant(variant='default', flags=[]),
+      test2.create_variant(variant='stress', flags=['-v']),
+    ]
+
+    suite.FilterTestCasesByStatus()
     self.assertEquals(
         [
-          TestCase(suite, 'foo/bar', flags=['-v']),
-          TestCase(suite, 'baz/bar'),
+          TestCase(suite, 'foo/bar', 'foo/bar').create_variant(None, ['-v']),
+          TestCase(suite, 'baz/bar', 'baz/bar'),
         ],
         suite.tests,
     )
 
     self.assertEquals(
-        set(['PASS', 'SLOW', 'PREV']),
-        suite.tests[0].outcomes,
+        set(['PREV', 'PASS', 'SLOW']),
+        suite.GetStatusFileOutcomes(suite.tests[0].name,
+                                    suite.tests[0].variant),
     )
     self.assertEquals(
-        set(['PASS', 'FAIL', 'SLOW', 'PREV']),
-        suite.tests[1].outcomes,
+        set(['PREV', 'PASS', 'FAIL', 'SLOW']),
+        suite.GetStatusFileOutcomes(suite.tests[1].name,
+                                    suite.tests[1].variant),
     )
+
+  def test_fail_ok_outcome(self):
+    suite = TestSuite('foo', 'bar')
+    suite.rules = {
+      '': {
+        'foo/bar': set(['FAIL_OK']),
+        'baz/bar': set(['FAIL']),
+      },
+    }
+    suite.prefix_rules = {}
+    suite.tests = [
+      TestCase(suite, 'foo/bar', 'foo/bar'),
+      TestCase(suite, 'baz/bar', 'baz/bar'),
+    ]
+
+    for t in suite.tests:
+      self.assertEquals(['FAIL'], t.expected_outcomes)
 
 
 if __name__ == '__main__':

@@ -21,33 +21,25 @@ namespace internal {
 namespace wasm {
 
 class ModuleCompiler;
+class WasmCode;
 
-V8_EXPORT_PRIVATE bool SyncValidate(Isolate* isolate,
-                                    const ModuleWireBytes& bytes);
+MaybeHandle<WasmModuleObject> CompileToModuleObject(
+    Isolate* isolate, ErrorThrower* thrower, std::unique_ptr<WasmModule> module,
+    const ModuleWireBytes& wire_bytes, Handle<Script> asm_js_script,
+    Vector<const byte> asm_js_offset_table_bytes);
 
-V8_EXPORT_PRIVATE MaybeHandle<WasmModuleObject> SyncCompileTranslatedAsmJs(
-    Isolate* isolate, ErrorThrower* thrower, const ModuleWireBytes& bytes,
-    Handle<Script> asm_js_script, Vector<const byte> asm_js_offset_table_bytes);
-
-V8_EXPORT_PRIVATE MaybeHandle<WasmModuleObject> SyncCompile(
-    Isolate* isolate, ErrorThrower* thrower, const ModuleWireBytes& bytes);
-
-V8_EXPORT_PRIVATE MaybeHandle<WasmInstanceObject> SyncInstantiate(
+MaybeHandle<WasmInstanceObject> InstantiateToInstanceObject(
     Isolate* isolate, ErrorThrower* thrower,
     Handle<WasmModuleObject> module_object, MaybeHandle<JSReceiver> imports,
     MaybeHandle<JSArrayBuffer> memory);
 
-V8_EXPORT_PRIVATE MaybeHandle<WasmInstanceObject> SyncCompileAndInstantiate(
-    Isolate* isolate, ErrorThrower* thrower, const ModuleWireBytes& bytes,
-    MaybeHandle<JSReceiver> imports, MaybeHandle<JSArrayBuffer> memory);
+V8_EXPORT_PRIVATE
+void CompileJsToWasmWrappers(Isolate* isolate,
+                             Handle<WasmCompiledModule> compiled_module,
+                             Counters* counters);
 
-V8_EXPORT_PRIVATE void AsyncCompile(Isolate* isolate, Handle<JSPromise> promise,
-                                    const ModuleWireBytes& bytes);
-
-V8_EXPORT_PRIVATE void AsyncInstantiate(Isolate* isolate,
-                                        Handle<JSPromise> promise,
-                                        Handle<WasmModuleObject> module_object,
-                                        MaybeHandle<JSReceiver> imports);
+V8_EXPORT_PRIVATE Handle<Script> CreateWasmScript(
+    Isolate* isolate, const ModuleWireBytes& wire_bytes);
 
 // Triggered by the WasmCompileLazy builtin.
 // Walks the stack (top three frames) to determine the wasm instance involved
@@ -58,7 +50,8 @@ V8_EXPORT_PRIVATE void AsyncInstantiate(Isolate* isolate,
 // an error occurred. In the latter case, a pending exception has been set,
 // which will be triggered when returning from the runtime function, i.e. the
 // Illegal builtin will never be called.
-Handle<Code> CompileLazy(Isolate* isolate);
+Address CompileLazy(Isolate* isolate);
+Handle<Code> CompileLazyOnGCHeap(Isolate* isolate);
 
 // This class orchestrates the lazy compilation of wasm functions. It is
 // triggered by the WasmCompileLazy builtin.
@@ -68,12 +61,38 @@ Handle<Code> CompileLazy(Isolate* isolate);
 // logic to actually orchestrate parallel execution of wasm compilation jobs.
 // TODO(clemensh): Implement concurrent lazy compilation.
 class LazyCompilationOrchestrator {
-  void CompileFunction(Isolate*, Handle<WasmInstanceObject>, int func_index);
+  const WasmCode* CompileFunction(Isolate*, Handle<WasmInstanceObject>,
+                                  int func_index);
 
  public:
-  Handle<Code> CompileLazy(Isolate*, Handle<WasmInstanceObject>,
-                           Handle<Code> caller, int call_offset,
-                           int exported_func_index, bool patch_caller);
+  Handle<Code> CompileLazyOnGCHeap(Isolate*, Handle<WasmInstanceObject>,
+                                   Handle<Code> caller, int call_offset,
+                                   int exported_func_index, bool patch_caller);
+  const wasm::WasmCode* CompileFromJsToWasm(Isolate*,
+                                            Handle<WasmInstanceObject>,
+                                            Handle<Code> caller,
+                                            uint32_t exported_func_index);
+  const wasm::WasmCode* CompileDirectCall(Isolate*, Handle<WasmInstanceObject>,
+                                          Maybe<uint32_t>,
+                                          const WasmCode* caller,
+                                          int call_offset);
+  const wasm::WasmCode* CompileIndirectCall(Isolate*,
+                                            Handle<WasmInstanceObject>,
+                                            uint32_t func_index);
+
+#ifdef DEBUG
+  // Call this method in tests to disallow any further lazy compilation; then
+  // call into the wasm instance again to verify that no lazy compilation is
+  // triggered.
+  void FreezeLazyCompilationForTesting() { frozen_ = true; }
+  bool IsFrozenForTesting() const { return frozen_; }
+
+ private:
+  bool frozen_;
+#else
+  void FreezeLazyCompilationForTesting() {}
+  bool IsFrozenForTesting() { return false; }
+#endif
 };
 
 // Encapsulates all the state and steps of an asynchronous compilation.
@@ -161,10 +180,12 @@ class AsyncCompileJob {
   Handle<WasmModuleObject> module_object_;
   Handle<WasmCompiledModule> compiled_module_;
   Handle<FixedArray> code_table_;
-  Handle<FixedArray> export_wrappers_;
   size_t outstanding_units_ = 0;
   std::unique_ptr<CompileStep> step_;
   CancelableTaskManager background_task_manager_;
+
+  std::shared_ptr<v8::TaskRunner> foreground_task_runner_;
+  std::shared_ptr<v8::TaskRunner> background_task_runner_;
   // The number of background tasks which stopped executing within a step.
   base::AtomicNumber<size_t> stopped_tasks_{0};
 

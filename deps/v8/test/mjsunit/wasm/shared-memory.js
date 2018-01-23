@@ -7,20 +7,23 @@
 load("test/mjsunit/wasm/wasm-constants.js");
 load("test/mjsunit/wasm/wasm-module-builder.js");
 
-function assertMemoryIsValid(memory) {
+function assertMemoryIsValid(memory, shared) {
   assertSame(WebAssembly.Memory.prototype, memory.__proto__);
   assertSame(WebAssembly.Memory, memory.constructor);
   assertTrue(memory instanceof Object);
   assertTrue(memory instanceof WebAssembly.Memory);
+  if (shared) {
+    assertTrue(memory.buffer instanceof SharedArrayBuffer);
+    // Assert that the buffer is frozen when memory is shared.
+    assertTrue(Object.isFrozen(memory.buffer));
+  }
 }
 
 (function TestConstructorWithShared() {
   print("TestConstructorWithShared");
   let memory = new WebAssembly.Memory({
     initial: 0, maximum: 10, shared: true});
-  assertMemoryIsValid(memory);
-  // Assert that the buffer is frozen when memory is shared.
-  assertTrue(Object.isFrozen(memory.buffer));
+  assertMemoryIsValid(memory, true);
 })();
 
 (function TestConstructorWithUndefinedShared() {
@@ -36,7 +39,7 @@ function assertMemoryIsValid(memory) {
   // For numeric values, shared = true.
   let memory = new WebAssembly.Memory({
     initial: 0, maximum: 10, shared: 2098665});
-  assertMemoryIsValid(memory);
+  assertMemoryIsValid(memory, true);
 })();
 
 (function TestConstructorWithEmptyStringShared() {
@@ -100,4 +103,30 @@ function assertMemoryIsValid(memory) {
   let module = new WebAssembly.Module(builder.toBuffer());
   assertThrows(() => new WebAssembly.Instance(module,
          {m: {imported_mem: memory}}), WebAssembly.LinkError);
+})();
+
+(function TestInstantiateWithSharedDefined() {
+  print("TestInstantiateWithSharedDefined");
+  let builder = new WasmModuleBuilder();
+  builder.addMemory(2, 10, true, "shared");
+  let module = new WebAssembly.Module(builder.toBuffer());
+  let instance = new WebAssembly.Instance(module);
+  assertMemoryIsValid(instance.exports.memory, true);
+})();
+
+(function TestAtomicOpWithSharedMemoryDefined() {
+  print("TestAtomicOpWithSharedMemoryDefined");
+  let builder = new WasmModuleBuilder();
+  builder.addMemory(2, 10, false, "shared");
+  builder.addFunction("main", kSig_i_ii)
+    .addBody([
+      kExprGetLocal, 0,
+      kExprGetLocal, 1,
+      kAtomicPrefix,
+      kExprI32AtomicAdd, 2, 0])
+    .exportFunc();
+  let module = new WebAssembly.Module(builder.toBuffer());
+  let instance = new WebAssembly.Instance(module);
+  assertEquals(0, instance.exports.main(0, 0x11111111));
+  assertEquals(0x11111111, instance.exports.main(0, 0x11111111));
 })();

@@ -54,7 +54,7 @@ TEST(DisasmX64) {
   HandleScope scope(isolate);
   v8::internal::byte buffer[8192];
   Assembler assm(isolate, buffer, sizeof buffer);
-  DummyStaticFunction(NULL);  // just bloody use it (DELETE; debugging)
+  DummyStaticFunction(nullptr);  // just bloody use it (DELETE; debugging)
 
   // Short immediate instructions
   __ addq(rax, Immediate(12345678));
@@ -386,6 +386,10 @@ TEST(DisasmX64) {
     __ cvtsd2ss(xmm0, xmm1);
     __ cvtsd2ss(xmm0, Operand(rbx, rcx, times_4, 10000));
     __ movaps(xmm0, xmm1);
+    __ movdqa(xmm0, Operand(rsp, 12));
+    __ movdqa(Operand(rsp, 12), xmm0);
+    __ movdqu(xmm0, Operand(rsp, 12));
+    __ movdqu(Operand(rsp, 12), xmm0);
     __ shufps(xmm0, xmm9, 0x0);
 
     // logic operation
@@ -451,6 +455,8 @@ TEST(DisasmX64) {
     __ maxsd(xmm1, xmm0);
     __ maxsd(xmm1, Operand(rbx, rcx, times_4, 10000));
     __ ucomisd(xmm0, xmm1);
+    __ haddps(xmm1, xmm0);
+    __ haddps(xmm1, Operand(rbx, rcx, times_4, 10000));
 
     __ andpd(xmm0, xmm1);
     __ andpd(xmm0, Operand(rbx, rcx, times_4, 10000));

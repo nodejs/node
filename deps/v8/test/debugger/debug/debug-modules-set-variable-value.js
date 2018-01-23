@@ -271,7 +271,7 @@ let salad = 12;
   function listener(event, exec_state) {
     if (event == Debug.DebugEvent.Break) {
       let scope_count = exec_state.frame().scopeCount();
-      let module_scope = exec_state.frame().scope(2);
+      let module_scope = exec_state.frame().scope(1);
       assertEquals(debug.ScopeType.Module, module_scope.scopeType());
       module_scope.setVariableValue('salad', 42);
     }
@@ -311,7 +311,7 @@ export let ham = 1;
   function listener(event, exec_state) {
     if (event == Debug.DebugEvent.Break) {
       let scope_count = exec_state.frame().scopeCount();
-      let module_scope = exec_state.frame().scope(2);
+      let module_scope = exec_state.frame().scope(1);
       assertEquals(debug.ScopeType.Module, module_scope.scopeType());
       module_scope.setVariableValue('ham', 2);
     }

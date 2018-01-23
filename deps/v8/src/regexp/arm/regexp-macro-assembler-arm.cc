@@ -86,8 +86,7 @@ namespace internal {
  *              bool direct_call = false,
  *              Isolate* isolate);
  * The call is performed by NativeRegExpMacroAssembler::Execute()
- * (in regexp-macro-assembler.cc) via the CALL_GENERATED_REGEXP_CODE macro
- * in arm/simulator-arm.h.
+ * (in regexp-macro-assembler.cc) via the GeneratedCode wrapper.
  */
 
 #define __ ACCESS_MASM(masm_)
@@ -96,7 +95,7 @@ RegExpMacroAssemblerARM::RegExpMacroAssemblerARM(Isolate* isolate, Zone* zone,
                                                  Mode mode,
                                                  int registers_to_save)
     : NativeRegExpMacroAssembler(isolate, zone),
-      masm_(new MacroAssembler(isolate, NULL, kRegExpCodeSize,
+      masm_(new MacroAssembler(isolate, nullptr, kRegExpCodeSize,
                                CodeObjectRequired::kYes)),
       mode_(mode),
       num_registers_(registers_to_save),
@@ -506,12 +505,12 @@ bool RegExpMacroAssemblerARM::CheckSpecialCharacterClass(uc16 type,
       Label success;
       __ cmp(current_character(), Operand(' '));
       __ b(eq, &success);
-      // Check range 0x09..0x0d
+      // Check range 0x09..0x0D
       __ sub(r0, current_character(), Operand('\t'));
       __ cmp(r0, Operand('\r' - '\t'));
       __ b(ls, &success);
       // \u00a0 (NBSP).
-      __ cmp(r0, Operand(0x00a0 - '\t'));
+      __ cmp(r0, Operand(0x00A0 - '\t'));
       BranchOrBacktrack(ne, on_no_match);
       __ bind(&success);
       return true;
@@ -533,37 +532,37 @@ bool RegExpMacroAssemblerARM::CheckSpecialCharacterClass(uc16 type,
     BranchOrBacktrack(ls, on_no_match);
     return true;
   case '.': {
-    // Match non-newlines (not 0x0a('\n'), 0x0d('\r'), 0x2028 and 0x2029)
+    // Match non-newlines (not 0x0A('\n'), 0x0D('\r'), 0x2028 and 0x2029)
     __ eor(r0, current_character(), Operand(0x01));
-    // See if current character is '\n'^1 or '\r'^1, i.e., 0x0b or 0x0c
-    __ sub(r0, r0, Operand(0x0b));
-    __ cmp(r0, Operand(0x0c - 0x0b));
+    // See if current character is '\n'^1 or '\r'^1, i.e., 0x0B or 0x0C
+    __ sub(r0, r0, Operand(0x0B));
+    __ cmp(r0, Operand(0x0C - 0x0B));
     BranchOrBacktrack(ls, on_no_match);
     if (mode_ == UC16) {
       // Compare original value to 0x2028 and 0x2029, using the already
-      // computed (current_char ^ 0x01 - 0x0b). I.e., check for
-      // 0x201d (0x2028 - 0x0b) or 0x201e.
-      __ sub(r0, r0, Operand(0x2028 - 0x0b));
+      // computed (current_char ^ 0x01 - 0x0B). I.e., check for
+      // 0x201D (0x2028 - 0x0B) or 0x201E.
+      __ sub(r0, r0, Operand(0x2028 - 0x0B));
       __ cmp(r0, Operand(1));
       BranchOrBacktrack(ls, on_no_match);
     }
     return true;
   }
   case 'n': {
-    // Match newlines (0x0a('\n'), 0x0d('\r'), 0x2028 and 0x2029)
+    // Match newlines (0x0A('\n'), 0x0D('\r'), 0x2028 and 0x2029)
     __ eor(r0, current_character(), Operand(0x01));
-    // See if current character is '\n'^1 or '\r'^1, i.e., 0x0b or 0x0c
-    __ sub(r0, r0, Operand(0x0b));
-    __ cmp(r0, Operand(0x0c - 0x0b));
+    // See if current character is '\n'^1 or '\r'^1, i.e., 0x0B or 0x0C
+    __ sub(r0, r0, Operand(0x0B));
+    __ cmp(r0, Operand(0x0C - 0x0B));
     if (mode_ == LATIN1) {
       BranchOrBacktrack(hi, on_no_match);
     } else {
       Label done;
       __ b(ls, &done);
       // Compare original value to 0x2028 and 0x2029, using the already
-      // computed (current_char ^ 0x01 - 0x0b). I.e., check for
-      // 0x201d (0x2028 - 0x0b) or 0x201e.
-      __ sub(r0, r0, Operand(0x2028 - 0x0b));
+      // computed (current_char ^ 0x01 - 0x0B). I.e., check for
+      // 0x201D (0x2028 - 0x0B) or 0x201E.
+      __ sub(r0, r0, Operand(0x2028 - 0x0B));
       __ cmp(r0, Operand(1));
       BranchOrBacktrack(hi, on_no_match);
       __ bind(&done);
@@ -867,7 +866,7 @@ Handle<HeapObject> RegExpMacroAssemblerARM::GetCode(Handle<String> source) {
     ExternalReference grow_stack =
         ExternalReference::re_grow_stack(isolate());
     __ CallCFunction(grow_stack, num_arguments);
-    // If return NULL, we have failed to grow the stack, and
+    // If return nullptr, we have failed to grow the stack, and
     // must exit with a stack-overflow exception.
     __ cmp(r0, Operand::Zero());
     __ b(eq, &exit_with_exception);
@@ -1131,14 +1130,14 @@ void RegExpMacroAssemblerARM::CheckPosition(int cp_offset,
 void RegExpMacroAssemblerARM::BranchOrBacktrack(Condition condition,
                                                 Label* to) {
   if (condition == al) {  // Unconditional.
-    if (to == NULL) {
+    if (to == nullptr) {
       Backtrack();
       return;
     }
     __ jmp(to);
     return;
   }
-  if (to == NULL) {
+  if (to == nullptr) {
     __ b(condition, &backtrack_label_);
     return;
   }

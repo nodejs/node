@@ -225,16 +225,16 @@ int32_t __ieee754_rem_pio2(double x, double *y) {
 
   z = 0;
   GET_HIGH_WORD(hx, x); /* high word of x */
-  ix = hx & 0x7fffffff;
-  if (ix <= 0x3fe921fb) { /* |x| ~<= pi/4 , no need for reduction */
+  ix = hx & 0x7FFFFFFF;
+  if (ix <= 0x3FE921FB) { /* |x| ~<= pi/4 , no need for reduction */
     y[0] = x;
     y[1] = 0;
     return 0;
   }
-  if (ix < 0x4002d97c) { /* |x| < 3pi/4, special case with n=+-1 */
+  if (ix < 0x4002D97C) { /* |x| < 3pi/4, special case with n=+-1 */
     if (hx > 0) {
       z = x - pio2_1;
-      if (ix != 0x3ff921fb) { /* 33+53 bit pi is good enough */
+      if (ix != 0x3FF921FB) { /* 33+53 bit pi is good enough */
         y[0] = z - pio2_1t;
         y[1] = (z - y[0]) - pio2_1t;
       } else { /* near pi/2, use 33+33+53 bit pi */
@@ -245,7 +245,7 @@ int32_t __ieee754_rem_pio2(double x, double *y) {
       return 1;
     } else { /* negative x */
       z = x + pio2_1;
-      if (ix != 0x3ff921fb) { /* 33+53 bit pi is good enough */
+      if (ix != 0x3FF921FB) { /* 33+53 bit pi is good enough */
         y[0] = z + pio2_1t;
         y[1] = (z - y[0]) + pio2_1t;
       } else { /* near pi/2, use 33+33+53 bit pi */
@@ -256,7 +256,7 @@ int32_t __ieee754_rem_pio2(double x, double *y) {
       return -1;
     }
   }
-  if (ix <= 0x413921fb) { /* |x| ~<= 2^19*(pi/2), medium size */
+  if (ix <= 0x413921FB) { /* |x| ~<= 2^19*(pi/2), medium size */
     t = fabs(x);
     n = static_cast<int32_t>(t * invpio2 + half);
     fn = static_cast<double>(n);
@@ -269,7 +269,7 @@ int32_t __ieee754_rem_pio2(double x, double *y) {
       j = ix >> 20;
       y[0] = r - w;
       GET_HIGH_WORD(high, y[0]);
-      i = j - ((high >> 20) & 0x7ff);
+      i = j - ((high >> 20) & 0x7FF);
       if (i > 16) { /* 2nd iteration needed, good to 118 */
         t = r;
         w = fn * pio2_2;
@@ -277,7 +277,7 @@ int32_t __ieee754_rem_pio2(double x, double *y) {
         w = fn * pio2_2t - ((t - r) - w);
         y[0] = r - w;
         GET_HIGH_WORD(high, y[0]);
-        i = j - ((high >> 20) & 0x7ff);
+        i = j - ((high >> 20) & 0x7FF);
         if (i > 49) { /* 3rd iteration need, 151 bits acc */
           t = r;      /* will cover all possible cases */
           w = fn * pio2_3;
@@ -299,7 +299,7 @@ int32_t __ieee754_rem_pio2(double x, double *y) {
   /*
    * all other (large) arguments
    */
-  if (ix >= 0x7ff00000) { /* x is inf or NaN */
+  if (ix >= 0x7FF00000) { /* x is inf or NaN */
     y[0] = y[1] = x - x;
     return 0;
   }
@@ -331,7 +331,7 @@ int32_t __ieee754_rem_pio2(double x, double *y) {
  *
  * Algorithm
  *      1. Since cos(-x) = cos(x), we need only to consider positive x.
- *      2. if x < 2^-27 (hx<0x3e400000 0), return 1 with inexact if x!=0.
+ *      2. if x < 2^-27 (hx<0x3E400000 0), return 1 with inexact if x!=0.
  *      3. cos(x) is approximated by a polynomial of degree 14 on
  *         [0,pi/4]
  *                                       4            14
@@ -370,8 +370,8 @@ V8_INLINE double __kernel_cos(double x, double y) {
   double a, iz, z, r, qx;
   int32_t ix;
   GET_HIGH_WORD(ix, x);
-  ix &= 0x7fffffff;                           /* ix = |x|'s high word*/
-  if (ix < 0x3e400000) {                      /* if x < 2**27 */
+  ix &= 0x7FFFFFFF;                           /* ix = |x|'s high word*/
+  if (ix < 0x3E400000) {                      /* if x < 2**27 */
     if (static_cast<int>(x) == 0) return one; /* generate inexact */
   }
   z = x * x;
@@ -379,7 +379,7 @@ V8_INLINE double __kernel_cos(double x, double y) {
   if (ix < 0x3FD33333) { /* if |x| < 0.3 */
     return one - (0.5 * z - (z * r - x * y));
   } else {
-    if (ix > 0x3fe90000) { /* x > 0.78125 */
+    if (ix > 0x3FE90000) { /* x > 0.78125 */
       qx = 0.28125;
     } else {
       INSERT_WORDS(qx, ix - 0x00200000, 0); /* x/4 */
@@ -585,16 +585,16 @@ recompute:
           iq[i] = 0x1000000 - j;
         }
       } else {
-        iq[i] = 0xffffff - j;
+        iq[i] = 0xFFFFFF - j;
       }
     }
     if (q0 > 0) { /* rare case: chance is 1 in 12 */
       switch (q0) {
         case 1:
-          iq[jz - 1] &= 0x7fffff;
+          iq[jz - 1] &= 0x7FFFFF;
           break;
         case 2:
-          iq[jz - 1] &= 0x3fffff;
+          iq[jz - 1] &= 0x3FFFFF;
           break;
       }
     }
@@ -706,7 +706,7 @@ recompute:
  *
  * Algorithm
  *      1. Since sin(-x) = -sin(x), we need only to consider positive x.
- *      2. if x < 2^-27 (hx<0x3e400000 0), return x with inexact if x!=0.
+ *      2. if x < 2^-27 (hx<0x3E400000 0), return x with inexact if x!=0.
  *      3. sin(x) is approximated by a polynomial of degree 13 on
  *         [0,pi/4]
  *                               3            13
@@ -738,8 +738,8 @@ V8_INLINE double __kernel_sin(double x, double y, int iy) {
   double z, r, v;
   int32_t ix;
   GET_HIGH_WORD(ix, x);
-  ix &= 0x7fffffff;      /* high word of x */
-  if (ix < 0x3e400000) { /* |x| < 2**-27 */
+  ix &= 0x7FFFFFFF;      /* high word of x */
+  if (ix < 0x3E400000) { /* |x| < 2**-27 */
     if (static_cast<int>(x) == 0) return x;
   } /* generate inexact */
   z = x * x;
@@ -761,7 +761,7 @@ V8_INLINE double __kernel_sin(double x, double y, int iy) {
  *
  * Algorithm
  *      1. Since tan(-x) = -tan(x), we need only to consider positive x.
- *      2. if x < 2^-28 (hx<0x3e300000 0), return x with inexact if x!=0.
+ *      2. if x < 2^-28 (hx<0x3E300000 0), return x with inexact if x!=0.
  *      3. tan(x) is approximated by a odd polynomial of degree 27 on
  *         [0,0.67434]
  *                               3             27
@@ -813,8 +813,8 @@ double __kernel_tan(double x, double y, int iy) {
   int32_t ix, hx;
 
   GET_HIGH_WORD(hx, x);             /* high word of x */
-  ix = hx & 0x7fffffff;             /* high word of |x| */
-  if (ix < 0x3e300000) {            /* x < 2**-28 */
+  ix = hx & 0x7FFFFFFF;             /* high word of |x| */
+  if (ix < 0x3E300000) {            /* x < 2**-28 */
     if (static_cast<int>(x) == 0) { /* generate inexact */
       uint32_t low;
       GET_LOW_WORD(low, x);
@@ -934,11 +934,11 @@ double acos(double x) {
   double z, p, q, r, w, s, c, df;
   int32_t hx, ix;
   GET_HIGH_WORD(hx, x);
-  ix = hx & 0x7fffffff;
-  if (ix >= 0x3ff00000) { /* |x| >= 1 */
+  ix = hx & 0x7FFFFFFF;
+  if (ix >= 0x3FF00000) { /* |x| >= 1 */
     uint32_t lx;
     GET_LOW_WORD(lx, x);
-    if (((ix - 0x3ff00000) | lx) == 0) { /* |x|==1 */
+    if (((ix - 0x3FF00000) | lx) == 0) { /* |x|==1 */
       if (hx > 0)
         return 0.0; /* acos(1) = 0  */
       else
@@ -946,8 +946,8 @@ double acos(double x) {
     }
     return (x - x) / (x - x); /* acos(|x|>1) is NaN */
   }
-  if (ix < 0x3fe00000) {                            /* |x| < 0.5 */
-    if (ix <= 0x3c600000) return pio2_hi + pio2_lo; /*if|x|<2**-57*/
+  if (ix < 0x3FE00000) {                            /* |x| < 0.5 */
+    if (ix <= 0x3C600000) return pio2_hi + pio2_lo; /*if|x|<2**-57*/
     z = x * x;
     p = z * (pS0 + z * (pS1 + z * (pS2 + z * (pS3 + z * (pS4 + z * pS5)))));
     q = one + z * (qS1 + z * (qS2 + z * (qS3 + z * qS4)));
@@ -996,15 +996,15 @@ double acosh(double x) {
   int32_t hx;
   uint32_t lx;
   EXTRACT_WORDS(hx, lx, x);
-  if (hx < 0x3ff00000) { /* x < 1 */
+  if (hx < 0x3FF00000) { /* x < 1 */
     return (x - x) / (x - x);
-  } else if (hx >= 0x41b00000) { /* x > 2**28 */
-    if (hx >= 0x7ff00000) {      /* x is inf of NaN */
+  } else if (hx >= 0x41B00000) { /* x > 2**28 */
+    if (hx >= 0x7FF00000) {      /* x is inf of NaN */
       return x + x;
     } else {
       return log(x) + ln2; /* acosh(huge)=log(2x) */
     }
-  } else if (((hx - 0x3ff00000) | lx) == 0) {
+  } else if (((hx - 0x3FF00000) | lx) == 0) {
     return 0.0;                 /* acosh(1) = 0 */
   } else if (hx > 0x40000000) { /* 2**28 > x > 2 */
     t = x * x;
@@ -1067,15 +1067,15 @@ double asin(double x) {
 
   t = 0;
   GET_HIGH_WORD(hx, x);
-  ix = hx & 0x7fffffff;
-  if (ix >= 0x3ff00000) { /* |x|>= 1 */
+  ix = hx & 0x7FFFFFFF;
+  if (ix >= 0x3FF00000) { /* |x|>= 1 */
     uint32_t lx;
     GET_LOW_WORD(lx, x);
-    if (((ix - 0x3ff00000) | lx) == 0) /* asin(1)=+-pi/2 with inexact */
+    if (((ix - 0x3FF00000) | lx) == 0) /* asin(1)=+-pi/2 with inexact */
       return x * pio2_hi + x * pio2_lo;
     return (x - x) / (x - x);       /* asin(|x|>1) is NaN */
-  } else if (ix < 0x3fe00000) {     /* |x|<0.5 */
-    if (ix < 0x3e400000) {          /* if |x| < 2**-27 */
+  } else if (ix < 0x3FE00000) {     /* |x|<0.5 */
+    if (ix < 0x3E400000) {          /* if |x| < 2**-27 */
       if (huge + x > one) return x; /* return x with inexact if x!=0*/
     } else {
       t = x * x;
@@ -1127,12 +1127,12 @@ double asinh(double x) {
   double t, w;
   int32_t hx, ix;
   GET_HIGH_WORD(hx, x);
-  ix = hx & 0x7fffffff;
-  if (ix >= 0x7ff00000) return x + x; /* x is inf or NaN */
-  if (ix < 0x3e300000) {              /* |x|<2**-28 */
+  ix = hx & 0x7FFFFFFF;
+  if (ix >= 0x7FF00000) return x + x; /* x is inf or NaN */
+  if (ix < 0x3E300000) {              /* |x|<2**-28 */
     if (huge + x > one) return x;     /* return x inexact except 0 */
   }
-  if (ix > 0x41b00000) { /* |x| > 2**28 */
+  if (ix > 0x41B00000) { /* |x| > 2**28 */
     w = log(fabs(x)) + ln2;
   } else if (ix > 0x40000000) { /* 2**28 > |x| > 2.0 */
     t = fabs(x);
@@ -1202,26 +1202,26 @@ double atan(double x) {
   int32_t ix, hx, id;
 
   GET_HIGH_WORD(hx, x);
-  ix = hx & 0x7fffffff;
+  ix = hx & 0x7FFFFFFF;
   if (ix >= 0x44100000) { /* if |x| >= 2^66 */
     uint32_t low;
     GET_LOW_WORD(low, x);
-    if (ix > 0x7ff00000 || (ix == 0x7ff00000 && (low != 0)))
+    if (ix > 0x7FF00000 || (ix == 0x7FF00000 && (low != 0)))
       return x + x; /* NaN */
     if (hx > 0)
       return atanhi[3] + *(volatile double *)&atanlo[3];
     else
       return -atanhi[3] - *(volatile double *)&atanlo[3];
   }
-  if (ix < 0x3fdc0000) {            /* |x| < 0.4375 */
-    if (ix < 0x3e400000) {          /* |x| < 2^-27 */
+  if (ix < 0x3FDC0000) {            /* |x| < 0.4375 */
+    if (ix < 0x3E400000) {          /* |x| < 2^-27 */
       if (huge + x > one) return x; /* raise inexact */
     }
     id = -1;
   } else {
     x = fabs(x);
-    if (ix < 0x3ff30000) {   /* |x| < 1.1875 */
-      if (ix < 0x3fe60000) { /* 7/16 <=|x|<11/16 */
+    if (ix < 0x3FF30000) {   /* |x| < 1.1875 */
+      if (ix < 0x3FE60000) { /* 7/16 <=|x|<11/16 */
         id = 0;
         x = (2.0 * x - one) / (2.0 + x);
       } else { /* 11/16<=|x|< 19/16 */
@@ -1294,14 +1294,14 @@ double atan2(double y, double x) {
   uint32_t lx, ly;
 
   EXTRACT_WORDS(hx, lx, x);
-  ix = hx & 0x7fffffff;
+  ix = hx & 0x7FFFFFFF;
   EXTRACT_WORDS(hy, ly, y);
-  iy = hy & 0x7fffffff;
-  if (((ix | ((lx | -static_cast<int32_t>(lx)) >> 31)) > 0x7ff00000) ||
-      ((iy | ((ly | -static_cast<int32_t>(ly)) >> 31)) > 0x7ff00000)) {
+  iy = hy & 0x7FFFFFFF;
+  if (((ix | ((lx | -static_cast<int32_t>(lx)) >> 31)) > 0x7FF00000) ||
+      ((iy | ((ly | -static_cast<int32_t>(ly)) >> 31)) > 0x7FF00000)) {
     return x + y; /* x or y is NaN */
   }
-  if (((hx - 0x3ff00000) | lx) == 0) return atan(y); /* x=1.0 */
+  if (((hx - 0x3FF00000) | lx) == 0) return atan(y); /* x=1.0 */
   m = ((hy >> 31) & 1) | ((hx >> 30) & 2);           /* 2*sign(x)+sign(y) */
 
   /* when y = 0 */
@@ -1320,8 +1320,8 @@ double atan2(double y, double x) {
   if ((ix | lx) == 0) return (hy < 0) ? -pi_o_2 - tiny : pi_o_2 + tiny;
 
   /* when x is INF */
-  if (ix == 0x7ff00000) {
-    if (iy == 0x7ff00000) {
+  if (ix == 0x7FF00000) {
+    if (iy == 0x7FF00000) {
       switch (m) {
         case 0:
           return pi_o_4 + tiny; /* atan(+INF,+INF) */
@@ -1346,7 +1346,7 @@ double atan2(double y, double x) {
     }
   }
   /* when y is INF */
-  if (iy == 0x7ff00000) return (hy < 0) ? -pi_o_2 - tiny : pi_o_2 + tiny;
+  if (iy == 0x7FF00000) return (hy < 0) ? -pi_o_2 - tiny : pi_o_2 + tiny;
 
   /* compute y/x */
   k = (iy - ix) >> 20;
@@ -1408,10 +1408,10 @@ double cos(double x) {
   GET_HIGH_WORD(ix, x);
 
   /* |x| ~< pi/4 */
-  ix &= 0x7fffffff;
-  if (ix <= 0x3fe921fb) {
+  ix &= 0x7FFFFFFF;
+  if (ix <= 0x3FE921FB) {
     return __kernel_cos(x, z);
-  } else if (ix >= 0x7ff00000) {
+  } else if (ix >= 0x7FF00000) {
     /* cos(Inf or NaN) is NaN */
     return x - x;
   } else {
@@ -1497,18 +1497,18 @@ double exp(double x) {
       one = 1.0,
       halF[2] = {0.5, -0.5},
       o_threshold = 7.09782712893383973096e+02,  /* 0x40862E42, 0xFEFA39EF */
-      u_threshold = -7.45133219101941108420e+02, /* 0xc0874910, 0xD52D3051 */
-      ln2HI[2] = {6.93147180369123816490e-01,    /* 0x3fe62e42, 0xfee00000 */
-                  -6.93147180369123816490e-01},  /* 0xbfe62e42, 0xfee00000 */
-      ln2LO[2] = {1.90821492927058770002e-10,    /* 0x3dea39ef, 0x35793c76 */
-                  -1.90821492927058770002e-10},  /* 0xbdea39ef, 0x35793c76 */
-      invln2 = 1.44269504088896338700e+00,       /* 0x3ff71547, 0x652b82fe */
+      u_threshold = -7.45133219101941108420e+02, /* 0xC0874910, 0xD52D3051 */
+      ln2HI[2] = {6.93147180369123816490e-01,    /* 0x3FE62E42, 0xFEE00000 */
+                  -6.93147180369123816490e-01},  /* 0xBFE62E42, 0xFEE00000 */
+      ln2LO[2] = {1.90821492927058770002e-10,    /* 0x3DEA39EF, 0x35793C76 */
+                  -1.90821492927058770002e-10},  /* 0xBDEA39EF, 0x35793C76 */
+      invln2 = 1.44269504088896338700e+00,       /* 0x3FF71547, 0x652B82FE */
       P1 = 1.66666666666666019037e-01,           /* 0x3FC55555, 0x5555553E */
       P2 = -2.77777777770155933842e-03,          /* 0xBF66C16C, 0x16BEBD93 */
       P3 = 6.61375632143793436117e-05,           /* 0x3F11566A, 0xAF25DE2C */
       P4 = -1.65339022054652515390e-06,          /* 0xBEBBBD41, 0xC5D26BF1 */
       P5 = 4.13813679705723846039e-08,           /* 0x3E663769, 0x72BEA4D0 */
-      E = 2.718281828459045;                     /* 0x4005bf0a, 0x8b145769 */
+      E = 2.718281828459045;                     /* 0x4005BF0A, 0x8B145769 */
 
   static volatile double
       huge = 1.0e+300,
@@ -1521,14 +1521,14 @@ double exp(double x) {
 
   GET_HIGH_WORD(hx, x);
   xsb = (hx >> 31) & 1; /* sign bit of x */
-  hx &= 0x7fffffff;     /* high word of |x| */
+  hx &= 0x7FFFFFFF;     /* high word of |x| */
 
   /* filter out non-finite argument */
   if (hx >= 0x40862E42) { /* if |x|>=709.78... */
-    if (hx >= 0x7ff00000) {
+    if (hx >= 0x7FF00000) {
       uint32_t lx;
       GET_LOW_WORD(lx, x);
-      if (((hx & 0xfffff) | lx) != 0)
+      if (((hx & 0xFFFFF) | lx) != 0)
         return x + x; /* NaN */
       else
         return (xsb == 0) ? x : 0.0; /* exp(+-inf)={inf,0} */
@@ -1538,7 +1538,7 @@ double exp(double x) {
   }
 
   /* argument reduction */
-  if (hx > 0x3fd62e42) {   /* if  |x| > 0.5 ln2 */
+  if (hx > 0x3FD62E42) {   /* if  |x| > 0.5 ln2 */
     if (hx < 0x3FF0A2B2) { /* and |x| < 1.5 ln2 */
       /* TODO(rtoy): We special case exp(1) here to return the correct
        * value of E, as the computation below would get the last bit
@@ -1555,7 +1555,7 @@ double exp(double x) {
       lo = t * ln2LO[0];
     }
     STRICT_ASSIGN(double, x, hi - lo);
-  } else if (hx < 0x3e300000) {         /* when |x|<2**-28 */
+  } else if (hx < 0x3E300000) {         /* when |x|<2**-28 */
     if (huge + x > one) return one + x; /* trigger inexact */
   } else {
     k = 0;
@@ -1564,9 +1564,9 @@ double exp(double x) {
   /* x is now in primary range */
   t = x * x;
   if (k >= -1021) {
-    INSERT_WORDS(twopk, 0x3ff00000 + (k << 20), 0);
+    INSERT_WORDS(twopk, 0x3FF00000 + (k << 20), 0);
   } else {
-    INSERT_WORDS(twopk, 0x3ff00000 + ((k + 1000) << 20), 0);
+    INSERT_WORDS(twopk, 0x3FF00000 + ((k + 1000) << 20), 0);
   }
   c = x - t * (P1 + t * (P2 + t * (P3 + t * (P4 + t * P5))));
   if (k == 0) {
@@ -1607,13 +1607,13 @@ double atanh(double x) {
   int32_t hx, ix;
   uint32_t lx;
   EXTRACT_WORDS(hx, lx, x);
-  ix = hx & 0x7fffffff;
-  if ((ix | ((lx | -static_cast<int32_t>(lx)) >> 31)) > 0x3ff00000) /* |x|>1 */
+  ix = hx & 0x7FFFFFFF;
+  if ((ix | ((lx | -static_cast<int32_t>(lx)) >> 31)) > 0x3FF00000) /* |x|>1 */
     return (x - x) / (x - x);
-  if (ix == 0x3ff00000) return x / zero;
-  if (ix < 0x3e300000 && (huge + x) > zero) return x; /* x<2**-28 */
+  if (ix == 0x3FF00000) return x / zero;
+  if (ix < 0x3E300000 && (huge + x) > zero) return x; /* x<2**-28 */
   SET_HIGH_WORD(x, ix);
-  if (ix < 0x3fe00000) { /* x < 0.5 */
+  if (ix < 0x3FE00000) { /* x < 0.5 */
     t = x + x;
     t = 0.5 * log1p(t + t * x / (one - x));
   } else {
@@ -1699,21 +1699,21 @@ double log(double x) {
 
   k = 0;
   if (hx < 0x00100000) { /* x < 2**-1022  */
-    if (((hx & 0x7fffffff) | lx) == 0)
+    if (((hx & 0x7FFFFFFF) | lx) == 0)
       return -two54 / vzero;           /* log(+-0)=-inf */
     if (hx < 0) return (x - x) / zero; /* log(-#) = NaN */
     k -= 54;
     x *= two54; /* subnormal number, scale up x */
     GET_HIGH_WORD(hx, x);
   }
-  if (hx >= 0x7ff00000) return x + x;
+  if (hx >= 0x7FF00000) return x + x;
   k += (hx >> 20) - 1023;
-  hx &= 0x000fffff;
-  i = (hx + 0x95f64) & 0x100000;
-  SET_HIGH_WORD(x, hx | (i ^ 0x3ff00000)); /* normalize x or x/2 */
+  hx &= 0x000FFFFF;
+  i = (hx + 0x95F64) & 0x100000;
+  SET_HIGH_WORD(x, hx | (i ^ 0x3FF00000)); /* normalize x or x/2 */
   k += (i >> 20);
   f = x - 1.0;
-  if ((0x000fffff & (2 + hx)) < 3) { /* -2**-20 <= f < 2**-20 */
+  if ((0x000FFFFF & (2 + hx)) < 3) { /* -2**-20 <= f < 2**-20 */
     if (f == zero) {
       if (k == 0) {
         return zero;
@@ -1733,9 +1733,9 @@ double log(double x) {
   s = f / (2.0 + f);
   dk = static_cast<double>(k);
   z = s * s;
-  i = hx - 0x6147a;
+  i = hx - 0x6147A;
   w = z * z;
-  j = 0x6b851 - hx;
+  j = 0x6B851 - hx;
   t1 = w * (Lg2 + w * (Lg4 + w * Lg6));
   t2 = z * (Lg1 + w * (Lg3 + w * (Lg5 + w * Lg7)));
   i |= j;
@@ -1838,30 +1838,30 @@ double log1p(double x) {
   int32_t k, hx, hu, ax;
 
   GET_HIGH_WORD(hx, x);
-  ax = hx & 0x7fffffff;
+  ax = hx & 0x7FFFFFFF;
 
   k = 1;
   if (hx < 0x3FDA827A) {    /* 1+x < sqrt(2)+ */
-    if (ax >= 0x3ff00000) { /* x <= -1.0 */
+    if (ax >= 0x3FF00000) { /* x <= -1.0 */
       if (x == -1.0)
         return -two54 / vzero; /* log1p(-1)=+inf */
       else
         return (x - x) / (x - x); /* log1p(x<-1)=NaN */
     }
-    if (ax < 0x3e200000) {    /* |x| < 2**-29 */
+    if (ax < 0x3E200000) {    /* |x| < 2**-29 */
       if (two54 + x > zero    /* raise inexact */
-          && ax < 0x3c900000) /* |x| < 2**-54 */
+          && ax < 0x3C900000) /* |x| < 2**-54 */
         return x;
       else
         return x - x * x * 0.5;
     }
-    if (hx > 0 || hx <= static_cast<int32_t>(0xbfd2bec4)) {
+    if (hx > 0 || hx <= static_cast<int32_t>(0xBFD2BEC4)) {
       k = 0;
       f = x;
       hu = 1;
     } /* sqrt(2)/2- <= 1+x < sqrt(2)+ */
   }
-  if (hx >= 0x7ff00000) return x + x;
+  if (hx >= 0x7FF00000) return x + x;
   if (k != 0) {
     if (hx < 0x43400000) {
       STRICT_ASSIGN(double, u, 1.0 + x);
@@ -1875,7 +1875,7 @@ double log1p(double x) {
       k = (hu >> 20) - 1023;
       c = 0;
     }
-    hu &= 0x000fffff;
+    hu &= 0x000FFFFF;
     /*
      * The approximation to sqrt(2) used in thresholds is not
      * critical.  However, the ones used above must give less
@@ -1883,11 +1883,11 @@ double log1p(double x) {
      * never reached from here, since here we have committed to
      * using the correction term but don't use it if k==0.
      */
-    if (hu < 0x6a09e) {                  /* u ~< sqrt(2) */
-      SET_HIGH_WORD(u, hu | 0x3ff00000); /* normalize u */
+    if (hu < 0x6A09E) {                  /* u ~< sqrt(2) */
+      SET_HIGH_WORD(u, hu | 0x3FF00000); /* normalize u */
     } else {
       k += 1;
-      SET_HIGH_WORD(u, hu | 0x3fe00000); /* normalize u/2 */
+      SET_HIGH_WORD(u, hu | 0x3FE00000); /* normalize u/2 */
       hu = (0x00100000 - hu) >> 2;
     }
     f = u - 1.0;
@@ -2012,8 +2012,8 @@ static inline double k_log1p(double f) {
 double log2(double x) {
   static const double
       two54 = 1.80143985094819840000e+16,   /* 0x43500000, 0x00000000 */
-      ivln2hi = 1.44269504072144627571e+00, /* 0x3ff71547, 0x65200000 */
-      ivln2lo = 1.67517131648865118353e-10; /* 0x3de705fc, 0x2eefa200 */
+      ivln2hi = 1.44269504072144627571e+00, /* 0x3FF71547, 0x65200000 */
+      ivln2lo = 1.67517131648865118353e-10; /* 0x3DE705FC, 0x2EEFA200 */
 
   static const double zero = 0.0;
   static volatile double vzero = 0.0;
@@ -2026,19 +2026,19 @@ double log2(double x) {
 
   k = 0;
   if (hx < 0x00100000) { /* x < 2**-1022  */
-    if (((hx & 0x7fffffff) | lx) == 0)
+    if (((hx & 0x7FFFFFFF) | lx) == 0)
       return -two54 / vzero;           /* log(+-0)=-inf */
     if (hx < 0) return (x - x) / zero; /* log(-#) = NaN */
     k -= 54;
     x *= two54; /* subnormal number, scale up x */
     GET_HIGH_WORD(hx, x);
   }
-  if (hx >= 0x7ff00000) return x + x;
-  if (hx == 0x3ff00000 && lx == 0) return zero; /* log(1) = +0 */
+  if (hx >= 0x7FF00000) return x + x;
+  if (hx == 0x3FF00000 && lx == 0) return zero; /* log(1) = +0 */
   k += (hx >> 20) - 1023;
-  hx &= 0x000fffff;
-  i = (hx + 0x95f64) & 0x100000;
-  SET_HIGH_WORD(x, hx | (i ^ 0x3ff00000)); /* normalize x or x/2 */
+  hx &= 0x000FFFFF;
+  i = (hx + 0x95F64) & 0x100000;
+  SET_HIGH_WORD(x, hx | (i ^ 0x3FF00000)); /* normalize x or x/2 */
   k += (i >> 20);
   y = static_cast<double>(k);
   f = x - 1.0;
@@ -2133,7 +2133,7 @@ double log10(double x) {
 
   k = 0;
   if (hx < 0x00100000) { /* x < 2**-1022  */
-    if (((hx & 0x7fffffff) | lx) == 0)
+    if (((hx & 0x7FFFFFFF) | lx) == 0)
       return -two54 / vzero;           /* log(+-0)=-inf */
     if (hx < 0) return (x - x) / zero; /* log(-#) = NaN */
     k -= 54;
@@ -2141,12 +2141,12 @@ double log10(double x) {
     GET_HIGH_WORD(hx, x);
     GET_LOW_WORD(lx, x);
   }
-  if (hx >= 0x7ff00000) return x + x;
-  if (hx == 0x3ff00000 && lx == 0) return zero; /* log(1) = +0 */
+  if (hx >= 0x7FF00000) return x + x;
+  if (hx == 0x3FF00000 && lx == 0) return zero; /* log(1) = +0 */
   k += (hx >> 20) - 1023;
 
   i = (k & 0x80000000) >> 31;
-  hx = (hx & 0x000fffff) | ((0x3ff - i) << 20);
+  hx = (hx & 0x000FFFFF) | ((0x3FF - i) << 20);
   y = k + i;
   SET_HIGH_WORD(x, hx);
   SET_LOW_WORD(x, lx);
@@ -2254,9 +2254,9 @@ double expm1(double x) {
       one = 1.0,
       tiny = 1.0e-300,
       o_threshold = 7.09782712893383973096e+02, /* 0x40862E42, 0xFEFA39EF */
-      ln2_hi = 6.93147180369123816490e-01,      /* 0x3fe62e42, 0xfee00000 */
-      ln2_lo = 1.90821492927058770002e-10,      /* 0x3dea39ef, 0x35793c76 */
-      invln2 = 1.44269504088896338700e+00,      /* 0x3ff71547, 0x652b82fe */
+      ln2_hi = 6.93147180369123816490e-01,      /* 0x3FE62E42, 0xFEE00000 */
+      ln2_lo = 1.90821492927058770002e-10,      /* 0x3DEA39EF, 0x35793C76 */
+      invln2 = 1.44269504088896338700e+00,      /* 0x3FF71547, 0x652B82FE */
       /* Scaled Q's: Qn_here = 2**n * Qn_above, for R(2*z) where z = hxs =
          x*x/2: */
       Q1 = -3.33333333333331316428e-02, /* BFA11111 111110F4 */
@@ -2273,15 +2273,15 @@ double expm1(double x) {
 
   GET_HIGH_WORD(hx, x);
   xsb = hx & 0x80000000; /* sign bit of x */
-  hx &= 0x7fffffff;      /* high word of |x| */
+  hx &= 0x7FFFFFFF;      /* high word of |x| */
 
   /* filter out huge and non-finite argument */
   if (hx >= 0x4043687A) {   /* if |x|>=56*ln2 */
     if (hx >= 0x40862E42) { /* if |x|>=709.78... */
-      if (hx >= 0x7ff00000) {
+      if (hx >= 0x7FF00000) {
         uint32_t low;
         GET_LOW_WORD(low, x);
-        if (((hx & 0xfffff) | low) != 0)
+        if (((hx & 0xFFFFF) | low) != 0)
           return x + x; /* NaN */
         else
           return (xsb == 0) ? x : -1.0; /* exp(+-inf)={inf,-1} */
@@ -2295,7 +2295,7 @@ double expm1(double x) {
   }
 
   /* argument reduction */
-  if (hx > 0x3fd62e42) {   /* if  |x| > 0.5 ln2 */
+  if (hx > 0x3FD62E42) {   /* if  |x| > 0.5 ln2 */
     if (hx < 0x3FF0A2B2) { /* and |x| < 1.5 ln2 */
       if (xsb == 0) {
         hi = x - ln2_hi;
@@ -2314,7 +2314,7 @@ double expm1(double x) {
     }
     STRICT_ASSIGN(double, x, hi - lo);
     c = (hi - x) - lo;
-  } else if (hx < 0x3c900000) { /* when |x|<2**-54, return x */
+  } else if (hx < 0x3C900000) { /* when |x|<2**-54, return x */
     t = huge + x;               /* return x with inexact flags when x!=0 */
     return x - (t - (huge + x));
   } else {
@@ -2330,7 +2330,7 @@ double expm1(double x) {
   if (k == 0) {
     return x - (x * e - hxs); /* c is 0 */
   } else {
-    INSERT_WORDS(twopk, 0x3ff00000 + (k << 20), 0); /* 2^k */
+    INSERT_WORDS(twopk, 0x3FF00000 + (k << 20), 0); /* 2^k */
     e = (x * (e - c) - c);
     e -= hxs;
     if (k == -1) return 0.5 * (x - e) - 0.5;
@@ -2353,11 +2353,11 @@ double expm1(double x) {
     }
     t = one;
     if (k < 20) {
-      SET_HIGH_WORD(t, 0x3ff00000 - (0x200000 >> k)); /* t=1-2^-k */
+      SET_HIGH_WORD(t, 0x3FF00000 - (0x200000 >> k)); /* t=1-2^-k */
       y = t - (e - x);
       y = y * twopk;
     } else {
-      SET_HIGH_WORD(t, ((0x3ff - k) << 20)); /* 2^-k */
+      SET_HIGH_WORD(t, ((0x3FF - k) << 20)); /* 2^-k */
       y = x - (e + t);
       y += one;
       y = y * twopk;
@@ -2372,11 +2372,11 @@ double cbrt(double x) {
       B2 = 696219795; /* B2 = (1023-1023/3-54/3-0.03306235651)*2**20 */
 
   /* |1/cbrt(x) - p(x)| < 2**-23.5 (~[-7.93e-8, 7.929e-8]). */
-  static const double P0 = 1.87595182427177009643, /* 0x3ffe03e6, 0x0f61e692 */
-      P1 = -1.88497979543377169875,                /* 0xbffe28e0, 0x92f02420 */
-      P2 = 1.621429720105354466140,                /* 0x3ff9f160, 0x4a49d6c2 */
-      P3 = -0.758397934778766047437,               /* 0xbfe844cb, 0xbee751d9 */
-      P4 = 0.145996192886612446982;                /* 0x3fc2b000, 0xd4e4edd7 */
+  static const double P0 = 1.87595182427177009643, /* 0x3FFE03E6, 0x0F61E692 */
+      P1 = -1.88497979543377169875,                /* 0xBFFE28E0, 0x92F02420 */
+      P2 = 1.621429720105354466140,                /* 0x3FF9F160, 0x4A49D6C2 */
+      P3 = -0.758397934778766047437,               /* 0xBFE844CB, 0xBEE751D9 */
+      P4 = 0.145996192886612446982;                /* 0x3FC2B000, 0xD4E4EDD7 */
 
   int32_t hx;
   union {
@@ -2390,7 +2390,7 @@ double cbrt(double x) {
   EXTRACT_WORDS(hx, low, x);
   sign = hx & 0x80000000; /* sign= sign(x) */
   hx ^= sign;
-  if (hx >= 0x7ff00000) return (x + x); /* cbrt(NaN,INF) is itself */
+  if (hx >= 0x7FF00000) return (x + x); /* cbrt(NaN,INF) is itself */
 
   /*
    * Rough cbrt to 5 bits:
@@ -2412,7 +2412,7 @@ double cbrt(double x) {
     SET_HIGH_WORD(t, 0x43500000);    /* set t= 2**54 */
     t *= x;
     GET_HIGH_WORD(high, t);
-    INSERT_WORDS(t, sign | ((high & 0x7fffffff) / 3 + B2), 0);
+    INSERT_WORDS(t, sign | ((high & 0x7FFFFFFF) / 3 + B2), 0);
   } else {
     INSERT_WORDS(t, sign | (hx / 3 + B1), 0);
   }
@@ -2441,7 +2441,7 @@ double cbrt(double x) {
    * before the final error is larger than 0.667 ulps.
    */
   u.value = t;
-  u.bits = (u.bits + 0x80000000) & 0xffffffffc0000000ULL;
+  u.bits = (u.bits + 0x80000000) & 0xFFFFFFFFC0000000ULL;
   t = u.value;
 
   /* one step Newton iteration to 53 bits with error < 0.667 ulps */
@@ -2492,10 +2492,10 @@ double sin(double x) {
   GET_HIGH_WORD(ix, x);
 
   /* |x| ~< pi/4 */
-  ix &= 0x7fffffff;
-  if (ix <= 0x3fe921fb) {
+  ix &= 0x7FFFFFFF;
+  if (ix <= 0x3FE921FB) {
     return __kernel_sin(x, z, 0);
-  } else if (ix >= 0x7ff00000) {
+  } else if (ix >= 0x7FF00000) {
     /* sin(Inf or NaN) is NaN */
     return x - x;
   } else {
@@ -2551,10 +2551,10 @@ double tan(double x) {
   GET_HIGH_WORD(ix, x);
 
   /* |x| ~< pi/4 */
-  ix &= 0x7fffffff;
-  if (ix <= 0x3fe921fb) {
+  ix &= 0x7FFFFFFF;
+  if (ix <= 0x3FE921FB) {
     return __kernel_tan(x, z, 1);
-  } else if (ix >= 0x7ff00000) {
+  } else if (ix >= 0x7FF00000) {
     /* tan(Inf or NaN) is NaN */
     return x - x; /* NaN */
   } else {
@@ -2596,14 +2596,14 @@ double cosh(double x) {
 
   /* High word of |x|. */
   GET_HIGH_WORD(ix, x);
-  ix &= 0x7fffffff;
+  ix &= 0x7FFFFFFF;
 
   // |x| in [0,0.5*log2], return 1+expm1(|x|)^2/(2*exp(|x|))
-  if (ix < 0x3fd62e43) {
+  if (ix < 0x3FD62E43) {
     double t = expm1(fabs(x));
     double w = one + t;
     // For |x| < 2^-55, cosh(x) = 1
-    if (ix < 0x3c800000) return w;
+    if (ix < 0x3C800000) return w;
     return one + (t * t) / (w + w);
   }
 
@@ -2614,7 +2614,7 @@ double cosh(double x) {
   }
 
   // |x| in [22, log(maxdouble)], return half*exp(|x|)
-  if (ix < 0x40862e42) return half * exp(fabs(x));
+  if (ix < 0x40862E42) return half * exp(fabs(x));
 
   // |x| in [log(maxdouble), overflowthreshold]
   if (fabs(x) <= KCOSH_OVERFLOW) {
@@ -2624,7 +2624,7 @@ double cosh(double x) {
   }
 
   /* x is INF or NaN */
-  if (ix >= 0x7ff00000) return x * x;
+  if (ix >= 0x7FF00000) return x * x;
 
   // |x| > overflowthreshold.
   return huge * huge;
@@ -2653,7 +2653,7 @@ double sinh(double x) {
   static const double KSINH_OVERFLOW = 710.4758600739439,
                       TWO_M28 =
                           3.725290298461914e-9,  // 2^-28, empty lower half
-      LOG_MAXD = 709.7822265625;  // 0x40862e42 00000000, empty lower half
+      LOG_MAXD = 709.7822265625;  // 0x40862E42 00000000, empty lower half
   static const double shuge = 1.0e307;
 
   double h = (x < 0) ? -0.5 : 0.5;
@@ -2712,10 +2712,10 @@ double tanh(double x) {
   int32_t jx, ix;
 
   GET_HIGH_WORD(jx, x);
-  ix = jx & 0x7fffffff;
+  ix = jx & 0x7FFFFFFF;
 
   /* x is INF or NaN */
-  if (ix >= 0x7ff00000) {
+  if (ix >= 0x7FF00000) {
     if (jx >= 0)
       return one / x + one; /* tanh(+-inf)=+-1 */
     else
@@ -2724,10 +2724,10 @@ double tanh(double x) {
 
   /* |x| < 22 */
   if (ix < 0x40360000) {            /* |x|<22 */
-    if (ix < 0x3e300000) {          /* |x|<2**-28 */
+    if (ix < 0x3E300000) {          /* |x|<2**-28 */
       if (huge + x > one) return x; /* tanh(tiny) = tiny with inexact */
     }
-    if (ix >= 0x3ff00000) { /* |x|>=1  */
+    if (ix >= 0x3FF00000) { /* |x|>=1  */
       t = expm1(two * fabs(x));
       z = one - two / (t + two);
     } else {

@@ -106,7 +106,7 @@ import re
 import subprocess
 import sys
 
-from testrunner.local import commands
+from testrunner.local import command
 from testrunner.local import utils
 
 ARCH_GUESS = utils.DefaultArch()
@@ -221,8 +221,8 @@ class Measurement(object):
 
 
 class NullMeasurement(object):
-  """Null object to avoid having extra logic for configurations that didn't
-  run like running without patch on trybots.
+  """Null object to avoid having extra logic for configurations that don't
+  require secondary run, e.g. CI bots.
   """
   def ConsumeOutput(self, stdout):
     pass
@@ -260,7 +260,7 @@ def RunResultsProcessor(results_processor, stdout, count):
 
 
 def AccumulateResults(
-    graph_names, trace_configs, iter_output, trybot, no_patch, calc_total):
+    graph_names, trace_configs, iter_output, perform_measurement, calc_total):
   """Iterates over the output of multiple benchmark reruns and accumulates
   results for a configured list of traces.
 
@@ -270,14 +270,15 @@ def AccumulateResults(
     trace_configs: List of "TraceConfig" instances. Each trace config defines
                    how to perform a measurement.
     iter_output: Iterator over the standard output of each test run.
-    trybot: Indicates that this is run in trybot mode, i.e. run twice, once
-            with once without patch.
-    no_patch: Indicates weather this is a trybot run without patch.
+    perform_measurement: Whether to actually run tests and perform measurements.
+                         This is needed so that we reuse this script for both CI
+                         and trybot, but want to ignore second run on CI without
+                         having to spread this logic throughout the script.
     calc_total: Boolean flag to speficy the calculation of a summary trace.
   Returns: A "Results" object.
   """
   measurements = [
-    trace.CreateMeasurement(trybot, no_patch) for trace in trace_configs]
+    trace.CreateMeasurement(perform_measurement) for trace in trace_configs]
   for stdout in iter_output():
     for measurement in measurements:
       measurement.ConsumeOutput(stdout)
@@ -451,9 +452,8 @@ class TraceConfig(GraphConfig):
     super(TraceConfig, self).__init__(suite, parent, arch)
     assert self.results_regexp
 
-  def CreateMeasurement(self, trybot, no_patch):
-    if not trybot and no_patch:
-      # Use null object for no-patch logic if this is not a trybot run.
+  def CreateMeasurement(self, perform_measurement):
+    if not perform_measurement:
       return NullMeasurement()
 
     return Measurement(
@@ -493,34 +493,40 @@ class RunnableConfig(GraphConfig):
     suffix = ["--"] + self.test_flags if self.test_flags else []
     return self.flags + (extra_flags or []) + [self.main] + suffix
 
-  def GetCommand(self, shell_dir, extra_flags=None):
+  def GetCommand(self, cmd_prefix, shell_dir, extra_flags=None):
     # TODO(machenbach): This requires +.exe if run on windows.
     extra_flags = extra_flags or []
-    cmd = [os.path.join(shell_dir, self.binary)]
-    if self.binary.endswith(".py"):
-      cmd = [sys.executable] + cmd
     if self.binary != 'd8' and '--prof' in extra_flags:
       print "Profiler supported only on a benchmark run with d8"
-    return cmd + self.GetCommandFlags(extra_flags=extra_flags)
+
+    if self.process_size:
+      cmd_prefix = ["/usr/bin/time", "--format=MaxMemory: %MKB"] + cmd_prefix
+    if self.binary.endswith('.py'):
+      # Copy cmd_prefix instead of update (+=).
+      cmd_prefix = cmd_prefix + [sys.executable]
+
+    return command.Command(
+        cmd_prefix=cmd_prefix,
+        shell=os.path.join(shell_dir, self.binary),
+        args=self.GetCommandFlags(extra_flags=extra_flags),
+        timeout=self.timeout or 60)
 
   def Run(self, runner, trybot):
     """Iterates over several runs and handles the output for all traces."""
-    stdout_with_patch, stdout_no_patch = Unzip(runner())
+    stdout, stdout_secondary = Unzip(runner())
     return (
         AccumulateResults(
             self.graphs,
             self._children,
-            iter_output=self.PostProcess(stdout_with_patch),
-            trybot=trybot,
-            no_patch=False,
+            iter_output=self.PostProcess(stdout),
+            perform_measurement=True,
             calc_total=self.total,
         ),
         AccumulateResults(
             self.graphs,
             self._children,
-            iter_output=self.PostProcess(stdout_no_patch),
-            trybot=trybot,
-            no_patch=True,
+            iter_output=self.PostProcess(stdout_secondary),
+            perform_measurement=trybot,  # only run second time on trybots
             calc_total=self.total,
         ),
     )
@@ -533,14 +539,14 @@ class RunnableTraceConfig(TraceConfig, RunnableConfig):
 
   def Run(self, runner, trybot):
     """Iterates over several runs and handles the output."""
-    measurement_with_patch = self.CreateMeasurement(trybot, False)
-    measurement_no_patch = self.CreateMeasurement(trybot, True)
-    for stdout_with_patch, stdout_no_patch in runner():
-      measurement_with_patch.ConsumeOutput(stdout_with_patch)
-      measurement_no_patch.ConsumeOutput(stdout_no_patch)
+    measurement = self.CreateMeasurement(perform_measurement=True)
+    measurement_secondary = self.CreateMeasurement(perform_measurement=trybot)
+    for stdout, stdout_secondary in runner():
+      measurement.ConsumeOutput(stdout)
+      measurement_secondary.ConsumeOutput(stdout_secondary)
     return (
-        measurement_with_patch.GetResults(),
-        measurement_no_patch.GetResults(),
+        measurement.GetResults(),
+        measurement_secondary.GetResults(),
     )
 
 
@@ -550,10 +556,10 @@ class RunnableGenericConfig(RunnableConfig):
     super(RunnableGenericConfig, self).__init__(suite, parent, arch)
 
   def Run(self, runner, trybot):
-    stdout_with_patch, stdout_no_patch = Unzip(runner())
+    stdout, stdout_secondary = Unzip(runner())
     return (
-        AccumulateGenericResults(self.graphs, self.units, stdout_with_patch),
-        AccumulateGenericResults(self.graphs, self.units, stdout_no_patch),
+        AccumulateGenericResults(self.graphs, self.units, stdout),
+        AccumulateGenericResults(self.graphs, self.units, stdout_secondary),
     )
 
 
@@ -615,7 +621,7 @@ def FlattenRunnables(node, node_cb):
 class Platform(object):
   def __init__(self, options):
     self.shell_dir = options.shell_dir
-    self.shell_dir_no_patch = options.shell_dir_no_patch
+    self.shell_dir_secondary = options.shell_dir_secondary
     self.extra_flags = options.extra_flags.split()
 
   @staticmethod
@@ -625,24 +631,23 @@ class Platform(object):
     else:
       return DesktopPlatform(options)
 
-  def _Run(self, runnable, count, no_patch=False):
+  def _Run(self, runnable, count, secondary=False):
     raise NotImplementedError()  # pragma: no cover
 
   def Run(self, runnable, count):
     """Execute the benchmark's main file.
 
-    If options.shell_dir_no_patch is specified, the benchmark is run once with
-    and once without patch.
+    If options.shell_dir_secondary is specified, the benchmark is run twice,
+    e.g. with and without patch.
     Args:
       runnable: A Runnable benchmark instance.
       count: The number of this (repeated) run.
-    Returns: A tuple with the benchmark outputs with and without patch. The
-             latter will be None if options.shell_dir_no_patch was not
-             specified.
+    Returns: A tuple with the two benchmark outputs. The latter will be None if
+             options.shell_dir_secondary was not specified.
     """
-    stdout = self._Run(runnable, count, no_patch=False)
-    if self.shell_dir_no_patch:
-      return stdout, self._Run(runnable, count, no_patch=True)
+    stdout = self._Run(runnable, count, secondary=False)
+    if self.shell_dir_secondary:
+      return stdout, self._Run(runnable, count, secondary=True)
     else:
       return stdout, None
 
@@ -676,22 +681,13 @@ class DesktopPlatform(Platform):
     if isinstance(node, RunnableConfig):
       node.ChangeCWD(path)
 
-  def _Run(self, runnable, count, no_patch=False):
-    suffix = ' - without patch' if no_patch else ''
-    shell_dir = self.shell_dir_no_patch if no_patch else self.shell_dir
+  def _Run(self, runnable, count, secondary=False):
+    suffix = ' - secondary' if secondary else ''
+    shell_dir = self.shell_dir_secondary if secondary else self.shell_dir
     title = ">>> %%s (#%d)%s:" % ((count + 1), suffix)
-    if runnable.process_size:
-      command = ["/usr/bin/time", "--format=MaxMemory: %MKB"]
-    else:
-      command = []
-
-    command += self.command_prefix + runnable.GetCommand(shell_dir,
-                                                        self.extra_flags)
+    cmd = runnable.GetCommand(self.command_prefix, shell_dir, self.extra_flags)
     try:
-      output = commands.Execute(
-        command,
-        timeout=runnable.timeout,
-      )
+      output = cmd.execute()
     except OSError as e:  # pragma: no cover
       print title % "OSError"
       print e
@@ -816,18 +812,18 @@ class AndroidPlatform(Platform):  # pragma: no cover
       bench_abs = suite_dir
 
     self._PushExecutable(self.shell_dir, "bin", node.binary)
-    if self.shell_dir_no_patch:
+    if self.shell_dir_secondary:
       self._PushExecutable(
-          self.shell_dir_no_patch, "bin_no_patch", node.binary)
+          self.shell_dir_secondary, "bin_secondary", node.binary)
 
     if isinstance(node, RunnableConfig):
       self._PushFile(bench_abs, node.main, bench_rel)
     for resource in node.resources:
       self._PushFile(bench_abs, resource, bench_rel)
 
-  def _Run(self, runnable, count, no_patch=False):
-    suffix = ' - without patch' if no_patch else ''
-    target_dir = "bin_no_patch" if no_patch else "bin"
+  def _Run(self, runnable, count, secondary=False):
+    suffix = ' - secondary' if secondary else ''
+    target_dir = "bin_secondary" if secondary else "bin"
     title = ">>> %%s (#%d)%s:" % ((count + 1), suffix)
     cache = cache_control.CacheControl(self.device)
     cache.DropRamCaches()
@@ -984,17 +980,20 @@ def Main(args):
                     default="")
   parser.add_option("--json-test-results",
                     help="Path to a file for storing json results.")
-  parser.add_option("--json-test-results-no-patch",
+  parser.add_option("--json-test-results-secondary",
+                    "--json-test-results-no-patch",  # TODO(sergiyb): Deprecate.
                     help="Path to a file for storing json results from run "
-                         "without patch.")
+                         "without patch or for reference build run.")
   parser.add_option("--outdir", help="Base directory with compile output",
                     default="out")
-  parser.add_option("--outdir-no-patch",
-                    help="Base directory with compile output without patch")
+  parser.add_option("--outdir-secondary",
+                    "--outdir-no-patch",  # TODO(sergiyb): Deprecate.
+                    help="Base directory with compile output without patch or "
+                         "for reference build")
   parser.add_option("--binary-override-path",
                     help="JavaScript engine binary. By default, d8 under "
                     "architecture-specific build dir. "
-                    "Not supported in conjunction with outdir-no-patch.")
+                    "Not supported in conjunction with outdir-secondary.")
   parser.add_option("--prioritize",
                     help="Raise the priority to nice -20 for the benchmarking "
                     "process.Requires Linux, schedtool, and sudo privileges.",
@@ -1040,10 +1039,10 @@ def Main(args):
     print "Specifying a device requires Android build tools."
     return 1
 
-  if (options.json_test_results_no_patch and
-      not options.outdir_no_patch):  # pragma: no cover
-    print("For writing json test results without patch, an outdir without "
-          "patch must be specified.")
+  if (options.json_test_results_secondary and
+      not options.outdir_secondary):  # pragma: no cover
+    print("For writing secondary json test results, a secondary outdir patch "
+          "must be specified.")
     return 1
 
   workspace = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
@@ -1060,25 +1059,25 @@ def Main(args):
     if not os.path.isfile(options.binary_override_path):
       print "binary-override-path must be a file name"
       return 1
-    if options.outdir_no_patch:
-      print "specify either binary-override-path or outdir-no-patch"
+    if options.outdir_secondary:
+      print "specify either binary-override-path or outdir-secondary"
       return 1
     options.shell_dir = os.path.abspath(
         os.path.dirname(options.binary_override_path))
     default_binary_name = os.path.basename(options.binary_override_path)
 
-  if options.outdir_no_patch:
-    options.shell_dir_no_patch = os.path.join(
-        workspace, options.outdir_no_patch, build_config)
+  if options.outdir_secondary:
+    options.shell_dir_secondary = os.path.join(
+        workspace, options.outdir_secondary, build_config)
   else:
-    options.shell_dir_no_patch = None
+    options.shell_dir_secondary = None
 
   if options.json_test_results:
     options.json_test_results = os.path.abspath(options.json_test_results)
 
-  if options.json_test_results_no_patch:
-    options.json_test_results_no_patch = os.path.abspath(
-        options.json_test_results_no_patch)
+  if options.json_test_results_secondary:
+    options.json_test_results_secondary = os.path.abspath(
+        options.json_test_results_secondary)
 
   # Ensure all arguments have absolute path before we start changing current
   # directory.
@@ -1089,7 +1088,7 @@ def Main(args):
   platform = Platform.GetPlatform(options)
 
   results = Results()
-  results_no_patch = Results()
+  results_secondary = Results()
   with CustomMachineConfiguration(governor = options.cpu_governor,
                                   disable_aslr = options.noaslr) as conf:
     for path in args:
@@ -1129,10 +1128,10 @@ def Main(args):
             yield platform.Run(runnable, i)
 
         # Let runnable iterate over all runs and handle output.
-        result, result_no_patch = runnable.Run(
-          Runner, trybot=options.shell_dir_no_patch)
+        result, result_secondary = runnable.Run(
+          Runner, trybot=options.shell_dir_secondary)
         results += result
-        results_no_patch += result_no_patch
+        results_secondary += result_secondary
       platform.PostExecution()
 
     if options.json_test_results:
@@ -1140,10 +1139,10 @@ def Main(args):
     else:  # pragma: no cover
       print results
 
-  if options.json_test_results_no_patch:
-    results_no_patch.WriteToFile(options.json_test_results_no_patch)
+  if options.json_test_results_secondary:
+    results_secondary.WriteToFile(options.json_test_results_secondary)
   else:  # pragma: no cover
-    print results_no_patch
+    print results_secondary
 
   return min(1, len(results.errors))
 

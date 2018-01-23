@@ -63,7 +63,9 @@ RUNTIME_FUNCTION(Runtime_FunctionGetSourceCode) {
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSReceiver, function, 0);
   if (function->IsJSFunction()) {
-    return *Handle<JSFunction>::cast(function)->shared()->GetSourceCode();
+    Handle<SharedFunctionInfo> shared(
+        Handle<JSFunction>::cast(function)->shared());
+    return *SharedFunctionInfo::GetSourceCode(shared);
   }
   return isolate->heap()->undefined_value();
 }
@@ -94,18 +96,6 @@ RUNTIME_FUNCTION(Runtime_FunctionSetLength) {
   CONVERT_SMI_ARG_CHECKED(length, 1);
   fun->shared()->set_length(length);
   return isolate->heap()->undefined_value();
-}
-
-
-RUNTIME_FUNCTION(Runtime_FunctionSetPrototype) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(2, args.length());
-
-  CONVERT_ARG_HANDLE_CHECKED(JSFunction, fun, 0);
-  CONVERT_ARG_HANDLE_CHECKED(Object, value, 1);
-  CHECK(fun->IsConstructor());
-  JSFunction::SetPrototype(fun, value);
-  return args[0];  // return TOS
 }
 
 
@@ -217,15 +207,6 @@ RUNTIME_FUNCTION(Runtime_Call) {
   }
   RETURN_RESULT_OR_FAILURE(
       isolate, Execution::Call(isolate, target, receiver, argc, argv.start()));
-}
-
-
-// ES6 section 9.2.1.2, OrdinaryCallBindThis for sloppy callee.
-RUNTIME_FUNCTION(Runtime_ConvertReceiver) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(1, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(Object, receiver, 0);
-  return *Object::ConvertReceiver(isolate, receiver).ToHandleChecked();
 }
 
 

@@ -8,6 +8,7 @@
 #include "src/counters.h"
 #include "src/objects-inl.h"
 #include "src/regexp/regexp-utils.h"
+#include "src/string-builder.h"
 #include "src/string-case.h"
 #include "src/unicode-inl.h"
 #include "src/unicode.h"
@@ -323,8 +324,8 @@ namespace {
 inline bool ToUpperOverflows(uc32 character) {
   // y with umlauts and the micro sign are the only characters that stop
   // fitting into one-byte when converting to uppercase.
-  static const uc32 yuml_code = 0xff;
-  static const uc32 micro_code = 0xb5;
+  static const uc32 yuml_code = 0xFF;
+  static const uc32 micro_code = 0xB5;
   return (character == yuml_code || character == micro_code);
 }
 
@@ -510,6 +511,66 @@ BUILTIN(StringPrototypeToUpperCase) {
                      isolate->runtime_state()->to_upper_mapping());
 }
 #endif  // !V8_INTL_SUPPORT
+
+// ES6 #sec-string.prototype.raw
+BUILTIN(StringRaw) {
+  HandleScope scope(isolate);
+  Handle<Object> templ = args.atOrUndefined(isolate, 1);
+  const uint32_t argc = args.length();
+  Handle<String> raw_string =
+      isolate->factory()->NewStringFromAsciiChecked("raw");
+
+  Handle<Object> cooked;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, cooked,
+                                     Object::ToObject(isolate, templ));
+
+  Handle<Object> raw;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, raw,
+                                     Object::GetProperty(cooked, raw_string));
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, raw,
+                                     Object::ToObject(isolate, raw));
+  Handle<Object> raw_len;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, raw_len,
+      Object::GetProperty(raw, isolate->factory()->length_string()));
+
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, raw_len,
+                                     Object::ToLength(isolate, raw_len));
+
+  IncrementalStringBuilder result_builder(isolate);
+  const uint32_t length = static_cast<uint32_t>(raw_len->Number());
+  if (length > 0) {
+    Handle<Object> first_element;
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, first_element,
+                                       Object::GetElement(isolate, raw, 0));
+
+    Handle<String> first_string;
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+        isolate, first_string, Object::ToString(isolate, first_element));
+    result_builder.AppendString(first_string);
+
+    for (uint32_t i = 1, arg_i = 2; i < length; i++, arg_i++) {
+      if (arg_i < argc) {
+        Handle<String> argument_string;
+        ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+            isolate, argument_string,
+            Object::ToString(isolate, args.at(arg_i)));
+        result_builder.AppendString(argument_string);
+      }
+
+      Handle<Object> element;
+      ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, element,
+                                         Object::GetElement(isolate, raw, i));
+
+      Handle<String> element_string;
+      ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, element_string,
+                                         Object::ToString(isolate, element));
+      result_builder.AppendString(element_string);
+    }
+  }
+
+  RETURN_RESULT_OR_FAILURE(isolate, result_builder.Finish());
+}
 
 }  // namespace internal
 }  // namespace v8

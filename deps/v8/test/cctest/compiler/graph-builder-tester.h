@@ -50,18 +50,14 @@ class GraphBuilderTester : public HandleAndZoneScope,
                            public GraphAndBuilders,
                            public CallHelper<ReturnType> {
  public:
-  explicit GraphBuilderTester(MachineType p0 = MachineType::None(),
-                              MachineType p1 = MachineType::None(),
-                              MachineType p2 = MachineType::None(),
-                              MachineType p3 = MachineType::None(),
-                              MachineType p4 = MachineType::None())
+  template <typename... ParamMachTypes>
+  explicit GraphBuilderTester(ParamMachTypes... p)
       : GraphAndBuilders(main_zone()),
         CallHelper<ReturnType>(
             main_isolate(),
-            CSignature::New(main_zone(), MachineTypeForC<ReturnType>(), p0, p1,
-                            p2, p3, p4)),
-        effect_(NULL),
-        return_(NULL),
+            CSignature::New(main_zone(), MachineTypeForC<ReturnType>(), p...)),
+        effect_(nullptr),
+        return_(nullptr),
         parameters_(main_zone()->template NewArray<Node*>(parameter_count())) {
     Begin(static_cast<int>(parameter_count()));
     InitParameters();
@@ -89,7 +85,7 @@ class GraphBuilderTester : public HandleAndZoneScope,
     Node* zero = graph()->NewNode(common()->Int32Constant(0));
     return_ = graph()->NewNode(common()->Return(), zero, value, effect_,
                                graph()->start());
-    effect_ = NULL;
+    effect_ = nullptr;
   }
 
   // Close the graph.
@@ -192,37 +188,10 @@ class GraphBuilderTester : public HandleAndZoneScope,
     return NewNode(simplified()->StoreElement(access), object, index, value);
   }
 
-  Node* NewNode(const Operator* op) {
-    return MakeNode(op, 0, static_cast<Node**>(NULL));
-  }
-
-  Node* NewNode(const Operator* op, Node* n1) { return MakeNode(op, 1, &n1); }
-
-  Node* NewNode(const Operator* op, Node* n1, Node* n2) {
-    Node* buffer[] = {n1, n2};
-    return MakeNode(op, arraysize(buffer), buffer);
-  }
-
-  Node* NewNode(const Operator* op, Node* n1, Node* n2, Node* n3) {
-    Node* buffer[] = {n1, n2, n3};
-    return MakeNode(op, arraysize(buffer), buffer);
-  }
-
-  Node* NewNode(const Operator* op, Node* n1, Node* n2, Node* n3, Node* n4) {
-    Node* buffer[] = {n1, n2, n3, n4};
-    return MakeNode(op, arraysize(buffer), buffer);
-  }
-
-  Node* NewNode(const Operator* op, Node* n1, Node* n2, Node* n3, Node* n4,
-                Node* n5) {
-    Node* buffer[] = {n1, n2, n3, n4, n5};
-    return MakeNode(op, arraysize(buffer), buffer);
-  }
-
-  Node* NewNode(const Operator* op, Node* n1, Node* n2, Node* n3, Node* n4,
-                Node* n5, Node* n6) {
-    Node* nodes[] = {n1, n2, n3, n4, n5, n6};
-    return MakeNode(op, arraysize(nodes), nodes);
+  template <typename... NodePtrs>
+  Node* NewNode(const Operator* op, NodePtrs... n) {
+    std::array<Node*, sizeof...(n)> inputs{{n...}};
+    return MakeNode(op, inputs.size(), inputs.data());
   }
 
   Node* NewNode(const Operator* op, int value_input_count,
@@ -248,7 +217,7 @@ class GraphBuilderTester : public HandleAndZoneScope,
     CHECK_LT(op->ControlInputCount(), 2);
     CHECK_LT(op->EffectInputCount(), 2);
 
-    Node* result = NULL;
+    Node* result = nullptr;
     if (!has_control && !has_effect) {
       result = graph()->NewNode(op, value_input_count, value_inputs);
     } else {
@@ -280,9 +249,9 @@ class GraphBuilderTester : public HandleAndZoneScope,
       Zone* zone = graph()->zone();
       CallDescriptor* desc =
           Linkage::GetSimplifiedCDescriptor(zone, this->csig_);
-      CompilationInfo info(ArrayVector("testing"), main_isolate(), main_zone(),
-                           Code::STUB);
-      code_ = Pipeline::GenerateCodeForTesting(&info, desc, graph());
+      CompilationInfo info(ArrayVector("testing"), main_zone(), Code::STUB);
+      code_ = Pipeline::GenerateCodeForTesting(&info, main_isolate(), desc,
+                                               graph());
 #ifdef ENABLE_DISASSEMBLER
       if (!code_.is_null() && FLAG_print_opt_code) {
         OFStream os(stdout);

@@ -27,15 +27,13 @@ ACCESSORS(SharedFunctionInfo, raw_name, Object, kNameOffset)
 ACCESSORS(SharedFunctionInfo, construct_stub, Code, kConstructStubOffset)
 ACCESSORS(SharedFunctionInfo, feedback_metadata, FeedbackMetadata,
           kFeedbackMetadataOffset)
-ACCESSORS(SharedFunctionInfo, instance_class_name, Object,
+ACCESSORS(SharedFunctionInfo, instance_class_name, String,
           kInstanceClassNameOffset)
 ACCESSORS(SharedFunctionInfo, function_data, Object, kFunctionDataOffset)
 ACCESSORS(SharedFunctionInfo, script, Object, kScriptOffset)
 ACCESSORS(SharedFunctionInfo, debug_info, Object, kDebugInfoOffset)
 ACCESSORS(SharedFunctionInfo, function_identifier, Object,
           kFunctionIdentifierOffset)
-ACCESSORS(SharedFunctionInfo, preparsed_scope_data, Object,
-          kPreParsedScopeDataOffset)
 
 BIT_FIELD_ACCESSORS(SharedFunctionInfo, start_position_and_type,
                     is_named_expression,
@@ -82,10 +80,10 @@ AbstractCode* SharedFunctionInfo::abstract_code() {
   }
 }
 
+BIT_FIELD_ACCESSORS(SharedFunctionInfo, compiler_hints, is_wrapped,
+                    SharedFunctionInfo::IsWrappedBit)
 BIT_FIELD_ACCESSORS(SharedFunctionInfo, compiler_hints, allows_lazy_compilation,
                     SharedFunctionInfo::AllowLazyCompilationBit)
-BIT_FIELD_ACCESSORS(SharedFunctionInfo, compiler_hints, uses_arguments,
-                    SharedFunctionInfo::UsesArgumentsBit)
 BIT_FIELD_ACCESSORS(SharedFunctionInfo, compiler_hints,
                     has_duplicate_parameters,
                     SharedFunctionInfo::HasDuplicateParametersBit)
@@ -96,6 +94,9 @@ BIT_FIELD_ACCESSORS(SharedFunctionInfo, compiler_hints, native,
                     SharedFunctionInfo::IsNativeBit)
 BIT_FIELD_ACCESSORS(SharedFunctionInfo, compiler_hints, is_asm_wasm_broken,
                     SharedFunctionInfo::IsAsmWasmBrokenBit)
+BIT_FIELD_ACCESSORS(SharedFunctionInfo, compiler_hints,
+                    requires_instance_fields_initializer,
+                    SharedFunctionInfo::RequiresInstanceFieldsInitializer)
 
 bool SharedFunctionInfo::optimization_disabled() const {
   return disable_optimization_reason() != BailoutReason::kNoReason;
@@ -106,12 +107,12 @@ BailoutReason SharedFunctionInfo::disable_optimization_reason() const {
 }
 
 LanguageMode SharedFunctionInfo::language_mode() {
-  STATIC_ASSERT(LANGUAGE_END == 2);
+  STATIC_ASSERT(LanguageModeSize == 2);
   return construct_language_mode(IsStrictBit::decode(compiler_hints()));
 }
 
 void SharedFunctionInfo::set_language_mode(LanguageMode language_mode) {
-  STATIC_ASSERT(LANGUAGE_END == 2);
+  STATIC_ASSERT(LanguageModeSize == 2);
   // We only allow language mode transitions that set the same language mode
   // again or go up in the chain:
   DCHECK(is_sloppy(this->language_mode()) || is_strict(language_mode));
@@ -167,7 +168,7 @@ void SharedFunctionInfo::clear_padding() {
 
 void SharedFunctionInfo::UpdateFunctionMapIndex() {
   int map_index = Context::FunctionMapIndex(
-      language_mode(), kind(), has_shared_name(), needs_home_object());
+      language_mode(), kind(), true, has_shared_name(), needs_home_object());
   set_function_map_index(map_index);
 }
 
@@ -322,12 +323,24 @@ int SharedFunctionInfo::lazy_deserialization_builtin_id() const {
   return id;
 }
 
-void SharedFunctionInfo::set_lazy_deserialization_builtin_id(int builtin_id) {
-  DCHECK(function_data()->IsUndefined(GetIsolate()) ||
-         HasLazyDeserializationBuiltinId());
-  DCHECK(Builtins::IsBuiltinId(builtin_id));
-  DCHECK(Builtins::IsLazy(builtin_id));
-  set_function_data(Smi::FromInt(builtin_id));
+bool SharedFunctionInfo::HasPreParsedScopeData() const {
+  return function_data()->IsPreParsedScopeData();
+}
+
+PreParsedScopeData* SharedFunctionInfo::preparsed_scope_data() const {
+  DCHECK(HasPreParsedScopeData());
+  return PreParsedScopeData::cast(function_data());
+}
+
+void SharedFunctionInfo::set_preparsed_scope_data(
+    PreParsedScopeData* preparsed_scope_data) {
+  DCHECK(function_data()->IsUndefined(GetIsolate()));
+  set_function_data(preparsed_scope_data);
+}
+
+void SharedFunctionInfo::ClearPreParsedScopeData() {
+  DCHECK(function_data()->IsUndefined(GetIsolate()) || HasPreParsedScopeData());
+  set_function_data(GetHeap()->undefined_value());
 }
 
 bool SharedFunctionInfo::HasBuiltinFunctionId() {
@@ -351,9 +364,9 @@ String* SharedFunctionInfo::inferred_name() {
   if (HasInferredName()) {
     return String::cast(function_identifier());
   }
-  Isolate* isolate = GetIsolate();
-  DCHECK(function_identifier()->IsUndefined(isolate) || HasBuiltinFunctionId());
-  return isolate->heap()->empty_string();
+  DCHECK(function_identifier()->IsUndefined(GetIsolate()) ||
+         HasBuiltinFunctionId());
+  return GetHeap()->empty_string();
 }
 
 void SharedFunctionInfo::set_inferred_name(String* inferred_name) {
@@ -370,10 +383,6 @@ bool SharedFunctionInfo::IsUserJavaScript() {
 
 bool SharedFunctionInfo::IsSubjectToDebugging() {
   return IsUserJavaScript() && !HasAsmWasmData();
-}
-
-bool SharedFunctionInfo::HasPreParsedScopeData() const {
-  return preparsed_scope_data()->IsPreParsedScopeData();
 }
 
 }  // namespace internal

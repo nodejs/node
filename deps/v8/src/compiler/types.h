@@ -129,6 +129,7 @@ namespace compiler {
   V(OtherInternal,            1u << 25)  \
   V(ExternalPointer,          1u << 26)  \
   V(Array,                    1u << 27)  \
+  V(BigInt,                   1u << 28)  \
   \
   V(Signed31,                     kUnsigned30 | kNegative31) \
   V(Signed32,                     kSigned31 | kOtherUnsigned31 | \
@@ -148,6 +149,7 @@ namespace compiler {
   V(OrderedNumber,                kPlainNumber | kMinusZero) \
   V(MinusZeroOrNaN,               kMinusZero | kNaN) \
   V(Number,                       kOrderedNumber | kNaN) \
+  V(Numeric,                      kNumber | kBigInt) \
   V(InternalizedString,           kInternalizedNonSeqString | \
                                   kInternalizedSeqString) \
   V(OtherString,                  kOtherNonSeqString | kOtherSeqString) \
@@ -168,11 +170,13 @@ namespace compiler {
   V(NumberOrHole,                 kNumber | kHole) \
   V(NumberOrOddball,              kNumber | kNullOrUndefined | kBoolean | \
                                   kHole) \
-  V(NumberOrString,               kNumber | kString) \
+  V(NumericOrString,              kNumeric | kString) \
   V(NumberOrUndefined,            kNumber | kUndefined) \
-  V(PlainPrimitive,               kNumberOrString | kBoolean | \
+  V(NumberOrUndefinedOrNullOrBoolean,  \
+                                  kNumber | kNullOrUndefined | kBoolean) \
+  V(PlainPrimitive,               kNumber | kString | kBoolean | \
                                   kNullOrUndefined) \
-  V(Primitive,                    kSymbol | kPlainPrimitive) \
+  V(Primitive,                    kSymbol | kBigInt | kPlainPrimitive) \
   V(OtherUndetectableOrUndefined, kOtherUndetectable | kUndefined) \
   V(Proxy,                        kCallableProxy | kOtherProxy) \
   V(ArrayOrOtherObject,           kArray | kOtherObject) \
@@ -244,7 +248,7 @@ class V8_EXPORT_PRIVATE BitsetType {
     return static_cast<bitset>(reinterpret_cast<uintptr_t>(this) ^ 1u);
   }
 
-  static bool IsInhabited(bitset bits) { return bits != kNone; }
+  static bool IsNone(bitset bits) { return bits == kNone; }
 
   static bool Is(bitset bits1, bitset bits2) {
     return (bits1 | bits2) == bits2;
@@ -579,7 +583,7 @@ class V8_EXPORT_PRIVATE Type {
   static Type* For(i::Handle<i::Map> map) { return For(*map); }
 
   // Predicates.
-  bool IsInhabited() { return BitsetType::IsInhabited(this->BitsetLub()); }
+  bool IsNone() { return this == None(); }
 
   bool Is(Type* that) { return this == that || this->SlowIs(that); }
   bool Maybe(Type* that);
@@ -601,14 +605,14 @@ class V8_EXPORT_PRIVATE Type {
   TupleType* AsTuple() { return TupleType::cast(this); }
 
   // Minimum and maximum of a numeric type.
-  // These functions do not distinguish between -0 and +0.  If the type equals
-  // kNaN, they return NaN; otherwise kNaN is ignored.  Only call these
-  // functions on subtypes of Number.
+  // These functions do not distinguish between -0 and +0.  NaN is ignored.
+  // Only call them on subtypes of Number whose intersection with OrderedNumber
+  // is not empty.
   double Min();
   double Max();
 
   // Extracts a range from the type: if the type is a range or a union
-  // containing a range, that range is returned; otherwise, NULL is returned.
+  // containing a range, that range is returned; otherwise, nullptr is returned.
   Type* GetRange();
 
   static bool IsInteger(i::Object* x);
@@ -642,7 +646,6 @@ class V8_EXPORT_PRIVATE Type {
   // Internal inspection.
   bool IsKind(TypeBase::Kind kind) { return TypeBase::IsKind(this, kind); }
 
-  bool IsNone() { return this == None(); }
   bool IsAny() { return this == Any(); }
   bool IsBitset() { return BitsetType::IsBitset(this); }
   bool IsUnion() { return IsKind(TypeBase::kUnion); }

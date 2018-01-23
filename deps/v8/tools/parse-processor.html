@@ -1,0 +1,337 @@
+<html>
+<!--
+Copyright 2016 the V8 project authors. All rights reserved.  Use of this source
+code is governed by a BSD-style license that can be found in the LICENSE file.
+-->
+
+<head>
+<style>
+  html {
+    font-family: monospace;
+  }
+
+  .parse {
+    background-color: red;
+    border: 1px red solid;
+  }
+
+  .preparse {
+    background-color: orange;
+    border: 1px orange solid;
+  }
+
+  .resolution {
+    background-color: green;
+    border: 1px green solid;
+  }
+
+  .execution {
+    background-color: black;
+    border-left: 2px black solid;
+    z-index: -1;
+  }
+
+  .script {
+    margin-top: 1em;
+    overflow: visible;
+    clear: both;
+      border-top: 2px black dotted;
+  }
+  .script h3 {
+    height: 20px;
+    margin-bottom: 0.5em;
+    white-space: nowrap;
+  }
+
+  .script-details {
+    float: left;
+  }
+
+  .chart {
+    float: left;
+    margin-right: 2em;
+  }
+
+  .funktion-list {
+    float: left;
+    height: 400px;
+  }
+
+  .funktion-list > ul {
+    height: 80%;
+    overflow-y: scroll;
+  }
+
+
+  .funktion {
+  }
+
+</style>
+<script src="./splaytree.js" type="text/javascript"></script>
+<script src="./codemap.js" type="text/javascript"></script>
+<script src="./csvparser.js" type="text/javascript"></script>
+<script src="./consarray.js" type="text/javascript"></script>
+<script src="./profile.js" type="text/javascript"></script>
+<script src="./profile_view.js" type="text/javascript"></script>
+<script src="./logreader.js" type="text/javascript"></script>
+<script src="./arguments.js" type="text/javascript"></script>
+<script src="./parse-processor.js" type="text/javascript"></script>
+<script src="./SourceMap.js" type="text/javascript"></script>
+<script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+<script type="text/javascript">
+"use strict";
+google.charts.load('current', {packages: ['corechart']});
+
+function $(query) {
+  return document.querySelector(query);
+}
+
+
+function loadFile() {
+  let files = $('#uploadInput').files;
+
+  let file = files[0];
+  let reader = new FileReader();
+
+  reader.onload = function(evt) {
+    const kTimerName = 'parse log file';
+    console.time(kTimerName);
+    let parseProcessor = new ParseProcessor();
+    parseProcessor.processString(this.result);
+    console.timeEnd(kTimerName);
+    renderParseResults(parseProcessor);
+    document.parseProcessor = parseProcessor;
+  }
+  reader.readAsText(file);
+}
+
+function handleOnLoad() {
+  document.querySelector("#uploadInput").focus();
+}
+
+function createNode(tag, classNames) {
+  let node = document.createElement(tag);
+  if (classNames) {
+    if (Array.isArray(classNames)) {
+      node.classList.add(...classNames);
+    } else {
+      node.className = classNames;
+    }
+  }
+  return node;
+}
+
+function div(...args) {
+  return createNode('div', ...args);
+}
+
+function h1(string) {
+  let node = createNode('h1');
+  node.appendChild(text(string));
+  return node;
+}
+
+function h3(string, ...args) {
+  let node = createNode('h3', ...args);
+  if (string) node.appendChild(text(string));
+  return node;
+}
+
+function a(href, string, ...args) {
+  let link = createNode('a', ...args);
+  if (href.length) link.href = href;
+  if (string) link.appendChild(text(string));
+  return link;
+}
+
+function text(string) {
+  return document.createTextNode(string);
+}
+
+function delay(t) {
+  return new Promise(resolve = > setTimeout(resolve, t));
+}
+
+function renderParseResults(parseProcessor) {
+  let result = $('#result');
+  // clear out all existing result pages;
+  result.innerHTML = '';
+  const start = parseProcessor.firstEvent;
+  const end = parseProcessor.lastEvent;
+  renderScript(result, parseProcessor.totalScript, start, end);
+  // Build up the graphs lazily to keep the page responsive.
+  parseProcessor.scripts.forEach(
+      script => renderScript(result, script, start, end));
+  // Install an intersection observer to lazily load the graphs when the script
+  // div becomes visible for the first time.
+  var io = new IntersectionObserver((entries, observer) => {
+    entries.forEach(entry => {
+      if (entry.intersectionRatio == 0) return;
+      console.assert(!entry.target.querySelector('.graph'));
+      let target = entry.target;
+      appendGraph(target.script, target, start, end);
+      observer.unobserve(entry.target);
+    });
+  }, {});
+  document.querySelectorAll('.script').forEach(div => io.observe(div));
+}
+
+
+const kTimeFactor = 10;
+const kHeight = 20;
+const kFunktionTopOffset = 50;
+
+function renderScript(result, script, start, end) {
+  // Filter out empty scripts.
+  if (script.isEmpty() || script.lastParseEvent == 0) return;
+
+  let scriptDiv = div('script');
+  scriptDiv.script = script;
+
+  let scriptTitle = h3();
+  if (script.file) scriptTitle.appendChild(a(script.file, script.file));
+  let anchor = a("", ' id=' + script.id);
+  anchor.name = "script"+script.id
+  scriptTitle.appendChild(anchor);
+  scriptDiv.appendChild(scriptTitle);
+  let summary = createNode('pre', 'script-details');
+  summary.appendChild(text(script.summary));
+  scriptDiv.appendChild(summary);
+  result.appendChild(scriptDiv);
+  return scriptDiv;
+}
+
+const kMaxTime = 120 * kSecondsToMillis;
+// Resolution of the graphs
+const kTimeIncrement = 1;
+const kSelectionTimespan = 2;
+const series = [
+//    ['firstParseEvent', 'Any Parse Event'],
+    ['parse', 'Parsing'],
+//    ['preparse', 'Preparsing'],
+//    ['resolution', 'Preparsing with Var. Resolution'],
+    ['lazyCompile', 'Lazy Compilation'],
+    ['compile', 'Eager Compilation'],
+    ['execution', 'First Execution'],
+];
+const metricNames = series.map(each => each[0]);
+
+
+function appendGraph(script, parentNode, start, end) {
+  const timerLabel = 'graph script=' + script.id;
+  // TODO(cbruni): add support for network events
+
+  console.time(timerLabel);
+  let data = new google.visualization.DataTable();
+  data.addColumn('number', 'Time');
+  // The series are interleave bytes processed, time spent and thus have two
+  // different vAxes.
+  let seriesOptions = [];
+  series.forEach(each => {
+    let description = each[1];
+    // Add the bytes column.
+    data.addColumn('number', description + ' Bytes');
+    seriesOptions.push({targetAxisIndex: 0});
+    // Add the time column.
+    data.addColumn('number', description + ' Time');
+    seriesOptions.push({targetAxisIndex: 1, lineDashStyle: [3, 2]});
+  });
+  // The first entry contains the total.
+  seriesOptions[0].type = 'area';
+
+  const maxTime = Math.min(kMaxTime, end);
+  console.time('metrics');
+  let metricValues =
+    script.getAccumulatedTimeMetrics(metricNames , 0, maxTime, kTimeIncrement);
+  console.timeEnd('metrics');
+  console.assert(metricValues[0].length == seriesOptions.length + 1);
+  data.addRows(metricValues);
+
+  let options = {
+    explorer: {
+      actions: ['dragToZoom', 'rightClickToReset'],
+      maxZoomIn: 0.01
+    },
+    hAxis: {
+      format: '#,###.##s'
+    },
+    vAxes: {
+      0: {title: 'Bytes Touched', format: 'short'},
+      1: {title: 'Time', format: '#,###ms'}
+    },
+    height: 400,
+    width: 1000,
+    chartArea: {left: '5%', top: '15%', width: "85%", height: "75%"},
+    // The first series should be a area chart (total bytes touched),
+    series: seriesOptions,
+    // everthing else is a line.
+    seriesType: 'line'
+  };
+  let graphNode = createNode('div', 'chart');
+  let listNode = createNode('div', 'funktion-list');
+  parentNode.appendChild(graphNode);
+  parentNode.appendChild(listNode);
+  let chart = new google.visualization.ComboChart(graphNode);
+  google.visualization.events.addListener(chart, 'select',
+      () => selectGraphPointHandler(chart, data, script, parentNode));
+  chart.draw(data, options);
+  console.timeEnd(timerLabel);
+}
+
+
+function selectGraphPointHandler(chart, data, script, parentNode) {
+  let selection = chart.getSelection();
+  if (selection.length <= 0) return;
+  // Display a list of funktions with events at the given time.
+  let {row, column} = selection[0];
+  if (row === null|| column === null) return;
+  let name = series[((column-1)/2) | 0][0];
+  let time = data.getValue(row, 0);
+  let funktions = script.getFunktionsAtTime(
+        time * kSecondsToMillis, kSelectionTimespan, name);
+  let oldList = parentNode.querySelector('.funktion-list');
+  parentNode.replaceChild(createFunktionList(name, time, funktions), oldList);
+}
+
+function createFunktionList(metric, time, funktions) {
+  let container = createNode('div', 'funktion-list');
+  container.appendChild(h3('Changes of ' + metric + ' at ' +
+        time + 's: ' + funktions.length));
+  let listNode = createNode('ul');
+  funktions.forEach(funktion => {
+    let node = createNode('li', 'funktion');
+    node.funktion = funktion;
+    node.appendChild(text(funktion.toString(false) + " "));
+    let script = funktion.script;
+    if (script) {
+      node.appendChild(a("#script" + script.id, "in script " + script.id));
+    }
+    listNode.appendChild(node);
+  });
+  container.appendChild(listNode);
+  return container;
+}
+
+
+</script>
+</head>
+
+<body onload="handleOnLoad()">
+  <h1>BEHOLD, THIS IS PARSEROR!</h1>
+
+  <h2>Usage</h2>
+  Run your script with <code>--log-function-events</code> and upload <code>v8.log</code> on this page:<br/>
+  <code>/path/to/d8 --log-function-events your_script.js</code>
+
+  <h2>Data</h2>
+  <form name="fileForm">
+    <p>
+      <input id="uploadInput" type="file" name="files" onchange="loadFile();"> trace entries: <span id="count">0</span>
+    </p>
+  </form>
+
+  <h2>Result</h2>
+  <div id="result"></div>
+</body>
+
+</html>

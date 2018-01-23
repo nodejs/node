@@ -4,29 +4,25 @@
 
 # Use this to run several variants of the tests.
 ALL_VARIANT_FLAGS = {
+  "code_serializer": [["--cache=code"]],
   "default": [[]],
+  "future": [["--future"]],
+  # Alias of exhaustive variants, but triggering new test framework features.
+  "infra_staging": [[]],
+  "liftoff": [["--liftoff"]],
+  "minor_mc": [["--minor-mc"]],
+  # No optimization means disable all optimizations. OptimizeFunctionOnNextCall
+  # would not force optimization too. It turns into a Nop. Please see
+  # https://chromium-review.googlesource.com/c/452620/ for more discussion.
+  "nooptimization": [["--noopt"]],
+  "slow_path": [["--force-slow-path"]],
   "stress": [["--stress-opt", "--always-opt"]],
+  "stress_background_compile": [["--background-compile", "--stress-background-compile"]],
   "stress_incremental_marking":  [["--stress-incremental-marking"]],
-  # No optimization means disable all optimizations. OptimizeFunctionOnNextCall
-  # would not force optimization too. It turns into a Nop. Please see
-  # https://chromium-review.googlesource.com/c/452620/ for more discussion.
-  "nooptimization": [["--noopt"]],
-  "stress_asm_wasm": [["--validate-asm", "--stress-validate-asm", "--suppress-asm-messages"]],
-  "wasm_traps": [["--wasm_trap_handler", "--invoke-weak-callbacks"]],
+  # Trigger stress sampling allocation profiler with sample interval = 2^14
+  "stress_sampling": [["--stress-sampling-allocation-profiler=16384"]],
+  "trusted": [["--no-untrusted-code-mitigations"]],
+  "wasm_traps": [["--wasm_trap_handler", "--invoke-weak-callbacks", "--wasm-jit-to-native"]],
 }
 
-# FAST_VARIANTS implies no --always-opt.
-FAST_VARIANT_FLAGS = {
-  "default": [[]],
-  "stress": [["--stress-opt"]],
-  "stress_incremental_marking":  [["--stress-incremental-marking"]],
-  # No optimization means disable all optimizations. OptimizeFunctionOnNextCall
-  # would not force optimization too. It turns into a Nop. Please see
-  # https://chromium-review.googlesource.com/c/452620/ for more discussion.
-  "nooptimization": [["--noopt"]],
-  "stress_asm_wasm": [["--validate-asm", "--stress-validate-asm", "--suppress-asm-messages"]],
-  "wasm_traps": [["--wasm_trap_handler", "--invoke-weak-callbacks"]],
-}
-
-ALL_VARIANTS = set(["default", "stress", "stress_incremental_marking",
-                    "nooptimization", "stress_asm_wasm", "wasm_traps"])
+ALL_VARIANTS = set(ALL_VARIANT_FLAGS.keys())

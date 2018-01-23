@@ -24,8 +24,8 @@ bool isSpaceOrNewLine(UChar c) {
   return isASCII(c) && c <= ' ' && (c == ' ' || (c <= 0xD && c >= 0x9));
 }
 
-int charactersToInteger(const UChar* characters, size_t length,
-                        bool* ok = nullptr) {
+int64_t charactersToInteger(const UChar* characters, size_t length,
+                            bool* ok = nullptr) {
   std::vector<char> buffer;
   buffer.reserve(length + 1);
   for (size_t i = 0; i < length; ++i) {
@@ -39,12 +39,9 @@ int charactersToInteger(const UChar* characters, size_t length,
 
   char* endptr;
   int64_t result =
-      static_cast<int64_t>(std::strtol(buffer.data(), &endptr, 10));
-  if (ok) {
-    *ok = !(*endptr) && result <= std::numeric_limits<int>::max() &&
-          result >= std::numeric_limits<int>::min();
-  }
-  return static_cast<int>(result);
+      static_cast<int64_t>(std::strtoll(buffer.data(), &endptr, 10));
+  if (ok) *ok = !(*endptr);
+  return result;
 }
 
 const UChar replacementCharacter = 0xFFFD;
@@ -165,15 +162,15 @@ ConversionResult convertUTF16ToUTF8(const UChar** sourceStart,
  * @return TRUE or FALSE
  * @stable ICU 2.8
  */
-#define U_IS_BMP(c) ((uint32_t)(c) <= 0xffff)
+#define U_IS_BMP(c) ((uint32_t)(c) <= 0xFFFF)
 
 /**
- * Is this code point a supplementary code point (U+10000..U+10ffff)?
+ * Is this code point a supplementary code point (U+010000..U+10FFFF)?
  * @param c 32-bit code point
  * @return TRUE or FALSE
  * @stable ICU 2.8
  */
-#define U_IS_SUPPLEMENTARY(c) ((uint32_t)((c)-0x10000) <= 0xfffff)
+#define U_IS_SUPPLEMENTARY(c) ((uint32_t)((c)-0x010000) <= 0xFFFFF)
 
 /**
  * Is this code point a surrogate (U+d800..U+dfff)?
@@ -181,25 +178,25 @@ ConversionResult convertUTF16ToUTF8(const UChar** sourceStart,
  * @return TRUE or FALSE
  * @stable ICU 2.4
  */
-#define U_IS_SURROGATE(c) (((c)&0xfffff800) == 0xd800)
+#define U_IS_SURROGATE(c) (((c)&0xFFFFF800) == 0xD800)
 
 /**
- * Get the lead surrogate (0xd800..0xdbff) for a
- * supplementary code point (0x10000..0x10ffff).
- * @param supplementary 32-bit code point (U+10000..U+10ffff)
- * @return lead surrogate (U+d800..U+dbff) for supplementary
+ * Get the lead surrogate (0xD800..0xDBFF) for a
+ * supplementary code point (0x010000..0x10FFFF).
+ * @param supplementary 32-bit code point (U+010000..U+10FFFF)
+ * @return lead surrogate (U+D800..U+DBFF) for supplementary
  * @stable ICU 2.4
  */
-#define U16_LEAD(supplementary) (UChar)(((supplementary) >> 10) + 0xd7c0)
+#define U16_LEAD(supplementary) (UChar)(((supplementary) >> 10) + 0xD7C0)
 
 /**
- * Get the trail surrogate (0xdc00..0xdfff) for a
- * supplementary code point (0x10000..0x10ffff).
- * @param supplementary 32-bit code point (U+10000..U+10ffff)
- * @return trail surrogate (U+dc00..U+dfff) for supplementary
+ * Get the trail surrogate (0xDC00..0xDFFF) for a
+ * supplementary code point (0x010000..0x10FFFF).
+ * @param supplementary 32-bit code point (U+010000..U+10FFFF)
+ * @return trail surrogate (U+DC00..U+DFFF) for supplementary
  * @stable ICU 2.4
  */
-#define U16_TRAIL(supplementary) (UChar)(((supplementary)&0x3ff) | 0xdc00)
+#define U16_TRAIL(supplementary) (UChar)(((supplementary)&0x3FF) | 0xDC00)
 
 // This must be called with the length pre-determined by the first byte.
 // If presented with a length > 4, this returns false.  The Unicode
@@ -332,7 +329,7 @@ ConversionResult convertUTF8ToUTF16(const char** sourceStart,
       }
       *target++ = U16_LEAD(character);
       *target++ = U16_TRAIL(character);
-      orAllData = 0xffff;
+      orAllData = 0xFFFF;
     } else {
       if (strict) {
         source -= utf8SequenceLength;  // return to the start
@@ -347,7 +344,7 @@ ConversionResult convertUTF8ToUTF16(const char** sourceStart,
   *sourceStart = source;
   *targetStart = target;
 
-  if (sourceAllASCII) *sourceAllASCII = !(orAllData & ~0x7f);
+  if (sourceAllASCII) *sourceAllASCII = !(orAllData & ~0x7F);
 
   return result;
 }
@@ -430,8 +427,17 @@ String16 String16::fromDouble(double number, int precision) {
   return String16(str.get());
 }
 
-int String16::toInteger(bool* ok) const {
+int64_t String16::toInteger64(bool* ok) const {
   return charactersToInteger(characters16(), length(), ok);
+}
+
+int String16::toInteger(bool* ok) const {
+  int64_t result = toInteger64(ok);
+  if (ok && *ok) {
+    *ok = result <= std::numeric_limits<int>::max() &&
+          result >= std::numeric_limits<int>::min();
+  }
+  return static_cast<int>(result);
 }
 
 String16 String16::stripWhiteSpace() const {

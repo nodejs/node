@@ -128,6 +128,7 @@ namespace compiler {
   V(MipsFloat32Min)                \
   V(MipsFloat64Min)                \
   V(MipsPush)                      \
+  V(MipsPeek)                      \
   V(MipsStoreToStackSlot)          \
   V(MipsByteSwap32)                \
   V(MipsStackClaim)                \
