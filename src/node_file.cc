@@ -648,9 +648,8 @@ static void Link(const FunctionCallbackInfo<Value>& args) {
 static void ReadLink(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
-  const int argc = args.Length();
-
-  CHECK_GE(argc, 1);
+  int argc = args.Length();
+  CHECK_GE(argc, 3);
 
   BufferValue path(env->isolate(), args[0]);
   CHECK_NE(*path, nullptr);
@@ -658,12 +657,18 @@ static void ReadLink(const FunctionCallbackInfo<Value>& args) {
   const enum encoding encoding = ParseEncoding(env->isolate(), args[1], UTF8);
 
   if (args[2]->IsObject()) {  // readlink(path, encoding, req)
-    CHECK_EQ(args.Length(), 3);
+    CHECK_EQ(argc, 3);
     AsyncCall(env, args, "readlink", encoding, AfterStringPtr,
               uv_fs_readlink, *path);
-  } else {
-    SYNC_CALL(readlink, *path, *path)
-    const char* link_path = static_cast<const char*>(SYNC_REQ.ptr);
+  } else {  // readlink(path, encoding, undefined, ctx)
+    CHECK_EQ(argc, 4);
+    fs_req_wrap req_wrap;
+    int err = SyncCall(env, args[3], &req_wrap, "readlink",
+                       uv_fs_readlink, *path);
+    if (err) {
+      return;  // syscall failed, no need to continue, error info is in ctx
+    }
+    const char* link_path = static_cast<const char*>(req_wrap.req.ptr);
 
     Local<Value> error;
     MaybeLocal<Value> rc = StringBytes::Encode(env->isolate(),
@@ -671,9 +676,11 @@ static void ReadLink(const FunctionCallbackInfo<Value>& args) {
                                                encoding,
                                                &error);
     if (rc.IsEmpty()) {
-      env->isolate()->ThrowException(error);
+      Local<Object> ctx = args[3].As<Object>();
+      ctx->Set(env->context(), env->error_string(), error).FromJust();
       return;
     }
+
     args.GetReturnValue().Set(rc.ToLocalChecked());
   }
 }
