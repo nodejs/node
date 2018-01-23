@@ -28,5 +28,5 @@ function main(conf) {
 }
 
 function cb() {
-  assert(false, 'Timer should not call callback');
+  assert.fail('Timer should not call callback');
 }
