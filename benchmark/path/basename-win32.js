@@ -1,6 +1,6 @@
 'use strict';
 const common = require('../common.js');
-const { posix } = require('path');
+const { win32 } = require('path');
 
 const bench = common.createBenchmark(main, {
   pathext: [
@@ -28,7 +28,7 @@ function main({ n, pathext }) {
 
   bench.start();
   for (var i = 0; i < n; i++) {
-    posix.basename(pathext, ext);
+    win32.basename(pathext, ext);
   }
   bench.end(n);
 }
