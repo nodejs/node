@@ -8,3 +8,5 @@ while (t > 0) {
   }
 }
 process.exit(55);
+
+(function force_context_allocation() { return t + k; })
