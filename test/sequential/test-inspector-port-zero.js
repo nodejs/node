@@ -16,8 +16,8 @@ function test(arg, port = '') {
   let stderr = '';
   proc.stdout.on('data', (data) => stdout += data);
   proc.stderr.on('data', (data) => stderr += data);
-  proc.stdout.on('close', assert.ifError);
-  proc.stderr.on('close', assert.ifError);
+  proc.stdout.on('close', (hadErr) => assert(!hadErr));
+  proc.stderr.on('close', (hadErr) => assert(!hadErr));
   proc.stderr.on('data', () => {
     if (!stderr.includes('\n')) return;
     assert(/Debugger listening on (.+)/.test(stderr));

@@ -474,11 +474,15 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/18247
     description: Instead of throwing the original error it is now wrapped into
                  a AssertionError that contains the full stack trace.
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/18247
+    description: Value may now only be `undefined` or `null`. Before any truthy
+                 input was accepted.
 -->
 * `value` {any}
 
-Throws `value` if `value` is truthy. This is useful when testing the `error`
-argument in callbacks.
+Throws `value` if `value` is not `undefined` or `null`. This is useful when
+testing the `error` argument in callbacks.
 
 ```js
 const assert = require('assert').strict;
@@ -486,9 +490,7 @@ const assert = require('assert').strict;
 assert.ifError(null);
 // OK
 assert.ifError(0);
-// OK
-assert.ifError(1);
-// AssertionError [ERR_ASSERTION]: ifError got unwanted exception: 1
+// AssertionError [ERR_ASSERTION]: ifError got unwanted exception: 0
 assert.ifError('error');
 // AssertionError [ERR_ASSERTION]: ifError got unwanted exception: 'error'
 assert.ifError(new Error());
