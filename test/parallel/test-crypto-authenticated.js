@@ -342,6 +342,8 @@ const expectedDeprecationWarnings = [0, 1, 2, 6, 9, 10, 11, 17]
   .map((i) => `Permitting authentication tag lengths of ${i} bytes is ` +
             'deprecated. Valid GCM tag lengths are 4, 8, 12, 13, 14, 15, 16.');
 
+expectedDeprecationWarnings.push('crypto.DEFAULT_ENCODING is deprecated.');
+
 common.expectWarning({
   Warning: expectedWarnings,
   DeprecationWarning: expectedDeprecationWarnings

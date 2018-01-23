@@ -1222,6 +1222,7 @@ related operations. The specific constants currently defined are described in
 ### crypto.DEFAULT_ENCODING
 <!-- YAML
 added: v0.9.3
+deprecated: REPLACEME
 -->
 
 The default encoding to use for functions that can take either strings
@@ -1231,8 +1232,9 @@ default to [`Buffer`][] objects.
 The `crypto.DEFAULT_ENCODING` mechanism is provided for backwards compatibility
 with legacy programs that expect `'latin1'` to be the default encoding.
 
-New applications should expect the default to be `'buffer'`. This property may
-become deprecated in a future Node.js release.
+New applications should expect the default to be `'buffer'`.
+
+This property is deprecated.
 
 ### crypto.fips
 <!-- YAML
@@ -1643,8 +1645,9 @@ crypto.pbkdf2('secret', 'salt', 100000, 64, 'sha512', (err, derivedKey) => {
 });
 ```
 
-The `crypto.DEFAULT_ENCODING` may be used to change the way the `derivedKey`
-is passed to the callback:
+The `crypto.DEFAULT_ENCODING` property can be used to change the way the
+`derivedKey` is passed to the callback. This property, however, has been
+deprecated and use should be avoided.
 
 ```js
 const crypto = require('crypto');
@@ -1705,8 +1708,9 @@ const key = crypto.pbkdf2Sync('secret', 'salt', 100000, 64, 'sha512');
 console.log(key.toString('hex'));  // '3745e48...08d59ae'
 ```
 
-The `crypto.DEFAULT_ENCODING` may be used to change the way the `derivedKey`
-is returned:
+The `crypto.DEFAULT_ENCODING` property may be used to change the way the
+`derivedKey` is returned.  This property, however, has been deprecated and use
+should be avoided.
 
 ```js
 const crypto = require('crypto');
