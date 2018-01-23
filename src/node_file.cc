@@ -624,7 +624,8 @@ static void Symlink(const FunctionCallbackInfo<Value>& args) {
 static void Link(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
-  CHECK_GE(args.Length(), 2);
+  int argc = args.Length();
+  CHECK_GE(argc, 3);
 
   BufferValue src(env->isolate(), args[0]);
   CHECK_NE(*src, nullptr);
@@ -633,11 +634,14 @@ static void Link(const FunctionCallbackInfo<Value>& args) {
   CHECK_NE(*dest, nullptr);
 
   if (args[2]->IsObject()) {  // link(src, dest, req)
-    CHECK_EQ(args.Length(), 3);
+    CHECK_EQ(argc, 3);
     AsyncDestCall(env, args, "link", *dest, dest.length(), UTF8,
                   AfterNoArgs, uv_fs_link, *src, *dest);
-  } else {  // link(src, dest)
-    SYNC_DEST_CALL(link, *src, *dest, *src, *dest)
+  } else {  // link(src, dest, undefined, ctx)
+    CHECK_EQ(argc, 4);
+    fs_req_wrap req_wrap;
+    SyncCall(env, args[3], &req_wrap, "link",
+             uv_fs_link, *src, *dest);
   }
 }
 
