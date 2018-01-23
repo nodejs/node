@@ -53,6 +53,6 @@ function main({ method, n }) {
       iterator(n);
       break;
     default:
-      throw new Error('Unknown method');
+      throw new Error(`Unknown method ${method}`);
   }
 }
