@@ -28,47 +28,19 @@ function createObj(source, add = '') {
 function main({ size, n, method }) {
   // TODO: Fix this "hack". `n` should not be manipulated.
   n = n / size;
-  var i;
 
   const source = Array.apply(null, Array(size));
   const actual = createObj(source);
   const expected = createObj(source);
   const expectedWrong = createObj(source, '4');
 
-  switch (method) {
-    case '':
-      // Empty string falls through to next line as default, mostly for tests.
-    case 'deepEqual':
-      bench.start();
-      for (i = 0; i < n; ++i) {
-        // eslint-disable-next-line no-restricted-properties
-        assert.deepEqual(actual, expected);
-      }
-      bench.end(n);
-      break;
-    case 'deepStrictEqual':
-      bench.start();
-      for (i = 0; i < n; ++i) {
-        assert.deepStrictEqual(actual, expected);
-      }
-      bench.end(n);
-      break;
-    case 'notDeepEqual':
-      bench.start();
-      for (i = 0; i < n; ++i) {
-        // eslint-disable-next-line no-restricted-properties
-        assert.notDeepEqual(actual, expectedWrong);
-      }
-      bench.end(n);
-      break;
-    case 'notDeepStrictEqual':
-      bench.start();
-      for (i = 0; i < n; ++i) {
-        assert.notDeepStrictEqual(actual, expectedWrong);
-      }
-      bench.end(n);
-      break;
-    default:
-      throw new Error('Unsupported method');
+  // eslint-disable-next-line no-restricted-properties
+  const fn = method !== '' ? assert[method] : assert.deepEqual;
+  const value2 = method.includes('not') ? expectedWrong : expected;
+
+  bench.start();
+  for (var i = 0; i < n; ++i) {
+    fn(actual, value2);
   }
+  bench.end(n);
 }
