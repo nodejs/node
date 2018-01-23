@@ -33,7 +33,7 @@ function main({ n, size, encoding, mode }) {
       bench.end(n);
       break;
     default:
-      throw new Error('Unexpected method');
+      throw new Error(`Unexpected method "${mode}"`);
   }
 
   assert.strictEqual([...str].length, size);
