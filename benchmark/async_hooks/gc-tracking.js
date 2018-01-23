@@ -22,22 +22,23 @@ function endAfterGC(n) {
 }
 
 function main({ n, method }) {
+  var i;
   switch (method) {
     case 'trackingEnabled':
       bench.start();
-      for (let i = 0; i < n; i++) {
+      for (i = 0; i < n; i++) {
         new AsyncResource('foobar');
       }
       endAfterGC(n);
       break;
     case 'trackingDisabled':
       bench.start();
-      for (let i = 0; i < n; i++) {
+      for (i = 0; i < n; i++) {
         new AsyncResource('foobar', { requireManualDestroy: true });
       }
       endAfterGC(n);
       break;
     default:
-      throw new Error('Unsupported method');
+      throw new Error(`Unsupported method "${method}"`);
   }
 }
