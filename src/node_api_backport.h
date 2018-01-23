@@ -6,6 +6,7 @@
 // N-API.
 
 #include "node_internals.h"
+#include "env-inl.h"
 
 namespace node {
 
