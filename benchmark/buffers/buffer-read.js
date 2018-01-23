@@ -27,18 +27,14 @@ const bench = common.createBenchmark(main, {
 
 function main({ noAssert, millions, buf, type }) {
   noAssert = noAssert === 'true';
-  const len = millions * 1e6;
   const clazz = buf === 'fast' ? Buffer : require('buffer').SlowBuffer;
   const buff = new clazz(8);
   const fn = `read${type || 'UInt8'}`;
 
   buff.writeDoubleLE(0, 0, noAssert);
-  const testFunction = new Function('buff', `
-    for (var i = 0; i !== ${len}; i++) {
-      buff.${fn}(0, ${JSON.stringify(noAssert)});
-    }
-  `);
   bench.start();
-  testFunction(buff);
-  bench.end(len / 1e6);
+  for (var i = 0; i !== millions * 1e6; i++) {
+    buff[fn](0, noAssert);
+  }
+  bench.end(millions);
 }
