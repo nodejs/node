@@ -5,7 +5,7 @@ const readonlyErrorRE =
   /^TypeError: Cannot assign to read only property '.*' of object '#<Object>'$/;
 
 // Testing api calls for defining properties
-const test_object = require(`./build/${common.buildType}/binding`);
+const test_object = require(`./build/${common.buildType}/test_properties`);
 
 assert.strictEqual(test_object.echo('hello'), 'hello');
 

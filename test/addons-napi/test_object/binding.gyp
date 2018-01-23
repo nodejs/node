@@ -1,7 +1,7 @@
 {
   "targets": [
     {
-      "target_name": "binding",
+      "target_name": "test_object",
       "sources": [ "test_object.c" ]
     }
   ]

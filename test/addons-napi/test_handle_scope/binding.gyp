@@ -1,7 +1,7 @@
 {
   "targets": [
     {
-      "target_name": "binding",
+      "target_name": "test_handle_scope",
       "sources": [ "test_handle_scope.c" ]
     }
   ]

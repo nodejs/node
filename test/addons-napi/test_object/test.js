@@ -3,7 +3,7 @@ const common = require('../../common');
 const assert = require('assert');
 
 // Testing api calls for objects
-const test_object = require(`./build/${common.buildType}/binding`);
+const test_object = require(`./build/${common.buildType}/test_object`);
 
 
 const object = {
