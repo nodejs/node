@@ -1,6 +1,5 @@
 'use strict';
 
-const { strictEqual } = require('assert');
 const fs = require('fs');
 const path = require('path');
 const marked = require('marked');
@@ -9,36 +8,52 @@ const rootDir = path.resolve(__dirname, '..', '..');
 const doc = path.resolve(rootDir, 'doc', 'api', 'addons.md');
 const verifyDir = path.resolve(rootDir, 'test', 'addons');
 
-let id = 0;
-let currentHeader;
+const contents = fs.readFileSync(doc).toString();
 
+const tokens = marked.lexer(contents);
+let id = 0;
+
+let currentHeader;
 const addons = {};
-const content = fs.readFileSync(doc, 'utf8');
-for (const { text, type } of marked.lexer(content)) {
-  if (type === 'heading' && text) {
-    currentHeader = text;
+tokens.forEach((token) => {
+  if (token.type === 'heading' && token.text) {
+    currentHeader = token.text;
     addons[currentHeader] = {
       files: {}
     };
   }
-  if (type === 'code') {
-    const match = text.match(/^\/\/\s+(.*\.(?:cc|h|js))[\r\n]/);
+  if (token.type === 'code') {
+    var match = token.text.match(/^\/\/\s+(.*\.(?:cc|h|js))[\r\n]/);
     if (match !== null) {
-      addons[currentHeader].files[match[1]] = text;
+      addons[currentHeader].files[match[1]] = token.text;
     }
   }
+});
+for (var header in addons) {
+  verifyFiles(addons[header].files,
+              header,
+              console.log.bind(null, 'wrote'),
+              function(err) { if (err) throw err; });
 }
 
-for (const header in addons) {
-  let { files } = addons[header];
+function once(fn) {
+  var once = false;
+  return function() {
+    if (once)
+      return;
+    once = true;
+    fn.apply(this, arguments);
+  };
+}
 
+function verifyFiles(files, blockName, onprogress, ondone) {
   // must have a .cc and a .js to be a valid test
   if (!Object.keys(files).some((name) => /\.cc$/.test(name)) ||
       !Object.keys(files).some((name) => /\.js$/.test(name))) {
-    continue;
+    return;
   }
 
-  const blockName = header
+  blockName = blockName
     .toLowerCase()
     .replace(/\s/g, '_')
     .replace(/[^a-z\d_]/g, '');
@@ -47,9 +62,21 @@ for (const header in addons) {
     `${(++id < 10 ? '0' : '') + id}_${blockName}`
   );
 
-  files = Object.entries(files).map(([name, content]) => {
-    if (name === 'test.js') content = boilerplate(name, content);
-    return { name, content, path: path.resolve(dir, name) };
+  files = Object.keys(files).map(function(name) {
+    if (name === 'test.js') {
+      files[name] = `'use strict';
+const common = require('../../common');
+${files[name].replace(
+    "'./build/Release/addon'",
+    // eslint-disable-next-line no-template-curly-in-string
+    '`./build/${common.buildType}/addon`')}
+`;
+    }
+    return {
+      path: path.resolve(dir, name),
+      name: name,
+      content: files[name]
+    };
   });
 
   files.push({
@@ -57,7 +84,7 @@ for (const header in addons) {
     content: JSON.stringify({
       targets: [
         {
-          target_name: 'binding',
+          target_name: 'addon',
           defines: [ 'V8_DEPRECATION_WARNINGS=1' ],
           sources: files.map(function(file) {
             return file.name;
@@ -67,34 +94,22 @@ for (const header in addons) {
     })
   });
 
-  try {
-    fs.mkdirSync(dir);
-  } catch (e) {
-    strictEqual(e.code, 'EEXIST');
-  }
+  fs.mkdir(dir, function() {
+    // Ignore errors
 
-  for (const file of files) {
-    let content;
-    try {
-      content = fs.readFileSync(file.path, 'utf8');
-    } catch (e) {
-      strictEqual(e.code, 'ENOENT');
-    }
+    const done = once(ondone);
+    var waiting = files.length;
+    files.forEach(function(file) {
+      fs.writeFile(file.path, file.content, function(err) {
+        if (err)
+          return done(err);
 
-    // Only update when file content has changed to prevent unneeded rebuilds.
-    if (content !== file.content) {
-      fs.writeFileSync(file.path, file.content);
-      console.log('wrote', file.path);
-    }
-  }
-}
+        if (onprogress)
+          onprogress(file.path);
 
-function boilerplate(name, content) {
-  return `'use strict';
-const common = require('../../common');
-${content.replace(
-    "'./build/Release/binding'",
-    // eslint-disable-next-line no-template-curly-in-string
-    '`./build/${common.buildType}/binding`')}
-`;
+        if (--waiting === 0)
+          done();
+      });
+    });
+  });
 }
