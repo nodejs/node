@@ -3,10 +3,32 @@
 const common = require('../common');
 const assert = require('assert').strict;
 /* eslint-disable no-restricted-properties */
+const { openSync } = require('fs');
+const tty = require('tty');
 
 const { WriteStream } = require('tty');
 
-const writeStream = new WriteStream(4);
+// Do our best to grab a tty fd.
+function getTTYfd() {
+  const ttyFd = [0, 1, 2, 4, 5].find(tty.isatty);
+  if (ttyFd === undefined) {
+    try {
+      return openSync('/dev/tty');
+    } catch (e) {
+      // There aren't any tty fd's available to use.
+      return -1;
+    }
+  }
+  return ttyFd;
+}
+
+const fd = getTTYfd();
+
+// Give up if we did not find a tty
+if (fd === -1)
+  common.skip();
+
+const writeStream = new WriteStream(fd);
 
 let depth = writeStream.getColorDepth();
 
