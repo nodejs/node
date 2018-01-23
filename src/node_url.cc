@@ -110,11 +110,13 @@ class URLHost {
   // These helpers are the easiest solution but we might want to consider
   // just not forcing strings into an union.
   inline void SetOpaque(std::string&& string) {
+    Reset();
     type_ = HostType::H_OPAQUE;
     new(&value_.opaque) std::string(std::move(string));
   }
 
   inline void SetDomain(std::string&& string) {
+    Reset();
     type_ = HostType::H_DOMAIN;
     new(&value_.domain) std::string(std::move(string));
   }
