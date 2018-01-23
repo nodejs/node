@@ -19,6 +19,7 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+#include "aliased_buffer.h"
 #include "node_buffer.h"
 #include "node_internals.h"
 #include "node_stat_watcher.h"
@@ -44,32 +45,34 @@
 
 namespace node {
 
-void FillStatsArray(double* fields, const uv_stat_t* s) {
-  fields[0] = s->st_dev;
-  fields[1] = s->st_mode;
-  fields[2] = s->st_nlink;
-  fields[3] = s->st_uid;
-  fields[4] = s->st_gid;
-  fields[5] = s->st_rdev;
+void FillStatsArray(AliasedBuffer<double, v8::Float64Array>* fields_ptr,
+                    const uv_stat_t* s, int offset) {
+  AliasedBuffer<double, v8::Float64Array>& fields = *fields_ptr;
+  fields[offset + 0] = s->st_dev;
+  fields[offset + 1] = s->st_mode;
+  fields[offset + 2] = s->st_nlink;
+  fields[offset + 3] = s->st_uid;
+  fields[offset + 4] = s->st_gid;
+  fields[offset + 5] = s->st_rdev;
 #if defined(__POSIX__)
-  fields[6] = s->st_blksize;
+  fields[offset + 6] = s->st_blksize;
 #else
-  fields[6] = -1;
+  fields[offset + 6] = -1;
 #endif
-  fields[7] = s->st_ino;
-  fields[8] = s->st_size;
+  fields[offset + 7] = s->st_ino;
+  fields[offset + 8] = s->st_size;
 #if defined(__POSIX__)
-  fields[9] = s->st_blocks;
+  fields[offset + 9] = s->st_blocks;
 #else
-  fields[9] = -1;
+  fields[offset + 9] = -1;
 #endif
 // Dates.
 // NO-LINT because the fields are 'long' and we just want to cast to `unsigned`
-#define X(idx, name)                                           \
-  /* NOLINTNEXTLINE(runtime/int) */                            \
-  fields[idx] = ((unsigned long)(s->st_##name.tv_sec) * 1e3) + \
-  /* NOLINTNEXTLINE(runtime/int) */                            \
-                ((unsigned long)(s->st_##name.tv_nsec) / 1e6); \
+#define X(idx, name)                                                    \
+  /* NOLINTNEXTLINE(runtime/int) */                                     \
+  fields[offset + idx] = ((unsigned long)(s->st_##name.tv_sec) * 1e3) + \
+  /* NOLINTNEXTLINE(runtime/int) */                                     \
+                ((unsigned long)(s->st_##name.tv_nsec) / 1e6);          \
 
   X(10, atim)
   X(11, mtim)
@@ -81,7 +84,6 @@ void FillStatsArray(double* fields, const uv_stat_t* s) {
 namespace fs {
 
 using v8::Array;
-using v8::ArrayBuffer;
 using v8::Context;
 using v8::Float64Array;
 using v8::Function;
@@ -1295,22 +1297,6 @@ static void Mkdtemp(const FunctionCallbackInfo<Value>& args) {
   }
 }
 
-void GetStatValues(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-  double* fields = env->fs_stats_field_array();
-  if (fields == nullptr) {
-    // stat fields contains twice the number of entries because `fs.StatWatcher`
-    // needs room to store data for *two* `fs.Stats` instances.
-    fields = new double[2 * 14];
-    env->set_fs_stats_field_array(fields);
-  }
-  Local<ArrayBuffer> ab = ArrayBuffer::New(env->isolate(),
-                                           fields,
-                                           sizeof(double) * 2 * 14);
-  Local<Float64Array> fields_array = Float64Array::New(ab, 0, 2 * 14);
-  args.GetReturnValue().Set(fields_array);
-}
-
 void InitFs(Local<Object> target,
             Local<Value> unused,
             Local<Context> context,
@@ -1356,7 +1342,9 @@ void InitFs(Local<Object> target,
 
   env->SetMethod(target, "mkdtemp", Mkdtemp);
 
-  env->SetMethod(target, "getStatValues", GetStatValues);
+  target->Set(context,
+              FIXED_ONE_BYTE_STRING(env->isolate(), "statValues"),
+              env->fs_stats_field_array()->GetJSArray()).FromJust();
 
   StatWatcher::Initialize(env, target);
 
