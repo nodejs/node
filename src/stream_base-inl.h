@@ -33,9 +33,7 @@ inline StreamListener::~StreamListener() {
 
 inline void StreamListener::PassReadErrorToPreviousListener(ssize_t nread) {
   CHECK_NE(previous_listener_, nullptr);
-  previous_listener_->OnStreamRead(nread,
-                                   uv_buf_init(nullptr, 0),
-                                   UV_UNKNOWN_HANDLE);
+  previous_listener_->OnStreamRead(nread, uv_buf_init(nullptr, 0));
 }
 
 
@@ -85,12 +83,10 @@ inline uv_buf_t StreamResource::EmitAlloc(size_t suggested_size) {
   return listener_->OnStreamAlloc(suggested_size);
 }
 
-inline void StreamResource::EmitRead(ssize_t nread,
-                                     const uv_buf_t& buf,
-                                     uv_handle_type pending) {
+inline void StreamResource::EmitRead(ssize_t nread, const uv_buf_t& buf) {
   if (nread > 0)
     bytes_read_ += static_cast<uint64_t>(nread);
-  listener_->OnStreamRead(nread, buf, pending);
+  listener_->OnStreamRead(nread, buf);
 }
 
 inline void StreamResource::EmitAfterWrite(WriteWrap* w, int status) {
