@@ -36,9 +36,7 @@ size_t base64_decoded_size(const TypeName* src, size_t size) {
   if (size == 0)
     return 0;
 
-  if (src[size - 1] == '=')
-    size--;
-  if (size > 0 && src[size - 1] == '=')
+  if ( (src[size - 1] == '=') || (size > 0 && src[size - 1] == '=') )
     size--;
 
   return base64_decoded_size_fast(size);
