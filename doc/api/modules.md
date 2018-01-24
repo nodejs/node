@@ -468,7 +468,7 @@ added: v0.1.27
 
 * {string}
 
-The directory name of the current module. This the same as the
+The directory name of the current module. This is the same as the
 [`path.dirname()`][] of the [`__filename`][].
 
 Example: running `node example.js` from `/Users/mjr`
