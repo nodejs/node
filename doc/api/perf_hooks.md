@@ -125,7 +125,7 @@ Creates a new `PerformanceMark` entry in the Performance Timeline. A
 `performanceEntry.duration` is always `0`. Performance marks are used
 to mark specific significant moments in the Performance Timeline.
 
-### performance.maxBufferSize
+### performance.maxEntries
 <!-- YAML
 added: REPLACEME
 -->
