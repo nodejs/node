@@ -777,17 +777,21 @@ static void Fsync(const FunctionCallbackInfo<Value>& args) {
 static void Unlink(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
-  CHECK_GE(args.Length(), 1);
+  const int argc = args.Length();
+  CHECK_GE(argc, 2);
 
   BufferValue path(env->isolate(), args[0]);
   CHECK_NE(*path, nullptr);
 
-  if (args[1]->IsObject()) {
-    CHECK_EQ(args.Length(), 2);
+  if (args[1]->IsObject()) {  // unlink(fd, req)
+    CHECK_EQ(argc, 2);
     AsyncCall(env, args, "unlink", UTF8, AfterNoArgs,
               uv_fs_unlink, *path);
-  } else {
-    SYNC_CALL(unlink, *path, *path)
+  } else {  // unlink(fd, undefined, ctx)
+    CHECK_EQ(argc, 3);
+    fs_req_wrap req_wrap;
+    SyncCall(env, args[2], &req_wrap, "unlink",
+             uv_fs_unlink, *path);
   }
 }
 
