@@ -334,10 +334,20 @@ assert.strictEqual(
 }
 
 {
-  const error = new errors.Error('ERR_INVALID_ARG_VALUE', 'foo', 'bar');
+  const error = new errors.Error('ERR_INVALID_ARG_VALUE', 'foo', '\u0000bar');
   assert.strictEqual(
     error.message,
-    'The value "bar" is invalid for argument "foo"'
+    'The argument \'foo\' is invalid. Received \'\\u0000bar\''
+  );
+}
+
+{
+  const error = new errors.Error(
+    'ERR_INVALID_ARG_VALUE',
+    'foo', { a: 1 }, 'must have property \'b\'');
+  assert.strictEqual(
+    error.message,
+    'The argument \'foo\' must have property \'b\'. Received { a: 1 }'
   );
 }
 
