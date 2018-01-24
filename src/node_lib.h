@@ -11,9 +11,15 @@ namespace node { namespace lib {
 
     namespace { // private variables
         bool _event_loop_running = false;
+        v8::Isolate* _isolate = nullptr;
+        Environment* _environment = nullptr;
     }
 
-    bool EventLoopIsRunning() { return _event_loop_running; }
+    const bool EventLoopIsRunning() { return _event_loop_running; }
+
+    const v8::Isolate* Isolate() { return _isolate; }
+
+    const Environment* Environment() { return _environment; }
 
     /*********************************************************
      * Function types
