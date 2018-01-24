@@ -20,7 +20,7 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-require('../common');
+const common = require('../common');
 const fixtures = require('../common/fixtures');
 const assert = require('assert');
 
@@ -38,3 +38,13 @@ assert.strictEqual('path', require.resolve('path'));
 // Test configurable resolve() paths.
 require(fixtures.path('require-resolve.js'));
 require(fixtures.path('resolve-paths', 'default', 'verify-paths.js'));
+
+const re = /^The "request" argument must be of type string\. Received type \w+$/;
+[1, false, null, undefined, {}].forEach((value) => {
+  common.expectsError(
+    () => { require.resolve(value); },
+    {
+      code: 'ERR_INVALID_ARG_TYPE',
+      message: re
+    });
+});
