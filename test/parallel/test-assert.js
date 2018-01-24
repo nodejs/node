@@ -452,11 +452,6 @@ assert.throws(makeBlock(thrower, TypeError));
                      'a.doesNotThrow is not catching type matching errors');
 }
 
-assert.throws(() => { assert.ifError(new Error('test error')); },
-              /^Error: test error$/);
-assert.doesNotThrow(() => { assert.ifError(null); });
-assert.doesNotThrow(() => { assert.ifError(); });
-
 common.expectsError(
   () => assert.doesNotThrow(makeBlock(thrower, Error), 'user message'),
   {
@@ -601,22 +596,6 @@ testAssertionMessage(circular, '{ y: 1, x: [Circular] }');
 testAssertionMessage({ a: undefined, b: null }, '{ a: undefined, b: null }');
 testAssertionMessage({ a: NaN, b: Infinity, c: -Infinity },
                      '{ a: NaN, b: Infinity, c: -Infinity }');
-
-// https://github.com/nodejs/node-v0.x-archive/issues/2893
-{
-  let threw = false;
-  try {
-    // eslint-disable-next-line no-restricted-syntax
-    assert.throws(() => {
-      assert.ifError(null);
-    });
-  } catch (e) {
-    threw = true;
-    assert.strictEqual(e.message, 'Missing expected exception.');
-    assert.ok(!e.stack.includes('throws'), e.stack);
-  }
-  assert.ok(threw);
-}
 
 // https://github.com/nodejs/node-v0.x-archive/issues/5292
 try {

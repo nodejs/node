@@ -220,7 +220,9 @@ const values = [
     [fixture],
     common.mustCall((err, stdout, stderr) => {
       assert.ifError(err);
-      assert.strictEqual(stdout.trim(), fixture);
+      assert.strictEqual(
+        stdout.trim(),
+        `ifError got unwanted exception: ${fixture}`);
       assert.strictEqual(stderr, '');
     })
   );
