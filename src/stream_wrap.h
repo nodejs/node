@@ -33,9 +33,7 @@
 
 namespace node {
 
-class LibuvStreamWrap : public HandleWrap,
-                        public StreamListener,
-                        public StreamBase {
+class LibuvStreamWrap : public HandleWrap, public StreamBase {
  public:
   static void Initialize(v8::Local<v8::Object> target,
                          v8::Local<v8::Value> unused,
@@ -93,29 +91,11 @@ class LibuvStreamWrap : public HandleWrap,
   static void SetBlocking(const v8::FunctionCallbackInfo<v8::Value>& args);
 
   // Callbacks for libuv
-  static void OnAlloc(uv_handle_t* handle,
-                      size_t suggested_size,
-                      uv_buf_t* buf);
+  void OnUvAlloc(size_t suggested_size, uv_buf_t* buf);
+  void OnUvRead(ssize_t nread, const uv_buf_t* buf);
 
-  static void OnRead(uv_stream_t* handle,
-                     ssize_t nread,
-                     const uv_buf_t* buf);
   static void AfterUvWrite(uv_write_t* req, int status);
   static void AfterUvShutdown(uv_shutdown_t* req, int status);
-
-  // Resource interface implementation
-  void OnStreamRead(ssize_t nread,
-                    const uv_buf_t& buf) override {
-    CHECK(0 && "must not be called");
-  }
-  void OnStreamRead(ssize_t nread,
-                    const uv_buf_t& buf,
-                    uv_handle_type pending) override;
-  void OnStreamAfterWrite(WriteWrap* w, int status) override {
-    previous_listener_->OnStreamAfterWrite(w, status);
-  }
-
-  void AfterWrite(WriteWrap* req_wrap, int status) override;
 
   uv_stream_t* const stream_;
 };
