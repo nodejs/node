@@ -503,3 +503,24 @@ function re(literals, ...values) {
     validateError
   );
 }
+
+// fsync
+{
+  const validateError = (err) => {
+    assert.strictEqual(err.message, 'EBADF: bad file descriptor, fsync');
+    assert.strictEqual(err.errno, uv.UV_EBADF);
+    assert.strictEqual(err.code, 'EBADF');
+    assert.strictEqual(err.syscall, 'fsync');
+    return true;
+  };
+
+  const fd = fs.openSync(existingFile, 'r');
+  fs.closeSync(fd);
+
+  fs.fsync(fd, common.mustCall(validateError));
+
+  assert.throws(
+    () => fs.fsyncSync(fd),
+    validateError
+  );
+}

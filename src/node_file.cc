@@ -739,7 +739,7 @@ static void Fdatasync(const FunctionCallbackInfo<Value>& args) {
   CHECK_GE(argc, 2);
 
   CHECK(args[0]->IsInt32());
-  const int fd = args[0]->As<Int32>()->Value();
+  const int fd = args[0].As<Int32>()->Value();
 
   if (args[1]->IsObject()) {  // fdatasync(fd, req)
     CHECK_EQ(argc, 2);
@@ -756,16 +756,21 @@ static void Fdatasync(const FunctionCallbackInfo<Value>& args) {
 static void Fsync(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
+  const int argc = args.Length();
+  CHECK_GE(argc, 2);
+
   CHECK(args[0]->IsInt32());
+  const int fd = args[0].As<Int32>()->Value();
 
-  int fd = args[0]->Int32Value();
-
-  if (args[1]->IsObject()) {
-    CHECK_EQ(args.Length(), 2);
+  if (args[1]->IsObject()) {  // fsync(fd, req)
+    CHECK_EQ(argc, 2);
     AsyncCall(env, args, "fsync", UTF8, AfterNoArgs,
               uv_fs_fsync, fd);
-  } else {
-    SYNC_CALL(fsync, 0, fd)
+  } else {  // fsync(fd, undefined, ctx)
+    CHECK_EQ(argc, 3);
+    fs_req_wrap req_wrap;
+    SyncCall(env, args[2], &req_wrap, "fsync",
+             uv_fs_fsync, fd);
   }
 }
 
