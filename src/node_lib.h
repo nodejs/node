@@ -91,13 +91,12 @@ namespace node { namespace lib {
     /*
     Registers a C++ module in the *running* Node.js engine.
     */
-    NODE_EXTERN void RegisterModule(const std::string & name, const addon_context_register_func & callback, void *priv = nullptr);
+    NODE_EXTERN void RegisterModule(const std::string & name, const addon_context_register_func & callback, void *priv = nullptr, const std::string & target = "");
 
     /*
     Registers a C++ module in the *running* Node.js engine exporting the given set of functions.
     */
-    NODE_EXTERN void RegisterModule(const std::string & name,
-                        const std::map<std::string, v8::FunctionCallback> & module_functions);
+    NODE_EXTERN void RegisterModule(const std::string & name, const std::map<std::string, v8::FunctionCallback> & module_functions, const std::string & target = "");
 
 
     /*********************************************************
