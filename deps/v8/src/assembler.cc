@@ -1397,6 +1397,10 @@ ExternalReference ExternalReference::libc_memset_function(Isolate* isolate) {
   return ExternalReference(Redirect(isolate, FUNCTION_ADDR(libc_memset)));
 }
 
+ExternalReference ExternalReference::printf_function(Isolate* isolate) {
+  return ExternalReference(Redirect(isolate, FUNCTION_ADDR(std::printf)));
+}
+
 template <typename SubjectChar, typename PatternChar>
 ExternalReference ExternalReference::search_string_raw(Isolate* isolate) {
   auto f = SearchStringRaw<SubjectChar, PatternChar>;

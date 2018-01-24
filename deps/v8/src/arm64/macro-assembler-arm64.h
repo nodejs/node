@@ -884,6 +884,7 @@ class TurboAssembler : public Assembler {
   void Call(Label* target);
   void Call(Address target, RelocInfo::Mode rmode);
   void Call(Handle<Code> code, RelocInfo::Mode rmode = RelocInfo::CODE_TARGET);
+  void Call(ExternalReference target);
 
   void CallForDeoptimization(Address target, RelocInfo::Mode rmode) {
     Call(target, rmode);

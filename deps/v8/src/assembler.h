@@ -969,6 +969,8 @@ class ExternalReference BASE_EMBEDDED {
   static ExternalReference libc_memmove_function(Isolate* isolate);
   static ExternalReference libc_memset_function(Isolate* isolate);
 
+  static ExternalReference printf_function(Isolate* isolate);
+
   static ExternalReference try_internalize_string_function(Isolate* isolate);
 
   static ExternalReference check_object_type(Isolate* isolate);
