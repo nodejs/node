@@ -11,6 +11,7 @@
 namespace v8 {
 namespace internal {
 namespace compiler {
+namespace machine_operator_unittest {
 
 #if GTEST_HAS_COMBINE
 
@@ -31,8 +32,6 @@ class MachineOperatorTestWithParam
 };
 
 
-namespace {
-
 const MachineRepresentation kMachineReps[] = {MachineRepresentation::kWord32,
                                               MachineRepresentation::kWord64};
 
@@ -49,8 +48,6 @@ const MachineRepresentation kRepresentationsForStore[] = {
     MachineRepresentation::kWord8,   MachineRepresentation::kWord16,
     MachineRepresentation::kWord32,  MachineRepresentation::kWord64,
     MachineRepresentation::kTagged};
-
-}  // namespace
 
 
 // -----------------------------------------------------------------------------
@@ -169,8 +166,6 @@ INSTANTIATE_TEST_CASE_P(
 // -----------------------------------------------------------------------------
 // Pure operators.
 
-namespace {
-
 struct PureOperator {
   const Operator* (MachineOperatorBuilder::*constructor)();
   char const* const constructor_name;
@@ -269,7 +264,6 @@ const PureOperator kPureOperators[] = {
 #undef PURE
 };
 
-}  // namespace
 
 class MachinePureOperatorTest : public TestWithZone {
  protected:
@@ -299,8 +293,6 @@ TEST_F(MachinePureOperatorTest, PureOperators) {
 
 // Optional operators.
 
-namespace {
-
 struct OptionalOperatorEntry {
   const OptionalOperator (MachineOperatorBuilder::*constructor)();
   MachineOperatorBuilder::Flag enabling_flag;
@@ -327,7 +319,6 @@ const OptionalOperatorEntry kOptionalOperators[] = {
     OPTIONAL_ENTRY(Float64RoundTiesAway, 1, 0, 1),  // --
 #undef OPTIONAL_ENTRY
 };
-}  // namespace
 
 
 class MachineOptionalOperatorTest : public TestWithZone {
@@ -365,11 +356,7 @@ TEST_F(MachineOptionalOperatorTest, OptionalOperators) {
 // Pseudo operators.
 
 
-namespace {
-
 typedef TestWithZone MachineOperatorTest;
-
-}  // namespace
 
 
 TEST_F(MachineOperatorTest, PseudoOperatorsWhenWordSizeIs32Bit) {
@@ -415,6 +402,7 @@ TEST_F(MachineOperatorTest, PseudoOperatorsWhenWordSizeIs64Bit) {
   EXPECT_EQ(machine.Int64LessThanOrEqual(), machine.IntLessThanOrEqual());
 }
 
+}  // namespace machine_operator_unittest
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

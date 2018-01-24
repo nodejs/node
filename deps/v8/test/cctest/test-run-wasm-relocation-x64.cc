@@ -30,7 +30,7 @@ TEST(WasmRelocationX64ContextReference) {
   HandleScope scope(isolate);
   v8::internal::byte buffer[4096];
   Assembler assm(isolate, buffer, sizeof buffer);
-  DummyStaticFunction(NULL);
+  DummyStaticFunction(nullptr);
   int64_t imm = 1234567;
 
   __ movq(rax, imm, RelocInfo::WASM_CONTEXT_REFERENCE);
@@ -60,6 +60,8 @@ TEST(WasmRelocationX64ContextReference) {
   // Relocating references by offset
   int mode_mask = (1 << RelocInfo::WASM_CONTEXT_REFERENCE);
   for (RelocIterator it(*code, mode_mask); !it.done(); it.next()) {
+    // TODO(6792): No longer needed once WebAssembly code is off heap.
+    CodeSpaceMemoryModificationScope modification_scope(isolate->heap());
     DCHECK(RelocInfo::IsWasmContextReference(it.rinfo()->rmode()));
     it.rinfo()->set_wasm_context_reference(
         isolate, it.rinfo()->wasm_context_reference() + offset,

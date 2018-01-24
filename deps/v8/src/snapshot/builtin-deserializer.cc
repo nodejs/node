@@ -5,80 +5,128 @@
 #include "src/snapshot/builtin-deserializer.h"
 
 #include "src/assembler-inl.h"
+#include "src/interpreter/interpreter.h"
 #include "src/objects-inl.h"
 #include "src/snapshot/snapshot.h"
 
 namespace v8 {
 namespace internal {
 
-// Tracks the builtin currently being deserialized (required for allocation).
-class DeserializingBuiltinScope {
+using interpreter::Bytecodes;
+using interpreter::Interpreter;
+
+// Tracks the code object currently being deserialized (required for
+// allocation).
+class DeserializingCodeObjectScope {
  public:
-  DeserializingBuiltinScope(BuiltinDeserializer* builtin_deserializer,
-                            int builtin_id)
+  DeserializingCodeObjectScope(BuiltinDeserializer* builtin_deserializer,
+                               int code_object_id)
       : builtin_deserializer_(builtin_deserializer) {
-    DCHECK_EQ(BuiltinDeserializer::kNoBuiltinId,
-              builtin_deserializer->current_builtin_id_);
-    builtin_deserializer->current_builtin_id_ = builtin_id;
+    DCHECK_EQ(BuiltinDeserializer::kNoCodeObjectId,
+              builtin_deserializer->current_code_object_id_);
+    builtin_deserializer->current_code_object_id_ = code_object_id;
   }
 
-  ~DeserializingBuiltinScope() {
-    builtin_deserializer_->current_builtin_id_ =
-        BuiltinDeserializer::kNoBuiltinId;
+  ~DeserializingCodeObjectScope() {
+    builtin_deserializer_->current_code_object_id_ =
+        BuiltinDeserializer::kNoCodeObjectId;
   }
 
  private:
   BuiltinDeserializer* builtin_deserializer_;
 
-  DISALLOW_COPY_AND_ASSIGN(DeserializingBuiltinScope)
+  DISALLOW_COPY_AND_ASSIGN(DeserializingCodeObjectScope)
 };
 
 BuiltinDeserializer::BuiltinDeserializer(Isolate* isolate,
                                          const BuiltinSnapshotData* data)
     : Deserializer(data, false) {
-  // We may have to relax this at some point to pack reloc infos and handler
-  // tables into the builtin blob (instead of the partial snapshot cache).
-  DCHECK(ReservesOnlyCodeSpace());
-
-  builtin_offsets_ = data->BuiltinOffsets();
-  DCHECK_EQ(Builtins::builtin_count, builtin_offsets_.length());
-  DCHECK(std::is_sorted(builtin_offsets_.begin(), builtin_offsets_.end()));
+  code_offsets_ = data->BuiltinOffsets();
+  DCHECK_EQ(BSU::kNumberOfCodeObjects, code_offsets_.length());
+  DCHECK(std::is_sorted(code_offsets_.begin(), code_offsets_.end()));
 
   Initialize(isolate);
 }
 
-void BuiltinDeserializer::DeserializeEagerBuiltins() {
+void BuiltinDeserializer::DeserializeEagerBuiltinsAndHandlers() {
   DCHECK(!AllowHeapAllocation::IsAllowed());
   DCHECK_EQ(0, source()->position());
 
+  // Deserialize builtins.
+
   Builtins* builtins = isolate()->builtins();
-  for (int i = 0; i < Builtins::builtin_count; i++) {
+  for (int i = 0; i < BSU::kNumberOfBuiltins; i++) {
     if (IsLazyDeserializationEnabled() && Builtins::IsLazy(i)) {
       // Do nothing. These builtins have been replaced by DeserializeLazy in
-      // InitializeBuiltinsTable.
+      // InitializeFromReservations.
       DCHECK_EQ(builtins->builtin(Builtins::kDeserializeLazy),
                 builtins->builtin(i));
     } else {
-      builtins->set_builtin(i, DeserializeBuiltin(i));
+      builtins->set_builtin(i, DeserializeBuiltinRaw(i));
     }
   }
 
 #ifdef DEBUG
-  for (int i = 0; i < Builtins::builtin_count; i++) {
+  for (int i = 0; i < BSU::kNumberOfBuiltins; i++) {
     Object* o = builtins->builtin(i);
     DCHECK(o->IsCode() && Code::cast(o)->is_builtin());
   }
 #endif
+
+  // Deserialize bytecode handlers.
+
+  Interpreter* interpreter = isolate()->interpreter();
+  DCHECK(!isolate()->interpreter()->IsDispatchTableInitialized());
+
+  BSU::ForEachBytecode([=](Bytecode bytecode, OperandScale operand_scale) {
+    // Bytecodes without a dedicated handler are patched up in a second pass.
+    if (!Bytecodes::BytecodeHasHandler(bytecode, operand_scale)) return;
+
+    // If lazy-deserialization is enabled and the current bytecode is lazy,
+    // we write the generic LazyDeserialization handler into the dispatch table
+    // and deserialize later upon first use.
+    Code* code = (FLAG_lazy_handler_deserialization &&
+                  IsLazyDeserializationEnabled() && Bytecodes::IsLazy(bytecode))
+                     ? GetDeserializeLazyHandler(operand_scale)
+                     : DeserializeHandlerRaw(bytecode, operand_scale);
+
+    interpreter->SetBytecodeHandler(bytecode, operand_scale, code);
+  });
+
+  // Patch up holes in the dispatch table.
+
+  Code* illegal_handler = interpreter->GetBytecodeHandler(
+      Bytecode::kIllegal, OperandScale::kSingle);
+
+  BSU::ForEachBytecode([=](Bytecode bytecode, OperandScale operand_scale) {
+    if (Bytecodes::BytecodeHasHandler(bytecode, operand_scale)) return;
+    interpreter->SetBytecodeHandler(bytecode, operand_scale, illegal_handler);
+  });
+
+  DCHECK(isolate()->interpreter()->IsDispatchTableInitialized());
 }
 
 Code* BuiltinDeserializer::DeserializeBuiltin(int builtin_id) {
+  allocator()->ReserveAndInitializeBuiltinsTableForBuiltin(builtin_id);
+  DisallowHeapAllocation no_gc;
+  return DeserializeBuiltinRaw(builtin_id);
+}
+
+Code* BuiltinDeserializer::DeserializeHandler(Bytecode bytecode,
+                                              OperandScale operand_scale) {
+  allocator()->ReserveForHandler(bytecode, operand_scale);
+  DisallowHeapAllocation no_gc;
+  return DeserializeHandlerRaw(bytecode, operand_scale);
+}
+
+Code* BuiltinDeserializer::DeserializeBuiltinRaw(int builtin_id) {
   DCHECK(!AllowHeapAllocation::IsAllowed());
   DCHECK(Builtins::IsBuiltinId(builtin_id));
 
-  DeserializingBuiltinScope scope(this, builtin_id);
+  DeserializingCodeObjectScope scope(this, builtin_id);
 
   const int initial_position = source()->position();
-  SetPositionToBuiltin(builtin_id);
+  source()->set_position(code_offsets_[builtin_id]);
 
   Object* o = ReadDataSingle();
   DCHECK(o->IsCode() && Code::cast(o)->is_builtin());
@@ -94,35 +142,38 @@ Code* BuiltinDeserializer::DeserializeBuiltin(int builtin_id) {
   return code;
 }
 
-void BuiltinDeserializer::SetPositionToBuiltin(int builtin_id) {
-  DCHECK(Builtins::IsBuiltinId(builtin_id));
+Code* BuiltinDeserializer::DeserializeHandlerRaw(Bytecode bytecode,
+                                                 OperandScale operand_scale) {
+  DCHECK(!AllowHeapAllocation::IsAllowed());
+  DCHECK(Bytecodes::BytecodeHasHandler(bytecode, operand_scale));
 
-  const uint32_t offset = builtin_offsets_[builtin_id];
-  source()->set_position(offset);
+  const int code_object_id = BSU::BytecodeToIndex(bytecode, operand_scale);
+  DeserializingCodeObjectScope scope(this, code_object_id);
 
-  // Grab the size of the code object.
-  byte data = source()->Get();
+  const int initial_position = source()->position();
+  source()->set_position(code_offsets_[code_object_id]);
 
-  // The first bytecode can either be kNewObject, or kNextChunk if the current
-  // chunk has been exhausted. Since we do allocations differently here, we
-  // don't care about kNextChunk and can simply skip over it.
-  // TODO(jgruber): When refactoring (de)serializer allocations, ensure we don't
-  // generate kNextChunk bytecodes anymore for the builtins snapshot. In fact,
-  // the entire reservations mechanism is unused for the builtins snapshot.
-  if (data == kNextChunk) {
-    source()->Get();  // Skip over kNextChunk's {space} parameter.
-  } else {
-    source()->set_position(offset);  // Rewind.
-  }
+  Object* o = ReadDataSingle();
+  DCHECK(o->IsCode() && Code::cast(o)->kind() == Code::BYTECODE_HANDLER);
+
+  // Rewind.
+  source()->set_position(initial_position);
+
+  // Flush the instruction cache.
+  Code* code = Code::cast(o);
+  Assembler::FlushICache(isolate(), code->instruction_start(),
+                         code->instruction_size());
+
+  return code;
 }
 
-uint32_t BuiltinDeserializer::ExtractBuiltinSize(int builtin_id) {
-  DCHECK(Builtins::IsBuiltinId(builtin_id));
+uint32_t BuiltinDeserializer::ExtractCodeObjectSize(int code_object_id) {
+  DCHECK_LT(code_object_id, BSU::kNumberOfCodeObjects);
 
   const int initial_position = source()->position();
 
   // Grab the size of the code object.
-  SetPositionToBuiltin(builtin_id);
+  source()->set_position(code_offsets_[code_object_id]);
   byte data = source()->Get();
 
   USE(data);
@@ -135,108 +186,19 @@ uint32_t BuiltinDeserializer::ExtractBuiltinSize(int builtin_id) {
   return result;
 }
 
-Heap::Reservation BuiltinDeserializer::CreateReservationsForEagerBuiltins() {
-  DCHECK(ReservesOnlyCodeSpace());
-
-  Heap::Reservation result;
-
-  // DeserializeLazy is always the first reservation (to simplify logic in
-  // InitializeBuiltinsTable).
-  {
-    DCHECK(!Builtins::IsLazy(Builtins::kDeserializeLazy));
-    uint32_t builtin_size = ExtractBuiltinSize(Builtins::kDeserializeLazy);
-    DCHECK_LE(builtin_size, MemoryAllocator::PageAreaSize(CODE_SPACE));
-    result.push_back({builtin_size, nullptr, nullptr});
+Code* BuiltinDeserializer::GetDeserializeLazyHandler(
+    interpreter::OperandScale operand_scale) const {
+  STATIC_ASSERT(interpreter::BytecodeOperands::kOperandScaleCount == 3);
+  switch (operand_scale) {
+    case OperandScale::kSingle:
+      return Code::cast(isolate()->heap()->deserialize_lazy_handler());
+    case OperandScale::kDouble:
+      return Code::cast(isolate()->heap()->deserialize_lazy_handler_wide());
+    case OperandScale::kQuadruple:
+      return Code::cast(
+          isolate()->heap()->deserialize_lazy_handler_extra_wide());
   }
-
-  for (int i = 0; i < Builtins::builtin_count; i++) {
-    if (i == Builtins::kDeserializeLazy) continue;
-
-    // Skip lazy builtins. These will be replaced by the DeserializeLazy code
-    // object in InitializeBuiltinsTable and thus require no reserved space.
-    if (IsLazyDeserializationEnabled() && Builtins::IsLazy(i)) continue;
-
-    uint32_t builtin_size = ExtractBuiltinSize(i);
-    DCHECK_LE(builtin_size, MemoryAllocator::PageAreaSize(CODE_SPACE));
-    result.push_back({builtin_size, nullptr, nullptr});
-  }
-
-  return result;
-}
-
-void BuiltinDeserializer::InitializeBuiltinFromReservation(
-    const Heap::Chunk& chunk, int builtin_id) {
-  DCHECK_EQ(ExtractBuiltinSize(builtin_id), chunk.size);
-  DCHECK_EQ(chunk.size, chunk.end - chunk.start);
-
-  SkipList::Update(chunk.start, chunk.size);
-  isolate()->builtins()->set_builtin(builtin_id,
-                                     HeapObject::FromAddress(chunk.start));
-}
-
-void BuiltinDeserializer::InitializeBuiltinsTable(
-    const Heap::Reservation& reservation) {
-  DCHECK(!AllowHeapAllocation::IsAllowed());
-
-  Builtins* builtins = isolate()->builtins();
-  int reservation_index = 0;
-
-  // Other builtins can be replaced by DeserializeLazy so it may not be lazy.
-  // It always occupies the first reservation slot.
-  {
-    DCHECK(!Builtins::IsLazy(Builtins::kDeserializeLazy));
-    InitializeBuiltinFromReservation(reservation[reservation_index],
-                                     Builtins::kDeserializeLazy);
-    reservation_index++;
-  }
-
-  Code* deserialize_lazy = builtins->builtin(Builtins::kDeserializeLazy);
-
-  for (int i = 0; i < Builtins::builtin_count; i++) {
-    if (i == Builtins::kDeserializeLazy) continue;
-
-    if (IsLazyDeserializationEnabled() && Builtins::IsLazy(i)) {
-      builtins->set_builtin(i, deserialize_lazy);
-    } else {
-      InitializeBuiltinFromReservation(reservation[reservation_index], i);
-      reservation_index++;
-    }
-  }
-
-  DCHECK_EQ(reservation.size(), reservation_index);
-}
-
-void BuiltinDeserializer::ReserveAndInitializeBuiltinsTableForBuiltin(
-    int builtin_id) {
-  DCHECK(AllowHeapAllocation::IsAllowed());
-  DCHECK(isolate()->builtins()->is_initialized());
-  DCHECK(Builtins::IsBuiltinId(builtin_id));
-  DCHECK_NE(Builtins::kDeserializeLazy, builtin_id);
-  DCHECK_EQ(Builtins::kDeserializeLazy,
-            isolate()->builtins()->builtin(builtin_id)->builtin_index());
-
-  const uint32_t builtin_size = ExtractBuiltinSize(builtin_id);
-  DCHECK_LE(builtin_size, MemoryAllocator::PageAreaSize(CODE_SPACE));
-
-  Handle<HeapObject> o =
-      isolate()->factory()->NewCodeForDeserialization(builtin_size);
-
-  // Note: After this point and until deserialization finishes, heap allocation
-  // is disallowed. We currently can't safely assert this since we'd need to
-  // pass the DisallowHeapAllocation scope out of this function.
-
-  // Write the allocated filler object into the builtins table. It will be
-  // returned by our custom Allocate method below once needed.
-
-  isolate()->builtins()->set_builtin(builtin_id, *o);
-}
-
-Address BuiltinDeserializer::Allocate(int space_index, int size) {
-  DCHECK_EQ(CODE_SPACE, space_index);
-  DCHECK_EQ(ExtractBuiltinSize(current_builtin_id_), size);
-  Object* obj = isolate()->builtins()->builtin(current_builtin_id_);
-  DCHECK(Internals::HasHeapObjectTag(obj));
-  return HeapObject::cast(obj)->address();
+  UNREACHABLE();
 }
 
 }  // namespace internal

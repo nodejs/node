@@ -22,7 +22,7 @@
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 description(
-'This is a test case for <a https://bugs.webkit.org/show_bug.cgi?id=64679">bug 64679</a>.'
+'This is a test case for <a href="https://bugs.webkit.org/show_bug.cgi?id=64679">bug 64679</a>.'
 );
 
 // These calls pass undefined as this value, and as such should throw in toObject.

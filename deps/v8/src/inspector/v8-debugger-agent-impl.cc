@@ -370,7 +370,9 @@ void V8DebuggerAgentImpl::enableImpl() {
   }
 }
 
-Response V8DebuggerAgentImpl::enable() {
+Response V8DebuggerAgentImpl::enable(String16* outDebuggerId) {
+  *outDebuggerId = debuggerIdToString(
+      m_debugger->debuggerIdFor(m_session->contextGroupId()));
   if (enabled()) return Response::OK();
 
   if (!m_inspector->client()->canExecuteScripts(m_session->contextGroupId()))
@@ -715,6 +717,32 @@ Response V8DebuggerAgentImpl::continueToLocation(
           protocol::Debugger::ContinueToLocation::TargetCallFramesEnum::Any));
 }
 
+Response V8DebuggerAgentImpl::getStackTrace(
+    std::unique_ptr<protocol::Runtime::StackTraceId> inStackTraceId,
+    std::unique_ptr<protocol::Runtime::StackTrace>* outStackTrace) {
+  bool isOk = false;
+  int64_t id = inStackTraceId->getId().toInteger64(&isOk);
+  std::pair<int64_t, int64_t> debuggerId;
+  if (inStackTraceId->hasDebuggerId()) {
+    debuggerId =
+        m_debugger->debuggerIdFor(inStackTraceId->getDebuggerId(String16()));
+  } else {
+    debuggerId = m_debugger->debuggerIdFor(m_session->contextGroupId());
+  }
+  V8StackTraceId v8StackTraceId(id, debuggerId);
+  if (!isOk || v8StackTraceId.IsInvalid()) {
+    return Response::Error("Invalid stack trace id");
+  }
+  auto stack =
+      m_debugger->stackTraceFor(m_session->contextGroupId(), v8StackTraceId);
+  if (!stack) {
+    return Response::Error("Stack trace with given id is not found");
+  }
+  *outStackTrace = stack->buildInspectorObject(
+      m_debugger, m_debugger->maxAsyncCallChainDepth());
+  return Response::OK();
+}
+
 bool V8DebuggerAgentImpl::isFunctionBlackboxed(const String16& scriptId,
                                                const v8::debug::Location& start,
                                                const v8::debug::Location& end) {
@@ -816,6 +844,7 @@ Response V8DebuggerAgentImpl::setScriptSource(
     Maybe<protocol::Array<protocol::Debugger::CallFrame>>* newCallFrames,
     Maybe<bool>* stackChanged,
     Maybe<protocol::Runtime::StackTrace>* asyncStackTrace,
+    Maybe<protocol::Runtime::StackTraceId>* asyncStackTraceId,
     Maybe<protocol::Runtime::ExceptionDetails>* optOutCompileError) {
   if (!enabled()) return Response::Error(kDebuggerNotEnabled);
 
@@ -858,13 +887,15 @@ Response V8DebuggerAgentImpl::setScriptSource(
   if (!response.isSuccess()) return response;
   *newCallFrames = std::move(callFrames);
   *asyncStackTrace = currentAsyncStackTrace();
+  *asyncStackTraceId = currentExternalStackTrace();
   return Response::OK();
 }
 
 Response V8DebuggerAgentImpl::restartFrame(
     const String16& callFrameId,
     std::unique_ptr<Array<CallFrame>>* newCallFrames,
-    Maybe<protocol::Runtime::StackTrace>* asyncStackTrace) {
+    Maybe<protocol::Runtime::StackTrace>* asyncStackTrace,
+    Maybe<protocol::Runtime::StackTraceId>* asyncStackTraceId) {
   if (!isPaused()) return Response::Error(kDebuggerNotPaused);
   InjectedScript::CallFrameScope scope(m_session, callFrameId);
   Response response = scope.initialize();
@@ -880,6 +911,7 @@ Response V8DebuggerAgentImpl::restartFrame(
   response = currentCallFrames(newCallFrames);
   if (!response.isSuccess()) return response;
   *asyncStackTrace = currentAsyncStackTrace();
+  *asyncStackTraceId = currentExternalStackTrace();
   return Response::OK();
 }
 
@@ -951,10 +983,11 @@ Response V8DebuggerAgentImpl::stepOver() {
   return Response::OK();
 }
 
-Response V8DebuggerAgentImpl::stepInto() {
+Response V8DebuggerAgentImpl::stepInto(Maybe<bool> inBreakOnAsyncCall) {
   if (!isPaused()) return Response::Error(kDebuggerNotPaused);
   m_session->releaseObjectGroup(kBacktraceObjectGroup);
-  m_debugger->stepIntoStatement(m_session->contextGroupId());
+  m_debugger->stepIntoStatement(m_session->contextGroupId(),
+                                inBreakOnAsyncCall.fromMaybe(false));
   return Response::OK();
 }
 
@@ -973,6 +1006,18 @@ void V8DebuggerAgentImpl::scheduleStepIntoAsync(
   }
   m_debugger->scheduleStepIntoAsync(std::move(callback),
                                     m_session->contextGroupId());
+}
+
+Response V8DebuggerAgentImpl::pauseOnAsyncCall(
+    std::unique_ptr<protocol::Runtime::StackTraceId> inParentStackTraceId) {
+  bool isOk = false;
+  int64_t stackTraceId = inParentStackTraceId->getId().toInteger64(&isOk);
+  if (!isOk) {
+    return Response::Error("Invalid stack trace id");
+  }
+  m_debugger->pauseOnAsyncCall(m_session->contextGroupId(), stackTraceId,
+                               inParentStackTraceId->getDebuggerId(String16()));
+  return Response::OK();
 }
 
 Response V8DebuggerAgentImpl::setPauseOnExceptions(
@@ -1058,11 +1103,35 @@ Response V8DebuggerAgentImpl::setVariableValue(
   if (scopeNumber != 0) {
     return Response::Error("Could not find scope with given number");
   }
+
   if (!scopeIterator->SetVariableValue(toV8String(m_isolate, variableName),
                                        newValue) ||
       scope.tryCatch().HasCaught()) {
     return Response::InternalError();
   }
+  return Response::OK();
+}
+
+Response V8DebuggerAgentImpl::setReturnValue(
+    std::unique_ptr<protocol::Runtime::CallArgument> protocolNewValue) {
+  if (!enabled()) return Response::Error(kDebuggerNotEnabled);
+  if (!isPaused()) return Response::Error(kDebuggerNotPaused);
+  auto iterator = v8::debug::StackTraceIterator::Create(m_isolate);
+  if (iterator->Done()) {
+    return Response::Error("Could not find top call frame");
+  }
+  if (iterator->GetReturnValue().IsEmpty()) {
+    return Response::Error(
+        "Could not update return value at non-return position");
+  }
+  InjectedScript::ContextScope scope(m_session, iterator->GetContextId());
+  Response response = scope.initialize();
+  if (!response.isSuccess()) return response;
+  v8::Local<v8::Value> newValue;
+  response = scope.injectedScript()->resolveCallArgument(protocolNewValue.get(),
+                                                         &newValue);
+  if (!response.isSuccess()) return response;
+  v8::debug::SetReturnValue(m_isolate, newValue);
   return Response::OK();
 }
 
@@ -1177,16 +1246,19 @@ Response V8DebuggerAgentImpl::currentCallFrames(
     Response res = buildScopes(scopeIterator.get(), injectedScript, &scopes);
     if (!res.isSuccess()) return res;
 
-    std::unique_ptr<RemoteObject> receiver;
+    std::unique_ptr<RemoteObject> protocolReceiver;
     if (injectedScript) {
-      res = injectedScript->wrapObject(iterator->GetReceiver(),
-                                       kBacktraceObjectGroup, false, false,
-                                       &receiver);
-      if (!res.isSuccess()) return res;
-    } else {
-      receiver = RemoteObject::create()
-                     .setType(RemoteObject::TypeEnum::Undefined)
-                     .build();
+      v8::Local<v8::Value> receiver;
+      if (iterator->GetReceiver().ToLocal(&receiver)) {
+        res = injectedScript->wrapObject(receiver, kBacktraceObjectGroup, false,
+                                         false, &protocolReceiver);
+        if (!res.isSuccess()) return res;
+      }
+    }
+    if (!protocolReceiver) {
+      protocolReceiver = RemoteObject::create()
+                             .setType(RemoteObject::TypeEnum::Undefined)
+                             .build();
     }
 
     v8::Local<v8::debug::Script> script = iterator->GetScript();
@@ -1213,7 +1285,7 @@ Response V8DebuggerAgentImpl::currentCallFrames(
             .setLocation(std::move(location))
             .setUrl(url)
             .setScopeChain(std::move(scopes))
-            .setThis(std::move(receiver))
+            .setThis(std::move(protocolReceiver))
             .build();
 
     v8::Local<v8::Function> func = iterator->GetFunction();
@@ -1245,8 +1317,17 @@ V8DebuggerAgentImpl::currentAsyncStackTrace() {
       m_debugger->currentAsyncParent();
   if (!asyncParent) return nullptr;
   return asyncParent->buildInspectorObject(
-      m_debugger->currentAsyncCreation().get(),
-      m_debugger->maxAsyncCallChainDepth() - 1);
+      m_debugger, m_debugger->maxAsyncCallChainDepth() - 1);
+}
+
+std::unique_ptr<protocol::Runtime::StackTraceId>
+V8DebuggerAgentImpl::currentExternalStackTrace() {
+  V8StackTraceId externalParent = m_debugger->currentExternalParent();
+  if (externalParent.IsInvalid()) return nullptr;
+  return protocol::Runtime::StackTraceId::create()
+      .setId(stackTraceIdToString(externalParent.id))
+      .setDebuggerId(debuggerIdToString(externalParent.debugger_id))
+      .build();
 }
 
 bool V8DebuggerAgentImpl::isPaused() const {
@@ -1298,7 +1379,8 @@ void V8DebuggerAgentImpl::didParseSource(
   std::unique_ptr<V8StackTraceImpl> stack =
       V8StackTraceImpl::capture(m_inspector->debugger(), contextGroupId, 1);
   std::unique_ptr<protocol::Runtime::StackTrace> stackTrace =
-      stack && !stack->isEmpty() ? stack->buildInspectorObjectImpl() : nullptr;
+      stack && !stack->isEmpty() ? stack->buildInspectorObjectImpl(m_debugger)
+                                 : nullptr;
   if (success) {
     m_frontend.scriptParsed(
         scriptId, scriptURL, scriptRef->startLine(), scriptRef->startColumn(),
@@ -1449,9 +1531,23 @@ void V8DebuggerAgentImpl::didPause(
   std::unique_ptr<Array<CallFrame>> protocolCallFrames;
   Response response = currentCallFrames(&protocolCallFrames);
   if (!response.isSuccess()) protocolCallFrames = Array<CallFrame>::create();
+
+  Maybe<protocol::Runtime::StackTraceId> asyncCallStackTrace;
+  void* rawScheduledAsyncTask = m_debugger->scheduledAsyncTask();
+  if (rawScheduledAsyncTask) {
+    asyncCallStackTrace =
+        protocol::Runtime::StackTraceId::create()
+            .setId(stackTraceIdToString(
+                reinterpret_cast<uintptr_t>(rawScheduledAsyncTask)))
+            .setDebuggerId(debuggerIdToString(
+                m_debugger->debuggerIdFor(m_session->contextGroupId())))
+            .build();
+  }
+
   m_frontend.paused(std::move(protocolCallFrames), breakReason,
                     std::move(breakAuxData), std::move(hitBreakpointIds),
-                    currentAsyncStackTrace());
+                    currentAsyncStackTrace(), currentExternalStackTrace(),
+                    std::move(asyncCallStackTrace));
 }
 
 void V8DebuggerAgentImpl::didContinue() {

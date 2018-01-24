@@ -963,11 +963,11 @@ void BytecodeGraphBuilder::BuildStoreGlobal(LanguageMode language_mode) {
 }
 
 void BytecodeGraphBuilder::VisitStaGlobalSloppy() {
-  BuildStoreGlobal(LanguageMode::SLOPPY);
+  BuildStoreGlobal(LanguageMode::kSloppy);
 }
 
 void BytecodeGraphBuilder::VisitStaGlobalStrict() {
-  BuildStoreGlobal(LanguageMode::STRICT);
+  BuildStoreGlobal(LanguageMode::kStrict);
 }
 
 void BytecodeGraphBuilder::VisitStaDataPropertyInLiteral() {
@@ -1935,7 +1935,7 @@ void BytecodeGraphBuilder::VisitInvokeIntrinsic() {
 }
 
 void BytecodeGraphBuilder::VisitThrow() {
-  BuildLoopExitsForFunctionExit(bytecode_analysis()->GetOutLivenessFor(
+  BuildLoopExitsForFunctionExit(bytecode_analysis()->GetInLivenessFor(
       bytecode_iterator().current_offset()));
   Node* value = environment()->LookupAccumulator();
   Node* call = NewNode(javascript()->CallRuntime(Runtime::kThrow), value);
@@ -1945,7 +1945,7 @@ void BytecodeGraphBuilder::VisitThrow() {
 }
 
 void BytecodeGraphBuilder::VisitAbort() {
-  BuildLoopExitsForFunctionExit(bytecode_analysis()->GetOutLivenessFor(
+  BuildLoopExitsForFunctionExit(bytecode_analysis()->GetInLivenessFor(
       bytecode_iterator().current_offset()));
   BailoutReason reason =
       static_cast<BailoutReason>(bytecode_iterator().GetIndexOperand(0));
@@ -1955,7 +1955,7 @@ void BytecodeGraphBuilder::VisitAbort() {
 }
 
 void BytecodeGraphBuilder::VisitReThrow() {
-  BuildLoopExitsForFunctionExit(bytecode_analysis()->GetOutLivenessFor(
+  BuildLoopExitsForFunctionExit(bytecode_analysis()->GetInLivenessFor(
       bytecode_iterator().current_offset()));
   Node* value = environment()->LookupAccumulator();
   NewNode(javascript()->CallRuntime(Runtime::kReThrow), value);
@@ -2013,6 +2013,27 @@ void BytecodeGraphBuilder::VisitThrowSuperAlreadyCalledIfNotHole() {
       NewNode(simplified()->BooleanNot(), check_for_hole);
   BuildHoleCheckAndThrow(check_for_not_hole,
                          Runtime::kThrowSuperAlreadyCalledError);
+}
+
+void BytecodeGraphBuilder::BuildUnaryOp(const Operator* op) {
+  PrepareEagerCheckpoint();
+  Node* operand = environment()->LookupAccumulator();
+
+  FeedbackSlot slot = feedback_vector()->ToSlot(
+      bytecode_iterator().GetIndexOperand(kUnaryOperationHintIndex));
+  JSTypeHintLowering::LoweringResult lowering =
+      TryBuildSimplifiedUnaryOp(op, operand, slot);
+  if (lowering.IsExit()) return;
+
+  Node* node = nullptr;
+  if (lowering.IsSideEffectFree()) {
+    node = lowering.value();
+  } else {
+    DCHECK(!lowering.Changed());
+    node = NewNode(op, operand);
+  }
+
+  environment()->BindAccumulator(node, Environment::kAttachFrameState);
 }
 
 void BytecodeGraphBuilder::BuildBinaryOp(const Operator* op) {
@@ -2083,56 +2104,20 @@ CallFrequency BytecodeGraphBuilder::ComputeCallFrequency(int slot_id) const {
                        invocation_frequency_.value());
 }
 
-void BytecodeGraphBuilder::VisitNegate() {
-  PrepareEagerCheckpoint();
-
-  // TODO(adamk): Create a JSNegate operator, as this desugaring is
-  // invalid for BigInts.
-  const Operator* op = javascript()->Multiply();
-  Node* operand = environment()->LookupAccumulator();
-  Node* multiplier = jsgraph()->SmiConstant(-1);
-
-  FeedbackSlot slot = feedback_vector()->ToSlot(
-      bytecode_iterator().GetIndexOperand(kUnaryOperationHintIndex));
-  JSTypeHintLowering::LoweringResult lowering =
-      TryBuildSimplifiedBinaryOp(op, operand, multiplier, slot);
-  if (lowering.IsExit()) return;
-
-  Node* node = nullptr;
-  if (lowering.IsSideEffectFree()) {
-    node = lowering.value();
-  } else {
-    DCHECK(!lowering.Changed());
-    node = NewNode(op, operand, multiplier);
-  }
-
-  environment()->BindAccumulator(node, Environment::kAttachFrameState);
+void BytecodeGraphBuilder::VisitBitwiseNot() {
+  BuildUnaryOp(javascript()->BitwiseNot());
 }
 
-void BytecodeGraphBuilder::VisitBitwiseNot() {
-  PrepareEagerCheckpoint();
+void BytecodeGraphBuilder::VisitDec() {
+  BuildUnaryOp(javascript()->Decrement());
+}
 
-  // TODO(adamk): Create a JSBitwiseNot operator, as this desugaring is
-  // invalid for BigInts.
-  const Operator* op = javascript()->BitwiseXor();
-  Node* operand = environment()->LookupAccumulator();
-  Node* xor_value = jsgraph()->SmiConstant(-1);
+void BytecodeGraphBuilder::VisitInc() {
+  BuildUnaryOp(javascript()->Increment());
+}
 
-  FeedbackSlot slot = feedback_vector()->ToSlot(
-      bytecode_iterator().GetIndexOperand(kUnaryOperationHintIndex));
-  JSTypeHintLowering::LoweringResult lowering =
-      TryBuildSimplifiedBinaryOp(op, operand, xor_value, slot);
-  if (lowering.IsExit()) return;
-
-  Node* node = nullptr;
-  if (lowering.IsSideEffectFree()) {
-    node = lowering.value();
-  } else {
-    DCHECK(!lowering.Changed());
-    node = NewNode(op, operand, xor_value);
-  }
-
-  environment()->BindAccumulator(node, Environment::kAttachFrameState);
+void BytecodeGraphBuilder::VisitNegate() {
+  BuildUnaryOp(javascript()->Negate());
 }
 
 void BytecodeGraphBuilder::VisitAdd() {
@@ -2152,6 +2137,10 @@ void BytecodeGraphBuilder::VisitDiv() { BuildBinaryOp(javascript()->Divide()); }
 
 void BytecodeGraphBuilder::VisitMod() {
   BuildBinaryOp(javascript()->Modulus());
+}
+
+void BytecodeGraphBuilder::VisitExp() {
+  BuildBinaryOp(javascript()->Exponentiate());
 }
 
 void BytecodeGraphBuilder::VisitBitwiseOr() {
@@ -2220,6 +2209,10 @@ void BytecodeGraphBuilder::VisitModSmi() {
   BuildBinaryOpWithImmediate(javascript()->Modulus());
 }
 
+void BytecodeGraphBuilder::VisitExpSmi() {
+  BuildBinaryOpWithImmediate(javascript()->Exponentiate());
+}
+
 void BytecodeGraphBuilder::VisitBitwiseOrSmi() {
   BuildBinaryOpWithImmediate(javascript()->BitwiseOr());
 }
@@ -2244,52 +2237,6 @@ void BytecodeGraphBuilder::VisitShiftRightLogicalSmi() {
   BuildBinaryOpWithImmediate(javascript()->ShiftRightLogical());
 }
 
-void BytecodeGraphBuilder::VisitInc() {
-  PrepareEagerCheckpoint();
-  // Note: Use subtract -1 here instead of add 1 to ensure we always convert to
-  // a number, not a string.
-  Node* left = environment()->LookupAccumulator();
-  Node* right = jsgraph()->Constant(-1);
-  const Operator* op = javascript()->Subtract();
-
-  FeedbackSlot slot = feedback_vector()->ToSlot(
-      bytecode_iterator().GetIndexOperand(kCountOperationHintIndex));
-  JSTypeHintLowering::LoweringResult lowering =
-      TryBuildSimplifiedBinaryOp(op, left, right, slot);
-  if (lowering.IsExit()) return;
-
-  Node* node = nullptr;
-  if (lowering.IsSideEffectFree()) {
-    node = lowering.value();
-  } else {
-    DCHECK(!lowering.Changed());
-    node = NewNode(op, left, right);
-  }
-  environment()->BindAccumulator(node, Environment::kAttachFrameState);
-}
-
-void BytecodeGraphBuilder::VisitDec() {
-  PrepareEagerCheckpoint();
-  Node* left = environment()->LookupAccumulator();
-  Node* right = jsgraph()->OneConstant();
-  const Operator* op = javascript()->Subtract();
-
-  FeedbackSlot slot = feedback_vector()->ToSlot(
-      bytecode_iterator().GetIndexOperand(kCountOperationHintIndex));
-  JSTypeHintLowering::LoweringResult lowering =
-      TryBuildSimplifiedBinaryOp(op, left, right, slot);
-  if (lowering.IsExit()) return;
-
-  Node* node = nullptr;
-  if (lowering.IsSideEffectFree()) {
-    node = lowering.value();
-  } else {
-    DCHECK(!lowering.Changed());
-    node = NewNode(op, left, right);
-  }
-  environment()->BindAccumulator(node, Environment::kAttachFrameState);
-}
-
 void BytecodeGraphBuilder::VisitLogicalNot() {
   Node* value = environment()->LookupAccumulator();
   Node* node = NewNode(simplified()->BooleanNot(), value);
@@ -2297,15 +2244,15 @@ void BytecodeGraphBuilder::VisitLogicalNot() {
 }
 
 void BytecodeGraphBuilder::VisitToBooleanLogicalNot() {
-  Node* value = NewNode(javascript()->ToBoolean(ToBooleanHint::kAny),
-                        environment()->LookupAccumulator());
+  Node* value =
+      NewNode(simplified()->ToBoolean(), environment()->LookupAccumulator());
   Node* node = NewNode(simplified()->BooleanNot(), value);
   environment()->BindAccumulator(node);
 }
 
 void BytecodeGraphBuilder::VisitTypeOf() {
   Node* node =
-      NewNode(javascript()->TypeOf(), environment()->LookupAccumulator());
+      NewNode(simplified()->TypeOf(), environment()->LookupAccumulator());
   environment()->BindAccumulator(node);
 }
 
@@ -2320,11 +2267,11 @@ void BytecodeGraphBuilder::BuildDelete(LanguageMode language_mode) {
 }
 
 void BytecodeGraphBuilder::VisitDeletePropertyStrict() {
-  BuildDelete(LanguageMode::STRICT);
+  BuildDelete(LanguageMode::kStrict);
 }
 
 void BytecodeGraphBuilder::VisitDeletePropertySloppy() {
-  BuildDelete(LanguageMode::SLOPPY);
+  BuildDelete(LanguageMode::kSloppy);
 }
 
 void BytecodeGraphBuilder::VisitGetSuperConstructor() {
@@ -2409,7 +2356,8 @@ void BytecodeGraphBuilder::VisitTestIn() {
 }
 
 void BytecodeGraphBuilder::VisitTestInstanceOf() {
-  BuildTestingOp(javascript()->InstanceOf());
+  int const slot_index = bytecode_iterator().GetIndexOperand(1);
+  BuildCompareOp(javascript()->InstanceOf(CreateVectorSlotPair(slot_index)));
 }
 
 void BytecodeGraphBuilder::VisitTestUndetectable() {
@@ -2446,6 +2394,9 @@ void BytecodeGraphBuilder::VisitTestTypeOf() {
       break;
     case interpreter::TestTypeOfFlags::LiteralFlag::kSymbol:
       result = NewNode(simplified()->ObjectIsSymbol(), object);
+      break;
+    case interpreter::TestTypeOfFlags::LiteralFlag::kBigInt:
+      result = NewNode(simplified()->ObjectIsBigInt(), object);
       break;
     case interpreter::TestTypeOfFlags::LiteralFlag::kBoolean:
       result = NewNode(common()->Select(MachineRepresentation::kTagged),
@@ -2511,6 +2462,28 @@ void BytecodeGraphBuilder::VisitToNumber() {
   } else {
     DCHECK(!lowering.Changed());
     node = NewNode(javascript()->ToNumber(), object);
+  }
+
+  environment()->BindAccumulator(node, Environment::kAttachFrameState);
+}
+
+void BytecodeGraphBuilder::VisitToNumeric() {
+  PrepareEagerCheckpoint();
+  Node* object = environment()->LookupAccumulator();
+
+  // If we have some kind of Number feedback, we do the same lowering as for
+  // ToNumber.
+  FeedbackSlot slot =
+      feedback_vector()->ToSlot(bytecode_iterator().GetIndexOperand(0));
+  JSTypeHintLowering::LoweringResult lowering =
+      TryBuildSimplifiedToNumber(object, slot);
+
+  Node* node = nullptr;
+  if (lowering.IsSideEffectFree()) {
+    node = lowering.value();
+  } else {
+    DCHECK(!lowering.Changed());
+    node = NewNode(javascript()->ToNumeric(), object);
   }
 
   environment()->BindAccumulator(node, Environment::kAttachFrameState);
@@ -2945,15 +2918,13 @@ void BytecodeGraphBuilder::BuildJumpIfTrue() {
 
 void BytecodeGraphBuilder::BuildJumpIfToBooleanTrue() {
   Node* accumulator = environment()->LookupAccumulator();
-  Node* condition =
-      NewNode(javascript()->ToBoolean(ToBooleanHint::kAny), accumulator);
+  Node* condition = NewNode(simplified()->ToBoolean(), accumulator);
   BuildJumpIf(condition);
 }
 
 void BytecodeGraphBuilder::BuildJumpIfToBooleanFalse() {
   Node* accumulator = environment()->LookupAccumulator();
-  Node* condition =
-      NewNode(javascript()->ToBoolean(ToBooleanHint::kAny), accumulator);
+  Node* condition = NewNode(simplified()->ToBoolean(), accumulator);
   BuildJumpIfNot(condition);
 }
 
@@ -2968,6 +2939,19 @@ void BytecodeGraphBuilder::BuildJumpIfJSReceiver() {
   Node* accumulator = environment()->LookupAccumulator();
   Node* condition = NewNode(simplified()->ObjectIsReceiver(), accumulator);
   BuildJumpIf(condition);
+}
+
+JSTypeHintLowering::LoweringResult
+BytecodeGraphBuilder::TryBuildSimplifiedUnaryOp(const Operator* op,
+                                                Node* operand,
+                                                FeedbackSlot slot) {
+  Node* effect = environment()->GetEffectDependency();
+  Node* control = environment()->GetControlDependency();
+  JSTypeHintLowering::LoweringResult result =
+      type_hint_lowering().ReduceUnaryOperation(op, operand, effect, control,
+                                                slot);
+  ApplyEarlyReduction(result);
+  return result;
 }
 
 JSTypeHintLowering::LoweringResult

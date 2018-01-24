@@ -111,7 +111,7 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
 
 
 void CpuFeatures::PrintTarget() {
-  const char* ppc_arch = NULL;
+  const char* ppc_arch = nullptr;
 
 #if V8_TARGET_ARCH_PPC64
   ppc_arch = "ppc64";
@@ -155,7 +155,7 @@ bool RelocInfo::IsCodedSpecially() {
 
 
 bool RelocInfo::IsInConstantPool() {
-  if (FLAG_enable_embedded_constant_pool && host_ != NULL) {
+  if (FLAG_enable_embedded_constant_pool && host_ != nullptr) {
     Address constant_pool = host_->constant_pool();
     return (constant_pool && Assembler::IsConstantPoolLoadStart(pc_));
   }
@@ -180,6 +180,17 @@ void RelocInfo::set_embedded_size(Isolate* isolate, uint32_t size,
                                   ICacheFlushMode flush_mode) {
   Assembler::set_target_address_at(isolate, pc_, host_,
                                    reinterpret_cast<Address>(size), flush_mode);
+}
+
+void RelocInfo::set_js_to_wasm_address(Isolate* isolate, Address address,
+                                       ICacheFlushMode icache_flush_mode) {
+  DCHECK_EQ(rmode_, JS_TO_WASM_CALL);
+  set_embedded_address(isolate, address, icache_flush_mode);
+}
+
+Address RelocInfo::js_to_wasm_address() const {
+  DCHECK_EQ(rmode_, JS_TO_WASM_CALL);
+  return embedded_address();
 }
 
 // -----------------------------------------------------------------------------
@@ -228,7 +239,7 @@ void Assembler::AllocateAndInstallRequestedHeapObjects(Isolate* isolate) {
         break;
     }
     Address pc = buffer_ + request.offset();
-    Address constant_pool = NULL;
+    Address constant_pool = nullptr;
     set_target_address_at(nullptr, pc, constant_pool,
                           reinterpret_cast<Address>(object.location()),
                           SKIP_ICACHE_FLUSH);
@@ -277,7 +288,7 @@ void Assembler::GetCode(Isolate* isolate, CodeDesc* desc) {
 
 void Assembler::Align(int m) {
   DCHECK(m >= 4 && base::bits::IsPowerOfTwo(m));
-  DCHECK((pc_offset() & (kInstrSize - 1)) == 0);
+  DCHECK_EQ(pc_offset() & (kInstrSize - 1), 0);
   while ((pc_offset() & (m - 1)) != 0) {
     nop();
   }
@@ -569,7 +580,7 @@ void Assembler::bind_to(Label* L, int pos) {
     if (maxReach && is_intn(offset, maxReach) == false) {
       if (trampoline_pos == kInvalidSlotPos) {
         trampoline_pos = get_trampoline_entry();
-        CHECK(trampoline_pos != kInvalidSlotPos);
+        CHECK_NE(trampoline_pos, kInvalidSlotPos);
         target_at_put(trampoline_pos, pos);
       }
       target_at_put(fixup_pos, trampoline_pos);
@@ -601,7 +612,7 @@ void Assembler::next(Label* L) {
   if (link == kEndOfChain) {
     L->Unuse();
   } else {
-    DCHECK(link >= 0);
+    DCHECK_GE(link, 0);
     L->link_to(link);
   }
 }
@@ -1228,7 +1239,7 @@ void Assembler::divdu(Register dst, Register src1, Register src2, OEBit o,
 void Assembler::function_descriptor() {
   if (ABI_USES_FUNCTION_DESCRIPTORS) {
     Label instructions;
-    DCHECK(pc_offset() == 0);
+    DCHECK_EQ(pc_offset(), 0);
     emit_label_addr(&instructions);
     dp(0);
     dp(0);
@@ -1288,7 +1299,7 @@ void Assembler::EnsureSpaceFor(int space_needed) {
 
 bool Operand::must_output_reloc_info(const Assembler* assembler) const {
   if (rmode_ == RelocInfo::EXTERNAL_REFERENCE) {
-    if (assembler != NULL && assembler->predictable_code_size()) return true;
+    if (assembler != nullptr && assembler->predictable_code_size()) return true;
     return assembler->serializer_enabled();
   } else if (RelocInfo::IsNone(rmode_)) {
     return false;
@@ -1507,7 +1518,7 @@ void Assembler::mov_label_addr(Register dst, Label* label) {
     BlockTrampolinePoolScope block_trampoline_pool(this);
     emit(kUnboundMovLabelAddrOpcode | (link & kImm26Mask));
     emit(dst.code());
-    DCHECK(kMovInstructionsNoConstantPool >= 2);
+    DCHECK_GE(kMovInstructionsNoConstantPool, 2);
     for (int i = 0; i < kMovInstructionsNoConstantPool - 2; i++) nop();
   }
 }
@@ -1573,7 +1584,7 @@ void Assembler::mtxer(Register src) {
 
 
 void Assembler::mcrfs(CRegister cr, FPSCRBit bit) {
-  DCHECK(static_cast<int>(bit) < 32);
+  DCHECK_LT(static_cast<int>(bit), 32);
   int bf = cr.code();
   int bfa = bit / CRWIDTH;
   emit(EXT4 | MCRFS | bf * B23 | bfa * B18);
@@ -1879,14 +1890,14 @@ void Assembler::fneg(const DoubleRegister frt, const DoubleRegister frb,
 
 
 void Assembler::mtfsb0(FPSCRBit bit, RCBit rc) {
-  DCHECK(static_cast<int>(bit) < 32);
+  DCHECK_LT(static_cast<int>(bit), 32);
   int bt = bit;
   emit(EXT4 | MTFSB0 | bt * B21 | rc);
 }
 
 
 void Assembler::mtfsb1(FPSCRBit bit, RCBit rc) {
-  DCHECK(static_cast<int>(bit) < 32);
+  DCHECK_LT(static_cast<int>(bit), 32);
   int bt = bit;
   emit(EXT4 | MTFSB1 | bt * B21 | rc);
 }
@@ -2074,7 +2085,7 @@ void Assembler::EmitRelocations() {
        it != relocations_.end(); it++) {
     RelocInfo::Mode rmode = it->rmode();
     Address pc = buffer_ + it->position();
-    Code* code = NULL;
+    Code* code = nullptr;
     RelocInfo rinfo(pc, rmode, it->data(), code);
 
     // Fix up internal references now that they are guaranteed to be bound.

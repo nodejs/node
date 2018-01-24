@@ -72,7 +72,7 @@ Object** HandleScope::Extend(Isolate* isolate) {
   if (!Utils::ApiCheck(current->level != current->sealed_level,
                        "v8::HandleScope::CreateHandle()",
                        "Cannot create a handle without a HandleScope")) {
-    return NULL;
+    return nullptr;
   }
   HandleScopeImplementer* impl = isolate->handle_scope_implementer();
   // If there's more room in the last block, we use that. This is used
@@ -81,7 +81,7 @@ Object** HandleScope::Extend(Isolate* isolate) {
     Object** limit = &impl->blocks()->back()[kHandleBlockSize];
     if (current->limit != limit) {
       current->limit = limit;
-      DCHECK(limit - current->next < kHandleBlockSize);
+      DCHECK_LT(limit - current->next, kHandleBlockSize);
     }
   }
 
@@ -108,7 +108,7 @@ void HandleScope::DeleteExtensions(Isolate* isolate) {
 
 #ifdef ENABLE_HANDLE_ZAPPING
 void HandleScope::ZapRange(Object** start, Object** end) {
-  DCHECK(end - start <= kHandleBlockSize);
+  DCHECK_LE(end - start, kHandleBlockSize);
   for (Object** p = start; p != end; p++) {
     *reinterpret_cast<Address*>(p) = kHandleZapValue;
   }

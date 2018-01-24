@@ -57,43 +57,33 @@ Node* IteratorBuiltinsAssembler::IteratorStep(Node* context, Node* iterator,
   // 3. If Type(result) is not Object, throw a TypeError exception.
   Label if_notobject(this, Label::kDeferred), return_result(this);
   GotoIf(TaggedIsSmi(result), &if_notobject);
-  GotoIfNot(IsJSReceiver(result), &if_notobject);
-
-  VARIABLE(var_done, MachineRepresentation::kTagged);
+  Node* result_map = LoadMap(result);
 
   if (fast_iterator_result_map != nullptr) {
     // Fast iterator result case:
     Label if_generic(this);
 
     // 4. Return result.
-    Node* map = LoadMap(result);
-    GotoIfNot(WordEqual(map, fast_iterator_result_map), &if_generic);
+    GotoIfNot(WordEqual(result_map, fast_iterator_result_map), &if_generic);
 
     // IteratorComplete
     // 2. Return ToBoolean(? Get(iterResult, "done")).
     Node* done = LoadObjectField(result, JSIteratorResult::kDoneOffset);
-    CSA_ASSERT(this, IsBoolean(done));
-    var_done.Bind(done);
-    Goto(&return_result);
+    BranchIfToBooleanIsTrue(done, if_done, &return_result);
 
     BIND(&if_generic);
   }
 
   // Generic iterator result case:
   {
+    // 3. If Type(result) is not Object, throw a TypeError exception.
+    GotoIfNot(IsJSReceiverMap(result_map), &if_notobject);
+
     // IteratorComplete
     // 2. Return ToBoolean(? Get(iterResult, "done")).
     Node* done = GetProperty(context, result, factory()->done_string());
     GotoIfException(done, if_exception, exception);
-    var_done.Bind(done);
-
-    Label to_boolean(this, Label::kDeferred);
-    GotoIf(TaggedIsSmi(done), &to_boolean);
-    Branch(IsBoolean(done), &return_result, &to_boolean);
-
-    BIND(&to_boolean);
-    var_done.Bind(CallBuiltin(Builtins::kToBoolean, context, done));
-    Goto(&return_result);
+    BranchIfToBooleanIsTrue(done, if_done, &return_result);
   }
 
   BIND(&if_notobject);
@@ -105,7 +95,6 @@ Node* IteratorBuiltinsAssembler::IteratorStep(Node* context, Node* iterator,
   }
 
   BIND(&return_result);
-  GotoIf(IsTrue(var_done.value()), if_done);
   return result;
 }
 

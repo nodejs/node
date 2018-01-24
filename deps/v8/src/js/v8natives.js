@@ -22,7 +22,7 @@ DEFINE_METHOD(
   GlobalObject.prototype,
   // ES6 19.1.3.5 Object.prototype.toLocaleString([reserved1 [,reserved2]])
   toLocaleString() {
-    CHECK_OBJECT_COERCIBLE(this, "Object.prototype.toLocaleString");
+    REQUIRE_OBJECT_COERCIBLE(this, "Object.prototype.toLocaleString");
     return this.toString();
   }
 );

@@ -8,7 +8,6 @@
 #include <memory>
 
 #include "src/api.h"
-#include "src/ast/ast-expression-rewriter.h"
 #include "src/ast/ast-function-literal-id-reindexer.h"
 #include "src/ast/ast-traversal-visitor.h"
 #include "src/ast/ast.h"
@@ -16,6 +15,7 @@
 #include "src/base/platform/platform.h"
 #include "src/char-predicates-inl.h"
 #include "src/compiler-dispatcher/compiler-dispatcher.h"
+#include "src/log.h"
 #include "src/messages.h"
 #include "src/objects-inl.h"
 #include "src/parsing/duplicate-finder.h"
@@ -173,11 +173,11 @@ FunctionLiteral* Parser::DefaultConstructor(const AstRawString* name,
   FunctionKind kind = call_super ? FunctionKind::kDefaultDerivedConstructor
                                  : FunctionKind::kDefaultBaseConstructor;
   DeclarationScope* function_scope = NewFunctionScope(kind);
-  SetLanguageMode(function_scope, STRICT);
+  SetLanguageMode(function_scope, LanguageMode::kStrict);
   // Set start and end position to the same value
   function_scope->set_start_position(pos);
   function_scope->set_end_position(pos);
-  ZoneList<Statement*>* body = NULL;
+  ZoneList<Statement*>* body = nullptr;
 
   {
     FunctionState function_state(&function_state_, &scope_, function_scope);
@@ -212,7 +212,6 @@ FunctionLiteral* Parser::DefaultConstructor(const AstRawString* name,
       parameter_count, FunctionLiteral::kNoDuplicateParameters,
       FunctionLiteral::kAnonymousExpression, default_eager_compile_hint(), pos,
       true, GetNextFunctionLiteralId());
-
   return function_literal;
 }
 
@@ -245,10 +244,9 @@ FunctionLiteral* Parser::DefaultConstructor(const AstRawString* name,
 bool Parser::ShortcutNumericLiteralBinaryExpression(Expression** x,
                                                     Expression* y,
                                                     Token::Value op, int pos) {
-  if ((*x)->AsLiteral() && (*x)->AsLiteral()->raw_value()->IsNumber() &&
-      y->AsLiteral() && y->AsLiteral()->raw_value()->IsNumber()) {
-    double x_val = (*x)->AsLiteral()->raw_value()->AsNumber();
-    double y_val = y->AsLiteral()->raw_value()->AsNumber();
+  if ((*x)->IsNumberLiteral() && y->IsNumberLiteral()) {
+    double x_val = (*x)->AsLiteral()->AsNumber();
+    double y_val = y->AsLiteral()->AsNumber();
     switch (op) {
       case Token::ADD:
         *x = factory()->NewNumberLiteral(x_val + y_val, pos);
@@ -308,16 +306,48 @@ bool Parser::ShortcutNumericLiteralBinaryExpression(Expression** x,
   return false;
 }
 
+bool Parser::CollapseNaryExpression(Expression** x, Expression* y,
+                                    Token::Value op, int pos,
+                                    const SourceRange& range) {
+  // Filter out unsupported ops.
+  if (!Token::IsBinaryOp(op) || op == Token::EXP) return false;
+
+  // Convert *x into an nary operation with the given op, returning false if
+  // this is not possible.
+  NaryOperation* nary = nullptr;
+  if ((*x)->IsBinaryOperation()) {
+    BinaryOperation* binop = (*x)->AsBinaryOperation();
+    if (binop->op() != op) return false;
+
+    nary = factory()->NewNaryOperation(op, binop->left(), 2);
+    nary->AddSubsequent(binop->right(), binop->position());
+    ConvertBinaryToNaryOperationSourceRange(binop, nary);
+    *x = nary;
+  } else if ((*x)->IsNaryOperation()) {
+    nary = (*x)->AsNaryOperation();
+    if (nary->op() != op) return false;
+  } else {
+    return false;
+  }
+
+  // Append our current expression to the nary operation.
+  // TODO(leszeks): Do some literal collapsing here if we're appending Smi or
+  // String literals.
+  nary->AddSubsequent(y, pos);
+  AppendNaryOperationSourceRange(nary, range);
+
+  return true;
+}
+
 Expression* Parser::BuildUnaryExpression(Expression* expression,
                                          Token::Value op, int pos) {
-  DCHECK(expression != NULL);
-  if (expression->IsLiteral()) {
-    const AstValue* literal = expression->AsLiteral()->raw_value();
+  DCHECK_NOT_NULL(expression);
+  const Literal* literal = expression->AsLiteral();
+  if (literal != nullptr) {
     if (op == Token::NOT) {
       // Convert the literal to a boolean condition and negate it.
-      bool condition = literal->BooleanValue();
-      return factory()->NewBooleanLiteral(!condition, pos);
-    } else if (literal->IsNumber()) {
+      return factory()->NewBooleanLiteral(literal->ToBooleanIsFalse(), pos);
+    } else if (literal->IsNumberLiteral()) {
       // Compute some expressions involving only number literals.
       double value = literal->AsNumber();
       switch (op) {
@@ -383,6 +413,12 @@ Expression* Parser::FunctionSentExpression(int pos) {
                                    args, pos);
 }
 
+Expression* Parser::ImportMetaExpression(int pos) {
+  return factory()->NewCallRuntime(
+      Runtime::kInlineGetImportMetaObject,
+      new (zone()) ZoneList<Expression*>(0, zone()), pos);
+}
+
 Literal* Parser::ExpressionFromLiteral(Token::Value token, int pos) {
   switch (token) {
     case Token::NULL_LITERAL:
@@ -399,10 +435,13 @@ Literal* Parser::ExpressionFromLiteral(Token::Value token, int pos) {
       double value = scanner()->DoubleValue();
       return factory()->NewNumberLiteral(value, pos);
     }
+    case Token::BIGINT:
+      return factory()->NewBigIntLiteral(
+          AstBigInt(scanner()->CurrentLiteralAsCString(zone())), pos);
     default:
       DCHECK(false);
   }
-  return NULL;
+  return nullptr;
 }
 
 Expression* Parser::NewV8Intrinsic(const AstRawString* name,
@@ -463,7 +502,10 @@ Expression* Parser::NewV8Intrinsic(const AstRawString* name,
 Parser::Parser(ParseInfo* info)
     : ParserBase<Parser>(info->zone(), &scanner_, info->stack_limit(),
                          info->extension(), info->GetOrCreateAstValueFactory(),
-                         info->runtime_call_stats(), true),
+                         info->pending_error_handler(),
+                         info->runtime_call_stats(), info->logger(),
+                         info->script().is_null() ? -1 : info->script()->id(),
+                         info->is_module(), true),
       scanner_(info->unicode_cache(), use_counts_),
       reusable_preparser_(nullptr),
       mode_(PARSE_EAGERLY),  // Lazy mode must be set explicitly.
@@ -479,7 +521,7 @@ Parser::Parser(ParseInfo* info)
   // Even though we were passed ParseInfo, we should not store it in
   // Parser - this makes sure that Isolate is not accidentally accessed via
   // ParseInfo during background parsing.
-  DCHECK(info->character_stream() != nullptr);
+  DCHECK_NOT_NULL(info->character_stream());
   // Determine if functions can be lazily compiled. This is necessary to
   // allow some of our builtin JS files to be lazily compiled. These
   // builtins cannot be handled lazily by the parser, since we have to know
@@ -500,13 +542,11 @@ Parser::Parser(ParseInfo* info)
   set_allow_natives(FLAG_allow_natives_syntax || info->is_native());
   set_allow_harmony_do_expressions(FLAG_harmony_do_expressions);
   set_allow_harmony_function_sent(FLAG_harmony_function_sent);
-  set_allow_harmony_restrictive_generators(FLAG_harmony_restrictive_generators);
-  set_allow_harmony_class_fields(FLAG_harmony_class_fields);
-  set_allow_harmony_object_rest_spread(FLAG_harmony_object_rest_spread);
+  set_allow_harmony_public_fields(FLAG_harmony_public_fields);
   set_allow_harmony_dynamic_import(FLAG_harmony_dynamic_import);
   set_allow_harmony_import_meta(FLAG_harmony_import_meta);
   set_allow_harmony_async_iteration(FLAG_harmony_async_iteration);
-  set_allow_harmony_template_escapes(FLAG_harmony_template_escapes);
+  set_allow_harmony_bigint(FLAG_harmony_bigint);
   for (int feature = 0; feature < v8::Isolate::kUseCounterFeatureCount;
        ++feature) {
     use_counts_[feature] = 0;
@@ -527,7 +567,6 @@ void Parser::DeserializeScopeChain(
     scope = Scope::DeserializeScopeChain(
         zone(), *outer_scope_info, script_scope, ast_value_factory(),
         Scope::DeserializationMode::kScopesOnly);
-    DCHECK(!info->is_module() || scope->is_module_scope());
   }
   original_scope_ = scope;
 }
@@ -557,9 +596,7 @@ FunctionLiteral* Parser::ParseProgram(Isolate* isolate, ParseInfo* info) {
                                            : &RuntimeCallStats::ParseProgram);
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"), "V8.ParseProgram");
   base::ElapsedTimer timer;
-  if (FLAG_trace_parse) {
-    timer.Start();
-  }
+  if (V8_UNLIKELY(FLAG_log_function_events)) timer.Start();
   fni_ = new (zone()) FuncNameInferrer(ast_value_factory(), zone());
 
   // Initialize parser state.
@@ -583,23 +620,25 @@ FunctionLiteral* Parser::ParseProgram(Isolate* isolate, ParseInfo* info) {
 
   HandleSourceURLComments(isolate, info->script());
 
-  if (FLAG_trace_parse && result != nullptr) {
-    double ms = timer.Elapsed().InMillisecondsF();
-    if (info->is_eval()) {
-      PrintF("[parsing eval");
-    } else if (info->script()->name()->IsString()) {
-      String* name = String::cast(info->script()->name());
-      std::unique_ptr<char[]> name_chars = name->ToCString();
-      PrintF("[parsing script: %s", name_chars.get());
-    } else {
-      PrintF("[parsing script");
-    }
-    PrintF(" - took %0.3f ms]\n", ms);
-  }
   if (produce_cached_parse_data() && result != nullptr) {
     *info->cached_data() = logger.GetScriptData();
   }
   log_ = nullptr;
+
+  if (V8_UNLIKELY(FLAG_log_function_events) && result != nullptr) {
+    double ms = timer.Elapsed().InMillisecondsF();
+    const char* event_name = "parse-eval";
+    Script* script = *info->script();
+    int start = -1;
+    int end = -1;
+    if (!info->is_eval()) {
+      event_name = "parse-script";
+      start = 0;
+      end = String::cast(script->source())->length();
+    }
+    LOG(script->GetIsolate(),
+        FunctionEvent(event_name, script, -1, ms, start, end, "", 0));
+  }
   return result;
 }
 
@@ -616,11 +655,10 @@ FunctionLiteral* Parser::DoParseProgram(ParseInfo* info) {
   DCHECK(info->function_literal_id() == FunctionLiteral::kIdTypeTopLevel ||
          info->function_literal_id() == FunctionLiteral::kIdTypeInvalid);
 
-  FunctionLiteral* result = NULL;
+  FunctionLiteral* result = nullptr;
   {
     Scope* outer = original_scope_;
     DCHECK_NOT_NULL(outer);
-    parsing_module_ = info->is_module();
     if (info->is_eval()) {
       outer = NewEvalScope(outer);
     } else if (parsing_module_) {
@@ -638,6 +676,7 @@ FunctionLiteral* Parser::DoParseProgram(ParseInfo* info) {
     bool ok = true;
     int beg_pos = scanner()->location().beg_pos;
     if (parsing_module_) {
+      DCHECK(info->is_module());
       // Declare the special module parameter.
       auto name = ast_value_factory()->empty_string();
       bool is_duplicate = false;
@@ -658,9 +697,8 @@ FunctionLiteral* Parser::DoParseProgram(ParseInfo* info) {
           zone());
 
       ParseModuleItemList(body, &ok);
-      ok = ok &&
-           module()->Validate(this->scope()->AsModuleScope(),
-                              &pending_error_handler_, zone());
+      ok = ok && module()->Validate(this->scope()->AsModuleScope(),
+                                    pending_error_handler(), zone());
     } else {
       // Don't count the mode in the use counters--give the program a chance
       // to enable script-wide strict mode below.
@@ -708,7 +746,7 @@ FunctionLiteral* Parser::DoParseProgram(ParseInfo* info) {
   info->set_max_function_literal_id(GetLastFunctionLiteralId());
 
   // Make sure the target stack is empty.
-  DCHECK(target_stack_ == NULL);
+  DCHECK_NULL(target_stack_);
 
   return result;
 }
@@ -722,9 +760,8 @@ FunctionLiteral* Parser::ParseFunction(Isolate* isolate, ParseInfo* info,
                                       &RuntimeCallStats::ParseFunction);
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"), "V8.ParseFunction");
   base::ElapsedTimer timer;
-  if (FLAG_trace_parse) {
-    timer.Start();
-  }
+  if (V8_UNLIKELY(FLAG_log_function_events)) timer.Start();
+
   DeserializeScopeChain(info, info->maybe_outer_scope_info());
   DCHECK_EQ(factory()->zone(), info->zone());
 
@@ -740,12 +777,18 @@ FunctionLiteral* Parser::ParseFunction(Isolate* isolate, ParseInfo* info,
     result->set_inferred_name(inferred_name);
   }
 
-  if (FLAG_trace_parse && result != NULL) {
+  if (V8_UNLIKELY(FLAG_log_function_events) && result != nullptr) {
     double ms = timer.Elapsed().InMillisecondsF();
     // We need to make sure that the debug-name is available.
     ast_value_factory()->Internalize(isolate);
-    std::unique_ptr<char[]> name_chars = result->debug_name()->ToCString();
-    PrintF("[parsing function: %s - took %0.3f ms]\n", name_chars.get(), ms);
+    DeclarationScope* function_scope = result->scope();
+    Script* script = *info->script();
+    std::unique_ptr<char[]> function_name = result->GetDebugName();
+    LOG(script->GetIsolate(),
+        FunctionEvent("parse-function", script, -1, ms,
+                      function_scope->start_position(),
+                      function_scope->end_position(), function_name.get(),
+                      strlen(function_name.get())));
   }
   return result;
 }
@@ -888,6 +931,11 @@ FunctionLiteral* Parser::DoParseFunction(ParseInfo* info,
           raw_name, Scanner::Location::invalid(), kSkipFunctionNameCheck, kind,
           kNoSourcePosition, function_type, info->language_mode(), &ok);
     }
+
+    if (ok) {
+      result->set_requires_instance_fields_initializer(
+          info->requires_instance_fields_initializer());
+    }
     // Make sure the results agree.
     DCHECK(ok == (result != nullptr));
   }
@@ -979,11 +1027,12 @@ void Parser::ParseExportClause(ZoneList<const AstRawString*>* export_names,
     // Keep track of the first reserved word encountered in case our
     // caller needs to report an error.
     if (!reserved_loc->IsValid() &&
-        !Token::IsIdentifier(name_tok, STRICT, false, parsing_module_)) {
+        !Token::IsIdentifier(name_tok, LanguageMode::kStrict, false,
+                             parsing_module_)) {
       *reserved_loc = scanner()->location();
     }
     const AstRawString* local_name = ParseIdentifierName(CHECK_OK_VOID);
-    const AstRawString* export_name = NULL;
+    const AstRawString* export_name = nullptr;
     Scanner::Location location = scanner()->location();
     if (CheckContextualKeyword(Token::AS)) {
       export_name = ParseIdentifierName(CHECK_OK_VOID);
@@ -991,7 +1040,7 @@ void Parser::ParseExportClause(ZoneList<const AstRawString*>* export_names,
       // both for errors due to "a" and for errors due to "b".
       location.end_pos = scanner()->location().end_pos;
     }
-    if (export_name == NULL) {
+    if (export_name == nullptr) {
       export_name = local_name;
     }
     export_names->Add(export_name, zone());
@@ -1033,8 +1082,8 @@ ZoneList<const Parser::NamedImport*>* Parser::ParseNamedImports(
     if (CheckContextualKeyword(Token::AS)) {
       local_name = ParseIdentifierName(CHECK_OK);
     }
-    if (!Token::IsIdentifier(scanner()->current_token(), STRICT, false,
-                             parsing_module_)) {
+    if (!Token::IsIdentifier(scanner()->current_token(), LanguageMode::kStrict,
+                             false, parsing_module_)) {
       *ok = false;
       ReportMessage(MessageTemplate::kUnexpectedReserved);
       return nullptr;
@@ -1393,8 +1442,8 @@ Variable* Parser::Declare(Declaration* declaration,
   }
   bool sloppy_mode_block_scope_function_redefinition = false;
   Variable* variable = scope->DeclareVariable(
-      declaration, mode, init, allow_harmony_restrictive_generators(),
-      &sloppy_mode_block_scope_function_redefinition, ok);
+      declaration, mode, init, &sloppy_mode_block_scope_function_redefinition,
+      ok);
   if (!*ok) {
     // If we only have the start position of a proxy, we can't highlight the
     // whole variable name.  Pretend its length is 1 so that we highlight at
@@ -1778,25 +1827,13 @@ void Parser::ParseAndRewriteAsyncGeneratorFunctionBody(
             zone());
 }
 
-void Parser::CreateFunctionNameAssignment(
-    const AstRawString* function_name, int pos,
-    FunctionLiteral::FunctionType function_type,
-    DeclarationScope* function_scope, ZoneList<Statement*>* result, int index) {
-  if (function_type == FunctionLiteral::kNamedExpression) {
-    StatementT statement = factory()->NewEmptyStatement(kNoSourcePosition);
-    if (function_scope->LookupLocal(function_name) == nullptr) {
-      // Now that we know the language mode, we can create the const assignment
-      // in the previously reserved spot.
-      DCHECK_EQ(function_scope, scope());
-      Variable* fvar = function_scope->DeclareFunctionVar(function_name);
-      VariableProxy* fproxy = factory()->NewVariableProxy(fvar);
-      statement = factory()->NewExpressionStatement(
-          factory()->NewAssignment(Token::INIT, fproxy,
-                                   factory()->NewThisFunction(pos),
-                                   kNoSourcePosition),
-          kNoSourcePosition);
-    }
-    result->Set(index, statement);
+void Parser::DeclareFunctionNameVar(const AstRawString* function_name,
+                                    FunctionLiteral::FunctionType function_type,
+                                    DeclarationScope* function_scope) {
+  if (function_type == FunctionLiteral::kNamedExpression &&
+      function_scope->LookupLocal(function_name) == nullptr) {
+    DCHECK_EQ(function_scope, scope());
+    function_scope->DeclareFunctionVar(function_name);
   }
 }
 
@@ -1851,7 +1888,7 @@ Statement* Parser::InitializeForEachStatement(ForEachStatement* stmt,
                                               Expression* subject,
                                               Statement* body) {
   ForOfStatement* for_of = stmt->AsForOfStatement();
-  if (for_of != NULL) {
+  if (for_of != nullptr) {
     const bool finalize = true;
     return InitializeForOfStatement(for_of, each, subject, body, finalize,
                                     IteratorType::kNormal, each->position());
@@ -2155,7 +2192,7 @@ Statement* Parser::DesugarLexicalBindingsInForStatement(
   //    }
   //  }
 
-  DCHECK(for_info.bound_names.length() > 0);
+  DCHECK_GT(for_info.bound_names.length(), 0);
   ZoneList<Variable*> temps(for_info.bound_names.length(), zone());
 
   Block* outer_block =
@@ -2180,7 +2217,7 @@ Statement* Parser::DesugarLexicalBindingsInForStatement(
     temps.Add(temp, zone());
   }
 
-  Variable* first = NULL;
+  Variable* first = nullptr;
   // Make statement: first = 1.
   if (next) {
     first = NewTemporary(temp_name);
@@ -2205,7 +2242,7 @@ Statement* Parser::DesugarLexicalBindingsInForStatement(
   // need to know about it. This should be safe because we don't run any code
   // in this function that looks up break targets.
   ForStatement* outer_loop =
-      factory()->NewForStatement(NULL, kNoSourcePosition);
+      factory()->NewForStatement(nullptr, kNoSourcePosition);
   outer_block->statements()->Add(outer_loop, zone());
   outer_block->set_scope(scope());
 
@@ -2229,7 +2266,7 @@ Statement* Parser::DesugarLexicalBindingsInForStatement(
       Statement* assignment_statement =
           factory()->NewExpressionStatement(assignment, kNoSourcePosition);
       int declaration_pos = for_info.parsing_result.descriptor.declaration_pos;
-      DCHECK(declaration_pos != kNoSourcePosition);
+      DCHECK_NE(declaration_pos, kNoSourcePosition);
       decl->proxy()->var()->set_initializer_position(declaration_pos);
       ignore_completion_block->statements()->Add(assignment_statement, zone());
     }
@@ -2237,7 +2274,7 @@ Statement* Parser::DesugarLexicalBindingsInForStatement(
     // Make statement: if (first == 1) { first = 0; } else { next; }
     if (next) {
       DCHECK(first);
-      Expression* compare = NULL;
+      Expression* compare = nullptr;
       // Make compare expression: first == 1.
       {
         Expression* const1 = factory()->NewSmiLiteral(1, kNoSourcePosition);
@@ -2245,7 +2282,7 @@ Statement* Parser::DesugarLexicalBindingsInForStatement(
         compare = factory()->NewCompareOperation(Token::EQ, first_proxy, const1,
                                                  kNoSourcePosition);
       }
-      Statement* clear_first = NULL;
+      Statement* clear_first = nullptr;
       // Make statement: first = 0.
       {
         VariableProxy* first_proxy = factory()->NewVariableProxy(first);
@@ -2284,7 +2321,7 @@ Statement* Parser::DesugarLexicalBindingsInForStatement(
 
     inner_block->statements()->Add(ignore_completion_block, zone());
     // Make cond expression for main loop: flag == 1.
-    Expression* flag_cond = NULL;
+    Expression* flag_cond = nullptr;
     {
       Expression* const1 = factory()->NewSmiLiteral(1, kNoSourcePosition);
       VariableProxy* flag_proxy = factory()->NewVariableProxy(flag);
@@ -2293,9 +2330,9 @@ Statement* Parser::DesugarLexicalBindingsInForStatement(
     }
 
     // Create chain of expressions "flag = 0, temp_x = x, ..."
-    Statement* compound_next_statement = NULL;
+    Statement* compound_next_statement = nullptr;
     {
-      Expression* compound_next = NULL;
+      Expression* compound_next = nullptr;
       // Make expression: flag = 0.
       {
         VariableProxy* flag_proxy = factory()->NewVariableProxy(flag);
@@ -2324,12 +2361,12 @@ Statement* Parser::DesugarLexicalBindingsInForStatement(
     // Note that we re-use the original loop node, which retains its labels
     // and ensures that any break or continue statements in body point to
     // the right place.
-    loop->Initialize(NULL, flag_cond, compound_next_statement, body);
+    loop->Initialize(nullptr, flag_cond, compound_next_statement, body);
     inner_block->statements()->Add(loop, zone());
 
     // Make statement: {{if (flag == 1) break;}}
     {
-      Expression* compare = NULL;
+      Expression* compare = nullptr;
       // Make compare expresion: flag == 1.
       {
         Expression* const1 = factory()->NewSmiLiteral(1, kNoSourcePosition);
@@ -2348,7 +2385,7 @@ Statement* Parser::DesugarLexicalBindingsInForStatement(
     inner_block->set_scope(inner_scope);
   }
 
-  outer_loop->Initialize(NULL, NULL, NULL, inner_block);
+  outer_loop->Initialize(nullptr, nullptr, nullptr, inner_block);
 
   return outer_block;
 }
@@ -2357,6 +2394,7 @@ void Parser::AddArrowFunctionFormalParameters(
     ParserFormalParameters* parameters, Expression* expr, int end_pos,
     bool* ok) {
   // ArrowFunctionFormals ::
+  //    Nary(Token::COMMA, VariableProxy*, Tail)
   //    Binary(Token::COMMA, NonTailArrowFunctionFormals, Tail)
   //    Tail
   // NonTailArrowFunctionFormals ::
@@ -2366,9 +2404,30 @@ void Parser::AddArrowFunctionFormalParameters(
   //    VariableProxy
   //    Spread(VariableProxy)
   //
-  // As we need to visit the parameters in left-to-right order, we recurse on
-  // the left-hand side of comma expressions.
+  // We need to visit the parameters in left-to-right order
   //
+
+  // For the Nary case, we simply visit the parameters in a loop.
+  if (expr->IsNaryOperation()) {
+    NaryOperation* nary = expr->AsNaryOperation();
+    // The classifier has already run, so we know that the expression is a valid
+    // arrow function formals production.
+    DCHECK_EQ(nary->op(), Token::COMMA);
+    // Each op position is the end position of the *previous* expr, with the
+    // second (i.e. first "subsequent") op position being the end position of
+    // the first child expression.
+    Expression* next = nary->first();
+    for (size_t i = 0; i < nary->subsequent_length(); ++i) {
+      AddArrowFunctionFormalParameters(
+          parameters, next, nary->subsequent_op_position(i), CHECK_OK_VOID);
+      next = nary->subsequent(i);
+    }
+    AddArrowFunctionFormalParameters(parameters, next, end_pos, CHECK_OK_VOID);
+    return;
+  }
+
+  // For the binary case, we recurse on the left-hand side of binary comma
+  // expressions.
   if (expr->IsBinaryOperation()) {
     BinaryOperation* binop = expr->AsBinaryOperation();
     // The classifier has already run, so we know that the expression is a valid
@@ -2467,7 +2526,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
   // Anonymous functions were passed either the empty symbol or a null
   // handle as the function name.  Remember if we were passed a non-empty
   // handle to decide whether to invoke function name inference.
-  bool should_infer_name = function_name == NULL;
+  bool should_infer_name = function_name == nullptr;
 
   // We want a non-null handle as the function name by default. We will handle
   // the "function does not have a shared name" case later.
@@ -2518,8 +2577,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
 
   const bool is_lazy =
       eager_compile_hint == FunctionLiteral::kShouldLazyCompile;
-  const bool is_top_level =
-      impl()->AllowsLazyParsingWithoutUnresolvedVariables();
+  const bool is_top_level = AllowsLazyParsingWithoutUnresolvedVariables();
   const bool is_lazy_top_level_function = is_lazy && is_top_level;
   const bool is_lazy_inner_function = is_lazy && !is_top_level;
   const bool is_expression =
@@ -2531,6 +2589,8 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
       parsing_on_main_thread_
           ? &RuntimeCallStats::ParseFunctionLiteral
           : &RuntimeCallStats::ParseBackgroundFunctionLiteral);
+  base::ElapsedTimer timer;
+  if (V8_UNLIKELY(FLAG_log_function_events)) timer.Start();
 
   // Determine whether we can still lazy parse the inner function.
   // The preconditions are:
@@ -2631,13 +2691,17 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
     }
 
     DCHECK_EQ(should_preparse, temp_zoned_);
-    if (V8_UNLIKELY(FLAG_trace_preparse)) {
-      PrintF("  [%s]: %i-%i %.*s\n",
-             should_preparse ? (is_top_level ? "Preparse no-resolution"
-                                             : "Preparse resolution")
-                             : "Full parse",
-             scope->start_position(), scope->end_position(),
-             function_name->byte_length(), function_name->raw_data());
+    if (V8_UNLIKELY(FLAG_log_function_events)) {
+      double ms = timer.Elapsed().InMillisecondsF();
+      const char* event_name = should_preparse
+                                   ? (is_top_level ? "preparse-no-resolution"
+                                                   : "preparse-resolution")
+                                   : "full-parse";
+      logger_->FunctionEvent(
+          event_name, nullptr, script_id(), ms, scope->start_position(),
+          scope->end_position(),
+          reinterpret_cast<const char*>(function_name->raw_data()),
+          function_name->byte_length());
     }
     if (V8_UNLIKELY(FLAG_runtime_stats)) {
       if (should_preparse) {
@@ -2764,8 +2828,8 @@ Parser::LazyParsingResult Parser::SkipFunction(
   DCHECK(!is_inner_function || !may_abort);
 
   PreParser::PreParseResult result = reusable_preparser()->PreParseFunction(
-      function_name, kind, function_type, function_scope, parsing_module_,
-      is_inner_function, may_abort, use_counts_, produced_preparsed_scope_data);
+      function_name, kind, function_type, function_scope, is_inner_function,
+      may_abort, use_counts_, produced_preparsed_scope_data, this->script_id());
 
   // Return immediately if pre-parser decided to abort parsing.
   if (result == PreParser::kPreParseAbort) return kLazyParsingAborted;
@@ -2775,7 +2839,7 @@ Parser::LazyParsingResult Parser::SkipFunction(
     *ok = false;
     return kLazyParsingComplete;
   }
-  if (pending_error_handler_.has_pending_error()) {
+  if (pending_error_handler()->has_pending_error()) {
     *ok = false;
     return kLazyParsingComplete;
   }
@@ -3137,6 +3201,20 @@ void Parser::DeclareClassVariable(const AstRawString* name,
   }
 }
 
+// TODO(gsathya): Ideally, this should just bypass scope analysis and
+// allocate a slot directly on the context. We should just store this
+// index in the AST, instead of storing the variable.
+Variable* Parser::CreateSyntheticContextVariable(const AstRawString* name,
+                                                 bool* ok) {
+  VariableProxy* proxy = factory()->NewVariableProxy(name, NORMAL_VARIABLE);
+  Declaration* declaration =
+      factory()->NewVariableDeclaration(proxy, kNoSourcePosition);
+  Variable* var = Declare(declaration, DeclarationDescriptor::NORMAL, CONST,
+                          Variable::DefaultInitializationFlag(CONST), CHECK_OK);
+  var->ForceContextAllocation();
+  return var;
+}
+
 // This method declares a property of the given class.  It updates the
 // following fields of class_info, as appropriate:
 //   - constructor
@@ -3145,7 +3223,8 @@ void Parser::DeclareClassProperty(const AstRawString* class_name,
                                   ClassLiteralProperty* property,
                                   ClassLiteralProperty::Kind kind,
                                   bool is_static, bool is_constructor,
-                                  ClassInfo* class_info, bool* ok) {
+                                  bool is_computed_name, ClassInfo* class_info,
+                                  bool* ok) {
   if (is_constructor) {
     DCHECK(!class_info->constructor);
     class_info->constructor = property->value()->AsFunctionLiteral();
@@ -3156,11 +3235,44 @@ void Parser::DeclareClassProperty(const AstRawString* class_name,
     return;
   }
 
-  if (property->kind() == ClassLiteralProperty::FIELD) {
-    DCHECK(allow_harmony_class_fields());
-    // TODO(littledan): Implement class fields
+  if (kind != ClassLiteralProperty::FIELD) {
+    class_info->properties->Add(property, zone());
+    return;
   }
-  class_info->properties->Add(property, zone());
+
+  DCHECK(allow_harmony_public_fields());
+
+  if (is_static) {
+    class_info->static_fields->Add(property, zone());
+  } else {
+    class_info->instance_fields->Add(property, zone());
+  }
+
+  if (is_computed_name) {
+    // We create a synthetic variable name here so that scope
+    // analysis doesn't dedupe the vars.
+    Variable* computed_name_var = CreateSyntheticContextVariable(
+        ClassFieldVariableName(ast_value_factory(),
+                               class_info->computed_field_count),
+        CHECK_OK_VOID);
+    property->set_computed_name_var(computed_name_var);
+    class_info->properties->Add(property, zone());
+  }
+}
+
+FunctionLiteral* Parser::CreateInitializerFunction(
+    DeclarationScope* scope, ZoneList<ClassLiteral::Property*>* fields) {
+  // function() { .. class fields initializer .. }
+  ZoneList<Statement*>* statements = NewStatementList(1);
+  InitializeClassFieldsStatement* static_fields =
+      factory()->NewInitializeClassFieldsStatement(fields, kNoSourcePosition);
+  statements->Add(static_fields, zone());
+  return factory()->NewFunctionLiteral(
+      ast_value_factory()->empty_string(), scope, statements, 0, 0, 0,
+      FunctionLiteral::kNoDuplicateParameters,
+      FunctionLiteral::kAnonymousExpression,
+      FunctionLiteral::kShouldEagerCompile, scope->start_position(), true,
+      GetNextFunctionLiteralId());
 }
 
 // This method generates a ClassLiteral AST node.
@@ -3177,7 +3289,7 @@ Expression* Parser::RewriteClassLiteral(Scope* block_scope,
                                         int end_pos, bool* ok) {
   DCHECK_NOT_NULL(block_scope);
   DCHECK_EQ(block_scope->scope_type(), BLOCK_SCOPE);
-  DCHECK_EQ(block_scope->language_mode(), STRICT);
+  DCHECK_EQ(block_scope->language_mode(), LanguageMode::kStrict);
 
   bool has_extends = class_info->extends != nullptr;
   bool has_default_constructor = class_info->constructor == nullptr;
@@ -3191,25 +3303,33 @@ Expression* Parser::RewriteClassLiteral(Scope* block_scope,
     class_info->variable->set_initializer_position(end_pos);
   }
 
+  FunctionLiteral* static_fields_initializer = nullptr;
+  if (class_info->has_static_class_fields) {
+    static_fields_initializer = CreateInitializerFunction(
+        class_info->static_fields_scope, class_info->static_fields);
+  }
+
+  FunctionLiteral* instance_fields_initializer_function = nullptr;
+  if (class_info->has_instance_class_fields) {
+    instance_fields_initializer_function = CreateInitializerFunction(
+        class_info->instance_fields_scope, class_info->instance_fields);
+    class_info->constructor->set_requires_instance_fields_initializer(true);
+  }
+
   ClassLiteral* class_literal = factory()->NewClassLiteral(
       block_scope, class_info->variable, class_info->extends,
-      class_info->constructor, class_info->properties, pos, end_pos,
-      class_info->has_name_static_property,
+      class_info->constructor, class_info->properties,
+      static_fields_initializer, instance_fields_initializer_function, pos,
+      end_pos, class_info->has_name_static_property,
       class_info->has_static_computed_names, class_info->is_anonymous);
 
   AddFunctionForNameInference(class_info->constructor);
-
   return class_literal;
 }
 
-Literal* Parser::GetLiteralUndefined(int position) {
-  return factory()->NewUndefinedLiteral(position);
-}
-
-
 void Parser::CheckConflictingVarDeclarations(Scope* scope, bool* ok) {
   Declaration* decl = scope->CheckConflictingVarDeclarations();
-  if (decl != NULL) {
+  if (decl != nullptr) {
     // In ES6, conflicting variable bindings are early errors.
     const AstRawString* name = decl->proxy()->raw_name();
     int position = decl->proxy()->position();
@@ -3263,7 +3383,7 @@ void Parser::InsertSloppyBlockFunctionVarBindings(DeclarationScope* scope) {
 // Parser support
 
 bool Parser::TargetStackContainsLabel(const AstRawString* label) {
-  for (ParserTarget* t = target_stack_; t != NULL; t = t->previous()) {
+  for (ParserTarget* t = target_stack_; t != nullptr; t = t->previous()) {
     if (ContainsLabel(t->statement()->labels(), label)) return true;
   }
   return false;
@@ -3272,31 +3392,31 @@ bool Parser::TargetStackContainsLabel(const AstRawString* label) {
 
 BreakableStatement* Parser::LookupBreakTarget(const AstRawString* label,
                                               bool* ok) {
-  bool anonymous = label == NULL;
-  for (ParserTarget* t = target_stack_; t != NULL; t = t->previous()) {
+  bool anonymous = label == nullptr;
+  for (ParserTarget* t = target_stack_; t != nullptr; t = t->previous()) {
     BreakableStatement* stat = t->statement();
     if ((anonymous && stat->is_target_for_anonymous()) ||
         (!anonymous && ContainsLabel(stat->labels(), label))) {
       return stat;
     }
   }
-  return NULL;
+  return nullptr;
 }
 
 
 IterationStatement* Parser::LookupContinueTarget(const AstRawString* label,
                                                  bool* ok) {
-  bool anonymous = label == NULL;
-  for (ParserTarget* t = target_stack_; t != NULL; t = t->previous()) {
+  bool anonymous = label == nullptr;
+  for (ParserTarget* t = target_stack_; t != nullptr; t = t->previous()) {
     IterationStatement* stat = t->statement()->AsIterationStatement();
-    if (stat == NULL) continue;
+    if (stat == nullptr) continue;
 
     DCHECK(stat->is_target_for_anonymous());
     if (anonymous || ContainsLabel(stat->labels(), label)) {
       return stat;
     }
   }
-  return NULL;
+  return nullptr;
 }
 
 
@@ -3308,17 +3428,6 @@ void Parser::HandleSourceURLComments(Isolate* isolate, Handle<Script> script) {
   Handle<String> source_mapping_url = scanner_.SourceMappingUrl(isolate);
   if (!source_mapping_url.is_null()) {
     script->set_source_mapping_url(*source_mapping_url);
-  }
-}
-
-void Parser::ReportErrors(Isolate* isolate, Handle<Script> script) {
-  if (stack_overflow()) {
-    isolate->StackOverflow();
-  } else {
-    DCHECK(pending_error_handler_.has_pending_error());
-    // Internalize ast values for throwing the pending error.
-    ast_value_factory()->Internalize(isolate);
-    pending_error_handler_.ThrowPendingError(isolate, script);
   }
 }
 
@@ -3341,10 +3450,15 @@ void Parser::UpdateStatistics(Isolate* isolate, Handle<Script> script) {
 }
 
 void Parser::ParseOnBackground(ParseInfo* info) {
+  RuntimeCallTimerScope runtimeTimer(runtime_call_stats_,
+                                     &RuntimeCallStats::ParseBackgroundProgram);
   parsing_on_main_thread_ = false;
+  if (!info->script().is_null()) {
+    set_script_id(info->script()->id());
+  }
 
-  DCHECK(info->literal() == NULL);
-  FunctionLiteral* result = NULL;
+  DCHECK_NULL(info->literal());
+  FunctionLiteral* result = nullptr;
 
   ParserLogger logger;
   if (produce_cached_parse_data()) {
@@ -3380,17 +3494,8 @@ void Parser::ParseOnBackground(ParseInfo* info) {
   // care of calling AstValueFactory::Internalize just before compilation.
 
   if (produce_cached_parse_data()) {
-    if (result != NULL) *info->cached_data() = logger.GetScriptData();
-    log_ = NULL;
-  }
-  if (runtime_call_stats_ &&
-      (FLAG_runtime_stats &
-       v8::tracing::TracingCategoryObserver::ENABLED_BY_TRACING)) {
-    auto value = v8::tracing::TracedValue::Create();
-    runtime_call_stats_->Dump(value.get());
-    TRACE_EVENT_INSTANT1(TRACE_DISABLED_BY_DEFAULT("v8.runtime_stats"),
-                         "V8.RuntimeStats", TRACE_EVENT_SCOPE_THREAD,
-                         "runtime-call-stats", std::move(value));
+    if (result != nullptr) *info->cached_data() = logger.GetScriptData();
+    log_ = nullptr;
   }
 }
 
@@ -3400,17 +3505,13 @@ Parser::TemplateLiteralState Parser::OpenTemplateLiteral(int pos) {
 
 void Parser::AddTemplateSpan(TemplateLiteralState* state, bool should_cook,
                              bool tail) {
-  DCHECK(should_cook || allow_harmony_template_escapes());
-  int pos = scanner()->location().beg_pos;
   int end = scanner()->location().end_pos - (tail ? 1 : 2);
-  const AstRawString* trv = scanner()->CurrentRawSymbol(ast_value_factory());
-  Literal* raw = factory()->NewStringLiteral(trv, pos);
+  const AstRawString* raw = scanner()->CurrentRawSymbol(ast_value_factory());
   if (should_cook) {
-    const AstRawString* tv = scanner()->CurrentSymbol(ast_value_factory());
-    Literal* cooked = factory()->NewStringLiteral(tv, pos);
+    const AstRawString* cooked = scanner()->CurrentSymbol(ast_value_factory());
     (*state)->AddTemplateSpan(cooked, raw, end, zone());
   } else {
-    (*state)->AddTemplateSpan(GetLiteralUndefined(pos), raw, end, zone());
+    (*state)->AddTemplateSpan(nullptr, raw, end, zone());
   }
 }
 
@@ -3425,46 +3526,54 @@ Expression* Parser::CloseTemplateLiteral(TemplateLiteralState* state, int start,
                                          Expression* tag) {
   TemplateLiteral* lit = *state;
   int pos = lit->position();
-  const ZoneList<Literal*>* cooked_strings = lit->cooked();
-  const ZoneList<Literal*>* raw_strings = lit->raw();
+  const ZoneList<const AstRawString*>* cooked_strings = lit->cooked();
+  const ZoneList<const AstRawString*>* raw_strings = lit->raw();
   const ZoneList<Expression*>* expressions = lit->expressions();
   DCHECK_EQ(cooked_strings->length(), raw_strings->length());
   DCHECK_EQ(cooked_strings->length(), expressions->length() + 1);
 
   if (!tag) {
-    // Build tree of BinaryOps to simplify code-generation
-    Expression* expr = cooked_strings->at(0);
+    Expression* first_string =
+        factory()->NewStringLiteral(cooked_strings->at(0), kNoSourcePosition);
+    if (expressions->length() == 0) return first_string;
+
+    // Build N-ary addition op to simplify code-generation.
+    // TODO(leszeks): Could we just store this expression in the
+    // TemplateLiteralState and build it as we go?
+    NaryOperation* expr = factory()->NewNaryOperation(
+        Token::ADD, first_string, 2 * expressions->length());
+
     int i = 0;
     while (i < expressions->length()) {
       Expression* sub = expressions->at(i++);
-      Expression* cooked_str = cooked_strings->at(i);
+      const AstRawString* cooked_str = cooked_strings->at(i);
+      DCHECK_NOT_NULL(cooked_str);
 
       // Let middle be ToString(sub).
       ZoneList<Expression*>* args =
           new (zone()) ZoneList<Expression*>(1, zone());
       args->Add(sub, zone());
-      Expression* middle = factory()->NewCallRuntime(Runtime::kInlineToString,
-                                                     args, sub->position());
+      Expression* sub_to_string = factory()->NewCallRuntime(
+          Runtime::kInlineToString, args, sub->position());
 
-      expr = factory()->NewBinaryOperation(
-          Token::ADD, factory()->NewBinaryOperation(
-                          Token::ADD, expr, middle, expr->position()),
-          cooked_str, sub->position());
+      expr->AddSubsequent(sub_to_string, sub->position());
+      expr->AddSubsequent(
+          factory()->NewStringLiteral(cooked_str, kNoSourcePosition),
+          sub->position());
     }
     return expr;
   } else {
     // GetTemplateObject
     const int32_t hash = ComputeTemplateLiteralHash(lit);
-    Expression* template_object = factory()->NewGetTemplateObject(
-        const_cast<ZoneList<Literal*>*>(cooked_strings),
-        const_cast<ZoneList<Literal*>*>(raw_strings), hash, pos);
+    Expression* template_object =
+        factory()->NewGetTemplateObject(cooked_strings, raw_strings, hash, pos);
 
     // Call TagFn
     ZoneList<Expression*>* call_args =
         new (zone()) ZoneList<Expression*>(expressions->length() + 1, zone());
     call_args->Add(template_object, zone());
     call_args->AddAll(*expressions, zone());
-    return factory()->NewCall(tag, call_args, pos);
+    return factory()->NewTaggedTemplate(tag, call_args, pos);
   }
 }
 
@@ -3483,7 +3592,7 @@ uint32_t HalfAvalance(uint32_t a) {
 }  // namespace
 
 int32_t Parser::ComputeTemplateLiteralHash(const TemplateLiteral* lit) {
-  const ZoneList<Literal*>* raw_strings = lit->raw();
+  const ZoneList<const AstRawString*>* raw_strings = lit->raw();
   int total = raw_strings->length();
   DCHECK_GT(total, 0);
 
@@ -3495,8 +3604,7 @@ int32_t Parser::ComputeTemplateLiteralHash(const TemplateLiteral* lit) {
           running_hash, "${}", 3);
     }
 
-    const AstRawString* raw_string =
-        raw_strings->at(index)->AsLiteral()->raw_value()->AsString();
+    const AstRawString* raw_string = raw_strings->at(index);
     if (raw_string->is_one_byte()) {
       const char* data = reinterpret_cast<const char*>(raw_string->raw_data());
       running_hash = StringHasher::ComputeRunningHashOneByte(
@@ -3700,53 +3808,18 @@ void Parser::RewriteAsyncFunctionBody(ZoneList<Statement*>* body, Block* block,
   body->Add(block, zone());
 }
 
-class NonPatternRewriter : public AstExpressionRewriter {
- public:
-  NonPatternRewriter(uintptr_t stack_limit, Parser* parser)
-      : AstExpressionRewriter(stack_limit), parser_(parser) {}
-  ~NonPatternRewriter() override {}
-
- private:
-  bool RewriteExpression(Expression* expr) override {
-    if (expr->IsRewritableExpression()) return true;
-    // Rewrite only what could have been a pattern but is not.
-    if (expr->IsArrayLiteral()) {
-      // Spread rewriting in array literals.
-      ArrayLiteral* lit = expr->AsArrayLiteral();
-      VisitExpressions(lit->values());
-      replacement_ = parser_->RewriteSpreads(lit);
-      return false;
-    }
-    if (expr->IsObjectLiteral()) {
-      return true;
-    }
-    if (expr->IsBinaryOperation() &&
-        expr->AsBinaryOperation()->op() == Token::COMMA) {
-      return true;
-    }
-    // Everything else does not need rewriting.
-    return false;
-  }
-
-  void VisitLiteralProperty(LiteralProperty* property) override {
-    if (property == nullptr) return;
-    // Do not rewrite (computed) key expressions
-    AST_REWRITE_PROPERTY(Expression, property, value);
-  }
-
-  Parser* parser_;
-};
-
 void Parser::RewriteNonPattern(bool* ok) {
   ValidateExpression(CHECK_OK_VOID);
   auto non_patterns_to_rewrite = function_state_->non_patterns_to_rewrite();
   int begin = classifier()->GetNonPatternBegin();
   int end = non_patterns_to_rewrite->length();
   if (begin < end) {
-    NonPatternRewriter rewriter(stack_limit_, this);
     for (int i = begin; i < end; i++) {
-      DCHECK(non_patterns_to_rewrite->at(i)->IsRewritableExpression());
-      rewriter.Rewrite(non_patterns_to_rewrite->at(i));
+      RewritableExpression* expr = non_patterns_to_rewrite->at(i);
+      // TODO(adamk): Make this more typesafe.
+      DCHECK(expr->expression()->IsArrayLiteral());
+      ArrayLiteral* lit = expr->expression()->AsArrayLiteral();
+      expr->Rewrite(RewriteSpreads(lit));
     }
     non_patterns_to_rewrite->Rewind(begin);
   }
@@ -3759,71 +3832,17 @@ void Parser::RewriteDestructuringAssignments() {
   for (int i = assignments.length() - 1; i >= 0; --i) {
     // Rewrite list in reverse, so that nested assignment patterns are rewritten
     // correctly.
-    const DestructuringAssignment& pair = assignments.at(i);
-    RewritableExpression* to_rewrite =
-        pair.assignment->AsRewritableExpression();
+    RewritableExpression* to_rewrite = assignments[i];
     DCHECK_NOT_NULL(to_rewrite);
     if (!to_rewrite->is_rewritten()) {
       // Since this function is called at the end of parsing the program,
       // pair.scope may already have been removed by FinalizeBlockScope in the
       // meantime.
-      Scope* scope = pair.scope->GetUnremovedScope();
+      Scope* scope = to_rewrite->scope()->GetUnremovedScope();
       BlockState block_state(&scope_, scope);
       RewriteDestructuringAssignment(to_rewrite);
     }
   }
-}
-
-Expression* Parser::RewriteExponentiation(Expression* left, Expression* right,
-                                          int pos) {
-  ZoneList<Expression*>* args = new (zone()) ZoneList<Expression*>(2, zone());
-  args->Add(left, zone());
-  args->Add(right, zone());
-  return factory()->NewCallRuntime(Context::MATH_POW_INDEX, args, pos);
-}
-
-Expression* Parser::RewriteAssignExponentiation(Expression* left,
-                                                Expression* right, int pos) {
-  ZoneList<Expression*>* args = new (zone()) ZoneList<Expression*>(2, zone());
-  if (left->IsVariableProxy()) {
-    VariableProxy* lhs = left->AsVariableProxy();
-
-    Expression* result;
-    DCHECK_NOT_NULL(lhs->raw_name());
-    result = ExpressionFromIdentifier(lhs->raw_name(), lhs->position());
-    args->Add(left, zone());
-    args->Add(right, zone());
-    Expression* call =
-        factory()->NewCallRuntime(Context::MATH_POW_INDEX, args, pos);
-    return factory()->NewAssignment(Token::ASSIGN, result, call, pos);
-  } else if (left->IsProperty()) {
-    Property* prop = left->AsProperty();
-    auto temp_obj = NewTemporary(ast_value_factory()->empty_string());
-    auto temp_key = NewTemporary(ast_value_factory()->empty_string());
-    Expression* assign_obj = factory()->NewAssignment(
-        Token::ASSIGN, factory()->NewVariableProxy(temp_obj), prop->obj(),
-        kNoSourcePosition);
-    Expression* assign_key = factory()->NewAssignment(
-        Token::ASSIGN, factory()->NewVariableProxy(temp_key), prop->key(),
-        kNoSourcePosition);
-    args->Add(factory()->NewProperty(factory()->NewVariableProxy(temp_obj),
-                                     factory()->NewVariableProxy(temp_key),
-                                     left->position()),
-              zone());
-    args->Add(right, zone());
-    Expression* call =
-        factory()->NewCallRuntime(Context::MATH_POW_INDEX, args, pos);
-    Expression* target = factory()->NewProperty(
-        factory()->NewVariableProxy(temp_obj),
-        factory()->NewVariableProxy(temp_key), kNoSourcePosition);
-    Expression* assign =
-        factory()->NewAssignment(Token::ASSIGN, target, call, pos);
-    return factory()->NewBinaryOperation(
-        Token::COMMA, assign_obj,
-        factory()->NewBinaryOperation(Token::COMMA, assign_key, assign, pos),
-        pos);
-  }
-  UNREACHABLE();
 }
 
 Expression* Parser::RewriteSpreads(ArrayLiteral* lit) {
@@ -3860,8 +3879,7 @@ Expression* Parser::RewriteSpreads(ArrayLiteral* lit) {
       // %AppendElement($R, value)
       // or, in case of a hole,
       // ++($R.length)
-      if (!value->IsLiteral() ||
-          !value->AsLiteral()->raw_value()->IsTheHole()) {
+      if (!value->IsTheHoleLiteral()) {
         ZoneList<Expression*>* append_element_args = NewExpressionList(2);
         append_element_args->Add(factory()->NewVariableProxy(result), zone());
         append_element_args->Add(value, zone());
@@ -3914,14 +3932,12 @@ Expression* Parser::RewriteSpreads(ArrayLiteral* lit) {
   return factory()->NewDoExpression(do_block, result, lit->position());
 }
 
-void Parser::QueueDestructuringAssignmentForRewriting(Expression* expr) {
-  DCHECK(expr->IsRewritableExpression());
-  function_state_->AddDestructuringAssignment(
-      DestructuringAssignment(expr, scope()));
+void Parser::QueueDestructuringAssignmentForRewriting(
+    RewritableExpression* expr) {
+  function_state_->AddDestructuringAssignment(expr);
 }
 
-void Parser::QueueNonPatternForRewriting(Expression* expr, bool* ok) {
-  DCHECK(expr->IsRewritableExpression());
+void Parser::QueueNonPatternForRewriting(RewritableExpression* expr, bool* ok) {
   function_state_->AddNonPatternForRewriting(expr, ok);
 }
 
@@ -4171,7 +4187,7 @@ void Parser::FinalizeIteratorUse(Variable* completion, Expression* condition,
     Block* block = factory()->NewBlock(2, true);
     Expression* proxy = factory()->NewVariableProxy(completion);
     BuildIteratorCloseForCompletion(block->statements(), iter, proxy, type);
-    DCHECK(block->statements()->length() == 2);
+    DCHECK_EQ(block->statements()->length(), 2);
 
     maybe_close = IgnoreCompletion(factory()->NewIfStatement(
         condition, block, factory()->NewEmptyStatement(nopos), nopos));

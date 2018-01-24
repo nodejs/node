@@ -39,8 +39,8 @@ class BenchmarksVariantGenerator(testsuite.VariantGenerator):
   # always opt to match the way the benchmarks are run for performance
   # testing.
   def FilterVariantsByTest(self, testcase):
-    if testcase.outcomes and statusfile.OnlyStandardVariant(
-        testcase.outcomes):
+    outcomes = self.suite.GetStatusFileOutcomes(testcase)
+    if statusfile.OnlyStandardVariant(outcomes):
       return self.standard_variant
     return self.fast_variants
 
@@ -117,52 +117,32 @@ class BenchmarksTestSuite(testsuite.TestSuite):
       tests.append(testcase.TestCase(self, test))
     return tests
 
-  def GetFlagsForTestCase(self, testcase, context):
-    result = []
-    result += context.mode_flags
+  def GetParametersForTestCase(self, testcase, context):
+    files = []
     if testcase.path.startswith("kraken"):
-      result.append(os.path.join(self.testroot, "%s-data.js" % testcase.path))
-      result.append(os.path.join(self.testroot, "%s.js" % testcase.path))
+      files.append(os.path.join(self.testroot, "%s-data.js" % testcase.path))
+      files.append(os.path.join(self.testroot, "%s.js" % testcase.path))
     elif testcase.path.startswith("octane"):
-      result.append(os.path.join(self.testroot, "octane/base.js"))
-      result.append(os.path.join(self.testroot, "%s.js" % testcase.path))
+      files.append(os.path.join(self.testroot, "octane/base.js"))
+      files.append(os.path.join(self.testroot, "%s.js" % testcase.path))
       if testcase.path.startswith("octane/gbemu"):
-        result.append(os.path.join(self.testroot, "octane/gbemu-part2.js"))
+        files.append(os.path.join(self.testroot, "octane/gbemu-part2.js"))
       elif testcase.path.startswith("octane/typescript"):
-        result.append(os.path.join(self.testroot,
-                                   "octane/typescript-compiler.js"))
-        result.append(os.path.join(self.testroot, "octane/typescript-input.js"))
+        files.append(os.path.join(self.testroot,
+                                  "octane/typescript-compiler.js"))
+        files.append(os.path.join(self.testroot, "octane/typescript-input.js"))
       elif testcase.path.startswith("octane/zlib"):
-        result.append(os.path.join(self.testroot, "octane/zlib-data.js"))
-      result += ["-e", "BenchmarkSuite.RunSuites({});"]
+        files.append(os.path.join(self.testroot, "octane/zlib-data.js"))
+      files += ["-e", "BenchmarkSuite.RunSuites({});"]
     elif testcase.path.startswith("sunspider"):
-      result.append(os.path.join(self.testroot, "%s.js" % testcase.path))
-    return testcase.flags + result
+      files.append(os.path.join(self.testroot, "%s.js" % testcase.path))
+
+    return files, testcase.flags + context.mode_flags, {}
 
   def GetSourceForTest(self, testcase):
     filename = os.path.join(self.testroot, testcase.path + ".js")
     with open(filename) as f:
       return f.read()
-
-  def DownloadData(self):
-    print "Benchmarks download is deprecated. It's part of DEPS."
-
-    def rm_dir(directory):
-      directory_name = os.path.join(self.root, directory)
-      if os.path.exists(directory_name):
-        shutil.rmtree(directory_name)
-
-    # Clean up old directories and archive files.
-    rm_dir('kraken')
-    rm_dir('octane')
-    rm_dir('sunspider')
-    archive_files = [f for f in os.listdir(self.root)
-                     if f.startswith("downloaded_") or
-                        f.startswith("CHECKED_OUT_")]
-    if len(archive_files) > 0:
-      print "Clobber outdated test archives ..."
-      for f in archive_files:
-        os.remove(os.path.join(self.root, f))
 
   def _VariantGeneratorFactory(self):
     return BenchmarksVariantGenerator

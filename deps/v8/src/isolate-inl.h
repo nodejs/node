@@ -13,7 +13,7 @@ namespace internal {
 
 
 void Isolate::set_context(Context* context) {
-  DCHECK(context == NULL || context->IsContext());
+  DCHECK(context == nullptr || context->IsContext());
   thread_local_top_.context_ = context;
 }
 

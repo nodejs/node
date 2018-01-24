@@ -39,6 +39,7 @@ class JsonParser BASE_EMBEDDED {
   MUST_USE_RESULT static MaybeHandle<Object> Parse(Isolate* isolate,
                                                    Handle<String> source,
                                                    Handle<Object> reviver) {
+    PostponeInterruptsScope no_debug_breaks(isolate, StackGuard::DEBUGBREAK);
     Handle<Object> result;
     ASSIGN_RETURN_ON_EXCEPTION(isolate, result,
                                JsonParser(isolate, source).ParseJson(), Object);
@@ -144,7 +145,7 @@ class JsonParser BASE_EMBEDDED {
   Zone* zone() { return &zone_; }
 
   void CommitStateToJsonObject(Handle<JSObject> json_object, Handle<Map> map,
-                               ZoneList<Handle<Object> >* properties);
+                               ZoneVector<Handle<Object>>* properties);
 
   Handle<String> source_;
   int source_length_;

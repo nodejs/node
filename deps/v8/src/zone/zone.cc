@@ -59,7 +59,7 @@ Zone::~Zone() {
 
   DeleteAll();
 
-  DCHECK(segment_bytes_allocated_ == 0);
+  DCHECK_EQ(segment_bytes_allocated_, 0);
 }
 
 void* Zone::New(size_t size) {

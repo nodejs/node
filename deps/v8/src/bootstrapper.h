@@ -20,7 +20,7 @@ namespace internal {
 // generate an index for each native JS file.
 class SourceCodeCache final BASE_EMBEDDED {
  public:
-  explicit SourceCodeCache(Script::Type type): type_(type), cache_(NULL) { }
+  explicit SourceCodeCache(Script::Type type) : type_(type), cache_(nullptr) {}
 
   void Initialize(Isolate* isolate, bool create_heap_objects);
 

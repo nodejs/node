@@ -923,6 +923,25 @@ WASM_EXEC_TEST(CallI64Parameter) {
   }
 }
 
+WASM_EXEC_TEST(CallI64Return) {
+  ValueType return_types[3];  // TODO(rossberg): support more in the future
+  for (int i = 0; i < 3; i++) return_types[i] = kWasmI64;
+  return_types[1] = kWasmI32;
+  FunctionSig sig(2, 1, return_types);
+
+  WasmRunner<int64_t> r(execution_mode);
+  // Build the target function.
+  WasmFunctionCompiler& t = r.NewFunction(&sig);
+  BUILD(t, WASM_GET_LOCAL(0), WASM_I32V(7));
+
+  // Build the first calling function.
+  BUILD(r,
+        WASM_CALL_FUNCTION(
+            t.function_index(), WASM_I64V(0xbcd12340000000b)), WASM_DROP);
+
+  CHECK_EQ(0xbcd12340000000b, r.Call());
+}
+
 void TestI64Binop(WasmExecutionMode execution_mode, WasmOpcode opcode,
                   int64_t expected, int64_t a, int64_t b) {
   {
@@ -1545,12 +1564,12 @@ WASM_EXEC_TEST(UnalignedInt64Store) {
     for (size_t i = 0; i < sizeof(__buf); i++) vec.push_back(__buf[i]); \
   } while (false)
 
-static void CompileCallIndirectMany(ValueType param) {
+static void CompileCallIndirectMany(WasmExecutionMode mode, ValueType param) {
   // Make sure we don't run out of registers when compiling indirect calls
   // with many many parameters.
   TestSignatures sigs;
   for (byte num_params = 0; num_params < 40; num_params++) {
-    WasmRunner<void> r(kExecuteCompiled);
+    WasmRunner<void> r(mode);
     FunctionSig* sig = sigs.many(r.zone(), kWasmStmt, param, num_params);
 
     r.builder().AddSignature(sig);
@@ -1570,7 +1589,9 @@ static void CompileCallIndirectMany(ValueType param) {
   }
 }
 
-TEST(Compile_Wasm_CallIndirect_Many_i64) { CompileCallIndirectMany(kWasmI64); }
+WASM_EXEC_TEST(Compile_Wasm_CallIndirect_Many_i64) {
+  CompileCallIndirectMany(execution_mode, kWasmI64);
+}
 
 static void Run_WasmMixedCall_N(WasmExecutionMode execution_mode, int start) {
   const int kExpected = 6333;

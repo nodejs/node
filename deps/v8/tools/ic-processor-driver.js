@@ -12,7 +12,7 @@ function processArguments(args) {
 }
 
 function initSourceMapSupport() {
-  // Pull dev tools source maps  into our name space.
+  // Pull dev tools source maps into our name space.
   SourceMap = WebInspector.SourceMap;
 
   // Overwrite the load function to load scripts synchronously.

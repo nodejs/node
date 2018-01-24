@@ -11,6 +11,8 @@
 #include "src/interpreter/bytecodes.h"
 #include "src/interpreter/interpreter-assembler.h"
 #include "src/interpreter/interpreter-intrinsics.h"
+#include "src/objects-inl.h"
+#include "src/objects/module.h"
 
 namespace v8 {
 namespace internal {
@@ -121,7 +123,7 @@ Node* IntrinsicsGenerator::CompareInstanceType(Node* object, int type,
   if (mode == kInstanceTypeEqual) {
     return __ Word32Equal(instance_type, __ Int32Constant(type));
   } else {
-    DCHECK(mode == kInstanceTypeGreaterThanOrEqual);
+    DCHECK_EQ(mode, kInstanceTypeGreaterThanOrEqual);
     return __ Int32GreaterThanOrEqual(instance_type, __ Int32Constant(type));
   }
 }
@@ -140,13 +142,13 @@ Node* IntrinsicsGenerator::IsInstanceType(Node* input, int type) {
 
   __ BIND(&return_true);
   {
-    return_value.Bind(__ BooleanConstant(true));
+    return_value.Bind(__ TrueConstant());
     __ Goto(&end);
   }
 
   __ BIND(&return_false);
   {
-    return_value.Bind(__ BooleanConstant(false));
+    return_value.Bind(__ FalseConstant());
     __ Goto(&end);
   }
 
@@ -173,13 +175,13 @@ Node* IntrinsicsGenerator::IsJSReceiver(Node* input, Node* arg_count,
 
   __ BIND(&return_true);
   {
-    return_value.Bind(__ BooleanConstant(true));
+    return_value.Bind(__ TrueConstant());
     __ Goto(&end);
   }
 
   __ BIND(&return_false);
   {
-    return_value.Bind(__ BooleanConstant(false));
+    return_value.Bind(__ FalseConstant());
     __ Goto(&end);
   }
 
@@ -234,13 +236,13 @@ Node* IntrinsicsGenerator::IsSmi(Node* input, Node* arg_count, Node* context) {
   __ Branch(__ TaggedIsSmi(arg), &if_smi, &if_not_smi);
   __ BIND(&if_smi);
   {
-    return_value.Bind(__ BooleanConstant(true));
+    return_value.Bind(__ TrueConstant());
     __ Goto(&end);
   }
 
   __ BIND(&if_not_smi);
   {
-    return_value.Bind(__ BooleanConstant(false));
+    return_value.Bind(__ FalseConstant());
     __ Goto(&end);
   }
 
@@ -280,11 +282,6 @@ Node* IntrinsicsGenerator::HasProperty(Node* input, Node* arg_count,
                                        Node* context) {
   return IntrinsicAsStubCall(
       input, context, Builtins::CallableFor(isolate(), Builtins::kHasProperty));
-}
-
-Node* IntrinsicsGenerator::SubString(Node* input, Node* arg_count,
-                                     Node* context) {
-  return IntrinsicAsStubCall(input, context, CodeFactory::SubString(isolate()));
 }
 
 Node* IntrinsicsGenerator::ToString(Node* input, Node* arg_count,
@@ -430,6 +427,28 @@ Node* IntrinsicsGenerator::GeneratorClose(Node* args_reg, Node* arg_count,
       generator, JSGeneratorObject::kContinuationOffset,
       __ SmiConstant(JSGeneratorObject::kGeneratorClosed));
   return __ UndefinedConstant();
+}
+
+Node* IntrinsicsGenerator::GetImportMetaObject(Node* args_reg, Node* arg_count,
+                                               Node* context) {
+  Node* const module_context = __ LoadModuleContext(context);
+  Node* const module =
+      __ LoadContextElement(module_context, Context::EXTENSION_INDEX);
+  Node* const import_meta =
+      __ LoadObjectField(module, Module::kImportMetaOffset);
+
+  InterpreterAssembler::Variable return_value(assembler_,
+                                              MachineRepresentation::kTagged);
+  return_value.Bind(import_meta);
+
+  InterpreterAssembler::Label end(assembler_);
+  __ GotoIfNot(__ IsTheHole(import_meta), &end);
+
+  return_value.Bind(__ CallRuntime(Runtime::kGetImportMetaObject, context));
+  __ Goto(&end);
+
+  __ BIND(&end);
+  return return_value.value();
 }
 
 Node* IntrinsicsGenerator::AsyncGeneratorReject(Node* input, Node* arg_count,

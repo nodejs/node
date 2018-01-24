@@ -106,7 +106,7 @@ RegExpMacroAssemblerARM64::RegExpMacroAssemblerARM64(Isolate* isolate,
                                                      Zone* zone, Mode mode,
                                                      int registers_to_save)
     : NativeRegExpMacroAssembler(isolate, zone),
-      masm_(new MacroAssembler(isolate, NULL, kRegExpCodeSize,
+      masm_(new MacroAssembler(isolate, nullptr, kRegExpCodeSize,
                                CodeObjectRequired::kYes)),
       mode_(mode),
       num_registers_(registers_to_save),
@@ -788,9 +788,9 @@ Handle<HeapObject> RegExpMacroAssemblerARM64::GetCode(Handle<String> source) {
   // Find negative length (offset of start relative to end).
   __ Sub(x10, input_start(), input_end());
   if (masm_->emit_debug_code()) {
-    // Check that the input string length is < 2^30.
+    // Check that the size of the input string chars is in range.
     __ Neg(x11, x10);
-    __ Cmp(x11, (1<<30) - 1);
+    __ Cmp(x11, SeqTwoByteString::kMaxCharsSize);
     __ Check(ls, kInputStringTooLong);
   }
   __ Mov(current_input_offset(), w10);
@@ -853,8 +853,8 @@ Handle<HeapObject> RegExpMacroAssemblerARM64::GetCode(Handle<String> source) {
       // Get string length.
       __ Sub(x10, input_end(), input_start());
       if (masm_->emit_debug_code()) {
-        // Check that the input string length is < 2^30.
-        __ Cmp(x10, (1<<30) - 1);
+        // Check that the size of the input string chars is in range.
+        __ Cmp(x10, SeqTwoByteString::kMaxCharsSize);
         __ Check(ls, kInputStringTooLong);
       }
       // input_start has a start_offset offset on entry. We need to include
@@ -1059,7 +1059,7 @@ Handle<HeapObject> RegExpMacroAssemblerARM64::GetCode(Handle<String> source) {
     ExternalReference grow_stack =
         ExternalReference::re_grow_stack(isolate());
     __ CallCFunction(grow_stack, 3);
-    // If return NULL, we have failed to grow the stack, and
+    // If return nullptr, we have failed to grow the stack, and
     // must exit with a stack-overflow exception.
     // Returning from the regexp code restores the stack (csp <- fp)
     // so we don't need to drop the link register from it before exiting.
@@ -1408,14 +1408,14 @@ void RegExpMacroAssemblerARM64::CallCheckStackGuardState(Register scratch) {
 void RegExpMacroAssemblerARM64::BranchOrBacktrack(Condition condition,
                                                   Label* to) {
   if (condition == al) {  // Unconditional.
-    if (to == NULL) {
+    if (to == nullptr) {
       Backtrack();
       return;
     }
     __ B(to);
     return;
   }
-  if (to == NULL) {
+  if (to == nullptr) {
     to = &backtrack_label_;
   }
   __ B(condition, to);
@@ -1426,7 +1426,7 @@ void RegExpMacroAssemblerARM64::CompareAndBranchOrBacktrack(Register reg,
                                                             Condition condition,
                                                             Label* to) {
   if ((immediate == 0) && ((condition == eq) || (condition == ne))) {
-    if (to == NULL) {
+    if (to == nullptr) {
       to = &backtrack_label_;
     }
     if (condition == eq) {
@@ -1654,5 +1654,7 @@ void RegExpMacroAssemblerARM64::LoadCurrentCharacterUnchecked(int cp_offset,
 
 }  // namespace internal
 }  // namespace v8
+
+#undef __
 
 #endif  // V8_TARGET_ARCH_ARM64

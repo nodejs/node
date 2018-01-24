@@ -424,7 +424,7 @@ class ExpressionClassifier {
   typename Types::Base* base_;
   ExpressionClassifier* previous_;
   Zone* zone_;
-  ZoneList<typename Types::Expression>* non_patterns_to_rewrite_;
+  ZoneList<typename Types::RewritableExpression>* non_patterns_to_rewrite_;
   ZoneList<Error>* reported_errors_;
   DuplicateFinder* duplicate_finder_;
   // The uint16_t for non_pattern_begin_ will not be enough in the case,

@@ -129,7 +129,7 @@ Handle<Object> FunctionTester::false_value() {
 
 Handle<JSFunction> FunctionTester::ForMachineGraph(Graph* graph,
                                                    int param_count) {
-  JSFunction* p = NULL;
+  JSFunction* p = nullptr;
   {  // because of the implicit handle scope of FunctionTester.
     FunctionTester f(graph, param_count);
     p = *f.function;
@@ -152,7 +152,8 @@ Handle<JSFunction> FunctionTester::Compile(Handle<JSFunction> function) {
   CHECK(info.shared_info()->HasBytecodeArray());
   JSFunction::EnsureLiterals(function);
 
-  Handle<Code> code = Pipeline::GenerateCodeForTesting(&info);
+  Handle<Code> code =
+      Pipeline::GenerateCodeForTesting(&info, function->GetIsolate());
   CHECK(!code.is_null());
   info.dependencies()->Commit(code);
   info.context()->native_context()->AddOptimizedCode(*code);
@@ -168,7 +169,8 @@ Handle<JSFunction> FunctionTester::CompileGraph(Graph* graph) {
   CompilationInfo info(parse_info.zone(), function->GetIsolate(), shared,
                        function);
 
-  Handle<Code> code = Pipeline::GenerateCodeForTesting(&info, graph);
+  Handle<Code> code =
+      Pipeline::GenerateCodeForTesting(&info, function->GetIsolate(), graph);
   CHECK(!code.is_null());
   function->set_code(*code);
   return function;

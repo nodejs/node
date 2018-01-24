@@ -258,54 +258,6 @@ Node* JSInliner::CreateArtificialFrameState(Node* node, Node* outer_frame_state,
 
 namespace {
 
-// TODO(bmeurer): Unify this with the witness helper functions in the
-// js-builtin-reducer.cc once we have a better understanding of the
-// map tracking we want to do, and eventually changed the CheckMaps
-// operator to carry map constants on the operator instead of inputs.
-// I.e. if the CheckMaps has some kind of SmallMapSet as operator
-// parameter, then this could be changed to call a generic
-//
-//   SmallMapSet NodeProperties::CollectMapWitness(receiver, effect)
-//
-// function, which either returns the map set from the CheckMaps or
-// a singleton set from a StoreField.
-bool NeedsConvertReceiver(Node* receiver, Node* effect) {
-  // Check if the {receiver} is already a JSReceiver.
-  switch (receiver->opcode()) {
-    case IrOpcode::kJSConstruct:
-    case IrOpcode::kJSConstructWithSpread:
-    case IrOpcode::kJSCreate:
-    case IrOpcode::kJSCreateArguments:
-    case IrOpcode::kJSCreateArray:
-    case IrOpcode::kJSCreateClosure:
-    case IrOpcode::kJSCreateIterResultObject:
-    case IrOpcode::kJSCreateKeyValueArray:
-    case IrOpcode::kJSCreateLiteralArray:
-    case IrOpcode::kJSCreateLiteralObject:
-    case IrOpcode::kJSCreateLiteralRegExp:
-    case IrOpcode::kJSConvertReceiver:
-    case IrOpcode::kJSGetSuperConstructor:
-    case IrOpcode::kJSToObject: {
-      return false;
-    }
-    default: {
-      // We don't really care about the exact maps here, just the instance
-      // types, which don't change across potential side-effecting operations.
-      ZoneHandleSet<Map> maps;
-      NodeProperties::InferReceiverMapsResult result =
-          NodeProperties::InferReceiverMaps(receiver, effect, &maps);
-      if (result != NodeProperties::kNoReceiverMaps) {
-        // Check if all {maps} are actually JSReceiver maps.
-        for (size_t i = 0; i < maps.size(); ++i) {
-          if (!maps[i]->IsJSReceiverMap()) return true;
-        }
-        return false;
-      }
-      return true;
-    }
-  }
-}
-
 // TODO(mstarzinger,verwaest): Move this predicate onto SharedFunctionInfo?
 bool NeedsImplicitReceiver(Handle<SharedFunctionInfo> shared_info) {
   DisallowHeapAllocation no_gc;
@@ -707,12 +659,14 @@ Reduction JSInliner::ReduceJSCall(Node* node) {
   if (node->opcode() == IrOpcode::kJSCall &&
       is_sloppy(shared_info->language_mode()) && !shared_info->native()) {
     Node* effect = NodeProperties::GetEffectInput(node);
-    if (NeedsConvertReceiver(call.receiver(), effect)) {
-      const CallParameters& p = CallParametersOf(node->op());
-      Node* convert = effect =
-          graph()->NewNode(javascript()->ConvertReceiver(p.convert_mode()),
-                           call.receiver(), context, effect, start);
-      NodeProperties::ReplaceValueInput(node, convert, 1);
+    if (NodeProperties::CanBePrimitive(call.receiver(), effect)) {
+      CallParameters const& p = CallParametersOf(node->op());
+      Node* global_proxy = jsgraph()->HeapConstant(
+          handle(info_->native_context()->global_proxy()));
+      Node* receiver = effect =
+          graph()->NewNode(simplified()->ConvertReceiver(p.convert_mode()),
+                           call.receiver(), global_proxy, effect, start);
+      NodeProperties::ReplaceValueInput(node, receiver, 1);
       NodeProperties::ReplaceEffectInput(node, effect);
     }
   }

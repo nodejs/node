@@ -285,7 +285,8 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
   // {call_code_immediate} to generate immediate operands to calls of code.
   // {call_address_immediate} to generate immediate operands to address calls.
   void InitializeCallBuffer(Node* call, CallBuffer* buffer,
-                            CallBufferFlags flags, int stack_slot_delta = 0);
+                            CallBufferFlags flags, bool is_tail_call,
+                            int stack_slot_delta = 0);
   bool IsTailCallAddressImmediate();
   int GetTempsCountForTailCallFromJSFunction();
 
@@ -348,6 +349,7 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
   void VisitReturn(Node* ret);
   void VisitThrow(Node* node);
   void VisitRetain(Node* node);
+  void VisitUnreachable(Node* node);
 
   void EmitPrepareArguments(ZoneVector<compiler::PushParameter>* arguments,
                             const CallDescriptor* descriptor, Node* node);

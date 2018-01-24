@@ -21,6 +21,7 @@ Node* PromiseBuiltinsAssembler::AllocateJSPromise(Node* context) {
   Node* const native_context = LoadNativeContext(context);
   Node* const promise_fun =
       LoadContextElement(native_context, Context::PROMISE_FUNCTION_INDEX);
+  CSA_ASSERT(this, IsFunctionWithPrototypeSlotMap(LoadMap(promise_fun)));
   Node* const initial_map =
       LoadObjectField(promise_fun, JSFunction::kPrototypeOrInitialMapOffset);
   Node* const instance = AllocateJSObjectFromMap(initial_map);
@@ -109,7 +110,7 @@ Node* PromiseBuiltinsAssembler::NewPromiseCapability(Node* context,
 
   Node* native_context = LoadNativeContext(context);
 
-  Node* map = LoadRoot(Heap::kPromiseCapabilityMapRootIndex);
+  Node* map = LoadRoot(Heap::kTuple3MapRootIndex);
   Node* capability = AllocateStruct(map);
 
   VARIABLE(var_result, MachineRepresentation::kTagged);
@@ -220,8 +221,6 @@ Node* PromiseBuiltinsAssembler::CreatePromiseResolvingFunctionsContext(
     Node* promise, Node* debug_event, Node* native_context) {
   Node* const context =
       CreatePromiseContext(native_context, kPromiseContextLength);
-  StoreContextElementNoWriteBarrier(context, kAlreadyVisitedSlot,
-                                    SmiConstant(0));
   StoreContextElementNoWriteBarrier(context, kPromiseSlot, promise);
   StoreContextElementNoWriteBarrier(context, kDebugEventSlot, debug_event);
   return context;
@@ -234,28 +233,6 @@ Node* PromiseBuiltinsAssembler::CreatePromiseGetCapabilitiesExecutorContext(
   StoreContextElementNoWriteBarrier(context, kCapabilitySlot,
                                     promise_capability);
   return context;
-}
-
-Node* PromiseBuiltinsAssembler::ThrowIfNotJSReceiver(
-    Node* context, Node* value, MessageTemplate::Template msg_template,
-    const char* method_name) {
-  Label out(this), throw_exception(this, Label::kDeferred);
-  VARIABLE(var_value_map, MachineRepresentation::kTagged);
-
-  GotoIf(TaggedIsSmi(value), &throw_exception);
-
-  // Load the instance type of the {value}.
-  var_value_map.Bind(LoadMap(value));
-  Node* const value_instance_type = LoadMapInstanceType(var_value_map.value());
-
-  Branch(IsJSReceiverInstanceType(value_instance_type), &out, &throw_exception);
-
-  // The {value} is not a compatible receiver for this method.
-  BIND(&throw_exception);
-  ThrowTypeError(context, msg_template, method_name);
-
-  BIND(&out);
-  return var_value_map.value();
 }
 
 Node* PromiseBuiltinsAssembler::PromiseHasHandler(Node* promise) {
@@ -285,7 +262,7 @@ void PromiseBuiltinsAssembler::PromiseSetStatus(
     Node* promise, v8::Promise::PromiseState const status) {
   CSA_ASSERT(this,
              IsPromiseStatus(PromiseStatus(promise), v8::Promise::kPending));
-  CHECK(status != v8::Promise::kPending);
+  CHECK_NE(status, v8::Promise::kPending);
 
   Node* mask = SmiConstant(status);
   Node* const flags = LoadObjectField(promise, JSPromise::kFlagsOffset);
@@ -323,8 +300,7 @@ Node* PromiseBuiltinsAssembler::SpeciesConstructor(Node* context, Node* object,
       GetProperty(context, constructor, isolate->factory()->species_symbol());
 
   // 6. If S is either undefined or null, return defaultConstructor.
-  GotoIf(IsUndefined(species), &out);
-  GotoIf(WordEqual(species, NullConstant()), &out);
+  GotoIf(IsNullOrUndefined(species), &out);
 
   // 7. If IsConstructor(S) is true, return S.
   Label throw_error(this);
@@ -351,16 +327,14 @@ void PromiseBuiltinsAssembler::AppendPromiseCallback(int offset, Node* promise,
   Node* delta = IntPtrOrSmiConstant(1, mode);
   Node* new_capacity = IntPtrOrSmiAdd(length, delta, mode);
 
-  const ElementsKind kind = PACKED_ELEMENTS;
   const WriteBarrierMode barrier_mode = UPDATE_WRITE_BARRIER;
-  const CodeStubAssembler::AllocationFlags flags =
-      CodeStubAssembler::kAllowLargeObjectAllocation;
   int additional_offset = 0;
 
-  Node* new_elements = AllocateFixedArray(kind, new_capacity, mode, flags);
+  ExtractFixedArrayFlags flags;
+  flags |= ExtractFixedArrayFlag::kFixedArrays;
+  Node* new_elements =
+      ExtractFixedArray(elements, nullptr, length, new_capacity, flags, mode);
 
-  CopyFixedArrayElements(kind, elements, new_elements, length, barrier_mode,
-                         mode);
   StoreFixedArrayElement(new_elements, length, value, barrier_mode,
                          additional_offset, mode);
 
@@ -391,6 +365,8 @@ Node* PromiseBuiltinsAssembler::InternalPromiseThen(Node* context,
   VARIABLE(var_deferred_promise, MachineRepresentation::kTagged);
   VARIABLE(var_deferred_on_resolve, MachineRepresentation::kTagged);
   VARIABLE(var_deferred_on_reject, MachineRepresentation::kTagged);
+
+  GotoIfForceSlowPath(&promise_capability);
 
   Branch(WordEqual(promise_fun, constructor), &fast_promise_capability,
          &promise_capability);
@@ -641,6 +617,8 @@ void PromiseBuiltinsAssembler::BranchIfFastPath(Node* native_context,
                        LoadContextElement(native_context,
                                           Context::PROMISE_FUNCTION_INDEX)));
 
+  GotoIfForceSlowPath(if_ismodified);
+
   Node* const map = LoadMap(promise);
   Node* const initial_map =
       LoadObjectField(promise_fun, JSFunction::kPrototypeOrInitialMapOffset);
@@ -803,7 +781,7 @@ void PromiseBuiltinsAssembler::InternalResolvePromise(Node* context,
     Node* const key =
         HeapConstant(isolate->factory()->promise_handled_by_symbol());
     CallRuntime(Runtime::kSetProperty, context, result, key, promise,
-                SmiConstant(STRICT));
+                SmiConstant(LanguageMode::kStrict));
     Goto(&enqueue);
 
     // 12. Perform EnqueueJob("PromiseJobs",
@@ -847,12 +825,12 @@ void PromiseBuiltinsAssembler::InternalResolvePromise(Node* context,
 void PromiseBuiltinsAssembler::PromiseFulfill(
     Node* context, Node* promise, Node* result,
     v8::Promise::PromiseState status) {
-  Label do_promisereset(this), debug_async_event_enqueue_recurring(this);
+  Label do_promisereset(this);
 
   Node* const deferred_promise =
       LoadObjectField(promise, JSPromise::kDeferredPromiseOffset);
 
-  GotoIf(IsUndefined(deferred_promise), &debug_async_event_enqueue_recurring);
+  GotoIf(IsUndefined(deferred_promise), &do_promisereset);
 
   Node* const tasks =
       status == v8::Promise::kFulfilled
@@ -869,15 +847,7 @@ void PromiseBuiltinsAssembler::PromiseFulfill(
       context);
 
   CallRuntime(Runtime::kEnqueuePromiseReactionJob, context, info);
-  Goto(&debug_async_event_enqueue_recurring);
-
-  BIND(&debug_async_event_enqueue_recurring);
-  {
-    GotoIfNot(IsDebugActive(), &do_promisereset);
-    CallRuntime(Runtime::kDebugAsyncEventEnqueueRecurring, context, promise,
-                SmiConstant(status));
-    Goto(&do_promisereset);
-  }
+  Goto(&do_promisereset);
 
   BIND(&do_promisereset);
   {
@@ -934,7 +904,7 @@ void PromiseBuiltinsAssembler::BranchIfAccessCheckFailed(
   {
     Branch(WordEqual(CallRuntime(Runtime::kAllowDynamicFunction, context,
                                  promise_constructor),
-                     BooleanConstant(true)),
+                     TrueConstant()),
            &has_access, if_noaccess);
   }
 
@@ -984,7 +954,7 @@ void PromiseBuiltinsAssembler::SetForwardingHandlerIfTrue(
   GotoIfNot(condition, &done);
   CallRuntime(Runtime::kSetProperty, context, object(),
               HeapConstant(factory()->promise_forwarding_handler_symbol()),
-              TrueConstant(), SmiConstant(STRICT));
+              TrueConstant(), SmiConstant(LanguageMode::kStrict));
   Goto(&done);
   BIND(&done);
 }
@@ -998,9 +968,35 @@ void PromiseBuiltinsAssembler::SetPromiseHandledByIfTrue(
   GotoIfNot(HasInstanceType(promise, JS_PROMISE_TYPE), &done);
   CallRuntime(Runtime::kSetProperty, context, promise,
               HeapConstant(factory()->promise_handled_by_symbol()),
-              handled_by(), SmiConstant(STRICT));
+              handled_by(), SmiConstant(LanguageMode::kStrict));
   Goto(&done);
   BIND(&done);
+}
+
+void PromiseBuiltinsAssembler::PerformFulfillClosure(Node* context, Node* value,
+                                                     bool should_resolve) {
+  Label out(this);
+
+  // 2. Let promise be F.[[Promise]].
+  Node* const promise_slot = IntPtrConstant(kPromiseSlot);
+  Node* const promise = LoadContextElement(context, promise_slot);
+
+  // We use `undefined` as a marker to know that this callback was
+  // already called.
+  GotoIf(IsUndefined(promise), &out);
+
+  if (should_resolve) {
+    InternalResolvePromise(context, promise, value);
+  } else {
+    Node* const debug_event =
+        LoadContextElement(context, IntPtrConstant(kDebugEventSlot));
+    InternalPromiseReject(context, promise, value, debug_event);
+  }
+
+  StoreContextElement(context, promise_slot, UndefinedConstant());
+  Goto(&out);
+
+  BIND(&out);
 }
 
 // ES#sec-promise-reject-functions
@@ -1009,31 +1005,7 @@ TF_BUILTIN(PromiseRejectClosure, PromiseBuiltinsAssembler) {
   Node* const value = Parameter(Descriptor::kValue);
   Node* const context = Parameter(Descriptor::kContext);
 
-  Label out(this);
-
-  // 3. Let alreadyResolved be F.[[AlreadyResolved]].
-  int has_already_visited_slot = kAlreadyVisitedSlot;
-
-  Node* const has_already_visited =
-      LoadContextElement(context, has_already_visited_slot);
-
-  // 4. If alreadyResolved.[[Value]] is true, return undefined.
-  GotoIf(SmiEqual(has_already_visited, SmiConstant(1)), &out);
-
-  // 5.Set alreadyResolved.[[Value]] to true.
-  StoreContextElementNoWriteBarrier(context, has_already_visited_slot,
-                                    SmiConstant(1));
-
-  // 2. Let promise be F.[[Promise]].
-  Node* const promise =
-      LoadContextElement(context, IntPtrConstant(kPromiseSlot));
-  Node* const debug_event =
-      LoadContextElement(context, IntPtrConstant(kDebugEventSlot));
-
-  InternalPromiseReject(context, promise, value, debug_event);
-  Return(UndefinedConstant());
-
-  BIND(&out);
+  PerformFulfillClosure(context, value, false);
   Return(UndefinedConstant());
 }
 
@@ -1177,29 +1149,7 @@ TF_BUILTIN(PromiseResolveClosure, PromiseBuiltinsAssembler) {
   Node* const value = Parameter(Descriptor::kValue);
   Node* const context = Parameter(Descriptor::kContext);
 
-  Label out(this);
-
-  // 3. Let alreadyResolved be F.[[AlreadyResolved]].
-  int has_already_visited_slot = kAlreadyVisitedSlot;
-
-  Node* const has_already_visited =
-      LoadContextElement(context, has_already_visited_slot);
-
-  // 4. If alreadyResolved.[[Value]] is true, return undefined.
-  GotoIf(SmiEqual(has_already_visited, SmiConstant(1)), &out);
-
-  // 5.Set alreadyResolved.[[Value]] to true.
-  StoreContextElementNoWriteBarrier(context, has_already_visited_slot,
-                                    SmiConstant(1));
-
-  // 2. Let promise be F.[[Promise]].
-  Node* const promise =
-      LoadContextElement(context, IntPtrConstant(kPromiseSlot));
-
-  InternalResolvePromise(context, promise, value);
-  Return(UndefinedConstant());
-
-  BIND(&out);
+  PerformFulfillClosure(context, value, true);
   Return(UndefinedConstant());
 }
 
@@ -1478,14 +1428,12 @@ TF_BUILTIN(PromiseGetCapabilitiesExecutor, PromiseBuiltinsAssembler) {
   Node* const capability = LoadContextElement(context, kCapabilitySlot);
 
   Label if_alreadyinvoked(this, Label::kDeferred);
-  GotoIf(WordNotEqual(
-             LoadObjectField(capability, PromiseCapability::kResolveOffset),
-             UndefinedConstant()),
-         &if_alreadyinvoked);
-  GotoIf(WordNotEqual(
-             LoadObjectField(capability, PromiseCapability::kRejectOffset),
-             UndefinedConstant()),
-         &if_alreadyinvoked);
+  GotoIfNot(IsUndefined(
+                LoadObjectField(capability, PromiseCapability::kResolveOffset)),
+            &if_alreadyinvoked);
+  GotoIfNot(IsUndefined(
+                LoadObjectField(capability, PromiseCapability::kRejectOffset)),
+            &if_alreadyinvoked);
 
   StoreObjectField(capability, PromiseCapability::kResolveOffset, resolve);
   StoreObjectField(capability, PromiseCapability::kRejectOffset, reject);
@@ -1519,6 +1467,9 @@ TF_BUILTIN(PromiseReject, PromiseBuiltinsAssembler) {
 
   Label if_nativepromise(this), if_custompromise(this, Label::kDeferred);
   Node* const native_context = LoadNativeContext(context);
+
+  GotoIfForceSlowPath(&if_custompromise);
+
   Node* const promise_fun =
       LoadContextElement(native_context, Context::PROMISE_FUNCTION_INDEX);
   Branch(WordEqual(promise_fun, receiver), &if_nativepromise,

@@ -74,7 +74,7 @@ void ProfilerExtension::StopProfiling(
 
 void ProfilerExtension::CollectSample(
     const v8::FunctionCallbackInfo<v8::Value>& args) {
-  profiler_->CollectSample();
+  v8::CpuProfiler::CollectSample(args.GetIsolate());
 }
 
 }  // namespace internal

@@ -60,7 +60,7 @@ TEST(BYTESWAP) {
   };
   T t;
 
-  MacroAssembler assembler(isolate, NULL, 0,
+  MacroAssembler assembler(isolate, nullptr, 0,
                            v8::internal::CodeObjectRequired::kYes);
   MacroAssembler* masm = &assembler;
 
@@ -823,12 +823,12 @@ TEST(BranchOverflowInt32LeftLabel) {
                 __ li(rc.right, valRight);
                 switch (branchType) {
                   case kAddBranchOverflow:
-                    __ AddBranchOvf(rc.dst, rc.left, rc.right, &overflow, NULL,
-                                    rc.scratch);
+                    __ AddBranchOvf(rc.dst, rc.left, rc.right, &overflow,
+                                    nullptr, rc.scratch);
                     break;
                   case kSubBranchOverflow:
-                    __ SubBranchOvf(rc.dst, rc.left, rc.right, &overflow, NULL,
-                                    rc.scratch);
+                    __ SubBranchOvf(rc.dst, rc.left, rc.right, &overflow,
+                                    nullptr, rc.scratch);
                     break;
                 }
                 __ li(v0, 0);
@@ -846,11 +846,11 @@ TEST(BranchOverflowInt32LeftLabel) {
                 switch (branchType) {
                   case kAddBranchOverflow:
                     __ AddBranchOvf(rc.dst, rc.left, Operand(valRight),
-                                    &overflow, NULL, rc.scratch);
+                                    &overflow, nullptr, rc.scratch);
                     break;
                   case kSubBranchOverflow:
                     __ SubBranchOvf(rc.dst, rc.left, Operand(valRight),
-                                    &overflow, NULL, rc.scratch);
+                                    &overflow, nullptr, rc.scratch);
                     break;
                 }
                 __ li(v0, 0);
@@ -905,11 +905,11 @@ TEST(BranchOverflowInt32RightLabel) {
                 __ li(rc.right, valRight);
                 switch (branchType) {
                   case kAddBranchOverflow:
-                    __ AddBranchOvf(rc.dst, rc.left, rc.right, NULL,
+                    __ AddBranchOvf(rc.dst, rc.left, rc.right, nullptr,
                                     &no_overflow, rc.scratch);
                     break;
                   case kSubBranchOverflow:
-                    __ SubBranchOvf(rc.dst, rc.left, rc.right, NULL,
+                    __ SubBranchOvf(rc.dst, rc.left, rc.right, nullptr,
                                     &no_overflow, rc.scratch);
                     break;
                 }
@@ -927,11 +927,11 @@ TEST(BranchOverflowInt32RightLabel) {
                 __ li(rc.left, valLeft);
                 switch (branchType) {
                   case kAddBranchOverflow:
-                    __ AddBranchOvf(rc.dst, rc.left, Operand(valRight), NULL,
+                    __ AddBranchOvf(rc.dst, rc.left, Operand(valRight), nullptr,
                                     &no_overflow, rc.scratch);
                     break;
                   case kSubBranchOverflow:
-                    __ SubBranchOvf(rc.dst, rc.left, Operand(valRight), NULL,
+                    __ SubBranchOvf(rc.dst, rc.left, Operand(valRight), nullptr,
                                     &no_overflow, rc.scratch);
                     break;
                 }
@@ -1446,7 +1446,7 @@ TEST(macro_float_minmax_f32) {
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
 
-  MacroAssembler assembler(isolate, NULL, 0,
+  MacroAssembler assembler(isolate, nullptr, 0,
                            v8::internal::CodeObjectRequired::kYes);
   MacroAssembler* masm = &assembler;
 
@@ -1589,7 +1589,7 @@ TEST(macro_float_minmax_f64) {
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
 
-  MacroAssembler assembler(isolate, NULL, 0,
+  MacroAssembler assembler(isolate, nullptr, 0,
                            v8::internal::CodeObjectRequired::kYes);
   MacroAssembler* masm = &assembler;
 

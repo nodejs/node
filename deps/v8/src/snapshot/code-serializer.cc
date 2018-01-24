@@ -13,6 +13,7 @@
 #include "src/objects-inl.h"
 #include "src/snapshot/object-deserializer.h"
 #include "src/snapshot/snapshot.h"
+#include "src/trap-handler/trap-handler.h"
 #include "src/version.h"
 #include "src/visitors.h"
 #include "src/wasm/wasm-module.h"
@@ -123,8 +124,8 @@ void CodeSerializer::SerializeObject(HeapObject* obj, HowToCode how_to_code,
   CHECK(!obj->IsMap());
   // There should be no references to the global object embedded.
   CHECK(!obj->IsJSGlobalProxy() && !obj->IsJSGlobalObject());
-  // There should be no hash table embedded. They would require rehashing.
-  CHECK(!obj->IsHashTable());
+  // Embedded FixedArrays that need rehashing must support rehashing.
+  CHECK_IMPLIES(obj->NeedsRehashing(), obj->CanBeRehashed());
   // We expect no instantiated function objects or contexts.
   CHECK(!obj->IsJSFunction() && !obj->IsContext());
 
@@ -242,6 +243,8 @@ MaybeHandle<FixedArray> WasmCompiledModuleSerializer::DeserializeWasmModule(
     return nothing;
   }
 
+  // TODO(6792): No longer needed once WebAssembly code is off heap.
+  CodeSpaceMemoryModificationScope modification_scope(isolate->heap());
   MaybeHandle<WasmCompiledModule> maybe_result =
       ObjectDeserializer::DeserializeWasmCompiledModule(isolate, &scd,
                                                         wire_bytes);
@@ -260,6 +263,8 @@ void WasmCompiledModuleSerializer::SerializeCodeObject(
   switch (kind) {
     case Code::WASM_FUNCTION:
     case Code::JS_TO_WASM_FUNCTION: {
+      // TODO(6792): No longer needed once WebAssembly code is off heap.
+      CodeSpaceMemoryModificationScope modification_scope(isolate()->heap());
       // Because the trap handler index is not meaningful across copies and
       // serializations, we need to serialize it as kInvalidIndex. We do this by
       // saving the old value, setting the index to kInvalidIndex and then
@@ -276,6 +281,7 @@ void WasmCompiledModuleSerializer::SerializeCodeObject(
     }
     case Code::WASM_INTERPRETER_ENTRY:
     case Code::WASM_TO_JS_FUNCTION:
+    case Code::WASM_TO_WASM_FUNCTION:
       // Serialize the illegal builtin instead. On instantiation of a
       // deserialized module, these will be replaced again.
       SerializeBuiltinReference(*BUILTIN_CODE(isolate(), Illegal), how_to_code,
@@ -422,7 +428,7 @@ ScriptData* SerializedCodeData::GetScriptData() {
   ScriptData* result = new ScriptData(data_, size_);
   result->AcquireDataOwnership();
   owns_data_ = false;
-  data_ = NULL;
+  data_ = nullptr;
   return result;
 }
 

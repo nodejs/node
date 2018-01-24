@@ -47,3 +47,5 @@ function f(/*null*/a) {
   return 'second';
 /*string*/};
 f(null);
+
+Running test: testStopTwice

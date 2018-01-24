@@ -13,7 +13,7 @@ namespace v8 {
 namespace internal {
 
 void SetupIsolateDelegate::SetupBuiltins(Isolate* isolate) {
-  DCHECK(!create_heap_objects_);
+  CHECK(!create_heap_objects_);
   // No actual work to be done; builtins will be deserialized from the snapshot.
 }
 
@@ -27,11 +27,11 @@ void SetupIsolateDelegate::SetupInterpreter(
        << std::endl;
   }
 #endif
-  DCHECK(interpreter->IsDispatchTableInitialized());
+  CHECK(interpreter->IsDispatchTableInitialized());
 }
 
 bool SetupIsolateDelegate::SetupHeap(Heap* heap) {
-  DCHECK(!create_heap_objects_);
+  CHECK(!create_heap_objects_);
   // No actual work to be done; heap will be deserialized from the snapshot.
   return true;
 }

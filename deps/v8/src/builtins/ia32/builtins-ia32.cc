@@ -5,7 +5,6 @@
 #if V8_TARGET_ARCH_IA32
 
 #include "src/code-factory.h"
-#include "src/codegen.h"
 #include "src/debug/debug.h"
 #include "src/deoptimizer.h"
 #include "src/frame-constants.h"
@@ -55,12 +54,12 @@ void AdaptorWithExitFrameType(MacroAssembler* masm,
 
   // CEntryStub expects eax to contain the number of arguments including the
   // receiver and the extra arguments.
-  const int num_extra_args = 3;
-  __ add(eax, Immediate(num_extra_args + 1));
+  __ add(eax, Immediate(BuiltinExitFrameConstants::kNumExtraArgsWithReceiver));
 
   // Insert extra arguments.
   __ PopReturnAddressTo(ecx);
   __ SmiTag(eax);
+  __ PushRoot(Heap::kTheHoleValueRootIndex);  // Padding.
   __ Push(eax);
   __ SmiUntag(eax);
   __ Push(edi);
@@ -396,37 +395,30 @@ void Builtins::Generate_ConstructedNonConstructable(MacroAssembler* masm) {
   __ CallRuntime(Runtime::kThrowConstructedNonConstructable);
 }
 
-enum IsTagged { kEaxIsSmiTagged, kEaxIsUntaggedInt };
-
-// Clobbers ecx, edx, edi; preserves all other registers.
-static void Generate_CheckStackOverflow(MacroAssembler* masm,
-                                        IsTagged eax_is_tagged) {
-  // eax   : the number of items to be pushed to the stack
-  //
+static void Generate_StackOverflowCheck(MacroAssembler* masm, Register num_args,
+                                        Register scratch1, Register scratch2,
+                                        Label* stack_overflow,
+                                        bool include_receiver = false) {
   // Check the stack for overflow. We are not trying to catch
   // interruptions (e.g. debug break and preemption) here, so the "real stack
   // limit" is checked.
-  Label okay;
   ExternalReference real_stack_limit =
       ExternalReference::address_of_real_stack_limit(masm->isolate());
-  __ mov(edi, Operand::StaticVariable(real_stack_limit));
-  // Make ecx the space we have left. The stack might already be overflowed
-  // here which will cause ecx to become negative.
-  __ mov(ecx, esp);
-  __ sub(ecx, edi);
-  // Make edx the space we need for the array when it is unrolled onto the
+  __ mov(scratch1, Operand::StaticVariable(real_stack_limit));
+  // Make scratch2 the space we have left. The stack might already be overflowed
+  // here which will cause scratch2 to become negative.
+  __ mov(scratch2, esp);
+  __ sub(scratch2, scratch1);
+  // Make scratch1 the space we need for the array when it is unrolled onto the
   // stack.
-  __ mov(edx, eax);
-  int smi_tag = eax_is_tagged == kEaxIsSmiTagged ? kSmiTagSize : 0;
-  __ shl(edx, kPointerSizeLog2 - smi_tag);
+  __ mov(scratch1, num_args);
+  if (include_receiver) {
+    __ add(scratch1, Immediate(1));
+  }
+  __ shl(scratch1, kPointerSizeLog2);
   // Check if the arguments will overflow the stack.
-  __ cmp(ecx, edx);
-  __ j(greater, &okay);  // Signed comparison.
-
-  // Out of stack space.
-  __ CallRuntime(Runtime::kThrowStackOverflow);
-
-  __ bind(&okay);
+  __ cmp(scratch2, scratch1);
+  __ j(less_equal, stack_overflow);  // Signed comparison.
 }
 
 static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
@@ -453,8 +445,17 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
     __ mov(ebx, Operand(ebx, EntryFrameConstants::kArgvOffset));
 
     // Check if we have enough stack space to push all arguments.
-    // Expects argument count in eax. Clobbers ecx, edx, edi.
-    Generate_CheckStackOverflow(masm, kEaxIsUntaggedInt);
+    // Argument count in eax. Clobbers ecx and edx.
+    Label enough_stack_space, stack_overflow;
+    Generate_StackOverflowCheck(masm, eax, ecx, edx, &stack_overflow);
+    __ jmp(&enough_stack_space);
+
+    __ bind(&stack_overflow);
+    __ CallRuntime(Runtime::kThrowStackOverflow);
+    // This should be unreachable.
+    __ int3();
+
+    __ bind(&enough_stack_space);
 
     // Copy arguments to the stack in a loop.
     Label loop, entry;
@@ -500,22 +501,18 @@ void Builtins::Generate_JSConstructEntryTrampoline(MacroAssembler* masm) {
 void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- eax    : the value to pass to the generator
-  //  -- ebx    : the JSGeneratorObject to resume
-  //  -- edx    : the resume mode (tagged)
+  //  -- edx    : the JSGeneratorObject to resume
   //  -- esp[0] : return address
   // -----------------------------------
-  __ AssertGeneratorObject(ebx);
+  __ AssertGeneratorObject(edx);
 
   // Store input value into generator object.
-  __ mov(FieldOperand(ebx, JSGeneratorObject::kInputOrDebugPosOffset), eax);
-  __ RecordWriteField(ebx, JSGeneratorObject::kInputOrDebugPosOffset, eax, ecx,
+  __ mov(FieldOperand(edx, JSGeneratorObject::kInputOrDebugPosOffset), eax);
+  __ RecordWriteField(edx, JSGeneratorObject::kInputOrDebugPosOffset, eax, ecx,
                       kDontSaveFPRegs);
 
-  // Store resume mode into generator object.
-  __ mov(FieldOperand(ebx, JSGeneratorObject::kResumeModeOffset), edx);
-
   // Load suspended function and context.
-  __ mov(edi, FieldOperand(ebx, JSGeneratorObject::kFunctionOffset));
+  __ mov(edi, FieldOperand(edx, JSGeneratorObject::kFunctionOffset));
   __ mov(esi, FieldOperand(edi, JSFunction::kContextOffset));
 
   // Flood function if we are stepping.
@@ -529,20 +526,25 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
   // Flood function if we need to continue stepping in the suspended generator.
   ExternalReference debug_suspended_generator =
       ExternalReference::debug_suspended_generator_address(masm->isolate());
-  __ cmp(ebx, Operand::StaticVariable(debug_suspended_generator));
+  __ cmp(edx, Operand::StaticVariable(debug_suspended_generator));
   __ j(equal, &prepare_step_in_suspended_generator);
   __ bind(&stepping_prepared);
+
+  // Check the stack for overflow. We are not trying to catch interruptions
+  // (i.e. debug break and preemption) here, so check the "real stack limit".
+  Label stack_overflow;
+  __ CompareRoot(esp, ecx, Heap::kRealStackLimitRootIndex);
+  __ j(below, &stack_overflow);
 
   // Pop return address.
   __ PopReturnAddressTo(eax);
 
   // Push receiver.
-  __ Push(FieldOperand(ebx, JSGeneratorObject::kReceiverOffset));
+  __ Push(FieldOperand(edx, JSGeneratorObject::kReceiverOffset));
 
   // ----------- S t a t e -------------
   //  -- eax    : return address
-  //  -- ebx    : the JSGeneratorObject to resume
-  //  -- edx    : the resume mode (tagged)
+  //  -- edx    : the JSGeneratorObject to resume
   //  -- edi    : generator function
   //  -- esi    : generator context
   //  -- esp[0] : generator receiver
@@ -582,7 +584,6 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
     // We abuse new.target both to indicate that this is a resume call and to
     // pass in the generator object.  In ordinary calls, new.target is always
     // undefined because generator functions are non-constructable.
-    __ mov(edx, ebx);
     __ mov(ecx, FieldOperand(edi, JSFunction::kCodeOffset));
     __ add(ecx, Immediate(Code::kHeaderSize - kHeapObjectTag));
     __ jmp(ecx);
@@ -591,27 +592,30 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
   __ bind(&prepare_step_in_if_stepping);
   {
     FrameScope scope(masm, StackFrame::INTERNAL);
-    __ Push(ebx);
     __ Push(edx);
     __ Push(edi);
     __ CallRuntime(Runtime::kDebugOnFunctionCall);
     __ Pop(edx);
-    __ Pop(ebx);
-    __ mov(edi, FieldOperand(ebx, JSGeneratorObject::kFunctionOffset));
+    __ mov(edi, FieldOperand(edx, JSGeneratorObject::kFunctionOffset));
   }
   __ jmp(&stepping_prepared);
 
   __ bind(&prepare_step_in_suspended_generator);
   {
     FrameScope scope(masm, StackFrame::INTERNAL);
-    __ Push(ebx);
     __ Push(edx);
     __ CallRuntime(Runtime::kDebugPrepareStepInSuspendedGenerator);
     __ Pop(edx);
-    __ Pop(ebx);
-    __ mov(edi, FieldOperand(ebx, JSGeneratorObject::kFunctionOffset));
+    __ mov(edi, FieldOperand(edx, JSGeneratorObject::kFunctionOffset));
   }
   __ jmp(&stepping_prepared);
+
+  __ bind(&stack_overflow);
+  {
+    FrameScope scope(masm, StackFrame::INTERNAL);
+    __ CallRuntime(Runtime::kThrowStackOverflow);
+    __ int3();  // This should be unreachable.
+  }
 }
 
 static void ReplaceClosureCodeWithOptimizedCode(
@@ -717,18 +721,20 @@ static void MaybeTailCallOptimizedCodeSlot(MacroAssembler* masm,
     __ mov(optimized_code_entry,
            FieldOperand(optimized_code_entry, WeakCell::kValueOffset));
     __ JumpIfSmi(optimized_code_entry, &fallthrough);
+    __ push(eax);
+    __ push(edx);
 
     // Check if the optimized code is marked for deopt. If it is, bailout to a
     // given label.
     Label found_deoptimized_code;
-    __ test(FieldOperand(optimized_code_entry, Code::kKindSpecificFlags1Offset),
+    __ mov(eax,
+           FieldOperand(optimized_code_entry, Code::kCodeDataContainerOffset));
+    __ test(FieldOperand(eax, CodeDataContainer::kKindSpecificFlagsOffset),
             Immediate(1 << Code::kMarkedForDeoptimizationBit));
     __ j(not_zero, &found_deoptimized_code);
 
     // Optimized code is good, get it into the closure and link the closure into
     // the optimized functions list, then tail call the optimized code.
-    __ push(eax);
-    __ push(edx);
     // The feedback vector is no longer used, so re-use it as a scratch
     // register.
     ReplaceClosureCodeWithOptimizedCode(masm, optimized_code_entry, closure,
@@ -741,6 +747,8 @@ static void MaybeTailCallOptimizedCodeSlot(MacroAssembler* masm,
     // Optimized code slot contains deoptimized code, evict it and re-enter the
     // closure's code.
     __ bind(&found_deoptimized_code);
+    __ pop(edx);
+    __ pop(eax);
     GenerateTailCallToReturnedCode(masm, Runtime::kEvictOptimizedCodeSlot);
   }
 
@@ -961,32 +969,6 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   __ jmp(&bytecode_array_loaded);
 }
 
-
-static void Generate_StackOverflowCheck(MacroAssembler* masm, Register num_args,
-                                        Register scratch1, Register scratch2,
-                                        Label* stack_overflow,
-                                        bool include_receiver = false) {
-  // Check the stack for overflow. We are not trying to catch
-  // interruptions (e.g. debug break and preemption) here, so the "real stack
-  // limit" is checked.
-  ExternalReference real_stack_limit =
-      ExternalReference::address_of_real_stack_limit(masm->isolate());
-  __ mov(scratch1, Operand::StaticVariable(real_stack_limit));
-  // Make scratch2 the space we have left. The stack might already be overflowed
-  // here which will cause scratch2 to become negative.
-  __ mov(scratch2, esp);
-  __ sub(scratch2, scratch1);
-  // Make scratch1 the space we need for the array when it is unrolled onto the
-  // stack.
-  __ mov(scratch1, num_args);
-  if (include_receiver) {
-    __ add(scratch1, Immediate(1));
-  }
-  __ shl(scratch1, kPointerSizeLog2);
-  // Check if the arguments will overflow the stack.
-  __ cmp(scratch2, scratch1);
-  __ j(less_equal, stack_overflow);  // Signed comparison.
-}
 
 static void Generate_InterpreterPushArgs(MacroAssembler* masm,
                                          Register array_limit,
@@ -1542,20 +1524,6 @@ void Builtins::Generate_InstantiateAsmJs(MacroAssembler* masm) {
   __ jmp(ecx);
 }
 
-void Builtins::Generate_NotifyBuiltinContinuation(MacroAssembler* masm) {
-  // Enter an internal frame.
-  {
-    FrameScope scope(masm, StackFrame::INTERNAL);
-    // Preserve possible return result from lazy deopt.
-    __ push(eax);
-    __ CallRuntime(Runtime::kNotifyStubFailure, false);
-    __ pop(eax);
-    // Tear down internal frame.
-  }
-
-  __ Ret();  // Return to ContinueToBuiltin stub still on stack.
-}
-
 namespace {
 void Generate_ContinueToBuiltinHelper(MacroAssembler* masm,
                                       bool java_script_builtin,
@@ -1848,7 +1816,7 @@ void Builtins::Generate_InternalArrayConstructor(MacroAssembler* masm) {
   if (FLAG_debug_code) {
     // Initial map for the builtin InternalArray function should be a map.
     __ mov(ebx, FieldOperand(edi, JSFunction::kPrototypeOrInitialMapOffset));
-    // Will both indicate a NULL and a Smi.
+    // Will both indicate a nullptr and a Smi.
     __ test(ebx, Immediate(kSmiTagMask));
     __ Assert(not_zero, kUnexpectedInitialMapForInternalArrayFunction);
     __ CmpObjectType(ebx, MAP_TYPE, ecx);
@@ -1877,7 +1845,7 @@ void Builtins::Generate_ArrayConstructor(MacroAssembler* masm) {
   if (FLAG_debug_code) {
     // Initial map for the builtin Array function should be a map.
     __ mov(ebx, FieldOperand(edi, JSFunction::kPrototypeOrInitialMapOffset));
-    // Will both indicate a NULL and a Smi.
+    // Will both indicate a nullptr and a Smi.
     __ test(ebx, Immediate(kSmiTagMask));
     __ Assert(not_zero, kUnexpectedInitialMapForArrayFunction);
     __ CmpObjectType(ebx, MAP_TYPE, ecx);
@@ -2658,7 +2626,7 @@ static void Generate_OnStackReplacementHelper(MacroAssembler* masm,
 
   // Load the OSR entrypoint offset from the deoptimization data.
   __ mov(ebx, Operand(ebx, FixedArray::OffsetOfElementAt(
-                               DeoptimizationInputData::kOsrPcOffsetIndex) -
+                               DeoptimizationData::kOsrPcOffsetIndex) -
                                kHeapObjectTag));
   __ SmiUntag(ebx);
 

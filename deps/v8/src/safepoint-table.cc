@@ -34,18 +34,26 @@ bool SafepointEntry::HasRegisterAt(int reg_index) const {
   return (bits_[byte_index] & (1 << bit_index)) != 0;
 }
 
-
-SafepointTable::SafepointTable(Code* code) {
-  DCHECK(code->is_turbofanned());
-  code_ = code;
-  Address header = code->instruction_start() + code->safepoint_table_offset();
+SafepointTable::SafepointTable(Address instruction_start,
+                               size_t safepoint_table_offset,
+                               uint32_t stack_slots, bool has_deopt)
+    : instruction_start_(instruction_start),
+      stack_slots_(stack_slots),
+      has_deopt_(has_deopt) {
+  Address header = instruction_start_ + safepoint_table_offset;
   length_ = Memory::uint32_at(header + kLengthOffset);
   entry_size_ = Memory::uint32_at(header + kEntrySizeOffset);
   pc_and_deoptimization_indexes_ = header + kHeaderSize;
   entries_ = pc_and_deoptimization_indexes_ + (length_ * kFixedEntrySize);
-  DCHECK(entry_size_ > 0);
+  DCHECK_GT(entry_size_, 0);
   STATIC_ASSERT(SafepointEntry::DeoptimizationIndexField::kMax ==
                 Safepoint::kNoDeoptimizationIndex);
+}
+
+SafepointTable::SafepointTable(Code* code)
+    : SafepointTable(code->instruction_start(), code->safepoint_table_offset(),
+                     code->stack_slots(), true) {
+  DCHECK(code->is_turbofanned());
 }
 
 unsigned SafepointTable::find_return_pc(unsigned pc_offset) {
@@ -61,7 +69,7 @@ unsigned SafepointTable::find_return_pc(unsigned pc_offset) {
 }
 
 SafepointEntry SafepointTable::FindEntry(Address pc) const {
-  unsigned pc_offset = static_cast<unsigned>(pc - code_->instruction_start());
+  unsigned pc_offset = static_cast<unsigned>(pc - instruction_start_);
   // We use kMaxUInt32 as sentinel value, so check that we don't hit that.
   DCHECK_NE(kMaxUInt32, pc_offset);
   unsigned len = length();
@@ -70,7 +78,8 @@ SafepointEntry SafepointTable::FindEntry(Address pc) const {
   for (unsigned i = 0; i < len; i++) {
     // TODO(kasperl): Replace the linear search with binary search.
     if (GetPcOffset(i) == pc_offset ||
-        GetTrampolinePcOffset(i) == static_cast<int>(pc_offset)) {
+        (has_deopt_ &&
+         GetTrampolinePcOffset(i) == static_cast<int>(pc_offset))) {
       return GetEntry(i);
     }
   }
@@ -91,7 +100,7 @@ void SafepointTable::PrintEntry(unsigned index,
     const int first = kNumSafepointRegisters >> kBitsPerByteLog2;
     int last = entry_size_ - 1;
     for (int i = first; i < last; i++) PrintBits(os, bits[i], kBitsPerByte);
-    int last_bits = code_->stack_slots() - ((last - first) * kBitsPerByte);
+    int last_bits = stack_slots_ - ((last - first) * kBitsPerByte);
     PrintBits(os, bits[last], last_bits);
 
     // Print the registers (if any).
@@ -124,7 +133,7 @@ Safepoint SafepointTableBuilder::DefineSafepoint(
     Safepoint::Kind kind,
     int arguments,
     Safepoint::DeoptMode deopt_mode) {
-  DCHECK(arguments >= 0);
+  DCHECK_GE(arguments, 0);
   DeoptimizationInfo info;
   info.pc = assembler->pc_offset();
   info.arguments = arguments;
@@ -137,9 +146,9 @@ Safepoint SafepointTableBuilder::DefineSafepoint(
   }
   indexes_.Add(new(zone_) ZoneList<int>(8, zone_), zone_);
   registers_.Add((kind & Safepoint::kWithRegisters)
-      ? new(zone_) ZoneList<int>(4, zone_)
-      : NULL,
-      zone_);
+                     ? new (zone_) ZoneList<int>(4, zone_)
+                     : nullptr,
+                 zone_);
   return Safepoint(indexes_.last(), registers_.last());
 }
 
@@ -164,7 +173,7 @@ int SafepointTableBuilder::UpdateDeoptimizationInfo(int pc, int trampoline,
       break;
     }
   }
-  CHECK(index >= 0);
+  CHECK_GE(index, 0);
   DCHECK(index < deoptimization_info_.length());
   deoptimization_info_[index].trampoline = trampoline;
   return index;
@@ -208,7 +217,7 @@ void SafepointTableBuilder::Emit(Assembler* assembler, int bits_per_entry) {
 
     // Run through the registers (if any).
     DCHECK(IsAligned(kNumSafepointRegisters, kBitsPerByte));
-    if (registers == NULL) {
+    if (registers == nullptr) {
       const int num_reg_bytes = kNumSafepointRegisters >> kBitsPerByteLog2;
       for (int j = 0; j < num_reg_bytes; j++) {
         bits[j] = SafepointTable::kNoRegisters;

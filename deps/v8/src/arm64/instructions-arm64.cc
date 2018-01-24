@@ -70,7 +70,7 @@ bool Instruction::IsStore() const {
 static uint64_t RotateRight(uint64_t value,
                             unsigned int rotate,
                             unsigned int width) {
-  DCHECK(width <= 64);
+  DCHECK_LE(width, 64);
   rotate &= 63;
   return ((value & ((1UL << rotate) - 1UL)) << (width - rotate)) |
          (value >> rotate);
@@ -657,8 +657,8 @@ void NEONFormatDecoder::SetFormatMaps(const NEONFormatMap* format0,
                                       const NEONFormatMap* format2) {
   DCHECK_NOT_NULL(format0);
   formats_[0] = format0;
-  formats_[1] = (format1 == NULL) ? formats_[0] : format1;
-  formats_[2] = (format2 == NULL) ? formats_[1] : format2;
+  formats_[1] = (format1 == nullptr) ? formats_[0] : format1;
+  formats_[2] = (format2 == nullptr) ? formats_[1] : format2;
 }
 
 void NEONFormatDecoder::SetFormatMap(unsigned index,

@@ -360,8 +360,8 @@ bool AccessInfoFactory::ComputePropertyAccessInfo(
         if (details.kind() == kData) {
           int index = descriptors->GetFieldIndex(number);
           Representation details_representation = details.representation();
-          FieldIndex field_index = FieldIndex::ForPropertyIndex(
-              *map, index, details_representation.IsDouble());
+          FieldIndex field_index =
+              FieldIndex::ForPropertyIndex(*map, index, details_representation);
           Type* field_type = Type::NonInternal();
           MachineRepresentation field_representation =
               MachineRepresentation::kTagged;
@@ -446,6 +446,11 @@ bool AccessInfoFactory::ComputePropertyAccessInfo(
           if (!accessor->IsJSFunction()) {
             CallOptimization optimization(accessor);
             if (!optimization.is_simple_api_call()) return false;
+            if (optimization.IsCrossContextLazyAccessorPair(*native_context_,
+                                                            *map)) {
+              return false;
+            }
+
             CallOptimization::HolderLookup lookup;
             holder =
                 optimization.LookupHolderOfExpectedType(receiver_map, &lookup);
@@ -595,9 +600,8 @@ bool AccessInfoFactory::ConsolidateElementLoad(MapHandles const& maps,
 bool AccessInfoFactory::LookupSpecialFieldAccessor(
     Handle<Map> map, Handle<Name> name, PropertyAccessInfo* access_info) {
   // Check for special JSObject field accessors.
-  int offset;
-  if (Accessors::IsJSObjectFieldAccessor(map, name, &offset)) {
-    FieldIndex field_index = FieldIndex::ForInObjectOffset(offset);
+  FieldIndex field_index;
+  if (Accessors::IsJSObjectFieldAccessor(map, name, &field_index)) {
     Type* field_type = Type::NonInternal();
     MachineRepresentation field_representation = MachineRepresentation::kTagged;
     if (map->IsStringMap()) {
@@ -651,8 +655,8 @@ bool AccessInfoFactory::LookupTransition(Handle<Map> map, Handle<Name> name,
   if (details.location() != kField) return false;
   int const index = details.field_index();
   Representation details_representation = details.representation();
-  FieldIndex field_index = FieldIndex::ForPropertyIndex(
-      *transition_map, index, details_representation.IsDouble());
+  FieldIndex field_index = FieldIndex::ForPropertyIndex(*transition_map, index,
+                                                        details_representation);
   Type* field_type = Type::NonInternal();
   MaybeHandle<Map> field_map;
   MachineRepresentation field_representation = MachineRepresentation::kTagged;

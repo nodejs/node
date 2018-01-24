@@ -16,11 +16,10 @@ typedef compiler::CodeAssemblerState CodeAssemblerState;
 class PromiseBuiltinsAssembler : public CodeStubAssembler {
  public:
   enum PromiseResolvingFunctionContextSlot {
-    // Whether the resolve/reject callback was already called.
-    kAlreadyVisitedSlot = Context::MIN_CONTEXT_SLOTS,
-
-    // The promise which resolve/reject callbacks fulfill.
-    kPromiseSlot,
+    // The promise which resolve/reject callbacks fulfill. If this is
+    // undefined, then we've already visited this callback and it
+    // should be a no-op.
+    kPromiseSlot = Context::MIN_CONTEXT_SLOTS,
 
     // Whether to trigger a debug event or not. Used in catch
     // prediction.
@@ -112,10 +111,6 @@ class PromiseBuiltinsAssembler : public CodeStubAssembler {
  protected:
   void PromiseInit(Node* promise);
 
-  Node* ThrowIfNotJSReceiver(Node* context, Node* value,
-                             MessageTemplate::Template msg_template,
-                             const char* method_name = nullptr);
-
   Node* SpeciesConstructor(Node* context, Node* object,
                            Node* default_constructor);
 
@@ -180,6 +175,7 @@ class PromiseBuiltinsAssembler : public CodeStubAssembler {
                                  const NodeGenerator& handled_by);
 
   Node* PromiseStatus(Node* promise);
+  void PerformFulfillClosure(Node* context, Node* value, bool should_resolve);
 
  private:
   Node* IsPromiseStatus(Node* actual, v8::Promise::PromiseState expected);

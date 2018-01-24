@@ -5,7 +5,7 @@
 #if V8_TARGET_ARCH_S390
 
 #include "src/assembler-inl.h"
-#include "src/codegen.h"
+#include "src/code-stubs.h"
 #include "src/debug/debug.h"
 #include "src/deoptimizer.h"
 #include "src/frame-constants.h"
@@ -54,10 +54,11 @@ void AdaptorWithExitFrameType(MacroAssembler* masm,
 
   // CEntryStub expects r2 to contain the number of arguments including the
   // receiver and the extra arguments.
-  const int num_extra_args = 3;
-  __ AddP(r2, r2, Operand(num_extra_args + 1));
+  __ AddP(r2, r2,
+          Operand(BuiltinExitFrameConstants::kNumExtraArgsWithReceiver));
 
   // Insert extra arguments.
+  __ PushRoot(Heap::kTheHoleValueRootIndex);  // Padding.
   __ SmiTag(r2);
   __ Push(r2, r3, r5);
   __ SmiUntag(r2);
@@ -458,7 +459,6 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- r2 : the value to pass to the generator
   //  -- r3 : the JSGeneratorObject to resume
-  //  -- r4 : the resume mode (tagged)
   //  -- lr : return address
   // -----------------------------------
   __ AssertGeneratorObject(r3);
@@ -468,9 +468,6 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
             r0);
   __ RecordWriteField(r3, JSGeneratorObject::kInputOrDebugPosOffset, r2, r5,
                       kLRHasNotBeenSaved, kDontSaveFPRegs);
-
-  // Store resume mode into generator object.
-  __ StoreP(r4, FieldMemOperand(r3, JSGeneratorObject::kResumeModeOffset));
 
   // Load suspended function and context.
   __ LoadP(r6, FieldMemOperand(r3, JSGeneratorObject::kFunctionOffset));
@@ -497,13 +494,18 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
   __ beq(&prepare_step_in_suspended_generator);
   __ bind(&stepping_prepared);
 
+  // Check the stack for overflow. We are not trying to catch interruptions
+  // (i.e. debug break and preemption) here, so check the "real stack limit".
+  Label stack_overflow;
+  __ CompareRoot(sp, Heap::kRealStackLimitRootIndex);
+  __ blt(&stack_overflow);
+
   // Push receiver.
   __ LoadP(ip, FieldMemOperand(r3, JSGeneratorObject::kReceiverOffset));
   __ Push(ip);
 
   // ----------- S t a t e -------------
   //  -- r3    : the JSGeneratorObject to resume
-  //  -- r4    : the resume mode (tagged)
   //  -- r6    : generator function
   //  -- cp    : generator context
   //  -- lr    : return address
@@ -556,9 +558,9 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
   __ bind(&prepare_step_in_if_stepping);
   {
     FrameAndConstantPoolScope scope(masm, StackFrame::INTERNAL);
-    __ Push(r3, r4, r6);
+    __ Push(r3, r6);
     __ CallRuntime(Runtime::kDebugOnFunctionCall);
-    __ Pop(r3, r4);
+    __ Pop(r3);
     __ LoadP(r6, FieldMemOperand(r3, JSGeneratorObject::kFunctionOffset));
   }
   __ b(&stepping_prepared);
@@ -566,12 +568,19 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
   __ bind(&prepare_step_in_suspended_generator);
   {
     FrameAndConstantPoolScope scope(masm, StackFrame::INTERNAL);
-    __ Push(r3, r4);
+    __ Push(r3);
     __ CallRuntime(Runtime::kDebugPrepareStepInSuspendedGenerator);
-    __ Pop(r3, r4);
+    __ Pop(r3);
     __ LoadP(r6, FieldMemOperand(r3, JSGeneratorObject::kFunctionOffset));
   }
   __ b(&stepping_prepared);
+
+  __ bind(&stack_overflow);
+  {
+    FrameScope scope(masm, StackFrame::INTERNAL);
+    __ CallRuntime(Runtime::kThrowStackOverflow);
+    __ bkpt(0);  // This should be unreachable.
+  }
 }
 
 void Builtins::Generate_ConstructedNonConstructable(MacroAssembler* masm) {
@@ -580,11 +589,8 @@ void Builtins::Generate_ConstructedNonConstructable(MacroAssembler* masm) {
   __ CallRuntime(Runtime::kThrowConstructedNonConstructable);
 }
 
-enum IsTagged { kArgcIsSmiTagged, kArgcIsUntaggedInt };
-
 // Clobbers r4; preserves all other registers.
-static void Generate_CheckStackOverflow(MacroAssembler* masm, Register argc,
-                                        IsTagged argc_is_tagged) {
+static void Generate_CheckStackOverflow(MacroAssembler* masm, Register argc) {
   // Check the stack for overflow. We are not trying to catch
   // interruptions (e.g. debug break and preemption) here, so the "real stack
   // limit" is checked.
@@ -594,12 +600,7 @@ static void Generate_CheckStackOverflow(MacroAssembler* masm, Register argc,
   // here which will cause r4 to become negative.
   __ SubP(r4, sp, r4);
   // Check if the arguments will overflow the stack.
-  if (argc_is_tagged == kArgcIsSmiTagged) {
-    __ SmiToPtrArrayOffset(r0, argc);
-  } else {
-    DCHECK(argc_is_tagged == kArgcIsUntaggedInt);
-    __ ShiftLeftP(r0, argc, Operand(kPointerSizeLog2));
-  }
+  __ ShiftLeftP(r0, argc, Operand(kPointerSizeLog2));
   __ CmpP(r4, r0);
   __ bgt(&okay);  // Signed comparison.
 
@@ -638,7 +639,7 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
 
     // Check if we have enough stack space to push all arguments.
     // Clobbers r4.
-    Generate_CheckStackOverflow(masm, r5, kArgcIsUntaggedInt);
+    Generate_CheckStackOverflow(masm, r5);
 
     // Copy arguments to the stack in a loop from argv to sp.
     // The arguments are actually placed in reverse order on sp
@@ -806,8 +807,11 @@ static void MaybeTailCallOptimizedCodeSlot(MacroAssembler* masm,
     // Check if the optimized code is marked for deopt. If it is, call the
     // runtime to clear it.
     Label found_deoptimized_code;
-    __ LoadW(scratch2, FieldMemOperand(optimized_code_entry,
-                                       Code::kKindSpecificFlags1Offset));
+    __ LoadP(scratch2, FieldMemOperand(optimized_code_entry,
+                                       Code::kCodeDataContainerOffset));
+    __ LoadW(
+        scratch2,
+        FieldMemOperand(scratch2, CodeDataContainer::kKindSpecificFlagsOffset));
     __ TestBit(scratch2, Code::kMarkedForDeoptimizationBit, r0);
     __ bne(&found_deoptimized_code);
 
@@ -1436,7 +1440,8 @@ void Builtins::Generate_DeserializeLazy(MacroAssembler* masm) {
 
     __ AddP(target_builtin, target_builtin,
             Operand(Code::kHeaderSize - kHeapObjectTag));
-    __ Jump(target_builtin);
+    __ LoadRR(ip, target_builtin);
+    __ Jump(ip);
   }
 
   __ bind(&deserialize_in_runtime);
@@ -1506,19 +1511,6 @@ void Builtins::Generate_InstantiateAsmJs(MacroAssembler* masm) {
   __ LoadP(ip, FieldMemOperand(r3, JSFunction::kCodeOffset));
   __ AddP(ip, ip, Operand(Code::kHeaderSize - kHeapObjectTag));
   __ JumpToJSEntry(ip);
-}
-
-void Builtins::Generate_NotifyBuiltinContinuation(MacroAssembler* masm) {
-  {
-    FrameAndConstantPoolScope scope(masm, StackFrame::INTERNAL);
-    // Preserve possible return result from lazy deopt.
-    __ push(r2);
-    // Pass the function and deoptimization type to the runtime system.
-    __ CallRuntime(Runtime::kNotifyStubFailure, false);
-    __ pop(r2);
-  }
-
-  __ Ret();                                // Jump to ContinueToBuiltin stub
 }
 
 namespace {
@@ -1621,9 +1613,8 @@ static void Generate_OnStackReplacementHelper(MacroAssembler* masm,
 
   // Load the OSR entrypoint offset from the deoptimization data.
   // <osr_offset> = <deopt_data>[#header_size + #osr_pc_offset]
-  __ LoadP(
-      r3, FieldMemOperand(r3, FixedArray::OffsetOfElementAt(
-                                  DeoptimizationInputData::kOsrPcOffsetIndex)));
+  __ LoadP(r3, FieldMemOperand(r3, FixedArray::OffsetOfElementAt(
+                                       DeoptimizationData::kOsrPcOffsetIndex)));
   __ SmiUntag(r3);
 
   // Compute the target address = code_obj + header_size + osr_offset
@@ -2577,12 +2568,11 @@ void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
     // Save all parameter registers (see wasm-linkage.cc). They might be
     // overwritten in the runtime call below. We don't have any callee-saved
     // registers in wasm, so no need to store anything else.
-    const RegList gp_regs =
-        r2.bit() | r3.bit() | r4.bit() | r5.bit() | r6.bit();
+    constexpr RegList gp_regs = Register::ListOf<r2, r3, r4, r5, r6>();
 #if V8_TARGET_ARCH_S390X
-    const RegList fp_regs = d0.bit() | d2.bit() | d4.bit() | d6.bit();
+    constexpr RegList fp_regs = DoubleRegister::ListOf<d0, d2, d4, d6>();
 #else
-    const RegList fp_regs = d0.bit() | d2.bit();
+    constexpr RegList fp_regs = DoubleRegister::ListOf<d0, d2>();
 #endif
     __ MultiPush(gp_regs);
     __ MultiPushDoubles(fp_regs);

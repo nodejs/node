@@ -310,7 +310,7 @@ MapUpdater::State MapUpdater::FindTargetMap() {
     Map* transition = TransitionsAccessor(target_map_)
                           .SearchTransition(GetKey(i), old_details.kind(),
                                             old_details.attributes());
-    if (transition == NULL) break;
+    if (transition == nullptr) break;
     Handle<Map> tmp_map(transition, isolate_);
 
     Handle<DescriptorArray> tmp_descriptors(tmp_map->instance_descriptors(),
@@ -393,7 +393,7 @@ MapUpdater::State MapUpdater::FindTargetMap() {
     Map* transition = TransitionsAccessor(target_map_)
                           .SearchTransition(GetKey(i), old_details.kind(),
                                             old_details.attributes());
-    if (transition == NULL) break;
+    if (transition == nullptr) break;
     Handle<Map> tmp_map(transition, isolate_);
     Handle<DescriptorArray> tmp_descriptors(tmp_map->instance_descriptors(),
                                             isolate_);
@@ -598,7 +598,7 @@ Handle<Map> MapUpdater::FindSplitMap(Handle<DescriptorArray> descriptors) {
     Map* next =
         TransitionsAccessor(current, &no_allocation)
             .SearchTransition(name, details.kind(), details.attributes());
-    if (next == NULL) break;
+    if (next == nullptr) break;
     DescriptorArray* next_descriptors = next->instance_descriptors();
 
     PropertyDetails next_details = next_descriptors->GetDetails(i);
@@ -637,14 +637,14 @@ MapUpdater::State MapUpdater::ConstructNewMap() {
   // Invalidate a transition target at |key|.
   Map* maybe_transition = transitions.SearchTransition(
       GetKey(split_nof), split_details.kind(), split_details.attributes());
-  if (maybe_transition != NULL) {
+  if (maybe_transition != nullptr) {
     maybe_transition->DeprecateTransitionTree();
   }
 
-  // If |maybe_transition| is not NULL then the transition array already
+  // If |maybe_transition| is not nullptr then the transition array already
   // contains entry for given descriptor. This means that the transition
   // could be inserted regardless of whether transitions array is full or not.
-  if (maybe_transition == NULL && !transitions.CanHaveMoreTransitions()) {
+  if (maybe_transition == nullptr && !transitions.CanHaveMoreTransitions()) {
     return CopyGeneralizeAllFields("GenAll_CantHaveMoreTransitions");
   }
 

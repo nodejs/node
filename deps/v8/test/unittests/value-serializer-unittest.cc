@@ -11,6 +11,7 @@
 #include "src/api.h"
 #include "src/base/build_config.h"
 #include "src/objects-inl.h"
+#include "src/wasm/wasm-objects.h"
 #include "test/unittests/test-utils.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -1298,14 +1299,16 @@ TEST_F(ValueSerializerTest, DecodeDenseArrayContainingUndefined) {
 }
 
 TEST_F(ValueSerializerTest, RoundTripDate) {
-  RoundTripTest("new Date(1e6)", [](Local<Value> value) {
+  RoundTripTest("new Date(1e6)", [this](Local<Value> value) {
     ASSERT_TRUE(value->IsDate());
     EXPECT_EQ(1e6, Date::Cast(*value)->ValueOf());
-    EXPECT_TRUE("Object.getPrototypeOf(result) === Date.prototype");
+    EXPECT_TRUE(EvaluateScriptForResultBool(
+        "Object.getPrototypeOf(result) === Date.prototype"));
   });
-  RoundTripTest("new Date(Date.UTC(1867, 6, 1))", [](Local<Value> value) {
+  RoundTripTest("new Date(Date.UTC(1867, 6, 1))", [this](Local<Value> value) {
     ASSERT_TRUE(value->IsDate());
-    EXPECT_TRUE("result.toISOString() === '1867-07-01T00:00:00.000Z'");
+    EXPECT_TRUE(EvaluateScriptForResultBool(
+        "result.toISOString() === '1867-07-01T00:00:00.000Z'"));
   });
   RoundTripTest("new Date(NaN)", [](Local<Value> value) {
     ASSERT_TRUE(value->IsDate());
@@ -1323,18 +1326,19 @@ TEST_F(ValueSerializerTest, DecodeDate) {
 #if defined(V8_TARGET_LITTLE_ENDIAN)
   DecodeTest({0xff, 0x09, 0x3f, 0x00, 0x44, 0x00, 0x00, 0x00, 0x00, 0x80, 0x84,
               0x2e, 0x41, 0x00},
-             [](Local<Value> value) {
+             [this](Local<Value> value) {
                ASSERT_TRUE(value->IsDate());
                EXPECT_EQ(1e6, Date::Cast(*value)->ValueOf());
-               EXPECT_TRUE("Object.getPrototypeOf(result) === Date.prototype");
+               EXPECT_TRUE(EvaluateScriptForResultBool(
+                   "Object.getPrototypeOf(result) === Date.prototype"));
              });
-  DecodeTest(
-      {0xff, 0x09, 0x3f, 0x00, 0x44, 0x00, 0x00, 0x20, 0x45, 0x27, 0x89, 0x87,
-       0xc2, 0x00},
-      [](Local<Value> value) {
-        ASSERT_TRUE(value->IsDate());
-        EXPECT_TRUE("result.toISOString() === '1867-07-01T00:00:00.000Z'");
-      });
+  DecodeTest({0xff, 0x09, 0x3f, 0x00, 0x44, 0x00, 0x00, 0x20, 0x45, 0x27, 0x89,
+              0x87, 0xc2, 0x00},
+             [this](Local<Value> value) {
+               ASSERT_TRUE(value->IsDate());
+               EXPECT_TRUE(EvaluateScriptForResultBool(
+                   "result.toISOString() === '1867-07-01T00:00:00.000Z'"));
+             });
   DecodeTest({0xff, 0x09, 0x3f, 0x00, 0x44, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
               0xf8, 0x7f, 0x00},
              [](Local<Value> value) {
@@ -1344,18 +1348,19 @@ TEST_F(ValueSerializerTest, DecodeDate) {
 #else
   DecodeTest({0xff, 0x09, 0x3f, 0x00, 0x44, 0x41, 0x2e, 0x84, 0x80, 0x00, 0x00,
               0x00, 0x00, 0x00},
-             [](Local<Value> value) {
+             [this](Local<Value> value) {
                ASSERT_TRUE(value->IsDate());
                EXPECT_EQ(1e6, Date::Cast(*value)->ValueOf());
-               EXPECT_TRUE("Object.getPrototypeOf(result) === Date.prototype");
+               EXPECT_TRUE(EvaluateScriptForResultBool(
+                   "Object.getPrototypeOf(result) === Date.prototype"));
              });
-  DecodeTest(
-      {0xff, 0x09, 0x3f, 0x00, 0x44, 0xc2, 0x87, 0x89, 0x27, 0x45, 0x20, 0x00,
-       0x00, 0x00},
-      [](Local<Value> value) {
-        ASSERT_TRUE(value->IsDate());
-        EXPECT_TRUE("result.toISOString() === '1867-07-01T00:00:00.000Z'");
-      });
+  DecodeTest({0xff, 0x09, 0x3f, 0x00, 0x44, 0xc2, 0x87, 0x89, 0x27, 0x45, 0x20,
+              0x00, 0x00, 0x00},
+             [this](Local<Value> value) {
+               ASSERT_TRUE(value->IsDate());
+               EXPECT_TRUE(EvaluateScriptForResultBool(
+                   "result.toISOString() === '1867-07-01T00:00:00.000Z'"));
+             });
   DecodeTest({0xff, 0x09, 0x3f, 0x00, 0x44, 0x7f, 0xf8, 0x00, 0x00, 0x00, 0x00,
               0x00, 0x00, 0x00},
              [](Local<Value> value) {
@@ -1603,24 +1608,8 @@ TEST_F(ValueSerializerTest, DecodeRegExp) {
       });
 }
 
-// Tests that invalid flags are not accepted by the deserializer. In particular,
-// the dotAll flag ('s') is only valid when the corresponding flag is enabled.
+// Tests that invalid flags are not accepted by the deserializer.
 TEST_F(ValueSerializerTest, DecodeRegExpDotAll) {
-  i::FLAG_harmony_regexp_dotall = false;
-  DecodeTest({0xff, 0x09, 0x3f, 0x00, 0x52, 0x03, 0x66, 0x6f, 0x6f, 0x1f},
-             [this](Local<Value> value) {
-               ASSERT_TRUE(value->IsRegExp());
-               EXPECT_TRUE(EvaluateScriptForResultBool(
-                   "Object.getPrototypeOf(result) === RegExp.prototype"));
-               EXPECT_TRUE(EvaluateScriptForResultBool(
-                   "result.toString() === '/foo/gimuy'"));
-             });
-  InvalidDecodeTest(
-      {0xff, 0x09, 0x3f, 0x00, 0x52, 0x03, 0x66, 0x6f, 0x6f, 0x3f});
-  InvalidDecodeTest(
-      {0xff, 0x09, 0x3f, 0x00, 0x52, 0x03, 0x66, 0x6f, 0x6f, 0x7f});
-
-  i::FLAG_harmony_regexp_dotall = true;
   DecodeTest({0xff, 0x09, 0x3f, 0x00, 0x52, 0x03, 0x66, 0x6f, 0x6f, 0x1f},
              [this](Local<Value> value) {
                ASSERT_TRUE(value->IsRegExp());
@@ -2233,21 +2222,20 @@ TEST_F(ValueSerializerTest, DecodeInvalidDataView) {
 class ValueSerializerTestWithSharedArrayBufferTransfer
     : public ValueSerializerTest {
  protected:
-  static const size_t kTestByteLength = 4;
-
   ValueSerializerTestWithSharedArrayBufferTransfer()
-      : serializer_delegate_(this) {
-    const uint8_t data[kTestByteLength] = {0x00, 0x01, 0x80, 0xff};
-    memcpy(data_, data, kTestByteLength);
+      : serializer_delegate_(this) {}
+
+  void InitializeData(const std::vector<uint8_t>& data) {
+    data_ = data;
     {
       Context::Scope scope(serialization_context());
       input_buffer_ =
-          SharedArrayBuffer::New(isolate(), &data_, kTestByteLength);
+          SharedArrayBuffer::New(isolate(), data_.data(), data_.size());
     }
     {
       Context::Scope scope(deserialization_context());
       output_buffer_ =
-          SharedArrayBuffer::New(isolate(), &data_, kTestByteLength);
+          SharedArrayBuffer::New(isolate(), data_.data(), data_.size());
     }
   }
 
@@ -2305,7 +2293,7 @@ class ValueSerializerTestWithSharedArrayBufferTransfer
 
  private:
   static bool flag_was_enabled_;
-  uint8_t data_[kTestByteLength];
+  std::vector<uint8_t> data_;
   Local<SharedArrayBuffer> input_buffer_;
   Local<SharedArrayBuffer> output_buffer_;
 };
@@ -2315,6 +2303,8 @@ bool ValueSerializerTestWithSharedArrayBufferTransfer::flag_was_enabled_ =
 
 TEST_F(ValueSerializerTestWithSharedArrayBufferTransfer,
        RoundTripSharedArrayBufferTransfer) {
+  InitializeData({0x00, 0x01, 0x80, 0xff});
+
   EXPECT_CALL(serializer_delegate_,
               GetSharedArrayBufferId(isolate(), input_buffer()))
       .WillRepeatedly(Return(Just(0U)));
@@ -2348,6 +2338,40 @@ TEST_F(ValueSerializerTestWithSharedArrayBufferTransfer,
         EXPECT_TRUE(EvaluateScriptForResultBool(
             "new Uint8Array(result.a).toString() === '0,1,128,255'"));
       });
+}
+
+TEST_F(ValueSerializerTestWithSharedArrayBufferTransfer,
+       RoundTripWebAssemblyMemory) {
+  bool flag_was_enabled = i::FLAG_experimental_wasm_threads;
+  i::FLAG_experimental_wasm_threads = true;
+
+  std::vector<uint8_t> data = {0x00, 0x01, 0x80, 0xff};
+  data.resize(65536);
+  InitializeData(data);
+
+  EXPECT_CALL(serializer_delegate_,
+              GetSharedArrayBufferId(isolate(), input_buffer()))
+      .WillRepeatedly(Return(Just(0U)));
+
+  RoundTripTest(
+      [this]() -> Local<Value> {
+        const int32_t kMaxPages = 1;
+        auto i_isolate = reinterpret_cast<i::Isolate*>(isolate());
+        i::Handle<i::JSArrayBuffer> obj = Utils::OpenHandle(*input_buffer());
+        return Utils::Convert<i::WasmMemoryObject, Value>(
+            i::WasmMemoryObject::New(i_isolate, obj, kMaxPages));
+      },
+      [this](Local<Value> value) {
+        EXPECT_TRUE(EvaluateScriptForResultBool(
+            "result instanceof WebAssembly.Memory"));
+        EXPECT_TRUE(
+            EvaluateScriptForResultBool("result.buffer.byteLength === 65536"));
+        EXPECT_TRUE(
+            EvaluateScriptForResultBool("new Uint8Array(result.buffer, 0, "
+                                        "4).toString() === '0,1,128,255'"));
+      });
+
+  i::FLAG_experimental_wasm_threads = flag_was_enabled;
 }
 
 TEST_F(ValueSerializerTest, UnsupportedHostObject) {

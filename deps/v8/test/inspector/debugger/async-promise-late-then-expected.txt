@@ -1,16 +1,16 @@
 Checks async stack for late .then handlers with gc
 foo1 (test.js:11:2)
--- Promise.resolve --
+-- Promise.then --
 test (test.js:18:14)
 (anonymous) (expr.js:0:0)
 
 foo1 (test.js:11:2)
--- Promise.resolve --
+-- Promise.then --
 test (test.js:22:14)
 (anonymous) (expr.js:0:0)
 
 foo1 (test.js:11:2)
--- Promise.resolve --
+-- Promise.then --
 test (test.js:24:14)
 (anonymous) (expr.js:0:0)
 

@@ -104,10 +104,11 @@
  * V8 6.1: 58
  * V8 6.2: 59
  * V8 6.3: 60
+ * V8 6.4: 61
  *
  * More information can be found at https://nodejs.org/en/download/releases/
  */
-#define NODE_MODULE_VERSION 60
+#define NODE_MODULE_VERSION 61
 
 // the NAPI_VERSION provided by this version of the runtime
 #define NAPI_VERSION  2

@@ -9,6 +9,7 @@
       '../../tools/consarray.js',
       '../../tools/csvparser.js',
       '../../tools/logreader.js',
+      '../../tools/arguments.js',
       '../../tools/profile.js',
       '../../tools/profile_view.js',
       '../../tools/profviz/composer.js',

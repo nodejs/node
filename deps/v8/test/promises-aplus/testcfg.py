@@ -37,20 +37,15 @@ from testrunner.local import utils
 from testrunner.objects import testcase
 
 
-SINON_TAG = '1.7.3'
-SINON_NAME = 'sinon'
-SINON_FILENAME = 'sinon.js'
-SINON_URL = 'http://sinonjs.org/releases/sinon-' + SINON_TAG + '.js'
-SINON_HASH = 'b7ab4dd9a1a2cf0460784af3728ad15caf4bbea923f680c5abde5c8332f35984'
+"""
+Requirements for using this test suite:
+Download http://sinonjs.org/releases/sinon-1.7.3.js into
+test/promises-aplus/sinon.
+Download https://github.com/promises-aplus/promises-tests/tree/2.0.3 into
+test/promises-aplus/promises-tests.
+"""
 
-TEST_TAG = '2.0.3'
-TEST_ARCHIVE_TOP = 'promises-tests-' + TEST_TAG
 TEST_NAME = 'promises-tests'
-TEST_ARCHIVE = TEST_NAME + '.tar.gz'
-TEST_URL = 'https://github.com/promises-aplus/promises-tests/archive/' + \
-    TEST_TAG + '.tar.gz'
-TEST_ARCHIVE_HASH = \
-    'e446ca557ac5836dd439fecd19689c243a28b1d5a6644dd7fed4274d0fa67270'
 
 
 class PromiseAplusTestSuite(testsuite.TestSuite):
@@ -76,11 +71,14 @@ class PromiseAplusTestSuite(testsuite.TestSuite):
             os.listdir(os.path.join(self.root, TEST_NAME, 'lib', 'tests'))
             if fname.endswith('.js')]
 
-  def GetFlagsForTestCase(self, testcase, context):
-    return (testcase.flags + context.mode_flags + ['--allow-natives-syntax'] +
-            self.helper_files_pre +
-            [os.path.join(self.test_files_root, testcase.path + '.js')] +
-            self.helper_files_post)
+  def GetParametersForTestCase(self, testcase, context):
+    files = (
+        self.helper_files_pre +
+        [os.path.join(self.test_files_root, testcase.path + '.js')] +
+        self.helper_files_post
+    )
+    flags = testcase.flags + context.mode_flags + ['--allow-natives-syntax']
+    return files, flags, {}
 
   def GetSourceForTest(self, testcase):
     filename = os.path.join(self.root, TEST_NAME,
@@ -96,52 +94,6 @@ class PromiseAplusTestSuite(testsuite.TestSuite):
       return True
     return not 'All tests have run.' in testcase.output.stdout or \
            'FAIL:' in testcase.output.stdout
-
-  def DownloadTestData(self):
-    archive = os.path.join(self.root, TEST_ARCHIVE)
-    directory = os.path.join(self.root, TEST_NAME)
-    if not os.path.exists(archive):
-      print('Downloading {0} from {1} ...'.format(TEST_NAME, TEST_URL))
-      utils.URLRetrieve(TEST_URL, archive)
-      if os.path.exists(directory):
-        shutil.rmtree(directory)
-
-    if not os.path.exists(directory):
-      print('Extracting {0} ...'.format(TEST_ARCHIVE))
-      hash = hashlib.sha256()
-      with open(archive, 'rb') as f:
-        for chunk in iter(lambda: f.read(8192), ''):
-          hash.update(chunk)
-        if hash.hexdigest() != TEST_ARCHIVE_HASH:
-          os.remove(archive)
-          raise Exception('Hash mismatch of test data file')
-      archive = tarfile.open(archive, 'r:gz')
-      if sys.platform in ('win32', 'cygwin'):
-        # Magic incantation to allow longer path names on Windows.
-        archive.extractall(u'\\\\?\\%s' % self.root)
-      else:
-        archive.extractall(self.root)
-      shutil.move(os.path.join(self.root, TEST_ARCHIVE_TOP), directory)
-
-  def DownloadSinon(self):
-    directory = os.path.join(self.root, SINON_NAME)
-    if not os.path.exists(directory):
-      os.mkdir(directory)
-    path = os.path.join(directory, SINON_FILENAME)
-    if not os.path.exists(path):
-      utils.URLRetrieve(SINON_URL, path)
-    hash = hashlib.sha256()
-    with open(path, 'rb') as f:
-      for chunk in iter(lambda: f.read(8192), ''):
-        hash.update(chunk)
-    if hash.hexdigest() != SINON_HASH:
-      os.remove(path)
-      raise Exception('Hash mismatch of test data file')
-
-  def DownloadData(self):
-    self.DownloadTestData()
-    self.DownloadSinon()
-
 
 def GetSuite(name, root):
   return PromiseAplusTestSuite(name, root)

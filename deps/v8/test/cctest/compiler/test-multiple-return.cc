@@ -81,10 +81,9 @@ TEST(ReturnThreeValues) {
   Node* mul = m.Int32Mul(p0, p1);
   m.Return(add, sub, mul);
 
-  CompilationInfo info(ArrayVector("testing"), handles.main_isolate(),
-                       handles.main_zone(), Code::STUB);
-  Handle<Code> code =
-      Pipeline::GenerateCodeForTesting(&info, desc, m.graph(), m.Export());
+  CompilationInfo info(ArrayVector("testing"), handles.main_zone(), Code::STUB);
+  Handle<Code> code = Pipeline::GenerateCodeForTesting(
+      &info, handles.main_isolate(), desc, m.graph(), m.Export());
 #ifdef ENABLE_DISASSEMBLER
   if (FLAG_print_code) {
     OFStream os(stdout);

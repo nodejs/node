@@ -39,7 +39,7 @@ int HeapEntry::set_children_index(int index) {
 }
 
 std::deque<HeapGraphEdge*>::iterator HeapEntry::children_begin() {
-  DCHECK(children_index_ >= 0);
+  DCHECK_GE(children_index_, 0);
   SLOW_DCHECK(
       children_index_ < static_cast<int>(snapshot_->children().size()) ||
       (children_index_ == static_cast<int>(snapshot_->children().size()) &&

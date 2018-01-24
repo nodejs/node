@@ -97,7 +97,7 @@ RegExpMacroAssemblerX64::RegExpMacroAssemblerX64(Isolate* isolate, Zone* zone,
                                                  Mode mode,
                                                  int registers_to_save)
     : NativeRegExpMacroAssembler(isolate, zone),
-      masm_(isolate, NULL, kRegExpCodeSize, CodeObjectRequired::kYes),
+      masm_(isolate, nullptr, kRegExpCodeSize, CodeObjectRequired::kYes),
       no_root_array_scope_(&masm_),
       code_relative_fixup_positions_(4, zone),
       mode_(mode),
@@ -237,7 +237,7 @@ void RegExpMacroAssemblerX64::CheckNotBackReferenceIgnoreCase(
 
   if (mode_ == LATIN1) {
     Label loop_increment;
-    if (on_no_match == NULL) {
+    if (on_no_match == nullptr) {
       on_no_match = &backtrack_label_;
     }
 
@@ -979,7 +979,7 @@ Handle<HeapObject> RegExpMacroAssemblerX64::GetCode(Handle<String> source) {
     ExternalReference grow_stack =
         ExternalReference::re_grow_stack(isolate());
     __ CallCFunction(grow_stack, num_arguments);
-    // If return NULL, we have failed to grow the stack, and
+    // If return nullptr, we have failed to grow the stack, and
     // must exit with a stack-overflow exception.
     __ testp(rax, rax);
     __ j(equal, &exit_with_exception);
@@ -1256,14 +1256,14 @@ void RegExpMacroAssemblerX64::CheckPosition(int cp_offset,
 void RegExpMacroAssemblerX64::BranchOrBacktrack(Condition condition,
                                                 Label* to) {
   if (condition < 0) {  // No condition
-    if (to == NULL) {
+    if (to == nullptr) {
       Backtrack();
       return;
     }
     __ jmp(to);
     return;
   }
-  if (to == NULL) {
+  if (to == nullptr) {
     __ j(condition, &backtrack_label_);
     return;
   }

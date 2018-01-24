@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --harmony-regexp-named-captures --harmony-regexp-lookbehind
+// Flags: --harmony-regexp-named-captures
 
 // Malformed named captures.
 assertThrows("/(?<>a)/u", SyntaxError);  // Empty name.

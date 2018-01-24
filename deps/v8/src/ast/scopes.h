@@ -173,7 +173,8 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   // ---------------------------------------------------------------------------
   // Declarations
 
-  // Lookup a variable in this scope. Returns the variable or NULL if not found.
+  // Lookup a variable in this scope. Returns the variable or nullptr if not
+  // found.
   Variable* LookupLocal(const AstRawString* name) {
     Variable* result = variables_.Lookup(name);
     if (result != nullptr || scope_info_.is_null()) return result;
@@ -183,7 +184,7 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   Variable* LookupInScopeInfo(const AstRawString* name);
 
   // Lookup a variable in this scope or outer scopes.
-  // Returns the variable or NULL if not found.
+  // Returns the variable or nullptr if not found.
   Variable* Lookup(const AstRawString* name);
 
   // Declare a local variable in this scope. If the variable has been
@@ -195,7 +196,6 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
 
   Variable* DeclareVariable(Declaration* declaration, VariableMode mode,
                             InitializationFlag init,
-                            bool allow_harmony_restrictive_generators,
                             bool* sloppy_mode_block_scope_function_redefinition,
                             bool* ok);
 
@@ -385,7 +385,9 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   ScopeType scope_type() const { return scope_type_; }
 
   // The language mode of this scope.
-  LanguageMode language_mode() const { return is_strict_ ? STRICT : SLOPPY; }
+  LanguageMode language_mode() const {
+    return is_strict_ ? LanguageMode::kStrict : LanguageMode::kSloppy;
+  }
 
   // inner_scope() and sibling() together implement the inner scope list of a
   // scope. Inner scope points to the an inner scope of the function, and
@@ -393,7 +395,7 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   Scope* inner_scope() const { return inner_scope_; }
   Scope* sibling() const { return sibling_; }
 
-  // The scope immediately surrounding this scope, or NULL.
+  // The scope immediately surrounding this scope, or nullptr.
   Scope* outer_scope() const { return outer_scope_; }
 
   Variable* catch_variable() const {
@@ -438,9 +440,6 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   // Find the first (non-arrow) function or script scope.  This is where
   // 'this' is bound, and what determines the function kind.
   DeclarationScope* GetReceiverScope();
-
-  // Find the module scope, assuming there is one.
-  ModuleScope* GetModuleScope();
 
   // Find the innermost outer scope that needs a context.
   Scope* GetOuterScopeWithContext();
@@ -517,7 +516,7 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   Zone* zone_;
 
   // Scope tree.
-  Scope* outer_scope_;  // the immediately enclosing outer scope, or NULL
+  Scope* outer_scope_;  // the immediately enclosing outer scope, or nullptr
   Scope* inner_scope_;  // an inner scope of this scope
   Scope* sibling_;  // a sibling inner scope of the outer scope of this scope.
 
@@ -564,7 +563,7 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   // Scope-specific information computed during parsing.
   //
   // The language mode of this scope.
-  STATIC_ASSERT(LANGUAGE_END == 2);
+  STATIC_ASSERT(LanguageModeSize == 2);
   bool is_strict_ : 1;
   // This scope or a nested catch scope or with scope contain an 'eval' call. At
   // the 'eval' call site this scope is the declaration scope.
@@ -762,11 +761,8 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
   Variable* new_target_var() { return new_target_; }
 
   // The variable holding the function literal for named function
-  // literals, or NULL.  Only valid for function scopes.
-  Variable* function_var() const {
-    DCHECK(is_function_scope());
-    return function_;
-  }
+  // literals, or nullptr.  Only valid for function scopes.
+  Variable* function_var() const { return function_; }
 
   Variable* generator_object_var() const {
     DCHECK(is_function_scope() || is_module_scope());
@@ -813,7 +809,8 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
     has_simple_parameters_ = false;
   }
 
-  // The local variable 'arguments' if we need to allocate it; NULL otherwise.
+  // The local variable 'arguments' if we need to allocate it; nullptr
+  // otherwise.
   Variable* arguments() const {
     DCHECK(!is_arrow_scope() || arguments_ == nullptr);
     return arguments_;

@@ -129,7 +129,7 @@ class ScopeInfo : public FixedArray {
   // Lookup support for serialized scope info. Returns the local context slot
   // index for a given slot name if the slot is present; otherwise
   // returns a value < 0. The name must be an internalized string.
-  // If the slot is present and mode != NULL, sets *mode to the corresponding
+  // If the slot is present and mode != nullptr, sets *mode to the corresponding
   // mode for that variable.
   static int ContextSlotIndex(Handle<ScopeInfo> scope_info, Handle<String> name,
                               VariableMode* mode, InitializationFlag* init_flag,
@@ -289,7 +289,7 @@ class ScopeInfo : public FixedArray {
   class ScopeTypeField : public BitField<ScopeType, 0, 4> {};
   class CallsSloppyEvalField : public BitField<bool, ScopeTypeField::kNext, 1> {
   };
-  STATIC_ASSERT(LANGUAGE_END == 2);
+  STATIC_ASSERT(LanguageModeSize == 2);
   class LanguageModeField
       : public BitField<LanguageMode, CallsSloppyEvalField::kNext, 1> {};
   class DeclarationScopeField

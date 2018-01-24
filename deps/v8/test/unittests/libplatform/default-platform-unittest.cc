@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "src/libplatform/default-platform.h"
+#include "src/base/platform/semaphore.h"
 #include "src/base/platform/time.h"
 #include "testing/gmock/include/gmock/gmock.h"
 
@@ -30,16 +31,17 @@ struct MockIdleTask : public IdleTask {
 class DefaultPlatformWithMockTime : public DefaultPlatform {
  public:
   DefaultPlatformWithMockTime()
-      : DefaultPlatform(IdleTaskSupport::kEnabled), time_(0) {}
-  double MonotonicallyIncreasingTime() override { return time_; }
-  double CurrentClockTimeMillis() override {
-    return time_ * base::Time::kMillisecondsPerSecond;
+      : DefaultPlatform(IdleTaskSupport::kEnabled, nullptr) {
+    mock_time_ = 0.0;
+    SetTimeFunctionForTesting([]() { return mock_time_; });
   }
-  void IncreaseTime(double seconds) { time_ += seconds; }
+  void IncreaseTime(double seconds) { mock_time_ += seconds; }
 
  private:
-  double time_;
+  static double mock_time_;
 };
+
+double DefaultPlatformWithMockTime::mock_time_ = 0.0;
 
 }  // namespace
 
@@ -61,6 +63,24 @@ TEST(DefaultPlatformTest, PumpMessageLoop) {
   EXPECT_FALSE(platform.PumpMessageLoop(isolate));
 }
 
+TEST(DefaultPlatformTest, PumpMessageLoopWithTaskRunner) {
+  InSequence s;
+
+  int dummy;
+  Isolate* isolate = reinterpret_cast<Isolate*>(&dummy);
+
+  DefaultPlatform platform;
+  std::shared_ptr<TaskRunner> taskrunner =
+      platform.GetForegroundTaskRunner(isolate);
+  EXPECT_FALSE(platform.PumpMessageLoop(isolate));
+
+  StrictMock<MockTask>* task = new StrictMock<MockTask>;
+  taskrunner->PostTask(std::unique_ptr<Task>(task));
+  EXPECT_CALL(*task, Run());
+  EXPECT_CALL(*task, Die());
+  EXPECT_TRUE(platform.PumpMessageLoop(isolate));
+  EXPECT_FALSE(platform.PumpMessageLoop(isolate));
+}
 
 TEST(DefaultPlatformTest, PumpMessageLoopDelayed) {
   InSequence s;
@@ -91,6 +111,36 @@ TEST(DefaultPlatformTest, PumpMessageLoopDelayed) {
   EXPECT_TRUE(platform.PumpMessageLoop(isolate));
 }
 
+TEST(DefaultPlatformTest, PumpMessageLoopDelayedWithTaskRunner) {
+  InSequence s;
+
+  int dummy;
+  Isolate* isolate = reinterpret_cast<Isolate*>(&dummy);
+
+  DefaultPlatformWithMockTime platform;
+  std::shared_ptr<TaskRunner> taskrunner =
+      platform.GetForegroundTaskRunner(isolate);
+  EXPECT_FALSE(platform.PumpMessageLoop(isolate));
+
+  StrictMock<MockTask>* task1 = new StrictMock<MockTask>;
+  StrictMock<MockTask>* task2 = new StrictMock<MockTask>;
+  taskrunner->PostDelayedTask(std::unique_ptr<Task>(task2), 100);
+  taskrunner->PostDelayedTask(std::unique_ptr<Task>(task1), 10);
+
+  EXPECT_FALSE(platform.PumpMessageLoop(isolate));
+
+  platform.IncreaseTime(11);
+  EXPECT_CALL(*task1, Run());
+  EXPECT_CALL(*task1, Die());
+  EXPECT_TRUE(platform.PumpMessageLoop(isolate));
+
+  EXPECT_FALSE(platform.PumpMessageLoop(isolate));
+
+  platform.IncreaseTime(90);
+  EXPECT_CALL(*task2, Run());
+  EXPECT_CALL(*task2, Die());
+  EXPECT_TRUE(platform.PumpMessageLoop(isolate));
+}
 
 TEST(DefaultPlatformTest, PumpMessageLoopNoStarvation) {
   InSequence s;
@@ -153,6 +203,24 @@ TEST(DefaultPlatformTest, RunIdleTasks) {
   platform.RunIdleTasks(isolate, 42.0);
 }
 
+TEST(DefaultPlatformTest, RunIdleTasksWithTaskRunner) {
+  InSequence s;
+
+  int dummy;
+  Isolate* isolate = reinterpret_cast<Isolate*>(&dummy);
+
+  DefaultPlatformWithMockTime platform;
+  std::shared_ptr<TaskRunner> taskrunner =
+      platform.GetForegroundTaskRunner(isolate);
+
+  StrictMock<MockIdleTask>* task = new StrictMock<MockIdleTask>;
+  taskrunner->PostIdleTask(std::unique_ptr<IdleTask>(task));
+  EXPECT_CALL(*task, Run(42.0 + 23.0));
+  EXPECT_CALL(*task, Die());
+  platform.IncreaseTime(23.0);
+  platform.RunIdleTasks(isolate, 42.0);
+}
+
 TEST(DefaultPlatformTest, PendingIdleTasksAreDestroyedOnShutdown) {
   InSequence s;
 
@@ -165,6 +233,88 @@ TEST(DefaultPlatformTest, PendingIdleTasksAreDestroyedOnShutdown) {
     platform.CallIdleOnForegroundThread(isolate, task);
     EXPECT_CALL(*task, Die());
   }
+}
+
+namespace {
+
+class TestBackgroundTask : public Task {
+ public:
+  explicit TestBackgroundTask(base::Semaphore* sem, bool* executed)
+      : sem_(sem), executed_(executed) {}
+
+  virtual ~TestBackgroundTask() { Die(); }
+  MOCK_METHOD0(Die, void());
+
+  void Run() {
+    *executed_ = true;
+    sem_->Signal();
+  }
+
+ private:
+  base::Semaphore* sem_;
+  bool* executed_;
+};
+
+}  // namespace
+
+TEST(DefaultPlatformTest, RunBackgroundTask) {
+  int dummy;
+  Isolate* isolate = reinterpret_cast<Isolate*>(&dummy);
+
+  DefaultPlatform platform;
+  platform.SetThreadPoolSize(1);
+  std::shared_ptr<TaskRunner> taskrunner =
+      platform.GetBackgroundTaskRunner(isolate);
+
+  base::Semaphore sem(0);
+  bool task_executed = false;
+  StrictMock<TestBackgroundTask>* task =
+      new StrictMock<TestBackgroundTask>(&sem, &task_executed);
+  EXPECT_CALL(*task, Die());
+  taskrunner->PostTask(std::unique_ptr<Task>(task));
+  EXPECT_TRUE(sem.WaitFor(base::TimeDelta::FromSeconds(1)));
+  EXPECT_TRUE(task_executed);
+}
+
+TEST(DefaultPlatformTest, NoIdleTasksInBackground) {
+  int dummy;
+  Isolate* isolate = reinterpret_cast<Isolate*>(&dummy);
+  DefaultPlatform platform;
+  platform.SetThreadPoolSize(1);
+  std::shared_ptr<TaskRunner> taskrunner =
+      platform.GetBackgroundTaskRunner(isolate);
+  EXPECT_FALSE(taskrunner->IdleTasksEnabled());
+}
+
+TEST(DefaultPlatformTest, PostTaskAfterPlatformTermination) {
+  std::shared_ptr<TaskRunner> foreground_taskrunner;
+  std::shared_ptr<TaskRunner> background_taskrunner;
+  {
+    int dummy;
+    Isolate* isolate = reinterpret_cast<Isolate*>(&dummy);
+
+    DefaultPlatformWithMockTime platform;
+    platform.SetThreadPoolSize(1);
+    foreground_taskrunner = platform.GetForegroundTaskRunner(isolate);
+    background_taskrunner = platform.GetBackgroundTaskRunner(isolate);
+  }
+  // It should still be possible to post tasks, even when the platform does not
+  // exist anymore.
+  StrictMock<MockTask>* task1 = new StrictMock<MockTask>;
+  EXPECT_CALL(*task1, Die());
+  foreground_taskrunner->PostTask(std::unique_ptr<Task>(task1));
+
+  StrictMock<MockTask>* task2 = new StrictMock<MockTask>;
+  EXPECT_CALL(*task2, Die());
+  foreground_taskrunner->PostDelayedTask(std::unique_ptr<Task>(task2), 10);
+
+  StrictMock<MockIdleTask>* task3 = new StrictMock<MockIdleTask>;
+  EXPECT_CALL(*task3, Die());
+  foreground_taskrunner->PostIdleTask(std::unique_ptr<IdleTask>(task3));
+
+  StrictMock<MockTask>* task4 = new StrictMock<MockTask>;
+  EXPECT_CALL(*task4, Die());
+  background_taskrunner->PostTask(std::unique_ptr<Task>(task4));
 }
 
 }  // namespace default_platform_unittest

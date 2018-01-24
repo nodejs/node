@@ -2159,7 +2159,7 @@ LogicVRegister Simulator::Table(VectorFormat vform, LogicVRegister dst,
     uint64_t j = ind.Uint(vform, i);
     int tab_idx = static_cast<int>(j >> 4);
     int j_idx = static_cast<int>(j & 15);
-    if ((tab_idx < 4) && (tab[tab_idx] != NULL)) {
+    if ((tab_idx < 4) && (tab[tab_idx] != nullptr)) {
       result[i] = tab[tab_idx]->Uint(kFormat16B, j_idx);
     }
   }

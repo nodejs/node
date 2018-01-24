@@ -102,8 +102,11 @@ bool IsContextParameter(Node* node) {
 MaybeHandle<Context> GetSpecializationContext(Node* node, size_t* distance,
                                               Maybe<OuterContext> maybe_outer) {
   switch (node->opcode()) {
-    case IrOpcode::kHeapConstant:
-      return Handle<Context>::cast(OpParameter<Handle<HeapObject>>(node));
+    case IrOpcode::kHeapConstant: {
+      Handle<Object> object = OpParameter<Handle<HeapObject>>(node);
+      if (object->IsContext()) return Handle<Context>::cast(object);
+      break;
+    }
     case IrOpcode::kParameter: {
       OuterContext outer;
       if (maybe_outer.To(&outer) && IsContextParameter(node) &&

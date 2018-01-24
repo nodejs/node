@@ -108,7 +108,7 @@ const Runtime::Function* Runtime::FunctionForName(const unsigned char* name,
   if (entry) {
     return reinterpret_cast<Function*>(entry->value);
   }
-  return NULL;
+  return nullptr;
 }
 
 
@@ -118,7 +118,7 @@ const Runtime::Function* Runtime::FunctionForEntry(Address entry) {
       return &(kIntrinsicFunctions[i]);
     }
   }
-  return NULL;
+  return nullptr;
 }
 
 

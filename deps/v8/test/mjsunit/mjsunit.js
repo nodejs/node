@@ -192,6 +192,12 @@ var failWithMessage;
   var ArrayPrototypeMap = Array.prototype.map;
   var ArrayPrototypePush = Array.prototype.push;
 
+  var BigIntPrototypeValueOf;
+  // TODO(neis): Remove try-catch once BigInts are enabled by default.
+  try {
+    BigIntPrototypeValueOf = BigInt.prototype.valueOf;
+  } catch(e) {}
+
   function classOf(object) {
     // Argument must not be null or undefined.
     var string = ObjectPrototypeToString.call(object);
@@ -204,6 +210,8 @@ var failWithMessage;
     switch (classOf(value)) {
       case "Number":
         return NumberPrototypeValueOf.call(value);
+      case "BigInt":
+        return BigIntPrototypeValueOf.call(value);
       case "String":
         return StringPrototypeValueOf.call(value);
       case "Boolean":
@@ -220,6 +228,8 @@ var failWithMessage;
     switch (typeof value) {
       case "string":
         return JSON.stringify(value);
+      case "bigint":
+        return String(value) + "n";
       case "number":
         if (value === 0 && (1 / value) < 0) return "-0";
         // FALLTHROUGH.
@@ -233,6 +243,7 @@ var failWithMessage;
         var objectClass = classOf(value);
         switch (objectClass) {
           case "Number":
+          case "BigInt":
           case "String":
           case "Boolean":
           case "Date":
@@ -346,7 +357,8 @@ var failWithMessage;
       return true;
     }
     if (objectClass === "String" || objectClass === "Number" ||
-      objectClass === "Boolean" || objectClass === "Date") {
+      objectClass === "BigInt" || objectClass === "Boolean" ||
+      objectClass === "Date") {
       if (ValueOf(a) !== ValueOf(b)) return false;
     }
     return deepObjectEquals(a, b);
@@ -582,8 +594,8 @@ var failWithMessage;
     return OptimizationStatusImpl(fun, sync_opt);
   }
 
-  assertUnoptimized = function assertUnoptimized(fun, sync_opt, name_opt,
-      skip_if_maybe_deopted = true) {
+  assertUnoptimized = function assertUnoptimized(
+      fun, sync_opt, name_opt, skip_if_maybe_deopted = true) {
     if (sync_opt === undefined) sync_opt = "";
     var opt_status = OptimizationStatus(fun, sync_opt);
     // Tests that use assertUnoptimized() do not make sense if --always-opt
@@ -601,8 +613,8 @@ var failWithMessage;
     assertFalse((opt_status & V8OptimizationStatus.kOptimized) !== 0, name_opt);
   }
 
-  assertOptimized = function assertOptimized(fun, sync_opt, name_opt,
-      skip_if_maybe_deopted = true) {
+  assertOptimized = function assertOptimized(
+      fun, sync_opt, name_opt, skip_if_maybe_deopted = true) {
     if (sync_opt === undefined) sync_opt = "";
     var opt_status = OptimizationStatus(fun, sync_opt);
     // Tests that use assertOptimized() do not make sense if --no-opt

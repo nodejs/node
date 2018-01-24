@@ -19,7 +19,7 @@ void RuntimeCallTimer::Start(RuntimeCallCounter* counter,
       v8::tracing::TracingCategoryObserver::ENABLED_BY_SAMPLING) {
     return;
   }
-  base::TimeTicks now = Now();
+  base::TimeTicks now = RuntimeCallTimer::Now();
   if (parent) parent->Pause(now);
   Resume(now);
   DCHECK(IsStarted());
@@ -38,7 +38,7 @@ void RuntimeCallTimer::Resume(base::TimeTicks now) {
 
 RuntimeCallTimer* RuntimeCallTimer::Stop() {
   if (!IsStarted()) return parent();
-  base::TimeTicks now = Now();
+  base::TimeTicks now = RuntimeCallTimer::Now();
   Pause(now);
   counter_->Increment();
   CommitTimeToCounter();
@@ -56,10 +56,6 @@ void RuntimeCallTimer::CommitTimeToCounter() {
 }
 
 bool RuntimeCallTimer::IsStarted() { return start_ticks_ != base::TimeTicks(); }
-
-base::TimeTicks RuntimeCallTimer::Now() {
-  return base::TimeTicks::HighResolutionNow();
-}
 
 RuntimeCallTimerScope::RuntimeCallTimerScope(
     HeapObject* heap_object, RuntimeCallStats::CounterId counter_id)

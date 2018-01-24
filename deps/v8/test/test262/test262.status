@@ -84,11 +84,6 @@
   'language/expressions/prefix-increment/S11.4.4_A5_*': [FAIL],
   'language/statements/variable/binding-resolution': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=6216
-  'built-ins/TypedArrays/buffer-arg-byteoffset-to-number-detachbuffer': [FAIL],
-  'built-ins/TypedArrays/buffer-arg-length-to-number-detachbuffer': [FAIL],
-  'built-ins/TypedArrays/buffer-arg-detachedbuffer': [FAIL],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=4895
   'built-ins/TypedArrays/internals/DefineOwnProperty/detached-buffer': [FAIL],
   'built-ins/TypedArrays/internals/DefineOwnProperty/detached-buffer-realm': [FAIL],
@@ -156,14 +151,9 @@
   'language/eval-code/direct/var-env-lower-lex-catch-non-strict': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=4951
-  'language/expressions/assignment/dstr-array-elem-iter-rtrn-close': [FAIL],
   'language/expressions/assignment/dstr-array-elem-iter-rtrn-close-err': [FAIL],
-  'language/expressions/assignment/dstr-array-elem-iter-rtrn-close-null': [FAIL],
   'language/expressions/assignment/dstr-array-elem-iter-thrw-close': [FAIL],
   'language/expressions/assignment/dstr-array-elem-iter-thrw-close-err': [FAIL],
-  'language/expressions/assignment/dstr-array-elem-trlg-iter-list-rtrn-close': [FAIL],
-  'language/expressions/assignment/dstr-array-elem-trlg-iter-list-rtrn-close-err': [FAIL],
-  'language/expressions/assignment/dstr-array-elem-trlg-iter-list-rtrn-close-null': [FAIL],
   'language/expressions/assignment/dstr-array-elem-trlg-iter-list-thrw-close': [FAIL],
   'language/expressions/assignment/dstr-array-elem-trlg-iter-list-thrw-close-err': [FAIL],
   'language/expressions/assignment/dstr-array-elem-trlg-iter-rest-rtrn-close': [FAIL],
@@ -177,14 +167,9 @@
   'language/expressions/assignment/dstr-array-rest-iter-thrw-close': [FAIL],
   'language/expressions/assignment/dstr-array-rest-iter-thrw-close-err': [FAIL],
   'language/expressions/assignment/dstr-array-rest-lref-err': [FAIL],
-  'language/statements/for-of/dstr-array-elem-iter-rtrn-close': [FAIL],
   'language/statements/for-of/dstr-array-elem-iter-rtrn-close-err': [FAIL],
-  'language/statements/for-of/dstr-array-elem-iter-rtrn-close-null': [FAIL],
   'language/statements/for-of/dstr-array-elem-iter-thrw-close': [FAIL],
   'language/statements/for-of/dstr-array-elem-iter-thrw-close-err': [FAIL],
-  'language/statements/for-of/dstr-array-elem-trlg-iter-list-rtrn-close': [FAIL],
-  'language/statements/for-of/dstr-array-elem-trlg-iter-list-rtrn-close-err': [FAIL],
-  'language/statements/for-of/dstr-array-elem-trlg-iter-list-rtrn-close-null': [FAIL],
   'language/statements/for-of/dstr-array-elem-trlg-iter-list-thrw-close': [FAIL],
   'language/statements/for-of/dstr-array-elem-trlg-iter-list-thrw-close-err': [FAIL],
   'language/statements/for-of/dstr-array-elem-trlg-iter-rest-rtrn-close': [FAIL],
@@ -198,7 +183,8 @@
   'language/statements/for-of/dstr-array-rest-iter-thrw-close': [FAIL],
   'language/statements/for-of/dstr-array-rest-iter-thrw-close-err': [FAIL],
   'language/statements/for-of/dstr-array-rest-lref-err': [FAIL],
-  'language/statements/for-await-of/async-gen-decl-dstr-array-elem-iter-rtrn-close-null': [FAIL],
+  'language/expressions/assignment/destructuring/iterator-destructuring-property-reference-target-evaluation-order': [FAIL],
+  'language/expressions/assignment/destructuring/keyed-destructuring-property-reference-target-evaluation-order': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=896
   'built-ins/RegExp/property-escapes/binary-properties-with-value': [FAIL],
@@ -247,16 +233,6 @@
   'built-ins/TypedArray/prototype/fill/fill-values-conversion-operations-consistent-nan': [PASS, FAIL],
   'built-ins/TypedArrays/internals/DefineOwnProperty/conversion-operation-consistent-nan': [PASS, FAIL],
   'built-ins/TypedArrays/internals/Set/conversion-operation-consistent-nan': [PASS, FAIL],
-
-  # https://bugs.chromium.org/p/v8/issues/detail?id=5070
-  'annexB/built-ins/Object/prototype/__defineGetter__/define-non-configurable': ['--harmony-strict-legacy-accessor-builtins'],
-  'annexB/built-ins/Object/prototype/__defineGetter__/define-non-extensible': ['--harmony-strict-legacy-accessor-builtins'],
-  'annexB/built-ins/Object/prototype/__defineGetter__/this-non-obj': ['--harmony-strict-legacy-accessor-builtins'],
-  'annexB/built-ins/Object/prototype/__defineSetter__/define-non-configurable': ['--harmony-strict-legacy-accessor-builtins'],
-  'annexB/built-ins/Object/prototype/__defineSetter__/define-non-extensible': ['--harmony-strict-legacy-accessor-builtins'],
-  'annexB/built-ins/Object/prototype/__defineSetter__/this-non-obj': ['--harmony-strict-legacy-accessor-builtins'],
-  'annexB/built-ins/Object/prototype/__lookupGetter__/this-non-obj': ['--harmony-strict-legacy-accessor-builtins'],
-  'annexB/built-ins/Object/prototype/__lookupSetter__/this-non-obj': ['--harmony-strict-legacy-accessor-builtins'],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=4451
   # https://github.com/tc39/ecma262/issues/753
@@ -345,9 +321,6 @@
   'annexB/language/eval-code/direct/func-if-stmt-else-decl-eval-func-no-skip-try': [FAIL],
   'annexB/language/eval-code/direct/func-switch-case-eval-func-no-skip-try': [FAIL],
   'annexB/language/eval-code/direct/func-switch-dflt-eval-func-no-skip-try': [FAIL],
-
-  # https://bugs.chromium.org/p/v8/issues/detail?id=5546
-  'language/expressions/tagged-template/invalid-escape-sequences': ['--harmony-template-escapes'],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=5537
   'built-ins/global/*': [SKIP],
@@ -446,15 +419,20 @@
   'built-ins/Object/internals/DefineOwnProperty/consistent-value-function-caller': [FAIL_SLOPPY],
   'built-ins/Object/internals/DefineOwnProperty/consistent-value-function-arguments': [FAIL_SLOPPY],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=4743#c28
-  'built-ins/RegExp/property-escapes/generated/Emoji_Component': [FAIL],
-
-  # ICU 59 uses Unicode 9 data; property escape tests were generated for Unicode 10
-  'built-ins/RegExp/property-escapes/generated/*': [SKIP],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=6776
   'built-ins/Proxy/ownKeys/return-duplicate-entries-throws': [FAIL],
   'built-ins/Proxy/ownKeys/return-duplicate-symbol-entries-throws': [FAIL],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=6861
+  'language/statements/for-of/iterator-next-reference': [FAIL],
+  'language/expressions/async-generator/named-yield-star-async-next': [FAIL],
+  'language/expressions/async-generator/yield-star-async-next': [FAIL],
+  'language/expressions/class/async-gen-method-yield-star-async-next': [FAIL],
+  'language/expressions/class/async-gen-method-static-yield-star-async-next': [FAIL],
+  'language/expressions/object/method-definition/async-gen-yield-star-async-next': [FAIL],
+  'language/statements/async-generator/yield-star-async-next': [FAIL],
+  'language/statements/class/async-gen-method-yield-star-async-next': [FAIL],
+  'language/statements/class/async-gen-method-static-yield-star-async-next': [FAIL],
 
 ######################## NEEDS INVESTIGATION ###########################
 
@@ -462,11 +440,13 @@
   # to be either marked as bugs with issues filed for them or as deliberate
   # incompatibilities if the test cases turn out to be broken or ambiguous.
   # Some of these are related to v8:4361 in being visible side effects from Intl.
-  'intl402/6.2.3': [FAIL],
+  'intl402/6.2.3_a': [FAIL],
   'intl402/Collator/10.1.2_a': [PASS, FAIL],
   'intl402/Collator/10.2.3_b': [PASS, FAIL],
+  'intl402/DateTimeFormat/prototype/resolvedOptions/hourCycle': [FAIL],
   'intl402/DateTimeFormat/12.1.2': [PASS, FAIL],
   'intl402/DateTimeFormat/12.2.3_b': [FAIL],
+  'intl402/Intl/getCanonicalLocales/success_cases': [FAIL],
   'intl402/Number/prototype/toLocaleString/13.2.1_5': [PASS, FAIL],
   'intl402/NumberFormat/11.1.1_20_c': [FAIL],
   'intl402/NumberFormat/11.1.2': [PASS, FAIL],
@@ -511,10 +491,6 @@
   # https://bugs.chromium.org/p/v8/issues/detail?id=6543
   'language/statements/labeled/value-await-non-module-escaped': [FAIL],
   'language/statements/labeled/value-yield-non-strict-escaped': [FAIL],
-
-  # https://bugs.chromium.org/p/v8/issues/detail?id=6912
-  'built-ins/RegExp/named-groups/string-replace-missing': [FAIL],
-  'built-ins/RegExp/named-groups/string-replace-unclosed': [FAIL],
 
   ############################ INVALID TESTS #############################
 

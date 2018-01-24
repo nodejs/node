@@ -84,8 +84,8 @@ AllocationResult HeapTester::AllocateAfterFailures() {
   // Test that we can allocate in old pointer space and code space.
   heap::SimulateFullSpace(heap->code_space());
   heap->AllocateFixedArray(100, TENURED).ToObjectChecked();
-  heap->CopyCode(CcTest::i_isolate()->builtins()->builtin(
-      Builtins::kIllegal)).ToObjectChecked();
+  Code* illegal = CcTest::i_isolate()->builtins()->builtin(Builtins::kIllegal);
+  heap->CopyCode(illegal, illegal->code_data_container()).ToObjectChecked();
 
   // Return success.
   return heap->true_value();
@@ -129,8 +129,7 @@ void TestSetter(v8::Local<v8::Name> name, v8::Local<v8::Value> value,
 Handle<AccessorInfo> TestAccessorInfo(
       Isolate* isolate, PropertyAttributes attributes) {
   Handle<String> name = isolate->factory()->NewStringFromStaticChars("get");
-  return Accessors::MakeAccessor(isolate, name, &TestGetter, &TestSetter,
-                                 attributes);
+  return Accessors::MakeAccessor(isolate, name, &TestGetter, &TestSetter);
 }
 
 
@@ -140,8 +139,8 @@ TEST(StressJS) {
   v8::HandleScope scope(CcTest::isolate());
   v8::Local<v8::Context> env = v8::Context::New(CcTest::isolate());
   env->Enter();
-  Handle<JSFunction> function = factory->NewFunction(
-      factory->function_string());
+  Handle<JSFunction> function =
+      factory->NewFunctionForTest(factory->function_string());
   // Force the creation of an initial map and set the code to
   // something empty.
   factory->NewJSObject(function);
@@ -229,6 +228,7 @@ TEST(CodeRange) {
       // kMaxRegularHeapObjectSize.
       size_t requested = (kMaxRegularHeapObjectSize << (Pseudorandom() % 3)) +
                          Pseudorandom() % 5000 + 1;
+      requested = RoundUp(requested, MemoryAllocator::GetCommitPageSize());
       size_t allocated = 0;
 
       // The request size has to be at least 2 code guard pages larger than the
@@ -236,7 +236,7 @@ TEST(CodeRange) {
       Address base = code_range.AllocateRawMemory(
           requested, requested - (2 * MemoryAllocator::CodePageGuardSize()),
           &allocated);
-      CHECK(base != NULL);
+      CHECK_NOT_NULL(base);
       blocks.emplace_back(base, static_cast<int>(allocated));
       current_allocated += static_cast<int>(allocated);
       total_allocated += static_cast<int>(allocated);

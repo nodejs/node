@@ -17,7 +17,7 @@ using v8::Task;
 #include "src/allocation.h"
 #include "src/zone/accounting-allocator.h"
 
-// ASAN isn't configured to return NULL, so skip all of these tests.
+// ASAN isn't configured to return nullptr, so skip all of these tests.
 #if !defined(V8_USE_ADDRESS_SANITIZER) && !defined(MEMORY_SANITIZER) && \
     !defined(THREAD_SANITIZER)
 
@@ -54,7 +54,7 @@ size_t GetHugeMemoryAmount() {
   static size_t huge_memory = 0;
   if (!huge_memory) {
     for (int i = 0; i < 100; i++) {
-      huge_memory |= bit_cast<size_t>(v8::internal::GetRandomMmapAddr());
+      huge_memory |= bit_cast<size_t>(v8::base::OS::GetRandomMmapAddr());
     }
     // Make it larger than the available address space.
     huge_memory *= 2;
@@ -122,7 +122,7 @@ TEST(AlignedAllocOOM) {
   // On failure, this won't return, since an AlignedAlloc failure is fatal.
   // In that case, behavior is checked in OnAlignedAllocOOM before exit.
   void* result = v8::internal::AlignedAlloc(GetHugeMemoryAmount(),
-                                            v8::base::OS::AllocateAlignment());
+                                            v8::base::OS::AllocatePageSize());
   // On a few systems, allocation somehow succeeds.
   CHECK_EQ(result == nullptr, platform.oom_callback_called);
 }
@@ -143,7 +143,7 @@ TEST(AlignedAllocVirtualMemoryOOM) {
   CHECK(!platform.oom_callback_called);
   v8::internal::VirtualMemory result;
   bool success = v8::internal::AlignedAllocVirtualMemory(
-      GetHugeMemoryAmount(), v8::base::OS::AllocateAlignment(), nullptr,
+      GetHugeMemoryAmount(), v8::base::OS::AllocatePageSize(), nullptr,
       &result);
   // On a few systems, allocation somehow succeeds.
   CHECK_IMPLIES(success, result.IsReserved());

@@ -4,6 +4,7 @@
 
 #include "src/inspector/string-util.h"
 
+#include "src/base/platform/platform.h"
 #include "src/conversions.h"
 #include "src/inspector/protocol/Protocol.h"
 #include "src/unicode-cache.h"
@@ -121,6 +122,18 @@ std::unique_ptr<protocol::Value> StringUtil::parseJSON(const String16& string) {
                              static_cast<int>(string.length()));
 }
 
+// static
+void StringUtil::builderAppendQuotedString(StringBuilder& builder,
+                                           const String& str) {
+  builder.append('"');
+  if (!str.isEmpty()) {
+    escapeWideStringForJSON(
+        reinterpret_cast<const uint16_t*>(str.characters16()),
+        static_cast<int>(str.length()), &builder);
+  }
+  builder.append('"');
+}
+
 }  // namespace protocol
 
 // static
@@ -137,6 +150,21 @@ std::unique_ptr<StringBufferImpl> StringBufferImpl::adopt(String16& string) {
 StringBufferImpl::StringBufferImpl(String16& string) {
   m_owner.swap(string);
   m_string = toStringView(m_owner);
+}
+
+String16 debuggerIdToString(const std::pair<int64_t, int64_t>& debuggerId) {
+  const size_t kBufferSize = 35;
+
+  char buffer[kBufferSize];
+  v8::base::OS::SNPrintF(buffer, kBufferSize, "(%08" PRIX64 "%08" PRIX64 ")",
+                         debuggerId.first, debuggerId.second);
+  return String16(buffer);
+}
+
+String16 stackTraceIdToString(uintptr_t id) {
+  String16Builder builder;
+  builder.appendNumber(static_cast<size_t>(id));
+  return builder.toString();
 }
 
 }  // namespace v8_inspector

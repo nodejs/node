@@ -305,6 +305,9 @@ Node* JSGraph::Dead() {
   return CACHED(kDead, graph()->NewNode(common()->Dead()));
 }
 
+Node* JSGraph::DeadValue() {
+  return CACHED(kDeadValue, graph()->NewNode(common()->DeadValue()));
+}
 
 void JSGraph::GetCachedNodes(NodeVector* nodes) {
   cache_.GetCachedNodes(nodes);

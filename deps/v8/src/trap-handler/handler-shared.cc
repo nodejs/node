@@ -26,7 +26,22 @@ namespace trap_handler {
 // We declare this as int rather than bool as a workaround for a glibc bug, in
 // which the dynamic loader cannot handle executables whose TLS area is only
 // 1 byte in size; see https://sourceware.org/bugzilla/show_bug.cgi?id=14898.
-THREAD_LOCAL int g_thread_in_wasm_code = false;
+THREAD_LOCAL int g_thread_in_wasm_code;
+
+#if V8_TRAP_HANDLER_SUPPORTED
+// When using the default signal handler, we save the old one to restore in case
+// V8 chooses not to handle the signal.
+struct sigaction g_old_handler;
+bool g_is_default_signal_handler_registered;
+#endif
+
+V8_EXPORT_PRIVATE void RestoreOriginalSignalHandler() {
+#if V8_TRAP_HANDLER_SUPPORTED
+  if (sigaction(SIGSEGV, &g_old_handler, nullptr) == 0) {
+    g_is_default_signal_handler_registered = false;
+  }
+#endif
+}
 
 static_assert(sizeof(g_thread_in_wasm_code) > 1,
               "sizeof(thread_local_var) must be > 1, see "

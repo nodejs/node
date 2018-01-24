@@ -16,12 +16,6 @@ class ProxiesCodeStubAssembler : public CodeStubAssembler {
   explicit ProxiesCodeStubAssembler(compiler::CodeAssemblerState* state)
       : CodeStubAssembler(state) {}
 
-  void BranchIfAccessorPair(Node* value, Label* if_accessor_pair,
-                            Label* if_not_accessor_pair) {
-    GotoIf(TaggedIsSmi(value), if_not_accessor_pair);
-    Branch(IsAccessorPair(value), if_accessor_pair, if_not_accessor_pair);
-  }
-
   // ES6 section 9.5.8 [[Get]] ( P, Receiver )
   // name should not be an index.
   Node* ProxyGetProperty(Node* context, Node* proxy, Node* name,

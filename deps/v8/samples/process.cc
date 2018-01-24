@@ -701,8 +701,8 @@ void PrintMap(map<string, string>* m) {
 int main(int argc, char* argv[]) {
   v8::V8::InitializeICUDefaultLocation(argv[0]);
   v8::V8::InitializeExternalStartupData(argv[0]);
-  v8::Platform* platform = v8::platform::CreateDefaultPlatform();
-  v8::V8::InitializePlatform(platform);
+  std::unique_ptr<v8::Platform> platform = v8::platform::NewDefaultPlatform();
+  v8::V8::InitializePlatform(platform.get());
   v8::V8::Initialize();
   map<string, string> options;
   string file;
@@ -728,7 +728,7 @@ int main(int argc, char* argv[]) {
     fprintf(stderr, "Error initializing processor.\n");
     return 1;
   }
-  if (!ProcessEntries(platform, &processor, kSampleSize, kSampleRequests))
+  if (!ProcessEntries(platform.get(), &processor, kSampleSize, kSampleRequests))
     return 1;
   PrintMap(&output);
 }

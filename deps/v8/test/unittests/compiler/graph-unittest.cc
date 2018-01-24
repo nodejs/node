@@ -119,13 +119,10 @@ Node* TypedGraphTest::Parameter(Type* type, int32_t index) {
   return node;
 }
 
-
-namespace {
+namespace graph_unittest {
 
 const Operator kDummyOperator(0, Operator::kNoProperties, "Dummy", 0, 0, 0, 1,
                               0, 0);
-
-}  // namespace
 
 
 TEST_F(GraphTest, NewNode) {
@@ -139,6 +136,7 @@ TEST_F(GraphTest, NewNode) {
   EXPECT_EQ(&kDummyOperator, n1->op());
 }
 
+}  // namespace graph_unittest
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

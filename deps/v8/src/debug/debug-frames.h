@@ -52,10 +52,6 @@ class FrameInspector {
                               Handle<ScopeInfo> scope_info,
                               bool materialize_arguments_object = false);
 
-  void MaterializeStackLocals(Handle<JSObject> target,
-                              Handle<JSFunction> function,
-                              bool materialize_arguments_object = false);
-
   void UpdateStackLocalsFromMaterializedObject(Handle<JSObject> object,
                                                Handle<ScopeInfo> scope_info);
 

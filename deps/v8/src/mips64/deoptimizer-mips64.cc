@@ -3,7 +3,6 @@
 // found in the LICENSE file.
 
 #include "src/assembler-inl.h"
-#include "src/codegen.h"
 #include "src/deoptimizer.h"
 #include "src/register-configuration.h"
 #include "src/safepoint-table.h"
@@ -104,7 +103,7 @@ void Deoptimizer::TableEntryGenerator::Generate() {
   __ Ld(a1, MemOperand(v0, Deoptimizer::input_offset()));
 
   // Copy core registers into FrameDescription::registers_[kNumRegisters].
-  DCHECK(Register::kNumRegisters == kNumberOfRegisters);
+  DCHECK_EQ(Register::kNumRegisters, kNumberOfRegisters);
   for (int i = 0; i < kNumberOfRegisters; i++) {
     int offset = (i * kPointerSize) + FrameDescription::registers_offset();
     if ((saved_regs & (1 << i)) != 0) {
@@ -280,7 +279,7 @@ void Deoptimizer::TableEntryGenerator::GeneratePrologue() {
     __ bind(&done);
     __ Push(at);
   } else {
-    DCHECK(kArchVariant != kMips64r6);
+    DCHECK_NE(kArchVariant, kMips64r6);
     // Uncommon case, the branch cannot reach.
     // Create mini trampoline to reach the end of the table
     for (int i = 0, j = 0; i < count(); i++, j++) {

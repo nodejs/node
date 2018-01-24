@@ -62,7 +62,8 @@ bool Context::is_declaration_context() {
       IsModuleContext()) {
     return true;
   }
-  if (IsEvalContext()) return closure()->shared()->language_mode() == STRICT;
+  if (IsEvalContext())
+    return closure()->shared()->language_mode() == LanguageMode::kStrict;
   if (!IsBlockContext()) return false;
   Object* ext = extension();
   // If we have the special extension, we immediately know it must be a
@@ -173,7 +174,7 @@ static Maybe<bool> UnscopableLookup(LookupIterator* it) {
   Isolate* isolate = it->isolate();
 
   Maybe<bool> found = JSReceiver::HasProperty(it);
-  if (!found.IsJust() || !found.FromJust()) return found;
+  if (found.IsNothing() || !found.FromJust()) return found;
 
   Handle<Object> unscopables;
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
@@ -294,7 +295,7 @@ Handle<Object> Context::Lookup(Handle<String> name, ContextLookupFlags flags,
         maybe = JSReceiver::GetPropertyAttributes(object, name);
       }
 
-      if (!maybe.IsJust()) return Handle<Object>();
+      if (maybe.IsNothing()) return Handle<Object>();
       DCHECK(!isolate->has_pending_exception());
       *attributes = maybe.FromJust();
 

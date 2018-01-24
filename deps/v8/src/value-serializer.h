@@ -31,6 +31,7 @@ class JSValue;
 class Object;
 class Oddball;
 class Smi;
+class WasmMemoryObject;
 class WasmModuleObject;
 
 enum class SerializationTag : uint8_t;
@@ -126,6 +127,8 @@ class ValueSerializer {
       WARN_UNUSED_RESULT;
   Maybe<bool> WriteJSArrayBufferView(JSArrayBufferView* array_buffer);
   Maybe<bool> WriteWasmModule(Handle<WasmModuleObject> object)
+      WARN_UNUSED_RESULT;
+  Maybe<bool> WriteWasmMemory(Handle<WasmMemoryObject> object)
       WARN_UNUSED_RESULT;
   Maybe<bool> WriteHostObject(Handle<JSObject> object) WARN_UNUSED_RESULT;
 
@@ -270,6 +273,7 @@ class ValueDeserializer {
       Handle<JSArrayBuffer> buffer) WARN_UNUSED_RESULT;
   MaybeHandle<JSObject> ReadWasmModule() WARN_UNUSED_RESULT;
   MaybeHandle<JSObject> ReadWasmModuleTransfer() WARN_UNUSED_RESULT;
+  MaybeHandle<WasmMemoryObject> ReadWasmMemory() WARN_UNUSED_RESULT;
   MaybeHandle<JSObject> ReadHostObject() WARN_UNUSED_RESULT;
 
   /*
@@ -296,7 +300,7 @@ class ValueDeserializer {
 
   // Always global handles.
   Handle<FixedArray> id_map_;
-  MaybeHandle<UnseededNumberDictionary> array_buffer_transfer_map_;
+  MaybeHandle<NumberDictionary> array_buffer_transfer_map_;
 
   DISALLOW_COPY_AND_ASSIGN(ValueDeserializer);
 };

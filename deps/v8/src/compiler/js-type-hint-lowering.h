@@ -99,6 +99,11 @@ class JSTypeHintLowering {
     Node* control_;
   };
 
+  // Potential reduction of unary operations (e.g. negation).
+  LoweringResult ReduceUnaryOperation(const Operator* op, Node* operand,
+                                      Node* effect, Node* control,
+                                      FeedbackSlot slot) const;
+
   // Potential reduction of binary (arithmetic, logical, shift and relational
   // comparison) operations.
   LoweringResult ReduceBinaryOperation(const Operator* op, Node* left,

@@ -240,8 +240,9 @@ RegisterConfiguration::RegisterConfiguration(
       float_register_names_(float_register_names),
       double_register_names_(double_register_names),
       simd128_register_names_(simd128_register_names) {
-  DCHECK(num_general_registers_ <= RegisterConfiguration::kMaxGeneralRegisters);
-  DCHECK(num_double_registers_ <= RegisterConfiguration::kMaxFPRegisters);
+  DCHECK_LE(num_general_registers_,
+            RegisterConfiguration::kMaxGeneralRegisters);
+  DCHECK_LE(num_double_registers_, RegisterConfiguration::kMaxFPRegisters);
   for (int i = 0; i < num_allocatable_general_registers_; ++i) {
     allocatable_general_codes_mask_ |= (1 << allocatable_general_codes_[i]);
   }

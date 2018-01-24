@@ -69,7 +69,7 @@ Object* DeclareGlobal(
   }
   LookupIterator it(global, name, global, lookup_config);
   Maybe<PropertyAttributes> maybe = JSReceiver::GetPropertyAttributes(&it);
-  if (!maybe.IsJust()) return isolate->heap()->exception();
+  if (maybe.IsNothing()) return isolate->heap()->exception();
 
   if (it.IsFound()) {
     PropertyAttributes old_attributes = maybe.FromJust();
@@ -82,7 +82,7 @@ Object* DeclareGlobal(
     if ((old_attributes & DONT_DELETE) != 0) {
       // Only allow reconfiguring globals to functions in user code (no
       // natives, which are marked as read-only).
-      DCHECK((attr & READ_ONLY) == 0);
+      DCHECK_EQ(attr & READ_ONLY, 0);
 
       // Check whether we can reconfigure the existing property into a
       // function.
@@ -470,7 +470,7 @@ Handle<JSObject> NewSloppyArguments(Isolate* isolate, Handle<JSFunction> callee,
             }
           }
 
-          DCHECK(context_index >= 0);
+          DCHECK_GE(context_index, 0);
           arguments->set_the_hole(index);
           parameter_map->set(
               index + 2,
@@ -595,11 +595,14 @@ RUNTIME_FUNCTION(Runtime_NewSloppyArguments) {
   iterator.Advance();
   JavaScriptFrame* function_frame = JavaScriptFrame::cast(iterator.frame());
   DCHECK(function_frame->is_java_script());
-  int argc = function_frame->GetArgumentsLength();
+  int argc = function_frame->ComputeParametersCount();
   Address fp = function_frame->fp();
   if (function_frame->has_adapted_arguments()) {
     iterator.Advance();
-    fp = iterator.frame()->fp();
+    ArgumentsAdaptorFrame* adaptor_frame =
+        ArgumentsAdaptorFrame::cast(iterator.frame());
+    argc = adaptor_frame->ComputeParametersCount();
+    fp = adaptor_frame->fp();
   }
 
   Object** parameters = reinterpret_cast<Object**>(
@@ -684,7 +687,7 @@ static Object* FindNameClash(Handle<ScopeInfo> scope_info,
       LookupIterator it(global_object, name, global_object,
                         LookupIterator::OWN_SKIP_INTERCEPTOR);
       Maybe<PropertyAttributes> maybe = JSReceiver::GetPropertyAttributes(&it);
-      if (!maybe.IsJust()) return isolate->heap()->exception();
+      if (maybe.IsNothing()) return isolate->heap()->exception();
       if ((maybe.FromJust() & DONT_DELETE) != 0) {
         // ES#sec-globaldeclarationinstantiation 5.a:
         // If envRec.HasVarDeclaration(name) is true, throw a SyntaxError
@@ -841,7 +844,7 @@ RUNTIME_FUNCTION(Runtime_DeleteLookupSlot) {
 namespace {
 
 MaybeHandle<Object> LoadLookupSlot(Handle<String> name,
-                                   Object::ShouldThrow should_throw,
+                                   ShouldThrow should_throw,
                                    Handle<Object>* receiver_return = nullptr) {
   Isolate* const isolate = name->GetIsolate();
 
@@ -892,7 +895,7 @@ MaybeHandle<Object> LoadLookupSlot(Handle<String> name,
     return value;
   }
 
-  if (should_throw == Object::THROW_ON_ERROR) {
+  if (should_throw == kThrowOnError) {
     // The property doesn't exist - throw exception.
     THROW_NEW_ERROR(
         isolate, NewReferenceError(MessageTemplate::kNotDefined, name), Object);
@@ -910,8 +913,7 @@ RUNTIME_FUNCTION(Runtime_LoadLookupSlot) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(String, name, 0);
-  RETURN_RESULT_OR_FAILURE(isolate,
-                           LoadLookupSlot(name, Object::THROW_ON_ERROR));
+  RETURN_RESULT_OR_FAILURE(isolate, LoadLookupSlot(name, kThrowOnError));
 }
 
 
@@ -919,7 +921,7 @@ RUNTIME_FUNCTION(Runtime_LoadLookupSlotInsideTypeof) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(String, name, 0);
-  RETURN_RESULT_OR_FAILURE(isolate, LoadLookupSlot(name, Object::DONT_THROW));
+  RETURN_RESULT_OR_FAILURE(isolate, LoadLookupSlot(name, kDontThrow));
 }
 
 
@@ -931,7 +933,7 @@ RUNTIME_FUNCTION_RETURN_PAIR(Runtime_LoadLookupSlotForCall) {
   Handle<Object> value;
   Handle<Object> receiver;
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, value, LoadLookupSlot(name, Object::THROW_ON_ERROR, &receiver),
+      isolate, value, LoadLookupSlot(name, kThrowOnError, &receiver),
       MakePair(isolate->heap()->exception(), nullptr));
   return MakePair(*value, *receiver);
 }
@@ -1012,7 +1014,8 @@ RUNTIME_FUNCTION(Runtime_StoreLookupSlot_Sloppy) {
   DCHECK_EQ(2, args.length());
   CONVERT_ARG_HANDLE_CHECKED(String, name, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, value, 1);
-  RETURN_RESULT_OR_FAILURE(isolate, StoreLookupSlot(name, value, SLOPPY));
+  RETURN_RESULT_OR_FAILURE(isolate,
+                           StoreLookupSlot(name, value, LanguageMode::kSloppy));
 }
 
 // Store into a dynamic context for sloppy-mode block-scoped function hoisting
@@ -1025,8 +1028,9 @@ RUNTIME_FUNCTION(Runtime_StoreLookupSlot_SloppyHoisting) {
   CONVERT_ARG_HANDLE_CHECKED(Object, value, 1);
   const ContextLookupFlags lookup_flags = static_cast<ContextLookupFlags>(
       FOLLOW_CONTEXT_CHAIN | STOP_AT_DECLARATION_SCOPE | SKIP_WITH_CONTEXT);
-  RETURN_RESULT_OR_FAILURE(isolate,
-                           StoreLookupSlot(name, value, SLOPPY, lookup_flags));
+  RETURN_RESULT_OR_FAILURE(
+      isolate,
+      StoreLookupSlot(name, value, LanguageMode::kSloppy, lookup_flags));
 }
 
 RUNTIME_FUNCTION(Runtime_StoreLookupSlot_Strict) {
@@ -1034,7 +1038,8 @@ RUNTIME_FUNCTION(Runtime_StoreLookupSlot_Strict) {
   DCHECK_EQ(2, args.length());
   CONVERT_ARG_HANDLE_CHECKED(String, name, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, value, 1);
-  RETURN_RESULT_OR_FAILURE(isolate, StoreLookupSlot(name, value, STRICT));
+  RETURN_RESULT_OR_FAILURE(isolate,
+                           StoreLookupSlot(name, value, LanguageMode::kStrict));
 }
 
 }  // namespace internal

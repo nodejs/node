@@ -24,6 +24,14 @@ int InterpreterFrameConstants::RegisterStackSlotCount(int register_count) {
   return RoundUp(register_count, 2);
 }
 
+int BuiltinContinuationFrameConstants::PaddingSlotCount(int register_count) {
+  // Round the total slot count up to a multiple of two, to make the frame a
+  // multiple of 16 bytes.
+  int slot_count = kFixedSlotCount + register_count;
+  int rounded_slot_count = RoundUp(slot_count, 2);
+  return rounded_slot_count - slot_count;
+}
+
 }  // namespace internal
 }  // namespace v8
 

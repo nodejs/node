@@ -31,9 +31,8 @@
 #define STR(x) _STR(x)
 #define _SCRIPT(fn, a, b, c) a fn b fn c
 #define SCRIPT(a, b, c) _SCRIPT("f" STR(__LINE__), a, b, c)
-#define TEST_SCRIPT()                           \
-  SCRIPT("function g() { var y = 1; function ", \
-         "(x) { return x * y }; return ", "; } g();")
+#define TEST_SCRIPT() \
+  "function f" STR(__LINE__) "(x, y) { return x * y }; f" STR(__LINE__) ";"
 
 namespace v8 {
 namespace internal {
@@ -62,53 +61,23 @@ class CompilerDispatcherTestFlags {
 
 SaveFlags* CompilerDispatcherTestFlags::save_flags_ = nullptr;
 
-class CompilerDispatcherTest : public TestWithContext {
+class CompilerDispatcherTest : public TestWithNativeContext {
  public:
   CompilerDispatcherTest() = default;
   ~CompilerDispatcherTest() override = default;
 
   static void SetUpTestCase() {
     CompilerDispatcherTestFlags::SetFlagsForTest();
-    TestWithContext::SetUpTestCase();
+    TestWithNativeContext ::SetUpTestCase();
   }
 
   static void TearDownTestCase() {
-    TestWithContext::TearDownTestCase();
+    TestWithNativeContext ::TearDownTestCase();
     CompilerDispatcherTestFlags::RestoreFlags();
-  }
-
-  static UnoptimizedCompileJob::Status GetUnoptimizedJobStatus(
-      const CompilerDispatcherJob* job) {
-    CHECK_EQ(CompilerDispatcherJob::kUnoptimizedCompile, job->type());
-    return job->AsUnoptimizedCompileJob()->status();
-  }
-
-  static UnoptimizedCompileJob::Status GetUnoptimizedJobStatus(
-      const std::unique_ptr<CompilerDispatcherJob>& job) {
-    return GetUnoptimizedJobStatus(job.get());
   }
 
  private:
   DISALLOW_COPY_AND_ASSIGN(CompilerDispatcherTest);
-};
-
-class CompilerDispatcherTestWithoutContext : public v8::TestWithIsolate {
- public:
-  CompilerDispatcherTestWithoutContext() = default;
-  ~CompilerDispatcherTestWithoutContext() override = default;
-
-  static void SetUpTestCase() {
-    CompilerDispatcherTestFlags::SetFlagsForTest();
-    TestWithContext::SetUpTestCase();
-  }
-
-  static void TearDownTestCase() {
-    TestWithContext::TearDownTestCase();
-    CompilerDispatcherTestFlags::RestoreFlags();
-  }
-
- private:
-  DISALLOW_COPY_AND_ASSIGN(CompilerDispatcherTestWithoutContext);
 };
 
 namespace {
@@ -129,6 +98,18 @@ class MockPlatform : public v8::Platform {
   }
 
   size_t NumberOfAvailableBackgroundThreads() override { return 1; }
+
+  std::shared_ptr<TaskRunner> GetForegroundTaskRunner(
+      v8::Isolate* isolate) override {
+    constexpr bool is_foreground_task_runner = true;
+    return std::make_shared<MockTaskRunner>(this, is_foreground_task_runner);
+  }
+
+  std::shared_ptr<TaskRunner> GetBackgroundTaskRunner(
+      v8::Isolate* isolate) override {
+    constexpr bool is_foreground_task_runner = false;
+    return std::make_shared<MockTaskRunner>(this, is_foreground_task_runner);
+  }
 
   void CallOnBackgroundThread(Task* task,
                               ExpectedRuntime expected_runtime) override {
@@ -282,6 +263,43 @@ class MockPlatform : public v8::Platform {
     DISALLOW_COPY_AND_ASSIGN(TaskWrapper);
   };
 
+  class MockTaskRunner final : public TaskRunner {
+   public:
+    MockTaskRunner(MockPlatform* platform, bool is_foreground_task_runner)
+        : platform_(platform),
+          is_foreground_task_runner_(is_foreground_task_runner) {}
+
+    void PostTask(std::unique_ptr<v8::Task> task) override {
+      base::LockGuard<base::Mutex> lock(&platform_->mutex_);
+      if (is_foreground_task_runner_) {
+        platform_->foreground_tasks_.push_back(task.release());
+      } else {
+        platform_->background_tasks_.push_back(task.release());
+      }
+    }
+
+    void PostDelayedTask(std::unique_ptr<Task> task,
+                         double delay_in_seconds) override {
+      UNREACHABLE();
+    };
+
+    void PostIdleTask(std::unique_ptr<IdleTask> task) override {
+      DCHECK(IdleTasksEnabled());
+      base::LockGuard<base::Mutex> lock(&platform_->mutex_);
+      ASSERT_TRUE(platform_->idle_task_ == nullptr);
+      platform_->idle_task_ = task.release();
+    }
+
+    bool IdleTasksEnabled() override {
+      // Idle tasks are enabled only in the foreground task runner.
+      return is_foreground_task_runner_;
+    };
+
+   private:
+    MockPlatform* platform_;
+    bool is_foreground_task_runner_;
+  };
+
   double time_;
   double time_step_;
 
@@ -311,8 +329,8 @@ TEST_F(CompilerDispatcherTest, IsEnqueued) {
   CompilerDispatcher dispatcher(i_isolate(), &platform, FLAG_stack_size);
 
   const char script[] = TEST_SCRIPT();
-  Handle<JSFunction> f =
-      Handle<JSFunction>::cast(test::RunJS(isolate(), script));
+  Handle<JSFunction> f = RunJS<JSFunction>(script);
+
   Handle<SharedFunctionInfo> shared(f->shared(), i_isolate());
 
   ASSERT_FALSE(dispatcher.IsEnqueued(shared));
@@ -329,8 +347,7 @@ TEST_F(CompilerDispatcherTest, FinishNow) {
   CompilerDispatcher dispatcher(i_isolate(), &platform, FLAG_stack_size);
 
   const char script[] = TEST_SCRIPT();
-  Handle<JSFunction> f =
-      Handle<JSFunction>::cast(test::RunJS(isolate(), script));
+  Handle<JSFunction> f = RunJS<JSFunction>(script);
   Handle<SharedFunctionInfo> shared(f->shared(), i_isolate());
 
   ASSERT_FALSE(shared->is_compiled());
@@ -355,10 +372,9 @@ TEST_F(CompilerDispatcherTest, FinishAllNow) {
     std::stringstream ss;
     ss << 'f' << STR(__LINE__) << '_' << i;
     std::string func_name = ss.str();
-    std::string script("function g() { function " + func_name +
-                       "(x) { var a =  'x'; }; return " + func_name +
-                       "; } g();");
-    f[i] = Handle<JSFunction>::cast(test::RunJS(isolate(), script.c_str()));
+    std::string script("function f" + func_name + "(x, y) { return x * y }; f" +
+                       func_name + ";");
+    f[i] = RunJS<JSFunction>(script.c_str());
     shared[i] = Handle<SharedFunctionInfo>(f[i]->shared(), i_isolate());
     ASSERT_FALSE(shared[i]->is_compiled());
     ASSERT_TRUE(dispatcher.Enqueue(shared[i]));
@@ -378,8 +394,7 @@ TEST_F(CompilerDispatcherTest, IdleTask) {
   CompilerDispatcher dispatcher(i_isolate(), &platform, FLAG_stack_size);
 
   const char script[] = TEST_SCRIPT();
-  Handle<JSFunction> f =
-      Handle<JSFunction>::cast(test::RunJS(isolate(), script));
+  Handle<JSFunction> f = RunJS<JSFunction>(script);
   Handle<SharedFunctionInfo> shared(f->shared(), i_isolate());
 
   ASSERT_FALSE(platform.IdleTaskPending());
@@ -399,8 +414,7 @@ TEST_F(CompilerDispatcherTest, IdleTaskSmallIdleTime) {
   CompilerDispatcher dispatcher(i_isolate(), &platform, FLAG_stack_size);
 
   const char script[] = TEST_SCRIPT();
-  Handle<JSFunction> f =
-      Handle<JSFunction>::cast(test::RunJS(isolate(), script));
+  Handle<JSFunction> f = RunJS<JSFunction>(script);
   Handle<SharedFunctionInfo> shared(f->shared(), i_isolate());
 
   ASSERT_FALSE(platform.IdleTaskPending());
@@ -410,7 +424,7 @@ TEST_F(CompilerDispatcherTest, IdleTaskSmallIdleTime) {
   // The job should be scheduled for the main thread.
   ASSERT_EQ(dispatcher.jobs_.size(), 1u);
   ASSERT_EQ(UnoptimizedCompileJob::Status::kInitial,
-            GetUnoptimizedJobStatus(dispatcher.jobs_.begin()->second));
+            dispatcher.jobs_.begin()->second->status());
 
   // Only grant a little idle time and have time advance beyond it in one step.
   platform.RunIdleTask(2.0, 1.0);
@@ -422,8 +436,8 @@ TEST_F(CompilerDispatcherTest, IdleTaskSmallIdleTime) {
   // The job should be still scheduled for the main thread, but ready for
   // parsing.
   ASSERT_EQ(dispatcher.jobs_.size(), 1u);
-  ASSERT_EQ(UnoptimizedCompileJob::Status::kReadyToParse,
-            GetUnoptimizedJobStatus(dispatcher.jobs_.begin()->second));
+  ASSERT_EQ(UnoptimizedCompileJob::Status::kPrepared,
+            dispatcher.jobs_.begin()->second->status());
 
   // Now grant a lot of idle time and freeze time.
   platform.RunIdleTask(1000.0, 0.0);
@@ -438,13 +452,13 @@ TEST_F(CompilerDispatcherTest, IdleTaskException) {
   CompilerDispatcher dispatcher(i_isolate(), &platform, 50);
 
   std::string func_name("f" STR(__LINE__));
-  std::string script("function g() { function " + func_name + "(x) { var a = ");
-  for (int i = 0; i < 1000; i++) {
-    script += "'x' + ";
+  std::string script("function " + func_name + "(x) { var a = ");
+  for (int i = 0; i < 500; i++) {
+    // Alternate + and - to avoid n-ary operation nodes.
+    script += "'x' + 'x' - ";
   }
-  script += " 'x'; }; return " + func_name + "; } g();";
-  Handle<JSFunction> f =
-      Handle<JSFunction>::cast(test::RunJS(isolate(), script.c_str()));
+  script += " 'x'; }; " + func_name + ";";
+  Handle<JSFunction> f = RunJS<JSFunction>(script.c_str());
   Handle<SharedFunctionInfo> shared(f->shared(), i_isolate());
 
   ASSERT_FALSE(platform.IdleTaskPending());
@@ -465,8 +479,7 @@ TEST_F(CompilerDispatcherTest, CompileOnBackgroundThread) {
   CompilerDispatcher dispatcher(i_isolate(), &platform, FLAG_stack_size);
 
   const char script[] = TEST_SCRIPT();
-  Handle<JSFunction> f =
-      Handle<JSFunction>::cast(test::RunJS(isolate(), script));
+  Handle<JSFunction> f = RunJS<JSFunction>(script);
   Handle<SharedFunctionInfo> shared(f->shared(), i_isolate());
 
   ASSERT_FALSE(platform.IdleTaskPending());
@@ -475,14 +488,14 @@ TEST_F(CompilerDispatcherTest, CompileOnBackgroundThread) {
 
   ASSERT_EQ(dispatcher.jobs_.size(), 1u);
   ASSERT_EQ(UnoptimizedCompileJob::Status::kInitial,
-            GetUnoptimizedJobStatus(dispatcher.jobs_.begin()->second));
+            dispatcher.jobs_.begin()->second->status());
 
   // Make compiling super expensive, and advance job as much as possible on the
   // foreground thread.
-  dispatcher.tracer_->RecordCompile(50000.0);
+  dispatcher.tracer_->RecordCompile(50000.0, 1);
   platform.RunIdleTask(10.0, 0.0);
-  ASSERT_EQ(UnoptimizedCompileJob::Status::kReadyToCompile,
-            GetUnoptimizedJobStatus(dispatcher.jobs_.begin()->second));
+  ASSERT_EQ(UnoptimizedCompileJob::Status::kPrepared,
+            dispatcher.jobs_.begin()->second->status());
 
   ASSERT_TRUE(dispatcher.IsEnqueued(shared));
   ASSERT_FALSE(shared->is_compiled());
@@ -494,7 +507,7 @@ TEST_F(CompilerDispatcherTest, CompileOnBackgroundThread) {
   ASSERT_TRUE(platform.IdleTaskPending());
   ASSERT_FALSE(platform.BackgroundTasksPending());
   ASSERT_EQ(UnoptimizedCompileJob::Status::kCompiled,
-            GetUnoptimizedJobStatus(dispatcher.jobs_.begin()->second));
+            dispatcher.jobs_.begin()->second->status());
 
   // Now grant a lot of idle time and freeze time.
   platform.RunIdleTask(1000.0, 0.0);
@@ -509,8 +522,7 @@ TEST_F(CompilerDispatcherTest, FinishNowWithBackgroundTask) {
   CompilerDispatcher dispatcher(i_isolate(), &platform, FLAG_stack_size);
 
   const char script[] = TEST_SCRIPT();
-  Handle<JSFunction> f =
-      Handle<JSFunction>::cast(test::RunJS(isolate(), script));
+  Handle<JSFunction> f = RunJS<JSFunction>(script);
   Handle<SharedFunctionInfo> shared(f->shared(), i_isolate());
 
   ASSERT_FALSE(platform.IdleTaskPending());
@@ -519,14 +531,14 @@ TEST_F(CompilerDispatcherTest, FinishNowWithBackgroundTask) {
 
   ASSERT_EQ(dispatcher.jobs_.size(), 1u);
   ASSERT_EQ(UnoptimizedCompileJob::Status::kInitial,
-            GetUnoptimizedJobStatus(dispatcher.jobs_.begin()->second));
+            dispatcher.jobs_.begin()->second->status());
 
   // Make compiling super expensive, and advance job as much as possible on the
   // foreground thread.
-  dispatcher.tracer_->RecordCompile(50000.0);
+  dispatcher.tracer_->RecordCompile(50000.0, 1);
   platform.RunIdleTask(10.0, 0.0);
-  ASSERT_EQ(UnoptimizedCompileJob::Status::kReadyToCompile,
-            GetUnoptimizedJobStatus(dispatcher.jobs_.begin()->second));
+  ASSERT_EQ(UnoptimizedCompileJob::Status::kPrepared,
+            dispatcher.jobs_.begin()->second->status());
 
   ASSERT_TRUE(dispatcher.IsEnqueued(shared));
   ASSERT_FALSE(shared->is_compiled());
@@ -549,13 +561,11 @@ TEST_F(CompilerDispatcherTest, IdleTaskMultipleJobs) {
   CompilerDispatcher dispatcher(i_isolate(), &platform, FLAG_stack_size);
 
   const char script1[] = TEST_SCRIPT();
-  Handle<JSFunction> f1 =
-      Handle<JSFunction>::cast(test::RunJS(isolate(), script1));
+  Handle<JSFunction> f1 = RunJS<JSFunction>(script1);
   Handle<SharedFunctionInfo> shared1(f1->shared(), i_isolate());
 
   const char script2[] = TEST_SCRIPT();
-  Handle<JSFunction> f2 =
-      Handle<JSFunction>::cast(test::RunJS(isolate(), script2));
+  Handle<JSFunction> f2 = RunJS<JSFunction>(script2);
   Handle<SharedFunctionInfo> shared2(f2->shared(), i_isolate());
 
   ASSERT_FALSE(platform.IdleTaskPending());
@@ -578,13 +588,13 @@ TEST_F(CompilerDispatcherTest, FinishNowException) {
   CompilerDispatcher dispatcher(i_isolate(), &platform, 50);
 
   std::string func_name("f" STR(__LINE__));
-  std::string script("function g() { function " + func_name + "(x) { var a = ");
-  for (int i = 0; i < 1000; i++) {
-    script += "'x' + ";
+  std::string script("function " + func_name + "(x) { var a = ");
+  for (int i = 0; i < 500; i++) {
+    // Alternate + and - to avoid n-ary operation nodes.
+    script += "'x' + 'x' - ";
   }
-  script += " 'x'; }; return " + func_name + "; } g();";
-  Handle<JSFunction> f =
-      Handle<JSFunction>::cast(test::RunJS(isolate(), script.c_str()));
+  script += " 'x'; }; " + func_name + ";";
+  Handle<JSFunction> f = RunJS<JSFunction>(script.c_str());
   Handle<SharedFunctionInfo> shared(f->shared(), i_isolate());
 
   ASSERT_FALSE(platform.IdleTaskPending());
@@ -606,8 +616,7 @@ TEST_F(CompilerDispatcherTest, AsyncAbortAllPendingBackgroundTask) {
   CompilerDispatcher dispatcher(i_isolate(), &platform, FLAG_stack_size);
 
   const char script[] = TEST_SCRIPT();
-  Handle<JSFunction> f =
-      Handle<JSFunction>::cast(test::RunJS(isolate(), script));
+  Handle<JSFunction> f = RunJS<JSFunction>(script);
   Handle<SharedFunctionInfo> shared(f->shared(), i_isolate());
 
   ASSERT_FALSE(platform.IdleTaskPending());
@@ -616,14 +625,14 @@ TEST_F(CompilerDispatcherTest, AsyncAbortAllPendingBackgroundTask) {
 
   ASSERT_EQ(dispatcher.jobs_.size(), 1u);
   ASSERT_EQ(UnoptimizedCompileJob::Status::kInitial,
-            GetUnoptimizedJobStatus(dispatcher.jobs_.begin()->second));
+            dispatcher.jobs_.begin()->second->status());
 
   // Make compiling super expensive, and advance job as much as possible on the
   // foreground thread.
-  dispatcher.tracer_->RecordCompile(50000.0);
+  dispatcher.tracer_->RecordCompile(50000.0, 1);
   platform.RunIdleTask(10.0, 0.0);
-  ASSERT_EQ(UnoptimizedCompileJob::Status::kReadyToCompile,
-            GetUnoptimizedJobStatus(dispatcher.jobs_.begin()->second));
+  ASSERT_EQ(UnoptimizedCompileJob::Status::kPrepared,
+            dispatcher.jobs_.begin()->second->status());
 
   ASSERT_TRUE(dispatcher.IsEnqueued(shared));
   ASSERT_FALSE(shared->is_compiled());
@@ -649,13 +658,11 @@ TEST_F(CompilerDispatcherTest, AsyncAbortAllRunningBackgroundTask) {
   CompilerDispatcher dispatcher(i_isolate(), &platform, FLAG_stack_size);
 
   const char script1[] = TEST_SCRIPT();
-  Handle<JSFunction> f1 =
-      Handle<JSFunction>::cast(test::RunJS(isolate(), script1));
+  Handle<JSFunction> f1 = RunJS<JSFunction>(script1);
   Handle<SharedFunctionInfo> shared1(f1->shared(), i_isolate());
 
   const char script2[] = TEST_SCRIPT();
-  Handle<JSFunction> f2 =
-      Handle<JSFunction>::cast(test::RunJS(isolate(), script2));
+  Handle<JSFunction> f2 = RunJS<JSFunction>(script2);
   Handle<SharedFunctionInfo> shared2(f2->shared(), i_isolate());
 
   ASSERT_FALSE(platform.IdleTaskPending());
@@ -664,14 +671,14 @@ TEST_F(CompilerDispatcherTest, AsyncAbortAllRunningBackgroundTask) {
 
   ASSERT_EQ(dispatcher.jobs_.size(), 1u);
   ASSERT_EQ(UnoptimizedCompileJob::Status::kInitial,
-            GetUnoptimizedJobStatus(dispatcher.jobs_.begin()->second));
+            dispatcher.jobs_.begin()->second->status());
 
   // Make compiling super expensive, and advance job as much as possible on the
   // foreground thread.
-  dispatcher.tracer_->RecordCompile(50000.0);
+  dispatcher.tracer_->RecordCompile(50000.0, 1);
   platform.RunIdleTask(10.0, 0.0);
-  ASSERT_EQ(UnoptimizedCompileJob::Status::kReadyToCompile,
-            GetUnoptimizedJobStatus(dispatcher.jobs_.begin()->second));
+  ASSERT_EQ(UnoptimizedCompileJob::Status::kPrepared,
+            dispatcher.jobs_.begin()->second->status());
 
   ASSERT_TRUE(dispatcher.IsEnqueued(shared1));
   ASSERT_FALSE(shared1->is_compiled());
@@ -731,8 +738,7 @@ TEST_F(CompilerDispatcherTest, FinishNowDuringAbortAll) {
   CompilerDispatcher dispatcher(i_isolate(), &platform, FLAG_stack_size);
 
   const char script[] = TEST_SCRIPT();
-  Handle<JSFunction> f =
-      Handle<JSFunction>::cast(test::RunJS(isolate(), script));
+  Handle<JSFunction> f = RunJS<JSFunction>(script);
   Handle<SharedFunctionInfo> shared(f->shared(), i_isolate());
 
   ASSERT_FALSE(platform.IdleTaskPending());
@@ -741,14 +747,14 @@ TEST_F(CompilerDispatcherTest, FinishNowDuringAbortAll) {
 
   ASSERT_EQ(dispatcher.jobs_.size(), 1u);
   ASSERT_EQ(UnoptimizedCompileJob::Status::kInitial,
-            GetUnoptimizedJobStatus(dispatcher.jobs_.begin()->second));
+            dispatcher.jobs_.begin()->second->status());
 
   // Make compiling super expensive, and advance job as much as possible on the
   // foreground thread.
-  dispatcher.tracer_->RecordCompile(50000.0);
+  dispatcher.tracer_->RecordCompile(50000.0, 1);
   platform.RunIdleTask(10.0, 0.0);
-  ASSERT_EQ(UnoptimizedCompileJob::Status::kReadyToCompile,
-            GetUnoptimizedJobStatus(dispatcher.jobs_.begin()->second));
+  ASSERT_EQ(UnoptimizedCompileJob::Status::kPrepared,
+            dispatcher.jobs_.begin()->second->status());
 
   ASSERT_TRUE(dispatcher.IsEnqueued(shared));
   ASSERT_FALSE(shared->is_compiled());
@@ -810,8 +816,7 @@ TEST_F(CompilerDispatcherTest, MemoryPressure) {
   CompilerDispatcher dispatcher(i_isolate(), &platform, FLAG_stack_size);
 
   const char script[] = TEST_SCRIPT();
-  Handle<JSFunction> f =
-      Handle<JSFunction>::cast(test::RunJS(isolate(), script));
+  Handle<JSFunction> f = RunJS<JSFunction>(script);
   Handle<SharedFunctionInfo> shared(f->shared(), i_isolate());
 
   // Can't enqueue tasks under memory pressure.
@@ -858,8 +863,7 @@ TEST_F(CompilerDispatcherTest, MemoryPressureFromBackground) {
   CompilerDispatcher dispatcher(i_isolate(), &platform, FLAG_stack_size);
 
   const char script[] = TEST_SCRIPT();
-  Handle<JSFunction> f =
-      Handle<JSFunction>::cast(test::RunJS(isolate(), script));
+  Handle<JSFunction> f = RunJS<JSFunction>(script);
   Handle<SharedFunctionInfo> shared(f->shared(), i_isolate());
 
   ASSERT_TRUE(dispatcher.Enqueue(shared));
@@ -890,8 +894,7 @@ TEST_F(CompilerDispatcherTest, EnqueueJob) {
   MockPlatform platform;
   CompilerDispatcher dispatcher(i_isolate(), &platform, FLAG_stack_size);
   const char script[] = TEST_SCRIPT();
-  Handle<JSFunction> f =
-      Handle<JSFunction>::cast(test::RunJS(isolate(), script));
+  Handle<JSFunction> f = RunJS<JSFunction>(script);
   Handle<SharedFunctionInfo> shared(f->shared(), i_isolate());
   std::unique_ptr<CompilerDispatcherJob> job(
       new UnoptimizedCompileJob(i_isolate(), dispatcher.tracer_.get(), shared,
@@ -910,16 +913,15 @@ TEST_F(CompilerDispatcherTest, EnqueueAndStep) {
   CompilerDispatcher dispatcher(i_isolate(), &platform, FLAG_stack_size);
 
   const char script[] = TEST_SCRIPT();
-  Handle<JSFunction> f =
-      Handle<JSFunction>::cast(test::RunJS(isolate(), script));
+  Handle<JSFunction> f = RunJS<JSFunction>(script);
   Handle<SharedFunctionInfo> shared(f->shared(), i_isolate());
 
   ASSERT_FALSE(dispatcher.IsEnqueued(shared));
   ASSERT_TRUE(dispatcher.EnqueueAndStep(shared));
   ASSERT_TRUE(dispatcher.IsEnqueued(shared));
 
-  ASSERT_EQ(UnoptimizedCompileJob::Status::kReadyToParse,
-            GetUnoptimizedJobStatus(dispatcher.jobs_.begin()->second));
+  ASSERT_EQ(UnoptimizedCompileJob::Status::kPrepared,
+            dispatcher.jobs_.begin()->second->status());
 
   ASSERT_TRUE(platform.IdleTaskPending());
   platform.ClearIdleTask();
@@ -932,9 +934,8 @@ TEST_F(CompilerDispatcherTest, CompileLazyFinishesDispatcherJob) {
   // enqueued functions.
   CompilerDispatcher* dispatcher = i_isolate()->compiler_dispatcher();
 
-  const char source[] = TEST_SCRIPT();
-  Handle<JSFunction> f =
-      Handle<JSFunction>::cast(test::RunJS(isolate(), source));
+  const char script[] = "function lazy() { return 42; }; lazy;";
+  Handle<JSFunction> f = RunJS<JSFunction>(script);
   Handle<SharedFunctionInfo> shared(f->shared(), i_isolate());
 
   ASSERT_FALSE(shared->is_compiled());
@@ -944,7 +945,7 @@ TEST_F(CompilerDispatcherTest, CompileLazyFinishesDispatcherJob) {
 
   // Now force the function to run and ensure CompileLazy finished and dequeues
   // it from the dispatcher.
-  test::RunJS(isolate(), "g()();");
+  RunJS("lazy();");
   ASSERT_TRUE(shared->is_compiled());
   ASSERT_FALSE(dispatcher->IsEnqueued(shared));
 }
@@ -955,21 +956,19 @@ TEST_F(CompilerDispatcherTest, CompileLazy2FinishesDispatcherJob) {
   CompilerDispatcher* dispatcher = i_isolate()->compiler_dispatcher();
 
   const char source2[] = "function lazy2() { return 42; }; lazy2;";
-  Handle<JSFunction> lazy2 =
-      Handle<JSFunction>::cast(test::RunJS(isolate(), source2));
+  Handle<JSFunction> lazy2 = RunJS<JSFunction>(source2);
   Handle<SharedFunctionInfo> shared2(lazy2->shared(), i_isolate());
   ASSERT_FALSE(shared2->is_compiled());
 
   const char source1[] = "function lazy1() { return lazy2(); }; lazy1;";
-  Handle<JSFunction> lazy1 =
-      Handle<JSFunction>::cast(test::RunJS(isolate(), source1));
+  Handle<JSFunction> lazy1 = RunJS<JSFunction>(source1);
   Handle<SharedFunctionInfo> shared1(lazy1->shared(), i_isolate());
   ASSERT_FALSE(shared1->is_compiled());
 
   ASSERT_TRUE(dispatcher->Enqueue(shared1));
   ASSERT_TRUE(dispatcher->Enqueue(shared2));
 
-  test::RunJS(isolate(), "lazy1();");
+  RunJS("lazy1();");
   ASSERT_TRUE(shared1->is_compiled());
   ASSERT_TRUE(shared2->is_compiled());
   ASSERT_FALSE(dispatcher->IsEnqueued(shared1));
@@ -981,20 +980,19 @@ TEST_F(CompilerDispatcherTest, EnqueueAndStepTwice) {
   CompilerDispatcher dispatcher(i_isolate(), &platform, FLAG_stack_size);
 
   const char script[] = TEST_SCRIPT();
-  Handle<JSFunction> f =
-      Handle<JSFunction>::cast(test::RunJS(isolate(), script));
+  Handle<JSFunction> f = RunJS<JSFunction>(script);
   Handle<SharedFunctionInfo> shared(f->shared(), i_isolate());
 
   ASSERT_FALSE(dispatcher.IsEnqueued(shared));
   ASSERT_TRUE(dispatcher.EnqueueAndStep(shared));
   ASSERT_TRUE(dispatcher.IsEnqueued(shared));
-  ASSERT_EQ(UnoptimizedCompileJob::Status::kReadyToParse,
-            GetUnoptimizedJobStatus(dispatcher.jobs_.begin()->second));
+  ASSERT_EQ(UnoptimizedCompileJob::Status::kPrepared,
+            dispatcher.jobs_.begin()->second->status());
 
   // EnqueueAndStep of the same function again (shouldn't step the job.
   ASSERT_TRUE(dispatcher.EnqueueAndStep(shared));
-  ASSERT_EQ(UnoptimizedCompileJob::Status::kReadyToParse,
-            GetUnoptimizedJobStatus(dispatcher.jobs_.begin()->second));
+  ASSERT_EQ(UnoptimizedCompileJob::Status::kPrepared,
+            dispatcher.jobs_.begin()->second->status());
 
   ASSERT_TRUE(platform.IdleTaskPending());
   ASSERT_TRUE(platform.BackgroundTasksPending());
@@ -1007,12 +1005,10 @@ TEST_F(CompilerDispatcherTest, CompileMultipleOnBackgroundThread) {
   CompilerDispatcher dispatcher(i_isolate(), &platform, FLAG_stack_size);
 
   const char script1[] = TEST_SCRIPT();
-  Handle<JSFunction> f1 =
-      Handle<JSFunction>::cast(test::RunJS(isolate(), script1));
+  Handle<JSFunction> f1 = RunJS<JSFunction>(script1);
   Handle<SharedFunctionInfo> shared1(f1->shared(), i_isolate());
   const char script2[] = TEST_SCRIPT();
-  Handle<JSFunction> f2 =
-      Handle<JSFunction>::cast(test::RunJS(isolate(), script2));
+  Handle<JSFunction> f2 = RunJS<JSFunction>(script2);
   Handle<SharedFunctionInfo> shared2(f2->shared(), i_isolate());
 
   ASSERT_FALSE(platform.IdleTaskPending());
@@ -1022,19 +1018,19 @@ TEST_F(CompilerDispatcherTest, CompileMultipleOnBackgroundThread) {
 
   ASSERT_EQ(dispatcher.jobs_.size(), 2u);
   ASSERT_EQ(UnoptimizedCompileJob::Status::kInitial,
-            GetUnoptimizedJobStatus(dispatcher.jobs_.begin()->second));
+            dispatcher.jobs_.begin()->second->status());
   ASSERT_EQ(UnoptimizedCompileJob::Status::kInitial,
-            GetUnoptimizedJobStatus((++dispatcher.jobs_.begin())->second));
+            (++dispatcher.jobs_.begin())->second->status());
 
   // Make compiling super expensive, and advance job as much as possible on the
   // foreground thread.
-  dispatcher.tracer_->RecordCompile(50000.0);
+  dispatcher.tracer_->RecordCompile(50000.0, 1);
   platform.RunIdleTask(10.0, 0.0);
   ASSERT_EQ(dispatcher.jobs_.size(), 2u);
-  ASSERT_EQ(UnoptimizedCompileJob::Status::kReadyToCompile,
-            GetUnoptimizedJobStatus(dispatcher.jobs_.begin()->second));
-  ASSERT_EQ(UnoptimizedCompileJob::Status::kReadyToCompile,
-            GetUnoptimizedJobStatus((++dispatcher.jobs_.begin())->second));
+  ASSERT_EQ(UnoptimizedCompileJob::Status::kPrepared,
+            dispatcher.jobs_.begin()->second->status());
+  ASSERT_EQ(UnoptimizedCompileJob::Status::kPrepared,
+            (++dispatcher.jobs_.begin())->second->status());
 
   ASSERT_TRUE(dispatcher.IsEnqueued(shared1));
   ASSERT_TRUE(dispatcher.IsEnqueued(shared2));
@@ -1049,9 +1045,9 @@ TEST_F(CompilerDispatcherTest, CompileMultipleOnBackgroundThread) {
   ASSERT_FALSE(platform.BackgroundTasksPending());
   ASSERT_EQ(dispatcher.jobs_.size(), 2u);
   ASSERT_EQ(UnoptimizedCompileJob::Status::kCompiled,
-            GetUnoptimizedJobStatus(dispatcher.jobs_.begin()->second));
+            dispatcher.jobs_.begin()->second->status());
   ASSERT_EQ(UnoptimizedCompileJob::Status::kCompiled,
-            GetUnoptimizedJobStatus((++dispatcher.jobs_.begin())->second));
+            (++dispatcher.jobs_.begin())->second->status());
 
   // Now grant a lot of idle time and freeze time.
   platform.RunIdleTask(1000.0, 0.0);
@@ -1062,6 +1058,12 @@ TEST_F(CompilerDispatcherTest, CompileMultipleOnBackgroundThread) {
   ASSERT_TRUE(shared2->is_compiled());
   ASSERT_FALSE(platform.IdleTaskPending());
 }
+
+#undef _STR
+#undef STR
+#undef _SCRIPT
+#undef SCRIPT
+#undef TEST_SCRIPT
 
 }  // namespace internal
 }  // namespace v8

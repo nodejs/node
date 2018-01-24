@@ -49,116 +49,24 @@ const char* AIXTimezoneCache::LocalTimezone(double time) {
   time_t tv = static_cast<time_t>(floor(time / msPerSecond));
   struct tm tm;
   struct tm* t = localtime_r(&tv, &tm);
-  if (NULL == t) return "";
+  if (nullptr == t) return "";
   return tzname[0];  // The location of the timezone string on AIX.
 }
 
 double AIXTimezoneCache::LocalTimeOffset() {
   // On AIX, struct tm does not contain a tm_gmtoff field.
-  time_t utc = time(NULL);
-  DCHECK(utc != -1);
+  time_t utc = time(nullptr);
+  DCHECK_NE(utc, -1);
   struct tm tm;
   struct tm* loc = localtime_r(&utc, &tm);
-  DCHECK(loc != NULL);
+  DCHECK_NOT_NULL(loc);
   return static_cast<double>((mktime(loc) - utc) * msPerSecond);
 }
 
 TimezoneCache* OS::CreateTimezoneCache() { return new AIXTimezoneCache(); }
 
-// Constants used for mmap.
-static const int kMmapFd = -1;
-static const int kMmapFdOffset = 0;
-
-void* OS::Allocate(const size_t requested, size_t* allocated,
-                   OS::MemoryPermission access, void* hint) {
-  const size_t msize = RoundUp(requested, getpagesize());
-  int prot = GetProtectionFromMemoryPermission(access);
-  void* mbase = mmap(hint, msize, prot, MAP_PRIVATE | MAP_ANONYMOUS, kMmapFd,
-                     kMmapFdOffset);
-
-  if (mbase == MAP_FAILED) return NULL;
-  *allocated = msize;
-  return mbase;
-}
-
-// static
-void* OS::ReserveRegion(size_t size, void* hint) {
-  void* result = mmap(hint, size, PROT_NONE, MAP_PRIVATE | MAP_ANONYMOUS,
-                      kMmapFd, kMmapFdOffset);
-
-  if (result == MAP_FAILED) return nullptr;
-
-  return result;
-}
-
-// static
-void* OS::ReserveAlignedRegion(size_t size, size_t alignment, void* hint,
-                               size_t* allocated) {
-  DCHECK((alignment % OS::AllocateAlignment()) == 0);
-  hint = AlignedAddress(hint, alignment);
-  size_t request_size =
-      RoundUp(size + alignment, static_cast<intptr_t>(OS::AllocateAlignment()));
-  void* result = ReserveRegion(request_size, hint);
-  if (result == nullptr) {
-    *allocated = 0;
-    return nullptr;
-  }
-
-  uint8_t* base = static_cast<uint8_t*>(result);
-  uint8_t* aligned_base = RoundUp(base, alignment);
-  DCHECK_LE(base, aligned_base);
-
-  // Unmap extra memory reserved before and after the desired block.
-  if (aligned_base != base) {
-    size_t prefix_size = static_cast<size_t>(aligned_base - base);
-    OS::Free(base, prefix_size);
-    request_size -= prefix_size;
-  }
-
-  size_t aligned_size = RoundUp(size, OS::AllocateAlignment());
-  DCHECK_LE(aligned_size, request_size);
-
-  if (aligned_size != request_size) {
-    size_t suffix_size = request_size - aligned_size;
-    OS::Free(aligned_base + aligned_size, suffix_size);
-    request_size -= suffix_size;
-  }
-
-  DCHECK(aligned_size == request_size);
-
-  *allocated = aligned_size;
-  return static_cast<void*>(aligned_base);
-}
-
-// static
-bool OS::CommitRegion(void* address, size_t size, bool is_executable) {
-  int prot = PROT_READ | PROT_WRITE | (is_executable ? PROT_EXEC : 0);
-
-  if (mprotect(address, size, prot) == -1) return false;
-
-  return true;
-}
-
-// static
-bool OS::UncommitRegion(void* address, size_t size) {
-  return mprotect(address, size, PROT_NONE) != -1;
-}
-
-// static
-bool OS::ReleaseRegion(void* address, size_t size) {
-  return munmap(address, size) == 0;
-}
-
-// static
-bool OS::ReleasePartialRegion(void* address, size_t size) {
-  return munmap(address, size) == 0;
-}
-
-// static
-bool OS::HasLazyCommits() { return true; }
-
 static unsigned StringToLong(char* buffer) {
-  return static_cast<unsigned>(strtol(buffer, NULL, 16));  // NOLINT
+  return static_cast<unsigned>(strtol(buffer, nullptr, 16));  // NOLINT
 }
 
 std::vector<OS::SharedLibraryAddress> OS::GetSharedLibraryAddresses() {
@@ -193,7 +101,7 @@ std::vector<OS::SharedLibraryAddress> OS::GetSharedLibraryAddresses() {
     if (buffer[3] != 'x') continue;
     char* start_of_path = index(buffer, '/');
     // There may be no filename in this line.  Skip to next.
-    if (start_of_path == NULL) continue;
+    if (start_of_path == nullptr) continue;
     buffer[bytes_read] = 0;
     result.push_back(SharedLibraryAddress(start_of_path, start, end));
   }
@@ -201,7 +109,7 @@ std::vector<OS::SharedLibraryAddress> OS::GetSharedLibraryAddresses() {
   return result;
 }
 
-void OS::SignalCodeMovingGC(void* hint) {}
+void OS::SignalCodeMovingGC() {}
 
 }  // namespace base
 }  // namespace v8

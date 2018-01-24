@@ -45,6 +45,33 @@ void SloppyArgumentsElements::set_mapped_entry(uint32_t entry, Object* object) {
   set(entry + kParameterMapStart, object);
 }
 
+// TODO(danno): This shouldn't be inline here, but to defensively avoid
+// regressions associated with the fix for the bug 778574, it's staying that way
+// until the splice implementation in builtin-arrays.cc can be removed and this
+// function can be moved into runtime-arrays.cc near its other usage.
+bool JSSloppyArgumentsObject::GetSloppyArgumentsLength(Isolate* isolate,
+                                                       Handle<JSObject> object,
+                                                       int* out) {
+  Context* context = *isolate->native_context();
+  Map* map = object->map();
+  if (map != context->sloppy_arguments_map() &&
+      map != context->strict_arguments_map() &&
+      map != context->fast_aliased_arguments_map()) {
+    return false;
+  }
+  DCHECK(object->HasFastElements() || object->HasFastArgumentsElements());
+  Object* len_obj = object->InObjectPropertyAt(JSArgumentsObject::kLengthIndex);
+  if (!len_obj->IsSmi()) return false;
+  *out = Max(0, Smi::ToInt(len_obj));
+
+  FixedArray* parameters = FixedArray::cast(object->elements());
+  if (object->HasSloppyArgumentsElements()) {
+    FixedArray* arguments = FixedArray::cast(parameters->get(1));
+    return *out <= arguments->length();
+  }
+  return *out <= parameters->length();
+}
+
 }  // namespace internal
 }  // namespace v8
 

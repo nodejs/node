@@ -11,6 +11,11 @@ namespace {{namespace}} {
 ErrorSupport::ErrorSupport() { }
 ErrorSupport::~ErrorSupport() { }
 
+void ErrorSupport::setName(const char* name)
+{
+    setName(String(name));
+}
+
 void ErrorSupport::setName(const String& name)
 {
     DCHECK(m_path.size());
@@ -25,6 +30,11 @@ void ErrorSupport::push()
 void ErrorSupport::pop()
 {
     m_path.pop_back();
+}
+
+void ErrorSupport::addError(const char* error)
+{
+    addError(String(error));
 }
 
 void ErrorSupport::addError(const String& error)

@@ -73,17 +73,6 @@ class LocalAllocator {
     }
   }
 
-  void AnnounceLockedPage(MemoryChunk* chunk) {
-    const AllocationSpace space = chunk->owner()->identity();
-    // There are no allocations on large object and map space and hence we
-    // cannot announce that we locked a page there.
-    if (space == LO_SPACE || space == MAP_SPACE) return;
-
-    DCHECK(space != NEW_SPACE);
-    compaction_spaces_.Get(space)->AnnounceLockedPage(
-        reinterpret_cast<Page*>(chunk));
-  }
-
  private:
   AllocationResult AllocateInNewSpace(int object_size,
                                       AllocationAlignment alignment) {

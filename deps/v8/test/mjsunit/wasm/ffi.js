@@ -385,3 +385,18 @@ testCallBinopVoid(kWasmF64);
   main();
   assertEquals(0, num_valueOf);
 })();
+
+(function ImportWithCustomGetter() {
+  print(arguments.callee.name);
+  const builder = new WasmModuleBuilder();
+  builder.addImport("import", "func", kSig_v_v);
+
+  const ffi = {};
+  Object.defineProperty(ffi, 'import', {
+    get: _ => {
+      return {func: () => null };
+    }
+  });
+
+  builder.instantiate(ffi);
+})();

@@ -37,8 +37,11 @@ InspectorTest.logMessage = function(originalMessage) {
   if (message.id)
     message.id = "<messageId>";
 
-  const nonStableFields = new Set(["objectId", "scriptId", "exceptionId", "timestamp",
-    "executionContextId", "callFrameId", "breakpointId", "bindRemoteObjectFunctionId", "formatterObjectId" ]);
+  const nonStableFields = new Set([
+    'objectId', 'scriptId', 'exceptionId', 'timestamp', 'executionContextId',
+    'callFrameId', 'breakpointId', 'bindRemoteObjectFunctionId',
+    'formatterObjectId', 'debuggerId'
+  ]);
   var objects = [ message ];
   while (objects.length) {
     var object = objects.shift();

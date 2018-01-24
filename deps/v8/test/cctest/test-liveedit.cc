@@ -61,10 +61,13 @@ class StringCompareInput : public Comparator::Input {
 
 class DiffChunkStruct : public ZoneObject {
  public:
-  DiffChunkStruct(int pos1_param, int pos2_param,
-                  int len1_param, int len2_param)
-      : pos1(pos1_param), pos2(pos2_param),
-        len1(len1_param), len2(len2_param), next(NULL) {}
+  DiffChunkStruct(int pos1_param, int pos2_param, int len1_param,
+                  int len2_param)
+      : pos1(pos1_param),
+        pos2(pos2_param),
+        len1(len1_param),
+        len2(len2_param),
+        next(nullptr) {}
   int pos1;
   int pos2;
   int len1;
@@ -78,7 +81,7 @@ class ListDiffOutputWriter : public Comparator::Output {
   explicit ListDiffOutputWriter(DiffChunkStruct** next_chunk_pointer,
                                 Zone* zone)
       : next_chunk_pointer_(next_chunk_pointer), zone_(zone) {
-    (*next_chunk_pointer_) = NULL;
+    (*next_chunk_pointer_) = nullptr;
   }
   void AddChunk(int pos1, int pos2, int len1, int len2) {
     current_chunk_ = new(zone_) DiffChunkStruct(pos1, pos2, len1, len2);
@@ -112,9 +115,8 @@ void CompareStringsOneWay(const char* s1, const char* s2,
 
   int diff_parameter = 0;
 
-  for (DiffChunkStruct* chunk = first_chunk;
-      chunk != NULL;
-      chunk = chunk->next) {
+  for (DiffChunkStruct* chunk = first_chunk; chunk != nullptr;
+       chunk = chunk->next) {
     int diff_pos1 = chunk->pos1;
     int similar_part_length = diff_pos1 - pos1;
     int diff_pos2 = pos2 + similar_part_length;

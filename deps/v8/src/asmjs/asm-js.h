@@ -12,6 +12,7 @@
 namespace v8 {
 namespace internal {
 
+class AccountingAllocator;
 class CompilationInfo;
 class CompilationJob;
 class FunctionLiteral;
@@ -24,7 +25,7 @@ class AsmJs {
  public:
   static CompilationJob* NewCompilationJob(ParseInfo* parse_info,
                                            FunctionLiteral* literal,
-                                           Isolate* isolate);
+                                           AccountingAllocator* allocator);
   static MaybeHandle<Object> InstantiateAsmWasm(Isolate* isolate,
                                                 Handle<SharedFunctionInfo>,
                                                 Handle<FixedArray> wasm_data,

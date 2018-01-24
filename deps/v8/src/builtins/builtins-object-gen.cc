@@ -27,6 +27,13 @@ class ObjectBuiltinsAssembler : public CodeStubAssembler {
   void AddToDictionaryIf(Node* condition, Node* name_dictionary,
                          Handle<Name> name, Node* value, Label* bailout);
   Node* FromPropertyDescriptor(Node* context, Node* desc);
+  Node* FromPropertyDetails(Node* context, Node* raw_value, Node* details,
+                            Label* if_bailout);
+  Node* ConstructAccessorDescriptor(Node* context, Node* getter, Node* setter,
+                                    Node* enumerable, Node* configurable);
+  Node* ConstructDataDescriptor(Node* context, Node* value, Node* writable,
+                                Node* enumerable, Node* configurable);
+  Node* GetAccessorOrUndefined(Node* accessor, Label* if_bailout);
 };
 
 void ObjectBuiltinsAssembler::ReturnToStringFormat(Node* context,
@@ -39,6 +46,55 @@ void ObjectBuiltinsAssembler::ReturnToStringFormat(Node* context,
 
   Return(CallStub(callable, context, CallStub(callable, context, lhs, string),
                   rhs));
+}
+
+Node* ObjectBuiltinsAssembler::ConstructAccessorDescriptor(Node* context,
+                                                           Node* getter,
+                                                           Node* setter,
+                                                           Node* enumerable,
+                                                           Node* configurable) {
+  Node* native_context = LoadNativeContext(context);
+  Node* map = LoadContextElement(
+      native_context, Context::ACCESSOR_PROPERTY_DESCRIPTOR_MAP_INDEX);
+  Node* js_desc = AllocateJSObjectFromMap(map);
+
+  StoreObjectFieldNoWriteBarrier(
+      js_desc, JSAccessorPropertyDescriptor::kGetOffset, getter);
+  StoreObjectFieldNoWriteBarrier(
+      js_desc, JSAccessorPropertyDescriptor::kSetOffset, setter);
+  StoreObjectFieldNoWriteBarrier(
+      js_desc, JSAccessorPropertyDescriptor::kEnumerableOffset,
+      SelectBooleanConstant(enumerable));
+  StoreObjectFieldNoWriteBarrier(
+      js_desc, JSAccessorPropertyDescriptor::kConfigurableOffset,
+      SelectBooleanConstant(configurable));
+
+  return js_desc;
+}
+
+Node* ObjectBuiltinsAssembler::ConstructDataDescriptor(Node* context,
+                                                       Node* value,
+                                                       Node* writable,
+                                                       Node* enumerable,
+                                                       Node* configurable) {
+  Node* native_context = LoadNativeContext(context);
+  Node* map = LoadContextElement(native_context,
+                                 Context::DATA_PROPERTY_DESCRIPTOR_MAP_INDEX);
+  Node* js_desc = AllocateJSObjectFromMap(map);
+
+  StoreObjectFieldNoWriteBarrier(js_desc,
+                                 JSDataPropertyDescriptor::kValueOffset, value);
+  StoreObjectFieldNoWriteBarrier(js_desc,
+                                 JSDataPropertyDescriptor::kWritableOffset,
+                                 SelectBooleanConstant(writable));
+  StoreObjectFieldNoWriteBarrier(js_desc,
+                                 JSDataPropertyDescriptor::kEnumerableOffset,
+                                 SelectBooleanConstant(enumerable));
+  StoreObjectFieldNoWriteBarrier(js_desc,
+                                 JSDataPropertyDescriptor::kConfigurableOffset,
+                                 SelectBooleanConstant(configurable));
+
+  return js_desc;
 }
 
 TF_BUILTIN(ObjectPrototypeHasOwnProperty, ObjectBuiltinsAssembler) {
@@ -101,10 +157,10 @@ TF_BUILTIN(ObjectPrototypeHasOwnProperty, ObjectBuiltinsAssembler) {
   Branch(IsName(key), &return_false, &call_runtime);
 
   BIND(&return_true);
-  Return(BooleanConstant(true));
+  Return(TrueConstant());
 
   BIND(&return_false);
-  Return(BooleanConstant(false));
+  Return(FalseConstant());
 
   BIND(&call_runtime);
   Return(CallRuntime(Runtime::kObjectHasOwnProperty, context, object, key));
@@ -132,7 +188,7 @@ TF_BUILTIN(ObjectKeys, ObjectBuiltinsAssembler) {
 
   // Ensure that the {object} doesn't have any elements.
   CSA_ASSERT(this, IsJSObjectMap(object_map));
-  Node* object_elements = LoadObjectField(object, JSObject::kElementsOffset);
+  Node* object_elements = LoadElements(object);
   GotoIf(IsEmptyFixedArray(object_elements), &if_empty_elements);
   Branch(IsEmptySlowElementDictionary(object_elements), &if_empty_elements,
          &if_slow);
@@ -247,7 +303,7 @@ TF_BUILTIN(ObjectPrototypeToString, ObjectBuiltinsAssembler) {
       if_error(this), if_function(this), if_number(this, Label::kDeferred),
       if_object(this), if_primitive(this), if_proxy(this, Label::kDeferred),
       if_regexp(this), if_string(this), if_symbol(this, Label::kDeferred),
-      if_value(this);
+      if_value(this), if_bigint(this, Label::kDeferred);
 
   Node* receiver = Parameter(Descriptor::kReceiver);
   Node* context = Parameter(Descriptor::kContext);
@@ -371,19 +427,19 @@ TF_BUILTIN(ObjectPrototypeToString, ObjectBuiltinsAssembler) {
 
   BIND(&if_primitive);
   {
-    Label return_null(this), return_undefined(this);
+    Label return_undefined(this);
 
     GotoIf(IsStringInstanceType(receiver_instance_type), &if_string);
+    GotoIf(IsBigIntInstanceType(receiver_instance_type), &if_bigint);
     GotoIf(IsBooleanMap(receiver_map), &if_boolean);
     GotoIf(IsHeapNumberMap(receiver_map), &if_number);
     GotoIf(IsSymbolMap(receiver_map), &if_symbol);
-    Branch(IsUndefined(receiver), &return_undefined, &return_null);
+    GotoIf(IsUndefined(receiver), &return_undefined);
+    CSA_ASSERT(this, IsNull(receiver));
+    Return(LoadRoot(Heap::knull_to_stringRootIndex));
 
     BIND(&return_undefined);
     Return(LoadRoot(Heap::kundefined_to_stringRootIndex));
-
-    BIND(&return_null);
-    Return(LoadRoot(Heap::knull_to_stringRootIndex));
   }
 
   BIND(&if_proxy);
@@ -451,6 +507,20 @@ TF_BUILTIN(ObjectPrototypeToString, ObjectBuiltinsAssembler) {
     Goto(&checkstringtag);
   }
 
+  BIND(&if_bigint);
+  {
+    Node* native_context = LoadNativeContext(context);
+    Node* bigint_constructor =
+        LoadContextElement(native_context, Context::BIGINT_FUNCTION_INDEX);
+    Node* bigint_initial_map = LoadObjectField(
+        bigint_constructor, JSFunction::kPrototypeOrInitialMapOffset);
+    Node* bigint_prototype =
+        LoadObjectField(bigint_initial_map, Map::kPrototypeOffset);
+    var_default.Bind(LoadRoot(Heap::kobject_to_stringRootIndex));
+    var_holder.Bind(bigint_prototype);
+    Goto(&checkstringtag);
+  }
+
   BIND(&if_value);
   {
     Node* receiver_value = LoadJSValueValue(receiver);
@@ -458,7 +528,12 @@ TF_BUILTIN(ObjectPrototypeToString, ObjectBuiltinsAssembler) {
     Node* receiver_value_map = LoadMap(receiver_value);
     GotoIf(IsHeapNumberMap(receiver_value_map), &if_number);
     GotoIf(IsBooleanMap(receiver_value_map), &if_boolean);
-    Branch(IsSymbolMap(receiver_value_map), &if_symbol, &if_string);
+    GotoIf(IsSymbolMap(receiver_value_map), &if_symbol);
+    Node* receiver_value_instance_type =
+        LoadMapInstanceType(receiver_value_map);
+    GotoIf(IsBigIntInstanceType(receiver_value_instance_type), &if_bigint);
+    CSA_ASSERT(this, IsStringInstanceType(receiver_value_instance_type));
+    Goto(&if_string);
   }
 
   BIND(&checkstringtag);
@@ -521,7 +596,7 @@ TF_BUILTIN(ObjectCreate, ObjectBuiltinsAssembler) {
       no_properties(this);
   {
     Comment("Argument 1 check: prototype");
-    GotoIf(WordEqual(prototype, NullConstant()), &prototype_valid);
+    GotoIf(IsNull(prototype), &prototype_valid);
     BranchIfJSReceiver(prototype, &prototype_valid, &call_runtime);
   }
 
@@ -531,7 +606,7 @@ TF_BUILTIN(ObjectCreate, ObjectBuiltinsAssembler) {
     // Check that we have a simple object
     GotoIf(TaggedIsSmi(properties), &call_runtime);
     // Undefined implies no properties.
-    GotoIf(WordEqual(properties, UndefinedConstant()), &no_properties);
+    GotoIf(IsUndefined(properties), &no_properties);
     Node* properties_map = LoadMap(properties);
     GotoIf(IsSpecialReceiverMap(properties_map), &call_runtime);
     // Stay on the fast path only if there are no elements.
@@ -552,7 +627,7 @@ TF_BUILTIN(ObjectCreate, ObjectBuiltinsAssembler) {
     VARIABLE(properties, MachineRepresentation::kTagged);
     Label non_null_proto(this), instantiate_map(this), good(this);
 
-    Branch(WordEqual(prototype, NullConstant()), &good, &non_null_proto);
+    Branch(IsNull(prototype), &good, &non_null_proto);
 
     BIND(&good);
     {
@@ -578,7 +653,7 @@ TF_BUILTIN(ObjectCreate, ObjectBuiltinsAssembler) {
       Comment("Load ObjectCreateMap from PrototypeInfo");
       Node* weak_cell =
           LoadObjectField(prototype_info, PrototypeInfo::kObjectCreateMap);
-      GotoIf(WordEqual(weak_cell, UndefinedConstant()), &call_runtime);
+      GotoIf(IsUndefined(weak_cell), &call_runtime);
       map.Bind(LoadWeakCellValue(weak_cell, &call_runtime));
       Goto(&instantiate_map);
     }
@@ -669,9 +744,10 @@ TF_BUILTIN(CreateGeneratorObject, ObjectBuiltinsAssembler) {
 
   // Get the initial map from the function, jumping to the runtime if we don't
   // have one.
+  Label runtime(this);
+  GotoIfNot(IsFunctionWithPrototypeSlotMap(LoadMap(closure)), &runtime);
   Node* maybe_map =
       LoadObjectField(closure, JSFunction::kPrototypeOrInitialMapOffset);
-  Label runtime(this);
   GotoIf(DoesntHaveInstanceType(maybe_map, MAP_TYPE), &runtime);
 
   Node* shared =
@@ -684,9 +760,9 @@ TF_BUILTIN(CreateGeneratorObject, ObjectBuiltinsAssembler) {
   Node* register_file = AllocateFixedArray(HOLEY_ELEMENTS, size);
   FillFixedArrayWithValue(HOLEY_ELEMENTS, register_file, IntPtrConstant(0),
                           size, Heap::kUndefinedValueRootIndex);
-
-  Node* const result = AllocateJSObjectFromMap(maybe_map);
-
+  // TODO(cbruni): support start_offset to avoid double initialization.
+  Node* result = AllocateJSObjectFromMap(maybe_map, nullptr, nullptr, kNone,
+                                         kWithSlackTracking);
   StoreObjectFieldNoWriteBarrier(result, JSGeneratorObject::kFunctionOffset,
                                  closure);
   StoreObjectFieldNoWriteBarrier(result, JSGeneratorObject::kContextOffset,
@@ -698,7 +774,6 @@ TF_BUILTIN(CreateGeneratorObject, ObjectBuiltinsAssembler) {
   Node* executing = SmiConstant(JSGeneratorObject::kGeneratorExecuting);
   StoreObjectFieldNoWriteBarrier(result, JSGeneratorObject::kContinuationOffset,
                                  executing);
-  HandleSlackTracking(context, result, maybe_map, JSGeneratorObject::kSize);
   Return(result);
 
   BIND(&runtime);
@@ -712,31 +787,93 @@ TF_BUILTIN(CreateGeneratorObject, ObjectBuiltinsAssembler) {
 TF_BUILTIN(ObjectGetOwnPropertyDescriptor, ObjectBuiltinsAssembler) {
   Node* argc = Parameter(BuiltinDescriptor::kArgumentsCount);
   Node* context = Parameter(BuiltinDescriptor::kContext);
-  CSA_ASSERT(this, WordEqual(Parameter(BuiltinDescriptor::kNewTarget),
-                             UndefinedConstant()));
+  CSA_ASSERT(this, IsUndefined(Parameter(BuiltinDescriptor::kNewTarget)));
 
   CodeStubArguments args(this, ChangeInt32ToIntPtr(argc));
-  Node* obj = args.GetOptionalArgumentValue(0);
+  Node* object = args.GetOptionalArgumentValue(0);
   Node* key = args.GetOptionalArgumentValue(1);
 
   // 1. Let obj be ? ToObject(O).
-  Node* object = CallBuiltin(Builtins::kToObject, context, obj);
+  object = CallBuiltin(Builtins::kToObject, context, object);
 
   // 2. Let key be ? ToPropertyKey(P).
-  Node* name = ToName(context, key);
+  key = ToName(context, key);
 
   // 3. Let desc be ? obj.[[GetOwnProperty]](key).
-  Node* desc =
-      CallRuntime(Runtime::kGetOwnPropertyDescriptor, context, object, name);
+  Label if_keyisindex(this), if_iskeyunique(this),
+      call_runtime(this, Label::kDeferred),
+      return_undefined(this, Label::kDeferred), if_notunique_name(this);
+  Node* map = LoadMap(object);
+  Node* instance_type = LoadMapInstanceType(map);
+  GotoIf(Int32LessThanOrEqual(instance_type,
+                              Int32Constant(LAST_SPECIAL_RECEIVER_TYPE)),
+         &call_runtime);
+  {
+    VARIABLE(var_index, MachineType::PointerRepresentation(),
+             IntPtrConstant(0));
+    VARIABLE(var_name, MachineRepresentation::kTagged);
 
-  Label return_undefined(this, Label::kDeferred);
-  GotoIf(IsUndefined(desc), &return_undefined);
+    TryToName(key, &if_keyisindex, &var_index, &if_iskeyunique, &var_name,
+              &call_runtime, &if_notunique_name);
 
-  CSA_ASSERT(this, IsFixedArray(desc));
+    BIND(&if_notunique_name);
+    {
+      Label not_in_string_table(this);
+      TryInternalizeString(key, &if_keyisindex, &var_index, &if_iskeyunique,
+                           &var_name, &not_in_string_table, &call_runtime);
 
-  // 4. Return FromPropertyDescriptor(desc).
-  args.PopAndReturn(FromPropertyDescriptor(context, desc));
+      BIND(&not_in_string_table);
+      {
+        // If the string was not found in the string table, then no regular
+        // object can have a property with that name, so return |undefined|.
+        Goto(&return_undefined);
+      }
+    }
 
+    BIND(&if_iskeyunique);
+    {
+      Label if_found_value(this), return_empty(this), if_not_found(this);
+
+      VARIABLE(var_value, MachineRepresentation::kTagged);
+      VARIABLE(var_details, MachineRepresentation::kWord32);
+      VARIABLE(var_raw_value, MachineRepresentation::kTagged);
+
+      TryGetOwnProperty(context, object, object, map, instance_type,
+                        var_name.value(), &if_found_value, &var_value,
+                        &var_details, &var_raw_value, &return_empty,
+                        &if_not_found, kReturnAccessorPair);
+
+      BIND(&if_found_value);
+      // 4. Return FromPropertyDescriptor(desc).
+      Node* js_desc = FromPropertyDetails(context, var_value.value(),
+                                          var_details.value(), &call_runtime);
+      args.PopAndReturn(js_desc);
+
+      BIND(&return_empty);
+      var_value.Bind(UndefinedConstant());
+      args.PopAndReturn(UndefinedConstant());
+
+      BIND(&if_not_found);
+      Goto(&call_runtime);
+    }
+  }
+
+  BIND(&if_keyisindex);
+  Goto(&call_runtime);
+
+  BIND(&call_runtime);
+  {
+    Node* desc =
+        CallRuntime(Runtime::kGetOwnPropertyDescriptor, context, object, key);
+
+    GotoIf(IsUndefined(desc), &return_undefined);
+
+    CSA_ASSERT(this, IsFixedArray(desc));
+
+    // 4. Return FromPropertyDescriptor(desc).
+    Node* js_desc = FromPropertyDescriptor(context, desc);
+    args.PopAndReturn(js_desc);
+  }
   BIND(&return_undefined);
   args.PopAndReturn(UndefinedConstant());
 }
@@ -779,54 +916,21 @@ Node* ObjectBuiltinsAssembler::FromPropertyDescriptor(Node* context,
 
   BIND(&if_accessor_desc);
   {
-    Node* native_context = LoadNativeContext(context);
-    Node* map = LoadContextElement(
-        native_context, Context::ACCESSOR_PROPERTY_DESCRIPTOR_MAP_INDEX);
-    Node* js_desc = AllocateJSObjectFromMap(map);
-
-    StoreObjectFieldNoWriteBarrier(
-        js_desc, JSAccessorPropertyDescriptor::kGetOffset,
-        LoadObjectField(desc, PropertyDescriptorObject::kGetOffset));
-    StoreObjectFieldNoWriteBarrier(
-        js_desc, JSAccessorPropertyDescriptor::kSetOffset,
-        LoadObjectField(desc, PropertyDescriptorObject::kSetOffset));
-    StoreObjectFieldNoWriteBarrier(
-        js_desc, JSAccessorPropertyDescriptor::kEnumerableOffset,
-        SelectBooleanConstant(
-            IsSetWord32<PropertyDescriptorObject::IsEnumerableBit>(flags)));
-    StoreObjectFieldNoWriteBarrier(
-        js_desc, JSAccessorPropertyDescriptor::kConfigurableOffset,
-        SelectBooleanConstant(
-            IsSetWord32<PropertyDescriptorObject::IsConfigurableBit>(flags)));
-
-    js_descriptor.Bind(js_desc);
+    js_descriptor.Bind(ConstructAccessorDescriptor(
+        context, LoadObjectField(desc, PropertyDescriptorObject::kGetOffset),
+        LoadObjectField(desc, PropertyDescriptorObject::kSetOffset),
+        IsSetWord32<PropertyDescriptorObject::IsEnumerableBit>(flags),
+        IsSetWord32<PropertyDescriptorObject::IsConfigurableBit>(flags)));
     Goto(&return_desc);
   }
 
   BIND(&if_data_desc);
   {
-    Node* native_context = LoadNativeContext(context);
-    Node* map = LoadContextElement(native_context,
-                                   Context::DATA_PROPERTY_DESCRIPTOR_MAP_INDEX);
-    Node* js_desc = AllocateJSObjectFromMap(map);
-
-    StoreObjectFieldNoWriteBarrier(
-        js_desc, JSDataPropertyDescriptor::kValueOffset,
-        LoadObjectField(desc, PropertyDescriptorObject::kValueOffset));
-    StoreObjectFieldNoWriteBarrier(
-        js_desc, JSDataPropertyDescriptor::kWritableOffset,
-        SelectBooleanConstant(
-            IsSetWord32<PropertyDescriptorObject::IsWritableBit>(flags)));
-    StoreObjectFieldNoWriteBarrier(
-        js_desc, JSDataPropertyDescriptor::kEnumerableOffset,
-        SelectBooleanConstant(
-            IsSetWord32<PropertyDescriptorObject::IsEnumerableBit>(flags)));
-    StoreObjectFieldNoWriteBarrier(
-        js_desc, JSDataPropertyDescriptor::kConfigurableOffset,
-        SelectBooleanConstant(
-            IsSetWord32<PropertyDescriptorObject::IsConfigurableBit>(flags)));
-
-    js_descriptor.Bind(js_desc);
+    js_descriptor.Bind(ConstructDataDescriptor(
+        context, LoadObjectField(desc, PropertyDescriptorObject::kValueOffset),
+        IsSetWord32<PropertyDescriptorObject::IsWritableBit>(flags),
+        IsSetWord32<PropertyDescriptorObject::IsEnumerableBit>(flags),
+        IsSetWord32<PropertyDescriptorObject::IsConfigurableBit>(flags)));
     Goto(&return_desc);
   }
 
@@ -883,6 +987,61 @@ Node* ObjectBuiltinsAssembler::FromPropertyDescriptor(Node* context,
 
   BIND(&return_desc);
   return js_descriptor.value();
+}
+
+Node* ObjectBuiltinsAssembler::FromPropertyDetails(Node* context,
+                                                   Node* raw_value,
+                                                   Node* details,
+                                                   Label* if_bailout) {
+  VARIABLE(js_descriptor, MachineRepresentation::kTagged);
+
+  Label if_accessor_desc(this), if_data_desc(this), return_desc(this);
+  BranchIfAccessorPair(raw_value, &if_accessor_desc, &if_data_desc);
+
+  BIND(&if_accessor_desc);
+  {
+    Node* getter = LoadObjectField(raw_value, AccessorPair::kGetterOffset);
+    Node* setter = LoadObjectField(raw_value, AccessorPair::kSetterOffset);
+    js_descriptor.Bind(ConstructAccessorDescriptor(
+        context, GetAccessorOrUndefined(getter, if_bailout),
+        GetAccessorOrUndefined(setter, if_bailout),
+        IsNotSetWord32(details, PropertyDetails::kAttributesDontEnumMask),
+        IsNotSetWord32(details, PropertyDetails::kAttributesDontDeleteMask)));
+    Goto(&return_desc);
+  }
+
+  BIND(&if_data_desc);
+  {
+    js_descriptor.Bind(ConstructDataDescriptor(
+        context, raw_value,
+        IsNotSetWord32(details, PropertyDetails::kAttributesReadOnlyMask),
+        IsNotSetWord32(details, PropertyDetails::kAttributesDontEnumMask),
+        IsNotSetWord32(details, PropertyDetails::kAttributesDontDeleteMask)));
+    Goto(&return_desc);
+  }
+
+  BIND(&return_desc);
+  return js_descriptor.value();
+}
+
+Node* ObjectBuiltinsAssembler::GetAccessorOrUndefined(Node* accessor,
+                                                      Label* if_bailout) {
+  Label bind_undefined(this, Label::kDeferred), return_result(this);
+  VARIABLE(result, MachineRepresentation::kTagged);
+
+  GotoIf(IsNull(accessor), &bind_undefined);
+  result.Bind(accessor);
+  Node* map = LoadMap(accessor);
+  // TODO(ishell): probe template instantiations cache.
+  GotoIf(IsFunctionTemplateInfoMap(map), if_bailout);
+  Goto(&return_result);
+
+  BIND(&bind_undefined);
+  result.Bind(UndefinedConstant());
+  Goto(&return_result);
+
+  BIND(&return_result);
+  return result.value();
 }
 }  // namespace internal
 }  // namespace v8

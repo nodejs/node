@@ -7,7 +7,7 @@ let {session, contextGroup, Protocol} = InspectorTest.start('Checks that we coll
 contextGroup.addScript(`
 function test() {
   inspector.setMaxAsyncTaskStacks(128);
-  var p = Promise.resolve();
+  var p = Promise.resolve().then(() => 42);
 
   inspector.dumpAsyncTaskStacksStateForTest();
   inspector.setMaxAsyncTaskStacks(128);

@@ -35,7 +35,6 @@ from . import statusfile
 REPORT_TEMPLATE = (
 """Total: %(total)i tests
  * %(skipped)4d tests will be skipped
- * %(timeout)4d tests are expected to timeout sometimes
  * %(nocrash)4d tests are expected to be flaky but not crash
  * %(pass)4d tests are expected to pass
  * %(fail_ok)4d tests are expected to fail that we won't fix
@@ -44,24 +43,27 @@ REPORT_TEMPLATE = (
 
 def PrintReport(tests):
   total = len(tests)
-  skipped = timeout = nocrash = passes = fail_ok = fail = 0
+  skipped = nocrash = passes = fail_ok = fail = 0
   for t in tests:
-    if "outcomes" not in dir(t) or not t.outcomes:
+    outcomes = t.suite.GetStatusFileOutcomes(t)
+    if not outcomes:
       passes += 1
       continue
-    o = t.outcomes
-    if statusfile.DoSkip(o):
+    if statusfile.DoSkip(outcomes):
       skipped += 1
       continue
-    if statusfile.TIMEOUT in o: timeout += 1
-    if statusfile.IsPassOrFail(o): nocrash += 1
-    if list(o) == [statusfile.PASS]: passes += 1
-    if statusfile.IsFailOk(o): fail_ok += 1
-    if list(o) == [statusfile.FAIL]: fail += 1
+    if statusfile.IsPassOrFail(outcomes):
+      nocrash += 1
+    if list(outcomes) == [statusfile.PASS]:
+      passes += 1
+    if statusfile.IsFailOk(outcomes):
+      fail_ok += 1
+    if list(outcomes) == [statusfile.FAIL]:
+      fail += 1
+
   print REPORT_TEMPLATE % {
     "total": total,
     "skipped": skipped,
-    "timeout": timeout,
     "nocrash": nocrash,
     "pass": passes,
     "fail_ok": fail_ok,

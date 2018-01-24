@@ -23,7 +23,7 @@ StringsStorage::StringsStorage(Heap* heap)
 
 
 StringsStorage::~StringsStorage() {
-  for (base::HashMap::Entry* p = names_.Start(); p != NULL;
+  for (base::HashMap::Entry* p = names_.Start(); p != nullptr;
        p = names_.Next(p)) {
     DeleteArray(reinterpret_cast<const char*>(p->value));
   }
@@ -33,7 +33,7 @@ StringsStorage::~StringsStorage() {
 const char* StringsStorage::GetCopy(const char* src) {
   int len = static_cast<int>(strlen(src));
   base::HashMap::Entry* entry = GetEntry(src, len);
-  if (entry->value == NULL) {
+  if (entry->value == nullptr) {
     Vector<char> dst = Vector<char>::New(len + 1);
     StrNCpy(dst, src, len);
     dst[len] = '\0';
@@ -55,7 +55,7 @@ const char* StringsStorage::GetFormatted(const char* format, ...) {
 
 const char* StringsStorage::AddOrDisposeString(char* str, int len) {
   base::HashMap::Entry* entry = GetEntry(str, len);
-  if (entry->value == NULL) {
+  if (entry->value == nullptr) {
     // New entry added.
     entry->key = str;
     entry->value = str;

@@ -7,8 +7,51 @@
 #include "src/base/platform/platform.h"
 #include "test/cctest/cctest.h"
 
-#ifdef V8_CC_GNU
+using OS = v8::base::OS;
 
+namespace v8 {
+namespace internal {
+
+TEST(OSAllocateAndFree) {
+  size_t page_size = OS::AllocatePageSize();
+  CHECK_NE(0, page_size);
+
+  // A large allocation, aligned at native allocation granularity.
+  const size_t kAllocationSize = 1 * MB;
+  void* mem_addr = OS::Allocate(OS::GetRandomMmapAddr(), kAllocationSize,
+                                page_size, OS::MemoryPermission::kReadWrite);
+  CHECK_NOT_NULL(mem_addr);
+  CHECK(OS::Free(mem_addr, kAllocationSize));
+
+  // A large allocation, aligned significantly beyond native granularity.
+  const size_t kBigAlignment = 64 * MB;
+  void* aligned_mem_addr =
+      OS::Allocate(OS::GetRandomMmapAddr(), kAllocationSize, kBigAlignment,
+                   OS::MemoryPermission::kReadWrite);
+  CHECK_NOT_NULL(aligned_mem_addr);
+  CHECK_EQ(aligned_mem_addr, AlignedAddress(aligned_mem_addr, kBigAlignment));
+  CHECK(OS::Free(aligned_mem_addr, kAllocationSize));
+}
+
+TEST(OSReserveMemory) {
+  size_t page_size = OS::AllocatePageSize();
+  const size_t kAllocationSize = 1 * MB;
+  void* mem_addr = OS::Allocate(OS::GetRandomMmapAddr(), kAllocationSize,
+                                page_size, OS::MemoryPermission::kReadWrite);
+  CHECK_NE(0, page_size);
+  CHECK_NOT_NULL(mem_addr);
+  size_t commit_size = OS::CommitPageSize();
+  CHECK(OS::SetPermissions(mem_addr, commit_size,
+                           OS::MemoryPermission::kReadWrite));
+  // Check whether we can write to memory.
+  int* addr = static_cast<int*>(mem_addr);
+  addr[KB - 1] = 2;
+  CHECK(OS::SetPermissions(mem_addr, commit_size,
+                           OS::MemoryPermission::kNoAccess));
+  CHECK(OS::Free(mem_addr, kAllocationSize));
+}
+
+#ifdef V8_CC_GNU
 static uintptr_t sp_addr = 0;
 
 void GetStackPointer(const v8::FunctionCallbackInfo<v8::Value>& args) {
@@ -40,7 +83,6 @@ void GetStackPointer(const v8::FunctionCallbackInfo<v8::Value>& args) {
       args.GetIsolate(), static_cast<uint32_t>(sp_addr)));
 }
 
-
 TEST(StackAlignment) {
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope handle_scope(isolate);
@@ -49,7 +91,7 @@ TEST(StackAlignment) {
   global_template->Set(v8_str("get_stack_pointer"),
                        v8::FunctionTemplate::New(isolate, GetStackPointer));
 
-  LocalContext env(NULL, global_template);
+  LocalContext env(nullptr, global_template);
   CompileRun(
       "function foo() {"
       "  return get_stack_pointer();"
@@ -61,10 +103,12 @@ TEST(StackAlignment) {
           .ToLocalChecked());
 
   v8::Local<v8::Value> result =
-      foo->Call(isolate->GetCurrentContext(), global_object, 0, NULL)
+      foo->Call(isolate->GetCurrentContext(), global_object, 0, nullptr)
           .ToLocalChecked();
   CHECK_EQ(0u, result->Uint32Value(isolate->GetCurrentContext()).FromJust() %
-                   v8::base::OS::ActivationFrameAlignment());
+                   OS::ActivationFrameAlignment());
 }
-
 #endif  // V8_CC_GNU
+
+}  // namespace internal
+}  // namespace v8

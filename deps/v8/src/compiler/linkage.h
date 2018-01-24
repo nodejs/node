@@ -166,28 +166,28 @@ class V8_EXPORT_PRIVATE CallDescriptor final
  public:
   // Describes the kind of this call, which determines the target.
   enum Kind {
-    kCallCodeObject,  // target is a Code object
-    kCallJSFunction,  // target is a JSFunction object
-    kCallAddress      // target is a machine pointer
+    kCallCodeObject,   // target is a Code object
+    kCallJSFunction,   // target is a JSFunction object
+    kCallAddress,      // target is a machine pointer
+    kCallWasmFunction  // target is a wasm function
   };
 
   enum Flag {
     kNoFlags = 0u,
     kNeedsFrameState = 1u << 0,
     kHasExceptionHandler = 1u << 1,
-    kSupportsTailCalls = 1u << 2,
-    kCanUseRoots = 1u << 3,
+    kCanUseRoots = 1u << 2,
     // (arm64 only) native stack should be used for arguments.
-    kUseNativeStack = 1u << 4,
+    kUseNativeStack = 1u << 3,
     // (arm64 only) call instruction has to restore JSSP or CSP.
-    kRestoreJSSP = 1u << 5,
-    kRestoreCSP = 1u << 6,
+    kRestoreJSSP = 1u << 4,
+    kRestoreCSP = 1u << 5,
     // Causes the code generator to initialize the root register.
-    kInitializeRootRegister = 1u << 7,
+    kInitializeRootRegister = 1u << 6,
     // Does not ever try to allocate space on our heap.
-    kNoAllocate = 1u << 8,
+    kNoAllocate = 1u << 7,
     // Push argument count as part of function prologue.
-    kPushArgumentCount = 1u << 9
+    kPushArgumentCount = 1u << 8
   };
   typedef base::Flags<Flag> Flags;
 
@@ -248,7 +248,6 @@ class V8_EXPORT_PRIVATE CallDescriptor final
   Flags flags() const { return flags_; }
 
   bool NeedsFrameState() const { return flags() & kNeedsFrameState; }
-  bool SupportsTailCalls() const { return flags() & kSupportsTailCalls; }
   bool UseNativeStack() const { return flags() & kUseNativeStack; }
   bool PushArgumentCount() const { return flags() & kPushArgumentCount; }
   bool InitializeRootRegister() const {

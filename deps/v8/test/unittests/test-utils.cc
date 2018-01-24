@@ -5,6 +5,8 @@
 #include "test/unittests/test-utils.h"
 
 #include "include/libplatform/libplatform.h"
+#include "include/v8.h"
+#include "src/api.h"
 #include "src/base/platform/time.h"
 #include "src/flags.h"
 #include "src/isolate.h"
@@ -50,6 +52,15 @@ void TestWithIsolate::TearDownTestCase() {
   Test::TearDownTestCase();
 }
 
+Local<Value> TestWithIsolate::RunJS(const char* source) {
+  Local<Script> script =
+      v8::Script::Compile(
+          isolate()->GetCurrentContext(),
+          v8::String::NewFromUtf8(isolate(), source, v8::NewStringType::kNormal)
+              .ToLocalChecked())
+          .ToLocalChecked();
+  return script->Run(isolate()->GetCurrentContext()).ToLocalChecked();
+}
 
 TestWithContext::TestWithContext()
     : context_(Context::New(isolate())), context_scope_(context_) {}
@@ -57,24 +68,16 @@ TestWithContext::TestWithContext()
 
 TestWithContext::~TestWithContext() {}
 
-
-namespace base {
-namespace {
-
-inline int64_t GetRandomSeedFromFlag(int random_seed) {
-  return random_seed ? random_seed : TimeTicks::Now().ToInternalValue();
+void TestWithContext::SetGlobalProperty(const char* name,
+                                        v8::Local<v8::Value> value) {
+  v8::Local<v8::String> property_name =
+      v8::String::NewFromUtf8(v8_isolate(), name, v8::NewStringType::kNormal)
+          .ToLocalChecked();
+  CHECK(v8_context()
+            ->Global()
+            ->Set(v8_context(), property_name, value)
+            .FromJust());
 }
-
-}  // namespace
-
-TestWithRandomNumberGenerator::TestWithRandomNumberGenerator()
-    : rng_(GetRandomSeedFromFlag(::v8::internal::FLAG_random_seed)) {}
-
-
-TestWithRandomNumberGenerator::~TestWithRandomNumberGenerator() {}
-
-}  // namespace base
-
 
 namespace internal {
 

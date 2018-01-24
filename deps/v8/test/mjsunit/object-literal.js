@@ -27,14 +27,14 @@
 
 // Flags: --allow-natives-syntax
 
-function runTest(fn) {
+function runLiteralsTest(fn) {
   // The first run creates an copy directly from the boilerplate decsription.
   fn();
   // The second run will create the boilerplate.
   fn();
   // The third run might copy literals directly in the stub.
   fn();
-  // Several invocations more to trigger map deprecations.
+  // Several invocations more to trigger potential map deprecations.
   fn();
   fn();
   fn();
@@ -43,7 +43,25 @@ function runTest(fn) {
   fn();
 }
 
-function testBasicPrototype() {
+
+runLiteralsTest(function testEmptyObjectLiteral() {
+  let object = {};
+  assertTrue(%HasFastProperties(object));
+  assertTrue(%HasObjectElements(object ));
+  assertTrue(%HasHoleyElements(object));
+  assertEquals([], Object.keys(object));
+});
+
+runLiteralsTest(function testSingleGetter() {
+  let object = { get foo() { return 1 } };
+  // For now getters create dict mode objects.
+  assertFalse(%HasFastProperties(object));
+  assertTrue(%HasObjectElements(object ));
+  assertTrue(%HasHoleyElements(object));
+  assertEquals(['foo'], Object.keys(object));
+});
+
+runLiteralsTest(function testBasicPrototype() {
   var obj = {
       a: 7,
       b: { x: 12, y: 24 },
@@ -56,11 +74,9 @@ function testBasicPrototype() {
   assertEquals('Zebra', obj.c);
   assertEquals(Object.getPrototypeOf(obj), Object.prototype);
   assertEquals(Object.getPrototypeOf(obj.b), Object.prototype);
-};
-testBasicPrototype();
-testBasicPrototype();
+});
 
-function testDynamicValue() {
+runLiteralsTest(function testDynamicValue() {
   var z = 24;
 
   var obj2 = {
@@ -73,11 +89,9 @@ function testDynamicValue() {
   assertEquals(12, obj2.b.x);
   assertEquals(24, obj2.b.y);
   assertEquals('Zebra', obj2.c);
-}
-testDynamicValue();
-testDynamicValue();
+});
 
-(function testMultipleInstatiations() {
+runLiteralsTest(function testMultipleInstatiations() {
   var arr = [];
   for (var i = 0; i < 2; i++) {
     arr[i] = {
@@ -90,174 +104,182 @@ testDynamicValue();
   arr[0].b.x = 2;
   assertEquals(2, arr[0].b.x);
   assertEquals(12, arr[1].b.x);
-})();
-
-function testSparseElements() {
-  let sa1 = {
-      '0': { x: 12, y: 24 },
-      '1000000': { x: 1, y: 2 }
-    };
-  %HeapObjectVerify(sa1);
-  assertEquals(['0', '1000000'], Object.keys(sa1));
-  assertEquals(12, sa1[0].x);
-  assertEquals(24, sa1[0].y);
-  assertEquals(['x', 'y'], Object.keys(sa1[0]));
-  assertEquals(1, sa1[1000000].x);
-  assertEquals(2, sa1[1000000].y);
-  assertEquals(['x', 'y'], Object.keys(sa1[1000000]));
-  assertEquals(Object.prototype, Object.getPrototypeOf(sa1));
-  assertEquals(Object.prototype, Object.getPrototypeOf(sa1[0]));
-  assertEquals(Object.prototype, Object.getPrototypeOf(sa1[1000000]));
-  return sa1;
-}
-
-let object = testSparseElements();
-// modify the object and rerun the test, ensuring the literal didn't change.
-object[1] = "a";
-object[0].x = -12;
-testSparseElements();
-
-// Test that non-constant literals work.
-var n = new Object();
-
-function makeNonConstantArray() { return [ [ n ] ]; }
-
-var a = makeNonConstantArray();
-var b = makeNonConstantArray();
-assertTrue(a[0][0] === n);
-assertTrue(b[0][0] === n);
-assertFalse(a[0] === b[0]);
-a[0][0].foo = "bar";
-assertEquals("bar", n.foo);
-
-function makeNonConstantObject() { return { a: { b: n } }; }
-
-a = makeNonConstantObject();
-b = makeNonConstantObject();
-assertFalse(a.a === b.a);
-assertTrue(a.a.b === b.a.b);
-a.a.b.bar = "foo";
-assertEquals("foo", n.bar);
-
-// Test that exceptions for regexps still hold.
-function makeRegexpInArray() { return [ [ /a*/, {} ] ]; }
-
-a = makeRegexpInArray();
-b = makeRegexpInArray();
-assertFalse(a[0][0] === b[0][0]);
-assertFalse(a[0][1] === b[0][1]);
-assertEquals(Array.prototype, Object.getPrototypeOf(a));
-assertEquals(Array.prototype, Object.getPrototypeOf(b));
-assertEquals(Array.prototype, Object.getPrototypeOf(a[0]));
-assertEquals(Array.prototype, Object.getPrototypeOf(b[0]));
-assertEquals(RegExp.prototype, Object.getPrototypeOf(a[0][0]));
-assertEquals(RegExp.prototype, Object.getPrototypeOf(b[0][0]));
-
-function makeRegexpInObject() { return { a: { b: /b*/, c: {} } }; }
-a = makeRegexpInObject();
-b = makeRegexpInObject();
-assertFalse(a.a.b === b.a.b);
-assertFalse(a.a.c === b.a.c);
-assertEquals(RegExp.prototype, Object.getPrototypeOf(a.a.b));
-assertEquals(RegExp.prototype, Object.getPrototypeOf(b.a.b));
+});
 
 
-// Test keywords are valid as property names in initializers and dot-access.
-var keywords = [
-  "break",
-  "case",
-  "catch",
-  "const",
-  "continue",
-  "debugger",
-  "default",
-  "delete",
-  "do",
-  "else",
-  "false",
-  "finally",
-  "for",
-  "function",
-  "if",
-  "in",
-  "instanceof",
-  "new",
-  "null",
-  "return",
-  "switch",
-  "this",
-  "throw",
-  "true",
-  "try",
-  "typeof",
-  "var",
-  "void",
-  "while",
-  "with"
-];
-
-function testKeywordProperty(keyword) {
-  var exception = false;
-  try {
-    // Sanity check that what we get is a keyword.
-    eval("var " + keyword + " = 42;");
-  } catch (e) {
-    exception = true;
+runLiteralsTest(function TestSparseElements() {
+  function createSparseElements() {
+    let sa1 = {
+        '0': { x: 12, y: 24 },
+        '1000000': { x: 1, y: 2 }
+      };
+    %HeapObjectVerify(sa1);
+    assertEquals(['0', '1000000'], Object.keys(sa1));
+    assertEquals(12, sa1[0].x);
+    assertEquals(24, sa1[0].y);
+    assertEquals(['x', 'y'], Object.keys(sa1[0]));
+    assertEquals(1, sa1[1000000].x);
+    assertEquals(2, sa1[1000000].y);
+    assertEquals(['x', 'y'], Object.keys(sa1[1000000]));
+    assertEquals(Object.prototype, Object.getPrototypeOf(sa1));
+    assertEquals(Object.prototype, Object.getPrototypeOf(sa1[0]));
+    assertEquals(Object.prototype, Object.getPrototypeOf(sa1[1000000]));
+    return sa1;
   }
-  assertTrue(exception);
 
-  // Simple property, read and write.
-  var x = eval("({" + keyword + ": 42})");
-  assertEquals(42, x[keyword]);
-  assertEquals(42, eval("x." + keyword));
-  eval("x." + keyword + " = 37");
-  assertEquals(37, x[keyword]);
-  assertEquals(37, eval("x." + keyword));
+  let object = createSparseElements();
+  // modify the object and rerun the test, ensuring the literal didn't change.
+  object[1] = "a";
+  object[0].x = -12;
+  createSparseElements();
+});
 
-  // Getter/setter property, read and write.
-  var y = eval("({value : 42, get " + keyword + "(){return this.value}," +
-               " set " + keyword + "(v) { this.value = v; }})");
-  assertEquals(42, y[keyword]);
-  assertEquals(42, eval("y." + keyword));
-  eval("y." + keyword + " = 37");
-  assertEquals(37, y[keyword]);
-  assertEquals(37, eval("y." + keyword));
+runLiteralsTest(function TestNonConstLiterals() {
+  // Test that non-constant literals work.
+  var n = new Object();
 
-  // Quoted keyword works is read back by unquoted as well.
-  var z = eval("({\"" + keyword + "\": 42})");
-  assertEquals(42, z[keyword]);
-  assertEquals(42, eval("z." + keyword));
+  function makeNonConstantArray() { return [ [ n ] ]; }
 
-  // Function property, called.
-  var was_called;
-  function test_call() { this.was_called = true; was_called = true; }
-  var w = eval("({" + keyword + ": test_call, was_called: false})");
-  eval("w." + keyword + "();");
-  assertTrue(was_called);
-  assertTrue(w.was_called);
+  var a = makeNonConstantArray();
+  var b = makeNonConstantArray();
+  assertTrue(a[0][0] === n);
+  assertTrue(b[0][0] === n);
+  assertFalse(a[0] === b[0]);
+  a[0][0].foo = "bar";
+  assertEquals("bar", n.foo);
 
-  // Function property, constructed.
-  function construct() { this.constructed = true; }
-  var v = eval("({" + keyword + ": construct})");
-  var vo = eval("new v." + keyword + "()");
-  assertTrue(vo instanceof construct);
-  assertTrue(vo.constructed);
-}
+  function makeNonConstantObject() { return { a: { b: n } }; }
 
-for (var i = 0; i < keywords.length; i++) {
-  testKeywordProperty(keywords[i]);
-}
+  a = makeNonConstantObject();
+  b = makeNonConstantObject();
+  assertFalse(a.a === b.a);
+  assertTrue(a.a.b === b.a.b);
+  a.a.b.bar = "foo";
+  assertEquals("foo", n.bar);
+});
 
-function TestSimpleElements() {
+runLiteralsTest(function TestRegexpInArray() {
+  // Test that exceptions for regexps still hold.
+  function makeRegexpInArray() { return [ [ /a*/, {} ] ]; }
+
+  let a = makeRegexpInArray();
+  let b = makeRegexpInArray();
+  assertFalse(a[0][0] === b[0][0]);
+  assertFalse(a[0][1] === b[0][1]);
+  assertEquals(Array.prototype, Object.getPrototypeOf(a));
+  assertEquals(Array.prototype, Object.getPrototypeOf(b));
+  assertEquals(Array.prototype, Object.getPrototypeOf(a[0]));
+  assertEquals(Array.prototype, Object.getPrototypeOf(b[0]));
+  assertEquals(RegExp.prototype, Object.getPrototypeOf(a[0][0]));
+  assertEquals(RegExp.prototype, Object.getPrototypeOf(b[0][0]));
+});
+
+runLiteralsTest(function TestRegexpInObject() {
+  function makeRegexpInObject() { return { a: { b: /b*/, c: {} } }; }
+  let a = makeRegexpInObject();
+  let b = makeRegexpInObject();
+  assertFalse(a.a.b === b.a.b);
+  assertFalse(a.a.c === b.a.c);
+  assertEquals(RegExp.prototype, Object.getPrototypeOf(a.a.b));
+  assertEquals(RegExp.prototype, Object.getPrototypeOf(b.a.b));
+});
+
+runLiteralsTest(function TestKeywordProperties() {
+  // Test keywords are valid as property names in initializers and dot-access.
+  var keywords = [
+    "break",
+    "case",
+    "catch",
+    "const",
+    "continue",
+    "debugger",
+    "default",
+    "delete",
+    "do",
+    "else",
+    "false",
+    "finally",
+    "for",
+    "function",
+    "if",
+    "in",
+    "instanceof",
+    "new",
+    "null",
+    "return",
+    "switch",
+    "this",
+    "throw",
+    "true",
+    "try",
+    "typeof",
+    "var",
+    "void",
+    "while",
+    "with"
+  ];
+
+  function testKeywordProperty(keyword) {
+    var exception = false;
+    try {
+      // Sanity check that what we get is a keyword.
+      eval("var " + keyword + " = 42;");
+    } catch (e) {
+      exception = true;
+    }
+    assertTrue(exception);
+
+    // Simple property, read and write.
+    var x = eval("({" + keyword + ": 42})");
+    assertEquals(42, x[keyword]);
+    assertEquals(42, eval("x." + keyword));
+    eval("x." + keyword + " = 37");
+    assertEquals(37, x[keyword]);
+    assertEquals(37, eval("x." + keyword));
+
+    // Getter/setter property, read and write.
+    var y = eval("({value : 42, get " + keyword + "(){return this.value}," +
+                 " set " + keyword + "(v) { this.value = v; }})");
+    assertEquals(42, y[keyword]);
+    assertEquals(42, eval("y." + keyword));
+    eval("y." + keyword + " = 37");
+    assertEquals(37, y[keyword]);
+    assertEquals(37, eval("y." + keyword));
+
+    // Quoted keyword works is read back by unquoted as well.
+    var z = eval("({\"" + keyword + "\": 42})");
+    assertEquals(42, z[keyword]);
+    assertEquals(42, eval("z." + keyword));
+
+    // Function property, called.
+    var was_called;
+    function test_call() { this.was_called = true; was_called = true; }
+    var w = eval("({" + keyword + ": test_call, was_called: false})");
+    eval("w." + keyword + "();");
+    assertTrue(was_called);
+    assertTrue(w.was_called);
+
+    // Function property, constructed.
+    function construct() { this.constructed = true; }
+    var v = eval("({" + keyword + ": construct})");
+    var vo = eval("new v." + keyword + "()");
+    assertTrue(vo instanceof construct);
+    assertTrue(vo.constructed);
+  }
+
+  for (var i = 0; i < keywords.length; i++) {
+    testKeywordProperty(keywords[i]);
+  }
+});
+
+runLiteralsTest(function TestSimpleElements() {
   var o = { 0:"zero", 1:"one", 2:"two" };
   assertEquals({0:"zero", 1:"one", 2:"two"}, o);
   o[0] = 0;
   assertEquals({0:0, 1:"one", 2:"two"}, o);
-}
-TestSimpleElements();
-TestSimpleElements();
+});
 
-function TestNumericNames() {
+runLiteralsTest(function TestNumericNames() {
   var o = {
     1: 1,
     2.: 2,
@@ -278,11 +300,9 @@ function TestNumericNames() {
   };
   %HeapObjectVerify(o);
   assertEquals(['1.2', '1.3'], Object.keys(o));
-}
-TestNumericNames();
-TestNumericNames();
+});
 
-function TestDictionaryElements() {
+runLiteralsTest(function TestDictionaryElements() {
   let o = {1024: true};
   assertTrue(%HasDictionaryElements(o));
   assertEquals(true, o[1024]);
@@ -300,13 +320,9 @@ function TestDictionaryElements() {
   %HeapObjectVerify(o2);
   o2[1024] = "test";
   assertEquals(["test"], Object.values(o2));
-}
-TestDictionaryElements();
-TestDictionaryElements();
-%OptimizeFunctionOnNextCall(TestDictionaryElements);
-TestDictionaryElements();
+});
 
-function TestLiteralElementsKind() {
+runLiteralsTest(function TestLiteralElementsKind() {
   let o = {0:0, 1:1, 2:2};
   assertTrue(%HasObjectElements(o));
   assertTrue(%HasHoleyElements(o));
@@ -329,13 +345,9 @@ function TestLiteralElementsKind() {
   assertTrue(%HasHoleyElements(o));
 
   assertTrue(%HasDictionaryElements({0xFFFFFF:true}));
-}
-TestLiteralElementsKind();
-TestLiteralElementsKind();
-%OptimizeFunctionOnNextCall(TestLiteralElementsKind);
-TestLiteralElementsKind();
+});
 
-function TestNonNumberElementValues() {
+runLiteralsTest(function TestNonNumberElementValues() {
   var o = {
     1: true,
     2: false,
@@ -387,15 +399,10 @@ function TestNonNumberElementValues() {
   };
   %HeapObjectVerify(o4);
   assertEquals(['1', '2', '3', '4', 'a', 'b'], Object.keys(o4));
-}
-TestNonNumberElementValues();
-TestNonNumberElementValues();
-TestNonNumberElementValues();
-%OptimizeFunctionOnNextCall(TestNonNumberElementValues);
-TestNonNumberElementValues();
+})
 
 
-function numericGetters() {
+runLiteralsTest(function numericGetters() {
   function TestNumericNamesGetter(expectedKeys, object) {
     assertEquals(expectedKeys, Object.keys(object));
     expectedKeys.forEach(function(key) {
@@ -418,11 +425,9 @@ function numericGetters() {
     get 1.2() {},
     get 1.30() {}
   });
-}
-numericGetters();
-numericGetters();
+});
 
-function numericSetters() {
+runLiteralsTest(function numericSetters() {
   function TestNumericNamesSetter(expectedKeys, object) {
     assertEquals(expectedKeys, Object.keys(object));
     expectedKeys.forEach(function(key) {
@@ -445,12 +450,10 @@ function numericSetters() {
     set 1.2(_) {; },
     set 1.30(_) {; }
   });
-};
+});
 
-numericSetters();
-numericSetters();
 
-function TestProxyWithDefinitionInObjectLiteral() {
+runLiteralsTest(function TestProxyWithDefinitionInObjectLiteral() {
   // Trap for set should not be used if the definition
   // happens in the object literal.
   var handler = {
@@ -467,11 +470,9 @@ function TestProxyWithDefinitionInObjectLiteral() {
 
   var l = new Proxy({[prop]: 'my value'}, handler);
   assertEquals('my value', l[prop]);
-};
-TestProxyWithDefinitionInObjectLiteral();
-TestProxyWithDefinitionInObjectLiteral();
+});
 
-(function TestLiteralWithNullProto() {
+runLiteralsTest(function TestLiteralWithNullProto() {
   // Assume dictionary usage for simple null prototype literal objects,
   // this is equivalent to Object.create(null). Note that on the first call
   // the literal boilerplate is initialized, and from then on we use a the
@@ -498,9 +499,9 @@ TestProxyWithDefinitionInObjectLiteral();
   testDictModeNullProtoLiteral(() => ({a:1, b:2, __proto__:null}));
   testDictModeNullProtoLiteral(() => ({["a"]: 1, __proto__: null}));
   testDictModeNullProtoLiteral(() => ({a: Object, __proto__: null}));
-})();
+});
 
-function testNestedNullProtoLiteral() {
+runLiteralsTest(function testNestedNullProtoLiteral() {
   let obj;
   obj = { foo: { __proto__:Math, bar:"barValue"}};
   assertTrue(%HasFastProperties(obj));
@@ -523,12 +524,10 @@ function testNestedNullProtoLiteral() {
   assertEquals("barValue", obj.foo.bar);
   obj.foo.bar = "barValue2";
   assertEquals("barValue2", obj.foo.bar);
-}
-testNestedNullProtoLiteral();
-testNestedNullProtoLiteral();
+});
 
 
-function TestSlowLiteralOptimized() {
+runLiteralsTest(function TestSlowLiteralOptimized() {
   function f() {
     return {__proto__:null, bar:"barValue"};
   }
@@ -548,11 +547,9 @@ function TestSlowLiteralOptimized() {
   assertEquals("barValue", obj.bar);
   obj.bar = "barValue2";
   assertEquals("barValue2", obj.bar);
-};
-TestSlowLiteralOptimized();
-TestSlowLiteralOptimized();
+});
 
-(function TestLargeDictionaryLiteral() {
+runLiteralsTest(function TestLargeDictionaryLiteral() {
   // Create potential large-space object literal.
   function createObject() {
     // This literal has least kMaxRegularHeapObjectSize / 64 number of
@@ -1568,27 +1565,4 @@ TestSlowLiteralOptimized();
   assertFalse(%HasFastProperties(object2));
   assertEquals(Object.getPrototypeOf(object2), null);
   assertEquals(keys, Object.keys(object2));
-})();
-
-
-(function TestPrototypeInObjectLiteral() {
-  // The prototype chain should not be used if the definition
-  // happens in the object literal.
-
-  Object.defineProperty(Object.prototype, 'c', {
-    get: function () {
-      return 21;
-    },
-    set: function () {
-    }
-  });
-
-  var o = {};
-  o.c = 7;
-  assertEquals(21, o.c);
-
-  var l = {c: 7};
-  assertEquals(7, l.c);
-
-  delete Object.prototype.c;
-})();
+});

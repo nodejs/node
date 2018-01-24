@@ -256,10 +256,9 @@ class Int32Signature : public MachineSignature {
 Handle<Code> CompileGraph(const char* name, CallDescriptor* desc, Graph* graph,
                           Schedule* schedule = nullptr) {
   Isolate* isolate = CcTest::InitIsolateOnce();
-  CompilationInfo info(ArrayVector("testing"), isolate, graph->zone(),
-                       Code::STUB);
+  CompilationInfo info(ArrayVector("testing"), graph->zone(), Code::STUB);
   Handle<Code> code =
-      Pipeline::GenerateCodeForTesting(&info, desc, graph, schedule);
+      Pipeline::GenerateCodeForTesting(&info, isolate, desc, graph, schedule);
   CHECK(!code.is_null());
 #ifdef ENABLE_DISASSEMBLER
   if (FLAG_print_opt_code) {

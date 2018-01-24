@@ -360,7 +360,7 @@ MaybeHandle<String> UnescapeSlow(Isolate* isolate, Handle<String> string,
 
   int dest_position = 0;
   Handle<String> second_part;
-  DCHECK(unescaped_length <= String::kMaxLength);
+  DCHECK_LE(unescaped_length, String::kMaxLength);
   if (one_byte) {
     Handle<SeqOneByteString> dest = isolate->factory()
                                         ->NewRawOneByteString(unescaped_length)
@@ -444,7 +444,7 @@ static MaybeHandle<String> EscapePrivate(Isolate* isolate,
       }
 
       // We don't allow strings that are longer than a maximal length.
-      DCHECK(String::kMaxLength < 0x7fffffff - 6);     // Cannot overflow.
+      DCHECK_LT(String::kMaxLength, 0x7fffffff - 6);   // Cannot overflow.
       if (escaped_length > String::kMaxLength) break;  // Provoke exception.
     }
   }

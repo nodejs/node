@@ -12,6 +12,7 @@
 #include "src/keys.h"
 #include "src/objects/frame-array-inl.h"
 #include "src/string-builder.h"
+#include "src/wasm/wasm-heap.h"
 #include "src/wasm/wasm-objects.h"
 
 namespace v8 {
@@ -34,7 +35,7 @@ void MessageHandler::DefaultMessageReport(Isolate* isolate,
                                           const MessageLocation* loc,
                                           Handle<Object> message_obj) {
   std::unique_ptr<char[]> str = GetLocalizedMessage(isolate, message_obj);
-  if (loc == NULL) {
+  if (loc == nullptr) {
     PrintF("%s\n", str.get());
   } else {
     HandleScope scope(isolate);
@@ -56,7 +57,7 @@ Handle<JSMessageObject> MessageHandler::MakeMessageObject(
   int start = -1;
   int end = -1;
   Handle<Object> script_handle = factory->undefined_value();
-  if (location != NULL) {
+  if (location != nullptr) {
     start = location->start_pos();
     end = location->end_pos();
     script_handle = Script::GetWrapper(location->script());
@@ -649,9 +650,18 @@ void WasmStackFrame::FromFrameArray(Isolate* isolate, Handle<FrameArray> array,
   wasm_instance_ = handle(array->WasmInstance(frame_ix), isolate);
   wasm_func_index_ = array->WasmFunctionIndex(frame_ix)->value();
   if (array->IsWasmInterpretedFrame(frame_ix)) {
-    code_ = Handle<AbstractCode>::null();
+    code_ = {};
   } else {
-    code_ = handle(array->Code(frame_ix), isolate);
+    code_ =
+        FLAG_wasm_jit_to_native
+            ? WasmCodeWrapper(
+                  wasm_instance_->compiled_module()->GetNativeModule()->GetCode(
+                      wasm_func_index_))
+            : WasmCodeWrapper(handle(
+                  Code::cast(
+                      wasm_instance_->compiled_module()->code_table()->get(
+                          wasm_func_index_)),
+                  isolate));
   }
   offset_ = array->Offset(frame_ix)->value();
 }
@@ -712,9 +722,13 @@ MaybeHandle<String> WasmStackFrame::ToString() {
 }
 
 int WasmStackFrame::GetPosition() const {
-  if (IsInterpreted()) return offset_;
-  // TODO(wasm): Clean this up (bug 5007).
-  return (offset_ < 0) ? (-1 - offset_) : code_->SourcePosition(offset_);
+  return IsInterpreted()
+             ? offset_
+             : (code_.IsCodeObject()
+                    ? Handle<AbstractCode>::cast(code_.GetCode())
+                          ->SourcePosition(offset_)
+                    : FrameSummary::WasmCompiledFrameSummary::
+                          GetWasmSourcePosition(code_.GetWasmCode(), offset_));
 }
 
 Handle<Object> WasmStackFrame::Null() const {
@@ -761,7 +775,11 @@ Handle<Object> AsmJsWasmStackFrame::GetScriptNameOrSourceUrl() {
 
 int AsmJsWasmStackFrame::GetPosition() const {
   DCHECK_LE(0, offset_);
-  int byte_offset = code_->SourcePosition(offset_);
+  int byte_offset =
+      code_.IsCodeObject()
+          ? Handle<AbstractCode>::cast(code_.GetCode())->SourcePosition(offset_)
+          : FrameSummary::WasmCompiledFrameSummary::GetWasmSourcePosition(
+                code_.GetWasmCode(), offset_);
   Handle<WasmCompiledModule> compiled_module(wasm_instance_->compiled_module(),
                                              isolate_);
   DCHECK_LE(0, byte_offset);
@@ -957,6 +975,8 @@ MaybeHandle<Object> ErrorUtils::FormatStackTrace(Isolate* isolate,
   if (prepare_stack_trace->IsJSFunction() && !in_recursion) {
     PrepareStackTraceScope scope(isolate);
 
+    isolate->CountUsage(v8::Isolate::kErrorPrepareStackTrace);
+
     Handle<JSArray> sites;
     ASSIGN_RETURN_ON_EXCEPTION(isolate, sites, GetStackFrames(isolate, elems),
                                Object);
@@ -1049,7 +1069,7 @@ const char* MessageTemplate::TemplateString(int template_index) {
 #undef CASE
     case kLastMessage:
     default:
-      return NULL;
+      return nullptr;
   }
 }
 
@@ -1060,7 +1080,7 @@ MaybeHandle<String> MessageTemplate::FormatMessage(int template_index,
                                                    Handle<String> arg2) {
   Isolate* isolate = arg0->GetIsolate();
   const char* template_string = TemplateString(template_index);
-  if (template_string == NULL) {
+  if (template_string == nullptr) {
     isolate->ThrowIllegalOperation();
     return MaybeHandle<String>();
   }

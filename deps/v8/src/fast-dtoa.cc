@@ -435,7 +435,7 @@ static bool DigitGen(DiyFp low,
   // data (like the interval or 'unit'), too.
   // Note that the multiplication by 10 does not overflow, because w.e >= -60
   // and thus one.e >= -60.
-  DCHECK(one.e() >= -60);
+  DCHECK_GE(one.e(), -60);
   DCHECK(fractionals < one.f());
   DCHECK(V8_2PART_UINT64_C(0xFFFFFFFF, FFFFFFFF) / 10 >= one.f());
   while (true) {
@@ -491,8 +491,8 @@ static bool DigitGenCounted(DiyFp w,
                             int* length,
                             int* kappa) {
   DCHECK(kMinimalTargetExponent <= w.e() && w.e() <= kMaximalTargetExponent);
-  DCHECK(kMinimalTargetExponent >= -60);
-  DCHECK(kMaximalTargetExponent <= -32);
+  DCHECK_GE(kMinimalTargetExponent, -60);
+  DCHECK_LE(kMaximalTargetExponent, -32);
   // w is assumed to have an error less than 1 unit. Whenever w is scaled we
   // also scale its error.
   uint64_t w_error = 1;
@@ -543,7 +543,7 @@ static bool DigitGenCounted(DiyFp w,
   // data (the 'unit'), too.
   // Note that the multiplication by 10 does not overflow, because w.e >= -60
   // and thus one.e >= -60.
-  DCHECK(one.e() >= -60);
+  DCHECK_GE(one.e(), -60);
   DCHECK(fractionals < one.f());
   DCHECK(V8_2PART_UINT64_C(0xFFFFFFFF, FFFFFFFF) / 10 >= one.f());
   while (requested_digits > 0 && fractionals > w_error) {
@@ -689,7 +689,7 @@ bool FastDtoa(double v,
               Vector<char> buffer,
               int* length,
               int* decimal_point) {
-  DCHECK(v > 0);
+  DCHECK_GT(v, 0);
   DCHECK(!Double(v).IsSpecial());
 
   bool result = false;

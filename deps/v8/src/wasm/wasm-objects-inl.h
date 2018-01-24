@@ -39,21 +39,21 @@ ACCESSORS(WasmMemoryObject, array_buffer, JSArrayBuffer, kArrayBufferOffset)
 SMI_ACCESSORS(WasmMemoryObject, maximum_pages, kMaximumPagesOffset)
 OPTIONAL_ACCESSORS(WasmMemoryObject, instances, WeakFixedArray,
                    kInstancesOffset)
-ACCESSORS(WasmMemoryObject, wasm_context, Managed<WasmContext>,
-          kWasmContextOffset)
 
 // WasmInstanceObject
+ACCESSORS(WasmInstanceObject, wasm_context, Managed<WasmContext>,
+          kWasmContextOffset)
 ACCESSORS(WasmInstanceObject, compiled_module, WasmCompiledModule,
           kCompiledModuleOffset)
 ACCESSORS(WasmInstanceObject, exports_object, JSObject, kExportsObjectOffset)
 OPTIONAL_ACCESSORS(WasmInstanceObject, memory_object, WasmMemoryObject,
                    kMemoryObjectOffset)
-OPTIONAL_ACCESSORS(WasmInstanceObject, memory_buffer, JSArrayBuffer,
-                   kMemoryBufferOffset)
 ACCESSORS(WasmInstanceObject, globals_buffer, JSArrayBuffer,
           kGlobalsBufferOffset)
 OPTIONAL_ACCESSORS(WasmInstanceObject, debug_info, WasmDebugInfo,
                    kDebugInfoOffset)
+OPTIONAL_ACCESSORS(WasmInstanceObject, table_object, WasmTableObject,
+                   kTableObjectOffset)
 OPTIONAL_ACCESSORS(WasmInstanceObject, function_tables, FixedArray,
                    kFunctionTablesOffset)
 OPTIONAL_ACCESSORS(WasmInstanceObject, signature_tables, FixedArray,
@@ -151,29 +151,6 @@ FORWARD_SHARED(bool, is_asm_js)
     return handle(TYPE::cast(weak_##NAME()->value()));                     \
   }
 
-#define WCM_LARGE_NUMBER(TYPE, NAME)                                          \
-  TYPE WasmCompiledModule::NAME() const {                                     \
-    Object* value = get(kID_##NAME);                                          \
-    DCHECK(value->IsMutableHeapNumber());                                     \
-    return static_cast<TYPE>(HeapNumber::cast(value)->value());               \
-  }                                                                           \
-                                                                              \
-  void WasmCompiledModule::set_##NAME(TYPE value) {                           \
-    Object* number = get(kID_##NAME);                                         \
-    DCHECK(number->IsMutableHeapNumber());                                    \
-    HeapNumber::cast(number)->set_value(static_cast<double>(value));          \
-  }                                                                           \
-                                                                              \
-  void WasmCompiledModule::recreate_##NAME(Handle<WasmCompiledModule> obj,    \
-                                           Factory* factory, TYPE init_val) { \
-    Handle<HeapNumber> number = factory->NewHeapNumber(                       \
-        static_cast<double>(init_val), MutableMode::MUTABLE, TENURED);        \
-    obj->set(kID_##NAME, *number);                                            \
-  }                                                                           \
-  bool WasmCompiledModule::has_##NAME() const {                               \
-    return get(kID_##NAME)->IsMutableHeapNumber();                            \
-  }
-
 #define DEFINITION(KIND, TYPE, NAME) WCM_##KIND(TYPE, NAME)
 WCM_PROPERTY_TABLE(DEFINITION)
 #undef DECLARATION
@@ -191,11 +168,6 @@ bool WasmTableObject::has_maximum_length() {
 }
 
 bool WasmMemoryObject::has_maximum_pages() { return maximum_pages() >= 0; }
-
-Address WasmCompiledModule::GetGlobalsStartOrNull() const {
-  return has_globals_start() ? reinterpret_cast<Address>(globals_start())
-                             : nullptr;
-}
 
 void WasmCompiledModule::ReplaceCodeTableForTesting(
     Handle<FixedArray> testing_table) {

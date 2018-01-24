@@ -3,7 +3,6 @@
 // found in the LICENSE file.
 
 #include "src/assembler-inl.h"
-#include "src/codegen.h"
 #include "src/deoptimizer.h"
 #include "src/objects-inl.h"
 #include "src/register-configuration.h"
@@ -31,8 +30,8 @@ void Deoptimizer::TableEntryGenerator::Generate() {
   const int kFloatRegsSize = kFloatSize * SwVfpRegister::kNumRegisters;
 
   // Save all allocatable VFP registers before messing with them.
-  DCHECK(kDoubleRegZero.code() == 13);
-  DCHECK(kScratchDoubleReg.code() == 14);
+  DCHECK_EQ(kDoubleRegZero.code(), 13);
+  DCHECK_EQ(kScratchDoubleReg.code(), 14);
 
   {
     // We use a run-time check for VFP32DREGS.
@@ -107,7 +106,7 @@ void Deoptimizer::TableEntryGenerator::Generate() {
   __ ldr(r1, MemOperand(r0, Deoptimizer::input_offset()));
 
   // Copy core registers into FrameDescription::registers_[kNumRegisters].
-  DCHECK(Register::kNumRegisters == kNumberOfRegisters);
+  DCHECK_EQ(Register::kNumRegisters, kNumberOfRegisters);
   for (int i = 0; i < kNumberOfRegisters; i++) {
     int offset = (i * kPointerSize) + FrameDescription::registers_offset();
     __ ldr(r2, MemOperand(sp, i * kPointerSize));

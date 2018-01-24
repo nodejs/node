@@ -55,7 +55,7 @@ function debuggerPausedAt(msg, functionName, previousTickLocation) {
     `${Object.keys(msg.params)} contains "asyncStackTrace" property`);
 
   assert.strictEqual(msg.params.callFrames[0].functionName, functionName);
-  assert.strictEqual(msg.params.asyncStackTrace.description, 'Promise.resolve');
+  assert.strictEqual(msg.params.asyncStackTrace.description, 'Promise.then');
 
   const frameLocations = msg.params.asyncStackTrace.callFrames.map(
     (frame) => `${frame.functionName}:${frame.lineNumber}`);

@@ -93,6 +93,7 @@ namespace {
 
 bool NeedsCheckHeapObject(Node* receiver) {
   switch (receiver->opcode()) {
+    case IrOpcode::kConvertReceiver:
     case IrOpcode::kHeapConstant:
     case IrOpcode::kJSCreate:
     case IrOpcode::kJSCreateArguments:
@@ -105,7 +106,6 @@ bool NeedsCheckHeapObject(Node* receiver) {
     case IrOpcode::kJSCreateEmptyLiteralObject:
     case IrOpcode::kJSCreateLiteralRegExp:
     case IrOpcode::kJSCreateGeneratorObject:
-    case IrOpcode::kJSConvertReceiver:
     case IrOpcode::kJSConstructForwardVarargs:
     case IrOpcode::kJSConstruct:
     case IrOpcode::kJSConstructWithArrayLike:
@@ -113,7 +113,7 @@ bool NeedsCheckHeapObject(Node* receiver) {
     case IrOpcode::kJSToName:
     case IrOpcode::kJSToString:
     case IrOpcode::kJSToObject:
-    case IrOpcode::kJSTypeOf:
+    case IrOpcode::kTypeOf:
     case IrOpcode::kJSGetSuperConstructor:
       return false;
     case IrOpcode::kPhi: {
@@ -165,6 +165,19 @@ void PropertyAccessBuilder::BuildCheckMaps(
   }
   *effect = graph()->NewNode(simplified()->CheckMaps(flags, maps), receiver,
                              *effect, control);
+}
+
+Node* PropertyAccessBuilder::BuildCheckValue(Node* receiver, Node** effect,
+                                             Node* control,
+                                             Handle<HeapObject> value) {
+  HeapObjectMatcher m(receiver);
+  if (m.Is(value)) return receiver;
+  Node* expected = jsgraph()->HeapConstant(value);
+  Node* check =
+      graph()->NewNode(simplified()->ReferenceEqual(), receiver, expected);
+  *effect = graph()->NewNode(simplified()->CheckIf(DeoptimizeReason::kNoReason),
+                             check, *effect, control);
+  return expected;
 }
 
 void PropertyAccessBuilder::AssumePrototypesStable(

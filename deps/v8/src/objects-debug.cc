@@ -13,7 +13,7 @@
 #include "src/layout-descriptor.h"
 #include "src/macro-assembler.h"
 #include "src/objects-inl.h"
-#include "src/objects/bigint-inl.h"
+#include "src/objects/bigint.h"
 #include "src/objects/debug-objects-inl.h"
 #include "src/objects/literal-objects.h"
 #include "src/objects/module.h"
@@ -88,6 +88,9 @@ void HeapObject::HeapObjectVerify() {
       break;
     case BYTECODE_ARRAY_TYPE:
       BytecodeArray::cast(this)->BytecodeArrayVerify();
+      break;
+    case DESCRIPTOR_ARRAY_TYPE:
+      DescriptorArray::cast(this)->DescriptorArrayVerify();
       break;
     case TRANSITION_ARRAY_TYPE:
       TransitionArray::cast(this)->TransitionArrayVerify();
@@ -238,6 +241,9 @@ void HeapObject::HeapObjectVerify() {
     case SMALL_ORDERED_HASH_MAP_TYPE:
       SmallOrderedHashMap::cast(this)->SmallOrderedHashTableVerify();
       break;
+    case CODE_DATA_CONTAINER_TYPE:
+      CodeDataContainer::cast(this)->CodeDataContainerVerify();
+      break;
 
 #define MAKE_STRUCT_CASE(NAME, Name, name) \
   case NAME##_TYPE:                        \
@@ -263,7 +269,7 @@ void HeapObject::VerifyHeapPointer(Object* p) {
 void Symbol::SymbolVerify() {
   CHECK(IsSymbol());
   CHECK(HasHashCode());
-  CHECK(Hash() > 0u);
+  CHECK_GT(Hash(), 0);
   CHECK(name()->IsUndefined(GetIsolate()) || name()->IsString());
 }
 
@@ -304,7 +310,7 @@ void FixedTypedArray<Traits>::FixedTypedArrayVerify() {
     CHECK(external_pointer() ==
           ExternalReference::fixed_typed_array_base_data_offset().address());
   } else {
-    CHECK(base_pointer() == nullptr);
+    CHECK_NULL(base_pointer());
   }
 }
 
@@ -326,16 +332,15 @@ void JSObject::JSObjectVerify() {
     int actual_unused_property_fields = map()->GetInObjectProperties() +
                                         property_array()->length() -
                                         map()->NextFreePropertyIndex();
-    if (map()->unused_property_fields() != actual_unused_property_fields) {
+    if (map()->UnusedPropertyFields() != actual_unused_property_fields) {
       // There are two reasons why this can happen:
       // - in the middle of StoreTransitionStub when the new extended backing
       //   store is already set into the object and the allocation of the
       //   MutableHeapNumber triggers GC while the map isn't updated yet.
       // - deletion of the last property can leave additional backing store
       //   capacity behind.
-      CHECK_GT(actual_unused_property_fields, map()->unused_property_fields());
-      int delta =
-          actual_unused_property_fields - map()->unused_property_fields();
+      CHECK_GT(actual_unused_property_fields, map()->UnusedPropertyFields());
+      int delta = actual_unused_property_fields - map()->UnusedPropertyFields();
       CHECK_EQ(0, delta % JSObject::kFieldsAdded);
     }
     DescriptorArray* descriptors = map()->instance_descriptors();
@@ -435,7 +440,7 @@ void Map::DictionaryMapVerify() {
   CHECK(is_dictionary_map());
   CHECK_EQ(kInvalidEnumCacheSentinel, EnumLength());
   CHECK_EQ(GetHeap()->empty_descriptor_array(), instance_descriptors());
-  CHECK_EQ(0, unused_property_fields());
+  CHECK_EQ(0, UnusedPropertyFields());
   CHECK_EQ(Map::GetVisitorId(this), visitor_id());
 }
 
@@ -448,13 +453,6 @@ void FixedArray::FixedArrayVerify() {
   for (int i = 0; i < length(); i++) {
     Object* e = get(i);
     VerifyPointer(e);
-  }
-  Heap* heap = GetHeap();
-  if (this == heap->empty_descriptor_array()) {
-    DescriptorArray* descriptors = DescriptorArray::cast(this);
-    CHECK_EQ(2, length());
-    CHECK_EQ(0, descriptors->number_of_descriptors());
-    CHECK_EQ(heap->empty_enum_cache(), descriptors->GetEnumCache());
   }
 }
 
@@ -486,12 +484,22 @@ void FixedDoubleArray::FixedDoubleArrayVerify() {
   }
 }
 
+void DescriptorArray::DescriptorArrayVerify() {
+  FixedArrayVerify();
+  if (number_of_descriptors_storage() == 0) {
+    Heap* heap = GetHeap();
+    CHECK_EQ(heap->empty_descriptor_array(), this);
+    CHECK_EQ(2, length());
+    CHECK_EQ(0, number_of_descriptors());
+    CHECK_EQ(heap->empty_enum_cache(), GetEnumCache());
+  } else {
+    CHECK_LT(2, length());
+    CHECK_LE(LengthFor(number_of_descriptors()), length());
+  }
+}
 
 void TransitionArray::TransitionArrayVerify() {
-  for (int i = 0; i < length(); i++) {
-    Object* e = get(i);
-    VerifyPointer(e);
-  }
+  FixedArrayVerify();
   CHECK_LE(LengthFor(number_of_transitions()), length());
 }
 
@@ -675,7 +683,7 @@ void ConsString::ConsStringVerify() {
   CHECK(this->first()->IsString());
   CHECK(this->second() == GetHeap()->empty_string() ||
         this->second()->IsString());
-  CHECK(this->length() >= ConsString::kMinLength);
+  CHECK_GE(this->length(), ConsString::kMinLength);
   CHECK(this->length() == this->first()->length() + this->second()->length());
   if (this->IsFlat()) {
     // A flat cons can only be created by String::SlowFlatten.
@@ -693,7 +701,7 @@ void ThinString::ThinStringVerify() {
 void SlicedString::SlicedStringVerify() {
   CHECK(!this->parent()->IsConsString());
   CHECK(!this->parent()->IsSlicedString());
-  CHECK(this->length() >= SlicedString::kMinLength);
+  CHECK_GE(this->length(), SlicedString::kMinLength);
 }
 
 
@@ -714,9 +722,11 @@ void JSBoundFunction::JSBoundFunctionVerify() {
 
 void JSFunction::JSFunctionVerify() {
   CHECK(IsJSFunction());
-  VerifyObjectField(kPrototypeOrInitialMapOffset);
   CHECK(code()->IsCode());
   CHECK(map()->is_callable());
+  if (has_prototype_slot()) {
+    VerifyObjectField(kPrototypeOrInitialMapOffset);
+  }
 }
 
 
@@ -739,23 +749,19 @@ void SharedFunctionInfo::SharedFunctionInfoVerify() {
   Isolate* isolate = GetIsolate();
   CHECK(function_data()->IsUndefined(isolate) || IsApiFunction() ||
         HasBytecodeArray() || HasAsmWasmData() ||
-        HasLazyDeserializationBuiltinId());
+        HasLazyDeserializationBuiltinId() || HasPreParsedScopeData());
 
   CHECK(function_identifier()->IsUndefined(isolate) || HasBuiltinFunctionId() ||
         HasInferredName());
 
   int expected_map_index = Context::FunctionMapIndex(
-      language_mode(), kind(), has_shared_name(), needs_home_object());
+      language_mode(), kind(), true, has_shared_name(), needs_home_object());
   CHECK_EQ(expected_map_index, function_map_index());
 
   if (scope_info()->length() > 0) {
     CHECK(kind() == scope_info()->function_kind());
     CHECK_EQ(kind() == kModule, scope_info()->scope_type() == MODULE_SCOPE);
   }
-
-  CHECK(preparsed_scope_data()->IsNull(isolate) ||
-        preparsed_scope_data()->IsPreParsedScopeData());
-  VerifyObjectField(kPreParsedScopeDataOffset);
 }
 
 
@@ -764,7 +770,6 @@ void JSGlobalProxy::JSGlobalProxyVerify() {
   JSObjectVerify();
   VerifyObjectField(JSGlobalProxy::kNativeContextOffset);
   // Make sure that this object has no properties, elements.
-  CHECK_EQ(GetHeap()->empty_fixed_array(), raw_properties_or_hash());
   CHECK_EQ(0, FixedArray::cast(elements())->length());
 }
 
@@ -794,7 +799,7 @@ void Oddball::OddballVerify() {
     // Hidden oddballs have negative smis.
     const int kLeastHiddenOddballNumber = -7;
     CHECK_LE(value, 1);
-    CHECK(value >= kLeastHiddenOddballNumber);
+    CHECK_GE(value, kLeastHiddenOddballNumber);
   }
   if (map() == heap->undefined_map()) {
     CHECK(this == heap->undefined_value());
@@ -840,12 +845,18 @@ void WeakCell::WeakCellVerify() {
   VerifyObjectField(kValueOffset);
 }
 
+void CodeDataContainer::CodeDataContainerVerify() {
+  CHECK(IsCodeDataContainer());
+  VerifyObjectField(kNextCodeLinkOffset);
+  CHECK(next_code_link()->IsCode() ||
+        next_code_link()->IsUndefined(GetIsolate()));
+}
 
 void Code::CodeVerify() {
   CHECK(IsAligned(reinterpret_cast<intptr_t>(instruction_start()),
                   kCodeAlignment));
   relocation_info()->ObjectVerify();
-  Address last_gc_pc = NULL;
+  Address last_gc_pc = nullptr;
   Isolate* isolate = GetIsolate();
   for (RelocIterator it(this); !it.done(); it.next()) {
     it.rinfo()->Verify(isolate);
@@ -855,8 +866,6 @@ void Code::CodeVerify() {
       last_gc_pc = it.rinfo()->pc();
     }
   }
-  CHECK(raw_type_feedback_info() == Smi::kZero ||
-        raw_type_feedback_info()->IsSmi() == is_stub());
 }
 
 
@@ -925,7 +934,7 @@ void JSArray::JSArrayVerify() {
       CHECK(length()->ToArrayLength(&array_length));
     }
     if (array_length != 0) {
-      SeededNumberDictionary* dict = SeededNumberDictionary::cast(elements());
+      NumberDictionary* dict = NumberDictionary::cast(elements());
       // The dictionary can never have more elements than the array length + 1.
       // If the backing store grows the verification might be triggered with
       // the old length in place.
@@ -941,7 +950,7 @@ void JSSet::JSSetVerify() {
   CHECK(IsJSSet());
   JSObjectVerify();
   VerifyHeapPointer(table());
-  CHECK(table()->IsOrderedHashTable() || table()->IsUndefined(GetIsolate()));
+  CHECK(table()->IsOrderedHashSet() || table()->IsUndefined(GetIsolate()));
   // TODO(arv): Verify OrderedHashTable too.
 }
 
@@ -950,7 +959,7 @@ void JSMap::JSMapVerify() {
   CHECK(IsJSMap());
   JSObjectVerify();
   VerifyHeapPointer(table());
-  CHECK(table()->IsOrderedHashTable() || table()->IsUndefined(GetIsolate()));
+  CHECK(table()->IsOrderedHashMap() || table()->IsUndefined(GetIsolate()));
   // TODO(arv): Verify OrderedHashTable too.
 }
 
@@ -959,7 +968,7 @@ void JSSetIterator::JSSetIteratorVerify() {
   CHECK(IsJSSetIterator());
   JSObjectVerify();
   VerifyHeapPointer(table());
-  CHECK(table()->IsOrderedHashTable());
+  CHECK(table()->IsOrderedHashSet());
   CHECK(index()->IsSmi());
 }
 
@@ -968,7 +977,7 @@ void JSMapIterator::JSMapIteratorVerify() {
   CHECK(IsJSMapIterator());
   JSObjectVerify();
   VerifyHeapPointer(table());
-  CHECK(table()->IsOrderedHashTable());
+  CHECK(table()->IsOrderedHashMap());
   CHECK(index()->IsSmi());
 }
 
@@ -1130,7 +1139,6 @@ void JSProxy::JSProxyVerify() {
   Isolate* isolate = GetIsolate();
   CHECK_EQ(target()->IsCallable(), map()->is_callable());
   CHECK_EQ(target()->IsConstructor(), map()->is_constructor());
-  CHECK(hash()->IsSmi() || hash()->IsUndefined(isolate));
   CHECK(map()->prototype()->IsNull(isolate));
   // There should be no properties on a Proxy.
   CHECK_EQ(0, map()->NumberOfOwnDescriptors());
@@ -1222,7 +1230,13 @@ void AsyncGeneratorRequest::AsyncGeneratorRequestVerify() {
   next()->ObjectVerify();
 }
 
-void BigInt::BigIntVerify() { CHECK(IsBigInt()); }
+void BigInt::BigIntVerify() {
+  CHECK(IsBigInt());
+  CHECK_GE(length(), 0);
+  CHECK_IMPLIES(is_zero(), !sign());  // There is no -0n.
+  // TODO(neis): Somewhere check that MSD is non-zero. Doesn't hold during some
+  // operations that allocate which is why we can't test it here.
+}
 
 void JSModuleNamespace::JSModuleNamespaceVerify() {
   CHECK(IsJSModuleNamespace());
@@ -1255,6 +1269,7 @@ void Module::ModuleVerify() {
   VerifyPointer(module_namespace());
   VerifyPointer(requested_modules());
   VerifyPointer(script());
+  VerifyPointer(import_meta());
   VerifyPointer(exception());
   VerifySmiField(kHashOffset);
   VerifySmiField(kStatusOffset);
@@ -1274,6 +1289,8 @@ void Module::ModuleVerify() {
   }
 
   CHECK_EQ(requested_modules()->length(), info()->module_requests()->length());
+
+  CHECK(import_meta()->IsTheHole(GetIsolate()) || import_meta()->IsJSObject());
 
   CHECK_NE(hash(), 0);
 }
@@ -1411,8 +1428,10 @@ void NormalizedMapCache::NormalizedMapCacheVerify() {
     Isolate* isolate = GetIsolate();
     for (int i = 0; i < length(); i++) {
       Object* e = FixedArray::get(i);
-      if (e->IsMap()) {
-        Map::cast(e)->DictionaryMapVerify();
+      if (e->IsWeakCell()) {
+        if (!WeakCell::cast(e)->cleared()) {
+          Map::cast(WeakCell::cast(e)->value())->DictionaryMapVerify();
+        }
       } else {
         CHECK(e->IsUndefined(isolate));
       }
@@ -1452,7 +1471,7 @@ void JSObject::IncrementSpillStatistics(SpillInformation* info) {
   if (HasFastProperties()) {
     info->number_of_objects_with_fast_properties_++;
     info->number_of_fast_used_fields_   += map()->NextFreePropertyIndex();
-    info->number_of_fast_unused_fields_ += map()->unused_property_fields();
+    info->number_of_fast_unused_fields_ += map()->UnusedPropertyFields();
   } else if (IsJSGlobalObject()) {
     GlobalDictionary* dict = JSGlobalObject::cast(this)->global_dictionary();
     info->number_of_slow_used_properties_ += dict->NumberOfElements();
@@ -1498,7 +1517,7 @@ void JSObject::IncrementSpillStatistics(SpillInformation* info) {
     }
     case DICTIONARY_ELEMENTS:
     case SLOW_STRING_WRAPPER_ELEMENTS: {
-      SeededNumberDictionary* dict = element_dictionary();
+      NumberDictionary* dict = element_dictionary();
       info->number_of_slow_used_elements_ += dict->NumberOfElements();
       info->number_of_slow_unused_elements_ +=
           dict->Capacity() - dict->NumberOfElements();
@@ -1552,7 +1571,7 @@ void JSObject::SpillInformation::Print() {
 
 bool DescriptorArray::IsSortedNoDuplicates(int valid_entries) {
   if (valid_entries == -1) valid_entries = number_of_descriptors();
-  Name* current_key = NULL;
+  Name* current_key = nullptr;
   uint32_t current = 0;
   for (int i = 0; i < number_of_descriptors(); i++) {
     Name* key = GetSortedKey(i);
@@ -1573,8 +1592,8 @@ bool DescriptorArray::IsSortedNoDuplicates(int valid_entries) {
 
 
 bool TransitionArray::IsSortedNoDuplicates(int valid_entries) {
-  DCHECK(valid_entries == -1);
-  Name* prev_key = NULL;
+  DCHECK_EQ(valid_entries, -1);
+  Name* prev_key = nullptr;
   PropertyKind prev_kind = kData;
   PropertyAttributes prev_attributes = NONE;
   uint32_t prev_hash = 0;

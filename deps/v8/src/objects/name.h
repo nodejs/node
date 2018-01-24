@@ -57,17 +57,15 @@ class Name : public HeapObject {
   DECL_CAST(Name)
 
   DECL_PRINTER(Name)
-#if V8_TRACE_MAPS
   void NameShortPrint();
   int NameShortPrint(Vector<char> str);
-#endif
 
   // Layout description.
   static const int kHashFieldSlot = HeapObject::kHeaderSize;
 #if V8_TARGET_LITTLE_ENDIAN || !V8_HOST_ARCH_64_BIT
   static const int kHashFieldOffset = kHashFieldSlot;
 #else
-  static const int kHashFieldOffset = kHashFieldSlot + kIntSize;
+  static const int kHashFieldOffset = kHashFieldSlot + kInt32Size;
 #endif
   static const int kSize = kHashFieldSlot + kPointerSize;
 
@@ -188,9 +186,8 @@ class Symbol : public Name {
  private:
   const char* PrivateSymbolToName() const;
 
-#if V8_TRACE_MAPS
+  // TODO(cbruni): remove once the new maptracer is in place.
   friend class Name;  // For PrivateSymbolToName.
-#endif
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(Symbol);
 };

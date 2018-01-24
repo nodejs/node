@@ -28,13 +28,11 @@ TF_BUILTIN(FastFunctionPrototypeBind, CodeStubAssembler) {
 
   Node* receiver_map = LoadMap(receiver);
   {
-    Label fast(this);
     Node* instance_type = LoadMapInstanceType(receiver_map);
-    GotoIf(Word32Equal(instance_type, Int32Constant(JS_FUNCTION_TYPE)), &fast);
-    GotoIf(Word32Equal(instance_type, Int32Constant(JS_BOUND_FUNCTION_TYPE)),
-           &fast);
-    Goto(&slow);
-    BIND(&fast);
+    GotoIfNot(
+        Word32Or(InstanceTypeEqual(instance_type, JS_FUNCTION_TYPE),
+                 InstanceTypeEqual(instance_type, JS_BOUND_FUNCTION_TYPE)),
+        &slow);
   }
 
   // Disallow binding of slow-mode functions. We need to figure out whether the

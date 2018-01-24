@@ -340,14 +340,8 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
       unwinding_info_writer_->MarkLinkRegisterOnTopOfStack(__ pc_offset(),
                                                            __ StackPointer());
     }
-#ifdef V8_CSA_WRITE_BARRIER
     __ CallRecordWriteStub(object_, scratch1_, remembered_set_action,
                            save_fp_mode);
-#else
-    __ CallStubDelayed(
-        new (zone_) RecordWriteStub(nullptr, object_, scratch0_, scratch1_,
-                                    remembered_set_action, save_fp_mode));
-#endif
     if (must_save_lr_) {
       __ Pop(lr);
       unwinding_info_writer_->MarkPopLinkRegisterFromTopOfStack(__ pc_offset());
@@ -534,40 +528,40 @@ Condition FlagsConditionToCondition(FlagsCondition condition) {
 #define ASSEMBLE_ATOMIC_EXCHANGE_INTEGER(load_instr, store_instr)      \
   do {                                                                 \
     Label exchange;                                                    \
-    __ bind(&exchange);                                                \
     __ Add(i.TempRegister(0), i.InputRegister(0), i.InputRegister(1)); \
+    __ Bind(&exchange);                                                \
     __ load_instr(i.OutputRegister32(), i.TempRegister(0));            \
-    __ store_instr(i.TempRegister32(0), i.InputRegister32(2),          \
+    __ store_instr(i.TempRegister32(1), i.InputRegister32(2),          \
                    i.TempRegister(0));                                 \
-    __ cbnz(i.TempRegister32(0), &exchange);                           \
+    __ Cbnz(i.TempRegister32(1), &exchange);                           \
   } while (0)
 
-#define ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER(load_instr, store_instr) \
-  do {                                                                    \
-    Label compareExchange;                                                \
-    Label exit;                                                           \
-    __ bind(&compareExchange);                                            \
-    __ Add(i.TempRegister(0), i.InputRegister(0), i.InputRegister(1));    \
-    __ load_instr(i.OutputRegister32(), i.TempRegister(0));               \
-    __ cmp(i.TempRegister32(1), i.OutputRegister32());                    \
-    __ B(ne, &exit);                                                      \
-    __ store_instr(i.TempRegister32(0), i.InputRegister32(3),             \
-                   i.TempRegister(0));                                    \
-    __ cbnz(i.TempRegister32(0), &compareExchange);                       \
-    __ bind(&exit);                                                       \
+#define ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER(load_instr, store_instr, ext) \
+  do {                                                                         \
+    Label compareExchange;                                                     \
+    Label exit;                                                                \
+    __ Add(i.TempRegister(0), i.InputRegister(0), i.InputRegister(1));         \
+    __ Bind(&compareExchange);                                                 \
+    __ load_instr(i.OutputRegister32(), i.TempRegister(0));                    \
+    __ Cmp(i.OutputRegister32(), Operand(i.InputRegister32(2), ext));          \
+    __ B(ne, &exit);                                                           \
+    __ store_instr(i.TempRegister32(1), i.InputRegister32(3),                  \
+                   i.TempRegister(0));                                         \
+    __ Cbnz(i.TempRegister32(1), &compareExchange);                            \
+    __ Bind(&exit);                                                            \
   } while (0)
 
 #define ASSEMBLE_ATOMIC_BINOP(load_instr, store_instr, bin_instr)      \
   do {                                                                 \
     Label binop;                                                       \
     __ Add(i.TempRegister(0), i.InputRegister(0), i.InputRegister(1)); \
-    __ bind(&binop);                                                   \
+    __ Bind(&binop);                                                   \
     __ load_instr(i.OutputRegister32(), i.TempRegister(0));            \
     __ bin_instr(i.TempRegister32(1), i.OutputRegister32(),            \
                  Operand(i.InputRegister32(2)));                       \
-    __ store_instr(i.TempRegister32(1), i.TempRegister32(1),           \
+    __ store_instr(i.TempRegister32(2), i.TempRegister32(1),           \
                    i.TempRegister(0));                                 \
-    __ cbnz(i.TempRegister32(1), &binop);                              \
+    __ Cbnz(i.TempRegister32(2), &binop);                              \
   } while (0)
 
 #define ASSEMBLE_IEEE754_BINOP(name)                                       \
@@ -667,7 +661,7 @@ void CodeGenerator::AssembleTailCallAfterGap(Instruction* instr,
 // to:
 //    1. load the address of the current instruction;
 //    2. read from memory the word that contains that bit, which can be found in
-//       the first set of flags ({kKindSpecificFlags1Offset});
+//       the flags in the referenced {CodeDataContainer} object;
 //    3. test kMarkedForDeoptimizationBit in those flags; and
 //    4. if it is not zero then it jumps to the builtin.
 void CodeGenerator::BailoutIfDeoptimized() {
@@ -676,8 +670,9 @@ void CodeGenerator::BailoutIfDeoptimized() {
   __ Adr(x2, &current);
   __ Bind(&current);
   int pc = __ pc_offset();
-  int offset = Code::kKindSpecificFlags1Offset - (Code::kHeaderSize + pc);
+  int offset = Code::kCodeDataContainerOffset - (Code::kHeaderSize + pc);
   __ Ldr(x2, MemOperand(x2, offset));
+  __ Ldr(x2, FieldMemOperand(x2, CodeDataContainer::kKindSpecificFlagsOffset));
   __ Tst(x2, Immediate(1 << Code::kMarkedForDeoptimizationBit));
   Handle<Code> code = isolate()->builtins()->builtin_handle(
       Builtins::kCompileLazyDeoptimizedCode);
@@ -720,6 +715,40 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       frame_access_state()->ClearSPDelta();
       break;
     }
+    case kArchCallWasmFunction: {
+      // We must not share code targets for calls to builtins for wasm code, as
+      // they might need to be patched individually.
+      internal::Assembler::BlockCodeTargetSharingScope scope;
+      if (info()->IsWasm()) scope.Open(tasm());
+
+      if (instr->InputAt(0)->IsImmediate()) {
+        Address wasm_code = reinterpret_cast<Address>(
+            i.ToConstant(instr->InputAt(0)).ToInt64());
+        if (info()->IsWasm()) {
+          __ Call(wasm_code, RelocInfo::WASM_CALL);
+        } else {
+          __ Call(wasm_code, RelocInfo::JS_TO_WASM_CALL);
+        }
+      } else {
+        Register target = i.InputRegister(0);
+        __ Call(target);
+      }
+      RecordCallPosition(instr);
+      // TODO(titzer): this is ugly. JSSP should be a caller-save register
+      // in this case, but it is not possible to express in the register
+      // allocator.
+      CallDescriptor::Flags flags(MiscField::decode(opcode));
+      if (flags & CallDescriptor::kRestoreJSSP) {
+        __ Ldr(jssp, MemOperand(csp));
+        __ Mov(csp, jssp);
+      }
+      if (flags & CallDescriptor::kRestoreCSP) {
+        __ Mov(csp, jssp);
+        __ AssertCspAligned();
+      }
+      frame_access_state()->ClearSPDelta();
+      break;
+    }
     case kArchTailCallCodeObjectFromJSFunction:
     case kArchTailCallCodeObject: {
       // We must not share code targets for calls to builtins for wasm code, as
@@ -737,6 +766,30 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       } else {
         Register target = i.InputRegister(0);
         __ Add(target, target, Code::kHeaderSize - kHeapObjectTag);
+        __ Jump(target);
+      }
+      unwinding_info_writer_.MarkBlockWillExit();
+      frame_access_state()->ClearSPDelta();
+      frame_access_state()->SetFrameAccessToDefault();
+      break;
+    }
+    case kArchTailCallWasm: {
+      // We must not share code targets for calls to builtins for wasm code, as
+      // they might need to be patched individually.
+      internal::Assembler::BlockCodeTargetSharingScope scope;
+      if (info()->IsWasm()) scope.Open(tasm());
+
+      if (instr->InputAt(0)->IsImmediate()) {
+        Address wasm_code = reinterpret_cast<Address>(
+            i.ToConstant(instr->InputAt(0)).ToInt64());
+        if (info()->IsWasm()) {
+          __ Jump(wasm_code, RelocInfo::WASM_CALL);
+        } else {
+          __ Jump(wasm_code, RelocInfo::JS_TO_WASM_CALL);
+        }
+
+      } else {
+        Register target = i.InputRegister(0);
         __ Jump(target);
       }
       unwinding_info_writer_.MarkBlockWillExit();
@@ -1767,26 +1820,21 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       ASSEMBLE_ATOMIC_EXCHANGE_INTEGER(ldaxr, stlxr);
       break;
     case kAtomicCompareExchangeInt8:
-      __ Uxtb(i.TempRegister(1), i.InputRegister(2));
-      ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER(ldaxrb, stlxrb);
+      ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER(ldaxrb, stlxrb, UXTB);
       __ Sxtb(i.OutputRegister(0), i.OutputRegister(0));
       break;
     case kAtomicCompareExchangeUint8:
-      __ Uxtb(i.TempRegister(1), i.InputRegister(2));
-      ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER(ldaxrb, stlxrb);
+      ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER(ldaxrb, stlxrb, UXTB);
       break;
     case kAtomicCompareExchangeInt16:
-      __ Uxth(i.TempRegister(1), i.InputRegister(2));
-      ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER(ldaxrh, stlxrh);
+      ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER(ldaxrh, stlxrh, UXTH);
       __ Sxth(i.OutputRegister(0), i.OutputRegister(0));
       break;
     case kAtomicCompareExchangeUint16:
-      __ Uxth(i.TempRegister(1), i.InputRegister(2));
-      ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER(ldaxrh, stlxrh);
+      ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER(ldaxrh, stlxrh, UXTH);
       break;
     case kAtomicCompareExchangeWord32:
-      __ mov(i.TempRegister(1), i.InputRegister(2));
-      ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER(ldaxr, stlxr);
+      ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER(ldaxr, stlxr, UXTW);
       break;
 #define ATOMIC_BINOP_CASE(op, inst)                    \
   case kAtomic##op##Int8:                              \
@@ -1812,6 +1860,21 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       ATOMIC_BINOP_CASE(Or, Orr)
       ATOMIC_BINOP_CASE(Xor, Eor)
 #undef ATOMIC_BINOP_CASE
+#undef ASSEMBLE_BOUNDS_CHECK
+#undef ASSEMBLE_CHECKED_LOAD_FLOAT
+#undef ASSEMBLE_CHECKED_LOAD_INTEGER
+#undef ASSEMBLE_CHECKED_LOAD_INTEGER_64
+#undef ASSEMBLE_CHECKED_STORE_FLOAT
+#undef ASSEMBLE_CHECKED_STORE_INTEGER
+#undef ASSEMBLE_CHECKED_STORE_INTEGER_64
+#undef ASSEMBLE_SHIFT
+#undef ASSEMBLE_ATOMIC_LOAD_INTEGER
+#undef ASSEMBLE_ATOMIC_STORE_INTEGER
+#undef ASSEMBLE_ATOMIC_EXCHANGE_INTEGER
+#undef ASSEMBLE_ATOMIC_BINOP
+#undef ASSEMBLE_IEEE754_BINOP
+#undef ASSEMBLE_IEEE754_UNOP
+#undef ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER
 
 #define SIMD_UNOP_CASE(Op, Instr, FORMAT)            \
   case Op:                                           \
@@ -2484,6 +2547,11 @@ void CodeGenerator::AssembleConstructFrame() {
   int shrink_slots =
       frame()->GetTotalFrameSlotCount() - descriptor->CalculateFixedFrameSize();
 
+  CPURegList saves = CPURegList(CPURegister::kRegister, kXRegSizeInBits,
+                                descriptor->CalleeSavedRegisters());
+  CPURegList saves_fp = CPURegList(CPURegister::kVRegister, kDRegSizeInBits,
+                                   descriptor->CalleeSavedFPRegisters());
+
   if (frame_access_state()->has_frame()) {
     // Link the frame
     if (descriptor->IsJSFunctionCall()) {
@@ -2554,6 +2622,10 @@ void CodeGenerator::AssembleConstructFrame() {
       __ Bind(&done);
     }
 
+    // Skip callee-saved slots, which are pushed below.
+    shrink_slots -= saves.Count();
+    shrink_slots -= saves_fp.Count();
+
     // Build remainder of frame, including accounting for and filling-in
     // frame-specific header information, i.e. claiming the extra slot that
     // other platforms explicitly push for STUB (code object) frames and frames
@@ -2568,7 +2640,8 @@ void CodeGenerator::AssembleConstructFrame() {
           __ Claim(shrink_slots);
         }
         break;
-      case CallDescriptor::kCallCodeObject: {
+      case CallDescriptor::kCallCodeObject:
+      case CallDescriptor::kCallWasmFunction: {
         UseScratchRegisterScope temps(tasm());
         __ Claim(shrink_slots + 1);  // Claim extra slot for frame type marker.
         Register scratch = temps.AcquireX();
@@ -2585,8 +2658,6 @@ void CodeGenerator::AssembleConstructFrame() {
   }
 
   // Save FP registers.
-  CPURegList saves_fp = CPURegList(CPURegister::kVRegister, kDRegSizeInBits,
-                                   descriptor->CalleeSavedFPRegisters());
   DCHECK_IMPLIES(saves_fp.Count() != 0,
                  saves_fp.list() == CPURegList::GetCalleeSavedV().list());
   __ PushCPURegList(saves_fp);
@@ -2595,8 +2666,6 @@ void CodeGenerator::AssembleConstructFrame() {
   // TODO(palfia): TF save list is not in sync with
   // CPURegList::GetCalleeSaved(): x30 is missing.
   // DCHECK(saves.list() == CPURegList::GetCalleeSaved().list());
-  CPURegList saves = CPURegList(CPURegister::kRegister, kXRegSizeInBits,
-                                descriptor->CalleeSavedRegisters());
   __ PushCPURegList(saves);
 }
 

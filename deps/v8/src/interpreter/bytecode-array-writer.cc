@@ -26,7 +26,7 @@ BytecodeArrayWriter::BytecodeArrayWriter(
     SourcePositionTableBuilder::RecordingMode source_position_mode)
     : bytecodes_(zone),
       unbound_jumps_(0),
-      source_position_table_builder_(zone, source_position_mode),
+      source_position_table_builder_(source_position_mode),
       constant_array_builder_(constant_array_builder),
       last_bytecode_(Bytecode::kIllegal),
       last_bytecode_offset_(0),
@@ -45,14 +45,16 @@ Handle<BytecodeArray> BytecodeArrayWriter::ToBytecodeArray(
   int frame_size = register_count * kPointerSize;
   Handle<FixedArray> constant_pool =
       constant_array_builder()->ToFixedArray(isolate);
+  Handle<ByteArray> source_position_table =
+      source_position_table_builder()->ToSourcePositionTable(isolate);
   Handle<BytecodeArray> bytecode_array = isolate->factory()->NewBytecodeArray(
       bytecode_size, &bytecodes()->front(), frame_size, parameter_count,
       constant_pool);
   bytecode_array->set_handler_table(*handler_table);
-  Handle<ByteArray> source_position_table =
-      source_position_table_builder()->ToSourcePositionTable(
-          isolate, Handle<AbstractCode>::cast(bytecode_array));
   bytecode_array->set_source_position_table(*source_position_table);
+  LOG_CODE_EVENT(isolate, CodeLinePosInfoRecordEvent(
+                              bytecode_array->GetFirstBytecodeAddress(),
+                              *source_position_table));
   return bytecode_array;
 }
 

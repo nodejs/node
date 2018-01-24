@@ -56,33 +56,20 @@ void SetupInterpreter::InstallBytecodeHandlers(Interpreter* interpreter) {
     }
   }
 
+  // Generate the DeserializeLazy handlers, one for each operand scale.
+  Heap* heap = interpreter->isolate_->heap();
+  DCHECK_EQ(Smi::kZero, heap->deserialize_lazy_handler());
+  heap->SetDeserializeLazyHandler(*GenerateDeserializeLazyHandler(
+      interpreter->isolate_, OperandScale::kSingle));
+  DCHECK_EQ(Smi::kZero, heap->deserialize_lazy_handler_wide());
+  heap->SetDeserializeLazyHandlerWide(*GenerateDeserializeLazyHandler(
+      interpreter->isolate_, OperandScale::kDouble));
+  DCHECK_EQ(Smi::kZero, heap->deserialize_lazy_handler_extra_wide());
+  heap->SetDeserializeLazyHandlerExtraWide(*GenerateDeserializeLazyHandler(
+      interpreter->isolate_, OperandScale::kQuadruple));
+
   // Initialization should have been successful.
   DCHECK(interpreter->IsDispatchTableInitialized());
-}
-
-// static
-bool SetupInterpreter::ReuseExistingHandler(Address* dispatch_table,
-                                            Bytecode bytecode,
-                                            OperandScale operand_scale) {
-  size_t index = Interpreter::GetDispatchTableIndex(bytecode, operand_scale);
-  switch (bytecode) {
-    case Bytecode::kLdaImmutableContextSlot:
-      STATIC_ASSERT(static_cast<int>(Bytecode::kLdaContextSlot) <
-                    static_cast<int>(Bytecode::kLdaImmutableContextSlot));
-      dispatch_table[index] = dispatch_table[Interpreter::GetDispatchTableIndex(
-          Bytecode::kLdaContextSlot, operand_scale)];
-      return true;
-    case Bytecode::kLdaImmutableCurrentContextSlot:
-      STATIC_ASSERT(
-          static_cast<int>(Bytecode::kLdaCurrentContextSlot) <
-          static_cast<int>(Bytecode::kLdaImmutableCurrentContextSlot));
-      dispatch_table[index] = dispatch_table[Interpreter::GetDispatchTableIndex(
-          Bytecode::kLdaCurrentContextSlot, operand_scale)];
-      return true;
-    default:
-      return false;
-  }
-  return false;
 }
 
 // static
@@ -91,7 +78,6 @@ void SetupInterpreter::InstallBytecodeHandler(Isolate* isolate,
                                               Bytecode bytecode,
                                               OperandScale operand_scale) {
   if (!Bytecodes::BytecodeHasHandler(bytecode, operand_scale)) return;
-  if (ReuseExistingHandler(dispatch_table, bytecode, operand_scale)) return;
 
   size_t index = Interpreter::GetDispatchTableIndex(bytecode, operand_scale);
   Handle<Code> code = GenerateBytecodeHandler(isolate, bytecode, operand_scale);
