@@ -1239,10 +1239,14 @@ This property is deprecated.
 ### crypto.fips
 <!-- YAML
 added: v6.0.0
+deprecated: REPLACEME
 -->
 
 Property for checking and controlling whether a FIPS compliant crypto provider is
 currently in use. Setting to true requires a FIPS build of Node.js.
+
+This property is deprecated. Please use `crypto.setFips()` and
+`crypto.getFips()` instead.
 
 ### crypto.createCipher(algorithm, password[, options])
 <!-- YAML
@@ -1575,6 +1579,14 @@ const bobSecret = bob.computeSecret(alice.getPublicKey(), null, 'hex');
 /* aliceSecret and bobSecret should be the same */
 console.log(aliceSecret === bobSecret);
 ```
+
+### crypto.getFips()
+<!-- YAML
+added: REPLACEME
+-->
+
+Returns `true` if and only if a FIPS compliant crypto provider is
+currently in use.
 
 ### crypto.getHashes()
 <!-- YAML
@@ -1998,6 +2010,15 @@ is a bit field taking one of or a mix of the following flags (defined in
 * `crypto.constants.ENGINE_METHOD_PKEY_ASN1_METHS`
 * `crypto.constants.ENGINE_METHOD_ALL`
 * `crypto.constants.ENGINE_METHOD_NONE`
+
+### crypto.setFips(bool)
+<!-- YAML
+added: REPLACEME
+-->
+* `bool` {boolean} `true` to enable FIPS mode.
+
+Enables the FIPS compliant crypto provider in a FIPS-enabled Node.js build.
+Throws an error if FIPS mode is not available.
 
 ### crypto.timingSafeEqual(a, b)
 <!-- YAML
