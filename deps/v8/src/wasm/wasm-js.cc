@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/wasm/wasm-js.h"
+
 #include "src/api-natives.h"
 #include "src/api.h"
 #include "src/assert-scope.h"
@@ -13,11 +15,10 @@
 #include "src/objects-inl.h"
 #include "src/objects.h"
 #include "src/parsing/parse-info.h"
-
+#include "src/trap-handler/trap-handler.h"
 #include "src/wasm/module-compiler.h"
 #include "src/wasm/module-decoder.h"
 #include "src/wasm/wasm-api.h"
-#include "src/wasm/wasm-js.h"
 #include "src/wasm/wasm-limits.h"
 #include "src/wasm/wasm-memory.h"
 #include "src/wasm/wasm-module.h"
@@ -192,6 +193,10 @@ void WebAssemblyModule(const v8::FunctionCallbackInfo<v8::Value>& args) {
   HandleScope scope(isolate);
   i::wasm::ScheduledErrorThrower thrower(i_isolate, "WebAssembly.Module()");
 
+  if (!args.IsConstructCall()) {
+    thrower.TypeError("WebAssembly.Module must be invoked with 'new'");
+    return;
+  }
   if (!i::wasm::IsWasmCodegenAllowed(i_isolate, i_isolate->native_context())) {
     thrower.CompileError("Wasm code generation disallowed by embedder");
     return;
@@ -342,14 +347,20 @@ void WebAssemblyInstantiateToPairCallback(
 // new WebAssembly.Instance(module, imports) -> WebAssembly.Instance
 void WebAssemblyInstance(const v8::FunctionCallbackInfo<v8::Value>& args) {
   Isolate* isolate = args.GetIsolate();
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  i_isolate->CountUsage(
+      v8::Isolate::UseCounterFeature::kWebAssemblyInstantiation);
   MicrotasksScope does_not_run_microtasks(isolate,
                                           MicrotasksScope::kDoNotRunMicrotasks);
 
   HandleScope scope(args.GetIsolate());
-  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   if (i_isolate->wasm_instance_callback()(args)) return;
 
   i::wasm::ScheduledErrorThrower thrower(i_isolate, "WebAssembly.Instance()");
+  if (!args.IsConstructCall()) {
+    thrower.TypeError("WebAssembly.Instance must be invoked with 'new'");
+    return;
+  }
 
   GetFirstArgumentAsModule(args, &thrower);
   if (thrower.error()) return;
@@ -368,6 +379,8 @@ void WebAssemblyInstantiateStreaming(
     const v8::FunctionCallbackInfo<v8::Value>& args) {
   v8::Isolate* isolate = args.GetIsolate();
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  i_isolate->CountUsage(
+      v8::Isolate::UseCounterFeature::kWebAssemblyInstantiation);
   // we use i_isolate in DCHECKS in the ASSIGN statements.
   USE(i_isolate);
   MicrotasksScope runs_microtasks(isolate, MicrotasksScope::kRunMicrotasks);
@@ -397,6 +410,8 @@ void WebAssemblyInstantiateStreaming(
 void WebAssemblyInstantiate(const v8::FunctionCallbackInfo<v8::Value>& args) {
   v8::Isolate* isolate = args.GetIsolate();
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  i_isolate->CountUsage(
+      v8::Isolate::UseCounterFeature::kWebAssemblyInstantiation);
   MicrotasksScope runs_microtasks(isolate, MicrotasksScope::kRunMicrotasks);
 
   i::wasm::ScheduledErrorThrower thrower(i_isolate,
@@ -477,6 +492,10 @@ void WebAssemblyTable(const v8::FunctionCallbackInfo<v8::Value>& args) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   HandleScope scope(isolate);
   i::wasm::ScheduledErrorThrower thrower(i_isolate, "WebAssembly.Module()");
+  if (!args.IsConstructCall()) {
+    thrower.TypeError("WebAssembly.Table must be invoked with 'new'");
+    return;
+  }
   if (!args[0]->IsObject()) {
     thrower.TypeError("Argument 0 must be a table descriptor");
     return;
@@ -530,6 +549,10 @@ void WebAssemblyMemory(const v8::FunctionCallbackInfo<v8::Value>& args) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   HandleScope scope(isolate);
   i::wasm::ScheduledErrorThrower thrower(i_isolate, "WebAssembly.Memory()");
+  if (!args.IsConstructCall()) {
+    thrower.TypeError("WebAssembly.Memory must be invoked with 'new'");
+    return;
+  }
   if (!args[0]->IsObject()) {
     thrower.TypeError("Argument 0 must be a memory descriptor");
     return;
@@ -586,7 +609,7 @@ void WebAssemblyMemory(const v8::FunctionCallbackInfo<v8::Value>& args) {
   }
   if (buffer->is_shared()) {
     Maybe<bool> result =
-        buffer->SetIntegrityLevel(buffer, i::FROZEN, i::Object::DONT_THROW);
+        buffer->SetIntegrityLevel(buffer, i::FROZEN, i::kDontThrow);
     if (!result.FromJust()) {
       thrower.TypeError(
           "Status of setting SetIntegrityLevel of buffer is false.");
@@ -617,8 +640,8 @@ void WebAssemblyInstanceGetExports(
   v8::Isolate* isolate = args.GetIsolate();
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   HandleScope scope(isolate);
-    i::wasm::ScheduledErrorThrower thrower(i_isolate,
-                                           "WebAssembly.Instance.exports()");
+  i::wasm::ScheduledErrorThrower thrower(i_isolate,
+                                         "WebAssembly.Instance.exports()");
   EXTRACT_THIS(receiver, WasmInstanceObject);
   i::Handle<i::JSObject> exports_object(receiver->exports_object());
   args.GetReturnValue().Set(Utils::ToLocal(exports_object));
@@ -714,6 +737,7 @@ void WebAssemblyTableSet(const v8::FunctionCallbackInfo<v8::Value>& args) {
 
   // Parameter 1.
   i::Handle<i::Object> value = Utils::OpenHandle(*args[1]);
+  // TODO(titzer): use WasmExportedFunction::IsWasmExportedFunction() here.
   if (!value->IsNull(i_isolate) &&
       (!value->IsJSFunction() ||
        i::Handle<i::JSFunction>::cast(value)->code()->kind() !=
@@ -804,7 +828,7 @@ void WebAssemblyMemoryGetBuffer(
     // buffer are out of sync, handle that here when bounds checks, and Grow
     // are handled correctly.
     Maybe<bool> result =
-        buffer->SetIntegrityLevel(buffer, i::FROZEN, i::Object::DONT_THROW);
+        buffer->SetIntegrityLevel(buffer, i::FROZEN, i::kDontThrow);
     if (!result.FromJust()) {
       thrower.TypeError(
           "Status of setting SetIntegrityLevel of buffer is false.");
@@ -870,8 +894,9 @@ void WasmJs::Install(Isolate* isolate, bool exposed_on_global_object) {
 
   // Setup WebAssembly
   Handle<String> name = v8_str(isolate, "WebAssembly");
-  Handle<JSFunction> cons = factory->NewFunction(isolate->strict_function_map(),
-                                                 name, MaybeHandle<Code>());
+  NewFunctionArgs args = NewFunctionArgs::ForFunctionWithoutCode(
+      name, isolate->strict_function_map(), LanguageMode::kStrict);
+  Handle<JSFunction> cons = factory->NewFunction(args);
   JSFunction::SetPrototype(cons, isolate->initial_object_prototype());
   cons->shared()->set_instance_class_name(*name);
   Handle<JSObject> webassembly = factory->NewJSObject(cons, TENURED);

@@ -26,75 +26,28 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
-from . import output
-
 class TestCase(object):
-  def __init__(self, suite, path, variant=None, flags=None,
-               override_shell=None):
+  def __init__(self, suite, path, variant=None, flags=None):
     self.suite = suite        # TestSuite object
     self.path = path          # string, e.g. 'div-mod', 'test-api/foo'
     self.flags = flags or []  # list of strings, flags specific to this test
     self.variant = variant    # name of the used testing variant
-    self.override_shell = override_shell
-    self.outcomes = frozenset([])
     self.output = None
     self.id = None  # int, used to map result back to TestCase instance
     self.duration = None  # assigned during execution
     self.run = 1  # The nth time this test is executed.
-    self.env = {}
 
   def CopyAddingFlags(self, variant, flags):
-    copy = TestCase(self.suite, self.path, variant, self.flags + flags,
-                    self.override_shell)
-    copy.outcomes = self.outcomes
-    copy.env = self.env
-    return copy
-
-  def PackTask(self):
-    """
-    Extracts those parts of this object that are required to run the test
-    and returns them as a JSON serializable object.
-    """
-    assert self.id is not None
-    return [self.suitename(), self.path, self.variant, self.flags,
-            self.override_shell, list(self.outcomes or []),
-            self.id, self.env]
-
-  @staticmethod
-  def UnpackTask(task):
-    """Creates a new TestCase object based on packed task data."""
-    # For the order of the fields, refer to PackTask() above.
-    test = TestCase(str(task[0]), task[1], task[2], task[3], task[4])
-    test.outcomes = frozenset(task[5])
-    test.id = task[6]
-    test.run = 1
-    test.env = task[7]
-    return test
+    return TestCase(self.suite, self.path, variant, self.flags + flags)
 
   def SetSuiteObject(self, suites):
     self.suite = suites[self.suite]
-
-  def PackResult(self):
-    """Serializes the output of the TestCase after it has run."""
-    self.suite.StripOutputForTransmit(self)
-    return [self.id, self.output.Pack(), self.duration]
-
-  def MergeResult(self, result):
-    """Applies the contents of a Result to this object."""
-    assert result[0] == self.id
-    self.output = output.Output.Unpack(result[1])
-    self.duration = result[2]
 
   def suitename(self):
     return self.suite.name
 
   def GetLabel(self):
     return self.suitename() + "/" + self.suite.CommonTestName(self)
-
-  def shell(self):
-    if self.override_shell:
-      return self.override_shell
-    return self.suite.shell()
 
   def __getstate__(self):
     """Representation to pickle test cases.

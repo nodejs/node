@@ -24,8 +24,8 @@ bool isSpaceOrNewLine(UChar c) {
   return isASCII(c) && c <= ' ' && (c == ' ' || (c <= 0xD && c >= 0x9));
 }
 
-int charactersToInteger(const UChar* characters, size_t length,
-                        bool* ok = nullptr) {
+int64_t charactersToInteger(const UChar* characters, size_t length,
+                            bool* ok = nullptr) {
   std::vector<char> buffer;
   buffer.reserve(length + 1);
   for (size_t i = 0; i < length; ++i) {
@@ -39,12 +39,9 @@ int charactersToInteger(const UChar* characters, size_t length,
 
   char* endptr;
   int64_t result =
-      static_cast<int64_t>(std::strtol(buffer.data(), &endptr, 10));
-  if (ok) {
-    *ok = !(*endptr) && result <= std::numeric_limits<int>::max() &&
-          result >= std::numeric_limits<int>::min();
-  }
-  return static_cast<int>(result);
+      static_cast<int64_t>(std::strtoll(buffer.data(), &endptr, 10));
+  if (ok) *ok = !(*endptr);
+  return result;
 }
 
 const UChar replacementCharacter = 0xFFFD;
@@ -430,8 +427,17 @@ String16 String16::fromDouble(double number, int precision) {
   return String16(str.get());
 }
 
-int String16::toInteger(bool* ok) const {
+int64_t String16::toInteger64(bool* ok) const {
   return charactersToInteger(characters16(), length(), ok);
+}
+
+int String16::toInteger(bool* ok) const {
+  int64_t result = toInteger64(ok);
+  if (ok && *ok) {
+    *ok = result <= std::numeric_limits<int>::max() &&
+          result >= std::numeric_limits<int>::min();
+  }
+  return static_cast<int>(result);
 }
 
 String16 String16::stripWhiteSpace() const {

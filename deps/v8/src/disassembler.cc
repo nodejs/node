@@ -9,7 +9,6 @@
 
 #include "src/assembler-inl.h"
 #include "src/code-stubs.h"
-#include "src/codegen.h"
 #include "src/debug/debug.h"
 #include "src/deoptimizer.h"
 #include "src/disasm.h"
@@ -39,14 +38,14 @@ class V8NameConverter: public disasm::NameConverter {
 
 const char* V8NameConverter::NameOfAddress(byte* pc) const {
   const char* name =
-      code_ == NULL ? NULL : code_->GetIsolate()->builtins()->Lookup(pc);
+      code_ == nullptr ? nullptr : code_->GetIsolate()->builtins()->Lookup(pc);
 
-  if (name != NULL) {
+  if (name != nullptr) {
     SNPrintF(v8_buffer_, "%p  (%s)", static_cast<void*>(pc), name);
     return v8_buffer_.start();
   }
 
-  if (code_ != NULL) {
+  if (code_ != nullptr) {
     int offs = static_cast<int>(pc - code_->instruction_start());
     // print as code offset, if it seems reasonable
     if (0 <= offs && offs < code_->instruction_size()) {
@@ -62,7 +61,7 @@ const char* V8NameConverter::NameOfAddress(byte* pc) const {
 const char* V8NameConverter::NameInCode(byte* addr) const {
   // The V8NameConverter is used for well known code, so we can "safely"
   // dereference pointers in generated code.
-  return (code_ != NULL) ? reinterpret_cast<const char*>(addr) : "";
+  return (code_ != nullptr) ? reinterpret_cast<const char*>(addr) : "";
 }
 
 
@@ -166,8 +165,8 @@ static int DecodeIt(Isolate* isolate, std::ostream* os,
   StringBuilder out(out_buffer.start(), out_buffer.length());
   byte* pc = begin;
   disasm::Disassembler d(converter);
-  RelocIterator* it = NULL;
-  if (converter.code() != NULL) {
+  RelocIterator* it = nullptr;
+  if (converter.code() != nullptr) {
     it = new RelocIterator(converter.code());
   } else {
     // No relocation information when printing code stubs.
@@ -191,8 +190,8 @@ static int DecodeIt(Isolate* isolate, std::ostream* os,
                  *reinterpret_cast<int32_t*>(pc), num_const);
         constants = num_const;
         pc += 4;
-      } else if (it != NULL && !it->done() && it->rinfo()->pc() == pc &&
-          it->rinfo()->rmode() == RelocInfo::INTERNAL_REFERENCE) {
+      } else if (it != nullptr && !it->done() && it->rinfo()->pc() == pc &&
+                 it->rinfo()->rmode() == RelocInfo::INTERNAL_REFERENCE) {
         // raw pointer embedded in code stream, e.g., jump table
         byte* ptr = *reinterpret_cast<byte**>(pc);
         SNPrintF(
@@ -210,7 +209,7 @@ static int DecodeIt(Isolate* isolate, std::ostream* os,
     std::vector<byte*> pcs;
     std::vector<RelocInfo::Mode> rmodes;
     std::vector<intptr_t> datas;
-    if (it != NULL) {
+    if (it != nullptr) {
       while (!it->done() && it->rinfo()->pc() < pc) {
         if (RelocInfo::IsComment(it->rinfo()->rmode())) {
           // For comments just collect the text.
@@ -274,7 +273,7 @@ static int DecodeIt(Isolate* isolate, std::ostream* os,
   }
 
   // Emit comments following the last instruction (if any).
-  if (it != NULL) {
+  if (it != nullptr) {
     for ( ; !it->done(); it->next()) {
       if (RelocInfo::IsComment(it->rinfo()->rmode())) {
         out.AddFormatted("                  %s",

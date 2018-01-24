@@ -494,7 +494,7 @@ TEST_F(WasmModuleVerifyTest, DataSegmentWithImmutableImportedGlobal) {
       0,                    // mutability
       SECTION(Memory, 4),
       ENTRY_COUNT(1),
-      kResizableMaximumFlag,
+      kHasMaximumFlag,
       28,
       28,
       SECTION(Data, 9),
@@ -527,7 +527,7 @@ TEST_F(WasmModuleVerifyTest, DataSegmentWithMutableImportedGlobal) {
       1,                   // mutability
       SECTION(Memory, 4),
       ENTRY_COUNT(1),
-      kResizableMaximumFlag,
+      kHasMaximumFlag,
       28,
       28,
       SECTION(Data, 9),
@@ -546,7 +546,7 @@ TEST_F(WasmModuleVerifyTest, DataSegmentWithImmutableGlobal) {
   const byte data[] = {
       SECTION(Memory, 4),
       ENTRY_COUNT(1),
-      kResizableMaximumFlag,
+      kHasMaximumFlag,
       28,
       28,
       SECTION(Global, 8),  // --
@@ -571,7 +571,7 @@ TEST_F(WasmModuleVerifyTest, OneDataSegment) {
   const byte data[] = {
       SECTION(Memory, 4),
       ENTRY_COUNT(1),
-      kResizableMaximumFlag,
+      kHasMaximumFlag,
       28,
       28,
       SECTION(Data, 11),
@@ -610,7 +610,7 @@ TEST_F(WasmModuleVerifyTest, TwoDataSegments) {
   const byte data[] = {
       SECTION(Memory, 4),
       ENTRY_COUNT(1),
-      kResizableMaximumFlag,
+      kHasMaximumFlag,
       28,
       28,
       SECTION(Data, 29),
@@ -678,15 +678,13 @@ TEST_F(WasmModuleVerifyTest, DataWithoutMemory) {
 TEST_F(WasmModuleVerifyTest, MaxMaximumMemorySize) {
   {
     const byte data[] = {
-        SECTION(Memory, 6), ENTRY_COUNT(1), kResizableMaximumFlag, 0,
-        U32V_3(65536),
+        SECTION(Memory, 6), ENTRY_COUNT(1), kHasMaximumFlag, 0, U32V_3(65536),
     };
     EXPECT_VERIFIES(data);
   }
   {
     const byte data[] = {
-        SECTION(Memory, 6), ENTRY_COUNT(1), kResizableMaximumFlag, 0,
-        U32V_3(65537),
+        SECTION(Memory, 6), ENTRY_COUNT(1), kHasMaximumFlag, 0, U32V_3(65537),
     };
     EXPECT_FAILURE(data);
   }
@@ -696,7 +694,7 @@ TEST_F(WasmModuleVerifyTest, DataSegment_wrong_init_type) {
   const byte data[] = {
       SECTION(Memory, 4),
       ENTRY_COUNT(1),
-      kResizableMaximumFlag,
+      kHasMaximumFlag,
       28,
       28,
       SECTION(Data, 11),
@@ -715,7 +713,7 @@ TEST_F(WasmModuleVerifyTest, DataSegment_wrong_init_type) {
 TEST_F(WasmModuleVerifyTest, DataSegmentEndOverflow) {
   const byte data[] = {
       SECTION(Memory, 4),  // memory section
-      ENTRY_COUNT(1),           kResizableMaximumFlag, 28, 28,
+      ENTRY_COUNT(1),           kHasMaximumFlag, 28, 28,
       SECTION(Data, 10),         // data section
       ENTRY_COUNT(1),            // one entry
       LINEAR_MEMORY_INDEX_0,     // mem index
@@ -1503,6 +1501,31 @@ TEST_F(WasmModuleVerifyTest, Regression_738097) {
       0                                      // No real body
   };
   EXPECT_FAILURE(data);
+}
+
+TEST_F(WasmModuleVerifyTest, FunctionBodySizeLimit) {
+  const uint32_t delta = 3;
+  for (uint32_t body_size = kV8MaxWasmFunctionSize - delta;
+       body_size < kV8MaxWasmFunctionSize + delta; body_size++) {
+    byte data[] = {
+        SIGNATURES_SECTION(1, SIG_ENTRY_v_v),  // --
+        FUNCTION_SIGNATURES_SECTION(1, 0),     // --
+        kCodeSectionCode,                      // code section
+        U32V_5(1 + body_size + 5),             // section size
+        1,                                     // # functions
+        U32V_5(body_size)                      // body size
+    };
+    size_t total = sizeof(data) + body_size;
+    byte* buffer = reinterpret_cast<byte*>(calloc(1, total));
+    memcpy(buffer, data, sizeof(data));
+    ModuleResult result = DecodeModule(buffer, buffer + total);
+    if (body_size <= kV8MaxWasmFunctionSize) {
+      EXPECT_TRUE(result.ok());
+    } else {
+      EXPECT_FALSE(result.ok());
+    }
+    free(buffer);
+  }
 }
 
 TEST_F(WasmModuleVerifyTest, FunctionBodies_empty) {

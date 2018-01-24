@@ -117,6 +117,12 @@ void SwitchBuilder::SetCaseTarget(int index, CaseClause* clause) {
   }
 }
 
+TryCatchBuilder::~TryCatchBuilder() {
+  if (block_coverage_builder_ != nullptr) {
+    block_coverage_builder_->IncrementBlockCounter(
+        statement_, SourceRangeKind::kContinuation);
+  }
+}
 
 void TryCatchBuilder::BeginTry(Register context) {
   builder()->MarkTryBegin(handler_id_, context);
@@ -128,11 +134,21 @@ void TryCatchBuilder::EndTry() {
   builder()->Jump(&exit_);
   builder()->Bind(&handler_);
   builder()->MarkHandler(handler_id_, catch_prediction_);
-}
 
+  if (block_coverage_builder_ != nullptr) {
+    block_coverage_builder_->IncrementBlockCounter(statement_,
+                                                   SourceRangeKind::kCatch);
+  }
+}
 
 void TryCatchBuilder::EndCatch() { builder()->Bind(&exit_); }
 
+TryFinallyBuilder::~TryFinallyBuilder() {
+  if (block_coverage_builder_ != nullptr) {
+    block_coverage_builder_->IncrementBlockCounter(
+        statement_, SourceRangeKind::kContinuation);
+  }
+}
 
 void TryFinallyBuilder::BeginTry(Register context) {
   builder()->MarkTryBegin(handler_id_, context);
@@ -154,7 +170,14 @@ void TryFinallyBuilder::BeginHandler() {
   builder()->MarkHandler(handler_id_, catch_prediction_);
 }
 
-void TryFinallyBuilder::BeginFinally() { finalization_sites_.Bind(builder()); }
+void TryFinallyBuilder::BeginFinally() {
+  finalization_sites_.Bind(builder());
+
+  if (block_coverage_builder_ != nullptr) {
+    block_coverage_builder_->IncrementBlockCounter(statement_,
+                                                   SourceRangeKind::kFinally);
+  }
+}
 
 void TryFinallyBuilder::EndFinally() {
   // Nothing to be done here.

@@ -295,8 +295,10 @@ void V8ConsoleMessage::reportToFrontend(protocol::Runtime::Frontend* frontend,
     if (m_scriptId)
       exceptionDetails->setScriptId(String16::fromInteger(m_scriptId));
     if (!m_url.isEmpty()) exceptionDetails->setUrl(m_url);
-    if (m_stackTrace)
-      exceptionDetails->setStackTrace(m_stackTrace->buildInspectorObjectImpl());
+    if (m_stackTrace) {
+      exceptionDetails->setStackTrace(
+          m_stackTrace->buildInspectorObjectImpl(inspector->debugger()));
+    }
     if (m_contextId) exceptionDetails->setExecutionContextId(m_contextId);
     if (exception) exceptionDetails->setException(std::move(exception));
     frontend->exceptionThrown(m_timestamp, std::move(exceptionDetails));
@@ -326,7 +328,9 @@ void V8ConsoleMessage::reportToFrontend(protocol::Runtime::Frontend* frontend,
     frontend->consoleAPICalled(
         consoleAPITypeValue(m_type), std::move(arguments), m_contextId,
         m_timestamp,
-        m_stackTrace ? m_stackTrace->buildInspectorObjectImpl() : nullptr,
+        m_stackTrace
+            ? m_stackTrace->buildInspectorObjectImpl(inspector->debugger())
+            : nullptr,
         std::move(consoleContext));
     return;
   }

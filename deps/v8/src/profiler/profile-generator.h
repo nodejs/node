@@ -47,8 +47,8 @@ class CodeEntry {
                    const char* resource_name = CodeEntry::kEmptyResourceName,
                    int line_number = v8::CpuProfileNode::kNoLineNumberInfo,
                    int column_number = v8::CpuProfileNode::kNoColumnNumberInfo,
-                   JITLineInfoTable* line_info = NULL,
-                   Address instruction_start = NULL);
+                   JITLineInfoTable* line_info = nullptr,
+                   Address instruction_start = nullptr);
   ~CodeEntry();
 
   const char* name_prefix() const { return name_prefix_; }

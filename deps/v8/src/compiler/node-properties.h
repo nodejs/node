@@ -122,6 +122,9 @@ class V8_EXPORT_PRIVATE NodeProperties final {
   // Collect the output-value projection for the given output index.
   static Node* FindProjection(Node* node, size_t projection_index);
 
+  // Collect the value projections from a node.
+  static void CollectValueProjections(Node* node, Node** proj, size_t count);
+
   // Collect the branch-related projections from a node, such as IfTrue,
   // IfFalse, IfSuccess, IfException, IfValue and IfDefault.
   //  - Branch: [ IfTrue, IfFalse ]
@@ -154,6 +157,15 @@ class V8_EXPORT_PRIVATE NodeProperties final {
   // between the {effect} and it's {dominator}. Aborts the walk if there's join
   // in the effect chain.
   static bool NoObservableSideEffectBetween(Node* effect, Node* dominator);
+
+  // Returns true if the {receiver} can be a primitive value (i.e. is not
+  // definitely a JavaScript object); might walk up the {effect} chain to
+  // find map checks on {receiver}.
+  static bool CanBePrimitive(Node* receiver, Node* effect);
+
+  // Returns true if the {receiver} can be null or undefined. Might walk
+  // up the {effect} chain to find map checks for {receiver}.
+  static bool CanBeNullOrUndefined(Node* receiver, Node* effect);
 
   // ---------------------------------------------------------------------------
   // Context.

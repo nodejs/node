@@ -64,7 +64,7 @@ TEST(BYTESWAP) {
   };
   T t;
 
-  MacroAssembler assembler(isolate, NULL, 0,
+  MacroAssembler assembler(isolate, nullptr, 0,
                            v8::internal::CodeObjectRequired::kYes);
 
   MacroAssembler* masm = &assembler;
@@ -144,7 +144,7 @@ TEST(LoadConstants) {
     refConstants[i] = ~(mask << i);
   }
 
-  MacroAssembler assembler(isolate, NULL, 0,
+  MacroAssembler assembler(isolate, nullptr, 0,
                            v8::internal::CodeObjectRequired::kYes);
   MacroAssembler* masm = &assembler;
 
@@ -179,7 +179,7 @@ TEST(LoadAddress) {
   Isolate* isolate = CcTest::i_isolate();
   HandleScope handles(isolate);
 
-  MacroAssembler assembler(isolate, NULL, 0,
+  MacroAssembler assembler(isolate, nullptr, 0,
                            v8::internal::CodeObjectRequired::kYes);
   MacroAssembler* masm = &assembler;
   Label to_jump, skip;
@@ -981,12 +981,12 @@ TEST(BranchOverflowInt64LeftLabel) {
                 __ li(rc.right, valRight);
                 switch (branchType) {
                   case kAddBranchOverflow:
-                    __ DaddBranchOvf(rc.dst, rc.left, rc.right, &overflow, NULL,
-                                     rc.scratch);
+                    __ DaddBranchOvf(rc.dst, rc.left, rc.right, &overflow,
+                                     nullptr, rc.scratch);
                     break;
                   case kSubBranchOverflow:
-                    __ DsubBranchOvf(rc.dst, rc.left, rc.right, &overflow, NULL,
-                                     rc.scratch);
+                    __ DsubBranchOvf(rc.dst, rc.left, rc.right, &overflow,
+                                     nullptr, rc.scratch);
                     break;
                 }
                 __ li(v0, 0);
@@ -1004,11 +1004,11 @@ TEST(BranchOverflowInt64LeftLabel) {
                 switch (branchType) {
                   case kAddBranchOverflow:
                     __ DaddBranchOvf(rc.dst, rc.left, Operand(valRight),
-                                     &overflow, NULL, rc.scratch);
+                                     &overflow, nullptr, rc.scratch);
                     break;
                   case kSubBranchOverflow:
                     __ DsubBranchOvf(rc.dst, rc.left, Operand(valRight),
-                                     &overflow, NULL, rc.scratch);
+                                     &overflow, nullptr, rc.scratch);
                     break;
                 }
                 __ li(v0, 0);
@@ -1063,11 +1063,11 @@ TEST(BranchOverflowInt64RightLabel) {
                 __ li(rc.right, valRight);
                 switch (branchType) {
                   case kAddBranchOverflow:
-                    __ DaddBranchOvf(rc.dst, rc.left, rc.right, NULL,
+                    __ DaddBranchOvf(rc.dst, rc.left, rc.right, nullptr,
                                      &no_overflow, rc.scratch);
                     break;
                   case kSubBranchOverflow:
-                    __ DsubBranchOvf(rc.dst, rc.left, rc.right, NULL,
+                    __ DsubBranchOvf(rc.dst, rc.left, rc.right, nullptr,
                                      &no_overflow, rc.scratch);
                     break;
                 }
@@ -1085,12 +1085,12 @@ TEST(BranchOverflowInt64RightLabel) {
                 __ li(rc.left, valLeft);
                 switch (branchType) {
                   case kAddBranchOverflow:
-                    __ DaddBranchOvf(rc.dst, rc.left, Operand(valRight), NULL,
-                                     &no_overflow, rc.scratch);
+                    __ DaddBranchOvf(rc.dst, rc.left, Operand(valRight),
+                                     nullptr, &no_overflow, rc.scratch);
                     break;
                   case kSubBranchOverflow:
-                    __ DsubBranchOvf(rc.dst, rc.left, Operand(valRight), NULL,
-                                     &no_overflow, rc.scratch);
+                    __ DsubBranchOvf(rc.dst, rc.left, Operand(valRight),
+                                     nullptr, &no_overflow, rc.scratch);
                     break;
                 }
                 __ li(v0, 1);
@@ -1721,7 +1721,7 @@ TEST(macro_float_minmax_f32) {
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
 
-  MacroAssembler assembler(isolate, NULL, 0,
+  MacroAssembler assembler(isolate, nullptr, 0,
                            v8::internal::CodeObjectRequired::kYes);
   MacroAssembler* masm = &assembler;
 
@@ -1864,7 +1864,7 @@ TEST(macro_float_minmax_f64) {
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
 
-  MacroAssembler assembler(isolate, NULL, 0,
+  MacroAssembler assembler(isolate, nullptr, 0,
                            v8::internal::CodeObjectRequired::kYes);
   MacroAssembler* masm = &assembler;
 

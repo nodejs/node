@@ -18,9 +18,7 @@ BranchElimination::BranchElimination(Editor* editor, JSGraph* js_graph,
       jsgraph_(js_graph),
       node_conditions_(zone, js_graph->graph()->NodeCount()),
       zone_(zone),
-      dead_(js_graph->graph()->NewNode(js_graph->common()->Dead())) {
-  NodeProperties::SetType(dead_, Type::None());
-}
+      dead_(js_graph->Dead()) {}
 
 BranchElimination::~BranchElimination() {}
 

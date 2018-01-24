@@ -104,9 +104,13 @@ function VerifyBoundsCheck(func, memtype_size) {
   assertTraps(kTrapMemOutOfBounds, () => func((maxSize + 1) * kPageSize, 5, 1));
 }
 
+// Test many elements in the small range, make bigger steps later. This is still
+// O(2^n), but takes 213 steps to reach 2^32.
+const inc = i => i + Math.floor(i/10) + 1;
+
 function Test32Op(operation, func) {
   let i32 = new Uint32Array(memory.buffer);
-  for (let i = 0; i < i32.length; i++) {
+  for (let i = 0; i < i32.length; i = inc(i)) {
     let expected = 0x9cedf00d;
     let value = 0x11111111;
     i32[i] = expected;
@@ -118,7 +122,7 @@ function Test32Op(operation, func) {
 
 function Test16Op(operation, func) {
   let i16 = new Uint16Array(memory.buffer);
-  for (let i = 0; i < i16.length; i++) {
+  for (let i = 0; i < i16.length; i = inc(i)) {
     let expected = 0xd00d;
     let value = 0x1111;
     i16[i] = expected;
@@ -130,7 +134,7 @@ function Test16Op(operation, func) {
 
 function Test8Op(operation, func) {
   let i8 = new Uint8Array(memory.buffer);
-  for (let i = 0; i < i8.length; i++) {
+  for (let i = 0; i < i8.length; i = inc(i)) {
     let expected = 0xbe;
     let value = 0x12;
     i8[i] = expected;
@@ -249,7 +253,7 @@ function Test8Op(operation, func) {
 })();
 
 function TestCmpExchange(func, buffer, params, size) {
-  for (let i = 0; i < buffer.length; i++) {
+  for (let i = 0; i < buffer.length; i = inc(i)) {
     for (let j = 0; j < params.length; j++) {
       for (let k = 0; k < params.length; k++) {
         buffer[i] = params[j];
@@ -291,7 +295,7 @@ function TestCmpExchange(func, buffer, params, size) {
 })();
 
 function TestLoad(func, buffer, value, size) {
-  for (let i = 0; i < buffer.length; i++) {
+  for (let i = 0; i < buffer.length; i = inc(i)) {
     buffer[i] = value;
     assertEquals(value, func(i * size) >>> 0);
   }
@@ -323,7 +327,7 @@ function TestLoad(func, buffer, value, size) {
 })();
 
 function TestStore(func, buffer, value, size) {
-  for (let i = 0; i < buffer.length; i++) {
+  for (let i = 0; i < buffer.length; i = inc(i)) {
     func(i * size, value)
     assertEquals(value, buffer[i]);
   }

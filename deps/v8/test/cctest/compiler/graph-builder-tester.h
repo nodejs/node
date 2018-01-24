@@ -60,8 +60,8 @@ class GraphBuilderTester : public HandleAndZoneScope,
             main_isolate(),
             CSignature::New(main_zone(), MachineTypeForC<ReturnType>(), p0, p1,
                             p2, p3, p4)),
-        effect_(NULL),
-        return_(NULL),
+        effect_(nullptr),
+        return_(nullptr),
         parameters_(main_zone()->template NewArray<Node*>(parameter_count())) {
     Begin(static_cast<int>(parameter_count()));
     InitParameters();
@@ -89,7 +89,7 @@ class GraphBuilderTester : public HandleAndZoneScope,
     Node* zero = graph()->NewNode(common()->Int32Constant(0));
     return_ = graph()->NewNode(common()->Return(), zero, value, effect_,
                                graph()->start());
-    effect_ = NULL;
+    effect_ = nullptr;
   }
 
   // Close the graph.
@@ -193,7 +193,7 @@ class GraphBuilderTester : public HandleAndZoneScope,
   }
 
   Node* NewNode(const Operator* op) {
-    return MakeNode(op, 0, static_cast<Node**>(NULL));
+    return MakeNode(op, 0, static_cast<Node**>(nullptr));
   }
 
   Node* NewNode(const Operator* op, Node* n1) { return MakeNode(op, 1, &n1); }
@@ -248,7 +248,7 @@ class GraphBuilderTester : public HandleAndZoneScope,
     CHECK_LT(op->ControlInputCount(), 2);
     CHECK_LT(op->EffectInputCount(), 2);
 
-    Node* result = NULL;
+    Node* result = nullptr;
     if (!has_control && !has_effect) {
       result = graph()->NewNode(op, value_input_count, value_inputs);
     } else {
@@ -280,9 +280,9 @@ class GraphBuilderTester : public HandleAndZoneScope,
       Zone* zone = graph()->zone();
       CallDescriptor* desc =
           Linkage::GetSimplifiedCDescriptor(zone, this->csig_);
-      CompilationInfo info(ArrayVector("testing"), main_isolate(), main_zone(),
-                           Code::STUB);
-      code_ = Pipeline::GenerateCodeForTesting(&info, desc, graph());
+      CompilationInfo info(ArrayVector("testing"), main_zone(), Code::STUB);
+      code_ = Pipeline::GenerateCodeForTesting(&info, main_isolate(), desc,
+                                               graph());
 #ifdef ENABLE_DISASSEMBLER
       if (!code_.is_null() && FLAG_print_opt_code) {
         OFStream os(stdout);

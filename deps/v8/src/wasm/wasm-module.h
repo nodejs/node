@@ -15,6 +15,7 @@
 
 #include "src/wasm/decoder.h"
 #include "src/wasm/signature-map.h"
+#include "src/wasm/wasm-heap.h"
 #include "src/wasm/wasm-opcodes.h"
 
 namespace v8 {
@@ -98,7 +99,6 @@ struct WasmIndirectFunctionTable {
   std::vector<int32_t> values;  // function table, -1 indicating invalid.
   bool imported = false;        // true if imported.
   bool exported = false;        // true if exported.
-  SignatureMap map;             // canonicalizing map for sig indexes.
 };
 
 // Static representation of how to initialize a table.
@@ -157,7 +157,8 @@ struct V8_EXPORT_PRIVATE WasmModule {
   uint32_t num_exported_functions = 0;
   WireBytesRef name = {0, 0};
   // TODO(wasm): Add url here, for spec'ed location information.
-  std::vector<FunctionSig*> signatures;
+  std::vector<FunctionSig*> signatures;  // by signature index
+  std::vector<uint32_t> signature_ids;   // by signature index
   std::vector<WasmFunction> functions;
   std::vector<WasmDataSegment> data_segments;
   std::vector<WasmIndirectFunctionTable> function_tables;
@@ -165,6 +166,7 @@ struct V8_EXPORT_PRIVATE WasmModule {
   std::vector<WasmExport> export_table;
   std::vector<WasmException> exceptions;
   std::vector<WasmTableInit> table_inits;
+  SignatureMap signature_map;  // canonicalizing map for signature indexes.
 
   WasmModule() : WasmModule(nullptr) {}
   WasmModule(std::unique_ptr<Zone> owned);
@@ -208,7 +210,7 @@ struct V8_EXPORT_PRIVATE ModuleWireBytes {
 
   // Get a string stored in the module bytes representing a name.
   WasmName GetNameOrNull(WireBytesRef ref) const {
-    if (!ref.is_set()) return {NULL, 0};  // no name.
+    if (!ref.is_set()) return {nullptr, 0};  // no name.
     CHECK(BoundsCheck(ref.offset(), ref.length()));
     return Vector<const char>::cast(
         module_bytes_.SubVector(ref.offset(), ref.end_offset()));
@@ -279,16 +281,22 @@ Handle<FixedArray> DecodeLocalNames(Isolate*, Handle<WasmCompiledModule>);
 // to the wrapped wasm function; in all other cases, return nullptr.
 // The returned pointer is owned by the wasm instance target belongs to. The
 // result is alive as long as the instance exists.
+// TODO(titzer): move this to WasmExportedFunction.
 WasmFunction* GetWasmFunctionForExport(Isolate* isolate, Handle<Object> target);
 
-// {export_wrapper} is known to be an export.
-Handle<Code> UnwrapExportWrapper(Handle<JSFunction> export_wrapper);
-
 void UpdateDispatchTables(Isolate* isolate, Handle<FixedArray> dispatch_tables,
-                          int index, WasmFunction* function, Handle<Code> code);
+                          int index, WasmFunction* function,
+                          Handle<Object> code_or_foreign);
+
+Handle<Object> GetOrCreateIndirectCallWrapper(
+    Isolate* isolate, Handle<WasmInstanceObject> owning_instance,
+    WasmCodeWrapper wasm_code, uint32_t index, FunctionSig* sig);
+
+void UnpackAndRegisterProtectedInstructionsGC(Isolate* isolate,
+                                              Handle<FixedArray> code_table);
 
 void UnpackAndRegisterProtectedInstructions(Isolate* isolate,
-                                            Handle<FixedArray> code_table);
+                                            wasm::NativeModule* native_module);
 
 const char* ExternalKindName(WasmExternalKind);
 

@@ -1,0 +1,4 @@
+*%(basename)s:7: SyntaxError: import() requires a specifier
+import();
+      ^
+SyntaxError: import() requires a specifier

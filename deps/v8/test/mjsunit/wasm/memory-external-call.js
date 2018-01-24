@@ -38,6 +38,111 @@ function generateBuilder(add_memory, import_sig) {
   return builder;
 }
 
+function assertMemoryIndependence(load_a, store_a, load_b, store_b) {
+
+  assertEquals(0, load_a(0));
+  assertEquals(0, load_b(0));
+  assertEquals(0, load_a(4));
+  assertEquals(0, load_b(4));
+
+  store_a(0, 101);
+  assertEquals(101, load_a(0));
+  assertEquals(0,   load_b(0));
+  assertEquals(0, load_a(4));
+  assertEquals(0, load_b(4));
+
+  store_a(4, 102);
+  assertEquals(101, load_a(0));
+  assertEquals(0,   load_b(0));
+  assertEquals(102, load_a(4));
+  assertEquals(0,   load_b(4));
+
+  store_b(0, 103);
+  assertEquals(101, load_a(0));
+  assertEquals(103, load_b(0));
+  assertEquals(102, load_a(4));
+  assertEquals(0,   load_b(4));
+
+  store_b(4, 107);
+  assertEquals(101, load_a(0));
+  assertEquals(103, load_b(0));
+  assertEquals(102, load_a(4));
+  assertEquals(107, load_b(4));
+
+  store_a(0, 0);
+  store_a(4, 0);
+  store_b(0, 0);
+  store_b(4, 0);
+}
+
+// A simple test for memory-independence between modules.
+(function SimpleMemoryIndependenceTest() {
+  print("SimpleMemoryIndependenceTest");
+  let kPages = 1;
+  let builder = new WasmModuleBuilder();
+
+  builder.addMemory(kPages, kPages, true);
+  builder.addFunction("store", kSig_v_ii)
+    .addBody([
+      kExprGetLocal, 0,     // --
+      kExprGetLocal, 1,     // --
+      kExprI32StoreMem, 0, 0, // --
+    ])                      // --
+    .exportFunc();
+  builder.addFunction("load", kSig_i_i)
+    .addBody([
+      kExprGetLocal, 0,     // --
+      kExprI32LoadMem, 0, 0, // --
+    ])                      // --
+    .exportFunc();
+
+  var a = builder.instantiate();
+
+  // The {b} instance forwards all {store} calls to the imported function.
+  builder = new WasmModuleBuilder();
+  builder.addImport("mod", "store", kSig_v_ii);
+  builder.addMemory(kPages, kPages, true);
+  builder.addFunction("store", kSig_v_ii)
+    .addBody([
+      kExprGetLocal, 0,     // --
+      kExprGetLocal, 1,     // --
+      kExprCallFunction, 0, // --
+    ])                      // --
+    .exportFunc();
+  builder.addFunction("load", kSig_i_i)
+    .addBody([
+      kExprGetLocal, 0,     // --
+      kExprI32LoadMem, 0, 0, // --
+    ])                      // --
+    .exportFunc();
+
+  var b = builder.instantiate({mod: {store: a.exports.store}});
+
+  assertEquals(0, a.exports.load(0));
+  assertEquals(0, b.exports.load(0));
+  assertEquals(0, a.exports.load(4));
+  assertEquals(0, b.exports.load(4));
+
+  a.exports.store(0, 101);
+  assertEquals(101, a.exports.load(0));
+  assertEquals(0,   b.exports.load(0));
+  assertEquals(0, a.exports.load(4));
+  assertEquals(0, b.exports.load(4));
+
+  a.exports.store(4, 102);
+  assertEquals(101, a.exports.load(0));
+  assertEquals(0,   b.exports.load(0));
+  assertEquals(102, a.exports.load(4));
+  assertEquals(0,   b.exports.load(4));
+
+  b.exports.store(4, 107);  // should forward to {a}.
+  assertEquals(101, a.exports.load(0));
+  assertEquals(0,   b.exports.load(0));
+  assertEquals(107, a.exports.load(4));
+  assertEquals(0,   b.exports.load(4));
+
+})();
+
 // This test verifies that when a Wasm module without memory invokes a function
 // imported from another module that has memory, the second module reads its own
 // memory and returns the expected value.
@@ -146,4 +251,88 @@ function generateBuilder(add_memory, import_sig) {
   // Verify that the values are correct in both memories.
   assertEquals(first_value, first_instance.exports.load(index));
   assertEquals(second_value, second_instance.exports.load(index));
+})();
+
+// A test for memory-independence between modules when calling through
+// imported tables.
+(function CallThroughTableMemoryIndependenceTest() {
+  print("CallThroughTableIndependenceTest");
+  let kTableSize = 2;
+  let kPages = 1;
+  let builder = new WasmModuleBuilder();
+
+  builder.addMemory(kPages, kPages, true);
+  builder.addFunction("store", kSig_v_ii)
+    .addBody([
+      kExprGetLocal, 0,     // --
+      kExprGetLocal, 1,     // --
+      kExprI32StoreMem, 0, 0, // --
+    ])                      // --
+    .exportFunc();
+  builder.addFunction("load", kSig_i_i)
+    .addBody([
+      kExprGetLocal, 0,     // --
+      kExprI32LoadMem, 0, 0, // --
+    ])                      // --
+    .exportFunc();
+
+  {
+    // Create two instances.
+    let module = builder.toModule();
+    var a = new WebAssembly.Instance(module);
+    var b = new WebAssembly.Instance(module);
+    // Check that the memories are initially independent.
+    assertMemoryIndependence(a.exports.load, a.exports.store,
+                             b.exports.load, b.exports.store);
+  }
+
+  let table = new WebAssembly.Table({element: "anyfunc",
+                                     initial: kTableSize,
+                                     maximum: kTableSize});
+
+  table.set(0, a.exports.store);
+  table.set(1, b.exports.store);
+  // Check that calling (from JS) through the table maintains independence.
+  assertMemoryIndependence(a.exports.load, table.get(0),
+                           b.exports.load, table.get(1));
+
+  table.set(1, a.exports.store);
+  table.set(0, b.exports.store);
+  // Check that calling (from JS) through the table maintains independence,
+  // even after reorganizing the table.
+  assertMemoryIndependence(a.exports.load, table.get(1),
+                           b.exports.load, table.get(0));
+
+  // Check that calling (from WASM) through the table maintains independence.
+  builder = new WasmModuleBuilder();
+  builder.addImportedTable("m", "table", kTableSize, kTableSize);
+  var sig_index = builder.addType(kSig_v_ii);
+  builder.addFunction("store", kSig_v_iii)
+    .addBody([
+      kExprGetLocal, 1,
+      kExprGetLocal, 2,
+      kExprGetLocal, 0,
+      kExprCallIndirect, sig_index, kTableZero,
+    ]).exportFunc();
+
+  let c = builder.instantiate({m: {table: table}});
+
+  let a_index = 1;
+  let b_index = 0;
+  let store_a = (index, val) => c.exports.store(a_index, index, val)
+  let store_b = (index, val) => c.exports.store(b_index, index, val);
+
+  assertMemoryIndependence(a.exports.load, store_a,
+                           b.exports.load, store_b);
+
+  // Flip the order in the table and do it again.
+  table.set(0, a.exports.store);
+  table.set(1, b.exports.store);
+
+  a_index = 0;
+  b_index = 1;
+
+  assertMemoryIndependence(a.exports.load, store_a,
+                           b.exports.load, store_b);
+
 })();

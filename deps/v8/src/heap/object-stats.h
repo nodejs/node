@@ -37,44 +37,10 @@ class ObjectStats {
   void PrintJSON(const char* key);
   void Dump(std::stringstream& stream);
 
-  void RecordObjectStats(InstanceType type, size_t size) {
-    DCHECK(type <= LAST_TYPE);
-    object_counts_[type]++;
-    object_sizes_[type] += size;
-    size_histogram_[type][HistogramIndexFromSize(size)]++;
-  }
-
-  void RecordCodeSubTypeStats(int code_sub_type, size_t size) {
-    int code_sub_type_index = FIRST_CODE_KIND_SUB_TYPE + code_sub_type;
-    DCHECK(code_sub_type_index >= FIRST_CODE_KIND_SUB_TYPE &&
-           code_sub_type_index < FIRST_FIXED_ARRAY_SUB_TYPE);
-    object_counts_[code_sub_type_index]++;
-    object_sizes_[code_sub_type_index] += size;
-    const int idx = HistogramIndexFromSize(size);
-    size_histogram_[code_sub_type_index][idx]++;
-  }
-
+  void RecordObjectStats(InstanceType type, size_t size);
+  void RecordCodeSubTypeStats(int code_sub_type, size_t size);
   bool RecordFixedArraySubTypeStats(FixedArrayBase* array, int array_sub_type,
-                                    size_t size, size_t over_allocated) {
-    auto it = visited_fixed_array_sub_types_.insert(array);
-    if (!it.second) return false;
-    DCHECK(array_sub_type <= LAST_FIXED_ARRAY_SUB_TYPE);
-    object_counts_[FIRST_FIXED_ARRAY_SUB_TYPE + array_sub_type]++;
-    object_sizes_[FIRST_FIXED_ARRAY_SUB_TYPE + array_sub_type] += size;
-    size_histogram_[FIRST_FIXED_ARRAY_SUB_TYPE + array_sub_type]
-                   [HistogramIndexFromSize(size)]++;
-    if (over_allocated > 0) {
-      InstanceType type =
-          array->IsHashTable() ? HASH_TABLE_TYPE : FIXED_ARRAY_TYPE;
-      over_allocated_[FIRST_FIXED_ARRAY_SUB_TYPE + array_sub_type] +=
-          over_allocated;
-      over_allocated_histogram_[FIRST_FIXED_ARRAY_SUB_TYPE + array_sub_type]
-                               [HistogramIndexFromSize(over_allocated)]++;
-      over_allocated_[type] += over_allocated;
-      over_allocated_histogram_[type][HistogramIndexFromSize(over_allocated)]++;
-    }
-    return true;
-  }
+                                    size_t size, size_t over_allocated);
 
   size_t object_count_last_gc(size_t index) {
     return object_counts_last_time_[index];
@@ -88,11 +54,12 @@ class ObjectStats {
   Heap* heap() { return heap_; }
 
  private:
-  static const int kFirstBucketShift = 5;  // <=32
-  static const int kLastBucketShift = 19;  // >512k
+  static const int kFirstBucketShift = 5;  // <32
+  static const int kLastBucketShift = 20;  // >=1M
   static const int kFirstBucket = 1 << kFirstBucketShift;
   static const int kLastBucket = 1 << kLastBucketShift;
   static const int kNumberOfBuckets = kLastBucketShift - kFirstBucketShift + 1;
+  static const int kLastValueBucketIndex = kLastBucketShift - kFirstBucketShift;
 
   void PrintKeyAndId(const char* key, int gc_count);
   // The following functions are excluded from inline to reduce the overall
@@ -102,12 +69,7 @@ class ObjectStats {
   V8_NOINLINE void DumpInstanceTypeData(std::stringstream& stream,
                                         const char* name, int index);
 
-  int HistogramIndexFromSize(size_t size) {
-    if (size == 0) return 0;
-    int idx = static_cast<int>(base::ieee754::log2(static_cast<double>(size))) -
-              kFirstBucketShift;
-    return idx < 0 ? 0 : idx;
-  }
+  int HistogramIndexFromSize(size_t size);
 
   Heap* heap_;
   // Object counts and used memory by InstanceType.

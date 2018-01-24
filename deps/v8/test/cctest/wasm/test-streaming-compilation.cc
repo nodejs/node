@@ -24,44 +24,66 @@ namespace wasm {
 
 class MockPlatform final : public TestPlatform {
  public:
-  MockPlatform() : old_platform_(i::V8::GetCurrentPlatform()) {
+  MockPlatform() : task_runner_(std::make_shared<MockTaskRunner>()) {
     // Now that it's completely constructed, make this the current platform.
     i::V8::SetPlatformForTesting(this);
   }
-  virtual ~MockPlatform() {
-    // Delete all remaining tasks in the queue.
-    while (!tasks_.empty()) {
-      Task* task = tasks_.back();
-      tasks_.pop_back();
-      delete task;
-    }
-    i::V8::SetPlatformForTesting(old_platform_);
+
+  std::shared_ptr<TaskRunner> GetForegroundTaskRunner(
+      v8::Isolate* isolate) override {
+    return task_runner_;
+  }
+
+  std::shared_ptr<TaskRunner> GetBackgroundTaskRunner(
+      v8::Isolate* isolate) override {
+    return task_runner_;
   }
 
   void CallOnForegroundThread(v8::Isolate* isolate, Task* task) override {
-    tasks_.push_back(task);
+    task_runner_->PostTask(std::unique_ptr<Task>(task));
   }
 
   void CallOnBackgroundThread(v8::Task* task,
                               ExpectedRuntime expected_runtime) override {
-    tasks_.push_back(task);
+    task_runner_->PostTask(std::unique_ptr<Task>(task));
   }
 
   bool IdleTasksEnabled(v8::Isolate* isolate) override { return false; }
 
-  void ExecuteTasks() {
-    while (!tasks_.empty()) {
-      Task* task = tasks_.back();
-      tasks_.pop_back();
-      task->Run();
-      delete task;
-    }
-  }
+  void ExecuteTasks() { task_runner_->ExecuteTasks(); }
 
  private:
-  // We do not execute tasks concurrently, so we only need one list of tasks.
-  std::vector<Task*> tasks_;
-  v8::Platform* old_platform_;
+  class MockTaskRunner final : public TaskRunner {
+   public:
+    void PostTask(std::unique_ptr<v8::Task> task) override {
+      tasks_.push_back(std::move(task));
+    }
+
+    void PostDelayedTask(std::unique_ptr<Task> task,
+                         double delay_in_seconds) override {
+      UNREACHABLE();
+    };
+
+    void PostIdleTask(std::unique_ptr<IdleTask> task) override {
+      UNREACHABLE();
+    }
+
+    bool IdleTasksEnabled() override { return false; };
+
+    void ExecuteTasks() {
+      while (!tasks_.empty()) {
+        std::unique_ptr<Task> task = std::move(tasks_.back());
+        tasks_.pop_back();
+        task->Run();
+      }
+    }
+
+   private:
+    // We do not execute tasks concurrently, so we only need one list of tasks.
+    std::vector<std::unique_ptr<v8::Task>> tasks_;
+  };
+
+  std::shared_ptr<MockTaskRunner> task_runner_;
 };
 
 namespace {
@@ -813,6 +835,64 @@ STREAM_TEST(TestAbortAfterCompilationError2) {
   tester.RunCompilerTasks();
 }
 
+STREAM_TEST(TestOnlyModuleHeader) {
+  StreamTester tester;
+
+  const uint8_t bytes[] = {
+      WASM_MODULE_HEADER,  // module header
+  };
+
+  tester.OnBytesReceived(bytes, arraysize(bytes));
+  tester.FinishStream();
+  tester.RunCompilerTasks();
+
+  CHECK(tester.IsPromiseFulfilled());
+}
+
+STREAM_TEST(TestModuleWithZeroFunctions) {
+  StreamTester tester;
+
+  const uint8_t bytes[] = {
+      WASM_MODULE_HEADER,    // module header
+      kTypeSectionCode,      // section code
+      U32V_1(1),             // section size
+      U32V_1(0),             // type count
+      kFunctionSectionCode,  // section code
+      U32V_1(1),             // section size
+      U32V_1(0),             // functions count
+      kCodeSectionCode,      // section code
+      U32V_1(1),             // section size
+      U32V_1(0),             // functions count
+  };
+
+  tester.OnBytesReceived(bytes, arraysize(bytes));
+  tester.FinishStream();
+  tester.RunCompilerTasks();
+  CHECK(tester.IsPromiseFulfilled());
+}
+
+// Test that all bytes arrive before doing any compilation. FinishStream is
+// called immediately.
+STREAM_TEST(TestModuleWithImportedFunction) {
+  StreamTester tester;
+  ZoneBuffer buffer(tester.zone());
+  TestSignatures sigs;
+  WasmModuleBuilder builder(tester.zone());
+  builder.AddImport(ArrayVector("Test"), sigs.i_iii());
+  {
+    WasmFunctionBuilder* f = builder.AddFunction(sigs.i_iii());
+    uint8_t code[] = {kExprGetLocal, 0, kExprEnd};
+    f->EmitCode(code, arraysize(code));
+  }
+  builder.WriteTo(buffer);
+
+  tester.OnBytesReceived(buffer.begin(), buffer.end() - buffer.begin());
+  tester.FinishStream();
+
+  tester.RunCompilerTasks();
+
+  CHECK(tester.IsPromiseFulfilled());
+}
 #undef STREAM_TEST
 
 }  // namespace wasm

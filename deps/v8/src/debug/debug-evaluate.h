@@ -14,6 +14,8 @@
 namespace v8 {
 namespace internal {
 
+class FrameInspector;
+
 class DebugEvaluate : public AllStatic {
  public:
   static MaybeHandle<Object> Global(Isolate* isolate, Handle<String> source);
@@ -72,6 +74,10 @@ class DebugEvaluate : public AllStatic {
                              Handle<Context> local_context,
                              Handle<JSFunction> local_function,
                              Handle<StringSet> non_locals);
+
+    void MaterializeStackLocals(Handle<JSObject> target,
+                                Handle<JSFunction> function,
+                                FrameInspector* frame_inspector);
 
     Handle<SharedFunctionInfo> outer_info_;
     Handle<Context> evaluation_context_;

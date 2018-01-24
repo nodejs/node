@@ -626,6 +626,17 @@ function TestTypedArraySet() {
   assertThrows(() => a111.set(evilarr), TypeError);
   assertEquals(true, detached);
 
+  // Check if the target is a typed array before converting offset to integer
+  var tmp = {
+    [Symbol.toPrimitive]() {
+      assertUnreachable("Parameter should not be processed when " +
+                        "array.[[ViewedArrayBuffer]] is neutered.");
+      return 1;
+    }
+  };
+  assertThrows(() => Int8Array.prototype.set.call(1, tmp), TypeError);
+  assertThrows(() => Int8Array.prototype.set.call([], tmp), TypeError);
+
   // Detached array buffer when converting offset.
   {
     for (const klass of typedArrayConstructors) {

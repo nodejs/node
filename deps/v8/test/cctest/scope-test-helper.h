@@ -17,10 +17,6 @@ class ScopeTestHelper {
     return var->scope()->MustAllocateInContext(var);
   }
 
-  static void AllocateWithoutVariableResolution(Scope* scope) {
-    scope->AllocateVariablesRecursively();
-  }
-
   static void CompareScopes(Scope* baseline, Scope* scope,
                             bool precise_maybe_assigned) {
     CHECK_EQ(baseline->scope_type(), scope->scope_type());
@@ -108,6 +104,20 @@ class ScopeTestHelper {
       }
       MarkInnerFunctionsAsSkipped(inner);
     }
+  }
+
+  static bool HasSkippedFunctionInside(Scope* scope) {
+    if (scope->scope_type() == ScopeType::FUNCTION_SCOPE &&
+        scope->AsDeclarationScope()->is_skipped_function()) {
+      return true;
+    }
+    for (Scope* inner = scope->inner_scope(); inner != nullptr;
+         inner = inner->sibling()) {
+      if (HasSkippedFunctionInside(inner)) {
+        return true;
+      }
+    }
+    return false;
   }
 };
 }  // namespace internal

@@ -51,7 +51,7 @@ TEST(0) {
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
 
-  Assembler assm(isolate, NULL, 0);
+  Assembler assm(isolate, nullptr, 0);
 
   __ lhi(r1, Operand(3));    // test 4-byte instr
   __ llilf(r2, Operand(4));  // test 6-byte instr
@@ -79,7 +79,7 @@ TEST(1) {
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
 
-  Assembler assm(isolate, NULL, 0);
+  Assembler assm(isolate, nullptr, 0);
   Label L, C;
 
 #if defined(_AIX)
@@ -120,7 +120,7 @@ TEST(2) {
 
   // Create a function that accepts &t, and loads, manipulates, and stores
   // the doubles and floats.
-  Assembler assm(CcTest::i_isolate(), NULL, 0);
+  Assembler assm(CcTest::i_isolate(), nullptr, 0);
   Label L, C;
 
 #if defined(_AIX)
@@ -170,7 +170,7 @@ TEST(3) {
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
 
-  Assembler assm(isolate, NULL, 0);
+  Assembler assm(isolate, nullptr, 0);
 
   __ ar(r14, r13);
   __ sr(r14, r13);
@@ -224,7 +224,7 @@ TEST(4) {
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
 
-  Assembler assm(isolate, NULL, 0);
+  Assembler assm(isolate, nullptr, 0);
   Label L2, L3, L4;
 
   __ chi(r2, Operand(10));
@@ -269,7 +269,7 @@ TEST(5) {
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
 
-  MacroAssembler assm(isolate, NULL, 0);
+  MacroAssembler assm(isolate, nullptr, 0);
 
   __ mov(r2, Operand(0x12345678));
   __ ExtractBitRange(r3, r2, 3, 2);
@@ -297,7 +297,7 @@ TEST(6) {
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
 
-  MacroAssembler assm(isolate, NULL, 0);
+  MacroAssembler assm(isolate, nullptr, 0);
 
   Label yes;
 
@@ -331,7 +331,7 @@ TEST(7) {
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
 
-  MacroAssembler assm(isolate, NULL, 0);
+  MacroAssembler assm(isolate, nullptr, 0);
 
   Label yes;
 
@@ -363,7 +363,7 @@ TEST(8) {
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
 
-  MacroAssembler assm(isolate, NULL, 0);
+  MacroAssembler assm(isolate, nullptr, 0);
 
   // Zero upper bits of r3/r4
   __ llihf(r3, Operand::Zero());
@@ -395,7 +395,7 @@ TEST(9) {
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
 
-  MacroAssembler assm(isolate, NULL, 0);
+  MacroAssembler assm(isolate, nullptr, 0);
 
   __ lzdr(d4);
   __ b(r14);
@@ -426,7 +426,7 @@ TEST(10) {
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
 
-  Assembler assm(isolate, NULL, 0);
+  Assembler assm(isolate, nullptr, 0);
 
   Label ok, failed;
 

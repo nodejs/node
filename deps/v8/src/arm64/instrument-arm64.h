@@ -52,8 +52,9 @@ class Counter {
 
 class Instrument: public DecoderVisitor {
  public:
-  explicit Instrument(const char* datafile = NULL,
-    uint64_t sample_period = kDefaultInstrumentationSamplingPeriod);
+  explicit Instrument(
+      const char* datafile = nullptr,
+      uint64_t sample_period = kDefaultInstrumentationSamplingPeriod);
   ~Instrument();
 
   // Declare all Visitor functions.

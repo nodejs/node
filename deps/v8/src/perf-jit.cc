@@ -134,7 +134,7 @@ void PerfJitLogger::OpenJitDumpFile() {
   perf_output_handle_ = fdopen(fd, "w+");
   if (perf_output_handle_ == nullptr) return;
 
-  setvbuf(perf_output_handle_, NULL, _IOFBF, kLogBufferSize);
+  setvbuf(perf_output_handle_, nullptr, _IOFBF, kLogBufferSize);
 }
 
 void PerfJitLogger::CloseJitDumpFile() {
@@ -377,8 +377,9 @@ void PerfJitLogger::LogWriteUnwindingInfo(Code* code) {
 }
 
 void PerfJitLogger::CodeMoveEvent(AbstractCode* from, Address to) {
-  // Code relocation not supported.
-  UNREACHABLE();
+  // We may receive a CodeMove event if a BytecodeArray object moves. Otherwise
+  // code relocation is not supported.
+  CHECK(from->IsBytecodeArray());
 }
 
 void PerfJitLogger::LogWriteBytes(const char* bytes, int size) {
@@ -388,7 +389,7 @@ void PerfJitLogger::LogWriteBytes(const char* bytes, int size) {
 }
 
 void PerfJitLogger::LogWriteHeader() {
-  DCHECK(perf_output_handle_ != NULL);
+  DCHECK_NOT_NULL(perf_output_handle_);
   PerfJitHeader header;
 
   header.magic_ = PerfJitHeader::kMagic;

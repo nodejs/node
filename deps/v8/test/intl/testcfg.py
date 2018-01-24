@@ -56,9 +56,9 @@ class IntlTestSuite(testsuite.TestSuite):
           tests.append(test)
     return tests
 
-  def GetFlagsForTestCase(self, testcase, context):
+  def GetParametersForTestCase(self, testcase, context):
     source = self.GetSourceForTest(testcase)
-    flags = ["--allow-natives-syntax"] + context.mode_flags
+    flags = testcase.flags + ["--allow-natives-syntax"] + context.mode_flags
     flags_match = re.findall(FLAGS_PATTERN, source)
     for match in flags_match:
       flags += match.strip().split()
@@ -70,12 +70,11 @@ class IntlTestSuite(testsuite.TestSuite):
     files.append(os.path.join(self.root, testcase.path + self.suffix()))
     files.append(os.path.join(self.root, "regexp-assert.js"))
 
-    flags += files
+    all_files = list(files)
     if context.isolates:
-      flags.append("--isolate")
-      flags += files
+      all_files += ["--isolate"] + files
 
-    return testcase.flags + flags
+    return all_files, flags, {}
 
   def GetSourceForTest(self, testcase):
     filename = os.path.join(self.root, testcase.path + self.suffix())

@@ -48,8 +48,10 @@ constexpr uint32_t kMaxFunctions = 10;
 constexpr uint32_t kMaxGlobalsSize = 128;
 
 enum WasmExecutionMode {
-  kExecuteInterpreted,
-  kExecuteCompiled,
+  kExecuteInterpreter,
+  kExecuteTurbofan,
+  kExecuteLiftoff,
+  // TODO(bug:7028): Introduce another enum for simd lowering.
   kExecuteSimdLowered
 };
 
@@ -75,7 +77,7 @@ using compiler::Node;
     r.Build(code, code + arraysize(code)); \
   } while (false)
 
-// A buildable ModuleEnv. Globals are pre-set, however, memory and code may be
+// A  Wasm module builder. Globals are pre-set, however, memory and code may be
 // progressively added by a test. In turn, we piecemeal update the runtime
 // objects, i.e. {WasmInstanceObject}, {WasmCompiledModule} and, if necessary,
 // the interpreter.
@@ -88,7 +90,13 @@ class TestingModuleBuilder {
 
   byte* AddMemory(uint32_t size);
 
-  size_t CodeTableLength() const { return function_code_.size(); }
+  size_t CodeTableLength() const {
+    if (FLAG_wasm_jit_to_native) {
+      return native_module_->FunctionCount();
+    } else {
+      return function_code_.size();
+    }
+  }
 
   template <typename T>
   T* AddMemoryElems(uint32_t count) {
@@ -104,7 +112,11 @@ class TestingModuleBuilder {
   }
 
   byte AddSignature(FunctionSig* sig) {
+    DCHECK_EQ(test_module_.signatures.size(),
+              test_module_.signature_ids.size());
     test_module_.signatures.push_back(sig);
+    auto canonical_sig_num = test_module_.signature_map.FindOrInsert(sig);
+    test_module_.signature_ids.push_back(canonical_sig_num);
     size_t size = test_module_.signatures.size();
     CHECK_GT(127, size);
     return static_cast<byte>(size - 1);
@@ -167,7 +179,7 @@ class TestingModuleBuilder {
 
   void SetHasSharedMemory() { test_module_.has_shared_memory = true; }
 
-  uint32_t AddFunction(FunctionSig* sig, Handle<Code> code, const char* name);
+  uint32_t AddFunction(FunctionSig* sig, const char* name);
 
   uint32_t AddJsFunction(FunctionSig* sig, const char* source,
                          Handle<FixedArray> js_imports_table);
@@ -194,13 +206,28 @@ class TestingModuleBuilder {
   bool lower_simd() { return lower_simd_; }
   Isolate* isolate() { return isolate_; }
   Handle<WasmInstanceObject> instance_object() { return instance_object_; }
-  Handle<Code> GetFunctionCode(int index) { return function_code_[index]; }
+  WasmCodeWrapper GetFunctionCode(uint32_t index) {
+    if (FLAG_wasm_jit_to_native) {
+      return WasmCodeWrapper(native_module_->GetCode(index));
+    } else {
+      return WasmCodeWrapper(function_code_[index]);
+    }
+  }
   void SetFunctionCode(int index, Handle<Code> code) {
     function_code_[index] = code;
   }
   Address globals_start() { return reinterpret_cast<Address>(globals_data_); }
+  void Link() {
+    if (!FLAG_wasm_jit_to_native) return;
+    if (!linked_) {
+      native_module_->LinkAll();
+      linked_ = true;
+    }
+  }
 
   compiler::ModuleEnv CreateModuleEnv();
+
+  WasmExecutionMode execution_mode() const { return execution_mode_; }
 
   compiler::RuntimeExceptionSupport runtime_exception_support() const {
     return runtime_exception_support_;
@@ -216,9 +243,12 @@ class TestingModuleBuilder {
   std::vector<Handle<Code>> function_code_;
   std::vector<GlobalHandleAddress> function_tables_;
   std::vector<GlobalHandleAddress> signature_tables_;
-  V8_ALIGNED(8) byte globals_data_[kMaxGlobalsSize];
+  V8_ALIGNED(16) byte globals_data_[kMaxGlobalsSize];
   WasmInterpreter* interpreter_;
+  WasmExecutionMode execution_mode_;
   Handle<WasmInstanceObject> instance_object_;
+  NativeModule* native_module_;
+  bool linked_ = false;
   compiler::RuntimeExceptionSupport runtime_exception_support_;
   bool lower_simd_;
 
@@ -249,9 +279,21 @@ class WasmFunctionWrapper : private compiler::GraphAndBuilders {
     Init(descriptor, MachineTypeForC<ReturnType>(), param_vec);
   }
 
-  void SetInnerCode(Handle<Code> code_handle) {
-    compiler::NodeProperties::ChangeOp(inner_code_node_,
-                                       common()->HeapConstant(code_handle));
+  void SetInnerCode(WasmCodeWrapper code) {
+    if (FLAG_wasm_jit_to_native) {
+      intptr_t address = reinterpret_cast<intptr_t>(
+          code.GetWasmCode()->instructions().start());
+      compiler::NodeProperties::ChangeOp(
+          inner_code_node_,
+          kPointerSize == 8
+              ? common()->RelocatableInt64Constant(address,
+                                                   RelocInfo::WASM_CALL)
+              : common()->RelocatableInt32Constant(static_cast<int>(address),
+                                                   RelocInfo::WASM_CALL));
+    } else {
+      compiler::NodeProperties::ChangeOp(
+          inner_code_node_, common()->HeapConstant(code.GetCode()));
+    }
   }
 
   const compiler::Operator* IntPtrConstant(intptr_t value) {
@@ -260,9 +302,13 @@ class WasmFunctionWrapper : private compiler::GraphAndBuilders {
                : common()->Int64Constant(static_cast<int64_t>(value));
   }
 
-  void SetContextAddress(Address value) {
-    compiler::NodeProperties::ChangeOp(
-        context_address_, IntPtrConstant(reinterpret_cast<uintptr_t>(value)));
+  void SetContextAddress(uintptr_t value) {
+    auto rmode = RelocInfo::WASM_CONTEXT_REFERENCE;
+    auto op = kPointerSize == 8 ? common()->RelocatableInt64Constant(
+                                      static_cast<int64_t>(value), rmode)
+                                : common()->RelocatableInt32Constant(
+                                      static_cast<int32_t>(value), rmode);
+    compiler::NodeProperties::ChangeOp(context_address_, op);
   }
 
   Handle<Code> GetWrapperCode();
@@ -428,13 +474,13 @@ class WasmRunner : public WasmRunnerBase {
     set_trap_callback_for_testing(trap_callback);
 
     wrapper_.SetInnerCode(builder_.GetFunctionCode(0));
-    if (builder().instance_object()->has_memory_object()) {
-      wrapper_.SetContextAddress(reinterpret_cast<Address>(
-          builder().instance_object()->wasm_context()));
-    }
+    WasmContext* wasm_context =
+        builder().instance_object()->wasm_context()->get();
+    wrapper_.SetContextAddress(reinterpret_cast<uintptr_t>(wasm_context));
+    builder().Link();
+    Handle<Code> wrapper_code = wrapper_.GetWrapperCode();
     compiler::CodeRunner<int32_t> runner(CcTest::InitIsolateOnce(),
-                                         wrapper_.GetWrapperCode(),
-                                         wrapper_.signature());
+                                         wrapper_code, wrapper_.signature());
     int32_t result = runner.Call(static_cast<void*>(&p)...,
                                  static_cast<void*>(&return_value));
     CHECK_EQ(WASM_WRAPPER_RETURN_VALUE, result);
@@ -463,28 +509,37 @@ class WasmRunner : public WasmRunnerBase {
       return ReturnType{0};
     }
   }
+
+  Handle<Code> GetWrapperCode() { return wrapper_.GetWrapperCode(); }
 };
 
 // A macro to define tests that run in different engine configurations.
 #define WASM_EXEC_TEST(name)                                               \
   void RunWasm_##name(WasmExecutionMode execution_mode);                   \
-  TEST(RunWasmCompiled_##name) { RunWasm_##name(kExecuteCompiled); }       \
-  TEST(RunWasmInterpreted_##name) { RunWasm_##name(kExecuteInterpreted); } \
+  TEST(RunWasmTurbofan_##name) { RunWasm_##name(kExecuteTurbofan); }       \
+  TEST(RunWasmLiftoff_##name) { RunWasm_##name(kExecuteLiftoff); }         \
+  TEST(RunWasmInterpreter_##name) { RunWasm_##name(kExecuteInterpreter); } \
+  void RunWasm_##name(WasmExecutionMode execution_mode)
+
+#define WASM_COMPILED_EXEC_TEST(name)                                \
+  void RunWasm_##name(WasmExecutionMode execution_mode);             \
+  TEST(RunWasmTurbofan_##name) { RunWasm_##name(kExecuteTurbofan); } \
+  TEST(RunWasmLiftoff_##name) { RunWasm_##name(kExecuteLiftoff); }   \
   void RunWasm_##name(WasmExecutionMode execution_mode)
 
 #define WASM_EXEC_TEST_WITH_TRAP(name)                   \
   void RunWasm_##name(WasmExecutionMode execution_mode); \
-  TEST(RunWasmCompiled_##name) {                         \
-    if (trap_handler::UseTrapHandler()) {                \
-      return;                                            \
-    }                                                    \
-    RunWasm_##name(kExecuteCompiled);                    \
+  TEST(RunWasmTurbofan_##name) {                         \
+    if (trap_handler::UseTrapHandler()) return;          \
+    RunWasm_##name(kExecuteTurbofan);                    \
   }                                                      \
-  TEST(RunWasmInterpreted_##name) {                      \
-    if (trap_handler::UseTrapHandler()) {                \
-      return;                                            \
-    }                                                    \
-    RunWasm_##name(kExecuteInterpreted);                 \
+  TEST(RunWasmLiftoff_##name) {                          \
+    if (trap_handler::UseTrapHandler()) return;          \
+    RunWasm_##name(kExecuteLiftoff);                     \
+  }                                                      \
+  TEST(RunWasmInterpreter_##name) {                      \
+    if (trap_handler::UseTrapHandler()) return;          \
+    RunWasm_##name(kExecuteInterpreter);                 \
   }                                                      \
   void RunWasm_##name(WasmExecutionMode execution_mode)
 

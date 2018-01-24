@@ -57,7 +57,7 @@ do
         echo "Building" $v8_target_arch
         GYP_DEFINES="component=static_library use_goma=1 target_arch=$target_arch v8_target_arch=$v8_target_arch coverage=1 clang=0" python $v8_root/gypfiles/gyp_v8.py -G output_dir=$work_dir
         ninja -C $build_dir -j2000
-        $v8_root/tools/run-tests.py --gcov-coverage --arch=$v8_target_arch --mode=$mode --shell-dir=$build_dir --exhaustive-variants
+        $v8_root/tools/run-tests.py --gcov-coverage --arch=$v8_target_arch --mode=$mode --shell-dir=$build_dir --variants=exhaustive
     fi
 done
 

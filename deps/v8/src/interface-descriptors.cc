@@ -29,7 +29,7 @@ void CallInterfaceDescriptorData::InitializePlatformIndependent(
   param_count_ = parameter_count + extra_parameter_count;
   machine_types_.reset(NewArray<MachineType>(param_count_));
   for (int i = 0; i < param_count_; i++) {
-    if (machine_types == NULL || i >= parameter_count) {
+    if (machine_types == nullptr || i >= parameter_count) {
       machine_types_[i] = MachineType::AnyTagged();
     } else {
       machine_types_[i] = machine_types[i];
@@ -262,12 +262,6 @@ void StringCharCodeAtDescriptor::InitializePlatformSpecific(
   DefaultInitializePlatformSpecific(data, kParameterCount);
 }
 
-void StringCompareDescriptor::InitializePlatformSpecific(
-    CallInterfaceDescriptorData* data) {
-  Register registers[] = {LeftRegister(), RightRegister()};
-  data->InitializePlatformSpecific(arraysize(registers), registers);
-}
-
 void TypeConversionDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   Register registers[] = {ArgumentRegister()};
@@ -281,7 +275,7 @@ void TypeConversionStackParameterDescriptor::InitializePlatformSpecific(
 
 void TypeConversionStackParameterDescriptor::InitializePlatformIndependent(
     CallInterfaceDescriptorData* data) {
-  data->InitializePlatformIndependent(data->register_param_count(), 1, NULL);
+  data->InitializePlatformIndependent(data->register_param_count(), 1, nullptr);
 }
 
 void MathPowTaggedDescriptor::InitializePlatformSpecific(
@@ -585,7 +579,7 @@ void ArgumentAdaptorDescriptor::InitializePlatformIndependent(
 
 void ApiCallbackDescriptor::InitializePlatformIndependent(
     CallInterfaceDescriptorData* data) {
-  // kFunction, kCallData, kHolder, kApiFunctionAddress
+  // kTargetContext, kCallData, kHolder, kApiFunctionAddress
   MachineType machine_types[] = {
       MachineType::AnyTagged(), MachineType::AnyTagged(),
       MachineType::AnyTagged(), MachineType::Pointer()};

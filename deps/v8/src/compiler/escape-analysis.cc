@@ -503,7 +503,7 @@ Maybe<int> OffsetOfElementsAccess(const Operator* op, Node* index_node) {
   DCHECK(op->opcode() == IrOpcode::kLoadElement ||
          op->opcode() == IrOpcode::kStoreElement);
   Type* index_type = NodeProperties::GetType(index_node);
-  if (!index_type->Is(Type::Number())) return Nothing<int>();
+  if (!index_type->Is(Type::OrderedNumber())) return Nothing<int>();
   double max = index_type->Max();
   double min = index_type->Min();
   int index = static_cast<int>(min);
@@ -651,8 +651,8 @@ void ReduceNode(const Operator* op, EscapeAnalysisTracker::Scope* current,
         // types (which might confuse representation selection). We get
         // around this by refusing to constant-fold and escape-analyze
         // if the type is not inhabited.
-        if (NodeProperties::GetType(left)->IsInhabited() &&
-            NodeProperties::GetType(right)->IsInhabited()) {
+        if (!NodeProperties::GetType(left)->IsNone() &&
+            !NodeProperties::GetType(right)->IsNone()) {
           current->SetReplacement(replacement);
         } else {
           current->SetEscaped(left);
@@ -673,8 +673,8 @@ void ReduceNode(const Operator* op, EscapeAnalysisTracker::Scope* current,
         if (map) {
           Type* const map_type = NodeProperties::GetType(map);
           if (map_type->IsHeapConstant() &&
-              params.maps().contains(ZoneHandleSet<Map>(bit_cast<Handle<Map>>(
-                  map_type->AsHeapConstant()->Value())))) {
+              params.maps().contains(
+                  bit_cast<Handle<Map>>(map_type->AsHeapConstant()->Value()))) {
             current->MarkForDeletion();
             break;
           }
@@ -697,7 +697,7 @@ void ReduceNode(const Operator* op, EscapeAnalysisTracker::Scope* current,
           current->Get(map_field).To(&object_map)) {
         if (object_map) {
           current->SetReplacement(LowerCompareMapsWithoutLoad(
-              object_map, CompareMapsParametersOf(op), jsgraph));
+              object_map, CompareMapsParametersOf(op).maps(), jsgraph));
           break;
         } else {
           // If the variable has no value, we have not reached the fixed-point

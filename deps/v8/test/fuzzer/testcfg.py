@@ -30,19 +30,21 @@ class FuzzerTestSuite(testsuite.TestSuite):
   def ListTests(self, context):
     tests = []
     for subtest in FuzzerTestSuite.SUB_TESTS:
-      shell = 'v8_simple_%s_fuzzer' % subtest
       for fname in os.listdir(os.path.join(self.root, subtest)):
         if not os.path.isfile(os.path.join(self.root, subtest, fname)):
           continue
-        test = testcase.TestCase(self, '%s/%s' % (subtest, fname),
-                                 override_shell=shell)
+        test = testcase.TestCase(self, '%s/%s' % (subtest, fname))
         tests.append(test)
     tests.sort()
     return tests
 
-  def GetFlagsForTestCase(self, testcase, context):
+  def GetShellForTestCase(self, testcase):
+    group, _ = testcase.path.split('/', 1)
+    return 'v8_simple_%s_fuzzer' % group
+
+  def GetParametersForTestCase(self, testcase, context):
     suite, name = testcase.path.split('/')
-    return [os.path.join(self.root, suite, name)]
+    return [os.path.join(self.root, suite, name)], [], {}
 
   def _VariantGeneratorFactory(self):
     return FuzzerVariantGenerator

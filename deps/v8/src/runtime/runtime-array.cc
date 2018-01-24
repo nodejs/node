@@ -37,9 +37,9 @@ Object* PrepareSlowElementsForSort(Handle<JSObject> object, uint32_t limit) {
   // Must stay in dictionary mode, either because of requires_slow_elements,
   // or because we are not going to sort (and therefore compact) all of the
   // elements.
-  Handle<SeededNumberDictionary> dict(object->element_dictionary(), isolate);
-  Handle<SeededNumberDictionary> new_dict =
-      SeededNumberDictionary::New(isolate, dict->NumberOfElements());
+  Handle<NumberDictionary> dict(object->element_dictionary(), isolate);
+  Handle<NumberDictionary> new_dict =
+      NumberDictionary::New(isolate, dict->NumberOfElements());
 
   uint32_t pos = 0;
   uint32_t undefs = 0;
@@ -70,7 +70,7 @@ Object* PrepareSlowElementsForSort(Handle<JSObject> object, uint32_t limit) {
         undefs++;
       } else {
         Handle<Object> result =
-            SeededNumberDictionary::Add(new_dict, pos, value, details);
+            NumberDictionary::Add(new_dict, pos, value, details);
         // Add should not grow the dictionary since we allocated the right size.
         DCHECK(result.is_identical_to(new_dict));
         USE(result);
@@ -78,7 +78,7 @@ Object* PrepareSlowElementsForSort(Handle<JSObject> object, uint32_t limit) {
       }
     } else {
       Handle<Object> result =
-          SeededNumberDictionary::Add(new_dict, key, value, details);
+          NumberDictionary::Add(new_dict, key, value, details);
       // Add should not grow the dictionary since we allocated the right size.
       DCHECK(result.is_identical_to(new_dict));
       USE(result);
@@ -95,7 +95,7 @@ Object* PrepareSlowElementsForSort(Handle<JSObject> object, uint32_t limit) {
       return bailout;
     }
     HandleScope scope(isolate);
-    Handle<Object> result = SeededNumberDictionary::Add(
+    Handle<Object> result = NumberDictionary::Add(
         new_dict, pos, isolate->factory()->undefined_value(), no_details);
     // Add should not grow the dictionary since we allocated the right size.
     DCHECK(result.is_identical_to(new_dict));
@@ -130,7 +130,7 @@ Object* PrepareElementsForSort(Handle<JSObject> object, uint32_t limit) {
   if (object->HasDictionaryElements()) {
     // Convert to fast elements containing only the existing properties.
     // Ordering is irrelevant, since we are going to sort anyway.
-    Handle<SeededNumberDictionary> dict(object->element_dictionary());
+    Handle<NumberDictionary> dict(object->element_dictionary());
     if (object->IsJSArray() || dict->requires_slow_elements() ||
         dict->max_number_key() >= limit) {
       return PrepareSlowElementsForSort(object, limit);
@@ -294,7 +294,7 @@ RUNTIME_FUNCTION(Runtime_EstimateNumberOfElements) {
   FixedArrayBase* elements = array->elements();
   SealHandleScope shs(isolate);
   if (elements->IsDictionary()) {
-    int result = SeededNumberDictionary::cast(elements)->NumberOfElements();
+    int result = NumberDictionary::cast(elements)->NumberOfElements();
     return Smi::FromInt(result);
   } else {
     DCHECK(array->length()->IsSmi());
@@ -376,6 +376,44 @@ RUNTIME_FUNCTION(Runtime_GetArrayKeys) {
   }
 
   return *isolate->factory()->NewJSArrayWithElements(keys);
+}
+
+RUNTIME_FUNCTION(Runtime_TrySliceSimpleNonFastElements) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(3, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(JSReceiver, receiver, 0);
+  CONVERT_SMI_ARG_CHECKED(first, 1);
+  CONVERT_SMI_ARG_CHECKED(count, 2);
+  uint32_t length = first + count;
+
+  // Only handle elements kinds that have a ElementsAccessor Slice
+  // implementation.
+  if (receiver->IsJSArray()) {
+    // This "fastish" path must make sure the destination array is a JSArray.
+    if (!isolate->IsArraySpeciesLookupChainIntact() ||
+        !JSArray::cast(*receiver)->HasArrayPrototype(isolate)) {
+      return Smi::FromInt(0);
+    }
+  } else {
+    int len;
+    if (!receiver->IsJSObject() ||
+        !JSSloppyArgumentsObject::GetSloppyArgumentsLength(
+            isolate, Handle<JSObject>::cast(receiver), &len) ||
+        (length > static_cast<uint32_t>(len))) {
+      return Smi::FromInt(0);
+    }
+  }
+
+  // This "fastish" path must also ensure that elements are simple (no
+  // geters/setters), no elements on prototype chain.
+  Handle<JSObject> object(Handle<JSObject>::cast(receiver));
+  if (!JSObject::PrototypeHasNoElements(isolate, *object) ||
+      object->HasComplexElements()) {
+    return Smi::FromInt(0);
+  }
+
+  ElementsAccessor* accessor = object->GetElementsAccessor();
+  return *accessor->Slice(object, first, length);
 }
 
 RUNTIME_FUNCTION(Runtime_NewArray) {

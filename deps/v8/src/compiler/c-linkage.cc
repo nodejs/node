@@ -235,7 +235,7 @@ CallDescriptor* Linkage::GetSimplifiedCDescriptor(
       target_loc,                    // target location
       locations.Build(),             // location_sig
       0,                             // stack_parameter_count
-      Operator::kNoProperties,       // properties
+      Operator::kNoThrow,            // properties
       kCalleeSaveRegisters,          // callee-saved registers
       kCalleeSaveFPRegisters,        // callee-saved fp regs
       flags, "c-call");

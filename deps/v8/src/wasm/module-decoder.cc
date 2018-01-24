@@ -228,7 +228,6 @@ class WasmSectionIterator {
     section_code_ = decoder_.failed() ? kUnknownSectionCode
                                       : static_cast<SectionCode>(section_code);
 
-    TRACE("Section: %s\n", SectionName(section_code_));
     if (section_code_ == kUnknownSectionCode && section_end_ > decoder_.pc()) {
       // skip to the end of the unknown section.
       uint32_t remaining = static_cast<uint32_t>(section_end_ - decoder_.pc());
@@ -423,7 +422,10 @@ class ModuleDecoderImpl : public Decoder {
             static_cast<int>(pc_ - start_));
       FunctionSig* s = consume_sig(module_->signature_zone.get());
       module_->signatures.push_back(s);
+      uint32_t id = s ? module_->signature_map.FindOrInsert(s) : 0;
+      module_->signature_ids.push_back(id);
     }
+    module_->signature_map.Freeze();
   }
 
   void DecodeImportSection() {
@@ -684,12 +686,10 @@ class ModuleDecoderImpl : public Decoder {
       if (table_index != 0) {
         errorf(pos, "illegal table index %u != 0", table_index);
       }
-      WasmIndirectFunctionTable* table = nullptr;
       if (table_index >= module_->function_tables.size()) {
         errorf(pos, "out of bounds table index %u", table_index);
         break;
       }
-      table = &module_->function_tables[table_index];
       WasmInitExpr offset = consume_init_expr(module_.get(), kWasmI32);
       uint32_t num_elem =
           consume_count("number of elements", kV8MaxWasmTableEntries);
@@ -702,8 +702,6 @@ class ModuleDecoderImpl : public Decoder {
         if (!ok()) break;
         DCHECK_EQ(index, func->func_index);
         init->entries.push_back(index);
-        // Canonicalize signature indices during decoding.
-        table->map.FindOrInsert(func->sig);
       }
     }
   }
@@ -713,7 +711,13 @@ class ModuleDecoderImpl : public Decoder {
     uint32_t functions_count = consume_u32v("functions count");
     CheckFunctionsCount(functions_count, pos);
     for (uint32_t i = 0; ok() && i < functions_count; ++i) {
+      const byte* pos = pc();
       uint32_t size = consume_u32v("body size");
+      if (size > kV8MaxWasmFunctionSize) {
+        errorf(pos, "size %u > maximum function size %zu", size,
+               kV8MaxWasmFunctionSize);
+        return;
+      }
       uint32_t offset = pc_offset();
       consume_bytes(size, "function body");
       if (failed()) break;
@@ -733,10 +737,6 @@ class ModuleDecoderImpl : public Decoder {
 
   void DecodeFunctionBody(uint32_t index, uint32_t length, uint32_t offset,
                           bool verify_functions) {
-    auto size_histogram = module_->is_wasm()
-                              ? GetCounters()->wasm_wasm_function_size_bytes()
-                              : GetCounters()->wasm_asm_function_size_bytes();
-    size_histogram->AddSample(length);
     WasmFunction* function =
         &module_->functions[index + module_->num_imported_functions];
     function->code = {offset, length};
@@ -1179,7 +1179,7 @@ class ModuleDecoderImpl : public Decoder {
     unsigned len = 0;
     switch (opcode) {
       case kExprGetGlobal: {
-        GlobalIndexOperand<true> operand(this, pc() - 1);
+        GlobalIndexOperand<Decoder::kValidate> operand(this, pc() - 1);
         if (module->globals.size() <= operand.index) {
           error("global index is out of bounds");
           expr.kind = WasmInitExpr::kNone;
@@ -1201,28 +1201,28 @@ class ModuleDecoderImpl : public Decoder {
         break;
       }
       case kExprI32Const: {
-        ImmI32Operand<true> operand(this, pc() - 1);
+        ImmI32Operand<Decoder::kValidate> operand(this, pc() - 1);
         expr.kind = WasmInitExpr::kI32Const;
         expr.val.i32_const = operand.value;
         len = operand.length;
         break;
       }
       case kExprF32Const: {
-        ImmF32Operand<true> operand(this, pc() - 1);
+        ImmF32Operand<Decoder::kValidate> operand(this, pc() - 1);
         expr.kind = WasmInitExpr::kF32Const;
         expr.val.f32_const = operand.value;
         len = operand.length;
         break;
       }
       case kExprI64Const: {
-        ImmI64Operand<true> operand(this, pc() - 1);
+        ImmI64Operand<Decoder::kValidate> operand(this, pc() - 1);
         expr.kind = WasmInitExpr::kI64Const;
         expr.val.i64_const = operand.value;
         len = operand.length;
         break;
       }
       case kExprF64Const: {
-        ImmF64Operand<true> operand(this, pc() - 1);
+        ImmF64Operand<Decoder::kValidate> operand(this, pc() - 1);
         expr.kind = WasmInitExpr::kF64Const;
         expr.val.f64_const = operand.value;
         len = operand.length;
@@ -1544,8 +1544,13 @@ std::vector<CustomSectionOffset> DecodeCustomSections(const byte* start,
     uint32_t name_offset = decoder.pc_offset();
     decoder.consume_bytes(name_length, "section name");
     uint32_t payload_offset = decoder.pc_offset();
+    if (section_length < (payload_offset - section_start)) {
+      decoder.error("invalid section length");
+      break;
+    }
     uint32_t payload_length = section_length - (payload_offset - section_start);
     decoder.consume_bytes(payload_length);
+    if (decoder.failed()) break;
     result.push_back({{section_start, section_length},
                       {name_offset, name_length},
                       {payload_offset, payload_length}});

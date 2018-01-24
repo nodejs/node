@@ -243,7 +243,7 @@ void InstructionTable::AddJumpConditionalShort() {
   for (byte b = 0x70; b <= 0x7F; b++) {
     InstructionDesc* id = &instructions_[b];
     DCHECK_EQ(NO_INSTR, id->type);  // Information not already entered
-    id->mnem = NULL;  // Computed depending on condition code.
+    id->mnem = nullptr;             // Computed depending on condition code.
     id->type = JUMP_CONDITIONAL_SHORT_INSTR;
   }
 }
@@ -732,7 +732,7 @@ int DisassemblerX64::F6F7Instruction(byte* data) {
   int mod, regop, rm;
   get_modrm(modrm, &mod, &regop, &rm);
   if (mod == 3 && regop != 0) {
-    const char* mnem = NULL;
+    const char* mnem = nullptr;
     switch (regop) {
       case 2:
         mnem = "not";
@@ -786,7 +786,7 @@ int DisassemblerX64::ShiftInstruction(byte* data) {
     int mod, regop, rm;
     get_modrm(modrm, &mod, &regop, &rm);
     regop &= 0x7;  // The REX.R bit does not affect the operation.
-    const char* mnem = NULL;
+    const char* mnem = nullptr;
     switch (regop) {
       case 0:
         mnem = "rol";
@@ -2200,10 +2200,9 @@ int DisassemblerX64::TwoByteOpcodeInstruction(byte* data) {
   return static_cast<int>(current - data);
 }
 
-
 // Mnemonics for two-byte opcode instructions starting with 0x0F.
 // The argument is the second byte of the two-byte opcode.
-// Returns NULL if the instruction is not handled here.
+// Returns nullptr if the instruction is not handled here.
 const char* DisassemblerX64::TwoByteMnemonic(byte opcode) {
   switch (opcode) {
     case 0x1F:
@@ -2252,7 +2251,7 @@ const char* DisassemblerX64::TwoByteMnemonic(byte opcode) {
     case 0xBF:
       return "movsxw";
     default:
-      return NULL;
+      return nullptr;
   }
 }
 
@@ -2340,7 +2339,7 @@ int DisassemblerX64::InstructionDecode(v8::internal::Vector<char> out_buffer,
         data++;
         break;
       case MOVE_REG_INSTR: {
-        byte* addr = NULL;
+        byte* addr = nullptr;
         switch (operand_size()) {
           case OPERAND_WORD_SIZE:
             addr =
@@ -2437,7 +2436,7 @@ int DisassemblerX64::InstructionDecode(v8::internal::Vector<char> out_buffer,
         data++;
         int mod, regop, rm;
         get_modrm(*data, &mod, &regop, &rm);
-        const char* mnem = NULL;
+        const char* mnem = nullptr;
         switch (regop) {
           case 0:
             mnem = "inc";
@@ -2703,7 +2702,7 @@ int DisassemblerX64::InstructionDecode(v8::internal::Vector<char> out_buffer,
   }
 
   int instr_len = static_cast<int>(data - instr);
-  DCHECK(instr_len > 0);  // Ensure progress.
+  DCHECK_GT(instr_len, 0);  // Ensure progress.
 
   int outp = 0;
   // Instruction bytes.

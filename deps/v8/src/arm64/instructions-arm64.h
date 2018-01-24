@@ -551,7 +551,7 @@ const Instr kImmExceptionIsDebug = 0xdeb0;
 // Parameters are inlined in the code after a debug pseudo-instruction:
 // - Debug code.
 // - Debug parameters.
-// - Debug message string. This is a NULL-terminated ASCII string, padded to
+// - Debug message string. This is a nullptr-terminated ASCII string, padded to
 //   kInstructionSize so that subsequent instructions are correctly aligned.
 // - A kImmExceptionIsUnreachable marker, to catch accidental execution of the
 //   string data.
@@ -642,8 +642,8 @@ class NEONFormatDecoder {
 
   // Set the format mapping for all or individual substitutions.
   void SetFormatMaps(const NEONFormatMap* format0,
-                     const NEONFormatMap* format1 = NULL,
-                     const NEONFormatMap* format2 = NULL);
+                     const NEONFormatMap* format1 = nullptr,
+                     const NEONFormatMap* format2 = nullptr);
   void SetFormatMap(unsigned index, const NEONFormatMap* format);
 
   // Substitute %s in the input string with the placeholder string for each

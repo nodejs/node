@@ -193,8 +193,8 @@ static char FlagV(uint32_t flags) {
 
 
 bool EqualNzcv(uint32_t expected, uint32_t result) {
-  CHECK((expected & ~NZCVFlag) == 0);
-  CHECK((result & ~NZCVFlag) == 0);
+  CHECK_EQ(expected & ~NZCVFlag, 0);
+  CHECK_EQ(result & ~NZCVFlag, 0);
   if (result != expected) {
     printf("Expected: %c%c%c%c\t Found: %c%c%c%c\n",
         FlagN(expected), FlagZ(expected), FlagC(expected), FlagV(expected),
@@ -451,3 +451,5 @@ void RegisterDump::Dump(MacroAssembler* masm) {
 
 }  // namespace internal
 }  // namespace v8
+
+#undef __

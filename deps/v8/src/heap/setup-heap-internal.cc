@@ -4,12 +4,14 @@
 
 #include "src/setup-isolate.h"
 
+#include "src/accessors.h"
 #include "src/ast/context-slot-cache.h"
 #include "src/compilation-cache.h"
 #include "src/contexts.h"
 #include "src/factory.h"
 #include "src/heap-symbols.h"
 #include "src/heap/heap.h"
+#include "src/interpreter/interpreter.h"
 #include "src/isolate.h"
 #include "src/layout-descriptor.h"
 #include "src/lookup-cache.h"
@@ -35,10 +37,11 @@ bool SetupIsolateDelegate::SetupHeapInternal(Heap* heap) {
 bool Heap::CreateHeapObjects() {
   // Create initial maps.
   if (!CreateInitialMaps()) return false;
-  if (!CreateApiObjects()) return false;
+  CreateApiObjects();
 
   // Create initial objects
   CreateInitialObjects();
+  CreateInternalAccessorInfoObjects();
   CHECK_EQ(0u, gc_count_);
 
   set_native_contexts_list(undefined_value());
@@ -107,6 +110,9 @@ bool Heap::CreateInitialMaps() {
                          fixed_cow_array)
     DCHECK_NE(fixed_array_map(), fixed_cow_array_map());
 
+    ALLOCATE_PARTIAL_MAP(DESCRIPTOR_ARRAY_TYPE, kVariableSizeSentinel,
+                         descriptor_array)
+
     ALLOCATE_PARTIAL_MAP(ODDBALL_TYPE, Oddball::kSize, undefined);
     ALLOCATE_PARTIAL_MAP(ODDBALL_TYPE, Oddball::kSize, null);
     ALLOCATE_PARTIAL_MAP(ODDBALL_TYPE, Oddball::kSize, the_hole);
@@ -164,10 +170,12 @@ bool Heap::CreateInitialMaps() {
 
   // Allocate the empty descriptor array.
   {
+    STATIC_ASSERT(DescriptorArray::kFirstIndex != 0);
     AllocationResult allocation =
         AllocateUninitializedFixedArray(DescriptorArray::kFirstIndex, TENURED);
     if (!allocation.To(&obj)) return false;
   }
+  obj->set_map_no_write_barrier(descriptor_array_map());
   set_empty_descriptor_array(DescriptorArray::cast(obj));
   DescriptorArray::cast(obj)->set(DescriptorArray::kDescriptorLengthIndex,
                                   Smi::kZero);
@@ -178,6 +186,7 @@ bool Heap::CreateInitialMaps() {
   FinalizePartialMap(this, meta_map());
   FinalizePartialMap(this, fixed_array_map());
   FinalizePartialMap(this, fixed_cow_array_map());
+  FinalizePartialMap(this, descriptor_array_map());
   FinalizePartialMap(this, undefined_map());
   undefined_map()->set_is_undetectable();
   FinalizePartialMap(this, null_map());
@@ -283,8 +292,13 @@ bool Heap::CreateInitialMaps() {
     ALLOCATE_VARSIZE_MAP(TRANSITION_ARRAY_TYPE, transition_array)
 
     ALLOCATE_VARSIZE_MAP(HASH_TABLE_TYPE, hash_table)
-    ALLOCATE_VARSIZE_MAP(HASH_TABLE_TYPE, ordered_hash_table)
-    ALLOCATE_VARSIZE_MAP(HASH_TABLE_TYPE, unseeded_number_dictionary)
+    ALLOCATE_VARSIZE_MAP(HASH_TABLE_TYPE, ordered_hash_map)
+    ALLOCATE_VARSIZE_MAP(HASH_TABLE_TYPE, ordered_hash_set)
+    ALLOCATE_VARSIZE_MAP(HASH_TABLE_TYPE, name_dictionary)
+    ALLOCATE_VARSIZE_MAP(HASH_TABLE_TYPE, global_dictionary)
+    ALLOCATE_VARSIZE_MAP(HASH_TABLE_TYPE, number_dictionary)
+    ALLOCATE_VARSIZE_MAP(HASH_TABLE_TYPE, string_table)
+    ALLOCATE_VARSIZE_MAP(HASH_TABLE_TYPE, weak_hash_table)
 
     ALLOCATE_VARSIZE_MAP(FIXED_ARRAY_TYPE, function_context)
     ALLOCATE_VARSIZE_MAP(FIXED_ARRAY_TYPE, catch_context)
@@ -301,6 +315,9 @@ bool Heap::CreateInitialMaps() {
 
     ALLOCATE_MAP(SHARED_FUNCTION_INFO_TYPE, SharedFunctionInfo::kAlignedSize,
                  shared_function_info)
+
+    ALLOCATE_MAP(CODE_DATA_CONTAINER_TYPE, CodeDataContainer::kSize,
+                 code_data_container)
 
     ALLOCATE_MAP(JS_MESSAGE_OBJECT_TYPE, JSMessageObject::kSize, message_object)
     ALLOCATE_MAP(JS_OBJECT_TYPE, JSObject::kHeaderSize + kPointerSize, external)
@@ -358,18 +375,16 @@ bool Heap::CreateInitialMaps() {
   return true;
 }
 
-bool Heap::CreateApiObjects() {
-  HandleScope scope(isolate());
-  set_message_listeners(*TemplateList::New(isolate(), 2));
-  HeapObject* obj = nullptr;
-  {
-    AllocationResult allocation = AllocateStruct(INTERCEPTOR_INFO_TYPE);
-    if (!allocation.To(&obj)) return false;
-  }
-  InterceptorInfo* info = InterceptorInfo::cast(obj);
+void Heap::CreateApiObjects() {
+  Isolate* isolate = this->isolate();
+  HandleScope scope(isolate);
+
+  set_message_listeners(*TemplateList::New(isolate, 2));
+
+  Handle<InterceptorInfo> info = Handle<InterceptorInfo>::cast(
+      isolate->factory()->NewStruct(INTERCEPTOR_INFO_TYPE, TENURED));
   info->set_flags(0);
-  set_noop_interceptor_info(info);
-  return true;
+  set_noop_interceptor_info(*info);
 }
 
 void Heap::CreateInitialObjects() {
@@ -452,7 +467,7 @@ void Heap::CreateInitialObjects() {
 
   // Create the code_stubs dictionary. The initial size is set to avoid
   // expanding the dictionary during bootstrapping.
-  set_code_stubs(*UnseededNumberDictionary::New(isolate(), 128));
+  set_code_stubs(*NumberDictionary::New(isolate(), 128));
 
   {
     HandleScope scope(isolate());
@@ -540,13 +555,12 @@ void Heap::CreateInitialObjects() {
       ArrayList::cast(*(factory->NewFixedArray(16, TENURED))));
   weak_new_space_object_to_code_list()->SetLength(0);
 
-  set_code_coverage_list(undefined_value());
+  set_feedback_vectors_for_profiling_tools(undefined_value());
 
   set_script_list(Smi::kZero);
 
-  Handle<SeededNumberDictionary> slow_element_dictionary =
-      SeededNumberDictionary::New(isolate(), 1, TENURED,
-                                  USE_CUSTOM_MINIMUM_CAPACITY);
+  Handle<NumberDictionary> slow_element_dictionary =
+      NumberDictionary::New(isolate(), 1, TENURED, USE_CUSTOM_MINIMUM_CAPACITY);
   DCHECK(!slow_element_dictionary->HasSufficientCapacityToAdd(1));
   slow_element_dictionary->set_requires_slow_elements();
   set_empty_slow_element_dictionary(*slow_element_dictionary);
@@ -557,15 +571,25 @@ void Heap::CreateInitialObjects() {
   set_last_script_id(Smi::FromInt(v8::UnboundScript::kNoScriptId));
   set_next_template_serial_number(Smi::kZero);
 
-  // Allocate the empty OrderedHashTable.
-  Handle<FixedArray> empty_ordered_hash_table =
+  // Allocate the empty OrderedHashMap.
+  Handle<FixedArray> empty_ordered_hash_map =
       factory->NewFixedArray(OrderedHashMap::kHashTableStartIndex, TENURED);
-  empty_ordered_hash_table->set_map_no_write_barrier(
-      *factory->ordered_hash_table_map());
-  for (int i = 0; i < empty_ordered_hash_table->length(); ++i) {
-    empty_ordered_hash_table->set(i, Smi::kZero);
+  empty_ordered_hash_map->set_map_no_write_barrier(
+      *factory->ordered_hash_map_map());
+  for (int i = 0; i < empty_ordered_hash_map->length(); ++i) {
+    empty_ordered_hash_map->set(i, Smi::kZero);
   }
-  set_empty_ordered_hash_table(*empty_ordered_hash_table);
+  set_empty_ordered_hash_map(*empty_ordered_hash_map);
+
+  // Allocate the empty OrderedHashSet.
+  Handle<FixedArray> empty_ordered_hash_set =
+      factory->NewFixedArray(OrderedHashSet::kHashTableStartIndex, TENURED);
+  empty_ordered_hash_set->set_map_no_write_barrier(
+      *factory->ordered_hash_set_map());
+  for (int i = 0; i < empty_ordered_hash_set->length(); ++i) {
+    empty_ordered_hash_set->set(i, Smi::kZero);
+  }
+  set_empty_ordered_hash_set(*empty_ordered_hash_set);
 
   // Allocate the empty script.
   Handle<Script> script = factory->NewScript(factory->empty_string());
@@ -578,7 +602,7 @@ void Heap::CreateInitialObjects() {
 
   Handle<PropertyCell> cell = factory->NewPropertyCell(factory->empty_string());
   cell->set_value(Smi::FromInt(Isolate::kProtectorValid));
-  set_array_protector(*cell);
+  set_no_elements_protector(*cell);
 
   cell = factory->NewPropertyCell(factory->empty_string());
   cell->set_value(the_hole_value());
@@ -615,6 +639,11 @@ void Heap::CreateInitialObjects() {
 
   set_noscript_shared_function_infos(Smi::kZero);
 
+  STATIC_ASSERT(interpreter::BytecodeOperands::kOperandScaleCount == 3);
+  set_deserialize_lazy_handler(Smi::kZero);
+  set_deserialize_lazy_handler_wide(Smi::kZero);
+  set_deserialize_lazy_handler_extra_wide(Smi::kZero);
+
   // Initialize context slot cache.
   isolate_->context_slot_cache()->Clear();
 
@@ -623,6 +652,18 @@ void Heap::CreateInitialObjects() {
 
   // Initialize compilation cache.
   isolate_->compilation_cache()->Clear();
+}
+
+void Heap::CreateInternalAccessorInfoObjects() {
+  Isolate* isolate = this->isolate();
+  HandleScope scope(isolate);
+  Handle<AccessorInfo> acessor_info;
+
+#define INIT_ACCESSOR_INFO(accessor_name, AccessorName)        \
+  acessor_info = Accessors::Make##AccessorName##Info(isolate); \
+  roots_[k##AccessorName##AccessorRootIndex] = *acessor_info;
+  ACCESSOR_INFO_LIST(INIT_ACCESSOR_INFO)
+#undef INIT_ACCESSOR_INFO
 }
 
 }  // namespace internal

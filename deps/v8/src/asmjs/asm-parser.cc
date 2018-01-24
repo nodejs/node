@@ -230,7 +230,7 @@ wasm::AsmJsParser::VarInfo* AsmJsParser::GetVarInfo(
 }
 
 uint32_t AsmJsParser::VarIndex(VarInfo* info) {
-  DCHECK(info->kind == VarKind::kGlobal);
+  DCHECK_EQ(info->kind, VarKind::kGlobal);
   return info->index + static_cast<uint32_t>(global_imports_.size());
 }
 
@@ -292,6 +292,9 @@ void AsmJsParser::Begin(AsmJsScanner::token_t label) {
 
 void AsmJsParser::Loop(AsmJsScanner::token_t label) {
   BareBegin(BlockKind::kLoop, label);
+  int position = static_cast<int>(scanner_.Position());
+  DCHECK_EQ(position, scanner_.Position());
+  current_function_builder_->AddAsmWasmOffset(position, position);
   current_function_builder_->EmitWithU8(kExprLoop, kLocalVoid);
 }
 
@@ -308,7 +311,7 @@ void AsmJsParser::BareBegin(BlockKind kind, AsmJsScanner::token_t label) {
 }
 
 void AsmJsParser::BareEnd() {
-  DCHECK(block_stack_.size() > 0);
+  DCHECK_GT(block_stack_.size(), 0);
   block_stack_.pop_back();
 }
 
@@ -797,7 +800,7 @@ void AsmJsParser::ValidateFunction() {
   }
   function_info = GetVarInfo(function_name);
   if (function_info->type->IsA(AsmType::None())) {
-    DCHECK(function_info->kind == VarKind::kFunction);
+    DCHECK_EQ(function_info->kind, VarKind::kFunction);
     function_info->type = function_type;
   } else if (!function_type->IsA(function_info->type)) {
     // TODO(bradnelson): Should IsExactly be used here?
@@ -1164,18 +1167,18 @@ void AsmJsParser::DoStatement() {
   RECURSE(ValidateStatement());
   EXPECT_TOKEN(TOK(while));
   End();
-  //     }
+  //     }  // end c
   EXPECT_TOKEN('(');
   RECURSE(Expression(AsmType::Int()));
-  //     if (CONDITION) break a;
+  //     if (!CONDITION) break a;
   current_function_builder_->Emit(kExprI32Eqz);
   current_function_builder_->EmitWithU8(kExprBrIf, 1);
   //     continue b;
   current_function_builder_->EmitWithU8(kExprBr, 0);
   EXPECT_TOKEN(')');
-  //   }
+  //   }  // end b
   End();
-  // }
+  // }  // end a
   End();
   SkipSemicolon();
 }
@@ -1195,13 +1198,16 @@ void AsmJsParser::ForStatement() {
   // a: block {
   Begin(pending_label_);
   //   b: loop {
-  Loop(pending_label_);
+  Loop();
+  //     c: block {  // but treated like loop so continue works
+  BareBegin(BlockKind::kLoop, pending_label_);
+  current_function_builder_->EmitWithU8(kExprBlock, kLocalVoid);
   pending_label_ = 0;
   if (!Peek(';')) {
-    // if (CONDITION) break a;
+    //       if (!CONDITION) break a;
     RECURSE(Expression(AsmType::Int()));
     current_function_builder_->Emit(kExprI32Eqz);
-    current_function_builder_->EmitWithU8(kExprBrIf, 1);
+    current_function_builder_->EmitWithU8(kExprBrIf, 2);
   }
   EXPECT_TOKEN(';');
   // Race past INCREMENT
@@ -1210,18 +1216,21 @@ void AsmJsParser::ForStatement() {
   EXPECT_TOKEN(')');
   //       BODY
   RECURSE(ValidateStatement());
-  //       INCREMENT
+  //     }  // end c
+  End();
+  //     INCREMENT
   size_t end_position = scanner_.Position();
   scanner_.Seek(increment_position);
   if (!Peek(')')) {
     RECURSE(Expression(nullptr));
     // NOTE: No explicit drop because below break is an implicit drop.
   }
+  //     continue b;
   current_function_builder_->EmitWithU8(kExprBr, 0);
   scanner_.Seek(end_position);
-  //   }
+  //   }  // end b
   End();
-  // }
+  // }  // end a
   End();
 }
 
@@ -1392,11 +1401,10 @@ AsmType* AsmJsParser::NumericLiteral() {
     if (uvalue <= 0x7fffffff) {
       current_function_builder_->EmitI32Const(static_cast<int32_t>(uvalue));
       return AsmType::FixNum();
-    } else if (uvalue <= 0xffffffff) {
+    } else {
+      DCHECK_LE(uvalue, 0xffffffff);
       current_function_builder_->EmitI32Const(static_cast<int32_t>(uvalue));
       return AsmType::Unsigned();
-    } else {
-      FAILn("Integer numeric literal out of range.");
     }
   } else {
     FAILn("Expected numeric literal.");
@@ -2195,7 +2203,7 @@ AsmType* AsmJsParser::ValidateCall() {
     if (return_type->IsA(AsmType::Float())) {
       FAILn("Imported function can't be called as float");
     }
-    DCHECK(function_info->import != nullptr);
+    DCHECK_NOT_NULL(function_info->import);
     // TODO(bradnelson): Factor out.
     uint32_t index;
     auto it = function_info->import->cache.find(sig);

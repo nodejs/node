@@ -26,7 +26,6 @@ class DefaultSerializerAllocator final {
 #ifdef DEBUG
   bool BackReferenceIsAlreadyAllocated(
       SerializerReference back_reference) const;
-  bool HasNotExceededFirstPageOfEachSpace() const;
 #endif
 
   std::vector<SerializedData::Reservation> EncodeReservations() const;

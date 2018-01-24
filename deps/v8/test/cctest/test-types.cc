@@ -100,9 +100,8 @@ struct Tests {
   void IsSomeType() {
     for (TypeIterator it = T.types.begin(); it != T.types.end(); ++it) {
       Type* t = *it;
-      CHECK(1 ==
-            this->IsBitset(t) + t->IsHeapConstant() + t->IsRange() +
-                t->IsOtherNumberConstant() + this->IsUnion(t));
+      CHECK_EQ(1, this->IsBitset(t) + t->IsHeapConstant() + t->IsRange() +
+                      t->IsOtherNumberConstant() + this->IsUnion(t));
     }
   }
 
@@ -414,7 +413,7 @@ struct Tests {
     // T->Is(Range(T->Min(), T->Max())).
     for (TypeIterator it = T.types.begin(); it != T.types.end(); ++it) {
       Type* type = *it;
-      CHECK(!type->Is(T.Integer) || !type->IsInhabited() ||
+      CHECK(!type->Is(T.Integer) || type->IsNone() ||
             type->Is(T.Range(type->Min(), type->Max())));
     }
   }
@@ -543,7 +542,7 @@ struct Tests {
               (type1->IsRange() && type2->IsRange()) ||
               (type1->IsOtherNumberConstant() &&
                type2->IsOtherNumberConstant()) ||
-              !type1->IsInhabited());
+              type1->IsNone());
       }
     }
   }
@@ -667,7 +666,7 @@ struct Tests {
     // T->Maybe(Any) iff T inhabited
     for (TypeIterator it = T.types.begin(); it != T.types.end(); ++it) {
       Type* type = *it;
-      CHECK(type->Maybe(T.Any) == type->IsInhabited());
+      CHECK(type->Maybe(T.Any) == !type->IsNone());
     }
 
     // T->Maybe(None) never
@@ -679,7 +678,7 @@ struct Tests {
     // Reflexivity upto Inhabitation: T->Maybe(T) iff T inhabited
     for (TypeIterator it = T.types.begin(); it != T.types.end(); ++it) {
       Type* type = *it;
-      CHECK(type->Maybe(type) == type->IsInhabited());
+      CHECK(type->Maybe(type) == !type->IsNone());
     }
 
     // Symmetry: T1->Maybe(T2) iff T2->Maybe(T1)
@@ -696,8 +695,7 @@ struct Tests {
       for (TypeIterator it2 = T.types.begin(); it2 != T.types.end(); ++it2) {
         Type* type1 = *it1;
         Type* type2 = *it2;
-        CHECK(!type1->Maybe(type2) ||
-              (type1->IsInhabited() && type2->IsInhabited()));
+        CHECK(!type1->Maybe(type2) || (!type1->IsNone() && !type2->IsNone()));
       }
     }
 
@@ -707,7 +705,7 @@ struct Tests {
         Type* type1 = *it1;
         Type* type2 = *it2;
         Type* intersect12 = T.Intersect(type1, type2);
-        CHECK(!type1->Maybe(type2) || intersect12->IsInhabited());
+        CHECK(!type1->Maybe(type2) || !intersect12->IsNone());
       }
     }
 
@@ -716,8 +714,7 @@ struct Tests {
       for (TypeIterator it2 = T.types.begin(); it2 != T.types.end(); ++it2) {
         Type* type1 = *it1;
         Type* type2 = *it2;
-        CHECK(!(type1->Is(type2) && type1->IsInhabited()) ||
-              type1->Maybe(type2));
+        CHECK(!(type1->Is(type2) && !type1->IsNone()) || type1->Maybe(type2));
       }
     }
 

@@ -304,8 +304,6 @@ RegionObservability RegionObservabilityOf(Operator const*) WARN_UNUSED_RESULT;
 std::ostream& operator<<(std::ostream& os,
                          const ZoneVector<MachineType>* types);
 
-ZoneHandleSet<Map> MapGuardMapsOf(Operator const*) WARN_UNUSED_RESULT;
-
 Type* TypeGuardTypeOf(Operator const*) WARN_UNUSED_RESULT;
 
 int OsrValueIndexOf(Operator const*);
@@ -348,6 +346,8 @@ class V8_EXPORT_PRIVATE CommonOperatorBuilder final
   explicit CommonOperatorBuilder(Zone* zone);
 
   const Operator* Dead();
+  const Operator* DeadValue();
+  const Operator* Unreachable();
   const Operator* End(size_t control_input_count);
   const Operator* Branch(BranchHint = BranchHint::kNone);
   const Operator* IfTrue();
@@ -419,7 +419,6 @@ class V8_EXPORT_PRIVATE CommonOperatorBuilder final
   const Operator* TailCall(const CallDescriptor* descriptor);
   const Operator* Projection(size_t index);
   const Operator* Retain();
-  const Operator* MapGuard(ZoneHandleSet<Map> maps);
   const Operator* TypeGuard(Type* type);
 
   // Constructs a new merge or phi operator with the same opcode as {op}, but

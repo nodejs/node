@@ -109,8 +109,11 @@ class ConsoleHelper {
     return m_info[0]->BooleanValue(m_context).FromMaybe(defaultValue);
   }
 
-  String16 firstArgToString(const String16& defaultValue) {
-    if (m_info.Length() < 1) return defaultValue;
+  String16 firstArgToString(const String16& defaultValue,
+                            bool allowUndefined = true) {
+    if (m_info.Length() < 1 || (!allowUndefined && m_info[0]->IsUndefined())) {
+      return defaultValue;
+    }
     v8::Local<v8::String> titleValue;
     v8::TryCatch tryCatch(m_context->GetIsolate());
     if (m_info[0]->IsObject()) {
@@ -349,7 +352,7 @@ static void timeFunction(const v8::debug::ConsoleCallArguments& info,
                          const v8::debug::ConsoleContext& consoleContext,
                          bool timelinePrefix, V8InspectorImpl* inspector) {
   ConsoleHelper helper(info, consoleContext, inspector);
-  String16 protocolTitle = helper.firstArgToString("default");
+  String16 protocolTitle = helper.firstArgToString("default", false);
   if (timelinePrefix) protocolTitle = "Timeline '" + protocolTitle + "'";
   inspector->client()->consoleTime(toStringView(protocolTitle));
   helper.consoleMessageStorage()->time(
@@ -361,7 +364,7 @@ static void timeEndFunction(const v8::debug::ConsoleCallArguments& info,
                             const v8::debug::ConsoleContext& consoleContext,
                             bool timelinePrefix, V8InspectorImpl* inspector) {
   ConsoleHelper helper(info, consoleContext, inspector);
-  String16 protocolTitle = helper.firstArgToString("default");
+  String16 protocolTitle = helper.firstArgToString("default", false);
   if (timelinePrefix) protocolTitle = "Timeline '" + protocolTitle + "'";
   inspector->client()->consoleTimeEnd(toStringView(protocolTitle));
   double elapsed = helper.consoleMessageStorage()->timeEnd(
@@ -660,9 +663,10 @@ v8::Local<v8::Object> V8Console::createCommandLineAPI(
   DCHECK(success);
   USE(success);
 
-  // TODO(dgozman): this CommandLineAPIData instance leaks. Use PodArray maybe?
-  v8::Local<v8::External> data =
-      v8::External::New(isolate, new CommandLineAPIData(this, sessionId));
+  v8::Local<v8::ArrayBuffer> data =
+      v8::ArrayBuffer::New(isolate, sizeof(CommandLineAPIData));
+  *static_cast<CommandLineAPIData*>(data->GetContents().Data()) =
+      CommandLineAPIData(this, sessionId);
   createBoundFunctionProperty(context, commandLineAPI, data, "dir",
                               &V8Console::call<&V8Console::Dir>,
                               "function dir(value) { [Command Line API] }");

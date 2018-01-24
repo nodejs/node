@@ -227,7 +227,7 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
 }
 
 void CpuFeatures::PrintTarget() {
-  const char* s390_arch = NULL;
+  const char* s390_arch = nullptr;
 
 #if V8_TARGET_ARCH_S390X
   s390_arch = "s390x";
@@ -290,6 +290,17 @@ void RelocInfo::set_embedded_size(Isolate* isolate, uint32_t size,
                                    reinterpret_cast<Address>(size), flush_mode);
 }
 
+void RelocInfo::set_js_to_wasm_address(Isolate* isolate, Address address,
+                                       ICacheFlushMode icache_flush_mode) {
+  DCHECK_EQ(rmode_, JS_TO_WASM_CALL);
+  set_embedded_address(isolate, address, icache_flush_mode);
+}
+
+Address RelocInfo::js_to_wasm_address() const {
+  DCHECK_EQ(rmode_, JS_TO_WASM_CALL);
+  return embedded_address();
+}
+
 // -----------------------------------------------------------------------------
 // Implementation of Operand and MemOperand
 // See assembler-s390-inl.h for inlined constructors
@@ -324,7 +335,7 @@ void Assembler::AllocateAndInstallRequestedHeapObjects(Isolate* isolate) {
       case HeapObjectRequest::kHeapNumber:
         object = isolate->factory()->NewHeapNumber(request.heap_number(),
                                                    IMMUTABLE, TENURED);
-        set_target_address_at(nullptr, pc, static_cast<Address>(NULL),
+        set_target_address_at(nullptr, pc, static_cast<Address>(nullptr),
                               reinterpret_cast<Address>(object.location()),
                               SKIP_ICACHE_FLUSH);
         break;
@@ -526,7 +537,7 @@ void Assembler::next(Label* L) {
   if (link == kEndOfChain) {
     L->Unuse();
   } else {
-    DCHECK(link >= 0);
+    DCHECK_GE(link, 0);
     L->link_to(link);
   }
 }
@@ -1697,7 +1708,7 @@ void Assembler::sllg(Register r1, Register r3, const Operand& opnd) {
 
 // Shift Left Double Logical (64)
 void Assembler::sldl(Register r1, Register b2, const Operand& opnd) {
-  DCHECK(r1.code() % 2 == 0);
+  DCHECK_EQ(r1.code() % 2, 0);
   rs_form(SLDL, r1, r0, b2, opnd.immediate());
 }
 
@@ -1709,13 +1720,13 @@ void Assembler::srl(Register r1, Register opnd) {
 
 // Shift Right Double Arith (64)
 void Assembler::srda(Register r1, Register b2, const Operand& opnd) {
-  DCHECK(r1.code() % 2 == 0);
+  DCHECK_EQ(r1.code() % 2, 0);
   rs_form(SRDA, r1, r0, b2, opnd.immediate());
 }
 
 // Shift Right Double Logical (64)
 void Assembler::srdl(Register r1, Register b2, const Operand& opnd) {
-  DCHECK(r1.code() % 2 == 0);
+  DCHECK_EQ(r1.code() % 2, 0);
   rs_form(SRDL, r1, r0, b2, opnd.immediate());
 }
 
@@ -1813,13 +1824,13 @@ void Assembler::srag(Register r1, Register r3, const Operand& opnd) {
 
 // Shift Right Double
 void Assembler::srda(Register r1, const Operand& opnd) {
-  DCHECK(r1.code() % 2 == 0);
+  DCHECK_EQ(r1.code() % 2, 0);
   rs_form(SRDA, r1, r0, r0, opnd.immediate());
 }
 
 // Shift Right Double Logical
 void Assembler::srdl(Register r1, const Operand& opnd) {
-  DCHECK(r1.code() % 2 == 0);
+  DCHECK_EQ(r1.code() % 2, 0);
   rs_form(SRDL, r1, r0, r0, opnd.immediate());
 }
 
@@ -2202,7 +2213,7 @@ void Assembler::EmitRelocations() {
        it != relocations_.end(); it++) {
     RelocInfo::Mode rmode = it->rmode();
     Address pc = buffer_ + it->position();
-    Code* code = NULL;
+    Code* code = nullptr;
     RelocInfo rinfo(pc, rmode, it->data(), code);
 
     // Fix up internal references now that they are guaranteed to be bound.

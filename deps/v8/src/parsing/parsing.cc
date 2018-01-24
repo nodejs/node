@@ -40,7 +40,8 @@ bool ParseProgram(ParseInfo* info, Isolate* isolate) {
   result = parser.ParseProgram(isolate, info);
   info->set_literal(result);
   if (result == nullptr) {
-    parser.ReportErrors(isolate, info->script());
+    info->pending_error_handler()->ReportErrors(isolate, info->script(),
+                                                info->ast_value_factory());
   } else {
     result->scope()->AttachOuterScopeInfo(info, isolate);
     info->set_language_mode(info->literal()->language_mode());
@@ -74,7 +75,8 @@ bool ParseFunction(ParseInfo* info, Handle<SharedFunctionInfo> shared_info,
   result = parser.ParseFunction(isolate, info, shared_info);
   info->set_literal(result);
   if (result == nullptr) {
-    parser.ReportErrors(isolate, info->script());
+    info->pending_error_handler()->ReportErrors(isolate, info->script(),
+                                                info->ast_value_factory());
   } else {
     result->scope()->AttachOuterScopeInfo(info, isolate);
   }

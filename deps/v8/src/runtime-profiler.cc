@@ -123,11 +123,6 @@ void RuntimeProfiler::AttemptOnStackReplacement(JavaScriptFrame* frame,
   // If the code is not optimizable, don't try OSR.
   if (shared->optimization_disabled()) return;
 
-  // We are not prepared to do OSR for a function that already has an
-  // allocated arguments object.  The optimized code would bypass it for
-  // arguments accesses, which is unsound.  Don't try OSR.
-  if (shared->uses_arguments()) return;
-
   // We're using on-stack replacement: Store new loop nesting level in
   // BytecodeArray header so that certain back edges in any interpreter frame
   // for this bytecode will trigger on-stack replacement for that frame.

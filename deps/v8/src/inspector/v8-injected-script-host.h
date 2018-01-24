@@ -42,6 +42,8 @@ class V8InjectedScriptHost {
   static void bindCallback(const v8::FunctionCallbackInfo<v8::Value>&);
   static void proxyTargetValueCallback(
       const v8::FunctionCallbackInfo<v8::Value>&);
+  static void nativeAccessorDescriptorCallback(
+      const v8::FunctionCallbackInfo<v8::Value>&);
 };
 
 }  // namespace v8_inspector

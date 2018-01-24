@@ -109,7 +109,7 @@ void DateCache::YearMonthDayFromDays(
 
   bool is_leap = (!yd1 || yd2) && !yd3;
 
-  DCHECK(days >= -1);
+  DCHECK_GE(days, -1);
   DCHECK(is_leap || (days >= 0));
   DCHECK((days < 365) || (is_leap && (days < 366)));
   DCHECK(is_leap == ((*year % 4 == 0) && (*year % 100 || (*year % 400 == 0))));
@@ -162,8 +162,8 @@ int DateCache::DaysFromYearMonth(int year, int month) {
     month += 12;
   }
 
-  DCHECK(month >= 0);
-  DCHECK(month < 12);
+  DCHECK_GE(month, 0);
+  DCHECK_LT(month, 12);
 
   // year_delta is an arbitrary number such that:
   // a) year_delta = -1 (mod 400)
@@ -337,17 +337,17 @@ int DateCache::DaylightSavingsOffsetInMs(int64_t time_ms) {
 
 
 void DateCache::ProbeDST(int time_sec) {
-  DST* before = NULL;
-  DST* after = NULL;
+  DST* before = nullptr;
+  DST* after = nullptr;
   DCHECK(before_ != after_);
 
   for (int i = 0; i < kDSTSize; ++i) {
     if (dst_[i].start_sec <= time_sec) {
-      if (before == NULL || before->start_sec < dst_[i].start_sec) {
+      if (before == nullptr || before->start_sec < dst_[i].start_sec) {
         before = &dst_[i];
       }
     } else if (time_sec < dst_[i].end_sec) {
-      if (after == NULL || after->end_sec > dst_[i].end_sec) {
+      if (after == nullptr || after->end_sec > dst_[i].end_sec) {
         after = &dst_[i];
       }
     }
@@ -355,16 +355,16 @@ void DateCache::ProbeDST(int time_sec) {
 
   // If before or after segments were not found,
   // then set them to any invalid segment.
-  if (before == NULL) {
+  if (before == nullptr) {
     before = InvalidSegment(before_) ? before_ : LeastRecentlyUsedDST(after);
   }
-  if (after == NULL) {
+  if (after == nullptr) {
     after = InvalidSegment(after_) && before != after_
             ? after_ : LeastRecentlyUsedDST(before);
   }
 
-  DCHECK(before != NULL);
-  DCHECK(after != NULL);
+  DCHECK_NOT_NULL(before);
+  DCHECK_NOT_NULL(after);
   DCHECK(before != after);
   DCHECK(InvalidSegment(before) || before->start_sec <= time_sec);
   DCHECK(InvalidSegment(after) || time_sec < after->start_sec);
@@ -377,10 +377,10 @@ void DateCache::ProbeDST(int time_sec) {
 
 
 DateCache::DST* DateCache::LeastRecentlyUsedDST(DST* skip) {
-  DST* result = NULL;
+  DST* result = nullptr;
   for (int i = 0; i < kDSTSize; ++i) {
     if (&dst_[i] == skip) continue;
-    if (result == NULL || result->last_used > dst_[i].last_used) {
+    if (result == nullptr || result->last_used > dst_[i].last_used) {
       result = &dst_[i];
     }
   }

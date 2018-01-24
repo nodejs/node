@@ -28,6 +28,8 @@
 #ifndef V8_AST_AST_VALUE_FACTORY_H_
 #define V8_AST_AST_VALUE_FACTORY_H_
 
+#include <forward_list>
+
 #include "src/base/hashmap.h"
 #include "src/conversions.h"
 #include "src/factory.h"
@@ -35,7 +37,7 @@
 #include "src/isolate.h"
 #include "src/utils.h"
 
-// Ast(Raw|Cons)String, AstValue and AstValueFactory are for storing strings and
+// Ast(Raw|Cons)String and AstValueFactory are for storing strings and
 // values independent of the V8 heap and internalizing them later. During
 // parsing, they are created and stored outside the heap, in AstValueFactory.
 // After parsing, the strings and values are internalized (moved into the V8
@@ -151,6 +153,8 @@ class AstConsString final : public ZoneObject {
     return Handle<String>(string_);
   }
 
+  std::forward_list<const AstRawString*> ToRawStrings() const;
+
  private:
   friend class AstValueFactory;
 
@@ -176,167 +180,62 @@ class AstConsString final : public ZoneObject {
 
 enum class AstSymbol : uint8_t { kHomeObjectSymbol };
 
-// AstValue is either a string, a symbol, a number, a string array, a boolean,
-// or a special value (null, undefined, the hole).
-class AstValue : public ZoneObject {
+class AstBigInt {
  public:
-  bool IsString() const {
-    return type_ == STRING;
-  }
+  // |bigint| must be a NUL-terminated string of ASCII characters
+  // representing a BigInt (suitable for passing to BigIntLiteral()
+  // from conversions.h).
+  explicit AstBigInt(const char* bigint) : bigint_(bigint) {}
 
-  bool IsSymbol() const { return type_ == SYMBOL; }
-
-  bool IsNumber() const { return IsSmi() || IsHeapNumber(); }
-
-  const AstRawString* AsString() const {
-    CHECK_EQ(STRING, type_);
-    return string_;
-  }
-
-  AstSymbol AsSymbol() const {
-    CHECK_EQ(SYMBOL, type_);
-    return symbol_;
-  }
-
-  double AsNumber() const {
-    if (IsHeapNumber()) return number_;
-    if (IsSmi()) return smi_;
-    UNREACHABLE();
-  }
-
-  Smi* AsSmi() const {
-    CHECK(IsSmi());
-    return Smi::FromInt(smi_);
-  }
-
-  bool ToUint32(uint32_t* value) const;
-
-  bool EqualsString(const AstRawString* string) const {
-    return type_ == STRING && string_ == string;
-  }
-
-  bool IsPropertyName() const;
-
-  bool BooleanValue() const;
-
-  bool IsSmi() const { return type_ == SMI; }
-  bool IsHeapNumber() const { return type_ == NUMBER; }
-  bool IsFalse() const { return type_ == BOOLEAN && !bool_; }
-  bool IsTrue() const { return type_ == BOOLEAN && bool_; }
-  bool IsUndefined() const { return type_ == UNDEFINED; }
-  bool IsTheHole() const { return type_ == THE_HOLE; }
-  bool IsNull() const { return type_ == NULL_TYPE; }
-
-  void Internalize(Isolate* isolate);
-
-  // Can be called after Internalize has been called.
-  V8_INLINE Handle<Object> value() const {
-    if (type_ == STRING) {
-      return string_->string();
-    }
-    DCHECK_NOT_NULL(value_);
-    return Handle<Object>(value_);
-  }
-  AstValue* next() const { return next_; }
-  void set_next(AstValue* next) { next_ = next; }
+  const char* c_str() const { return bigint_; }
 
  private:
-  void set_value(Handle<Object> object) { value_ = object.location(); }
-  friend class AstValueFactory;
-
-  enum Type {
-    STRING,
-    SYMBOL,
-    NUMBER,
-    SMI,
-    BOOLEAN,
-    NULL_TYPE,
-    UNDEFINED,
-    THE_HOLE
-  };
-
-  explicit AstValue(const AstRawString* s) : type_(STRING), next_(nullptr) {
-    string_ = s;
-  }
-
-  explicit AstValue(AstSymbol symbol) : type_(SYMBOL), next_(nullptr) {
-    symbol_ = symbol;
-  }
-
-  explicit AstValue(double n);
-
-  AstValue(Type t, int i) : type_(t), next_(nullptr) {
-    DCHECK(type_ == SMI);
-    smi_ = i;
-  }
-
-  explicit AstValue(bool b) : type_(BOOLEAN), next_(nullptr) { bool_ = b; }
-
-  explicit AstValue(Type t) : type_(t), next_(nullptr) {
-    DCHECK(t == NULL_TYPE || t == UNDEFINED || t == THE_HOLE);
-  }
-
-  Type type_;
-
-  // {value_} is stored as Object** instead of a Handle<Object> so it can be
-  // stored in a union with {next_}.
-  union {
-    Object** value_;  // if internalized
-    AstValue* next_;  // if !internalized
-  };
-
-  // Uninternalized value.
-  union {
-    const AstRawString* string_;
-    double number_;
-    int smi_;
-    bool bool_;
-    AstSymbol symbol_;
-  };
+  const char* bigint_;
 };
 
 // For generating constants.
-#define AST_STRING_CONSTANTS(F)                 \
-  F(anonymous_function, "(anonymous function)") \
-  F(arguments, "arguments")                     \
-  F(async, "async")                             \
-  F(await, "await")                             \
-  F(boolean, "boolean")                         \
-  F(constructor, "constructor")                 \
-  F(default, "default")                         \
-  F(done, "done")                               \
-  F(dot, ".")                                   \
-  F(dot_for, ".for")                            \
-  F(dot_generator_object, ".generator_object")  \
-  F(dot_iterator, ".iterator")                  \
-  F(dot_result, ".result")                      \
-  F(dot_switch_tag, ".switch_tag")              \
-  F(dot_catch, ".catch")                        \
-  F(empty, "")                                  \
-  F(eval, "eval")                               \
-  F(function, "function")                       \
-  F(get_space, "get ")                          \
-  F(length, "length")                           \
-  F(let, "let")                                 \
-  F(name, "name")                               \
-  F(native, "native")                           \
-  F(new_target, ".new.target")                  \
-  F(next, "next")                               \
-  F(number, "number")                           \
-  F(object, "object")                           \
-  F(proto, "__proto__")                         \
-  F(prototype, "prototype")                     \
-  F(return, "return")                           \
-  F(set_space, "set ")                          \
-  F(star_default_star, "*default*")             \
-  F(string, "string")                           \
-  F(symbol, "symbol")                           \
-  F(this, "this")                               \
-  F(this_function, ".this_function")            \
-  F(throw, "throw")                             \
-  F(undefined, "undefined")                     \
-  F(use_asm, "use asm")                         \
-  F(use_strict, "use strict")                   \
+#define AST_STRING_CONSTANTS(F)                                      \
+  F(anonymous_function, "(anonymous function)")                      \
+  F(arguments, "arguments")                                          \
+  F(async, "async")                                                  \
+  F(await, "await")                                                  \
+  F(bigint, "bigint")                                                \
+  F(boolean, "boolean")                                              \
+  F(constructor, "constructor")                                      \
+  F(default, "default")                                              \
+  F(done, "done")                                                    \
+  F(dot, ".")                                                        \
+  F(dot_for, ".for")                                                 \
+  F(dot_generator_object, ".generator_object")                       \
+  F(dot_iterator, ".iterator")                                       \
+  F(dot_result, ".result")                                           \
+  F(dot_switch_tag, ".switch_tag")                                   \
+  F(dot_catch, ".catch")                                             \
+  F(empty, "")                                                       \
+  F(eval, "eval")                                                    \
+  F(function, "function")                                            \
+  F(get_space, "get ")                                               \
+  F(length, "length")                                                \
+  F(let, "let")                                                      \
+  F(name, "name")                                                    \
+  F(native, "native")                                                \
+  F(new_target, ".new.target")                                       \
+  F(next, "next")                                                    \
+  F(number, "number")                                                \
+  F(object, "object")                                                \
+  F(proto, "__proto__")                                              \
+  F(prototype, "prototype")                                          \
+  F(return, "return")                                                \
+  F(set_space, "set ")                                               \
+  F(star_default_star, "*default*")                                  \
+  F(string, "string")                                                \
+  F(symbol, "symbol")                                                \
+  F(this, "this")                                                    \
+  F(this_function, ".this_function")                                 \
+  F(throw, "throw")                                                  \
+  F(undefined, "undefined")                                          \
+  F(use_asm, "use asm")                                              \
+  F(use_strict, "use strict")                                        \
   F(value, "value")
 
 class AstStringConstants final {
@@ -365,19 +264,11 @@ class AstStringConstants final {
   DISALLOW_COPY_AND_ASSIGN(AstStringConstants);
 };
 
-#define OTHER_CONSTANTS(F) \
-  F(true_value)            \
-  F(false_value)           \
-  F(null_value)            \
-  F(undefined_value)       \
-  F(the_hole_value)
-
 class AstValueFactory {
  public:
   AstValueFactory(Zone* zone, const AstStringConstants* string_constants,
                   uint32_t hash_seed)
       : string_table_(string_constants->string_table()),
-        values_(nullptr),
         strings_(nullptr),
         strings_end_(&strings_),
         cons_strings_(nullptr),
@@ -386,11 +277,7 @@ class AstValueFactory {
         empty_cons_string_(nullptr),
         zone_(zone),
         hash_seed_(hash_seed) {
-#define F(name) name##_ = nullptr;
-    OTHER_CONSTANTS(F)
-#undef F
     DCHECK_EQ(hash_seed, string_constants->hash_seed());
-    std::fill(smis_, smis_ + arraysize(smis_), nullptr);
     std::fill(one_character_strings_,
               one_character_strings_ + arraysize(one_character_strings_),
               nullptr);
@@ -425,27 +312,7 @@ class AstValueFactory {
 #undef F
   const AstConsString* empty_cons_string() const { return empty_cons_string_; }
 
-  V8_EXPORT_PRIVATE const AstValue* NewString(const AstRawString* string);
-  // A JavaScript symbol (ECMA-262 edition 6).
-  const AstValue* NewSymbol(AstSymbol symbol);
-  V8_EXPORT_PRIVATE const AstValue* NewNumber(double number);
-  const AstValue* NewSmi(uint32_t number);
-  const AstValue* NewBoolean(bool b);
-  const AstValue* NewStringList(ZoneList<const AstRawString*>* strings);
-  const AstValue* NewNull();
-  const AstValue* NewUndefined();
-  const AstValue* NewTheHole();
-
  private:
-  static const uint32_t kMaxCachedSmi = 1 << 10;
-
-  STATIC_ASSERT(kMaxCachedSmi <= Smi::kMaxValue);
-
-  AstValue* AddValue(AstValue* value) {
-    value->set_next(values_);
-    values_ = value;
-    return value;
-  }
   AstRawString* AddString(AstRawString* string) {
     *strings_end_ = string;
     strings_end_ = string->next_location();
@@ -468,11 +335,8 @@ class AstValueFactory {
   AstRawString* GetString(uint32_t hash, bool is_one_byte,
                           Vector<const byte> literal_bytes);
 
-  // All strings are copied here, one after another (no NULLs inbetween).
+  // All strings are copied here, one after another (no zeroes inbetween).
   base::CustomMatcherHashMap string_table_;
-  // For keeping track of all AstValues and AstRawStrings we've created (so that
-  // they can be internalized later).
-  AstValue* values_;
 
   // We need to keep track of strings_ in order since cons strings require their
   // members to be internalized first.
@@ -485,22 +349,14 @@ class AstValueFactory {
   const AstStringConstants* string_constants_;
   const AstConsString* empty_cons_string_;
 
-  // Caches for faster access: small numbers, one character lowercase strings
-  // (for minified code).
-  AstValue* smis_[kMaxCachedSmi + 1];
+  // Caches one character lowercase strings (for minified code).
   AstRawString* one_character_strings_[26];
 
   Zone* zone_;
 
   uint32_t hash_seed_;
-
-#define F(name) AstValue* name##_;
-  OTHER_CONSTANTS(F)
-#undef F
 };
 }  // namespace internal
 }  // namespace v8
-
-#undef OTHER_CONSTANTS
 
 #endif  // V8_AST_AST_VALUE_FACTORY_H_

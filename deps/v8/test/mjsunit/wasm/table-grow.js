@@ -64,7 +64,7 @@ let id = (() => {  // identity exported function
   print("TableGrowBoundsCheck");
   let builder = new WasmModuleBuilder();
   addMain(builder);
-  let module = WebAssembly.Module(builder.toBuffer());
+  let module = new WebAssembly.Module(builder.toBuffer());
   let table = new WebAssembly.Table({element: "anyfunc",
                                      initial: 1, maximum:kMaxTableSize});
   function fillTable() {
@@ -95,7 +95,7 @@ let id = (() => {  // identity exported function
   print("TableGrowBoundsZeroInitial");
   let builder = new WasmModuleBuilder();
   addMain(builder);
-  let module = WebAssembly.Module(builder.toBuffer());
+  let module = new WebAssembly.Module(builder.toBuffer());
   var table = new WebAssembly.Table({element: "anyfunc",
                                      initial: 0, maximum:kMaxTableSize});
   function growTableByOne() {

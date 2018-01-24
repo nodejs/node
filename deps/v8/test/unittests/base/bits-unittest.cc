@@ -18,70 +18,103 @@ namespace v8 {
 namespace base {
 namespace bits {
 
-TEST(Bits, CountPopulation32) {
-  EXPECT_EQ(0u, CountPopulation32(0));
-  EXPECT_EQ(1u, CountPopulation32(1));
-  EXPECT_EQ(8u, CountPopulation32(0x11111111));
-  EXPECT_EQ(16u, CountPopulation32(0xf0f0f0f0));
-  EXPECT_EQ(24u, CountPopulation32(0xfff0f0ff));
-  EXPECT_EQ(32u, CountPopulation32(0xffffffff));
+TEST(Bits, CountPopulation16) {
+  EXPECT_EQ(0u, CountPopulation(uint16_t{0}));
+  EXPECT_EQ(1u, CountPopulation(uint16_t{1}));
+  EXPECT_EQ(4u, CountPopulation(uint16_t{0x1111}));
+  EXPECT_EQ(8u, CountPopulation(uint16_t{0xf0f0}));
+  EXPECT_EQ(12u, CountPopulation(uint16_t{0xf0ff}));
+  EXPECT_EQ(16u, CountPopulation(uint16_t{0xffff}));
 }
 
+TEST(Bits, CountPopulation32) {
+  EXPECT_EQ(0u, CountPopulation(uint32_t{0}));
+  EXPECT_EQ(1u, CountPopulation(uint32_t{1}));
+  EXPECT_EQ(8u, CountPopulation(uint32_t{0x11111111}));
+  EXPECT_EQ(16u, CountPopulation(uint32_t{0xf0f0f0f0}));
+  EXPECT_EQ(24u, CountPopulation(uint32_t{0xfff0f0ff}));
+  EXPECT_EQ(32u, CountPopulation(uint32_t{0xffffffff}));
+}
 
 TEST(Bits, CountPopulation64) {
-  EXPECT_EQ(0u, CountPopulation64(0));
-  EXPECT_EQ(1u, CountPopulation64(1));
-  EXPECT_EQ(2u, CountPopulation64(0x8000000000000001));
-  EXPECT_EQ(8u, CountPopulation64(0x11111111));
-  EXPECT_EQ(16u, CountPopulation64(0xf0f0f0f0));
-  EXPECT_EQ(24u, CountPopulation64(0xfff0f0ff));
-  EXPECT_EQ(32u, CountPopulation64(0xffffffff));
-  EXPECT_EQ(16u, CountPopulation64(0x1111111111111111));
-  EXPECT_EQ(32u, CountPopulation64(0xf0f0f0f0f0f0f0f0));
-  EXPECT_EQ(48u, CountPopulation64(0xfff0f0fffff0f0ff));
-  EXPECT_EQ(64u, CountPopulation64(0xffffffffffffffff));
+  EXPECT_EQ(0u, CountPopulation(uint64_t{0}));
+  EXPECT_EQ(1u, CountPopulation(uint64_t{1}));
+  EXPECT_EQ(2u, CountPopulation(uint64_t{0x8000000000000001}));
+  EXPECT_EQ(8u, CountPopulation(uint64_t{0x11111111}));
+  EXPECT_EQ(16u, CountPopulation(uint64_t{0xf0f0f0f0}));
+  EXPECT_EQ(24u, CountPopulation(uint64_t{0xfff0f0ff}));
+  EXPECT_EQ(32u, CountPopulation(uint64_t{0xffffffff}));
+  EXPECT_EQ(16u, CountPopulation(uint64_t{0x1111111111111111}));
+  EXPECT_EQ(32u, CountPopulation(uint64_t{0xf0f0f0f0f0f0f0f0}));
+  EXPECT_EQ(48u, CountPopulation(uint64_t{0xfff0f0fffff0f0ff}));
+  EXPECT_EQ(64u, CountPopulation(uint64_t{0xffffffffffffffff}));
 }
 
+TEST(Bits, CountLeadingZeros16) {
+  EXPECT_EQ(16u, CountLeadingZeros(uint16_t{0}));
+  EXPECT_EQ(15u, CountLeadingZeros(uint16_t{1}));
+  TRACED_FORRANGE(uint16_t, shift, 0, 15) {
+    EXPECT_EQ(15u - shift,
+              CountLeadingZeros(static_cast<uint16_t>(1 << shift)));
+  }
+  EXPECT_EQ(4u, CountLeadingZeros(uint16_t{0x0f0f}));
+}
 
 TEST(Bits, CountLeadingZeros32) {
-  EXPECT_EQ(32u, CountLeadingZeros32(0));
-  EXPECT_EQ(31u, CountLeadingZeros32(1));
+  EXPECT_EQ(32u, CountLeadingZeros(uint32_t{0}));
+  EXPECT_EQ(31u, CountLeadingZeros(uint32_t{1}));
   TRACED_FORRANGE(uint32_t, shift, 0, 31) {
-    EXPECT_EQ(31u - shift, CountLeadingZeros32(1u << shift));
+    EXPECT_EQ(31u - shift, CountLeadingZeros(uint32_t{1} << shift));
   }
-  EXPECT_EQ(4u, CountLeadingZeros32(0x0f0f0f0f));
+  EXPECT_EQ(4u, CountLeadingZeros(uint32_t{0x0f0f0f0f}));
 }
-
 
 TEST(Bits, CountLeadingZeros64) {
-  EXPECT_EQ(64u, CountLeadingZeros64(0));
-  EXPECT_EQ(63u, CountLeadingZeros64(1));
+  EXPECT_EQ(64u, CountLeadingZeros(uint64_t{0}));
+  EXPECT_EQ(63u, CountLeadingZeros(uint64_t{1}));
   TRACED_FORRANGE(uint32_t, shift, 0, 63) {
-    EXPECT_EQ(63u - shift, CountLeadingZeros64(V8_UINT64_C(1) << shift));
+    EXPECT_EQ(63u - shift, CountLeadingZeros(uint64_t{1} << shift));
   }
-  EXPECT_EQ(36u, CountLeadingZeros64(0x0f0f0f0f));
-  EXPECT_EQ(4u, CountLeadingZeros64(0x0f0f0f0f00000000));
+  EXPECT_EQ(36u, CountLeadingZeros(uint64_t{0x0f0f0f0f}));
+  EXPECT_EQ(4u, CountLeadingZeros(uint64_t{0x0f0f0f0f00000000}));
 }
 
+TEST(Bits, CountTrailingZeros16) {
+  EXPECT_EQ(16u, CountTrailingZeros(uint16_t{0}));
+  EXPECT_EQ(15u, CountTrailingZeros(uint16_t{0x8000}));
+  TRACED_FORRANGE(uint16_t, shift, 0, 15) {
+    EXPECT_EQ(shift, CountTrailingZeros(static_cast<uint16_t>(1 << shift)));
+  }
+  EXPECT_EQ(4u, CountTrailingZeros(uint16_t{0xf0f0u}));
+}
 
-TEST(Bits, CountTrailingZeros32) {
-  EXPECT_EQ(32u, CountTrailingZeros32(0));
-  EXPECT_EQ(31u, CountTrailingZeros32(0x80000000));
+TEST(Bits, CountTrailingZerosu32) {
+  EXPECT_EQ(32u, CountTrailingZeros(uint32_t{0}));
+  EXPECT_EQ(31u, CountTrailingZeros(uint32_t{0x80000000}));
   TRACED_FORRANGE(uint32_t, shift, 0, 31) {
-    EXPECT_EQ(shift, CountTrailingZeros32(1u << shift));
+    EXPECT_EQ(shift, CountTrailingZeros(uint32_t{1} << shift));
   }
-  EXPECT_EQ(4u, CountTrailingZeros32(0xf0f0f0f0));
+  EXPECT_EQ(4u, CountTrailingZeros(uint32_t{0xf0f0f0f0u}));
 }
 
+TEST(Bits, CountTrailingZerosi32) {
+  EXPECT_EQ(32u, CountTrailingZeros(int32_t{0}));
+  TRACED_FORRANGE(uint32_t, shift, 0, 31) {
+    EXPECT_EQ(shift, CountTrailingZeros(int32_t{1} << shift));
+  }
+  EXPECT_EQ(4u, CountTrailingZeros(int32_t{0x70f0f0f0u}));
+  EXPECT_EQ(2u, CountTrailingZeros(int32_t{-4}));
+  EXPECT_EQ(0u, CountTrailingZeros(int32_t{-1}));
+}
 
 TEST(Bits, CountTrailingZeros64) {
-  EXPECT_EQ(64u, CountTrailingZeros64(0));
-  EXPECT_EQ(63u, CountTrailingZeros64(0x8000000000000000));
+  EXPECT_EQ(64u, CountTrailingZeros(uint64_t{0}));
+  EXPECT_EQ(63u, CountTrailingZeros(uint64_t{0x8000000000000000}));
   TRACED_FORRANGE(uint32_t, shift, 0, 63) {
-    EXPECT_EQ(shift, CountTrailingZeros64(V8_UINT64_C(1) << shift));
+    EXPECT_EQ(shift, CountTrailingZeros(uint64_t{1} << shift));
   }
-  EXPECT_EQ(4u, CountTrailingZeros64(0xf0f0f0f0));
-  EXPECT_EQ(36u, CountTrailingZeros64(0xf0f0f0f000000000));
+  EXPECT_EQ(4u, CountTrailingZeros(uint64_t{0xf0f0f0f0}));
+  EXPECT_EQ(36u, CountTrailingZeros(uint64_t{0xf0f0f0f000000000}));
 }
 
 

@@ -23,9 +23,11 @@ class Verifier {
  public:
   enum Typing { TYPED, UNTYPED };
   enum CheckInputs { kValuesOnly, kAll };
+  enum CodeType { kDefault, kWasm };
 
   static void Run(Graph* graph, Typing typing = TYPED,
-                  CheckInputs check_inputs = kAll);
+                  CheckInputs check_inputs = kAll,
+                  CodeType code_type = kDefault);
 
 #ifdef DEBUG
   // Verifies consistency of node inputs and uses:

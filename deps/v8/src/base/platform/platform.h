@@ -62,7 +62,7 @@ inline intptr_t InternalGetExistingThreadLocal(intptr_t index) {
                                                kPointerSize * index));
   }
   intptr_t extra = static_cast<intptr_t>(__readfsdword(kTibExtraTlsOffset));
-  DCHECK(extra != 0);
+  DCHECK_NE(extra, 0);
   return *reinterpret_cast<intptr_t*>(extra +
                                       kPointerSize * (index - kMaxInlineSlots));
 }
@@ -107,9 +107,11 @@ class TimezoneCache;
 class V8_BASE_EXPORT OS {
  public:
   // Initialize the OS class.
+  // - random_seed: Used for the GetRandomMmapAddress() if non-zero.
   // - hard_abort: If true, OS::Abort() will crash instead of aborting.
   // - gc_fake_mmap: Name of the file for fake gc mmap used in ll_prof.
-  static void Initialize(bool hard_abort, const char* const gc_fake_mmap);
+  static void Initialize(int64_t random_seed, bool hard_abort,
+                         const char* const gc_fake_mmap);
 
   // Returns the accumulated user time for thread. This routine
   // can be used for profiling. The implementation should
@@ -155,55 +157,47 @@ class V8_BASE_EXPORT OS {
   static PRINTF_FORMAT(1, 2) void PrintError(const char* format, ...);
   static PRINTF_FORMAT(1, 0) void VPrintError(const char* format, va_list args);
 
-  // Memory access permissions. Only the modes currently used by V8 are listed
-  // here even though most systems support additional modes.
-  enum class MemoryPermission { kNoAccess, kReadWrite, kReadWriteExecute };
+  enum class MemoryPermission {
+    kNoAccess,
+    kReadWrite,
+    // TODO(hpayer): Remove this flag. Memory should never be rwx.
+    kReadWriteExecute,
+    kReadExecute
+  };
 
-  // Allocate/Free memory used by JS heap. Permissions are set according to the
-  // is_* flags. Returns the address of allocated memory, or NULL if failed.
-  static void* Allocate(const size_t requested, size_t* allocated,
-                        MemoryPermission access, void* hint = nullptr);
-  // Allocate/Free memory used by JS heap. Pages are readable/writable, but
-  // they are not guaranteed to be executable unless 'executable' is true.
-  // Returns the address of allocated memory, or NULL if failed.
-  static void* Allocate(const size_t requested, size_t* allocated,
-                        bool is_executable, void* hint = nullptr);
-  static void Free(void* address, const size_t size);
+  // Gets the page granularity for Allocate. Addresses returned by Allocate are
+  // aligned to this size.
+  static size_t AllocatePageSize();
 
-  // Allocates a region of memory that is inaccessible. On Windows this reserves
-  // but does not commit the memory. On POSIX systems it allocates memory as
-  // PROT_NONE, which also prevents it from being committed.
-  static void* AllocateGuarded(const size_t requested);
+  // Gets the granularity at which the permissions and commit calls can be made.
+  static size_t CommitPageSize();
 
-  // This is the granularity at which the ProtectCode(...) call can set page
-  // permissions.
-  static intptr_t CommitPageSize();
+  // Generate a random address to be used for hinting allocation calls.
+  static void* GetRandomMmapAddr();
 
-  // Mark code segments non-writable.
-  static void ProtectCode(void* address, const size_t size);
+  // Allocates memory. Permissions are set according to the access argument.
+  // The address parameter is a hint. The size and alignment parameters must be
+  // multiples of AllocatePageSize(). Returns the address of the allocated
+  // memory, with the specified size and alignment, or nullptr on failure.
+  V8_WARN_UNUSED_RESULT static void* Allocate(void* address, size_t size,
+                                              size_t alignment,
+                                              MemoryPermission access);
 
-  // Assign memory as a guard page so that access will cause an exception.
-  static void Guard(void* address, const size_t size);
+  // Frees memory allocated by a call to Allocate. address and size must be
+  // multiples of AllocatePageSize(). Returns true on success, otherwise false.
+  V8_WARN_UNUSED_RESULT static bool Free(void* address, const size_t size);
 
-  // Make a region of memory readable and writable.
-  static void Unprotect(void* address, const size_t size);
+  // Releases memory that is no longer needed. The range specified by address
+  // and size must be part of an allocated memory region, and must be multiples
+  // of CommitPageSize(). Released memory is left in an undefined state, so it
+  // should not be accessed. Returns true on success, otherwise false.
+  V8_WARN_UNUSED_RESULT static bool Release(void* address, size_t size);
 
-  // Get the Alignment guaranteed by Allocate().
-  static size_t AllocateAlignment();
-
-  static void* ReserveRegion(size_t size, void* hint);
-
-  static void* ReserveAlignedRegion(size_t size, size_t alignment, void* hint,
-                                    size_t* allocated);
-
-  static bool CommitRegion(void* address, size_t size, bool is_executable);
-
-  static bool UncommitRegion(void* address, size_t size);
-
-  static bool ReleaseRegion(void* address, size_t size);
-
-  // Release part of a reserved address range.
-  static bool ReleasePartialRegion(void* address, size_t size);
+  // Sets permissions according to the access argument. address and size must be
+  // multiples of CommitPageSize(). Setting permission to kNoAccess may cause
+  // the memory contents to be lost. Returns true on success, otherwise false.
+  V8_WARN_UNUSED_RESULT static bool SetPermissions(void* address, size_t size,
+                                                   MemoryPermission access);
 
   static bool HasLazyCommits();
 
@@ -231,8 +225,8 @@ class V8_BASE_EXPORT OS {
     virtual void* memory() const = 0;
     virtual size_t size() const = 0;
 
-    static MemoryMappedFile* open(const char* name, void* hint);
-    static MemoryMappedFile* create(const char* name, void* hint, size_t size,
+    static MemoryMappedFile* open(const char* name);
+    static MemoryMappedFile* create(const char* name, size_t size,
                                     void* initial);
   };
 
@@ -271,7 +265,7 @@ class V8_BASE_EXPORT OS {
   // process that a code moving garbage collection starts.  Can do
   // nothing, in which case the code objects must not move (e.g., by
   // using --never-compact) if accurate profiling is desired.
-  static void SignalCodeMovingGC(void* hint);
+  static void SignalCodeMovingGC();
 
   // Support runtime detection of whether the hard float option of the
   // EABI is used.
@@ -335,7 +329,7 @@ class V8_BASE_EXPORT Thread {
     Start();
     start_semaphore_->Wait();
     delete start_semaphore_;
-    start_semaphore_ = NULL;
+    start_semaphore_ = nullptr;
   }
 
   // Wait until thread terminates.
@@ -360,7 +354,7 @@ class V8_BASE_EXPORT Thread {
     SetThreadLocal(key, reinterpret_cast<void*>(static_cast<intptr_t>(value)));
   }
   static bool HasThreadLocal(LocalStorageKey key) {
-    return GetThreadLocal(key) != NULL;
+    return GetThreadLocal(key) != nullptr;
   }
 
 #ifdef V8_FAST_TLS_SUPPORTED

@@ -7,14 +7,16 @@
 
 #include <cmath>
 
+// Clients of this interface shouldn't depend on lots of heap internals.
+// Do not include anything from src/heap other than src/heap/heap.h here!
+#include "src/heap/heap.h"
+
 #include "src/base/platform/platform.h"
 #include "src/counters-inl.h"
 #include "src/feedback-vector.h"
-#include "src/heap/heap.h"
+// TODO(mstarzinger): There are 3 more includes to remove in order to no longer
+// leak heap internals to users of this interface!
 #include "src/heap/incremental-marking-inl.h"
-#include "src/heap/mark-compact.h"
-#include "src/heap/object-stats.h"
-#include "src/heap/remembered-set.h"
 #include "src/heap/spaces-inl.h"
 #include "src/heap/store-buffer.h"
 #include "src/isolate.h"
@@ -65,6 +67,13 @@ PRIVATE_SYMBOL_LIST(SYMBOL_ACCESSOR)
 PUBLIC_SYMBOL_LIST(SYMBOL_ACCESSOR)
 WELL_KNOWN_SYMBOL_LIST(SYMBOL_ACCESSOR)
 #undef SYMBOL_ACCESSOR
+
+#define ACCESSOR_INFO_ACCESSOR(accessor_name, AccessorName)                \
+  AccessorInfo* Heap::accessor_name##_accessor() {                         \
+    return AccessorInfo::cast(roots_[k##AccessorName##AccessorRootIndex]); \
+  }
+ACCESSOR_INFO_LIST(ACCESSOR_INFO_ACCESSOR)
+#undef ACCESSOR_INFO_ACCESSOR
 
 #define ROOT_ACCESSOR(type, name, camel_name)                                 \
   void Heap::set_##name(type* value) {                                        \
@@ -217,8 +226,16 @@ AllocationResult Heap::CopyFixedDoubleArray(FixedDoubleArray* src) {
   return CopyFixedDoubleArrayWithMap(src, src->map());
 }
 
+AllocationResult Heap::AllocateFixedArrayWithMap(RootListIndex map_root_index,
+                                                 int length,
+                                                 PretenureFlag pretenure) {
+  return AllocateFixedArrayWithFiller(map_root_index, length, pretenure,
+                                      undefined_value());
+}
+
 AllocationResult Heap::AllocateFixedArray(int length, PretenureFlag pretenure) {
-  return AllocateFixedArrayWithFiller(length, pretenure, undefined_value());
+  return AllocateFixedArrayWithFiller(Heap::kFixedArrayMapRootIndex, length,
+                                      pretenure, undefined_value());
 }
 
 AllocationResult Heap::AllocateRaw(int size_in_bytes, AllocationSpace space,
@@ -373,9 +390,9 @@ void Heap::FinalizeExternalString(String* string) {
           kHeapObjectTag);
 
   // Dispose of the C++ object if it has not already been disposed.
-  if (*resource_addr != NULL) {
+  if (*resource_addr != nullptr) {
     (*resource_addr)->Dispose();
-    *resource_addr = NULL;
+    *resource_addr = nullptr;
   }
 }
 
@@ -588,6 +605,54 @@ AlwaysAllocateScope::AlwaysAllocateScope(Isolate* isolate)
 
 AlwaysAllocateScope::~AlwaysAllocateScope() {
   heap_->always_allocate_scope_count_.Decrement(1);
+}
+
+CodeSpaceMemoryModificationScope::CodeSpaceMemoryModificationScope(Heap* heap)
+    : heap_(heap) {
+  if (heap_->write_protect_code_memory()) {
+    heap_->increment_code_space_memory_modification_scope_depth();
+    heap_->code_space()->SetReadAndWritable();
+    LargePage* page = heap_->lo_space()->first_page();
+    while (page != nullptr) {
+      if (page->IsFlagSet(MemoryChunk::IS_EXECUTABLE)) {
+        page->SetReadAndWritable();
+      }
+      page = page->next_page();
+    }
+  }
+}
+
+CodeSpaceMemoryModificationScope::~CodeSpaceMemoryModificationScope() {
+  if (heap_->write_protect_code_memory()) {
+    heap_->decrement_code_space_memory_modification_scope_depth();
+    heap_->code_space()->SetReadAndExecutable();
+    LargePage* page = heap_->lo_space()->first_page();
+    while (page != nullptr) {
+      if (page->IsFlagSet(MemoryChunk::IS_EXECUTABLE)) {
+        page->SetReadAndExecutable();
+      }
+      page = page->next_page();
+    }
+  }
+}
+
+CodePageMemoryModificationScope::CodePageMemoryModificationScope(
+    MemoryChunk* chunk)
+    : chunk_(chunk),
+      scope_active_(chunk_->heap()->write_protect_code_memory() &&
+                    chunk_->IsFlagSet(MemoryChunk::IS_EXECUTABLE)) {
+  if (scope_active_) {
+    DCHECK(chunk_->owner()->identity() == CODE_SPACE ||
+           (chunk_->owner()->identity() == LO_SPACE &&
+            chunk_->IsFlagSet(MemoryChunk::IS_EXECUTABLE)));
+    chunk_->SetReadAndWritable();
+  }
+}
+
+CodePageMemoryModificationScope::~CodePageMemoryModificationScope() {
+  if (scope_active_) {
+    chunk_->SetReadAndExecutable();
+  }
 }
 
 }  // namespace internal

@@ -989,7 +989,7 @@ enum SecondaryField : uint32_t {
   BIT_DF_w = ((2U << 5) << 16),
   BIT_DF_d = ((0U << 6) << 16),
 
-  NULLSF = 0U
+  nullptrSF = 0U
 };
 
 enum MSAMinorOpcode : uint32_t {
@@ -1452,22 +1452,22 @@ class InstructionGetters : public T {
   }
 
   inline int RdValue() const {
-    DCHECK(this->InstructionType() == InstructionBase::kRegisterType);
+    DCHECK_EQ(this->InstructionType(), InstructionBase::kRegisterType);
     return this->Bits(kRdShift + kRdBits - 1, kRdShift);
   }
 
   inline int BaseValue() const {
-    DCHECK(this->InstructionType() == InstructionBase::kImmediateType);
+    DCHECK_EQ(this->InstructionType(), InstructionBase::kImmediateType);
     return this->Bits(kBaseShift + kBaseBits - 1, kBaseShift);
   }
 
   inline int SaValue() const {
-    DCHECK(this->InstructionType() == InstructionBase::kRegisterType);
+    DCHECK_EQ(this->InstructionType(), InstructionBase::kRegisterType);
     return this->Bits(kSaShift + kSaBits - 1, kSaShift);
   }
 
   inline int LsaSaValue() const {
-    DCHECK(this->InstructionType() == InstructionBase::kRegisterType);
+    DCHECK_EQ(this->InstructionType(), InstructionBase::kRegisterType);
     return this->Bits(kSaShift + kLsaSaBits - 1, kSaShift);
   }
 
@@ -1506,12 +1506,12 @@ class InstructionGetters : public T {
   }
 
   inline int Bp2Value() const {
-    DCHECK(this->InstructionType() == InstructionBase::kRegisterType);
+    DCHECK_EQ(this->InstructionType(), InstructionBase::kRegisterType);
     return this->Bits(kBp2Shift + kBp2Bits - 1, kBp2Shift);
   }
 
   inline int Bp3Value() const {
-    DCHECK(this->InstructionType() == InstructionBase::kRegisterType);
+    DCHECK_EQ(this->InstructionType(), InstructionBase::kRegisterType);
     return this->Bits(kBp3Shift + kBp3Bits - 1, kBp3Shift);
   }
 
@@ -1553,7 +1553,7 @@ class InstructionGetters : public T {
   }
 
   inline int RdFieldRaw() const {
-    DCHECK(this->InstructionType() == InstructionBase::kRegisterType);
+    DCHECK_EQ(this->InstructionType(), InstructionBase::kRegisterType);
     return this->InstructionBits() & kRdFieldMask;
   }
 
@@ -1577,37 +1577,37 @@ class InstructionGetters : public T {
       case REGIMM:
         return RtValue();
       default:
-        return NULLSF;
+        return nullptrSF;
     }
   }
 
   inline int32_t ImmValue(int bits) const {
-    DCHECK(this->InstructionType() == InstructionBase::kImmediateType);
+    DCHECK_EQ(this->InstructionType(), InstructionBase::kImmediateType);
     return this->Bits(bits - 1, 0);
   }
 
   inline int32_t Imm9Value() const {
-    DCHECK(this->InstructionType() == InstructionBase::kImmediateType);
+    DCHECK_EQ(this->InstructionType(), InstructionBase::kImmediateType);
     return this->Bits(kImm9Shift + kImm9Bits - 1, kImm9Shift);
   }
 
   inline int32_t Imm16Value() const {
-    DCHECK(this->InstructionType() == InstructionBase::kImmediateType);
+    DCHECK_EQ(this->InstructionType(), InstructionBase::kImmediateType);
     return this->Bits(kImm16Shift + kImm16Bits - 1, kImm16Shift);
   }
 
   inline int32_t Imm18Value() const {
-    DCHECK(this->InstructionType() == InstructionBase::kImmediateType);
+    DCHECK_EQ(this->InstructionType(), InstructionBase::kImmediateType);
     return this->Bits(kImm18Shift + kImm18Bits - 1, kImm18Shift);
   }
 
   inline int32_t Imm19Value() const {
-    DCHECK(this->InstructionType() == InstructionBase::kImmediateType);
+    DCHECK_EQ(this->InstructionType(), InstructionBase::kImmediateType);
     return this->Bits(kImm19Shift + kImm19Bits - 1, kImm19Shift);
   }
 
   inline int32_t Imm21Value() const {
-    DCHECK(this->InstructionType() == InstructionBase::kImmediateType);
+    DCHECK_EQ(this->InstructionType(), InstructionBase::kImmediateType);
     return this->Bits(kImm21Shift + kImm21Bits - 1, kImm21Shift);
   }
 
@@ -1618,27 +1618,27 @@ class InstructionGetters : public T {
   }
 
   inline int32_t MsaImm8Value() const {
-    DCHECK(this->InstructionType() == InstructionBase::kImmediateType);
+    DCHECK_EQ(this->InstructionType(), InstructionBase::kImmediateType);
     return this->Bits(kMsaImm8Shift + kMsaImm8Bits - 1, kMsaImm8Shift);
   }
 
   inline int32_t MsaImm5Value() const {
-    DCHECK(this->InstructionType() == InstructionBase::kImmediateType);
+    DCHECK_EQ(this->InstructionType(), InstructionBase::kImmediateType);
     return this->Bits(kMsaImm5Shift + kMsaImm5Bits - 1, kMsaImm5Shift);
   }
 
   inline int32_t MsaImm10Value() const {
-    DCHECK(this->InstructionType() == InstructionBase::kImmediateType);
+    DCHECK_EQ(this->InstructionType(), InstructionBase::kImmediateType);
     return this->Bits(kMsaImm10Shift + kMsaImm10Bits - 1, kMsaImm10Shift);
   }
 
   inline int32_t MsaImmMI10Value() const {
-    DCHECK(this->InstructionType() == InstructionBase::kImmediateType);
+    DCHECK_EQ(this->InstructionType(), InstructionBase::kImmediateType);
     return this->Bits(kMsaImmMI10Shift + kMsaImmMI10Bits - 1, kMsaImmMI10Shift);
   }
 
   inline int32_t MsaBitDf() const {
-    DCHECK(this->InstructionType() == InstructionBase::kImmediateType);
+    DCHECK_EQ(this->InstructionType(), InstructionBase::kImmediateType);
     int32_t df_m = this->Bits(22, 16);
     if (((df_m >> 6) & 1U) == 0) {
       return 3;
@@ -1654,7 +1654,7 @@ class InstructionGetters : public T {
   }
 
   inline int32_t MsaBitMValue() const {
-    DCHECK(this->InstructionType() == InstructionBase::kImmediateType);
+    DCHECK_EQ(this->InstructionType(), InstructionBase::kImmediateType);
     return this->Bits(16 + this->MsaBitDf() + 3, 16);
   }
 
@@ -1807,7 +1807,7 @@ InstructionBase::Type InstructionBase::InstructionType() const {
         case LLD_R6:
         case SC_R6:
         case SCD_R6: {
-          DCHECK(kArchVariant == kMips64r6);
+          DCHECK_EQ(kArchVariant, kMips64r6);
           return kImmediateType;
         }
         case DBSHFL: {

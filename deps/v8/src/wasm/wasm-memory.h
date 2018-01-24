@@ -7,7 +7,7 @@
 
 #include "src/flags.h"
 #include "src/handles.h"
-#include "src/objects.h"
+#include "src/objects/js-array.h"
 
 namespace v8 {
 namespace internal {

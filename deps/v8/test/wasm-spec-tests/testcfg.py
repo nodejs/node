@@ -25,10 +25,10 @@ class WasmSpecTestsTestSuite(testsuite.TestSuite):
           tests.append(test)
     return tests
 
-  def GetFlagsForTestCase(self, testcase, context):
-    flags = [] + context.mode_flags
-    flags.append(os.path.join(self.root, testcase.path + self.suffix()))
-    return testcase.flags + flags
+  def GetParametersForTestCase(self, testcase, context):
+    flags = testcase.flags + context.mode_flags
+    files = [os.path.join(self.root, testcase.path + self.suffix())]
+    return files, flags, {}
 
 
 def GetSuite(name, root):

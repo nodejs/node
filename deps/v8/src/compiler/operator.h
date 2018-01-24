@@ -137,8 +137,8 @@ class V8_EXPORT_PRIVATE Operator : public NON_EXPORTED_BASE(ZoneObject) {
   Opcode opcode_;
   Properties properties_;
   uint32_t value_in_;
-  uint16_t effect_in_;
-  uint16_t control_in_;
+  uint32_t effect_in_;
+  uint32_t control_in_;
   uint32_t value_out_;
   uint8_t effect_out_;
   uint32_t control_out_;

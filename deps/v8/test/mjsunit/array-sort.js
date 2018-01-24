@@ -567,3 +567,7 @@ TestSortOnNonExtensible();
   })()
 
 })();
+
+assertThrows(() => {
+  Array.prototype.sort.call(undefined);
+}, TypeError);

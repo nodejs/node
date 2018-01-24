@@ -14,6 +14,7 @@
 #include "src/base/platform/platform.h"
 #include "src/code-events.h"
 #include "src/isolate.h"
+#include "src/log-utils.h"
 #include "src/objects.h"
 
 namespace v8 {
@@ -93,7 +94,10 @@ class Ticker;
 
 class Logger : public CodeEventListener {
  public:
-  enum StartEnd { START = 0, END = 1 };
+  enum StartEnd { START = 0, END = 1, STAMP = 2 };
+
+  // The separator is used to write an unescaped "," into the log.
+  static const LogSeparator kNext = LogSeparator::kSeparator;
 
   // Acquires resources for logging if the right flags are set.
   bool SetUp(Isolate* isolate);
@@ -121,7 +125,6 @@ class Logger : public CodeEventListener {
   void StringEvent(const char* name, const char* value);
 
   // Emits an event with an int value -> (name, value).
-  void IntEvent(const char* name, int value);
   void IntPtrTEvent(const char* name, intptr_t value);
 
   // Emits an event with an handle value -> (name, location).
@@ -140,6 +143,14 @@ class Logger : public CodeEventListener {
   // Emits an event that an undefined property was read from an
   // object.
   void SuspectReadEvent(Name* name, Object* obj);
+
+  void FunctionEvent(const char* reason, Script* script, int script_id,
+                     double time_delta_ms, int start_position = -1,
+                     int end_position = -1, String* function_name = nullptr);
+  void FunctionEvent(const char* reason, Script* script, int script_id,
+                     double time_delta_ms, int start_position, int end_position,
+                     const char* function_name = nullptr,
+                     size_t function_name_length = 0);
 
   // ==== Events logged by --log-api. ====
   void ApiSecurityCheck();
@@ -169,8 +180,6 @@ class Logger : public CodeEventListener {
   void CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
                        AbstractCode* code, SharedFunctionInfo* shared,
                        Name* source, int line, int column);
-  void CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
-                       AbstractCode* code, int args_count);
   // Emits a code deoptimization event.
   void CodeDisableOptEvent(AbstractCode* code, SharedFunctionInfo* shared);
   void CodeMovingGCEvent();
@@ -179,7 +188,7 @@ class Logger : public CodeEventListener {
   // Emits a code move event.
   void CodeMoveEvent(AbstractCode* from, Address to);
   // Emits a code line info record event.
-  void CodeLinePosInfoRecordEvent(AbstractCode* code,
+  void CodeLinePosInfoRecordEvent(Address code_start,
                                   ByteArray* source_position_table);
 
   void SharedFunctionInfoMoveEvent(Address from, Address to);
@@ -189,10 +198,14 @@ class Logger : public CodeEventListener {
   void CodeDeoptEvent(Code* code, DeoptKind kind, Address pc,
                       int fp_to_sp_delta);
 
-  void ICEvent(const char* type, bool keyed, const Address pc, int line,
-               int column, Map* map, Object* key, char old_state,
-               char new_state, const char* modifier,
+  void ICEvent(const char* type, bool keyed, Map* map, Object* key,
+               char old_state, char new_state, const char* modifier,
                const char* slow_stub_reason);
+
+  void MapEvent(const char* type, Map* from, Map* to,
+                const char* reason = nullptr,
+                HeapObject* name_or_sfi = nullptr);
+  void MapDetails(Map* map);
 
   // ==== Events logged by --log-gc. ====
   // Heap sampling events: start, end, and individual types.
@@ -213,7 +226,7 @@ class Logger : public CodeEventListener {
 
   void CurrentTimeEvent();
 
-  void TimerEvent(StartEnd se, const char* name);
+  V8_EXPORT_PRIVATE void TimerEvent(StartEnd se, const char* name);
 
   static void EnterExternal(Isolate* isolate);
   static void LeaveExternal(Isolate* isolate);
@@ -228,7 +241,7 @@ class Logger : public CodeEventListener {
   }
 
   bool is_logging_code_events() {
-    return is_logging() || jit_logger_ != NULL;
+    return is_logging() || jit_logger_ != nullptr;
   }
 
   // Stop collection of profiling data.
@@ -245,6 +258,8 @@ class Logger : public CodeEventListener {
   void LogCodeObjects();
   // Used for logging bytecode handlers found in the snapshot.
   void LogBytecodeHandlers();
+  // Logs all Mpas foind in the heap.
+  void LogMaps();
 
   // Converts tag to a corresponding NATIVE_... if the script is native.
   INLINE(static CodeEventListener::LogEventsAndTags ToNativeByScript(
@@ -252,6 +267,9 @@ class Logger : public CodeEventListener {
 
   // Callback from Log, stops profiling in case of insufficient resources.
   void LogFailure();
+
+  // Used for logging stubs found in the snapshot.
+  void LogCodeObject(Object* code_object);
 
  private:
   explicit Logger(Isolate* isolate);
@@ -269,9 +287,6 @@ class Logger : public CodeEventListener {
   void MoveEventInternal(CodeEventListener::LogEventsAndTags event,
                          Address from, Address to);
 
-  // Used for logging stubs found in the snapshot.
-  void LogCodeObject(Object* code_object);
-
   // Helper method. It resets name_buffer_ and add tag name into it.
   void InitNameBuffer(CodeEventListener::LogEventsAndTags tag);
 
@@ -279,13 +294,10 @@ class Logger : public CodeEventListener {
   void TickEvent(TickSample* sample, bool overflow);
   void RuntimeCallTimerEvent();
 
-  PRINTF_FORMAT(2, 3) void ApiEvent(const char* format, ...);
-
   // Logs a StringEvent regardless of whether FLAG_log is true.
   void UncheckedStringEvent(const char* name, const char* value);
 
-  // Logs an IntEvent regardless of whether FLAG_log is true.
-  void UncheckedIntEvent(const char* name, int value);
+  // Logs an IntPtrTEvent regardless of whether FLAG_log is true.
   void UncheckedIntPtrTEvent(const char* name, intptr_t value);
 
   Isolate* isolate_;
@@ -329,22 +341,25 @@ class Logger : public CodeEventListener {
   friend class CpuProfiler;
 };
 
-#define TIMER_EVENTS_LIST(V)    \
-  V(RecompileSynchronous, true) \
-  V(RecompileConcurrent, true)  \
-  V(CompileIgnition, true)      \
-  V(CompileFullCode, true)      \
-  V(OptimizeCode, true)         \
-  V(CompileCode, true)          \
-  V(DeoptimizeCode, true)       \
-  V(Execute, true)              \
+#define TIMER_EVENTS_LIST(V)     \
+  V(RecompileSynchronous, true)  \
+  V(RecompileConcurrent, true)   \
+  V(CompileIgnition, true)       \
+  V(CompileFullCode, true)       \
+  V(OptimizeCode, true)          \
+  V(CompileCode, true)           \
+  V(CompileCodeBackground, true) \
+  V(DeoptimizeCode, true)        \
+  V(Execute, true)               \
   V(External, true)
 
-#define V(TimerName, expose)                                                  \
-  class TimerEvent##TimerName : public AllStatic {                            \
-   public:                                                                    \
-    static const char* name(void* unused = NULL) { return "V8." #TimerName; } \
-    static bool expose_to_api() { return expose; }                            \
+#define V(TimerName, expose)                          \
+  class TimerEvent##TimerName : public AllStatic {    \
+   public:                                            \
+    static const char* name(void* unused = nullptr) { \
+      return "V8." #TimerName;                        \
+    }                                                 \
+    static bool expose_to_api() { return expose; }    \
   };
 TIMER_EVENTS_LIST(V)
 #undef V
@@ -373,8 +388,6 @@ class CodeEventLogger : public CodeEventListener {
                        const char* comment) override;
   void CodeCreateEvent(LogEventsAndTags tag, AbstractCode* code,
                        Name* name) override;
-  void CodeCreateEvent(LogEventsAndTags tag, AbstractCode* code,
-                       int args_count) override;
   void CodeCreateEvent(LogEventsAndTags tag, AbstractCode* code,
                        SharedFunctionInfo* shared, Name* name) override;
   void CodeCreateEvent(LogEventsAndTags tag, AbstractCode* code,

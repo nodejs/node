@@ -256,7 +256,7 @@ class WasmSerializationTest {
     uint32_t* slot = reinterpret_cast<uint32_t*>(
         const_cast<uint8_t*>(serialized_bytes_.first) +
         SerializedCodeData::kPayloadLengthOffset);
-    *slot = 0xfefefefeu;
+    *slot = FLAG_wasm_jit_to_native ? 0u : 0xfefefefeu;
   }
 
   v8::MaybeLocal<v8::WasmCompiledModule> Deserialize() {
@@ -281,7 +281,7 @@ class WasmSerializationTest {
                       wire_bytes().first, wire_bytes().second),
                0);
     }
-    Handle<JSObject> instance =
+    Handle<WasmInstanceObject> instance =
         SyncInstantiate(current_isolate(), &thrower, module_object,
                         Handle<JSReceiver>::null(),
                         MaybeHandle<JSArrayBuffer>())
@@ -321,10 +321,6 @@ class WasmSerializationTest {
     WasmSerializationTest::BuildWireBytes(zone(), &buffer);
 
     Isolate* serialization_isolate = CcTest::InitIsolateOnce();
-    // Isolates do not have serialization enabled by default. We must enable it
-    // here or else the assembler will not mark external references so that the
-    // serializer can handle them correctly.
-    serialization_isolate->set_serializer_enabled_for_test(true);
     ErrorThrower thrower(serialization_isolate, "");
     uint8_t* bytes = nullptr;
     size_t bytes_size = 0;
@@ -693,7 +689,8 @@ TEST(TestInterruptLoop) {
                                   {}, {})
             .ToHandleChecked();
 
-    Handle<JSArrayBuffer> memory(instance->memory_buffer(), isolate);
+    Handle<JSArrayBuffer> memory(instance->memory_object()->array_buffer(),
+                                 isolate);
     int32_t* memory_array = reinterpret_cast<int32_t*>(memory->backing_store());
 
     InterruptThread thread(isolate, memory_array);
@@ -930,18 +927,18 @@ TEST(InitDataAtTheUpperLimit) {
     ErrorThrower thrower(isolate, "Run_WasmModule_InitDataAtTheUpperLimit");
 
     const byte data[] = {
-        WASM_MODULE_HEADER,     // --
-        kMemorySectionCode,     // --
-        U32V_1(4),              // section size
-        ENTRY_COUNT(1),         // --
-        kResizableMaximumFlag,  // --
-        1,                      // initial size
-        2,                      // maximum size
-        kDataSectionCode,       // --
-        U32V_1(9),              // section size
-        ENTRY_COUNT(1),         // --
-        0,                      // linear memory index
-        WASM_I32V_3(0xffff),    // destination offset
+        WASM_MODULE_HEADER,   // --
+        kMemorySectionCode,   // --
+        U32V_1(4),            // section size
+        ENTRY_COUNT(1),       // --
+        kHasMaximumFlag,      // --
+        1,                    // initial size
+        2,                    // maximum size
+        kDataSectionCode,     // --
+        U32V_1(9),            // section size
+        ENTRY_COUNT(1),       // --
+        0,                    // linear memory index
+        WASM_I32V_3(0xffff),  // destination offset
         kExprEnd,
         U32V_1(1),  // source size
         'c'         // data bytes
@@ -967,18 +964,18 @@ TEST(EmptyMemoryNonEmptyDataSegment) {
     ErrorThrower thrower(isolate, "Run_WasmModule_InitDataAtTheUpperLimit");
 
     const byte data[] = {
-        WASM_MODULE_HEADER,     // --
-        kMemorySectionCode,     // --
-        U32V_1(4),              // section size
-        ENTRY_COUNT(1),         // --
-        kResizableMaximumFlag,  // --
-        0,                      // initial size
-        0,                      // maximum size
-        kDataSectionCode,       // --
-        U32V_1(7),              // section size
-        ENTRY_COUNT(1),         // --
-        0,                      // linear memory index
-        WASM_I32V_1(8),         // destination offset
+        WASM_MODULE_HEADER,  // --
+        kMemorySectionCode,  // --
+        U32V_1(4),           // section size
+        ENTRY_COUNT(1),      // --
+        kHasMaximumFlag,     // --
+        0,                   // initial size
+        0,                   // maximum size
+        kDataSectionCode,    // --
+        U32V_1(7),           // section size
+        ENTRY_COUNT(1),      // --
+        0,                   // linear memory index
+        WASM_I32V_1(8),      // destination offset
         kExprEnd,
         U32V_1(1),  // source size
         'c'         // data bytes
@@ -1002,18 +999,18 @@ TEST(EmptyMemoryEmptyDataSegment) {
     ErrorThrower thrower(isolate, "Run_WasmModule_InitDataAtTheUpperLimit");
 
     const byte data[] = {
-        WASM_MODULE_HEADER,     // --
-        kMemorySectionCode,     // --
-        U32V_1(4),              // section size
-        ENTRY_COUNT(1),         // --
-        kResizableMaximumFlag,  // --
-        0,                      // initial size
-        0,                      // maximum size
-        kDataSectionCode,       // --
-        U32V_1(6),              // section size
-        ENTRY_COUNT(1),         // --
-        0,                      // linear memory index
-        WASM_I32V_1(0),         // destination offset
+        WASM_MODULE_HEADER,  // --
+        kMemorySectionCode,  // --
+        U32V_1(4),           // section size
+        ENTRY_COUNT(1),      // --
+        kHasMaximumFlag,     // --
+        0,                   // initial size
+        0,                   // maximum size
+        kDataSectionCode,    // --
+        U32V_1(6),           // section size
+        ENTRY_COUNT(1),      // --
+        0,                   // linear memory index
+        WASM_I32V_1(0),      // destination offset
         kExprEnd,
         U32V_1(0),  // source size
     };
@@ -1040,7 +1037,7 @@ TEST(MemoryWithOOBEmptyDataSegment) {
         kMemorySectionCode,      // --
         U32V_1(4),               // section size
         ENTRY_COUNT(1),          // --
-        kResizableMaximumFlag,   // --
+        kHasMaximumFlag,         // --
         1,                       // initial size
         1,                       // maximum size
         kDataSectionCode,        // --
@@ -1087,7 +1084,8 @@ TEST(Run_WasmModule_Buffer_Externalized_GrowMem) {
                                   ModuleWireBytes(buffer.begin(), buffer.end()),
                                   {}, {})
             .ToHandleChecked();
-    Handle<JSArrayBuffer> memory(instance->memory_buffer(), isolate);
+    Handle<JSArrayBuffer> memory(instance->memory_object()->array_buffer(),
+                                 isolate);
     Handle<WasmMemoryObject> mem_obj(instance->memory_object(), isolate);
     void* const old_allocation_base = memory->allocation_base();
     size_t const old_allocation_length = memory->allocation_length();
@@ -1106,7 +1104,7 @@ TEST(Run_WasmModule_Buffer_Externalized_GrowMem) {
     wasm::DetachMemoryBuffer(isolate, memory, free_memory);
     CHECK_EQ(16, result);
     memory = handle(mem_obj->array_buffer());
-    instance->set_memory_buffer(*memory);
+    instance->memory_object()->set_array_buffer(*memory);
     // Externalize should make no difference without the JS API as in this case
     // the buffer is not detached.
     v8::Utils::ToLocal(memory)->Externalize();

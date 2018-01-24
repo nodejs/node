@@ -907,3 +907,21 @@ assertInstantiateSuccess(
   class Y extends WebAssembly.Memory { }
   assertThrows(() => new Y());
 })();
+
+(function TestCallWithoutNew() {
+  var bytes = Uint8Array.of(0x0, 0x61, 0x73, 0x6d, 0x1, 0x00, 0x00, 0x00);
+  assertThrows(() => WebAssembly.Module(bytes), TypeError);
+  assertThrows(() => WebAssembly.Instance(new WebAssembly.Module(bytes)),
+               TypeError);
+  assertThrows(() => WebAssembly.Table({size: 10, element: 'anyfunc'}),
+               TypeError);
+  assertThrows(() => WebAssembly.Memory({size: 10}), TypeError);
+})();
+
+(function TestTinyModule() {
+  var bytes = Uint8Array.of(0x0, 0x61, 0x73, 0x6d, 0x1, 0x00, 0x00, 0x00);
+  var module = new WebAssembly.Module(bytes);
+  assertTrue(module instanceof Module);
+  var instance = new WebAssembly.Instance(module);
+  assertTrue(instance instanceof Instance);
+})();

@@ -9,6 +9,7 @@
 #include "src/base/bits.h"
 #include "src/base/ieee754.h"
 #include "src/base/utils/random-number-generator.h"
+#include "src/boxed-float.h"
 #include "src/codegen.h"
 #include "src/objects-inl.h"
 #include "src/utils.h"
@@ -424,9 +425,9 @@ static Node* Int32Input(RawMachineAssemblerTester<int32_t>* m, int index) {
     case 6:
       return m->Int32Constant(0x01234567);
     case 7:
-      return m->Load(MachineType::Int32(), m->PointerConstant(NULL));
+      return m->Load(MachineType::Int32(), m->PointerConstant(nullptr));
     default:
-      return NULL;
+      return nullptr;
   }
 }
 
@@ -486,9 +487,9 @@ static Node* Int64Input(RawMachineAssemblerTester<int64_t>* m, int index) {
     case 6:
       return m->Int64Constant(0x0123456789abcdefLL);
     case 7:
-      return m->Load(MachineType::Int64(), m->PointerConstant(NULL));
+      return m->Load(MachineType::Int64(), m->PointerConstant(nullptr));
     default:
-      return NULL;
+      return nullptr;
   }
 }
 
@@ -3690,7 +3691,7 @@ TEST(RunFloat64Mod) {
   m.Return(m.Float64Mod(m.Parameter(0), m.Parameter(1)));
 
   FOR_FLOAT64_INPUTS(i) {
-    FOR_FLOAT64_INPUTS(j) { CHECK_DOUBLE_EQ(modulo(*i, *j), m.Call(*i, *j)); }
+    FOR_FLOAT64_INPUTS(j) { CHECK_DOUBLE_EQ(Modulo(*i, *j), m.Call(*i, *j)); }
   }
 }
 
@@ -3700,9 +3701,9 @@ TEST(RunDeadFloat32Binops) {
 
   const Operator* ops[] = {m.machine()->Float32Add(), m.machine()->Float32Sub(),
                            m.machine()->Float32Mul(), m.machine()->Float32Div(),
-                           NULL};
+                           nullptr};
 
-  for (int i = 0; ops[i] != NULL; i++) {
+  for (int i = 0; ops[i] != nullptr; i++) {
     RawMachineAssemblerTester<int32_t> m;
     int constant = 0x53355 + i;
     m.AddNode(ops[i], m.Float32Constant(0.1f), m.Float32Constant(1.11f));
@@ -3717,9 +3718,9 @@ TEST(RunDeadFloat64Binops) {
 
   const Operator* ops[] = {m.machine()->Float64Add(), m.machine()->Float64Sub(),
                            m.machine()->Float64Mul(), m.machine()->Float64Div(),
-                           m.machine()->Float64Mod(), NULL};
+                           m.machine()->Float64Mod(), nullptr};
 
-  for (int i = 0; ops[i] != NULL; i++) {
+  for (int i = 0; ops[i] != nullptr; i++) {
     RawMachineAssemblerTester<int32_t> m;
     int constant = 0x53355 + i;
     m.AddNode(ops[i], m.Float64Constant(0.1), m.Float64Constant(1.11));
@@ -4034,7 +4035,7 @@ TEST(RunFloat64ModP) {
   bt.AddReturn(m.Float64Mod(bt.param0, bt.param1));
 
   FOR_FLOAT64_INPUTS(i) {
-    FOR_FLOAT64_INPUTS(j) { CHECK_DOUBLE_EQ(modulo(*i, *j), bt.call(*i, *j)); }
+    FOR_FLOAT64_INPUTS(j) { CHECK_DOUBLE_EQ(Modulo(*i, *j), bt.call(*i, *j)); }
   }
 }
 
@@ -4924,7 +4925,7 @@ static int Float64CompareHelper(RawMachineAssemblerTester<int32_t>* m,
   Node* b =
       load_b ? m->Load(MachineType::Float64(), m->PointerConstant(&buffer[1]))
              : m->Float64Constant(y);
-  Node* cmp = NULL;
+  Node* cmp = nullptr;
   bool expected = false;
   switch (test_case) {
     // Equal tests.
@@ -5093,7 +5094,7 @@ static void IntPtrCompare(intptr_t left, intptr_t right) {
                                       MachineType::Pointer());
     Node* p0 = m.Parameter(0);
     Node* p1 = m.Parameter(1);
-    Node* res = NULL;
+    Node* res = nullptr;
     bool expected = false;
     switch (test) {
       case 0:
@@ -6297,17 +6298,17 @@ TEST(RunCallCFunction9) {
 
 TEST(RunBitcastInt64ToFloat64) {
   int64_t input = 1;
-  double output = 0.0;
+  Float64 output;
   RawMachineAssemblerTester<int32_t> m;
   m.StoreToPointer(
-      &output, MachineRepresentation::kFloat64,
+      output.get_bits_address(), MachineRepresentation::kFloat64,
       m.BitcastInt64ToFloat64(m.LoadFromPointer(&input, MachineType::Int64())));
   m.Return(m.Int32Constant(11));
   FOR_INT64_INPUTS(i) {
     input = *i;
     CHECK_EQ(11, m.Call());
-    double expected = bit_cast<double>(input);
-    CHECK_EQ(bit_cast<int64_t>(expected), bit_cast<int64_t>(output));
+    Float64 expected = Float64::FromBits(input);
+    CHECK_EQ(expected.get_bits(), output.get_bits());
   }
 }
 
@@ -6694,17 +6695,17 @@ TEST(RunRoundUint32ToFloat32) {
 
 TEST(RunBitcastInt32ToFloat32) {
   int32_t input = 1;
-  float output = 0.0;
+  Float32 output;
   RawMachineAssemblerTester<int32_t> m;
   m.StoreToPointer(
-      &output, MachineRepresentation::kFloat32,
+      output.get_bits_address(), MachineRepresentation::kFloat32,
       m.BitcastInt32ToFloat32(m.LoadFromPointer(&input, MachineType::Int32())));
   m.Return(m.Int32Constant(11));
   FOR_INT32_INPUTS(i) {
     input = *i;
     CHECK_EQ(11, m.Call());
-    float expected = bit_cast<float>(input);
-    CHECK_EQ(bit_cast<int32_t>(expected), bit_cast<int32_t>(output));
+    Float32 expected = Float32::FromBits(input);
+    CHECK_EQ(expected.get_bits(), output.get_bits());
   }
 }
 
@@ -6911,6 +6912,8 @@ TEST(Regression6640) {
   for (RelocIterator it(*code,
                         1 << RelocInfo::WASM_FUNCTION_TABLE_SIZE_REFERENCE);
        !it.done(); it.next()) {
+    // TODO(6792): No longer needed once WebAssembly code is off heap.
+    CodeSpaceMemoryModificationScope modification_scope(code->GetHeap());
     it.rinfo()->update_wasm_function_table_size_reference(
         code->GetIsolate(), old_value, new_value, FLUSH_ICACHE_IF_NEEDED);
   }

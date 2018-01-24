@@ -29,14 +29,14 @@ std::unique_ptr<WasmModule> DecodeWasmModuleForTesting(
 
 // Returns a MaybeHandle to the JsToWasm wrapper of the wasm function exported
 // with the given name by the provided instance.
-MaybeHandle<WasmExportedFunction> GetExportedFunction(Isolate* isolate,
-                                                      Handle<JSObject> instance,
-                                                      const char* name);
+MaybeHandle<WasmExportedFunction> GetExportedFunction(
+    Isolate* isolate, Handle<WasmInstanceObject> instance, const char* name);
 
 // Call an exported wasm function by name. Returns -1 if the export does not
 // exist or throws an error. Errors are cleared from the isolate before
 // returning.
-int32_t CallWasmFunctionForTesting(Isolate* isolate, Handle<JSObject> instance,
+int32_t CallWasmFunctionForTesting(Isolate* isolate,
+                                   Handle<WasmInstanceObject> instance,
                                    ErrorThrower* thrower, const char* name,
                                    int argc, Handle<Object> argv[]);
 
@@ -63,8 +63,9 @@ int32_t InterpretWasmModule(Isolate* isolate,
                             WasmValue* args, bool* possible_nondeterminism);
 
 // Runs the module instance with arguments.
-int32_t RunWasmModuleForTesting(Isolate* isolate, Handle<JSObject> instance,
-                                int argc, Handle<Object> argv[]);
+int32_t RunWasmModuleForTesting(Isolate* isolate,
+                                Handle<WasmInstanceObject> instance, int argc,
+                                Handle<Object> argv[]);
 
 // Install function map, module symbol for testing
 void SetupIsolateForWasmModule(Isolate* isolate);

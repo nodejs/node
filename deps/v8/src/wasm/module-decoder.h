@@ -21,7 +21,7 @@ namespace wasm {
 
 const uint8_t kWasmFunctionTypeForm = 0x60;
 const uint8_t kWasmAnyFunctionTypeForm = 0x70;
-const uint8_t kResizableMaximumFlag = 1;
+const uint8_t kHasMaximumFlag = 1;
 const uint8_t kNoMaximumFlag = 0;
 
 enum MemoryFlags : uint8_t {

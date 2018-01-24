@@ -69,10 +69,12 @@ class ProducedPreParsedScopeData : public ZoneObject {
  public:
   class ByteData : public ZoneObject {
    public:
-    explicit ByteData(Zone* zone) : backing_store_(zone) {}
+    explicit ByteData(Zone* zone)
+        : backing_store_(zone), free_quarters_in_last_byte_(0) {}
 
     void WriteUint32(uint32_t data);
     void WriteUint8(uint8_t data);
+    void WriteQuarter(uint8_t data);
 
     // For overwriting previously written data at position 0.
     void OverwriteFirstUint32(uint32_t data);
@@ -83,6 +85,7 @@ class ProducedPreParsedScopeData : public ZoneObject {
 
    private:
     ZoneChunkList<uint8_t> backing_store_;
+    uint8_t free_quarters_in_last_byte_;
   };
 
   // Create a ProducedPreParsedScopeData object which will collect data as we
@@ -142,6 +145,8 @@ class ProducedPreParsedScopeData : public ZoneObject {
   }
 #endif  // DEBUG
 
+  bool ContainsInnerFunctions() const;
+
   // If there is data (if the Scope contains skippable inner functions), move
   // the data into the heap and return a Handle to it; otherwise return a null
   // MaybeHandle.
@@ -179,7 +184,8 @@ class ConsumedPreParsedScopeData {
  public:
   class ByteData {
    public:
-    ByteData() : data_(nullptr), index_(0) {}
+    ByteData()
+        : data_(nullptr), index_(0), stored_quarters_(0), stored_byte_(0) {}
 
     // Reading from the ByteData is only allowed when a ReadingScope is on the
     // stack. This ensures that we have a DisallowHeapAllocation in place
@@ -202,6 +208,7 @@ class ConsumedPreParsedScopeData {
 
     int32_t ReadUint32();
     uint8_t ReadUint8();
+    uint8_t ReadQuarter();
 
     size_t RemainingBytes() const {
       DCHECK_NOT_NULL(data_);
@@ -211,6 +218,8 @@ class ConsumedPreParsedScopeData {
     // private:
     PodArray<uint8_t>* data_;
     int index_;
+    uint8_t stored_quarters_;
+    uint8_t stored_byte_;
   };
 
   ConsumedPreParsedScopeData();
@@ -228,11 +237,6 @@ class ConsumedPreParsedScopeData {
   // Restores the information needed for allocating the Scope's (and its
   // subscopes') variables.
   void RestoreScopeAllocationData(DeclarationScope* scope);
-
-  // Skips the data about skippable functions, moves straight to the scope
-  // allocation data. Useful for tests which don't want to verify only the scope
-  // allocation data.
-  void SkipFunctionDataForTesting();
 
  private:
   void RestoreData(Scope* scope);

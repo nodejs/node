@@ -105,10 +105,10 @@ int CountTrailingZeros(uint64_t value, int width) {
 int CountSetBits(uint64_t value, int width) {
   DCHECK((width == 32) || (width == 64));
   if (width == 64) {
-    return static_cast<int>(base::bits::CountPopulation64(value));
+    return static_cast<int>(base::bits::CountPopulation(value));
   }
-  return static_cast<int>(base::bits::CountPopulation32(
-      static_cast<uint32_t>(value & 0xfffffffff)));
+  return static_cast<int>(
+      base::bits::CountPopulation(static_cast<uint32_t>(value & 0xfffffffff)));
 }
 
 int LowestSetBitPosition(uint64_t value) {

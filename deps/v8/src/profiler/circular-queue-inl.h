@@ -28,7 +28,7 @@ T* SamplingCircularQueue<T, L>::Peek() {
   if (base::Acquire_Load(&dequeue_pos_->marker) == kFull) {
     return &dequeue_pos_->record;
   }
-  return NULL;
+  return nullptr;
 }
 
 
@@ -45,7 +45,7 @@ T* SamplingCircularQueue<T, L>::StartEnqueue() {
   if (base::Acquire_Load(&enqueue_pos_->marker) == kEmpty) {
     return &enqueue_pos_->record;
   }
-  return NULL;
+  return nullptr;
 }
 
 

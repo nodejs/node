@@ -39,13 +39,6 @@ FrameInspector::FrameInspector(StandardFrame* frame, int inlined_frame_index,
   // Calculate the deoptimized frame.
   if (is_optimized_) {
     DCHECK_NOT_NULL(js_frame);
-    // TODO(turbofan): Deoptimization from AstGraphBuilder is not supported.
-    if (js_frame->LookupCode()->is_turbofanned() &&
-        !js_frame->function()->shared()->HasBytecodeArray()) {
-      is_optimized_ = false;
-      return;
-    }
-
     deoptimized_frame_.reset(Deoptimizer::DebuggerInspectableFrame(
         js_frame, inlined_frame_index, isolate));
   } else if (frame_->is_wasm_interpreter_entry()) {
@@ -75,12 +68,6 @@ Handle<Object> FrameInspector::GetParameter(int index) {
 }
 
 Handle<Object> FrameInspector::GetExpression(int index) {
-  // TODO(turbofan): Deoptimization from AstGraphBuilder is not supported.
-  if (frame_->is_java_script() &&
-      javascript_frame()->LookupCode()->is_turbofanned() &&
-      !javascript_frame()->function()->shared()->HasBytecodeArray()) {
-    return isolate_->factory()->undefined_value();
-  }
   return is_optimized_ ? deoptimized_frame_->GetExpression(index)
                        : handle(frame_->GetExpression(index), isolate_);
 }
@@ -151,33 +138,6 @@ void FrameInspector::MaterializeStackLocals(Handle<JSObject> target,
   }
 }
 
-void FrameInspector::MaterializeStackLocals(Handle<JSObject> target,
-                                            Handle<JSFunction> function,
-                                            bool materialize_arguments_object) {
-  // Do not materialize the arguments object for eval or top-level code.
-  if (function->shared()->is_toplevel()) materialize_arguments_object = false;
-
-  Handle<SharedFunctionInfo> shared(function->shared());
-  Handle<ScopeInfo> scope_info(shared->scope_info());
-  MaterializeStackLocals(target, scope_info, materialize_arguments_object);
-
-  // Third materialize the arguments object.
-  if (materialize_arguments_object) {
-    // Skip if "arguments" is already taken and wasn't optimized out (which
-    // causes {MaterializeStackLocals} above to skip the local variable).
-    Handle<String> arguments_str = isolate_->factory()->arguments_string();
-    Maybe<bool> maybe = JSReceiver::HasOwnProperty(target, arguments_str);
-    DCHECK(maybe.IsJust());
-    if (maybe.FromJust()) return;
-
-    // FunctionGetArguments can't throw an exception.
-    Handle<JSObject> arguments = Accessors::FunctionGetArguments(function);
-    JSObject::SetOwnPropertyIgnoreAttributes(target, arguments_str, arguments,
-                                             NONE)
-        .Check();
-  }
-}
-
 
 void FrameInspector::UpdateStackLocalsFromMaterializedObject(
     Handle<JSObject> target, Handle<ScopeInfo> scope_info) {
@@ -224,10 +184,10 @@ bool FrameInspector::ParameterIsShadowedByContextLocal(
 SaveContext* DebugFrameHelper::FindSavedContextForFrame(Isolate* isolate,
                                                         StandardFrame* frame) {
   SaveContext* save = isolate->save_context();
-  while (save != NULL && !save->IsBelowFrame(frame)) {
+  while (save != nullptr && !save->IsBelowFrame(frame)) {
     save = save->prev();
   }
-  DCHECK(save != NULL);
+  DCHECK(save != nullptr);
   return save;
 }
 
@@ -236,7 +196,6 @@ int DebugFrameHelper::FindIndexedNonNativeFrame(StackTraceFrameIterator* it,
   int count = -1;
   for (; !it->done(); it->Advance()) {
     std::vector<FrameSummary> frames;
-    frames.reserve(FLAG_max_inlining_levels + 1);
     it->frame()->Summarize(&frames);
     for (size_t i = frames.size(); i != 0; i--) {
       // Omit functions from native and extension scripts.

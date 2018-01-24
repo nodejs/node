@@ -70,21 +70,17 @@
 #define ARITY_2 2
 
 #define WASM_BLOCK(...) kExprBlock, kLocalVoid, __VA_ARGS__, kExprEnd
+#define WASM_BLOCK_I(...) kExprBlock, kLocalI32, __VA_ARGS__, kExprEnd
+#define WASM_BLOCK_L(...) kExprBlock, kLocalI64, __VA_ARGS__, kExprEnd
+#define WASM_BLOCK_F(...) kExprBlock, kLocalF32, __VA_ARGS__, kExprEnd
+#define WASM_BLOCK_D(...) kExprBlock, kLocalF64, __VA_ARGS__, kExprEnd
 
 #define WASM_BLOCK_T(t, ...)                                       \
   kExprBlock, static_cast<byte>(WasmOpcodes::ValueTypeCodeFor(t)), \
       __VA_ARGS__, kExprEnd
 
-#define WASM_BLOCK_TT(t1, t2, ...)                                       \
-  kExprBlock, kMultivalBlock, 0,                                         \
-      static_cast<byte>(WasmOpcodes::ValueTypeCodeFor(t1)),              \
-      static_cast<byte>(WasmOpcodes::ValueTypeCodeFor(t2)), __VA_ARGS__, \
-      kExprEnd
-
-#define WASM_BLOCK_I(...) kExprBlock, kLocalI32, __VA_ARGS__, kExprEnd
-#define WASM_BLOCK_L(...) kExprBlock, kLocalI64, __VA_ARGS__, kExprEnd
-#define WASM_BLOCK_F(...) kExprBlock, kLocalF32, __VA_ARGS__, kExprEnd
-#define WASM_BLOCK_D(...) kExprBlock, kLocalF64, __VA_ARGS__, kExprEnd
+#define WASM_BLOCK_X(index, ...)                                  \
+  kExprBlock, static_cast<byte>(index), __VA_ARGS__, kExprEnd
 
 #define WASM_INFINITE_LOOP kExprLoop, kLocalVoid, kExprBr, DEPTH_0, kExprEnd
 
@@ -94,20 +90,24 @@
 #define WASM_LOOP_F(...) kExprLoop, kLocalF32, __VA_ARGS__, kExprEnd
 #define WASM_LOOP_D(...) kExprLoop, kLocalF64, __VA_ARGS__, kExprEnd
 
-#define WASM_IF(cond, tstmt) cond, kExprIf, kLocalVoid, tstmt, kExprEnd
+#define WASM_LOOP_T(t, ...)                                       \
+  kExprLoop, static_cast<byte>(WasmOpcodes::ValueTypeCodeFor(t)), \
+      __VA_ARGS__, kExprEnd
+
+#define WASM_LOOP_X(index, ...)                                   \
+  kExprLoop, static_cast<byte>(index), __VA_ARGS__, kExprEnd
+
+#define WASM_IF(cond, ...) cond, kExprIf, kLocalVoid, __VA_ARGS__, kExprEnd
+
+#define WASM_IF_T(t, cond, ...)                                       \
+  cond, kExprIf, static_cast<byte>(WasmOpcodes::ValueTypeCodeFor(t)), \
+      __VA_ARGS__, kExprEnd
+
+#define WASM_IF_X(index, cond, ...)                                   \
+  cond, kExprIf, static_cast<byte>(index), __VA_ARGS__, kExprEnd
 
 #define WASM_IF_ELSE(cond, tstmt, fstmt) \
   cond, kExprIf, kLocalVoid, tstmt, kExprElse, fstmt, kExprEnd
-
-#define WASM_IF_ELSE_T(t, cond, tstmt, fstmt)                                \
-  cond, kExprIf, static_cast<byte>(WasmOpcodes::ValueTypeCodeFor(t)), tstmt, \
-      kExprElse, fstmt, kExprEnd
-
-#define WASM_IF_ELSE_TT(t1, t2, cond, tstmt, fstmt)                           \
-  cond, kExprIf, kMultivalBlock, 0,                                           \
-      static_cast<byte>(WasmOpcodes::ValueTypeCodeFor(t1)),                   \
-      static_cast<byte>(WasmOpcodes::ValueTypeCodeFor(t2)), tstmt, kExprElse, \
-      fstmt, kExprEnd
 
 #define WASM_IF_ELSE_I(cond, tstmt, fstmt) \
   cond, kExprIf, kLocalI32, tstmt, kExprElse, fstmt, kExprEnd
@@ -117,6 +117,13 @@
   cond, kExprIf, kLocalF32, tstmt, kExprElse, fstmt, kExprEnd
 #define WASM_IF_ELSE_D(cond, tstmt, fstmt) \
   cond, kExprIf, kLocalF64, tstmt, kExprElse, fstmt, kExprEnd
+
+#define WASM_IF_ELSE_T(t, cond, tstmt, fstmt)                                \
+  cond, kExprIf, static_cast<byte>(WasmOpcodes::ValueTypeCodeFor(t)), tstmt, \
+      kExprElse, fstmt, kExprEnd
+
+#define WASM_IF_ELSE_X(index, cond, tstmt, fstmt)                            \
+  cond, kExprIf, static_cast<byte>(index), tstmt, kExprElse, fstmt, kExprEnd
 
 #define WASM_SELECT(tval, fval, cond) tval, fval, cond, kExprSelect
 
@@ -574,7 +581,7 @@ inline WasmOpcode LoadStoreOpcodeOf(MachineType type, bool store) {
 #define SIZEOF_SIG_ENTRY_x_xx 6
 #define SIZEOF_SIG_ENTRY_x_xxx 7
 
-#define WASM_BRV(depth, val) val, kExprBr, static_cast<byte>(depth)
+#define WASM_BRV(depth, ...) __VA_ARGS__, kExprBr, static_cast<byte>(depth)
 #define WASM_BRV_IF(depth, val, cond) \
   val, cond, kExprBrIf, static_cast<byte>(depth)
 #define WASM_BRV_IFD(depth, val, cond) \

@@ -287,6 +287,19 @@ std::unique_ptr<V8StackTrace> V8InspectorImpl::captureStackTrace(
   return m_debugger->captureStackTrace(fullStack);
 }
 
+V8StackTraceId V8InspectorImpl::storeCurrentStackTrace(
+    const StringView& description) {
+  return m_debugger->storeCurrentStackTrace(description);
+}
+
+void V8InspectorImpl::externalAsyncTaskStarted(const V8StackTraceId& parent) {
+  m_debugger->externalAsyncTaskStarted(parent);
+}
+
+void V8InspectorImpl::externalAsyncTaskFinished(const V8StackTraceId& parent) {
+  m_debugger->externalAsyncTaskFinished(parent);
+}
+
 void V8InspectorImpl::asyncTaskScheduled(const StringView& taskName, void* task,
                                          bool recurring) {
   if (!task) return;

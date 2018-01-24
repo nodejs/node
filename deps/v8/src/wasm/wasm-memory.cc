@@ -27,7 +27,7 @@ void* TryAllocateBackingStore(Isolate* isolate, size_t size,
     allocation_length = RoundUp(kWasmMaxHeapOffset, base::OS::CommitPageSize());
     DCHECK_EQ(0, size % base::OS::CommitPageSize());
 
-    // AllocateGuarded makes the whole region inaccessible by default.
+    // The Reserve makes the whole region inaccessible by default.
     allocation_base =
         isolate->array_buffer_allocator()->Reserve(allocation_length);
     if (allocation_base == nullptr) {
@@ -45,10 +45,15 @@ void* TryAllocateBackingStore(Isolate* isolate, size_t size,
 
     return memory;
   } else {
+    // TODO(titzer): use guard regions for minicage and merge with above code.
+    CHECK_LE(size, kV8MaxWasmMemoryBytes);
+    allocation_length =
+        base::bits::RoundUpToPowerOfTwo32(static_cast<uint32_t>(size));
     void* memory =
-        size == 0 ? nullptr : isolate->array_buffer_allocator()->Allocate(size);
+        size == 0
+            ? nullptr
+            : isolate->array_buffer_allocator()->Allocate(allocation_length);
     allocation_base = memory;
-    allocation_length = size;
     return memory;
   }
 }

@@ -82,6 +82,9 @@
   'test-cpu-profiler/SampleWhenFrameIsNotSetup': [SKIP],
   'test-sampler/LibSamplerCollectSample': [SKIP],
 
+  # BUG(7054)
+  'test-cpu-profiler/StaticCollectSampleAPI': [SKIP],
+
   # BUG(2340). Preprocessing stack traces is disabled at the moment.
   'test-heap/PreprocessStackTrace': [FAIL],
 
@@ -101,6 +104,8 @@
 
   # Test that serialization with unknown external reference fails.
   'test-serialize/SnapshotCreatorUnknownExternalReferences': [FAIL],
+  'test-serialize/SnapshotCreatorNoExternalReferencesCustomFail1': [FAIL],
+  'test-serialize/SnapshotCreatorNoExternalReferencesCustomFail2': [FAIL],
 
   ############################################################################
   # Slow tests.
@@ -171,6 +176,8 @@
 ['tsan == True', {
   # BUG(v8:6133).
   'test-cpu-profiler/TickEvents': [SKIP],
+  # BUG(v8:6924). The test allocates a lot of memory.
+  'test-api/NewStringRangeError': [PASS, NO_VARIANTS],
 }],  # 'tsan == True'
 
 ##############################################################################
@@ -377,5 +384,11 @@
   'test-gap-resolver/*': [SKIP],
   'test-dtoa/*': [SKIP],
 }],  # variant == wasm_traps
+
+##############################################################################
+# BUG(v8:7138).
+['arch == arm and not simulator_run and variant == wasm_traps', {
+  '*': [SKIP],
+}], # arch == arm and not simulator_run and variant == wasm_traps
 
 ]

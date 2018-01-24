@@ -76,19 +76,22 @@ class FreeStoreAllocationPolicy {
 void* AlignedAlloc(size_t size, size_t alignment);
 void AlignedFree(void *ptr);
 
+// Allocates a single system memory page with read/write permissions. The
+// address parameter is a hint. Returns the base address of the memory, or null
+// on failure. Permissions can be changed on the base address.
+byte* AllocateSystemPage(void* address, size_t* allocated);
+
 // Represents and controls an area of reserved memory.
 class V8_EXPORT_PRIVATE VirtualMemory {
  public:
   // Empty VirtualMemory object, controlling no reserved memory.
   VirtualMemory();
 
-  // Reserves virtual memory with size.
-  explicit VirtualMemory(size_t size, void* hint);
-
-  // Reserves virtual memory containing an area of the given size that
-  // is aligned per alignment. This may not be at the position returned
-  // by address().
-  VirtualMemory(size_t size, size_t alignment, void* hint);
+  // Reserves virtual memory containing an area of the given size that is
+  // aligned per alignment. This may not be at the position returned by
+  // address().
+  VirtualMemory(size_t size, void* hint,
+                size_t alignment = base::OS::AllocatePageSize());
 
   // Construct a virtual memory by assigning it some already mapped address
   // and size.
@@ -125,19 +128,16 @@ class V8_EXPORT_PRIVATE VirtualMemory {
   // than the requested size.
   size_t size() const { return size_; }
 
-  // Commits real memory. Returns whether the operation succeeded.
-  bool Commit(void* address, size_t size, bool is_executable);
+  // Sets permissions according to the access argument. address and size must be
+  // multiples of CommitPageSize(). Returns true on success, otherwise false.
+  bool SetPermissions(void* address, size_t size,
+                      base::OS::MemoryPermission access);
 
-  // Uncommit real memory.  Returns whether the operation succeeded.
-  bool Uncommit(void* address, size_t size);
+  // Releases memory after |free_start|. Returns the number of bytes released.
+  size_t Release(void* free_start);
 
-  // Creates a single guard page at the given address.
-  bool Guard(void* address);
-
-  // Releases the memory after |free_start|. Returns the bytes released.
-  size_t ReleasePartial(void* free_start);
-
-  void Release();
+  // Frees all memory.
+  void Free();
 
   // Assign control of the reserved region to a different VirtualMemory object.
   // The old object is no longer functional (IsReserved() returns false).
@@ -158,9 +158,6 @@ class V8_EXPORT_PRIVATE VirtualMemory {
 bool AllocVirtualMemory(size_t size, void* hint, VirtualMemory* result);
 bool AlignedAllocVirtualMemory(size_t size, size_t alignment, void* hint,
                                VirtualMemory* result);
-
-// Generate a random address to be used for hinting mmap().
-V8_EXPORT_PRIVATE void* GetRandomMmapAddr();
 
 }  // namespace internal
 }  // namespace v8

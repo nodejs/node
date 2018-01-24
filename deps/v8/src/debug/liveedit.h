@@ -123,7 +123,7 @@ class LiveEdit : AllStatic {
       bool do_drop);
 
   // Restarts the call frame and completely drops all frames above it.
-  // Return error message or NULL.
+  // Return error message or nullptr.
   static const char* RestartFrame(JavaScriptFrame* frame);
 
   // A copy of this is in liveedit.js.
@@ -213,7 +213,8 @@ class JSArrayBasedStruct {
 
  protected:
   void SetField(int field_position, Handle<Object> value) {
-    Object::SetElement(isolate(), array_, field_position, value, SLOPPY)
+    Object::SetElement(isolate(), array_, field_position, value,
+                       LanguageMode::kSloppy)
         .Assert();
   }
 

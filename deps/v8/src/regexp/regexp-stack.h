@@ -87,12 +87,12 @@ class RegExpStack {
   // Structure holding the allocated memory, size and limit.
   struct ThreadLocal {
     ThreadLocal() { Clear(); }
-    // If memory_size_ > 0 then memory_ must be non-NULL.
+    // If memory_size_ > 0 then memory_ must be non-nullptr.
     Address memory_;
     size_t memory_size_;
     Address limit_;
     void Clear() {
-      memory_ = NULL;
+      memory_ = nullptr;
       memory_size_ = 0;
       limit_ = reinterpret_cast<Address>(kMemoryTop);
     }

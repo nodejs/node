@@ -64,8 +64,6 @@ class CodeEventListener {
   virtual void CodeCreateEvent(LogEventsAndTags tag, AbstractCode* code,
                                SharedFunctionInfo* shared, Name* source,
                                int line, int column) = 0;
-  virtual void CodeCreateEvent(LogEventsAndTags tag, AbstractCode* code,
-                               int args_count) = 0;
   virtual void CallbackEvent(Name* name, Address entry_point) = 0;
   virtual void GetterCallbackEvent(Name* name, Address entry_point) = 0;
   virtual void SetterCallbackEvent(Name* name, Address entry_point) = 0;
@@ -115,10 +113,6 @@ class CodeEventDispatcher {
                        int column) {
     CODE_EVENT_DISPATCH(
         CodeCreateEvent(tag, code, shared, source, line, column));
-  }
-  void CodeCreateEvent(LogEventsAndTags tag, AbstractCode* code,
-                       int args_count) {
-    CODE_EVENT_DISPATCH(CodeCreateEvent(tag, code, args_count));
   }
   void CallbackEvent(Name* name, Address entry_point) {
     CODE_EVENT_DISPATCH(CallbackEvent(name, entry_point));

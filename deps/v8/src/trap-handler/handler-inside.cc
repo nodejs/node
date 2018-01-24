@@ -102,13 +102,15 @@ bool TryHandleSignal(int signum, siginfo_t* info, ucontext_t* context) {
     if (TryFindLandingPad(fault_addr, &landing_pad)) {
       // Tell the caller to return to the landing pad.
       context->uc_mcontext.gregs[REG_RIP] = landing_pad;
+      // We will return to wasm code, so restore the g_thread_in_wasm_code flag.
+      g_thread_in_wasm_code = true;
       return true;
     }
   }  // end signal mask scope
 
   // If we get here, it's not a recoverable wasm fault, so we go to the next
-  // handler.
-  g_thread_in_wasm_code = true;
+  // handler. Leave the g_thread_in_wasm_code flag unset since we do not return
+  // to wasm code.
   return false;
 }
 
@@ -160,18 +162,14 @@ void HandleSignal(int signum, siginfo_t* info, void* context) {
 
   if (!TryHandleSignal(signum, info, uc)) {
     // Since V8 didn't handle this signal, we want to re-raise the same signal.
-    // For kernel-generated SEGV signals, we do this by restoring the default
+    // For kernel-generated SEGV signals, we do this by restoring the original
     // SEGV handler and then returning. The fault will happen again and the
     // usual SEGV handling will happen.
     //
     // We handle user-generated signals by calling raise() instead. This is for
     // completeness. We should never actually see one of these, but just in
     // case, we do the right thing.
-    struct sigaction action;
-    action.sa_handler = SIG_DFL;
-    sigemptyset(&action.sa_mask);
-    action.sa_flags = 0;
-    sigaction(signum, &action, nullptr);
+    RestoreOriginalSignalHandler();
     if (!IsKernelGeneratedSignal(info)) {
       raise(signum);
     }

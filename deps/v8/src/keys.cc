@@ -472,7 +472,7 @@ void FilterForEnumerableProperties(Handle<JSReceiver> receiver,
 
     // args are invalid after args.Call(), create a new one in every iteration.
     PropertyCallbackArguments args(accumulator->isolate(), interceptor->data(),
-                                   *receiver, *object, Object::DONT_THROW);
+                                   *receiver, *object, kDontThrow);
 
     Handle<Object> element = accessor->Get(result, i);
     Handle<Object> attributes;
@@ -507,7 +507,7 @@ Maybe<bool> CollectInterceptorKeysInternal(Handle<JSReceiver> receiver,
                                            IndexedOrNamed type) {
   Isolate* isolate = accumulator->isolate();
   PropertyCallbackArguments enum_args(isolate, interceptor->data(), *receiver,
-                                      *object, Object::DONT_THROW);
+                                      *object, kDontThrow);
 
   Handle<JSObject> result;
   if (!interceptor->enumerator()->IsUndefined(isolate)) {
@@ -519,7 +519,7 @@ Maybe<bool> CollectInterceptorKeysInternal(Handle<JSReceiver> receiver,
       LOG(isolate, ApiObjectAccess(log_tag, *object));
       result = enum_args.Call(enum_fun);
     } else {
-      DCHECK(type == kNamed);
+      DCHECK_EQ(type, kNamed);
       v8::GenericNamedPropertyEnumeratorCallback enum_fun =
           v8::ToCData<v8::GenericNamedPropertyEnumeratorCallback>(
               interceptor->enumerator());
@@ -726,7 +726,7 @@ Maybe<bool> KeyAccumulator::CollectOwnKeys(Handle<JSReceiver> receiver,
       return Just(false);
     }
     // ...whereas [[OwnPropertyKeys]] shall return whitelisted properties.
-    DCHECK(KeyCollectionMode::kOwnOnly == mode_);
+    DCHECK_EQ(KeyCollectionMode::kOwnOnly, mode_);
     Handle<AccessCheckInfo> access_check_info;
     {
       DisallowHeapAllocation no_gc;

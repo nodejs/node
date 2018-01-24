@@ -689,7 +689,7 @@ void Decoder::PrintInstructionName(Instruction* instr) {
 // Handle all register based formatting in this function to reduce the
 // complexity of FormatOption.
 int Decoder::FormatRegister(Instruction* instr, const char* format) {
-  DCHECK(format[0] == 'r');
+  DCHECK_EQ(format[0], 'r');
   if (format[1] == 's') {  // 'rs: Rs register.
     int reg = instr->RsValue();
     PrintRegister(reg);
@@ -710,7 +710,7 @@ int Decoder::FormatRegister(Instruction* instr, const char* format) {
 // Handle all FPUregister based formatting in this function to reduce the
 // complexity of FormatOption.
 int Decoder::FormatFPURegister(Instruction* instr, const char* format) {
-  DCHECK(format[0] == 'f');
+  DCHECK_EQ(format[0], 'f');
   if ((CTC1 == instr->RsFieldRaw()) || (CFC1 == instr->RsFieldRaw())) {
     if (format[1] == 's') {  // 'fs: fs register.
       int reg = instr->FsValue();
@@ -754,7 +754,7 @@ int Decoder::FormatFPURegister(Instruction* instr, const char* format) {
 // Handle all MSARegister based formatting in this function to reduce the
 // complexity of FormatOption.
 int Decoder::FormatMSARegister(Instruction* instr, const char* format) {
-  DCHECK(format[0] == 'w');
+  DCHECK_EQ(format[0], 'w');
   if (format[1] == 's') {
     int reg = instr->WsValue();
     PrintMSARegister(reg);
@@ -2107,7 +2107,7 @@ void Decoder::DecodeTypeImmediate(Instruction* instr) {
         if (rs_reg >= rt_reg) {
           Format(instr, "bovc  'rs, 'rt, 'imm16s -> 'imm16p4s2");
         } else {
-          DCHECK(rt_reg > 0);
+          DCHECK_GT(rt_reg, 0);
           if (rs_reg == 0) {
             Format(instr, "beqzalc 'rt, 'imm16s -> 'imm16p4s2");
           } else {
@@ -2126,7 +2126,7 @@ void Decoder::DecodeTypeImmediate(Instruction* instr) {
         if (rs_reg >= rt_reg) {
           Format(instr, "bnvc  'rs, 'rt, 'imm16s -> 'imm16p4s2");
         } else {
-          DCHECK(rt_reg > 0);
+          DCHECK_GT(rt_reg, 0);
           if (rs_reg == 0) {
             Format(instr, "bnezalc 'rt, 'imm16s -> 'imm16p4s2");
           } else {

@@ -35,10 +35,10 @@ class AsmJsScannerTest : public ::testing::Test {
     scanner->Next();
   }
 
-  void CheckForEnd() { CHECK(scanner->Token() == AsmJsScanner::kEndOfInput); }
+  void CheckForEnd() { CHECK_EQ(scanner->Token(), AsmJsScanner::kEndOfInput); }
 
   void CheckForParseError() {
-    CHECK(scanner->Token() == AsmJsScanner::kParseError);
+    CHECK_EQ(scanner->Token(), AsmJsScanner::kParseError);
   }
 
   std::unique_ptr<Utf16CharacterStream> stream;

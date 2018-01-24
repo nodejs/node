@@ -389,7 +389,7 @@ void WasmModuleBuilder::WriteTo(ZoneBuffer& buffer) const {
     size_t start = EmitSection(kTableSectionCode, buffer);
     buffer.write_u8(1);  // table count
     buffer.write_u8(kWasmAnyFunctionTypeForm);
-    buffer.write_u8(kResizableMaximumFlag);
+    buffer.write_u8(kHasMaximumFlag);
     buffer.write_size(indirect_functions_.size());
     buffer.write_size(indirect_functions_.size());
     FixupSection(buffer, start);

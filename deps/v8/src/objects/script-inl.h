@@ -71,9 +71,9 @@ bool Script::HasValidSource() {
   String* src_str = String::cast(src);
   if (!StringShape(src_str).IsExternal()) return true;
   if (src_str->IsOneByteRepresentation()) {
-    return ExternalOneByteString::cast(src)->resource() != NULL;
+    return ExternalOneByteString::cast(src)->resource() != nullptr;
   } else if (src_str->IsTwoByteRepresentation()) {
-    return ExternalTwoByteString::cast(src)->resource() != NULL;
+    return ExternalTwoByteString::cast(src)->resource() != nullptr;
   }
   return true;
 }

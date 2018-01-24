@@ -41,6 +41,19 @@ class BlockCoverageBuilder final : public ZoneObject {
     return slot;
   }
 
+  int AllocateNaryBlockCoverageSlot(NaryOperation* node, size_t index) {
+    NaryOperationSourceRanges* ranges =
+        static_cast<NaryOperationSourceRanges*>(source_range_map_->Find(node));
+    if (ranges == nullptr) return kNoCoverageArraySlot;
+
+    SourceRange range = ranges->GetRangeAtIndex(index);
+    if (range.IsEmpty()) return kNoCoverageArraySlot;
+
+    const int slot = static_cast<int>(slots_.size());
+    slots_.emplace_back(range);
+    return slot;
+  }
+
   void IncrementBlockCounter(int coverage_array_slot) {
     if (coverage_array_slot == kNoCoverageArraySlot) return;
     builder_->IncBlockCounter(coverage_array_slot);

@@ -139,24 +139,6 @@ Reduction JSInliningHeuristic::Reduce(Node* node) {
   }
   if (!can_inline) return NoChange();
 
-  // Stop inlining once the maximum allowed level is reached.
-  int level = 0;
-  for (Node* frame_state = NodeProperties::GetFrameStateInput(node);
-       frame_state->opcode() == IrOpcode::kFrameState;
-       frame_state = NodeProperties::GetFrameStateInput(frame_state)) {
-    FrameStateInfo const& frame_info = OpParameter<FrameStateInfo>(frame_state);
-    if (FrameStateFunctionInfo::IsJSFunctionType(frame_info.type())) {
-      if (++level > FLAG_max_inlining_levels) {
-        TRACE(
-            "Not considering call site #%d:%s, because inlining depth "
-            "%d exceeds maximum allowed level %d\n",
-            node->id(), node->op()->mnemonic(), level,
-            FLAG_max_inlining_levels);
-        return NoChange();
-      }
-    }
-  }
-
   // Gather feedback on how often this call site has been hit before.
   if (node->opcode() == IrOpcode::kJSCall) {
     CallParameters const p = CallParametersOf(node->op());
@@ -188,7 +170,8 @@ Reduction JSInliningHeuristic::Reduce(Node* node) {
 
   // Forcibly inline small functions here. In the case of polymorphic inlining
   // small_inline is set only when all functions are small.
-  if (small_inline) {
+  if (small_inline &&
+      cumulative_count_ < FLAG_max_inlined_bytecode_size_absolute) {
     TRACE("Inlining small function(s) at call site #%d:%s\n", node->id(),
           node->op()->mnemonic());
     return InlineCandidate(candidate, true);

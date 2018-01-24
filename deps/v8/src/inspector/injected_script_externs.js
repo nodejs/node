@@ -101,6 +101,13 @@ InjectedScriptHostClass.prototype.getOwnPropertyNames = function(obj) {}
  */
 InjectedScriptHostClass.prototype.getOwnPropertySymbols = function(obj) {}
 
+/**
+ * @param {!Object} obj
+ * @param {string|symbol} name
+ * @return {{isBuiltin:boolean, hasGetter:boolean, hasSetter:boolean}|undefined}
+ */
+InjectedScriptHostClass.prototype.nativeAccessorDescriptor = function(obj, name) {}
+
 /** @type {!InjectedScriptHostClass} */
 var InjectedScriptHost;
 /** @type {!Window} */

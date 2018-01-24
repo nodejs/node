@@ -171,6 +171,7 @@ class BytecodeGraphBuilder {
                  std::initializer_list<Node*> args, int slot_id) {
     BuildCall(receiver_mode, args.begin(), args.size(), slot_id);
   }
+  void BuildUnaryOp(const Operator* op);
   void BuildBinaryOp(const Operator* op);
   void BuildBinaryOpWithImmediate(const Operator* op);
   void BuildCompareOp(const Operator* op);
@@ -183,6 +184,8 @@ class BytecodeGraphBuilder {
   // Optional early lowering to the simplified operator level.  Note that
   // the result has already been wired into the environment just like
   // any other invocation of {NewNode} would do.
+  JSTypeHintLowering::LoweringResult TryBuildSimplifiedUnaryOp(
+      const Operator* op, Node* operand, FeedbackSlot slot);
   JSTypeHintLowering::LoweringResult TryBuildSimplifiedBinaryOp(
       const Operator* op, Node* left, Node* right, FeedbackSlot slot);
   JSTypeHintLowering::LoweringResult TryBuildSimplifiedForInNext(

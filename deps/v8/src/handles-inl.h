@@ -50,8 +50,8 @@ HandleScope::~HandleScope() {
     int before = NumberOfHandles(isolate_);
     CloseScope(isolate_, prev_next_, prev_limit_);
     int after = NumberOfHandles(isolate_);
-    DCHECK(after - before < kCheckHandleThreshold);
-    DCHECK(before < kCheckHandleThreshold);
+    DCHECK_LT(after - before, kCheckHandleThreshold);
+    DCHECK_LT(before, kCheckHandleThreshold);
   } else {
 #endif  // DEBUG
     CloseScope(isolate_, prev_next_, prev_limit_);

@@ -17,8 +17,8 @@ def is_file_executable(fPath):
 
 if __name__ == '__main__':
   JS_FILES = ['splaytree.js', 'codemap.js', 'csvparser.js', 'consarray.js',
-              'profile.js', 'logreader.js', 'tickprocessor.js', 'SourceMap.js',
-              'dumpcpp.js', 'dumpcpp-driver.js']
+              'profile.js', 'logreader.js', 'arguments.js', 'tickprocessor.js',
+              'SourceMap.js', 'dumpcpp.js', 'dumpcpp-driver.js']
   tools_path = os.path.dirname(os.path.realpath(__file__))
   on_windows = platform.system() == 'Windows'
   JS_FILES = [os.path.join(tools_path, f) for f in JS_FILES]

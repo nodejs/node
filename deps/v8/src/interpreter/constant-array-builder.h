@@ -5,6 +5,7 @@
 #ifndef V8_INTERPRETER_CONSTANT_ARRAY_BUILDER_H_
 #define V8_INTERPRETER_CONSTANT_ARRAY_BUILDER_H_
 
+#include "src/ast/ast-value-factory.h"
 #include "src/globals.h"
 #include "src/identity-map.h"
 #include "src/interpreter/bytecodes.h"
@@ -21,10 +22,12 @@ namespace interpreter {
 
 // Constant array entries that represent singletons.
 #define SINGLETON_CONSTANT_ENTRY_TYPES(V)       \
+  V(NaN, nan_value)                             \
   V(IteratorSymbol, iterator_symbol)            \
   V(AsyncIteratorSymbol, async_iterator_symbol) \
   V(HomeObjectSymbol, home_object_symbol)       \
-  V(EmptyFixedArray, empty_fixed_array)
+  V(EmptyFixedArray, empty_fixed_array)         \
+  V(ClassFieldsSymbol, class_fields_symbol)
 
 // A helper class for constructing constant arrays for the
 // interpreter. Each instance of this class is intended to be used to
@@ -58,8 +61,9 @@ class V8_EXPORT_PRIVATE ConstantArrayBuilder final BASE_EMBEDDED {
   // Insert an object into the constants array if it is not already present.
   // Returns the array index associated with the object.
   size_t Insert(Smi* smi);
+  size_t Insert(double number);
   size_t Insert(const AstRawString* raw_string);
-  size_t Insert(const AstValue* heap_number);
+  size_t Insert(AstBigInt bigint);
   size_t Insert(const Scope* scope);
 #define INSERT_ENTRY(NAME, ...) size_t Insert##NAME();
   SINGLETON_CONSTANT_ENTRY_TYPES(INSERT_ENTRY)
@@ -97,16 +101,19 @@ class V8_EXPORT_PRIVATE ConstantArrayBuilder final BASE_EMBEDDED {
  private:
   typedef uint32_t index_t;
 
+  struct ConstantArraySlice;
+
   class Entry {
    private:
     enum class Tag : uint8_t;
 
    public:
     explicit Entry(Smi* smi) : smi_(smi), tag_(Tag::kSmi) {}
+    explicit Entry(double heap_number)
+        : heap_number_(heap_number), tag_(Tag::kHeapNumber) {}
     explicit Entry(const AstRawString* raw_string)
         : raw_string_(raw_string), tag_(Tag::kRawString) {}
-    explicit Entry(const AstValue* heap_number)
-        : heap_number_(heap_number), tag_(Tag::kHeapNumber) {}
+    explicit Entry(AstBigInt bigint) : bigint_(bigint), tag_(Tag::kBigInt) {}
     explicit Entry(const Scope* scope) : scope_(scope), tag_(Tag::kScope) {}
 
 #define CONSTRUCT_ENTRY(NAME, LOWER_NAME) \
@@ -128,13 +135,13 @@ class V8_EXPORT_PRIVATE ConstantArrayBuilder final BASE_EMBEDDED {
     }
 
     void SetDeferred(Handle<Object> handle) {
-      DCHECK(tag_ == Tag::kDeferred);
+      DCHECK_EQ(tag_, Tag::kDeferred);
       tag_ = Tag::kHandle;
       handle_ = handle;
     }
 
     void SetJumpTableSmi(Smi* smi) {
-      DCHECK(tag_ == Tag::kUninitializedJumpTableSmi);
+      DCHECK_EQ(tag_, Tag::kUninitializedJumpTableSmi);
       tag_ = Tag::kJumpTableSmi;
       smi_ = smi;
     }
@@ -147,8 +154,9 @@ class V8_EXPORT_PRIVATE ConstantArrayBuilder final BASE_EMBEDDED {
     union {
       Handle<Object> handle_;
       Smi* smi_;
+      double heap_number_;
       const AstRawString* raw_string_;
-      const AstValue* heap_number_;
+      AstBigInt bigint_;
       const Scope* scope_;
     };
 
@@ -158,6 +166,7 @@ class V8_EXPORT_PRIVATE ConstantArrayBuilder final BASE_EMBEDDED {
       kSmi,
       kRawString,
       kHeapNumber,
+      kBigInt,
       kScope,
       kUninitializedJumpTableSmi,
       kJumpTableSmi,
@@ -165,6 +174,11 @@ class V8_EXPORT_PRIVATE ConstantArrayBuilder final BASE_EMBEDDED {
       SINGLETON_CONSTANT_ENTRY_TYPES(ENTRY_TAG)
 #undef ENTRY_TAG
     } tag_;
+
+#if DEBUG
+    // Required by CheckAllElementsAreUnique().
+    friend struct ConstantArraySlice;
+#endif
   };
 
   index_t AllocateIndex(Entry constant_entry);
@@ -212,6 +226,7 @@ class V8_EXPORT_PRIVATE ConstantArrayBuilder final BASE_EMBEDDED {
       constants_map_;
   ZoneMap<Smi*, index_t> smi_map_;
   ZoneVector<std::pair<Smi*, index_t>> smi_pairs_;
+  ZoneMap<double, index_t> heap_number_map_;
 
 #define SINGLETON_ENTRY_FIELD(NAME, LOWER_NAME) int LOWER_NAME##_;
   SINGLETON_CONSTANT_ENTRY_TYPES(SINGLETON_ENTRY_FIELD)

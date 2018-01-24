@@ -55,7 +55,8 @@ static void SetGlobalProperty(const char* name, Object* value) {
       isolate->factory()->InternalizeUtf8String(name);
   Handle<JSObject> global(isolate->context()->global_object());
   Runtime::SetObjectProperty(isolate, global, internalized_name, object,
-                             SLOPPY).Check();
+                             LanguageMode::kSloppy)
+      .Check();
 }
 
 
@@ -67,7 +68,8 @@ static Handle<JSFunction> Compile(const char* source) {
       Compiler::GetSharedFunctionInfoForScript(
           source_code, MaybeHandle<String>(), 0, 0, v8::ScriptOriginOptions(),
           MaybeHandle<Object>(), Handle<Context>(isolate->native_context()),
-          NULL, NULL, v8::ScriptCompiler::kNoCompileOptions, NOT_NATIVES_CODE,
+          nullptr, nullptr, v8::ScriptCompiler::kNoCompileOptions,
+          ScriptCompiler::kNoCacheNoReason, NOT_NATIVES_CODE,
           MaybeHandle<FixedArray>())
           .ToHandleChecked();
   return isolate->factory()->NewFunctionFromSharedFunctionInfo(
@@ -84,7 +86,7 @@ static double Inc(Isolate* isolate, int x) {
   if (fun.is_null()) return -1;
 
   Handle<JSObject> global(isolate->context()->global_object());
-  Execution::Call(isolate, fun, global, 0, NULL).Check();
+  Execution::Call(isolate, fun, global, 0, nullptr).Check();
   return GetGlobalProperty("result")->Number();
 }
 
@@ -103,7 +105,7 @@ static double Add(Isolate* isolate, int x, int y) {
   SetGlobalProperty("x", Smi::FromInt(x));
   SetGlobalProperty("y", Smi::FromInt(y));
   Handle<JSObject> global(isolate->context()->global_object());
-  Execution::Call(isolate, fun, global, 0, NULL).Check();
+  Execution::Call(isolate, fun, global, 0, nullptr).Check();
   return GetGlobalProperty("result")->Number();
 }
 
@@ -121,7 +123,7 @@ static double Abs(Isolate* isolate, int x) {
 
   SetGlobalProperty("x", Smi::FromInt(x));
   Handle<JSObject> global(isolate->context()->global_object());
-  Execution::Call(isolate, fun, global, 0, NULL).Check();
+  Execution::Call(isolate, fun, global, 0, nullptr).Check();
   return GetGlobalProperty("result")->Number();
 }
 
@@ -140,7 +142,7 @@ static double Sum(Isolate* isolate, int n) {
 
   SetGlobalProperty("n", Smi::FromInt(n));
   Handle<JSObject> global(isolate->context()->global_object());
-  Execution::Call(isolate, fun, global, 0, NULL).Check();
+  Execution::Call(isolate, fun, global, 0, nullptr).Check();
   return GetGlobalProperty("result")->Number();
 }
 
@@ -160,7 +162,7 @@ TEST(Print) {
   Handle<JSFunction> fun = Compile(source);
   if (fun.is_null()) return;
   Handle<JSObject> global(CcTest::i_isolate()->context()->global_object());
-  Execution::Call(CcTest::i_isolate(), fun, global, 0, NULL).Check();
+  Execution::Call(CcTest::i_isolate(), fun, global, 0, nullptr).Check();
 }
 
 
@@ -191,8 +193,7 @@ TEST(Stuff) {
   Handle<JSFunction> fun = Compile(source);
   CHECK(!fun.is_null());
   Handle<JSObject> global(CcTest::i_isolate()->context()->global_object());
-  Execution::Call(
-      CcTest::i_isolate(), fun, global, 0, NULL).Check();
+  Execution::Call(CcTest::i_isolate(), fun, global, 0, nullptr).Check();
   CHECK_EQ(511.0, GetGlobalProperty("r")->Number());
 }
 
@@ -206,7 +207,7 @@ TEST(UncaughtThrow) {
   CHECK(!fun.is_null());
   Isolate* isolate = fun->GetIsolate();
   Handle<JSObject> global(isolate->context()->global_object());
-  CHECK(Execution::Call(isolate, fun, global, 0, NULL).is_null());
+  CHECK(Execution::Call(isolate, fun, global, 0, nullptr).is_null());
   CHECK_EQ(42.0, isolate->pending_exception()->Number());
 }
 
@@ -232,7 +233,7 @@ TEST(C2JSFrames) {
 
   // Run the generated code to populate the global object with 'foo'.
   Handle<JSObject> global(isolate->context()->global_object());
-  Execution::Call(isolate, fun0, global, 0, NULL).Check();
+  Execution::Call(isolate, fun0, global, 0, nullptr).Check();
 
   Handle<Object> fun1 =
       JSReceiver::GetProperty(isolate, isolate->global_object(), "foo")
@@ -416,10 +417,10 @@ TEST(CompileFunctionInContext) {
       "y = r * sin(PI / 2);"));
   v8::Local<v8::Function> fun =
       v8::ScriptCompiler::CompileFunctionInContext(env.local(), &script_source,
-                                                   0, NULL, 1, &math)
+                                                   0, nullptr, 1, &math)
           .ToLocalChecked();
   CHECK(!fun.IsEmpty());
-  fun->Call(env.local(), env->Global(), 0, NULL).ToLocalChecked();
+  fun->Call(env.local(), env->Global(), 0, nullptr).ToLocalChecked();
   CHECK(env->Global()->Has(env.local(), v8_str("a")).FromJust());
   v8::Local<v8::Value> a =
       env->Global()->Get(env.local(), v8_str("a")).ToLocalChecked();
@@ -456,10 +457,10 @@ TEST(CompileFunctionInContextComplex) {
   v8::ScriptCompiler::Source script_source(v8_str("result = x + y + z"));
   v8::Local<v8::Function> fun =
       v8::ScriptCompiler::CompileFunctionInContext(env.local(), &script_source,
-                                                   0, NULL, 2, ext)
+                                                   0, nullptr, 2, ext)
           .ToLocalChecked();
   CHECK(!fun.IsEmpty());
-  fun->Call(env.local(), env->Global(), 0, NULL).ToLocalChecked();
+  fun->Call(env.local(), env->Global(), 0, nullptr).ToLocalChecked();
   CHECK(env->Global()->Has(env.local(), v8_str("result")).FromJust());
   v8::Local<v8::Value> result =
       env->Global()->Get(env.local(), v8_str("result")).ToLocalChecked();
@@ -526,7 +527,7 @@ TEST(CompileFunctionInContextNonIdentifierArgs) {
   v8::ScriptCompiler::Source script_source(v8_str("result = 1"));
   v8::Local<v8::String> arg = v8_str("b }");
   CHECK(v8::ScriptCompiler::CompileFunctionInContext(
-            env.local(), &script_source, 1, &arg, 0, NULL)
+            env.local(), &script_source, 1, &arg, 0, nullptr)
             .IsEmpty());
 }
 
@@ -541,18 +542,18 @@ TEST(CompileFunctionInContextScriptOrigin) {
   v8::ScriptCompiler::Source script_source(v8_str("throw new Error()"), origin);
   v8::Local<v8::Function> fun =
       v8::ScriptCompiler::CompileFunctionInContext(env.local(), &script_source,
-                                                   0, NULL, 0, NULL)
+                                                   0, nullptr, 0, nullptr)
           .ToLocalChecked();
   CHECK(!fun.IsEmpty());
   v8::TryCatch try_catch(CcTest::isolate());
   CcTest::isolate()->SetCaptureStackTraceForUncaughtExceptions(true);
-  CHECK(fun->Call(env.local(), env->Global(), 0, NULL).IsEmpty());
+  CHECK(fun->Call(env.local(), env->Global(), 0, nullptr).IsEmpty());
   CHECK(try_catch.HasCaught());
   CHECK(!try_catch.Exception().IsEmpty());
   v8::Local<v8::StackTrace> stack =
       v8::Exception::GetStackTrace(try_catch.Exception());
   CHECK(!stack.IsEmpty());
-  CHECK(stack->GetFrameCount() > 0);
+  CHECK_GT(stack->GetFrameCount(), 0);
   v8::Local<v8::StackFrame> frame = stack->GetFrame(0);
   CHECK_EQ(23, frame->GetLineNumber());
   CHECK_EQ(42 + strlen("throw "), static_cast<unsigned>(frame->GetColumn()));

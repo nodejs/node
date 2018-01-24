@@ -8,6 +8,7 @@
 #include "src/code-factory.h"
 #include "src/compilation-dependencies.h"
 #include "src/compiler/access-builder.h"
+#include "src/compiler/allocation-builder.h"
 #include "src/compiler/common-operator.h"
 #include "src/compiler/js-graph.h"
 #include "src/compiler/js-operator.h"
@@ -24,84 +25,6 @@ namespace internal {
 namespace compiler {
 
 namespace {
-
-// A helper class to construct inline allocations on the simplified operator
-// level. This keeps track of the effect chain for initial stores on a newly
-// allocated object and also provides helpers for commonly allocated objects.
-class AllocationBuilder final {
- public:
-  AllocationBuilder(JSGraph* jsgraph, Node* effect, Node* control)
-      : jsgraph_(jsgraph),
-        allocation_(nullptr),
-        effect_(effect),
-        control_(control) {}
-
-  // Primitive allocation of static size.
-  void Allocate(int size, PretenureFlag pretenure = NOT_TENURED,
-                Type* type = Type::Any()) {
-    DCHECK_LE(size, kMaxRegularHeapObjectSize);
-    effect_ = graph()->NewNode(
-        common()->BeginRegion(RegionObservability::kNotObservable), effect_);
-    allocation_ =
-        graph()->NewNode(simplified()->Allocate(type, pretenure),
-                         jsgraph()->Constant(size), effect_, control_);
-    effect_ = allocation_;
-  }
-
-  // Primitive store into a field.
-  void Store(const FieldAccess& access, Node* value) {
-    effect_ = graph()->NewNode(simplified()->StoreField(access), allocation_,
-                               value, effect_, control_);
-  }
-
-  // Primitive store into an element.
-  void Store(ElementAccess const& access, Node* index, Node* value) {
-    effect_ = graph()->NewNode(simplified()->StoreElement(access), allocation_,
-                               index, value, effect_, control_);
-  }
-
-  // Compound allocation of a FixedArray.
-  void AllocateArray(int length, Handle<Map> map,
-                     PretenureFlag pretenure = NOT_TENURED) {
-    DCHECK(map->instance_type() == FIXED_ARRAY_TYPE ||
-           map->instance_type() == FIXED_DOUBLE_ARRAY_TYPE);
-    int size = (map->instance_type() == FIXED_ARRAY_TYPE)
-                   ? FixedArray::SizeFor(length)
-                   : FixedDoubleArray::SizeFor(length);
-    Allocate(size, pretenure, Type::OtherInternal());
-    Store(AccessBuilder::ForMap(), map);
-    Store(AccessBuilder::ForFixedArrayLength(), jsgraph()->Constant(length));
-  }
-
-  // Compound store of a constant into a field.
-  void Store(const FieldAccess& access, Handle<Object> value) {
-    Store(access, jsgraph()->Constant(value));
-  }
-
-  void FinishAndChange(Node* node) {
-    NodeProperties::SetType(allocation_, NodeProperties::GetType(node));
-    node->ReplaceInput(0, allocation_);
-    node->ReplaceInput(1, effect_);
-    node->TrimInputCount(2);
-    NodeProperties::ChangeOp(node, common()->FinishRegion());
-  }
-
-  Node* Finish() {
-    return graph()->NewNode(common()->FinishRegion(), allocation_, effect_);
-  }
-
- protected:
-  JSGraph* jsgraph() { return jsgraph_; }
-  Graph* graph() { return jsgraph_->graph(); }
-  CommonOperatorBuilder* common() { return jsgraph_->common(); }
-  SimplifiedOperatorBuilder* simplified() { return jsgraph_->simplified(); }
-
- private:
-  JSGraph* const jsgraph_;
-  Node* allocation_;
-  Node* effect_;
-  Node* control_;
-};
 
 // Retrieves the frame state holding actual argument values.
 Node* GetArgumentsFrameState(Node* frame_state) {
@@ -214,6 +137,8 @@ Reduction JSCreateLowering::Reduce(Node* node) {
       return ReduceJSCreateArguments(node);
     case IrOpcode::kJSCreateArray:
       return ReduceJSCreateArray(node);
+    case IrOpcode::kJSCreateBoundFunction:
+      return ReduceJSCreateBoundFunction(node);
     case IrOpcode::kJSCreateClosure:
       return ReduceJSCreateClosure(node);
     case IrOpcode::kJSCreateIterResultObject:
@@ -926,6 +851,46 @@ Reduction JSCreateLowering::ReduceJSCreateArray(Node* node) {
   return ReduceNewArrayToStubCall(node, site);
 }
 
+Reduction JSCreateLowering::ReduceJSCreateBoundFunction(Node* node) {
+  DCHECK_EQ(IrOpcode::kJSCreateBoundFunction, node->opcode());
+  CreateBoundFunctionParameters const& p =
+      CreateBoundFunctionParametersOf(node->op());
+  int const arity = static_cast<int>(p.arity());
+  Handle<Map> const map = p.map();
+  Node* bound_target_function = NodeProperties::GetValueInput(node, 0);
+  Node* bound_this = NodeProperties::GetValueInput(node, 1);
+  Node* effect = NodeProperties::GetEffectInput(node);
+  Node* control = NodeProperties::GetControlInput(node);
+
+  // Create the [[BoundArguments]] for the result.
+  Node* bound_arguments = jsgraph()->EmptyFixedArrayConstant();
+  if (arity > 0) {
+    AllocationBuilder a(jsgraph(), effect, control);
+    a.AllocateArray(arity, factory()->fixed_array_map());
+    for (int i = 0; i < arity; ++i) {
+      a.Store(AccessBuilder::ForFixedArraySlot(i),
+              NodeProperties::GetValueInput(node, 2 + i));
+    }
+    bound_arguments = effect = a.Finish();
+  }
+
+  // Create the JSBoundFunction result.
+  AllocationBuilder a(jsgraph(), effect, control);
+  a.Allocate(JSBoundFunction::kSize, NOT_TENURED, Type::BoundFunction());
+  a.Store(AccessBuilder::ForMap(), map);
+  a.Store(AccessBuilder::ForJSObjectPropertiesOrHash(),
+          jsgraph()->EmptyFixedArrayConstant());
+  a.Store(AccessBuilder::ForJSObjectElements(),
+          jsgraph()->EmptyFixedArrayConstant());
+  a.Store(AccessBuilder::ForJSBoundFunctionBoundTargetFunction(),
+          bound_target_function);
+  a.Store(AccessBuilder::ForJSBoundFunctionBoundThis(), bound_this);
+  a.Store(AccessBuilder::ForJSBoundFunctionBoundArguments(), bound_arguments);
+  RelaxControls(node);
+  a.FinishAndChange(node);
+  return Changed(node);
+}
+
 Reduction JSCreateLowering::ReduceJSCreateClosure(Node* node) {
   DCHECK_EQ(IrOpcode::kJSCreateClosure, node->opcode());
   CreateClosureParameters const& p = CreateClosureParametersOf(node->op());
@@ -955,13 +920,16 @@ Reduction JSCreateLowering::ReduceJSCreateClosure(Node* node) {
             jsgraph()->EmptyFixedArrayConstant());
     a.Store(AccessBuilder::ForJSObjectElements(),
             jsgraph()->EmptyFixedArrayConstant());
-    a.Store(AccessBuilder::ForJSFunctionPrototypeOrInitialMap(),
-            jsgraph()->TheHoleConstant());
     a.Store(AccessBuilder::ForJSFunctionSharedFunctionInfo(), shared);
     a.Store(AccessBuilder::ForJSFunctionContext(), context);
     a.Store(AccessBuilder::ForJSFunctionFeedbackVector(), vector_cell);
     a.Store(AccessBuilder::ForJSFunctionCode(), lazy_compile_builtin);
-    STATIC_ASSERT(JSFunction::kSize == 8 * kPointerSize);
+    STATIC_ASSERT(JSFunction::kSizeWithoutPrototype == 7 * kPointerSize);
+    if (function_map->has_prototype_slot()) {
+      a.Store(AccessBuilder::ForJSFunctionPrototypeOrInitialMap(),
+              jsgraph()->TheHoleConstant());
+      STATIC_ASSERT(JSFunction::kSizeWithPrototype == 8 * kPointerSize);
+    }
     for (int i = 0; i < function_map->GetInObjectProperties(); i++) {
       a.Store(AccessBuilder::ForJSObjectInObjectProperty(function_map, i),
               jsgraph()->UndefinedConstant());

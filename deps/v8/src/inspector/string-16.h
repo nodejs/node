@@ -37,6 +37,7 @@ class String16 {
   static String16 fromDouble(double);
   static String16 fromDouble(double, int precision);
 
+  int64_t toInteger64(bool* ok = nullptr) const;
   int toInteger(bool* ok = nullptr) const;
   String16 stripWhiteSpace() const;
   const UChar* characters16() const { return m_impl.c_str(); }

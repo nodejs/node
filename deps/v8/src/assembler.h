@@ -54,6 +54,9 @@ namespace v8 {
 class ApiFunction;
 
 namespace internal {
+namespace wasm {
+class WasmCode;
+}
 
 // Forward declarations.
 class Isolate;
@@ -287,12 +290,12 @@ class CpuFeatures : public AllStatic {
   static inline bool SupportsWasmSimd128();
 
   static inline unsigned icache_line_size() {
-    DCHECK(icache_line_size_ != 0);
+    DCHECK_NE(icache_line_size_, 0);
     return icache_line_size_;
   }
 
   static inline unsigned dcache_line_size() {
-    DCHECK(dcache_line_size_ != 0);
+    DCHECK_NE(dcache_line_size_, 0);
     return dcache_line_size_;
   }
 
@@ -364,10 +367,10 @@ class RelocInfo {
     // wasm code. Everything after WASM_CONTEXT_REFERENCE (inclusive) is not
     // GC'ed.
     WASM_CONTEXT_REFERENCE,
-    WASM_GLOBAL_REFERENCE,
     WASM_FUNCTION_TABLE_SIZE_REFERENCE,
-    WASM_PROTECTED_INSTRUCTION_LANDING,
     WASM_GLOBAL_HANDLE,
+    WASM_CALL,
+    JS_TO_WASM_CALL,
 
     RUNTIME_ENTRY,
     COMMENT,
@@ -423,6 +426,7 @@ class RelocInfo {
   static inline bool IsRuntimeEntry(Mode mode) {
     return mode == RUNTIME_ENTRY;
   }
+  static inline bool IsWasmCall(Mode mode) { return mode == WASM_CALL; }
   // Is the relocation mode affected by GC?
   static inline bool IsGCRelocMode(Mode mode) {
     return mode <= LAST_GCED_ENUM;
@@ -460,9 +464,6 @@ class RelocInfo {
   static inline bool IsWasmContextReference(Mode mode) {
     return mode == WASM_CONTEXT_REFERENCE;
   }
-  static inline bool IsWasmGlobalReference(Mode mode) {
-    return mode == WASM_GLOBAL_REFERENCE;
-  }
   static inline bool IsWasmFunctionTableSizeReference(Mode mode) {
     return mode == WASM_FUNCTION_TABLE_SIZE_REFERENCE;
   }
@@ -473,11 +474,8 @@ class RelocInfo {
     return IsWasmFunctionTableSizeReference(mode);
   }
   static inline bool IsWasmPtrReference(Mode mode) {
-    return mode == WASM_CONTEXT_REFERENCE || mode == WASM_GLOBAL_REFERENCE ||
-           mode == WASM_GLOBAL_HANDLE;
-  }
-  static inline bool IsWasmProtectedLanding(Mode mode) {
-    return mode == WASM_PROTECTED_INSTRUCTION_LANDING;
+    return mode == WASM_CONTEXT_REFERENCE || mode == WASM_GLOBAL_HANDLE ||
+           mode == WASM_CALL || mode == JS_TO_WASM_CALL;
   }
 
   static inline int ModeMask(Mode mode) { return 1 << mode; }
@@ -488,7 +486,6 @@ class RelocInfo {
   Mode rmode() const {  return rmode_; }
   intptr_t data() const { return data_; }
   Code* host() const { return host_; }
-  void set_host(Code* host) { host_ = host; }
 
   // Apply a relocation by delta bytes. When the code object is moved, PC
   // relative addresses have to be updated as well as absolute addresses
@@ -506,16 +503,13 @@ class RelocInfo {
   bool IsInConstantPool();
 
   Address wasm_context_reference() const;
-  Address wasm_global_reference() const;
   uint32_t wasm_function_table_size_reference() const;
-  uint32_t wasm_memory_size_reference() const;
   Address global_handle() const;
+  Address js_to_wasm_address() const;
+  Address wasm_call_address() const;
 
   void set_wasm_context_reference(
       Isolate* isolate, Address address,
-      ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
-  void update_wasm_global_reference(
-      Isolate* isolate, Address old_base, Address new_base,
       ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
   void update_wasm_function_table_size_reference(
       Isolate* isolate, uint32_t old_base, uint32_t new_base,
@@ -527,6 +521,12 @@ class RelocInfo {
 
   void set_global_handle(
       Isolate* isolate, Address address,
+      ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
+  void set_wasm_call_address(
+      Isolate*, Address,
+      ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
+  void set_js_to_wasm_address(
+      Isolate*, Address,
       ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
 
   // this relocation applies to;
@@ -625,7 +625,11 @@ class RelocInfo {
   byte* pc_;
   Mode rmode_;
   intptr_t data_;
+  // TODO(mtrofin): try remove host_, if all we need is the constant_pool_ or
+  // other few attributes, like start address, etc. This is so that we can reuse
+  // RelocInfo for WasmCode without having a modal design.
   Code* host_;
+  Address constant_pool_ = nullptr;
   friend class RelocIterator;
 };
 
@@ -634,7 +638,7 @@ class RelocInfo {
 // lower addresses.
 class RelocInfoWriter BASE_EMBEDDED {
  public:
-  RelocInfoWriter() : pos_(NULL), last_pc_(NULL) {}
+  RelocInfoWriter() : pos_(nullptr), last_pc_(nullptr) {}
   RelocInfoWriter(byte* pos, byte* pc) : pos_(pos), last_pc_(pc) {}
 
   byte* pos() const { return pos_; }
@@ -691,6 +695,11 @@ class RelocIterator: public Malloced {
   // iteration iff bit k of mode_mask is set.
   explicit RelocIterator(Code* code, int mode_mask = -1);
   explicit RelocIterator(const CodeDesc& desc, int mode_mask = -1);
+  explicit RelocIterator(Vector<byte> instructions,
+                         Vector<const byte> reloc_info, Address const_pool,
+                         int mode_mask = -1);
+  RelocIterator(RelocIterator&&) = default;
+  RelocIterator& operator=(RelocIterator&&) = default;
 
   // Iteration
   bool done() const { return done_; }
@@ -725,8 +734,8 @@ class RelocIterator: public Malloced {
     return (mode_mask_ & (1 << mode)) ? (rinfo_.rmode_ = mode, true) : false;
   }
 
-  byte* pos_;
-  byte* end_;
+  const byte* pos_;
+  const byte* end_;
   RelocInfo rinfo_;
   bool done_;
   int mode_mask_;
@@ -799,7 +808,7 @@ class ExternalReference BASE_EMBEDDED {
   typedef void* ExternalReferenceRedirector(Isolate* isolate, void* original,
                                             Type type);
 
-  ExternalReference() : address_(NULL) {}
+  ExternalReference() : address_(nullptr) {}
 
   ExternalReference(Address address, Isolate* isolate);
 
@@ -898,9 +907,6 @@ class ExternalReference BASE_EMBEDDED {
   // Static variable RegExpStack::limit_address()
   static ExternalReference address_of_regexp_stack_limit(Isolate* isolate);
 
-  // Direct access to FLAG_harmony_regexp_dotall.
-  static ExternalReference address_of_regexp_dotall_flag(Isolate* isolate);
-
   // Static variables for RegExp.
   static ExternalReference address_of_static_offsets_vector(Isolate* isolate);
   static ExternalReference address_of_regexp_stack_memory_address(
@@ -969,6 +975,8 @@ class ExternalReference BASE_EMBEDDED {
   static ExternalReference libc_memmove_function(Isolate* isolate);
   static ExternalReference libc_memset_function(Isolate* isolate);
 
+  static ExternalReference printf_function(Isolate* isolate);
+
   static ExternalReference try_internalize_string_function(Isolate* isolate);
 
   static ExternalReference check_object_type(Isolate* isolate);
@@ -984,6 +992,7 @@ class ExternalReference BASE_EMBEDDED {
   static ExternalReference orderedhashmap_gethash_raw(Isolate* isolate);
 
   static ExternalReference get_or_create_hash_raw(Isolate* isolate);
+  static ExternalReference jsreceiver_create_identity_hash(Isolate* isolate);
 
   static ExternalReference copy_fast_number_jsarray_elements_to_typed_array(
       Isolate* isolate);
@@ -1045,6 +1054,8 @@ class ExternalReference BASE_EMBEDDED {
 
   static ExternalReference stress_deopt_count(Isolate* isolate);
 
+  static ExternalReference force_slow_path(Isolate* isolate);
+
   static ExternalReference fixed_typed_array_base_data_offset();
 
  private:
@@ -1058,8 +1069,9 @@ class ExternalReference BASE_EMBEDDED {
         reinterpret_cast<ExternalReferenceRedirector*>(
             isolate->external_reference_redirector());
     void* address = reinterpret_cast<void*>(address_arg);
-    void* answer =
-        (redirector == NULL) ? address : (*redirector)(isolate, address, type);
+    void* answer = (redirector == nullptr)
+                       ? address
+                       : (*redirector)(isolate, address, type);
     return answer;
   }
 
@@ -1110,11 +1122,11 @@ class ConstantPoolEntry {
     DCHECK(is_merged());
   }
   int offset(void) const {
-    DCHECK(merged_index_ >= 0);
+    DCHECK_GE(merged_index_, 0);
     return merged_index_;
   }
   void set_offset(int offset) {
-    DCHECK(offset >= 0);
+    DCHECK_GE(offset, 0);
     merged_index_ = offset;
   }
   intptr_t value() const { return value_; }
@@ -1263,6 +1275,10 @@ class HeapObjectRequest {
 // and best performance in optimized code.
 template <typename SubType, int kAfterLastRegister>
 class RegisterBase {
+  // Internal enum class; used for calling constexpr methods, where we need to
+  // pass an integral type as template parameter.
+  enum class RegisterCode : int { kFirst = 0, kAfterLast = kAfterLastRegister };
+
  public:
   static constexpr int kCode_no_reg = -1;
   static constexpr int kNumRegisters = kAfterLastRegister;
@@ -1275,10 +1291,32 @@ class RegisterBase {
     return SubType{code};
   }
 
+  constexpr operator RegisterCode() const {
+    return static_cast<RegisterCode>(reg_code_);
+  }
+
+  template <RegisterCode reg_code>
+  static constexpr int code() {
+    static_assert(
+        reg_code >= RegisterCode::kFirst && reg_code < RegisterCode::kAfterLast,
+        "must be valid reg");
+    return static_cast<int>(reg_code);
+  }
+
+  template <RegisterCode reg_code>
+  static constexpr int bit() {
+    return 1 << code<reg_code>();
+  }
+
   static SubType from_code(int code) {
     DCHECK_LE(0, code);
     DCHECK_GT(kNumRegisters, code);
     return SubType{code};
+  }
+
+  template <RegisterCode... reg_codes>
+  static constexpr RegList ListOf() {
+    return CombineRegLists(RegisterBase::bit<reg_codes>()...);
   }
 
   bool is_valid() const { return reg_code_ != kCode_no_reg; }

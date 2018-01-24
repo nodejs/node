@@ -116,12 +116,6 @@
 }],  # 'gcov_coverage'
 
 ##############################################################################
-['variant == stress_asm_wasm', {
-  # Stack size too large with asm.js validator.
-  'fast/js/excessive-comma-usage': [SKIP],
-}],  # variant == stress_asm_wasm
-
-##############################################################################
 ['variant == wasm_traps', {
   '*': [SKIP],
 }],  # variant == wasm_traps

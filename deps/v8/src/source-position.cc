@@ -64,8 +64,8 @@ std::vector<SourcePositionInfo> SourcePosition::InliningStack(
 
 std::vector<SourcePositionInfo> SourcePosition::InliningStack(
     Handle<Code> code) const {
-  Handle<DeoptimizationInputData> deopt_data(
-      DeoptimizationInputData::cast(code->deoptimization_data()));
+  Handle<DeoptimizationData> deopt_data(
+      DeoptimizationData::cast(code->deoptimization_data()));
   SourcePosition pos = *this;
   std::vector<SourcePositionInfo> stack;
   while (pos.isInlined()) {
@@ -103,8 +103,8 @@ void SourcePosition::Print(std::ostream& out,
 }
 
 void SourcePosition::Print(std::ostream& out, Code* code) const {
-  DeoptimizationInputData* deopt_data =
-      DeoptimizationInputData::cast(code->deoptimization_data());
+  DeoptimizationData* deopt_data =
+      DeoptimizationData::cast(code->deoptimization_data());
   if (!isInlined()) {
     SharedFunctionInfo* function(
         SharedFunctionInfo::cast(deopt_data->SharedFunctionInfo()));

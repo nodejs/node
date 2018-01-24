@@ -43,26 +43,26 @@ class IntSet {
   explicit IntSet(IntKeyHash hash) : hash_(hash) {}
 
   void Insert(int x) {
-    CHECK_NE(0, x);  // 0 corresponds to (void*)NULL - illegal key value
+    CHECK_NE(0, x);  // 0 corresponds to (void*)nullptr - illegal key value
     v8::base::HashMap::Entry* p =
         map_.LookupOrInsert(reinterpret_cast<void*>(x), hash_(x));
-    CHECK(p != NULL);  // insert is set!
+    CHECK_NOT_NULL(p);  // insert is set!
     CHECK_EQ(reinterpret_cast<void*>(x), p->key);
     // we don't care about p->value
   }
 
   void Remove(int x) {
-    CHECK_NE(0, x);  // 0 corresponds to (void*)NULL - illegal key value
+    CHECK_NE(0, x);  // 0 corresponds to (void*)nullptr - illegal key value
     map_.Remove(reinterpret_cast<void*>(x), hash_(x));
   }
 
   bool Present(int x) {
     v8::base::HashMap::Entry* p =
         map_.Lookup(reinterpret_cast<void*>(x), hash_(x));
-    if (p != NULL) {
+    if (p != nullptr) {
       CHECK_EQ(reinterpret_cast<void*>(x), p->key);
     }
-    return p != NULL;
+    return p != nullptr;
   }
 
   void Clear() {
@@ -71,7 +71,7 @@ class IntSet {
 
   uint32_t occupancy() const {
     uint32_t count = 0;
-    for (v8::base::HashMap::Entry* p = map_.Start(); p != NULL;
+    for (v8::base::HashMap::Entry* p = map_.Start(); p != nullptr;
          p = map_.Next(p)) {
       count++;
     }

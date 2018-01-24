@@ -62,9 +62,9 @@ shouldThrow("x = class { set constructor() {} }", "'SyntaxError: Class construct
 shouldNotThrow("x = class { constructor() {} static constructor() { return staticMethodValue; } }");
 shouldBe("x = class { constructor() {} static constructor() { return staticMethodValue; } }; x.constructor()", "staticMethodValue");
 
-shouldThrow("x = class { constructor() {} static prototype() {} }", "'SyntaxError: Classes may not have static property named prototype'");
-shouldThrow("x = class { constructor() {} static get prototype() {} }", "'SyntaxError: Classes may not have static property named prototype'");
-shouldThrow("x = class { constructor() {} static set prototype() {} }", "'SyntaxError: Classes may not have static property named prototype'");
+shouldThrow("x = class { constructor() {} static prototype() {} }", '"SyntaxError: Classes may not have a static property named \'prototype\'"');
+shouldThrow("x = class { constructor() {} static get prototype() {} }", '"SyntaxError: Classes may not have a static property named \'prototype\'"');
+shouldThrow("x = class { constructor() {} static set prototype() {} }", '"SyntaxError: Classes may not have a static property named \'prototype\'"');
 shouldNotThrow("x = class  { constructor() {} prototype() { return instanceMethodValue; } }");
 shouldBe("x = class { constructor() {} prototype() { return instanceMethodValue; } }; (new x).prototype()", "instanceMethodValue");
 

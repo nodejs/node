@@ -140,7 +140,7 @@ void Decoder::PrintSoftwareInterrupt(SoftwareInterruptCodes svc) {
 // Handle all register based formatting in this function to reduce the
 // complexity of FormatOption.
 int Decoder::FormatRegister(Instruction* instr, const char* format) {
-  DCHECK(format[0] == 'r');
+  DCHECK_EQ(format[0], 'r');
 
   if (format[1] == '1') {  // 'r1: register resides in bit 8-11
     RRInstruction* rrinstr = reinterpret_cast<RRInstruction*>(instr);
@@ -191,7 +191,7 @@ int Decoder::FormatRegister(Instruction* instr, const char* format) {
 }
 
 int Decoder::FormatFloatingRegister(Instruction* instr, const char* format) {
-  DCHECK(format[0] == 'f');
+  DCHECK_EQ(format[0], 'f');
 
   // reuse 1, 5 and 6 because it is coresponding
   if (format[1] == '1') {  // 'r1: register resides in bit 8-11
@@ -305,7 +305,7 @@ int Decoder::FormatOption(Instruction* instr, const char* format) {
 }
 
 int Decoder::FormatMask(Instruction* instr, const char* format) {
-  DCHECK(format[0] == 'm');
+  DCHECK_EQ(format[0], 'm');
   int32_t value = 0;
   if ((format[1] == '1')) {  // prints the mask format in bits 8-12
     value = reinterpret_cast<RRInstruction*>(instr)->R1Value();
@@ -326,7 +326,7 @@ int Decoder::FormatMask(Instruction* instr, const char* format) {
 }
 
 int Decoder::FormatDisplacement(Instruction* instr, const char* format) {
-  DCHECK(format[0] == 'd');
+  DCHECK_EQ(format[0], 'd');
 
   if (format[1] == '1') {  // displacement in 20-31
     RSInstruction* rsinstr = reinterpret_cast<RSInstruction*>(instr);
@@ -357,7 +357,7 @@ int Decoder::FormatDisplacement(Instruction* instr, const char* format) {
 }
 
 int Decoder::FormatImmediate(Instruction* instr, const char* format) {
-  DCHECK(format[0] == 'i');
+  DCHECK_EQ(format[0], 'i');
 
   if (format[1] == '1') {  // immediate in 16-31
     RIInstruction* riinstr = reinterpret_cast<RIInstruction*>(instr);

@@ -16,6 +16,8 @@ namespace v8 {
 namespace internal {
 namespace interpreter {
 
+#define B(Name) static_cast<uint8_t>(Bytecode::k##Name)
+
 TEST(BytecodeDecoder, DecodeBytecodeAndOperands) {
   struct BytecodesAndResult {
     const uint8_t bytecode[32];
@@ -94,6 +96,8 @@ TEST(BytecodeDecoder, DecodeBytecodeAndOperands) {
     CHECK_EQ(actual_ss.str(), expected_ss.str());
   }
 }
+
+#undef B
 
 }  // namespace interpreter
 }  // namespace internal

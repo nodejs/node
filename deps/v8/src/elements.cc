@@ -71,7 +71,7 @@ enum Where { AT_START, AT_END };
   V(FastPackedDoubleElementsAccessor, PACKED_DOUBLE_ELEMENTS,                 \
     FixedDoubleArray)                                                         \
   V(FastHoleyDoubleElementsAccessor, HOLEY_DOUBLE_ELEMENTS, FixedDoubleArray) \
-  V(DictionaryElementsAccessor, DICTIONARY_ELEMENTS, SeededNumberDictionary)  \
+  V(DictionaryElementsAccessor, DICTIONARY_ELEMENTS, NumberDictionary)        \
   V(FastSloppyArgumentsElementsAccessor, FAST_SLOPPY_ARGUMENTS_ELEMENTS,      \
     FixedArray)                                                               \
   V(SlowSloppyArgumentsElementsAccessor, SLOW_SLOPPY_ARGUMENTS_ELEMENTS,      \
@@ -161,7 +161,7 @@ static void CopyDictionaryToObjectElements(
     FixedArrayBase* from_base, uint32_t from_start, FixedArrayBase* to_base,
     ElementsKind to_kind, uint32_t to_start, int raw_copy_size) {
   DisallowHeapAllocation no_allocation;
-  SeededNumberDictionary* from = SeededNumberDictionary::cast(from_base);
+  NumberDictionary* from = NumberDictionary::cast(from_base);
   int copy_size = raw_copy_size;
   if (raw_copy_size < 0) {
     DCHECK(raw_copy_size == ElementsAccessor::kCopyToEnd ||
@@ -190,7 +190,7 @@ static void CopyDictionaryToObjectElements(
   Isolate* isolate = from->GetIsolate();
   for (int i = 0; i < copy_size; i++) {
     int entry = from->FindEntry(isolate, i + from_start);
-    if (entry != SeededNumberDictionary::kNotFound) {
+    if (entry != NumberDictionary::kNotFound) {
       Object* value = from->ValueAt(entry);
       DCHECK(!value->IsTheHole(isolate));
       to->set(i + to_start, value, write_barrier_mode);
@@ -401,7 +401,7 @@ static void CopyDictionaryToDoubleElements(FixedArrayBase* from_base,
                                            uint32_t to_start,
                                            int raw_copy_size) {
   DisallowHeapAllocation no_allocation;
-  SeededNumberDictionary* from = SeededNumberDictionary::cast(from_base);
+  NumberDictionary* from = NumberDictionary::cast(from_base);
   int copy_size = raw_copy_size;
   if (copy_size < 0) {
     DCHECK(copy_size == ElementsAccessor::kCopyToEnd ||
@@ -422,7 +422,7 @@ static void CopyDictionaryToDoubleElements(FixedArrayBase* from_base,
   Isolate* isolate = from->GetIsolate();
   for (int i = 0; i < copy_size; i++) {
     int entry = from->FindEntry(isolate, i + from_start);
-    if (entry != SeededNumberDictionary::kNotFound) {
+    if (entry != NumberDictionary::kNotFound) {
       to->set(i + to_start, from->ValueAt(entry)->Number());
     } else {
       to->set_the_hole(i + to_start);
@@ -911,7 +911,7 @@ class ElementsAccessorBase : public ElementsAccessor {
       // Array optimizations rely on the prototype lookups of Array objects
       // always returning undefined. If there is a store to the initial
       // prototype object, make sure all of these optimizations are invalidated.
-      object->GetIsolate()->UpdateArrayProtectorOnSetLength(object);
+      object->GetIsolate()->UpdateNoElementsProtectorOnSetLength(object);
     }
     Handle<FixedArrayBase> old_elements(object->elements());
     // This method should only be called if there's a reason to update the
@@ -1031,11 +1031,11 @@ class ElementsAccessorBase : public ElementsAccessor {
     UNREACHABLE();
   }
 
-  Handle<SeededNumberDictionary> Normalize(Handle<JSObject> object) final {
+  Handle<NumberDictionary> Normalize(Handle<JSObject> object) final {
     return Subclass::NormalizeImpl(object, handle(object->elements()));
   }
 
-  static Handle<SeededNumberDictionary> NormalizeImpl(
+  static Handle<NumberDictionary> NormalizeImpl(
       Handle<JSObject> object, Handle<FixedArrayBase> elements) {
     UNREACHABLE();
   }
@@ -1365,15 +1365,15 @@ class DictionaryElementsAccessor
 
   static uint32_t NumberOfElementsImpl(JSObject* receiver,
                                        FixedArrayBase* backing_store) {
-    SeededNumberDictionary* dict = SeededNumberDictionary::cast(backing_store);
+    NumberDictionary* dict = NumberDictionary::cast(backing_store);
     return dict->NumberOfElements();
   }
 
   static void SetLengthImpl(Isolate* isolate, Handle<JSArray> array,
                             uint32_t length,
                             Handle<FixedArrayBase> backing_store) {
-    Handle<SeededNumberDictionary> dict =
-        Handle<SeededNumberDictionary>::cast(backing_store);
+    Handle<NumberDictionary> dict =
+        Handle<NumberDictionary>::cast(backing_store);
     int capacity = dict->Capacity();
     uint32_t old_length = 0;
     CHECK(array->length()->ToArrayLength(&old_length));
@@ -1429,18 +1429,47 @@ class DictionaryElementsAccessor
     UNREACHABLE();
   }
 
+  static Handle<JSObject> SliceImpl(Handle<JSObject> receiver, uint32_t start,
+                                    uint32_t end) {
+    Isolate* isolate = receiver->GetIsolate();
+    uint32_t result_length = end < start ? 0u : end - start;
+
+    // Result must also be a dictionary.
+    Handle<JSArray> result_array =
+        isolate->factory()->NewJSArray(0, HOLEY_ELEMENTS);
+    JSObject::NormalizeElements(result_array);
+    result_array->set_length(Smi::FromInt(result_length));
+    Handle<NumberDictionary> source_dict(
+        NumberDictionary::cast(receiver->elements()));
+    int entry_count = source_dict->Capacity();
+    for (int i = 0; i < entry_count; i++) {
+      Object* key = source_dict->KeyAt(i);
+      if (!source_dict->ToKey(isolate, i, &key)) continue;
+      uint64_t key_value = NumberToInt64(key);
+      if (key_value >= start && key_value < end) {
+        Handle<NumberDictionary> dest_dict(
+            NumberDictionary::cast(result_array->elements()));
+        Handle<Object> value(source_dict->ValueAt(i), isolate);
+        PropertyDetails details = source_dict->DetailsAt(i);
+        PropertyAttributes attr = details.attributes();
+        AddImpl(result_array, static_cast<uint32_t>(key_value) - start, value,
+                attr, 0);
+      }
+    }
+
+    return result_array;
+  }
 
   static void DeleteImpl(Handle<JSObject> obj, uint32_t entry) {
-    Handle<SeededNumberDictionary> dict(
-        SeededNumberDictionary::cast(obj->elements()));
-    dict = SeededNumberDictionary::DeleteEntry(dict, entry);
+    Handle<NumberDictionary> dict(NumberDictionary::cast(obj->elements()));
+    dict = NumberDictionary::DeleteEntry(dict, entry);
     obj->set_elements(*dict);
   }
 
   static bool HasAccessorsImpl(JSObject* holder,
                                FixedArrayBase* backing_store) {
     DisallowHeapAllocation no_gc;
-    SeededNumberDictionary* dict = SeededNumberDictionary::cast(backing_store);
+    NumberDictionary* dict = NumberDictionary::cast(backing_store);
     if (!dict->requires_slow_elements()) return false;
     int capacity = dict->Capacity();
     Isolate* isolate = dict->GetIsolate();
@@ -1454,7 +1483,7 @@ class DictionaryElementsAccessor
   }
 
   static Object* GetRaw(FixedArrayBase* store, uint32_t entry) {
-    SeededNumberDictionary* backing_store = SeededNumberDictionary::cast(store);
+    NumberDictionary* backing_store = NumberDictionary::cast(store);
     return backing_store->ValueAt(entry);
   }
 
@@ -1470,14 +1499,14 @@ class DictionaryElementsAccessor
 
   static inline void SetImpl(FixedArrayBase* backing_store, uint32_t entry,
                              Object* value) {
-    SeededNumberDictionary::cast(backing_store)->ValueAtPut(entry, value);
+    NumberDictionary::cast(backing_store)->ValueAtPut(entry, value);
   }
 
   static void ReconfigureImpl(Handle<JSObject> object,
                               Handle<FixedArrayBase> store, uint32_t entry,
                               Handle<Object> value,
                               PropertyAttributes attributes) {
-    SeededNumberDictionary* dictionary = SeededNumberDictionary::cast(*store);
+    NumberDictionary* dictionary = NumberDictionary::cast(*store);
     if (attributes != NONE) object->RequireSlowElements(dictionary);
     dictionary->ValueAtPut(entry, *value);
     PropertyDetails details = dictionary->DetailsAt(entry);
@@ -1491,12 +1520,12 @@ class DictionaryElementsAccessor
                       Handle<Object> value, PropertyAttributes attributes,
                       uint32_t new_capacity) {
     PropertyDetails details(kData, attributes, PropertyCellType::kNoCell);
-    Handle<SeededNumberDictionary> dictionary =
+    Handle<NumberDictionary> dictionary =
         object->HasFastElements() || object->HasFastStringWrapperElements()
             ? JSObject::NormalizeElements(object)
-            : handle(SeededNumberDictionary::cast(object->elements()));
-    Handle<SeededNumberDictionary> new_dictionary =
-        SeededNumberDictionary::Add(dictionary, index, value, details);
+            : handle(NumberDictionary::cast(object->elements()));
+    Handle<NumberDictionary> new_dictionary =
+        NumberDictionary::Add(dictionary, index, value, details);
     new_dictionary->UpdateMaxNumberKey(index, object);
     if (attributes != NONE) object->RequireSlowElements(*new_dictionary);
     if (dictionary.is_identical_to(new_dictionary)) return;
@@ -1506,14 +1535,14 @@ class DictionaryElementsAccessor
   static bool HasEntryImpl(Isolate* isolate, FixedArrayBase* store,
                            uint32_t entry) {
     DisallowHeapAllocation no_gc;
-    SeededNumberDictionary* dict = SeededNumberDictionary::cast(store);
+    NumberDictionary* dict = NumberDictionary::cast(store);
     Object* index = dict->KeyAt(entry);
     return !index->IsTheHole(isolate);
   }
 
   static uint32_t GetIndexForEntryImpl(FixedArrayBase* store, uint32_t entry) {
     DisallowHeapAllocation no_gc;
-    SeededNumberDictionary* dict = SeededNumberDictionary::cast(store);
+    NumberDictionary* dict = NumberDictionary::cast(store);
     uint32_t result = 0;
     CHECK(dict->KeyAt(entry)->ToArrayIndex(&result));
     return result;
@@ -1523,9 +1552,9 @@ class DictionaryElementsAccessor
                                        FixedArrayBase* store, uint32_t index,
                                        PropertyFilter filter) {
     DisallowHeapAllocation no_gc;
-    SeededNumberDictionary* dictionary = SeededNumberDictionary::cast(store);
+    NumberDictionary* dictionary = NumberDictionary::cast(store);
     int entry = dictionary->FindEntry(isolate, index);
-    if (entry == SeededNumberDictionary::kNotFound) return kMaxUInt32;
+    if (entry == NumberDictionary::kNotFound) return kMaxUInt32;
     if (filter != ALL_PROPERTIES) {
       PropertyDetails details = dictionary->DetailsAt(entry);
       PropertyAttributes attr = details.attributes();
@@ -1540,11 +1569,11 @@ class DictionaryElementsAccessor
 
   static PropertyDetails GetDetailsImpl(FixedArrayBase* backing_store,
                                         uint32_t entry) {
-    return SeededNumberDictionary::cast(backing_store)->DetailsAt(entry);
+    return NumberDictionary::cast(backing_store)->DetailsAt(entry);
   }
 
-  static uint32_t FilterKey(Handle<SeededNumberDictionary> dictionary,
-                            int entry, Object* raw_key, PropertyFilter filter) {
+  static uint32_t FilterKey(Handle<NumberDictionary> dictionary, int entry,
+                            Object* raw_key, PropertyFilter filter) {
     DCHECK(raw_key->IsNumber());
     DCHECK_LE(raw_key->Number(), kMaxUInt32);
     PropertyDetails details = dictionary->DetailsAt(entry);
@@ -1554,7 +1583,7 @@ class DictionaryElementsAccessor
   }
 
   static uint32_t GetKeyForEntryImpl(Isolate* isolate,
-                                     Handle<SeededNumberDictionary> dictionary,
+                                     Handle<NumberDictionary> dictionary,
                                      int entry, PropertyFilter filter) {
     DisallowHeapAllocation no_gc;
     Object* raw_key = dictionary->KeyAt(entry);
@@ -1567,8 +1596,8 @@ class DictionaryElementsAccessor
                                         KeyAccumulator* keys) {
     if (keys->filter() & SKIP_STRINGS) return;
     Isolate* isolate = keys->isolate();
-    Handle<SeededNumberDictionary> dictionary =
-        Handle<SeededNumberDictionary>::cast(backing_store);
+    Handle<NumberDictionary> dictionary =
+        Handle<NumberDictionary>::cast(backing_store);
     int capacity = dictionary->Capacity();
     Handle<FixedArray> elements = isolate->factory()->NewFixedArray(
         GetMaxNumberOfEntries(*object, *backing_store));
@@ -1599,8 +1628,8 @@ class DictionaryElementsAccessor
     if (filter & SKIP_STRINGS) return list;
     if (filter & ONLY_ALL_CAN_READ) return list;
 
-    Handle<SeededNumberDictionary> dictionary =
-        Handle<SeededNumberDictionary>::cast(backing_store);
+    Handle<NumberDictionary> dictionary =
+        Handle<NumberDictionary>::cast(backing_store);
     uint32_t capacity = dictionary->Capacity();
     for (uint32_t i = 0; i < capacity; i++) {
       uint32_t key = GetKeyForEntryImpl(isolate, dictionary, i, filter);
@@ -1617,8 +1646,8 @@ class DictionaryElementsAccessor
                                               KeyAccumulator* accumulator,
                                               AddKeyConversion convert) {
     Isolate* isolate = accumulator->isolate();
-    Handle<SeededNumberDictionary> dictionary(
-        SeededNumberDictionary::cast(receiver->elements()), isolate);
+    Handle<NumberDictionary> dictionary(
+        NumberDictionary::cast(receiver->elements()), isolate);
     int capacity = dictionary->Capacity();
     for (int i = 0; i < capacity; i++) {
       Object* k = dictionary->KeyAt(i);
@@ -1635,8 +1664,7 @@ class DictionaryElementsAccessor
                                     Handle<Object> value, uint32_t start_from,
                                     uint32_t length, Maybe<bool>* result) {
     DisallowHeapAllocation no_gc;
-    SeededNumberDictionary* dictionary =
-        SeededNumberDictionary::cast(receiver->elements());
+    NumberDictionary* dictionary = NumberDictionary::cast(receiver->elements());
     int capacity = dictionary->Capacity();
     Object* the_hole = isolate->heap()->the_hole_value();
     Object* undefined = isolate->heap()->undefined_value();
@@ -1683,13 +1711,13 @@ class DictionaryElementsAccessor
       }
     }
 
-    Handle<SeededNumberDictionary> dictionary(
-        SeededNumberDictionary::cast(receiver->elements()), isolate);
+    Handle<NumberDictionary> dictionary(
+        NumberDictionary::cast(receiver->elements()), isolate);
     // Iterate through entire range, as accessing elements out of order is
     // observable
     for (uint32_t k = start_from; k < length; ++k) {
       int entry = dictionary->FindEntry(isolate, k);
-      if (entry == SeededNumberDictionary::kNotFound) {
+      if (entry == NumberDictionary::kNotFound) {
         if (search_for_hole) return Just(true);
         continue;
       }
@@ -1737,8 +1765,8 @@ class DictionaryElementsAccessor
             return accessor->IncludesValue(isolate, receiver, value, k + 1,
                                            length);
           }
-          dictionary = handle(
-              SeededNumberDictionary::cast(receiver->elements()), isolate);
+          dictionary =
+              handle(NumberDictionary::cast(receiver->elements()), isolate);
           break;
         }
       }
@@ -1752,13 +1780,13 @@ class DictionaryElementsAccessor
                                          uint32_t start_from, uint32_t length) {
     DCHECK(JSObject::PrototypeHasNoElements(isolate, *receiver));
 
-    Handle<SeededNumberDictionary> dictionary(
-        SeededNumberDictionary::cast(receiver->elements()), isolate);
+    Handle<NumberDictionary> dictionary(
+        NumberDictionary::cast(receiver->elements()), isolate);
     // Iterate through entire range, as accessing elements out of order is
     // observable.
     for (uint32_t k = start_from; k < length; ++k) {
       int entry = dictionary->FindEntry(isolate, k);
-      if (entry == SeededNumberDictionary::kNotFound) {
+      if (entry == NumberDictionary::kNotFound) {
         continue;
       }
 
@@ -1799,8 +1827,8 @@ class DictionaryElementsAccessor
             return IndexOfValueSlowPath(isolate, receiver, value, k + 1,
                                         length);
           }
-          dictionary = handle(
-              SeededNumberDictionary::cast(receiver->elements()), isolate);
+          dictionary =
+              handle(NumberDictionary::cast(receiver->elements()), isolate);
           break;
         }
       }
@@ -1814,8 +1842,7 @@ class DictionaryElementsAccessor
     DCHECK_EQ(holder->map()->elements_kind(), DICTIONARY_ELEMENTS);
     if (!FLAG_enable_slow_asserts) return;
     Isolate* isolate = holder->GetIsolate();
-    SeededNumberDictionary* dictionary =
-        SeededNumberDictionary::cast(holder->elements());
+    NumberDictionary* dictionary = NumberDictionary::cast(holder->elements());
     // Validate the requires_slow_elements and max_number_key values.
     int capacity = dictionary->Capacity();
     bool requires_slow_elements = false;
@@ -1824,7 +1851,7 @@ class DictionaryElementsAccessor
       Object* k;
       if (!dictionary->ToKey(isolate, i, &k)) continue;
       DCHECK_LE(0.0, k->Number());
-      if (k->Number() > SeededNumberDictionary::kRequiresSlowElementsLimit) {
+      if (k->Number() > NumberDictionary::kRequiresSlowElementsLimit) {
         requires_slow_elements = true;
       } else {
         max_key = Max(max_key, Smi::ToInt(k));
@@ -1849,20 +1876,21 @@ class FastElementsAccessor : public ElementsAccessorBase<Subclass, KindTraits> {
 
   typedef typename KindTraits::BackingStore BackingStore;
 
-  static Handle<SeededNumberDictionary> NormalizeImpl(
-      Handle<JSObject> object, Handle<FixedArrayBase> store) {
+  static Handle<NumberDictionary> NormalizeImpl(Handle<JSObject> object,
+                                                Handle<FixedArrayBase> store) {
     Isolate* isolate = store->GetIsolate();
     ElementsKind kind = Subclass::kind();
 
     // Ensure that notifications fire if the array or object prototypes are
     // normalizing.
-    if (IsSmiOrObjectElementsKind(kind)) {
-      isolate->UpdateArrayProtectorOnNormalizeElements(object);
+    if (IsSmiOrObjectElementsKind(kind) ||
+        kind == FAST_STRING_WRAPPER_ELEMENTS) {
+      isolate->UpdateNoElementsProtectorOnNormalizeElements(object);
     }
 
     int capacity = object->GetFastElementsUsage();
-    Handle<SeededNumberDictionary> dictionary =
-        SeededNumberDictionary::New(isolate, capacity);
+    Handle<NumberDictionary> dictionary =
+        NumberDictionary::New(isolate, capacity);
 
     PropertyDetails details = PropertyDetails::Empty();
     int j = 0;
@@ -1873,7 +1901,7 @@ class FastElementsAccessor : public ElementsAccessorBase<Subclass, KindTraits> {
       }
       max_number_key = i;
       Handle<Object> value = Subclass::GetImpl(isolate, *store, i);
-      dictionary = SeededNumberDictionary::Add(dictionary, i, value, details);
+      dictionary = NumberDictionary::Add(dictionary, i, value, details);
       j++;
     }
 
@@ -1941,8 +1969,8 @@ class FastElementsAccessor : public ElementsAccessorBase<Subclass, KindTraits> {
     // enough to reliably hit the "window" of remaining elements count where
     // normalization would be beneficial.
     STATIC_ASSERT(kLengthFraction >=
-                  SeededNumberDictionary::kEntrySize *
-                      SeededNumberDictionary::kPreferFastElementsSizeFactor);
+                  NumberDictionary::kEntrySize *
+                      NumberDictionary::kPreferFastElementsSizeFactor);
     size_t current_counter = isolate->elements_deletion_counter();
     if (current_counter < length / kLengthFraction) {
       isolate->set_elements_deletion_counter(current_counter + 1);
@@ -1966,9 +1994,9 @@ class FastElementsAccessor : public ElementsAccessorBase<Subclass, KindTraits> {
       if (!backing_store->is_the_hole(isolate, i)) {
         ++num_used;
         // Bail out if a number dictionary wouldn't be able to save much space.
-        if (SeededNumberDictionary::kPreferFastElementsSizeFactor *
-                SeededNumberDictionary::ComputeCapacity(num_used) *
-                SeededNumberDictionary::kEntrySize >
+        if (NumberDictionary::kPreferFastElementsSizeFactor *
+                NumberDictionary::ComputeCapacity(num_used) *
+                NumberDictionary::kEntrySize >
             static_cast<uint32_t>(backing_store->length())) {
           return;
         }
@@ -1981,8 +2009,7 @@ class FastElementsAccessor : public ElementsAccessorBase<Subclass, KindTraits> {
                               Handle<FixedArrayBase> store, uint32_t entry,
                               Handle<Object> value,
                               PropertyAttributes attributes) {
-    Handle<SeededNumberDictionary> dictionary =
-        JSObject::NormalizeElements(object);
+    Handle<NumberDictionary> dictionary = JSObject::NormalizeElements(object);
     entry = dictionary->FindEntry(entry);
     DictionaryElementsAccessor::ReconfigureImpl(object, dictionary, entry,
                                                 value, attributes);
@@ -2450,7 +2477,7 @@ class FastElementsAccessor : public ElementsAccessorBase<Subclass, KindTraits> {
     }
     Handle<FixedArrayBase> backing_store(receiver->elements(), isolate);
     uint32_t length = static_cast<uint32_t>(Smi::ToInt(receiver->length()));
-    DCHECK(length > 0);
+    DCHECK_GT(length, 0);
     int new_length = length - 1;
     int remove_index = remove_position == AT_START ? 0 : new_length;
     Handle<Object> result =
@@ -2472,7 +2499,7 @@ class FastElementsAccessor : public ElementsAccessorBase<Subclass, KindTraits> {
                                Arguments* args, uint32_t add_size,
                                Where add_position) {
     uint32_t length = Smi::ToInt(receiver->length());
-    DCHECK(0 < add_size);
+    DCHECK_LT(0, add_size);
     uint32_t elms_len = backing_store->length();
     // Check we do not overflow the new_length.
     DCHECK(add_size <= static_cast<uint32_t>(Smi::kMaxValue - length));
@@ -3183,8 +3210,7 @@ class TypedElementsAccessor
                                          JSTypedArray* destination,
                                          size_t length, uint32_t offset) {
     // The source is a typed array, so we know we don't need to do ToNumber
-    // side-effects, as the source elements will always be a number or
-    // undefined.
+    // side-effects, as the source elements will always be a number.
     DisallowHeapAllocation no_gc;
 
     FixedTypedArrayBase* source_elements =
@@ -3192,10 +3218,10 @@ class TypedElementsAccessor
     BackingStore* destination_elements =
         BackingStore::cast(destination->elements());
 
-    DCHECK_LE(offset + source->length(), destination->length());
-    DCHECK_GE(destination->length(), source->length());
+    DCHECK_LE(offset, destination->length_value());
+    DCHECK_LE(source->length_value(), destination->length_value() - offset);
     DCHECK(source->length()->IsSmi());
-    DCHECK_EQ(Smi::FromInt(static_cast<int>(length)), source->length());
+    DCHECK_EQ(length, source->length_value());
 
     InstanceType source_type = source_elements->map()->instance_type();
     InstanceType destination_type =
@@ -3247,6 +3273,10 @@ class TypedElementsAccessor
     DisallowHeapAllocation no_gc;
     DisallowJavascriptExecution no_js(isolate);
 
+#if defined(DEBUG) || defined(ENABLE_SLOWFAST_SWITCH)
+    if (isolate->force_slow_path()) return true;
+#endif
+
     Object* source_proto = source->map()->prototype();
 
     // Null prototypes are OK - we don't need to do prototype chain lookups on
@@ -3257,7 +3287,7 @@ class TypedElementsAccessor
       return true;
     }
 
-    return !isolate->IsFastArrayConstructorPrototypeChainIntact(context);
+    return !isolate->IsNoElementsProtectorIntact(context);
   }
 
   static bool TryCopyElementsFastNumber(Context* context, JSArray* source,
@@ -3744,6 +3774,29 @@ class SloppyArgumentsElementsAccessor
     }
     return Just<int64_t>(-1);
   }
+
+  static Handle<JSObject> SliceImpl(Handle<JSObject> receiver, uint32_t start,
+                                    uint32_t end) {
+    Isolate* isolate = receiver->GetIsolate();
+    uint32_t result_len = end < start ? 0u : end - start;
+    Handle<JSArray> result_array =
+        isolate->factory()->NewJSArray(HOLEY_ELEMENTS, result_len, result_len);
+    DisallowHeapAllocation no_gc;
+    FixedArray* elements = FixedArray::cast(result_array->elements());
+    FixedArray* parameters = FixedArray::cast(receiver->elements());
+    uint32_t insertion_index = 0;
+    for (uint32_t i = start; i < end; i++) {
+      uint32_t entry = GetEntryForIndexImpl(isolate, *receiver, parameters, i,
+                                            ALL_PROPERTIES);
+      if (entry != kMaxUInt32 && HasEntryImpl(isolate, parameters, entry)) {
+        elements->set(insertion_index, *GetImpl(isolate, parameters, entry));
+      } else {
+        elements->set_the_hole(isolate, insertion_index);
+      }
+      insertion_index++;
+    }
+    return result_array;
+  }
 };
 
 
@@ -3777,10 +3830,10 @@ class SlowSloppyArgumentsElementsAccessor
     // No need to delete a context mapped entry from the arguments elements.
     if (entry == kMaxUInt32) return;
     Isolate* isolate = obj->GetIsolate();
-    Handle<SeededNumberDictionary> dict(
-        SeededNumberDictionary::cast(elements->arguments()), isolate);
+    Handle<NumberDictionary> dict(NumberDictionary::cast(elements->arguments()),
+                                  isolate);
     int length = elements->parameter_map_length();
-    dict = SeededNumberDictionary::DeleteEntry(dict, entry - length);
+    dict = NumberDictionary::DeleteEntry(dict, entry - length);
     elements->set_arguments(*dict);
   }
   static void AddImpl(Handle<JSObject> object, uint32_t index,
@@ -3791,13 +3844,13 @@ class SlowSloppyArgumentsElementsAccessor
         SloppyArgumentsElements::cast(object->elements()), isolate);
     Handle<FixedArrayBase> old_arguments(
         FixedArrayBase::cast(elements->arguments()), isolate);
-    Handle<SeededNumberDictionary> dictionary =
-        old_arguments->IsSeededNumberDictionary()
-            ? Handle<SeededNumberDictionary>::cast(old_arguments)
+    Handle<NumberDictionary> dictionary =
+        old_arguments->IsNumberDictionary()
+            ? Handle<NumberDictionary>::cast(old_arguments)
             : JSObject::NormalizeElements(object);
     PropertyDetails details(kData, attributes, PropertyCellType::kNoCell);
-    Handle<SeededNumberDictionary> new_dictionary =
-        SeededNumberDictionary::Add(dictionary, index, value, details);
+    Handle<NumberDictionary> new_dictionary =
+        NumberDictionary::Add(dictionary, index, value, details);
     if (attributes != NONE) object->RequireSlowElements(*new_dictionary);
     if (*dictionary != *new_dictionary) {
       elements->set_arguments(*new_dictionary);
@@ -3828,9 +3881,9 @@ class SlowSloppyArgumentsElementsAccessor
       }
 
       PropertyDetails details(kData, attributes, PropertyCellType::kNoCell);
-      Handle<SeededNumberDictionary> arguments(
-          SeededNumberDictionary::cast(elements->arguments()), isolate);
-      arguments = SeededNumberDictionary::Add(arguments, entry, value, details);
+      Handle<NumberDictionary> arguments(
+          NumberDictionary::cast(elements->arguments()), isolate);
+      arguments = NumberDictionary::Add(arguments, entry, value, details);
       // If the attributes were NONE, we would have called set rather than
       // reconfigure.
       DCHECK_NE(NONE, attributes);
@@ -3869,41 +3922,17 @@ class FastSloppyArgumentsElementsAccessor
     return Handle<FixedArray>(elements->arguments(), isolate);
   }
 
-  static Handle<JSObject> SliceImpl(Handle<JSObject> receiver, uint32_t start,
-                                    uint32_t end) {
-    Isolate* isolate = receiver->GetIsolate();
-    uint32_t result_len = end < start ? 0u : end - start;
-    Handle<JSArray> result_array =
-        isolate->factory()->NewJSArray(HOLEY_ELEMENTS, result_len, result_len);
-    DisallowHeapAllocation no_gc;
-    FixedArray* elements = FixedArray::cast(result_array->elements());
-    FixedArray* parameters = FixedArray::cast(receiver->elements());
-    uint32_t insertion_index = 0;
-    for (uint32_t i = start; i < end; i++) {
-      uint32_t entry = GetEntryForIndexImpl(isolate, *receiver, parameters, i,
-                                            ALL_PROPERTIES);
-      if (entry != kMaxUInt32 && HasEntryImpl(isolate, parameters, entry)) {
-        elements->set(insertion_index, *GetImpl(isolate, parameters, entry));
-      } else {
-        elements->set_the_hole(isolate, insertion_index);
-      }
-      insertion_index++;
-    }
-    return result_array;
-  }
-
-  static Handle<SeededNumberDictionary> NormalizeImpl(
+  static Handle<NumberDictionary> NormalizeImpl(
       Handle<JSObject> object, Handle<FixedArrayBase> elements) {
     Handle<FixedArray> arguments =
         GetArguments(elements->GetIsolate(), *elements);
     return FastHoleyObjectElementsAccessor::NormalizeImpl(object, arguments);
   }
 
-  static Handle<SeededNumberDictionary> NormalizeArgumentsElements(
+  static Handle<NumberDictionary> NormalizeArgumentsElements(
       Handle<JSObject> object, Handle<SloppyArgumentsElements> elements,
       uint32_t* entry) {
-    Handle<SeededNumberDictionary> dictionary =
-        JSObject::NormalizeElements(object);
+    Handle<NumberDictionary> dictionary = JSObject::NormalizeElements(object);
     elements->set_arguments(*dictionary);
     // kMaxUInt32 indicates that a context mapped element got deleted. In this
     // case we only normalize the elements (aka. migrate to SLOW_SLOPPY).
@@ -3931,7 +3960,7 @@ class FastSloppyArgumentsElementsAccessor
     Handle<SloppyArgumentsElements> elements(
         SloppyArgumentsElements::cast(object->elements()), isolate);
     Handle<FixedArray> old_arguments(elements->arguments(), isolate);
-    if (old_arguments->IsSeededNumberDictionary() ||
+    if (old_arguments->IsNumberDictionary() ||
         static_cast<uint32_t>(old_arguments->length()) < new_capacity) {
       GrowCapacityAndConvertImpl(object, new_capacity);
     }
@@ -4123,6 +4152,13 @@ class StringWrapperElementsAccessor
                                          uint32_t capacity) {
     Handle<FixedArrayBase> old_elements(object->elements());
     ElementsKind from_kind = object->GetElementsKind();
+    if (from_kind == FAST_STRING_WRAPPER_ELEMENTS) {
+      // The optimizing compiler relies on the prototype lookups of String
+      // objects always returning undefined. If there's a store to the
+      // initial String.prototype object, make sure all the optimizations
+      // are invalidated.
+      object->GetIsolate()->UpdateNoElementsProtectorOnSetLength(object);
+    }
     // This method should only be called if there's a reason to update the
     // elements.
     DCHECK(from_kind == SLOW_STRING_WRAPPER_ELEMENTS ||
@@ -4173,7 +4209,7 @@ class FastStringWrapperElementsAccessor
             FastStringWrapperElementsAccessor, FastHoleyObjectElementsAccessor,
             ElementsKindTraits<FAST_STRING_WRAPPER_ELEMENTS>>(name) {}
 
-  static Handle<SeededNumberDictionary> NormalizeImpl(
+  static Handle<NumberDictionary> NormalizeImpl(
       Handle<JSObject> object, Handle<FixedArrayBase> elements) {
     return FastHoleyObjectElementsAccessor::NormalizeImpl(object, elements);
   }
@@ -4201,7 +4237,7 @@ class SlowStringWrapperElementsAccessor
 void CheckArrayAbuse(Handle<JSObject> obj, const char* op, uint32_t index,
                      bool allow_appending) {
   DisallowHeapAllocation no_allocation;
-  Object* raw_length = NULL;
+  Object* raw_length = nullptr;
   const char* elements_type = "array";
   if (obj->IsJSArray()) {
     JSArray* array = JSArray::cast(*obj);
@@ -4380,11 +4416,11 @@ void ElementsAccessor::InitializeOncePerProcess() {
 
 
 void ElementsAccessor::TearDown() {
-  if (elements_accessors_ == NULL) return;
+  if (elements_accessors_ == nullptr) return;
 #define ACCESSOR_DELETE(Class, Kind, Store) delete elements_accessors_[Kind];
   ELEMENTS_LIST(ACCESSOR_DELETE)
 #undef ACCESSOR_DELETE
-  elements_accessors_ = NULL;
+  elements_accessors_ = nullptr;
 }
 
 Handle<JSArray> ElementsAccessor::Concat(Isolate* isolate, Arguments* args,
@@ -4439,6 +4475,6 @@ Handle<JSArray> ElementsAccessor::Concat(Isolate* isolate, Arguments* args,
   return result_array;
 }
 
-ElementsAccessor** ElementsAccessor::elements_accessors_ = NULL;
+ElementsAccessor** ElementsAccessor::elements_accessors_ = nullptr;
 }  // namespace internal
 }  // namespace v8

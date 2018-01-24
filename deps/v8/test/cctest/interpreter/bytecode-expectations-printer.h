@@ -18,6 +18,7 @@ class Isolate;
 
 namespace internal {
 
+class BytecodeArray;
 class SourcePositionTableIterator;
 
 namespace interpreter {

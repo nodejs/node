@@ -150,15 +150,20 @@
         {"name": "Map-Smi"},
         {"name": "Map-String"},
         {"name": "Map-Object"},
+        {"name": "Map-Object-Set-Get-Large"},
+        {"name": "Map-Double"},
         {"name": "Map-Iteration"},
         {"name": "Map-Iterator"},
         {"name": "Set-Smi"},
         {"name": "Set-String"},
         {"name": "Set-Object"},
+        {"name": "Set-Double"},
         {"name": "Set-Iteration"},
         {"name": "Set-Iterator"},
         {"name": "WeakMap"},
-        {"name": "WeakSet"}
+        {"name": "WeakMap-Constructor"},
+        {"name": "WeakSet"},
+        {"name": "WeakSet-Constructor"}
       ]
     },
     {
@@ -602,12 +607,13 @@
       "path": ["Inspector"],
       "main": "run.js",
       "resources": [ "debugger.js", "runtime.js" ],
-      "flags": ["--enable-inspector"],
+      "flags": ["--enable-inspector","--allow-natives-syntax"],
       "results_regexp": "^%s\\-Inspector\\(Score\\): (.+)$",
       "tests": [
         {"name": "Debugger.paused"},
         {"name": "Runtime.evaluate(String16Cstor)"},
-        {"name": "Debugger.getPossibleBreakpoints"}
+        {"name": "Debugger.getPossibleBreakpoints"},
+        {"name": "AsyncStacksInstrumentation"}
       ]
     },
     {

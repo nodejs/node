@@ -77,7 +77,7 @@ namespace internal {
 #define COMPARE(ASM, EXP)                                                \
   assm->Reset();                                                         \
   assm->ASM;                                                             \
-  assm->GetCode(isolate, NULL);                                          \
+  assm->GetCode(isolate, nullptr);                                       \
   decoder->Decode(reinterpret_cast<Instruction*>(buf));                  \
   encoding = *reinterpret_cast<uint32_t*>(buf);                          \
   if (strcmp(disasm->GetOutput(), EXP) != 0) {                           \
@@ -89,7 +89,7 @@ namespace internal {
 #define COMPARE_PREFIX(ASM, EXP)                                         \
   assm->Reset();                                                         \
   assm->ASM;                                                             \
-  assm->GetCode(isolate, NULL);                                          \
+  assm->GetCode(isolate, nullptr);                                       \
   decoder->Decode(reinterpret_cast<Instruction*>(buf));                  \
   encoding = *reinterpret_cast<uint32_t*>(buf);                          \
   if (strncmp(disasm->GetOutput(), EXP, strlen(EXP)) != 0) {             \
@@ -1490,9 +1490,9 @@ TEST_(load_store_acquire_release) {
   COMPARE(ldaxrb(wzr, csp), "ldaxrb wzr, [csp]");
   COMPARE(ldaxrh(wzr, csp), "ldaxrh wzr, [csp]");
   COMPARE(ldaxr(wzr, csp), "ldaxr wzr, [csp]");
-  COMPARE(stlxrb(wzr, wzr, csp), "stlxrb wzr, wzr, [csp]");
-  COMPARE(stlxrh(wzr, wzr, csp), "stlxrh wzr, wzr, [csp]");
-  COMPARE(stlxr(wzr, wzr, csp), "stlxr wzr, wzr, [csp]");
+  COMPARE(stlxrb(w0, wzr, csp), "stlxrb w0, wzr, [csp]");
+  COMPARE(stlxrh(wzr, w1, csp), "stlxrh wzr, w1, [csp]");
+  COMPARE(stlxr(w2, wzr, csp), "stlxr w2, wzr, [csp]");
 
   CLEANUP();
 }
@@ -1879,7 +1879,7 @@ TEST_(system_nop) {
 TEST_(debug) {
   SET_UP_ASM();
 
-  CHECK(kImmExceptionIsDebug == 0xdeb0);
+  CHECK_EQ(kImmExceptionIsDebug, 0xdeb0);
 
   // All debug codes should produce the same instruction, and the debug code
   // can be any uint32_t.

@@ -36,8 +36,8 @@ RUNTIME_FUNCTION(Runtime_ArrayBufferNeuter) {
   if (!array_buffer->is_neuterable()) {
     return isolate->heap()->undefined_value();
   }
-  if (array_buffer->backing_store() == NULL) {
-    CHECK(Smi::kZero == array_buffer->byte_length());
+  if (array_buffer->backing_store() == nullptr) {
+    CHECK_EQ(Smi::kZero, array_buffer->byte_length());
     return isolate->heap()->undefined_value();
   }
   // Shared array buffers should never be neutered.
@@ -200,7 +200,7 @@ RUNTIME_FUNCTION(Runtime_IsSharedInteger32TypedArray) {
 
 RUNTIME_FUNCTION(Runtime_TypedArraySpeciesCreateByLength) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 2);
+  DCHECK_EQ(args.length(), 2);
   Handle<JSTypedArray> exemplar = args.at<JSTypedArray>(0);
   Handle<Object> length = args.at(1);
   int argc = 1;
@@ -230,8 +230,8 @@ Object* TypedArraySetFromOverlapping(Isolate* isolate,
   size_t source_byte_length = NumberToSize(source->byte_length());
   size_t target_byte_length = NumberToSize(target->byte_length());
 
-  CHECK_LE(offset + source->length(), target->length());
-  CHECK_GE(target->length(), source->length());
+  CHECK_LE(offset, target->length_value());
+  CHECK_LE(source->length_value(), target->length_value() - offset);
   CHECK(source->length()->IsSmi());
 
   CHECK(!target->WasNeutered());

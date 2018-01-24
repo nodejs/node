@@ -178,7 +178,7 @@ class DebugDelegate {
  public:
   virtual ~DebugDelegate() {}
   virtual void PromiseEventOccurred(debug::PromiseDebugActionType type, int id,
-                                    int parent_id, bool created_by_user) {}
+                                    bool is_blackboxed) {}
   virtual void ScriptCompiled(v8::Local<Script> script, bool is_live_edited,
                               bool has_compile_error) {}
   // |break_points_hit| contains installed by JS debug API breakpoint objects.
@@ -456,7 +456,7 @@ class StackTraceIterator {
   virtual void Advance() = 0;
 
   virtual int GetContextId() const = 0;
-  virtual v8::Local<v8::Value> GetReceiver() const = 0;
+  virtual v8::MaybeLocal<v8::Value> GetReceiver() const = 0;
   virtual v8::Local<v8::Value> GetReturnValue() const = 0;
   virtual v8::Local<v8::String> GetFunctionName() const = 0;
   virtual v8::Local<v8::debug::Script> GetScript() const = 0;
@@ -484,6 +484,21 @@ void QueryObjects(v8::Local<v8::Context> context,
 
 void GlobalLexicalScopeNames(v8::Local<v8::Context> context,
                              v8::PersistentValueVector<v8::String>* names);
+
+void SetReturnValue(v8::Isolate* isolate, v8::Local<v8::Value> value);
+
+enum class NativeAccessorType {
+  None = 0,
+  HasGetter = 1 << 0,
+  HasSetter = 1 << 1,
+  IsBuiltin = 1 << 2
+};
+
+int GetNativeAccessorDescriptor(v8::Local<v8::Context> context,
+                                v8::Local<v8::Object> object,
+                                v8::Local<v8::Name> name);
+
+int64_t GetNextRandomInt64(v8::Isolate* isolate);
 
 }  // namespace debug
 }  // namespace v8

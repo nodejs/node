@@ -4,4 +4,4 @@
 
 // Flags: --allow-natives-syntax
 
-assertEquals(-1, %StringCompare("abc\u0102", "abc\u0201"));
+assertTrue(%StringLessThan("abc\u0102", "abc\u0201"));

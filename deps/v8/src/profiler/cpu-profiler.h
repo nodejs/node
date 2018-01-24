@@ -195,6 +195,8 @@ class CpuProfiler : public CodeEventObserver {
 
   ~CpuProfiler() override;
 
+  static void CollectSample(Isolate* isolate);
+
   void set_sampling_interval(base::TimeDelta value);
   void CollectSample();
   void StartProfiling(const char* title, bool record_samples = false);

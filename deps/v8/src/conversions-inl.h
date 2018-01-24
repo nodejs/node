@@ -178,6 +178,21 @@ int64_t NumberToInt64(Object* number) {
   return static_cast<int64_t>(d);
 }
 
+uint64_t PositiveNumberToUint64(Object* number) {
+  if (number->IsSmi()) {
+    int value = Smi::ToInt(number);
+    if (value <= 0) return 0;
+    return value;
+  }
+  DCHECK(number->IsHeapNumber());
+  double value = number->Number();
+  // Catch all values smaller than 1 and use the double-negation trick for NANs.
+  if (!(value >= 1)) return 0;
+  uint64_t max = std::numeric_limits<uint64_t>::max();
+  if (value < max) return static_cast<uint64_t>(value);
+  return max;
+}
+
 bool TryNumberToSize(Object* number, size_t* result) {
   // Do not create handles in this function! Don't use SealHandleScope because
   // the function can be used concurrently.

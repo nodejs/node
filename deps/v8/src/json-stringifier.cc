@@ -94,6 +94,7 @@ MaybeHandle<Object> JsonStringifier::Stringify(Handle<Object> object,
   if (!gap->IsUndefined(isolate_) && !InitializeGap(gap)) {
     return MaybeHandle<Object>();
   }
+  PostponeInterruptsScope no_debug_breaks(isolate_, StackGuard::DEBUGBREAK);
   Result result = SerializeObject(object);
   if (result == UNCHANGED) return factory()->undefined_value();
   if (result == SUCCESS) return builder_.Finish();
@@ -187,11 +188,22 @@ bool JsonStringifier::InitializeGap(Handle<Object> gap) {
 MaybeHandle<Object> JsonStringifier::ApplyToJsonFunction(Handle<Object> object,
                                                          Handle<Object> key) {
   HandleScope scope(isolate_);
-  LookupIterator it(object, tojson_string_,
-                    LookupIterator::PROTOTYPE_CHAIN_SKIP_INTERCEPTOR);
+
+  Handle<Object> object_for_lookup = object;
+  if (object->IsBigInt()) {
+    ASSIGN_RETURN_ON_EXCEPTION(isolate_, object_for_lookup,
+                               Object::ToObject(isolate_, object), Object);
+  }
+  DCHECK(object_for_lookup->IsJSReceiver());
+
+  // Retrieve toJSON function.
   Handle<Object> fun;
-  ASSIGN_RETURN_ON_EXCEPTION(isolate_, fun, Object::GetProperty(&it), Object);
-  if (!fun->IsCallable()) return object;
+  {
+    LookupIterator it(object_for_lookup, tojson_string_,
+                      LookupIterator::PROTOTYPE_CHAIN_SKIP_INTERCEPTOR);
+    ASSIGN_RETURN_ON_EXCEPTION(isolate_, fun, Object::GetProperty(&it), Object);
+    if (!fun->IsCallable()) return object;
+  }
 
   // Call toJSON function.
   if (key->IsSmi()) key = factory()->NumberToString(key);
@@ -271,7 +283,7 @@ JsonStringifier::Result JsonStringifier::Serialize_(Handle<Object> object,
       isolate_->stack_guard()->HandleInterrupts()->IsException(isolate_)) {
     return EXCEPTION;
   }
-  if (object->IsJSReceiver()) {
+  if (object->IsJSReceiver() || object->IsBigInt()) {
     ASSIGN_RETURN_ON_EXCEPTION_VALUE(
         isolate_, object, ApplyToJsonFunction(object, key), EXCEPTION);
   }
@@ -291,6 +303,10 @@ JsonStringifier::Result JsonStringifier::Serialize_(Handle<Object> object,
     case MUTABLE_HEAP_NUMBER_TYPE:
       if (deferred_string_key) SerializeDeferredKey(comma, key);
       return SerializeHeapNumber(Handle<HeapNumber>::cast(object));
+    case BIGINT_TYPE:
+      isolate_->Throw(
+          *factory()->NewTypeError(MessageTemplate::kBigIntSerializeJSON));
+      return EXCEPTION;
     case ODDBALL_TYPE:
       switch (Oddball::cast(*object)->kind()) {
         case Oddball::kFalse:
@@ -338,22 +354,24 @@ JsonStringifier::Result JsonStringifier::Serialize_(Handle<Object> object,
 
 JsonStringifier::Result JsonStringifier::SerializeJSValue(
     Handle<JSValue> object) {
-  String* class_name = object->class_name();
-  if (class_name == isolate_->heap()->String_string()) {
+  Object* raw = object->value();
+  if (raw->IsString()) {
     Handle<Object> value;
     ASSIGN_RETURN_ON_EXCEPTION_VALUE(
         isolate_, value, Object::ToString(isolate_, object), EXCEPTION);
     SerializeString(Handle<String>::cast(value));
-  } else if (class_name == isolate_->heap()->Number_string()) {
+  } else if (raw->IsNumber()) {
     Handle<Object> value;
     ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate_, value, Object::ToNumber(object),
                                      EXCEPTION);
     if (value->IsSmi()) return SerializeSmi(Smi::cast(*value));
     SerializeHeapNumber(Handle<HeapNumber>::cast(value));
-  } else if (class_name == isolate_->heap()->Boolean_string()) {
-    Object* value = JSValue::cast(*object)->value();
-    DCHECK(value->IsBoolean());
-    builder_.AppendCString(value->IsTrue(isolate_) ? "true" : "false");
+  } else if (raw->IsBigInt()) {
+    isolate_->Throw(
+        *factory()->NewTypeError(MessageTemplate::kBigIntSerializeJSON));
+    return EXCEPTION;
+  } else if (raw->IsBoolean()) {
+    builder_.AppendCString(raw->IsTrue(isolate_) ? "true" : "false");
   } else {
     // ES6 24.3.2.1 step 10.c, serialize as an ordinary JSObject.
     return SerializeJSObject(object);
