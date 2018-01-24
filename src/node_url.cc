@@ -100,16 +100,16 @@ class URLHost {
   // internals too much.
   // These helpers are the easiest solution but we might want to consider
   // just not forcing strings into an union.
-  inline void SetOpaque(std::string& string) {
+  inline void SetOpaque(std::string* string) {
     type_ = HostType::H_OPAQUE;
     new(&value_.opaque) std::string();
-    value_.opaque.swap(string);
+    value_.opaque.swap(*string);
   }
 
-  inline void SetDomain(std::string& string) {
+  inline void SetDomain(std::string* string) {
     type_ = HostType::H_DOMAIN;
     new(&value_.domain) std::string();
-    value_.domain.swap(string);
+    value_.domain.swap(*string);
   }
 };
 
@@ -867,7 +867,7 @@ void URLHost::ParseOpaqueHost(const char* input, size_t length) {
     }
   }
 
-  SetOpaque(output);
+  SetOpaque(&output);
 }
 
 void URLHost::ParseHost(const char* input,
@@ -915,7 +915,7 @@ void URLHost::ParseHost(const char* input,
     return;
 
   // It's not an IPv4 or IPv6 address, it must be a domain
-  SetDomain(decoded);
+  SetDomain(&decoded);
 }
 
 // Locates the longest sequence of 0 segments in an IPv6 address
