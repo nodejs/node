@@ -157,7 +157,7 @@ console.log('this will also print');
 
 ### console.clear()
 <!-- YAML
-added: REPLACEME
+added: v6.13.0
 -->
 
 When `stdout` is a TTY, calling `console.clear()` will attempt to clear the
@@ -171,7 +171,7 @@ binary.
 
 ### console.count([label])
 <!-- YAML
-added: REPLACEME
+added: v6.13.0
 -->
 
 * `label` {string} The display label for the counter. Defaults to `'default'`.
@@ -204,7 +204,7 @@ undefined
 
 ### console.countReset([label = 'default'])
 <!-- YAML
-added: REPLACEME
+added: v6.13.0
 -->
 
 * `label` {string} The display label for the counter. Defaults to `'default'`.

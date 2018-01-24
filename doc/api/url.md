@@ -76,7 +76,7 @@ const myURL =
 
 ## The WHATWG URL API
 <!-- YAML
-added: v7.0.0, REPLACEME
+added: v7.0.0, v6.13.0
 -->
 
 ### Class: URL
@@ -445,7 +445,7 @@ console.log(JSON.stringify(myURLs));
 
 ### Class: URLSearchParams
 <!-- YAML
-added: v7.5.0, REPLACEME
+added: v7.5.0, v6.13.0
 -->
 
 The `URLSearchParams` API provides read and write access to the query of a
@@ -520,7 +520,7 @@ console.log(params.toString());
 
 #### Constructor: new URLSearchParams(obj)
 <!-- YAML
-added: v7.10.0, REPLACEME
+added: v7.10.0, v6.13.0
 -->
 
 * `obj` {Object} An object representing a collection of key-value pairs
@@ -546,7 +546,7 @@ console.log(params.toString());
 
 #### Constructor: new URLSearchParams(iterable)
 <!-- YAML
-added: v7.10.0, REPLACEME
+added: v7.10.0, v6.13.0
 -->
 
 * `iterable` {Iterable} An iterable object whose elements are key-value pairs
@@ -709,7 +709,7 @@ console.log(params.toString());
 
 #### urlSearchParams.sort()
 <!-- YAML
-added: v7.7.0, REPLACEME
+added: v7.7.0, v6.13.0
 -->
 
 Sort all existing name-value pairs in-place by their names. Sorting is done
@@ -762,7 +762,7 @@ for (const [name, value] of params) {
 
 ### url.domainToASCII(domain)
 <!-- YAML
-added: v7.4.0, REPLACEME
+added: v7.4.0, v6.13.0
 -->
 
 * `domain` {string}
@@ -785,7 +785,7 @@ console.log(url.domainToASCII('xn--iñvalid.com'));
 
 ### url.domainToUnicode(domain)
 <!-- YAML
-added: v7.4.0, REPLACEME
+added: v7.4.0, v6.13.0
 -->
 
 * `domain` {string}

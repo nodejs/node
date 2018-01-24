@@ -778,7 +778,7 @@ argument.
 <!-- YAML
 added: v0.11.3
 changes:
-  - version: REPLACEME
+  - version: v6.13.0
     pr-url: https://github.com/nodejs/node/pull/12839
     description: The `lookup` option is supported now.
 -->

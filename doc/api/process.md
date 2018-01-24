@@ -1330,7 +1330,7 @@ console.log(`This platform is ${process.platform}`);
 
 ## process.ppid
 <!-- YAML
-added: REPLACEME
+added: v6.13.0
 -->
 
 * {integer}

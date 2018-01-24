@@ -1590,7 +1590,7 @@ time is right after boot, when the whole system is still low on entropy.
 
 ### crypto.randomFillSync(buffer[, offset][, size])
 <!-- YAML
-added: REPLACEME
+added: v6.13.0
 -->
 
 * `buffer` {Buffer|Uint8Array} Must be supplied.
@@ -1615,7 +1615,7 @@ console.log(buf.toString('hex'));
 
 ### crypto.randomFill(buffer[, offset][, size], callback)
 <!-- YAML
-added: REPLACEME
+added: v6.13.0
 -->
 
 * `buffer` {Buffer|Uint8Array} Must be supplied.

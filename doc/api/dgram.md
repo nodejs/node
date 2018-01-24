@@ -338,7 +338,7 @@ packets may be sent to a local interface's broadcast address.
 
 ### socket.setMulticastInterface(multicastInterface)
 <!-- YAML
-added: REPLACEME
+added: v6.13.0
 -->
 
 * `multicastInterface` {String}
