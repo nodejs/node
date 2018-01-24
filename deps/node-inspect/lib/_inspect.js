@@ -42,18 +42,9 @@ const [ InspectClient, createRepl ] =
 
 const debuglog = util.debuglog('inspect');
 
-const DEBUG_PORT_PATTERN = /^--(?:debug|inspect)(?:-port|-brk)?=(\d{1,5})$/;
-function getDefaultPort() {
-  for (const arg of process.execArgv) {
-    const match = arg.match(DEBUG_PORT_PATTERN);
-    if (match) {
-      return +match[1];
-    }
-  }
-  return 9229;
-}
-
 function portIsFree(host, port, timeout = 2000) {
+  if (port === 0) return Promise.resolve();  // Binding to a random port.
+
   const retryDelay = 150;
   let didTimeOut = false;
 
@@ -110,9 +101,11 @@ function runScript(script, scriptArgs, inspectHost, inspectPort, childPrint) {
         let output = '';
         function waitForListenHint(text) {
           output += text;
-          if (/Debugger listening on/.test(output)) {
+          if (/Debugger listening on ws:\/\/\[?(.+?)\]?:(\d+)\//.test(output)) {
+            const host = RegExp.$1;
+            const port = Number.parseInt(RegExp.$2);
             child.stderr.removeListener('data', waitForListenHint);
-            resolve(child);
+            resolve([child, port, host]);
           }
         }
 
@@ -160,10 +153,11 @@ class NodeInspector {
                                        options.port,
                                        this.childPrint.bind(this));
     } else {
-      this._runScript = () => Promise.resolve(null);
+      this._runScript =
+          () => Promise.resolve([null, options.port, options.host]);
     }
 
-    this.client = new InspectClient(options.port, options.host);
+    this.client = new InspectClient();
 
     this.domainNames = ['Debugger', 'HeapProfiler', 'Profiler', 'Runtime'];
     this.domainNames.forEach((domain) => {
@@ -223,9 +217,8 @@ class NodeInspector {
 
   run() {
     this.killChild();
-    const { host, port } = this.options;
 
-    return this._runScript().then((child) => {
+    return this._runScript().then(([child, port, host]) => {
       this.child = child;
 
       let connectionAttempts = 0;
@@ -233,7 +226,7 @@ class NodeInspector {
         ++connectionAttempts;
         debuglog('connection attempt #%d', connectionAttempts);
         this.stdout.write('.');
-        return this.client.connect()
+        return this.client.connect(port, host)
           .then(() => {
             debuglog('connection established');
             this.stdout.write(' ok');
@@ -288,7 +281,7 @@ class NodeInspector {
 
 function parseArgv([target, ...args]) {
   let host = '127.0.0.1';
-  let port = getDefaultPort();
+  let port = 9229;
   let isRemote = false;
   let script = target;
   let scriptArgs = args;
