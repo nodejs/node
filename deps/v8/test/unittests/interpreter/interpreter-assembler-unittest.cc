@@ -20,6 +20,7 @@ namespace c = v8::internal::compiler;
 namespace v8 {
 namespace internal {
 namespace interpreter {
+namespace interpreter_assembler_unittest {
 
 InterpreterAssemblerTestState::InterpreterAssemblerTestState(
     InterpreterAssemblerTest* test, Bytecode bytecode)
@@ -548,6 +549,7 @@ TARGET_TEST_F(InterpreterAssemblerTest, LoadFeedbackVector) {
   }
 }
 
+}  // namespace interpreter_assembler_unittest
 }  // namespace interpreter
 }  // namespace internal
 }  // namespace v8

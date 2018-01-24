@@ -31,8 +31,8 @@ class DescriptorLookupCache {
  private:
   DescriptorLookupCache() {
     for (int i = 0; i < kLength; ++i) {
-      keys_[i].source = NULL;
-      keys_[i].name = NULL;
+      keys_[i].source = nullptr;
+      keys_[i].name = nullptr;
       results_[i] = kAbsent;
     }
   }

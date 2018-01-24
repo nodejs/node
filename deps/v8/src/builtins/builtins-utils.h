@@ -46,8 +46,10 @@ class BuiltinArguments : public Arguments {
   static const int kNewTargetOffset = 0;
   static const int kTargetOffset = 1;
   static const int kArgcOffset = 2;
-  static const int kNumExtraArgs = 3;
-  static const int kNumExtraArgsWithReceiver = 4;
+  static const int kPaddingOffset = 3;
+
+  static const int kNumExtraArgs = 4;
+  static const int kNumExtraArgsWithReceiver = 5;
 
   Handle<JSFunction> target() {
     return Arguments::at<JSFunction>(Arguments::length() - 1 - kTargetOffset);

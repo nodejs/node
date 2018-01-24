@@ -14,7 +14,7 @@ namespace v8 {
 namespace internal {
 namespace wasm {
 
-int ExtractDirectCallIndex(wasm::Decoder& decoder, const byte* pc);
+uint32_t ExtractDirectCallIndex(wasm::Decoder& decoder, const byte* pc);
 
 // Helper class to specialize wasm code for a specific instance, or to update
 // code when memory / globals / tables change.
@@ -30,8 +30,6 @@ class CodeSpecialization {
 
   // Update WasmContext references.
   void RelocateWasmContextReferences(Address new_context);
-  // Update references to global variables.
-  void RelocateGlobals(Address old_start, Address new_start);
   // Update function table size.
   // TODO(wasm): Prepare this for more than one indirect function table.
   void PatchTableSize(uint32_t old_size, uint32_t new_size);
@@ -45,13 +43,12 @@ class CodeSpecialization {
   bool ApplyToWholeInstance(WasmInstanceObject*,
                             ICacheFlushMode = FLUSH_ICACHE_IF_NEEDED);
   // Apply all relocations and patching to one wasm code object.
-  bool ApplyToWasmCode(Code*, ICacheFlushMode = FLUSH_ICACHE_IF_NEEDED);
+  bool ApplyToWasmCode(WasmCodeWrapper,
+                       ICacheFlushMode = FLUSH_ICACHE_IF_NEEDED);
 
  private:
+  Isolate* isolate_;
   Address new_wasm_context_address = 0;
-
-  Address old_globals_start = 0;
-  Address new_globals_start = 0;
 
   uint32_t old_function_table_size = 0;
   uint32_t new_function_table_size = 0;

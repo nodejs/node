@@ -53,7 +53,7 @@ class Collector {
   // A basic Collector will keep this vector valid as long as the Collector
   // is alive.
   inline Vector<T> AddBlock(int size, T initial_value) {
-    DCHECK(size > 0);
+    DCHECK_GT(size, 0);
     if (size > current_chunk_.length() - index_) {
       Grow(size);
     }
@@ -131,7 +131,7 @@ class Collector {
 
   // Creates a new current chunk, and stores the old chunk in the chunks_ list.
   void Grow(int min_capacity) {
-    DCHECK(growth_factor > 1);
+    DCHECK_GT(growth_factor, 1);
     int new_capacity;
     int current_length = current_chunk_.length();
     if (current_length < kMinCapacity) {
@@ -187,12 +187,12 @@ class SequenceCollector : public Collector<T, growth_factor, max_growth> {
   virtual ~SequenceCollector() {}
 
   void StartSequence() {
-    DCHECK(sequence_start_ == kNoSequence);
+    DCHECK_EQ(sequence_start_, kNoSequence);
     sequence_start_ = this->index_;
   }
 
   Vector<T> EndSequence() {
-    DCHECK(sequence_start_ != kNoSequence);
+    DCHECK_NE(sequence_start_, kNoSequence);
     int sequence_start = sequence_start_;
     sequence_start_ = kNoSequence;
     if (sequence_start == this->index_) return Vector<T>();
@@ -201,7 +201,7 @@ class SequenceCollector : public Collector<T, growth_factor, max_growth> {
 
   // Drops the currently added sequence, and all collected elements in it.
   void DropSequence() {
-    DCHECK(sequence_start_ != kNoSequence);
+    DCHECK_NE(sequence_start_, kNoSequence);
     int sequence_length = this->index_ - sequence_start_;
     this->index_ = sequence_start_;
     this->size_ -= sequence_length;

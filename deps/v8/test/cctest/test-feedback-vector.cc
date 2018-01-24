@@ -574,9 +574,9 @@ TEST(ReferenceContextAllocatesNoSlots) {
     CHECK_SLOT_KIND(helper, 1, FeedbackSlotKind::kStoreNamedStrict);
     CHECK_SLOT_KIND(helper, 2, FeedbackSlotKind::kStoreNamedStrict);
     CHECK_SLOT_KIND(helper, 3, FeedbackSlotKind::kStoreNamedStrict);
-    CHECK_SLOT_KIND(helper, 4, FeedbackSlotKind::kLoadProperty);
+    CHECK_SLOT_KIND(helper, 4, FeedbackSlotKind::kBinaryOp);
     CHECK_SLOT_KIND(helper, 5, FeedbackSlotKind::kLoadProperty);
-    CHECK_SLOT_KIND(helper, 6, FeedbackSlotKind::kBinaryOp);
+    CHECK_SLOT_KIND(helper, 6, FeedbackSlotKind::kLoadProperty);
   }
 }
 

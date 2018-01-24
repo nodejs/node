@@ -5,7 +5,6 @@
 #if V8_TARGET_ARCH_IA32
 
 #include "src/assembler-inl.h"
-#include "src/codegen.h"
 #include "src/deoptimizer.h"
 #include "src/frame-constants.h"
 #include "src/register-configuration.h"

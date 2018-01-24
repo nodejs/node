@@ -15,17 +15,6 @@ namespace v8 {
 namespace internal {
 namespace test {
 
-Handle<Object> RunJS(v8::Isolate* isolate, const char* script) {
-  return Utils::OpenHandle(
-      *v8::Script::Compile(
-           isolate->GetCurrentContext(),
-           v8::String::NewFromUtf8(isolate, script, v8::NewStringType::kNormal)
-               .ToLocalChecked())
-           .ToLocalChecked()
-           ->Run(isolate->GetCurrentContext())
-           .ToLocalChecked());
-}
-
 Handle<String> CreateSource(Isolate* isolate,
                             ExternalOneByteString::Resource* maybe_resource) {
   static const char test_script[] = "(x) { x*x; }";

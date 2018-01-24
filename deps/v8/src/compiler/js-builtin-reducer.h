@@ -62,12 +62,11 @@ class V8_EXPORT_PRIVATE JSBuiltinReducer final
   Reduction ReduceCollectionSize(Node* node,
                                  InstanceType collection_instance_type);
   Reduction ReduceCollectionIteratorNext(
-      Node* node, int entry_size,
+      Node* node, int entry_size, Handle<HeapObject> empty_collection,
       InstanceType collection_iterator_instance_type_first,
       InstanceType collection_iterator_instance_type_last);
   Reduction ReduceDateNow(Node* node);
   Reduction ReduceDateGetTime(Node* node);
-  Reduction ReduceFunctionBind(Node* node);
   Reduction ReduceGlobalIsFinite(Node* node);
   Reduction ReduceGlobalIsNaN(Node* node);
   Reduction ReduceMapHas(Node* node);
@@ -111,7 +110,6 @@ class V8_EXPORT_PRIVATE JSBuiltinReducer final
   Reduction ReduceNumberIsSafeInteger(Node* node);
   Reduction ReduceNumberParseInt(Node* node);
   Reduction ReduceObjectCreate(Node* node);
-  Reduction ReduceObjectIs(Node* node);
   Reduction ReduceStringCharAt(Node* node);
   Reduction ReduceStringCharCodeAt(Node* node);
   Reduction ReduceStringConcat(Node* node);
@@ -119,6 +117,7 @@ class V8_EXPORT_PRIVATE JSBuiltinReducer final
   Reduction ReduceStringIndexOf(Node* node);
   Reduction ReduceStringIterator(Node* node);
   Reduction ReduceStringIteratorNext(Node* node);
+  Reduction ReduceStringSlice(Node* node);
   Reduction ReduceStringToLowerCaseIntl(Node* node);
   Reduction ReduceStringToUpperCaseIntl(Node* node);
   Reduction ReduceArrayBufferIsView(Node* node);

@@ -62,14 +62,14 @@ const double kIntegerValues[] = {-V8_INFINITY, INT_MIN, -1000.0,  -42.0,
 class TypedOptimizationTest : public TypedGraphTest {
  public:
   TypedOptimizationTest()
-      : TypedGraphTest(3), javascript_(zone()), deps_(isolate(), zone()) {}
+      : TypedGraphTest(3), simplified_(zone()), deps_(isolate(), zone()) {}
   ~TypedOptimizationTest() override {}
 
  protected:
   Reduction Reduce(Node* node) {
     MachineOperatorBuilder machine(zone());
-    SimplifiedOperatorBuilder simplified(zone());
-    JSGraph jsgraph(isolate(), graph(), common(), javascript(), &simplified,
+    JSOperatorBuilder javascript(zone());
+    JSGraph jsgraph(isolate(), graph(), common(), &javascript, simplified(),
                     &machine);
     // TODO(titzer): mock the GraphReducer here for better unit testing.
     GraphReducer graph_reducer(zone(), graph());
@@ -77,10 +77,10 @@ class TypedOptimizationTest : public TypedGraphTest {
     return reducer.Reduce(node);
   }
 
-  JSOperatorBuilder* javascript() { return &javascript_; }
+  SimplifiedOperatorBuilder* simplified() { return &simplified_; }
 
  private:
-  JSOperatorBuilder javascript_;
+  SimplifiedOperatorBuilder simplified_;
   CompilationDependencies deps_;
 };
 
@@ -169,7 +169,10 @@ TEST_F(TypedOptimizationTest, ParameterWithUndefined) {
   }
 }
 
-TEST_F(TypedOptimizationTest, JSToBooleanWithFalsish) {
+// -----------------------------------------------------------------------------
+// ToBoolean
+
+TEST_F(TypedOptimizationTest, ToBooleanWithFalsish) {
   Node* input = Parameter(
       Type::Union(
           Type::MinusZero(),
@@ -190,34 +193,80 @@ TEST_F(TypedOptimizationTest, JSToBooleanWithFalsish) {
               zone()),
           zone()),
       0);
-  Node* context = Parameter(Type::Any(), 1);
-  Reduction r = Reduce(graph()->NewNode(
-      javascript()->ToBoolean(ToBooleanHint::kAny), input, context));
+  Reduction r = Reduce(graph()->NewNode(simplified()->ToBoolean(), input));
   ASSERT_TRUE(r.Changed());
   EXPECT_THAT(r.replacement(), IsFalseConstant());
 }
 
-TEST_F(TypedOptimizationTest, JSToBooleanWithTruish) {
+TEST_F(TypedOptimizationTest, ToBooleanWithTruish) {
   Node* input = Parameter(
       Type::Union(
           Type::NewConstant(factory()->true_value(), zone()),
           Type::Union(Type::DetectableReceiver(), Type::Symbol(), zone()),
           zone()),
       0);
-  Node* context = Parameter(Type::Any(), 1);
-  Reduction r = Reduce(graph()->NewNode(
-      javascript()->ToBoolean(ToBooleanHint::kAny), input, context));
+  Reduction r = Reduce(graph()->NewNode(simplified()->ToBoolean(), input));
   ASSERT_TRUE(r.Changed());
   EXPECT_THAT(r.replacement(), IsTrueConstant());
 }
 
-TEST_F(TypedOptimizationTest, JSToBooleanWithNonZeroPlainNumber) {
+TEST_F(TypedOptimizationTest, ToBooleanWithNonZeroPlainNumber) {
   Node* input = Parameter(Type::Range(1, V8_INFINITY, zone()), 0);
-  Node* context = Parameter(Type::Any(), 1);
-  Reduction r = Reduce(graph()->NewNode(
-      javascript()->ToBoolean(ToBooleanHint::kAny), input, context));
+  Reduction r = Reduce(graph()->NewNode(simplified()->ToBoolean(), input));
   ASSERT_TRUE(r.Changed());
   EXPECT_THAT(r.replacement(), IsTrueConstant());
+}
+
+TEST_F(TypedOptimizationTest, ToBooleanWithBoolean) {
+  Node* input = Parameter(Type::Boolean(), 0);
+  Reduction r = Reduce(graph()->NewNode(simplified()->ToBoolean(), input));
+  ASSERT_TRUE(r.Changed());
+  EXPECT_EQ(input, r.replacement());
+}
+
+TEST_F(TypedOptimizationTest, ToBooleanWithOrderedNumber) {
+  Node* input = Parameter(Type::OrderedNumber(), 0);
+  Reduction r = Reduce(graph()->NewNode(simplified()->ToBoolean(), input));
+  ASSERT_TRUE(r.Changed());
+  EXPECT_THAT(r.replacement(),
+              IsBooleanNot(IsNumberEqual(input, IsNumberConstant(0.0))));
+}
+
+TEST_F(TypedOptimizationTest, ToBooleanWithNumber) {
+  Node* input = Parameter(Type::Number(), 0);
+  Reduction r = Reduce(graph()->NewNode(simplified()->ToBoolean(), input));
+  ASSERT_TRUE(r.Changed());
+  EXPECT_THAT(r.replacement(), IsNumberToBoolean(input));
+}
+
+TEST_F(TypedOptimizationTest, ToBooleanWithDetectableReceiverOrNull) {
+  Node* input = Parameter(Type::DetectableReceiverOrNull(), 0);
+  Reduction r = Reduce(graph()->NewNode(simplified()->ToBoolean(), input));
+  ASSERT_TRUE(r.Changed());
+  EXPECT_THAT(r.replacement(),
+              IsBooleanNot(IsReferenceEqual(input, IsNullConstant())));
+}
+
+TEST_F(TypedOptimizationTest, ToBooleanWithReceiverOrNullOrUndefined) {
+  Node* input = Parameter(Type::ReceiverOrNullOrUndefined(), 0);
+  Reduction r = Reduce(graph()->NewNode(simplified()->ToBoolean(), input));
+  ASSERT_TRUE(r.Changed());
+  EXPECT_THAT(r.replacement(), IsBooleanNot(IsObjectIsUndetectable(input)));
+}
+
+TEST_F(TypedOptimizationTest, ToBooleanWithString) {
+  Node* input = Parameter(Type::String(), 0);
+  Reduction r = Reduce(graph()->NewNode(simplified()->ToBoolean(), input));
+  ASSERT_TRUE(r.Changed());
+  EXPECT_THAT(r.replacement(),
+              IsBooleanNot(IsReferenceEqual(
+                  input, IsHeapConstant(factory()->empty_string()))));
+}
+
+TEST_F(TypedOptimizationTest, ToBooleanWithAny) {
+  Node* input = Parameter(Type::Any(), 0);
+  Reduction r = Reduce(graph()->NewNode(simplified()->ToBoolean(), input));
+  ASSERT_FALSE(r.Changed());
 }
 
 }  // namespace typed_optimization_unittest

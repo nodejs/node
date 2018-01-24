@@ -30,12 +30,14 @@ struct SourceRange {
 // The list of ast node kinds that have associated source ranges. Note that this
 // macro is not undefined at the end of this file.
 #define AST_SOURCE_RANGE_LIST(V) \
+  V(BinaryOperation)             \
   V(Block)                       \
   V(CaseClause)                  \
   V(Conditional)                 \
   V(IfStatement)                 \
   V(IterationStatement)          \
   V(JumpStatement)               \
+  V(NaryOperation)               \
   V(Suspend)                     \
   V(SwitchStatement)             \
   V(Throw)                       \
@@ -48,6 +50,7 @@ enum class SourceRangeKind {
   kContinuation,
   kElse,
   kFinally,
+  kRight,
   kThen,
 };
 
@@ -57,13 +60,27 @@ class AstNodeSourceRanges : public ZoneObject {
   virtual SourceRange GetRange(SourceRangeKind kind) = 0;
 };
 
+class BinaryOperationSourceRanges final : public AstNodeSourceRanges {
+ public:
+  explicit BinaryOperationSourceRanges(const SourceRange& right_range)
+      : right_range_(right_range) {}
+
+  SourceRange GetRange(SourceRangeKind kind) {
+    DCHECK_EQ(kind, SourceRangeKind::kRight);
+    return right_range_;
+  }
+
+ private:
+  SourceRange right_range_;
+};
+
 class ContinuationSourceRanges : public AstNodeSourceRanges {
  public:
   explicit ContinuationSourceRanges(int32_t continuation_position)
       : continuation_position_(continuation_position) {}
 
   SourceRange GetRange(SourceRangeKind kind) {
-    DCHECK(kind == SourceRangeKind::kContinuation);
+    DCHECK_EQ(kind, SourceRangeKind::kContinuation);
     return SourceRange::OpenEnded(continuation_position_);
   }
 
@@ -83,7 +100,7 @@ class CaseClauseSourceRanges final : public AstNodeSourceRanges {
       : body_range_(body_range) {}
 
   SourceRange GetRange(SourceRangeKind kind) {
-    DCHECK(kind == SourceRangeKind::kBody);
+    DCHECK_EQ(kind, SourceRangeKind::kBody);
     return body_range_;
   }
 
@@ -164,6 +181,27 @@ class JumpStatementSourceRanges final : public ContinuationSourceRanges {
  public:
   explicit JumpStatementSourceRanges(int32_t continuation_position)
       : ContinuationSourceRanges(continuation_position) {}
+};
+
+class NaryOperationSourceRanges final : public AstNodeSourceRanges {
+ public:
+  NaryOperationSourceRanges(Zone* zone, const SourceRange& range)
+      : ranges_(zone) {
+    AddRange(range);
+  }
+
+  SourceRange GetRangeAtIndex(size_t index) {
+    DCHECK(index < ranges_.size());
+    return ranges_[index];
+  }
+
+  void AddRange(const SourceRange& range) { ranges_.push_back(range); }
+  size_t RangeCount() const { return ranges_.size(); }
+
+  SourceRange GetRange(SourceRangeKind kind) { UNREACHABLE(); }
+
+ private:
+  ZoneVector<SourceRange> ranges_;
 };
 
 class SuspendSourceRanges final : public ContinuationSourceRanges {

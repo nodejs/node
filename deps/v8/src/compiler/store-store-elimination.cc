@@ -79,7 +79,6 @@ struct UnobservableStore {
   StoreOffset offset_;
 
   bool operator==(const UnobservableStore) const;
-  bool operator!=(const UnobservableStore) const;
   bool operator<(const UnobservableStore) const;
 };
 
@@ -140,7 +139,6 @@ class RedundantStoreFinder final {
   void Visit(Node* node);
 
  private:
-  static bool IsEffectful(Node* node);
   void VisitEffectfulNode(Node* node);
   UnobservablesSet RecomputeUseIntersection(Node* node);
   UnobservablesSet RecomputeSet(Node* node, UnobservablesSet uses);
@@ -249,10 +247,6 @@ void StoreStoreElimination::Run(JSGraph* js_graph, Zone* temp_zone) {
                                 nullptr);
     node->Kill();
   }
-}
-
-bool RedundantStoreFinder::IsEffectful(Node* node) {
-  return (node->op()->EffectInputCount() >= 1);
 }
 
 // Recompute unobservables-set for a node. Will also mark superfluous nodes
@@ -552,9 +546,6 @@ bool UnobservableStore::operator==(const UnobservableStore other) const {
   return (id_ == other.id_) && (offset_ == other.offset_);
 }
 
-bool UnobservableStore::operator!=(const UnobservableStore other) const {
-  return !(*this == other);
-}
 
 bool UnobservableStore::operator<(const UnobservableStore other) const {
   return (id_ < other.id_) || (id_ == other.id_ && offset_ < other.offset_);

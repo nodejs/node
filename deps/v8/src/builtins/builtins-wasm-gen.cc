@@ -19,7 +19,7 @@ TF_BUILTIN(WasmStackGuard, CodeStubAssembler) {
 #define DECLARE_ENUM(name)                                                    \
   TF_BUILTIN(ThrowWasm##name, CodeStubAssembler) {                            \
     int message_id = wasm::WasmOpcodes::TrapReasonToMessageId(wasm::k##name); \
-    TailCallRuntime(Runtime::kThrowWasmErrorFromTrapIf, NoContextConstant(),  \
+    TailCallRuntime(Runtime::kThrowWasmError, NoContextConstant(),            \
                     SmiConstant(message_id));                                 \
   }
 FOREACH_WASM_TRAPREASON(DECLARE_ENUM)

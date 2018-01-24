@@ -99,25 +99,6 @@ int GetPrototypeCheckCount(Isolate* isolate, Handle<Map> receiver_map,
                                     Handle<FixedArray>(), 0);
 }
 
-enum class HolderCellRequest {
-  kGlobalPropertyCell,
-  kHolder,
-};
-
-Handle<WeakCell> HolderCell(Isolate* isolate, Handle<JSReceiver> holder,
-                            Handle<Name> name, HolderCellRequest request) {
-  if (request == HolderCellRequest::kGlobalPropertyCell) {
-    DCHECK(holder->IsJSGlobalObject());
-    Handle<JSGlobalObject> global = Handle<JSGlobalObject>::cast(holder);
-    GlobalDictionary* dict = global->global_dictionary();
-    int number = dict->FindEntry(name);
-    DCHECK_NE(NameDictionary::kNotFound, number);
-    Handle<PropertyCell> cell(dict->CellAt(number), isolate);
-    return isolate->factory()->NewWeakCell(cell);
-  }
-  return Map::GetOrCreatePrototypeWeakCell(holder, isolate);
-}
-
 }  // namespace
 
 // static
@@ -125,7 +106,8 @@ Handle<Object> LoadHandler::LoadFromPrototype(Isolate* isolate,
                                               Handle<Map> receiver_map,
                                               Handle<JSReceiver> holder,
                                               Handle<Name> name,
-                                              Handle<Smi> smi_handler) {
+                                              Handle<Smi> smi_handler,
+                                              MaybeHandle<Object> maybe_data) {
   int checks_count =
       GetPrototypeCheckCount(isolate, receiver_map, holder, name);
   DCHECK_LE(0, checks_count);
@@ -144,23 +126,20 @@ Handle<Object> LoadHandler::LoadFromPrototype(Isolate* isolate,
       Map::GetOrCreatePrototypeChainValidityCell(receiver_map, isolate);
   DCHECK(!validity_cell.is_null());
 
-  // LoadIC dispatcher expects PropertyCell as a "holder" in case of kGlobal
-  // handler kind.
-  HolderCellRequest request = GetHandlerKind(*smi_handler) == kGlobal
-                                  ? HolderCellRequest::kGlobalPropertyCell
-                                  : HolderCellRequest::kHolder;
-
-  Handle<WeakCell> holder_cell = HolderCell(isolate, holder, name, request);
+  Handle<Object> data;
+  if (!maybe_data.ToHandle(&data)) {
+    data = Map::GetOrCreatePrototypeWeakCell(holder, isolate);
+  }
 
   if (checks_count == 0) {
-    return isolate->factory()->NewTuple3(holder_cell, smi_handler,
-                                         validity_cell, TENURED);
+    return isolate->factory()->NewTuple3(data, smi_handler, validity_cell,
+                                         TENURED);
   }
   Handle<FixedArray> handler_array(isolate->factory()->NewFixedArray(
       kFirstPrototypeIndex + checks_count, TENURED));
   handler_array->set(kSmiHandlerIndex, *smi_handler);
   handler_array->set(kValidityCellIndex, *validity_cell);
-  handler_array->set(kHolderCellIndex, *holder_cell);
+  handler_array->set(kDataIndex, *data);
   InitPrototypeChecks(isolate, receiver_map, holder, name, handler_array,
                       kFirstPrototypeIndex);
   return handler_array;
@@ -203,10 +182,24 @@ Handle<Object> LoadHandler::LoadFullChain(Isolate* isolate,
       LoadHandler::kFirstPrototypeIndex + checks_count, TENURED));
   handler_array->set(kSmiHandlerIndex, *smi_handler);
   handler_array->set(kValidityCellIndex, *validity_cell);
-  handler_array->set(kHolderCellIndex, *holder);
+  handler_array->set(kDataIndex, *holder);
   InitPrototypeChecks(isolate, receiver_map, end, name, handler_array,
                       kFirstPrototypeIndex);
   return handler_array;
+}
+
+// static
+KeyedAccessLoadMode LoadHandler::GetKeyedAccessLoadMode(Object* handler) {
+  DisallowHeapAllocation no_gc;
+  if (handler->IsSmi()) {
+    int const raw_handler = Smi::cast(handler)->value();
+    Kind const kind = KindBits::decode(raw_handler);
+    if ((kind == kElement || kind == kIndexedString) &&
+        AllowOutOfBoundsBits::decode(raw_handler)) {
+      return LOAD_IGNORE_OUT_OF_BOUNDS;
+    }
+  }
+  return STANDARD_LOAD;
 }
 
 // static
@@ -228,69 +221,39 @@ Handle<Object> StoreHandler::StoreElementTransition(
   return isolate->factory()->NewTuple3(cell, stub, validity_cell, TENURED);
 }
 
-// static
-Handle<Object> StoreHandler::StoreTransition(Isolate* isolate,
-                                             Handle<Map> receiver_map,
-                                             Handle<JSObject> holder,
-                                             Handle<HeapObject> transition,
-                                             Handle<Name> name) {
-  Handle<Smi> smi_handler;
-  Handle<WeakCell> transition_cell;
+Handle<Smi> StoreHandler::StoreTransition(Isolate* isolate,
+                                          Handle<Map> transition_map) {
+  int descriptor = transition_map->LastAdded();
+  Handle<DescriptorArray> descriptors(transition_map->instance_descriptors());
+  PropertyDetails details = descriptors->GetDetails(descriptor);
+  Representation representation = details.representation();
+  DCHECK(!representation.IsNone());
 
-  if (transition->IsMap()) {
-    Handle<Map> transition_map = Handle<Map>::cast(transition);
-    if (transition_map->is_dictionary_map()) {
-      smi_handler = StoreNormal(isolate);
-    } else {
-      int descriptor = transition_map->LastAdded();
-      Handle<DescriptorArray> descriptors(
-          transition_map->instance_descriptors());
-      PropertyDetails details = descriptors->GetDetails(descriptor);
-      Representation representation = details.representation();
-      DCHECK(!representation.IsNone());
+  // Declarative handlers don't support access checks.
+  DCHECK(!transition_map->is_access_check_needed());
 
-      // Declarative handlers don't support access checks.
-      DCHECK(!transition_map->is_access_check_needed());
-
-      DCHECK_EQ(kData, details.kind());
-      if (details.location() == kDescriptor) {
-        smi_handler = TransitionToConstant(isolate, descriptor);
-
-      } else {
-        DCHECK_EQ(kField, details.location());
-        bool extend_storage = Map::cast(transition_map->GetBackPointer())
-                                  ->unused_property_fields() == 0;
-
-        FieldIndex index =
-            FieldIndex::ForDescriptor(*transition_map, descriptor);
-        smi_handler = TransitionToField(isolate, descriptor, index,
-                                        representation, extend_storage);
-      }
-    }
-    // |holder| is either a receiver if the property is non-existent or
-    // one of the prototypes.
-    DCHECK(!holder.is_null());
-    bool is_nonexistent = holder->map() == transition_map->GetBackPointer();
-    if (is_nonexistent) holder = Handle<JSObject>::null();
-    transition_cell = Map::WeakCellForMap(transition_map);
-
-  } else {
-    DCHECK(transition->IsPropertyCell());
-    if (receiver_map->IsJSGlobalObjectMap()) {
-      // TODO(ishell): this must be handled by StoreGlobalIC once it's finished.
-      return StoreGlobal(isolate, Handle<PropertyCell>::cast(transition));
-    } else {
-      DCHECK(receiver_map->IsJSGlobalProxyMap());
-      smi_handler = StoreGlobalProxy(isolate);
-      transition_cell = isolate->factory()->NewWeakCell(transition);
-    }
+  DCHECK_EQ(kData, details.kind());
+  if (details.location() == PropertyLocation::kDescriptor) {
+    return TransitionToConstant(isolate, descriptor);
   }
+  DCHECK_EQ(PropertyLocation::kField, details.location());
+  bool extend_storage =
+      Map::cast(transition_map->GetBackPointer())->UnusedPropertyFields() == 0;
 
+  FieldIndex index = FieldIndex::ForDescriptor(*transition_map, descriptor);
+  return TransitionToField(isolate, descriptor, index, representation,
+                           extend_storage);
+}
+
+// static
+Handle<Object> StoreHandler::StoreThroughPrototype(
+    Isolate* isolate, Handle<Map> receiver_map, Handle<JSReceiver> holder,
+    Handle<Name> name, Handle<Smi> smi_handler,
+    MaybeHandle<Object> maybe_data) {
   int checks_count =
       GetPrototypeCheckCount(isolate, receiver_map, holder, name);
 
   DCHECK_LE(0, checks_count);
-  DCHECK(!receiver_map->IsJSGlobalObjectMap());
 
   if (receiver_map->is_access_check_needed()) {
     DCHECK(!receiver_map->is_dictionary_map());
@@ -305,16 +268,20 @@ Handle<Object> StoreHandler::StoreTransition(Isolate* isolate,
     validity_cell = handle(Smi::kZero, isolate);
   }
 
+  Handle<Object> data;
+  if (!maybe_data.ToHandle(&data)) {
+    data = Map::GetOrCreatePrototypeWeakCell(holder, isolate);
+  }
+
   Factory* factory = isolate->factory();
   if (checks_count == 0) {
-    return factory->NewTuple3(transition_cell, smi_handler, validity_cell,
-                              TENURED);
+    return factory->NewTuple3(data, smi_handler, validity_cell, TENURED);
   }
   Handle<FixedArray> handler_array(
       factory->NewFixedArray(kFirstPrototypeIndex + checks_count, TENURED));
   handler_array->set(kSmiHandlerIndex, *smi_handler);
   handler_array->set(kValidityCellIndex, *validity_cell);
-  handler_array->set(kTransitionMapOrHolderCellIndex, *transition_cell);
+  handler_array->set(kDataIndex, *data);
   InitPrototypeChecks(isolate, receiver_map, holder, name, handler_array,
                       kFirstPrototypeIndex);
   return handler_array;
@@ -333,40 +300,10 @@ Handle<Object> StoreHandler::StoreProxy(Isolate* isolate,
                                         Handle<JSReceiver> receiver,
                                         Handle<Name> name) {
   Handle<Smi> smi_handler = StoreProxy(isolate);
-
   if (receiver.is_identical_to(proxy)) return smi_handler;
-
-  int checks_count = GetPrototypeCheckCount(isolate, receiver_map, proxy, name);
-
-  DCHECK_LE(0, checks_count);
-
-  if (receiver_map->is_access_check_needed()) {
-    DCHECK(!receiver_map->is_dictionary_map());
-    DCHECK_LE(1, checks_count);  // For native context.
-    smi_handler = EnableAccessCheckOnReceiver(isolate, smi_handler);
-  }
-
-  Handle<Object> validity_cell =
-      Map::GetOrCreatePrototypeChainValidityCell(receiver_map, isolate);
-  if (validity_cell.is_null()) {
-    DCHECK_EQ(0, checks_count);
-    validity_cell = handle(Smi::kZero, isolate);
-  }
-
-  Factory* factory = isolate->factory();
-  Handle<WeakCell> holder_cell = factory->NewWeakCell(proxy);
-
-  if (checks_count == 0) {
-    return factory->NewTuple3(holder_cell, smi_handler, validity_cell, TENURED);
-  }
-  Handle<FixedArray> handler_array(
-      factory->NewFixedArray(kFirstPrototypeIndex + checks_count, TENURED));
-  handler_array->set(kSmiHandlerIndex, *smi_handler);
-  handler_array->set(kValidityCellIndex, *validity_cell);
-  handler_array->set(kTransitionMapOrHolderCellIndex, *holder_cell);
-  InitPrototypeChecks(isolate, receiver_map, proxy, name, handler_array,
-                      kFirstPrototypeIndex);
-  return handler_array;
+  Handle<WeakCell> holder_cell = isolate->factory()->NewWeakCell(proxy);
+  return StoreThroughPrototype(isolate, receiver_map, proxy, name, smi_handler,
+                               holder_cell);
 }
 
 Object* StoreHandler::ValidHandlerOrNull(Object* raw_handler, Name* name,
@@ -388,7 +325,7 @@ Object* StoreHandler::ValidHandlerOrNull(Object* raw_handler, Name* name,
     }
 
   } else {
-    DCHECK(raw_handler->IsFixedArray());
+    DCHECK(raw_handler->IsFixedArrayExact());
     FixedArray* handler = FixedArray::cast(raw_handler);
 
     // Check validity cell.
@@ -415,9 +352,8 @@ Object* StoreHandler::ValidHandlerOrNull(Object* raw_handler, Name* name,
         int number = dict->FindEntry(isolate, name_handle);
         if (number != NameDictionary::kNotFound) {
           PropertyDetails details = dict->DetailsAt(number);
-          if (details.IsReadOnly() || details.kind() == kAccessor) {
-            return nullptr;
-          }
+          if (details.IsReadOnly()) return nullptr;
+          if (details.kind() == PropertyKind::kAccessor) return nullptr;
           break;
         }
       }

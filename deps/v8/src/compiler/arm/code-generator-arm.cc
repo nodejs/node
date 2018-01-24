@@ -134,6 +134,20 @@ class ArmOperandConverter final : public InstructionOperandConverter {
     FrameOffset offset = frame_access_state()->GetFrameOffset(slot);
     return MemOperand(offset.from_stack_pointer() ? sp : fp, offset.offset());
   }
+
+  NeonMemOperand NeonInputOperand(size_t first_index) {
+    const size_t index = first_index;
+    switch (AddressingModeField::decode(instr_->opcode())) {
+      case kMode_Offset_RR:
+        return NeonMemOperand(InputRegister(index + 0),
+                              InputRegister(index + 1));
+      case kMode_Operand2_R:
+        return NeonMemOperand(InputRegister(index + 0));
+      default:
+        break;
+    }
+    UNREACHABLE();
+  }
 };
 
 namespace {
@@ -238,14 +252,8 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
       __ Push(lr);
       unwinding_info_writer_->MarkLinkRegisterOnTopOfStack(__ pc_offset());
     }
-#ifdef V8_CSA_WRITE_BARRIER
     __ CallRecordWriteStub(object_, scratch1_, remembered_set_action,
                            save_fp_mode);
-#else
-    __ CallStubDelayed(
-        new (zone_) RecordWriteStub(nullptr, object_, scratch0_, scratch1_,
-                                    remembered_set_action, save_fp_mode));
-#endif
     if (must_save_lr_) {
       __ Pop(lr);
       unwinding_info_writer_->MarkPopLinkRegisterFromTopOfStack(__ pc_offset());
@@ -669,15 +677,16 @@ void CodeGenerator::AssembleTailCallAfterGap(Instruction* instr,
 // to:
 //    1. load the address of the current instruction;
 //    2. read from memory the word that contains that bit, which can be found in
-//       the first set of flags ({kKindSpecificFlags1Offset});
+//       the flags in the referenced {CodeDataContainer} object;
 //    3. test kMarkedForDeoptimizationBit in those flags; and
 //    4. if it is not zero then it jumps to the builtin.
 void CodeGenerator::BailoutIfDeoptimized() {
   int pc_offset = __ pc_offset();
   int offset =
-      Code::kKindSpecificFlags1Offset - (Code::kHeaderSize + pc_offset + 8);
+      Code::kCodeDataContainerOffset - (Code::kHeaderSize + pc_offset + 8);
   // We can use the register pc - 8 for the address of the current instruction.
   __ ldr(ip, MemOperand(pc, offset));
+  __ ldr(ip, FieldMemOperand(ip, CodeDataContainer::kKindSpecificFlagsOffset));
   __ tst(ip, Operand(1 << Code::kMarkedForDeoptimizationBit));
   Handle<Code> code = isolate()->builtins()->builtin_handle(
       Builtins::kCompileLazyDeoptimizedCode);
@@ -711,6 +720,28 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       frame_access_state()->ClearSPDelta();
       break;
     }
+    case kArchCallWasmFunction: {
+      // We must not share code targets for calls to builtins for wasm code, as
+      // they might need to be patched individually.
+      internal::Assembler::BlockCodeTargetSharingScope scope;
+      RelocInfo::Mode rmode = RelocInfo::JS_TO_WASM_CALL;
+      if (info()->IsWasm()) {
+        scope.Open(tasm());
+        rmode = RelocInfo::WASM_CALL;
+      }
+
+      if (instr->InputAt(0)->IsImmediate()) {
+        Address wasm_code = reinterpret_cast<Address>(
+            i.ToConstant(instr->InputAt(0)).ToInt32());
+        __ Call(wasm_code, rmode);
+      } else {
+        __ Call(i.InputRegister(0));
+      }
+      RecordCallPosition(instr);
+      DCHECK_EQ(LeaveCC, i.OutputSBit());
+      frame_access_state()->ClearSPDelta();
+      break;
+    }
     case kArchTailCallCodeObjectFromJSFunction:
     case kArchTailCallCodeObject: {
       // We must not share code targets for calls to builtins for wasm code, as
@@ -729,6 +760,29 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ add(ip, i.InputRegister(0),
                Operand(Code::kHeaderSize - kHeapObjectTag));
         __ Jump(ip);
+      }
+      DCHECK_EQ(LeaveCC, i.OutputSBit());
+      unwinding_info_writer_.MarkBlockWillExit();
+      frame_access_state()->ClearSPDelta();
+      frame_access_state()->SetFrameAccessToDefault();
+      break;
+    }
+    case kArchTailCallWasm: {
+      // We must not share code targets for calls to builtins for wasm code, as
+      // they might need to be patched individually.
+      internal::Assembler::BlockCodeTargetSharingScope scope;
+      RelocInfo::Mode rmode = RelocInfo::JS_TO_WASM_CALL;
+      if (info()->IsWasm()) {
+        scope.Open(tasm());
+        rmode = RelocInfo::WASM_CALL;
+      }
+
+      if (instr->InputAt(0)->IsImmediate()) {
+        Address wasm_code = reinterpret_cast<Address>(
+            i.ToConstant(instr->InputAt(0)).ToInt32());
+        __ Jump(wasm_code, rmode);
+      } else {
+        __ Jump(i.InputRegister(0));
       }
       DCHECK_EQ(LeaveCC, i.OutputSBit());
       unwinding_info_writer_.MarkBlockWillExit();
@@ -1536,22 +1590,22 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     case kArmVld1F64: {
       __ vld1(Neon8, NeonListOperand(i.OutputDoubleRegister()),
-              NeonMemOperand(i.InputRegister(0)));
+              i.NeonInputOperand(0));
       break;
     }
     case kArmVst1F64: {
       __ vst1(Neon8, NeonListOperand(i.InputDoubleRegister(0)),
-              NeonMemOperand(i.InputRegister(1)));
+              i.NeonInputOperand(1));
       break;
     }
     case kArmVld1S128: {
       __ vld1(Neon8, NeonListOperand(i.OutputSimd128Register()),
-              NeonMemOperand(i.InputRegister(0)));
+              i.NeonInputOperand(0));
       break;
     }
     case kArmVst1S128: {
       __ vst1(Neon8, NeonListOperand(i.InputSimd128Register(0)),
-              NeonMemOperand(i.InputRegister(1)));
+              i.NeonInputOperand(1));
       break;
     }
     case kArmVldrF64:
@@ -2411,7 +2465,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         // Ensure byte indices are in [0, 31] so masks are never NaNs.
         four_lanes &= 0x1F1F1F1F;
         __ vmov(SwVfpRegister::from_code(scratch_s_base + j),
-                Float32(four_lanes));
+                Float32::FromBits(four_lanes));
       }
       NeonListOperand table(table_base, table_size);
       if (dst != src0 && dst != src1) {
@@ -2790,15 +2844,14 @@ void CodeGenerator::FinishFrame(Frame* frame) {
     STATIC_ASSERT(DwVfpRegister::kNumRegisters == 32);
     uint32_t last = base::bits::CountLeadingZeros32(saves_fp) - 1;
     uint32_t first = base::bits::CountTrailingZeros32(saves_fp);
-    DCHECK_EQ((last - first + 1), base::bits::CountPopulation32(saves_fp));
+    DCHECK_EQ((last - first + 1), base::bits::CountPopulation(saves_fp));
     frame->AllocateSavedCalleeRegisterSlots((last - first + 1) *
                                             (kDoubleSize / kPointerSize));
   }
   const RegList saves = descriptor->CalleeSavedRegisters();
   if (saves != 0) {
     // Save callee-saved registers.
-    frame->AllocateSavedCalleeRegisterSlots(
-        base::bits::CountPopulation32(saves));
+    frame->AllocateSavedCalleeRegisterSlots(base::bits::CountPopulation(saves));
   }
 }
 
@@ -2836,7 +2889,9 @@ void CodeGenerator::AssembleConstructFrame() {
     shrink_slots -= osr_helper()->UnoptimizedFrameSlots();
   }
 
+  const RegList saves = descriptor->CalleeSavedRegisters();
   const RegList saves_fp = descriptor->CalleeSavedFPRegisters();
+
   if (shrink_slots > 0) {
     if (info()->IsWasm()) {
       if (shrink_slots > 128) {
@@ -2849,14 +2904,15 @@ void CodeGenerator::AssembleConstructFrame() {
         // If the frame is bigger than the stack, we throw the stack overflow
         // exception unconditionally. Thereby we can avoid the integer overflow
         // check in the condition code.
-        if (shrink_slots * kPointerSize < FLAG_stack_size * 1024) {
-          __ Move(kScratchReg,
+        if ((shrink_slots * kPointerSize) < (FLAG_stack_size * 1024)) {
+          UseScratchRegisterScope temps(tasm());
+          Register scratch = temps.Acquire();
+          __ Move(scratch,
                   Operand(ExternalReference::address_of_real_stack_limit(
                       __ isolate())));
-          __ ldr(kScratchReg, MemOperand(kScratchReg));
-          __ add(kScratchReg, kScratchReg,
-                 Operand(shrink_slots * kPointerSize));
-          __ cmp(sp, kScratchReg);
+          __ ldr(scratch, MemOperand(scratch));
+          __ add(scratch, scratch, Operand(shrink_slots * kPointerSize));
+          __ cmp(sp, scratch);
           __ b(cs, &done);
         }
 
@@ -2879,7 +2935,13 @@ void CodeGenerator::AssembleConstructFrame() {
         __ bind(&done);
       }
     }
-    __ sub(sp, sp, Operand(shrink_slots * kPointerSize));
+
+    // Skip callee-saved slots, which are pushed below.
+    shrink_slots -= base::bits::CountPopulation(saves);
+    shrink_slots -= 2 * base::bits::CountPopulation(saves_fp);
+    if (shrink_slots > 0) {
+      __ sub(sp, sp, Operand(shrink_slots * kPointerSize));
+    }
   }
 
   if (saves_fp != 0) {
@@ -2887,11 +2949,10 @@ void CodeGenerator::AssembleConstructFrame() {
     STATIC_ASSERT(DwVfpRegister::kNumRegisters == 32);
     uint32_t last = base::bits::CountLeadingZeros32(saves_fp) - 1;
     uint32_t first = base::bits::CountTrailingZeros32(saves_fp);
-    DCHECK_EQ((last - first + 1), base::bits::CountPopulation32(saves_fp));
+    DCHECK_EQ((last - first + 1), base::bits::CountPopulation(saves_fp));
     __ vstm(db_w, sp, DwVfpRegister::from_code(first),
             DwVfpRegister::from_code(last));
   }
-  const RegList saves = descriptor->CalleeSavedRegisters();
   if (saves != 0) {
     // Save callee-saved registers.
     __ stm(db_w, sp, saves);
@@ -3022,7 +3083,7 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
         __ str(temp, dst);
       } else {
         SwVfpRegister dst = g.ToFloatRegister(destination);
-        __ vmov(dst, Float32(src.ToFloat32AsInt()));
+        __ vmov(dst, Float32::FromBits(src.ToFloat32AsInt()));
       }
     } else {
       DCHECK_EQ(Constant::kFloat64, src.type());

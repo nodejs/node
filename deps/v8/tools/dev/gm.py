@@ -43,7 +43,7 @@ MODES = ["release", "debug", "optdebug"]
 DEFAULT_MODES = ["release", "debug"]
 # Build targets that can be manually specified.
 TARGETS = ["d8", "cctest", "unittests", "v8_fuzzers", "mkgrokdump",
-           "generate-bytecode-expectations"]
+           "generate-bytecode-expectations", "inspector-test"]
 # Build targets that get built when you don't specify any (and specified tests
 # don't imply any other targets).
 DEFAULT_TARGETS = ["d8"]
@@ -75,6 +75,7 @@ TESTSUITES_TARGETS = {"benchmarks": "d8",
               "cctest": "cctest",
               "debugger": "d8",
               "fuzzer": "v8_fuzzers",
+              "inspector": "inspector-test",
               "intl": "d8",
               "message": "d8",
               "mjsunit": "d8",

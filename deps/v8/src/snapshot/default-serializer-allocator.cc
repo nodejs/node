@@ -80,13 +80,6 @@ bool DefaultSerializerAllocator::BackReferenceIsAlreadyAllocated(
     }
   }
 }
-
-bool DefaultSerializerAllocator::HasNotExceededFirstPageOfEachSpace() const {
-  for (int i = 0; i < kNumberOfPreallocatedSpaces; i++) {
-    if (!completed_chunks_[i].empty()) return false;
-  }
-  return true;
-}
 #endif
 
 std::vector<SerializedData::Reservation>

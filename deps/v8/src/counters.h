@@ -46,23 +46,21 @@ class StatsTable {
     add_histogram_sample_function_ = f;
   }
 
-  bool HasCounterFunction() const {
-    return lookup_function_ != NULL;
-  }
+  bool HasCounterFunction() const { return lookup_function_ != nullptr; }
 
   // Lookup the location of a counter by name.  If the lookup
-  // is successful, returns a non-NULL pointer for writing the
+  // is successful, returns a non-nullptr pointer for writing the
   // value of the counter.  Each thread calling this function
   // may receive a different location to store it's counter.
   // The return value must not be cached and re-used across
   // threads, although a single thread is free to cache it.
   int* FindLocation(const char* name) {
-    if (!lookup_function_) return NULL;
+    if (!lookup_function_) return nullptr;
     return lookup_function_(name);
   }
 
   // Create a histogram by name. If the create is successful,
-  // returns a non-NULL pointer for use with AddHistogramSample
+  // returns a non-nullptr pointer for use with AddHistogramSample
   // function. min and max define the expected minimum and maximum
   // sample values. buckets is the maximum number of buckets
   // that the samples will be grouped into.
@@ -70,7 +68,7 @@ class StatsTable {
                         int min,
                         int max,
                         size_t buckets) {
-    if (!create_histogram_function_) return NULL;
+    if (!create_histogram_function_) return nullptr;
     return create_histogram_function_(name, min, max, buckets);
   }
 
@@ -149,16 +147,14 @@ class StatsCounter : public StatsCounterBase {
 
   // Is this counter enabled?
   // Returns false if table is full.
-  bool Enabled() {
-    return GetPtr() != NULL;
-  }
+  bool Enabled() { return GetPtr() != nullptr; }
 
   // Get the internal pointer to the counter. This is used
   // by the code generator to emit code that manipulates a
   // given counter without calling the runtime system.
   int* GetInternalPointer() {
     int* loc = GetPtr();
-    DCHECK(loc != NULL);
+    DCHECK_NOT_NULL(loc);
     return loc;
   }
 
@@ -191,9 +187,9 @@ class StatsCounterThreadSafe : public StatsCounterBase {
   void Increment(int value);
   void Decrement();
   void Decrement(int value);
-  bool Enabled() { return ptr_ != NULL; }
+  bool Enabled() { return ptr_ != nullptr; }
   int* GetInternalPointer() {
-    DCHECK(ptr_ != NULL);
+    DCHECK_NOT_NULL(ptr_);
     return ptr_;
   }
 
@@ -219,6 +215,10 @@ class Histogram {
   bool Enabled() { return histogram_ != nullptr; }
 
   const char* name() { return name_; }
+
+  int min() const { return min_; }
+  int max() const { return max_; }
+  int num_buckets() const { return num_buckets_; }
 
  protected:
   Histogram() {}
@@ -290,6 +290,29 @@ class TimedHistogramScope {
   Isolate* isolate_;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(TimedHistogramScope);
+};
+
+// Helper class for scoping a TimedHistogram, where the histogram is selected at
+// stop time rather than start time.
+// TODO(leszeks): This is heavily reliant on TimedHistogram::Start() doing
+// nothing but starting the timer, and TimedHistogram::Stop() logging the sample
+// correctly even if Start() was not called. This happens to be true iff Stop()
+// is passed a null isolate, but that's an implementation detail of
+// TimedHistogram, and we shouldn't rely on it.
+class LazyTimedHistogramScope {
+ public:
+  LazyTimedHistogramScope() : histogram_(nullptr) { timer_.Start(); }
+  ~LazyTimedHistogramScope() {
+    // We should set the histogram before this scope exits.
+    DCHECK_NOT_NULL(histogram_);
+    histogram_->Stop(&timer_, nullptr);
+  }
+
+  void set_histogram(TimedHistogram* histogram) { histogram_ = histogram; }
+
+ private:
+  base::ElapsedTimer timer_;
+  TimedHistogram* histogram_;
 };
 
 // A HistogramTimer allows distributions of non-nested timed results
@@ -381,7 +404,13 @@ class AggregatableHistogramTimer : public Histogram {
  public:
   // Start/stop the "outer" scope.
   void Start() { time_ = base::TimeDelta(); }
-  void Stop() { AddSample(static_cast<int>(time_.InMicroseconds())); }
+  void Stop() {
+    if (time_ != base::TimeDelta()) {
+      // Only add non-zero samples, since zero samples represent situations
+      // where there were no aggregated samples added.
+      AddSample(static_cast<int>(time_.InMicroseconds()));
+    }
+  }
 
   // Add a time value ("inner" scope).
   void Add(base::TimeDelta other) { time_ += other; }
@@ -466,7 +495,7 @@ class AggregatedMemoryHistogram {
         last_ms_(0.0),
         aggregate_value_(0.0),
         last_value_(0.0),
-        backing_histogram_(NULL) {}
+        backing_histogram_(nullptr) {}
   double Aggregate(double current_ms, double current_value);
 
   bool is_initialized_;
@@ -591,11 +620,13 @@ class RuntimeCallTimer final {
   void Snapshot();
   inline RuntimeCallTimer* Stop();
 
+  // Make the time source configurable for testing purposes.
+  V8_EXPORT_PRIVATE static base::TimeTicks (*Now)();
+
  private:
   inline void Pause(base::TimeTicks now);
   inline void Resume(base::TimeTicks now);
   inline void CommitTimeToCounter();
-  inline base::TimeTicks Now();
 
   RuntimeCallCounter* counter_ = nullptr;
   base::AtomicValue<RuntimeCallTimer*> parent_;
@@ -760,17 +791,20 @@ class RuntimeCallTimer final {
   V(ArrayLengthSetter)                         \
   V(BoundFunctionNameGetter)                   \
   V(BoundFunctionLengthGetter)                 \
-  V(CompileCodeLazy)                           \
+  V(CompileBackgroundAnalyse)                  \
+  V(CompileBackgroundEval)                     \
+  V(CompileBackgroundIgnition)                 \
+  V(CompileBackgroundScript)                   \
+  V(CompileBackgroundRenumber)                 \
+  V(CompileBackgroundRewriteReturnResult)      \
+  V(CompileBackgroundScopeAnalysis)            \
   V(CompileDeserialize)                        \
   V(CompileEval)                               \
-  V(CompileFullCode)                           \
   V(CompileAnalyse)                            \
-  V(CompileBackgroundIgnition)                 \
   V(CompileFunction)                           \
   V(CompileGetFromOptimizedCodeMap)            \
   V(CompileIgnition)                           \
   V(CompileIgnitionFinalization)               \
-  V(CompileInnerFunction)                      \
   V(CompileRenumber)                           \
   V(CompileRewriteReturnResult)                \
   V(CompileScopeAnalysis)                      \
@@ -781,6 +815,7 @@ class RuntimeCallTimer final {
   V(FunctionCallback)                          \
   V(FunctionPrototypeGetter)                   \
   V(FunctionPrototypeSetter)                   \
+  V(FunctionLengthGetter)                      \
   V(GC_Custom_AllAvailableGarbage)             \
   V(GC_Custom_IncrementalMarkingObserver)      \
   V(GC_Custom_SlowAllocateRaw)                 \
@@ -809,6 +844,7 @@ class RuntimeCallTimer final {
   V(ParseArrowFunctionLiteral)                 \
   V(ParseBackgroundArrowFunctionLiteral)       \
   V(ParseBackgroundFunctionLiteral)            \
+  V(ParseBackgroundProgram)                    \
   V(ParseEval)                                 \
   V(ParseFunction)                             \
   V(ParseFunctionLiteral)                      \
@@ -831,56 +867,60 @@ class RuntimeCallTimer final {
   V(TestCounter2)                              \
   V(TestCounter3)
 
-#define FOR_EACH_HANDLER_COUNTER(V)              \
-  V(KeyedLoadIC_LoadIndexedStringStub)           \
-  V(KeyedLoadIC_LoadIndexedInterceptorStub)      \
-  V(KeyedLoadIC_KeyedLoadSloppyArgumentsStub)    \
-  V(KeyedLoadIC_LoadElementDH)                   \
-  V(KeyedLoadIC_SlowStub)                        \
-  V(KeyedStoreIC_ElementsTransitionAndStoreStub) \
-  V(KeyedStoreIC_KeyedStoreSloppyArgumentsStub)  \
-  V(KeyedStoreIC_SlowStub)                       \
-  V(KeyedStoreIC_StoreFastElementStub)           \
-  V(KeyedStoreIC_StoreElementStub)               \
-  V(LoadIC_FunctionPrototypeStub)                \
-  V(LoadIC_HandlerCacheHit_Accessor)             \
-  V(LoadIC_LoadAccessorDH)                       \
-  V(LoadIC_LoadAccessorFromPrototypeDH)          \
-  V(LoadIC_LoadApiGetterDH)                      \
-  V(LoadIC_LoadApiGetterFromPrototypeDH)         \
-  V(LoadIC_LoadCallback)                         \
-  V(LoadIC_LoadConstantDH)                       \
-  V(LoadIC_LoadConstantFromPrototypeDH)          \
-  V(LoadIC_LoadFieldDH)                          \
-  V(LoadIC_LoadFieldFromPrototypeDH)             \
-  V(LoadIC_LoadGlobalDH)                         \
-  V(LoadIC_LoadGlobalFromPrototypeDH)            \
-  V(LoadIC_LoadIntegerIndexedExoticDH)           \
-  V(LoadIC_LoadInterceptorDH)                    \
-  V(LoadIC_LoadNonMaskingInterceptorDH)          \
-  V(LoadIC_LoadInterceptorFromPrototypeDH)       \
-  V(LoadIC_LoadNonexistentDH)                    \
-  V(LoadIC_LoadNormalDH)                         \
-  V(LoadIC_LoadNormalFromPrototypeDH)            \
-  V(LoadIC_LoadScriptContextFieldStub)           \
-  V(LoadIC_LoadViaGetter)                        \
-  V(LoadIC_NonReceiver)                          \
-  V(LoadIC_Premonomorphic)                       \
-  V(LoadIC_SlowStub)                             \
-  V(LoadIC_StringLength)                         \
-  V(StoreIC_HandlerCacheHit_Accessor)            \
-  V(StoreIC_NonReceiver)                         \
-  V(StoreIC_Premonomorphic)                      \
-  V(StoreIC_SlowStub)                            \
-  V(StoreIC_StoreCallback)                       \
-  V(StoreIC_StoreFieldDH)                        \
-  V(StoreIC_StoreGlobalDH)                       \
-  V(StoreIC_StoreGlobalTransitionDH)             \
-  V(StoreIC_StoreInterceptorStub)                \
-  V(StoreIC_StoreNormalDH)                       \
-  V(StoreIC_StoreScriptContextFieldStub)         \
-  V(StoreIC_StoreTransitionDH)                   \
-  V(StoreIC_StoreViaSetter)
+#define FOR_EACH_HANDLER_COUNTER(V)               \
+  V(KeyedLoadIC_LoadIndexedInterceptorStub)       \
+  V(KeyedLoadIC_KeyedLoadSloppyArgumentsStub)     \
+  V(KeyedLoadIC_LoadElementDH)                    \
+  V(KeyedLoadIC_LoadIndexedStringDH)              \
+  V(KeyedLoadIC_SlowStub)                         \
+  V(KeyedStoreIC_ElementsTransitionAndStoreStub)  \
+  V(KeyedStoreIC_KeyedStoreSloppyArgumentsStub)   \
+  V(KeyedStoreIC_SlowStub)                        \
+  V(KeyedStoreIC_StoreFastElementStub)            \
+  V(KeyedStoreIC_StoreElementStub)                \
+  V(LoadIC_FunctionPrototypeStub)                 \
+  V(LoadIC_HandlerCacheHit_Accessor)              \
+  V(LoadIC_LoadAccessorDH)                        \
+  V(LoadIC_LoadAccessorFromPrototypeDH)           \
+  V(LoadIC_LoadApiGetterFromPrototypeDH)          \
+  V(LoadIC_LoadCallback)                          \
+  V(LoadIC_LoadConstantDH)                        \
+  V(LoadIC_LoadConstantFromPrototypeDH)           \
+  V(LoadIC_LoadFieldDH)                           \
+  V(LoadIC_LoadFieldFromPrototypeDH)              \
+  V(LoadIC_LoadGlobalDH)                          \
+  V(LoadIC_LoadGlobalFromPrototypeDH)             \
+  V(LoadIC_LoadIntegerIndexedExoticDH)            \
+  V(LoadIC_LoadInterceptorDH)                     \
+  V(LoadIC_LoadNonMaskingInterceptorDH)           \
+  V(LoadIC_LoadInterceptorFromPrototypeDH)        \
+  V(LoadIC_LoadNativeDataPropertyDH)              \
+  V(LoadIC_LoadNativeDataPropertyFromPrototypeDH) \
+  V(LoadIC_LoadNonexistentDH)                     \
+  V(LoadIC_LoadNormalDH)                          \
+  V(LoadIC_LoadNormalFromPrototypeDH)             \
+  V(LoadIC_LoadScriptContextFieldStub)            \
+  V(LoadIC_NonReceiver)                           \
+  V(LoadIC_Premonomorphic)                        \
+  V(LoadIC_SlowStub)                              \
+  V(LoadIC_StringLength)                          \
+  V(LoadIC_StringWrapperLength)                   \
+  V(StoreIC_HandlerCacheHit_Accessor)             \
+  V(StoreIC_NonReceiver)                          \
+  V(StoreIC_Premonomorphic)                       \
+  V(StoreIC_SlowStub)                             \
+  V(StoreIC_StoreAccessorDH)                      \
+  V(StoreIC_StoreAccessorOnPrototypeDH)           \
+  V(StoreIC_StoreApiSetterOnPrototypeDH)          \
+  V(StoreIC_StoreFieldDH)                         \
+  V(StoreIC_StoreGlobalDH)                        \
+  V(StoreIC_StoreGlobalTransitionDH)              \
+  V(StoreIC_StoreInterceptorStub)                 \
+  V(StoreIC_StoreNativeDataPropertyDH)            \
+  V(StoreIC_StoreNativeDataPropertyOnPrototypeDH) \
+  V(StoreIC_StoreNormalDH)                        \
+  V(StoreIC_StoreScriptContextFieldStub)          \
+  V(StoreIC_StoreTransitionDH)
 
 class RuntimeCallStats final : public ZoneObject {
  public:
@@ -931,6 +971,7 @@ class RuntimeCallStats final : public ZoneObject {
   // Add all entries from another stats object.
   void Add(RuntimeCallStats* other);
   V8_EXPORT_PRIVATE void Print(std::ostream& os);
+  V8_EXPORT_PRIVATE void Print();
   V8_NOINLINE void Dump(v8::tracing::TracedValue* value);
 
   ThreadId thread_id() const { return thread_id_; }
@@ -1032,7 +1073,10 @@ class RuntimeCallTimerScope {
      V8.WasmCompileFunctionPeakMemoryBytes, 1, GB, 51)                         \
   HR(asm_module_size_bytes, V8.AsmModuleSizeBytes, 1, GB, 51)                  \
   HR(asm_wasm_translation_throughput, V8.AsmWasmTranslationThroughput, 1, 100, \
-     20)
+     20)                                                                       \
+  HR(wasm_lazy_compilation_throughput, V8.WasmLazyCompilationThroughput, 1,    \
+     10000, 50)                                                                \
+  HR(compile_script_cache_behaviour, V8.CompileScript.CacheBehaviour, 0, 19, 20)
 
 #define HISTOGRAM_TIMER_LIST(HT)                                               \
   /* Garbage collection timers. */                                             \
@@ -1090,7 +1134,27 @@ class RuntimeCallTimerScope {
   HT(wasm_instantiate_wasm_module_time,                                        \
      V8.WasmInstantiateModuleMicroSeconds.wasm, 10000000, MICROSECOND)         \
   HT(wasm_instantiate_asm_module_time,                                         \
-     V8.WasmInstantiateModuleMicroSeconds.asm, 10000000, MICROSECOND)
+     V8.WasmInstantiateModuleMicroSeconds.asm, 10000000, MICROSECOND)          \
+  /* Total compilation time incl. caching/parsing for various cache states. */ \
+  HT(compile_script_with_produce_cache,                                        \
+     V8.CompileScriptMicroSeconds.ProduceCache, 1000000, MICROSECOND)          \
+  HT(compile_script_with_isolate_cache_hit,                                    \
+     V8.CompileScriptMicroSeconds.IsolateCacheHit, 1000000, MICROSECOND)       \
+  HT(compile_script_with_consume_cache,                                        \
+     V8.CompileScriptMicroSeconds.ConsumeCache, 1000000, MICROSECOND)          \
+  HT(compile_script_consume_failed,                                            \
+     V8.CompileScriptMicroSeconds.ConsumeCache.Failed, 1000000, MICROSECOND)   \
+  HT(compile_script_no_cache_other,                                            \
+     V8.CompileScriptMicroSeconds.NoCache.Other, 1000000, MICROSECOND)         \
+  HT(compile_script_no_cache_because_inline_script,                            \
+     V8.CompileScriptMicroSeconds.NoCache.InlineScript, 1000000, MICROSECOND)  \
+  HT(compile_script_no_cache_because_script_too_small,                         \
+     V8.CompileScriptMicroSeconds.NoCache.ScriptTooSmall, 1000000,             \
+     MICROSECOND)                                                              \
+  HT(compile_script_no_cache_because_cache_too_cold,                           \
+     V8.CompileScriptMicroSeconds.NoCache.CacheTooCold, 1000000, MICROSECOND)  \
+  HT(compile_script_on_background,                                             \
+     V8.CompileScriptMicroSeconds.BackgroundThread, 1000000, MICROSECOND)
 
 #define AGGREGATABLE_HISTOGRAM_TIMER_LIST(AHT) \
   AHT(compile_lazy, V8.CompileLazyMicroSeconds)
@@ -1193,8 +1257,6 @@ class RuntimeCallTimerScope {
   SC(cow_arrays_converted, V8.COWArraysConverted)                              \
   SC(constructed_objects, V8.ConstructedObjects)                               \
   SC(constructed_objects_runtime, V8.ConstructedObjectsRuntime)                \
-  SC(negative_lookups, V8.NegativeLookups)                                     \
-  SC(negative_lookups_miss, V8.NegativeLookupsMiss)                            \
   SC(megamorphic_stub_cache_probes, V8.MegamorphicStubCacheProbes)             \
   SC(megamorphic_stub_cache_misses, V8.MegamorphicStubCacheMisses)             \
   SC(megamorphic_stub_cache_updates, V8.MegamorphicStubCacheUpdates)           \
@@ -1206,8 +1268,6 @@ class RuntimeCallTimerScope {
   SC(string_add_runtime_ext_to_one_byte, V8.StringAddRuntimeExtToOneByte)      \
   SC(sub_string_runtime, V8.SubStringRuntime)                                  \
   SC(sub_string_native, V8.SubStringNative)                                    \
-  SC(string_compare_native, V8.StringCompareNative)                            \
-  SC(string_compare_runtime, V8.StringCompareRuntime)                          \
   SC(regexp_entry_runtime, V8.RegExpEntryRuntime)                              \
   SC(regexp_entry_native, V8.RegExpEntryNative)                                \
   SC(number_to_string_native, V8.NumberToStringNative)                         \
@@ -1246,10 +1306,12 @@ class RuntimeCallTimerScope {
   /* Total count of functions compiled using the baseline compiler. */         \
   SC(total_baseline_compile_count, V8.TotalBaselineCompileCount)
 
-#define STATS_COUNTER_TS_LIST(SC)                         \
-  SC(wasm_generated_code_size, V8.WasmGeneratedCodeBytes) \
-  SC(wasm_reloc_size, V8.WasmRelocBytes)                  \
-  SC(wasm_lazily_compiled_functions, V8.WasmLazilyCompiledFunctions)
+#define STATS_COUNTER_TS_LIST(SC)                                    \
+  SC(wasm_generated_code_size, V8.WasmGeneratedCodeBytes)            \
+  SC(wasm_reloc_size, V8.WasmRelocBytes)                             \
+  SC(wasm_lazily_compiled_functions, V8.WasmLazilyCompiledFunctions) \
+  SC(liftoff_compiled_functions, V8.LiftoffCompiledFunctions)        \
+  SC(liftoff_unsupported_functions, V8.LiftoffUnsupportedFunctions)
 
 // This file contains all the v8 counters that are in use.
 class Counters : public std::enable_shared_from_this<Counters> {

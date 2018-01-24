@@ -31,6 +31,7 @@ class AccessorAssembler : public CodeStubAssembler {
   void GenerateKeyedLoadIC();
   void GenerateKeyedLoadICTrampoline();
   void GenerateKeyedLoadIC_Megamorphic();
+  void GenerateKeyedLoadIC_PolymorphicName();
   void GenerateStoreIC();
   void GenerateStoreICTrampoline();
 
@@ -108,12 +109,15 @@ class AccessorAssembler : public CodeStubAssembler {
                          Node* feedback, Variable* var_handler,
                          Label* if_handler, Label* miss, ExitPoint* exit_point);
 
+  Node* LoadDescriptorValue(Node* map, Node* descriptor);
+
   void LoadIC_Uninitialized(const LoadICParameters* p);
   void LoadICProtoArray(const LoadICParameters* p, Node* handler,
                         bool throw_reference_error_if_nonexistent);
   void LoadGlobalIC(const LoadICParameters* p, TypeofMode typeof_mode);
   void KeyedLoadIC(const LoadICParameters* p);
   void KeyedLoadICGeneric(const LoadICParameters* p);
+  void KeyedLoadICPolymorphicName(const LoadICParameters* p);
   void StoreIC(const StoreICParameters* p);
   void StoreGlobalIC_PropertyCellCase(Node* property_cell, Node* value,
                                       ExitPoint* exit_point, Label* miss);
@@ -182,8 +186,14 @@ class AccessorAssembler : public CodeStubAssembler {
                                  Representation representation, Node* value,
                                  Node* transition, Label* miss);
 
+  void HandleStoreICNativeDataProperty(const StoreICParameters* p, Node* holder,
+                                       Node* handler_word);
+
   void HandleStoreToProxy(const StoreICParameters* p, Node* proxy, Label* miss,
                           ElementSupport support_elements);
+
+  void HandleStoreAccessor(const StoreICParameters* p, Node* holder,
+                           Node* handler_word);
 
   // KeyedLoadIC_Generic implementation.
 
@@ -197,6 +207,8 @@ class AccessorAssembler : public CodeStubAssembler {
                            UseStubCache use_stub_cache = kUseStubCache);
 
   // Low-level helpers.
+
+  Node* GetLanguageMode(Node* vector, Node* slot);
 
   Node* PrepareValueForStore(Node* handler_word, Node* holder,
                              Representation representation, Node* transition,

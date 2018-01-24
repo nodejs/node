@@ -85,23 +85,28 @@ def MakeProcessContext(context, suite_names):
 
 def GetCommand(test, context):
   d8testflag = []
-  shell = test.shell()
+  shell = test.suite.GetShellForTestCase(test)
   if shell == "d8":
     d8testflag = ["--test"]
   if utils.IsWindows():
     shell += ".exe"
   if context.random_seed:
     d8testflag += ["--random-seed=%s" % context.random_seed]
-  cmd = (context.command_prefix +
-         [os.path.abspath(os.path.join(context.shell_dir, shell))] +
-         d8testflag +
-         test.suite.GetFlagsForTestCase(test, context) +
-         context.extra_flags)
-  return cmd
+  files, flags, env = test.suite.GetParametersForTestCase(test, context)
+  cmd = (
+      context.command_prefix +
+      [os.path.abspath(os.path.join(context.shell_dir, shell))] +
+      d8testflag +
+      files +
+      context.extra_flags +
+      # Flags from test cases can overwrite extra cmd-line flags.
+      flags
+  )
+  return cmd, env
 
 
 def _GetInstructions(test, context):
-  command = GetCommand(test, context)
+  command, env = GetCommand(test, context)
   timeout = context.timeout
   if ("--stress-opt" in test.flags or
       "--stress-opt" in context.mode_flags or
@@ -109,11 +114,10 @@ def _GetInstructions(test, context):
     timeout *= 4
   if "--noenable-vfp3" in context.extra_flags:
     timeout *= 2
-  # FIXME(machenbach): Make this more OO. Don't expose default outcomes or
-  # the like.
-  if statusfile.IsSlow(test.outcomes or [statusfile.PASS]):
-    timeout *= 2
-  return Instructions(command, test.id, timeout, context.verbose, test.env)
+
+  # TODO(majeski): make it slow outcome dependent.
+  timeout *= 2
+  return Instructions(command, test.id, timeout, context.verbose, env)
 
 
 class Job(object):
@@ -156,8 +160,9 @@ class TestJob(Job):
     failures).
     """
     if context.sancov_dir and output.pid is not None:
+      shell = self.test.suite.GetShellForTestCase(self.test)
       sancov_file = os.path.join(
-          context.sancov_dir, "%s.%d.sancov" % (self.test.shell(), output.pid))
+          context.sancov_dir, "%s.%d.sancov" % (shell, output.pid))
 
       # Some tests are expected to fail and don't produce coverage data.
       if os.path.exists(sancov_file):
@@ -177,6 +182,7 @@ class TestJob(Job):
       self.test.SetSuiteObject(process_context.suites)
       instr = _GetInstructions(self.test, process_context.context)
     except Exception, e:
+      # TODO(majeski): Better exception reporting.
       return SetupProblem(e, self.test)
 
     start_time = time.time()
@@ -203,7 +209,7 @@ class Runner(object):
     self.suite_names = [s.name for s in suites]
 
     # Always pre-sort by status file, slowest tests first.
-    slow_key = lambda t: statusfile.IsSlow(t.outcomes)
+    slow_key = lambda t: statusfile.IsSlow(t.suite.GetStatusFileOutcomes(t))
     self.tests.sort(key=slow_key, reverse=True)
 
     # Sort by stored duration of not opted out.

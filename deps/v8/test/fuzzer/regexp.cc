@@ -34,8 +34,6 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   v8::Context::Scope context_scope(support->GetContext());
   v8::TryCatch try_catch(isolate);
 
-  i::FLAG_harmony_regexp_lookbehind = true;
-
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   i::Factory* factory = i_isolate->factory();
 

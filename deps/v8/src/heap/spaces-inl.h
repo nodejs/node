@@ -8,6 +8,7 @@
 #include "src/heap/incremental-marking.h"
 #include "src/heap/spaces.h"
 #include "src/msan.h"
+#include "src/objects/code-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -369,10 +370,13 @@ AllocationResult PagedSpace::AllocateRawAligned(int size_in_bytes,
 
 AllocationResult PagedSpace::AllocateRaw(int size_in_bytes,
                                          AllocationAlignment alignment) {
-  if (top() < top_on_previous_step_) {
-    // Generated code decreased the top() pointer to do folded allocations
-    DCHECK_EQ(Page::FromAddress(top()),
-              Page::FromAddress(top_on_previous_step_));
+  if (top_on_previous_step_ && top() < top_on_previous_step_ &&
+      SupportsInlineAllocation()) {
+    // Generated code decreased the top() pointer to do folded allocations.
+    // The top_on_previous_step_ can be one byte beyond the current page.
+    DCHECK_NOT_NULL(top());
+    DCHECK_EQ(Page::FromAllocationAreaAddress(top()),
+              Page::FromAllocationAreaAddress(top_on_previous_step_ - 1));
     top_on_previous_step_ = top();
   }
   size_t bytes_since_last =

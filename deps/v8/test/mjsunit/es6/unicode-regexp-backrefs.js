@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --harmony-regexp-lookbehind
-
 // Back reference does not end in the middle of a surrogate pair.
 function replace(string) {
   return string.replace(/L/g, "\ud800")

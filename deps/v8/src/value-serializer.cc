@@ -21,6 +21,7 @@
 #include "src/wasm/module-compiler.h"
 #include "src/wasm/wasm-objects-inl.h"
 #include "src/wasm/wasm-result.h"
+#include "src/wasm/wasm-serialization.h"
 
 namespace v8 {
 namespace internal {
@@ -143,6 +144,9 @@ enum class SerializationTag : uint8_t {
   // The delegate is responsible for processing all following data.
   // This "escapes" to whatever wire format the delegate chooses.
   kHostObject = '\\',
+  // A transferred WebAssembly.Memory object. maximumPages:int32_t, then by
+  // SharedArrayBuffer tag and its data.
+  kWasmMemoryTransfer = 'm',
 };
 
 namespace {
@@ -479,11 +483,18 @@ Maybe<bool> ValueSerializer::WriteJSReceiver(Handle<JSReceiver> receiver) {
       if (!FLAG_wasm_disable_structured_cloning) {
         // Only write WebAssembly modules if not disabled by a flag.
         return WriteWasmModule(Handle<WasmModuleObject>::cast(receiver));
-      }  // fall through to error case
+      }
+      break;
+    case WASM_MEMORY_TYPE:
+      if (FLAG_experimental_wasm_threads) {
+        return WriteWasmMemory(Handle<WasmMemoryObject>::cast(receiver));
+      }
+      break;
     default:
-      ThrowDataCloneError(MessageTemplate::kDataCloneError, receiver);
-      return Nothing<bool>();
+      break;
   }
+
+  ThrowDataCloneError(MessageTemplate::kDataCloneError, receiver);
   return Nothing<bool>();
 }
 
@@ -845,14 +856,32 @@ Maybe<bool> ValueSerializer::WriteWasmModule(Handle<WasmModuleObject> object) {
     String::WriteToFlat(*wire_bytes, destination, 0, wire_bytes_length);
   }
 
-  std::unique_ptr<ScriptData> script_data =
-      WasmCompiledModuleSerializer::SerializeWasmModule(isolate_,
-                                                        compiled_part);
-  int script_data_length = script_data->length();
-  WriteVarint<uint32_t>(script_data_length);
-  WriteRawBytes(script_data->data(), script_data_length);
-
+  if (FLAG_wasm_jit_to_native) {
+    std::pair<std::unique_ptr<byte[]>, size_t> serialized_module =
+        wasm::NativeModuleSerializer::SerializeWholeModule(isolate_,
+                                                           compiled_part);
+    WriteVarint<uint32_t>(static_cast<uint32_t>(serialized_module.second));
+    WriteRawBytes(serialized_module.first.get(), serialized_module.second);
+  } else {
+    std::unique_ptr<ScriptData> script_data =
+        WasmCompiledModuleSerializer::SerializeWasmModule(isolate_,
+                                                          compiled_part);
+    int script_data_length = script_data->length();
+    WriteVarint<uint32_t>(script_data_length);
+    WriteRawBytes(script_data->data(), script_data_length);
+  }
   return ThrowIfOutOfMemory();
+}
+
+Maybe<bool> ValueSerializer::WriteWasmMemory(Handle<WasmMemoryObject> object) {
+  if (!object->array_buffer()->is_shared()) {
+    ThrowDataCloneError(MessageTemplate::kDataCloneError, object);
+    return Nothing<bool>();
+  }
+
+  WriteTag(SerializationTag::kWasmMemoryTransfer);
+  WriteZigZag<int32_t>(object->maximum_pages());
+  return WriteJSReceiver(Handle<JSReceiver>(object->array_buffer(), isolate_));
 }
 
 Maybe<bool> ValueSerializer::WriteHostObject(Handle<JSObject> object) {
@@ -1065,13 +1094,13 @@ bool ValueDeserializer::ReadRawBytes(size_t length, const void** data) {
 void ValueDeserializer::TransferArrayBuffer(
     uint32_t transfer_id, Handle<JSArrayBuffer> array_buffer) {
   if (array_buffer_transfer_map_.is_null()) {
-    array_buffer_transfer_map_ = isolate_->global_handles()->Create(
-        *UnseededNumberDictionary::New(isolate_, 0));
+    array_buffer_transfer_map_ =
+        isolate_->global_handles()->Create(*NumberDictionary::New(isolate_, 0));
   }
-  Handle<UnseededNumberDictionary> dictionary =
+  Handle<NumberDictionary> dictionary =
       array_buffer_transfer_map_.ToHandleChecked();
-  Handle<UnseededNumberDictionary> new_dictionary =
-      UnseededNumberDictionary::Set(dictionary, transfer_id, array_buffer);
+  Handle<NumberDictionary> new_dictionary =
+      NumberDictionary::Set(dictionary, transfer_id, array_buffer);
   if (!new_dictionary.is_identical_to(dictionary)) {
     GlobalHandles::Destroy(Handle<Object>::cast(dictionary).location());
     array_buffer_transfer_map_ =
@@ -1177,6 +1206,8 @@ MaybeHandle<Object> ValueDeserializer::ReadObjectInternal() {
       return ReadWasmModule();
     case SerializationTag::kWasmModuleTransfer:
       return ReadWasmModuleTransfer();
+    case SerializationTag::kWasmMemoryTransfer:
+      return ReadWasmMemory();
     case SerializationTag::kHostObject:
       return ReadHostObject();
     default:
@@ -1465,11 +1496,8 @@ MaybeHandle<JSRegExp> ValueDeserializer::ReadJSRegExp() {
     return MaybeHandle<JSRegExp>();
   }
 
-  // Ensure the deserialized flags are valid. The context behind this is that
-  // the JSRegExp::Flags enum statically includes kDotAll, but it is only valid
-  // to set kDotAll if FLAG_harmony_regexp_dotall is enabled. Fuzzers don't
-  // know about this and happily set kDotAll anyways, leading to CHECK failures
-  // later on.
+  // Ensure the deserialized flags are valid.
+  // TODO(adamk): Can we remove this check now that dotAll is always-on?
   uint32_t flags_mask = static_cast<uint32_t>(-1) << JSRegExp::FlagCount();
   if ((raw_flags & flags_mask) ||
       !JSRegExp::New(pattern, static_cast<JSRegExp::Flags>(raw_flags))
@@ -1557,7 +1585,6 @@ MaybeHandle<JSSet> ValueDeserializer::ReadJSSet() {
 MaybeHandle<JSArrayBuffer> ValueDeserializer::ReadJSArrayBuffer() {
   uint32_t id = next_id_++;
   uint32_t byte_length;
-  Vector<const uint8_t> bytes;
   if (!ReadVarint<uint32_t>().To(&byte_length) ||
       byte_length > static_cast<size_t>(end_ - position_)) {
     return MaybeHandle<JSArrayBuffer>();
@@ -1579,13 +1606,13 @@ MaybeHandle<JSArrayBuffer> ValueDeserializer::ReadTransferredJSArrayBuffer(
     bool is_shared) {
   uint32_t id = next_id_++;
   uint32_t transfer_id;
-  Handle<UnseededNumberDictionary> transfer_map;
+  Handle<NumberDictionary> transfer_map;
   if (!ReadVarint<uint32_t>().To(&transfer_id) ||
       !array_buffer_transfer_map_.ToHandle(&transfer_map)) {
     return MaybeHandle<JSArrayBuffer>();
   }
   int index = transfer_map->FindEntry(isolate_, transfer_id);
-  if (index == UnseededNumberDictionary::kNotFound) {
+  if (index == NumberDictionary::kNotFound) {
     return MaybeHandle<JSArrayBuffer>();
   }
   Handle<JSArrayBuffer> array_buffer(
@@ -1689,15 +1716,25 @@ MaybeHandle<JSObject> ValueDeserializer::ReadWasmModule() {
   }
 
   // Try to deserialize the compiled module first.
-  ScriptData script_data(compiled_bytes.start(), compiled_bytes.length());
   Handle<FixedArray> compiled_part;
   MaybeHandle<JSObject> result;
-  if (WasmCompiledModuleSerializer::DeserializeWasmModule(
-          isolate_, &script_data, wire_bytes)
-          .ToHandle(&compiled_part)) {
-    result = WasmModuleObject::New(
-        isolate_, Handle<WasmCompiledModule>::cast(compiled_part));
+  if (FLAG_wasm_jit_to_native) {
+    if (wasm::NativeModuleDeserializer::DeserializeFullBuffer(
+            isolate_, compiled_bytes, wire_bytes)
+            .ToHandle(&compiled_part)) {
+      result = WasmModuleObject::New(
+          isolate_, Handle<WasmCompiledModule>::cast(compiled_part));
+    }
   } else {
+    ScriptData script_data(compiled_bytes.start(), compiled_bytes.length());
+    if (WasmCompiledModuleSerializer::DeserializeWasmModule(
+            isolate_, &script_data, wire_bytes)
+            .ToHandle(&compiled_part)) {
+      result = WasmModuleObject::New(
+          isolate_, Handle<WasmCompiledModule>::cast(compiled_part));
+    }
+  }
+  if (result.is_null()) {
     wasm::ErrorThrower thrower(isolate_, "ValueDeserializer::ReadWasmModule");
     result = wasm::SyncCompile(isolate_, &thrower,
                                wasm::ModuleWireBytes(wire_bytes));
@@ -1707,6 +1744,36 @@ MaybeHandle<JSObject> ValueDeserializer::ReadWasmModule() {
   if (!result.is_null()) {
     AddObjectWithID(id, result.ToHandleChecked());
   }
+  return result;
+}
+
+MaybeHandle<WasmMemoryObject> ValueDeserializer::ReadWasmMemory() {
+  uint32_t id = next_id_++;
+
+  if (!FLAG_experimental_wasm_threads) {
+    return MaybeHandle<WasmMemoryObject>();
+  }
+
+  int32_t maximum_pages;
+  if (!ReadZigZag<int32_t>().To(&maximum_pages)) {
+    return MaybeHandle<WasmMemoryObject>();
+  }
+
+  SerializationTag tag;
+  if (!ReadTag().To(&tag) || tag != SerializationTag::kSharedArrayBuffer) {
+    return MaybeHandle<WasmMemoryObject>();
+  }
+
+  const bool is_shared = true;
+  Handle<JSArrayBuffer> buffer;
+  if (!ReadTransferredJSArrayBuffer(is_shared).ToHandle(&buffer)) {
+    return MaybeHandle<WasmMemoryObject>();
+  }
+
+  Handle<WasmMemoryObject> result =
+      WasmMemoryObject::New(isolate_, buffer, maximum_pages);
+
+  AddObjectWithID(id, result);
   return result;
 }
 

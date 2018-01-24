@@ -17,54 +17,51 @@ namespace internal {
 namespace wasm {
 namespace test_run_wasm_relocation {
 
-#define FOREACH_TYPE(TEST_BODY)    \
-  TEST_BODY(int32_t, WASM_I32_ADD) \
-  TEST_BODY(int64_t, WASM_I64_ADD) \
-  TEST_BODY(float, WASM_F32_ADD)   \
-  TEST_BODY(double, WASM_F64_ADD)
+WASM_COMPILED_EXEC_TEST(RunPatchWasmContext) {
+  WasmRunner<uint32_t, uint32_t> r(execution_mode);
+  Isolate* isolate = CcTest::i_isolate();
 
-#define LOAD_SET_GLOBAL_TEST_BODY(C_TYPE, ADD)                                 \
-  WASM_EXEC_TEST(WasmRelocateGlobal_##C_TYPE) {                                \
-    WasmRunner<C_TYPE, C_TYPE> r(execution_mode);                              \
-    Isolate* isolate = CcTest::i_isolate();                                    \
-                                                                               \
-    r.builder().AddGlobal<C_TYPE>();                                           \
-    r.builder().AddGlobal<C_TYPE>();                                           \
-                                                                               \
-    /* global = global + p0 */                                                 \
-    BUILD(r, WASM_SET_GLOBAL(1, ADD(WASM_GET_GLOBAL(0), WASM_GET_LOCAL(0))),   \
-          WASM_GET_GLOBAL(0));                                                 \
-    CHECK_EQ(1, r.builder().CodeTableLength());                                \
-                                                                               \
-    int filter = 1 << RelocInfo::WASM_GLOBAL_REFERENCE;                        \
-                                                                               \
-    Handle<Code> code = r.builder().GetFunctionCode(0);                        \
-                                                                               \
-    Address old_start = r.builder().globals_start();                           \
-    Address new_start = old_start + 1;                                         \
-                                                                               \
-    Address old_addresses[4];                                                  \
-    uint32_t address_index = 0U;                                               \
-    for (RelocIterator it(*code, filter); !it.done(); it.next()) {             \
-      old_addresses[address_index] = it.rinfo()->wasm_global_reference();      \
-      it.rinfo()->update_wasm_global_reference(isolate, old_start, new_start); \
-      ++address_index;                                                         \
-    }                                                                          \
-    CHECK_LE(address_index, 4U);                                               \
-                                                                               \
-    address_index = 0U;                                                        \
-    for (RelocIterator it(*code, filter); !it.done(); it.next()) {             \
-      CHECK_EQ(old_addresses[address_index] + 1,                               \
-               it.rinfo()->wasm_global_reference());                           \
-      ++address_index;                                                         \
-    }                                                                          \
-    CHECK_LE(address_index, 4U);                                               \
+  r.builder().AddGlobal<uint32_t>();
+  r.builder().AddGlobal<uint32_t>();
+
+  BUILD(r, WASM_SET_GLOBAL(0, WASM_GET_LOCAL(0)), WASM_GET_GLOBAL(0));
+  CHECK_EQ(1, r.builder().CodeTableLength());
+
+  // Run with the old global data.
+  CHECK_EQ(113, r.Call(113));
+
+  WasmContext* old_wasm_context =
+      r.builder().instance_object()->wasm_context()->get();
+  Address old_wasm_context_address =
+      reinterpret_cast<Address>(old_wasm_context);
+
+  uint32_t new_global_data[3] = {0, 0, 0};
+  WasmContext new_wasm_context;
+  new_wasm_context.globals_start = reinterpret_cast<byte*>(new_global_data);
+
+  {
+    // TODO(6792): No longer needed once WebAssembly code is off heap.
+    CodeSpaceMemoryModificationScope modification_scope(isolate->heap());
+
+    // Patch in a new WasmContext that points to the new global data.
+    int filter = 1 << RelocInfo::WASM_CONTEXT_REFERENCE;
+    bool patched = false;
+    Handle<Code> code = r.GetWrapperCode();
+    for (RelocIterator it(*code, filter); !it.done(); it.next()) {
+      CHECK_EQ(old_wasm_context_address, it.rinfo()->wasm_context_reference());
+      it.rinfo()->set_wasm_context_reference(
+          isolate, reinterpret_cast<Address>(&new_wasm_context));
+      patched = true;
+    }
+    CHECK(patched);
+    Assembler::FlushICache(isolate, code->instruction_start(),
+                           code->instruction_size());
   }
 
-FOREACH_TYPE(LOAD_SET_GLOBAL_TEST_BODY)
-
-#undef FOREACH_TYPE
-#undef LOAD_SET_GLOBAL_TEST_BODY
+  // Run with the new global data.
+  CHECK_EQ(115, r.Call(115));
+  CHECK_EQ(115, new_global_data[0]);
+}
 
 }  // namespace test_run_wasm_relocation
 }  // namespace wasm

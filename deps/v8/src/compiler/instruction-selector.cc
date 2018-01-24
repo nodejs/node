@@ -690,6 +690,7 @@ struct CallBuffer {
 // InstructionSelector::VisitCall platform independent instead.
 void InstructionSelector::InitializeCallBuffer(Node* call, CallBuffer* buffer,
                                                CallBufferFlags flags,
+                                               bool is_tail_call,
                                                int stack_param_delta) {
   OperandGenerator g(this);
   DCHECK_LE(call->op()->ValueOutputCount(),
@@ -759,6 +760,14 @@ void InstructionSelector::InitializeCallBuffer(Node* call, CallBuffer* buffer,
               ? g.UseImmediate(callee)
               : g.UseRegister(callee));
       break;
+    case CallDescriptor::kCallWasmFunction:
+      buffer->instruction_args.push_back(
+          (call_address_immediate &&
+           (callee->opcode() == IrOpcode::kRelocatableInt64Constant ||
+            callee->opcode() == IrOpcode::kRelocatableInt32Constant))
+              ? g.UseImmediate(callee)
+              : g.UseRegister(callee));
+      break;
     case CallDescriptor::kCallJSFunction:
       buffer->instruction_args.push_back(
           g.UseLocation(callee, buffer->descriptor->GetInputLocation(0)));
@@ -779,7 +788,7 @@ void InstructionSelector::InitializeCallBuffer(Node* call, CallBuffer* buffer,
     // If it was a syntactic tail call we need to drop the current frame and
     // all the frames on top of it that are either an arguments adaptor frame
     // or a tail caller frame.
-    if (buffer->descriptor->SupportsTailCalls()) {
+    if (is_tail_call) {
       frame_state = NodeProperties::GetFrameStateInput(frame_state);
       buffer->frame_state_descriptor =
           buffer->frame_state_descriptor->outer_state();
@@ -999,11 +1008,15 @@ void InstructionSelector::VisitControl(BasicBlock* block) {
         if (sw.min_value > value) sw.min_value = value;
         if (sw.max_value < value) sw.max_value = value;
       }
-      DCHECK_LE(sw.min_value, sw.max_value);
-      // Note that {value_range} can be 0 if {min_value} is -2^31 and
-      // {max_value} is 2^31-1, so don't assume that it's non-zero below.
-      sw.value_range = 1u + bit_cast<uint32_t>(sw.max_value) -
-                       bit_cast<uint32_t>(sw.min_value);
+      if (sw.case_count != 0) {
+        DCHECK_LE(sw.min_value, sw.max_value);
+        // Note that {value_range} can be 0 if {min_value} is -2^31 and
+        // {max_value} is 2^31-1, so don't assume that it's non-zero below.
+        sw.value_range = 1u + bit_cast<uint32_t>(sw.max_value) -
+                         bit_cast<uint32_t>(sw.min_value);
+      } else {
+        sw.value_range = 0;
+      }
       return VisitSwitch(input, sw);
     }
     case BasicBlock::kReturn: {
@@ -1119,6 +1132,9 @@ void InstructionSelector::VisitNode(Node* node) {
       return;
     case IrOpcode::kDebugBreak:
       VisitDebugBreak(node);
+      return;
+    case IrOpcode::kUnreachable:
+      VisitUnreachable(node);
       return;
     case IrOpcode::kComment:
       VisitComment(node);
@@ -2221,12 +2237,7 @@ void InstructionSelector::VisitI16x8Splat(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitI16x8ExtractLane(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitI16x8ReplaceLane(Node* node) { UNIMPLEMENTED(); }
-#endif  // !V8_TARGET_ARCH_ARM && !V8_TARGET_ARCH_ARM64 && !V8_TARGET_ARCH_X64
-        // && !V8_TARGET_ARCH_IA32 && !V8_TARGET_ARCH_MIPS &&
-        // !V8_TARGET_ARCH_MIPS64
 
-#if !V8_TARGET_ARCH_ARM && !V8_TARGET_ARCH_ARM64 && !V8_TARGET_ARCH_X64 && \
-    !V8_TARGET_ARCH_MIPS && !V8_TARGET_ARCH_MIPS64
 void InstructionSelector::VisitI16x8Shl(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitI16x8ShrS(Node* node) { UNIMPLEMENTED(); }
@@ -2245,7 +2256,8 @@ void InstructionSelector::VisitI16x8SubSaturateS(Node* node) {
   UNIMPLEMENTED();
 }
 #endif  // !V8_TARGET_ARCH_ARM && !V8_TARGET_ARCH_ARM64 && !V8_TARGET_ARCH_X64
-        // && !V8_TARGET_ARCH_MIPS && !V8_TARGET_ARCH_MIPS64
+        // && !V8_TARGET_ARCH_IA32 && !V8_TARGET_ARCH_MIPS &&
+        // !V8_TARGET_ARCH_MIPS64
 
 #if !V8_TARGET_ARCH_ARM && !V8_TARGET_ARCH_ARM64 && !V8_TARGET_ARCH_X64 && \
     !V8_TARGET_ARCH_MIPS && !V8_TARGET_ARCH_MIPS64
@@ -2254,7 +2266,7 @@ void InstructionSelector::VisitI16x8AddHoriz(Node* node) { UNIMPLEMENTED(); }
         // && !V8_TARGET_ARCH_MIPS && !V8_TARGET_ARCH_MIPS64
 
 #if !V8_TARGET_ARCH_ARM && !V8_TARGET_ARCH_ARM64 && !V8_TARGET_ARCH_X64 && \
-    !V8_TARGET_ARCH_MIPS && !V8_TARGET_ARCH_MIPS64
+    !V8_TARGET_ARCH_IA32 && !V8_TARGET_ARCH_MIPS && !V8_TARGET_ARCH_MIPS64
 void InstructionSelector::VisitI16x8Mul(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitI16x8MinS(Node* node) { UNIMPLEMENTED(); }
@@ -2279,7 +2291,8 @@ void InstructionSelector::VisitI16x8MaxU(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitI16x8Neg(Node* node) { UNIMPLEMENTED(); }
 #endif  // !V8_TARGET_ARCH_ARM && !V8_TARGET_ARCH_ARM64 && !V8_TARGET_ARCH_X64
-        // && !V8_TARGET_ARCH_MIPS && !V8_TARGET_ARCH_MIPS64
+        // && !V8_TARGET_ARCH_IA32 && !V8_TARGET_ARCH_MIPS &&
+        // !V8_TARGET_ARCH_MIPS64
 
 #if !V8_TARGET_ARCH_ARM && !V8_TARGET_ARCH_ARM64 && !V8_TARGET_ARCH_MIPS && \
     !V8_TARGET_ARCH_MIPS64
@@ -2298,7 +2311,7 @@ void InstructionSelector::VisitI16x8UConvertI8x16High(Node* node) {
         // && !V8_TARGET_ARCH_MIPS64
 
 #if !V8_TARGET_ARCH_ARM && !V8_TARGET_ARCH_ARM64 && !V8_TARGET_ARCH_X64 && \
-    !V8_TARGET_ARCH_MIPS && !V8_TARGET_ARCH_MIPS64
+    !V8_TARGET_ARCH_IA32 && !V8_TARGET_ARCH_MIPS && !V8_TARGET_ARCH_MIPS64
 void InstructionSelector::VisitI16x8GtS(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitI16x8GeS(Node* node) { UNIMPLEMENTED(); }
@@ -2309,7 +2322,8 @@ void InstructionSelector::VisitI16x8GeU(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitI8x16Neg(Node* node) { UNIMPLEMENTED(); }
 #endif  // !V8_TARGET_ARCH_ARM && !V8_TARGET_ARCH_ARM64 && !V8_TARGET_ARCH_X64
-        // && !V8_TARGET_ARCH_MIPS && !V8_TARGET_ARCH_MIPS64
+        // && !V8_TARGET_ARCH_IA32 && !V8_TARGET_ARCH_MIPS &&
+        // !V8_TARGET_ARCH_MIPS64
 
 #if !V8_TARGET_ARCH_ARM && !V8_TARGET_ARCH_ARM64 && !V8_TARGET_ARCH_MIPS && \
     !V8_TARGET_ARCH_MIPS64
@@ -2339,7 +2353,7 @@ void InstructionSelector::VisitI8x16SConvertI16x8(Node* node) {
         // && !V8_TARGET_ARCH_MIPS64
 
 #if !V8_TARGET_ARCH_ARM && !V8_TARGET_ARCH_ARM64 && !V8_TARGET_ARCH_X64 && \
-    !V8_TARGET_ARCH_MIPS && !V8_TARGET_ARCH_MIPS64
+    !V8_TARGET_ARCH_IA32 && !V8_TARGET_ARCH_MIPS && !V8_TARGET_ARCH_MIPS64
 void InstructionSelector::VisitI8x16Add(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitI8x16AddSaturateS(Node* node) {
@@ -2364,7 +2378,8 @@ void InstructionSelector::VisitI8x16GtS(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitI8x16GeS(Node* node) { UNIMPLEMENTED(); }
 #endif  // !V8_TARGET_ARCH_ARM && !V8_TARGET_ARCH_ARM64 && !V8_TARGET_ARCH_X64
-        // && !V8_TARGET_ARCH_MIPS && !V8_TARGET_ARCH_MIPS64
+        // && !V8_TARGET_ARCH_IA32 && !V8_TARGET_ARCH_MIPS &&
+        // !V8_TARGET_ARCH_MIPS64
 
 #if !V8_TARGET_ARCH_ARM && !V8_TARGET_ARCH_ARM64 && !V8_TARGET_ARCH_MIPS && \
     !V8_TARGET_ARCH_MIPS64
@@ -2383,7 +2398,7 @@ void InstructionSelector::VisitI8x16UConvertI16x8(Node* node) {
         // && !V8_TARGET_ARCH_MIPS64
 
 #if !V8_TARGET_ARCH_ARM && !V8_TARGET_ARCH_ARM64 && !V8_TARGET_ARCH_X64 && \
-    !V8_TARGET_ARCH_MIPS && !V8_TARGET_ARCH_MIPS64
+    !V8_TARGET_ARCH_IA32 && !V8_TARGET_ARCH_MIPS && !V8_TARGET_ARCH_MIPS64
 void InstructionSelector::VisitI8x16AddSaturateU(Node* node) {
   UNIMPLEMENTED();
 }
@@ -2399,7 +2414,12 @@ void InstructionSelector::VisitI8x16MaxU(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitI8x16GtU(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitI8x16GeU(Node* node) { UNIMPLEMENTED(); }
+#endif  // !V8_TARGET_ARCH_ARM && !V8_TARGET_ARCH_ARM64 && !V8_TARGET_ARCH_X64
+        // && !V8_TARGET_ARCH_IA32 && !V8_TARGET_ARCH_MIPS &&
+        // !V8_TARGET_ARCH_MIPS64
 
+#if !V8_TARGET_ARCH_ARM && !V8_TARGET_ARCH_ARM64 && !V8_TARGET_ARCH_X64 && \
+    !V8_TARGET_ARCH_MIPS && !V8_TARGET_ARCH_MIPS64
 void InstructionSelector::VisitS128And(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitS128Or(Node* node) { UNIMPLEMENTED(); }
@@ -2550,7 +2570,7 @@ void InstructionSelector::VisitCall(Node* node, BasicBlock* handler) {
   // Improve constant pool and the heuristics in the register allocator
   // for where to emit constants.
   CallBufferFlags call_buffer_flags(kCallCodeImmediate | kCallAddressImmediate);
-  InitializeCallBuffer(node, &buffer, call_buffer_flags);
+  InitializeCallBuffer(node, &buffer, call_buffer_flags, false);
 
   EmitPrepareArguments(&(buffer.pushed_nodes), descriptor, node);
 
@@ -2585,6 +2605,9 @@ void InstructionSelector::VisitCall(Node* node, BasicBlock* handler) {
     case CallDescriptor::kCallJSFunction:
       opcode = kArchCallJSFunction | MiscField::encode(flags);
       break;
+    case CallDescriptor::kCallWasmFunction:
+      opcode = kArchCallWasmFunction | MiscField::encode(flags);
+      break;
   }
 
   // Emit the call instruction.
@@ -2612,7 +2635,6 @@ void InstructionSelector::VisitCallWithCallerSavedRegisters(
 void InstructionSelector::VisitTailCall(Node* node) {
   OperandGenerator g(this);
   CallDescriptor const* descriptor = CallDescriptorOf(node->op());
-  DCHECK_NE(0, descriptor->flags() & CallDescriptor::kSupportsTailCalls);
 
   CallDescriptor* caller = linkage()->GetIncomingDescriptor();
   DCHECK(caller->CanTailCall(node));
@@ -2625,7 +2647,7 @@ void InstructionSelector::VisitTailCall(Node* node) {
   if (IsTailCallAddressImmediate()) {
     flags |= kCallAddressImmediate;
   }
-  InitializeCallBuffer(node, &buffer, flags, stack_param_delta);
+  InitializeCallBuffer(node, &buffer, flags, true, stack_param_delta);
 
   // Select the appropriate opcode based on the call type.
   InstructionCode opcode;
@@ -2650,6 +2672,9 @@ void InstructionSelector::VisitTailCall(Node* node) {
         break;
       case CallDescriptor::kCallAddress:
         opcode = kArchTailCallAddress;
+        break;
+      case CallDescriptor::kCallWasmFunction:
+        opcode = kArchTailCallWasm;
         break;
       default:
         UNREACHABLE();
@@ -2760,6 +2785,11 @@ void InstructionSelector::VisitThrow(Node* node) {
 }
 
 void InstructionSelector::VisitDebugBreak(Node* node) {
+  OperandGenerator g(this);
+  Emit(kArchDebugBreak, g.NoOutput());
+}
+
+void InstructionSelector::VisitUnreachable(Node* node) {
   OperandGenerator g(this);
   Emit(kArchDebugBreak, g.NoOutput());
 }

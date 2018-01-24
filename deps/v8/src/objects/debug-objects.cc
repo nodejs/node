@@ -114,7 +114,7 @@ void DebugInfo::SetBreakPoint(Handle<DebugInfo> debug_info, int source_position,
     }
     index = old_break_points->length();
   }
-  DCHECK(index != kNoBreakPointInfo);
+  DCHECK_NE(index, kNoBreakPointInfo);
 
   // Allocate new BreakPointInfo object and set the break point.
   Handle<BreakPointInfo> new_break_point_info =
@@ -221,7 +221,7 @@ void BreakPointInfo::ClearBreakPoint(Handle<BreakPointInfo> break_point_info,
   int found_count = 0;
   for (int i = 0; i < old_array->length(); i++) {
     if (IsEqual(old_array->get(i), *break_point_object)) {
-      DCHECK(found_count == 0);
+      DCHECK_EQ(found_count, 0);
       found_count++;
     } else {
       new_array->set(i - found_count, old_array->get(i));

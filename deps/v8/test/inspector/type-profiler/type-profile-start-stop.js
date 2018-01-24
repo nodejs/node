@@ -166,5 +166,13 @@ InspectorTest.runAsyncTestSuite([
     Protocol.Profiler.stopTypeProfile();
     Protocol.Profiler.disable();
     await Protocol.Runtime.disable();
-  }
+  },
+  async function testStopTwice() {
+    Protocol.Runtime.enable();
+    await Protocol.Profiler.enable();
+    await Protocol.Profiler.stopTypeProfile();
+    await Protocol.Profiler.stopTypeProfile();
+    Protocol.Profiler.disable();
+    await Protocol.Runtime.disable();
+  },
 ]);

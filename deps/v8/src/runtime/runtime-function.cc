@@ -97,18 +97,6 @@ RUNTIME_FUNCTION(Runtime_FunctionSetLength) {
 }
 
 
-RUNTIME_FUNCTION(Runtime_FunctionSetPrototype) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(2, args.length());
-
-  CONVERT_ARG_HANDLE_CHECKED(JSFunction, fun, 0);
-  CONVERT_ARG_HANDLE_CHECKED(Object, value, 1);
-  CHECK(fun->IsConstructor());
-  JSFunction::SetPrototype(fun, value);
-  return args[0];  // return TOS
-}
-
-
 RUNTIME_FUNCTION(Runtime_FunctionIsAPIFunction) {
   SealHandleScope shs(isolate);
   DCHECK_EQ(1, args.length());
@@ -217,15 +205,6 @@ RUNTIME_FUNCTION(Runtime_Call) {
   }
   RETURN_RESULT_OR_FAILURE(
       isolate, Execution::Call(isolate, target, receiver, argc, argv.start()));
-}
-
-
-// ES6 section 9.2.1.2, OrdinaryCallBindThis for sloppy callee.
-RUNTIME_FUNCTION(Runtime_ConvertReceiver) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(1, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(Object, receiver, 0);
-  return *Object::ConvertReceiver(isolate, receiver).ToHandleChecked();
 }
 
 

@@ -5,6 +5,7 @@
 #include "src/inspector/v8-injected-script-host.h"
 
 #include "src/base/macros.h"
+#include "src/debug/debug-interface.h"
 #include "src/inspector/injected-script.h"
 #include "src/inspector/string-util.h"
 #include "src/inspector/v8-debugger.h"
@@ -79,6 +80,9 @@ v8::Local<v8::Object> V8InjectedScriptHost::create(
                       V8InjectedScriptHost::bindCallback, debuggerExternal);
   setFunctionProperty(context, injectedScriptHost, "proxyTargetValue",
                       V8InjectedScriptHost::proxyTargetValueCallback,
+                      debuggerExternal);
+  setFunctionProperty(context, injectedScriptHost, "nativeAccessorDescriptor",
+                      V8InjectedScriptHost::nativeAccessorDescriptorCallback,
                       debuggerExternal);
   createDataProperty(context, injectedScriptHost,
                      toV8StringInternalized(isolate, "keys"),
@@ -335,6 +339,39 @@ void V8InjectedScriptHost::proxyTargetValueCallback(
   while (target->IsProxy())
     target = v8::Local<v8::Proxy>::Cast(target)->GetTarget();
   info.GetReturnValue().Set(target);
+}
+
+void V8InjectedScriptHost::nativeAccessorDescriptorCallback(
+    const v8::FunctionCallbackInfo<v8::Value>& info) {
+  v8::Isolate* isolate = info.GetIsolate();
+  if (info.Length() != 2 || !info[0]->IsObject() || !info[1]->IsName()) {
+    info.GetReturnValue().Set(v8::Undefined(isolate));
+    return;
+  }
+  v8::Local<v8::Context> context = isolate->GetCurrentContext();
+  int flags = v8::debug::GetNativeAccessorDescriptor(
+      context, v8::Local<v8::Object>::Cast(info[0]),
+      v8::Local<v8::Name>::Cast(info[1]));
+  if (flags == static_cast<int>(v8::debug::NativeAccessorType::None)) {
+    info.GetReturnValue().Set(v8::Undefined(isolate));
+    return;
+  }
+
+  bool isBuiltin =
+      flags & static_cast<int>(v8::debug::NativeAccessorType::IsBuiltin);
+  bool hasGetter =
+      flags & static_cast<int>(v8::debug::NativeAccessorType::HasGetter);
+  bool hasSetter =
+      flags & static_cast<int>(v8::debug::NativeAccessorType::HasSetter);
+  v8::Local<v8::Object> result = v8::Object::New(isolate);
+  result->SetPrototype(context, v8::Null(isolate)).ToChecked();
+  createDataProperty(context, result, toV8String(isolate, "isBuiltin"),
+                     v8::Boolean::New(isolate, isBuiltin));
+  createDataProperty(context, result, toV8String(isolate, "hasGetter"),
+                     v8::Boolean::New(isolate, hasGetter));
+  createDataProperty(context, result, toV8String(isolate, "hasSetter"),
+                     v8::Boolean::New(isolate, hasSetter));
+  info.GetReturnValue().Set(result);
 }
 
 }  // namespace v8_inspector

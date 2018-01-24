@@ -690,8 +690,7 @@ class Simulator : public DecoderVisitor {
   }
 
   explicit Simulator(Decoder<DispatchingDecoderVisitor>* decoder,
-                     Isolate* isolate = NULL,
-                     FILE* stream = stderr);
+                     Isolate* isolate = nullptr, FILE* stream = stderr);
   Simulator();
   ~Simulator();
 
@@ -1700,9 +1699,9 @@ class Simulator : public DecoderVisitor {
   LogicVRegister Table(VectorFormat vform, LogicVRegister dst,
                        const LogicVRegister& ind, bool zero_out_of_bounds,
                        const LogicVRegister* tab1,
-                       const LogicVRegister* tab2 = NULL,
-                       const LogicVRegister* tab3 = NULL,
-                       const LogicVRegister* tab4 = NULL);
+                       const LogicVRegister* tab2 = nullptr,
+                       const LogicVRegister* tab3 = nullptr,
+                       const LogicVRegister* tab4 = nullptr);
   LogicVRegister tbl(VectorFormat vform, LogicVRegister dst,
                      const LogicVRegister& tab, const LogicVRegister& ind);
   LogicVRegister tbl(VectorFormat vform, LogicVRegister dst,
@@ -2206,7 +2205,7 @@ class Simulator : public DecoderVisitor {
   // functions, or to save and restore it when entering and leaving generated
   // code.
   void AssertSupportedFPCR() {
-    DCHECK(fpcr().FZ() == 0);             // No flush-to-zero support.
+    DCHECK_EQ(fpcr().FZ(), 0);            // No flush-to-zero support.
     DCHECK(fpcr().RMode() == FPTieEven);  // Ties-to-even rounding only.
 
     // The simulator does not support half-precision operations so fpcr().AHP()

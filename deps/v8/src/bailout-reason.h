@@ -40,8 +40,6 @@ namespace internal {
     "Expected optimized code cell or optimization sentinel")                   \
   V(kExpectedNewSpaceObject, "Expected new space object")                      \
   V(kExpectedUndefinedOrCell, "Expected undefined or cell in register")        \
-  V(kExternalStringExpectedButNotFound,                                        \
-    "External string expected, but not found")                                 \
   V(kForOfStatement, "ForOfStatement")                                         \
   V(kFunctionBeingDebugged, "Function is being debugged")                      \
   V(kFunctionCallsEval, "Function calls eval")                                 \
@@ -97,8 +95,6 @@ namespace internal {
   V(kRememberedSetPointerInNewSpace, "Remembered set pointer is in new space") \
   V(kRestParameter, "Rest parameters")                                         \
   V(kReturnAddressNotFoundInFrame, "Return address not found in frame")        \
-  V(kSmiAdditionOverflow, "Smi addition overflow")                             \
-  V(kSmiSubtractionOverflow, "Smi subtraction overflow")                       \
   V(kSpreadCall, "Call with spread argument")                                  \
   V(kStackAccessBelowStackPointer, "Stack access below stack pointer")         \
   V(kStackFrameTypesMustMatch, "Stack frame types must match")                 \

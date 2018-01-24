@@ -56,9 +56,9 @@ void StoreBuffer::SetUp() {
     DCHECK_EQ(0, reinterpret_cast<uintptr_t>(limit_[i]) & kStoreBufferMask);
   }
 
-  if (!reservation.Commit(reinterpret_cast<Address>(start_[0]),
-                          kStoreBufferSize * kStoreBuffers,
-                          false)) {  // Not executable.
+  if (!reservation.SetPermissions(reinterpret_cast<Address>(start_[0]),
+                                  kStoreBufferSize * kStoreBuffers,
+                                  base::OS::MemoryPermission::kReadWrite)) {
     V8::FatalProcessOutOfMemory("StoreBuffer::SetUp");
   }
   current_ = 0;
@@ -68,7 +68,7 @@ void StoreBuffer::SetUp() {
 
 
 void StoreBuffer::TearDown() {
-  if (virtual_memory_.IsReserved()) virtual_memory_.Release();
+  if (virtual_memory_.IsReserved()) virtual_memory_.Free();
   top_ = nullptr;
   for (int i = 0; i < kStoreBuffers; i++) {
     start_[i] = nullptr;

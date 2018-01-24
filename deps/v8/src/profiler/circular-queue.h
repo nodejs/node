@@ -11,11 +11,10 @@
 namespace v8 {
 namespace internal {
 
-
 // Lock-free cache-friendly sampling circular queue for large
 // records. Intended for fast transfer of large records between a
 // single producer and a single consumer. If the queue is full,
-// StartEnqueue will return NULL. The queue is designed with
+// StartEnqueue will return nullptr. The queue is designed with
 // a goal in mind to evade cache lines thrashing by preventing
 // simultaneous reads and writes to adjanced memory locations.
 template<typename T, unsigned Length>
@@ -26,14 +25,14 @@ class SamplingCircularQueue {
   ~SamplingCircularQueue();
 
   // StartEnqueue returns a pointer to a memory location for storing the next
-  // record or NULL if all entries are full at the moment.
+  // record or nullptr if all entries are full at the moment.
   T* StartEnqueue();
   // Notifies the queue that the producer has complete writing data into the
   // memory returned by StartEnqueue and it can be passed to the consumer.
   void FinishEnqueue();
 
   // Executed on the consumer (analyzer) thread.
-  // Retrieves, but does not remove, the head of this queue, returning NULL
+  // Retrieves, but does not remove, the head of this queue, returning nullptr
   // if this queue is empty. After the record had been read by a consumer,
   // Remove must be called.
   T* Peek();

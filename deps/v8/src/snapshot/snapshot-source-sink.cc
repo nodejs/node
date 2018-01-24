@@ -13,7 +13,7 @@ namespace v8 {
 namespace internal {
 
 void SnapshotByteSink::PutInt(uintptr_t integer, const char* description) {
-  DCHECK(integer < 1 << 30);
+  DCHECK_LT(integer, 1 << 30);
   integer <<= 2;
   int bytes = 1;
   if (integer > 0xff) bytes = 2;

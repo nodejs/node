@@ -32,10 +32,10 @@ MaybeHandle<Object> DebugEvaluate::Global(Isolate* isolate,
   // Enter the top context from before the debugger was invoked.
   SaveContext save(isolate);
   SaveContext* top = &save;
-  while (top != NULL && IsDebugContext(isolate, *top->context())) {
+  while (top != nullptr && IsDebugContext(isolate, *top->context())) {
     top = top->prev();
   }
-  if (top != NULL) isolate->set_context(*top->context());
+  if (top != nullptr) isolate->set_context(*top->context());
 
   // Get the native context now set to the top context from before the
   // debugger was invoked.
@@ -92,17 +92,18 @@ MaybeHandle<Object> DebugEvaluate::Evaluate(
   Handle<JSFunction> eval_fun;
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, eval_fun,
-      Compiler::GetFunctionFromEval(source, outer_info, context, SLOPPY,
-                                    NO_PARSE_RESTRICTION, kNoSourcePosition,
-                                    kNoSourcePosition, kNoSourcePosition),
+      Compiler::GetFunctionFromEval(source, outer_info, context,
+                                    LanguageMode::kSloppy, NO_PARSE_RESTRICTION,
+                                    kNoSourcePosition, kNoSourcePosition,
+                                    kNoSourcePosition),
       Object);
 
   Handle<Object> result;
   {
     NoSideEffectScope no_side_effect(isolate, throw_on_side_effect);
     ASSIGN_RETURN_ON_EXCEPTION(
-        isolate, result, Execution::Call(isolate, eval_fun, receiver, 0, NULL),
-        Object);
+        isolate, result,
+        Execution::Call(isolate, eval_fun, receiver, 0, nullptr), Object);
   }
 
   // Skip the global proxy as it has no properties and always delegates to the
@@ -158,8 +159,7 @@ DebugEvaluate::ContextBuilder::ContextBuilder(Isolate* isolate,
       Handle<StringSet> non_locals = it.GetNonLocals();
       MaterializeReceiver(materialized, local_context, local_function,
                           non_locals);
-      frame_inspector.MaterializeStackLocals(materialized, local_function,
-                                             true);
+      MaterializeStackLocals(materialized, local_function, &frame_inspector);
       ContextChainElement context_chain_element;
       context_chain_element.scope_info = it.CurrentScopeInfo();
       context_chain_element.materialized_object = materialized;
@@ -241,97 +241,132 @@ void DebugEvaluate::ContextBuilder::MaterializeReceiver(
   JSObject::SetOwnPropertyIgnoreAttributes(target, name, recv, NONE).Check();
 }
 
+void DebugEvaluate::ContextBuilder::MaterializeStackLocals(
+    Handle<JSObject> target, Handle<JSFunction> function,
+    FrameInspector* frame_inspector) {
+  bool materialize_arguments_object = true;
+
+  // Do not materialize the arguments object for eval or top-level code.
+  if (function->shared()->is_toplevel()) materialize_arguments_object = false;
+
+  // First materialize stack locals (modulo arguments object).
+  Handle<SharedFunctionInfo> shared(function->shared());
+  Handle<ScopeInfo> scope_info(shared->scope_info());
+  frame_inspector->MaterializeStackLocals(target, scope_info,
+                                          materialize_arguments_object);
+
+  // Then materialize the arguments object.
+  if (materialize_arguments_object) {
+    // Skip if "arguments" is already taken and wasn't optimized out (which
+    // causes {MaterializeStackLocals} above to skip the local variable).
+    Handle<String> arguments_str = isolate_->factory()->arguments_string();
+    Maybe<bool> maybe = JSReceiver::HasOwnProperty(target, arguments_str);
+    DCHECK(maybe.IsJust());
+    if (maybe.FromJust()) return;
+
+    // FunctionGetArguments can't throw an exception.
+    Handle<JSObject> arguments =
+        Accessors::FunctionGetArguments(frame_, inlined_jsframe_index_);
+    JSObject::SetOwnPropertyIgnoreAttributes(target, arguments_str, arguments,
+                                             NONE)
+        .Check();
+  }
+}
+
 namespace {
 
 bool IntrinsicHasNoSideEffect(Runtime::FunctionId id) {
 // Use macro to include both inlined and non-inlined version of an intrinsic.
-#define INTRINSIC_WHITELIST(V)       \
-  /* Conversions */                  \
-  V(ToInteger)                       \
-  V(ToObject)                        \
-  V(ToString)                        \
-  V(ToLength)                        \
-  V(ToNumber)                        \
-  V(NumberToString)                  \
-  /* Type checks */                  \
-  V(IsJSReceiver)                    \
-  V(IsSmi)                           \
-  V(IsArray)                         \
-  V(IsFunction)                      \
-  V(IsDate)                          \
-  V(IsJSProxy)                       \
-  V(IsJSMap)                         \
-  V(IsJSSet)                         \
-  V(IsJSWeakMap)                     \
-  V(IsJSWeakSet)                     \
-  V(IsRegExp)                        \
-  V(IsTypedArray)                    \
-  V(ClassOf)                         \
-  /* Loads */                        \
-  V(LoadLookupSlotForCall)           \
-  /* Arrays */                       \
-  V(ArraySpeciesConstructor)         \
-  V(NormalizeElements)               \
-  V(GetArrayKeys)                    \
-  V(HasComplexElements)              \
-  V(EstimateNumberOfElements)        \
-  /* Errors */                       \
-  V(ReThrow)                         \
-  V(ThrowReferenceError)             \
-  V(ThrowSymbolIteratorInvalid)      \
-  V(ThrowIteratorResultNotAnObject)  \
-  V(NewTypeError)                    \
-  V(ThrowInvalidStringLength)        \
-  /* Strings */                      \
-  V(StringIndexOf)                   \
-  V(StringIncludes)                  \
-  V(StringReplaceOneCharWithString)  \
-  V(StringToNumber)                  \
-  V(StringTrim)                      \
-  V(SubString)                       \
-  V(RegExpInternalReplace)           \
-  /* BigInts */                      \
-  V(BigIntEqual)                     \
-  V(BigIntToBoolean)                 \
-  /* Literals */                     \
-  V(CreateArrayLiteral)              \
-  V(CreateObjectLiteral)             \
-  V(CreateRegExpLiteral)             \
-  /* Collections */                  \
-  V(GenericHash)                     \
-  /* Called from builtins */         \
-  V(StringAdd)                       \
-  V(StringParseFloat)                \
-  V(StringParseInt)                  \
-  V(StringCharCodeAt)                \
-  V(StringIndexOfUnchecked)          \
-  V(StringEqual)                     \
-  V(RegExpInitializeAndCompile)      \
-  V(SymbolDescriptiveString)         \
-  V(GenerateRandomNumbers)           \
-  V(GlobalPrint)                     \
-  V(AllocateInNewSpace)              \
-  V(AllocateSeqOneByteString)        \
-  V(AllocateSeqTwoByteString)        \
-  V(ObjectCreate)                    \
-  V(ObjectHasOwnProperty)            \
-  V(ArrayIndexOf)                    \
-  V(ArrayIncludes_Slow)              \
-  V(ArrayIsArray)                    \
-  V(ThrowTypeError)                  \
-  V(ThrowCalledOnNullOrUndefined)    \
-  V(ThrowIncompatibleMethodReceiver) \
-  V(ThrowInvalidHint)                \
-  V(ThrowNotDateError)               \
-  V(ThrowRangeError)                 \
-  V(ToName)                          \
-  V(GetOwnPropertyDescriptor)        \
-  /* Misc. */                        \
-  V(Call)                            \
-  V(MaxSmi)                          \
-  V(NewObject)                       \
-  V(FinalizeInstanceSize)            \
-  V(HasInPrototypeChain)             \
+#define INTRINSIC_WHITELIST(V)           \
+  /* Conversions */                      \
+  V(ToInteger)                           \
+  V(ToObject)                            \
+  V(ToString)                            \
+  V(ToLength)                            \
+  V(ToNumber)                            \
+  V(NumberToString)                      \
+  /* Type checks */                      \
+  V(IsJSReceiver)                        \
+  V(IsSmi)                               \
+  V(IsArray)                             \
+  V(IsFunction)                          \
+  V(IsDate)                              \
+  V(IsJSProxy)                           \
+  V(IsJSMap)                             \
+  V(IsJSSet)                             \
+  V(IsJSWeakMap)                         \
+  V(IsJSWeakSet)                         \
+  V(IsRegExp)                            \
+  V(IsTypedArray)                        \
+  V(ClassOf)                             \
+  /* Loads */                            \
+  V(LoadLookupSlotForCall)               \
+  /* Arrays */                           \
+  V(ArraySpeciesConstructor)             \
+  V(NormalizeElements)                   \
+  V(GetArrayKeys)                        \
+  V(TrySliceSimpleNonFastElements)       \
+  V(HasComplexElements)                  \
+  V(EstimateNumberOfElements)            \
+  /* Errors */                           \
+  V(ReThrow)                             \
+  V(ThrowReferenceError)                 \
+  V(ThrowSymbolIteratorInvalid)          \
+  V(ThrowIteratorResultNotAnObject)      \
+  V(NewTypeError)                        \
+  V(ThrowInvalidStringLength)            \
+  /* Strings */                          \
+  V(StringIndexOf)                       \
+  V(StringIncludes)                      \
+  V(StringReplaceOneCharWithString)      \
+  V(StringToNumber)                      \
+  V(StringTrim)                          \
+  V(SubString)                           \
+  V(RegExpInternalReplace)               \
+  /* BigInts */                          \
+  V(BigIntEqualToBigInt)                 \
+  V(BigIntToBoolean)                     \
+  V(BigIntToNumber)                      \
+  /* Literals */                         \
+  V(CreateArrayLiteral)                  \
+  V(CreateObjectLiteral)                 \
+  V(CreateRegExpLiteral)                 \
+  /* Collections */                      \
+  V(GenericHash)                         \
+  /* Called from builtins */             \
+  V(StringAdd)                           \
+  V(StringParseFloat)                    \
+  V(StringParseInt)                      \
+  V(StringCharCodeAt)                    \
+  V(StringIndexOfUnchecked)              \
+  V(StringEqual)                         \
+  V(RegExpInitializeAndCompile)          \
+  V(SymbolDescriptiveString)             \
+  V(GenerateRandomNumbers)               \
+  V(GlobalPrint)                         \
+  V(AllocateInNewSpace)                  \
+  V(AllocateInTargetSpace)               \
+  V(AllocateSeqOneByteString)            \
+  V(AllocateSeqTwoByteString)            \
+  V(ObjectCreate)                        \
+  V(ObjectHasOwnProperty)                \
+  V(ArrayIndexOf)                        \
+  V(ArrayIncludes_Slow)                  \
+  V(ArrayIsArray)                        \
+  V(ThrowTypeError)                      \
+  V(ThrowCalledOnNullOrUndefined)        \
+  V(ThrowIncompatibleMethodReceiver)     \
+  V(ThrowInvalidHint)                    \
+  V(ThrowNotDateError)                   \
+  V(ThrowRangeError)                     \
+  V(ToName)                              \
+  V(GetOwnPropertyDescriptor)            \
+  /* Misc. */                            \
+  V(Call)                                \
+  V(MaxSmi)                              \
+  V(NewObject)                           \
+  V(CompleteInobjectSlackTrackingForMap) \
+  V(HasInPrototypeChain)                 \
   V(StringMaxLength)
 
 #define CASE(Name)       \
@@ -378,6 +413,8 @@ bool BytecodeHasNoSideEffect(interpreter::Bytecode bytecode) {
     case Bytecode::kDivSmi:
     case Bytecode::kMod:
     case Bytecode::kModSmi:
+    case Bytecode::kExp:
+    case Bytecode::kExpSmi:
     case Bytecode::kNegate:
     case Bytecode::kBitwiseAnd:
     case Bytecode::kBitwiseAndSmi:
@@ -608,6 +645,8 @@ bool BuiltinHasNoSideEffect(Builtins::Name id) {
     case Builtins::kStringPrototypeItalics:
     case Builtins::kStringPrototypeLastIndexOf:
     case Builtins::kStringPrototypeLink:
+    case Builtins::kStringPrototypePadEnd:
+    case Builtins::kStringPrototypePadStart:
     case Builtins::kStringPrototypeRepeat:
     case Builtins::kStringPrototypeSlice:
     case Builtins::kStringPrototypeSmall:
@@ -627,6 +666,7 @@ bool BuiltinHasNoSideEffect(Builtins::Name id) {
     case Builtins::kStringPrototypeTrimRight:
     case Builtins::kStringPrototypeValueOf:
     case Builtins::kStringToNumber:
+    case Builtins::kSubString:
     // Symbol builtins.
     case Builtins::kSymbolConstructor:
     case Builtins::kSymbolKeyFor:

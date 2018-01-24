@@ -13,6 +13,7 @@
 #include "src/ast/ast-value-factory.h"
 #include "src/char-predicates-inl.h"
 #include "src/conversions-inl.h"
+#include "src/objects/bigint.h"
 #include "src/parsing/duplicate-finder.h"  // For Scanner::FindSymbol
 #include "src/unicode-cache-inl.h"
 
@@ -196,6 +197,7 @@ Scanner::Scanner(UnicodeCache* unicode_cache, int* use_counts)
       octal_pos_(Location::invalid()),
       octal_message_(MessageTemplate::kNone),
       found_html_comment_(false),
+      allow_harmony_bigint_(false),
       use_counts_(use_counts) {}
 
 void Scanner::Initialize(Utf16CharacterStream* source, bool is_module) {
@@ -211,7 +213,7 @@ void Scanner::Initialize(Utf16CharacterStream* source, bool is_module) {
 
 template <bool capture_raw, bool unicode>
 uc32 Scanner::ScanHexNumber(int expected_length) {
-  DCHECK(expected_length <= 4);  // prevent overflow
+  DCHECK_LE(expected_length, 4);  // prevent overflow
 
   int begin = source_pos() - 2;
   uc32 x = 0;
@@ -582,7 +584,7 @@ void Scanner::TryToParseSourceURLComment() {
 
 
 Token::Value Scanner::SkipMultiLineComment() {
-  DCHECK(c0_ == '*');
+  DCHECK_EQ(c0_, '*');
   Advance();
 
   while (c0_ != kEndOfInput) {
@@ -608,7 +610,7 @@ Token::Value Scanner::SkipMultiLineComment() {
 
 Token::Value Scanner::ScanHtmlComment() {
   // Check for <!-- comments.
-  DCHECK(c0_ == '!');
+  DCHECK_EQ(c0_, '!');
   Advance();
   if (c0_ != '-') {
     PushBack('!');  // undo Advance()
@@ -626,8 +628,8 @@ Token::Value Scanner::ScanHtmlComment() {
 }
 
 void Scanner::Scan() {
-  next_.literal_chars = NULL;
-  next_.raw_literal_chars = NULL;
+  next_.literal_chars = nullptr;
+  next_.raw_literal_chars = nullptr;
   next_.invalid_template_escape_message = MessageTemplate::kNone;
   Token::Value token;
   do {
@@ -934,6 +936,7 @@ void Scanner::SanityCheckTokenDesc(const TokenDesc& token) const {
     case Token::FUTURE_STRICT_RESERVED_WORD:
     case Token::IDENTIFIER:
     case Token::NUMBER:
+    case Token::BIGINT:
     case Token::REGEXP_LITERAL:
     case Token::SMI:
     case Token::STRING:
@@ -1185,8 +1188,8 @@ Token::Value Scanner::ScanTemplateSpan() {
 
 
 Token::Value Scanner::ScanTemplateStart() {
-  DCHECK(next_next_.token == Token::UNINITIALIZED);
-  DCHECK(c0_ == '`');
+  DCHECK_EQ(next_next_.token, Token::UNINITIALIZED);
+  DCHECK_EQ(c0_, '`');
   next_.location.beg_pos = source_pos();
   Advance();  // Consume `
   return ScanTemplateSpan();
@@ -1321,14 +1324,31 @@ Token::Value Scanner::ScanNumber(bool seen_period) {
 
       ScanDecimalDigits();  // optional
       if (c0_ == '.') {
+        seen_period = true;
         AddLiteralCharAdvance();
         ScanDecimalDigits();  // optional
       }
     }
   }
 
-  // scan exponent, if any
-  if (c0_ == 'e' || c0_ == 'E') {
+  bool is_bigint = false;
+  if (allow_harmony_bigint() && c0_ == 'n' && !seen_period &&
+      (kind == DECIMAL || kind == HEX || kind == OCTAL || kind == BINARY)) {
+    // Check that the literal is within our limits for BigInt length.
+    // For simplicity, use 4 bits per character to calculate the maximum
+    // allowed literal length.
+    static const int kMaxBigIntCharacters = BigInt::kMaxLengthBits / 4;
+    int length = source_pos() - start_pos - (kind != DECIMAL ? 2 : 0);
+    if (length > kMaxBigIntCharacters) {
+      ReportScannerError(Location(start_pos, source_pos()),
+                         MessageTemplate::kBigIntTooBig);
+      return Token::ILLEGAL;
+    }
+
+    is_bigint = true;
+    Advance();
+  } else if (c0_ == 'e' || c0_ == 'E') {
+    // scan exponent, if any
     DCHECK(kind != HEX);  // 'e'/'E' must be scanned as part of the hex number
     if (!(kind == DECIMAL || kind == DECIMAL_WITH_LEADING_ZERO))
       return Token::ILLEGAL;
@@ -1357,7 +1377,8 @@ Token::Value Scanner::ScanNumber(bool seen_period) {
     octal_pos_ = Location(start_pos, source_pos());
     octal_message_ = MessageTemplate::kStrictDecimalWithLeadingZero;
   }
-  return Token::NUMBER;
+
+  return is_bigint ? Token::BIGINT : Token::NUMBER;
 }
 
 
@@ -1481,7 +1502,7 @@ uc32 Scanner::ScanUnicodeEscape() {
 
 static Token::Value KeywordOrIdentifierToken(const uint8_t* input,
                                              int input_length) {
-  DCHECK(input_length >= 1);
+  DCHECK_GE(input_length, 1);
   const int kMinLength = 2;
   const int kMaxLength = 11;
   if (input_length < kMinLength || input_length > kMaxLength) {
@@ -1728,11 +1749,7 @@ Maybe<RegExp::Flags> Scanner::ScanRegExpFlags() {
         flag = RegExp::kMultiline;
         break;
       case 's':
-        if (FLAG_harmony_regexp_dotall) {
-          flag = RegExp::kDotAll;
-        } else {
-          return Nothing<RegExp::Flags>();
-        }
+        flag = RegExp::kDotAll;
         break;
       case 'u':
         flag = RegExp::kUnicode;
@@ -1785,6 +1802,16 @@ double Scanner::DoubleValue() {
       unicode_cache_,
       literal_one_byte_string(),
       ALLOW_HEX | ALLOW_OCTAL | ALLOW_IMPLICIT_OCTAL | ALLOW_BINARY);
+}
+
+const char* Scanner::CurrentLiteralAsCString(Zone* zone) const {
+  DCHECK(is_literal_one_byte());
+  Vector<const uint8_t> vector = literal_one_byte_string();
+  int length = vector.length();
+  char* buffer = zone->NewArray<char>(length + 1);
+  memcpy(buffer, vector.start(), length);
+  buffer[length] = '\0';
+  return buffer;
 }
 
 bool Scanner::IsDuplicateSymbol(DuplicateFinder* duplicate_finder,

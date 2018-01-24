@@ -43,9 +43,11 @@ assertFalse(!!"..foo*bar".match(sticky));
 
 var stickyplain = /foobar/y;
 
-assertTrue(!!"foobar".match(stickyplain));
+assertTrue(!!"foobarfoobar".match(stickyplain));
 assertEquals(6, stickyplain.lastIndex);
-assertFalse(!!"..foobar".match(stickyplain));
+assertTrue(!!"foobarfoobar".match(stickyplain));
+assertEquals(12, stickyplain.lastIndex);
+assertFalse(!!"..foobarfoobar".match(stickyplain));
 
 var global = /foo.bar/g;
 

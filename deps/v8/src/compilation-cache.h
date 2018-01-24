@@ -42,7 +42,7 @@ class CompilationSubCache {
     return GetTable(kFirstGeneration);
   }
   void SetFirstTable(Handle<CompilationCacheTable> value) {
-    DCHECK(kFirstGeneration < generations_);
+    DCHECK_LT(kFirstGeneration, generations_);
     tables_[kFirstGeneration] = *value;
   }
 

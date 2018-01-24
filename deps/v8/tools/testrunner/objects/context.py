@@ -49,18 +49,3 @@ class Context():
     self.no_harness = no_harness
     self.use_perf_data = use_perf_data
     self.sancov_dir = sancov_dir
-
-  def Pack(self):
-    return [self.arch, self.mode, self.mode_flags, self.timeout, self.isolates,
-            self.command_prefix, self.extra_flags, self.noi18n,
-            self.random_seed, self.no_sorting, self.rerun_failures_count,
-            self.rerun_failures_max, self.predictable, self.no_harness,
-            self.use_perf_data, self.sancov_dir]
-
-  @staticmethod
-  def Unpack(packed):
-    # For the order of the fields, refer to Pack() above.
-    return Context(packed[0], packed[1], None, packed[2], False,
-                   packed[3], packed[4], packed[5], packed[6], packed[7],
-                   packed[8], packed[9], packed[10], packed[11], packed[12],
-                   packed[13], packed[14], packed[15])

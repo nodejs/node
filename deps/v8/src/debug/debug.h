@@ -207,8 +207,6 @@ class Debug {
   void OnPromiseReject(Handle<Object> promise, Handle<Object> value);
   void OnCompileError(Handle<Script> script);
   void OnAfterCompile(Handle<Script> script);
-  void OnAsyncTaskEvent(debug::PromiseDebugActionType type, int id,
-                        int parent_id);
 
   MUST_USE_RESULT MaybeHandle<Object> Call(Handle<Object> fun,
                                            Handle<Object> data);
@@ -260,7 +258,7 @@ class Debug {
 
   void RecordGenerator(Handle<JSGeneratorObject> generator_object);
 
-  void RunPromiseHook(PromiseHookType type, Handle<JSPromise> promise,
+  void RunPromiseHook(PromiseHookType hook_type, Handle<JSPromise> promise,
                       Handle<Object> parent);
 
   int NextAsyncTaskId(Handle<JSObject> promise);
@@ -574,7 +572,7 @@ class LegacyDebugDelegate : public v8::debug::DebugDelegate {
  public:
   explicit LegacyDebugDelegate(Isolate* isolate) : isolate_(isolate) {}
   void PromiseEventOccurred(v8::debug::PromiseDebugActionType type, int id,
-                            int parent_id, bool created_by_user) override;
+                            bool is_blackboxed) override;
   void ScriptCompiled(v8::Local<v8::debug::Script> script, bool is_live_edited,
                       bool has_compile_error) override;
   void BreakProgramRequested(v8::Local<v8::Context> paused_context,

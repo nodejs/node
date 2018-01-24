@@ -79,7 +79,7 @@ void MemoryReducer::NotifyTimer(const Event& event) {
                         kIncrementalMarkingDelayMs;
       heap()->incremental_marking()->AdvanceIncrementalMarking(
           deadline, IncrementalMarking::NO_GC_VIA_STACK_GUARD,
-          IncrementalMarking::FORCE_COMPLETION, StepOrigin::kTask);
+          StepOrigin::kTask);
       heap()->FinalizeIncrementalMarkingIfComplete(
           GarbageCollectionReason::kFinalizeMarkingViaTask);
     }

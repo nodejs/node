@@ -32,36 +32,9 @@ TF_BUILTIN(CopyFastSmiOrObjectElements, CodeStubAssembler) {
 
   // Load the {object}s elements.
   Node* source = LoadObjectField(object, JSObject::kElementsOffset);
-
-  ParameterMode mode = OptimalParameterMode();
-  Node* length = TaggedToParameter(LoadFixedArrayBaseLength(source), mode);
-
-  // Check if we can allocate in new space.
-  ElementsKind kind = PACKED_ELEMENTS;
-  int max_elements = FixedArrayBase::GetMaxLengthForNewSpaceAllocation(kind);
-  Label if_newspace(this), if_lospace(this, Label::kDeferred);
-  Branch(UintPtrOrSmiLessThan(length, IntPtrOrSmiConstant(max_elements, mode),
-                              mode),
-         &if_newspace, &if_lospace);
-
-  BIND(&if_newspace);
-  {
-    Node* target = AllocateFixedArray(kind, length, mode);
-    CopyFixedArrayElements(kind, source, target, length, SKIP_WRITE_BARRIER,
-                           mode);
-    StoreObjectField(object, JSObject::kElementsOffset, target);
-    Return(target);
-  }
-
-  BIND(&if_lospace);
-  {
-    Node* target =
-        AllocateFixedArray(kind, length, mode, kAllowLargeObjectAllocation);
-    CopyFixedArrayElements(kind, source, target, length, UPDATE_WRITE_BARRIER,
-                           mode);
-    StoreObjectField(object, JSObject::kElementsOffset, target);
-    Return(target);
-  }
+  Node* target = CloneFixedArray(source, ExtractFixedArrayFlag::kFixedArrays);
+  StoreObjectField(object, JSObject::kElementsOffset, target);
+  Return(target);
 }
 
 TF_BUILTIN(GrowFastDoubleElements, CodeStubAssembler) {
@@ -219,7 +192,7 @@ class RecordWriteCodeStubAssembler : public CodeStubAssembler {
     Label exit(this);
     Label* black = &exit;
 
-    DCHECK(strcmp(Marking::kBlackBitPattern, "11") == 0);
+    DCHECK_EQ(strcmp(Marking::kBlackBitPattern, "11"), 0);
 
     Node* cell;
     Node* mask;
@@ -258,14 +231,15 @@ class RecordWriteCodeStubAssembler : public CodeStubAssembler {
   }
 
   Node* IsWhite(Node* object) {
-    DCHECK(strcmp(Marking::kWhiteBitPattern, "00") == 0);
+    DCHECK_EQ(strcmp(Marking::kWhiteBitPattern, "00"), 0);
     Node* cell;
     Node* mask;
     GetMarkBit(object, &cell, &mask);
+    mask = TruncateWordToWord32(mask);
     // Non-white has 1 for the first bit, so we only need to check for the first
     // bit.
-    return WordEqual(WordAnd(Load(MachineType::Pointer(), cell), mask),
-                     IntPtrConstant(0));
+    return Word32Equal(Word32And(Load(MachineType::Int32(), cell), mask),
+                       Int32Constant(0));
   }
 
   void GetMarkBit(Node* object, Node** cell, Node** mask) {
@@ -561,8 +535,9 @@ TF_BUILTIN(DeleteProperty, DeletePropertyBaseAssembler) {
 
     BIND(&dont_delete);
     {
-      STATIC_ASSERT(LANGUAGE_END == 2);
-      GotoIf(SmiNotEqual(language_mode, SmiConstant(SLOPPY)), &slow);
+      STATIC_ASSERT(LanguageModeSize == 2);
+      GotoIf(SmiNotEqual(language_mode, SmiConstant(LanguageMode::kSloppy)),
+             &slow);
       Return(FalseConstant());
     }
   }
@@ -616,6 +591,20 @@ TF_BUILTIN(ForInFilter, CodeStubAssembler) {
 
   BIND(&if_false);
   Return(UndefinedConstant());
+}
+
+TF_BUILTIN(SameValue, CodeStubAssembler) {
+  Node* lhs = Parameter(Descriptor::kLeft);
+  Node* rhs = Parameter(Descriptor::kRight);
+
+  Label if_true(this), if_false(this);
+  BranchIfSameValue(lhs, rhs, &if_true, &if_false);
+
+  BIND(&if_true);
+  Return(TrueConstant());
+
+  BIND(&if_false);
+  Return(FalseConstant());
 }
 
 }  // namespace internal

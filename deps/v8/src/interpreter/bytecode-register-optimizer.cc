@@ -232,7 +232,7 @@ BytecodeRegisterOptimizer::BytecodeRegisterOptimizer(
   // Calculate offset so register index values can be mapped into
   // a vector of register metadata.
   // There is at least one parameter, which is the JS receiver.
-  DCHECK(parameter_count != 0);
+  DCHECK_NE(parameter_count, 0);
   register_info_table_offset_ =
       -Register::FromParameterIndex(0, parameter_count).index();
 
@@ -298,7 +298,7 @@ void BytecodeRegisterOptimizer::Flush() {
       }
     } else {
       // Equivalernce class containing only unallocated registers.
-      DCHECK(reg_info->GetAllocatedEquivalent() == nullptr);
+      DCHECK_NULL(reg_info->GetAllocatedEquivalent());
       reg_info->MoveToNewEquivalenceSet(NextEquivalenceId(), false);
     }
   }

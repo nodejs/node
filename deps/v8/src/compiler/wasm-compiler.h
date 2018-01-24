@@ -12,6 +12,7 @@
 #include "src/compilation-info.h"
 #include "src/compiler.h"
 #include "src/trap-handler/trap-handler.h"
+#include "src/wasm/baseline/liftoff-assembler.h"
 #include "src/wasm/function-body-decoder.h"
 #include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-opcodes.h"
@@ -36,6 +37,8 @@ class SignatureMap;
 // Expose {Node} and {Graph} opaquely as {wasm::TFNode} and {wasm::TFGraph}.
 typedef compiler::Node TFNode;
 typedef compiler::JSGraph TFGraph;
+class NativeModule;
+class WasmCode;
 }  // namespace wasm
 
 namespace compiler {
@@ -45,8 +48,7 @@ namespace compiler {
 // which the  compiled code should be specialized, including which code to call
 // for direct calls {function_code}, which tables to use for indirect calls
 // {function_tables}, memory start address and size {mem_start, mem_size},
-// globals start address {globals_start}, as well as signature maps
-// {signature_maps} and the module itself {module}.
+// as well as signature maps {signature_maps} and the module itself {module}.
 // ModuleEnvs are shareable across multiple compilations.
 struct ModuleEnv {
   // A pointer to the decoded module's static representation.
@@ -60,18 +62,13 @@ struct ModuleEnv {
   // (the same length as module.function_tables)
   //  We use the address to a global handle to the FixedArray.
   const std::vector<Address> signature_tables;
-  // Signature maps canonicalize {FunctionSig*} to indexes. New entries can be
-  // added to a signature map during graph building.
-  // Normally, these signature maps correspond to the signature maps in the
-  // function tables stored in the {module}.
-  const std::vector<wasm::SignatureMap*> signature_maps;
-  // Contains the code objects to call for each indirect call.
+
+  // TODO(mtrofin): remove these 2 once we don't need FLAG_wasm_jit_to_native
+  // Contains the code objects to call for each direct call.
   // (the same length as module.functions)
   const std::vector<Handle<Code>> function_code;
   // If the default code is not a null handle, always use it for direct calls.
   const Handle<Code> default_function_code;
-  // Address of the start of the globals region.
-  const uintptr_t globals_start;
 };
 
 enum RuntimeExceptionSupport : bool {
@@ -81,55 +78,89 @@ enum RuntimeExceptionSupport : bool {
 
 class WasmCompilationUnit final {
  public:
+  enum class CompilationMode : uint8_t { kLiftoff, kTurbofan };
+  static CompilationMode GetDefaultCompilationMode();
+
   // If constructing from a background thread, pass in a Counters*, and ensure
   // that the Counters live at least as long as this compilation unit (which
   // typically means to hold a std::shared_ptr<Counters>).
   // If no such pointer is passed, Isolate::counters() will be called. This is
   // only allowed to happen on the foreground thread.
-  WasmCompilationUnit(Isolate*, ModuleEnv*, wasm::FunctionBody, wasm::WasmName,
-                      int index, Handle<Code> centry_stub, Counters* = nullptr,
+  WasmCompilationUnit(Isolate*, ModuleEnv*, wasm::NativeModule*,
+                      wasm::FunctionBody, wasm::WasmName, int index,
+                      Handle<Code> centry_stub,
+                      CompilationMode = GetDefaultCompilationMode(),
+                      Counters* = nullptr,
                       RuntimeExceptionSupport = kRuntimeExceptionSupport,
                       bool lower_simd = false);
+
+  ~WasmCompilationUnit();
 
   int func_index() const { return func_index_; }
 
   void ExecuteCompilation();
-  MaybeHandle<Code> FinishCompilation(wasm::ErrorThrower* thrower);
+  WasmCodeWrapper FinishCompilation(wasm::ErrorThrower* thrower);
 
-  static MaybeHandle<Code> CompileWasmFunction(
-      wasm::ErrorThrower* thrower, Isolate* isolate,
-      const wasm::ModuleWireBytes& wire_bytes, ModuleEnv* env,
-      const wasm::WasmFunction* function);
+  static WasmCodeWrapper CompileWasmFunction(
+      wasm::NativeModule* native_module, wasm::ErrorThrower* thrower,
+      Isolate* isolate, const wasm::ModuleWireBytes& wire_bytes, ModuleEnv* env,
+      const wasm::WasmFunction* function,
+      CompilationMode = GetDefaultCompilationMode());
 
-  void set_memory_cost(size_t memory_cost) { memory_cost_ = memory_cost; }
   size_t memory_cost() const { return memory_cost_; }
 
  private:
+  void PackProtectedInstructions(Handle<Code> code) const;
+
+  struct LiftoffData {
+    wasm::LiftoffAssembler asm_;
+    explicit LiftoffData(Isolate* isolate) : asm_(isolate) {}
+  };
+  struct TurbofanData {
+    // The graph zone is deallocated at the end of ExecuteCompilation by virtue
+    // of it being zone allocated.
+    JSGraph* jsgraph_ = nullptr;
+    // The compilation_zone_, info_, and job_ fields need to survive past
+    // ExecuteCompilation, onto FinishCompilation (which happens on the main
+    // thread).
+    std::unique_ptr<Zone> compilation_zone_;
+    std::unique_ptr<CompilationInfo> info_;
+    std::unique_ptr<CompilationJob> job_;
+    wasm::Result<wasm::DecodeStruct*> graph_construction_result_;
+  };
+
+  // Turbofan.
   SourcePositionTable* BuildGraphForWasmFunction(double* decode_ms);
-  Counters* counters() { return counters_; }
+  void ExecuteTurbofanCompilation();
+  WasmCodeWrapper FinishTurbofanCompilation(wasm::ErrorThrower*);
+
+  // Liftoff.
+  bool ExecuteLiftoffCompilation();
+  WasmCodeWrapper FinishLiftoffCompilation(wasm::ErrorThrower*);
 
   Isolate* isolate_;
   ModuleEnv* env_;
   wasm::FunctionBody func_body_;
   wasm::WasmName func_name_;
   Counters* counters_;
-  // The graph zone is deallocated at the end of ExecuteCompilation by virtue of
-  // it being zone allocated.
-  JSGraph* jsgraph_ = nullptr;
-  // the compilation_zone_, info_, and job_ fields need to survive past
-  // ExecuteCompilation, onto FinishCompilation (which happens on the main
-  // thread).
-  std::unique_ptr<Zone> compilation_zone_;
-  std::unique_ptr<CompilationInfo> info_;
-  std::unique_ptr<CompilationJob> job_;
   Handle<Code> centry_stub_;
   int func_index_;
-  wasm::Result<wasm::DecodeStruct*> graph_construction_result_;
   // See WasmGraphBuilder::runtime_exception_support_.
   RuntimeExceptionSupport runtime_exception_support_;
   bool ok_ = true;
   size_t memory_cost_ = 0;
+  wasm::NativeModule* native_module_;
   bool lower_simd_;
+  std::shared_ptr<std::vector<trap_handler::ProtectedInstructionData>>
+      protected_instructions_;
+  CompilationMode mode_;
+  // {liftoff_} is valid if mode_ == kLiftoff, tf_ if mode_ == kTurbofan.
+  union {
+    LiftoffData liftoff_;
+    TurbofanData tf_;
+  };
+
+  Counters* counters() { return counters_; }
 
   DISALLOW_COPY_AND_ASSIGN(WasmCompilationUnit);
 };
@@ -144,14 +175,14 @@ Handle<Code> CompileWasmToJSWrapper(Isolate* isolate, Handle<JSReceiver> target,
                                     Handle<FixedArray> global_js_imports_table);
 
 // Wraps a given wasm code object, producing a code object.
-Handle<Code> CompileJSToWasmWrapper(Isolate* isolate, wasm::WasmModule* module,
-                                    Handle<Code> wasm_code, uint32_t index,
-                                    Address wasm_context_address);
+V8_EXPORT_PRIVATE Handle<Code> CompileJSToWasmWrapper(
+    Isolate* isolate, wasm::WasmModule* module, WasmCodeWrapper wasm_code,
+    uint32_t index, Address wasm_context_address);
 
 // Wraps a wasm function, producing a code object that can be called from other
 // wasm instances (the WasmContext address must be changed).
-Handle<Code> CompileWasmToWasmWrapper(Isolate* isolate, Handle<Code> target,
-                                      wasm::FunctionSig* sig, uint32_t index,
+Handle<Code> CompileWasmToWasmWrapper(Isolate* isolate, WasmCodeWrapper target,
+                                      wasm::FunctionSig* sig,
                                       Address new_wasm_context_address);
 
 // Compiles a stub that redirects a call to a wasm function to the wasm
@@ -173,14 +204,28 @@ enum CWasmEntryParameters {
 Handle<Code> CompileCWasmEntry(Isolate* isolate, wasm::FunctionSig* sig,
                                Address wasm_context_address);
 
+// Values from the {WasmContext} are cached between WASM-level function calls.
+// This struct allows the SSA environment handling this cache to be defined
+// and manipulated in wasm-compiler.{h,cc} instead of inside the WASM decoder.
+// (Note that currently, the globals base is immutable in a context, so not
+// cached here.)
+struct WasmContextCacheNodes {
+  Node* mem_start;
+  Node* mem_size;
+  Node* mem_mask;
+};
+
 // Abstracts details of building TurboFan graph nodes for wasm to separate
 // the wasm decoder from the internal details of TurboFan.
 typedef ZoneVector<Node*> NodeVector;
 class WasmGraphBuilder {
  public:
-  WasmGraphBuilder(ModuleEnv*, Zone*, JSGraph*, Handle<Code> centry_stub_,
-                   wasm::FunctionSig*, compiler::SourcePositionTable* = nullptr,
-                   RuntimeExceptionSupport = kRuntimeExceptionSupport);
+  enum EnforceBoundsCheck : bool { kNeedsBoundsCheck, kCanOmitBoundsCheck };
+
+  WasmGraphBuilder(ModuleEnv* env, Zone* zone, JSGraph* graph,
+                   Handle<Code> centry_stub, wasm::FunctionSig* sig,
+                   compiler::SourcePositionTable* spt = nullptr,
+                   RuntimeExceptionSupport res = kRuntimeExceptionSupport);
 
   Node** Buffer(size_t count) {
     if (count > cur_bufsize_) {
@@ -202,6 +247,9 @@ class WasmGraphBuilder {
   Node* Terminate(Node* effect, Node* control);
   Node* Merge(unsigned count, Node** controls);
   Node* Phi(wasm::ValueType type, unsigned count, Node** vals, Node* control);
+  Node* CreateOrMergeIntoPhi(wasm::ValueType type, Node* merge, Node* tnode,
+                             Node* fnode);
+  Node* CreateOrMergeIntoEffectPhi(Node* merge, Node* tnode, Node* fnode);
   Node* EffectPhi(unsigned count, Node** effects, Node* control);
   Node* NumberConstant(int32_t value);
   Node* Uint32Constant(uint32_t value);
@@ -222,7 +270,6 @@ class WasmGraphBuilder {
   Node* ConvertExceptionTagToRuntimeId(uint32_t tag);
   Node* GetExceptionRuntimeId();
   Node** GetExceptionValues(const wasm::WasmException* except_decl);
-  unsigned InputCount(Node* node);
   bool IsPhiWithMerge(Node* phi, Node* merge);
   bool ThrowsException(Node* node, Node** if_success, Node** if_exception);
   void AppendToMerge(Node* merge, Node* from);
@@ -270,7 +317,7 @@ class WasmGraphBuilder {
   Node* CallIndirect(uint32_t index, Node** args, Node*** rets,
                      wasm::WasmCodePosition position);
 
-  void BuildJSToWasmWrapper(Handle<Code> wasm_code,
+  void BuildJSToWasmWrapper(WasmCodeWrapper wasm_code_start,
                             Address wasm_context_address);
   enum ImportDataType {
     kFunction = 1,
@@ -283,10 +330,9 @@ class WasmGraphBuilder {
   bool BuildWasmToJSWrapper(Handle<JSReceiver> target,
                             Handle<FixedArray> global_js_imports_table,
                             int index);
-  void BuildWasmToWasmWrapper(Handle<Code> target,
+  void BuildWasmToWasmWrapper(WasmCodeWrapper wasm_code_start,
                               Address new_wasm_context_address);
-  void BuildWasmInterpreterEntry(uint32_t func_index,
-                                 Handle<WasmInstanceObject> instance);
+  void BuildWasmInterpreterEntry(uint32_t func_index);
   void BuildCWasmEntry(Address wasm_context_address);
 
   Node* ToJS(Node* node, wasm::ValueType type);
@@ -321,12 +367,21 @@ class WasmGraphBuilder {
 
   void set_effect_ptr(Node** effect) { this->effect_ = effect; }
 
-  Node* LoadMemSize();
-  Node* LoadMemStart();
+  void GetGlobalBaseAndOffset(MachineType mem_type, uint32_t offset,
+                              Node** base_node, Node** offset_node);
 
-  void set_mem_size(Node** mem_size) { this->mem_size_ = mem_size; }
+  // Utilities to manipulate sets of context cache nodes.
+  void InitContextCache(WasmContextCacheNodes* context_cache);
+  void PrepareContextCacheForLoop(WasmContextCacheNodes* context_cache,
+                                  Node* control);
+  void NewContextCacheMerge(WasmContextCacheNodes* to,
+                            WasmContextCacheNodes* from, Node* merge);
+  void MergeContextCacheInto(WasmContextCacheNodes* to,
+                             WasmContextCacheNodes* from, Node* merge);
 
-  void set_mem_start(Node** mem_start) { this->mem_start_ = mem_start; }
+  void set_context_cache(WasmContextCacheNodes* context_cache) {
+    this->context_cache_ = context_cache;
+  }
 
   wasm::FunctionSig* GetFunctionSignature() { return sig_; }
 
@@ -371,13 +426,14 @@ class WasmGraphBuilder {
   NodeVector function_table_sizes_;
   Node** control_ = nullptr;
   Node** effect_ = nullptr;
-  Node** mem_size_ = nullptr;
-  Node** mem_start_ = nullptr;
+  WasmContextCacheNodes* context_cache_ = nullptr;
+  Node* globals_start_ = nullptr;
   Node** cur_buffer_;
   size_t cur_bufsize_;
   Node* def_buffer_[kDefaultBufferSize];
   bool has_simd_ = false;
   bool needs_stack_check_ = false;
+  bool untrusted_code_mitigations_ = true;
   // If the runtime doesn't support exception propagation,
   // we won't generate stack checks, and trap handling will also
   // be generated differently.
@@ -394,8 +450,9 @@ class WasmGraphBuilder {
 
   Node* String(const char* string);
   Node* MemBuffer(uint32_t offset);
-  void BoundsCheckMem(MachineType memtype, Node* index, uint32_t offset,
-                      wasm::WasmCodePosition position);
+  // BoundsCheckMem receives a uint32 {index} node and returns a ptrsize index.
+  Node* BoundsCheckMem(MachineType memtype, Node* index, uint32_t offset,
+                       wasm::WasmCodePosition, EnforceBoundsCheck);
   const Operator* GetSafeLoadOperator(int offset, wasm::ValueType type);
   const Operator* GetSafeStoreOperator(int offset, wasm::ValueType type);
   Node* BuildChangeEndiannessStore(Node* node, MachineType type,
@@ -538,8 +595,8 @@ class WasmGraphBuilder {
 // call descriptors. This is used by the Int64Lowering::LowerNode method.
 constexpr int kWasmContextParameterIndex = 0;
 
-V8_EXPORT_PRIVATE CallDescriptor* GetWasmCallDescriptor(Zone* zone,
-                                                        wasm::FunctionSig* sig);
+V8_EXPORT_PRIVATE CallDescriptor* GetWasmCallDescriptor(
+    Zone* zone, wasm::FunctionSig* signature);
 V8_EXPORT_PRIVATE CallDescriptor* GetI32WasmCallDescriptor(
     Zone* zone, CallDescriptor* descriptor);
 V8_EXPORT_PRIVATE CallDescriptor* GetI32WasmCallDescriptorForSimd(

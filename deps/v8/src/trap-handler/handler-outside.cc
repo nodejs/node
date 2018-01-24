@@ -115,7 +115,7 @@ void ValidateCodeObjects() {
 
 CodeProtectionInfo* CreateHandlerData(
     void* base, size_t size, size_t num_protected_instructions,
-    ProtectedInstructionData* protected_instructions) {
+    const ProtectedInstructionData* protected_instructions) {
   const size_t alloc_size = HandlerDataSize(num_protected_instructions);
   CodeProtectionInfo* data =
       reinterpret_cast<CodeProtectionInfo*>(malloc(alloc_size));
@@ -143,9 +143,9 @@ void UpdateHandlerDataCodePointer(int index, void* base) {
   data->base = base;
 }
 
-int RegisterHandlerData(void* base, size_t size,
-                        size_t num_protected_instructions,
-                        ProtectedInstructionData* protected_instructions) {
+int RegisterHandlerData(
+    void* base, size_t size, size_t num_protected_instructions,
+    const ProtectedInstructionData* protected_instructions) {
   // TODO(eholk): in debug builds, make sure this data isn't already registered.
 
   CodeProtectionInfo* data = CreateHandlerData(
@@ -248,6 +248,8 @@ void ReleaseHandlerData(int index) {
 
 bool RegisterDefaultSignalHandler() {
 #if V8_TRAP_HANDLER_SUPPORTED
+  CHECK(!g_is_default_signal_handler_registered);
+
   struct sigaction action;
   action.sa_sigaction = HandleSignal;
   action.sa_flags = SA_SIGINFO;
@@ -255,10 +257,11 @@ bool RegisterDefaultSignalHandler() {
   // {sigaction} installs a new custom segfault handler. On success, it returns
   // 0. If we get a nonzero value, we report an error to the caller by returning
   // false.
-  if (sigaction(SIGSEGV, &action, nullptr) != 0) {
+  if (sigaction(SIGSEGV, &action, &g_old_handler) != 0) {
     return false;
   }
 
+  g_is_default_signal_handler_registered = true;
   return true;
 #else
   return false;

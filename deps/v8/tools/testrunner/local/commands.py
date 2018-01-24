@@ -106,7 +106,24 @@ def RunProcess(verbose, timeout, args, additional_env, **rest):
           print "Return code: %d" % tk.returncode
           sys.stdout.flush()
       else:
+        if utils.GuessOS() == "macos":
+          # TODO(machenbach): Temporary output for investigating hanging test
+          # driver on mac.
+          print "Attempting to kill process %d - cmd %s" % (process.pid, args)
+          try:
+            print subprocess.check_output(
+              "ps -e | egrep 'd8|cctest|unittests'", shell=True)
+          except Exception:
+            pass
+          sys.stdout.flush()
         process.kill()
+        if utils.GuessOS() == "macos":
+          # TODO(machenbach): Temporary output for investigating hanging test
+          # driver on mac. This will probably not print much, since kill only
+          # sends the signal.
+          print "Return code after signalling the kill: %s" % process.returncode
+          sys.stdout.flush()
+
     except OSError:
       sys.stderr.write('Error: Process %s already ended.\n' % process.pid)
 
@@ -127,6 +144,9 @@ def RunProcess(verbose, timeout, args, additional_env, **rest):
   )
 
 
+# TODO(machenbach): Instead of passing args around, we should introduce an
+# immutable Command class (that just represents the command with all flags and
+# is pretty-printable) and a member method for running such a command.
 def Execute(args, verbose=False, timeout=None, env=None):
   args = [ c for c in args if c != "" ]
   return RunProcess(verbose, timeout, args, env or {})

@@ -63,18 +63,18 @@ class MessageTestSuite(testsuite.TestSuite):
     return super(MessageTestSuite, self).CreateVariantGenerator(
         variants + ["preparser"])
 
-  def GetFlagsForTestCase(self, testcase, context):
+  def GetParametersForTestCase(self, testcase, context):
     source = self.GetSourceForTest(testcase)
-    result = []
+    files = []
+    if MODULE_PATTERN.search(source):
+      files.append("--module")
+    files.append(os.path.join(self.root, testcase.path + ".js"))
+    flags = testcase.flags + context.mode_flags
     flags_match = re.findall(FLAGS_PATTERN, source)
     for match in flags_match:
-      result += match.strip().split()
-    result += context.mode_flags
-    if MODULE_PATTERN.search(source):
-      result.append("--module")
-    result = [x for x in result if x not in INVALID_FLAGS]
-    result.append(os.path.join(self.root, testcase.path + ".js"))
-    return testcase.flags + result
+      flags += match.strip().split()
+    flags = [x for x in flags if x not in INVALID_FLAGS]
+    return files, flags, {}
 
   def GetSourceForTest(self, testcase):
     filename = os.path.join(self.root, testcase.path + self.suffix())
@@ -88,9 +88,22 @@ class MessageTestSuite(testsuite.TestSuite):
     return (string.startswith("==") or string.startswith("**") or
             string.startswith("ANDROID"))
 
+  def _GetExpectedFail(self, testcase):
+    path = testcase.path
+    while path:
+      (head, tail) = os.path.split(path)
+      if tail == "fail":
+        return True
+      path = head
+    return False
+
   def IsFailureOutput(self, testcase):
     output = testcase.output
     testpath = testcase.path
+    expected_fail = self._GetExpectedFail(testcase)
+    fail = testcase.output.exit_code != 0
+    if expected_fail != fail:
+      return True
     expected_path = os.path.join(self.root, testpath + ".out")
     expected_lines = []
     # Can't use utils.ReadLinesFrom() here because it strips whitespace.

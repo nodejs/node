@@ -168,102 +168,18 @@ void AstConsString::Internalize(Isolate* isolate) {
   set_string(tmp);
 }
 
-AstValue::AstValue(double n) : next_(nullptr) {
-  int int_value;
-  if (DoubleToSmiInteger(n, &int_value)) {
-    type_ = SMI;
-    smi_ = int_value;
-  } else {
-    type_ = NUMBER;
-    number_ = n;
+std::forward_list<const AstRawString*> AstConsString::ToRawStrings() const {
+  std::forward_list<const AstRawString*> result;
+  if (IsEmpty()) {
+    return result;
   }
-}
 
-bool AstValue::ToUint32(uint32_t* value) const {
-  if (IsSmi()) {
-    int num = smi_;
-    if (num < 0) return false;
-    *value = static_cast<uint32_t>(num);
-    return true;
+  result.emplace_front(segment_.string);
+  for (AstConsString::Segment* current = segment_.next; current != nullptr;
+       current = current->next) {
+    result.emplace_front(current->string);
   }
-  if (IsHeapNumber()) {
-    return DoubleToUint32IfEqualToSelf(number_, value);
-  }
-  return false;
-}
-
-bool AstValue::IsPropertyName() const {
-  if (type_ == STRING) {
-    uint32_t index;
-    return !string_->AsArrayIndex(&index);
-  }
-  return false;
-}
-
-
-bool AstValue::BooleanValue() const {
-  switch (type_) {
-    case STRING:
-      DCHECK(string_ != NULL);
-      return !string_->IsEmpty();
-    case SYMBOL:
-      UNREACHABLE();
-      break;
-    case NUMBER:
-      return DoubleToBoolean(number_);
-    case SMI:
-      return smi_ != 0;
-    case BOOLEAN:
-      return bool_;
-    case NULL_TYPE:
-      return false;
-    case THE_HOLE:
-      UNREACHABLE();
-      break;
-    case UNDEFINED:
-      return false;
-  }
-  UNREACHABLE();
-}
-
-
-void AstValue::Internalize(Isolate* isolate) {
-  switch (type_) {
-    case STRING:
-      DCHECK_NOT_NULL(string_);
-      // Strings are already internalized.
-      DCHECK(!string_->string().is_null());
-      break;
-    case SYMBOL:
-      switch (symbol_) {
-        case AstSymbol::kHomeObjectSymbol:
-          set_value(isolate->factory()->home_object_symbol());
-          break;
-      }
-      break;
-    case NUMBER:
-      set_value(isolate->factory()->NewNumber(number_, TENURED));
-      break;
-    case SMI:
-      set_value(handle(Smi::FromInt(smi_), isolate));
-      break;
-    case BOOLEAN:
-      if (bool_) {
-        set_value(isolate->factory()->true_value());
-      } else {
-        set_value(isolate->factory()->false_value());
-      }
-      break;
-    case NULL_TYPE:
-      set_value(isolate->factory()->null_value());
-      break;
-    case THE_HOLE:
-      set_value(isolate->factory()->the_hole_value());
-      break;
-    case UNDEFINED:
-      set_value(isolate->factory()->undefined_value());
-      break;
-  }
+  return result;
 }
 
 AstStringConstants::AstStringConstants(Isolate* isolate, uint32_t hash_seed)
@@ -317,7 +233,7 @@ AstRawString* AstValueFactory::GetTwoByteStringInternal(
 
 
 const AstRawString* AstValueFactory::GetString(Handle<String> literal) {
-  AstRawString* result = NULL;
+  AstRawString* result = nullptr;
   DisallowHeapAllocation no_gc;
   String::FlatContent content = literal->GetFlatContent();
   if (content.IsOneByte()) {
@@ -361,72 +277,9 @@ void AstValueFactory::Internalize(Isolate* isolate) {
     current = next;
   }
 
-  for (AstValue* current = values_; current != nullptr;) {
-    AstValue* next = current->next();
-    current->Internalize(isolate);
-    current = next;
-  }
   ResetStrings();
-  values_ = nullptr;
 }
 
-
-const AstValue* AstValueFactory::NewString(const AstRawString* string) {
-  AstValue* value = new (zone_) AstValue(string);
-  CHECK_NOT_NULL(string);
-  return AddValue(value);
-}
-
-const AstValue* AstValueFactory::NewSymbol(AstSymbol symbol) {
-  AstValue* value = new (zone_) AstValue(symbol);
-  return AddValue(value);
-}
-
-const AstValue* AstValueFactory::NewNumber(double number) {
-  AstValue* value = new (zone_) AstValue(number);
-  return AddValue(value);
-}
-
-const AstValue* AstValueFactory::NewSmi(uint32_t number) {
-  bool cacheable_smi = number <= kMaxCachedSmi;
-  if (cacheable_smi && smis_[number] != nullptr) return smis_[number];
-
-  AstValue* value = new (zone_) AstValue(AstValue::SMI, number);
-  if (cacheable_smi) smis_[number] = value;
-  return AddValue(value);
-}
-
-#define GENERATE_VALUE_GETTER(value, initializer)        \
-  if (!value) {                                          \
-    value = AddValue(new (zone_) AstValue(initializer)); \
-  }                                                      \
-  return value;
-
-const AstValue* AstValueFactory::NewBoolean(bool b) {
-  if (b) {
-    GENERATE_VALUE_GETTER(true_value_, true);
-  } else {
-    GENERATE_VALUE_GETTER(false_value_, false);
-  }
-}
-
-
-const AstValue* AstValueFactory::NewNull() {
-  GENERATE_VALUE_GETTER(null_value_, AstValue::NULL_TYPE);
-}
-
-
-const AstValue* AstValueFactory::NewUndefined() {
-  GENERATE_VALUE_GETTER(undefined_value_, AstValue::UNDEFINED);
-}
-
-
-const AstValue* AstValueFactory::NewTheHole() {
-  GENERATE_VALUE_GETTER(the_hole_value_, AstValue::THE_HOLE);
-}
-
-
-#undef GENERATE_VALUE_GETTER
 
 AstRawString* AstValueFactory::GetString(uint32_t hash_field, bool is_one_byte,
                                          Vector<const byte> literal_bytes) {

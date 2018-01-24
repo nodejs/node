@@ -76,7 +76,8 @@ protocol::Response toProtocolValue(v8::Local<v8::Context> context,
       if (name->IsString()) {
         v8::Maybe<bool> hasRealNamedProperty = object->HasRealNamedProperty(
             context, v8::Local<v8::String>::Cast(name));
-        if (!hasRealNamedProperty.IsJust() || !hasRealNamedProperty.FromJust())
+        if (hasRealNamedProperty.IsNothing() ||
+            !hasRealNamedProperty.FromJust())
           continue;
       }
       v8::Local<v8::String> propertyName;

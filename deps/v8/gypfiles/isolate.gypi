@@ -80,6 +80,7 @@
         '--config-variable', 'sanitizer_coverage=<(sanitizer_coverage)',
         '--config-variable', 'component=<(component)',
         '--config-variable', 'target_arch=<(target_arch)',
+        '--config-variable', 'ubsan_vptr=0',
         '--config-variable', 'v8_use_external_startup_data=<(v8_use_external_startup_data)',
         '--config-variable', 'v8_use_snapshot=<(v8_use_snapshot)',
       ],

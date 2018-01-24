@@ -80,6 +80,11 @@ class ConcurrentMarkingVisitor final
         marking_state_(live_bytes),
         task_id_(task_id) {}
 
+  template <typename T>
+  static V8_INLINE T* Cast(HeapObject* object) {
+    return T::cast(object);
+  }
+
   bool ShouldVisit(HeapObject* object) {
     return marking_state_.GreyToBlack(object);
   }
@@ -109,7 +114,10 @@ class ConcurrentMarkingVisitor final
 
   int VisitJSObject(Map* map, JSObject* object) {
     int size = JSObject::BodyDescriptor::SizeOf(map, object);
-    const SlotSnapshot& snapshot = MakeSlotSnapshot(map, object, size);
+    int used_size = map->UsedInstanceSize();
+    DCHECK_LE(used_size, size);
+    DCHECK_GE(used_size, JSObject::kHeaderSize);
+    const SlotSnapshot& snapshot = MakeSlotSnapshot(map, object, used_size);
     if (!ShouldVisit(object)) return 0;
     VisitPointersInSnapshot(object, snapshot);
     return size;
@@ -216,6 +224,14 @@ class ConcurrentMarkingVisitor final
     return size;
   }
 
+  int VisitCodeDataContainer(Map* map, CodeDataContainer* object) {
+    if (!ShouldVisit(object)) return 0;
+    int size = CodeDataContainer::BodyDescriptorWeak::SizeOf(map, object);
+    VisitMapPointer(object, object->map_slot());
+    CodeDataContainer::BodyDescriptorWeak::IterateBody(object, size, this);
+    return size;
+  }
+
   int VisitJSFunction(Map* map, JSFunction* object) {
     if (!ShouldVisit(object)) return 0;
     int size = JSFunction::BodyDescriptorWeak::SizeOf(map, object);
@@ -243,15 +259,11 @@ class ConcurrentMarkingVisitor final
   }
 
   int VisitNativeContext(Map* map, Context* object) {
-    if (marking_state_.IsGrey(object)) {
-      int size = Context::BodyDescriptorWeak::SizeOf(map, object);
-      VisitMapPointer(object, object->map_slot());
-      Context::BodyDescriptorWeak::IterateBody(object, size, this);
-      // TODO(ulan): implement proper weakness for normalized map cache
-      // and remove this bailout.
-      bailout_.Push(object);
-    }
-    return 0;
+    if (!ShouldVisit(object)) return 0;
+    int size = Context::BodyDescriptorWeak::SizeOf(map, object);
+    VisitMapPointer(object, object->map_slot());
+    Context::BodyDescriptorWeak::IterateBody(object, size, this);
+    return size;
   }
 
   int VisitTransitionArray(Map* map, TransitionArray* array) {
@@ -342,6 +354,33 @@ class ConcurrentMarkingVisitor final
   SlotSnapshot slot_snapshot_;
 };
 
+// Strings can change maps due to conversion to thin string or external strings.
+// Use reinterpret cast to avoid data race in slow dchecks.
+template <>
+ConsString* ConcurrentMarkingVisitor::Cast(HeapObject* object) {
+  return reinterpret_cast<ConsString*>(object);
+}
+
+template <>
+SlicedString* ConcurrentMarkingVisitor::Cast(HeapObject* object) {
+  return reinterpret_cast<SlicedString*>(object);
+}
+
+template <>
+ThinString* ConcurrentMarkingVisitor::Cast(HeapObject* object) {
+  return reinterpret_cast<ThinString*>(object);
+}
+
+template <>
+SeqOneByteString* ConcurrentMarkingVisitor::Cast(HeapObject* object) {
+  return reinterpret_cast<SeqOneByteString*>(object);
+}
+
+template <>
+SeqTwoByteString* ConcurrentMarkingVisitor::Cast(HeapObject* object) {
+  return reinterpret_cast<SeqTwoByteString*>(object);
+}
+
 class ConcurrentMarking::Task : public CancelableTask {
  public:
   Task(Isolate* isolate, ConcurrentMarking* concurrent_marking,
@@ -374,6 +413,7 @@ ConcurrentMarking::ConcurrentMarking(Heap* heap, MarkingWorklist* shared,
       bailout_(bailout),
       on_hold_(on_hold),
       weak_objects_(weak_objects),
+      total_marked_bytes_(0),
       pending_task_count_(0),
       task_count_(0) {
 // The runtime flag should be set only if the compile time flag was set.
@@ -382,6 +422,7 @@ ConcurrentMarking::ConcurrentMarking(Heap* heap, MarkingWorklist* shared,
 #endif
   for (int i = 0; i <= kMaxTasks; i++) {
     is_pending_[i] = false;
+    task_state_[i].marked_bytes = 0;
   }
 }
 
@@ -540,6 +581,7 @@ void ConcurrentMarking::FlushLiveBytes(
       }
     }
     live_bytes.clear();
+    task_state_[i].marked_bytes = 0;
   }
   total_marked_bytes_.SetValue(0);
 }

@@ -7,7 +7,6 @@
 #include "src/debug/debug.h"
 
 #include "src/arm64/macro-assembler-arm64-inl.h"
-#include "src/codegen.h"
 #include "src/debug/liveedit.h"
 #include "src/frame-constants.h"
 #include "src/frames-inl.h"
@@ -57,5 +56,7 @@ const bool LiveEdit::kFrameDropperSupported = true;
 
 }  // namespace internal
 }  // namespace v8
+
+#undef __
 
 #endif  // V8_TARGET_ARCH_ARM64

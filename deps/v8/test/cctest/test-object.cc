@@ -57,6 +57,9 @@ TEST(NoSideEffectsToString) {
   CheckBoolean(isolate, true, "true");
   CheckBoolean(isolate, false, "false");
   CheckBoolean(isolate, false, "false");
+  Handle<Object> smi_42 = handle(Smi::FromInt(42), isolate);
+  CheckObject(isolate, BigInt::FromNumber(isolate, smi_42).ToHandleChecked(),
+              "42");
   CheckObject(isolate, factory->undefined_value(), "undefined");
   CheckObject(isolate, factory->null_value(), "null");
 

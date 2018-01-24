@@ -57,5 +57,12 @@ RUNTIME_FUNCTION(Runtime_StoreModuleVariable) {
   return isolate->heap()->undefined_value();
 }
 
+RUNTIME_FUNCTION(Runtime_GetImportMetaObject) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(0, args.length());
+  Handle<Module> module(isolate->context()->module());
+  return *isolate->RunHostInitializeImportMetaObjectCallback(module);
+}
+
 }  // namespace internal
 }  // namespace v8

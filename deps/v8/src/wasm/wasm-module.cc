@@ -8,19 +8,20 @@
 #include "src/api.h"
 #include "src/assembler-inl.h"
 #include "src/code-stubs.h"
+#include "src/compiler/wasm-compiler.h"
 #include "src/debug/interface-types.h"
 #include "src/frames-inl.h"
 #include "src/objects.h"
 #include "src/property-descriptor.h"
 #include "src/simulator.h"
 #include "src/snapshot/snapshot.h"
+#include "src/trap-handler/trap-handler.h"
 #include "src/v8.h"
-
-#include "src/compiler/wasm-compiler.h"
 #include "src/wasm/compilation-manager.h"
 #include "src/wasm/module-compiler.h"
 #include "src/wasm/module-decoder.h"
 #include "src/wasm/wasm-code-specialization.h"
+#include "src/wasm/wasm-heap.h"
 #include "src/wasm/wasm-js.h"
 #include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-objects-inl.h"
@@ -54,8 +55,8 @@ constexpr const char* WasmException::kRuntimeIdStr;
 // static
 constexpr const char* WasmException::kRuntimeValuesStr;
 
-void UnpackAndRegisterProtectedInstructions(Isolate* isolate,
-                                            Handle<FixedArray> code_table) {
+void UnpackAndRegisterProtectedInstructionsGC(Isolate* isolate,
+                                              Handle<FixedArray> code_table) {
   DisallowHeapAllocation no_gc;
   std::vector<trap_handler::ProtectedInstructionData> unpacked;
 
@@ -76,26 +77,66 @@ void UnpackAndRegisterProtectedInstructions(Isolate* isolate,
 
     byte* base = code->entry();
 
-    const int mode_mask =
-        RelocInfo::ModeMask(RelocInfo::WASM_PROTECTED_INSTRUCTION_LANDING);
-    for (RelocIterator it(code, mode_mask); !it.done(); it.next()) {
+    FixedArray* protected_instructions = code->protected_instructions();
+    DCHECK(protected_instructions != nullptr);
+    for (int i = 0; i < protected_instructions->length();
+         i += Code::kTrapDataSize) {
       trap_handler::ProtectedInstructionData data;
-      data.instr_offset = static_cast<uint32_t>(it.rinfo()->data());
-      data.landing_offset = static_cast<uint32_t>(it.rinfo()->pc() - base);
-      // Check that now over-/underflow happened.
-      DCHECK_EQ(it.rinfo()->data(), data.instr_offset);
-      DCHECK_EQ(it.rinfo()->pc() - base, data.landing_offset);
+      data.instr_offset =
+          protected_instructions
+              ->GetValueChecked<Smi>(isolate, i + Code::kTrapCodeOffset)
+              ->value();
+      data.landing_offset =
+          protected_instructions
+              ->GetValueChecked<Smi>(isolate, i + Code::kTrapLandingOffset)
+              ->value();
       unpacked.emplace_back(data);
     }
+
     if (unpacked.empty()) continue;
 
-    int size = code->CodeSize();
-    const int index = RegisterHandlerData(reinterpret_cast<void*>(base), size,
+    const int index = RegisterHandlerData(base, code->instruction_size(),
                                           unpacked.size(), &unpacked[0]);
+
     unpacked.clear();
+
+    // TODO(6792): No longer needed once WebAssembly code is off heap.
+    CodeSpaceMemoryModificationScope modification_scope(isolate->heap());
+
     // TODO(eholk): if index is negative, fail.
     DCHECK_LE(0, index);
     code->set_trap_handler_index(Smi::FromInt(index));
+  }
+}
+
+void UnpackAndRegisterProtectedInstructions(Isolate* isolate,
+                                            wasm::NativeModule* native_module) {
+  DisallowHeapAllocation no_gc;
+
+  for (uint32_t i = native_module->num_imported_functions(),
+                e = native_module->FunctionCount();
+       i < e; ++i) {
+    wasm::WasmCode* code = native_module->GetCode(i);
+
+    if (code == nullptr || code->kind() != wasm::WasmCode::Function) {
+      continue;
+    }
+
+    if (code->HasTrapHandlerIndex()) continue;
+
+    Address base = code->instructions().start();
+
+    size_t size = code->instructions().size();
+    const int index =
+        RegisterHandlerData(base, size, code->protected_instructions().size(),
+                            code->protected_instructions().data());
+
+    // TODO(6792): No longer needed once WebAssembly code is off heap.
+    CodeSpaceMemoryModificationScope modification_scope(isolate->heap());
+
+    // TODO(eholk): if index is negative, fail.
+    CHECK_LE(0, index);
+    code->set_trap_handler_index(static_cast<size_t>(index));
   }
 }
 
@@ -129,50 +170,56 @@ WasmFunction* GetWasmFunctionForExport(Isolate* isolate,
   return nullptr;
 }
 
-Handle<Code> UnwrapExportWrapper(Handle<JSFunction> export_wrapper) {
-  Handle<Code> export_wrapper_code = handle(export_wrapper->code());
-  DCHECK_EQ(export_wrapper_code->kind(), Code::JS_TO_WASM_FUNCTION);
-  int mask = RelocInfo::ModeMask(RelocInfo::CODE_TARGET);
-  for (RelocIterator it(*export_wrapper_code, mask);; it.next()) {
-    DCHECK(!it.done());
-    Code* target = Code::GetCodeFromTargetAddress(it.rinfo()->target_address());
-    if (target->kind() != Code::WASM_FUNCTION &&
-        target->kind() != Code::WASM_TO_JS_FUNCTION &&
-        target->kind() != Code::WASM_INTERPRETER_ENTRY)
-      continue;
-// There should only be this one call to wasm code.
-#ifdef DEBUG
-    for (it.next(); !it.done(); it.next()) {
-      Code* code = Code::GetCodeFromTargetAddress(it.rinfo()->target_address());
-      DCHECK(code->kind() != Code::WASM_FUNCTION &&
-             code->kind() != Code::WASM_TO_JS_FUNCTION &&
-             code->kind() != Code::WASM_INTERPRETER_ENTRY);
+Handle<Object> GetOrCreateIndirectCallWrapper(
+    Isolate* isolate, Handle<WasmInstanceObject> owning_instance,
+    WasmCodeWrapper wasm_code, uint32_t index, FunctionSig* sig) {
+  Address new_context_address =
+      reinterpret_cast<Address>(owning_instance->wasm_context()->get());
+  if (!wasm_code.IsCodeObject()) {
+    DCHECK_NE(wasm_code.GetWasmCode()->kind(),
+              wasm::WasmCode::WasmToWasmWrapper);
+    wasm::NativeModule* native_module = wasm_code.GetWasmCode()->owner();
+    // The only reason we pass owning_instance is for the GC case. Check
+    // that the values match.
+    DCHECK_EQ(owning_instance->compiled_module()->GetNativeModule(),
+              native_module);
+    // We create the wrapper on the module exporting the function. This
+    // wrapper will only be called as indirect call.
+    wasm::WasmCode* exported_wrapper =
+        native_module->GetExportedWrapper(wasm_code.GetWasmCode()->index());
+    if (exported_wrapper == nullptr) {
+      Handle<Code> new_wrapper = compiler::CompileWasmToWasmWrapper(
+          isolate, wasm_code, sig, new_context_address);
+      exported_wrapper = native_module->AddExportedWrapper(
+          new_wrapper, wasm_code.GetWasmCode()->index());
     }
-#endif
-    return handle(target);
+    Address target = exported_wrapper->instructions().start();
+    return isolate->factory()->NewForeign(target, TENURED);
   }
-  UNREACHABLE();
+  Handle<Code> code = compiler::CompileWasmToWasmWrapper(
+      isolate, wasm_code, sig, new_context_address);
+  AttachWasmFunctionInfo(isolate, code, owning_instance,
+                         static_cast<int>(index));
+  return code;
 }
 
 void UpdateDispatchTables(Isolate* isolate, Handle<FixedArray> dispatch_tables,
                           int index, WasmFunction* function,
-                          Handle<Code> code) {
+                          Handle<Object> code_or_foreign) {
   DCHECK_EQ(0, dispatch_tables->length() % 4);
   for (int i = 0; i < dispatch_tables->length(); i += 4) {
-    int table_index = Smi::ToInt(dispatch_tables->get(i + 1));
     Handle<FixedArray> function_table(
         FixedArray::cast(dispatch_tables->get(i + 2)), isolate);
     Handle<FixedArray> signature_table(
         FixedArray::cast(dispatch_tables->get(i + 3)), isolate);
     if (function) {
-      // TODO(titzer): the signature might need to be copied to avoid
-      // a dangling pointer in the signature map.
       Handle<WasmInstanceObject> instance(
           WasmInstanceObject::cast(dispatch_tables->get(i)), isolate);
-      auto& func_table = instance->module()->function_tables[table_index];
-      uint32_t sig_index = func_table.map.FindOrInsert(function->sig);
-      signature_table->set(index, Smi::FromInt(static_cast<int>(sig_index)));
-      function_table->set(index, *code);
+      // Note that {SignatureMap::Find} may return {-1} if the signature is
+      // not found; it will simply never match any check.
+      auto sig_index = instance->module()->signature_map.Find(function->sig);
+      signature_table->set(index, Smi::FromInt(sig_index));
+      function_table->set(index, *code_or_foreign);
     } else {
       signature_table->set(index, Smi::FromInt(-1));
       function_table->set(index, Smi::kZero);
@@ -185,8 +232,14 @@ bool IsWasmCodegenAllowed(Isolate* isolate, Handle<Context> context) {
   // separate callback that includes information about the module about to be
   // compiled. For the time being, pass an empty string as placeholder for the
   // sources.
-  return isolate->allow_code_gen_callback() == nullptr ||
-         isolate->allow_code_gen_callback()(
+  if (auto wasm_codegen_callback = isolate->allow_wasm_code_gen_callback()) {
+    return wasm_codegen_callback(
+        v8::Utils::ToLocal(context),
+        v8::Utils::ToLocal(isolate->factory()->empty_string()));
+  }
+  auto codegen_callback = isolate->allow_code_gen_callback();
+  return codegen_callback == nullptr ||
+         codegen_callback(
              v8::Utils::ToLocal(context),
              v8::Utils::ToLocal(isolate->factory()->empty_string()));
 }

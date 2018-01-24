@@ -212,6 +212,68 @@ JSTypeHintLowering::JSTypeHintLowering(JSGraph* jsgraph,
                                        Flags flags)
     : jsgraph_(jsgraph), flags_(flags), feedback_vector_(feedback_vector) {}
 
+JSTypeHintLowering::LoweringResult JSTypeHintLowering::ReduceUnaryOperation(
+    const Operator* op, Node* operand, Node* effect, Node* control,
+    FeedbackSlot slot) const {
+  DCHECK(!slot.IsInvalid());
+  BinaryOpICNexus nexus(feedback_vector(), slot);
+  if (Node* node = TryBuildSoftDeopt(
+          nexus, effect, control,
+          DeoptimizeReason::kInsufficientTypeFeedbackForUnaryOperation)) {
+    return LoweringResult::Exit(node);
+  }
+
+  Node* node;
+  switch (op->opcode()) {
+    case IrOpcode::kJSBitwiseNot: {
+      // Lower to a speculative xor with -1 if we have some kind of Number
+      // feedback.
+      JSSpeculativeBinopBuilder b(this, jsgraph()->javascript()->BitwiseXor(),
+                                  operand, jsgraph()->SmiConstant(-1), effect,
+                                  control, slot);
+      node = b.TryBuildNumberBinop();
+      break;
+    }
+    case IrOpcode::kJSDecrement: {
+      // Lower to a speculative subtraction of 1 if we have some kind of Number
+      // feedback.
+      JSSpeculativeBinopBuilder b(this, jsgraph()->javascript()->Subtract(),
+                                  operand, jsgraph()->SmiConstant(1), effect,
+                                  control, slot);
+      node = b.TryBuildNumberBinop();
+      break;
+    }
+    case IrOpcode::kJSIncrement: {
+      // Lower to a speculative addition of 1 if we have some kind of Number
+      // feedback.
+      BinaryOperationHint hint = BinaryOperationHint::kAny;  // Dummy.
+      JSSpeculativeBinopBuilder b(this, jsgraph()->javascript()->Add(hint),
+                                  operand, jsgraph()->SmiConstant(1), effect,
+                                  control, slot);
+      node = b.TryBuildNumberBinop();
+      break;
+    }
+    case IrOpcode::kJSNegate: {
+      // Lower to a speculative multiplication with -1 if we have some kind of
+      // Number feedback.
+      JSSpeculativeBinopBuilder b(this, jsgraph()->javascript()->Multiply(),
+                                  operand, jsgraph()->SmiConstant(-1), effect,
+                                  control, slot);
+      node = b.TryBuildNumberBinop();
+      break;
+    }
+    default:
+      UNREACHABLE();
+      break;
+  }
+
+  if (node != nullptr) {
+    return LoweringResult::SideEffectFree(node, node, control);
+  } else {
+    return LoweringResult::NoChange();
+  }
+}
+
 JSTypeHintLowering::LoweringResult JSTypeHintLowering::ReduceBinaryOperation(
     const Operator* op, Node* left, Node* right, Node* effect, Node* control,
     FeedbackSlot slot) const {
@@ -246,6 +308,18 @@ JSTypeHintLowering::LoweringResult JSTypeHintLowering::ReduceBinaryOperation(
       }
       break;
     }
+    case IrOpcode::kJSInstanceOf: {
+      DCHECK(!slot.IsInvalid());
+      InstanceOfICNexus nexus(feedback_vector(), slot);
+      if (Node* node = TryBuildSoftDeopt(
+              nexus, effect, control,
+              DeoptimizeReason::kInsufficientTypeFeedbackForCompareOperation)) {
+        return LoweringResult::Exit(node);
+      }
+      // TODO(turbofan): Should we generally support early lowering of
+      // JSInstanceOf operators here?
+      break;
+    }
     case IrOpcode::kJSBitwiseOr:
     case IrOpcode::kJSBitwiseXor:
     case IrOpcode::kJSBitwiseAnd:
@@ -268,6 +342,10 @@ JSTypeHintLowering::LoweringResult JSTypeHintLowering::ReduceBinaryOperation(
       if (Node* node = b.TryBuildNumberBinop()) {
         return LoweringResult::SideEffectFree(node, node, control);
       }
+      break;
+    }
+    case IrOpcode::kJSExponentiate: {
+      // TODO(neis): Introduce a SpeculativeNumberPow operator?
       break;
     }
     default:

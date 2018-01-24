@@ -67,8 +67,6 @@ Node* ProxiesCodeStubAssembler::AllocateProxy(Node* target, Node* handler,
                        Heap::kEmptyPropertyDictionaryRootIndex);
   StoreObjectFieldNoWriteBarrier(proxy, JSProxy::kTargetOffset, target);
   StoreObjectFieldNoWriteBarrier(proxy, JSProxy::kHandlerOffset, handler);
-  StoreObjectFieldNoWriteBarrier(proxy, JSProxy::kHashOffset,
-                                 UndefinedConstant());
 
   return proxy;
 }
@@ -136,6 +134,8 @@ TF_BUILTIN(CallProxy, ProxiesCodeStubAssembler) {
 
   CSA_ASSERT(this, IsJSProxy(proxy));
   CSA_ASSERT(this, IsCallable(proxy));
+
+  PerformStackCheck(context);
 
   Label throw_proxy_handler_revoked(this, Label::kDeferred),
       trap_undefined(this);
@@ -441,7 +441,8 @@ TF_BUILTIN(ProxySetProperty, ProxiesCodeStubAssembler) {
   BIND(&failure);
   {
     Label if_throw(this, Label::kDeferred);
-    Branch(SmiEqual(language_mode, SmiConstant(STRICT)), &if_throw, &success);
+    Branch(SmiEqual(language_mode, SmiConstant(LanguageMode::kStrict)),
+           &if_throw, &success);
 
     BIND(&if_throw);
     ThrowTypeError(context, MessageTemplate::kProxyTrapReturnedFalsishFor,
@@ -456,8 +457,8 @@ TF_BUILTIN(ProxySetProperty, ProxiesCodeStubAssembler) {
   {
     Label failure(this), throw_error(this, Label::kDeferred);
 
-    Branch(SmiEqual(language_mode, SmiConstant(STRICT)), &throw_error,
-           &failure);
+    Branch(SmiEqual(language_mode, SmiConstant(LanguageMode::kStrict)),
+           &throw_error, &failure);
 
     BIND(&failure);
     Return(UndefinedConstant());

@@ -195,6 +195,7 @@ function assertMethodDescriptor(object, name) {
   assertTrue(descr.writable);
   assertEquals('function', typeof descr.value);
   assertFalse('prototype' in descr.value);
+  assertEquals(name, descr.value.name);
 }
 
 
@@ -205,6 +206,7 @@ function assertGetterDescriptor(object, name) {
   assertEquals('function', typeof descr.get);
   assertFalse('prototype' in descr.get);
   assertEquals(undefined, descr.set);
+  assertEquals("get " + name, descr.get.name);
 }
 
 
@@ -215,6 +217,7 @@ function assertSetterDescriptor(object, name) {
   assertEquals(undefined, descr.get);
   assertEquals('function', typeof descr.set);
   assertFalse('prototype' in descr.set);
+  assertEquals("set " + name, descr.set.name);
 }
 
 
@@ -226,6 +229,8 @@ function assertAccessorDescriptor(object, name) {
   assertEquals('function', typeof descr.set);
   assertFalse('prototype' in descr.get);
   assertFalse('prototype' in descr.set);
+  assertEquals("get " + name, descr.get.name);
+  assertEquals("set " + name, descr.set.name);
 }
 
 
@@ -590,15 +595,38 @@ function assertAccessorDescriptor(object, name) {
     static 4() { return 4; }
     static get 5() { return 5; }
     static set 6(_) {}
+
+    2147483649() { return 2147483649; }
+    get 2147483650() { return 2147483650; }
+    set 2147483651(_) {}
+
+    static 2147483652() { return 2147483652; }
+    static get 2147483653() { return 2147483653; }
+    static set 2147483654(_) {}
+
+    4294967294() { return 4294967294; }
+    4294967295() { return 4294967295; }
+    static 4294967294() { return 4294967294; }
+    static 4294967295() { return 4294967295; }
   }
 
   assertMethodDescriptor(B.prototype, '1');
   assertGetterDescriptor(B.prototype, '2');
   assertSetterDescriptor(B.prototype, '3');
+  assertMethodDescriptor(B.prototype, '2147483649');
+  assertGetterDescriptor(B.prototype, '2147483650');
+  assertSetterDescriptor(B.prototype, '2147483651');
+  assertMethodDescriptor(B.prototype, '4294967294');
+  assertMethodDescriptor(B.prototype, '4294967295');
 
   assertMethodDescriptor(B, '4');
   assertGetterDescriptor(B, '5');
   assertSetterDescriptor(B, '6');
+  assertMethodDescriptor(B, '2147483652');
+  assertGetterDescriptor(B, '2147483653');
+  assertSetterDescriptor(B, '2147483654');
+  assertMethodDescriptor(B, '4294967294');
+  assertMethodDescriptor(B, '4294967295');
 
   class C extends B {
     1() { return super[1](); }
@@ -606,12 +634,23 @@ function assertAccessorDescriptor(object, name) {
 
     static 4() { return super[4](); }
     static get 5() { return super[5]; }
+
+    2147483649() { return super[2147483649](); }
+    get 2147483650() { return super[2147483650]; }
+
+    static 2147483652() { return super[2147483652](); }
+    static get 2147483653() { return super[2147483653]; }
+
   }
 
   assertEquals(1, new C()[1]());
   assertEquals(2, new C()[2]);
+  assertEquals(2147483649, new C()[2147483649]());
+  assertEquals(2147483650, new C()[2147483650]);
   assertEquals(4, C[4]());
   assertEquals(5, C[5]);
+  assertEquals(2147483652, C[2147483652]());
+  assertEquals(2147483653, C[2147483653]);
 })();
 
 
@@ -1046,4 +1085,104 @@ function testClassRestrictedProperties(C) {
   }
   assertEquals(42, usingYieldInExtends());
 
+})();
+
+
+(function testLargeClassesMethods() {
+  const kLimit = 2000;
+  let evalString = "(function(i) { " +
+      "let clazz = class { " +
+      "   constructor(i) { this.value = i; } ";
+  for (let i = 0; i < 2000; i++) {
+    evalString  += "property"+i+"() { return "+i+"; }; "
+  }
+  evalString += "};" +
+      " return new clazz(i); })";
+
+  let fn = eval(evalString);
+  assertEquals(fn(1).value, 1);
+  assertEquals(fn(2).value, 2);
+  assertEquals(fn(3).value, 3);
+  %OptimizeFunctionOnNextCall(fn);
+  assertEquals(fn(4).value, 4);
+
+  let instance = fn(1);
+  assertEquals(Object.getOwnPropertyNames(instance).length, 1);
+  assertEquals(Object.getOwnPropertyNames(instance.__proto__).length,
+      kLimit + 1);
+
+  // Call all instance functions.
+  for (let i = 0; i < kLimit; i++) {
+    const key = "property" + i;
+    assertEquals(instance[key](), i);
+  }
+})();
+
+
+(function testLargeClassesStaticMethods() {
+  const kLimit = 2000;
+  let evalString = "(function(i) { " +
+      "let clazz = class { " +
+      "   constructor(i) { this.value = i; } ";
+  for (let i = 0; i < kLimit; i++) {
+    evalString  += "static property"+i+"() { return "+i+" }; "
+  }
+  evalString += "};" +
+      " return new clazz(i); })";
+
+  let fn = eval(evalString);
+
+  assertEquals(fn(1).value, 1);
+  assertEquals(fn(2).value, 2);
+  assertEquals(fn(3).value, 3);
+  %OptimizeFunctionOnNextCall(fn);
+  assertEquals(fn(4).value, 4);
+
+  let instance = fn(1);
+  assertEquals(Object.getOwnPropertyNames(instance).length, 1);
+  assertEquals(instance.value, 1);
+  instance.value = 10;
+  assertEquals(instance.value, 10);
+
+  // kLimit + nof default properties (length, prototype, name).
+  assertEquals(Object.getOwnPropertyNames(instance.constructor).length,
+      kLimit + 3);
+
+  // Call all static properties.
+  for (let i = 0; i < kLimit; i++) {
+    const key = "property" + i;
+    assertEquals(instance.constructor[key](), i);
+  }
+})();
+
+
+(function testLargeClassesProperties(){
+  const kLimit = 2000;
+  let evalString = "(function(i) { " +
+      "let clazz = class { " +
+      "   constructor(i) { this.value = i;";
+  for (let i = 0; i < kLimit ; i++) {
+    evalString  += "this.property"+i +" = "+i+"; "
+  }
+  evalString += "}};" +
+      " return (new clazz(i)); })";
+
+  let fn = eval(evalString);
+  assertEquals(fn(1).value, 1);
+  assertEquals(fn(2).value, 2);
+  assertEquals(fn(3).value, 3);
+  %OptimizeFunctionOnNextCall(fn);
+  assertEquals(fn(4).value, 4);
+
+  let instance = fn(1);
+  assertEquals(Object.getOwnPropertyNames(instance).length, kLimit+1);
+
+  // Get and set all properties.
+  for (let i = 0; i < kLimit; i++) {
+    const key = "property" + i;
+    assertEquals(instance[key], i);
+    const value = "value"+i;
+    instance[key] = value;
+    assertEquals(instance[key], value);
+  }
 })();

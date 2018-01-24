@@ -155,7 +155,7 @@ void CallOrConstructBuiltinsAssembler::CallOrConstructWithArrayLike(
     // protector is intact and our prototype is the Array.prototype actually.
     GotoIfNot(IsPrototypeInitialArrayPrototype(context, arguments_list_map),
               &if_runtime);
-    Branch(IsArrayProtectorCellInvalid(), &if_runtime, &if_done);
+    Branch(IsNoElementsProtectorCellInvalid(), &if_runtime, &if_done);
   }
 
   BIND(&if_arguments);
@@ -165,8 +165,7 @@ void CallOrConstructBuiltinsAssembler::CallOrConstructWithArrayLike(
         LoadObjectField(arguments_list, JSArgumentsObject::kLengthOffset);
     Node* elements =
         LoadObjectField(arguments_list, JSArgumentsObject::kElementsOffset);
-    Node* elements_length =
-        LoadObjectField(elements, FixedArray::kLengthOffset);
+    Node* elements_length = LoadFixedArrayBaseLength(elements);
     GotoIfNot(WordEqual(length, elements_length), &if_runtime);
     var_elements.Bind(elements);
     var_length.Bind(SmiToWord32(length));
@@ -291,8 +290,8 @@ void CallOrConstructBuiltinsAssembler::CallOrConstructWithSpread(
 
   // Check that the map of the initial array iterator hasn't changed.
   Node* native_context = LoadNativeContext(context);
-  Node* arr_it_proto_map = LoadMap(LoadContextElement(
-      native_context, Context::INITIAL_ARRAY_ITERATOR_PROTOTYPE_INDEX));
+  Node* arr_it_proto_map = LoadMap(CAST(LoadContextElement(
+      native_context, Context::INITIAL_ARRAY_ITERATOR_PROTOTYPE_INDEX)));
   Node* initial_map = LoadContextElement(
       native_context, Context::INITIAL_ARRAY_ITERATOR_PROTOTYPE_MAP_INDEX);
   GotoIfNot(WordEqual(arr_it_proto_map, initial_map), &if_runtime);
@@ -311,9 +310,9 @@ void CallOrConstructBuiltinsAssembler::CallOrConstructWithSpread(
          &if_runtime);
   Branch(Word32And(kind, Int32Constant(1)), &if_holey, &if_done);
 
-  // Check the ArrayProtector cell for holey arrays.
+  // Check the NoElementsProtector cell for holey arrays.
   BIND(&if_holey);
-  { Branch(IsArrayProtectorCellInvalid(), &if_runtime, &if_done); }
+  { Branch(IsNoElementsProtectorCellInvalid(), &if_runtime, &if_done); }
 
   BIND(&if_runtime);
   {

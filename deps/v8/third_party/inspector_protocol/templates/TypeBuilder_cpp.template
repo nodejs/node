@@ -19,6 +19,7 @@ const char Metainfo::domainName[] = "{{domain.domain}}";
 const char Metainfo::commandPrefix[] = "{{domain.domain}}.";
 const char Metainfo::version[] = "{{domain.version}}";
   {% for type in domain.types %}
+    {% if not protocol.generate_type(domain.domain, type.id) %}{% continue %} {% endif %}
     {% if "enum" in type %}
 
 namespace {{type.id}}Enum {
@@ -200,18 +201,23 @@ public:
         , m_backend(backend)
         , m_fallThroughForNotFound(fallThroughForNotFound) {
   {% for command in domain.commands %}
-    {% if "redirect" in command %}{% continue %}{% endif %}
+    {% if "redirect" in command %}
+      m_redirects["{{domain.domain}}.{{command.name}}"] = "{{command.redirect}}.{{command.name}}";
+      {% continue %}
+    {% endif %}
     {% if not protocol.generate_command(domain.domain, command.name) %}{% continue %}{% endif %}
         m_dispatchMap["{{domain.domain}}.{{command.name}}"] = &DispatcherImpl::{{command.name}};
   {% endfor %}
     }
     ~DispatcherImpl() override { }
     DispatchResponse::Status dispatch(int callId, const String& method, std::unique_ptr<protocol::DictionaryValue> messageObject) override;
+    HashMap<String, String>& redirects() { return m_redirects; }
 
 protected:
     using CallHandler = DispatchResponse::Status (DispatcherImpl::*)(int callId, std::unique_ptr<DictionaryValue> messageObject, ErrorSupport* errors);
     using DispatchMap = protocol::HashMap<String, CallHandler>;
     DispatchMap m_dispatchMap;
+    HashMap<String, String> m_redirects;
 
   {% for command in domain.commands %}
     {% if "redirect" in command %}{% continue %}{% endif %}
@@ -337,9 +343,9 @@ DispatchResponse::Status DispatcherImpl::{{command.name}}(int callId, std::uniqu
           &out_{{parameter.name}}
         {%- endfor %}
       {% endif %});
-      {% if "returns" in command %}
     if (response.status() == DispatchResponse::kFallThrough)
         return response.status();
+      {% if "returns" in command %}
     std::unique_ptr<protocol::DictionaryValue> result = DictionaryValue::create();
     if (response.status() == DispatchResponse::kSuccess) {
         {% for parameter in command.returns %}
@@ -378,9 +384,11 @@ DispatchResponse::Status DispatcherImpl::{{command.name}}(int callId, std::uniqu
   {% endfor %}
 
 // static
-void Dispatcher::wire(UberDispatcher* dispatcher, Backend* backend)
+void Dispatcher::wire(UberDispatcher* uber, Backend* backend)
 {
-    dispatcher->registerBackend("{{domain.domain}}", std::unique_ptr<protocol::DispatcherBase>(new DispatcherImpl(dispatcher->channel(), backend, dispatcher->fallThroughForNotFound())));
+    std::unique_ptr<DispatcherImpl> dispatcher(new DispatcherImpl(uber->channel(), backend, uber->fallThroughForNotFound()));
+    uber->setupRedirects(dispatcher->redirects());
+    uber->registerBackend("{{domain.domain}}", std::move(dispatcher));
 }
 
 } // {{domain.domain}}

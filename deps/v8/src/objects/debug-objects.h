@@ -13,6 +13,8 @@
 namespace v8 {
 namespace internal {
 
+class BytecodeArray;
+
 // The DebugInfo class holds additional information for a function being
 // debugged.
 class DebugInfo : public Struct {

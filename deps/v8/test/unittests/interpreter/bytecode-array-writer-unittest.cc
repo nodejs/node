@@ -22,7 +22,9 @@
 namespace v8 {
 namespace internal {
 namespace interpreter {
+namespace bytecode_array_writer_unittest {
 
+#define B(Name) static_cast<uint8_t>(Bytecode::k##Name)
 #define R(i) static_cast<uint32_t>(Register(i).ToOperand())
 
 class BytecodeArrayWriterUnittest : public TestWithIsolateAndZone {
@@ -363,6 +365,10 @@ TEST_F(BytecodeArrayWriterUnittest, DeadcodeElimination) {
   CHECK(source_iterator.done());
 }
 
+#undef B
+#undef R
+
+}  // namespace bytecode_array_writer_unittest
 }  // namespace interpreter
 }  // namespace internal
 }  // namespace v8

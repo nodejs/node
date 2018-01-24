@@ -87,6 +87,7 @@ v8_source_set("cctest_sources") {
     "compiler/test-run-unwinding-info.cc",
     "compiler/test-run-variables.cc",
     "compiler/test-run-wasm-machops.cc",
+    "compiler/value-helper.cc",
     "compiler/value-helper.h",
     "expression-type-collector-macros.h",
     "gay-fixed.cc",
@@ -227,6 +228,7 @@ v8_source_set("cctest_sources") {
     "wasm/test-run-wasm.cc",
     "wasm/test-streaming-compilation.cc",
     "wasm/test-wasm-breakpoints.cc",
+    "wasm/test-wasm-codegen.cc",
     "wasm/test-wasm-interpreter-entry.cc",
     "wasm/test-wasm-stack.cc",
     "wasm/test-wasm-trap-position.cc",
@@ -248,6 +250,8 @@ v8_source_set("cctest_sources") {
 
   if (v8_current_cpu == "arm") {
     sources += [  ### gcmole(arch:arm) ###
+      "assembler-helper-arm.cc",
+      "assembler-helper-arm.h",
       "test-assembler-arm.cc",
       "test-code-stubs-arm.cc",
       "test-code-stubs.cc",
@@ -255,7 +259,7 @@ v8_source_set("cctest_sources") {
       "test-disasm-arm.cc",
       "test-macro-assembler-arm.cc",
       "test-run-wasm-relocation-arm.cc",
-      "test-simulator-arm.cc",
+      "test-sync-primitives-arm.cc",
     ]
   } else if (v8_current_cpu == "arm64") {
     sources += [  ### gcmole(arch:arm64) ###
@@ -268,7 +272,7 @@ v8_source_set("cctest_sources") {
       "test-javascript-arm64.cc",
       "test-js-arm64-variables.cc",
       "test-run-wasm-relocation-arm64.cc",
-      "test-simulator-arm64.cc",
+      "test-sync-primitives-arm64.cc",
       "test-utils-arm64.cc",
       "test-utils-arm64.h",
     ]
@@ -345,13 +349,6 @@ v8_source_set("cctest_sources") {
     ]
   }
 
-  if (is_linux) {
-    # TODO(machenbach): Translate 'or OS=="qnx"' from gyp.
-    sources += [ "test-platform-linux.cc" ]
-  } else if (is_win) {
-    sources += [ "test-platform-win32.cc" ]
-  }
-
   configs = [
     "../..:external_config",
     "../..:internal_config_base",
@@ -426,6 +423,7 @@ action("resources") {
     "../../tools/consarray.js",
     "../../tools/profile.js",
     "../../tools/profile_view.js",
+    "../../tools/arguments.js",
     "../../tools/logreader.js",
     "log-eq-of-logging-and-traversal.js",
   ]

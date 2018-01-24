@@ -201,12 +201,12 @@ int32_t uint64_mod_wrapper(uint64_t* dst, uint64_t* src) {
 }
 
 uint32_t word32_ctz_wrapper(uint32_t* input) {
-  return static_cast<uint32_t>(base::bits::CountTrailingZeros32(*input));
+  return static_cast<uint32_t>(base::bits::CountTrailingZeros(*input));
 }
 
 uint32_t word64_ctz_wrapper(uint64_t* input) {
   return static_cast<uint32_t>(
-      base::bits::CountTrailingZeros64(ReadUnalignedValue<uint64_t>(input)));
+      base::bits::CountTrailingZeros(ReadUnalignedValue<uint64_t>(input)));
 }
 
 uint32_t word32_popcnt_wrapper(uint32_t* input) {

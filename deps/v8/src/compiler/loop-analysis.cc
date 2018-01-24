@@ -387,6 +387,7 @@ class LoopFinderImpl {
       // Search the marks word by word.
       for (int i = 0; i < width_; i++) {
         uint32_t marks = backward_[pos + i] & forward_[pos + i];
+
         for (int j = 0; j < 32; j++) {
           if (marks & (1u << j)) {
             int loop_num = i * 32 + j;
@@ -401,6 +402,10 @@ class LoopFinderImpl {
         }
       }
       if (innermost == nullptr) continue;
+
+      // Return statements should never be found by forward or backward walk.
+      CHECK(ni.node->opcode() != IrOpcode::kReturn);
+
       AddNodeToLoop(&ni, innermost, innermost_index);
       count++;
     }
@@ -421,6 +426,10 @@ class LoopFinderImpl {
     size_t count = 0;
     for (NodeInfo& ni : info_) {
       if (ni.node == nullptr || !IsInLoop(ni.node, 1)) continue;
+
+      // Return statements should never be found by forward or backward walk.
+      CHECK(ni.node->opcode() != IrOpcode::kReturn);
+
       AddNodeToLoop(&ni, li, 1);
       count++;
     }

@@ -461,6 +461,17 @@ TEST_F(WasmStreamingDecoderTest, CodeSectionLengthTooHigh) {
   ExpectFailure(Vector<const uint8_t>(data, arraysize(data)));
 }
 
+TEST_F(WasmStreamingDecoderTest, CodeSectionLengthTooHighZeroFunctions) {
+  const uint8_t data[] = {
+      U32_LE(kWasmMagic),    // --
+      U32_LE(kWasmVersion),  // --
+      kCodeSectionCode,      // Section ID
+      0xd,                   // Section Length
+      0x0,                   // Number of Functions
+  };
+  ExpectFailure(ArrayVector(data));
+}
+
 TEST_F(WasmStreamingDecoderTest, CodeSectionLengthTooLow) {
   const uint8_t data[] = {
       U32_LE(kWasmMagic),    // --

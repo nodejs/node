@@ -28,8 +28,8 @@ TF_BUILTIN(StringToLowerCaseIntl, IntlBuiltinsAssembler) {
   Label call_c(this), return_string(this), runtime(this, Label::kDeferred);
 
   // Early exit on empty strings.
-  Node* const length = SmiUntag(LoadStringLength(string));
-  GotoIf(IntPtrEqual(length, IntPtrConstant(0)), &return_string);
+  TNode<Smi> const length = LoadStringLengthAsSmi(string);
+  GotoIf(SmiEqual(length, SmiConstant(0)), &return_string);
 
   // Unpack strings if possible, and bail to runtime unless we get a one-byte
   // flat string.
@@ -47,8 +47,7 @@ TF_BUILTIN(StringToLowerCaseIntl, IntlBuiltinsAssembler) {
   Node* const dst = AllocateSeqOneByteString(context, length);
 
   const int kMaxShortStringLength = 24;  // Determined empirically.
-  GotoIf(IntPtrGreaterThan(length, IntPtrConstant(kMaxShortStringLength)),
-         &call_c);
+  GotoIf(SmiGreaterThan(length, SmiConstant(kMaxShortStringLength)), &call_c);
 
   {
     Node* const dst_ptr = PointerToSeqStringData(dst);
@@ -56,7 +55,8 @@ TF_BUILTIN(StringToLowerCaseIntl, IntlBuiltinsAssembler) {
              IntPtrConstant(0));
 
     Node* const start_address = to_direct.PointerToData(&call_c);
-    Node* const end_address = IntPtrAdd(start_address, length);
+    TNode<IntPtrT> const end_address =
+        Signed(IntPtrAdd(start_address, SmiUntag(length)));
 
     Node* const to_lower_table_addr = ExternalConstant(
         ExternalReference::intl_to_latin1_lower_table(isolate()));

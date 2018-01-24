@@ -583,7 +583,7 @@ int DisassemblerIA32::F7Instruction(byte* data) {
   byte modrm = *++data;
   int mod, regop, rm;
   get_modrm(modrm, &mod, &regop, &rm);
-  const char* mnem = NULL;
+  const char* mnem = nullptr;
   switch (regop) {
     case 0:
       mnem = "test";
@@ -626,7 +626,7 @@ int DisassemblerIA32::D1D3C1Instruction(byte* data) {
   int mod, regop, rm;
   get_modrm(modrm, &mod, &regop, &rm);
   int imm8 = -1;
-  const char* mnem = NULL;
+  const char* mnem = nullptr;
   switch (regop) {
     case kROL:
       mnem = "rol";
@@ -688,7 +688,7 @@ int DisassemblerIA32::JumpConditional(byte* data, const char* comment) {
   byte* dest = data + *reinterpret_cast<int32_t*>(data+2) + 6;
   const char* mnem = jump_conditional_mnem[cond];
   AppendToBuffer("%s %s", mnem, NameOfAddress(dest));
-  if (comment != NULL) {
+  if (comment != nullptr) {
     AppendToBuffer(", %s", comment);
   }
   return 6;  // includes 0x0F
@@ -702,7 +702,7 @@ int DisassemblerIA32::JumpConditionalShort(byte* data, const char* comment) {
   byte* dest = data + static_cast<int8_t>(b) + 2;
   const char* mnem = jump_conditional_mnem[cond];
   AppendToBuffer("%s %s", mnem, NameOfAddress(dest));
-  if (comment != NULL) {
+  if (comment != nullptr) {
     AppendToBuffer(", %s", comment);
   }
   return 2;
@@ -1393,9 +1393,8 @@ int DisassemblerIA32::RegisterFPUInstruction(int escape_opcode,
   return 2;
 }
 
-
 // Mnemonics for instructions 0xF0 byte.
-// Returns NULL if the instruction is not handled here.
+// Returns nullptr if the instruction is not handled here.
 static const char* F0Mnem(byte f0byte) {
   switch (f0byte) {
     case 0x0B:
@@ -1432,7 +1431,8 @@ static const char* F0Mnem(byte f0byte) {
       return "bsf";
     case 0xBD:
       return "bsr";
-    default: return NULL;
+    default:
+      return nullptr;
   }
 }
 
@@ -1443,7 +1443,7 @@ int DisassemblerIA32::InstructionDecode(v8::internal::Vector<char> out_buffer,
   tmp_buffer_pos_ = 0;  // starting to write as position 0
   byte* data = instr;
   // Check for hints.
-  const char* branch_hint = NULL;
+  const char* branch_hint = nullptr;
   // We use these two prefixes only with branch prediction
   if (*data == 0x3E /*ds*/) {
     branch_hint = "predicted taken";
@@ -1753,7 +1753,7 @@ int DisassemblerIA32::InstructionDecode(v8::internal::Vector<char> out_buffer,
         { data++;
           int mod, regop, rm;
           get_modrm(*data, &mod, &regop, &rm);
-          const char* mnem = NULL;
+          const char* mnem = nullptr;
           switch (regop) {
             case esi: mnem = "push"; break;
             case eax: mnem = "inc"; break;
@@ -1791,7 +1791,7 @@ int DisassemblerIA32::InstructionDecode(v8::internal::Vector<char> out_buffer,
         { data++;
           int mod, regop, rm;
           get_modrm(*data, &mod, &regop, &rm);
-          const char* mnem = NULL;
+          const char* mnem = nullptr;
           switch (regop) {
             case 5:  mnem = "subb"; break;
             case 7:  mnem = "cmpb"; break;
@@ -2438,7 +2438,7 @@ int DisassemblerIA32::InstructionDecode(v8::internal::Vector<char> out_buffer,
   if (instr_len == 0) {
     printf("%02x", *data);
   }
-  DCHECK(instr_len > 0);  // Ensure progress.
+  DCHECK_GT(instr_len, 0);  // Ensure progress.
 
   int outp = 0;
   // Instruction bytes.

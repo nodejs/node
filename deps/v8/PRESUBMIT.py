@@ -281,6 +281,8 @@ def _CommonChecks(input_api, output_api):
   results.extend(_CheckMissingFiles(input_api, output_api))
   results.extend(_CheckJSONFiles(input_api, output_api))
   results.extend(_CheckMacroUndefs(input_api, output_api))
+  results.extend(input_api.RunTests(
+    input_api.canned_checks.CheckVPythonSpec(input_api, output_api)))
   return results
 
 

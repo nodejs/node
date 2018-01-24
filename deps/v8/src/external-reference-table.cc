@@ -8,7 +8,6 @@
 #include "src/assembler.h"
 #include "src/counters.h"
 #include "src/ic/stub-cache.h"
-#include "src/trap-handler/trap-handler.h"
 
 #if defined(DEBUG) && defined(V8_OS_LINUX) && !defined(V8_OS_ANDROID)
 #define SYMBOLIZE_FUNCTION
@@ -28,7 +27,7 @@ BUILTIN_LIST_C(FORWARD_DECLARE)
 ExternalReferenceTable* ExternalReferenceTable::instance(Isolate* isolate) {
   ExternalReferenceTable* external_reference_table =
       isolate->external_reference_table();
-  if (external_reference_table == NULL) {
+  if (external_reference_table == nullptr) {
     external_reference_table = new ExternalReferenceTable(isolate);
     isolate->set_external_reference_table(external_reference_table);
   }
@@ -241,6 +240,7 @@ void ExternalReferenceTable::AddReferences(Isolate* isolate) {
       "libc_memmove");
   Add(ExternalReference::libc_memset_function(isolate).address(),
       "libc_memset");
+  Add(ExternalReference::printf_function(isolate).address(), "printf");
   Add(ExternalReference::try_internalize_string_function(isolate).address(),
       "try_internalize_string_function");
   Add(ExternalReference::check_object_type(isolate).address(),
@@ -268,6 +268,8 @@ void ExternalReferenceTable::AddReferences(Isolate* isolate) {
       "orderedhashmap_gethash_raw");
   Add(ExternalReference::get_or_create_hash_raw(isolate).address(),
       "get_or_create_hash_raw");
+  Add(ExternalReference::jsreceiver_create_identity_hash(isolate).address(),
+      "jsreceiver_create_identity_hash");
   Add(ExternalReference::copy_fast_number_jsarray_elements_to_typed_array(
           isolate)
           .address(),
@@ -283,6 +285,8 @@ void ExternalReferenceTable::AddReferences(Isolate* isolate) {
       "double_constants.minus_one_half");
   Add(ExternalReference::stress_deopt_count(isolate).address(),
       "Isolate::stress_deopt_count_address()");
+  Add(ExternalReference::force_slow_path(isolate).address(),
+      "Isolate::force_slow_path_address()");
   Add(ExternalReference::runtime_function_table_address(isolate).address(),
       "Runtime::runtime_function_table_address()");
   Add(ExternalReference::address_of_float_abs_constant().address(),
@@ -308,9 +312,6 @@ void ExternalReferenceTable::AddReferences(Isolate* isolate) {
       "Debug::step_suspended_generator_address()");
   Add(ExternalReference::debug_restart_fp_address(isolate).address(),
       "Debug::restart_fp_address()");
-
-  Add(ExternalReference::address_of_regexp_dotall_flag(isolate).address(),
-      "FLAG_harmony_regexp_dotall");
 
 #ifndef V8_INTERPRETED_REGEXP
   Add(ExternalReference::re_case_insensitive_compare_uc16(isolate).address(),
@@ -380,7 +381,7 @@ void ExternalReferenceTable::AddIsolateAddresses(Isolate* isolate) {
   // Top addresses
   static const char* address_names[] = {
 #define BUILD_NAME_LITERAL(Name, name) "Isolate::" #name "_address",
-      FOR_EACH_ISOLATE_ADDRESS_NAME(BUILD_NAME_LITERAL) NULL
+      FOR_EACH_ISOLATE_ADDRESS_NAME(BUILD_NAME_LITERAL) nullptr
 #undef BUILD_NAME_LITERAL
   };
 
@@ -398,8 +399,9 @@ void ExternalReferenceTable::AddAccessors(Isolate* isolate) {
   };
 
   static const AccessorRefTable getters[] = {
-#define ACCESSOR_INFO_DECLARATION(name) \
-  {FUNCTION_ADDR(&Accessors::name##Getter), "Accessors::" #name "Getter"},
+#define ACCESSOR_INFO_DECLARATION(accessor_name, AccessorName) \
+  {FUNCTION_ADDR(&Accessors::AccessorName##Getter),            \
+   "Accessors::" #AccessorName "Getter"}, /* NOLINT(whitespace/indent) */
       ACCESSOR_INFO_LIST(ACCESSOR_INFO_DECLARATION)
 #undef ACCESSOR_INFO_DECLARATION
   };
@@ -407,7 +409,7 @@ void ExternalReferenceTable::AddAccessors(Isolate* isolate) {
 #define ACCESSOR_SETTER_DECLARATION(name) \
   { FUNCTION_ADDR(&Accessors::name), "Accessors::" #name},
       ACCESSOR_SETTER_LIST(ACCESSOR_SETTER_DECLARATION)
-#undef ACCESSOR_INFO_DECLARATION
+#undef ACCESSOR_SETTER_DECLARATION
   };
 
   for (unsigned i = 0; i < arraysize(getters); ++i) {
@@ -455,3 +457,5 @@ void ExternalReferenceTable::AddStubCache(Isolate* isolate) {
 
 }  // namespace internal
 }  // namespace v8
+
+#undef SYMBOLIZE_FUNCTION

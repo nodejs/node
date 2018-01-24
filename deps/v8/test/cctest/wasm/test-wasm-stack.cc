@@ -101,8 +101,8 @@ void CheckComputeLocation(v8::internal::Isolate* i_isolate, Handle<Object> exc,
 }  // namespace
 
 // Call from JS to wasm to JS and throw an Error from JS.
-TEST(CollectDetailedWasmStack_ExplicitThrowFromJs) {
-  WasmRunner<void> r(kExecuteCompiled);
+WASM_EXEC_TEST(CollectDetailedWasmStack_ExplicitThrowFromJs) {
+  WasmRunner<void> r(execution_mode);
   TestSignatures sigs;
 
   Handle<FixedArray> js_imports_table =
@@ -150,13 +150,13 @@ TEST(CollectDetailedWasmStack_ExplicitThrowFromJs) {
 }
 
 // Trigger a trap in wasm, stack should be JS -> wasm -> wasm.
-TEST(CollectDetailedWasmStack_WasmError) {
+WASM_EXEC_TEST(CollectDetailedWasmStack_WasmError) {
   for (int pos_shift = 0; pos_shift < 3; ++pos_shift) {
     // Test a position with 1, 2 or 3 bytes needed to represent it.
     int unreachable_pos = 1 << (8 * pos_shift);
     TestSignatures sigs;
     // Create a WasmRunner with stack checks and traps enabled.
-    WasmRunner<int> r(kExecuteCompiled, "main",
+    WasmRunner<int> r(execution_mode, "main",
                       compiler::kRuntimeExceptionSupport);
 
     std::vector<byte> code(unreachable_pos + 1, kExprNop);

@@ -114,7 +114,7 @@ RUNTIME_FUNCTION(Runtime_Equal) {
   CONVERT_ARG_HANDLE_CHECKED(Object, x, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, y, 1);
   Maybe<bool> result = Object::Equals(x, y);
-  if (!result.IsJust()) return isolate->heap()->exception();
+  if (result.IsNothing()) return isolate->heap()->exception();
   return isolate->heap()->ToBoolean(result.FromJust());
 }
 
@@ -124,7 +124,7 @@ RUNTIME_FUNCTION(Runtime_NotEqual) {
   CONVERT_ARG_HANDLE_CHECKED(Object, x, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, y, 1);
   Maybe<bool> result = Object::Equals(x, y);
-  if (!result.IsJust()) return isolate->heap()->exception();
+  if (result.IsNothing()) return isolate->heap()->exception();
   return isolate->heap()->ToBoolean(!result.FromJust());
 }
 
@@ -150,7 +150,7 @@ RUNTIME_FUNCTION(Runtime_LessThan) {
   CONVERT_ARG_HANDLE_CHECKED(Object, x, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, y, 1);
   Maybe<bool> result = Object::LessThan(x, y);
-  if (!result.IsJust()) return isolate->heap()->exception();
+  if (result.IsNothing()) return isolate->heap()->exception();
   return isolate->heap()->ToBoolean(result.FromJust());
 }
 
@@ -160,7 +160,7 @@ RUNTIME_FUNCTION(Runtime_GreaterThan) {
   CONVERT_ARG_HANDLE_CHECKED(Object, x, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, y, 1);
   Maybe<bool> result = Object::GreaterThan(x, y);
-  if (!result.IsJust()) return isolate->heap()->exception();
+  if (result.IsNothing()) return isolate->heap()->exception();
   return isolate->heap()->ToBoolean(result.FromJust());
 }
 
@@ -170,7 +170,7 @@ RUNTIME_FUNCTION(Runtime_LessThanOrEqual) {
   CONVERT_ARG_HANDLE_CHECKED(Object, x, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, y, 1);
   Maybe<bool> result = Object::LessThanOrEqual(x, y);
-  if (!result.IsJust()) return isolate->heap()->exception();
+  if (result.IsNothing()) return isolate->heap()->exception();
   return isolate->heap()->ToBoolean(result.FromJust());
 }
 
@@ -180,7 +180,7 @@ RUNTIME_FUNCTION(Runtime_GreaterThanOrEqual) {
   CONVERT_ARG_HANDLE_CHECKED(Object, x, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, y, 1);
   Maybe<bool> result = Object::GreaterThanOrEqual(x, y);
-  if (!result.IsJust()) return isolate->heap()->exception();
+  if (result.IsNothing()) return isolate->heap()->exception();
   return isolate->heap()->ToBoolean(result.FromJust());
 }
 

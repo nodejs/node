@@ -64,6 +64,10 @@ IGNORE_SOURCES = {
   'crbug.com/691587': [
     '/v8/test/mjsunit/asm/regress-674089.js',
   ],
+
+  'crbug.com/774805': [
+    '/v8/test/mjsunit/console.js',
+  ],
 }
 
 # Ignore by test case pattern. Map from bug->regexp.

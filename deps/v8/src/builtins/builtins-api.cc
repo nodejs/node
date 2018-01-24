@@ -205,7 +205,8 @@ MaybeHandle<Object> Builtins::InvokeApiFunction(Isolate* isolate,
   for (int i = 0; i < argc; ++i) {
     argv[cursor--] = *args[i];
   }
-  DCHECK(cursor == BuiltinArguments::kArgcOffset);
+  DCHECK_EQ(cursor, BuiltinArguments::kPaddingOffset);
+  argv[BuiltinArguments::kPaddingOffset] = isolate->heap()->the_hole_value();
   argv[BuiltinArguments::kArgcOffset] = Smi::FromInt(frame_argc);
   argv[BuiltinArguments::kTargetOffset] = *function;
   argv[BuiltinArguments::kNewTargetOffset] = *new_target;

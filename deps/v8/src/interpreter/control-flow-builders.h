@@ -188,10 +188,16 @@ class V8_EXPORT_PRIVATE SwitchBuilder final
 class V8_EXPORT_PRIVATE TryCatchBuilder final : public ControlFlowBuilder {
  public:
   TryCatchBuilder(BytecodeArrayBuilder* builder,
+                  BlockCoverageBuilder* block_coverage_builder,
+                  TryCatchStatement* statement,
                   HandlerTable::CatchPrediction catch_prediction)
       : ControlFlowBuilder(builder),
         handler_id_(builder->NewHandlerEntry()),
-        catch_prediction_(catch_prediction) {}
+        catch_prediction_(catch_prediction),
+        block_coverage_builder_(block_coverage_builder),
+        statement_(statement) {}
+
+  ~TryCatchBuilder();
 
   void BeginTry(Register context);
   void EndTry();
@@ -202,6 +208,9 @@ class V8_EXPORT_PRIVATE TryCatchBuilder final : public ControlFlowBuilder {
   HandlerTable::CatchPrediction catch_prediction_;
   BytecodeLabel handler_;
   BytecodeLabel exit_;
+
+  BlockCoverageBuilder* block_coverage_builder_;
+  TryCatchStatement* statement_;
 };
 
 
@@ -209,11 +218,17 @@ class V8_EXPORT_PRIVATE TryCatchBuilder final : public ControlFlowBuilder {
 class V8_EXPORT_PRIVATE TryFinallyBuilder final : public ControlFlowBuilder {
  public:
   TryFinallyBuilder(BytecodeArrayBuilder* builder,
+                    BlockCoverageBuilder* block_coverage_builder,
+                    TryFinallyStatement* statement,
                     HandlerTable::CatchPrediction catch_prediction)
       : ControlFlowBuilder(builder),
         handler_id_(builder->NewHandlerEntry()),
         catch_prediction_(catch_prediction),
-        finalization_sites_(builder->zone()) {}
+        finalization_sites_(builder->zone()),
+        block_coverage_builder_(block_coverage_builder),
+        statement_(statement) {}
+
+  ~TryFinallyBuilder();
 
   void BeginTry(Register context);
   void LeaveTry();
@@ -229,6 +244,9 @@ class V8_EXPORT_PRIVATE TryFinallyBuilder final : public ControlFlowBuilder {
 
   // Unbound labels that identify jumps to the finally block in the code.
   BytecodeLabels finalization_sites_;
+
+  BlockCoverageBuilder* block_coverage_builder_;
+  TryFinallyStatement* statement_;
 };
 
 class V8_EXPORT_PRIVATE ConditionalControlFlowBuilder final

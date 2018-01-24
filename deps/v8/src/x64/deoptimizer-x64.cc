@@ -4,7 +4,6 @@
 
 #if V8_TARGET_ARCH_X64
 
-#include "src/codegen.h"
 #include "src/deoptimizer.h"
 #include "src/objects-inl.h"
 #include "src/register-configuration.h"
@@ -212,7 +211,7 @@ void Deoptimizer::TableEntryGenerator::Generate() {
     // Do not restore rsp, simply pop the value into the next register
     // and overwrite this afterwards.
     if (r == rsp) {
-      DCHECK(i > 0);
+      DCHECK_GT(i, 0);
       r = Register::from_code(i - 1);
     }
     __ popq(r);

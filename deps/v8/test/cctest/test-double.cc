@@ -61,7 +61,7 @@ TEST(AsDiyFp) {
   diy_fp = Double(min_double64).AsDiyFp();
   CHECK_EQ(-0x3FF - 52 + 1, diy_fp.e());
   // This is a denormal; so no hidden bit.
-  CHECK(1 == diy_fp.f());  // NOLINT
+  CHECK_EQ(1, diy_fp.f());
 
   uint64_t max_double64 = V8_2PART_UINT64_C(0x7fefffff, ffffffff);
   diy_fp = Double(max_double64).AsDiyFp();

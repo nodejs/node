@@ -57,7 +57,7 @@ class ExternalReferenceEncoder {
 class HotObjectsList {
  public:
   HotObjectsList() : index_(0) {
-    for (int i = 0; i < kSize; i++) circular_queue_[i] = NULL;
+    for (int i = 0; i < kSize; i++) circular_queue_[i] = nullptr;
   }
 
   void Add(HeapObject* object) {
@@ -111,6 +111,8 @@ class SerializerDeserializer : public RootVisitor {
 
   void RestoreExternalReferenceRedirectors(
       const std::vector<AccessorInfo*>& accessor_infos);
+  void RestoreExternalReferenceRedirectors(
+      const std::vector<CallHandlerInfo*>& call_handler_infos);
 
   // ---------- byte code range 0x00..0x7f ----------
   // Byte codes in this range represent Where, HowToCode and WhereToPoint.
@@ -192,9 +194,8 @@ class SerializerDeserializer : public RootVisitor {
   // Used for embedder-allocated backing stores for TypedArrays.
   static const int kOffHeapBackingStore = 0x1c;
 
-  // Used to encode deoptimizer entry code.
-  static const int kDeoptimizerEntryPlain = 0x1d;
-  static const int kDeoptimizerEntryFromCode = 0x1e;
+  // 0x1d, 0x1e unused.
+
   // Used for embedder-provided serialization data for embedder fields.
   static const int kEmbedderFieldsData = 0x1f;
 
@@ -268,7 +269,7 @@ class SerializedData {
 
   SerializedData(byte* data, int size)
       : data_(data), size_(size), owns_data_(false) {}
-  SerializedData() : data_(NULL), size_(0), owns_data_(false) {}
+  SerializedData() : data_(nullptr), size_(0), owns_data_(false) {}
   SerializedData(SerializedData&& other)
       : data_(other.data_), size_(other.size_), owns_data_(other.owns_data_) {
     // Ensure |other| will not attempt to destroy our data in destructor.

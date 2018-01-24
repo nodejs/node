@@ -364,8 +364,10 @@ class MemoryChunk {
       + kPointerSize  // InvalidatedSlots* invalidated_slots_
       + kPointerSize  // SkipList* skip_list_
       + kPointerSize  // AtomicValue high_water_mark_
-      + kPointerSize  // base::RecursiveMutex* mutex_
+      + kPointerSize  // base::Mutex* mutex_
       + kPointerSize  // base::AtomicWord concurrent_sweeping_
+      + kPointerSize  // base::Mutex* page_protection_change_mutex_
+      + kPointerSize  // unitptr_t write_unprotect_counter_
       + kSizetSize    // size_t allocated_bytes_
       + kSizetSize    // size_t wasted_memory_
       + kPointerSize  // AtomicValue next_chunk_
@@ -398,6 +400,10 @@ class MemoryChunk {
 
   static const int kAllocatableMemory = kPageSize - kObjectStartOffset;
 
+  // Maximum number of nested code memory modification scopes.
+  // TODO(6792,mstarzinger): Drop to 3 or lower once WebAssembly is off heap.
+  static const int kMaxWriteUnprotectCounter = 4;
+
   // Only works if the pointer is in the first kPageSize of the MemoryChunk.
   static MemoryChunk* FromAddress(Address a) {
     return reinterpret_cast<MemoryChunk*>(OffsetFrom(a) & ~kAlignmentMask);
@@ -425,7 +431,7 @@ class MemoryChunk {
     return reinterpret_cast<Address>(const_cast<MemoryChunk*>(this));
   }
 
-  base::RecursiveMutex* mutex() { return mutex_; }
+  base::Mutex* mutex() { return mutex_; }
 
   bool Contains(Address addr) {
     return addr >= area_start() && addr < area_end();
@@ -455,6 +461,12 @@ class MemoryChunk {
   inline SkipList* skip_list() { return skip_list_; }
 
   inline void set_skip_list(SkipList* skip_list) { skip_list_ = skip_list; }
+
+  template <RememberedSetType type>
+  bool ContainsSlots() {
+    return slot_set<type>() != nullptr || typed_slot_set<type>() != nullptr ||
+           invalidated_slots() != nullptr;
+  }
 
   template <RememberedSetType type, AccessMode access_mode = AccessMode::ATOMIC>
   SlotSet* slot_set() {
@@ -497,8 +509,6 @@ class MemoryChunk {
   Address area_start() { return area_start_; }
   Address area_end() { return area_end_; }
   size_t area_size() { return static_cast<size_t>(area_end() - area_start()); }
-
-  bool CommitArea(size_t requested);
 
   // Approximate amount of physical memory committed for this chunk.
   size_t CommittedPhysicalMemory();
@@ -627,6 +637,9 @@ class MemoryChunk {
   // MemoryChunk::synchronized_heap() to simulate the barrier.
   void InitializationMemoryFence();
 
+  void SetReadAndExecutable();
+  void SetReadAndWritable();
+
  protected:
   static MemoryChunk* Initialize(Heap* heap, Address base, size_t size,
                                  Address area_start, Address area_end,
@@ -675,9 +688,25 @@ class MemoryChunk {
   // count highest number of bytes ever allocated on the page.
   base::AtomicValue<intptr_t> high_water_mark_;
 
-  base::RecursiveMutex* mutex_;
+  base::Mutex* mutex_;
 
   base::AtomicValue<ConcurrentSweepingState> concurrent_sweeping_;
+
+  base::Mutex* page_protection_change_mutex_;
+
+  // This field is only relevant for code pages. It depicts the number of
+  // times a component requested this page to be read+writeable. The
+  // counter is decremented when a component resets to read+executable.
+  // If Value() == 0 => The memory is read and executable.
+  // If Value() >= 1 => The Memory is read and writable (and maybe executable).
+  // The maximum value is limited by {kMaxWriteUnprotectCounter} to prevent
+  // excessive nesting of scopes.
+  // All executable MemoryChunks are allocated rw based on the assumption that
+  // they will be used immediatelly for an allocation. They are initialized
+  // with the number of open CodeSpaceMemoryModificationScopes. The caller
+  // that triggers the page allocation is responsible for decrementing the
+  // counter.
+  uintptr_t write_unprotect_counter_;
 
   // Byte allocated on the page, which includes all objects on the page
   // and the linear allocation area.
@@ -703,6 +732,7 @@ class MemoryChunk {
   friend class ConcurrentMarkingState;
   friend class IncrementalMarkingState;
   friend class MajorAtomicMarkingState;
+  friend class MajorMarkingState;
   friend class MajorNonAtomicMarkingState;
   friend class MemoryAllocator;
   friend class MemoryChunkValidator;
@@ -1004,7 +1034,7 @@ class CodeRange {
  public:
   explicit CodeRange(Isolate* isolate);
   ~CodeRange() {
-    if (virtual_memory_.IsReserved()) virtual_memory_.Release();
+    if (virtual_memory_.IsReserved()) virtual_memory_.Free();
   }
 
   // Reserves a range of virtual memory, but does not commit any of it.
@@ -1124,7 +1154,7 @@ class SkipList {
   static void Update(Address addr, int size) {
     Page* page = Page::FromAddress(addr);
     SkipList* list = page->skip_list();
-    if (list == NULL) {
+    if (list == nullptr) {
       list = new SkipList();
       page->set_skip_list(list);
     }
@@ -1363,19 +1393,19 @@ class V8_EXPORT_PRIVATE MemoryAllocator {
                          size_t bytes_to_free, Address new_area_end);
 
   // Commit a contiguous block of memory from the initial chunk.  Assumes that
-  // the address is not NULL, the size is greater than zero, and that the
+  // the address is not nullptr, the size is greater than zero, and that the
   // block is contained in the initial chunk.  Returns true if it succeeded
   // and false otherwise.
   bool CommitBlock(Address start, size_t size, Executability executable);
 
   // Uncommit a contiguous block of memory [start..(start+size)[.
-  // start is not NULL, the size is greater than zero, and the
+  // start is not nullptr, the size is greater than zero, and the
   // block is contained in the initial chunk.  Returns true if it succeeded
   // and false otherwise.
   bool UncommitBlock(Address start, size_t size);
 
   // Zaps a contiguous block of memory [start..(start+size)[ thus
-  // filling it up with a recognizable non-NULL bit pattern.
+  // filling it up with a recognizable non-nullptr bit pattern.
   void ZapBlock(Address start, size_t size);
 
   MUST_USE_RESULT bool CommitExecutableMemory(VirtualMemory* vm, Address start,
@@ -1565,13 +1595,13 @@ class AllocationInfo {
   }
 
   INLINE(void set_top(Address top)) {
-    SLOW_DCHECK(top == NULL ||
+    SLOW_DCHECK(top == nullptr ||
                 (reinterpret_cast<intptr_t>(top) & kHeapObjectTagMask) == 0);
     top_ = top;
   }
 
   INLINE(Address top()) const {
-    SLOW_DCHECK(top_ == NULL ||
+    SLOW_DCHECK(top_ == nullptr ||
                 (reinterpret_cast<intptr_t>(top_) & kHeapObjectTagMask) == 0);
     return top_;
   }
@@ -2115,6 +2145,9 @@ class V8_EXPORT_PRIVATE PagedSpace : NON_EXPORTED_BASE(public Space) {
   // be used for allocation.
   Page* RemovePageSafe(int size_in_bytes);
 
+  void SetReadAndExecutable();
+  void SetReadAndWritable();
+
 #ifdef VERIFY_HEAP
   // Verify integrity of this space.
   virtual void Verify(ObjectVisitor* visitor);
@@ -2178,11 +2211,6 @@ class V8_EXPORT_PRIVATE PagedSpace : NON_EXPORTED_BASE(public Space) {
   size_t ShrinkPageToHighWaterMark(Page* page);
 
   std::unique_ptr<ObjectIterator> GetObjectIterator() override;
-
-  // Sets the page that is currently locked by the task using the space. This
-  // page will be preferred for sweeping to avoid a potential deadlock where
-  // multiple tasks hold locks on pages while trying to sweep each others pages.
-  void AnnounceLockedPage(Page* page) { locked_page_ = page; }
 
   Address ComputeLimit(Address start, Address end, size_t size_in_bytes);
   void SetAllocationInfo(Address top, Address limit);
@@ -2260,7 +2288,6 @@ class V8_EXPORT_PRIVATE PagedSpace : NON_EXPORTED_BASE(public Space) {
   // Mutex guarding any concurrent access to the space.
   base::Mutex space_mutex_;
 
-  Page* locked_page_;
   Address top_on_previous_step_;
 
   friend class IncrementalMarking;
@@ -2926,7 +2953,7 @@ class LargeObjectSpace : public Space {
   // Takes the chunk_map_mutex_ and calls FindPage after that.
   LargePage* FindPageThreadSafe(Address a);
 
-  // Finds a large object page containing the given address, returns NULL
+  // Finds a large object page containing the given address, returns nullptr
   // if such a page doesn't exist.
   LargePage* FindPage(Address a);
 
@@ -2947,7 +2974,7 @@ class LargeObjectSpace : public Space {
   bool ContainsSlow(Address addr) { return FindObject(addr)->IsHeapObject(); }
 
   // Checks whether the space is empty.
-  bool IsEmpty() { return first_page_ == NULL; }
+  bool IsEmpty() { return first_page_ == nullptr; }
 
   LargePage* first_page() { return first_page_; }
 
@@ -3000,7 +3027,7 @@ class MemoryChunkIterator BASE_EMBEDDED {
  public:
   inline explicit MemoryChunkIterator(Heap* heap);
 
-  // Return NULL when the iterator is done.
+  // Return nullptr when the iterator is done.
   inline MemoryChunk* next();
 
  private:

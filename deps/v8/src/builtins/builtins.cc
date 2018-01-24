@@ -98,7 +98,7 @@ const char* Builtins::Lookup(byte* pc) {
       if (entry->contains(pc)) return name(i);
     }
   }
-  return NULL;
+  return nullptr;
 }
 
 Handle<Code> Builtins::NewFunctionContext(ScopeType scope_type) {
@@ -170,33 +170,15 @@ Callable Builtins::CallableFor(Isolate* isolate, Name name) {
     BUILTIN_LIST(IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, CASE_OTHER,
                  CASE_OTHER, CASE_OTHER, IGNORE_BUILTIN)
 #undef CASE_OTHER
-    case kConsoleAssert: {
+    case kArrayFilterLoopEagerDeoptContinuation:
+    case kArrayFilterLoopLazyDeoptContinuation:
+    case kArrayForEach:
+    case kArrayForEachLoopEagerDeoptContinuation:
+    case kArrayForEachLoopLazyDeoptContinuation:
+    case kArrayMapLoopEagerDeoptContinuation:
+    case kArrayMapLoopLazyDeoptContinuation:
+    case kConsoleAssert:
       return Callable(code, BuiltinDescriptor(isolate));
-    }
-    case kArrayForEach: {
-      Handle<Code> code = BUILTIN_CODE(isolate, ArrayForEach);
-      return Callable(code, BuiltinDescriptor(isolate));
-    }
-    case kArrayForEachLoopEagerDeoptContinuation: {
-      Handle<Code> code =
-          BUILTIN_CODE(isolate, ArrayForEachLoopEagerDeoptContinuation);
-      return Callable(code, BuiltinDescriptor(isolate));
-    }
-    case kArrayForEachLoopLazyDeoptContinuation: {
-      Handle<Code> code =
-          BUILTIN_CODE(isolate, ArrayForEachLoopLazyDeoptContinuation);
-      return Callable(code, BuiltinDescriptor(isolate));
-    }
-    case kArrayMapLoopEagerDeoptContinuation: {
-      Handle<Code> code =
-          BUILTIN_CODE(isolate, ArrayMapLoopEagerDeoptContinuation);
-      return Callable(code, BuiltinDescriptor(isolate));
-    }
-    case kArrayMapLoopLazyDeoptContinuation: {
-      Handle<Code> code =
-          BUILTIN_CODE(isolate, ArrayMapLoopLazyDeoptContinuation);
-      return Callable(code, BuiltinDescriptor(isolate));
-    }
     default:
       UNREACHABLE();
   }
@@ -235,6 +217,8 @@ bool Builtins::IsLazy(int index) {
     case kArrayForEachLoopLazyDeoptContinuation:   // https://crbug.com/v8/6786.
     case kArrayMapLoopEagerDeoptContinuation:      // https://crbug.com/v8/6786.
     case kArrayMapLoopLazyDeoptContinuation:       // https://crbug.com/v8/6786.
+    case kArrayFilterLoopEagerDeoptContinuation:   // https://crbug.com/v8/6786.
+    case kArrayFilterLoopLazyDeoptContinuation:    // https://crbug.com/v8/6786.
     case kCheckOptimizationMarker:
     case kCompileLazy:
     case kDeserializeLazy:

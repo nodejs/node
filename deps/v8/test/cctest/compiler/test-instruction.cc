@@ -30,7 +30,7 @@ class InstructionTester : public HandleAndZoneScope {
         schedule(zone()),
         common(zone()),
         machine(zone()),
-        code(NULL) {}
+        code(nullptr) {}
 
   Graph graph;
   Schedule schedule;

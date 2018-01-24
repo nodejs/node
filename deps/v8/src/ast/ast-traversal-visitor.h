@@ -228,13 +228,13 @@ void AstTraversalVisitor<Subclass>::VisitWhileStatement(WhileStatement* stmt) {
 template <class Subclass>
 void AstTraversalVisitor<Subclass>::VisitForStatement(ForStatement* stmt) {
   PROCESS_NODE(stmt);
-  if (stmt->init() != NULL) {
+  if (stmt->init() != nullptr) {
     RECURSE(Visit(stmt->init()));
   }
-  if (stmt->cond() != NULL) {
+  if (stmt->cond() != nullptr) {
     RECURSE(Visit(stmt->cond()));
   }
-  if (stmt->next() != NULL) {
+  if (stmt->next() != nullptr) {
     RECURSE(Visit(stmt->next()));
   }
   RECURSE(Visit(stmt->body()));
@@ -444,6 +444,15 @@ void AstTraversalVisitor<Subclass>::VisitBinaryOperation(
 }
 
 template <class Subclass>
+void AstTraversalVisitor<Subclass>::VisitNaryOperation(NaryOperation* expr) {
+  PROCESS_EXPRESSION(expr);
+  RECURSE_EXPRESSION(Visit(expr->first()));
+  for (size_t i = 0; i < expr->subsequent_length(); ++i) {
+    RECURSE_EXPRESSION(Visit(expr->subsequent(i)));
+  }
+}
+
+template <class Subclass>
 void AstTraversalVisitor<Subclass>::VisitCompareOperation(
     CompareOperation* expr) {
   PROCESS_EXPRESSION(expr);
@@ -463,6 +472,12 @@ void AstTraversalVisitor<Subclass>::VisitClassLiteral(ClassLiteral* expr) {
     RECURSE_EXPRESSION(Visit(expr->extends()));
   }
   RECURSE_EXPRESSION(Visit(expr->constructor()));
+  if (expr->static_fields_initializer() != nullptr) {
+    RECURSE_EXPRESSION(Visit(expr->static_fields_initializer()));
+  }
+  if (expr->instance_fields_initializer_function() != nullptr) {
+    RECURSE_EXPRESSION(Visit(expr->instance_fields_initializer_function()));
+  }
   ZoneList<ClassLiteralProperty*>* props = expr->properties();
   for (int i = 0; i < props->length(); ++i) {
     ClassLiteralProperty* prop = props->at(i);
@@ -470,6 +485,20 @@ void AstTraversalVisitor<Subclass>::VisitClassLiteral(ClassLiteral* expr) {
       RECURSE_EXPRESSION(Visit(prop->key()));
     }
     RECURSE_EXPRESSION(Visit(prop->value()));
+  }
+}
+
+template <class Subclass>
+void AstTraversalVisitor<Subclass>::VisitInitializeClassFieldsStatement(
+    InitializeClassFieldsStatement* stmt) {
+  PROCESS_NODE(stmt);
+  ZoneList<ClassLiteralProperty*>* props = stmt->fields();
+  for (int i = 0; i < props->length(); ++i) {
+    ClassLiteralProperty* prop = props->at(i);
+    if (!prop->key()->IsLiteral()) {
+      RECURSE(Visit(prop->key()));
+    }
+    RECURSE(Visit(prop->value()));
   }
 }
 

@@ -36,7 +36,7 @@ class UInt128 {
     accumulator >>= 32;
     accumulator = accumulator + (high_bits_ >> 32) * multiplicand;
     high_bits_ = (accumulator << 32) + part;
-    DCHECK((accumulator >> 32) == 0);
+    DCHECK_EQ(accumulator >> 32, 0);
   }
 
   void Shift(int shift_amount) {
@@ -218,7 +218,7 @@ static void FillFractionals(uint64_t fractionals, int exponent,
   // is a fixed-point number, with binary point at bit 'point'.
   if (-exponent <= 64) {
     // One 64 bit number is sufficient.
-    DCHECK(fractionals >> 56 == 0);
+    DCHECK_EQ(fractionals >> 56, 0);
     int point = -exponent;
     for (int i = 0; i < fractional_count; ++i) {
       if (fractionals == 0) break;
@@ -362,7 +362,7 @@ bool FastFixedDtoa(double v,
   } else if (exponent < -128) {
     // This configuration (with at most 20 digits) means that all digits must be
     // 0.
-    DCHECK(fractional_count <= 20);
+    DCHECK_LE(fractional_count, 20);
     buffer[0] = '\0';
     *length = 0;
     *decimal_point = -fractional_count;

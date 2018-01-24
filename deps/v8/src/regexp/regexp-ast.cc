@@ -15,8 +15,8 @@ namespace internal {
 FOR_EACH_REG_EXP_TREE_TYPE(MAKE_ACCEPT)
 #undef MAKE_ACCEPT
 
-#define MAKE_TYPE_CASE(Name)                            \
-  RegExp##Name* RegExpTree::As##Name() { return NULL; } \
+#define MAKE_TYPE_CASE(Name)                               \
+  RegExp##Name* RegExpTree::As##Name() { return nullptr; } \
   bool RegExpTree::Is##Name() { return false; }
 FOR_EACH_REG_EXP_TREE_TYPE(MAKE_TYPE_CASE)
 #undef MAKE_TYPE_CASE
@@ -156,7 +156,7 @@ void* RegExpUnparser::VisitDisjunction(RegExpDisjunction* that, void* data) {
     that->alternatives()->at(i)->Accept(this, data);
   }
   os_ << ")";
-  return NULL;
+  return nullptr;
 }
 
 
@@ -167,7 +167,7 @@ void* RegExpUnparser::VisitAlternative(RegExpAlternative* that, void* data) {
     that->nodes()->at(i)->Accept(this, data);
   }
   os_ << ")";
-  return NULL;
+  return nullptr;
 }
 
 
@@ -188,7 +188,7 @@ void* RegExpUnparser::VisitCharacterClass(RegExpCharacterClass* that,
     VisitCharacterRange(that->ranges(zone_)->at(i));
   }
   os_ << "]";
-  return NULL;
+  return nullptr;
 }
 
 
@@ -213,7 +213,7 @@ void* RegExpUnparser::VisitAssertion(RegExpAssertion* that, void* data) {
       os_ << "@B";
       break;
   }
-  return NULL;
+  return nullptr;
 }
 
 
@@ -224,7 +224,7 @@ void* RegExpUnparser::VisitAtom(RegExpAtom* that, void* data) {
     os_ << AsUC16(chardata[i]);
   }
   os_ << "'";
-  return NULL;
+  return nullptr;
 }
 
 
@@ -239,7 +239,7 @@ void* RegExpUnparser::VisitText(RegExpText* that, void* data) {
     }
     os_ << ")";
   }
-  return NULL;
+  return nullptr;
 }
 
 
@@ -253,7 +253,7 @@ void* RegExpUnparser::VisitQuantifier(RegExpQuantifier* that, void* data) {
   os_ << (that->is_greedy() ? "g " : that->is_possessive() ? "p " : "n ");
   that->body()->Accept(this, data);
   os_ << ")";
-  return NULL;
+  return nullptr;
 }
 
 
@@ -261,14 +261,14 @@ void* RegExpUnparser::VisitCapture(RegExpCapture* that, void* data) {
   os_ << "(^ ";
   that->body()->Accept(this, data);
   os_ << ")";
-  return NULL;
+  return nullptr;
 }
 
 void* RegExpUnparser::VisitGroup(RegExpGroup* that, void* data) {
   os_ << "(?: ";
   that->body()->Accept(this, data);
   os_ << ")";
-  return NULL;
+  return nullptr;
 }
 
 void* RegExpUnparser::VisitLookaround(RegExpLookaround* that, void* data) {
@@ -277,26 +277,26 @@ void* RegExpUnparser::VisitLookaround(RegExpLookaround* that, void* data) {
   os_ << (that->is_positive() ? " + " : " - ");
   that->body()->Accept(this, data);
   os_ << ")";
-  return NULL;
+  return nullptr;
 }
 
 
 void* RegExpUnparser::VisitBackReference(RegExpBackReference* that,
                                          void* data) {
   os_ << "(<- " << that->index() << ")";
-  return NULL;
+  return nullptr;
 }
 
 
 void* RegExpUnparser::VisitEmpty(RegExpEmpty* that, void* data) {
   os_ << '%';
-  return NULL;
+  return nullptr;
 }
 
 
 std::ostream& RegExpTree::Print(std::ostream& os, Zone* zone) {  // NOLINT
   RegExpUnparser unparser(os, zone);
-  Accept(&unparser, NULL);
+  Accept(&unparser, nullptr);
   return os;
 }
 

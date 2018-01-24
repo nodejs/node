@@ -11,11 +11,11 @@
 #include "src/field-type.h"
 #include "src/messages.h"
 #include "src/objects-inl.h"
-#include "src/parsing/token.h"
 #include "src/property-descriptor.h"
 #include "src/string-hasher.h"
 #include "src/transitions.h"
 #include "src/unicode-cache.h"
+#include "src/zone/zone-containers.h"
 
 namespace v8 {
 namespace internal {
@@ -87,7 +87,8 @@ bool JsonParseInternalizer::RecurseAndApply(Handle<JSReceiver> holder,
       isolate_, result, InternalizeJsonProperty(holder, name), false);
   Maybe<bool> change_result = Nothing<bool>();
   if (result->IsUndefined(isolate_)) {
-    change_result = JSReceiver::DeletePropertyOrElement(holder, name, SLOPPY);
+    change_result = JSReceiver::DeletePropertyOrElement(holder, name,
+                                                        LanguageMode::kSloppy);
   } else {
     PropertyDescriptor desc;
     desc.set_value(result);
@@ -95,7 +96,7 @@ bool JsonParseInternalizer::RecurseAndApply(Handle<JSReceiver> holder,
     desc.set_enumerable(true);
     desc.set_writable(true);
     change_result = JSReceiver::DefineOwnProperty(isolate_, holder, name, &desc,
-                                                  Object::DONT_THROW);
+                                                  kDontThrow);
   }
   MAYBE_RETURN(change_result, false);
   return true;
@@ -332,7 +333,7 @@ Handle<Object> JsonParser<seq_one_byte>::ParseJsonObject() {
       factory()->NewJSObject(object_constructor(), pretenure_);
   Handle<Map> map(json_object->map());
   int descriptor = 0;
-  ZoneList<Handle<Object> > properties(8, zone());
+  ZoneVector<Handle<Object>> properties(zone());
   DCHECK_EQ(c0_, '{');
 
   bool transitioning = true;
@@ -411,7 +412,7 @@ Handle<Object> JsonParser<seq_one_byte>::ParseJsonObject() {
           DCHECK(target->instance_descriptors()
                      ->GetFieldType(descriptor)
                      ->NowContains(value));
-          properties.Add(value, zone());
+          properties.push_back(value);
           map = target;
           descriptor++;
           continue;
@@ -479,13 +480,13 @@ Handle<Object> JsonParser<seq_one_byte>::ParseJsonObject() {
 template <bool seq_one_byte>
 void JsonParser<seq_one_byte>::CommitStateToJsonObject(
     Handle<JSObject> json_object, Handle<Map> map,
-    ZoneList<Handle<Object> >* properties) {
+    ZoneVector<Handle<Object>>* properties) {
   JSObject::AllocateStorageForMap(json_object, map);
   DCHECK(!json_object->map()->is_dictionary_map());
 
   DisallowHeapAllocation no_gc;
   DescriptorArray* descriptors = json_object->map()->instance_descriptors();
-  int length = properties->length();
+  int length = static_cast<int>(properties->size());
   for (int i = 0; i < length; i++) {
     Handle<Object> value = (*properties)[i];
     // Initializing store.
@@ -537,7 +538,7 @@ class ElementKindLattice {
 template <bool seq_one_byte>
 Handle<Object> JsonParser<seq_one_byte>::ParseJsonArray() {
   HandleScope scope(isolate());
-  ZoneList<Handle<Object> > elements(4, zone());
+  ZoneVector<Handle<Object>> elements(zone());
   DCHECK_EQ(c0_, '[');
 
   ElementKindLattice lattice;
@@ -547,7 +548,7 @@ Handle<Object> JsonParser<seq_one_byte>::ParseJsonArray() {
     do {
       Handle<Object> element = ParseJsonValue();
       if (element.is_null()) return ReportUnexpectedCharacter();
-      elements.Add(element, zone());
+      elements.push_back(element);
       lattice.Update(element);
     } while (MatchSkipWhiteSpace(','));
     if (c0_ != ']') {
@@ -560,20 +561,21 @@ Handle<Object> JsonParser<seq_one_byte>::ParseJsonArray() {
 
   Handle<Object> json_array;
   const ElementsKind kind = lattice.GetElementsKind();
+  int elements_size = static_cast<int>(elements.size());
 
   switch (kind) {
     case PACKED_ELEMENTS:
     case PACKED_SMI_ELEMENTS: {
       Handle<FixedArray> elems =
-          factory()->NewFixedArray(elements.length(), pretenure_);
-      for (int i = 0; i < elements.length(); i++) elems->set(i, *elements[i]);
+          factory()->NewFixedArray(elements_size, pretenure_);
+      for (int i = 0; i < elements_size; i++) elems->set(i, *elements[i]);
       json_array = factory()->NewJSArrayWithElements(elems, kind, pretenure_);
       break;
     }
     case PACKED_DOUBLE_ELEMENTS: {
       Handle<FixedDoubleArray> elems = Handle<FixedDoubleArray>::cast(
-          factory()->NewFixedDoubleArray(elements.length(), pretenure_));
-      for (int i = 0; i < elements.length(); i++) {
+          factory()->NewFixedDoubleArray(elements_size, pretenure_));
+      for (int i = 0; i < elements_size; i++) {
         elems->set(i, elements[i]->Number());
       }
       json_array = factory()->NewJSArrayWithElements(elems, kind, pretenure_);

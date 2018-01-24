@@ -45,9 +45,9 @@ void PipelineStatistics::CommonStats::End(
   timer_.Stop();
 }
 
-PipelineStatistics::PipelineStatistics(CompilationInfo* info,
+PipelineStatistics::PipelineStatistics(CompilationInfo* info, Isolate* isolate,
                                        ZoneStats* zone_stats)
-    : isolate_(info->isolate()),
+    : isolate_(isolate),
       outer_zone_(info->zone()),
       zone_stats_(zone_stats),
       compilation_stats_(isolate_->GetTurboStatistics()),

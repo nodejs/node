@@ -54,8 +54,7 @@ Handle<JSArray> TemplateObjectDescription::GetTemplateObject(
         cooked_strings, PACKED_ELEMENTS, cooked_strings->length(), TENURED);
 
     // Freeze the {raw_object}.
-    JSObject::SetIntegrityLevel(raw_object, FROZEN, Object::THROW_ON_ERROR)
-        .ToChecked();
+    JSObject::SetIntegrityLevel(raw_object, FROZEN, kThrowOnError).ToChecked();
 
     // Install a "raw" data property for {raw_object} on {template_object}.
     PropertyDescriptor raw_desc;
@@ -65,11 +64,11 @@ Handle<JSArray> TemplateObjectDescription::GetTemplateObject(
     raw_desc.set_writable(false);
     JSArray::DefineOwnProperty(isolate, template_object,
                                isolate->factory()->raw_string(), &raw_desc,
-                               Object::THROW_ON_ERROR)
+                               kThrowOnError)
         .ToChecked();
 
     // Freeze the {template_object} as well.
-    JSObject::SetIntegrityLevel(template_object, FROZEN, Object::THROW_ON_ERROR)
+    JSObject::SetIntegrityLevel(template_object, FROZEN, kThrowOnError)
         .ToChecked();
 
     // Remember the {template_object} in the {template_map}.

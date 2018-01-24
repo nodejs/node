@@ -75,6 +75,7 @@
       'compiler/test-run-stubs.cc',
       'compiler/test-run-variables.cc',
       'compiler/test-run-wasm-machops.cc',
+      'compiler/value-helper.cc',
       'compiler/value-helper.h',
       'cctest.cc',
       'cctest.h',
@@ -217,6 +218,7 @@
       'wasm/test-run-wasm-relocation.cc',
       'wasm/test-run-wasm-simd.cc',
       'wasm/test-wasm-breakpoints.cc',
+      "wasm/test-wasm-codegen.cc",
       'wasm/test-wasm-interpreter-entry.cc',
       'wasm/test-wasm-stack.cc',
       'wasm/test-wasm-trap-position.cc',
@@ -243,6 +245,8 @@
       'test-run-wasm-relocation-x64.cc',
     ],
     'cctest_sources_arm': [  ### gcmole(arch:arm) ###
+      'assembler-helper-arm.cc',
+      'assembler-helper-arm.h',
       'test-assembler-arm.cc',
       'test-code-stubs.cc',
       'test-code-stubs.h',
@@ -250,7 +254,7 @@
       'test-disasm-arm.cc',
       'test-macro-assembler-arm.cc',
       'test-run-wasm-relocation-arm.cc',
-      'test-simulator-arm.cc',
+      'test-sync-primitives-arm.cc',
     ],
     'cctest_sources_arm64': [  ### gcmole(arch:arm64) ###
       'test-utils-arm64.cc',
@@ -264,7 +268,7 @@
       'test-javascript-arm64.cc',
       'test-js-arm64-variables.cc',
       'test-run-wasm-relocation-arm64.cc',
-      'test-simulator-arm64.cc',
+      'test-sync-primitives-arm64.cc',
     ],
     'cctest_sources_s390': [  ### gcmole(arch:s390) ###
       'test-assembler-s390.cc',
@@ -394,15 +398,7 @@
             '<@(cctest_sources_mips64el)',
           ],
         }],
-        [ 'OS=="linux" or OS=="qnx"', {
-          'sources': [
-            'test-platform-linux.cc',
-          ],
-        }],
         [ 'OS=="win"', {
-          'sources': [
-            'test-platform-win32.cc',
-          ],
           'msvs_settings': {
             'VCCLCompilerTool': {
               # MSVS wants this for gay-{precision,shortest}.cc.
@@ -446,6 +442,7 @@
            '../../tools/consarray.js',
            '../../tools/profile.js',
            '../../tools/profile_view.js',
+           '../../tools/arguments.js',
            '../../tools/logreader.js',
            'log-eq-of-logging-and-traversal.js',
         ],

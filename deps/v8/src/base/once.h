@@ -85,7 +85,8 @@ V8_BASE_EXPORT void CallOnceImpl(OnceType* once, PointerArgFunction init_func,
 
 inline void CallOnce(OnceType* once, NoArgFunction init_func) {
   if (Acquire_Load(once) != ONCE_STATE_DONE) {
-    CallOnceImpl(once, reinterpret_cast<PointerArgFunction>(init_func), NULL);
+    CallOnceImpl(once, reinterpret_cast<PointerArgFunction>(init_func),
+                 nullptr);
   }
 }
 

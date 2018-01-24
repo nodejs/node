@@ -19,10 +19,6 @@ class SetupInterpreter {
   static void InstallBytecodeHandlers(Interpreter* interpreter);
 
  private:
-  // In the case of bytecodes that share handler implementations, copy the code
-  // into the bytecode's dispatcher table entry and return true.
-  static bool ReuseExistingHandler(Address* dispatch_table, Bytecode bytecode,
-                                   OperandScale operand_scale);
   // Generates handler for given |bytecode| and |operand_scale|
   // and installs it into the |dispatch_table|.
   static void InstallBytecodeHandler(Isolate* isolate, Address* dispatch_table,

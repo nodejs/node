@@ -63,8 +63,6 @@ enum class FrameStateType {
   kInterpretedFunction,  // Represents an InterpretedFrame.
   kArgumentsAdaptor,     // Represents an ArgumentsAdaptorFrame.
   kConstructStub,        // Represents a ConstructStubFrame.
-  kGetterStub,           // Represents a GetterStubFrame.
-  kSetterStub,           // Represents a SetterStubFrame.
   kBuiltinContinuation,  // Represents a continuation to a stub.
   kJavaScriptBuiltinContinuation  // Represents a continuation to a JavaScipt
                                   // builtin.

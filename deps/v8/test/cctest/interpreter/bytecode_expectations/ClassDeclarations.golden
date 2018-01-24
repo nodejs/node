@@ -12,40 +12,30 @@ snippet: "
     speak() { console.log(this.name + ' is speaking.'); }
   }
 "
-frame size: 8
+frame size: 7
 parameter count: 1
-bytecode array length: 67
+bytecode array length: 38
 bytecodes: [
   /*   30 E> */ B(StackCheck),
-                B(CreateClosure), U8(0), U8(0), U8(2),
-                B(Star), R(2),
                 B(LdaTheHole),
-                B(Star), R(3),
-                B(LdaSmi), I8(34),
                 B(Star), R(5),
-                B(Wide), B(LdaSmi), I16(148),
+                B(CreateClosure), U8(1), U8(0), U8(2),
+                B(Star), R(2),
+                B(LdaConstant), U8(0),
+                B(Star), R(3),
+                B(CreateClosure), U8(2), U8(1), U8(2),
                 B(Star), R(6),
                 B(Mov), R(2), R(4),
                 B(CallRuntime), U16(Runtime::kDefineClass), R(3), U8(4),
                 B(Star), R(3),
-                B(LdaConstant), U8(1),
-                B(Star), R(5),
-                B(CreateClosure), U8(2), U8(1), U8(2),
-                B(Star), R(6),
-                B(LdaSmi), I8(2),
-                B(Star), R(7),
-                B(Ldar), R(6),
-                B(StaDataPropertyInLiteral), R(3), R(5), U8(1), U8(2),
-                B(CallRuntime), U16(Runtime::kInstallClassNameAccessor), R(2), U8(1),
-                B(CallRuntime), U16(Runtime::kToFastProperties), R(2), U8(1),
-                B(Star), R(0),
-                B(Star), R(1),
+                B(Mov), R(4), R(0),
+                B(Mov), R(0), R(1),
                 B(LdaUndefined),
   /*  149 S> */ B(Return),
 ]
 constant pool: [
+  FIXED_ARRAY_TYPE,
   SHARED_FUNCTION_INFO_TYPE,
-  ONE_BYTE_INTERNALIZED_STRING_TYPE ["speak"],
   SHARED_FUNCTION_INFO_TYPE,
 ]
 handlers: [
@@ -58,40 +48,30 @@ snippet: "
     speak() { console.log(this.name + ' is speaking.'); }
   }
 "
-frame size: 8
+frame size: 7
 parameter count: 1
-bytecode array length: 67
+bytecode array length: 38
 bytecodes: [
   /*   30 E> */ B(StackCheck),
-                B(CreateClosure), U8(0), U8(0), U8(2),
-                B(Star), R(2),
                 B(LdaTheHole),
-                B(Star), R(3),
-                B(LdaSmi), I8(34),
                 B(Star), R(5),
-                B(Wide), B(LdaSmi), I16(148),
+                B(CreateClosure), U8(1), U8(0), U8(2),
+                B(Star), R(2),
+                B(LdaConstant), U8(0),
+                B(Star), R(3),
+                B(CreateClosure), U8(2), U8(1), U8(2),
                 B(Star), R(6),
                 B(Mov), R(2), R(4),
                 B(CallRuntime), U16(Runtime::kDefineClass), R(3), U8(4),
                 B(Star), R(3),
-                B(LdaConstant), U8(1),
-                B(Star), R(5),
-                B(CreateClosure), U8(2), U8(1), U8(2),
-                B(Star), R(6),
-                B(LdaSmi), I8(2),
-                B(Star), R(7),
-                B(Ldar), R(6),
-                B(StaDataPropertyInLiteral), R(3), R(5), U8(1), U8(2),
-                B(CallRuntime), U16(Runtime::kInstallClassNameAccessor), R(2), U8(1),
-                B(CallRuntime), U16(Runtime::kToFastProperties), R(2), U8(1),
-                B(Star), R(0),
-                B(Star), R(1),
+                B(Mov), R(4), R(0),
+                B(Mov), R(0), R(1),
                 B(LdaUndefined),
   /*  149 S> */ B(Return),
 ]
 constant pool: [
+  FIXED_ARRAY_TYPE,
   SHARED_FUNCTION_INFO_TYPE,
-  ONE_BYTE_INTERNALIZED_STRING_TYPE ["speak"],
   SHARED_FUNCTION_INFO_TYPE,
 ]
 handlers: [
@@ -106,9 +86,9 @@ snippet: "
     static [n1]() { return n1; }
   }
 "
-frame size: 9
+frame size: 11
 parameter count: 1
-bytecode array length: 106
+bytecode array length: 75
 bytecodes: [
                 B(CreateFunctionContext), U8(2),
                 B(PushContext), R(2),
@@ -117,44 +97,36 @@ bytecodes: [
   /*   43 E> */ B(StaCurrentContextSlot), U8(4),
   /*   57 S> */ B(LdaConstant), U8(1),
   /*   57 E> */ B(StaCurrentContextSlot), U8(5),
-                B(CreateClosure), U8(2), U8(0), U8(2),
-                B(Star), R(3),
                 B(LdaTheHole),
-                B(Star), R(4),
-                B(LdaSmi), I8(62),
                 B(Star), R(6),
-                B(Wide), B(LdaSmi), I16(128),
-                B(Star), R(7),
-                B(Mov), R(3), R(5),
-                B(CallRuntime), U16(Runtime::kDefineClass), R(4), U8(4),
+                B(CreateClosure), U8(3), U8(0), U8(2),
+                B(Star), R(3),
+                B(LdaConstant), U8(2),
                 B(Star), R(4),
                 B(LdaImmutableCurrentContextSlot), U8(4),
-  /*   75 E> */ B(ToName), R(6),
-                B(CreateClosure), U8(3), U8(1), U8(2),
-                B(Star), R(7),
-                B(LdaSmi), I8(2),
+  /*   75 E> */ B(ToName), R(7),
+                B(CreateClosure), U8(4), U8(1), U8(2),
                 B(Star), R(8),
-                B(Ldar), R(7),
-                B(StaDataPropertyInLiteral), R(4), R(6), U8(3), U8(3),
                 B(LdaImmutableCurrentContextSlot), U8(5),
-  /*  106 E> */ B(ToName), R(6),
-                B(LdaConstant), U8(4),
-                B(TestEqualStrictNoFeedback), R(6),
+  /*  106 E> */ B(ToName), R(9),
+                B(LdaConstant), U8(5),
+                B(TestEqualStrictNoFeedback), R(9),
                 B(Mov), R(3), R(5),
                 B(JumpIfFalse), U8(7),
                 B(CallRuntime), U16(Runtime::kThrowStaticPrototypeError), R(0), U8(0),
-                B(CreateClosure), U8(5), U8(2), U8(2),
-                B(StaDataPropertyInLiteral), R(5), R(6), U8(3), U8(5),
-                B(CallRuntime), U16(Runtime::kInstallClassNameAccessorWithCheck), R(3), U8(1),
-                B(CallRuntime), U16(Runtime::kToFastProperties), R(3), U8(1),
-                B(Star), R(0),
-                B(Star), R(1),
+                B(CreateClosure), U8(6), U8(2), U8(2),
+                B(Star), R(10),
+                B(CallRuntime), U16(Runtime::kDefineClass), R(4), U8(7),
+                B(Star), R(4),
+                B(Mov), R(3), R(0),
+                B(Mov), R(0), R(1),
                 B(LdaUndefined),
   /*  129 S> */ B(Return),
 ]
 constant pool: [
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["a"],
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["b"],
+  FIXED_ARRAY_TYPE,
   SHARED_FUNCTION_INFO_TYPE,
   SHARED_FUNCTION_INFO_TYPE,
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["prototype"],
@@ -169,34 +141,32 @@ snippet: "
   class C { constructor() { count++; }}
   return new C();
 "
-frame size: 8
+frame size: 7
 parameter count: 1
-bytecode array length: 55
+bytecode array length: 45
 bytecodes: [
                 B(CreateFunctionContext), U8(1),
                 B(PushContext), R(2),
   /*   30 E> */ B(StackCheck),
   /*   46 S> */ B(LdaZero),
   /*   46 E> */ B(StaCurrentContextSlot), U8(4),
-                B(CreateClosure), U8(0), U8(0), U8(2),
-                B(Star), R(3),
                 B(LdaTheHole),
-                B(Star), R(4),
-                B(LdaSmi), I8(49),
                 B(Star), R(6),
-                B(LdaSmi), I8(86),
-                B(Star), R(7),
-                B(Mov), R(3), R(5),
-                B(CallRuntime), U16(Runtime::kDefineClass), R(4), U8(4),
+                B(CreateClosure), U8(1), U8(0), U8(2),
+                B(Star), R(3),
+                B(LdaConstant), U8(0),
                 B(Star), R(4),
-                B(CallRuntime), U16(Runtime::kInstallClassNameAccessor), R(3), U8(1),
-                B(CallRuntime), U16(Runtime::kToFastProperties), R(3), U8(1),
-                B(Star), R(0),
-                B(Star), R(1),
-  /*   94 S> */ B(Construct), R(1), R(0), U8(0), U8(1),
+                B(Mov), R(3), R(5),
+                B(CallRuntime), U16(Runtime::kDefineClass), R(4), U8(3),
+                B(Star), R(4),
+                B(Mov), R(5), R(0),
+                B(Mov), R(0), R(1),
+  /*   87 S> */ B(Ldar), R(1),
+  /*   94 E> */ B(Construct), R(3), R(0), U8(0), U8(1),
   /*  102 S> */ B(Return),
 ]
 constant pool: [
+  FIXED_ARRAY_TYPE,
   SHARED_FUNCTION_INFO_TYPE,
 ]
 handlers: [
@@ -207,52 +177,41 @@ snippet: "
   (class {})
   class E { static name () {}}
 "
-frame size: 8
+frame size: 7
 parameter count: 1
-bytecode array length: 92
+bytecode array length: 61
 bytecodes: [
   /*   30 E> */ B(StackCheck),
-  /*   34 S> */ B(CreateClosure), U8(0), U8(0), U8(2),
-                B(Star), R(2),
-                B(LdaTheHole),
-                B(Star), R(3),
-                B(LdaSmi), I8(35),
+  /*   34 S> */ B(LdaTheHole),
                 B(Star), R(5),
-                B(LdaSmi), I8(43),
-                B(Star), R(6),
-                B(Mov), R(2), R(4),
-                B(CallRuntime), U16(Runtime::kDefineClass), R(3), U8(4),
-                B(Star), R(3),
-                B(CallRuntime), U16(Runtime::kToFastProperties), R(2), U8(1),
-                B(CreateClosure), U8(1), U8(1), U8(2),
+                B(CreateClosure), U8(1), U8(0), U8(2),
                 B(Star), R(2),
-                B(LdaTheHole),
+                B(LdaConstant), U8(0),
                 B(Star), R(3),
-                B(LdaSmi), I8(45),
-                B(Star), R(5),
-                B(LdaSmi), I8(73),
-                B(Star), R(6),
                 B(Mov), R(2), R(4),
-                B(CallRuntime), U16(Runtime::kDefineClass), R(3), U8(4),
+                B(CallRuntime), U16(Runtime::kDefineClass), R(3), U8(3),
                 B(Star), R(3),
+                B(LdaTheHole),
+                B(Star), R(5),
+                B(CreateClosure), U8(3), U8(1), U8(2),
+                B(Star), R(2),
                 B(LdaConstant), U8(2),
-                B(Star), R(5),
-                B(CreateClosure), U8(3), U8(2), U8(2),
+                B(Star), R(3),
+                B(CreateClosure), U8(4), U8(2), U8(2),
                 B(Star), R(6),
-                B(LdaSmi), I8(2),
-                B(Star), R(7),
-                B(Ldar), R(6),
-                B(StaDataPropertyInLiteral), R(4), R(5), U8(1), U8(3),
-                B(CallRuntime), U16(Runtime::kToFastProperties), R(2), U8(1),
-                B(Star), R(0),
-                B(Star), R(1),
+                B(Mov), R(2), R(4),
+                B(CallRuntime), U16(Runtime::kDefineClass), R(3), U8(4),
+                B(Star), R(3),
+                B(Mov), R(4), R(0),
+                B(Mov), R(0), R(1),
                 B(LdaUndefined),
   /*   74 S> */ B(Return),
 ]
 constant pool: [
+  FIXED_ARRAY_TYPE,
   SHARED_FUNCTION_INFO_TYPE,
+  FIXED_ARRAY_TYPE,
   SHARED_FUNCTION_INFO_TYPE,
-  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name"],
   SHARED_FUNCTION_INFO_TYPE,
 ]
 handlers: [

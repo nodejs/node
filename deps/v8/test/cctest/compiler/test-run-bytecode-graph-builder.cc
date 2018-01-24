@@ -121,7 +121,14 @@ class BytecodeGraphTester {
     Handle<SharedFunctionInfo> shared(function->shared());
     CompilationInfo compilation_info(&zone, function->GetIsolate(), shared,
                                      function);
-    Handle<Code> code = Pipeline::GenerateCodeForTesting(&compilation_info);
+
+    // Compiler relies on canonicalized handles, let's create
+    // a canonicalized scope and migrate existing handles there.
+    CanonicalHandleScope canonical(isolate_);
+    compilation_info.ReopenHandlesInNewHandleScope();
+
+    Handle<Code> code = Pipeline::GenerateCodeForTesting(
+        &compilation_info, function->GetIsolate());
     function->set_code(*code);
 
     return function;

@@ -24,7 +24,7 @@ class StubTester {
  public:
   StubTester(Isolate* isolate, Zone* zone, CodeStub* stub)
       : zone_(zone),
-        info_(ArrayVector("test"), isolate, zone, Code::STUB),
+        info_(ArrayVector("test"), zone, Code::STUB),
         interface_descriptor_(stub->GetCallInterfaceDescriptor()),
         descriptor_(Linkage::GetStubCallDescriptor(
             isolate, zone, interface_descriptor_,
@@ -37,7 +37,7 @@ class StubTester {
 
   StubTester(Isolate* isolate, Zone* zone, Builtins::Name name)
       : zone_(zone),
-        info_(ArrayVector("test"), isolate, zone, Code::STUB),
+        info_(ArrayVector("test"), zone, Code::STUB),
         interface_descriptor_(
             Builtins::CallableFor(isolate, name).descriptor()),
         descriptor_(Linkage::GetStubCallDescriptor(
@@ -101,12 +101,12 @@ class StubTester {
   FunctionTester tester_;
 };
 
-TEST(RunStringLengthStub) {
+TEST(RunStringWrapperLengthStub) {
   HandleAndZoneScope scope;
   Isolate* isolate = scope.main_isolate();
   Zone* zone = scope.main_zone();
 
-  StubTester tester(isolate, zone, Builtins::kLoadIC_StringLength);
+  StubTester tester(isolate, zone, Builtins::kLoadIC_StringWrapperLength);
 
   // Actuall call through to the stub, verifying its result.
   const char* testString = "Und das Lamm schrie HURZ!";
@@ -119,6 +119,119 @@ TEST(RunStringLengthStub) {
   CHECK_EQ(static_cast<int>(strlen(testString)), Smi::ToInt(*result));
 }
 
+TEST(RunArrayExtractStubSimple) {
+  HandleAndZoneScope scope;
+  Isolate* isolate = scope.main_isolate();
+  Zone* zone = scope.main_zone();
+
+  StubTester tester(isolate, zone, Builtins::kExtractFastJSArray);
+
+  // Actuall call through to the stub, verifying its result.
+  Handle<JSArray> source_array = isolate->factory()->NewJSArray(
+      PACKED_ELEMENTS, 5, 10, INITIALIZE_ARRAY_ELEMENTS_WITH_HOLE);
+  static_cast<FixedArray*>(source_array->elements())->set(0, Smi::FromInt(5));
+  static_cast<FixedArray*>(source_array->elements())->set(1, Smi::FromInt(4));
+  static_cast<FixedArray*>(source_array->elements())->set(2, Smi::FromInt(3));
+  static_cast<FixedArray*>(source_array->elements())->set(3, Smi::FromInt(2));
+  static_cast<FixedArray*>(source_array->elements())->set(4, Smi::FromInt(1));
+  Handle<JSArray> result = Handle<JSArray>::cast(
+      tester.Call(source_array, Handle<Smi>(Smi::FromInt(0), isolate),
+                  Handle<Smi>(Smi::FromInt(5), isolate)));
+  CHECK_NE(*source_array, *result);
+  CHECK_EQ(result->GetElementsKind(), PACKED_ELEMENTS);
+  CHECK_EQ(static_cast<FixedArray*>(result->elements())->get(0),
+           Smi::FromInt(5));
+  CHECK_EQ(static_cast<FixedArray*>(result->elements())->get(1),
+           Smi::FromInt(4));
+  CHECK_EQ(static_cast<FixedArray*>(result->elements())->get(2),
+           Smi::FromInt(3));
+  CHECK_EQ(static_cast<FixedArray*>(result->elements())->get(3),
+           Smi::FromInt(2));
+  CHECK_EQ(static_cast<FixedArray*>(result->elements())->get(4),
+           Smi::FromInt(1));
+}
+
+TEST(RunArrayExtractDoubleStubSimple) {
+  HandleAndZoneScope scope;
+  Isolate* isolate = scope.main_isolate();
+  Zone* zone = scope.main_zone();
+
+  StubTester tester(isolate, zone, Builtins::kExtractFastJSArray);
+
+  // Actuall call through to the stub, verifying its result.
+  Handle<JSArray> source_array = isolate->factory()->NewJSArray(
+      PACKED_DOUBLE_ELEMENTS, 5, 10, INITIALIZE_ARRAY_ELEMENTS_WITH_HOLE);
+  static_cast<FixedDoubleArray*>(source_array->elements())->set(0, 5);
+  static_cast<FixedDoubleArray*>(source_array->elements())->set(1, 4);
+  static_cast<FixedDoubleArray*>(source_array->elements())->set(2, 3);
+  static_cast<FixedDoubleArray*>(source_array->elements())->set(3, 2);
+  static_cast<FixedDoubleArray*>(source_array->elements())->set(4, 1);
+  Handle<JSArray> result = Handle<JSArray>::cast(
+      tester.Call(source_array, Handle<Smi>(Smi::FromInt(0), isolate),
+                  Handle<Smi>(Smi::FromInt(5), isolate)));
+  CHECK_NE(*source_array, *result);
+  CHECK_EQ(result->GetElementsKind(), PACKED_DOUBLE_ELEMENTS);
+  CHECK_EQ(static_cast<FixedDoubleArray*>(result->elements())->get_scalar(0),
+           5);
+  CHECK_EQ(static_cast<FixedDoubleArray*>(result->elements())->get_scalar(1),
+           4);
+  CHECK_EQ(static_cast<FixedDoubleArray*>(result->elements())->get_scalar(2),
+           3);
+  CHECK_EQ(static_cast<FixedDoubleArray*>(result->elements())->get_scalar(3),
+           2);
+  CHECK_EQ(static_cast<FixedDoubleArray*>(result->elements())->get_scalar(4),
+           1);
+}
+
+TEST(RunArrayExtractStubTooBigForNewSpace) {
+  HandleAndZoneScope scope;
+  Isolate* isolate = scope.main_isolate();
+  Zone* zone = scope.main_zone();
+
+  StubTester tester(isolate, zone, Builtins::kExtractFastJSArray);
+
+  // Actuall call through to the stub, verifying its result.
+  Handle<JSArray> source_array = isolate->factory()->NewJSArray(
+      PACKED_ELEMENTS, 500000, 500000, INITIALIZE_ARRAY_ELEMENTS_WITH_HOLE);
+  for (int i = 0; i < 500000; ++i) {
+    static_cast<FixedArray*>(source_array->elements())->set(i, Smi::FromInt(i));
+  }
+  Handle<JSArray> result = Handle<JSArray>::cast(
+      tester.Call(source_array, Handle<Smi>(Smi::FromInt(0), isolate),
+                  Handle<Smi>(Smi::FromInt(500000), isolate)));
+  CHECK_NE(*source_array, *result);
+  CHECK_EQ(result->GetElementsKind(), PACKED_ELEMENTS);
+  for (int i = 0; i < 500000; ++i) {
+    CHECK_EQ(static_cast<FixedArray*>(source_array->elements())->get(i),
+             static_cast<FixedArray*>(result->elements())->get(i));
+  }
+}
+
+TEST(RunArrayExtractDoubleStubTooBigForNewSpace) {
+  HandleAndZoneScope scope;
+  Isolate* isolate = scope.main_isolate();
+  Zone* zone = scope.main_zone();
+
+  StubTester tester(isolate, zone, Builtins::kExtractFastJSArray);
+
+  // Actuall call through to the stub, verifying its result.
+  Handle<JSArray> source_array = isolate->factory()->NewJSArray(
+      PACKED_DOUBLE_ELEMENTS, 500000, 500000,
+      INITIALIZE_ARRAY_ELEMENTS_WITH_HOLE, TENURED);
+  for (int i = 0; i < 500000; ++i) {
+    static_cast<FixedDoubleArray*>(source_array->elements())->set(i, i);
+  }
+  Handle<JSArray> result = Handle<JSArray>::cast(
+      tester.Call(source_array, Handle<Smi>(Smi::FromInt(0), isolate),
+                  Handle<Smi>(Smi::FromInt(500000), isolate)));
+  CHECK_NE(*source_array, *result);
+  CHECK_EQ(result->GetElementsKind(), PACKED_DOUBLE_ELEMENTS);
+  for (int i = 0; i < 500000; ++i) {
+    CHECK_EQ(
+        static_cast<FixedDoubleArray*>(source_array->elements())->get_scalar(i),
+        static_cast<FixedDoubleArray*>(result->elements())->get_scalar(i));
+  }
+}
 
 }  // namespace compiler
 }  // namespace internal

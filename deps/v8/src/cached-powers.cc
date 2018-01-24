@@ -146,7 +146,7 @@ void PowersOfTenCache::GetCachedPowerForBinaryExponentRange(
 void PowersOfTenCache::GetCachedPowerForDecimalExponent(int requested_exponent,
                                                         DiyFp* power,
                                                         int* found_exponent) {
-  DCHECK(kMinDecimalExponent <= requested_exponent);
+  DCHECK_LE(kMinDecimalExponent, requested_exponent);
   DCHECK(requested_exponent < kMaxDecimalExponent + kDecimalExponentDistance);
   int index =
       (requested_exponent + kCachedPowersOffset) / kDecimalExponentDistance;

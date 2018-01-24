@@ -2284,7 +2284,7 @@ THREADED_TEST(PrePropertyHandler) {
   desc->InstanceTemplate()->SetHandler(v8::NamedPropertyHandlerConfiguration(
       PrePropertyHandlerGet, 0, PrePropertyHandlerQuery));
   is_bootstrapping = true;
-  LocalContext env(NULL, desc->InstanceTemplate());
+  LocalContext env(nullptr, desc->InstanceTemplate());
   is_bootstrapping = false;
   CompileRun("var pre = 'Object: pre'; var on = 'Object: on';");
   v8::Local<Value> result_pre = CompileRun("pre");
@@ -3252,10 +3252,10 @@ THREADED_TEST(Deleter) {
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
   v8::Local<v8::ObjectTemplate> obj = ObjectTemplate::New(isolate);
-  obj->SetHandler(v8::NamedPropertyHandlerConfiguration(NoBlockGetterX, NULL,
-                                                        NULL, PDeleter, NULL));
+  obj->SetHandler(v8::NamedPropertyHandlerConfiguration(
+      NoBlockGetterX, nullptr, nullptr, PDeleter, nullptr));
   obj->SetHandler(v8::IndexedPropertyHandlerConfiguration(
-      NoBlockGetterI, NULL, NULL, IDeleter, NULL));
+      NoBlockGetterI, nullptr, nullptr, IDeleter, nullptr));
   LocalContext context;
   context->Global()
       ->Set(context.local(), v8_str("k"),
@@ -3361,10 +3361,10 @@ THREADED_TEST(Enumerators) {
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
   v8::Local<v8::ObjectTemplate> obj = ObjectTemplate::New(isolate);
-  obj->SetHandler(
-      v8::NamedPropertyHandlerConfiguration(GetK, NULL, NULL, NULL, NamedEnum));
+  obj->SetHandler(v8::NamedPropertyHandlerConfiguration(GetK, nullptr, nullptr,
+                                                        nullptr, NamedEnum));
   obj->SetHandler(v8::IndexedPropertyHandlerConfiguration(
-      IndexedGetK, NULL, NULL, NULL, IndexedEnum));
+      IndexedGetK, nullptr, nullptr, nullptr, IndexedEnum));
   LocalContext context;
   context->Global()
       ->Set(context.local(), v8_str("k"),
@@ -4453,9 +4453,9 @@ THREADED_TEST(GetOwnPropertyNamesWithInterceptor) {
   obj_template->Set(v8_str("7"), v8::Integer::New(CcTest::isolate(), 7));
   obj_template->Set(v8_str("x"), v8::Integer::New(CcTest::isolate(), 42));
   obj_template->SetHandler(v8::IndexedPropertyHandlerConfiguration(
-      NULL, NULL, NULL, NULL, IndexedPropertyEnumerator));
+      nullptr, nullptr, nullptr, nullptr, IndexedPropertyEnumerator));
   obj_template->SetHandler(v8::NamedPropertyHandlerConfiguration(
-      NULL, NULL, NULL, NULL, NamedPropertyEnumerator));
+      nullptr, nullptr, nullptr, nullptr, NamedPropertyEnumerator));
 
   LocalContext context;
   v8::Local<v8::Object> global = context->Global();
@@ -4520,7 +4520,7 @@ THREADED_TEST(GetOwnPropertyNamesWithIndexedInterceptorExceptions_regress4026) {
   obj_template->Set(v8_str("x"), v8::Integer::New(CcTest::isolate(), 42));
   // First just try a failing indexed interceptor.
   obj_template->SetHandler(v8::IndexedPropertyHandlerConfiguration(
-      NULL, NULL, NULL, NULL, IndexedPropertyEnumeratorException));
+      nullptr, nullptr, nullptr, nullptr, IndexedPropertyEnumeratorException));
 
   LocalContext context;
   v8::Local<v8::Object> global = context->Global();
@@ -4566,7 +4566,7 @@ THREADED_TEST(GetOwnPropertyNamesWithNamedInterceptorExceptions_regress4026) {
   obj_template->Set(v8_str("x"), v8::Integer::New(CcTest::isolate(), 42));
   // First just try a failing indexed interceptor.
   obj_template->SetHandler(v8::NamedPropertyHandlerConfiguration(
-      NULL, NULL, NULL, NULL, NamedPropertyEnumeratorException));
+      nullptr, nullptr, nullptr, nullptr, NamedPropertyEnumeratorException));
 
   LocalContext context;
   v8::Local<v8::Object> global = context->Global();
@@ -5068,7 +5068,7 @@ THREADED_TEST(EnumeratorsAndUnenumerableNamedProperties) {
   v8::HandleScope scope(isolate);
   v8::Local<v8::ObjectTemplate> obj = ObjectTemplate::New(isolate);
   obj->SetHandler(v8::NamedPropertyHandlerConfiguration(
-      ConcatNamedPropertyGetter, NULL, RestrictiveNamedQuery, NULL,
+      ConcatNamedPropertyGetter, nullptr, RestrictiveNamedQuery, nullptr,
       EnumCallbackWithNames));
   LocalContext context;
   context->Global()
@@ -5119,7 +5119,7 @@ THREADED_TEST(EnumeratorsAndUnenumerableNamedPropertiesWithoutSet) {
   v8::HandleScope scope(isolate);
   v8::Local<v8::ObjectTemplate> obj = ObjectTemplate::New(isolate);
   obj->SetHandler(v8::NamedPropertyHandlerConfiguration(
-      ConcatNamedPropertyGetter, NULL, QueryInterceptorForFoo, NULL,
+      ConcatNamedPropertyGetter, nullptr, QueryInterceptorForFoo, nullptr,
       EnumCallbackWithNames));
   LocalContext context;
   context->Global()
@@ -5141,7 +5141,7 @@ THREADED_TEST(EnumeratorsAndUnenumerableIndexedPropertiesArgumentsElements) {
   v8::HandleScope scope(isolate);
   v8::Local<v8::ObjectTemplate> obj = ObjectTemplate::New(isolate);
   obj->SetHandler(v8::IndexedPropertyHandlerConfiguration(
-      ConcatIndexedPropertyGetter, NULL, RestrictiveIndexedQuery, NULL,
+      ConcatIndexedPropertyGetter, nullptr, RestrictiveIndexedQuery, nullptr,
       SloppyArgsIndexedPropertyEnumerator));
   LocalContext context;
   context->Global()
@@ -5176,7 +5176,7 @@ THREADED_TEST(EnumeratorsAndUnenumerableIndexedProperties) {
   v8::HandleScope scope(isolate);
   v8::Local<v8::ObjectTemplate> obj = ObjectTemplate::New(isolate);
   obj->SetHandler(v8::IndexedPropertyHandlerConfiguration(
-      ConcatIndexedPropertyGetter, NULL, RestrictiveIndexedQuery, NULL,
+      ConcatIndexedPropertyGetter, nullptr, RestrictiveIndexedQuery, nullptr,
       EnumCallbackWithIndices));
   LocalContext context;
   context->Global()
@@ -5208,7 +5208,8 @@ THREADED_TEST(EnumeratorsAndForIn) {
   v8::HandleScope scope(isolate);
   v8::Local<v8::ObjectTemplate> obj = ObjectTemplate::New(isolate);
   obj->SetHandler(v8::NamedPropertyHandlerConfiguration(
-      ConcatNamedPropertyGetter, NULL, RestrictiveNamedQuery, NULL, NamedEnum));
+      ConcatNamedPropertyGetter, nullptr, RestrictiveNamedQuery, nullptr,
+      NamedEnum));
   LocalContext context;
   context->Global()
       ->Set(context.local(), v8_str("obj"),

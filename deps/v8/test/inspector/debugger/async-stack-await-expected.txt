@@ -19,7 +19,7 @@ test (test.js:24:8)
 (anonymous) (expr.js:0:0)
 
 foo1 (test.js:9:2)
--- Promise.resolve --
+-- Promise.then --
 foo2 (test.js:19:43)
 -- async function --
 foo2 (test.js:13:19)

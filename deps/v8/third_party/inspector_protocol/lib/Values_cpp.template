@@ -42,28 +42,20 @@ void appendUnsignedAsHex(uint16_t number, StringBuilder* dst)
     }
 }
 
-void escapeStringForJSON(const String& str, StringBuilder* dst)
+template <typename Char>
+void escapeStringForJSONInternal(const Char* str, unsigned len,
+                                 StringBuilder* dst)
 {
-    for (unsigned i = 0; i < str.length(); ++i) {
-        uint16_t c = str[i];
-        if (!escapeChar(c, dst)) {
-            if (c < 32 || c > 126 || c == '<' || c == '>') {
-                // 1. Escaping <, > to prevent script execution.
-                // 2. Technically, we could also pass through c > 126 as UTF8, but this
-                //    is also optional. It would also be a pain to implement here.
-                appendUnsignedAsHex(c, dst);
-            } else {
-                StringUtil::builderAppend(*dst, c);
-            }
+    for (unsigned i = 0; i < len; ++i) {
+        Char c = str[i];
+        if (escapeChar(c, dst))
+            continue;
+        if (c < 32 || c > 126) {
+            appendUnsignedAsHex(c, dst);
+        } else {
+            StringUtil::builderAppend(*dst, c);
         }
     }
-}
-
-void doubleQuoteStringForJSON(const String& str, StringBuilder* dst)
-{
-    StringUtil::builderAppend(*dst, '"');
-    escapeStringForJSON(str, dst);
-    StringUtil::builderAppend(*dst, '"');
 }
 
 } // anonymous namespace
@@ -181,7 +173,7 @@ bool StringValue::asString(String* output) const
 void StringValue::writeJSON(StringBuilder* output) const
 {
     DCHECK(type() == TypeString);
-    doubleQuoteStringForJSON(m_stringValue, output);
+    StringUtil::builderAppendQuotedString(*output, m_stringValue);
 }
 
 std::unique_ptr<Value> StringValue::clone() const
@@ -336,7 +328,7 @@ void DictionaryValue::writeJSON(StringBuilder* output) const
         CHECK(it != m_data.end());
         if (i)
             StringUtil::builderAppend(*output, ',');
-        doubleQuoteStringForJSON(it->first, output);
+        StringUtil::builderAppendQuotedString(*output, it->first);
         StringUtil::builderAppend(*output, ':');
         it->second->writeJSON(output);
     }
@@ -400,6 +392,16 @@ protocol::Value* ListValue::at(size_t index)
 {
     DCHECK_LT(index, m_data.size());
     return m_data[index].get();
+}
+
+void escapeLatinStringForJSON(const uint8_t* str, unsigned len, StringBuilder* dst)
+{
+    escapeStringForJSONInternal<uint8_t>(str, len, dst);
+}
+
+void escapeWideStringForJSON(const uint16_t* str, unsigned len, StringBuilder* dst)
+{
+    escapeStringForJSONInternal<uint16_t>(str, len, dst);
 }
 
 {% for namespace in config.protocol.namespace %}

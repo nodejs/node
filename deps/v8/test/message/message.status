@@ -34,6 +34,12 @@
 
   # Modules which are only meant to be imported from by other tests, not to be
   # tested standalone.
-  'modules-skip*': [SKIP],
+  'fail/modules-skip*': [SKIP],
 }],  # ALWAYS
+
+##############################################################################
+# BUG(v8:7138).
+['arch == arm and not simulator_run and variant == wasm_traps', {
+  '*': [SKIP],
+}], # arch == arm and not simulator_run and variant == wasm_traps
 ]

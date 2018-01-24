@@ -40,11 +40,14 @@ let {session, contextGroup, Protocol} = InspectorTest.start('Tests how async pro
 
 function runWithAsyncChainPromise(len, source) {
   InspectorTest.log(`Run expression '${source}' with async chain len: ${len}`);
-  let then = '.then(() => 1)';
-  let pause = `.then(() => { ${source} })`;
-  Protocol.Runtime.evaluate({
-    expression: `Promise.resolve()${then.repeat(len - 1)}${pause}`
-  });
+  let asyncCall = `(function asyncCall(num) {
+    if (num === 0) {
+      ${source};
+      return;
+    }
+    Promise.resolve().then(() => asyncCall(num - 1));
+  })(${len})`;
+  Protocol.Runtime.evaluate({expression: asyncCall});
 }
 
 async function setMaxAsyncTaskStacks(max) {

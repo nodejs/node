@@ -2,8 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --no-always-opt --block-coverage
-// Flags: --harmony-async-iteration
+// Flags: --allow-natives-syntax --no-always-opt --harmony-async-iteration
 // Files: test/mjsunit/code-coverage-utils.js
 
 %DebugToggleBlockCoverage(true);
@@ -524,15 +523,15 @@ var FALSE = false;                        // 0050
 `,
 [{"start":0,"end":849,"count":1},
  {"start":101,"end":801,"count":1},
- {"start":167,"end":172,"count":0},
- {"start":217,"end":222,"count":0},
- {"start":260,"end":265,"count":0},
- {"start":310,"end":372,"count":0},
- {"start":467,"end":472,"count":0},
- {"start":559,"end":564,"count":0},
- {"start":617,"end":680,"count":0},
- {"start":710,"end":715,"count":0},
- {"start":775,"end":780,"count":0}]
+ {"start":165,"end":172,"count":0},
+ {"start":215,"end":222,"count":0},
+ {"start":258,"end":265,"count":0},
+ {"start":308,"end":372,"count":0},
+ {"start":465,"end":472,"count":0},
+ {"start":557,"end":564,"count":0},
+ {"start":615,"end":680,"count":0},
+ {"start":708,"end":715,"count":0},
+ {"start":773,"end":780,"count":0}]
 );
 
 TestCoverage(
@@ -547,9 +546,9 @@ it.next(); it.next();                     // 0250
 `,
 [{"start":0,"end":299,"count":1},
  {"start":11,"end":201,"count":3},
- {"start":64,"end":116,"count":1},
- {"start":116,"end":121,"count":0},
- {"start":124,"end":129,"count":1},
+ {"start":64,"end":114,"count":1},
+ {"start":114,"end":121,"count":0},
+ {"start":122,"end":129,"count":1},
  {"start":129,"end":200,"count":0}]
 );
 
@@ -625,9 +624,9 @@ it.next(); it.next(); it.next();          // 0300
 `,
 [{"start":0,"end":349,"count":1},
  {"start":11,"end":201,"count":7},
- {"start":65,"end":117,"count":1},
- {"start":117,"end":122,"count":0},
- {"start":125,"end":130,"count":1},
+ {"start":65,"end":115,"count":1},
+ {"start":115,"end":122,"count":0},
+ {"start":123,"end":130,"count":1},
  {"start":130,"end":200,"count":0}]
 );
 
@@ -666,5 +665,167 @@ f();                                      // 0200
  {"start":0,"end":151,"count":3},
  {"start":61,"end":150,"count":1}]
 );
+
+TestCoverage(
+"LogicalOrExpression assignment",
+`
+const a = true || 99                      // 0000
+function b () {                           // 0050
+  const b = a || 2                        // 0100
+}                                         // 0150
+b()                                       // 0200
+b()                                       // 0250
+`,
+[{"start":0,"end":299,"count":1},
+ {"start":15,"end":20,"count":0},
+ {"start":50,"end":151,"count":2},
+ {"start":114,"end":118,"count":0}]);
+
+TestCoverage(
+"LogicalOrExpression IsTest()",
+`
+true || false                             // 0000
+const a = 99                              // 0050
+a || 50                                   // 0100
+const b = false                           // 0150
+if (b || true) {}                         // 0200
+`,
+[{"start":0,"end":249,"count":1},
+ {"start":5,"end":13,"count":0},
+ {"start":102,"end":107,"count":0}]);
+
+TestCoverage(
+"LogicalAndExpression assignment",
+`
+const a = false && 99                     // 0000
+function b () {                           // 0050
+  const b = a && 2                        // 0100
+}                                         // 0150
+b()                                       // 0200
+b()                                       // 0250
+const c = true && 50                      // 0300
+`,
+[{"start":0,"end":349,"count":1},
+ {"start":16,"end":21,"count":0},
+ {"start":50,"end":151,"count":2},
+ {"start":114,"end":118,"count":0}]);
+
+TestCoverage(
+"LogicalAndExpression IsTest()",
+`
+false && true                             // 0000
+const a = 0                               // 0050
+a && 50                                   // 0100
+const b = true                            // 0150
+if (b && true) {}                         // 0200
+true && true                              // 0250
+`,
+[{"start":0,"end":299,"count":1},
+ {"start":6,"end":13,"count":0},
+ {"start":102,"end":107,"count":0}]);
+
+TestCoverage(
+"NaryLogicalOr assignment",
+`
+const a = true                            // 0000
+const b = false                           // 0050
+const c = false || false || 99            // 0100
+const d = false || true || 99             // 0150
+const e = true || true || 99              // 0200
+const f = b || b || 99                    // 0250
+const g = b || a || 99                    // 0300
+const h = a || a || 99                    // 0350
+const i = a || (b || c) || d              // 0400
+`,
+[{"start":0,"end":449,"count":1},
+ {"start":174,"end":179,"count":0},
+ {"start":215,"end":222,"count":0},
+ {"start":223,"end":228,"count":0},
+ {"start":317,"end":322,"count":0},
+ {"start":362,"end":366,"count":0},
+ {"start":367,"end":372,"count":0},
+ {"start":412,"end":423,"count":0},
+ {"start":424,"end":428,"count":0}]);
+
+TestCoverage(
+"NaryLogicalOr IsTest()",
+`
+const a = true                            // 0000
+const b = false                           // 0050
+false || false || 99                      // 0100
+false || true || 99                       // 0150
+true || true || 99                        // 0200
+b || b || 99                              // 0250
+b || a || 99                              // 0300
+a || a || 99                              // 0350
+`,
+[{"start":0,"end":399,"count":1},
+ {"start":164,"end":169,"count":0},
+ {"start":205,"end":212,"count":0},
+ {"start":213,"end":218,"count":0},
+ {"start":307,"end":312,"count":0},
+ {"start":352,"end":356,"count":0},
+ {"start":357,"end":362,"count":0}]);
+
+TestCoverage(
+"NaryLogicalAnd assignment",
+`
+const a = true                            // 0000
+const b = false                           // 0050
+const c = false && false && 99            // 0100
+const d = false && true && 99             // 0150
+const e = true && true && 99              // 0200
+const f = true && false || true           // 0250
+const g = true || false && true           // 0300
+`,
+[{"start":0,"end":349,"count":1},
+ {"start":116,"end":124,"count":0},
+ {"start":125,"end":130,"count":0},
+ {"start":166,"end":173,"count":0},
+ {"start":174,"end":179,"count":0},
+ {"start":315,"end":331,"count":0}
+]);
+
+TestCoverage(
+"NaryLogicalAnd IsTest()",
+`
+const a = true                            // 0000
+const b = false                           // 0050
+false && false && 99                      // 0100
+false && true && 99                       // 0150
+true && true && 99                        // 0200
+true && false || true                     // 0250
+true || false && true                     // 0300
+false || false || 99 || 55                // 0350
+`,
+[{"start":0,"end":399,"count":1},
+ {"start":106,"end":114,"count":0},
+ {"start":115,"end":120,"count":0},
+ {"start":156,"end":163,"count":0},
+ {"start":164,"end":169,"count":0},
+ {"start":305,"end":321,"count":0},
+ {"start":371,"end":376,"count":0}]);
+
+// see regression: https://bugs.chromium.org/p/chromium/issues/detail?id=785778
+TestCoverage(
+"logical expressions + conditional expressions",
+`
+const a = true                            // 0000
+const b = 99                              // 0050
+const c = false                           // 0100
+const d = ''                              // 0150
+const e = a && (b ? 'left' : 'right')     // 0200
+const f = a || (b ? 'left' : 'right')     // 0250
+const g = c || d ? 'left' : 'right'       // 0300
+const h = a && b && (b ? 'left' : 'right')// 0350
+const i = d || c || (c ? 'left' : 'right')// 0400
+`,
+[{"start":0,"end":449,"count":1},
+ {"start":227,"end":236,"count":0},
+ {"start":262,"end":287,"count":0},
+ {"start":317,"end":325,"count":0},
+ {"start":382,"end":391,"count":0},
+ {"start":423,"end":431,"count":0}
+]);
 
 %DebugToggleBlockCoverage(false);
