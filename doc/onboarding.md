@@ -9,6 +9,8 @@ onboarding session.
   GitHub account. Unless two-factor authentication is enabled, do not give an
   account elevated privileges such as the ability to land code in the main
   repository or to start continuous integration (CI) jobs.
+* Announce the accepted nomination in a TSC meeting and in the TSC
+  mailing list.
 
 ## Fifteen minutes before the onboarding session
 
@@ -199,12 +201,13 @@ onboarding session.
 * Optionally, include your personal pronouns.
 * Label your pull request with the `doc` subsystem label.
 * Run CI on your PR.
-* After one or two approvals, land the PR.
+* After one or two approvals, land the PR (PRs of this type do not need to wait
+  for 48/72 hours to land).
   * Be sure to add the `PR-URL: <full-pr-url>` and appropriate `Reviewed-By:`
-    metadata!
-  * [`core-validate-commit`][] helps a lot with this – install and use it if you
-    can!
-  * [`node-core-utils`][] fetches the metadata for you.
+    metadata.
+  * [`core-validate-commit`][] automates the validation of commit messages.
+  * [`node-core-utils`][] automates the generation of metadata and the landing
+    process. See the documentation of [`git-node`][].
 
 ## Final notes
 
@@ -227,6 +230,7 @@ onboarding session.
 
 [Code of Conduct]: https://github.com/nodejs/admin/blob/master/CODE_OF_CONDUCT.md
 [`core-validate-commit`]: https://github.com/evanlucas/core-validate-commit
+[`git-node`]: https://github.com/nodejs/node-core-utils#git-node
 [`node-core-utils`]: https://github.com/nodejs/node-core-utils
 [Landing Pull Requests]: https://github.com/nodejs/node/blob/master/COLLABORATOR_GUIDE.md#landing-pull-requests
 [https://github.com/nodejs/node/commit/ce986de829457c39257cd205067602e765768fb0]: https://github.com/nodejs/node/commit/ce986de829457c39257cd205067602e765768fb0
