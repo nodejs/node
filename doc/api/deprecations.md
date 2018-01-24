@@ -82,15 +82,15 @@ is strongly recommended:
 
 * [`Buffer.alloc(size[, fill[, encoding]])`][alloc] - Create a `Buffer` with
   *initialized* memory.
-* [`Buffer.allocUnsafe(size)`][alloc_unsafe_size] - Create a `Buffer` with 
+* [`Buffer.allocUnsafe(size)`][alloc_unsafe_size] - Create a `Buffer` with
   *uninitialized* memory.
 * [`Buffer.allocUnsafeSlow(size)`][] - Create a `Buffer` with *uninitialized*
    memory.
 * [`Buffer.from(array)`][] - Create a `Buffer` with a copy of `array`
-* [`Buffer.from(arrayBuffer[, byteOffset[, length]])`][from_arraybuffer] - 
+* [`Buffer.from(arrayBuffer[, byteOffset[, length]])`][from_arraybuffer] -
   Create a `Buffer` that wraps the given `arrayBuffer`.
 * [`Buffer.from(buffer)`][] - Create a `Buffer` that copies `buffer`.
-* [`Buffer.from(string[, encoding])`][from_string_encoding] - Create a `Buffer` 
+* [`Buffer.from(string[, encoding])`][from_string_encoding] - Create a `Buffer`
   that copies `string`.
 
 <a id="DEP0006"></a>
@@ -784,6 +784,14 @@ Importing assert directly is not recommended as the exposed functions will use
 loose equality checks. Use `require('assert').strict` instead. The API is the
 same as the legacy assert but it will always use strict equality checks.
 
+<a id="DEP0093"></a>
+### DEP0093: crypto.fips is deprecated and replaced.
+
+Type: Documentation-only
+
+The [`crypto.fips`][] property is deprecated. Please use `crypto.setFips()`
+and `crypto.getFips()` instead.
+
 <a id="DEP0098"></a>
 ### DEP0098: AsyncHooks Embedder AsyncResource.emit{Before,After} APIs
 
@@ -820,6 +828,7 @@ expose values under these names.
 [`console.error()`]: console.html#console_console_error_data_args
 [`console.log()`]: console.html#console_console_log_data_args
 [`crypto.createCredentials()`]: crypto.html#crypto_crypto_createcredentials_details
+[`crypto.fips`]: crypto.html#crypto_crypto_fips
 [`crypto.pbkdf2()`]: crypto.html#crypto_crypto_pbkdf2_password_salt_iterations_keylen_digest_callback
 [`domain`]: domain.html
 [`ecdh.setPublicKey()`]: crypto.html#crypto_ecdh_setpublickey_publickey_encoding
