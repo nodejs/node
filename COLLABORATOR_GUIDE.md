@@ -593,20 +593,20 @@ Validate that the commit message is properly formatted using
 $ git rev-list upstream/master...HEAD | xargs core-validate-commit
 ```
 
+Optional: When landing your own commits, force push the amended commit to the
+branch you used to open the pull request. If your branch is called `bugfix`,
+then the command would be `git push --force-with-lease origin master:bugfix`.
+When the pull request is closed, this will cause the pull request to
+show the purple merged status rather than the red closed status that is
+usually used for pull requests that weren't merged.
+
 Time to push it:
 
 ```text
 $ git push upstream master
 ```
-* Optional: Force push the amended commit to the branch you used to
-open the pull request. If your branch is called `bugfix`, then the
-command would be `git push --force-with-lease origin master:bugfix`.
-When the pull request is closed, this will cause the pull request to
-show the purple merged status rather than the red closed status that is
-usually used for pull requests that weren't merged. Only do this when
-landing your own contributions.
 
-* Close the pull request with a "Landed in `<commit hash>`" comment. If
+Close the pull request with a "Landed in `<commit hash>`" comment. If
 your pull request shows the purple merged status then you should still
 add the "Landed in <commit hash>..<commit hash>" comment if you added
 multiple commits.
