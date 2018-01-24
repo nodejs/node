@@ -137,6 +137,8 @@ Performance Timeline. This limit is not strictly enforced, but a process
 warning will be emitted if the number of entries in the timeline exceeds
 this limit.
 
+Defaults to 150.
+
 ### performance.measure(name, startMark, endMark)
 <!-- YAML
 added: v8.5.0
