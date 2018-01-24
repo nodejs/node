@@ -3063,3 +3063,88 @@ TEST(SamplingHeapProfilerLeftTrimming) {
 
   heap_profiler->StopSamplingHeapProfiler();
 }
+
+TEST(SamplingHeapProfilerPretenuredInlineAllocations) {
+  i::FLAG_allow_natives_syntax = true;
+  i::FLAG_expose_gc = true;
+
+  CcTest::InitializeVM();
+  if (!CcTest::i_isolate()->use_optimizer() || i::FLAG_always_opt) return;
+  if (i::FLAG_gc_global || i::FLAG_stress_compaction ||
+      i::FLAG_stress_incremental_marking) {
+    return;
+  }
+
+  v8::HandleScope scope(v8::Isolate::GetCurrent());
+  LocalContext env;
+  v8::HeapProfiler* heap_profiler = env->GetIsolate()->GetHeapProfiler();
+
+  // Suppress randomness to avoid flakiness in tests.
+  v8::internal::FLAG_sampling_heap_profiler_suppress_randomness = true;
+
+  // Grow new space unitl maximum capacity reached.
+  while (!CcTest::heap()->new_space()->IsAtMaximumCapacity()) {
+    CcTest::heap()->new_space()->Grow();
+  }
+
+  i::ScopedVector<char> source(1024);
+  i::SNPrintF(source,
+              "var number_elements = %d;"
+              "var elements = new Array(number_elements);"
+              "function f() {"
+              "  for (var i = 0; i < number_elements; i++) {"
+              "    elements[i] = [{}, {}, {}];"
+              "  }"
+              "  return elements[number_elements - 1];"
+              "};"
+              "f(); gc();"
+              "f(); f();"
+              "%%OptimizeFunctionOnNextCall(f);"
+              "f();"
+              "f;",
+              i::AllocationSite::kPretenureMinimumCreated + 1);
+
+  v8::Local<v8::Function> f =
+      v8::Local<v8::Function>::Cast(CompileRun(source.start()));
+
+  // Make sure the function is producing pre-tenured objects.
+  auto res = f->Call(env.local(), env->Global(), 0, NULL).ToLocalChecked();
+  i::Handle<i::JSObject> o = i::Handle<i::JSObject>::cast(
+      v8::Utils::OpenHandle(*v8::Local<v8::Object>::Cast(res)));
+  CHECK(CcTest::heap()->InOldSpace(o->elements()));
+  CHECK(CcTest::heap()->InOldSpace(*o));
+
+  // Call the function and profile it.
+  heap_profiler->StartSamplingHeapProfiler(64);
+  for (int i = 0; i < 100; ++i) {
+    f->Call(env.local(), env->Global(), 0, NULL).ToLocalChecked();
+  }
+
+  std::unique_ptr<v8::AllocationProfile> profile(
+      heap_profiler->GetAllocationProfile());
+  CHECK(profile);
+  heap_profiler->StopSamplingHeapProfiler();
+
+  const char* names[] = {"f"};
+  auto node_f = FindAllocationProfileNode(env->GetIsolate(), *profile,
+                                          ArrayVector(names));
+  CHECK(node_f);
+
+  int count = 0;
+  for (auto allocation : node_f->allocations) {
+    count += allocation.count;
+  }
+
+  CHECK_GE(count, 9000);
+}
+
+TEST(HeapSnapshotPrototypeNotJSReceiver) {
+  LocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
+  v8::HeapProfiler* heap_profiler = env->GetIsolate()->GetHeapProfiler();
+  CompileRun(
+      "function object() {}"
+      "object.prototype = 42;");
+  const v8::HeapSnapshot* snapshot = heap_profiler->TakeHeapSnapshot();
+  CHECK(ValidateSnapshot(snapshot));
+}
