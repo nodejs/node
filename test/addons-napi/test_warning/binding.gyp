@@ -1,7 +1,7 @@
 {
   "targets": [
     {
-      "target_name": "binding",
+      "target_name": "test_warning",
       "sources": [ "test_warning.c" ]
     },
     {

@@ -5,7 +5,7 @@ const common = require('../../common');
 // This tests the promise-related n-api calls
 
 const assert = require('assert');
-const test_promise = require(`./build/${common.buildType}/binding`);
+const test_promise = require(`./build/${common.buildType}/test_promise`);
 
 common.crashOnUnhandledRejection();
 

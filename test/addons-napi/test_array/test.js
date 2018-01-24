@@ -3,7 +3,7 @@ const common = require('../../common');
 const assert = require('assert');
 
 // Testing api calls for arrays
-const test_array = require(`./build/${common.buildType}/binding`);
+const test_array = require(`./build/${common.buildType}/test_array`);
 
 const array = [
   1,

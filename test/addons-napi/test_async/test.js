@@ -2,7 +2,7 @@
 const common = require('../../common');
 const assert = require('assert');
 const child_process = require('child_process');
-const test_async = require(`./build/${common.buildType}/binding`);
+const test_async = require(`./build/${common.buildType}/test_async`);
 
 const testException = 'test_async_cb_exception';
 
