@@ -150,17 +150,8 @@ class StreamListener {
   // with base nullpptr in case of an error.
   // `nread` is the number of read bytes (which is at most the buffer length),
   // or, if negative, a libuv error code.
-  // The variant with a `uv_handle_type` argument is used by libuv-backed
-  // streams for handle transfers (e.g. passing net.Socket instances between
-  // cluster workers). For all other streams, overriding the simple variant
-  // should be sufficient.
-  // By default, the second variant crashes if `pending` is set and otherwise
-  // calls the simple variant.
   virtual void OnStreamRead(ssize_t nread,
                             const uv_buf_t& buf) = 0;
-  virtual void OnStreamRead(ssize_t nread,
-                            const uv_buf_t& buf,
-                            uv_handle_type pending);
 
   // This is called once a Write has finished. `status` may be 0 or,
   // if negative, a libuv error code.
@@ -230,9 +221,7 @@ class StreamResource {
   uv_buf_t EmitAlloc(size_t suggested_size);
   // Call the current listener's OnStreamRead() method and update the
   // stream's read byte counter.
-  void EmitRead(ssize_t nread,
-                const uv_buf_t& buf = uv_buf_init(nullptr, 0),
-                uv_handle_type pending = UV_UNKNOWN_HANDLE);
+  void EmitRead(ssize_t nread, const uv_buf_t& buf = uv_buf_init(nullptr, 0));
   // Call the current listener's OnStreamAfterWrite() method.
   void EmitAfterWrite(WriteWrap* w, int status);
 
@@ -261,10 +250,7 @@ class StreamBase : public StreamResource {
   virtual bool IsIPCPipe();
   virtual int GetFD();
 
-  void CallJSOnreadMethod(
-      ssize_t nread,
-      v8::Local<v8::Object> buf,
-      v8::Local<v8::Object> handle = v8::Local<v8::Object>());
+  void CallJSOnreadMethod(ssize_t nread, v8::Local<v8::Object> buf);
 
   // These are called by the respective {Write,Shutdown}Wrap class.
   virtual void AfterShutdown(ShutdownWrap* req, int status);

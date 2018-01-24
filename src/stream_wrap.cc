@@ -93,7 +93,6 @@ LibuvStreamWrap::LibuvStreamWrap(Environment* env,
                  provider),
       StreamBase(env),
       stream_(stream) {
-  PushStreamListener(this);
 }
 
 
@@ -146,7 +145,13 @@ bool LibuvStreamWrap::IsIPCPipe() {
 
 
 int LibuvStreamWrap::ReadStart() {
-  return uv_read_start(stream(), OnAlloc, OnRead);
+  return uv_read_start(stream(), [](uv_handle_t* handle,
+                                    size_t suggested_size,
+                                    uv_buf_t* buf) {
+    static_cast<LibuvStreamWrap*>(handle->data)->OnUvAlloc(suggested_size, buf);
+  }, [](uv_stream_t* stream, ssize_t nread, const uv_buf_t* buf) {
+    static_cast<LibuvStreamWrap*>(stream->data)->OnUvRead(nread, buf);
+  });
 }
 
 
@@ -155,16 +160,11 @@ int LibuvStreamWrap::ReadStop() {
 }
 
 
-void LibuvStreamWrap::OnAlloc(uv_handle_t* handle,
-                              size_t suggested_size,
-                              uv_buf_t* buf) {
-  LibuvStreamWrap* wrap = static_cast<LibuvStreamWrap*>(handle->data);
-  HandleScope scope(wrap->env()->isolate());
-  Context::Scope context_scope(wrap->env()->context());
+void LibuvStreamWrap::OnUvAlloc(size_t suggested_size, uv_buf_t* buf) {
+  HandleScope scope(env()->isolate());
+  Context::Scope context_scope(env()->context());
 
-  CHECK_EQ(wrap->stream(), reinterpret_cast<uv_stream_t*>(handle));
-
-  *buf = wrap->EmitAlloc(suggested_size);
+  *buf = EmitAlloc(suggested_size);
 }
 
 
@@ -190,64 +190,47 @@ static Local<Object> AcceptHandle(Environment* env, LibuvStreamWrap* parent) {
 }
 
 
-void LibuvStreamWrap::OnStreamRead(ssize_t nread,
-                                   const uv_buf_t& buf,
-                                   uv_handle_type pending) {
-  HandleScope handle_scope(env()->isolate());
+void LibuvStreamWrap::OnUvRead(ssize_t nread, const uv_buf_t* buf) {
+  HandleScope scope(env()->isolate());
   Context::Scope context_scope(env()->context());
-
-  if (nread <= 0) {
-    free(buf.base);
-    if (nread < 0)
-      CallJSOnreadMethod(nread, Local<Object>());
-    return;
-  }
-
-  CHECK_LE(static_cast<size_t>(nread), buf.len);
-
-  Local<Object> pending_obj;
-
-  if (pending == UV_TCP) {
-    pending_obj = AcceptHandle<TCPWrap, uv_tcp_t>(env(), this);
-  } else if (pending == UV_NAMED_PIPE) {
-    pending_obj = AcceptHandle<PipeWrap, uv_pipe_t>(env(), this);
-  } else if (pending == UV_UDP) {
-    pending_obj = AcceptHandle<UDPWrap, uv_udp_t>(env(), this);
-  } else {
-    CHECK_EQ(pending, UV_UNKNOWN_HANDLE);
-  }
-
-  Local<Object> obj = Buffer::New(env(), buf.base, nread).ToLocalChecked();
-  CallJSOnreadMethod(nread, obj, pending_obj);
-}
-
-
-void LibuvStreamWrap::OnRead(uv_stream_t* handle,
-                             ssize_t nread,
-                             const uv_buf_t* buf) {
-  LibuvStreamWrap* wrap = static_cast<LibuvStreamWrap*>(handle->data);
-  HandleScope scope(wrap->env()->isolate());
-  Context::Scope context_scope(wrap->env()->context());
   uv_handle_type type = UV_UNKNOWN_HANDLE;
 
-  if (wrap->is_named_pipe_ipc() &&
-      uv_pipe_pending_count(reinterpret_cast<uv_pipe_t*>(handle)) > 0) {
-    type = uv_pipe_pending_type(reinterpret_cast<uv_pipe_t*>(handle));
+  if (is_named_pipe_ipc() &&
+      uv_pipe_pending_count(reinterpret_cast<uv_pipe_t*>(stream())) > 0) {
+    type = uv_pipe_pending_type(reinterpret_cast<uv_pipe_t*>(stream()));
   }
 
   // We should not be getting this callback if someone as already called
   // uv_close() on the handle.
-  CHECK_EQ(wrap->persistent().IsEmpty(), false);
+  CHECK_EQ(persistent().IsEmpty(), false);
 
   if (nread > 0) {
-    if (wrap->is_tcp()) {
+    if (is_tcp()) {
       NODE_COUNT_NET_BYTES_RECV(nread);
-    } else if (wrap->is_named_pipe()) {
+    } else if (is_named_pipe()) {
       NODE_COUNT_PIPE_BYTES_RECV(nread);
+    }
+
+    Local<Object> pending_obj;
+
+    if (type == UV_TCP) {
+      pending_obj = AcceptHandle<TCPWrap, uv_tcp_t>(env(), this);
+    } else if (type == UV_NAMED_PIPE) {
+      pending_obj = AcceptHandle<PipeWrap, uv_pipe_t>(env(), this);
+    } else if (type == UV_UDP) {
+      pending_obj = AcceptHandle<UDPWrap, uv_udp_t>(env(), this);
+    } else {
+      CHECK_EQ(type, UV_UNKNOWN_HANDLE);
+    }
+
+    if (!pending_obj.IsEmpty()) {
+      object()->Set(env()->context(),
+                    env()->pending_handle_string(),
+                    pending_obj).FromJust();
     }
   }
 
-  wrap->EmitRead(nread, *buf, type);
+  EmitRead(nread, *buf);
 }
 
 
@@ -375,11 +358,6 @@ void LibuvStreamWrap::AfterUvWrite(uv_write_t* req, int status) {
   HandleScope scope(req_wrap->env()->isolate());
   Context::Scope context_scope(req_wrap->env()->context());
   req_wrap->Done(status);
-}
-
-
-void LibuvStreamWrap::AfterWrite(WriteWrap* w, int status) {
-  StreamBase::AfterWrite(w, status);
 }
 
 }  // namespace node

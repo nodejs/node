@@ -433,22 +433,16 @@ void StreamBase::AfterWrite(WriteWrap* req_wrap, int status) {
 }
 
 
-void StreamBase::CallJSOnreadMethod(ssize_t nread,
-                                    Local<Object> buf,
-                                    Local<Object> handle) {
+void StreamBase::CallJSOnreadMethod(ssize_t nread, Local<Object> buf) {
   Environment* env = env_;
 
   Local<Value> argv[] = {
     Integer::New(env->isolate(), nread),
-    buf,
-    handle
+    buf
   };
 
   if (argv[1].IsEmpty())
     argv[1] = Undefined(env->isolate());
-
-  if (argv[2].IsEmpty())
-    argv[2] = Undefined(env->isolate());
 
   AsyncWrap* wrap = GetAsyncWrap();
   CHECK_NE(wrap, nullptr);
@@ -493,19 +487,6 @@ void StreamResource::ClearError() {
 
 uv_buf_t StreamListener::OnStreamAlloc(size_t suggested_size) {
   return uv_buf_init(Malloc(suggested_size), suggested_size);
-}
-
-void StreamListener::OnStreamRead(ssize_t nread, const uv_buf_t& buf) {
-  // This cannot be virtual because it is just as valid to override the other
-  // OnStreamRead() callback.
-  CHECK(0 && "OnStreamRead() needs to be implemented");
-}
-
-void StreamListener::OnStreamRead(ssize_t nread,
-                                  const uv_buf_t& buf,
-                                  uv_handle_type pending) {
-  CHECK_EQ(pending, UV_UNKNOWN_HANDLE);
-  OnStreamRead(nread, buf);
 }
 
 

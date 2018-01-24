@@ -215,6 +215,7 @@ class ModuleWrap;
   V(owner_string, "owner")                                                    \
   V(parse_error_string, "Parse Error")                                        \
   V(path_string, "path")                                                      \
+  V(pending_handle_string, "pendingHandle")                                   \
   V(pbkdf2_error_string, "PBKDF2 Error")                                      \
   V(pid_string, "pid")                                                        \
   V(pipe_string, "pipe")                                                      \
