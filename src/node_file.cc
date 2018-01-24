@@ -688,19 +688,23 @@ static void ReadLink(const FunctionCallbackInfo<Value>& args) {
 static void Rename(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
-  CHECK_GE(args.Length(), 2);
+  int argc = args.Length();
+  CHECK_GE(argc, 3);
 
   BufferValue old_path(env->isolate(), args[0]);
   CHECK_NE(*old_path, nullptr);
   BufferValue new_path(env->isolate(), args[1]);
   CHECK_NE(*new_path, nullptr);
 
-  if (args[2]->IsObject()) {
-    CHECK_EQ(args.Length(), 3);
+  if (args[2]->IsObject()) {  // rename(old_path, new_path, req)
+    CHECK_EQ(argc, 3);
     AsyncDestCall(env, args, "rename", *new_path, new_path.length(),
                   UTF8, AfterNoArgs, uv_fs_rename, *old_path, *new_path);
-  } else {
-    SYNC_DEST_CALL(rename, *old_path, *new_path, *old_path, *new_path)
+  } else {  // rename(old_path, new_path, undefined, ctx)
+    CHECK_EQ(argc, 4);
+    fs_req_wrap req_wrap;
+    SyncCall(env, args[3], &req_wrap, "rename",
+             uv_fs_rename, *old_path, *new_path);
   }
 }
 
