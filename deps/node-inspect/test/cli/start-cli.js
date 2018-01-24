@@ -16,8 +16,8 @@ const BREAK_MESSAGE = new RegExp('(?:' + [
   'exception', 'other', 'promiseRejection',
 ].join('|') + ') in', 'i');
 
-function startCLI(args) {
-  const child = spawn(process.execPath, [CLI, ...args]);
+function startCLI(args, flags = []) {
+  const child = spawn(process.execPath, [...flags, CLI, ...args]);
   let isFirstStdoutChunk = true;
 
   const outputBuffer = [];
