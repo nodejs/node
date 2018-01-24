@@ -521,6 +521,9 @@ ChannelWrap::~ChannelWrap() {
   }
 
   ares_destroy(channel_);
+
+  if (timer_handle_ == nullptr)
+    return;
   uv_timer_stop(timer_handle_);
   auto close_cb = [](Environment* env, void* data) {
     uv_close(reinterpret_cast<uv_handle_t*>(data), [](uv_handle_t* handle) {
