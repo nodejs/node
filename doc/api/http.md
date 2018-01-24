@@ -734,7 +734,7 @@ changes:
     description: The default action of calling `.destroy()` on the `socket`
                  will no longer take place if there are listeners attached
                  for `clientError`.
-  - version: REPLACEME
+  - version: v8.10.0
     pr-url: https://github.com/nodejs/node/pull/17672
     description: The rawPacket is the current buffer that just parsed. Adding
                  this buffer to the error object of clientError event is to make

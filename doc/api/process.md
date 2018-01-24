@@ -1398,7 +1398,7 @@ Android operating system. However, Android support in Node.js
 
 ## process.ppid
 <!-- YAML
-added: REPLACEME
+added: v8.10.0
 -->
 
 * {integer}

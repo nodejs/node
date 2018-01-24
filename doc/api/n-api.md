@@ -3695,7 +3695,7 @@ a specific `napi_env`.
 
 ### napi_get_uv_event_loop
 <!-- YAML
-added: REPLACEME
+added: v8.10.0
 -->
 ```C
 NAPI_EXTERN napi_status napi_get_uv_event_loop(napi_env env,

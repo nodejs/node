@@ -835,7 +835,7 @@ via `require('module')`.
 
 ### module.builtinModules
 <!-- YAML
-added: REPLACEME
+added: v8.10.0
 -->
 
 * {string[]}
