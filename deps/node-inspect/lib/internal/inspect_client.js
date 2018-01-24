@@ -164,12 +164,12 @@ function decodeFrameHybi17(data) {
 }
 
 class Client extends EventEmitter {
-  constructor(port, host) {
+  constructor() {
     super();
     this.handleChunk = this._handleChunk.bind(this);
 
-    this._port = port;
-    this._host = host;
+    this._port = undefined;
+    this._host = undefined;
 
     this.reset();
   }
@@ -284,7 +284,9 @@ class Client extends EventEmitter {
     });
   }
 
-  connect() {
+  connect(port, host) {
+    this._port = port;
+    this._host = host;
     return this._discoverWebsocketPath()
       .then((urlPath) => this._connectWebsocket(urlPath));
   }
