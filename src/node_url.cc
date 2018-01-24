@@ -99,6 +99,7 @@ class URLHost {
       case HostType::H_OPAQUE: value_.opaque.~string(); break;
       default: break;
     }
+    type_ = HostType::H_FAILED;
   }
 
   // Setting the string members of the union with = is brittle because
