@@ -711,18 +711,24 @@ static void Rename(const FunctionCallbackInfo<Value>& args) {
 static void FTruncate(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
+  const int argc = args.Length();
+  CHECK_GE(argc, 3);
+
   CHECK(args[0]->IsInt32());
+  const int fd = args[0].As<Int32>()->Value();
+
   CHECK(args[1]->IsNumber());
+  const int64_t len = args[1].As<Integer>()->Value();
 
-  int fd = args[0]->Int32Value();
-  const int64_t len = args[1]->IntegerValue();
-
-  if (args[2]->IsObject()) {
-    CHECK_EQ(args.Length(), 3);
+  if (args[2]->IsObject()) {  // ftruncate(fd, len, req)
+    CHECK_EQ(argc, 3);
     AsyncCall(env, args, "ftruncate", UTF8, AfterNoArgs,
               uv_fs_ftruncate, fd, len);
-  } else {
-    SYNC_CALL(ftruncate, 0, fd, len)
+  } else {  // ftruncate(fd, len, undefined, ctx)
+    CHECK_EQ(argc, 4);
+    fs_req_wrap req_wrap;
+    SyncCall(env, args[3], &req_wrap, "ftruncate",
+             uv_fs_ftruncate, fd, len);
   }
 }
 
