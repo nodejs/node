@@ -882,7 +882,7 @@ second argument. This might lead to difficult-to-spot errors.
 [`Set`]: https://developer.mozilla.org/en/docs/Web/JavaScript/Reference/Global_Objects/Set
 [`Symbol`]: https://developer.mozilla.org/en/docs/Web/JavaScript/Reference/Global_Objects/Symbol
 [`TypeError`]: errors.html#errors_class_typeerror
-[`WeakMap`]: https://developer.mozilla.org/en/docs/Web/JavaScript/Reference/Global_Objects/WeapMap
+[`WeakMap`]: https://developer.mozilla.org/en/docs/Web/JavaScript/Reference/Global_Objects/WeakMap
 [`WeakSet`]: https://developer.mozilla.org/en/docs/Web/JavaScript/Reference/Global_Objects/WeakSet
 [`assert.deepEqual()`]: #assert_assert_deepequal_actual_expected_message
 [`assert.deepStrictEqual()`]: #assert_assert_deepstrictequal_actual_expected_message
