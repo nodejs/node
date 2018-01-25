@@ -35,6 +35,21 @@ if (!is.null(plot.filename)) {
   ggsave(plot.filename, p);
 }
 
+# computes the shared standard error, as used in the welch t-test
+welch.sd = function (old.rate, new.rate) {
+  old.se.squared = var(old.rate) / length(old.rate)
+  new.se.squared = var(new.rate) / length(new.rate)
+  return(sqrt(old.se.squared + new.se.squared))
+}
+
+# calculate the improvement confidence interval. The improvement is calculated
+# by dividing by old.mu and not new.mu, because old.mu is what the mean
+# improvement is calculated relative to.
+confidence.interval = function (shared.se, old.mu, w, risk) {
+  interval = qt(1 - (risk / 2), w$parameter) * shared.se;
+  return(sprintf("±%.2f%%", (interval / old.mu) * 100))
+}
+
 # Print a table with results
 statistics = ddply(dat, "name", function(subdat) {
   old.rate = subset(subdat, binary == "old")$rate;
@@ -45,33 +60,42 @@ statistics = ddply(dat, "name", function(subdat) {
   new.mu = mean(new.rate);
   improvement = sprintf("%.2f %%", ((new.mu - old.mu) / old.mu * 100));
 
-  p.value = NA;
-  confidence = 'NA';
+  r = list(
+    confidence = "NA",
+    improvement = improvement,
+    "accuracy (*)" = "NA",
+    "(**)" = "NA",
+    "(***)" = "NA"
+  );
+
   # Check if there is enough data to calculate the calculate the p-value
   if (length(old.rate) > 1 && length(new.rate) > 1) {
     # Perform a statistics test to see of there actually is a difference in
     # performance.
     w = t.test(rate ~ binary, data=subdat);
-    p.value = w$p.value;
+    shared.se = welch.sd(old.rate, new.rate)
 
     # Add user friendly stars to the table. There should be at least one star
     # before you can say that there is an improvement.
     confidence = '';
-    if (p.value < 0.001) {
+    if (w$p.value < 0.001) {
       confidence = '***';
-    } else if (p.value < 0.01) {
+    } else if (w$p.value < 0.01) {
       confidence = '**';
-    } else if (p.value < 0.05) {
+    } else if (w$p.value < 0.05) {
       confidence = '*';
     }
+
+    r = list(
+      confidence = confidence,
+      improvement = improvement,
+      "accuracy (*)" = confidence.interval(shared.se, old.mu, w, 0.05),
+      "(**)" = confidence.interval(shared.se, old.mu, w, 0.01),
+      "(***)" = confidence.interval(shared.se, old.mu, w, 0.001)
+    );
   }
 
-  r = list(
-    improvement = improvement,
-    confidence = confidence,
-    p.value = p.value
-  );
-  return(data.frame(r));
+  return(data.frame(r, check.names=FALSE));
 });
 
 
@@ -81,3 +105,16 @@ statistics$name = NULL;
 
 options(width = 200);
 print(statistics);
+cat("\n")
+cat(sprintf(
+"Be aware that when doing many comparisions the risk of a false-positive
+result increases. In this case there are %d comparisions, you can thus
+expect the following amount of false-positive results:
+  %.2f false positives, when considering a   5%% risk acceptance (*, **, ***),
+  %.2f false positives, when considering a   1%% risk acceptance (**, ***),
+  %.2f false positives, when considering a 0.1%% risk acceptance (***)
+",
+nrow(statistics),
+nrow(statistics) * 0.05,
+nrow(statistics) * 0.01,
+nrow(statistics) * 0.001))
