@@ -151,27 +151,30 @@ inline v8::Local<v8::Value> UVException(int errorno,
  * These methods need to be called in a HandleScope.
  *
  * It is preferred that you use the `MakeCallback` overloads taking
- * `async_id` arguments.
+ * `async_context` arguments.
  */
 
-NODE_EXTERN v8::Local<v8::Value> MakeCallback(
-    v8::Isolate* isolate,
-    v8::Local<v8::Object> recv,
-    const char* method,
-    int argc,
-    v8::Local<v8::Value>* argv);
-NODE_EXTERN v8::Local<v8::Value> MakeCallback(
-    v8::Isolate* isolate,
-    v8::Local<v8::Object> recv,
-    v8::Local<v8::String> symbol,
-    int argc,
-    v8::Local<v8::Value>* argv);
-NODE_EXTERN v8::Local<v8::Value> MakeCallback(
-    v8::Isolate* isolate,
-    v8::Local<v8::Object> recv,
-    v8::Local<v8::Function> callback,
-    int argc,
-    v8::Local<v8::Value>* argv);
+NODE_DEPRECATED("Use MakeCallback(..., async_context)",
+                NODE_EXTERN v8::Local<v8::Value> MakeCallback(
+                    v8::Isolate* isolate,
+                    v8::Local<v8::Object> recv,
+                    const char* method,
+                    int argc,
+                    v8::Local<v8::Value>* argv));
+NODE_DEPRECATED("Use MakeCallback(..., async_context)",
+                NODE_EXTERN v8::Local<v8::Value> MakeCallback(
+                    v8::Isolate* isolate,
+                    v8::Local<v8::Object> recv,
+                    v8::Local<v8::String> symbol,
+                    int argc,
+                    v8::Local<v8::Value>* argv));
+NODE_DEPRECATED("Use MakeCallback(..., async_context)",
+                NODE_EXTERN v8::Local<v8::Value> MakeCallback(
+                    v8::Isolate* isolate,
+                    v8::Local<v8::Object> recv,
+                    v8::Local<v8::Function> callback,
+                    int argc,
+                    v8::Local<v8::Value>* argv));
 
 }  // namespace node
 
