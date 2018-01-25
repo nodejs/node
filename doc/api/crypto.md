@@ -371,6 +371,14 @@ received _authentication tag_. If no tag is provided, or if the cipher text
 has been tampered with, [`decipher.final()`][] will throw, indicating that the
 cipher text should be discarded due to failed authentication.
 
+Note that this Node.js version does not verify the length of GCM authentication
+tags. Such a check *must* be implemented by applications and is crucial to the
+authenticity of the encrypted data, otherwise, an attacker can use an
+arbitrarily short authentication tag to increase the chances of successfully
+passing authentication (up to 0.39%). It is highly recommended to associate one
+of the values 16, 15, 14, 13, 12, 8 or 4 bytes with each key, and to only permit
+authentication tags of that length, see [NIST SP 800-38D][].
+
 The `decipher.setAuthTag()` method must be called before
 [`decipher.final()`][].
 
@@ -2288,6 +2296,7 @@ the `crypto`, `tls`, and `https` modules and are generally specific to OpenSSL.
 [HTML5's `keygen` element]: https://www.w3.org/TR/html5/forms.html#the-keygen-element
 [NIST SP 800-131A]: http://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.800-131Ar1.pdf
 [NIST SP 800-132]: http://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-132.pdf
+[NIST SP 800-38D]: http://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-38d.pdf
 [Nonce-Disrespecting Adversaries]: https://github.com/nonce-disrespect/nonce-disrespect
 [OpenSSL's SPKAC implementation]: https://www.openssl.org/docs/man1.0.2/apps/spkac.html
 [RFC 2412]: https://www.rfc-editor.org/rfc/rfc2412.txt
