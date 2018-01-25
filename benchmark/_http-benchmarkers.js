@@ -89,11 +89,14 @@ class TestDoubleBenchmarker {
   }
 
   create(options) {
+    const env = Object.assign({
+      duration: options.duration,
+      test_url: `http://127.0.0.1:${options.port}${options.path}`,
+    }, process.env);
+
     const child = child_process.fork(this.executable, {
       silent: true,
-      env: Object.assign({}, process.env, {
-        test_url: `http://127.0.0.1:${options.port}${options.path}`
-      })
+      env
     });
     return child;
   }
