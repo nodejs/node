@@ -85,6 +85,7 @@
       'lib/internal/cluster/master.js',
       'lib/internal/cluster/round_robin_handle.js',
       'lib/internal/cluster/shared_handle.js',
+      'lib/internal/cluster/sticky_handle.js',
       'lib/internal/cluster/utils.js',
       'lib/internal/cluster/worker.js',
       'lib/internal/crypto/certificate.js',
