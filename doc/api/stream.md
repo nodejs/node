@@ -580,9 +580,8 @@ The Readable can switch back to paused mode using one of the following:
 
 * If there are no pipe destinations, by calling the
   [`stream.pause()`][stream-pause] method.
-* If there are pipe destinations, by removing any [`'data'`][] event
-  handlers, and removing all pipe destinations by calling the
-  [`stream.unpipe()`][] method.
+* If there are pipe destinations, by removing all pipe destinations by
+  calling the [`stream.unpipe()`][] method.
 
 The important concept to remember is that a Readable will not generate data
 until a mechanism for either consuming or ignoring that data is provided. If
@@ -1459,9 +1458,10 @@ write succeeded.
 
 All calls to `writable.write()` that occur between the time `writable._write()`
 is called and the `callback` is called will cause the written data to be
-buffered. Once the `callback` is invoked, the stream will emit a [`'drain'`][]
-event. If a stream implementation is capable of processing multiple chunks of
-data at once, the `writable._writev()` method should be implemented.
+buffered. When the `callback` is invoked, the stream maybe will emit a
+[`'drain'`][] event. If a stream implementation is capable of processing
+multiple chunks of data at once, the `writable._writev()` method should be
+implemented.
 
 If the `decodeStrings` property is set in the constructor options, then
 `chunk` may be a string rather than a Buffer, and `encoding` will
