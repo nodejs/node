@@ -7,6 +7,7 @@ const { getSystemErrorName } = require('util');
 const fixtures = require('../common/fixtures');
 
 const fixture = fixtures.path('exit.js');
+const execOpts = { encoding: 'utf8', shell: process.env.SHELL };
 
 {
   execFile(
@@ -38,4 +39,11 @@ const fixture = fixtures.path('exit.js');
 
   child.kill();
   child.emit('close', code, null);
+}
+
+{
+  // Verify the shell option works properly
+  execFile('ls', [process.execPath, '*'], execOpts, common.mustCall((err) => {
+    assert.strictEqual(err, null);
+  }));
 }
