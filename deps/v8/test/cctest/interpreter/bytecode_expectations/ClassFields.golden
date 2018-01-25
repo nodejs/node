@@ -15,7 +15,7 @@ snippet: "
       static c;
       static ['d'];
     }
-
+  
     class B {
       a = 1;
       ['b'] = this.a;
@@ -138,7 +138,7 @@ snippet: "
       static c;
       static ['d'];
     }
-
+  
     class B extends class {} {
       a = 1;
       ['b'] = this.a;
@@ -149,7 +149,7 @@ snippet: "
         super();
       }
     }
-
+  
     class C extends B {
       a = 1;
       ['b'] = this.a;
@@ -159,7 +159,7 @@ snippet: "
         (() => super())();
       }
     }
-
+  
     new A;
     new B;
     new C;
@@ -335,3 +335,4 @@ constant pool: [
 ]
 handlers: [
 ]
+
