@@ -860,6 +860,13 @@ void SetupProcessObject(const FunctionCallbackInfo<Value>& args) {
   env->process_object()->Delete(
       env->context(),
       FIXED_ONE_BYTE_STRING(env->isolate(), "_setupProcessObject")).FromJust();
+
+
+  Local<Array> ret = Array::New(env->isolate(), 2);
+  ret->Set(env->context(), 0, env->binding_cache_object()).FromJust();
+  ret->Set(env->context(), 1, env->internal_binding_cache_object()).FromJust();
+
+  args.GetReturnValue().Set(ret);
 }
 
 
@@ -2526,22 +2533,6 @@ Maybe<bool> ProcessEmitDeprecationWarning(Environment* env,
 }
 
 
-static bool PullFromCache(Environment* env,
-                          const FunctionCallbackInfo<Value>& args,
-                          Local<String> module,
-                          Local<Object> cache) {
-  Local<Context> context = env->context();
-  Local<Value> exports_v;
-  Local<Object> exports;
-  if (cache->Get(context, module).ToLocal(&exports_v) &&
-      exports_v->IsObject() &&
-      exports_v->ToObject(context).ToLocal(&exports)) {
-    args.GetReturnValue().Set(exports);
-    return true;
-  }
-  return false;
-}
-
 static Local<Object> InitModule(Environment* env,
                                  node_module* mod,
                                  Local<String> module) {
@@ -2569,13 +2560,10 @@ static void ThrowIfNoSuchModule(Environment* env, const char* module_v) {
 static void Binding(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
-  Local<String> module;
-  if (!args[0]->ToString(env->context()).ToLocal(&module)) return;
+  CHECK(args[0]->IsString());
 
+  Local<String> module = args[0].As<String>();
   Local<Object> cache = env->binding_cache_object();
-
-  if (PullFromCache(env, args, module, cache))
-    return;
 
   // Append a string to process.moduleLoadList
   char buf[1024];
@@ -2609,13 +2597,10 @@ static void Binding(const FunctionCallbackInfo<Value>& args) {
 static void InternalBinding(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
-  Local<String> module;
-  if (!args[0]->ToString(env->context()).ToLocal(&module)) return;
+  CHECK(args[0]->IsString());
 
+  Local<String> module = args[0].As<String>();
   Local<Object> cache = env->internal_binding_cache_object();
-
-  if (PullFromCache(env, args, module, cache))
-    return;
 
   // Append a string to process.moduleLoadList
   char buf[1024];
