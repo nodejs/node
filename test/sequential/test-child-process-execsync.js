@@ -8,6 +8,7 @@ const TIMER = 200;
 const SLEEP = 2000;
 
 const start = Date.now();
+const execOpts = { encoding: 'utf8', shell: true };
 let err;
 let caught = false;
 
@@ -103,3 +104,8 @@ assert.strictEqual(ret, `${msg}\n`);
     return true;
   });
 }
+
+// Verify the shell option works properly
+assert.doesNotThrow(() => {
+  execFileSync(process.execPath, [], execOpts);
+});
