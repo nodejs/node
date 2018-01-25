@@ -892,6 +892,15 @@ Use [`asyncResource.runInAsyncScope()`][] API instead which provides a much
 safer, and more convenient, alternative. See
 https://github.com/nodejs/node/pull/18513 for more details.
 
+<a id="DEP0099"></a>
+### DEP0099: async context-unaware node::MakeCallback C++ APIs
+
+Type: Compile-time
+
+Certain versions of `node::MakeCallback` APIs available to native modules are
+deprecated. Please use the versions of the API that accept an `async_context`
+parameter.
+
 [`--pending-deprecation`]: cli.html#cli_pending_deprecation
 [`Buffer.allocUnsafeSlow(size)`]: buffer.html#buffer_class_method_buffer_allocunsafeslow_size
 [`Buffer.from(array)`]: buffer.html#buffer_class_method_buffer_from_array
