@@ -277,8 +277,6 @@ class ModuleWrap;
   V(async_hooks_after_function, v8::Function)                                 \
   V(async_hooks_promise_resolve_function, v8::Function)                       \
   V(async_hooks_binding, v8::Object)                                          \
-  V(binding_cache_object, v8::Object)                                         \
-  V(internal_binding_cache_object, v8::Object)                                \
   V(buffer_prototype_object, v8::Object)                                      \
   V(context, v8::Context)                                                     \
   V(host_import_module_dynamically_callback, v8::Function)                    \

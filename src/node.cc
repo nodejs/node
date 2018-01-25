@@ -860,13 +860,6 @@ void SetupProcessObject(const FunctionCallbackInfo<Value>& args) {
   env->process_object()->Delete(
       env->context(),
       FIXED_ONE_BYTE_STRING(env->isolate(), "_setupProcessObject")).FromJust();
-
-
-  Local<Array> ret = Array::New(env->isolate(), 2);
-  ret->Set(env->context(), 0, env->binding_cache_object()).FromJust();
-  ret->Set(env->context(), 1, env->internal_binding_cache_object()).FromJust();
-
-  args.GetReturnValue().Set(ret);
 }
 
 
@@ -2563,7 +2556,6 @@ static void Binding(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[0]->IsString());
 
   Local<String> module = args[0].As<String>();
-  Local<Object> cache = env->binding_cache_object();
 
   // Append a string to process.moduleLoadList
   char buf[1024];
@@ -2589,7 +2581,6 @@ static void Binding(const FunctionCallbackInfo<Value>& args) {
   } else {
     return ThrowIfNoSuchModule(env, *module_v);
   }
-  cache->Set(module, exports);
 
   args.GetReturnValue().Set(exports);
 }
@@ -2600,7 +2591,6 @@ static void InternalBinding(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[0]->IsString());
 
   Local<String> module = args[0].As<String>();
-  Local<Object> cache = env->internal_binding_cache_object();
 
   // Append a string to process.moduleLoadList
   char buf[1024];
@@ -2614,7 +2604,6 @@ static void InternalBinding(const FunctionCallbackInfo<Value>& args) {
   node_module* mod = get_internal_module(*module_v);
   if (mod == nullptr) return ThrowIfNoSuchModule(env, *module_v);
   Local<Object> exports = InitModule(env, mod, module);
-  cache->Set(module, exports);
 
   args.GetReturnValue().Set(exports);
 }
@@ -2622,14 +2611,9 @@ static void InternalBinding(const FunctionCallbackInfo<Value>& args) {
 static void LinkedBinding(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args.GetIsolate());
 
-  Local<String> module_name;
-  if (!args[0]->ToString(env->context()).ToLocal(&module_name)) return;
+  CHECK(args[0]->IsString());
 
-  Local<Object> cache = env->binding_cache_object();
-  Local<Value> exports_v = cache->Get(module_name);
-
-  if (exports_v->IsObject())
-    return args.GetReturnValue().Set(exports_v.As<Object>());
+  Local<String> module_name = args[0].As<String>();
 
   node::Utf8Value module_name_v(env->isolate(), module_name);
   node_module* mod = get_linked_module(*module_name_v);
@@ -2660,7 +2644,6 @@ static void LinkedBinding(const FunctionCallbackInfo<Value>& args) {
   }
 
   auto effective_exports = module->Get(exports_prop);
-  cache->Set(module_name, effective_exports);
 
   args.GetReturnValue().Set(effective_exports);
 }
