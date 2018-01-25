@@ -1,18 +1,24 @@
 'use strict';
 const common = require('../common.js');
+const PORT = common.PORT;
 
 const bench = common.createBenchmark(main, {
-  // unicode confuses ab on os x.
-  type: ['bytes', 'buffer'],
-  len: [4, 1024, 102400],
-  chunks: [1, 4],
-  c: [50, 500],
-  chunkedEnc: [1, 0]
+  res: ['normal', 'setHeader', 'setHeaderWH']
 });
 
-function main({ type, len, chunks, c, chunkedEnc, res }) {
+const type = 'bytes';
+const len = 4;
+const chunks = 0;
+const chunkedEnc = 0;
+const c = 50;
+
+// normal: writeHead(status, {...})
+// setHeader: statusCode = status, setHeader(...) x2
+// setHeaderWH: setHeader(...), writeHead(status, ...)
+function main({ res }) {
+  process.env.PORT = PORT;
   var server = require('../fixtures/simple-http-server.js')
-  .listen(common.PORT)
+  .listen(PORT)
   .on('listening', function() {
     const path = `/${type}/${len}/${chunks}/normal/${chunkedEnc}`;
 

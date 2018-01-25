@@ -185,7 +185,7 @@ exports.run = function(options, callback) {
     port: exports.PORT,
     path: '/',
     connections: 100,
-    duration: 10,
+    duration: 5,
     benchmarker: exports.default_http_benchmarker
   }, options);
   if (!options.benchmarker) {
