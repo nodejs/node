@@ -205,3 +205,4 @@ paused at:
   debugger;
   createPromise().then(#v => v * 2);
 }
+

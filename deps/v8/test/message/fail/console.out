@@ -13,3 +13,4 @@ Error: exception
     at Object.toString (*%(basename)s:24:39)
     at console.info (<anonymous>)
     at *%(basename)s:24:9
+

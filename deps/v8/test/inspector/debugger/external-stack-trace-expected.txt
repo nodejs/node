@@ -15,10 +15,10 @@ Running test: testInstrumentation
             callFrames : [
                 [0] : {
                     columnNumber : 15
-                    functionName :
+                    functionName : 
                     lineNumber : 0
                     scriptId : <scriptId>
-                    url :
+                    url : 
                 }
             ]
             description : stack

@@ -130,3 +130,4 @@ foo1 (test.js:9:2)
 -- Promise.finally --
 finally2 (test.js:225:34)
 (anonymous) (testFinally2.js:0:0)
+
