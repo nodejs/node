@@ -34,6 +34,8 @@ const constants = fs.constants;
 /* eslint-disable no-undef */
 common.allowGlobals(externalizeString, isOneByteString, x);
 
+common.refreshTmpDir();
+
 {
   const expected = 'ümlaut eins';  // Must be a unique string.
   externalizeString(expected);
@@ -74,8 +76,6 @@ common.allowGlobals(externalizeString, isOneByteString, x);
   assert.strictEqual(expected, fs.readFileSync(fn, 'utf8'));
 }
 
-common.refreshTmpDir();
-
 fs.open(fn, 'w', 0o644, common.mustCall(function(err, fd) {
   assert.ifError(err);
 
@@ -91,10 +91,10 @@ fs.open(fn, 'w', 0o644, common.mustCall(function(err, fd) {
   const written = common.mustCall(function(err, written) {
     assert.ifError(err);
     assert.strictEqual(0, written);
+    fs.write(fd, expected, 0, 'utf8', done);
   });
 
   fs.write(fd, '', 0, 'utf8', written);
-  fs.write(fd, expected, 0, 'utf8', done);
 }));
 
 const args = constants.O_CREAT | constants.O_WRONLY | constants.O_TRUNC;
@@ -113,10 +113,10 @@ fs.open(fn2, args, 0o644, common.mustCall((err, fd) => {
   const written = common.mustCall(function(err, written) {
     assert.ifError(err);
     assert.strictEqual(0, written);
+    fs.write(fd, expected, 0, 'utf8', done);
   });
 
   fs.write(fd, '', 0, 'utf8', written);
-  fs.write(fd, expected, 0, 'utf8', done);
 }));
 
 fs.open(fn3, 'w', 0o644, common.mustCall(function(err, fd) {
