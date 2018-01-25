@@ -327,7 +327,7 @@ function runTest(port, testIndex) {
     } else {
       server.close();
       successfulTests++;
-      runTest(port, nextTest++);
+      runTest(0, nextTest++);
     }
   }
 
@@ -345,7 +345,7 @@ function runTest(port, testIndex) {
           if (clientsCompleted === tcase.clients.length) {
             server.close();
             successfulTests++;
-            runTest(port, nextTest++);
+            runTest(0, nextTest++);
           }
         });
       }
@@ -355,7 +355,6 @@ function runTest(port, testIndex) {
 
 
 let nextTest = 0;
-runTest(0, nextTest++);
 runTest(0, nextTest++);
 
 
