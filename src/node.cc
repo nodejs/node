@@ -2835,22 +2835,6 @@ Maybe<bool> ProcessEmitDeprecationWarning(Environment* env,
 }
 
 
-static bool PullFromCache(Environment* env,
-                          const FunctionCallbackInfo<Value>& args,
-                          Local<String> module,
-                          Local<Object> cache) {
-  Local<Context> context = env->context();
-  Local<Value> exports_v;
-  Local<Object> exports;
-  if (cache->Get(context, module).ToLocal(&exports_v) &&
-      exports_v->IsObject() &&
-      exports_v->ToObject(context).ToLocal(&exports)) {
-    args.GetReturnValue().Set(exports);
-    return true;
-  }
-  return false;
-}
-
 static Local<Object> InitModule(Environment* env,
                                  node_module* mod,
                                  Local<String> module) {
@@ -2878,22 +2862,10 @@ static void ThrowIfNoSuchModule(Environment* env, const char* module_v) {
 static void Binding(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
-  Local<String> module;
-  if (!args[0]->ToString(env->context()).ToLocal(&module)) return;
+  CHECK(args[0]->IsString());
 
-  Local<Object> cache = env->binding_cache_object();
-
-  if (PullFromCache(env, args, module, cache))
-    return;
-
-  // Append a string to process.moduleLoadList
-  char buf[1024];
+  Local<String> module = args[0].As<String>();
   node::Utf8Value module_v(env->isolate(), module);
-  snprintf(buf, sizeof(buf), "Binding %s", *module_v);
-
-  Local<Array> modules = env->module_load_list_array();
-  uint32_t l = modules->Length();
-  modules->Set(l, OneByteString(env->isolate(), buf));
 
   node_module* mod = get_builtin_module(*module_v);
   Local<Object> exports;
@@ -2910,7 +2882,6 @@ static void Binding(const FunctionCallbackInfo<Value>& args) {
   } else {
     return ThrowIfNoSuchModule(env, *module_v);
   }
-  cache->Set(module, exports);
 
   args.GetReturnValue().Set(exports);
 }
@@ -2918,27 +2889,14 @@ static void Binding(const FunctionCallbackInfo<Value>& args) {
 static void InternalBinding(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
-  Local<String> module;
-  if (!args[0]->ToString(env->context()).ToLocal(&module)) return;
+  CHECK(args[0]->IsString());
 
-  Local<Object> cache = env->internal_binding_cache_object();
-
-  if (PullFromCache(env, args, module, cache))
-    return;
-
-  // Append a string to process.moduleLoadList
-  char buf[1024];
+  Local<String> module = args[0].As<String>();
   node::Utf8Value module_v(env->isolate(), module);
-  snprintf(buf, sizeof(buf), "Internal Binding %s", *module_v);
-
-  Local<Array> modules = env->module_load_list_array();
-  uint32_t l = modules->Length();
-  modules->Set(l, OneByteString(env->isolate(), buf));
 
   node_module* mod = get_internal_module(*module_v);
   if (mod == nullptr) return ThrowIfNoSuchModule(env, *module_v);
   Local<Object> exports = InitModule(env, mod, module);
-  cache->Set(module, exports);
 
   args.GetReturnValue().Set(exports);
 }
@@ -2946,14 +2904,9 @@ static void InternalBinding(const FunctionCallbackInfo<Value>& args) {
 static void LinkedBinding(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args.GetIsolate());
 
-  Local<String> module_name;
-  if (!args[0]->ToString(env->context()).ToLocal(&module_name)) return;
+  CHECK(args[0]->IsString());
 
-  Local<Object> cache = env->binding_cache_object();
-  Local<Value> exports_v = cache->Get(module_name);
-
-  if (exports_v->IsObject())
-    return args.GetReturnValue().Set(exports_v.As<Object>());
+  Local<String> module_name = args[0].As<String>();
 
   node::Utf8Value module_name_v(env->isolate(), module_name);
   node_module* mod = get_linked_module(*module_name_v);
@@ -2984,7 +2937,6 @@ static void LinkedBinding(const FunctionCallbackInfo<Value>& args) {
   }
 
   auto effective_exports = module->Get(exports_prop);
-  cache->Set(module_name, effective_exports);
 
   args.GetReturnValue().Set(effective_exports);
 }
@@ -3318,11 +3270,6 @@ void SetupProcessObject(Environment* env,
   READONLY_PROPERTY(process,
                     "version",
                     FIXED_ONE_BYTE_STRING(env->isolate(), NODE_VERSION));
-
-  // process.moduleLoadList
-  READONLY_PROPERTY(process,
-                    "moduleLoadList",
-                    env->module_load_list_array());
 
   // process.versions
   Local<Object> versions = Object::New(env->isolate());
