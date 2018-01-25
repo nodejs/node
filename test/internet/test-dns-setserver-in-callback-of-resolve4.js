@@ -10,3 +10,6 @@ const dns = require('dns');
 dns.resolve4('google.com', common.mustCall(function(/* err, nameServers */) {
   dns.setServers([ '8.8.8.8' ]);
 }));
+
+// Test https://github.com/nodejs/node/issues/14734
+dns.resolve4('google.com', common.mustCall());
