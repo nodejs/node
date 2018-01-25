@@ -9,4 +9,5 @@ while (t > 0) {
 }
 process.exit(55);
 
+// test/parallel/test-inspector-esm.js expects t and k to be context-allocated.
 (function force_context_allocation() { return t + k; })
