@@ -7,7 +7,6 @@ namespace node {
 namespace performance {
 
 using v8::Array;
-using v8::ArrayBuffer;
 using v8::Context;
 using v8::Function;
 using v8::FunctionCallbackInfo;
@@ -324,7 +323,6 @@ void Init(Local<Object> target,
   Environment* env = Environment::GetCurrent(context);
   Isolate* isolate = env->isolate();
   performance_state* state = env->performance_state();
-  auto state_ab = ArrayBuffer::New(isolate, state, sizeof(*state));
 
   target->Set(context,
               FIXED_ONE_BYTE_STRING(isolate, "observerCounts"),
