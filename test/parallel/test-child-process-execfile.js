@@ -6,6 +6,7 @@ const uv = process.binding('uv');
 const fixtures = require('../common/fixtures');
 
 const fixture = fixtures.path('exit.js');
+const execOpts = { encoding: 'utf8', shell: true };
 
 {
   execFile(
@@ -37,4 +38,11 @@ const fixture = fixtures.path('exit.js');
 
   child.kill();
   child.emit('close', code, null);
+}
+
+{
+  // Verify the shell option works properly
+  execFile(process.execPath, [fixture, 0], execOpts, common.mustCall((err) => {
+    assert.ifError(err);
+  }));
 }
