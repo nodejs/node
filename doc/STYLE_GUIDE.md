@@ -3,7 +3,7 @@
 * Documentation is written in markdown files with names formatted as
   `lowercase-with-dashes.md`.
   * Underscores in filenames are allowed only when they are present in the
-    topic the document will describe (e.g., `child_process`).
+    topic the document will describe (e.g. `child_process`).
   * Some files, such as top-level markdown files, are exceptions.
 * Documents should be word-wrapped at 80 characters.
 * The formatting described in `.editorconfig` is preferred.
