@@ -1886,16 +1886,6 @@ int ParseIP(const char* ip, ParseIPResult* result = nullptr) {
   return 0;
 }
 
-void IsIP(const FunctionCallbackInfo<Value>& args) {
-  node::Utf8Value ip(args.GetIsolate(), args[0]);
-  args.GetReturnValue().Set(ParseIP(*ip));
-}
-
-void IsIPv4(const FunctionCallbackInfo<Value>& args) {
-  node::Utf8Value ip(args.GetIsolate(), args[0]);
-  args.GetReturnValue().Set(4 == ParseIP(*ip));
-}
-
 void IsIPv6(const FunctionCallbackInfo<Value>& args) {
   node::Utf8Value ip(args.GetIsolate(), args[0]);
   args.GetReturnValue().Set(6 == ParseIP(*ip));
@@ -2138,8 +2128,6 @@ void Initialize(Local<Object> target,
 
   env->SetMethod(target, "getaddrinfo", GetAddrInfo);
   env->SetMethod(target, "getnameinfo", GetNameInfo);
-  env->SetMethod(target, "isIP", IsIP);
-  env->SetMethod(target, "isIPv4", IsIPv4);
   env->SetMethod(target, "isIPv6", IsIPv6);
   env->SetMethod(target, "canonicalizeIP", CanonicalizeIP);
 
