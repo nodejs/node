@@ -43,7 +43,7 @@ const execOpts = { encoding: 'utf8', shell: process.env.SHELL };
 
 {
   // Verify the shell option works properly
-  execFile('ls', [process.execPath, '*'], execOpts, common.mustCall((err) => {
+  execFile(process.execPath, [fixture, 0], execOpts, common.mustCall((err) => {
     assert.strictEqual(err, null);
   }));
 }
