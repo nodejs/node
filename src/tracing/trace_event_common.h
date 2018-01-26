@@ -189,6 +189,8 @@
 // trace points would carry a significant performance cost of acquiring a lock
 // and resolving the category.
 
+// Check that nobody includes this file directly.  Clients are supposed to
+// include the surrounding "trace_event.h" of their project instead.
 #if defined(TRACE_EVENT0)
 #error "Another copy of this file has already been included."
 #endif
