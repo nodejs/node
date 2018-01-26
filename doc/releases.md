@@ -126,10 +126,10 @@ be produced with a version string that does not have a trailing pre-release tag:
 This macro is used to signal an ABI version for native addons. It currently has
 two common uses in the community:
 
-- Determining what API to work against for compiling native addons, e.g.
+- Determining what API to work against for compiling native addons, for example:
   [NAN](https://github.com/nodejs/nan) uses it to form a compatibility-layer for
   much of what it wraps.
-- Determining the ABI for downloading pre-built binaries of native addons, e.g.
+- Determining the ABI for downloading pre-built binaries of native addons, for example:
   [node-pre-gyp](https://github.com/mapbox/node-pre-gyp) uses this value as
   exposed via `process.versions.modules` to help determine the appropriate
   binary to download at install-time.
@@ -167,7 +167,7 @@ $ changelog-maker --group --start-ref v2.3.1
 There is a separate `CHANGELOG_*.md` file for each major Node.js release line.
 These are located in the `doc/changelogs/` directory. Once the formatted list of
 changes is collected, it must be added to the top of the relevant changelog file
-in the release branch (e.g. a release for Node.js v4 would be added to the
+in the release branch (for example: a release for Node.js v4 would be added to the
 `/doc/changelogs/CHANGELOG_V4.md`).
 
 **Please do *not* add the changelog entries to the root `CHANGELOG.md` file.**
@@ -221,7 +221,7 @@ doc/api/*.md`.
 If this release includes any new deprecations it is necessary to ensure that
 those are assigned a proper static deprecation code. These are listed in the
 docs (see `doc/api/deprecations.md`) and in the source as `DEP00XX`. The code
-must be assigned a number (e.g. `DEP0012`). Note that this assignment should
+must be assigned a number (for example: `DEP0012`). Note that this assignment should
 occur when the PR is landed, but a check will be made when the release built is
 run.
 
@@ -390,7 +390,7 @@ This sets up the branch so that nightly builds are produced with the next
 version number _and_ a pre-release tag.
 
 Merge your release proposal branch into the stable branch that you are releasing
-from (e.g. `v8.x`), and rebase the corresponding staging branch (`v8.x-staging`)
+from (for example: `v8.x`), and rebase the corresponding staging branch (`v8.x-staging`)
 on top of that.
 
 Cherry-pick the release commit to `master`. After cherry-picking, edit
