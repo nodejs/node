@@ -23,6 +23,11 @@
 
 // If this issue gets fixed on Windows CI, this test can replace
 // test/parallel/test-tls-server-verify.js once the 60000 ms timer is removed.
+// Also, the number of `runTest()` calls (starting on line 367) will need to be
+// optimized. In the current test, there is only one. In the original test that
+// started failing, there were two. Here the number is higher to guarantee
+// failure on all Windows machines in CI. What's the ideal number? That may have
+// to be determined by experimentation.
 
 const common = require('../common');
 
@@ -363,6 +368,7 @@ function runTest(port, testIndex) {
 
 
 let nextTest = 0;
+runTest(0, nextTest++);
 runTest(0, nextTest++);
 runTest(0, nextTest++);
 
