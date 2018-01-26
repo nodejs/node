@@ -177,6 +177,7 @@ added: v0.1.26
 
 * `eventName` {string|symbol} The name of the event being listened for
 * `listener` {Function} The event handler function
+* `isOnce` {boolean} If `true` the `listener` was added via the `once()` method
 
 The `EventEmitter` instance will emit its own `'newListener'` event *before*
 a listener is added to its internal array of listeners.
@@ -221,6 +222,7 @@ changes:
 
 * `eventName` {string|symbol} The event name
 * `listener` {Function} The event handler function
+* `isOnce` {boolean} If `true` the `listener` was added via the `once()` method
 
 The `'removeListener'` event is emitted *after* the `listener` is removed.
 
