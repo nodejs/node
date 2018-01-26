@@ -223,7 +223,7 @@ is less than `0.05`._
 The `compare.R` tool can also produce a box plot by using the `--plot filename`
 option. In this case there are 48 different benchmark combinations, and there
 may be a need to filter the csv file. This can be done while benchmarking
-using the `--set` parameter (e.g. `--set encoding=ascii`) or by filtering results
+using the `--set` parameter (for example: `--set encoding=ascii`) or by filtering results
 afterwards using tools such as `sed` or `grep`. In the `sed` case be sure to
 keep the first line since that contains the header information.
 
@@ -285,7 +285,7 @@ chunk     encoding      mean confidence.interval
 Because the scatter plot can only show two variables (in this case _chunk_ and
 _encoding_) the rest is aggregated. Sometimes aggregating is a problem, this
 can be solved by filtering. This can be done while benchmarking using the
-`--set` parameter (e.g. `--set encoding=ascii`) or by filtering results
+`--set` parameter (for example: `--set encoding=ascii`) or by filtering results
 afterwards using tools such as `sed` or `grep`. In the `sed` case be
 sure to keep the first line since that contains the header information.
 

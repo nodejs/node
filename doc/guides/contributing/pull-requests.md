@@ -475,7 +475,7 @@ avoid stalling the Pull Request. Most nits can typically be fixed by the
 Node.js Collaborator landing the Pull Request but they can also be an
 opportunity for the contributor to learn a bit more about the project.
 
-It is always good to clearly indicate nits when you comment: e.g.
+It is always good to clearly indicate nits when you comment: for example:
 `Nit: change foo() to bar(). But this is not blocking.`
 
 ### Be aware of the person behind the code

@@ -193,7 +193,7 @@ backport the fix:
   * If a bug already exists
     * Add a reference to the GitHub issue.
     * Attach *merge-request-x.x* labels to the bug for any active branches
-      that still contain the bug. (e.g. merge-request-5.3,
+      that still contain the bug. (for example: merge-request-5.3,
       merge-request-5.4)
     * Add ofrobots-at-google.com to the cc list.
 * Once the merge has been approved, it should be merged using the
@@ -214,7 +214,7 @@ to be cherry-picked in the Node.js repository and V8-CI must test the change.
 
 * For each abandoned V8 branch corresponding to an LTS branch that is affected
   by the bug:
-  * Checkout a branch off the appropriate *vY.x-staging* branch (e.g.
+  * Checkout a branch off the appropriate *vY.x-staging* branch (for example:
     *v6.x-staging* to fix an issue in V8 5.1).
   * Cherry-pick the commit(s) from the V8 repository.
   * On Node.js < 9.0.0: Increase the patch level version in `v8-version.h`.
