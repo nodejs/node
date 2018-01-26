@@ -45,14 +45,14 @@
     'conditions': [
       ['GENERATOR=="ninja"', {
         'OBJ_DIR': '<(PRODUCT_DIR)/obj',
-        'V8_BASE': '<(PRODUCT_DIR)/obj/deps/v8/src/libv8_base.a',
+        'V8_BASE': '<(PRODUCT_DIR)/obj/deps/v8/gypfiles/libv8_base.a',
        }, {
          'OBJ_DIR%': '<(PRODUCT_DIR)/obj.target',
          'conditions': [
            [ 'build_v8_with_gn=="true"', {
              'V8_BASE': '<(PRODUCT_DIR)/obj.target/v8_monolith/geni/gn/obj/libv8_monolith.a',
            }, {
-             'V8_BASE': '<(PRODUCT_DIR)/obj.target/deps/v8/src/libv8_base.a',
+             'V8_BASE': '<(PRODUCT_DIR)/obj.target/deps/v8/gypfiles/libv8_base.a',
            }],
          ],
       }],

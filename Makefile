@@ -92,7 +92,7 @@ out/Debug/node: out/Makefile $(ALL_DEPS)
 
 out/Makefile .deps: deps/uv/uv.gyp deps/http_parser/http_parser.gyp \
               deps/zlib/zlib.gyp deps/v8/gypfiles/toolchain.gypi \
-              deps/v8/gypfiles/features.gypi deps/v8/src/v8.gyp node.gyp \
+              deps/v8/gypfiles/features.gypi deps/v8/gypfiles/v8.gyp node.gyp \
               common.gypi config.gypi
 	$(PYTHON) tools/gyp_node.py -f make
 
