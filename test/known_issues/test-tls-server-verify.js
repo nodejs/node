@@ -20,6 +20,10 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
+
+// If this issue gets fixed on Windows CI, this test can replace
+// test/parallel/test-tls-server-verify.js once the 60000 ms timer is removed.
+
 const common = require('../common');
 
 if (!common.hasCrypto)
@@ -42,6 +46,12 @@ const { SSL_OP_NO_SESSION_RESUMPTION_ON_RENEGOTIATION } =
   require('crypto').constants;
 const tls = require('tls');
 const fixtures = require('../common/fixtures');
+
+// Can't rely on test.py timeout in known_issues because a timeout is not a
+// failure. So use a JS-land timer instead. This should be removed if the
+// Windows CI issue is fixed and this test replaces the version in
+// test/parallel.
+setTimeout(() => { assert.fail('timeout'); }, 60000).unref();
 
 const testCases =
   [{ title: 'Do not request certs. Everyone is unauthorized.',
@@ -325,7 +335,7 @@ function runTest(port, testIndex) {
     } else {
       server.close();
       successfulTests++;
-      runTest(port, nextTest++);
+      runTest(0, nextTest++);
     }
   }
 
@@ -343,7 +353,7 @@ function runTest(port, testIndex) {
           if (clientsCompleted === tcase.clients.length) {
             server.close();
             successfulTests++;
-            runTest(port, nextTest++);
+            runTest(0, nextTest++);
           }
         });
       }
@@ -353,7 +363,6 @@ function runTest(port, testIndex) {
 
 
 let nextTest = 0;
-runTest(0, nextTest++);
 runTest(0, nextTest++);
 runTest(0, nextTest++);
 
