@@ -1876,60 +1876,42 @@ void AfterGetNameInfo(uv_getnameinfo_t* req,
   delete req_wrap;
 }
 
+using ParseIPResult = decltype(static_cast<ares_addr_port_node*>(0)->addr);
+
+int ParseIP(const char* ip, ParseIPResult* result = nullptr) {
+  ParseIPResult tmp;
+  if (result == nullptr) result = &tmp;
+  if (0 == uv_inet_pton(AF_INET, ip, result)) return 4;
+  if (0 == uv_inet_pton(AF_INET6, ip, result)) return 6;
+  return 0;
+}
 
 void IsIP(const FunctionCallbackInfo<Value>& args) {
   node::Utf8Value ip(args.GetIsolate(), args[0]);
-  char address_buffer[sizeof(struct in6_addr)];
-
-  int rc = 0;
-  if (uv_inet_pton(AF_INET, *ip, &address_buffer) == 0)
-    rc = 4;
-  else if (uv_inet_pton(AF_INET6, *ip, &address_buffer) == 0)
-    rc = 6;
-
-  args.GetReturnValue().Set(rc);
+  args.GetReturnValue().Set(ParseIP(*ip));
 }
 
 void IsIPv4(const FunctionCallbackInfo<Value>& args) {
   node::Utf8Value ip(args.GetIsolate(), args[0]);
-  char address_buffer[sizeof(struct in_addr)];
-
-  if (uv_inet_pton(AF_INET, *ip, &address_buffer) == 0) {
-    args.GetReturnValue().Set(true);
-  } else {
-    args.GetReturnValue().Set(false);
-  }
+  args.GetReturnValue().Set(4 == ParseIP(*ip));
 }
 
 void IsIPv6(const FunctionCallbackInfo<Value>& args) {
   node::Utf8Value ip(args.GetIsolate(), args[0]);
-  char address_buffer[sizeof(struct in6_addr)];
-
-  if (uv_inet_pton(AF_INET6, *ip, &address_buffer) == 0) {
-    args.GetReturnValue().Set(true);
-  } else {
-    args.GetReturnValue().Set(false);
-  }
+  args.GetReturnValue().Set(6 == ParseIP(*ip));
 }
 
 void CanonicalizeIP(const FunctionCallbackInfo<Value>& args) {
   v8::Isolate* isolate = args.GetIsolate();
   node::Utf8Value ip(isolate, args[0]);
-  char address_buffer[sizeof(struct in6_addr)];
+
+  ParseIPResult result;
+  const int rc = ParseIP(*ip, &result);
+  if (rc == 0) return;
+
   char canonical_ip[INET6_ADDRSTRLEN];
-
-  int af;
-  if (uv_inet_pton(AF_INET, *ip, &address_buffer) == 0)
-    af = AF_INET;
-  else if (uv_inet_pton(AF_INET6, *ip, &address_buffer) == 0)
-    af = AF_INET6;
-  else
-    return;
-
-  int err = uv_inet_ntop(af, address_buffer, canonical_ip,
-                         sizeof(canonical_ip));
-  CHECK_EQ(err, 0);
-
+  const int af = (rc == 4 ? AF_INET : AF_INET6);
+  CHECK_EQ(0, uv_inet_ntop(af, &result, canonical_ip, sizeof(canonical_ip)));
   args.GetReturnValue().Set(String::NewFromUtf8(isolate, canonical_ip));
 }
 
