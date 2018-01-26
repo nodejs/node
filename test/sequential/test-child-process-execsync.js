@@ -29,7 +29,7 @@ const TIMER = 200;
 const SLEEP = 2000;
 
 const start = Date.now();
-const execOpts = { encoding: 'utf8', shell: process.env.SHELL };
+const execOpts = { encoding: 'utf8', shell: true };
 let err;
 let caught = false;
 

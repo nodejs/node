@@ -7,7 +7,7 @@ const { getSystemErrorName } = require('util');
 const fixtures = require('../common/fixtures');
 
 const fixture = fixtures.path('exit.js');
-const execOpts = { encoding: 'utf8', shell: process.env.SHELL };
+const execOpts = { encoding: 'utf8', shell: true };
 
 {
   execFile(
