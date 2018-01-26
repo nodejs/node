@@ -13,6 +13,7 @@ namespace loader {
 
 using node::url::URL;
 using node::url::URL_FLAGS_FAILED;
+using v8::Array;
 using v8::Context;
 using v8::Function;
 using v8::FunctionCallbackInfo;
@@ -151,6 +152,9 @@ void ModuleWrap::Link(const FunctionCallbackInfo<Value>& args) {
   obj->linked_ = true;
   Local<Module> module(obj->module_.Get(isolate));
 
+  Local<Array> promises = Array::New(isolate,
+                                     module->GetModuleRequestsLength());
+
   // call the dependency resolve callbacks
   for (int i = 0; i < module->GetModuleRequestsLength(); i++) {
     Local<String> specifier = module->GetModuleRequest(i);
@@ -173,9 +177,11 @@ void ModuleWrap::Link(const FunctionCallbackInfo<Value>& args) {
     }
     Local<Promise> resolve_promise = resolve_return_value.As<Promise>();
     obj->resolve_cache_[specifier_std].Reset(env->isolate(), resolve_promise);
+
+    USE(promises->Set(mod_context, specifier, resolve_promise));
   }
 
-  args.GetReturnValue().Set(that);
+  args.GetReturnValue().Set(promises);
 }
 
 void ModuleWrap::Instantiate(const FunctionCallbackInfo<Value>& args) {
