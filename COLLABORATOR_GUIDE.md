@@ -243,7 +243,7 @@ Examples of breaking changes include:
 * altering expected timing of an event
 * changing the side effects of using a particular API
 
-Purely additive changes (e.g. adding new events to `EventEmitter`
+Purely additive changes (for example: adding new events to `EventEmitter`
 implementations, adding new arguments to a method in a way that allows
 existing code to continue working without modification, or adding new
 properties to an options argument) are semver-minor changes.
@@ -267,7 +267,7 @@ Such changes *must* be handled as semver-major changes but MAY be landed
 without a [Deprecation cycle](#deprecation-cycle).
 
 Note that errors thrown, along with behaviors and APIs implemented by
-dependencies of Node.js (e.g. those originating from V8) are generally not
+dependencies of Node.js (for example: those originating from V8) are generally not
 under the control of Node.js and therefore *are not directly subject to this
 policy*. However, care should still be taken when landing updates to
 dependencies when it is known or expected that breaking changes to error
@@ -308,7 +308,7 @@ Specifically:
 
 * Breaking changes should *never* land in Current or LTS except when:
   * Resolving critical security issues.
-  * Fixing a critical bug (e.g. fixing a memory leak) requires a breaking
+  * Fixing a critical bug (for example: fixing a memory leak) requires a breaking
     change.
   * There is TSC consensus that the change is required.
 * If a breaking commit does accidentally land in a Current or LTS branch, an
@@ -623,7 +623,7 @@ error: failed to push some refs to 'https://github.com/nodejs/node'
 hint: Updates were rejected because the remote contains work that you do
 hint: not have locally. This is usually caused by another repository pushing
 hint: to the same ref. You may want to first integrate the remote changes
-hint: (e.g. 'git pull ...') before pushing again.
+hint: (for example: 'git pull ...') before pushing again.
 hint: See the 'Note about fast-forwards' in 'git push --help' for details.
 ```
 

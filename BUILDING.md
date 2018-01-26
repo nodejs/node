@@ -62,7 +62,7 @@ note1 - The gcc4.8-libs package needs to be installed, because node
 
 *Note*: On Windows, running Node.js in windows terminal emulators like `mintty`
   requires the usage of [winpty](https://github.com/rprichard/winpty) for
-  Node's tty channels to work correctly (e.g. `winpty node.exe script.js`).
+  Node's tty channels to work correctly (for example: `winpty node.exe script.js`).
   In "Git bash" if you call the node shell alias (`node` without the `.exe`
   extension), `winpty` is used automatically.
 
@@ -251,7 +251,7 @@ To test if Node.js was built correctly:
 > Release\node -e "console.log('Hello from Node.js', process.version)"
 ```
 
-### Android/Android-based devices (e.g. Firefox OS)
+### Android/Android-based devices (for example: Firefox OS)
 
 Although these instructions for building on Android are provided, please note
 that Android is not an officially supported platform at this time. Patches to
