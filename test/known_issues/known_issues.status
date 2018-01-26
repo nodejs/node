@@ -9,16 +9,16 @@ prefix known_issues
 [$system==win32]
 
 [$system==linux]
-test-tls-server-verify-multiple-subprocesses: SKIP
+test-tls-server-verify: SKIP
 
 [$system==macos]
-test-tls-server-verify-multiple-subprocesses: SKIP
+test-tls-server-verify: SKIP
 
 [$system==solaris]
-test-tls-server-verify-multiple-subprocesses: SKIP
+test-tls-server-verify: SKIP
 
 [$system==freebsd]
-test-tls-server-verify-multiple-subprocesses: SKIP
+test-tls-server-verify: SKIP
 
 [$system==aix]
-test-tls-server-verify-multiple-subprocesses: SKIP
+test-tls-server-verify: SKIP
