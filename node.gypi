@@ -56,12 +56,12 @@
     }],
 
     [ 'node_enable_d8=="true"', {
-      'dependencies': [ 'deps/v8/src/d8.gyp:d8' ],
+      'dependencies': [ 'deps/v8/gypfiles/d8.gyp:d8' ],
     }],
     [ 'node_use_bundled_v8=="true"', {
       'dependencies': [
-        'deps/v8/src/v8.gyp:v8',
-        'deps/v8/src/v8.gyp:v8_libplatform'
+        'deps/v8/gypfiles/v8.gyp:v8',
+        'deps/v8/gypfiles/v8.gyp:v8_libplatform'
       ],
     }],
     [ 'node_use_v8_platform=="true"', {
@@ -104,14 +104,14 @@
        target_arch=="ia32" or target_arch=="x32")', {
       'defines': [ 'NODE_ENABLE_VTUNE_PROFILING' ],
       'dependencies': [
-        'deps/v8/src/third_party/vtune/v8vtune.gyp:v8_vtune'
+        'deps/v8/gypfiles/v8vtune.gyp:v8_vtune'
       ],
     }],
     [ 'node_no_browser_globals=="true"', {
       'defines': [ 'NODE_NO_BROWSER_GLOBALS' ],
     } ],
     [ 'node_use_bundled_v8=="true" and v8_postmortem_support=="true"', {
-      'dependencies': [ 'deps/v8/src/v8.gyp:postmortem-metadata' ],
+      'dependencies': [ 'deps/v8/gypfiles/v8.gyp:postmortem-metadata' ],
       'conditions': [
         # -force_load is not applicable for the static library
         [ 'force_load=="true"', {
