@@ -711,6 +711,8 @@ changes:
   * `exec` {string} File path to worker file. **Default:** `process.argv[1]`
   * `args` {Array} String arguments passed to worker.
     **Default:** `process.argv.slice(2)`
+  * `cwd` {string} Current working directory of the worker process. **Default:**
+    `undefined` (inherits from parent process)
   * `silent` {boolean} Whether or not to send output to parent's stdio.
     **Default:** `false`
   * `stdio` {Array} Configures the stdio of forked processes. Because the
