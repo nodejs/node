@@ -1271,16 +1271,19 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::SuspendGenerator(
   return *this;
 }
 
-BytecodeArrayBuilder& BytecodeArrayBuilder::RestoreGeneratorState(
-    Register generator) {
-  OutputRestoreGeneratorState(generator);
+BytecodeArrayBuilder& BytecodeArrayBuilder::SwitchOnGeneratorState(
+    Register generator, BytecodeJumpTable* jump_table) {
+  DCHECK_EQ(jump_table->case_value_base(), 0);
+  BytecodeNode node(CreateSwitchOnGeneratorStateNode(
+      generator, jump_table->constant_pool_index(), jump_table->size()));
+  WriteSwitch(&node, jump_table);
+  LeaveBasicBlock();
   return *this;
 }
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::ResumeGenerator(
-    Register generator, Register generator_state, RegisterList registers) {
-  OutputResumeGenerator(generator, generator_state, registers,
-                        registers.register_count());
+    Register generator, RegisterList registers) {
+  OutputResumeGenerator(generator, registers, registers.register_count());
   return *this;
 }
 

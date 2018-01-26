@@ -5,13 +5,8 @@
 #ifndef V8_HEAP_OBJECT_STATS_H_
 #define V8_HEAP_OBJECT_STATS_H_
 
-#include <set>
-
-#include "src/base/ieee754.h"
-#include "src/heap/heap.h"
-#include "src/heap/mark-compact.h"
-#include "src/heap/objects-visiting.h"
 #include "src/objects.h"
+#include "src/objects/code.h"
 
 // These instance types do not exist for actual use but are merely introduced
 // for object stats tracing. In contrast to Code and FixedArray sub types
@@ -28,8 +23,10 @@
   V(BYTECODE_ARRAY_HANDLER_TABLE_TYPE)    \
   V(CODE_STUBS_TABLE_TYPE)                \
   V(COW_ARRAY_TYPE)                       \
+  V(DEOPTIMIZATION_DATA_TYPE)             \
   V(DEPENDENT_CODE_TYPE)                  \
   V(ELEMENTS_TYPE)                        \
+  V(EMBEDDED_OBJECT_TYPE)                 \
   V(ENUM_CACHE_TYPE)                      \
   V(ENUM_INDICES_CACHE_TYPE)              \
   V(FEEDBACK_VECTOR_ENTRY_TYPE)           \
@@ -42,15 +39,16 @@
   V(NATIVE_CONTEXT_TYPE)                  \
   V(NOSCRIPT_SHARED_FUNCTION_INFOS_TYPE)  \
   V(NUMBER_STRING_CACHE_TYPE)             \
+  V(OBJECT_PROPERTY_DICTIONARY_TYPE)      \
   V(OBJECT_TO_CODE_TYPE)                  \
+  V(OPTIMIZED_CODE_LITERALS_TYPE)         \
   V(OTHER_CONTEXT_TYPE)                   \
-  V(PROPERTY_ARRAY_TYPE)                  \
-  V(PROPERTY_DICTIONARY_TYPE)             \
   V(PROTOTYPE_USERS_TYPE)                 \
   V(REGEXP_MULTIPLE_CACHE_TYPE)           \
   V(RETAINED_MAPS_TYPE)                   \
   V(SCOPE_INFO_TYPE)                      \
   V(SCRIPT_LIST_TYPE)                     \
+  V(SCRIPT_SHARED_FUNCTION_INFOS_TYPE)    \
   V(SERIALIZED_OBJECTS_TYPE)              \
   V(SINGLE_CHARACTER_STRING_CACHE_TYPE)   \
   V(STRING_SPLIT_CACHE_TYPE)              \
@@ -59,6 +57,9 @@
 
 namespace v8 {
 namespace internal {
+
+class Heap;
+class Isolate;
 
 class ObjectStats {
  public:

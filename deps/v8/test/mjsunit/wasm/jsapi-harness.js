@@ -11,6 +11,10 @@ const known_failures = {
   // Enter failing tests like follows:
   // "'WebAssembly.Instance.prototype.exports' accessor property":
   //  'https://bugs.chromium.org/p/v8/issues/detail?id=5507',
+  "Exported values have cached JS objects":
+      'https://bugs.chromium.org/p/v8/issues/detail?id=7364',
+  "Tables export cached ":
+      '://bugs.chromium.org/p/v8/issues/detail?id=7365',
 };
 
 let failures = [];

@@ -430,9 +430,9 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final {
   BytecodeArrayBuilder& SuspendGenerator(Register generator,
                                          RegisterList registers,
                                          int suspend_id);
-  BytecodeArrayBuilder& RestoreGeneratorState(Register generator);
+  BytecodeArrayBuilder& SwitchOnGeneratorState(Register generator,
+                                               BytecodeJumpTable* jump_table);
   BytecodeArrayBuilder& ResumeGenerator(Register generator,
-                                        Register generator_state,
                                         RegisterList registers);
 
   // Exception handling.

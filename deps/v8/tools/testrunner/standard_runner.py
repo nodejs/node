@@ -39,14 +39,13 @@ from testrunner.testproc.variant import VariantProc
 
 TIMEOUT_DEFAULT = 60
 
-# Variants ordered by expected runtime (slowest first).
 VARIANTS = ["default"]
 
 MORE_VARIANTS = [
-  "stress",
-  "stress_incremental_marking",
   "nooptimization",
+  "stress",
   "stress_background_compile",
+  "stress_incremental_marking",
   "wasm_traps",
 ]
 
@@ -86,15 +85,33 @@ PREDICTABLE_WRAPPER = os.path.join(
 # Mapping from mastername to list of buildernames. Buildernames can be strings
 # or compiled regexps which will be matched.
 BUILDER_WHITELIST_STAGING = {
+  'client.v8': [
+    re.compile(r'.*'),
+  ],
+  'client.v8.clusterfuzz': [
+    re.compile(r'.*'),
+  ],
+  'client.v8.ports': [
+    re.compile(r'.*'),
+  ],
+  'tryserver.v8': [
+    re.compile(r'.*'),
+  ],
 }
 _RE_TYPE = type(re.compile(''))
 
+# Specifies which architectures are whitelisted to use the staging test-runner.
+# List of arch strings, e.g. "x64".
+ARCH_WHITELIST_STAGING = [
+  'x64',
+]
 
 class StandardTestRunner(base_runner.BaseTestRunner):
     def __init__(self, *args, **kwargs):
         super(StandardTestRunner, self).__init__(*args, **kwargs)
 
         self.sancov_dir = None
+        self._variants = None
 
     def _get_default_suite_names(self):
       return ['default']
@@ -104,17 +121,6 @@ class StandardTestRunner(base_runner.BaseTestRunner):
         # Swarming doesn't print how isolated commands are called. Lets make
         # this less cryptic by printing it ourselves.
         print ' '.join(sys.argv)
-
-        if utils.GuessOS() == "macos":
-          # TODO(machenbach): Temporary output for investigating hanging test
-          # driver on mac.
-          print "V8 related processes running on this host:"
-          try:
-            print subprocess.check_output(
-              "ps -e | egrep 'd8|cctest|unittests'", shell=True)
-          except Exception:
-            pass
-
       return self._execute(args, options, suites)
 
     def _add_parser_options(self, parser):
@@ -149,7 +155,12 @@ class StandardTestRunner(base_runner.BaseTestRunner):
                         help="Additional flags to pass to each test command",
                         action="append", default=[])
       parser.add_option("--infra-staging", help="Use new test runner features",
-                        default=False, action="store_true")
+                        dest='infra_staging', default=None,
+                        action="store_true")
+      parser.add_option("--no-infra-staging",
+                        help="Opt out of new test runner features",
+                        dest='infra_staging', default=None,
+                        action="store_false")
       parser.add_option("--isolates", help="Whether to test isolates",
                         default=False, action="store_true")
       parser.add_option("-j", help="The number of parallel tasks to run",
@@ -222,8 +233,9 @@ class StandardTestRunner(base_runner.BaseTestRunner):
                         help="Number of runs with different random seeds")
 
     def _use_staging(self, options):
-      if options.infra_staging:
-        return True
+      if options.infra_staging is not None:
+        # True or False are used to explicitly opt in or out.
+        return options.infra_staging
       builder_configs = BUILDER_WHITELIST_STAGING.get(options.mastername, [])
       for builder_config in builder_configs:
         if (isinstance(builder_config, _RE_TYPE) and
@@ -231,11 +243,12 @@ class StandardTestRunner(base_runner.BaseTestRunner):
           return True
         if builder_config == options.buildername:
           return True
+      for arch in ARCH_WHITELIST_STAGING:
+        if self.build_config.arch == arch:
+          return True
       return False
 
     def _process_options(self, options):
-      global VARIANTS
-
       if options.sancov_dir:
         self.sancov_dir = options.sancov_dir
         if not os.path.exists(self.sancov_dir):
@@ -300,9 +313,6 @@ class StandardTestRunner(base_runner.BaseTestRunner):
       if options.random_seed_stress_count <= 1 and options.random_seed == 0:
         options.random_seed = self._random_seed()
 
-      # Use developer defaults if no variant was specified.
-      options.variants = options.variants or "dev"
-
       if options.variants == "infra_staging":
         options.variants = "exhaustive"
         options.infra_staging = True
@@ -310,18 +320,7 @@ class StandardTestRunner(base_runner.BaseTestRunner):
       # Use staging on whitelisted masters/builders.
       options.infra_staging = self._use_staging(options)
 
-      # Resolve variant aliases and dedupe.
-      # TODO(machenbach): Don't mutate global variable. Rather pass mutated
-      # version as local variable.
-      VARIANTS = list(set(reduce(
-          list.__add__,
-          (VARIANT_ALIASES.get(v, [v]) for v in options.variants.split(",")),
-          [],
-      )))
-
-      if not set(VARIANTS).issubset(ALL_VARIANTS):
-        print "All variants must be in %s" % str(ALL_VARIANTS)
-        raise base_runner.TestRunnerError()
+      self._variants = self._parse_variants(options.variants)
 
       def CheckTestMode(name, option):  # pragma: no cover
         if not option in ["run", "skip", "dontcare"]:
@@ -334,6 +333,23 @@ class StandardTestRunner(base_runner.BaseTestRunner):
         base_runner.TEST_MAP["default"].remove("intl")
         # TODO(machenbach): uncomment after infra side lands.
         # base_runner.TEST_MAP["d8_default"].remove("intl")
+
+    def _parse_variants(self, aliases_str):
+      # Use developer defaults if no variant was specified.
+      aliases_str = aliases_str or 'dev'
+      aliases = aliases_str.split(',')
+      user_variants = set(reduce(
+          list.__add__, [VARIANT_ALIASES.get(a, [a]) for a in aliases]))
+
+      result = [v for v in ALL_VARIANTS if v in user_variants]
+      if len(result) == len(user_variants):
+        return result
+
+      for v in user_variants:
+        if v not in ALL_VARIANTS:
+          print 'Unknown variant: %s' % v
+          raise base_runner.TestRunnerError()
+      assert False, 'Unreachable'
 
     def _setup_env(self):
       super(StandardTestRunner, self)._setup_env()
@@ -466,7 +482,7 @@ class StandardTestRunner(base_runner.BaseTestRunner):
         if options.cat:
           verbose.PrintTestSource(s.tests)
           continue
-        variant_gen = s.CreateLegacyVariantsGenerator(VARIANTS)
+        variant_gen = s.CreateLegacyVariantsGenerator(self._variants)
         variant_tests = [ t.create_variant(v, flags)
                           for t in s.tests
                           for v in variant_gen.FilterVariantsByTest(t)
@@ -570,7 +586,11 @@ class StandardTestRunner(base_runner.BaseTestRunner):
       tests_counter = TestsCounter()
       results = ResultsTracker()
       indicators = progress_indicator.ToProgressIndicatorProcs()
-      execproc = ExecutionProc(jobs, context)
+
+      outproc_factory = None
+      if self.build_config.predictable:
+        outproc_factory = predictable.get_outproc
+      execproc = ExecutionProc(jobs, context, outproc_factory)
 
       procs = [
         loader,
@@ -578,7 +598,7 @@ class StandardTestRunner(base_runner.BaseTestRunner):
         StatusFileFilterProc(options.slow_tests, options.pass_fail_tests),
         self._create_shard_proc(options),
         tests_counter,
-        VariantProc(VARIANTS),
+        VariantProc(self._variants),
         StatusFileFilterProc(options.slow_tests, options.pass_fail_tests),
       ] + indicators + [
         results,

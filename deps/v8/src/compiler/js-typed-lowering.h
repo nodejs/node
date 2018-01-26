@@ -72,6 +72,7 @@ class V8_EXPORT_PRIVATE JSTypedLowering final
   Reduction ReduceJSStoreMessage(Node* node);
   Reduction ReduceJSGeneratorStore(Node* node);
   Reduction ReduceJSGeneratorRestoreContinuation(Node* node);
+  Reduction ReduceJSGeneratorRestoreContext(Node* node);
   Reduction ReduceJSGeneratorRestoreRegister(Node* node);
   Reduction ReduceJSGeneratorRestoreInputOrDebugPos(Node* node);
   Reduction ReduceNumberBinop(Node* node);

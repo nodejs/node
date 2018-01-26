@@ -30,8 +30,6 @@ class WasmCodeWrapper {
 
   Vector<uint8_t> instructions() const;
 
-  Handle<WasmInstanceObject> wasm_instance() const;
-
 #ifdef ENABLE_DISASSEMBLER
   void Disassemble(const char* name, Isolate* isolate, std::ostream& os) const;
 #endif

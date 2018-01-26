@@ -1115,26 +1115,26 @@ void CollectTypeProfileNexus::Collect(Handle<String> type, int position) {
   Object* const feedback = GetFeedback();
 
   // Map source position to collection of types
-  Handle<NumberDictionary> types;
+  Handle<SimpleNumberDictionary> types;
 
   if (feedback == *FeedbackVector::UninitializedSentinel(isolate)) {
-    types = NumberDictionary::New(isolate, 1);
+    types = SimpleNumberDictionary::New(isolate, 1);
   } else {
-    types = handle(NumberDictionary::cast(feedback));
+    types = handle(SimpleNumberDictionary::cast(feedback));
   }
 
   Handle<ArrayList> position_specific_types;
 
   int entry = types->FindEntry(position);
-  if (entry == NumberDictionary::kNotFound) {
+  if (entry == SimpleNumberDictionary::kNotFound) {
     position_specific_types = ArrayList::New(isolate, 1);
-    types = NumberDictionary::Set(
+    types = SimpleNumberDictionary::Set(
         types, position, ArrayList::Add(position_specific_types, type));
   } else {
     DCHECK(types->ValueAt(entry)->IsArrayList());
     position_specific_types = handle(ArrayList::cast(types->ValueAt(entry)));
     if (!InList(position_specific_types, type)) {  // Add type
-      types = NumberDictionary::Set(
+      types = SimpleNumberDictionary::Set(
           types, position, ArrayList::Add(position_specific_types, type));
     }
   }
@@ -1155,12 +1155,12 @@ std::vector<int> CollectTypeProfileNexus::GetSourcePositions() const {
     return source_positions;
   }
 
-  Handle<NumberDictionary> types =
-      Handle<NumberDictionary>(NumberDictionary::cast(feedback), isolate);
+  Handle<SimpleNumberDictionary> types = Handle<SimpleNumberDictionary>(
+      SimpleNumberDictionary::cast(feedback), isolate);
 
-  for (int index = NumberDictionary::kElementsStartIndex;
-       index < types->length(); index += NumberDictionary::kEntrySize) {
-    int key_index = index + NumberDictionary::kEntryKeyIndex;
+  for (int index = SimpleNumberDictionary::kElementsStartIndex;
+       index < types->length(); index += SimpleNumberDictionary::kEntrySize) {
+    int key_index = index + SimpleNumberDictionary::kEntryKeyIndex;
     Object* key = types->get(key_index);
     if (key->IsSmi()) {
       int position = Smi::cast(key)->value();
@@ -1180,11 +1180,11 @@ std::vector<Handle<String>> CollectTypeProfileNexus::GetTypesForSourcePositions(
     return types_for_position;
   }
 
-  Handle<NumberDictionary> types =
-      Handle<NumberDictionary>(NumberDictionary::cast(feedback), isolate);
+  Handle<SimpleNumberDictionary> types = Handle<SimpleNumberDictionary>(
+      SimpleNumberDictionary::cast(feedback), isolate);
 
   int entry = types->FindEntry(position);
-  if (entry == NumberDictionary::kNotFound) {
+  if (entry == SimpleNumberDictionary::kNotFound) {
     return types_for_position;
   }
   DCHECK(types->ValueAt(entry)->IsArrayList());
@@ -1201,16 +1201,17 @@ std::vector<Handle<String>> CollectTypeProfileNexus::GetTypesForSourcePositions(
 namespace {
 
 Handle<JSObject> ConvertToJSObject(Isolate* isolate,
-                                   Handle<NumberDictionary> feedback) {
+                                   Handle<SimpleNumberDictionary> feedback) {
   Handle<JSObject> type_profile =
       isolate->factory()->NewJSObject(isolate->object_function());
 
-  for (int index = NumberDictionary::kElementsStartIndex;
-       index < feedback->length(); index += NumberDictionary::kEntrySize) {
-    int key_index = index + NumberDictionary::kEntryKeyIndex;
+  for (int index = SimpleNumberDictionary::kElementsStartIndex;
+       index < feedback->length();
+       index += SimpleNumberDictionary::kEntrySize) {
+    int key_index = index + SimpleNumberDictionary::kEntryKeyIndex;
     Object* key = feedback->get(key_index);
     if (key->IsSmi()) {
-      int value_index = index + NumberDictionary::kEntryValueIndex;
+      int value_index = index + SimpleNumberDictionary::kEntryValueIndex;
 
       Handle<ArrayList> position_specific_types(
           ArrayList::cast(feedback->get(value_index)));
@@ -1237,7 +1238,8 @@ JSObject* CollectTypeProfileNexus::GetTypeProfile() const {
     return *isolate->factory()->NewJSObject(isolate->object_function());
   }
 
-  return *ConvertToJSObject(isolate, handle(NumberDictionary::cast(feedback)));
+  return *ConvertToJSObject(isolate,
+                            handle(SimpleNumberDictionary::cast(feedback)));
 }
 
 }  // namespace internal

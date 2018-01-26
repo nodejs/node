@@ -2069,6 +2069,21 @@ Reduction JSTypedLowering::ReduceJSGeneratorRestoreContinuation(Node* node) {
   return Changed(continuation);
 }
 
+Reduction JSTypedLowering::ReduceJSGeneratorRestoreContext(Node* node) {
+  DCHECK_EQ(IrOpcode::kJSGeneratorRestoreContext, node->opcode());
+
+  const Operator* new_op =
+      simplified()->LoadField(AccessBuilder::ForJSGeneratorObjectContext());
+
+  // Mutate the node in-place.
+  DCHECK(OperatorProperties::HasContextInput(node->op()));
+  DCHECK(!OperatorProperties::HasContextInput(new_op));
+  node->RemoveInput(NodeProperties::FirstContextIndex(node));
+
+  NodeProperties::ChangeOp(node, new_op);
+  return Changed(node);
+}
+
 Reduction JSTypedLowering::ReduceJSGeneratorRestoreRegister(Node* node) {
   DCHECK_EQ(IrOpcode::kJSGeneratorRestoreRegister, node->opcode());
   Node* generator = NodeProperties::GetValueInput(node, 0);
@@ -2190,6 +2205,8 @@ Reduction JSTypedLowering::Reduce(Node* node) {
       return ReduceJSGeneratorStore(node);
     case IrOpcode::kJSGeneratorRestoreContinuation:
       return ReduceJSGeneratorRestoreContinuation(node);
+    case IrOpcode::kJSGeneratorRestoreContext:
+      return ReduceJSGeneratorRestoreContext(node);
     case IrOpcode::kJSGeneratorRestoreRegister:
       return ReduceJSGeneratorRestoreRegister(node);
     case IrOpcode::kJSGeneratorRestoreInputOrDebugPos:

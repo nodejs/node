@@ -141,6 +141,7 @@
   V(JSCreateGeneratorObject)    \
   V(JSCreateIterResultObject)   \
   V(JSCreateKeyValueArray)      \
+  V(JSCreatePromise)            \
   V(JSCreateLiteralArray)       \
   V(JSCreateEmptyLiteralArray)  \
   V(JSCreateLiteralObject)      \
@@ -191,6 +192,7 @@
   V(JSStoreModule)                     \
   V(JSGeneratorStore)                  \
   V(JSGeneratorRestoreContinuation)    \
+  V(JSGeneratorRestoreContext)         \
   V(JSGeneratorRestoreRegister)        \
   V(JSGeneratorRestoreInputOrDebugPos) \
   V(JSStackCheck)                      \
@@ -620,6 +622,11 @@
   V(AtomicOr)                   \
   V(AtomicXor)                  \
   V(SpeculationFence)           \
+  V(SignExtendWord8ToInt32)     \
+  V(SignExtendWord16ToInt32)    \
+  V(SignExtendWord8ToInt64)     \
+  V(SignExtendWord16ToInt64)    \
+  V(SignExtendWord32ToInt64)    \
   V(UnsafePointerAdd)
 
 #define MACHINE_SIMD_OP_LIST(V) \

@@ -314,11 +314,12 @@ namespace interpreter {
   V(ThrowSuperAlreadyCalledIfNotHole, AccumulatorUse::kRead)                   \
                                                                                \
   /* Generators */                                                             \
-  V(RestoreGeneratorState, AccumulatorUse::kWrite, OperandType::kReg)          \
+  V(SwitchOnGeneratorState, AccumulatorUse::kNone, OperandType::kReg,          \
+    OperandType::kIdx, OperandType::kUImm)                                     \
   V(SuspendGenerator, AccumulatorUse::kRead, OperandType::kReg,                \
     OperandType::kRegList, OperandType::kRegCount, OperandType::kUImm)         \
   V(ResumeGenerator, AccumulatorUse::kWrite, OperandType::kReg,                \
-    OperandType::kRegOut, OperandType::kRegOutList, OperandType::kRegCount)    \
+    OperandType::kRegOutList, OperandType::kRegCount)                          \
                                                                                \
   /* Debugger */                                                               \
   V(Debugger, AccumulatorUse::kNone)                                           \
@@ -626,7 +627,8 @@ class V8_EXPORT_PRIVATE Bytecodes final : public AllStatic {
 
   // Returns true if the bytecode is a switch.
   static constexpr bool IsSwitch(Bytecode bytecode) {
-    return bytecode == Bytecode::kSwitchOnSmiNoFeedback;
+    return bytecode == Bytecode::kSwitchOnSmiNoFeedback ||
+           bytecode == Bytecode::kSwitchOnGeneratorState;
   }
 
   // Returns true if |bytecode| has no effects. These bytecodes only manipulate

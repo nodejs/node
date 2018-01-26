@@ -710,27 +710,29 @@ void InstructionSelector::VisitWord32Ror(Node* node) {
   VisitShift(this, node, kIA32Ror);
 }
 
-#define RO_OP_LIST(V)                                     \
-  V(Word32Clz, kIA32Lzcnt)                                \
-  V(Word32Ctz, kIA32Tzcnt)                                \
-  V(Word32Popcnt, kIA32Popcnt)                            \
-  V(ChangeFloat32ToFloat64, kSSEFloat32ToFloat64)         \
-  V(RoundInt32ToFloat32, kSSEInt32ToFloat32)              \
-  V(ChangeInt32ToFloat64, kSSEInt32ToFloat64)             \
-  V(ChangeUint32ToFloat64, kSSEUint32ToFloat64)           \
-  V(TruncateFloat32ToInt32, kSSEFloat32ToInt32)           \
-  V(TruncateFloat32ToUint32, kSSEFloat32ToUint32)         \
-  V(ChangeFloat64ToInt32, kSSEFloat64ToInt32)             \
-  V(ChangeFloat64ToUint32, kSSEFloat64ToUint32)           \
-  V(TruncateFloat64ToUint32, kSSEFloat64ToUint32)         \
-  V(TruncateFloat64ToFloat32, kSSEFloat64ToFloat32)       \
-  V(RoundFloat64ToInt32, kSSEFloat64ToInt32)              \
-  V(BitcastFloat32ToInt32, kIA32BitcastFI)                \
-  V(BitcastInt32ToFloat32, kIA32BitcastIF)                \
-  V(Float32Sqrt, kSSEFloat32Sqrt)                         \
-  V(Float64Sqrt, kSSEFloat64Sqrt)                         \
-  V(Float64ExtractLowWord32, kSSEFloat64ExtractLowWord32) \
-  V(Float64ExtractHighWord32, kSSEFloat64ExtractHighWord32)
+#define RO_OP_LIST(V)                                       \
+  V(Word32Clz, kIA32Lzcnt)                                  \
+  V(Word32Ctz, kIA32Tzcnt)                                  \
+  V(Word32Popcnt, kIA32Popcnt)                              \
+  V(ChangeFloat32ToFloat64, kSSEFloat32ToFloat64)           \
+  V(RoundInt32ToFloat32, kSSEInt32ToFloat32)                \
+  V(ChangeInt32ToFloat64, kSSEInt32ToFloat64)               \
+  V(ChangeUint32ToFloat64, kSSEUint32ToFloat64)             \
+  V(TruncateFloat32ToInt32, kSSEFloat32ToInt32)             \
+  V(TruncateFloat32ToUint32, kSSEFloat32ToUint32)           \
+  V(ChangeFloat64ToInt32, kSSEFloat64ToInt32)               \
+  V(ChangeFloat64ToUint32, kSSEFloat64ToUint32)             \
+  V(TruncateFloat64ToUint32, kSSEFloat64ToUint32)           \
+  V(TruncateFloat64ToFloat32, kSSEFloat64ToFloat32)         \
+  V(RoundFloat64ToInt32, kSSEFloat64ToInt32)                \
+  V(BitcastFloat32ToInt32, kIA32BitcastFI)                  \
+  V(BitcastInt32ToFloat32, kIA32BitcastIF)                  \
+  V(Float32Sqrt, kSSEFloat32Sqrt)                           \
+  V(Float64Sqrt, kSSEFloat64Sqrt)                           \
+  V(Float64ExtractLowWord32, kSSEFloat64ExtractLowWord32)   \
+  V(Float64ExtractHighWord32, kSSEFloat64ExtractHighWord32) \
+  V(SignExtendWord8ToInt32, kIA32Movsxbl)                   \
+  V(SignExtendWord16ToInt32, kIA32Movsxwl)
 
 #define RR_OP_LIST(V)                                                         \
   V(TruncateFloat64ToWord32, kArchTruncateDoubleToI)                          \
@@ -766,6 +768,7 @@ void InstructionSelector::VisitWord32Ror(Node* node) {
   }
 RO_OP_LIST(RO_VISITOR)
 #undef RO_VISITOR
+#undef RO_OP_LIST
 
 #define RR_VISITOR(Name, opcode)                      \
   void InstructionSelector::Visit##Name(Node* node) { \
@@ -773,6 +776,7 @@ RO_OP_LIST(RO_VISITOR)
   }
 RR_OP_LIST(RR_VISITOR)
 #undef RR_VISITOR
+#undef RR_OP_LIST
 
 #define RRO_FLOAT_VISITOR(Name, avx, sse)             \
   void InstructionSelector::Visit##Name(Node* node) { \
@@ -780,6 +784,7 @@ RR_OP_LIST(RR_VISITOR)
   }
 RRO_FLOAT_OP_LIST(RRO_FLOAT_VISITOR)
 #undef RRO_FLOAT_VISITOR
+#undef RRO_FLOAT_OP_LIST
 
 #define FLOAT_UNOP_VISITOR(Name, avx, sse)                  \
   void InstructionSelector::Visit##Name(Node* node) {       \
@@ -787,6 +792,7 @@ RRO_FLOAT_OP_LIST(RRO_FLOAT_VISITOR)
   }
 FLOAT_UNOP_LIST(FLOAT_UNOP_VISITOR)
 #undef FLOAT_UNOP_VISITOR
+#undef FLOAT_UNOP_LIST
 
 void InstructionSelector::VisitWord32ReverseBits(Node* node) { UNREACHABLE(); }
 
@@ -1928,6 +1934,7 @@ SIMD_INT_TYPES(VISIT_SIMD_EXTRACT_LANE)
 SIMD_INT_TYPES(VISIT_SIMD_REPLACE_LANE)
 VISIT_SIMD_REPLACE_LANE(F32x4)
 #undef VISIT_SIMD_REPLACE_LANE
+#undef SIMD_INT_TYPES
 
 #define VISIT_SIMD_SHIFT(Opcode)                                              \
   void InstructionSelector::Visit##Opcode(Node* node) {                       \
@@ -1942,6 +1949,7 @@ VISIT_SIMD_REPLACE_LANE(F32x4)
   }
 SIMD_SHIFT_OPCODES(VISIT_SIMD_SHIFT)
 #undef VISIT_SIMD_SHIFT
+#undef SIMD_SHIFT_OPCODES
 
 #define VISIT_SIMD_INT_UNOP(Opcode)                                         \
   void InstructionSelector::Visit##Opcode(Node* node) {                     \
@@ -1950,6 +1958,7 @@ SIMD_SHIFT_OPCODES(VISIT_SIMD_SHIFT)
   }
 SIMD_INT_UNOP_LIST(VISIT_SIMD_INT_UNOP)
 #undef VISIT_SIMD_INT_UNOP
+#undef SIMD_INT_UNOP_LIST
 
 #define VISIT_SIMD_OTHER_UNOP(Opcode)                                        \
   void InstructionSelector::Visit##Opcode(Node* node) {                      \
@@ -1959,6 +1968,7 @@ SIMD_INT_UNOP_LIST(VISIT_SIMD_INT_UNOP)
   }
 SIMD_OTHER_UNOP_LIST(VISIT_SIMD_OTHER_UNOP)
 #undef VISIT_SIMD_OTHER_UNOP
+#undef SIMD_OTHER_UNOP_LIST
 
 #define VISIT_SIMD_BINOP(Opcode)                           \
   void InstructionSelector::Visit##Opcode(Node* node) {    \
@@ -1966,6 +1976,7 @@ SIMD_OTHER_UNOP_LIST(VISIT_SIMD_OTHER_UNOP)
   }
 SIMD_BINOP_LIST(VISIT_SIMD_BINOP)
 #undef VISIT_SIMD_BINOP
+#undef SIMD_BINOP_LIST
 
 void InstructionSelector::VisitInt32AbsWithOverflow(Node* node) {
   UNREACHABLE();

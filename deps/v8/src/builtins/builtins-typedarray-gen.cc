@@ -73,6 +73,27 @@ class TypedArrayBuiltinsAssembler : public CodeStubAssembler {
   // Returns the byte size of an element for a TypedArray elements kind.
   TNode<IntPtrT> GetTypedArrayElementSize(TNode<Word32T> elements_kind);
 
+  TNode<Object> GetDefaultConstructor(TNode<Context> context,
+                                      TNode<JSTypedArray> exemplar);
+
+  TNode<Object> TypedArraySpeciesConstructor(TNode<Context> context,
+                                             TNode<JSTypedArray> exemplar,
+                                             TNode<Object> default_constructor);
+
+  TNode<JSTypedArray> SpeciesCreateByArrayBuffer(TNode<Context> context,
+                                                 TNode<JSTypedArray> exemplar,
+                                                 TNode<JSArrayBuffer> buffer,
+                                                 TNode<Number> byte_offset,
+                                                 TNode<Smi> len,
+                                                 const char* method_name);
+
+  TNode<JSArrayBuffer> GetBuffer(TNode<Context> context,
+                                 TNode<JSTypedArray> array);
+
+  TNode<JSTypedArray> ValidateTypedArray(TNode<Context> context,
+                                         TNode<Object> obj,
+                                         const char* method_name);
+
   // Fast path for setting a TypedArray (source) onto another TypedArray
   // (target) at an element offset.
   void SetTypedArraySource(TNode<Context> context, TNode<JSTypedArray> source,
@@ -937,6 +958,135 @@ TNode<IntPtrT> TypedArrayBuiltinsAssembler::GetTypedArrayElementSize(
   return element_size;
 }
 
+TNode<Object> TypedArrayBuiltinsAssembler::GetDefaultConstructor(
+    TNode<Context> context, TNode<JSTypedArray> exemplar) {
+  TVARIABLE(IntPtrT, context_slot);
+  TNode<Word32T> elements_kind = LoadElementsKind(exemplar);
+
+  Label next(this), constructor_found(this),
+      if_unknown_type(this, Label::kDeferred);
+
+  size_t const kTypedElementsKindCount = LAST_FIXED_TYPED_ARRAY_ELEMENTS_KIND -
+                                         FIRST_FIXED_TYPED_ARRAY_ELEMENTS_KIND +
+                                         1;
+
+  int32_t elements_kinds[kTypedElementsKindCount] = {
+#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype, size) TYPE##_ELEMENTS,
+      TYPED_ARRAYS(TYPED_ARRAY_CASE)
+#undef TYPED_ARRAY_CASE
+  };
+
+#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype, size) \
+  Label if_##type##array(this);
+  TYPED_ARRAYS(TYPED_ARRAY_CASE)
+#undef TYPED_ARRAY_CASE
+
+  Label* elements_kind_labels[kTypedElementsKindCount] = {
+#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype, size) &if_##type##array,
+      TYPED_ARRAYS(TYPED_ARRAY_CASE)
+#undef TYPED_ARRAY_CASE
+  };
+
+  Switch(elements_kind, &if_unknown_type, elements_kinds, elements_kind_labels,
+         kTypedElementsKindCount);
+
+#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype, size)             \
+  BIND(&if_##type##array);                                          \
+  {                                                                 \
+    context_slot = IntPtrConstant(Context::TYPE##_ARRAY_FUN_INDEX); \
+    Goto(&next);                                                    \
+  }
+  TYPED_ARRAYS(TYPED_ARRAY_CASE)
+#undef TYPED_ARRAY_CASE
+
+  BIND(&if_unknown_type);
+  Unreachable();
+
+  BIND(&next);
+  return LoadContextElement(LoadNativeContext(context), context_slot);
+}
+
+TNode<Object> TypedArrayBuiltinsAssembler::TypedArraySpeciesConstructor(
+    TNode<Context> context, TNode<JSTypedArray> exemplar,
+    TNode<Object> default_constructor) {
+  TVARIABLE(Object, var_constructor);
+  Label slow(this), done(this);
+
+  var_constructor = default_constructor;
+  Node* map = LoadMap(exemplar);
+  GotoIfNot(IsPrototypeTypedArrayPrototype(context, map), &slow);
+  Branch(IsSpeciesProtectorCellInvalid(), &slow, &done);
+
+  BIND(&slow);
+  var_constructor =
+      CAST(SpeciesConstructor(context, exemplar, default_constructor));
+  Goto(&done);
+
+  BIND(&done);
+  return var_constructor;
+}
+
+TNode<JSTypedArray> TypedArrayBuiltinsAssembler::SpeciesCreateByArrayBuffer(
+    TNode<Context> context, TNode<JSTypedArray> exemplar,
+    TNode<JSArrayBuffer> buffer, TNode<Number> byte_offset, TNode<Smi> len,
+    const char* method_name) {
+  // Let defaultConstructor be the intrinsic object listed in column one of
+  // Table 52 for exemplar.[[TypedArrayName]].
+  TNode<Object> default_constructor = GetDefaultConstructor(context, exemplar);
+
+  // Let constructor be ? SpeciesConstructor(exemplar, defaultConstructor).
+  TNode<Object> constructor =
+      TypedArraySpeciesConstructor(context, exemplar, default_constructor);
+
+  // Let newTypedArray be ? Construct(constructor, argumentList).
+  TNode<Object> new_object =
+      CAST(ConstructJS(CodeFactory::Construct(isolate()), context, constructor,
+                       buffer, byte_offset, len));
+
+  // Perform ? ValidateTypedArray(newTypedArray).
+  return ValidateTypedArray(context, new_object, method_name);
+}
+
+TNode<JSArrayBuffer> TypedArrayBuiltinsAssembler::GetBuffer(
+    TNode<Context> context, TNode<JSTypedArray> array) {
+  Label call_runtime(this), done(this);
+  TVARIABLE(Object, var_result);
+
+  TNode<Object> buffer = LoadObjectField(array, JSTypedArray::kBufferOffset);
+  GotoIf(IsDetachedBuffer(buffer), &call_runtime);
+  TNode<UintPtrT> backing_store = LoadObjectField<UintPtrT>(
+      CAST(buffer), JSArrayBuffer::kBackingStoreOffset);
+  GotoIf(WordEqual(backing_store, IntPtrConstant(0)), &call_runtime);
+  var_result = buffer;
+  Goto(&done);
+
+  BIND(&call_runtime);
+  {
+    var_result = CallRuntime(Runtime::kTypedArrayGetBuffer, context, array);
+    Goto(&done);
+  }
+
+  BIND(&done);
+  return CAST(var_result);
+}
+
+TNode<JSTypedArray> TypedArrayBuiltinsAssembler::ValidateTypedArray(
+    TNode<Context> context, TNode<Object> obj, const char* method_name) {
+  Label validation_done(this);
+
+  // If it is not a typed array, throw
+  ThrowIfNotInstanceType(context, obj, JS_TYPED_ARRAY_TYPE, method_name);
+
+  // If the typed array's buffer is detached, throw
+  TNode<Object> buffer =
+      LoadObjectField(CAST(obj), JSTypedArray::kBufferOffset);
+  GotoIfNot(IsDetachedBuffer(buffer), &validation_done);
+  ThrowTypeError(context, MessageTemplate::kDetachedOperation, method_name);
+
+  BIND(&validation_done);
+  return CAST(obj);
+}
+
 void TypedArrayBuiltinsAssembler::SetTypedArraySource(
     TNode<Context> context, TNode<JSTypedArray> source,
     TNode<JSTypedArray> target, TNode<IntPtrT> offset, Label* call_runtime,
@@ -1173,6 +1323,75 @@ TF_BUILTIN(TypedArrayPrototypeSet, TypedArrayBuiltinsAssembler) {
 
   BIND(&if_receiver_is_not_typedarray);
   ThrowTypeError(context, MessageTemplate::kNotTypedArray);
+}
+
+// ES %TypedArray%.prototype.subarray
+TF_BUILTIN(TypedArrayPrototypeSubArray, TypedArrayBuiltinsAssembler) {
+  const char* method_name = "%TypedArray%.prototype.subarray";
+  Label offset_done(this);
+
+  VARIABLE(var_begin, MachineRepresentation::kTagged);
+  VARIABLE(var_end, MachineRepresentation::kTagged);
+
+  TNode<Context> context = CAST(Parameter(BuiltinDescriptor::kContext));
+  CodeStubArguments args(
+      this, ChangeInt32ToIntPtr(Parameter(BuiltinDescriptor::kArgumentsCount)));
+
+  // 1. Let O be the this value.
+  // 3. If O does not have a [[TypedArrayName]] internal slot, throw a TypeError
+  // exception.
+  TNode<Object> receiver = args.GetReceiver();
+  ThrowIfNotInstanceType(context, receiver, JS_TYPED_ARRAY_TYPE, method_name);
+
+  TNode<JSTypedArray> source = CAST(receiver);
+
+  // 5. Let buffer be O.[[ViewedArrayBuffer]].
+  TNode<JSArrayBuffer> buffer = GetBuffer(context, source);
+  // 6. Let srcLength be O.[[ArrayLength]].
+  TNode<Smi> source_length =
+      LoadObjectField<Smi>(source, JSTypedArray::kLengthOffset);
+
+  // 7. Let relativeBegin be ? ToInteger(begin).
+  // 8. If relativeBegin < 0, let beginIndex be max((srcLength + relativeBegin),
+  // 0); else let beginIndex be min(relativeBegin, srcLength).
+  TNode<Object> begin = args.GetOptionalArgumentValue(0, SmiConstant(0));
+  ConvertToRelativeIndex(context, &var_begin, begin, source_length);
+
+  TNode<Object> end = args.GetOptionalArgumentValue(1, UndefinedConstant());
+  // 9. If end is undefined, let relativeEnd be srcLength;
+  var_end.Bind(source_length);
+  GotoIf(IsUndefined(end), &offset_done);
+
+  // else, let relativeEnd be ? ToInteger(end).
+  // 10. If relativeEnd < 0, let endIndex be max((srcLength + relativeEnd), 0);
+  // else let endIndex be min(relativeEnd, srcLength).
+  ConvertToRelativeIndex(context, &var_end, end, source_length);
+  Goto(&offset_done);
+
+  BIND(&offset_done);
+
+  // 11. Let newLength be max(endIndex - beginIndex, 0).
+  TNode<Smi> new_length =
+      SmiMax(SmiSub(var_end.value(), var_begin.value()), SmiConstant(0));
+
+  // 12. Let constructorName be the String value of O.[[TypedArrayName]].
+  // 13. Let elementSize be the Number value of the Element Size value specified
+  // in Table 52 for constructorName.
+  TNode<Word32T> element_kind = LoadElementsKind(source);
+  TNode<IntPtrT> element_size = GetTypedArrayElementSize(element_kind);
+
+  // 14. Let srcByteOffset be O.[[ByteOffset]].
+  TNode<Number> source_byte_offset =
+      LoadObjectField<Number>(source, JSTypedArray::kByteOffsetOffset);
+
+  // 15. Let beginByteOffset be srcByteOffset + beginIndex × elementSize.
+  TNode<Number> offset = SmiMul(var_begin.value(), SmiFromWord(element_size));
+  TNode<Number> begin_byte_offset = CAST(NumberAdd(source_byte_offset, offset));
+
+  // 16. Let argumentsList be « buffer, beginByteOffset, newLength ».
+  // 17. Return ? TypedArraySpeciesCreate(O, argumentsList).
+  args.PopAndReturn(SpeciesCreateByArrayBuffer(
+      context, source, buffer, begin_byte_offset, new_length, method_name));
 }
 
 // ES #sec-get-%typedarray%.prototype-@@tostringtag

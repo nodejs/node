@@ -2032,81 +2032,10 @@ Reduction JSBuiltinReducer::ReduceStringIteratorNext(Node* node) {
     Node* vtrue0;
     {
       done_true = jsgraph()->FalseConstant();
-      Node* lead = graph()->NewNode(simplified()->StringCharCodeAt(), string,
-                                    index, if_true0);
-
-      // branch1: if ((lead & 0xFC00) === 0xD800)
-      Node* check1 =
-          graph()->NewNode(simplified()->NumberEqual(),
-                           graph()->NewNode(simplified()->NumberBitwiseAnd(),
-                                            lead, jsgraph()->Constant(0xFC00)),
-                           jsgraph()->Constant(0xD800));
-      Node* branch1 = graph()->NewNode(common()->Branch(BranchHint::kFalse),
-                                       check1, if_true0);
-      Node* if_true1 = graph()->NewNode(common()->IfTrue(), branch1);
-      Node* vtrue1;
-      {
-        Node* next_index = graph()->NewNode(simplified()->NumberAdd(), index,
-                                            jsgraph()->OneConstant());
-        // branch2: if ((index + 1) < length)
-        Node* check2 = graph()->NewNode(simplified()->NumberLessThan(),
-                                        next_index, length);
-        Node* branch2 = graph()->NewNode(common()->Branch(BranchHint::kTrue),
-                                         check2, if_true1);
-        Node* if_true2 = graph()->NewNode(common()->IfTrue(), branch2);
-        Node* vtrue2;
-        {
-          Node* trail = graph()->NewNode(simplified()->StringCharCodeAt(),
-                                         string, next_index, if_true2);
-          // branch3: if ((trail & 0xFC00) === 0xDC00)
-          Node* check3 = graph()->NewNode(
-              simplified()->NumberEqual(),
-              graph()->NewNode(simplified()->NumberBitwiseAnd(), trail,
-                               jsgraph()->Constant(0xFC00)),
-              jsgraph()->Constant(0xDC00));
-          Node* branch3 = graph()->NewNode(common()->Branch(BranchHint::kTrue),
-                                           check3, if_true2);
-          Node* if_true3 = graph()->NewNode(common()->IfTrue(), branch3);
-          Node* vtrue3;
-          {
-            vtrue3 = graph()->NewNode(
-                simplified()->NumberBitwiseOr(),
-// Need to swap the order for big-endian platforms
-#if V8_TARGET_BIG_ENDIAN
-                graph()->NewNode(simplified()->NumberShiftLeft(), lead,
-                                 jsgraph()->Constant(16)),
-                trail);
-#else
-                graph()->NewNode(simplified()->NumberShiftLeft(), trail,
-                                 jsgraph()->Constant(16)),
-                lead);
-#endif
-          }
-
-          Node* if_false3 = graph()->NewNode(common()->IfFalse(), branch3);
-          Node* vfalse3 = lead;
-          if_true2 = graph()->NewNode(common()->Merge(2), if_true3, if_false3);
-          vtrue2 =
-              graph()->NewNode(common()->Phi(MachineRepresentation::kWord32, 2),
-                               vtrue3, vfalse3, if_true2);
-        }
-
-        Node* if_false2 = graph()->NewNode(common()->IfFalse(), branch2);
-        Node* vfalse2 = lead;
-        if_true1 = graph()->NewNode(common()->Merge(2), if_true2, if_false2);
-        vtrue1 =
-            graph()->NewNode(common()->Phi(MachineRepresentation::kWord32, 2),
-                             vtrue2, vfalse2, if_true1);
-      }
-
-      Node* if_false1 = graph()->NewNode(common()->IfFalse(), branch1);
-      Node* vfalse1 = lead;
-      if_true0 = graph()->NewNode(common()->Merge(2), if_true1, if_false1);
-      vtrue0 =
-          graph()->NewNode(common()->Phi(MachineRepresentation::kWord32, 2),
-                           vtrue1, vfalse1, if_true0);
+      Node* codepoint = etrue0 = graph()->NewNode(
+          simplified()->StringCodePointAt(), string, index, etrue0, if_true0);
       vtrue0 = graph()->NewNode(
-          simplified()->StringFromCodePoint(UnicodeEncoding::UTF16), vtrue0);
+          simplified()->StringFromCodePoint(UnicodeEncoding::UTF16), codepoint);
 
       // Update iterator.[[NextIndex]]
       Node* char_length =
@@ -2173,6 +2102,7 @@ Reduction JSBuiltinReducer::ReduceStringSlice(Node* node) {
 
       Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
       Node* vfalse;
+      Node* efalse;
       {
         // We need to convince TurboFan that {receiver_length}-1 is a valid
         // Unsigned32 value, so we just apply NumberToUint32 to the result
@@ -2181,14 +2111,16 @@ Reduction JSBuiltinReducer::ReduceStringSlice(Node* node) {
             graph()->NewNode(simplified()->NumberSubtract(), receiver_length,
                              jsgraph()->OneConstant());
         index = graph()->NewNode(simplified()->NumberToUint32(), index);
-        vfalse = graph()->NewNode(simplified()->StringCharAt(), receiver, index,
-                                  if_false);
+        vfalse = efalse = graph()->NewNode(simplified()->StringCharAt(),
+                                           receiver, index, effect, if_false);
       }
 
       control = graph()->NewNode(common()->Merge(2), if_true, if_false);
       Node* value =
           graph()->NewNode(common()->Phi(MachineRepresentation::kTagged, 2),
                            vtrue, vfalse, control);
+      effect =
+          graph()->NewNode(common()->EffectPhi(2), effect, efalse, control);
       ReplaceWithValue(node, value, effect, control);
       return Replace(value);
     }

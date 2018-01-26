@@ -1159,6 +1159,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArm64Sxth32:
       __ Sxth(i.OutputRegister32(), i.InputRegister32(0));
       break;
+    case kArm64Sxtb:
+      __ Sxtb(i.OutputRegister(), i.InputRegister32(0));
+      break;
+    case kArm64Sxth:
+      __ Sxth(i.OutputRegister(), i.InputRegister32(0));
+      break;
     case kArm64Sxtw:
       __ Sxtw(i.OutputRegister(), i.InputRegister32(0));
       break;

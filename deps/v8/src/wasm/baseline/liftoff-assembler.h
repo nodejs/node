@@ -271,8 +271,10 @@ class LiftoffAssembler : public TurboAssembler {
   // Load parameters into the right registers / stack slots for the call.
   // Move {*target} into another register if needed and update {*target} to that
   // register, or {no_reg} if target was spilled to the stack.
+  // TODO(clemensh): Remove {max_used_spill_slot} once we support arbitrary
+  // stack sizes.
   void PrepareCall(wasm::FunctionSig*, compiler::CallDescriptor*,
-                   Register* target = nullptr);
+                   uint32_t* max_used_spill_slot, Register* target = nullptr);
   // Process return values of the call.
   void FinishCall(wasm::FunctionSig*, compiler::CallDescriptor*);
 
@@ -294,15 +296,15 @@ class LiftoffAssembler : public TurboAssembler {
                     LiftoffRegister src, StoreType type, LiftoffRegList pinned,
                     uint32_t* protected_store_pc = nullptr);
   inline void LoadCallerFrameSlot(LiftoffRegister, uint32_t caller_slot_idx);
-  inline void MoveStackValue(uint32_t dst_index, uint32_t src_index);
+  inline void MoveStackValue(uint32_t dst_index, uint32_t src_index, ValueType);
 
   inline void MoveToReturnRegister(LiftoffRegister);
   // TODO(clemensh): Pass the type to {Move}, to emit more efficient code.
   inline void Move(LiftoffRegister dst, LiftoffRegister src);
 
-  inline void Spill(uint32_t index, LiftoffRegister);
+  inline void Spill(uint32_t index, LiftoffRegister, ValueType);
   inline void Spill(uint32_t index, WasmValue);
-  inline void Fill(LiftoffRegister, uint32_t index);
+  inline void Fill(LiftoffRegister, uint32_t index, ValueType);
 
   // i32 binops.
   inline void emit_i32_add(Register dst, Register lhs, Register rhs);
@@ -319,7 +321,6 @@ class LiftoffAssembler : public TurboAssembler {
                            LiftoffRegList pinned = {});
 
   // i32 unops.
-  inline bool emit_i32_eqz(Register dst, Register src);
   inline bool emit_i32_clz(Register dst, Register src);
   inline bool emit_i32_ctz(Register dst, Register src);
   inline bool emit_i32_popcnt(Register dst, Register src);
@@ -338,6 +339,8 @@ class LiftoffAssembler : public TurboAssembler {
   inline void emit_ptrsize_compare(Register, Register);
   inline void emit_jump(Label*);
   inline void emit_cond_jump(Condition, Label*);
+  // Set {dst} to 1 if condition holds, 0 otherwise.
+  inline void emit_i32_set_cond(Condition, Register dst);
 
   inline void StackCheck(Label* ool_code);
 
@@ -365,9 +368,11 @@ class LiftoffAssembler : public TurboAssembler {
 
   inline void CallNativeWasmCode(Address addr);
   inline void CallRuntime(Zone* zone, Runtime::FunctionId fid);
+  // TODO(clemensh): Remove {max_used_spill_slot} once we support arbitrary
+  // stack sizes.
   inline void CallIndirect(wasm::FunctionSig* sig,
-                           compiler::CallDescriptor* call_desc,
-                           Register target);
+                           compiler::CallDescriptor* call_desc, Register target,
+                           uint32_t* max_used_spill_slot);
 
   // Reserve space in the current frame, store address to space in {addr}.
   inline void AllocateStackSlot(Register addr, uint32_t size);

@@ -573,8 +573,8 @@ static inline uint8_t* AllocateAssemblerBuffer(
     size_t requested = v8::internal::AssemblerBase::kMinimalBufferSize) {
   size_t page_size = v8::internal::AllocatePageSize();
   size_t alloc_size = RoundUp(requested, page_size);
-  void* result = v8::internal::AllocatePages(nullptr, alloc_size, page_size,
-                                             v8::PageAllocator::kReadWrite);
+  void* result = v8::internal::AllocatePages(
+      nullptr, alloc_size, page_size, v8::PageAllocator::kReadWriteExecute);
   CHECK(result);
   *allocated = alloc_size;
   return static_cast<uint8_t*>(result);

@@ -111,7 +111,7 @@ sigjmp_buf MemoryAllocationPermissionsTest::continuation_;
 TEST_F(MemoryAllocationPermissionsTest, DoTest) {
   TestPermissions(PageAllocator::Permission::kNoAccess, false, false);
   TestPermissions(PageAllocator::Permission::kReadWrite, true, true);
-  TestPermissions(PageAllocator::Permission::kReadExecute, true, false);
+  TestPermissions(PageAllocator::Permission::kReadWriteExecute, true, true);
 }
 #endif  // V8_OS_POSIX
 

@@ -372,6 +372,17 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
     __ j(not_equal, &binop);                                    \
   } while (false)
 
+#define ASSEMBLE_MOVX(mov_instr)                            \
+  do {                                                      \
+    if (instr->addressing_mode() != kMode_None) {           \
+      __ mov_instr(i.OutputRegister(), i.MemoryOperand());  \
+    } else if (instr->InputAt(0)->IsRegister()) {           \
+      __ mov_instr(i.OutputRegister(), i.InputRegister(0)); \
+    } else {                                                \
+      __ mov_instr(i.OutputRegister(), i.InputOperand(0));  \
+    }                                                       \
+  } while (0)
+
 void CodeGenerator::AssembleDeconstructFrame() {
   __ mov(esp, ebp);
   __ pop(ebp);
@@ -1427,10 +1438,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ subsd(i.InputDoubleRegister(0), kScratchDoubleReg);
       break;
     case kIA32Movsxbl:
-      __ movsx_b(i.OutputRegister(), i.MemoryOperand());
+      ASSEMBLE_MOVX(movsx_b);
       break;
     case kIA32Movzxbl:
-      __ movzx_b(i.OutputRegister(), i.MemoryOperand());
+      ASSEMBLE_MOVX(movzx_b);
       break;
     case kIA32Movb: {
       size_t index = 0;
@@ -1443,10 +1454,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kIA32Movsxwl:
-      __ movsx_w(i.OutputRegister(), i.MemoryOperand());
+      ASSEMBLE_MOVX(movsx_w);
       break;
     case kIA32Movzxwl:
-      __ movzx_w(i.OutputRegister(), i.MemoryOperand());
+      ASSEMBLE_MOVX(movzx_w);
       break;
     case kIA32Movw: {
       size_t index = 0;
@@ -3475,6 +3486,13 @@ void CodeGenerator::AssembleJumpTable(Label** targets, size_t target_count) {
 }
 
 #undef __
+#undef kScratchDoubleReg
+#undef ASSEMBLE_COMPARE
+#undef ASSEMBLE_IEEE754_BINOP
+#undef ASSEMBLE_IEEE754_UNOP
+#undef ASSEMBLE_BINOP
+#undef ASSEMBLE_ATOMIC_BINOP
+#undef ASSEMBLE_MOVX
 
 }  // namespace compiler
 }  // namespace internal

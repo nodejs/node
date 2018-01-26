@@ -43,7 +43,7 @@ STANDARD_VARIANT = set(["default"])
 class LegacyVariantsGenerator(object):
   def __init__(self, suite, variants):
     self.suite = suite
-    self.all_variants = ALL_VARIANTS & variants
+    self.all_variants = variants
     self.standard_variant = STANDARD_VARIANT & variants
 
   def FilterVariantsByTest(self, test):
@@ -78,6 +78,24 @@ class VariantsGenerator(object):
     if test.only_standard_variant:
       return self._standard_variant
     return self._all_variants
+
+
+class TestCombiner(object):
+  def get_group_key(self, test):
+    """To indicate what tests can be combined with each other we define a group
+    key for each test. Tests with the same group key can be combined. Test
+    without a group key (None) is not combinable with any other test.
+    """
+    raise NotImplementedError()
+
+  def combine(self, name, tests):
+    """Returns test combined from `tests`. Since we identify tests by their
+    suite and name, `name` parameter should be unique within one suite.
+    """
+    return self._combined_test_class()(name, tests)
+
+  def _combined_test_class(self):
+    raise NotImplementedError()
 
 
 class TestSuite(object):
@@ -125,6 +143,21 @@ class TestSuite(object):
 
   def _variants_gen_class(self):
     return VariantsGenerator
+
+  def test_combiner_available(self):
+    return bool(self._test_combiner_class())
+
+  def get_test_combiner(self):
+    cls = self._test_combiner_class()
+    if cls:
+      return cls()
+    return None
+
+  def _test_combiner_class(self):
+    """Returns Combiner subclass. None if suite doesn't support combining
+    tests.
+    """
+    return None
 
   def ReadStatusFile(self, variables):
     self.statusfile = statusfile.StatusFile(self.status_file(), variables)

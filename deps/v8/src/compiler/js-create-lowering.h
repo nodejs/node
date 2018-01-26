@@ -54,6 +54,7 @@ class V8_EXPORT_PRIVATE JSCreateLowering final
   Reduction ReduceJSCreateClosure(Node* node);
   Reduction ReduceJSCreateIterResultObject(Node* node);
   Reduction ReduceJSCreateKeyValueArray(Node* node);
+  Reduction ReduceJSCreatePromise(Node* node);
   Reduction ReduceJSCreateLiteralArrayOrObject(Node* node);
   Reduction ReduceJSCreateEmptyLiteralObject(Node* node);
   Reduction ReduceJSCreateEmptyLiteralArray(Node* node);

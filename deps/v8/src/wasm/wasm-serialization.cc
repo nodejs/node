@@ -741,6 +741,10 @@ MaybeHandle<WasmCompiledModule> DeserializeNativeModule(
                                         compiled_module->GetNativeModule());
   if (!deserializer.Read(data)) return {};
 
+  // TODO(6792): Wrappers below might be cloned using {Factory::CopyCode}. This
+  // requires unlocking the code space here. This should be moved into the
+  // allocator eventually.
+  CodeSpaceMemoryModificationScope modification_scope(isolate->heap());
   CompileJsToWasmWrappers(isolate, compiled_module, isolate->counters());
   WasmCompiledModule::ReinitializeAfterDeserialization(isolate,
                                                        compiled_module);

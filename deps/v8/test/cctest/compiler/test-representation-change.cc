@@ -452,11 +452,13 @@ static void TestMinusZeroCheck(IrOpcode::Value expected, Type* from_type) {
       expected, MachineRepresentation::kFloat64, from_type,
       UseInfo::CheckedSignedSmallAsWord32(kIdentifyZeros, VectorSlotPair()));
 
-  CheckChange(expected, MachineRepresentation::kFloat64, from_type,
-              UseInfo::CheckedSigned32AsWord32(kDistinguishZeros));
+  CheckChange(
+      expected, MachineRepresentation::kFloat64, from_type,
+      UseInfo::CheckedSigned32AsWord32(kDistinguishZeros, VectorSlotPair()));
 
-  CheckChange(expected, MachineRepresentation::kFloat64, from_type,
-              UseInfo::CheckedSigned32AsWord32(kDistinguishZeros));
+  CheckChange(
+      expected, MachineRepresentation::kFloat64, from_type,
+      UseInfo::CheckedSigned32AsWord32(kDistinguishZeros, VectorSlotPair()));
 }
 
 TEST(MinusZeroCheck) {

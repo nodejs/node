@@ -10,7 +10,7 @@
           'target_name': 'optimize_for_size_run',
           'type': 'none',
           'dependencies': [
-            'cctest/cctest.gyp:cctest_run',
+            '../gypfiles/cctest.gyp:cctest_run',
             'debugger/debugger.gyp:debugger_run',
             'intl/intl.gyp:intl_run',
             'mjsunit/mjsunit.gyp:mjsunit_run',

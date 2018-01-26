@@ -999,7 +999,7 @@ TYPED_ARRAYS(FIXED_TYPED_ARRAYS_CHECK_RUNTIME_FUNCTION)
 RUNTIME_FUNCTION(Runtime_SpeciesProtector) {
   SealHandleScope shs(isolate);
   DCHECK_EQ(0, args.length());
-  return isolate->heap()->ToBoolean(isolate->IsArraySpeciesLookupChainIntact());
+  return isolate->heap()->ToBoolean(isolate->IsSpeciesLookupChainIntact());
 }
 
 // Take a compiled wasm module, serialize it and copy the buffer into an array

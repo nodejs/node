@@ -4765,14 +4765,14 @@ Maybe<bool> v8::Object::Has(Local<Context> context, uint32_t index) {
   return maybe;
 }
 
-
 template <typename Getter, typename Setter, typename Data>
 static Maybe<bool> ObjectSetAccessor(Local<Context> context, Object* self,
                                      Local<Name> name, Getter getter,
                                      Setter setter, Data data,
                                      AccessControl settings,
                                      PropertyAttribute attributes,
-                                     bool is_special_data_property) {
+                                     bool is_special_data_property,
+                                     bool replace_on_access) {
   auto isolate = reinterpret_cast<i::Isolate*>(context->GetIsolate());
   ENTER_V8_NO_SCRIPT(isolate, context, Object, SetAccessor, Nothing<bool>(),
                      i::HandleScope);
@@ -4782,7 +4782,7 @@ static Maybe<bool> ObjectSetAccessor(Local<Context> context, Object* self,
   v8::Local<AccessorSignature> signature;
   i::Handle<i::AccessorInfo> info =
       MakeAccessorInfo(isolate, name, getter, setter, data, settings, signature,
-                       is_special_data_property, false);
+                       is_special_data_property, replace_on_access);
   if (info.is_null()) return Nothing<bool>();
   bool fast = obj->HasFastProperties();
   i::Handle<i::Object> result;
@@ -4808,7 +4808,7 @@ Maybe<bool> Object::SetAccessor(Local<Context> context, Local<Name> name,
                                 PropertyAttribute attribute) {
   return ObjectSetAccessor(context, this, name, getter, setter,
                            data.FromMaybe(Local<Value>()), settings, attribute,
-                           i::FLAG_disable_old_api_accessors);
+                           i::FLAG_disable_old_api_accessors, false);
 }
 
 
@@ -4838,7 +4838,17 @@ Maybe<bool> Object::SetNativeDataProperty(v8::Local<v8::Context> context,
                                           v8::Local<Value> data,
                                           PropertyAttribute attributes) {
   return ObjectSetAccessor(context, this, name, getter, setter, data, DEFAULT,
-                           attributes, true);
+                           attributes, true, false);
+}
+
+Maybe<bool> Object::SetLazyDataProperty(v8::Local<v8::Context> context,
+                                        v8::Local<Name> name,
+                                        AccessorNameGetterCallback getter,
+                                        v8::Local<Value> data,
+                                        PropertyAttribute attributes) {
+  return ObjectSetAccessor(context, this, name, getter,
+                           static_cast<AccessorNameSetterCallback>(nullptr),
+                           data, DEFAULT, attributes, true, true);
 }
 
 Maybe<bool> v8::Object::HasOwnProperty(Local<Context> context,

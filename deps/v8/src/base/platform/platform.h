@@ -156,12 +156,12 @@ class V8_BASE_EXPORT OS {
   static PRINTF_FORMAT(1, 0) void VPrintError(const char* format, va_list args);
 
   // Memory permissions. These should be kept in sync with the ones in
-  // v8::PageAllocator. Note that there is on purpose no combination of
-  // the "write" and "execute" permission, because V8 is W^X compliant.
-  // Avoid introducing such a combination as embedders might rely on it.
+  // v8::PageAllocator.
   enum class MemoryPermission {
     kNoAccess,
     kReadWrite,
+    // TODO(hpayer): Remove this flag. Memory should never be rwx.
+    kReadWriteExecute,
     kReadExecute
   };
 

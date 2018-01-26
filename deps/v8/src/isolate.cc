@@ -717,16 +717,16 @@ class CaptureStackTraceHelper {
     int code_offset;
     Handle<ByteArray> source_position_table;
     Handle<Object> maybe_cache;
-    Handle<NumberDictionary> cache;
+    Handle<SimpleNumberDictionary> cache;
     if (!FLAG_optimize_for_size) {
       code_offset = summ.code_offset();
       source_position_table =
           handle(summ.abstract_code()->source_position_table(), isolate_);
       maybe_cache = handle(summ.abstract_code()->stack_frame_cache(), isolate_);
-      if (maybe_cache->IsNumberDictionary()) {
-        cache = Handle<NumberDictionary>::cast(maybe_cache);
+      if (maybe_cache->IsSimpleNumberDictionary()) {
+        cache = Handle<SimpleNumberDictionary>::cast(maybe_cache);
       } else {
-        cache = NumberDictionary::New(isolate_, 1);
+        cache = SimpleNumberDictionary::New(isolate_, 1);
       }
       int entry = cache->FindEntry(code_offset);
       if (entry != NumberDictionary::kNotFound) {
@@ -759,7 +759,7 @@ class CaptureStackTraceHelper {
     frame->set_is_constructor(summ.is_constructor());
     frame->set_is_wasm(false);
     if (!FLAG_optimize_for_size) {
-      auto new_cache = NumberDictionary::Set(cache, code_offset, frame);
+      auto new_cache = SimpleNumberDictionary::Set(cache, code_offset, frame);
       if (*new_cache != *cache || !maybe_cache->IsNumberDictionary()) {
         AbstractCode::SetStackFrameCache(summ.abstract_code(), new_cache);
       }
@@ -1425,7 +1425,7 @@ Object* Isolate::UnwindAndFindHandler() {
         WasmInterpreterEntryFrame* interpreter_frame =
             WasmInterpreterEntryFrame::cast(frame);
         // TODO(wasm): Implement try-catch in the interpreter.
-        interpreter_frame->wasm_instance()->debug_info()->Unwind(frame->fp());
+        interpreter_frame->debug_info()->Unwind(frame->fp());
       } break;
 
       default:
@@ -3368,6 +3368,15 @@ bool Isolate::IsIsConcatSpreadableLookupChainIntact(JSReceiver* receiver) {
   return !receiver->HasProxyInPrototype(this);
 }
 
+bool Isolate::IsPromiseHookProtectorIntact() {
+  PropertyCell* promise_hook_cell = heap()->promise_hook_protector();
+  bool is_promise_hook_protector_intact =
+      Smi::ToInt(promise_hook_cell->value()) == kProtectorValid;
+  DCHECK_IMPLIES(is_promise_hook_protector_intact,
+                 !promise_hook_or_debug_is_active_);
+  return is_promise_hook_protector_intact;
+}
+
 void Isolate::UpdateNoElementsProtectorOnSetElement(Handle<JSObject> object) {
   DisallowHeapAllocation no_gc;
   if (!object->map()->is_prototype_map()) return;
@@ -3394,11 +3403,11 @@ void Isolate::InvalidateArrayConstructorProtector() {
   DCHECK(!IsArrayConstructorIntact());
 }
 
-void Isolate::InvalidateArraySpeciesProtector() {
+void Isolate::InvalidateSpeciesProtector() {
   DCHECK(factory()->species_protector()->value()->IsSmi());
-  DCHECK(IsArraySpeciesLookupChainIntact());
+  DCHECK(IsSpeciesLookupChainIntact());
   factory()->species_protector()->set_value(Smi::FromInt(kProtectorInvalid));
-  DCHECK(!IsArraySpeciesLookupChainIntact());
+  DCHECK(!IsSpeciesLookupChainIntact());
 }
 
 void Isolate::InvalidateStringLengthOverflowProtector() {
@@ -3425,6 +3434,15 @@ void Isolate::InvalidateArrayBufferNeuteringProtector() {
       factory()->array_buffer_neutering_protector(),
       handle(Smi::FromInt(kProtectorInvalid), this));
   DCHECK(!IsArrayBufferNeuteringIntact());
+}
+
+void Isolate::InvalidatePromiseHookProtector() {
+  DCHECK(factory()->promise_hook_protector()->value()->IsSmi());
+  DCHECK(IsPromiseHookProtectorIntact());
+  PropertyCell::SetValueWithInvalidation(
+      factory()->promise_hook_protector(),
+      handle(Smi::FromInt(kProtectorInvalid), this));
+  DCHECK(!IsPromiseHookProtectorIntact());
 }
 
 bool Isolate::IsAnyInitialArrayPrototype(Handle<JSArray> array) {
@@ -3588,7 +3606,11 @@ void Isolate::FireCallCompletedCallback() {
 }
 
 void Isolate::DebugStateUpdated() {
-  promise_hook_or_debug_is_active_ = promise_hook_ || debug()->is_active();
+  bool promise_hook_or_debug_is_active = promise_hook_ || debug()->is_active();
+  if (promise_hook_or_debug_is_active && IsPromiseHookProtectorIntact()) {
+    InvalidatePromiseHookProtector();
+  }
+  promise_hook_or_debug_is_active_ = promise_hook_or_debug_is_active;
 }
 
 namespace {

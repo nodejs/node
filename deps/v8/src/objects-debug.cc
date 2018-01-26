@@ -1256,8 +1256,6 @@ void BigInt::BigIntVerify() {
   CHECK(IsBigInt());
   CHECK_GE(length(), 0);
   CHECK_IMPLIES(is_zero(), !sign());  // There is no -0n.
-  // TODO(neis): Somewhere check that MSD is non-zero. Doesn't hold during some
-  // operations that allocate which is why we can't test it here.
 }
 
 void JSModuleNamespace::JSModuleNamespaceVerify() {
@@ -1298,7 +1296,7 @@ void Module::ModuleVerify() {
 
   CHECK((status() >= kEvaluating && code()->IsModuleInfo()) ||
         (status() == kInstantiated && code()->IsJSGeneratorObject()) ||
-        (status() >= kInstantiating && code()->IsJSFunction()) ||
+        (status() == kInstantiating && code()->IsJSFunction()) ||
         (code()->IsSharedFunctionInfo()));
 
   CHECK_EQ(status() == kErrored, !exception()->IsTheHole(GetIsolate()));

@@ -67,6 +67,8 @@ namespace compiler {
   V(Arm64Mov32)                    \
   V(Arm64Sxtb32)                   \
   V(Arm64Sxth32)                   \
+  V(Arm64Sxtb)                     \
+  V(Arm64Sxth)                     \
   V(Arm64Sxtw)                     \
   V(Arm64Sbfx32)                   \
   V(Arm64Ubfx)                     \

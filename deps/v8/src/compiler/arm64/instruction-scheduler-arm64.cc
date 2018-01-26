@@ -67,7 +67,9 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kArm64Ror:
     case kArm64Ror32:
     case kArm64Mov32:
+    case kArm64Sxtb:
     case kArm64Sxtb32:
+    case kArm64Sxth:
     case kArm64Sxth32:
     case kArm64Sxtw:
     case kArm64Sbfx32:

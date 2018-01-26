@@ -225,21 +225,26 @@ using WasmName = Vector<const char>;
   V(I32ReinterpretF32, 0xbc, i_f) \
   V(I64ReinterpretF64, 0xbd, l_d) \
   V(F32ReinterpretI32, 0xbe, f_i) \
-  V(F64ReinterpretI64, 0xbf, d_l)
+  V(F64ReinterpretI64, 0xbf, d_l) \
+  V(I32SExtendI8, 0xc0, i_i)      \
+  V(I32SExtendI16, 0xc1, i_i)     \
+  V(I64SExtendI8, 0xc2, l_l)      \
+  V(I64SExtendI16, 0xc3, l_l)     \
+  V(I64SExtendI32, 0xc4, l_l)
 
 // For compatibility with Asm.js.
 #define FOREACH_ASMJS_COMPAT_OPCODE(V) \
-  V(F64Acos, 0xc2, d_d)                \
-  V(F64Asin, 0xc3, d_d)                \
-  V(F64Atan, 0xc4, d_d)                \
-  V(F64Cos, 0xc5, d_d)                 \
-  V(F64Sin, 0xc6, d_d)                 \
-  V(F64Tan, 0xc7, d_d)                 \
-  V(F64Exp, 0xc8, d_d)                 \
-  V(F64Log, 0xc9, d_d)                 \
-  V(F64Atan2, 0xca, d_dd)              \
-  V(F64Pow, 0xcb, d_dd)                \
-  V(F64Mod, 0xcc, d_dd)                \
+  V(F64Acos, 0xc5, d_d)                \
+  V(F64Asin, 0xc6, d_d)                \
+  V(F64Atan, 0xc7, d_d)                \
+  V(F64Cos, 0xc8, d_d)                 \
+  V(F64Sin, 0xc9, d_d)                 \
+  V(F64Tan, 0xca, d_d)                 \
+  V(F64Exp, 0xcb, d_d)                 \
+  V(F64Log, 0xcc, d_d)                 \
+  V(F64Atan2, 0xcd, d_dd)              \
+  V(F64Pow, 0xce, d_dd)                \
+  V(F64Mod, 0xcf, d_dd)                \
   V(I32AsmjsDivS, 0xd0, i_ii)          \
   V(I32AsmjsDivU, 0xd1, i_ii)          \
   V(I32AsmjsRemS, 0xd2, i_ii)          \
@@ -647,6 +652,7 @@ class V8_EXPORT_PRIVATE WasmOpcodes {
   static FunctionSig* AsmjsSignature(WasmOpcode opcode);
   static bool IsPrefixOpcode(WasmOpcode opcode);
   static bool IsControlOpcode(WasmOpcode opcode);
+  static bool IsSignExtensionOpcode(WasmOpcode opcode);
   // Check whether the given opcode always jumps, i.e. all instructions after
   // this one in the current block are dead. Returns false for |end|.
   static bool IsUnconditionalJump(WasmOpcode opcode);

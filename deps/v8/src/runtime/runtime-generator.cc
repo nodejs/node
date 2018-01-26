@@ -55,12 +55,6 @@ RUNTIME_FUNCTION(Runtime_GeneratorGetReceiver) {
   return generator->receiver();
 }
 
-RUNTIME_FUNCTION(Runtime_GeneratorGetContext) {
-  // Runtime call is implemented in InterpreterIntrinsics and lowered in
-  // JSIntrinsicLowering
-  UNREACHABLE();
-}
-
 RUNTIME_FUNCTION(Runtime_GeneratorGetInputOrDebugPos) {
   // Runtime call is implemented in InterpreterIntrinsics and lowered in
   // JSIntrinsicLowering

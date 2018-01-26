@@ -59,11 +59,5 @@ Vector<uint8_t> WasmCodeWrapper::instructions() const {
           static_cast<size_t>(code->instruction_size())};
 }
 
-Handle<WasmInstanceObject> WasmCodeWrapper::wasm_instance() const {
-  return IsCodeObject()
-             ? handle(WasmInstanceObject::GetOwningInstanceGC(*GetCode()))
-             : handle(WasmInstanceObject::GetOwningInstance(GetWasmCode()));
-}
-
 }  // namespace internal
 }  // namespace v8

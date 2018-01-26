@@ -200,11 +200,13 @@ class PageAllocator {
   virtual void* GetRandomMmapAddr() = 0;
 
   /**
-   * Memory permissions. Note that V8 is W^X compliant.
+   * Memory permissions.
    */
   enum Permission {
     kNoAccess,
     kReadWrite,
+    // TODO(hpayer): Remove this flag. Memory should never be rwx.
+    kReadWriteExecute,
     kReadExecute
   };
 

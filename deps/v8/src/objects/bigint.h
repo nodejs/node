@@ -162,9 +162,9 @@ class V8_EXPORT_PRIVATE BigInt : public BigIntBase {
   class BodyDescriptor;
 
  private:
-  friend class BigIntParseIntHelper;
+  friend class StringToBigIntHelper;
 
-  // Special functions for BigIntParseIntHelper:
+  // Special functions for StringToBigIntHelper:
   static Handle<BigInt> Zero(Isolate* isolate);
   static MaybeHandle<FreshlyAllocatedBigInt> AllocateFor(
       Isolate* isolate, int radix, int charcount, ShouldThrow should_throw);

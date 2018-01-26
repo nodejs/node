@@ -7,74 +7,73 @@
 // Flags: --harmony-bigint
 
 var data = [{
-  a: "58ad59aa3aa9d04d4c12493966e204ef0500d5f92ecb31",
-  r: "-58ad59aa3aa9d04d4c12493966e204ef0500d5f92ecb31"
+  a: 0xcn,
+  r: -0xcn
 }, {
-  a: "6dbd19e4b781a8f113ae95738dda4b70ba027755052126c198d20ade97869ff",
-  r: "-6dbd19e4b781a8f113ae95738dda4b70ba027755052126c198d20ade97869ff"
+  a: -0x5a3d0f6cdb7987a2d262838c05359f786a484d052529n,
+  r: 0x5a3d0f6cdb7987a2d262838c05359f786a484d052529n
 }, {
-  a: "d02befb1c96364a984664f85",
-  r: "-d02befb1c96364a984664f85"
+  a: -0x98d8c6cbfd67b6b652b7a4670478f6706e06a3n,
+  r: 0x98d8c6cbfd67b6b652b7a4670478f6706e06a3n
 }, {
-  a: "86",
-  r: "-86"
+  a: -0xe66ac692ff012bd0f4ca38804628f71ff411aede09c59597n,
+  r: 0xe66ac692ff012bd0f4ca38804628f71ff411aede09c59597n
 }, {
-  a: "0",
-  r: "0"
+  a: -0x97e1e0c13c0c0c420aca92268ea802047c30570335de0000dn,
+  r: 0x97e1e0c13c0c0c420aca92268ea802047c30570335de0000dn
 }, {
-  a: "-f8da",
-  r: "f8da"
+  a: 0x6b2eddc3b212913abed4f5c84e3eee64d6463224dff8n,
+  r: -0x6b2eddc3b212913abed4f5c84e3eee64d6463224dff8n
 }, {
-  a: "2b0f358b54a82fbaddc5a6e61a5d",
-  r: "-2b0f358b54a82fbaddc5a6e61a5d"
+  a: -0xfcd42a712dd928deb51ab2d151fa6bee0f4dd2fa6n,
+  r: 0xfcd42a712dd928deb51ab2d151fa6bee0f4dd2fa6n
 }, {
-  a: "-3d32065b9bbb36ee521ff82da",
-  r: "3d32065b9bbb36ee521ff82da"
+  a: -0x75ba8e0e92a05ff552f2dc3afb39a4dn,
+  r: 0x75ba8e0e92a05ff552f2dc3afb39a4dn
 }, {
-  a: "ca3da934e8081c457933c90",
-  r: "-ca3da934e8081c457933c90"
+  a: 0x4570376e541836fab5190e08an,
+  r: -0x4570376e541836fab5190e08an
 }, {
-  a: "-e4d2bbdf90affad1d2a",
-  r: "e4d2bbdf90affad1d2a"
+  a: 0x15aca33cfb06n,
+  r: -0x15aca33cfb06n
 }, {
-  a: "-290845e8f55d467e3",
-  r: "290845e8f55d467e3"
+  a: 0x7ec0027910c44b791bf193c6f25487a9435n,
+  r: -0x7ec0027910c44b791bf193c6f25487a9435n
 }, {
-  a: "-771c77d2dd2227c30cf44f1bf3230",
-  r: "771c77d2dd2227c30cf44f1bf3230"
+  a: -0x31f0d92f358618e6b29a2899bd988533838d33839fb37n,
+  r: 0x31f0d92f358618e6b29a2899bd988533838d33839fb37n
 }, {
-  a: "-77aa11",
-  r: "77aa11"
+  a: 0xb4f84118d797244c982f1n,
+  r: -0xb4f84118d797244c982f1n
 }, {
-  a: "d220c8af9c97516bf5ec295585f711e020480d08ac11689726a285930",
-  r: "-d220c8af9c97516bf5ec295585f711e020480d08ac11689726a285930"
+  a: 0x626n,
+  r: -0x626n
 }, {
-  a: "53841e699f994e1a43f7f848f34d418792191de15b78e1a852c430b2f8af6e7",
-  r: "-53841e699f994e1a43f7f848f34d418792191de15b78e1a852c430b2f8af6e7"
+  a: 0x9f35c8968457d07608699df5894c0542f35b73b0b5ce8423aan,
+  r: -0x9f35c8968457d07608699df5894c0542f35b73b0b5ce8423aan
 }, {
-  a: "7c30187b8901bd748adc4bc243",
-  r: "-7c30187b8901bd748adc4bc243"
+  a: -0xb5be1f7937895adc457f051d1f4bc74d556b432dn,
+  r: 0xb5be1f7937895adc457f051d1f4bc74d556b432dn
 }, {
-  a: "-e07ac5649eb741a023b0f9928d5982032f6766a479c7fbf26",
-  r: "e07ac5649eb741a023b0f9928d5982032f6766a479c7fbf26"
+  a: 0xcacb413b3cab5a5f5086511728d1afbaa82ca41e69805daf47503e2n,
+  r: -0xcacb413b3cab5a5f5086511728d1afbaa82ca41e69805daf47503e2n
 }, {
-  a: "5ab3237bb32234bcaf8",
-  r: "-5ab3237bb32234bcaf8"
+  a: -0x77ef7cbb15cee20a519a1n,
+  r: 0x77ef7cbb15cee20a519a1n
 }, {
-  a: "7df7",
-  r: "-7df7"
+  a: -0x71ac9bfe7f5f70038c7fn,
+  r: 0x71ac9bfe7f5f70038c7fn
 }, {
-  a: "-518b7b",
-  r: "518b7b"
+  a: -0x500a02b8fd66ee1067022c02c7241acdc42b947bfb933aa95a8d6n,
+  r: 0x500a02b8fd66ee1067022c02c7241acdc42b947bfb933aa95a8d6n
 }];
 
 var error_count = 0;
 for (var i = 0; i < data.length; i++) {
   var d = data[i];
-  var a = BigInt.parseInt(d.a, 16);
-  var r = -a;
-  if (d.r !== r.toString(16)) {
-    print("Input:    " + a.toString(16));
+  var r = -d.a;
+  if (d.r !== r) {
+    print("Input:    " + d.a.toString(16));
     print("Result:   " + r.toString(16));
     print("Expected: " + d.r);
     error_count++;

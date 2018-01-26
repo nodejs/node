@@ -2631,6 +2631,18 @@ void InstructionSelector::VisitS8x16Shuffle(Node* node) {
        g.UseImmediate(Pack4Lanes(shuffle + 12, mask)));
 }
 
+void InstructionSelector::VisitSignExtendWord8ToInt32(Node* node) {
+  ArmOperandGenerator g(this);
+  Emit(kArmSxtb, g.DefineAsRegister(node), g.UseRegister(node->InputAt(0)),
+       g.TempImmediate(0));
+}
+
+void InstructionSelector::VisitSignExtendWord16ToInt32(Node* node) {
+  ArmOperandGenerator g(this);
+  Emit(kArmSxth, g.DefineAsRegister(node), g.UseRegister(node->InputAt(0)),
+       g.TempImmediate(0));
+}
+
 void InstructionSelector::VisitInt32AbsWithOverflow(Node* node) {
   UNREACHABLE();
 }

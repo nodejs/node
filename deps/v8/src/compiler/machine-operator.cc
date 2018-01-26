@@ -169,6 +169,11 @@ MachineType AtomicOpRepresentationOf(Operator const* op) {
   V(BitcastFloat64ToInt64, Operator::kNoProperties, 1, 0, 1)              \
   V(BitcastInt32ToFloat32, Operator::kNoProperties, 1, 0, 1)              \
   V(BitcastInt64ToFloat64, Operator::kNoProperties, 1, 0, 1)              \
+  V(SignExtendWord8ToInt32, Operator::kNoProperties, 1, 0, 1)             \
+  V(SignExtendWord16ToInt32, Operator::kNoProperties, 1, 0, 1)            \
+  V(SignExtendWord8ToInt64, Operator::kNoProperties, 1, 0, 1)             \
+  V(SignExtendWord16ToInt64, Operator::kNoProperties, 1, 0, 1)            \
+  V(SignExtendWord32ToInt64, Operator::kNoProperties, 1, 0, 1)            \
   V(Float32Abs, Operator::kNoProperties, 1, 0, 1)                         \
   V(Float32Add, Operator::kCommutative, 2, 0, 1)                          \
   V(Float32Sub, Operator::kNoProperties, 2, 0, 1)                         \

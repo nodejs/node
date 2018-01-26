@@ -30,7 +30,6 @@ namespace internal {
 namespace wasm {
 
 namespace {
-size_t native_module_ids = 0;
 
 #if V8_TARGET_ARCH_X64
 #define __ masm->
@@ -75,6 +74,7 @@ void PatchTrampolineAndStubCalls(
                                    SKIP_ICACHE_FLUSH);
   }
 }
+
 }  // namespace
 
 DisjointAllocationPool::DisjointAllocationPool(Address start, Address end) {
@@ -212,18 +212,21 @@ void WasmCode::Disassemble(const char* name, Isolate* isolate,
                        instructions().start() + instruction_size, nullptr);
   os << "\n";
 
-  Object* source_positions_or_undef =
-      owner_->compiled_module()->source_positions()->get(index());
-  if (!source_positions_or_undef->IsUndefined(isolate)) {
-    os << "Source positions:\n pc offset  position\n";
-    for (SourcePositionTableIterator it(
-             ByteArray::cast(source_positions_or_undef));
-         !it.done(); it.Advance()) {
-      os << std::setw(10) << std::hex << it.code_offset() << std::dec
-         << std::setw(10) << it.source_position().ScriptOffset()
-         << (it.is_statement() ? "  statement" : "") << "\n";
+  // Anonymous functions don't have source positions.
+  if (!IsAnonymous()) {
+    Object* source_positions_or_undef =
+        owner_->compiled_module()->source_positions()->get(index());
+    if (!source_positions_or_undef->IsUndefined(isolate)) {
+      os << "Source positions:\n pc offset  position\n";
+      for (SourcePositionTableIterator it(
+               ByteArray::cast(source_positions_or_undef));
+           !it.done(); it.Advance()) {
+        os << std::setw(10) << std::hex << it.code_offset() << std::dec
+           << std::setw(10) << it.source_position().ScriptOffset()
+           << (it.is_statement() ? "  statement" : "") << "\n";
+      }
+      os << "\n";
     }
-    os << "\n";
   }
 
   os << "RelocInfo (size = " << reloc_size_ << ")\n";
@@ -268,10 +271,12 @@ WasmCode::~WasmCode() {
   }
 }
 
+base::AtomicNumber<size_t> NativeModule::next_id_;
+
 NativeModule::NativeModule(uint32_t num_functions, uint32_t num_imports,
                            bool can_request_more, VirtualMemory* mem,
                            WasmCodeManager* code_manager)
-    : instance_id(native_module_ids++),
+    : instance_id(next_id_.Increment(1)),
       code_table_(num_functions),
       num_imported_functions_(num_imports),
       free_memory_(reinterpret_cast<Address>(mem->address()),

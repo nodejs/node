@@ -114,6 +114,7 @@ using v8::MemoryPressureLevel;
   V(Map, name_dictionary_map, NameDictionaryMap)                               \
   V(Map, global_dictionary_map, GlobalDictionaryMap)                           \
   V(Map, number_dictionary_map, NumberDictionaryMap)                           \
+  V(Map, simple_number_dictionary_map, SimpleNumberDictionaryMap)              \
   V(Map, string_table_map, StringTableMap)                                     \
   V(Map, weak_hash_table_map, WeakHashTableMap)                                \
   V(Map, sloppy_arguments_elements_map, SloppyArgumentsElementsMap)            \
@@ -213,6 +214,7 @@ using v8::MemoryPressureLevel;
   V(PropertyCell, array_iterator_protector, ArrayIteratorProtector)            \
   V(PropertyCell, array_buffer_neutering_protector,                            \
     ArrayBufferNeuteringProtector)                                             \
+  V(PropertyCell, promise_hook_protector, PromiseHookProtector)                \
   /* Special numbers */                                                        \
   V(HeapNumber, nan_value, NanValue)                                           \
   V(HeapNumber, hole_nan_value, HoleNanValue)                                  \
@@ -230,7 +232,7 @@ using v8::MemoryPressureLevel;
   V(NameDictionary, api_symbol_table, ApiSymbolTable)                          \
   V(NameDictionary, api_private_symbol_table, ApiPrivateSymbolTable)           \
   V(Object, script_list, ScriptList)                                           \
-  V(NumberDictionary, code_stubs, CodeStubs)                                   \
+  V(SimpleNumberDictionary, code_stubs, CodeStubs)                             \
   V(FixedArray, materialized_objects, MaterializedObjects)                     \
   V(FixedArray, microtask_queue, MicrotaskQueue)                               \
   V(FixedArray, detached_contexts, DetachedContexts)                           \
@@ -363,6 +365,7 @@ using v8::MemoryPressureLevel;
   V(ScopeInfoMap)                       \
   V(ScriptContextMap)                   \
   V(SharedFunctionInfoMap)              \
+  V(SimpleNumberDictionaryMap)          \
   V(SloppyArgumentsElementsMap)         \
   V(SmallOrderedHashMapMap)             \
   V(SmallOrderedHashSetMap)             \
@@ -788,6 +791,8 @@ class Heap {
   // Print short heap statistics.
   void PrintShortHeapStatistics();
 
+  bool write_protect_code_memory() const { return write_protect_code_memory_; }
+
   uintptr_t code_space_memory_modification_scope_depth() {
     return code_space_memory_modification_scope_depth_;
   }
@@ -1060,7 +1065,7 @@ class Heap {
   Object** roots_array_start() { return roots_; }
 
   // Sets the stub_cache_ (only used when expanding the dictionary).
-  void SetRootCodeStubs(NumberDictionary* value);
+  void SetRootCodeStubs(SimpleNumberDictionary* value);
 
   void SetRootMaterializedObjects(FixedArray* objects) {
     roots_[kMaterializedObjectsRootIndex] = objects;
@@ -2367,6 +2372,10 @@ class Heap {
   LargeObjectSpace* lo_space_;
   // Map from the space id to the space.
   Space* space_[LAST_SPACE + 1];
+
+  // Determines whether code space is write-protected. This is essentially a
+  // race-free copy of the {FLAG_write_protect_code_memory} flag.
+  bool write_protect_code_memory_;
 
   // Holds the number of open CodeSpaceMemoryModificationScopes.
   uintptr_t code_space_memory_modification_scope_depth_;

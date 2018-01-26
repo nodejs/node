@@ -655,11 +655,6 @@ bool operator==(CheckMinusZeroParameters const& lhs,
   V(NumberToUint8Clamped, Operator::kNoProperties, 1, 0)         \
   V(NumberSilenceNaN, Operator::kNoProperties, 1, 0)             \
   V(StringToNumber, Operator::kNoProperties, 1, 0)               \
-  V(StringCharAt, Operator::kNoProperties, 2, 1)                 \
-  V(StringCharCodeAt, Operator::kNoProperties, 2, 1)             \
-  V(SeqStringCharCodeAt, Operator::kNoProperties, 2, 1)          \
-  V(StringCodePointAt, Operator::kNoProperties, 2, 1)            \
-  V(SeqStringCodePointAt, Operator::kNoProperties, 2, 1)         \
   V(StringFromCharCode, Operator::kNoProperties, 1, 0)           \
   V(StringIndexOf, Operator::kNoProperties, 3, 0)                \
   V(StringLength, Operator::kNoProperties, 1, 0)                 \
@@ -710,6 +705,13 @@ bool operator==(CheckMinusZeroParameters const& lhs,
   V(NewConsString, Operator::kNoProperties, 3, 0)                \
   V(MaskIndexWithBound, Operator::kNoProperties, 2, 0)
 
+#define EFFECT_DEPENDENT_OP_LIST(V)                     \
+  V(StringCharAt, Operator::kNoProperties, 2, 1)        \
+  V(StringCharCodeAt, Operator::kNoProperties, 2, 1)    \
+  V(SeqStringCharCodeAt, Operator::kNoProperties, 2, 1) \
+  V(StringCodePointAt, Operator::kNoProperties, 2, 1)   \
+  V(SeqStringCodePointAt, Operator::kNoProperties, 2, 1)
+
 #define SPECULATIVE_NUMBER_BINOP_LIST(V)      \
   SIMPLIFIED_SPECULATIVE_NUMBER_BINOP_LIST(V) \
   V(SpeculativeNumberEqual)                   \
@@ -754,6 +756,20 @@ struct SimplifiedOperatorGlobalCache final {
   Name##Operator k##Name;
   PURE_OP_LIST(PURE)
 #undef PURE
+
+#define EFFECT_DEPENDENT(Name, properties, value_input_count,              \
+                         control_input_count)                              \
+  struct Name##Operator final : public Operator {                          \
+    Name##Operator()                                                       \
+        : Operator(IrOpcode::k##Name,                                      \
+                   Operator::kNoDeopt | Operator::kNoWrite |               \
+                       Operator::kNoThrow | properties,                    \
+                   #Name, value_input_count, 1, control_input_count, 1, 1, \
+                   0) {}                                                   \
+  };                                                                       \
+  Name##Operator k##Name;
+  EFFECT_DEPENDENT_OP_LIST(EFFECT_DEPENDENT)
+#undef EFFECT_DEPENDENT
 
 #define CHECKED(Name, value_input_count, value_output_count)             \
   struct Name##Operator final : public Operator {                        \
@@ -1032,6 +1048,7 @@ SimplifiedOperatorBuilder::SimplifiedOperatorBuilder(Zone* zone)
 #define GET_FROM_CACHE(Name, ...) \
   const Operator* SimplifiedOperatorBuilder::Name() { return &cache_.k##Name; }
 PURE_OP_LIST(GET_FROM_CACHE)
+EFFECT_DEPENDENT_OP_LIST(GET_FROM_CACHE)
 CHECKED_OP_LIST(GET_FROM_CACHE)
 GET_FROM_CACHE(ArrayBufferWasNeutered)
 GET_FROM_CACHE(ArgumentsFrame)
@@ -1463,6 +1480,7 @@ const Operator* SimplifiedOperatorBuilder::TransitionAndStoreNonNumberElement(
 }
 
 #undef PURE_OP_LIST
+#undef EFFECT_DEPENDENT_OP_LIST
 #undef SPECULATIVE_NUMBER_BINOP_LIST
 #undef CHECKED_WITH_FEEDBACK_OP_LIST
 #undef CHECKED_OP_LIST

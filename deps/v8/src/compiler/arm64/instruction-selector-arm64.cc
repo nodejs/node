@@ -3132,6 +3132,26 @@ void InstructionSelector::VisitS8x16Shuffle(Node* node) {
        g.UseImmediate(Pack4Lanes(shuffle + 12, mask)));
 }
 
+void InstructionSelector::VisitSignExtendWord8ToInt32(Node* node) {
+  VisitRR(this, kArm64Sxtb32, node);
+}
+
+void InstructionSelector::VisitSignExtendWord16ToInt32(Node* node) {
+  VisitRR(this, kArm64Sxth32, node);
+}
+
+void InstructionSelector::VisitSignExtendWord8ToInt64(Node* node) {
+  VisitRR(this, kArm64Sxtb, node);
+}
+
+void InstructionSelector::VisitSignExtendWord16ToInt64(Node* node) {
+  VisitRR(this, kArm64Sxth, node);
+}
+
+void InstructionSelector::VisitSignExtendWord32ToInt64(Node* node) {
+  VisitRR(this, kArm64Sxtw, node);
+}
+
 // static
 MachineOperatorBuilder::Flags
 InstructionSelector::SupportedMachineOperatorFlags() {

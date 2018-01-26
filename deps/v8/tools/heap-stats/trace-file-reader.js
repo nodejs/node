@@ -50,17 +50,32 @@ class TraceFileReader extends HTMLElement {
       return;
     }
 
-    const result = new FileReader();
-    result.onload = (e) => {
-      let contents = e.target.result.split('\n');
-      const return_data = (e.target.result.includes('V8.GC_Objects_Stats')) ?
-          this.createModelFromChromeTraceFile(contents) :
-          this.createModelFromV8TraceFile(contents);
-      this.updateLabel('Finished loading \'' + file.name + '\'.');
-      this.dispatchEvent(new CustomEvent(
-          'change', {bubbles: true, composed: true, detail: return_data}));
-    };
-    result.readAsText(file);
+    const reader = new FileReader();
+
+    if (file.type === 'application/gzip') {
+      reader.onload = (e) => {
+        try {
+          const textResult = pako.inflate(e.target.result, {to: 'string'});
+          this.processRawText(file, textResult);
+        } catch (err) {
+          console.error(err);
+        }
+      };
+      reader.readAsArrayBuffer(file);
+    } else {
+      reader.onload = (e) => this.processRawText(file, e.target.result);
+      reader.readAsText(file);
+    }
+  }
+
+  processRawText(file, result) {
+    let contents = result.split('\n');
+    const return_data = (result.includes('V8.GC_Objects_Stats')) ?
+        this.createModelFromChromeTraceFile(contents) :
+        this.createModelFromV8TraceFile(contents);
+    this.updateLabel('Finished loading \'' + file.name + '\'.');
+    this.dispatchEvent(new CustomEvent(
+        'change', {bubbles: true, composed: true, detail: return_data}));
   }
 
   createOrUpdateEntryIfNeeded(data, keys, entry) {
@@ -130,8 +145,8 @@ class TraceFileReader extends HTMLElement {
       for (const gc of Object.keys(data[isolate].gcs)) {
         for (const data_set_key of keys[isolate]) {
           const data_set = data[isolate].gcs[gc][data_set_key];
-          // 1. Create a ranked instance type array that sorts instance
-          // types by memory size (overall).
+          // Create a ranked instance type array that sorts instance types by
+          // memory size (overall).
           data_set.ranked_instance_types =
               [...data_set.non_empty_instance_types].sort(function(a, b) {
                 if (data_set.instance_type_data[a].overall >
@@ -144,6 +159,32 @@ class TraceFileReader extends HTMLElement {
                 }
                 return 0;
               });
+
+          // Check that a lower bound for histogram memory does not exceed the
+          // overall counter.
+          const checkHistogram =
+              (type, entry, bucket_sizes, histogram, overallProperty) => {
+                let sum = 0;
+                for (let i = 1; i < entry[histogram].length; i++) {
+                  sum += entry[histogram][i] * bucket_sizes[i - 1];
+                }
+                const overall = entry[overallProperty];
+                if (sum >= overall) {
+                  console.error(
+                      `${type}: sum('${
+                                       histogram
+                                     }') > overall (${sum} > ${overall})`);
+                }
+              };
+          Object.entries(data_set.instance_type_data).forEach(([
+                                                                name, entry
+                                                              ]) => {
+            checkHistogram(
+                name, entry, data_set.bucket_sizes, 'histogram', ' overall');
+            checkHistogram(
+                name, entry, data_set.bucket_sizes, 'over_allocated_histogram',
+                ' over_allocated');
+          });
         }
       }
     }
@@ -193,7 +234,7 @@ class TraceFileReader extends HTMLElement {
         });
       });
     } catch (e) {
-      console.log('Unable to parse chrome trace file.', e);
+      console.error('Unable to parse chrome trace file.', e);
     }
     this.extendAndSanitizeModel(data, keys);
     return data;

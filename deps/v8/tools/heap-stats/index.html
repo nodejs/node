@@ -9,7 +9,12 @@ found in the LICENSE file. -->
   <meta charset="UTF-8">
   <title>V8 Heap Statistics</title>
   <link href='https://fonts.googleapis.com/css?family=Roboto' rel='stylesheet' type='text/css'>
-  <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+  <script type="text/javascript"
+          src="https://www.gstatic.com/charts/loader.js"></script>
+  <script type="text/javascript"
+          src="https://cdnjs.cloudflare.com/ajax/libs/pako/1.0.6/pako_inflate.min.js"
+          integrity="sha256-N1z6ddQzX83fjw8v7uSNe7/MgOmMKdwFUv1+AJMDqNM="
+          crossorigin="anonymous"></script>
 
   <link rel="import" href="details-selection.html">
   <link rel="import" href="global-timeline.html">
@@ -73,8 +78,7 @@ function globalSelectionChangedA(e) {
       <a
         href="https://www.chromium.org/developers/how-tos/trace-event-profiling-tool">Chrome's
         tracing infrastructure</a> collecting data for the category
-      <code>v8.gc_stats</code>. The trace file needs to be unpacked (e.g. using
-      <code>gunzip</code>).
+      <code>v8.gc_stats</code>.
     </li>
   </ul>
   <p>

@@ -31,9 +31,6 @@ class OutProc(outproc_base.BaseOutProc):
     super(OutProc, self).__init__()
     self._outproc = _outproc
 
-  def process(self, output):
-    return Result(self.has_unexpected_output(output), output)
-
   def has_unexpected_output(self, output):
     return output.exit_code != 0
 

@@ -286,29 +286,35 @@ Node* PromiseBuiltinsAssembler::InternalPromiseThen(Node* context,
                                                     Node* promise,
                                                     Node* on_resolve,
                                                     Node* on_reject) {
-  Isolate* isolate = this->isolate();
-
   // 2. If IsPromise(promise) is false, throw a TypeError exception.
   ThrowIfNotInstanceType(context, promise, JS_PROMISE_TYPE,
                          "Promise.prototype.then");
 
+  // 3. Let C be ? SpeciesConstructor(promise, %Promise%).
+  Label fast_promise_capability(this), slow_constructor(this, Label::kDeferred),
+      slow_promise_capability(this, Label::kDeferred);
   Node* const native_context = LoadNativeContext(context);
   Node* const promise_fun =
       LoadContextElement(native_context, Context::PROMISE_FUNCTION_INDEX);
+  Node* const promise_prototype =
+      LoadContextElement(native_context, Context::PROMISE_PROTOTYPE_INDEX);
+  Node* const promise_map = LoadMap(promise);
+  GotoIfNot(WordEqual(LoadMapPrototype(promise_map), promise_prototype),
+            &slow_constructor);
+  Branch(IsSpeciesProtectorCellInvalid(), &slow_constructor,
+         &fast_promise_capability);
 
-  // 3. Let C be ? SpeciesConstructor(promise, %Promise%).
-  Node* constructor = SpeciesConstructor(context, promise, promise_fun);
+  BIND(&slow_constructor);
+  Node* const constructor =
+      SpeciesConstructor(native_context, promise, promise_fun);
+  Branch(WordEqual(constructor, promise_fun), &fast_promise_capability,
+         &slow_promise_capability);
 
   // 4. Let resultCapability be ? NewPromiseCapability(C).
-  Callable call_callable = CodeFactory::Call(isolate);
-  Label fast_promise_capability(this), promise_capability(this),
-      perform_promise_then(this);
+  Label perform_promise_then(this);
   VARIABLE(var_deferred_promise, MachineRepresentation::kTagged);
   VARIABLE(var_deferred_on_resolve, MachineRepresentation::kTagged);
   VARIABLE(var_deferred_on_reject, MachineRepresentation::kTagged);
-
-  Branch(WordEqual(promise_fun, constructor), &fast_promise_capability,
-         &promise_capability);
 
   BIND(&fast_promise_capability);
   {
@@ -319,7 +325,7 @@ Node* PromiseBuiltinsAssembler::InternalPromiseThen(Node* context,
     Goto(&perform_promise_then);
   }
 
-  BIND(&promise_capability);
+  BIND(&slow_promise_capability);
   {
     Node* const capability = NewPromiseCapability(context, constructor);
     var_deferred_promise.Bind(
@@ -481,36 +487,33 @@ Node* PromiseBuiltinsAssembler::InternalPerformPromiseThen(
 
     BIND(&fulfilled_check);
     {
-      Label reject(this);
-      Node* const result = LoadObjectField(promise, JSPromise::kResultOffset);
-      GotoIfNot(IsPromiseStatus(status, v8::Promise::kFulfilled), &reject);
+      Label fulfilled(this), rejected(this, Label::kDeferred), enqueue(this);
+      VARIABLE(var_tasks, MachineRepresentation::kTagged);
+      Branch(IsPromiseStatus(status, v8::Promise::kFulfilled), &fulfilled,
+             &rejected);
 
+      BIND(&fulfilled);
+      {
+        var_tasks.Bind(var_on_resolve.value());
+        Goto(&enqueue);
+      }
+
+      BIND(&rejected);
+      {
+        CSA_ASSERT(this, IsPromiseStatus(status, v8::Promise::kRejected));
+        var_tasks.Bind(var_on_reject.value());
+        GotoIf(PromiseHasHandler(promise), &enqueue);
+        CallRuntime(Runtime::kPromiseRevokeReject, context, promise);
+        Goto(&enqueue);
+      }
+
+      BIND(&enqueue);
+      Node* result = LoadObjectField(promise, JSPromise::kResultOffset);
       Node* info = AllocatePromiseReactionJobInfo(
-          result, var_on_resolve.value(), deferred_promise, deferred_on_resolve,
+          result, var_tasks.value(), deferred_promise, deferred_on_resolve,
           deferred_on_reject, context);
       CallBuiltin(Builtins::kEnqueueMicrotask, NoContextConstant(), info);
       Goto(&out);
-
-      BIND(&reject);
-      {
-        CSA_ASSERT(this, IsPromiseStatus(status, v8::Promise::kRejected));
-        Node* const has_handler = PromiseHasHandler(promise);
-        Label enqueue(this);
-
-        // TODO(gsathya): Fold these runtime calls and move to TF.
-        GotoIf(has_handler, &enqueue);
-        CallRuntime(Runtime::kPromiseRevokeReject, context, promise);
-        Goto(&enqueue);
-
-        BIND(&enqueue);
-        {
-          Node* info = AllocatePromiseReactionJobInfo(
-              result, var_on_reject.value(), deferred_promise,
-              deferred_on_resolve, deferred_on_reject, context);
-          CallBuiltin(Builtins::kEnqueueMicrotask, NoContextConstant(), info);
-          Goto(&out);
-        }
-      }
     }
   }
 
@@ -1132,17 +1135,15 @@ TF_BUILTIN(PromiseHandle, PromiseBuiltinsAssembler) {
 
   VARIABLE(var_reason, MachineRepresentation::kTagged);
 
-  Node* const is_debug_active = IsDebugActive();
-  Label run_handler(this), if_rejectpromise(this), promisehook_before(this),
-      promisehook_after(this), debug_pop(this);
+  Label run_handler(this), if_rejectpromise(this),
+      promisehook_before(this, Label::kDeferred),
+      promisehook_after(this, Label::kDeferred), done(this), out(this);
 
-  GotoIfNot(is_debug_active, &promisehook_before);
-  CallRuntime(Runtime::kDebugPushPromise, context, deferred_promise);
-  Goto(&promisehook_before);
+  Branch(IsPromiseHookEnabledOrDebugIsActive(), &promisehook_before,
+         &run_handler);
 
   BIND(&promisehook_before);
   {
-    GotoIfNot(IsPromiseHookEnabledOrDebugIsActive(), &run_handler);
     CallRuntime(Runtime::kPromiseHookBefore, context, deferred_promise);
     Goto(&run_handler);
   }
@@ -1188,7 +1189,7 @@ TF_BUILTIN(PromiseHandle, PromiseBuiltinsAssembler) {
 
     BIND(&if_internalhandler);
     InternalResolvePromise(context, deferred_promise, var_result.value());
-    Goto(&promisehook_after);
+    Goto(&done);
 
     BIND(&if_customhandler);
     {
@@ -1197,7 +1198,7 @@ TF_BUILTIN(PromiseHandle, PromiseBuiltinsAssembler) {
           context, deferred_on_resolve, UndefinedConstant(),
           var_result.value());
       GotoIfException(maybe_exception, &if_rejectpromise, &var_reason);
-      Goto(&promisehook_after);
+      Goto(&done);
     }
   }
 
@@ -1205,23 +1206,18 @@ TF_BUILTIN(PromiseHandle, PromiseBuiltinsAssembler) {
   {
     CallBuiltin(Builtins::kPromiseHandleReject, context, deferred_promise,
                 deferred_on_reject, var_reason.value());
-    Goto(&promisehook_after);
+    Goto(&done);
   }
 
-  BIND(&promisehook_after);
+  BIND(&done);
   {
-    GotoIfNot(IsPromiseHookEnabledOrDebugIsActive(), &debug_pop);
-    CallRuntime(Runtime::kPromiseHookAfter, context, deferred_promise);
-    Goto(&debug_pop);
-  }
+    Branch(IsPromiseHookEnabledOrDebugIsActive(), &promisehook_after, &out);
 
-  BIND(&debug_pop);
-  {
-    Label out(this);
-
-    GotoIfNot(is_debug_active, &out);
-    CallRuntime(Runtime::kDebugPopPromise, context);
-    Goto(&out);
+    BIND(&promisehook_after);
+    {
+      CallRuntime(Runtime::kPromiseHookAfter, context, deferred_promise);
+      Goto(&out);
+    }
 
     BIND(&out);
     Return(UndefinedConstant());

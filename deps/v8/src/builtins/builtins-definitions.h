@@ -376,7 +376,6 @@ namespace internal {
   /* BigInt */                                                                 \
   CPP(BigIntConstructor)                                                       \
   CPP(BigIntConstructor_ConstructStub)                                         \
-  CPP(BigIntParseInt)                                                          \
   CPP(BigIntAsUintN)                                                           \
   CPP(BigIntAsIntN)                                                            \
   CPP(BigIntPrototypeToLocaleString)                                           \
@@ -1105,6 +1104,9 @@ namespace internal {
   TFJ(TypedArrayPrototypeSet, SharedFunctionInfo::kDontAdaptArgumentsSentinel) \
   /* ES6 #sec-%typedarray%.prototype.slice */                                  \
   CPP(TypedArrayPrototypeSlice)                                                \
+  /* ES6 %TypedArray%.prototype.subarray */                                    \
+  TFJ(TypedArrayPrototypeSubArray,                                             \
+      SharedFunctionInfo::kDontAdaptArgumentsSentinel)                         \
   /* ES6 #sec-get-%typedarray%.prototype-@@tostringtag */                      \
   TFJ(TypedArrayPrototypeToStringTag, 0)                                       \
   /* ES6 %TypedArray%.prototype.every */                                       \

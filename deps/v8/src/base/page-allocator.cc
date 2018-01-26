@@ -17,6 +17,8 @@ STATIC_ASSERT_ENUM(PageAllocator::kNoAccess,
                    base::OS::MemoryPermission::kNoAccess);
 STATIC_ASSERT_ENUM(PageAllocator::kReadWrite,
                    base::OS::MemoryPermission::kReadWrite);
+STATIC_ASSERT_ENUM(PageAllocator::kReadWriteExecute,
+                   base::OS::MemoryPermission::kReadWriteExecute);
 STATIC_ASSERT_ENUM(PageAllocator::kReadExecute,
                    base::OS::MemoryPermission::kReadExecute);
 

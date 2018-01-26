@@ -1244,7 +1244,12 @@ void VisitFloatUnop(InstructionSelector* selector, Node* node, Node* input,
   V(BitcastInt32ToFloat32, kX64BitcastIF)                                \
   V(BitcastInt64ToFloat64, kX64BitcastLD)                                \
   V(Float64ExtractLowWord32, kSSEFloat64ExtractLowWord32)                \
-  V(Float64ExtractHighWord32, kSSEFloat64ExtractHighWord32)
+  V(Float64ExtractHighWord32, kSSEFloat64ExtractHighWord32)              \
+  V(SignExtendWord8ToInt32, kX64Movsxbl)                                 \
+  V(SignExtendWord16ToInt32, kX64Movsxwl)                                \
+  V(SignExtendWord8ToInt64, kX64Movsxbq)                                 \
+  V(SignExtendWord16ToInt64, kX64Movsxwq)                                \
+  V(SignExtendWord32ToInt64, kX64Movsxlq)
 
 #define RR_OP_LIST(V)                                                         \
   V(Float32RoundDown, kSSEFloat32Round | MiscField::encode(kRoundDown))       \

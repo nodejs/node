@@ -747,6 +747,8 @@ DWORD GetProtectionFromMemoryPermission(OS::MemoryPermission access) {
       return PAGE_NOACCESS;
     case OS::MemoryPermission::kReadWrite:
       return PAGE_READWRITE;
+    case OS::MemoryPermission::kReadWriteExecute:
+      return PAGE_EXECUTE_READWRITE;
     case OS::MemoryPermission::kReadExecute:
       return PAGE_EXECUTE_READ;
   }

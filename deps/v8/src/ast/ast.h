@@ -437,21 +437,12 @@ class IterationStatement : public BreakableStatement {
 
   ZoneList<const AstRawString*>* labels() const { return labels_; }
 
-  int suspend_count() const { return suspend_count_; }
-  int first_suspend_id() const { return first_suspend_id_; }
-  void set_suspend_count(int suspend_count) { suspend_count_ = suspend_count; }
-  void set_first_suspend_id(int first_suspend_id) {
-    first_suspend_id_ = first_suspend_id;
-  }
-
  protected:
   IterationStatement(ZoneList<const AstRawString*>* labels, int pos,
                      NodeType type)
       : BreakableStatement(TARGET_FOR_ANONYMOUS, pos, type),
         labels_(labels),
-        body_(nullptr),
-        suspend_count_(0),
-        first_suspend_id_(0) {}
+        body_(nullptr) {}
   void Initialize(Statement* body) { body_ = body; }
 
   static const uint8_t kNextBitFieldIndex =
@@ -460,8 +451,6 @@ class IterationStatement : public BreakableStatement {
  private:
   ZoneList<const AstRawString*>* labels_;
   Statement* body_;
-  int suspend_count_;
-  int first_suspend_id_;
 };
 
 
@@ -2096,11 +2085,6 @@ class Suspend : public Expression {
     return OnAbruptResumeField::decode(bit_field_);
   }
 
-  int suspend_id() const { return suspend_id_; }
-  void set_suspend_id(int id) { suspend_id_ = id; }
-
-  inline bool IsInitialYield() const { return suspend_id_ == 0 && IsYield(); }
-
  private:
   friend class AstNodeFactory;
   friend class Yield;
@@ -2109,11 +2093,10 @@ class Suspend : public Expression {
 
   Suspend(NodeType node_type, Expression* expression, int pos,
           OnAbruptResume on_abrupt_resume)
-      : Expression(pos, node_type), suspend_id_(-1), expression_(expression) {
+      : Expression(pos, node_type), expression_(expression) {
     bit_field_ |= OnAbruptResumeField::encode(on_abrupt_resume);
   }
 
-  int suspend_id_;
   Expression* expression_;
 
   class OnAbruptResumeField
@@ -2128,47 +2111,11 @@ class Yield final : public Suspend {
 };
 
 class YieldStar final : public Suspend {
- public:
-  // In addition to the normal suspend for yield*, a yield* in an async
-  // generator has 2 additional suspends:
-  //   - One for awaiting the iterator result of closing the generator when
-  //     resumed with a "throw" completion, and a throw method is not present
-  //     on the delegated iterator (await_iterator_close_suspend_id)
-  //   - One for awaiting the iterator result yielded by the delegated iterator
-  //     (await_delegated_iterator_output_suspend_id)
-  int await_iterator_close_suspend_id() const {
-    return await_iterator_close_suspend_id_;
-  }
-  void set_await_iterator_close_suspend_id(int id) {
-    await_iterator_close_suspend_id_ = id;
-  }
-
-  int await_delegated_iterator_output_suspend_id() const {
-    return await_delegated_iterator_output_suspend_id_;
-  }
-  void set_await_delegated_iterator_output_suspend_id(int id) {
-    await_delegated_iterator_output_suspend_id_ = id;
-  }
-
-  inline int suspend_count() const {
-    if (await_iterator_close_suspend_id_ != -1) {
-      DCHECK_NE(-1, await_delegated_iterator_output_suspend_id_);
-      return 3;
-    }
-    return 1;
-  }
-
  private:
   friend class AstNodeFactory;
-
   YieldStar(Expression* expression, int pos)
       : Suspend(kYieldStar, expression, pos,
-                Suspend::OnAbruptResume::kNoControl),
-        await_iterator_close_suspend_id_(-1),
-        await_delegated_iterator_output_suspend_id_(-1) {}
-
-  int await_iterator_close_suspend_id_;
-  int await_delegated_iterator_output_suspend_id_;
+                Suspend::OnAbruptResume::kNoControl) {}
 };
 
 class Await final : public Suspend {

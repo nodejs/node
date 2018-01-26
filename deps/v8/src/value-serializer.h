@@ -301,7 +301,7 @@ class ValueDeserializer {
 
   // Always global handles.
   Handle<FixedArray> id_map_;
-  MaybeHandle<NumberDictionary> array_buffer_transfer_map_;
+  MaybeHandle<SimpleNumberDictionary> array_buffer_transfer_map_;
 
   DISALLOW_COPY_AND_ASSIGN(ValueDeserializer);
 };

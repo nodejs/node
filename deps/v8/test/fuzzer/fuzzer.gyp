@@ -25,13 +25,13 @@
       'target_name': 'json_fuzzer_lib',
       'type': 'static_library',
       'dependencies': [
-        '../../src/v8.gyp:v8_libplatform',
+        '../../gypfiles/v8.gyp:v8_libplatform',
         'fuzzer_support',
       ],
       'include_dirs': [
         '../..',
       ],
-      'sources': [  ### gcmole(all) ###
+      'sources': [
         'json.cc',
       ],
     },
@@ -52,13 +52,13 @@
       'target_name': 'parser_fuzzer_lib',
       'type': 'static_library',
       'dependencies': [
-        '../../src/v8.gyp:v8_libplatform',
+        '../../gypfiles/v8.gyp:v8_libplatform',
         'fuzzer_support',
       ],
       'include_dirs': [
         '../..',
       ],
-      'sources': [  ### gcmole(all) ###
+      'sources': [
         'parser.cc',
       ],
     },
@@ -79,13 +79,13 @@
       'target_name': 'regexp_builtins_fuzzer_lib',
       'type': 'static_library',
       'dependencies': [
-        '../../src/v8.gyp:v8_libplatform',
+        '../../gypfiles/v8.gyp:v8_libplatform',
         'fuzzer_support',
       ],
       'include_dirs': [
         '../..',
       ],
-      'sources': [  ### gcmole(all) ###
+      'sources': [
         'regexp-builtins.cc',
         'regexp_builtins/mjsunit.js.h',
       ],
@@ -107,13 +107,13 @@
       'target_name': 'regexp_fuzzer_lib',
       'type': 'static_library',
       'dependencies': [
-        '../../src/v8.gyp:v8_libplatform',
+        '../../gypfiles/v8.gyp:v8_libplatform',
         'fuzzer_support',
       ],
       'include_dirs': [
         '../..',
       ],
-      'sources': [  ### gcmole(all) ###
+      'sources': [
         'regexp.cc',
       ],
     },
@@ -134,13 +134,13 @@
       'target_name': 'multi_return_fuzzer_lib',
       'type': 'static_library',
       'dependencies': [
-        '../../src/v8.gyp:v8_libplatform',
+        '../../gypfiles/v8.gyp:v8_libplatform',
         'fuzzer_support',
       ],
       'include_dirs': [
         '../..',
       ],
-      'sources': [  ### gcmole(all) ###
+      'sources': [
         '../compiler/c-signature.h',
         '../compiler/call-helper.h',
         '../compiler/raw-machine-assembler-tester.h',
@@ -164,13 +164,13 @@
       'target_name': 'wasm_fuzzer_lib',
       'type': 'static_library',
       'dependencies': [
-        '../../src/v8.gyp:v8_libplatform',
+        '../../gypfiles/v8.gyp:v8_libplatform',
         'fuzzer_support',
       ],
       'include_dirs': [
         '../..',
       ],
-      'sources': [  ### gcmole(all) ###
+      'sources': [
         'wasm.cc',
         '../common/wasm/wasm-module-runner.cc',
         '../common/wasm/wasm-module-runner.h',
@@ -195,13 +195,13 @@
       'target_name': 'wasm_async_fuzzer_lib',
       'type': 'static_library',
       'dependencies': [
-        '../../src/v8.gyp:v8_libplatform',
+        '../../gypfiles/v8.gyp:v8_libplatform',
         'fuzzer_support',
       ],
       'include_dirs': [
         '../..',
       ],
-      'sources': [  ### gcmole(all) ###
+      'sources': [
         'wasm-async.cc',
         '../common/wasm/wasm-module-runner.cc',
         '../common/wasm/wasm-module-runner.h',
@@ -226,13 +226,13 @@
       'target_name': 'wasm_call_fuzzer_lib',
       'type': 'static_library',
       'dependencies': [
-        '../../src/v8.gyp:v8_libplatform',
+        '../../gypfiles/v8.gyp:v8_libplatform',
         'fuzzer_support',
       ],
       'include_dirs': [
         '../..',
       ],
-      'sources': [  ### gcmole(all) ###
+      'sources': [
         'wasm-call.cc',
         '../common/wasm/test-signatures.h',
         '../common/wasm/wasm-module-runner.cc',
@@ -258,13 +258,13 @@
       'target_name': 'wasm_code_fuzzer_lib',
       'type': 'static_library',
       'dependencies': [
-        '../../src/v8.gyp:v8_libplatform',
+        '../../gypfiles/v8.gyp:v8_libplatform',
         'fuzzer_support',
       ],
       'include_dirs': [
         '../..',
       ],
-      'sources': [  ### gcmole(all) ###
+      'sources': [
         'wasm-code.cc',
         '../common/wasm/test-signatures.h',
         '../common/wasm/wasm-module-runner.cc',
@@ -290,13 +290,13 @@
       'target_name': 'wasm_compile_fuzzer_lib',
       'type': 'static_library',
       'dependencies': [
-        '../../src/v8.gyp:v8_libplatform',
+        '../../gypfiles/v8.gyp:v8_libplatform',
         'fuzzer_support',
       ],
       'include_dirs': [
         '../..',
       ],
-      'sources': [  ### gcmole(all) ###
+      'sources': [
         'wasm-compile.cc',
         '../common/wasm/test-signatures.h',
         '../common/wasm/wasm-module-runner.cc',
@@ -322,13 +322,13 @@
       'target_name': 'wasm_data_section_fuzzer_lib',
       'type': 'static_library',
       'dependencies': [
-        '../../src/v8.gyp:v8_libplatform',
+        '../../gypfiles/v8.gyp:v8_libplatform',
         'fuzzer_support',
       ],
       'include_dirs': [
         '../..',
       ],
-      'sources': [  ### gcmole(all) ###
+      'sources': [
         'wasm-data-section.cc',
         '../common/wasm/wasm-module-runner.cc',
         '../common/wasm/wasm-module-runner.h',
@@ -353,13 +353,13 @@
       'target_name': 'wasm_function_sigs_section_fuzzer_lib',
       'type': 'static_library',
       'dependencies': [
-        '../../src/v8.gyp:v8_libplatform',
+        '../../gypfiles/v8.gyp:v8_libplatform',
         'fuzzer_support',
       ],
       'include_dirs': [
         '../..',
       ],
-      'sources': [  ### gcmole(all) ###
+      'sources': [
         'wasm-function-sigs-section.cc',
         '../common/wasm/wasm-module-runner.cc',
         '../common/wasm/wasm-module-runner.h',
@@ -384,13 +384,13 @@
       'target_name': 'wasm_globals_section_fuzzer_lib',
       'type': 'static_library',
       'dependencies': [
-        '../../src/v8.gyp:v8_libplatform',
+        '../../gypfiles/v8.gyp:v8_libplatform',
         'fuzzer_support',
       ],
       'include_dirs': [
         '../..',
       ],
-      'sources': [  ### gcmole(all) ###
+      'sources': [
         'wasm-globals-section.cc',
         '../common/wasm/wasm-module-runner.cc',
         '../common/wasm/wasm-module-runner.h',
@@ -415,13 +415,13 @@
       'target_name': 'wasm_imports_section_fuzzer_lib',
       'type': 'static_library',
       'dependencies': [
-        '../../src/v8.gyp:v8_libplatform',
+        '../../gypfiles/v8.gyp:v8_libplatform',
         'fuzzer_support',
       ],
       'include_dirs': [
         '../..',
       ],
-      'sources': [  ### gcmole(all) ###
+      'sources': [
         'wasm-imports-section.cc',
         '../common/wasm/wasm-module-runner.cc',
         '../common/wasm/wasm-module-runner.h',
@@ -446,13 +446,13 @@
       'target_name': 'wasm_memory_section_fuzzer_lib',
       'type': 'static_library',
       'dependencies': [
-        '../../src/v8.gyp:v8_libplatform',
+        '../../gypfiles/v8.gyp:v8_libplatform',
         'fuzzer_support',
       ],
       'include_dirs': [
         '../..',
       ],
-      'sources': [  ### gcmole(all) ###
+      'sources': [
         'wasm-memory-section.cc',
         '../common/wasm/wasm-module-runner.cc',
         '../common/wasm/wasm-module-runner.h',
@@ -477,13 +477,13 @@
       'target_name': 'wasm_names_section_fuzzer_lib',
       'type': 'static_library',
       'dependencies': [
-        '../../src/v8.gyp:v8_libplatform',
+        '../../gypfiles/v8.gyp:v8_libplatform',
         'fuzzer_support',
       ],
       'include_dirs': [
         '../..',
       ],
-      'sources': [  ### gcmole(all) ###
+      'sources': [
         'wasm-names-section.cc',
         '../common/wasm/wasm-module-runner.cc',
         '../common/wasm/wasm-module-runner.h',
@@ -508,13 +508,13 @@
       'target_name': 'wasm_types_section_fuzzer_lib',
       'type': 'static_library',
       'dependencies': [
-        '../../src/v8.gyp:v8_libplatform',
+        '../../gypfiles/v8.gyp:v8_libplatform',
         'fuzzer_support',
       ],
       'include_dirs': [
         '../..',
       ],
-      'sources': [  ### gcmole(all) ###
+      'sources': [
         'wasm-types-section.cc',
         '../common/wasm/wasm-module-runner.cc',
         '../common/wasm/wasm-module-runner.h',
@@ -526,14 +526,14 @@
       'target_name': 'fuzzer_support',
       'type': 'static_library',
       'dependencies': [
-        '../../src/v8.gyp:v8',
-        '../../src/v8.gyp:v8_libbase',
-        '../../src/v8.gyp:v8_libplatform',
+        '../../gypfiles/v8.gyp:v8',
+        '../../gypfiles/v8.gyp:v8_libbase',
+        '../../gypfiles/v8.gyp:v8_libplatform',
       ],
       'include_dirs': [
         '../..',
       ],
-      'sources': [  ### gcmole(all) ###
+      'sources': [
         'fuzzer-support.cc',
         'fuzzer-support.h',
       ],

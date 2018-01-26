@@ -1233,6 +1233,10 @@ Type* Typer::Visitor::TypeJSCreateKeyValueArray(Node* node) {
   return Type::OtherObject();
 }
 
+Type* Typer::Visitor::TypeJSCreatePromise(Node* node) {
+  return Type::OtherObject();
+}
+
 Type* Typer::Visitor::TypeJSCreateLiteralArray(Node* node) {
   return Type::Array();
 }
@@ -1820,6 +1824,10 @@ Type* Typer::Visitor::TypeJSGeneratorStore(Node* node) {
 
 Type* Typer::Visitor::TypeJSGeneratorRestoreContinuation(Node* node) {
   return Type::SignedSmall();
+}
+
+Type* Typer::Visitor::TypeJSGeneratorRestoreContext(Node* node) {
+  return Type::Any();
 }
 
 Type* Typer::Visitor::TypeJSGeneratorRestoreRegister(Node* node) {

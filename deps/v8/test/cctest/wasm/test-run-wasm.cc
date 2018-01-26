@@ -1949,6 +1949,9 @@ static void TestBuildGraphForSimpleExpression(WasmOpcode opcode) {
   Isolate* isolate = CcTest::InitIsolateOnce();
   Zone zone(isolate->allocator(), ZONE_NAME);
   HandleScope scope(isolate);
+  // TODO(gdeepti): Enable this test for sign extension opcodes when lowering
+  // is enabled.
+  if (WasmOpcodes::IsSignExtensionOpcode(opcode)) return;
   // Enable all optional operators.
   compiler::CommonOperatorBuilder common(&zone);
   compiler::MachineOperatorBuilder machine(

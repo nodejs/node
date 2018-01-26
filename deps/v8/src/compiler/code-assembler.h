@@ -651,6 +651,12 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   TNode<ExternalReference> ExternalConstant(ExternalReference address);
   TNode<Float64T> Float64Constant(double value);
   TNode<HeapNumber> NaNConstant();
+  TNode<BoolT> Int32TrueConstant() {
+    return ReinterpretCast<BoolT>(Int32Constant(1));
+  }
+  TNode<BoolT> Int32FalseConstant() {
+    return ReinterpretCast<BoolT>(Int32Constant(0));
+  }
 
   bool ToInt32Constant(Node* node, int32_t& out_value);
   bool ToInt64Constant(Node* node, int64_t& out_value);

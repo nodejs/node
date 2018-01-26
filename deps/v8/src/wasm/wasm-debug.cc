@@ -438,7 +438,6 @@ class InterpreterHandle {
   Handle<JSObject> GetLocalScopeObject(wasm::InterpretedFrame* frame,
                                        Handle<WasmDebugInfo> debug_info) {
     Isolate* isolate = debug_info->GetIsolate();
-    Handle<WasmInstanceObject> instance(debug_info->wasm_instance(), isolate);
 
     Handle<JSObject> local_scope_object =
         isolate_->factory()->NewJSObjectWithNullProto();
@@ -497,8 +496,6 @@ class InterpreterHandle {
   Handle<JSArray> GetScopeDetails(Address frame_pointer, int frame_index,
                                   Handle<WasmDebugInfo> debug_info) {
     auto frame = GetInterpretedFrame(frame_pointer, frame_index);
-    Isolate* isolate = debug_info->GetIsolate();
-    Handle<WasmInstanceObject> instance(debug_info->wasm_instance(), isolate);
 
     Handle<FixedArray> global_scope =
         isolate_->factory()->NewFixedArray(ScopeIterator::kScopeDetailsSize);

@@ -274,7 +274,7 @@ class V8_EXPORT_PRIVATE NativeModule final {
     }
   };
 
-  static base::AtomicNumber<uint32_t> next_id_;
+  static base::AtomicNumber<size_t> next_id_;
   NativeModule(const NativeModule&) = delete;
   NativeModule& operator=(const NativeModule&) = delete;
   NativeModule(uint32_t num_functions, uint32_t num_imports,

@@ -245,7 +245,6 @@ namespace internal {
   F(GeneratorClose, 1, 1)               \
   F(GeneratorGetFunction, 1, 1)         \
   F(GeneratorGetReceiver, 1, 1)         \
-  F(GeneratorGetContext, 1, 1)          \
   F(GeneratorGetInputOrDebugPos, 1, 1)  \
   F(AsyncGeneratorResolve, 3, 1)        \
   F(AsyncGeneratorReject, 2, 1)         \

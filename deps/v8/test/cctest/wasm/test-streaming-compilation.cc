@@ -974,6 +974,40 @@ STREAM_TEST(TestModuleWithImportedFunction) {
 
   CHECK(tester.IsPromiseFulfilled());
 }
+
+STREAM_TEST(TestModuleWithErrorAfterDataSection) {
+  StreamTester tester;
+
+  const uint8_t bytes[] = {
+      WASM_MODULE_HEADER,                   // module header
+      kTypeSectionCode,                     // section code
+      U32V_1(1 + SIZEOF_SIG_ENTRY_x_x),     // section size
+      U32V_1(1),                            // type count
+      SIG_ENTRY_x_x(kLocalI32, kLocalI32),  // signature entry
+      kFunctionSectionCode,                 // section code
+      U32V_1(1 + 1),                        // section size
+      U32V_1(1),                            // functions count
+      0,                                    // signature index
+      kCodeSectionCode,                     // section code
+      U32V_1(6),                            // section size
+      U32V_1(1),                            // functions count
+      U32V_1(4),                            // body size
+      U32V_1(0),                            // locals count
+      kExprGetLocal,                        // some code
+      0,                                    // some code
+      kExprEnd,                             // some code
+      kDataSectionCode,                     // section code
+      U32V_1(1),                            // section size
+      U32V_1(0),                            // data segment count
+      kUnknownSectionCode,                  // section code
+      U32V_1(1),                            // invalid section size
+  };
+
+  tester.OnBytesReceived(bytes, arraysize(bytes));
+  tester.FinishStream();
+  tester.RunCompilerTasks();
+  CHECK(tester.IsPromiseRejected());
+}
 #undef STREAM_TEST
 
 }  // namespace wasm

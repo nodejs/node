@@ -398,6 +398,9 @@ class ParserBase {
     }
     BailoutReason dont_optimize_reason() { return dont_optimize_reason_; }
 
+    void AddSuspend() { suspend_count_++; }
+    int suspend_count() const { return suspend_count_; }
+
     FunctionKind kind() const { return scope()->function_kind(); }
     FunctionState* outer() const { return outer_function_state_; }
 
@@ -480,6 +483,9 @@ class ParserBase {
 
     // A reason, if any, why this function should not be optimized.
     BailoutReason dont_optimize_reason_;
+
+    // How many suspends are needed for this function.
+    int suspend_count_;
 
     // Record whether the next (=== immediately following) function literal is
     // preceded by a parenthesis / exclamation mark. Also record the previous
@@ -1403,6 +1409,7 @@ class ParserBase {
       // In async generators, if there is an explicit operand to the return
       // statement, await the operand.
       expr = factory()->NewAwait(expr, kNoSourcePosition);
+      function_state_->AddSuspend();
     }
     if (is_async_function()) {
       return factory()->NewAsyncReturnStatement(expr, pos, end_pos);
@@ -1562,6 +1569,7 @@ ParserBase<Impl>::FunctionState::FunctionState(
       non_patterns_to_rewrite_(0, scope->zone()),
       reported_errors_(16, scope->zone()),
       dont_optimize_reason_(BailoutReason::kNoReason),
+      suspend_count_(0),
       next_function_is_likely_called_(false),
       previous_function_was_likely_called_(false),
       contains_function_or_eval_(false) {
@@ -3042,6 +3050,12 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseYieldExpression(
   if (delegating) {
     ExpressionT yieldstar = factory()->NewYieldStar(expression, pos);
     impl()->RecordSuspendSourceRange(yieldstar, PositionAfterSemicolon());
+    function_state_->AddSuspend();
+    if (IsAsyncGeneratorFunction(function_state_->kind())) {
+      // iterator_close and delegated_iterator_output suspend ids.
+      function_state_->AddSuspend();
+      function_state_->AddSuspend();
+    }
     return yieldstar;
   }
 
@@ -3050,6 +3064,7 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseYieldExpression(
   ExpressionT yield =
       factory()->NewYield(expression, pos, Suspend::kOnExceptionThrow);
   impl()->RecordSuspendSourceRange(yield, PositionAfterSemicolon());
+  function_state_->AddSuspend();
   return yield;
 }
 
@@ -3236,6 +3251,7 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseUnaryExpression(
         MessageTemplate::kInvalidDestructuringTarget);
 
     ExpressionT expr = factory()->NewAwait(value, await_pos);
+    function_state_->AddSuspend();
     impl()->RecordSuspendSourceRange(expr, PositionAfterSemicolon());
     return expr;
   } else {
@@ -4351,6 +4367,7 @@ ParserBase<Impl>::ParseArrowFunctionLiteral(
 
   StatementListT body = impl()->NullStatementList();
   int expected_property_count = -1;
+  int suspend_count = 0;
   int function_literal_id = GetNextFunctionLiteralId();
 
   FunctionKind kind = formal_parameters.scope->function_kind();
@@ -4436,6 +4453,7 @@ ParserBase<Impl>::ParseArrowFunctionLiteral(
     impl()->CheckConflictingVarDeclarations(formal_parameters.scope, CHECK_OK);
 
     impl()->RewriteDestructuringAssignments();
+    suspend_count = function_state.suspend_count();
   }
 
   FunctionLiteralT function_literal = factory()->NewFunctionLiteral(
@@ -4447,6 +4465,7 @@ ParserBase<Impl>::ParseArrowFunctionLiteral(
       formal_parameters.scope->start_position(), has_braces,
       function_literal_id, produced_preparsed_scope_data);
 
+  function_literal->set_suspend_count(suspend_count);
   function_literal->set_function_token_position(
       formal_parameters.scope->start_position());
 
@@ -5649,6 +5668,14 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseTryStatement(
 template <typename Impl>
 typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseForStatement(
     ZoneList<const AstRawString*>* labels, bool* ok) {
+  // Either a standard for loop
+  //   for (<init>; <cond>; <next>) { ... }
+  // or a for-each loop
+  //   for (<each> of|in <iterable>) { ... }
+  //
+  // We parse a declaration/expression after the 'for (' and then read the first
+  // expression/declaration before we know if this is a for or a for-each.
+
   int stmt_pos = peek_position();
   ForInfo for_info(this);
 

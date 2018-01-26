@@ -74,7 +74,9 @@
       'V8 Win32 - debug builder': 'gn_debug_x86_minimal_symbols',
       'V8 Win32 - nosnap - shared':
         'gn_release_x86_no_snap_shared_minimal_symbols',
-      'V8 Win32 ASAN': 'gn_release_x86_asan_no_lsan',
+      # TODO(machenbach): Remove after switching to x64 on infra side.
+      'V8 Win32 ASAN': 'gn_release_x64_asan_no_lsan',
+      'V8 Win64 ASAN': 'gn_release_x64_asan_no_lsan',
       'V8 Win64': 'gn_release_x64_minimal_symbols',
       'V8 Win64 - debug': 'gn_debug_x64_minimal_symbols',
       'V8 Win64 - msvc': 'gn_release_x64_msvc',
@@ -216,13 +218,14 @@
       'v8_linux64_tsan_concurrent_marking_rel_ng':
           'gn_release_x64_tsan_concurrent_marking_minimal_symbols',
       'v8_linux64_ubsan_rel_ng': 'gn_release_x64_ubsan_vptr_minimal_symbols',
-      'v8_win_asan_rel_ng': 'gn_release_x86_asan_no_lsan',
+      # TODO(machenbach): Remove after switching to x64 on infra side.
+      'v8_win_asan_rel_ng': 'gn_release_x64_asan_no_lsan',
       'v8_win_dbg': 'gn_debug_x86_trybot',
       'v8_win_compile_dbg': 'gn_debug_x86_trybot',
       'v8_win_rel_ng': 'gn_release_x86_trybot',
       'v8_win_nosnap_shared_rel_ng':
         'gn_release_x86_no_snap_shared_minimal_symbols',
-      # TODO(machenbach): Rename bot to msvc.
+      'v8_win64_asan_rel_ng': 'gn_release_x64_asan_no_lsan',
       'v8_win64_msvc_compile_rel': 'gn_release_x64_msvc',
       'v8_win64_dbg': 'gn_debug_x64_minimal_symbols',
       'v8_win64_rel_ng': 'gn_release_x64_trybot',
@@ -490,14 +493,11 @@
     # GN release configs for x86.
     'gn_release_x86': [
       'gn', 'release_bot', 'x86', 'swarming'],
-    'gn_release_x86_asan_no_lsan': [
-      'gn', 'release_bot', 'x86', 'asan', 'clang', 'swarming'],
     'gn_release_x86_asan_no_lsan_verify_heap': [
-      'gn', 'release_bot', 'x86', 'asan', 'clang', 'swarming',
-      'v8_verify_heap'],
+      'gn', 'release_bot', 'x86', 'asan', 'swarming', 'v8_verify_heap'],
     'gn_release_x86_asan_no_lsan_verify_heap_dchecks': [
-      'gn', 'release_bot', 'x86', 'asan', 'clang', 'swarming',
-      'dcheck_always_on', 'v8_enable_slow_dchecks', 'v8_verify_heap'],
+      'gn', 'release_bot', 'x86', 'asan', 'swarming', 'dcheck_always_on',
+      'v8_enable_slow_dchecks', 'v8_verify_heap'],
     'gn_release_x86_disassembler': [
       'gn', 'release_bot', 'x86', 'v8_enable_disassembler'],
     'gn_release_x86_gcc': [
@@ -558,7 +558,7 @@
     },
 
     'asan': {
-      'mixins': ['v8_enable_test_features'],
+      'mixins': ['clang', 'v8_enable_test_features'],
       'gn_args': 'is_asan=true',
       'gyp_defines': 'clang=1 asan=1',
     },

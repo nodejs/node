@@ -30,6 +30,7 @@ import re
 
 from testrunner.local import testsuite
 from testrunner.objects import testcase
+from testrunner.outproc import base as outproc
 
 FILES_PATTERN = re.compile(r"//\s+Files:(.*)")
 ENV_PATTERN = re.compile(r"//\s+Environment Variables:(.*)")
@@ -54,6 +55,9 @@ class TestSuite(testsuite.TestSuite):
           test = self._create_test(testname)
           tests.append(test)
     return tests
+
+  def _test_combiner_class(self):
+    return TestCombiner
 
   def _test_class(self):
     return TestCase
@@ -126,6 +130,82 @@ class TestCase(testcase.TestCase):
 
   def _get_source_path(self):
     return os.path.join(self.suite.root, self.path + self._get_suffix())
+
+
+class TestCombiner(testsuite.TestCombiner):
+  def get_group_key(self, test):
+    """Combine tests with the same set of flags.
+    Ignore:
+    1. Some special cases where it's not obvious what to pass in the command.
+    2. Tests with flags that can cause failure even inside try-catch wrapper.
+    3. Tests that use async functions. Async functions can be scheduled after
+      exiting from try-catch wrapper and cause failure.
+    """
+    if (len(test._files_suffix) > 1 or
+        test._env or
+        not test._mjsunit_files or
+        test._source_files):
+      return None
+
+    source_flags = test._get_source_flags()
+    if ('--expose-trigger-failure' in source_flags or
+        '--throws' in source_flags):
+      return None
+
+    source_code = test.get_source()
+    # Maybe we could just update the tests to await all async functions they
+    # call?
+    if 'async' in source_code:
+      return None
+
+    # TODO(majeski): Investigate if we can maybe ignore the flags while
+    # grouping.
+    return str(sorted(list(set(source_flags + test._get_statusfile_flags()))))
+
+  def _combined_test_class(self):
+    return CombinedTest
+
+
+class CombinedTest(testcase.TestCase):
+  """Behaves like normal mjsunit tests except:
+    1. Expected outcome is always PASS
+    2. Instead of one file there is a try-catch wrapper with all combined tests
+      passed as arguments.
+  """
+  def __init__(self, name, tests):
+    super(CombinedTest, self).__init__(tests[0].suite, '', name)
+    self._tests = tests
+
+  def _prepare_outcomes(self, force_update=True):
+    self._statusfile_outcomes = outproc.OUTCOMES_PASS
+    self.expected_outcomes = outproc.OUTCOMES_PASS
+
+  def _get_shell_with_flags(self, ctx):
+    """In addition to standard set of shell flags it appends:
+      --disable-abortjs: %AbortJS can abort the test even inside
+        trycatch-wrapper, so we disable it.
+      --quiet-load: suppress any stdout from load() function used by
+        trycatch-wrapper.
+    """
+    shell = 'd8'
+    shell_flags = ['--test', '--disable-abortjs', '--quiet-load']
+    if ctx.random_seed:
+      shell_flags.append('--random-seed=%s' % ctx.random_seed)
+    return shell, shell_flags
+
+  def _get_cmd_params(self, ctx):
+    return (
+      super(CombinedTest, self)._get_cmd_params(ctx) +
+      self._tests[0]._mjsunit_files +
+      ['tools/testrunner/trycatch_loader.js', '--'] +
+      [t._files_suffix[0] for t in self._tests]
+    )
+
+  def _get_source_flags(self):
+    return self._tests[0]._get_source_flags()
+
+  def _get_statusfile_flags(self):
+    return self._tests[0]._get_statusfile_flags()
 
 
 def GetSuite(name, root):

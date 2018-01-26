@@ -203,9 +203,11 @@ class UseInfo {
                    Truncation::Any(identify_zeros), TypeCheckKind::kSignedSmall,
                    feedback);
   }
-  static UseInfo CheckedSigned32AsWord32(IdentifyZeros identify_zeros) {
+  static UseInfo CheckedSigned32AsWord32(IdentifyZeros identify_zeros,
+                                         const VectorSlotPair& feedback) {
     return UseInfo(MachineRepresentation::kWord32,
-                   Truncation::Any(identify_zeros), TypeCheckKind::kSigned32);
+                   Truncation::Any(identify_zeros), TypeCheckKind::kSigned32,
+                   feedback);
   }
   static UseInfo CheckedNumberAsFloat64() {
     return UseInfo(MachineRepresentation::kFloat64, Truncation::Any(),

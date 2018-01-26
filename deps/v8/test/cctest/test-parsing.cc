@@ -34,7 +34,6 @@
 #include "src/v8.h"
 
 #include "src/api.h"
-#include "src/ast/ast-numbering.h"
 #include "src/ast/ast-value-factory.h"
 #include "src/ast/ast.h"
 #include "src/compiler.h"

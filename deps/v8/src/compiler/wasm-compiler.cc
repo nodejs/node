@@ -780,6 +780,21 @@ Node* WasmGraphBuilder::Unop(wasm::WasmOpcode opcode, Node* input,
       }
       op = m->RoundUint64ToFloat64();
       break;
+    case wasm::kExprI32SExtendI8:
+      op = m->SignExtendWord8ToInt32();
+      break;
+    case wasm::kExprI32SExtendI16:
+      op = m->SignExtendWord16ToInt32();
+      break;
+    case wasm::kExprI64SExtendI8:
+      op = m->SignExtendWord8ToInt64();
+      break;
+    case wasm::kExprI64SExtendI16:
+      op = m->SignExtendWord16ToInt64();
+      break;
+    case wasm::kExprI64SExtendI32:
+      op = m->SignExtendWord32ToInt64();
+      break;
     case wasm::kExprI64SConvertF32:
       return BuildI64SConvertF32(input, position);
     case wasm::kExprI64SConvertF64:

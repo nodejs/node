@@ -2524,13 +2524,16 @@ Node* JSNativeContextSpecialization::BuildIndexedStringLoad(
         graph()->NewNode(simplified()->MaskIndexWithBound(), index, length);
 
     Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
-    Node* vtrue = graph()->NewNode(simplified()->StringCharAt(), receiver,
-                                   masked_index, if_true);
+    Node* etrue;
+    Node* vtrue = etrue = graph()->NewNode(
+        simplified()->StringCharAt(), receiver, masked_index, *effect, if_true);
 
     Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
     Node* vfalse = jsgraph()->UndefinedConstant();
 
     *control = graph()->NewNode(common()->Merge(2), if_true, if_false);
+    *effect =
+        graph()->NewNode(common()->EffectPhi(2), etrue, *effect, *control);
     return graph()->NewNode(common()->Phi(MachineRepresentation::kTagged, 2),
                             vtrue, vfalse, *control);
   } else {
@@ -2543,8 +2546,10 @@ Node* JSNativeContextSpecialization::BuildIndexedStringLoad(
         graph()->NewNode(simplified()->MaskIndexWithBound(), index, length);
 
     // Return the character from the {receiver} as single character string.
-    return graph()->NewNode(simplified()->StringCharAt(), receiver,
-                            masked_index, *control);
+    Node* value = *effect =
+        graph()->NewNode(simplified()->StringCharAt(), receiver, masked_index,
+                         *effect, *control);
+    return value;
   }
 }
 

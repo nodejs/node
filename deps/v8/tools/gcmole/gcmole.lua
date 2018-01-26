@@ -181,34 +181,6 @@ function InvokeClangPluginForEachFile(filenames, cfg, func)
 end
 
 -------------------------------------------------------------------------------
--- GYP file parsing
-
--- TODO(machenbach): Remove this when deprecating gyp.
-local function ParseGYPFile()
-   local result = {}
-   local gyp_files = {
-       { "src/v8.gyp",             "'([^']-%.cc)'",      "src/"         },
-       { "test/cctest/cctest.gyp", "'(test-[^']-%.cc)'", "test/cctest/" }
-   }
-
-   for i = 1, #gyp_files do
-      local filename = gyp_files[i][1]
-      local pattern = gyp_files[i][2]
-      local prefix = gyp_files[i][3]
-      local gyp_file = assert(io.open(filename), "failed to open GYP file")
-      local gyp = gyp_file:read('*a')
-      for condition, sources in
-         gyp:gmatch "%[.-### gcmole%((.-)%) ###(.-)%]" do
-         if result[condition] == nil then result[condition] = {} end
-         for file in sources:gmatch(pattern) do
-            table.insert(result[condition], prefix .. file)
-         end
-      end
-      gyp_file:close()
-   end
-
-   return result
-end
 
 local function ParseGNFile()
    local result = {}
@@ -258,33 +230,7 @@ local function BuildFileList(sources, props)
 end
 
 
-local gyp_sources = ParseGYPFile()
 local gn_sources = ParseGNFile()
-
--- TODO(machenbach): Remove this comparison logic when deprecating gyp.
-local function CompareSources(sources1, sources2, what)
-  for condition, files1 in pairs(sources1) do
-    local files2 = sources2[condition]
-    assert(
-      files2 ~= nil,
-      "Missing gcmole condition in " .. what .. ": " .. condition)
-
-    -- Turn into set for speed.
-    files2_set = {}
-    for i, file in pairs(files2) do files2_set[file] = true end
-
-    for i, file in pairs(files1) do
-      assert(
-        files2_set[file] ~= nil,
-        "Missing file " .. file .. " in " .. what .. " for condition " ..
-        condition)
-    end
-  end
-end
-
-CompareSources(gyp_sources, gn_sources, "GN")
-CompareSources(gn_sources, gyp_sources, "GYP")
-
 
 local function FilesForArch(arch)
    return BuildFileList(gn_sources, { os = 'linux',

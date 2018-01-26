@@ -169,6 +169,7 @@ Heap::Heap()
       code_space_(nullptr),
       map_space_(nullptr),
       lo_space_(nullptr),
+      write_protect_code_memory_(false),
       code_space_memory_modification_scope_depth_(0),
       gc_state_(NOT_IN_GC),
       gc_post_processing_depth_(0),
@@ -643,7 +644,7 @@ const char* Heap::GetSpaceName(int idx) {
   return nullptr;
 }
 
-void Heap::SetRootCodeStubs(NumberDictionary* value) {
+void Heap::SetRootCodeStubs(SimpleNumberDictionary* value) {
   roots_[kCodeStubsRootIndex] = value;
 }
 
@@ -5628,6 +5629,8 @@ bool Heap::SetUp() {
     stress_scavenge_observer_ = new StressScavengeObserver(*this);
     new_space()->AddAllocationObserver(stress_scavenge_observer_);
   }
+
+  write_protect_code_memory_ = FLAG_write_protect_code_memory;
 
   return true;
 }

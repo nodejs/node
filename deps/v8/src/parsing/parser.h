@@ -506,7 +506,7 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
       FunctionLiteral::FunctionType function_type,
       DeclarationScope* function_scope, int* num_parameters,
       int* function_length, bool* has_duplicate_parameters,
-      int* expected_property_count,
+      int* expected_property_count, int* suspend_count,
       ZoneList<const AstRawString*>* arguments_for_wrapped_function, bool* ok);
 
   void ThrowPendingError(Isolate* isolate, Handle<Script> script);

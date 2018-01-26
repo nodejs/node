@@ -206,12 +206,18 @@ int BytecodeArrayAccessor::GetJumpTargetOffset() const {
 
 JumpTableTargetOffsets BytecodeArrayAccessor::GetJumpTableTargetOffsets()
     const {
-  DCHECK_EQ(current_bytecode(), Bytecode::kSwitchOnSmiNoFeedback);
-
-  uint32_t table_start = GetIndexOperand(0);
-  uint32_t table_size = GetUnsignedImmediateOperand(1);
-  int32_t case_value_base = GetImmediateOperand(2);
-
+  uint32_t table_start, table_size;
+  int32_t case_value_base;
+  if (current_bytecode() == Bytecode::kSwitchOnGeneratorState) {
+    table_start = GetIndexOperand(1);
+    table_size = GetUnsignedImmediateOperand(2);
+    case_value_base = 0;
+  } else {
+    DCHECK_EQ(current_bytecode(), Bytecode::kSwitchOnSmiNoFeedback);
+    table_start = GetIndexOperand(0);
+    table_size = GetUnsignedImmediateOperand(1);
+    case_value_base = GetImmediateOperand(2);
+  }
   return JumpTableTargetOffsets(this, table_start, table_size, case_value_base);
 }
 

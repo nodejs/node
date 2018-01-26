@@ -43,8 +43,9 @@ FrameInspector::FrameInspector(StandardFrame* frame, int inlined_frame_index,
         js_frame, inlined_frame_index, isolate));
   } else if (frame_->is_wasm_interpreter_entry()) {
     wasm_interpreted_frame_ =
-        summary.AsWasm().wasm_instance()->debug_info()->GetInterpretedFrame(
-            frame_->fp(), inlined_frame_index);
+        WasmInterpreterEntryFrame::cast(frame_)
+            ->debug_info()
+            ->GetInterpretedFrame(frame_->fp(), inlined_frame_index);
     DCHECK(wasm_interpreted_frame_);
   }
 }

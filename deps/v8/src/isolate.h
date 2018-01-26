@@ -1104,7 +1104,7 @@ class Isolate {
   bool IsNoElementsProtectorIntact(Context* context);
   bool IsNoElementsProtectorIntact();
 
-  inline bool IsArraySpeciesLookupChainIntact();
+  inline bool IsSpeciesLookupChainIntact();
   bool IsIsConcatSpreadableLookupChainIntact();
   bool IsIsConcatSpreadableLookupChainIntact(JSReceiver* receiver);
   inline bool IsStringLengthOverflowIntact();
@@ -1115,6 +1115,10 @@ class Isolate {
 
   // Make sure we do check for neutered array buffers.
   inline bool IsArrayBufferNeuteringIntact();
+
+  // Disable promise optimizations if promise (debug) hooks have ever been
+  // active.
+  bool IsPromiseHookProtectorIntact();
 
   // On intent to set an element in object, make sure that appropriate
   // notifications occur if the set is on the elements of the array or
@@ -1131,11 +1135,12 @@ class Isolate {
     UpdateNoElementsProtectorOnSetElement(object);
   }
   void InvalidateArrayConstructorProtector();
-  void InvalidateArraySpeciesProtector();
+  void InvalidateSpeciesProtector();
   void InvalidateIsConcatSpreadableProtector();
   void InvalidateStringLengthOverflowProtector();
   void InvalidateArrayIteratorProtector();
   void InvalidateArrayBufferNeuteringProtector();
+  void InvalidatePromiseHookProtector();
 
   // Returns true if array is the initial array prototype in any native context.
   bool IsAnyInitialArrayPrototype(Handle<JSArray> array);

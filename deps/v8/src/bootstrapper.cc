@@ -2397,6 +2397,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     // Setup %PromisePrototype%.
     Handle<JSObject> prototype(
         JSObject::cast(promise_fun->instance_prototype()));
+    native_context()->set_promise_prototype(*prototype);
 
     // Install the @@toStringTag property on the {prototype}.
     JSObject::AddProperty(
@@ -3096,6 +3097,8 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
                           Builtins::kTypedArrayPrototypeSlice, 2, false);
     SimpleInstallFunction(prototype, "some", Builtins::kTypedArrayPrototypeSome,
                           1, false);
+    SimpleInstallFunction(prototype, "subarray",
+                          Builtins::kTypedArrayPrototypeSubArray, 2, false);
   }
 
   {  // -- T y p e d A r r a y s
@@ -4513,9 +4516,6 @@ void Genesis::InitializeGlobal_harmony_bigint() {
       Context::BIGINT_FUNCTION_INDEX);
 
   // Install the properties of the BigInt constructor.
-  // parseInt(string, radix)
-  SimpleInstallFunction(bigint_fun, "parseInt", Builtins::kBigIntParseInt, 2,
-                        false);
   // asUintN(bits, bigint)
   SimpleInstallFunction(bigint_fun, "asUintN", Builtins::kBigIntAsUintN, 2,
                         false);
@@ -4738,8 +4738,8 @@ bool Genesis::InstallNatives(GlobalContextType context_type) {
   native_context()->set_fast_template_instantiations_cache(
       *fast_template_instantiations_cache);
 
-  auto slow_template_instantiations_cache =
-      NumberDictionary::New(isolate(), ApiNatives::kInitialFunctionCacheSize);
+  auto slow_template_instantiations_cache = SimpleNumberDictionary::New(
+      isolate(), ApiNatives::kInitialFunctionCacheSize);
   native_context()->set_slow_template_instantiations_cache(
       *slow_template_instantiations_cache);
 
@@ -5310,6 +5310,11 @@ bool Genesis::ConfigureGlobalObjects(
 
   native_context()->set_js_map_map(js_map_fun->initial_map());
   native_context()->set_js_set_map(js_set_fun->initial_map());
+
+  Handle<JSFunction> js_array_constructor(native_context()->array_function());
+  Handle<JSObject> js_array_prototype(
+      JSObject::cast(js_array_constructor->instance_prototype()));
+  native_context()->set_initial_array_prototype_map(js_array_prototype->map());
 
   return true;
 }

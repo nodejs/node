@@ -616,4 +616,13 @@ inline WasmOpcode LoadStoreOpcodeOf(MachineType type, bool store) {
   x, y, WASM_ATOMICS_OP(op),                            \
       static_cast<byte>(ElementSizeLog2Of(representation)), ZERO_OFFSET
 
+//------------------------------------------------------------------------------
+// Sign Externsion Operations.
+//------------------------------------------------------------------------------
+#define WASM_I32_SIGN_EXT_I8(x) x, kExprI32SExtendI8
+#define WASM_I32_SIGN_EXT_I16(x) x, kExprI32SExtendI16
+#define WASM_I64_SIGN_EXT_I8(x) x, kExprI64SExtendI8
+#define WASM_I64_SIGN_EXT_I16(x) x, kExprI64SExtendI16
+#define WASM_I64_SIGN_EXT_I32(x) x, kExprI64SExtendI32
+
 #endif  // V8_WASM_MACRO_GEN_H_

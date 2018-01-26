@@ -228,18 +228,60 @@ class GlobalDictionary
   inline void ValueAtPut(int entry, Object* value);
 };
 
-class NumberDictionaryShape : public BaseDictionaryShape<uint32_t> {
+class NumberDictionaryBaseShape : public BaseDictionaryShape<uint32_t> {
  public:
-  static const int kPrefixSize = 1;
-  static const int kEntrySize = 3;
-
   static inline bool IsMatch(uint32_t key, Object* other);
   static inline Handle<Object> AsHandle(Isolate* isolate, uint32_t key);
 
   static inline uint32_t Hash(Isolate* isolate, uint32_t key);
   static inline uint32_t HashForObject(Isolate* isolate, Object* object);
+};
+
+class NumberDictionaryShape : public NumberDictionaryBaseShape {
+ public:
+  static const int kPrefixSize = 1;
+  static const int kEntrySize = 3;
 
   static inline int GetMapRootIndex();
+};
+
+class SimpleNumberDictionaryShape : public NumberDictionaryBaseShape {
+ public:
+  static const bool kHasDetails = false;
+  static const int kPrefixSize = 0;
+  static const int kEntrySize = 2;
+
+  template <typename Dictionary>
+  static inline PropertyDetails DetailsAt(Dictionary* dict, int entry) {
+    UNREACHABLE();
+  }
+
+  template <typename Dictionary>
+  static inline void DetailsAtPut(Dictionary* dict, int entry,
+                                  PropertyDetails value) {
+    UNREACHABLE();
+  }
+
+  static inline int GetMapRootIndex();
+};
+
+extern template class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
+    HashTable<SimpleNumberDictionary, SimpleNumberDictionaryShape>;
+
+extern template class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
+    Dictionary<SimpleNumberDictionary, SimpleNumberDictionaryShape>;
+
+// SimpleNumberDictionary is used to map number to an entry.
+class SimpleNumberDictionary
+    : public Dictionary<SimpleNumberDictionary, SimpleNumberDictionaryShape> {
+ public:
+  DECL_CAST(SimpleNumberDictionary)
+  // Type specific at put (default NONE attributes is used when adding).
+  MUST_USE_RESULT static Handle<SimpleNumberDictionary> Set(
+      Handle<SimpleNumberDictionary> dictionary, uint32_t key,
+      Handle<Object> value);
+
+  static const int kEntryValueIndex = 1;
 };
 
 extern template class EXPORT_TEMPLATE_DECLARE(
@@ -248,6 +290,8 @@ extern template class EXPORT_TEMPLATE_DECLARE(
 extern template class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
     Dictionary<NumberDictionary, NumberDictionaryShape>;
 
+// NumberDictionary is used as elements backing store and provides a bitfield
+// and stores property details for every entry.
 class NumberDictionary
     : public Dictionary<NumberDictionary, NumberDictionaryShape> {
  public:

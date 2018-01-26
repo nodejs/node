@@ -7,74 +7,73 @@
 // Flags: --harmony-bigint
 
 var data = [{
-  a: "3d02c87edc77722299f6559ecca038911f864a4e78c20af80f4a6d9",
-  r: "-3d02c87edc77722299f6559ecca038911f864a4e78c20af80f4a6da"
+  a: 0x9f0305cd75e4n,
+  r: -0x9f0305cd75e5n
 }, {
-  a: "ac01894aeaf77255ede209897561ec1e3c7e916b9",
-  r: "-ac01894aeaf77255ede209897561ec1e3c7e916ba"
+  a: -0xe8e9c8312f553c9n,
+  r: 0xe8e9c8312f553c8n
 }, {
-  a: "-7aaab657ab197f26eb6b98fe4c2c79b199a8156129ca04",
-  r: "7aaab657ab197f26eb6b98fe4c2c79b199a8156129ca03"
+  a: -0x1a29f0783a66534da3c024ad1cc854073f886888fen,
+  r: 0x1a29f0783a66534da3c024ad1cc854073f886888fdn
 }, {
-  a: "9718579cc52befdaff1ec035b5ed03cec5c1d1678c28712cf0c9bec2c807897b74f0",
-  r: "-9718579cc52befdaff1ec035b5ed03cec5c1d1678c28712cf0c9bec2c807897b74f1"
+  a: -0xfc2cc19496c1ced95be832ca5246d41c526b9fa28b88bcd39813aa336n,
+  r: 0xfc2cc19496c1ced95be832ca5246d41c526b9fa28b88bcd39813aa335n
 }, {
-  a: "e614366bc4e67509843254c52e13da5380b00a35aa1d233e70821f7d649ad1957db",
-  r: "-e614366bc4e67509843254c52e13da5380b00a35aa1d233e70821f7d649ad1957dc"
+  a: 0x13ebn,
+  r: -0x13ecn
 }, {
-  a: "fb815f78e6952b500226c",
-  r: "-fb815f78e6952b500226d"
+  a: 0x4c12d642b2a132f0c927ec7504b530fb45d5e249163ffdc59feb3de31881n,
+  r: -0x4c12d642b2a132f0c927ec7504b530fb45d5e249163ffdc59feb3de31882n
 }, {
-  a: "94404df802649cff2ea6c0996f55ec60c14f00ab29b287092389951f6227c4ec7",
-  r: "-94404df802649cff2ea6c0996f55ec60c14f00ab29b287092389951f6227c4ec8"
+  a: 0x49637a624cb8782002e3e0874ad76215e188cee948c7ce7b0f66e1d0n,
+  r: -0x49637a624cb8782002e3e0874ad76215e188cee948c7ce7b0f66e1d1n
 }, {
-  a: "-74b42cd7bccd",
-  r: "74b42cd7bccc"
+  a: -0x81cbae84e6753b885ada46c0bf72368c083fed622fn,
+  r: 0x81cbae84e6753b885ada46c0bf72368c083fed622en
 }, {
-  a: "da",
-  r: "-db"
+  a: -0xcdf793acfdd08b6n,
+  r: 0xcdf793acfdd08b5n
 }, {
-  a: "3a9ade198",
-  r: "-3a9ade199"
+  a: 0x88n,
+  r: -0x89n
 }, {
-  a: "56e766d24fd18c2241f244dedc426c0b1ae59e7ed4f06def0a75e0a5c8651e2ce87928",
-  r: "-56e766d24fd18c2241f244dedc426c0b1ae59e7ed4f06def0a75e0a5c8651e2ce87929"
+  a: -0x1fn,
+  r: 0x1en
 }, {
-  a: "cc430c91347b22ecb1a6f1a2ceea168ffa4a9b80065bd1ec5d",
-  r: "-cc430c91347b22ecb1a6f1a2ceea168ffa4a9b80065bd1ec5e"
+  a: 0x5c3278e76266b9e93d63eb4f2aa53716220aa1n,
+  r: -0x5c3278e76266b9e93d63eb4f2aa53716220aa2n
 }, {
-  a: "32e4b7f82d8c037d0f562296e21b1e58a",
-  r: "-32e4b7f82d8c037d0f562296e21b1e58b"
+  a: -0x9f4fe05n,
+  r: 0x9f4fe04n
 }, {
-  a: "-526d3f1a904561f0cde1f0a2a4",
-  r: "526d3f1a904561f0cde1f0a2a3"
+  a: 0xdn,
+  r: -0xen
 }, {
-  a: "3de5a9635a40539831c9665577e5eedbf680755e2065a0caa346759e17225",
-  r: "-3de5a9635a40539831c9665577e5eedbf680755e2065a0caa346759e17226"
+  a: -0x74a9d63d02bd1393b311211e35c8b2d11e2367ffffb812683365f02d98n,
+  r: 0x74a9d63d02bd1393b311211e35c8b2d11e2367ffffb812683365f02d97n
 }, {
-  a: "-d912828b8d6419900",
-  r: "d912828b8d64198ff"
+  a: 0x8a2831ae3e1b6b21a7b3d7ee921a0c0edf29b272d654f647169a5a6141d3aaf41439n,
+  r: -0x8a2831ae3e1b6b21a7b3d7ee921a0c0edf29b272d654f647169a5a6141d3aaf4143an
 }, {
-  a: "-17968ddf93",
-  r: "17968ddf92"
+  a: 0xa2ef28270a7e668e190bc303537f5a8ba3f0d59bcn,
+  r: -0xa2ef28270a7e668e190bc303537f5a8ba3f0d59bdn
 }, {
-  a: "-c2bfd766e34923d549bbaedb4d9b7bb35a61908e6144462a",
-  r: "c2bfd766e34923d549bbaedb4d9b7bb35a61908e61444629"
+  a: -0x4f8bd11ee4ef38682a0c94en,
+  r: 0x4f8bd11ee4ef38682a0c94dn
 }, {
-  a: "af426ec83aaafc84a94930e51a2899696a3d",
-  r: "-af426ec83aaafc84a94930e51a2899696a3e"
+  a: 0x5436d0721d1282755068add3b5ab5424cb455fad50811a9afff0be5n,
+  r: -0x5436d0721d1282755068add3b5ab5424cb455fad50811a9afff0be6n
 }, {
-  a: "-283de5b9379a45f065d3b8662ac38faa6492bc0eea6b7e3b51591a5cc27669e",
-  r: "283de5b9379a45f065d3b8662ac38faa6492bc0eea6b7e3b51591a5cc27669d"
+  a: 0x5db6907c92529f517d24a6ff7303de42cb9059ae2adc0c22n,
+  r: -0x5db6907c92529f517d24a6ff7303de42cb9059ae2adc0c23n
 }];
 
 var error_count = 0;
 for (var i = 0; i < data.length; i++) {
   var d = data[i];
-  var a = BigInt.parseInt(d.a, 16);
-  var r = ~a;
-  if (d.r !== r.toString(16)) {
-    print("Input:    " + a.toString(16));
+  var r = ~d.a;
+  if (d.r !== r) {
+    print("Input:    " + d.a.toString(16));
     print("Result:   " + r.toString(16));
     print("Expected: " + d.r);
     error_count++;

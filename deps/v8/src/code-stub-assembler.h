@@ -223,6 +223,11 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   // Select the minimum of the two provided Number values.
   TNode<Object> NumberMin(SloppyTNode<Object> left, SloppyTNode<Object> right);
 
+  // After converting an index to an integer, calculate a relative index: if
+  // index < 0, max(length + index, 0); else min(index, length)
+  void ConvertToRelativeIndex(Node* context, Variable* var_result, Node* index,
+                              Node* length);
+
   // Tag a Word as a Smi value.
   TNode<Smi> SmiTag(SloppyTNode<IntPtrT> value);
   // Untag a Smi value as a Word.
@@ -497,9 +502,15 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   TNode<Int32T> LoadInstanceType(SloppyTNode<HeapObject> object);
   // Compare the instance the type of the object against the provided one.
   Node* HasInstanceType(Node* object, InstanceType type);
-  // Determines whether the Array Iterator's prototype has changed.
+  // Determines whether Array Iterator's prototype has changed.
   TNode<BoolT> HasInitialArrayIteratorPrototypeMap(
       TNode<Context> native_context);
+  // Determines whether Array's prototype has changed.
+  TNode<BoolT> InitialArrayPrototypeHasInitialArrayPrototypeMap(
+      TNode<Context> native_context);
+  // Determines whether an array's elements map has changed.
+  TNode<BoolT> HasInitialFastElementsKindMap(TNode<Context> native_context,
+                                             TNode<JSArray> jsarray);
   Node* DoesntHaveInstanceType(Node* object, InstanceType type);
   Node* TaggedDoesntHaveInstanceType(Node* any_tagged, InstanceType type);
   // Load the properties backing store of a JSObject.
@@ -1080,6 +1091,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   Node* IsExternalStringInstanceType(Node* instance_type);
   TNode<BoolT> IsFastJSArray(SloppyTNode<Object> object,
                              SloppyTNode<Context> context);
+  TNode<BoolT> IsFastJSArrayWithNoCustomIteration(
+      TNode<Object> object, TNode<Context> context,
+      TNode<Context> native_context);
   Node* IsFeedbackVector(Node* object);
   Node* IsFixedArray(Node* object);
   Node* IsFixedArraySubclass(Node* object);
@@ -1125,6 +1139,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   Node* IsPropertyArray(Node* object);
   Node* IsPropertyCell(Node* object);
   Node* IsPrototypeInitialArrayPrototype(Node* context, Node* map);
+  TNode<BoolT> IsPrototypeTypedArrayPrototype(SloppyTNode<Context> context,
+                                              SloppyTNode<Map> map);
   Node* IsSequentialStringInstanceType(Node* instance_type);
   Node* IsShortExternalStringInstanceType(Node* instance_type);
   Node* IsSpecialReceiverInstanceType(Node* instance_type);

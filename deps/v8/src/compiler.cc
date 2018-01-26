@@ -10,7 +10,6 @@
 #include "src/api.h"
 #include "src/asmjs/asm-js.h"
 #include "src/assembler-inl.h"
-#include "src/ast/ast-numbering.h"
 #include "src/ast/prettyprinter.h"
 #include "src/ast/scopes.h"
 #include "src/base/optional.h"
@@ -370,20 +369,9 @@ CompilationJob::Status FinalizeUnoptimizedCompilationJob(CompilationJob* job,
   return status;
 }
 
-bool Renumber(ParseInfo* parse_info,
-              Compiler::EagerInnerFunctionLiterals* eager_literals) {
-  RuntimeCallTimerScope runtimeTimer(
-      parse_info->runtime_call_stats(),
-      parse_info->on_background_thread()
-          ? RuntimeCallCounterId::kCompileBackgroundRenumber
-          : RuntimeCallCounterId::kCompileRenumber);
-  return AstNumbering::Renumber(parse_info->stack_limit(), parse_info->zone(),
-                                parse_info->literal(), eager_literals);
-}
-
-std::unique_ptr<CompilationJob> PrepareAndExecuteUnoptimizedCompileJob(
+std::unique_ptr<CompilationJob> PrepareAndExecuteUnoptimizedCompileJobs(
     ParseInfo* parse_info, FunctionLiteral* literal,
-    AccountingAllocator* allocator) {
+    AccountingAllocator* allocator, CompilationJobList* inner_function_jobs) {
   if (UseAsmWasm(literal, parse_info->is_asm_wasm_broken())) {
     std::unique_ptr<CompilationJob> asm_job(
         AsmJs::NewCompilationJob(parse_info, literal, allocator));
@@ -396,14 +384,27 @@ std::unique_ptr<CompilationJob> PrepareAndExecuteUnoptimizedCompileJob(
     // with a validation error or another error that could be solve by falling
     // through to standard unoptimized compile.
   }
+  ZoneVector<FunctionLiteral*> eager_inner_literals(0, parse_info->zone());
   std::unique_ptr<CompilationJob> job(
-      interpreter::Interpreter::NewCompilationJob(parse_info, literal,
-                                                  allocator));
+      interpreter::Interpreter::NewCompilationJob(
+          parse_info, literal, allocator, &eager_inner_literals));
 
-  if (job->ExecuteJob() == CompilationJob::SUCCEEDED) {
-    return job;
+  if (job->ExecuteJob() != CompilationJob::SUCCEEDED) {
+    // Compilation failed, return null.
+    return std::unique_ptr<CompilationJob>();
   }
-  return std::unique_ptr<CompilationJob>();  // Compilation failed, return null.
+
+  // Recursively compile eager inner literals.
+  for (FunctionLiteral* inner_literal : eager_inner_literals) {
+    std::unique_ptr<CompilationJob> inner_job(
+        PrepareAndExecuteUnoptimizedCompileJobs(
+            parse_info, inner_literal, allocator, inner_function_jobs));
+    // Compilation failed, return null.
+    if (!inner_job) return std::unique_ptr<CompilationJob>();
+    inner_function_jobs->emplace_front(std::move(inner_job));
+  }
+
+  return job;
 }
 
 std::unique_ptr<CompilationJob> GenerateUnoptimizedCode(
@@ -414,26 +415,15 @@ std::unique_ptr<CompilationJob> GenerateUnoptimizedCode(
   DisallowHandleDereference no_deref;
   DCHECK(inner_function_jobs->empty());
 
-  Compiler::EagerInnerFunctionLiterals inner_literals;
-  if (!Compiler::Analyze(parse_info, &inner_literals)) {
+  if (!Compiler::Analyze(parse_info)) {
     return std::unique_ptr<CompilationJob>();
   }
 
   // Prepare and execute compilation of the outer-most function.
   std::unique_ptr<CompilationJob> outer_function_job(
-      PrepareAndExecuteUnoptimizedCompileJob(parse_info, parse_info->literal(),
-                                             allocator));
+      PrepareAndExecuteUnoptimizedCompileJobs(parse_info, parse_info->literal(),
+                                              allocator, inner_function_jobs));
   if (!outer_function_job) return std::unique_ptr<CompilationJob>();
-
-  // Prepare and execute compilation jobs for eager inner functions.
-  for (auto it : inner_literals) {
-    FunctionLiteral* inner_literal = it->value();
-    std::unique_ptr<CompilationJob> inner_job(
-        PrepareAndExecuteUnoptimizedCompileJob(parse_info, inner_literal,
-                                               allocator));
-    if (!inner_job) return std::unique_ptr<CompilationJob>();
-    inner_function_jobs->emplace_front(std::move(inner_job));
-  }
 
   // Character stream shouldn't be used again.
   parse_info->ResetCharacterStream();
@@ -857,8 +847,7 @@ bool FailWithPendingException(Isolate* isolate,
 // ----------------------------------------------------------------------------
 // Implementation of Compiler
 
-bool Compiler::Analyze(ParseInfo* parse_info,
-                       EagerInnerFunctionLiterals* eager_literals) {
+bool Compiler::Analyze(ParseInfo* parse_info) {
   DCHECK_NOT_NULL(parse_info->literal());
   RuntimeCallTimerScope runtimeTimer(
       parse_info->runtime_call_stats(),
@@ -867,7 +856,6 @@ bool Compiler::Analyze(ParseInfo* parse_info,
           : RuntimeCallCounterId::kCompileAnalyse);
   if (!Rewriter::Rewrite(parse_info)) return false;
   DeclarationScope::Analyze(parse_info);
-  if (!Renumber(parse_info, eager_literals)) return false;
   return true;
 }
 

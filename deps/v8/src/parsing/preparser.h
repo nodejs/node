@@ -304,6 +304,7 @@ class PreParserExpression {
   int position() const { return kNoSourcePosition; }
   void set_function_token_position(int position) {}
   void set_scope(Scope* scope) {}
+  void set_suspend_count(int suspend_count) {}
 
  private:
   enum Type {

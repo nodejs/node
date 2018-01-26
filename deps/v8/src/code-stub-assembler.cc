@@ -581,6 +581,43 @@ TNode<Object> CodeStubAssembler::NumberMin(SloppyTNode<Object> a,
   return TNode<Object>::UncheckedCast(result.value());
 }
 
+void CodeStubAssembler::ConvertToRelativeIndex(Node* context,
+                                               Variable* var_result,
+                                               Node* index, Node* length) {
+  TNode<Object> const index_int =
+      ToInteger(context, index, CodeStubAssembler::kTruncateMinusZero);
+  TNode<Smi> const zero = SmiConstant(0);
+
+  Label done(this);
+  Label if_issmi(this), if_isheapnumber(this, Label::kDeferred);
+  Branch(TaggedIsSmi(index_int), &if_issmi, &if_isheapnumber);
+
+  BIND(&if_issmi);
+  {
+    TNode<Smi> const start_int_smi = CAST(index_int);
+    var_result->Bind(
+        Select(SmiLessThan(start_int_smi, zero),
+               [&] { return SmiMax(SmiAdd(length, start_int_smi), zero); },
+               [&] { return SmiMin(start_int_smi, length); },
+               MachineRepresentation::kTagged));
+    Goto(&done);
+  }
+
+  BIND(&if_isheapnumber);
+  {
+    // If {index} is a heap number, it is definitely out of bounds. If it is
+    // negative, {index} = max({length} + {index}),0) = 0'. If it is positive,
+    // set {index} to {length}.
+    TNode<HeapNumber> const start_int_hn = CAST(index_int);
+    TNode<Float64T> const float_zero = Float64Constant(0.);
+    TNode<Float64T> const start_float = LoadHeapNumberValue(start_int_hn);
+    var_result->Bind(SelectTaggedConstant<Smi>(
+        Float64LessThan(start_float, float_zero), zero, length));
+    Goto(&done);
+  }
+  BIND(&done);
+}
+
 Node* CodeStubAssembler::SmiMod(Node* a, Node* b) {
   VARIABLE(var_result, MachineRepresentation::kTagged);
   Label return_result(this, &var_result),
@@ -860,12 +897,40 @@ TNode<BoolT> CodeStubAssembler::IsFastJSArray(SloppyTNode<Object> object,
   TVARIABLE(BoolT, var_result);
   BIND(&if_true);
   {
-    var_result = ReinterpretCast<BoolT>(Int32Constant(1));
+    var_result = Int32TrueConstant();
     Goto(&exit);
   }
   BIND(&if_false);
   {
-    var_result = ReinterpretCast<BoolT>(Int32Constant(0));
+    var_result = Int32FalseConstant();
+    Goto(&exit);
+  }
+  BIND(&exit);
+  return var_result;
+}
+
+TNode<BoolT> CodeStubAssembler::IsFastJSArrayWithNoCustomIteration(
+    TNode<Object> object, TNode<Context> context,
+    TNode<Context> native_context) {
+  Label if_false(this, Label::kDeferred), if_fast(this), exit(this);
+  GotoIfForceSlowPath(&if_false);
+  TVARIABLE(BoolT, var_result, Int32TrueConstant());
+  BranchIfFastJSArray(object, context, &if_fast, &if_false);
+  BIND(&if_fast);
+  {
+    // Check if the Array.prototype[@@iterator] may have changed.
+    GotoIfNot(InitialArrayPrototypeHasInitialArrayPrototypeMap(native_context),
+              &if_false);
+    // Check if array[@@iterator] may have changed.
+    GotoIfNot(HasInitialFastElementsKindMap(native_context, CAST(object)),
+              &if_false);
+    // Check if the array iterator has changed.
+    Branch(HasInitialArrayIteratorPrototypeMap(native_context), &exit,
+           &if_false);
+  }
+  BIND(&if_false);
+  {
+    var_result = Int32FalseConstant();
     Goto(&exit);
   }
   BIND(&exit);
@@ -1267,11 +1332,33 @@ Node* CodeStubAssembler::HasInstanceType(Node* object,
 
 TNode<BoolT> CodeStubAssembler::HasInitialArrayIteratorPrototypeMap(
     TNode<Context> native_context) {
+  CSA_ASSERT(this, IsNativeContext(native_context));
   TNode<Map> arr_it_proto_map = LoadMap(CAST(LoadContextElement(
       native_context, Context::INITIAL_ARRAY_ITERATOR_PROTOTYPE_INDEX)));
   TNode<Map> initial_map = CAST(LoadContextElement(
       native_context, Context::INITIAL_ARRAY_ITERATOR_PROTOTYPE_MAP_INDEX));
   return WordEqual(arr_it_proto_map, initial_map);
+}
+
+TNode<BoolT>
+CodeStubAssembler::InitialArrayPrototypeHasInitialArrayPrototypeMap(
+    TNode<Context> native_context) {
+  CSA_ASSERT(this, IsNativeContext(native_context));
+  TNode<Map> proto_map = LoadMap(CAST(LoadContextElement(
+      native_context, Context::INITIAL_ARRAY_PROTOTYPE_INDEX)));
+  TNode<Map> initial_map = CAST(LoadContextElement(
+      native_context, Context::INITIAL_ARRAY_PROTOTYPE_MAP_INDEX));
+  return WordEqual(proto_map, initial_map);
+}
+
+TNode<BoolT> CodeStubAssembler::HasInitialFastElementsKindMap(
+    TNode<Context> native_context, TNode<JSArray> jsarray) {
+  CSA_ASSERT(this, IsNativeContext(native_context));
+  TNode<Map> map = LoadMap(jsarray);
+  TNode<Int32T> elements_kind = LoadMapElementsKind(map);
+  TNode<Map> initial_jsarray_element_map =
+      LoadJSArrayElementsMap(elements_kind, native_context);
+  return WordEqual(initial_jsarray_element_map, map);
 }
 
 Node* CodeStubAssembler::DoesntHaveInstanceType(Node* object,
@@ -4088,6 +4175,18 @@ Node* CodeStubAssembler::IsPrototypeInitialArrayPrototype(Node* context,
       native_context, Context::INITIAL_ARRAY_PROTOTYPE_INDEX);
   Node* proto = LoadMapPrototype(map);
   return WordEqual(proto, initial_array_prototype);
+}
+
+TNode<BoolT> CodeStubAssembler::IsPrototypeTypedArrayPrototype(
+    SloppyTNode<Context> context, SloppyTNode<Map> map) {
+  TNode<Context> const native_context = LoadNativeContext(context);
+  TNode<Object> const typed_array_prototype =
+      LoadContextElement(native_context, Context::TYPED_ARRAY_PROTOTYPE_INDEX);
+  TNode<Object> proto = LoadMapPrototype(map);
+  TNode<Object> proto_of_proto = Select<Object>(
+      IsJSObject(proto), [=] { return LoadMapPrototype(LoadMap(CAST(proto))); },
+      [=] { return NullConstant(); }, MachineRepresentation::kTagged);
+  return WordEqual(proto_of_proto, typed_array_prototype);
 }
 
 Node* CodeStubAssembler::IsCallable(Node* object) {

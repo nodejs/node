@@ -938,11 +938,7 @@ WASM_SIMD_TEST(I32x4Neg) {
   RunI32x4UnOpTest(lower_simd, kExprI32x4Neg, Negate);
 }
 
-#if V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_X64 || \
-    V8_TARGET_ARCH_IA32
 WASM_SIMD_TEST(S128Not) { RunI32x4UnOpTest(lower_simd, kExprS128Not, Not); }
-#endif  // V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_X64 ||
-        // V8_TARGET_ARCH_IA32
 
 void RunI32x4BinOpTest(LowerSimd lower_simd, WasmOpcode simd_op,
                        Int32BinOp expected_op) {
@@ -1617,7 +1613,7 @@ void RunBinaryLaneOpTest(
   }
 }
 
-WASM_SIMD_COMPILED_TEST(I32x4AddHoriz) {
+WASM_SIMD_TEST(I32x4AddHoriz) {
   RunBinaryLaneOpTest<int32_t>(lower_simd, kExprI32x4AddHoriz, {{1, 5, 9, 13}});
 }
 
@@ -1996,6 +1992,8 @@ WASM_SIMD_TEST(SimdI32x4ExtractWithF32x4) {
                WASM_I32V(1), WASM_I32V(0)));
   CHECK_EQ(1, r.Call());
 }
+#endif  // V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_MIPS ||
+        // V8_TARGET_ARCH_MIPS64
 
 WASM_SIMD_TEST(SimdF32x4ExtractWithI32x4) {
   WasmRunner<int32_t> r(kExecuteTurbofan, lower_simd);
@@ -2040,8 +2038,6 @@ WASM_SIMD_TEST(SimdI32x4AddWithF32x4) {
             WASM_I32V(1), WASM_I32V(0)));
   CHECK_EQ(1, r.Call());
 }
-#endif  // V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_MIPS ||
-        // V8_TARGET_ARCH_MIPS64
 
 WASM_SIMD_TEST(SimdI32x4Local) {
   WasmRunner<int32_t> r(kExecuteTurbofan, lower_simd);
@@ -2097,8 +2093,6 @@ WASM_SIMD_TEST(SimdI32x4For) {
   CHECK_EQ(1, r.Call());
 }
 
-#if V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_MIPS || \
-    V8_TARGET_ARCH_MIPS64
 WASM_SIMD_TEST(SimdF32x4For) {
   WasmRunner<int32_t> r(kExecuteTurbofan, lower_simd);
   r.AllocateLocal(kWasmI32);
@@ -2122,8 +2116,6 @@ WASM_SIMD_TEST(SimdF32x4For) {
         WASM_GET_LOCAL(0));
   CHECK_EQ(1, r.Call());
 }
-#endif  // V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_MIPS ||
-        // V8_TARGET_ARCH_MIPS64
 
 template <typename T, int numLanes = 4>
 void SetVectorByLanes(T* v, const std::array<T, numLanes>& arr) {
@@ -2201,8 +2193,6 @@ WASM_SIMD_TEST(SimdI32x4SetGlobal) {
   CHECK_EQ(GetScalar(global, 3), 56);
 }
 
-#if V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_MIPS || \
-    V8_TARGET_ARCH_MIPS64 || V8_TARGET_ARCH_IA32
 WASM_SIMD_TEST(SimdF32x4GetGlobal) {
   WasmRunner<int32_t, int32_t> r(kExecuteTurbofan, lower_simd);
   float* global = r.builder().AddGlobal<float>(kWasmS128);
@@ -2243,8 +2233,6 @@ WASM_SIMD_TEST(SimdF32x4SetGlobal) {
   CHECK_EQ(GetScalar(global, 2), 32.25f);
   CHECK_EQ(GetScalar(global, 3), 65.0f);
 }
-#endif  // V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_MIPS ||
-        // V8_TARGET_ARCH_MIPS64 || V8_TARGET_ARCH_IA32
 
 WASM_SIMD_COMPILED_TEST(SimdLoadStoreLoad) {
   WasmRunner<int32_t> r(kExecuteTurbofan, lower_simd);

@@ -12,9 +12,9 @@
       'target_name': 'inspector-test',
       'type': 'executable',
       'dependencies': [
-        '../../src/v8.gyp:v8_libplatform',
-        '../../src/v8.gyp:v8_libbase',
-        '../../src/v8.gyp:v8',
+        '../../gypfiles/v8.gyp:v8_libplatform',
+        '../../gypfiles/v8.gyp:v8_libbase',
+        '../../gypfiles/v8.gyp:v8',
       ],
       'include_dirs': [
         '../..',

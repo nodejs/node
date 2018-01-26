@@ -29,10 +29,24 @@ std::ostream& operator<<(std::ostream& os, BranchHint hint) {
   UNREACHABLE();
 }
 
+std::ostream& operator<<(std::ostream& os, BranchOperatorInfo info) {
+  os << info.hint;
+  switch (info.kind) {
+    case BranchKind::kSafetyCheck:
+      return os << "|SafetyCheck";
+    case BranchKind::kNoSafetyCheck:
+      return os << "|NoSafetyCheck";
+  }
+  UNREACHABLE();
+}
+
+const BranchOperatorInfo& BranchOperatorInfoOf(const Operator* const op) {
+  DCHECK_EQ(IrOpcode::kBranch, op->opcode());
+  return OpParameter<BranchOperatorInfo>(op);
+}
 
 BranchHint BranchHintOf(const Operator* const op) {
-  DCHECK_EQ(IrOpcode::kBranch, op->opcode());
-  return OpParameter<BranchHint>(op);
+  return BranchOperatorInfoOf(op).hint;
 }
 
 int ValueInputCountOfReturn(Operator const* const op) {
@@ -365,6 +379,14 @@ ZoneVector<MachineType> const* MachineTypesOf(Operator const* op) {
   V(FinishRegion, Operator::kKontrol, 1, 1, 0, 1, 1, 0)                       \
   V(Retain, Operator::kKontrol, 1, 1, 0, 0, 1, 0)
 
+#define CACHED_BRANCH_LIST(V) \
+  V(None, SafetyCheck)        \
+  V(True, SafetyCheck)        \
+  V(False, SafetyCheck)       \
+  V(None, NoSafetyCheck)      \
+  V(True, NoSafetyCheck)      \
+  V(False, NoSafetyCheck)
+
 #define CACHED_RETURN_LIST(V) \
   V(1)                        \
   V(2)                        \
@@ -534,18 +556,20 @@ struct CommonOperatorGlobalCache final {
   CACHED_RETURN_LIST(CACHED_RETURN)
 #undef CACHED_RETURN
 
-  template <BranchHint kBranchHint>
-  struct BranchOperator final : public Operator1<BranchHint> {
+  template <BranchHint hint, BranchKind kind>
+  struct BranchOperator final : public Operator1<BranchOperatorInfo> {
     BranchOperator()
-        : Operator1<BranchHint>(                      // --
+        : Operator1<BranchOperatorInfo>(              // --
               IrOpcode::kBranch, Operator::kKontrol,  // opcode
               "Branch",                               // name
               1, 0, 1, 0, 0, 2,                       // counts
-              kBranchHint) {}                         // parameter
+              BranchOperatorInfo{hint, kind}) {}      // parameter
   };
-  BranchOperator<BranchHint::kNone> kBranchNoneOperator;
-  BranchOperator<BranchHint::kTrue> kBranchTrueOperator;
-  BranchOperator<BranchHint::kFalse> kBranchFalseOperator;
+#define CACHED_BRANCH(Hint, Kind)                          \
+  BranchOperator<BranchHint::k##Hint, BranchKind::k##Kind> \
+      kBranch##Hint##Kind##Operator;
+  CACHED_BRANCH_LIST(CACHED_BRANCH)
+#undef CACHED_BRANCH
 
   template <int kEffectInputCount>
   struct EffectPhiOperator final : public Operator {
@@ -806,16 +830,14 @@ const Operator* CommonOperatorBuilder::Return(int value_input_count) {
       value_input_count + 1, 1, 1, 0, 0, 1);  // counts
 }
 
-
-const Operator* CommonOperatorBuilder::Branch(BranchHint hint) {
-  switch (hint) {
-    case BranchHint::kNone:
-      return &cache_.kBranchNoneOperator;
-    case BranchHint::kTrue:
-      return &cache_.kBranchTrueOperator;
-    case BranchHint::kFalse:
-      return &cache_.kBranchFalseOperator;
+const Operator* CommonOperatorBuilder::Branch(BranchHint hint,
+                                              BranchKind kind) {
+#define CACHED_BRANCH(Hint, Kind)                                   \
+  if (hint == BranchHint::k##Hint && kind == BranchKind::k##Kind) { \
+    return &cache_.kBranch##Hint##Kind##Operator;                   \
   }
+  CACHED_BRANCH_LIST(CACHED_BRANCH)
+#undef CACHED_BRANCH
   UNREACHABLE();
 }
 
@@ -1412,6 +1434,7 @@ const Operator* CommonOperatorBuilder::DeadValue(MachineRepresentation rep) {
 }
 
 #undef COMMON_CACHED_OP_LIST
+#undef CACHED_BRANCH_LIST
 #undef CACHED_RETURN_LIST
 #undef CACHED_END_LIST
 #undef CACHED_EFFECT_PHI_LIST

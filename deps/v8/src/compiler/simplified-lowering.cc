@@ -95,7 +95,7 @@ UseInfo CheckedUseInfoAsWord32FromHint(
       return UseInfo::CheckedSignedSmallAsWord32(identify_zeros,
                                                  VectorSlotPair());
     case NumberOperationHint::kSigned32:
-      return UseInfo::CheckedSigned32AsWord32(identify_zeros);
+      return UseInfo::CheckedSigned32AsWord32(identify_zeros, VectorSlotPair());
     case NumberOperationHint::kNumber:
       return UseInfo::CheckedNumberAsWord32();
     case NumberOperationHint::kNumberOrOddball:
@@ -2358,19 +2358,9 @@ class RepresentationSelector {
         return;
       }
       case IrOpcode::kStringCodePointAt: {
-        Type* string_type = TypeOf(node->InputAt(0));
-        if (string_type->Is(Type::SeqString())) {
-          VisitBinop(node, UseInfo::AnyTagged(), UseInfo::TruncatingWord32(),
-                     MachineRepresentation::kWord32);
-          if (lower()) {
-            NodeProperties::ChangeOp(node,
-                                     simplified()->SeqStringCodePointAt());
-          }
-        } else {
-          // TODO(turbofan): Allow builtins to return untagged values.
-          VisitBinop(node, UseInfo::AnyTagged(), UseInfo::TruncatingWord32(),
-                     MachineRepresentation::kTaggedSigned);
-        }
+        // TODO(turbofan): Allow builtins to return untagged values.
+        VisitBinop(node, UseInfo::AnyTagged(), UseInfo::TruncatingWord32(),
+                   MachineRepresentation::kTaggedSigned);
         return;
       }
       case IrOpcode::kStringFromCharCode: {
@@ -2405,6 +2395,7 @@ class RepresentationSelector {
         return;
       }
       case IrOpcode::kCheckBounds: {
+        const CheckParameters& p = CheckParametersOf(node->op());
         Type* index_type = TypeOf(node->InputAt(0));
         Type* length_type = TypeOf(node->InputAt(1));
         if (index_type->Is(Type::Integral32OrMinusZero())) {
@@ -2423,9 +2414,10 @@ class RepresentationSelector {
             }
           }
         } else {
-          VisitBinop(node, UseInfo::CheckedSigned32AsWord32(kIdentifyZeros),
-                     UseInfo::TruncatingWord32(),
-                     MachineRepresentation::kWord32);
+          VisitBinop(
+              node,
+              UseInfo::CheckedSigned32AsWord32(kIdentifyZeros, p.feedback()),
+              UseInfo::TruncatingWord32(), MachineRepresentation::kWord32);
         }
         return;
       }

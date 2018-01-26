@@ -1136,6 +1136,7 @@ class V8_EXPORT Module {
  public:
   /**
    * The different states a module can be in.
+   *
    * This corresponds to the states used in ECMAScript except that "evaluated"
    * is split into kEvaluated and kErrored, indicating success and failure,
    * respectively.
@@ -1186,7 +1187,7 @@ class V8_EXPORT Module {
                                                 Local<Module> referrer);
 
   /**
-   * ModuleDeclarationInstantiation
+   * Instantiates the module and its dependencies.
    *
    * Returns an empty Maybe<bool> if an exception occurred during
    * instantiation. (In the case where the callback throws an exception, that
@@ -1196,16 +1197,19 @@ class V8_EXPORT Module {
                                                       ResolveCallback callback);
 
   /**
-   * ModuleEvaluation
+   * Evaluates the module and its dependencies.
    *
-   * Returns the completion value.
-   * TODO(neis): Be more precise or say nothing.
+   * If status is kInstantiated, run the module's code. On success, set status
+   * to kEvaluated and return the completion value; on failure, set status to
+   * kErrored and propagate the thrown exception (which is then also available
+   * via |GetException|).
    */
   V8_WARN_UNUSED_RESULT MaybeLocal<Value> Evaluate(Local<Context> context);
 
   /**
    * Returns the namespace object of this module.
-   * The module's status must be kEvaluated.
+   *
+   * The module's status must be at least kInstantiated.
    */
   Local<Value> GetModuleNamespace();
 };
@@ -1580,7 +1584,7 @@ class V8_EXPORT Message {
  public:
   Local<String> Get() const;
 
-  V8_DEPRECATE_SOON("Use maybe version", Local<String> GetSourceLine() const);
+  V8_DEPRECATED("Use maybe version", Local<String> GetSourceLine() const);
   V8_WARN_UNUSED_RESULT MaybeLocal<String> GetSourceLine(
       Local<Context> context) const;
 
@@ -1606,7 +1610,7 @@ class V8_EXPORT Message {
   /**
    * Returns the number, 1-based, of the line where the error occurred.
    */
-  V8_DEPRECATE_SOON("Use maybe version", int GetLineNumber() const);
+  V8_DEPRECATED("Use maybe version", int GetLineNumber() const);
   V8_WARN_UNUSED_RESULT Maybe<int> GetLineNumber(Local<Context> context) const;
 
   /**
@@ -1630,7 +1634,7 @@ class V8_EXPORT Message {
    * Returns the index within the line of the first character where
    * the error occurred.
    */
-  V8_DEPRECATE_SOON("Use maybe version", int GetStartColumn() const);
+  V8_DEPRECATED("Use maybe version", int GetStartColumn() const);
   V8_WARN_UNUSED_RESULT Maybe<int> GetStartColumn(Local<Context> context) const;
 
   /**
@@ -2790,8 +2794,8 @@ class V8_EXPORT String : public Name {
    */
   class V8_EXPORT Utf8Value {
    public:
-    V8_DEPRECATE_SOON("Use Isolate version",
-                      explicit Utf8Value(Local<v8::Value> obj));
+    V8_DEPRECATED("Use Isolate version",
+                  explicit Utf8Value(Local<v8::Value> obj));
     Utf8Value(Isolate* isolate, Local<v8::Value> obj);
     ~Utf8Value();
     char* operator*() { return str_; }
@@ -2815,8 +2819,7 @@ class V8_EXPORT String : public Name {
    */
   class V8_EXPORT Value {
    public:
-    V8_DEPRECATE_SOON("Use Isolate version",
-                      explicit Value(Local<v8::Value> obj));
+    V8_DEPRECATED("Use Isolate version", explicit Value(Local<v8::Value> obj));
     Value(Isolate* isolate, Local<v8::Value> obj);
     ~Value();
     uint16_t* operator*() { return str_; }
@@ -3198,6 +3201,19 @@ class V8_EXPORT Object : public Value {
       AccessorNameGetterCallback getter,
       AccessorNameSetterCallback setter = nullptr,
       Local<Value> data = Local<Value>(), PropertyAttribute attributes = None);
+
+  /**
+   * Attempts to create a property with the given name which behaves like a data
+   * property, except that the provided getter is invoked (and provided with the
+   * data value) to supply its value the first time it is read. After the
+   * property is accessed once, it is replaced with an ordinary data property.
+   *
+   * Analogous to Template::SetLazyDataProperty.
+   */
+  V8_WARN_UNUSED_RESULT Maybe<bool> SetLazyDataProperty(
+      Local<Context> context, Local<Name> name,
+      AccessorNameGetterCallback getter, Local<Value> data = Local<Value>(),
+      PropertyAttribute attributes = None);
 
   /**
    * Functionality for private properties.

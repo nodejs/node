@@ -238,6 +238,7 @@ void LookupIterator::ReloadPropertyInformation() {
 }
 
 namespace {
+
 bool IsTypedArrayFunctionInAnyContext(Isolate* isolate, JSReceiver* holder) {
   static uint32_t context_slots[] = {
 #define TYPED_ARRAY_CONTEXT_SLOTS(Type, type, TYPE, ctype, size) \
@@ -253,43 +254,49 @@ bool IsTypedArrayFunctionInAnyContext(Isolate* isolate, JSReceiver* holder) {
       std::begin(context_slots), std::end(context_slots),
       [=](uint32_t slot) { return isolate->IsInAnyContext(holder, slot); });
 }
+
 }  // namespace
 
 void LookupIterator::InternalUpdateProtector() {
   if (isolate_->bootstrapper()->IsActive()) return;
 
   if (*name_ == heap()->constructor_string()) {
-    if (!isolate_->IsArraySpeciesLookupChainIntact()) return;
+    if (!isolate_->IsSpeciesLookupChainIntact()) return;
     // Setting the constructor property could change an instance's @@species
-    if (holder_->IsJSArray() || holder_->IsJSTypedArray()) {
+    if (holder_->IsJSArray() || holder_->IsJSPromise() ||
+        holder_->IsJSTypedArray()) {
       isolate_->CountUsage(
           v8::Isolate::UseCounterFeature::kArrayInstanceConstructorModified);
-      isolate_->InvalidateArraySpeciesProtector();
+      isolate_->InvalidateSpeciesProtector();
     } else if (holder_->map()->is_prototype_map()) {
       DisallowHeapAllocation no_gc;
-      // Setting the constructor of Array.prototype or %TypedArray%.prototype of
-      // any realm also needs to invalidate the species protector.
+      // Setting the constructor of Array.prototype, Promise.prototype or
+      // %TypedArray%.prototype of any realm also needs to invalidate the
+      // @@species protector.
       // For typed arrays, we check a prototype of this holder since TypedArrays
       // have different prototypes for each type, and their parent prototype is
       // pointing the same TYPED_ARRAY_PROTOTYPE.
       if (isolate_->IsInAnyContext(*holder_,
                                    Context::INITIAL_ARRAY_PROTOTYPE_INDEX) ||
+          isolate_->IsInAnyContext(*holder_,
+                                   Context::PROMISE_PROTOTYPE_INDEX) ||
           isolate_->IsInAnyContext(holder_->map()->prototype(),
                                    Context::TYPED_ARRAY_PROTOTYPE_INDEX)) {
         isolate_->CountUsage(v8::Isolate::UseCounterFeature::
                                  kArrayPrototypeConstructorModified);
-        isolate_->InvalidateArraySpeciesProtector();
+        isolate_->InvalidateSpeciesProtector();
       }
     }
   } else if (*name_ == heap()->species_symbol()) {
-    if (!isolate_->IsArraySpeciesLookupChainIntact()) return;
-    // Setting the Symbol.species property of any Array or TypedArray
-    // constructor invalidates the species protector
+    if (!isolate_->IsSpeciesLookupChainIntact()) return;
+    // Setting the Symbol.species property of any Array, Promise or TypedArray
+    // constructor invalidates the @@species protector
     if (isolate_->IsInAnyContext(*holder_, Context::ARRAY_FUNCTION_INDEX) ||
+        isolate_->IsInAnyContext(*holder_, Context::PROMISE_FUNCTION_INDEX) ||
         IsTypedArrayFunctionInAnyContext(isolate_, *holder_)) {
       isolate_->CountUsage(
           v8::Isolate::UseCounterFeature::kArraySpeciesModified);
-      isolate_->InvalidateArraySpeciesProtector();
+      isolate_->InvalidateSpeciesProtector();
     }
   } else if (*name_ == heap()->is_concat_spreadable_symbol()) {
     if (!isolate_->IsIsConcatSpreadableLookupChainIntact()) return;

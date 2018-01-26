@@ -221,7 +221,7 @@ void RelocInfo::Visit(Isolate* isolate, ObjectVisitor* visitor) {
 }
 
 // Operand constructors
-Operand::Operand(Register rm) : rm_(rm), rmode_(kRelocInfo_NONEPTR) {}
+Operand::Operand(Register rm) : rm_(rm), rmode_(RelocInfo::NONE) {}
 
 int32_t Assembler::emit_code_target(Handle<Code> target,
                                     RelocInfo::Mode rmode) {

@@ -1084,13 +1084,13 @@ bool ValueDeserializer::ReadRawBytes(size_t length, const void** data) {
 void ValueDeserializer::TransferArrayBuffer(
     uint32_t transfer_id, Handle<JSArrayBuffer> array_buffer) {
   if (array_buffer_transfer_map_.is_null()) {
-    array_buffer_transfer_map_ =
-        isolate_->global_handles()->Create(*NumberDictionary::New(isolate_, 0));
+    array_buffer_transfer_map_ = isolate_->global_handles()->Create(
+        *SimpleNumberDictionary::New(isolate_, 0));
   }
-  Handle<NumberDictionary> dictionary =
+  Handle<SimpleNumberDictionary> dictionary =
       array_buffer_transfer_map_.ToHandleChecked();
-  Handle<NumberDictionary> new_dictionary =
-      NumberDictionary::Set(dictionary, transfer_id, array_buffer);
+  Handle<SimpleNumberDictionary> new_dictionary =
+      SimpleNumberDictionary::Set(dictionary, transfer_id, array_buffer);
   if (!new_dictionary.is_identical_to(dictionary)) {
     GlobalHandles::Destroy(Handle<Object>::cast(dictionary).location());
     array_buffer_transfer_map_ =
@@ -1613,13 +1613,13 @@ MaybeHandle<JSArrayBuffer> ValueDeserializer::ReadJSArrayBuffer(
 MaybeHandle<JSArrayBuffer> ValueDeserializer::ReadTransferredJSArrayBuffer() {
   uint32_t id = next_id_++;
   uint32_t transfer_id;
-  Handle<NumberDictionary> transfer_map;
+  Handle<SimpleNumberDictionary> transfer_map;
   if (!ReadVarint<uint32_t>().To(&transfer_id) ||
       !array_buffer_transfer_map_.ToHandle(&transfer_map)) {
     return MaybeHandle<JSArrayBuffer>();
   }
   int index = transfer_map->FindEntry(isolate_, transfer_id);
-  if (index == NumberDictionary::kNotFound) {
+  if (index == SimpleNumberDictionary::kNotFound) {
     return MaybeHandle<JSArrayBuffer>();
   }
   Handle<JSArrayBuffer> array_buffer(

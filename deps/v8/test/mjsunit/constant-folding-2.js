@@ -259,7 +259,8 @@ test(function stringCharCodeAt() {
 }, 10);
 
 test(function stringCodePointAt() {
-  assertSame(65533, "äϠ�".codePointAt(2));
+  assertSame(65533, "äϠ�𝌆".codePointAt(2));
+  assertSame(119558, "äϠ�𝌆".codePointAt(3));
   assertSame(undefined, "äϠ�".codePointAt(-1));
   assertSame(undefined, "äϠ�".codePointAt(4));
   assertSame(992, "äϠ�".codePointAt(1.1));

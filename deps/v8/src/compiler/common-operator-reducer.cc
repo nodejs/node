@@ -138,10 +138,10 @@ Reduction CommonOperatorReducer::ReduceDeoptimizeConditional(Node* node) {
   if (condition->opcode() == IrOpcode::kBooleanNot) {
     NodeProperties::ReplaceValueInput(node, condition->InputAt(0), 0);
     NodeProperties::ChangeOp(
-        node, condition_is_true ? common()->DeoptimizeIf(p.kind(), p.reason(),
-                                                         VectorSlotPair())
-                                : common()->DeoptimizeUnless(
-                                      p.kind(), p.reason(), VectorSlotPair()));
+        node,
+        condition_is_true
+            ? common()->DeoptimizeIf(p.kind(), p.reason(), p.feedback())
+            : common()->DeoptimizeUnless(p.kind(), p.reason(), p.feedback()));
     return Changed(node);
   }
   Decision const decision = DecideCondition(condition);
@@ -150,8 +150,8 @@ Reduction CommonOperatorReducer::ReduceDeoptimizeConditional(Node* node) {
     ReplaceWithValue(node, dead(), effect, control);
   } else {
     control = graph()->NewNode(
-        common()->Deoptimize(p.kind(), p.reason(), VectorSlotPair()),
-        frame_state, effect, control);
+        common()->Deoptimize(p.kind(), p.reason(), p.feedback()), frame_state,
+        effect, control);
     // TODO(bmeurer): This should be on the AdvancedReducer somehow.
     NodeProperties::MergeControlToEnd(graph(), common(), control);
     Revisit(graph()->end());

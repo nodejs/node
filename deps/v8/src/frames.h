@@ -30,6 +30,9 @@ class RootVisitor;
 class StackFrameIteratorBase;
 class ThreadLocalTop;
 class WasmInstanceObject;
+class WasmSharedModuleData;
+class WasmDebugInfo;
+class WasmCompiledModule;
 
 class InnerPointerToCodeCache {
  public:
@@ -973,7 +976,7 @@ class WasmCompiledFrame final : public StandardFrame {
   Code* unchecked_code() const override;
 
   // Accessors.
-  WasmInstanceObject* wasm_instance() const;
+  WasmInstanceObject* wasm_instance() const;  // TODO(titzer): deprecate.
   WasmCodeWrapper wasm_code() const;
   uint32_t function_index() const;
   Script* script() const override;
@@ -994,6 +997,8 @@ class WasmCompiledFrame final : public StandardFrame {
 
  private:
   friend class StackFrameIteratorBase;
+  WasmCompiledModule* compiled_module() const;
+  WasmSharedModuleData* shared() const;
 };
 
 class WasmInterpreterEntryFrame final : public StandardFrame {
@@ -1013,7 +1018,9 @@ class WasmInterpreterEntryFrame final : public StandardFrame {
   Code* unchecked_code() const override;
 
   // Accessors.
-  WasmInstanceObject* wasm_instance() const;
+  WasmDebugInfo* debug_info() const;
+  WasmInstanceObject* wasm_instance() const;  // TODO(titzer): deprecate.
+
   Script* script() const override;
   int position() const override;
   Object* context() const override;
@@ -1030,6 +1037,8 @@ class WasmInterpreterEntryFrame final : public StandardFrame {
 
  private:
   friend class StackFrameIteratorBase;
+  WasmCompiledModule* compiled_module() const;
+  WasmSharedModuleData* shared() const;
 };
 
 class WasmToJsFrame : public StubFrame {

@@ -9,6 +9,7 @@
 #include "src/compiler/access-builder.h"
 #include "src/compiler/compiler-source-position-table.h"
 #include "src/compiler/linkage.h"
+#include "src/compiler/node-matchers.h"
 #include "src/compiler/operator-properties.h"
 #include "src/compiler/simplified-operator.h"
 #include "src/interpreter/bytecodes.h"
@@ -40,6 +41,7 @@ class BytecodeGraphBuilder::Environment : public ZoneObject {
 
   Node* LookupAccumulator() const;
   Node* LookupRegister(interpreter::Register the_register) const;
+  Node* LookupGeneratorState() const;
 
   void BindAccumulator(Node* node,
                        FrameStateAttachmentMode mode = kDontAttachFrameState);
@@ -48,6 +50,7 @@ class BytecodeGraphBuilder::Environment : public ZoneObject {
   void BindRegistersToProjections(
       interpreter::Register first_reg, Node* node,
       FrameStateAttachmentMode mode = kDontAttachFrameState);
+  void BindGeneratorState(Node* node);
   void RecordAfterState(Node* node,
                         FrameStateAttachmentMode mode = kDontAttachFrameState);
 
@@ -108,6 +111,7 @@ class BytecodeGraphBuilder::Environment : public ZoneObject {
   Node* effect_dependency_;
   NodeVector values_;
   Node* parameters_state_values_;
+  Node* generator_state_;
   int register_base_;
   int accumulator_base_;
 };
@@ -138,7 +142,8 @@ BytecodeGraphBuilder::Environment::Environment(
       control_dependency_(control_dependency),
       effect_dependency_(control_dependency),
       values_(builder->local_zone()),
-      parameters_state_values_(nullptr) {
+      parameters_state_values_(nullptr),
+      generator_state_(nullptr) {
   // The layout of values_ is:
   //
   // [receiver] [parameters] [registers] [accumulator]
@@ -191,6 +196,7 @@ BytecodeGraphBuilder::Environment::Environment(
       effect_dependency_(other->effect_dependency_),
       values_(other->zone()),
       parameters_state_values_(other->parameters_state_values_),
+      generator_state_(other->generator_state_),
       register_base_(other->register_base_),
       accumulator_base_(other->accumulator_base_) {
   values_ = other->values_;
@@ -210,6 +216,10 @@ Node* BytecodeGraphBuilder::Environment::LookupAccumulator() const {
   return values()->at(accumulator_base_);
 }
 
+Node* BytecodeGraphBuilder::Environment::LookupGeneratorState() const {
+  DCHECK_NOT_NULL(generator_state_);
+  return generator_state_;
+}
 
 Node* BytecodeGraphBuilder::Environment::LookupRegister(
     interpreter::Register the_register) const {
@@ -229,6 +239,10 @@ void BytecodeGraphBuilder::Environment::BindAccumulator(
     builder()->PrepareFrameState(node, OutputFrameStateCombine::PokeAt(0));
   }
   values()->at(accumulator_base_) = node;
+}
+
+void BytecodeGraphBuilder::Environment::BindGeneratorState(Node* node) {
+  generator_state_ = node;
 }
 
 void BytecodeGraphBuilder::Environment::BindRegister(
@@ -291,9 +305,18 @@ void BytecodeGraphBuilder::Environment::Merge(
   for (int i = 0; i < register_count(); i++) {
     int index = register_base() + i;
     if (liveness == nullptr || liveness->RegisterIsLive(i)) {
-      DCHECK_NE(values_[index], builder()->jsgraph()->OptimizedOutConstant());
-      DCHECK_NE(other->values_[index],
-                builder()->jsgraph()->OptimizedOutConstant());
+#if DEBUG
+      // We only do these DCHECKs when we are not in the resume path of a
+      // generator -- this is, when either there is no generator state at all,
+      // or the generator state is not the constant "executing" value.
+      if (generator_state_ == nullptr ||
+          NumberMatcher(generator_state_)
+              .Is(JSGeneratorObject::kGeneratorExecuting)) {
+        DCHECK_NE(values_[index], builder()->jsgraph()->OptimizedOutConstant());
+        DCHECK_NE(other->values_[index],
+                  builder()->jsgraph()->OptimizedOutConstant());
+      }
+#endif
 
       values_[index] =
           builder()->MergeValue(values_[index], other->values_[index], control);
@@ -314,6 +337,12 @@ void BytecodeGraphBuilder::Environment::Merge(
                               other->values_[accumulator_base()], control);
   } else {
     values_[accumulator_base()] = builder()->jsgraph()->OptimizedOutConstant();
+  }
+
+  if (generator_state_ != nullptr) {
+    DCHECK_NOT_NULL(other->generator_state_);
+    generator_state_ = builder()->MergeValue(generator_state_,
+                                             other->generator_state_, control);
   }
 }
 
@@ -344,6 +373,10 @@ void BytecodeGraphBuilder::Environment::PrepareForLoop(
   }
   // The accumulator should not be live on entry.
   DCHECK_IMPLIES(liveness != nullptr, !liveness->AccumulatorIsLive());
+
+  if (generator_state_ != nullptr) {
+    generator_state_ = builder()->NewPhi(1, generator_state_, control);
+  }
 
   // Connect to the loop end.
   Node* terminate = builder()->graph()->NewNode(
@@ -423,6 +456,11 @@ void BytecodeGraphBuilder::Environment::PrepareForLoopExit(
                                     values_[accumulator_base()], loop_exit);
     values_[accumulator_base()] = rename;
   }
+
+  if (generator_state_ != nullptr) {
+    generator_state_ = graph()->NewNode(common()->LoopExitValue(),
+                                        generator_state_, loop_exit);
+  }
 }
 
 void BytecodeGraphBuilder::Environment::UpdateStateValues(Node** state_values,
@@ -498,6 +536,7 @@ BytecodeGraphBuilder::BytecodeGraphBuilder(
       currently_peeled_loop_offset_(-1),
       stack_check_(stack_check),
       merge_environments_(local_zone),
+      generator_merge_environments_(local_zone),
       exception_handlers_(local_zone),
       current_exception_handler_(0),
       input_buffer_size_(0),
@@ -845,6 +884,11 @@ void BytecodeGraphBuilder::VisitBytecodes() {
     OFStream of(stdout);
 
     bytecode_analysis.PrintLivenessTo(of);
+  }
+
+  if (!bytecode_analysis.resume_jump_targets().empty()) {
+    environment()->BindGeneratorState(
+        jsgraph()->SmiConstant(JSGeneratorObject::kGeneratorExecuting));
   }
 
   if (bytecode_analysis.HasOsrEntryPoint()) {
@@ -2738,26 +2782,85 @@ void BytecodeGraphBuilder::VisitSuspendGenerator() {
       bytecode_iterator().current_offset()));
 }
 
-void BytecodeGraphBuilder::VisitRestoreGeneratorState() {
-  Node* generator = environment()->LookupRegister(
-      bytecode_iterator().GetRegisterOperand(0));
+void BytecodeGraphBuilder::BuildSwitchOnGeneratorState(
+    const ZoneVector<ResumeJumpTarget>& resume_jump_targets,
+    bool allow_fallthrough_on_executing) {
+  Node* generator_state = environment()->LookupGeneratorState();
 
-  Node* state =
-      NewNode(javascript()->GeneratorRestoreContinuation(), generator);
+  int extra_cases = allow_fallthrough_on_executing ? 2 : 1;
+  NewSwitch(generator_state,
+            static_cast<int>(resume_jump_targets.size() + extra_cases));
+  for (const ResumeJumpTarget& target : resume_jump_targets) {
+    SubEnvironment sub_environment(this);
+    NewIfValue(target.suspend_id());
+    if (target.is_leaf()) {
+      // Mark that we are resuming executing.
+      environment()->BindGeneratorState(
+          jsgraph()->SmiConstant(JSGeneratorObject::kGeneratorExecuting));
+    }
+    // Jump to the target offset, whether it's a loop header or the resume.
+    MergeIntoSuccessorEnvironment(target.target_offset());
+  }
 
-  environment()->BindAccumulator(state, Environment::kAttachFrameState);
+  {
+    SubEnvironment sub_environment(this);
+    // We should never hit the default case (assuming generator state cannot be
+    // corrupted), so abort if we do.
+    // TODO(leszeks): Maybe only check this in debug mode, and otherwise use
+    // the default to represent one of the cases above/fallthrough below?
+    NewIfDefault();
+    NewNode(simplified()->RuntimeAbort(AbortReason::kInvalidJumpTableIndex));
+    Node* control = NewNode(common()->Throw());
+    MergeControlToLeaveFunction(control);
+  }
+
+  if (allow_fallthrough_on_executing) {
+    // If we are executing (rather than resuming), and we allow it, just fall
+    // through to the actual loop body.
+    NewIfValue(JSGeneratorObject::kGeneratorExecuting);
+  } else {
+    // Otherwise, this environment is dead.
+    set_environment(nullptr);
+  }
+}
+
+void BytecodeGraphBuilder::VisitSwitchOnGeneratorState() {
+  Node* generator =
+      environment()->LookupRegister(bytecode_iterator().GetRegisterOperand(0));
+
+  Node* generator_is_undefined =
+      NewNode(simplified()->ReferenceEqual(), generator,
+              jsgraph()->UndefinedConstant());
+
+  NewBranch(generator_is_undefined);
+  {
+    SubEnvironment resume_env(this);
+    NewIfFalse();
+
+    Node* generator_state =
+        NewNode(javascript()->GeneratorRestoreContinuation(), generator);
+    environment()->BindGeneratorState(generator_state);
+
+    Node* generator_context =
+        NewNode(javascript()->GeneratorRestoreContext(), generator);
+    environment()->SetContext(generator_context);
+
+    BuildSwitchOnGeneratorState(bytecode_analysis()->resume_jump_targets(),
+                                false);
+  }
+
+  // Fallthrough for the first-call case.
+  NewIfTrue();
 }
 
 void BytecodeGraphBuilder::VisitResumeGenerator() {
   Node* generator =
       environment()->LookupRegister(bytecode_iterator().GetRegisterOperand(0));
-  interpreter::Register generator_state_reg =
-      bytecode_iterator().GetRegisterOperand(1);
-  interpreter::Register first_reg = bytecode_iterator().GetRegisterOperand(2);
+  interpreter::Register first_reg = bytecode_iterator().GetRegisterOperand(1);
   // We assume we are restoring registers starting fromm index 0.
   CHECK_EQ(0, first_reg.index());
   int register_count =
-      static_cast<int>(bytecode_iterator().GetRegisterCountOperand(3));
+      static_cast<int>(bytecode_iterator().GetRegisterCountOperand(2));
 
   // Bijection between registers and array indices must match that used in
   // InterpreterAssembler::ExportRegisterFile.
@@ -2765,11 +2868,6 @@ void BytecodeGraphBuilder::VisitResumeGenerator() {
     Node* value = NewNode(javascript()->GeneratorRestoreRegister(i), generator);
     environment()->BindRegister(interpreter::Register(i), value);
   }
-
-  // We're no longer resuming, so update the state register.
-  environment()->BindRegister(
-      generator_state_reg,
-      jsgraph()->SmiConstant(JSGeneratorObject::kGeneratorExecuting));
 
   // Update the accumulator with the generator's input_or_debug_pos.
   Node* input_or_debug_pos =
@@ -2812,12 +2910,29 @@ void BytecodeGraphBuilder::BuildLoopHeaderEnvironment(int current_offset) {
     const BytecodeLivenessState* liveness =
         bytecode_analysis()->GetInLivenessFor(current_offset);
 
+    const auto& resume_jump_targets = loop_info.resume_jump_targets();
+    bool generate_suspend_switch = !resume_jump_targets.empty();
+
     // Add loop header.
     environment()->PrepareForLoop(loop_info.assignments(), liveness);
 
     // Store a copy of the environment so we can connect merged back edge inputs
     // to the loop header.
     merge_environments_[current_offset] = environment()->Copy();
+
+    // If this loop contains resumes, create a new switch just after the loop
+    // for those resumes.
+    if (generate_suspend_switch) {
+      BuildSwitchOnGeneratorState(loop_info.resume_jump_targets(), true);
+
+      // TODO(leszeks): At this point we know we are executing rather than
+      // resuming, so we should be able to prune off the phis in the environment
+      // related to the resume path.
+
+      // Set the generator state to a known constant.
+      environment()->BindGeneratorState(
+          jsgraph()->SmiConstant(JSGeneratorObject::kGeneratorExecuting));
+    }
   }
 }
 
@@ -2883,7 +2998,7 @@ void BytecodeGraphBuilder::BuildJump() {
 }
 
 void BytecodeGraphBuilder::BuildJumpIf(Node* condition) {
-  NewBranch(condition);
+  NewBranch(condition, BranchHint::kNone, BranchKind::kNoSafetyCheck);
   {
     SubEnvironment sub_environment(this);
     NewIfTrue();
@@ -2893,7 +3008,7 @@ void BytecodeGraphBuilder::BuildJumpIf(Node* condition) {
 }
 
 void BytecodeGraphBuilder::BuildJumpIfNot(Node* condition) {
-  NewBranch(condition);
+  NewBranch(condition, BranchHint::kNone, BranchKind::kNoSafetyCheck);
   {
     SubEnvironment sub_environment(this);
     NewIfFalse();
@@ -2917,7 +3032,8 @@ void BytecodeGraphBuilder::BuildJumpIfNotEqual(Node* comperand) {
 }
 
 void BytecodeGraphBuilder::BuildJumpIfFalse() {
-  NewBranch(environment()->LookupAccumulator());
+  NewBranch(environment()->LookupAccumulator(), BranchHint::kNone,
+            BranchKind::kNoSafetyCheck);
   {
     SubEnvironment sub_environment(this);
     NewIfFalse();
@@ -2929,7 +3045,8 @@ void BytecodeGraphBuilder::BuildJumpIfFalse() {
 }
 
 void BytecodeGraphBuilder::BuildJumpIfTrue() {
-  NewBranch(environment()->LookupAccumulator());
+  NewBranch(environment()->LookupAccumulator(), BranchHint::kNone,
+            BranchKind::kNoSafetyCheck);
   {
     SubEnvironment sub_environment(this);
     NewIfTrue();

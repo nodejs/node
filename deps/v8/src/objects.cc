@@ -2482,7 +2482,7 @@ MaybeHandle<Object> Object::ArraySpeciesConstructor(
   Handle<Object> default_species = isolate->array_function();
   if (original_array->IsJSArray() &&
       Handle<JSArray>::cast(original_array)->HasArrayPrototype(isolate) &&
-      isolate->IsArraySpeciesLookupChainIntact()) {
+      isolate->IsSpeciesLookupChainIntact()) {
     return default_species;
   }
   Handle<Object> constructor = isolate->factory()->undefined_value();
@@ -3612,7 +3612,8 @@ bool HeapObject::CanBeRehashed() const {
     case HASH_TABLE_TYPE:
       // TODO(yangguo): actually support rehashing OrderedHash{Map,Set}.
       return IsNameDictionary() || IsGlobalDictionary() ||
-             IsNumberDictionary() || IsStringTable() || IsWeakHashTable();
+             IsNumberDictionary() || IsSimpleNumberDictionary() ||
+             IsStringTable() || IsWeakHashTable();
     case DESCRIPTOR_ARRAY_TYPE:
       return true;
     case TRANSITION_ARRAY_TYPE:
@@ -3634,6 +3635,8 @@ void HeapObject::RehashBasedOnMap() {
         NameDictionary::cast(this)->Rehash();
       } else if (IsNumberDictionary()) {
         NumberDictionary::cast(this)->Rehash();
+      } else if (IsSimpleNumberDictionary()) {
+        SimpleNumberDictionary::cast(this)->Rehash();
       } else if (IsGlobalDictionary()) {
         GlobalDictionary::cast(this)->Rehash();
       } else if (IsStringTable()) {
@@ -14051,7 +14054,7 @@ SafepointEntry Code::GetSafepointEntry(Address pc) {
 namespace {
 template <typename Code>
 void SetStackFrameCacheCommon(Handle<Code> code,
-                              Handle<NumberDictionary> cache) {
+                              Handle<SimpleNumberDictionary> cache) {
   Handle<Object> maybe_table(code->source_position_table(), code->GetIsolate());
   if (maybe_table->IsSourcePositionTableWithFrameCache()) {
     Handle<SourcePositionTableWithFrameCache>::cast(maybe_table)
@@ -14069,7 +14072,7 @@ void SetStackFrameCacheCommon(Handle<Code> code,
 
 // static
 void AbstractCode::SetStackFrameCache(Handle<AbstractCode> abstract_code,
-                                      Handle<NumberDictionary> cache) {
+                                      Handle<SimpleNumberDictionary> cache) {
   if (abstract_code->IsCode()) {
     SetStackFrameCacheCommon(handle(abstract_code->GetCode()), cache);
   } else {
@@ -16444,6 +16447,12 @@ template class EXPORT_TEMPLATE_DEFINE(
 template class EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
     Dictionary<NumberDictionary, NumberDictionaryShape>;
 
+template class EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
+    HashTable<SimpleNumberDictionary, SimpleNumberDictionaryShape>;
+
+template class EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
+    Dictionary<SimpleNumberDictionary, SimpleNumberDictionaryShape>;
+
 template Handle<NameDictionary>
 BaseNameDictionary<NameDictionary, NameDictionaryShape>::New(
     Isolate*, int n, PretenureFlag pretenure, MinimumCapacity capacity_option);
@@ -16455,6 +16464,11 @@ BaseNameDictionary<GlobalDictionary, GlobalDictionaryShape>::New(
 template Handle<NumberDictionary>
     Dictionary<NumberDictionary, NumberDictionaryShape>::AtPut(
         Handle<NumberDictionary>, uint32_t, Handle<Object>, PropertyDetails);
+
+template Handle<SimpleNumberDictionary>
+    Dictionary<SimpleNumberDictionary, SimpleNumberDictionaryShape>::AtPut(
+        Handle<SimpleNumberDictionary>, uint32_t, Handle<Object>,
+        PropertyDetails);
 
 template Object* Dictionary<
     NumberDictionary, NumberDictionaryShape>::SlowReverseLookup(Object* value);
@@ -16469,6 +16483,10 @@ Dictionary<NameDictionary, NameDictionaryShape>::DeleteEntry(
 template Handle<NumberDictionary>
 Dictionary<NumberDictionary, NumberDictionaryShape>::DeleteEntry(
     Handle<NumberDictionary>, int);
+
+template Handle<SimpleNumberDictionary>
+Dictionary<SimpleNumberDictionary, SimpleNumberDictionaryShape>::DeleteEntry(
+    Handle<SimpleNumberDictionary>, int);
 
 template Handle<NameDictionary>
 HashTable<NameDictionary, NameDictionaryShape>::New(Isolate*, int,
@@ -16502,6 +16520,11 @@ Dictionary<NumberDictionary, NumberDictionaryShape>::Add(
 template Handle<NameDictionary>
 BaseNameDictionary<NameDictionary, NameDictionaryShape>::EnsureCapacity(
     Handle<NameDictionary>, int);
+
+template Handle<SimpleNumberDictionary>
+Dictionary<SimpleNumberDictionary, SimpleNumberDictionaryShape>::Add(
+    Handle<SimpleNumberDictionary>, uint32_t, Handle<Object>, PropertyDetails,
+    int*);
 
 template int Dictionary<GlobalDictionary,
                         GlobalDictionaryShape>::NumberOfEnumerableProperties();
@@ -16704,7 +16727,7 @@ MaybeHandle<JSTypedArray> JSTypedArray::SpeciesCreate(
   // 3. Let constructor be ? SpeciesConstructor(exemplar, defaultConstructor).
   Handle<Object> ctor = default_ctor;
   if (!exemplar->HasJSTypedArrayPrototype(isolate) ||
-      !isolate->IsArraySpeciesLookupChainIntact()) {
+      !isolate->IsSpeciesLookupChainIntact()) {
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate, ctor,
         Object::SpeciesConstructor(isolate, exemplar, default_ctor),
@@ -17585,6 +17608,13 @@ Handle<Derived> Dictionary<Derived, Shape>::Add(Handle<Derived> dictionary,
   dictionary->ElementAdded();
   if (entry_out) *entry_out = entry;
   return dictionary;
+}
+
+// static
+Handle<SimpleNumberDictionary> SimpleNumberDictionary::Set(
+    Handle<SimpleNumberDictionary> dictionary, uint32_t key,
+    Handle<Object> value) {
+  return AtPut(dictionary, key, value, PropertyDetails::Empty());
 }
 
 bool NumberDictionary::HasComplexElements() {

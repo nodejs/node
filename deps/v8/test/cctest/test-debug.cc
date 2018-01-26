@@ -4666,6 +4666,7 @@ TEST(NoHiddenProperties) {
 
 
 TEST(SetDebugEventListenerOnUninitializedVM) {
+  v8::HandleScope scope(CcTest::isolate());
   EnableDebugger(CcTest::isolate());
 }
 

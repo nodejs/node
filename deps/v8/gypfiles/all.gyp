@@ -8,7 +8,7 @@
       'target_name': 'All',
       'type': 'none',
       'dependencies': [
-        '../src/d8.gyp:d8',
+        '../gypfiles/d8.gyp:d8',
         '../test/inspector/inspector.gyp:*',
         '../test/mkgrokdump/mkgrokdump.gyp:*',
       ],
@@ -21,8 +21,8 @@
         # These items don't compile for Android on Mac.
         ['host_os!="mac" or OS!="android"', {
           'dependencies': [
-            '../samples/samples.gyp:*',
-            '../test/cctest/cctest.gyp:*',
+            'samples.gyp:*',
+            'cctest.gyp:*',
             '../test/fuzzer/fuzzer.gyp:*',
             '../test/unittests/unittests.gyp:*',
           ],

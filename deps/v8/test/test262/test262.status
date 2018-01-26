@@ -440,6 +440,8 @@
   'built-ins/DataView/prototype/setBigUint64/*': [SKIP],
   'built-ins/TypedArrays/BigInt64Array/*': [SKIP],
   'built-ins/TypedArrays/BigUint64Array/*': [SKIP],
+  # The current version of test262 still uses parseInt.
+  'built-ins/BigInt/parseInt/*': [SKIP],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=7184
   'annexB/language/expressions/yield/star-iterable-return-emulates-undefined-throws-when-called': [FAIL],

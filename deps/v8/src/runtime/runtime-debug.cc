@@ -856,8 +856,7 @@ RUNTIME_FUNCTION(Runtime_GetAllScopesDetails) {
   // local).
   if (frame->is_wasm_interpreter_entry()) {
     Handle<WasmDebugInfo> debug_info(
-        WasmInterpreterEntryFrame::cast(frame)->wasm_instance()->debug_info(),
-        isolate);
+        WasmInterpreterEntryFrame::cast(frame)->debug_info(), isolate);
     return *WasmDebugInfo::GetScopeDetails(debug_info, frame->fp(),
                                            inlined_frame_index);
   }

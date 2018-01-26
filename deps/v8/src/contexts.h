@@ -262,6 +262,7 @@ enum ContextLookupFlags {
   V(INITIAL_ARRAY_ITERATOR_PROTOTYPE_MAP_INDEX, Map,                           \
     initial_array_iterator_prototype_map)                                      \
   V(INITIAL_ARRAY_PROTOTYPE_INDEX, JSObject, initial_array_prototype)          \
+  V(INITIAL_ARRAY_PROTOTYPE_MAP_INDEX, Map, initial_array_prototype_map)       \
   V(INITIAL_ERROR_PROTOTYPE_INDEX, JSObject, initial_error_prototype)          \
   V(INITIAL_GENERATOR_PROTOTYPE_INDEX, JSObject, initial_generator_prototype)  \
   V(INITIAL_ASYNC_GENERATOR_PROTOTYPE_INDEX, JSObject,                         \
@@ -338,6 +339,7 @@ enum ContextLookupFlags {
     promise_thrower_finally_shared_fun)                                        \
   V(PROMISE_ALL_RESOLVE_ELEMENT_SHARED_FUN, SharedFunctionInfo,                \
     promise_all_resolve_element_shared_fun)                                    \
+  V(PROMISE_PROTOTYPE_INDEX, JSObject, promise_prototype)                      \
   V(PROMISE_PROTOTYPE_MAP_INDEX, Map, promise_prototype_map)                   \
   V(REGEXP_EXEC_FUNCTION_INDEX, JSFunction, regexp_exec_function)              \
   V(REGEXP_FUNCTION_INDEX, JSFunction, regexp_function)                        \
@@ -361,7 +363,7 @@ enum ContextLookupFlags {
     slow_object_with_null_prototype_map)                                       \
   V(SLOW_OBJECT_WITH_OBJECT_PROTOTYPE_MAP, Map,                                \
     slow_object_with_object_prototype_map)                                     \
-  V(SLOW_TEMPLATE_INSTANTIATIONS_CACHE_INDEX, NumberDictionary,                \
+  V(SLOW_TEMPLATE_INSTANTIATIONS_CACHE_INDEX, SimpleNumberDictionary,          \
     slow_template_instantiations_cache)                                        \
   /* All *_FUNCTION_MAP_INDEX definitions used by Context::FunctionMapIndex */ \
   /* must remain together. */                                                  \

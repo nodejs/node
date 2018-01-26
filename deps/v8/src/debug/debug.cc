@@ -929,7 +929,7 @@ void Debug::PrepareStep(StepAction step_action) {
     if (frame->is_wasm_compiled()) return;
     WasmInterpreterEntryFrame* wasm_frame =
         WasmInterpreterEntryFrame::cast(frame);
-    wasm_frame->wasm_instance()->debug_info()->PrepareStep(step_action);
+    wasm_frame->debug_info()->PrepareStep(step_action);
     return;
   }
 

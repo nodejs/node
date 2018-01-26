@@ -101,6 +101,8 @@ def run_tests(basedir, *args, **kwargs):
     sys_args = ['--command-prefix', sys.executable] + list(args)
     if kwargs.get('infra_staging', False):
       sys_args.append('--infra-staging')
+    else:
+      sys_args.append('--no-infra-staging')
     code = standard_runner.StandardTestRunner(
         basedir=basedir).execute(sys_args)
     return Result(stdout.getvalue(), stderr.getvalue(), code)

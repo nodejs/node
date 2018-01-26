@@ -239,8 +239,8 @@ def _CheckMissingFiles(input_api, output_api):
   # eval-ed and thus doesn't have __file__.
   original_sys_path = sys.path
   try:
-    sys.path = sys.path + [input_api.os_path.join(
-        input_api.PresubmitLocalPath(), 'tools')]
+    sys.path = [input_api.os_path.join(input_api.PresubmitLocalPath(),
+                                       'gypfiles')] + sys.path
     from verify_source_deps import missing_gn_files, missing_gyp_files
   finally:
     # Restore sys.path to what it was before.
@@ -249,6 +249,7 @@ def _CheckMissingFiles(input_api, output_api):
   gn_files = missing_gn_files()
   gyp_files = missing_gyp_files()
   results = []
+
   if gn_files:
     results.append(output_api.PresubmitError(
         "You added one or more source files but didn't update the\n"
@@ -266,8 +267,6 @@ def _CommonChecks(input_api, output_api):
   """Checks common to both upload and commit."""
   results = []
   results.extend(_CheckCommitMessageBugEntry(input_api, output_api))
-  results.extend(input_api.canned_checks.CheckOwners(
-      input_api, output_api, source_file_filter=None))
   results.extend(input_api.canned_checks.CheckPatchFormatted(
       input_api, output_api))
   results.extend(input_api.canned_checks.CheckGenderNeutral(

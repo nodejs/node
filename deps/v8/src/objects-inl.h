@@ -441,6 +441,10 @@ bool HeapObject::IsNumberDictionary() const {
   return map() == GetHeap()->number_dictionary_map();
 }
 
+bool HeapObject::IsSimpleNumberDictionary() const {
+  return map() == GetHeap()->simple_number_dictionary_map();
+}
+
 bool HeapObject::IsStringTable() const {
   return map() == GetHeap()->string_table_map();
 }
@@ -580,6 +584,7 @@ CAST_ACCESSOR(JSValue)
 CAST_ACCESSOR(LayoutDescriptor)
 CAST_ACCESSOR(NameDictionary)
 CAST_ACCESSOR(NormalizedMapCache)
+CAST_ACCESSOR(NumberDictionary)
 CAST_ACCESSOR(Object)
 CAST_ACCESSOR(ObjectHashSet)
 CAST_ACCESSOR(ObjectHashTable)
@@ -595,7 +600,7 @@ CAST_ACCESSOR(PropertyCell)
 CAST_ACCESSOR(PrototypeInfo)
 CAST_ACCESSOR(RegExpMatchInfo)
 CAST_ACCESSOR(ScopeInfo)
-CAST_ACCESSOR(NumberDictionary)
+CAST_ACCESSOR(SimpleNumberDictionary)
 CAST_ACCESSOR(SmallOrderedHashMap)
 CAST_ACCESSOR(SmallOrderedHashSet)
 CAST_ACCESSOR(Smi)
@@ -2493,7 +2498,7 @@ SMI_ACCESSORS(StackFrameInfo, id, kIdIndex)
 ACCESSORS(SourcePositionTableWithFrameCache, source_position_table, ByteArray,
           kSourcePositionTableIndex)
 ACCESSORS(SourcePositionTableWithFrameCache, stack_frame_cache,
-          NumberDictionary, kStackFrameCacheIndex)
+          SimpleNumberDictionary, kStackFrameCacheIndex)
 
 SMI_ACCESSORS(FunctionTemplateInfo, length, kLengthOffset)
 BOOL_ACCESSORS(FunctionTemplateInfo, flag, hidden_prototype,
@@ -3303,29 +3308,34 @@ void GlobalDictionary::ValueAtPut(int entry, Object* value) {
   set(EntryToIndex(entry), value);
 }
 
-bool NumberDictionaryShape::IsMatch(uint32_t key, Object* other) {
+bool NumberDictionaryBaseShape::IsMatch(uint32_t key, Object* other) {
   DCHECK(other->IsNumber());
   return key == static_cast<uint32_t>(other->Number());
 }
 
-uint32_t NumberDictionaryShape::Hash(Isolate* isolate, uint32_t key) {
+uint32_t NumberDictionaryBaseShape::Hash(Isolate* isolate, uint32_t key) {
   return ComputeIntegerHash(key, isolate->heap()->HashSeed());
 }
 
-uint32_t NumberDictionaryShape::HashForObject(Isolate* isolate, Object* other) {
+uint32_t NumberDictionaryBaseShape::HashForObject(Isolate* isolate,
+                                                  Object* other) {
   DCHECK(other->IsNumber());
   return ComputeIntegerHash(static_cast<uint32_t>(other->Number()),
                             isolate->heap()->HashSeed());
+}
+
+Handle<Object> NumberDictionaryBaseShape::AsHandle(Isolate* isolate,
+                                                   uint32_t key) {
+  return isolate->factory()->NewNumberFromUint(key);
 }
 
 int NumberDictionaryShape::GetMapRootIndex() {
   return Heap::kNumberDictionaryMapRootIndex;
 }
 
-Handle<Object> NumberDictionaryShape::AsHandle(Isolate* isolate, uint32_t key) {
-  return isolate->factory()->NewNumberFromUint(key);
+int SimpleNumberDictionaryShape::GetMapRootIndex() {
+  return Heap::kSimpleNumberDictionaryMapRootIndex;
 }
-
 
 bool NameDictionaryShape::IsMatch(Handle<Name> key, Object* other) {
   DCHECK(other->IsTheHole(key->GetIsolate()) ||

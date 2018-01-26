@@ -116,6 +116,9 @@ const char* WasmOpcodes::OpcodeName(WasmOpcode opcode) {
     CASE_I64_OP(ReinterpretF64, "reinterpret/f64")
     CASE_F32_OP(ReinterpretI32, "reinterpret/i32")
     CASE_F64_OP(ReinterpretI64, "reinterpret/i64")
+    CASE_INT_OP(SExtendI8, "sign_extend8")
+    CASE_INT_OP(SExtendI16, "sign_extend16")
+    CASE_I64_OP(SExtendI32, "sign_extend32")
     CASE_OP(Unreachable, "unreachable")
     CASE_OP(Nop, "nop")
     CASE_OP(Block, "block")
@@ -314,6 +317,19 @@ bool WasmOpcodes::IsUnconditionalJump(WasmOpcode opcode) {
     case kExprBr:
     case kExprBrTable:
     case kExprReturn:
+      return true;
+    default:
+      return false;
+  }
+}
+
+bool WasmOpcodes::IsSignExtensionOpcode(WasmOpcode opcode) {
+  switch (opcode) {
+    case kExprI32SExtendI8:
+    case kExprI32SExtendI16:
+    case kExprI64SExtendI8:
+    case kExprI64SExtendI16:
+    case kExprI64SExtendI32:
       return true;
     default:
       return false;

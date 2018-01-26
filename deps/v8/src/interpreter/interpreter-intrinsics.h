@@ -18,7 +18,6 @@ namespace interpreter {
   V(AsyncGeneratorResolve, async_generator_resolve, 3)                \
   V(AsyncGeneratorYield, async_generator_yield, 3)                    \
   V(CreateJSGeneratorObject, create_js_generator_object, 2)           \
-  V(GeneratorGetContext, generator_get_context, 1)                    \
   V(GeneratorGetResumeMode, generator_get_resume_mode, 1)             \
   V(GeneratorGetInputOrDebugPos, generator_get_input_or_debug_pos, 1) \
   V(GeneratorClose, generator_close, 1)                               \

@@ -19,11 +19,13 @@ from testrunner.objects import context
 
 from testrunner.testproc import fuzzer
 from testrunner.testproc.base import TestProcProducer
+from testrunner.testproc.combiner import CombinerProc
 from testrunner.testproc.execution import ExecutionProc
 from testrunner.testproc.filter import StatusFileFilterProc, NameFilterProc
 from testrunner.testproc.loader import LoadProc
 from testrunner.testproc.progress import ResultsTracker, TestsCounter
 from testrunner.testproc.rerun import RerunProc
+from testrunner.testproc.timeout import TimeoutProc
 
 
 DEFAULT_SUITES = ["mjsunit", "webkit", "benchmarks"]
@@ -74,7 +76,17 @@ class NumFuzzer(base_runner.BaseTestRunner):
     parser.add_option("--swarming",
                       help="Indicates running test driver on swarming.",
                       default=False, action="store_true")
+    parser.add_option("--tests-count", default=5, type="int",
+                      help="Number of tests to generate from each base test. "
+                           "Can be combined with --total-timeout-sec with "
+                           "value 0 to provide infinite number of subtests. "
+                           "When --combine-tests is set it indicates how many "
+                           "tests to create in total")
+    parser.add_option("--total-timeout-sec", default=0, type="int",
+                      help="How long should fuzzer run. It overrides "
+                           "--tests-count")
 
+    # Stress gc
     parser.add_option("--stress-marking", default=0, type="int",
                       help="probability [0-10] of adding --stress-marking "
                            "flag to the test")
@@ -87,6 +99,8 @@ class NumFuzzer(base_runner.BaseTestRunner):
     parser.add_option("--stress-gc", default=0, type="int",
                       help="probability [0-10] of adding --random-gc-interval "
                            "flag to the test")
+
+    # Stress deopt
     parser.add_option("--stress-deopt", default=0, type="int",
                       help="probability [0-10] of adding --deopt-every-n-times "
                            "flag to the test")
@@ -94,16 +108,19 @@ class NumFuzzer(base_runner.BaseTestRunner):
                       help="extends --stress-deopt to have minimum interval "
                            "between deopt points")
 
-    parser.add_option("--tests-count", default=5, type="int",
-                      help="Number of tests to generate from each base test")
-    parser.add_option("--total-timeout-sec", default=0, type="int",
-                      help="How long should fuzzer run. It overrides "
-                           "--tests-count")
+    # Combine multiple tests
+    parser.add_option("--combine-tests", default=False, action="store_true",
+                      help="Combine multiple tests as one and run with "
+                           "try-catch wrapper")
+    parser.add_option("--combine-max", default=100, type="int",
+                      help="Maximum number of tests to combine")
+    parser.add_option("--combine-min", default=2, type="int",
+                      help="Minimum number of tests to combine")
+
     return parser
 
 
   def _process_options(self, options):
-    # Special processing of other options, sorted alphabetically.
     options.command_prefix = shlex.split(options.command_prefix)
     options.extra_flags = shlex.split(options.extra_flags)
     if options.j == 0:
@@ -114,6 +131,16 @@ class NumFuzzer(base_runner.BaseTestRunner):
     while options.fuzzer_random_seed == 0:
       options.fuzzer_random_seed = random.SystemRandom().randint(-2147483648,
                                                                  2147483647)
+
+    if options.total_timeout_sec:
+      options.tests_count = 0
+
+    if options.combine_tests:
+      if options.combine_min > options.combine_max:
+        print ('min_group_size (%d) cannot be larger than max_group_size (%d)' %
+               options.min_group_size, options.max_group_size)
+        raise base_runner.TestRunnerError()
+
     return True
 
   def _get_default_suite_names(self):
@@ -137,13 +164,8 @@ class NumFuzzer(base_runner.BaseTestRunner):
 
     loader = LoadProc()
     fuzzer_rng = random.Random(options.fuzzer_random_seed)
-    fuzzer_proc = fuzzer.FuzzerProc(
-        fuzzer_rng,
-        options.tests_count,
-        self._create_fuzzer_configs(options),
-        options.total_timeout_sec,
-    )
 
+    combiner = self._create_combiner(fuzzer_rng, options)
     results = ResultsTracker()
     execproc = ExecutionProc(options.j, ctx)
     indicators = progress_indicator.ToProgressIndicatorProcs()
@@ -151,15 +173,23 @@ class NumFuzzer(base_runner.BaseTestRunner):
       loader,
       NameFilterProc(args) if args else None,
       StatusFileFilterProc(None, None),
+      # TODO(majeski): Improve sharding when combiner is present. Maybe select
+      # different random seeds for shards instead of splitting tests.
       self._create_shard_proc(options),
-      fuzzer_proc,
+      combiner,
+      self._create_fuzzer(fuzzer_rng, options)
     ] + indicators + [
       results,
+      self._create_timeout_proc(options),
       self._create_rerun_proc(options),
       execproc,
     ]
     self._prepare_procs(procs)
     loader.load_tests(tests)
+
+    # TODO(majeski): maybe some notification from loader would be better?
+    if combiner:
+      combiner.generate_initial_tests(options.j * 4)
     execproc.start()
 
     for indicator in indicators:
@@ -204,6 +234,9 @@ class NumFuzzer(base_runner.BaseTestRunner):
     return ctx
 
   def _load_tests(self, options, suites, ctx):
+    if options.combine_tests:
+      suites = [s for s in suites if s.test_combiner_available()]
+
     # Find available test suites and read test cases from them.
     deopt_fuzzer = bool(options.stress_deopt)
     gc_stress = bool(options.stress_gc)
@@ -249,20 +282,43 @@ class NumFuzzer(base_runner.BaseTestRunner):
       procs[i].connect_to(procs[i + 1])
     procs[0].setup()
 
+  def _create_combiner(self, rng, options):
+    if not options.combine_tests:
+      return None
+    return CombinerProc(rng, options.combine_min, options.combine_max,
+                        options.tests_count)
+
+  def _create_fuzzer(self, rng, options):
+    if options.combine_tests:
+      count = 1
+      disable_analysis = True
+    else:
+      count = options.tests_count
+      disable_analysis = False
+    return fuzzer.FuzzerProc(
+        rng,
+        count,
+        self._create_fuzzer_configs(options),
+        disable_analysis,
+    )
+
   def _create_fuzzer_configs(self, options):
     fuzzers = []
-    if options.stress_compaction:
-      fuzzers.append(fuzzer.create_compaction_config(options.stress_compaction))
-    if options.stress_marking:
-      fuzzers.append(fuzzer.create_marking_config(options.stress_marking))
-    if options.stress_scavenge:
-      fuzzers.append(fuzzer.create_scavenge_config(options.stress_scavenge))
-    if options.stress_gc:
-      fuzzers.append(fuzzer.create_gc_interval_config(options.stress_gc))
-    if options.stress_deopt:
-      fuzzers.append(fuzzer.create_deopt_config(options.stress_deopt,
-                                                options.stress_deopt_min))
+    def add(name, prob, *args):
+      if prob:
+        fuzzers.append(fuzzer.create_fuzzer_config(name, prob, *args))
+
+    add('compaction', options.stress_compaction)
+    add('marking', options.stress_marking)
+    add('scavenge', options.stress_scavenge)
+    add('gc_interval', options.stress_gc)
+    add('deopt', options.stress_deopt, options.stress_deopt_min)
     return fuzzers
+
+  def _create_timeout_proc(self, options):
+    if not options.total_timeout_sec:
+      return None
+    return TimeoutProc(options.total_timeout_sec)
 
   def _create_rerun_proc(self, options):
     if not options.rerun_failures_count:

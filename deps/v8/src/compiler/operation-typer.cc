@@ -507,7 +507,7 @@ Type* OperationTyper::NumberToInt32(Type* type) {
 
 Type* OperationTyper::NumberToString(Type* type) {
   DCHECK(type->Is(Type::Number()));
-
+  if (type->IsNone()) return type;
   if (type->Is(Type::NaN())) return singleton_NaN_string_;
   if (type->Is(cache_.kZeroOrMinusZero)) return singleton_zero_string_;
   return Type::SeqString();

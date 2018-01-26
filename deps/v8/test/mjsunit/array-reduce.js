@@ -645,7 +645,6 @@ assertEquals(undefined, arr.reduceRight(function(val) { return val }));
   let deopt = false;
   let array = [, ,11,22,,33,45,56,,6,77,84,93,101,];
   let f = (a,current) => {
-    print(a);
     if (current == 6 && deopt) {array[0] = 1.5; }
     return a + current;
   };
@@ -670,7 +669,6 @@ assertEquals(undefined, arr.reduceRight(function(val) { return val }));
   let deopt = false;
   let array = [, ,11,22,,33,45,56,,6,77,84,93,101,];
   let f = (a,current) => {
-    print(a);
     if (current == 6 && deopt) {array[array.length-1] = 1.5; }
     return a + current;
   };
@@ -1290,4 +1288,15 @@ assertEquals(undefined, arr.reduceRight(function(val) { return val }));
   assertEquals(18, __f_3253(__v_12258));
   %OptimizeFunctionOnNextCall(__f_3253);
   assertEquals(18, __f_3253(__v_12258));
+})();
+
+(function ReduceMixedHoleyArrays() {
+  function r(a) {
+    return a.reduce((acc, i) => {acc[0]});
+  }
+  r([[0]]);
+  r([[0]]);
+  r([0,,]);
+  %OptimizeFunctionOnNextCall(r);
+  r([,0,0]);
 })();

@@ -99,6 +99,8 @@ class JSCallReducer final : public AdvancedReducer {
                                          Node* node);
   Reduction ReduceStringPrototypeStringAt(
       const Operator* string_access_operator, Node* default_return, Node* node);
+  Reduction ReduceAsyncFunctionPromiseCreate(Node* node);
+  Reduction ReduceAsyncFunctionPromiseRelease(Node* node);
 
   Reduction ReduceSoftDeoptimize(Node* node, DeoptimizeReason reason);
 

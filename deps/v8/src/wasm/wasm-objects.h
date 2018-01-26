@@ -249,6 +249,9 @@ class WasmInstanceObject : public JSObject {
 
   static void ValidateOrphanedInstanceForTesting(
       Isolate* isolate, Handle<WasmInstanceObject> instance);
+
+  static void InstallFinalizer(Isolate* isolate,
+                               Handle<WasmInstanceObject> instance);
 };
 
 // A WASM function that is wrapped and exported to JavaScript.
@@ -515,9 +518,6 @@ class WasmCompiledModule : public FixedArray {
   static Handle<WasmCompiledModule> Clone(Isolate* isolate,
                                           Handle<WasmCompiledModule> module);
   static void Reset(Isolate* isolate, WasmCompiledModule* module);
-
-  // TODO(mtrofin): delete this when we don't need FLAG_wasm_jit_to_native
-  static void ResetGCModel(Isolate* isolate, WasmCompiledModule* module);
 
   wasm::NativeModule* GetNativeModule() const;
   void InsertInChain(WasmModuleObject*);

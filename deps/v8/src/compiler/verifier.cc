@@ -681,6 +681,10 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
       // Type is OtherObject.
       CheckTypeIs(node, Type::OtherObject());
       break;
+    case IrOpcode::kJSCreatePromise:
+      // Type is OtherObject.
+      CheckTypeIs(node, Type::OtherObject());
+      break;
     case IrOpcode::kJSCreateLiteralArray:
       // Type is Array.
       CheckTypeIs(node, Type::Array());
@@ -829,6 +833,10 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
 
     case IrOpcode::kJSGeneratorRestoreContinuation:
       CheckTypeIs(node, Type::SignedSmall());
+      break;
+
+    case IrOpcode::kJSGeneratorRestoreContext:
+      CheckTypeIs(node, Type::Any());
       break;
 
     case IrOpcode::kJSGeneratorRestoreRegister:
@@ -1645,6 +1653,11 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
     case IrOpcode::kAtomicOr:
     case IrOpcode::kAtomicXor:
     case IrOpcode::kSpeculationFence:
+    case IrOpcode::kSignExtendWord8ToInt32:
+    case IrOpcode::kSignExtendWord16ToInt32:
+    case IrOpcode::kSignExtendWord8ToInt64:
+    case IrOpcode::kSignExtendWord16ToInt64:
+    case IrOpcode::kSignExtendWord32ToInt64:
 
 #define SIMD_MACHINE_OP_CASE(Name) case IrOpcode::k##Name:
       MACHINE_SIMD_OP_LIST(SIMD_MACHINE_OP_CASE)

@@ -145,59 +145,6 @@ function TypedArrayConstructByIterable(obj, iterable, iteratorFn, elementSize) {
   }
 }
 
-macro TYPED_ARRAY_CONSTRUCTOR(NAME, ELEMENT_SIZE)
-function NAMESubArray(begin, end) {
-  var beginInt = TO_INTEGER(begin);
-  if (!IS_UNDEFINED(end)) {
-    var endInt = TO_INTEGER(end);
-    var srcLength = %_TypedArrayGetLength(this);
-  } else {
-    var srcLength = %_TypedArrayGetLength(this);
-    var endInt = srcLength;
-  }
-
-  if (beginInt < 0) {
-    beginInt = MathMax(0, srcLength + beginInt);
-  } else {
-    beginInt = MathMin(beginInt, srcLength);
-  }
-
-  if (endInt < 0) {
-    endInt = MathMax(0, srcLength + endInt);
-  } else {
-    endInt = MathMin(endInt, srcLength);
-  }
-
-  if (endInt < beginInt) {
-    endInt = beginInt;
-  }
-
-  var newLength = endInt - beginInt;
-  var beginByteOffset =
-      %_ArrayBufferViewGetByteOffset(this) + beginInt * ELEMENT_SIZE;
-  return TypedArraySpeciesCreate(this, %TypedArrayGetBuffer(this),
-                                 beginByteOffset, newLength);
-}
-endmacro
-
-TYPED_ARRAYS(TYPED_ARRAY_CONSTRUCTOR)
-
-DEFINE_METHOD(
-  GlobalTypedArray.prototype,
-  subarray(begin, end) {
-    switch (%_ClassOf(this)) {
-macro TYPED_ARRAY_SUBARRAY_CASE(NAME, ELEMENT_SIZE)
-      case "NAME":
-        return %_Call(NAMESubArray, this, begin, end);
-endmacro
-TYPED_ARRAYS(TYPED_ARRAY_SUBARRAY_CASE)
-    }
-    throw %make_type_error(kIncompatibleMethodReceiver,
-                        "get %TypedArray%.prototype.subarray", this);
-  }
-);
-
-
 // The following functions cannot be made efficient on sparse arrays while
 // preserving the semantics, since the calls to the receiver function can add
 // or delete elements from the array.

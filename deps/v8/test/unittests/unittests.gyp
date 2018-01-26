@@ -7,7 +7,7 @@
 {
   'variables': {
     'v8_code': 1,
-    'unittests_sources': [  ### gcmole(all) ###
+    'unittests_sources': [
       'allocation-unittest.cc',
       'api/access-check-unittest.cc',
       'api/exception-unittest.cc',
@@ -115,6 +115,7 @@
       'heap/item-parallel-job-unittest.cc',
       'heap/marking-unittest.cc',
       'heap/memory-reducer-unittest.cc',
+      'heap/object-stats-unittest.cc',
       'heap/heap-unittest.cc',
       'heap/scavenge-job-unittest.cc',
       'heap/slot-set-unittest.cc',
@@ -170,28 +171,28 @@
       'wasm/wasm-module-builder-unittest.cc',
       'wasm/wasm-opcodes-unittest.cc',
     ],
-    'unittests_sources_arm': [  ### gcmole(arch:arm) ###
+    'unittests_sources_arm': [
       'compiler/arm/instruction-selector-arm-unittest.cc',
     ],
-    'unittests_sources_arm64': [  ### gcmole(arch:arm64) ###
+    'unittests_sources_arm64': [
       'compiler/arm64/instruction-selector-arm64-unittest.cc',
     ],
-    'unittests_sources_ia32': [  ### gcmole(arch:ia32) ###
+    'unittests_sources_ia32': [
       'compiler/ia32/instruction-selector-ia32-unittest.cc',
     ],
-    'unittests_sources_mips': [  ### gcmole(arch:mips) ###
+    'unittests_sources_mips': [
       'compiler/mips/instruction-selector-mips-unittest.cc',
     ],
-    'unittests_sources_mips64': [  ### gcmole(arch:mips64) ###
+    'unittests_sources_mips64': [
       'compiler/mips64/instruction-selector-mips64-unittest.cc',
     ],
-    'unittests_sources_x64': [  ### gcmole(arch:x64) ###
+    'unittests_sources_x64': [
       'compiler/x64/instruction-selector-x64-unittest.cc',
     ],
-    'unittests_sources_ppc': [  ### gcmole(arch:ppc) ###
+    'unittests_sources_ppc': [
       'compiler/ppc/instruction-selector-ppc-unittest.cc',
     ],
-    'unittests_sources_s390': [  ### gcmole(arch:s390) ###
+    'unittests_sources_s390': [
       'compiler/s390/instruction-selector-s390-unittest.cc',
     ],
   },
@@ -206,10 +207,10 @@
       'dependencies': [
         '../../testing/gmock.gyp:gmock',
         '../../testing/gtest.gyp:gtest',
-        '../../src/v8.gyp:v8',
-        '../../src/v8.gyp:v8_libbase',
-        '../../src/v8.gyp:v8_libplatform',
-        '../../src/v8.gyp:v8_maybe_snapshot',
+        '../../gypfiles/v8.gyp:v8',
+        '../../gypfiles/v8.gyp:v8_libbase',
+        '../../gypfiles/v8.gyp:v8_libplatform',
+        '../../gypfiles/v8.gyp:v8_maybe_snapshot',
       ],
       'include_dirs': [
         '../..',
@@ -278,7 +279,7 @@
           ],
         }],
         ['v8_use_snapshot=="true"', {
-          'dependencies': ['../../src/v8.gyp:v8_initializers'],
+          'dependencies': ['../../gypfiles/v8.gyp:v8_initializers'],
         }],
       ],
     },

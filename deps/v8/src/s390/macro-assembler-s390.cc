@@ -1049,7 +1049,7 @@ void MacroAssembler::LeaveExitFrame(bool save_doubles, Register argument_count,
   // Clear top frame.
   mov(ip, Operand(ExternalReference(IsolateAddressId::kCEntryFPAddress,
                                     isolate())));
-  StoreP(MemOperand(ip), Operand(0, kRelocInfo_NONEPTR), r0);
+  StoreP(MemOperand(ip), Operand(0, RelocInfo::NONE), r0);
 
   // Restore current context from top and clear it in debug mode.
   mov(ip,
@@ -1947,7 +1947,7 @@ void TurboAssembler::mov(Register dst, const Operand& src) {
     value = src.immediate();
   }
 
-  if (src.rmode() != kRelocInfo_NONEPTR) {
+  if (src.rmode() != RelocInfo::NONE) {
     // some form of relocation needed
     RecordRelocInfo(src.rmode(), value);
   }
@@ -3166,7 +3166,7 @@ void TurboAssembler::CmpP(Register src1, Register src2) {
 // Compare 32-bit Register vs Immediate
 // This helper will set up proper relocation entries if required.
 void TurboAssembler::Cmp32(Register dst, const Operand& opnd) {
-  if (opnd.rmode() == kRelocInfo_NONEPTR) {
+  if (opnd.rmode() == RelocInfo::NONE) {
     intptr_t value = opnd.immediate();
     if (is_int16(value))
       chi(dst, opnd);
@@ -3183,7 +3183,7 @@ void TurboAssembler::Cmp32(Register dst, const Operand& opnd) {
 // This helper will set up proper relocation entries if required.
 void TurboAssembler::CmpP(Register dst, const Operand& opnd) {
 #if V8_TARGET_ARCH_S390X
-  if (opnd.rmode() == kRelocInfo_NONEPTR) {
+  if (opnd.rmode() == RelocInfo::NONE) {
     cgfi(dst, opnd);
   } else {
     mov(r0, opnd);  // Need to generate 64-bit relocation
@@ -3470,7 +3470,7 @@ void TurboAssembler::StoreP(Register src, const MemOperand& mem,
 void TurboAssembler::StoreP(const MemOperand& mem, const Operand& opnd,
                             Register scratch) {
   // Relocations not supported
-  DCHECK_EQ(opnd.rmode(), kRelocInfo_NONEPTR);
+  DCHECK_EQ(opnd.rmode(), RelocInfo::NONE);
 
   // Try to use MVGHI/MVHI
   if (CpuFeatures::IsSupported(GENERAL_INSTR_EXT) && is_uint12(mem.offset()) &&

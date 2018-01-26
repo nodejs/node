@@ -475,6 +475,7 @@ class FreeStoreAllocationPolicy;
 class FunctionTemplateInfo;
 class MemoryChunk;
 class NumberDictionary;
+class SimpleNumberDictionary;
 class NameDictionary;
 class GlobalDictionary;
 template <typename T> class MaybeHandle;

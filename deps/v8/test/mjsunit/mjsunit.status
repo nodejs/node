@@ -641,6 +641,10 @@
   'ignition/regress-672027': [PASS, ['tsan', SKIP]],
   'string-replace-gc': [PASS, SLOW, ['mode == debug', SKIP]],
 
+  # Unsuitable for GC fuzzing because coverage information is lost on GC.
+  'code-coverage-ad-hoc': [SKIP],
+  'code-coverage-precise': [SKIP],
+
   # Fails allocation on tsan.
   'es6/classes': [PASS, ['tsan', SKIP]],
 }],  # 'gc_fuzzer'
@@ -655,6 +659,8 @@
 
   # BUG(v8:7166).
   'd8/enable-tracing': [SKIP],
+  # Relies on async compilation which requires background tasks.
+  'wasm/streaming-error-position': [SKIP],
 }],  # 'predictable == True'
 
 ##############################################################################

@@ -16,12 +16,15 @@ namespace wasm {
 
 namespace liftoff {
 
+// ebp-8 holds the stack marker, ebp-16 is the wasm context, first stack slot
+// is located at ebp-24.
+constexpr int32_t kConstantStackSpace = 16;
+constexpr int32_t kFirstStackSlotOffset =
+    kConstantStackSpace + LiftoffAssembler::kStackSlotSize;
+
 inline Operand GetStackSlot(uint32_t index) {
-  // ebp-8 holds the stack marker, ebp-16 is the wasm context, first stack slot
-  // is located at ebp-24.
-  constexpr int32_t kFirstStackSlotOffset = -24;
   return Operand(
-      ebp, kFirstStackSlotOffset - index * LiftoffAssembler::kStackSlotSize);
+      ebp, -kFirstStackSlotOffset - index * LiftoffAssembler::kStackSlotSize);
 }
 
 // TODO(clemensh): Make this a constexpr variable once Operand is constexpr.
@@ -41,7 +44,8 @@ static constexpr Register kCCallLastArgAddrReg = eax;
 
 static constexpr DoubleRegister kScratchDoubleReg = xmm7;
 
-void LiftoffAssembler::ReserveStackSpace(uint32_t bytes) {
+void LiftoffAssembler::ReserveStackSpace(uint32_t stack_slots) {
+  uint32_t bytes = liftoff::kConstantStackSpace + kStackSlotSize * stack_slots;
   DCHECK_LE(bytes, kMaxInt);
   sub(esp, Immediate(bytes));
 }
@@ -176,12 +180,13 @@ void LiftoffAssembler::LoadCallerFrameSlot(LiftoffRegister dst,
   }
 }
 
-void LiftoffAssembler::MoveStackValue(uint32_t dst_index, uint32_t src_index) {
+void LiftoffAssembler::MoveStackValue(uint32_t dst_index, uint32_t src_index,
+                                      ValueType type) {
   DCHECK_NE(dst_index, src_index);
   if (cache_state_.has_unused_register(kGpReg)) {
     LiftoffRegister reg = GetUnusedRegister(kGpReg);
-    Fill(reg, src_index);
-    Spill(dst_index, reg);
+    Fill(reg, src_index, type);
+    Spill(dst_index, reg, type);
   } else {
     push(liftoff::GetStackSlot(src_index));
     pop(liftoff::GetStackSlot(dst_index));
@@ -210,13 +215,21 @@ void LiftoffAssembler::Move(LiftoffRegister dst, LiftoffRegister src) {
   }
 }
 
-void LiftoffAssembler::Spill(uint32_t index, LiftoffRegister reg) {
+void LiftoffAssembler::Spill(uint32_t index, LiftoffRegister reg,
+                             ValueType type) {
   Operand dst = liftoff::GetStackSlot(index);
-  // TODO(clemensh): Handle different sizes here.
-  if (reg.is_gp()) {
-    mov(dst, reg.gp());
-  } else {
-    movsd(dst, reg.fp());
+  switch (type) {
+    case kWasmI32:
+      mov(dst, reg.gp());
+      break;
+    case kWasmF32:
+      movss(dst, reg.fp());
+      break;
+    case kWasmF64:
+      movsd(dst, reg.fp());
+      break;
+    default:
+      UNREACHABLE();
   }
 }
 
@@ -234,13 +247,21 @@ void LiftoffAssembler::Spill(uint32_t index, WasmValue value) {
   }
 }
 
-void LiftoffAssembler::Fill(LiftoffRegister reg, uint32_t index) {
+void LiftoffAssembler::Fill(LiftoffRegister reg, uint32_t index,
+                            ValueType type) {
   Operand src = liftoff::GetStackSlot(index);
-  // TODO(clemensh): Handle different sizes here.
-  if (reg.is_gp()) {
-    mov(reg.gp(), src);
-  } else {
-    movsd(reg.fp(), src);
+  switch (type) {
+    case kWasmI32:
+      mov(reg.gp(), src);
+      break;
+    case kWasmF32:
+      movss(reg.fp(), src);
+      break;
+    case kWasmF64:
+      movsd(reg.fp(), src);
+      break;
+    default:
+      UNREACHABLE();
   }
 }
 
@@ -335,20 +356,6 @@ void LiftoffAssembler::emit_i32_sar(Register dst, Register lhs, Register rhs,
 void LiftoffAssembler::emit_i32_shr(Register dst, Register lhs, Register rhs,
                                     LiftoffRegList pinned) {
   liftoff::EmitShiftOperation(this, dst, lhs, rhs, &Assembler::shr_cl, pinned);
-}
-
-bool LiftoffAssembler::emit_i32_eqz(Register dst, Register src) {
-  Register tmp_byte_reg = dst;
-  // Only the lower 4 registers can be addressed as 8-bit registers.
-  if (!dst.is_byte_register()) {
-    LiftoffRegList pinned = LiftoffRegList::ForRegs(src);
-    tmp_byte_reg = GetUnusedRegister(liftoff::kByteRegs, pinned).gp();
-  }
-
-  test(src, src);
-  setcc(zero, tmp_byte_reg);
-  movzx_b(dst, tmp_byte_reg);
-  return true;
 }
 
 bool LiftoffAssembler::emit_i32_clz(Register dst, Register src) {
@@ -452,6 +459,20 @@ void LiftoffAssembler::emit_jump(Label* label) { jmp(label); }
 
 void LiftoffAssembler::emit_cond_jump(Condition cond, Label* label) {
   j(cond, label);
+}
+
+void LiftoffAssembler::emit_i32_set_cond(Condition cond, Register dst) {
+  Register tmp_byte_reg = dst;
+  // Only the lower 4 registers can be addressed as 8-bit registers.
+  if (!dst.is_byte_register()) {
+    LiftoffRegList pinned = LiftoffRegList::ForRegs(dst);
+    // {mov} does not change the status flags, so calling {GetUnusedRegister}
+    // should be fine here.
+    tmp_byte_reg = GetUnusedRegister(liftoff::kByteRegs, pinned).gp();
+  }
+
+  setcc(cond, tmp_byte_reg);
+  movzx_b(dst, tmp_byte_reg);
 }
 
 void LiftoffAssembler::StackCheck(Label* ool_code) {
@@ -583,8 +604,9 @@ void LiftoffAssembler::CallRuntime(Zone* zone, Runtime::FunctionId fid) {
 
 void LiftoffAssembler::CallIndirect(wasm::FunctionSig* sig,
                                     compiler::CallDescriptor* call_desc,
-                                    Register target) {
-  PrepareCall(sig, call_desc, &target);
+                                    Register target,
+                                    uint32_t* max_used_spill_slot) {
+  PrepareCall(sig, call_desc, max_used_spill_slot, &target);
   if (target == no_reg) {
     add(esp, Immediate(kPointerSize));
     call(Operand(esp, -4));

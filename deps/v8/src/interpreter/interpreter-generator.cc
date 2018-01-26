@@ -3103,52 +3103,74 @@ IGNITION_HANDLER(SuspendGenerator, InterpreterAssembler) {
   Node* offset = SmiTag(BytecodeOffset());
   StoreObjectField(generator, JSGeneratorObject::kInputOrDebugPosOffset,
                    offset);
+
+  UpdateInterruptBudgetOnReturn();
   Return(GetAccumulator());
 }
 
-// RestoreGeneratorState <generator>
+// SwitchOnGeneratorState <generator> <table_start> <table_length>
 //
-// Loads the generator's state and stores it in the accumulator,
-// before overwriting it with kGeneratorExecuting.
-IGNITION_HANDLER(RestoreGeneratorState, InterpreterAssembler) {
+// If |generator| is undefined, falls through. Otherwise, loads the
+// generator's state (overwriting it with kGeneratorExecuting), sets the context
+// to the generator's resume context, and performs state dispatch on the
+// generator's state by looking up the generator state in a jump table in the
+// constant pool, starting at |table_start|, and of length |table_length|.
+IGNITION_HANDLER(SwitchOnGeneratorState, InterpreterAssembler) {
   Node* generator_reg = BytecodeOperandReg(0);
   Node* generator = LoadRegister(generator_reg);
 
-  Node* old_state =
-      LoadObjectField(generator, JSGeneratorObject::kContinuationOffset);
-  Node* new_state = Int32Constant(JSGeneratorObject::kGeneratorExecuting);
-  StoreObjectField(generator, JSGeneratorObject::kContinuationOffset,
-                   SmiTag(new_state));
-  SetAccumulator(old_state);
+  Label fallthrough(this);
+  GotoIf(WordEqual(generator, UndefinedConstant()), &fallthrough);
 
+  Node* state =
+      LoadObjectField(generator, JSGeneratorObject::kContinuationOffset);
+  Node* new_state = SmiConstant(JSGeneratorObject::kGeneratorExecuting);
+  StoreObjectField(generator, JSGeneratorObject::kContinuationOffset,
+                   new_state);
+
+  Node* context = LoadObjectField(generator, JSGeneratorObject::kContextOffset);
+  SetContext(context);
+
+  Node* table_start = BytecodeOperandIdx(1);
+  // TODO(leszeks): table_length is only used for a CSA_ASSERT, we don't
+  // actually need it otherwise.
+  Node* table_length = BytecodeOperandUImmWord(2);
+
+  // The state must be a Smi.
+  CSA_ASSERT(this, TaggedIsSmi(state));
+
+  Node* case_value = SmiUntag(state);
+
+  CSA_ASSERT(this, IntPtrGreaterThanOrEqual(case_value, IntPtrConstant(0)));
+  CSA_ASSERT(this, IntPtrLessThan(case_value, table_length));
+  USE(table_length);
+
+  Node* entry = IntPtrAdd(table_start, case_value);
+  Node* relative_jump = LoadAndUntagConstantPoolEntry(entry);
+  Jump(relative_jump);
+
+  BIND(&fallthrough);
   Dispatch();
 }
 
-// ResumeGenerator <generator> <generator_state> <first output
-// register> <register count>
+// ResumeGenerator <generator> <first output register> <register count>
 //
 // Imports the register file stored in the generator and marks the generator
 // state as executing.
 IGNITION_HANDLER(ResumeGenerator, InterpreterAssembler) {
   Node* generator_reg = BytecodeOperandReg(0);
-  Node* generator_state_reg = BytecodeOperandReg(1);
-  // Bytecode operand 2 is the start register. It should always be 0, so let's
+  // Bytecode operand 1 is the start register. It should always be 0, so let's
   // ignore it.
-  CSA_ASSERT(this, WordEqual(BytecodeOperandReg(2),
+  CSA_ASSERT(this, WordEqual(BytecodeOperandReg(1),
                              IntPtrConstant(Register(0).ToOperand())));
-  // Bytecode operand 3 is the number of registers to store to the generator.
-  Node* register_count = ChangeUint32ToWord(BytecodeOperandCount(3));
+  // Bytecode operand 2 is the number of registers to store to the generator.
+  Node* register_count = ChangeUint32ToWord(BytecodeOperandCount(2));
 
   Node* generator = LoadRegister(generator_reg);
 
   ImportRegisterFile(
       LoadObjectField(generator, JSGeneratorObject::kRegisterFileOffset),
       register_count);
-
-  // Since we're resuming, update the generator state to indicate that the
-  // generator is now executing.
-  StoreRegister(SmiConstant(JSGeneratorObject::kGeneratorExecuting),
-                generator_state_reg);
 
   // Return the generator's input_or_debug_pos in the accumulator.
   SetAccumulator(

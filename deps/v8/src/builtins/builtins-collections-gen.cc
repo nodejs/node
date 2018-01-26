@@ -31,8 +31,7 @@ class BaseCollectionsAssembler : public CodeStubAssembler {
   // Adds an entry to a collection.  For Maps, properly handles extracting the
   // key and value from the entry (see LoadKeyValue()).
   void AddConstructorEntry(Variant variant, TNode<Context> context,
-                           TNode<Object> collection,
-                           TNode<JSFunction> add_function,
+                           TNode<Object> collection, TNode<Object> add_function,
                            TNode<Object> key_value,
                            Label* if_may_have_side_effects = nullptr,
                            Label* if_exception = nullptr,
@@ -43,8 +42,7 @@ class BaseCollectionsAssembler : public CodeStubAssembler {
   void AddConstructorEntries(Variant variant, TNode<Context> context,
                              TNode<Context> native_context,
                              TNode<Object> collection,
-                             TNode<Object> initial_entries,
-                             TNode<BoolT> is_fast_jsarray);
+                             TNode<Object> initial_entries);
 
   // Fast path for adding constructor entries.  Assumes the entries are a fast
   // JS array (see CodeStubAssembler::BranchIfFastJSArray()).
@@ -87,8 +85,8 @@ class BaseCollectionsAssembler : public CodeStubAssembler {
 
   // Retrieves the collection function that adds an entry. `set` for Maps and
   // `add` for Sets.
-  TNode<JSFunction> GetAddFunction(Variant variant, TNode<Context> context,
-                                   TNode<Object> collection);
+  TNode<Object> GetAddFunction(Variant variant, TNode<Context> context,
+                               TNode<Object> collection);
 
   // Retrieves the collection constructor function.
   TNode<JSFunction> GetConstructor(Variant variant,
@@ -137,7 +135,7 @@ class BaseCollectionsAssembler : public CodeStubAssembler {
 
 void BaseCollectionsAssembler::AddConstructorEntry(
     Variant variant, TNode<Context> context, TNode<Object> collection,
-    TNode<JSFunction> add_function, TNode<Object> key_value,
+    TNode<Object> add_function, TNode<Object> key_value,
     Label* if_may_have_side_effects, Label* if_exception,
     TVariable<Object>* var_exception) {
   CSA_ASSERT(this, Word32BinaryNot(IsTheHole(key_value)));
@@ -161,11 +159,12 @@ void BaseCollectionsAssembler::AddConstructorEntry(
 
 void BaseCollectionsAssembler::AddConstructorEntries(
     Variant variant, TNode<Context> context, TNode<Context> native_context,
-    TNode<Object> collection, TNode<Object> initial_entries,
-    TNode<BoolT> is_fast_jsarray) {
+    TNode<Object> collection, TNode<Object> initial_entries) {
+  TVARIABLE(BoolT, use_fast_loop,
+            IsFastJSArrayWithNoCustomIteration(initial_entries, context,
+                                               native_context));
   TNode<IntPtrT> at_least_space_for =
-      EstimatedInitialSize(initial_entries, is_fast_jsarray);
-  TVARIABLE(BoolT, use_fast_loop, is_fast_jsarray);
+      EstimatedInitialSize(initial_entries, use_fast_loop);
   Label allocate_table(this, &use_fast_loop), exit(this), fast_loop(this),
       slow_loop(this, Label::kDeferred);
   Goto(&allocate_table);
@@ -174,22 +173,25 @@ void BaseCollectionsAssembler::AddConstructorEntries(
     TNode<Object> table = AllocateTable(variant, context, at_least_space_for);
     StoreObjectField(collection, GetTableOffset(variant), table);
     GotoIf(IsNullOrUndefined(initial_entries), &exit);
+    GotoIfNot(
+        HasInitialCollectionPrototype(variant, native_context, collection),
+        &slow_loop);
     Branch(use_fast_loop, &fast_loop, &slow_loop);
   }
   BIND(&fast_loop);
   {
+    TNode<JSArray> initial_entries_jsarray =
+        UncheckedCast<JSArray>(initial_entries);
 #if DEBUG
-    CSA_ASSERT(this, IsFastJSArray(initial_entries, context));
-    TNode<Map> original_initial_entries_map = LoadMap(CAST(initial_entries));
+    CSA_ASSERT(this, IsFastJSArrayWithNoCustomIteration(
+                         initial_entries_jsarray, context, native_context));
+    TNode<Map> original_initial_entries_map = LoadMap(initial_entries_jsarray);
 #endif
-    GotoIfNot(
-        HasInitialCollectionPrototype(variant, native_context, collection),
-        &slow_loop);
 
     Label if_may_have_side_effects(this, Label::kDeferred);
-    AddConstructorEntriesFromFastJSArray(
-        variant, context, native_context, collection,
-        UncheckedCast<JSArray>(initial_entries), &if_may_have_side_effects);
+    AddConstructorEntriesFromFastJSArray(variant, context, native_context,
+                                         collection, initial_entries_jsarray,
+                                         &if_may_have_side_effects);
     Goto(&exit);
 
     if (variant == kMap || variant == kWeakMap) {
@@ -198,9 +200,9 @@ void BaseCollectionsAssembler::AddConstructorEntries(
       CSA_ASSERT(this, HasInitialCollectionPrototype(variant, native_context,
                                                      collection));
       CSA_ASSERT(this, WordEqual(original_initial_entries_map,
-                                 LoadMap(CAST(initial_entries))));
+                                 LoadMap(initial_entries_jsarray)));
 #endif
-      use_fast_loop = ReinterpretCast<BoolT>(Int32Constant(0));
+      use_fast_loop = Int32FalseConstant();
       Goto(&allocate_table);
     }
   }
@@ -223,8 +225,8 @@ void BaseCollectionsAssembler::AddConstructorEntriesFromFastJSArray(
   CSA_ASSERT(
       this,
       WordEqual(GetAddFunction(variant, native_context, collection), add_func));
-  CSA_ASSERT(this, IsFastJSArray(fast_jsarray, context));
-  CSA_ASSERT(this, IsFastElementsKind(elements_kind));
+  CSA_ASSERT(this, IsFastJSArrayWithNoCustomIteration(fast_jsarray, context,
+                                                      native_context));
   TNode<IntPtrT> length = SmiUntag(LoadFastJSArrayLength(fast_jsarray));
   CSA_ASSERT(this, IntPtrGreaterThanOrEqual(length, IntPtrConstant(0)));
   CSA_ASSERT(
@@ -292,7 +294,7 @@ void BaseCollectionsAssembler::AddConstructorEntriesFromIterable(
   Label exit(this), loop(this), if_exception(this, Label::kDeferred);
   CSA_ASSERT(this, Word32BinaryNot(IsNullOrUndefined(iterable)));
 
-  TNode<JSFunction> add_func = GetAddFunction(variant, context, collection);
+  TNode<Object> add_func = GetAddFunction(variant, context, collection);
   IteratorBuiltinsAssembler iterator_assembler(this->state());
   IteratorRecord iterator = iterator_assembler.GetIterator(context, iterable);
 
@@ -364,15 +366,10 @@ void BaseCollectionsAssembler::GenerateConstructor(
   GotoIf(IsUndefined(new_target), &if_undefined);
 
   TNode<Context> native_context = LoadNativeContext(context);
-  TNode<BoolT> array_iterator_unchanged =
-      HasInitialArrayIteratorPrototypeMap(native_context);
-  TNode<BoolT> is_fast_jsarray = UncheckedCast<BoolT>(
-      Word32And(IsFastJSArray(iterable, context), array_iterator_unchanged));
   TNode<Object> collection = AllocateJSCollection(
       context, GetConstructor(variant, native_context), new_target);
 
-  AddConstructorEntries(variant, context, native_context, collection, iterable,
-                        is_fast_jsarray);
+  AddConstructorEntries(variant, context, native_context, collection, iterable);
   Return(collection);
 
   BIND(&if_undefined);
@@ -380,7 +377,7 @@ void BaseCollectionsAssembler::GenerateConstructor(
                  HeapConstant(constructor_function_name));
 }
 
-TNode<JSFunction> BaseCollectionsAssembler::GetAddFunction(
+TNode<Object> BaseCollectionsAssembler::GetAddFunction(
     Variant variant, TNode<Context> context, TNode<Object> collection) {
   Handle<String> add_func_name = (variant == kMap || variant == kWeakMap)
                                      ? isolate()->factory()->set_string()

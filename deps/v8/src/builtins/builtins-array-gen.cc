@@ -1841,7 +1841,7 @@ TF_BUILTIN(ArrayPrototypeFindIndex, ArrayBuiltinCodeStubAssembler) {
 }
 
 // ES #sec-array.of
-TF_BUILTIN(ArrayOf, ArrayBuiltinCodeStubAssembler) {
+TF_BUILTIN(ArrayOf, CodeStubAssembler) {
   TNode<Int32T> argc =
       UncheckedCast<Int32T>(Parameter(BuiltinDescriptor::kArgumentsCount));
   TNode<Smi> length = SmiFromWord32(argc);
@@ -1911,20 +1911,42 @@ TF_BUILTIN(ArrayOf, ArrayBuiltinCodeStubAssembler) {
                 1, ParameterMode::SMI_PARAMETERS, IndexAdvanceMode::kPost);
 
   {
-    Label is_js_array(this), is_not_js_array(this), next(this);
+    Label fast(this), runtime(this), next(this);
+    // Only set the length in this stub if
+    // 1) the array has fast elements,
+    // 2) the length is writable,
+    // 3) the new length is greater than or equal to the old length.
+
+    // 1) Check that the array has fast elements.
     // TODO(delphick): Consider changing this since it does an an unnecessary
     // check for SMIs.
-    // TODO(delphick): Also we could hoist this to after the array construction
-    // and copy the args into array in the same way as the Array constructor.
-    BranchIfFastJSArray(array, context, &is_js_array, &is_not_js_array);
+    // TODO(delphick): Also we could hoist this to after the array
+    // construction and copy the args into array in the same way as the Array
+    // constructor.
+    BranchIfFastJSArray(array, context, &fast, &runtime);
 
-    BIND(&is_js_array);
+    BIND(&fast);
     {
-      StoreObjectFieldNoWriteBarrier(array, JSArray::kLengthOffset, length);
+      TNode<JSArray> fast_array = CAST(array);
+
+      CSA_ASSERT(this, TaggedIsPositiveSmi(LoadJSArrayLength(fast_array)));
+      Node* old_length = LoadObjectField(fast_array, JSArray::kLengthOffset);
+
+      // 2) Ensure that the length is writable.
+      EnsureArrayLengthWritable(LoadMap(fast_array), &runtime);
+
+      // 3) If the created array already has a length greater than required,
+      //    then use the runtime to set the property as that will insert holes
+      //    into the excess elements and/or shrink the backing store.
+      GotoIf(SmiLessThan(length, old_length), &runtime);
+
+      StoreObjectFieldNoWriteBarrier(fast_array, JSArray::kLengthOffset,
+                                     length);
+
       Goto(&next);
     }
 
-    BIND(&is_not_js_array);
+    BIND(&runtime);
     {
       CallRuntime(Runtime::kSetProperty, context, static_cast<Node*>(array),
                   CodeStubAssembler::LengthStringConstant(), length,

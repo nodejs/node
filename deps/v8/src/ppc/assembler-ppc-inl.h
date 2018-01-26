@@ -241,7 +241,7 @@ void RelocInfo::Visit(Isolate* isolate, ObjectVisitor* visitor) {
   }
 }
 
-Operand::Operand(Register rm) : rm_(rm), rmode_(kRelocInfo_NONEPTR) {}
+Operand::Operand(Register rm) : rm_(rm), rmode_(RelocInfo::NONE) {}
 
 void Assembler::UntrackBranch() {
   DCHECK(!trampoline_emitted_);

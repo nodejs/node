@@ -36,33 +36,6 @@ BUILTIN(BigIntConstructor_ConstructStub) {
                             isolate->factory()->BigInt_string()));
 }
 
-BUILTIN(BigIntParseInt) {
-  HandleScope scope(isolate);
-  Handle<Object> string = args.atOrUndefined(isolate, 1);
-  Handle<Object> radix = args.atOrUndefined(isolate, 2);
-
-  // Convert {string} to a String and flatten it.
-  // Fast path: avoid back-and-forth conversion for Smi inputs.
-  if (string->IsSmi() && radix->IsUndefined(isolate)) {
-    RETURN_RESULT_OR_FAILURE(isolate, BigInt::FromNumber(isolate, string));
-  }
-  Handle<String> subject;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, subject,
-                                     Object::ToString(isolate, string));
-  subject = String::Flatten(subject);
-
-  // Convert {radix} to Int32.
-  if (!radix->IsNumber()) {
-    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, radix, Object::ToNumber(radix));
-  }
-  int radix32 = DoubleToInt32(radix->Number());
-  if (radix32 != 0 && (radix32 < 2 || radix32 > 36)) {
-    THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate, NewSyntaxError(MessageTemplate::kToRadixFormatRange));
-  }
-  RETURN_RESULT_OR_FAILURE(isolate, BigIntParseInt(isolate, subject, radix32));
-}
-
 BUILTIN(BigIntAsUintN) {
   HandleScope scope(isolate);
   Handle<Object> bits_obj = args.atOrUndefined(isolate, 1);

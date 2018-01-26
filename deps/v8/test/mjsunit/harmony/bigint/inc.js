@@ -7,74 +7,73 @@
 // Flags: --harmony-bigint
 
 var data = [{
-  a: "-989c298c6fc3",
-  r: "-989c298c6fc2"
+  a: 0xb3df90n,
+  r: 0xb3df91n
 }, {
-  a: "bff2c86c449a56",
-  r: "bff2c86c449a57"
+  a: 0xaacd53fc9545eb394304a3c69caba730230a6527730an,
+  r: 0xaacd53fc9545eb394304a3c69caba730230a6527730bn
 }, {
-  a: "-6fb15264369b63e3b92d6f74458140d4b62a56ecbfca000492b6b8a0c56c651ebaecdd1",
-  r: "-6fb15264369b63e3b92d6f74458140d4b62a56ecbfca000492b6b8a0c56c651ebaecdd0"
+  a: 0x32efa4ba1c29098be7df8fa0f3c74a183612ecn,
+  r: 0x32efa4ba1c29098be7df8fa0f3c74a183612edn
 }, {
-  a: "e161f6284b91fa2646dc0f162c575bb8a0d0f5bfee26748b7181413567",
-  r: "e161f6284b91fa2646dc0f162c575bb8a0d0f5bfee26748b7181413568"
+  a: -0xcabed06f63ad50406b96187208cf9ec6faf46413ce83e280c31ben,
+  r: -0xcabed06f63ad50406b96187208cf9ec6faf46413ce83e280c31bdn
 }, {
-  a: "-4d073653cc812",
-  r: "-4d073653cc811"
+  a: -0x8a40ce58f753466f4008faa0814e76d9b594908df0e42cf6ad4a781e60ce2n,
+  r: -0x8a40ce58f753466f4008faa0814e76d9b594908df0e42cf6ad4a781e60ce1n
 }, {
-  a: "-ce31549364717dea9d1bf30baed642f",
-  r: "-ce31549364717dea9d1bf30baed642e"
+  a: -0x848c8fc23bc93801n,
+  r: -0x848c8fc23bc93800n
 }, {
-  a: "2ae123a62361f1de2cc5ca9cfd9658f47d",
-  r: "2ae123a62361f1de2cc5ca9cfd9658f47e"
+  a: -0x13a8316c5af3f3b06aab6642e717a7bdn,
+  r: -0x13a8316c5af3f3b06aab6642e717a7bcn
 }, {
-  a: "-4820298153b7bbd86337ad72e0d1ac7448de99bc6ce4c43c2",
-  r: "-4820298153b7bbd86337ad72e0d1ac7448de99bc6ce4c43c1"
+  a: -0x5f5e517cf7efe577cd689c36d1beb3d9df4cfdc3fcb55ed9e9d8fan,
+  r: -0x5f5e517cf7efe577cd689c36d1beb3d9df4cfdc3fcb55ed9e9d8f9n
 }, {
-  a: "2e",
-  r: "2f"
+  a: 0n,
+  r: 0x1n
 }, {
-  a: "-8f3b598ac2ab8a78a2d3e1f7ab1124b05a830aa1261bf57d8de2a",
-  r: "-8f3b598ac2ab8a78a2d3e1f7ab1124b05a830aa1261bf57d8de29"
+  a: 0x107d5ec8048c4d715e213ec74f9f04006d3f2d90dd95d17c3e82f7a4ccn,
+  r: 0x107d5ec8048c4d715e213ec74f9f04006d3f2d90dd95d17c3e82f7a4cdn
 }, {
-  a: "-5c070fdee0d3f4a9adc63",
-  r: "-5c070fdee0d3f4a9adc62"
+  a: 0xb8e09fc6037a75bbfn,
+  r: 0xb8e09fc6037a75bc0n
 }, {
-  a: "-3700cd6a6d1e68de1",
-  r: "-3700cd6a6d1e68de0"
+  a: 0x515d1b999660074184n,
+  r: 0x515d1b999660074185n
 }, {
-  a: "56c68c",
-  r: "56c68d"
+  a: 0xe12def67dc33628638612b8137d0fa425ea2dn,
+  r: 0xe12def67dc33628638612b8137d0fa425ea2en
 }, {
-  a: "-1ab894376fcf0dab9c",
-  r: "-1ab894376fcf0dab9b"
+  a: 0x96a9n,
+  r: 0x96aan
 }, {
-  a: "-937dcf37c57588e55260c3eea20318",
-  r: "-937dcf37c57588e55260c3eea20317"
+  a: -0x9df122a299a5e65b275028n,
+  r: -0x9df122a299a5e65b275027n
 }, {
-  a: "-f8ee63b438580a8915baf84edcfd0688247905e593e153644a88761bab0",
-  r: "-f8ee63b438580a8915baf84edcfd0688247905e593e153644a88761baaf"
+  a: 0x20dd05bfb5ed6ebfb05da9a7488800b8895fbfe6d709eecb6071cda73e13n,
+  r: 0x20dd05bfb5ed6ebfb05da9a7488800b8895fbfe6d709eecb6071cda73e14n
 }, {
-  a: "-c63d4353ddf575bf02",
-  r: "-c63d4353ddf575bf01"
+  a: 0xb38294d2e5523534c56dd6ef38ba744b29e3a3bb6f863f1aeaen,
+  r: 0xb38294d2e5523534c56dd6ef38ba744b29e3a3bb6f863f1aeafn
 }, {
-  a: "-bef439cc990a8b1d69b80fa7b3c703ba2",
-  r: "-bef439cc990a8b1d69b80fa7b3c703ba1"
+  a: -0x6b58de4ba9b2699ea6777dc1adc0b2486n,
+  r: -0x6b58de4ba9b2699ea6777dc1adc0b2485n
 }, {
-  a: "6007edbd20b0ba90d86cf80e871e898c8907bb37",
-  r: "6007edbd20b0ba90d86cf80e871e898c8907bb38"
+  a: 0xf40028a48894df5d81131046477a22e55cbead5n,
+  r: 0xf40028a48894df5d81131046477a22e55cbead6n
 }, {
-  a: "-692b36b5e874a448415678ac2b4d0a61c75bdc1674ae14d753cad7d46846",
-  r: "-692b36b5e874a448415678ac2b4d0a61c75bdc1674ae14d753cad7d46845"
+  a: -0x44cbe6c7f5e7e879d3cb2eaffc4af0a43affc094218031a1f123746549dd7b8cdcbdn,
+  r: -0x44cbe6c7f5e7e879d3cb2eaffc4af0a43affc094218031a1f123746549dd7b8cdcbcn
 }];
 
 var error_count = 0;
 for (var i = 0; i < data.length; i++) {
   var d = data[i];
-  var a = BigInt.parseInt(d.a, 16);
-  var r = ++a;
-  if (d.r !== r.toString(16)) {
-    print("Input:    " + a.toString(16));
+  var r = ++d.a;
+  if (d.r !== r) {
+    print("Input:    " + d.a.toString(16));
     print("Result:   " + r.toString(16));
     print("Expected: " + d.r);
     error_count++;

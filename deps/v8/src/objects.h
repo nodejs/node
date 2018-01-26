@@ -1048,6 +1048,7 @@ template <class C> inline bool Is(Object* obj);
   V(NameDictionary)                       \
   V(NativeContext)                        \
   V(NormalizedMapCache)                   \
+  V(NumberDictionary)                     \
   V(ObjectHashSet)                        \
   V(ObjectHashTable)                      \
   V(Oddball)                              \
@@ -1061,11 +1062,11 @@ template <class C> inline bool Is(Object* obj);
   V(RegExpMatchInfo)                      \
   V(ScopeInfo)                            \
   V(ScriptContextTable)                   \
-  V(NumberDictionary)                     \
   V(SeqOneByteString)                     \
   V(SeqString)                            \
   V(SeqTwoByteString)                     \
   V(SharedFunctionInfo)                   \
+  V(SimpleNumberDictionary)               \
   V(SlicedString)                         \
   V(SloppyArgumentsElements)              \
   V(SmallOrderedHashMap)                  \
@@ -4996,7 +4997,7 @@ class StackFrameInfo : public Struct {
 class SourcePositionTableWithFrameCache : public Tuple2 {
  public:
   DECL_ACCESSORS(source_position_table, ByteArray)
-  DECL_ACCESSORS(stack_frame_cache, NumberDictionary)
+  DECL_ACCESSORS(stack_frame_cache, SimpleNumberDictionary)
 
   DECL_CAST(SourcePositionTableWithFrameCache)
 

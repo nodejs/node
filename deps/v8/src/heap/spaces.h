@@ -893,6 +893,7 @@ class Space : public Malloced {
  public:
   Space(Heap* heap, AllocationSpace id, Executability executable)
       : allocation_observers_paused_(false),
+        allocation_step_in_progress_(false),
         heap_(heap),
         id_(id),
         executable_(executable),
@@ -979,6 +980,7 @@ class Space : public Malloced {
 
   std::vector<AllocationObserver*> allocation_observers_;
   bool allocation_observers_paused_;
+  bool allocation_step_in_progress_;
 
  protected:
   Heap* heap_;

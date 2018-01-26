@@ -7,96 +7,94 @@
 // Flags: --harmony-bigint
 
 var data = [{
-  a: "-67c2a5ba4221c048b64ecca6dd979391c44296b8b87ce97584ebab03be18",
-  b: "-bebdbd9b278d05704416fd87d09aece9b69f98843",
-  r: "-8794ba5d9204eb8adfb5e44c11a65fe5af057e6a4"
+  a: 0xaed3c714bb42a73d708bcf1dc9a9deebadc913ef42bac6a6178a60n,
+  b: -0xf3d6bd1c059b79n,
+  r: 0x2a4f893c8ece3n
 }, {
-  a: "-843cfbe576106b8e7c0aabec2cde402e7f76a711dbbf6ae79d6d932e22cf",
-  b: "553d800ffcf69f80026",
-  r: "-272250d344908c21525"
+  a: -0x8a6d8cb8e32aba50e08fd50aecbda6821e1863bf9a2n,
+  b: 0xe19ab8530bce542ec6b4c848fc383a2b688f07976dd523dabn,
+  r: -0x8a6d8cb8e32aba50e08fd50aecbda6821e1863bf9a2n
 }, {
-  a: "-b5fc9e8e21fbad798bcd3571ab169dd5e2059d1a9aa4d1bf44fe18da725b",
-  b: "-da5d287414fbb2b4b",
-  r: "-2610eb2277e01a758"
+  a: 0x7cd19a308b217ddd9dcda69ebe37767f09a483cb87060314aeade6f6c619d27c3n,
+  b: 0xae30b5c754e0an,
+  r: 0x619154797565dn
 }, {
-  a: "a9c92d42b53a6fbf0824f5b7bd9ed1cab1f9419d7ec2b50f192abfa6d620d53",
-  b: "9de30592e1fe27d26afe06bbb4781c77ef58418",
-  r: "9a67af5868a619a48883aed4c0d0a876e2ce143"
+  a: -0xaa90d777e849974d7ebebd2ed76dce635e36713e9e0c97cen,
+  b: 0xcc2bc7239bf83ecafc74b25750981df258n,
+  r: -0xa32d47bc250c5a41d147a862099778685en
 }, {
-  a: "ffa271b138163a779c89f17aa720490854520120b1307ef",
-  b: "ab27ef49f3a00085981a5bc1c13530aec35e29c",
-  r: "4c49a63b98d2dd7a33a843f98ba82b54909e337"
+  a: 0x7386178fe1159c4ca3c4e5caa6eda4413926047efd22007931c22ab54bn,
+  b: 0xc05100caa704bca144n,
+  r: 0x55ead7f83d4a795753n
 }, {
-  a: "d43f739464bcc8643dfaa807cbbe1157189e33368dd19b800db3682bb0dcb73",
-  b: "bf66b1dc93054920039f9b3eba688d9",
-  r: "bb2f3000959d66b3962d755d141c3ac"
+  a: -0xa48867cf46692351a59bc89c0ddc9a6d2cd9f72578c0bab72d8389n,
+  b: 0x77c2eec6cc0bef33dd4756b223c35a0f2b528f8648a7n,
+  r: -0x184a6eed8fcd32399c59605c7255b5614b388be24b44n
 }, {
-  a: "111ae5ba62ec37fd157ef531195363c5c8ace4427ff58811746af94ab8",
-  b: "58112d0d88f3c8722d1e28942e8949c433c4619b451",
-  r: "283276aa2b6316ca2146b1e6bcc8aa8de4b5446847a"
+  a: 0xac7681c26f78191107c9cde47f984fc7ffb7bffd0a055fc14n,
+  b: -0xe2d91d1a0e1edc3f806a24c36f7ca0a8a9b44b66c9n,
+  r: 0xdf0b3460335089fca0b1da676b3d1e9caf15afd3den
 }, {
-  a: "-4609a1c7d563bbdb49fd01e05031395e6e06b78407e440",
-  b: "-75ee71f85344163bae2ba0e438",
-  r: "-68b517938971cb261babea1cf8"
+  a: -0x3035011f4adba0c032ddc2fc884ff7663b45cb3baebec0fn,
+  b: 0xcc27f9a21470911a61aae50ae118ebcf85ea4dn,
+  r: -0xc5ea1db5af95ccdce2844b13b82659be1ac2adn
 }, {
-  a: "292cd2c5eb3e80942066c5af8bfdaf8d1d091f61f3005d226318",
-  b: "5",
-  r: "3"
+  a: -0x2dbe79c42b1e8db7aea4ca9cfaf1350528b096e23f69ea322cn,
+  b: -0x82f7e4f2ee432485n,
+  r: -0x824bddbaf61ce383n
 }, {
-  a: "-a9f8c03f06200b54959a2ced325090be25417f0bf1274d",
-  b: "13eb3a0c772fc98e537883a3ef72e1ee37b249ee17c0510",
-  r: "-a9f8c03f06200b54959a2ced325090be25417f0bf1274d"
+  a: 0xc5c7fbeb60fdb9f8e8347ebf9fe303e3223394b2db93ce2n,
+  b: 0xcd988b4cb278a39fd3ae58c16616855f01fab0fb0n,
+  r: 0xc3b5157e680c8ca66df1bd640c6ad1601bd612b02n
 }, {
-  a: "c4ddadae9abee150068fe6536c6b2fe229070410da61a09abe1a7270b",
-  b: "5f4d55e3345e37fe8887f3ca5e",
-  r: "42eea65dd545aacdcd250b505b"
+  a: 0x73dd1e27450edb450fe4bd70494a8ad85a8ad9691bc40bf500a1n,
+  b: 0xc8fb467f71be8a6b965d21857ecfdn,
+  r: 0x646e6d9fa1e2eb2933b2e5a837d37n
 }, {
-  a: "-7a73d61e639dacedd207dfe1edc630b1dfda9078489a7f0cf79dcdfcbf3992efc13861f",
-  b: "-c0f2b9045bb3865d89cc0c9920c3ccfae382c250",
-  r: "-6bdc3d5943d7a35e4ecbc5c8deb335ca2c3bbc0f"
+  a: -0xecb217583ec4240399bfa34560b45f1fd08efd0ebb56b2dn,
+  b: 0xeba34abn,
+  r: -0xc2d347bn
 }, {
-  a: "-a9ac4a2e055f22c8ba7956ffca5457a71412eb74d3a180555bb25ce5096e23d6c619",
-  b: "-f3c",
-  r: "-a5d"
+  a: 0x29c8a9854802b9317b90683eb82609b3aa695598807fea0482a56567n,
+  b: -0xabe5e55b228f8n,
+  r: 0x52303615b525fn
 }, {
-  a: "-b16cfd7fbbf820afc77be1590fd9802ecd12059238b98bb96d9d215af4808",
-  b: "2c288a9de167",
-  r: "-2b3901c1b8d1"
+  a: 0x7b532ee90b3945dbed20180632f46c90d0edb558e39456103f50e5a74ff1dn,
+  b: 0x17n,
+  r: 0x6n
 }, {
-  a: "-df12dd3e56dc3c3dd769ad964f8356a5860177f1b4a3b95acc75",
-  b: "4ec6f5474b18",
-  r: "-17bf0980582d"
+  a: -0x6f1dbf8dedea796a2423fad9688d71340963da3a4f005f13e9cd4aa03b96c864552cn,
+  b: -0x408a4f36ec4a1b74642fb0a4559en,
+  r: -0x33c06c53e6e47ca87f36447f1b0n
 }, {
-  a: "1d197bf4aa09a02760cb004e9edf25e6591ae14d92b6cbf1349ea1c040d66",
-  b: "-23ebacc5f380e5649a1234c3ed050472569cbcd056",
-  r: "20e5e588b4861be3ec7b4005a6a50566e60a3a4364"
+  a: -0xe77508ff49bc76c78678676ca1edc82eb167f3b07d3208d89d26582ef74d60n,
+  b: -0xf005fb1a8b29035c72980abe4a0715c90n,
+  r: -0x159e8c7616079663b4e12765a05cc6d40n
 }, {
-  a: "fab19b7e774bf33bb42a7af90d8dc75cbc927e3225003610c05b117c25c90944d",
-  b: "-3b433469282a54d46cac",
-  r: "10eda9e98b721b4a2505"
+  a: 0x626749ef019017f53b2c686f26594e6d3c5f247cf0ed7024cca277n,
+  b: 0x5bd931ea8c6939115ad69f6ce3c6bbc300320n,
+  r: 0x3a4b041c36d0a45ef932745eab473943b1a97n
 }, {
-  a: "5b19514660782d3a2429d7791659868abb9d8fc96077247",
-  b: "-59188be60",
-  r: "2340c3607"
+  a: -0x960dde134b881d3366d659c7d8c3eb6346f50c08c6f78en,
+  b: -0xc9e7fa60f6ce1997012f5a6164138447fa248754985905dc6n,
+  r: -0x960dde134b881d3366d659c7d8c3eb6346f50c08c6f78en
 }, {
-  a: "-2884ed1401b5e976be7dc1faf7bffb632c808649fa75ab458cc66ef4e75",
-  b: "bf",
-  r: "-40"
+  a: 0x702dc0033e09e9e58ec3fc96f861587ad13cea1ed7b7eb301n,
+  b: 0x71f0c97687b4f3318be2fe54b90273n,
+  r: 0x4e1859254ac1d42f7c812decef00a3n
 }, {
-  a: "-4c9cdf26be1797e54480ab20797e35d04941c11ff78b040c00099422cec",
-  b: "ee20f34835529f4a73",
-  r: "-e24db40426d47f968b"
+  a: 0x39376649769a0abb26133deee934330ef21a2f90ea89476569630021af6023235n,
+  b: -0x4aaaec4085f65ccc9d547beb122160afcbb3n,
+  r: 0x3027d5ebb37c5aa438f11dfcafa3b003b91bn
 }];
 
 var error_count = 0;
 for (var i = 0; i < data.length; i++) {
   var d = data[i];
-  var a = BigInt.parseInt(d.a, 16);
-  var b = BigInt.parseInt(d.b, 16);
-  var r = a % b;
-  if (d.r !== r.toString(16)) {
-    print("Input A:  " + a.toString(16));
-    print("Input B:  " + b.toString(16));
+  var r = d.a % d.b;
+  if (d.r !== r) {
+    print("Input A:  " + d.a.toString(16));
+    print("Input B:  " + d.b.toString(16));
     print("Result:   " + r.toString(16));
     print("Expected: " + d.r);
     print("Op: %");

@@ -4,11 +4,12 @@
 
 {
   'variables': {
-    'protocol_path': '../../third_party/inspector_protocol',
+    'protocol_path': '../third_party/inspector_protocol',
+    'inspector_path': '../src/inspector',
   },
   'includes': [
     'inspector.gypi',
-    '<(PRODUCT_DIR)/../../../third_party/inspector_protocol/inspector_protocol.gypi',
+    '../third_party/inspector_protocol/inspector_protocol.gypi',
   ],
   'targets': [
     { 'target_name': 'inspector_injected_script',
@@ -18,7 +19,7 @@
         {
           'action_name': 'convert_js_to_cpp_char_array',
           'inputs': [
-            'build/xxd.py',
+            '<(inspector_path)/build/xxd.py',
             '<(inspector_injected_script_source)',
           ],
           'outputs': [
@@ -26,9 +27,9 @@
           ],
           'action': [
             'python',
-            'build/xxd.py',
+            '<(inspector_path)/build/xxd.py',
             'InjectedScriptSource_js',
-            'injected-script-source.js',
+            '<(inspector_path)/injected-script-source.js',
             '<@(_outputs)'
           ],
         },
@@ -43,7 +44,7 @@
         {
           'action_name': 'protocol_compatibility',
           'inputs': [
-            'js_protocol.json',
+            '<(inspector_path)/js_protocol.json',
           ],
           'outputs': [
             '<@(SHARED_INTERMEDIATE_DIR)/src/js_protocol.stamp',
@@ -52,7 +53,7 @@
             'python',
             '<(protocol_path)/CheckProtocolCompatibility.py',
             '--stamp', '<@(_outputs)',
-            'js_protocol.json',
+            '<(inspector_path)/js_protocol.json',
           ],
           'message': 'Generating inspector protocol sources from protocol json definition',
         },
@@ -66,8 +67,8 @@
         {
           'action_name': 'protocol_generated_sources',
           'inputs': [
-            'js_protocol.json',
-            'inspector_protocol_config.json',
+            '<(inspector_path)/js_protocol.json',
+            '<(inspector_path)/inspector_protocol_config.json',
             '<@(inspector_protocol_files)',
           ],
           'outputs': [
@@ -76,9 +77,9 @@
           'action': [
             'python',
             '<(protocol_path)/CodeGenerator.py',
-            '--jinja_dir', '../../third_party',
+            '--jinja_dir', '../third_party',
             '--output_base', '<(SHARED_INTERMEDIATE_DIR)/src/inspector',
-            '--config', 'inspector_protocol_config.json',
+            '--config', '<(inspector_path)/inspector_protocol_config.json',
           ],
           'message': 'Generating inspector protocol sources from protocol json',
         },

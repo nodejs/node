@@ -278,6 +278,7 @@ DEFINE_BOOL(future, FUTURE_BOOL,
             "not-too-far future")
 
 DEFINE_IMPLICATION(future, background_compile)
+DEFINE_IMPLICATION(future, write_protect_code_memory)
 
 // Flags for experimental implementation features.
 DEFINE_BOOL(allocation_site_pretenuring, true,
@@ -558,6 +559,8 @@ DEFINE_BOOL(experimental_wasm_threads, false,
             "enable prototype threads for wasm")
 DEFINE_BOOL(experimental_wasm_sat_f2i_conversions, false,
             "enable non-trapping float-to-int conversions for wasm")
+DEFINE_BOOL(experimental_wasm_se, false,
+            "enable prototype sign extension opcodes for wasm")
 
 DEFINE_BOOL(wasm_opt, false, "enable wasm optimization")
 DEFINE_BOOL(wasm_no_bounds_checks, false,
@@ -639,6 +642,7 @@ DEFINE_BOOL(incremental_marking_wrappers, true,
             "use incremental marking for marking wrappers")
 DEFINE_BOOL(parallel_scavenge, true, "parallel scavenge")
 DEFINE_BOOL(trace_parallel_scavenge, false, "trace parallel scavenge")
+DEFINE_BOOL(write_protect_code_memory, false, "write protect code memory")
 #ifdef V8_CONCURRENT_MARKING
 #define V8_CONCURRENT_MARKING_BOOL true
 #else
@@ -1274,6 +1278,7 @@ DEFINE_BOOL(predictable, false, "enable predictable mode")
 DEFINE_IMPLICATION(predictable, single_threaded)
 DEFINE_NEG_IMPLICATION(predictable, memory_reducer)
 DEFINE_VALUE_IMPLICATION(single_threaded, wasm_num_compilation_tasks, 0)
+DEFINE_NEG_IMPLICATION(single_threaded, wasm_async_compilation)
 
 //
 // Threading related flags.

@@ -2,9 +2,10 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-import collections
 import itertools
 
+from ..testproc.base import (
+    DROP_RESULT, DROP_OUTPUT, DROP_PASS_OUTPUT, DROP_PASS_STDOUT)
 from ..local import statusfile
 from ..testproc.result import Result
 
@@ -14,11 +15,29 @@ OUTCOMES_FAIL = [statusfile.FAIL]
 
 
 class BaseOutProc(object):
-  def process(self, output):
-    return Result(self.has_unexpected_output(output), output)
+  def process(self, output, reduction=None):
+    has_unexpected_output = self.has_unexpected_output(output)
+    return self._create_result(has_unexpected_output, output, reduction)
 
   def has_unexpected_output(self, output):
     return self.get_outcome(output) not in self.expected_outcomes
+
+  def _create_result(self, has_unexpected_output, output, reduction):
+    """Creates Result instance. When reduction is passed it tries to drop some
+    parts of the result to save memory and time needed to send the result
+    across process boundary. None disables reduction and full result is created.
+    """
+    if reduction == DROP_RESULT:
+      return None
+    if reduction == DROP_OUTPUT:
+      return Result(has_unexpected_output, None)
+    if not has_unexpected_output:
+      if reduction == DROP_PASS_OUTPUT:
+        return Result(has_unexpected_output, None)
+      if reduction == DROP_PASS_STDOUT:
+        return Result(has_unexpected_output, output.without_text())
+
+    return Result(has_unexpected_output, output)
 
   def get_outcome(self, output):
     if output.HasCrashed():

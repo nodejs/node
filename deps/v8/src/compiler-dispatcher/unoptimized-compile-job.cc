@@ -251,7 +251,7 @@ void UnoptimizedCompileJob::Compile(bool on_background_thread) {
   }
 
   compilation_job_.reset(interpreter::Interpreter::NewCompilationJob(
-      parse_info_.get(), parse_info_->literal(), allocator_));
+      parse_info_.get(), parse_info_->literal(), allocator_, nullptr));
 
   if (!compilation_job_.get()) {
     parse_info_->pending_error_handler()->set_stack_overflow();

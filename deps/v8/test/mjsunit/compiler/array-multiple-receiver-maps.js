@@ -29,21 +29,23 @@ function runTest(f, message, mkICTraining, deoptArg) {
       // Make sure the optimized function can handle
       // all trained maps without deopt.
       for (let a of t3) {
+        message += " for args " + JSON.stringify(a) + " should have been optimized";
         f(a.arr, () => a.el);
-        message += " for args " + JSON.stringify(a);
-        assertOptimized(f, undefined, message + " should have been optimized");
+        assertOptimized(f, undefined, message);
       }
     } else {
       // Trigger deopt, causing no-speculation bit to be set.
       let a1 = deoptArg;
       let a2 = deoptArg;
       message += " for args " + JSON.stringify(a1);
+      message_unoptimized = message + " should have been unoptimized"
+      message_optimized = message + " should have been unoptimized"
       f(a1.arr, () => a1.el);
-      assertUnoptimized(f, undefined, message + " should have been unoptimized");
+      assertUnoptimized(f, undefined, message_unoptimized);
       %OptimizeFunctionOnNextCall(f);
       // No speculation should protect against further deopts.
       f(a2.arr, () => a2.el);
-      assertOptimized(f, undefined,  message + " should have been optimized");
+      assertOptimized(f, undefined,  message_optimized);
     }
   }
 

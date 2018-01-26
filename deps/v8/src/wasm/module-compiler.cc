@@ -302,8 +302,7 @@ class InstanceBuilder {
   InstanceBuilder(Isolate* isolate, ErrorThrower* thrower,
                   Handle<WasmModuleObject> module_object,
                   MaybeHandle<JSReceiver> ffi,
-                  MaybeHandle<JSArrayBuffer> memory,
-                  WeakCallbackInfo<void>::Callback instance_finalizer_callback);
+                  MaybeHandle<JSArrayBuffer> memory);
 
   // Build an instance, in all of its glory.
   MaybeHandle<WasmInstanceObject> Build();
@@ -335,7 +334,6 @@ class InstanceBuilder {
   std::vector<TableInstance> table_instances_;
   std::vector<Handle<JSFunction>> js_wrappers_;
   JSToWasmWrapperCache js_to_wasm_cache_;
-  WeakCallbackInfo<void>::Callback instance_finalizer_callback_;
   std::vector<SanitizedImport> sanitized_imports_;
 
   const std::shared_ptr<Counters>& async_counters() const {
@@ -418,91 +416,6 @@ class InstanceBuilder {
                          Handle<WasmInstanceObject> instance);
 };
 
-// TODO(titzer): move to wasm-objects.cc
-void InstanceFinalizer(const v8::WeakCallbackInfo<void>& data) {
-  DisallowHeapAllocation no_gc;
-  JSObject** p = reinterpret_cast<JSObject**>(data.GetParameter());
-  WasmInstanceObject* owner = reinterpret_cast<WasmInstanceObject*>(*p);
-  Isolate* isolate = reinterpret_cast<Isolate*>(data.GetIsolate());
-  // If a link to shared memory instances exists, update the list of memory
-  // instances before the instance is destroyed.
-  WasmCompiledModule* compiled_module = owner->compiled_module();
-  wasm::NativeModule* native_module = compiled_module->GetNativeModule();
-  if (FLAG_wasm_jit_to_native) {
-    if (native_module) {
-      TRACE("Finalizing %zu {\n", native_module->instance_id);
-    } else {
-      TRACE("Finalized already cleaned up compiled module\n");
-    }
-  } else {
-    TRACE("Finalizing %d {\n", compiled_module->instance_id());
-
-    if (compiled_module->use_trap_handler()) {
-      // TODO(6792): No longer needed once WebAssembly code is off heap.
-      CodeSpaceMemoryModificationScope modification_scope(isolate->heap());
-      DisallowHeapAllocation no_gc;
-      FixedArray* code_table = compiled_module->code_table();
-      for (int i = 0; i < code_table->length(); ++i) {
-        Code* code = Code::cast(code_table->get(i));
-        int index = code->trap_handler_index()->value();
-        if (index >= 0) {
-          trap_handler::ReleaseHandlerData(index);
-          code->set_trap_handler_index(
-              Smi::FromInt(trap_handler::kInvalidIndex));
-        }
-      }
-    }
-  }
-  WeakCell* weak_wasm_module = compiled_module->weak_wasm_module();
-
-  // Since the order of finalizers is not guaranteed, it can be the case
-  // that {instance->compiled_module()->module()}, which is a
-  // {Managed<WasmModule>} has been collected earlier in this GC cycle.
-  // Weak references to this instance won't be cleared until
-  // the next GC cycle, so we need to manually break some links (such as
-  // the weak references from {WasmMemoryObject::instances}.
-  if (owner->has_memory_object()) {
-    Handle<WasmMemoryObject> memory(owner->memory_object(), isolate);
-    Handle<WasmInstanceObject> instance(owner, isolate);
-    WasmMemoryObject::RemoveInstance(isolate, memory, instance);
-  }
-
-  // weak_wasm_module may have been cleared, meaning the module object
-  // was GC-ed. We still want to maintain the links between instances, to
-  // release the WasmCompiledModule corresponding to the WasmModuleInstance
-  // being finalized here.
-  WasmModuleObject* wasm_module = nullptr;
-  if (!weak_wasm_module->cleared()) {
-    wasm_module = WasmModuleObject::cast(weak_wasm_module->value());
-    WasmCompiledModule* current_template = wasm_module->compiled_module();
-
-    TRACE("chain before {\n");
-    TRACE_CHAIN(current_template);
-    TRACE("}\n");
-
-    DCHECK(!current_template->has_prev_instance());
-    if (current_template == compiled_module) {
-      if (!compiled_module->has_next_instance()) {
-        WasmCompiledModule::Reset(isolate, compiled_module);
-      } else {
-        WasmModuleObject::cast(wasm_module)
-            ->set_compiled_module(compiled_module->next_instance());
-      }
-    }
-  }
-
-  compiled_module->RemoveFromChain();
-
-  if (wasm_module != nullptr) {
-    TRACE("chain after {\n");
-    TRACE_CHAIN(wasm_module->compiled_module());
-    TRACE("}\n");
-  }
-  compiled_module->reset_weak_owning_instance();
-  GlobalHandles::Destroy(reinterpret_cast<Object**>(p));
-  TRACE("}\n");
-}
-
 // This is used in ProcessImports.
 // When importing other modules' exports, we need to ask
 // the exporter for a WasmToWasm wrapper. To do that, we need to
@@ -531,8 +444,7 @@ MaybeHandle<WasmInstanceObject> InstantiateToInstanceObject(
     Isolate* isolate, ErrorThrower* thrower,
     Handle<WasmModuleObject> module_object, MaybeHandle<JSReceiver> imports,
     MaybeHandle<JSArrayBuffer> memory) {
-  InstanceBuilder builder(isolate, thrower, module_object, imports, memory,
-                          &InstanceFinalizer);
+  InstanceBuilder builder(isolate, thrower, module_object, imports, memory);
   return builder.Build();
 }
 
@@ -2080,19 +1992,17 @@ MaybeHandle<WasmModuleObject> ModuleCompiler::CompileToModuleObjectInternal(
   return result;
 }
 
-InstanceBuilder::InstanceBuilder(
-    Isolate* isolate, ErrorThrower* thrower,
-    Handle<WasmModuleObject> module_object, MaybeHandle<JSReceiver> ffi,
-    MaybeHandle<JSArrayBuffer> memory,
-    WeakCallbackInfo<void>::Callback instance_finalizer_callback)
+InstanceBuilder::InstanceBuilder(Isolate* isolate, ErrorThrower* thrower,
+                                 Handle<WasmModuleObject> module_object,
+                                 MaybeHandle<JSReceiver> ffi,
+                                 MaybeHandle<JSArrayBuffer> memory)
     : isolate_(isolate),
       module_(module_object->compiled_module()->shared()->module()),
       async_counters_(isolate->async_counters()),
       thrower_(thrower),
       module_object_(module_object),
       ffi_(ffi),
-      memory_(memory),
-      instance_finalizer_callback_(instance_finalizer_callback) {
+      memory_(memory) {
   sanitized_imports_.reserve(module_->import_table.size());
 }
 
@@ -2458,8 +2368,6 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
   // Insert the compiled module into the weak list of compiled modules.
   //--------------------------------------------------------------------------
   {
-    Handle<Object> global_handle =
-        isolate_->global_handles()->Create(*instance);
     Handle<WeakCell> link_to_owning_instance = factory->NewWeakCell(instance);
     if (!owner.is_null()) {
       // Publish the new instance to the instances chain.
@@ -2468,9 +2376,7 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
     }
     module_object_->set_compiled_module(*compiled_module_);
     compiled_module_->set_weak_owning_instance(*link_to_owning_instance);
-    GlobalHandles::MakeWeak(global_handle.location(), global_handle.location(),
-                            instance_finalizer_callback_,
-                            v8::WeakCallbackType::kFinalizer);
+    WasmInstanceObject::InstallFinalizer(isolate_, instance);
   }
 
   //--------------------------------------------------------------------------
@@ -4058,7 +3964,10 @@ void AsyncStreamingProcessor::FinishAsyncCompileJobWithError(ResultBase error) {
       job_->DoSync<AsyncCompileJob::DecodeFail>(std::move(result));
     }
 
-    compilation_unit_builder_->Clear();
+    // Clear the {compilation_unit_builder_} if it exists. This is needed
+    // because there is a check in the destructor of the
+    // {CompilationUnitBuilder} that it is empty.
+    if (compilation_unit_builder_) compilation_unit_builder_->Clear();
   } else {
     job_->DoSync<AsyncCompileJob::DecodeFail>(std::move(result));
   }

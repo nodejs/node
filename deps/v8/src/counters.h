@@ -795,7 +795,6 @@ class RuntimeCallTimer final {
   V(CompileBackgroundEval)                     \
   V(CompileBackgroundIgnition)                 \
   V(CompileBackgroundScript)                   \
-  V(CompileBackgroundRenumber)                 \
   V(CompileBackgroundRewriteReturnResult)      \
   V(CompileBackgroundScopeAnalysis)            \
   V(CompileDeserialize)                        \
@@ -805,7 +804,6 @@ class RuntimeCallTimer final {
   V(CompileGetFromOptimizedCodeMap)            \
   V(CompileIgnition)                           \
   V(CompileIgnitionFinalization)               \
-  V(CompileRenumber)                           \
   V(CompileRewriteReturnResult)                \
   V(CompileScopeAnalysis)                      \
   V(CompileScript)                             \
