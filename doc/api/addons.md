@@ -170,7 +170,7 @@ try {
 Node.js uses a number of statically linked libraries such as V8, libuv and
 OpenSSL. All Addons are required to link to V8 and may link to any of the
 other dependencies as well. Typically, this is as simple as including
-the appropriate `#include <...>` statements (e.g. `#include <v8.h>`) and
+the appropriate `#include <...>` statements (for example: `#include <v8.h>`) and
 `node-gyp` will locate the appropriate headers automatically. However, there
 are a few caveats to be aware of:
 
@@ -221,7 +221,7 @@ illustration of how it can be used.
 > Stability: 1 - Experimental
 
 N-API is an API for building native Addons. It is independent from
-the underlying JavaScript runtime (e.g. V8) and is maintained as part of
+the underlying JavaScript runtime (for example: V8) and is maintained as part of
 Node.js itself. This API will be Application Binary Interface (ABI) stable
 across version of Node.js. It is intended to insulate Addons from
 changes in the underlying JavaScript engine and allow modules

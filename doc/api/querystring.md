@@ -35,7 +35,7 @@ added: v0.1.25
 changes:
   - version: v8.0.0
     pr-url: https://github.com/nodejs/node/pull/10967
-    description: Multiple empty entries are now parsed correctly (e.g. `&=&=`).
+    description: Multiple empty entries are now parsed correctly (for example: `&=&=`).
   - version: v6.0.0
     pr-url: https://github.com/nodejs/node/pull/6055
     description: The returned object no longer inherits from `Object.prototype`.

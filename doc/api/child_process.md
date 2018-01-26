@@ -971,7 +971,7 @@ The `'disconnect'` event will be emitted when there are no messages in the
 process of being received. This will most often be triggered immediately after
 calling `subprocess.disconnect()`.
 
-Note that when the child process is a Node.js instance (e.g. spawned using
+Note that when the child process is a Node.js instance (for example: spawned using
 [`child_process.fork()`]), the `process.disconnect()` method can be invoked
 within the child process to close the IPC channel as well.
 

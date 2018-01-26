@@ -27,7 +27,7 @@ dns.lookup('iana.org', (err, address, family) => {
 and that _always_ use the network to perform DNS queries. This category
 contains all functions in the `dns` module _except_ [`dns.lookup()`][]. These
 functions do not use the same set of configuration files used by
-[`dns.lookup()`][] (e.g. `/etc/hosts`). These functions should be used by
+[`dns.lookup()`][] (for example: `/etc/hosts`). These functions should be used by
 developers who do not want to use the underlying operating system's facilities
 for name resolution, and instead want to _always_ perform DNS queries.
 
@@ -153,7 +153,7 @@ changes:
   - `address` {string} A string representation of an IPv4 or IPv6 address.
   - `family` {integer} `4` or `6`, denoting the family of `address`.
 
-Resolves a hostname (e.g. `'nodejs.org'`) into the first found A (IPv4) or
+Resolves a hostname (for example: `'nodejs.org'`) into the first found A (IPv4) or
 AAAA (IPv6) record. All `option` properties are optional. If `options` is an
 integer, then it must be `4` or `6` – if `options` is not provided, then IPv4
 and IPv6 addresses are both returned if found.
@@ -217,8 +217,8 @@ added: v0.11.14
 - `port` {number}
 - `callback` {Function}
   - `err` {Error}
-  - `hostname` {string} e.g. `example.com`
-  - `service` {string} e.g. `http`
+  - `hostname` {string} for example: `example.com`
+  - `service` {string} for example: `http`
 
 Resolves the given `address` and `port` into a hostname and service using
 the operating system's underlying `getnameinfo` implementation.
@@ -250,7 +250,7 @@ added: v0.1.27
   - `err` {Error}
   - `records` {string[] | Object[] | Object}
 
-Uses the DNS protocol to resolve a hostname (e.g. `'nodejs.org'`) into an array
+Uses the DNS protocol to resolve a hostname (for example: `'nodejs.org'`) into an array
 of the resource records. The `callback` function has arguments
 `(err, records)`. When successful, `records` will be an array of resource
 records. The type and structure of individual results varies based on `rrtype`:
@@ -293,7 +293,7 @@ changes:
 
 Uses the DNS protocol to resolve a IPv4 addresses (`A` records) for the
 `hostname`. The `addresses` argument passed to the `callback` function
-will contain an array of IPv4 addresses (e.g.
+will contain an array of IPv4 addresses (for example:
 `['74.125.79.104', '74.125.79.105', '74.125.79.106']`).
 
 
@@ -333,7 +333,7 @@ added: v0.3.2
 Uses the DNS protocol to resolve `CNAME` records for the `hostname`. The
 `addresses` argument passed to the `callback` function
 will contain an array of canonical name records available for the `hostname`
-(e.g. `['bar.example.com']`).
+(for example: `['bar.example.com']`).
 
 ## dns.resolveMx(hostname, callback)
 <!-- YAML
@@ -347,7 +347,7 @@ added: v0.1.27
 Uses the DNS protocol to resolve mail exchange records (`MX` records) for the
 `hostname`. The `addresses` argument passed to the `callback` function will
 contain an array of objects containing both a `priority` and `exchange`
-property (e.g. `[{priority: 10, exchange: 'mx.example.com'}, ...]`).
+property (for example: `[{priority: 10, exchange: 'mx.example.com'}, ...]`).
 
 ## dns.resolveNaptr(hostname, callback)
 <!-- YAML
@@ -395,7 +395,7 @@ added: v0.1.90
 Uses the DNS protocol to resolve name server records (`NS` records) for the
 `hostname`. The `addresses` argument passed to the `callback` function will
 contain an array of name server records available for `hostname`
-(e.g. `['ns1.example.com', 'ns2.example.com']`).
+(for example: `['ns1.example.com', 'ns2.example.com']`).
 
 ## dns.resolvePtr(hostname, callback)
 <!-- YAML
@@ -483,7 +483,7 @@ added: v0.1.27
 
 Uses the DNS protocol to resolve text queries (`TXT` records) for the
 `hostname`. The `records` argument passed to the `callback` function is a
-two-dimensional array of the text records available for `hostname` (e.g.
+two-dimensional array of the text records available for `hostname` (for example:
 `[ ['v=spf1 ip4:0.0.0.0 ', '~all' ] ]`). Each sub-array contains TXT chunks of
 one record. Depending on the use case, these could be either joined together or
 treated separately.

@@ -272,7 +272,7 @@ console.error('error', code);
 // Prints: error 5, to stderr
 ```
 
-If formatting elements (e.g. `%d`) are not found in the first string then
+If formatting elements (for example: `%d`) are not found in the first string then
 [`util.inspect()`][] is called on each argument and the resulting string
 values are concatenated. See [`util.format()`][] for more information.
 

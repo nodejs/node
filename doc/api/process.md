@@ -195,7 +195,7 @@ pulling out of the power cord when upgrading a computer -- nine out of ten
 times nothing happens - but the 10th time, the system becomes corrupted.
 
 The correct use of `'uncaughtException'` is to perform synchronous cleanup
-of allocated resources (e.g. file descriptors, handles, etc) before shutting
+of allocated resources (for example: file descriptors, handles, etc) before shutting
 down the process. **It is not safe to resume normal operation after
 `'uncaughtException'`.**
 
@@ -352,7 +352,7 @@ refer to signal(7) for a listing of standard POSIX signal names such as
 The signal handler will receive the signal's name (`'SIGINT'`,
  `'SIGTERM'`, etc.) as the first argument.
 
-The name of each event will be the uppercase common name for the signal (e.g.
+The name of each event will be the uppercase common name for the signal (for example:
 `'SIGINT'` for `SIGINT` signals).
 
 For example:

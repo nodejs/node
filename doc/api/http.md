@@ -704,7 +704,7 @@ with a `100 Continue` as appropriate.
 
 Handling this event involves calling [`response.writeContinue()`][] if the client
 should continue to send the request body, or generating an appropriate HTTP
-response (e.g. 400 Bad Request) if the client should not continue to send the
+response (for example: 400 Bad Request) if the client should not continue to send the
 request body.
 
 Note that when this event is emitted and handled, the [`'request'`][] event will
@@ -978,7 +978,7 @@ This method adds HTTP trailing headers (a header but at the end of the
 message) to the response.
 
 Trailers will **only** be emitted if chunked encoding is used for the
-response; if it is not (e.g. if the request was HTTP/1.0), they will
+response; if it is not (for example: if the request was HTTP/1.0), they will
 be silently discarded.
 
 Note that HTTP requires the `Trailer` header to be sent in order to

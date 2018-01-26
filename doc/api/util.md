@@ -497,7 +497,7 @@ console.log(util.inspect(o, { compact: false, breakLength: 80 }));
 //   }
 // }
 
-// Setting `breakLength` to e.g. 150 will print the "Lorem ipsum" text in a
+// Setting `breakLength` to for example: 150 will print the "Lorem ipsum" text in a
 // single line.
 // Reducing the `breakLength` will split the "Lorem ipsum" text in smaller
 // chunks.
