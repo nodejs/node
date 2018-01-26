@@ -137,6 +137,7 @@ class ModuleWrap;
   V(env_pairs_string, "envPairs")                                             \
   V(errno_string, "errno")                                                    \
   V(error_string, "error")                                                    \
+  V(esm_string, "esm")                                                        \
   V(exiting_string, "_exiting")                                               \
   V(exit_code_string, "exitCode")                                             \
   V(exit_string, "exit")                                                      \
@@ -252,6 +253,7 @@ class ModuleWrap;
   V(type_string, "type")                                                      \
   V(uid_string, "uid")                                                        \
   V(unknown_string, "<unknown>")                                              \
+  V(url_string, "url")                                                        \
   V(user_string, "user")                                                      \
   V(username_string, "username")                                              \
   V(valid_from_string, "valid_from")                                          \
