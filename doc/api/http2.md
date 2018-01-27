@@ -1200,7 +1200,7 @@ added: v8.4.0
 * `callback` {Function} Callback that is called once the push stream has been
   initiated.
   * `err` {Error}
-  * `pushStream` {[`ServerHttp2Stream`][]} The returned pushStream object.
+  * `pushStream` {ServerHttp2Stream} The returned pushStream object.
   * `headers` {HTTP2 Headers Object} Headers object the pushStream was
   initiated with.
 * Returns: {undefined}

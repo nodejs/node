@@ -49,6 +49,8 @@ const typeMap = {
   'Handle': 'net.html#net_server_listen_handle_backlog_callback',
   'net.Socket': 'net.html#net_class_net_socket',
 
+  'ServerHttp2Stream': 'http2.html#http2_class_serverhttp2stream',
+
   'Stream': 'stream.html#stream_stream',
   'stream.Readable': 'stream.html#stream_class_stream_readable',
   'stream.Writable': 'stream.html#stream_class_stream_writable',
