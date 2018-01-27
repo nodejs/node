@@ -236,25 +236,20 @@
       ],
     }],
     [ '(OS=="freebsd" or OS=="linux") and node_shared=="false"'
-        ' and coverage=="false" and force_load=="true"', {
+        ' and force_load=="true"', {
       'ldflags': [ '-Wl,-z,noexecstack',
                    '-Wl,--whole-archive <(v8_base)',
                    '-Wl,--no-whole-archive' ]
     }],
-    [ '(OS=="freebsd" or OS=="linux") and node_shared=="false"'
-        ' and coverage=="true" and force_load=="true"', {
-      'ldflags': [ '-Wl,-z,noexecstack',
-                   '-Wl,--whole-archive <(v8_base)',
-                   '-Wl,--no-whole-archive',
-                   '--coverage',
+    [ 'OS in "mac freebsd linux" and node_shared=="false"'
+        ' and coverage=="true"', {
+      'ldflags': [ '--coverage',
                    '-g',
                    '-O0' ],
-       'cflags': [ '--coverage',
+      'cflags': [ '--coverage',
                    '-g',
                    '-O0' ],
-       'cflags!': [ '-O3' ]
-    }],
-    [ 'OS=="mac" and node_shared=="false" and coverage=="true"', {
+      'cflags!': [ '-O3' ],
       'xcode_settings': {
         'OTHER_LDFLAGS': [
           '--coverage',
