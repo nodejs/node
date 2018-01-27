@@ -580,8 +580,9 @@ The Readable can switch back to paused mode using one of the following:
 
 * If there are no pipe destinations, by calling the
   [`stream.pause()`][stream-pause] method.
-* If there are pipe destinations, by removing all pipe destinations by
-  calling the [`stream.unpipe()`][] method.
+* If there are pipe destinations, by removing all pipe destinations.
+  Multiple pipe destinations may be removed by calling the
+  [`stream.unpipe()`][] method.
 
 The important concept to remember is that a Readable will not generate data
 until a mechanism for either consuming or ignoring that data is provided. If
