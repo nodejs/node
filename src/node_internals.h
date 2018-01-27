@@ -126,6 +126,7 @@ struct sockaddr;
     V(timer_wrap)                                                             \
     V(trace_events)                                                           \
     V(tty_wrap)                                                               \
+    V(types)                                                                  \
     V(udp_wrap)                                                               \
     V(url)                                                                    \
     V(util)                                                                   \

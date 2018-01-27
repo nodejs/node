@@ -932,6 +932,14 @@ Using the `noAssert` argument has no functionality anymore. All input is going
 to be verified, no matter if it is set to true or not. Skipping the verification
 could lead to hard to find errors and crashes.
 
+<a id="DEP0XXX"></a>
+### DEP0XXX: process.binding('util').is[...] typechecks
+
+Type: Documentation-only (supports [`--pending-deprecation`][])
+
+Using `process.binding()` in general should be avoided. The type checking
+methods in particular can be replaced by using [`util.types`][].
+
 [`--pending-deprecation`]: cli.html#cli_pending_deprecation
 [`Buffer.allocUnsafeSlow(size)`]: buffer.html#buffer_class_method_buffer_allocunsafeslow_size
 [`Buffer.from(array)`]: buffer.html#buffer_class_method_buffer_from_array
@@ -1000,6 +1008,7 @@ could lead to hard to find errors and crashes.
 [`util.log()`]: util.html#util_util_log_string
 [`util.print()`]: util.html#util_util_print_strings
 [`util.puts()`]: util.html#util_util_puts_strings
+[`util.types`]: util.html#util_util_types
 [`util`]: util.html
 [`worker.exitedAfterDisconnect`]: cluster.html#cluster_worker_exitedafterdisconnect
 [alloc]: buffer.html#buffer_class_method_buffer_alloc_size_fill_encoding

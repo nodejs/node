@@ -25,7 +25,6 @@ const common = require('../common');
 const assert = require('assert');
 const util = require('util');
 const errors = require('internal/errors');
-const binding = process.binding('util');
 const context = require('vm').runInNewContext;
 
 // isArray
@@ -155,22 +154,23 @@ util.debug('test');
 util.error('test');
 
 {
-  // binding.isNativeError()
-  assert.strictEqual(binding.isNativeError(new Error()), true);
-  assert.strictEqual(binding.isNativeError(new TypeError()), true);
-  assert.strictEqual(binding.isNativeError(new SyntaxError()), true);
-  assert.strictEqual(binding.isNativeError(new (context('Error'))()), true);
-  assert.strictEqual(binding.isNativeError(new (context('TypeError'))()), true);
-  assert.strictEqual(binding.isNativeError(new (context('SyntaxError'))()),
+  assert.strictEqual(util.types.isNativeError(new Error()), true);
+  assert.strictEqual(util.types.isNativeError(new TypeError()), true);
+  assert.strictEqual(util.types.isNativeError(new SyntaxError()), true);
+  assert.strictEqual(util.types.isNativeError(new (context('Error'))()),
                      true);
-  assert.strictEqual(binding.isNativeError({}), false);
-  assert.strictEqual(binding.isNativeError({ name: 'Error', message: '' }),
+  assert.strictEqual(util.types.isNativeError(new (context('TypeError'))()),
+                     true);
+  assert.strictEqual(util.types.isNativeError(new (context('SyntaxError'))()),
+                     true);
+  assert.strictEqual(util.types.isNativeError({}), false);
+  assert.strictEqual(util.types.isNativeError({ name: 'Error', message: '' }),
                      false);
-  assert.strictEqual(binding.isNativeError([]), false);
-  assert.strictEqual(binding.isNativeError(Object.create(Error.prototype)),
+  assert.strictEqual(util.types.isNativeError([]), false);
+  assert.strictEqual(util.types.isNativeError(Object.create(Error.prototype)),
                      false);
   assert.strictEqual(
-    binding.isNativeError(new errors.Error('ERR_IPC_CHANNEL_CLOSED')),
+    util.types.isNativeError(new errors.Error('ERR_IPC_CHANNEL_CLOSED')),
     true
   );
 }
