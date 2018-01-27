@@ -28,9 +28,9 @@ assert.strictEqual(test_general.testGetPrototype(baseObject),
                    Object.getPrototypeOf(baseObject));
 assert.strictEqual(test_general.testGetPrototype(extendedObject),
                    Object.getPrototypeOf(extendedObject));
-assert.ok(test_general.testGetPrototype(baseObject) !==
-          test_general.testGetPrototype(extendedObject),
-          'Prototypes for base and extended should be different');
+//Prototypes for base and extended should be different.
+assert.notStrictEqual(test_general.testGetPrototype(baseObject),
+          test_general.testGetPrototype(extendedObject));
 
 // test version management functions
 // expected version is currently 1
