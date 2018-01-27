@@ -323,6 +323,10 @@ function runTest(port, testIndex) {
     }
   });
 
+  server.on('error', (e) => {
+    assert.fail(`Server error: ${e}`);
+  });
+
   function runNextClient(clientIndex) {
     const options = tcase.clients[clientIndex];
     if (options) {
