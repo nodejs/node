@@ -30,7 +30,7 @@ assert.strictEqual(test_general.testGetPrototype(extendedObject),
                    Object.getPrototypeOf(extendedObject));
 //Prototypes for base and extended should be different.
 assert.notStrictEqual(test_general.testGetPrototype(baseObject),
-          test_general.testGetPrototype(extendedObject));
+                      test_general.testGetPrototype(extendedObject));
 
 // test version management functions
 // expected version is currently 1
@@ -76,8 +76,9 @@ assert.throws(() => test_general.wrap(x), Error);
 const y = {};
 test_general.wrap(y);
 test_general.removeWrap(y);
-assert.doesNotThrow(() => test_general.wrap(y), Error, 
-					'Wrapping twice succeeds if a remove_wrap() separates the instances');
+assert.doesNotThrow(() => test_general.wrap(y), Error,
+                    'Wrapping twice succeeds if a remove_wrap()' +
+                    ' separates the instances');
 
 // Ensure that removing a wrap and garbage collecting does not fire the
 // finalize callback.
