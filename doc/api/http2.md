@@ -229,8 +229,8 @@ added: v8.4.0
 
 The `'stream'` event is emitted when a new `Http2Stream` is created. When
 invoked, the handler function will receive a reference to the `Http2Stream`
-object, a [Headers Object][], and numeric flags associated with the creation
-of the stream.
+object, a [HTTP2 Headers Object][], and numeric flags associated with the
+creation of the stream.
 
 ```js
 const http2 = require('http2');
@@ -382,7 +382,7 @@ Transmits a `GOAWAY` frame to the connected peer *without* shutting down the
 added: v8.4.0
 -->
 
-* Value: {[Settings Object][]}
+* Value: {HTTP2 Settings Object}
 
 A prototype-less object describing the current local settings of this
 `Http2Session`. The local settings are local to *this* `Http2Session` instance.
@@ -461,7 +461,7 @@ instance's underlying [`net.Socket`].
 added: v8.4.0
 -->
 
-* Value: {[Settings Object][]}
+* Value: {HTTP2 Settings Object}
 
 A prototype-less object describing the current remote settings of this
 `Http2Session`. The remote settings are set by the *connected* HTTP/2 peer.
@@ -570,7 +570,7 @@ An object describing the current status of this `Http2Session`.
 added: v8.4.0
 -->
 
-* `settings` {[Settings Object][]}
+* `settings` {HTTP2 Settings Object}
 * Returns {undefined}
 
 Updates the current local settings for this `Http2Session` and sends a new
@@ -707,7 +707,7 @@ client.on('altsvc', (alt, origin, stream) => {
 added: v8.4.0
 -->
 
-* `headers` {[Headers Object][]}
+* `headers` {HTTP2 Headers Object}
 * `options` {Object}
   * `endStream` {boolean} `true` if the `Http2Stream` *writable* side should
     be closed initially, such as when sending a `GET` request that should not
@@ -895,7 +895,7 @@ added: v8.4.0
 
 The `'trailers'` event is emitted when a block of headers associated with
 trailing header fields is received. The listener callback is passed the
-[Headers Object][] and flags associated with the headers.
+[HTTP2 Headers Object][] and flags associated with the headers.
 
 ```js
 stream.on('trailers', (headers, flags) => {
@@ -994,7 +994,7 @@ calling `http2stream.close()`, or `http2stream.destroy()`. Will be
 added: REPLACEME
 -->
 
-* Value: {[Headers Object][]}
+* Value: {HTTP2 Headers Object}
 
 An object containing the outbound headers sent for this `Http2Stream`.
 
@@ -1003,7 +1003,7 @@ An object containing the outbound headers sent for this `Http2Stream`.
 added: REPLACEME
 -->
 
-* Value: {[Headers Object][]\[\]}
+* Value: {HTTP2 Headers Object[]}
 
 An array of objects containing the outbound informational (additional) headers
 sent for this `Http2Stream`.
@@ -1013,7 +1013,7 @@ sent for this `Http2Stream`.
 added: REPLACEME
 -->
 
-* Value: {[Headers Object][]}
+* Value: {HTTP2 Headers Object}
 
 An object containing the outbound trailers sent for this this `HttpStream`.
 
@@ -1096,8 +1096,8 @@ added: v8.4.0
 
 The `'headers'` event is emitted when an additional block of headers is received
 for a stream, such as when a block of `1xx` informational headers is received.
-The listener callback is passed the [Headers Object][] and flags associated with
-the headers.
+The listener callback is passed the [HTTP2 Headers Object][] and flags
+associated with the headers.
 
 ```js
 stream.on('headers', (headers, flags) => {
@@ -1111,8 +1111,8 @@ added: v8.4.0
 -->
 
 The `'push'` event is emitted when response headers for a Server Push stream
-are received. The listener callback is passed the [Headers Object][] and flags
-associated with the headers.
+are received. The listener callback is passed the [HTTP2 Headers Object][] and
+flags associated with the headers.
 
 ```js
 stream.on('push', (headers, flags) => {
@@ -1128,7 +1128,7 @@ added: v8.4.0
 The `'response'` event is emitted when a response `HEADERS` frame has been
 received for this stream from the connected HTTP/2 server. The listener is
 invoked with two arguments: an Object containing the received
-[Headers Object][], and flags associated with the headers.
+[HTTP2 Headers Object][], and flags associated with the headers.
 
 For example:
 
@@ -1158,7 +1158,7 @@ provide additional methods such as `http2stream.pushStream()` and
 added: v8.4.0
 -->
 
-* `headers` {[Headers Object][]}
+* `headers` {HTTP2 Headers Object}
 * Returns: {undefined}
 
 Sends an additional informational `HEADERS` frame to the connected HTTP/2 peer.
@@ -1189,7 +1189,7 @@ accepts push streams, `false` otherwise. Settings are the same for every
 added: v8.4.0
 -->
 
-* `headers` {[Headers Object][]}
+* `headers` {HTTP2 Headers Object}
 * `options` {Object}
   * `exclusive` {boolean} When `true` and `parent` identifies a parent Stream,
     the created stream is made the sole direct dependency of the parent, with
@@ -1201,8 +1201,8 @@ added: v8.4.0
   initiated.
   * `err` {Error}
   * `pushStream` {[`ServerHttp2Stream`][]} The returned pushStream object.
-  * `headers` {[Headers Object][]} Headers object the pushStream was initiated
-  with.
+  * `headers` {HTTP2 Headers Object} Headers object the pushStream was
+  initiated with.
 * Returns: {undefined}
 
 Initiates a push stream. The callback is invoked with the new `Http2Stream`
@@ -1232,7 +1232,7 @@ a `weight` value to `http2stream.priority` with the `silent` option set to
 added: v8.4.0
 -->
 
-* `headers` {[Headers Object][]}
+* `headers` {HTTP2 Headers Object}
 * `options` {Object}
   * `endStream` {boolean} Set to `true` to indicate that the response will not
     include payload data.
@@ -1278,7 +1278,7 @@ added: v8.4.0
 -->
 
 * `fd` {number} A readable file descriptor.
-* `headers` {[Headers Object][]}
+* `headers` {HTTP2 Headers Object}
 * `options` {Object}
   * `statCheck` {Function}
   * `getTrailers` {Function} Callback function invoked to collect trailer
@@ -1362,7 +1362,7 @@ added: v8.4.0
 -->
 
 * `path` {string|Buffer|URL}
-* `headers` {[Headers Object][]}
+* `headers` {HTTP2 Headers Object}
 * `options` {Object}
   * `statCheck` {Function}
   * `onError` {Function} Callback function invoked in the case of an
@@ -1728,7 +1728,7 @@ changes:
   * `selectPadding` {Function} When `options.paddingStrategy` is equal to
     `http2.constants.PADDING_STRATEGY_CALLBACK`, provides the callback function
     used to determine the padding. See [Using options.selectPadding][].
-  * `settings` {[Settings Object][]} The initial settings to send to the
+  * `settings` {HTTP2 Settings Object} The initial settings to send to the
     remote peer upon connection.
 * `onRequestHandler` {Function} See [Compatibility API][]
 * Returns: {Http2Server}
@@ -1815,7 +1815,7 @@ changes:
   * `selectPadding` {Function} When `options.paddingStrategy` is equal to
     `http2.constants.PADDING_STRATEGY_CALLBACK`, provides the callback function
     used to determine the padding. See [Using options.selectPadding][].
-  * `settings` {[Settings Object][]} The initial settings to send to the
+  * `settings` {HTTP2 Settings Object} The initial settings to send to the
     remote peer upon connection.
   * ...: Any [`tls.createServer()`][] options can be provided. For
     servers, the identity options (`pfx` or `key`/`cert`) are usually required.
@@ -1911,7 +1911,7 @@ changes:
   * `selectPadding` {Function} When `options.paddingStrategy` is equal to
     `http2.constants.PADDING_STRATEGY_CALLBACK`, provides the callback function
     used to determine the padding. See [Using options.selectPadding][].
-  * `settings` {[Settings Object][]} The initial settings to send to the
+  * `settings` {HTTP2 Settings Object} The initial settings to send to the
     remote peer upon connection.
   * `createConnection` {Function} An optional callback that receives the `URL`
     instance passed to `connect` and the `options` object, and returns any
@@ -1964,7 +1964,7 @@ a given number of milliseconds set using `http2server.setTimeout()`.
 added: v8.4.0
 -->
 
-* Returns: {[Settings Object][]}
+* Returns: {HTTP2 Settings Object}
 
 Returns an object containing the default settings for an `Http2Session`
 instance. This method returns a new object instance every time it is called
@@ -1975,7 +1975,7 @@ so instances returned may be safely modified for use.
 added: v8.4.0
 -->
 
-* `settings` {[Settings Object][]}
+* `settings` {HTTP2 Settings Object}
 * Returns: {Buffer}
 
 Returns a `Buffer` instance containing serialized representation of the given
@@ -1997,10 +1997,10 @@ added: v8.4.0
 -->
 
 * `buf` {Buffer|Uint8Array} The packed settings.
-* Returns: {[Settings Object][]}
+* Returns: {HTTP2 Settings Object}
 
-Returns a [Settings Object][] containing the deserialized settings from the
-given `Buffer` as generated by `http2.getPackedSettings()`.
+Returns a [HTTP2 Settings Object][] containing the deserialized settings from
+the given `Buffer` as generated by `http2.getPackedSettings()`.
 
 ### Headers Object
 
@@ -2372,7 +2372,7 @@ Example:
 console.log(request.headers);
 ```
 
-See [Headers Object][].
+See [HTTP2 Headers Object][].
 
 *Note*: In HTTP/2, the request path, hostname, protocol, and method are
 represented as special headers prefixed with the `:` character (e.g. `':path'`).
@@ -3094,13 +3094,13 @@ following additional properties:
 [Compatibility API]: #http2_compatibility_api
 [HTTP/1]: http.html
 [HTTP/2]: https://tools.ietf.org/html/rfc7540
+[HTTP2 Headers Object]: #http2_headers_object
+[HTTP2 Settings Object]: #http2_settings_object
 [HTTPS]: https.html
-[Headers Object]: #http2_headers_object
 [Http2Session and Sockets]: #http2_http2session_and_sockets
 [Performance Observer]: perf_hooks.html
 [Readable Stream]: stream.html#stream_class_stream_readable
 [RFC 7838]: https://tools.ietf.org/html/rfc7838
-[Settings Object]: #http2_settings_object
 [Using options.selectPadding]: #http2_using_options_selectpadding
 [Writable Stream]: stream.html#stream_writable_streams
 [`'checkContinue'`]: #http2_event_checkcontinue
