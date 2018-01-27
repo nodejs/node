@@ -163,7 +163,7 @@ function runClient(prefix, port, options, cb) {
   if (common.isWindows)
     args.push('-no_rand_screen');
 
-  console.log(`${prefix}  connecting with`, options.name);
+  console.error(`${prefix}  connecting with`, options.name);
 
   switch (options.name) {
     case 'agent1':
