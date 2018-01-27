@@ -1808,8 +1808,8 @@ upload a file with a POST request, then write to the `ClientRequest` object.
 Example:
 
 ```js
-const postData = querystring.stringify({
-  'msg': 'Hello World!'
+const postData = JSON.stringify({
+  msg: 'Hello World!'
 });
 
 const options = {
