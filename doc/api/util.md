@@ -882,12 +882,12 @@ added: v0.6.0
 deprecated: v4.0.0
 -->
 
-> Stability: 0 - Deprecated
+> Stability: 0 - Deprecated: Use [`Array.isArray()`][] instead.
 
 * `object` {any}
 * Returns: {boolean}
 
-Internal alias for [`Array.isArray`][].
+Alias for [`Array.isArray()`][].
 
 Returns `true` if the given `object` is an `Array`. Otherwise, returns `false`.
 
@@ -908,7 +908,7 @@ added: v0.11.5
 deprecated: v4.0.0
 -->
 
-> Stability: 0 - Deprecated
+> Stability: 0 - Deprecated: Use `typeof value === 'boolean'` instead.
 
 * `object` {any}
 * Returns: {boolean}
@@ -1020,7 +1020,7 @@ added: v0.11.5
 deprecated: v4.0.0
 -->
 
-> Stability: 0 - Deprecated
+> Stability: 0 - Deprecated: Use `typeof value === 'function'` instead.
 
 * `object` {any}
 * Returns: {boolean}
@@ -1048,7 +1048,7 @@ added: v0.11.5
 deprecated: v4.0.0
 -->
 
-> Stability: 0 - Deprecated
+> Stability: 0 - Deprecated: Use `value === null` instead.
 
 * `object` {any}
 * Returns: {boolean}
@@ -1073,7 +1073,8 @@ added: v0.11.5
 deprecated: v4.0.0
 -->
 
-> Stability: 0 - Deprecated
+> Stability: 0 - Deprecated: Use
+> `value === undefined || value === null` instead.
 
 * `object` {any}
 * Returns: {boolean}
@@ -1098,7 +1099,7 @@ added: v0.11.5
 deprecated: v4.0.0
 -->
 
-> Stability: 0 - Deprecated
+> Stability: 0 - Deprecated: Use `typeof value === 'number'` instead.
 
 * `object` {any}
 * Returns: {boolean}
@@ -1124,13 +1125,15 @@ added: v0.11.5
 deprecated: v4.0.0
 -->
 
-> Stability: 0 - Deprecated
+> Stability: 0 - Deprecated:
+> Use `value !== null && typeof value === 'object'` instead.
 
 * `object` {any}
 * Returns: {boolean}
 
 Returns `true` if the given `object` is strictly an `Object` **and** not a
-`Function`. Otherwise, returns `false`.
+`Function` (even though functions are objects in JavaScript).
+Otherwise, returns `false`.
 
 ```js
 const util = require('util');
@@ -1151,7 +1154,9 @@ added: v0.11.5
 deprecated: v4.0.0
 -->
 
-> Stability: 0 - Deprecated
+> Stability: 0 - Deprecated: Use
+> `(typeof value !== 'object' && typeof value !== 'function') || value === null`
+> instead.
 
 * `object` {any}
 * Returns: {boolean}
@@ -1212,7 +1217,7 @@ added: v0.11.5
 deprecated: v4.0.0
 -->
 
-> Stability: 0 - Deprecated
+> Stability: 0 - Deprecated: Use `typeof value === 'string'` instead.
 
 * `object` {any}
 * Returns: {boolean}
@@ -1238,7 +1243,7 @@ added: v0.11.5
 deprecated: v4.0.0
 -->
 
-> Stability: 0 - Deprecated
+> Stability: 0 - Deprecated: Use `typeof value === 'symbol'` instead.
 
 * `object` {any}
 * Returns: {boolean}
@@ -1262,7 +1267,7 @@ added: v0.11.5
 deprecated: v4.0.0
 -->
 
-> Stability: 0 - Deprecated
+> Stability: 0 - Deprecated: Use `value === undefined` instead.
 
 * `object` {any}
 * Returns: {boolean}
@@ -1321,7 +1326,7 @@ deprecated: v0.11.3
 Deprecated predecessor of `console.log`.
 
 [`'uncaughtException'`]: process.html#process_event_uncaughtexception
-[`Array.isArray`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/isArray
+[`Array.isArray()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/isArray
 [`Buffer.isBuffer()`]: buffer.html#buffer_class_method_buffer_isbuffer_obj
 [`Error`]: errors.html#errors_class_error
 [`Object.assign()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/assign
