@@ -28,7 +28,7 @@ assert.strictEqual(test_general.testGetPrototype(baseObject),
                    Object.getPrototypeOf(baseObject));
 assert.strictEqual(test_general.testGetPrototype(extendedObject),
                    Object.getPrototypeOf(extendedObject));
-//Prototypes for base and extended should be different.
+// Prototypes for base and extended should be different.
 assert.notStrictEqual(test_general.testGetPrototype(baseObject),
                       test_general.testGetPrototype(extendedObject));
 
