@@ -287,6 +287,22 @@ void TLSWrap::EncOut() {
                                                                  &count);
   CHECK(write_size_ != 0 && count != 0);
 
+  uv_buf_t buf[arraysize(data)];
+  uv_buf_t* bufs = buf;
+  for (size_t i = 0; i < count; i++)
+    buf[i] = uv_buf_init(data[i], size[i]);
+
+  int err = stream_->DoTryWrite(&bufs, &count);
+  if (err != 0) {
+    InvokeQueued(err);
+  } else if (count == 0) {
+    env()->SetImmediate([](Environment* env, void* data) {
+      NODE_COUNT_NET_BYTES_SENT(write_size_);
+      static_cast<TLSWrap*>(data)->OnStreamAfterWrite(nullptr, 0);
+    }, this, object());
+    return;
+  }
+
   Local<Object> req_wrap_obj =
       env()->write_wrap_constructor_function()
           ->NewInstance(env()->context()).ToLocalChecked();
@@ -294,10 +310,7 @@ void TLSWrap::EncOut() {
                                         req_wrap_obj,
                                         static_cast<StreamBase*>(stream_));
 
-  uv_buf_t buf[arraysize(data)];
-  for (size_t i = 0; i < count; i++)
-    buf[i] = uv_buf_init(data[i], size[i]);
-  int err = stream_->DoWrite(write_req, buf, count, nullptr);
+  err = stream_->DoWrite(write_req, buf, count, nullptr);
 
   // Ignore errors, this should be already handled in js
   if (err) {
@@ -310,9 +323,8 @@ void TLSWrap::EncOut() {
 
 
 void TLSWrap::OnStreamAfterWrite(WriteWrap* req_wrap, int status) {
-  // We should not be getting here after `DestroySSL`, because all queued writes
-  // must be invoked with UV_ECANCELED
-  CHECK_NE(ssl_, nullptr);
+  if (ssl_ == nullptr)
+    status = UV_ECANCELED;
 
   // Handle error
   if (status) {
