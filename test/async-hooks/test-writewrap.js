@@ -1,14 +1,10 @@
 'use strict';
 
 const common = require('../common');
-if (!common.hasCrypto)
-  common.skip('missing crypto');
-
 const assert = require('assert');
 const initHooks = require('./init-hooks');
-const fixtures = require('../common/fixtures');
 const { checkInvocations } = require('./hook-checks');
-const tls = require('tls');
+const net = require('net');
 
 const hooks = initHooks();
 hooks.enable();
@@ -16,13 +12,9 @@ hooks.enable();
 //
 // Creating server and listening on port
 //
-const server = tls
-  .createServer({
-    cert: fixtures.readSync('test_cert.pem'),
-    key: fixtures.readSync('test_key.pem')
-  })
+const server = net.createServer()
   .on('listening', common.mustCall(onlistening))
-  .on('secureConnection', common.mustCall(onsecureConnection))
+  .on('connection', common.mustCall(onconnection))
   .listen(0);
 
 assert.strictEqual(hooks.activitiesOfTypes('WRITEWRAP').length, 0);
@@ -32,16 +24,17 @@ function onlistening() {
   //
   // Creating client and connecting it to server
   //
-  tls
-    .connect(server.address().port, { rejectUnauthorized: false })
-    .on('secureConnect', common.mustCall(onsecureConnect));
+  net
+    .connect(server.address().port)
+    .on('connect', common.mustCall(onconnect));
 
   assert.strictEqual(hooks.activitiesOfTypes('WRITEWRAP').length, 0);
 }
 
 function checkDestroyedWriteWraps(n, stage) {
   const as = hooks.activitiesOfTypes('WRITEWRAP');
-  assert.strictEqual(as.length, n, `${n} WRITEWRAPs when ${stage}`);
+  assert.strictEqual(as.length, n,
+                     `${as.length} out of ${n} WRITEWRAPs when ${stage}`);
 
   function checkValidWriteWrap(w) {
     assert.strictEqual(w.type, 'WRITEWRAP');
@@ -53,35 +46,41 @@ function checkDestroyedWriteWraps(n, stage) {
   as.forEach(checkValidWriteWrap);
 }
 
-function onsecureConnection() {
+function onconnection(conn) {
+  conn.resume();
   //
   // Server received client connection
   //
-  checkDestroyedWriteWraps(3, 'server got secure connection');
+  checkDestroyedWriteWraps(0, 'server got connection');
 }
 
-function onsecureConnect() {
+function onconnect() {
   //
   // Client connected to server
   //
-  checkDestroyedWriteWraps(4, 'client connected');
+  checkDestroyedWriteWraps(0, 'client connected');
 
   //
   // Destroying client socket
   //
-  this.destroy();
+  this.write('f'.repeat(128000), () => onafterwrite(this));
+}
 
-  checkDestroyedWriteWraps(4, 'client destroyed');
+function onafterwrite(self) {
+  checkDestroyedWriteWraps(1, 'client destroyed');
+  self.destroy();
+
+  checkDestroyedWriteWraps(1, 'client destroyed');
 
   //
   // Closing server
   //
   server.close(common.mustCall(onserverClosed));
-  checkDestroyedWriteWraps(4, 'server closing');
+  checkDestroyedWriteWraps(1, 'server closing');
 }
 
 function onserverClosed() {
-  checkDestroyedWriteWraps(4, 'server closed');
+  checkDestroyedWriteWraps(1, 'server closed');
 }
 
 process.on('exit', onexit);
@@ -89,5 +88,5 @@ process.on('exit', onexit);
 function onexit() {
   hooks.disable();
   hooks.sanityCheck('WRITEWRAP');
-  checkDestroyedWriteWraps(4, 'process exits');
+  checkDestroyedWriteWraps(1, 'process exits');
 }
