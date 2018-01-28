@@ -847,6 +847,15 @@ Type: Documentation-only
 The [`crypto.fips`][] property is deprecated. Please use `crypto.setFips()`
 and `crypto.getFips()` instead.
 
+<a id="DEP0XX"></a>
+### DEP0XXX: Using `assert.fail()` with more than one argument.
+
+Type: Runtime
+
+Using `assert.fail()` with more than one argument has no benefit over writing an
+individual error message. Either use `assert.fail()` with one argument or switch
+to one of the other assert methods.
+
 [`--pending-deprecation`]: cli.html#cli_pending_deprecation
 [`Buffer.allocUnsafeSlow(size)`]: buffer.html#buffer_class_method_buffer_allocunsafeslow_size
 [`Buffer.from(array)`]: buffer.html#buffer_class_method_buffer_from_array
