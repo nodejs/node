@@ -105,6 +105,7 @@ struct sockaddr;
     V(config)                                                                 \
     V(contextify)                                                             \
     V(domain)                                                                 \
+    V(extras)                                                                 \
     V(fs)                                                                     \
     V(fs_event_wrap)                                                          \
     V(http2)                                                                  \
