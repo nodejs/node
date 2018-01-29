@@ -19,8 +19,8 @@ compatibility with the existing [HTTP/1][] module API. However,
 the [Compatibility API][] is.
 
 The `http2` Core API is much more symmetric between client and server than the
-`http` API. For instance, most events, like `error` and `socketError`, can be
-emitted either by client-side code or server-side code.
+`http` API. For instance, most events, like `error`, `connect` and `stream`, can
+be emitted either by client-side code or server-side code.
 
 ### Server-side example
 
@@ -36,7 +36,6 @@ const server = http2.createSecureServer({
   cert: fs.readFileSync('localhost-cert.pem')
 });
 server.on('error', (err) => console.error(err));
-server.on('socketError', (err) => console.error(err));
 
 server.on('stream', (stream, headers) => {
   // stream is a Duplex
@@ -68,7 +67,6 @@ const client = http2.connect('https://localhost:8443', {
   ca: fs.readFileSync('localhost-cert.pem')
 });
 client.on('error', (err) => console.error(err));
-client.on('socketError', (err) => console.error(err));
 
 const req = client.request({ ':path': '/' });
 
@@ -478,43 +476,6 @@ added: v8.4.0
 Used to set a callback function that is called when there is no activity on
 the `Http2Session` after `msecs` milliseconds. The given `callback` is
 registered as a listener on the `'timeout'` event.
-
-#### http2session.close(options[, callback])
-<!-- YAML
-added: v8.4.0
--->
-
-* `options` {Object}
-  * `errorCode` {number} The HTTP/2 [error code][] to return. Note that this is
-    *not* the same thing as an HTTP Response Status Code. **Default:** `0x00`
-    (No Error).
-  * `lastStreamID` {number} The Stream ID of the last successfully processed
-    `Http2Stream` on this `Http2Session`. If unspecified, will default to the
-    ID of the most recently received stream.
-  * `opaqueData` {Buffer|Uint8Array} A `Buffer` or `Uint8Array` instance
-    containing arbitrary additional data to send to the peer upon disconnection.
-    This is used, typically, to provide additional data for debugging failures,
-    if necessary.
-* `callback` {Function} A callback that is invoked after the session shutdown
-  has been completed.
-* Returns: {undefined}
-
-Attempts to shut down this `Http2Session` using HTTP/2 defined procedures.
-If specified, the given `callback` function will be invoked once the shutdown
-process has completed.
-
-If the `Http2Session` instance is a server-side session and the `errorCode`
-option is `0x00` (No Error), a "graceful" shutdown will be initiated. During a
-"graceful" shutdown, the session will first send a `GOAWAY` frame to
-the connected peer identifying the last processed stream as 2<sup>31</sup>-1.
-Then, on the next tick of the event loop, a second `GOAWAY` frame identifying
-the most recently processed stream identifier is sent. This process allows the
-remote peer to begin preparing for the connection to be terminated.
-
-```js
-session.close({
-  opaqueData: Buffer.from('add some debugging data here')
-}, () => session.destroy());
 ```
 
 #### http2session.socket
@@ -686,19 +647,23 @@ added: v8.4.0
 added: v9.4.0
 -->
 
+* `alt`: {string}
+* `origin`: {string}
+* `streamId`: {number}
+
 The `'altsvc'` event is emitted whenever an `ALTSVC` frame is received by
 the client. The event is emitted with the `ALTSVC` value, origin, and stream
-ID, if any. If no `origin` is provided in the `ALTSVC` frame, `origin` will
+ID. If no `origin` is provided in the `ALTSVC` frame, `origin` will
 be an empty string.
 
 ```js
 const http2 = require('http2');
 const client = http2.connect('https://example.org');
 
-client.on('altsvc', (alt, origin, stream) => {
+client.on('altsvc', (alt, origin, streamId) => {
   console.log(alt);
   console.log(origin);
-  console.log(stream);
+  console.log(streamId);
 });
 ```
 
@@ -1472,10 +1437,9 @@ added: v8.4.0
 
 * Extends: {net.Server}
 
-In `Http2Server`, there is no `'clientError'` event as there is in
-HTTP1. However, there are `'socketError'`, `'sessionError'`,  and
-`'streamError'`, for errors emitted on the socket, `Http2Session`, or
-`Http2Stream`.
+In `Http2Server`, there are no `'clientError'` events as there are in
+HTTP1. However, there are `'sessionError'`,  and `'streamError'` events for
+errors emitted on the socket, or from `Http2Session` or `Http2Stream` instances.
 
 #### Event: 'checkContinue'
 <!-- YAML
@@ -1580,6 +1544,47 @@ added: v8.4.0
 
 * Extends: {tls.Server}
 
+#### Event: 'checkContinue'
+<!-- YAML
+added: v8.5.0
+-->
+
+* `request` {http2.Http2ServerRequest}
+* `response` {http2.Http2ServerResponse}
+
+If a [`'request'`][] listener is registered or [`http2.createSecureServer()`][]
+is supplied a callback function, the `'checkContinue'` event is emitted each
+time a request with an HTTP `Expect: 100-continue` is received. If this event
+is not listened for, the server will automatically respond with a status
+`100 Continue` as appropriate.
+
+Handling this event involves calling [`response.writeContinue()`][] if the client
+should continue to send the request body, or generating an appropriate HTTP
+response (e.g. 400 Bad Request) if the client should not continue to send the
+request body.
+
+Note that when this event is emitted and handled, the [`'request'`][] event will
+not be emitted.
+
+#### Event: 'request'
+<!-- YAML
+added: v8.4.0
+-->
+
+* `request` {http2.Http2ServerRequest}
+* `response` {http2.Http2ServerResponse}
+
+Emitted each time there is a request. Note that there may be multiple requests
+per session. See the [Compatibility API][].
+
+#### Event: 'session'
+<!-- YAML
+added: v8.4.0
+-->
+
+The `'session'` event is emitted when a new `Http2Session` is created by the
+`Http2SecureServer`.
+
 #### Event: 'sessionError'
 <!-- YAML
 added: v8.4.0
@@ -1587,16 +1592,6 @@ added: v8.4.0
 
 The `'sessionError'` event is emitted when an `'error'` event is emitted by
 an `Http2Session` object associated with the `Http2SecureServer`.
-
-#### Event: 'unknownProtocol'
-<!-- YAML
-added: v8.4.0
--->
-
-The `'unknownProtocol'` event is emitted when a connecting client fails to
-negotiate an allowed protocol (i.e. HTTP/2 or HTTP/1.1). The event handler
-receives the socket for handling. If no listener is registered for this event,
-the connection is terminated. See the [Compatibility API][].
 
 #### Event: 'stream'
 <!-- YAML
@@ -1631,43 +1626,23 @@ server.on('stream', (stream, headers, flags) => {
 });
 ```
 
-#### Event: 'request'
-<!-- YAML
-added: v8.4.0
--->
-
-* `request` {http2.Http2ServerRequest}
-* `response` {http2.Http2ServerResponse}
-
-Emitted each time there is a request. Note that there may be multiple requests
-per session. See the [Compatibility API][].
-
 #### Event: 'timeout'
 <!-- YAML
 added: v8.4.0
 -->
 
-#### Event: 'checkContinue'
+The `'timeout'` event is emitted when there is no activity on the Server for
+a given number of milliseconds set using `http2secureServer.setTimeout()`.
+
+#### Event: 'unknownProtocol'
 <!-- YAML
-added: v8.5.0
+added: v8.4.0
 -->
 
-* `request` {http2.Http2ServerRequest}
-* `response` {http2.Http2ServerResponse}
-
-If a [`'request'`][] listener is registered or [`http2.createSecureServer()`][]
-is supplied a callback function, the `'checkContinue'` event is emitted each
-time a request with an HTTP `Expect: 100-continue` is received. If this event
-is not listened for, the server will automatically respond with a status
-`100 Continue` as appropriate.
-
-Handling this event involves calling [`response.writeContinue()`][] if the client
-should continue to send the request body, or generating an appropriate HTTP
-response (e.g. 400 Bad Request) if the client should not continue to send the
-request body.
-
-Note that when this event is emitted and handled, the [`'request'`][] event will
-not be emitted.
+The `'unknownProtocol'` event is emitted when a connecting client fails to
+negotiate an allowed protocol (i.e. HTTP/2 or HTTP/1.1). The event handler
+receives the socket for handling. If no listener is registered for this event,
+the connection is terminated. See the [Compatibility API][].
 
 ### http2.createServer(options[, onRequestHandler])
 <!-- YAML
