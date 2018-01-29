@@ -543,8 +543,10 @@ added: v8.0.0
 
 * Returns: {this}
 
-Destroy the stream, and emit the passed error. After this call, the
-writable stream has ended. Implementors should not override this method,
+Destroy the stream, and emit the passed error and a close event.
+After this call, the writable stream has ended and subsequent calls 
+to `write` / `end` will give an `ERR_STREAM_DESTROYED` error.
+Implementors should not override this method,
 but instead implement [`writable._destroy`][writable-_destroy].
 
 ### Readable Streams
@@ -1167,8 +1169,9 @@ myReader.on('readable', () => {
 added: v8.0.0
 -->
 
-Destroy the stream, and emit `'error'`. After this call, the
-readable stream will release any internal resources.
+Destroy the stream, and emit `'error'` and `close`. After this call, the
+readable stream will release any internal resources and subsequent calls
+to `read` will result in an `ERR_STREAM_DESTROYED` error.
 Implementors should not override this method, but instead implement
 [`readable._destroy`][readable-_destroy].
 
