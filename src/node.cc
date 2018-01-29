@@ -4803,18 +4803,20 @@ inline static bool TickEventLoop(Environment & env) {
   bool more = false;
   uv_run(env.event_loop(), UV_RUN_NOWAIT);
 
+  if (uv_loop_alive(env.event_loop())) {
+    return true;
+  }
+
   v8_platform.DrainVMTasks();
 
-  more = uv_loop_alive(env.event_loop());
-  if (more)
-    return more;
+  if (uv_loop_alive(env.event_loop()))
+    return true;
 
   EmitBeforeExit(&env);
 
   // Emit `beforeExit` if the loop became alive either after emitting
   // event, or after running some callbacks.
-  more = uv_loop_alive(env.event_loop());
-  return more;
+  return uv_loop_alive(env.event_loop());
 }
 
 // This is where the magic happens. Creates JavaScript context and a JS Environment, then runs the uv event loop until it is no longer alive (see TickEventLoop()), then tears down Env and context and returns JS exit code.
