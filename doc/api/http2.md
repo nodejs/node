@@ -589,7 +589,7 @@ client.
 added: v8.4.0
 -->
 
-* Extends: {Duplex}
+* Extends: {stream.Duplex}
 
 Each instance of the `Http2Stream` class represents a bidirectional HTTP/2
 communications stream over an `Http2Session` instance. Any single `Http2Session`
@@ -1308,7 +1308,7 @@ an `Http2Session` object. If no listener is registered for this event, an
 added: v8.5.0
 -->
 
-* `socket` {http2.ServerHttp2Stream}
+* `socket` {ServerHttp2Stream}
 
 If an `ServerHttp2Stream` emits an `'error'` event, it will be forwarded here.
 The stream will already be destroyed when this event is triggered.
