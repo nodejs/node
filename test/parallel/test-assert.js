@@ -734,7 +734,7 @@ common.expectsError(
   assert.equal(Object.keys(assert).length, Object.keys(a).length);
   assert(7);
   assert.throws(
-    () => assert(),
+    () => assert(...[]),
     {
       message: 'No value argument passed to `assert.ok()`',
       name: 'AssertionError [ERR_ASSERTION]'
