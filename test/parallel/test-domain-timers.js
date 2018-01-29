@@ -30,13 +30,19 @@ timeoutd.on('error', common.mustCall(function(e) {
   assert.strictEqual(e.message, 'Timeout UNREFd',
                      'Domain should catch timer error');
   clearTimeout(timeout);
-}));
+}, 2));
 
+let t;
 timeoutd.run(function() {
   setTimeout(function() {
     throw new Error('Timeout UNREFd');
   }, 0).unref();
+
+  t = setTimeout(function() {
+    throw new Error('Timeout UNREFd');
+  }, 0);
 });
+t.unref();
 
 const immediated = domain.create();
 
