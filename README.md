@@ -497,6 +497,8 @@ For more information about the governance of the Node.js project, see
 **Rich Trott** &lt;rtrott@gmail.com&gt; (he/him)
 * [tunniclm](https://github.com/tunniclm) -
 **Mike Tunnicliffe** &lt;m.j.tunnicliffe@gmail.com&gt;
+* [vdeturckheim](https://github.com/vdeturckheim) -
+**Vladimir de Turckheim** &lt;vlad2t@hotmail.com&gt; (he/him)
 * [vkurchatkin](https://github.com/vkurchatkin) -
 **Vladimir Kurchatkin** &lt;vladimir.kurchatkin@gmail.com&gt;
 * [vsemozhetbyt](https://github.com/vsemozhetbyt) -
