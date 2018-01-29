@@ -2452,7 +2452,7 @@ enum class NewStringType {
  */
 class V8_EXPORT String : public Name {
  public:
-  static constexpr int kMaxLength =
+  static const int kMaxLength =
       sizeof(void*) == 4 ? (1 << 28) - 16 : (1 << 30) - 1 - 24;
 
   enum Encoding {
@@ -4122,10 +4122,10 @@ class V8_EXPORT WasmCompiledModule : public Object {
   // supports move semantics, and does not support copy semantics.
   class TransferrableModule final {
    public:
-    TransferrableModule(TransferrableModule&& src) = default;
+    TransferrableModule(TransferrableModule&& src);
     TransferrableModule(const TransferrableModule& src) = delete;
 
-    TransferrableModule& operator=(TransferrableModule&& src) = default;
+    TransferrableModule& operator=(TransferrableModule&& src);
     TransferrableModule& operator=(const TransferrableModule& src) = delete;
 
    private:
@@ -4200,24 +4200,19 @@ class V8_EXPORT WasmModuleObjectBuilderStreaming final {
 
   WasmModuleObjectBuilderStreaming(const WasmModuleObjectBuilderStreaming&) =
       delete;
-  WasmModuleObjectBuilderStreaming(WasmModuleObjectBuilderStreaming&&) =
-      default;
+  WasmModuleObjectBuilderStreaming(WasmModuleObjectBuilderStreaming&&);
   WasmModuleObjectBuilderStreaming& operator=(
       const WasmModuleObjectBuilderStreaming&) = delete;
   WasmModuleObjectBuilderStreaming& operator=(
-      WasmModuleObjectBuilderStreaming&&) = default;
+      WasmModuleObjectBuilderStreaming&&);
   Isolate* isolate_ = nullptr;
 
-#if V8_CC_MSVC
   // We don't need the static Copy API, so the default
   // NonCopyablePersistentTraits would be sufficient, however,
   // MSVC eagerly instantiates the Copy.
   // We ensure we don't use Copy, however, by compiling with the
   // defaults everywhere else.
   Persistent<Promise, CopyablePersistentTraits<Promise>> promise_;
-#else
-  Persistent<Promise> promise_;
-#endif
   std::vector<Buffer> received_buffers_;
   size_t total_size_ = 0;
 };
@@ -4238,9 +4233,9 @@ class V8_EXPORT WasmModuleObjectBuilder final {
   // Disable copy semantics *in this implementation*. We can choose to
   // relax this, albeit it's not clear why.
   WasmModuleObjectBuilder(const WasmModuleObjectBuilder&) = delete;
-  WasmModuleObjectBuilder(WasmModuleObjectBuilder&&) = default;
+  WasmModuleObjectBuilder(WasmModuleObjectBuilder&&);
   WasmModuleObjectBuilder& operator=(const WasmModuleObjectBuilder&) = delete;
-  WasmModuleObjectBuilder& operator=(WasmModuleObjectBuilder&&) = default;
+  WasmModuleObjectBuilder& operator=(WasmModuleObjectBuilder&&);
 
   std::vector<Buffer> received_buffers_;
   size_t total_size_ = 0;
@@ -4502,7 +4497,7 @@ class V8_EXPORT TypedArray : public ArrayBufferView {
   /*
    * The largest typed array size that can be constructed using New.
    */
-  static constexpr size_t kMaxLength =
+  static const size_t kMaxLength =
       sizeof(void*) == 4 ? (1u << 30) - 1 : (1u << 31) - 1;
 
   /**

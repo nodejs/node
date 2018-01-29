@@ -7714,6 +7714,18 @@ MaybeLocal<Proxy> Proxy::New(Local<Context> context, Local<Object> local_target,
   RETURN_ESCAPED(result);
 }
 
+WasmCompiledModule::TransferrableModule::TransferrableModule(
+    TransferrableModule&& src)
+    : compiled_code(std::move(src.compiled_code))
+    , wire_bytes(std::move(src.wire_bytes)) {}
+
+WasmCompiledModule::TransferrableModule&
+WasmCompiledModule::TransferrableModule::operator=(TransferrableModule&& src) {
+  compiled_code = std::move(src.compiled_code);
+  wire_bytes = std::move(src.wire_bytes);
+  return *this;
+}
+
 Local<String> WasmCompiledModule::GetWasmWireBytes() {
   i::Handle<i::WasmModuleObject> obj =
       i::Handle<i::WasmModuleObject>::cast(Utils::OpenHandle(this));
@@ -7826,6 +7838,22 @@ WasmModuleObjectBuilderStreaming::WasmModuleObjectBuilderStreaming(
   }
 }
 
+WasmModuleObjectBuilderStreaming::WasmModuleObjectBuilderStreaming(
+    WasmModuleObjectBuilderStreaming&& src)
+    : isolate_(std::move(src.isolate_))
+    , promise_(std::move(src.promise_))
+    , received_buffers_(std::move(src.received_buffers_))
+    , total_size_(std::move(src.total_size_)) {}
+
+WasmModuleObjectBuilderStreaming& WasmModuleObjectBuilderStreaming::operator=(
+    WasmModuleObjectBuilderStreaming&& src) {
+  isolate_ = std::move(src.isolate_);
+  promise_ = std::move(src.promise_);
+  received_buffers_ = std::move(src.received_buffers_);
+  total_size_ = std::move(src.total_size_);
+  return *this;
+}
+
 Local<Promise> WasmModuleObjectBuilderStreaming::GetPromise() {
   return promise_.Get(isolate_);
 }
@@ -7869,6 +7897,17 @@ void WasmModuleObjectBuilderStreaming::Abort(Local<Value> exception) {
 
 WasmModuleObjectBuilderStreaming::~WasmModuleObjectBuilderStreaming() {
   promise_.Reset();
+}
+
+WasmModuleObjectBuilder::WasmModuleObjectBuilder(WasmModuleObjectBuilder&& src)
+    : received_buffers_(std::move(src.received_buffers_))
+    , total_size_(std::move(src.total_size_)) {}
+
+WasmModuleObjectBuilder&
+WasmModuleObjectBuilder::operator=(WasmModuleObjectBuilder&& src) {
+  received_buffers_ = std::move(src.received_buffers_);
+  total_size_ = std::move(src.total_size_);
+  return *this;
 }
 
 void WasmModuleObjectBuilder::OnBytesReceived(const uint8_t* bytes,
