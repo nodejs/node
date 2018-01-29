@@ -138,7 +138,14 @@ class TimerWrap : public HandleWrap {
     Environment* env = wrap->env();
     HandleScope handle_scope(env->isolate());
     Context::Scope context_scope(env->context());
-    wrap->MakeCallback(kOnTimeout, 0, nullptr);
+    Local<Value> ret;
+    do {
+      ret = wrap->MakeCallback(kOnTimeout, 0, nullptr).ToLocalChecked();
+    } while (ret->IsUndefined() &&
+             !env->tick_info()->has_thrown() &&
+             wrap->object()->Get(env->context(),
+                                 env->owner_string()).ToLocalChecked()
+                                                     ->IsUndefined());
   }
 
   static void Now(const FunctionCallbackInfo<Value>& args) {
