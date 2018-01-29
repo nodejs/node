@@ -168,7 +168,7 @@ What it says in the title.
 
 ## Ownership and Smart Pointers
 
-"Smart" pointers are classes that act like pointers, for example:
+_Smart pointers_ are classes that act like pointers, such as
 by overloading the `*` and `->` operators. Some smart pointer types can be
 used to automate ownership bookkeeping, to ensure these responsibilities are
 met. `std::unique_ptr` is a smart pointer type introduced in C++11, which
