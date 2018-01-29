@@ -770,7 +770,7 @@ they respectively default to:
 added: v8.4.0
 -->
 
-* Extends: {Duplex}
+* Extends: {stream.Duplex}
 
 Each instance of the `Http2Stream` class represents a bidirectional HTTP/2
 communications stream over an `Http2Session` instance. Any single `Http2Session`
