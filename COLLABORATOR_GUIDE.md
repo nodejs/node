@@ -368,7 +368,10 @@ Node.js uses three Deprecation levels:
   being staged for deprecation in a future Node.js major release. An explicit
   notice indicating the deprecated status is added to the API documentation
   but no functional changes are implemented in the code. There will be no
-  runtime deprecation warnings emitted for such deprecations.
+  runtime deprecation warnings emitted for such deprecations by default.
+  Documentation-only deprecations may trigger a runtime warning when launched
+  with [`--pending-deprecation`][] flag (or its alternative,
+  `NODE_PENDING_DEPRECATION=1` environment variable).
 
 * *Runtime Deprecation* refers to the use of process warnings emitted at
   runtime the first time that a deprecated API is used. A command-line
@@ -744,6 +747,7 @@ LTS working group and the Release team.
 [backporting guide]: doc/guides/backporting-to-release-lines.md
 [Stability Index]: doc/api/documentation.md#stability-index
 [Enhancement Proposal]: https://github.com/nodejs/node-eps
+[`--pending-deprecation`]: doc/api/cli.md#--pending-deprecation
 [git-username]: https://help.github.com/articles/setting-your-username-in-git/
 [`node-core-utils`]: https://github.com/nodejs/node-core-utils
 [TSC]: https://github.com/nodejs/TSC
