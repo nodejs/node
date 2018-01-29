@@ -13,14 +13,14 @@ server.listen(0, common.mustCall(function() {
     // Test destroy returns this, even on multiple calls when it short-circuits.
     assert.strictEqual(conn, conn.destroy().destroy());
     conn.on('error', common.expectsError({
-      code: 'ERR_SOCKET_CLOSED',
-      message: 'Socket is closed',
+      code: 'ERR_STREAM_DESTROYED',
+      message: 'stream.destroy() was called',
       type: Error
     }));
 
     conn.write(Buffer.from('kaboom'), common.expectsError({
-      code: 'ERR_SOCKET_CLOSED',
-      message: 'Socket is closed',
+      code: 'ERR_STREAM_DESTROYED',
+      message: 'stream.destroy() was called',
       type: Error
     }));
     server.close();
