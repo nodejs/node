@@ -394,7 +394,7 @@ changes:
 -->
 
 * `encoding` {string} The new default encoding
-* Returns: `this`
+* Returns: {this}
 
 The `writable.setDefaultEncoding()` method sets the default `encoding` for a
 [Writable][] stream.
@@ -525,7 +525,7 @@ A Writable stream in object mode will always ignore the `encoding` argument.
 added: v8.0.0
 -->
 
-* Returns: `this`
+* Returns: {this}
 
 Destroy the stream, and emit the passed error. After this call, the
 writable stream has ended. Implementors should not override this method,
@@ -810,7 +810,7 @@ readable.isPaused(); // === false
 added: v0.9.4
 -->
 
-* Returns: `this`
+* Returns: {this}
 
 The `readable.pause()` method will cause a stream in flowing mode to stop
 emitting [`'data'`][] events, switching out of flowing mode. Any data that
@@ -950,7 +950,7 @@ event has been emitted will return `null`. No runtime error will be raised.
 added: v0.9.4
 -->
 
-* Returns: `this`
+* Returns: {this}
 
 The `readable.resume()` method causes an explicitly paused Readable stream to
 resume emitting [`'data'`][] events, switching the stream into flowing mode.
@@ -973,7 +973,7 @@ added: v0.9.4
 -->
 
 * `encoding` {string} The encoding to use.
-* Returns: `this`
+* Returns: {this}
 
 The `readable.setEncoding()` method sets the character encoding for
 data read from the Readable stream.

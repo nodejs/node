@@ -388,9 +388,9 @@ changes:
 * `options` {Object|string}
   * `prompt` {string} The input prompt to display. Defaults to `> `
     (with a trailing space).
-  * `input` {Readable} The Readable stream from which REPL input will be read.
+  * `input` {stream.Readable} The Readable stream from which REPL input will be read.
     Defaults to `process.stdin`.
-  * `output` {Writable} The Writable stream to which REPL output will be
+  * `output` {stream.Writable} The Writable stream to which REPL output will be
     written. Defaults to `process.stdout`.
   * `terminal` {boolean} If `true`, specifies that the `output` should be
     treated as a TTY terminal, and have ANSI/VT100 escape codes written to it.

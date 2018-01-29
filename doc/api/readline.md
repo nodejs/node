@@ -323,7 +323,7 @@ Interface's `input` *as if it were provided by the user*.
 added: v0.7.7
 -->
 
-* `stream` {Writable}
+* `stream` {stream.Writable}
 * `dir` {number}
   * `-1` - to the left from cursor
   * `1` - to the right from cursor
@@ -338,7 +338,7 @@ in a specified direction identified by `dir`.
 added: v0.7.7
 -->
 
-* `stream` {Writable}
+* `stream` {stream.Writable}
 
 The `readline.clearScreenDown()` method clears the given [TTY][] stream from
 the current position of the cursor down.
@@ -362,9 +362,9 @@ changes:
 -->
 
 * `options` {Object}
-  * `input` {Readable} The [Readable][] stream to listen to. This option is
+  * `input` {stream.Readable} The [Readable][] stream to listen to. This option is
     *required*.
-  * `output` {Writable} The [Writable][] stream to write readline data to.
+  * `output` {stream.Writable} The [Writable][] stream to write readline data to.
   * `completer` {Function} An optional function used for Tab autocompletion.
   * `terminal` {boolean} `true` if the `input` and `output` streams should be
     treated like a TTY, and have ANSI/VT100 escape codes written to it.
@@ -444,7 +444,7 @@ function completer(linePartial, callback) {
 added: v0.7.7
 -->
 
-* `stream` {Writable}
+* `stream` {stream.Writable}
 * `x` {number}
 * `y` {number}
 
@@ -456,7 +456,7 @@ given [TTY][] `stream`.
 added: v0.7.7
 -->
 
-* `stream` {Readable}
+* `stream` {stream.Readable}
 * `interface` {readline.Interface}
 
 The `readline.emitKeypressEvents()` method causes the given [Readable][]
@@ -482,7 +482,7 @@ if (process.stdin.isTTY)
 added: v0.7.7
 -->
 
-* `stream` {Writable}
+* `stream` {stream.Writable}
 * `dx` {number}
 * `dy` {number}
 
