@@ -5244,7 +5244,7 @@ int Deinitialize() {
   return exit_code;
 }
 
-v8::Local<v8::Value> Run(const std::string& path) {
+v8::MaybeLocal<v8::Value> Run(const std::string& path) {
   // Read entire file into string. There is most certainly a better way ;)
   // https://stackoverflow.com/a/2602258/2560557
   std::ifstream t(path);
@@ -5254,7 +5254,7 @@ v8::Local<v8::Value> Run(const std::string& path) {
   return Evaluate(buffer.str());
 }
 
-v8::Local<v8::Value> Evaluate(const std::string& java_script_code) {
+v8::MaybeLocal<v8::Value> Evaluate(const std::string& java_script_code) {
   EscapableHandleScope scope(env->isolate());
   TryCatch try_catch(env->isolate());
 
@@ -5266,16 +5266,10 @@ v8::Local<v8::Value> Evaluate(const std::string& java_script_code) {
   MaybeLocal<v8::Script> script = v8::Script::Compile(env->context(), v8::String::NewFromUtf8(isolate, java_script_code.c_str())/*, origin*/);
   if (script.IsEmpty()) {
     ReportException(env, try_catch);
-    exit(3); //TODO jh: don't exit process when function breaks. Handle error differently.
+    return MaybeLocal<v8::Value>();
   }
 
-  Local<Value> result = script.ToLocalChecked()->Run();
-  if (result.IsEmpty()) {
-    ReportException(env, try_catch);
-    exit(4); //TODO jh: don't exit process when function breaks. Handle error differently.
-  }
-
-  return scope.Escape(result);
+  return MaybeLocal<v8::Value>(scope.Escape(script.ToLocalChecked()->Run()));
 }
 
 void RunEventLoop(const std::function<void()>& callback) {
@@ -5294,47 +5288,88 @@ void RunEventLoop(const std::function<void()>& callback) {
   _event_loop_running = false;
 }
 
-v8::Local<v8::Object> GetRootObject() {
+v8::MaybeLocal<v8::Object> GetRootObject() {
+  if (context.IsEmpty()) {
+    return MaybeLocal<v8::Object>();
+  }
   return context->Global();
 }
 
 
-v8::Local<v8::Value> Call(v8::Local<v8::Object> receiver, v8::Local<v8::Function> function, const std::vector<v8::Local<v8::Value>> & args = {}) {
+v8::MaybeLocal<v8::Value> Call(v8::Local<v8::Object> receiver, v8::Local<v8::Function> function, const std::vector<v8::Local<v8::Value>> & args) {
     return function->Call(receiver, args.size(), const_cast<v8::Local<v8::Value>*>(&args[0]));
 }
 
-v8::Local<v8::Value> Call(v8::Local<v8::Object> receiver, v8::Local<v8::Function> function, std::initializer_list<v8::Local<v8::Value>> args) {
+v8::MaybeLocal<v8::Value> Call(v8::Local<v8::Object> receiver, v8::Local<v8::Function> function, std::initializer_list<v8::Local<v8::Value>> args) {
     return Call(receiver, function, std::vector<v8::Local<v8::Value>>(args));
 }
 
-// TODO: Error handling: Node.js has exceptions disabled.
-v8::Local<v8::Value> Call(v8::Local<v8::Object> object, const std::string& function_name, const std::vector<v8::Local<v8::Value>>& args) {
-  Local<v8::String> v8_function_name = v8::String::NewFromUtf8(isolate, function_name.c_str());
+v8::MaybeLocal<v8::Value> Call(v8::Local<v8::Object> object, const std::string& function_name, const std::vector<v8::Local<v8::Value>>& args) {
+  MaybeLocal<v8::String> maybe_function_name = v8::String::NewFromUtf8(isolate, function_name.c_str());
+  Local<v8::String> v8_function_name;
 
-  Local<v8::Value> value = object->Get(v8_function_name);
-  if (!value->IsFunction()) {
-    //throw new Exception(":((");
-    // TODO (js): at least return at this point
+  if (!maybe_function_name.ToLocal(&v8_function_name)) {
+    // cannot create v8 string.
+    return MaybeLocal<v8::Value>();
+  }
+
+  MaybeLocal<v8::Value> maybe_value = object->Get(v8_function_name);
+  Local<v8::Value> value;
+
+  if (!maybe_value.ToLocal(&value)) {
+    // cannot get member of object
+    return MaybeLocal<v8::Value>();
+  } else if (!value->IsFunction()) {
+    // cannot execute non-function
+    return MaybeLocal<v8::Value>();
   }
 
   return Call(object, v8::Local<v8::Function>::Cast(value), args);
 }
 
-v8::Local<v8::Value> Call(v8::Local<v8::Object> object, const std::string & function_name, std::initializer_list<v8::Local<v8::Value>> args) {
+v8::MaybeLocal<v8::Value> Call(v8::Local<v8::Object> object, const std::string & function_name, std::initializer_list<v8::Local<v8::Value>> args) {
     return Call(object, function_name, std::vector<v8::Local<v8::Value>>(args));
 }
 
-// TODO: Node.js has exceptions disabled.
-v8::Local<v8::Object> IncludeModule(const std::string& module_name) {
-  std::vector<v8::Local<v8::Value>> args = {v8::String::NewFromUtf8(isolate, module_name.c_str())};
+v8::MaybeLocal<v8::Object> IncludeModule(const std::string& module_name) {
+  MaybeLocal<v8::String> maybe_arg = v8::String::NewFromUtf8(isolate, module_name.c_str());
+  Local<v8::String> arg;
 
-  auto module = Call(GetRootObject(), "require", args);
-  if (module->IsUndefined()) {
-    //TODO jh: throw new Exception(":(("); // repuire() call failed, but did not throw a JS exception.
-    // TODO (js): at least return at this point
+  if (!maybe_arg.ToLocal(&arg)) {
+    // cannot create v8 string
+    return MaybeLocal<v8::Object>();
   }
 
-  return v8::Local<v8::Object>::Cast(module);
+  Local<v8::Object> root_object;
+
+  if (!GetRootObject().ToLocal(&root_object)) {
+    // cannot get root object
+    return MaybeLocal<v8::Object>();
+  }
+
+  std::vector<Local<v8::Value>> args = { arg };
+
+  MaybeLocal<v8::Value> maybe_module = Call(root_object, "require", args);
+  Local<v8::Value> module;
+
+  if (!maybe_module.ToLocal(&module)) {
+    // cannot get module
+    return MaybeLocal<v8::Object>();
+  }
+
+  return MaybeLocal<v8::Object>(Local<v8::Object>::Cast(module));
+}
+
+v8::MaybeLocal<v8::Value> GetValue(v8::Local<v8::Object> object, const std::string& value_name) {
+  MaybeLocal<v8::String> maybe_key = v8::String::NewFromUtf8(isolate, value_name.c_str());
+  Local<v8::String> key;
+
+  if (!maybe_key.ToLocal(&key)) {
+    // cannot create v8::String
+    return MaybeLocal<v8::Value>();
+  }
+
+  return object->Get(context, key);
 }
 
 void RegisterModule(const std::string & name, const addon_context_register_func & callback, void *priv, const std::string & target) {
@@ -5382,7 +5417,6 @@ void StopEventLoop() {
     return;
   }
   request_stop = true;
-  //while (request_stop && _event_loop_running) { }
 }
 
 bool ProcessEvents() {
