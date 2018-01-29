@@ -659,7 +659,7 @@ changes:
 
 * `module` {Object}
 * `filename` {string}
-* `flags` {os.constants.dlopen}. Defaults to `os.constants.dlopen.RTLD_LAZY`.
+* `flags` {os.constants.dlopen} Defaults to `os.constants.dlopen.RTLD_LAZY`.
 
 The `process.dlopen()` method allows to dynamically load shared
 objects. It is primarily used by `require()` to load
