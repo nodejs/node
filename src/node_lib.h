@@ -17,9 +17,9 @@ namespace node { namespace lib {
 
     const bool EventLoopIsRunning() { return _event_loop_running; }
 
-    const v8::Isolate* Isolate() { return _isolate; }
+    const v8::Isolate* isolate() { return _isolate; }
 
-    const Environment* Environment() { return _environment; }
+    const Environment* environment() { return _environment; }
 
     /*********************************************************
      * Function types
