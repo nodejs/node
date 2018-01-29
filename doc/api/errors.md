@@ -1449,6 +1449,12 @@ An unspecified or non-specific system error has occurred within the Node.js
 process. The error object will have an `err.info` object property with
 additional details.
 
+<a id="ERR_STREAM_DESTROYED"></a>
+### ERR_STREAM_DESTROYED
+
+A stream method was called that cannot complete because the stream was
+destroyed using `stream.destroy()`.
+
 <a id="ERR_TLS_CERT_ALTNAME_INVALID"></a>
 ### ERR_TLS_CERT_ALTNAME_INVALID
 
@@ -1614,11 +1620,6 @@ The fulfilled value of a linking promise is not a `vm.Module` object.
 
 The current module's status does not allow for this operation. The specific
 meaning of the error depends on the specific function.
-
-<a id="ERR_ZLIB_BINDING_CLOSED"></a>
-### ERR_ZLIB_BINDING_CLOSED
-
-An attempt was made to use a `zlib` object after it has already been closed.
 
 <a id="ERR_ZLIB_INITIALIZATION_FAILED"></a>
 ### ERR_ZLIB_INITIALIZATION_FAILED

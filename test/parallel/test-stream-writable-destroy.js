@@ -10,7 +10,8 @@ const { inherits } = require('util');
     write(chunk, enc, cb) { cb(); }
   });
 
-  write.on('finish', common.mustCall());
+  write.on('finish', common.mustNotCall());
+  write.on('close', common.mustCall());
 
   write.destroy();
   assert.strictEqual(write.destroyed, true);
@@ -23,7 +24,8 @@ const { inherits } = require('util');
 
   const expected = new Error('kaboom');
 
-  write.on('finish', common.mustCall());
+  write.on('finish', common.mustNotCall());
+  write.on('close', common.mustCall());
   write.on('error', common.mustCall((err) => {
     assert.strictEqual(err, expected);
   }));
@@ -45,6 +47,7 @@ const { inherits } = require('util');
   const expected = new Error('kaboom');
 
   write.on('finish', common.mustNotCall('no finish event'));
+  write.on('close', common.mustCall());
   write.on('error', common.mustCall((err) => {
     assert.strictEqual(err, expected);
   }));
@@ -65,6 +68,7 @@ const { inherits } = require('util');
   const expected = new Error('kaboom');
 
   write.on('finish', common.mustNotCall('no finish event'));
+  write.on('close', common.mustCall());
 
   // error is swallowed by the custom _destroy
   write.on('error', common.mustNotCall('no error event'));
@@ -103,6 +107,7 @@ const { inherits } = require('util');
   const fail = common.mustNotCall('no finish event');
 
   write.on('finish', fail);
+  write.on('close', common.mustCall());
 
   write.destroy();
 
@@ -123,6 +128,7 @@ const { inherits } = require('util');
     cb(expected);
   });
 
+  write.on('close', common.mustCall());
   write.on('finish', common.mustNotCall('no finish event'));
   write.on('error', common.mustCall((err) => {
     assert.strictEqual(err, expected);
@@ -138,6 +144,7 @@ const { inherits } = require('util');
     write(chunk, enc, cb) { cb(); }
   });
 
+  write.on('close', common.mustCall());
   write.on('error', common.mustCall());
 
   write.destroy(new Error('kaboom 1'));
@@ -155,7 +162,7 @@ const { inherits } = require('util');
   assert.strictEqual(write.destroyed, true);
 
   // the internal destroy() mechanism should not be triggered
-  write.on('finish', common.mustNotCall());
+  write.on('close', common.mustNotCall());
   write.destroy();
 }
 

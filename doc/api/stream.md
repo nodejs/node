@@ -543,8 +543,10 @@ added: v8.0.0
 
 * Returns: {this}
 
-Destroy the stream, and emit the passed error. After this call, the
-writable stream has ended. Implementors should not override this method,
+Destroy the stream, and emit the passed `error` and a `close` event.
+After this call, the writable stream has ended and subsequent calls
+to `write` / `end` will give an `ERR_STREAM_DESTROYED` error.
+Implementors should not override this method,
 but instead implement [`writable._destroy`][writable-_destroy].
 
 ### Readable Streams
@@ -1167,8 +1169,9 @@ myReader.on('readable', () => {
 added: v8.0.0
 -->
 
-Destroy the stream, and emit `'error'`. After this call, the
-readable stream will release any internal resources.
+Destroy the stream, and emit `'error'` and `close`. After this call, the
+readable stream will release any internal resources and subsequent calls
+to `push` will be ignored.
 Implementors should not override this method, but instead implement
 [`readable._destroy`][readable-_destroy].
 
@@ -1382,6 +1385,12 @@ constructor and implement the `writable._write()` method. The
 `writable._writev()` method *may* also be implemented.
 
 #### Constructor: new stream.Writable([options])
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/18438
+    description: Add `emitClose` option to specify if `close` is emitted on destroy
+-->
 
 * `options` {Object}
   * `highWaterMark` {number} Buffer level when
@@ -1395,6 +1404,8 @@ constructor and implement the `writable._write()` method. The
     it becomes possible to write JavaScript values other than string,
     `Buffer` or `Uint8Array` if supported by the stream implementation.
     Defaults to `false`
+  * `emitClose` {boolean} Whether or not the stream should emit `close`
+    after it has been destroyed. Defaults to `true`
   * `write` {Function} Implementation for the
     [`stream._write()`][stream-_write] method.
   * `writev` {Function} Implementation for the
