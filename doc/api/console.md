@@ -78,8 +78,8 @@ const { Console } = console;
 ```
 
 ### new Console(stdout[, stderr])
-* `stdout` {Writable}
-* `stderr` {Writable}
+* `stdout` {stream.Writable}
+* `stderr` {stream.Writable}
 
 Creates a new `Console` with one or two writable stream instances. `stdout` is a
 writable stream to print log or info output. `stderr` is used for warning or
