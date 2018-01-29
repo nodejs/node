@@ -14,31 +14,58 @@ const jsPrimitives = {
   'undefined': 'Undefined'
 };
 const jsGlobalTypes = [
-  'Error', 'Object', 'Function', 'Array', 'TypedArray', 'Uint8Array',
-  'Uint16Array', 'Uint32Array', 'Int8Array', 'Int16Array', 'Int32Array',
-  'Uint8ClampedArray', 'Float32Array', 'Float64Array', 'Date', 'RegExp',
-  'ArrayBuffer', 'DataView', 'Promise', 'EvalError', 'RangeError',
-  'ReferenceError', 'SyntaxError', 'TypeError', 'URIError'
+  'Array', 'ArrayBuffer', 'DataView', 'Date', 'Error', 'EvalError',
+  'Float32Array', 'Float64Array', 'Function', 'Int16Array', 'Int32Array',
+  'Int8Array', 'Object', 'Promise', 'RangeError', 'ReferenceError', 'RegExp',
+  'SharedArrayBuffer', 'SyntaxError', 'TypeError', 'TypedArray', 'URIError',
+  'Uint16Array', 'Uint32Array', 'Uint8Array', 'Uint8ClampedArray'
 ];
 const typeMap = {
+  'Iterable':
+    'https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Iteration_protocols#The_iterable_protocol',
+  'Iterator':
+    'https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Iteration_protocols#The_iterator_protocol',
+
+  'this':
+    'https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/this',
+
   'Buffer': 'buffer.html#buffer_class_buffer',
-  'Handle': 'net.html#net_server_listen_handle_backlog_callback',
-  'Stream': 'stream.html#stream_stream',
-  'stream.Writable': 'stream.html#stream_class_stream_writable',
-  'stream.Readable': 'stream.html#stream_class_stream_readable',
-  'stream.Duplex': 'stream.html#stream_class_stream_duplex',
+
   'ChildProcess': 'child_process.html#child_process_class_childprocess',
+
   'cluster.Worker': 'cluster.html#cluster_class_worker',
+
   'dgram.Socket': 'dgram.html#dgram_class_dgram_socket',
-  'net.Socket': 'net.html#net_class_net_socket',
-  'tls.TLSSocket': 'tls.html#tls_class_tls_tlssocket',
+
+  'Domain': 'domain.html#domain_class_domain',
+
   'EventEmitter': 'events.html#events_class_eventemitter',
-  'Timer': 'timers.html#timers_timers',
+
+  'fs.Stats': 'fs.html#fs_class_fs_stats',
+
   'http.Agent': 'http.html#http_class_http_agent',
   'http.ClientRequest': 'http.html#http_class_http_clientrequest',
   'http.IncomingMessage': 'http.html#http_class_http_incomingmessage',
   'http.Server': 'http.html#http_class_http_server',
   'http.ServerResponse': 'http.html#http_class_http_serverresponse',
+
+  'Handle': 'net.html#net_server_listen_handle_backlog_callback',
+  'net.Server': 'net.html#net_class_net_server',
+  'net.Socket': 'net.html#net_class_net_socket',
+
+  'readline.Interface': 'readline.html#readline_class_interface',
+
+  'Stream': 'stream.html#stream_stream',
+  'stream.Duplex': 'stream.html#stream_class_stream_duplex',
+  'stream.Readable': 'stream.html#stream_class_stream_readable',
+  'stream.Writable': 'stream.html#stream_class_stream_writable',
+
+  'Immediate': 'timers.html#timers_class_immediate',
+  'Timeout': 'timers.html#timers_class_timeout',
+  'Timer': 'timers.html#timers_timers',
+
+  'tls.TLSSocket': 'tls.html#tls_class_tls_tlssocket',
+
   'URL': 'url.html#url_the_whatwg_url_api',
   'URLSearchParams': 'url.html#url_class_urlsearchparams'
 };
