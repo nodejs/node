@@ -479,8 +479,10 @@ class Environment {
     inline AliasedBuffer<uint8_t, v8::Uint8Array>& fields();
     inline bool has_scheduled() const;
     inline bool has_promise_rejections() const;
+    inline bool has_thrown() const;
 
     inline void promise_rejections_toggle_on();
+    inline void set_has_thrown(bool state);
 
    private:
     friend class Environment;  // So we can call the constructor.
@@ -489,6 +491,7 @@ class Environment {
     enum Fields {
       kHasScheduled,
       kHasPromiseRejections,
+      kHasThrown,
       kFieldsCount
     };
 

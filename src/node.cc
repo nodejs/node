@@ -937,6 +937,10 @@ InternalCallbackScope::InternalCallbackScope(Environment* env,
     AsyncWrap::EmitBefore(env, asyncContext.async_id);
   }
 
+  if (!IsInnerMakeCallback()) {
+    env->tick_info()->set_has_thrown(false);
+  }
+
   env->async_hooks()->push_async_ids(async_context_.async_id,
                                async_context_.trigger_async_id);
   pushed_ids_ = true;
@@ -984,6 +988,7 @@ void InternalCallbackScope::Close() {
   Local<Object> process = env_->process_object();
 
   if (env_->tick_callback_function()->Call(process, 0, nullptr).IsEmpty()) {
+    env_->tick_info()->set_has_thrown(true);
     failed_ = true;
   }
 }
