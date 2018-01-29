@@ -4992,9 +4992,73 @@ int Start(int argc, char** argv) {
 
 namespace lib {
 
-struct CmdArgs {
+/**
+ * @brief The CmdArgs class is a container for argc and argv.
+ */
+class CmdArgs {
+
+public:
+  /**
+   * @brief CmdArgs creates valid argc and argv variables from a program name and arguments.
+   *
+   * The argv buffer is a contiguous, adjacent char buffer and contains the program name
+   * as its first item followed by the provided arguments. argc is the number of
+   * arguments + 1 (the program name).
+   * The resulting argv buffer should not be modified.
+   *
+   * @param program_name the name of the executable
+   * @param arguments the arguments for the program
+   */
+  CmdArgs(const std::string& program_name, const std::vector<std::string>& arguments)
+    : argc(0)
+    , argv(nullptr)
+  {
+    size_t total_size = 0;
+    total_size += program_name.size() + 1;
+    for (const auto& argument: arguments) {
+      total_size += argument.size() + 1;
+    }
+
+    std::vector<std::size_t> offsets;
+    argument_data.reserve(total_size);
+    offsets.push_back(argument_data.size());
+    argument_data += program_name;
+    argument_data += char(0x0);
+    for (const auto& argument: arguments) {
+      offsets.push_back(argument_data.size());
+      argument_data += argument;
+      argument_data += char(0x0);
+    }
+
+    argument_pointers.resize(offsets.size());
+    for (std::size_t i=0; i<argument_pointers.size(); ++i) {
+      argument_pointers[i] = argument_data.data() + offsets[i];
+    }
+    argc = argument_pointers.size();
+    argv = argument_pointers.data();
+  }
+
+  ~CmdArgs() = default;
+
+  /**
+   * @brief argc is the number of arguments + 1 (the program name)
+   */
   int argc;
-  char** argv;
+  /**
+   * @brief argv is an array containing pointers to the arguments (and the program name),
+   * it should not be modified
+   */
+  const char** argv;
+
+private:
+  /**
+   * @brief argument_data contains the program name and the arguments separated by null bytes
+   */
+  std::string argument_data;
+  /**
+   * @brief argument_pointers contains pointers to the beginnings of the strings in argument_data
+   */
+  std::vector<const char*> argument_pointers;
 };
 
 ArrayBufferAllocator* allocator;
@@ -5015,8 +5079,8 @@ void deleteCmdArgs() {
   if (!cmd_args) {
     return;
   }
-  delete[] cmd_args->argv;
   delete cmd_args;
+  cmd_args = nullptr;
 }
 
 int _StopEnv() {
@@ -5059,15 +5123,6 @@ void deinitV8() {
 
 
 namespace initialize {
-
-void generateCmdArgsFromProgramName(const std::string& program_name) {
-  deinitialize::deleteCmdArgs();
-  int argc = 1;
-  char* program_name_c_string = new char[program_name.length() + 1];
-  std::strcpy(program_name_c_string, program_name.c_str());
-  char** argv = new char*(program_name_c_string);
-  cmd_args = new CmdArgs{argc, argv};
-}
 
 void initV8() {
   v8_platform.Initialize(v8_thread_pool_size, uv_default_loop());
@@ -5182,7 +5237,7 @@ void _StartEnv(int argc,
 
 }  // namespace initialize
 
-void Initialize(const std::string& program_name) {
+void Initialize(const std::string& program_name, const std::vector<std::string>& node_args) {
   //////////
   // Start 1
   //////////
@@ -5190,12 +5245,11 @@ void Initialize(const std::string& program_name) {
   PlatformInit();
   node::performance::performance_node_start = PERFORMANCE_NOW();
 
-  // currently we do not support additional commandline options for node, uv, or v8
-  // we explicitily only set the first argument to the program name
-  initialize::generateCmdArgsFromProgramName(program_name);
+  cmd_args = new CmdArgs(program_name, node_args);
 
-  // Hack around with the argv pointer. Used for process.title = "blah".
-  cmd_args->argv = uv_setup_args(cmd_args->argc, cmd_args->argv);
+  // Hack around with the argv pointer. Used for process.title = "blah --args".
+  // argv won't be modified
+  uv_setup_args(cmd_args->argc, const_cast<char**>(cmd_args->argv));
 
   // This needs to run *before* V8::Initialize().  The const_cast is not
   // optional, in case you're wondering.
@@ -5203,7 +5257,7 @@ void Initialize(const std::string& program_name) {
   // don't support these, they are not used.
   int exec_argc = 0;
   const char** exec_argv = nullptr;
-  Init(&cmd_args->argc, const_cast<const char**>(cmd_args->argv), &exec_argc, &exec_argv);
+  Init(&cmd_args->argc, cmd_args->argv, &exec_argc, &exec_argv);
 
   initialize::configureOpenSsl();
 

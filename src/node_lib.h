@@ -33,7 +33,7 @@ namespace node { namespace lib {
     Starts the Node.js engine without a concrete script file to execute.
     *Important*: This requires the C++ developer to call `ProcessEvents()` periodically OR call `RunMainLoop()` to start the uv event loop.
     */
-    NODE_EXTERN void Initialize(const std::string& program_name = "node_lib_executable");
+    NODE_EXTERN void Initialize(const std::string& program_name = "node_lib_executable", const std::vector<std::string>& node_args = {});
 
 
     /*
