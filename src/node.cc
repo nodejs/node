@@ -2799,6 +2799,7 @@ static void EnvGetter(Local<Name> property,
 #else  // _WIN32
   String::Value key(property);
   WCHAR buffer[32767];  // The maximum size allowed for environment variables.
+  SetLastError(ERROR_SUCCESS);
   DWORD result = GetEnvironmentVariableW(reinterpret_cast<WCHAR*>(*key),
                                          buffer,
                                          arraysize(buffer));
@@ -2846,6 +2847,7 @@ static void EnvQuery(Local<Name> property,
 #else  // _WIN32
   String::Value key(property);
   WCHAR* key_ptr = reinterpret_cast<WCHAR*>(*key);
+  SetLastError(ERROR_SUCCESS);
   if (GetEnvironmentVariableW(key_ptr, nullptr, 0) > 0 ||
       GetLastError() == ERROR_SUCCESS) {
     rc = 0;
