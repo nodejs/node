@@ -9,14 +9,14 @@
 
 namespace node { namespace lib {
 
-    namespace internal { // private variables
-
-        bool EventLoopIsRunning();
+    namespace internal { // internals, made for experienced users
 
         v8::Isolate* isolate();
 
         Environment* environment();
     }
+
+    bool EventLoopIsRunning();
 
     /*********************************************************
      * Function types

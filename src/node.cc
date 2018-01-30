@@ -5074,11 +5074,11 @@ bool _event_loop_running = false;
 v8::Isolate* _isolate = nullptr;
 Environment* _environment = nullptr;
 
-namespace internal {
-  bool EventLoopIsRunning() {
-    return _event_loop_running;
-  }
+bool EventLoopIsRunning() {
+  return _event_loop_running;
+}
 
+namespace internal {
   v8::Isolate* isolate() {
     return _isolate;
   }
