@@ -1538,31 +1538,32 @@ deprecated: v8.0.0
 
 The `buf.parent` property is a deprecated alias for `buf.buffer`.
 
-### buf.readDoubleBE(offset[, noAssert])
-### buf.readDoubleLE(offset[, noAssert])
+### buf.readDoubleBE(offset)
+### buf.readDoubleLE(offset)
 <!-- YAML
 added: v0.11.15
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/18395
+    description: Removed noAssert and no implicit coercion of the offset to
+                 uint32 anymore.
 -->
 
 * `offset` {integer} Number of bytes to skip before starting to read. Must satisfy: `0 <= offset <= buf.length - 8`.
-* `noAssert` {boolean} Skip `offset` validation? **Default:** `false`
 * Returns: {number}
 
 Reads a 64-bit double from `buf` at the specified `offset` with specified
 endian format (`readDoubleBE()` returns big endian, `readDoubleLE()` returns
 little endian).
 
-Setting `noAssert` to `true` allows `offset` to be beyond the end of `buf`, but
-the resulting behavior is undefined.
-
 Examples:
 
 ```js
 const buf = Buffer.from([1, 2, 3, 4, 5, 6, 7, 8]);
 
-console.log(buf.readDoubleBE());
+console.log(buf.readDoubleBE(0));
 // Prints: 8.20788039913184e-304
-console.log(buf.readDoubleLE());
+console.log(buf.readDoubleLE(0));
 // Prints: 5.447603722011605e-270
 console.log(buf.readDoubleLE(1));
 // Throws an exception: RangeError: Index out of range
@@ -1571,31 +1572,32 @@ console.log(buf.readDoubleLE(1, true));
 // This will result in a segmentation fault! Don't do this!
 ```
 
-### buf.readFloatBE(offset[, noAssert])
-### buf.readFloatLE(offset[, noAssert])
+### buf.readFloatBE(offset)
+### buf.readFloatLE(offset)
 <!-- YAML
 added: v0.11.15
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/18395
+    description: Removed noAssert and no implicit coercion of the offset to
+                 uint32 anymore.
 -->
 
 * `offset` {integer} Number of bytes to skip before starting to read. Must satisfy: `0 <= offset <= buf.length - 4`.
-* `noAssert` {boolean} Skip `offset` validation? **Default:** `false`
 * Returns: {number}
 
 Reads a 32-bit float from `buf` at the specified `offset` with specified
 endian format (`readFloatBE()` returns big endian, `readFloatLE()` returns
 little endian).
 
-Setting `noAssert` to `true` allows `offset` to be beyond the end of `buf`, but
-the resulting behavior is undefined.
-
 Examples:
 
 ```js
 const buf = Buffer.from([1, 2, 3, 4]);
 
-console.log(buf.readFloatBE());
+console.log(buf.readFloatBE(0));
 // Prints: 2.387939260590663e-38
-console.log(buf.readFloatLE());
+console.log(buf.readFloatLE(0));
 // Prints: 1.539989614439558e-36
 console.log(buf.readFloatLE(1));
 // Throws an exception: RangeError: Index out of range
@@ -1604,19 +1606,20 @@ console.log(buf.readFloatLE(1, true));
 // This will result in a segmentation fault! Don't do this!
 ```
 
-### buf.readInt8(offset[, noAssert])
+### buf.readInt8(offset)
 <!-- YAML
 added: v0.5.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/18395
+    description: Removed noAssert and no implicit coercion of the offset to
+                 uint32 anymore.
 -->
 
 * `offset` {integer} Number of bytes to skip before starting to read. Must satisfy: `0 <= offset <= buf.length - 1`.
-* `noAssert` {boolean} Skip `offset` validation? **Default:** `false`
 * Returns: {integer}
 
 Reads a signed 8-bit integer from `buf` at the specified `offset`.
-
-Setting `noAssert` to `true` allows `offset` to be beyond the end of `buf`, but
-the resulting behavior is undefined.
 
 Integers read from a `Buffer` are interpreted as two's complement signed values.
 
@@ -1633,22 +1636,23 @@ console.log(buf.readInt8(2));
 // Throws an exception: RangeError: Index out of range
 ```
 
-### buf.readInt16BE(offset[, noAssert])
-### buf.readInt16LE(offset[, noAssert])
+### buf.readInt16BE(offset)
+### buf.readInt16LE(offset)
 <!-- YAML
 added: v0.5.5
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/18395
+    description: Removed noAssert and no implicit coercion of the offset to
+                 uint32 anymore.
 -->
 
 * `offset` {integer} Number of bytes to skip before starting to read. Must satisfy: `0 <= offset <= buf.length - 2`.
-* `noAssert` {boolean} Skip `offset` validation? **Default:** `false`
 * Returns: {integer}
 
 Reads a signed 16-bit integer from `buf` at the specified `offset` with
 the specified endian format (`readInt16BE()` returns big endian,
 `readInt16LE()` returns little endian).
-
-Setting `noAssert` to `true` allows `offset` to be beyond the end of `buf`, but
-the resulting behavior is undefined.
 
 Integers read from a `Buffer` are interpreted as two's complement signed values.
 
@@ -1657,30 +1661,31 @@ Examples:
 ```js
 const buf = Buffer.from([0, 5]);
 
-console.log(buf.readInt16BE());
+console.log(buf.readInt16BE(0));
 // Prints: 5
-console.log(buf.readInt16LE());
+console.log(buf.readInt16LE(0));
 // Prints: 1280
 console.log(buf.readInt16LE(1));
 // Throws an exception: RangeError: Index out of range
 ```
 
-### buf.readInt32BE(offset[, noAssert])
-### buf.readInt32LE(offset[, noAssert])
+### buf.readInt32BE(offset)
+### buf.readInt32LE(offset)
 <!-- YAML
 added: v0.5.5
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/18395
+    description: Removed noAssert and no implicit coercion of the offset to
+                 uint32 anymore.
 -->
 
 * `offset` {integer} Number of bytes to skip before starting to read. Must satisfy: `0 <= offset <= buf.length - 4`.
-* `noAssert` {boolean} Skip `offset` validation? **Default:** `false`
 * Returns: {integer}
 
 Reads a signed 32-bit integer from `buf` at the specified `offset` with
 the specified endian format (`readInt32BE()` returns big endian,
 `readInt32LE()` returns little endian).
-
-Setting `noAssert` to `true` allows `offset` to be beyond the end of `buf`, but
-the resulting behavior is undefined.
 
 Integers read from a `Buffer` are interpreted as two's complement signed values.
 
@@ -1689,31 +1694,32 @@ Examples:
 ```js
 const buf = Buffer.from([0, 0, 0, 5]);
 
-console.log(buf.readInt32BE());
+console.log(buf.readInt32BE(0));
 // Prints: 5
-console.log(buf.readInt32LE());
+console.log(buf.readInt32LE(0));
 // Prints: 83886080
 console.log(buf.readInt32LE(1));
 // Throws an exception: RangeError: Index out of range
 ```
 
-### buf.readIntBE(offset, byteLength[, noAssert])
-### buf.readIntLE(offset, byteLength[, noAssert])
+### buf.readIntBE(offset, byteLength)
+### buf.readIntLE(offset, byteLength)
 <!-- YAML
 added: v0.11.15
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/18395
+    description: Removed noAssert and no implicit coercion of the offset and
+                 byteLength to uint32 anymore.
 -->
 
 * `offset` {integer} Number of bytes to skip before starting to read. Must satisfy: `0 <= offset <= buf.length - byteLength`.
 * `byteLength` {integer} Number of bytes to read. Must satisfy: `0 < byteLength <= 6`.
-* `noAssert` {boolean} Skip `offset` and `byteLength` validation? **Default:** `false`.
 * Returns: {integer}
 
 Reads `byteLength` number of bytes from `buf` at the specified `offset`
 and interprets the result as a two's complement signed value. Supports up to 48
 bits of accuracy.
-
-Setting `noAssert` to `true` allows `offset` to be beyond the end of `buf`, but
-the resulting behavior is undefined.
 
 Examples:
 
@@ -1730,19 +1736,20 @@ console.log(buf.readIntBE(1, 0).toString(16));
 // Throws ERR_OUT_OF_RANGE:
 ```
 
-### buf.readUInt8(offset[, noAssert])
+### buf.readUInt8(offset)
 <!-- YAML
 added: v0.5.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/18395
+    description: Removed noAssert and no implicit coercion of the offset to
+                 uint32 anymore.
 -->
 
 * `offset` {integer} Number of bytes to skip before starting to read. Must satisfy: `0 <= offset <= buf.length - 1`.
-* `noAssert` {boolean} Skip `offset` validation? **Default:** `false`
 * Returns: {integer}
 
 Reads an unsigned 8-bit integer from `buf` at the specified `offset`.
-
-Setting `noAssert` to `true` allows `offset` to be beyond the end of `buf`, but
-the resulting behavior is undefined.
 
 Examples:
 
@@ -1757,22 +1764,23 @@ console.log(buf.readUInt8(2));
 // Throws an exception: RangeError: Index out of range
 ```
 
-### buf.readUInt16BE(offset[, noAssert])
-### buf.readUInt16LE(offset[, noAssert])
+### buf.readUInt16BE(offset)
+### buf.readUInt16LE(offset)
 <!-- YAML
 added: v0.5.5
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/18395
+    description: Removed noAssert and no implicit coercion of the offset to
+                 uint32 anymore.
 -->
 
 * `offset` {integer} Number of bytes to skip before starting to read. Must satisfy: `0 <= offset <= buf.length - 2`.
-* `noAssert` {boolean} Skip `offset` validation? **Default:** `false`
 * Returns: {integer}
 
 Reads an unsigned 16-bit integer from `buf` at the specified `offset` with
 specified endian format (`readUInt16BE()` returns big endian, `readUInt16LE()`
 returns little endian).
-
-Setting `noAssert` to `true` allows `offset` to be beyond the end of `buf`, but
-the resulting behavior is undefined.
 
 Examples:
 
@@ -1791,22 +1799,23 @@ console.log(buf.readUInt16LE(2).toString(16));
 // Throws an exception: RangeError: Index out of range
 ```
 
-### buf.readUInt32BE(offset[, noAssert])
-### buf.readUInt32LE(offset[, noAssert])
+### buf.readUInt32BE(offset)
+### buf.readUInt32LE(offset)
 <!-- YAML
 added: v0.5.5
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/18395
+    description: Removed noAssert and no implicit coercion of the offset to
+                 uint32 anymore.
 -->
 
 * `offset` {integer} Number of bytes to skip before starting to read. Must satisfy: `0 <= offset <= buf.length - 4`.
-* `noAssert` {boolean} Skip `offset` validation? **Default:** `false`
 * Returns: {integer}
 
 Reads an unsigned 32-bit integer from `buf` at the specified `offset` with
 specified endian format (`readUInt32BE()` returns big endian,
 `readUInt32LE()` returns little endian).
-
-Setting `noAssert` to `true` allows `offset` to be beyond the end of `buf`, but
-the resulting behavior is undefined.
 
 Examples:
 
@@ -1821,23 +1830,24 @@ console.log(buf.readUInt32LE(1).toString(16));
 // Throws an exception: RangeError: Index out of range
 ```
 
-### buf.readUIntBE(offset, byteLength[, noAssert])
-### buf.readUIntLE(offset, byteLength[, noAssert])
+### buf.readUIntBE(offset, byteLength)
+### buf.readUIntLE(offset, byteLength)
 <!-- YAML
 added: v0.11.15
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/18395
+    description: Removed noAssert and no implicit coercion of the offset and
+                 byteLength to uint32 anymore.
 -->
 
 * `offset` {integer} Number of bytes to skip before starting to read. Must satisfy: `0 <= offset <= buf.length - byteLength`.
 * `byteLength` {integer} Number of bytes to read. Must satisfy: `0 < byteLength <= 6`.
-* `noAssert` {boolean} Skip `offset` and `byteLength` validation? **Default:** `false`
 * Returns: {integer}
 
 Reads `byteLength` number of bytes from `buf` at the specified `offset`
 and interprets the result as an unsigned integer. Supports up to 48
 bits of accuracy.
-
-Setting `noAssert` to `true` allows `offset` to be beyond the end of `buf`, but
-the resulting behavior is undefined.
 
 Examples:
 
@@ -2149,24 +2159,25 @@ console.log(`${len} bytes: ${buf.toString('utf8', 0, len)}`);
 // Prints: 12 bytes: ½ + ¼ = ¾
 ```
 
-### buf.writeDoubleBE(value, offset[, noAssert])
-### buf.writeDoubleLE(value, offset[, noAssert])
+### buf.writeDoubleBE(value, offset)
+### buf.writeDoubleLE(value, offset)
 <!-- YAML
 added: v0.11.15
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/18395
+    description: Removed noAssert and no implicit coercion of the offset to
+                 uint32 anymore.
 -->
 
 * `value` {number} Number to be written to `buf`.
 * `offset` {integer} Number of bytes to skip before starting to write. Must satisfy: `0 <= offset <= buf.length - 8`.
-* `noAssert` {boolean} Skip `value` and `offset` validation? **Default:** `false`
 * Returns: {integer} `offset` plus the number of bytes written.
 
 Writes `value` to `buf` at the specified `offset` with specified endian
 format (`writeDoubleBE()` writes big endian, `writeDoubleLE()` writes little
 endian). `value` *should* be a valid 64-bit double. Behavior is undefined when
 `value` is anything other than a 64-bit double.
-
-Setting `noAssert` to `true` allows the encoded form of `value` to extend beyond
-the end of `buf`, but the resulting behavior is undefined.
 
 Examples:
 
@@ -2184,24 +2195,25 @@ console.log(buf);
 // Prints: <Buffer d7 5f f9 dd b7 d5 eb 43>
 ```
 
-### buf.writeFloatBE(value, offset[, noAssert])
-### buf.writeFloatLE(value, offset[, noAssert])
+### buf.writeFloatBE(value, offset)
+### buf.writeFloatLE(value, offset)
 <!-- YAML
 added: v0.11.15
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/18395
+    description: Removed noAssert and no implicit coercion of the offset to
+                 uint32 anymore.
 -->
 
 * `value` {number} Number to be written to `buf`.
 * `offset` {integer} Number of bytes to skip before starting to write. Must satisfy: `0 <= offset <= buf.length - 4`.
-* `noAssert` {boolean} Skip `value` and `offset` validation? **Default:** `false`
 * Returns: {integer} `offset` plus the number of bytes written.
 
 Writes `value` to `buf` at the specified `offset` with specified endian
 format (`writeFloatBE()` writes big endian, `writeFloatLE()` writes little
 endian). `value` *should* be a valid 32-bit float. Behavior is undefined when
 `value` is anything other than a 32-bit float.
-
-Setting `noAssert` to `true` allows the encoded form of `value` to extend beyond
-the end of `buf`, but the resulting behavior is undefined.
 
 Examples:
 
@@ -2219,22 +2231,23 @@ console.log(buf);
 // Prints: <Buffer bb fe 4a 4f>
 ```
 
-### buf.writeInt8(value, offset[, noAssert])
+### buf.writeInt8(value, offset)
 <!-- YAML
 added: v0.5.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/18395
+    description: Removed noAssert and no implicit coercion of the offset to
+                 uint32 anymore.
 -->
 
 * `value` {integer} Number to be written to `buf`.
 * `offset` {integer} Number of bytes to skip before starting to write. Must satisfy: `0 <= offset <= buf.length - 1`.
-* `noAssert` {boolean} Skip `value` and `offset` validation? **Default:** `false`
 * Returns: {integer} `offset` plus the number of bytes written.
 
 Writes `value` to `buf` at the specified `offset`. `value` *should* be a valid
 signed 8-bit integer. Behavior is undefined when `value` is anything other than
 a signed 8-bit integer.
-
-Setting `noAssert` to `true` allows the encoded form of `value` to extend beyond
-the end of `buf`, but the resulting behavior is undefined.
 
 `value` is interpreted and written as a two's complement signed integer.
 
@@ -2250,24 +2263,25 @@ console.log(buf);
 // Prints: <Buffer 02 fe>
 ```
 
-### buf.writeInt16BE(value, offset[, noAssert])
-### buf.writeInt16LE(value, offset[, noAssert])
+### buf.writeInt16BE(value, offset)
+### buf.writeInt16LE(value, offset)
 <!-- YAML
 added: v0.5.5
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/18395
+    description: Removed noAssert and no implicit coercion of the offset to
+                 uint32 anymore.
 -->
 
 * `value` {integer} Number to be written to `buf`.
 * `offset` {integer} Number of bytes to skip before starting to write. Must satisfy: `0 <= offset <= buf.length - 2`.
-* `noAssert` {boolean} Skip `value` and `offset` validation? **Default:** `false`
 * Returns: {integer} `offset` plus the number of bytes written.
 
 Writes `value` to `buf` at the specified `offset` with specified endian
 format (`writeInt16BE()` writes big endian, `writeInt16LE()` writes little
 endian). `value` *should* be a valid signed 16-bit integer. Behavior is undefined
 when `value` is anything other than a signed 16-bit integer.
-
-Setting `noAssert` to `true` allows the encoded form of `value` to extend beyond
-the end of `buf`, but the resulting behavior is undefined.
 
 `value` is interpreted and written as a two's complement signed integer.
 
@@ -2283,24 +2297,25 @@ console.log(buf);
 // Prints: <Buffer 01 02 04 03>
 ```
 
-### buf.writeInt32BE(value, offset[, noAssert])
-### buf.writeInt32LE(value, offset[, noAssert])
+### buf.writeInt32BE(value, offset)
+### buf.writeInt32LE(value, offset)
 <!-- YAML
 added: v0.5.5
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/18395
+    description: Removed noAssert and no implicit coercion of the offset to
+                 uint32 anymore.
 -->
 
 * `value` {integer} Number to be written to `buf`.
 * `offset` {integer} Number of bytes to skip before starting to write. Must satisfy: `0 <= offset <= buf.length - 4`.
-* `noAssert` {boolean} Skip `value` and `offset` validation? **Default:** `false`
 * Returns: {integer} `offset` plus the number of bytes written.
 
 Writes `value` to `buf` at the specified `offset` with specified endian
 format (`writeInt32BE()` writes big endian, `writeInt32LE()` writes little
 endian). `value` *should* be a valid signed 32-bit integer. Behavior is undefined
 when `value` is anything other than a signed 32-bit integer.
-
-Setting `noAssert` to `true` allows the encoded form of `value` to extend beyond
-the end of `buf`, but the resulting behavior is undefined.
 
 `value` is interpreted and written as a two's complement signed integer.
 
@@ -2316,25 +2331,25 @@ console.log(buf);
 // Prints: <Buffer 01 02 03 04 08 07 06 05>
 ```
 
-### buf.writeIntBE(value, offset, byteLength[, noAssert])
-### buf.writeIntLE(value, offset, byteLength[, noAssert])
+### buf.writeIntBE(value, offset, byteLength)
+### buf.writeIntLE(value, offset, byteLength)
 <!-- YAML
 added: v0.11.15
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/18395
+    description: Removed noAssert and no implicit coercion of the offset and
+                 byteLength to uint32 anymore.
 -->
 
 * `value` {integer} Number to be written to `buf`.
 * `offset` {integer} Number of bytes to skip before starting to write. Must satisfy: `0 <= offset <= buf.length - byteLength`.
 * `byteLength` {integer} Number of bytes to write. Must satisfy: `0 < byteLength <= 6`.
-* `noAssert` {boolean} Skip `value`, `offset`, and `byteLength` validation?
-  **Default:** `false`
 * Returns: {integer} `offset` plus the number of bytes written.
 
 Writes `byteLength` bytes of `value` to `buf` at the specified `offset`.
 Supports up to 48 bits of accuracy. Behavior is undefined when `value` is
 anything other than a signed integer.
-
-Setting `noAssert` to `true` allows the encoded form of `value` to extend beyond
-the end of `buf`, but the resulting behavior is undefined.
 
 Examples:
 
@@ -2352,22 +2367,23 @@ console.log(buf);
 // Prints: <Buffer ab 90 78 56 34 12>
 ```
 
-### buf.writeUInt8(value, offset[, noAssert])
+### buf.writeUInt8(value, offset)
 <!-- YAML
 added: v0.5.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/18395
+    description: Removed noAssert and no implicit coercion of the offset to
+                 uint32 anymore.
 -->
 
 * `value` {integer} Number to be written to `buf`.
 * `offset` {integer} Number of bytes to skip before starting to write. Must satisfy: `0 <= offset <= buf.length - 1`.
-* `noAssert` {boolean} Skip `value` and `offset` validation? **Default:** `false`
 * Returns: {integer} `offset` plus the number of bytes written.
 
 Writes `value` to `buf` at the specified `offset`. `value` *should* be a
 valid unsigned 8-bit integer. Behavior is undefined when `value` is anything
 other than an unsigned 8-bit integer.
-
-Setting `noAssert` to `true` allows the encoded form of `value` to extend beyond
-the end of `buf`, but the resulting behavior is undefined.
 
 Examples:
 
@@ -2383,24 +2399,25 @@ console.log(buf);
 // Prints: <Buffer 03 04 23 42>
 ```
 
-### buf.writeUInt16BE(value, offset[, noAssert])
-### buf.writeUInt16LE(value, offset[, noAssert])
+### buf.writeUInt16BE(value, offset)
+### buf.writeUInt16LE(value, offset)
 <!-- YAML
 added: v0.5.5
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/18395
+    description: Removed noAssert and no implicit coercion of the offset to
+                 uint32 anymore.
 -->
 
 * `value` {integer} Number to be written to `buf`.
 * `offset` {integer} Number of bytes to skip before starting to write. Must satisfy: `0 <= offset <= buf.length - 2`.
-* `noAssert` {boolean} Skip `value` and `offset` validation? **Default:** `false`
 * Returns: {integer} `offset` plus the number of bytes written.
 
 Writes `value` to `buf` at the specified `offset` with specified endian
 format (`writeUInt16BE()` writes big endian, `writeUInt16LE()` writes little
 endian). `value` should be a valid unsigned 16-bit integer. Behavior is
 undefined when `value` is anything other than an unsigned 16-bit integer.
-
-Setting `noAssert` to `true` allows the encoded form of `value` to extend beyond
-the end of `buf`, but the resulting behavior is undefined.
 
 Examples:
 
@@ -2420,24 +2437,25 @@ console.log(buf);
 // Prints: <Buffer ad de ef be>
 ```
 
-### buf.writeUInt32BE(value, offset[, noAssert])
-### buf.writeUInt32LE(value, offset[, noAssert])
+### buf.writeUInt32BE(value, offset)
+### buf.writeUInt32LE(value, offset)
 <!-- YAML
 added: v0.5.5
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/18395
+    description: Removed noAssert and no implicit coercion of the offset to
+                 uint32 anymore.
 -->
 
 * `value` {integer} Number to be written to `buf`.
 * `offset` {integer} Number of bytes to skip before starting to write. Must satisfy: `0 <= offset <= buf.length - 4`.
-* `noAssert` {boolean} Skip `value` and `offset` validation? **Default:** `false`
 * Returns: {integer} `offset` plus the number of bytes written.
 
 Writes `value` to `buf` at the specified `offset` with specified endian
 format (`writeUInt32BE()` writes big endian, `writeUInt32LE()` writes little
 endian). `value` should be a valid unsigned 32-bit integer. Behavior is
 undefined when `value` is anything other than an unsigned 32-bit integer.
-
-Setting `noAssert` to `true` allows the encoded form of `value` to extend beyond
-the end of `buf`, but the resulting behavior is undefined.
 
 Examples:
 
@@ -2455,25 +2473,26 @@ console.log(buf);
 // Prints: <Buffer ce fa ed fe>
 ```
 
-### buf.writeUIntBE(value, offset, byteLength[, noAssert])
-### buf.writeUIntLE(value, offset, byteLength[, noAssert])
+### buf.writeUIntBE(value, offset, byteLength)
+### buf.writeUIntLE(value, offset, byteLength)
 <!-- YAML
 added: v0.5.5
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/18395
+    description: Removed noAssert and no implicit coercion of the offset and
+                 byteLength to uint32 anymore.
 -->
 
 * `value` {integer} Number to be written to `buf`.
 * `offset` {integer} Number of bytes to skip before starting to write. Must satisfy: `0 <= offset <= buf.length - byteLength`.
 * `byteLength` {integer} Number of bytes to write. Must satisfy: `0 < byteLength <= 6`.
-* `noAssert` {boolean} Skip `value`, `offset`, and `byteLength` validation?
   **Default:** `false`
 * Returns: {integer} `offset` plus the number of bytes written.
 
 Writes `byteLength` bytes of `value` to `buf` at the specified `offset`.
 Supports up to 48 bits of accuracy. Behavior is undefined when `value` is
 anything other than an unsigned integer.
-
-Setting `noAssert` to `true` allows the encoded form of `value` to extend beyond
-the end of `buf`, but the resulting behavior is undefined.
 
 Examples:
 
