@@ -42,13 +42,6 @@ assert.throws(function() {
   Buffer.from(new AB());
 }, TypeError);
 
-// write{Double,Float}{LE,BE} with noAssert should not crash, cf. #3766
-const b = Buffer.allocUnsafe(1);
-b.writeFloatLE(11.11, 0, true);
-b.writeFloatBE(11.11, 0, true);
-b.writeDoubleLE(11.11, 0, true);
-b.writeDoubleBE(11.11, 0, true);
-
 // Test the byteOffset and length arguments
 {
   const ab = new Uint8Array(5);
