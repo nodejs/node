@@ -288,7 +288,7 @@
         ],
       }],
       [ 'OS in "linux freebsd openbsd solaris aix"', {
-        'cflags': [ '-pthread', ],
+        'cflags': [ '-pthread' ],
         'ldflags': [ '-pthread' ],
       }],
       [ 'OS in "linux freebsd openbsd solaris android aix cloudabi"', {
@@ -301,6 +301,7 @@
             'standalone_static_library': 1,
           }],
           ['OS=="openbsd"', {
+            'cflags': [ '-I/usr/local/include' ],
             'ldflags': [ '-Wl,-z,wxneeded' ],
           }],
         ],
