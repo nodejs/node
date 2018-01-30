@@ -31,7 +31,7 @@ instance of this class is provided via the `performance` property.
 
 ### performance.clearEntries(name)
 <!-- YAML
-added: REPLACEME
+added: v9.5.0
 -->
 
 Remove all performance entry objects with `entryType` equal to `name` from the
