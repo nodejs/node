@@ -459,10 +459,16 @@ function re(literals, ...values) {
 // ftruncate
 {
   const validateError = (err) => {
-    assert.strictEqual(err.message, 'EBADF: bad file descriptor, ftruncate');
-    assert.strictEqual(err.errno, uv.UV_EBADF);
-    assert.strictEqual(err.code, 'EBADF');
     assert.strictEqual(err.syscall, 'ftruncate');
+    // Could be EBADF or EINVAL, depending on the platform
+    if (err.code === 'EBADF') {
+      assert.strictEqual(err.message, 'EBADF: bad file descriptor, ftruncate');
+      assert.strictEqual(err.errno, uv.UV_EBADF);
+    } else {
+      assert.strictEqual(err.message, 'EINVAL: invalid argument, ftruncate');
+      assert.strictEqual(err.errno, uv.UV_EINVAL);
+      assert.strictEqual(err.code, 'EINVAL');
+    }
     return true;
   };
 
