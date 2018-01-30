@@ -29,9 +29,9 @@ zlib.gzip('hello', common.mustCall(function(err, out) {
   common.expectsError(
     () => unzip.write(out),
     {
-      code: 'ERR_ZLIB_BINDING_CLOSED',
+      code: 'ERR_STREAM_DESTROYED',
       type: Error,
-      message: 'zlib binding closed'
+      message: 'stream.destroy() was called'
     }
   );
 }));
