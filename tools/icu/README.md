@@ -24,7 +24,7 @@ make
 ```
 
 > _Note_ in theory, the equivalent `vcbuild.bat` commands should work also,
-but the commands below are makefile-centric.
+> but the commands below are makefile-centric.
 
 - If there are ICU version-specific changes needed, you may need to make changes in `icu-generic.gyp` or add patch files to `tools/icu/patches`.
   - Specifically, look for the lists in `sources!` in the `icu-generic.gyp` for files to exclude.
