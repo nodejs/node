@@ -991,7 +991,7 @@ calling `http2stream.close()`, or `http2stream.destroy()`. Will be
 
 #### http2stream.sentHeaders
 <!-- YAML
-added: REPLACEME
+added: v9.5.0
 -->
 
 * Value: {HTTP2 Headers Object}
@@ -1000,7 +1000,7 @@ An object containing the outbound headers sent for this `Http2Stream`.
 
 #### http2stream.sentInfoHeaders
 <!-- YAML
-added: REPLACEME
+added: v9.5.0
 -->
 
 * Value: {HTTP2 Headers Object[]}
@@ -1010,7 +1010,7 @@ sent for this `Http2Stream`.
 
 #### http2stream.sentTrailers
 <!-- YAML
-added: REPLACEME
+added: v9.5.0
 -->
 
 * Value: {HTTP2 Headers Object}
