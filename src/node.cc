@@ -5066,10 +5066,8 @@ private:
 ArrayBufferAllocator* allocator;
 Isolate::CreateParams params;
 Locker* locker;
-Isolate* isolate;
 IsolateData* isolate_data;
 Isolate::Scope* isolate_scope;
-Environment* env;
 Local<Context> context;
 Context::Scope* context_scope;
 bool request_stop = false;
@@ -5086,23 +5084,23 @@ void deleteCmdArgs() {
 }
 
 int _StopEnv() {
-  env->set_trace_sync_io(false);
+  _environment->set_trace_sync_io(false);
 
-  int exit_code = EmitExit(env);
-  RunAtExit(env);
+  int exit_code = EmitExit(_environment);
+  RunAtExit(_environment);
   uv_key_delete(&thread_local_env);
 
   v8_platform.DrainVMTasks();
-  WaitForInspectorDisconnect(env);
+  WaitForInspectorDisconnect(_environment);
 
   return exit_code;
 }
 
 void deleteIsolate() {
   Mutex::ScopedLock scoped_lock(node_isolate_mutex);
-  CHECK_EQ(node_isolate, isolate);
+  CHECK_EQ(node_isolate, _isolate);
   node_isolate = nullptr;
-  isolate->Dispose();
+  _isolate->Dispose();
 }
 
 void deinitV8() {
@@ -5146,45 +5144,45 @@ void createIsolate() {
   params.code_event_handler = vTune::GetVtuneCodeEventHandler();
 #endif
 
-  isolate = Isolate::New(params);
-  if (isolate == nullptr) {
+  _isolate = Isolate::New(params);
+  if (_isolate == nullptr) {
     fprintf(stderr, "Could not create isolate.");
     fflush(stderr);
     return; // TODO: Handle error
     //return 12;  // Signal internal error.
   }
 
-  isolate->AddMessageListener(OnMessage);
-  isolate->SetAbortOnUncaughtExceptionCallback(ShouldAbortOnUncaughtException);
-  isolate->SetAutorunMicrotasks(false);
-  isolate->SetFatalErrorHandler(OnFatalError);
+  _isolate->AddMessageListener(OnMessage);
+  _isolate->SetAbortOnUncaughtExceptionCallback(ShouldAbortOnUncaughtException);
+  _isolate->SetAutorunMicrotasks(false);
+  _isolate->SetFatalErrorHandler(OnFatalError);
 
   if (track_heap_objects) {
-    isolate->GetHeapProfiler()->StartTrackingHeapObjects(true);
+    _isolate->GetHeapProfiler()->StartTrackingHeapObjects(true);
   }
 
   {
     Mutex::ScopedLock scoped_lock(node_isolate_mutex);
     CHECK_EQ(node_isolate, nullptr);
-    node_isolate = isolate;
+    node_isolate = _isolate;
   }
 }
 
 void createInitialEnvironment() {
-  locker = new Locker(isolate);
-  isolate_scope = new Isolate::Scope(isolate);
-  static HandleScope handle_scope(isolate); // TODO (jh): Once we write a Deinit(), we need to put this on the heap to call the deconstructor.
-  isolate_data = new IsolateData(isolate, uv_default_loop(), allocator->zero_fill_field());
+  locker = new Locker(_isolate);
+  isolate_scope = new Isolate::Scope(_isolate);
+  static HandleScope handle_scope(_isolate); // TODO (jh): Once we write a Deinit(), we need to put this on the heap to call the deconstructor.
+  isolate_data = new IsolateData(_isolate, uv_default_loop(), allocator->zero_fill_field());
 
   //////////
   // Start 3
   //////////
   //HandleScope handle_scope(isolate); // (jh) in the initial Start functions, two handle scopes were created (one in Start() 2 and one in Start() 3). Currently, we have no idea why.
-  context = NewContext(isolate);
+  context = NewContext(_isolate);
   context_scope = new Context::Scope(context);
-  env = new Environment(isolate_data, context);
+  _environment = new node::Environment(isolate_data, context);
   CHECK_EQ(0, uv_key_create(&thread_local_env));
-  uv_key_set(&thread_local_env, env);
+  uv_key_set(&thread_local_env, _environment);
 }
 
 void configureOpenSsl() {
@@ -5211,30 +5209,30 @@ void _StartEnv(int argc,
 
     int v8_argc = 0;
     const char* const* v8_argv = nullptr;
-    env->Start(argc, argv, v8_argc, v8_argv, v8_is_profiling);
+    _environment->Start(argc, argv, v8_argc, v8_argv, v8_is_profiling);
 
     const char* path = argc > 1 ? argv[1] : nullptr;
-    StartInspector(env, path, debug_options);
+    StartInspector(_environment, path, debug_options);
 
-    if (debug_options.inspector_enabled() && !v8_platform.InspectorStarted(env)) {
+    if (debug_options.inspector_enabled() && !v8_platform.InspectorStarted(_environment)) {
       return; // TODO (jh): Handle error
       //return 12;  // Signal internal error.
     }
 
-    env->set_abort_on_uncaught_exception(abort_on_uncaught_exception);
+    _environment->set_abort_on_uncaught_exception(abort_on_uncaught_exception);
 
     if (no_force_async_hooks_checks) {
-      env->async_hooks()->no_force_checks();
+      _environment->async_hooks()->no_force_checks();
     }
 
     {
-      Environment::AsyncCallbackScope callback_scope(env);
-      env->async_hooks()->push_async_ids(1, 0);
-      LoadEnvironment(env);
-      env->async_hooks()->pop_async_id(1);
+      Environment::AsyncCallbackScope callback_scope(_environment);
+      _environment->async_hooks()->push_async_ids(1, 0);
+      LoadEnvironment(_environment);
+      _environment->async_hooks()->pop_async_id(1);
     }
 
-    env->set_trace_sync_io(trace_sync_io);
+    _environment->set_trace_sync_io(trace_sync_io);
 }
 
 }  // namespace initialize
@@ -5311,17 +5309,17 @@ v8::MaybeLocal<v8::Value> Run(const std::string& path) {
 }
 
 v8::MaybeLocal<v8::Value> Evaluate(const std::string& java_script_code) {
-  EscapableHandleScope scope(env->isolate());
-  TryCatch try_catch(env->isolate());
+  EscapableHandleScope scope(_environment->isolate());
+  TryCatch try_catch(_environment->isolate());
 
   // try_catch must be nonverbose to disable FatalException() handler,
   // we will handle exceptions ourself.
   try_catch.SetVerbose(false);
 
   //ScriptOrigin origin(filename); // TODO jh: set reasonable ScriptOrigin. This is used for debugging
-  MaybeLocal<v8::Script> script = v8::Script::Compile(env->context(), v8::String::NewFromUtf8(isolate, java_script_code.c_str())/*, origin*/);
+  MaybeLocal<v8::Script> script = v8::Script::Compile(_environment->context(), v8::String::NewFromUtf8(_isolate, java_script_code.c_str())/*, origin*/);
   if (script.IsEmpty()) {
-    ReportException(env, try_catch);
+    ReportException(_environment, try_catch);
     return MaybeLocal<v8::Value>();
   }
 
@@ -5361,7 +5359,7 @@ v8::MaybeLocal<v8::Value> Call(v8::Local<v8::Object> receiver, v8::Local<v8::Fun
 }
 
 v8::MaybeLocal<v8::Value> Call(v8::Local<v8::Object> object, const std::string& function_name, const std::vector<v8::Local<v8::Value>>& args) {
-  MaybeLocal<v8::String> maybe_function_name = v8::String::NewFromUtf8(isolate, function_name.c_str());
+  MaybeLocal<v8::String> maybe_function_name = v8::String::NewFromUtf8(_isolate, function_name.c_str());
   Local<v8::String> v8_function_name;
 
   if (!maybe_function_name.ToLocal(&v8_function_name)) {
@@ -5388,7 +5386,7 @@ v8::MaybeLocal<v8::Value> Call(v8::Local<v8::Object> object, const std::string &
 }
 
 v8::MaybeLocal<v8::Object> IncludeModule(const std::string& module_name) {
-  MaybeLocal<v8::String> maybe_arg = v8::String::NewFromUtf8(isolate, module_name.c_str());
+  MaybeLocal<v8::String> maybe_arg = v8::String::NewFromUtf8(_isolate, module_name.c_str());
   Local<v8::String> arg;
 
   if (!maybe_arg.ToLocal(&arg)) {
@@ -5417,7 +5415,7 @@ v8::MaybeLocal<v8::Object> IncludeModule(const std::string& module_name) {
 }
 
 v8::MaybeLocal<v8::Value> GetValue(v8::Local<v8::Object> object, const std::string& value_name) {
-  MaybeLocal<v8::String> maybe_key = v8::String::NewFromUtf8(isolate, value_name.c_str());
+  MaybeLocal<v8::String> maybe_key = v8::String::NewFromUtf8(_isolate, value_name.c_str());
   Local<v8::String> key;
 
   if (!maybe_key.ToLocal(&key)) {
@@ -5476,7 +5474,7 @@ void StopEventLoop() {
 }
 
 bool ProcessEvents() {
-  return TickEventLoop(*env);
+  return TickEventLoop(*_environment);
 }
 
 }  // namespace node::lib
