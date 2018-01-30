@@ -20,7 +20,7 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 const vm = require('vm');
 
@@ -69,3 +69,56 @@ assert.strictEqual(result, 'undefined');
 const sandbox3 = {};
 const context2 = vm.createContext(sandbox3);
 assert.strictEqual(sandbox3, context2);
+
+// Test 6: invalid arguments
+common.expectsError(() => {
+  vm.createContext({}, null);
+}, {
+  code: 'ERR_INVALID_ARG_TYPE',
+  type: TypeError,
+  message: 'The "options" argument must be of type object. Received type null'
+});
+
+common.expectsError(() => {
+  vm.createContext({}, 'string');
+}, {
+  code: 'ERR_INVALID_ARG_TYPE',
+  type: TypeError,
+  message: 'The "options" argument must be of type object. Received type string'
+});
+
+common.expectsError(() => {
+  vm.createContext({}, { name: null });
+}, {
+  code: 'ERR_INVALID_ARG_TYPE',
+  type: TypeError,
+  message: 'The "options.name" property must be of type string. ' +
+           'Received type null'
+});
+
+common.expectsError(() => {
+  vm.createContext({}, { origin: null });
+}, {
+  code: 'ERR_INVALID_ARG_TYPE',
+  type: TypeError,
+  message: 'The "options.origin" property must be of type string. ' +
+           'Received type null'
+});
+
+common.expectsError(() => {
+  vm.runInNewContext('', {}, { contextName: null });
+}, {
+  code: 'ERR_INVALID_ARG_TYPE',
+  type: TypeError,
+  message: 'The "options.contextName" property must be of type string. ' +
+           'Received type null'
+});
+
+common.expectsError(() => {
+  vm.runInNewContext('', {}, { contextOrigin: null });
+}, {
+  code: 'ERR_INVALID_ARG_TYPE',
+  type: TypeError,
+  message: 'The "options.contextOrigin" property must be of type string. ' +
+           'Received type null'
+});
