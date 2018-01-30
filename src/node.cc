@@ -4800,7 +4800,6 @@ Local<Context> NewContext(Isolate* isolate,
 }
 
 inline static bool TickEventLoop(Environment & env) {
-  bool more = false;
   uv_run(env.event_loop(), UV_RUN_NOWAIT);
 
   if (uv_loop_alive(env.event_loop())) {
@@ -4809,8 +4808,9 @@ inline static bool TickEventLoop(Environment & env) {
 
   v8_platform.DrainVMTasks();
 
-  if (uv_loop_alive(env.event_loop()))
+  if (uv_loop_alive(env.event_loop())) {
     return true;
+  }
 
   EmitBeforeExit(&env);
 
