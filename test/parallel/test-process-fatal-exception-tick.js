@@ -18,7 +18,6 @@ setImmediate(() => {
   stage++;
   process.nextTick(() => assert.strictEqual(stage, 2));
 });
-const now = Date.now();
 setTimeout(() => setImmediate(() => stage++), 1);
-while (now + 10 >= Date.now());
+common.busyLoop(10);
 throw new Error('caughtException');
