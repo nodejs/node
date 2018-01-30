@@ -242,6 +242,7 @@ test(function stringCharAt() {
   assertEquals("", "abc".charAt(-Infinity));
   assertEquals("a", "abc".charAt(-0));
   assertEquals("a", "abc".charAt(+0));
+  assertEquals("", "".charAt());
   assertEquals("", "abc".charAt(1 + 4294967295));
 }, 10);
 
@@ -255,6 +256,7 @@ test(function stringCharCodeAt() {
   assertSame(NaN, "abc".charCodeAt(-Infinity));
   assertSame(97, "abc".charCodeAt(-0));
   assertSame(97, "abc".charCodeAt(+0));
+  assertSame(NaN, "".charCodeAt());
   assertSame(NaN, "abc".charCodeAt(1 + 4294967295));
 }, 10);
 
@@ -269,6 +271,7 @@ test(function stringCodePointAt() {
   assertSame(undefined, "äϠ�".codePointAt(-Infinity));
   assertSame(228, "äϠ�".codePointAt(-0));
   assertSame(97, "aϠ�".codePointAt(+0));
+  assertSame(undefined, "".codePointAt());
   assertSame(undefined, "äϠ�".codePointAt(1 + 4294967295));
 }, 10);
 

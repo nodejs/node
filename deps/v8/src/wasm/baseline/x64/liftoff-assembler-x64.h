@@ -172,13 +172,24 @@ void LiftoffAssembler::Store(Register dst_addr, Register offset_reg,
 }
 
 void LiftoffAssembler::LoadCallerFrameSlot(LiftoffRegister dst,
-                                           uint32_t caller_slot_idx) {
+                                           uint32_t caller_slot_idx,
+                                           ValueType type) {
   Operand src(rbp, kPointerSize * (caller_slot_idx + 1));
-  // TODO(clemensh): Handle different sizes here.
-  if (dst.is_gp()) {
-    movq(dst.gp(), src);
-  } else {
-    Movsd(dst.fp(), src);
+  switch (type) {
+    case kWasmI32:
+      movl(dst.gp(), src);
+      break;
+    case kWasmI64:
+      movq(dst.gp(), src);
+      break;
+    case kWasmF32:
+      Movss(dst.fp(), src);
+      break;
+    case kWasmF64:
+      Movsd(dst.fp(), src);
+      break;
+    default:
+      UNREACHABLE();
   }
 }
 

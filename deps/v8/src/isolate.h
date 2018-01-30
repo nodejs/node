@@ -372,9 +372,6 @@ class ThreadLocalTop BASE_EMBEDDED {
   // Call back function to report unsafe JS accesses.
   v8::FailedAccessCheckCallback failed_access_check_callback_;
 
-  int microtask_queue_bailout_index_;
-  int microtask_queue_bailout_count_;
-
  private:
   void InitializeInternal();
 
@@ -673,18 +670,6 @@ class Isolate {
   }
   inline Address* js_entry_sp_address() {
     return &thread_local_top_.js_entry_sp_;
-  }
-
-  THREAD_LOCAL_TOP_ACCESSOR(int, microtask_queue_bailout_index)
-  Address microtask_queue_bailout_index_address() {
-    return reinterpret_cast<Address>(
-        &thread_local_top_.microtask_queue_bailout_index_);
-  }
-
-  THREAD_LOCAL_TOP_ACCESSOR(int, microtask_queue_bailout_count)
-  Address microtask_queue_bailout_count_address() {
-    return reinterpret_cast<Address>(
-        &thread_local_top_.microtask_queue_bailout_count_);
   }
 
   // Returns the global object of the current context. It could be
@@ -1220,13 +1205,6 @@ class Isolate {
   void ReportPromiseReject(Handle<JSPromise> promise, Handle<Object> value,
                            v8::PromiseRejectEvent event);
 
-  void PromiseReactionJob(Handle<PromiseReactionJobInfo> info,
-                          MaybeHandle<Object>* result,
-                          MaybeHandle<Object>* maybe_exception);
-  void PromiseResolveThenableJob(Handle<PromiseResolveThenableJobInfo> info,
-                                 MaybeHandle<Object>* result,
-                                 MaybeHandle<Object>* maybe_exception);
-
   void EnqueueMicrotask(Handle<Object> microtask);
   void RunMicrotasks();
   bool IsRunningMicrotasks() const { return is_running_microtasks_; }
@@ -1480,8 +1458,6 @@ class Isolate {
   // If there is no external try-catch or message was successfully propagated,
   // then return true.
   bool PropagatePendingExceptionToExternalTryCatch();
-
-  void RunMicrotasksInternal();
 
   const char* RAILModeName(RAILMode rail_mode) const {
     switch (rail_mode) {

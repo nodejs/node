@@ -4742,6 +4742,9 @@ void Assembler::GrowBuffer() {
 
 
 void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
+  // Non-relocatable constants should not end up in the literal pool.
+  DCHECK(!RelocInfo::IsNone(rmode));
+
   // We do not try to reuse pool constants.
   RelocInfo rinfo(reinterpret_cast<byte*>(pc_), rmode, data, nullptr);
   bool write_reloc_info = true;

@@ -64,11 +64,14 @@ RUNTIME_FUNCTION_RETURN_PAIR(Runtime_DebugBreakOnBytecode) {
   // We do not have to deal with operand scale here. If the bytecode at the
   // break is prefixed by operand scaling, we would have patched over the
   // scaling prefix. We now simply dispatch to the handler for the prefix.
+  // We need to deserialize now to ensure we don't hit the debug break again
+  // after deserializing.
   OperandScale operand_scale = OperandScale::kSingle;
-  Code* code = isolate->interpreter()->GetAndMaybeDeserializeBytecodeHandler(
-      bytecode, operand_scale);
+  isolate->interpreter()->GetAndMaybeDeserializeBytecodeHandler(bytecode,
+                                                                operand_scale);
 
-  return MakePair(isolate->debug()->return_value(), code);
+  return MakePair(isolate->debug()->return_value(),
+                  Smi::FromInt(static_cast<uint8_t>(bytecode)));
 }
 
 

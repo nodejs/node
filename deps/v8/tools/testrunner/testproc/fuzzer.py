@@ -217,6 +217,12 @@ class CompactionFuzzer(Fuzzer):
       yield ['--stress-compaction-random']
 
 
+class InterruptBudgetFuzzer(Fuzzer):
+  def create_flags_generator(self, rng, test, analysis_value):
+    while True:
+      yield ['--interrupt-budget=%d' % rng.randint(1, 144 * 1024)]
+
+
 class DeoptAnalyzer(Analyzer):
   MAX_DEOPT=1000000000
 
@@ -255,12 +261,14 @@ class DeoptFuzzer(Fuzzer):
 
 
 FUZZERS = {
-  'scavenge': (ScavengeAnalyzer, ScavengeFuzzer),
-  'marking': (MarkingAnalyzer, MarkingFuzzer),
-  'gc_interval': (GcIntervalAnalyzer, GcIntervalFuzzer),
   'compaction': (None, CompactionFuzzer),
   'deopt': (DeoptAnalyzer, DeoptFuzzer),
+  'gc_interval': (GcIntervalAnalyzer, GcIntervalFuzzer),
+  'interrupt_budget': (None, InterruptBudgetFuzzer),
+  'marking': (MarkingAnalyzer, MarkingFuzzer),
+  'scavenge': (ScavengeAnalyzer, ScavengeFuzzer),
 }
+
 
 def create_fuzzer_config(name, probability, *args, **kwargs):
   analyzer_class, fuzzer_class = FUZZERS[name]

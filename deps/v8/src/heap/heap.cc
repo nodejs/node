@@ -177,6 +177,7 @@ Heap::Heap()
       raw_allocations_hash_(0),
       stress_marking_observer_(nullptr),
       stress_scavenge_observer_(nullptr),
+      allocation_step_in_progress_(false),
       max_marking_limit_reached_(0.0),
       ms_count_(0),
       gc_count_(0),
@@ -1112,6 +1113,66 @@ void Heap::CollectAllGarbage(int flags, GarbageCollectionReason gc_reason,
   set_current_gc_flags(kNoGCFlags);
 }
 
+namespace {
+
+intptr_t CompareWords(int size, HeapObject* a, HeapObject* b) {
+  int words = size / kPointerSize;
+  DCHECK_EQ(a->Size(), size);
+  DCHECK_EQ(b->Size(), size);
+  intptr_t* slot_a = reinterpret_cast<intptr_t*>(a->address());
+  intptr_t* slot_b = reinterpret_cast<intptr_t*>(b->address());
+  for (int i = 0; i < words; i++) {
+    if (*slot_a != *slot_b) {
+      return *slot_a - *slot_b;
+    }
+    slot_a++;
+    slot_b++;
+  }
+  return 0;
+}
+
+void ReportDuplicates(int size, std::vector<HeapObject*>& objects) {
+  if (objects.size() == 0) return;
+
+  sort(objects.begin(), objects.end(), [size](HeapObject* a, HeapObject* b) {
+    intptr_t c = CompareWords(size, a, b);
+    if (c != 0) return c < 0;
+    return a < b;
+  });
+
+  std::vector<std::pair<int, HeapObject*>> duplicates;
+  HeapObject* current = objects[0];
+  int count = 1;
+  for (size_t i = 1; i < objects.size(); i++) {
+    if (CompareWords(size, current, objects[i]) == 0) {
+      count++;
+    } else {
+      if (count > 1) {
+        duplicates.push_back(std::make_pair(count - 1, current));
+      }
+      count = 1;
+      current = objects[i];
+    }
+  }
+  if (count > 1) {
+    duplicates.push_back(std::make_pair(count - 1, current));
+  }
+
+  int threshold = FLAG_trace_duplicate_threshold_kb * KB;
+
+  sort(duplicates.begin(), duplicates.end());
+  for (auto it = duplicates.rbegin(); it != duplicates.rend(); ++it) {
+    int duplicate_bytes = it->first * size;
+    if (duplicate_bytes < threshold) break;
+    PrintF("%d duplicates of size %d each (%dKB)\n", it->first, size,
+           duplicate_bytes / KB);
+    PrintF("Sample object: ");
+    it->second->Print();
+    PrintF("============================\n");
+  }
+}
+}  // anonymous namespace
+
 void Heap::CollectAllAvailableGarbage(GarbageCollectionReason gc_reason) {
   // Since we are ignoring the return value, the exact choice of space does
   // not matter, so long as we do not specify NEW_SPACE, which would not
@@ -1151,6 +1212,28 @@ void Heap::CollectAllAvailableGarbage(GarbageCollectionReason gc_reason) {
   set_current_gc_flags(kNoGCFlags);
   new_space_->Shrink();
   UncommitFromSpace();
+
+  if (FLAG_trace_duplicate_threshold_kb) {
+    std::map<int, std::vector<HeapObject*>> objects_by_size;
+    PagedSpaces spaces(this);
+    for (PagedSpace* space = spaces.next(); space != nullptr;
+         space = spaces.next()) {
+      HeapObjectIterator it(space);
+      for (HeapObject* obj = it.Next(); obj != nullptr; obj = it.Next()) {
+        objects_by_size[obj->Size()].push_back(obj);
+      }
+    }
+    {
+      LargeObjectIterator it(lo_space());
+      for (HeapObject* obj = it.Next(); obj != nullptr; obj = it.Next()) {
+        objects_by_size[obj->Size()].push_back(obj);
+      }
+    }
+    for (auto it = objects_by_size.rbegin(); it != objects_by_size.rend();
+         ++it) {
+      ReportDuplicates(it->first, it->second);
+    }
+  }
 }
 
 void Heap::ReportExternalMemoryPressure() {
@@ -2849,7 +2932,7 @@ AllocationResult Heap::AllocateBytecodeArray(int length,
   instance->set_parameter_count(parameter_count);
   instance->set_incoming_new_target_or_generator_register(
       interpreter::Register::invalid_value());
-  instance->set_interrupt_budget(interpreter::Interpreter::kInterruptBudget);
+  instance->set_interrupt_budget(interpreter::Interpreter::InterruptBudget());
   instance->set_osr_loop_nesting_level(0);
   instance->set_bytecode_age(BytecodeArray::kNoAgeBytecodeAge);
   instance->set_constant_pool(constant_pool);
@@ -4862,7 +4945,8 @@ void Heap::ZapFromSpace() {
        PageRange(new_space_->FromSpaceStart(), new_space_->FromSpaceEnd())) {
     for (Address cursor = page->area_start(), limit = page->area_end();
          cursor < limit; cursor += kPointerSize) {
-      Memory::Address_at(cursor) = kFromSpaceZapValue;
+      Memory::Address_at(cursor) =
+          reinterpret_cast<Address>(kFromSpaceZapValue);
     }
   }
 }
@@ -6605,6 +6689,7 @@ void AllocationObserver::AllocationStep(int bytes_allocated,
     step_size_ = GetNextStepSize();
     bytes_to_next_step_ = step_size_;
   }
+  DCHECK_GE(bytes_to_next_step_, 0);
 }
 
 namespace {

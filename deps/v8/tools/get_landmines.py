@@ -8,13 +8,28 @@ This file emits the list of reasons why a particular build needs to be clobbered
 (or a list of 'landmines').
 """
 
+import os
 import sys
 
+SCRIPT_DIR = os.path.dirname(os.path.realpath(__file__))
+CHECKOUT_ROOT = os.path.abspath(os.path.join(SCRIPT_DIR, os.pardir))
+sys.path.insert(0, os.path.join(CHECKOUT_ROOT, 'build'))
+import landmine_utils
 
-def main():
+
+platform = landmine_utils.platform  # pylint: disable=invalid-name
+
+
+def print_landmines():  # pylint: disable=invalid-name
   """
   ALL LANDMINES ARE EMITTED FROM HERE.
   """
+  # DO NOT add landmines as part of a regular CL. Landmines are a last-effort
+  # bandaid fix if a CL that got landed has a build dependency bug and all bots
+  # need to be cleaned up. If you're writing a new CL that causes build
+  # dependency problems, fix the dependency problems instead of adding a
+  # landmine.
+  # See the Chromium version in src/build/get_landmines.py for usage examples.
   print 'Need to clobber after ICU52 roll.'
   print 'Landmines test.'
   print 'Activating MSVS 2013.'
@@ -32,6 +47,11 @@ def main():
   print 'Clober again to fix windows build problems.'
   print 'Clobber to possibly resolve failure on win-32 bot.'
   print 'Clobber for http://crbug.com/668958.'
+  return 0
+
+
+def main():
+  print_landmines()
   return 0
 
 

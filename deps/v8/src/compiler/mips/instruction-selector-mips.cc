@@ -2260,11 +2260,13 @@ void InstructionSelector::VisitS8x16Shuffle(Node* node) {
 }
 
 void InstructionSelector::VisitSignExtendWord8ToInt32(Node* node) {
-  UNIMPLEMENTED();
+  MipsOperandGenerator g(this);
+  Emit(kMipsSeb, g.DefineAsRegister(node), g.UseRegister(node->InputAt(0)));
 }
 
 void InstructionSelector::VisitSignExtendWord16ToInt32(Node* node) {
-  UNIMPLEMENTED();
+  MipsOperandGenerator g(this);
+  Emit(kMipsSeh, g.DefineAsRegister(node), g.UseRegister(node->InputAt(0)));
 }
 
 // static

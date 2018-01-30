@@ -1463,25 +1463,6 @@ TEST_F(InstructionSelectorTest, Float64BinopArithmetic) {
 // Miscellaneous.
 
 
-TEST_F(InstructionSelectorTest, Uint64LessThanWithLoadAndLoadStackPointer) {
-  StreamBuilder m(this, MachineType::Bool());
-  Node* const sl = m.Load(
-      MachineType::Pointer(),
-      m.ExternalConstant(ExternalReference::address_of_stack_limit(isolate())));
-  Node* const sp = m.LoadStackPointer();
-  Node* const n = m.Uint64LessThan(sl, sp);
-  m.Return(n);
-  Stream s = m.Build();
-  ASSERT_EQ(1U, s.size());
-  EXPECT_EQ(kX64StackCheck, s[0]->arch_opcode());
-  ASSERT_EQ(0U, s[0]->InputCount());
-  ASSERT_EQ(1U, s[0]->OutputCount());
-  EXPECT_EQ(s.ToVreg(n), s.ToVreg(s[0]->Output()));
-  EXPECT_EQ(kFlags_set, s[0]->flags_mode());
-  EXPECT_EQ(kUnsignedGreaterThan, s[0]->flags_condition());
-}
-
-
 TEST_F(InstructionSelectorTest, Word64ShlWithChangeInt32ToInt64) {
   TRACED_FORRANGE(int64_t, x, 32, 63) {
     StreamBuilder m(this, MachineType::Int64(), MachineType::Int32());

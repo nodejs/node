@@ -28,6 +28,7 @@
 import os
 import re
 
+from testrunner.local import statusfile
 from testrunner.local import testsuite
 from testrunner.objects import testcase
 from testrunner.outproc import base as outproc
@@ -48,7 +49,9 @@ class TestSuite(testsuite.TestSuite):
       dirs.sort()
       files.sort()
       for filename in files:
-        if filename.endswith(".js") and filename != "mjsunit.js":
+        if (filename.endswith(".js") and
+            filename != "mjsunit.js" and
+            filename != "mjsunit_suppressions.js"):
           fullpath = os.path.join(dirname, filename)
           relpath = fullpath[len(self.root) + 1 : -3]
           testname = relpath.replace(os.path.sep, "/")
@@ -61,6 +64,9 @@ class TestSuite(testsuite.TestSuite):
 
   def _test_class(self):
     return TestCase
+
+  def _suppressed_test_class(self):
+    return SuppressedTestCase
 
 
 class TestCase(testcase.TestCase):
@@ -177,8 +183,8 @@ class CombinedTest(testcase.TestCase):
     self._tests = tests
 
   def _prepare_outcomes(self, force_update=True):
-    self._statusfile_outcomes = outproc.OUTCOMES_PASS
-    self.expected_outcomes = outproc.OUTCOMES_PASS
+    self._statusfile_outcomes = outproc.OUTCOMES_PASS_OR_TIMEOUT
+    self.expected_outcomes = outproc.OUTCOMES_PASS_OR_TIMEOUT
 
   def _get_shell_with_flags(self, ctx):
     """In addition to standard set of shell flags it appends:
@@ -206,6 +212,30 @@ class CombinedTest(testcase.TestCase):
 
   def _get_statusfile_flags(self):
     return self._tests[0]._get_statusfile_flags()
+
+
+class SuppressedTestCase(TestCase):
+  """The same as a standard mjsunit test case with all asserts as no-ops."""
+  def __init__(self, *args, **kwargs):
+    super(SuppressedTestCase, self).__init__(*args, **kwargs)
+    self._mjsunit_files.append(
+        os.path.join(self.suite.root, "mjsunit_suppressions.js"))
+
+  def _prepare_outcomes(self, *args, **kwargs):
+    super(SuppressedTestCase, self)._prepare_outcomes(*args, **kwargs)
+    # Skip tests expected to fail. We suppress all asserts anyways, but some
+    # tests are expected to fail with type errors or even dchecks, and we
+    # can't differentiate that.
+    if statusfile.FAIL in self._statusfile_outcomes:
+      self._statusfile_outcomes = [statusfile.SKIP]
+    else:
+      self.expected_outcomes = self.expected_outcomes + [statusfile.TIMEOUT]
+
+  def _get_extra_flags(self, *args, **kwargs):
+    return (
+        super(SuppressedTestCase, self)._get_extra_flags(*args, **kwargs) +
+        ['--disable-abortjs']
+    )
 
 
 def GetSuite(name, root):

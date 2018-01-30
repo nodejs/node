@@ -225,8 +225,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
 
   // After converting an index to an integer, calculate a relative index: if
   // index < 0, max(length + index, 0); else min(index, length)
-  void ConvertToRelativeIndex(Node* context, Variable* var_result, Node* index,
-                              Node* length);
+  TNode<Smi> ConvertToRelativeIndex(TNode<Context> context, TNode<Object> index,
+                                    TNode<Smi> length);
 
   // Tag a Word as a Smi value.
   TNode<Smi> SmiTag(SloppyTNode<IntPtrT> value);
@@ -1117,6 +1117,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   Node* IsJSObjectInstanceType(Node* instance_type);
   Node* IsJSObjectMap(Node* map);
   Node* IsJSObject(Node* object);
+  Node* IsJSPromiseMap(Node* map);
   Node* IsJSProxy(Node* object);
   Node* IsJSReceiverInstanceType(Node* instance_type);
   Node* IsJSReceiverMap(Node* map);
@@ -1734,8 +1735,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
                         KeyedAccessStoreMode store_mode, Label* bailout);
 
   Node* CheckForCapacityGrow(Node* object, Node* elements, ElementsKind kind,
-                             Node* length, Node* key, ParameterMode mode,
-                             bool is_js_array, Label* bailout);
+                             KeyedAccessStoreMode store_mode, Node* length,
+                             Node* key, ParameterMode mode, bool is_js_array,
+                             Label* bailout);
 
   Node* CopyElementsOnWrite(Node* object, Node* elements, ElementsKind kind,
                             Node* length, ParameterMode mode, Label* bailout);

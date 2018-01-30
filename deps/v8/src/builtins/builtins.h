@@ -114,6 +114,10 @@ class Builtins {
   // special cases such as CompileLazy and DeserializeLazy.
   static bool IsLazy(int index);
 
+  // Helper methods used for testing isolate-independent builtins.
+  // TODO(jgruber,v8:6666): Remove once all builtins have been migrated.
+  static bool IsIsolateIndependent(int index);
+
   bool is_initialized() const { return initialized_; }
 
   // Used by SetupIsolateDelegate and Deserializer.

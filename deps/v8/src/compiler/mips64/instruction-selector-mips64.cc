@@ -2922,23 +2922,29 @@ void InstructionSelector::VisitS8x16Shuffle(Node* node) {
 }
 
 void InstructionSelector::VisitSignExtendWord8ToInt32(Node* node) {
-  UNIMPLEMENTED();
+  Mips64OperandGenerator g(this);
+  Emit(kMips64Seb, g.DefineAsRegister(node), g.UseRegister(node->InputAt(0)));
 }
 
 void InstructionSelector::VisitSignExtendWord16ToInt32(Node* node) {
-  UNIMPLEMENTED();
+  Mips64OperandGenerator g(this);
+  Emit(kMips64Seh, g.DefineAsRegister(node), g.UseRegister(node->InputAt(0)));
 }
 
 void InstructionSelector::VisitSignExtendWord8ToInt64(Node* node) {
-  UNIMPLEMENTED();
+  Mips64OperandGenerator g(this);
+  Emit(kMips64Seb, g.DefineAsRegister(node), g.UseRegister(node->InputAt(0)));
 }
 
 void InstructionSelector::VisitSignExtendWord16ToInt64(Node* node) {
-  UNIMPLEMENTED();
+  Mips64OperandGenerator g(this);
+  Emit(kMips64Seh, g.DefineAsRegister(node), g.UseRegister(node->InputAt(0)));
 }
 
 void InstructionSelector::VisitSignExtendWord32ToInt64(Node* node) {
-  UNIMPLEMENTED();
+  Mips64OperandGenerator g(this);
+  Emit(kMips64Shl, g.DefineAsRegister(node), g.UseRegister(node->InputAt(0)),
+       g.TempImmediate(0));
 }
 
 // static

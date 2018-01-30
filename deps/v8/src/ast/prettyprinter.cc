@@ -1043,8 +1043,11 @@ void AstPrinter::PrintClassProperties(
       case ClassLiteral::Property::SETTER:
         prop_kind = "SETTER";
         break;
-      case ClassLiteral::Property::FIELD:
-        prop_kind = "FIELD";
+      case ClassLiteral::Property::PUBLIC_FIELD:
+        prop_kind = "PUBLIC FIELD";
+        break;
+      case ClassLiteral::Property::PRIVATE_FIELD:
+        prop_kind = "PRIVATE FIELD";
         break;
     }
     EmbeddedVector<char, 128> buf;
@@ -1221,7 +1224,6 @@ void AstPrinter::VisitThrow(Throw* node) {
   IndentedScope indent(this, "THROW", node->position());
   Visit(node->exception());
 }
-
 
 void AstPrinter::VisitProperty(Property* node) {
   EmbeddedVector<char, 128> buf;

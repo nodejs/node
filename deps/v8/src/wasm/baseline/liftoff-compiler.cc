@@ -217,7 +217,7 @@ class LiftoffCompiler {
     }
     if (param_loc.IsCallerFrameSlot()) {
       LiftoffRegister tmp_reg = __ GetUnusedRegister(rc);
-      __ LoadCallerFrameSlot(tmp_reg, -param_loc.AsCallerFrameSlot());
+      __ LoadCallerFrameSlot(tmp_reg, -param_loc.AsCallerFrameSlot(), type);
       __ PushRegister(type, tmp_reg);
       return;
     }
@@ -586,6 +586,14 @@ class LiftoffCompiler {
       CASE_BINOP(I32Xor, I32, i32_xor)
       CASE_CMPOP(I32Eq, kEqual)
       CASE_CMPOP(I32Ne, kUnequal)
+      CASE_CMPOP(I32LtS, kSignedLessThan)
+      CASE_CMPOP(I32LtU, kUnsignedLessThan)
+      CASE_CMPOP(I32GtS, kSignedGreaterThan)
+      CASE_CMPOP(I32GtU, kUnsignedGreaterThan)
+      CASE_CMPOP(I32LeS, kSignedLessEqual)
+      CASE_CMPOP(I32LeU, kUnsignedLessEqual)
+      CASE_CMPOP(I32GeS, kSignedGreaterEqual)
+      CASE_CMPOP(I32GeU, kUnsignedGreaterEqual)
       CASE_SHIFTOP(I32Shl, i32_shl)
       CASE_SHIFTOP(I32ShrS, i32_sar)
       CASE_SHIFTOP(I32ShrU, i32_shr)

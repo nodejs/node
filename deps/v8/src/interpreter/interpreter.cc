@@ -131,6 +131,10 @@ void Interpreter::IterateDispatchTable(RootVisitor* v) {
   }
 }
 
+int Interpreter::InterruptBudget() {
+  return FLAG_interrupt_budget;
+}
+
 namespace {
 
 void MaybePrintAst(ParseInfo* parse_info, CompilationInfo* compilation_info) {

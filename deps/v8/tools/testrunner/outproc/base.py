@@ -13,6 +13,9 @@ from ..testproc.result import Result
 OUTCOMES_PASS = [statusfile.PASS]
 OUTCOMES_FAIL = [statusfile.FAIL]
 
+# We tolerate timeout with combined tests.
+OUTCOMES_PASS_OR_TIMEOUT = [statusfile.PASS, statusfile.TIMEOUT]
+
 
 class BaseOutProc(object):
   def process(self, output, reduction=None):

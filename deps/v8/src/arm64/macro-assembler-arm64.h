@@ -51,6 +51,7 @@ namespace internal {
 #define kInterpreterBytecodeOffsetRegister x19
 #define kInterpreterBytecodeArrayRegister x20
 #define kInterpreterDispatchTableRegister x21
+#define kInterpreterTargetBytecodeRegister x18
 #define kJavaScriptCallArgCountRegister x0
 #define kJavaScriptCallNewTargetRegister x3
 #define kRuntimeCallFunctionRegister x1
@@ -549,6 +550,10 @@ class TurboAssembler : public Assembler {
   void Cbnz(const Register& rt, Label* label);
   void Cbz(const Register& rt, Label* label);
 
+  inline void Dmb(BarrierDomain domain, BarrierType type);
+  inline void Dsb(BarrierDomain domain, BarrierType type);
+  inline void Isb();
+
   bool AllowThisStubCall(CodeStub* stub);
   void CallStubDelayed(CodeStub* stub);
   void CallRuntimeDelayed(Zone* zone, Runtime::FunctionId fid,
@@ -670,8 +675,6 @@ class TurboAssembler : public Assembler {
 
   // Load a literal from the inline constant pool.
   inline void Ldr(const CPURegister& rt, const Operand& imm);
-  // Helper function for double immediate.
-  inline void Ldr(const CPURegister& rt, double imm);
 
   // Claim or drop stack space without actually accessing memory.
   //
@@ -1303,8 +1306,6 @@ class MacroAssembler : public TurboAssembler {
                     Condition cond);
   inline void Csneg(const Register& rd, const Register& rn, const Register& rm,
                     Condition cond);
-  inline void Dmb(BarrierDomain domain, BarrierType type);
-  inline void Dsb(BarrierDomain domain, BarrierType type);
   inline void Extr(const Register& rd, const Register& rn, const Register& rm,
                    unsigned lsb);
   inline void Fcsel(const VRegister& fd, const VRegister& fn,
@@ -1347,7 +1348,6 @@ class MacroAssembler : public TurboAssembler {
                      const VRegister& fm, const VRegister& fa);
   inline void Hint(SystemHint code);
   inline void Hlt(int code);
-  inline void Isb();
   inline void Ldnp(const CPURegister& rt, const CPURegister& rt2,
                    const MemOperand& src);
   inline void Movk(const Register& rd, uint64_t imm, int shift = -1);
@@ -1785,9 +1785,6 @@ class MacroAssembler : public TurboAssembler {
   void InvokeFunction(Register function, Register new_target,
                       const ParameterCount& actual, InvokeFlag flag);
   void InvokeFunction(Register function, const ParameterCount& expected,
-                      const ParameterCount& actual, InvokeFlag flag);
-  void InvokeFunction(Handle<JSFunction> function,
-                      const ParameterCount& expected,
                       const ParameterCount& actual, InvokeFlag flag);
 
   // ---- Code generation helpers ----

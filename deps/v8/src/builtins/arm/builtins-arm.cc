@@ -844,10 +844,13 @@ static void MaybeTailCallOptimizedCodeSlot(MacroAssembler* masm,
 }
 
 // Advance the current bytecode offset. This simulates what all bytecode
-// handlers do upon completion of the underlying operation.
-static void AdvanceBytecodeOffset(MacroAssembler* masm, Register bytecode_array,
-                                  Register bytecode_offset, Register bytecode,
-                                  Register scratch1) {
+// handlers do upon completion of the underlying operation. Will bail out to a
+// label if the bytecode (without prefix) is a return bytecode.
+static void AdvanceBytecodeOffsetOrReturn(MacroAssembler* masm,
+                                          Register bytecode_array,
+                                          Register bytecode_offset,
+                                          Register bytecode, Register scratch1,
+                                          Label* if_return) {
   Register bytecode_size_table = scratch1;
   DCHECK(!AreAliased(bytecode_array, bytecode_offset, bytecode_size_table,
                      bytecode));
@@ -857,11 +860,11 @@ static void AdvanceBytecodeOffset(MacroAssembler* masm, Register bytecode_array,
       Operand(ExternalReference::bytecode_size_table_address(masm->isolate())));
 
   // Check if the bytecode is a Wide or ExtraWide prefix bytecode.
-  Label load_size, extra_wide;
+  Label process_bytecode, extra_wide;
   STATIC_ASSERT(0 == static_cast<int>(interpreter::Bytecode::kWide));
   STATIC_ASSERT(1 == static_cast<int>(interpreter::Bytecode::kExtraWide));
   __ cmp(bytecode, Operand(0x1));
-  __ b(hi, &load_size);
+  __ b(hi, &process_bytecode);
   __ b(eq, &extra_wide);
 
   // Load the next bytecode and update table to the wide scaled table.
@@ -869,7 +872,7 @@ static void AdvanceBytecodeOffset(MacroAssembler* masm, Register bytecode_array,
   __ ldrb(bytecode, MemOperand(bytecode_array, bytecode_offset));
   __ add(bytecode_size_table, bytecode_size_table,
          Operand(kIntSize * interpreter::Bytecodes::kBytecodeCount));
-  __ jmp(&load_size);
+  __ jmp(&process_bytecode);
 
   __ bind(&extra_wide);
   // Load the next bytecode and update table to the extra wide scaled table.
@@ -878,8 +881,16 @@ static void AdvanceBytecodeOffset(MacroAssembler* masm, Register bytecode_array,
   __ add(bytecode_size_table, bytecode_size_table,
          Operand(2 * kIntSize * interpreter::Bytecodes::kBytecodeCount));
 
-  // Load the size of the current bytecode.
-  __ bind(&load_size);
+  __ bind(&process_bytecode);
+
+// Bailout to the return label if this is a return bytecode.
+#define JUMP_IF_EQUAL(NAME)                                                    \
+  __ cmp(bytecode, Operand(static_cast<int>(interpreter::Bytecode::k##NAME))); \
+  __ b(if_return, eq);
+  RETURN_BYTECODE_LIST(JUMP_IF_EQUAL)
+#undef JUMP_IF_EQUAL
+
+  // Otherwise, load the size of the current bytecode and advance the offset.
   __ ldr(scratch1, MemOperand(bytecode_size_table, bytecode, LSL, 2));
   __ add(bytecode_offset, bytecode_offset, scratch1);
 }
@@ -1008,11 +1019,13 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   __ mov(kInterpreterDispatchTableRegister,
          Operand(ExternalReference::interpreter_dispatch_table_address(
              masm->isolate())));
-  __ ldrb(r1, MemOperand(kInterpreterBytecodeArrayRegister,
-                         kInterpreterBytecodeOffsetRegister));
-  __ ldr(r4, MemOperand(kInterpreterDispatchTableRegister, r1, LSL,
-                        kPointerSizeLog2));
-  __ Call(r4);
+  __ ldrb(kInterpreterTargetBytecodeRegister,
+          MemOperand(kInterpreterBytecodeArrayRegister,
+                     kInterpreterBytecodeOffsetRegister));
+  __ ldr(r1,
+         MemOperand(kInterpreterDispatchTableRegister,
+                    kInterpreterTargetBytecodeRegister, LSL, kPointerSizeLog2));
+  __ Call(r1);
   masm->isolate()->heap()->SetInterpreterEntryReturnPCOffset(masm->pc_offset());
 
   // Any returns to the entry trampoline are either due to the return bytecode
@@ -1025,19 +1038,13 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
          MemOperand(fp, InterpreterFrameConstants::kBytecodeOffsetFromFp));
   __ SmiUntag(kInterpreterBytecodeOffsetRegister);
 
-  // Check if we should return by testing for one of the returning bytecodes.
+  // Either return, or advance to the next bytecode and dispatch.
   Label do_return;
   __ ldrb(r1, MemOperand(kInterpreterBytecodeArrayRegister,
                          kInterpreterBytecodeOffsetRegister));
-#define JUMP_IF_EQUAL(NAME)                                              \
-  __ cmp(r1, Operand(static_cast<int>(interpreter::Bytecode::k##NAME))); \
-  __ b(&do_return, eq);
-  RETURN_BYTECODE_LIST(JUMP_IF_EQUAL)
-#undef JUMP_IF_EQUAL
-
-  // Advance to the next bytecode and dispatch.
-  AdvanceBytecodeOffset(masm, kInterpreterBytecodeArrayRegister,
-                        kInterpreterBytecodeOffsetRegister, r1, r2);
+  AdvanceBytecodeOffsetOrReturn(masm, kInterpreterBytecodeArrayRegister,
+                                kInterpreterBytecodeOffsetRegister, r1, r2,
+                                &do_return);
   __ jmp(&do_dispatch);
 
   __ bind(&do_return);
@@ -1218,12 +1225,14 @@ static void Generate_InterpreterEnterBytecode(MacroAssembler* masm) {
   __ SmiUntag(kInterpreterBytecodeOffsetRegister);
 
   // Dispatch to the target bytecode.
-  __ ldrb(r1, MemOperand(kInterpreterBytecodeArrayRegister,
-                         kInterpreterBytecodeOffsetRegister));
+  __ ldrb(kInterpreterTargetBytecodeRegister,
+          MemOperand(kInterpreterBytecodeArrayRegister,
+                     kInterpreterBytecodeOffsetRegister));
   UseScratchRegisterScope temps(masm);
   Register scratch = temps.Acquire();
-  __ ldr(scratch, MemOperand(kInterpreterDispatchTableRegister, r1, LSL,
-                             kPointerSizeLog2));
+  __ ldr(scratch,
+         MemOperand(kInterpreterDispatchTableRegister,
+                    kInterpreterTargetBytecodeRegister, LSL, kPointerSizeLog2));
   __ Jump(scratch);
 }
 
@@ -1240,14 +1249,20 @@ void Builtins::Generate_InterpreterEnterBytecodeAdvance(MacroAssembler* masm) {
                          kInterpreterBytecodeOffsetRegister));
 
   // Advance to the next bytecode.
-  AdvanceBytecodeOffset(masm, kInterpreterBytecodeArrayRegister,
-                        kInterpreterBytecodeOffsetRegister, r1, r2);
+  Label if_return;
+  AdvanceBytecodeOffsetOrReturn(masm, kInterpreterBytecodeArrayRegister,
+                                kInterpreterBytecodeOffsetRegister, r1, r2,
+                                &if_return);
 
   // Convert new bytecode offset to a Smi and save in the stackframe.
   __ SmiTag(r2, kInterpreterBytecodeOffsetRegister);
   __ str(r2, MemOperand(fp, InterpreterFrameConstants::kBytecodeOffsetFromFp));
 
   Generate_InterpreterEnterBytecode(masm);
+
+  // We should never take the if_return path.
+  __ bind(&if_return);
+  __ Abort(AbortReason::kInvalidBytecodeAdvance);
 }
 
 void Builtins::Generate_InterpreterEnterBytecodeDispatch(MacroAssembler* masm) {

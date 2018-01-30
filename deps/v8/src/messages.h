@@ -598,6 +598,7 @@ class ErrorUtils : public AllStatic {
   T(IllegalLanguageModeDirective,                                              \
     "Illegal '%' directive in function with non-simple parameter list")        \
   T(IllegalReturn, "Illegal return statement")                                 \
+  T(IntrinsicWithSpread, "Intrinsic calls do not support spread arguments")    \
   T(InvalidRestBindingPattern,                                                 \
     "`...` must be followed by an identifier in declaration contexts")         \
   T(InvalidRestAssignmentPattern,                                              \

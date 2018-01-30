@@ -19,10 +19,12 @@ class DetailsSelection extends HTMLElement {
         'change', e => this.notifySelectionChanged(e));
     this.gcSelect.addEventListener(
         'change', e => this.notifySelectionChanged(e));
-    this.$('#csv-export')
+    this.$('#csv-export-btn')
         .addEventListener('click', e => this.exportCurrentSelection(e));
     this.$('#merge-categories')
         .addEventListener('change', e => this.notifySelectionChanged(e));
+    this.$('#category-filter-btn')
+        .addEventListener('click', e => this.filterCurrentSeclection(e));
   }
 
   connectedCallback() {
@@ -108,7 +110,9 @@ class DetailsSelection extends HTMLElement {
     removeAllChildren(this.datasetSelect);
     removeAllChildren(this.gcSelect);
     this.clearCategories();
-    this.$('#csv-export').disabled = 'disabled';
+    this.$('#csv-export-btn').disabled = 'disabled';
+    this.$('#category-filter-btn').disabled = 'disabled';
+    this.$('#category-filter').disabled = 'disabled';
   }
 
   handleIsolateChange(e) {
@@ -141,10 +145,27 @@ class DetailsSelection extends HTMLElement {
     this.selection.data_set = this.datasetSelect.value;
     this.selection.merge_categories = this.$('#merge-categories').checked;
     this.selection.gc = this.gcSelect.value;
-    this.$('#csv-export').disabled = false;
+    this.$('#csv-export-btn').disabled = false;
+    this.$('#category-filter-btn').disabled = false;
+    this.$('#category-filter').disabled = false;
     this.updatePercentagesInCategory();
     this.dispatchEvent(new CustomEvent(
         'change', {bubbles: true, composed: true, detail: this.selection}));
+  }
+
+  filterCurrentSeclection(e) {
+    const filter_value = this.$('#category-filter').value * KB;
+    if (filter_value === 0) return;
+
+    this.selection.category_names.forEach((_, category) => {
+      for (let checkbox of this.shadowRoot.querySelectorAll(
+               'input[name=' + category + 'Checkbox]')) {
+        checkbox.checked =
+            this.selectedData.instance_type_data[checkbox.instance_type]
+                .overall > filter_value;
+      }
+    });
+    this.notifySelectionChanged();
   }
 
   updatePercentagesInCategory() {
@@ -257,6 +278,7 @@ class DetailsSelection extends HTMLElement {
     input.name = category + 'Checkbox';
     input.checked = 'checked';
     input.id = instance_type + 'Checkbox';
+    input.instance_type = instance_type;
     input.value = instance_type;
     input.addEventListener('change', e => this.notifySelectionChanged(e));
     const label = document.createElement('label');

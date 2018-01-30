@@ -124,42 +124,6 @@ Node* StringBuiltinsAssembler::PointerToStringDataAtIndex(
   return IntPtrAdd(string_data, offset_in_bytes);
 }
 
-void StringBuiltinsAssembler::ConvertAndBoundsCheckStartArgument(
-    Node* context, Variable* var_start, Node* start, Node* string_length) {
-  TNode<Object> const start_int = ToInteger_Inline(
-      CAST(context), CAST(start), CodeStubAssembler::kTruncateMinusZero);
-  TNode<Smi> const zero = SmiConstant(0);
-
-  Label done(this);
-  Label if_issmi(this), if_isheapnumber(this, Label::kDeferred);
-  Branch(TaggedIsSmi(start_int), &if_issmi, &if_isheapnumber);
-
-  BIND(&if_issmi);
-  {
-    TNode<Smi> const start_int_smi = CAST(start_int);
-    var_start->Bind(Select(
-        SmiLessThan(start_int_smi, zero),
-        [&] { return SmiMax(SmiAdd(string_length, start_int_smi), zero); },
-        [&] { return start_int_smi; }, MachineRepresentation::kTagged));
-    Goto(&done);
-  }
-
-  BIND(&if_isheapnumber);
-  {
-    // If {start} is a heap number, it is definitely out of bounds. If it is
-    // negative, {start} = max({string_length} + {start}),0) = 0'. If it is
-    // positive, set {start} to {string_length} which ultimately results in
-    // returning an empty string.
-    TNode<HeapNumber> const start_int_hn = CAST(start_int);
-    TNode<Float64T> const float_zero = Float64Constant(0.);
-    TNode<Float64T> const start_float = LoadHeapNumberValue(start_int_hn);
-    var_start->Bind(SelectTaggedConstant<Smi>(
-        Float64LessThan(start_float, float_zero), zero, string_length));
-    Goto(&done);
-  }
-  BIND(&done);
-}
-
 void StringBuiltinsAssembler::GenerateStringEqual(Node* context, Node* left,
                                                   Node* right) {
   VARIABLE(var_left, MachineRepresentation::kTagged, left);
@@ -563,7 +527,21 @@ TF_BUILTIN(StringCharAt, StringBuiltinsAssembler) {
   Return(result);
 }
 
-TF_BUILTIN(StringCodePointAt, StringBuiltinsAssembler) {
+TF_BUILTIN(StringCodePointAtUTF16, StringBuiltinsAssembler) {
+  Node* receiver = Parameter(Descriptor::kReceiver);
+  Node* position = Parameter(Descriptor::kPosition);
+  // TODO(sigurds) Figure out if passing length as argument pays off.
+  TNode<IntPtrT> length = LoadStringLengthAsWord(receiver);
+  // Load the character code at the {position} from the {receiver}.
+  TNode<Int32T> code =
+      LoadSurrogatePairAt(receiver, length, position, UnicodeEncoding::UTF16);
+  // And return it as TaggedSigned value.
+  // TODO(turbofan): Allow builtins to return values untagged.
+  TNode<Smi> result = SmiFromWord32(code);
+  Return(result);
+}
+
+TF_BUILTIN(StringCodePointAtUTF32, StringBuiltinsAssembler) {
   Node* receiver = Parameter(Descriptor::kReceiver);
   Node* position = Parameter(Descriptor::kPosition);
 
@@ -729,6 +707,8 @@ TF_BUILTIN(StringPrototypeCodePointAt, StringBuiltinsAssembler) {
                    maybe_position, UndefinedConstant(),
                    [this](TNode<String> receiver, TNode<IntPtrT> length,
                           TNode<IntPtrT> index) {
+                     // This is always a call to a builtin from Javascript,
+                     // so we need to produce UTF32.
                      Node* value = LoadSurrogatePairAt(receiver, length, index,
                                                        UnicodeEncoding::UTF32);
                      return SmiFromWord32(value);
@@ -1666,8 +1646,8 @@ TF_BUILTIN(StringPrototypeSearch, StringMatchSearchAssembler) {
 // ES6 section 21.1.3.18 String.prototype.slice ( start, end )
 TF_BUILTIN(StringPrototypeSlice, StringBuiltinsAssembler) {
   Label out(this);
-  VARIABLE(var_start, MachineRepresentation::kTagged);
-  VARIABLE(var_end, MachineRepresentation::kTagged);
+  TVARIABLE(Smi, var_start);
+  TVARIABLE(Smi, var_end);
 
   const int kStart = 0;
   const int kEnd = 1;
@@ -1675,11 +1655,9 @@ TF_BUILTIN(StringPrototypeSlice, StringBuiltinsAssembler) {
       ChangeInt32ToIntPtr(Parameter(BuiltinDescriptor::kArgumentsCount));
   CodeStubArguments args(this, argc);
   Node* const receiver = args.GetReceiver();
-  Node* const start = args.GetOptionalArgumentValue(kStart);
+  TNode<Object> start = args.GetOptionalArgumentValue(kStart);
   TNode<Object> end = CAST(args.GetOptionalArgumentValue(kEnd));
   TNode<Context> context = CAST(Parameter(BuiltinDescriptor::kContext));
-
-  TNode<Smi> const smi_zero = SmiConstant(0);
 
   // 1. Let O be ? RequireObjectCoercible(this value).
   RequireObjectCoercible(context, receiver, "String.prototype.slice");
@@ -1691,53 +1669,23 @@ TF_BUILTIN(StringPrototypeSlice, StringBuiltinsAssembler) {
   // 3. Let len be the number of elements in S.
   TNode<Smi> const length = LoadStringLengthAsSmi(subject_string);
 
-  // Conversions and bounds-checks for {start}.
-  ConvertAndBoundsCheckStartArgument(context, &var_start, start, length);
+  // Convert {start} to a relative index.
+  var_start = ConvertToRelativeIndex(context, start, length);
 
   // 5. If end is undefined, let intEnd be len;
-  var_end.Bind(length);
+  var_end = length;
   GotoIf(IsUndefined(end), &out);
 
-  // else let intEnd be ? ToInteger(end).
-  Node* const end_int =
-      ToInteger_Inline(context, end, CodeStubAssembler::kTruncateMinusZero);
-
-  // 7. If intEnd < 0, let to be max(len + intEnd, 0);
-  //    otherwise let to be min(intEnd, len).
-  Label if_issmi(this), if_isheapnumber(this, Label::kDeferred);
-  Branch(TaggedIsSmi(end_int), &if_issmi, &if_isheapnumber);
-
-  BIND(&if_issmi);
-  {
-    Node* const length_plus_end = SmiAdd(length, end_int);
-    var_end.Bind(Select(SmiLessThan(end_int, smi_zero),
-                        [&] { return SmiMax(length_plus_end, smi_zero); },
-                        [&] { return SmiMin(length, end_int); },
-                        MachineRepresentation::kTagged));
-    Goto(&out);
-  }
-
-  BIND(&if_isheapnumber);
-  {
-    // If {end} is a heap number, it is definitely out of bounds. If it is
-    // negative, {int_end} = max({length} + {int_end}),0) = 0'. If it is
-    // positive, set {int_end} to {length} which ultimately results in
-    // returning an empty string.
-    Node* const float_zero = Float64Constant(0.);
-    Node* const end_float = LoadHeapNumberValue(end_int);
-    var_end.Bind(SelectTaggedConstant<Smi>(
-        Float64LessThan(end_float, float_zero), smi_zero, length));
-    Goto(&out);
-  }
+  // Convert {end} to a relative index.
+  var_end = ConvertToRelativeIndex(context, end, length);
+  Goto(&out);
 
   Label return_emptystring(this);
   BIND(&out);
   {
-    GotoIf(SmiLessThanOrEqual(var_end.value(), var_start.value()),
-           &return_emptystring);
-    Node* const result =
-        SubString(context, subject_string, var_start.value(), var_end.value(),
-                  SubStringFlags::FROM_TO_ARE_BOUNDED);
+    GotoIf(SmiLessThanOrEqual(var_end, var_start), &return_emptystring);
+    Node* const result = SubString(context, subject_string, var_start, var_end,
+                                   SubStringFlags::FROM_TO_ARE_BOUNDED);
     args.PopAndReturn(result);
   }
 
@@ -1855,7 +1803,7 @@ TF_BUILTIN(StringPrototypeSubstr, StringBuiltinsAssembler) {
   CodeStubArguments args(this, argc);
 
   Node* const receiver = args.GetReceiver();
-  Node* const start = args.GetOptionalArgumentValue(kStartArg);
+  TNode<Object> start = args.GetOptionalArgumentValue(kStartArg);
   TNode<Object> length = CAST(args.GetOptionalArgumentValue(kLengthArg));
   TNode<Context> context = CAST(Parameter(BuiltinDescriptor::kContext));
 
@@ -1872,8 +1820,8 @@ TF_BUILTIN(StringPrototypeSubstr, StringBuiltinsAssembler) {
 
   TNode<Smi> const string_length = LoadStringLengthAsSmi(string);
 
-  // Conversions and bounds-checks for {start}.
-  ConvertAndBoundsCheckStartArgument(context, &var_start, start, string_length);
+  // Convert {start} to a relative index.
+  var_start = ConvertToRelativeIndex(context, start, string_length);
 
   // Conversions and bounds-checks for {length}.
   Label if_issmi(this), if_isheapnumber(this, Label::kDeferred);

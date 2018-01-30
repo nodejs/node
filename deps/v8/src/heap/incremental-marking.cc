@@ -653,15 +653,17 @@ bool IncrementalMarking::IsFixedArrayWithProgressBar(HeapObject* obj) {
 
 int IncrementalMarking::VisitObject(Map* map, HeapObject* obj) {
   DCHECK(marking_state()->IsGrey(obj) || marking_state()->IsBlack(obj));
-  // The object can already be black in two cases:
-  // 1. The object is a fixed array with the progress bar.
-  // 2. The object is a JSObject that was colored black before
-  //    unsafe layout change.
-  // 3. The object is a string that was colored black before
-  //    unsafe layout change.
   if (!marking_state()->GreyToBlack(obj)) {
-    DCHECK(IsFixedArrayWithProgressBar(obj) || obj->IsJSObject() ||
-           obj->IsString());
+    // The object can already be black in these cases:
+    // 1. The object is a fixed array with the progress bar.
+    // 2. The object is a JSObject that was colored black before
+    //    unsafe layout change.
+    // 3. The object is a string that was colored black before
+    //    unsafe layout change.
+    // 4. The object is materizalized by the deoptimizer.
+    DCHECK(obj->IsHashTable() || obj->IsPropertyArray() ||
+           obj->IsContextExtension() || obj->IsFixedArray() ||
+           obj->IsJSObject() || obj->IsString());
   }
   DCHECK(marking_state()->IsBlack(obj));
   WhiteToGreyAndPush(map);

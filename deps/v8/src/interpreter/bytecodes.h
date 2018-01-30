@@ -820,6 +820,9 @@ class V8_EXPORT_PRIVATE Bytecodes final : public AllStatic {
   // Returns true if |operand_type| represents a register used as an output.
   static bool IsRegisterOutputOperandType(OperandType operand_type);
 
+  // Returns true if |operand_type| represents a register list operand.
+  static bool IsRegisterListOperandType(OperandType operand_type);
+
   // Returns true if the handler for |bytecode| should look ahead and inline a
   // dispatch to a Star bytecode.
   static bool IsStarLookahead(Bytecode bytecode, OperandScale operand_scale);

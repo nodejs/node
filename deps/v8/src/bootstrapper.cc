@@ -2453,20 +2453,6 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
       native_context()->set_promise_resolve(*function);
     }
 
-    {  // Internal: PromiseHandle
-      Handle<JSFunction> function =
-          SimpleCreateFunction(isolate, factory->empty_string(),
-                               Builtins::kPromiseHandleJS, 5, false);
-      native_context()->set_promise_handle(*function);
-    }
-
-    {  // Internal: PromiseHandleReject
-      Handle<JSFunction> function =
-          SimpleCreateFunction(isolate, factory->empty_string(),
-                               Builtins::kPromiseHandleReject, 3, false);
-      native_context()->set_promise_handle_reject(*function);
-    }
-
     {  // Internal: InternalPromiseReject
       Handle<JSFunction> function =
           SimpleCreateFunction(isolate, factory->empty_string(),

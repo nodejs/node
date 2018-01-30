@@ -1829,6 +1829,7 @@ void BytecodeGenerator::BuildClassLiteral(ClassLiteral* expr) {
     for (int i = 0; i < expr->properties()->length(); i++) {
       ClassLiteral::Property* property = expr->properties()->at(i);
       if (property->is_computed_name()) {
+        DCHECK_NE(property->kind(), ClassLiteral::Property::PRIVATE_FIELD);
         Register key = register_allocator()->GrowRegisterList(&args);
 
         BuildLoadPropertyKey(property, key);
@@ -1846,7 +1847,7 @@ void BytecodeGenerator::BuildClassLiteral(ClassLiteral* expr) {
               .Bind(&done);
         }
 
-        if (property->kind() == ClassLiteral::Property::FIELD) {
+        if (property->kind() == ClassLiteral::Property::PUBLIC_FIELD) {
           // Initialize field's name variable with the computed name.
           DCHECK_NOT_NULL(property->computed_name_var());
           builder()->LoadAccumulatorWithRegister(key);
@@ -1854,11 +1855,19 @@ void BytecodeGenerator::BuildClassLiteral(ClassLiteral* expr) {
                                   HoleCheckMode::kElided);
         }
       }
-      if (property->kind() == ClassLiteral::Property::FIELD) {
+
+      if (property->kind() == ClassLiteral::Property::PUBLIC_FIELD) {
         // We don't compute field's value here, but instead do it in the
         // initializer function.
         continue;
+      } else if (property->kind() == ClassLiteral::Property::PRIVATE_FIELD) {
+        builder()->CallRuntime(Runtime::kCreatePrivateSymbol);
+        DCHECK_NOT_NULL(property->private_field_name_var());
+        BuildVariableAssignment(property->private_field_name_var(), Token::INIT,
+                                HoleCheckMode::kElided);
+        continue;
       }
+
       Register value = register_allocator()->GrowRegisterList(&args);
       VisitForRegisterValue(property->value(), value);
     }
@@ -1938,11 +1947,17 @@ void BytecodeGenerator::VisitInitializeClassFieldsStatement(
     ClassLiteral::Property* property = expr->fields()->at(i);
 
     if (property->is_computed_name()) {
+      DCHECK_EQ(property->kind(), ClassLiteral::Property::PUBLIC_FIELD);
       Variable* var = property->computed_name_var();
       DCHECK_NOT_NULL(var);
       // The computed name is already evaluated and stored in a
       // variable at class definition time.
       BuildVariableLoad(var, HoleCheckMode::kElided);
+      builder()->StoreAccumulatorInRegister(key);
+    } else if (property->kind() == ClassLiteral::Property::PRIVATE_FIELD) {
+      Variable* private_field_name_var = property->private_field_name_var();
+      DCHECK_NOT_NULL(private_field_name_var);
+      BuildVariableLoad(private_field_name_var, HoleCheckMode::kElided);
       builder()->StoreAccumulatorInRegister(key);
     } else {
       BuildLoadPropertyKey(property, key);

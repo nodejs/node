@@ -581,11 +581,13 @@ TNode<Object> CodeStubAssembler::NumberMin(SloppyTNode<Object> a,
   return TNode<Object>::UncheckedCast(result.value());
 }
 
-void CodeStubAssembler::ConvertToRelativeIndex(Node* context,
-                                               Variable* var_result,
-                                               Node* index, Node* length) {
-  TNode<Object> const index_int =
-      ToInteger(context, index, CodeStubAssembler::kTruncateMinusZero);
+TNode<Smi> CodeStubAssembler::ConvertToRelativeIndex(TNode<Context> context,
+                                                     TNode<Object> index,
+                                                     TNode<Smi> length) {
+  TVARIABLE(Smi, result);
+
+  TNode<Number> const index_int =
+      ToInteger_Inline(context, index, CodeStubAssembler::kTruncateMinusZero);
   TNode<Smi> const zero = SmiConstant(0);
 
   Label done(this);
@@ -594,12 +596,12 @@ void CodeStubAssembler::ConvertToRelativeIndex(Node* context,
 
   BIND(&if_issmi);
   {
-    TNode<Smi> const start_int_smi = CAST(index_int);
-    var_result->Bind(
-        Select(SmiLessThan(start_int_smi, zero),
-               [&] { return SmiMax(SmiAdd(length, start_int_smi), zero); },
-               [&] { return SmiMin(start_int_smi, length); },
-               MachineRepresentation::kTagged));
+    TNode<Smi> const index_smi = CAST(index_int);
+    result =
+        Select<Smi>(SmiLessThan(index_smi, zero),
+                    [&] { return SmiMax(SmiAdd(length, index_smi), zero); },
+                    [&] { return SmiMin(index_smi, length); },
+                    MachineRepresentation::kTagged);
     Goto(&done);
   }
 
@@ -608,14 +610,15 @@ void CodeStubAssembler::ConvertToRelativeIndex(Node* context,
     // If {index} is a heap number, it is definitely out of bounds. If it is
     // negative, {index} = max({length} + {index}),0) = 0'. If it is positive,
     // set {index} to {length}.
-    TNode<HeapNumber> const start_int_hn = CAST(index_int);
+    TNode<HeapNumber> const index_hn = CAST(index_int);
     TNode<Float64T> const float_zero = Float64Constant(0.);
-    TNode<Float64T> const start_float = LoadHeapNumberValue(start_int_hn);
-    var_result->Bind(SelectTaggedConstant<Smi>(
-        Float64LessThan(start_float, float_zero), zero, length));
+    TNode<Float64T> const index_float = LoadHeapNumberValue(index_hn);
+    result = SelectTaggedConstant<Smi>(Float64LessThan(index_float, float_zero),
+                                       zero, length);
     Goto(&done);
   }
   BIND(&done);
+  return result;
 }
 
 Node* CodeStubAssembler::SmiMod(Node* a, Node* b) {
@@ -2987,7 +2990,7 @@ Node* CodeStubAssembler::ExtractFixedArray(Node* fixed_array, Node* first,
   Label if_fixed_double_array(this), empty(this), cow(this),
       done(this, {&var_result, &var_fixed_array_map});
   var_fixed_array_map.Bind(LoadMap(fixed_array));
-  GotoIf(WordEqual(IntPtrOrSmiConstant(0, parameter_mode), count), &empty);
+  GotoIf(WordEqual(IntPtrOrSmiConstant(0, parameter_mode), capacity), &empty);
 
   if (extract_flags & ExtractFixedArrayFlag::kFixedDoubleArrays) {
     if (extract_flags & ExtractFixedArrayFlag::kFixedArrays) {
@@ -4309,6 +4312,11 @@ Node* CodeStubAssembler::IsJSObjectMap(Node* map) {
 
 Node* CodeStubAssembler::IsJSObject(Node* object) {
   return IsJSObjectMap(LoadMap(object));
+}
+
+Node* CodeStubAssembler::IsJSPromiseMap(Node* map) {
+  CSA_ASSERT(this, IsMap(map));
+  return InstanceTypeEqual(LoadMapInstanceType(map), JS_PROMISE_TYPE);
 }
 
 Node* CodeStubAssembler::IsJSProxy(Node* object) {
@@ -7844,14 +7852,14 @@ void CodeStubAssembler::EmitElementStore(Node* object, Node* key, Node* value,
                                          KeyedAccessStoreMode store_mode,
                                          Label* bailout) {
   CSA_ASSERT(this, Word32BinaryNot(IsJSProxy(object)));
+
   Node* elements = LoadElements(object);
-  if (IsSmiOrObjectElementsKind(elements_kind) &&
-      store_mode != STORE_NO_TRANSITION_HANDLE_COW) {
-    // Bailout in case of COW elements.
-    GotoIf(WordNotEqual(LoadMap(elements),
-                        LoadRoot(Heap::kFixedArrayMapRootIndex)),
-           bailout);
+  if (!IsSmiOrObjectElementsKind(elements_kind)) {
+    CSA_ASSERT(this, Word32BinaryNot(IsFixedCOWArrayMap(LoadMap(elements))));
+  } else if (!IsCOWHandlingStoreMode(store_mode)) {
+    GotoIf(IsFixedCOWArrayMap(LoadMap(elements)), bailout);
   }
+
   // TODO(ishell): introduce TryToIntPtrOrSmi() and use OptimalParameterMode().
   ParameterMode parameter_mode = INTPTR_PARAMETERS;
   key = TryToIntptr(key, bailout);
@@ -7917,25 +7925,30 @@ void CodeStubAssembler::EmitElementStore(Node* object, Node* key, Node* value,
   }
 
   if (IsGrowStoreMode(store_mode)) {
-    elements = CheckForCapacityGrow(object, elements, elements_kind, length,
-                                    key, parameter_mode, is_jsarray, bailout);
+    elements =
+        CheckForCapacityGrow(object, elements, elements_kind, store_mode,
+                             length, key, parameter_mode, is_jsarray, bailout);
   } else {
     GotoIfNot(UintPtrLessThan(key, length), bailout);
-
-    if ((store_mode == STORE_NO_TRANSITION_HANDLE_COW) &&
-        IsSmiOrObjectElementsKind(elements_kind)) {
-      elements = CopyElementsOnWrite(object, elements, elements_kind, length,
-                                     parameter_mode, bailout);
-    }
   }
+
+  // If we didn't grow {elements}, it might still be COW, in which case we
+  // copy it now.
+  if (!IsSmiOrObjectElementsKind(elements_kind)) {
+    CSA_ASSERT(this, Word32BinaryNot(IsFixedCOWArrayMap(LoadMap(elements))));
+  } else if (IsCOWHandlingStoreMode(store_mode)) {
+    elements = CopyElementsOnWrite(object, elements, elements_kind, length,
+                                   parameter_mode, bailout);
+  }
+
+  CSA_ASSERT(this, Word32BinaryNot(IsFixedCOWArrayMap(LoadMap(elements))));
   StoreElement(elements, elements_kind, key, value, parameter_mode);
 }
 
-Node* CodeStubAssembler::CheckForCapacityGrow(Node* object, Node* elements,
-                                              ElementsKind kind, Node* length,
-                                              Node* key, ParameterMode mode,
-                                              bool is_js_array,
-                                              Label* bailout) {
+Node* CodeStubAssembler::CheckForCapacityGrow(
+    Node* object, Node* elements, ElementsKind kind,
+    KeyedAccessStoreMode store_mode, Node* length, Node* key,
+    ParameterMode mode, bool is_js_array, Label* bailout) {
   VARIABLE(checked_elements, MachineRepresentation::kTagged);
   Label grow_case(this), no_grow_case(this), done(this);
 
@@ -7943,6 +7956,7 @@ Node* CodeStubAssembler::CheckForCapacityGrow(Node* object, Node* elements,
   if (IsHoleyOrDictionaryElementsKind(kind)) {
     condition = UintPtrGreaterThanOrEqual(key, length);
   } else {
+    // We don't support growing here unless the value is being appended.
     condition = WordEqual(key, length);
   }
   Branch(condition, &grow_case, &no_grow_case);
@@ -7951,20 +7965,18 @@ Node* CodeStubAssembler::CheckForCapacityGrow(Node* object, Node* elements,
   {
     Node* current_capacity =
         TaggedToParameter(LoadFixedArrayBaseLength(elements), mode);
-
     checked_elements.Bind(elements);
-
     Label fits_capacity(this);
     GotoIf(UintPtrLessThan(key, current_capacity), &fits_capacity);
+
     {
       Node* new_elements = TryGrowElementsCapacity(
           object, elements, kind, key, current_capacity, mode, bailout);
-
       checked_elements.Bind(new_elements);
       Goto(&fits_capacity);
     }
-    BIND(&fits_capacity);
 
+    BIND(&fits_capacity);
     if (is_js_array) {
       Node* new_length = IntPtrAdd(key, IntPtrOrSmiConstant(1, mode));
       StoreObjectFieldNoWriteBarrier(object, JSArray::kLengthOffset,
@@ -7991,15 +8003,12 @@ Node* CodeStubAssembler::CopyElementsOnWrite(Node* object, Node* elements,
   VARIABLE(new_elements_var, MachineRepresentation::kTagged, elements);
   Label done(this);
 
-  GotoIfNot(
-      WordEqual(LoadMap(elements), LoadRoot(Heap::kFixedCOWArrayMapRootIndex)),
-      &done);
+  GotoIfNot(IsFixedCOWArrayMap(LoadMap(elements)), &done);
   {
     Node* capacity =
         TaggedToParameter(LoadFixedArrayBaseLength(elements), mode);
     Node* new_elements = GrowElementsCapacity(object, elements, kind, kind,
                                               length, capacity, mode, bailout);
-
     new_elements_var.Bind(new_elements);
     Goto(&done);
   }

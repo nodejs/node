@@ -1574,6 +1574,11 @@ class Heap {
   void RemoveAllocationObserversFromAllSpaces(
       AllocationObserver* observer, AllocationObserver* new_space_observer);
 
+  bool allocation_step_in_progress() { return allocation_step_in_progress_; }
+  void set_allocation_step_in_progress(bool val) {
+    allocation_step_in_progress_ = val;
+  }
+
   // ===========================================================================
   // Retaining path tracking. ==================================================
   // ===========================================================================
@@ -2402,6 +2407,8 @@ class Heap {
 
   // Observer that can cause early scavenge start.
   StressScavengeObserver* stress_scavenge_observer_;
+
+  bool allocation_step_in_progress_;
 
   // The maximum percent of the marking limit reached wihout causing marking.
   // This is tracked when specyfing --fuzzer-gc-analysis.

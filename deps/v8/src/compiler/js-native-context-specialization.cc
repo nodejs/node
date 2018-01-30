@@ -2246,10 +2246,11 @@ JSNativeContextSpecialization::BuildElementAccess(
         simplified()->LoadField(AccessBuilder::ForJSObjectElements()), receiver,
         effect, control);
 
-    // Don't try to store to a copy-on-write backing store.
+    // Don't try to store to a copy-on-write backing store (unless supported by
+    // the store mode).
     if (access_mode == AccessMode::kStore &&
         IsSmiOrObjectElementsKind(elements_kind) &&
-        store_mode != STORE_NO_TRANSITION_HANDLE_COW) {
+        !IsCOWHandlingStoreMode(store_mode)) {
       effect = graph()->NewNode(
           simplified()->CheckMaps(
               CheckMapsFlag::kNone,
@@ -2458,6 +2459,15 @@ JSNativeContextSpecialization::BuildElementAccess(
         elements = effect = graph()->NewNode(
             simplified()->MaybeGrowFastElements(mode, VectorSlotPair()),
             receiver, elements, index, elements_length, effect, control);
+
+        // If we didn't grow {elements}, it might still be COW, in which case we
+        // copy it now.
+        if (IsSmiOrObjectElementsKind(elements_kind) &&
+            store_mode == STORE_AND_GROW_NO_TRANSITION_HANDLE_COW) {
+          elements = effect =
+              graph()->NewNode(simplified()->EnsureWritableFastElements(),
+                               receiver, elements, effect, control);
+        }
 
         // Also update the "length" property if {receiver} is a JSArray.
         if (receiver_is_jsarray) {

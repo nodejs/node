@@ -287,6 +287,33 @@ bool Builtins::IsLazy(int index) {
 }
 
 // static
+bool Builtins::IsIsolateIndependent(int index) {
+  DCHECK(IsBuiltinId(index));
+  // TODO(jgruber): Extend this list.
+  switch (index) {
+    case kContinueToCodeStubBuiltin:
+    case kContinueToCodeStubBuiltinWithResult:
+    case kContinueToJavaScriptBuiltin:
+    case kContinueToJavaScriptBuiltinWithResult:
+#ifndef DEBUG
+#if !V8_TARGET_ARCH_IA32
+    case kClassOf:
+    case kConstructFunction:
+    case kTypeof:
+    case kWeakMapLookupHashIndex:
+#endif
+    case kLoadIC_StringLength:
+    case kLoadIC_StringWrapperLength:
+    case kOrderedHashTableHealIndex:
+#endif
+      return true;
+    default:
+      return false;
+  }
+  UNREACHABLE();
+}
+
+// static
 Builtins::Kind Builtins::KindOf(int index) {
   DCHECK(IsBuiltinId(index));
   return builtin_metadata[index].kind;

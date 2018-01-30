@@ -184,7 +184,7 @@ enum KeyedAccessStoreMode {
   STANDARD_STORE,
   STORE_TRANSITION_TO_OBJECT,
   STORE_TRANSITION_TO_DOUBLE,
-  STORE_AND_GROW_NO_TRANSITION,
+  STORE_AND_GROW_NO_TRANSITION_HANDLE_COW,
   STORE_AND_GROW_TRANSITION_TO_OBJECT,
   STORE_AND_GROW_TRANSITION_TO_DOUBLE,
   STORE_NO_TRANSITION_IGNORE_OUT_OF_BOUNDS,
@@ -204,21 +204,25 @@ static inline bool IsTransitionStoreMode(KeyedAccessStoreMode store_mode) {
          store_mode == STORE_AND_GROW_TRANSITION_TO_DOUBLE;
 }
 
+static inline bool IsCOWHandlingStoreMode(KeyedAccessStoreMode store_mode) {
+  return store_mode == STORE_NO_TRANSITION_HANDLE_COW ||
+         store_mode == STORE_AND_GROW_NO_TRANSITION_HANDLE_COW;
+}
 
 static inline KeyedAccessStoreMode GetNonTransitioningStoreMode(
     KeyedAccessStoreMode store_mode) {
   if (store_mode >= STORE_NO_TRANSITION_IGNORE_OUT_OF_BOUNDS) {
     return store_mode;
   }
-  if (store_mode >= STORE_AND_GROW_NO_TRANSITION) {
-    return STORE_AND_GROW_NO_TRANSITION;
+  if (store_mode >= STORE_AND_GROW_NO_TRANSITION_HANDLE_COW) {
+    return STORE_AND_GROW_NO_TRANSITION_HANDLE_COW;
   }
   return STANDARD_STORE;
 }
 
 
 static inline bool IsGrowStoreMode(KeyedAccessStoreMode store_mode) {
-  return store_mode >= STORE_AND_GROW_NO_TRANSITION &&
+  return store_mode >= STORE_AND_GROW_NO_TRANSITION_HANDLE_COW &&
          store_mode <= STORE_AND_GROW_TRANSITION_TO_DOUBLE;
 }
 

@@ -200,6 +200,17 @@ bool Bytecodes::IsRegisterOperandType(OperandType operand_type) {
   return false;
 }
 
+// static
+bool Bytecodes::IsRegisterListOperandType(OperandType operand_type) {
+  switch (operand_type) {
+    case OperandType::kRegList:
+    case OperandType::kRegOutList:
+      return true;
+    default:
+      return false;
+  }
+}
+
 bool Bytecodes::MakesCallAlongCriticalPath(Bytecode bytecode) {
   if (IsCallOrConstruct(bytecode) || IsCallRuntime(bytecode)) return true;
   switch (bytecode) {

@@ -855,7 +855,7 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
       result = LowerSeqStringCharCodeAt(node);
       break;
     case IrOpcode::kStringCodePointAt:
-      result = LowerStringCodePointAt(node);
+      result = LowerStringCodePointAt(node, UnicodeEncodingOf(node->op()));
       break;
     case IrOpcode::kSeqStringCodePointAt:
       result = LowerSeqStringCharCodeAt(node);
@@ -2838,12 +2838,16 @@ Node* EffectControlLinearizer::LowerStringCharCodeAt(Node* node) {
   return loop_done.PhiAt(0);
 }
 
-Node* EffectControlLinearizer::LowerStringCodePointAt(Node* node) {
+Node* EffectControlLinearizer::LowerStringCodePointAt(
+    Node* node, UnicodeEncoding encoding) {
   Node* receiver = node->InputAt(0);
   Node* position = node->InputAt(1);
 
-  Callable const callable =
-      Builtins::CallableFor(isolate(), Builtins::kStringCodePointAt);
+  Builtins::Name builtin = encoding == UnicodeEncoding::UTF16
+                               ? Builtins::kStringCodePointAtUTF16
+                               : Builtins::kStringCodePointAtUTF32;
+
+  Callable const callable = Builtins::CallableFor(isolate(), builtin);
   Operator::Properties properties = Operator::kNoThrow | Operator::kNoWrite;
   CallDescriptor::Flags flags = CallDescriptor::kNoFlags;
   CallDescriptor* desc = Linkage::GetStubCallDescriptor(

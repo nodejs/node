@@ -153,6 +153,7 @@
         '../src/builtins/builtins-arguments-gen.cc',
         '../src/builtins/builtins-arguments-gen.h',
         '../src/builtins/builtins-array-gen.cc',
+        '../src/builtins/builtins-array-gen.h',
         '../src/builtins/builtins-async-function-gen.cc',
         '../src/builtins/builtins-async-gen.cc',
         '../src/builtins/builtins-async-gen.h',

@@ -146,6 +146,7 @@ const CATEGORIES = new Map([
       'SCRIPT_TYPE',
       'SHARED_FUNCTION_INFO_TYPE',
       'STORE_HANDLER_TYPE',
+      'UNCOMPILED_SHARED_FUNCTION_INFO_TYPE',
     ])
   ],
   ['unclassified', new Set()],

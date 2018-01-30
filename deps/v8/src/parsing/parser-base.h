@@ -2337,7 +2337,9 @@ ParserBase<Impl>::ParseClassPropertyDefinition(
     case PropertyKind::kShorthandProperty:
     case PropertyKind::kValueProperty:
       if (allow_harmony_public_fields() || allow_harmony_private_fields()) {
-        *property_kind = ClassLiteralProperty::FIELD;
+        *property_kind = name_token == Token::PRIVATE_NAME
+                             ? ClassLiteralProperty::PRIVATE_FIELD
+                             : ClassLiteralProperty::PUBLIC_FIELD;
         if (*is_static && !allow_harmony_static_fields()) {
           ReportUnexpectedToken(Next());
           *ok = false;
@@ -3712,15 +3714,18 @@ ParserBase<Impl>::ParseMemberExpressionContinuation(ExpressionT expression,
 
         Consume(Token::PERIOD);
         int pos = peek_position();
+        ExpressionT key;
         IdentifierT name;
         if (allow_harmony_private_fields() && peek() == Token::PRIVATE_NAME) {
+          // TODO(gsathya): Validate that we are in a class body.
           Consume(Token::PRIVATE_NAME);
           name = impl()->GetSymbol();
+          key = impl()->ExpressionFromIdentifier(name, pos, InferName::kNo);
         } else {
           name = ParseIdentifierName(CHECK_OK);
+          key = factory()->NewStringLiteral(name, pos);
         }
-        expression = factory()->NewProperty(
-            expression, factory()->NewStringLiteral(name, pos), pos);
+        expression = factory()->NewProperty(expression, key, pos);
         impl()->PushLiteralName(name);
         break;
       }
@@ -4548,7 +4553,8 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseClassLiteral(
         is_computed_name) {
       class_info.has_static_computed_names = true;
     }
-    if (is_computed_name && property_kind == ClassLiteralProperty::FIELD) {
+    if (is_computed_name &&
+        property_kind == ClassLiteralProperty::PUBLIC_FIELD) {
       class_info.computed_field_count++;
     }
     is_constructor &= class_info.has_seen_constructor;
@@ -4809,7 +4815,12 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseV8Intrinsic(
   ExpressionClassifier classifier(this);
   ExpressionListT args = ParseArguments(&spread_pos, CHECK_OK);
 
-  DCHECK(!spread_pos.IsValid());
+  if (spread_pos.IsValid()) {
+    *ok = false;
+    ReportMessageAt(spread_pos, MessageTemplate::kIntrinsicWithSpread,
+                    kSyntaxError);
+    return impl()->NullExpression();
+  }
 
   return impl()->NewV8Intrinsic(name, args, pos, ok);
 }

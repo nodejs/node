@@ -28,13 +28,13 @@ GYP_FILES = [
   os.path.join(V8_BASE, 'gypfiles', 'v8vtune.gyp'),
   os.path.join(V8_BASE, 'gypfiles', 'samples.gyp'),
   os.path.join(V8_BASE, 'gypfiles', 'cctest.gyp'),
-  os.path.join(V8_BASE, 'test', 'fuzzer', 'fuzzer.gyp'),
-  os.path.join(V8_BASE, 'test', 'unittests', 'unittests.gyp'),
-  os.path.join(V8_BASE, 'test', 'inspector', 'inspector.gyp'),
-  os.path.join(V8_BASE, 'test', 'mkgrokdump', 'mkgrokdump.gyp'),
-  os.path.join(V8_BASE, 'testing', 'gmock.gyp'),
-  os.path.join(V8_BASE, 'testing', 'gtest.gyp'),
-  os.path.join(V8_BASE, 'tools', 'parser-shell.gyp'),
+  os.path.join(V8_BASE, 'gypfiles', 'fuzzer.gyp'),
+  os.path.join(V8_BASE, 'gypfiles', 'unittests.gyp'),
+  os.path.join(V8_BASE, 'gypfiles', 'inspector-test.gyp'),
+  os.path.join(V8_BASE, 'gypfiles', 'mkgrokdump.gyp'),
+  os.path.join(V8_BASE, 'gypfiles', 'gmock.gyp'),
+  os.path.join(V8_BASE, 'gypfiles', 'gtest.gyp'),
+  os.path.join(V8_BASE, 'gypfiles', 'parser-shell.gyp'),
 ]
 
 ALL_GYP_PREFIXES = [

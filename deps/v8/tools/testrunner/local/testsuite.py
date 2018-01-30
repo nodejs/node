@@ -117,9 +117,18 @@ class TestSuite(object):
     self.root = root  # string containing path
     self.tests = None  # list of TestCase objects
     self.statusfile = None
+    self.suppress_internals = False
 
   def status_file(self):
     return "%s/%s.status" % (self.root, self.name)
+
+  def do_suppress_internals(self):
+    """Specifies if this test suite should suppress asserts based on internals.
+
+    Internals are e.g. testing against the outcome of native runtime functions.
+    This is switched off on some fuzzers that violate these contracts.
+    """
+    self.suppress_internals = True
 
   def ListTests(self, context):
     raise NotImplementedError
@@ -229,8 +238,19 @@ class TestSuite(object):
     self.tests = filtered
 
   def _create_test(self, path, **kwargs):
-    test = self._test_class()(self, path, self._path_to_name(path), **kwargs)
+    if self.suppress_internals:
+      test_class = self._suppressed_test_class()
+    else:
+      test_class = self._test_class()
+    test = test_class(self, path, self._path_to_name(path), **kwargs)
     return test
+
+  def _suppressed_test_class(self):
+    """Optional testcase that suppresses assertions. Used by fuzzers that are
+    only interested in dchecks or tsan and that might violate the assertions
+    through fuzzing.
+    """
+    return self._test_class()
 
   def _test_class(self):
     raise NotImplementedError

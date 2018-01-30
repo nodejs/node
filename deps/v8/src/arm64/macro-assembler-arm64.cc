@@ -2266,16 +2266,6 @@ void MacroAssembler::InvokeFunction(Register function,
   InvokeFunctionCode(function, no_reg, expected, actual, flag);
 }
 
-void MacroAssembler::InvokeFunction(Handle<JSFunction> function,
-                                    const ParameterCount& expected,
-                                    const ParameterCount& actual,
-                                    InvokeFlag flag) {
-  // Contract with called JS functions requires that function is passed in x1.
-  // (See FullCodeGenerator::Generate().)
-  LoadObject(x1, function);
-  InvokeFunction(x1, expected, actual, flag);
-}
-
 void TurboAssembler::TryConvertDoubleToInt64(Register result,
                                              DoubleRegister double_input,
                                              Label* done) {

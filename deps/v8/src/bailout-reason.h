@@ -26,6 +26,7 @@ namespace internal {
     "The function_data field should be a BytecodeArray on interpreter entry")  \
   V(kInputStringTooLong, "Input string too long")                              \
   V(kInvalidBytecode, "Invalid bytecode")                                      \
+  V(kInvalidBytecodeAdvance, "Cannot advance current bytecode, ")              \
   V(kInvalidElementsKindForInternalArrayOrInternalPackedArray,                 \
     "Invalid ElementsKind for InternalArray or InternalPackedArray")           \
   V(kInvalidHandleScopeLevel, "Invalid HandleScope level")                     \

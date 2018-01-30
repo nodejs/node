@@ -24,6 +24,7 @@ constexpr Register kInterpreterAccumulatorRegister = eax;
 constexpr Register kInterpreterBytecodeOffsetRegister = ecx;
 constexpr Register kInterpreterBytecodeArrayRegister = edi;
 constexpr Register kInterpreterDispatchTableRegister = esi;
+constexpr Register kInterpreterTargetBytecodeRegister = ebx;
 constexpr Register kJavaScriptCallArgCountRegister = eax;
 constexpr Register kJavaScriptCallNewTargetRegister = edx;
 constexpr Register kRuntimeCallFunctionRegister = ebx;
@@ -458,10 +459,6 @@ class MacroAssembler : public TurboAssembler {
                       const ParameterCount& actual, InvokeFlag flag);
 
   void InvokeFunction(Register function, const ParameterCount& expected,
-                      const ParameterCount& actual, InvokeFlag flag);
-
-  void InvokeFunction(Handle<JSFunction> function,
-                      const ParameterCount& expected,
                       const ParameterCount& actual, InvokeFlag flag);
 
   // Compare object type for heap object.

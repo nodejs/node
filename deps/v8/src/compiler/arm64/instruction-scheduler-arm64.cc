@@ -308,6 +308,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kArm64Strh:
     case kArm64StrW:
     case kArm64Str:
+    case kArm64DsbIsb:
       return kHasSideEffect;
 
 #define CASE(Name) case k##Name:

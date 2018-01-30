@@ -309,6 +309,7 @@ namespace internal {
   F(PromoteScheduledException, 0, 1)                                 \
   F(ReThrow, 1, 1)                                                   \
   F(RunMicrotasks, 0, 1)                                             \
+  F(RunMicrotaskCallback, 2, 1)                                      \
   F(StackGuard, 0, 1)                                                \
   F(Throw, 1, 1)                                                     \
   F(ThrowApplyNonFunction, 1, 1)                                     \
@@ -546,11 +547,11 @@ namespace internal {
   F(StringCharFromCode, 1, 1)             \
   F(StringMaxLength, 0, 1)
 
-#define FOR_EACH_INTRINSIC_SYMBOL(F) \
-  F(CreateSymbol, 1, 1)              \
-  F(CreatePrivateSymbol, 1, 1)       \
-  F(SymbolDescription, 1, 1)         \
-  F(SymbolDescriptiveString, 1, 1)   \
+#define FOR_EACH_INTRINSIC_SYMBOL(F)       \
+  F(CreateSymbol, 1, 1)                    \
+  F(CreatePrivateSymbol, -1 /* <= 1 */, 1) \
+  F(SymbolDescription, 1, 1)               \
+  F(SymbolDescriptiveString, 1, 1)         \
   F(SymbolIsPrivate, 1, 1)
 
 #define FOR_EACH_INTRINSIC_TEST(F)            \

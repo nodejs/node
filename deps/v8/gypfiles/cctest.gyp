@@ -145,6 +145,7 @@
       '../test/cctest/test-identity-map.cc',
       '../test/cctest/test-intl.cc',
       '../test/cctest/test-inobject-slack-tracking.cc',
+      '../test/cctest/test-isolate-independent-builtins.cc',
       '../test/cctest/test-liveedit.cc',
       '../test/cctest/test-lockers.cc',
       '../test/cctest/test-log.cc',
@@ -463,37 +464,5 @@
         '../test/cctest/interpreter/generate-bytecode-expectations.cc',
       ],
     },
-  ],
-  'conditions': [
-    ['test_isolation_mode != "noop"', {
-      'targets': [
-        {
-          'target_name': 'cctest_exe_run',
-          'type': 'none',
-          'dependencies': [
-            'cctest',
-          ],
-          'includes': [
-            'isolate.gypi',
-          ],
-          'sources': [
-            '../test/cctest/cctest_exe.isolate',
-          ],
-        },
-        {
-          'target_name': 'cctest_run',
-          'type': 'none',
-          'dependencies': [
-            'cctest_exe_run',
-          ],
-          'includes': [
-            'isolate.gypi',
-          ],
-          'sources': [
-            '../test/cctest/cctest.isolate',
-          ],
-        },
-      ],
-    }],
   ],
 }

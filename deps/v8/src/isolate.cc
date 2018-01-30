@@ -110,8 +110,6 @@ void ThreadLocalTop::InitializeInternal() {
   rethrowing_message_ = false;
   pending_message_obj_ = nullptr;
   scheduled_exception_ = nullptr;
-  microtask_queue_bailout_index_ = -1;
-  microtask_queue_bailout_count_ = 0;
 }
 
 
@@ -3720,69 +3718,6 @@ void Isolate::ReportPromiseReject(Handle<JSPromise> promise,
       v8::Utils::StackTraceToLocal(stack_trace)));
 }
 
-void Isolate::PromiseReactionJob(Handle<PromiseReactionJobInfo> info,
-                                 MaybeHandle<Object>* result,
-                                 MaybeHandle<Object>* maybe_exception) {
-  Handle<Object> value(info->value(), this);
-  Handle<Object> tasks(info->tasks(), this);
-  Handle<JSFunction> promise_handle_fn = promise_handle();
-  Handle<Object> undefined = factory()->undefined_value();
-  Handle<Object> deferred_promise(info->deferred_promise(), this);
-
-  if (deferred_promise->IsFixedArray()) {
-    DCHECK(tasks->IsFixedArray());
-    Handle<FixedArray> deferred_promise_arr =
-        Handle<FixedArray>::cast(deferred_promise);
-    Handle<FixedArray> deferred_on_resolve_arr(
-        FixedArray::cast(info->deferred_on_resolve()), this);
-    Handle<FixedArray> deferred_on_reject_arr(
-        FixedArray::cast(info->deferred_on_reject()), this);
-    Handle<FixedArray> tasks_arr = Handle<FixedArray>::cast(tasks);
-    for (int i = 0; i < deferred_promise_arr->length(); i++) {
-      Handle<Object> argv[] = {value, handle(tasks_arr->get(i), this),
-                               handle(deferred_promise_arr->get(i), this),
-                               handle(deferred_on_resolve_arr->get(i), this),
-                               handle(deferred_on_reject_arr->get(i), this)};
-      *result = Execution::TryCall(
-          this, promise_handle_fn, undefined, arraysize(argv), argv,
-          Execution::MessageHandling::kReport, maybe_exception);
-      // If execution is terminating, just bail out.
-      if (result->is_null() && maybe_exception->is_null()) {
-        return;
-      }
-    }
-  } else {
-    Handle<Object> argv[] = {value, tasks, deferred_promise,
-                             handle(info->deferred_on_resolve(), this),
-                             handle(info->deferred_on_reject(), this)};
-    *result = Execution::TryCall(
-        this, promise_handle_fn, undefined, arraysize(argv), argv,
-        Execution::MessageHandling::kReport, maybe_exception);
-  }
-}
-
-void Isolate::PromiseResolveThenableJob(
-    Handle<PromiseResolveThenableJobInfo> info, MaybeHandle<Object>* result,
-    MaybeHandle<Object>* maybe_exception) {
-  Handle<JSReceiver> thenable(info->thenable(), this);
-  Handle<JSFunction> resolve(info->resolve(), this);
-  Handle<JSFunction> reject(info->reject(), this);
-  Handle<JSReceiver> then(info->then(), this);
-  Handle<Object> argv[] = {resolve, reject};
-  *result =
-      Execution::TryCall(this, then, thenable, arraysize(argv), argv,
-                         Execution::MessageHandling::kReport, maybe_exception);
-
-  Handle<Object> reason;
-  if (maybe_exception->ToHandle(&reason)) {
-    DCHECK(result->is_null());
-    Handle<Object> reason_arg[] = {reason};
-    *result = Execution::TryCall(
-        this, reject, factory()->undefined_value(), arraysize(reason_arg),
-        reason_arg, Execution::MessageHandling::kReport, maybe_exception);
-  }
-}
-
 void Isolate::EnqueueMicrotask(Handle<Object> microtask) {
   DCHECK(microtask->IsJSFunction() || microtask->IsCallHandlerInfo() ||
          microtask->IsPromiseResolveThenableJobInfo() ||
@@ -3807,100 +3742,25 @@ void Isolate::RunMicrotasks() {
   // Increase call depth to prevent recursive callbacks.
   v8::Isolate::SuppressMicrotaskExecutionScope suppress(
       reinterpret_cast<v8::Isolate*>(this));
-  is_running_microtasks_ = true;
-  RunMicrotasksInternal();
-  is_running_microtasks_ = false;
-  FireMicrotasksCompletedCallback();
-}
+  if (pending_microtask_count()) {
+    is_running_microtasks_ = true;
+    TRACE_EVENT0("v8.execute", "RunMicrotasks");
+    TRACE_EVENT_CALL_STATS_SCOPED(this, "v8", "V8.RunMicrotasks");
 
-
-void Isolate::RunMicrotasksInternal() {
-  if (!pending_microtask_count()) return;
-  TRACE_EVENT0("v8.execute", "RunMicrotasks");
-  TRACE_EVENT_CALL_STATS_SCOPED(this, "v8", "V8.RunMicrotasks");
-
-  do {
-    HandleScope handle_scope(this);
-    set_microtask_queue_bailout_index(-1);
-    set_microtask_queue_bailout_count(-1);
+    HandleScope scope(this);
     MaybeHandle<Object> maybe_exception;
     MaybeHandle<Object> maybe_result = Execution::RunMicrotasks(
         this, Execution::MessageHandling::kReport, &maybe_exception);
+    // If execution is terminating, just bail out.
     if (maybe_result.is_null() && maybe_exception.is_null()) {
       heap()->set_microtask_queue(heap()->empty_fixed_array());
       set_pending_microtask_count(0);
-      return;
     }
-
-    Handle<Object> result = maybe_result.ToHandleChecked();
-    if (result->IsUndefined(this)) return;
-
-    Handle<FixedArray> queue = Handle<FixedArray>::cast(result);
-    int num_tasks = microtask_queue_bailout_count();
-    DCHECK_GE(microtask_queue_bailout_index(), 0);
-
-    Isolate* isolate = this;
-    FOR_WITH_HANDLE_SCOPE(
-        isolate, int, i = microtask_queue_bailout_index(), i, i < num_tasks,
-        i++, {
-          Handle<Object> microtask(queue->get(i), this);
-
-          if (microtask->IsCallHandlerInfo()) {
-            Handle<CallHandlerInfo> callback_info =
-                Handle<CallHandlerInfo>::cast(microtask);
-            v8::MicrotaskCallback callback =
-                v8::ToCData<v8::MicrotaskCallback>(callback_info->callback());
-            void* data = v8::ToCData<void*>(callback_info->data());
-            callback(data);
-          } else {
-            SaveContext save(this);
-            Context* context;
-            if (microtask->IsJSFunction()) {
-              context = Handle<JSFunction>::cast(microtask)->context();
-            } else if (microtask->IsPromiseResolveThenableJobInfo()) {
-              context = Handle<PromiseResolveThenableJobInfo>::cast(microtask)
-                            ->context();
-            } else {
-              context =
-                  Handle<PromiseReactionJobInfo>::cast(microtask)->context();
-            }
-
-            set_context(context->native_context());
-            handle_scope_implementer_->EnterMicrotaskContext(
-                Handle<Context>(context, this));
-
-            MaybeHandle<Object> result;
-            MaybeHandle<Object> maybe_exception;
-
-            if (microtask->IsJSFunction()) {
-              Handle<JSFunction> microtask_function =
-                  Handle<JSFunction>::cast(microtask);
-              result = Execution::TryCall(
-                  this, microtask_function, factory()->undefined_value(), 0,
-                  nullptr, Execution::MessageHandling::kReport,
-                  &maybe_exception);
-            } else if (microtask->IsPromiseResolveThenableJobInfo()) {
-              PromiseResolveThenableJob(
-                  Handle<PromiseResolveThenableJobInfo>::cast(microtask),
-                  &result, &maybe_exception);
-            } else {
-              PromiseReactionJob(
-                  Handle<PromiseReactionJobInfo>::cast(microtask), &result,
-                  &maybe_exception);
-            }
-
-            handle_scope_implementer_->LeaveMicrotaskContext();
-
-            // If execution is terminating, just bail out.
-            if (result.is_null() && maybe_exception.is_null()) {
-              // Clear out any remaining callbacks in the queue.
-              heap()->set_microtask_queue(heap()->empty_fixed_array());
-              set_pending_microtask_count(0);
-              return;
-            }
-          }
-        });
-  } while (pending_microtask_count() > 0);
+    CHECK_EQ(0, pending_microtask_count());
+    CHECK_EQ(0, heap()->microtask_queue()->length());
+    is_running_microtasks_ = false;
+  }
+  FireMicrotasksCompletedCallback();
 }
 
 void Isolate::SetUseCounterCallback(v8::Isolate::UseCounterCallback callback) {

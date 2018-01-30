@@ -2033,7 +2033,8 @@ Reduction JSBuiltinReducer::ReduceStringIteratorNext(Node* node) {
     {
       done_true = jsgraph()->FalseConstant();
       Node* codepoint = etrue0 = graph()->NewNode(
-          simplified()->StringCodePointAt(), string, index, etrue0, if_true0);
+          simplified()->StringCodePointAt(UnicodeEncoding::UTF16), string,
+          index, etrue0, if_true0);
       vtrue0 = graph()->NewNode(
           simplified()->StringFromCodePoint(UnicodeEncoding::UTF16), codepoint);
 

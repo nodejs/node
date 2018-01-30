@@ -563,6 +563,11 @@ void ObjectStatsCollectorImpl::RecordVirtualScriptDetails(Script* script) {
 
 void ObjectStatsCollectorImpl::RecordVirtualSharedFunctionInfoDetails(
     SharedFunctionInfo* info) {
+  // Uncompiled SharedFunctionInfo gets its own category.
+  if (!info->is_compiled()) {
+    RecordSimpleVirtualObjectStats(
+        nullptr, info, ObjectStats::UNCOMPILED_SHARED_FUNCTION_INFO_TYPE);
+  }
   // SharedFunctonInfo::feedback_metadata() is a COW array.
   RecordSimpleVirtualObjectStats(info, info->scope_info(),
                                  ObjectStats::SCOPE_INFO_TYPE);

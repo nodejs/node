@@ -51,11 +51,25 @@ constexpr RegList kLiftoffAssemblerFpCacheRegs = 0xff;
 #if V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_X64
 constexpr Condition kEqual = equal;
 constexpr Condition kUnequal = not_equal;
+constexpr Condition kSignedLessThan = less;
+constexpr Condition kSignedLessEqual = less_equal;
+constexpr Condition kSignedGreaterThan = greater;
+constexpr Condition kSignedGreaterEqual = greater_equal;
+constexpr Condition kUnsignedLessThan = below;
+constexpr Condition kUnsignedLessEqual = below_equal;
+constexpr Condition kUnsignedGreaterThan = above;
 constexpr Condition kUnsignedGreaterEqual = above_equal;
 #else
 // On unimplemented platforms, just make this compile.
 constexpr Condition kEqual = static_cast<Condition>(0);
 constexpr Condition kUnequal = static_cast<Condition>(0);
+constexpr Condition kSignedLessThan = static_cast<Condition>(0);
+constexpr Condition kSignedLessEqual = static_cast<Condition>(0);
+constexpr Condition kSignedGreaterThan = static_cast<Condition>(0);
+constexpr Condition kSignedGreaterEqual = static_cast<Condition>(0);
+constexpr Condition kUnsignedLessThan = static_cast<Condition>(0);
+constexpr Condition kUnsignedLessEqual = static_cast<Condition>(0);
+constexpr Condition kUnsignedGreaterThan = static_cast<Condition>(0);
 constexpr Condition kUnsignedGreaterEqual = static_cast<Condition>(0);
 #endif
 

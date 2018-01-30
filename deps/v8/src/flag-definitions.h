@@ -204,7 +204,6 @@ DEFINE_IMPLICATION(harmony_class_fields, harmony_private_fields)
 // Features that are still work in progress (behind individual flags).
 #define HARMONY_INPROGRESS(V)                                            \
   V(harmony_string_trimming, "harmony String.prototype.trim{Start,End}") \
-  V(harmony_import_meta, "harmony import.meta property")                 \
   V(harmony_array_prototype_values, "harmony Array.prototype.values")    \
   V(harmony_function_sent, "harmony function.sent")                      \
   V(harmony_do_expressions, "harmony do-expressions")                    \
@@ -218,17 +217,18 @@ DEFINE_IMPLICATION(harmony_class_fields, harmony_private_fields)
   V(harmony_restrict_constructor_return,                                \
     "harmony disallow non undefined primitive return value from class " \
     "constructor")                                                      \
-  V(harmony_dynamic_import, "harmony dynamic import")                   \
   V(harmony_public_fields, "harmony public fields in class literals")
 
 // Features that are shipping (turned on by default, but internal flag remains).
-#define HARMONY_SHIPPING_BASE(V)                                        \
-  V(harmony_sharedarraybuffer, "harmony sharedarraybuffer")             \
-  V(harmony_regexp_named_captures, "harmony regexp named captures")     \
-  V(harmony_regexp_property, "harmony Unicode regexp property classes") \
-  V(harmony_function_tostring, "harmony Function.prototype.toString")   \
-  V(harmony_promise_finally, "harmony Promise.prototype.finally")       \
-  V(harmony_optional_catch_binding, "allow omitting binding in catch blocks")
+#define HARMONY_SHIPPING_BASE(V)                                              \
+  V(harmony_sharedarraybuffer, "harmony sharedarraybuffer")                   \
+  V(harmony_regexp_named_captures, "harmony regexp named captures")           \
+  V(harmony_regexp_property, "harmony Unicode regexp property classes")       \
+  V(harmony_function_tostring, "harmony Function.prototype.toString")         \
+  V(harmony_promise_finally, "harmony Promise.prototype.finally")             \
+  V(harmony_optional_catch_binding, "allow omitting binding in catch blocks") \
+  V(harmony_import_meta, "harmony import.meta property")                      \
+  V(harmony_dynamic_import, "harmony dynamic import")
 
 #ifdef V8_INTL_SUPPORT
 #define HARMONY_SHIPPING(V)                      \
@@ -318,6 +318,18 @@ DEFINE_VALUE_IMPLICATION(optimize_for_size, max_semi_space_size, 1)
 // Flags for data representation optimizations
 DEFINE_BOOL(unbox_double_arrays, true, "automatically unbox arrays of doubles")
 DEFINE_BOOL_READONLY(string_slices, true, "use string slices")
+
+// Flags for Ignition for no-snapshot builds.
+#undef FLAG
+#ifndef V8_USE_SNAPSHOT
+#define FLAG FLAG_FULL
+#else
+#define FLAG FLAG_READONLY
+#endif
+DEFINE_INT(interrupt_budget, 144 * KB,
+           "interrupt budget which should be used for the profiler counter")
+#undef FLAG
+#define FLAG FLAG_FULL
 
 // Flags for Ignition.
 DEFINE_BOOL(ignition_elide_noneffectful_bytecodes, true,
@@ -1104,6 +1116,9 @@ DEFINE_BOOL(print_handles, false, "report handles after GC")
 DEFINE_BOOL(check_handle_count, false,
             "Check that there are not too many handles at GC")
 DEFINE_BOOL(print_global_handles, false, "report global handles after GC")
+DEFINE_INT(trace_duplicate_threshold_kb, 0,
+           "print duplicate objects in the heap if their size is more than "
+           "given threshold")
 
 // TurboFan debug-only flags.
 DEFINE_BOOL(trace_turbo_escape, false, "enable tracing in escape analysis")

@@ -1546,6 +1546,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArm64StrQ:
       __ Str(i.InputSimd128Register(0), i.MemoryOperand(1));
       break;
+    case kArm64DsbIsb:
+      __ Dsb(FullSystem, BarrierAll);
+      __ Isb();
+      break;
     case kAtomicLoadInt8:
       ASSEMBLE_ATOMIC_LOAD_INTEGER(Ldarb);
       __ Sxtb(i.OutputRegister(0), i.OutputRegister(0));

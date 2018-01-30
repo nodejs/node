@@ -81,29 +81,19 @@ SLOW_ARCHS = ["arm",
 PREDICTABLE_WRAPPER = os.path.join(
     base_runner.BASE_DIR, 'tools', 'predictable_wrapper.py')
 
+# Staging default. When set to True it overwrites the two options below.
+USE_STAGING = True
+
 # Specifies which builders should use the staging test-runner.
 # Mapping from mastername to list of buildernames. Buildernames can be strings
 # or compiled regexps which will be matched.
 BUILDER_WHITELIST_STAGING = {
-  'client.v8': [
-    re.compile(r'.*'),
-  ],
-  'client.v8.clusterfuzz': [
-    re.compile(r'.*'),
-  ],
-  'client.v8.ports': [
-    re.compile(r'.*'),
-  ],
-  'tryserver.v8': [
-    re.compile(r'.*'),
-  ],
 }
 _RE_TYPE = type(re.compile(''))
 
 # Specifies which architectures are whitelisted to use the staging test-runner.
 # List of arch strings, e.g. "x64".
 ARCH_WHITELIST_STAGING = [
-  'x64',
 ]
 
 class StandardTestRunner(base_runner.BaseTestRunner):
@@ -236,6 +226,8 @@ class StandardTestRunner(base_runner.BaseTestRunner):
       if options.infra_staging is not None:
         # True or False are used to explicitly opt in or out.
         return options.infra_staging
+      if USE_STAGING:
+        return True
       builder_configs = BUILDER_WHITELIST_STAGING.get(options.mastername, [])
       for builder_config in builder_configs:
         if (isinstance(builder_config, _RE_TYPE) and

@@ -108,6 +108,11 @@ class NumFuzzer(base_runner.BaseTestRunner):
                       help="extends --stress-deopt to have minimum interval "
                            "between deopt points")
 
+    # Stress interrupt budget
+    parser.add_option("--stress-interrupt-budget", default=0, type="int",
+                      help="probability [0-10] of adding --interrupt-budget "
+                           "flag to the test")
+
     # Combine multiple tests
     parser.add_option("--combine-tests", default=False, action="store_true",
                       help="Combine multiple tests as one and run with "
@@ -151,6 +156,7 @@ class NumFuzzer(base_runner.BaseTestRunner):
                                            self.mode_name))
 
     ctx = self._create_context(options)
+    self._setup_suites(options, suites)
     tests = self._load_tests(options, suites, ctx)
     progress_indicator = progress.IndicatorNotifier()
     progress_indicator.Register(
@@ -233,6 +239,13 @@ class NumFuzzer(base_runner.BaseTestRunner):
                           False)  # Coverage not supported.
     return ctx
 
+  def _setup_suites(self, options, suites):
+    """Sets additional configurations on test suites based on options."""
+    if options.stress_interrupt_budget:
+      # Changing interrupt budget forces us to suppress certain test assertions.
+      for suite in suites:
+        suite.do_suppress_internals()
+
   def _load_tests(self, options, suites, ctx):
     if options.combine_tests:
       suites = [s for s in suites if s.test_combiner_available()]
@@ -289,18 +302,21 @@ class NumFuzzer(base_runner.BaseTestRunner):
                         options.tests_count)
 
   def _create_fuzzer(self, rng, options):
-    if options.combine_tests:
-      count = 1
-      disable_analysis = True
-    else:
-      count = options.tests_count
-      disable_analysis = False
     return fuzzer.FuzzerProc(
         rng,
-        count,
+        self._tests_count(options),
         self._create_fuzzer_configs(options),
-        disable_analysis,
+        self._disable_analysis(options),
     )
+
+  def _tests_count(self, options):
+    if options.combine_tests:
+      return 1
+    return options.tests_count
+
+  def _disable_analysis(self, options):
+    """Disable analysis phase when options are used that don't support it."""
+    return options.combine_tests or options.stress_interrupt_budget
 
   def _create_fuzzer_configs(self, options):
     fuzzers = []
@@ -312,6 +328,7 @@ class NumFuzzer(base_runner.BaseTestRunner):
     add('marking', options.stress_marking)
     add('scavenge', options.stress_scavenge)
     add('gc_interval', options.stress_gc)
+    add('interrupt_budget', options.stress_interrupt_budget)
     add('deopt', options.stress_deopt, options.stress_deopt_min)
     return fuzzers
 

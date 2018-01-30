@@ -2040,7 +2040,7 @@ TEST(CodeSerializerAfterExecute) {
     CHECK(sfi->HasBytecodeArray());
     BytecodeArray* bytecode = sfi->bytecode_array();
     CHECK_EQ(bytecode->interrupt_budget(),
-             interpreter::Interpreter::kInterruptBudget);
+             interpreter::Interpreter::InterruptBudget());
     CHECK_EQ(bytecode->osr_loop_nesting_level(), 0);
 
     {

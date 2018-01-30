@@ -10,7 +10,7 @@ vars = {
 
 deps = {
   'v8/build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '4ab66b7cf4d8640cd1f164203caba7f5337c9aae',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'f8323d805516f49436fc473614728585a4678858',
   'v8/tools/gyp':
     Var('chromium_url') + '/external/gyp.git' + '@' + 'd61a9397e668fa9843c4aa7da9e79460fe590bfb',
   'v8/third_party/icu':
@@ -18,7 +18,7 @@ deps = {
   'v8/third_party/instrumented_libraries':
     Var('chromium_url') + '/chromium/src/third_party/instrumented_libraries.git' + '@' + 'b7578b4132cf73ca3265e2ee0b7bd0a422a54ebf',
   'v8/buildtools':
-    Var('chromium_url') + '/chromium/buildtools.git' + '@' + '437a616be5b2056336ed3ca5c33c41f7788ede09',
+    Var('chromium_url') + '/chromium/buildtools.git' + '@' + 'f115f4786771afdfacb18a2299541b23e21f4792',
   'v8/base/trace_event/common':
     Var('chromium_url') + '/chromium/src/base/trace_event/common.git' + '@' + '0e9a47d74970bee1bbfc063c47215406f8918699',
   'v8/third_party/android_ndk': {
@@ -30,7 +30,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'v8/third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + '8d63750dfb6f6734aaa66a95f553faa0bc93b703',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + '69f2184e9c4351f5216d1ebe52bfd4c37ea79081',
     'condition': 'checkout_android',
   },
   'v8/third_party/colorama/src': {
@@ -56,7 +56,7 @@ deps = {
   'v8/test/test262/harness':
     Var('chromium_url') + '/external/github.com/test262-utils/test262-harness-py.git' + '@' + '0f2acdd882c84cff43b9d60df7574a1901e2cdcd',
   'v8/tools/clang':
-    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '1243a6d821f7dd1f0822e4e716abc3943c9c0643',
+    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + 'a312f4973dae5c85668de561f161707f25f02299',
   'v8/tools/luci-go':
     Var('chromium_url') + '/chromium/src/tools/luci-go.git' + '@' + 'd882048313f6f51df29856406fa03b620c1d0205',
   'v8/test/wasm-js':
@@ -91,7 +91,9 @@ hooks = [
     'pattern': '.',
     'action': [
         'python',
-        'v8/gypfiles/landmines.py',
+        'v8/build/landmines.py',
+        '--landmine-scripts',
+        'v8/tools/get_landmines.py',
     ],
   },
   # Pull clang-format binaries using checked-in hashes.
@@ -316,7 +318,7 @@ hooks = [
     'action': [
       'python',
       'v8/build/fuchsia/update_sdk.py',
-      '226f6dd0cad1d6be63a353ce2649423470729ae9',
+      '893404234442cf13abbc4e22ed996839ff5b1338',
     ],
   },
   {

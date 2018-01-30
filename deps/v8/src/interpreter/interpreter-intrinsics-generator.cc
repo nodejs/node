@@ -27,8 +27,8 @@ class IntrinsicsGenerator {
         zone_(assembler->zone()),
         assembler_(assembler) {}
 
-  Node* InvokeIntrinsic(Node* function_id, Node* context, Node* first_arg_reg,
-                        Node* arg_count);
+  Node* InvokeIntrinsic(Node* function_id, Node* context,
+                        const InterpreterAssembler::RegListNodePair& args);
 
  private:
   enum InstanceTypeCompareMode {
@@ -38,13 +38,15 @@ class IntrinsicsGenerator {
 
   Node* IsInstanceType(Node* input, int type);
   Node* CompareInstanceType(Node* map, int type, InstanceTypeCompareMode mode);
-  Node* IntrinsicAsStubCall(Node* input, Node* context,
-                            Callable const& callable);
-  Node* IntrinsicAsBuiltinCall(Node* input, Node* context, Builtins::Name name);
+  Node* IntrinsicAsStubCall(const InterpreterAssembler::RegListNodePair& args,
+                            Node* context, Callable const& callable);
+  Node* IntrinsicAsBuiltinCall(
+      const InterpreterAssembler::RegListNodePair& args, Node* context,
+      Builtins::Name name);
   void AbortIfArgCountMismatch(int expected, compiler::Node* actual);
 
 #define DECLARE_INTRINSIC_HELPER(name, lower_case, count) \
-  Node* name(Node* input, Node* arg_count, Node* context);
+  Node* name(const InterpreterAssembler::RegListNodePair& args, Node* context);
   INTRINSICS_LIST(DECLARE_INTRINSIC_HELPER)
 #undef DECLARE_INTRINSIC_HELPER
 
@@ -58,19 +60,18 @@ class IntrinsicsGenerator {
   DISALLOW_COPY_AND_ASSIGN(IntrinsicsGenerator);
 };
 
-Node* GenerateInvokeIntrinsic(InterpreterAssembler* assembler,
-                              Node* function_id, Node* context,
-                              Node* first_arg_reg, Node* arg_count) {
+Node* GenerateInvokeIntrinsic(
+    InterpreterAssembler* assembler, Node* function_id, Node* context,
+    const InterpreterAssembler::RegListNodePair& args) {
   IntrinsicsGenerator generator(assembler);
-  return generator.InvokeIntrinsic(function_id, context, first_arg_reg,
-                                   arg_count);
+  return generator.InvokeIntrinsic(function_id, context, args);
 }
 
 #define __ assembler_->
 
-Node* IntrinsicsGenerator::InvokeIntrinsic(Node* function_id, Node* context,
-                                           Node* first_arg_reg,
-                                           Node* arg_count) {
+Node* IntrinsicsGenerator::InvokeIntrinsic(
+    Node* function_id, Node* context,
+    const InterpreterAssembler::RegListNodePair& args) {
   InterpreterAssembler::Label abort(assembler_), end(assembler_);
   InterpreterAssembler::Variable result(assembler_,
                                         MachineRepresentation::kTagged);
@@ -90,17 +91,17 @@ Node* IntrinsicsGenerator::InvokeIntrinsic(Node* function_id, Node* context,
 #undef CASE
 
   __ Switch(function_id, &abort, cases, labels, arraysize(cases));
-#define HANDLE_CASE(name, lower_case, expected_arg_count)     \
-  __ BIND(&lower_case);                                       \
-  {                                                           \
-    if (FLAG_debug_code && expected_arg_count >= 0) {         \
-      AbortIfArgCountMismatch(expected_arg_count, arg_count); \
-    }                                                         \
-    Node* value = name(first_arg_reg, arg_count, context);    \
-    if (value) {                                              \
-      result.Bind(value);                                     \
-      __ Goto(&end);                                          \
-    }                                                         \
+#define HANDLE_CASE(name, lower_case, expected_arg_count)            \
+  __ BIND(&lower_case);                                              \
+  {                                                                  \
+    if (FLAG_debug_code && expected_arg_count >= 0) {                \
+      AbortIfArgCountMismatch(expected_arg_count, args.reg_count()); \
+    }                                                                \
+    Node* value = name(args, context);                               \
+    if (value) {                                                     \
+      result.Bind(value);                                            \
+      __ Goto(&end);                                                 \
+    }                                                                \
   }
   INTRINSICS_LIST(HANDLE_CASE)
 #undef HANDLE_CASE
@@ -134,10 +135,9 @@ Node* IntrinsicsGenerator::IsInstanceType(Node* input, int type) {
   // TODO(ishell): Use Select here.
   InterpreterAssembler::Label if_not_smi(assembler_), return_true(assembler_),
       return_false(assembler_), end(assembler_);
-  Node* arg = __ LoadRegister(input);
-  __ GotoIf(__ TaggedIsSmi(arg), &return_false);
+  __ GotoIf(__ TaggedIsSmi(input), &return_false);
 
-  Node* condition = CompareInstanceType(arg, type, kInstanceTypeEqual);
+  Node* condition = CompareInstanceType(input, type, kInstanceTypeEqual);
   __ Branch(condition, &return_true, &return_false);
 
   __ BIND(&return_true);
@@ -156,8 +156,8 @@ Node* IntrinsicsGenerator::IsInstanceType(Node* input, int type) {
   return return_value.value();
 }
 
-Node* IntrinsicsGenerator::IsJSReceiver(Node* input, Node* arg_count,
-                                        Node* context) {
+Node* IntrinsicsGenerator::IsJSReceiver(
+    const InterpreterAssembler::RegListNodePair& args, Node* context) {
   // TODO(ishell): Use Select here.
   // TODO(ishell): Use CSA::IsJSReceiverInstanceType here.
   InterpreterAssembler::Variable return_value(assembler_,
@@ -165,11 +165,11 @@ Node* IntrinsicsGenerator::IsJSReceiver(Node* input, Node* arg_count,
   InterpreterAssembler::Label return_true(assembler_), return_false(assembler_),
       end(assembler_);
 
-  Node* arg = __ LoadRegister(input);
-  __ GotoIf(__ TaggedIsSmi(arg), &return_false);
+  Node* input = __ LoadRegisterFromRegisterList(args, 0);
+  __ GotoIf(__ TaggedIsSmi(input), &return_false);
 
   STATIC_ASSERT(LAST_TYPE == LAST_JS_RECEIVER_TYPE);
-  Node* condition = CompareInstanceType(arg, FIRST_JS_RECEIVER_TYPE,
+  Node* condition = CompareInstanceType(input, FIRST_JS_RECEIVER_TYPE,
                                         kInstanceTypeGreaterThanOrEqual);
   __ Branch(condition, &return_true, &return_false);
 
@@ -189,51 +189,59 @@ Node* IntrinsicsGenerator::IsJSReceiver(Node* input, Node* arg_count,
   return return_value.value();
 }
 
-Node* IntrinsicsGenerator::IsArray(Node* input, Node* arg_count,
-                                   Node* context) {
+Node* IntrinsicsGenerator::IsArray(
+    const InterpreterAssembler::RegListNodePair& args, Node* context) {
+  Node* input = __ LoadRegisterFromRegisterList(args, 0);
   return IsInstanceType(input, JS_ARRAY_TYPE);
 }
 
-Node* IntrinsicsGenerator::IsJSProxy(Node* input, Node* arg_count,
-                                     Node* context) {
+Node* IntrinsicsGenerator::IsJSProxy(
+    const InterpreterAssembler::RegListNodePair& args, Node* context) {
+  Node* input = __ LoadRegisterFromRegisterList(args, 0);
   return IsInstanceType(input, JS_PROXY_TYPE);
 }
 
-Node* IntrinsicsGenerator::IsTypedArray(Node* input, Node* arg_count,
-                                        Node* context) {
+Node* IntrinsicsGenerator::IsTypedArray(
+    const InterpreterAssembler::RegListNodePair& args, Node* context) {
+  Node* input = __ LoadRegisterFromRegisterList(args, 0);
   return IsInstanceType(input, JS_TYPED_ARRAY_TYPE);
 }
 
-Node* IntrinsicsGenerator::IsJSMap(Node* input, Node* arg_count,
-                                   Node* context) {
+Node* IntrinsicsGenerator::IsJSMap(
+    const InterpreterAssembler::RegListNodePair& args, Node* context) {
+  Node* input = __ LoadRegisterFromRegisterList(args, 0);
   return IsInstanceType(input, JS_MAP_TYPE);
 }
 
-Node* IntrinsicsGenerator::IsJSSet(Node* input, Node* arg_count,
-                                   Node* context) {
+Node* IntrinsicsGenerator::IsJSSet(
+    const InterpreterAssembler::RegListNodePair& args, Node* context) {
+  Node* input = __ LoadRegisterFromRegisterList(args, 0);
   return IsInstanceType(input, JS_SET_TYPE);
 }
 
-Node* IntrinsicsGenerator::IsJSWeakMap(Node* input, Node* arg_count,
-                                       Node* context) {
+Node* IntrinsicsGenerator::IsJSWeakMap(
+    const InterpreterAssembler::RegListNodePair& args, Node* context) {
+  Node* input = __ LoadRegisterFromRegisterList(args, 0);
   return IsInstanceType(input, JS_WEAK_MAP_TYPE);
 }
 
-Node* IntrinsicsGenerator::IsJSWeakSet(Node* input, Node* arg_count,
-                                       Node* context) {
+Node* IntrinsicsGenerator::IsJSWeakSet(
+    const InterpreterAssembler::RegListNodePair& args, Node* context) {
+  Node* input = __ LoadRegisterFromRegisterList(args, 0);
   return IsInstanceType(input, JS_WEAK_SET_TYPE);
 }
 
-Node* IntrinsicsGenerator::IsSmi(Node* input, Node* arg_count, Node* context) {
+Node* IntrinsicsGenerator::IsSmi(
+    const InterpreterAssembler::RegListNodePair& args, Node* context) {
   // TODO(ishell): Use SelectBooleanConstant here.
   InterpreterAssembler::Variable return_value(assembler_,
                                               MachineRepresentation::kTagged);
   InterpreterAssembler::Label if_smi(assembler_), if_not_smi(assembler_),
       end(assembler_);
 
-  Node* arg = __ LoadRegister(input);
+  Node* input = __ LoadRegisterFromRegisterList(args, 0);
 
-  __ Branch(__ TaggedIsSmi(arg), &if_smi, &if_not_smi);
+  __ Branch(__ TaggedIsSmi(input), &if_smi, &if_not_smi);
   __ BIND(&if_smi);
   {
     return_value.Bind(__ TrueConstant());
@@ -250,113 +258,112 @@ Node* IntrinsicsGenerator::IsSmi(Node* input, Node* arg_count, Node* context) {
   return return_value.value();
 }
 
-Node* IntrinsicsGenerator::IntrinsicAsStubCall(Node* args_reg, Node* context,
-                                               Callable const& callable) {
+Node* IntrinsicsGenerator::IntrinsicAsStubCall(
+    const InterpreterAssembler::RegListNodePair& args, Node* context,
+    Callable const& callable) {
   int param_count = callable.descriptor().GetParameterCount();
   int input_count = param_count + 2;  // +2 for target and context
-  Node** args = zone()->NewArray<Node*>(input_count);
+  Node** stub_args = zone()->NewArray<Node*>(input_count);
   int index = 0;
-  args[index++] = __ HeapConstant(callable.code());
+  stub_args[index++] = __ HeapConstant(callable.code());
   for (int i = 0; i < param_count; i++) {
-    args[index++] = __ LoadRegister(args_reg);
-    args_reg = __ NextRegister(args_reg);
+    stub_args[index++] = __ LoadRegisterFromRegisterList(args, i);
   }
-  args[index++] = context;
-  return __ CallStubN(callable.descriptor(), 1, input_count, args);
+  stub_args[index++] = context;
+  return __ CallStubN(callable.descriptor(), 1, input_count, stub_args);
 }
 
-Node* IntrinsicsGenerator::IntrinsicAsBuiltinCall(Node* input, Node* context,
-                                                  Builtins::Name name) {
+Node* IntrinsicsGenerator::IntrinsicAsBuiltinCall(
+    const InterpreterAssembler::RegListNodePair& args, Node* context,
+    Builtins::Name name) {
   Callable callable = Builtins::CallableFor(isolate_, name);
-  return IntrinsicAsStubCall(input, context, callable);
+  return IntrinsicAsStubCall(args, context, callable);
 }
 
-Node* IntrinsicsGenerator::CreateIterResultObject(Node* input, Node* arg_count,
-                                                  Node* context) {
+Node* IntrinsicsGenerator::CreateIterResultObject(
+    const InterpreterAssembler::RegListNodePair& args, Node* context) {
   return IntrinsicAsStubCall(
-      input, context,
+      args, context,
       Builtins::CallableFor(isolate(), Builtins::kCreateIterResultObject));
 }
 
-Node* IntrinsicsGenerator::HasProperty(Node* input, Node* arg_count,
-                                       Node* context) {
+Node* IntrinsicsGenerator::HasProperty(
+    const InterpreterAssembler::RegListNodePair& args, Node* context) {
   return IntrinsicAsStubCall(
-      input, context, Builtins::CallableFor(isolate(), Builtins::kHasProperty));
+      args, context, Builtins::CallableFor(isolate(), Builtins::kHasProperty));
 }
 
-Node* IntrinsicsGenerator::ToString(Node* input, Node* arg_count,
-                                    Node* context) {
+Node* IntrinsicsGenerator::ToString(
+    const InterpreterAssembler::RegListNodePair& args, Node* context) {
   return IntrinsicAsStubCall(
-      input, context, Builtins::CallableFor(isolate(), Builtins::kToString));
+      args, context, Builtins::CallableFor(isolate(), Builtins::kToString));
 }
 
-Node* IntrinsicsGenerator::ToLength(Node* input, Node* arg_count,
-                                    Node* context) {
+Node* IntrinsicsGenerator::ToLength(
+    const InterpreterAssembler::RegListNodePair& args, Node* context) {
   return IntrinsicAsStubCall(
-      input, context, Builtins::CallableFor(isolate(), Builtins::kToLength));
+      args, context, Builtins::CallableFor(isolate(), Builtins::kToLength));
 }
 
-Node* IntrinsicsGenerator::ToInteger(Node* input, Node* arg_count,
-                                     Node* context) {
+Node* IntrinsicsGenerator::ToInteger(
+    const InterpreterAssembler::RegListNodePair& args, Node* context) {
   return IntrinsicAsStubCall(
-      input, context, Builtins::CallableFor(isolate(), Builtins::kToInteger));
+      args, context, Builtins::CallableFor(isolate(), Builtins::kToInteger));
 }
 
-Node* IntrinsicsGenerator::ToNumber(Node* input, Node* arg_count,
-                                    Node* context) {
+Node* IntrinsicsGenerator::ToNumber(
+    const InterpreterAssembler::RegListNodePair& args, Node* context) {
   return IntrinsicAsStubCall(
-      input, context, Builtins::CallableFor(isolate(), Builtins::kToNumber));
+      args, context, Builtins::CallableFor(isolate(), Builtins::kToNumber));
 }
 
-Node* IntrinsicsGenerator::ToObject(Node* input, Node* arg_count,
-                                    Node* context) {
+Node* IntrinsicsGenerator::ToObject(
+    const InterpreterAssembler::RegListNodePair& args, Node* context) {
   return IntrinsicAsStubCall(
-      input, context, Builtins::CallableFor(isolate(), Builtins::kToObject));
+      args, context, Builtins::CallableFor(isolate(), Builtins::kToObject));
 }
 
-Node* IntrinsicsGenerator::Call(Node* args_reg, Node* arg_count,
-                                Node* context) {
+Node* IntrinsicsGenerator::Call(
+    const InterpreterAssembler::RegListNodePair& args, Node* context) {
   // First argument register contains the function target.
-  Node* function = __ LoadRegister(args_reg);
+  Node* function = __ LoadRegisterFromRegisterList(args, 0);
 
-  // Receiver is the second runtime call argument.
-  Node* receiver_reg = __ NextRegister(args_reg);
-  Node* receiver_arg = __ RegisterLocation(receiver_reg);
-
-  // Subtract function and receiver from arg count.
-  Node* function_and_receiver_count = __ Int32Constant(2);
-  Node* target_args_count = __ Int32Sub(arg_count, function_and_receiver_count);
+  // The arguments for the target function are from the second runtime call
+  // argument.
+  InterpreterAssembler::RegListNodePair target_args(
+      __ RegisterLocationInRegisterList(args, 1),
+      __ Int32Sub(args.reg_count(), __ Int32Constant(1)));
 
   if (FLAG_debug_code) {
     InterpreterAssembler::Label arg_count_positive(assembler_);
-    Node* comparison = __ Int32LessThan(target_args_count, __ Int32Constant(0));
+    Node* comparison =
+        __ Int32LessThan(target_args.reg_count(), __ Int32Constant(0));
     __ GotoIfNot(comparison, &arg_count_positive);
     __ Abort(AbortReason::kWrongArgumentCountForInvokeIntrinsic);
     __ Goto(&arg_count_positive);
     __ BIND(&arg_count_positive);
   }
 
-  __ CallJSAndDispatch(function, context, receiver_arg, target_args_count,
+  __ CallJSAndDispatch(function, context, target_args,
                        ConvertReceiverMode::kAny);
   return nullptr;  // We never return from the CallJSAndDispatch above.
 }
 
-Node* IntrinsicsGenerator::ClassOf(Node* args_reg, Node* arg_count,
-                                   Node* context) {
-  Node* value = __ LoadRegister(args_reg);
+Node* IntrinsicsGenerator::ClassOf(
+    const InterpreterAssembler::RegListNodePair& args, Node* context) {
+  Node* value = __ LoadRegisterFromRegisterList(args, 0);
   return __ ClassOf(value);
 }
 
-Node* IntrinsicsGenerator::CreateAsyncFromSyncIterator(Node* args_reg,
-                                                       Node* arg_count,
-                                                       Node* context) {
+Node* IntrinsicsGenerator::CreateAsyncFromSyncIterator(
+    const InterpreterAssembler::RegListNodePair& args, Node* context) {
   InterpreterAssembler::Label not_receiver(
       assembler_, InterpreterAssembler::Label::kDeferred);
   InterpreterAssembler::Label done(assembler_);
   InterpreterAssembler::Variable return_value(assembler_,
                                               MachineRepresentation::kTagged);
 
-  Node* sync_iterator = __ LoadRegister(args_reg);
+  Node* sync_iterator = __ LoadRegisterFromRegisterList(args, 0);
 
   __ GotoIf(__ TaggedIsSmi(sync_iterator), &not_receiver);
   __ GotoIfNot(__ IsJSReceiver(sync_iterator), &not_receiver);
@@ -385,43 +392,41 @@ Node* IntrinsicsGenerator::CreateAsyncFromSyncIterator(Node* args_reg,
   return return_value.value();
 }
 
-Node* IntrinsicsGenerator::CreateJSGeneratorObject(Node* input, Node* arg_count,
-                                                   Node* context) {
-  return IntrinsicAsBuiltinCall(input, context,
+Node* IntrinsicsGenerator::CreateJSGeneratorObject(
+    const InterpreterAssembler::RegListNodePair& args, Node* context) {
+  return IntrinsicAsBuiltinCall(args, context,
                                 Builtins::kCreateGeneratorObject);
 }
 
-Node* IntrinsicsGenerator::GeneratorGetInputOrDebugPos(Node* args_reg,
-                                                       Node* arg_count,
-                                                       Node* context) {
-  Node* generator = __ LoadRegister(args_reg);
+Node* IntrinsicsGenerator::GeneratorGetInputOrDebugPos(
+    const InterpreterAssembler::RegListNodePair& args, Node* context) {
+  Node* generator = __ LoadRegisterFromRegisterList(args, 0);
   Node* const value =
       __ LoadObjectField(generator, JSGeneratorObject::kInputOrDebugPosOffset);
 
   return value;
 }
 
-Node* IntrinsicsGenerator::GeneratorGetResumeMode(Node* args_reg,
-                                                  Node* arg_count,
-                                                  Node* context) {
-  Node* generator = __ LoadRegister(args_reg);
+Node* IntrinsicsGenerator::GeneratorGetResumeMode(
+    const InterpreterAssembler::RegListNodePair& args, Node* context) {
+  Node* generator = __ LoadRegisterFromRegisterList(args, 0);
   Node* const value =
       __ LoadObjectField(generator, JSGeneratorObject::kResumeModeOffset);
 
   return value;
 }
 
-Node* IntrinsicsGenerator::GeneratorClose(Node* args_reg, Node* arg_count,
-                                          Node* context) {
-  Node* generator = __ LoadRegister(args_reg);
+Node* IntrinsicsGenerator::GeneratorClose(
+    const InterpreterAssembler::RegListNodePair& args, Node* context) {
+  Node* generator = __ LoadRegisterFromRegisterList(args, 0);
   __ StoreObjectFieldNoWriteBarrier(
       generator, JSGeneratorObject::kContinuationOffset,
       __ SmiConstant(JSGeneratorObject::kGeneratorClosed));
   return __ UndefinedConstant();
 }
 
-Node* IntrinsicsGenerator::GetImportMetaObject(Node* args_reg, Node* arg_count,
-                                               Node* context) {
+Node* IntrinsicsGenerator::GetImportMetaObject(
+    const InterpreterAssembler::RegListNodePair& args, Node* context) {
   Node* const module_context = __ LoadModuleContext(context);
   Node* const module =
       __ LoadContextElement(module_context, Context::EXTENSION_INDEX);
@@ -442,21 +447,20 @@ Node* IntrinsicsGenerator::GetImportMetaObject(Node* args_reg, Node* arg_count,
   return return_value.value();
 }
 
-Node* IntrinsicsGenerator::AsyncGeneratorReject(Node* input, Node* arg_count,
-                                                Node* context) {
-  return IntrinsicAsBuiltinCall(input, context,
-                                Builtins::kAsyncGeneratorReject);
+Node* IntrinsicsGenerator::AsyncGeneratorReject(
+    const InterpreterAssembler::RegListNodePair& args, Node* context) {
+  return IntrinsicAsBuiltinCall(args, context, Builtins::kAsyncGeneratorReject);
 }
 
-Node* IntrinsicsGenerator::AsyncGeneratorResolve(Node* input, Node* arg_count,
-                                                 Node* context) {
-  return IntrinsicAsBuiltinCall(input, context,
+Node* IntrinsicsGenerator::AsyncGeneratorResolve(
+    const InterpreterAssembler::RegListNodePair& args, Node* context) {
+  return IntrinsicAsBuiltinCall(args, context,
                                 Builtins::kAsyncGeneratorResolve);
 }
 
-Node* IntrinsicsGenerator::AsyncGeneratorYield(Node* input, Node* arg_count,
-                                               Node* context) {
-  return IntrinsicAsBuiltinCall(input, context, Builtins::kAsyncGeneratorYield);
+Node* IntrinsicsGenerator::AsyncGeneratorYield(
+    const InterpreterAssembler::RegListNodePair& args, Node* context) {
+  return IntrinsicAsBuiltinCall(args, context, Builtins::kAsyncGeneratorYield);
 }
 
 void IntrinsicsGenerator::AbortIfArgCountMismatch(int expected, Node* actual) {

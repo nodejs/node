@@ -812,8 +812,10 @@ TF_BUILTIN(EnqueueMicrotask, InternalBuiltinsAssembler) {
 }
 
 TF_BUILTIN(RunMicrotasks, InternalBuiltinsAssembler) {
-  Label init_queue_loop(this);
+  // Load the current context from the isolate.
+  TNode<Context> current_context = GetCurrentContext();
 
+  Label init_queue_loop(this);
   Goto(&init_queue_loop);
   BIND(&init_queue_loop);
   {
@@ -866,39 +868,36 @@ TF_BUILTIN(RunMicrotasks, InternalBuiltinsAssembler) {
 
       BIND(&is_call_handler_info);
       {
-        // Bailout to C++ slow path for the remainder of the loop.
-        auto index_ref =
-            ExternalReference(kMicrotaskQueueBailoutIndexAddress, isolate());
-        auto count_ref =
-            ExternalReference(kMicrotaskQueueBailoutCountAddress, isolate());
-        auto rep = kIntSize == 4 ? MachineRepresentation::kWord32
-                                 : MachineRepresentation::kWord64;
+        Node* const microtask_callback =
+            LoadObjectField(microtask, CallHandlerInfo::kCallbackOffset);
+        Node* const microtask_data =
+            LoadObjectField(microtask, CallHandlerInfo::kDataOffset);
 
-        // index was pre-incremented, decrement for bailout to C++.
-        Node* value = IntPtrSub(index, IntPtrConstant(1));
-
-        if (kPointerSize == 4) {
-          DCHECK_EQ(kIntSize, 4);
-          StoreNoWriteBarrier(rep, ExternalConstant(index_ref), value);
-          StoreNoWriteBarrier(rep, ExternalConstant(count_ref), num_tasks);
-        } else {
-          Node* count = num_tasks;
-          if (kIntSize == 4) {
-            value = TruncateInt64ToInt32(value);
-            count = TruncateInt64ToInt32(count);
-          }
-          StoreNoWriteBarrier(rep, ExternalConstant(index_ref), value);
-          StoreNoWriteBarrier(rep, ExternalConstant(count_ref), count);
-        }
-
-        Return(queue);
+        // If this turns out to become a bottleneck because of the calls
+        // to C++ via CEntryStub, we can choose to speed them up using a
+        // similar mechanism that we use for the CallApiFunction stub,
+        // except that calling the MicrotaskCallback is even easier, since
+        // it doesn't accept any tagged parameters, doesn't return a value
+        // and ignores exceptions.
+        //
+        // But from our current measurements it doesn't seem to be a
+        // serious performance problem, even if the microtask is full
+        // of CallHandlerInfo tasks (which is not a realistic use case
+        // anyways).
+        Label if_continue(this);
+        Node* const result =
+            CallRuntime(Runtime::kRunMicrotaskCallback, current_context,
+                        microtask_callback, microtask_data);
+        GotoIfException(result, &if_continue);
+        Goto(&if_continue);
+        BIND(&if_continue);
+        Branch(IntPtrLessThan(index, num_tasks), &loop, &init_queue_loop);
       }
 
       BIND(&is_function);
       {
         Label cont(this);
         VARIABLE(exception, MachineRepresentation::kTagged, TheHoleConstant());
-        TNode<Context> old_context = GetCurrentContext();
         TNode<Context> fn_context = TNode<Context>::UncheckedCast(
             LoadObjectField(microtask, JSFunction::kContextOffset));
         TNode<Context> native_context =
@@ -911,14 +910,13 @@ TF_BUILTIN(RunMicrotasks, InternalBuiltinsAssembler) {
         Goto(&cont);
         BIND(&cont);
         LeaveMicrotaskContext();
-        SetCurrentContext(old_context);
+        SetCurrentContext(current_context);
         Branch(IntPtrLessThan(index, num_tasks), &loop, &init_queue_loop);
       }
 
       BIND(&is_promise_resolve_thenable_job);
       {
         VARIABLE(exception, MachineRepresentation::kTagged, TheHoleConstant());
-        TNode<Context> old_context = GetCurrentContext();
         TNode<Context> microtask_context =
             TNode<Context>::UncheckedCast(LoadObjectField(
                 microtask, PromiseResolveThenableJobInfo::kContextOffset));
@@ -939,7 +937,7 @@ TF_BUILTIN(RunMicrotasks, InternalBuiltinsAssembler) {
 
         BIND(&done);
         LeaveMicrotaskContext();
-        SetCurrentContext(old_context);
+        SetCurrentContext(current_context);
 
         Branch(IntPtrLessThan(index, num_tasks), &loop, &init_queue_loop);
       }
@@ -960,7 +958,6 @@ TF_BUILTIN(RunMicrotasks, InternalBuiltinsAssembler) {
         Node* const deferred_on_rejects = LoadObjectField(
             microtask, PromiseReactionJobInfo::kDeferredOnRejectOffset);
 
-        TNode<Context> old_context = GetCurrentContext();
         TNode<Context> microtask_context = TNode<Context>::UncheckedCast(
             LoadObjectField(microtask, PromiseReactionJobInfo::kContextOffset));
         TNode<Context> native_context =
@@ -976,7 +973,7 @@ TF_BUILTIN(RunMicrotasks, InternalBuiltinsAssembler) {
                       deferred_promises, deferred_on_resolves,
                       deferred_on_rejects);
           LeaveMicrotaskContext();
-          SetCurrentContext(old_context);
+          SetCurrentContext(current_context);
           Branch(IntPtrLessThan(index, num_tasks), &loop, &init_queue_loop);
         }
 
@@ -1008,7 +1005,7 @@ TF_BUILTIN(RunMicrotasks, InternalBuiltinsAssembler) {
           BIND(&done);
 
           LeaveMicrotaskContext();
-          SetCurrentContext(old_context);
+          SetCurrentContext(current_context);
 
           Branch(IntPtrLessThan(index, num_tasks), &loop, &init_queue_loop);
         }

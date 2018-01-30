@@ -830,26 +830,6 @@ TEST_F(InstructionSelectorTest, Float64BinopArithmetic) {
 // -----------------------------------------------------------------------------
 // Miscellaneous.
 
-
-TEST_F(InstructionSelectorTest, Uint32LessThanWithLoadAndLoadStackPointer) {
-  StreamBuilder m(this, MachineType::Bool());
-  Node* const sl = m.Load(
-      MachineType::Pointer(),
-      m.ExternalConstant(ExternalReference::address_of_stack_limit(isolate())));
-  Node* const sp = m.LoadStackPointer();
-  Node* const n = m.Uint32LessThan(sl, sp);
-  m.Return(n);
-  Stream s = m.Build();
-  ASSERT_EQ(1U, s.size());
-  EXPECT_EQ(kIA32StackCheck, s[0]->arch_opcode());
-  ASSERT_EQ(0U, s[0]->InputCount());
-  ASSERT_EQ(1U, s[0]->OutputCount());
-  EXPECT_EQ(s.ToVreg(n), s.ToVreg(s[0]->Output()));
-  EXPECT_EQ(kFlags_set, s[0]->flags_mode());
-  EXPECT_EQ(kUnsignedGreaterThan, s[0]->flags_condition());
-}
-
-
 TEST_F(InstructionSelectorTest, Word32Clz) {
   StreamBuilder m(this, MachineType::Uint32(), MachineType::Uint32());
   Node* const p0 = m.Parameter(0);

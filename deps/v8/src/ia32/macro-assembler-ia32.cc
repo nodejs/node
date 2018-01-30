@@ -1104,14 +1104,6 @@ void MacroAssembler::InvokeFunction(Register fun,
   InvokeFunctionCode(edi, no_reg, expected, actual, flag);
 }
 
-void MacroAssembler::InvokeFunction(Handle<JSFunction> function,
-                                    const ParameterCount& expected,
-                                    const ParameterCount& actual,
-                                    InvokeFlag flag) {
-  Move(edi, function);
-  InvokeFunction(edi, expected, actual, flag);
-}
-
 void MacroAssembler::LoadGlobalProxy(Register dst) {
   mov(dst, NativeContextOperand());
   mov(dst, ContextOperand(dst, Context::GLOBAL_PROXY_INDEX));
@@ -1223,7 +1215,9 @@ void TurboAssembler::Move(XMMRegister dst, uint64_t src) {
       push(eax);
       Move(eax, Immediate(lower));
       movd(dst, Operand(eax));
-      Move(eax, Immediate(upper));
+      if (upper != lower) {
+        Move(eax, Immediate(upper));
+      }
       pinsrd(dst, Operand(eax), 1);
       pop(eax);
     } else {

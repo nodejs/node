@@ -832,7 +832,7 @@ class V8_EXPORT_PRIVATE InterpreterDispatchDescriptor
     : public CallInterfaceDescriptor {
  public:
   DEFINE_PARAMETERS(kAccumulator, kBytecodeOffset, kBytecodeArray,
-                    kDispatchTable)
+                    kDispatchTable, kTargetBytecode)
   DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(InterpreterDispatchDescriptor,
                                                CallInterfaceDescriptor)
 };

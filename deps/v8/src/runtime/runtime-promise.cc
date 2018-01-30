@@ -1,8 +1,10 @@
 // Copyright 2016 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
+
 #include "src/runtime/runtime-utils.h"
 
+#include "src/api.h"
 #include "src/arguments.h"
 #include "src/counters.h"
 #include "src/debug/debug.h"
@@ -82,6 +84,17 @@ RUNTIME_FUNCTION(Runtime_RunMicrotasks) {
   HandleScope scope(isolate);
   DCHECK_EQ(0, args.length());
   isolate->RunMicrotasks();
+  return isolate->heap()->undefined_value();
+}
+
+RUNTIME_FUNCTION(Runtime_RunMicrotaskCallback) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(2, args.length());
+  CONVERT_ARG_CHECKED(Object, microtask_callback, 0);
+  CONVERT_ARG_CHECKED(Object, microtask_data, 1);
+  MicrotaskCallback callback = ToCData<MicrotaskCallback>(microtask_callback);
+  void* data = ToCData<void*>(microtask_data);
+  callback(data);
   return isolate->heap()->undefined_value();
 }
 

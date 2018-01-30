@@ -1224,20 +1224,6 @@ TF_BUILTIN(PromiseHandle, PromiseBuiltinsAssembler) {
   }
 }
 
-TF_BUILTIN(PromiseHandleJS, PromiseBuiltinsAssembler) {
-  Node* const value = Parameter(Descriptor::kValue);
-  Node* const handler = Parameter(Descriptor::kHandler);
-  Node* const deferred_promise = Parameter(Descriptor::kDeferredPromise);
-  Node* const deferred_on_resolve = Parameter(Descriptor::kDeferredOnResolve);
-  Node* const deferred_on_reject = Parameter(Descriptor::kDeferredOnReject);
-  Node* const context = Parameter(Descriptor::kContext);
-
-  Node* const result =
-      CallBuiltin(Builtins::kPromiseHandle, context, value, handler,
-                  deferred_promise, deferred_on_resolve, deferred_on_reject);
-  Return(result);
-}
-
 // ES#sec-promise.prototype.catch
 // Promise.prototype.catch ( onRejected )
 TF_BUILTIN(PromisePrototypeCatch, PromiseBuiltinsAssembler) {
@@ -1287,51 +1273,49 @@ TF_BUILTIN(PromiseResolve, PromiseBuiltinsAssembler) {
   Node* constructor = Parameter(Descriptor::kConstructor);
   Node* value = Parameter(Descriptor::kValue);
   Node* context = Parameter(Descriptor::kContext);
-  Isolate* isolate = this->isolate();
+
+  CSA_ASSERT(this, IsJSReceiver(constructor));
 
   Node* const native_context = LoadNativeContext(context);
   Node* const promise_fun =
       LoadContextElement(native_context, Context::PROMISE_FUNCTION_INDEX);
 
-  Label if_value_is_native_promise(this),
-      if_value_or_constructor_are_not_native_promise(this),
-      if_need_to_allocate(this);
+  Label if_slow_constructor(this, Label::kDeferred), if_need_to_allocate(this);
 
+  // Check if {value} is a JSPromise.
   GotoIf(TaggedIsSmi(value), &if_need_to_allocate);
+  Node* const value_map = LoadMap(value);
+  GotoIfNot(IsJSPromiseMap(value_map), &if_need_to_allocate);
 
-  // This shortcircuits the constructor lookups.
-  GotoIfNot(HasInstanceType(value, JS_PROMISE_TYPE), &if_need_to_allocate);
+  // We can skip the "constructor" lookup on {value} if it's [[Prototype]]
+  // is the (initial) Promise.prototype and the @@species protector is
+  // intact, as that guards the lookup path for "constructor" on
+  // JSPromise instances which have the (initial) Promise.prototype.
+  Node* const promise_prototype =
+      LoadContextElement(native_context, Context::PROMISE_FUNCTION_INDEX);
+  GotoIfNot(WordEqual(LoadMapPrototype(value_map), promise_prototype),
+            &if_slow_constructor);
+  GotoIf(IsSpeciesProtectorCellInvalid(), &if_slow_constructor);
 
-  // This adds a fast path as non-subclassed native promises don't have
-  // an observable constructor lookup.
-  BranchIfFastPath(native_context, promise_fun, value,
-                   &if_value_is_native_promise,
-                   &if_value_or_constructor_are_not_native_promise);
-
-  BIND(&if_value_is_native_promise);
-  {
-    GotoIfNot(WordEqual(promise_fun, constructor),
-              &if_value_or_constructor_are_not_native_promise);
-    Return(value);
-  }
+  // If the {constructor} is the Promise function, we just immediately
+  // return the {value} here and don't bother wrapping it into a
+  // native Promise.
+  GotoIfNot(WordEqual(promise_fun, constructor), &if_slow_constructor);
+  Return(value);
 
   // At this point, value or/and constructor are not native promises, but
   // they could be of the same subclass.
-  BIND(&if_value_or_constructor_are_not_native_promise);
+  BIND(&if_slow_constructor);
   {
-    Label if_return(this);
-    Node* const xConstructor =
-        GetProperty(context, value, isolate->factory()->constructor_string());
-    BranchIfSameValue(xConstructor, constructor, &if_return,
-                      &if_need_to_allocate);
-
-    BIND(&if_return);
+    Node* const value_constructor =
+        GetProperty(context, value, isolate()->factory()->constructor_string());
+    GotoIfNot(WordEqual(value_constructor, constructor), &if_need_to_allocate);
     Return(value);
   }
 
   BIND(&if_need_to_allocate);
   {
-    Label if_nativepromise(this), if_notnativepromise(this);
+    Label if_nativepromise(this), if_notnativepromise(this, Label::kDeferred);
     Branch(WordEqual(promise_fun, constructor), &if_nativepromise,
            &if_notnativepromise);
 
@@ -1350,8 +1334,9 @@ TF_BUILTIN(PromiseResolve, PromiseBuiltinsAssembler) {
 
       Node* const resolve =
           LoadObjectField(capability, PromiseCapability::kResolveOffset);
-      CallJS(CodeFactory::Call(isolate, ConvertReceiverMode::kNullOrUndefined),
-             context, resolve, UndefinedConstant(), value);
+      CallJS(
+          CodeFactory::Call(isolate(), ConvertReceiverMode::kNullOrUndefined),
+          context, resolve, UndefinedConstant(), value);
 
       Node* const result =
           LoadObjectField(capability, PromiseCapability::kPromiseOffset);

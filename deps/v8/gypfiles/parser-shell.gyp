@@ -30,15 +30,15 @@
     'v8_code': 1,
     'v8_enable_i18n_support%': 1,
   },
-  'includes': ['../gypfiles/toolchain.gypi', '../gypfiles/features.gypi'],
+  'includes': ['toolchain.gypi', 'features.gypi'],
   'targets': [
     {
       'target_name': 'parser-shell',
       'type': 'executable',
       'dependencies': [
-        '../gypfiles/v8.gyp:v8',
-        '../gypfiles/v8.gyp:v8_libbase',
-        '../gypfiles/v8.gyp:v8_libplatform',
+        'v8.gyp:v8',
+        'v8.gyp:v8_libbase',
+        'v8.gyp:v8_libplatform',
       ],
       'conditions': [
         ['v8_enable_i18n_support==1', {
@@ -52,8 +52,8 @@
         '..',
       ],
       'sources': [
-        'parser-shell.cc',
-        'shell-utils.h',
+        '../tools/parser-shell.cc',
+        '../tools/shell-utils.h',
       ],
     },
   ],

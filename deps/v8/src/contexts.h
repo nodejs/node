@@ -76,8 +76,6 @@ enum ContextLookupFlags {
   V(IS_PROMISE_INDEX, JSFunction, is_promise)                               \
   V(PROMISE_RESOLVE_INDEX, JSFunction, promise_resolve)                     \
   V(PROMISE_THEN_INDEX, JSFunction, promise_then)                           \
-  V(PROMISE_HANDLE_INDEX, JSFunction, promise_handle)                       \
-  V(PROMISE_HANDLE_REJECT_INDEX, JSFunction, promise_handle_reject)         \
   V(ASYNC_GENERATOR_AWAIT_CAUGHT, JSFunction, async_generator_await_caught) \
   V(ASYNC_GENERATOR_AWAIT_UNCAUGHT, JSFunction, async_generator_await_uncaught)
 

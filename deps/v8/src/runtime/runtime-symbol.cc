@@ -25,11 +25,13 @@ RUNTIME_FUNCTION(Runtime_CreateSymbol) {
 
 RUNTIME_FUNCTION(Runtime_CreatePrivateSymbol) {
   HandleScope scope(isolate);
-  DCHECK_EQ(1, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(Object, name, 0);
-  CHECK(name->IsString() || name->IsUndefined(isolate));
+  DCHECK_GE(1, args.length());
   Handle<Symbol> symbol = isolate->factory()->NewPrivateSymbol();
-  if (name->IsString()) symbol->set_name(*name);
+  if (args.length() == 1) {
+    CONVERT_ARG_HANDLE_CHECKED(Object, name, 0);
+    CHECK(name->IsString() || name->IsUndefined(isolate));
+    if (name->IsString()) symbol->set_name(*name);
+  }
   return *symbol;
 }
 

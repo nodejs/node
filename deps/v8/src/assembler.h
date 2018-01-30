@@ -479,7 +479,7 @@ class RelocInfo {
            mode == WASM_CALL || mode == JS_TO_WASM_CALL;
   }
 
-  static inline int ModeMask(Mode mode) { return 1 << mode; }
+  static constexpr int ModeMask(Mode mode) { return 1 << mode; }
 
   // Accessors
   byte* pc() const { return pc_; }

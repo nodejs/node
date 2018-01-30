@@ -1147,7 +1147,9 @@ class PreParser : public ParserBase<PreParser> {
                                       bool is_static, bool is_constructor,
                                       bool is_computed_name,
                                       ClassInfo* class_info, bool* ok) {
-    if (kind == ClassLiteralProperty::FIELD && is_computed_name) {
+    // TODO(gsathya): Fix preparsed scope data for PRIVATE_FIELDs by
+    // allocating context variable here.
+    if (kind == ClassLiteralProperty::PUBLIC_FIELD && is_computed_name) {
       scope()->DeclareVariableName(
           ClassFieldVariableName(ast_value_factory(),
                                  class_info->computed_field_count),

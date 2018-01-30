@@ -1106,7 +1106,7 @@ bool MemoryAllocator::UncommitBlock(Address start, size_t size) {
 
 void MemoryAllocator::ZapBlock(Address start, size_t size) {
   for (size_t s = 0; s + kPointerSize <= size; s += kPointerSize) {
-    Memory::Address_at(start + s) = kZapValue;
+    Memory::Address_at(start + s) = reinterpret_cast<Address>(kZapValue);
   }
 }
 
@@ -1356,13 +1356,13 @@ void Space::AllocationStep(int bytes_since_last, Address soon_object,
     return;
   }
 
-  DCHECK(!allocation_step_in_progress_);
-  allocation_step_in_progress_ = true;
+  DCHECK(!heap()->allocation_step_in_progress());
+  heap()->set_allocation_step_in_progress(true);
   heap()->CreateFillerObjectAt(soon_object, size, ClearRecordedSlots::kNo);
   for (AllocationObserver* observer : allocation_observers_) {
     observer->AllocationStep(bytes_since_last, soon_object, size);
   }
-  allocation_step_in_progress_ = false;
+  heap()->set_allocation_step_in_progress(false);
 }
 
 intptr_t Space::GetNextInlineAllocationStepSize() {
@@ -1371,7 +1371,7 @@ intptr_t Space::GetNextInlineAllocationStepSize() {
     next_step = next_step ? Min(next_step, observer->bytes_to_next_step())
                           : observer->bytes_to_next_step();
   }
-  DCHECK(allocation_observers_.size() == 0 || next_step != 0);
+  DCHECK(allocation_observers_.size() == 0 || next_step > 0);
   return next_step;
 }
 
@@ -2092,19 +2092,21 @@ LocalAllocationBuffer& LocalAllocationBuffer::operator=(
 }
 
 void NewSpace::UpdateLinearAllocationArea() {
-  Address old_top = top();
-  Address new_top = to_space_.page_low();
-  InlineAllocationStep(old_top, new_top, nullptr, 0);
+  // Make sure there is no unaccounted allocations.
+  DCHECK(!AllocationObserversActive() || top_on_previous_step_ == top());
 
+  Address new_top = to_space_.page_low();
   MemoryChunk::UpdateHighWaterMark(allocation_info_.top());
   allocation_info_.Reset(new_top, to_space_.page_high());
   original_top_.SetValue(top());
   original_limit_.SetValue(limit());
-  UpdateInlineAllocationLimit(0);
+  StartNextInlineAllocationStep();
   DCHECK_SEMISPACE_ALLOCATION_INFO(allocation_info_, to_space_);
 }
 
 void NewSpace::ResetLinearAllocationArea() {
+  // Do a step to account for memory allocated so far before resetting.
+  InlineAllocationStep(top(), top(), nullptr, 0);
   to_space_.Reset();
   UpdateLinearAllocationArea();
   // Clear all mark-bits in the to-space.
@@ -2132,6 +2134,10 @@ void PagedSpace::UpdateInlineAllocationLimit(size_t min_size) {
 bool NewSpace::AddFreshPage() {
   Address top = allocation_info_.top();
   DCHECK(!Page::IsAtObjectStart(top));
+
+  // Do a step to account for memory allocated on previous page.
+  InlineAllocationStep(top, top, nullptr, 0);
+
   if (!to_space_.AdvancePage()) {
     // No more pages left to advance.
     return false;
@@ -2187,7 +2193,7 @@ bool NewSpace::EnsureAllocation(int size_in_bytes,
 }
 
 void SpaceWithLinearArea::StartNextInlineAllocationStep() {
-  if (allocation_step_in_progress_) {
+  if (heap()->allocation_step_in_progress()) {
     // If we are mid-way through an existing step, don't start a new one.
     return;
   }
@@ -2233,7 +2239,7 @@ void SpaceWithLinearArea::InlineAllocationStep(Address top,
                                                Address top_for_next_step,
                                                Address soon_object,
                                                size_t size) {
-  if (allocation_step_in_progress_) {
+  if (heap()->allocation_step_in_progress()) {
     // Avoid starting a new step if we are mid-way through an existing one.
     return;
   }

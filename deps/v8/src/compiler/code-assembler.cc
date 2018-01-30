@@ -1139,7 +1139,7 @@ Node* CodeAssembler::TailCallBytecodeDispatch(
 // CSA-generated code
 template V8_EXPORT_PRIVATE Node* CodeAssembler::TailCallBytecodeDispatch(
     const CallInterfaceDescriptor& descriptor, Node* target, Node*, Node*,
-    Node*, Node*);
+    Node*, Node*, Node*);
 
 Node* CodeAssembler::CallCFunctionN(Signature<MachineType>* signature,
                                     int input_count, Node* const* inputs) {

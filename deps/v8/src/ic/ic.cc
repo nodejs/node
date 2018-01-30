@@ -58,12 +58,18 @@ const char* GetModifier(KeyedAccessLoadMode mode) {
 }
 
 const char* GetModifier(KeyedAccessStoreMode mode) {
-  if (mode == STORE_NO_TRANSITION_HANDLE_COW) return ".COW";
-  if (mode == STORE_NO_TRANSITION_IGNORE_OUT_OF_BOUNDS) {
-    return ".IGNORE_OOB";
+  switch (mode) {
+    case STORE_NO_TRANSITION_HANDLE_COW:
+      return ".COW";
+    case STORE_AND_GROW_NO_TRANSITION_HANDLE_COW:
+      return ".STORE+COW";
+    case STORE_NO_TRANSITION_IGNORE_OUT_OF_BOUNDS:
+      return ".IGNORE_OOB";
+    default:
+      break;
   }
-  if (IsGrowStoreMode(mode)) return ".GROW";
-  return "";
+  DCHECK(!IsCOWHandlingStoreMode(mode));
+  return IsGrowStoreMode(mode) ? ".GROW" : "";
 }
 
 }  // namespace
@@ -1692,7 +1698,7 @@ void KeyedStoreIC::UpdateStoreElement(Handle<Map> receiver_map,
     }
     if (receiver_map.is_identical_to(previous_receiver_map) &&
         old_store_mode == STANDARD_STORE &&
-        (store_mode == STORE_AND_GROW_NO_TRANSITION ||
+        (store_mode == STORE_AND_GROW_NO_TRANSITION_HANDLE_COW ||
          store_mode == STORE_NO_TRANSITION_IGNORE_OUT_OF_BOUNDS ||
          store_mode == STORE_NO_TRANSITION_HANDLE_COW)) {
       // A "normal" IC that handles stores can switch to a version that can
@@ -1790,7 +1796,7 @@ Handle<Map> KeyedStoreIC::ComputeTransitionedMap(
     // Fall through
     case STORE_NO_TRANSITION_HANDLE_COW:
     case STANDARD_STORE:
-    case STORE_AND_GROW_NO_TRANSITION:
+    case STORE_AND_GROW_NO_TRANSITION_HANDLE_COW:
       return map;
   }
   UNREACHABLE();
@@ -1799,7 +1805,7 @@ Handle<Map> KeyedStoreIC::ComputeTransitionedMap(
 Handle<Object> KeyedStoreIC::StoreElementHandler(
     Handle<Map> receiver_map, KeyedAccessStoreMode store_mode) {
   DCHECK(store_mode == STANDARD_STORE ||
-         store_mode == STORE_AND_GROW_NO_TRANSITION ||
+         store_mode == STORE_AND_GROW_NO_TRANSITION_HANDLE_COW ||
          store_mode == STORE_NO_TRANSITION_IGNORE_OUT_OF_BOUNDS ||
          store_mode == STORE_NO_TRANSITION_HANDLE_COW);
   DCHECK(!receiver_map->DictionaryElementsInPrototypeChainOnly());
@@ -1840,7 +1846,7 @@ void KeyedStoreIC::StoreElementPolymorphicHandlers(
     MapHandles* receiver_maps, ObjectHandles* handlers,
     KeyedAccessStoreMode store_mode) {
   DCHECK(store_mode == STANDARD_STORE ||
-         store_mode == STORE_AND_GROW_NO_TRANSITION ||
+         store_mode == STORE_AND_GROW_NO_TRANSITION_HANDLE_COW ||
          store_mode == STORE_NO_TRANSITION_IGNORE_OUT_OF_BOUNDS ||
          store_mode == STORE_NO_TRANSITION_HANDLE_COW);
 
@@ -1915,7 +1921,7 @@ static KeyedAccessStoreMode GetStoreMode(Handle<JSObject> receiver,
         return STORE_AND_GROW_TRANSITION_TO_OBJECT;
       }
     }
-    return STORE_AND_GROW_NO_TRANSITION;
+    return STORE_AND_GROW_NO_TRANSITION_HANDLE_COW;
   } else {
     // Handle only in-bounds elements accesses.
     if (receiver->HasSmiElements()) {

@@ -3331,7 +3331,8 @@ void Parser::DeclareClassProperty(const AstRawString* class_name,
     return;
   }
 
-  if (kind != ClassLiteralProperty::FIELD) {
+  if (kind != ClassLiteralProperty::PUBLIC_FIELD &&
+      kind != ClassLiteralProperty::PRIVATE_FIELD) {
     class_info->properties->Add(property, zone());
     return;
   }
@@ -3340,12 +3341,14 @@ void Parser::DeclareClassProperty(const AstRawString* class_name,
 
   if (is_static) {
     DCHECK(allow_harmony_static_fields());
+    DCHECK_EQ(kind, ClassLiteralProperty::PUBLIC_FIELD);
     class_info->static_fields->Add(property, zone());
   } else {
     class_info->instance_fields->Add(property, zone());
   }
 
   if (is_computed_name) {
+    DCHECK_EQ(kind, ClassLiteralProperty::PUBLIC_FIELD);
     // We create a synthetic variable name here so that scope
     // analysis doesn't dedupe the vars.
     Variable* computed_name_var = CreateSyntheticContextVariable(
@@ -3353,6 +3356,13 @@ void Parser::DeclareClassProperty(const AstRawString* class_name,
                                class_info->computed_field_count),
         CHECK_OK_VOID);
     property->set_computed_name_var(computed_name_var);
+    class_info->properties->Add(property, zone());
+  }
+
+  if (kind == ClassLiteralProperty::PRIVATE_FIELD) {
+    Variable* private_field_name_var = CreateSyntheticContextVariable(
+        property->key()->AsLiteral()->AsRawPropertyName(), CHECK_OK_VOID);
+    property->set_private_field_name_var(private_field_name_var);
     class_info->properties->Add(property, zone());
   }
 }

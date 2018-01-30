@@ -6686,13 +6686,23 @@ TEST(ldur_stur) {
   TEARDOWN();
 }
 
+namespace {
+
+void LoadLiteral(MacroAssembler* masm, Register reg, uint64_t imm) {
+  // Since we do not allow non-relocatable entries in the literal pool, we need
+  // to fake a relocation mode that is not NONE here.
+  masm->Ldr(reg, Immediate(imm, RelocInfo::RUNTIME_ENTRY));
+}
+
+}  // namespace
+
 TEST(ldr_pcrel_large_offset) {
   INIT_V8();
   SETUP_SIZE(1 * MB);
 
   START();
 
-  __ Ldr(x1, Immediate(0x1234567890ABCDEFUL));
+  LoadLiteral(&masm, x1, 0x1234567890ABCDEFUL);
 
   {
     v8::internal::PatchingAssembler::BlockPoolsScope scope(&masm);
@@ -6702,7 +6712,7 @@ TEST(ldr_pcrel_large_offset) {
     }
   }
 
-  __ Ldr(x2, Immediate(0x1234567890ABCDEFUL));
+  LoadLiteral(&masm, x2, 0x1234567890ABCDEFUL);
 
   END();
 
@@ -6719,14 +6729,13 @@ TEST(ldr_literal) {
   SETUP();
 
   START();
-  __ Ldr(x2, Immediate(0x1234567890ABCDEFUL));
-  __ Ldr(d13, 1.234);
+  LoadLiteral(&masm, x2, 0x1234567890ABCDEFUL);
+
   END();
 
   RUN();
 
   CHECK_EQUAL_64(0x1234567890ABCDEFUL, x2);
-  CHECK_EQUAL_FP64(1.234, d13);
 
   TEARDOWN();
 }
@@ -6758,8 +6767,8 @@ static void LdrLiteralRangeHelper(int range_, LiteralPoolEmitOption option,
   __ CheckConstPool(true, true);
   CHECK_CONSTANT_POOL_SIZE(0);
 
-  __ Ldr(x0, Immediate(0x1234567890ABCDEFUL));
-  __ Ldr(d0, 1.234);
+  LoadLiteral(&masm, x0, 0x1234567890ABCDEFUL);
+  LoadLiteral(&masm, x1, 0xABCDEF1234567890UL);
   CHECK_CONSTANT_POOL_SIZE(16);
 
   code_size += 2 * kInstructionSize;
@@ -6799,8 +6808,8 @@ static void LdrLiteralRangeHelper(int range_, LiteralPoolEmitOption option,
   CHECK_CONSTANT_POOL_SIZE(0);
 
   // These loads should be after the pool (and will require a new one).
-  __ Ldr(x4, Immediate(0x34567890ABCDEF12UL));
-  __ Ldr(d4, 123.4);
+  LoadLiteral(&masm, x4, 0x34567890ABCDEF12UL);
+  LoadLiteral(&masm, x5, 0xABCDEF0123456789UL);
   CHECK_CONSTANT_POOL_SIZE(16);
   END();
 
@@ -6808,9 +6817,9 @@ static void LdrLiteralRangeHelper(int range_, LiteralPoolEmitOption option,
 
   // Check that the literals loaded correctly.
   CHECK_EQUAL_64(0x1234567890ABCDEFUL, x0);
-  CHECK_EQUAL_FP64(1.234, d0);
+  CHECK_EQUAL_64(0xABCDEF1234567890UL, x1);
   CHECK_EQUAL_64(0x34567890ABCDEF12UL, x4);
-  CHECK_EQUAL_FP64(123.4, d4);
+  CHECK_EQUAL_64(0xABCDEF0123456789UL, x5);
 
   TEARDOWN();
 }

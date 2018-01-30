@@ -295,7 +295,8 @@ class LiftoffAssembler : public TurboAssembler {
   inline void Store(Register dst_addr, Register offset_reg, uint32_t offset_imm,
                     LiftoffRegister src, StoreType type, LiftoffRegList pinned,
                     uint32_t* protected_store_pc = nullptr);
-  inline void LoadCallerFrameSlot(LiftoffRegister, uint32_t caller_slot_idx);
+  inline void LoadCallerFrameSlot(LiftoffRegister, uint32_t caller_slot_idx,
+                                  ValueType);
   inline void MoveStackValue(uint32_t dst_index, uint32_t src_index, ValueType);
 
   inline void MoveToReturnRegister(LiftoffRegister);

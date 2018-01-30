@@ -98,7 +98,7 @@ class JSCallReducer final : public AdvancedReducer {
   Reduction ReduceStringPrototypeIndexOf(Handle<JSFunction> function,
                                          Node* node);
   Reduction ReduceStringPrototypeStringAt(
-      const Operator* string_access_operator, Node* default_return, Node* node);
+      const Operator* string_access_operator, Node* node);
   Reduction ReduceAsyncFunctionPromiseCreate(Node* node);
   Reduction ReduceAsyncFunctionPromiseRelease(Node* node);
 

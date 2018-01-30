@@ -49,6 +49,12 @@ found in the LICENSE file. -->
 #categories {
   margin-top: 10px;
 }
+
+#category-filter {
+  text-align: right;
+  width: 50px;
+}
+
 </style>
 <h2>Data selection</h2>
 <ul>
@@ -83,7 +89,11 @@ found in the LICENSE file. -->
     </select>
   </li>
   <li>
-    <button id="csv-export" disabled="disabled">Export selection as CSV</button>
+    <input id="category-filter" type="text" value="0" disabled="disabled" />KB
+    <button id="category-filter-btn" disabled="disabled">Filter categories with less memory</button>
+  </li>
+  <li>
+    <button id="csv-export-btn" disabled="disabled">Export selection as CSV</button>
   </li>
 </ul>
 

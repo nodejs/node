@@ -32,6 +32,17 @@ class SimulatorBase {
   static Redirection* redirection() { return redirection_; }
   static void set_redirection(Redirection* r) { redirection_ = r; }
 
+ protected:
+  template <typename Return, typename SimT, typename CallImpl, typename... Args>
+  static Return VariadicCall(SimT* sim, CallImpl call, byte* entry,
+                             Args... args) {
+    // Convert all arguments to intptr_t. Fails if any argument is not integral
+    // or pointer.
+    std::array<intptr_t, sizeof...(args)> args_arr{{ConvertArg(args)...}};
+    intptr_t ret = (sim->*call)(entry, args_arr.size(), args_arr.data());
+    return ConvertReturn<Return>(ret);
+  }
+
  private:
   // Runtime call support. Uses the isolate in a thread-safe way.
   static void* RedirectExternalReference(Isolate* isolate,
@@ -40,16 +51,6 @@ class SimulatorBase {
 
   static base::Mutex* redirection_mutex_;
   static Redirection* redirection_;
-
-  template <typename Return, typename SimT, typename CallImpl, typename... Args>
-  static Return VariadicCall(SimT* sim, CallImpl call, byte* entry,
-                             Args... args) {
-    // Convert all arguments to intptr_t. Fails if any argument is not integral
-    // or pointer.
-    std::array<intptr_t, sizeof...(args)> args_arr{ConvertArg(args)...};
-    intptr_t ret = (sim->*call)(entry, args_arr.size(), args_arr.data());
-    return ConvertReturn<Return>(ret);
-  }
 
   // Helper methods to convert arbitrary integer or pointer arguments to the
   // needed generic argument type intptr_t.

@@ -423,6 +423,10 @@ void ClassBoilerplate::AddToElementsTemplate(
 
 Handle<ClassBoilerplate> ClassBoilerplate::BuildClassBoilerplate(
     Isolate* isolate, ClassLiteral* expr) {
+  // Create a non-caching handle scope to ensure that the temporary handle used
+  // by ObjectDescriptor for passing Smis around does not corrupt handle cache
+  // in CanonicalHandleScope.
+  HandleScope scope(isolate);
   Factory* factory = isolate->factory();
   ObjectDescriptor static_desc;
   ObjectDescriptor instance_desc;
@@ -509,10 +513,13 @@ Handle<ClassBoilerplate> ClassBoilerplate::BuildClassBoilerplate(
       case ClassLiteral::Property::SETTER:
         value_kind = ClassBoilerplate::kSetter;
         break;
-      case ClassLiteral::Property::FIELD:
+      case ClassLiteral::Property::PUBLIC_FIELD:
         if (property->is_computed_name()) {
           ++dynamic_argument_index;
         }
+        continue;
+      case ClassLiteral::Property::PRIVATE_FIELD:
+        DCHECK(!property->is_computed_name());
         continue;
     }
 
@@ -580,7 +587,7 @@ Handle<ClassBoilerplate> ClassBoilerplate::BuildClassBoilerplate(
   class_boilerplate->set_instance_computed_properties(
       *instance_desc.computed_properties());
 
-  return class_boilerplate;
+  return scope.CloseAndEscape(class_boilerplate);
 }
 
 }  // namespace internal

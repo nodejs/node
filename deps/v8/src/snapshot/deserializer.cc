@@ -246,7 +246,7 @@ HeapObject* Deserializer<AllocatorT>::PostProcessNewObject(HeapObject* obj,
     // fields in the serializer.
     BytecodeArray* bytecode_array = BytecodeArray::cast(obj);
     bytecode_array->set_interrupt_budget(
-        interpreter::Interpreter::kInterruptBudget);
+        interpreter::Interpreter::InterruptBudget());
     bytecode_array->set_osr_loop_nesting_level(0);
   }
   // Check alignment.

@@ -2406,6 +2406,126 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       }
       break;
     }
+
+#define I8x16_SPLAT(reg, scratch, v)      \
+  __ Move(reg, static_cast<uint32_t>(v)); \
+  __ Pxor(scratch, scratch);              \
+  __ Pshufb(reg, scratch)
+
+    case kSSEI8x16Shl: {
+      DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
+      XMMRegister src = i.InputSimd128Register(0);
+      int8_t shift = i.InputInt8(1) & 0x7;
+      XMMRegister tmp = i.ToSimd128Register(instr->TempAt(0));
+
+      // src = AAaa ... AAaa
+      // tmp = 0F0F ... 0F0F (shift=4)
+      I8x16_SPLAT(tmp, kScratchDoubleReg, 0xFFU >> shift);
+
+      // src = src & tmp
+      //    => 0A0a ... 0A0a
+      __ pand(src, tmp);
+
+      // src = src << shift
+      //    => A0a0 ... A0a0 (shift=4)
+      __ pslld(src, shift);
+      break;
+    }
+    case kAVXI8x16Shl: {
+      CpuFeatureScope avx_scope(tasm(), AVX);
+      XMMRegister dst = i.OutputSimd128Register();
+      XMMRegister src = i.InputSimd128Register(0);
+      int8_t shift = i.InputInt8(1) & 0x7;
+      XMMRegister tmp =
+          dst != src ? dst : i.ToSimd128Register(instr->TempAt(0));
+
+      // src = AAaa ... AAaa
+      // tmp = 0F0F ... 0F0F (shift=4)
+      I8x16_SPLAT(tmp, kScratchDoubleReg, 0xFFU >> shift);
+
+      // dst = src & tmp
+      //    => 0A0a ... 0A0a
+      __ vpand(dst, src, tmp);
+
+      // dst = dst << shift
+      //    => A0a0 ... A0a0 (shift=4)
+      __ vpslld(dst, dst, shift);
+      break;
+    }
+    case kSSEI8x16ShrS: {
+      DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
+      XMMRegister src = i.InputSimd128Register(0);
+      int8_t shift = i.InputInt8(1) & 0x7;
+      XMMRegister tmp = i.ToSimd128Register(instr->TempAt(0));
+
+      // I16x8 view of I8x16
+      // src = AAaa AAaa ... AAaa AAaa
+
+      // tmp = aa00 aa00 ... aa00 aa00
+      __ movaps(tmp, src);
+      __ Move(kScratchDoubleReg, static_cast<uint32_t>(0xff00));
+      __ psllw(tmp, 8);
+
+      // src = I16x8ShrS(src, shift)
+      //    => SAAa SAAa ... SAAa SAAa (shift=4)
+      __ pshuflw(kScratchDoubleReg, kScratchDoubleReg, 0x0);
+      __ psraw(src, shift);
+
+      // tmp = I16x8ShrS(tmp, shift)
+      //    => Saa0 Saa0 ... Saa0 Saa0 (shift=4)
+      __ pshufd(kScratchDoubleReg, kScratchDoubleReg, 0x0);
+      __ psraw(tmp, shift);
+
+      // src = I16x8And(src, 0xff00)
+      //    => SA00 SA00 ... SA00 SA00
+      __ pand(src, kScratchDoubleReg);
+
+      // tmp = I16x8ShrU(tmp, 8)
+      //    => 00Sa 00Sa ... 00Sa 00Sa (shift=4)
+      __ psrlw(tmp, 8);
+
+      // src = I16x8Or(src, tmp)
+      //    => SASa SASa ... SASa SASa (shift=4)
+      __ por(src, tmp);
+      break;
+    }
+    case kAVXI8x16ShrS: {
+      CpuFeatureScope avx_scope(tasm(), AVX);
+      XMMRegister dst = i.OutputSimd128Register();
+      XMMRegister src = i.InputSimd128Register(0);
+      int8_t shift = i.InputInt8(1) & 0x7;
+      XMMRegister tmp = i.ToSimd128Register(instr->TempAt(0));
+
+      // I16x8 view of I8x16
+      // src = AAaa AAaa ... AAaa AAaa
+
+      // tmp = aa00 aa00 ... aa00 aa00
+      __ Move(kScratchDoubleReg, static_cast<uint32_t>(0xff00));
+      __ vpsllw(tmp, src, 8);
+
+      // dst = I16x8ShrS(src, shift)
+      //    => SAAa SAAa ... SAAa SAAa (shift=4)
+      __ vpshuflw(kScratchDoubleReg, kScratchDoubleReg, 0x0);
+      __ vpsraw(dst, src, shift);
+
+      // tmp = I16x8ShrS(tmp, shift)
+      //    => Saa0 Saa0 ... Saa0 Saa0 (shift=4)
+      __ vpshufd(kScratchDoubleReg, kScratchDoubleReg, 0x0);
+      __ vpsraw(tmp, tmp, shift);
+
+      // dst = I16x8And(dst, 0xff00)
+      //    => SA00 SA00 ... SA00 SA00
+      __ vpand(dst, dst, kScratchDoubleReg);
+
+      // tmp = I16x8ShrU(tmp, 8)
+      //    => 00Sa 00Sa ... 00Sa 00Sa (shift=4)
+      __ vpsrlw(tmp, tmp, 8);
+
+      // dst = I16x8Or(dst, tmp)
+      //    => SASa SASa ... SASa SASa (shift=4)
+      __ vpor(dst, dst, tmp);
+      break;
+    }
     case kSSEI8x16Add: {
       DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
       __ paddb(i.OutputSimd128Register(), i.InputOperand(1));
@@ -2448,6 +2568,88 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       CpuFeatureScope avx_scope(tasm(), AVX);
       __ vpsubsb(i.OutputSimd128Register(), i.InputSimd128Register(0),
                  i.InputOperand(1));
+      break;
+    }
+    case kSSEI8x16Mul: {
+      DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
+      XMMRegister left = i.InputSimd128Register(0);
+      XMMRegister right = i.InputSimd128Register(1);
+      XMMRegister t0 = i.ToSimd128Register(instr->TempAt(0));
+      XMMRegister t1 = i.ToSimd128Register(instr->TempAt(1));
+
+      // I16x8 view of I8x16
+      // left = AAaa AAaa ... AAaa AAaa
+      // right= BBbb BBbb ... BBbb BBbb
+
+      // t0 = 00AA 00AA ... 00AA 00AA
+      // t1 = 00BB 00BB ... 00BB 00BB
+      __ movaps(t0, left);
+      __ movaps(t1, right);
+      __ Move(kScratchDoubleReg, static_cast<uint32_t>(0x00ff));
+      __ psrlw(t0, 8);
+      __ psrlw(t1, 8);
+
+      // left = I16x8Mul(left, right)
+      //    => __pp __pp ...  __pp  __pp
+      // t0 = I16x8Mul(t0, t1)
+      //    => __PP __PP ...  __PP  __PP
+      __ pshuflw(kScratchDoubleReg, kScratchDoubleReg, 0x0);
+      __ pmullw(t0, t1);
+      __ pmullw(left, right);
+      __ pshufd(kScratchDoubleReg, kScratchDoubleReg, 0x0);
+
+      // t0 = I16x8Shl(t0, 8)
+      //    => PP00 PP00 ...  PP00  PP00
+      __ psllw(t0, 8);
+
+      // left = I16x8And(left, 0x00ff)
+      //    => 00pp 00pp ...  00pp  00pp
+      __ pand(left, kScratchDoubleReg);
+
+      // left = I16x8Or(left, t0)
+      //    => PPpp PPpp ...  PPpp  PPpp
+      __ por(left, t0);
+      break;
+    }
+    case kAVXI8x16Mul: {
+      CpuFeatureScope avx_scope(tasm(), AVX);
+      XMMRegister dst = i.OutputSimd128Register();
+      XMMRegister left = i.InputSimd128Register(0);
+      XMMRegister right = i.InputSimd128Register(1);
+      XMMRegister t0 = i.ToSimd128Register(instr->TempAt(0));
+      XMMRegister t1 = i.ToSimd128Register(instr->TempAt(1));
+
+      // I16x8 view of I8x16
+      // left = AAaa AAaa ... AAaa AAaa
+      // right= BBbb BBbb ... BBbb BBbb
+
+      // t0 = 00AA 00AA ... 00AA 00AA
+      // t1 = 00BB 00BB ... 00BB 00BB
+      __ Move(kScratchDoubleReg, static_cast<uint32_t>(0x00ff));
+      __ vpsrlw(t0, left, 8);
+      __ vpsrlw(t1, right, 8);
+
+      // dst = I16x8Mul(left, right)
+      //    => __pp __pp ...  __pp  __pp
+      __ vpshuflw(kScratchDoubleReg, kScratchDoubleReg, 0x0);
+      __ vpmullw(dst, left, right);
+
+      // t0 = I16x8Mul(t0, t1)
+      //    => __PP __PP ...  __PP  __PP
+      __ vpmullw(t0, t0, t1);
+      __ vpshufd(kScratchDoubleReg, kScratchDoubleReg, 0x0);
+
+      // t0 = I16x8Shl(t0, 8)
+      //    => PP00 PP00 ...  PP00  PP00
+      __ vpsllw(t0, t0, 8);
+
+      // dst = I16x8And(dst, 0x00ff)
+      //    => 00pp 00pp ...  00pp  00pp
+      __ vpand(dst, dst, kScratchDoubleReg);
+
+      // dst = I16x8Or(dst, t0)
+      //    => PPpp PPpp ...  PPpp  PPpp
+      __ vpor(dst, dst, t0);
       break;
     }
     case kSSEI8x16MinS: {
@@ -2551,6 +2753,48 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                   i.InputOperand(1));
       break;
     }
+    case kSSEI8x16ShrU: {
+      DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
+      XMMRegister src = i.InputSimd128Register(0);
+      int8_t shift = i.InputInt8(1) & 0x7;
+      XMMRegister tmp = i.ToSimd128Register(instr->TempAt(0));
+
+      // src = AAaa ... AAaa
+      // tmp = F0F0 ... F0F0 (shift=4)
+
+      I8x16_SPLAT(tmp, kScratchDoubleReg, 0xFFU << shift);  // needn't byte cast
+
+      // src = src & tmp
+      //    => A0a0 ... A0a0
+      __ pand(src, tmp);
+
+      // src = src >> shift
+      //    => 0A0a ... 0A0a (shift=4)
+      __ psrld(src, shift);
+      break;
+    }
+    case kAVXI8x16ShrU: {
+      CpuFeatureScope avx_scope(tasm(), AVX);
+      XMMRegister dst = i.OutputSimd128Register();
+      XMMRegister src = i.InputSimd128Register(0);
+      int8_t shift = i.InputInt8(1) & 0x7;
+      XMMRegister tmp =
+          dst != src ? dst : i.ToSimd128Register(instr->TempAt(0));
+
+      // src = AAaa ... AAaa
+      // tmp = F0F0 ... F0F0 (shift=4)
+      I8x16_SPLAT(tmp, kScratchDoubleReg, 0xFFU << shift);
+
+      // src = src & tmp
+      //    => A0a0 ... A0a0
+      __ vpand(dst, src, tmp);
+
+      // dst = dst >> shift
+      //    => 0A0a ... 0A0a (shift=4)
+      __ vpsrld(dst, dst, shift);
+      break;
+    }
+#undef I8x16_SPLAT
     case kSSEI8x16MinU: {
       DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
       __ pminub(i.OutputSimd128Register(), i.InputOperand(1));

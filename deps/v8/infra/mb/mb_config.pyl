@@ -75,7 +75,6 @@
       'V8 Win32 - nosnap - shared':
         'gn_release_x86_no_snap_shared_minimal_symbols',
       # TODO(machenbach): Remove after switching to x64 on infra side.
-      'V8 Win32 ASAN': 'gn_release_x64_asan_no_lsan',
       'V8 Win64 ASAN': 'gn_release_x64_asan_no_lsan',
       'V8 Win64': 'gn_release_x64_minimal_symbols',
       'V8 Win64 - debug': 'gn_debug_x64_minimal_symbols',
@@ -110,19 +109,21 @@
       'V8 Random Deopt Fuzzer - debug': 'gn_debug_x64',
     },
     'client.v8.clusterfuzz': {
-      'V8 Win32 ASAN - release builder':
-        'gn_release_x86_asan_no_lsan_verify_heap',
+      'V8 Win64 ASAN - release builder':
+        'gn_release_x64_asan_no_lsan_verify_heap',
       # Note this is called a debug builder, but it uses a release build
       # configuration with dchecks (which enables DEBUG in V8), since win-asan
       # debug is not supported.
-      'V8 Win32 ASAN - debug builder':
-        'gn_release_x86_asan_no_lsan_verify_heap_dchecks',
+      'V8 Win64 ASAN - debug builder':
+        'gn_release_x64_asan_no_lsan_verify_heap_dchecks',
       'V8 Mac64 ASAN - release builder':
           'gn_release_x64_asan_no_lsan_edge_verify_heap',
       'V8 Mac64 ASAN - debug builder':
           'gn_debug_x64_asan_no_lsan_static_edge',
       'V8 Linux64 - release builder': 'gn_release_x64_correctness_fuzzer',
       'V8 Linux64 - debug builder': 'gn_debug_x64',
+      'V8 Linux64 - nosnap release builder': 'gn_release_x64_no_snap',
+      'V8 Linux64 - nosnap debug builder': 'gn_debug_x64_no_snap',
       'V8 Linux64 ASAN no inline - release builder':
           'gn_release_x64_asan_symbolized_edge_verify_heap',
       'V8 Linux64 ASAN - debug builder': 'gn_debug_x64_asan_edge',
@@ -219,7 +220,6 @@
           'gn_release_x64_tsan_concurrent_marking_minimal_symbols',
       'v8_linux64_ubsan_rel_ng': 'gn_release_x64_ubsan_vptr_minimal_symbols',
       # TODO(machenbach): Remove after switching to x64 on infra side.
-      'v8_win_asan_rel_ng': 'gn_release_x64_asan_no_lsan',
       'v8_win_dbg': 'gn_debug_x86_trybot',
       'v8_win_compile_dbg': 'gn_debug_x86_trybot',
       'v8_win_rel_ng': 'gn_release_x86_trybot',
@@ -407,6 +407,11 @@
     'gn_release_x64_asan_no_lsan_edge_verify_heap': [
       'gn', 'release_bot', 'x64', 'asan', 'edge', 'swarming',
       'v8_verify_heap'],
+    'gn_release_x64_asan_no_lsan_verify_heap': [
+      'gn', 'release_bot', 'x64', 'asan', 'swarming', 'v8_verify_heap'],
+    'gn_release_x64_asan_no_lsan_verify_heap_dchecks': [
+      'gn', 'release_bot', 'x64', 'asan', 'swarming', 'dcheck_always_on',
+      'v8_enable_slow_dchecks', 'v8_verify_heap'],
     'gn_release_x64_asan_symbolized_edge_verify_heap': [
       'gn', 'release_bot', 'x64', 'asan', 'edge', 'lsan', 'symbolized',
       'v8_verify_heap'],
@@ -430,6 +435,8 @@
       'gn', 'release_bot', 'x64', 'swarming', 'v8_snapshot_internal'],
     'gn_release_x64_minimal_symbols': [
       'gn', 'release_bot', 'x64', 'minimal_symbols', 'swarming'],
+    'gn_release_x64_no_snap': [
+      'gn', 'release_bot', 'x64', 'swarming', 'v8_snapshot_none'],
     'gn_release_x64_trybot': [
       'gn', 'release_trybot', 'x64', 'swarming'],
     'gn_release_x64_test_features_trybot': [
@@ -470,6 +477,8 @@
       'gn', 'debug_bot', 'x64', 'gcc'],
     'gn_debug_x64_minimal_symbols': [
       'gn', 'debug_bot', 'x64', 'minimal_symbols', 'swarming'],
+    'gn_debug_x64_no_snap': [
+      'gn', 'debug_bot', 'x64', 'swarming', 'v8_snapshot_none'],
 
     # GN debug configs for x86.
     'gn_debug_x86': [
@@ -493,11 +502,6 @@
     # GN release configs for x86.
     'gn_release_x86': [
       'gn', 'release_bot', 'x86', 'swarming'],
-    'gn_release_x86_asan_no_lsan_verify_heap': [
-      'gn', 'release_bot', 'x86', 'asan', 'swarming', 'v8_verify_heap'],
-    'gn_release_x86_asan_no_lsan_verify_heap_dchecks': [
-      'gn', 'release_bot', 'x86', 'asan', 'swarming', 'dcheck_always_on',
-      'v8_enable_slow_dchecks', 'v8_verify_heap'],
     'gn_release_x86_disassembler': [
       'gn', 'release_bot', 'x86', 'v8_enable_disassembler'],
     'gn_release_x86_gcc': [

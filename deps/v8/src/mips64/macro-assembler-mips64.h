@@ -23,6 +23,7 @@ constexpr Register kInterpreterAccumulatorRegister = v0;
 constexpr Register kInterpreterBytecodeOffsetRegister = t0;
 constexpr Register kInterpreterBytecodeArrayRegister = t1;
 constexpr Register kInterpreterDispatchTableRegister = t2;
+constexpr Register kInterpreterTargetBytecodeRegister = t3;
 constexpr Register kJavaScriptCallArgCountRegister = a0;
 constexpr Register kJavaScriptCallNewTargetRegister = a3;
 constexpr Register kRuntimeCallFunctionRegister = a1;
@@ -1089,10 +1090,6 @@ class MacroAssembler : public TurboAssembler {
                       const ParameterCount& actual, InvokeFlag flag);
 
   void InvokeFunction(Register function, const ParameterCount& expected,
-                      const ParameterCount& actual, InvokeFlag flag);
-
-  void InvokeFunction(Handle<JSFunction> function,
-                      const ParameterCount& expected,
                       const ParameterCount& actual, InvokeFlag flag);
 
   // Frame restart support.

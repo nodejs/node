@@ -1330,8 +1330,8 @@ TF_BUILTIN(TypedArrayPrototypeSubArray, TypedArrayBuiltinsAssembler) {
   const char* method_name = "%TypedArray%.prototype.subarray";
   Label offset_done(this);
 
-  VARIABLE(var_begin, MachineRepresentation::kTagged);
-  VARIABLE(var_end, MachineRepresentation::kTagged);
+  TVARIABLE(Smi, var_begin);
+  TVARIABLE(Smi, var_end);
 
   TNode<Context> context = CAST(Parameter(BuiltinDescriptor::kContext));
   CodeStubArguments args(
@@ -1355,24 +1355,23 @@ TF_BUILTIN(TypedArrayPrototypeSubArray, TypedArrayBuiltinsAssembler) {
   // 8. If relativeBegin < 0, let beginIndex be max((srcLength + relativeBegin),
   // 0); else let beginIndex be min(relativeBegin, srcLength).
   TNode<Object> begin = args.GetOptionalArgumentValue(0, SmiConstant(0));
-  ConvertToRelativeIndex(context, &var_begin, begin, source_length);
+  var_begin = ConvertToRelativeIndex(context, begin, source_length);
 
   TNode<Object> end = args.GetOptionalArgumentValue(1, UndefinedConstant());
   // 9. If end is undefined, let relativeEnd be srcLength;
-  var_end.Bind(source_length);
+  var_end = source_length;
   GotoIf(IsUndefined(end), &offset_done);
 
   // else, let relativeEnd be ? ToInteger(end).
   // 10. If relativeEnd < 0, let endIndex be max((srcLength + relativeEnd), 0);
   // else let endIndex be min(relativeEnd, srcLength).
-  ConvertToRelativeIndex(context, &var_end, end, source_length);
+  var_end = ConvertToRelativeIndex(context, end, source_length);
   Goto(&offset_done);
 
   BIND(&offset_done);
 
   // 11. Let newLength be max(endIndex - beginIndex, 0).
-  TNode<Smi> new_length =
-      SmiMax(SmiSub(var_end.value(), var_begin.value()), SmiConstant(0));
+  TNode<Smi> new_length = SmiMax(SmiSub(var_end, var_begin), SmiConstant(0));
 
   // 12. Let constructorName be the String value of O.[[TypedArrayName]].
   // 13. Let elementSize be the Number value of the Element Size value specified
@@ -1385,7 +1384,7 @@ TF_BUILTIN(TypedArrayPrototypeSubArray, TypedArrayBuiltinsAssembler) {
       LoadObjectField<Number>(source, JSTypedArray::kByteOffsetOffset);
 
   // 15. Let beginByteOffset be srcByteOffset + beginIndex × elementSize.
-  TNode<Number> offset = SmiMul(var_begin.value(), SmiFromWord(element_size));
+  TNode<Number> offset = SmiMul(var_begin, SmiFromWord(element_size));
   TNode<Number> begin_byte_offset = CAST(NumberAdd(source_byte_offset, offset));
 
   // 16. Let argumentsList be « buffer, beginByteOffset, newLength ».

@@ -4,11 +4,9 @@
 {
   'variables': {
     'command': [
-      'run-deopt-fuzzer.py',
+      'run-num-fuzzer.py',
     ],
     'files': [
-      'run-deopt-fuzzer.py',
-      'run-gc-fuzzer.py',
       'run-num-fuzzer.py',
     ],
   },

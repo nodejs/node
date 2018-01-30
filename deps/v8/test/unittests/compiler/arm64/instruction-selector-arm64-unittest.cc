@@ -4417,6 +4417,15 @@ TEST_F(InstructionSelectorTest, CompareFloat64HighGreaterThanOrEqualZero64) {
   EXPECT_EQ(63, s.ToInt32(s[1]->InputAt(1)));
 }
 
+TEST_F(InstructionSelectorTest, SpeculationFence) {
+  StreamBuilder m(this, MachineType::Int32());
+  m.SpeculationFence();
+  m.Return(m.Int32Constant(0));
+  Stream s = m.Build();
+  ASSERT_EQ(1U, s.size());
+  EXPECT_EQ(kArm64DsbIsb, s[0]->arch_opcode());
+}
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

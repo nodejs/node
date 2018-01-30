@@ -1734,19 +1734,9 @@ void VisitWord64Compare(InstructionSelector* selector, Node* node,
       // Compare(Load(js_stack_limit), LoadStackPointer)
       if (!node->op()->HasProperty(Operator::kCommutative)) cont->Commute();
       InstructionCode opcode = cont->Encode(kX64StackCheck);
-      if (cont->IsBranch()) {
-        selector->Emit(opcode, g.NoOutput(), g.Label(cont->true_block()),
-                       g.Label(cont->false_block()));
-      } else if (cont->IsDeoptimize()) {
-        selector->EmitDeoptimize(opcode, 0, nullptr, 0, nullptr, cont->kind(),
-                                 cont->reason(), cont->feedback(),
-                                 cont->frame_state());
-      } else if (cont->IsSet()) {
-        selector->Emit(opcode, g.DefineAsRegister(cont->result()));
-      } else {
-        DCHECK(cont->IsTrap());
-        selector->Emit(opcode, g.NoOutput(), g.UseImmediate(cont->trap_id()));
-      }
+      CHECK(cont->IsBranch());
+      selector->Emit(opcode, g.NoOutput(), g.Label(cont->true_block()),
+                     g.Label(cont->false_block()));
       return;
     }
   }

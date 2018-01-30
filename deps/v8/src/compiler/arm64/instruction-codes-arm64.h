@@ -157,6 +157,7 @@ namespace compiler {
   V(Arm64StrW)                     \
   V(Arm64Ldr)                      \
   V(Arm64Str)                      \
+  V(Arm64DsbIsb)                   \
   V(Arm64F32x4Splat)               \
   V(Arm64F32x4ExtractLane)         \
   V(Arm64F32x4ReplaceLane)         \

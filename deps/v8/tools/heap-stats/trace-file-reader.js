@@ -52,7 +52,7 @@ class TraceFileReader extends HTMLElement {
 
     const reader = new FileReader();
 
-    if (file.type === 'application/gzip') {
+    if (['application/gzip', 'application/x-gzip'].includes(file.type)) {
       reader.onload = (e) => {
         try {
           const textResult = pako.inflate(e.target.result, {to: 'string'});

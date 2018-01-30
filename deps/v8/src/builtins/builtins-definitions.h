@@ -92,7 +92,8 @@ namespace internal {
                                                                                \
   /* String helpers */                                                         \
   TFC(StringCharAt, StringAt, 1)                                               \
-  TFC(StringCodePointAt, StringAt, 1)                                          \
+  TFC(StringCodePointAtUTF16, StringAt, 1)                                     \
+  TFC(StringCodePointAtUTF32, StringAt, 1)                                     \
   TFC(StringEqual, Compare, 1)                                                 \
   TFC(StringGreaterThan, Compare, 1)                                           \
   TFC(StringGreaterThanOrEqual, Compare, 1)                                    \
@@ -818,8 +819,6 @@ namespace internal {
   TFS(PromiseHandleReject, kPromise, kOnReject, kException)                    \
   TFS(PromiseHandle, kValue, kHandler, kDeferredPromise, kDeferredOnResolve,   \
       kDeferredOnReject)                                                       \
-  TFJ(PromiseHandleJS, 5, kValue, kHandler, kDeferredPromise,                  \
-      kDeferredOnResolve, kDeferredOnReject)                                   \
   /* ES #sec-promise.resolve */                                                \
   TFJ(PromiseResolveWrapper, 1, kValue)                                        \
   TFS(PromiseResolve, kConstructor, kValue)                                    \

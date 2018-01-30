@@ -14,10 +14,12 @@ for (let jstest of arguments) {
 
   // anonymous function to not populate global namespace.
   (function () {
+    let realm = Realm.create();
     try {
-      load(jstest);
+      Realm.eval(realm, "load(\"" + jstest + "\");");
     } catch (err) {
       // ignore all errors
     }
+    Realm.dispose(realm);
   })();
 }

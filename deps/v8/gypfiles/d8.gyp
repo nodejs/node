@@ -116,23 +116,4 @@
       ],
     },
   ],
-  'conditions': [
-    ['test_isolation_mode != "noop"', {
-      'targets': [
-        {
-          'target_name': 'd8_run',
-          'type': 'none',
-          'dependencies': [
-            'd8',
-          ],
-          'includes': [
-            'isolate.gypi',
-          ],
-          'sources': [
-            '../src/d8.isolate',
-          ],
-        },
-      ],
-    }],
-  ],
 }

@@ -1480,14 +1480,6 @@ void MacroAssembler::InvokeFunction(Register function,
   InvokeFunctionCode(r1, no_reg, expected, actual, flag);
 }
 
-void MacroAssembler::InvokeFunction(Handle<JSFunction> function,
-                                    const ParameterCount& expected,
-                                    const ParameterCount& actual,
-                                    InvokeFlag flag) {
-  Move(r1, function);
-  InvokeFunction(r1, expected, actual, flag);
-}
-
 void MacroAssembler::MaybeDropFrames() {
   // Check whether we need to drop frames to restart a function on the stack.
   ExternalReference restart_fp =

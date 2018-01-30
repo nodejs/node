@@ -5,6 +5,8 @@
 #ifndef V8_INTERPRETER_INTERPRETER_INTRINSICS_GENERATOR_H_
 #define V8_INTERPRETER_INTERPRETER_INTRINSICS_GENERATOR_H_
 
+#include "src/interpreter/interpreter-assembler.h"
+
 namespace v8 {
 namespace internal {
 
@@ -14,13 +16,9 @@ class Node;
 
 namespace interpreter {
 
-class InterpreterAssembler;
-
-extern compiler::Node* GenerateInvokeIntrinsic(InterpreterAssembler* assembler,
-                                               compiler::Node* function_id,
-                                               compiler::Node* context,
-                                               compiler::Node* first_arg_reg,
-                                               compiler::Node* arg_count);
+extern compiler::Node* GenerateInvokeIntrinsic(
+    InterpreterAssembler* assembler, compiler::Node* function_id,
+    compiler::Node* context, const InterpreterAssembler::RegListNodePair& args);
 
 }  // namespace interpreter
 }  // namespace internal

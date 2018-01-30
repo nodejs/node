@@ -10,7 +10,6 @@ namespace v8 {
 namespace internal {
 namespace wasm {
 
-#if !V8_TARGET_ARCH_MIPS && !V8_TARGET_ARCH_MIPS64
 WASM_COMPILED_EXEC_TEST(I32SExtendI8) {
   EXPERIMENTAL_FLAG_SCOPE(se);
   WasmRunner<int32_t, int32_t> r(execution_mode);
@@ -32,12 +31,10 @@ WASM_COMPILED_EXEC_TEST(I32SExtendI16) {
   CHECK_EQ(0x7afa, r.Call(0x7afa));
   CHECK_EQ(-0x8000, r.Call(0x8000));
 }
-#endif  // !V8_TARGET_ARCH_MIPS && !V8_TARGET_ARCH_MIPS64
-
 // TODO(gdeepti): Enable tests to run in the interpreter, and on 32 bit
 // platforms after int64 lowering support. Add JS tests once all ops can be run
 // on 32 bit platforms.
-#if V8_TARGET_ARCH_64_BIT && !V8_TARGET_ARCH_MIPS64
+#if V8_TARGET_ARCH_64_BIT
 WASM_COMPILED_EXEC_TEST(I64SExtendI8) {
   EXPERIMENTAL_FLAG_SCOPE(se);
   WasmRunner<int64_t, int64_t> r(execution_mode);
@@ -70,7 +67,7 @@ WASM_COMPILED_EXEC_TEST(I64SExtendI32) {
   CHECK_EQ(0x7fffffff, r.Call(0x7fffffff));
   CHECK_EQ(-0x80000000LL, r.Call(0x80000000));
 }
-#endif  // V8_TARGET_ARCH_64_BIT && !V8_TARGET_ARCH_MIPS64
+#endif  // V8_TARGET_ARCH_64_BIT
 
 }  // namespace wasm
 }  // namespace internal

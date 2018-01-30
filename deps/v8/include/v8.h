@@ -1223,24 +1223,23 @@ class V8_EXPORT Script {
   /**
    * A shorthand for ScriptCompiler::Compile().
    */
-  static V8_DEPRECATE_SOON(
-      "Use maybe version",
-      Local<Script> Compile(Local<String> source,
-                            ScriptOrigin* origin = nullptr));
+  static V8_DEPRECATED("Use maybe version",
+                       Local<Script> Compile(Local<String> source,
+                                             ScriptOrigin* origin = nullptr));
   static V8_WARN_UNUSED_RESULT MaybeLocal<Script> Compile(
       Local<Context> context, Local<String> source,
       ScriptOrigin* origin = nullptr);
 
-  static Local<Script> V8_DEPRECATE_SOON("Use maybe version",
-                                         Compile(Local<String> source,
-                                                 Local<String> file_name));
+  static Local<Script> V8_DEPRECATED("Use maybe version",
+                                     Compile(Local<String> source,
+                                             Local<String> file_name));
 
   /**
    * Runs the script returning the resulting value. It will be run in the
    * context in which it was created (ScriptCompiler::CompileBound or
    * UnboundScript::BindToCurrentContext()).
    */
-  V8_DEPRECATE_SOON("Use maybe version", Local<Value> Run());
+  V8_DEPRECATED("Use maybe version", Local<Value> Run());
   V8_WARN_UNUSED_RESULT MaybeLocal<Value> Run(Local<Context> context);
 
   /**

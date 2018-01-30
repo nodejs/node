@@ -44,7 +44,8 @@ void LiftoffAssembler::Store(Register dst_addr, Register offset_reg,
 }
 
 void LiftoffAssembler::LoadCallerFrameSlot(LiftoffRegister dst,
-                                           uint32_t caller_slot_idx) {
+                                           uint32_t caller_slot_idx,
+                                           ValueType type) {
   UNIMPLEMENTED();
 }
 

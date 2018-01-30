@@ -4383,14 +4383,6 @@ void MacroAssembler::InvokeFunction(Register function,
   InvokeFunctionCode(a1, no_reg, expected, actual, flag);
 }
 
-void MacroAssembler::InvokeFunction(Handle<JSFunction> function,
-                                    const ParameterCount& expected,
-                                    const ParameterCount& actual,
-                                    InvokeFlag flag) {
-  li(a1, function);
-  InvokeFunction(a1, expected, actual, flag);
-}
-
 
 // ---------------------------------------------------------------------------
 // Support functions.
