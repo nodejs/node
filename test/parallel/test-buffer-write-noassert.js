@@ -16,13 +16,6 @@ function write(funx, args, result, res) {
   writeInvalidOffset(-1);
   writeInvalidOffset(9);
 
-  if (!/Int/.test(funx)) {
-    assert.throws(
-      () => Buffer.alloc(9)[funx].apply(new Map(), args),
-      /^TypeError: argument should be a Buffer$/
-    );
-  }
-
   {
     const buf2 = Buffer.alloc(9);
     assert.strictEqual(buf2[funx](...args, true), result);
