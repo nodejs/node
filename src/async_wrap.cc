@@ -554,12 +554,12 @@ void AsyncWrap::Initialize(Local<Object> target,
   // this way to allow JS and C++ to read/write each value as quickly as
   // possible. The fields are represented as follows:
   //
-  // kAsyncUid: Maintains the state of the next unique id to be assigned.
+  // kAsyncIdCounter: Maintains the state of the next unique id to be assigned.
   //
   // kDefaultTriggerAsyncId: Write the id of the resource responsible for a
   //   handle's creation just before calling the new handle's constructor.
   //   After the new handle is constructed kDefaultTriggerAsyncId is set back
-  //   to 0.
+  //   to -1.
   FORCE_SET_TARGET_FIELD(target,
                          "async_id_fields",
                          env->async_hooks()->async_id_fields().GetJSArray());
