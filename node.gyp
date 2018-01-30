@@ -153,6 +153,7 @@
       'deps/v8/tools/profile.js',
       'deps/v8/tools/profile_view.js',
       'deps/v8/tools/logreader.js',
+      'deps/v8/tools/arguments.js',
       'deps/v8/tools/tickprocessor.js',
       'deps/v8/tools/SourceMap.js',
       'deps/v8/tools/tickprocessor-driver.js',
