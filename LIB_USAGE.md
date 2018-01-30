@@ -5,7 +5,7 @@ There are two different ways of handling the Node.js event loop.
 By calling `node::lib::ProcessEvents()`, the Node.js event loop will be run once, handling the next pending event. The return value of the call specifies whether there are more events in the queue.
 
 #### C++ gives up control of the thread to Node.js
-By calling `node::lib::RunMainLoop(callback)`, the C++ host program gives up the control of the thread and allows the Node.js event loop to run indefinitely until `node::lib::StopEventLoop()` is called. The `callback` parameter in the `RunMainLoop` function is called once per event loop. This allows the C++ programmer to react on changes in the Node.js state and e.g. terminate Node.js preemptively. 
+By calling `node::lib::RunEventLoop(callback)`, the C++ host program gives up the control of the thread and allows the Node.js event loop to run until no more events are in the queue or `node::lib::StopEventLoop()` is called. The `callback` parameter in the `RunEventLoop` function is called once per event loop. This allows the C++ programmer to react on changes in the Node.js state and e.g. terminate Node.js preemptively.
 
 ### Examples
 
@@ -35,7 +35,7 @@ This example uses the [fs](https://nodejs.org/api/fs.html) module to check wheth
 ```C++
 node::lib::Initialize("example03");
 auto fs = node::lib::IncludeModule("fs");
-v8::Isolate *isolate = v8::Isolate::GetCurrent();
+v8::Isolate *isolate = node::lib::internal::isolate();
 
 // Check if file cli.js exists in the current working directory.
 auto result = node::lib::Call(fs, "existsSync", {v8::String::NewFromUtf8(isolate, "cli.js")});
