@@ -67,7 +67,7 @@ namespace node { namespace lib {
      * 
      * Loads and executes the content of the given file.
      * This method returns after the script was evaluated once.
-     * This means, that any pending events will not be processes as long as 
+     * This means, that any pending events will not be processed as long as 
      * `ProcessEvents` or `RunEventLoop` is not called.
      * @param path The path to the JavaScript file.
      * @return The return value of the given JavaScript file.
@@ -107,7 +107,7 @@ namespace node { namespace lib {
      * 
      * Issues the Node.js event loop to stop.
      * The event loop will finish its current execution.
-     * This means, that the loop is not stopped when this method returns.
+     * This means, that the loop is not guaranteed to have stopped when this method returns.
      * The execution can be resumed by using `RunEventLoop` again.
      */
     NODE_EXTERN void StopEventLoop();
@@ -168,7 +168,9 @@ namespace node { namespace lib {
      * Adds a given NPM module to the JavaScript context.
      * This is achieved by calling `require('module_name')`.
      * *Important* Make sure the NPM module is installed before using this method.
-     * @param module_name The name of the NPM module.
+     * @param module_name The name of the NPM module. 
+     * When using just the modules name, the "node_modules" directory should be located within the working directory.
+     * You can also load modules from different locations by providing the full path to the module.
      * @return The export object of the NPM module.
      */
     NODE_EXTERN v8::MaybeLocal<v8::Object> IncludeModule(const std::string & module_name);
