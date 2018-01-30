@@ -9,24 +9,21 @@ const types = [
 ];
 
 const bench = common.createBenchmark(main, {
-  noAssert: ['false', 'true'],
   buffer: ['fast', 'slow'],
   type: types,
   millions: [1],
-  byteLength: [1, 2, 4, 6]
+  byteLength: [1, 2, 3, 4, 5, 6]
 });
 
-function main({ millions, noAssert, buf, type, byteLength }) {
-  noAssert = noAssert === 'true';
-  type = type || 'UInt8';
+function main({ millions, buf, type, byteLength }) {
   const clazz = buf === 'fast' ? Buffer : require('buffer').SlowBuffer;
   const buff = new clazz(8);
-  const fn = `read${type}`;
+  const fn = `read${type || 'IntBE'}`;
 
-  buff.writeDoubleLE(0, 0, noAssert);
+  buff.writeDoubleLE(0, 0);
   bench.start();
   for (var i = 0; i !== millions * 1e6; i++) {
-    buff[fn](0, byteLength, noAssert);
+    buff[fn](0, byteLength);
   }
   bench.end(millions);
 }
