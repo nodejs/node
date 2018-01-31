@@ -22,8 +22,8 @@ const theError = new Error('Some error');
   // before it was handled on the JS side
   const exception_pending = test_exception.wasPending();
   assert.strictEqual(exception_pending, true,
-                     'Expected exception to be pending, but' +
-                     `it was marked as ${exception_pending}`);
+                     'Exception not pending as expected,' +
+                     ` .wasPending() returned ${exception_pending}`);
 
   // Test that the native side does not capture a non-existing exception
   returnedError = test_exception.returnException(common.mustCall());
@@ -47,6 +47,6 @@ const theError = new Error('Some error');
   // Test that the exception state remains clear when no exception is thrown
   const exception_pending = test_exception.wasPending();
   assert.strictEqual(exception_pending, false,
-                     'Expected no exception to be pending, but' +
-                     ` it was marked as ${exception_pending}`);
+                     'Exception state did not remain clear as expected,' +
+                     ` .wasPending() returned ${exception_pending}`);
 }
