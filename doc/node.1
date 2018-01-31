@@ -167,6 +167,11 @@ A comma separated list of categories that should be traced when trace event
 tracing is enabled using \fB--trace-events-enabled\fR.
 
 .TP
+.BR \-\-trace-event\-file\-pattern " " \fIpattern\fR
+Template string specifying the filepath for the trace event data, it
+supports \fB${rotation}\fR and \fB${pid}\fR.
+
+.TP
 .BR \-\-zero\-fill\-buffers
 Automatically zero-fills all newly allocated Buffer and SlowBuffer instances.
 
