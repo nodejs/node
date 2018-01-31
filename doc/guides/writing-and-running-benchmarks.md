@@ -183,6 +183,17 @@ The `compare.js` tool will then produce a csv file with the benchmark results.
 $ node benchmark/compare.js --old ./node-master --new ./node-pr-5134 string_decoder > compare-pr-5134.csv
 ```
 
+*Tips: there are some useful options of `benchmark/compare.js`. For example, if you want to compare the benchmark of a single script instead of a whole module, you can use the `--filter` option:*
+
+```console
+  --new      ./new-node-binary  new node binary (required)
+  --old      ./old-node-binary  old node binary (required)
+  --runs     30                 number of samples
+  --filter   pattern            string to filter benchmark scripts
+  --set      variable=value     set benchmark variable (can be repeated)
+  --no-progress                 don't show benchmark progress indicator
+```
+
 For analysing the benchmark results use the `compare.R` tool.
 
 ```console
