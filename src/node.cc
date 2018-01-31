@@ -5072,6 +5072,23 @@ Local<Context> context;
 Context::Scope* context_scope;
 bool request_stop = false;
 CmdArgs* cmd_args = nullptr;
+bool _event_loop_running = false;
+v8::Isolate* _isolate = nullptr;
+Environment* _environment = nullptr;
+
+bool EventLoopIsRunning() {
+  return _event_loop_running;
+}
+
+namespace internal {
+  v8::Isolate* isolate() {
+    return _isolate;
+  }
+
+  Environment* environment() {
+    return _environment;
+  }
+}
 
 namespace deinitialize {
 
