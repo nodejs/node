@@ -7,10 +7,9 @@
   <a title="CII Best Practices" href="https://bestpractices.coreinfrastructure.org/projects/29"><img src="https://bestpractices.coreinfrastructure.org/projects/29/badge"></a>
 </p>
 
-Node.js is a JavaScript runtime built on Chrome's V8 JavaScript engine. Node.js
-uses an event-driven, non-blocking I/O model that makes it lightweight and
-efficient. The Node.js package ecosystem, [npm][], is the largest ecosystem of
-open source libraries in the world.
+Node.js is a JavaScript runtime built on Chrome's V8 JavaScript engine. For
+more information on using Node.js, see the
+[Node.js Website][].
 
 The Node.js project is supported by the
 [Node.js Foundation](https://nodejs.org/en/foundation/). Contributions,
@@ -593,7 +592,6 @@ Previous releases may also have been signed with one of the following GPG keys:
 * [Contributing to the project][]
 * [Working Groups][]
 
-[npm]: https://www.npmjs.com
 [Code of Conduct]: https://github.com/nodejs/admin/blob/master/CODE_OF_CONDUCT.md
 [Contributing to the project]: CONTRIBUTING.md
 [Node.js Help]: https://github.com/nodejs/help
