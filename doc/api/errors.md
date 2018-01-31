@@ -1452,7 +1452,7 @@ additional details.
 <a id="ERR_STREAM_DESTROYED"></a>
 ### ERR_STREAM_DESTROYED
 
-A stream method was called that cannot complete cause the stream was been
+A stream method was called that cannot complete because the stream was
 destroyed using `stream.destroy()`.
 
 <a id="ERR_TLS_CERT_ALTNAME_INVALID"></a>
