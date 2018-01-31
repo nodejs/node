@@ -1007,7 +1007,7 @@ MaybeLocal<Value> InternalMakeCallback(Environment* env,
   } else {
     std::vector<Local<Value>> args(1 + argc);
     args[0] = callback;
-    std::copy(&argv[0], &argv[argc], &args[1]);
+    std::copy(&argv[0], &argv[argc], args.begin() + 1);
     ret = domain_cb->Call(env->context(), recv, args.size(), &args[0]);
   }
 
