@@ -109,7 +109,7 @@ async function checkModuleState() {
 
   {
     const m = new Module('import "foo";');
-    await m.link(common.mustCall(async (module, specifier) => {
+    await m.link(common.mustCall(async (specifier, module) => {
       assert.strictEqual(module, m);
       assert.strictEqual(specifier, 'foo');
       assert.strictEqual(m.linkingStatus, 'linking');
