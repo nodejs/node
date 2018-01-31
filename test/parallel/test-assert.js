@@ -919,6 +919,7 @@ common.expectsError(
   {
     code: 'ERR_ASSERTION',
     type: assert.AssertionError,
+    generatedMessage: true,
     message: `The expression evaluated to a falsy value:${EOL}${EOL}  ` +
              `assert.ok(null)${EOL}`
   }
@@ -928,6 +929,7 @@ common.expectsError(
   {
     code: 'ERR_ASSERTION',
     type: assert.AssertionError,
+    generatedMessage: true,
     message: `The expression evaluated to a falsy value:${EOL}${EOL}  ` +
              `assert(typeof 123 === 'string')${EOL}`
   }
@@ -1011,7 +1013,8 @@ common.expectsError(
   {
     code: 'ERR_ASSERTION',
     type: assert.AssertionError,
-    message: '0 == true'
+    message: '0 == true',
+    generatedMessage: true
   }
 );
 
@@ -1020,7 +1023,8 @@ common.expectsError(
   {
     code: 'ERR_ASSERTION',
     type: assert.AssertionError,
-    message: 'test'
+    message: 'test',
+    generatedMessage: false
   }
 );
 
