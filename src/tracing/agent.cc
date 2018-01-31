@@ -13,11 +13,12 @@ namespace tracing {
 using v8::platform::tracing::TraceConfig;
 using std::string;
 
-Agent::Agent() {
+Agent::Agent(const std::string& log_file_pattern) {
   int err = uv_loop_init(&tracing_loop_);
   CHECK_EQ(err, 0);
 
-  NodeTraceWriter* trace_writer = new NodeTraceWriter(&tracing_loop_);
+  NodeTraceWriter* trace_writer = new NodeTraceWriter(
+      log_file_pattern, &tracing_loop_);
   TraceBuffer* trace_buffer = new NodeTraceBuffer(
       NodeTraceBuffer::kBufferChunks, trace_writer, &tracing_loop_);
   tracing_controller_ = new TracingController();
