@@ -1125,6 +1125,7 @@ lint: ## Run JS, C++, MD and doc linters.
 	$(MAKE) lint-cpp || EXIT_STATUS=$$? ; \
 	$(MAKE) lint-md || EXIT_STATUS=$$? ; \
 	$(MAKE) lint-addon-docs || EXIT_STATUS=$$? ; \
+	$(MAKE) lint-md || EXIT_STATUS=$$? ; \
 	exit $$EXIT_STATUS
 CONFLICT_RE=^>>>>>>> [0-9A-Fa-f]+|^<<<<<<< [A-Za-z]+
 lint-ci: lint-js-ci lint-cpp lint-md lint-addon-docs
