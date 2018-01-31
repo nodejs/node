@@ -235,6 +235,14 @@ added: v7.7.0
 A comma separated list of categories that should be traced when trace event
 tracing is enabled using `--trace-events-enabled`.
 
+### `--trace-event-file-pattern`
+<!-- YAML
+added: REPLACEME
+-->
+
+Template string specifying the filepath for the trace event data, it
+supports `${rotation}` and `${pid}`.
+
 ### `--zero-fill-buffers`
 <!-- YAML
 added: v6.0.0
@@ -464,6 +472,7 @@ Node options that are allowed are:
 - `--trace-deprecation`
 - `--trace-events-categories`
 - `--trace-events-enabled`
+- `--trace-event-file-pattern`
 - `--trace-sync-io`
 - `--trace-warnings`
 - `--track-heap-objects`

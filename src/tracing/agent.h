@@ -12,7 +12,7 @@ using v8::platform::tracing::TracingController;
 
 class Agent {
  public:
-  Agent();
+  explicit Agent(const std::string& log_file_pattern);
   void Start(const std::string& enabled_categories);
   void Stop();
 
