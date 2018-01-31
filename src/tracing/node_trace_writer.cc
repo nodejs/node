@@ -8,8 +8,9 @@
 namespace node {
 namespace tracing {
 
-NodeTraceWriter::NodeTraceWriter(uv_loop_t* tracing_loop)
-    : tracing_loop_(tracing_loop) {
+NodeTraceWriter::NodeTraceWriter(const std::string& log_file_pattern,
+                                 uv_loop_t* tracing_loop)
+    : tracing_loop_(tracing_loop), log_file_pattern_(log_file_pattern) {
   flush_signal_.data = this;
   int err = uv_async_init(tracing_loop_, &flush_signal_, FlushSignalCb);
   CHECK_EQ(err, 0);
@@ -54,12 +55,27 @@ NodeTraceWriter::~NodeTraceWriter() {
   }
 }
 
+void replace_substring(std::string* target,
+                       const std::string& search,
+                       const std::string& insert) {
+  size_t pos = target->find(search);
+  for (; pos != std::string::npos; pos = target->find(search, pos)) {
+    target->replace(pos, search.size(), insert);
+    pos += insert.size();
+  }
+}
+
 void NodeTraceWriter::OpenNewFileForStreaming() {
   ++file_num_;
   uv_fs_t req;
-  std::ostringstream log_file;
-  log_file << "node_trace." << file_num_ << ".log";
-  fd_ = uv_fs_open(tracing_loop_, &req, log_file.str().c_str(),
+
+  // Evaluate a JS-style template string, it accepts the values ${pid} and
+  // ${rotation}
+  std::string filepath(log_file_pattern_);
+  replace_substring(&filepath, "${pid}", std::to_string(uv_os_getpid()));
+  replace_substring(&filepath, "${rotation}", std::to_string(file_num_));
+
+  fd_ = uv_fs_open(tracing_loop_, &req, filepath.c_str(),
       O_CREAT | O_WRONLY | O_TRUNC, 0644, nullptr);
   CHECK_NE(fd_, -1);
   uv_fs_req_cleanup(&req);
