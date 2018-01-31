@@ -9,11 +9,14 @@
 
 namespace node { namespace lib {
 
-    namespace { // private variables
-        bool _event_loop_running = false;
+    namespace internal { // internals, made for experienced users
+
+        v8::Isolate* isolate();
+
+        Environment* environment();
     }
 
-    bool EventLoopIsRunning() { return _event_loop_running; }
+    bool EventLoopIsRunning();
 
     /*********************************************************
      * Function types
@@ -33,7 +36,7 @@ namespace node { namespace lib {
     Starts the Node.js engine without a concrete script file to execute.
     *Important*: This requires the C++ developer to call `ProcessEvents()` periodically OR call `RunMainLoop()` to start the uv event loop.
     */
-    NODE_EXTERN void Initialize(const std::string& program_name = "node_lib_executable");
+    NODE_EXTERN void Initialize(const std::string& program_name = "node_lib_executable", const std::vector<std::string>& node_args = {});
 
 
     /*
@@ -46,7 +49,7 @@ namespace node { namespace lib {
     Executes a given JavaScript file and returns once the execution has finished.
     *Important*: Node.js has to have been initialized by calling Initialize().
     */
-    NODE_EXTERN v8::Local<v8::Value> Run(const std::string & path);
+    NODE_EXTERN v8::MaybeLocal<v8::Value> Run(const std::string & path);
 
     /*********************************************************
      * Handle JavaScript events
@@ -81,23 +84,22 @@ namespace node { namespace lib {
     /*
     Executes a given piece of JavaScript code, using the *running* Node.js engine.
     */
-    NODE_EXTERN v8::Local<v8::Value> Evaluate(const std::string & java_script_code);
+    NODE_EXTERN v8::MaybeLocal<v8::Value> Evaluate(const std::string & java_script_code);
 
     /*
     Returns the JavaScript root object for the running application
     */
-    NODE_EXTERN v8::Local<v8::Object> GetRootObject();
+    NODE_EXTERN v8::MaybeLocal<v8::Object> GetRootObject();
 
     /*
     Registers a C++ module in the *running* Node.js engine.
     */
-    NODE_EXTERN void RegisterModule(const std::string & name, const addon_context_register_func & callback, void *priv = nullptr);
+    NODE_EXTERN void RegisterModule(const std::string & name, const addon_context_register_func & callback, void *priv = nullptr, const std::string & target = "");
 
     /*
     Registers a C++ module in the *running* Node.js engine exporting the given set of functions.
     */
-    NODE_EXTERN void RegisterModule(const std::string & name,
-                        const std::map<std::string, v8::FunctionCallback> & module_functions);
+    NODE_EXTERN void RegisterModule(const std::string & name, const std::map<std::string, v8::FunctionCallback> & module_functions, const std::string & target = "");
 
 
     /*********************************************************
@@ -107,34 +109,34 @@ namespace node { namespace lib {
     /*
     Adds a new JavaScript module to the *running* Node.js engine.
     */
-    NODE_EXTERN v8::Local<v8::Object> IncludeModule(const std::string & module_name);
+    NODE_EXTERN v8::MaybeLocal<v8::Object> IncludeModule(const std::string & module_name);
 
     /*
     Returns the local value (specified by its name) of the module (defined in the `exports`-object).
     */
-    NODE_EXTERN v8::MaybeLocal<v8::Value> GetValue(v8::MaybeLocal<v8::Object> object, const std::string & value_name);
+    NODE_EXTERN v8::MaybeLocal<v8::Value> GetValue(v8::Local<v8::Object> object, const std::string & value_name);
 
     /*
     Calls a function (specified by its name) on a given object passing the given arguments.
     *Important*: Throws an exception if the receiver does not define the specified function.
     */
-    NODE_EXTERN v8::Local<v8::Value> Call(v8::Local<v8::Object> object, const std::string & function_name, const std::vector<v8::Local<v8::Value>> & args = {});
+    NODE_EXTERN v8::MaybeLocal<v8::Value> Call(v8::Local<v8::Object> object, const std::string & function_name, const std::vector<v8::Local<v8::Value>> & args = {});
 
     /*
     Calls a function (specified by its name) on a given object passing the given arguments.
     *Important*: Throws an exception if the receiver does not define the specified function.
     */
-    NODE_EXTERN v8::Local<v8::Value> Call(v8::Local<v8::Object> object, const std::string & function_name, std::initializer_list<v8::Local<v8::Value>> args);
+    NODE_EXTERN v8::MaybeLocal<v8::Value> Call(v8::Local<v8::Object> object, const std::string & function_name, std::initializer_list<v8::Local<v8::Value>> args);
 
     /*
     Calls a given function on a given receiver passing the given arguments.
     *Important*: The amount of arguments can be changed at runtime (for JS var arg functions).
     */
-    NODE_EXTERN v8::Local<v8::Value> Call(v8::MaybeLocal<v8::Object> receiver, v8::MaybeLocal<v8::Function> function, const std::vector<v8::MaybeLocal<v8::Value>> & args = {});
+    NODE_EXTERN v8::MaybeLocal<v8::Value> Call(v8::Local<v8::Object> receiver, v8::Local<v8::Function> function, const std::vector<v8::Local<v8::Value>> & args = {});
 
     /*
     Calls a given function on a given receiver passing the given arguments.
     *Important*: The amount of arguments must be known at compile time.
     */
-    NODE_EXTERN v8::Local<v8::Value> Call(v8::MaybeLocal<v8::Object> receiver, v8::MaybeLocal<v8::Function> function, std::initializer_list<v8::MaybeLocal<v8::Value>> args);
+    NODE_EXTERN v8::MaybeLocal<v8::Value> Call(v8::Local<v8::Object> receiver, v8::Local<v8::Function> function, std::initializer_list<v8::Local<v8::Value>> args);
 }}
