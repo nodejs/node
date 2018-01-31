@@ -1398,6 +1398,8 @@ constructor and implement the `writable._write()` method. The
     it becomes possible to write JavaScript values other than string,
     `Buffer` or `Uint8Array` if supported by the stream implementation.
     Defaults to `false`
+  * `emitClose` {boolean} Whether or not the stream should emit `close`
+    after it has been destroyed. Defaults to `true`
   * `write` {Function} Implementation for the
     [`stream._write()`][stream-_write] method.
   * `writev` {Function} Implementation for the
