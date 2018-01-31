@@ -10,7 +10,7 @@ const { WriteStream } = require('tty');
 
 // Do our best to grab a tty fd.
 function getTTYfd() {
-  const ttyFd = [0, 1, 2, 4, 5].find(tty.isatty);
+  const ttyFd = [1, 2, 4, 5].find(tty.isatty);
   if (ttyFd === undefined) {
     try {
       return openSync('/dev/tty');
