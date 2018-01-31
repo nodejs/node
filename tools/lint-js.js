@@ -10,10 +10,9 @@ const path = require('path');
 const fs = require('fs');
 const totalCPUs = require('os').cpus().length;
 
-const CLIEngine = require('./eslint').CLIEngine;
-const glob = require('./eslint/node_modules/glob');
+const CLIEngine = require('eslint').CLIEngine;
+const glob = require('eslint/node_modules/glob');
 
-const cwd = process.cwd();
 const cliOptions = {
   rulePaths: rulesDirs,
   extensions: extensions,
@@ -82,9 +81,7 @@ if (cluster.isMaster) {
   if (i !== -1) {
     if (!process.argv[i + 1])
       throw new Error('Missing output filename');
-    var outPath = process.argv[i + 1];
-    if (!path.isAbsolute(outPath))
-      outPath = path.join(cwd, outPath);
+    const outPath = path.resolve(process.argv[i + 1]);
     fd = fs.openSync(outPath, 'w');
     outFn = function(str) {
       fs.writeSync(fd, str, 'utf8');
@@ -176,8 +173,6 @@ if (cluster.isMaster) {
       while (paths.length) {
         var dir = paths.shift();
         curPath = dir;
-        if (dir.indexOf('/') > 0)
-          dir = path.join(cwd, dir);
         const patterns = cli.resolveFileGlobPatterns([dir]);
         dir = path.resolve(patterns[0]);
         files = glob.sync(dir, globOptions);
@@ -215,12 +210,12 @@ if (cluster.isMaster) {
 
     // Calculate and format the data for displaying
     const elapsed = process.hrtime(startTime)[0];
-    const mins = padString(Math.floor(elapsed / 60), 2, '0');
-    const secs = padString(elapsed % 60, 2, '0');
-    const passed = padString(successes, 6, ' ');
-    const failed = padString(failures, 6, ' ');
+    const mins = `${Math.floor(elapsed / 60)}`.padStart(2, '0');
+    const secs = `${elapsed % 60}`.padStart(2, '0');
+    const passed = `${successes}`.padStart(6);
+    const failed = `${failures}`.padStart(6);
     var pct = Math.ceil(((totalPaths - paths.length) / totalPaths) * 100);
-    pct = padString(pct, 3, ' ');
+    pct = `${pct}`.padStart(3);
 
     var line = `[${mins}:${secs}|%${pct}|+${passed}|-${failed}]: ${curPath}`;
 
@@ -232,13 +227,6 @@ if (cluster.isMaster) {
     lastLineLen = line.length;
 
     outFn(line);
-  }
-
-  function padString(str, len, chr) {
-    str = `${str}`;
-    if (str.length >= len)
-      return str;
-    return chr.repeat(len - str.length) + str;
   }
 } else {
   // Worker

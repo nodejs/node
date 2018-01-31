@@ -2829,8 +2829,8 @@ static void multiblock_speed(const EVP_CIPHER *evp_cipher)
 
                 RAND_bytes(out, 16);
                 len += 16;
-                aad[11] = len >> 8;
-                aad[12] = len;
+                aad[11] = (unsigned char)(len >> 8);
+                aad[12] = (unsigned char)(len);
                 pad = EVP_CIPHER_CTX_ctrl(&ctx,
                                           EVP_CTRL_AEAD_TLS1_AAD,
                                           EVP_AEAD_TLS1_AAD_LEN, aad);

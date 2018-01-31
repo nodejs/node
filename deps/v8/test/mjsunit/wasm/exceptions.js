@@ -19,7 +19,7 @@ var test_throw = (function () {
         kExprI32Const, 0,
         kExprI32Ne,
         kExprIf, kWasmStmt,
-        kExprThrow, 0,
+          kExprThrow, 0,
         kExprEnd,
         kExprI32Const, 1
       ]).exportFunc();
@@ -36,8 +36,8 @@ assertEquals("function", typeof test_throw.exports.throw_if_param_not_zero);
 
 // Test expected behavior of throws
 assertEquals(1, test_throw.exports.throw_if_param_not_zero(0));
-assertWasmThrows([], function() { test_throw.exports.throw_if_param_not_zero(10) });
-assertWasmThrows([], function() { test_throw.exports.throw_if_param_not_zero(-1) });
+assertWasmThrows(0, [], function() { test_throw.exports.throw_if_param_not_zero(10) });
+assertWasmThrows(0, [], function() { test_throw.exports.throw_if_param_not_zero(-1) });
 
 // Now that we know throwing works, we test catching the exceptions we raise.
 var test_catch = (function () {
@@ -72,31 +72,314 @@ assertEquals("function", typeof test_catch.exports.simple_throw_catch_to_0_1);
 assertEquals(0, test_catch.exports.simple_throw_catch_to_0_1(0));
 assertEquals(1, test_catch.exports.simple_throw_catch_to_0_1(1));
 
+// Test that we can distinguish which exception was thrown.
+var test_catch_2 = (function () {
+  var builder = new WasmModuleBuilder();
+
+  builder.addException(kSig_v_v);
+  builder.addException(kSig_v_v);
+  builder.addException(kSig_v_v);
+  builder.addFunction("catch_different_exceptions", kSig_i_i)
+      .addBody([
+        kExprTry, kWasmI32,
+          kExprTry, kWasmI32,
+            kExprGetLocal, 0,
+            kExprI32Eqz,
+            kExprIf, kWasmStmt,
+              kExprThrow, 0,
+            kExprElse,
+              kExprGetLocal, 0,
+              kExprI32Const, 1,
+              kExprI32Eq,
+              kExprIf, kWasmStmt,
+                kExprThrow, 1,
+              kExprElse,
+                kExprThrow, 2,
+              kExprEnd,
+            kExprEnd,
+            kExprI32Const, 2,
+          kExprCatch, 0,
+            kExprI32Const, 3,
+          kExprEnd,
+        kExprCatch, 1,
+          kExprI32Const, 4,
+        kExprEnd
+      ]).exportFunc();
+  return builder.instantiate();
+})();
+
+assertFalse(test_catch_2 === undefined);
+assertFalse(test_catch_2 === null);
+assertFalse(test_catch_2 === 0);
+assertEquals("object", typeof test_catch_2.exports);
+assertEquals("function", typeof test_catch_2.exports.catch_different_exceptions);
+
+assertEquals(3, test_catch_2.exports.catch_different_exceptions(0));
+assertEquals(4, test_catch_2.exports.catch_different_exceptions(1));
+assertWasmThrows(2, [], function() { test_catch_2.exports.catch_different_exceptions(2) });
+
+// Test throwing an exception with multiple values.
+var test_throw_1_2 = (function() {
+  var builder = new WasmModuleBuilder();
+  builder.addException(kSig_v_ii);
+  builder.addFunction("throw_1_2", kSig_v_v)
+      .addBody([
+        kExprI32Const, 1,
+        kExprI32Const, 2,
+        kExprThrow, 0,
+      ]).exportFunc();
+
+  return builder.instantiate();
+})();
+
+assertFalse(test_throw_1_2 === undefined);
+assertFalse(test_throw_1_2 === null);
+assertFalse(test_throw_1_2 === 0);
+assertEquals("object", typeof test_throw_1_2.exports);
+assertEquals("function", typeof test_throw_1_2.exports.throw_1_2);
+
+assertWasmThrows(0, [0, 1, 0, 2], function() { test_throw_1_2.exports.throw_1_2(); });
+
+// Test throwing/catching the i32 parameter value.
+var test_throw_catch_param_i = (function () {
+  var builder = new WasmModuleBuilder();
+  builder.addException(kSig_v_i);
+  builder.addFunction("throw_catch_param", kSig_i_i)
+      .addBody([
+        kExprTry, kWasmI32,
+          kExprGetLocal, 0,
+          kExprThrow, 0,
+          kExprI32Const, 2,
+        kExprCatch, 0,
+          kExprReturn,
+        kExprEnd,
+      ]).exportFunc();
+
+  return builder.instantiate();
+})();
+
+assertFalse(test_throw_catch_param_i === undefined);
+assertFalse(test_throw_catch_param_i === null);
+assertFalse(test_throw_catch_param_i === 0);
+assertEquals("object", typeof test_throw_catch_param_i.exports);
+assertEquals("function",
+             typeof test_throw_catch_param_i.exports.throw_catch_param);
+
+assertEquals(0, test_throw_catch_param_i.exports.throw_catch_param(0));
+assertEquals(1, test_throw_catch_param_i.exports.throw_catch_param(1));
+assertEquals(10, test_throw_catch_param_i.exports.throw_catch_param(10));
+
+// Test the encoding of a thrown exception with an integer exception.
+
+var test_throw_param_i = (function () {
+  var builder = new WasmModuleBuilder();
+  builder.addException(kSig_v_i);
+  builder.addFunction("throw_param", kSig_v_i)
+      .addBody([
+        kExprGetLocal, 0,
+        kExprThrow, 0,
+      ]).exportFunc();
+
+  return builder.instantiate();
+})();
+
+assertFalse(test_throw_param_i === undefined);
+assertFalse(test_throw_param_i === null);
+assertFalse(test_throw_param_i === 0);
+assertEquals("object", typeof test_throw_param_i.exports);
+assertEquals("function",
+             typeof test_throw_param_i.exports.throw_param);
+
+assertWasmThrows(0, [0, 5], function() { test_throw_param_i.exports.throw_param(5); });
+assertWasmThrows(0, [6, 31026],
+                 function() { test_throw_param_i.exports.throw_param(424242); });
+
+// Test throwing/catching the f32 parameter value.
+var test_throw_catch_param_f = (function () {
+  var builder = new WasmModuleBuilder();
+  builder.addException(kSig_v_f);
+  builder.addFunction("throw_catch_param", kSig_f_f)
+      .addBody([
+        kExprTry, kWasmF32,
+          kExprGetLocal, 0,
+          kExprThrow, 0,
+          kExprF32Const, 0, 0, 0, 0,
+        kExprCatch, 0,
+          kExprReturn,
+        kExprEnd,
+      ]).exportFunc();
+
+  return builder.instantiate();
+})();
+
+assertFalse(test_throw_catch_param_f === undefined);
+assertFalse(test_throw_catch_param_f === null);
+assertFalse(test_throw_catch_param_f === 0);
+assertEquals("object", typeof test_throw_catch_param_f.exports);
+assertEquals("function",
+             typeof test_throw_catch_param_f.exports.throw_catch_param);
+
+assertEquals(5.0, test_throw_catch_param_f.exports.throw_catch_param(5.0));
+assertEquals(10.5, test_throw_catch_param_f.exports.throw_catch_param(10.5));
+
+// Test the encoding of a thrown exception with a float value.
+
+var test_throw_param_f = (function () {
+  var builder = new WasmModuleBuilder();
+  builder.addException(kSig_v_f);
+  builder.addFunction("throw_param", kSig_v_f)
+      .addBody([
+        kExprGetLocal, 0,
+        kExprThrow, 0,
+      ]).exportFunc();
+
+  return builder.instantiate();
+})();
+
+assertFalse(test_throw_param_f === undefined);
+assertFalse(test_throw_param_f === null);
+assertFalse(test_throw_param_f === 0);
+assertEquals("object", typeof test_throw_param_f.exports);
+assertEquals("function",
+             typeof test_throw_param_f.exports.throw_param);
+
+assertWasmThrows(0, [16544, 0],
+                 function() { test_throw_param_f.exports.throw_param(5.0); });
+assertWasmThrows(0, [16680, 0],
+                 function() { test_throw_param_f.exports.throw_param(10.5); });
+
+// Test throwing/catching an I64 value
+var test_throw_catch_param_l = (function () {
+  var builder = new WasmModuleBuilder();
+  builder.addException(kSig_v_l);
+  builder.addFunction("throw_catch_param", kSig_i_i)
+      .addBody([
+        kExprGetLocal, 0,
+        kExprI64UConvertI32,
+        kExprSetLocal, 1,
+        kExprTry, kWasmI32,
+          kExprGetLocal, 1,
+          kExprThrow, 0,
+          kExprI32Const, 2,
+        kExprCatch, 0,
+          kExprGetLocal, 1,
+          kExprI64Eq,
+          kExprIf, kWasmI32,
+            kExprI32Const, 1,
+          kExprElse,
+            kExprI32Const, 0,
+          kExprEnd,
+          // TODO(kschimpf): Why is this return necessary?
+          kExprReturn,
+        kExprEnd,
+      ]).addLocals({i64_count: 1}).exportFunc();
+
+  return builder.instantiate();
+})();
+
+assertFalse(test_throw_catch_param_l === undefined);
+assertFalse(test_throw_catch_param_l === null);
+assertFalse(test_throw_catch_param_l === 0);
+assertEquals("object", typeof test_throw_catch_param_l.exports);
+assertEquals("function",
+             typeof test_throw_catch_param_l.exports.throw_catch_param);
+
+assertEquals(1, test_throw_catch_param_l.exports.throw_catch_param(5));
+assertEquals(1, test_throw_catch_param_l.exports.throw_catch_param(0));
+assertEquals(1, test_throw_catch_param_l.exports.throw_catch_param(-1));
+
+// Test the encoding of a thrown exception with an I64 value.
+
+var test_throw_param_l = (function () {
+  var builder = new WasmModuleBuilder();
+  builder.addException(kSig_v_l);
+  builder.addFunction("throw_param", kSig_v_ii)
+      .addBody([
+        kExprGetLocal, 0,
+        kExprI64UConvertI32,
+        kExprI64Const, 32,
+        kExprI64Shl,
+        kExprGetLocal, 1,
+        kExprI64UConvertI32,
+        kExprI64Ior,
+        kExprThrow, 0
+      ]).exportFunc();
+
+  return builder.instantiate();
+})();
+
+assertFalse(test_throw_param_l === undefined);
+assertFalse(test_throw_param_l === null);
+assertFalse(test_throw_param_l === 0);
+assertEquals("object", typeof test_throw_param_l.exports);
+assertEquals("function",
+             typeof test_throw_param_l.exports.throw_param);
+
+assertWasmThrows(0, [0, 10, 0, 5],
+                 function() { test_throw_param_l.exports.throw_param(10, 5); });
+assertWasmThrows(0, [65535, 65535, 0, 13],
+                 function() { test_throw_param_l.exports.throw_param(-1, 13); });
+
+// Test throwing/catching the F64 parameter value
+var test_throw_catch_param_d = (function () {
+  var builder = new WasmModuleBuilder();
+  builder.addException(kSig_v_d);
+  builder.addFunction("throw_catch_param", kSig_d_d)
+      .addBody([
+        kExprTry, kWasmF64,
+          kExprGetLocal, 0,
+          kExprThrow, 0,
+          kExprF64Const, 0, 0, 0, 0, 0, 0, 0, 0,
+        kExprCatch, 0,
+          kExprReturn,
+        kExprEnd,
+      ]).exportFunc();
+
+  return builder.instantiate();
+})();
+
+assertFalse(test_throw_catch_param_d === undefined);
+assertFalse(test_throw_catch_param_d === null);
+assertFalse(test_throw_catch_param_d === 0);
+assertEquals("object", typeof test_throw_catch_param_d.exports);
+assertEquals("function",
+             typeof test_throw_catch_param_d.exports.throw_catch_param);
+
+assertEquals(5.0, test_throw_catch_param_d.exports.throw_catch_param(5.0));
+assertEquals(10.5, test_throw_catch_param_d.exports.throw_catch_param(10.5));
+
+// Test the encoding of a thrown exception with an f64 value.
+
+var test_throw_param_d = (function () {
+  var builder = new WasmModuleBuilder();
+  builder.addException(kSig_v_d);
+  builder.addFunction("throw_param", kSig_v_f)
+      .addBody([
+        kExprGetLocal, 0,
+        kExprF64ConvertF32,
+        kExprThrow, 0
+      ]).exportFunc();
+
+  return builder.instantiate();
+})();
+
+assertFalse(test_throw_param_d === undefined);
+assertFalse(test_throw_param_d === null);
+assertFalse(test_throw_param_d === 0);
+assertEquals("object", typeof test_throw_param_d.exports);
+assertEquals("function",
+             typeof test_throw_param_d.exports.throw_param);
+
+assertWasmThrows(0, [16404, 0, 0, 0],
+                 function() { test_throw_param_d.exports.throw_param(5.0); });
+assertWasmThrows(0, [16739, 4816, 0, 0],
+                 function() { test_throw_param_d.exports.throw_param(10000000.5); });
+
 /* TODO(kschimpf) Convert these tests to work for the proposed exceptions.
 
 // The following methods do not attempt to catch the exception they raise.
 var test_throw = (function () {
   var builder = new WasmModuleBuilder();
-
-  builder.addFunction("throw_param_if_not_zero", kSig_i_i)
-    .addBody([
-      kExprGetLocal, 0,
-      kExprI32Const, 0,
-      kExprI32Ne,
-      kExprIf, kWasmStmt,
-      kExprGetLocal, 0,
-      kExprThrow,
-      kExprEnd,
-      kExprI32Const, 1
-    ])
-    .exportFunc()
-
-  builder.addFunction("throw_20", kSig_v_v)
-    .addBody([
-      kExprI32Const, 20,
-      kExprThrow,
-    ])
-    .exportFunc()
 
   builder.addFunction("throw_expr_with_params", kSig_v_ddi)
     .addBody([
@@ -123,14 +406,9 @@ assertFalse(test_throw === undefined);
 assertFalse(test_throw === null);
 assertFalse(test_throw === 0);
 assertEquals("object", typeof test_throw.exports);
-assertEquals("function", typeof test_throw.exports.throw_param_if_not_zero);
-assertEquals("function", typeof test_throw.exports.throw_20);
 assertEquals("function", typeof test_throw.exports.throw_expr_with_params);
 
 assertEquals(1, test_throw.exports.throw_param_if_not_zero(0));
-assertWasmThrows(10, function() { test_throw.exports.throw_param_if_not_zero(10) });
-assertWasmThrows(-1, function() { test_throw.exports.throw_param_if_not_zero(-1) });
-assertWasmThrows(20, test_throw.exports.throw_20);
 assertWasmThrows(
     -8, function() { test_throw.exports.throw_expr_with_params(1.5, 2.5, 4); });
 assertWasmThrows(

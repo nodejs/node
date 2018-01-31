@@ -70,7 +70,83 @@ testCipher1(Buffer.from('MySecretKey123'));
 testCipher2('0123456789abcdef');
 testCipher2(Buffer.from('0123456789abcdef'));
 
-// Base64 padding regression test, see #4837.
+{
+  const Cipher = crypto.Cipher;
+  const instance = crypto.Cipher('aes-256-cbc', 'secret');
+  assert(instance instanceof Cipher, 'Cipher is expected to return a new ' +
+                                     'instance when called without `new`');
+
+  common.expectsError(
+    () => crypto.createCipher(null),
+    {
+      code: 'ERR_INVALID_ARG_TYPE',
+      type: TypeError,
+      message: 'The "cipher" argument must be of type string'
+    });
+
+  common.expectsError(
+    () => crypto.createCipher('aes-256-cbc', null),
+    {
+      code: 'ERR_INVALID_ARG_TYPE',
+      type: TypeError,
+      message: 'The "password" argument must be one of type string, Buffer, ' +
+               'TypedArray, or DataView'
+    });
+
+  common.expectsError(
+    () => crypto.createCipher('aes-256-cbc', 'secret').update(null),
+    {
+      code: 'ERR_INVALID_ARG_TYPE',
+      type: TypeError,
+      message: 'The "data" argument must be one of type string, Buffer, ' +
+               'TypedArray, or DataView'
+    });
+
+  common.expectsError(
+    () => crypto.createCipher('aes-256-cbc', 'secret').setAuthTag(null),
+    {
+      code: 'ERR_INVALID_ARG_TYPE',
+      type: TypeError,
+      message: 'The "buffer" argument must be one of type Buffer, ' +
+               'TypedArray, or DataView'
+    });
+
+  common.expectsError(
+    () => crypto.createCipher('aes-256-cbc', 'secret').setAAD(null),
+    {
+      code: 'ERR_INVALID_ARG_TYPE',
+      type: TypeError,
+      message: 'The "buffer" argument must be one of type Buffer, ' +
+               'TypedArray, or DataView'
+    });
+}
+
+{
+  const Decipher = crypto.Decipher;
+  const instance = crypto.Decipher('aes-256-cbc', 'secret');
+  assert(instance instanceof Decipher, 'Decipher is expected to return a new ' +
+                                       'instance when called without `new`');
+
+  common.expectsError(
+    () => crypto.createDecipher(null),
+    {
+      code: 'ERR_INVALID_ARG_TYPE',
+      type: TypeError,
+      message: 'The "cipher" argument must be of type string'
+    });
+
+  common.expectsError(
+    () => crypto.createDecipher('aes-256-cbc', null),
+    {
+      code: 'ERR_INVALID_ARG_TYPE',
+      type: TypeError,
+      message: 'The "password" argument must be one of type string, Buffer, ' +
+               'TypedArray, or DataView'
+    });
+}
+
+// Base64 padding regression test, see
+// https://github.com/nodejs/node-v0.x-archive/issues/4837.
 {
   const c = crypto.createCipher('aes-256-cbc', 'secret');
   const s = c.update('test', 'utf8', 'base64') + c.final('base64');
@@ -78,7 +154,7 @@ testCipher2(Buffer.from('0123456789abcdef'));
 }
 
 // Calling Cipher.final() or Decipher.final() twice should error but
-// not assert. See #4886.
+// not assert. See https://github.com/nodejs/node-v0.x-archive/issues/4886.
 {
   const c = crypto.createCipher('aes-256-cbc', 'secret');
   try { c.final('xxx'); } catch (e) { /* Ignore. */ }
@@ -90,14 +166,16 @@ testCipher2(Buffer.from('0123456789abcdef'));
   try { d.final('xxx'); } catch (e) { /* Ignore. */ }
 }
 
-// Regression test for #5482: string to Cipher#update() should not assert.
+// Regression test for https://github.com/nodejs/node-v0.x-archive/issues/5482:
+// string to Cipher#update() should not assert.
 {
   const c = crypto.createCipher('aes192', '0123456789abcdef');
   c.update('update');
   c.final();
 }
 
-// #5655 regression tests, 'utf-8' and 'utf8' are identical.
+// https://github.com/nodejs/node-v0.x-archive/issues/5655 regression tests,
+// 'utf-8' and 'utf8' are identical.
 {
   let c = crypto.createCipher('aes192', '0123456789abcdef');
   c.update('update', '');  // Defaults to "utf8".
@@ -141,7 +219,7 @@ testCipher2(Buffer.from('0123456789abcdef'));
 // setAutoPadding/setAuthTag/setAAD should return `this`
 {
   const key = '0123456789';
-  const tagbuf = Buffer.from('tagbuf');
+  const tagbuf = Buffer.from('auth_tag');
   const aadbuf = Buffer.from('aadbuf');
   const decipher = crypto.createDecipher('aes-256-gcm', key);
   assert.strictEqual(decipher.setAutoPadding(), decipher);

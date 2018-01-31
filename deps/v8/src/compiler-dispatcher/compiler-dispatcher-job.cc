@@ -11,7 +11,7 @@ namespace internal {
 
 const UnoptimizedCompileJob* CompilerDispatcherJob::AsUnoptimizedCompileJob()
     const {
-  DCHECK_EQ(type(), kUnoptimizedCompile);
+  DCHECK_EQ(type(), Type::kUnoptimizedCompile);
   return static_cast<const UnoptimizedCompileJob*>(this);
 }
 

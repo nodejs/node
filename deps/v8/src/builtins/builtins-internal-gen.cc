@@ -5,7 +5,9 @@
 #include "src/builtins/builtins-utils-gen.h"
 #include "src/builtins/builtins.h"
 #include "src/code-stub-assembler.h"
+#include "src/heap/heap-inl.h"
 #include "src/macro-assembler.h"
+#include "src/objects/shared-function-info.h"
 #include "src/runtime/runtime.h"
 
 namespace v8 {
@@ -30,36 +32,9 @@ TF_BUILTIN(CopyFastSmiOrObjectElements, CodeStubAssembler) {
 
   // Load the {object}s elements.
   Node* source = LoadObjectField(object, JSObject::kElementsOffset);
-
-  ParameterMode mode = OptimalParameterMode();
-  Node* length = TaggedToParameter(LoadFixedArrayBaseLength(source), mode);
-
-  // Check if we can allocate in new space.
-  ElementsKind kind = PACKED_ELEMENTS;
-  int max_elements = FixedArrayBase::GetMaxLengthForNewSpaceAllocation(kind);
-  Label if_newspace(this), if_lospace(this, Label::kDeferred);
-  Branch(UintPtrOrSmiLessThan(length, IntPtrOrSmiConstant(max_elements, mode),
-                              mode),
-         &if_newspace, &if_lospace);
-
-  BIND(&if_newspace);
-  {
-    Node* target = AllocateFixedArray(kind, length, mode);
-    CopyFixedArrayElements(kind, source, target, length, SKIP_WRITE_BARRIER,
-                           mode);
-    StoreObjectField(object, JSObject::kElementsOffset, target);
-    Return(target);
-  }
-
-  BIND(&if_lospace);
-  {
-    Node* target =
-        AllocateFixedArray(kind, length, mode, kAllowLargeObjectAllocation);
-    CopyFixedArrayElements(kind, source, target, length, UPDATE_WRITE_BARRIER,
-                           mode);
-    StoreObjectField(object, JSObject::kElementsOffset, target);
-    Return(target);
-  }
+  Node* target = CloneFixedArray(source, ExtractFixedArrayFlag::kFixedArrays);
+  StoreObjectField(object, JSObject::kElementsOffset, target);
+  Return(target);
 }
 
 TF_BUILTIN(GrowFastDoubleElements, CodeStubAssembler) {
@@ -92,9 +67,10 @@ TF_BUILTIN(GrowFastSmiOrObjectElements, CodeStubAssembler) {
   TailCallRuntime(Runtime::kGrowArrayElements, context, object, key);
 }
 
-TF_BUILTIN(NewUnmappedArgumentsElements, CodeStubAssembler) {
+TF_BUILTIN(NewArgumentsElements, CodeStubAssembler) {
   Node* frame = Parameter(Descriptor::kFrame);
   Node* length = SmiToWord(Parameter(Descriptor::kLength));
+  Node* mapped_count = SmiToWord(Parameter(Descriptor::kMappedCount));
 
   // Check if we can allocate in new space.
   ElementsKind kind = PACKED_ELEMENTS;
@@ -119,21 +95,49 @@ TF_BUILTIN(NewUnmappedArgumentsElements, CodeStubAssembler) {
       // Allocate a FixedArray in new space.
       Node* result = AllocateFixedArray(kind, length);
 
-      // Compute the effective {offset} into the {frame}.
-      Node* offset = IntPtrAdd(length, IntPtrConstant(1));
+      // The elements might be used to back mapped arguments. In that case fill
+      // the mapped elements (i.e. the first {mapped_count}) with the hole, but
+      // make sure not to overshoot the {length} if some arguments are missing.
+      Node* number_of_holes =
+          SelectConstant(IntPtrLessThan(mapped_count, length), mapped_count,
+                         length, MachineType::PointerRepresentation());
+      Node* the_hole = TheHoleConstant();
 
-      // Copy the parameters from {frame} (starting at {offset}) to {result}.
+      // Fill the first elements up to {number_of_holes} with the hole.
       VARIABLE(var_index, MachineType::PointerRepresentation());
-      Label loop(this, &var_index), done_loop(this);
+      Label loop1(this, &var_index), done_loop1(this);
       var_index.Bind(IntPtrConstant(0));
-      Goto(&loop);
-      BIND(&loop);
+      Goto(&loop1);
+      BIND(&loop1);
       {
         // Load the current {index}.
         Node* index = var_index.value();
 
         // Check if we are done.
-        GotoIf(WordEqual(index, length), &done_loop);
+        GotoIf(WordEqual(index, number_of_holes), &done_loop1);
+
+        // Store the hole into the {result}.
+        StoreFixedArrayElement(result, index, the_hole, SKIP_WRITE_BARRIER);
+
+        // Continue with next {index}.
+        var_index.Bind(IntPtrAdd(index, IntPtrConstant(1)));
+        Goto(&loop1);
+      }
+      BIND(&done_loop1);
+
+      // Compute the effective {offset} into the {frame}.
+      Node* offset = IntPtrAdd(length, IntPtrConstant(1));
+
+      // Copy the parameters from {frame} (starting at {offset}) to {result}.
+      Label loop2(this, &var_index), done_loop2(this);
+      Goto(&loop2);
+      BIND(&loop2);
+      {
+        // Load the current {index}.
+        Node* index = var_index.value();
+
+        // Check if we are done.
+        GotoIf(WordEqual(index, length), &done_loop2);
 
         // Load the parameter at the given {index}.
         Node* value = Load(MachineType::AnyTagged(), frame,
@@ -144,10 +148,10 @@ TF_BUILTIN(NewUnmappedArgumentsElements, CodeStubAssembler) {
 
         // Continue with next {index}.
         var_index.Bind(IntPtrAdd(index, IntPtrConstant(1)));
-        Goto(&loop);
+        Goto(&loop2);
       }
+      BIND(&done_loop2);
 
-      BIND(&done_loop);
       Return(result);
     }
   }
@@ -156,7 +160,8 @@ TF_BUILTIN(NewUnmappedArgumentsElements, CodeStubAssembler) {
   {
     // Allocate in old space (or large object space).
     TailCallRuntime(Runtime::kNewArgumentsElements, NoContextConstant(),
-                    BitcastWordToTagged(frame), SmiFromWord(length));
+                    BitcastWordToTagged(frame), SmiFromWord(length),
+                    SmiFromWord(mapped_count));
   }
 }
 
@@ -187,7 +192,7 @@ class RecordWriteCodeStubAssembler : public CodeStubAssembler {
     Label exit(this);
     Label* black = &exit;
 
-    DCHECK(strcmp(Marking::kBlackBitPattern, "11") == 0);
+    DCHECK_EQ(strcmp(Marking::kBlackBitPattern, "11"), 0);
 
     Node* cell;
     Node* mask;
@@ -226,14 +231,15 @@ class RecordWriteCodeStubAssembler : public CodeStubAssembler {
   }
 
   Node* IsWhite(Node* object) {
-    DCHECK(strcmp(Marking::kWhiteBitPattern, "00") == 0);
+    DCHECK_EQ(strcmp(Marking::kWhiteBitPattern, "00"), 0);
     Node* cell;
     Node* mask;
     GetMarkBit(object, &cell, &mask);
+    mask = TruncateWordToWord32(mask);
     // Non-white has 1 for the first bit, so we only need to check for the first
     // bit.
-    return WordEqual(WordAnd(Load(MachineType::Pointer(), cell), mask),
-                     IntPtrConstant(0));
+    return Word32Equal(Word32And(Load(MachineType::Int32(), cell), mask),
+                       Int32Constant(0));
   }
 
   void GetMarkBit(Node* object, Node** cell, Node** mask) {
@@ -262,7 +268,60 @@ class RecordWriteCodeStubAssembler : public CodeStubAssembler {
     }
   }
 
-  void InsertToStoreBufferAndGoto(Node* isolate, Node* slot, Label* next) {
+  Node* ShouldSkipFPRegs(Node* mode) {
+    return WordEqual(mode, SmiConstant(kDontSaveFPRegs));
+  }
+
+  Node* ShouldEmitRememberSet(Node* remembered_set) {
+    return WordEqual(remembered_set, SmiConstant(EMIT_REMEMBERED_SET));
+  }
+
+  void CallCFunction1WithCallerSavedRegistersMode(MachineType return_type,
+                                                  MachineType arg0_type,
+                                                  Node* function, Node* arg0,
+                                                  Node* mode, Label* next) {
+    Label dont_save_fp(this), save_fp(this);
+    Branch(ShouldSkipFPRegs(mode), &dont_save_fp, &save_fp);
+    BIND(&dont_save_fp);
+    {
+      CallCFunction1WithCallerSavedRegisters(return_type, arg0_type, function,
+                                             arg0, kDontSaveFPRegs);
+      Goto(next);
+    }
+
+    BIND(&save_fp);
+    {
+      CallCFunction1WithCallerSavedRegisters(return_type, arg0_type, function,
+                                             arg0, kSaveFPRegs);
+      Goto(next);
+    }
+  }
+
+  void CallCFunction3WithCallerSavedRegistersMode(
+      MachineType return_type, MachineType arg0_type, MachineType arg1_type,
+      MachineType arg2_type, Node* function, Node* arg0, Node* arg1, Node* arg2,
+      Node* mode, Label* next) {
+    Label dont_save_fp(this), save_fp(this);
+    Branch(ShouldSkipFPRegs(mode), &dont_save_fp, &save_fp);
+    BIND(&dont_save_fp);
+    {
+      CallCFunction3WithCallerSavedRegisters(return_type, arg0_type, arg1_type,
+                                             arg2_type, function, arg0, arg1,
+                                             arg2, kDontSaveFPRegs);
+      Goto(next);
+    }
+
+    BIND(&save_fp);
+    {
+      CallCFunction3WithCallerSavedRegisters(return_type, arg0_type, arg1_type,
+                                             arg2_type, function, arg0, arg1,
+                                             arg2, kSaveFPRegs);
+      Goto(next);
+    }
+  }
+
+  void InsertToStoreBufferAndGoto(Node* isolate, Node* slot, Node* mode,
+                                  Label* next) {
     Node* store_buffer_top_addr =
         ExternalConstant(ExternalReference::store_buffer_top(this->isolate()));
     Node* store_buffer_top =
@@ -284,9 +343,9 @@ class RecordWriteCodeStubAssembler : public CodeStubAssembler {
     {
       Node* function = ExternalConstant(
           ExternalReference::store_buffer_overflow_function(this->isolate()));
-      CallCFunction1WithCallerSavedRegisters(
-          MachineType::Int32(), MachineType::Pointer(), function, isolate);
-      Goto(next);
+      CallCFunction1WithCallerSavedRegistersMode(MachineType::Int32(),
+                                                 MachineType::Pointer(),
+                                                 function, isolate, mode, next);
     }
   }
 };
@@ -295,42 +354,51 @@ TF_BUILTIN(RecordWrite, RecordWriteCodeStubAssembler) {
   Node* object = BitcastTaggedToWord(Parameter(Descriptor::kObject));
   Node* slot = Parameter(Descriptor::kSlot);
   Node* isolate = Parameter(Descriptor::kIsolate);
-  Node* value;
+  Node* remembered_set = Parameter(Descriptor::kRememberedSet);
+  Node* fp_mode = Parameter(Descriptor::kFPMode);
 
-  Label test_old_to_new_flags(this);
-  Label store_buffer_exit(this), store_buffer_incremental_wb(this);
+  Node* value = Load(MachineType::Pointer(), slot);
+
+  Label generational_wb(this);
   Label incremental_wb(this);
   Label exit(this);
 
-  // When incremental marking is not on, we skip cross generation pointer
-  // checking here, because there are checks for
-  // `kPointersFromHereAreInterestingMask` and
-  // `kPointersToHereAreInterestingMask` in
-  // `src/compiler/<arch>/code-generator-<arch>.cc` before calling this stub,
-  // which serves as the cross generation checking.
-  Branch(IsMarking(), &test_old_to_new_flags, &store_buffer_exit);
+  Branch(ShouldEmitRememberSet(remembered_set), &generational_wb,
+         &incremental_wb);
 
-  BIND(&test_old_to_new_flags);
+  BIND(&generational_wb);
   {
-    value = Load(MachineType::Pointer(), slot);
-    // TODO(albertnetymk): Try to cache the page flag for value and object,
-    // instead of calling IsPageFlagSet each time.
-    Node* value_in_new_space =
-        IsPageFlagSet(value, MemoryChunk::kIsInNewSpaceMask);
-    GotoIfNot(value_in_new_space, &incremental_wb);
+    Label test_old_to_new_flags(this);
+    Label store_buffer_exit(this), store_buffer_incremental_wb(this);
+    // When incremental marking is not on, we skip cross generation pointer
+    // checking here, because there are checks for
+    // `kPointersFromHereAreInterestingMask` and
+    // `kPointersToHereAreInterestingMask` in
+    // `src/compiler/<arch>/code-generator-<arch>.cc` before calling this stub,
+    // which serves as the cross generation checking.
+    Branch(IsMarking(), &test_old_to_new_flags, &store_buffer_exit);
 
-    Node* object_in_new_space =
-        IsPageFlagSet(object, MemoryChunk::kIsInNewSpaceMask);
-    GotoIf(object_in_new_space, &incremental_wb);
+    BIND(&test_old_to_new_flags);
+    {
+      // TODO(albertnetymk): Try to cache the page flag for value and object,
+      // instead of calling IsPageFlagSet each time.
+      Node* value_in_new_space =
+          IsPageFlagSet(value, MemoryChunk::kIsInNewSpaceMask);
+      GotoIfNot(value_in_new_space, &incremental_wb);
 
-    Goto(&store_buffer_incremental_wb);
+      Node* object_in_new_space =
+          IsPageFlagSet(object, MemoryChunk::kIsInNewSpaceMask);
+      GotoIf(object_in_new_space, &incremental_wb);
+
+      Goto(&store_buffer_incremental_wb);
+    }
+
+    BIND(&store_buffer_exit);
+    { InsertToStoreBufferAndGoto(isolate, slot, fp_mode, &exit); }
+
+    BIND(&store_buffer_incremental_wb);
+    { InsertToStoreBufferAndGoto(isolate, slot, fp_mode, &incremental_wb); }
   }
-
-  BIND(&store_buffer_exit);
-  { InsertToStoreBufferAndGoto(isolate, slot, &exit); }
-
-  BIND(&store_buffer_incremental_wb);
-  { InsertToStoreBufferAndGoto(isolate, slot, &incremental_wb); }
 
   BIND(&incremental_wb);
   {
@@ -359,10 +427,10 @@ TF_BUILTIN(RecordWrite, RecordWriteCodeStubAssembler) {
       Node* function = ExternalConstant(
           ExternalReference::incremental_marking_record_write_function(
               this->isolate()));
-      CallCFunction3WithCallerSavedRegisters(
+      CallCFunction3WithCallerSavedRegistersMode(
           MachineType::Int32(), MachineType::Pointer(), MachineType::Pointer(),
-          MachineType::Pointer(), function, object, slot, isolate);
-      Goto(&exit);
+          MachineType::Pointer(), function, object, slot, isolate, fp_mode,
+          &exit);
     }
   }
 
@@ -467,8 +535,9 @@ TF_BUILTIN(DeleteProperty, DeletePropertyBaseAssembler) {
 
     BIND(&dont_delete);
     {
-      STATIC_ASSERT(LANGUAGE_END == 2);
-      GotoIf(SmiNotEqual(language_mode, SmiConstant(SLOPPY)), &slow);
+      STATIC_ASSERT(LanguageModeSize == 2);
+      GotoIf(SmiNotEqual(language_mode, SmiConstant(LanguageMode::kSloppy)),
+             &slow);
       Return(FalseConstant());
     }
   }
@@ -489,6 +558,53 @@ TF_BUILTIN(DeleteProperty, DeletePropertyBaseAssembler) {
     TailCallRuntime(Runtime::kDeleteProperty, context, receiver, key,
                     language_mode);
   }
+}
+
+TF_BUILTIN(ForInEnumerate, CodeStubAssembler) {
+  Node* receiver = Parameter(Descriptor::kReceiver);
+  Node* context = Parameter(Descriptor::kContext);
+
+  Label if_empty(this), if_runtime(this, Label::kDeferred);
+  Node* receiver_map = CheckEnumCache(receiver, &if_empty, &if_runtime);
+  Return(receiver_map);
+
+  BIND(&if_empty);
+  Return(EmptyFixedArrayConstant());
+
+  BIND(&if_runtime);
+  TailCallRuntime(Runtime::kForInEnumerate, context, receiver);
+}
+
+TF_BUILTIN(ForInFilter, CodeStubAssembler) {
+  Node* key = Parameter(Descriptor::kKey);
+  Node* object = Parameter(Descriptor::kObject);
+  Node* context = Parameter(Descriptor::kContext);
+
+  CSA_ASSERT(this, IsString(key));
+
+  Label if_true(this), if_false(this);
+  Node* result = HasProperty(object, key, context, kForInHasProperty);
+  Branch(IsTrue(result), &if_true, &if_false);
+
+  BIND(&if_true);
+  Return(key);
+
+  BIND(&if_false);
+  Return(UndefinedConstant());
+}
+
+TF_BUILTIN(SameValue, CodeStubAssembler) {
+  Node* lhs = Parameter(Descriptor::kLeft);
+  Node* rhs = Parameter(Descriptor::kRight);
+
+  Label if_true(this), if_false(this);
+  BranchIfSameValue(lhs, rhs, &if_true, &if_false);
+
+  BIND(&if_true);
+  Return(TrueConstant());
+
+  BIND(&if_false);
+  Return(FalseConstant());
 }
 
 }  // namespace internal

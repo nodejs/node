@@ -226,7 +226,8 @@ WasmModuleBuilder::WasmModuleBuilder(Zone* zone)
       start_function_index_(-1),
       min_memory_size_(16),
       max_memory_size_(0),
-      has_max_memory_size_(false) {}
+      has_max_memory_size_(false),
+      has_shared_memory_(false) {}
 
 WasmFunctionBuilder* WasmModuleBuilder::AddFunction(FunctionSig* sig) {
   functions_.push_back(new (zone_) WasmFunctionBuilder(this));
@@ -325,6 +326,8 @@ void WasmModuleBuilder::SetMaxMemorySize(uint32_t value) {
   max_memory_size_ = value;
 }
 
+void WasmModuleBuilder::SetHasSharedMemory() { has_shared_memory_ = true; }
+
 void WasmModuleBuilder::WriteTo(ZoneBuffer& buffer) const {
   // == Emit magic =============================================================
   buffer.write_u32(kWasmMagic);
@@ -386,7 +389,7 @@ void WasmModuleBuilder::WriteTo(ZoneBuffer& buffer) const {
     size_t start = EmitSection(kTableSectionCode, buffer);
     buffer.write_u8(1);  // table count
     buffer.write_u8(kWasmAnyFunctionTypeForm);
-    buffer.write_u8(kResizableMaximumFlag);
+    buffer.write_u8(kHasMaximumFlag);
     buffer.write_size(indirect_functions_.size());
     buffer.write_size(indirect_functions_.size());
     FixupSection(buffer, start);
@@ -396,8 +399,13 @@ void WasmModuleBuilder::WriteTo(ZoneBuffer& buffer) const {
   {
     size_t start = EmitSection(kMemorySectionCode, buffer);
     buffer.write_u8(1);  // memory count
-    buffer.write_u8(has_max_memory_size_ ? kResizableMaximumFlag
-                                         : kNoMaximumFlag);
+    if (has_shared_memory_) {
+      buffer.write_u8(has_max_memory_size_ ? MemoryFlags::kSharedAndMaximum
+                                           : MemoryFlags::kSharedNoMaximum);
+    } else {
+      buffer.write_u8(has_max_memory_size_ ? MemoryFlags::kMaximum
+                                           : MemoryFlags::kNoMaximum);
+    }
     buffer.write_u32v(min_memory_size_);
     if (has_max_memory_size_) {
       buffer.write_u32v(max_memory_size_);

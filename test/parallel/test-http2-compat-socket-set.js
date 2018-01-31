@@ -6,7 +6,7 @@ if (!common.hasCrypto)
 const assert = require('assert');
 const h2 = require('http2');
 
-// Tests behaviour of the proxied socket in Http2ServerRequest
+// Tests behavior of the proxied socket in Http2ServerRequest
 // & Http2ServerResponse - specifically property setters
 
 const errMsg = {
@@ -98,7 +98,7 @@ server.listen(0, common.mustCall(function() {
     };
     const request = client.request(headers);
     request.on('end', common.mustCall(() => {
-      client.destroy();
+      client.close();
       server.close();
     }));
     request.end();

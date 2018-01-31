@@ -1324,10 +1324,16 @@ int ssl3_read_bytes(SSL *s, int type, unsigned char *buf, int len, int peek)
         }
 #ifndef OPENSSL_NO_HEARTBEATS
         else if (rr->type == TLS1_RT_HEARTBEAT) {
-            tls1_process_heartbeat(s);
+            i = tls1_process_heartbeat(s);
+
+            if (i < 0)
+                return i;
+
+            rr->length = 0;
+            if (s->mode & SSL_MODE_AUTO_RETRY)
+                goto start;
 
             /* Exit and notify application to read again */
-            rr->length = 0;
             s->rwstate = SSL_READING;
             BIO_clear_retry_flags(SSL_get_rbio(s));
             BIO_set_retry_read(SSL_get_rbio(s));

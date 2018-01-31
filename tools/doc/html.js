@@ -125,9 +125,7 @@ function toID(filename) {
  * opts: lexed, filename, template, nodeVersion.
  */
 function render(opts, cb) {
-  var lexed = opts.lexed;
-  var filename = opts.filename;
-  var template = opts.template;
+  var { lexed, filename, template } = opts;
   const nodeVersion = opts.nodeVersion || process.version;
 
   // get the section
@@ -224,7 +222,7 @@ function altDocs(filename) {
   const host = 'https://nodejs.org';
   const href = (v) => `${host}/docs/latest-v${v.num}/api/${filename}.html`;
 
-  function li(v, i) {
+  function li(v) {
     let html = `<li><a href="${href(v)}">${v.num}`;
 
     if (v.lts)
@@ -418,15 +416,15 @@ const BSD_ONLY_SYSCALLS = new Set(['lchmod']);
 // '<a href="http://man7.org/linux/man-pages/man2/open.2.html">open(2)</a>'
 function linkManPages(text) {
   return text.replace(
-    / ([a-z.]+)\((\d)([a-z]?)\)/gm,
-    (match, name, number, optionalCharacter) => {
+    /(^|\s)([a-z.]+)\((\d)([a-z]?)\)/gm,
+    (match, beginning, name, number, optionalCharacter) => {
       // name consists of lowercase letters, number is a single digit
       const displayAs = `${name}(${number}${optionalCharacter})`;
       if (BSD_ONLY_SYSCALLS.has(name)) {
-        return ` <a href="https://www.freebsd.org/cgi/man.cgi?query=${name}` +
+        return `${beginning}<a href="https://www.freebsd.org/cgi/man.cgi?query=${name}` +
           `&sektion=${number}">${displayAs}</a>`;
       } else {
-        return ` <a href="http://man7.org/linux/man-pages/man${number}` +
+        return `${beginning}<a href="http://man7.org/linux/man-pages/man${number}` +
           `/${name}.${number}${optionalCharacter}.html">${displayAs}</a>`;
       }
     });

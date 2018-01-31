@@ -14,13 +14,13 @@ parameter count: 1
 bytecode array length: 25
 bytecodes: [
   /*   30 E> */ B(StackCheck),
-  /*   34 S> */ B(LdaGlobal), U8(0), U8(2),
+  /*   34 S> */ B(LdaGlobal), U8(0), U8(0),
                 B(Star), R(1),
-  /*   39 E> */ B(LdaNamedProperty), R(1), U8(1), U8(4),
+  /*   39 E> */ B(LdaNamedProperty), R(1), U8(1), U8(2),
                 B(Star), R(0),
-                B(CreateArrayLiteral), U8(2), U8(6), U8(37),
+                B(CreateArrayLiteral), U8(2), U8(4), U8(37),
                 B(Star), R(2),
-  /*   39 E> */ B(CallWithSpread), R(0), R(1), U8(2), U8(0),
+  /*   39 E> */ B(CallWithSpread), R(0), R(1), U8(2), U8(5),
                 B(LdaUndefined),
   /*   58 S> */ B(Return),
 ]
@@ -41,15 +41,15 @@ parameter count: 1
 bytecode array length: 28
 bytecodes: [
   /*   30 E> */ B(StackCheck),
-  /*   34 S> */ B(LdaGlobal), U8(0), U8(2),
+  /*   34 S> */ B(LdaGlobal), U8(0), U8(0),
                 B(Star), R(1),
-  /*   39 E> */ B(LdaNamedProperty), R(1), U8(1), U8(4),
+  /*   39 E> */ B(LdaNamedProperty), R(1), U8(1), U8(2),
                 B(Star), R(0),
                 B(LdaZero),
                 B(Star), R(2),
-                B(CreateArrayLiteral), U8(2), U8(6), U8(37),
+                B(CreateArrayLiteral), U8(2), U8(4), U8(37),
                 B(Star), R(3),
-  /*   39 E> */ B(CallWithSpread), R(0), R(1), U8(3), U8(0),
+  /*   39 E> */ B(CallWithSpread), R(0), R(1), U8(3), U8(5),
                 B(LdaUndefined),
   /*   61 S> */ B(Return),
 ]
@@ -65,33 +65,27 @@ handlers: [
 snippet: "
   Math.max(0, ...[1, 2, 3], 4);
 "
-frame size: 8
+frame size: 6
 parameter count: 1
-bytecode array length: 60
+bytecode array length: 51
 bytecodes: [
   /*   30 E> */ B(StackCheck),
-  /*   34 S> */ B(LdaUndefined),
-                B(Star), R(1),
-  /*   34 E> */ B(LdaGlobal), U8(0), U8(0),
+  /*   34 S> */ B(LdaGlobal), U8(0), U8(0),
                 B(Star), R(0),
                 B(LdaNamedProperty), R(0), U8(1), U8(2),
-                B(Star), R(2),
-                B(LdaUndefined),
-                B(Star), R(4),
+                B(Star), R(1),
                 B(CreateArrayLiteral), U8(2), U8(4), U8(37),
-                B(Star), R(5),
-                B(LdaUndefined),
-                B(Star), R(6),
+                B(Star), R(3),
                 B(CreateArrayLiteral), U8(3), U8(5), U8(37),
-                B(Star), R(7),
-                B(CallJSRuntime), U8(%spread_iterable), R(6), U8(2),
-                B(Star), R(6),
-                B(CreateArrayLiteral), U8(4), U8(6), U8(37),
-                B(Star), R(7),
-                B(CallJSRuntime), U8(%spread_arguments), R(4), U8(4),
                 B(Star), R(4),
-                B(Mov), R(0), R(3),
-                B(CallJSRuntime), U8(%reflect_apply), R(1), U8(4),
+                B(CallJSRuntime), U8(%spread_iterable), R(4), U8(1),
+                B(Star), R(4),
+                B(CreateArrayLiteral), U8(4), U8(6), U8(37),
+                B(Star), R(5),
+                B(CallJSRuntime), U8(%spread_arguments), R(3), U8(3),
+                B(Star), R(3),
+                B(Mov), R(0), R(2),
+                B(CallJSRuntime), U8(%reflect_apply), R(1), U8(3),
                 B(LdaUndefined),
   /*   64 S> */ B(Return),
 ]

@@ -145,7 +145,22 @@
 #ifndef __UTF_OLD_H__
 #define __UTF_OLD_H__
 
-#ifndef U_HIDE_DEPRECATED_API
+/**
+ * \def U_HIDE_OBSOLETE_UTF_OLD_H
+ *
+ * Hides the obsolete definitions in unicode/utf_old.h.
+ * Recommended to be set to 1 at compile time to make sure
+ * the long-deprecated macros are no longer used.
+ *
+ * For reasons for the deprecation see the utf_old.h file comments.
+ *
+ * @internal
+ */
+#ifndef U_HIDE_OBSOLETE_UTF_OLD_H
+#   define U_HIDE_OBSOLETE_UTF_OLD_H 0
+#endif
+
+#if !defined(U_HIDE_DEPRECATED_API) && !U_HIDE_OBSOLETE_UTF_OLD_H
 
 #include "unicode/utf.h"
 #include "unicode/utf8.h"
@@ -1184,6 +1199,6 @@ U_CFUNC U_IMPORT const uint8_t utf8_countTrailBytes[];    /* U_IMPORT2? */ /*U_I
  */
 #define UTF_SET_CHAR_LIMIT(s, start, i, length) U16_SET_CP_LIMIT(s, start, i, length)
 
-#endif /* U_HIDE_DEPRECATED_API */
+#endif  // !U_HIDE_DEPRECATED_API && !U_HIDE_OBSOLETE_UTF_OLD_H
 
 #endif

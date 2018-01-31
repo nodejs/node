@@ -7,7 +7,7 @@
 #include "src/frames-inl.h"
 #include "src/property-descriptor.h"
 #include "src/utils.h"
-#include "src/wasm/wasm-objects.h"
+#include "src/wasm/wasm-objects-inl.h"
 
 #include "test/cctest/cctest.h"
 #include "test/cctest/compiler/value-helper.h"
@@ -15,9 +15,9 @@
 #include "test/common/wasm/test-signatures.h"
 #include "test/common/wasm/wasm-macro-gen.h"
 
-using namespace v8::internal;
-using namespace v8::internal::wasm;
-namespace debug = v8::debug;
+namespace v8 {
+namespace internal {
+namespace wasm {
 
 namespace {
 
@@ -132,9 +132,8 @@ Handle<JSObject> MakeFakeBreakpoint(Isolate* isolate, int position) {
   desc.set_value(triggered_fun);
   Handle<String> name =
       isolate->factory()->InternalizeUtf8String(CStrVector("isTriggered"));
-  CHECK(
-      JSObject::DefineOwnProperty(isolate, obj, name, &desc, Object::DONT_THROW)
-          .FromMaybe(false));
+  CHECK(JSObject::DefineOwnProperty(isolate, obj, name, &desc, kDontThrow)
+            .FromMaybe(false));
   return obj;
 }
 
@@ -265,8 +264,8 @@ std::vector<WasmValue> wasmVec(Args... args) {
 
 }  // namespace
 
-TEST(WasmCollectPossibleBreakpoints) {
-  WasmRunner<int> runner(kExecuteCompiled);
+WASM_COMPILED_EXEC_TEST(WasmCollectPossibleBreakpoints) {
+  WasmRunner<int> runner(execution_mode);
 
   BUILD(runner, WASM_NOP, WASM_I32_ADD(WASM_ZERO, WASM_ONE));
 
@@ -290,8 +289,8 @@ TEST(WasmCollectPossibleBreakpoints) {
   CheckLocationsFail(instance->compiled_module(), {0, 9}, {1, 0});
 }
 
-TEST(WasmSimpleBreak) {
-  WasmRunner<int> runner(kExecuteCompiled);
+WASM_COMPILED_EXEC_TEST(WasmSimpleBreak) {
+  WasmRunner<int> runner(execution_mode);
   Isolate* isolate = runner.main_isolate();
 
   BUILD(runner, WASM_NOP, WASM_I32_ADD(WASM_I32V_1(11), WASM_I32V_1(3)));
@@ -311,8 +310,8 @@ TEST(WasmSimpleBreak) {
   CHECK_EQ(14, result);
 }
 
-TEST(WasmSimpleStepping) {
-  WasmRunner<int> runner(kExecuteCompiled);
+WASM_COMPILED_EXEC_TEST(WasmSimpleStepping) {
+  WasmRunner<int> runner(execution_mode);
   BUILD(runner, WASM_I32_ADD(WASM_I32V_1(11), WASM_I32V_1(3)));
 
   Isolate* isolate = runner.main_isolate();
@@ -338,8 +337,8 @@ TEST(WasmSimpleStepping) {
   CHECK_EQ(14, result);
 }
 
-TEST(WasmStepInAndOut) {
-  WasmRunner<int, int> runner(kExecuteCompiled);
+WASM_COMPILED_EXEC_TEST(WasmStepInAndOut) {
+  WasmRunner<int, int> runner(execution_mode);
   WasmFunctionCompiler& f2 = runner.NewFunction<void>();
   f2.AllocateLocal(ValueType::kWord32);
 
@@ -378,8 +377,8 @@ TEST(WasmStepInAndOut) {
              .is_null());
 }
 
-TEST(WasmGetLocalsAndStack) {
-  WasmRunner<void, int> runner(kExecuteCompiled);
+WASM_COMPILED_EXEC_TEST(WasmGetLocalsAndStack) {
+  WasmRunner<void, int> runner(execution_mode);
   runner.AllocateLocal(ValueType::kWord64);
   runner.AllocateLocal(ValueType::kFloat32);
   runner.AllocateLocal(ValueType::kFloat64);
@@ -422,3 +421,7 @@ TEST(WasmGetLocalsAndStack) {
   Handle<Object> args[]{handle(Smi::FromInt(7), isolate)};
   CHECK(!Execution::Call(isolate, main_fun_wrapper, global, 1, args).is_null());
 }
+
+}  // namespace wasm
+}  // namespace internal
+}  // namespace v8

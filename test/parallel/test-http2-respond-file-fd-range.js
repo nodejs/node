@@ -9,6 +9,7 @@ const fixtures = require('../common/fixtures');
 const http2 = require('http2');
 const assert = require('assert');
 const fs = require('fs');
+const Countdown = require('../common/countdown');
 
 const {
   HTTP2_HEADER_CONTENT_TYPE,
@@ -39,7 +40,7 @@ server.on('stream', (stream, headers) => {
     statCheck: common.mustCall((stat, headers, options) => {
       assert.strictEqual(options.length, length);
       assert.strictEqual(options.offset, offset);
-      headers[HTTP2_HEADER_CONTENT_LENGTH] =
+      headers['content-length'] =
         Math.min(options.length, stat.size - offset);
     }),
     offset: offset,
@@ -47,23 +48,21 @@ server.on('stream', (stream, headers) => {
   });
 });
 server.on('close', common.mustCall(() => fs.closeSync(fd)));
+
 server.listen(0, () => {
   const client = http2.connect(`http://localhost:${server.address().port}`);
 
-  let remaining = 2;
-  function maybeClose() {
-    if (--remaining === 0) {
-      client.destroy();
-      server.close();
-    }
-  }
+  const countdown = new Countdown(2, () => {
+    client.close();
+    server.close();
+  });
 
   {
     const req = client.request({ range: 'bytes=8-11' });
 
     req.on('response', common.mustCall((headers) => {
-      assert.strictEqual(headers[HTTP2_HEADER_CONTENT_TYPE], 'text/plain');
-      assert.strictEqual(+headers[HTTP2_HEADER_CONTENT_LENGTH], 3);
+      assert.strictEqual(headers['content-type'], 'text/plain');
+      assert.strictEqual(+headers['content-length'], 3);
     }));
     req.setEncoding('utf8');
     let check = '';
@@ -71,7 +70,7 @@ server.listen(0, () => {
     req.on('end', common.mustCall(() => {
       assert.strictEqual(check, data.toString('utf8', 8, 11));
     }));
-    req.on('streamClosed', common.mustCall(maybeClose));
+    req.on('close', common.mustCall(() => countdown.dec()));
     req.end();
   }
 
@@ -88,7 +87,7 @@ server.listen(0, () => {
     req.on('end', common.mustCall(() => {
       assert.strictEqual(check, data.toString('utf8', 8, 28));
     }));
-    req.on('streamClosed', common.mustCall(maybeClose));
+    req.on('close', common.mustCall(() => countdown.dec()));
     req.end();
   }
 

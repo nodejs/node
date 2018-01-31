@@ -6,6 +6,7 @@
 #define V8_OBJECTS_FRAME_ARRAY_INL_H_
 
 #include "src/objects/frame-array.h"
+#include "src/wasm/wasm-objects-inl.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"

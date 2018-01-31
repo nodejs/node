@@ -4,6 +4,7 @@
 
 let {session, contextGroup, Protocol} = InspectorTest.start('Checks console methods');
 
+contextGroup.setupInjectedScriptEnvironment();
 contextGroup.addScript(`
 function testFunction() {
   console.debug('debug');
@@ -14,6 +15,7 @@ function testFunction() {
   console.dir('dir');
   console.dirxml('dirxml');
   console.table([[1,2],[3,4]]);
+  console.table([[1,2],[3,4]], [1,2]);
   console.trace('trace');
   console.trace();
   console.group();

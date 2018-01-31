@@ -26,6 +26,43 @@
 namespace v8 {
 namespace base {
 
+namespace {
+
+// The memory allocation implementation is taken from platform-win32.cc.
+
+DWORD GetProtectionFromMemoryPermission(OS::MemoryPermission access) {
+  switch (access) {
+    case OS::MemoryPermission::kNoAccess:
+      return PAGE_NOACCESS;
+    case OS::MemoryPermission::kReadWrite:
+      return PAGE_READWRITE;
+    case OS::MemoryPermission::kReadWriteExecute:
+      return PAGE_EXECUTE_READWRITE;
+    case OS::MemoryPermission::kReadExecute:
+      return PAGE_EXECUTE_READ;
+  }
+  UNREACHABLE();
+}
+
+uint8_t* RandomizedVirtualAlloc(size_t size, DWORD flags, DWORD protect,
+                                void* hint) {
+  LPVOID base = nullptr;
+
+  // For executable or reserved pages try to use the address hint.
+  if (protect != PAGE_READWRITE) {
+    base = VirtualAlloc(hint, size, flags, protect);
+  }
+
+  // If that fails, let the OS find an address to use.
+  if (base == nullptr) {
+    base = VirtualAlloc(nullptr, size, flags, protect);
+  }
+
+  return reinterpret_cast<uint8_t*>(base);
+}
+
+}  // namespace
+
 class CygwinTimezoneCache : public PosixTimezoneCache {
   const char* LocalTimezone(double time) override;
 
@@ -39,32 +76,104 @@ const char* CygwinTimezoneCache::LocalTimezone(double time) {
   time_t tv = static_cast<time_t>(std::floor(time/msPerSecond));
   struct tm tm;
   struct tm* t = localtime_r(&tv, &tm);
-  if (NULL == t) return "";
+  if (nullptr == t) return "";
   return tzname[0];  // The location of the timezone string on Cygwin.
 }
 
 double CygwinTimezoneCache::LocalTimeOffset() {
   // On Cygwin, struct tm does not contain a tm_gmtoff field.
-  time_t utc = time(NULL);
-  DCHECK(utc != -1);
+  time_t utc = time(nullptr);
+  DCHECK_NE(utc, -1);
   struct tm tm;
   struct tm* loc = localtime_r(&utc, &tm);
-  DCHECK(loc != NULL);
+  DCHECK_NOT_NULL(loc);
   // time - localtime includes any daylight savings offset, so subtract it.
   return static_cast<double>((mktime(loc) - utc) * msPerSecond -
                              (loc->tm_isdst > 0 ? 3600 * msPerSecond : 0));
 }
 
-void* OS::Allocate(const size_t requested, size_t* allocated,
-                   OS::MemoryPermission access, void* hint) {
-  const size_t msize = RoundUp(requested, sysconf(_SC_PAGESIZE));
-  int prot = GetProtectionFromMemoryPermission(access);
-  void* mbase = mmap(NULL, msize, prot, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-  if (mbase == MAP_FAILED) return NULL;
-  *allocated = msize;
-  return mbase;
+// static
+void* OS::Allocate(void* address, size_t size, size_t alignment,
+                   MemoryPermission access) {
+  size_t page_size = AllocatePageSize();
+  DCHECK_EQ(0, size % page_size);
+  DCHECK_EQ(0, alignment % page_size);
+  DCHECK_LE(page_size, alignment);
+  address = AlignedAddress(address, alignment);
+
+  DWORD flags = (access == OS::MemoryPermission::kNoAccess)
+                    ? MEM_RESERVE
+                    : MEM_RESERVE | MEM_COMMIT;
+  DWORD protect = GetProtectionFromMemoryPermission(access);
+
+  // First, try an exact size aligned allocation.
+  uint8_t* base = RandomizedVirtualAlloc(size, flags, protect, address);
+  if (base == nullptr) return nullptr;  // Can't allocate, we're OOM.
+
+  // If address is suitably aligned, we're done.
+  uint8_t* aligned_base = RoundUp(base, alignment);
+  if (base == aligned_base) return reinterpret_cast<void*>(base);
+
+  // Otherwise, free it and try a larger allocation.
+  CHECK(Free(base, size));
+
+  // Clear the hint. It's unlikely we can allocate at this address.
+  address = nullptr;
+
+  // Add the maximum misalignment so we are guaranteed an aligned base address
+  // in the allocated region.
+  size_t padded_size = size + (alignment - page_size);
+  const int kMaxAttempts = 3;
+  aligned_base = nullptr;
+  for (int i = 0; i < kMaxAttempts; ++i) {
+    base = RandomizedVirtualAlloc(padded_size, flags, protect, address);
+    if (base == nullptr) return nullptr;  // Can't allocate, we're OOM.
+
+    // Try to trim the allocation by freeing the padded allocation and then
+    // calling VirtualAlloc at the aligned base.
+    CHECK(Free(base, padded_size));
+    aligned_base = RoundUp(base, alignment);
+    base = reinterpret_cast<uint8_t*>(
+        VirtualAlloc(aligned_base, size, flags, protect));
+    // We might not get the reduced allocation due to a race. In that case,
+    // base will be nullptr.
+    if (base != nullptr) break;
+  }
+  DCHECK_EQ(base, aligned_base);
+  return reinterpret_cast<void*>(base);
 }
 
+// static
+bool OS::Free(void* address, const size_t size) {
+  DCHECK_EQ(0, static_cast<uintptr_t>(address) % AllocatePageSize());
+  DCHECK_EQ(0, size % AllocatePageSize());
+  USE(size);
+  return VirtualFree(address, 0, MEM_RELEASE) != 0;
+}
+
+// static
+bool OS::Release(void* address, size_t size) {
+  DCHECK_EQ(0, reinterpret_cast<uintptr_t>(address) % CommitPageSize());
+  DCHECK_EQ(0, size % CommitPageSize());
+  return VirtualFree(address, size, MEM_DECOMMIT) != 0;
+}
+
+// static
+bool OS::SetPermissions(void* address, size_t size, MemoryPermission access) {
+  DCHECK_EQ(0, reinterpret_cast<uintptr_t>(address) % CommitPageSize());
+  DCHECK_EQ(0, size % CommitPageSize());
+  if (access == MemoryPermission::kNoAccess) {
+    return VirtualFree(address, size, MEM_DECOMMIT) != 0;
+  }
+  DWORD protect = GetProtectionFromMemoryPermission(access);
+  return VirtualAlloc(address, size, MEM_COMMIT, protect) != nullptr;
+}
+
+// static
+bool OS::HasLazyCommits() {
+  // TODO(alph): implement for the platform.
+  return false;
+}
 
 std::vector<OS::SharedLibraryAddress> OS::GetSharedLibraryAddresses() {
   std::vector<SharedLibraryAddresses> result;
@@ -72,7 +181,7 @@ std::vector<OS::SharedLibraryAddress> OS::GetSharedLibraryAddresses() {
   // hex_start_addr-hex_end_addr rwxp <unused data> [binary_file_name]
   // If we encounter an unexpected situation we abort scanning further entries.
   FILE* fp = fopen("/proc/self/maps", "r");
-  if (fp == NULL) return result;
+  if (fp == nullptr) return result;
 
   // Allocate enough room to be able to store a full file name.
   const int kLibNameLen = FILENAME_MAX + 1;
@@ -100,7 +209,7 @@ std::vector<OS::SharedLibraryAddress> OS::GetSharedLibraryAddresses() {
         ungetc(c, fp);  // Push the '/' back into the stream to be read below.
 
         // Read to the end of the line. Exit if the read fails.
-        if (fgets(lib_name, kLibNameLen, fp) == NULL) break;
+        if (fgets(lib_name, kLibNameLen, fp) == nullptr) break;
 
         // Drop the newline character read by fgets. We do not need to check
         // for a zero-length string because we know that we at least read the
@@ -126,128 +235,8 @@ std::vector<OS::SharedLibraryAddress> OS::GetSharedLibraryAddresses() {
   return result;
 }
 
-
 void OS::SignalCodeMovingGC() {
   // Nothing to do on Cygwin.
-}
-
-
-// The VirtualMemory implementation is taken from platform-win32.cc.
-// The mmap-based virtual memory implementation as it is used on most posix
-// platforms does not work well because Cygwin does not support MAP_FIXED.
-// This causes VirtualMemory::Commit to not always commit the memory region
-// specified.
-
-static void* RandomizedVirtualAlloc(size_t size, int action, int protection,
-                                    void* hint) {
-  LPVOID base = NULL;
-
-  if (protection == PAGE_EXECUTE_READWRITE || protection == PAGE_NOACCESS) {
-    // For exectutable pages try and randomize the allocation address
-    base = VirtualAlloc(hint, size, action, protection);
-  }
-
-  // After three attempts give up and let the OS find an address to use.
-  if (base == NULL) base = VirtualAlloc(NULL, size, action, protection);
-
-  return base;
-}
-
-
-VirtualMemory::VirtualMemory() : address_(NULL), size_(0) { }
-
-VirtualMemory::VirtualMemory(size_t size, void* hint)
-    : address_(ReserveRegion(size, hint)), size_(size) {}
-
-VirtualMemory::VirtualMemory(size_t size, size_t alignment, void* hint)
-    : address_(NULL), size_(0) {
-  hint = AlignedAddress(hint, alignment);
-  DCHECK((alignment % OS::AllocateAlignment()) == 0);
-  size_t request_size = RoundUp(size + alignment,
-                                static_cast<intptr_t>(OS::AllocateAlignment()));
-  void* address = ReserveRegion(request_size, hint);
-  if (address == NULL) return;
-  uint8_t* base = RoundUp(static_cast<uint8_t*>(address), alignment);
-  // Try reducing the size by freeing and then reallocating a specific area.
-  bool result = ReleaseRegion(address, request_size);
-  USE(result);
-  DCHECK(result);
-  address = VirtualAlloc(base, size, MEM_RESERVE, PAGE_NOACCESS);
-  if (address != NULL) {
-    request_size = size;
-    DCHECK(base == static_cast<uint8_t*>(address));
-  } else {
-    // Resizing failed, just go with a bigger area.
-    address = ReserveRegion(request_size, hint);
-    if (address == NULL) return;
-  }
-  address_ = address;
-  size_ = request_size;
-}
-
-
-VirtualMemory::~VirtualMemory() {
-  if (IsReserved()) {
-    bool result = ReleaseRegion(address_, size_);
-    DCHECK(result);
-    USE(result);
-  }
-}
-
-void VirtualMemory::Reset() {
-  address_ = NULL;
-  size_ = 0;
-}
-
-
-bool VirtualMemory::Commit(void* address, size_t size, bool is_executable) {
-  return CommitRegion(address, size, is_executable);
-}
-
-
-bool VirtualMemory::Uncommit(void* address, size_t size) {
-  DCHECK(IsReserved());
-  return UncommitRegion(address, size);
-}
-
-void* VirtualMemory::ReserveRegion(size_t size, void* hint) {
-  return RandomizedVirtualAlloc(size, MEM_RESERVE, PAGE_NOACCESS, hint);
-}
-
-
-bool VirtualMemory::CommitRegion(void* base, size_t size, bool is_executable) {
-  int prot = is_executable ? PAGE_EXECUTE_READWRITE : PAGE_READWRITE;
-  if (NULL == VirtualAlloc(base, size, MEM_COMMIT, prot)) {
-    return false;
-  }
-  return true;
-}
-
-
-bool VirtualMemory::Guard(void* address) {
-  if (NULL == VirtualAlloc(address,
-                           OS::CommitPageSize(),
-                           MEM_COMMIT,
-                           PAGE_NOACCESS)) {
-    return false;
-  }
-  return true;
-}
-
-
-bool VirtualMemory::UncommitRegion(void* base, size_t size) {
-  return VirtualFree(base, size, MEM_DECOMMIT) != 0;
-}
-
-
-bool VirtualMemory::ReleaseRegion(void* base, size_t size) {
-  return VirtualFree(base, 0, MEM_RELEASE) != 0;
-}
-
-
-bool VirtualMemory::HasLazyCommits() {
-  // TODO(alph): implement for the platform.
-  return false;
 }
 
 }  // namespace base

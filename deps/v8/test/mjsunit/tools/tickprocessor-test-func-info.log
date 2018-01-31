@@ -1,11 +1,11 @@
-shared-library,"shell",0x08048000,0x081ee000,0
-shared-library,"/lib32/libm-2.7.so",0xf7db6000,0xf7dd9000,0
-shared-library,"ffffe000-fffff000",0xffffe000,0xfffff000,0
-profiler,"begin",1
-code-creation,Stub,0,100,0x424260,348,"CompareStub_GE"
-code-creation,LazyCompile,0,101,0x2a8100,18535,"DrawQube 3d-cube.js:188",0xf43abcac,
-code-creation,LazyCompile,0,102,0x480100,3908,"DrawLine 3d-cube.js:17",0xf43abc50,
+shared-library,shell,0x08048000,0x081ee000,0
+shared-library,/lib32/libm-2.7.so,0xf7db6000,0xf7dd9000,0
+shared-library,ffffe000-fffff000,0xffffe000,0xfffff000,0
+profiler,begin,1
+code-creation,Stub,0,100,0x424260,348,CompareStub_GE
+code-creation,LazyCompile,0,101,0x2a8100,18535,DrawQube 3d-cube.js:188,0xf43abcac,
+code-creation,LazyCompile,0,102,0x480100,3908,DrawLine 3d-cube.js:17,0xf43abc50,
 tick,0x424284,0,0,0x480600,0,0x2aaaa5
 tick,0x42429f,0,0,0x480600,0,0x2aacb4
 tick,0x48063d,0,0,0x2d0f7c,0,0x2aaec6
-profiler,"end"
+profiler,end

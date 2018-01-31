@@ -15,6 +15,7 @@
       './runtime/',
       './sessions/',
       './testcfg.py',
+      './type-profiler/',
       '../../src/inspector/injected-script-source.js',
       '<(PRODUCT_DIR)/inspector-test<(EXECUTABLE_SUFFIX)',
     ],

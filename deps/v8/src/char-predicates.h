@@ -80,7 +80,7 @@ struct WhiteSpace {
 // as well as \u0009 - \u000d and \ufeff.
 struct WhiteSpaceOrLineTerminator {
   static inline bool Is(uc32 c) {
-    return WhiteSpace::Is(c) || unibrow::LineTerminator::Is(c);
+    return WhiteSpace::Is(c) || unibrow::IsLineTerminator(c);
   }
 };
 

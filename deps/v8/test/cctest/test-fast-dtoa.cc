@@ -39,6 +39,7 @@
 
 namespace v8 {
 namespace internal {
+namespace test_fast_dtoa {
 
 static const int kBufferSize = 100;
 
@@ -293,5 +294,6 @@ TEST(FastDtoaGayPrecision) {
   CHECK_GT(succeeded_15*1.0/total_15, 0.9999);
 }
 
+}  // namespace test_fast_dtoa
 }  // namespace internal
 }  // namespace v8

@@ -3,11 +3,11 @@ const common = require('../common.js');
 const assert = require('assert');
 
 const bench = common.createBenchmark(main, {
-  thousands: [500],
+  millions: [5],
 });
 
-function main(conf) {
-  const iterations = +conf.thousands * 1e3;
+function main({ millions }) {
+  const iterations = millions * 1e6;
 
   var timer = setTimeout(() => {}, 1);
   for (var i = 0; i < iterations; i++) {
@@ -24,7 +24,7 @@ function main(conf) {
     clearTimeout(timer);
   }
 
-  bench.end(iterations / 1e3);
+  bench.end(iterations / 1e6);
 }
 
 function cb() {

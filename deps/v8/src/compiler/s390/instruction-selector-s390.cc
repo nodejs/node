@@ -221,7 +221,7 @@ class S390OperandGenerator final : public OperandGenerator {
     DCHECK(m.matches());
     if ((m.displacement() == nullptr ||
          CanBeImmediate(m.displacement(), immediate_mode))) {
-      DCHECK(m.scale() == 0);
+      DCHECK_EQ(0, m.scale());
       return GenerateMemoryOperandInputs(m.index(), m.base(), m.displacement(),
                                          m.displacement_mode(), inputs,
                                          input_count);
@@ -945,7 +945,7 @@ void InstructionSelector::VisitCheckedStore(Node* node) {
 
 #if 0
 static inline bool IsContiguousMask32(uint32_t value, int* mb, int* me) {
-  int mask_width = base::bits::CountPopulation32(value);
+  int mask_width = base::bits::CountPopulation(value);
   int mask_msb = base::bits::CountLeadingZeros32(value);
   int mask_lsb = base::bits::CountTrailingZeros32(value);
   if ((mask_width == 0) || (mask_msb + mask_width + mask_lsb != 32))
@@ -958,7 +958,7 @@ static inline bool IsContiguousMask32(uint32_t value, int* mb, int* me) {
 
 #if V8_TARGET_ARCH_S390X
 static inline bool IsContiguousMask64(uint64_t value, int* mb, int* me) {
-  int mask_width = base::bits::CountPopulation64(value);
+  int mask_width = base::bits::CountPopulation(value);
   int mask_msb = base::bits::CountLeadingZeros64(value);
   int mask_lsb = base::bits::CountTrailingZeros64(value);
   if ((mask_width == 0) || (mask_msb + mask_width + mask_lsb != 64))
@@ -1406,8 +1406,8 @@ static inline bool TryMatchDoubleConstructFromInsert(
   S390OperandGenerator g(selector);
   Node* left = node->InputAt(0);
   Node* right = node->InputAt(1);
-  Node* lo32 = NULL;
-  Node* hi32 = NULL;
+  Node* lo32 = nullptr;
+  Node* hi32 = nullptr;
 
   if (node->opcode() == IrOpcode::kFloat64InsertLowWord32) {
     lo32 = right;
@@ -2357,22 +2357,28 @@ void InstructionSelector::EmitPrepareArguments(
     }
   } else {
     // Push any stack arguments.
-    int num_slots = static_cast<int>(descriptor->StackParameterCount());
+    int num_slots = 0;
     int slot = 0;
-    for (PushParameter input : (*arguments)) {
-      if (slot == 0) {
-        DCHECK(input.node());
-        Emit(kS390_PushFrame, g.NoOutput(), g.UseRegister(input.node()),
-             g.TempImmediate(num_slots));
-      } else {
-        // Skip any alignment holes in pushed nodes.
-        if (input.node()) {
-          Emit(kS390_StoreToStackSlot, g.NoOutput(),
-               g.UseRegister(input.node()), g.TempImmediate(slot));
-        }
-      }
-      ++slot;
+
+    for (PushParameter input : *arguments) {
+      if (input.node() == nullptr) continue;
+      num_slots +=
+          input.type().representation() == MachineRepresentation::kFloat64
+              ? kDoubleSize / kPointerSize
+              : 1;
     }
+    Emit(kS390_StackClaim, g.NoOutput(), g.TempImmediate(num_slots));
+    for (PushParameter input : *arguments) {
+      // Skip any alignment holes in pushed nodes.
+      if (input.node()) {
+        Emit(kS390_StoreToStackSlot, g.NoOutput(), g.UseRegister(input.node()),
+             g.TempImmediate(slot));
+        slot += input.type().representation() == MachineRepresentation::kFloat64
+                    ? (kDoubleSize / kPointerSize)
+                    : 1;
+      }
+    }
+    DCHECK(num_slots == slot);
   }
 }
 

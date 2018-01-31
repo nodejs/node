@@ -27,17 +27,17 @@ assert.deepStrictEqual(keys.next(), {
   done: true
 });
 
-assert.throws(() => {
+common.expectsError(() => {
   keys.next.call(undefined);
-}, common.expectsError({
+}, {
   code: 'ERR_INVALID_THIS',
   type: TypeError,
   message: 'Value of "this" must be of type URLSearchParamsIterator'
-}));
-assert.throws(() => {
+});
+common.expectsError(() => {
   params.keys.call(undefined);
-}, common.expectsError({
+}, {
   code: 'ERR_INVALID_THIS',
   type: TypeError,
   message: 'Value of "this" must be of type URLSearchParams'
-}));
+});

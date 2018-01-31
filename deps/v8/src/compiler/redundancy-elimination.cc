@@ -42,6 +42,8 @@ Reduction RedundancyElimination::Reduce(Node* node) {
       return ReduceCheckNode(node);
     case IrOpcode::kSpeculativeNumberAdd:
     case IrOpcode::kSpeculativeNumberSubtract:
+    case IrOpcode::kSpeculativeSafeIntegerAdd:
+    case IrOpcode::kSpeculativeSafeIntegerSubtract:
       // For increments and decrements by a constant, try to learn from the last
       // bounds check.
       return TryReuseBoundsCheckForFirstInput(node);
@@ -192,7 +194,9 @@ Reduction RedundancyElimination::ReduceCheckNode(Node* node) {
 
 Reduction RedundancyElimination::TryReuseBoundsCheckForFirstInput(Node* node) {
   DCHECK(node->opcode() == IrOpcode::kSpeculativeNumberAdd ||
-         node->opcode() == IrOpcode::kSpeculativeNumberSubtract);
+         node->opcode() == IrOpcode::kSpeculativeNumberSubtract ||
+         node->opcode() == IrOpcode::kSpeculativeSafeIntegerAdd ||
+         node->opcode() == IrOpcode::kSpeculativeSafeIntegerSubtract);
 
   DCHECK_EQ(1, node->op()->EffectInputCount());
   DCHECK_EQ(1, node->op()->EffectOutputCount());

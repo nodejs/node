@@ -5,8 +5,9 @@
 #ifndef V8_COLLECTOR_H_
 #define V8_COLLECTOR_H_
 
+#include <vector>
+
 #include "src/checks.h"
-#include "src/list-inl.h"
 #include "src/vector.h"
 
 namespace v8 {
@@ -32,8 +33,8 @@ class Collector {
   virtual ~Collector() {
     // Free backing store (in reverse allocation order).
     current_chunk_.Dispose();
-    for (int i = chunks_.length() - 1; i >= 0; i--) {
-      chunks_.at(i).Dispose();
+    for (auto rit = chunks_.rbegin(); rit != chunks_.rend(); ++rit) {
+      rit->Dispose();
     }
   }
 
@@ -52,7 +53,7 @@ class Collector {
   // A basic Collector will keep this vector valid as long as the Collector
   // is alive.
   inline Vector<T> AddBlock(int size, T initial_value) {
-    DCHECK(size > 0);
+    DCHECK_GT(size, 0);
     if (size > current_chunk_.length() - index_) {
       Grow(size);
     }
@@ -86,8 +87,7 @@ class Collector {
   void WriteTo(Vector<T> destination) {
     DCHECK(size_ <= destination.length());
     int position = 0;
-    for (int i = 0; i < chunks_.length(); i++) {
-      Vector<T> chunk = chunks_.at(i);
+    for (const Vector<T>& chunk : chunks_) {
       for (int j = 0; j < chunk.length(); j++) {
         destination[position] = chunk[j];
         position++;
@@ -111,10 +111,10 @@ class Collector {
 
   // Resets the collector to be empty.
   virtual void Reset() {
-    for (int i = chunks_.length() - 1; i >= 0; i--) {
-      chunks_.at(i).Dispose();
+    for (auto rit = chunks_.rbegin(); rit != chunks_.rend(); ++rit) {
+      rit->Dispose();
     }
-    chunks_.Rewind(0);
+    chunks_.clear();
     index_ = 0;
     size_ = 0;
   }
@@ -124,14 +124,14 @@ class Collector {
 
  protected:
   static const int kMinCapacity = 16;
-  List<Vector<T> > chunks_;
+  std::vector<Vector<T>> chunks_;
   Vector<T> current_chunk_;  // Block of memory currently being written into.
   int index_;                // Current index in current chunk.
   int size_;                 // Total number of elements in collector.
 
   // Creates a new current chunk, and stores the old chunk in the chunks_ list.
   void Grow(int min_capacity) {
-    DCHECK(growth_factor > 1);
+    DCHECK_GT(growth_factor, 1);
     int new_capacity;
     int current_length = current_chunk_.length();
     if (current_length < kMinCapacity) {
@@ -159,7 +159,7 @@ class Collector {
   virtual void NewChunk(int new_capacity) {
     Vector<T> new_chunk = Vector<T>::New(new_capacity);
     if (index_ > 0) {
-      chunks_.Add(current_chunk_.SubVector(0, index_));
+      chunks_.push_back(current_chunk_.SubVector(0, index_));
     } else {
       current_chunk_.Dispose();
     }
@@ -187,12 +187,12 @@ class SequenceCollector : public Collector<T, growth_factor, max_growth> {
   virtual ~SequenceCollector() {}
 
   void StartSequence() {
-    DCHECK(sequence_start_ == kNoSequence);
+    DCHECK_EQ(sequence_start_, kNoSequence);
     sequence_start_ = this->index_;
   }
 
   Vector<T> EndSequence() {
-    DCHECK(sequence_start_ != kNoSequence);
+    DCHECK_NE(sequence_start_, kNoSequence);
     int sequence_start = sequence_start_;
     sequence_start_ = kNoSequence;
     if (sequence_start == this->index_) return Vector<T>();
@@ -201,7 +201,7 @@ class SequenceCollector : public Collector<T, growth_factor, max_growth> {
 
   // Drops the currently added sequence, and all collected elements in it.
   void DropSequence() {
-    DCHECK(sequence_start_ != kNoSequence);
+    DCHECK_NE(sequence_start_, kNoSequence);
     int sequence_length = this->index_ - sequence_start_;
     this->index_ = sequence_start_;
     this->size_ -= sequence_length;
@@ -231,7 +231,8 @@ class SequenceCollector : public Collector<T, growth_factor, max_growth> {
       new_chunk[i] = this->current_chunk_[sequence_start_ + i];
     }
     if (sequence_start_ > 0) {
-      this->chunks_.Add(this->current_chunk_.SubVector(0, sequence_start_));
+      this->chunks_.push_back(
+          this->current_chunk_.SubVector(0, sequence_start_));
     } else {
       this->current_chunk_.Dispose();
     }

@@ -53,9 +53,10 @@ module.exports = {
 
 	set(obj, path, value) {
 		if (!isObj(obj) || typeof path !== 'string') {
-			return;
+			return obj;
 		}
 
+		const root = obj;
 		const pathArr = getPathSegments(path);
 
 		for (let i = 0; i < pathArr.length; i++) {
@@ -71,6 +72,8 @@ module.exports = {
 
 			obj = obj[p];
 		}
+
+		return root;
 	},
 
 	delete(obj, path) {

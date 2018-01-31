@@ -1,0 +1,62 @@
+{
+  "_from": "has@^1.0.1",
+  "_id": "has@1.0.1",
+  "_inBundle": false,
+  "_integrity": "sha1-hGFzP1OLCDfJNh45qauelwTcLyg=",
+  "_location": "/has",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "range",
+    "registry": true,
+    "raw": "has@^1.0.1",
+    "name": "has",
+    "escapedName": "has",
+    "rawSpec": "^1.0.1",
+    "saveSpec": null,
+    "fetchSpec": "^1.0.1"
+  },
+  "_requiredBy": [
+    "/remark-parse"
+  ],
+  "_resolved": "https://registry.npmjs.org/has/-/has-1.0.1.tgz",
+  "_shasum": "8461733f538b0837c9361e39a9ab9e9704dc2f28",
+  "_spec": "has@^1.0.1",
+  "_where": "/home/mzasso/git/nodejs/node/tools/eslint-tmp/node_modules/eslint/node_modules/remark-parse",
+  "author": {
+    "name": "Thiago de Arruda",
+    "email": "tpadilha84@gmail.com"
+  },
+  "bugs": {
+    "url": "https://github.com/tarruda/has/issues"
+  },
+  "bundleDependencies": false,
+  "dependencies": {
+    "function-bind": "^1.0.2"
+  },
+  "deprecated": false,
+  "description": "Object.prototype.hasOwnProperty.call shortcut",
+  "devDependencies": {
+    "chai": "~1.7.2",
+    "mocha": "^1.21.4"
+  },
+  "engines": {
+    "node": ">= 0.8.0"
+  },
+  "homepage": "https://github.com/tarruda/has",
+  "licenses": [
+    {
+      "type": "MIT",
+      "url": "https://github.com/tarruda/has/blob/master/LICENSE-MIT"
+    }
+  ],
+  "main": "./src/index",
+  "name": "has",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/tarruda/has.git"
+  },
+  "scripts": {
+    "test": "node_modules/mocha/bin/mocha"
+  },
+  "version": "1.0.1"
+}

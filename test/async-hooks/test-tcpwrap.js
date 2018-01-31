@@ -11,7 +11,8 @@ const initHooks = require('./init-hooks');
 const { checkInvocations } = require('./hook-checks');
 const net = require('net');
 
-let tcp1, tcp2, tcp3;
+let tcp1, tcp2;
+let tcpserver;
 let tcpconnect;
 
 const hooks = initHooks();
@@ -23,16 +24,16 @@ const server = net
 
 // Calling server.listen creates a TCPWRAP synchronously
 {
-  server.listen(common.PORT);
-  const tcps = hooks.activitiesOfTypes('TCPWRAP');
+  server.listen(0);
+  const tcpsservers = hooks.activitiesOfTypes('TCPSERVERWRAP');
   const tcpconnects = hooks.activitiesOfTypes('TCPCONNECTWRAP');
-  assert.strictEqual(tcps.length, 1);
+  assert.strictEqual(tcpsservers.length, 1);
   assert.strictEqual(tcpconnects.length, 0);
-  tcp1 = tcps[0];
-  assert.strictEqual(tcp1.type, 'TCPWRAP');
-  assert.strictEqual(typeof tcp1.uid, 'number');
-  assert.strictEqual(typeof tcp1.triggerAsyncId, 'number');
-  checkInvocations(tcp1, { init: 1 }, 'when calling server.listen');
+  tcpserver = tcpsservers[0];
+  assert.strictEqual(tcpserver.type, 'TCPSERVERWRAP');
+  assert.strictEqual(typeof tcpserver.uid, 'number');
+  assert.strictEqual(typeof tcpserver.triggerAsyncId, 'number');
+  checkInvocations(tcpserver, { init: 1 }, 'when calling server.listen');
 }
 
 // Calling net.connect creates another TCPWRAP synchronously
@@ -41,24 +42,25 @@ const server = net
     { port: server.address().port, host: '::1' },
     common.mustCall(onconnected));
   const tcps = hooks.activitiesOfTypes('TCPWRAP');
-  assert.strictEqual(tcps.length, 2);
+  assert.strictEqual(tcps.length, 1);
   process.nextTick(() => {
     const tcpconnects = hooks.activitiesOfTypes('TCPCONNECTWRAP');
     assert.strictEqual(tcpconnects.length, 1);
   });
 
-  tcp2 = tcps[1];
-  assert.strictEqual(tcps.length, 2);
-  assert.strictEqual(tcp2.type, 'TCPWRAP');
-  assert.strictEqual(typeof tcp2.uid, 'number');
-  assert.strictEqual(typeof tcp2.triggerAsyncId, 'number');
+  tcp1 = tcps[0];
+  assert.strictEqual(tcps.length, 1);
+  assert.strictEqual(tcp1.type, 'TCPWRAP');
+  assert.strictEqual(typeof tcp1.uid, 'number');
+  assert.strictEqual(typeof tcp1.triggerAsyncId, 'number');
 
+  checkInvocations(tcpserver, { init: 1 },
+                   'tcpserver when client is connecting');
   checkInvocations(tcp1, { init: 1 }, 'tcp1 when client is connecting');
-  checkInvocations(tcp2, { init: 1 }, 'tcp2 when client is connecting');
 }
 
 function onlistening() {
-  assert.strictEqual(hooks.activitiesOfTypes('TCPWRAP').length, 2);
+  assert.strictEqual(hooks.activitiesOfTypes('TCPWRAP').length, 1);
 }
 
 // Depending on timing we see client: onconnected or server: onconnection first
@@ -99,8 +101,8 @@ function onconnected() {
   const expected = serverConnected ?
     { init: 1, before: 1, after: 1 } :
     { init: 1 };
-  checkInvocations(tcp1, expected, 'tcp1 when client connects');
-  checkInvocations(tcp2, { init: 1 }, 'tcp2 when client connects');
+  checkInvocations(tcpserver, expected, 'tcpserver when client connects');
+  checkInvocations(tcp1, { init: 1 }, 'tcp1 when client connects');
 }
 
 function onconnection(c) {
@@ -109,32 +111,35 @@ function onconnection(c) {
 
   const tcps = hooks.activitiesOfTypes([ 'TCPWRAP' ]);
   const tcpconnects = hooks.activitiesOfTypes('TCPCONNECTWRAP');
-  assert.strictEqual(tcps.length, 3);
+  assert.strictEqual(tcps.length, 2);
   assert.strictEqual(tcpconnects.length, 1);
-  tcp3 = tcps[2];
-  assert.strictEqual(tcp3.type, 'TCPWRAP');
-  assert.strictEqual(typeof tcp3.uid, 'number');
-  assert.strictEqual(typeof tcp3.triggerAsyncId, 'number');
+  tcp2 = tcps[1];
+  assert.strictEqual(tcp2.type, 'TCPWRAP');
+  assert.strictEqual(typeof tcp2.uid, 'number');
+  assert.strictEqual(typeof tcp2.triggerAsyncId, 'number');
 
-  checkInvocations(tcp1, { init: 1, before: 1 },
-                   'tcp1 when server receives connection');
+  checkInvocations(tcpserver, { init: 1, before: 1 },
+                   'tcpserver when server receives connection');
+  checkInvocations(tcp1, { init: 1 }, 'tcp1 when server receives connection');
   checkInvocations(tcp2, { init: 1 }, 'tcp2 when server receives connection');
-  checkInvocations(tcp3, { init: 1 }, 'tcp3 when server receives connection');
 
   c.end();
   this.close(common.mustCall(onserverClosed));
 }
 
 function onserverClosed() {
-  checkInvocations(tcp1, { init: 1, before: 1, after: 1, destroy: 1 },
-                   'tcp1 when server is closed');
-  checkInvocations(tcp2, { init: 1, before: 2, after: 2, destroy: 1 },
-                   'tcp2 when server is closed');
-  checkInvocations(tcp3, { init: 1, before: 1, after: 1 },
-                   'tcp3 synchronously when server is closed');
+  checkInvocations(tcpserver, { init: 1, before: 1, after: 1, destroy: 1 },
+                   'tcpserver when server is closed');
+  setImmediate(() => {
+    checkInvocations(tcp1, { init: 1, before: 2, after: 2, destroy: 1 },
+                     'tcp1 after server is closed');
+  });
+  checkInvocations(tcp2, { init: 1, before: 1, after: 1 },
+                   'tcp2 synchronously when server is closed');
+
   tick(2, () => {
-    checkInvocations(tcp3, { init: 1, before: 2, after: 2, destroy: 1 },
-                     'tcp3 when server is closed');
+    checkInvocations(tcp2, { init: 1, before: 2, after: 2, destroy: 1 },
+                     'tcp2 when server is closed');
     checkInvocations(tcpconnect, { init: 1, before: 1, after: 1, destroy: 1 },
                      'tcpconnect when server is closed');
   });
@@ -144,16 +149,16 @@ process.on('exit', onexit);
 
 function onexit() {
   hooks.disable();
-  hooks.sanityCheck([ 'TCPWRAP', 'TCPCONNECTWRAP' ]);
+  hooks.sanityCheck([ 'TCPWRAP', 'TCPSERVERWRAP', 'TCPCONNECTWRAP' ]);
 
-  checkInvocations(tcp1, { init: 1, before: 1, after: 1, destroy: 1 },
-                   'tcp1 when process exits');
+  checkInvocations(tcpserver, { init: 1, before: 1, after: 1, destroy: 1 },
+                   'tcpserver when process exits');
+  checkInvocations(
+    tcp1, { init: 1, before: 2, after: 2, destroy: 1 },
+    'tcp1 when process exits');
   checkInvocations(
     tcp2, { init: 1, before: 2, after: 2, destroy: 1 },
     'tcp2 when process exits');
-  checkInvocations(
-    tcp3, { init: 1, before: 2, after: 2, destroy: 1 },
-    'tcp3 when process exits');
   checkInvocations(
     tcpconnect, { init: 1, before: 1, after: 1, destroy: 1 },
     'tcpconnect when process exits');

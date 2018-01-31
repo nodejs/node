@@ -111,7 +111,7 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
 
 
 void CpuFeatures::PrintTarget() {
-  const char* ppc_arch = NULL;
+  const char* ppc_arch = nullptr;
 
 #if V8_TARGET_ARCH_PPC64
   ppc_arch = "ppc64";
@@ -155,7 +155,7 @@ bool RelocInfo::IsCodedSpecially() {
 
 
 bool RelocInfo::IsInConstantPool() {
-  if (FLAG_enable_embedded_constant_pool && host_ != NULL) {
+  if (FLAG_enable_embedded_constant_pool && host_ != nullptr) {
     Address constant_pool = host_->constant_pool();
     return (constant_pool && Assembler::IsConstantPoolLoadStart(pc_));
   }
@@ -180,6 +180,17 @@ void RelocInfo::set_embedded_size(Isolate* isolate, uint32_t size,
                                   ICacheFlushMode flush_mode) {
   Assembler::set_target_address_at(isolate, pc_, host_,
                                    reinterpret_cast<Address>(size), flush_mode);
+}
+
+void RelocInfo::set_js_to_wasm_address(Isolate* isolate, Address address,
+                                       ICacheFlushMode icache_flush_mode) {
+  DCHECK_EQ(rmode_, JS_TO_WASM_CALL);
+  set_embedded_address(isolate, address, icache_flush_mode);
+}
+
+Address RelocInfo::js_to_wasm_address() const {
+  DCHECK_EQ(rmode_, JS_TO_WASM_CALL);
+  return embedded_address();
 }
 
 // -----------------------------------------------------------------------------
@@ -208,18 +219,11 @@ Operand Operand::EmbeddedCode(CodeStub* stub) {
   return result;
 }
 
-MemOperand::MemOperand(Register rn, int32_t offset) {
-  ra_ = rn;
-  rb_ = no_reg;
-  offset_ = offset;
-}
+MemOperand::MemOperand(Register rn, int32_t offset)
+    : ra_(rn), offset_(offset), rb_(no_reg) {}
 
-
-MemOperand::MemOperand(Register ra, Register rb) {
-  ra_ = ra;
-  rb_ = rb;
-  offset_ = 0;
-}
+MemOperand::MemOperand(Register ra, Register rb)
+    : ra_(ra), offset_(0), rb_(rb) {}
 
 void Assembler::AllocateAndInstallRequestedHeapObjects(Isolate* isolate) {
   for (auto& request : heap_object_requests_) {
@@ -235,7 +239,7 @@ void Assembler::AllocateAndInstallRequestedHeapObjects(Isolate* isolate) {
         break;
     }
     Address pc = buffer_ + request.offset();
-    Address constant_pool = NULL;
+    Address constant_pool = nullptr;
     set_target_address_at(nullptr, pc, constant_pool,
                           reinterpret_cast<Address>(object.location()),
                           SKIP_ICACHE_FLUSH);
@@ -284,7 +288,7 @@ void Assembler::GetCode(Isolate* isolate, CodeDesc* desc) {
 
 void Assembler::Align(int m) {
   DCHECK(m >= 4 && base::bits::IsPowerOfTwo(m));
-  DCHECK((pc_offset() & (kInstrSize - 1)) == 0);
+  DCHECK_EQ(pc_offset() & (kInstrSize - 1), 0);
   while ((pc_offset() & (m - 1)) != 0) {
     nop();
   }
@@ -308,12 +312,12 @@ Condition Assembler::GetCondition(Instr instr) {
 
 
 bool Assembler::IsLis(Instr instr) {
-  return ((instr & kOpcodeMask) == ADDIS) && GetRA(instr).is(r0);
+  return ((instr & kOpcodeMask) == ADDIS) && GetRA(instr) == r0;
 }
 
 
 bool Assembler::IsLi(Instr instr) {
-  return ((instr & kOpcodeMask) == ADDI) && GetRA(instr).is(r0);
+  return ((instr & kOpcodeMask) == ADDI) && GetRA(instr) == r0;
 }
 
 
@@ -327,16 +331,12 @@ bool Assembler::IsBranch(Instr instr) { return ((instr & kOpcodeMask) == BCX); }
 
 
 Register Assembler::GetRA(Instr instr) {
-  Register reg;
-  reg.reg_code = Instruction::RAValue(instr);
-  return reg;
+  return Register::from_code(Instruction::RAValue(instr));
 }
 
 
 Register Assembler::GetRB(Instr instr) {
-  Register reg;
-  reg.reg_code = Instruction::RBValue(instr);
-  return reg;
+  return Register::from_code(Instruction::RBValue(instr));
 }
 
 
@@ -580,7 +580,7 @@ void Assembler::bind_to(Label* L, int pos) {
     if (maxReach && is_intn(offset, maxReach) == false) {
       if (trampoline_pos == kInvalidSlotPos) {
         trampoline_pos = get_trampoline_entry();
-        CHECK(trampoline_pos != kInvalidSlotPos);
+        CHECK_NE(trampoline_pos, kInvalidSlotPos);
         target_at_put(trampoline_pos, pos);
       }
       target_at_put(fixup_pos, trampoline_pos);
@@ -612,7 +612,7 @@ void Assembler::next(Label* L) {
   if (link == kEndOfChain) {
     L->Unuse();
   } else {
-    DCHECK(link >= 0);
+    DCHECK_GE(link, 0);
     L->link_to(link);
   }
 }
@@ -914,13 +914,13 @@ void Assembler::divwu(Register dst, Register src1, Register src2, OEBit o,
 
 
 void Assembler::addi(Register dst, Register src, const Operand& imm) {
-  DCHECK(!src.is(r0));  // use li instead to show intent
+  DCHECK(src != r0);  // use li instead to show intent
   d_form(ADDI, dst, src, imm.immediate(), true);
 }
 
 
 void Assembler::addis(Register dst, Register src, const Operand& imm) {
-  DCHECK(!src.is(r0));  // use lis instead to show intent
+  DCHECK(src != r0);  // use lis instead to show intent
   d_form(ADDIS, dst, src, imm.immediate(), true);
 }
 
@@ -1031,31 +1031,31 @@ void Assembler::mr(Register dst, Register src) {
 
 
 void Assembler::lbz(Register dst, const MemOperand& src) {
-  DCHECK(!src.ra_.is(r0));
+  DCHECK(src.ra_ != r0);
   d_form(LBZ, dst, src.ra(), src.offset(), true);
 }
 
 
 void Assembler::lhz(Register dst, const MemOperand& src) {
-  DCHECK(!src.ra_.is(r0));
+  DCHECK(src.ra_ != r0);
   d_form(LHZ, dst, src.ra(), src.offset(), true);
 }
 
 
 void Assembler::lwz(Register dst, const MemOperand& src) {
-  DCHECK(!src.ra_.is(r0));
+  DCHECK(src.ra_ != r0);
   d_form(LWZ, dst, src.ra(), src.offset(), true);
 }
 
 
 void Assembler::lwzu(Register dst, const MemOperand& src) {
-  DCHECK(!src.ra_.is(r0));
+  DCHECK(src.ra_ != r0);
   d_form(LWZU, dst, src.ra(), src.offset(), true);
 }
 
 
 void Assembler::lha(Register dst, const MemOperand& src) {
-  DCHECK(!src.ra_.is(r0));
+  DCHECK(src.ra_ != r0);
   d_form(LHA, dst, src.ra(), src.offset(), true);
 }
 
@@ -1063,7 +1063,7 @@ void Assembler::lha(Register dst, const MemOperand& src) {
 void Assembler::lwa(Register dst, const MemOperand& src) {
 #if V8_TARGET_ARCH_PPC64
   int offset = src.offset();
-  DCHECK(!src.ra_.is(r0));
+  DCHECK(src.ra_ != r0);
   CHECK(!(offset & 3) && is_int16(offset));
   offset = kImm16Mask & offset;
   emit(LD | dst.code() * B21 | src.ra().code() * B16 | offset | 2);
@@ -1073,25 +1073,25 @@ void Assembler::lwa(Register dst, const MemOperand& src) {
 }
 
 void Assembler::stb(Register dst, const MemOperand& src) {
-  DCHECK(!src.ra_.is(r0));
+  DCHECK(src.ra_ != r0);
   d_form(STB, dst, src.ra(), src.offset(), true);
 }
 
 
 void Assembler::sth(Register dst, const MemOperand& src) {
-  DCHECK(!src.ra_.is(r0));
+  DCHECK(src.ra_ != r0);
   d_form(STH, dst, src.ra(), src.offset(), true);
 }
 
 
 void Assembler::stw(Register dst, const MemOperand& src) {
-  DCHECK(!src.ra_.is(r0));
+  DCHECK(src.ra_ != r0);
   d_form(STW, dst, src.ra(), src.offset(), true);
 }
 
 
 void Assembler::stwu(Register dst, const MemOperand& src) {
-  DCHECK(!src.ra_.is(r0));
+  DCHECK(src.ra_ != r0);
   d_form(STWU, dst, src.ra(), src.offset(), true);
 }
 
@@ -1105,7 +1105,7 @@ void Assembler::neg(Register rt, Register ra, OEBit o, RCBit r) {
 // 64bit specific instructions
 void Assembler::ld(Register rd, const MemOperand& src) {
   int offset = src.offset();
-  DCHECK(!src.ra_.is(r0));
+  DCHECK(src.ra_ != r0);
   CHECK(!(offset & 3) && is_int16(offset));
   offset = kImm16Mask & offset;
   emit(LD | rd.code() * B21 | src.ra().code() * B16 | offset);
@@ -1114,7 +1114,7 @@ void Assembler::ld(Register rd, const MemOperand& src) {
 
 void Assembler::ldu(Register rd, const MemOperand& src) {
   int offset = src.offset();
-  DCHECK(!src.ra_.is(r0));
+  DCHECK(src.ra_ != r0);
   CHECK(!(offset & 3) && is_int16(offset));
   offset = kImm16Mask & offset;
   emit(LD | rd.code() * B21 | src.ra().code() * B16 | offset | 1);
@@ -1123,7 +1123,7 @@ void Assembler::ldu(Register rd, const MemOperand& src) {
 
 void Assembler::std(Register rs, const MemOperand& src) {
   int offset = src.offset();
-  DCHECK(!src.ra_.is(r0));
+  DCHECK(src.ra_ != r0);
   CHECK(!(offset & 3) && is_int16(offset));
   offset = kImm16Mask & offset;
   emit(STD | rs.code() * B21 | src.ra().code() * B16 | offset);
@@ -1132,7 +1132,7 @@ void Assembler::std(Register rs, const MemOperand& src) {
 
 void Assembler::stdu(Register rs, const MemOperand& src) {
   int offset = src.offset();
-  DCHECK(!src.ra_.is(r0));
+  DCHECK(src.ra_ != r0);
   CHECK(!(offset & 3) && is_int16(offset));
   offset = kImm16Mask & offset;
   emit(STD | rs.code() * B21 | src.ra().code() * B16 | offset | 1);
@@ -1239,7 +1239,7 @@ void Assembler::divdu(Register dst, Register src1, Register src2, OEBit o,
 void Assembler::function_descriptor() {
   if (ABI_USES_FUNCTION_DESCRIPTORS) {
     Label instructions;
-    DCHECK(pc_offset() == 0);
+    DCHECK_EQ(pc_offset(), 0);
     emit_label_addr(&instructions);
     dp(0);
     dp(0);
@@ -1272,9 +1272,9 @@ bool Assembler::use_constant_pool_for_mov(Register dst, const Operand& src,
   }
   intptr_t value = src.immediate();
 #if V8_TARGET_ARCH_PPC64
-  bool allowOverflow = !((canOptimize && is_int32(value)) || dst.is(r0));
+  bool allowOverflow = !((canOptimize && is_int32(value)) || dst == r0);
 #else
-  bool allowOverflow = !(canOptimize || dst.is(r0));
+  bool allowOverflow = !(canOptimize || dst == r0);
 #endif
   if (canOptimize && is_int16(value)) {
     // Prefer a single-instruction load-immediate.
@@ -1299,7 +1299,7 @@ void Assembler::EnsureSpaceFor(int space_needed) {
 
 bool Operand::must_output_reloc_info(const Assembler* assembler) const {
   if (rmode_ == RelocInfo::EXTERNAL_REFERENCE) {
-    if (assembler != NULL && assembler->predictable_code_size()) return true;
+    if (assembler != nullptr && assembler->predictable_code_size()) return true;
     return assembler->serializer_enabled();
   } else if (RelocInfo::IsNone(rmode_)) {
     return false;
@@ -1518,7 +1518,7 @@ void Assembler::mov_label_addr(Register dst, Label* label) {
     BlockTrampolinePoolScope block_trampoline_pool(this);
     emit(kUnboundMovLabelAddrOpcode | (link & kImm26Mask));
     emit(dst.code());
-    DCHECK(kMovInstructionsNoConstantPool >= 2);
+    DCHECK_GE(kMovInstructionsNoConstantPool, 2);
     for (int i = 0; i < kMovInstructionsNoConstantPool - 2; i++) nop();
   }
 }
@@ -1584,7 +1584,7 @@ void Assembler::mtxer(Register src) {
 
 
 void Assembler::mcrfs(CRegister cr, FPSCRBit bit) {
-  DCHECK(static_cast<int>(bit) < 32);
+  DCHECK_LT(static_cast<int>(bit), 32);
   int bf = cr.code();
   int bfa = bit / CRWIDTH;
   emit(EXT4 | MCRFS | bf * B23 | bfa * B18);
@@ -1664,7 +1664,7 @@ void Assembler::isync() { emit(EXT1 | ISYNC); }
 void Assembler::lfd(const DoubleRegister frt, const MemOperand& src) {
   int offset = src.offset();
   Register ra = src.ra();
-  DCHECK(!ra.is(r0));
+  DCHECK(ra != r0);
   CHECK(is_int16(offset));
   int imm16 = offset & kImm16Mask;
   // could be x_form instruction with some casting magic
@@ -1675,7 +1675,7 @@ void Assembler::lfd(const DoubleRegister frt, const MemOperand& src) {
 void Assembler::lfdu(const DoubleRegister frt, const MemOperand& src) {
   int offset = src.offset();
   Register ra = src.ra();
-  DCHECK(!ra.is(r0));
+  DCHECK(ra != r0);
   CHECK(is_int16(offset));
   int imm16 = offset & kImm16Mask;
   // could be x_form instruction with some casting magic
@@ -1687,7 +1687,7 @@ void Assembler::lfs(const DoubleRegister frt, const MemOperand& src) {
   int offset = src.offset();
   Register ra = src.ra();
   CHECK(is_int16(offset));
-  DCHECK(!ra.is(r0));
+  DCHECK(ra != r0);
   int imm16 = offset & kImm16Mask;
   // could be x_form instruction with some casting magic
   emit(LFS | frt.code() * B21 | ra.code() * B16 | imm16);
@@ -1698,7 +1698,7 @@ void Assembler::lfsu(const DoubleRegister frt, const MemOperand& src) {
   int offset = src.offset();
   Register ra = src.ra();
   CHECK(is_int16(offset));
-  DCHECK(!ra.is(r0));
+  DCHECK(ra != r0);
   int imm16 = offset & kImm16Mask;
   // could be x_form instruction with some casting magic
   emit(LFSU | frt.code() * B21 | ra.code() * B16 | imm16);
@@ -1709,7 +1709,7 @@ void Assembler::stfd(const DoubleRegister frs, const MemOperand& src) {
   int offset = src.offset();
   Register ra = src.ra();
   CHECK(is_int16(offset));
-  DCHECK(!ra.is(r0));
+  DCHECK(ra != r0);
   int imm16 = offset & kImm16Mask;
   // could be x_form instruction with some casting magic
   emit(STFD | frs.code() * B21 | ra.code() * B16 | imm16);
@@ -1720,7 +1720,7 @@ void Assembler::stfdu(const DoubleRegister frs, const MemOperand& src) {
   int offset = src.offset();
   Register ra = src.ra();
   CHECK(is_int16(offset));
-  DCHECK(!ra.is(r0));
+  DCHECK(ra != r0);
   int imm16 = offset & kImm16Mask;
   // could be x_form instruction with some casting magic
   emit(STFDU | frs.code() * B21 | ra.code() * B16 | imm16);
@@ -1731,7 +1731,7 @@ void Assembler::stfs(const DoubleRegister frs, const MemOperand& src) {
   int offset = src.offset();
   Register ra = src.ra();
   CHECK(is_int16(offset));
-  DCHECK(!ra.is(r0));
+  DCHECK(ra != r0);
   int imm16 = offset & kImm16Mask;
   // could be x_form instruction with some casting magic
   emit(STFS | frs.code() * B21 | ra.code() * B16 | imm16);
@@ -1742,7 +1742,7 @@ void Assembler::stfsu(const DoubleRegister frs, const MemOperand& src) {
   int offset = src.offset();
   Register ra = src.ra();
   CHECK(is_int16(offset));
-  DCHECK(!ra.is(r0));
+  DCHECK(ra != r0);
   int imm16 = offset & kImm16Mask;
   // could be x_form instruction with some casting magic
   emit(STFSU | frs.code() * B21 | ra.code() * B16 | imm16);
@@ -1890,14 +1890,14 @@ void Assembler::fneg(const DoubleRegister frt, const DoubleRegister frb,
 
 
 void Assembler::mtfsb0(FPSCRBit bit, RCBit rc) {
-  DCHECK(static_cast<int>(bit) < 32);
+  DCHECK_LT(static_cast<int>(bit), 32);
   int bt = bit;
   emit(EXT4 | MTFSB0 | bt * B21 | rc);
 }
 
 
 void Assembler::mtfsb1(FPSCRBit bit, RCBit rc) {
-  DCHECK(static_cast<int>(bit) < 32);
+  DCHECK_LT(static_cast<int>(bit), 32);
   int bt = bit;
   emit(EXT4 | MTFSB1 | bt * B21 | rc);
 }
@@ -2085,7 +2085,7 @@ void Assembler::EmitRelocations() {
        it != relocations_.end(); it++) {
     RelocInfo::Mode rmode = it->rmode();
     Address pc = buffer_ + it->position();
-    Code* code = NULL;
+    Code* code = nullptr;
     RelocInfo rinfo(pc, rmode, it->data(), code);
 
     // Fix up internal references now that they are guaranteed to be bound.

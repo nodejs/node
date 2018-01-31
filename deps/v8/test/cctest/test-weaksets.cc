@@ -27,23 +27,16 @@
 
 #include <utility>
 
-#include "src/v8.h"
-
 #include "src/factory.h"
 #include "src/global-handles.h"
 #include "src/isolate.h"
-// FIXME(mstarzinger, marja): This is weird, but required because of the missing
-// (disallowed) include: src/factory.h -> src/objects-inl.h
 #include "src/objects-inl.h"
-// FIXME(mstarzinger, marja): This is weird, but required because of the missing
-// (disallowed) include: src/feedback-vector.h ->
-// src/feedback-vector-inl.h
-#include "src/feedback-vector-inl.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/heap/heap-utils.h"
 
 namespace v8 {
 namespace internal {
+namespace test_weaksets {
 
 static Isolate* GetIsolateFrom(LocalContext* context) {
   return reinterpret_cast<Isolate*>((*context)->GetIsolate());
@@ -174,8 +167,8 @@ TEST(WeakSet_Regress2060a) {
   Factory* factory = isolate->factory();
   Heap* heap = isolate->heap();
   HandleScope scope(isolate);
-  Handle<JSFunction> function = factory->NewFunction(
-      factory->function_string());
+  Handle<JSFunction> function =
+      factory->NewFunctionForTest(factory->function_string());
   Handle<JSObject> key = factory->NewJSObject(function);
   Handle<JSWeakSet> weakset = AllocateJSWeakSet(isolate);
 
@@ -215,8 +208,8 @@ TEST(WeakSet_Regress2060b) {
   Factory* factory = isolate->factory();
   Heap* heap = isolate->heap();
   HandleScope scope(isolate);
-  Handle<JSFunction> function = factory->NewFunction(
-      factory->function_string());
+  Handle<JSFunction> function =
+      factory->NewFunctionForTest(factory->function_string());
 
   // Start second old-space page so that keys land on evacuation candidate.
   Page* first_page = heap->old_space()->anchor()->next_page();
@@ -244,5 +237,6 @@ TEST(WeakSet_Regress2060b) {
   CcTest::CollectAllGarbage();
 }
 
+}  // namespace test_weaksets
 }  // namespace internal
 }  // namespace v8

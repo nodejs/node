@@ -13,7 +13,7 @@
 namespace v8 {
 namespace internal {
 namespace compiler {
-
+namespace common_operator_unittest {
 
 // -----------------------------------------------------------------------------
 // Shared operators.
@@ -387,6 +387,7 @@ TEST_F(CommonOperatorTest, Projection) {
   }
 }
 
+}  // namespace common_operator_unittest
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

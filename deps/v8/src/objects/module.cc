@@ -8,6 +8,7 @@
 #include "src/objects/module.h"
 
 #include "src/accessors.h"
+#include "src/api.h"
 #include "src/ast/modules.h"
 #include "src/objects-inl.h"
 
@@ -157,7 +158,6 @@ Cell* Module::GetCell(int cell_index) {
       break;
     case ModuleDescriptor::kInvalid:
       UNREACHABLE();
-      cell = nullptr;
       break;
   }
   return Cell::cast(cell);
@@ -840,15 +840,25 @@ Handle<JSModuleNamespace> Module::GetModuleNamespace(Handle<Module> module) {
   ns->set_module(*module);
   module->set_module_namespace(*ns);
 
-  // Create the properties in the namespace object.
+  // Create the properties in the namespace object. Transition the object
+  // to dictionary mode so that property addition is faster.
   PropertyAttributes attr = DONT_DELETE;
+  JSObject::NormalizeProperties(ns, CLEAR_INOBJECT_PROPERTIES,
+                                static_cast<int>(names.size()),
+                                "JSModuleNamespace");
   for (const auto& name : names) {
-    JSObject::SetAccessor(
-        ns, Accessors::ModuleNamespaceEntryInfo(isolate, name, attr))
-        .Check();
+    JSObject::SetNormalizedProperty(
+        ns, name, Accessors::MakeModuleNamespaceEntryInfo(isolate, name),
+        PropertyDetails(kAccessor, attr, PropertyCellType::kMutable));
   }
-  JSObject::PreventExtensions(ns, THROW_ON_ERROR).ToChecked();
+  JSObject::PreventExtensions(ns, kThrowOnError).ToChecked();
 
+  // Optimize the namespace object as a prototype, for two reasons:
+  // - The object's map is guaranteed not to be shared. ICs rely on this.
+  // - We can store a pointer from the map back to the namespace object.
+  //   Turbofan can use this for inlining the access.
+  JSObject::OptimizeAsPrototype(ns);
+  Map::GetOrCreatePrototypeWeakCell(ns, isolate);
   return ns;
 }
 

@@ -1,0 +1,46 @@
+{
+  "_from": "x-is-function@^1.0.4",
+  "_id": "x-is-function@1.0.4",
+  "_inBundle": false,
+  "_integrity": "sha1-XSlNw9Joy90GJYDgxd93o5HR+h4=",
+  "_location": "/x-is-function",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "range",
+    "registry": true,
+    "raw": "x-is-function@^1.0.4",
+    "name": "x-is-function",
+    "escapedName": "x-is-function",
+    "rawSpec": "^1.0.4",
+    "saveSpec": null,
+    "fetchSpec": "^1.0.4"
+  },
+  "_requiredBy": [
+    "/unified"
+  ],
+  "_resolved": "https://registry.npmjs.org/x-is-function/-/x-is-function-1.0.4.tgz",
+  "_shasum": "5d294dc3d268cbdd062580e0c5df77a391d1fa1e",
+  "_spec": "x-is-function@^1.0.4",
+  "_where": "/home/mzasso/git/nodejs/node/tools/eslint-tmp/node_modules/eslint/node_modules/unified",
+  "author": {
+    "name": "@serapath"
+  },
+  "bugs": {
+    "url": "https://github.com/serapath/x-is-function/issues"
+  },
+  "bundleDependencies": false,
+  "deprecated": false,
+  "description": "Simple function test",
+  "homepage": "https://github.com/serapath/x-is-function#readme",
+  "license": "MIT",
+  "main": "index.js",
+  "name": "x-is-function",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/serapath/x-is-function.git"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "version": "1.0.4"
+}

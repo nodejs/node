@@ -7,8 +7,10 @@ env:
   node: true
   es6: true
 
+parser: babel-eslint
+
 parserOptions:
-  ecmaVersion: 2017
+  sourceType: script
 
 overrides:
   - files: ["doc/api/esm.md", "*.mjs", "test/es-module/test-esm-example-loader.js"]
@@ -43,6 +45,7 @@ rules:
   # Best Practices
   # http://eslint.org/docs/rules/#best-practices
   accessor-pairs: error
+  array-callback-return: error
   dot-location: [error, property]
   eqeqeq: [error, smart]
   no-fallthrough: error
@@ -57,6 +60,9 @@ rules:
       property: deepEqual
       message: Use assert.deepStrictEqual().
     - object: assert
+      property: notDeepEqual
+      message: Use assert.notDeepStrictEqual().
+    - object: assert
       property: equal
       message: Use assert.strictEqual() rather than assert.equal().
     - object: assert
@@ -66,6 +72,7 @@ rules:
       message: __defineGetter__ is deprecated.
     - property: __defineSetter__
       message: __defineSetter__ is deprecated.
+  no-return-await: error
   no-self-assign: error
   no-throw-literal: error
   no-unused-labels: error

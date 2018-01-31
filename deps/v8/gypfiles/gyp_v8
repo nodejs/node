@@ -38,7 +38,6 @@ import platform
 import shlex
 import subprocess
 import sys
-import vs_toolchain
 
 script_dir = os.path.dirname(os.path.realpath(__file__))
 v8_root = os.path.abspath(os.path.join(script_dir, os.pardir))
@@ -101,16 +100,7 @@ def additional_include_files(args=[]):
 
 
 def run_gyp(args):
-  rc = gyp.main(args)
-
-  vs2013_runtime_dll_dirs = vs_toolchain.SetEnvironmentAndGetRuntimeDllDirs()
-  if vs2013_runtime_dll_dirs:
-    x64_runtime, x86_runtime = vs2013_runtime_dll_dirs
-    vs_toolchain.CopyVsRuntimeDlls(
-      os.path.join(v8_root, GetOutputDirectory()),
-      (x86_runtime, x64_runtime))
-
-  if rc != 0:
+  if gyp.main(args) != 0:
     print 'Error running GYP'
     sys.exit(rc)
 

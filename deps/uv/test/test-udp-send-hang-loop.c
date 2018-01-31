@@ -67,7 +67,7 @@ static void idle_cb(uv_idle_t* handle) {
 
 static void send_cb(uv_udp_send_t* req, int status) {
   ASSERT(req != NULL);
-  ASSERT(status == 0);
+  ASSERT(status == 0 || status == UV_ENETUNREACH);
   CHECK_OBJECT(req->handle, uv_udp_t, client);
   CHECK_OBJECT(req, uv_udp_send_t, send_req);
   req->handle = NULL;

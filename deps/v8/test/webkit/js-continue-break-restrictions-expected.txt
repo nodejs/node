@@ -42,17 +42,17 @@ PASS if (0) { L:A:{ continue; } } threw exception SyntaxError: Illegal continue 
 PASS if(0){ L:for(;;) continue L; } is undefined.
 PASS if(0){ L:A:for(;;) continue L; } is undefined.
 PASS if(0){ A:L:for(;;) continue L; } is undefined.
-PASS if(0){ A:for(;;) L:continue L; } threw exception SyntaxError: Illegal continue statement: 'L' does not denote an iteration statement.
+PASS if(0){ A:for(;;) L:continue L; } threw exception SyntaxError: Undefined label 'L'.
 PASS if(0){ L:for(;;) A:continue L; } is undefined.
 PASS if(0){ L:do continue L; while(0); } is undefined.
 PASS if(0){ L:A:do continue L; while(0); } is undefined.
 PASS if(0){ A:L:do continue L; while(0);} is undefined.
-PASS if(0){ A:do L:continue L; while(0); } threw exception SyntaxError: Illegal continue statement: 'L' does not denote an iteration statement.
+PASS if(0){ A:do L:continue L; while(0); } threw exception SyntaxError: Undefined label 'L'.
 PASS if(0){ L:do A:continue L; while(0); } is undefined.
 PASS if(0){ L:while(0) continue L; } is undefined.
 PASS if(0){ L:A:while(0) continue L; } is undefined.
 PASS if(0){ A:L:while(0) continue L; } is undefined.
-PASS if(0){ A:while(0) L:continue L; } threw exception SyntaxError: Illegal continue statement: 'L' does not denote an iteration statement.
+PASS if(0){ A:while(0) L:continue L; } threw exception SyntaxError: Undefined label 'L'.
 PASS if(0){ L:while(0) A:continue L; } is undefined.
 PASS successfullyParsed is true
 

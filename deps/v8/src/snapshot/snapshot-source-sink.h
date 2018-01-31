@@ -64,6 +64,7 @@ class SnapshotByteSource final {
   int GetBlob(const byte** data);
 
   int position() { return position_; }
+  void set_position(int position) { position_ = position; }
 
  private:
   const byte* data_;
@@ -95,7 +96,7 @@ class SnapshotByteSink {
 
   void PutInt(uintptr_t integer, const char* description);
   void PutRaw(const byte* data, int number_of_bytes, const char* description);
-  int Position() { return static_cast<int>(data_.size()); }
+  int Position() const { return static_cast<int>(data_.size()); }
 
   const std::vector<byte>* data() const { return &data_; }
 

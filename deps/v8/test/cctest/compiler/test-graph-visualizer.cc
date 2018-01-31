@@ -35,7 +35,7 @@ TEST(NodeWithNullInputReachableFromEnd) {
   Node* k = graph.NewNode(common.Int32Constant(0));
   Node* phi =
       graph.NewNode(common.Phi(MachineRepresentation::kTagged, 1), k, start);
-  phi->ReplaceInput(0, NULL);
+  phi->ReplaceInput(0, nullptr);
   graph.SetEnd(phi);
 
   OFStream os(stdout);
@@ -54,7 +54,7 @@ TEST(NodeWithNullControlReachableFromEnd) {
   Node* k = graph.NewNode(common.Int32Constant(0));
   Node* phi =
       graph.NewNode(common.Phi(MachineRepresentation::kTagged, 1), k, start);
-  phi->ReplaceInput(1, NULL);
+  phi->ReplaceInput(1, nullptr);
   graph.SetEnd(phi);
 
   OFStream os(stdout);
@@ -73,7 +73,7 @@ TEST(NodeWithNullInputReachableFromStart) {
   Node* k = graph.NewNode(common.Int32Constant(0));
   Node* phi =
       graph.NewNode(common.Phi(MachineRepresentation::kTagged, 1), k, start);
-  phi->ReplaceInput(0, NULL);
+  phi->ReplaceInput(0, nullptr);
   graph.SetEnd(start);
 
   OFStream os(stdout);
@@ -90,7 +90,7 @@ TEST(NodeWithNullControlReachableFromStart) {
   Node* start = graph.NewNode(common.Start(0));
   graph.SetStart(start);
   Node* merge = graph.NewNode(common.Merge(2), start, start);
-  merge->ReplaceInput(1, NULL);
+  merge->ReplaceInput(1, nullptr);
   graph.SetEnd(merge);
 
   OFStream os(stdout);

@@ -37,7 +37,8 @@
 #include "src/macro-assembler.h"
 #include "test/cctest/cctest.h"
 
-using namespace v8::internal;
+namespace v8 {
+namespace internal {
 
 bool prev_instr_compact_branch = false;
 
@@ -2017,3 +2018,6 @@ TEST(MSA_BIT) {
   }
   VERIFY_RUN();
 }
+
+}  // namespace internal
+}  // namespace v8

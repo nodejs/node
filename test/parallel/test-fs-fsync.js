@@ -34,7 +34,7 @@ const fileTemp = path.join(common.tmpDir, 'a.js');
 common.refreshTmpDir();
 fs.copyFileSync(fileFixture, fileTemp);
 
-fs.open(fileFixture, 'a', 0o777, common.mustCall(function(err, fd) {
+fs.open(fileTemp, 'a', 0o777, common.mustCall(function(err, fd) {
   assert.ifError(err);
 
   fs.fdatasyncSync(fd);
@@ -48,3 +48,38 @@ fs.open(fileFixture, 'a', 0o777, common.mustCall(function(err, fd) {
     }));
   }));
 }));
+
+['', false, null, undefined, {}, []].forEach((i) => {
+  common.expectsError(
+    () => fs.fdatasync(i),
+    {
+      code: 'ERR_INVALID_ARG_TYPE',
+      type: TypeError,
+      message: 'The "fd" argument must be of type integer'
+    }
+  );
+  common.expectsError(
+    () => fs.fdatasyncSync(i),
+    {
+      code: 'ERR_INVALID_ARG_TYPE',
+      type: TypeError,
+      message: 'The "fd" argument must be of type integer'
+    }
+  );
+  common.expectsError(
+    () => fs.fsync(i),
+    {
+      code: 'ERR_INVALID_ARG_TYPE',
+      type: TypeError,
+      message: 'The "fd" argument must be of type integer'
+    }
+  );
+  common.expectsError(
+    () => fs.fsyncSync(i),
+    {
+      code: 'ERR_INVALID_ARG_TYPE',
+      type: TypeError,
+      message: 'The "fd" argument must be of type integer'
+    }
+  );
+});

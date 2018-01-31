@@ -40,6 +40,6 @@ options = { stdio: 'ignore' };
 child = spawnSync('cat', [], options);
 assert.deepStrictEqual(options, { stdio: 'ignore' });
 
-assert.throws(() => {
+common.expectsError(() => {
   common.spawnPwd({ stdio: ['pipe', 'pipe', 'pipe', 'ipc', 'ipc'] });
-}, common.expectsError({ code: 'ERR_IPC_ONE_PIPE', type: Error }));
+}, { code: 'ERR_IPC_ONE_PIPE', type: Error });

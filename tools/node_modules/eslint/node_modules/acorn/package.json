@@ -1,0 +1,305 @@
+{
+  "_from": "acorn@^5.2.1",
+  "_id": "acorn@5.3.0",
+  "_inBundle": false,
+  "_integrity": "sha512-Yej+zOJ1Dm/IMZzzj78OntP/r3zHEaKcyNoU2lAaxPtrseM6rF0xwqoz5Q5ysAiED9hTjI2hgtvLXitlCN1/Ug==",
+  "_location": "/eslint/acorn",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "range",
+    "registry": true,
+    "raw": "acorn@^5.2.1",
+    "name": "acorn",
+    "escapedName": "acorn",
+    "rawSpec": "^5.2.1",
+    "saveSpec": null,
+    "fetchSpec": "^5.2.1"
+  },
+  "_requiredBy": [
+    "/eslint/espree"
+  ],
+  "_resolved": "https://registry.npmjs.org/acorn/-/acorn-5.3.0.tgz",
+  "_shasum": "7446d39459c54fb49a80e6ee6478149b940ec822",
+  "_spec": "acorn@^5.2.1",
+  "_where": "/home/mzasso/git/nodejs/node/tools/eslint-tmp/node_modules/eslint/node_modules/espree",
+  "bin": {
+    "acorn": "./bin/acorn"
+  },
+  "bugs": {
+    "url": "https://github.com/acornjs/acorn/issues"
+  },
+  "bundleDependencies": false,
+  "contributors": [
+    {
+      "name": "List of Acorn contributors. Updated before every release."
+    },
+    {
+      "name": "Adrian Heine"
+    },
+    {
+      "name": "Adrian Heine né Lang"
+    },
+    {
+      "name": "Adrian Rakovsky"
+    },
+    {
+      "name": "Alistair Braidwood"
+    },
+    {
+      "name": "Amila Welihinda"
+    },
+    {
+      "name": "Andres Suarez"
+    },
+    {
+      "name": "Angelo"
+    },
+    {
+      "name": "Aparajita Fishman"
+    },
+    {
+      "name": "Arian Stolwijk"
+    },
+    {
+      "name": "Artem Govorov"
+    },
+    {
+      "name": "Bradley Heinz"
+    },
+    {
+      "name": "Brandon Mills"
+    },
+    {
+      "name": "Charles Hughes"
+    },
+    {
+      "name": "Charmander"
+    },
+    {
+      "name": "Conrad Irwin"
+    },
+    {
+      "name": "Daniel Tschinder"
+    },
+    {
+      "name": "David Bonnet"
+    },
+    {
+      "name": "Domenico Matteo"
+    },
+    {
+      "name": "ehmicky"
+    },
+    {
+      "name": "Felix Maier"
+    },
+    {
+      "name": "Forbes Lindesay"
+    },
+    {
+      "name": "Gilad Peleg"
+    },
+    {
+      "name": "impinball"
+    },
+    {
+      "name": "Ingvar Stepanyan"
+    },
+    {
+      "name": "Jackson Ray Hamilton"
+    },
+    {
+      "name": "Jesse McCarthy"
+    },
+    {
+      "name": "Jiaxing Wang"
+    },
+    {
+      "name": "Joel Kemp"
+    },
+    {
+      "name": "Johannes Herr"
+    },
+    {
+      "name": "John-David Dalton"
+    },
+    {
+      "name": "Jordan Klassen"
+    },
+    {
+      "name": "Jürg Lehni"
+    },
+    {
+      "name": "Kai Cataldo"
+    },
+    {
+      "name": "keeyipchan"
+    },
+    {
+      "name": "Keheliya Gallaba"
+    },
+    {
+      "name": "Kevin Irish"
+    },
+    {
+      "name": "Kevin Kwok"
+    },
+    {
+      "name": "krator"
+    },
+    {
+      "name": "laosb"
+    },
+    {
+      "name": "Marek"
+    },
+    {
+      "name": "Marijn Haverbeke"
+    },
+    {
+      "name": "Martin Carlberg"
+    },
+    {
+      "name": "Mat Garcia"
+    },
+    {
+      "name": "Mathias Bynens"
+    },
+    {
+      "name": "Mathieu 'p01' Henri"
+    },
+    {
+      "name": "Matthew Bastien"
+    },
+    {
+      "name": "Max Schaefer"
+    },
+    {
+      "name": "Max Zerzouri"
+    },
+    {
+      "name": "Mihai Bazon"
+    },
+    {
+      "name": "Mike Rennie"
+    },
+    {
+      "name": "naoh"
+    },
+    {
+      "name": "Nicholas C. Zakas"
+    },
+    {
+      "name": "Nick Fitzgerald"
+    },
+    {
+      "name": "Olivier Thomann"
+    },
+    {
+      "name": "Oskar Schöldström"
+    },
+    {
+      "name": "Paul Harper"
+    },
+    {
+      "name": "Peter Rust"
+    },
+    {
+      "name": "PlNG"
+    },
+    {
+      "name": "Prayag Verma"
+    },
+    {
+      "name": "ReadmeCritic"
+    },
+    {
+      "name": "r-e-d"
+    },
+    {
+      "name": "Richard Gibson"
+    },
+    {
+      "name": "Rich Harris"
+    },
+    {
+      "name": "Sebastian McKenzie"
+    },
+    {
+      "name": "Shahar Soel"
+    },
+    {
+      "name": "Simen Bekkhus"
+    },
+    {
+      "name": "Teddy Katz"
+    },
+    {
+      "name": "Timothy Gu"
+    },
+    {
+      "name": "Toru Nagashima"
+    },
+    {
+      "name": "Victor Homyakov"
+    },
+    {
+      "name": "Wexpo Lyu"
+    },
+    {
+      "name": "zsjforcn"
+    }
+  ],
+  "deprecated": false,
+  "description": "ECMAScript parser",
+  "devDependencies": {
+    "eslint": "^4.10.0",
+    "eslint-config-standard": "^10.2.1",
+    "eslint-plugin-import": "^2.2.0",
+    "eslint-plugin-node": "^5.2.1",
+    "eslint-plugin-promise": "^3.5.0",
+    "eslint-plugin-standard": "^3.0.1",
+    "rollup": "^0.45.0",
+    "rollup-plugin-buble": "^0.16.0",
+    "test262": "git+https://github.com/tc39/test262.git#51553973738063f457e248f7f1e643c561c8a64c",
+    "test262-parser-runner": "^0.2.0",
+    "unicode-9.0.0": "^0.7.0"
+  },
+  "engines": {
+    "node": ">=0.4.0"
+  },
+  "homepage": "https://github.com/acornjs/acorn",
+  "license": "MIT",
+  "main": "dist/acorn.js",
+  "maintainers": [
+    {
+      "name": "Marijn Haverbeke",
+      "email": "marijnh@gmail.com",
+      "url": "http://marijnhaverbeke.nl"
+    },
+    {
+      "name": "Ingvar Stepanyan",
+      "email": "me@rreverser.com",
+      "url": "http://rreverser.com/"
+    }
+  ],
+  "module": "dist/acorn.es.js",
+  "name": "acorn",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/acornjs/acorn.git"
+  },
+  "scripts": {
+    "build": "npm run build:main && npm run build:walk && npm run build:loose && npm run build:bin",
+    "build:bin": "rollup -c rollup/config.bin.js",
+    "build:loose": "rollup -c rollup/config.loose.js && rollup -c rollup/config.loose_es.js",
+    "build:main": "rollup -c rollup/config.main.js",
+    "build:walk": "rollup -c rollup/config.walk.js",
+    "lint": "eslint src/",
+    "prepare": "npm test",
+    "pretest": "npm run build:main && npm run build:loose",
+    "test": "node test/run.js && node test/lint.js",
+    "test:test262": "node bin/run_test262.js"
+  },
+  "version": "5.3.0"
+}

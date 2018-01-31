@@ -35,8 +35,30 @@
 #include <map>
 #include <string>
 
-using namespace std;
-using namespace v8;
+using std::map;
+using std::pair;
+using std::string;
+
+using v8::Context;
+using v8::EscapableHandleScope;
+using v8::External;
+using v8::Function;
+using v8::FunctionTemplate;
+using v8::Global;
+using v8::HandleScope;
+using v8::Isolate;
+using v8::Local;
+using v8::MaybeLocal;
+using v8::Name;
+using v8::NamedPropertyHandlerConfiguration;
+using v8::NewStringType;
+using v8::Object;
+using v8::ObjectTemplate;
+using v8::PropertyCallbackInfo;
+using v8::Script;
+using v8::String;
+using v8::TryCatch;
+using v8::Value;
 
 // These interfaces represent an existing request processing interface.
 // The idea is to imagine a real application that uses these interfaces
@@ -679,8 +701,8 @@ void PrintMap(map<string, string>* m) {
 int main(int argc, char* argv[]) {
   v8::V8::InitializeICUDefaultLocation(argv[0]);
   v8::V8::InitializeExternalStartupData(argv[0]);
-  v8::Platform* platform = v8::platform::CreateDefaultPlatform();
-  v8::V8::InitializePlatform(platform);
+  std::unique_ptr<v8::Platform> platform = v8::platform::NewDefaultPlatform();
+  v8::V8::InitializePlatform(platform.get());
   v8::V8::Initialize();
   map<string, string> options;
   string file;
@@ -706,7 +728,7 @@ int main(int argc, char* argv[]) {
     fprintf(stderr, "Error initializing processor.\n");
     return 1;
   }
-  if (!ProcessEntries(platform, &processor, kSampleSize, kSampleRequests))
+  if (!ProcessEntries(platform.get(), &processor, kSampleSize, kSampleRequests))
     return 1;
   PrintMap(&output);
 }

@@ -85,12 +85,12 @@ class Frame : public ZoneObject {
   inline int GetSpillSlotCount() const { return spill_slot_count_; }
 
   void SetAllocatedRegisters(BitVector* regs) {
-    DCHECK(allocated_registers_ == nullptr);
+    DCHECK_NULL(allocated_registers_);
     allocated_registers_ = regs;
   }
 
   void SetAllocatedDoubleRegisters(BitVector* regs) {
-    DCHECK(allocated_double_registers_ == nullptr);
+    DCHECK_NULL(allocated_double_registers_);
     allocated_double_registers_ = regs;
   }
 
@@ -169,12 +169,12 @@ class FrameOffset {
   inline int offset() { return offset_ & ~1; }
 
   inline static FrameOffset FromStackPointer(int offset) {
-    DCHECK((offset & 1) == 0);
+    DCHECK_EQ(0, offset & 1);
     return FrameOffset(offset | kFromSp);
   }
 
   inline static FrameOffset FromFramePointer(int offset) {
-    DCHECK((offset & 1) == 0);
+    DCHECK_EQ(0, offset & 1);
     return FrameOffset(offset | kFromFp);
   }
 

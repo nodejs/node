@@ -107,7 +107,7 @@
  * https://en.wikipedia.org/wiki/Linear_hashing
  *
  * Litwin, Witold (1980), "Linear hashing: A new tool for file and table
- * addressing", Proc. 6th Conference on Very Large Databases: 212–223
+ * addressing", Proc. 6th Conference on Very Large Databases: 212-223
  * http://hackthology.com/pdfs/Litwin-1980-Linear_Hashing.pdf
  *
  * From the wikipedia article "Linear hashing is used in the BDB Berkeley

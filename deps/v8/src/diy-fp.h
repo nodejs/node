@@ -55,7 +55,7 @@ class DiyFp {
   }
 
   void Normalize() {
-    DCHECK(f_ != 0);
+    DCHECK_NE(f_, 0);
     uint64_t f = f_;
     int e = e_;
 

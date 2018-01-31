@@ -52,14 +52,14 @@ assertWrongList(['hello', 'world']);
 assertWrongList(['hello', Buffer.from('world')]);
 
 function assertWrongList(value) {
-  assert.throws(() => {
+  common.expectsError(() => {
     Buffer.concat(value);
-  }, common.expectsError({
+  }, {
     code: 'ERR_INVALID_ARG_TYPE',
     type: TypeError,
     message: 'The "list" argument must be one of type ' +
-             'array, buffer, or uint8Array'
-  }));
+             'Array, Buffer, or Uint8Array'
+  });
 }
 
 // eslint-disable-next-line crypto-check

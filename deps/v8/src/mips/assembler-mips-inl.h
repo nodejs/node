@@ -54,36 +54,15 @@ bool CpuFeatures::SupportsWasmSimd128() { return IsSupported(MIPS_SIMD); }
 // -----------------------------------------------------------------------------
 // Operand and MemOperand.
 
-Operand::Operand(int32_t immediate, RelocInfo::Mode rmode)  {
-  rm_ = no_reg;
-  value_.immediate = immediate;
-  rmode_ = rmode;
-}
-
-
-Operand::Operand(const ExternalReference& f)  {
-  rm_ = no_reg;
-  value_.immediate = reinterpret_cast<int32_t>(f.address());
-  rmode_ = RelocInfo::EXTERNAL_REFERENCE;
-}
-
-
-Operand::Operand(Smi* value) {
-  rm_ = no_reg;
-  value_.immediate = reinterpret_cast<intptr_t>(value);
-  rmode_ = RelocInfo::NONE32;
-}
-
-
-Operand::Operand(Register rm) {
-  rm_ = rm;
-}
-
-
 bool Operand::is_reg() const {
   return rm_.is_valid();
 }
 
+int32_t Operand::immediate() const {
+  DCHECK(!is_reg());
+  DCHECK(!IsHeapObjectRequest());
+  return value_.immediate;
+}
 
 // -----------------------------------------------------------------------------
 // RelocInfo.
@@ -145,14 +124,14 @@ int RelocInfo::target_address_size() {
 }
 
 Address Assembler::target_address_at(Address pc, Code* code) {
-  Address constant_pool = code ? code->constant_pool() : NULL;
+  Address constant_pool = code ? code->constant_pool() : nullptr;
   return target_address_at(pc, constant_pool);
 }
 
 void Assembler::set_target_address_at(Isolate* isolate, Address pc, Code* code,
                                       Address target,
                                       ICacheFlushMode icache_flush_mode) {
-  Address constant_pool = code ? code->constant_pool() : NULL;
+  Address constant_pool = code ? code->constant_pool() : nullptr;
   set_target_address_at(isolate, pc, constant_pool, target, icache_flush_mode);
 }
 
@@ -160,6 +139,21 @@ Address Assembler::target_address_from_return_address(Address pc) {
   return pc - kCallTargetAddressOffset;
 }
 
+void Assembler::deserialization_set_special_target_at(
+    Isolate* isolate, Address instruction_payload, Code* code, Address target) {
+  if (IsMipsArchVariant(kMips32r6)) {
+    // On R6 the address location is shifted by one instruction
+    set_target_address_at(
+        isolate,
+        instruction_payload - (kInstructionsFor32BitConstant - 1) * kInstrSize,
+        code, target);
+  } else {
+    set_target_address_at(
+        isolate,
+        instruction_payload - kInstructionsFor32BitConstant * kInstrSize, code,
+        target);
+  }
+}
 
 void Assembler::set_target_internal_reference_encoded_at(Address pc,
                                                          Address target) {
@@ -170,7 +164,7 @@ void Assembler::set_target_internal_reference_encoded_at(Address pc,
   instr1 &= ~kImm16Mask;
   instr2 &= ~kImm16Mask;
   int32_t imm = reinterpret_cast<int32_t>(target);
-  DCHECK((imm & 3) == 0);
+  DCHECK_EQ(imm & 3, 0);
   if (Assembler::IsJicOrJialc(instr2)) {
     // Encoded internal references are lui/jic load of 32-bit absolute address.
     uint32_t lui_offset_u, jic_offset_u;
@@ -223,7 +217,7 @@ void RelocInfo::set_target_object(HeapObject* target,
   Assembler::set_target_address_at(target->GetIsolate(), pc_, host_,
                                    reinterpret_cast<Address>(target),
                                    icache_flush_mode);
-  if (write_barrier_mode == UPDATE_WRITE_BARRIER && host() != NULL) {
+  if (write_barrier_mode == UPDATE_WRITE_BARRIER && host() != nullptr) {
     host()->GetHeap()->incremental_marking()->RecordWriteIntoCode(
         host(), this, HeapObject::cast(target));
     host()->GetHeap()->RecordWriteIntoCode(host(), this, target);
@@ -283,11 +277,11 @@ void RelocInfo::WipeOut(Isolate* isolate) {
          IsRuntimeEntry(rmode_) || IsExternalReference(rmode_) ||
          IsInternalReference(rmode_) || IsInternalReferenceEncoded(rmode_));
   if (IsInternalReference(rmode_)) {
-    Memory::Address_at(pc_) = NULL;
+    Memory::Address_at(pc_) = nullptr;
   } else if (IsInternalReferenceEncoded(rmode_)) {
     Assembler::set_target_internal_reference_encoded_at(pc_, nullptr);
   } else {
-    Assembler::set_target_address_at(isolate, pc_, host_, NULL);
+    Assembler::set_target_address_at(isolate, pc_, host_, nullptr);
   }
 }
 
@@ -385,6 +379,7 @@ void Assembler::emit(Instr x, CompactBranchType is_compact_branch) {
   EmitHelper(x, is_compact_branch);
 }
 
+EnsureSpace::EnsureSpace(Assembler* assembler) { assembler->CheckBuffer(); }
 
 }  // namespace internal
 }  // namespace v8

@@ -27,6 +27,11 @@ int32_t ClockMath::floorDivide(int32_t numerator, int32_t denominator) {
         numerator / denominator : ((numerator + 1) / denominator) - 1;
 }
 
+int64_t ClockMath::floorDivide(int64_t numerator, int64_t denominator) {
+    return (numerator >= 0) ?
+        numerator / denominator : ((numerator + 1) / denominator) - 1;
+}
+
 int32_t ClockMath::floorDivide(double numerator, int32_t denominator,
                           int32_t& remainder) {
     double quotient;

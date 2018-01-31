@@ -104,7 +104,7 @@ not required and a default ECDHE curve will be used. The `ecdhCurve` property
 can be used when creating a TLS Server to specify the list of names of supported
 curves to use, see [`tls.createServer()`] for more info.
 
-### ALPN, NPN and SNI
+### ALPN, NPN, and SNI
 
 <!-- type=misc -->
 
@@ -455,7 +455,10 @@ changes:
     description: ALPN options are supported now.
 -->
 
-* `socket` {net.Socket} An instance of [`net.Socket`][]
+* `socket` {net.Socket|stream.Duplex}
+  On the server side, any `Duplex` stream. On the client side, any
+  instance of [`net.Socket`][] (for generic `Duplex` stream support
+  on the client side, [`tls.connect()`][] must be used).
 * `options` {Object}
   * `isServer`: The SSL/TLS protocol is asymmetrical, TLSSockets must know if
     they are to behave as a server or a client. If `true` the TLS socket will be
@@ -518,7 +521,7 @@ added: v0.11.4
 
 Returns the bound address, the address family name, and port of the
 underlying socket as reported by the operating system. Returns an
-object with three properties, e.g.,
+object with three properties, e.g.
 `{ port: 12346, family: 'IPv4', address: '127.0.0.1' }`
 
 ### tlsSocket.authorizationError
@@ -558,12 +561,12 @@ Always returns `true`. This may be used to distinguish TLS sockets from regular
 added: v0.11.4
 -->
 
-Returns an object representing the cipher name and the SSL/TLS protocol version
-that first defined the cipher.
+Returns an object representing the cipher name. The `version` key is a legacy
+field which always contains the value `'TLSv1/SSLv3'`.
 
 For example: `{ name: 'AES256-SHA', version: 'TLSv1/SSLv3' }`
 
-See `SSL_CIPHER_get_name()` and `SSL_CIPHER_get_version()` in
+See `SSL_CIPHER_get_name()` in
 https://www.openssl.org/docs/man1.0.2/ssl/SSL_CIPHER_get_name.html for more
 information.
 
@@ -742,6 +745,55 @@ and their processing can be delayed due to packet loss or reordering. However,
 smaller fragments add extra TLS framing bytes and CPU overhead, which may
 decrease overall server throughput.
 
+## tls.checkServerIdentity(host, cert)
+<!-- YAML
+added: v0.8.4
+-->
+
+* `host` {string} The hostname to verify the certificate against
+* `cert` {Object} An object representing the peer's certificate. The returned
+  object has some properties corresponding to the fields of the certificate.
+
+Verifies the certificate `cert` is issued to host `host`.
+
+Returns {Error} object, populating it with the reason, host, and cert on
+failure. On success, returns {undefined}.
+
+*Note*: This function can be overwritten by providing alternative function
+as part of the `options.checkServerIdentity` option passed to `tls.connect()`.
+The overwriting function can call `tls.checkServerIdentity()` of course, to augment
+the checks done with additional verification.
+
+*Note*: This function is only called if the certificate passed all other checks, such as
+being issued by trusted CA (`options.ca`).
+
+The cert object contains the parsed certificate and will have a structure similar to:
+
+```text
+{ subject:
+   { OU: [ 'Domain Control Validated', 'PositiveSSL Wildcard' ],
+     CN: '*.nodejs.org' },
+  issuer:
+   { C: 'GB',
+     ST: 'Greater Manchester',
+     L: 'Salford',
+     O: 'COMODO CA Limited',
+     CN: 'COMODO RSA Domain Validation Secure Server CA' },
+  subjectaltname: 'DNS:*.nodejs.org, DNS:nodejs.org',
+  infoAccess:
+   { 'CA Issuers - URI':
+      [ 'http://crt.comodoca.com/COMODORSADomainValidationSecureServerCA.crt' ],
+     'OCSP - URI': [ 'http://ocsp.comodoca.com' ] },
+  modulus: 'B56CE45CB740B09A13F64AC543B712FF9EE8E4C284B542A1708A27E82A8D151CA178153E12E6DDA15BF70FFD96CB8A88618641BDFCCA03527E665B70D779C8A349A6F88FD4EF6557180BD4C98192872BCFE3AF56E863C09DDD8BC1EC58DF9D94F914F0369102B2870BECFA1348A0838C9C49BD1C20124B442477572347047506B1FCD658A80D0C44BCC16BC5C5496CFE6E4A8428EF654CD3D8972BF6E5BFAD59C93006830B5EB1056BBB38B53D1464FA6E02BFDF2FF66CD949486F0775EC43034EC2602AEFBF1703AD221DAA2A88353C3B6A688EFE8387811F645CEED7B3FE46E1F8B9F59FAD028F349B9BC14211D5830994D055EEA3D547911E07A0ADDEB8A82B9188E58720D95CD478EEC9AF1F17BE8141BE80906F1A339445A7EB5B285F68039B0F294598A7D1C0005FC22B5271B0752F58CCDEF8C8FD856FB7AE21C80B8A2CE983AE94046E53EDE4CB89F42502D31B5360771C01C80155918637490550E3F555E2EE75CC8C636DDE3633CFEDD62E91BF0F7688273694EEEBA20C2FC9F14A2A435517BC1D7373922463409AB603295CEB0BB53787A334C9CA3CA8B30005C5A62FC0715083462E00719A8FA3ED0A9828C3871360A73F8B04A4FC1E71302844E9BB9940B77E745C9D91F226D71AFCAD4B113AAF68D92B24DDB4A2136B55A1CD1ADF39605B63CB639038ED0F4C987689866743A68769CC55847E4A06D6E2E3F1',
+  exponent: '0x10001',
+  valid_from: 'Aug 14 00:00:00 2017 GMT',
+  valid_to: 'Nov 20 23:59:59 2019 GMT',
+  fingerprint: '01:02:59:D9:C3:D2:0D:08:F7:82:4E:44:A4:B4:53:C5:E2:3A:87:4D',
+  ext_key_usage: [ '1.3.6.1.5.5.7.3.1', '1.3.6.1.5.5.7.3.2' ],
+  serialNumber: '66593D57F20CBC573E433381B5FEC280',
+  raw: <Buffer ....> }
+```
+
 ## tls.connect(options[, callback])
 <!-- YAML
 added: v0.11.3
@@ -766,10 +818,12 @@ changes:
   * `port` {number} Port the client should connect to.
   * `path` {string} Creates unix socket connection to path. If this option is
     specified, `host` and `port` are ignored.
-  * `socket` {net.Socket} Establish secure connection on a given socket rather
-    than creating a new socket. If this option is specified, `path`, `host` and
-    `port` are ignored.  Usually, a socket is already connected when passed to
-    `tls.connect()`, but it can be connected later. Note that
+  * `socket` {stream.Duplex} Establish secure connection on a given socket
+    rather than creating a new socket. Typically, this is an instance of
+    [`net.Socket`][], but any `Duplex` stream is allowed.
+    If this option is specified, `path`, `host` and `port` are ignored,
+    except for certificate validation.  Usually, a socket is already connected
+    when passed to `tls.connect()`, but it can be connected later. Note that
     connection/disconnection/destruction of `socket` is the user's
     responsibility, calling `tls.connect()` will not cause `net.connect()` to be
     called.
@@ -792,9 +846,11 @@ changes:
   * `servername`: {string} Server name for the SNI (Server Name Indication) TLS
     extension.
   * `checkServerIdentity(servername, cert)` {Function} A callback function
-    to be used when checking the server's hostname against the certificate.
-    This should throw an error if verification fails. The method should return
-    `undefined` if the `servername` and `cert` are verified.
+    to be used (instead of the builtin `tls.checkServerIdentity()` function)
+    when checking the server's hostname (or the provided `servername` when
+    explicitly set) against the certificate. This should return an {Error} if
+    verification fails. The method should return `undefined` if the `servername`
+    and `cert` are verified.
   * `session` {Buffer} A `Buffer` instance, containing TLS session.
   * `minDHSize` {number} Minimum size of the DH parameter in bits to accept a
     TLS connection. When a server offers a DH parameter with a size less
@@ -905,6 +961,9 @@ port or host argument.
 <!-- YAML
 added: v0.11.13
 changes:
+  - version: v9.3.0
+    pr-url: https://github.com/nodejs/node/pull/14903
+    description: The `options` parameter can now include `clientCertEngine`.
   - version: v7.3.0
     pr-url: https://github.com/nodejs/node/pull/10294
     description: If the `key` option is an array, individual entries do not
@@ -959,8 +1018,6 @@ changes:
     certificate can match or chain to.
     For self-signed certificates, the certificate is its own CA, and must be
     provided.
-  * `crl` {string|string[]|Buffer|Buffer[]} Optional PEM formatted
-    CRLs (Certificate Revocation Lists).
   * `ciphers` {string} Optional cipher suite specification, replacing the
     default.  For more information, see [modifying the default cipher suite][].
   * `honorCipherOrder` {boolean} Attempt to use the server's cipher suite
@@ -974,20 +1031,24 @@ changes:
     [`crypto.getCurves()`][] to obtain a list of available curve names. On
     recent releases, `openssl ecparam -list_curves` will also display the name
     and description of each available elliptic curve.
+  * `clientCertEngine` {string} Optional name of an OpenSSL engine which can
+    provide the client certificate.
+  * `crl` {string|string[]|Buffer|Buffer[]} Optional PEM formatted
+    CRLs (Certificate Revocation Lists).
   * `dhparam` {string|Buffer} Diffie Hellman parameters, required for
     [Perfect Forward Secrecy][]. Use `openssl dhparam` to create the parameters.
     The key length must be greater than or equal to 1024 bits, otherwise an
     error will be thrown. It is strongly recommended to use 2048 bits or larger
     for stronger security. If omitted or invalid, the parameters are silently
     discarded and DHE ciphers will not be available.
-  * `secureProtocol` {string} Optional SSL method to use, default is
-    `"SSLv23_method"`. The possible values are listed as [SSL_METHODS][], use
-    the function names as strings. For example, `"SSLv3_method"` to force SSL
-    version 3.
   * `secureOptions` {number} Optionally affect the OpenSSL protocol behavior,
     which is not usually necessary. This should be used carefully if at all!
     Value is a numeric bitmask of the `SSL_OP_*` options from
     [OpenSSL Options][].
+  * `secureProtocol` {string} Optional SSL method to use, default is
+    `"SSLv23_method"`. The possible values are listed as [SSL_METHODS][], use
+    the function names as strings. For example, `"SSLv3_method"` to force SSL
+    version 3.
   * `sessionIdContext` {string} Optional opaque identifier used by servers to
     ensure session state is not shared between applications. Unused by clients.
 
@@ -1008,13 +1069,16 @@ A key is *required* for ciphers that make use of certificates. Either `key` or
 
 If the 'ca' option is not given, then Node.js will use the default
 publicly trusted list of CAs as given in
-<http://mxr.mozilla.org/mozilla/source/security/nss/lib/ckfw/builtins/certdata.txt>.
+<https://hg.mozilla.org/mozilla-central/raw-file/tip/security/nss/lib/ckfw/builtins/certdata.txt>.
 
 
 ## tls.createServer([options][, secureConnectionListener])
 <!-- YAML
 added: v0.3.2
 changes:
+  - version: v9.3.0
+    pr-url: https://github.com/nodejs/node/pull/14903
+    description: The `options` parameter can now include `clientCertEngine`.
   - version: v8.0.0
     pr-url: https://github.com/nodejs/node/pull/11984
     description: The `ALPNProtocols` and `NPNProtocols` options can
@@ -1025,6 +1089,8 @@ changes:
 -->
 
 * `options` {Object}
+  * `clientCertEngine` {string} Optional name of an OpenSSL engine which can
+    provide the client certificate.
   * `handshakeTimeout` {number} Abort the connection if the SSL/TLS handshake
     does not finish in the specified number of milliseconds. Defaults to `120`
     seconds. A `'tlsClientError'` is emitted on the `tls.Server` object whenever
@@ -1154,8 +1220,7 @@ added: v0.11.13
 -->
 
 The default curve name to use for ECDH key agreement in a tls server. The
-default value is `'prime256v1'` (NIST P-256). Consult [RFC 4492] and
-[FIPS.186-4] for more details.
+default value is `'auto'`. See [`tls.createSecureContext()`] for further information.
 
 
 ## Deprecated APIs
@@ -1286,13 +1351,11 @@ where `secure_socket` has the same API as `pair.cleartext`.
 [Chrome's 'modern cryptography' setting]: https://www.chromium.org/Home/chromium-security/education/tls#TOC-Cipher-Suites
 [DHE]: https://en.wikipedia.org/wiki/Diffie%E2%80%93Hellman_key_exchange
 [ECDHE]: https://en.wikipedia.org/wiki/Elliptic_curve_Diffie%E2%80%93Hellman
-[FIPS.186-4]: http://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.186-4.pdf
 [Forward secrecy]: https://en.wikipedia.org/wiki/Perfect_forward_secrecy
 [OCSP request]: https://en.wikipedia.org/wiki/OCSP_stapling
 [OpenSSL Options]: crypto.html#crypto_openssl_options
 [OpenSSL cipher list format documentation]: https://www.openssl.org/docs/man1.0.2/apps/ciphers.html#CIPHER-LIST-FORMAT
 [Perfect Forward Secrecy]: #tls_perfect_forward_secrecy
-[RFC 4492]: https://www.rfc-editor.org/rfc/rfc4492.txt
 [SSL_CTX_set_timeout]: https://www.openssl.org/docs/man1.0.2/ssl/SSL_CTX_set_timeout.html
 [SSL_METHODS]: https://www.openssl.org/docs/man1.0.2/ssl/ssl.html#DEALING-WITH-PROTOCOL-METHODS
 [Stream]: stream.html#stream_stream

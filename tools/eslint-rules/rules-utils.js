@@ -13,6 +13,18 @@ module.exports.isRequired = function(node, modules) {
 };
 
 /**
+ * Returns true if any of the passed in modules are used in
+ * binding calls.
+ */
+module.exports.isBinding = function(node, modules) {
+  if (node.callee.object) {
+    return node.callee.object.name === 'process' &&
+           node.callee.property.name === 'binding' &&
+           modules.includes(node.arguments[0].value);
+  }
+};
+
+/**
  * Returns true is the node accesses any property in the properties
  * array on the 'common' object.
  */

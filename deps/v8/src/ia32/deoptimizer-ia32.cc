@@ -4,7 +4,7 @@
 
 #if V8_TARGET_ARCH_IA32
 
-#include "src/codegen.h"
+#include "src/assembler-inl.h"
 #include "src/deoptimizer.h"
 #include "src/frame-constants.h"
 #include "src/register-configuration.h"
@@ -23,7 +23,7 @@ void Deoptimizer::TableEntryGenerator::Generate() {
   // Save all general purpose registers before messing with them.
   const int kNumberOfRegisters = Register::kNumRegisters;
 
-  const int kDoubleRegsSize = kDoubleSize * XMMRegister::kMaxNumRegisters;
+  const int kDoubleRegsSize = kDoubleSize * XMMRegister::kNumRegisters;
   __ sub(esp, Immediate(kDoubleRegsSize));
   const RegisterConfiguration* config = RegisterConfiguration::Default();
   for (int i = 0; i < config->num_allocatable_double_registers(); ++i) {
@@ -34,7 +34,7 @@ void Deoptimizer::TableEntryGenerator::Generate() {
   }
 
   STATIC_ASSERT(kFloatSize == kPointerSize);
-  const int kFloatRegsSize = kFloatSize * XMMRegister::kMaxNumRegisters;
+  const int kFloatRegsSize = kFloatSize * XMMRegister::kNumRegisters;
   __ sub(esp, Immediate(kFloatRegsSize));
   for (int i = 0; i < config->num_allocatable_float_registers(); ++i) {
     int code = config->GetAllocatableFloatCode(i);
@@ -95,7 +95,7 @@ void Deoptimizer::TableEntryGenerator::Generate() {
 
   int float_regs_offset = FrameDescription::float_registers_offset();
   // Fill in the float input registers.
-  for (int i = 0; i < XMMRegister::kMaxNumRegisters; i++) {
+  for (int i = 0; i < XMMRegister::kNumRegisters; i++) {
     int dst_offset = i * kFloatSize + float_regs_offset;
     __ pop(Operand(ebx, dst_offset));
   }
@@ -183,11 +183,9 @@ void Deoptimizer::TableEntryGenerator::Generate() {
     __ movsd(xmm_reg, Operand(ebx, src_offset));
   }
 
-  // Push state, pc, and continuation from the last output frame.
-  __ push(Operand(ebx, FrameDescription::state_offset()));
+  // Push pc and continuation from the last output frame.
   __ push(Operand(ebx, FrameDescription::pc_offset()));
   __ push(Operand(ebx, FrameDescription::continuation_offset()));
-
 
   // Push the registers from the last output frame.
   for (int i = 0; i < kNumberOfRegisters; i++) {
@@ -216,6 +214,7 @@ void Deoptimizer::TableEntryGenerator::GeneratePrologue() {
   __ bind(&done);
 }
 
+bool Deoptimizer::PadTopOfStackRegister() { return false; }
 
 void FrameDescription::SetCallerPc(unsigned offset, intptr_t value) {
   SetFrameSlot(offset, value);

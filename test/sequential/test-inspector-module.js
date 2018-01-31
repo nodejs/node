@@ -43,7 +43,7 @@ assert.doesNotThrow(
       code: 'ERR_INVALID_ARG_TYPE',
       type: TypeError,
       message:
-        'The "params" argument must be of type object. ' +
+        'The "params" argument must be of type Object. ' +
         `Received type ${typeof i}`
     }
   );

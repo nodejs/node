@@ -96,6 +96,13 @@ PropertyAccessInfo PropertyAccessInfo::AccessorConstant(
   return PropertyAccessInfo(kAccessorConstant, holder, constant, receiver_maps);
 }
 
+// static
+PropertyAccessInfo PropertyAccessInfo::ModuleExport(
+    MapHandles const& receiver_maps, Handle<Cell> cell) {
+  return PropertyAccessInfo(kModuleExport, MaybeHandle<JSObject>(), cell,
+                            receiver_maps);
+}
+
 PropertyAccessInfo::PropertyAccessInfo()
     : kind_(kInvalid),
       field_representation_(MachineRepresentation::kNone),
@@ -209,9 +216,17 @@ bool PropertyAccessInfo::Merge(PropertyAccessInfo const* that,
                                   that->receiver_maps_.end());
       return true;
     }
+    case kModuleExport: {
+      return false;
+    }
   }
 
   UNREACHABLE();
+}
+
+Handle<Cell> PropertyAccessInfo::export_cell() const {
+  DCHECK_EQ(kModuleExport, kind_);
+  return Handle<Cell>::cast(constant_);
 }
 
 AccessInfoFactory::AccessInfoFactory(CompilationDependencies* dependencies,
@@ -345,8 +360,8 @@ bool AccessInfoFactory::ComputePropertyAccessInfo(
         if (details.kind() == kData) {
           int index = descriptors->GetFieldIndex(number);
           Representation details_representation = details.representation();
-          FieldIndex field_index = FieldIndex::ForPropertyIndex(
-              *map, index, details_representation.IsDouble());
+          FieldIndex field_index =
+              FieldIndex::ForPropertyIndex(*map, index, details_representation);
           Type* field_type = Type::NonInternal();
           MachineRepresentation field_representation =
               MachineRepresentation::kTagged;
@@ -400,6 +415,27 @@ bool AccessInfoFactory::ComputePropertyAccessInfo(
           return true;
         } else {
           DCHECK_EQ(kAccessor, details.kind());
+          if (map->instance_type() == JS_MODULE_NAMESPACE_TYPE) {
+            DCHECK(map->is_prototype_map());
+            Handle<PrototypeInfo> proto_info =
+                Map::GetOrCreatePrototypeInfo(map, isolate());
+            DCHECK(proto_info->weak_cell()->IsWeakCell());
+            Handle<JSModuleNamespace> module_namespace(
+                JSModuleNamespace::cast(
+                    WeakCell::cast(proto_info->weak_cell())->value()),
+                isolate());
+            Handle<Cell> cell(
+                Cell::cast(module_namespace->module()->exports()->Lookup(
+                    isolate(), name, Smi::ToInt(name->GetHash()))),
+                isolate());
+            if (cell->value()->IsTheHole(isolate())) {
+              // This module has not been fully initialized yet.
+              return false;
+            }
+            *access_info = PropertyAccessInfo::ModuleExport(
+                MapHandles{receiver_map}, cell);
+            return true;
+          }
           Handle<Object> accessors(descriptors->GetValue(number), isolate());
           if (!accessors->IsAccessorPair()) return false;
           Handle<Object> accessor(
@@ -410,6 +446,11 @@ bool AccessInfoFactory::ComputePropertyAccessInfo(
           if (!accessor->IsJSFunction()) {
             CallOptimization optimization(accessor);
             if (!optimization.is_simple_api_call()) return false;
+            if (optimization.IsCrossContextLazyAccessorPair(*native_context_,
+                                                            *map)) {
+              return false;
+            }
+
             CallOptimization::HolderLookup lookup;
             holder =
                 optimization.LookupHolderOfExpectedType(receiver_map, &lookup);
@@ -559,9 +600,8 @@ bool AccessInfoFactory::ConsolidateElementLoad(MapHandles const& maps,
 bool AccessInfoFactory::LookupSpecialFieldAccessor(
     Handle<Map> map, Handle<Name> name, PropertyAccessInfo* access_info) {
   // Check for special JSObject field accessors.
-  int offset;
-  if (Accessors::IsJSObjectFieldAccessor(map, name, &offset)) {
-    FieldIndex field_index = FieldIndex::ForInObjectOffset(offset);
+  FieldIndex field_index;
+  if (Accessors::IsJSObjectFieldAccessor(map, name, &field_index)) {
     Type* field_type = Type::NonInternal();
     MachineRepresentation field_representation = MachineRepresentation::kTagged;
     if (map->IsStringMap()) {
@@ -615,8 +655,8 @@ bool AccessInfoFactory::LookupTransition(Handle<Map> map, Handle<Name> name,
   if (details.location() != kField) return false;
   int const index = details.field_index();
   Representation details_representation = details.representation();
-  FieldIndex field_index = FieldIndex::ForPropertyIndex(
-      *transition_map, index, details_representation.IsDouble());
+  FieldIndex field_index = FieldIndex::ForPropertyIndex(*transition_map, index,
+                                                        details_representation);
   Type* field_type = Type::NonInternal();
   MaybeHandle<Map> field_map;
   MachineRepresentation field_representation = MachineRepresentation::kTagged;

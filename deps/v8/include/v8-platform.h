@@ -37,6 +37,51 @@ class IdleTask {
 };
 
 /**
+ * A TaskRunner allows scheduling of tasks. The TaskRunner may still be used to
+ * post tasks after the isolate gets destructed, but these tasks may not get
+ * executed anymore. All tasks posted to a given TaskRunner will be invoked in
+ * sequence. Tasks can be posted from any thread.
+ */
+class TaskRunner {
+ public:
+  /**
+   * Schedules a task to be invoked by this TaskRunner. The TaskRunner
+   * implementation takes ownership of |task|.
+   */
+  virtual void PostTask(std::unique_ptr<Task> task) = 0;
+
+  /**
+   * Schedules a task to be invoked by this TaskRunner. The task is scheduled
+   * after the given number of seconds |delay_in_seconds|. The TaskRunner
+   * implementation takes ownership of |task|.
+   */
+  virtual void PostDelayedTask(std::unique_ptr<Task> task,
+                               double delay_in_seconds) = 0;
+
+  /**
+   * Schedules an idle task to be invoked by this TaskRunner. The task is
+   * scheduled when the embedder is idle. Requires that
+   * TaskRunner::SupportsIdleTasks(isolate) is true. Idle tasks may be reordered
+   * relative to other task types and may be starved for an arbitrarily long
+   * time if no idle time is available. The TaskRunner implementation takes
+   * ownership of |task|.
+   */
+  virtual void PostIdleTask(std::unique_ptr<IdleTask> task) = 0;
+
+  /**
+   * Returns true if idle tasks are enabled for this TaskRunner.
+   */
+  virtual bool IdleTasksEnabled() = 0;
+
+  TaskRunner() = default;
+  virtual ~TaskRunner() = default;
+
+ private:
+  TaskRunner(const TaskRunner&) = delete;
+  TaskRunner& operator=(const TaskRunner&) = delete;
+};
+
+/**
  * The interface represents complex arguments to trace events.
  */
 class ConvertableToTraceFormat {
@@ -74,11 +119,11 @@ class TracingController {
   }
 
   /**
-   * Adds a trace event to the platform tracing system. This function call is
+   * Adds a trace event to the platform tracing system. These function calls are
    * usually the result of a TRACE_* macro from trace_event_common.h when
    * tracing and the category of the particular trace are enabled. It is not
-   * advisable to call this function on its own; it is really only meant to be
-   * used by the trace macros. The returned handle can be used by
+   * advisable to call these functions on their own; they are really only meant
+   * to be used by the trace macros. The returned handle can be used by
    * UpdateTraceEventDuration to update the duration of COMPLETE events.
    */
   virtual uint64_t AddTraceEvent(
@@ -88,6 +133,15 @@ class TracingController {
       const uint64_t* arg_values,
       std::unique_ptr<ConvertableToTraceFormat>* arg_convertables,
       unsigned int flags) {
+    return 0;
+  }
+  virtual uint64_t AddTraceEventWithTimestamp(
+      char phase, const uint8_t* category_enabled_flag, const char* name,
+      const char* scope, uint64_t id, uint64_t bind_id, int32_t num_args,
+      const char** arg_names, const uint8_t* arg_types,
+      const uint64_t* arg_values,
+      std::unique_ptr<ConvertableToTraceFormat>* arg_convertables,
+      unsigned int flags, int64_t timestamp) {
     return 0;
   }
 
@@ -151,6 +205,28 @@ class Platform {
   virtual size_t NumberOfAvailableBackgroundThreads() { return 0; }
 
   /**
+   * Returns a TaskRunner which can be used to post a task on the foreground.
+   * This function should only be called from a foreground thread.
+   */
+  virtual std::shared_ptr<v8::TaskRunner> GetForegroundTaskRunner(
+      Isolate* isolate) {
+    // TODO(ahaas): Make this function abstract after it got implemented on all
+    // platforms.
+    return {};
+  }
+
+  /**
+   * Returns a TaskRunner which can be used to post a task on a background.
+   * This function should only be called from a foreground thread.
+   */
+  virtual std::shared_ptr<v8::TaskRunner> GetBackgroundTaskRunner(
+      Isolate* isolate) {
+    // TODO(ahaas): Make this function abstract after it got implemented on all
+    // platforms.
+    return {};
+  }
+
+  /**
    * Schedules a task to be invoked on a background thread. |expected_runtime|
    * indicates that the task will run a long time. The Platform implementation
    * takes ownership of |task|. There is no guarantee about order of execution
@@ -209,10 +285,7 @@ class Platform {
    * Current wall-clock time in milliseconds since epoch.
    * This function is expected to return at least millisecond-precision values.
    */
-  virtual double CurrentClockTimeMillis() {
-    // TODO(dats): Make pure virtual after V8 roll in Chromium.
-    return 0.0;
-  }
+  virtual double CurrentClockTimeMillis() = 0;
 
   typedef void (*StackTracePrinter)();
 

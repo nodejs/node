@@ -16,6 +16,7 @@ class AccountingAllocator;
 
 namespace internal {
 class WasmInstanceObject;
+struct WasmContext;
 
 namespace wasm {
 
@@ -172,8 +173,7 @@ class V8_EXPORT_PRIVATE WasmInterpreter {
   };
 
   WasmInterpreter(Isolate* isolate, const WasmModule* module,
-                  const ModuleWireBytes& wire_bytes, byte* globals_start,
-                  byte* mem_start, uint32_t mem_size);
+                  const ModuleWireBytes& wire_bytes, WasmContext* wasm_context);
   ~WasmInterpreter();
 
   //==========================================================================
@@ -197,11 +197,6 @@ class V8_EXPORT_PRIVATE WasmInterpreter {
   //==========================================================================
   int GetThreadCount();
   Thread* GetThread(int id);
-
-  //==========================================================================
-  // Update the cached module env memory parameters after a grow memory event.
-  //==========================================================================
-  void UpdateMemory(byte* mem_start, uint32_t mem_size);
 
   //==========================================================================
   // Testing functionality.

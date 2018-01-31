@@ -90,10 +90,10 @@ InstructionScheduler::InstructionScheduler(Zone* zone,
 
 void InstructionScheduler::StartBlock(RpoNumber rpo) {
   DCHECK(graph_.empty());
-  DCHECK(last_side_effect_instr_ == nullptr);
+  DCHECK_NULL(last_side_effect_instr_);
   DCHECK(pending_loads_.empty());
-  DCHECK(last_live_in_reg_marker_ == nullptr);
-  DCHECK(last_deopt_or_trap_ == nullptr);
+  DCHECK_NULL(last_live_in_reg_marker_);
+  DCHECK_NULL(last_deopt_or_trap_);
   DCHECK(operands_map_.empty());
   sequence()->StartBlock(rpo);
 }
@@ -296,11 +296,13 @@ int InstructionScheduler::GetInstructionFlags(const Instruction* instr) const {
     case kArchCallCFunction:
     case kArchCallCodeObject:
     case kArchCallJSFunction:
+    case kArchCallWasmFunction:
       return kHasSideEffect;
 
     case kArchTailCallCodeObjectFromJSFunction:
     case kArchTailCallCodeObject:
     case kArchTailCallAddress:
+    case kArchTailCallWasm:
       return kHasSideEffect | kIsBlockTerminator;
 
     case kArchDeoptimize:
@@ -402,7 +404,7 @@ void InstructionScheduler::ComputeTotalLatencies() {
     int max_latency = 0;
 
     for (ScheduleGraphNode* successor : node->successors()) {
-      DCHECK(successor->total_latency() != -1);
+      DCHECK_NE(-1, successor->total_latency());
       if (successor->total_latency() > max_latency) {
         max_latency = successor->total_latency();
       }

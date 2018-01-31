@@ -14,21 +14,21 @@ const dgram = require('dgram');
 
   const socket = dgram.createSocket('udp4');
 
-  assert.throws(() => {
+  common.expectsError(() => {
     socket.setRecvBufferSize(8192);
-  }, common.expectsError(errorObj));
+  }, errorObj);
 
-  assert.throws(() => {
+  common.expectsError(() => {
     socket.setSendBufferSize(8192);
-  }, common.expectsError(errorObj));
+  }, errorObj);
 
-  assert.throws(() => {
+  common.expectsError(() => {
     socket.getRecvBufferSize();
-  }, common.expectsError(errorObj));
+  }, errorObj);
 
-  assert.throws(() => {
+  common.expectsError(() => {
     socket.getSendBufferSize();
-  }, common.expectsError(errorObj));
+  }, errorObj);
 }
 
 {
@@ -45,13 +45,13 @@ const dgram = require('dgram');
 
   socket.bind(common.mustCall(() => {
     badBufferSizes.forEach((badBufferSize) => {
-      assert.throws(() => {
+      common.expectsError(() => {
         socket.setRecvBufferSize(badBufferSize);
-      }, common.expectsError(errorObj));
+      }, errorObj);
 
-      assert.throws(() => {
+      common.expectsError(() => {
         socket.setSendBufferSize(badBufferSize);
-      }, common.expectsError(errorObj));
+      }, errorObj);
     });
     socket.close();
   }));
@@ -83,9 +83,9 @@ function checkBufferSizeError(type, size) {
     'BufferSize';
   const socket = dgram.createSocket('udp4');
   socket.bind(common.mustCall(() => {
-    assert.throws(() => {
+    common.expectsError(() => {
       socket[functionName](size);
-    }, common.expectsError(errorObj));
+    }, errorObj);
     socket.close();
   }));
 }

@@ -3,7 +3,7 @@ const common = require('../common');
 const assert = require('assert');
 const vm = require('vm');
 
-if (typeof Intl === 'undefined')
+if (!common.hasIntl)
   common.skip('missing Intl');
 
 assert(!('v8BreakIterator' in Intl));

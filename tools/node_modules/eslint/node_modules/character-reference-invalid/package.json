@@ -1,0 +1,105 @@
+{
+  "_from": "character-reference-invalid@^1.0.0",
+  "_id": "character-reference-invalid@1.1.1",
+  "_inBundle": false,
+  "_integrity": "sha1-lCg191Dk7GGjCOYMLvjMEBEgLvw=",
+  "_location": "/character-reference-invalid",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "range",
+    "registry": true,
+    "raw": "character-reference-invalid@^1.0.0",
+    "name": "character-reference-invalid",
+    "escapedName": "character-reference-invalid",
+    "rawSpec": "^1.0.0",
+    "saveSpec": null,
+    "fetchSpec": "^1.0.0"
+  },
+  "_requiredBy": [
+    "/parse-entities"
+  ],
+  "_resolved": "https://registry.npmjs.org/character-reference-invalid/-/character-reference-invalid-1.1.1.tgz",
+  "_shasum": "942835f750e4ec61a308e60c2ef8cc1011202efc",
+  "_spec": "character-reference-invalid@^1.0.0",
+  "_where": "/home/mzasso/git/nodejs/node/tools/eslint-tmp/node_modules/eslint/node_modules/parse-entities",
+  "author": {
+    "name": "Titus Wormer",
+    "email": "tituswormer@gmail.com",
+    "url": "http://wooorm.com"
+  },
+  "bugs": {
+    "url": "https://github.com/wooorm/character-reference-invalid/issues"
+  },
+  "bundleDependencies": false,
+  "contributors": [
+    {
+      "name": "Titus Wormer",
+      "email": "tituswormer@gmail.com",
+      "url": "http://wooorm.com"
+    }
+  ],
+  "dependencies": {},
+  "deprecated": false,
+  "description": "HTML invalid numeric character reference information",
+  "devDependencies": {
+    "bail": "^1.0.1",
+    "browserify": "^14.0.0",
+    "concat-stream": "^1.6.0",
+    "esmangle": "^1.0.1",
+    "hast-util-select": "^1.0.1",
+    "hast-util-to-string": "^1.0.0",
+    "rehype-parse": "^4.0.0",
+    "remark-cli": "^3.0.0",
+    "remark-preset-wooorm": "^3.0.0",
+    "tape": "^4.0.0",
+    "unified": "^6.1.5",
+    "xo": "^0.18.0"
+  },
+  "files": [
+    "index.json"
+  ],
+  "homepage": "https://github.com/wooorm/character-reference-invalid#readme",
+  "keywords": [
+    "html",
+    "entity",
+    "numeric",
+    "character",
+    "reference",
+    "replacement",
+    "invalid",
+    "name"
+  ],
+  "license": "MIT",
+  "main": "index.json",
+  "name": "character-reference-invalid",
+  "remarkConfig": {
+    "plugins": [
+      "preset-wooorm"
+    ]
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/wooorm/character-reference-invalid.git"
+  },
+  "scripts": {
+    "build": "npm run build-generate && npm run build-md && npm run build-bundle && npm run build-mangle",
+    "build-bundle": "browserify index.json --bare -s characterReferenceInvalid > character-reference-invalid.js",
+    "build-generate": "node build",
+    "build-mangle": "esmangle character-reference-invalid.js > character-reference-invalid.min.js",
+    "build-md": "remark . -qfo",
+    "lint": "xo",
+    "test": "npm run build && npm run lint && npm run test-api",
+    "test-api": "node test"
+  },
+  "version": "1.1.1",
+  "xo": {
+    "space": true,
+    "esnext": false,
+    "rules": {
+      "guard-for-in": "off"
+    },
+    "ignores": [
+      "character-reference-invalid.js"
+    ]
+  }
+}

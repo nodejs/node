@@ -11,7 +11,6 @@
 #include "src/compiler/opcodes.h"
 #include "src/compiler/operator.h"
 #include "src/handles-inl.h"
-#include "src/objects-inl.h"
 #include "src/zone/zone.h"
 
 namespace v8 {
@@ -37,7 +36,7 @@ BranchHint BranchHintOf(const Operator* const op) {
 }
 
 int ValueInputCountOfReturn(Operator const* const op) {
-  DCHECK(op->opcode() == IrOpcode::kReturn);
+  DCHECK_EQ(IrOpcode::kReturn, op->opcode());
   // Return nodes have a hidden input at index 0 which we ignore in the value
   // input count.
   return op->ValueInputCount() - 1;
@@ -298,11 +297,6 @@ RegionObservability RegionObservabilityOf(Operator const* op) {
   return OpParameter<RegionObservability>(op);
 }
 
-ZoneHandleSet<Map> MapGuardMapsOf(Operator const* op) {
-  DCHECK_EQ(IrOpcode::kMapGuard, op->opcode());
-  return OpParameter<ZoneHandleSet<Map>>(op);
-}
-
 Type* TypeGuardTypeOf(Operator const* op) {
   DCHECK_EQ(IrOpcode::kTypeGuard, op->opcode());
   return OpParameter<Type*>(op);
@@ -349,6 +343,8 @@ ZoneVector<MachineType> const* MachineTypesOf(Operator const* op) {
 
 #define COMMON_CACHED_OP_LIST(V)                                              \
   V(Dead, Operator::kFoldable, 0, 0, 0, 1, 1, 1)                              \
+  V(DeadValue, Operator::kFoldable, 0, 0, 0, 1, 0, 0)                         \
+  V(Unreachable, Operator::kFoldable, 0, 1, 1, 0, 1, 0)                       \
   V(IfTrue, Operator::kKontrol, 0, 0, 1, 0, 0, 1)                             \
   V(IfFalse, Operator::kKontrol, 0, 0, 1, 0, 0, 1)                            \
   V(IfSuccess, Operator::kKontrol, 0, 0, 1, 0, 0, 1)                          \
@@ -1115,7 +1111,7 @@ const Operator* CommonOperatorBuilder::Select(MachineRepresentation rep,
 
 const Operator* CommonOperatorBuilder::Phi(MachineRepresentation rep,
                                            int value_input_count) {
-  DCHECK(value_input_count > 0);  // Disallow empty phis.
+  DCHECK_LT(0, value_input_count);  // Disallow empty phis.
 #define CACHED_PHI(kRep, kValueInputCount)                 \
   if (MachineRepresentation::kRep == rep &&                \
       kValueInputCount == value_input_count) {             \
@@ -1131,14 +1127,6 @@ const Operator* CommonOperatorBuilder::Phi(MachineRepresentation rep,
       rep);                                              // parameter
 }
 
-const Operator* CommonOperatorBuilder::MapGuard(ZoneHandleSet<Map> maps) {
-  return new (zone()) Operator1<ZoneHandleSet<Map>>(  // --
-      IrOpcode::kMapGuard, Operator::kEliminatable,   // opcode
-      "MapGuard",                                     // name
-      1, 1, 1, 0, 1, 0,                               // counts
-      maps);                                          // parameter
-}
-
 const Operator* CommonOperatorBuilder::TypeGuard(Type* type) {
   return new (zone()) Operator1<Type*>(       // --
       IrOpcode::kTypeGuard, Operator::kPure,  // opcode
@@ -1148,7 +1136,7 @@ const Operator* CommonOperatorBuilder::TypeGuard(Type* type) {
 }
 
 const Operator* CommonOperatorBuilder::EffectPhi(int effect_input_count) {
-  DCHECK(effect_input_count > 0);  // Disallow empty effect phis.
+  DCHECK_LT(0, effect_input_count);  // Disallow empty effect phis.
   switch (effect_input_count) {
 #define CACHED_EFFECT_PHI(input_count) \
   case input_count:                    \
@@ -1166,8 +1154,8 @@ const Operator* CommonOperatorBuilder::EffectPhi(int effect_input_count) {
 }
 
 const Operator* CommonOperatorBuilder::InductionVariablePhi(int input_count) {
-  DCHECK(input_count >= 4);  // There must be always the entry, backedge,
-                             // increment and at least one bound.
+  DCHECK_LE(4, input_count);  // There must be always the entry, backedge,
+                              // increment and at least one bound.
   switch (input_count) {
 #define CACHED_INDUCTION_VARIABLE_PHI(input_count) \
   case input_count:                                \
@@ -1235,24 +1223,28 @@ const Operator* CommonOperatorBuilder::TypedStateValues(
       TypedStateValueInfo(types, bitmask));            // parameters
 }
 
-const Operator* CommonOperatorBuilder::ArgumentsElementsState(bool is_rest) {
-  return new (zone()) Operator1<bool>(                     // --
+const Operator* CommonOperatorBuilder::ArgumentsElementsState(
+    ArgumentsStateType type) {
+  return new (zone()) Operator1<ArgumentsStateType>(       // --
       IrOpcode::kArgumentsElementsState, Operator::kPure,  // opcode
       "ArgumentsElementsState",                            // name
-      0, 0, 0, 1, 0, 0, is_rest);                          // counts
+      0, 0, 0, 1, 0, 0,                                    // counts
+      type);                                               // parameter
 }
 
-const Operator* CommonOperatorBuilder::ArgumentsLengthState(bool is_rest) {
-  return new (zone()) Operator1<bool>(                   // --
+const Operator* CommonOperatorBuilder::ArgumentsLengthState(
+    ArgumentsStateType type) {
+  return new (zone()) Operator1<ArgumentsStateType>(     // --
       IrOpcode::kArgumentsLengthState, Operator::kPure,  // opcode
       "ArgumentsLengthState",                            // name
-      0, 0, 0, 1, 0, 0, is_rest);                        // counts
+      0, 0, 0, 1, 0, 0,                                  // counts
+      type);                                             // parameter
 }
 
-bool IsRestOf(Operator const* op) {
+ArgumentsStateType ArgumentsStateTypeOf(Operator const* op) {
   DCHECK(op->opcode() == IrOpcode::kArgumentsElementsState ||
          op->opcode() == IrOpcode::kArgumentsLengthState);
-  return OpParameter<bool>(op);
+  return OpParameter<ArgumentsStateType>(op);
 }
 
 const Operator* CommonOperatorBuilder::ObjectState(uint32_t object_id,
@@ -1357,7 +1349,6 @@ const Operator* CommonOperatorBuilder::TailCall(
   };
   return new (zone()) TailCallOperator(descriptor);
 }
-
 
 const Operator* CommonOperatorBuilder::Projection(size_t index) {
   switch (index) {

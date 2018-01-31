@@ -100,14 +100,6 @@ const d2 = require('../fixtures/b/d');
   assert.notStrictEqual(threeFolder, three);
 }
 
-console.error('test package.json require() loading');
-assert.throws(
-  function() {
-    require('../fixtures/packages/invalid');
-  },
-  /^SyntaxError: Error parsing .+: Unexpected token , in JSON at position 1$/
-);
-
 assert.strictEqual(require('../fixtures/packages/index').ok, 'ok',
                    'Failed loading package');
 assert.strictEqual(require('../fixtures/packages/main').ok, 'ok',
@@ -222,7 +214,8 @@ try {
 }
 
 {
-  // #1357 Loading JSON files with require()
+  // Loading JSON files with require()
+  // See https://github.com/nodejs/node-v0.x-archive/issues/1357.
   const json = require('../fixtures/packages/main/package.json');
   assert.deepStrictEqual(json, {
     name: 'package-name',
@@ -304,17 +297,6 @@ try {
 }
 
 
-// require() must take string, and must be truthy
-assert.throws(function() {
-  console.error('require non-string');
-  require({ foo: 'bar' });
-}, /path must be a string/);
-
-assert.throws(function() {
-  console.error('require empty string');
-  require('');
-}, /missing path/);
-
 process.on('exit', function() {
   assert.ok(a.A instanceof Function);
   assert.strictEqual(a.A(), 'A done');
@@ -337,7 +319,8 @@ process.on('exit', function() {
 });
 
 
-// #1440 Loading files with a byte order marker.
+// Loading files with a byte order marker.
+// See https://github.com/nodejs/node-v0.x-archive/issues/1440.
 assert.strictEqual(require('../fixtures/utf8-bom.js'), 42);
 assert.strictEqual(require('../fixtures/utf8-bom.json'), 42);
 

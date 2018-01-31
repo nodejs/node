@@ -81,8 +81,9 @@ TEST_F(EffectControlLinearizerTest, SimpleLoad) {
   schedule.AddReturn(start, ret);
 
   // Run the state effect introducer.
-  EffectControlLinearizer introducer(jsgraph(), &schedule, zone(),
-                                     source_positions());
+  EffectControlLinearizer introducer(
+      jsgraph(), &schedule, zone(), source_positions(),
+      EffectControlLinearizer::kDoNotMaskArrayIndex);
   introducer.Run();
 
   EXPECT_THAT(load,
@@ -143,8 +144,9 @@ TEST_F(EffectControlLinearizerTest, DiamondLoad) {
   schedule.AddReturn(mblock, ret);
 
   // Run the state effect introducer.
-  EffectControlLinearizer introducer(jsgraph(), &schedule, zone(),
-                                     source_positions());
+  EffectControlLinearizer introducer(
+      jsgraph(), &schedule, zone(), source_positions(),
+      EffectControlLinearizer::kDoNotMaskArrayIndex);
   introducer.Run();
 
   // The effect input to the return should be an effect phi with the
@@ -210,8 +212,9 @@ TEST_F(EffectControlLinearizerTest, LoopLoad) {
   schedule.AddReturn(rblock, ret);
 
   // Run the state effect introducer.
-  EffectControlLinearizer introducer(jsgraph(), &schedule, zone(),
-                                     source_positions());
+  EffectControlLinearizer introducer(
+      jsgraph(), &schedule, zone(), source_positions(),
+      EffectControlLinearizer::kDoNotMaskArrayIndex);
   introducer.Run();
 
   ASSERT_THAT(ret, IsReturn(load, load, if_true));
@@ -273,8 +276,9 @@ TEST_F(EffectControlLinearizerTest, CloneBranch) {
   schedule.AddNode(mblock, merge);
   schedule.AddNode(mblock, graph()->end());
 
-  EffectControlLinearizer introducer(jsgraph(), &schedule, zone(),
-                                     source_positions());
+  EffectControlLinearizer introducer(
+      jsgraph(), &schedule, zone(), source_positions(),
+      EffectControlLinearizer::kDoNotMaskArrayIndex);
   introducer.Run();
 
   Capture<Node *> branch1_capture, branch2_capture;

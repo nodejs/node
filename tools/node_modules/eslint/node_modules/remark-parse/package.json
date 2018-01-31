@@ -1,0 +1,86 @@
+{
+  "_from": "remark-parse@^3.0.0",
+  "_id": "remark-parse@3.0.1",
+  "_inBundle": false,
+  "_integrity": "sha1-G5+EGkTY9PvyJGhQJlRZpOs1TIA=",
+  "_location": "/remark-parse",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "range",
+    "registry": true,
+    "raw": "remark-parse@^3.0.0",
+    "name": "remark-parse",
+    "escapedName": "remark-parse",
+    "rawSpec": "^3.0.0",
+    "saveSpec": null,
+    "fetchSpec": "^3.0.0"
+  },
+  "_requiredBy": [
+    "/eslint-plugin-markdown"
+  ],
+  "_resolved": "https://registry.npmjs.org/remark-parse/-/remark-parse-3.0.1.tgz",
+  "_shasum": "1b9f841a44d8f4fbf2246850265459a4eb354c80",
+  "_spec": "remark-parse@^3.0.0",
+  "_where": "/home/mzasso/git/nodejs/node/tools/eslint-tmp/node_modules/eslint/node_modules/eslint-plugin-markdown",
+  "author": {
+    "name": "Titus Wormer",
+    "email": "tituswormer@gmail.com",
+    "url": "http://wooorm.com"
+  },
+  "bugs": {
+    "url": "https://github.com/wooorm/remark/issues"
+  },
+  "bundleDependencies": false,
+  "contributors": [
+    {
+      "name": "Titus Wormer",
+      "email": "tituswormer@gmail.com",
+      "url": "http://wooorm.com"
+    },
+    {
+      "name": "Eugene Sharygin",
+      "email": "eush77@gmail.com"
+    }
+  ],
+  "dependencies": {
+    "collapse-white-space": "^1.0.2",
+    "has": "^1.0.1",
+    "is-alphabetical": "^1.0.0",
+    "is-decimal": "^1.0.0",
+    "is-whitespace-character": "^1.0.0",
+    "is-word-character": "^1.0.0",
+    "markdown-escapes": "^1.0.0",
+    "parse-entities": "^1.0.2",
+    "repeat-string": "^1.5.4",
+    "state-toggle": "^1.0.0",
+    "trim": "0.0.1",
+    "trim-trailing-lines": "^1.0.0",
+    "unherit": "^1.0.4",
+    "unist-util-remove-position": "^1.0.0",
+    "vfile-location": "^2.0.0",
+    "xtend": "^4.0.1"
+  },
+  "deprecated": false,
+  "description": "Markdown parser for remark",
+  "files": [
+    "index.js",
+    "lib"
+  ],
+  "homepage": "http://remark.js.org",
+  "keywords": [
+    "markdown",
+    "abstract",
+    "syntax",
+    "tree",
+    "ast",
+    "parse"
+  ],
+  "license": "MIT",
+  "name": "remark-parse",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/wooorm/remark/tree/master/packages/remark-parse"
+  },
+  "version": "3.0.1",
+  "xo": false
+}

@@ -335,9 +335,19 @@ const errMessages = {
 
 const ciphers = crypto.getCiphers();
 
-for (const i in TEST_CASES) {
-  const test = TEST_CASES[i];
+const expectedWarnings = common.hasFipsCrypto ?
+  [] : ['Use Cipheriv for counter mode of aes-192-gcm'];
 
+const expectedDeprecationWarnings = [0, 1, 2, 6, 9, 10, 11, 17]
+  .map((i) => `Permitting authentication tag lengths of ${i} bytes is ` +
+            'deprecated. Valid GCM tag lengths are 4, 8, 12, 13, 14, 15, 16.');
+
+common.expectWarning({
+  Warning: expectedWarnings,
+  DeprecationWarning: expectedDeprecationWarnings
+});
+
+for (const test of TEST_CASES) {
   if (!ciphers.includes(test.algo)) {
     common.printSkipMessage(`unsupported ${test.algo} test`);
     continue;
@@ -383,7 +393,7 @@ for (const i in TEST_CASES) {
       assert.strictEqual(msg, test.plain);
     } else {
       // assert that final throws if input data could not be verified!
-      assert.throws(function() { decrypt.final('ascii'); }, errMessages.auth);
+      assert.throws(function() { decrypt.final('hex'); }, errMessages.auth);
     }
   }
 
@@ -475,4 +485,15 @@ for (const i in TEST_CASES) {
   assert.throws(() => encrypt.getAuthTag(), errMessages.state);
   assert.throws(() => encrypt.setAAD(Buffer.from('123', 'ascii')),
                 errMessages.state);
+}
+
+// GCM only supports specific authentication tag lengths, invalid lengths should
+// produce warnings.
+{
+  for (const length of [0, 1, 2, 4, 6, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17]) {
+    const decrypt = crypto.createDecipheriv('aes-256-gcm',
+                                            'FxLKsqdmv0E9xrQhp0b1ZgI0K7JFZJM8',
+                                            'qkuZpJWCewa6Szih');
+    decrypt.setAuthTag(Buffer.from('1'.repeat(length)));
+  }
 }

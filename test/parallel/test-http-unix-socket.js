@@ -58,8 +58,10 @@ server.listen(common.PIPE, common.mustCall(function() {
       assert.strictEqual(res.body, 'hello world\n');
       server.close(common.mustCall(function(error) {
         assert.strictEqual(error, undefined);
-        server.close(common.mustCall(function(error) {
-          assert.strictEqual(error && error.message, 'Not running');
+        server.close(common.expectsError({
+          code: 'ERR_SERVER_NOT_RUNNING',
+          message: 'Server is not running.',
+          type: Error
         }));
       }));
     }));

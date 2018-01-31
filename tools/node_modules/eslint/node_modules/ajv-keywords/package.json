@@ -1,0 +1,78 @@
+{
+  "_from": "ajv-keywords@^2.1.0",
+  "_id": "ajv-keywords@2.1.1",
+  "_inBundle": false,
+  "_integrity": "sha1-YXmX/F9gV2iUxDX5QNgZ4TW4B2I=",
+  "_location": "/eslint/ajv-keywords",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "range",
+    "registry": true,
+    "raw": "ajv-keywords@^2.1.0",
+    "name": "ajv-keywords",
+    "escapedName": "ajv-keywords",
+    "rawSpec": "^2.1.0",
+    "saveSpec": null,
+    "fetchSpec": "^2.1.0"
+  },
+  "_requiredBy": [
+    "/eslint/table"
+  ],
+  "_resolved": "https://registry.npmjs.org/ajv-keywords/-/ajv-keywords-2.1.1.tgz",
+  "_shasum": "617997fc5f60576894c435f940d819e135b80762",
+  "_spec": "ajv-keywords@^2.1.0",
+  "_where": "/home/mzasso/git/nodejs/node/tools/eslint-tmp/node_modules/eslint/node_modules/table",
+  "author": {
+    "name": "Evgeny Poberezkin"
+  },
+  "bugs": {
+    "url": "https://github.com/epoberezkin/ajv-keywords/issues"
+  },
+  "bundleDependencies": false,
+  "deprecated": false,
+  "description": "Custom JSON-Schema keywords for Ajv validator",
+  "devDependencies": {
+    "ajv": "^5.0.0",
+    "ajv-pack": "^0.3.0",
+    "chai": "^4.0.2",
+    "coveralls": "^3.0.0",
+    "dot": "^1.1.1",
+    "eslint": "^4.9.0",
+    "glob": "^7.1.1",
+    "istanbul": "^0.4.3",
+    "js-beautify": "^1.7.4",
+    "json-schema-test": "^1.3.0",
+    "mocha": "^4.0.0",
+    "pre-commit": "^1.1.3",
+    "uuid": "^3.0.1"
+  },
+  "files": [
+    "index.js",
+    "keywords"
+  ],
+  "homepage": "https://github.com/epoberezkin/ajv-keywords#readme",
+  "keywords": [
+    "JSON-Schema",
+    "ajv",
+    "keywords"
+  ],
+  "license": "MIT",
+  "main": "index.js",
+  "name": "ajv-keywords",
+  "peerDependencies": {
+    "ajv": "^5.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/epoberezkin/ajv-keywords.git"
+  },
+  "scripts": {
+    "build": "node node_modules/ajv/scripts/compile-dots.js node_modules/ajv/lib keywords",
+    "eslint": "eslint index.js keywords/*.js",
+    "prepublish": "npm run build",
+    "test": "npm run build && npm run eslint && npm run test-cov",
+    "test-cov": "istanbul cover -x 'spec/**' node_modules/mocha/bin/_mocha -- spec/*.spec.js -R spec",
+    "test-spec": "mocha spec/*.spec.js -R spec"
+  },
+  "version": "2.1.1"
+}

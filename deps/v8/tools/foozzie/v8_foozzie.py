@@ -173,9 +173,9 @@ def parse_args():
   options.second_arch = infer_arch(options.second_d8)
 
   # Ensure we make a sane comparison.
-  assert (options.first_arch != options.second_arch or
-          options.first_config != options.second_config), (
-      'Need either arch or config difference.')
+  if (options.first_arch == options.second_arch and
+      options.first_config == options.second_config):
+    parser.error('Need either arch or config difference.')
   assert options.first_arch in SUPPORTED_ARCHS
   assert options.second_arch in SUPPORTED_ARCHS
   assert options.first_config in CONFIGS
@@ -260,7 +260,7 @@ def main():
       args = [sys.executable] + args
     return v8_commands.Execute(
         args,
-        cwd=os.path.dirname(options.testcase),
+        cwd=os.path.dirname(os.path.abspath(options.testcase)),
         timeout=TIMEOUT,
     )
 

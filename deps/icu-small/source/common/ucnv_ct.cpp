@@ -315,6 +315,7 @@ _CompoundTextClose(UConverter *converter) {
         }
 
         uprv_free(converter->extraInfo);
+        converter->extraInfo = NULL;
     }
 }
 
@@ -519,7 +520,7 @@ UConverter_toUnicode_CompoundText_OFFSETS(UConverterToUnicodeArgs *args,
                     currentState = tmpState;
                 }
 
-                sourceOffset = uprv_strlen((char*)escSeqCompoundText[currentState]) - args->converter->toULength;
+                sourceOffset = static_cast<int32_t>(uprv_strlen((char*)escSeqCompoundText[currentState]) - args->converter->toULength);
 
                 mySource += sourceOffset;
 

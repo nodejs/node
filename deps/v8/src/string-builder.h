@@ -91,8 +91,8 @@ static inline int StringBuilderConcatLength(int special_length,
         pos = Smi::ToInt(next_smi);
         if (pos < 0) return -1;
       }
-      DCHECK(pos >= 0);
-      DCHECK(len >= 0);
+      DCHECK_GE(pos, 0);
+      DCHECK_GE(len, 0);
       if (pos > special_length || len > special_length - pos) return -1;
       increment = len;
     } else if (elt->IsString()) {
@@ -122,14 +122,14 @@ class FixedArrayBuilder {
         has_non_smi_elements_(false) {
     // Require a non-zero initial size. Ensures that doubling the size to
     // extend the array will work.
-    DCHECK(initial_capacity > 0);
+    DCHECK_GT(initial_capacity, 0);
   }
 
   explicit FixedArrayBuilder(Handle<FixedArray> backing_store)
       : array_(backing_store), length_(0), has_non_smi_elements_(false) {
     // Require a non-zero initial size. Ensures that doubling the size to
     // extend the array will work.
-    DCHECK(backing_store->length() > 0);
+    DCHECK_GT(backing_store->length(), 0);
   }
 
   bool HasCapacity(int elements) {
@@ -198,14 +198,14 @@ class ReplacementStringBuilder {
         is_one_byte_(subject->IsOneByteRepresentation()) {
     // Require a non-zero initial size. Ensures that doubling the size to
     // extend the array will work.
-    DCHECK(estimated_part_count > 0);
+    DCHECK_GT(estimated_part_count, 0);
   }
 
   static inline void AddSubjectSlice(FixedArrayBuilder* builder, int from,
                                      int to) {
-    DCHECK(from >= 0);
+    DCHECK_GE(from, 0);
     int length = to - from;
-    DCHECK(length > 0);
+    DCHECK_GT(length, 0);
     if (StringBuilderSubstringLength::is_valid(length) &&
         StringBuilderSubstringPosition::is_valid(from)) {
       int encoded_slice = StringBuilderSubstringLength::encode(length) |
@@ -230,7 +230,7 @@ class ReplacementStringBuilder {
 
   void AddString(Handle<String> string) {
     int length = string->length();
-    DCHECK(length > 0);
+    DCHECK_GT(length, 0);
     AddElement(*string);
     if (!string->IsOneByteRepresentation()) {
       is_one_byte_ = false;

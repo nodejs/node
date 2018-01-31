@@ -15,6 +15,7 @@
 namespace v8 {
 namespace internal {
 namespace wasm {
+namespace module_decoder_unittest {
 
 #define WASM_INIT_EXPR_I32V_1(val) WASM_I32V_1(val), kExprEnd
 #define WASM_INIT_EXPR_I32V_2(val) WASM_I32V_2(val), kExprEnd
@@ -493,7 +494,7 @@ TEST_F(WasmModuleVerifyTest, DataSegmentWithImmutableImportedGlobal) {
       0,                    // mutability
       SECTION(Memory, 4),
       ENTRY_COUNT(1),
-      kResizableMaximumFlag,
+      kHasMaximumFlag,
       28,
       28,
       SECTION(Data, 9),
@@ -526,7 +527,7 @@ TEST_F(WasmModuleVerifyTest, DataSegmentWithMutableImportedGlobal) {
       1,                   // mutability
       SECTION(Memory, 4),
       ENTRY_COUNT(1),
-      kResizableMaximumFlag,
+      kHasMaximumFlag,
       28,
       28,
       SECTION(Data, 9),
@@ -545,7 +546,7 @@ TEST_F(WasmModuleVerifyTest, DataSegmentWithImmutableGlobal) {
   const byte data[] = {
       SECTION(Memory, 4),
       ENTRY_COUNT(1),
-      kResizableMaximumFlag,
+      kHasMaximumFlag,
       28,
       28,
       SECTION(Global, 8),  // --
@@ -570,7 +571,7 @@ TEST_F(WasmModuleVerifyTest, OneDataSegment) {
   const byte data[] = {
       SECTION(Memory, 4),
       ENTRY_COUNT(1),
-      kResizableMaximumFlag,
+      kHasMaximumFlag,
       28,
       28,
       SECTION(Data, 11),
@@ -609,7 +610,7 @@ TEST_F(WasmModuleVerifyTest, TwoDataSegments) {
   const byte data[] = {
       SECTION(Memory, 4),
       ENTRY_COUNT(1),
-      kResizableMaximumFlag,
+      kHasMaximumFlag,
       28,
       28,
       SECTION(Data, 29),
@@ -677,15 +678,13 @@ TEST_F(WasmModuleVerifyTest, DataWithoutMemory) {
 TEST_F(WasmModuleVerifyTest, MaxMaximumMemorySize) {
   {
     const byte data[] = {
-        SECTION(Memory, 6), ENTRY_COUNT(1), kResizableMaximumFlag, 0,
-        U32V_3(65536),
+        SECTION(Memory, 6), ENTRY_COUNT(1), kHasMaximumFlag, 0, U32V_3(65536),
     };
     EXPECT_VERIFIES(data);
   }
   {
     const byte data[] = {
-        SECTION(Memory, 6), ENTRY_COUNT(1), kResizableMaximumFlag, 0,
-        U32V_3(65537),
+        SECTION(Memory, 6), ENTRY_COUNT(1), kHasMaximumFlag, 0, U32V_3(65537),
     };
     EXPECT_FAILURE(data);
   }
@@ -695,7 +694,7 @@ TEST_F(WasmModuleVerifyTest, DataSegment_wrong_init_type) {
   const byte data[] = {
       SECTION(Memory, 4),
       ENTRY_COUNT(1),
-      kResizableMaximumFlag,
+      kHasMaximumFlag,
       28,
       28,
       SECTION(Data, 11),
@@ -714,7 +713,7 @@ TEST_F(WasmModuleVerifyTest, DataSegment_wrong_init_type) {
 TEST_F(WasmModuleVerifyTest, DataSegmentEndOverflow) {
   const byte data[] = {
       SECTION(Memory, 4),  // memory section
-      ENTRY_COUNT(1),           kResizableMaximumFlag, 28, 28,
+      ENTRY_COUNT(1),           kHasMaximumFlag, 28, 28,
       SECTION(Data, 10),         // data section
       ENTRY_COUNT(1),            // one entry
       LINEAR_MEMORY_INDEX_0,     // mem index
@@ -1504,6 +1503,31 @@ TEST_F(WasmModuleVerifyTest, Regression_738097) {
   EXPECT_FAILURE(data);
 }
 
+TEST_F(WasmModuleVerifyTest, FunctionBodySizeLimit) {
+  const uint32_t delta = 3;
+  for (uint32_t body_size = kV8MaxWasmFunctionSize - delta;
+       body_size < kV8MaxWasmFunctionSize + delta; body_size++) {
+    byte data[] = {
+        SIGNATURES_SECTION(1, SIG_ENTRY_v_v),  // --
+        FUNCTION_SIGNATURES_SECTION(1, 0),     // --
+        kCodeSectionCode,                      // code section
+        U32V_5(1 + body_size + 5),             // section size
+        1,                                     // # functions
+        U32V_5(body_size)                      // body size
+    };
+    size_t total = sizeof(data) + body_size;
+    byte* buffer = reinterpret_cast<byte*>(calloc(1, total));
+    memcpy(buffer, data, sizeof(data));
+    ModuleResult result = DecodeModule(buffer, buffer + total);
+    if (body_size <= kV8MaxWasmFunctionSize) {
+      EXPECT_TRUE(result.ok());
+    } else {
+      EXPECT_FALSE(result.ok());
+    }
+    free(buffer);
+  }
+}
+
 TEST_F(WasmModuleVerifyTest, FunctionBodies_empty) {
   static const byte data[] = {
       EMPTY_SIGNATURES_SECTION,           // --
@@ -1649,6 +1673,8 @@ TEST_F(WasmModuleVerifyTest, InitExpr_f64) {
   EXPECT_INIT_EXPR(F64, f64, 77999.1, WASM_F64(77999.1));
 }
 
+#undef EXPECT_INIT_EXPR
+
 #define EXPECT_INIT_EXPR_FAIL(...)                               \
   {                                                              \
     static const byte data[] = {__VA_ARGS__, kExprEnd};          \
@@ -1664,6 +1690,8 @@ TEST_F(WasmModuleVerifyTest, InitExpr_illegal) {
   EXPECT_INIT_EXPR_FAIL(WASM_I32_ADD(WASM_I32V_1(0), WASM_I32V_1(0)));
   EXPECT_INIT_EXPR_FAIL(WASM_IF_ELSE(WASM_ZERO, WASM_ZERO, WASM_ZERO));
 }
+
+#undef EXPECT_INIT_EXPR_FAIL
 
 TEST_F(WasmModuleVerifyTest, Multiple_Named_Sections) {
   static const byte data[] = {
@@ -1760,6 +1788,55 @@ TEST_F(WasmModuleCustomSectionTest, TwoKnownTwoUnknownSections) {
   CheckSections(data, data + sizeof(data), expected, arraysize(expected));
 }
 
+#undef WASM_INIT_EXPR_I32V_1
+#undef WASM_INIT_EXPR_I32V_2
+#undef WASM_INIT_EXPR_I32V_3
+#undef WASM_INIT_EXPR_I32V_4
+#undef WASM_INIT_EXPR_I32V_5
+#undef WASM_INIT_EXPR_F32
+#undef WASM_INIT_EXPR_I64
+#undef WASM_INIT_EXPR_F64
+#undef WASM_INIT_EXPR_GLOBAL
+#undef SIZEOF_EMPTY_FUNCTION
+#undef EMPTY_BODY
+#undef SIZEOF_EMPTY_BODY
+#undef NOP_BODY
+#undef SIZEOF_NOP_BODY
+#undef SIG_ENTRY_i_i
+#undef UNKNOWN_SECTION
+#undef SECTION
+#undef SIGNATURES_SECTION
+#undef FUNCTION_SIGNATURES_SECTION
+#undef FOO_STRING
+#undef NO_LOCAL_NAMES
+#undef EMPTY_SIGNATURES_SECTION
+#undef EMPTY_FUNCTION_SIGNATURES_SECTION
+#undef EMPTY_FUNCTION_BODIES_SECTION
+#undef SECTION_NAMES
+#undef SECTION_EXCEPTIONS
+#undef EMPTY_NAMES_SECTION
+#undef FAIL_IF_NO_EXPERIMENTAL_EH
+#undef X1
+#undef X2
+#undef X3
+#undef X4
+#undef ONE_EMPTY_FUNCTION
+#undef TWO_EMPTY_FUNCTIONS
+#undef THREE_EMPTY_FUNCTIONS
+#undef FOUR_EMPTY_FUNCTIONS
+#undef ONE_EMPTY_BODY
+#undef TWO_EMPTY_BODIES
+#undef THREE_EMPTY_BODIES
+#undef FOUR_EMPTY_BODIES
+#undef SIGNATURES_SECTION_VOID_VOID
+#undef LINEAR_MEMORY_INDEX_0
+#undef EXPECT_VERIFIES
+#undef EXPECT_FAILURE_LEN
+#undef EXPECT_FAILURE
+#undef EXPECT_OFF_END_FAILURE
+#undef EXPECT_OK
+
+}  // namespace module_decoder_unittest
 }  // namespace wasm
 }  // namespace internal
 }  // namespace v8

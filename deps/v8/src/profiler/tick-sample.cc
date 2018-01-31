@@ -92,7 +92,7 @@ bool SimulatorHelper::FillRegisters(Isolate* isolate,
                                     v8::RegisterState* state) {
   Simulator* simulator = isolate->thread_local_top()->simulator_;
   // Check if there is active simulator.
-  if (simulator == NULL) return false;
+  if (simulator == nullptr) return false;
 #if V8_TARGET_ARCH_ARM
   if (!simulator->has_bad_pc()) {
     state->pc = reinterpret_cast<Address>(simulator->get_pc());

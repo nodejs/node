@@ -77,7 +77,7 @@ u_parseDelimitedFile(const char *filename, char delimiter,
                      UParseLineFn *lineFn, void *context,
                      UErrorCode *pErrorCode) {
     FileStream *file;
-    char line[300];
+    char line[10000];
     char *start, *limit;
     int32_t i, length;
 
@@ -163,7 +163,7 @@ u_parseDelimitedFile(const char *filename, char delimiter,
             }
         }
 
-        /* error in a field function? */
+        /* too few fields? */
         if(U_FAILURE(*pErrorCode)) {
             break;
         }

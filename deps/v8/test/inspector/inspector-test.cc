@@ -322,6 +322,8 @@ class UtilsExtension : public IsolateData::SetupGlobalTask {
     backend_runner_ = runner;
   }
 
+  static void ClearAllSessions() { channels_.clear(); }
+
  private:
   static TaskRunner* backend_runner_;
 
@@ -688,6 +690,19 @@ class InspectorExtension : public IsolateData::SetupGlobalTask {
         ToV8String(isolate, "markObjectAsNotInspectable"),
         v8::FunctionTemplate::New(
             isolate, &InspectorExtension::MarkObjectAsNotInspectable));
+    inspector->Set(ToV8String(isolate, "createObjectWithAccessor"),
+                   v8::FunctionTemplate::New(
+                       isolate, &InspectorExtension::CreateObjectWithAccessor));
+    inspector->Set(ToV8String(isolate, "storeCurrentStackTrace"),
+                   v8::FunctionTemplate::New(
+                       isolate, &InspectorExtension::StoreCurrentStackTrace));
+    inspector->Set(ToV8String(isolate, "externalAsyncTaskStarted"),
+                   v8::FunctionTemplate::New(
+                       isolate, &InspectorExtension::ExternalAsyncTaskStarted));
+    inspector->Set(
+        ToV8String(isolate, "externalAsyncTaskFinished"),
+        v8::FunctionTemplate::New(
+            isolate, &InspectorExtension::ExternalAsyncTaskFinished));
     global->Set(ToV8String(isolate, "inspector"), inspector);
   }
 
@@ -827,14 +842,98 @@ class InspectorExtension : public IsolateData::SetupGlobalTask {
                      v8::True(isolate))
         .ToChecked();
   }
+
+  static void CreateObjectWithAccessor(
+      const v8::FunctionCallbackInfo<v8::Value>& args) {
+    if (args.Length() != 2 || !args[0]->IsString() || !args[1]->IsBoolean()) {
+      fprintf(stderr,
+              "Internal error: createObjectWithAccessor('accessor name', "
+              "hasSetter)\n");
+      Exit();
+    }
+    v8::Isolate* isolate = args.GetIsolate();
+    v8::Local<v8::ObjectTemplate> templ = v8::ObjectTemplate::New(isolate);
+    if (args[1].As<v8::Boolean>()->Value()) {
+      templ->SetAccessor(v8::Local<v8::String>::Cast(args[0]), AccessorGetter,
+                         AccessorSetter);
+    } else {
+      templ->SetAccessor(v8::Local<v8::String>::Cast(args[0]), AccessorGetter);
+    }
+    args.GetReturnValue().Set(
+        templ->NewInstance(isolate->GetCurrentContext()).ToLocalChecked());
+  }
+
+  static void AccessorGetter(v8::Local<v8::String> property,
+                             const v8::PropertyCallbackInfo<v8::Value>& info) {
+    v8::Isolate* isolate = info.GetIsolate();
+    isolate->ThrowException(ToV8String(isolate, "Getter is called"));
+  }
+
+  static void AccessorSetter(v8::Local<v8::String> property,
+                             v8::Local<v8::Value> value,
+                             const v8::PropertyCallbackInfo<void>& info) {
+    v8::Isolate* isolate = info.GetIsolate();
+    isolate->ThrowException(ToV8String(isolate, "Setter is called"));
+  }
+
+  static void StoreCurrentStackTrace(
+      const v8::FunctionCallbackInfo<v8::Value>& args) {
+    if (args.Length() != 1 || !args[0]->IsString()) {
+      fprintf(stderr,
+              "Internal error: storeCurrentStackTrace('description')\n");
+      Exit();
+    }
+    v8::Isolate* isolate = args.GetIsolate();
+    v8::Local<v8::Context> context = isolate->GetCurrentContext();
+    IsolateData* data = IsolateData::FromContext(context);
+    v8::internal::Vector<uint16_t> description =
+        ToVector(args[0].As<v8::String>());
+    v8_inspector::StringView description_view(description.start(),
+                                              description.length());
+    v8_inspector::V8StackTraceId id =
+        data->StoreCurrentStackTrace(description_view);
+    v8::Local<v8::ArrayBuffer> buffer =
+        v8::ArrayBuffer::New(isolate, sizeof(id));
+    *static_cast<v8_inspector::V8StackTraceId*>(buffer->GetContents().Data()) =
+        id;
+    args.GetReturnValue().Set(buffer);
+  }
+
+  static void ExternalAsyncTaskStarted(
+      const v8::FunctionCallbackInfo<v8::Value>& args) {
+    if (args.Length() != 1 || !args[0]->IsArrayBuffer()) {
+      fprintf(stderr, "Internal error: externalAsyncTaskStarted(id)\n");
+      Exit();
+    }
+    v8::Local<v8::Context> context = args.GetIsolate()->GetCurrentContext();
+    IsolateData* data = IsolateData::FromContext(context);
+    v8_inspector::V8StackTraceId* id =
+        static_cast<v8_inspector::V8StackTraceId*>(
+            args[0].As<v8::ArrayBuffer>()->GetContents().Data());
+    data->ExternalAsyncTaskStarted(*id);
+  }
+
+  static void ExternalAsyncTaskFinished(
+      const v8::FunctionCallbackInfo<v8::Value>& args) {
+    if (args.Length() != 1 || !args[0]->IsArrayBuffer()) {
+      fprintf(stderr, "Internal error: externalAsyncTaskFinished(id)\n");
+      Exit();
+    }
+    v8::Local<v8::Context> context = args.GetIsolate()->GetCurrentContext();
+    IsolateData* data = IsolateData::FromContext(context);
+    v8_inspector::V8StackTraceId* id =
+        static_cast<v8_inspector::V8StackTraceId*>(
+            args[0].As<v8::ArrayBuffer>()->GetContents().Data());
+    data->ExternalAsyncTaskFinished(*id);
+  }
 };
 
 }  //  namespace
 
 int main(int argc, char* argv[]) {
   v8::V8::InitializeICUDefaultLocation(argv[0]);
-  v8::Platform* platform = v8::platform::CreateDefaultPlatform();
-  v8::V8::InitializePlatform(platform);
+  std::unique_ptr<v8::Platform> platform(v8::platform::NewDefaultPlatform());
+  v8::V8::InitializePlatform(platform.get());
   v8::V8::SetFlagsFromCommandLine(&argc, argv, true);
   v8::V8::InitializeExternalStartupData(argv[0]);
   v8::V8::Initialize();
@@ -895,5 +994,6 @@ int main(int argc, char* argv[]) {
   backend_runner.Join();
 
   delete startup_data.data;
+  UtilsExtension::ClearAllSessions();
   return 0;
 }

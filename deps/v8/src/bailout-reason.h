@@ -18,8 +18,6 @@ namespace internal {
   V(kAllocationIsNotDoubleAligned, "Allocation is not double aligned")         \
   V(kAPICallReturnedInvalidObject, "API call returned invalid object")         \
   V(kBailedOutDueToDependencyChange, "Bailed out due to dependency change")    \
-  V(kBothRegistersWereSmisInSelectNonSmi,                                      \
-    "Both registers were smis in SelectNonSmi")                                \
   V(kClassConstructorFunction, "Class constructor function")                   \
   V(kClassLiteral, "Class literal")                                            \
   V(kCodeGenerationFailed, "Code generation failed")                           \
@@ -42,8 +40,6 @@ namespace internal {
     "Expected optimized code cell or optimization sentinel")                   \
   V(kExpectedNewSpaceObject, "Expected new space object")                      \
   V(kExpectedUndefinedOrCell, "Expected undefined or cell in register")        \
-  V(kExternalStringExpectedButNotFound,                                        \
-    "External string expected, but not found")                                 \
   V(kForOfStatement, "ForOfStatement")                                         \
   V(kFunctionBeingDebugged, "Function is being debugged")                      \
   V(kFunctionCallsEval, "Function calls eval")                                 \
@@ -51,8 +47,6 @@ namespace internal {
     "The function_data field should be a BytecodeArray on interpreter entry")  \
   V(kGenerator, "Generator")                                                   \
   V(kGetIterator, "GetIterator")                                               \
-  V(kGlobalFunctionsMustHaveInitialMap,                                        \
-    "Global functions must have initial map")                                  \
   V(kGraphBuildingFailed, "Optimized graph construction failed")               \
   V(kHeapNumberMapRegisterClobbered, "HeapNumberMap register clobbered")       \
   V(kIndexIsNegative, "Index is negative")                                     \
@@ -101,8 +95,6 @@ namespace internal {
   V(kRememberedSetPointerInNewSpace, "Remembered set pointer is in new space") \
   V(kRestParameter, "Rest parameters")                                         \
   V(kReturnAddressNotFoundInFrame, "Return address not found in frame")        \
-  V(kSmiAdditionOverflow, "Smi addition overflow")                             \
-  V(kSmiSubtractionOverflow, "Smi subtraction overflow")                       \
   V(kSpreadCall, "Call with spread argument")                                  \
   V(kStackAccessBelowStackPointer, "Stack access below stack pointer")         \
   V(kStackFrameTypesMustMatch, "Stack frame types must match")                 \
@@ -117,7 +109,6 @@ namespace internal {
   V(kTryFinallyStatement, "TryFinallyStatement")                               \
   V(kUnalignedAllocationInNewSpace, "Unaligned allocation in new space")       \
   V(kUnalignedCellInWriteBarrier, "Unaligned cell in write barrier")           \
-  V(kUnexpectedAllocationTop, "Unexpected allocation top")                     \
   V(kUnexpectedColorFound, "Unexpected color bit pattern found")               \
   V(kUnexpectedElementsKindInArrayConstructor,                                 \
     "Unexpected ElementsKind in array constructor")                            \

@@ -67,17 +67,13 @@ static const Register arg1 = rdi;
 static const Register arg2 = rsi;
 #endif
 
-#define __ assm.
-
+#define __ masm.
 
 TEST(AssemblerX64ReturnOperation) {
   CcTest::InitializeVM();
-  // Allocate an executable page of memory.
-  size_t actual_size;
-  byte* buffer = static_cast<byte*>(v8::base::OS::Allocate(
-      Assembler::kMinimalBufferSize, &actual_size, true));
-  CHECK(buffer);
-  Assembler assm(CcTest::i_isolate(), buffer, static_cast<int>(actual_size));
+  size_t allocated;
+  byte* buffer = AllocateAssemblerBuffer(&allocated);
+  Assembler masm(CcTest::i_isolate(), buffer, static_cast<int>(allocated));
 
   // Assemble a simple function that copies argument 2 and returns it.
   __ movq(rax, arg2);
@@ -85,7 +81,7 @@ TEST(AssemblerX64ReturnOperation) {
   __ ret(0);
 
   CodeDesc desc;
-  assm.GetCode(CcTest::i_isolate(), &desc);
+  masm.GetCode(CcTest::i_isolate(), &desc);
   // Call the function from C++.
   int result =  FUNCTION_CAST<F2>(buffer)(3, 2);
   CHECK_EQ(2, result);
@@ -94,12 +90,9 @@ TEST(AssemblerX64ReturnOperation) {
 
 TEST(AssemblerX64StackOperations) {
   CcTest::InitializeVM();
-  // Allocate an executable page of memory.
-  size_t actual_size;
-  byte* buffer = static_cast<byte*>(v8::base::OS::Allocate(
-      Assembler::kMinimalBufferSize, &actual_size, true));
-  CHECK(buffer);
-  Assembler assm(CcTest::i_isolate(), buffer, static_cast<int>(actual_size));
+  size_t allocated;
+  byte* buffer = AllocateAssemblerBuffer(&allocated);
+  Assembler masm(CcTest::i_isolate(), buffer, static_cast<int>(allocated));
 
   // Assemble a simple function that copies argument 2 and returns it.
   // We compile without stack frame pointers, so the gdb debugger shows
@@ -117,7 +110,7 @@ TEST(AssemblerX64StackOperations) {
   __ ret(0);
 
   CodeDesc desc;
-  assm.GetCode(CcTest::i_isolate(), &desc);
+  masm.GetCode(CcTest::i_isolate(), &desc);
   // Call the function from C++.
   int result =  FUNCTION_CAST<F2>(buffer)(3, 2);
   CHECK_EQ(2, result);
@@ -126,12 +119,9 @@ TEST(AssemblerX64StackOperations) {
 
 TEST(AssemblerX64ArithmeticOperations) {
   CcTest::InitializeVM();
-  // Allocate an executable page of memory.
-  size_t actual_size;
-  byte* buffer = static_cast<byte*>(v8::base::OS::Allocate(
-      Assembler::kMinimalBufferSize, &actual_size, true));
-  CHECK(buffer);
-  Assembler assm(CcTest::i_isolate(), buffer, static_cast<int>(actual_size));
+  size_t allocated;
+  byte* buffer = AllocateAssemblerBuffer(&allocated);
+  Assembler masm(CcTest::i_isolate(), buffer, static_cast<int>(allocated));
 
   // Assemble a simple function that adds arguments returning the sum.
   __ movq(rax, arg2);
@@ -139,7 +129,7 @@ TEST(AssemblerX64ArithmeticOperations) {
   __ ret(0);
 
   CodeDesc desc;
-  assm.GetCode(CcTest::i_isolate(), &desc);
+  masm.GetCode(CcTest::i_isolate(), &desc);
   // Call the function from C++.
   int result =  FUNCTION_CAST<F2>(buffer)(3, 2);
   CHECK_EQ(5, result);
@@ -148,12 +138,9 @@ TEST(AssemblerX64ArithmeticOperations) {
 
 TEST(AssemblerX64CmpbOperation) {
   CcTest::InitializeVM();
-  // Allocate an executable page of memory.
-  size_t actual_size;
-  byte* buffer = static_cast<byte*>(v8::base::OS::Allocate(
-      Assembler::kMinimalBufferSize, &actual_size, true));
-  CHECK(buffer);
-  Assembler assm(CcTest::i_isolate(), buffer, static_cast<int>(actual_size));
+  size_t allocated;
+  byte* buffer = AllocateAssemblerBuffer(&allocated);
+  Assembler masm(CcTest::i_isolate(), buffer, static_cast<int>(allocated));
 
   // Assemble a function that compare argument byte returing 1 if equal else 0.
   // On Windows, it compares rcx with rdx which does not require REX prefix;
@@ -168,7 +155,7 @@ TEST(AssemblerX64CmpbOperation) {
   __ ret(0);
 
   CodeDesc desc;
-  assm.GetCode(CcTest::i_isolate(), &desc);
+  masm.GetCode(CcTest::i_isolate(), &desc);
   // Call the function from C++.
   int result =  FUNCTION_CAST<F2>(buffer)(0x1002, 0x2002);
   CHECK_EQ(1, result);
@@ -178,16 +165,14 @@ TEST(AssemblerX64CmpbOperation) {
 
 TEST(Regression684407) {
   CcTest::InitializeVM();
-  // Allocate an executable page of memory.
-  size_t actual_size;
-  byte* buffer = static_cast<byte*>(v8::base::OS::Allocate(
-      Assembler::kMinimalBufferSize, &actual_size, true));
-  CHECK(buffer);
-  Assembler assm(CcTest::i_isolate(), buffer, static_cast<int>(actual_size));
-  Address before = assm.pc();
+  size_t allocated;
+  byte* buffer = AllocateAssemblerBuffer(&allocated);
+  Assembler masm(CcTest::i_isolate(), buffer, static_cast<int>(allocated));
+
+  Address before = masm.pc();
   __ cmpl(Operand(arg1, 0),
-          Immediate(0, RelocInfo::WASM_MEMORY_SIZE_REFERENCE));
-  Address after = assm.pc();
+          Immediate(0, RelocInfo::WASM_FUNCTION_TABLE_SIZE_REFERENCE));
+  Address after = masm.pc();
   size_t instruction_size = static_cast<size_t>(after - before);
   // Check that the immediate is not encoded as uint8.
   CHECK_LT(sizeof(uint32_t), instruction_size);
@@ -195,12 +180,9 @@ TEST(Regression684407) {
 
 TEST(AssemblerX64ImulOperation) {
   CcTest::InitializeVM();
-  // Allocate an executable page of memory.
-  size_t actual_size;
-  byte* buffer = static_cast<byte*>(v8::base::OS::Allocate(
-      Assembler::kMinimalBufferSize, &actual_size, true));
-  CHECK(buffer);
-  Assembler assm(CcTest::i_isolate(), buffer, static_cast<int>(actual_size));
+  size_t allocated;
+  byte* buffer = AllocateAssemblerBuffer(&allocated);
+  Assembler masm(CcTest::i_isolate(), buffer, static_cast<int>(allocated));
 
   // Assemble a simple function that multiplies arguments returning the high
   // word.
@@ -210,7 +192,7 @@ TEST(AssemblerX64ImulOperation) {
   __ ret(0);
 
   CodeDesc desc;
-  assm.GetCode(CcTest::i_isolate(), &desc);
+  masm.GetCode(CcTest::i_isolate(), &desc);
   // Call the function from C++.
   int result =  FUNCTION_CAST<F2>(buffer)(3, 2);
   CHECK_EQ(0, result);
@@ -223,12 +205,9 @@ TEST(AssemblerX64ImulOperation) {
 TEST(AssemblerX64testbwqOperation) {
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
-  // Allocate an executable page of memory.
-  size_t actual_size;
-  byte* buffer = static_cast<byte*>(v8::base::OS::Allocate(
-      Assembler::kMinimalBufferSize, &actual_size, true));
-  CHECK(buffer);
-  Assembler assm(CcTest::i_isolate(), buffer, static_cast<int>(actual_size));
+  size_t allocated;
+  byte* buffer = AllocateAssemblerBuffer(&allocated);
+  Assembler masm(CcTest::i_isolate(), buffer, static_cast<int>(allocated));
 
   __ pushq(rbx);
   __ pushq(rdi);
@@ -382,7 +361,7 @@ TEST(AssemblerX64testbwqOperation) {
   __ ret(0);
 
   CodeDesc desc;
-  assm.GetCode(CcTest::i_isolate(), &desc);
+  masm.GetCode(CcTest::i_isolate(), &desc);
   // Call the function from C++.
   int result = FUNCTION_CAST<F2>(buffer)(0, 0);
   CHECK_EQ(1, result);
@@ -390,12 +369,9 @@ TEST(AssemblerX64testbwqOperation) {
 
 TEST(AssemblerX64XchglOperations) {
   CcTest::InitializeVM();
-  // Allocate an executable page of memory.
-  size_t actual_size;
-  byte* buffer = static_cast<byte*>(v8::base::OS::Allocate(
-      Assembler::kMinimalBufferSize, &actual_size, true));
-  CHECK(buffer);
-  Assembler assm(CcTest::i_isolate(), buffer, static_cast<int>(actual_size));
+  size_t allocated;
+  byte* buffer = AllocateAssemblerBuffer(&allocated);
+  Assembler masm(CcTest::i_isolate(), buffer, static_cast<int>(allocated));
 
   __ movq(rax, Operand(arg1, 0));
   __ movq(r11, Operand(arg2, 0));
@@ -405,7 +381,7 @@ TEST(AssemblerX64XchglOperations) {
   __ ret(0);
 
   CodeDesc desc;
-  assm.GetCode(CcTest::i_isolate(), &desc);
+  masm.GetCode(CcTest::i_isolate(), &desc);
   // Call the function from C++.
   uint64_t left = V8_2PART_UINT64_C(0x10000000, 20000000);
   uint64_t right = V8_2PART_UINT64_C(0x30000000, 40000000);
@@ -418,19 +394,16 @@ TEST(AssemblerX64XchglOperations) {
 
 TEST(AssemblerX64OrlOperations) {
   CcTest::InitializeVM();
-  // Allocate an executable page of memory.
-  size_t actual_size;
-  byte* buffer = static_cast<byte*>(v8::base::OS::Allocate(
-      Assembler::kMinimalBufferSize, &actual_size, true));
-  CHECK(buffer);
-  Assembler assm(CcTest::i_isolate(), buffer, static_cast<int>(actual_size));
+  size_t allocated;
+  byte* buffer = AllocateAssemblerBuffer(&allocated);
+  Assembler masm(CcTest::i_isolate(), buffer, static_cast<int>(allocated));
 
   __ movq(rax, Operand(arg2, 0));
   __ orl(Operand(arg1, 0), rax);
   __ ret(0);
 
   CodeDesc desc;
-  assm.GetCode(CcTest::i_isolate(), &desc);
+  masm.GetCode(CcTest::i_isolate(), &desc);
   // Call the function from C++.
   uint64_t left = V8_2PART_UINT64_C(0x10000000, 20000000);
   uint64_t right = V8_2PART_UINT64_C(0x30000000, 40000000);
@@ -442,19 +415,16 @@ TEST(AssemblerX64OrlOperations) {
 
 TEST(AssemblerX64RollOperations) {
   CcTest::InitializeVM();
-  // Allocate an executable page of memory.
-  size_t actual_size;
-  byte* buffer = static_cast<byte*>(v8::base::OS::Allocate(
-      Assembler::kMinimalBufferSize, &actual_size, true));
-  CHECK(buffer);
-  Assembler assm(CcTest::i_isolate(), buffer, static_cast<int>(actual_size));
+  size_t allocated;
+  byte* buffer = AllocateAssemblerBuffer(&allocated);
+  Assembler masm(CcTest::i_isolate(), buffer, static_cast<int>(allocated));
 
   __ movq(rax, arg1);
   __ roll(rax, Immediate(1));
   __ ret(0);
 
   CodeDesc desc;
-  assm.GetCode(CcTest::i_isolate(), &desc);
+  masm.GetCode(CcTest::i_isolate(), &desc);
   // Call the function from C++.
   uint64_t src = V8_2PART_UINT64_C(0x10000000, C0000000);
   uint64_t result = FUNCTION_CAST<F5>(buffer)(src);
@@ -464,19 +434,16 @@ TEST(AssemblerX64RollOperations) {
 
 TEST(AssemblerX64SublOperations) {
   CcTest::InitializeVM();
-  // Allocate an executable page of memory.
-  size_t actual_size;
-  byte* buffer = static_cast<byte*>(v8::base::OS::Allocate(
-      Assembler::kMinimalBufferSize, &actual_size, true));
-  CHECK(buffer);
-  Assembler assm(CcTest::i_isolate(), buffer, static_cast<int>(actual_size));
+  size_t allocated;
+  byte* buffer = AllocateAssemblerBuffer(&allocated);
+  Assembler masm(CcTest::i_isolate(), buffer, static_cast<int>(allocated));
 
   __ movq(rax, Operand(arg2, 0));
   __ subl(Operand(arg1, 0), rax);
   __ ret(0);
 
   CodeDesc desc;
-  assm.GetCode(CcTest::i_isolate(), &desc);
+  masm.GetCode(CcTest::i_isolate(), &desc);
   // Call the function from C++.
   uint64_t left = V8_2PART_UINT64_C(0x10000000, 20000000);
   uint64_t right = V8_2PART_UINT64_C(0x30000000, 40000000);
@@ -488,12 +455,9 @@ TEST(AssemblerX64SublOperations) {
 
 TEST(AssemblerX64TestlOperations) {
   CcTest::InitializeVM();
-  // Allocate an executable page of memory.
-  size_t actual_size;
-  byte* buffer = static_cast<byte*>(v8::base::OS::Allocate(
-      Assembler::kMinimalBufferSize, &actual_size, true));
-  CHECK(buffer);
-  Assembler assm(CcTest::i_isolate(), buffer, static_cast<int>(actual_size));
+  size_t allocated;
+  byte* buffer = AllocateAssemblerBuffer(&allocated);
+  Assembler masm(CcTest::i_isolate(), buffer, static_cast<int>(allocated));
 
   // Set rax with the ZF flag of the testl instruction.
   Label done;
@@ -506,7 +470,7 @@ TEST(AssemblerX64TestlOperations) {
   __ ret(0);
 
   CodeDesc desc;
-  assm.GetCode(CcTest::i_isolate(), &desc);
+  masm.GetCode(CcTest::i_isolate(), &desc);
   // Call the function from C++.
   uint64_t left = V8_2PART_UINT64_C(0x10000000, 20000000);
   uint64_t right = V8_2PART_UINT64_C(0x30000000, 00000000);
@@ -517,12 +481,9 @@ TEST(AssemblerX64TestlOperations) {
 TEST(AssemblerX64TestwOperations) {
   typedef uint16_t (*F)(uint16_t * x);
   CcTest::InitializeVM();
-  // Allocate an executable page of memory.
-  size_t actual_size;
-  byte* buffer = static_cast<byte*>(v8::base::OS::Allocate(
-      Assembler::kMinimalBufferSize, &actual_size, true));
-  CHECK(buffer);
-  Assembler assm(CcTest::i_isolate(), buffer, static_cast<int>(actual_size));
+  size_t allocated;
+  byte* buffer = AllocateAssemblerBuffer(&allocated);
+  Assembler masm(CcTest::i_isolate(), buffer, static_cast<int>(allocated));
 
   // Set rax with the ZF flag of the testl instruction.
   Label done;
@@ -534,7 +495,7 @@ TEST(AssemblerX64TestwOperations) {
   __ ret(0);
 
   CodeDesc desc;
-  assm.GetCode(CcTest::i_isolate(), &desc);
+  masm.GetCode(CcTest::i_isolate(), &desc);
   // Call the function from C++.
   uint16_t operand = 0x8000;
   uint16_t result = FUNCTION_CAST<F>(buffer)(&operand);
@@ -543,19 +504,16 @@ TEST(AssemblerX64TestwOperations) {
 
 TEST(AssemblerX64XorlOperations) {
   CcTest::InitializeVM();
-  // Allocate an executable page of memory.
-  size_t actual_size;
-  byte* buffer = static_cast<byte*>(v8::base::OS::Allocate(
-      Assembler::kMinimalBufferSize, &actual_size, true));
-  CHECK(buffer);
-  Assembler assm(CcTest::i_isolate(), buffer, static_cast<int>(actual_size));
+  size_t allocated;
+  byte* buffer = AllocateAssemblerBuffer(&allocated);
+  Assembler masm(CcTest::i_isolate(), buffer, static_cast<int>(allocated));
 
   __ movq(rax, Operand(arg2, 0));
   __ xorl(Operand(arg1, 0), rax);
   __ ret(0);
 
   CodeDesc desc;
-  assm.GetCode(CcTest::i_isolate(), &desc);
+  masm.GetCode(CcTest::i_isolate(), &desc);
   // Call the function from C++.
   uint64_t left = V8_2PART_UINT64_C(0x10000000, 20000000);
   uint64_t right = V8_2PART_UINT64_C(0x30000000, 60000000);
@@ -567,12 +525,9 @@ TEST(AssemblerX64XorlOperations) {
 
 TEST(AssemblerX64MemoryOperands) {
   CcTest::InitializeVM();
-  // Allocate an executable page of memory.
-  size_t actual_size;
-  byte* buffer = static_cast<byte*>(v8::base::OS::Allocate(
-      Assembler::kMinimalBufferSize, &actual_size, true));
-  CHECK(buffer);
-  Assembler assm(CcTest::i_isolate(), buffer, static_cast<int>(actual_size));
+  size_t allocated;
+  byte* buffer = AllocateAssemblerBuffer(&allocated);
+  Assembler masm(CcTest::i_isolate(), buffer, static_cast<int>(allocated));
 
   // Assemble a simple function that copies argument 2 and returns it.
   __ pushq(rbp);
@@ -592,7 +547,7 @@ TEST(AssemblerX64MemoryOperands) {
   __ ret(0);
 
   CodeDesc desc;
-  assm.GetCode(CcTest::i_isolate(), &desc);
+  masm.GetCode(CcTest::i_isolate(), &desc);
   // Call the function from C++.
   int result =  FUNCTION_CAST<F2>(buffer)(3, 2);
   CHECK_EQ(3, result);
@@ -601,12 +556,9 @@ TEST(AssemblerX64MemoryOperands) {
 
 TEST(AssemblerX64ControlFlow) {
   CcTest::InitializeVM();
-  // Allocate an executable page of memory.
-  size_t actual_size;
-  byte* buffer = static_cast<byte*>(v8::base::OS::Allocate(
-      Assembler::kMinimalBufferSize, &actual_size, true));
-  CHECK(buffer);
-  Assembler assm(CcTest::i_isolate(), buffer, static_cast<int>(actual_size));
+  size_t allocated;
+  byte* buffer = AllocateAssemblerBuffer(&allocated);
+  Assembler masm(CcTest::i_isolate(), buffer, static_cast<int>(allocated));
 
   // Assemble a simple function that copies argument 1 and returns it.
   __ pushq(rbp);
@@ -621,7 +573,7 @@ TEST(AssemblerX64ControlFlow) {
   __ ret(0);
 
   CodeDesc desc;
-  assm.GetCode(CcTest::i_isolate(), &desc);
+  masm.GetCode(CcTest::i_isolate(), &desc);
   // Call the function from C++.
   int result =  FUNCTION_CAST<F2>(buffer)(3, 2);
   CHECK_EQ(3, result);
@@ -630,12 +582,10 @@ TEST(AssemblerX64ControlFlow) {
 
 TEST(AssemblerX64LoopImmediates) {
   CcTest::InitializeVM();
-  // Allocate an executable page of memory.
-  size_t actual_size;
-  byte* buffer = static_cast<byte*>(v8::base::OS::Allocate(
-      Assembler::kMinimalBufferSize, &actual_size, true));
-  CHECK(buffer);
-  Assembler assm(CcTest::i_isolate(), buffer, static_cast<int>(actual_size));
+  size_t allocated;
+  byte* buffer = AllocateAssemblerBuffer(&allocated);
+  Assembler masm(CcTest::i_isolate(), buffer, static_cast<int>(allocated));
+
   // Assemble two loops using rax as counter, and verify the ending counts.
   Label Fail;
   __ movq(rax, Immediate(-3));
@@ -671,7 +621,7 @@ TEST(AssemblerX64LoopImmediates) {
   __ ret(0);
 
   CodeDesc desc;
-  assm.GetCode(CcTest::i_isolate(), &desc);
+  masm.GetCode(CcTest::i_isolate(), &desc);
   // Call the function from C++.
   int result =  FUNCTION_CAST<F0>(buffer)();
   CHECK_EQ(1, result);
@@ -725,7 +675,7 @@ TEST(AssemblerX64LabelChaining) {
   // Test chaining of label usages within instructions (issue 1644).
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
-  Assembler assm(CcTest::i_isolate(), NULL, 0);
+  Assembler masm(CcTest::i_isolate(), nullptr, 0);
 
   Label target;
   __ j(equal, &target);
@@ -740,7 +690,7 @@ TEST(AssemblerMultiByteNop) {
   v8::HandleScope scope(CcTest::isolate());
   byte buffer[1024];
   Isolate* isolate = CcTest::i_isolate();
-  Assembler assm(isolate, buffer, sizeof(buffer));
+  Assembler masm(isolate, buffer, sizeof(buffer));
   __ pushq(rbx);
   __ pushq(rcx);
   __ pushq(rdx);
@@ -753,9 +703,9 @@ TEST(AssemblerMultiByteNop) {
   __ movq(rdi, Immediate(5));
   __ movq(rsi, Immediate(6));
   for (int i = 0; i < 16; i++) {
-    int before = assm.pc_offset();
+    int before = masm.pc_offset();
     __ Nop(i);
-    CHECK_EQ(assm.pc_offset() - before, i);
+    CHECK_EQ(masm.pc_offset() - before, i);
   }
 
   Label fail;
@@ -788,9 +738,9 @@ TEST(AssemblerMultiByteNop) {
   __ ret(0);
 
   CodeDesc desc;
-  assm.GetCode(isolate, &desc);
-  Handle<Code> code = isolate->factory()->NewCode(
-      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+  masm.GetCode(isolate, &desc);
+  Handle<Code> code =
+      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 
   F0 f = FUNCTION_CAST<F0>(code->entry());
   int res = f();
@@ -811,7 +761,7 @@ void DoSSE2(const v8::FunctionCallbackInfo<v8::Value>& args) {
   CHECK_EQ(ELEMENT_COUNT, vec->Length());
 
   Isolate* isolate = CcTest::i_isolate();
-  Assembler assm(isolate, buffer, sizeof(buffer));
+  Assembler masm(isolate, buffer, sizeof(buffer));
 
   // Remove return address from the stack for fix stack frame alignment.
   __ popq(rcx);
@@ -844,9 +794,9 @@ void DoSSE2(const v8::FunctionCallbackInfo<v8::Value>& args) {
   __ ret(0);
 
   CodeDesc desc;
-  assm.GetCode(isolate, &desc);
-  Handle<Code> code = isolate->factory()->NewCode(
-      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+  masm.GetCode(isolate, &desc);
+  Handle<Code> code =
+      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 
   F0 f = FUNCTION_CAST<F0>(code->entry());
   int res = f();
@@ -865,7 +815,7 @@ TEST(StackAlignmentForSSE2) {
   global_template->Set(v8_str("do_sse2"),
                        v8::FunctionTemplate::New(isolate, DoSSE2));
 
-  LocalContext env(NULL, global_template);
+  LocalContext env(nullptr, global_template);
   CompileRun(
       "function foo(vec) {"
       "  return do_sse2(vec);"
@@ -900,16 +850,17 @@ TEST(AssemblerX64Extractps) {
   v8::HandleScope scope(CcTest::isolate());
   byte buffer[256];
   Isolate* isolate = CcTest::i_isolate();
-  Assembler assm(isolate, buffer, sizeof(buffer));
-  { CpuFeatureScope fscope2(&assm, SSE4_1);
+  Assembler masm(isolate, buffer, sizeof(buffer));
+  {
+    CpuFeatureScope fscope2(&masm, SSE4_1);
     __ extractps(rax, xmm0, 0x1);
     __ ret(0);
   }
 
   CodeDesc desc;
-  assm.GetCode(isolate, &desc);
-  Handle<Code> code = isolate->factory()->NewCode(
-      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+  masm.GetCode(isolate, &desc);
+  Handle<Code> code =
+      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef OBJECT_PRINT
   OFStream os(stdout);
   code->Print(os);
@@ -930,7 +881,7 @@ TEST(AssemblerX64SSE) {
   Isolate* isolate = reinterpret_cast<Isolate*>(CcTest::isolate());
   HandleScope scope(isolate);
   v8::internal::byte buffer[256];
-  MacroAssembler assm(isolate, buffer, sizeof(buffer),
+  MacroAssembler masm(isolate, buffer, sizeof(buffer),
                       v8::internal::CodeObjectRequired::kYes);
   {
     __ shufps(xmm0, xmm0, 0x0);  // brocast first argument
@@ -945,11 +896,9 @@ TEST(AssemblerX64SSE) {
   }
 
   CodeDesc desc;
-  assm.GetCode(isolate, &desc);
-  Handle<Code> code = isolate->factory()->NewCode(
-      desc,
-      Code::ComputeFlags(Code::STUB),
-      Handle<Code>());
+  masm.GetCode(isolate, &desc);
+  Handle<Code> code =
+      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef OBJECT_PRINT
   OFStream os(stdout);
   code->Print(os);
@@ -968,10 +917,10 @@ TEST(AssemblerX64FMA_sd) {
   Isolate* isolate = reinterpret_cast<Isolate*>(CcTest::isolate());
   HandleScope scope(isolate);
   v8::internal::byte buffer[1024];
-  MacroAssembler assm(isolate, buffer, sizeof(buffer),
+  MacroAssembler masm(isolate, buffer, sizeof(buffer),
                       v8::internal::CodeObjectRequired::kYes);
   {
-    CpuFeatureScope fscope(&assm, FMA3);
+    CpuFeatureScope fscope(&masm, FMA3);
     Label exit;
     // argument in xmm0, xmm1 and xmm2
     // xmm0 * xmm1 + xmm2
@@ -1173,9 +1122,9 @@ TEST(AssemblerX64FMA_sd) {
   }
 
   CodeDesc desc;
-  assm.GetCode(isolate, &desc);
-  Handle<Code> code = isolate->factory()->NewCode(
-      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+  masm.GetCode(isolate, &desc);
+  Handle<Code> code =
+      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef OBJECT_PRINT
   OFStream os(stdout);
   code->Print(os);
@@ -1194,10 +1143,10 @@ TEST(AssemblerX64FMA_ss) {
   Isolate* isolate = reinterpret_cast<Isolate*>(CcTest::isolate());
   HandleScope scope(isolate);
   v8::internal::byte buffer[1024];
-  MacroAssembler assm(isolate, buffer, sizeof(buffer),
+  MacroAssembler masm(isolate, buffer, sizeof(buffer),
                       v8::internal::CodeObjectRequired::kYes);
   {
-    CpuFeatureScope fscope(&assm, FMA3);
+    CpuFeatureScope fscope(&masm, FMA3);
     Label exit;
     // arguments in xmm0, xmm1 and xmm2
     // xmm0 * xmm1 + xmm2
@@ -1399,9 +1348,9 @@ TEST(AssemblerX64FMA_ss) {
   }
 
   CodeDesc desc;
-  assm.GetCode(isolate, &desc);
-  Handle<Code> code = isolate->factory()->NewCode(
-      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+  masm.GetCode(isolate, &desc);
+  Handle<Code> code =
+      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef OBJECT_PRINT
   OFStream os(stdout);
   code->Print(os);
@@ -1418,7 +1367,7 @@ TEST(AssemblerX64SSE_ss) {
   Isolate* isolate = reinterpret_cast<Isolate*>(CcTest::isolate());
   HandleScope scope(isolate);
   v8::internal::byte buffer[1024];
-  Assembler assm(isolate, buffer, sizeof(buffer));
+  Assembler masm(isolate, buffer, sizeof(buffer));
   {
     Label exit;
     // arguments in xmm0, xmm1 and xmm2
@@ -1474,9 +1423,9 @@ TEST(AssemblerX64SSE_ss) {
   }
 
   CodeDesc desc;
-  assm.GetCode(isolate, &desc);
-  Handle<Code> code = isolate->factory()->NewCode(
-      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+  masm.GetCode(isolate, &desc);
+  Handle<Code> code =
+      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef OBJECT_PRINT
   OFStream os(stdout);
   code->Print(os);
@@ -1496,9 +1445,9 @@ TEST(AssemblerX64AVX_ss) {
   Isolate* isolate = reinterpret_cast<Isolate*>(CcTest::isolate());
   HandleScope scope(isolate);
   v8::internal::byte buffer[1024];
-  Assembler assm(isolate, buffer, sizeof(buffer));
+  Assembler masm(isolate, buffer, sizeof(buffer));
   {
-    CpuFeatureScope avx_scope(&assm, AVX);
+    CpuFeatureScope avx_scope(&masm, AVX);
     Label exit;
     // arguments in xmm0, xmm1 and xmm2
     __ subq(rsp, Immediate(kDoubleSize * 2));  // For memory operand
@@ -1559,9 +1508,9 @@ TEST(AssemblerX64AVX_ss) {
   }
 
   CodeDesc desc;
-  assm.GetCode(isolate, &desc);
-  Handle<Code> code = isolate->factory()->NewCode(
-      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+  masm.GetCode(isolate, &desc);
+  Handle<Code> code =
+      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef OBJECT_PRINT
   OFStream os(stdout);
   code->Print(os);
@@ -1581,9 +1530,9 @@ TEST(AssemblerX64AVX_sd) {
   Isolate* isolate = reinterpret_cast<Isolate*>(CcTest::isolate());
   HandleScope scope(isolate);
   v8::internal::byte buffer[1024];
-  Assembler assm(isolate, buffer, sizeof(buffer));
+  Assembler masm(isolate, buffer, sizeof(buffer));
   {
-    CpuFeatureScope avx_scope(&assm, AVX);
+    CpuFeatureScope avx_scope(&masm, AVX);
     Label exit;
     // arguments in xmm0, xmm1 and xmm2
     __ subq(rsp, Immediate(kDoubleSize * 2));  // For memory operand
@@ -1798,9 +1747,9 @@ TEST(AssemblerX64AVX_sd) {
   }
 
   CodeDesc desc;
-  assm.GetCode(isolate, &desc);
-  Handle<Code> code = isolate->factory()->NewCode(
-      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+  masm.GetCode(isolate, &desc);
+  Handle<Code> code =
+      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef OBJECT_PRINT
   OFStream os(stdout);
   code->Print(os);
@@ -1820,10 +1769,10 @@ TEST(AssemblerX64BMI1) {
   Isolate* isolate = reinterpret_cast<Isolate*>(CcTest::isolate());
   HandleScope scope(isolate);
   v8::internal::byte buffer[1024];
-  MacroAssembler assm(isolate, buffer, sizeof(buffer),
+  MacroAssembler masm(isolate, buffer, sizeof(buffer),
                       v8::internal::CodeObjectRequired::kYes);
   {
-    CpuFeatureScope fscope(&assm, BMI1);
+    CpuFeatureScope fscope(&masm, BMI1);
     Label exit;
 
     __ movq(rcx, V8_UINT64_C(0x1122334455667788));  // source operand
@@ -1990,9 +1939,9 @@ TEST(AssemblerX64BMI1) {
   }
 
   CodeDesc desc;
-  assm.GetCode(isolate, &desc);
-  Handle<Code> code = isolate->factory()->NewCode(
-      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+  masm.GetCode(isolate, &desc);
+  Handle<Code> code =
+      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef OBJECT_PRINT
   OFStream os(stdout);
   code->Print(os);
@@ -2010,10 +1959,10 @@ TEST(AssemblerX64LZCNT) {
   Isolate* isolate = reinterpret_cast<Isolate*>(CcTest::isolate());
   HandleScope scope(isolate);
   v8::internal::byte buffer[256];
-  MacroAssembler assm(isolate, buffer, sizeof(buffer),
+  MacroAssembler masm(isolate, buffer, sizeof(buffer),
                       v8::internal::CodeObjectRequired::kYes);
   {
-    CpuFeatureScope fscope(&assm, LZCNT);
+    CpuFeatureScope fscope(&masm, LZCNT);
     Label exit;
 
     __ movq(rcx, V8_UINT64_C(0x1122334455667788));  // source operand
@@ -2050,9 +1999,9 @@ TEST(AssemblerX64LZCNT) {
   }
 
   CodeDesc desc;
-  assm.GetCode(isolate, &desc);
-  Handle<Code> code = isolate->factory()->NewCode(
-      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+  masm.GetCode(isolate, &desc);
+  Handle<Code> code =
+      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef OBJECT_PRINT
   OFStream os(stdout);
   code->Print(os);
@@ -2070,10 +2019,10 @@ TEST(AssemblerX64POPCNT) {
   Isolate* isolate = reinterpret_cast<Isolate*>(CcTest::isolate());
   HandleScope scope(isolate);
   v8::internal::byte buffer[256];
-  MacroAssembler assm(isolate, buffer, sizeof(buffer),
+  MacroAssembler masm(isolate, buffer, sizeof(buffer),
                       v8::internal::CodeObjectRequired::kYes);
   {
-    CpuFeatureScope fscope(&assm, POPCNT);
+    CpuFeatureScope fscope(&masm, POPCNT);
     Label exit;
 
     __ movq(rcx, V8_UINT64_C(0x1111111111111100));  // source operand
@@ -2110,9 +2059,9 @@ TEST(AssemblerX64POPCNT) {
   }
 
   CodeDesc desc;
-  assm.GetCode(isolate, &desc);
-  Handle<Code> code = isolate->factory()->NewCode(
-      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+  masm.GetCode(isolate, &desc);
+  Handle<Code> code =
+      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef OBJECT_PRINT
   OFStream os(stdout);
   code->Print(os);
@@ -2130,10 +2079,10 @@ TEST(AssemblerX64BMI2) {
   Isolate* isolate = reinterpret_cast<Isolate*>(CcTest::isolate());
   HandleScope scope(isolate);
   v8::internal::byte buffer[2048];
-  MacroAssembler assm(isolate, buffer, sizeof(buffer),
+  MacroAssembler masm(isolate, buffer, sizeof(buffer),
                       v8::internal::CodeObjectRequired::kYes);
   {
-    CpuFeatureScope fscope(&assm, BMI2);
+    CpuFeatureScope fscope(&masm, BMI2);
     Label exit;
     __ pushq(rbx);                                  // save rbx
     __ movq(rcx, V8_UINT64_C(0x1122334455667788));  // source operand
@@ -2373,9 +2322,9 @@ TEST(AssemblerX64BMI2) {
   }
 
   CodeDesc desc;
-  assm.GetCode(isolate, &desc);
-  Handle<Code> code = isolate->factory()->NewCode(
-      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+  masm.GetCode(isolate, &desc);
+  Handle<Code> code =
+      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef OBJECT_PRINT
   OFStream os(stdout);
   code->Print(os);
@@ -2391,7 +2340,7 @@ TEST(AssemblerX64JumpTables1) {
   CcTest::InitializeVM();
   Isolate* isolate = reinterpret_cast<Isolate*>(CcTest::isolate());
   HandleScope scope(isolate);
-  MacroAssembler assm(isolate, nullptr, 0,
+  MacroAssembler masm(isolate, nullptr, 0,
                       v8::internal::CodeObjectRequired::kYes);
 
   const int kNumCases = 512;
@@ -2418,9 +2367,9 @@ TEST(AssemblerX64JumpTables1) {
   __ ret(0);
 
   CodeDesc desc;
-  assm.GetCode(isolate, &desc);
-  Handle<Code> code = isolate->factory()->NewCode(
-      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+  masm.GetCode(isolate, &desc);
+  Handle<Code> code =
+      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef OBJECT_PRINT
   code->Print(std::cout);
 #endif
@@ -2439,7 +2388,7 @@ TEST(AssemblerX64JumpTables2) {
   CcTest::InitializeVM();
   Isolate* isolate = reinterpret_cast<Isolate*>(CcTest::isolate());
   HandleScope scope(isolate);
-  MacroAssembler assm(isolate, nullptr, 0,
+  MacroAssembler masm(isolate, nullptr, 0,
                       v8::internal::CodeObjectRequired::kYes);
 
   const int kNumCases = 512;
@@ -2467,9 +2416,9 @@ TEST(AssemblerX64JumpTables2) {
   }
 
   CodeDesc desc;
-  assm.GetCode(isolate, &desc);
-  Handle<Code> code = isolate->factory()->NewCode(
-      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+  masm.GetCode(isolate, &desc);
+  Handle<Code> code =
+      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef OBJECT_PRINT
   code->Print(std::cout);
 #endif
@@ -2484,12 +2433,9 @@ TEST(AssemblerX64JumpTables2) {
 
 TEST(AssemblerX64PslldWithXmm15) {
   CcTest::InitializeVM();
-  // Allocate an executable page of memory.
-  size_t actual_size;
-  byte* buffer = static_cast<byte*>(v8::base::OS::Allocate(
-      Assembler::kMinimalBufferSize, &actual_size, true));
-  CHECK(buffer);
-  Assembler assm(CcTest::i_isolate(), buffer, static_cast<int>(actual_size));
+  size_t allocated;
+  byte* buffer = AllocateAssemblerBuffer(&allocated);
+  Assembler masm(CcTest::i_isolate(), buffer, static_cast<int>(allocated));
 
   __ movq(xmm15, arg1);
   __ pslld(xmm15, 1);
@@ -2497,7 +2443,7 @@ TEST(AssemblerX64PslldWithXmm15) {
   __ ret(0);
 
   CodeDesc desc;
-  assm.GetCode(CcTest::i_isolate(), &desc);
+  masm.GetCode(CcTest::i_isolate(), &desc);
   uint64_t result = FUNCTION_CAST<F5>(buffer)(V8_UINT64_C(0x1122334455667788));
   CHECK_EQ(V8_UINT64_C(0x22446688aaccef10), result);
 }
@@ -2510,10 +2456,10 @@ TEST(AssemblerX64vmovups) {
   Isolate* isolate = reinterpret_cast<Isolate*>(CcTest::isolate());
   HandleScope scope(isolate);
   v8::internal::byte buffer[256];
-  MacroAssembler assm(isolate, buffer, sizeof(buffer),
+  MacroAssembler masm(isolate, buffer, sizeof(buffer),
                       v8::internal::CodeObjectRequired::kYes);
   {
-    CpuFeatureScope avx_scope(&assm, AVX);
+    CpuFeatureScope avx_scope(&masm, AVX);
     __ shufps(xmm0, xmm0, 0x0);  // brocast first argument
     __ shufps(xmm1, xmm1, 0x0);  // brocast second argument
     // copy xmm1 to xmm0 through the stack to test the "vmovups reg, mem".
@@ -2526,9 +2472,9 @@ TEST(AssemblerX64vmovups) {
   }
 
   CodeDesc desc;
-  assm.GetCode(isolate, &desc);
-  Handle<Code> code = isolate->factory()->NewCode(
-      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+  masm.GetCode(isolate, &desc);
+  Handle<Code> code =
+      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef OBJECT_PRINT
   OFStream os(stdout);
   code->Print(os);

@@ -335,6 +335,7 @@ UNINITIALIZED_TEST(ArrayBuffer_SemiSpaceCopyMultipleTasks) {
              Page::FromAddress(buf2->address()));
     heap::GcAndSweep(heap, OLD_SPACE);
   }
+  isolate->Dispose();
 }
 
 TEST(ArrayBuffer_RetainedSizeIncreases) {

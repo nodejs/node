@@ -22,6 +22,7 @@ namespace interpreter {
   V(GeneratorGetResumeMode, generator_get_resume_mode, 1)             \
   V(GeneratorGetInputOrDebugPos, generator_get_input_or_debug_pos, 1) \
   V(GeneratorClose, generator_close, 1)                               \
+  V(GetImportMetaObject, get_import_meta_object, 0)                   \
   V(Call, call, -1)                                                   \
   V(ClassOf, class_of, 1)                                             \
   V(CreateIterResultObject, create_iter_result_object, 2)             \
@@ -36,7 +37,6 @@ namespace interpreter {
   V(IsJSWeakSet, is_js_weak_set, 1)                                   \
   V(IsSmi, is_smi, 1)                                                 \
   V(IsTypedArray, is_typed_array, 1)                                  \
-  V(SubString, sub_string, 3)                                         \
   V(ToString, to_string, 1)                                           \
   V(ToLength, to_length, 1)                                           \
   V(ToInteger, to_integer, 1)                                         \

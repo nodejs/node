@@ -6,20 +6,15 @@ const bench = common.createBenchmark(main, {
   size: [2, 1024, 1024 * 1024]
 });
 
-var dur, type, encoding, size;
-var server;
-
 const path = require('path');
 const fs = require('fs');
 const cert_dir = path.resolve(__dirname, '../../test/fixtures');
 var options;
 const tls = require('tls');
 
-function main(conf) {
-  dur = +conf.dur;
-  type = conf.type;
-  size = +conf.size;
-
+function main({ dur, type, size }) {
+  var encoding;
+  var server;
   var chunk;
   switch (type) {
     case 'buf':

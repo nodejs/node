@@ -23,12 +23,14 @@
 require('../common');
 const assert = require('assert');
 const http = require('http');
+const Countdown = require('../common/countdown');
 const N = 100;
-let responses = 0;
 
 const server = http.createServer(function(req, res) {
   res.end('Hello');
 });
+
+const countdown = new Countdown(N, () => server.close());
 
 server.listen(0, function() {
   http.globalAgent.maxSockets = 1;
@@ -42,15 +44,9 @@ server.listen(0, function() {
           assert.strictEqual(req.parser, parser);
         }
 
-        if (++responses === N) {
-          server.close();
-        }
+        countdown.dec();
         res.resume();
       });
     })(i);
   }
-});
-
-process.on('exit', function() {
-  assert.strictEqual(responses, N);
 });

@@ -37,9 +37,9 @@ node \- Server-side JavaScript runtime
 .RI [ script.js \ |
 .B -e
 .RI \&" script \&"
-.R |
+.RI |
 .B -
-.R ]
+.RI ]
 .B [--]
 .RI [ arguments ]
 .br
@@ -181,13 +181,13 @@ Track heap object allocations for heap snapshots.
 
 .TP
 .BR \-\-prof\-process
-Process v8 profiler output generated using the v8 option \fB\-\-prof\fR
+Process V8 profiler output generated using the V8 option \fB\-\-prof\fR
 
 .TP
 .BR \-\-v8\-options
-Print v8 command line options.
+Print V8 command line options.
 
-Note: v8 options allow words to be separated by both dashes (\fB-\fR) or
+Note: V8 options allow words to be separated by both dashes (\fB-\fR) or
 underscores (\fB_\fR).
 
 For example, \fB\-\-stack\-trace\-limit\fR is equivalent to
@@ -196,7 +196,7 @@ For example, \fB\-\-stack\-trace\-limit\fR is equivalent to
 .TP
 .BR \-\-v8\-pool\-size =\fInum\fR
 Set v8's thread pool size which will be used to allocate background jobs.
-If set to 0 then v8 will choose an appropriate size of the thread pool based
+If set to 0 then V8 will choose an appropriate size of the thread pool based
 on the number of online processors. If the value provided is larger than v8's
 max then the largest value will be chosen.
 

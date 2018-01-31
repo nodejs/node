@@ -77,17 +77,6 @@ function toStringDescription(obj)
 }
 
 /**
- * @param {number|string} obj
- * @return {boolean}
- */
-function isUInt32(obj)
-{
-    if (typeof obj === "number")
-        return obj >>> 0 === obj && (obj > 0 || 1 / obj > 0);
-    return "" + (obj >>> 0) === obj;
-}
-
-/**
  * FireBug's array detection.
  * @param {*} obj
  * @return {boolean}
@@ -101,7 +90,8 @@ function isArrayLike(obj)
         if (!InjectedScriptHost.objectHasOwnProperty(/** @type {!Object} */ (obj), "length"))
             return false;
         var len = InjectedScriptHost.getProperty(obj, "length");
-        return typeof len === "number" && isUInt32(len);
+        // is len uint32?
+        return typeof len === "number" && len >>> 0 === len && (len > 0 || 1 / len > 0);
     }
     return false;
 }
@@ -184,16 +174,18 @@ InjectedScript.primitiveTypes = {
  * @type {!Object<string, string>}
  * @const
  */
-InjectedScript.closureTypes = { __proto__: null };
-InjectedScript.closureTypes["local"] = "Local";
-InjectedScript.closureTypes["closure"] = "Closure";
-InjectedScript.closureTypes["catch"] = "Catch";
-InjectedScript.closureTypes["block"] = "Block";
-InjectedScript.closureTypes["script"] = "Script";
-InjectedScript.closureTypes["with"] = "With Block";
-InjectedScript.closureTypes["global"] = "Global";
-InjectedScript.closureTypes["eval"] = "Eval";
-InjectedScript.closureTypes["module"] = "Module";
+InjectedScript.closureTypes = {
+    "local": "Local",
+    "closure": "Closure",
+    "catch": "Catch",
+    "block": "Block",
+    "script": "Script",
+    "with": "With Block",
+    "global": "Global",
+    "eval": "Eval",
+    "module": "Module",
+    __proto__: null
+};
 
 InjectedScript.prototype = {
     /**
@@ -228,21 +220,6 @@ InjectedScript.prototype = {
     },
 
     /**
-     * @param {!Array<!Object>} array
-     * @param {string} property
-     * @param {string} groupName
-     * @param {boolean} forceValueType
-     * @param {boolean} generatePreview
-     */
-    wrapPropertyInArray: function(array, property, groupName, forceValueType, generatePreview)
-    {
-        for (var i = 0; i < array.length; ++i) {
-            if (typeof array[i] === "object" && property in array[i])
-                array[i][property] = this.wrapObject(array[i][property], groupName, forceValueType, generatePreview);
-        }
-    },
-
-    /**
      * @param {!Object} table
      * @param {!Array.<string>|string|boolean} columns
      * @return {!RuntimeAgent.RemoteObject}
@@ -254,6 +231,7 @@ InjectedScript.prototype = {
             columns = [columns];
         if (InjectedScriptHost.subtype(columns) === "array") {
             columnNames = [];
+            InjectedScriptHost.nullifyPrototype(columnNames);
             for (var i = 0; i < columns.length; ++i)
                 columnNames[i] = toString(columns[i]);
         }
@@ -402,9 +380,18 @@ InjectedScript.prototype = {
 
                 var descriptor;
                 try {
-                    descriptor = InjectedScriptHost.getOwnPropertyDescriptor(o, property);
-                    if (descriptor) {
-                        InjectedScriptHost.nullifyPrototype(descriptor);
+                    var nativeAccessorDescriptor = InjectedScriptHost.nativeAccessorDescriptor(o, property);
+                    if (nativeAccessorDescriptor && !nativeAccessorDescriptor.isBuiltin) {
+                        descriptor = { __proto__: null };
+                        if (nativeAccessorDescriptor.hasGetter)
+                            descriptor.get = function nativeGetter() { return o[property]; };
+                        if (nativeAccessorDescriptor.hasSetter)
+                            descriptor.set = function nativeSetter(v) { o[property] = v; };
+                    } else {
+                        descriptor = InjectedScriptHost.getOwnPropertyDescriptor(o, property);
+                        if (descriptor) {
+                            InjectedScriptHost.nullifyPrototype(descriptor);
+                        }
                     }
                     var isAccessorProperty = descriptor && ("get" in descriptor || "set" in descriptor);
                     if (accessorPropertiesOnly && !isAccessorProperty)

@@ -11,10 +11,8 @@
 namespace v8 {
 namespace internal {
 
-namespace {
-
 // White list for objects that for sure only contain data.
-bool ContainsOnlyData(VisitorId visitor_id) {
+bool Scavenger::ContainsOnlyData(VisitorId visitor_id) {
   switch (visitor_id) {
     case kVisitSeqOneByteString:
       return true;
@@ -31,8 +29,6 @@ bool ContainsOnlyData(VisitorId visitor_id) {
   }
   return false;
 }
-
-}  // namespace
 
 void Scavenger::PageMemoryFence(Object* object) {
 #ifdef THREAD_SANITIZER
@@ -120,7 +116,7 @@ bool Scavenger::PromoteObject(Map* map, HeapObject** slot, HeapObject* object,
     }
     *slot = target;
 
-    if (!ContainsOnlyData(static_cast<VisitorId>(map->visitor_id()))) {
+    if (!ContainsOnlyData(map->visitor_id())) {
       promotion_list_.Push(ObjectAndSize(target, object_size));
     }
     promoted_size_ += object_size;
@@ -210,7 +206,7 @@ void Scavenger::EvacuateObject(HeapObject** slot, Map* map,
   int size = source->SizeFromMap(map);
   // Cannot use ::cast() below because that would add checks in debug mode
   // that require re-reading the map.
-  switch (static_cast<VisitorId>(map->visitor_id())) {
+  switch (map->visitor_id()) {
     case kVisitThinString:
       EvacuateThinString(map, slot, reinterpret_cast<ThinString*>(source),
                          size);

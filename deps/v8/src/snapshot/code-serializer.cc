@@ -13,10 +13,11 @@
 #include "src/objects-inl.h"
 #include "src/snapshot/object-deserializer.h"
 #include "src/snapshot/snapshot.h"
+#include "src/trap-handler/trap-handler.h"
 #include "src/version.h"
 #include "src/visitors.h"
 #include "src/wasm/wasm-module.h"
-#include "src/wasm/wasm-objects.h"
+#include "src/wasm/wasm-objects-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -55,7 +56,7 @@ ScriptData* CodeSerializer::Serialize(Handle<HeapObject> obj) {
   SerializeDeferredObjects();
   Pad();
 
-  SerializedCodeData data(sink()->data(), this);
+  SerializedCodeData data(sink_.data(), this);
 
   return data.GetScriptData();
 }
@@ -64,7 +65,7 @@ void CodeSerializer::SerializeObject(HeapObject* obj, HowToCode how_to_code,
                                      WhereToPoint where_to_point, int skip) {
   if (SerializeHotObject(obj, how_to_code, where_to_point, skip)) return;
 
-  int root_index = root_index_map_.Lookup(obj);
+  int root_index = root_index_map()->Lookup(obj);
   if (root_index != RootIndexMap::kInvalidRootIndex) {
     PutRoot(root_index, obj, how_to_code, where_to_point, skip);
     return;
@@ -78,29 +79,20 @@ void CodeSerializer::SerializeObject(HeapObject* obj, HowToCode how_to_code,
     Code* code_object = Code::cast(obj);
     switch (code_object->kind()) {
       case Code::OPTIMIZED_FUNCTION:  // No optimized code compiled yet.
-      case Code::HANDLER:             // No handlers patched in yet.
       case Code::REGEXP:              // No regexp literals initialized yet.
       case Code::NUMBER_OF_KINDS:     // Pseudo enum value.
       case Code::BYTECODE_HANDLER:    // No direct references to handlers.
         CHECK(false);
       case Code::BUILTIN:
-        SerializeBuiltin(code_object->builtin_index(), how_to_code,
-                         where_to_point);
+        SerializeBuiltinReference(code_object, how_to_code, where_to_point, 0);
         return;
       case Code::STUB:
-#define IC_KIND_CASE(KIND) case Code::KIND:
-        IC_KIND_LIST(IC_KIND_CASE)
-#undef IC_KIND_CASE
         if (code_object->builtin_index() == -1) {
           SerializeCodeStub(code_object, how_to_code, where_to_point);
         } else {
-          SerializeBuiltin(code_object->builtin_index(), how_to_code,
-                           where_to_point);
+          SerializeBuiltinReference(code_object, how_to_code, where_to_point,
+                                    0);
         }
-        return;
-      case Code::FUNCTION:
-        DCHECK(code_object->has_reloc_info_for_serialization());
-        SerializeGeneric(code_object, how_to_code, where_to_point);
         return;
       default:
         return SerializeCodeObject(code_object, how_to_code, where_to_point);
@@ -118,12 +110,22 @@ void CodeSerializer::SerializeObject(HeapObject* obj, HowToCode how_to_code,
     Script::cast(obj)->set_wrapper(isolate()->heap()->undefined_value());
   }
 
+  if (obj->IsSharedFunctionInfo()) {
+    SharedFunctionInfo* sfi = SharedFunctionInfo::cast(obj);
+    // Mark SFI to indicate whether the code is cached.
+    bool was_deserialized = sfi->deserialized();
+    sfi->set_deserialized(sfi->is_compiled());
+    SerializeGeneric(obj, how_to_code, where_to_point);
+    sfi->set_deserialized(was_deserialized);
+    return;
+  }
+
   // Past this point we should not see any (context-specific) maps anymore.
   CHECK(!obj->IsMap());
   // There should be no references to the global object embedded.
   CHECK(!obj->IsJSGlobalProxy() && !obj->IsJSGlobalObject());
-  // There should be no hash table embedded. They would require rehashing.
-  CHECK(!obj->IsHashTable());
+  // Embedded FixedArrays that need rehashing must support rehashing.
+  CHECK_IMPLIES(obj->NeedsRehashing(), obj->CanBeRehashed());
   // We expect no instantiated function objects or contexts.
   CHECK(!obj->IsJSFunction() && !obj->IsContext());
 
@@ -137,22 +139,6 @@ void CodeSerializer::SerializeGeneric(HeapObject* heap_object,
   ObjectSerializer serializer(this, heap_object, &sink_, how_to_code,
                               where_to_point);
   serializer.Serialize();
-}
-
-void CodeSerializer::SerializeBuiltin(int builtin_index, HowToCode how_to_code,
-                                      WhereToPoint where_to_point) {
-  DCHECK((how_to_code == kPlain && where_to_point == kStartOfObject) ||
-         (how_to_code == kFromCode && where_to_point == kInnerPointer));
-  DCHECK_LT(builtin_index, Builtins::builtin_count);
-  DCHECK_LE(0, builtin_index);
-
-  if (FLAG_trace_serializer) {
-    PrintF(" Encoding builtin: %s\n",
-           isolate()->builtins()->name(builtin_index));
-  }
-
-  sink_.Put(kBuiltin + how_to_code + where_to_point, "Builtin");
-  sink_.PutInt(builtin_index, "builtin_index");
 }
 
 void CodeSerializer::SerializeCodeStub(Code* code_stub, HowToCode how_to_code,
@@ -210,7 +196,6 @@ MaybeHandle<SharedFunctionInfo> CodeSerializer::Deserialize(
     int length = cached_data->length();
     PrintF("[Deserializing from %d bytes took %0.3f ms]\n", length, ms);
   }
-  result->set_deserialized(true);
 
   if (isolate->logger()->is_logging_code_events() || isolate->is_profiling()) {
     String* name = isolate->heap()->empty_string();
@@ -258,6 +243,8 @@ MaybeHandle<FixedArray> WasmCompiledModuleSerializer::DeserializeWasmModule(
     return nothing;
   }
 
+  // TODO(6792): No longer needed once WebAssembly code is off heap.
+  CodeSpaceMemoryModificationScope modification_scope(isolate->heap());
   MaybeHandle<WasmCompiledModule> maybe_result =
       ObjectDeserializer::DeserializeWasmCompiledModule(isolate, &scd,
                                                         wire_bytes);
@@ -275,15 +262,30 @@ void WasmCompiledModuleSerializer::SerializeCodeObject(
   Code::Kind kind = code_object->kind();
   switch (kind) {
     case Code::WASM_FUNCTION:
-    case Code::JS_TO_WASM_FUNCTION:
+    case Code::JS_TO_WASM_FUNCTION: {
+      // TODO(6792): No longer needed once WebAssembly code is off heap.
+      CodeSpaceMemoryModificationScope modification_scope(isolate()->heap());
+      // Because the trap handler index is not meaningful across copies and
+      // serializations, we need to serialize it as kInvalidIndex. We do this by
+      // saving the old value, setting the index to kInvalidIndex and then
+      // restoring the old value.
+      const int old_trap_handler_index =
+          code_object->trap_handler_index()->value();
+      code_object->set_trap_handler_index(
+          Smi::FromInt(trap_handler::kInvalidIndex));
+
       // Just serialize the code_object.
       SerializeGeneric(code_object, how_to_code, where_to_point);
+      code_object->set_trap_handler_index(Smi::FromInt(old_trap_handler_index));
       break;
+    }
     case Code::WASM_INTERPRETER_ENTRY:
     case Code::WASM_TO_JS_FUNCTION:
+    case Code::WASM_TO_WASM_FUNCTION:
       // Serialize the illegal builtin instead. On instantiation of a
       // deserialized module, these will be replaced again.
-      SerializeBuiltin(Builtins::kIllegal, how_to_code, where_to_point);
+      SerializeBuiltinReference(*BUILTIN_CODE(isolate(), Illegal), how_to_code,
+                                where_to_point, 0);
       break;
     default:
       UNREACHABLE();
@@ -337,9 +339,7 @@ SerializedCodeData::SerializedCodeData(const std::vector<byte>* payload,
                                        const CodeSerializer* cs) {
   DisallowHeapAllocation no_gc;
   const std::vector<uint32_t>* stub_keys = cs->stub_keys();
-
-  std::vector<Reservation> reservations;
-  cs->EncodeReservations(&reservations);
+  std::vector<Reservation> reservations = cs->EncodeReservations();
 
   // Calculate sizes.
   uint32_t reservation_size =
@@ -428,7 +428,7 @@ ScriptData* SerializedCodeData::GetScriptData() {
   ScriptData* result = new ScriptData(data_, size_);
   result->AcquireDataOwnership();
   owns_data_ = false;
-  data_ = NULL;
+  data_ = nullptr;
   return result;
 }
 

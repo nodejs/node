@@ -1,0 +1,65 @@
+{
+  "_from": "which@^1.2.9",
+  "_id": "which@1.3.0",
+  "_inBundle": false,
+  "_integrity": "sha512-xcJpopdamTuY5duC/KnTTNBraPK54YwpenP4lzxU8H91GudWpFv38u0CKjclE1Wi2EH2EDz5LRcHcKbCIzqGyg==",
+  "_location": "/eslint/which",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "range",
+    "registry": true,
+    "raw": "which@^1.2.9",
+    "name": "which",
+    "escapedName": "which",
+    "rawSpec": "^1.2.9",
+    "saveSpec": null,
+    "fetchSpec": "^1.2.9"
+  },
+  "_requiredBy": [
+    "/eslint/cross-spawn"
+  ],
+  "_resolved": "https://registry.npmjs.org/which/-/which-1.3.0.tgz",
+  "_shasum": "ff04bdfc010ee547d780bec38e1ac1c2777d253a",
+  "_spec": "which@^1.2.9",
+  "_where": "/home/mzasso/git/nodejs/node/tools/eslint-tmp/node_modules/eslint/node_modules/cross-spawn",
+  "author": {
+    "name": "Isaac Z. Schlueter",
+    "email": "i@izs.me",
+    "url": "http://blog.izs.me"
+  },
+  "bin": {
+    "which": "./bin/which"
+  },
+  "bugs": {
+    "url": "https://github.com/isaacs/node-which/issues"
+  },
+  "bundleDependencies": false,
+  "dependencies": {
+    "isexe": "^2.0.0"
+  },
+  "deprecated": false,
+  "description": "Like which(1) unix command. Find the first instance of an executable in the PATH.",
+  "devDependencies": {
+    "mkdirp": "^0.5.0",
+    "rimraf": "^2.3.3",
+    "tap": "^10.7.0"
+  },
+  "files": [
+    "which.js",
+    "bin/which"
+  ],
+  "homepage": "https://github.com/isaacs/node-which#readme",
+  "license": "ISC",
+  "main": "which.js",
+  "name": "which",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/isaacs/node-which.git"
+  },
+  "scripts": {
+    "changelog": "bash gen-changelog.sh",
+    "postversion": "npm run changelog && git add CHANGELOG.md && git commit -m 'update changelog - '${npm_package_version}",
+    "test": "tap test/*.js --cov"
+  },
+  "version": "1.3.0"
+}

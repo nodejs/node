@@ -37,16 +37,19 @@ InspectorTest.logMessage = function(originalMessage) {
   if (message.id)
     message.id = "<messageId>";
 
-  const nonStableFields = new Set(["objectId", "scriptId", "exceptionId", "timestamp",
-    "executionContextId", "callFrameId", "breakpointId", "bindRemoteObjectFunctionId", "formatterObjectId" ]);
+  const nonStableFields = new Set([
+    'objectId', 'scriptId', 'exceptionId', 'timestamp', 'executionContextId',
+    'callFrameId', 'breakpointId', 'bindRemoteObjectFunctionId',
+    'formatterObjectId', 'debuggerId'
+  ]);
   var objects = [ message ];
   while (objects.length) {
     var object = objects.shift();
     for (var key in object) {
       if (nonStableFields.has(key))
         object[key] = `<${key}>`;
-      else if (typeof object[key] === "string" && object[key].match(/\d+:\d+:\d+:debug/))
-        object[key] = object[key].replace(/\d+/, '<scriptId>');
+      else if (typeof object[key] === "string" && object[key].match(/\d+:\d+:\d+:\d+/))
+        object[key] = object[key].substring(0, object[key].lastIndexOf(':')) + ":<scriptId>";
       else if (typeof object[key] === "object")
         objects.push(object[key]);
     }
@@ -274,6 +277,25 @@ InspectorTest.Session = class {
       if (type === 'call') return '|C|';
       if (type === 'debuggerStatement') return '|D|';
       return '|_|';
+    }
+  }
+
+  async logTypeProfile(typeProfile, source) {
+    let entries = typeProfile.entries;
+
+    // Sort in reverse order so we can replace entries without invalidating
+    // the other offsets.
+    entries = entries.sort((a, b) => b.offset - a.offset);
+
+    for (let entry of entries) {
+      source = source.slice(0, entry.offset) + typeAnnotation(entry.types) +
+        source.slice(entry.offset);
+    }
+    InspectorTest.log(source);
+    return typeProfile;
+
+    function typeAnnotation(types) {
+      return `/*${types.map(t => t.name).join(', ')}*/`;
     }
   }
 

@@ -15,6 +15,10 @@
 #include <malloc.h>  // NOLINT
 #endif
 
+#if defined(LEAK_SANITIZER)
+#include <sanitizer/lsan_interface.h>
+#endif
+
 namespace v8 {
 namespace internal {
 
@@ -99,29 +103,115 @@ void AlignedFree(void *ptr) {
 #endif
 }
 
-bool AllocVirtualMemory(size_t size, void* hint, base::VirtualMemory* result) {
-  base::VirtualMemory first_try(size, hint);
+byte* AllocateSystemPage(void* address, size_t* allocated) {
+  size_t page_size = base::OS::AllocatePageSize();
+  void* result = base::OS::Allocate(address, page_size, page_size,
+                                    base::OS::MemoryPermission::kReadWrite);
+  if (result != nullptr) *allocated = page_size;
+  return static_cast<byte*>(result);
+}
+
+VirtualMemory::VirtualMemory() : address_(nullptr), size_(0) {}
+
+VirtualMemory::VirtualMemory(size_t size, void* hint, size_t alignment)
+    : address_(nullptr), size_(0) {
+  size_t page_size = base::OS::AllocatePageSize();
+  size_t alloc_size = RoundUp(size, page_size);
+  address_ = base::OS::Allocate(hint, alloc_size, alignment,
+                                base::OS::MemoryPermission::kNoAccess);
+  if (address_ != nullptr) {
+    size_ = alloc_size;
+#if defined(LEAK_SANITIZER)
+    __lsan_register_root_region(address_, size_);
+#endif
+  }
+}
+
+VirtualMemory::~VirtualMemory() {
+  if (IsReserved()) {
+    Free();
+  }
+}
+
+void VirtualMemory::Reset() {
+  address_ = nullptr;
+  size_ = 0;
+}
+
+bool VirtualMemory::SetPermissions(void* address, size_t size,
+                                   base::OS::MemoryPermission access) {
+  CHECK(InVM(address, size));
+  bool result = base::OS::SetPermissions(address, size, access);
+  DCHECK(result);
+  USE(result);
+  return result;
+}
+
+size_t VirtualMemory::Release(void* free_start) {
+  DCHECK(IsReserved());
+  DCHECK(IsAddressAligned(static_cast<Address>(free_start),
+                          base::OS::CommitPageSize()));
+  // Notice: Order is important here. The VirtualMemory object might live
+  // inside the allocated region.
+  const size_t free_size = size_ - (reinterpret_cast<size_t>(free_start) -
+                                    reinterpret_cast<size_t>(address_));
+  CHECK(InVM(free_start, free_size));
+  DCHECK_LT(address_, free_start);
+  DCHECK_LT(free_start, reinterpret_cast<void*>(
+                            reinterpret_cast<size_t>(address_) + size_));
+#if defined(LEAK_SANITIZER)
+  __lsan_unregister_root_region(address_, size_);
+  __lsan_register_root_region(address_, size_ - free_size);
+#endif
+  CHECK(base::OS::Release(free_start, free_size));
+  size_ -= free_size;
+  return free_size;
+}
+
+void VirtualMemory::Free() {
+  DCHECK(IsReserved());
+  // Notice: Order is important here. The VirtualMemory object might live
+  // inside the allocated region.
+  void* address = address_;
+  size_t size = size_;
+  CHECK(InVM(address, size));
+  Reset();
+#if defined(LEAK_SANITIZER)
+  __lsan_unregister_root_region(address, size);
+#endif
+  CHECK(base::OS::Free(address, size));
+}
+
+void VirtualMemory::TakeControl(VirtualMemory* from) {
+  DCHECK(!IsReserved());
+  address_ = from->address_;
+  size_ = from->size_;
+  from->Reset();
+}
+
+bool AllocVirtualMemory(size_t size, void* hint, VirtualMemory* result) {
+  VirtualMemory first_try(size, hint);
   if (first_try.IsReserved()) {
     result->TakeControl(&first_try);
     return true;
   }
 
   V8::GetCurrentPlatform()->OnCriticalMemoryPressure();
-  base::VirtualMemory second_try(size, hint);
+  VirtualMemory second_try(size, hint);
   result->TakeControl(&second_try);
   return result->IsReserved();
 }
 
 bool AlignedAllocVirtualMemory(size_t size, size_t alignment, void* hint,
-                               base::VirtualMemory* result) {
-  base::VirtualMemory first_try(size, alignment, hint);
+                               VirtualMemory* result) {
+  VirtualMemory first_try(size, hint, alignment);
   if (first_try.IsReserved()) {
     result->TakeControl(&first_try);
     return true;
   }
 
   V8::GetCurrentPlatform()->OnCriticalMemoryPressure();
-  base::VirtualMemory second_try(size, alignment, hint);
+  VirtualMemory second_try(size, hint, alignment);
   result->TakeControl(&second_try);
   return result->IsReserved();
 }

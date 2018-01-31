@@ -5,7 +5,8 @@
 #ifndef V8_MACRO_ASSEMBLER_H_
 #define V8_MACRO_ASSEMBLER_H_
 
-#include "src/assembler-inl.h"
+#include "src/assembler.h"
+#include "src/frames.h"
 
 // Helper types to make boolean flag easier to read at call-site.
 enum InvokeFlag {
@@ -196,7 +197,7 @@ class ParameterCount BASE_EMBEDDED {
   explicit ParameterCount(Register reg) : reg_(reg), immediate_(0) {}
   explicit ParameterCount(int imm) : reg_(no_reg), immediate_(imm) {}
 
-  bool is_reg() const { return !reg_.is(no_reg); }
+  bool is_reg() const { return reg_.is_valid(); }
   bool is_immediate() const { return !is_reg(); }
 
   Register reg() const {
@@ -214,28 +215,6 @@ class ParameterCount BASE_EMBEDDED {
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(ParameterCount);
 };
-
-
-class AllocationUtils {
- public:
-  static ExternalReference GetAllocationTopReference(
-      Isolate* isolate, AllocationFlags flags) {
-    if ((flags & PRETENURE) != 0) {
-      return ExternalReference::old_space_allocation_top_address(isolate);
-    }
-    return ExternalReference::new_space_allocation_top_address(isolate);
-  }
-
-
-  static ExternalReference GetAllocationLimitReference(
-      Isolate* isolate, AllocationFlags flags) {
-    if ((flags & PRETENURE) != 0) {
-      return ExternalReference::old_space_allocation_limit_address(isolate);
-    }
-    return ExternalReference::new_space_allocation_limit_address(isolate);
-  }
-};
-
 
 }  // namespace internal
 }  // namespace v8

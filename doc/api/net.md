@@ -281,7 +281,7 @@ server.listen({
 added: v0.1.90
 -->
 
-* `path` {String} Path the server should listen to. See
+* `path` {string} Path the server should listen to. See
   [Identifying paths for IPC connections][].
 * `backlog` {number} Common parameter of [`server.listen()`][] functions.
 * `callback` {Function} Common parameter of [`server.listen()`][] functions.
@@ -802,7 +802,7 @@ socket.on('timeout', () => {
 
 If `timeout` is 0, then the existing idle timeout is disabled.
 
-The optional `callback` parameter will be added as a one time listener for the
+The optional `callback` parameter will be added as a one-time listener for the
 [`'timeout'`][] event.
 
 ### socket.unref()

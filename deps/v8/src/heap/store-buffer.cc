@@ -32,7 +32,7 @@ void StoreBuffer::SetUp() {
   // Allocate 3x the buffer size, so that we can start the new store buffer
   // aligned to 2x the size.  This lets us use a bit test to detect the end of
   // the area.
-  base::VirtualMemory reservation;
+  VirtualMemory reservation;
   if (!AllocVirtualMemory(kStoreBufferSize * 3, heap_->GetRandomMmapAddr(),
                           &reservation)) {
     V8::FatalProcessOutOfMemory("StoreBuffer::SetUp");
@@ -53,12 +53,12 @@ void StoreBuffer::SetUp() {
     DCHECK(reinterpret_cast<Address>(limit_[i]) >= reservation.address());
     DCHECK(start_[i] <= vm_limit);
     DCHECK(limit_[i] <= vm_limit);
-    DCHECK((reinterpret_cast<uintptr_t>(limit_[i]) & kStoreBufferMask) == 0);
+    DCHECK_EQ(0, reinterpret_cast<uintptr_t>(limit_[i]) & kStoreBufferMask);
   }
 
-  if (!reservation.Commit(reinterpret_cast<Address>(start_[0]),
-                          kStoreBufferSize * kStoreBuffers,
-                          false)) {  // Not executable.
+  if (!reservation.SetPermissions(reinterpret_cast<Address>(start_[0]),
+                                  kStoreBufferSize * kStoreBuffers,
+                                  base::OS::MemoryPermission::kReadWrite)) {
     V8::FatalProcessOutOfMemory("StoreBuffer::SetUp");
   }
   current_ = 0;
@@ -68,7 +68,7 @@ void StoreBuffer::SetUp() {
 
 
 void StoreBuffer::TearDown() {
-  if (virtual_memory_.IsReserved()) virtual_memory_.Release();
+  if (virtual_memory_.IsReserved()) virtual_memory_.Free();
   top_ = nullptr;
   for (int i = 0; i < kStoreBuffers; i++) {
     start_[i] = nullptr;

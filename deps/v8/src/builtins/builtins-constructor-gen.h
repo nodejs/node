@@ -20,19 +20,17 @@ class ConstructorBuiltinsAssembler : public CodeStubAssembler {
   Node* EmitFastNewFunctionContext(Node* closure, Node* slots, Node* context,
                                    ScopeType scope_type);
 
-  Node* EmitFastCloneRegExp(Node* closure, Node* literal_index, Node* pattern,
-                            Node* flags, Node* context);
-  Node* EmitFastCloneShallowArray(Node* closure, Node* literal_index,
-                                  Node* context, Label* call_runtime,
-                                  AllocationSiteMode allocation_site_mode);
+  Node* EmitCreateRegExpLiteral(Node* feedback_vector, Node* slot,
+                                Node* pattern, Node* flags, Node* context);
+  Node* EmitCreateShallowArrayLiteral(Node* feedback_vector, Node* slot,
+                                      Node* context, Label* call_runtime,
+                                      AllocationSiteMode allocation_site_mode);
 
-  Node* EmitCreateEmptyArrayLiteral(Node* closure, Node* iteral_index,
+  Node* EmitCreateEmptyArrayLiteral(Node* feedback_vector, Node* slot,
                                     Node* context);
-  void CreateFastCloneShallowArrayBuiltin(
-      AllocationSiteMode allocation_site_mode);
 
-  Node* EmitFastCloneShallowObject(Label* call_runtime, Node* closure,
-                                   Node* literals_index);
+  Node* EmitCreateShallowObjectLiteral(Node* feedback_vector, Node* slot,
+                                       Label* call_runtime);
   Node* EmitCreateEmptyObjectLiteral(Node* context);
 
   Node* EmitFastNewObject(Node* context, Node* target, Node* new_target);
@@ -40,12 +38,10 @@ class ConstructorBuiltinsAssembler : public CodeStubAssembler {
   Node* EmitFastNewObject(Node* context, Node* target, Node* new_target,
                           Label* call_runtime);
 
- private:
-  Node* NonEmptyShallowClone(Node* boilerplate, Node* boilerplate_map,
-                             Node* boilerplate_elements, Node* allocation_site,
-                             Node* capacity, ElementsKind kind);
-  Node* CopyFixedArrayBase(Node* elements);
+  Node* EmitConstructString(Node* argc, CodeStubArguments& args, Node* context,
+                            bool convert_symbol);
 
+ private:
   Node* NotHasBoilerplate(Node* literal_site);
   Node* LoadAllocationSiteBoilerplate(Node* allocation_site);
 };

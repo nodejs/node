@@ -280,6 +280,8 @@
 #  define OPENSSL_add_all_algorithms_conf         OPENSSL_add_all_algo_conf
 #  undef EVP_PKEY_meth_set_verify_recover
 #  define EVP_PKEY_meth_set_verify_recover        EVP_PKEY_meth_set_vrfy_recover
+#  undef EVP_PKEY_meth_get_verify_recover
+#  define EVP_PKEY_meth_get_verify_recover        EVP_PKEY_meth_get_vrfy_recover
 
 /* Hack some long EC names */
 #  undef EC_GROUP_set_point_conversion_form

@@ -32,15 +32,15 @@ const errMsg = common.expectsError({
   code: 'ERR_INVALID_ARG_TYPE',
   type: TypeError,
   message: 'The "buf1", "buf2" arguments must be one of ' +
-             'type buffer or uint8Array'
+             'type Buffer or Uint8Array'
 }, 2);
 assert.throws(() => Buffer.compare(Buffer.alloc(1), 'abc'), errMsg);
 
 assert.throws(() => Buffer.compare('abc', Buffer.alloc(1)), errMsg);
 
-assert.throws(() => Buffer.alloc(1).compare('abc'), common.expectsError({
+common.expectsError(() => Buffer.alloc(1).compare('abc'), {
   code: 'ERR_INVALID_ARG_TYPE',
   type: TypeError,
   message: 'The "target" argument must be one of ' +
-           'type buffer or uint8Array. Received type string'
-}));
+           'type Buffer or Uint8Array. Received type string'
+});

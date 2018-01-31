@@ -2,7 +2,7 @@
 
 require('../common');
 
-const RuleTester = require('../../tools/eslint').RuleTester;
+const RuleTester = require('../../tools/node_modules/eslint').RuleTester;
 const rule = require('../../tools/eslint-rules/documented-errors');
 
 const invalidCode = 'UNDOCUMENTED ERROR CODE';

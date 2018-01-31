@@ -14,12 +14,15 @@
 #include "src/macro-assembler.h"
 #include "src/safepoint-table.h"
 #include "src/source-position-table.h"
-#include "src/trap-handler/trap-handler.h"
 
 namespace v8 {
 namespace internal {
 
 class CompilationInfo;
+
+namespace trap_handler {
+struct ProtectedInstructionData;
+}  // namespace trap_handler
 
 namespace compiler {
 
@@ -67,9 +70,7 @@ class DeoptimizationLiteral {
            bit_cast<uint64_t>(number_) == bit_cast<uint64_t>(other.number_);
   }
 
-  Handle<Object> Reify(Isolate* isolate) const {
-    return object_.is_null() ? isolate->factory()->NewNumber(number_) : object_;
-  }
+  Handle<Object> Reify(Isolate* isolate) const;
 
  private:
   Handle<Object> object_;
@@ -81,9 +82,11 @@ class CodeGenerator final : public GapResolver::Assembler {
  public:
   explicit CodeGenerator(Zone* codegen_zone, Frame* frame, Linkage* linkage,
                          InstructionSequence* code, CompilationInfo* info,
-                         base::Optional<OsrHelper> osr_helper,
+                         Isolate* isolate, base::Optional<OsrHelper> osr_helper,
                          int start_source_position,
-                         JumpOptimizationInfo* jump_opt);
+                         JumpOptimizationInfo* jump_opt,
+                         std::vector<trap_handler::ProtectedInstructionData>*
+                             protected_instructions);
 
   // Generate native code. After calling AssembleCode, call FinalizeCode to
   // produce the actual code object. If an error occurs during either phase,
@@ -91,13 +94,19 @@ class CodeGenerator final : public GapResolver::Assembler {
   void AssembleCode();  // Does not need to run on main thread.
   Handle<Code> FinalizeCode();
 
+  Handle<ByteArray> GetSourcePositionTable();
+  MaybeHandle<HandlerTable> GetHandlerTable() const;
+
   InstructionSequence* code() const { return code_; }
   FrameAccessState* frame_access_state() const { return frame_access_state_; }
   const Frame* frame() const { return frame_access_state_->frame(); }
-  Isolate* isolate() const;
+  Isolate* isolate() const { return isolate_; }
   Linkage* linkage() const { return linkage_; }
 
   Label* GetLabel(RpoNumber rpo) { return &labels_[rpo.ToSize()]; }
+
+  void AddProtectedInstructionLanding(uint32_t instr_offset,
+                                      uint32_t landing_offset);
 
   SourcePosition start_source_position() const {
     return start_source_position_;
@@ -111,9 +120,10 @@ class CodeGenerator final : public GapResolver::Assembler {
                        int arguments, Safepoint::DeoptMode deopt_mode);
 
   Zone* zone() const { return zone_; }
+  TurboAssembler* tasm() { return &tasm_; }
+  size_t GetSafepointTableOffset() const { return safepoints_.GetCodeOffset(); }
 
  private:
-  TurboAssembler* tasm() { return &tasm_; }
   GapResolver* resolver() { return &resolver_; }
   SafepointTableBuilder* safepoints() { return &safepoints_; }
   CompilationInfo* info() const { return info_; }
@@ -157,15 +167,23 @@ class CodeGenerator final : public GapResolver::Assembler {
   // ============= Architecture-specific code generation methods. ==============
   // ===========================================================================
 
-  CodeGenResult FinalizeAssembleDeoptimizerCall(Address deoptimization_entry);
-
   CodeGenResult AssembleArchInstruction(Instruction* instr);
   void AssembleArchJump(RpoNumber target);
   void AssembleArchBranch(Instruction* instr, BranchInfo* branch);
+
+  // Generates special branch for deoptimization condition.
+  void AssembleArchDeoptBranch(Instruction* instr, BranchInfo* branch);
+
   void AssembleArchBoolean(Instruction* instr, FlagsCondition condition);
   void AssembleArchTrap(Instruction* instr, FlagsCondition condition);
   void AssembleArchLookupSwitch(Instruction* instr);
   void AssembleArchTableSwitch(Instruction* instr);
+
+  // When entering a code that is marked for deoptimization, rather continuing
+  // with its execution, we jump to a lazy compiled code. We need to do this
+  // because this code has already been deoptimized and needs to be unlinked
+  // from the JS functions referring it.
+  void BailoutIfDeoptimized();
 
   // Generates an architecture-specific, descriptor-specific prologue
   // to set up a stack frame.
@@ -246,7 +264,7 @@ class CodeGenerator final : public GapResolver::Assembler {
   // ===========================================================================
 
   void RecordCallPosition(Instruction* instr);
-  void PopulateDeoptimizationData(Handle<Code> code);
+  Handle<DeoptimizationData> GenerateDeoptimizationData();
   int DefineDeoptimizationLiteral(DeoptimizationLiteral literal);
   DeoptimizationEntry const& GetDeoptimizationEntry(Instruction* instr,
                                                     size_t frame_state_offset);
@@ -308,6 +326,7 @@ class CodeGenerator final : public GapResolver::Assembler {
   friend class CodeGeneratorTester;
 
   Zone* zone_;
+  Isolate* isolate_;
   FrameAccessState* frame_access_state_;
   Linkage* const linkage_;
   InstructionSequence* const code_;
@@ -328,12 +347,26 @@ class CodeGenerator final : public GapResolver::Assembler {
   size_t inlined_function_count_;
   TranslationBuffer translations_;
   int last_lazy_deopt_pc_;
+
+  // kArchCallCFunction could be reached either:
+  //   kArchCallCFunction;
+  // or:
+  //   kArchSaveCallerRegisters;
+  //   kArchCallCFunction;
+  //   kArchRestoreCallerRegisters;
+  // The boolean is used to distinguish the two cases. In the latter case, we
+  // also need to decide if FP registers need to be saved, which is controlled
+  // by fp_mode_.
+  bool caller_registers_saved_;
+  SaveFPRegsMode fp_mode_;
+
   JumpTable* jump_tables_;
   OutOfLineCode* ools_;
   base::Optional<OsrHelper> osr_helper_;
   int osr_pc_offset_;
   int optimized_out_literal_id_;
   SourcePositionTableBuilder source_position_table_builder_;
+  std::vector<trap_handler::ProtectedInstructionData>* protected_instructions_;
   CodeGenResult result_;
 };
 

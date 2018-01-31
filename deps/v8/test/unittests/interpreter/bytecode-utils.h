@@ -27,7 +27,6 @@
 #endif
 
 #define U8(i) static_cast<uint8_t>(i)
-#define B(Name) static_cast<uint8_t>(Bytecode::k##Name)
 #define REG_OPERAND(i) \
   (InterpreterFrameConstants::kRegisterFileFromFp / kPointerSize - (i))
 #define R8(i) static_cast<uint8_t>(REG_OPERAND(i))

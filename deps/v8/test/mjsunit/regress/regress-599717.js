@@ -15,7 +15,7 @@ function __f_61(stdlib, foreign, buffer) {
 }
 var ok = false;
 try {
-  var __v_12 = new ArrayBuffer(2147483648);
+  var __v_12 = new ArrayBuffer(1 << 30);
   ok = true;
 } catch (e) {
   // Can happen on 32 bit systems.

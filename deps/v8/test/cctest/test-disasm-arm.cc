@@ -40,7 +40,8 @@
 #include "src/v8.h"
 #include "test/cctest/cctest.h"
 
-using namespace v8::internal;
+namespace v8 {
+namespace internal {
 
 template <typename... S>
 bool DisassembleAndCompare(byte* begin, S... expected_strings) {
@@ -70,6 +71,12 @@ bool DisassembleAndCompare(byte* begin, S... expected_strings) {
               expected_disassembly[i].c_str(), disassembly[i].c_str());
       test_passed = false;
     }
+  }
+
+  // Fail after printing expected disassembly if we expected a different number
+  // of instructions.
+  if (disassembly.size() != expected_disassembly.size()) {
+    return false;
   }
 
   return test_passed;
@@ -1577,3 +1584,36 @@ TEST(LoadStoreExclusive) {
 
   VERIFY_RUN();
 }
+
+TEST(SplitAddImmediate) {
+  SET_UP();
+
+  // Re-use the destination as a scratch.
+  COMPARE(add(r0, r1, Operand(0x12345678)),
+          "e3050678       movw r0, #22136",
+          "e3410234       movt r0, #4660",
+          "e0810000       add r0, r1, r0");
+
+  // Use ip as a scratch.
+  COMPARE(add(r0, r0, Operand(0x12345678)),
+          "e305c678       movw ip, #22136",
+          "e341c234       movt ip, #4660",
+          "e080000c       add r0, r0, ip");
+
+  // If ip is not available, split the operation into multiple additions.
+  {
+    UseScratchRegisterScope temps(&assm);
+    Register reserved = temps.Acquire();
+    USE(reserved);
+    COMPARE(add(r2, r2, Operand(0x12345678)),
+            "e2822f9e       add r2, r2, #632",
+            "e2822b15       add r2, r2, #21504",
+            "e282278d       add r2, r2, #36962304",
+            "e2822201       add r2, r2, #268435456");
+  }
+
+  VERIFY_RUN();
+}
+
+}  // namespace internal
+}  // namespace v8

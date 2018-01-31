@@ -20,6 +20,7 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include "node.h"
+#include "node_internals.h"
 #include "env-inl.h"
 #include "util-inl.h"
 #include "v8.h"
@@ -200,4 +201,4 @@ void InitializeV8Bindings(Local<Object> target,
 
 }  // namespace node
 
-NODE_MODULE_CONTEXT_AWARE_BUILTIN(v8, node::InitializeV8Bindings)
+NODE_BUILTIN_MODULE_CONTEXT_AWARE(v8, node::InitializeV8Bindings)

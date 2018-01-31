@@ -100,19 +100,6 @@ ListHead<T, M>::~ListHead() {
 }
 
 template <typename T, ListNode<T> (T::*M)>
-void ListHead<T, M>::MoveBack(ListHead* that) {
-  if (IsEmpty())
-    return;
-  ListNode<T>* to = &that->head_;
-  head_.next_->prev_ = to->prev_;
-  to->prev_->next_ = head_.next_;
-  head_.prev_->next_ = to;
-  to->prev_ = head_.prev_;
-  head_.prev_ = &head_;
-  head_.next_ = &head_;
-}
-
-template <typename T, ListNode<T> (T::*M)>
 void ListHead<T, M>::PushBack(T* element) {
   ListNode<T>* that = &(element->*M);
   head_.prev_->next_ = that;
@@ -155,12 +142,16 @@ typename ListHead<T, M>::Iterator ListHead<T, M>::end() const {
 }
 
 template <typename Inner, typename Outer>
+constexpr uintptr_t OffsetOf(Inner Outer::*field) {
+  return reinterpret_cast<uintptr_t>(&(static_cast<Outer*>(0)->*field));
+}
+
+template <typename Inner, typename Outer>
 ContainerOfHelper<Inner, Outer>::ContainerOfHelper(Inner Outer::*field,
                                                    Inner* pointer)
-    : pointer_(reinterpret_cast<Outer*>(
-          reinterpret_cast<uintptr_t>(pointer) -
-          reinterpret_cast<uintptr_t>(&(static_cast<Outer*>(0)->*field)))) {
-}
+    : pointer_(
+        reinterpret_cast<Outer*>(
+            reinterpret_cast<uintptr_t>(pointer) - OffsetOf(field))) {}
 
 template <typename Inner, typename Outer>
 template <typename TypeName>

@@ -127,8 +127,7 @@ class Utf16 {
   }
 };
 
-
-class Utf8 {
+class V8_EXPORT_PRIVATE Utf8 {
  public:
   static inline uchar Length(uchar chr, int previous);
   static inline unsigned EncodeOneByte(char* out, uint8_t c);
@@ -194,9 +193,14 @@ struct V8_EXPORT_PRIVATE WhiteSpace {
   static bool Is(uchar c);
 };
 #endif  // !V8_INTL_SUPPORT
-struct V8_EXPORT_PRIVATE LineTerminator {
-  static bool Is(uchar c);
-};
+
+// LineTerminator:       'JS_Line_Terminator' in point.properties
+// ES#sec-line-terminators lists exactly 4 code points:
+// LF (U+000A), CR (U+000D), LS(U+2028), PS(U+2029)
+V8_INLINE bool IsLineTerminator(uchar c) {
+  return c == 0x000A || c == 0x000D || c == 0x2028 || c == 0x2029;
+}
+
 #ifndef V8_INTL_SUPPORT
 struct ToLowercase {
   static const int kMaxWidth = 3;

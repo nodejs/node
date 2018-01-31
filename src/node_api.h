@@ -14,6 +14,8 @@
 #include <stdbool.h>
 #include "node_api_types.h"
 
+struct uv_loop_s;  // Forward declaration.
+
 #ifdef _WIN32
   #ifdef BUILDING_NODE_EXTENSION
     #ifdef EXTERNAL_NAPI
@@ -98,7 +100,7 @@ typedef struct {
   EXTERN_C_END
 
 #define NAPI_MODULE(modname, regfunc) \
-  NAPI_MODULE_X(modname, regfunc, NULL, 0)
+  NAPI_MODULE_X(modname, regfunc, NULL, 0)  // NOLINT (readability/null_usage)
 
 #define NAPI_AUTO_LENGTH SIZE_MAX
 
@@ -175,7 +177,7 @@ NAPI_EXTERN napi_status napi_create_range_error(napi_env env,
                                                 napi_value msg,
                                                 napi_value* result);
 
-// Methods to get the the native napi_value from Primitive type
+// Methods to get the native napi_value from Primitive type
 NAPI_EXTERN napi_status napi_typeof(napi_env env,
                                     napi_value value,
                                     napi_valuetype* result);
@@ -580,6 +582,10 @@ NAPI_EXTERN napi_status napi_adjust_external_memory(napi_env env,
 NAPI_EXTERN napi_status napi_run_script(napi_env env,
                                         napi_value script,
                                         napi_value* result);
+
+// Return the current libuv event loop for a given environment
+NAPI_EXTERN napi_status napi_get_uv_event_loop(napi_env env,
+                                               struct uv_loop_s** loop);
 
 EXTERN_C_END
 

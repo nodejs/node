@@ -25,7 +25,7 @@
 #include "handle_wrap.h"
 #include "node_buffer.h"
 #include "node_wrap.h"
-#include "req-wrap-inl.h"
+#include "req_wrap-inl.h"
 #include "stream_wrap.h"
 #include "util-inl.h"
 
@@ -153,12 +153,11 @@ void TTYWrap::New(const FunctionCallbackInfo<Value>& args) {
   CHECK_GE(fd, 0);
 
   int err = 0;
-  TTYWrap* wrap = new TTYWrap(env, args.This(), fd, args[1]->IsTrue(), &err);
+  new TTYWrap(env, args.This(), fd, args[1]->IsTrue(), &err);
   if (err != 0) {
     env->CollectUVExceptionInfo(args[2], err, "uv_tty_init");
     args.GetReturnValue().SetUndefined();
   }
-  wrap->UpdateWriteQueueSize();
 }
 
 
@@ -176,4 +175,4 @@ TTYWrap::TTYWrap(Environment* env,
 
 }  // namespace node
 
-NODE_MODULE_CONTEXT_AWARE_BUILTIN(tty_wrap, node::TTYWrap::Initialize)
+NODE_BUILTIN_MODULE_CONTEXT_AWARE(tty_wrap, node::TTYWrap::Initialize)

@@ -41,13 +41,13 @@ from testrunner.objects import testcase
 
 # TODO(littledan): move the flag mapping into the status file
 FEATURE_FLAGS = {
-  'object-rest': '--harmony-object-rest-spread',
-  'object-spread': '--harmony-object-rest-spread',
   'async-iteration': '--harmony-async-iteration',
   'regexp-named-groups': '--harmony-regexp-named-captures',
   'regexp-unicode-property-escapes': '--harmony-regexp-property',
-  'regexp-lookbehind': '--harmony-regexp-lookbehind',
+  'Promise.prototype.finally': '--harmony-promise-finally',
 }
+
+SKIPPED_FEATURES = set(['BigInt', 'class-fields', 'optional-catch-binding'])
 
 DATA = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
 ARCHIVE = DATA + ".tar"
@@ -102,7 +102,8 @@ FAST_VARIANTS = {
 
 class Test262VariantGenerator(testsuite.VariantGenerator):
   def GetFlagSets(self, testcase, variant):
-    if testcase.outcomes and statusfile.OnlyFastVariants(testcase.outcomes):
+    outcomes = testcase.suite.GetStatusFileOutcomes(testcase)
+    if outcomes and statusfile.OnlyFastVariants(outcomes):
       variant_flags = FAST_VARIANTS
     else:
       variant_flags = ALL_VARIANTS
@@ -130,7 +131,6 @@ class Test262TestSuite(testsuite.TestSuite):
     self.ParseTestRecord = None
 
   def ListTests(self, context):
-    tests = []
     testnames = set()
     for dirname, dirs, files in itertools.chain(os.walk(self.testroot),
                                                 os.walk(self.localtestroot)):
@@ -148,24 +148,32 @@ class Test262TestSuite(testsuite.TestSuite):
         fullpath = os.path.join(dirname, filename)
         relpath = re.match(TEST_262_RELPATH_REGEXP, fullpath).group(1)
         testnames.add(relpath.replace(os.path.sep, "/"))
-    return [testcase.TestCase(self, testname) for testname in testnames]
+    cases = [testcase.TestCase(self, testname) for testname in testnames]
+    return [case for case in cases if len(
+                SKIPPED_FEATURES.intersection(
+                    self.GetTestRecord(case).get("features", []))) == 0]
 
-  def GetFlagsForTestCase(self, testcase, context):
-    return (testcase.flags + context.mode_flags + self.harness +
-            ([os.path.join(self.root, "harness-agent.js")]
-             if testcase.path.startswith('built-ins/Atomics') else []) +
-            self.GetIncludesForTest(testcase) +
-            (["--module"] if "module" in self.GetTestRecord(testcase) else []) +
-            [self.GetPathForTest(testcase)] +
-            (["--throws"] if "negative" in self.GetTestRecord(testcase)
-                          else []) +
-            (["--allow-natives-syntax"]
-             if "detachArrayBuffer.js" in
-                self.GetTestRecord(testcase).get("includes", [])
-             else []) +
-            ([flag for flag in testcase.outcomes if flag.startswith("--")]) +
-            ([flag for (feature, flag) in FEATURE_FLAGS.items()
-              if feature in self.GetTestRecord(testcase).get("features", [])]))
+  def GetParametersForTestCase(self, testcase, context):
+    files = (
+        list(self.harness) +
+        ([os.path.join(self.root, "harness-agent.js")]
+         if testcase.path.startswith('built-ins/Atomics') else []) +
+        self.GetIncludesForTest(testcase) +
+        (["--module"] if "module" in self.GetTestRecord(testcase) else []) +
+        [self.GetPathForTest(testcase)]
+    )
+    flags = (
+        testcase.flags + context.mode_flags +
+        (["--throws"] if "negative" in self.GetTestRecord(testcase)
+                      else []) +
+        (["--allow-natives-syntax"]
+         if "detachArrayBuffer.js" in
+            self.GetTestRecord(testcase).get("includes", [])
+         else []) +
+        ([flag for (feature, flag) in FEATURE_FLAGS.items()
+          if feature in self.GetTestRecord(testcase).get("features", [])])
+    )
+    return files, flags, {}
 
   def _VariantGeneratorFactory(self):
     return Test262VariantGenerator
@@ -198,12 +206,8 @@ class Test262TestSuite(testsuite.TestSuite):
 
   def GetIncludesForTest(self, testcase):
     test_record = self.GetTestRecord(testcase)
-    if "includes" in test_record:
-      return [os.path.join(self.BasePath(filename), filename)
-              for filename in test_record.get("includes", [])]
-    else:
-      includes = []
-    return includes
+    return [os.path.join(self.BasePath(filename), filename)
+            for filename in test_record.get("includes", [])]
 
   def GetPathForTest(self, testcase):
     filename = os.path.join(self.localtestroot, testcase.path + ".js")
@@ -238,15 +242,12 @@ class Test262TestSuite(testsuite.TestSuite):
         return True
     return "FAILED!" in output.stdout
 
-  def HasUnexpectedOutput(self, testcase):
-    outcome = self.GetOutcome(testcase)
-    if (statusfile.FAIL_SLOPPY in testcase.outcomes and
-        "--use-strict" not in testcase.flags):
-      return outcome != statusfile.FAIL
-    return not outcome in ([outcome for outcome in testcase.outcomes
-                                    if not outcome.startswith('--')
-                                       and outcome != statusfile.FAIL_SLOPPY]
-                           or [statusfile.PASS])
+  def GetExpectedOutcomes(self, testcase):
+    outcomes = self.GetStatusFileOutcomes(testcase)
+    if (statusfile.FAIL_SLOPPY in outcomes and
+        '--use-strict' not in testcase.flags):
+      return [statusfile.FAIL]
+    return super(Test262TestSuite, self).GetExpectedOutcomes(testcase)
 
   def PrepareSources(self):
     # The archive is created only on swarming. Local checkouts have the

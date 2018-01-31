@@ -1,4 +1,5 @@
 'use strict';
+// Flags: --expose-internals
 
 const common = require('../common');
 if (!common.hasCrypto)
@@ -6,29 +7,17 @@ if (!common.hasCrypto)
 const http2 = require('http2');
 const {
   constants,
-  Http2Session,
+  Http2Stream,
   nghttp2ErrorString
 } = process.binding('http2');
+const { NghttpError } = require('internal/http2/util');
 
 // tests error handling within respond
-// - NGHTTP2_ERR_NOMEM (should emit session error)
 // - every other NGHTTP2 error from binding (should emit stream error)
 
-const specificTestKeys = [
-  'NGHTTP2_ERR_NOMEM'
-];
+const specificTestKeys = [];
 
-const specificTests = [
-  {
-    ngError: constants.NGHTTP2_ERR_NOMEM,
-    error: {
-      code: 'ERR_OUTOFMEMORY',
-      type: Error,
-      message: 'Out of memory'
-    },
-    type: 'session'
-  }
-];
+const specificTests = [];
 
 const genericTests = Object.getOwnPropertyNames(constants)
   .filter((key) => (
@@ -38,7 +27,8 @@ const genericTests = Object.getOwnPropertyNames(constants)
     ngError: constants[key],
     error: {
       code: 'ERR_HTTP2_ERROR',
-      type: Error,
+      type: NghttpError,
+      name: 'Error [ERR_HTTP2_ERROR]',
       message: nghttp2ErrorString(constants[key])
     },
     type: 'stream'
@@ -50,7 +40,7 @@ const tests = specificTests.concat(genericTests);
 let currentError;
 
 // mock submitResponse because we only care about testing error handling
-Http2Session.prototype.submitResponse = () => currentError.ngError;
+Http2Stream.prototype.respond = () => currentError.ngError;
 
 const server = http2.createServer();
 server.on('stream', common.mustCall((stream, headers) => {
@@ -87,13 +77,18 @@ function runTest(test) {
 
   const client = http2.connect(url);
   const req = client.request(headers);
+  req.on('error', common.expectsError({
+    code: 'ERR_HTTP2_STREAM_ERROR',
+    type: Error,
+    message: 'Stream closed with error code 2'
+  }));
 
   currentError = test;
   req.resume();
   req.end();
 
   req.on('end', common.mustCall(() => {
-    client.destroy();
+    client.close();
 
     if (!tests.length) {
       server.close();

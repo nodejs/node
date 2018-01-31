@@ -33,8 +33,7 @@ V8_DECLARE_ONCE(init_natives_once);
 V8_DECLARE_ONCE(init_snapshot_once);
 #endif
 
-v8::Platform* V8::platform_ = NULL;
-
+v8::Platform* V8::platform_ = nullptr;
 
 bool V8::Initialize() {
   InitializeOncePerProcess();
@@ -97,7 +96,7 @@ void V8::ShutdownPlatform() {
   CHECK(platform_);
   v8::tracing::TracingCategoryObserver::TearDown();
   v8::base::SetPrintStackTrace(nullptr);
-  platform_ = NULL;
+  platform_ = nullptr;
 }
 
 

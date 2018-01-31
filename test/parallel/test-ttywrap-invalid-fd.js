@@ -1,7 +1,10 @@
 'use strict';
+// Flags: --expose-internals
+
 const common = require('../common');
 const fs = require('fs');
 const tty = require('tty');
+const { SystemError } = require('internal/errors');
 
 common.expectsError(
   () => new tty.WriteStream(-1),
@@ -27,7 +30,7 @@ common.expectsError(
       new tty.WriteStream(fd);
     }, {
       code: 'ERR_SYSTEM_ERROR',
-      type: Error,
+      type: SystemError,
       message
     }
   );
@@ -42,7 +45,7 @@ common.expectsError(
       new tty.ReadStream(fd);
     }, {
       code: 'ERR_SYSTEM_ERROR',
-      type: Error,
+      type: SystemError,
       message
     });
 }

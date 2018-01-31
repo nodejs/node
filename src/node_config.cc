@@ -88,6 +88,9 @@ static void InitConfig(Local<Object> target,
   if (config_expose_internals)
     READONLY_BOOLEAN_PROPERTY("exposeInternals");
 
+  if (env->abort_on_uncaught_exception())
+    READONLY_BOOLEAN_PROPERTY("shouldAbortOnUncaughtException");
+
   READONLY_PROPERTY(target,
                     "bits",
                     Number::New(env->isolate(), 8 * sizeof(intptr_t)));
@@ -132,4 +135,4 @@ static void InitConfig(Local<Object> target,
 
 }  // namespace node
 
-NODE_MODULE_CONTEXT_AWARE_BUILTIN(config, node::InitConfig)
+NODE_BUILTIN_MODULE_CONTEXT_AWARE(config, node::InitConfig)

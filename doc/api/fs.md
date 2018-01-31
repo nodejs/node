@@ -6,20 +6,23 @@
 
 <!--name=fs-->
 
-File I/O is provided by simple wrappers around standard POSIX functions.  To
-use this module do `require('fs')`. All the methods have asynchronous and
-synchronous forms.
+The `fs` module provides an API for interacting with the file system in a
+manner closely modeled around standard POSIX functions.
+
+To use this module:
+
+```js
+const fs = require('fs');
+```
+
+All file system operations have synchronous and asynchronous forms.
 
 The asynchronous form always takes a completion callback as its last argument.
 The arguments passed to the completion callback depend on the method, but the
 first argument is always reserved for an exception. If the operation was
 completed successfully, then the first argument will be `null` or `undefined`.
 
-When using the synchronous form any exceptions are immediately thrown.
-Exceptions may be handled using `try`/`catch`, or they may be allowed to
-bubble up.
-
-Here is an example of the asynchronous version:
+For example:
 
 ```js
 const fs = require('fs');
@@ -30,17 +33,25 @@ fs.unlink('/tmp/hello', (err) => {
 });
 ```
 
-Here is the synchronous version:
+Exceptions that occur using synchronous operations are thrown immediately and
+may be handled using `try`/`catch`, or may be allowed to bubble up.
+
+For example:
 
 ```js
 const fs = require('fs');
 
-fs.unlinkSync('/tmp/hello');
-console.log('successfully deleted /tmp/hello');
+try {
+  fs.unlinkSync('/tmp/hello');
+  console.log('successfully deleted /tmp/hello');
+} catch (err) {
+  // handle the error
+}
 ```
 
-With the asynchronous methods there is no guaranteed ordering. So the
-following is prone to error:
+Note that there is no guaranteed ordering when using asynchronous methods.
+So the following is prone to error because the `fs.stat()` operation may
+complete before the `fs.rename()` operation.
 
 ```js
 fs.rename('/tmp/hello', '/tmp/world', (err) => {
@@ -53,8 +64,8 @@ fs.stat('/tmp/world', (err, stats) => {
 });
 ```
 
-It could be that `fs.stat` is executed before `fs.rename`.
-The correct way to do this is to chain the callbacks.
+To correctly order the operations, move the `fs.stat()` call into the callback
+of the `fs.rename()` operation:
 
 ```js
 fs.rename('/tmp/hello', '/tmp/world', (err) => {
@@ -69,9 +80,6 @@ fs.rename('/tmp/hello', '/tmp/world', (err) => {
 In busy processes, the programmer is _strongly encouraged_ to use the
 asynchronous versions of these calls. The synchronous versions will block
 the entire process until they complete--halting all connections.
-
-The relative path to a filename can be used. Remember, however, that this path
-will be relative to `process.cwd()`.
 
 While it is not recommended, most fs functions allow the callback argument to
 be omitted, in which case a default callback is used that rethrows errors. To
@@ -96,25 +104,63 @@ Error: EISDIR: illegal operation on a directory, read
     <stack trace.>
 ```
 
+## File paths
+
+Most `fs` operations accept filepaths that may be specified in the form of
+a string, a [`Buffer`][], or a [`URL`][] object using the `file:` protocol.
+
+String form paths are interpreted as UTF-8 character sequences identifying
+the absolute or relative filename. Relative paths will be resolved relative
+to the current working directory as specified by `process.cwd()`.
+
+Example using an absolute path on POSIX:
+
+```js
+const fs = require('fs');
+
+fs.open('/open/some/file.txt', 'r', (err, fd) => {
+  if (err) throw err;
+  fs.close(fd, (err) => {
+    if (err) throw err;
+  });
+});
+```
+
+Example using a relative path on POSIX (relative to `process.cwd()`):
+
+```js
+fs.open('file.txt', 'r', (err, fd) => {
+  if (err) throw err;
+  fs.close(fd, (err) => {
+    if (err) throw err;
+  });
+});
+```
+
+Paths specified using a [`Buffer`][] are useful primarily on certain POSIX
+operating systems that treat file paths as opaque byte sequences. On such
+systems, it is possible for a single file path to contain sub-sequences that
+use multiple character encodings. As with string paths, `Buffer` paths may
+be relative or absolute:
+
+Example using an absolute path on POSIX:
+
+```js
+fs.open(Buffer.from('/open/some/file.txt'), 'r', (err, fd) => {
+  if (err) throw err;
+  fs.close(fd, (err) => {
+    if (err) throw err;
+  });
+});
+```
+
 *Note:* On Windows Node.js follows the concept of per-drive working directory.
 This behavior can be observed when using a drive path without a backslash. For
 example `fs.readdirSync('c:\\')` can potentially return a different result than
 `fs.readdirSync('c:')`. For more information, see
 [this MSDN page][MSDN-Rel-Path].
 
-*Note:* On Windows, opening an existing hidden file using the `w` flag (either
-through `fs.open` or `fs.writeFile`) will fail with `EPERM`. Existing hidden
-files can be opened for writing with the `r+` flag. A call to `fs.ftruncate` can
-be used to reset the file contents.
-
-## Threadpool Usage
-
-Note that all file system APIs except `fs.FSWatcher()` and those that are
-explicitly synchronous use libuv's threadpool, which can have surprising and
-negative performance implications for some applications, see the
-[`UV_THREADPOOL_SIZE`][] documentation for more information.
-
-## WHATWG URL object support
+### URL object support
 <!-- YAML
 added: v7.6.0
 -->
@@ -203,39 +249,65 @@ fs.readFileSync(new URL('file:///C:/path/%5c'));
 \ or / characters */
 ```
 
-## Buffer API
-<!-- YAML
-added: v6.0.0
--->
+## File Descriptors
 
-`fs` functions support passing and receiving paths as both strings
-and Buffers. The latter is intended to make it possible to work with
-filesystems that allow for non-UTF-8 filenames. For most typical
-uses, working with paths as Buffers will be unnecessary, as the string
-API converts to and from UTF-8 automatically.
+On POSIX systems, for every process, the kernel maintains a table of currently
+open files and resources. Each open file is assigned a simple numeric
+identifier called a *file descriptor*. At the system-level, all file system
+operations use these file descriptors to identify and track each specific
+file. Windows systems use a different but conceptually similar mechanism for
+tracking resources. To simplify things for users, Node.js abstracts away the
+specific differences between operating systems and assigns all open files a
+numeric file descriptor.
 
-*Note*: On certain file systems (such as NTFS and HFS+) filenames
-will always be encoded as UTF-8. On such file systems, passing
-non-UTF-8 encoded Buffers to `fs` functions will not work as expected.
+The `fs.open()` method is used to allocate a new file descriptor. Once
+allocated, the file descriptor may be used to read data from, write data to,
+or request information about the file.
+
+```js
+fs.open('/open/some/file.txt', 'r', (err, fd) => {
+  if (err) throw err;
+  fs.fstat(fd, (err, stat) => {
+    if (err) throw err;
+    // use stat
+
+    // always close the file descriptor!
+    fs.close(fd, (err) => {
+      if (err) throw err;
+    });
+  });
+});
+```
+
+Most operating systems limit the number of file descriptors that may be open
+at any given time so it is critical to close the descriptor when operations
+are completed. Failure to do so will result in a memory leak that will
+eventually cause an application to crash.
+
+## Threadpool Usage
+
+Note that all file system APIs except `fs.FSWatcher()` and those that are
+explicitly synchronous use libuv's threadpool, which can have surprising and
+negative performance implications for some applications, see the
+[`UV_THREADPOOL_SIZE`][] documentation for more information.
 
 ## Class: fs.FSWatcher
 <!-- YAML
 added: v0.5.8
 -->
 
-Objects returned from [`fs.watch()`][] are of this type.
+A successful call to [`fs.watch()`][] method will return a new `fs.FSWatcher`
+object.
 
-The `listener` callback provided to `fs.watch()` receives the returned FSWatcher's
-`change` events.
-
-The object itself emits these events:
+All `fs.FSWatcher` objects are [`EventEmitter`][]'s that will emit a `'change'`
+event whenever a specific watched file is modified.
 
 ### Event: 'change'
 <!-- YAML
 added: v0.5.8
 -->
 
-* `eventType` {string} The type of fs change
+* `eventType` {string} The type of change event that has occurred
 * `filename` {string|Buffer} The filename that changed (if relevant/available)
 
 Emitted when something changes in a watched directory or file.
@@ -244,7 +316,7 @@ See more details in [`fs.watch()`][].
 The `filename` argument may not be provided depending on operating system
 support. If `filename` is provided, it will be provided as a `Buffer` if
 `fs.watch()` is called with its `encoding` option set to `'buffer'`, otherwise
-`filename` will be a string.
+`filename` will be a UTF-8 string.
 
 ```js
 // Example when handled through fs.watch listener
@@ -263,28 +335,32 @@ added: v0.5.8
 
 * `error` {Error}
 
-Emitted when an error occurs.
+Emitted when an error occurs while watching the file.
 
 ### watcher.close()
 <!-- YAML
 added: v0.5.8
 -->
 
-Stop watching for changes on the given `fs.FSWatcher`.
+Stop watching for changes on the given `fs.FSWatcher`. Once stopped, the
+`fs.FSWatcher` object is no longer usable.
 
 ## Class: fs.ReadStream
 <!-- YAML
 added: v0.1.93
 -->
 
-`ReadStream` is a [Readable Stream][].
+A successful call to `fs.createReadStream()` will return a new `fs.ReadStream`
+object.
+
+All `fs.ReadStream` objects are [Readable Streams][].
 
 ### Event: 'close'
 <!-- YAML
 added: v0.1.93
 -->
 
-Emitted when the `ReadStream`'s underlying file descriptor has been closed.
+Emitted when the `fs.ReadStream`'s underlying file descriptor has been closed.
 
 ### Event: 'open'
 <!-- YAML
@@ -293,19 +369,23 @@ added: v0.1.93
 
 * `fd` {integer} Integer file descriptor used by the ReadStream.
 
-Emitted when the ReadStream's file is opened.
+Emitted when the `fs.ReadStream`'s file descriptor has been opened.
 
 ### readStream.bytesRead
 <!-- YAML
 added: 6.4.0
 -->
 
-The number of bytes read so far.
+* Value: {number}
+
+The number of bytes that have been read so far.
 
 ### readStream.path
 <!-- YAML
 added: v0.1.93
 -->
+
+* Value: {string|Buffer}
 
 The path to the file the stream is reading from as specified in the first
 argument to `fs.createReadStream()`. If `path` is passed as a string, then
@@ -316,25 +396,17 @@ argument to `fs.createReadStream()`. If `path` is passed as a string, then
 <!-- YAML
 added: v0.1.21
 changes:
-  - version: v9.0.0
+  - version: v8.1.0
     pr-url: https://github.com/nodejs/node/pull/13173
     description: Added times as numbers.
 -->
 
+A `fs.Stats` object provides information about a file.
+
 Objects returned from [`fs.stat()`][], [`fs.lstat()`][] and [`fs.fstat()`][] and
 their synchronous counterparts are of this type.
 
- - `stats.isFile()`
- - `stats.isDirectory()`
- - `stats.isBlockDevice()`
- - `stats.isCharacterDevice()`
- - `stats.isSymbolicLink()` (only valid with [`fs.lstat()`][])
- - `stats.isFIFO()`
- - `stats.isSocket()`
-
-For a regular file [`util.inspect(stats)`][] would return a string very
-similar to this:
-
+For example:
 ```console
 Stats {
   dev: 2114,
@@ -357,15 +429,165 @@ Stats {
   birthtime: Mon, 10 Oct 2011 23:24:11 GMT }
 ```
 
+### stats.isBlockDevice()
+
+* Returns: {boolean}
+
+Returns `true` if the `fs.Stats` object describes a block device.
+
+### stats.isCharacterDevice()
+
+* Returns: {boolean}
+
+Returns `true` if the `fs.Stats` object describes a character device.
+
+### stats.isDirectory()
+
+* Returns: {boolean}
+
+Returns `true` if the `fs.Stats` object describes a file system directory.
+
+### stats.isFIFO()
+
+* Returns: {boolean}
+
+Returns `true` if the `fs.Stats` object describes a first-in-first-out (FIFO)
+pipe.
+
+### stats.isFile()
+
+* Returns: {boolean}
+
+Returns `true` if the `fs.Stats` object describes a regular file.
+
+### stats.isSocket()
+
+* Returns: {boolean}
+
+Returns `true` if the `fs.Stats` object describes a socket.
+
+### stats.isSymbolicLink()
+
+* Returns: {boolean}
+
+Returns `true` if the `fs.Stats` object describes a symbolic link.
+
+*Note*: This method is only valid when using [`fs.lstat()`][]
+
+### stats.dev
+
+* Value: {number}
+
+The numeric identifier of the device containing the file.
+
+### stats.ino
+
+* Value: {number}
+
+The file system specific "Inode" number for the file.
+
+### stats.mode
+
+* Value: {number}
+
+A bit-field describing the file type and mode.
+
+### stats.nlink
+
+* Value: {number}
+
+The number of hard-links that exist for the file.
+
+### stats.uid
+
+* Value: {number}
+
+The numeric user identifier of the user that owns the file (POSIX).
+
+### stats.gid
+
+* Value: {number}
+
+The numeric group identifier of the group that owns the file (POSIX).
+
+### stats.rdev
+
+* Value: {number}
+
+A numeric device identifier if the file is considered "special".
+
+### stats.blksize
+
+* Value: {number}
+
+The file system block size for i/o operations.
+
+### stats.blocks
+
+* Value: {number}
+
+The number of blocks allocated for this file.
+
+### stats.atimeMs
+
+* Value: {number}
+
+The timestamp indicating the last time this file was accessed expressed in
+milliseconds since the POSIX Epoch.
+
+### stats.mtimeMs
+
+* Value: {number}
+
+The timestamp indicating the last time this file was modified expressed in
+milliseconds since the POSIX Epoch.
+
+### stats.ctimeMs
+
+* Value: {number}
+
+The timestamp indicating the last time the file status was changed expressed
+in milliseconds since the POSIX Epoch.
+
+### stats.birthtimeMs
+
+* Value: {number}
+
+The timestamp indicating the creation time of this file expressed in
+milliseconds since the POSIX Epoch.
+
+### stats.atime
+
+* Value: {Date}
+
+The timestamp indicating the last time this file was accessed.
+
+### stats.mtime
+
+* Value: {Date}
+
+The timestamp indicating the last time this file was modified.
+
+### stats.ctime
+
+* Value: {Date}
+
+The timestamp indicating the last time the file status was changed.
+
+### stats.birthtime
+
+* Value: {Date}
+
+The timestamp indicating the creation time of this file.
+
+### Stat Time Values
+
 *Note*: `atimeMs`, `mtimeMs`, `ctimeMs`, `birthtimeMs` are [numbers][MDN-Number]
 that hold the corresponding times in milliseconds. Their precision is platform
 specific. `atime`, `mtime`, `ctime`, and `birthtime` are [`Date`][MDN-Date]
 object alternate representations of the various times. The `Date` and number
 values are not connected. Assigning a new number value, or mutating the `Date`
 value, will not be reflected in the corresponding alternate representation.
-
-
-### Stat Time Values
 
 The times in the stat object have the following semantics:
 
@@ -457,19 +679,19 @@ Tests a user's permissions for the file or directory specified by `path`.
 The `mode` argument is an optional integer that specifies the accessibility
 checks to be performed. The following constants define the possible values of
 `mode`. It is possible to create a mask consisting of the bitwise OR of two or
-more values.
+more values (e.g. `fs.constants.W_OK | fs.constants.R_OK`).
 
-- `fs.constants.F_OK` - `path` is visible to the calling process. This is useful
+* `fs.constants.F_OK` - `path` is visible to the calling process. This is useful
 for determining if a file exists, but says nothing about `rwx` permissions.
 Default if no `mode` is specified.
-- `fs.constants.R_OK` - `path` can be read by the calling process.
-- `fs.constants.W_OK` - `path` can be written by the calling process.
-- `fs.constants.X_OK` - `path` can be executed by the calling process. This has
+* `fs.constants.R_OK` - `path` can be read by the calling process.
+* `fs.constants.W_OK` - `path` can be written by the calling process.
+* `fs.constants.X_OK` - `path` can be executed by the calling process. This has
 no effect on Windows (will behave like `fs.constants.F_OK`).
 
 The final argument, `callback`, is a callback function that is invoked with
 a possible error argument. If any of the accessibility checks fail, the error
-argument will be populated. The following example checks if the file
+argument will be an `Error` object. The following example checks if the file
 `/etc/passwd` can be read and written by the current process.
 
 ```js
@@ -561,7 +783,7 @@ The "not recommended" examples above check for accessibility and then use the
 file; the "recommended" examples are better because they use the file directly
 and handle the error, if any.
 
-In general, check for the accessibility of a file only if the file won’t be
+In general, check for the accessibility of a file only if the file will not be
 used directly, for example when its accessibility is a signal from another
 process.
 
@@ -577,9 +799,33 @@ changes:
 
 * `path` {string|Buffer|URL}
 * `mode` {integer} **Default:** `fs.constants.F_OK`
+* Returns: `undefined`
 
-Synchronous version of [`fs.access()`][]. This throws if any accessibility
-checks fail, and does nothing otherwise.
+Synchronously tests a user's permissions for the file or directory specified by
+`path`. The `mode` argument is an optional integer that specifies the
+accessibility checks to be performed. The following constants define the
+possible values of `mode`. It is possible to create a mask consisting of the
+bitwise OR of two or more values (e.g. `fs.constants.W_OK | fs.constants.R_OK`).
+
+* `fs.constants.F_OK` - `path` is visible to the calling process. This is useful
+for determining if a file exists, but says nothing about `rwx` permissions.
+Default if no `mode` is specified.
+* `fs.constants.R_OK` - `path` can be read by the calling process.
+* `fs.constants.W_OK` - `path` can be written by the calling process.
+* `fs.constants.X_OK` - `path` can be executed by the calling process. This has
+no effect on Windows (will behave like `fs.constants.F_OK`).
+
+If any of the accessibility checks fail, an `Error` will be thrown. Otherwise,
+the method will return `undefined`.
+
+```js
+try {
+  fs.accessSync('etc/passwd', fs.constants.R_OK | fs.constants.W_OK);
+  console.log('can read/write');
+} catch (err) {
+  console.error('no access!');
+}
+```
 
 ## fs.appendFile(file, data[, options], callback)
 <!-- YAML
@@ -597,7 +843,7 @@ changes:
     description: The `file` parameter can be a file descriptor now.
 -->
 
-* `file` {string|Buffer|number} filename or file descriptor
+* `file` {string|Buffer|URL|number} filename or file descriptor
 * `data` {string|Buffer}
 * `options` {Object|string}
   * `encoding` {string|null} **Default:** `'utf8'`
@@ -606,8 +852,8 @@ changes:
 * `callback` {Function}
   * `err` {Error}
 
-Asynchronously append data to a file, creating the file if it does not yet exist.
-`data` can be a string or a buffer.
+Asynchronously append data to a file, creating the file if it does not yet
+exist. `data` can be a string or a [`Buffer`][].
 
 Example:
 
@@ -624,10 +870,21 @@ If `options` is a string, then it specifies the encoding. Example:
 fs.appendFile('message.txt', 'data to append', 'utf8', callback);
 ```
 
-Any specified file descriptor has to have been opened for appending.
+The `file` may be specified as a numeric file descriptor that has been opened
+for appending (using `fs.open()` or `fs.openSync()`). The file descriptor will
+not be closed automatically.
 
-*Note*: If a file descriptor is specified as the `file`, it will not be closed
-automatically.
+```js
+fs.open('message.txt', 'a', (err, fd) => {
+  if (err) throw err;
+  fs.appendFile(fd, 'data to append', 'utf8', (err) => {
+    fs.close(fd, (err) => {
+      if (err) throw err;
+    });
+    if (err) throw err;
+  });
+});
+```
 
 ## fs.appendFileSync(file, data[, options])
 <!-- YAML
@@ -641,14 +898,50 @@ changes:
     description: The `file` parameter can be a file descriptor now.
 -->
 
-* `file` {string|Buffer|number} filename or file descriptor
+* `file` {string|Buffer|URL|number} filename or file descriptor
 * `data` {string|Buffer}
 * `options` {Object|string}
   * `encoding` {string|null} **Default:** `'utf8'`
   * `mode` {integer} **Default:** `0o666`
   * `flag` {string} **Default:** `'a'`
 
-The synchronous version of [`fs.appendFile()`][]. Returns `undefined`.
+Synchronously append data to a file, creating the file if it does not yet
+exist. `data` can be a string or a [`Buffer`][].
+
+Example:
+
+```js
+try {
+  fs.appendFileSync('message.txt', 'data to append');
+  console.log('The "data to append" was appended to file!');
+} catch (err) {
+  /* Handle the error */
+}
+```
+
+If `options` is a string, then it specifies the encoding. Example:
+
+```js
+fs.appendFileSync('message.txt', 'data to append', 'utf8');
+```
+
+The `file` may be specified as a numeric file descriptor that has been opened
+for appending (using `fs.open()` or `fs.openSync()`). The file descriptor will
+not be closed automatically.
+
+```js
+let fd;
+
+try {
+  fd = fs.openSync('message.txt', 'a');
+  fs.appendFileSync(fd, 'data to append', 'utf8');
+} catch (err) {
+  /* Handle the error */
+} finally {
+  if (fd !== undefined)
+    fs.closeSync(fd);
+}
+```
 
 ## fs.chmod(path, mode, callback)
 <!-- YAML
@@ -669,8 +962,51 @@ changes:
 * `callback` {Function}
   * `err` {Error}
 
-Asynchronous chmod(2). No arguments other than a possible exception are given
-to the completion callback.
+Asynchronously changes the permissions of a file. No arguments other than a
+possible exception are given to the completion callback.
+
+See also: chmod(2)
+
+### File modes
+
+The `mode` argument used in both the `fs.chmod()` and `fs.chmodSync()`
+methods is a numeric bitmask created using a logical OR of the following
+constants:
+
+|       Constant         |  Octal  | Description              |
+| ---------------------- | ------- | ------------------------ |
+| `fs.constants.S_IRUSR` | `0o400` | read by owner            |
+| `fs.constants.S_IWUSR` | `0o200` | write by owner           |
+| `fs.constants.S_IXUSR` | `0o100` | execute/search by owner  |
+| `fs.constants.S_IRGRP` | `0o40`  | read by group            |
+| `fs.constants.S_IWGRP` | `0o20`  | write by group           |
+| `fs.constants.S_IXGRP` | `0o10`  | execute/search by group  |
+| `fs.constants.S_IROTH` | `0o4`   | read by others           |
+| `fs.constants.S_IWOTH` | `0o2`   | write by others          |
+| `fs.constants.S_IXOTH` | `0o1`   | execute/search by others |
+
+An easier method of constructing the `mode` is to use a sequence of three
+octal digits (e.g. `765`). The left-most digit (`7` in the example), specifies
+the permissions for the file owner. The middle digit (`6` in the example),
+specifies permissions for the group. The right-most digit (`5` in the example),
+specifies the permissions for others.
+
+| Number  |       Description        |
+| ------- | ------------------------ |
+|   `7`   | read, write, and execute |
+|   `6`   | read and write           |
+|   `5`   | read and execute         |
+|   `4`   | read only                |
+|   `3`   | write and execute        |
+|   `2`   | write only               |
+|   `1`   | execute only             |
+|   `0`   | no permission            |
+
+For example, the octal value `0o765` means:
+
+* The owner may read, write and execute the file.
+* The group may read and write the file.
+* Others may read and execute the file.
 
 ## fs.chmodSync(path, mode)
 <!-- YAML
@@ -685,7 +1021,10 @@ changes:
 * `path` {string|Buffer|URL}
 * `mode` {integer}
 
-Synchronous chmod(2). Returns `undefined`.
+Synchronously changes the permissions of a file. Returns `undefined`.
+This is the synchronous version of [`fs.chmod()`][].
+
+See also: chmod(2)
 
 ## fs.chown(path, uid, gid, callback)
 <!-- YAML
@@ -707,8 +1046,10 @@ changes:
 * `callback` {Function}
   * `err` {Error}
 
-Asynchronous chown(2). No arguments other than a possible exception are given
-to the completion callback.
+Asynchronously changes owner and group of a file. No arguments other than a
+possible exception are given to the completion callback.
+
+See also: chown(2)
 
 ## fs.chownSync(path, uid, gid)
 <!-- YAML
@@ -724,7 +1065,10 @@ changes:
 * `uid` {integer}
 * `gid` {integer}
 
-Synchronous chown(2). Returns `undefined`.
+Synchronously changes owner and group of a file. Returns `undefined`.
+This is the synchronous version of [`fs.chown()`][].
+
+See also: chown(2)
 
 ## fs.close(fd, callback)
 <!-- YAML
@@ -865,8 +1209,9 @@ changes:
   * `autoClose` {boolean}
   * `start` {integer}
   * `end` {integer}
+  * `highWaterMark` {integer}
 
-Returns a new [`ReadStream`][] object. (See [Readable Stream][]).
+Returns a new [`ReadStream`][] object. (See [Readable Streams][]).
 
 Be aware that, unlike the default value set for `highWaterMark` on a
 readable stream (16 kb), the stream returned by this method has a
@@ -880,7 +1225,8 @@ const defaults = {
   encoding: null,
   fd: null,
   mode: 0o666,
-  autoClose: true
+  autoClose: true,
+  highWaterMark: 64 * 1024
 };
 ```
 
@@ -988,7 +1334,7 @@ deprecated: v1.0.0
 
 * `path` {string|Buffer|URL}
 * `callback` {Function}
-  * `exists` {Boolean}
+  * `exists` {boolean}
 
 Test whether or not the given path exists by checking with the file system.
 Then call the `callback` argument with either true or false.  Example:
@@ -1097,7 +1443,7 @@ changes:
 * `path` {string|Buffer|URL}
 
 Synchronous version of [`fs.exists()`][].
-Returns `true` if the file exists, `false` otherwise.
+Returns `true` if the path exists, `false` otherwise.
 
 Note that `fs.exists()` is deprecated, but `fs.existsSync()` is not.
 (The `callback` parameter to `fs.exists()` accepts parameters that are
@@ -1363,7 +1709,7 @@ changes:
                  it will emit a deprecation warning.
 -->
 
-* `path` {string|Buffer}
+* `path` {string|Buffer|URL}
 * `mode` {integer}
 * `callback` {Function}
   * `err` {Error}
@@ -1378,7 +1724,7 @@ Only available on macOS.
 deprecated: v0.4.7
 -->
 
-* `path` {string|Buffer}
+* `path` {string|Buffer|URL}
 * `mode` {integer}
 
 Synchronous lchmod(2). Returns `undefined`.
@@ -1393,7 +1739,7 @@ changes:
                  it will emit a deprecation warning.
 -->
 
-* `path` {string|Buffer}
+* `path` {string|Buffer|URL}
 * `uid` {integer}
 * `gid` {integer}
 * `callback` {Function}
@@ -1407,7 +1753,7 @@ to the completion callback.
 deprecated: v0.4.7
 -->
 
-* `path` {string|Buffer}
+* `path` {string|Buffer|URL}
 * `uid` {integer}
 * `gid` {integer}
 
@@ -1509,8 +1855,10 @@ changes:
 * `callback` {Function}
   * `err` {Error}
 
-Asynchronous mkdir(2). No arguments other than a possible exception are given
-to the completion callback. `mode` defaults to `0o777`.
+Asynchronously creates a directory. No arguments other than a possible exception
+are given to the completion callback. `mode` defaults to `0o777`.
+
+See also: mkdir(2)
 
 ## fs.mkdirSync(path[, mode])
 <!-- YAML
@@ -1525,7 +1873,10 @@ changes:
 * `path` {string|Buffer|URL}
 * `mode` {integer} **Default:** `0o777`
 
-Synchronous mkdir(2). Returns `undefined`.
+Synchronously creates a directory. Returns `undefined`.
+This is the synchronous version of [`fs.mkdir()`][].
+
+See also: mkdir(2)
 
 ## fs.mkdtemp(prefix[, options], callback)
 <!-- YAML
@@ -1670,7 +2021,7 @@ The file is created if it does not exist.
 * `'ax+'` - Like `'a+'` but fails if `path` exists.
 
 `mode` sets the file mode (permission and sticky bits), but only if the file was
-created. It defaults to `0o666`, readable and writable.
+created. It defaults to `0o666` (readable and writable).
 
 The callback gets two arguments `(err, fd)`.
 
@@ -1712,6 +2063,11 @@ a colon, Node.js will open a file system stream, as described by
 
 Functions based on `fs.open()` exhibit this behavior as well. eg.
 `fs.writeFile()`, `fs.readFile()`, etc.
+
+*Note:* On Windows, opening an existing hidden file using the `w` flag (either
+through `fs.open()` or `fs.writeFile()`) will fail with `EPERM`. Existing hidden
+files can be opened for writing with the `r+` flag. A call to `fs.ftruncate()`
+can be used to reset the file contents.
 
 ## fs.openSync(path, flags[, mode])
 <!-- YAML
@@ -1879,7 +2235,7 @@ Linux, and Windows, an error will be returned. On FreeBSD, a representation
 of the directory's contents will be returned.
 
 ```js
-// macOS, Linux and Windows
+// macOS, Linux, and Windows
 fs.readFile('<directory>', (err, data) => {
   // => [Error: EISDIR: illegal operation on a directory, read <directory>]
 });
@@ -1894,6 +2250,11 @@ Any specified file descriptor has to support reading.
 
 *Note*: If a file descriptor is specified as the `path`, it will not be closed
 automatically.
+
+*Note*: `fs.readFile()` reads the entire file in a single threadpool request.
+To minimize threadpool task length variation, prefer the partitioned APIs
+`fs.read()` and `fs.createReadStream()` when reading files as part of
+fulfilling a client request.
 
 ## fs.readFileSync(path[, options])
 <!-- YAML
@@ -1922,7 +2283,7 @@ string. Otherwise it returns a buffer.
 behavior of `fs.readFileSync()` is platform-specific.
 
 ```js
-// macOS, Linux and Windows
+// macOS, Linux, and Windows
 fs.readFileSync('<directory>');
 // => [Error: EISDIR: illegal operation on a directory, read <directory>]
 
@@ -1990,7 +2351,7 @@ changes:
 -->
 
 * `fd` {integer}
-* `buffer` {string|Buffer|Uint8Array}
+* `buffer` {Buffer|Uint8Array}
 * `offset` {integer}
 * `length` {integer}
 * `position` {integer}
@@ -2028,8 +2389,21 @@ changes:
   * `err` {Error}
   * `resolvedPath` {string|Buffer}
 
-Asynchronous realpath(3). The `callback` gets two arguments `(err,
-resolvedPath)`. May use `process.cwd` to resolve relative paths.
+Asynchronously computes the canonical pathname by resolving `.`, `..` and
+symbolic links.
+
+Note that "canonical" does not mean "unique": hard links and bind mounts can
+expose a file system entity through many pathnames.
+
+This function behaves like realpath(3), with some exceptions:
+
+1. No case conversion is performed on case-insensitive file systems.
+
+2. The maximum number of symbolic links is platform-independent and generally
+   (much) higher than what the native realpath(3) implementation supports.
+
+The `callback` gets two arguments `(err, resolvedPath)`. May use `process.cwd`
+to resolve relative paths.
 
 Only paths that can be converted to UTF8 strings are supported.
 
@@ -2040,6 +2414,33 @@ the path returned will be passed as a `Buffer` object.
 
 *Note*: If `path` resolves to a socket or a pipe, the function will return a
 system dependent name for that object.
+
+## fs.realpath.native(path[, options], callback)
+<!-- YAML
+added: v9.2.0
+-->
+
+* `path` {string|Buffer|URL}
+* `options` {string|Object}
+  * `encoding` {string} **Default:** `'utf8'`
+* `callback` {Function}
+  * `err` {Error}
+  * `resolvedPath` {string|Buffer}
+
+Asynchronous realpath(3).
+
+The `callback` gets two arguments `(err, resolvedPath)`.
+
+Only paths that can be converted to UTF8 strings are supported.
+
+The optional `options` argument can be a string specifying an encoding, or an
+object with an `encoding` property specifying the character encoding to use for
+the path passed to the callback. If the `encoding` is set to `'buffer'`,
+the path returned will be passed as a `Buffer` object.
+
+*Note*: On Linux, when Node.js is linked against musl libc, the procfs file
+system must be mounted on `/proc` in order for this function to work.  Glibc
+does not have this restriction.
 
 ## fs.realpathSync(path[, options])
 <!-- YAML
@@ -2065,9 +2466,18 @@ changes:
 * `options` {string|Object}
   * `encoding` {string} **Default:** `'utf8'`
 
-Synchronous realpath(3). Returns the resolved path.
+Synchronously computes the canonical pathname by resolving `.`, `..` and
+symbolic links.
 
-Only paths that can be converted to UTF8 strings are supported.
+Note that "canonical" does not mean "unique": hard links and bind mounts can
+expose a file system entity through many pathnames.
+
+This function behaves like realpath(3), with some exceptions:
+
+1. No case conversion is performed on case-insensitive file systems.
+
+2. The maximum number of symbolic links is platform-independent and generally
+   (much) higher than what the native realpath(3) implementation supports.
 
 The optional `options` argument can be a string specifying an encoding, or an
 object with an `encoding` property specifying the character encoding to use for
@@ -2076,6 +2486,28 @@ will be passed as a `Buffer` object.
 
 *Note*: If `path` resolves to a socket or a pipe, the function will return a
 system dependent name for that object.
+
+## fs.realpathSync.native(path[, options])
+<!-- YAML
+added: v9.2.0
+-->
+
+* `path` {string|Buffer|URL}
+* `options` {string|Object}
+  * `encoding` {string} **Default:** `'utf8'`
+
+Synchronous realpath(3).
+
+Only paths that can be converted to UTF8 strings are supported.
+
+The optional `options` argument can be a string specifying an encoding, or an
+object with an `encoding` property specifying the character encoding to use for
+the path passed to the callback. If the `encoding` is set to `'buffer'`,
+the path returned will be passed as a `Buffer` object.
+
+*Note*: On Linux, when Node.js is linked against musl libc, the procfs file
+system must be mounted on `/proc` in order for this function to work.  Glibc
+does not have this restriction.
 
 ## fs.rename(oldPath, newPath, callback)
 <!-- YAML
@@ -2262,7 +2694,7 @@ changes:
                  it will emit a deprecation warning.
 -->
 
-* `path` {string|Buffer}
+* `path` {string|Buffer|URL}
 * `len` {integer} **Default:** `0`
 * `callback` {Function}
   * `err` {Error}
@@ -2279,7 +2711,7 @@ being thrown in the future.
 added: v0.8.6
 -->
 
-* `path` {string|Buffer}
+* `path` {string|Buffer|URL}
 * `len` {integer} **Default:** `0`
 
 Synchronous truncate(2). Returns `undefined`. A file descriptor can also be
@@ -2328,10 +2760,9 @@ Synchronous unlink(2). Returns `undefined`.
 added: v0.1.31
 -->
 
-* `filename` {string|Buffer}
-* `listener` {Function|undefined} **Default:** `undefined`
-  * `eventType` {string}
-  * `filename` {string|Buffer}
+* `filename` {string|Buffer|URL}
+* `listener` {Function} Optional, a listener previously attached using
+  `fs.watchFile()`
 
 Stop watching for changes on `filename`. If `listener` is specified, only that
 particular listener is removed. Otherwise, *all* listeners are removed,
@@ -2490,12 +2921,9 @@ a new inode. The watch will emit an event for the delete but will continue
 watching the *original* inode. Events for the new inode will not be emitted.
 This is expected behavior.
 
-In AIX, save and close of a file being watched causes two notifications -
-one for adding new content, and one for truncation. Moreover, save and
-close operations on some platforms cause inode changes that force watch
-operations to become invalid and ineffective. AIX retains inode for the
-lifetime of a file, that way though this is different from Linux / macOS,
-this improves the usability of file watching. This is expected behavior.
+AIX files retain the same inode for the lifetime of a file. Saving and closing a
+watched file on AIX will result in two notifications (one for adding new
+content, and one for truncation).
 
 #### Filename Argument
 
@@ -2692,7 +3120,7 @@ changes:
     description: The `file` parameter can be a file descriptor now.
 -->
 
-* `file` {string|Buffer|integer} filename or file descriptor
+* `file` {string|Buffer|URL|integer} filename or file descriptor
 * `data` {string|Buffer|Uint8Array}
 * `options` {Object|string}
   * `encoding` {string|null} **Default:** `'utf8'`
@@ -2743,7 +3171,7 @@ changes:
     description: The `file` parameter can be a file descriptor now.
 -->
 
-* `file` {string|Buffer|integer} filename or file descriptor
+* `file` {string|Buffer|URL|integer} filename or file descriptor
 * `data` {string|Buffer|Uint8Array}
 * `options` {Object|string}
   * `encoding` {string|null} **Default:** `'utf8'`
@@ -2965,7 +3393,7 @@ The following constants are meant for use with the [`fs.Stats`][] object's
   </tr>
   <tr>
     <td><code>S_IRWXU</code></td>
-    <td>File mode indicating readable, writable and executable by owner.</td>
+    <td>File mode indicating readable, writable, and executable by owner.</td>
   </tr>
   <tr>
     <td><code>S_IRUSR</code></td>
@@ -2981,7 +3409,7 @@ The following constants are meant for use with the [`fs.Stats`][] object's
   </tr>
   <tr>
     <td><code>S_IRWXG</code></td>
-    <td>File mode indicating readable, writable and executable by group.</td>
+    <td>File mode indicating readable, writable, and executable by group.</td>
   </tr>
   <tr>
     <td><code>S_IRGRP</code></td>
@@ -2997,7 +3425,7 @@ The following constants are meant for use with the [`fs.Stats`][] object's
   </tr>
   <tr>
     <td><code>S_IRWXO</code></td>
-    <td>File mode indicating readable, writable and executable by others.</td>
+    <td>File mode indicating readable, writable, and executable by others.</td>
   </tr>
   <tr>
     <td><code>S_IROTH</code></td>
@@ -3023,15 +3451,18 @@ The following constants are meant for use with the [`fs.Stats`][] object's
 [`URL`]: url.html#url_the_whatwg_url_api
 [`UV_THREADPOOL_SIZE`]: cli.html#cli_uv_threadpool_size_size
 [`WriteStream`]: #fs_class_fs_writestream
+[`EventEmitter`]: events.html
 [`event ports`]: http://illumos.org/man/port_create
 [`fs.FSWatcher`]: #fs_class_fs_fswatcher
 [`fs.Stats`]: #fs_class_fs_stats
 [`fs.access()`]: #fs_fs_access_path_mode_callback
-[`fs.appendFile()`]: fs.html#fs_fs_appendfile_file_data_options_callback
+[`fs.chmod()`]: #fs_fs_chmod_path_mode_callback
+[`fs.chown()`]: #fs_fs_chown_path_uid_gid_callback
 [`fs.exists()`]: fs.html#fs_fs_exists_path_callback
 [`fs.fstat()`]: #fs_fs_fstat_fd_callback
 [`fs.futimes()`]: #fs_fs_futimes_fd_atime_mtime_callback
 [`fs.lstat()`]: #fs_fs_lstat_path_callback
+[`fs.mkdir()`]: #fs_fs_mkdir_path_mode_callback
 [`fs.mkdtemp()`]: #fs_fs_mkdtemp_prefix_options_callback
 [`fs.open()`]: #fs_fs_open_path_flags_mode_callback
 [`fs.read()`]: #fs_fs_read_fd_buffer_offset_length_position_callback
@@ -3046,7 +3477,6 @@ The following constants are meant for use with the [`fs.Stats`][] object's
 [`kqueue`]: https://www.freebsd.org/cgi/man.cgi?kqueue
 [`net.Socket`]: net.html#net_class_net_socket
 [`stat()`]: fs.html#fs_fs_stat_path_callback
-[`util.inspect(stats)`]: util.html#util_util_inspect_object_options
 [`util.promisify()`]: util.html#util_util_promisify_original
 [Caveats]: #fs_caveats
 [Common System Errors]: errors.html#errors_common_system_errors
@@ -3054,7 +3484,7 @@ The following constants are meant for use with the [`fs.Stats`][] object's
 [MDN-Date]: https://developer.mozilla.org/en/JavaScript/Reference/Global_Objects/Date
 [MDN-Number]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#Number_type
 [MSDN-Rel-Path]: https://msdn.microsoft.com/en-us/library/windows/desktop/aa365247.aspx#fully_qualified_vs._relative_paths
-[Readable Stream]: stream.html#stream_class_stream_readable
+[Readable Streams]: stream.html#stream_class_stream_readable
 [Writable Stream]: stream.html#stream_class_stream_writable
 [inode]: https://en.wikipedia.org/wiki/Inode
 [Naming Files, Paths, and Namespaces]: https://msdn.microsoft.com/en-us/library/windows/desktop/aa365247(v=vs.85).aspx

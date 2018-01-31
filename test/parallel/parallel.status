@@ -5,8 +5,8 @@ prefix parallel
 # sample-test                        : PASS,FLAKY
 
 [true] # This section applies to all platforms
-# https://github.com/nodejs/node/issues/16210
-test-async-wrap-uncaughtexception: PASS,FLAKY
+# Postmortem debugging data is prone to accidental removal during V8 updates.
+test-postmortem-metadata: PASS,FLAKY
 
 [$system==win32]
 

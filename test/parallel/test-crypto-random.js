@@ -291,7 +291,7 @@ process.setMaxListeners(256);
       {
         code: 'ERR_OUT_OF_RANGE',
         type: RangeError,
-        message: 'The "offset" argument is out of range'
+        message: 'The value of "offset" is out of range.'
       }
     );
 
@@ -300,7 +300,7 @@ process.setMaxListeners(256);
       {
         code: 'ERR_OUT_OF_RANGE',
         type: RangeError,
-        message: 'The "offset" argument is out of range'
+        message: 'The value of "offset" is out of range.'
       }
     );
 
@@ -309,7 +309,7 @@ process.setMaxListeners(256);
       {
         code: 'ERR_OUT_OF_RANGE',
         type: RangeError,
-        message: 'The "offset" argument is out of range'
+        message: 'The value of "offset" is out of range.'
       }
     );
 
@@ -318,7 +318,7 @@ process.setMaxListeners(256);
       {
         code: 'ERR_OUT_OF_RANGE',
         type: RangeError,
-        message: 'The "offset" argument is out of range'
+        message: 'The value of "offset" is out of range.'
       }
     );
 
@@ -421,7 +421,7 @@ process.setMaxListeners(256);
       {
         code: 'ERR_OUT_OF_RANGE',
         type: RangeError,
-        message: 'The "size" argument is out of range'
+        message: 'The value of "size" is out of range.'
       }
     );
 
@@ -430,7 +430,7 @@ process.setMaxListeners(256);
       {
         code: 'ERR_OUT_OF_RANGE',
         type: RangeError,
-        message: 'The "size" argument is out of range'
+        message: 'The value of "size" is out of range.'
       }
     );
 
@@ -439,7 +439,7 @@ process.setMaxListeners(256);
       {
         code: 'ERR_OUT_OF_RANGE',
         type: RangeError,
-        message: 'The "size" argument is out of range'
+        message: 'The value of "size" is out of range.'
       }
     );
 
@@ -448,7 +448,7 @@ process.setMaxListeners(256);
       {
         code: 'ERR_OUT_OF_RANGE',
         type: RangeError,
-        message: 'The "size" argument is out of range'
+        message: 'The value of "size" is out of range.'
       }
     );
 
@@ -476,8 +476,9 @@ process.setMaxListeners(256);
   }
 }
 
-// #5126, "FATAL ERROR: v8::Object::SetIndexedPropertiesToExternalArrayData()
-// length exceeds max acceptable value"
+// https://github.com/nodejs/node-v0.x-archive/issues/5126,
+// "FATAL ERROR: v8::Object::SetIndexedPropertiesToExternalArrayData() length
+// exceeds max acceptable value"
 common.expectsError(
   () => crypto.randomBytes((-1 >>> 0) + 1),
   {
@@ -488,6 +489,7 @@ common.expectsError(
 );
 
 [1, true, NaN, null, undefined, {}, []].forEach((i) => {
+  const buf = Buffer.alloc(10);
   common.expectsError(
     () => crypto.randomFillSync(i),
     {
@@ -500,6 +502,24 @@ common.expectsError(
     {
       code: 'ERR_INVALID_ARG_TYPE',
       type: TypeError
+    }
+  );
+  common.expectsError(
+    () => crypto.randomFill(buf, 0, 10, i),
+    {
+      code: 'ERR_INVALID_CALLBACK',
+      type: TypeError,
+      message: 'Callback must be a function',
+    });
+});
+
+[1, true, NaN, null, {}, []].forEach((i) => {
+  common.expectsError(
+    () => crypto.randomBytes(1, i),
+    {
+      code: 'ERR_INVALID_CALLBACK',
+      type: TypeError,
+      message: 'Callback must be a function',
     }
   );
 });

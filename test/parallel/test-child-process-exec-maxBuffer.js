@@ -5,8 +5,9 @@ const cp = require('child_process');
 
 function checkFactory(streamName) {
   return common.mustCall((err) => {
-    const message = `${streamName} maxBuffer exceeded`;
-    assert.strictEqual(err.message, message);
+    assert.strictEqual(err.message, `${streamName} maxBuffer length exceeded`);
+    assert(err instanceof RangeError);
+    assert.strictEqual(err.code, 'ERR_CHILD_PROCESS_STDIO_MAXBUFFER');
   });
 }
 

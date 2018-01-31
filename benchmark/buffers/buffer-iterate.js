@@ -16,14 +16,11 @@ const methods = {
   'iterator': benchIterator
 };
 
-function main(conf) {
-  const len = +conf.size;
-  const clazz = conf.type === 'fast' ? Buffer : SlowBuffer;
-  const buffer = new clazz(len);
+function main({ size, type, method, n }) {
+  const clazz = type === 'fast' ? Buffer : SlowBuffer;
+  const buffer = new clazz(size);
   buffer.fill(0);
-
-  const method = conf.method || 'for';
-  methods[method](buffer, conf.n);
+  methods[method || 'for'](buffer, n);
 }
 
 

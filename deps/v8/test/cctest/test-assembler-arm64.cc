@@ -46,7 +46,8 @@
 #include "test/cctest/cctest.h"
 #include "test/cctest/test-utils-arm64.h"
 
-using namespace v8::internal;
+namespace v8 {
+namespace internal {
 
 // Test infrastructure.
 //
@@ -121,14 +122,14 @@ static void InitializeVM() {
 #define SETUP_SIZE(buf_size)                                   \
   Isolate* isolate = CcTest::i_isolate();                      \
   HandleScope scope(isolate);                                  \
-  CHECK(isolate != NULL);                                      \
+  CHECK_NOT_NULL(isolate);                                     \
   byte* buf = new byte[buf_size];                              \
   MacroAssembler masm(isolate, buf, buf_size,                  \
                       v8::internal::CodeObjectRequired::kYes); \
   Decoder<DispatchingDecoderVisitor>* decoder =                \
       new Decoder<DispatchingDecoderVisitor>();                \
   Simulator simulator(decoder);                                \
-  PrintDisassembler* pdis = NULL;                              \
+  PrintDisassembler* pdis = nullptr;                           \
   RegisterDump core;
 
 /*  if (Cctest::trace_sim()) {                                                 \
@@ -165,7 +166,7 @@ static void InitializeVM() {
   core.Dump(&masm);                                         \
   __ PopCalleeSavedRegisters();                             \
   __ Ret();                                                 \
-  __ GetCode(masm.isolate(), NULL);
+  __ GetCode(masm.isolate(), nullptr);
 
 #define TEARDOWN()                                                             \
   delete pdis;                                                                 \
@@ -173,15 +174,14 @@ static void InitializeVM() {
 
 #else  // ifdef USE_SIMULATOR.
 // Run the test on real hardware or models.
-#define SETUP_SIZE(buf_size)                                            \
-  Isolate* isolate = CcTest::i_isolate();                               \
-  HandleScope scope(isolate);                                           \
-  CHECK(isolate != NULL);                                               \
-  size_t actual_size;                                                   \
-  byte* buf = static_cast<byte*>(                                       \
-      v8::base::OS::Allocate(buf_size, &actual_size, true));            \
-  MacroAssembler masm(isolate, buf, static_cast<unsigned>(actual_size), \
-                      v8::internal::CodeObjectRequired::kYes);          \
+#define SETUP_SIZE(buf_size)                                     \
+  Isolate* isolate = CcTest::i_isolate();                        \
+  HandleScope scope(isolate);                                    \
+  CHECK_NOT_NULL(isolate);                                       \
+  size_t allocated;                                              \
+  byte* buf = AllocateAssemblerBuffer(&allocated, buf_size);     \
+  MacroAssembler masm(isolate, buf, static_cast<int>(allocated), \
+                      v8::internal::CodeObjectRequired::kYes);   \
   RegisterDump core;
 
 #define RESET()                                                                \
@@ -211,10 +211,9 @@ static void InitializeVM() {
   core.Dump(&masm);             \
   __ PopCalleeSavedRegisters(); \
   __ Ret();                     \
-  __ GetCode(masm.isolate(), NULL);
+  __ GetCode(masm.isolate(), nullptr);
 
-#define TEARDOWN()                                                             \
-  v8::base::OS::Free(buf, actual_size);
+#define TEARDOWN() CHECK(v8::base::OS::Free(buf, allocated));
 
 #endif  // ifdef USE_SIMULATOR.
 
@@ -10569,8 +10568,8 @@ TEST(fcvt_sd) {
     float expected = test[i].expected;
 
     // We only expect positive input.
-    CHECK(std::signbit(in) == 0);
-    CHECK(std::signbit(expected) == 0);
+    CHECK_EQ(std::signbit(in), 0);
+    CHECK_EQ(std::signbit(expected), 0);
 
     SETUP();
     START();
@@ -12365,10 +12364,10 @@ static void PushPopJsspSimpleHelper(int reg_count,
     reg_count = CountSetBits(allowed, kNumberOfRegisters);
   }
   // Work out which registers to use, based on reg_size.
-  Register r[kNumberOfRegisters];
-  Register x[kNumberOfRegisters];
-  RegList list = PopulateRegisterArray(NULL, x, r, reg_size, reg_count,
-                                       allowed);
+  auto r = CreateRegisterArray<Register, kNumberOfRegisters>();
+  auto x = CreateRegisterArray<Register, kNumberOfRegisters>();
+  RegList list = PopulateRegisterArray(nullptr, x.data(), r.data(), reg_size,
+                                       reg_count, allowed);
 
   // The literal base is chosen to have two useful properties:
   //  * When multiplied by small values (such as a register index), this value
@@ -12408,7 +12407,7 @@ static void PushPopJsspSimpleHelper(int reg_count,
           case 2:  __ Push(r[1], r[0]);       break;
           case 1:  __ Push(r[0]);             break;
           default:
-            CHECK(i == 0);
+            CHECK_EQ(i, 0);
             break;
         }
         break;
@@ -12549,10 +12548,10 @@ static void PushPopFPJsspSimpleHelper(int reg_count,
     reg_count = CountSetBits(allowed, kNumberOfVRegisters);
   }
   // Work out which registers to use, based on reg_size.
-  VRegister v[kNumberOfRegisters];
-  VRegister d[kNumberOfRegisters];
-  RegList list =
-      PopulateVRegisterArray(NULL, d, v, reg_size, reg_count, allowed);
+  auto v = CreateRegisterArray<VRegister, kNumberOfRegisters>();
+  auto d = CreateRegisterArray<VRegister, kNumberOfRegisters>();
+  RegList list = PopulateVRegisterArray(nullptr, d.data(), v.data(), reg_size,
+                                        reg_count, allowed);
 
   // The literal base is chosen to have two useful properties:
   //  * When multiplied (using an integer) by small values (such as a register
@@ -12596,7 +12595,7 @@ static void PushPopFPJsspSimpleHelper(int reg_count,
           case 2:  __ Push(v[1], v[0]);       break;
           case 1:  __ Push(v[0]);             break;
           default:
-            CHECK(i == 0);
+            CHECK_EQ(i, 0);
             break;
         }
         break;
@@ -12718,9 +12717,9 @@ static void PushPopJsspMixedMethodsHelper(int claim, int reg_size) {
   static RegList const allowed =
       ~(x8.bit() | x9.bit() | jssp.bit() | xzr.bit());
   // Work out which registers to use, based on reg_size.
-  Register r[10];
-  Register x[10];
-  PopulateRegisterArray(NULL, x, r, reg_size, 10, allowed);
+  auto r = CreateRegisterArray<Register, 10>();
+  auto x = CreateRegisterArray<Register, 10>();
+  PopulateRegisterArray(nullptr, x.data(), r.data(), reg_size, 10, allowed);
 
   // Calculate some handy register lists.
   RegList r0_to_r3 = 0;
@@ -12823,9 +12822,10 @@ static void PushPopJsspWXOverlapHelper(int reg_count, int claim) {
   if (reg_count == kPushPopJsspMaxRegCount) {
     reg_count = CountSetBits(allowed, kNumberOfRegisters);
   }
-  Register w[kNumberOfRegisters];
-  Register x[kNumberOfRegisters];
-  RegList list = PopulateRegisterArray(w, x, NULL, 0, reg_count, allowed);
+  auto w = CreateRegisterArray<Register, kNumberOfRegisters>();
+  auto x = CreateRegisterArray<Register, kNumberOfRegisters>();
+  RegList list =
+      PopulateRegisterArray(w.data(), x.data(), nullptr, 0, reg_count, allowed);
 
   // The number of W-sized slots we expect to pop. When we pop, we alternate
   // between W and X registers, so we need reg_count*1.5 W-sized slots.
@@ -12905,13 +12905,9 @@ static void PushPopJsspWXOverlapHelper(int reg_count, int claim) {
       int times = i % 4 + 1;
       if (i & 1) {
         // Push odd-numbered registers as W registers.
-        if (i & 2) {
-          __ PushMultipleTimes(w[i], times);
-        } else {
-          // Use a register to specify the count.
-          __ Mov(tmp.W(), times);
-          __ PushMultipleTimes(w[i], tmp.W());
-        }
+        __ Mov(tmp.W(), times);
+        __ PushMultipleTimes(w[i], tmp.W());
+
         // Fill in the expected stack slots.
         for (int j = 0; j < times; j++) {
           if (w[i].Is(wzr)) {
@@ -12923,13 +12919,9 @@ static void PushPopJsspWXOverlapHelper(int reg_count, int claim) {
         }
       } else {
         // Push even-numbered registers as X registers.
-        if (i & 2) {
-          __ PushMultipleTimes(x[i], times);
-        } else {
-          // Use a register to specify the count.
-          __ Mov(tmp, times);
-          __ PushMultipleTimes(x[i], tmp);
-        }
+        __ Mov(tmp, times);
+        __ PushMultipleTimes(x[i], tmp);
+
         // Fill in the expected stack slots.
         for (int j = 0; j < times; j++) {
           if (x[i].IsZero()) {
@@ -12971,7 +12963,7 @@ static void PushPopJsspWXOverlapHelper(int reg_count, int claim) {
       }
       next_is_64 = !next_is_64;
     }
-    CHECK(active_w_slots == 0);
+    CHECK_EQ(active_w_slots, 0);
 
     // Drop memory to restore jssp.
     __ Drop(claim, kByteSizeInBytes);
@@ -13269,6 +13261,346 @@ TEST(pop_queued) {
   TEARDOWN();
 }
 
+TEST(copy_slots_down) {
+  INIT_V8();
+  SETUP();
+
+  const uint64_t ones = 0x1111111111111111UL;
+  const uint64_t twos = 0x2222222222222222UL;
+  const uint64_t threes = 0x3333333333333333UL;
+  const uint64_t fours = 0x4444444444444444UL;
+
+  START();
+
+  // Test copying 12 slots down one slot.
+  __ Mov(jssp, __ StackPointer());
+  __ SetStackPointer(jssp);
+
+  __ Mov(x1, ones);
+  __ Mov(x2, twos);
+  __ Mov(x3, threes);
+  __ Mov(x4, fours);
+
+  __ Push(x1, x2, x3, x4);
+  __ Push(x1, x2, x1, x2);
+  __ Push(x3, x4, x3, x4);
+  __ Push(xzr);
+
+  __ Mov(x5, 0);
+  __ Mov(x6, 1);
+  __ Mov(x7, 12);
+  __ CopySlots(x5, x6, x7);
+
+  __ Pop(x4, x5, x6, x7);
+  __ Pop(x8, x9, x10, x11);
+  __ Pop(x12, x13, x14, x15);
+  __ Drop(1);
+
+  // Test copying one slot down one slot.
+  __ Push(x1, xzr, xzr);
+
+  __ Mov(x1, 1);
+  __ Mov(x2, 2);
+  __ Mov(x3, 1);
+  __ CopySlots(x1, x2, x3);
+
+  __ Drop(1);
+  __ Pop(x0);
+  __ Drop(1);
+
+  __ Mov(csp, jssp);
+  __ SetStackPointer(csp);
+
+  END();
+
+  RUN();
+
+  CHECK_EQUAL_64(fours, x4);
+  CHECK_EQUAL_64(threes, x5);
+  CHECK_EQUAL_64(fours, x6);
+  CHECK_EQUAL_64(threes, x7);
+
+  CHECK_EQUAL_64(twos, x8);
+  CHECK_EQUAL_64(ones, x9);
+  CHECK_EQUAL_64(twos, x10);
+  CHECK_EQUAL_64(ones, x11);
+
+  CHECK_EQUAL_64(fours, x12);
+  CHECK_EQUAL_64(threes, x13);
+  CHECK_EQUAL_64(twos, x14);
+  CHECK_EQUAL_64(ones, x15);
+
+  CHECK_EQUAL_64(ones, x0);
+
+  TEARDOWN();
+}
+
+TEST(copy_slots_up) {
+  INIT_V8();
+  SETUP();
+
+  const uint64_t ones = 0x1111111111111111UL;
+  const uint64_t twos = 0x2222222222222222UL;
+  const uint64_t threes = 0x3333333333333333UL;
+
+  START();
+
+  __ Mov(jssp, __ StackPointer());
+  __ SetStackPointer(jssp);
+
+  __ Mov(x1, ones);
+  __ Mov(x2, twos);
+  __ Mov(x3, threes);
+
+  // Test copying one slot to the next slot higher in memory.
+  __ Push(xzr, x1);
+
+  __ Mov(x5, 1);
+  __ Mov(x6, 0);
+  __ Mov(x7, 1);
+  __ CopySlots(x5, x6, x7);
+
+  __ Drop(1);
+  __ Pop(x10);
+
+  // Test copying two slots to the next two slots higher in memory.
+  __ Push(xzr, xzr);
+  __ Push(x1, x2);
+
+  __ Mov(x5, 2);
+  __ Mov(x6, 0);
+  __ Mov(x7, 2);
+  __ CopySlots(x5, x6, x7);
+
+  __ Drop(2);
+  __ Pop(x11, x12);
+
+  // Test copying three slots to the next three slots higher in memory.
+  __ Push(xzr, xzr, xzr);
+  __ Push(x1, x2, x3);
+
+  __ Mov(x5, 3);
+  __ Mov(x6, 0);
+  __ Mov(x7, 3);
+  __ CopySlots(x5, x6, x7);
+
+  __ Drop(3);
+  __ Pop(x0, x1, x2);
+
+  __ Mov(csp, jssp);
+  __ SetStackPointer(csp);
+
+  END();
+
+  RUN();
+
+  CHECK_EQUAL_64(ones, x10);
+  CHECK_EQUAL_64(twos, x11);
+  CHECK_EQUAL_64(ones, x12);
+  CHECK_EQUAL_64(threes, x0);
+  CHECK_EQUAL_64(twos, x1);
+  CHECK_EQUAL_64(ones, x2);
+
+  TEARDOWN();
+}
+
+TEST(copy_double_words_downwards_even) {
+  INIT_V8();
+  SETUP();
+
+  const uint64_t ones = 0x1111111111111111UL;
+  const uint64_t twos = 0x2222222222222222UL;
+  const uint64_t threes = 0x3333333333333333UL;
+  const uint64_t fours = 0x4444444444444444UL;
+
+  START();
+
+  __ Mov(jssp, __ StackPointer());
+  __ SetStackPointer(jssp);
+
+  // Test copying 12 slots up one slot.
+  __ Mov(x1, ones);
+  __ Mov(x2, twos);
+  __ Mov(x3, threes);
+  __ Mov(x4, fours);
+
+  __ Push(xzr);
+  __ Push(x1, x2, x3, x4);
+  __ Push(x1, x2, x1, x2);
+  __ Push(x3, x4, x3, x4);
+
+  __ SlotAddress(x5, 12);
+  __ SlotAddress(x6, 11);
+  __ Mov(x7, 12);
+  __ CopyDoubleWords(x5, x6, x7, TurboAssembler::kSrcLessThanDst);
+
+  __ Drop(1);
+  __ Pop(x4, x5, x6, x7);
+  __ Pop(x8, x9, x10, x11);
+  __ Pop(x12, x13, x14, x15);
+
+  __ Mov(csp, jssp);
+  __ SetStackPointer(csp);
+
+  END();
+
+  RUN();
+
+  CHECK_EQUAL_64(ones, x15);
+  CHECK_EQUAL_64(twos, x14);
+  CHECK_EQUAL_64(threes, x13);
+  CHECK_EQUAL_64(fours, x12);
+
+  CHECK_EQUAL_64(ones, x11);
+  CHECK_EQUAL_64(twos, x10);
+  CHECK_EQUAL_64(ones, x9);
+  CHECK_EQUAL_64(twos, x8);
+
+  CHECK_EQUAL_64(threes, x7);
+  CHECK_EQUAL_64(fours, x6);
+  CHECK_EQUAL_64(threes, x5);
+  CHECK_EQUAL_64(fours, x4);
+
+  TEARDOWN();
+}
+
+TEST(copy_double_words_downwards_odd) {
+  INIT_V8();
+  SETUP();
+
+  const uint64_t ones = 0x1111111111111111UL;
+  const uint64_t twos = 0x2222222222222222UL;
+  const uint64_t threes = 0x3333333333333333UL;
+  const uint64_t fours = 0x4444444444444444UL;
+  const uint64_t fives = 0x5555555555555555UL;
+
+  START();
+
+  __ Mov(jssp, __ StackPointer());
+  __ SetStackPointer(jssp);
+
+  // Test copying 13 slots up one slot.
+  __ Mov(x1, ones);
+  __ Mov(x2, twos);
+  __ Mov(x3, threes);
+  __ Mov(x4, fours);
+  __ Mov(x5, fives);
+
+  __ Push(xzr, x5);
+  __ Push(x1, x2, x3, x4);
+  __ Push(x1, x2, x1, x2);
+  __ Push(x3, x4, x3, x4);
+
+  __ SlotAddress(x5, 13);
+  __ SlotAddress(x6, 12);
+  __ Mov(x7, 13);
+  __ CopyDoubleWords(x5, x6, x7, TurboAssembler::kSrcLessThanDst);
+
+  __ Drop(1);
+  __ Pop(x4);
+  __ Pop(x5, x6, x7, x8);
+  __ Pop(x9, x10, x11, x12);
+  __ Pop(x13, x14, x15, x16);
+
+  __ Mov(csp, jssp);
+  __ SetStackPointer(csp);
+
+  END();
+
+  RUN();
+
+  CHECK_EQUAL_64(fives, x16);
+
+  CHECK_EQUAL_64(ones, x15);
+  CHECK_EQUAL_64(twos, x14);
+  CHECK_EQUAL_64(threes, x13);
+  CHECK_EQUAL_64(fours, x12);
+
+  CHECK_EQUAL_64(ones, x11);
+  CHECK_EQUAL_64(twos, x10);
+  CHECK_EQUAL_64(ones, x9);
+  CHECK_EQUAL_64(twos, x8);
+
+  CHECK_EQUAL_64(threes, x7);
+  CHECK_EQUAL_64(fours, x6);
+  CHECK_EQUAL_64(threes, x5);
+  CHECK_EQUAL_64(fours, x4);
+
+  TEARDOWN();
+}
+
+TEST(copy_noop) {
+  INIT_V8();
+  SETUP();
+
+  const uint64_t ones = 0x1111111111111111UL;
+  const uint64_t twos = 0x2222222222222222UL;
+  const uint64_t threes = 0x3333333333333333UL;
+  const uint64_t fours = 0x4444444444444444UL;
+  const uint64_t fives = 0x5555555555555555UL;
+
+  START();
+
+  __ Mov(jssp, __ StackPointer());
+  __ SetStackPointer(jssp);
+
+  __ Mov(x1, ones);
+  __ Mov(x2, twos);
+  __ Mov(x3, threes);
+  __ Mov(x4, fours);
+  __ Mov(x5, fives);
+
+  __ Push(xzr, x5, x5, xzr);
+  __ Push(x3, x4, x3, x4);
+  __ Push(x1, x2, x1, x2);
+  __ Push(x1, x2, x3, x4);
+
+  // src < dst, count == 0
+  __ SlotAddress(x5, 3);
+  __ SlotAddress(x6, 2);
+  __ Mov(x7, 0);
+  __ CopyDoubleWords(x5, x6, x7, TurboAssembler::kSrcLessThanDst);
+
+  // dst < src, count == 0
+  __ SlotAddress(x5, 2);
+  __ SlotAddress(x6, 3);
+  __ Mov(x7, 0);
+  __ CopyDoubleWords(x5, x6, x7, TurboAssembler::kDstLessThanSrc);
+
+  __ Pop(x1, x2, x3, x4);
+  __ Pop(x5, x6, x7, x8);
+  __ Pop(x9, x10, x11, x12);
+  __ Pop(x13, x14, x15, x16);
+
+  __ Mov(csp, jssp);
+  __ SetStackPointer(csp);
+
+  END();
+
+  RUN();
+
+  CHECK_EQUAL_64(fours, x1);
+  CHECK_EQUAL_64(threes, x2);
+  CHECK_EQUAL_64(twos, x3);
+  CHECK_EQUAL_64(ones, x4);
+
+  CHECK_EQUAL_64(twos, x5);
+  CHECK_EQUAL_64(ones, x6);
+  CHECK_EQUAL_64(twos, x7);
+  CHECK_EQUAL_64(ones, x8);
+
+  CHECK_EQUAL_64(fours, x9);
+  CHECK_EQUAL_64(threes, x10);
+  CHECK_EQUAL_64(fours, x11);
+  CHECK_EQUAL_64(threes, x12);
+
+  CHECK_EQUAL_64(0, x13);
+  CHECK_EQUAL_64(fives, x14);
+  CHECK_EQUAL_64(fives, x15);
+  CHECK_EQUAL_64(0, x16);
+
+  TEARDOWN();
+}
 
 TEST(jump_both_smi) {
   INIT_V8();
@@ -13903,23 +14235,23 @@ TEST(isvalid) {
   CHECK(d31.IsValid());
   CHECK(s31.IsValid());
 
-  CHECK(x0.IsValidRegister());
-  CHECK(w0.IsValidRegister());
-  CHECK(xzr.IsValidRegister());
-  CHECK(wzr.IsValidRegister());
-  CHECK(csp.IsValidRegister());
-  CHECK(wcsp.IsValidRegister());
-  CHECK(!x0.IsValidVRegister());
-  CHECK(!w0.IsValidVRegister());
-  CHECK(!xzr.IsValidVRegister());
-  CHECK(!wzr.IsValidVRegister());
-  CHECK(!csp.IsValidVRegister());
-  CHECK(!wcsp.IsValidVRegister());
+  CHECK(x0.IsRegister());
+  CHECK(w0.IsRegister());
+  CHECK(xzr.IsRegister());
+  CHECK(wzr.IsRegister());
+  CHECK(csp.IsRegister());
+  CHECK(wcsp.IsRegister());
+  CHECK(!x0.IsVRegister());
+  CHECK(!w0.IsVRegister());
+  CHECK(!xzr.IsVRegister());
+  CHECK(!wzr.IsVRegister());
+  CHECK(!csp.IsVRegister());
+  CHECK(!wcsp.IsVRegister());
 
-  CHECK(d0.IsValidVRegister());
-  CHECK(s0.IsValidVRegister());
-  CHECK(!d0.IsValidRegister());
-  CHECK(!s0.IsValidRegister());
+  CHECK(d0.IsVRegister());
+  CHECK(s0.IsVRegister());
+  CHECK(!d0.IsRegister());
+  CHECK(!s0.IsRegister());
 
   // Test the same as before, but using CPURegister types. This shouldn't make
   // any difference.
@@ -13938,23 +14270,23 @@ TEST(isvalid) {
   CHECK(static_cast<CPURegister>(d31).IsValid());
   CHECK(static_cast<CPURegister>(s31).IsValid());
 
-  CHECK(static_cast<CPURegister>(x0).IsValidRegister());
-  CHECK(static_cast<CPURegister>(w0).IsValidRegister());
-  CHECK(static_cast<CPURegister>(xzr).IsValidRegister());
-  CHECK(static_cast<CPURegister>(wzr).IsValidRegister());
-  CHECK(static_cast<CPURegister>(csp).IsValidRegister());
-  CHECK(static_cast<CPURegister>(wcsp).IsValidRegister());
-  CHECK(!static_cast<CPURegister>(x0).IsValidVRegister());
-  CHECK(!static_cast<CPURegister>(w0).IsValidVRegister());
-  CHECK(!static_cast<CPURegister>(xzr).IsValidVRegister());
-  CHECK(!static_cast<CPURegister>(wzr).IsValidVRegister());
-  CHECK(!static_cast<CPURegister>(csp).IsValidVRegister());
-  CHECK(!static_cast<CPURegister>(wcsp).IsValidVRegister());
+  CHECK(static_cast<CPURegister>(x0).IsRegister());
+  CHECK(static_cast<CPURegister>(w0).IsRegister());
+  CHECK(static_cast<CPURegister>(xzr).IsRegister());
+  CHECK(static_cast<CPURegister>(wzr).IsRegister());
+  CHECK(static_cast<CPURegister>(csp).IsRegister());
+  CHECK(static_cast<CPURegister>(wcsp).IsRegister());
+  CHECK(!static_cast<CPURegister>(x0).IsVRegister());
+  CHECK(!static_cast<CPURegister>(w0).IsVRegister());
+  CHECK(!static_cast<CPURegister>(xzr).IsVRegister());
+  CHECK(!static_cast<CPURegister>(wzr).IsVRegister());
+  CHECK(!static_cast<CPURegister>(csp).IsVRegister());
+  CHECK(!static_cast<CPURegister>(wcsp).IsVRegister());
 
-  CHECK(static_cast<CPURegister>(d0).IsValidVRegister());
-  CHECK(static_cast<CPURegister>(s0).IsValidVRegister());
-  CHECK(!static_cast<CPURegister>(d0).IsValidRegister());
-  CHECK(!static_cast<CPURegister>(s0).IsValidRegister());
+  CHECK(static_cast<CPURegister>(d0).IsVRegister());
+  CHECK(static_cast<CPURegister>(s0).IsVRegister());
+  CHECK(!static_cast<CPURegister>(d0).IsRegister());
+  CHECK(!static_cast<CPURegister>(s0).IsRegister());
 }
 
 TEST(areconsecutive) {
@@ -15189,7 +15521,7 @@ static void AbsHelperX(int64_t value) {
     __ Abs(x11, x1, &fail);
     __ Abs(x12, x1, &fail, &next);
     __ Bind(&next);
-    __ Abs(x13, x1, NULL, &done);
+    __ Abs(x13, x1, nullptr, &done);
   } else {
     // labs is undefined for kXMinInt but our implementation in the
     // MacroAssembler will return kXMinInt in such a case.
@@ -15198,7 +15530,7 @@ static void AbsHelperX(int64_t value) {
     Label next;
     // The result is not representable.
     __ Abs(x10, x1);
-    __ Abs(x11, x1, NULL, &fail);
+    __ Abs(x11, x1, nullptr, &fail);
     __ Abs(x12, x1, &next, &fail);
     __ Bind(&next);
     __ Abs(x13, x1, &done);
@@ -15246,7 +15578,7 @@ static void AbsHelperW(int32_t value) {
     __ Abs(w11, w1, &fail);
     __ Abs(w12, w1, &fail, &next);
     __ Bind(&next);
-    __ Abs(w13, w1, NULL, &done);
+    __ Abs(w13, w1, nullptr, &done);
   } else {
     // abs is undefined for kWMinInt but our implementation in the
     // MacroAssembler will return kWMinInt in such a case.
@@ -15255,7 +15587,7 @@ static void AbsHelperW(int32_t value) {
     Label next;
     // The result is not representable.
     __ Abs(w10, w1);
-    __ Abs(w11, w1, NULL, &fail);
+    __ Abs(w11, w1, nullptr, &fail);
     __ Abs(w12, w1, &next, &fail);
     __ Bind(&next);
     __ Abs(w13, w1, &done);
@@ -15324,7 +15656,8 @@ TEST(pool_size) {
   HandleScope handle_scope(isolate);
   CodeDesc desc;
   masm.GetCode(isolate, &desc);
-  Handle<Code> code = isolate->factory()->NewCode(desc, 0, masm.CodeObject());
+  Handle<Code> code =
+      isolate->factory()->NewCode(desc, Code::STUB, masm.CodeObject());
 
   unsigned pool_count = 0;
   int pool_mask = RelocInfo::ModeMask(RelocInfo::CONST_POOL) |
@@ -15341,7 +15674,7 @@ TEST(pool_size) {
     }
   }
 
-  CHECK(pool_count == 2);
+  CHECK_EQ(pool_count, 2);
 
   TEARDOWN();
 }
@@ -15515,3 +15848,26 @@ TEST(internal_reference_linked) {
 
   TEARDOWN();
 }
+
+}  // namespace internal
+}  // namespace v8
+
+#undef __
+#undef BUF_SIZE
+#undef SETUP
+#undef INIT_V8
+#undef SETUP_SIZE
+#undef RESET
+#undef START_AFTER_RESET
+#undef START
+#undef RUN
+#undef END
+#undef TEARDOWN
+#undef CHECK_EQUAL_NZCV
+#undef CHECK_EQUAL_REGISTERS
+#undef CHECK_EQUAL_32
+#undef CHECK_EQUAL_FP32
+#undef CHECK_EQUAL_64
+#undef CHECK_EQUAL_FP64
+#undef CHECK_EQUAL_128
+#undef CHECK_CONSTANT_POOL_SIZE

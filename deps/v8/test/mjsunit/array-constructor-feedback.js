@@ -106,13 +106,8 @@ function assertKind(expected, obj, name_opt) {
   a = bar(10);
   assertKind(elements_kind.fast, a);
   assertOptimized(bar);
-  bar(100000);
+  bar(10000);
   assertOptimized(bar);
-
-  // If the argument isn't a smi, things should still work.
-  a = bar("oops");
-  assertOptimized(bar);
-  assertKind(elements_kind.fast, a);
 
   function barn(one, two, three) {
     return new Array(one, two, three);

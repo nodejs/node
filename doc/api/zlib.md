@@ -110,7 +110,7 @@ http.createServer((request, response) => {
   }
 
   // Note: This is not a conformant accept-encoding parser.
-  // See http://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.3
+  // See https://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.3
   if (/\bdeflate\b/.test(acceptEncoding)) {
     response.writeHead(200, { 'Content-Encoding': 'deflate' });
     raw.pipe(zlib.createDeflate()).pipe(response);
@@ -235,7 +235,7 @@ All of the constants defined in `zlib.h` are also defined on
 `require('zlib').constants`. In the normal course of operations, it will not be
 necessary to use these  constants. They are documented so that their presence is
 not surprising. This section is taken almost directly from the
-[zlib documentation][].  See <http://zlib.net/manual.html#Constants> for more
+[zlib documentation][].  See <https://zlib.net/manual.html#Constants> for more
 details.
 
 *Note*: Previously, the constants were available directly from
@@ -286,6 +286,9 @@ Compression strategy.
 <!-- YAML
 added: v0.11.1
 changes:
+  - version: v9.4.0
+    pr-url: https://github.com/nodejs/node/pull/16042
+    description: The `dictionary` option can be an ArrayBuffer.
   - version: v8.0.0
     pr-url: https://github.com/nodejs/node/pull/12001
     description: The `dictionary` option can be an Uint8Array now.
@@ -308,12 +311,12 @@ ignored by the decompression classes.
 * `level` {integer} (compression only)
 * `memLevel` {integer} (compression only)
 * `strategy` {integer} (compression only)
-* `dictionary` {Buffer|TypedArray|DataView} (deflate/inflate only, empty dictionary by
-  default)
+* `dictionary` {Buffer|TypedArray|DataView|ArrayBuffer} (deflate/inflate only,
+  empty dictionary by default)
 * `info` {boolean} (If `true`, returns an object with `buffer` and `engine`)
 
 See the description of `deflateInit2` and `inflateInit2` at
-<http://zlib.net/manual.html#Advanced> for more information on these.
+<https://zlib.net/manual.html#Advanced> for more information on these.
 
 ## Class: zlib.Deflate
 <!-- YAML
@@ -397,7 +400,7 @@ class of the compressor/decompressor classes.
 
 ### zlib.bytesRead
 <!-- YAML
-added: v9.0.0
+added: v8.1.0
 -->
 
 * {number}
@@ -511,9 +514,10 @@ Creates and returns a new [Unzip][] object with the given [options][].
 
 <!--type=misc-->
 
-All of these take a [`Buffer`][], [`TypedArray`][], [`DataView`][], or string as
-the first argument, an optional second argument to supply options to the `zlib`
-classes and will call the supplied callback with `callback(error, result)`.
+All of these take a [`Buffer`][], [`TypedArray`][], [`DataView`][],
+[`ArrayBuffer`][] or string as the first argument, an optional second argument
+to supply options to the `zlib` classes and will call the supplied callback
+with `callback(error, result)`.
 
 Every method has a `*Sync` counterpart, which accept the same arguments, but
 without a callback.
@@ -522,6 +526,9 @@ without a callback.
 <!-- YAML
 added: v0.6.0
 changes:
+  - version: v9.4.0
+    pr-url: https://github.com/nodejs/node/pull/16042
+    description: The `buffer` parameter can be an ArrayBuffer.
   - version: v8.0.0
     pr-url: https://github.com/nodejs/node/pull/12223
     description: The `buffer` parameter can be any TypedArray or DataView now.
@@ -533,6 +540,9 @@ changes:
 <!-- YAML
 added: v0.11.12
 changes:
+  - version: v9.4.0
+    pr-url: https://github.com/nodejs/node/pull/16042
+    description: The `buffer` parameter can be an ArrayBuffer.
   - version: v8.0.0
     pr-url: https://github.com/nodejs/node/pull/12223
     description: The `buffer` parameter can be any TypedArray or DataView now.
@@ -541,7 +551,7 @@ changes:
     description: The `buffer` parameter can be an Uint8Array now.
 -->
 
-- `buffer` {Buffer|TypedArray|DataView|string}
+- `buffer` {Buffer|TypedArray|DataView|ArrayBuffer|string}
 
 Compress a chunk of data with [Deflate][].
 
@@ -560,6 +570,9 @@ changes:
 <!-- YAML
 added: v0.11.12
 changes:
+  - version: v9.4.0
+    pr-url: https://github.com/nodejs/node/pull/16042
+    description: The `buffer` parameter can be an ArrayBuffer.
   - version: v8.0.0
     pr-url: https://github.com/nodejs/node/pull/12223
     description: The `buffer` parameter can be any TypedArray or DataView now.
@@ -568,7 +581,7 @@ changes:
     description: The `buffer` parameter can be an Uint8Array now.
 -->
 
-- `buffer` {Buffer|TypedArray|DataView|string}
+- `buffer` {Buffer|TypedArray|DataView|ArrayBuffer|string}
 
 Compress a chunk of data with [DeflateRaw][].
 
@@ -576,6 +589,9 @@ Compress a chunk of data with [DeflateRaw][].
 <!-- YAML
 added: v0.6.0
 changes:
+  - version: v9.4.0
+    pr-url: https://github.com/nodejs/node/pull/16042
+    description: The `buffer` parameter can be an ArrayBuffer.
   - version: v8.0.0
     pr-url: https://github.com/nodejs/node/pull/12223
     description: The `buffer` parameter can be any TypedArray or DataView now.
@@ -587,6 +603,9 @@ changes:
 <!-- YAML
 added: v0.11.12
 changes:
+  - version: v9.4.0
+    pr-url: https://github.com/nodejs/node/pull/16042
+    description: The `buffer` parameter can be an ArrayBuffer.
   - version: v8.0.0
     pr-url: https://github.com/nodejs/node/pull/12223
     description: The `buffer` parameter can be any TypedArray or DataView now.
@@ -595,7 +614,7 @@ changes:
     description: The `buffer` parameter can be an Uint8Array now.
 -->
 
-- `buffer` {Buffer|TypedArray|DataView|string}
+- `buffer` {Buffer|TypedArray|DataView|ArrayBuffer|string}
 
 Decompress a chunk of data with [Gunzip][].
 
@@ -603,6 +622,9 @@ Decompress a chunk of data with [Gunzip][].
 <!-- YAML
 added: v0.6.0
 changes:
+  - version: v9.4.0
+    pr-url: https://github.com/nodejs/node/pull/16042
+    description: The `buffer` parameter can be an ArrayBuffer.
   - version: v8.0.0
     pr-url: https://github.com/nodejs/node/pull/12223
     description: The `buffer` parameter can be any TypedArray or DataView now.
@@ -614,6 +636,9 @@ changes:
 <!-- YAML
 added: v0.11.12
 changes:
+  - version: v9.4.0
+    pr-url: https://github.com/nodejs/node/pull/16042
+    description: The `buffer` parameter can be an ArrayBuffer.
   - version: v8.0.0
     pr-url: https://github.com/nodejs/node/pull/12223
     description: The `buffer` parameter can be any TypedArray or DataView now.
@@ -622,7 +647,7 @@ changes:
     description: The `buffer` parameter can be an Uint8Array now.
 -->
 
-- `buffer` {Buffer|TypedArray|DataView|string}
+- `buffer` {Buffer|TypedArray|DataView|ArrayBuffer|string}
 
 Compress a chunk of data with [Gzip][].
 
@@ -630,6 +655,9 @@ Compress a chunk of data with [Gzip][].
 <!-- YAML
 added: v0.6.0
 changes:
+  - version: v9.4.0
+    pr-url: https://github.com/nodejs/node/pull/16042
+    description: The `buffer` parameter can be an ArrayBuffer.
   - version: v8.0.0
     pr-url: https://github.com/nodejs/node/pull/12223
     description: The `buffer` parameter can be any TypedArray or DataView now.
@@ -641,6 +669,9 @@ changes:
 <!-- YAML
 added: v0.11.12
 changes:
+  - version: v9.4.0
+    pr-url: https://github.com/nodejs/node/pull/16042
+    description: The `buffer` parameter can be an ArrayBuffer.
   - version: v8.0.0
     pr-url: https://github.com/nodejs/node/pull/12223
     description: The `buffer` parameter can be any TypedArray or DataView now.
@@ -649,7 +680,7 @@ changes:
     description: The `buffer` parameter can be an Uint8Array now.
 -->
 
-- `buffer` {Buffer|TypedArray|DataView|string}
+- `buffer` {Buffer|TypedArray|DataView|ArrayBuffer|string}
 
 Decompress a chunk of data with [Inflate][].
 
@@ -657,6 +688,9 @@ Decompress a chunk of data with [Inflate][].
 <!-- YAML
 added: v0.6.0
 changes:
+  - version: v9.4.0
+    pr-url: https://github.com/nodejs/node/pull/16042
+    description: The `buffer` parameter can be an ArrayBuffer.
   - version: v8.0.0
     pr-url: https://github.com/nodejs/node/pull/12223
     description: The `buffer` parameter can be any TypedArray or DataView now.
@@ -668,6 +702,9 @@ changes:
 <!-- YAML
 added: v0.11.12
 changes:
+  - version: v9.4.0
+    pr-url: https://github.com/nodejs/node/pull/16042
+    description: The `buffer` parameter can be an ArrayBuffer.
   - version: v8.0.0
     pr-url: https://github.com/nodejs/node/pull/12223
     description: The `buffer` parameter can be any TypedArray or DataView now.
@@ -676,7 +713,7 @@ changes:
     description: The `buffer` parameter can be an Uint8Array now.
 -->
 
-- `buffer` {Buffer|TypedArray|DataView|string}
+- `buffer` {Buffer|TypedArray|DataView|ArrayBuffer|string}
 
 Decompress a chunk of data with [InflateRaw][].
 
@@ -684,6 +721,9 @@ Decompress a chunk of data with [InflateRaw][].
 <!-- YAML
 added: v0.6.0
 changes:
+  - version: v9.4.0
+    pr-url: https://github.com/nodejs/node/pull/16042
+    description: The `buffer` parameter can be an ArrayBuffer.
   - version: v8.0.0
     pr-url: https://github.com/nodejs/node/pull/12223
     description: The `buffer` parameter can be any TypedArray or DataView now.
@@ -695,6 +735,9 @@ changes:
 <!-- YAML
 added: v0.11.12
 changes:
+  - version: v9.4.0
+    pr-url: https://github.com/nodejs/node/pull/16042
+    description: The `buffer` parameter can be an ArrayBuffer.
   - version: v8.0.0
     pr-url: https://github.com/nodejs/node/pull/12223
     description: The `buffer` parameter can be any TypedArray or DataView now.
@@ -703,12 +746,13 @@ changes:
     description: The `buffer` parameter can be an Uint8Array now.
 -->
 
-- `buffer` {Buffer|TypedArray|DataView|string}
+- `buffer` {Buffer|TypedArray|DataView|ArrayBuffer|string}
 
 Decompress a chunk of data with [Unzip][].
 
 [`.flush()`]: #zlib_zlib_flush_kind_callback
 [`Accept-Encoding`]: https://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.3
+[`ArrayBuffer`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/ArrayBuffer
 [`Buffer`]: buffer.html#buffer_class_buffer
 [`Content-Encoding`]: https://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.11
 [`DataView`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/DataView
@@ -723,4 +767,4 @@ Decompress a chunk of data with [Unzip][].
 [Unzip]: #zlib_class_zlib_unzip
 [`UV_THREADPOOL_SIZE`]: cli.html#cli_uv_threadpool_size_size
 [options]: #zlib_class_options
-[zlib documentation]: http://zlib.net/manual.html#Constants
+[zlib documentation]: https://zlib.net/manual.html#Constants

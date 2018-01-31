@@ -29,11 +29,18 @@ release.
 </tr>
 <tr>
     <td valign="top">
-<b><a href="doc/changelogs/CHANGELOG_V9.md#9.1.0">9.1.0</a></b><br/>
+<b><a href="doc/changelogs/CHANGELOG_V9.md#9.4.0">9.4.0</a></b><br/>
+<a href="doc/changelogs/CHANGELOG_V9.md#9.3.0">9.3.0</a><br/>
+<a href="doc/changelogs/CHANGELOG_V9.md#9.2.1">9.2.1</a><br/>
+<a href="doc/changelogs/CHANGELOG_V9.md#9.2.0">9.2.0</a><br/>
+<a href="doc/changelogs/CHANGELOG_V9.md#9.1.0">9.1.0</a><br/>
 <a href="doc/changelogs/CHANGELOG_V9.md#9.0.0">9.0.0</a><br/>
     </td>
     <td valign="top">
-<b><a href="doc/changelogs/CHANGELOG_V8.md#8.9.1">8.9.1</a></b><br/>
+<b><a href="doc/changelogs/CHANGELOG_V8.md#8.9.4">8.9.4</a></b><br/>
+<a href="doc/changelogs/CHANGELOG_V8.md#8.9.3">8.9.3</a><br/>
+<a href="doc/changelogs/CHANGELOG_V8.md#8.9.2">8.9.2</a><br/>
+<a href="doc/changelogs/CHANGELOG_V8.md#8.9.1">8.9.1</a><br/>
 <a href="doc/changelogs/CHANGELOG_V8.md#8.9.0">8.9.0</a><br/>
 <a href="doc/changelogs/CHANGELOG_V8.md#8.8.1">8.8.1</a><br/>
 <a href="doc/changelogs/CHANGELOG_V8.md#8.8.0">8.8.0</a><br/>
@@ -52,7 +59,10 @@ release.
 <a href="doc/changelogs/CHANGELOG_V8.md#8.0.0">8.0.0</a><br/>
     </td>
   <td valign="top">
-<b><a href="doc/changelogs/CHANGELOG_V6.md#6.12.0">6.12.0</a></b><br/>
+<b><a href="doc/changelogs/CHANGELOG_V6.md#6.12.3">6.12.3</a></b><br/>
+<a href="doc/changelogs/CHANGELOG_V6.md#6.12.2">6.12.2</a><br/>
+<a href="doc/changelogs/CHANGELOG_V6.md#6.12.1">6.12.1</a><br/>
+<a href="doc/changelogs/CHANGELOG_V6.md#6.12.0">6.12.0</a><br/>
 <a href="doc/changelogs/CHANGELOG_V6.md#6.11.5">6.11.5</a><br/>
 <a href="doc/changelogs/CHANGELOG_V6.md#6.11.4">6.11.4</a><br/>
 <a href="doc/changelogs/CHANGELOG_V6.md#6.11.3">6.11.3</a><br/>
@@ -84,7 +94,8 @@ release.
 <a href="doc/changelogs/CHANGELOG_V6.md#6.0.0">6.0.0</a><br/>
   </td>
   <td valign="top">
-<b><a href="doc/changelogs/CHANGELOG_V4.md#4.8.6">4.8.6</a></b><br/>
+<b><a href="doc/changelogs/CHANGELOG_V4.md#4.8.7">4.8.7</a></b><br/>
+<a href="doc/changelogs/CHANGELOG_V4.md#4.8.6">4.8.6</a><br/>
 <a href="doc/changelogs/CHANGELOG_V4.md#4.8.5">4.8.5</a><br/>
 <a href="doc/changelogs/CHANGELOG_V4.md#4.8.4">4.8.4</a><br/>
 <a href="doc/changelogs/CHANGELOG_V4.md#4.8.3">4.8.3</a><br/>

@@ -95,45 +95,45 @@ private:
         return reinterpret_cast<char16_t *>(t);
     }
 
-    char16_t *p;
+    char16_t *p_;
 #else
     union {
         char16_t *cp;
         uint16_t *up;
         wchar_t *wp;
-    } u;
+    } u_;
 #endif
 };
 
 #ifdef U_ALIASING_BARRIER
 
-Char16Ptr::Char16Ptr(char16_t *p) : p(p) {}
+Char16Ptr::Char16Ptr(char16_t *p) : p_(p) {}
 #if !U_CHAR16_IS_TYPEDEF
-Char16Ptr::Char16Ptr(uint16_t *p) : p(cast(p)) {}
+Char16Ptr::Char16Ptr(uint16_t *p) : p_(cast(p)) {}
 #endif
 #if U_SIZEOF_WCHAR_T==2
-Char16Ptr::Char16Ptr(wchar_t *p) : p(cast(p)) {}
+Char16Ptr::Char16Ptr(wchar_t *p) : p_(cast(p)) {}
 #endif
-Char16Ptr::Char16Ptr(std::nullptr_t p) : p(p) {}
+Char16Ptr::Char16Ptr(std::nullptr_t p) : p_(p) {}
 Char16Ptr::~Char16Ptr() {
-    U_ALIASING_BARRIER(p);
+    U_ALIASING_BARRIER(p_);
 }
 
-char16_t *Char16Ptr::get() const { return p; }
+char16_t *Char16Ptr::get() const { return p_; }
 
 #else
 
-Char16Ptr::Char16Ptr(char16_t *p) { u.cp = p; }
+Char16Ptr::Char16Ptr(char16_t *p) { u_.cp = p; }
 #if !U_CHAR16_IS_TYPEDEF
-Char16Ptr::Char16Ptr(uint16_t *p) { u.up = p; }
+Char16Ptr::Char16Ptr(uint16_t *p) { u_.up = p; }
 #endif
 #if U_SIZEOF_WCHAR_T==2
-Char16Ptr::Char16Ptr(wchar_t *p) { u.wp = p; }
+Char16Ptr::Char16Ptr(wchar_t *p) { u_.wp = p; }
 #endif
-Char16Ptr::Char16Ptr(std::nullptr_t p) { u.cp = p; }
+Char16Ptr::Char16Ptr(std::nullptr_t p) { u_.cp = p; }
 Char16Ptr::~Char16Ptr() {}
 
-char16_t *Char16Ptr::get() const { return u.cp; }
+char16_t *Char16Ptr::get() const { return u_.cp; }
 
 #endif
 
@@ -203,45 +203,45 @@ private:
         return reinterpret_cast<const char16_t *>(t);
     }
 
-    const char16_t *p;
+    const char16_t *p_;
 #else
     union {
         const char16_t *cp;
         const uint16_t *up;
         const wchar_t *wp;
-    } u;
+    } u_;
 #endif
 };
 
 #ifdef U_ALIASING_BARRIER
 
-ConstChar16Ptr::ConstChar16Ptr(const char16_t *p) : p(p) {}
+ConstChar16Ptr::ConstChar16Ptr(const char16_t *p) : p_(p) {}
 #if !U_CHAR16_IS_TYPEDEF
-ConstChar16Ptr::ConstChar16Ptr(const uint16_t *p) : p(cast(p)) {}
+ConstChar16Ptr::ConstChar16Ptr(const uint16_t *p) : p_(cast(p)) {}
 #endif
 #if U_SIZEOF_WCHAR_T==2
-ConstChar16Ptr::ConstChar16Ptr(const wchar_t *p) : p(cast(p)) {}
+ConstChar16Ptr::ConstChar16Ptr(const wchar_t *p) : p_(cast(p)) {}
 #endif
-ConstChar16Ptr::ConstChar16Ptr(const std::nullptr_t p) : p(p) {}
+ConstChar16Ptr::ConstChar16Ptr(const std::nullptr_t p) : p_(p) {}
 ConstChar16Ptr::~ConstChar16Ptr() {
-    U_ALIASING_BARRIER(p);
+    U_ALIASING_BARRIER(p_);
 }
 
-const char16_t *ConstChar16Ptr::get() const { return p; }
+const char16_t *ConstChar16Ptr::get() const { return p_; }
 
 #else
 
-ConstChar16Ptr::ConstChar16Ptr(const char16_t *p) { u.cp = p; }
+ConstChar16Ptr::ConstChar16Ptr(const char16_t *p) { u_.cp = p; }
 #if !U_CHAR16_IS_TYPEDEF
-ConstChar16Ptr::ConstChar16Ptr(const uint16_t *p) { u.up = p; }
+ConstChar16Ptr::ConstChar16Ptr(const uint16_t *p) { u_.up = p; }
 #endif
 #if U_SIZEOF_WCHAR_T==2
-ConstChar16Ptr::ConstChar16Ptr(const wchar_t *p) { u.wp = p; }
+ConstChar16Ptr::ConstChar16Ptr(const wchar_t *p) { u_.wp = p; }
 #endif
-ConstChar16Ptr::ConstChar16Ptr(const std::nullptr_t p) { u.cp = p; }
+ConstChar16Ptr::ConstChar16Ptr(const std::nullptr_t p) { u_.cp = p; }
 ConstChar16Ptr::~ConstChar16Ptr() {}
 
-const char16_t *ConstChar16Ptr::get() const { return u.cp; }
+const char16_t *ConstChar16Ptr::get() const { return u_.cp; }
 
 #endif
 

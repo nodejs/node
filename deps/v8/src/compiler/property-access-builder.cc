@@ -89,9 +89,11 @@ bool PropertyAccessBuilder::TryBuildNumberCheck(MapHandles const& maps,
   return false;
 }
 
-Node* PropertyAccessBuilder::BuildCheckHeapObject(Node* receiver, Node** effect,
-                                                  Node* control) {
+namespace {
+
+bool NeedsCheckHeapObject(Node* receiver) {
   switch (receiver->opcode()) {
+    case IrOpcode::kConvertReceiver:
     case IrOpcode::kHeapConstant:
     case IrOpcode::kJSCreate:
     case IrOpcode::kJSCreateArguments:
@@ -99,22 +101,43 @@ Node* PropertyAccessBuilder::BuildCheckHeapObject(Node* receiver, Node** effect,
     case IrOpcode::kJSCreateClosure:
     case IrOpcode::kJSCreateIterResultObject:
     case IrOpcode::kJSCreateLiteralArray:
+    case IrOpcode::kJSCreateEmptyLiteralArray:
     case IrOpcode::kJSCreateLiteralObject:
+    case IrOpcode::kJSCreateEmptyLiteralObject:
     case IrOpcode::kJSCreateLiteralRegExp:
-    case IrOpcode::kJSConvertReceiver:
+    case IrOpcode::kJSCreateGeneratorObject:
+    case IrOpcode::kJSConstructForwardVarargs:
+    case IrOpcode::kJSConstruct:
+    case IrOpcode::kJSConstructWithArrayLike:
+    case IrOpcode::kJSConstructWithSpread:
     case IrOpcode::kJSToName:
     case IrOpcode::kJSToString:
     case IrOpcode::kJSToObject:
-    case IrOpcode::kJSTypeOf: {
-      return receiver;
+    case IrOpcode::kTypeOf:
+    case IrOpcode::kJSGetSuperConstructor:
+      return false;
+    case IrOpcode::kPhi: {
+      Node* control = NodeProperties::GetControlInput(receiver);
+      if (control->opcode() != IrOpcode::kMerge) return true;
+      for (int i = 0; i < receiver->InputCount() - 1; ++i) {
+        if (NeedsCheckHeapObject(receiver->InputAt(i))) return true;
+      }
+      return false;
     }
-    default: {
-      return *effect = graph()->NewNode(simplified()->CheckHeapObject(),
-                                        receiver, *effect, control);
-    }
+    default:
+      return true;
   }
-  UNREACHABLE();
-  return nullptr;
+}
+
+}  // namespace
+
+Node* PropertyAccessBuilder::BuildCheckHeapObject(Node* receiver, Node** effect,
+                                                  Node* control) {
+  if (NeedsCheckHeapObject(receiver)) {
+    receiver = *effect = graph()->NewNode(simplified()->CheckHeapObject(),
+                                          receiver, *effect, control);
+  }
+  return receiver;
 }
 
 void PropertyAccessBuilder::BuildCheckMaps(
@@ -142,6 +165,19 @@ void PropertyAccessBuilder::BuildCheckMaps(
   }
   *effect = graph()->NewNode(simplified()->CheckMaps(flags, maps), receiver,
                              *effect, control);
+}
+
+Node* PropertyAccessBuilder::BuildCheckValue(Node* receiver, Node** effect,
+                                             Node* control,
+                                             Handle<HeapObject> value) {
+  HeapObjectMatcher m(receiver);
+  if (m.Is(value)) return receiver;
+  Node* expected = jsgraph()->HeapConstant(value);
+  Node* check =
+      graph()->NewNode(simplified()->ReferenceEqual(), receiver, expected);
+  *effect = graph()->NewNode(simplified()->CheckIf(DeoptimizeReason::kNoReason),
+                             check, *effect, control);
+  return expected;
 }
 
 void PropertyAccessBuilder::AssumePrototypesStable(

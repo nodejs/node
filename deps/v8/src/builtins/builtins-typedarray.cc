@@ -311,12 +311,6 @@ BUILTIN(TypedArrayPrototypeSlice) {
       isolate, result_array,
       TypedArraySpeciesCreateByLength(isolate, array, method, count));
 
-  // TODO(cwhan.tunz): neutering check of the result_array should be done in
-  // TypedArraySpeciesCreate, but currently ValidateTypedArray does not throw
-  // for neutered buffer, so this is a temporary neutering check for the result
-  // array
-  if (V8_UNLIKELY(result_array->WasNeutered())) return *result_array;
-
   // TODO(cwhan.tunz): should throw.
   if (V8_UNLIKELY(array->WasNeutered())) return *result_array;
 

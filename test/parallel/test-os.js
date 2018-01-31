@@ -28,7 +28,7 @@ const { inspect } = require('util');
 
 const is = {
   number: (value, key) => {
-    assert(!isNaN(value), `${key} should not be NaN`);
+    assert(!Number.isNaN(value), `${key} should not be NaN`);
     assert.strictEqual(typeof value, 'number');
   },
   string: (value) => { assert.strictEqual(typeof value, 'string'); },
@@ -113,7 +113,7 @@ is.string(arch);
 assert.ok(arch.length > 0);
 
 if (!common.isSunOS) {
-  // not implemeneted yet
+  // not implemented yet
   assert.ok(os.loadavg().length > 0);
   assert.ok(os.freemem() > 0);
   assert.ok(os.totalmem() > 0);

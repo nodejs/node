@@ -2,14 +2,9 @@
 const common = require('../common');
 const PassThrough = require('stream').PassThrough;
 const assert = require('assert');
-const inherits = require('util').inherits;
 const Interface = require('readline').Interface;
 
-
-function FakeInput() {
-  PassThrough.call(this);
-}
-inherits(FakeInput, PassThrough);
+class FakeInput extends PassThrough {}
 
 function extend(k) {
   return Object.assign({ ctrl: false, meta: false, shift: false }, k);

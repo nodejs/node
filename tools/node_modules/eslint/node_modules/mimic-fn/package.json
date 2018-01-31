@@ -1,0 +1,75 @@
+{
+  "_from": "mimic-fn@^1.0.0",
+  "_id": "mimic-fn@1.1.0",
+  "_inBundle": false,
+  "_integrity": "sha1-5md4PZLonb00KBi1IwudYqZyrRg=",
+  "_location": "/eslint/mimic-fn",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "range",
+    "registry": true,
+    "raw": "mimic-fn@^1.0.0",
+    "name": "mimic-fn",
+    "escapedName": "mimic-fn",
+    "rawSpec": "^1.0.0",
+    "saveSpec": null,
+    "fetchSpec": "^1.0.0"
+  },
+  "_requiredBy": [
+    "/eslint/onetime"
+  ],
+  "_resolved": "https://registry.npmjs.org/mimic-fn/-/mimic-fn-1.1.0.tgz",
+  "_shasum": "e667783d92e89dbd342818b5230b9d62a672ad18",
+  "_spec": "mimic-fn@^1.0.0",
+  "_where": "/home/mzasso/git/nodejs/node/tools/eslint-tmp/node_modules/eslint/node_modules/onetime",
+  "author": {
+    "name": "Sindre Sorhus",
+    "email": "sindresorhus@gmail.com",
+    "url": "sindresorhus.com"
+  },
+  "bugs": {
+    "url": "https://github.com/sindresorhus/mimic-fn/issues"
+  },
+  "bundleDependencies": false,
+  "deprecated": false,
+  "description": "Make a function mimic another one",
+  "devDependencies": {
+    "ava": "*",
+    "xo": "*"
+  },
+  "engines": {
+    "node": ">=4"
+  },
+  "files": [
+    "index.js"
+  ],
+  "homepage": "https://github.com/sindresorhus/mimic-fn#readme",
+  "keywords": [
+    "function",
+    "mimic",
+    "imitate",
+    "rename",
+    "copy",
+    "inherit",
+    "properties",
+    "name",
+    "func",
+    "fn",
+    "set",
+    "infer",
+    "change"
+  ],
+  "license": "MIT",
+  "name": "mimic-fn",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sindresorhus/mimic-fn.git"
+  },
+  "scripts": {
+    "test": "xo && ava"
+  },
+  "version": "1.1.0",
+  "xo": {
+    "esnext": true
+  }
+}

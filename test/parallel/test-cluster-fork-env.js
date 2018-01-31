@@ -21,6 +21,11 @@
 
 'use strict';
 require('../common');
+
+// This test checks that arguments provided to cluster.fork() will create
+// new environment variables and override existing environment variables
+// in the created worker process.
+
 const assert = require('assert');
 const cluster = require('cluster');
 

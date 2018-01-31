@@ -33,11 +33,11 @@
 #define CHECK_TYPE(type) CHECK(types[index].bounds.Narrows(type));
 #endif
 
-#define CHECK_EXPR(ekind, type)                  \
-  CHECK_LT(index, types.size());                 \
-  CHECK(strcmp(#ekind, types[index].kind) == 0); \
-  CHECK_EQ(depth, types[index].depth);           \
-  CHECK_TYPE(type);                              \
+#define CHECK_EXPR(ekind, type)                   \
+  CHECK_LT(index, types.size());                  \
+  CHECK_EQ(strcmp(#ekind, types[index].kind), 0); \
+  CHECK_EQ(depth, types[index].depth);            \
+  CHECK_TYPE(type);                               \
   for (int j = (++depth, ++index, 0); j < 1 ? 1 : (--depth, 0); ++j)
 
 #define CHECK_VAR(vname, type)                                     \

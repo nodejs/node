@@ -245,7 +245,7 @@ TEST(RedeclareAccessor) {
 
   v8::Local<v8::ObjectTemplate> object_template = templ->InstanceTemplate();
   object_template->SetAccessor(
-      v8_str("foo"), NULL, Setter, v8::Local<v8::Value>(),
+      v8_str("foo"), nullptr, Setter, v8::Local<v8::Value>(),
       v8::AccessControl::DEFAULT, v8::PropertyAttribute::DontDelete);
 
   v8::Local<v8::Context> ctx =

@@ -1,5 +1,7 @@
 # Deprecated APIs
 
+<!--introduced_in=v7.7.0-->
+
 Node.js may deprecate APIs when either: (a) use of the API is considered to be
 unsafe, (b) an improved alternative API has been made available, or (c)
 breaking changes to the API are expected in a future major release.
@@ -12,6 +14,12 @@ Node.js utilizes three kinds of Deprecations:
 
 A Documentation-only deprecation is one that is expressed only within the
 Node.js API docs. These generate no side-effects while running Node.js.
+Some Documentation-only deprecations trigger a runtime warning when launched
+with [`--pending-deprecation`][] flag (or its alternative,
+`NODE_PENDING_DEPRECATION=1` environment variable), similarly to Runtime
+deprecations below. Documentation-only deprecations that support that flag
+are explicitly labeled as such in the
+[list of Deprecated APIs](#deprecations_list_of_deprecated_apis).
 
 A Runtime deprecation will, by default, generate a process warning that will
 be printed to `stderr` the first time the deprecated API is used. When the
@@ -41,7 +49,7 @@ The `OutgoingMessage.prototype.flush()` method is deprecated. Use
 <a id="DEP0002"></a>
 ### DEP0002: require('\_linklist')
 
-Type: Runtime
+Type: End-of-Life
 
 The `_linklist` module is deprecated. Please use a userland alternative.
 
@@ -64,7 +72,7 @@ be used.
 <a id="DEP0005"></a>
 ### DEP0005: Buffer() constructor
 
-Type: Documentation-only
+Type: Documentation-only (supports [`--pending-deprecation`][])
 
 The `Buffer()` function and `new Buffer()` constructor are deprecated due to
 API usability issues that can potentially lead to accidental security issues.
@@ -122,7 +130,7 @@ to the `constants` property exposed by the relevant module. For instance,
 Type: End-of-life
 
 Use of the [`crypto.pbkdf2()`][] API without specifying a digest was deprecated
-in Node.js 6.0 because the method defaulted to using the non-recommendend
+in Node.js 6.0 because the method defaulted to using the non-recommended
 `'SHA1'` digest. Previously, a deprecation warning was printed. Starting in
 Node.js 8.0.0, calling `crypto.pbkdf2()` or `crypto.pbkdf2Sync()` with an
 undefined `digest` will throw a `TypeError`.
@@ -598,10 +606,9 @@ a V8-inspector based CLI debugger available through `node inspect`.
 <a id="DEP0069"></a>
 ### DEP0069: vm.runInDebugContext(string)
 
-Type: Runtime
+Type: End-of-Life
 
-The DebugContext will be removed in V8 soon and will not be available in Node
-10+.
+DebugContext has been removed in V8 and is not available in Node 10+.
 
 *Note*: DebugContext was an experimental API.
 
@@ -638,7 +645,7 @@ Type: End-of-Life
 <a id="DEP0073"></a>
 ### DEP0073: Several internal properties of net.Server
 
-Type: Runtime
+Type: End-of-Life
 
 Accessing several internal, undocumented properties of `net.Server` instances
 with inappropriate names has been deprecated.
@@ -703,7 +710,7 @@ Type: Runtime
 <a id="DEP0079"></a>
 ### DEP0079: Custom inspection function on Objects via .inspect()
 
-Type: Documentation-only
+Type: Runtime
 
 Using a property named `inspect` on an object to specify a custom inspection
 function for [`util.inspect()`][] is deprecated. Use [`util.inspect.custom`][]
@@ -737,7 +744,87 @@ Type: Runtime
 internal mechanics of the `REPLServer` itself, and is therefore not
 necessary in user space.
 
+<a id="DEP0083"></a>
+### DEP0083: Disabling ECDH by setting ecdhCurve to false
 
+Type: Runtime
+
+The `ecdhCurve` option to `tls.createSecureContext()` and `tls.TLSSocket` could
+be set to `false` to disable ECDH entirely on the server only. This mode is
+deprecated in preparation for migrating to OpenSSL 1.1.0 and consistency with
+the client. Use the `ciphers` parameter instead.
+
+<a id="DEP0084"></a>
+### DEP0084: requiring bundled internal dependencies
+
+Type: Runtime
+
+Since Node.js versions 4.4.0 and 5.2.0, several modules only intended for
+internal usage are mistakenly exposed to user code through `require()`. These
+modules are:
+
+- `v8/tools/codemap`
+- `v8/tools/consarray`
+- `v8/tools/csvparser`
+- `v8/tools/logreader`
+- `v8/tools/profile_view`
+- `v8/tools/profile`
+- `v8/tools/SourceMap`
+- `v8/tools/splaytree`
+- `v8/tools/tickprocessor-driver`
+- `v8/tools/tickprocessor`
+- `node-inspect/lib/_inspect` (from 7.6.0)
+- `node-inspect/lib/internal/inspect_client` (from 7.6.0)
+- `node-inspect/lib/internal/inspect_repl` (from 7.6.0)
+
+The `v8/*` modules do not have any exports, and if not imported in a specific
+order would in fact throw errors. As such there are virtually no legitimate use
+cases for importing them through `require()`.
+
+On the other hand, `node-inspect` may be installed locally through a package
+manager, as it is published on the npm registry under the same name. No source
+code modification is necessary if that is done.
+
+<a id="DEP0085"></a>
+### DEP0085: AsyncHooks Sensitive API
+
+Type: End-of-Life
+
+The AsyncHooks Sensitive API was never documented and had various of minor
+issues, see https://github.com/nodejs/node/issues/15572. Use the `AsyncResource`
+API instead.
+
+<a id="DEP0086"></a>
+### DEP0086: Remove runInAsyncIdScope
+
+Type: End-of-Life
+
+`runInAsyncIdScope` doesn't emit the `before` or `after` event and can thus
+cause a lot of issues. See https://github.com/nodejs/node/issues/14328 for more
+details.
+
+<a id="DEP0089"></a>
+### DEP0089: require('assert')
+
+Type: Documentation-only
+
+Importing assert directly is not recommended as the exposed functions will use
+loose equality checks. Use `require('assert').strict` instead. The API is the
+same as the legacy assert but it will always use strict equality checks.
+
+<a id="DEP0090"></a>
+### DEP0090: Invalid GCM authentication tag lengths
+
+Type: Runtime
+
+Node.js supports all GCM authentication tag lengths which are accepted by
+OpenSSL when calling [`decipher.setAuthTag()`][]. This behavior will change in
+a future version at which point only authentication tag lengths of 128, 120,
+112, 104, 96, 64, and 32 bits will be allowed. Authentication tags whose length
+is not included in this list will be considered invalid in compliance with
+[NIST SP 800-38D][].
+
+[`--pending-deprecation`]: cli.html#cli_pending_deprecation
 [`Buffer.allocUnsafeSlow(size)`]: buffer.html#buffer_class_method_buffer_allocunsafeslow_size
 [`Buffer.from(array)`]: buffer.html#buffer_class_method_buffer_from_array
 [`Buffer.from(buffer)`]: buffer.html#buffer_class_method_buffer_from_buffer
@@ -752,6 +839,7 @@ necessary in user space.
 [`console.log()`]: console.html#console_console_log_data_args
 [`crypto.createCredentials()`]: crypto.html#crypto_crypto_createcredentials_details
 [`crypto.pbkdf2()`]: crypto.html#crypto_crypto_pbkdf2_password_salt_iterations_keylen_digest_callback
+[`decipher.setAuthTag()`]: crypto.html#crypto_decipher_setauthtag_buffer
 [`domain`]: domain.html
 [`ecdh.setPublicKey()`]: crypto.html#crypto_ecdh_setpublickey_publickey_encoding
 [`emitter.listenerCount(eventName)`]: events.html#events_emitter_listenercount_eventname
@@ -802,4 +890,5 @@ necessary in user space.
 [alloc_unsafe_size]: buffer.html#buffer_class_method_buffer_allocunsafe_size
 [from_arraybuffer]: buffer.html#buffer_class_method_buffer_from_arraybuffer_byteoffset_length
 [from_string_encoding]: buffer.html#buffer_class_method_buffer_from_string_encoding
+[NIST SP 800-38D]: http://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-38d.pdf
 [`REPLServer.clearBufferedCommand()`]: repl.html#repl_replserver_clearbufferedcommand

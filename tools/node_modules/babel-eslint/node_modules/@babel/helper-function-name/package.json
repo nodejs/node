@@ -1,0 +1,42 @@
+{
+  "_from": "@babel/helper-function-name@7.0.0-beta.36",
+  "_id": "@babel/helper-function-name@7.0.0-beta.36",
+  "_inBundle": false,
+  "_integrity": "sha512-/SGPOyifPf20iTrMN+WdlY2MbKa7/o4j7B/4IAsdOusASp2icT+Wcdjf4tjJHaXNX8Pe9bpgVxLNxhRvcf8E5w==",
+  "_location": "/babel-eslint/@babel/helper-function-name",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "version",
+    "registry": true,
+    "raw": "@babel/helper-function-name@7.0.0-beta.36",
+    "name": "@babel/helper-function-name",
+    "escapedName": "@babel%2fhelper-function-name",
+    "scope": "@babel",
+    "rawSpec": "7.0.0-beta.36",
+    "saveSpec": null,
+    "fetchSpec": "7.0.0-beta.36"
+  },
+  "_requiredBy": [
+    "/babel-eslint/@babel/traverse"
+  ],
+  "_resolved": "https://registry.npmjs.org/@babel/helper-function-name/-/helper-function-name-7.0.0-beta.36.tgz",
+  "_shasum": "366e3bc35147721b69009f803907c4d53212e88d",
+  "_spec": "@babel/helper-function-name@7.0.0-beta.36",
+  "_where": "/home/mzasso/git/nodejs/node/tools/babel-eslint-tmp/node_modules/babel-eslint/node_modules/@babel/traverse",
+  "bundleDependencies": false,
+  "dependencies": {
+    "@babel/helper-get-function-arity": "7.0.0-beta.36",
+    "@babel/template": "7.0.0-beta.36",
+    "@babel/types": "7.0.0-beta.36"
+  },
+  "deprecated": false,
+  "description": "Helper function to change the property 'name' of every function",
+  "license": "MIT",
+  "main": "lib/index.js",
+  "name": "@babel/helper-function-name",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/babel/babel/tree/master/packages/babel-helper-function-name"
+  },
+  "version": "7.0.0-beta.36"
+}

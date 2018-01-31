@@ -37,9 +37,6 @@ class PlatformInterfaceDescriptor;
   V(TypeConversion)                   \
   V(TypeConversionStackParameter)     \
   V(Typeof)                           \
-  V(FastCloneRegExp)                  \
-  V(FastCloneShallowArray)            \
-  V(FastCloneShallowObject)           \
   V(CallFunction)                     \
   V(CallVarargs)                      \
   V(CallForwardVarargs)               \
@@ -65,8 +62,6 @@ class PlatformInterfaceDescriptor;
   V(StringAdd)                        \
   V(StringCharAt)                     \
   V(StringCharCodeAt)                 \
-  V(StringCompare)                    \
-  V(SubString)                        \
   V(ForInPrepare)                     \
   V(GetProperty)                      \
   V(ArgumentAdaptor)                  \
@@ -97,7 +92,7 @@ class V8_EXPORT_PRIVATE CallInterfaceDescriptorData {
 
   void InitializePlatformSpecific(
       int register_parameter_count, const Register* registers,
-      PlatformInterfaceDescriptor* platform_descriptor = NULL);
+      PlatformInterfaceDescriptor* platform_descriptor = nullptr);
 
   // if machine_types is null, then an array of size
   // (parameter_count + extra_parameter_count) will be created with
@@ -124,11 +119,11 @@ class V8_EXPORT_PRIVATE CallInterfaceDescriptorData {
   }
 
   void RestrictAllocatableRegisters(const Register* registers, int num) {
-    DCHECK(allocatable_registers_ == 0);
+    DCHECK_EQ(allocatable_registers_, 0);
     for (int i = 0; i < num; ++i) {
       allocatable_registers_ |= registers[i].bit();
     }
-    DCHECK(NumRegs(allocatable_registers_) > 0);
+    DCHECK_GT(NumRegs(allocatable_registers_), 0);
   }
 
   RegList allocatable_registers() const { return allocatable_registers_; }
@@ -166,7 +161,7 @@ class CallDescriptors {
 
 class V8_EXPORT_PRIVATE CallInterfaceDescriptor {
  public:
-  CallInterfaceDescriptor() : data_(NULL) {}
+  CallInterfaceDescriptor() : data_(nullptr) {}
   virtual ~CallInterfaceDescriptor() {}
 
   CallInterfaceDescriptor(Isolate* isolate, CallDescriptors::Key key)
@@ -213,7 +208,8 @@ class V8_EXPORT_PRIVATE CallInterfaceDescriptor {
 
   virtual void InitializePlatformIndependent(
       CallInterfaceDescriptorData* data) {
-    data->InitializePlatformIndependent(data->register_param_count(), 0, NULL);
+    data->InitializePlatformIndependent(data->register_param_count(), 0,
+                                        nullptr);
   }
 
   void Initialize(Isolate* isolate, CallDescriptors::Key key) {
@@ -259,7 +255,8 @@ static const int kMaxBuiltinRegisterParams = 5;
   }                                                                           \
   void InitializePlatformIndependent(CallInterfaceDescriptorData* data)       \
       override {                                                              \
-    data->InitializePlatformIndependent(kRegisterParams, kStackParams, NULL); \
+    data->InitializePlatformIndependent(kRegisterParams, kStackParams,        \
+                                        nullptr);                             \
   }                                                                           \
   name(Isolate* isolate, CallDescriptors::Key key) : base(isolate, key) {}    \
                                                                               \
@@ -286,7 +283,7 @@ static const int kMaxBuiltinRegisterParams = 5;
  protected:                                                             \
   void InitializePlatformIndependent(CallInterfaceDescriptorData* data) \
       override {                                                        \
-    data->InitializePlatformIndependent(0, kParameterCount, NULL);      \
+    data->InitializePlatformIndependent(0, kParameterCount, nullptr);   \
   }                                                                     \
   void InitializePlatformSpecific(CallInterfaceDescriptorData* data)    \
       override {                                                        \
@@ -343,7 +340,7 @@ static const int kMaxBuiltinRegisterParams = 5;
     kStackParameterCount = kArity + 1                                   \
   };
 
-class VoidDescriptor : public CallInterfaceDescriptor {
+class V8_EXPORT_PRIVATE VoidDescriptor : public CallInterfaceDescriptor {
  public:
   DECLARE_DESCRIPTOR(VoidDescriptor, CallInterfaceDescriptor)
 };
@@ -519,7 +516,7 @@ class FastNewArgumentsDescriptor : public CallInterfaceDescriptor {
 
 class RecordWriteDescriptor final : public CallInterfaceDescriptor {
  public:
-  DEFINE_PARAMETERS(kObject, kSlot, kIsolate)
+  DEFINE_PARAMETERS(kObject, kSlot, kIsolate, kRememberedSet, kFPMode)
   DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(RecordWriteDescriptor,
                                                CallInterfaceDescriptor)
 };
@@ -558,29 +555,6 @@ class TypeofDescriptor : public CallInterfaceDescriptor {
  public:
   DEFINE_PARAMETERS(kObject)
   DECLARE_DESCRIPTOR(TypeofDescriptor, CallInterfaceDescriptor)
-};
-
-
-class FastCloneRegExpDescriptor : public CallInterfaceDescriptor {
- public:
-  DEFINE_PARAMETERS(kClosure, kLiteralIndex, kPattern, kFlags)
-  DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(FastCloneRegExpDescriptor,
-                                               CallInterfaceDescriptor)
-};
-
-
-class FastCloneShallowArrayDescriptor : public CallInterfaceDescriptor {
- public:
-  DEFINE_PARAMETERS(kClosure, kLiteralIndex, kConstantElements)
-  DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(FastCloneShallowArrayDescriptor,
-                                               CallInterfaceDescriptor)
-};
-
-
-class FastCloneShallowObjectDescriptor : public CallInterfaceDescriptor {
- public:
-  DEFINE_PARAMETERS(kClosure, kLiteralIndex, kBoilerplateDescription, kFlags)
-  DECLARE_DESCRIPTOR(FastCloneShallowObjectDescriptor, CallInterfaceDescriptor)
 };
 
 class CallTrampolineDescriptor : public CallInterfaceDescriptor {
@@ -765,22 +739,6 @@ class StringCharCodeAtDescriptor final : public CallInterfaceDescriptor {
                                                CallInterfaceDescriptor)
 };
 
-class StringCompareDescriptor : public CallInterfaceDescriptor {
- public:
-  DEFINE_PARAMETERS(kLeft, kRight)
-  DECLARE_DESCRIPTOR(StringCompareDescriptor, CallInterfaceDescriptor)
-
-  static const Register LeftRegister();
-  static const Register RightRegister();
-};
-
-class SubStringDescriptor : public CallInterfaceDescriptor {
- public:
-  DEFINE_PARAMETERS(kString, kFrom, kTo)
-  DECLARE_DESCRIPTOR_WITH_STACK_ARGS(SubStringDescriptor,
-                                     CallInterfaceDescriptor)
-};
-
 class ArgumentAdaptorDescriptor : public CallInterfaceDescriptor {
  public:
   DEFINE_PARAMETERS(kFunction, kNewTarget, kActualArgumentsCount,
@@ -791,7 +749,7 @@ class ArgumentAdaptorDescriptor : public CallInterfaceDescriptor {
 
 class ApiCallbackDescriptor : public CallInterfaceDescriptor {
  public:
-  DEFINE_PARAMETERS(kFunction, kCallData, kHolder, kApiFunctionAddress)
+  DEFINE_PARAMETERS(kTargetContext, kCallData, kHolder, kApiFunctionAddress)
   DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(ApiCallbackDescriptor,
                                                CallInterfaceDescriptor)
 };
@@ -834,7 +792,7 @@ class GrowArrayElementsDescriptor : public CallInterfaceDescriptor {
 
 class NewArgumentsElementsDescriptor final : public CallInterfaceDescriptor {
  public:
-  DEFINE_PARAMETERS(kFrame, kLength)
+  DEFINE_PARAMETERS(kFrame, kLength, kMappedCount)
   DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(NewArgumentsElementsDescriptor,
                                                CallInterfaceDescriptor)
 };

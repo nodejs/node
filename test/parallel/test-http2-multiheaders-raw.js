@@ -42,8 +42,8 @@ server.on('stream', common.mustCall((stream, headers, flags, rawHeaders) => {
 server.listen(0, common.mustCall(() => {
   const client = http2.connect(`http://localhost:${server.address().port}`);
   const req = client.request(src);
-  req.on('streamClosed', common.mustCall(() => {
+  req.on('close', common.mustCall(() => {
     server.close();
-    client.destroy();
+    client.close();
   }));
 }));

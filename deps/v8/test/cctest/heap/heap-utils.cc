@@ -32,6 +32,7 @@ int FixedArrayLenFromSize(int size) {
 
 std::vector<Handle<FixedArray>> FillOldSpacePageWithFixedArrays(Heap* heap,
                                                                 int remainder) {
+  PauseAllocationObserversScope pause_observers(heap);
   std::vector<Handle<FixedArray>> handles;
   Isolate* isolate = heap->isolate();
   const int kArraySize = 128;
@@ -161,7 +162,7 @@ void SimulateIncrementalMarking(i::Heap* heap, bool force_completion) {
 
   while (!marking->IsComplete()) {
     marking->Step(i::MB, i::IncrementalMarking::NO_GC_VIA_STACK_GUARD,
-                  i::IncrementalMarking::FORCE_COMPLETION, i::StepOrigin::kV8);
+                  i::StepOrigin::kV8);
     if (marking->IsReadyToOverApproximateWeakClosure()) {
       marking->FinalizeIncrementally();
     }
@@ -170,6 +171,7 @@ void SimulateIncrementalMarking(i::Heap* heap, bool force_completion) {
 }
 
 void SimulateFullSpace(v8::internal::PagedSpace* space) {
+  CodeSpaceMemoryModificationScope modification_scope(space->heap());
   i::MarkCompactCollector* collector = space->heap()->mark_compact_collector();
   if (collector->sweeping_in_progress()) {
     collector->EnsureSweepingCompleted();
@@ -203,7 +205,7 @@ void ForceEvacuationCandidate(Page* page) {
     int remaining = static_cast<int>(limit - top);
     space->heap()->CreateFillerObjectAt(top, remaining,
                                         ClearRecordedSlots::kNo);
-    space->SetTopAndLimit(nullptr, nullptr);
+    space->EmptyAllocationInfo();
   }
 }
 

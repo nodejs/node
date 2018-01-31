@@ -11,4 +11,5 @@ runBenchmark('util',
               'n=1',
               'option=none',
               'type=',
-              'version=native']);
+              'version=native'],
+             { NODEJS_BENCHMARK_ZERO_ALLOWED: 1 });

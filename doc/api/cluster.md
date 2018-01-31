@@ -109,7 +109,8 @@ will be dropped and new connections will be refused. Node.js does not
 automatically manage the number of workers, however. It is the application's
 responsibility to manage the worker pool based on its own needs.
 
-
+Although a primary use case for the `cluster` module is networking, it can
+also be used for other use cases requiring worker processes.
 
 ## Class: Worker
 <!-- YAML
@@ -710,6 +711,8 @@ changes:
   * `exec` {string} File path to worker file. **Default:** `process.argv[1]`
   * `args` {Array} String arguments passed to worker.
     **Default:** `process.argv.slice(2)`
+  * `cwd` {string} Current working directory of the worker process. **Default:**
+    `undefined` (inherits from parent process)
   * `silent` {boolean} Whether or not to send output to parent's stdio.
     **Default:** `false`
   * `stdio` {Array} Configures the stdio of forked processes. Because the
@@ -717,10 +720,12 @@ changes:
     `'ipc'` entry. When this option is provided, it overrides `silent`.
   * `uid` {number} Sets the user identity of the process. (See setuid(2).)
   * `gid` {number} Sets the group identity of the process. (See setgid(2).)
-  * `inspectPort` {number|function} Sets inspector port of worker.
+  * `inspectPort` {number|Function} Sets inspector port of worker.
     This can be a number, or a function that takes no arguments and returns a
     number. By default each worker gets its own port, incremented from the
     master's `process.debugPort`.
+  * `windowsHide` {boolean} Hide the forked processes console window that would
+    normally be created on Windows systems. **Default:** `false`
 
 After calling `.setupMaster()` (or `.fork()`) this settings object will contain
 the settings, including the default values.

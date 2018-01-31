@@ -9,7 +9,6 @@
 #include "src/conversions-inl.h"
 #include "src/conversions.h"
 #include "src/globals.h"
-#include "src/list.h"
 #include "src/parsing/duplicate-finder.h"
 #include "src/parsing/parser-base.h"
 #include "src/parsing/preparse-data-format.h"
@@ -88,7 +87,7 @@ PreParserIdentifier PreParser::GetSymbol() const {
   return symbol;
 }
 
-PreParser::PreParseResult PreParser::PreParseProgram(bool is_module) {
+PreParser::PreParseResult PreParser::PreParseProgram() {
   DCHECK_NULL(scope_);
   DeclarationScope* scope = NewScriptScope();
 #ifdef DEBUG
@@ -98,13 +97,12 @@ PreParser::PreParseResult PreParser::PreParseProgram(bool is_module) {
   // ModuleDeclarationInstantiation for Source Text Module Records creates a
   // new Module Environment Record whose outer lexical environment record is
   // the global scope.
-  if (is_module) scope = NewModuleScope(scope);
+  if (parsing_module_) scope = NewModuleScope(scope);
 
   FunctionState top_scope(&function_state_, &scope_, scope);
   original_scope_ = scope_;
   bool ok = true;
   int start_position = scanner()->peek_location().beg_pos;
-  parsing_module_ = is_module;
   PreParserStatementList body;
   ParseStatementList(body, Token::EOS, &ok);
   original_scope_ = nullptr;
@@ -120,14 +118,14 @@ PreParser::PreParseResult PreParser::PreParseProgram(bool is_module) {
 PreParser::PreParseResult PreParser::PreParseFunction(
     const AstRawString* function_name, FunctionKind kind,
     FunctionLiteral::FunctionType function_type,
-    DeclarationScope* function_scope, bool parsing_module,
-    bool is_inner_function, bool may_abort, int* use_counts,
-    ProducedPreParsedScopeData** produced_preparsed_scope_data) {
+    DeclarationScope* function_scope, bool is_inner_function, bool may_abort,
+    int* use_counts, ProducedPreParsedScopeData** produced_preparsed_scope_data,
+    int script_id) {
   DCHECK_EQ(FUNCTION_SCOPE, function_scope->scope_type());
-  parsing_module_ = parsing_module;
   use_counts_ = use_counts;
   DCHECK(!track_unresolved_variables_);
   track_unresolved_variables_ = is_inner_function;
+  set_script_id(script_id);
 #ifdef DEBUG
   function_scope->set_is_being_lazily_parsed(true);
 #endif
@@ -207,8 +205,9 @@ PreParser::PreParseResult PreParser::PreParseFunction(
     }
   }
 
-  if (!IsArrowFunction(kind) && track_unresolved_variables_) {
-    CreateFunctionNameAssignment(function_name, function_type, function_scope);
+  if (!IsArrowFunction(kind) && track_unresolved_variables_ &&
+      result == kLazyParsingComplete) {
+    DeclareFunctionNameVar(function_name, function_type, function_scope);
 
     // Declare arguments after parsing the function since lexical 'arguments'
     // masks the arguments object. Declare arguments before declaring the
@@ -224,7 +223,7 @@ PreParser::PreParseResult PreParser::PreParseFunction(
   } else if (stack_overflow()) {
     return kPreParseStackOverflow;
   } else if (!*ok) {
-    DCHECK(pending_error_handler_->has_pending_error());
+    DCHECK(pending_error_handler()->has_pending_error());
   } else {
     DCHECK_EQ(Token::RBRACE, scanner()->peek());
 
@@ -278,6 +277,9 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
   RuntimeCallTimerScope runtime_timer(
       runtime_call_stats_,
       counters[track_unresolved_variables_][parsing_on_main_thread_]);
+
+  base::ElapsedTimer timer;
+  if (V8_UNLIKELY(FLAG_log_function_events)) timer.Start();
 
   DeclarationScope* function_scope = NewFunctionScope(kind);
   function_scope->SetLanguageMode(language_mode);
@@ -344,11 +346,23 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
     produced_preparsed_scope_data_scope->MarkFunctionAsSkippable(
         end_position, GetLastFunctionLiteralId() - func_id);
   }
-  if (FLAG_trace_preparse) {
-    PrintF("  [%s]: %i-%i\n",
-           track_unresolved_variables_ ? "Preparse resolution"
-                                       : "Preparse no-resolution",
-           function_scope->start_position(), function_scope->end_position());
+  if (V8_UNLIKELY(FLAG_log_function_events)) {
+    double ms = timer.Elapsed().InMillisecondsF();
+    const char* event_name = track_unresolved_variables_
+                                 ? "preparse-resolution"
+                                 : "preparse-no-resolution";
+    // We might not always get a function name here. However, it can be easily
+    // reconstructed from the script id and the byte range in the log processor.
+    const char* name = "";
+    size_t name_byte_length = 0;
+    const AstRawString* string = function_name.string_;
+    if (string != nullptr) {
+      name = reinterpret_cast<const char*>(string->raw_data());
+      name_byte_length = string->byte_length();
+    }
+    logger_->FunctionEvent(
+        event_name, nullptr, script_id(), ms, function_scope->start_position(),
+        function_scope->end_position(), name, name_byte_length);
   }
 
   return Expression::Default();
@@ -375,8 +389,8 @@ PreParserStatement PreParser::BuildParameterInitializationBlock(
   DCHECK(!parameters.is_simple);
   DCHECK(scope()->is_function_scope());
   if (FLAG_preparser_scope_analysis &&
-      scope()->AsDeclarationScope()->calls_sloppy_eval()) {
-    DCHECK_NOT_NULL(produced_preparsed_scope_data_);
+      scope()->AsDeclarationScope()->calls_sloppy_eval() &&
+      produced_preparsed_scope_data_ != nullptr) {
     // We cannot replicate the Scope structure constructed by the Parser,
     // because we've lost information whether each individual parameter was
     // simple or not. Give up trying to produce data to skip inner functions.

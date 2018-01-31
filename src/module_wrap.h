@@ -7,7 +7,7 @@
 #include <string>
 #include <vector>
 #include "node_url.h"
-#include "base-object-inl.h"
+#include "base_object-inl.h"
 
 namespace node {
 namespace loader {
@@ -39,6 +39,8 @@ class ModuleWrap : public BaseObject {
   static void GetUrl(v8::Local<v8::String> property,
                      const v8::PropertyCallbackInfo<v8::Value>& info);
   static void Resolve(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void SetImportModuleDynamicallyCallback(
+      const v8::FunctionCallbackInfo<v8::Value>& args);
   static v8::MaybeLocal<v8::Module> ResolveCallback(
       v8::Local<v8::Context> context,
       v8::Local<v8::String> specifier,

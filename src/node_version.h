@@ -26,6 +26,9 @@
 #define NODE_MINOR_VERSION 0
 #define NODE_PATCH_VERSION 0
 
+#define NODE_VERSION_IS_LTS 0
+#define NODE_VERSION_LTS_CODENAME ""
+
 #define NODE_VERSION_IS_RELEASE 0
 
 #ifndef NODE_STRINGIFY
@@ -100,9 +103,14 @@
  * V8 6.0: 57
  * V8 6.1: 58
  * V8 6.2: 59
+ * V8 6.3: 60
+ * V8 6.4: 61
  *
  * More information can be found at https://nodejs.org/en/download/releases/
  */
-#define NODE_MODULE_VERSION 59
+#define NODE_MODULE_VERSION 61
+
+// the NAPI_VERSION provided by this version of the runtime
+#define NAPI_VERSION  2
 
 #endif  // SRC_NODE_VERSION_H_

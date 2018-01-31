@@ -79,7 +79,7 @@ void MemoryReducer::NotifyTimer(const Event& event) {
                         kIncrementalMarkingDelayMs;
       heap()->incremental_marking()->AdvanceIncrementalMarking(
           deadline, IncrementalMarking::NO_GC_VIA_STACK_GUARD,
-          IncrementalMarking::FORCE_COMPLETION, StepOrigin::kTask);
+          StepOrigin::kTask);
       heap()->FinalizeIncrementalMarkingIfComplete(
           GarbageCollectionReason::kFinalizeMarkingViaTask);
     }
@@ -201,7 +201,7 @@ MemoryReducer::State MemoryReducer::Step(const State& state,
 
 
 void MemoryReducer::ScheduleTimer(double time_ms, double delay_ms) {
-  DCHECK(delay_ms > 0);
+  DCHECK_LT(0, delay_ms);
   // Leave some room for precision error in task scheduler.
   const double kSlackMs = 100;
   v8::Isolate* isolate = reinterpret_cast<v8::Isolate*>(heap()->isolate());

@@ -17,7 +17,7 @@ const char* const StatisticsExtension::kSource =
 
 v8::Local<v8::FunctionTemplate> StatisticsExtension::GetNativeFunctionTemplate(
     v8::Isolate* isolate, v8::Local<v8::String> str) {
-  DCHECK(strcmp(*v8::String::Utf8Value(isolate, str), "getV8Statistics") == 0);
+  DCHECK_EQ(strcmp(*v8::String::Utf8Value(isolate, str), "getV8Statistics"), 0);
   return v8::FunctionTemplate::New(isolate, StatisticsExtension::GetCounters);
 }
 

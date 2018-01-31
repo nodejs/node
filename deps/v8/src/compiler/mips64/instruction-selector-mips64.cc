@@ -51,7 +51,7 @@ class Mips64OperandGenerator final : public OperandGenerator {
     if (node->opcode() == IrOpcode::kInt32Constant) {
       return OpParameter<int32_t>(node);
     }
-    DCHECK(node->opcode() == IrOpcode::kInt64Constant);
+    DCHECK_EQ(IrOpcode::kInt64Constant, node->opcode());
     return OpParameter<int64_t>(node);
   }
 
@@ -219,7 +219,7 @@ struct ExtendingLoadMatcher {
         selector_->CanCover(m.node(), m.left().node())) {
       MachineRepresentation rep =
           LoadRepresentationOf(m.left().node()->op()).representation();
-      DCHECK(ElementSizeLog2Of(rep) == 3);
+      DCHECK_EQ(3, ElementSizeLog2Of(rep));
       if (rep != MachineRepresentation::kTaggedSigned &&
           rep != MachineRepresentation::kTaggedPointer &&
           rep != MachineRepresentation::kTagged &&
@@ -529,7 +529,7 @@ void InstructionSelector::VisitWord32And(Node* node) {
   if (m.left().IsWord32Shr() && CanCover(node, m.left().node()) &&
       m.right().HasValue()) {
     uint32_t mask = m.right().Value();
-    uint32_t mask_width = base::bits::CountPopulation32(mask);
+    uint32_t mask_width = base::bits::CountPopulation(mask);
     uint32_t mask_msb = base::bits::CountLeadingZeros32(mask);
     if ((mask_width != 0) && (mask_msb + mask_width == 32)) {
       // The mask must be contiguous, and occupy the least-significant bits.
@@ -558,7 +558,7 @@ void InstructionSelector::VisitWord32And(Node* node) {
   }
   if (m.right().HasValue()) {
     uint32_t mask = m.right().Value();
-    uint32_t shift = base::bits::CountPopulation32(~mask);
+    uint32_t shift = base::bits::CountPopulation(~mask);
     uint32_t msb = base::bits::CountLeadingZeros32(~mask);
     if (shift != 0 && shift != 32 && msb + shift == 32) {
       // Insert zeros for (x >> K) << K => x & ~(2^K - 1) expression reduction
@@ -579,7 +579,7 @@ void InstructionSelector::VisitWord64And(Node* node) {
   if (m.left().IsWord64Shr() && CanCover(node, m.left().node()) &&
       m.right().HasValue()) {
     uint64_t mask = m.right().Value();
-    uint32_t mask_width = base::bits::CountPopulation64(mask);
+    uint32_t mask_width = base::bits::CountPopulation(mask);
     uint32_t mask_msb = base::bits::CountLeadingZeros64(mask);
     if ((mask_width != 0) && (mask_msb + mask_width == 64)) {
       // The mask must be contiguous, and occupy the least-significant bits.
@@ -612,7 +612,7 @@ void InstructionSelector::VisitWord64And(Node* node) {
   }
   if (m.right().HasValue()) {
     uint64_t mask = m.right().Value();
-    uint32_t shift = base::bits::CountPopulation64(~mask);
+    uint32_t shift = base::bits::CountPopulation(~mask);
     uint32_t msb = base::bits::CountLeadingZeros64(~mask);
     if (shift != 0 && shift < 32 && msb + shift == 64) {
       // Insert zeros for (x >> K) << K => x & ~(2^K - 1) expression reduction
@@ -696,7 +696,7 @@ void InstructionSelector::VisitWord32Shl(Node* node) {
     // contiguous, and the shift immediate non-zero.
     if (mleft.right().HasValue()) {
       uint32_t mask = mleft.right().Value();
-      uint32_t mask_width = base::bits::CountPopulation32(mask);
+      uint32_t mask_width = base::bits::CountPopulation(mask);
       uint32_t mask_msb = base::bits::CountLeadingZeros32(mask);
       if ((mask_width != 0) && (mask_msb + mask_width == 32)) {
         uint32_t shift = m.right().Value();
@@ -726,7 +726,7 @@ void InstructionSelector::VisitWord32Shr(Node* node) {
       // Select Ext for Shr(And(x, mask), imm) where the result of the mask is
       // shifted into the least-significant bits.
       uint32_t mask = (mleft.right().Value() >> lsb) << lsb;
-      unsigned mask_width = base::bits::CountPopulation32(mask);
+      unsigned mask_width = base::bits::CountPopulation(mask);
       unsigned mask_msb = base::bits::CountLeadingZeros32(mask);
       if ((mask_msb + mask_width + lsb) == 32) {
         Mips64OperandGenerator g(this);
@@ -788,7 +788,7 @@ void InstructionSelector::VisitWord64Shl(Node* node) {
     Int64BinopMatcher mleft(m.left().node());
     if (mleft.right().HasValue()) {
       uint64_t mask = mleft.right().Value();
-      uint32_t mask_width = base::bits::CountPopulation64(mask);
+      uint32_t mask_width = base::bits::CountPopulation(mask);
       uint32_t mask_msb = base::bits::CountLeadingZeros64(mask);
       if ((mask_width != 0) && (mask_msb + mask_width == 64)) {
         uint64_t shift = m.right().Value();
@@ -819,7 +819,7 @@ void InstructionSelector::VisitWord64Shr(Node* node) {
       // Select Dext for Shr(And(x, mask), imm) where the result of the mask is
       // shifted into the least-significant bits.
       uint64_t mask = (mleft.right().Value() >> lsb) << lsb;
-      unsigned mask_width = base::bits::CountPopulation64(mask);
+      unsigned mask_width = base::bits::CountPopulation(mask);
       unsigned mask_msb = base::bits::CountLeadingZeros64(mask);
       if ((mask_msb + mask_width + lsb) == 64) {
         Mips64OperandGenerator g(this);
@@ -2610,10 +2610,82 @@ void InstructionSelector::VisitAtomicStore(Node* node) {
   }
 }
 
-void InstructionSelector::VisitAtomicExchange(Node* node) { UNIMPLEMENTED(); }
+void InstructionSelector::VisitAtomicExchange(Node* node) {
+  Mips64OperandGenerator g(this);
+  Node* base = node->InputAt(0);
+  Node* index = node->InputAt(1);
+  Node* value = node->InputAt(2);
+  ArchOpcode opcode = kArchNop;
+  MachineType type = AtomicOpRepresentationOf(node->op());
+  if (type == MachineType::Int8()) {
+    opcode = kAtomicExchangeInt8;
+  } else if (type == MachineType::Uint8()) {
+    opcode = kAtomicExchangeUint8;
+  } else if (type == MachineType::Int16()) {
+    opcode = kAtomicExchangeInt16;
+  } else if (type == MachineType::Uint16()) {
+    opcode = kAtomicExchangeUint16;
+  } else if (type == MachineType::Int32() || type == MachineType::Uint32()) {
+    opcode = kAtomicExchangeWord32;
+  } else {
+    UNREACHABLE();
+    return;
+  }
+
+  AddressingMode addressing_mode = kMode_MRI;
+  InstructionOperand inputs[3];
+  size_t input_count = 0;
+  inputs[input_count++] = g.UseUniqueRegister(base);
+  inputs[input_count++] = g.UseUniqueRegister(index);
+  inputs[input_count++] = g.UseUniqueRegister(value);
+  InstructionOperand outputs[1];
+  outputs[0] = g.UseUniqueRegister(node);
+  InstructionOperand temp[3];
+  temp[0] = g.TempRegister();
+  temp[1] = g.TempRegister();
+  temp[2] = g.TempRegister();
+  InstructionCode code = opcode | AddressingModeField::encode(addressing_mode);
+  Emit(code, 1, outputs, input_count, inputs, 3, temp);
+}
 
 void InstructionSelector::VisitAtomicCompareExchange(Node* node) {
-  UNIMPLEMENTED();
+  Mips64OperandGenerator g(this);
+  Node* base = node->InputAt(0);
+  Node* index = node->InputAt(1);
+  Node* old_value = node->InputAt(2);
+  Node* new_value = node->InputAt(3);
+  ArchOpcode opcode = kArchNop;
+  MachineType type = AtomicOpRepresentationOf(node->op());
+  if (type == MachineType::Int8()) {
+    opcode = kAtomicCompareExchangeInt8;
+  } else if (type == MachineType::Uint8()) {
+    opcode = kAtomicCompareExchangeUint8;
+  } else if (type == MachineType::Int16()) {
+    opcode = kAtomicCompareExchangeInt16;
+  } else if (type == MachineType::Uint16()) {
+    opcode = kAtomicCompareExchangeUint16;
+  } else if (type == MachineType::Int32() || type == MachineType::Uint32()) {
+    opcode = kAtomicCompareExchangeWord32;
+  } else {
+    UNREACHABLE();
+    return;
+  }
+
+  AddressingMode addressing_mode = kMode_MRI;
+  InstructionOperand inputs[4];
+  size_t input_count = 0;
+  inputs[input_count++] = g.UseUniqueRegister(base);
+  inputs[input_count++] = g.UseUniqueRegister(index);
+  inputs[input_count++] = g.UseUniqueRegister(old_value);
+  inputs[input_count++] = g.UseUniqueRegister(new_value);
+  InstructionOperand outputs[1];
+  outputs[0] = g.UseUniqueRegister(node);
+  InstructionOperand temp[3];
+  temp[0] = g.TempRegister();
+  temp[1] = g.TempRegister();
+  temp[2] = g.TempRegister();
+  InstructionCode code = opcode | AddressingModeField::encode(addressing_mode);
+  Emit(code, 1, outputs, input_count, inputs, 3, temp);
 }
 
 void InstructionSelector::VisitAtomicBinaryOperation(
@@ -2684,6 +2756,7 @@ void InstructionSelector::VisitInt64AbsWithOverflow(Node* node) {
   V(I16x8)                \
   V(I8x16)
 
+// TODO(mostynb@opera.com): this is never used, remove it?
 #define SIMD_FORMAT_LIST(V) \
   V(32x4)                   \
   V(16x8)                   \
@@ -2986,11 +3059,19 @@ InstructionSelector::AlignmentRequirements() {
     return MachineOperatorBuilder::AlignmentRequirements::
         FullUnalignedAccessSupport();
   } else {
-    DCHECK(kArchVariant == kMips64r2);
+    DCHECK_EQ(kMips64r2, kArchVariant);
     return MachineOperatorBuilder::AlignmentRequirements::
         NoUnalignedAccessSupport();
   }
 }
+
+#undef SIMD_BINOP_LIST
+#undef SIMD_SHIFT_OP_LIST
+#undef SIMD_UNOP_LIST
+#undef SIMD_FORMAT_LIST
+#undef SIMD_TYPE_LIST
+#undef TRACE_UNIMPL
+#undef TRACE
 
 }  // namespace compiler
 }  // namespace internal

@@ -227,7 +227,7 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
 }
 
 void CpuFeatures::PrintTarget() {
-  const char* s390_arch = NULL;
+  const char* s390_arch = nullptr;
 
 #if V8_TARGET_ARCH_S390X
   s390_arch = "s390x";
@@ -290,6 +290,17 @@ void RelocInfo::set_embedded_size(Isolate* isolate, uint32_t size,
                                    reinterpret_cast<Address>(size), flush_mode);
 }
 
+void RelocInfo::set_js_to_wasm_address(Isolate* isolate, Address address,
+                                       ICacheFlushMode icache_flush_mode) {
+  DCHECK_EQ(rmode_, JS_TO_WASM_CALL);
+  set_embedded_address(isolate, address, icache_flush_mode);
+}
+
+Address RelocInfo::js_to_wasm_address() const {
+  DCHECK_EQ(rmode_, JS_TO_WASM_CALL);
+  return embedded_address();
+}
+
 // -----------------------------------------------------------------------------
 // Implementation of Operand and MemOperand
 // See assembler-s390-inl.h for inlined constructors
@@ -310,17 +321,11 @@ Operand Operand::EmbeddedNumber(double value) {
   return result;
 }
 
-MemOperand::MemOperand(Register rn, int32_t offset) {
-  baseRegister = rn;
-  indexRegister = r0;
-  offset_ = offset;
-}
+MemOperand::MemOperand(Register rn, int32_t offset)
+    : baseRegister(rn), indexRegister(r0), offset_(offset) {}
 
-MemOperand::MemOperand(Register rx, Register rb, int32_t offset) {
-  baseRegister = rb;
-  indexRegister = rx;
-  offset_ = offset;
-}
+MemOperand::MemOperand(Register rx, Register rb, int32_t offset)
+    : baseRegister(rb), indexRegister(rx), offset_(offset) {}
 
 void Assembler::AllocateAndInstallRequestedHeapObjects(Isolate* isolate) {
   for (auto& request : heap_object_requests_) {
@@ -330,7 +335,7 @@ void Assembler::AllocateAndInstallRequestedHeapObjects(Isolate* isolate) {
       case HeapObjectRequest::kHeapNumber:
         object = isolate->factory()->NewHeapNumber(request.heap_number(),
                                                    IMMUTABLE, TENURED);
-        set_target_address_at(nullptr, pc, static_cast<Address>(NULL),
+        set_target_address_at(nullptr, pc, static_cast<Address>(nullptr),
                               reinterpret_cast<Address>(object.location()),
                               SKIP_ICACHE_FLUSH);
         break;
@@ -349,9 +354,9 @@ void Assembler::AllocateAndInstallRequestedHeapObjects(Isolate* isolate) {
 // Specific instructions, constants, and masks.
 
 Assembler::Assembler(IsolateData isolate_data, void* buffer, int buffer_size)
-    : AssemblerBase(isolate_data, buffer, buffer_size),
-      code_targets_(100) {
+    : AssemblerBase(isolate_data, buffer, buffer_size) {
   reloc_info_writer.Reposition(buffer_ + buffer_size_, pc_);
+  code_targets_.reserve(100);
 
   last_bound_pos_ = 0;
   relocations_.reserve(128);
@@ -532,7 +537,7 @@ void Assembler::next(Label* L) {
   if (link == kEndOfChain) {
     L->Unuse();
   } else {
-    DCHECK(link >= 0);
+    DCHECK_GE(link, 0);
     L->link_to(link);
   }
 }
@@ -1636,7 +1641,7 @@ void Assembler::EnsureSpaceFor(int space_needed) {
 
 // Rotate Left Single Logical (32)
 void Assembler::rll(Register r1, Register r3, Register opnd) {
-  DCHECK(!opnd.is(r0));
+  DCHECK(opnd != r0);
   rsy_form(RLL, r1, r3, opnd, 0);
 }
 
@@ -1653,7 +1658,7 @@ void Assembler::rll(Register r1, Register r3, Register r2,
 
 // Rotate Left Single Logical (64)
 void Assembler::rllg(Register r1, Register r3, Register opnd) {
-  DCHECK(!opnd.is(r0));
+  DCHECK(opnd != r0);
   rsy_form(RLLG, r1, r3, opnd, 0);
 }
 
@@ -1670,7 +1675,7 @@ void Assembler::rllg(Register r1, Register r3, Register r2,
 
 // Shift Left Single Logical (32)
 void Assembler::sll(Register r1, Register opnd) {
-  DCHECK(!opnd.is(r0));
+  DCHECK(opnd != r0);
   rs_form(SLL, r1, r0, opnd, 0);
 }
 
@@ -1681,7 +1686,7 @@ void Assembler::sll(Register r1, const Operand& opnd) {
 
 // Shift Left Single Logical (32)
 void Assembler::sllk(Register r1, Register r3, Register opnd) {
-  DCHECK(!opnd.is(r0));
+  DCHECK(opnd != r0);
   rsy_form(SLLK, r1, r3, opnd, 0);
 }
 
@@ -1692,7 +1697,7 @@ void Assembler::sllk(Register r1, Register r3, const Operand& opnd) {
 
 // Shift Left Single Logical (64)
 void Assembler::sllg(Register r1, Register r3, Register opnd) {
-  DCHECK(!opnd.is(r0));
+  DCHECK(opnd != r0);
   rsy_form(SLLG, r1, r3, opnd, 0);
 }
 
@@ -1703,25 +1708,25 @@ void Assembler::sllg(Register r1, Register r3, const Operand& opnd) {
 
 // Shift Left Double Logical (64)
 void Assembler::sldl(Register r1, Register b2, const Operand& opnd) {
-  DCHECK(r1.code() % 2 == 0);
+  DCHECK_EQ(r1.code() % 2, 0);
   rs_form(SLDL, r1, r0, b2, opnd.immediate());
 }
 
 // Shift Right Single Logical (32)
 void Assembler::srl(Register r1, Register opnd) {
-  DCHECK(!opnd.is(r0));
+  DCHECK(opnd != r0);
   rs_form(SRL, r1, r0, opnd, 0);
 }
 
 // Shift Right Double Arith (64)
 void Assembler::srda(Register r1, Register b2, const Operand& opnd) {
-  DCHECK(r1.code() % 2 == 0);
+  DCHECK_EQ(r1.code() % 2, 0);
   rs_form(SRDA, r1, r0, b2, opnd.immediate());
 }
 
 // Shift Right Double Logical (64)
 void Assembler::srdl(Register r1, Register b2, const Operand& opnd) {
-  DCHECK(r1.code() % 2 == 0);
+  DCHECK_EQ(r1.code() % 2, 0);
   rs_form(SRDL, r1, r0, b2, opnd.immediate());
 }
 
@@ -1732,7 +1737,7 @@ void Assembler::srl(Register r1, const Operand& opnd) {
 
 // Shift Right Single Logical (32)
 void Assembler::srlk(Register r1, Register r3, Register opnd) {
-  DCHECK(!opnd.is(r0));
+  DCHECK(opnd != r0);
   rsy_form(SRLK, r1, r3, opnd, 0);
 }
 
@@ -1743,7 +1748,7 @@ void Assembler::srlk(Register r1, Register r3, const Operand& opnd) {
 
 // Shift Right Single Logical (64)
 void Assembler::srlg(Register r1, Register r3, Register opnd) {
-  DCHECK(!opnd.is(r0));
+  DCHECK(opnd != r0);
   rsy_form(SRLG, r1, r3, opnd, 0);
 }
 
@@ -1754,7 +1759,7 @@ void Assembler::srlg(Register r1, Register r3, const Operand& opnd) {
 
 // Shift Left Single (32)
 void Assembler::sla(Register r1, Register opnd) {
-  DCHECK(!opnd.is(r0));
+  DCHECK(opnd != r0);
   rs_form(SLA, r1, r0, opnd, 0);
 }
 
@@ -1765,7 +1770,7 @@ void Assembler::sla(Register r1, const Operand& opnd) {
 
 // Shift Left Single (32)
 void Assembler::slak(Register r1, Register r3, Register opnd) {
-  DCHECK(!opnd.is(r0));
+  DCHECK(opnd != r0);
   rsy_form(SLAK, r1, r3, opnd, 0);
 }
 
@@ -1776,7 +1781,7 @@ void Assembler::slak(Register r1, Register r3, const Operand& opnd) {
 
 // Shift Left Single (64)
 void Assembler::slag(Register r1, Register r3, Register opnd) {
-  DCHECK(!opnd.is(r0));
+  DCHECK(opnd != r0);
   rsy_form(SLAG, r1, r3, opnd, 0);
 }
 
@@ -1787,7 +1792,7 @@ void Assembler::slag(Register r1, Register r3, const Operand& opnd) {
 
 // Shift Right Single (32)
 void Assembler::sra(Register r1, Register opnd) {
-  DCHECK(!opnd.is(r0));
+  DCHECK(opnd != r0);
   rs_form(SRA, r1, r0, opnd, 0);
 }
 
@@ -1798,7 +1803,7 @@ void Assembler::sra(Register r1, const Operand& opnd) {
 
 // Shift Right Single (32)
 void Assembler::srak(Register r1, Register r3, Register opnd) {
-  DCHECK(!opnd.is(r0));
+  DCHECK(opnd != r0);
   rsy_form(SRAK, r1, r3, opnd, 0);
 }
 
@@ -1809,7 +1814,7 @@ void Assembler::srak(Register r1, Register r3, const Operand& opnd) {
 
 // Shift Right Single (64)
 void Assembler::srag(Register r1, Register r3, Register opnd) {
-  DCHECK(!opnd.is(r0));
+  DCHECK(opnd != r0);
   rsy_form(SRAG, r1, r3, opnd, 0);
 }
 
@@ -1819,13 +1824,13 @@ void Assembler::srag(Register r1, Register r3, const Operand& opnd) {
 
 // Shift Right Double
 void Assembler::srda(Register r1, const Operand& opnd) {
-  DCHECK(r1.code() % 2 == 0);
+  DCHECK_EQ(r1.code() % 2, 0);
   rs_form(SRDA, r1, r0, r0, opnd.immediate());
 }
 
 // Shift Right Double Logical
 void Assembler::srdl(Register r1, const Operand& opnd) {
-  DCHECK(r1.code() % 2 == 0);
+  DCHECK_EQ(r1.code() % 2, 0);
   rs_form(SRDL, r1, r0, r0, opnd.immediate());
 }
 
@@ -2208,7 +2213,7 @@ void Assembler::EmitRelocations() {
        it != relocations_.end(); it++) {
     RelocInfo::Mode rmode = it->rmode();
     Address pc = buffer_ + it->position();
-    Code* code = NULL;
+    Code* code = nullptr;
     RelocInfo rinfo(pc, rmode, it->data(), code);
 
     // Fix up internal references now that they are guaranteed to be bound.

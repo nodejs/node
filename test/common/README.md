@@ -10,6 +10,7 @@ This directory contains modules used to test the Node.js implementation.
 * [DNS module](#dns-module)
 * [Duplex pair helper](#duplex-pair-helper)
 * [Fixtures module](#fixtures-module)
+* [HTTP2 module](#http2-module)
 * [Internet module](#internet-module)
 * [WPT module](#wpt-module)
 
@@ -43,12 +44,14 @@ A stream to push an array into a REPL
 
 Blocks for `time` amount of time.
 
-### canCreateSymLink
-API to indicate whether the current running process can create
-symlinks. On Windows, this returns false if the process running
-doesn't have privileges to create symlinks (specifically
-[SeCreateSymbolicLinkPrivilege](https://msdn.microsoft.com/en-us/library/windows/desktop/bb530716(v=vs.85).aspx)).
-On non-Windows platforms, this currently returns true.
+### canCreateSymLink()
+* return [&lt;Boolean>]
+
+Checks whether the current running process can create symlinks. On Windows, this
+returns `false` if the process running doesn't have privileges to create
+symlinks
+([SeCreateSymbolicLinkPrivilege](https://msdn.microsoft.com/en-us/library/windows/desktop/bb530716(v=vs.85).aspx)).
+On non-Windows platforms, this always returns `true`.
 
 ### crashOnUnhandledRejection()
 
@@ -63,9 +66,9 @@ failures.
 Platform normalizes the `dd` command
 
 ### enoughTestMem
-* return [&lt;Boolean>]
+* [&lt;Boolean>]
 
-Check if there is more than 1gb of total memory.
+Indicates if there is more than 1gb of total memory.
 
 ### expectsError([fn, ]settings[, exact])
 * `fn` [&lt;Function>] a function that should throw.
@@ -116,60 +119,59 @@ Tests whether `name` and `expected` are part of a raised warning.
 
 Checks if `pathname` exists
 
-### fires(promise, [error], [timeoutMs])
-* promise [&lt;Promise]
-* error [&lt;String] default = 'timeout'
-* timeoutMs [&lt;Number] default = 100
-
-Returns a new promise that will propagate `promise` resolution or rejection if
-that happens within the `timeoutMs` timespan, or rejects with `error` as
-a reason otherwise.
-
-### fixturesDir
-* return [&lt;String>]
-
-Path to the 'fixtures' directory.
-
 ### getArrayBufferViews(buf)
 * `buf` [&lt;Buffer>]
 * return [&lt;ArrayBufferView&#91;&#93;>]
 
 Returns an instance of all possible `ArrayBufferView`s of the provided Buffer.
 
-### globalCheck
-* return [&lt;Boolean>]
+### getBufferSources(buf)
+* `buf` [&lt;Buffer>]
+* return [&lt;BufferSource&#91;&#93;>]
 
-Turn this off if the test should not check for global leaks.
+Returns an instance of all possible `BufferSource`s of the provided Buffer,
+consisting of all `ArrayBufferView` and an `ArrayBuffer`.
+
+### getCallSite(func)
+* `func` [&lt;Function>]
+* return [&lt;String>]
+
+Returns the file name and line number for the provided Function.
+
+### globalCheck
+* [&lt;Boolean>]
+
+Set to `false` if the test should not check for global leaks.
 
 ### hasCrypto
-* return [&lt;Boolean>]
+* [&lt;Boolean>]
 
-Checks for 'openssl'.
+Indicates whether OpenSSL is available.
 
 ### hasFipsCrypto
-* return [&lt;Boolean>]
+* [&lt;Boolean>]
 
-Checks `hasCrypto` and `crypto` with fips.
+Indicates `hasCrypto` and `crypto` with fips.
 
 ### hasIntl
-* return [&lt;Boolean>]
+* [&lt;Boolean>]
 
-Checks if [internationalization] is supported.
+Indicates if [internationalization] is supported.
 
 ### hasSmallICU
-* return [&lt;Boolean>]
+* [&lt;Boolean>]
 
-Checks `hasIntl` and `small-icu` is supported.
+Indicates `hasIntl` and `small-icu` are supported.
 
 ### hasIPv6
-* return [&lt;Boolean>]
+* [&lt;Boolean>]
 
-Checks whether `IPv6` is supported on this platform.
+Indicates whether `IPv6` is supported on this platform.
 
 ### hasMultiLocalhost
-* return [&lt;Boolean>]
+* [&lt;Boolean>]
 
-Checks if there are multiple localhosts available.
+Indicates if there are multiple localhosts available.
 
 ### hijackStderr(listener)
 * `listener` [&lt;Function>]: a listener with a single parameter
@@ -190,12 +192,12 @@ be passed to `listener`. What's more, `process.stdout.writeTimes` is a count of
 the number of calls.
 
 ### inFreeBSDJail
-* return [&lt;Boolean>]
+* [&lt;Boolean>]
 
 Checks whether free BSD Jail is true or false.
 
 ### isAIX
-* return [&lt;Boolean>]
+* [&lt;Boolean>]
 
 Platform check for Advanced Interactive eXecutive (AIX).
 
@@ -206,54 +208,54 @@ Platform check for Advanced Interactive eXecutive (AIX).
 Attempts to 'kill' `pid`
 
 ### isFreeBSD
-* return [&lt;Boolean>]
+* [&lt;Boolean>]
 
 Platform check for Free BSD.
 
 ### isLinux
-* return [&lt;Boolean>]
+* [&lt;Boolean>]
 
 Platform check for Linux.
 
 ### isLinuxPPCBE
-* return [&lt;Boolean>]
+* [&lt;Boolean>]
 
 Platform check for Linux on PowerPC.
 
 ### isOSX
-* return [&lt;Boolean>]
+* [&lt;Boolean>]
 
 Platform check for macOS.
 
 ### isSunOS
-* return [&lt;Boolean>]
+* [&lt;Boolean>]
 
 Platform check for SunOS.
 
 ### isWindows
-* return [&lt;Boolean>]
+* [&lt;Boolean>]
 
 Platform check for Windows.
 
 ### isWOW64
-* return [&lt;Boolean>]
+* [&lt;Boolean>]
 
 Platform check for Windows 32-bit on Windows 64-bit.
 
-### leakedGlobals
+### leakedGlobals()
 * return [&lt;Array>]
 
-Checks whether any globals are not on the `knownGlobals` list.
+Indicates whether any globals are not on the `knownGlobals` list.
 
 ### localhostIPv4
-* return [&lt;String>]
+* [&lt;String>]
 
-Gets IP of localhost
+IP of `localhost`.
 
 ### localIPv6Hosts
-* return [&lt;Array>]
+* [&lt;Array>]
 
-Array of IPV6 hosts.
+Array of IPV6 representations for `localhost`.
 
 ### mustCall([fn][, exact])
 * `fn` [&lt;Function>] default = () => {}
@@ -265,6 +267,17 @@ exactly `exact` number of times when the test is complete, then the test will
 fail.
 
 If `fn` is not provided, an empty function will be used.
+
+### mustCallAsync([fn][, exact])
+* `fn` [&lt;Function>]
+* `exact` [&lt;Number>] default = 1
+* return [&lt;Function>]
+
+The same as `mustCall()`, except that it is also checked that the Promise
+returned by the function is fulfilled for each invocation of the function.
+
+The return value of the wrapped function is the return value of the original
+function, if necessary wrapped as a promise.
 
 ### mustCallAtLeast([fn][, minimum])
 * `fn` [&lt;Function>] default = () => {}
@@ -294,9 +307,9 @@ the exit code and/or signal name of a node process that aborted, `false`
 otherwise.
 
 ### opensslCli
-* return [&lt;Boolean>]
+* [&lt;Boolean>]
 
-Checks whether 'opensslCli' is supported.
+Indicates whether 'opensslCli' is supported.
 
 ### platformTimeout(ms)
 * `ms` [&lt;Number>]
@@ -305,14 +318,14 @@ Checks whether 'opensslCli' is supported.
 Platform normalizes timeout.
 
 ### PIPE
-* return [&lt;String>]
+* [&lt;String>]
 
-Path to the test sock.
+Path to the test socket.
 
 ### PORT
-* return [&lt;Number>] default = `12346`
+* [&lt;Number>]
 
-Port tests are running on.
+A port number for tests to use if one is needed.
 
 ### printSkipMessage(msg)
 * `msg` [&lt;String>]
@@ -335,14 +348,9 @@ Restore the original `process.stdout.write`. Used to restore `stdout` to its
 original state after calling [`common.hijackStdOut()`][].
 
 ### rootDir
-* return [&lt;String>]
+* [&lt;String>]
 
 Path to the 'root' directory. either `/` or `c:\\` (windows)
-
-### projectDir
-* return [&lt;String>]
-
-Path to the project directory.
 
 ### skip(msg)
 * `msg` [&lt;String>]
@@ -372,14 +380,9 @@ Platform normalizes the `pwd` command.
 Synchronous version of `spawnPwd`.
 
 ### tmpDir
-* return [&lt;String>]
+* [&lt;String>]
 
 The realpath of the 'tmp' directory.
-
-### tmpDirName
-* return [&lt;String>]
-
-Name of the temp directory used by tests.
 
 ## Countdown Module
 
@@ -419,7 +422,25 @@ called before the callback is invoked.
 
 ## DNS Module
 
-The `DNS` module provides a naïve DNS parser/serializer.
+The `DNS` module provides utilities related to the `dns` built-in module.
+
+### errorLookupMock(code, syscall)
+
+* `code` [&lt;String>] Defaults to `dns.mockedErrorCode`.
+* `syscall` [&lt;String>] Defaults to `dns.mockedSysCall`.
+* return [&lt;Function>]
+
+A mock for the `lookup` option of `net.connect()` that would result in an error
+with the `code` and the `syscall` specified. Returns a function that has the
+same signature as `dns.lookup()`.
+
+### mockedErrorCode
+
+The default `code` of errors generated by `errorLookupMock`.
+
+### mockedSysCall
+
+The default `syscall` of errors generated by `errorLookupMock`.
 
 ### readDomainFromPacket(buffer, offset)
 
@@ -499,6 +520,117 @@ Returns the result of
 Returns the result of
 `fs.readFileSync(path.join(fixtures.fixturesDir, 'keys', arg), 'enc')`.
 
+## HTTP/2 Module
+
+The http2.js module provides a handful of utilities for creating mock HTTP/2
+frames for testing of HTTP/2 endpoints
+
+<!-- eslint-disable no-undef, no-unused-vars, required-modules, strict -->
+```js
+const http2 = require('../common/http2');
+```
+
+### Class: Frame
+
+The `http2.Frame` is a base class that creates a `Buffer` containing a
+serialized HTTP/2 frame header.
+
+<!-- eslint-disable no-undef, no-unused-vars, required-modules, strict -->
+```js
+// length is a 24-bit unsigned integer
+// type is an 8-bit unsigned integer identifying the frame type
+// flags is an 8-bit unsigned integer containing the flag bits
+// id is the 32-bit stream identifier, if any.
+const frame = new http2.Frame(length, type, flags, id);
+
+// Write the frame data to a socket
+socket.write(frame.data);
+```
+
+The serialized `Buffer` may be retrieved using the `frame.data` property.
+
+### Class: DataFrame extends Frame
+
+The `http2.DataFrame` is a subclass of `http2.Frame` that serializes a `DATA`
+frame.
+
+<!-- eslint-disable no-undef, no-unused-vars, required-modules, strict -->
+```js
+// id is the 32-bit stream identifier
+// payload is a Buffer containing the DATA payload
+// padlen is an 8-bit integer giving the number of padding bytes to include
+// final is a boolean indicating whether the End-of-stream flag should be set,
+// defaults to false.
+const frame = new http2.DataFrame(id, payload, padlen, final);
+
+socket.write(frame.data);
+```
+
+### Class: HeadersFrame
+
+The `http2.HeadersFrame` is a subclass of `http2.Frame` that serializes a
+`HEADERS` frame.
+
+<!-- eslint-disable no-undef, no-unused-vars, required-modules, strict -->
+```js
+// id is the 32-bit stream identifier
+// payload is a Buffer containing the HEADERS payload (see either
+// http2.kFakeRequestHeaders or http2.kFakeResponseHeaders).
+// padlen is an 8-bit integer giving the number of padding bytes to include
+// final is a boolean indicating whether the End-of-stream flag should be set,
+// defaults to false.
+const frame = new http2.HeadersFrame(id, payload, padlen, final);
+
+socket.write(frame.data);
+```
+
+### Class: SettingsFrame
+
+The `http2.SettingsFrame` is a subclass of `http2.Frame` that serializes an
+empty `SETTINGS` frame.
+
+<!-- eslint-disable no-undef, no-unused-vars, required-modules, strict -->
+```js
+// ack is a boolean indicating whether or not to set the ACK flag.
+const frame = new http2.SettingsFrame(ack);
+
+socket.write(frame.data);
+```
+
+### http2.kFakeRequestHeaders
+
+Set to a `Buffer` instance that contains a minimal set of serialized HTTP/2
+request headers to be used as the payload of a `http2.HeadersFrame`.
+
+<!-- eslint-disable no-undef, no-unused-vars, required-modules, strict -->
+```js
+const frame = new http2.HeadersFrame(1, http2.kFakeRequestHeaders, 0, true);
+
+socket.write(frame.data);
+```
+
+### http2.kFakeResponseHeaders
+
+Set to a `Buffer` instance that contains a minimal set of serialized HTTP/2
+response headers to be used as the payload a `http2.HeadersFrame`.
+
+<!-- eslint-disable no-undef, no-unused-vars, required-modules, strict -->
+```js
+const frame = new http2.HeadersFrame(1, http2.kFakeResponseHeaders, 0, true);
+
+socket.write(frame.data);
+```
+
+### http2.kClientMagic
+
+Set to a `Buffer` containing the preamble bytes an HTTP/2 client must send
+upon initial establishment of a connection.
+
+<!-- eslint-disable no-undef, no-unused-vars, required-modules, strict -->
+```js
+socket.write(http2.kClientMagic);
+```
+
 ## Internet Module
 
 The `common/internet` module provides utilities for working with
@@ -531,7 +663,7 @@ internet-related tests.
 A set of addresses for internet-related tests. All properties are configurable
 via `NODE_TEST_*` environment variables. For example, to configure
 `internet.addresses.INET_HOST`, set the environment
-vairable `NODE_TEST_INET_HOST` to a specified host.
+variable `NODE_TEST_INET_HOST` to a specified host.
 
 ## WPT Module
 
@@ -541,6 +673,7 @@ Node.js
 [WHATWG URL API](https://nodejs.org/api/url.html#url_the_whatwg_url_api)
 implementation with tests from
 [W3C Web Platform Tests](https://github.com/w3c/web-platform-tests).
+
 
 [&lt;Array>]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array
 [&lt;ArrayBufferView&#91;&#93;>]: https://developer.mozilla.org/en-US/docs/Web/API/ArrayBufferView

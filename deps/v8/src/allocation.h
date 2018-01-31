@@ -43,6 +43,14 @@ T* NewArray(size_t size) {
   return result;
 }
 
+template <typename T,
+          typename = typename std::enable_if<IS_TRIVIALLY_COPYABLE(T)>::type>
+T* NewArray(size_t size, T default_val) {
+  T* result = reinterpret_cast<T*>(NewArray<uint8_t>(sizeof(T) * size));
+  for (size_t i = 0; i < size; ++i) result[i] = default_val;
+  return result;
+}
+
 template <typename T>
 void DeleteArray(T* array) {
   delete[] array;
@@ -68,9 +76,88 @@ class FreeStoreAllocationPolicy {
 void* AlignedAlloc(size_t size, size_t alignment);
 void AlignedFree(void *ptr);
 
-bool AllocVirtualMemory(size_t size, void* hint, base::VirtualMemory* result);
+// Allocates a single system memory page with read/write permissions. The
+// address parameter is a hint. Returns the base address of the memory, or null
+// on failure. Permissions can be changed on the base address.
+byte* AllocateSystemPage(void* address, size_t* allocated);
+
+// Represents and controls an area of reserved memory.
+class V8_EXPORT_PRIVATE VirtualMemory {
+ public:
+  // Empty VirtualMemory object, controlling no reserved memory.
+  VirtualMemory();
+
+  // Reserves virtual memory containing an area of the given size that is
+  // aligned per alignment. This may not be at the position returned by
+  // address().
+  VirtualMemory(size_t size, void* hint,
+                size_t alignment = base::OS::AllocatePageSize());
+
+  // Construct a virtual memory by assigning it some already mapped address
+  // and size.
+  VirtualMemory(void* address, size_t size) : address_(address), size_(size) {}
+
+  // Releases the reserved memory, if any, controlled by this VirtualMemory
+  // object.
+  ~VirtualMemory();
+
+  // Returns whether the memory has been reserved.
+  bool IsReserved() const { return address_ != nullptr; }
+
+  // Initialize or resets an embedded VirtualMemory object.
+  void Reset();
+
+  // Returns the start address of the reserved memory.
+  // If the memory was reserved with an alignment, this address is not
+  // necessarily aligned. The user might need to round it up to a multiple of
+  // the alignment to get the start of the aligned block.
+  void* address() const {
+    DCHECK(IsReserved());
+    return address_;
+  }
+
+  void* end() const {
+    DCHECK(IsReserved());
+    return reinterpret_cast<void*>(reinterpret_cast<uintptr_t>(address_) +
+                                   size_);
+  }
+
+  // Returns the size of the reserved memory. The returned value is only
+  // meaningful when IsReserved() returns true.
+  // If the memory was reserved with an alignment, this size may be larger
+  // than the requested size.
+  size_t size() const { return size_; }
+
+  // Sets permissions according to the access argument. address and size must be
+  // multiples of CommitPageSize(). Returns true on success, otherwise false.
+  bool SetPermissions(void* address, size_t size,
+                      base::OS::MemoryPermission access);
+
+  // Releases memory after |free_start|. Returns the number of bytes released.
+  size_t Release(void* free_start);
+
+  // Frees all memory.
+  void Free();
+
+  // Assign control of the reserved region to a different VirtualMemory object.
+  // The old object is no longer functional (IsReserved() returns false).
+  void TakeControl(VirtualMemory* from);
+
+  bool InVM(void* address, size_t size) {
+    return (reinterpret_cast<uintptr_t>(address_) <=
+            reinterpret_cast<uintptr_t>(address)) &&
+           ((reinterpret_cast<uintptr_t>(address_) + size_) >=
+            (reinterpret_cast<uintptr_t>(address) + size));
+  }
+
+ private:
+  void* address_;  // Start address of the virtual memory.
+  size_t size_;    // Size of the virtual memory.
+};
+
+bool AllocVirtualMemory(size_t size, void* hint, VirtualMemory* result);
 bool AlignedAllocVirtualMemory(size_t size, size_t alignment, void* hint,
-                               base::VirtualMemory* result);
+                               VirtualMemory* result);
 
 }  // namespace internal
 }  // namespace v8

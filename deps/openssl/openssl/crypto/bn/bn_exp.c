@@ -149,7 +149,7 @@ int BN_exp(BIGNUM *r, const BIGNUM *a, const BIGNUM *p, BN_CTX *ctx)
             || BN_get_flags(a, BN_FLG_CONSTTIME) != 0) {
         /* BN_FLG_CONSTTIME only supported by BN_mod_exp_mont() */
         BNerr(BN_F_BN_EXP, ERR_R_SHOULD_NOT_HAVE_BEEN_CALLED);
-        return -1;
+        return 0;
     }
 
     BN_CTX_start(ctx);
@@ -285,7 +285,7 @@ int BN_mod_exp_recp(BIGNUM *r, const BIGNUM *a, const BIGNUM *p,
             || BN_get_flags(m, BN_FLG_CONSTTIME) != 0) {
         /* BN_FLG_CONSTTIME only supported by BN_mod_exp_mont() */
         BNerr(BN_F_BN_MOD_EXP_RECP, ERR_R_SHOULD_NOT_HAVE_BEEN_CALLED);
-        return -1;
+        return 0;
     }
 
     bits = BN_num_bits(p);
@@ -1228,7 +1228,7 @@ int BN_mod_exp_mont_word(BIGNUM *rr, BN_ULONG a, const BIGNUM *p,
             || BN_get_flags(m, BN_FLG_CONSTTIME) != 0) {
         /* BN_FLG_CONSTTIME only supported by BN_mod_exp_mont() */
         BNerr(BN_F_BN_MOD_EXP_MONT_WORD, ERR_R_SHOULD_NOT_HAVE_BEEN_CALLED);
-        return -1;
+        return 0;
     }
 
     bn_check_top(p);
@@ -1361,7 +1361,7 @@ int BN_mod_exp_simple(BIGNUM *r, const BIGNUM *a, const BIGNUM *p,
             || BN_get_flags(m, BN_FLG_CONSTTIME) != 0) {
         /* BN_FLG_CONSTTIME only supported by BN_mod_exp_mont() */
         BNerr(BN_F_BN_MOD_EXP_SIMPLE, ERR_R_SHOULD_NOT_HAVE_BEEN_CALLED);
-        return -1;
+        return 0;
     }
 
     bits = BN_num_bits(p);

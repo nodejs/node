@@ -20,15 +20,9 @@ bool UnicodeCache::IsIdentifierPart(unibrow::uchar c) {
   return kIsIdentifierPart.get(c);
 }
 
-
-bool UnicodeCache::IsLineTerminator(unibrow::uchar c) {
-  return kIsLineTerminator.get(c);
-}
-
-
 bool UnicodeCache::IsLineTerminatorSequence(unibrow::uchar c,
                                             unibrow::uchar next) {
-  if (!IsLineTerminator(c)) return false;
+  if (!unibrow::IsLineTerminator(c)) return false;
   if (c == 0x000d && next == 0x000a) return false;  // CR with following LF.
   return true;
 }

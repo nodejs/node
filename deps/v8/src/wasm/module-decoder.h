@@ -19,12 +19,17 @@ struct ModuleEnv;
 
 namespace wasm {
 
-const uint32_t kWasmMagic = 0x6d736100;
-const uint32_t kWasmVersion = 0x01;
 const uint8_t kWasmFunctionTypeForm = 0x60;
 const uint8_t kWasmAnyFunctionTypeForm = 0x70;
-const uint8_t kResizableMaximumFlag = 1;
+const uint8_t kHasMaximumFlag = 1;
 const uint8_t kNoMaximumFlag = 0;
+
+enum MemoryFlags : uint8_t {
+  kNoMaximum = 0,
+  kMaximum = 1,
+  kSharedNoMaximum = 2,
+  kSharedAndMaximum = 3
+};
 
 enum SectionCode : int8_t {
   kUnknownSectionCode = 0,     // code for unknown sections
@@ -142,6 +147,36 @@ AsmJsOffsetsResult DecodeAsmJsOffsets(const byte* module_start,
 // section, returns all information decoded up to the first error.
 void DecodeLocalNames(const byte* module_start, const byte* module_end,
                       LocalNames* result);
+
+class ModuleDecoderImpl;
+
+class ModuleDecoder {
+ public:
+  ModuleDecoder();
+  ~ModuleDecoder();
+
+  void StartDecoding(Isolate* isolate,
+                     ModuleOrigin origin = ModuleOrigin::kWasmOrigin);
+
+  void DecodeModuleHeader(Vector<const uint8_t> bytes, uint32_t offset);
+
+  void DecodeSection(SectionCode section_code, Vector<const uint8_t> bytes,
+                     uint32_t offset, bool verify_functions = true);
+
+  bool CheckFunctionsCount(uint32_t functions_count, uint32_t offset);
+
+  void DecodeFunctionBody(uint32_t index, uint32_t size, uint32_t offset,
+                          bool verify_functions = true);
+
+  ModuleResult FinishDecoding(bool verify_functions = true);
+
+  WasmModule* module() const;
+
+  bool ok();
+
+ private:
+  std::unique_ptr<ModuleDecoderImpl> impl_;
+};
 
 }  // namespace wasm
 }  // namespace internal

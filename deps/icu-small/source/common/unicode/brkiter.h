@@ -250,7 +250,7 @@ public:
     virtual int32_t next(void) = 0;
 
     /**
-     * Return character index of the current interator position within the text.
+     * Return character index of the current iterator position within the text.
      * @return The boundary most recently returned.
      * @stable ICU 2.0
      */
@@ -277,7 +277,7 @@ public:
     virtual int32_t preceding(int32_t offset) = 0;
 
     /**
-     * Return true if the specfied position is a boundary position.
+     * Return true if the specified position is a boundary position.
      * As a side effect, the current position of the iterator is set
      * to the first boundary position at or following the specified offset.
      * @param offset the offset to check.
@@ -292,7 +292,7 @@ public:
      * does nothing.  Negative values move to previous boundaries
      * and positive values move to later boundaries.
      * @return The new iterator position, or
-     * DONE if there are fewer than |n| boundaries in the specfied direction.
+     * DONE if there are fewer than |n| boundaries in the specified direction.
      * @stable ICU 2.0
      */
     virtual int32_t next(int32_t n) = 0;
@@ -331,7 +331,7 @@ public:
     * @param fillInVec an array to be filled in with the status values.
     * @param capacity  the length of the supplied vector.  A length of zero causes
     *                  the function to return the number of status values, in the
-    *                  normal way, without attemtping to store any values.
+    *                  normal way, without attempting to store any values.
     * @param status    receives error codes.
     * @return          The number of rule status values from rules that determined
     *                  the most recent boundary returned by the break iterator.
@@ -469,7 +469,7 @@ public:
     static const Locale* U_EXPORT2 getAvailableLocales(int32_t& count);
 
     /**
-     * Get name of the object for the desired Locale, in the desired langauge.
+     * Get name of the object for the desired Locale, in the desired language.
      * @param objectLocale must be from getAvailableLocales.
      * @param displayLocale specifies the desired locale for output.
      * @param name the fill-in parameter of the return value
@@ -482,7 +482,7 @@ public:
                                          UnicodeString& name);
 
     /**
-     * Get name of the object for the desired Locale, in the langauge of the
+     * Get name of the object for the desired Locale, in the language of the
      * default locale.
      * @param objectLocale must be from getMatchingLocales
      * @param name the fill-in parameter of the return value
@@ -629,10 +629,12 @@ protected:
     /** @internal */
     BreakIterator();
     /** @internal */
-    BreakIterator (const BreakIterator &other) : UObject(other) {}
+    BreakIterator (const BreakIterator &other);
 #ifndef U_HIDE_INTERNAL_API
     /** @internal */
-    BreakIterator (const Locale& valid, const Locale& actual);
+    BreakIterator (const Locale& valid, const Locale &actual);
+    /** @internal. Assignment Operator, used by RuleBasedBreakIterator. */
+    BreakIterator &operator = (const BreakIterator &other);
 #endif  /* U_HIDE_INTERNAL_API */
 
 private:
@@ -640,12 +642,6 @@ private:
     /** @internal */
     char actualLocale[ULOC_FULLNAME_CAPACITY];
     char validLocale[ULOC_FULLNAME_CAPACITY];
-
-    /**
-     * The assignment operator has no real implementation.
-     * It's provided to make the compiler happy. Do not call.
-     */
-    BreakIterator& operator=(const BreakIterator&);
 };
 
 #ifndef U_HIDE_DEPRECATED_API
@@ -661,5 +657,5 @@ U_NAMESPACE_END
 
 #endif /* #if !UCONFIG_NO_BREAK_ITERATION */
 
-#endif // _BRKITER
+#endif // BRKITER_H
 //eof

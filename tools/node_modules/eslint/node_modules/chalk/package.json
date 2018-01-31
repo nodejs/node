@@ -1,0 +1,103 @@
+{
+  "_from": "chalk@^2.1.0",
+  "_id": "chalk@2.3.0",
+  "_inBundle": false,
+  "_integrity": "sha512-Az5zJR2CBujap2rqXGaJKaPHyJ0IrUimvYNX+ncCy8PJP4ltOGTrHUIo097ZaL2zMeKYpiCdqDvS6zdrTFok3Q==",
+  "_location": "/eslint/chalk",
+  "_phantomChildren": {
+    "color-convert": "1.9.1",
+    "has-flag": "2.0.0"
+  },
+  "_requested": {
+    "type": "range",
+    "registry": true,
+    "raw": "chalk@^2.1.0",
+    "name": "chalk",
+    "escapedName": "chalk",
+    "rawSpec": "^2.1.0",
+    "saveSpec": null,
+    "fetchSpec": "^2.1.0"
+  },
+  "_requiredBy": [
+    "/eslint",
+    "/eslint/inquirer",
+    "/eslint/table"
+  ],
+  "_resolved": "https://registry.npmjs.org/chalk/-/chalk-2.3.0.tgz",
+  "_shasum": "b5ea48efc9c1793dccc9b4767c93914d3f2d52ba",
+  "_spec": "chalk@^2.1.0",
+  "_where": "/home/mzasso/git/nodejs/node/tools/eslint-tmp/node_modules/eslint",
+  "bugs": {
+    "url": "https://github.com/chalk/chalk/issues"
+  },
+  "bundleDependencies": false,
+  "dependencies": {
+    "ansi-styles": "^3.1.0",
+    "escape-string-regexp": "^1.0.5",
+    "supports-color": "^4.0.0"
+  },
+  "deprecated": false,
+  "description": "Terminal string styling done right",
+  "devDependencies": {
+    "ava": "*",
+    "coveralls": "^3.0.0",
+    "execa": "^0.8.0",
+    "import-fresh": "^2.0.0",
+    "matcha": "^0.7.0",
+    "nyc": "^11.0.2",
+    "resolve-from": "^4.0.0",
+    "typescript": "^2.5.3",
+    "xo": "*"
+  },
+  "engines": {
+    "node": ">=4"
+  },
+  "files": [
+    "index.js",
+    "templates.js",
+    "types/index.d.ts"
+  ],
+  "homepage": "https://github.com/chalk/chalk#readme",
+  "keywords": [
+    "color",
+    "colour",
+    "colors",
+    "terminal",
+    "console",
+    "cli",
+    "string",
+    "str",
+    "ansi",
+    "style",
+    "styles",
+    "tty",
+    "formatting",
+    "rgb",
+    "256",
+    "shell",
+    "xterm",
+    "log",
+    "logging",
+    "command-line",
+    "text"
+  ],
+  "license": "MIT",
+  "name": "chalk",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/chalk/chalk.git"
+  },
+  "scripts": {
+    "bench": "matcha benchmark.js",
+    "coveralls": "nyc report --reporter=text-lcov | coveralls",
+    "test": "xo && tsc --project types && nyc ava"
+  },
+  "types": "types/index.d.ts",
+  "version": "2.3.0",
+  "xo": {
+    "envs": [
+      "node",
+      "mocha"
+    ]
+  }
+}

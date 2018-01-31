@@ -13,6 +13,7 @@ const npm = require('../npm.js')
 const realizeShrinkwrapSpecifier = require('./realize-shrinkwrap-specifier.js')
 const validate = require('aproba')
 const path = require('path')
+const isRegistry = require('../utils/is-registry.js')
 
 module.exports = function (tree, sw, opts, finishInflating) {
   if (!fetchPackageMetadata) {
@@ -147,7 +148,7 @@ function adaptResolved (requested, resolved) {
   const registry = requested.scope
   ? npm.config.get(`${requested.scope}:registry`) || npm.config.get('registry')
   : npm.config.get('registry')
-  if (!requested.registry || (resolved && resolved.indexOf(registry) === 0)) {
+  if (!isRegistry(requested) || (resolved && resolved.indexOf(registry) === 0)) {
     // Nothing to worry about here. Pass it through.
     return resolved
   } else {
@@ -199,7 +200,7 @@ function childIsEquivalent (sw, requested, child) {
   if (child.isLink && requested.type === 'directory') return path.relative(child.realpath, requested.fetchSpec) === ''
 
   if (sw.resolved) return child.package._resolved === sw.resolved
-  if (!requested.registry && sw.from) return child.package._from === sw.from
-  if (!requested.registry && child.package._resolved) return sw.version === child.package._resolved
+  if (!isRegistry(requested) && sw.from) return child.package._from === sw.from
+  if (!isRegistry(requested) && child.package._resolved) return sw.version === child.package._resolved
   return child.package.version === sw.version
 }

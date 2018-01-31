@@ -10,7 +10,7 @@
 #include "src/code-factory.h"
 #include "src/compiler/machine-operator.h"
 #include "src/compiler/node-matchers.h"
-#include "src/objects-inl.h"
+#include "src/factory-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -137,8 +137,7 @@ bool IsWord(MachineRepresentation rep) {
 Node* RepresentationChanger::GetRepresentationFor(
     Node* node, MachineRepresentation output_rep, Type* output_type,
     Node* use_node, UseInfo use_info) {
-  if (output_rep == MachineRepresentation::kNone &&
-      output_type->IsInhabited()) {
+  if (output_rep == MachineRepresentation::kNone && !output_type->IsNone()) {
     // The output representation should be set if the type is inhabited (i.e.,
     // if the value is possible).
     return TypeError(node, output_rep, output_type, use_info.representation());
@@ -172,18 +171,18 @@ Node* RepresentationChanger::GetRepresentationFor(
       return GetTaggedPointerRepresentationFor(node, output_rep, output_type,
                                                use_node, use_info);
     case MachineRepresentation::kTagged:
-      DCHECK(use_info.type_check() == TypeCheckKind::kNone);
+      DCHECK_EQ(TypeCheckKind::kNone, use_info.type_check());
       return GetTaggedRepresentationFor(node, output_rep, output_type,
                                         use_info.truncation());
     case MachineRepresentation::kFloat32:
-      DCHECK(use_info.type_check() == TypeCheckKind::kNone);
+      DCHECK_EQ(TypeCheckKind::kNone, use_info.type_check());
       return GetFloat32RepresentationFor(node, output_rep, output_type,
                                          use_info.truncation());
     case MachineRepresentation::kFloat64:
       return GetFloat64RepresentationFor(node, output_rep, output_type,
                                          use_node, use_info);
     case MachineRepresentation::kBit:
-      DCHECK(use_info.type_check() == TypeCheckKind::kNone);
+      DCHECK_EQ(TypeCheckKind::kNone, use_info.type_check());
       return GetBitRepresentationFor(node, output_rep, output_type);
     case MachineRepresentation::kWord8:
     case MachineRepresentation::kWord16:
@@ -191,7 +190,7 @@ Node* RepresentationChanger::GetRepresentationFor(
       return GetWord32RepresentationFor(node, output_rep, output_type, use_node,
                                         use_info);
     case MachineRepresentation::kWord64:
-      DCHECK(use_info.type_check() == TypeCheckKind::kNone);
+      DCHECK_EQ(TypeCheckKind::kNone, use_info.type_check());
       return GetWord64RepresentationFor(node, output_rep, output_type);
     case MachineRepresentation::kSimd128:
     case MachineRepresentation::kNone:
@@ -217,8 +216,7 @@ Node* RepresentationChanger::GetTaggedSignedRepresentationFor(
   const Operator* op;
   if (output_type->Is(Type::None())) {
     // This is an impossible value; it should not be used at runtime.
-    // We just provide a dummy value here.
-    return jsgraph()->Constant(0);
+    return jsgraph()->DeadValue();
   } else if (IsWord(output_rep)) {
     if (output_type->Is(Type::Signed31())) {
       op = simplified()->ChangeInt31ToTaggedSigned();
@@ -336,8 +334,7 @@ Node* RepresentationChanger::GetTaggedPointerRepresentationFor(
   Operator const* op;
   if (output_type->Is(Type::None())) {
     // This is an impossible value; it should not be used at runtime.
-    // We just provide a dummy value here.
-    return jsgraph()->TheHoleConstant();
+    return jsgraph()->DeadValue();
   } else if (output_rep == MachineRepresentation::kBit) {
     if (output_type->Is(Type::Boolean())) {
       op = simplified()->ChangeBitToTagged();
@@ -414,8 +411,7 @@ Node* RepresentationChanger::GetTaggedRepresentationFor(
   const Operator* op;
   if (output_type->Is(Type::None())) {
     // This is an impossible value; it should not be used at runtime.
-    // We just provide a dummy value here.
-    return jsgraph()->TheHoleConstant();
+    return jsgraph()->DeadValue();
   } else if (output_rep == MachineRepresentation::kBit) {
     if (output_type->Is(Type::Boolean())) {
       op = simplified()->ChangeBitToTagged();
@@ -493,8 +489,7 @@ Node* RepresentationChanger::GetFloat32RepresentationFor(
   const Operator* op = nullptr;
   if (output_type->Is(Type::None())) {
     // This is an impossible value; it should not be used at runtime.
-    // We just provide a dummy value here.
-    return jsgraph()->Float32Constant(0.0f);
+    return jsgraph()->DeadValue();
   } else if (IsWord(output_rep)) {
     if (output_type->Is(Type::Signed32())) {
       // int32 -> float64 -> float32
@@ -554,8 +549,7 @@ Node* RepresentationChanger::GetFloat64RepresentationFor(
   const Operator* op = nullptr;
   if (output_type->Is(Type::None())) {
     // This is an impossible value; it should not be used at runtime.
-    // We just provide a dummy value here.
-    return jsgraph()->Float64Constant(0.0);
+    return jsgraph()->DeadValue();
   } else if (IsWord(output_rep)) {
     if (output_type->Is(Type::Signed32())) {
       op = machine()->ChangeInt32ToFloat64();
@@ -632,8 +626,7 @@ Node* RepresentationChanger::GetWord32RepresentationFor(
   const Operator* op = nullptr;
   if (output_type->Is(Type::None())) {
     // This is an impossible value; it should not be used at runtime.
-    // We just provide a dummy value here.
-    return jsgraph()->Int32Constant(0);
+    return jsgraph()->DeadValue();
   } else if (output_rep == MachineRepresentation::kBit) {
     return node;  // Sloppy comparison -> word32
   } else if (output_rep == MachineRepresentation::kFloat64) {
@@ -722,7 +715,7 @@ Node* RepresentationChanger::GetWord32RepresentationFor(
     }
   } else if (output_rep == MachineRepresentation::kWord8 ||
              output_rep == MachineRepresentation::kWord16) {
-    DCHECK(use_info.representation() == MachineRepresentation::kWord32);
+    DCHECK_EQ(MachineRepresentation::kWord32, use_info.representation());
     DCHECK(use_info.type_check() == TypeCheckKind::kSignedSmall ||
            use_info.type_check() == TypeCheckKind::kSigned32);
     return node;
@@ -769,8 +762,7 @@ Node* RepresentationChanger::GetBitRepresentationFor(
   const Operator* op;
   if (output_type->Is(Type::None())) {
     // This is an impossible value; it should not be used at runtime.
-    // We just provide a dummy value here.
-    return jsgraph()->Int32Constant(0);
+    return jsgraph()->DeadValue();
   } else if (output_rep == MachineRepresentation::kTagged ||
              output_rep == MachineRepresentation::kTaggedPointer) {
     if (output_type->Is(Type::BooleanOrNullOrUndefined())) {
@@ -815,8 +807,7 @@ Node* RepresentationChanger::GetWord64RepresentationFor(
     Node* node, MachineRepresentation output_rep, Type* output_type) {
   if (output_type->Is(Type::None())) {
     // This is an impossible value; it should not be used at runtime.
-    // We just provide a dummy value here.
-    return jsgraph()->Int64Constant(0);
+    return jsgraph()->DeadValue();
   } else if (output_rep == MachineRepresentation::kBit) {
     return node;  // Sloppy comparison -> word64
   }

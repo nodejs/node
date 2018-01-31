@@ -1,13 +1,8 @@
 #include "node_internals.h"
-#include "async-wrap.h"
+#include "async_wrap.h"
 #include "v8-profiler.h"
 #include "node_buffer.h"
-
-#if defined(_MSC_VER)
-#define getpid GetCurrentProcessId
-#else
-#include <unistd.h>
-#endif
+#include "node_platform.h"
 
 #include <stdio.h>
 #include <algorithm>
@@ -17,10 +12,62 @@ namespace node {
 using v8::Context;
 using v8::FunctionTemplate;
 using v8::HandleScope;
+using v8::Isolate;
 using v8::Local;
 using v8::Message;
+using v8::Private;
 using v8::StackFrame;
 using v8::StackTrace;
+using v8::String;
+
+IsolateData::IsolateData(Isolate* isolate,
+                         uv_loop_t* event_loop,
+                         MultiIsolatePlatform* platform,
+                         uint32_t* zero_fill_field) :
+
+// Create string and private symbol properties as internalized one byte strings.
+//
+// Internalized because it makes property lookups a little faster and because
+// the string is created in the old space straight away.  It's going to end up
+// in the old space sooner or later anyway but now it doesn't go through
+// v8::Eternal's new space handling first.
+//
+// One byte because our strings are ASCII and we can safely skip V8's UTF-8
+// decoding step.  It's a one-time cost, but why pay it when you don't have to?
+#define V(PropertyName, StringValue)                                          \
+    PropertyName ## _(                                                        \
+        isolate,                                                              \
+        Private::New(                                                         \
+            isolate,                                                          \
+            String::NewFromOneByte(                                           \
+                isolate,                                                      \
+                reinterpret_cast<const uint8_t*>(StringValue),                \
+                v8::NewStringType::kInternalized,                             \
+                sizeof(StringValue) - 1).ToLocalChecked())),
+  PER_ISOLATE_PRIVATE_SYMBOL_PROPERTIES(V)
+#undef V
+#define V(PropertyName, StringValue)                                          \
+    PropertyName ## _(                                                        \
+        isolate,                                                              \
+        String::NewFromOneByte(                                               \
+            isolate,                                                          \
+            reinterpret_cast<const uint8_t*>(StringValue),                    \
+            v8::NewStringType::kInternalized,                                 \
+            sizeof(StringValue) - 1).ToLocalChecked()),
+    PER_ISOLATE_STRING_PROPERTIES(V)
+#undef V
+    isolate_(isolate),
+    event_loop_(event_loop),
+    zero_fill_field_(zero_fill_field),
+    platform_(platform) {
+  if (platform_ != nullptr)
+    platform_->RegisterIsolate(this, event_loop);
+}
+
+IsolateData::~IsolateData() {
+  if (platform_ != nullptr)
+    platform_->UnregisterIsolate(this);
+}
 
 void Environment::Start(int argc,
                         const char* const* argv,
@@ -35,6 +82,8 @@ void Environment::Start(int argc,
 
   uv_idle_init(event_loop(), immediate_idle_handle());
 
+  uv_check_start(immediate_check_handle(), CheckImmediate);
+
   // Inform V8's CPU profiler when we're idle.  The profiler is sampling-based
   // but not all samples are created equal; mark the wall clock time spent in
   // epoll_wait() and friends so profiling tools can filter it out.  The samples
@@ -48,8 +97,6 @@ void Environment::Start(int argc,
   uv_check_init(event_loop(), &idle_check_handle_);
   uv_unref(reinterpret_cast<uv_handle_t*>(&idle_prepare_handle_));
   uv_unref(reinterpret_cast<uv_handle_t*>(&idle_check_handle_));
-
-  uv_timer_init(event_loop(), destroy_async_ids_timer_handle());
 
   auto close_and_finish = [](Environment* env, uv_handle_t* handle, void* arg) {
     handle->data = env;
@@ -73,10 +120,6 @@ void Environment::Start(int argc,
       nullptr);
   RegisterHandleCleanup(
       reinterpret_cast<uv_handle_t*>(&idle_check_handle_),
-      close_and_finish,
-      nullptr);
-  RegisterHandleCleanup(
-      reinterpret_cast<uv_handle_t*>(&destroy_async_ids_timer_handle_),
       close_and_finish,
       nullptr);
 
@@ -131,7 +174,8 @@ void Environment::PrintSyncTrace() const {
   Local<v8::StackTrace> stack =
       StackTrace::CurrentStackTrace(isolate(), 10, StackTrace::kDetailed);
 
-  fprintf(stderr, "(node:%d) WARNING: Detected use of sync API\n", getpid());
+  fprintf(stderr, "(node:%u) WARNING: Detected use of sync API\n",
+          uv_os_getpid());
 
   for (int i = 0; i < stack->GetFrameCount() - 1; i++) {
     Local<StackFrame> stack_frame = stack->GetFrame(i);
@@ -165,6 +209,17 @@ void Environment::PrintSyncTrace() const {
     }
   }
   fflush(stderr);
+}
+
+void Environment::RunBeforeExitCallbacks() {
+  for (BeforeExitCallback before_exit : before_exit_functions_) {
+    before_exit.cb_(before_exit.arg_);
+  }
+  before_exit_functions_.clear();
+}
+
+void Environment::BeforeExit(void (*cb)(void* arg), void* arg) {
+  before_exit_functions_.push_back(BeforeExitCallback{cb, arg});
 }
 
 void Environment::RunAtExitCallbacks() {
@@ -228,6 +283,63 @@ void Environment::EnvPromiseHook(v8::PromiseHookType type,
     hook.cb_(type, promise, parent, hook.arg_);
   }
 }
+
+void Environment::RunAndClearNativeImmediates() {
+  size_t count = native_immediate_callbacks_.size();
+  if (count > 0) {
+    size_t ref_count = 0;
+    std::vector<NativeImmediateCallback> list;
+    native_immediate_callbacks_.swap(list);
+    for (const auto& cb : list) {
+      cb.cb_(this, cb.data_);
+      if (cb.keep_alive_)
+        cb.keep_alive_->Reset();
+      if (cb.refed_)
+        ref_count++;
+    }
+
+#ifdef DEBUG
+    CHECK_GE(immediate_info()->count(), count);
+#endif
+    immediate_info()->count_dec(count);
+    immediate_info()->ref_count_dec(ref_count);
+  }
+}
+
+
+void Environment::CheckImmediate(uv_check_t* handle) {
+  Environment* env = Environment::from_immediate_check_handle(handle);
+
+  if (env->immediate_info()->count() == 0)
+    return;
+
+  HandleScope scope(env->isolate());
+  Context::Scope context_scope(env->context());
+
+  env->RunAndClearNativeImmediates();
+
+  do {
+    MakeCallback(env->isolate(),
+                 env->process_object(),
+                 env->immediate_callback_function(),
+                 0,
+                 nullptr,
+                 {0, 0}).ToLocalChecked();
+  } while (env->immediate_info()->has_outstanding());
+
+  if (env->immediate_info()->ref_count() == 0)
+    env->ToggleImmediateRef(false);
+}
+
+void Environment::ToggleImmediateRef(bool ref) {
+  if (ref) {
+    // Idle handle is needed only to stop the event loop from blocking in poll.
+    uv_idle_start(immediate_idle_handle(), [](uv_idle_t*){ });
+  } else {
+    uv_idle_stop(immediate_idle_handle());
+  }
+}
+
 
 void CollectExceptionInfo(Environment* env,
                           v8::Local<v8::Object> obj,
@@ -304,6 +416,23 @@ void Environment::CollectUVExceptionInfo(v8::Local<v8::Value> object,
 
   node::CollectExceptionInfo(this, obj, errorno, err_string,
                              syscall, message, path, dest);
+}
+
+
+void Environment::AsyncHooks::grow_async_ids_stack() {
+  const uint32_t old_capacity = async_ids_stack_.Length() / 2;
+  const uint32_t new_capacity = old_capacity * 1.5;
+  AliasedBuffer<double, v8::Float64Array> new_buffer(
+      env()->isolate(), new_capacity * 2);
+
+  for (uint32_t i = 0; i < old_capacity * 2; ++i)
+    new_buffer[i] = async_ids_stack_[i];
+  async_ids_stack_ = std::move(new_buffer);
+
+  env()->async_hooks_binding()->Set(
+      env()->context(),
+      env()->async_ids_stack_string(),
+      async_ids_stack_.GetJSArray()).FromJust();
 }
 
 }  // namespace node

@@ -106,7 +106,7 @@ class MemoryOptimizer final {
   };
 
   void VisitNode(Node*, AllocationState const*);
-  void VisitAllocate(Node*, AllocationState const*);
+  void VisitAllocateRaw(Node*, AllocationState const*);
   void VisitCall(Node*, AllocationState const*);
   void VisitCallWithCallerSavedRegisters(Node*, AllocationState const*);
   void VisitLoadElement(Node*, AllocationState const*);

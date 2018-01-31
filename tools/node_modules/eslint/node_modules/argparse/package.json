@@ -1,0 +1,70 @@
+{
+  "_from": "argparse@^1.0.7",
+  "_id": "argparse@1.0.9",
+  "_inBundle": false,
+  "_integrity": "sha1-c9g7wmP4bpf4zE9rrhsOkKfSLIY=",
+  "_location": "/eslint/argparse",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "range",
+    "registry": true,
+    "raw": "argparse@^1.0.7",
+    "name": "argparse",
+    "escapedName": "argparse",
+    "rawSpec": "^1.0.7",
+    "saveSpec": null,
+    "fetchSpec": "^1.0.7"
+  },
+  "_requiredBy": [
+    "/eslint/js-yaml"
+  ],
+  "_resolved": "https://registry.npmjs.org/argparse/-/argparse-1.0.9.tgz",
+  "_shasum": "73d83bc263f86e97f8cc4f6bae1b0e90a7d22c86",
+  "_spec": "argparse@^1.0.7",
+  "_where": "/home/mzasso/git/nodejs/node/tools/eslint-tmp/node_modules/eslint/node_modules/js-yaml",
+  "bugs": {
+    "url": "https://github.com/nodeca/argparse/issues"
+  },
+  "bundleDependencies": false,
+  "contributors": [
+    {
+      "name": "Eugene Shkuropat"
+    },
+    {
+      "name": "Paul Jacobson"
+    }
+  ],
+  "dependencies": {
+    "sprintf-js": "~1.0.2"
+  },
+  "deprecated": false,
+  "description": "Very powerful CLI arguments parser. Native port of argparse - python's options parsing library",
+  "devDependencies": {
+    "eslint": "^2.13.1",
+    "istanbul": "^0.4.5",
+    "mocha": "^3.1.0",
+    "ndoc": "^5.0.1"
+  },
+  "files": [
+    "index.js",
+    "lib/"
+  ],
+  "homepage": "https://github.com/nodeca/argparse#readme",
+  "keywords": [
+    "cli",
+    "parser",
+    "argparse",
+    "option",
+    "args"
+  ],
+  "license": "MIT",
+  "name": "argparse",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/nodeca/argparse.git"
+  },
+  "scripts": {
+    "test": "make test"
+  },
+  "version": "1.0.9"
+}

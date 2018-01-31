@@ -20,11 +20,7 @@ const configs = {
 
 const bench = common.createBenchmark(main, configs);
 
-function main(conf) {
-  const n = +conf.n;
-  const methodName = conf.methodName;
-  const params = +conf.params;
-
+function main({ n, methodName, params }) {
   const method = cp[methodName];
 
   switch (methodName) {

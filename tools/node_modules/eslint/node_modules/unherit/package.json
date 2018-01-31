@@ -1,0 +1,109 @@
+{
+  "_from": "unherit@^1.0.4",
+  "_id": "unherit@1.1.0",
+  "_inBundle": false,
+  "_integrity": "sha1-a5qu379z3xdWrZ4xbdmBiFhAzX0=",
+  "_location": "/unherit",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "range",
+    "registry": true,
+    "raw": "unherit@^1.0.4",
+    "name": "unherit",
+    "escapedName": "unherit",
+    "rawSpec": "^1.0.4",
+    "saveSpec": null,
+    "fetchSpec": "^1.0.4"
+  },
+  "_requiredBy": [
+    "/remark-parse"
+  ],
+  "_resolved": "https://registry.npmjs.org/unherit/-/unherit-1.1.0.tgz",
+  "_shasum": "6b9aaedfbf73df1756ad9e316dd981885840cd7d",
+  "_spec": "unherit@^1.0.4",
+  "_where": "/home/mzasso/git/nodejs/node/tools/eslint-tmp/node_modules/eslint/node_modules/remark-parse",
+  "author": {
+    "name": "Titus Wormer",
+    "email": "tituswormer@gmail.com",
+    "url": "http://wooorm.com"
+  },
+  "bugs": {
+    "url": "https://github.com/wooorm/unherit/issues"
+  },
+  "bundleDependencies": false,
+  "contributors": [
+    {
+      "name": "Titus Wormer",
+      "email": "tituswormer@gmail.com",
+      "url": "http://wooorm.com"
+    }
+  ],
+  "dependencies": {
+    "inherits": "^2.0.1",
+    "xtend": "^4.0.1"
+  },
+  "deprecated": false,
+  "description": "Clone a constructor without affecting the super-class",
+  "devDependencies": {
+    "browserify": "^13.0.1",
+    "esmangle": "^1.0.1",
+    "nyc": "^8.1.0",
+    "remark-cli": "^1.0.0",
+    "remark-comment-config": "^4.0.0",
+    "remark-github": "^5.0.0",
+    "remark-lint": "^4.0.0",
+    "remark-validate-links": "^4.0.0",
+    "tape": "^4.0.0",
+    "xo": "^0.16.0"
+  },
+  "files": [
+    "index.js"
+  ],
+  "homepage": "https://github.com/wooorm/unherit#readme",
+  "keywords": [
+    "clone",
+    "super",
+    "class",
+    "constructor"
+  ],
+  "license": "MIT",
+  "name": "unherit",
+  "remarkConfig": {
+    "output": true,
+    "plugins": {
+      "comment-config": null,
+      "github": null,
+      "lint": {
+        "heading-increment": false
+      },
+      "validate-links": null
+    },
+    "settings": {
+      "bullet": "*"
+    }
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/wooorm/unherit.git"
+  },
+  "scripts": {
+    "build": "npm run build-md && npm run build-bundle && npm run build-mangle",
+    "build-bundle": "browserify index.js --bare -s unherit > unherit.js",
+    "build-mangle": "esmangle unherit.js > unherit.min.js",
+    "build-md": "remark . --quiet --frail",
+    "lint": "xo",
+    "test": "npm run build && npm run lint && npm run test-coverage",
+    "test-api": "node test",
+    "test-coverage": "nyc --reporter lcov tape test.js"
+  },
+  "version": "1.1.0",
+  "xo": {
+    "space": true,
+    "rules": {
+      "guard-for-in": "off"
+    },
+    "ignores": [
+      "unherit.js"
+    ]
+  }
+}

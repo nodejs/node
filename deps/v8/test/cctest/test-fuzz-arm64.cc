@@ -29,7 +29,8 @@
 #include "src/arm64/decoder-arm64-inl.h"
 #include "src/arm64/disasm-arm64.h"
 
-using namespace v8::internal;
+namespace v8 {
+namespace internal {
 
 TEST(FUZZ_decoder) {
   // Feed noise into the decoder to check that it doesn't crash.
@@ -69,3 +70,6 @@ TEST(FUZZ_disasm) {
     decoder.Decode(buffer);
   }
 }
+
+}  // namespace internal
+}  // namespace v8

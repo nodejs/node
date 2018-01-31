@@ -22,7 +22,7 @@
 #include "node.h"
 #include "node_buffer.h"
 
-#include "async-wrap-inl.h"
+#include "async_wrap-inl.h"
 #include "env-inl.h"
 #include "util-inl.h"
 
@@ -178,7 +178,7 @@ class ZCtx : public AsyncWrap {
     } else {
       CHECK(Buffer::HasInstance(args[1]));
       Local<Object> in_buf;
-      in_buf = args[1]->ToObject(env->isolate());
+      in_buf = args[1]->ToObject(env->context()).ToLocalChecked();
       in_off = args[2]->Uint32Value();
       in_len = args[3]->Uint32Value();
 
@@ -187,7 +187,7 @@ class ZCtx : public AsyncWrap {
     }
 
     CHECK(Buffer::HasInstance(args[4]));
-    Local<Object> out_buf = args[4]->ToObject(env->isolate());
+    Local<Object> out_buf = args[4]->ToObject(env->context()).ToLocalChecked();
     out_off = args[5]->Uint32Value();
     out_len = args[6]->Uint32Value();
     CHECK(Buffer::IsWithinBounds(out_off, out_len, Buffer::Length(out_buf)));
@@ -322,7 +322,7 @@ class ZCtx : public AsyncWrap {
         }
         break;
       default:
-        CHECK(0 && "wtf?");
+        UNREACHABLE();
     }
 
     // pass any errors back to the main thread to deal with.
@@ -550,7 +550,7 @@ class ZCtx : public AsyncWrap {
             ->AdjustAmountOfExternalAllocatedMemory(kInflateContextSize);
         break;
       default:
-        CHECK(0 && "wtf?");
+        UNREACHABLE();
     }
 
     ctx->dictionary_ = reinterpret_cast<Bytef *>(dictionary);
@@ -710,4 +710,4 @@ void InitZlib(Local<Object> target,
 }  // anonymous namespace
 }  // namespace node
 
-NODE_MODULE_CONTEXT_AWARE_BUILTIN(zlib, node::InitZlib)
+NODE_BUILTIN_MODULE_CONTEXT_AWARE(zlib, node::InitZlib)

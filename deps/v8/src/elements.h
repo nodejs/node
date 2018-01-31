@@ -23,7 +23,7 @@ class ElementsAccessor {
 
   // Returns a shared ElementsAccessor for the specified ElementsKind.
   static ElementsAccessor* ForKind(ElementsKind elements_kind) {
-    DCHECK(static_cast<int>(elements_kind) < kElementsKindCount);
+    DCHECK_LT(static_cast<int>(elements_kind), kElementsKindCount);
     return elements_accessors_[elements_kind];
   }
 
@@ -34,7 +34,7 @@ class ElementsAccessor {
   // Returns true if a holder contains an element with the specified index
   // without iterating up the prototype chain.  The caller can optionally pass
   // in the backing store to use for the check, which must be compatible with
-  // the ElementsKind of the ElementsAccessor. If backing_store is NULL, the
+  // the ElementsKind of the ElementsAccessor. If backing_store is nullptr, the
   // holder->elements() is used as the backing store. If a |filter| is
   // specified the PropertyAttributes of the element at the given index
   // are compared to the given |filter|. If they match/overlap the given
@@ -49,6 +49,10 @@ class ElementsAccessor {
                          PropertyFilter filter = ALL_PROPERTIES) {
     return HasElement(holder, index, holder->elements(), filter);
   }
+
+  // Note: this is currently not implemented for string wrapper and
+  // typed array elements.
+  virtual bool HasEntry(JSObject* holder, uint32_t entry) = 0;
 
   virtual Handle<Object> Get(Handle<JSObject> holder, uint32_t entry) = 0;
 
@@ -154,7 +158,7 @@ class ElementsAccessor {
 
   virtual Handle<Object> Shift(Handle<JSArray> receiver) = 0;
 
-  virtual Handle<SeededNumberDictionary> Normalize(Handle<JSObject> object) = 0;
+  virtual Handle<NumberDictionary> Normalize(Handle<JSObject> object) = 0;
 
   virtual uint32_t GetCapacity(JSObject* holder,
                                FixedArrayBase* backing_store) = 0;
@@ -188,10 +192,12 @@ class ElementsAccessor {
                             Handle<FixedArrayBase> destination, int size) = 0;
 
   virtual Object* CopyElements(Handle<JSReceiver> source,
-                               Handle<JSObject> destination, size_t length) = 0;
+                               Handle<JSObject> destination, size_t length,
+                               uint32_t offset = 0) = 0;
 
-  virtual Handle<FixedArray> CreateListFromArray(Isolate* isolate,
-                                                 Handle<JSArray> array) = 0;
+  virtual Handle<FixedArray> CreateListFromArrayLike(Isolate* isolate,
+                                                     Handle<JSObject> object,
+                                                     uint32_t length) = 0;
 
  protected:
   friend class LookupIterator;
@@ -230,6 +236,17 @@ void CheckArrayAbuse(Handle<JSObject> obj, const char* op, uint32_t index,
 MUST_USE_RESULT MaybeHandle<Object> ArrayConstructInitializeElements(
     Handle<JSArray> array,
     Arguments* args);
+
+// Called directly from CSA.
+class JSTypedArray;
+void CopyFastNumberJSArrayElementsToTypedArray(Context* context,
+                                               JSArray* source,
+                                               JSTypedArray* destination,
+                                               uintptr_t length,
+                                               uintptr_t offset);
+void CopyTypedArrayElementsToTypedArray(JSTypedArray* source,
+                                        JSTypedArray* destination,
+                                        uintptr_t length, uintptr_t offset);
 
 }  // namespace internal
 }  // namespace v8

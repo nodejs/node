@@ -43,10 +43,10 @@ const Transform = require('_stream_transform');
   }
   tx.end();
 
-  assert.strictEqual(tx._readableState.length, 10);
+  assert.strictEqual(tx.readableLength, 10);
   assert.strictEqual(transformed, 10);
   assert.strictEqual(tx._transformState.writechunk.length, 5);
-  assert.deepStrictEqual(tx._writableState.getBuffer().map(function(c) {
+  assert.deepStrictEqual(tx.writableBuffer.map(function(c) {
     return c.chunk.length;
   }), [6, 7, 8, 9, 10]);
 }
@@ -94,6 +94,13 @@ const Transform = require('_stream_transform');
   const pt = PassThrough();
 
   assert(pt instanceof PassThrough);
+}
+
+{
+  // Verify transform constructor behavior
+  const pt = Transform();
+
+  assert(pt instanceof Transform);
 }
 
 {
@@ -168,7 +175,7 @@ const Transform = require('_stream_transform');
 }
 
 {
-  // Verify assymetric transform (expand)
+  // Verify asymmetric transform (expand)
   const pt = new Transform();
 
   // emit each chunk 2 times.
@@ -200,7 +207,7 @@ const Transform = require('_stream_transform');
 }
 
 {
-  // Verify assymetric trasform (compress)
+  // Verify asymmetric transform (compress)
   const pt = new Transform();
 
   // each output is the first char of 3 consecutive chunks,
@@ -211,14 +218,14 @@ const Transform = require('_stream_transform');
     if (!chunk)
       chunk = '';
     const s = chunk.toString();
-    setTimeout(function() {
+    setTimeout(() => {
       this.state += s.charAt(0);
       if (this.state.length === 3) {
         pt.push(Buffer.from(this.state));
         this.state = '';
       }
       cb();
-    }.bind(this), 10);
+    }, 10);
   };
 
   pt._flush = function(cb) {
@@ -255,7 +262,7 @@ const Transform = require('_stream_transform');
 // this tests for a stall when data is written to a full stream
 // that has empty transforms.
 {
-  // Verify compex transform behavior
+  // Verify complex transform behavior
   let count = 0;
   let saved = null;
   const pt = new Transform({ highWaterMark: 3 });
@@ -299,25 +306,26 @@ const Transform = require('_stream_transform');
   pt.write(Buffer.from('foog'));
   pt.write(Buffer.from('bark'));
 
-  assert.strictEqual(emits, 1);
+  assert.strictEqual(emits, 0);
   assert.strictEqual(pt.read(5).toString(), 'foogb');
   assert.strictEqual(String(pt.read(5)), 'null');
+  assert.strictEqual(emits, 0);
 
   pt.write(Buffer.from('bazy'));
   pt.write(Buffer.from('kuel'));
 
-  assert.strictEqual(emits, 2);
+  assert.strictEqual(emits, 0);
   assert.strictEqual(pt.read(5).toString(), 'arkba');
   assert.strictEqual(pt.read(5).toString(), 'zykue');
   assert.strictEqual(pt.read(5), null);
 
   pt.end();
 
-  assert.strictEqual(emits, 3);
+  assert.strictEqual(emits, 1);
   assert.strictEqual(pt.read(5).toString(), 'l');
   assert.strictEqual(pt.read(5), null);
 
-  assert.strictEqual(emits, 3);
+  assert.strictEqual(emits, 1);
 }
 
 {
@@ -331,7 +339,7 @@ const Transform = require('_stream_transform');
   pt.write(Buffer.from('foog'));
   pt.write(Buffer.from('bark'));
 
-  assert.strictEqual(emits, 1);
+  assert.strictEqual(emits, 0);
   assert.strictEqual(pt.read(5).toString(), 'foogb');
   assert.strictEqual(pt.read(5), null);
 
@@ -345,7 +353,7 @@ const Transform = require('_stream_transform');
       pt.once('readable', common.mustCall(function() {
         assert.strictEqual(pt.read(5).toString(), 'l');
         assert.strictEqual(pt.read(5), null);
-        assert.strictEqual(emits, 4);
+        assert.strictEqual(emits, 3);
       }));
       pt.end();
     }));

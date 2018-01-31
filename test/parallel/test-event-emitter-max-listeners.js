@@ -36,8 +36,9 @@ for (const obj of throwsObjs) {
     () => e.setMaxListeners(obj),
     {
       code: 'ERR_OUT_OF_RANGE',
-      type: TypeError,
-      message: 'The "n" argument is out of range'
+      type: RangeError,
+      message: 'The value of "n" is out of range. ' +
+               `It must be a non-negative number. Received ${obj}`
     }
   );
 
@@ -45,8 +46,9 @@ for (const obj of throwsObjs) {
     () => events.defaultMaxListeners = obj,
     {
       code: 'ERR_OUT_OF_RANGE',
-      type: TypeError,
-      message: 'The "defaultMaxListeners" argument is out of range'
+      type: RangeError,
+      message: 'The value of "defaultMaxListeners" is out of range. ' +
+               `It must be a non-negative number. Received ${obj}`
     }
   );
 }

@@ -48,6 +48,7 @@ LookupIterator LookupIterator::PropertyOrElement(Isolate* isolate,
                                                  Handle<Object> key,
                                                  bool* success,
                                                  Configuration configuration) {
+  // TODO(mslekova): come up with better way to avoid duplication
   uint32_t index = 0;
   if (key->ToArrayIndex(&index)) {
     *success = true;
@@ -93,21 +94,9 @@ LookupIterator LookupIterator::ForTransitionHandler(
                     has_property);
 
   if (!transition_map->is_dictionary_map()) {
-    PropertyConstness new_constness = kConst;
-    if (FLAG_track_constant_fields) {
-      if (it.constness() == kConst) {
-        DCHECK_EQ(kData, it.property_details_.kind());
-        // Check that current value matches new value otherwise we should make
-        // the property mutable.
-        if (!it.IsConstFieldValueEqualTo(*value)) new_constness = kMutable;
-      }
-    } else {
-      new_constness = kMutable;
-    }
-
     int descriptor_number = transition_map->LastAdded();
     Handle<Map> new_map = Map::PrepareForDataProperty(
-        transition_map, descriptor_number, new_constness, value);
+        transition_map, descriptor_number, kConst, value);
     // Reload information; this is no-op if nothing changed.
     it.property_details_ =
         new_map->instance_descriptors()->GetDetails(descriptor_number);
@@ -223,7 +212,7 @@ Handle<JSReceiver> LookupIterator::GetRootForNonJSReceiver(
       handle(receiver->GetPrototypeChainRootMap(isolate)->prototype(), isolate);
   if (root->IsNull(isolate)) {
     unsigned int magic = 0xbbbbbbbb;
-    isolate->PushStackTraceAndDie(magic, *receiver, NULL, magic);
+    isolate->PushStackTraceAndDie(magic, *receiver, nullptr, magic);
   }
   return Handle<JSReceiver>::cast(root);
 }
@@ -392,7 +381,7 @@ void LookupIterator::ReconfigureDataProperty(Handle<Object> value,
       PropertyDetails original_details =
           dictionary->DetailsAt(dictionary_entry());
       int enumeration_index = original_details.dictionary_index();
-      DCHECK(enumeration_index > 0);
+      DCHECK_GT(enumeration_index, 0);
       details = details.set_index(enumeration_index);
       dictionary->SetEntry(dictionary_entry(), *name(), *value, details);
       property_details_ = details;
@@ -629,11 +618,11 @@ void LookupIterator::TransitionToAccessorPair(Handle<Object> pair,
 
   if (IsElement()) {
     // TODO(verwaest): Move code into the element accessor.
-    Handle<SeededNumberDictionary> dictionary =
-        JSObject::NormalizeElements(receiver);
+    isolate_->CountUsage(v8::Isolate::kIndexAccessor);
+    Handle<NumberDictionary> dictionary = JSObject::NormalizeElements(receiver);
 
-    dictionary = SeededNumberDictionary::Set(dictionary, index_, pair, receiver,
-                                             details);
+    dictionary =
+        NumberDictionary::Set(dictionary, index_, pair, receiver, details);
     receiver->RequireSlowElements(*dictionary);
 
     if (receiver->HasSlowArgumentsElements()) {
@@ -693,7 +682,7 @@ bool LookupIterator::HolderIsReceiverOrHiddenPrototype() const {
 
 
 Handle<Object> LookupIterator::FetchValue() const {
-  Object* result = NULL;
+  Object* result = nullptr;
   if (IsElement()) {
     Handle<JSObject> holder = GetHolder<JSObject>();
     ElementsAccessor* accessor = holder->GetElementsAccessor();
@@ -789,11 +778,7 @@ FieldIndex LookupIterator::GetFieldIndex() const {
   DCHECK(holder_->HasFastProperties());
   DCHECK_EQ(kField, property_details_.location());
   DCHECK(!IsElement());
-  Map* holder_map = holder_->map();
-  int index =
-      holder_map->instance_descriptors()->GetFieldIndex(descriptor_number());
-  bool is_double = representation().IsDouble();
-  return FieldIndex::ForPropertyIndex(holder_map, index, is_double);
+  return FieldIndex::ForDescriptor(holder_->map(), descriptor_number());
 }
 
 Handle<FieldType> LookupIterator::GetFieldType() const {
@@ -879,8 +864,8 @@ bool LookupIterator::SkipInterceptor(JSObject* holder) {
 
 JSReceiver* LookupIterator::NextHolder(Map* map) {
   DisallowHeapAllocation no_gc;
-  if (map->prototype() == heap()->null_value()) return NULL;
-  if (!check_prototype_chain() && !map->has_hidden_prototype()) return NULL;
+  if (map->prototype() == heap()->null_value()) return nullptr;
+  if (!check_prototype_chain() && !map->has_hidden_prototype()) return nullptr;
   return JSReceiver::cast(map->prototype());
 }
 

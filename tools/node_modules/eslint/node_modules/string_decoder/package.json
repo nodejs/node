@@ -1,0 +1,56 @@
+{
+  "_from": "string_decoder@~1.0.3",
+  "_id": "string_decoder@1.0.3",
+  "_inBundle": false,
+  "_integrity": "sha512-4AH6Z5fzNNBcH+6XDMfA/BTt87skxqJlO0lAh3Dker5zThcAxG6mKz+iGu308UKoPPQ8Dcqx/4JhujzltRa+hQ==",
+  "_location": "/eslint/string_decoder",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "range",
+    "registry": true,
+    "raw": "string_decoder@~1.0.3",
+    "name": "string_decoder",
+    "escapedName": "string_decoder",
+    "rawSpec": "~1.0.3",
+    "saveSpec": null,
+    "fetchSpec": "~1.0.3"
+  },
+  "_requiredBy": [
+    "/eslint/readable-stream"
+  ],
+  "_resolved": "https://registry.npmjs.org/string_decoder/-/string_decoder-1.0.3.tgz",
+  "_shasum": "0fc67d7c141825de94282dd536bec6b9bce860ab",
+  "_spec": "string_decoder@~1.0.3",
+  "_where": "/home/mzasso/git/nodejs/node/tools/eslint-tmp/node_modules/eslint/node_modules/readable-stream",
+  "bugs": {
+    "url": "https://github.com/rvagg/string_decoder/issues"
+  },
+  "bundleDependencies": false,
+  "dependencies": {
+    "safe-buffer": "~5.1.0"
+  },
+  "deprecated": false,
+  "description": "The string_decoder module from Node core",
+  "devDependencies": {
+    "babel-polyfill": "^6.23.0",
+    "tap": "~0.4.8"
+  },
+  "homepage": "https://github.com/rvagg/string_decoder",
+  "keywords": [
+    "string",
+    "decoder",
+    "browser",
+    "browserify"
+  ],
+  "license": "MIT",
+  "main": "lib/string_decoder.js",
+  "name": "string_decoder",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/rvagg/string_decoder.git"
+  },
+  "scripts": {
+    "test": "tap test/parallel/*.js && node test/verify-dependencies"
+  },
+  "version": "1.0.3"
+}

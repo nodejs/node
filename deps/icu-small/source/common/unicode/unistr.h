@@ -38,16 +38,6 @@
 
 struct UConverter;          // unicode/ucnv.h
 
-#ifndef U_COMPARE_CODE_POINT_ORDER
-/* see also ustring.h and unorm.h */
-/**
- * Option bit for u_strCaseCompare, u_strcasecmp, unorm_compare, etc:
- * Compare strings in code point order instead of code unit order.
- * @stable ICU 2.2
- */
-#define U_COMPARE_CODE_POINT_ORDER  0x8000
-#endif
-
 #ifndef USTRING_H
 /**
  * \ingroup ustring_ustrlen
@@ -1730,7 +1720,7 @@ public:
    */
   template<typename StringClass>
   StringClass &toUTF8String(StringClass &result) const {
-    StringByteSink<StringClass> sbs(&result);
+    StringByteSink<StringClass> sbs(&result, length());
     toUTF8(sbs);
     return result;
   }
@@ -1901,7 +1891,6 @@ public:
    */
   UnicodeString &fastCopyFrom(const UnicodeString &src);
 
-#if U_HAVE_RVALUE_REFERENCES
   /**
    * Move assignment operator, might leave src in bogus state.
    * This string will have the same contents and state that the source string had.
@@ -1913,7 +1902,7 @@ public:
   UnicodeString &operator=(UnicodeString &&src) U_NOEXCEPT {
     return moveFrom(src);
   }
-#endif
+
   // do not use #ifndef U_HIDE_DRAFT_API for moveFrom, needed by non-draft API
   /**
    * Move assignment, might leave src in bogus state.
@@ -2786,11 +2775,11 @@ public:
    *                  break iterator is opened.
    *                  Otherwise the provided iterator is set to the string's text.
    * @param locale    The locale to consider.
+   * @param options   Options bit set, usually 0. See U_TITLECASE_NO_LOWERCASE,
+   *                  U_TITLECASE_NO_BREAK_ADJUSTMENT, U_TITLECASE_ADJUST_TO_CASED,
+   *                  U_TITLECASE_WHOLE_STRING, U_TITLECASE_SENTENCES.
    * @param options Options bit set, see ucasemap_open().
    * @return A reference to this.
-   * @see U_TITLECASE_NO_LOWERCASE
-   * @see U_TITLECASE_NO_BREAK_ADJUSTMENT
-   * @see ucasemap_open
    * @stable ICU 3.8
    */
   UnicodeString &toTitle(BreakIterator *titleIter, const Locale &locale, uint32_t options);
@@ -3360,7 +3349,6 @@ public:
    */
   UnicodeString(const UnicodeString& that);
 
-#if U_HAVE_RVALUE_REFERENCES
   /**
    * Move constructor, might leave src in bogus state.
    * This string will have the same contents and state that the source string had.
@@ -3368,7 +3356,6 @@ public:
    * @stable ICU 56
    */
   UnicodeString(UnicodeString &&src) U_NOEXCEPT;
-#endif
 
   /**
    * 'Substring' constructor from tail of source string.

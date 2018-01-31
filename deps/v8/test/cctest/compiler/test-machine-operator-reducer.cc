@@ -78,8 +78,8 @@ class ReducerTester : public HandleAndZoneScope {
                          MachineOperatorBuilder::Flags flags =
                              MachineOperatorBuilder::kAllOptionalOps)
       : isolate(main_isolate()),
-        binop(NULL),
-        unop(NULL),
+        binop(nullptr),
+        unop(nullptr),
         machine(main_zone(), MachineType::PointerRepresentation(), flags),
         common(main_zone()),
         graph(main_zone()),

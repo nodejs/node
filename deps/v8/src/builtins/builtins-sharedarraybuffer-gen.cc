@@ -46,9 +46,8 @@ void SharedArrayBufferBuiltinsAssembler::ValidateSharedTypedArray(
   GotoIf(TaggedIsSmi(tagged), &invalid);
 
   // Fail if the array's instance type is not JSTypedArray.
-  GotoIf(Word32NotEqual(LoadInstanceType(tagged),
-                        Int32Constant(JS_TYPED_ARRAY_TYPE)),
-         &invalid);
+  GotoIfNot(InstanceTypeEqual(LoadInstanceType(tagged), JS_TYPED_ARRAY_TYPE),
+            &invalid);
 
   // Fail if the array's JSArrayBuffer is not shared.
   Node* array_buffer = LoadObjectField(tagged, JSTypedArray::kBufferOffset);

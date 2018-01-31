@@ -14,10 +14,7 @@ let nsuccess = 0;
 let nerror = 0;
 
 function loadDHParam(n) {
-  const params = [`dh${n}.pem`];
-  if (n !== 'error')
-    params.unshift('keys');
-  return fixtures.readSync(params);
+  return fixtures.readKey(`dh${n}.pem`);
 }
 
 function test(size, err, next) {

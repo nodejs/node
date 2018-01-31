@@ -78,8 +78,9 @@ fi
 cat $log_file |
     $d8_exec $tools_path/csvparser.js $tools_path/splaytree.js \
     $tools_path/codemap.js $tools_path/profile.js $tools_path/profile_view.js \
-    $tools_path/logreader.js $tools_path/tickprocessor.js \
-    $tools_path/profviz/composer.js $tools_path/profviz/stdio.js \
+    $tools_path/logreader.js $tools_path/arguments.js \
+    $tools_path/tickprocessor.js$tools_path/profviz/composer.js \
+    $tools_path/profviz/stdio.js \
     -- $@ $options 2>/dev/null > timer-events.plot
 
 success=$?

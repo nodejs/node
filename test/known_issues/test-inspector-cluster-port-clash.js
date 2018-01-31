@@ -23,6 +23,8 @@ if (process.config.variables.v8_enable_inspector === 0) {
 const cluster = require('cluster');
 const net = require('net');
 
+common.crashOnUnhandledRejection();
+
 const ports = [process.debugPort];
 const clashPort = process.debugPort + 2;
 function serialFork() {

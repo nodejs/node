@@ -1021,7 +1021,7 @@ INSTANTIATE_TEST_CASE_P(InstructionSelectorTest,
 TEST_F(InstructionSelectorTest, Word32AndBranchWithImmediateOnRight) {
   TRACED_FOREACH(int32_t, imm, kLogical32Immediates) {
     // Skip the cases where the instruction selector would use tbz/tbnz.
-    if (base::bits::CountPopulation32(imm) == 1) continue;
+    if (base::bits::CountPopulation(static_cast<uint32_t>(imm)) == 1) continue;
 
     StreamBuilder m(this, MachineType::Int32(), MachineType::Int32());
     RawMachineLabel a, b;
@@ -1044,7 +1044,7 @@ TEST_F(InstructionSelectorTest, Word32AndBranchWithImmediateOnRight) {
 TEST_F(InstructionSelectorTest, Word64AndBranchWithImmediateOnRight) {
   TRACED_FOREACH(int64_t, imm, kLogical64Immediates) {
     // Skip the cases where the instruction selector would use tbz/tbnz.
-    if (base::bits::CountPopulation64(imm) == 1) continue;
+    if (base::bits::CountPopulation(static_cast<uint64_t>(imm)) == 1) continue;
 
     StreamBuilder m(this, MachineType::Int64(), MachineType::Int64());
     RawMachineLabel a, b;
@@ -1104,7 +1104,7 @@ TEST_F(InstructionSelectorTest, SubBranchWithImmediateOnRight) {
 TEST_F(InstructionSelectorTest, Word32AndBranchWithImmediateOnLeft) {
   TRACED_FOREACH(int32_t, imm, kLogical32Immediates) {
     // Skip the cases where the instruction selector would use tbz/tbnz.
-    if (base::bits::CountPopulation32(imm) == 1) continue;
+    if (base::bits::CountPopulation(static_cast<uint32_t>(imm)) == 1) continue;
 
     StreamBuilder m(this, MachineType::Int32(), MachineType::Int32());
     RawMachineLabel a, b;
@@ -1128,7 +1128,7 @@ TEST_F(InstructionSelectorTest, Word32AndBranchWithImmediateOnLeft) {
 TEST_F(InstructionSelectorTest, Word64AndBranchWithImmediateOnLeft) {
   TRACED_FOREACH(int64_t, imm, kLogical64Immediates) {
     // Skip the cases where the instruction selector would use tbz/tbnz.
-    if (base::bits::CountPopulation64(imm) == 1) continue;
+    if (base::bits::CountPopulation(static_cast<uint64_t>(imm)) == 1) continue;
 
     StreamBuilder m(this, MachineType::Int64(), MachineType::Int64());
     RawMachineLabel a, b;

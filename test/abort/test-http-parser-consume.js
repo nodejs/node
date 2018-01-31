@@ -11,12 +11,12 @@ if (process.argv[2] === 'child') {
     const rr = get({ port: server.address().port }, common.mustCall(() => {
       // This bad input (0) should abort the parser and the process
       rr.parser.consume(0);
-      // This line should be unreachanble.
+      // This line should be unreachable.
       assert.fail('this should be unreachable');
     }));
   }));
 } else {
-  // super-proces
+  // super-process
   const child = spawn(process.execPath, [__filename, 'child']);
   child.stdout.on('data', common.mustNotCall());
 

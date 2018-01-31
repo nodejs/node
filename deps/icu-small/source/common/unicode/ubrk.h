@@ -230,7 +230,8 @@ typedef enum USentenceBreakTag {
  * @param locale The locale specifying the text-breaking conventions. Note that
  * locale keys such as "lb" and "ss" may be used to modify text break behavior,
  * see general discussion of BreakIterator C API.
- * @param text The text to be iterated over.
+ * @param text The text to be iterated over. May be null, in which case ubrk_setText() is
+ *        used to specify the text to be iterated.
  * @param textLength The number of characters in text, or -1 if null-terminated.
  * @param status A UErrorCode to receive any errors.
  * @return A UBreakIterator for the specified locale.

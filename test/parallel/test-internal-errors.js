@@ -52,139 +52,144 @@ errors.E('TEST_ERROR_2', (a, b) => `${a} ${b}`);
   assert.strictEqual(err.code, 'TEST_ERROR_1');
 }
 
-assert.throws(
+common.expectsError(
   () => new errors.Error('TEST_FOO_KEY'),
-  common.expectsError({
+  {
     code: 'ERR_ASSERTION',
     message: invalidKey('TEST_FOO_KEY')
-  }));
+  });
 // Calling it twice yields same result (using the key does not create it)
-assert.throws(
+common.expectsError(
   () => new errors.Error('TEST_FOO_KEY'),
-  common.expectsError({
+  {
     code: 'ERR_ASSERTION',
     message: invalidKey('TEST_FOO_KEY')
-  }));
-assert.throws(
+  });
+common.expectsError(
   () => new errors.Error(1),
-  common.expectsError({
+  {
     code: 'ERR_ASSERTION',
     message: invalidKey(1)
-  }));
-assert.throws(
+  });
+common.expectsError(
   () => new errors.Error({}),
-  common.expectsError({
+  {
     code: 'ERR_ASSERTION',
     message: invalidKey('\\[object Object\\]')
-  }));
-assert.throws(
+  });
+common.expectsError(
   () => new errors.Error([]),
-  common.expectsError({
+  {
     code: 'ERR_ASSERTION',
     message: invalidKey('')
-  }));
-assert.throws(
+  });
+common.expectsError(
   () => new errors.Error(true),
-  common.expectsError({
+  {
     code: 'ERR_ASSERTION',
     message: invalidKey('true')
-  }));
-assert.throws(
+  });
+common.expectsError(
   () => new errors.TypeError(1),
-  common.expectsError({
+  {
     code: 'ERR_ASSERTION',
     message: invalidKey(1)
-  }));
-assert.throws(
+  });
+common.expectsError(
   () => new errors.TypeError({}),
-  common.expectsError({
+  {
     code: 'ERR_ASSERTION',
     message: invalidKey('\\[object Object\\]')
-  }));
-assert.throws(
+  });
+common.expectsError(
   () => new errors.TypeError([]),
-  common.expectsError({
+  {
     code: 'ERR_ASSERTION',
     message: invalidKey('')
-  }));
-assert.throws(
+  });
+common.expectsError(
   () => new errors.TypeError(true),
-  common.expectsError({
+  {
     code: 'ERR_ASSERTION',
     message: invalidKey('true')
-  }));
-assert.throws(
+  });
+common.expectsError(
   () => new errors.RangeError(1),
-  common.expectsError({
+  {
     code: 'ERR_ASSERTION',
     message: invalidKey(1)
-  }));
-assert.throws(
+  });
+common.expectsError(
   () => new errors.RangeError({}),
-  common.expectsError({
+  {
     code: 'ERR_ASSERTION',
     message: invalidKey('\\[object Object\\]')
-  }));
-assert.throws(
+  });
+common.expectsError(
   () => new errors.RangeError([]),
-  common.expectsError({
+  {
     code: 'ERR_ASSERTION',
     message: invalidKey('')
-  }));
-assert.throws(
+  });
+common.expectsError(
   () => new errors.RangeError(true),
-  common.expectsError({
+  {
     code: 'ERR_ASSERTION',
     message: invalidKey('true')
-  }));
+  });
 
 
 // Tests for common.expectsError
 assert.doesNotThrow(() => {
-  assert.throws(() => {
+  common.expectsError(() => {
     throw new errors.TypeError('TEST_ERROR_1', 'a');
-  }, common.expectsError({ code: 'TEST_ERROR_1' }));
+  }, { code: 'TEST_ERROR_1' });
 });
 
 assert.doesNotThrow(() => {
-  assert.throws(() => {
+  common.expectsError(() => {
     throw new errors.TypeError('TEST_ERROR_1', 'a');
-  }, common.expectsError({ code: 'TEST_ERROR_1',
-                           type: TypeError,
-                           message: /^Error for testing/ }));
+  }, { code: 'TEST_ERROR_1',
+       type: TypeError,
+       message: /^Error for testing/ });
 });
 
 assert.doesNotThrow(() => {
-  assert.throws(() => {
+  common.expectsError(() => {
     throw new errors.TypeError('TEST_ERROR_1', 'a');
-  }, common.expectsError({ code: 'TEST_ERROR_1', type: TypeError }));
+  }, { code: 'TEST_ERROR_1', type: TypeError });
 });
 
 assert.doesNotThrow(() => {
-  assert.throws(() => {
+  common.expectsError(() => {
     throw new errors.TypeError('TEST_ERROR_1', 'a');
-  }, common.expectsError({ code: 'TEST_ERROR_1', type: Error }));
+  }, {
+    code: 'TEST_ERROR_1',
+    type: TypeError,
+    message: 'Error for testing purposes: a'
+  });
 });
 
-assert.throws(() => {
-  assert.throws(() => {
+common.expectsError(() => {
+  common.expectsError(() => {
     throw new errors.TypeError('TEST_ERROR_1', 'a');
-  }, common.expectsError({ code: 'TEST_ERROR_1', type: RangeError }));
-}, common.expectsError({
+  }, { code: 'TEST_ERROR_1', type: RangeError });
+}, {
   code: 'ERR_ASSERTION',
   message: /^.+ is not instance of \S/
-}));
+});
 
-assert.throws(() => {
-  assert.throws(() => {
+common.expectsError(() => {
+  common.expectsError(() => {
     throw new errors.TypeError('TEST_ERROR_1', 'a');
-  }, common.expectsError({ code: 'TEST_ERROR_1',
-                           type: TypeError,
-                           message: /^Error for testing 2/ }));
-}, common.expectsError({
+  }, { code: 'TEST_ERROR_1',
+       type: TypeError,
+       message: /^Error for testing 2/ });
+}, {
   code: 'ERR_ASSERTION',
+  type: assert.AssertionError,
   message: /.+ does not match \S/
-}));
+});
 
 // // Test ERR_INVALID_ARG_TYPE
 assert.strictEqual(errors.message('ERR_INVALID_ARG_TYPE', ['a', 'b']),
@@ -229,12 +234,13 @@ assert.strictEqual(errors.message('ERR_INVALID_URL_SCHEME', [['http', 'ftp']]),
                    'The URL must be one of scheme http or ftp');
 assert.strictEqual(errors.message('ERR_INVALID_URL_SCHEME', [['a', 'b', 'c']]),
                    'The URL must be one of scheme a, b, or c');
-assert.throws(
+common.expectsError(
   () => errors.message('ERR_INVALID_URL_SCHEME', [[]]),
-  common.expectsError({
+  {
     code: 'ERR_ASSERTION',
+    type: assert.AssertionError,
     message: /^At least one expected value needs to be specified$/
-  }));
+  });
 
 // Test ERR_MISSING_ARGS
 assert.strictEqual(errors.message('ERR_MISSING_ARGS', ['name']),
@@ -243,12 +249,13 @@ assert.strictEqual(errors.message('ERR_MISSING_ARGS', ['name', 'value']),
                    'The "name" and "value" arguments must be specified');
 assert.strictEqual(errors.message('ERR_MISSING_ARGS', ['a', 'b', 'c']),
                    'The "a", "b", and "c" arguments must be specified');
-assert.throws(
+common.expectsError(
   () => errors.message('ERR_MISSING_ARGS'),
-  common.expectsError({
+  {
     code: 'ERR_ASSERTION',
+    type: assert.AssertionError,
     message: /^At least one arg needs to be specified$/
-  }));
+  });
 
 // Test ERR_SOCKET_BAD_PORT
 assert.strictEqual(
@@ -281,8 +288,18 @@ assert.strictEqual(
 );
 
 assert.strictEqual(
-  errors.message('ERR_VALUE_OUT_OF_RANGE', ['A', 'some values', 'B']),
-  'The value of "A" must be some values. Received "B"'
+  errors.message('ERR_OUT_OF_RANGE', ['A']),
+  'The value of "A" is out of range.'
+);
+
+assert.strictEqual(
+  errors.message('ERR_OUT_OF_RANGE', ['A', 'some values']),
+  'The value of "A" is out of range. It must be some values.'
+);
+
+assert.strictEqual(
+  errors.message('ERR_OUT_OF_RANGE', ['A', 'some values', 'B']),
+  'The value of "A" is out of range. It must be some values. Received B'
 );
 
 assert.strictEqual(
@@ -334,10 +351,20 @@ assert.strictEqual(
 }
 
 {
-  const error = new errors.Error('ERR_INVALID_ARG_VALUE', 'foo', 'bar');
+  const error = new errors.Error('ERR_INVALID_ARG_VALUE', 'foo', '\u0000bar');
   assert.strictEqual(
     error.message,
-    'The value "bar" is invalid for argument "foo"'
+    'The argument \'foo\' is invalid. Received \'\\u0000bar\''
+  );
+}
+
+{
+  const error = new errors.Error(
+    'ERR_INVALID_ARG_VALUE',
+    'foo', { a: 1 }, 'must have property \'b\'');
+  assert.strictEqual(
+    error.message,
+    'The argument \'foo\' must have property \'b\'. Received { a: 1 }'
   );
 }
 

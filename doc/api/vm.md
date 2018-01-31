@@ -7,14 +7,38 @@
 <!--name=vm-->
 
 The `vm` module provides APIs for compiling and running code within V8 Virtual
-Machine contexts. It can be accessed using:
+Machine contexts.
+
+JavaScript code can be compiled and run immediately or
+compiled, saved, and run later.
+
+A common use case is to run the code in a sandboxed environment.
+The sandboxed code uses a different V8 Context, meaning that
+it has a different global object than the rest of the code.
+
+One can provide the context by ["contextifying"][contextified] a sandbox
+object. The sandboxed code treats any property on the sandbox like a
+global variable. Any changes on global variables caused by the sandboxed
+code are reflected in the sandbox object.
 
 ```js
 const vm = require('vm');
-```
 
-JavaScript code can be compiled and run immediately or compiled, saved, and run
-later.
+const x = 1;
+
+const sandbox = { x: 2 };
+vm.createContext(sandbox); // Contextify the sandbox.
+
+const code = 'x += 40; var y = 17;';
+// x and y are global variables in the sandboxed environment.
+// Initially, x has the value 2 because that is the value of sandbox.x.
+vm.runInContext(code, sandbox);
+
+console.log(sandbox.x); // 42
+console.log(sandbox.y); // 17
+
+console.log(x); // 1; y is not defined.
+```
 
 *Note*: The vm module is not a security mechanism.
 **Do not use it to run untrusted code**.
@@ -63,9 +87,8 @@ changes:
     depending on whether code cache data is produced successfully.
 
 Creating a new `vm.Script` object compiles `code` but does not run it. The
-compiled `vm.Script` can be run later multiple times. It is important to note
-that the `code` is not bound to any global object; rather, it is bound before
-each run, just for that run.
+compiled `vm.Script` can be run later multiple times. The `code` is not bound to
+any global object; rather, it is bound before each run, just for that run.
 
 ### script.runInContext(contextifiedSandbox[, options])
 <!-- YAML
@@ -151,6 +174,15 @@ added: v0.3.1
   * `timeout` {number} Specifies the number of milliseconds to execute `code`
     before terminating execution. If execution is terminated, an [`Error`][]
     will be thrown.
+  * `contextName` {string} Human-readable name of the newly created context.
+    **Default:** `'VM Context i'`, where `i` is an ascending numerical index of
+    the created context.
+  * `contextOrigin` {string} [Origin][origin] corresponding to the newly
+    created context for display purposes. The origin should be formatted like a
+    URL, but with only the scheme, host, and port (if necessary), like the
+    value of the [`url.origin`][] property of a [`URL`][] object. Most notably,
+    this string should omit the trailing slash, as that denotes a path.
+    **Default:** `''`.
 
 First contextifies the given `sandbox`, runs the compiled code contained by
 the `vm.Script` object within the created sandbox, and returns the result.
@@ -218,12 +250,22 @@ console.log(globalVar);
 // 1000
 ```
 
-## vm.createContext([sandbox])
+## vm.createContext([sandbox[, options]])
 <!-- YAML
 added: v0.3.1
 -->
 
 * `sandbox` {Object}
+* `options` {Object}
+  * `name` {string} Human-readable name of the newly created context.
+    **Default:** `'VM Context i'`, where `i` is an ascending numerical index of
+    the created context.
+  * `origin` {string} [Origin][origin] corresponding to the newly created
+    context for display purposes. The origin should be formatted like a URL,
+    but with only the scheme, host, and port (if necessary), like the value of
+    the [`url.origin`][] property of a [`URL`][] object. Most notably, this
+    string should omit the trailing slash, as that denotes a path.
+    **Default:** `''`.
 
 If given a `sandbox` object, the `vm.createContext()` method will [prepare
 that sandbox][contextified] so that it can be used in calls to
@@ -257,6 +299,9 @@ sandbox that can be used to run multiple scripts. For instance, if emulating a
 web browser, the method can be used to create a single sandbox representing a
 window's global object, then run all `<script>` tags together within the context
 of that sandbox.
+
+The provided `name` and `origin` of the context are made visible through the
+Inspector API.
 
 ## vm.isContext(sandbox)
 <!-- YAML
@@ -310,36 +355,6 @@ console.log(util.inspect(sandbox));
 // { globalVar: 1024 }
 ```
 
-## vm.runInDebugContext(code)
-<!-- YAML
-added: v0.11.14
-deprecated: v8.0.0
-changes:
-    - version: v9.0.0
-      pr-url: https://github.com/nodejs/node/pull/12815
-      description: Calling this function now emits a deprecation warning.
--->
-
-> Stability: 0 - Deprecated. An alternative is in development.
-
-* `code` {string} The JavaScript code to compile and run.
-
-The `vm.runInDebugContext()` method compiles and executes `code` inside the V8
-debug context. The primary use case is to gain access to the V8 `Debug` object:
-
-```js
-const vm = require('vm');
-const Debug = vm.runInDebugContext('Debug');
-console.log(Debug.findScript(process.emit).name);  // 'events.js'
-console.log(Debug.findScript(process.exit).name);  // 'internal/process.js'
-```
-
-*Note*: The debug context and object are intrinsically tied to V8's debugger
-implementation and may change (or even be removed) without prior warning.
-
-The `Debug` object can also be made available using the V8-specific
-`--expose_debug_as=` [command line option][].
-
 ## vm.runInNewContext(code[, sandbox][, options])
 <!-- YAML
 added: v0.3.1
@@ -361,6 +376,15 @@ added: v0.3.1
   * `timeout` {number} Specifies the number of milliseconds to execute `code`
     before terminating execution. If execution is terminated, an [`Error`][]
     will be thrown.
+  * `contextName` {string} Human-readable name of the newly created context.
+    **Default:** `'VM Context i'`, where `i` is an ascending numerical index of
+    the created context.
+  * `contextOrigin` {string} [Origin][origin] corresponding to the newly
+    created context for display purposes. The origin should be formatted like a
+    URL, but with only the scheme, host, and port (if necessary), like the
+    value of the [`url.origin`][] property of a [`URL`][] object. Most notably,
+    this string should omit the trailing slash, as that denotes a path.
+    **Default:** `''`.
 
 The `vm.runInNewContext()` first contextifies the given `sandbox` object (or
 creates a new `sandbox` if passed as `undefined`), compiles the `code`, runs it
@@ -450,7 +474,7 @@ to the `http` module passed to it. For instance:
 const vm = require('vm');
 
 const code = `
-(function(require) {
+((require) => {
   const http = require('http');
 
   http.createServer((request, response) => {
@@ -486,14 +510,16 @@ associating it with the `sandbox` object is what this document refers to as
 "contextifying" the `sandbox`.
 
 [`Error`]: errors.html#errors_class_error
+[`URL`]: url.html#url_class_url
 [`eval()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/eval
 [`script.runInContext()`]: #vm_script_runincontext_contextifiedsandbox_options
 [`script.runInThisContext()`]: #vm_script_runinthiscontext_options
-[`vm.createContext()`]: #vm_vm_createcontext_sandbox
+[`url.origin`]: https://nodejs.org/api/url.html#url_url_origin
+[`vm.createContext()`]: #vm_vm_createcontext_sandbox_options
 [`vm.runInContext()`]: #vm_vm_runincontext_code_contextifiedsandbox_options
 [`vm.runInThisContext()`]: #vm_vm_runinthiscontext_code_options
 [V8 Embedder's Guide]: https://github.com/v8/v8/wiki/Embedder's%20Guide#contexts
-[command line option]: cli.html
 [contextified]: #vm_what_does_it_mean_to_contextify_an_object
 [global object]: https://es5.github.io/#x15.1
 [indirect `eval()` call]: https://es5.github.io/#x10.4.2
+[origin]: https://developer.mozilla.org/en-US/docs/Glossary/Origin

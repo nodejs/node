@@ -21,9 +21,10 @@ added: v8.2.0
 * Returns: {Function} a callback style function
 
 Takes an `async` function (or a function that returns a Promise) and returns a
-function following the Node.js error first callback style. In the callback, the
-first argument will be the rejection reason (or `null` if the Promise resolved),
-and the second argument will be the resolved value.
+function following the error-first callback style, i.e. taking
+a `(err, value) => ...` callback as the last argument. In the callback, the
+first argument will be the rejection reason (or `null` if the Promise
+resolved), and the second argument will be the resolved value.
 
 For example:
 
@@ -31,7 +32,7 @@ For example:
 const util = require('util');
 
 async function fn() {
-  return await Promise.resolve('hello world');
+  return 'hello world';
 }
 const callbackFunction = util.callbackify(fn);
 
@@ -104,33 +105,66 @@ FOO 3245: hello from foo [123]
 where `3245` is the process id.  If it is not run with that
 environment variable set, then it will not print anything.
 
+The `section` supports wildcard also, for example:
+```js
+const util = require('util');
+const debuglog = util.debuglog('foo-bar');
+
+debuglog('hi there, it\'s foo-bar [%d]', 2333);
+```
+
+if it is run with `NODE_DEBUG=foo*` in the environment, then it will output something like:
+```txt
+FOO-BAR 3257: hi there, it's foo-bar [2333]
+```
+
 Multiple comma-separated `section` names may be specified in the `NODE_DEBUG`
 environment variable. For example: `NODE_DEBUG=fs,net,tls`.
 
-## util.deprecate(function, string)
+## util.deprecate(fn, msg[, code])
 <!-- YAML
 added: v0.8.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/16393
+    description: Deprecation warnings are only emitted once for each code.
 -->
 
-The `util.deprecate()` method wraps the given `function` or class in such a way that
-it is marked as deprecated.
+* `fn` {Function} The function that is being deprecated.
+* `msg` {string} A warning message to display when the deprecated function is
+  invoked.
+* `code` {string} A deprecation code. See the [list of deprecated APIs][] for a
+  list of codes.
+* Returns: {Function} The deprecated function wrapped to emit a warning.
 
-<!-- eslint-disable prefer-rest-params -->
+The `util.deprecate()` method wraps `fn` (which may be a function or class) in
+such a way that it is marked as deprecated.
+
 ```js
 const util = require('util');
 
-exports.puts = util.deprecate(function() {
-  for (let i = 0, len = arguments.length; i < len; ++i) {
-    process.stdout.write(arguments[i] + '\n');
-  }
-}, 'util.puts: Use console.log instead');
+exports.obsoleteFunction = util.deprecate(() => {
+  // Do something here.
+}, 'obsoleteFunction() is deprecated. Use newShinyFunction() instead.');
 ```
 
 When called, `util.deprecate()` will return a function that will emit a
-`DeprecationWarning` using the `process.on('warning')` event. By default,
-this warning will be emitted and printed to `stderr` exactly once, the first
-time it is called. After the warning is emitted, the wrapped `function`
-is called.
+`DeprecationWarning` using the `process.on('warning')` event. The warning will
+be emitted and printed to `stderr` the first time the returned function is
+called. After the warning is emitted, the wrapped function is called without
+emitting a warning.
+
+If the same optional `code` is supplied in multiple calls to `util.deprecate()`,
+the warning will be emitted only once for that `code`.
+
+```js
+const util = require('util');
+
+const fn1 = util.deprecate(someFunction, someMessage, 'DEP0001');
+const fn2 = util.deprecate(someOtherFunction, someOtherMessage, 'DEP0001');
+fn1(); // emits a deprecation warning with code DEP0001
+fn2(); // does not emit a deprecation warning because it has the same code
+```
 
 If either the `--no-deprecation` or `--no-warnings` command line flags are
 used, or if the `process.noDeprecation` property is set to `true` *prior* to
@@ -153,6 +187,9 @@ property take precedence over `--trace-deprecation` and
 <!-- YAML
 added: v0.5.3
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/17907
+    description: The `%o` specifiers `depth` option is now set to Infinity.
   - version: v8.4.0
     pr-url: https://github.com/nodejs/node/pull/14558
     description: The `%o` and `%O` specifiers are supported now.
@@ -175,12 +212,11 @@ corresponding argument. Supported placeholders are:
 contains circular references.
 * `%o` - Object. A string representation of an object
   with generic JavaScript object formatting.
-  Similar to `util.inspect()` with options `{ showHidden: true, depth: 4, showProxy: true }`.
-  This will show the full object including non-enumerable symbols and properties.
-* `%O` - Object. A string representation of an object
-  with generic JavaScript object formatting.
-  Similar to `util.inspect()` without options.
-  This will show the full object not including non-enumerable symbols and properties.
+  Similar to `util.inspect()` with options `{ showHidden: true, showProxy: true }`.
+  This will show the full object including non-enumerable properties and proxies.
+* `%O` - Object. A string representation of an object with generic JavaScript
+  object formatting. Similar to `util.inspect()` without options. This will show
+  the full object not including non-enumerable properties and proxies.
 * `%%` - single percent sign (`'%'`). This does not consume an argument.
 
 If the placeholder does not have a corresponding argument, the placeholder is
@@ -214,6 +250,30 @@ without any formatting.
 
 ```js
 util.format('%% %s'); // '%% %s'
+```
+
+Please note that `util.format()` is a synchronous method that is mainly
+intended as a debugging tool. Some input values can have a significant
+performance overhead that can block the event loop. Use this function
+with care and never in a hot code path.
+
+## util.getSystemErrorName(err)
+<!-- YAML
+added: REPLACEME
+-->
+
+* `err` {number}
+* Returns: {string}
+
+Returns the string name for a numeric error code that comes from a Node.js API.
+The mapping between error codes and error names is platform-dependent.
+See [Common System Errors][] for the names of common errors.
+
+```js
+fs.access('file/that/does/not/exist', (err) => {
+  const name = util.getSystemErrorName(err.errno);
+  console.error(name);  // ENOENT
+});
 ```
 
 ## util.inherits(constructor, superConstructor)
@@ -288,6 +348,12 @@ stream.write('With ES6');
 <!-- YAML
 added: v0.3.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/17907
+    description: The `depth` default changed to Infinity.
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/REPLACEME
+    description: The `compact` option is supported now.
   - version: v6.6.0
     pr-url: https://github.com/nodejs/node/pull/8174
     description: Custom inspection functions can now return `this`.
@@ -307,41 +373,140 @@ changes:
 * `options` {Object}
   * `showHidden` {boolean} If `true`, the `object`'s non-enumerable symbols and
     properties will be included in the formatted result. Defaults to `false`.
-  * `depth` {number} Specifies the number of times to recurse while formatting
-    the `object`. This is useful for inspecting large complicated objects.
-    Defaults to `2`. To make it recurse indefinitely pass `null`.
   * `colors` {boolean} If `true`, the output will be styled with ANSI color
     codes. Defaults to `false`. Colors are customizable, see
     [Customizing `util.inspect` colors][].
   * `customInspect` {boolean} If `false`, then custom `inspect(depth, opts)`
-    functions exported on the `object` being inspected will not be called.
-    Defaults to `true`.
+    functions will not be called. Defaults to `true`.
   * `showProxy` {boolean} If `true`, then objects and functions that are
     `Proxy` objects will be introspected to show their `target` and `handler`
     objects. Defaults to `false`.
   * `maxArrayLength` {number} Specifies the maximum number of array and
     `TypedArray` elements to include when formatting. Defaults to `100`. Set to
-    `null` to show all array elements. Set to `0` or negative to show no array
-    elements.
+    `null` or `Infinity` to show all array elements. Set to `0` or negative to
+    show no array elements.
   * `breakLength` {number} The length at which an object's keys are split
     across multiple lines. Set to `Infinity` to format an object as a single
     line. Defaults to 60 for legacy compatibility.
+  * `compact` {boolean} Setting this to `false` changes the default indentation
+    to use a line break for each object key instead of lining up multiple
+    properties in one line. It will also break text that is above the
+    `breakLength` size into smaller and better readable chunks and indents
+    objects the same as arrays. Note that no text will be reduced below 16
+    characters, no matter the `breakLength` size. For more information, see the
+    example below. Defaults to `true`.
+  * `depth` {number} Specifies the number visible nested Objects in an `object`.
+    This is useful to minimize the inspection output for large complicated
+    objects. To make it recurse indefinitely pass `null` or `Infinity`. Defaults
+    to `Infinity`.
 
 The `util.inspect()` method returns a string representation of `object` that is
-primarily useful for debugging. Additional `options` may be passed that alter
-certain aspects of the formatted string.
+intended for debugging. The output of `util.inspect` may change at any time
+and should not be depended upon programmatically. Additional `options` may be
+passed that alter certain aspects of the formatted string.
+`util.inspect()` will use the constructor's name and/or `@@toStringTag` to make an
+identifiable tag for an inspected value.
 
-The following example inspects all properties of the `util` object:
+```js
+class Foo {
+  get [Symbol.toStringTag]() {
+    return 'bar';
+  }
+}
+
+class Bar {}
+
+const baz = Object.create(null, { [Symbol.toStringTag]: { value: 'foo' } });
+
+util.inspect(new Foo()); // 'Foo [bar] {}'
+util.inspect(new Bar()); // 'Bar {}'
+util.inspect(baz);       // '[foo] {}'
+```
+
+The following example limits the inspected output of the `paths` property:
 
 ```js
 const util = require('util');
 
-console.log(util.inspect(util, { showHidden: true, depth: null }));
+console.log(util.inspect(module, { depth: 0 }));
+// Instead of showing all entries in `paths` `[Array]` is used to limit the
+// output for readability:
+
+// Module {
+//   id: '<repl>',
+//   exports: {},
+//   parent: undefined,
+//   filename: null,
+//   loaded: false,
+//   children: [],
+//   paths: [Array] }
 ```
 
 Values may supply their own custom `inspect(depth, opts)` functions, when
 called these receive the current `depth` in the recursive inspection, as well as
 the options object passed to `util.inspect()`.
+
+The following example highlights the difference with the `compact` option:
+
+```js
+const util = require('util');
+
+const o = {
+  a: [1, 2, [[
+    'Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do ' +
+      'eiusmod tempor incididunt ut labore et dolore magna aliqua.',
+    'test',
+    'foo']], 4],
+  b: new Map([['za', 1], ['zb', 'test']])
+};
+console.log(util.inspect(o, { compact: true, breakLength: 80 }));
+
+// This will print
+
+// { a:
+//   [ 1,
+//     2,
+//     [ [ 'Lorem ipsum dolor sit amet, consectetur [...]', // A long line
+//           'test',
+//           'foo' ] ],
+//     4 ],
+//   b: Map { 'za' => 1, 'zb' => 'test' } }
+
+// Setting `compact` to false changes the output to be more reader friendly.
+console.log(util.inspect(o, { compact: false, breakLength: 80 }));
+
+// {
+//   a: [
+//     1,
+//     2,
+//     [
+//       [
+//         'Lorem ipsum dolor sit amet, consectetur ' +
+//           'adipiscing elit, sed do eiusmod tempor ' +
+//           'incididunt ut labore et dolore magna ' +
+//           'aliqua.,
+//         'test',
+//         'foo'
+//       ]
+//     ],
+//     4
+//   ],
+//   b: Map {
+//     'za' => 1,
+//     'zb' => 'test'
+//   }
+// }
+
+// Setting `breakLength` to e.g. 150 will print the "Lorem ipsum" text in a
+// single line.
+// Reducing the `breakLength` will split the "Lorem ipsum" text in smaller
+// chunks.
+```
+
+Please note that `util.inspect()` is a synchronous method that is mainly
+intended as a debugging tool. Some input values can have a significant
+performance overhead that can block the event loop. Use this function
+with care and never in a hot code path.
 
 ### Customizing `util.inspect` colors
 
@@ -419,7 +584,7 @@ but may return a value of any type that will be formatted accordingly by
 const util = require('util');
 
 const obj = { foo: 'this will not show up in the inspect() output' };
-obj[util.inspect.custom] = function(depth) {
+obj[util.inspect.custom] = (depth) => {
   return { bar: 'baz' };
 };
 
@@ -478,8 +643,8 @@ added: v8.0.0
 * `original` {Function}
 * Returns: {Function}
 
-Takes a function following the common Node.js callback style, i.e. taking a
-`(err, value) => ...` callback as the last argument, and returns a version
+Takes a function following the common error-first callback style, i.e. taking
+a `(err, value) => ...` callback as the last argument, and returns a version
 that returns promises.
 
 For example:
@@ -514,8 +679,10 @@ If there is an `original[util.promisify.custom]` property present, `promisify`
 will return its value, see [Custom promisified functions][].
 
 `promisify()` assumes that `original` is a function taking a callback as its
-final argument in all cases, and the returned function will result in undefined
-behavior if it does not.
+final argument in all cases. If `original` is not a function, `promisify()`
+will throw an error. If `original` is a function but its last argument is not
+an error-first callback, it will still be passed an error-first
+callback as its last argument.
 
 ### Custom promisified functions
 
@@ -529,7 +696,7 @@ function doSomething(foo, callback) {
   // ...
 }
 
-doSomething[util.promisify.custom] = function(foo) {
+doSomething[util.promisify.custom] = (foo) => {
   return getPromiseSomehow();
 };
 
@@ -544,12 +711,14 @@ standard format of taking an error-first callback as the last argument.
 For example, with a function that takes in `(foo, onSuccessCallback, onErrorCallback)`:
 
 ```js
-doSomething[util.promisify.custom] = function(foo) {
-  return new Promise(function(resolve, reject) {
+doSomething[util.promisify.custom] = (foo) => {
+  return new Promise((resolve, reject) => {
     doSomething(foo, resolve, reject);
   });
 };
 ```
+If `promisify.custom` is defined but is not a function, `promisify()` will
+throw an error.
 
 ### util.promisify.custom
 <!-- YAML
@@ -672,7 +841,7 @@ supported encodings or an alias.
 * Returns: {string}
 
 Decodes the `input` and returns a string. If `options.stream` is `true`, any
-incomplete byte sequences occuring at the end of the `input` are buffered
+incomplete byte sequences occurring at the end of the `input` are buffered
 internally and emitted after the next call to `textDecoder.decode()`.
 
 If `textDecoder.fatal` is `true`, decoding errors that occur will result in a
@@ -719,7 +888,7 @@ const uint8array = encoder.encode('this is some data');
 UTF-8 encodes the `input` string and returns a `Uint8Array` containing the
 encoded bytes.
 
-### textDecoder.encoding
+### textEncoder.encoding
 
 * {string}
 
@@ -1023,7 +1192,7 @@ util.isObject(null);
 // Returns: false
 util.isObject({});
 // Returns: true
-util.isObject(function() {});
+util.isObject(() => {});
 // Returns: false
 ```
 
@@ -1055,7 +1224,7 @@ util.isPrimitive(undefined);
 // Returns: true
 util.isPrimitive({});
 // Returns: false
-util.isPrimitive(function() {});
+util.isPrimitive(() => {});
 // Returns: false
 util.isPrimitive(/^$/);
 // Returns: false
@@ -1212,5 +1381,7 @@ Deprecated predecessor of `console.log`.
 [Customizing `util.inspect` colors]: #util_customizing_util_inspect_colors
 [Internationalization]: intl.html
 [WHATWG Encoding Standard]: https://encoding.spec.whatwg.org/
+[Common System Errors]: errors.html#errors_common_system_errors
 [constructor]: https://developer.mozilla.org/en/JavaScript/Reference/Global_Objects/Object/constructor
+[list of deprecated APIS]: deprecations.html#deprecations_list_of_deprecated_apis
 [semantically incompatible]: https://github.com/nodejs/node/issues/4179

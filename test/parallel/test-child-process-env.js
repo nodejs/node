@@ -22,11 +22,15 @@
 'use strict';
 const common = require('../common');
 const assert = require('assert');
+const os = require('os');
 
 const spawn = require('child_process').spawn;
 
 const env = {
-  'HELLO': 'WORLD'
+  'HELLO': 'WORLD',
+  'UNDEFINED': undefined,
+  'NULL': null,
+  'EMPTY': ''
 };
 Object.setPrototypeOf(env, {
   'FOO': 'BAR'
@@ -35,10 +39,10 @@ Object.setPrototypeOf(env, {
 let child;
 if (common.isWindows) {
   child = spawn('cmd.exe', ['/c', 'set'],
-                Object.assign({}, process.env, { env: env }));
+                Object.assign({}, process.env, { env }));
 } else {
   child = spawn('/usr/bin/env', [],
-                Object.assign({}, process.env, { env: env }));
+                Object.assign({}, process.env, { env }));
 }
 
 
@@ -54,4 +58,7 @@ child.stdout.on('data', function(chunk) {
 process.on('exit', function() {
   assert.ok(response.includes('HELLO=WORLD'));
   assert.ok(response.includes('FOO=BAR'));
+  assert.ok(!response.includes('UNDEFINED=undefined'));
+  assert.ok(response.includes('NULL=null'));
+  assert.ok(response.includes(`EMPTY=${os.EOL}`));
 });

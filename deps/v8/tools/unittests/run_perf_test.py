@@ -436,10 +436,10 @@ class PerfTest(unittest.TestCase):
                        "Richards: 200\nDeltaBlue: 20\n",
                        "Richards: 50\nDeltaBlue: 200\n",
                        "Richards: 100\nDeltaBlue: 20\n"])
-    test_output_no_patch = path.join(TEST_WORKSPACE, "results_no_patch.json")
+    test_output_secondary = path.join(TEST_WORKSPACE, "results_secondary.json")
     self.assertEquals(0, self._CallMain(
-        "--outdir-no-patch", "out-no-patch",
-        "--json-test-results-no-patch", test_output_no_patch,
+        "--outdir-secondary", "out-secondary",
+        "--json-test-results-secondary", test_output_secondary,
     ))
     self._VerifyResults("test", "score", [
       {"name": "Richards", "results": ["100.0", "200.0"], "stddev": ""},
@@ -448,13 +448,13 @@ class PerfTest(unittest.TestCase):
     self._VerifyResults("test", "score", [
       {"name": "Richards", "results": ["50.0", "100.0"], "stddev": ""},
       {"name": "DeltaBlue", "results": ["200.0", "200.0"], "stddev": ""},
-    ], test_output_no_patch)
+    ], test_output_secondary)
     self._VerifyErrors([])
     self._VerifyMockMultiple(
         (path.join("out", "x64.release", "d7"), "--flag", "run.js"),
-        (path.join("out-no-patch", "x64.release", "d7"), "--flag", "run.js"),
+        (path.join("out-secondary", "x64.release", "d7"), "--flag", "run.js"),
         (path.join("out", "x64.release", "d7"), "--flag", "run.js"),
-        (path.join("out-no-patch", "x64.release", "d7"), "--flag", "run.js"),
+        (path.join("out-secondary", "x64.release", "d7"), "--flag", "run.js"),
     )
 
   def testWrongBinaryWithProf(self):
@@ -545,3 +545,7 @@ class PerfTest(unittest.TestCase):
         'stddev': '',
       },
     ], results['traces'])
+
+
+if __name__ == '__main__':
+  unittest.main()

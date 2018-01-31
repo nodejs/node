@@ -1,0 +1,97 @@
+{
+  "_from": "character-entities-legacy@^1.0.0",
+  "_id": "character-entities-legacy@1.1.1",
+  "_inBundle": false,
+  "_integrity": "sha1-9Ad53xoQGHK7UQo9KV4fzPFHIC8=",
+  "_location": "/character-entities-legacy",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "range",
+    "registry": true,
+    "raw": "character-entities-legacy@^1.0.0",
+    "name": "character-entities-legacy",
+    "escapedName": "character-entities-legacy",
+    "rawSpec": "^1.0.0",
+    "saveSpec": null,
+    "fetchSpec": "^1.0.0"
+  },
+  "_requiredBy": [
+    "/parse-entities"
+  ],
+  "_resolved": "https://registry.npmjs.org/character-entities-legacy/-/character-entities-legacy-1.1.1.tgz",
+  "_shasum": "f40779df1a101872bb510a3d295e1fccf147202f",
+  "_spec": "character-entities-legacy@^1.0.0",
+  "_where": "/home/mzasso/git/nodejs/node/tools/eslint-tmp/node_modules/eslint/node_modules/parse-entities",
+  "author": {
+    "name": "Titus Wormer",
+    "email": "tituswormer@gmail.com",
+    "url": "http://wooorm.com"
+  },
+  "bugs": {
+    "url": "https://github.com/wooorm/character-entities-legacy/issues"
+  },
+  "bundleDependencies": false,
+  "contributors": [
+    {
+      "name": "Titus Wormer",
+      "email": "tituswormer@gmail.com",
+      "url": "http://wooorm.com"
+    }
+  ],
+  "dependencies": {},
+  "deprecated": false,
+  "description": "HTML legacy character entity information",
+  "devDependencies": {
+    "bail": "^1.0.1",
+    "browserify": "^14.0.0",
+    "concat-stream": "^1.5.2",
+    "esmangle": "^1.0.1",
+    "remark-cli": "^3.0.0",
+    "remark-preset-wooorm": "^3.0.0",
+    "tape": "^4.0.0",
+    "xo": "^0.18.0"
+  },
+  "files": [
+    "index.json"
+  ],
+  "homepage": "https://github.com/wooorm/character-entities-legacy#readme",
+  "keywords": [
+    "html",
+    "entity",
+    "entities",
+    "character",
+    "reference",
+    "name",
+    "replacement"
+  ],
+  "license": "MIT",
+  "main": "index.json",
+  "name": "character-entities-legacy",
+  "remarkConfig": {
+    "plugins": [
+      "preset-wooorm"
+    ]
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/wooorm/character-entities-legacy.git"
+  },
+  "scripts": {
+    "build": "npm run build-md && npm run build-generate && npm run build-bundle && npm run build-mangle",
+    "build-bundle": "browserify index.json --bare -s characterEntitiesLegacy > character-entities-legacy.js",
+    "build-generate": "node build",
+    "build-mangle": "esmangle character-entities-legacy.js > character-entities-legacy.min.js",
+    "build-md": "remark . -qfo",
+    "lint": "xo",
+    "test": "npm run build && npm run lint && npm run test-api",
+    "test-api": "node test"
+  },
+  "version": "1.1.1",
+  "xo": {
+    "space": true,
+    "esnext": false,
+    "ignores": [
+      "character-entities-legacy.js"
+    ]
+  }
+}

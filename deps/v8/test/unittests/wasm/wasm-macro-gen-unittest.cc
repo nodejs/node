@@ -309,6 +309,9 @@ TEST_F(WasmMacroGenTest, LoadsAndStoresWithOffset) {
                                          WASM_GET_LOCAL(0)));
   }
 }
+
+#undef EXPECT_SIZE
+
 }  // namespace wasm
 }  // namespace internal
 }  // namespace v8

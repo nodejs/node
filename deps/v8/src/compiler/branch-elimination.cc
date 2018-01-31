@@ -18,9 +18,7 @@ BranchElimination::BranchElimination(Editor* editor, JSGraph* js_graph,
       jsgraph_(js_graph),
       node_conditions_(zone, js_graph->graph()->NodeCount()),
       zone_(zone),
-      dead_(js_graph->graph()->NewNode(js_graph->common()->Dead())) {
-  NodeProperties::SetType(dead_, Type::None());
-}
+      dead_(js_graph->Dead()) {}
 
 BranchElimination::~BranchElimination() {}
 
@@ -272,7 +270,7 @@ void BranchElimination::ControlPathConditions::Merge(
   // Then we go through both lists in lock-step until we find
   // the common tail.
   while (head_ != other_condition) {
-    DCHECK(condition_count_ > 0);
+    DCHECK_LT(0, condition_count_);
     condition_count_--;
     other_condition = other_condition->next;
     head_ = head_->next;

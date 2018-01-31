@@ -19,7 +19,7 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-#include "async-wrap-inl.h"
+#include "async_wrap-inl.h"
 #include "env-inl.h"
 #include "util-inl.h"
 #include "node.h"
@@ -111,7 +111,8 @@ void FSEventWrap::Start(const FunctionCallbackInfo<Value>& args) {
 
   FSEventWrap* wrap;
   ASSIGN_OR_RETURN_UNWRAP(&wrap, args.Holder());
-  CHECK_EQ(wrap->initialized_, false);
+  if (wrap->initialized_)
+    return args.GetReturnValue().Set(0);
 
   static const char kErrMsg[] = "filename must be a string or Buffer";
   if (args.Length() < 1)
@@ -221,4 +222,4 @@ void FSEventWrap::Close(const FunctionCallbackInfo<Value>& args) {
 }  // anonymous namespace
 }  // namespace node
 
-NODE_MODULE_CONTEXT_AWARE_BUILTIN(fs_event_wrap, node::FSEventWrap::Initialize)
+NODE_BUILTIN_MODULE_CONTEXT_AWARE(fs_event_wrap, node::FSEventWrap::Initialize)

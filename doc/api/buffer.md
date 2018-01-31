@@ -4,7 +4,7 @@
 
 > Stability: 2 - Stable
 
-Prior to the introduction of [`TypedArray`] in ECMAScript 2015 (ES6), the
+Prior to the introduction of [`TypedArray`] in [`ECMAScript 2015`] (ES6), the
 JavaScript language had no mechanism for reading or manipulating streams
 of binary data. The `Buffer` class was introduced as part of the Node.js
 API to make it possible to interact with octet streams in the context of things
@@ -66,8 +66,8 @@ differently based on what arguments are provided:
   memory.
 * Passing a string, array, or `Buffer` as the first argument copies the
   passed object's data into the `Buffer`.
-* Passing an [`ArrayBuffer`] returns a `Buffer` that shares allocated memory with
-  the given [`ArrayBuffer`].
+* Passing an [`ArrayBuffer`] or a [`SharedArrayBuffer`] returns a `Buffer` that
+  shares allocated memory with the given array buffer.
 
 Because the behavior of `new Buffer()` changes significantly based on the type
 of value passed as the first argument, applications that do not properly
@@ -154,7 +154,7 @@ changes:
 -->
 
 `Buffer` instances are commonly used to represent sequences of encoded characters
-such as UTF-8, UCS2, Base64 or even Hex-encoded data. It is possible to
+such as UTF-8, UCS2, Base64, or even Hex-encoded data. It is possible to
 convert back and forth between `Buffer` instances and ordinary JavaScript strings
 by using an explicit character encoding.
 
@@ -211,7 +211,7 @@ changes:
 -->
 
 `Buffer` instances are also [`Uint8Array`] instances. However, there are subtle
-incompatibilities with the TypedArray specification in ECMAScript 2015.
+incompatibilities with the TypedArray specification in [`ECMAScript 2015`].
 For example, while [`ArrayBuffer#slice()`] creates a copy of the slice, the
 implementation of [`Buffer#slice()`][`buf.slice()`] creates a view over the
 existing `Buffer` without copying, making [`Buffer#slice()`][`buf.slice()`] far
@@ -291,7 +291,7 @@ function:
 
 ## Buffers and ES6 iteration
 
-`Buffer` instances can be iterated over using the ECMAScript 2015 (ES6) `for..of`
+`Buffer` instances can be iterated over using the [`ECMAScript 2015`] (ES6) `for..of`
 syntax.
 
 Example:
@@ -361,16 +361,16 @@ changes:
 > [`Buffer.from(arrayBuffer[, byteOffset [, length]])`][`Buffer.from(arrayBuffer)`]
 > instead.
 
-* `arrayBuffer` {ArrayBuffer} An [`ArrayBuffer`] or the `.buffer` property of a
-  [`TypedArray`].
+* `arrayBuffer` {ArrayBuffer|SharedArrayBuffer} An [`ArrayBuffer`],
+  [`SharedArrayBuffer`] or the `.buffer` property of a [`TypedArray`].
 * `byteOffset` {integer} Index of first byte to expose. **Default:** `0`
 * `length` {integer} Number of bytes to expose.
   **Default:** `arrayBuffer.length - byteOffset`
 
-This creates a view of the [`ArrayBuffer`] without copying the underlying
-memory. For example, when passed a reference to the `.buffer` property of a
-[`TypedArray`] instance, the newly created `Buffer` will share the same
-allocated memory as the [`TypedArray`].
+This creates a view of the [`ArrayBuffer`] or [`SharedArrayBuffer`] without
+copying the underlying memory. For example, when passed a reference to the
+`.buffer` property of a [`TypedArray`] instance, the newly created `Buffer` will
+share the same allocated memory as the [`TypedArray`].
 
 The optional `byteOffset` and `length` arguments specify a memory range within
 the `arrayBuffer` that will be shared by the `Buffer`.
@@ -510,6 +510,19 @@ console.log(buf2.toString());
 ### Class Method: Buffer.alloc(size[, fill[, encoding]])
 <!-- YAML
 added: v5.10.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/18129
+    description: Attempting to fill a non-zero length buffer with a zero length
+                 buffer triggers a thrown exception.
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/17427
+    description: Specifying an invalid string for `fill` triggers a thrown
+                 exception.
+  - version: v8.9.3
+    pr-url: https://github.com/nodejs/node/pull/17428
+    description: Specifying an invalid string for `fill` now results in a
+                 zero-filled buffer.
 -->
 
 * `size` {integer} The desired length of the new `Buffer`.
@@ -679,8 +692,8 @@ changes:
                  or `ArrayBuffer`.
 -->
 
-* `string` {string|Buffer|TypedArray|DataView|ArrayBuffer} A value to
-  calculate the length of.
+* `string` {string|Buffer|TypedArray|DataView|ArrayBuffer|SharedArrayBuffer} A
+  value to calculate the length of.
 * `encoding` {string} If `string` is a string, this is its encoding.
   **Default:** `'utf8'`
 * Returns: {integer} The number of bytes contained within `string`.
@@ -703,8 +716,8 @@ console.log(`${str}: ${str.length} characters, ` +
             `${Buffer.byteLength(str, 'utf8')} bytes`);
 ```
 
-When `string` is a `Buffer`/[`DataView`]/[`TypedArray`]/[`ArrayBuffer`], the
-actual byte length is returned.
+When `string` is a `Buffer`/[`DataView`]/[`TypedArray`]/[`ArrayBuffer`]/
+[`SharedArrayBuffer`], the actual byte length is returned.
 
 ### Class Method: Buffer.compare(buf1, buf2)
 <!-- YAML
@@ -807,8 +820,8 @@ A `TypeError` will be thrown if `array` is not an `Array`.
 added: v5.10.0
 -->
 
-* `arrayBuffer` {ArrayBuffer} An [`ArrayBuffer`] or the `.buffer` property of a
-  [`TypedArray`].
+* `arrayBuffer` {ArrayBuffer|SharedArrayBuffer} An [`ArrayBuffer`],
+  [`SharedArrayBuffer`], or the `.buffer` property of a [`TypedArray`].
 * `byteOffset` {integer} Index of first byte to expose. **Default:** `0`
 * `length` {integer} Number of bytes to expose.
   **Default:** `arrayBuffer.length - byteOffset`
@@ -852,7 +865,8 @@ const buf = Buffer.from(ab, 0, 2);
 console.log(buf.length);
 ```
 
-A `TypeError` will be thrown if `arrayBuffer` is not an [`ArrayBuffer`].
+A `TypeError` will be thrown if `arrayBuffer` is not an [`ArrayBuffer`] or a
+[`SharedArrayBuffer`].
 
 ### Class Method: Buffer.from(buffer)
 <!-- YAML
@@ -1037,13 +1051,11 @@ changes:
 * `targetStart` {integer} The offset within `target` at which to begin
   comparison. **Default:** `0`
 * `targetEnd` {integer} The offset with `target` at which to end comparison
-  (not inclusive). Ignored when `targetStart` is `undefined`.
-  **Default:** `target.length`
+  (not inclusive). **Default:** `target.length`
 * `sourceStart` {integer} The offset within `buf` at which to begin comparison.
-  Ignored when `targetStart` is `undefined`. **Default:** `0`
+  **Default:** `0`
 * `sourceEnd` {integer} The offset within `buf` at which to end comparison
-  (not inclusive). Ignored when `targetStart` is `undefined`.
-  **Default:** [`buf.length`]
+  (not inclusive). **Default:** [`buf.length`]
 * Returns: {integer}
 
 Compares `buf` with `target` and returns a number indicating whether `buf`
@@ -1113,9 +1125,9 @@ added: v0.1.90
 * `targetStart` {integer} The offset within `target` at which to begin
   copying to. **Default:** `0`
 * `sourceStart` {integer} The offset within `buf` at which to begin copying from.
-  Ignored when `targetStart` is `undefined`. **Default:** `0`
+  **Default:** `0`
 * `sourceEnd` {integer} The offset within `buf` at which to stop copying (not
-  inclusive). Ignored when `sourceStart` is `undefined`. **Default:** [`buf.length`]
+  inclusive). **Default:** [`buf.length`]
 * Returns: {integer} The number of bytes copied.
 
 Copies data from a region of `buf` to a region in `target` even if the `target`
@@ -1216,6 +1228,14 @@ console.log(buf1.equals(buf3));
 <!-- YAML
 added: v0.5.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/18129
+    description: Attempting to fill a non-zero length buffer with a zero length
+                 buffer triggers a thrown exception.
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/17427
+    description: Specifying an invalid string for `value` triggers a thrown
+                 exception.
   - version: v5.7.0
     pr-url: https://github.com/nodejs/node/pull/4935
     description: The `encoding` parameter is supported now.
@@ -1251,6 +1271,19 @@ Example: Fill a `Buffer` with a two-byte character
 ```js
 // Prints: <Buffer c8 a2 c8>
 console.log(Buffer.allocUnsafe(3).fill('\u0222'));
+```
+
+If `value` contains invalid characters, it is truncated; if no valid
+fill data remains, an exception is thrown:
+
+```js
+const buf = Buffer.allocUnsafe(5);
+// Prints: <Buffer 61 61 61 61 61>
+console.log(buf.fill('a'));
+// Prints: <Buffer aa aa aa aa aa>
+console.log(buf.fill('aazz', 'hex'));
+// Throws an exception.
+console.log(buf.fill('zz', 'hex'));
 ```
 
 ### buf.includes(value[, byteOffset][, encoding])
@@ -1566,7 +1599,7 @@ endian format (`readDoubleBE()` returns big endian, `readDoubleLE()` returns
 little endian).
 
 Setting `noAssert` to `true` allows `offset` to be beyond the end of `buf`, but
-the result should be considered undefined behavior.
+the resulting behavior is undefined.
 
 Examples:
 
@@ -1602,7 +1635,7 @@ endian format (`readFloatBE()` returns big endian, `readFloatLE()` returns
 little endian).
 
 Setting `noAssert` to `true` allows `offset` to be beyond the end of `buf`, but
-the result should be considered undefined behavior.
+the resulting behavior is undefined.
 
 Examples:
 
@@ -1635,7 +1668,7 @@ added: v0.5.0
 Reads a signed 8-bit integer from `buf` at the specified `offset`.
 
 Setting `noAssert` to `true` allows `offset` to be beyond the end of `buf`, but
-the result should be considered undefined behavior.
+the resulting behavior is undefined.
 
 Integers read from a `Buffer` are interpreted as two's complement signed values.
 
@@ -1669,7 +1702,7 @@ the specified endian format (`readInt16BE()` returns big endian,
 `readInt16LE()` returns little endian).
 
 Setting `noAssert` to `true` allows `offset` to be beyond the end of `buf`, but
-the result should be considered undefined behavior.
+the resulting behavior is undefined.
 
 Integers read from a `Buffer` are interpreted as two's complement signed values.
 
@@ -1703,7 +1736,7 @@ the specified endian format (`readInt32BE()` returns big endian,
 `readInt32LE()` returns little endian).
 
 Setting `noAssert` to `true` allows `offset` to be beyond the end of `buf`, but
-the result should be considered undefined behavior.
+the resulting behavior is undefined.
 
 Integers read from a `Buffer` are interpreted as two's complement signed values.
 
@@ -1738,7 +1771,7 @@ and interprets the result as a two's complement signed value. Supports up to 48
 bits of accuracy.
 
 Setting `noAssert` to `true` allows `offset` to be beyond the end of `buf`, but
-the result should be considered undefined behavior.
+the resulting behavior is undefined.
 
 Examples:
 
@@ -1751,8 +1784,11 @@ console.log(buf.readIntLE(0, 6).toString(16));
 // Prints: 1234567890ab
 console.log(buf.readIntBE(0, 6).toString(16));
 
-// Throws an exception: RangeError: Index out of range
+// Throws ERR_INDEX_OUT_OF_RANGE:
 console.log(buf.readIntBE(1, 6).toString(16));
+
+// Throws ERR_OUT_OF_RANGE:
+console.log(buf.readIntBE(1, 0).toString(16));
 ```
 
 ### buf.readUInt8(offset[, noAssert])
@@ -1767,7 +1803,7 @@ added: v0.5.0
 Reads an unsigned 8-bit integer from `buf` at the specified `offset`.
 
 Setting `noAssert` to `true` allows `offset` to be beyond the end of `buf`, but
-the result should be considered undefined behavior.
+the resulting behavior is undefined.
 
 Examples:
 
@@ -1799,7 +1835,7 @@ specified endian format (`readUInt16BE()` returns big endian, `readUInt16LE()`
 returns little endian).
 
 Setting `noAssert` to `true` allows `offset` to be beyond the end of `buf`, but
-the result should be considered undefined behavior.
+the resulting behavior is undefined.
 
 Examples:
 
@@ -1837,7 +1873,7 @@ specified endian format (`readUInt32BE()` returns big endian,
 `readUInt32LE()` returns little endian).
 
 Setting `noAssert` to `true` allows `offset` to be beyond the end of `buf`, but
-the result should be considered undefined behavior.
+the resulting behavior is undefined.
 
 Examples:
 
@@ -1870,7 +1906,7 @@ and interprets the result as an unsigned integer. Supports up to 48
 bits of accuracy.
 
 Setting `noAssert` to `true` allows `offset` to be beyond the end of `buf`, but
-the result should be considered undefined behavior.
+the resulting behavior is undefined.
 
 Examples:
 
@@ -2208,7 +2244,7 @@ endian). `value` *should* be a valid 64-bit double. Behavior is undefined when
 `value` is anything other than a 64-bit double.
 
 Setting `noAssert` to `true` allows the encoded form of `value` to extend beyond
-the end of `buf`, but the result should be considered undefined behavior.
+the end of `buf`, but the resulting behavior is undefined.
 
 Examples:
 
@@ -2243,7 +2279,7 @@ endian). `value` *should* be a valid 32-bit float. Behavior is undefined when
 `value` is anything other than a 32-bit float.
 
 Setting `noAssert` to `true` allows the encoded form of `value` to extend beyond
-the end of `buf`, but the result should be considered undefined behavior.
+the end of `buf`, but the resulting behavior is undefined.
 
 Examples:
 
@@ -2276,7 +2312,7 @@ signed 8-bit integer. Behavior is undefined when `value` is anything other than
 a signed 8-bit integer.
 
 Setting `noAssert` to `true` allows the encoded form of `value` to extend beyond
-the end of `buf`, but the result should be considered undefined behavior.
+the end of `buf`, but the resulting behavior is undefined.
 
 `value` is interpreted and written as a two's complement signed integer.
 
@@ -2309,7 +2345,7 @@ endian). `value` *should* be a valid signed 16-bit integer. Behavior is undefine
 when `value` is anything other than a signed 16-bit integer.
 
 Setting `noAssert` to `true` allows the encoded form of `value` to extend beyond
-the end of `buf`, but the result should be considered undefined behavior.
+the end of `buf`, but the resulting behavior is undefined.
 
 `value` is interpreted and written as a two's complement signed integer.
 
@@ -2342,7 +2378,7 @@ endian). `value` *should* be a valid signed 32-bit integer. Behavior is undefine
 when `value` is anything other than a signed 32-bit integer.
 
 Setting `noAssert` to `true` allows the encoded form of `value` to extend beyond
-the end of `buf`, but the result should be considered undefined behavior.
+the end of `buf`, but the resulting behavior is undefined.
 
 `value` is interpreted and written as a two's complement signed integer.
 
@@ -2376,7 +2412,7 @@ Supports up to 48 bits of accuracy. Behavior is undefined when `value` is
 anything other than a signed integer.
 
 Setting `noAssert` to `true` allows the encoded form of `value` to extend beyond
-the end of `buf`, but the result should be considered undefined behavior.
+the end of `buf`, but the resulting behavior is undefined.
 
 Examples:
 
@@ -2409,7 +2445,7 @@ valid unsigned 8-bit integer. Behavior is undefined when `value` is anything
 other than an unsigned 8-bit integer.
 
 Setting `noAssert` to `true` allows the encoded form of `value` to extend beyond
-the end of `buf`, but the result should be considered undefined behavior.
+the end of `buf`, but the resulting behavior is undefined.
 
 Examples:
 
@@ -2442,7 +2478,7 @@ endian). `value` should be a valid unsigned 16-bit integer. Behavior is
 undefined when `value` is anything other than an unsigned 16-bit integer.
 
 Setting `noAssert` to `true` allows the encoded form of `value` to extend beyond
-the end of `buf`, but the result should be considered undefined behavior.
+the end of `buf`, but the resulting behavior is undefined.
 
 Examples:
 
@@ -2479,7 +2515,7 @@ endian). `value` should be a valid unsigned 32-bit integer. Behavior is
 undefined when `value` is anything other than an unsigned 32-bit integer.
 
 Setting `noAssert` to `true` allows the encoded form of `value` to extend beyond
-the end of `buf`, but the result should be considered undefined behavior.
+the end of `buf`, but the resulting behavior is undefined.
 
 Examples:
 
@@ -2515,7 +2551,7 @@ Supports up to 48 bits of accuracy. Behavior is undefined when `value` is
 anything other than an unsigned integer.
 
 Setting `noAssert` to `true` allows the encoded form of `value` to extend beyond
-the end of `buf`, but the result should be considered undefined behavior.
+the end of `buf`, but the resulting behavior is undefined.
 
 Examples:
 
@@ -2606,8 +2642,7 @@ Returns an un-pooled `Buffer`.
 
 In order to avoid the garbage collection overhead of creating many individually
 allocated `Buffer` instances, by default allocations under 4KB are sliced from a
-single larger allocated object. This approach improves both performance and memory
-usage since v8 does not need to track and cleanup as many `Persistent` objects.
+single larger allocated object.
 
 In the case where a developer may need to retain a small chunk of memory from a
 pool for an indeterminate amount of time, it may be appropriate to create an
@@ -2713,6 +2748,7 @@ This value may depend on the JS engine that is being used.
 [`DataView`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/DataView
 [`JSON.stringify()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/JSON/stringify
 [`RangeError`]: errors.html#errors_class_rangeerror
+[`SharedArrayBuffer`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/SharedArrayBuffer
 [`String#indexOf()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/indexOf
 [`String#lastIndexOf()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/lastIndexOf
 [`String.prototype.length`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/length
@@ -2736,4 +2772,5 @@ This value may depend on the JS engine that is being used.
 [RFC1345]: https://tools.ietf.org/html/rfc1345
 [RFC4648, Section 5]: https://tools.ietf.org/html/rfc4648#section-5
 [WHATWG Encoding Standard]: https://encoding.spec.whatwg.org/
+[`ECMAScript 2015`]: https://www.ecma-international.org/ecma-262/6.0/index.html
 [iterator]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Iteration_protocols

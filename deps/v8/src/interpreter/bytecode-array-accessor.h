@@ -14,6 +14,9 @@
 
 namespace v8 {
 namespace internal {
+
+class BytecodeArray;
+
 namespace interpreter {
 
 class BytecodeArrayAccessor;
@@ -85,6 +88,7 @@ class V8_EXPORT_PRIVATE BytecodeArrayAccessor {
   int GetRegisterOperandRange(int operand_index) const;
   Runtime::FunctionId GetRuntimeIdOperand(int operand_index) const;
   Runtime::FunctionId GetIntrinsicIdOperand(int operand_index) const;
+  uint32_t GetNativeContextIndexOperand(int operand_index) const;
   Handle<Object> GetConstantAtIndex(int offset) const;
   Handle<Object> GetConstantForIndexOperand(int operand_index) const;
 

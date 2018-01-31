@@ -10,14 +10,13 @@ const bench = common.createBenchmark(main, {
   n: [5e5]
 });
 
-function main(conf) {
-  const n = +conf.n;
-  const fn = zlib['create' + conf.type];
+function main({ n, type, options }) {
+  const fn = zlib[`create${type}`];
   if (typeof fn !== 'function')
     throw new Error('Invalid zlib type');
   var i = 0;
 
-  if (conf.options === 'true') {
+  if (options === 'true') {
     const opts = {};
     bench.start();
     for (; i < n; ++i)

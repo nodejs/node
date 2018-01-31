@@ -1,0 +1,103 @@
+{
+  "_from": "unist-util-remove-position@^1.0.0",
+  "_id": "unist-util-remove-position@1.1.1",
+  "_inBundle": false,
+  "_integrity": "sha1-WoXBVV/BugwQG4ZwfRXlD6TIcbs=",
+  "_location": "/unist-util-remove-position",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "range",
+    "registry": true,
+    "raw": "unist-util-remove-position@^1.0.0",
+    "name": "unist-util-remove-position",
+    "escapedName": "unist-util-remove-position",
+    "rawSpec": "^1.0.0",
+    "saveSpec": null,
+    "fetchSpec": "^1.0.0"
+  },
+  "_requiredBy": [
+    "/remark-parse"
+  ],
+  "_resolved": "https://registry.npmjs.org/unist-util-remove-position/-/unist-util-remove-position-1.1.1.tgz",
+  "_shasum": "5a85c1555fc1ba0c101b86707d15e50fa4c871bb",
+  "_spec": "unist-util-remove-position@^1.0.0",
+  "_where": "/home/mzasso/git/nodejs/node/tools/eslint-tmp/node_modules/eslint/node_modules/remark-parse",
+  "author": {
+    "name": "Titus Wormer",
+    "email": "tituswormer@gmail.com",
+    "url": "http://wooorm.com"
+  },
+  "bugs": {
+    "url": "https://github.com/syntax-tree/unist-util-remove-position/issues"
+  },
+  "bundleDependencies": false,
+  "contributors": [
+    {
+      "name": "Titus Wormer",
+      "email": "tituswormer@gmail.com",
+      "url": "http://wooorm.com"
+    }
+  ],
+  "dependencies": {
+    "unist-util-visit": "^1.1.0"
+  },
+  "deprecated": false,
+  "description": "Remove `position`s from a unist tree",
+  "devDependencies": {
+    "browserify": "^14.0.0",
+    "esmangle": "^1.0.1",
+    "nyc": "^11.0.0",
+    "remark": "^7.0.0",
+    "remark-cli": "^3.0.0",
+    "remark-preset-wooorm": "^3.0.0",
+    "tape": "^4.0.0",
+    "unist-builder": "^1.0.2",
+    "xo": "^0.18.2"
+  },
+  "files": [
+    "index.js"
+  ],
+  "homepage": "https://github.com/syntax-tree/unist-util-remove-position#readme",
+  "keywords": [
+    "unist",
+    "utility",
+    "remove",
+    "position",
+    "location"
+  ],
+  "license": "MIT",
+  "name": "unist-util-remove-position",
+  "nyc": {
+    "check-coverage": true,
+    "lines": 100,
+    "functions": 100,
+    "branches": 100
+  },
+  "remarkConfig": {
+    "plugins": [
+      "preset-wooorm"
+    ]
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/syntax-tree/unist-util-remove-position.git"
+  },
+  "scripts": {
+    "build": "npm run build-md && npm run build-bundle && npm run build-mangle",
+    "build-bundle": "browserify index.js --bare -s unistUtilRemovePosition > unist-util-remove-position.js",
+    "build-mangle": "esmangle < unist-util-remove-position.js > unist-util-remove-position.min.js",
+    "build-md": "remark . -qfo",
+    "lint": "xo",
+    "test": "npm run build && npm run lint && npm run test-coverage",
+    "test-api": "node test",
+    "test-coverage": "nyc --reporter lcov tape test.js"
+  },
+  "version": "1.1.1",
+  "xo": {
+    "space": true,
+    "esnext": false,
+    "ignores": [
+      "unist-util-remove-position.js"
+    ]
+  }
+}

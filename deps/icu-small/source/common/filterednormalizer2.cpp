@@ -20,7 +20,9 @@
 
 #if !UCONFIG_NO_NORMALIZATION
 
+#include "unicode/edits.h"
 #include "unicode/normalizer2.h"
+#include "unicode/stringoptions.h"
 #include "unicode/uniset.h"
 #include "unicode/unistr.h"
 #include "unicode/unorm.h"
@@ -83,6 +85,52 @@ FilteredNormalizer2::normalize(const UnicodeString &src,
         prevSpanLimit=spanLimit;
     }
     return dest;
+}
+
+void
+FilteredNormalizer2::normalizeUTF8(uint32_t options, StringPiece src, ByteSink &sink,
+                                   Edits *edits, UErrorCode &errorCode) const {
+    if (U_FAILURE(errorCode)) {
+        return;
+    }
+    if (edits != nullptr && (options & U_EDITS_NO_RESET) == 0) {
+        edits->reset();
+    }
+    options |= U_EDITS_NO_RESET;  // Do not reset for each span.
+    normalizeUTF8(options, src.data(), src.length(), sink, edits, USET_SPAN_SIMPLE, errorCode);
+}
+
+void
+FilteredNormalizer2::normalizeUTF8(uint32_t options, const char *src, int32_t length,
+                                   ByteSink &sink, Edits *edits,
+                                   USetSpanCondition spanCondition,
+                                   UErrorCode &errorCode) const {
+    while (length > 0) {
+        int32_t spanLength = set.spanUTF8(src, length, spanCondition);
+        if (spanCondition == USET_SPAN_NOT_CONTAINED) {
+            if (spanLength != 0) {
+                if (edits != nullptr) {
+                    edits->addUnchanged(spanLength);
+                }
+                if ((options & U_OMIT_UNCHANGED_TEXT) == 0) {
+                    sink.Append(src, spanLength);
+                }
+            }
+            spanCondition = USET_SPAN_SIMPLE;
+        } else {
+            if (spanLength != 0) {
+                // Not norm2.normalizeSecondAndAppend() because we do not want
+                // to modify the non-filter part of dest.
+                norm2.normalizeUTF8(options, StringPiece(src, spanLength), sink, edits, errorCode);
+                if (U_FAILURE(errorCode)) {
+                    break;
+                }
+            }
+            spanCondition = USET_SPAN_NOT_CONTAINED;
+        }
+        src += spanLength;
+        length -= spanLength;
+    }
 }
 
 UnicodeString &
@@ -192,6 +240,31 @@ FilteredNormalizer2::isNormalized(const UnicodeString &s, UErrorCode &errorCode)
             spanCondition=USET_SPAN_NOT_CONTAINED;
         }
         prevSpanLimit=spanLimit;
+    }
+    return TRUE;
+}
+
+UBool
+FilteredNormalizer2::isNormalizedUTF8(StringPiece sp, UErrorCode &errorCode) const {
+    if(U_FAILURE(errorCode)) {
+        return FALSE;
+    }
+    const char *s = sp.data();
+    int32_t length = sp.length();
+    USetSpanCondition spanCondition = USET_SPAN_SIMPLE;
+    while (length > 0) {
+        int32_t spanLength = set.spanUTF8(s, length, spanCondition);
+        if (spanCondition == USET_SPAN_NOT_CONTAINED) {
+            spanCondition = USET_SPAN_SIMPLE;
+        } else {
+            if (!norm2.isNormalizedUTF8(StringPiece(s, spanLength), errorCode) ||
+                    U_FAILURE(errorCode)) {
+                return FALSE;
+            }
+            spanCondition = USET_SPAN_NOT_CONTAINED;
+        }
+        s += spanLength;
+        length -= spanLength;
     }
     return TRUE;
 }

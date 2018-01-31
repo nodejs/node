@@ -303,15 +303,14 @@ MaybeLocal<Object> New(Environment* env, size_t length) {
         data,
         length,
         ArrayBufferCreationMode::kInternalized);
-  Local<Uint8Array> ui = Uint8Array::New(ab, 0, length);
-  Maybe<bool> mb =
-      ui->SetPrototype(env->context(), env->buffer_prototype_object());
-  if (mb.FromMaybe(false))
-    return scope.Escape(ui);
+  MaybeLocal<Uint8Array> ui = Buffer::New(env, ab, 0, length);
 
-  // Object failed to be created. Clean up resources.
-  free(data);
-  return Local<Object>();
+  if (ui.IsEmpty()) {
+    // Object failed to be created. Clean up resources.
+    free(data);
+  }
+
+  return scope.Escape(ui.FromMaybe(Local<Uint8Array>()));
 }
 
 
@@ -349,15 +348,14 @@ MaybeLocal<Object> Copy(Environment* env, const char* data, size_t length) {
         new_data,
         length,
         ArrayBufferCreationMode::kInternalized);
-  Local<Uint8Array> ui = Uint8Array::New(ab, 0, length);
-  Maybe<bool> mb =
-      ui->SetPrototype(env->context(), env->buffer_prototype_object());
-  if (mb.FromMaybe(false))
-    return scope.Escape(ui);
+  MaybeLocal<Uint8Array> ui = Buffer::New(env, ab, 0, length);
 
-  // Object failed to be created. Clean up resources.
-  free(new_data);
-  return Local<Object>();
+  if (ui.IsEmpty()) {
+    // Object failed to be created. Clean up resources.
+    free(new_data);
+  }
+
+  return scope.Escape(ui.FromMaybe(Local<Uint8Array>()));
 }
 
 
@@ -392,15 +390,14 @@ MaybeLocal<Object> New(Environment* env,
   // correct.
   if (data == nullptr)
     ab->Neuter();
-  Local<Uint8Array> ui = Uint8Array::New(ab, 0, length);
-  Maybe<bool> mb =
-      ui->SetPrototype(env->context(), env->buffer_prototype_object());
+  MaybeLocal<Uint8Array> ui = Buffer::New(env, ab, 0, length);
 
-  if (!mb.FromMaybe(false))
+  if (ui.IsEmpty()) {
     return Local<Object>();
+  }
 
   CallbackInfo::New(env->isolate(), ab, callback, data, hint);
-  return scope.Escape(ui);
+  return scope.Escape(ui.ToLocalChecked());
 }
 
 
@@ -415,8 +412,6 @@ MaybeLocal<Object> New(Isolate* isolate, char* data, size_t length) {
 
 
 MaybeLocal<Object> New(Environment* env, char* data, size_t length) {
-  EscapableHandleScope scope(env->isolate());
-
   if (length > 0) {
     CHECK_NE(data, nullptr);
     CHECK(length <= kMaxLength);
@@ -427,12 +422,7 @@ MaybeLocal<Object> New(Environment* env, char* data, size_t length) {
                        data,
                        length,
                        ArrayBufferCreationMode::kInternalized);
-  Local<Uint8Array> ui = Uint8Array::New(ab, 0, length);
-  Maybe<bool> mb =
-      ui->SetPrototype(env->context(), env->buffer_prototype_object());
-  if (mb.FromMaybe(false))
-    return scope.Escape(ui);
-  return Local<Object>();
+  return Buffer::New(env, ab, 0, length).FromMaybe(Local<Object>());
 }
 
 namespace {
@@ -591,6 +581,8 @@ void Fill(const FunctionCallbackInfo<Value>& args) {
   THROW_AND_RETURN_IF_OOB(start <= end);
   THROW_AND_RETURN_IF_OOB(fill_length + start <= ts_obj_length);
 
+  args.GetReturnValue().Set(static_cast<double>(fill_length));
+
   // First check if Buffer has been passed.
   if (Buffer::HasInstance(args[1])) {
     SPREAD_BUFFER_ARG(args[1], fill_obj);
@@ -606,14 +598,16 @@ void Fill(const FunctionCallbackInfo<Value>& args) {
     return;
   }
 
-  str_obj = args[1]->ToString(env->isolate());
+  str_obj = args[1]->ToString(env->context()).ToLocalChecked();
   enc = ParseEncoding(env->isolate(), args[4], UTF8);
   str_length =
       enc == UTF8 ? str_obj->Utf8Length() :
       enc == UCS2 ? str_obj->Length() * sizeof(uint16_t) : str_obj->Length();
 
-  if (str_length == 0)
+  if (str_length == 0) {
+    args.GetReturnValue().Set(0);
     return;
+  }
 
   // Can't use StringBytes::Write() in all cases. For example if attempting
   // to write a two byte character into a one byte Buffer.
@@ -638,12 +632,6 @@ void Fill(const FunctionCallbackInfo<Value>& args) {
                                     str_obj,
                                     enc,
                                     nullptr);
-    // This check is also needed in case Write() returns that no bytes could
-    // be written.
-    // TODO(trevnorris): Should this throw? Because of the string length was
-    // greater than 0 but couldn't be written then the string was invalid.
-    if (str_length == 0)
-      return;
   }
 
  start_fill:
@@ -651,6 +639,13 @@ void Fill(const FunctionCallbackInfo<Value>& args) {
   if (str_length >= fill_length)
     return;
 
+  // If str_length is zero, then either an empty buffer was provided, or Write()
+  // indicated that no bytes could be written. If no bytes could be written,
+  // then return -1 because the fill value is invalid. This will trigger a throw
+  // in JavaScript. Silently failing should be avoided because it can lead to
+  // buffers with unexpected contents.
+  if (str_length == 0)
+    return args.GetReturnValue().Set(-1);
 
   size_t in_there = str_length;
   char* ptr = ts_obj_data + start + str_length;
@@ -677,7 +672,7 @@ void StringWrite(const FunctionCallbackInfo<Value>& args) {
   if (!args[0]->IsString())
     return env->ThrowTypeError("Argument must be a string");
 
-  Local<String> str = args[0]->ToString(env->isolate());
+  Local<String> str = args[0]->ToString(env->context()).ToLocalChecked();
 
   size_t offset;
   size_t max_length;
@@ -711,49 +706,6 @@ static inline void Swizzle(char* start, unsigned int len) {
     *start++ = *end;
     *end-- = tmp;
   }
-}
-
-
-template <typename T, enum Endianness endianness>
-void ReadFloatGeneric(const FunctionCallbackInfo<Value>& args) {
-  THROW_AND_RETURN_UNLESS_BUFFER(Environment::GetCurrent(args), args[0]);
-  SPREAD_BUFFER_ARG(args[0], ts_obj);
-
-  uint32_t offset = args[1]->Uint32Value();
-  CHECK_LE(offset + sizeof(T), ts_obj_length);
-
-  union NoAlias {
-    T val;
-    char bytes[sizeof(T)];
-  };
-
-  union NoAlias na;
-  const char* ptr = static_cast<const char*>(ts_obj_data) + offset;
-  memcpy(na.bytes, ptr, sizeof(na.bytes));
-  if (endianness != GetEndianness())
-    Swizzle(na.bytes, sizeof(na.bytes));
-
-  args.GetReturnValue().Set(na.val);
-}
-
-
-void ReadFloatLE(const FunctionCallbackInfo<Value>& args) {
-  ReadFloatGeneric<float, kLittleEndian>(args);
-}
-
-
-void ReadFloatBE(const FunctionCallbackInfo<Value>& args) {
-  ReadFloatGeneric<float, kBigEndian>(args);
-}
-
-
-void ReadDoubleLE(const FunctionCallbackInfo<Value>& args) {
-  ReadFloatGeneric<double, kLittleEndian>(args);
-}
-
-
-void ReadDoubleBE(const FunctionCallbackInfo<Value>& args) {
-  ReadFloatGeneric<double, kBigEndian>(args);
 }
 
 
@@ -980,7 +932,7 @@ void IndexOfString(const FunctionCallbackInfo<Value>& args) {
                                      is_forward);
 
   if (needle_length == 0) {
-    // Match String#indexOf() and String#lastIndexOf() behaviour.
+    // Match String#indexOf() and String#lastIndexOf() behavior.
     args.GetReturnValue().Set(static_cast<double>(opt_offset));
     return;
   }
@@ -1093,7 +1045,7 @@ void IndexOfBuffer(const FunctionCallbackInfo<Value>& args) {
                                      is_forward);
 
   if (needle_length == 0) {
-    // Match String#indexOf() and String#lastIndexOf() behaviour.
+    // Match String#indexOf() and String#lastIndexOf() behavior.
     args.GetReturnValue().Set(static_cast<double>(opt_offset));
     return;
   }
@@ -1210,7 +1162,7 @@ static void EncodeUtf8String(const FunctionCallbackInfo<Value>& args) {
   char* data = node::UncheckedMalloc(length);
   str->WriteUtf8(data,
                  -1,   // We are certain that `data` is sufficiently large
-                 NULL,
+                 nullptr,
                  String::NO_NULL_TERMINATION | String::REPLACE_INVALID_UTF8);
   auto array_buf = ArrayBuffer::New(env->isolate(), data, length,
                                     ArrayBufferCreationMode::kInternalized);
@@ -1271,11 +1223,6 @@ void Initialize(Local<Object> target,
   env->SetMethod(target, "indexOfNumber", IndexOfNumber);
   env->SetMethod(target, "indexOfString", IndexOfString);
 
-  env->SetMethod(target, "readDoubleBE", ReadDoubleBE);
-  env->SetMethod(target, "readDoubleLE", ReadDoubleLE);
-  env->SetMethod(target, "readFloatBE", ReadFloatBE);
-  env->SetMethod(target, "readFloatLE", ReadFloatLE);
-
   env->SetMethod(target, "writeDoubleBE", WriteDoubleBE);
   env->SetMethod(target, "writeDoubleLE", WriteDoubleLE);
   env->SetMethod(target, "writeFloatBE", WriteFloatBE);
@@ -1300,4 +1247,4 @@ void Initialize(Local<Object> target,
 }  // namespace Buffer
 }  // namespace node
 
-NODE_MODULE_CONTEXT_AWARE_BUILTIN(buffer, node::Buffer::Initialize)
+NODE_BUILTIN_MODULE_CONTEXT_AWARE(buffer, node::Buffer::Initialize)

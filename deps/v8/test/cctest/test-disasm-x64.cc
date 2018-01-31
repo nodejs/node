@@ -54,7 +54,7 @@ TEST(DisasmX64) {
   HandleScope scope(isolate);
   v8::internal::byte buffer[8192];
   Assembler assm(isolate, buffer, sizeof buffer);
-  DummyStaticFunction(NULL);  // just bloody use it (DELETE; debugging)
+  DummyStaticFunction(nullptr);  // just bloody use it (DELETE; debugging)
 
   // Short immediate instructions
   __ addq(rax, Immediate(12345678));
@@ -946,8 +946,8 @@ TEST(DisasmX64) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code = isolate->factory()->NewCode(
-      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+  Handle<Code> code =
+      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
   USE(code);
 #ifdef OBJECT_PRINT
   OFStream os(stdout);

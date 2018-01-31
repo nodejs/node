@@ -301,7 +301,7 @@ void Decoder::PrintSoftwareInterrupt(SoftwareInterruptCodes svc) {
 // Handle all register based formatting in this function to reduce the
 // complexity of FormatOption.
 int Decoder::FormatRegister(Instruction* instr, const char* format) {
-  DCHECK(format[0] == 'r');
+  DCHECK_EQ(format[0], 'r');
   if (format[1] == 'n') {  // 'rn: Rn register
     int reg = instr->RnValue();
     PrintRegister(reg);
@@ -468,7 +468,7 @@ int Decoder::FormatOption(Instruction* instr, const char* format) {
       return 4;
     }
     case 'd': {  // 'd: vmov double immediate.
-      double d = instr->DoubleImmedVmov();
+      double d = instr->DoubleImmedVmov().get_scalar();
       out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "#%g", d);
       return 1;
     }
@@ -479,9 +479,9 @@ int Decoder::FormatOption(Instruction* instr, const char* format) {
         // BFC/BFI:
         // Bits 20-16 represent most-significant bit. Covert to width.
         width -= lsbit;
-        DCHECK(width > 0);
+        DCHECK_GT(width, 0);
       }
-      DCHECK((width + lsbit) <= 32);
+      DCHECK_LE(width + lsbit, 32);
       out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
                                   "#%d, #%d", lsbit, width);
       return 1;
@@ -501,7 +501,7 @@ int Decoder::FormatOption(Instruction* instr, const char* format) {
 
       DCHECK((width >= 1) && (width <= 32));
       DCHECK((lsb >= 0) && (lsb <= 31));
-      DCHECK((width + lsb) <= 32);
+      DCHECK_LE(width + lsb, 32);
 
       out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
                                   "%d",
@@ -583,7 +583,7 @@ int Decoder::FormatOption(Instruction* instr, const char* format) {
           if (instr->TypeValue() == 0) {
             PrintShiftRm(instr);
           } else {
-            DCHECK(instr->TypeValue() == 1);
+            DCHECK_EQ(instr->TypeValue(), 1);
             PrintShiftImm(instr);
           }
           return 8;

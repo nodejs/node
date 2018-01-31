@@ -43,12 +43,18 @@ const typeMap = {
   'http.Server': 'http.html#http_class_http_server',
   'http.ServerResponse': 'http.html#http_class_http_serverresponse',
 
+  'HTTP2 Headers Object': 'http2.html#http2_headers_object',
+  'HTTP2 Settings Object': 'http2.html#http2_settings_object',
+
   'Handle': 'net.html#net_server_listen_handle_backlog_callback',
   'net.Socket': 'net.html#net_class_net_socket',
+
+  'ServerHttp2Stream': 'http2.html#http2_class_serverhttp2stream',
 
   'Stream': 'stream.html#stream_stream',
   'stream.Readable': 'stream.html#stream_class_stream_readable',
   'stream.Writable': 'stream.html#stream_class_stream_writable',
+  'stream.Duplex': 'stream.html#stream_class_stream_duplex',
 
   'tls.TLSSocket': 'tls.html#tls_class_tls_tlssocket',
 

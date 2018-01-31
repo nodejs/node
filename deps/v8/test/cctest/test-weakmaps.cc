@@ -27,23 +27,16 @@
 
 #include <utility>
 
-#include "src/v8.h"
-
 #include "src/factory.h"
 #include "src/global-handles.h"
 #include "src/isolate.h"
-// FIXME(mstarzinger, marja): This is weird, but required because of the missing
-// (disallowed) include: src/factory.h -> src/objects-inl.h
 #include "src/objects-inl.h"
-// FIXME(mstarzinger, marja): This is weird, but required because of the missing
-// (disallowed) include: src/feedback-vector.h ->
-// src/feedback-vector-inl.h
-#include "src/feedback-vector-inl.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/heap/heap-utils.h"
 
 namespace v8 {
 namespace internal {
+namespace test_weakmaps {
 
 static Isolate* GetIsolateFrom(LocalContext* context) {
   return reinterpret_cast<Isolate*>((*context)->GetIsolate());
@@ -51,7 +44,10 @@ static Isolate* GetIsolateFrom(LocalContext* context) {
 
 
 static Handle<JSWeakMap> AllocateJSWeakMap(Isolate* isolate) {
-  Handle<JSWeakMap> weakmap = isolate->factory()->NewJSWeakMap();
+  Handle<Map> map =
+      isolate->factory()->NewMap(JS_WEAK_MAP_TYPE, JSWeakMap::kSize);
+  Handle<JSObject> weakmap_obj = isolate->factory()->NewJSObjectFromMap(map);
+  Handle<JSWeakMap> weakmap(JSWeakMap::cast(*weakmap_obj));
   // Do not leak handles for the hash table, it would make entries strong.
   {
     HandleScope scope(isolate);
@@ -175,8 +171,8 @@ TEST(Regress2060a) {
   Factory* factory = isolate->factory();
   Heap* heap = isolate->heap();
   HandleScope scope(isolate);
-  Handle<JSFunction> function = factory->NewFunction(
-      factory->function_string());
+  Handle<JSFunction> function =
+      factory->NewFunctionForTest(factory->function_string());
   Handle<JSObject> key = factory->NewJSObject(function);
   Handle<JSWeakMap> weakmap = AllocateJSWeakMap(isolate);
 
@@ -191,7 +187,7 @@ TEST(Regress2060a) {
       Handle<JSObject> object = factory->NewJSObject(function, TENURED);
       CHECK(!heap->InNewSpace(*object));
       CHECK(!first_page->Contains(object->address()));
-      int32_t hash = object->GetOrCreateHash(isolate)->value();
+      int32_t hash = key->GetOrCreateHash(isolate)->value();
       JSWeakCollection::Set(weakmap, key, object, hash);
     }
   }
@@ -216,8 +212,8 @@ TEST(Regress2060b) {
   Factory* factory = isolate->factory();
   Heap* heap = isolate->heap();
   HandleScope scope(isolate);
-  Handle<JSFunction> function = factory->NewFunction(
-      factory->function_string());
+  Handle<JSFunction> function =
+      factory->NewFunctionForTest(factory->function_string());
 
   // Start second old-space page so that keys land on evacuation candidate.
   Page* first_page = heap->old_space()->anchor()->next_page();
@@ -263,5 +259,6 @@ TEST(Regress399527) {
   CcTest::CollectAllGarbage();
 }
 
+}  // namespace test_weakmaps
 }  // namespace internal
 }  // namespace v8

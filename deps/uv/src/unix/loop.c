@@ -31,7 +31,6 @@ int uv_loop_init(uv_loop_t* loop) {
   void* saved_data;
   int err;
 
-  uv__signal_global_once_init();
 
   saved_data = loop->data;
   memset(loop, 0, sizeof(*loop));
@@ -68,6 +67,7 @@ int uv_loop_init(uv_loop_t* loop) {
   if (err)
     return err;
 
+  uv__signal_global_once_init();
   err = uv_signal_init(loop, &loop->child_watcher);
   if (err)
     goto fail_signal_init;

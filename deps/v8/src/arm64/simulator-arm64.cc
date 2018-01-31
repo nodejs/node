@@ -72,9 +72,7 @@ void Simulator::TraceSim(const char* format, ...) {
   }
 }
 
-
-const Instruction* Simulator::kEndOfSimAddress = NULL;
-
+const Instruction* Simulator::kEndOfSimAddress = nullptr;
 
 void SimSystemRegister::SetBits(int msb, int lsb, uint32_t bits) {
   int width = msb - lsb + 1;
@@ -82,7 +80,7 @@ void SimSystemRegister::SetBits(int msb, int lsb, uint32_t bits) {
 
   bits <<= lsb;
   uint32_t mask = ((1 << width) - 1) << lsb;
-  DCHECK((mask & write_ignore_mask_) == 0);
+  DCHECK_EQ(mask & write_ignore_mask_, 0);
 
   value_ = (value_ & ~mask) | (bits & mask);
 }
@@ -111,10 +109,10 @@ void Simulator::Initialize(Isolate* isolate) {
 Simulator* Simulator::current(Isolate* isolate) {
   Isolate::PerIsolateThreadData* isolate_data =
       isolate->FindOrAllocatePerThreadDataForThisThread();
-  DCHECK(isolate_data != NULL);
+  DCHECK_NOT_NULL(isolate_data);
 
   Simulator* sim = isolate_data->simulator();
-  if (sim == NULL) {
+  if (sim == nullptr) {
     if (FLAG_trace_sim || FLAG_log_instruction_stats || FLAG_debug_sim) {
       sim = new Simulator(new Decoder<DispatchingDecoderVisitor>(), isolate);
     } else {
@@ -231,8 +229,8 @@ void Simulator::CheckPCSComplianceAndRun() {
   isolate_->stack_guard()->AdjustStackLimitForSimulator();
 
 #ifdef DEBUG
-  CHECK_EQ(kNumberOfCalleeSavedRegisters, kCalleeSaved.Count());
-  CHECK_EQ(kNumberOfCalleeSavedVRegisters, kCalleeSavedV.Count());
+  DCHECK_EQ(kNumberOfCalleeSavedRegisters, kCalleeSaved.Count());
+  DCHECK_EQ(kNumberOfCalleeSavedVRegisters, kCalleeSavedV.Count());
 
   int64_t saved_registers[kNumberOfCalleeSavedRegisters];
   uint64_t saved_fpregisters[kNumberOfCalleeSavedVRegisters];
@@ -254,12 +252,12 @@ void Simulator::CheckPCSComplianceAndRun() {
   // Start the simulation!
   Run();
 #ifdef DEBUG
-  CHECK_EQ(original_stack, sp());
+  DCHECK_EQ(original_stack, sp());
   // Check that callee-saved registers have been preserved.
   register_list = kCalleeSaved;
   fpregister_list = kCalleeSavedV;
   for (int i = 0; i < kNumberOfCalleeSavedRegisters; i++) {
-    CHECK_EQ(saved_registers[i], xreg(register_list.PopLowestIndex().code()));
+    DCHECK_EQ(saved_registers[i], xreg(register_list.PopLowestIndex().code()));
   }
   for (int i = 0; i < kNumberOfCalleeSavedVRegisters; i++) {
     DCHECK(saved_fpregisters[i] ==
@@ -333,7 +331,7 @@ uintptr_t Simulator::PopAddress() {
   intptr_t current_sp = sp();
   uintptr_t* stack_slot = reinterpret_cast<uintptr_t*>(current_sp);
   uintptr_t address = *stack_slot;
-  DCHECK(sizeof(uintptr_t) < 2 * kXRegSize);
+  DCHECK_LT(sizeof(uintptr_t), 2 * kXRegSize);
   set_sp(current_sp + 2 * kXRegSize);
   return address;
 }
@@ -352,11 +350,10 @@ uintptr_t Simulator::StackLimit(uintptr_t c_limit) const {
   return stack_limit_ + 1024;
 }
 
-
 Simulator::Simulator(Decoder<DispatchingDecoderVisitor>* decoder,
                      Isolate* isolate, FILE* stream)
     : decoder_(decoder),
-      last_debugger_input_(NULL),
+      last_debugger_input_(nullptr),
       log_parameters_(NO_PARAM),
       isolate_(isolate) {
   // Setup the decoder.
@@ -376,12 +373,11 @@ Simulator::Simulator(Decoder<DispatchingDecoderVisitor>* decoder,
   }
 }
 
-
 Simulator::Simulator()
-    : decoder_(NULL),
-      last_debugger_input_(NULL),
+    : decoder_(nullptr),
+      last_debugger_input_(nullptr),
       log_parameters_(NO_PARAM),
-      isolate_(NULL) {
+      isolate_(nullptr) {
   Init(stdout);
   CHECK(!FLAG_trace_sim && !FLAG_log_instruction_stats);
 }
@@ -414,7 +410,7 @@ void Simulator::ResetState() {
   fpcr_ = SimSystemRegister::DefaultValueFor(FPCR);
 
   // Reset registers to 0.
-  pc_ = NULL;
+  pc_ = nullptr;
   for (unsigned i = 0; i < kNumberOfRegisters; i++) {
     set_xreg(i, 0xbadbeef);
   }
@@ -473,7 +469,7 @@ class Redirection {
  public:
   Redirection(Isolate* isolate, void* external_function,
               ExternalReference::Type type)
-      : external_function_(external_function), type_(type), next_(NULL) {
+      : external_function_(external_function), type_(type), next_(nullptr) {
     redirect_call_.SetInstructionBits(
         HLT | Assembler::ImmException(kImmExceptionIsRedirectedCall));
     next_ = isolate->simulator_redirection();
@@ -493,9 +489,9 @@ class Redirection {
   static Redirection* Get(Isolate* isolate, void* external_function,
                           ExternalReference::Type type) {
     Redirection* current = isolate->simulator_redirection();
-    for (; current != NULL; current = current->next_) {
-      if (current->external_function_ == external_function) {
-        DCHECK_EQ(current->type(), type);
+    for (; current != nullptr; current = current->next_) {
+      if (current->external_function_ == external_function &&
+          current->type_ == type) {
         return current;
       }
     }
@@ -548,11 +544,6 @@ typedef ObjectPair (*SimulatorRuntimeCall)(int64_t arg0, int64_t arg1,
                                            int64_t arg4, int64_t arg5,
                                            int64_t arg6, int64_t arg7,
                                            int64_t arg8);
-
-typedef ObjectTriple (*SimulatorRuntimeTripleCall)(int64_t arg0, int64_t arg1,
-                                                   int64_t arg2, int64_t arg3,
-                                                   int64_t arg4, int64_t arg5,
-                                                   int64_t arg6, int64_t arg7);
 
 typedef int64_t (*SimulatorRuntimeCompareCall)(double arg1, double arg2);
 typedef double (*SimulatorRuntimeFPFPCall)(double arg1, double arg2);
@@ -640,38 +631,6 @@ void Simulator::DoRuntimeCall(Instruction* instr) {
 #endif
       set_xreg(0, reinterpret_cast<int64_t>(result.x));
       set_xreg(1, reinterpret_cast<int64_t>(result.y));
-      break;
-    }
-
-    case ExternalReference::BUILTIN_CALL_TRIPLE: {
-      // ObjectTriple f(v8::internal::Arguments).
-      TraceSim("Type: BUILTIN_CALL TRIPLE\n");
-      SimulatorRuntimeTripleCall target =
-          reinterpret_cast<SimulatorRuntimeTripleCall>(external);
-
-      // We don't know how many arguments are being passed, but we can
-      // pass 8 without touching the stack. They will be ignored by the
-      // host function if they aren't used.
-      TraceSim(
-          "Arguments: "
-          "0x%016" PRIx64 ", 0x%016" PRIx64
-          ", "
-          "0x%016" PRIx64 ", 0x%016" PRIx64
-          ", "
-          "0x%016" PRIx64 ", 0x%016" PRIx64
-          ", "
-          "0x%016" PRIx64 ", 0x%016" PRIx64,
-          arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7);
-      // Return location passed in x8.
-      ObjectTriple* sim_result = reinterpret_cast<ObjectTriple*>(xreg(8));
-      ObjectTriple result =
-          target(arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7);
-      TraceSim("Returned: {%p, %p, %p}\n", static_cast<void*>(result.x),
-               static_cast<void*>(result.y), static_cast<void*>(result.z));
-#ifdef DEBUG
-      CorruptAllCallerSavedCPURegisters();
-#endif
-      *sim_result = result;
       break;
     }
 
@@ -2256,7 +2215,7 @@ void Simulator::LoadStoreWriteBack(unsigned addr_reg,
                                    int64_t offset,
                                    AddrMode addrmode) {
   if ((addrmode == PreIndex) || (addrmode == PostIndex)) {
-    DCHECK(offset != 0);
+    DCHECK_NE(offset, 0);
     uint64_t address = xreg(addr_reg, Reg31IsStackPointer);
     set_reg(addr_reg, address + offset, Reg31IsStackPointer);
   }
@@ -2323,6 +2282,8 @@ void Simulator::VisitLoadStoreAcquireRelease(Instruction* instr) {
   } else {
     if (is_exclusive) {
       unsigned rs = instr->Rs();
+      DCHECK_NE(rs, rt);
+      DCHECK_NE(rs, rn);
       if (local_monitor_.NotifyStoreExcl(address,
                                          get_transaction_size(access_size)) &&
           global_monitor_.Pointer()->NotifyStoreExcl_Locked(
@@ -2607,7 +2568,7 @@ void Simulator::VisitDataProcessing3Source(Instruction* instr) {
     case UMADDL_x: result = xreg(instr->Ra()) + (rn_u32 * rm_u32); break;
     case UMSUBL_x: result = xreg(instr->Ra()) - (rn_u32 * rm_u32); break;
     case SMULH_x:
-      DCHECK(instr->Ra() == kZeroRegCode);
+      DCHECK_EQ(instr->Ra(), kZeroRegCode);
       result = MultiplyHighSigned(xreg(instr->Rn()), xreg(instr->Rm()));
       break;
     default: UNIMPLEMENTED();
@@ -3253,12 +3214,12 @@ void Simulator::Debug() {
     PrintInstructionsAt(pc_, 1);
     // Read the command line.
     char* line = ReadLine("sim> ");
-    if (line == NULL) {
+    if (line == nullptr) {
       break;
     } else {
       // Repeat last command by default.
       char* last_input = last_debugger_input();
-      if (strcmp(line, "\n") == 0 && (last_input != NULL)) {
+      if (strcmp(line, "\n") == 0 && (last_input != nullptr)) {
         DeleteArray(line);
         line = last_input;
       } else {
@@ -3378,8 +3339,8 @@ void Simulator::Debug() {
 
       // stack / mem ----------------------------------------------------------
       } else if (strcmp(cmd, "stack") == 0 || strcmp(cmd, "mem") == 0) {
-        int64_t* cur = NULL;
-        int64_t* end = NULL;
+        int64_t* cur = nullptr;
+        int64_t* end = nullptr;
         int next_arg = 1;
 
         if (strcmp(cmd, "stack") == 0) {
@@ -3541,7 +3502,7 @@ void Simulator::VisitException(Instruction* instr) {
         // We are going to break, so printing something is not an issue in
         // terms of speed.
         if (FLAG_trace_sim_messages || FLAG_trace_sim || (parameters & BREAK)) {
-          if (message != NULL) {
+          if (message != nullptr) {
             PrintF(stream_,
                    "# %sDebugger hit %d: %s%s%s\n",
                    clr_debug_number,
@@ -3576,7 +3537,7 @@ void Simulator::VisitException(Instruction* instr) {
             break;
           default:
             // We don't support a one-shot LOG_DISASM.
-            DCHECK((parameters & LOG_DISASM) == 0);
+            DCHECK_EQ(parameters & LOG_DISASM, 0);
             // Don't print information that is already being traced.
             parameters &= ~log_parameters();
             // Print the requested information.
@@ -3591,7 +3552,7 @@ void Simulator::VisitException(Instruction* instr) {
         pc_ = pc_->InstructionAtOffset(RoundUp(size, kInstructionSize));
         //  - Verify that the unreachable marker is present.
         DCHECK(pc_->Mask(ExceptionMask) == HLT);
-        DCHECK(pc_->ImmException() ==  kImmExceptionIsUnreachable);
+        DCHECK_EQ(pc_->ImmException(), kImmExceptionIsUnreachable);
         //  - Skip past the unreachable marker.
         set_pc(pc_->following());
 
@@ -4378,7 +4339,7 @@ void Simulator::VisitNEONByIndexedElement(Instruction* instr) {
   SimVRegister& rd = vreg(instr->Rd());
   SimVRegister& rn = vreg(instr->Rn());
 
-  ByElementOp Op = NULL;
+  ByElementOp Op = nullptr;
 
   int rm_reg = instr->Rm();
   int index = (instr->NEONH() << 1) | instr->NEONL();
@@ -5312,7 +5273,7 @@ void Simulator::VisitNEONScalarByIndexedElement(Instruction* instr) {
 
   SimVRegister& rd = vreg(instr->Rd());
   SimVRegister& rn = vreg(instr->Rn());
-  ByElementOp Op = NULL;
+  ByElementOp Op = nullptr;
 
   int rm_reg = instr->Rm();
   int index = (instr->NEONH() << 1) | instr->NEONL();
@@ -5754,8 +5715,8 @@ void Simulator::DoPrintf(Instruction* instr) {
          instr + kPrintfArgPatternListOffset,
          sizeof(arg_pattern_list));
 
-  DCHECK(arg_count <= kPrintfMaxArgCount);
-  DCHECK((arg_pattern_list >> (kPrintfArgPatternBits * arg_count)) == 0);
+  DCHECK_LE(arg_count, kPrintfMaxArgCount);
+  DCHECK_EQ(arg_pattern_list >> (kPrintfArgPatternBits * arg_count), 0);
 
   // We need to call the host printf function with a set of arguments defined by
   // arg_pattern_list. Because we don't know the types and sizes of the
@@ -5767,7 +5728,7 @@ void Simulator::DoPrintf(Instruction* instr) {
   // Leave enough space for one extra character per expected argument (plus the
   // '\0' termination).
   const char * format_base = reg<const char *>(0);
-  DCHECK(format_base != NULL);
+  DCHECK_NOT_NULL(format_base);
   size_t length = strlen(format_base) + 1;
   char * const format = new char[length + arg_count];
 

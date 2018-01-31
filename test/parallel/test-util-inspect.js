@@ -19,14 +19,14 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+// Flags: --expose_internals
 'use strict';
 const common = require('../common');
 const assert = require('assert');
 const JSStream = process.binding('js_stream').JSStream;
 const util = require('util');
 const vm = require('vm');
-
-/* eslint-disable accessor-pairs */
+const { previewMapIterator } = require('internal/v8');
 
 assert.strictEqual(util.inspect(1), '1');
 assert.strictEqual(util.inspect(false), 'false');
@@ -68,7 +68,7 @@ assert.strictEqual(util.inspect({ a: 1, b: 2 }), '{ a: 1, b: 2 }');
 assert.strictEqual(util.inspect({ 'a': {} }), '{ a: {} }');
 assert.strictEqual(util.inspect({ 'a': { 'b': 2 } }), '{ a: { b: 2 } }');
 assert.strictEqual(util.inspect({ 'a': { 'b': { 'c': { 'd': 2 } } } }),
-                   '{ a: { b: { c: [Object] } } }');
+                   '{ a: { b: { c: { d: 2 } } } }');
 assert.strictEqual(
   util.inspect({ 'a': { 'b': { 'c': { 'd': 2 } } } }, false, null),
   '{ a: { b: { c: { d: 2 } } } }');
@@ -106,7 +106,7 @@ assert.strictEqual(util.inspect((new JSStream())._externalStream),
   assert.strictEqual(util.inspect({ a: regexp }, false, 0), '{ a: /regexp/ }');
 }
 
-assert(/Object/.test(
+assert(!/Object/.test(
   util.inspect({ a: { a: { a: { a: {} } } } }, undefined, undefined, true)
 ));
 assert(!/Object/.test(
@@ -149,7 +149,7 @@ for (const showHidden of [true, false]) {
 // Now do the same checks but from a different context
 for (const showHidden of [true, false]) {
   const ab = vm.runInNewContext('new ArrayBuffer(4)');
-  const dv = vm.runInNewContext('new DataView(ab, 1, 2)', { ab: ab });
+  const dv = vm.runInNewContext('new DataView(ab, 1, 2)', { ab });
   assert.strictEqual(
     util.inspect(ab, showHidden),
     'ArrayBuffer { byteLength: 4 }'
@@ -280,6 +280,7 @@ assert.strictEqual(
     '{ readwrite: [Getter/Setter] }');
 
   assert.strictEqual(
+    // eslint-disable-next-line accessor-pairs
     util.inspect({ set writeonly(val) {} }),
     '{ writeonly: [Setter] }');
 
@@ -416,6 +417,8 @@ assert.strictEqual(
 // test positive/negative zero
 assert.strictEqual(util.inspect(0), '0');
 assert.strictEqual(util.inspect(-0), '-0');
+// edge case from check
+assert.strictEqual(util.inspect(-5e-324), '-5e-324');
 
 // test for sparse array
 {
@@ -443,11 +446,9 @@ assert.strictEqual(util.inspect(-0), '-0');
 
 // test for Array constructor in different context
 {
-  const Debug = vm.runInDebugContext('Debug');
   const map = new Map();
   map.set(1, 2);
-  const mirror = Debug.MakeMirror(map.entries(), true);
-  const vals = mirror.preview();
+  const vals = previewMapIterator(map.entries(), 100);
   const valsOutput = [];
   for (const o of vals) {
     valsOutput.push(o);
@@ -476,7 +477,7 @@ assert.strictEqual(util.inspect(-0), '-0');
     }
   });
   const setter = Object.create(null, {
-    b: {
+    b: { // eslint-disable-line accessor-pairs
       set: function() {}
     }
   });
@@ -567,25 +568,31 @@ assert.doesNotThrow(() => {
   assert.strictEqual(util.inspect(x).includes('inspect'), true);
 }
 
-// util.inspect should not display the escaped value of a key.
+// util.inspect should display the escaped value of a key.
 {
   const w = {
     '\\': 1,
     '\\\\': 2,
     '\\\\\\': 3,
     '\\\\\\\\': 4,
+    '\n': 5,
+    '\r': 6
   };
 
   const y = ['a', 'b', 'c'];
-  y['\\\\\\'] = 'd';
+  y['\\\\'] = 'd';
+  y['\n'] = 'e';
+  y['\r'] = 'f';
 
   assert.strictEqual(
     util.inspect(w),
-    '{ \'\\\': 1, \'\\\\\': 2, \'\\\\\\\': 3, \'\\\\\\\\\': 4 }'
+    '{ \'\\\\\': 1, \'\\\\\\\\\': 2, \'\\\\\\\\\\\\\': 3, ' +
+    '\'\\\\\\\\\\\\\\\\\': 4, \'\\n\': 5, \'\\r\': 6 }'
   );
   assert.strictEqual(
     util.inspect(y),
-    '[ \'a\', \'b\', \'c\', \'\\\\\\\': \'d\' ]'
+    '[ \'a\', \'b\', \'c\', \'\\\\\\\\\': \'d\', ' +
+    '\'\\n\': \'e\', \'\\r\': \'f\' ]'
   );
 }
 
@@ -918,27 +925,27 @@ if (typeof Symbol !== 'undefined') {
 // Test Map iterators
 {
   const map = new Map([['foo', 'bar']]);
-  assert.strictEqual(util.inspect(map.keys()), 'MapIterator { \'foo\' }');
-  assert.strictEqual(util.inspect(map.values()), 'MapIterator { \'bar\' }');
+  assert.strictEqual(util.inspect(map.keys()), '[Map Iterator] { \'foo\' }');
+  assert.strictEqual(util.inspect(map.values()), '[Map Iterator] { \'bar\' }');
   assert.strictEqual(util.inspect(map.entries()),
-                     'MapIterator { [ \'foo\', \'bar\' ] }');
+                     '[Map Iterator] { [ \'foo\', \'bar\' ] }');
   // make sure the iterator doesn't get consumed
   const keys = map.keys();
-  assert.strictEqual(util.inspect(keys), 'MapIterator { \'foo\' }');
-  assert.strictEqual(util.inspect(keys), 'MapIterator { \'foo\' }');
+  assert.strictEqual(util.inspect(keys), '[Map Iterator] { \'foo\' }');
+  assert.strictEqual(util.inspect(keys), '[Map Iterator] { \'foo\' }');
 }
 
 // Test Set iterators
 {
   const aSet = new Set([1, 3]);
-  assert.strictEqual(util.inspect(aSet.keys()), 'SetIterator { 1, 3 }');
-  assert.strictEqual(util.inspect(aSet.values()), 'SetIterator { 1, 3 }');
+  assert.strictEqual(util.inspect(aSet.keys()), '[Set Iterator] { 1, 3 }');
+  assert.strictEqual(util.inspect(aSet.values()), '[Set Iterator] { 1, 3 }');
   assert.strictEqual(util.inspect(aSet.entries()),
-                     'SetIterator { [ 1, 1 ], [ 3, 3 ] }');
+                     '[Set Iterator] { [ 1, 1 ], [ 3, 3 ] }');
   // make sure the iterator doesn't get consumed
   const keys = aSet.keys();
-  assert.strictEqual(util.inspect(keys), 'SetIterator { 1, 3 }');
-  assert.strictEqual(util.inspect(keys), 'SetIterator { 1, 3 }');
+  assert.strictEqual(util.inspect(keys), '[Set Iterator] { 1, 3 }');
+  assert.strictEqual(util.inspect(keys), '[Set Iterator] { 1, 3 }');
 }
 
 // Test alignment of items in container
@@ -991,11 +998,11 @@ if (typeof Symbol !== 'undefined') {
   assert.strictEqual(util.inspect(new ArraySubclass(1, 2, 3)),
                      'ArraySubclass [ 1, 2, 3 ]');
   assert.strictEqual(util.inspect(new SetSubclass([1, 2, 3])),
-                     'SetSubclass { 1, 2, 3 }');
+                     'SetSubclass [Set] { 1, 2, 3 }');
   assert.strictEqual(util.inspect(new MapSubclass([['foo', 42]])),
-                     'MapSubclass { \'foo\' => 42 }');
+                     'MapSubclass [Map] { \'foo\' => 42 }');
   assert.strictEqual(util.inspect(new PromiseSubclass(() => {})),
-                     'PromiseSubclass { <pending> }');
+                     'PromiseSubclass [Promise] { <pending> }');
   assert.strictEqual(
     util.inspect({ a: { b: new ArraySubclass([1, [2], 3]) } }, { depth: 1 }),
     '{ a: { b: [ArraySubclass] } }'
@@ -1005,15 +1012,15 @@ if (typeof Symbol !== 'undefined') {
 // Empty and circular before depth
 {
   const arr = [[[[]]]];
-  assert.strictEqual(util.inspect(arr), '[ [ [ [] ] ] ]');
+  assert.strictEqual(util.inspect(arr, { depth: 2 }), '[ [ [ [] ] ] ]');
   arr[0][0][0][0] = [];
-  assert.strictEqual(util.inspect(arr), '[ [ [ [Array] ] ] ]');
+  assert.strictEqual(util.inspect(arr, { depth: 2 }), '[ [ [ [Array] ] ] ]');
   arr[0][0][0] = {};
-  assert.strictEqual(util.inspect(arr), '[ [ [ {} ] ] ]');
+  assert.strictEqual(util.inspect(arr, { depth: 2 }), '[ [ [ {} ] ] ]');
   arr[0][0][0] = { a: 2 };
-  assert.strictEqual(util.inspect(arr), '[ [ [ [Object] ] ] ]');
+  assert.strictEqual(util.inspect(arr, { depth: 2 }), '[ [ [ [Object] ] ] ]');
   arr[0][0][0] = arr;
-  assert.strictEqual(util.inspect(arr), '[ [ [ [Circular] ] ] ]');
+  assert.strictEqual(util.inspect(arr, { depth: 2 }), '[ [ [ [Circular] ] ] ]');
 }
 
 // Corner cases.
@@ -1110,45 +1117,236 @@ if (typeof Symbol !== 'undefined') {
   assert(!/1 more item/.test(util.inspect(arr)));
   util.inspect.defaultOptions.maxArrayLength = oldOptions.maxArrayLength;
   assert(/1 more item/.test(util.inspect(arr)));
-  util.inspect.defaultOptions.depth = null;
-  assert(!/Object/.test(util.inspect(obj)));
-  util.inspect.defaultOptions.depth = oldOptions.depth;
+  util.inspect.defaultOptions.depth = 2;
   assert(/Object/.test(util.inspect(obj)));
+  util.inspect.defaultOptions.depth = oldOptions.depth;
+  assert(!/Object/.test(util.inspect(obj)));
   assert.strictEqual(
     JSON.stringify(util.inspect.defaultOptions),
     JSON.stringify(oldOptions)
   );
 
   // Set multiple options through object assignment
-  util.inspect.defaultOptions = { maxArrayLength: null, depth: null };
+  util.inspect.defaultOptions = { maxArrayLength: null, depth: 2 };
   assert(!/1 more item/.test(util.inspect(arr)));
-  assert(!/Object/.test(util.inspect(obj)));
+  assert(/Object/.test(util.inspect(obj)));
   util.inspect.defaultOptions = oldOptions;
   assert(/1 more item/.test(util.inspect(arr)));
-  assert(/Object/.test(util.inspect(obj)));
+  assert(!/Object/.test(util.inspect(obj)));
   assert.strictEqual(
     JSON.stringify(util.inspect.defaultOptions),
     JSON.stringify(oldOptions)
   );
 
-  assert.throws(() => {
+  common.expectsError(() => {
     util.inspect.defaultOptions = null;
-  }, common.expectsError({
+  }, {
     code: 'ERR_INVALID_ARG_TYPE',
     type: TypeError,
-    message: 'The "options" argument must be of type object'
-  })
+    message: 'The "options" argument must be of type Object'
+  }
   );
 
-  assert.throws(() => {
+  common.expectsError(() => {
     util.inspect.defaultOptions = 'bad';
-  }, common.expectsError({
+  }, {
     code: 'ERR_INVALID_ARG_TYPE',
     type: TypeError,
-    message: 'The "options" argument must be of type object'
-  })
+    message: 'The "options" argument must be of type Object'
+  }
   );
 }
 
 assert.doesNotThrow(() => util.inspect(process));
-/* eslint-enable accessor-pairs */
+
+// Setting custom inspect property to a non-function should do nothing.
+{
+  const obj = { inspect: 'fhqwhgads' };
+  assert.strictEqual(util.inspect(obj), "{ inspect: 'fhqwhgads' }");
+}
+
+{
+  // @@toStringTag
+  assert.strictEqual(util.inspect({ [Symbol.toStringTag]: 'a' }),
+                     'Object [a] { [Symbol(Symbol.toStringTag)]: \'a\' }');
+
+  class Foo {
+    constructor() {
+      this.foo = 'bar';
+    }
+
+    get [Symbol.toStringTag]() {
+      return this.foo;
+    }
+  }
+
+  assert.strictEqual(util.inspect(
+    Object.create(null, { [Symbol.toStringTag]: { value: 'foo' } })),
+                     '[foo] {}');
+
+  assert.strictEqual(util.inspect(new Foo()), 'Foo [bar] { foo: \'bar\' }');
+
+  assert.strictEqual(
+    util.inspect(new (class extends Foo {})()),
+    'Foo [bar] { foo: \'bar\' }');
+
+  assert.strictEqual(
+    util.inspect(Object.create(Object.create(Foo.prototype), {
+      foo: { value: 'bar', enumerable: true }
+    })),
+    'Foo [bar] { foo: \'bar\' }');
+
+  class ThrowingClass {
+    get [Symbol.toStringTag]() {
+      throw new Error('toStringTag error');
+    }
+  }
+
+  assert.throws(() => util.inspect(new ThrowingClass()), /toStringTag error/);
+
+  class NotStringClass {
+    get [Symbol.toStringTag]() {
+      return null;
+    }
+  }
+
+  assert.strictEqual(util.inspect(new NotStringClass()),
+                     'NotStringClass {}');
+}
+
+{
+  const o = {
+    a: [1, 2, [[
+      'Lorem ipsum dolor\nsit amet,\tconsectetur adipiscing elit, sed do ' +
+        'eiusmod tempor incididunt ut labore et dolore magna aliqua.',
+      'test',
+      'foo']], 4],
+    b: new Map([['za', 1], ['zb', 'test']])
+  };
+
+  let out = util.inspect(o, { compact: true, depth: 5, breakLength: 80 });
+  let expect = [
+    '{ a: ',
+    '   [ 1,',
+    '     2,',
+    "     [ [ 'Lorem ipsum dolor\\nsit amet,\\tconsectetur adipiscing elit, " +
+      "sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.',",
+    "         'test',",
+    "         'foo' ] ],",
+    '     4 ],',
+    "  b: Map { 'za' => 1, 'zb' => 'test' } }",
+  ].join('\n');
+  assert.strictEqual(out, expect);
+
+  out = util.inspect(o, { compact: false, depth: 5, breakLength: 60 });
+  expect = [
+    '{',
+    '  a: [',
+    '    1,',
+    '    2,',
+    '    [',
+    '      [',
+    '        \'Lorem ipsum dolor\\nsit amet,\\tconsectetur \' +',
+    '          \'adipiscing elit, sed do eiusmod tempor \' +',
+    '          \'incididunt ut labore et dolore magna \' +',
+    '          \'aliqua.\',',
+    '        \'test\',',
+    '        \'foo\'',
+    '      ]',
+    '    ],',
+    '    4',
+    '  ],',
+    '  b: Map {',
+    '    \'za\' => 1,',
+    '    \'zb\' => \'test\'',
+    '  }',
+    '}'
+  ].join('\n');
+  assert.strictEqual(out, expect);
+
+  out = util.inspect(o.a[2][0][0], { compact: false, breakLength: 30 });
+  expect = [
+    '\'Lorem ipsum dolor\\nsit \' +',
+    '  \'amet,\\tconsectetur \' +',
+    '  \'adipiscing elit, sed do \' +',
+    '  \'eiusmod tempor incididunt \' +',
+    '  \'ut labore et dolore magna \' +',
+    '  \'aliqua.\''
+  ].join('\n');
+  assert.strictEqual(out, expect);
+
+  out = util.inspect(
+    '12345678901234567890123456789012345678901234567890',
+    { compact: false, breakLength: 3 });
+  expect = '\'12345678901234567890123456789012345678901234567890\'';
+  assert.strictEqual(out, expect);
+
+  out = util.inspect(
+    '12 45 78 01 34 67 90 23 56 89 123456789012345678901234567890',
+    { compact: false, breakLength: 3 });
+  expect = [
+    '\'12 45 78 01 34 \' +',
+    '  \'67 90 23 56 89 \' +',
+    '  \'123456789012345678901234567890\''
+  ].join('\n');
+  assert.strictEqual(out, expect);
+
+  out = util.inspect(
+    '12 45 78 01 34 67 90 23 56 89 1234567890123 0',
+    { compact: false, breakLength: 3 });
+  expect = [
+    '\'12 45 78 01 34 \' +',
+    '  \'67 90 23 56 89 \' +',
+    '  \'1234567890123 0\''
+  ].join('\n');
+  assert.strictEqual(out, expect);
+
+  out = util.inspect(
+    '12 45 78 01 34 67 90 23 56 89 12345678901234567 0',
+    { compact: false, breakLength: 3 });
+  expect = [
+    '\'12 45 78 01 34 \' +',
+    '  \'67 90 23 56 89 \' +',
+    '  \'12345678901234567 \' +',
+    '  \'0\''
+  ].join('\n');
+  assert.strictEqual(out, expect);
+
+  o.a = () => {};
+  o.b = new Number(3);
+  out = util.inspect(o, { compact: false, breakLength: 3 });
+  expect = [
+    '{',
+    '  a: [Function],',
+    '  b: [Number: 3]',
+    '}'
+  ].join('\n');
+  assert.strictEqual(out, expect);
+
+  out = util.inspect(o, { compact: false, breakLength: 3, showHidden: true });
+  expect = [
+    '{',
+    '  a: [Function] {',
+    '    [length]: 0,',
+    "    [name]: ''",
+    '  },',
+    '  b: [Number: 3]',
+    '}'
+  ].join('\n');
+  assert.strictEqual(out, expect);
+
+  o[util.inspect.custom] = () => 42;
+  out = util.inspect(o, { compact: false, breakLength: 3 });
+  expect = '42';
+  assert.strictEqual(out, expect);
+
+  o[util.inspect.custom] = () => '12 45 78 01 34 67 90 23';
+  out = util.inspect(o, { compact: false, breakLength: 3 });
+  expect = '12 45 78 01 34 67 90 23';
+  assert.strictEqual(out, expect);
+
+  o[util.inspect.custom] = () => ({ a: '12 45 78 01 34 67 90 23' });
+  out = util.inspect(o, { compact: false, breakLength: 3 });
+  expect = '{\n  a: \'12 45 78 01 34 \' +\n    \'67 90 23\'\n}';
+  assert.strictEqual(out, expect);
+}

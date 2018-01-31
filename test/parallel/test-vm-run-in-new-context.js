@@ -65,7 +65,7 @@ assert.strictEqual(global.foo, 100);
 
 // Modify an object by reference
 const f = { a: 1 };
-vm.runInNewContext('f.a = 2', { f: f });
+vm.runInNewContext('f.a = 2', { f });
 assert.strictEqual(f.a, 2);
 
 // Use function in context without referencing context
@@ -73,3 +73,23 @@ const fn = vm.runInNewContext('(function() { obj.p = {}; })', { obj: {} });
 global.gc();
 fn();
 // Should not crash
+
+{
+  // Verify that providing a custom filename as a string argument works.
+  const code = 'throw new Error("foo");';
+  const file = 'test_file.vm';
+
+  assert.throws(() => {
+    vm.runInNewContext(code, {}, file);
+  }, (err) => {
+    const lines = err.stack.split('\n');
+
+    assert.strictEqual(lines[0].trim(), `${file}:1`);
+    assert.strictEqual(lines[1].trim(), code);
+    // Skip lines[2] and lines[3]. They're just a ^ and blank line.
+    assert.strictEqual(lines[4].trim(), 'Error: foo');
+    assert.strictEqual(lines[5].trim(), `at ${file}:1:7`);
+    // The rest of the stack is uninteresting.
+    return true;
+  });
+}

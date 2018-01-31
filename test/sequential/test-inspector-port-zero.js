@@ -16,8 +16,8 @@ function test(arg, port = '') {
   let stderr = '';
   proc.stdout.on('data', (data) => stdout += data);
   proc.stderr.on('data', (data) => stderr += data);
-  proc.stdout.on('close', assert.ifError);
-  proc.stderr.on('close', assert.ifError);
+  proc.stdout.on('close', (hadErr) => assert(!hadErr));
+  proc.stderr.on('close', (hadErr) => assert(!hadErr));
   proc.stderr.on('data', () => {
     if (!stderr.includes('\n')) return;
     assert(/Debugger listening on (.+)/.test(stderr));
@@ -34,7 +34,10 @@ function test(arg, port = '') {
     };
     proc.stdout.on('close', mustCall(() => onclose()));
     proc.stderr.on('close', mustCall(() => onclose()));
-    proc.on('exit', mustCall((exitCode) => assert.strictEqual(exitCode, 0)));
+    proc.on('exit', mustCall((exitCode, signal) => assert.strictEqual(
+      exitCode,
+      0,
+      `exitCode: ${exitCode}, signal: ${signal}`)));
   }
 }
 

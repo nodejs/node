@@ -25,11 +25,11 @@ class V8_PLATFORM_EXPORT TaskQueue {
   ~TaskQueue();
 
   // Appends a task to the queue. The queue takes ownership of |task|.
-  void Append(Task* task);
+  void Append(std::unique_ptr<Task> task);
 
   // Returns the next task to process. Blocks if no task is available. Returns
-  // NULL if the queue is terminated.
-  Task* GetNext();
+  // nullptr if the queue is terminated.
+  std::unique_ptr<Task> GetNext();
 
   // Terminate the queue.
   void Terminate();
@@ -41,7 +41,7 @@ class V8_PLATFORM_EXPORT TaskQueue {
 
   base::Semaphore process_queue_semaphore_;
   base::Mutex lock_;
-  std::queue<Task*> task_queue_;
+  std::queue<std::unique_ptr<Task>> task_queue_;
   bool terminated_;
 
   DISALLOW_COPY_AND_ASSIGN(TaskQueue);

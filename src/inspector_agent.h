@@ -20,6 +20,7 @@ class StringView;
 namespace node {
 // Forward declaration to break recursive dependency chain with src/env.h.
 class Environment;
+struct ContextInfo;
 
 namespace inspector {
 
@@ -48,7 +49,6 @@ class Agent {
   bool IsStarted() { return !!client_; }
 
   // IO thread started, and client connected
-  bool IsConnected();
   bool IsWaitingForConnect();
 
   void WaitForDisconnect();
@@ -83,20 +83,21 @@ class Agent {
     return io_.get();
   }
 
-  // Can only be called from the the main thread.
+  // Can only be called from the main thread.
   bool StartIoThread(bool wait_for_connect);
 
   // Calls StartIoThread() from off the main thread.
   void RequestIoThreadStart();
 
   DebugOptions& options() { return debug_options_; }
-  void ContextCreated(v8::Local<v8::Context> context);
+  void ContextCreated(v8::Local<v8::Context> context, const ContextInfo& info);
 
   void EnableAsyncHook();
   void DisableAsyncHook();
 
  private:
-  void ToggleAsyncHook(v8::Isolate* isolate, v8::Local<v8::Function> fn);
+  void ToggleAsyncHook(v8::Isolate* isolate,
+                       const v8::Persistent<v8::Function>& fn);
 
   node::Environment* parent_env_;
   std::unique_ptr<NodeInspectorClient> client_;
@@ -105,7 +106,6 @@ class Agent {
   bool enabled_;
   std::string path_;
   DebugOptions debug_options_;
-  int next_context_number_;
 
   bool pending_enable_async_hook_;
   bool pending_disable_async_hook_;

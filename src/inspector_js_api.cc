@@ -1,4 +1,4 @@
-#include "base-object-inl.h"
+#include "base_object-inl.h"
 #include "inspector_agent.h"
 #include "inspector_io.h"
 #include "node_internals.h"
@@ -348,5 +348,5 @@ void InitInspectorBindings(Local<Object> target, Local<Value> unused,
 }  // namespace inspector
 }  // namespace node
 
-NODE_MODULE_CONTEXT_AWARE_BUILTIN(inspector,
+NODE_BUILTIN_MODULE_CONTEXT_AWARE(inspector,
                                   node::inspector::InitInspectorBindings);

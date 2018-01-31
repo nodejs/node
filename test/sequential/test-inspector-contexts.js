@@ -6,7 +6,7 @@ const common = require('../common');
 common.skipIfInspectorDisabled();
 
 const { strictEqual } = require('assert');
-const { runInNewContext } = require('vm');
+const { createContext, runInNewContext } = require('vm');
 const { Session } = require('inspector');
 
 const session = new Session();
@@ -18,36 +18,128 @@ function notificationPromise(method) {
 
 async function testContextCreatedAndDestroyed() {
   console.log('Testing context created/destroyed notifications');
-  const mainContextPromise =
-      notificationPromise('Runtime.executionContextCreated');
+  {
+    const mainContextPromise =
+        notificationPromise('Runtime.executionContextCreated');
 
-  session.post('Runtime.enable');
-  let contextCreated = await mainContextPromise;
-  strictEqual('Node.js Main Context',
-              contextCreated.params.context.name,
-              JSON.stringify(contextCreated));
+    session.post('Runtime.enable');
+    const contextCreated = await mainContextPromise;
+    const { name, origin, auxData } = contextCreated.params.context;
+    if (common.isSunOS || common.isWindows) {
+      // uv_get_process_title() is unimplemented on Solaris-likes, it returns
+      // an empty string.  On the Windows CI buildbots it returns
+      // "Administrator: Windows PowerShell[42]" because of a GetConsoleTitle()
+      // quirk. Not much we can do about either, just verify that it contains
+      // the PID.
+      strictEqual(name.includes(`[${process.pid}]`), true);
+    } else {
+      strictEqual(`${process.argv0}[${process.pid}]`, name);
+    }
+    strictEqual(origin, '',
+                JSON.stringify(contextCreated));
+    strictEqual(auxData.isDefault, true,
+                JSON.stringify(contextCreated));
+  }
 
-  const secondContextCreatedPromise =
-      notificationPromise('Runtime.executionContextCreated');
+  {
+    const vmContextCreatedPromise =
+        notificationPromise('Runtime.executionContextCreated');
 
-  let contextDestroyed = null;
-  session.once('Runtime.executionContextDestroyed',
-               (notification) => contextDestroyed = notification);
+    let contextDestroyed = null;
+    session.once('Runtime.executionContextDestroyed',
+                 (notification) => contextDestroyed = notification);
 
-  runInNewContext('1 + 1', {});
+    runInNewContext('1 + 1');
 
-  contextCreated = await secondContextCreatedPromise;
-  strictEqual('VM Context 1',
-              contextCreated.params.context.name,
-              JSON.stringify(contextCreated));
+    const contextCreated = await vmContextCreatedPromise;
+    const { id, name, origin, auxData } = contextCreated.params.context;
+    strictEqual(name, 'VM Context 1',
+                JSON.stringify(contextCreated));
+    strictEqual(origin, '',
+                JSON.stringify(contextCreated));
+    strictEqual(auxData.isDefault, false,
+                JSON.stringify(contextCreated));
 
-  // GC is unpredictable...
-  while (!contextDestroyed)
-    global.gc();
+    // GC is unpredictable...
+    while (!contextDestroyed)
+      global.gc();
 
-  strictEqual(contextCreated.params.context.id,
-              contextDestroyed.params.executionContextId,
-              JSON.stringify(contextDestroyed));
+    strictEqual(contextDestroyed.params.executionContextId, id,
+                JSON.stringify(contextDestroyed));
+  }
+
+  {
+    const vmContextCreatedPromise =
+        notificationPromise('Runtime.executionContextCreated');
+
+    let contextDestroyed = null;
+    session.once('Runtime.executionContextDestroyed',
+                 (notification) => contextDestroyed = notification);
+
+    runInNewContext('1 + 1', {}, {
+      contextName: 'Custom context',
+      contextOrigin: 'https://origin.example'
+    });
+
+    const contextCreated = await vmContextCreatedPromise;
+    const { name, origin, auxData } = contextCreated.params.context;
+    strictEqual(name, 'Custom context',
+                JSON.stringify(contextCreated));
+    strictEqual(origin, 'https://origin.example',
+                JSON.stringify(contextCreated));
+    strictEqual(auxData.isDefault, false,
+                JSON.stringify(contextCreated));
+
+    // GC is unpredictable...
+    while (!contextDestroyed)
+      global.gc();
+  }
+
+  {
+    const vmContextCreatedPromise =
+        notificationPromise('Runtime.executionContextCreated');
+
+    let contextDestroyed = null;
+    session.once('Runtime.executionContextDestroyed',
+                 (notification) => contextDestroyed = notification);
+
+    createContext({}, { origin: 'https://nodejs.org' });
+
+    const contextCreated = await vmContextCreatedPromise;
+    const { name, origin, auxData } = contextCreated.params.context;
+    strictEqual(name, 'VM Context 2',
+                JSON.stringify(contextCreated));
+    strictEqual(origin, 'https://nodejs.org',
+                JSON.stringify(contextCreated));
+    strictEqual(auxData.isDefault, false,
+                JSON.stringify(contextCreated));
+
+    // GC is unpredictable...
+    while (!contextDestroyed)
+      global.gc();
+  }
+
+  {
+    const vmContextCreatedPromise =
+        notificationPromise('Runtime.executionContextCreated');
+
+    let contextDestroyed = null;
+    session.once('Runtime.executionContextDestroyed',
+                 (notification) => contextDestroyed = notification);
+
+    createContext({}, { name: 'Custom context 2' });
+
+    const contextCreated = await vmContextCreatedPromise;
+    const { name, auxData } = contextCreated.params.context;
+    strictEqual(name, 'Custom context 2',
+                JSON.stringify(contextCreated));
+    strictEqual(auxData.isDefault, false,
+                JSON.stringify(contextCreated));
+
+    // GC is unpredictable...
+    while (!contextDestroyed)
+      global.gc();
+  }
 }
 
 async function testBreakpointHit() {

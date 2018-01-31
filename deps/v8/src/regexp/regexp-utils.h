@@ -22,7 +22,7 @@ class RegExpUtils : public AllStatic {
 
   // Last index (RegExp.lastIndex) accessors.
   static MUST_USE_RESULT MaybeHandle<Object> SetLastIndex(
-      Isolate* isolate, Handle<JSReceiver> regexp, int value);
+      Isolate* isolate, Handle<JSReceiver> regexp, uint64_t value);
   static MUST_USE_RESULT MaybeHandle<Object> GetLastIndex(
       Isolate* isolate, Handle<JSReceiver> recv);
 
@@ -41,8 +41,8 @@ class RegExpUtils : public AllStatic {
 
   // ES#sec-advancestringindex
   // AdvanceStringIndex ( S, index, unicode )
-  static int AdvanceStringIndex(Isolate* isolate, Handle<String> string,
-                                int index, bool unicode);
+  static uint64_t AdvanceStringIndex(Isolate* isolate, Handle<String> string,
+                                     uint64_t index, bool unicode);
   static MUST_USE_RESULT MaybeHandle<Object> SetAdvancedStringIndex(
       Isolate* isolate, Handle<JSReceiver> regexp, Handle<String> string,
       bool unicode);

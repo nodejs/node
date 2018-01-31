@@ -67,7 +67,8 @@ ObjectDeserializer::DeserializeWasmCompiledModule(
 
 MaybeHandle<HeapObject> ObjectDeserializer::Deserialize(Isolate* isolate) {
   Initialize(isolate);
-  if (!ReserveSpace()) return MaybeHandle<HeapObject>();
+
+  if (!allocator()->ReserveSpace()) return MaybeHandle<HeapObject>();
 
   DCHECK(deserializing_user_code());
   HandleScope scope(isolate);
@@ -79,7 +80,8 @@ MaybeHandle<HeapObject> ObjectDeserializer::Deserialize(Isolate* isolate) {
     DeserializeDeferredObjects();
     FlushICacheForNewCodeObjectsAndRecordEmbeddedObjects();
     result = Handle<HeapObject>(HeapObject::cast(root));
-    RegisterDeserializedObjectsForBlackAllocation();
+    Rehash();
+    allocator()->RegisterDeserializedObjectsForBlackAllocation();
   }
   CommitPostProcessedObjects();
   return scope.CloseAndEscape(result);
@@ -97,12 +99,12 @@ void ObjectDeserializer::
 }
 
 void ObjectDeserializer::CommitPostProcessedObjects() {
-  CHECK(new_internalized_strings().size() <= kMaxInt);
+  CHECK_LE(new_internalized_strings().size(), kMaxInt);
   StringTable::EnsureCapacityForDeserialization(
       isolate(), static_cast<int>(new_internalized_strings().size()));
   for (Handle<String> string : new_internalized_strings()) {
     StringTableInsertionKey key(*string);
-    DCHECK_NULL(StringTable::LookupKeyIfExists(isolate(), &key));
+    DCHECK_NULL(StringTable::ForwardStringIfExists(isolate(), &key, *string));
     StringTable::LookupKey(isolate(), &key);
   }
 

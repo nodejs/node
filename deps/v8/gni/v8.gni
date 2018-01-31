@@ -174,3 +174,13 @@ template("v8_component") {
     configs += v8_add_configs
   }
 }
+
+template("v8_static_library") {
+  static_library(target_name) {
+    complete_static_lib = true
+    forward_variables_from(invoker, "*", [ "configs" ])
+    configs += invoker.configs
+    configs -= v8_remove_configs
+    configs += v8_add_configs
+  }
+}

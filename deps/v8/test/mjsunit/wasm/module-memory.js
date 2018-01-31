@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --expose-wasm --expose-gc --stress-compaction
+// Flags: --expose-wasm --expose-gc --stress-compaction --allow-natives-syntax
 
 load("test/mjsunit/wasm/wasm-constants.js");
 load("test/mjsunit/wasm/wasm-module-builder.js");
@@ -162,8 +162,12 @@ function testOOBThrows() {
 
 
   for (offset = 65534; offset < 66536; offset++) {
+    const trap_count = %GetWasmRecoveredTrapCount();
     assertTraps(kTrapMemOutOfBounds, read);
     assertTraps(kTrapMemOutOfBounds, write);
+    if (%IsWasmTrapHandlerEnabled()) {
+      assertEquals(trap_count + 2, %GetWasmRecoveredTrapCount());
+    }
   }
 }
 

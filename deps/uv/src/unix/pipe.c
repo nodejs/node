@@ -302,3 +302,56 @@ uv_handle_type uv_pipe_pending_type(uv_pipe_t* handle) {
   else
     return uv__handle_type(handle->accepted_fd);
 }
+
+
+int uv_pipe_chmod(uv_pipe_t* handle, int mode) {
+  unsigned desired_mode;
+  struct stat pipe_stat;
+  char* name_buffer;
+  size_t name_len;
+  int r;
+
+  if (handle == NULL || uv__stream_fd(handle) == -1)
+    return -EBADF;
+
+  if (mode != UV_READABLE &&
+      mode != UV_WRITABLE &&
+      mode != (UV_WRITABLE | UV_READABLE))
+    return -EINVAL;
+
+  if (fstat(uv__stream_fd(handle), &pipe_stat) == -1)
+    return -errno;
+
+  desired_mode = 0;
+  if (mode & UV_READABLE)
+    desired_mode |= S_IRUSR | S_IRGRP | S_IROTH;
+  if (mode & UV_WRITABLE)
+    desired_mode |= S_IWUSR | S_IWGRP | S_IWOTH;
+
+  /* Exit early if pipe already has desired mode. */
+  if ((pipe_stat.st_mode & desired_mode) == desired_mode)
+    return 0;
+
+  pipe_stat.st_mode |= desired_mode;
+
+  /* Unfortunately fchmod does not work on all platforms, we will use chmod. */
+  name_len = 0;
+  r = uv_pipe_getsockname(handle, NULL, &name_len);
+  if (r != UV_ENOBUFS)
+    return r;
+
+  name_buffer = uv__malloc(name_len);
+  if (name_buffer == NULL)
+    return UV_ENOMEM;
+
+  r = uv_pipe_getsockname(handle, name_buffer, &name_len);
+  if (r != 0) {
+    uv__free(name_buffer);
+    return r;
+  }
+
+  r = chmod(name_buffer, pipe_stat.st_mode);
+  uv__free(name_buffer);
+
+  return r != -1 ? 0 : -errno;
+}

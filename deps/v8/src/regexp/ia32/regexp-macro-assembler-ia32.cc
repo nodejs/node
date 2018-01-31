@@ -6,8 +6,10 @@
 
 #include "src/regexp/ia32/regexp-macro-assembler-ia32.h"
 
+#include "src/assembler-inl.h"
 #include "src/log.h"
 #include "src/macro-assembler.h"
+#include "src/objects-inl.h"
 #include "src/regexp/regexp-macro-assembler.h"
 #include "src/regexp/regexp-stack.h"
 #include "src/unicode.h"
@@ -81,7 +83,7 @@ RegExpMacroAssemblerIA32::RegExpMacroAssemblerIA32(Isolate* isolate, Zone* zone,
                                                    Mode mode,
                                                    int registers_to_save)
     : NativeRegExpMacroAssembler(isolate, zone),
-      masm_(new MacroAssembler(isolate, NULL, kRegExpCodeSize,
+      masm_(new MacroAssembler(isolate, nullptr, kRegExpCodeSize,
                                CodeObjectRequired::kYes)),
       mode_(mode),
       num_registers_(registers_to_save),
@@ -123,8 +125,8 @@ void RegExpMacroAssemblerIA32::AdvanceCurrentPosition(int by) {
 
 
 void RegExpMacroAssemblerIA32::AdvanceRegister(int reg, int by) {
-  DCHECK(reg >= 0);
-  DCHECK(reg < num_registers_);
+  DCHECK_LE(0, reg);
+  DCHECK_GT(num_registers_, reg);
   if (by != 0) {
     __ add(register_location(reg), Immediate(by));
   }
@@ -469,7 +471,7 @@ void RegExpMacroAssemblerIA32::CheckNotCharacterAfterMinusAnd(
     uc16 minus,
     uc16 mask,
     Label* on_not_equal) {
-  DCHECK(minus < String::kMaxUtf16CodeUnit);
+  DCHECK_GT(String::kMaxUtf16CodeUnit, minus);
   __ lea(eax, Operand(current_character(), -minus));
   if (c == 0) {
     __ test(eax, Immediate(mask));
@@ -911,7 +913,7 @@ Handle<HeapObject> RegExpMacroAssemblerIA32::GetCode(Handle<String> source) {
     ExternalReference grow_stack =
         ExternalReference::re_grow_stack(isolate());
     __ CallCFunction(grow_stack, num_arguments);
-    // If return NULL, we have failed to grow the stack, and
+    // If return nullptr, we have failed to grow the stack, and
     // must exit with a stack-overflow exception.
     __ or_(eax, eax);
     __ j(equal, &exit_with_exception);
@@ -933,10 +935,8 @@ Handle<HeapObject> RegExpMacroAssemblerIA32::GetCode(Handle<String> source) {
 
   CodeDesc code_desc;
   masm_->GetCode(masm_->isolate(), &code_desc);
-  Handle<Code> code =
-      isolate()->factory()->NewCode(code_desc,
-                                    Code::ComputeFlags(Code::REGEXP),
-                                    masm_->CodeObject());
+  Handle<Code> code = isolate()->factory()->NewCode(code_desc, Code::REGEXP,
+                                                    masm_->CodeObject());
   PROFILE(masm_->isolate(),
           RegExpCodeCreateEvent(AbstractCode::cast(*code), *source));
   return Handle<HeapObject>::cast(code);
@@ -1154,14 +1154,14 @@ void RegExpMacroAssemblerIA32::CheckPosition(int cp_offset,
 void RegExpMacroAssemblerIA32::BranchOrBacktrack(Condition condition,
                                                  Label* to) {
   if (condition < 0) {  // No condition
-    if (to == NULL) {
+    if (to == nullptr) {
       Backtrack();
       return;
     }
     __ jmp(to);
     return;
   }
-  if (to == NULL) {
+  if (to == nullptr) {
     __ j(condition, &backtrack_label_);
     return;
   }
@@ -1190,7 +1190,7 @@ void RegExpMacroAssemblerIA32::SafeCallTarget(Label* name) {
 
 
 void RegExpMacroAssemblerIA32::Push(Register source) {
-  DCHECK(!source.is(backtrack_stackpointer()));
+  DCHECK(source != backtrack_stackpointer());
   // Notice: This updates flags, unlike normal Push.
   __ sub(backtrack_stackpointer(), Immediate(kPointerSize));
   __ mov(Operand(backtrack_stackpointer(), 0), source);
@@ -1205,7 +1205,7 @@ void RegExpMacroAssemblerIA32::Push(Immediate value) {
 
 
 void RegExpMacroAssemblerIA32::Pop(Register target) {
-  DCHECK(!target.is(backtrack_stackpointer()));
+  DCHECK(target != backtrack_stackpointer());
   __ mov(target, Operand(backtrack_stackpointer(), 0));
   // Notice: This updates flags, unlike normal Pop.
   __ add(backtrack_stackpointer(), Immediate(kPointerSize));
@@ -1247,7 +1247,7 @@ void RegExpMacroAssemblerIA32::LoadCurrentCharacterUnchecked(int cp_offset,
     } else if (characters == 2) {
       __ movzx_w(current_character(), Operand(esi, edi, times_1, cp_offset));
     } else {
-      DCHECK(characters == 1);
+      DCHECK_EQ(1, characters);
       __ movzx_b(current_character(), Operand(esi, edi, times_1, cp_offset));
     }
   } else {
@@ -1256,7 +1256,7 @@ void RegExpMacroAssemblerIA32::LoadCurrentCharacterUnchecked(int cp_offset,
       __ mov(current_character(),
              Operand(esi, edi, times_1, cp_offset * sizeof(uc16)));
     } else {
-      DCHECK(characters == 1);
+      DCHECK_EQ(1, characters);
       __ movzx_w(current_character(),
                  Operand(esi, edi, times_1, cp_offset * sizeof(uc16)));
     }

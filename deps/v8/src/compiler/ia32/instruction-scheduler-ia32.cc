@@ -138,10 +138,84 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kIA32I16x8ExtractLane:
     case kSSEI16x8ReplaceLane:
     case kAVXI16x8ReplaceLane:
+    case kIA32I16x8Neg:
+    case kSSEI16x8Shl:
+    case kAVXI16x8Shl:
+    case kSSEI16x8ShrS:
+    case kAVXI16x8ShrS:
+    case kSSEI16x8Add:
+    case kAVXI16x8Add:
+    case kSSEI16x8AddSaturateS:
+    case kAVXI16x8AddSaturateS:
+    case kSSEI16x8Sub:
+    case kAVXI16x8Sub:
+    case kSSEI16x8SubSaturateS:
+    case kAVXI16x8SubSaturateS:
+    case kSSEI16x8Mul:
+    case kAVXI16x8Mul:
+    case kSSEI16x8MinS:
+    case kAVXI16x8MinS:
+    case kSSEI16x8MaxS:
+    case kAVXI16x8MaxS:
+    case kSSEI16x8Eq:
+    case kAVXI16x8Eq:
+    case kSSEI16x8Ne:
+    case kAVXI16x8Ne:
+    case kSSEI16x8GtS:
+    case kAVXI16x8GtS:
+    case kSSEI16x8GeS:
+    case kAVXI16x8GeS:
+    case kSSEI16x8ShrU:
+    case kAVXI16x8ShrU:
+    case kSSEI16x8AddSaturateU:
+    case kAVXI16x8AddSaturateU:
+    case kSSEI16x8SubSaturateU:
+    case kAVXI16x8SubSaturateU:
+    case kSSEI16x8MinU:
+    case kAVXI16x8MinU:
+    case kSSEI16x8MaxU:
+    case kAVXI16x8MaxU:
+    case kSSEI16x8GtU:
+    case kAVXI16x8GtU:
+    case kSSEI16x8GeU:
+    case kAVXI16x8GeU:
     case kIA32I8x16Splat:
     case kIA32I8x16ExtractLane:
     case kSSEI8x16ReplaceLane:
     case kAVXI8x16ReplaceLane:
+    case kIA32I8x16Neg:
+    case kSSEI8x16Add:
+    case kAVXI8x16Add:
+    case kSSEI8x16AddSaturateS:
+    case kAVXI8x16AddSaturateS:
+    case kSSEI8x16Sub:
+    case kAVXI8x16Sub:
+    case kSSEI8x16SubSaturateS:
+    case kAVXI8x16SubSaturateS:
+    case kSSEI8x16MinS:
+    case kAVXI8x16MinS:
+    case kSSEI8x16MaxS:
+    case kAVXI8x16MaxS:
+    case kSSEI8x16Eq:
+    case kAVXI8x16Eq:
+    case kSSEI8x16Ne:
+    case kAVXI8x16Ne:
+    case kSSEI8x16GtS:
+    case kAVXI8x16GtS:
+    case kSSEI8x16GeS:
+    case kAVXI8x16GeS:
+    case kSSEI8x16AddSaturateU:
+    case kAVXI8x16AddSaturateU:
+    case kSSEI8x16SubSaturateU:
+    case kAVXI8x16SubSaturateU:
+    case kSSEI8x16MinU:
+    case kAVXI8x16MinU:
+    case kSSEI8x16MaxU:
+    case kAVXI8x16MaxU:
+    case kSSEI8x16GtU:
+    case kAVXI8x16GtU:
+    case kSSEI8x16GeU:
+    case kAVXI8x16GeU:
       return (instr->addressing_mode() == kMode_None)
           ? kNoOpcodeFlags
           : kIsLoadOperation | kHasSideEffect;

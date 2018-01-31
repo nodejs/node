@@ -1,0 +1,101 @@
+{
+  "_from": "is-decimal@^1.0.0",
+  "_id": "is-decimal@1.0.1",
+  "_inBundle": false,
+  "_integrity": "sha1-9ftqlJlq2ejjdh+/vQkfH8qMToI=",
+  "_location": "/is-decimal",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "range",
+    "registry": true,
+    "raw": "is-decimal@^1.0.0",
+    "name": "is-decimal",
+    "escapedName": "is-decimal",
+    "rawSpec": "^1.0.0",
+    "saveSpec": null,
+    "fetchSpec": "^1.0.0"
+  },
+  "_requiredBy": [
+    "/is-alphanumerical",
+    "/parse-entities",
+    "/remark-parse"
+  ],
+  "_resolved": "https://registry.npmjs.org/is-decimal/-/is-decimal-1.0.1.tgz",
+  "_shasum": "f5fb6a94996ad9e8e3761fbfbd091f1fca8c4e82",
+  "_spec": "is-decimal@^1.0.0",
+  "_where": "/home/mzasso/git/nodejs/node/tools/eslint-tmp/node_modules/eslint/node_modules/remark-parse",
+  "author": {
+    "name": "Titus Wormer",
+    "email": "tituswormer@gmail.com",
+    "url": "http://wooorm.com"
+  },
+  "bugs": {
+    "url": "https://github.com/wooorm/is-decimal/issues"
+  },
+  "bundleDependencies": false,
+  "contributors": [
+    {
+      "name": "Titus Wormer",
+      "email": "tituswormer@gmail.com",
+      "url": "http://wooorm.com"
+    }
+  ],
+  "dependencies": {},
+  "deprecated": false,
+  "description": "Check if a character is decimal",
+  "devDependencies": {
+    "browserify": "^14.1.0",
+    "esmangle": "^1.0.1",
+    "nyc": "^11.0.0",
+    "remark-cli": "^3.0.0",
+    "remark-preset-wooorm": "^3.0.0",
+    "tape": "^4.0.0",
+    "xo": "^0.18.0"
+  },
+  "files": [
+    "index.js"
+  ],
+  "homepage": "https://github.com/wooorm/is-decimal#readme",
+  "keywords": [
+    "string",
+    "character",
+    "char",
+    "code",
+    "decimal"
+  ],
+  "license": "MIT",
+  "name": "is-decimal",
+  "nyc": {
+    "check-coverage": true,
+    "lines": 100,
+    "functions": 100,
+    "branches": 100
+  },
+  "remarkConfig": {
+    "plugins": [
+      "preset-wooorm"
+    ]
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/wooorm/is-decimal.git"
+  },
+  "scripts": {
+    "build": "npm run build-md && npm run build-bundle && npm run build-mangle",
+    "build-bundle": "browserify index.js --bare -s isDecimal > is-decimal.js",
+    "build-mangle": "esmangle < is-decimal.js > is-decimal.min.js",
+    "build-md": "remark . -qfo",
+    "lint": "xo",
+    "test": "npm run build && npm run lint && npm run test-coverage",
+    "test-api": "node test",
+    "test-coverage": "nyc --reporter lcov tape test.js"
+  },
+  "version": "1.0.1",
+  "xo": {
+    "space": true,
+    "esnext": false,
+    "ignores": [
+      "is-decimal.js"
+    ]
+  }
+}

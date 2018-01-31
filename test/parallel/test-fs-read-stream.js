@@ -145,9 +145,9 @@ common.expectsError(
     fs.createReadStream(rangeFile, { start: 10, end: 2 });
   },
   {
-    code: 'ERR_VALUE_OUT_OF_RANGE',
-    message:
-      'The value of "start" must be <= "end". Received "{start: 10, end: 2}"',
+    code: 'ERR_OUT_OF_RANGE',
+    message: 'The value of "start" is out of range. It must be <= "end". ' +
+             'Received {start: 10, end: 2}',
     type: RangeError
   });
 
@@ -161,6 +161,20 @@ common.expectsError(
 
   stream.on('end', common.mustCall(function() {
     assert.strictEqual('x', stream.data);
+  }));
+}
+
+{
+  // Verify that end works when start is not specified.
+  const stream = new fs.createReadStream(rangeFile, { end: 1 });
+  stream.data = '';
+
+  stream.on('data', function(chunk) {
+    stream.data += chunk;
+  });
+
+  stream.on('end', common.mustCall(function() {
+    assert.strictEqual('xy', stream.data);
   }));
 }
 

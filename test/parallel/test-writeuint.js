@@ -154,10 +154,10 @@ function testUint(clazz) {
       type: RangeError,
       message: /^The value "[^"]*" is invalid for option "value"$/
     }, 2);
-    assert.throws(function() {
+    assert.throws(() => {
       data.writeUIntBE(val, 0, i);
     }, errMsg);
-    assert.throws(function() {
+    assert.throws(() => {
       data.writeUIntLE(val, 0, i);
     }, errMsg);
     val *= 0x100;

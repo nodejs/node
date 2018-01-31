@@ -37,7 +37,7 @@ switch (process.argv[2]) {
   case 'server': return server();
   case 'client': return client();
   case undefined: return parent();
-  default: throw new Error('wtf');
+  default: throw new Error('invalid');
 }
 
 function server() {

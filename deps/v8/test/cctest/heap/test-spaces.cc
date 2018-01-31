@@ -30,11 +30,8 @@
 #include "src/base/platform/platform.h"
 #include "src/factory.h"
 #include "src/heap/spaces-inl.h"
-// FIXME(mstarzinger, marja): This is weird, but required because of the missing
-// (disallowed) include: src/heap/incremental-marking.h -> src/objects-inl.h
 #include "src/objects-inl.h"
 #include "src/snapshot/snapshot.h"
-#include "src/v8.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/heap/heap-tester.h"
 #include "test/cctest/heap/heap-utils.h"
@@ -83,13 +80,11 @@ class TestCodeRangeScope {
   DISALLOW_COPY_AND_ASSIGN(TestCodeRangeScope);
 };
 
-
 static void VerifyMemoryChunk(Isolate* isolate,
                               Heap* heap,
                               CodeRange* code_range,
                               size_t reserve_area_size,
                               size_t commit_area_size,
-                              size_t second_commit_area_size,
                               Executability executable) {
   MemoryAllocator* memory_allocator = new MemoryAllocator(isolate);
   CHECK(memory_allocator->SetUp(heap->MaxReserved(), 0));
@@ -104,8 +99,8 @@ static void VerifyMemoryChunk(Isolate* isolate,
         (executable == EXECUTABLE) ? MemoryAllocator::CodePageGuardSize() : 0;
 
     MemoryChunk* memory_chunk = memory_allocator->AllocateChunk(
-        reserve_area_size, commit_area_size, executable, NULL);
-    size_t alignment = code_range != NULL && code_range->valid()
+        reserve_area_size, commit_area_size, executable, nullptr);
+    size_t alignment = code_range != nullptr && code_range->valid()
                            ? MemoryChunk::kAlignment
                            : base::OS::CommitPageSize();
     size_t reserved_size =
@@ -121,23 +116,11 @@ static void VerifyMemoryChunk(Isolate* isolate,
           memory_chunk->address() + memory_chunk->size());
     CHECK(static_cast<size_t>(memory_chunk->area_size()) == commit_area_size);
 
-    Address area_start = memory_chunk->area_start();
-
-    memory_chunk->CommitArea(second_commit_area_size);
-    CHECK(area_start == memory_chunk->area_start());
-    CHECK(memory_chunk->area_start() <
-          memory_chunk->address() + memory_chunk->size());
-    CHECK(memory_chunk->area_end() <=
-          memory_chunk->address() + memory_chunk->size());
-    CHECK(static_cast<size_t>(memory_chunk->area_size()) ==
-          second_commit_area_size);
-
     memory_allocator->Free<MemoryAllocator::kFull>(memory_chunk);
   }
   memory_allocator->TearDown();
   delete memory_allocator;
 }
-
 
 TEST(Regress3540) {
   Isolate* isolate = CcTest::i_isolate();
@@ -174,8 +157,7 @@ TEST(Regress3540) {
   delete memory_allocator;
 }
 
-
-static unsigned int Pseudorandom() {
+static unsigned int PseudorandomAreaSize() {
   static uint32_t lo = 2345;
   lo = 18273 * (lo & 0xFFFFF) + (lo >> 16);
   return lo & 0xFFFFF;
@@ -187,11 +169,10 @@ TEST(MemoryChunk) {
   Heap* heap = isolate->heap();
 
   size_t reserve_area_size = 1 * MB;
-  size_t initial_commit_area_size, second_commit_area_size;
+  size_t initial_commit_area_size;
 
   for (int i = 0; i < 100; i++) {
-    initial_commit_area_size = Pseudorandom();
-    second_commit_area_size = Pseudorandom();
+    initial_commit_area_size = PseudorandomAreaSize();
 
     // With CodeRange.
     CodeRange* code_range = new CodeRange(isolate);
@@ -203,7 +184,6 @@ TEST(MemoryChunk) {
                       code_range,
                       reserve_area_size,
                       initial_commit_area_size,
-                      second_commit_area_size,
                       EXECUTABLE);
 
     VerifyMemoryChunk(isolate,
@@ -211,7 +191,6 @@ TEST(MemoryChunk) {
                       code_range,
                       reserve_area_size,
                       initial_commit_area_size,
-                      second_commit_area_size,
                       NOT_EXECUTABLE);
     delete code_range;
 
@@ -222,7 +201,6 @@ TEST(MemoryChunk) {
                       code_range,
                       reserve_area_size,
                       initial_commit_area_size,
-                      second_commit_area_size,
                       EXECUTABLE);
 
     VerifyMemoryChunk(isolate,
@@ -230,7 +208,6 @@ TEST(MemoryChunk) {
                       code_range,
                       reserve_area_size,
                       initial_commit_area_size,
-                      second_commit_area_size,
                       NOT_EXECUTABLE);
     delete code_range;
   }
@@ -242,7 +219,7 @@ TEST(MemoryAllocator) {
   Heap* heap = isolate->heap();
 
   MemoryAllocator* memory_allocator = new MemoryAllocator(isolate);
-  CHECK(memory_allocator != nullptr);
+  CHECK_NOT_NULL(memory_allocator);
   CHECK(memory_allocator->SetUp(heap->MaxReserved(), 0));
   TestMemoryAllocatorScope test_scope(isolate, memory_allocator);
 
@@ -320,7 +297,7 @@ TEST(OldSpace) {
   TestMemoryAllocatorScope test_scope(isolate, memory_allocator);
 
   OldSpace* s = new OldSpace(heap, OLD_SPACE, NOT_EXECUTABLE);
-  CHECK(s != NULL);
+  CHECK_NOT_NULL(s);
 
   CHECK(s->SetUp());
 
@@ -340,7 +317,7 @@ TEST(LargeObjectSpace) {
   v8::V8::Initialize();
 
   LargeObjectSpace* lo = CcTest::heap()->lo_space();
-  CHECK(lo != NULL);
+  CHECK_NOT_NULL(lo);
 
   int lo_size = Page::kPageSize;
 
@@ -435,7 +412,7 @@ TEST(SizeOfInitialHeap) {
 static HeapObject* AllocateUnaligned(NewSpace* space, int size) {
   AllocationResult allocation = space->AllocateRawUnaligned(size);
   CHECK(!allocation.IsRetry());
-  HeapObject* filler = NULL;
+  HeapObject* filler = nullptr;
   CHECK(allocation.To(&filler));
   space->heap()->CreateFillerObjectAt(filler->address(), size,
                                       ClearRecordedSlots::kNo);
@@ -445,7 +422,7 @@ static HeapObject* AllocateUnaligned(NewSpace* space, int size) {
 static HeapObject* AllocateUnaligned(PagedSpace* space, int size) {
   AllocationResult allocation = space->AllocateRaw(size, kDoubleUnaligned);
   CHECK(!allocation.IsRetry());
-  HeapObject* filler = NULL;
+  HeapObject* filler = nullptr;
   CHECK(allocation.To(&filler));
   space->heap()->CreateFillerObjectAt(filler->address(), size,
                                       ClearRecordedSlots::kNo);
@@ -455,7 +432,7 @@ static HeapObject* AllocateUnaligned(PagedSpace* space, int size) {
 static HeapObject* AllocateUnaligned(LargeObjectSpace* space, int size) {
   AllocationResult allocation = space->AllocateRaw(size, EXECUTABLE);
   CHECK(!allocation.IsRetry());
-  HeapObject* filler = NULL;
+  HeapObject* filler = nullptr;
   CHECK(allocation.To(&filler));
   return filler;
 }
@@ -564,7 +541,6 @@ UNINITIALIZED_TEST(AllocationObserver) {
   isolate->Dispose();
 }
 
-
 UNINITIALIZED_TEST(InlineAllocationObserverCadence) {
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
@@ -600,6 +576,49 @@ UNINITIALIZED_TEST(InlineAllocationObserverCadence) {
     CHECK_EQ(observer2.count(), 28);
   }
   isolate->Dispose();
+}
+
+HEAP_TEST(Regress777177) {
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  Heap* heap = isolate->heap();
+  HandleScope scope(isolate);
+  PagedSpace* old_space = heap->old_space();
+  Observer observer(128);
+  old_space->AddAllocationObserver(&observer);
+
+  int area_size = old_space->AreaSize();
+  int max_object_size = kMaxRegularHeapObjectSize;
+  int filler_size = area_size - max_object_size;
+
+  {
+    // Ensure a new linear allocation area on a fresh page.
+    AlwaysAllocateScope always_allocate(isolate);
+    heap::SimulateFullSpace(old_space);
+    AllocationResult result = old_space->AllocateRaw(filler_size, kWordAligned);
+    HeapObject* obj = result.ToObjectChecked();
+    heap->CreateFillerObjectAt(obj->address(), filler_size,
+                               ClearRecordedSlots::kNo);
+  }
+
+  {
+    // Allocate all bytes of the linear allocation area. This moves top_ and
+    // top_on_previous_step_ to the next page.
+    AllocationResult result =
+        old_space->AllocateRaw(max_object_size, kWordAligned);
+    HeapObject* obj = result.ToObjectChecked();
+    // Simulate allocation folding moving the top pointer back.
+    old_space->SetTopAndLimit(obj->address(), old_space->limit());
+  }
+
+  {
+    // This triggers assert in crbug.com/777177.
+    AllocationResult result = old_space->AllocateRaw(filler_size, kWordAligned);
+    HeapObject* obj = result.ToObjectChecked();
+    heap->CreateFillerObjectAt(obj->address(), filler_size,
+                               ClearRecordedSlots::kNo);
+  }
+  old_space->RemoveAllocationObserver(&observer);
 }
 
 TEST(ShrinkPageToHighWaterMarkFreeSpaceEnd) {

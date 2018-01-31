@@ -1,4 +1,4 @@
-version: v1.15.0.build{build}
+version: v1.18.0.build{build}
 
 init:
   - git config --global core.autocrlf true
@@ -27,13 +27,6 @@ build_script:
   # vcbuild overwrites the platform variable.
   - cmd: set ARCH=%platform%
   - cmd: vcbuild.bat release %ARCH% shared
-
-after_build:
-  - '"%PROGRAMFILES(x86)%\NSIS\makensis" /DVERSION=%APPVEYOR_BUILD_VERSION% /DARCH=%ARCH% libuv.nsi'
-
-artifacts:
-  - name: Installer
-    path: 'libuv-*.exe'
 
 cache:
   - C:\projects\libuv\build\gyp

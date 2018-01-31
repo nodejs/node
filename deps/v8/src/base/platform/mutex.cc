@@ -25,7 +25,7 @@ static V8_INLINE void InitializeNativeHandle(pthread_mutex_t* mutex) {
   result = pthread_mutexattr_destroy(&attr);
 #else
   // Use a fast mutex (default attributes).
-  result = pthread_mutex_init(mutex, NULL);
+  result = pthread_mutex_init(mutex, nullptr);
 #endif  // defined(DEBUG)
   DCHECK_EQ(0, result);
   USE(result);

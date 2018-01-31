@@ -104,7 +104,7 @@ buffers/buffer-tostring.js n=10000000 len=1024 arg=false: 4103857.0726124765
 Each line represents a single benchmark with parameters specified as
 `${variable}=${value}`. Each configuration combination is executed in a separate
 process. This ensures that benchmark results aren't affected by the execution
-order due to v8 optimizations. **The last number is the rate of operations
+order due to V8 optimizations. **The last number is the rate of operations
 measured in ops/sec (higher is better).**
 
 Furthermore a subset of the configurations can be specified, by setting them in
@@ -144,6 +144,7 @@ arrays/zero-int.js n=25 type=Buffer: 90.49906662339653
 ```
 
 It is possible to execute more groups by adding extra process arguments.
+
 ```console
 $ node benchmark/run.js arrays buffers
 ```
@@ -439,6 +440,7 @@ function main(conf) {
 ```
 
 Supported options keys are:
+
 * `port` - defaults to `common.PORT`
 * `path` - defaults to `/`
 * `connections` - number of concurrent connections to use, defaults to 100

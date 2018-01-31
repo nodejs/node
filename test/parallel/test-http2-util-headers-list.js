@@ -5,6 +5,8 @@
 // to pass to the internal binding layer.
 
 const common = require('../common');
+if (!common.hasCrypto)
+  common.skip('missing crypto');
 const assert = require('assert');
 const { mapToHeaders } = require('internal/http2/util');
 

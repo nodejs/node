@@ -182,6 +182,7 @@ int uv_thread_join(uv_thread_t *tid) {
   else {
     CloseHandle(*tid);
     *tid = 0;
+    MemoryBarrier();  /* For feature parity with pthread_join(). */
     return 0;
   }
 }

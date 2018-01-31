@@ -1,90 +1,187 @@
-// Copyright 2015 the V8 project authors. All rights reserved.
+// Copyright 2017 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef V8_COMPILER_ESCAPE_ANALYSIS_H_
 #define V8_COMPILER_ESCAPE_ANALYSIS_H_
 
-#include "src/compiler/graph.h"
+#include "src/base/functional.h"
+#include "src/compiler/graph-reducer.h"
+#include "src/compiler/js-graph.h"
+#include "src/compiler/persistent-map.h"
 #include "src/globals.h"
+#include "src/objects/name.h"
 
 namespace v8 {
 namespace internal {
 namespace compiler {
 
-// Forward declarations.
 class CommonOperatorBuilder;
-class EscapeStatusAnalysis;
-namespace impl {
-class MergeCache;
-class VirtualState;
-class VirtualObject;
-};  // namespace impl
+class VariableTracker;
+class EscapeAnalysisTracker;
 
-// EscapeObjectAnalysis simulates stores to determine values of loads if
-// an object is virtual and eliminated.
-class V8_EXPORT_PRIVATE EscapeAnalysis {
+// {EffectGraphReducer} reduces up to a fixed point. It distinguishes changes to
+// the effect output of a node from changes to the value output to reduce the
+// number of revisitations.
+class EffectGraphReducer {
  public:
-  EscapeAnalysis(Graph* graph, CommonOperatorBuilder* common, Zone* zone);
-  ~EscapeAnalysis();
+  class Reduction {
+   public:
+    bool value_changed() const { return value_changed_; }
+    void set_value_changed() { value_changed_ = true; }
+    bool effect_changed() const { return effect_changed_; }
+    void set_effect_changed() { effect_changed_ = true; }
 
-  bool Run();
+   private:
+    bool value_changed_ = false;
+    bool effect_changed_ = false;
+  };
 
-  Node* GetReplacement(Node* node);
-  Node* ResolveReplacement(Node* node);
-  bool IsVirtual(Node* node);
-  bool IsEscaped(Node* node);
-  bool CompareVirtualObjects(Node* left, Node* right);
-  Node* GetOrCreateObjectState(Node* effect, Node* node);
-  bool IsCyclicObjectState(Node* effect, Node* node);
-  bool ExistsVirtualAllocate();
-  bool SetReplacement(Node* node, Node* rep);
-  bool AllObjectsComplete();
+  EffectGraphReducer(Graph* graph,
+                     std::function<void(Node*, Reduction*)> reduce, Zone* zone);
+
+  void ReduceGraph() { ReduceFrom(graph_->end()); }
+
+  // Mark node for revisitation.
+  void Revisit(Node* node);
+
+  // Add a new root node to start reduction from. This is useful if the reducer
+  // adds nodes that are not yet reachable, but should already be considered
+  // part of the graph.
+  void AddRoot(Node* node) {
+    DCHECK_EQ(State::kUnvisited, state_.Get(node));
+    state_.Set(node, State::kRevisit);
+    revisit_.push(node);
+  }
+
+  bool Complete() { return stack_.empty() && revisit_.empty(); }
 
  private:
-  void RunObjectAnalysis();
-  bool Process(Node* node);
-  void ProcessLoadField(Node* node);
-  void ProcessStoreField(Node* node);
-  void ProcessLoadElement(Node* node);
-  void ProcessStoreElement(Node* node);
-  void ProcessCheckMaps(Node* node);
-  void ProcessAllocationUsers(Node* node);
-  void ProcessAllocation(Node* node);
-  void ProcessFinishRegion(Node* node);
-  void ProcessCall(Node* node);
-  void ProcessStart(Node* node);
-  bool ProcessEffectPhi(Node* node);
+  struct NodeState {
+    Node* node;
+    int input_index;
+  };
+  void ReduceFrom(Node* node);
+  enum class State : uint8_t { kUnvisited = 0, kRevisit, kOnStack, kVisited };
+  const uint8_t kNumStates = static_cast<uint8_t>(State::kVisited) + 1;
+  Graph* graph_;
+  NodeMarker<State> state_;
+  ZoneStack<Node*> revisit_;
+  ZoneStack<NodeState> stack_;
+  std::function<void(Node*, Reduction*)> reduce_;
+};
 
-  void ForwardVirtualState(Node* node);
-  impl::VirtualState* CopyForModificationAt(impl::VirtualState* state,
-                                            Node* node);
-  impl::VirtualObject* CopyForModificationAt(impl::VirtualObject* obj,
-                                             impl::VirtualState* state,
-                                             Node* node);
+// A variable is an abstract storage location, which is lowered to SSA values
+// and phi nodes by {VariableTracker}.
+class Variable {
+ public:
+  Variable() : id_(kInvalid) {}
+  bool operator==(Variable other) const { return id_ == other.id_; }
+  bool operator!=(Variable other) const { return id_ != other.id_; }
+  bool operator<(Variable other) const { return id_ < other.id_; }
+  static Variable Invalid() { return Variable(kInvalid); }
+  friend V8_INLINE size_t hash_value(Variable v) {
+    return base::hash_value(v.id_);
+  }
+  friend std::ostream& operator<<(std::ostream& os, Variable var) {
+    return os << var.id_;
+  }
 
-  Node* replacement(Node* node);
-  bool UpdateReplacement(impl::VirtualState* state, Node* node, Node* rep);
+ private:
+  typedef int Id;
+  explicit Variable(Id id) : id_(id) {}
+  Id id_;
+  static const Id kInvalid = -1;
 
-  impl::VirtualObject* GetVirtualObject(impl::VirtualState* state, Node* node);
+  friend class VariableTracker;
+};
 
-  void DebugPrint();
-  void DebugPrintState(impl::VirtualState* state);
+// An object that can track the nodes in the graph whose current reduction
+// depends on the value of the object.
+class Dependable : public ZoneObject {
+ public:
+  explicit Dependable(Zone* zone) : dependants_(zone) {}
+  void AddDependency(Node* node) { dependants_.push_back(node); }
+  void RevisitDependants(EffectGraphReducer* reducer) {
+    for (Node* node : dependants_) {
+      reducer->Revisit(node);
+    }
+    dependants_.clear();
+  }
 
-  Graph* graph() const;
-  Zone* zone() const { return zone_; }
-  CommonOperatorBuilder* common() const { return common_; }
+ private:
+  ZoneVector<Node*> dependants_;
+};
 
-  Zone* const zone_;
-  Node* const slot_not_analyzed_;
-  CommonOperatorBuilder* const common_;
-  EscapeStatusAnalysis* status_analysis_;
-  ZoneVector<impl::VirtualState*> virtual_states_;
-  ZoneVector<Node*> replacements_;
-  ZoneSet<impl::VirtualObject*> cycle_detection_;
-  impl::MergeCache* cache_;
+// A virtual object represents an allocation site and tracks the Variables
+// associated with its fields as well as its global escape status.
+class VirtualObject : public Dependable {
+ public:
+  typedef uint32_t Id;
+  typedef ZoneVector<Variable>::const_iterator const_iterator;
+  VirtualObject(VariableTracker* var_states, Id id, int size);
+  Maybe<Variable> FieldAt(int offset) const {
+    if (offset % kPointerSize != 0) {
+      // We do not support fields that are not word-aligned. Bail out by
+      // treating the object as escaping. This can only happen for
+      // {Name::kHashFieldOffset} on 64bit big endian architectures.
+      DCHECK_EQ(Name::kHashFieldOffset, offset);
+      return Nothing<Variable>();
+    }
+    CHECK(!HasEscaped());
+    if (offset >= size()) {
+      // TODO(tebbi): Reading out-of-bounds can only happen in unreachable
+      // code. In this case, we have to mark the object as escaping to avoid
+      // dead nodes in the graph. This is a workaround that should be removed
+      // once we can handle dead nodes everywhere.
+      return Nothing<Variable>();
+    }
+    return Just(fields_.at(offset / kPointerSize));
+  }
+  Id id() const { return id_; }
+  int size() const { return static_cast<int>(kPointerSize * fields_.size()); }
+  // Escaped might mean that the object escaped to untracked memory or that it
+  // is used in an operation that requires materialization.
+  void SetEscaped() { escaped_ = true; }
+  bool HasEscaped() const { return escaped_; }
+  const_iterator begin() const { return fields_.begin(); }
+  const_iterator end() const { return fields_.end(); }
 
-  DISALLOW_COPY_AND_ASSIGN(EscapeAnalysis);
+ private:
+  bool escaped_ = false;
+  Id id_;
+  ZoneVector<Variable> fields_;
+};
+
+class EscapeAnalysisResult {
+ public:
+  explicit EscapeAnalysisResult(EscapeAnalysisTracker* tracker)
+      : tracker_(tracker) {}
+
+  const VirtualObject* GetVirtualObject(Node* node);
+  Node* GetVirtualObjectField(const VirtualObject* vobject, int field,
+                              Node* effect);
+  Node* GetReplacementOf(Node* node);
+
+ private:
+  EscapeAnalysisTracker* tracker_;
+};
+
+class V8_EXPORT_PRIVATE EscapeAnalysis final
+    : public NON_EXPORTED_BASE(EffectGraphReducer) {
+ public:
+  EscapeAnalysis(JSGraph* jsgraph, Zone* zone);
+
+  EscapeAnalysisResult analysis_result() {
+    DCHECK(Complete());
+    return EscapeAnalysisResult(tracker_);
+  }
+
+ private:
+  void Reduce(Node* node, Reduction* reduction);
+  JSGraph* jsgraph() { return jsgraph_; }
+  EscapeAnalysisTracker* tracker_;
+  JSGraph* jsgraph_;
 };
 
 }  // namespace compiler

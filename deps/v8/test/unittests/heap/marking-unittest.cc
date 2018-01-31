@@ -32,7 +32,7 @@ TEST(Marking, TransitionWhiteBlackWhite) {
   free(bitmap);
 }
 
-TEST(Marking, TransitionWhiteGreyBlackGrey) {
+TEST(Marking, TransitionWhiteGreyBlack) {
   Bitmap* bitmap = reinterpret_cast<Bitmap*>(
       calloc(Bitmap::kSize / kPointerSize, kPointerSize));
   const int kLocationsSize = 3;
@@ -49,10 +49,6 @@ TEST(Marking, TransitionWhiteGreyBlackGrey) {
     CHECK(!Marking::IsImpossible(mark_bit));
     Marking::GreyToBlack<AccessMode::NON_ATOMIC>(mark_bit);
     CHECK(Marking::IsBlack(mark_bit));
-    CHECK(Marking::IsBlackOrGrey(mark_bit));
-    CHECK(!Marking::IsImpossible(mark_bit));
-    Marking::BlackToGrey(mark_bit);
-    CHECK(Marking::IsGrey(mark_bit));
     CHECK(Marking::IsBlackOrGrey(mark_bit));
     CHECK(!Marking::IsImpossible(mark_bit));
     Marking::MarkWhite(mark_bit);

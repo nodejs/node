@@ -21,8 +21,7 @@
 
 #include "node_internals.h"
 #include "node_watchdog.h"
-#include "base-object-inl.h"
-#include "v8-debug.h"
+#include "base_object-inl.h"
 
 namespace node {
 
@@ -30,7 +29,6 @@ using v8::Array;
 using v8::ArrayBuffer;
 using v8::Boolean;
 using v8::Context;
-using v8::Debug;
 using v8::EscapableHandleScope;
 using v8::External;
 using v8::Function;
@@ -64,8 +62,29 @@ using v8::UnboundScript;
 using v8::Value;
 using v8::WeakCallbackInfo;
 
+// The vm module executes code in a sandboxed environment with a different
+// global object than the rest of the code. This is achieved by applying
+// every call that changes or queries a property on the global `this` in the
+// sandboxed code, to the sandbox object.
+//
+// The implementation uses V8's interceptors for methods like `set`, `get`,
+// `delete`, `defineProperty`, and for any query of the property attributes.
+// Property handlers with interceptors are set on the object template for
+// the sandboxed code. Handlers for both named properties and for indexed
+// properties are used. Their functionality is almost identical, the indexed
+// interceptors mostly just call the named interceptors.
+//
+// For every `get` of a global property in the sandboxed context, the
+// interceptor callback checks the sandbox object for the property.
+// If the property is defined on the sandbox, that result is returned to
+// the original call instead of finishing the query on the global object.
+//
+// For every `set` of a global property, the interceptor callback defines or
+// changes the property both on the sandbox and the global proxy.
+
 namespace {
 
+// Convert an int to a V8 Name (String or Symbol).
 Local<Name> Uint32ToName(Local<Context> context, uint32_t index) {
   return Uint32::New(context->GetIsolate(), index)->ToString(context)
       .ToLocalChecked();
@@ -81,8 +100,11 @@ class ContextifyContext {
   Persistent<Context> context_;
 
  public:
-  ContextifyContext(Environment* env, Local<Object> sandbox_obj) : env_(env) {
-    Local<Context> v8_context = CreateV8Context(env, sandbox_obj);
+  ContextifyContext(Environment* env,
+                    Local<Object> sandbox_obj,
+                    Local<Object> options_obj)
+      : env_(env) {
+    Local<Context> v8_context = CreateV8Context(env, sandbox_obj, options_obj);
     context_.Reset(env->isolate(), v8_context);
 
     // Allocation failure or maximum call stack size reached
@@ -135,7 +157,9 @@ class ContextifyContext {
   }
 
 
-  Local<Context> CreateV8Context(Environment* env, Local<Object> sandbox_obj) {
+  Local<Context> CreateV8Context(Environment* env,
+                                 Local<Object> sandbox_obj,
+                                 Local<Object> options_obj) {
     EscapableHandleScope scope(env->isolate());
     Local<FunctionTemplate> function_template =
         FunctionTemplate::New(env->isolate());
@@ -185,7 +209,25 @@ class ContextifyContext {
                             env->contextify_global_private_symbol(),
                             ctx->Global());
 
-    env->AssignToContext(ctx);
+    Local<Value> name =
+        options_obj->Get(env->context(), env->name_string())
+            .ToLocalChecked();
+    CHECK(name->IsString());
+    Utf8Value name_val(env->isolate(), name);
+
+    ContextInfo info(*name_val);
+
+    Local<Value> origin =
+        options_obj->Get(env->context(),
+                         FIXED_ONE_BYTE_STRING(env->isolate(), "origin"))
+            .ToLocalChecked();
+    if (!origin->IsUndefined()) {
+      CHECK(origin->IsString());
+      Utf8Value origin_val(env->isolate(), origin);
+      info.origin = *origin_val;
+    }
+
+    env->AssignToContext(ctx, info);
 
     return scope.Escape(ctx);
   }
@@ -197,39 +239,8 @@ class ContextifyContext {
     function_template->InstanceTemplate()->SetInternalFieldCount(1);
     env->set_script_data_constructor_function(function_template->GetFunction());
 
-    env->SetMethod(target, "runInDebugContext", RunInDebugContext);
     env->SetMethod(target, "makeContext", MakeContext);
     env->SetMethod(target, "isContext", IsContext);
-  }
-
-
-  static void RunInDebugContext(const FunctionCallbackInfo<Value>& args) {
-    Local<String> script_source(args[0]->ToString(args.GetIsolate()));
-    if (script_source.IsEmpty())
-      return;  // Exception pending.
-    Local<Context> debug_context = Debug::GetDebugContext(args.GetIsolate());
-    Environment* env = Environment::GetCurrent(args);
-    if (debug_context.IsEmpty()) {
-      // Force-load the debug context.
-      auto dummy_event_listener = [] (const Debug::EventDetails&) {};
-      Debug::SetDebugEventListener(args.GetIsolate(), dummy_event_listener);
-      debug_context = Debug::GetDebugContext(args.GetIsolate());
-      CHECK(!debug_context.IsEmpty());
-      // Ensure that the debug context has an Environment assigned in case
-      // a fatal error is raised.  The fatal exception handler in node.cc
-      // is not equipped to deal with contexts that don't have one and
-      // can't easily be taught that due to a deficiency in the V8 API:
-      // there is no way for the embedder to tell if the data index is
-      // in use.
-      const int index = Environment::kContextEmbedderDataIndex;
-      debug_context->SetAlignedPointerInEmbedderData(index, env);
-    }
-
-    Context::Scope context_scope(debug_context);
-    MaybeLocal<Script> script = Script::Compile(debug_context, script_source);
-    if (script.IsEmpty())
-      return;  // Exception pending.
-    args.GetReturnValue().Set(script.ToLocalChecked()->Run());
   }
 
 
@@ -247,8 +258,11 @@ class ContextifyContext {
             env->context(),
             env->contextify_context_private_symbol()).FromJust());
 
+    Local<Object> options = args[1].As<Object>();
+    CHECK(options->IsObject());
+
     TryCatch try_catch(env->isolate());
-    ContextifyContext* context = new ContextifyContext(env, sandbox);
+    ContextifyContext* context = new ContextifyContext(env, sandbox, options);
 
     if (try_catch.HasCaught()) {
       try_catch.ReThrow();
@@ -633,22 +647,23 @@ class ContextifyScript : public BaseObject {
         new ContextifyScript(env, args.This());
 
     TryCatch try_catch(env->isolate());
-    Local<String> code = args[0]->ToString(env->isolate());
+    Environment::ShouldNotAbortOnUncaughtScope no_abort_scope(env);
+    Local<String> code =
+        args[0]->ToString(env->context()).FromMaybe(Local<String>());
 
     Local<Value> options = args[1];
     MaybeLocal<String> filename = GetFilenameArg(env, options);
     MaybeLocal<Integer> lineOffset = GetLineOffsetArg(env, options);
     MaybeLocal<Integer> columnOffset = GetColumnOffsetArg(env, options);
-    Maybe<bool> maybe_display_errors = GetDisplayErrorsArg(env, options);
     MaybeLocal<Uint8Array> cached_data_buf = GetCachedData(env, options);
     Maybe<bool> maybe_produce_cached_data = GetProduceCachedData(env, options);
     MaybeLocal<Context> maybe_context = GetContext(env, options);
     if (try_catch.HasCaught()) {
+      no_abort_scope.Close();
       try_catch.ReThrow();
       return;
     }
 
-    bool display_errors = maybe_display_errors.ToChecked();
     bool produce_cached_data = maybe_produce_cached_data.ToChecked();
 
     ScriptCompiler::CachedData* cached_data = nullptr;
@@ -679,9 +694,8 @@ class ContextifyScript : public BaseObject {
         compile_options);
 
     if (v8_script.IsEmpty()) {
-      if (display_errors) {
-        DecorateErrorStack(env, try_catch);
-      }
+      DecorateErrorStack(env, try_catch);
+      no_abort_scope.Close();
       try_catch.ReThrow();
       return;
     }
@@ -1150,4 +1164,4 @@ void InitContextify(Local<Object> target,
 }  // anonymous namespace
 }  // namespace node
 
-NODE_MODULE_CONTEXT_AWARE_BUILTIN(contextify, node::InitContextify)
+NODE_BUILTIN_MODULE_CONTEXT_AWARE(contextify, node::InitContextify)

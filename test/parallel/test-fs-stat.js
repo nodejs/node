@@ -130,3 +130,53 @@ fs.stat(__filename, common.mustCall(function(err, s) {
     assert.strictEqual(typeof parsed[k], 'string', `${k} should be a string`);
   });
 }));
+
+['', false, null, undefined, {}, []].forEach((i) => {
+  common.expectsError(
+    () => fs.fstat(i),
+    {
+      code: 'ERR_INVALID_ARG_TYPE',
+      type: TypeError,
+      message: 'The "fd" argument must be of type integer'
+    }
+  );
+  common.expectsError(
+    () => fs.fstatSync(i),
+    {
+      code: 'ERR_INVALID_ARG_TYPE',
+      type: TypeError,
+      message: 'The "fd" argument must be of type integer'
+    }
+  );
+});
+
+[false, 1, {}, [], null, undefined].forEach((i) => {
+  common.expectsError(
+    () => fs.lstat(i, common.mustNotCall()),
+    {
+      code: 'ERR_INVALID_ARG_TYPE',
+      type: TypeError
+    }
+  );
+  common.expectsError(
+    () => fs.lstatSync(i),
+    {
+      code: 'ERR_INVALID_ARG_TYPE',
+      type: TypeError
+    }
+  );
+  common.expectsError(
+    () => fs.stat(i, common.mustNotCall()),
+    {
+      code: 'ERR_INVALID_ARG_TYPE',
+      type: TypeError
+    }
+  );
+  common.expectsError(
+    () => fs.statSync(i),
+    {
+      code: 'ERR_INVALID_ARG_TYPE',
+      type: TypeError
+    }
+  );
+});

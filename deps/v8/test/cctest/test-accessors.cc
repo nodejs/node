@@ -334,7 +334,7 @@ THREADED_TEST(DirectCall) {
   v8::Isolate* isolate = context->GetIsolate();
   v8::HandleScope scope(isolate);
   v8::Local<v8::ObjectTemplate> obj = ObjectTemplate::New(isolate);
-  obj->SetAccessor(v8_str("xxx"), CheckAccessorArgsCorrect, NULL,
+  obj->SetAccessor(v8_str("xxx"), CheckAccessorArgsCorrect, nullptr,
                    v8_str("data"));
   v8::Local<v8::Object> inst =
       obj->NewInstance(context.local()).ToLocalChecked();
@@ -363,7 +363,7 @@ THREADED_TEST(EmptyResult) {
   v8::Isolate* isolate = context->GetIsolate();
   v8::HandleScope scope(isolate);
   v8::Local<v8::ObjectTemplate> obj = ObjectTemplate::New(isolate);
-  obj->SetAccessor(v8_str("xxx"), EmptyGetter, NULL, v8_str("data"));
+  obj->SetAccessor(v8_str("xxx"), EmptyGetter, nullptr, v8_str("data"));
   v8::Local<v8::Object> inst =
       obj->NewInstance(context.local()).ToLocalChecked();
   CHECK(
@@ -384,7 +384,7 @@ THREADED_TEST(NoReuseRegress) {
   v8::HandleScope scope(isolate);
   {
     v8::Local<v8::ObjectTemplate> obj = ObjectTemplate::New(isolate);
-    obj->SetAccessor(v8_str("xxx"), EmptyGetter, NULL, v8_str("data"));
+    obj->SetAccessor(v8_str("xxx"), EmptyGetter, nullptr, v8_str("data"));
     LocalContext context;
     v8::Local<v8::Object> inst =
         obj->NewInstance(context.local()).ToLocalChecked();
@@ -400,7 +400,7 @@ THREADED_TEST(NoReuseRegress) {
   }
   {
     v8::Local<v8::ObjectTemplate> obj = ObjectTemplate::New(isolate);
-    obj->SetAccessor(v8_str("xxx"), CheckAccessorArgsCorrect, NULL,
+    obj->SetAccessor(v8_str("xxx"), CheckAccessorArgsCorrect, nullptr,
                      v8_str("data"));
     LocalContext context;
     v8::Local<v8::Object> inst =
@@ -596,7 +596,7 @@ THREADED_TEST(JSONStringifyNamedInterceptorObject) {
 
   v8::Local<v8::ObjectTemplate> obj = ObjectTemplate::New(isolate);
   obj->SetHandler(v8::NamedPropertyHandlerConfiguration(
-      JSONStringifyGetter, NULL, NULL, NULL, JSONStringifyEnumerator));
+      JSONStringifyGetter, nullptr, nullptr, nullptr, JSONStringifyEnumerator));
   CHECK(env->Global()
             ->Set(env.local(), v8_str("obj"),
                   obj->NewInstance(env.local()).ToLocalChecked())

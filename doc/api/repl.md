@@ -114,9 +114,8 @@ $ node repl_test.js
 'message'
 ```
 
-It is important to note that context properties are *not* read-only by default.
-To specify read-only globals, context properties must be defined using
-`Object.defineProperty()`:
+Context properties are not read-only by default. To specify read-only globals,
+context properties must be defined using `Object.defineProperty()`:
 
 ```js
 const repl = require('repl');
@@ -382,7 +381,7 @@ within the action function for commands registered using the
 added: v9.0.0
 -->
 
-The `replServer.clearBufferedComand()` method clears any command that has been
+The `replServer.clearBufferedCommand()` method clears any command that has been
 buffered but not yet executed. This method is primarily intended to be
 called from within the action function for commands registered using the
 `replServer.defineCommand()` method.
@@ -418,7 +417,7 @@ changes:
   * `output` {Writable} The Writable stream to which REPL output will be
     written. Defaults to `process.stdout`.
   * `terminal` {boolean} If `true`, specifies that the `output` should be
-    treated as a a TTY terminal, and have ANSI/VT100 escape codes written to it.
+    treated as a TTY terminal, and have ANSI/VT100 escape codes written to it.
     Defaults to checking the value of the `isTTY` property on the `output`
     stream upon instantiation.
   * `eval` {Function} The function to be used when evaluating each given line

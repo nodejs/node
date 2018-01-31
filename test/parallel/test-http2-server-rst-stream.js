@@ -16,39 +16,38 @@ const {
 } = http2.constants;
 
 const tests = [
-  ['rstStream', NGHTTP2_NO_ERROR, false],
-  ['rstWithNoError', NGHTTP2_NO_ERROR, false],
-  ['rstWithProtocolError', NGHTTP2_PROTOCOL_ERROR, true],
-  ['rstWithCancel', NGHTTP2_CANCEL, false],
-  ['rstWithRefuse', NGHTTP2_REFUSED_STREAM, true],
-  ['rstWithInternalError', NGHTTP2_INTERNAL_ERROR, true]
+  [NGHTTP2_NO_ERROR, false],
+  [NGHTTP2_NO_ERROR, false],
+  [NGHTTP2_PROTOCOL_ERROR, true],
+  [NGHTTP2_CANCEL, false],
+  [NGHTTP2_REFUSED_STREAM, true],
+  [NGHTTP2_INTERNAL_ERROR, true]
 ];
 
 const server = http2.createServer();
 server.on('stream', (stream, headers) => {
-  const method = headers['rstmethod'];
-  stream[method]();
+  stream.close(headers['rstcode'] | 0);
 });
 
 server.listen(0, common.mustCall(() => {
   const client = http2.connect(`http://localhost:${server.address().port}`);
 
   const countdown = new Countdown(tests.length, common.mustCall(() => {
-    client.destroy();
+    client.close();
     server.close();
   }));
 
   tests.forEach((test) => {
     const req = client.request({
       ':method': 'POST',
-      rstmethod: test[0]
+      rstcode: test[0]
     });
-    req.on('streamClosed', common.mustCall((code) => {
-      assert.strictEqual(code, test[1]);
+    req.on('close', common.mustCall((code) => {
+      assert.strictEqual(code, test[0]);
       countdown.dec();
     }));
     req.on('aborted', common.mustCall());
-    if (test[2])
+    if (test[1])
       req.on('error', common.mustCall());
     else
       req.on('error', common.mustNotCall());

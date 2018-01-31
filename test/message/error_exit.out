@@ -1,9 +1,9 @@
 Exiting with code=1
 assert.js:*
-  throw new errors.AssertionError({
+  throw new AssertionError(obj);
   ^
 
-AssertionError [ERR_ASSERTION]: 1 === 2
+AssertionError [ERR_ASSERTION]: 1 strictEqual 2
     at Object.<anonymous> (*test*message*error_exit.js:*:*)
     at Module._compile (module.js:*:*)
     at Object.Module._extensions..js (module.js:*:*)

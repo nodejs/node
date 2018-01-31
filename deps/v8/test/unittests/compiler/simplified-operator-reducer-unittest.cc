@@ -19,6 +19,7 @@ using testing::BitEq;
 namespace v8 {
 namespace internal {
 namespace compiler {
+namespace simplified_operator_reducer_unittest {
 
 class SimplifiedOperatorReducerTest : public GraphTest {
  public:
@@ -498,6 +499,7 @@ TEST_F(SimplifiedOperatorReducerTest, ObjectIsSmiWithNumberConstant) {
   }
 }
 
+}  // namespace simplified_operator_reducer_unittest
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

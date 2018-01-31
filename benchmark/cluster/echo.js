@@ -10,22 +10,19 @@ if (cluster.isMaster) {
     n: [1e5]
   });
 
-  function main(conf) {
-    const n = +conf.n;
-    const workers = +conf.workers;
-    const sends = +conf.sendsPerBroadcast;
-    const expectedPerBroadcast = sends * workers;
-    var payload;
+  function main({ n, workers, sendsPerBroadcast, payload }) {
+    const expectedPerBroadcast = sendsPerBroadcast * workers;
     var readies = 0;
     var broadcasts = 0;
     var msgCount = 0;
+    var data;
 
-    switch (conf.payload) {
+    switch (payload) {
       case 'string':
-        payload = 'hello world!';
+        data = 'hello world!';
         break;
       case 'object':
-        payload = { action: 'pewpewpew', powerLevel: 9001 };
+        data = { action: 'pewpewpew', powerLevel: 9001 };
         break;
       default:
         throw new Error('Unsupported payload type');
@@ -51,8 +48,8 @@ if (cluster.isMaster) {
       }
       for (id in cluster.workers) {
         const worker = cluster.workers[id];
-        for (var i = 0; i < sends; ++i)
-          worker.send(payload);
+        for (var i = 0; i < sendsPerBroadcast; ++i)
+          worker.send(data);
       }
     }
 

@@ -1,10 +1,12 @@
 'use strict';
 require('../common');
+
+// This test checks that the maxBuffer option for child_process.spawnSync()
+// works as expected.
+
 const assert = require('assert');
 const spawnSync = require('child_process').spawnSync;
 const msgOut = 'this is stdout';
-
-// This is actually not os.EOL?
 const msgOutBuf = Buffer.from(`${msgOut}\n`);
 
 const args = [

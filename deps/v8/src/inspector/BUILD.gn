@@ -120,7 +120,6 @@ v8_source_set("inspector") {
     "inspected-context.h",
     "remote-object-id.cc",
     "remote-object-id.h",
-    "script-breakpoint.h",
     "search-util.cc",
     "search-util.h",
     "string-16.cc",

@@ -6,8 +6,8 @@ const bench = common.createBenchmark(main, {
 
 process.maxTickDepth = Infinity;
 
-function main(conf) {
-  var n = +conf.millions * 1e6;
+function main({ millions }) {
+  var n = millions * 1e6;
 
   bench.start();
   process.nextTick(onNextTick);
@@ -15,6 +15,6 @@ function main(conf) {
     if (--n)
       process.nextTick(onNextTick);
     else
-      bench.end(+conf.millions);
+      bench.end(millions);
   }
 }

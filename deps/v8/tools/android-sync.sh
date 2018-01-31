@@ -100,6 +100,7 @@ sync_file tools/profile.js
 sync_file tools/splaytree.js
 sync_file tools/profile_view.js
 sync_file tools/logreader.js
+sync_file tools/arguments.js
 sync_file tools/tickprocessor.js
 echo ""
 sync_dir tools/profviz

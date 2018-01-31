@@ -1,0 +1,107 @@
+{
+  "_from": "state-toggle@^1.0.0",
+  "_id": "state-toggle@1.0.0",
+  "_inBundle": false,
+  "_integrity": "sha1-0g+aYWu08MO5i5GSLSW2QKorxCU=",
+  "_location": "/state-toggle",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "range",
+    "registry": true,
+    "raw": "state-toggle@^1.0.0",
+    "name": "state-toggle",
+    "escapedName": "state-toggle",
+    "rawSpec": "^1.0.0",
+    "saveSpec": null,
+    "fetchSpec": "^1.0.0"
+  },
+  "_requiredBy": [
+    "/remark-parse"
+  ],
+  "_resolved": "https://registry.npmjs.org/state-toggle/-/state-toggle-1.0.0.tgz",
+  "_shasum": "d20f9a616bb4f0c3b98b91922d25b640aa2bc425",
+  "_spec": "state-toggle@^1.0.0",
+  "_where": "/home/mzasso/git/nodejs/node/tools/eslint-tmp/node_modules/eslint/node_modules/remark-parse",
+  "author": {
+    "name": "Titus Wormer",
+    "email": "tituswormer@gmail.com",
+    "url": "http://wooorm.com"
+  },
+  "bugs": {
+    "url": "https://github.com/wooorm/state-toggle/issues"
+  },
+  "bundleDependencies": false,
+  "contributors": [
+    {
+      "name": "Titus Wormer",
+      "email": "tituswormer@gmail.com",
+      "url": "http://wooorm.com"
+    }
+  ],
+  "dependencies": {},
+  "deprecated": false,
+  "description": "Enter/exit a state",
+  "devDependencies": {
+    "browserify": "^13.0.1",
+    "esmangle": "^1.0.1",
+    "nyc": "^7.0.0",
+    "remark-cli": "^1.0.0",
+    "remark-comment-config": "^4.0.0",
+    "remark-github": "^5.0.0",
+    "remark-lint": "^4.0.0",
+    "remark-validate-links": "^4.0.0",
+    "tape": "^4.0.0",
+    "xo": "^0.16.0"
+  },
+  "files": [
+    "index.js"
+  ],
+  "homepage": "https://github.com/wooorm/state-toggle#readme",
+  "keywords": [
+    "enter",
+    "exit",
+    "state"
+  ],
+  "license": "MIT",
+  "name": "state-toggle",
+  "nyc": {
+    "check-coverage": true,
+    "lines": 100,
+    "functions": 100,
+    "branches": 100
+  },
+  "remarkConfig": {
+    "output": true,
+    "plugins": [
+      "comment-config",
+      "github",
+      "lint",
+      "validate-links"
+    ],
+    "settings": {
+      "bullet": "*"
+    }
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/wooorm/state-toggle.git"
+  },
+  "scripts": {
+    "build": "npm run build-md && npm run build-bundle && npm run build-mangle",
+    "build-bundle": "browserify index.js --bare -s stateToggle > state-toggle.js",
+    "build-mangle": "esmangle < state-toggle.js > state-toggle.min.js",
+    "build-md": "remark . --quiet --frail",
+    "lint": "xo",
+    "test": "npm run build && npm run lint && npm run test-coverage",
+    "test-api": "node test",
+    "test-coverage": "nyc --reporter lcov tape test.js"
+  },
+  "version": "1.0.0",
+  "xo": {
+    "space": true,
+    "ignores": [
+      "state-toggle.js",
+      "state-toggle.min.js"
+    ]
+  }
+}

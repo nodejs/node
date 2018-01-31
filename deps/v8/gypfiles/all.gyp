@@ -46,7 +46,7 @@
             '../tools/gcmole/run_gcmole.gyp:*',
             '../tools/jsfunfuzz/jsfunfuzz.gyp:*',
             '../tools/run-deopt-fuzzer.gyp:*',
-            '../tools/run-valgrind.gyp:*',
+            '../tools/run-num-fuzzer.gyp:*',
           ],
         }],
       ]

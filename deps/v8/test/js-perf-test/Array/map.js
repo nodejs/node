@@ -15,7 +15,7 @@ benchy('SmallSmiToDoubleMap', SmiMap, SmiToDoubleMapSetup);
 benchy('SmallSmiToFastMap', SmiMap, SmiToFastMapSetup);
 benchy('SmiMap', SmiMap, SmiMapSetup);
 benchy('FastMap', FastMap, FastMapSetup);
-benchy('ObjectMap', GenericMap, ObjectMapSetup);
+benchy('GenericMap', GenericMap, ObjectMapSetup);
 benchy('OptFastMap', OptFastMap, FastMapSetup);
 
 var array;

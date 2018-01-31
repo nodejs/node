@@ -388,6 +388,11 @@ typedef enum {
    */
   NGHTTP2_ERR_CANCEL = -535,
   /**
+   * When a local endpoint expects to receive SETTINGS frame, it
+   * receives an other type of frame.
+   */
+  NGHTTP2_ERR_SETTINGS_EXPECTED = -536,
+  /**
    * The errors < :enum:`NGHTTP2_ERR_FATAL` mean that the library is
    * under unexpected condition and processing was terminated (e.g.,
    * out of memory).  If application receives this error code, it must
@@ -1987,6 +1992,9 @@ typedef ssize_t (*nghttp2_pack_extension_callback)(nghttp2_session *session,
  * of length |len|.  |len| does not include the sentinel NULL
  * character.
  *
+ * This function is deprecated.  The new application should use
+ * :type:`nghttp2_error_callback2`.
+ *
  * The format of error message may change between nghttp2 library
  * versions.  The application should not depend on the particular
  * format.
@@ -2002,6 +2010,33 @@ typedef ssize_t (*nghttp2_pack_extension_callback)(nghttp2_session *session,
  */
 typedef int (*nghttp2_error_callback)(nghttp2_session *session, const char *msg,
                                       size_t len, void *user_data);
+
+/**
+ * @functypedef
+ *
+ * Callback function invoked when library provides the error code, and
+ * message.  This callback is solely for debugging purpose.
+ * |lib_error_code| is one of error code defined in
+ * :enum:`nghttp2_error`.  The |msg| is typically NULL-terminated
+ * string of length |len|, and intended for human consumption.  |len|
+ * does not include the sentinel NULL character.
+ *
+ * The format of error message may change between nghttp2 library
+ * versions.  The application should not depend on the particular
+ * format.
+ *
+ * Normally, application should return 0 from this callback.  If fatal
+ * error occurred while doing something in this callback, application
+ * should return :enum:`NGHTTP2_ERR_CALLBACK_FAILURE`.  In this case,
+ * library will return immediately with return value
+ * :enum:`NGHTTP2_ERR_CALLBACK_FAILURE`.  Currently, if nonzero value
+ * is returned from this callback, they are treated as
+ * :enum:`NGHTTP2_ERR_CALLBACK_FAILURE`, but application should not
+ * rely on this details.
+ */
+typedef int (*nghttp2_error_callback2)(nghttp2_session *session,
+                                       int lib_error_code, const char *msg,
+                                       size_t len, void *user_data);
 
 struct nghttp2_session_callbacks;
 
@@ -2267,9 +2302,29 @@ nghttp2_session_callbacks_set_on_extension_chunk_recv_callback(
  *
  * Sets callback function invoked when library tells error message to
  * the application.
+ *
+ * This function is deprecated.  The new application should use
+ * `nghttp2_session_callbacks_set_error_callback2()`.
+ *
+ * If both :type:`nghttp2_error_callback` and
+ * :type:`nghttp2_error_callback2` are set, the latter takes
+ * precedence.
  */
 NGHTTP2_EXTERN void nghttp2_session_callbacks_set_error_callback(
     nghttp2_session_callbacks *cbs, nghttp2_error_callback error_callback);
+
+/**
+ * @function
+ *
+ * Sets callback function invoked when library tells error code, and
+ * message to the application.
+ *
+ * If both :type:`nghttp2_error_callback` and
+ * :type:`nghttp2_error_callback2` are set, the latter takes
+ * precedence.
+ */
+NGHTTP2_EXTERN void nghttp2_session_callbacks_set_error_callback2(
+    nghttp2_session_callbacks *cbs, nghttp2_error_callback2 error_callback2);
 
 /**
  * @functypedef
@@ -4702,8 +4757,8 @@ nghttp2_hd_deflate_change_table_size(nghttp2_hd_deflater *deflater,
  *
  * After this function returns, it is safe to delete the |nva|.
  *
- * This function returns 0 if it succeeds, or one of the following
- * negative error codes:
+ * This function returns the number of bytes written to |buf| if it
+ * succeeds, or one of the following negative error codes:
  *
  * :enum:`NGHTTP2_ERR_NOMEM`
  *     Out of memory.
@@ -4734,8 +4789,8 @@ NGHTTP2_EXTERN ssize_t nghttp2_hd_deflate_hd(nghttp2_hd_deflater *deflater,
  *
  * After this function returns, it is safe to delete the |nva|.
  *
- * This function returns 0 if it succeeds, or one of the following
- * negative error codes:
+ * This function returns the number of bytes written to |vec| if it
+ * succeeds, or one of the following negative error codes:
  *
  * :enum:`NGHTTP2_ERR_NOMEM`
  *     Out of memory.

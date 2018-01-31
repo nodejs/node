@@ -51,6 +51,29 @@ maintained libraries.
 
 The externally maintained libraries used by Node.js are:
 
+- Acorn, located at deps/acorn, is licensed as follows:
+  """
+    Copyright (C) 2012-2017 by various contributors (see AUTHORS)
+
+    Permission is hereby granted, free of charge, to any person obtaining a copy
+    of this software and associated documentation files (the "Software"), to deal
+    in the Software without restriction, including without limitation the rights
+    to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+    copies of the Software, and to permit persons to whom the Software is
+    furnished to do so, subject to the following conditions:
+
+    The above copyright notice and this permission notice shall be included in
+    all copies or substantial portions of the Software.
+
+    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+    THE SOFTWARE.
+  """
+
 - c-ares, located at deps/cares, is licensed as follows:
   """
     Copyright (c) 2007 - 2016, Daniel Stenberg with many contributors, see AUTHORS
@@ -230,7 +253,7 @@ The externally maintained libraries used by Node.js are:
      #  ---------COPYING.libtabe ---- BEGIN--------------------
      #
      #  /*
-     #   * Copyrighy (c) 1999 TaBE Project.
+     #   * Copyright (c) 1999 TaBE Project.
      #   * Copyright (c) 1999 Pai-Hsiang Hsiao.
      #   * All rights reserved.
      #   *
@@ -1038,7 +1061,7 @@ The externally maintained libraries used by Node.js are:
     OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
   """
 
-- ESLint, located at tools/eslint, is licensed as follows:
+- ESLint, located at tools/node_modules/eslint, is licensed as follows:
   """
     Copyright JS Foundation and other contributors, https://js.foundation
 
@@ -1059,6 +1082,32 @@ The externally maintained libraries used by Node.js are:
     LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
     OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
     THE SOFTWARE.
+  """
+
+- babel-eslint, located at tools/node_modules/babel-eslint, is licensed as follows:
+  """
+    Copyright (c) 2014-2016 Sebastian McKenzie <sebmck@gmail.com>
+
+    MIT License
+
+    Permission is hereby granted, free of charge, to any person obtaining
+    a copy of this software and associated documentation files (the
+    "Software"), to deal in the Software without restriction, including
+    without limitation the rights to use, copy, modify, merge, publish,
+    distribute, sublicense, and/or sell copies of the Software, and to
+    permit persons to whom the Software is furnished to do so, subject to
+    the following conditions:
+
+    The above copyright notice and this permission notice shall be
+    included in all copies or substantial portions of the Software.
+
+    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+    EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+    MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+    NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
+    LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+    OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
+    WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
   """
 
 - gtest, located at deps/gtest, is licensed as follows:

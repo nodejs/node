@@ -17,7 +17,7 @@
 #include "src/messages.h"
 #include "src/parsing/parse-info.h"
 #include "src/parsing/parsing.h"
-#include "src/wasm/wasm-module.h"
+#include "src/snapshot/snapshot.h"
 
 namespace v8 {
 namespace internal {
@@ -59,7 +59,7 @@ RUNTIME_FUNCTION(Runtime_InstallToContext) {
     if (index == Context::kNotFound) {
       index = Context::IntrinsicIndexForName(name);
     }
-    CHECK(index != Context::kNotFound);
+    CHECK_NE(index, Context::kNotFound);
     native_context->set(index, *object);
   }
   return isolate->heap()->undefined_value();
@@ -317,8 +317,8 @@ RUNTIME_FUNCTION(Runtime_AllocateInNewSpace) {
   DCHECK_EQ(1, args.length());
   CONVERT_SMI_ARG_CHECKED(size, 0);
   CHECK(IsAligned(size, kPointerSize));
-  CHECK(size > 0);
-  CHECK(size <= kMaxRegularHeapObjectSize);
+  CHECK_GT(size, 0);
+  CHECK_LE(size, kMaxRegularHeapObjectSize);
   return *isolate->factory()->NewFillerObject(size, false, NEW_SPACE);
 }
 
@@ -328,7 +328,7 @@ RUNTIME_FUNCTION(Runtime_AllocateInTargetSpace) {
   CONVERT_SMI_ARG_CHECKED(size, 0);
   CONVERT_SMI_ARG_CHECKED(flags, 1);
   CHECK(IsAligned(size, kPointerSize));
-  CHECK(size > 0);
+  CHECK_GT(size, 0);
   bool double_align = AllocateDoubleAlignFlag::decode(flags);
   AllocationSpace space = AllocateTargetSpace::decode(flags);
   CHECK(size <= kMaxRegularHeapObjectSize || space == LO_SPACE);
@@ -370,7 +370,6 @@ bool ComputeLocation(Isolate* isolate, MessageLocation* target) {
     // baseline code. For optimized code this will use the deoptimization
     // information to get canonical location information.
     std::vector<FrameSummary> frames;
-    frames.reserve(FLAG_max_inlining_levels + 1);
     it.frame()->Summarize(&frames);
     auto& summary = frames.back().AsJavaScript();
     Handle<SharedFunctionInfo> shared(summary.function()->shared());
@@ -503,6 +502,42 @@ RUNTIME_FUNCTION(Runtime_CreateListFromArrayLike) {
                                         isolate, object, ElementTypes::kAll));
 }
 
+RUNTIME_FUNCTION(Runtime_DeserializeLazy) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(1, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
+
+  DCHECK(FLAG_lazy_deserialization);
+
+  Handle<SharedFunctionInfo> shared(function->shared(), isolate);
+  int builtin_id = shared->lazy_deserialization_builtin_id();
+
+  // At this point, the builtins table should definitely have DeserializeLazy
+  // set at the position of the target builtin. Also, we should never lazily
+  // deserialize DeserializeLazy.
+
+  DCHECK_NE(Builtins::kDeserializeLazy, builtin_id);
+  DCHECK_EQ(Builtins::kDeserializeLazy,
+            isolate->builtins()->builtin(builtin_id)->builtin_index());
+
+  // The DeserializeLazy builtin tail-calls the deserialized builtin. This only
+  // works with JS-linkage.
+  DCHECK(Builtins::IsLazy(builtin_id));
+  DCHECK_EQ(Builtins::TFJ, Builtins::KindOf(builtin_id));
+
+  if (FLAG_trace_lazy_deserialization) {
+    PrintF("Lazy-deserializing builtin %s\n", Builtins::name(builtin_id));
+  }
+
+  Code* code = Snapshot::DeserializeBuiltin(isolate, builtin_id);
+  DCHECK_EQ(builtin_id, code->builtin_index());
+  DCHECK_EQ(code, isolate->builtins()->builtin(builtin_id));
+  shared->set_code(code);
+  function->set_code(code);
+
+  return code;
+}
+
 RUNTIME_FUNCTION(Runtime_IncrementUseCounter) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
@@ -604,6 +639,15 @@ RUNTIME_FUNCTION(Runtime_CreateAsyncFromSyncIterator) {
 
   return *isolate->factory()->NewJSAsyncFromSyncIterator(
       Handle<JSReceiver>::cast(sync_iterator));
+}
+
+RUNTIME_FUNCTION(Runtime_GetTemplateObject) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(1, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(TemplateObjectDescription, description, 0);
+
+  return *TemplateObjectDescription::GetTemplateObject(
+      description, isolate->native_context());
 }
 
 }  // namespace internal

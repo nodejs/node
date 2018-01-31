@@ -636,7 +636,8 @@ assert.strictEqual('<Buffer 81 a3 66 6f 6f a3 62 61 72>', x.inspect());
 }
 
 {
-  // #1210 Test UTF-8 string includes null character
+  // https://github.com/nodejs/node-v0.x-archive/pull/1210
+  // Test UTF-8 string includes null character
   let buf = Buffer.from('\0');
   assert.strictEqual(buf.length, 1);
   buf = Buffer.from('\0\0');
@@ -660,7 +661,8 @@ assert.strictEqual('<Buffer 81 a3 66 6f 6f a3 62 61 72>', x.inspect());
 }
 
 {
-  // #243 Test write() with maxLength
+  // https://github.com/nodejs/node-v0.x-archive/issues/243
+  // Test write() with maxLength
   const buf = Buffer.allocUnsafe(4);
   buf.fill(0xFF);
   assert.strictEqual(buf.write('abcd', 1, 2, 'utf8'), 2);
@@ -886,16 +888,20 @@ assert.throws(() => Buffer.allocUnsafe(8).writeFloatLE(0.0, -1), RangeError);
   assert.strictEqual(buf.readIntBE(0, 5), -0x0012000000);
 }
 
-// Regression test for #5482: should throw but not assert in C++ land.
-assert.throws(() => Buffer.from('', 'buffer'),
-              common.expectsError({
-                code: 'ERR_UNKNOWN_ENCODING',
-                type: TypeError,
-                message: 'Unknown encoding: buffer'
-              }));
+// Regression test for https://github.com/nodejs/node-v0.x-archive/issues/5482:
+// should throw but not assert in C++ land.
+common.expectsError(
+  () => Buffer.from('', 'buffer'),
+  {
+    code: 'ERR_UNKNOWN_ENCODING',
+    type: TypeError,
+    message: 'Unknown encoding: buffer'
+  }
+);
 
-// Regression test for #6111. Constructing a buffer from another buffer
-// should a) work, and b) not corrupt the source buffer.
+// Regression test for https://github.com/nodejs/node-v0.x-archive/issues/6111.
+// Constructing a buffer from another buffer should a) work, and b) not corrupt
+// the source buffer.
 {
   const a = [...Array(128).keys()]; // [0, 1, 2, 3, ... 126, 127]
   const b = Buffer.from(a);
@@ -934,8 +940,8 @@ assert.throws(() => Buffer.allocUnsafe(10).copy(),
               /TypeError: argument should be a Buffer/);
 
 const regErrorMsg =
-  new RegExp('The first argument must be one of type string, buffer, ' +
-             'arrayBuffer, array, or array-like object\\.');
+  new RegExp('The first argument must be one of type string, Buffer, ' +
+             'ArrayBuffer, Array, or Array-like Object\\.');
 
 assert.throws(() => Buffer.from(), regErrorMsg);
 assert.throws(() => Buffer.from(null), regErrorMsg);
@@ -972,12 +978,11 @@ assert.strictEqual(SlowBuffer.prototype.offset, undefined);
 }
 
 // ParseArrayIndex() should reject values that don't fit in a 32 bits size_t.
-assert.throws(() => {
+common.expectsError(() => {
   const a = Buffer.alloc(1);
   const b = Buffer.alloc(1);
   a.copy(b, 0, 0x100000000, 0x100000001);
-}, common.expectsError(
-  { code: undefined, type: RangeError, message: 'Index out of range' }));
+}, { code: undefined, type: RangeError, message: 'Index out of range' });
 
 // Unpooled buffer (replaces SlowBuffer)
 {
@@ -1005,3 +1010,24 @@ assert.strictEqual(Buffer.prototype.toLocaleString, Buffer.prototype.toString);
   const buf = Buffer.from('test');
   assert.strictEqual(buf.toLocaleString(), buf.toString());
 }
+
+common.expectsError(() => {
+  Buffer.alloc(0x1000, 'This is not correctly encoded', 'hex');
+}, {
+  code: 'ERR_INVALID_ARG_VALUE',
+  type: TypeError
+});
+
+common.expectsError(() => {
+  Buffer.alloc(0x1000, 'c', 'hex');
+}, {
+  code: 'ERR_INVALID_ARG_VALUE',
+  type: TypeError
+});
+
+common.expectsError(() => {
+  Buffer.alloc(1, Buffer.alloc(0));
+}, {
+  code: 'ERR_INVALID_ARG_VALUE',
+  type: TypeError
+});

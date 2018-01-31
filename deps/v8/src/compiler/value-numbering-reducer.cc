@@ -29,8 +29,8 @@ Reduction ValueNumberingReducer::Reduce(Node* node) {
 
   const size_t hash = NodeProperties::HashCode(node);
   if (!entries_) {
-    DCHECK(size_ == 0);
-    DCHECK(capacity_ == 0);
+    DCHECK_EQ(0, size_);
+    DCHECK_EQ(0, capacity_);
     // Allocate the initial entries and insert the first entry.
     capacity_ = kInitialCapacity;
     entries_ = temp_zone()->NewArray<Node*>(kInitialCapacity);

@@ -20,6 +20,7 @@ namespace heap {
 
 Page* HeapTester::AllocateByteArraysOnPage(
     Heap* heap, std::vector<ByteArray*>* byte_arrays) {
+  PauseAllocationObserversScope pause_observers(heap);
   const int kLength = 256 - ByteArray::kHeaderSize;
   const int kSize = ByteArray::SizeFor(kLength);
   CHECK_EQ(kSize, 256);
@@ -134,6 +135,7 @@ HEAP_TEST(InvalidatedSlotsAfterTrimming) {
 }
 
 HEAP_TEST(InvalidatedSlotsEvacuationCandidate) {
+  ManualGCScope manual_gc_scope;
   CcTest::InitializeVM();
   Heap* heap = CcTest::heap();
   std::vector<ByteArray*> byte_arrays;

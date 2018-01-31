@@ -1,0 +1,92 @@
+{
+  "_from": "js-yaml@^3.9.1",
+  "_id": "js-yaml@3.10.0",
+  "_inBundle": false,
+  "_integrity": "sha512-O2v52ffjLa9VeM43J4XocZE//WT9N0IiwDa3KSHH7Tu8CtH+1qM8SIZvnsTh6v+4yFy5KUY3BHUVwjpfAWsjIA==",
+  "_location": "/eslint/js-yaml",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "range",
+    "registry": true,
+    "raw": "js-yaml@^3.9.1",
+    "name": "js-yaml",
+    "escapedName": "js-yaml",
+    "rawSpec": "^3.9.1",
+    "saveSpec": null,
+    "fetchSpec": "^3.9.1"
+  },
+  "_requiredBy": [
+    "/eslint"
+  ],
+  "_resolved": "https://registry.npmjs.org/js-yaml/-/js-yaml-3.10.0.tgz",
+  "_shasum": "2e78441646bd4682e963f22b6e92823c309c62dc",
+  "_spec": "js-yaml@^3.9.1",
+  "_where": "/home/mzasso/git/nodejs/node/tools/eslint-tmp/node_modules/eslint",
+  "author": {
+    "name": "Vladimir Zapparov",
+    "email": "dervus.grim@gmail.com"
+  },
+  "bin": {
+    "js-yaml": "bin/js-yaml.js"
+  },
+  "bugs": {
+    "url": "https://github.com/nodeca/js-yaml/issues"
+  },
+  "bundleDependencies": false,
+  "contributors": [
+    {
+      "name": "Aleksey V Zapparov",
+      "email": "ixti@member.fsf.org",
+      "url": "http://www.ixti.net/"
+    },
+    {
+      "name": "Vitaly Puzrin",
+      "email": "vitaly@rcdesign.ru",
+      "url": "https://github.com/puzrin"
+    },
+    {
+      "name": "Martin Grenfell",
+      "email": "martin.grenfell@gmail.com",
+      "url": "http://got-ravings.blogspot.com"
+    }
+  ],
+  "dependencies": {
+    "argparse": "^1.0.7",
+    "esprima": "^4.0.0"
+  },
+  "deprecated": false,
+  "description": "YAML 1.2 parser and serializer",
+  "devDependencies": {
+    "ansi": "^0.3.1",
+    "benchmark": "^2.1.4",
+    "browserify": "^14.3.0",
+    "codemirror": "^5.13.4",
+    "eslint": "^4.1.1",
+    "istanbul": "^0.4.5",
+    "mocha": "^3.3.0",
+    "uglify-js": "^3.0.1"
+  },
+  "files": [
+    "index.js",
+    "lib/",
+    "bin/",
+    "dist/"
+  ],
+  "homepage": "https://github.com/nodeca/js-yaml",
+  "keywords": [
+    "yaml",
+    "parser",
+    "serializer",
+    "pyyaml"
+  ],
+  "license": "MIT",
+  "name": "js-yaml",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/nodeca/js-yaml.git"
+  },
+  "scripts": {
+    "test": "make test"
+  },
+  "version": "3.10.0"
+}

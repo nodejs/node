@@ -14,11 +14,11 @@
 #include "test/common/wasm/test-signatures.h"
 #include "test/common/wasm/wasm-macro-gen.h"
 
-#define WASM_SET_ZERO(i) WASM_SET_LOCAL(i, WASM_ZERO)
-
 namespace v8 {
 namespace internal {
 namespace wasm {
+
+#define WASM_SET_ZERO(i) WASM_SET_LOCAL(i, WASM_ZERO)
 
 class WasmLoopAssignmentAnalyzerTest : public TestWithZone {
  public:
@@ -190,6 +190,8 @@ TEST_F(WasmLoopAssignmentAnalyzerTest, regress_642867) {
   // Just make sure that the analysis does not crash.
   Analyze(code, code + arraysize(code));
 }
+
+#undef WASM_SET_ZERO
 
 }  // namespace wasm
 }  // namespace internal

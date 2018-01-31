@@ -58,7 +58,7 @@ class InstructionScheduler final : public ZoneObject {
 
     // Record that we have scheduled one of the predecessors of this node.
     void DropUnscheduledPredecessor() {
-      DCHECK(unscheduled_predecessors_count_ > 0);
+      DCHECK_LT(0, unscheduled_predecessors_count_);
       unscheduled_predecessors_count_--;
     }
 

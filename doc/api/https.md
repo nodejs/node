@@ -150,6 +150,9 @@ Global instance of [`https.Agent`][] for all HTTPS client requests.
 <!-- YAML
 added: v0.3.6
 changes:
+  - version: v9.3.0
+    pr-url: https://github.com/nodejs/node/pull/14903
+    description: The `options` parameter can now include `clientCertEngine`.
   - version: v7.5.0
     pr-url: https://github.com/nodejs/node/pull/10638
     description: The `options` parameter can be a WHATWG `URL` object.
@@ -164,9 +167,9 @@ changes:
 
 Makes a request to a secure web server.
 
-The following additional `options` from [`tls.connect()`][] are also accepted when using a
-  custom [`Agent`][]:
-  `pfx`, `key`, `passphrase`, `cert`, `ca`, `ciphers`, `rejectUnauthorized`, `secureProtocol`, `servername`
+The following additional `options` from [`tls.connect()`][] are also accepted
+when using a custom [`Agent`][]: `ca`, `cert`, `ciphers`, `clientCertEngine`,
+`key`, `passphrase`, `pfx`, `rejectUnauthorized`, `secureProtocol`, `servername`
 
 `options` can be an object, a string, or a [`URL`][] object. If `options` is a
 string, it is automatically parsed with [`url.parse()`][]. If it is a [`URL`][]

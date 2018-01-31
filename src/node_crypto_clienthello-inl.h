@@ -30,6 +30,21 @@
 namespace node {
 namespace crypto {
 
+inline ClientHelloParser::ClientHelloParser()
+    : state_(kEnded),
+      onhello_cb_(nullptr),
+      onend_cb_(nullptr),
+      cb_arg_(nullptr),
+      session_size_(0),
+      session_id_(nullptr),
+      servername_size_(0),
+      servername_(nullptr),
+      ocsp_request_(0),
+      tls_ticket_size_(0),
+      tls_ticket_(nullptr) {
+  Reset();
+}
+
 inline void ClientHelloParser::Reset() {
   frame_len_ = 0;
   body_offset_ = 0;
@@ -40,6 +55,7 @@ inline void ClientHelloParser::Reset() {
   tls_ticket_ = nullptr;
   servername_size_ = 0;
   servername_ = nullptr;
+  ocsp_request_ = 0;
 }
 
 inline void ClientHelloParser::Start(ClientHelloParser::OnHelloCb onhello_cb,

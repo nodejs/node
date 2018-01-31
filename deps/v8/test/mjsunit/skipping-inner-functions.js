@@ -295,3 +295,73 @@ function TestSkippableFunctionInForOfHeaderAndBody() {
 }
 
 TestSkippableFunctionInForOfHeaderAndBody();
+
+(function TestSkippableGeneratorInSloppyBlock() {
+  var result = 0;
+
+  function lazy(ctxt_alloc_param) {
+    var ctxt_alloc_var = 10;
+    {
+      function *skip_me() {
+        result = ctxt_alloc_param + ctxt_alloc_var;
+        yield 3;
+      }
+      return skip_me;
+    }
+  }
+  // Test that parameters and variables of the outer function get context
+  // allocated even if we skip the inner function.
+  assertEquals(3, lazy(9)().next().value);
+  assertEquals(19, result);
+})();
+
+(function TestRestoringDataToAsyncArrowFunctionWithNonSimpleParams_1() {
+  // Regression test for
+  // https://bugs.chromium.org/p/chromium/issues/detail?id=765532
+  function lazy() {
+    // The arrow function is not skippable, but we need to traverse its scopes
+    // and restore data to them.
+    async(a=0) => { const d = 0; }
+    function skippable() {}
+  }
+  lazy();
+})();
+
+(function TestRestoringDataToAsyncArrowFunctionWithNonSimpleParams_2() {
+  // Regression test for
+  // https://bugs.chromium.org/p/chromium/issues/detail?id=765532
+  function lazy() {
+    // The arrow function is not skippable, but we need to traverse its scopes
+    // and restore data to them.
+    async(...a) => { const d = 0; }
+    function skippable() {}
+  }
+  lazy();
+})();
+
+(function TestSloppyBlockFunctionShadowingCatchVariable() {
+  // Regression test for
+  // https://bugs.chromium.org/p/chromium/issues/detail?id=771474
+  function lazy() {
+    try {
+    } catch (my_var) {
+      if (false) {
+        function my_var() { }
+      }
+    }
+  }
+  lazy();
+})();
+
+
+(function TestLazinessDecisionWithDefaultConstructors() {
+  // Regression test for
+  // https://bugs.chromium.org/p/chromium/issues/detail?id=773576
+
+  // The problem was that Parser and PreParser treated default constructors
+  // differently, and that threw off the "next / previous function is likely
+  // called" logic.
+
+  function lazy(p = (function() {}, class {}, function() {}, class { method1() { } })) { }
+  lazy();
+})();

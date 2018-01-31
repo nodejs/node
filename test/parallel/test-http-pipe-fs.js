@@ -24,6 +24,10 @@ const common = require('../common');
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
+const Countdown = require('../common/countdown');
+const NUMBER_OF_STREAMS = 2;
+
+const countdown = new Countdown(NUMBER_OF_STREAMS, () => server.close());
 
 common.refreshTmpDir();
 
@@ -39,27 +43,23 @@ const server = http.createServer(common.mustCall(function(req, res) {
 }, 2)).listen(0, function() {
   http.globalAgent.maxSockets = 1;
 
-  for (let i = 0; i < 2; ++i) {
-    (function(i) {
-      const req = http.request({
-        port: server.address().port,
-        method: 'POST',
-        headers: {
-          'Content-Length': 5
-        }
-      }, function(res) {
-        res.on('end', function() {
-          console.error(`res${i} end`);
-          if (i === 2) {
-            server.close();
-          }
-        });
-        res.resume();
+  for (let i = 0; i < NUMBER_OF_STREAMS; ++i) {
+    const req = http.request({
+      port: server.address().port,
+      method: 'POST',
+      headers: {
+        'Content-Length': 5
+      }
+    }, function(res) {
+      res.on('end', function() {
+        console.error(`res${i + 1} end`);
+        countdown.dec();
       });
-      req.on('socket', function(s) {
-        console.error(`req${i} start`);
-      });
-      req.end('12345');
-    }(i + 1));
+      res.resume();
+    });
+    req.on('socket', function(s) {
+      console.error(`req${i + 1} start`);
+    });
+    req.end('12345');
   }
 });

@@ -42,6 +42,8 @@ class StringTableShape : public BaseShape<StringTableKey*> {
 
   static inline Handle<Object> AsHandle(Isolate* isolate, Key key);
 
+  static inline int GetMapRootIndex();
+
   static const int kPrefixSize = 0;
   static const int kEntrySize = 1;
 };
@@ -59,7 +61,8 @@ class StringTable : public HashTable<StringTable, StringTableShape> {
   V8_EXPORT_PRIVATE static Handle<String> LookupString(Isolate* isolate,
                                                        Handle<String> key);
   static Handle<String> LookupKey(Isolate* isolate, StringTableKey* key);
-  static String* LookupKeyIfExists(Isolate* isolate, StringTableKey* key);
+  static String* ForwardStringIfExists(Isolate* isolate, StringTableKey* key,
+                                       String* string);
 
   // Looks up a string that is equal to the given string and returns
   // string handle if it is found, or an empty handle otherwise.

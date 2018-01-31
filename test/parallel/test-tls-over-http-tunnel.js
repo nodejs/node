@@ -35,10 +35,7 @@ let gotRequest = false;
 const key = fixtures.readKey('agent1-key.pem');
 const cert = fixtures.readKey('agent1-cert.pem');
 
-const options = {
-  key: key,
-  cert: cert
-};
+const options = { key, cert };
 
 const server = https.createServer(options, function(req, res) {
   console.log('SERVER: got request');

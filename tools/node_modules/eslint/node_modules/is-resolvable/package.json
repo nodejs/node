@@ -1,0 +1,71 @@
+{
+  "_from": "is-resolvable@^1.0.0",
+  "_id": "is-resolvable@1.0.1",
+  "_inBundle": false,
+  "_integrity": "sha512-y5CXYbzvB3jTnWAZH1Nl7ykUWb6T3BcTs56HUruwBf8MhF56n1HWqhDWnVFo8GHrUPDgvUUNVhrc2U8W7iqz5g==",
+  "_location": "/eslint/is-resolvable",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "range",
+    "registry": true,
+    "raw": "is-resolvable@^1.0.0",
+    "name": "is-resolvable",
+    "escapedName": "is-resolvable",
+    "rawSpec": "^1.0.0",
+    "saveSpec": null,
+    "fetchSpec": "^1.0.0"
+  },
+  "_requiredBy": [
+    "/eslint"
+  ],
+  "_resolved": "https://registry.npmjs.org/is-resolvable/-/is-resolvable-1.0.1.tgz",
+  "_shasum": "acca1cd36dbe44b974b924321555a70ba03b1cf4",
+  "_spec": "is-resolvable@^1.0.0",
+  "_where": "/home/mzasso/git/nodejs/node/tools/eslint-tmp/node_modules/eslint",
+  "author": {
+    "name": "Shinnosuke Watanabe",
+    "url": "https://github.com/shinnn"
+  },
+  "bugs": {
+    "url": "https://github.com/shinnn/is-resolvable/issues"
+  },
+  "bundleDependencies": false,
+  "deprecated": false,
+  "description": "Check if a module ID is resolvable with require()",
+  "devDependencies": {
+    "@shinnn/eslint-config-node": "^4.0.2",
+    "eslint": "^4.11.0",
+    "istanbul": "^0.4.5",
+    "tape": "^4.8.0"
+  },
+  "eslintConfig": {
+    "extends": "@shinnn/node",
+    "rules": {
+      "no-var": "off"
+    }
+  },
+  "files": [
+    "index.js"
+  ],
+  "homepage": "https://github.com/shinnn/is-resolvable#readme",
+  "keywords": [
+    "file",
+    "path",
+    "resolve",
+    "resolvable",
+    "check",
+    "module"
+  ],
+  "license": "MIT",
+  "name": "is-resolvable",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/shinnn/is-resolvable.git"
+  },
+  "scripts": {
+    "coverage": "istanbul cover --print=both test.js",
+    "pretest": "eslint --fix --format=codeframe index.js test.js",
+    "test": "node --throw-deprecation --track-heap-objects test.js"
+  },
+  "version": "1.0.1"
+}

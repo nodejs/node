@@ -181,7 +181,6 @@ class ListHead {
 
   inline ListHead() = default;
   inline ~ListHead();
-  inline void MoveBack(ListHead* that);
   inline void PushBack(T* element);
   inline void PushFront(T* element);
   inline bool IsEmpty() const;
@@ -428,6 +427,9 @@ class BufferValue : public MaybeStackBuffer<char> {
   if (name##_length > 0)                                                      \
     CHECK_NE(name##_data, nullptr);
 
+// Use this when a variable or parameter is unused in order to explicitly
+// silence a compiler warning about that.
+template <typename T> inline void USE(T&&) {}
 
 }  // namespace node
 

@@ -18,8 +18,9 @@ class ExitFrameConstants : public TypedFrameConstants {
  public:
   static const int kSPOffset = TYPED_FRAME_PUSHED_VALUE_OFFSET(0);
   static const int kCodeOffset = TYPED_FRAME_PUSHED_VALUE_OFFSET(1);
-  DEFINE_TYPED_FRAME_SIZES(2);
-  static const int kLastExitFrameField = kCodeOffset;
+  static const int kPaddingOffset = TYPED_FRAME_PUSHED_VALUE_OFFSET(2);
+  DEFINE_TYPED_FRAME_SIZES(3);
+  static const int kLastExitFrameField = kPaddingOffset;
 
   static const int kConstantPoolOffset = 0;  // Not used
 };

@@ -50,6 +50,7 @@ typedef struct {
   QUEUE member;
   struct pollfd* items;
   unsigned long size;
+  int msg_queue;
 } uv__os390_epoll;
 
 /* epoll api */
@@ -66,5 +67,6 @@ int scandir(const char* maindir, struct dirent*** namelist,
             const struct dirent **));
 char *mkdtemp(char* path);
 ssize_t os390_readlink(const char* path, char* buf, size_t len);
+size_t strnlen(const char* str, size_t maxlen);
 
 #endif /* UV_OS390_SYSCALL_H_ */

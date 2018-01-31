@@ -10,7 +10,7 @@ const assert = require('assert');
     },
     {
       code: 'ERR_INVALID_ARG_TYPE',
-      type: Error
+      type: TypeError
     });
 });
 
@@ -20,7 +20,7 @@ common.expectsError(
   },
   {
     code: 'ERR_INVALID_ARG_TYPE',
-    type: Error
+    type: TypeError
   });
 
 const okInputs = [1, -1, '1', '-1', Date.now()];

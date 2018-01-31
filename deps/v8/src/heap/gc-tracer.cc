@@ -16,7 +16,8 @@ namespace internal {
 static size_t CountTotalHolesSize(Heap* heap) {
   size_t holes_size = 0;
   OldSpaces spaces(heap);
-  for (OldSpace* space = spaces.next(); space != NULL; space = spaces.next()) {
+  for (OldSpace* space = spaces.next(); space != nullptr;
+       space = spaces.next()) {
     DCHECK_GE(holes_size + space->Waste() + space->Available(), holes_size);
     holes_size += space->Waste() + space->Available();
   }
@@ -234,7 +235,7 @@ void GCTracer::Stop(GarbageCollector collector) {
     return;
   }
 
-  DCHECK(start_counter_ >= 0);
+  DCHECK_LE(0, start_counter_);
   DCHECK((collector == SCAVENGER && current_.type == Event::SCAVENGER) ||
          (collector == MINOR_MARK_COMPACTOR &&
           current_.type == Event::MINOR_MARK_COMPACTOR) ||
@@ -460,10 +461,11 @@ void GCTracer::PrintNVP() const {
           "heap.external_weak_global_handles=%.2f "
           "fast_promote=%.2f "
           "scavenge=%.2f "
+          "scavenge.process_array_buffers=%.2f "
           "scavenge.roots=%.2f "
           "scavenge.weak=%.2f "
-          "scavenge.weak_global_handles.identify=%.2f"
-          "scavenge.weak_global_handles.process=%.2f"
+          "scavenge.weak_global_handles.identify=%.2f "
+          "scavenge.weak_global_handles.process=%.2f "
           "scavenge.parallel=%.2f "
           "incremental.steps_count=%d "
           "incremental.steps_took=%.1f "
@@ -502,6 +504,7 @@ void GCTracer::PrintNVP() const {
           current_.scopes[Scope::HEAP_EXTERNAL_WEAK_GLOBAL_HANDLES],
           current_.scopes[Scope::SCAVENGER_FAST_PROMOTE],
           current_.scopes[Scope::SCAVENGER_SCAVENGE],
+          current_.scopes[Scope::SCAVENGER_PROCESS_ARRAY_BUFFERS],
           current_.scopes[Scope::SCAVENGER_SCAVENGE_ROOTS],
           current_.scopes[Scope::SCAVENGER_SCAVENGE_WEAK],
           current_
@@ -608,6 +611,7 @@ void GCTracer::PrintNVP() const {
           "mark=%.1f "
           "mark.finish_incremental=%.1f "
           "mark.roots=%.1f "
+          "mark.main=%.1f "
           "mark.weak_closure=%.1f "
           "mark.weak_closure.ephemeral=%.1f "
           "mark.weak_closure.weak_handles=%.1f "
@@ -694,6 +698,7 @@ void GCTracer::PrintNVP() const {
           current_.scopes[Scope::MC_FINISH], current_.scopes[Scope::MC_MARK],
           current_.scopes[Scope::MC_MARK_FINISH_INCREMENTAL],
           current_.scopes[Scope::MC_MARK_ROOTS],
+          current_.scopes[Scope::MC_MARK_MAIN],
           current_.scopes[Scope::MC_MARK_WEAK_CLOSURE],
           current_.scopes[Scope::MC_MARK_WEAK_CLOSURE_EPHEMERAL],
           current_.scopes[Scope::MC_MARK_WEAK_CLOSURE_WEAK_HANDLES],

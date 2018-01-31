@@ -27,7 +27,7 @@ assert.strictEqual(byteResult[2], 6);
 const doubleResult = test_typedarray.Multiply(doubleArray, -3);
 assert.ok(doubleResult instanceof Float64Array);
 assert.strictEqual(doubleResult.length, 3);
-assert.strictEqual(doubleResult[0], 0);
+assert.strictEqual(doubleResult[0], -0);
 assert.strictEqual(Math.round(10 * doubleResult[1]) / 10, -3.3);
 assert.strictEqual(Math.round(10 * doubleResult[2]) / 10, -6.6);
 
@@ -54,4 +54,22 @@ arrayTypes.forEach((currentType) => {
             `actual type: ${template.constructor.name}`);
   assert.notStrictEqual(theArray, template);
   assert.strictEqual(theArray.buffer, buffer);
+});
+
+arrayTypes.forEach((currentType) => {
+  const template = Reflect.construct(currentType, buffer);
+  assert.throws(() => {
+    test_typedarray.CreateTypedArray(template, buffer, 0, 136);
+  }, /Invalid typed array length/);
+});
+
+const nonByteArrayTypes = [ Int16Array, Uint16Array, Int32Array, Uint32Array,
+                            Float32Array, Float64Array ];
+nonByteArrayTypes.forEach((currentType) => {
+  const template = Reflect.construct(currentType, buffer);
+  assert.throws(() => {
+    test_typedarray.CreateTypedArray(template, buffer,
+                                     currentType.BYTES_PER_ELEMENT + 1, 1);
+    console.log(`start of offset ${currentType}`);
+  }, /start offset of/);
 });

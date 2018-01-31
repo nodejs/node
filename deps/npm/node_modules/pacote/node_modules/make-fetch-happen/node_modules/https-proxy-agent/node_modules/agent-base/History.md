@@ -1,4 +1,10 @@
 
+4.1.2 / 2017-11-20
+==================
+
+  * test Node 9 on Travis
+  * ensure that `https.get()` uses the patched `https.request()`
+
 4.1.1 / 2017-07-20
 ==================
 

@@ -132,7 +132,7 @@ umtx_condBroadcast(UConditionVar *condition) {
 }
 
 U_CAPI void U_EXPORT2
-umtx_condSignal(UConditionVar *condition) {
+umtx_condSignal(UConditionVar * /* condition */) {
     // Function not implemented. There is no immediate requirement from ICU to have it.
     // Once ICU drops support for Windows XP and Server 2003, ICU Condition Variables will be
     // changed to be thin wrappers on native Windows CONDITION_VARIABLEs, and this function

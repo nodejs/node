@@ -15,6 +15,42 @@ const certPem = fixtures.readSync('test_cert.pem', 'ascii');
 const keyPem = fixtures.readSync('test_key.pem', 'ascii');
 const modSize = 1024;
 
+{
+  const Sign = crypto.Sign;
+  const instance = Sign('SHA256');
+  assert(instance instanceof Sign, 'Sign is expected to return a new ' +
+                                   'instance when called without `new`');
+}
+
+{
+  const Verify = crypto.Verify;
+  const instance = Verify('SHA256');
+  assert(instance instanceof Verify, 'Verify is expected to return a new ' +
+                                     'instance when called without `new`');
+}
+
+common.expectsError(
+  () => crypto.createVerify('SHA256').verify({
+    key: certPem,
+    padding: undefined,
+  }, ''),
+  {
+    code: 'ERR_INVALID_OPT_VALUE',
+    type: TypeError,
+    message: 'The value "undefined" is invalid for option "padding"'
+  });
+
+common.expectsError(
+  () => crypto.createVerify('SHA256').verify({
+    key: certPem,
+    saltLength: undefined,
+  }, ''),
+  {
+    code: 'ERR_INVALID_OPT_VALUE',
+    type: TypeError,
+    message: 'The value "undefined" is invalid for option "saltLength"'
+  });
+
 // Test signing and verifying
 {
   const s1 = crypto.createSign('SHA1')

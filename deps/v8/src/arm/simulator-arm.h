@@ -16,6 +16,7 @@
 #include "src/allocation.h"
 #include "src/base/lazy-instance.h"
 #include "src/base/platform/mutex.h"
+#include "src/boxed-float.h"
 
 #if !defined(USE_SIMULATOR)
 // Running without a simulator on a native arm platform.
@@ -158,20 +159,26 @@ class Simulator {
   void set_s_register(int reg, unsigned int value);
   unsigned int get_s_register(int reg) const;
 
-  void set_d_register_from_double(int dreg, const double& dbl) {
+  void set_d_register_from_double(int dreg, const Float64 dbl) {
+    SetVFPRegister<Float64, 2>(dreg, dbl);
+  }
+  void set_d_register_from_double(int dreg, const double dbl) {
     SetVFPRegister<double, 2>(dreg, dbl);
   }
 
-  double get_double_from_d_register(int dreg) {
-    return GetFromVFPRegister<double, 2>(dreg);
+  Float64 get_double_from_d_register(int dreg) {
+    return GetFromVFPRegister<Float64, 2>(dreg);
   }
 
+  void set_s_register_from_float(int sreg, const Float32 flt) {
+    SetVFPRegister<Float32, 1>(sreg, flt);
+  }
   void set_s_register_from_float(int sreg, const float flt) {
     SetVFPRegister<float, 1>(sreg, flt);
   }
 
-  float get_float_from_s_register(int sreg) {
-    return GetFromVFPRegister<float, 1>(sreg);
+  Float32 get_float_from_s_register(int sreg) {
+    return GetFromVFPRegister<Float32, 1>(sreg);
   }
 
   void set_s_register_from_sinteger(int sreg, const int sint) {
@@ -208,7 +215,6 @@ class Simulator {
   // Alternative: call a 2-argument double function.
   void CallFP(byte* entry, double d0, double d1);
   int32_t CallFPReturnsInt(byte* entry, double d0, double d1);
-  double CallFPReturnsDouble(byte* entry, double d0, double d1);
 
   // Push an address onto the JS stack.
   uintptr_t PushAddress(uintptr_t address);
@@ -277,6 +283,8 @@ class Simulator {
   void Copy_FPSCR_to_APSR();
   inline float canonicalizeNaN(float value);
   inline double canonicalizeNaN(double value);
+  inline Float32 canonicalizeNaN(Float32 value);
+  inline Float64 canonicalizeNaN(Float64 value);
 
   // Helper functions to decode common "addressing" modes
   int32_t GetShiftRm(Instruction* instr, bool* carry_out);

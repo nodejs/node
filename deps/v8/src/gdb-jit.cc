@@ -5,7 +5,9 @@
 #include "src/gdb-jit.h"
 
 #include <memory>
+#include <vector>
 
+#include "src/api.h"
 #include "src/base/bits.h"
 #include "src/base/platform/platform.h"
 #include "src/bootstrapper.h"
@@ -119,7 +121,7 @@ class Writer BASE_EMBEDDED {
     if (delta == 0) return;
     uintptr_t padding = align - delta;
     Ensure(position_ += padding);
-    DCHECK((position_ % align) == 0);
+    DCHECK_EQ(position_ % align, 0);
   }
 
   void WriteULEB128(uintptr_t value) {
@@ -414,8 +416,10 @@ class FullHeaderELFSection : public ELFSection {
 class ELFStringTable : public ELFSection {
  public:
   explicit ELFStringTable(const char* name)
-      : ELFSection(name, TYPE_STRTAB, 1), writer_(NULL), offset_(0), size_(0) {
-  }
+      : ELFSection(name, TYPE_STRTAB, 1),
+        writer_(nullptr),
+        offset_(0),
+        size_(0) {}
 
   uintptr_t Add(const char* str) {
     if (*str == '\0') return 0;
@@ -433,12 +437,10 @@ class ELFStringTable : public ELFSection {
     WriteString("");
   }
 
-  void DetachWriter() {
-    writer_ = NULL;
-  }
+  void DetachWriter() { writer_ = nullptr; }
 
   virtual void WriteBody(Writer::Slot<Header> header, Writer* w) {
-    DCHECK(writer_ == NULL);
+    DCHECK_NULL(writer_);
     header->offset = offset_;
     header->size = size_;
   }
@@ -531,7 +533,7 @@ class MachO BASE_EMBEDDED {
 
 
   Writer::Slot<MachOHeader> WriteHeader(Writer* w) {
-    DCHECK(w->position() == 0);
+    DCHECK_EQ(w->position(), 0);
     Writer::Slot<MachOHeader> header = w->CreateSlotHere<MachOHeader>();
 #if V8_TARGET_ARCH_IA32
     header->magic = 0xFEEDFACEu;
@@ -644,7 +646,7 @@ class ELF BASE_EMBEDDED {
 
 
   void WriteHeader(Writer* w) {
-    DCHECK(w->position() == 0);
+    DCHECK_EQ(w->position(), 0);
     Writer::Slot<ELFHeader> header = w->CreateSlotHere<ELFHeader>();
 #if (V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_ARM || \
      (V8_TARGET_ARCH_X64 && V8_TARGET_ARCH_32_BIT))
@@ -923,8 +925,6 @@ class ELFSymbolTable : public ELFSection {
 
 class LineInfo : public Malloced {
  public:
-  LineInfo() : pc_info_(10) {}
-
   void SetPosition(intptr_t pc, int pos, bool is_statement) {
     AddPCInfo(PCInfo(pc, pos, is_statement));
   }
@@ -938,12 +938,12 @@ class LineInfo : public Malloced {
     bool is_statement_;
   };
 
-  List<PCInfo>* pc_info() { return &pc_info_; }
+  std::vector<PCInfo>* pc_info() { return &pc_info_; }
 
  private:
-  void AddPCInfo(const PCInfo& pc_info) { pc_info_.Add(pc_info); }
+  void AddPCInfo(const PCInfo& pc_info) { pc_info_.push_back(pc_info); }
 
-  List<PCInfo> pc_info_;
+  std::vector<PCInfo> pc_info_;
 };
 
 
@@ -970,10 +970,10 @@ class CodeDescription BASE_EMBEDDED {
 
   bool is_function() const {
     Code::Kind kind = code_->kind();
-    return kind == Code::FUNCTION || kind == Code::OPTIMIZED_FUNCTION;
+    return kind == Code::OPTIMIZED_FUNCTION;
   }
 
-  bool has_scope_info() const { return shared_info_ != NULL; }
+  bool has_scope_info() const { return shared_info_ != nullptr; }
 
   ScopeInfo* scope_info() const {
     DCHECK(has_scope_info());
@@ -993,7 +993,7 @@ class CodeDescription BASE_EMBEDDED {
   }
 
   bool has_script() {
-    return shared_info_ != NULL && shared_info_->script()->IsScript();
+    return shared_info_ != nullptr && shared_info_->script()->IsScript();
   }
 
   Script* script() { return Script::cast(shared_info_->script()); }
@@ -1001,7 +1001,7 @@ class CodeDescription BASE_EMBEDDED {
   bool IsLineInfoAvailable() {
     return has_script() && script()->source()->IsString() &&
            script()->HasValidSource() && script()->name()->IsString() &&
-           lineinfo_ != NULL;
+           lineinfo_ != nullptr;
   }
 
 #if V8_TARGET_ARCH_X64
@@ -1198,11 +1198,11 @@ class DebugInfoSection : public DebugSection {
       }
 
       // See contexts.h for more information.
-      DCHECK(Context::MIN_CONTEXT_SLOTS == 4);
-      DCHECK(Context::CLOSURE_INDEX == 0);
-      DCHECK(Context::PREVIOUS_INDEX == 1);
-      DCHECK(Context::EXTENSION_INDEX == 2);
-      DCHECK(Context::NATIVE_CONTEXT_INDEX == 3);
+      DCHECK_EQ(Context::MIN_CONTEXT_SLOTS, 4);
+      DCHECK_EQ(Context::CLOSURE_INDEX, 0);
+      DCHECK_EQ(Context::PREVIOUS_INDEX, 1);
+      DCHECK_EQ(Context::EXTENSION_INDEX, 2);
+      DCHECK_EQ(Context::NATIVE_CONTEXT_INDEX, 3);
       w->WriteULEB128(current_abbreviation++);
       w->WriteString(".closure");
       w->WriteULEB128(current_abbreviation++);
@@ -1512,11 +1512,10 @@ class DebugLineSection : public DebugSection {
     intptr_t line = 1;
     bool is_statement = true;
 
-    List<LineInfo::PCInfo>* pc_info = desc_->lineinfo()->pc_info();
-    pc_info->Sort(&ComparePCInfo);
+    std::vector<LineInfo::PCInfo>* pc_info = desc_->lineinfo()->pc_info();
+    std::sort(pc_info->begin(), pc_info->end(), &ComparePCInfo);
 
-    int pc_info_length = pc_info->length();
-    for (int i = 0; i < pc_info_length; i++) {
+    for (size_t i = 0; i < pc_info->size(); i++) {
       LineInfo::PCInfo* info = &pc_info->at(i);
       DCHECK(info->pc_ >= pc);
 
@@ -1531,7 +1530,7 @@ class DebugLineSection : public DebugSection {
       // the last pc address in the function as a statement (e.g. "}"), so that
       // a user can see the result of the last line executed in the function,
       // should control reach the end.
-      if ((i+1) == pc_info_length) {
+      if ((i + 1) == pc_info->size()) {
         if (!is_statement) {
           w->Write<uint8_t>(DW_LNS_NEGATE_STMT);
         }
@@ -1588,18 +1587,15 @@ class DebugLineSection : public DebugSection {
     w->Write<uint8_t>(op);
   }
 
-  static int ComparePCInfo(const LineInfo::PCInfo* a,
-                           const LineInfo::PCInfo* b) {
-    if (a->pc_ == b->pc_) {
-      if (a->is_statement_ != b->is_statement_) {
-        return b->is_statement_ ? +1 : -1;
+  static bool ComparePCInfo(const LineInfo::PCInfo& a,
+                            const LineInfo::PCInfo& b) {
+    if (a.pc_ == b.pc_) {
+      if (a.is_statement_ != b.is_statement_) {
+        return !b.is_statement_;
       }
-      return 0;
-    } else if (a->pc_ > b->pc_) {
-      return +1;
-    } else {
-      return -1;
+      return false;
     }
+    return a.pc_ < b.pc_;
   }
 
   CodeDescription* desc_;
@@ -1688,7 +1684,7 @@ void UnwindInfoSection::WriteLength(Writer* w,
     }
   }
 
-  DCHECK((w->position() - initial_position) % kPointerSize == 0);
+  DCHECK_EQ((w->position() - initial_position) % kPointerSize, 0);
   length_slot->set(static_cast<uint32_t>(w->position() - initial_position));
 }
 
@@ -1901,7 +1897,7 @@ static JITCodeEntry* CreateCodeEntry(Address symfile_addr,
   entry->symfile_size_ = symfile_size;
   MemCopy(entry->symfile_addr_, symfile_addr, symfile_size);
 
-  entry->prev_ = entry->next_ = NULL;
+  entry->prev_ = entry->next_ = nullptr;
 
   return entry;
 }
@@ -1914,7 +1910,7 @@ static void DestroyCodeEntry(JITCodeEntry* entry) {
 
 static void RegisterCodeEntry(JITCodeEntry* entry) {
   entry->next_ = __jit_debug_descriptor.first_entry_;
-  if (entry->next_ != NULL) entry->next_->prev_ = entry;
+  if (entry->next_ != nullptr) entry->next_->prev_ = entry;
   __jit_debug_descriptor.first_entry_ =
       __jit_debug_descriptor.relevant_entry_ = entry;
 
@@ -1924,13 +1920,13 @@ static void RegisterCodeEntry(JITCodeEntry* entry) {
 
 
 static void UnregisterCodeEntry(JITCodeEntry* entry) {
-  if (entry->prev_ != NULL) {
+  if (entry->prev_ != nullptr) {
     entry->prev_->next_ = entry->next_;
   } else {
     __jit_debug_descriptor.first_entry_ = entry->next_;
   }
 
-  if (entry->next_ != NULL) {
+  if (entry->next_ != nullptr) {
     entry->next_->prev_ = entry->prev_;
   }
 
@@ -1988,7 +1984,7 @@ struct SplayTreeConfig {
   typedef AddressRange Key;
   typedef JITCodeEntry* Value;
   static const AddressRange kNoKey;
-  static Value NoValue() { return NULL; }
+  static Value NoValue() { return nullptr; }
   static int Compare(const AddressRange& a, const AddressRange& b) {
     // ptrdiff_t probably doesn't fit in an int.
     if (a.start < b.start) return -1;
@@ -2001,8 +1997,8 @@ const AddressRange SplayTreeConfig::kNoKey = {0, 0};
 typedef SplayTree<SplayTreeConfig> CodeMap;
 
 static CodeMap* GetCodeMap() {
-  static CodeMap* code_map = NULL;
-  if (code_map == NULL) code_map = new CodeMap();
+  static CodeMap* code_map = nullptr;
+  if (code_map == nullptr) code_map = new CodeMap();
   return code_map;
 }
 
@@ -2014,8 +2010,8 @@ static uint32_t HashCodeAddress(Address addr) {
 }
 
 static base::HashMap* GetLineMap() {
-  static base::HashMap* line_map = NULL;
-  if (line_map == NULL) {
+  static base::HashMap* line_map = nullptr;
+  if (line_map == nullptr) {
     line_map = new base::HashMap();
   }
   return line_map;
@@ -2026,7 +2022,7 @@ static void PutLineInfo(Address addr, LineInfo* info) {
   base::HashMap* line_map = GetLineMap();
   base::HashMap::Entry* e =
       line_map->LookupOrInsert(addr, HashCodeAddress(addr));
-  if (e->value != NULL) delete static_cast<LineInfo*>(e->value);
+  if (e->value != nullptr) delete static_cast<LineInfo*>(e->value);
   e->value = info;
 }
 
@@ -2119,7 +2115,7 @@ static void AddJITCodeEntry(CodeMap* map, const AddressRange& range,
     char file_name[64];
 
     SNPrintF(Vector<char>(file_name, kMaxFileNameSize), "/tmp/elfdump%s%d.o",
-             (name_hint != NULL) ? name_hint : "", file_num++);
+             (name_hint != nullptr) ? name_hint : "", file_num++);
     WriteBytes(file_name, entry->symfile_addr_,
                static_cast<int>(entry->symfile_size_));
   }
@@ -2156,15 +2152,15 @@ static void AddCode(const char* name, Code* code, SharedFunctionInfo* shared,
 
   delete lineinfo;
 
-  const char* name_hint = NULL;
+  const char* name_hint = nullptr;
   bool should_dump = false;
   if (FLAG_gdbjit_dump) {
     if (strlen(FLAG_gdbjit_dump_filter) == 0) {
       name_hint = name;
       should_dump = true;
-    } else if (name != NULL) {
+    } else if (name != nullptr) {
       name_hint = strstr(name, FLAG_gdbjit_dump_filter);
-      should_dump = (name_hint != NULL);
+      should_dump = (name_hint != nullptr);
     }
   }
   AddJITCodeEntry(code_map, range, entry, should_dump, name_hint);
@@ -2183,8 +2179,9 @@ void EventHandler(const v8::JitCodeEvent* event) {
       StringBuilder builder(buffer.start(), buffer.length());
       builder.AddSubstring(event->name.str, static_cast<int>(event->name.len));
       // It's called UnboundScript in the API but it's a SharedFunctionInfo.
-      SharedFunctionInfo* shared =
-          event->script.IsEmpty() ? NULL : *Utils::OpenHandle(*event->script);
+      SharedFunctionInfo* shared = event->script.IsEmpty()
+                                       ? nullptr
+                                       : *Utils::OpenHandle(*event->script);
       AddCode(builder.Finalize(), code, shared, lineinfo);
       break;
     }

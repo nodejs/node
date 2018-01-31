@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <limits>
+
 #include "src/v8.h"
 
 #include "src/ast/scopes.h"
@@ -26,7 +28,8 @@ class BytecodeArrayBuilderTest : public TestWithIsolateAndZone {
 using ToBooleanMode = BytecodeArrayBuilder::ToBooleanMode;
 
 TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
-  BytecodeArrayBuilder builder(isolate(), zone(), 1, 131);
+  FeedbackVectorSpec feedback_spec(zone());
+  BytecodeArrayBuilder builder(zone(), 1, 131, &feedback_spec);
   Factory* factory = isolate()->factory();
   AstValueFactory ast_factory(zone(), isolate()->ast_string_constants(),
                               isolate()->heap()->HashSeed());
@@ -56,8 +59,7 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
       .StoreAccumulatorInRegister(reg)
       .LoadLiteral(Smi::FromInt(10000000))
       .StoreAccumulatorInRegister(reg)
-      .LoadLiteral(
-          ast_factory.NewString(ast_factory.GetOneByteString("A constant")))
+      .LoadLiteral(ast_factory.GetOneByteString("A constant"))
       .StoreAccumulatorInRegister(reg)
       .LoadUndefined()
       .StoreAccumulatorInRegister(reg)
@@ -81,12 +83,36 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
   builder.MoveRegister(reg, other);
   builder.MoveRegister(reg, wide);
 
+  FeedbackSlot load_global_slot =
+      feedback_spec.AddLoadGlobalICSlot(NOT_INSIDE_TYPEOF);
+  FeedbackSlot load_global_typeof_slot =
+      feedback_spec.AddLoadGlobalICSlot(INSIDE_TYPEOF);
+  FeedbackSlot sloppy_store_global_slot =
+      feedback_spec.AddStoreGlobalICSlot(LanguageMode::kSloppy);
+  FeedbackSlot strict_store_global_slot =
+      feedback_spec.AddStoreGlobalICSlot(LanguageMode::kStrict);
+  FeedbackSlot load_slot = feedback_spec.AddLoadICSlot();
+  FeedbackSlot keyed_load_slot = feedback_spec.AddKeyedLoadICSlot();
+  FeedbackSlot sloppy_store_slot =
+      feedback_spec.AddStoreICSlot(LanguageMode::kSloppy);
+  FeedbackSlot strict_store_slot =
+      feedback_spec.AddStoreICSlot(LanguageMode::kStrict);
+  FeedbackSlot sloppy_keyed_store_slot =
+      feedback_spec.AddKeyedStoreICSlot(LanguageMode::kSloppy);
+  FeedbackSlot strict_keyed_store_slot =
+      feedback_spec.AddKeyedStoreICSlot(LanguageMode::kStrict);
+  FeedbackSlot store_own_slot = feedback_spec.AddStoreOwnICSlot();
+
   // Emit global load / store operations.
   const AstRawString* name = ast_factory.GetOneByteString("var_name");
-  builder.LoadGlobal(name, 1, TypeofMode::NOT_INSIDE_TYPEOF)
-      .LoadGlobal(name, 1, TypeofMode::INSIDE_TYPEOF)
-      .StoreGlobal(name, 1, LanguageMode::SLOPPY)
-      .StoreGlobal(name, 1, LanguageMode::STRICT);
+  builder
+      .LoadGlobal(name, load_global_slot.ToInt(), TypeofMode::NOT_INSIDE_TYPEOF)
+      .LoadGlobal(name, load_global_typeof_slot.ToInt(),
+                  TypeofMode::INSIDE_TYPEOF)
+      .StoreGlobal(name, sloppy_store_global_slot.ToInt(),
+                   LanguageMode::kSloppy)
+      .StoreGlobal(name, strict_store_global_slot.ToInt(),
+                   LanguageMode::kStrict);
 
   // Emit context operations.
   builder.PushContext(reg)
@@ -106,21 +132,26 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
       .StoreContextSlot(Register::current_context(), 3, 0);
 
   // Emit load / store property operations.
-  builder.LoadNamedProperty(reg, name, 0)
-      .LoadKeyedProperty(reg, 0)
-      .StoreNamedProperty(reg, name, 0, LanguageMode::SLOPPY)
-      .StoreKeyedProperty(reg, reg, 0, LanguageMode::SLOPPY)
-      .StoreNamedProperty(reg, name, 0, LanguageMode::STRICT)
-      .StoreKeyedProperty(reg, reg, 0, LanguageMode::STRICT)
-      .StoreNamedOwnProperty(reg, name, 0);
+  builder.LoadNamedProperty(reg, name, load_slot.ToInt())
+      .LoadKeyedProperty(reg, keyed_load_slot.ToInt())
+      .StoreNamedProperty(reg, name, sloppy_store_slot.ToInt(),
+                          LanguageMode::kSloppy)
+      .StoreKeyedProperty(reg, reg, sloppy_keyed_store_slot.ToInt(),
+                          LanguageMode::kSloppy)
+      .StoreNamedProperty(reg, name, strict_store_slot.ToInt(),
+                          LanguageMode::kStrict)
+      .StoreKeyedProperty(reg, reg, strict_keyed_store_slot.ToInt(),
+                          LanguageMode::kStrict)
+      .StoreNamedOwnProperty(reg, name, store_own_slot.ToInt());
 
   // Emit load / store lookup slots.
   builder.LoadLookupSlot(name, TypeofMode::NOT_INSIDE_TYPEOF)
       .LoadLookupSlot(name, TypeofMode::INSIDE_TYPEOF)
-      .StoreLookupSlot(name, LanguageMode::SLOPPY, LookupHoistingMode::kNormal)
-      .StoreLookupSlot(name, LanguageMode::SLOPPY,
+      .StoreLookupSlot(name, LanguageMode::kSloppy, LookupHoistingMode::kNormal)
+      .StoreLookupSlot(name, LanguageMode::kSloppy,
                        LookupHoistingMode::kLegacySloppy)
-      .StoreLookupSlot(name, LanguageMode::STRICT, LookupHoistingMode::kNormal);
+      .StoreLookupSlot(name, LanguageMode::kStrict,
+                       LookupHoistingMode::kNormal);
 
   // Emit load / store lookup slots with context fast paths.
   builder.LoadLookupContextSlot(name, TypeofMode::NOT_INSIDE_TYPEOF, 1, 0)
@@ -145,6 +176,9 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
   builder.CreateArrayLiteral(0, 0, 0);
   builder.CreateObjectLiteral(0, 0, 0, reg);
 
+  // Emit tagged template operations.
+  builder.GetTemplateObject(0);
+
   // Call operations.
   builder.CallAnyReceiver(reg, reg_list, 1)
       .CallProperty(reg, reg_list, 1)
@@ -165,7 +199,8 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
       .BinaryOperation(Token::Value::SUB, reg, 2)
       .BinaryOperation(Token::Value::MUL, reg, 3)
       .BinaryOperation(Token::Value::DIV, reg, 4)
-      .BinaryOperation(Token::Value::MOD, reg, 5);
+      .BinaryOperation(Token::Value::MOD, reg, 5)
+      .BinaryOperation(Token::Value::EXP, reg, 6);
 
   // Emit bitwise operator invocations
   builder.BinaryOperation(Token::Value::BIT_OR, reg, 6)
@@ -183,6 +218,7 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
       .BinaryOperationSmiLiteral(Token::Value::MUL, Smi::FromInt(42), 2)
       .BinaryOperationSmiLiteral(Token::Value::DIV, Smi::FromInt(42), 2)
       .BinaryOperationSmiLiteral(Token::Value::MOD, Smi::FromInt(42), 2)
+      .BinaryOperationSmiLiteral(Token::Value::EXP, Smi::FromInt(42), 2)
       .BinaryOperationSmiLiteral(Token::Value::BIT_OR, Smi::FromInt(42), 2)
       .BinaryOperationSmiLiteral(Token::Value::BIT_XOR, Smi::FromInt(42), 2)
       .BinaryOperationSmiLiteral(Token::Value::BIT_AND, Smi::FromInt(42), 2)
@@ -190,9 +226,12 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
       .BinaryOperationSmiLiteral(Token::Value::SAR, Smi::FromInt(42), 2)
       .BinaryOperationSmiLiteral(Token::Value::SHR, Smi::FromInt(42), 2);
 
-  // Emit count operatior invocations
-  builder.CountOperation(Token::Value::ADD, 1)
-      .CountOperation(Token::Value::SUB, 1);
+  // Emit unary and count operator invocations.
+  builder.UnaryOperation(Token::Value::INC, 1)
+      .UnaryOperation(Token::Value::DEC, 1)
+      .UnaryOperation(Token::Value::ADD, 1)
+      .UnaryOperation(Token::Value::SUB, 1)
+      .UnaryOperation(Token::Value::BIT_NOT, 1);
 
   // Emit unary operator invocations.
   builder.LogicalNot(ToBooleanMode::kConvertToBoolean)
@@ -200,7 +239,7 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
       .TypeOf();
 
   // Emit delete
-  builder.Delete(reg, LanguageMode::SLOPPY).Delete(reg, LanguageMode::STRICT);
+  builder.Delete(reg, LanguageMode::kSloppy).Delete(reg, LanguageMode::kStrict);
 
   // Emit construct.
   builder.Construct(reg, reg_list, 1).ConstructWithSpread(reg, reg_list, 1);
@@ -214,14 +253,14 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
       .CompareOperation(Token::Value::LTE, reg, 5)
       .CompareOperation(Token::Value::GTE, reg, 6)
       .CompareTypeOf(TestTypeOfFlags::LiteralFlag::kNumber)
-      .CompareOperation(Token::Value::INSTANCEOF, reg)
+      .CompareOperation(Token::Value::INSTANCEOF, reg, 7)
       .CompareOperation(Token::Value::IN, reg)
       .CompareUndetectable()
       .CompareUndefined()
       .CompareNull();
 
   // Emit conversion operator invocations.
-  builder.ToNumber(reg, 1).ToObject(reg).ToName(reg);
+  builder.ToNumber(1).ToNumeric(1).ToObject(reg).ToName(reg);
 
   // Emit GetSuperConstructor.
   builder.GetSuperConstructor(reg);
@@ -295,7 +334,8 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
   BytecodeLabel after_rethrow;
   builder.ReThrow().Bind(&after_rethrow);
 
-  builder.ForInPrepare(reg, triple)
+  builder.ForInEnumerate(reg)
+      .ForInPrepare(triple, 1)
       .ForInContinue(reg, reg)
       .ForInNext(reg, reg, pair, 1)
       .ForInStep(reg);
@@ -303,29 +343,10 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
   // Wide constant pool loads
   for (int i = 0; i < 256; i++) {
     // Emit junk in constant pool to force wide constant pool index.
-    builder.LoadLiteral(ast_factory.NewNumber(2.5321 + i));
+    builder.LoadLiteral(2.5321 + i);
   }
   builder.LoadLiteral(Smi::FromInt(20000000));
   const AstRawString* wide_name = ast_factory.GetOneByteString("var_wide_name");
-
-  // Emit wide global load / store operations.
-  builder.LoadGlobal(name, 1024, TypeofMode::NOT_INSIDE_TYPEOF)
-      .LoadGlobal(name, 1024, TypeofMode::INSIDE_TYPEOF)
-      .LoadGlobal(name, 1024, TypeofMode::INSIDE_TYPEOF)
-      .StoreGlobal(name, 1024, LanguageMode::SLOPPY)
-      .StoreGlobal(wide_name, 1, LanguageMode::STRICT);
-
-  // Emit extra wide global load.
-  builder.LoadGlobal(name, 1024 * 1024, TypeofMode::NOT_INSIDE_TYPEOF);
-
-  // Emit wide load / store property operations.
-  builder.LoadNamedProperty(reg, wide_name, 0)
-      .LoadKeyedProperty(reg, 2056)
-      .StoreNamedProperty(reg, wide_name, 0, LanguageMode::SLOPPY)
-      .StoreKeyedProperty(reg, reg, 2056, LanguageMode::SLOPPY)
-      .StoreNamedProperty(reg, wide_name, 0, LanguageMode::STRICT)
-      .StoreKeyedProperty(reg, reg, 2056, LanguageMode::STRICT)
-      .StoreNamedOwnProperty(reg, wide_name, 0);
 
   builder.StoreDataPropertyInLiteral(reg, reg,
                                      DataPropertyInLiteralFlag::kNoFlags, 0);
@@ -337,11 +358,11 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
   // Emit wide load / store lookup slots.
   builder.LoadLookupSlot(wide_name, TypeofMode::NOT_INSIDE_TYPEOF)
       .LoadLookupSlot(wide_name, TypeofMode::INSIDE_TYPEOF)
-      .StoreLookupSlot(wide_name, LanguageMode::SLOPPY,
+      .StoreLookupSlot(wide_name, LanguageMode::kSloppy,
                        LookupHoistingMode::kNormal)
-      .StoreLookupSlot(wide_name, LanguageMode::SLOPPY,
+      .StoreLookupSlot(wide_name, LanguageMode::kSloppy,
                        LookupHoistingMode::kLegacySloppy)
-      .StoreLookupSlot(wide_name, LanguageMode::STRICT,
+      .StoreLookupSlot(wide_name, LanguageMode::kStrict,
                        LookupHoistingMode::kNormal);
 
   // CreateClosureWide
@@ -373,6 +394,12 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
 
   // Emit debugger bytecode.
   builder.Debugger();
+
+  // Emit abort bytecode.
+  {
+    BytecodeLabel after;
+    builder.Abort(kGenerator).Bind(&after);
+  }
 
   // Insert dummy ops to force longer jumps.
   for (int i = 0; i < 256; i++) {
@@ -420,11 +447,9 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
   // Insert entry for illegal bytecode as this is never willingly emitted.
   scorecard[Bytecodes::ToByte(Bytecode::kIllegal)] = 1;
 
-  if (!FLAG_type_profile) {
-    // Bytecode for CollectTypeProfile is only emitted when
-    // Type Information for DevTools is turned on.
-    scorecard[Bytecodes::ToByte(Bytecode::kCollectTypeProfile)] = 1;
-  }
+  // Bytecode for CollectTypeProfile is only emitted when
+  // Type Information for DevTools is turned on.
+  scorecard[Bytecodes::ToByte(Bytecode::kCollectTypeProfile)] = 1;
 
   // Check return occurs at the end and only once in the BytecodeArray.
   CHECK_EQ(final_bytecode, Bytecode::kReturn);
@@ -443,7 +468,7 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
 TEST_F(BytecodeArrayBuilderTest, FrameSizesLookGood) {
   for (int locals = 0; locals < 5; locals++) {
     for (int temps = 0; temps < 3; temps++) {
-      BytecodeArrayBuilder builder(isolate(), zone(), 1, locals);
+      BytecodeArrayBuilder builder(zone(), 1, locals);
       BytecodeRegisterAllocator* allocator(builder.register_allocator());
       for (int i = 0; i < locals; i++) {
         builder.LoadLiteral(Smi::kZero);
@@ -480,7 +505,7 @@ TEST_F(BytecodeArrayBuilderTest, RegisterValues) {
 
 
 TEST_F(BytecodeArrayBuilderTest, Parameters) {
-  BytecodeArrayBuilder builder(isolate(), zone(), 10, 0);
+  BytecodeArrayBuilder builder(zone(), 10, 0);
 
   Register receiver(builder.Receiver());
   Register param8(builder.Parameter(8));
@@ -489,35 +514,37 @@ TEST_F(BytecodeArrayBuilderTest, Parameters) {
 
 
 TEST_F(BytecodeArrayBuilderTest, Constants) {
-  BytecodeArrayBuilder builder(isolate(), zone(), 1, 0);
+  BytecodeArrayBuilder builder(zone(), 1, 0);
   AstValueFactory ast_factory(zone(), isolate()->ast_string_constants(),
                               isolate()->heap()->HashSeed());
 
-  const AstValue* heap_num_1 = ast_factory.NewNumber(3.14);
-  const AstValue* heap_num_2 = ast_factory.NewNumber(5.2);
-  const AstValue* string =
-      ast_factory.NewString(ast_factory.GetOneByteString("foo"));
-  const AstValue* string_copy =
-      ast_factory.NewString(ast_factory.GetOneByteString("foo"));
+  double heap_num_1 = 3.14;
+  double heap_num_2 = 5.2;
+  double nan = std::numeric_limits<double>::quiet_NaN();
+  const AstRawString* string = ast_factory.GetOneByteString("foo");
+  const AstRawString* string_copy = ast_factory.GetOneByteString("foo");
 
   builder.LoadLiteral(heap_num_1)
       .LoadLiteral(heap_num_2)
       .LoadLiteral(string)
       .LoadLiteral(heap_num_1)
       .LoadLiteral(heap_num_1)
+      .LoadLiteral(nan)
       .LoadLiteral(string_copy)
+      .LoadLiteral(heap_num_2)
+      .LoadLiteral(nan)
       .Return();
 
   ast_factory.Internalize(isolate());
   Handle<BytecodeArray> array = builder.ToBytecodeArray(isolate());
   // Should only have one entry for each identical constant.
-  CHECK_EQ(array->constant_pool()->length(), 3);
+  EXPECT_EQ(4, array->constant_pool()->length());
 }
 
 TEST_F(BytecodeArrayBuilderTest, ForwardJumps) {
   static const int kFarJumpDistance = 256 + 20;
 
-  BytecodeArrayBuilder builder(isolate(), zone(), 1, 1);
+  BytecodeArrayBuilder builder(zone(), 1, 1);
 
   Register reg(0);
   BytecodeLabel far0, far1, far2, far3, far4;
@@ -632,7 +659,7 @@ TEST_F(BytecodeArrayBuilderTest, ForwardJumps) {
 
 
 TEST_F(BytecodeArrayBuilderTest, BackwardJumps) {
-  BytecodeArrayBuilder builder(isolate(), zone(), 1, 1);
+  BytecodeArrayBuilder builder(zone(), 1, 1);
 
   Register reg(0);
 
@@ -680,7 +707,7 @@ TEST_F(BytecodeArrayBuilderTest, BackwardJumps) {
 }
 
 TEST_F(BytecodeArrayBuilderTest, SmallSwitch) {
-  BytecodeArrayBuilder builder(isolate(), zone(), 1, 1);
+  BytecodeArrayBuilder builder(zone(), 1, 1);
 
   // Small jump table that fits into the single-size constant pool
   int small_jump_table_size = 5;
@@ -728,7 +755,7 @@ TEST_F(BytecodeArrayBuilderTest, SmallSwitch) {
 }
 
 TEST_F(BytecodeArrayBuilderTest, WideSwitch) {
-  BytecodeArrayBuilder builder(isolate(), zone(), 1, 1);
+  BytecodeArrayBuilder builder(zone(), 1, 1);
 
   // Large jump table that requires a wide Switch bytecode.
   int large_jump_table_size = 256;
@@ -776,7 +803,7 @@ TEST_F(BytecodeArrayBuilderTest, WideSwitch) {
 }
 
 TEST_F(BytecodeArrayBuilderTest, LabelReuse) {
-  BytecodeArrayBuilder builder(isolate(), zone(), 1, 0);
+  BytecodeArrayBuilder builder(zone(), 1, 0);
 
   // Labels can only have 1 forward reference, but
   // can be referred to mulitple times once bound.
@@ -810,7 +837,7 @@ TEST_F(BytecodeArrayBuilderTest, LabelReuse) {
 TEST_F(BytecodeArrayBuilderTest, LabelAddressReuse) {
   static const int kRepeats = 3;
 
-  BytecodeArrayBuilder builder(isolate(), zone(), 1, 0);
+  BytecodeArrayBuilder builder(zone(), 1, 0);
   for (int i = 0; i < kRepeats; i++) {
     BytecodeLabel label, after_jump0, after_jump1;
     builder.Jump(&label)

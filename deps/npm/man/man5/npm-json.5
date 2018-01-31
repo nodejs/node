@@ -1,4 +1,4 @@
-.TH "PACKAGE\.JSON" "5" "October 2017" "" ""
+.TH "PACKAGE\.JSON" "5" "December 2017" "" ""
 .SH "NAME"
 \fBpackage.json\fR \- Specifics of npm's package\.json handling
 .SH DESCRIPTION
@@ -455,11 +455,13 @@ shortcut syntax you use for \fBnpm install\fP:
 .nf
 "repository": "npm/npm"
 
+"repository": "github:user/repo"
+
 "repository": "gist:11081aaa281"
 
-"repository": "bitbucket:example/repo"
+"repository": "bitbucket:user/repo"
 
-"repository": "gitlab:another/repo"
+"repository": "gitlab:user/repo"
 .fi
 .RE
 .SH scripts
@@ -752,7 +754,7 @@ If we define a package\.json like this:
   "name": "awesome\-web\-framework",
   "version": "1\.0\.0",
   "bundledDependencies": [
-    'renderized', 'super\-streams'
+    "renderized", "super\-streams"
   ]
 }
 .fi
@@ -824,7 +826,7 @@ are capable of properly installing your program\.  For example:
 .RE
 .P
 Unless the user has set the \fBengine\-strict\fP config flag, this
-field is advisory only will produce warnings when your package is installed as a dependency\.
+field is advisory only and will only produce warnings when your package is installed as a dependency\.
 .SH engineStrict
 .P
 \fBThis feature was removed in npm 3\.0\.0\fR

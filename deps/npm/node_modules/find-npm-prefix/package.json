@@ -1,0 +1,59 @@
+{
+  "_from": "find-npm-prefix@latest",
+  "_id": "find-npm-prefix@1.0.1",
+  "_inBundle": false,
+  "_integrity": "sha512-I9R7ZnsjlKRvXBJjA1PE4wAkSc24YChoomWdEPTZgeB4DHxf87OutNGV5McFj6WwPghH97nZRejH58XvY6ga6Q==",
+  "_location": "/find-npm-prefix",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "tag",
+    "registry": true,
+    "raw": "find-npm-prefix@latest",
+    "name": "find-npm-prefix",
+    "escapedName": "find-npm-prefix",
+    "rawSpec": "latest",
+    "saveSpec": null,
+    "fetchSpec": "latest"
+  },
+  "_requiredBy": [
+    "#USER",
+    "/"
+  ],
+  "_resolved": "https://registry.npmjs.org/find-npm-prefix/-/find-npm-prefix-1.0.1.tgz",
+  "_shasum": "af0faa74e19294b3c8634bae0e91017bb5adfac2",
+  "_spec": "find-npm-prefix@latest",
+  "_where": "/Users/rebecca/code/npm",
+  "author": {
+    "name": "Rebecca Turner",
+    "email": "me@re-becca.org",
+    "url": "http://re-becca.org/"
+  },
+  "bugs": {
+    "url": "https://github.com/npm/find-npm-prefix/issues"
+  },
+  "bundleDependencies": false,
+  "dependencies": {},
+  "deprecated": false,
+  "description": "Find the npm project directory associated with for a given directory",
+  "devDependencies": {
+    "require-inject": "^1.4.2",
+    "standard": "^10.0.3",
+    "tap": "^10.7.3"
+  },
+  "directories": {
+    "test": "test"
+  },
+  "homepage": "https://github.com/npm/find-npm-prefix#readme",
+  "keywords": [],
+  "license": "ISC",
+  "main": "find-prefix.js",
+  "name": "find-npm-prefix",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/npm/find-npm-prefix.git"
+  },
+  "scripts": {
+    "test": "standard && tap --100 test"
+  },
+  "version": "1.0.1"
+}

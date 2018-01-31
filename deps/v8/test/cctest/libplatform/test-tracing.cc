@@ -42,7 +42,7 @@ TEST(TestTraceObject) {
   uint8_t category_enabled_flag = 41;
   trace_object.Initialize('X', &category_enabled_flag, "Test.Trace",
                           "Test.Scope", 42, 123, 0, nullptr, nullptr, nullptr,
-                          nullptr, 0);
+                          nullptr, 0, 1729, 4104);
   CHECK_EQ('X', trace_object.phase());
   CHECK_EQ(category_enabled_flag, *trace_object.category_enabled_flag());
   CHECK_EQ(std::string("Test.Trace"), std::string(trace_object.name()));
@@ -96,7 +96,7 @@ TEST(TestTraceBufferRingBuffer) {
     CHECK_NOT_NULL(trace_object);
     trace_object->Initialize('X', &category_enabled_flag, names[i].c_str(),
                              "Test.Scope", 42, 123, 0, nullptr, nullptr,
-                             nullptr, nullptr, 0);
+                             nullptr, nullptr, 0, 1729, 4104);
     trace_object = ring_buffer->GetEventByHandle(handles[i]);
     CHECK_NOT_NULL(trace_object);
     CHECK_EQ('X', trace_object->phase());
@@ -130,35 +130,40 @@ TEST(TestTraceBufferRingBuffer) {
 
 TEST(TestJSONTraceWriter) {
   std::ostringstream stream;
-  v8::Platform* old_platform = i::V8::GetCurrentPlatform();
-  v8::Platform* default_platform = v8::platform::CreateDefaultPlatform();
-  i::V8::SetPlatformForTesting(default_platform);
   // Create a scope for the tracing controller to terminate the trace writer.
   {
-    TracingController tracing_controller;
-    static_cast<v8::platform::DefaultPlatform*>(default_platform)
-        ->SetTracingController(&tracing_controller);
+    v8::Platform* old_platform = i::V8::GetCurrentPlatform();
+    std::unique_ptr<v8::Platform> default_platform(
+        v8::platform::NewDefaultPlatform());
+    i::V8::SetPlatformForTesting(default_platform.get());
+    auto tracing =
+        base::make_unique<v8::platform::tracing::TracingController>();
+    v8::platform::tracing::TracingController* tracing_controller =
+        tracing.get();
+    static_cast<v8::platform::DefaultPlatform*>(default_platform.get())
+        ->SetTracingController(std::move(tracing));
     TraceWriter* writer = TraceWriter::CreateJSONTraceWriter(stream);
 
     TraceBuffer* ring_buffer =
         TraceBuffer::CreateTraceBufferRingBuffer(1, writer);
-    tracing_controller.Initialize(ring_buffer);
+    tracing_controller->Initialize(ring_buffer);
     TraceConfig* trace_config = new TraceConfig();
     trace_config->AddIncludedCategory("v8-cat");
-    tracing_controller.StartTracing(trace_config);
+    tracing_controller->StartTracing(trace_config);
 
     TraceObject trace_object;
     trace_object.InitializeForTesting(
-        'X', tracing_controller.GetCategoryGroupEnabled("v8-cat"), "Test0",
+        'X', tracing_controller->GetCategoryGroupEnabled("v8-cat"), "Test0",
         v8::internal::tracing::kGlobalScope, 42, 123, 0, nullptr, nullptr,
         nullptr, nullptr, TRACE_EVENT_FLAG_HAS_ID, 11, 22, 100, 50, 33, 44);
     writer->AppendTraceEvent(&trace_object);
     trace_object.InitializeForTesting(
-        'Y', tracing_controller.GetCategoryGroupEnabled("v8-cat"), "Test1",
+        'Y', tracing_controller->GetCategoryGroupEnabled("v8-cat"), "Test1",
         v8::internal::tracing::kGlobalScope, 43, 456, 0, nullptr, nullptr,
         nullptr, nullptr, 0, 55, 66, 110, 55, 77, 88);
     writer->AppendTraceEvent(&trace_object);
-    tracing_controller.StopTracing();
+    tracing_controller->StopTracing();
+    i::V8::SetPlatformForTesting(old_platform);
   }
 
   std::string trace_str = stream.str();
@@ -170,32 +175,32 @@ TEST(TestJSONTraceWriter) {
       "\"Test1\",\"dur\":77,\"tdur\":88,\"args\":{}}]}";
 
   CHECK_EQ(expected_trace_str, trace_str);
-
-  i::V8::SetPlatformForTesting(old_platform);
 }
 
 TEST(TestTracingController) {
   v8::Platform* old_platform = i::V8::GetCurrentPlatform();
-  v8::Platform* default_platform = v8::platform::CreateDefaultPlatform();
-  i::V8::SetPlatformForTesting(default_platform);
+  std::unique_ptr<v8::Platform> default_platform(
+      v8::platform::NewDefaultPlatform());
+  i::V8::SetPlatformForTesting(default_platform.get());
 
-  TracingController tracing_controller;
-  static_cast<v8::platform::DefaultPlatform*>(default_platform)
-      ->SetTracingController(&tracing_controller);
+  auto tracing = base::make_unique<v8::platform::tracing::TracingController>();
+  v8::platform::tracing::TracingController* tracing_controller = tracing.get();
+  static_cast<v8::platform::DefaultPlatform*>(default_platform.get())
+      ->SetTracingController(std::move(tracing));
 
   MockTraceWriter* writer = new MockTraceWriter();
   TraceBuffer* ring_buffer =
       TraceBuffer::CreateTraceBufferRingBuffer(1, writer);
-  tracing_controller.Initialize(ring_buffer);
+  tracing_controller->Initialize(ring_buffer);
   TraceConfig* trace_config = new TraceConfig();
   trace_config->AddIncludedCategory("v8");
-  tracing_controller.StartTracing(trace_config);
+  tracing_controller->StartTracing(trace_config);
 
   TRACE_EVENT0("v8", "v8.Test");
   // cat category is not included in default config
   TRACE_EVENT0("cat", "v8.Test2");
   TRACE_EVENT0("v8", "v8.Test3");
-  tracing_controller.StopTracing();
+  tracing_controller->StopTracing();
 
   CHECK_EQ(2u, writer->events().size());
   CHECK_EQ(std::string("v8.Test"), writer->events()[0]);
@@ -220,10 +225,6 @@ void GetJSONStrings(std::vector<std::string>& ret, std::string str,
 
 TEST(TestTracingControllerMultipleArgsAndCopy) {
   std::ostringstream stream;
-  v8::Platform* old_platform = i::V8::GetCurrentPlatform();
-  v8::Platform* default_platform = v8::platform::CreateDefaultPlatform();
-  i::V8::SetPlatformForTesting(default_platform);
-
   uint64_t aa = 11;
   unsigned int bb = 22;
   uint16_t cc = 33;
@@ -246,17 +247,25 @@ TEST(TestTracingControllerMultipleArgsAndCopy) {
 
   // Create a scope for the tracing controller to terminate the trace writer.
   {
-    TracingController tracing_controller;
-    static_cast<v8::platform::DefaultPlatform*>(default_platform)
-        ->SetTracingController(&tracing_controller);
+    v8::Platform* old_platform = i::V8::GetCurrentPlatform();
+    std::unique_ptr<v8::Platform> default_platform(
+        v8::platform::NewDefaultPlatform());
+    i::V8::SetPlatformForTesting(default_platform.get());
+
+    auto tracing =
+        base::make_unique<v8::platform::tracing::TracingController>();
+    v8::platform::tracing::TracingController* tracing_controller =
+        tracing.get();
+    static_cast<v8::platform::DefaultPlatform*>(default_platform.get())
+        ->SetTracingController(std::move(tracing));
     TraceWriter* writer = TraceWriter::CreateJSONTraceWriter(stream);
 
     TraceBuffer* ring_buffer =
         TraceBuffer::CreateTraceBufferRingBuffer(1, writer);
-    tracing_controller.Initialize(ring_buffer);
+    tracing_controller->Initialize(ring_buffer);
     TraceConfig* trace_config = new TraceConfig();
     trace_config->AddIncludedCategory("v8");
-    tracing_controller.StartTracing(trace_config);
+    tracing_controller->StartTracing(trace_config);
 
     TRACE_EVENT1("v8", "v8.Test.aa", "aa", aa);
     TRACE_EVENT1("v8", "v8.Test.bb", "bb", bb);
@@ -296,7 +305,9 @@ TEST(TestTracingControllerMultipleArgsAndCopy) {
                          std::move(trace_event_arg), "a2",
                          new ConvertableToTraceFormatMock(123));
 
-    tracing_controller.StopTracing();
+    tracing_controller->StopTracing();
+
+    i::V8::SetPlatformForTesting(old_platform);
   }
 
   std::string trace_str = stream.str();
@@ -337,8 +348,6 @@ TEST(TestTracingControllerMultipleArgsAndCopy) {
   CHECK_EQ(all_args[21], "\"mm1\":\"INIT\",\"mm2\":\"\\\"INIT\\\"\"");
   CHECK_EQ(all_args[22], "\"a1\":[42,42]");
   CHECK_EQ(all_args[23], "\"a1\":[42,42],\"a2\":[123,123]");
-
-  i::V8::SetPlatformForTesting(old_platform);
 }
 
 namespace {
@@ -356,58 +365,60 @@ class TraceStateObserverImpl : public TracingController::TraceStateObserver {
 
 TEST(TracingObservers) {
   v8::Platform* old_platform = i::V8::GetCurrentPlatform();
-  v8::Platform* default_platform = v8::platform::CreateDefaultPlatform();
-  i::V8::SetPlatformForTesting(default_platform);
+  std::unique_ptr<v8::Platform> default_platform(
+      v8::platform::NewDefaultPlatform());
+  i::V8::SetPlatformForTesting(default_platform.get());
 
-  v8::platform::tracing::TracingController tracing_controller;
-  static_cast<v8::platform::DefaultPlatform*>(default_platform)
-      ->SetTracingController(&tracing_controller);
+  auto tracing = base::make_unique<v8::platform::tracing::TracingController>();
+  v8::platform::tracing::TracingController* tracing_controller = tracing.get();
+  static_cast<v8::platform::DefaultPlatform*>(default_platform.get())
+      ->SetTracingController(std::move(tracing));
   MockTraceWriter* writer = new MockTraceWriter();
   v8::platform::tracing::TraceBuffer* ring_buffer =
       v8::platform::tracing::TraceBuffer::CreateTraceBufferRingBuffer(1,
                                                                       writer);
-  tracing_controller.Initialize(ring_buffer);
+  tracing_controller->Initialize(ring_buffer);
   v8::platform::tracing::TraceConfig* trace_config =
       new v8::platform::tracing::TraceConfig();
   trace_config->AddIncludedCategory("v8");
 
   TraceStateObserverImpl observer;
-  tracing_controller.AddTraceStateObserver(&observer);
+  tracing_controller->AddTraceStateObserver(&observer);
 
   CHECK_EQ(0, observer.enabled_count);
   CHECK_EQ(0, observer.disabled_count);
 
-  tracing_controller.StartTracing(trace_config);
+  tracing_controller->StartTracing(trace_config);
 
   CHECK_EQ(1, observer.enabled_count);
   CHECK_EQ(0, observer.disabled_count);
 
   TraceStateObserverImpl observer2;
-  tracing_controller.AddTraceStateObserver(&observer2);
+  tracing_controller->AddTraceStateObserver(&observer2);
 
   CHECK_EQ(1, observer2.enabled_count);
   CHECK_EQ(0, observer2.disabled_count);
 
-  tracing_controller.RemoveTraceStateObserver(&observer2);
+  tracing_controller->RemoveTraceStateObserver(&observer2);
 
   CHECK_EQ(1, observer2.enabled_count);
   CHECK_EQ(0, observer2.disabled_count);
 
-  tracing_controller.StopTracing();
+  tracing_controller->StopTracing();
 
   CHECK_EQ(1, observer.enabled_count);
   CHECK_EQ(1, observer.disabled_count);
   CHECK_EQ(1, observer2.enabled_count);
   CHECK_EQ(0, observer2.disabled_count);
 
-  tracing_controller.RemoveTraceStateObserver(&observer);
+  tracing_controller->RemoveTraceStateObserver(&observer);
 
   CHECK_EQ(1, observer.enabled_count);
   CHECK_EQ(1, observer.disabled_count);
 
   trace_config = new v8::platform::tracing::TraceConfig();
-  tracing_controller.StartTracing(trace_config);
-  tracing_controller.StopTracing();
+  tracing_controller->StartTracing(trace_config);
+  tracing_controller->StopTracing();
 
   CHECK_EQ(1, observer.enabled_count);
   CHECK_EQ(1, observer.disabled_count);

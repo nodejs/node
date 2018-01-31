@@ -98,7 +98,7 @@ static void TrimToMaxSignificantDigits(Vector<const char> buffer,
   }
   // The input buffer has been trimmed. Therefore the last digit must be
   // different from '0'.
-  DCHECK(buffer[buffer.length() - 1] != '0');
+  DCHECK_NE(buffer[buffer.length() - 1], '0');
   // Set the last digit to be non-zero. This is sufficient to guarantee
   // correct rounding.
   significant_buffer[kMaxSignificantDecimalDigits - 1] = '1';
@@ -207,11 +207,11 @@ static bool DoubleStrtod(Vector<const char> trimmed,
 // Returns 10^exponent as an exact DiyFp.
 // The given exponent must be in the range [1; kDecimalExponentDistance[.
 static DiyFp AdjustmentPowerOfTen(int exponent) {
-  DCHECK(0 < exponent);
-  DCHECK(exponent < PowersOfTenCache::kDecimalExponentDistance);
+  DCHECK_LT(0, exponent);
+  DCHECK_LT(exponent, PowersOfTenCache::kDecimalExponentDistance);
   // Simply hardcode the remaining powers for the given decimal exponent
   // distance.
-  DCHECK(PowersOfTenCache::kDecimalExponentDistance == 8);
+  DCHECK_EQ(PowersOfTenCache::kDecimalExponentDistance, 8);
   switch (exponent) {
     case 1: return DiyFp(V8_2PART_UINT64_C(0xa0000000, 00000000), -60);
     case 2: return DiyFp(V8_2PART_UINT64_C(0xc8000000, 00000000), -57);
@@ -250,7 +250,7 @@ static bool DiyFpStrtod(Vector<const char> buffer,
   input.Normalize();
   error <<= old_e - input.e();
 
-  DCHECK(exponent <= PowersOfTenCache::kMaxDecimalExponent);
+  DCHECK_LE(exponent, PowersOfTenCache::kMaxDecimalExponent);
   if (exponent < PowersOfTenCache::kMinDecimalExponent) {
     *result = 0.0;
     return true;
@@ -268,7 +268,7 @@ static bool DiyFpStrtod(Vector<const char> buffer,
     if (kMaxUint64DecimalDigits - buffer.length() >= adjustment_exponent) {
       // The product of input with the adjustment power fits into a 64 bit
       // integer.
-      DCHECK(DiyFp::kSignificandSize == 64);
+      DCHECK_EQ(DiyFp::kSignificandSize, 64);
     } else {
       // The adjustment power is exact. There is hence only an error of 0.5.
       error += kDenominator / 2;
@@ -310,8 +310,8 @@ static bool DiyFpStrtod(Vector<const char> buffer,
     precision_digits_count -= shift_amount;
   }
   // We use uint64_ts now. This only works if the DiyFp uses uint64_ts too.
-  DCHECK(DiyFp::kSignificandSize == 64);
-  DCHECK(precision_digits_count < 64);
+  DCHECK_EQ(DiyFp::kSignificandSize, 64);
+  DCHECK_LT(precision_digits_count, 64);
   uint64_t one64 = 1;
   uint64_t precision_bits_mask = (one64 << precision_digits_count) - 1;
   uint64_t precision_bits = input.f() & precision_bits_mask;
@@ -356,13 +356,13 @@ static double BignumStrtod(Vector<const char> buffer,
   DiyFp upper_boundary = Double(guess).UpperBoundary();
 
   DCHECK(buffer.length() + exponent <= kMaxDecimalPower + 1);
-  DCHECK(buffer.length() + exponent > kMinDecimalPower);
-  DCHECK(buffer.length() <= kMaxSignificantDecimalDigits);
+  DCHECK_GT(buffer.length() + exponent, kMinDecimalPower);
+  DCHECK_LE(buffer.length(), kMaxSignificantDecimalDigits);
   // Make sure that the Bignum will be able to hold all our numbers.
   // Our Bignum implementation has a separate field for exponents. Shifts will
   // consume at most one bigit (< 64 bits).
   // ln(10) == 3.3219...
-  DCHECK(((kMaxDecimalPower + 1) * 333 / 100) < Bignum::kMaxSignificantBits);
+  DCHECK_LT((kMaxDecimalPower + 1) * 333 / 100, Bignum::kMaxSignificantBits);
   Bignum input;
   Bignum boundary;
   input.AssignDecimalString(buffer);

@@ -14,12 +14,16 @@ Error.prepareStackTrace = function(error, frames) {
 
 function testTrapLocations(instance, expected_stack_length) {
   function testWasmTrap(value, reason, position) {
+    let function_name = arguments.callee.name;
     try {
       instance.exports.main(value);
       fail('expected wasm exception');
     } catch (e) {
       assertEquals(kTrapMsgs[reason], e.message, 'trap reason');
-      assertEquals(expected_stack_length, e.stack.length, 'number of frames');
+      // Check that the trapping function is the one which was called from this
+      // function.
+      assertTrue(
+          e.stack[1].toString().startsWith(function_name), 'stack depth');
       assertEquals(0, e.stack[0].getLineNumber(), 'wasmFunctionIndex');
       assertEquals(position, e.stack[0].getPosition(), 'position');
     }

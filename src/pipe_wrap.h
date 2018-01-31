@@ -24,7 +24,7 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-#include "async-wrap.h"
+#include "async_wrap.h"
 #include "connection_wrap.h"
 #include "env.h"
 
@@ -32,7 +32,15 @@ namespace node {
 
 class PipeWrap : public ConnectionWrap<PipeWrap, uv_pipe_t> {
  public:
-  static v8::Local<v8::Object> Instantiate(Environment* env, AsyncWrap* parent);
+  enum SocketType {
+    SOCKET,
+    SERVER,
+    IPC
+  };
+
+  static v8::Local<v8::Object> Instantiate(Environment* env,
+                                           AsyncWrap* parent,
+                                           SocketType type);
   static void Initialize(v8::Local<v8::Object> target,
                          v8::Local<v8::Value> unused,
                          v8::Local<v8::Context> context);
@@ -42,6 +50,7 @@ class PipeWrap : public ConnectionWrap<PipeWrap, uv_pipe_t> {
  private:
   PipeWrap(Environment* env,
            v8::Local<v8::Object> object,
+           ProviderType provider,
            bool ipc);
 
   static void New(const v8::FunctionCallbackInfo<v8::Value>& args);

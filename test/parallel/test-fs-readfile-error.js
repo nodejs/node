@@ -21,6 +21,10 @@
 
 'use strict';
 const common = require('../common');
+const fs = require('fs');
+
+// Test that fs.readFile fails correctly on a non-existent file.
+
 // `fs.readFile('/')` does not fail on FreeBSD, because you can open and read
 // the directory there.
 if (common.isFreeBSD)
@@ -51,3 +55,12 @@ test({ NODE_DEBUG: 'fs' }, common.mustCall((data) => {
   assert(/EISDIR/.test(data));
   assert(/test-fs-readfile-error/.test(data));
 }));
+
+common.expectsError(
+  () => { fs.readFile(() => {}); },
+  {
+    code: 'ERR_INVALID_ARG_TYPE',
+    message: 'The "path" argument must be one of type string, Buffer, or URL',
+    type: TypeError
+  }
+);

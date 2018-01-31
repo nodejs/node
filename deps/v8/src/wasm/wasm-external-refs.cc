@@ -10,6 +10,7 @@
 #include "include/v8config.h"
 
 #include "src/base/bits.h"
+#include "src/trap-handler/trap-handler.h"
 #include "src/utils.h"
 #include "src/wasm/wasm-external-refs.h"
 
@@ -200,12 +201,12 @@ int32_t uint64_mod_wrapper(uint64_t* dst, uint64_t* src) {
 }
 
 uint32_t word32_ctz_wrapper(uint32_t* input) {
-  return static_cast<uint32_t>(base::bits::CountTrailingZeros32(*input));
+  return static_cast<uint32_t>(base::bits::CountTrailingZeros(*input));
 }
 
 uint32_t word64_ctz_wrapper(uint64_t* input) {
   return static_cast<uint32_t>(
-      base::bits::CountTrailingZeros64(ReadUnalignedValue<uint64_t>(input)));
+      base::bits::CountTrailingZeros(ReadUnalignedValue<uint64_t>(input)));
 }
 
 uint32_t word32_popcnt_wrapper(uint32_t* input) {
@@ -222,6 +223,10 @@ void float64_pow_wrapper(double* param0, double* param1) {
   double y = ReadDoubleValue(param1);
   WriteDoubleValue(param0, Pow(x, y));
 }
+
+void set_thread_in_wasm_flag() { trap_handler::SetThreadInWasm(); }
+
+void clear_thread_in_wasm_flag() { trap_handler::ClearThreadInWasm(); }
 
 static WasmTrapCallbackForTesting wasm_trap_callback_for_testing = nullptr;
 

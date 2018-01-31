@@ -117,6 +117,7 @@ console.log(239)
                 this : {
                     type : undefined
                 }
+                url : module3
             }
         ]
         hitBreakpoints : [

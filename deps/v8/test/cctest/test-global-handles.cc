@@ -36,6 +36,102 @@
 namespace v8 {
 namespace internal {
 
+namespace {
+
+void SimpleCallback(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  info.GetReturnValue().Set(v8_num(0));
+}
+
+struct FlagAndPersistent {
+  bool flag;
+  v8::Global<v8::Object> handle;
+};
+
+void ResetHandleAndSetFlag(
+    const v8::WeakCallbackInfo<FlagAndPersistent>& data) {
+  data.GetParameter()->handle.Reset();
+  data.GetParameter()->flag = true;
+}
+
+using ConstructFunction = void (*)(v8::Isolate* isolate,
+                                   v8::Local<v8::Context> context,
+                                   FlagAndPersistent* flag_and_persistent);
+
+void ConstructJSObject(v8::Isolate* isolate, v8::Local<v8::Context> context,
+                       FlagAndPersistent* flag_and_persistent) {
+  v8::HandleScope handle_scope(isolate);
+  v8::Local<v8::Object> object(v8::Object::New(isolate));
+  CHECK(!object.IsEmpty());
+  flag_and_persistent->handle.Reset(isolate, object);
+  CHECK(!flag_and_persistent->handle.IsEmpty());
+}
+
+void ConstructJSApiObject(v8::Isolate* isolate, v8::Local<v8::Context> context,
+                          FlagAndPersistent* flag_and_persistent) {
+  v8::HandleScope handle_scope(isolate);
+  v8::Local<v8::FunctionTemplate> fun =
+      v8::FunctionTemplate::New(isolate, SimpleCallback);
+  v8::Local<v8::Object> object = fun->GetFunction(context)
+                                     .ToLocalChecked()
+                                     ->NewInstance(context)
+                                     .ToLocalChecked();
+  CHECK(!object.IsEmpty());
+  flag_and_persistent->handle.Reset(isolate, object);
+  CHECK(!flag_and_persistent->handle.IsEmpty());
+}
+
+enum class SurvivalMode { kSurvives, kDies };
+
+template <typename ModifierFunction, typename GCFunction>
+void WeakHandleTest(v8::Isolate* isolate, ConstructFunction construct_function,
+                    ModifierFunction modifier_function, GCFunction gc_function,
+                    SurvivalMode survives) {
+  v8::HandleScope scope(isolate);
+  v8::Local<v8::Context> context = v8::Context::New(isolate);
+  v8::Context::Scope context_scope(context);
+
+  FlagAndPersistent fp;
+  construct_function(isolate, context, &fp);
+  {
+    v8::HandleScope scope(isolate);
+    v8::Local<v8::Object> tmp = v8::Local<v8::Object>::New(isolate, fp.handle);
+    CHECK(
+        CcTest::i_isolate()->heap()->InNewSpace(*v8::Utils::OpenHandle(*tmp)));
+  }
+
+  fp.handle.SetWeak(&fp, &ResetHandleAndSetFlag,
+                    v8::WeakCallbackType::kParameter);
+  fp.flag = false;
+  modifier_function(&fp);
+  gc_function();
+  CHECK_IMPLIES(survives == SurvivalMode::kSurvives, !fp.flag);
+  CHECK_IMPLIES(survives == SurvivalMode::kDies, fp.flag);
+}
+
+void ResurrectingFinalizer(
+    const v8::WeakCallbackInfo<v8::Global<v8::Object>>& data) {
+  data.GetParameter()->ClearWeak();
+}
+
+void ResettingFinalizer(
+    const v8::WeakCallbackInfo<v8::Global<v8::Object>>& data) {
+  data.GetParameter()->Reset();
+}
+
+void EmptyWeakCallback(const v8::WeakCallbackInfo<void>& data) {}
+
+void ResurrectingFinalizerSettingProperty(
+    const v8::WeakCallbackInfo<v8::Global<v8::Object>>& data) {
+  data.GetParameter()->ClearWeak();
+  v8::Local<v8::Object> o =
+      v8::Local<v8::Object>::New(data.GetIsolate(), *data.GetParameter());
+  o->Set(data.GetIsolate()->GetCurrentContext(), v8_str("finalizer"),
+         v8_str("was here"))
+      .FromJust();
+}
+
+}  // namespace
+
 TEST(EternalHandles) {
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
@@ -117,10 +213,6 @@ TEST(PersistentBaseGetLocal) {
   CHECK(v8::Local<v8::Object>::New(isolate, g) == g.Get(isolate));
 }
 
-
-void WeakCallback(const v8::WeakCallbackInfo<void>& data) {}
-
-
 TEST(WeakPersistentSmi) {
   CcTest::InitializeVM();
   v8::Isolate* isolate = CcTest::isolate();
@@ -130,16 +222,8 @@ TEST(WeakPersistentSmi) {
   v8::Global<v8::Number> g(isolate, n);
 
   // Should not crash.
-  g.SetWeak<void>(nullptr, &WeakCallback, v8::WeakCallbackType::kParameter);
-}
-
-void finalizer(const v8::WeakCallbackInfo<v8::Global<v8::Object>>& data) {
-  data.GetParameter()->ClearWeak();
-  v8::Local<v8::Object> o =
-      v8::Local<v8::Object>::New(data.GetIsolate(), *data.GetParameter());
-  o->Set(data.GetIsolate()->GetCurrentContext(), v8_str("finalizer"),
-         v8_str("was here"))
-      .FromJust();
+  g.SetWeak<void>(nullptr, &EmptyWeakCallback,
+                  v8::WeakCallbackType::kParameter);
 }
 
 TEST(FinalizerWeakness) {
@@ -154,7 +238,8 @@ TEST(FinalizerWeakness) {
     v8::Local<v8::Object> o = v8::Object::New(isolate);
     identity = o->GetIdentityHash();
     g.Reset(isolate, o);
-    g.SetWeak(&g, finalizer, v8::WeakCallbackType::kFinalizer);
+    g.SetWeak(&g, &ResurrectingFinalizerSettingProperty,
+              v8::WeakCallbackType::kFinalizer);
   }
 
   CcTest::CollectAllAvailableGarbage();
@@ -183,6 +268,220 @@ TEST(PhatomHandlesWithoutCallbacks) {
   CcTest::CollectAllAvailableGarbage();
   CHECK_EQ(2u, isolate->NumberOfPhantomHandleResetsSinceLastCall());
   CHECK_EQ(0u, isolate->NumberOfPhantomHandleResetsSinceLastCall());
+}
+
+TEST(WeakHandleToUnmodifiedJSObjectSurvivesScavenge) {
+  CcTest::InitializeVM();
+  WeakHandleTest(
+      CcTest::isolate(), &ConstructJSObject, [](FlagAndPersistent* fp) {},
+      []() { CcTest::CollectGarbage(i::NEW_SPACE); }, SurvivalMode::kSurvives);
+}
+
+TEST(WeakHandleToUnmodifiedJSObjectDiesOnMarkCompact) {
+  CcTest::InitializeVM();
+  WeakHandleTest(
+      CcTest::isolate(), &ConstructJSObject, [](FlagAndPersistent* fp) {},
+      []() { CcTest::CollectGarbage(i::OLD_SPACE); }, SurvivalMode::kDies);
+}
+
+TEST(WeakHandleToUnmodifiedJSObjectSurvivesMarkCompactWhenInHandle) {
+  CcTest::InitializeVM();
+  WeakHandleTest(
+      CcTest::isolate(), &ConstructJSObject,
+      [](FlagAndPersistent* fp) {
+        v8::Local<v8::Object> handle =
+            v8::Local<v8::Object>::New(CcTest::isolate(), fp->handle);
+        USE(handle);
+      },
+      []() { CcTest::CollectGarbage(i::OLD_SPACE); }, SurvivalMode::kSurvives);
+}
+
+TEST(WeakHandleToUnmodifiedJSApiObjectDiesOnScavenge) {
+  CcTest::InitializeVM();
+  WeakHandleTest(
+      CcTest::isolate(), &ConstructJSApiObject, [](FlagAndPersistent* fp) {},
+      []() { CcTest::CollectGarbage(i::NEW_SPACE); }, SurvivalMode::kDies);
+}
+
+TEST(WeakHandleToUnmodifiedJSApiObjectSurvivesScavengeWhenInHandle) {
+  CcTest::InitializeVM();
+  WeakHandleTest(
+      CcTest::isolate(), &ConstructJSApiObject,
+      [](FlagAndPersistent* fp) {
+        v8::Local<v8::Object> handle =
+            v8::Local<v8::Object>::New(CcTest::isolate(), fp->handle);
+        USE(handle);
+      },
+      []() { CcTest::CollectGarbage(i::NEW_SPACE); }, SurvivalMode::kSurvives);
+}
+
+TEST(WeakHandleToUnmodifiedJSApiObjectDiesOnMarkCompact) {
+  CcTest::InitializeVM();
+  WeakHandleTest(
+      CcTest::isolate(), &ConstructJSApiObject, [](FlagAndPersistent* fp) {},
+      []() { CcTest::CollectGarbage(i::OLD_SPACE); }, SurvivalMode::kDies);
+}
+
+TEST(WeakHandleToUnmodifiedJSApiObjectSurvivesMarkCompactWhenInHandle) {
+  CcTest::InitializeVM();
+  WeakHandleTest(
+      CcTest::isolate(), &ConstructJSApiObject,
+      [](FlagAndPersistent* fp) {
+        v8::Local<v8::Object> handle =
+            v8::Local<v8::Object>::New(CcTest::isolate(), fp->handle);
+        USE(handle);
+      },
+      []() { CcTest::CollectGarbage(i::OLD_SPACE); }, SurvivalMode::kSurvives);
+}
+
+TEST(WeakHandleToActiveUnmodifiedJSApiObjectSurvivesScavenge) {
+  CcTest::InitializeVM();
+  WeakHandleTest(CcTest::isolate(), &ConstructJSApiObject,
+                 [](FlagAndPersistent* fp) { fp->handle.MarkActive(); },
+                 []() { CcTest::CollectGarbage(i::NEW_SPACE); },
+                 SurvivalMode::kSurvives);
+}
+
+TEST(WeakHandleToActiveUnmodifiedJSApiObjectDiesOnMarkCompact) {
+  CcTest::InitializeVM();
+  WeakHandleTest(CcTest::isolate(), &ConstructJSApiObject,
+                 [](FlagAndPersistent* fp) { fp->handle.MarkActive(); },
+                 []() { CcTest::CollectGarbage(i::OLD_SPACE); },
+                 SurvivalMode::kDies);
+}
+
+TEST(WeakHandleToActiveUnmodifiedJSApiObjectSurvivesMarkCompactWhenInHandle) {
+  CcTest::InitializeVM();
+  WeakHandleTest(
+      CcTest::isolate(), &ConstructJSApiObject,
+      [](FlagAndPersistent* fp) {
+        fp->handle.MarkActive();
+        v8::Local<v8::Object> handle =
+            v8::Local<v8::Object>::New(CcTest::isolate(), fp->handle);
+        USE(handle);
+      },
+      []() { CcTest::CollectGarbage(i::OLD_SPACE); }, SurvivalMode::kSurvives);
+}
+
+namespace {
+
+void ConstructFinalizerPointingPhantomHandle(
+    v8::Isolate* isolate, v8::Global<v8::Object>* g1,
+    v8::Global<v8::Object>* g2,
+    typename v8::WeakCallbackInfo<v8::Global<v8::Object>>::Callback
+        finalizer_for_g1) {
+  v8::HandleScope scope(isolate);
+  v8::Local<v8::Object> o1 =
+      v8::Local<v8::Object>::New(isolate, v8::Object::New(isolate));
+  v8::Local<v8::Object> o2 =
+      v8::Local<v8::Object>::New(isolate, v8::Object::New(isolate));
+  o1->Set(isolate->GetCurrentContext(), v8_str("link"), o2).FromJust();
+  g1->Reset(isolate, o1);
+  g2->Reset(isolate, o2);
+  // g1 will be finalized but resurrected.
+  g1->SetWeak(g1, finalizer_for_g1, v8::WeakCallbackType::kFinalizer);
+  // g2 will be a phantom handle that is dependent on the finalizer handle
+  // g1 as it is in its subgraph.
+  g2->SetWeak();
+}
+
+}  // namespace
+
+TEST(FinalizerResurrectsAndKeepsPhantomAliveOnMarkCompact) {
+  // See crbug.com/772299.
+  CcTest::InitializeVM();
+  v8::Global<v8::Object> g1, g2;
+  ConstructFinalizerPointingPhantomHandle(CcTest::isolate(), &g1, &g2,
+                                          ResurrectingFinalizer);
+  CcTest::CollectGarbage(i::OLD_SPACE);
+  // Both, g1 and g2, should stay alive as the finalizer resurrects the root
+  // object that transitively keeps the other one alive.
+  CHECK(!g1.IsEmpty());
+  CHECK(!g2.IsEmpty());
+  CcTest::CollectGarbage(i::OLD_SPACE);
+  // The finalizer handle is now strong, so it should keep the objects alive.
+  CHECK(!g1.IsEmpty());
+  CHECK(!g2.IsEmpty());
+}
+
+TEST(FinalizerDiesAndKeepsPhantomAliveOnMarkCompact) {
+  CcTest::InitializeVM();
+  v8::Global<v8::Object> g1, g2;
+  ConstructFinalizerPointingPhantomHandle(CcTest::isolate(), &g1, &g2,
+                                          ResettingFinalizer);
+  CcTest::CollectGarbage(i::OLD_SPACE);
+  // Finalizer (g1) dies but the phantom handle (g2) is kept alive for one
+  // more round as the underlying object only dies on the next GC.
+  CHECK(g1.IsEmpty());
+  CHECK(!g2.IsEmpty());
+  CcTest::CollectGarbage(i::OLD_SPACE);
+  // Phantom handle dies after one more round.
+  CHECK(g1.IsEmpty());
+  CHECK(g2.IsEmpty());
+}
+
+namespace {
+
+void InvokeScavenge() { CcTest::CollectGarbage(i::NEW_SPACE); }
+
+void InvokeMarkSweep() { CcTest::CollectAllGarbage(); }
+
+void ForceScavenge2(const v8::WeakCallbackInfo<FlagAndPersistent>& data) {
+  data.GetParameter()->flag = true;
+  InvokeScavenge();
+}
+
+void ForceScavenge1(const v8::WeakCallbackInfo<FlagAndPersistent>& data) {
+  data.GetParameter()->handle.Reset();
+  data.SetSecondPassCallback(ForceScavenge2);
+}
+
+void ForceMarkSweep2(const v8::WeakCallbackInfo<FlagAndPersistent>& data) {
+  data.GetParameter()->flag = true;
+  InvokeMarkSweep();
+}
+
+void ForceMarkSweep1(const v8::WeakCallbackInfo<FlagAndPersistent>& data) {
+  data.GetParameter()->handle.Reset();
+  data.SetSecondPassCallback(ForceMarkSweep2);
+}
+
+}  // namespace
+
+TEST(GCFromWeakCallbacks) {
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::Locker locker(CcTest::isolate());
+  v8::HandleScope scope(isolate);
+  v8::Local<v8::Context> context = v8::Context::New(isolate);
+  v8::Context::Scope context_scope(context);
+
+  static const int kNumberOfGCTypes = 2;
+  typedef v8::WeakCallbackInfo<FlagAndPersistent>::Callback Callback;
+  Callback gc_forcing_callback[kNumberOfGCTypes] = {&ForceScavenge1,
+                                                    &ForceMarkSweep1};
+
+  typedef void (*GCInvoker)();
+  GCInvoker invoke_gc[kNumberOfGCTypes] = {&InvokeScavenge, &InvokeMarkSweep};
+
+  for (int outer_gc = 0; outer_gc < kNumberOfGCTypes; outer_gc++) {
+    for (int inner_gc = 0; inner_gc < kNumberOfGCTypes; inner_gc++) {
+      FlagAndPersistent fp;
+      ConstructJSApiObject(isolate, context, &fp);
+      {
+        v8::HandleScope scope(isolate);
+        v8::Local<v8::Object> tmp =
+            v8::Local<v8::Object>::New(isolate, fp.handle);
+        CHECK(CcTest::i_isolate()->heap()->InNewSpace(
+            *v8::Utils::OpenHandle(*tmp)));
+      }
+      fp.flag = false;
+      fp.handle.SetWeak(&fp, gc_forcing_callback[inner_gc],
+                        v8::WeakCallbackType::kParameter);
+      invoke_gc[outer_gc]();
+      EmptyMessageQueues(isolate);
+      CHECK(fp.flag);
+    }
+  }
 }
 
 }  // namespace internal

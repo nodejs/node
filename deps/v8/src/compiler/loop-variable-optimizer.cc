@@ -129,7 +129,7 @@ class LoopVariableOptimizer::VariableLimits : public ZoneObject {
     // Then we go through both lists in lock-step until we find
     // the common tail.
     while (head_ != other_limit) {
-      DCHECK(limit_count_ > 0);
+      DCHECK_LT(0, limit_count_);
       limit_count_--;
       other_limit = other_limit->next();
       head_ = head_->next();
@@ -310,13 +310,15 @@ InductionVariable* LoopVariableOptimizer::TryGetInductionVariable(Node* phi) {
       arith->opcode() == IrOpcode::kSpeculativeSafeIntegerAdd) {
     arithmeticType = InductionVariable::ArithmeticType::kAddition;
   } else if (arith->opcode() == IrOpcode::kJSSubtract ||
-             arith->opcode() == IrOpcode::kSpeculativeNumberSubtract) {
+             arith->opcode() == IrOpcode::kSpeculativeNumberSubtract ||
+             arith->opcode() == IrOpcode::kSpeculativeSafeIntegerSubtract) {
     arithmeticType = InductionVariable::ArithmeticType::kSubtraction;
   } else {
     return nullptr;
   }
 
   // TODO(jarin) Support both sides.
+  // XXX
   if (arith->InputAt(0) != phi) {
     if ((arith->InputAt(0)->opcode() != IrOpcode::kJSToNumber &&
          arith->InputAt(0)->opcode() != IrOpcode::kSpeculativeToNumber) ||

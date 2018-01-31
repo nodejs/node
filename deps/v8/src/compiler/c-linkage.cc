@@ -171,7 +171,7 @@ CallDescriptor* Linkage::GetSimplifiedCDescriptor(
 #endif
 
   // Add return location(s).
-  CHECK(locations.return_count_ <= 2);
+  CHECK_GE(2, locations.return_count_);
 
   if (locations.return_count_ > 0) {
     locations.AddReturn(LinkageLocation::ForRegister(kReturnRegister0.code(),
@@ -235,7 +235,7 @@ CallDescriptor* Linkage::GetSimplifiedCDescriptor(
       target_loc,                    // target location
       locations.Build(),             // location_sig
       0,                             // stack_parameter_count
-      Operator::kNoProperties,       // properties
+      Operator::kNoThrow,            // properties
       kCalleeSaveRegisters,          // callee-saved registers
       kCalleeSaveFPRegisters,        // callee-saved fp regs
       flags, "c-call");

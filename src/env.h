@@ -30,7 +30,7 @@
 #include "inspector_agent.h"
 #endif
 #include "handle_wrap.h"
-#include "req-wrap.h"
+#include "req_wrap.h"
 #include "util.h"
 #include "uv.h"
 #include "v8.h"
@@ -41,7 +41,6 @@
 #include <map>
 #include <stdint.h>
 #include <vector>
-#include <stack>
 #include <unordered_map>
 
 struct nghttp2_rcbuf;
@@ -49,7 +48,7 @@ struct nghttp2_rcbuf;
 namespace node {
 
 namespace performance {
-struct performance_state;
+class performance_state;
 }
 
 namespace loader {
@@ -91,9 +90,7 @@ class ModuleWrap;
   V(contextify_global_private_symbol, "node:contextify:global")               \
   V(decorated_private_symbol, "node:decorated")                               \
   V(npn_buffer_private_symbol, "node:npnBuffer")                              \
-  V(processed_private_symbol, "node:processed")                               \
   V(selected_npn_buffer_private_symbol, "node:selectedNpnBuffer")             \
-  V(domain_private_symbol, "node:domain")                                     \
 
 // Strings are per-isolate primitives but Environment proxies them
 // for the sake of convenience.  Strings should be ASCII-only.
@@ -101,6 +98,7 @@ class ModuleWrap;
   V(address_string, "address")                                                \
   V(args_string, "args")                                                      \
   V(async, "async")                                                           \
+  V(async_ids_stack_string, "async_ids_stack")                                \
   V(buffer_string, "buffer")                                                  \
   V(bytes_string, "bytes")                                                    \
   V(bytes_parsed_string, "bytesParsed")                                       \
@@ -108,7 +106,6 @@ class ModuleWrap;
   V(cached_data_string, "cachedData")                                         \
   V(cached_data_produced_string, "cachedDataProduced")                        \
   V(cached_data_rejected_string, "cachedDataRejected")                        \
-  V(callback_string, "callback")                                              \
   V(change_string, "change")                                                  \
   V(channel_string, "channel")                                                \
   V(chunks_sent_since_last_write_string, "chunksSentSinceLastWrite")          \
@@ -116,10 +113,9 @@ class ModuleWrap;
   V(oncertcb_string, "oncertcb")                                              \
   V(onclose_string, "_onclose")                                               \
   V(code_string, "code")                                                      \
-  V(configurable_string, "configurable")                                      \
   V(cwd_string, "cwd")                                                        \
   V(dest_string, "dest")                                                      \
-  V(destroy_string, "destroy")                                                \
+  V(destroyed_string, "destroyed")                                            \
   V(detached_string, "detached")                                              \
   V(dns_a_string, "A")                                                        \
   V(dns_aaaa_string, "AAAA")                                                  \
@@ -131,21 +127,14 @@ class ModuleWrap;
   V(dns_soa_string, "SOA")                                                    \
   V(dns_srv_string, "SRV")                                                    \
   V(dns_txt_string, "TXT")                                                    \
-  V(domain_string, "domain")                                                  \
-  V(emit_string, "emit")                                                      \
-  V(emitting_top_level_domain_error_string, "_emittingTopLevelDomainError")   \
+  V(emit_warning_string, "emitWarning")                                       \
   V(exchange_string, "exchange")                                              \
-  V(enumerable_string, "enumerable")                                          \
-  V(idle_string, "idle")                                                      \
-  V(irq_string, "irq")                                                        \
-  V(enablepush_string, "enablePush")                                          \
   V(encoding_string, "encoding")                                              \
   V(enter_string, "enter")                                                    \
   V(entries_string, "entries")                                                \
   V(env_pairs_string, "envPairs")                                             \
   V(errno_string, "errno")                                                    \
   V(error_string, "error")                                                    \
-  V(events_string, "_events")                                                 \
   V(exiting_string, "_exiting")                                               \
   V(exit_code_string, "exitCode")                                             \
   V(exit_string, "exit")                                                      \
@@ -160,43 +149,34 @@ class ModuleWrap;
   V(file_string, "file")                                                      \
   V(fingerprint_string, "fingerprint")                                        \
   V(flags_string, "flags")                                                    \
-  V(get_string, "get")                                                        \
   V(get_data_clone_error_string, "_getDataCloneError")                        \
   V(get_shared_array_buffer_id_string, "_getSharedArrayBufferId")             \
   V(gid_string, "gid")                                                        \
   V(handle_string, "handle")                                                  \
-  V(heap_total_string, "heapTotal")                                           \
-  V(heap_used_string, "heapUsed")                                             \
   V(homedir_string, "homedir")                                                \
   V(hostmaster_string, "hostmaster")                                          \
-  V(id_string, "id")                                                          \
   V(ignore_string, "ignore")                                                  \
-  V(immediate_callback_string, "_immediateCallback")                          \
   V(infoaccess_string, "infoAccess")                                          \
   V(inherit_string, "inherit")                                                \
   V(input_string, "input")                                                    \
   V(internal_string, "internal")                                              \
   V(ipv4_string, "IPv4")                                                      \
   V(ipv6_string, "IPv6")                                                      \
-  V(isalive_string, "isAlive")                                                \
   V(isclosing_string, "isClosing")                                            \
   V(issuer_string, "issuer")                                                  \
   V(issuercert_string, "issuerCertificate")                                   \
   V(kill_signal_string, "killSignal")                                         \
-  V(length_string, "length")                                                  \
   V(mac_string, "mac")                                                        \
   V(main_string, "main")                                                      \
   V(max_buffer_string, "maxBuffer")                                           \
   V(message_string, "message")                                                \
   V(minttl_string, "minttl")                                                  \
-  V(model_string, "model")                                                    \
   V(modulus_string, "modulus")                                                \
   V(name_string, "name")                                                      \
   V(netmask_string, "netmask")                                                \
-  V(nice_string, "nice")                                                      \
   V(nsname_string, "nsname")                                                  \
-  V(nexttick_string, "nextTick")                                              \
   V(ocsp_request_string, "OCSPRequest")                                       \
+  V(onaltsvc_string, "onaltsvc")                                              \
   V(onchange_string, "onchange")                                              \
   V(onclienthello_string, "onclienthello")                                    \
   V(oncomplete_string, "oncomplete")                                          \
@@ -211,14 +191,12 @@ class ModuleWrap;
   V(onheaders_string, "onheaders")                                            \
   V(onmessage_string, "onmessage")                                            \
   V(onnewsession_string, "onnewsession")                                      \
-  V(onnewsessiondone_string, "onnewsessiondone")                              \
   V(onocspresponse_string, "onocspresponse")                                  \
   V(ongoawaydata_string, "ongoawaydata")                                      \
   V(onpriority_string, "onpriority")                                          \
   V(onread_string, "onread")                                                  \
   V(onreadstart_string, "onreadstart")                                        \
   V(onreadstop_string, "onreadstop")                                          \
-  V(onselect_string, "onselect")                                              \
   V(onsettings_string, "onsettings")                                          \
   V(onshutdown_string, "onshutdown")                                          \
   V(onsignal_string, "onsignal")                                              \
@@ -242,7 +220,6 @@ class ModuleWrap;
   V(raw_string, "raw")                                                        \
   V(read_host_object_string, "_readHostObject")                               \
   V(readable_string, "readable")                                              \
-  V(received_shutdown_string, "receivedShutdown")                             \
   V(refresh_string, "refresh")                                                \
   V(regexp_string, "regexp")                                                  \
   V(rename_string, "rename")                                                  \
@@ -250,31 +227,23 @@ class ModuleWrap;
   V(retry_string, "retry")                                                    \
   V(serial_string, "serial")                                                  \
   V(scopeid_string, "scopeid")                                                \
-  V(sent_shutdown_string, "sentShutdown")                                     \
   V(serial_number_string, "serialNumber")                                     \
   V(service_string, "service")                                                \
   V(servername_string, "servername")                                          \
   V(session_id_string, "sessionId")                                           \
-  V(set_string, "set")                                                        \
   V(shell_string, "shell")                                                    \
   V(signal_string, "signal")                                                  \
   V(size_string, "size")                                                      \
   V(sni_context_err_string, "Invalid SNI context")                            \
   V(sni_context_string, "sni_context")                                        \
-  V(speed_string, "speed")                                                    \
   V(stack_string, "stack")                                                    \
   V(status_string, "status")                                                  \
   V(stdio_string, "stdio")                                                    \
-  V(stream_string, "stream")                                                  \
   V(subject_string, "subject")                                                \
   V(subjectaltname_string, "subjectaltname")                                  \
-  V(sys_string, "sys")                                                        \
   V(syscall_string, "syscall")                                                \
-  V(tick_callback_string, "_tickCallback")                                    \
-  V(tick_domain_cb_string, "_tickDomainCallback")                             \
   V(ticketkeycallback_string, "onticketkeycallback")                          \
   V(timeout_string, "timeout")                                                \
-  V(times_string, "times")                                                    \
   V(tls_ticket_string, "tlsTicket")                                           \
   V(ttl_string, "ttl")                                                        \
   V(type_string, "type")                                                      \
@@ -304,20 +273,23 @@ class ModuleWrap;
   V(async_hooks_before_function, v8::Function)                                \
   V(async_hooks_after_function, v8::Function)                                 \
   V(async_hooks_promise_resolve_function, v8::Function)                       \
-  V(binding_cache_object, v8::Object)                                         \
-  V(internal_binding_cache_object, v8::Object)                                \
+  V(async_hooks_binding, v8::Object)                                          \
   V(buffer_prototype_object, v8::Object)                                      \
   V(context, v8::Context)                                                     \
-  V(domain_array, v8::Array)                                                  \
-  V(domains_stack_array, v8::Array)                                           \
+  V(domain_callback, v8::Function)                                            \
+  V(host_import_module_dynamically_callback, v8::Function)                    \
+  V(http2ping_constructor_template, v8::ObjectTemplate)                       \
+  V(http2stream_constructor_template, v8::ObjectTemplate)                     \
+  V(http2settings_constructor_template, v8::ObjectTemplate)                   \
+  V(immediate_callback_function, v8::Function)                                \
   V(inspector_console_api_object, v8::Object)                                 \
-  V(module_load_list_array, v8::Array)                                        \
   V(pbkdf2_constructor_template, v8::ObjectTemplate)                          \
   V(pipe_constructor_template, v8::FunctionTemplate)                          \
   V(performance_entry_callback, v8::Function)                                 \
   V(performance_entry_template, v8::Function)                                 \
   V(process_object, v8::Object)                                               \
-  V(promise_reject_function, v8::Function)                                    \
+  V(promise_reject_handled_function, v8::Function)                            \
+  V(promise_reject_unhandled_function, v8::Function)                          \
   V(promise_wrap_template, v8::ObjectTemplate)                                \
   V(push_values_to_array_function, v8::Function)                              \
   V(randombytes_constructor_template, v8::ObjectTemplate)                     \
@@ -335,17 +307,15 @@ class ModuleWrap;
 
 class Environment;
 
-struct node_async_ids {
-  double async_id;
-  double trigger_async_id;
-};
-
 class IsolateData {
  public:
-  inline IsolateData(v8::Isolate* isolate, uv_loop_t* event_loop,
-                     uint32_t* zero_fill_field = nullptr);
+  IsolateData(v8::Isolate* isolate, uv_loop_t* event_loop,
+              MultiIsolatePlatform* platform = nullptr,
+              uint32_t* zero_fill_field = nullptr);
+  ~IsolateData();
   inline uv_loop_t* event_loop() const;
   inline uint32_t* zero_fill_field() const;
+  inline MultiIsolatePlatform* platform() const;
 
 #define VP(PropertyName, StringValue) V(v8::Private, PropertyName)
 #define VS(PropertyName, StringValue) V(v8::String, PropertyName)
@@ -358,6 +328,7 @@ class IsolateData {
 #undef VP
 
   std::unordered_map<nghttp2_rcbuf*, v8::Eternal<v8::String>> http2_static_strs;
+  inline v8::Isolate* isolate() const;
 
  private:
 #define VP(PropertyName, StringValue) V(v8::Private, PropertyName)
@@ -370,10 +341,19 @@ class IsolateData {
 #undef VS
 #undef VP
 
+  v8::Isolate* const isolate_;
   uv_loop_t* const event_loop_;
   uint32_t* const zero_fill_field_;
+  MultiIsolatePlatform* platform_;
 
   DISALLOW_COPY_AND_ASSIGN(IsolateData);
+};
+
+struct ContextInfo {
+  explicit ContextInfo(const std::string& name) : name(name) {}
+  const std::string name;
+  std::string origin;
+  bool is_default = false;
 };
 
 class Environment {
@@ -390,6 +370,7 @@ class Environment {
       kPromiseResolve,
       kTotals,
       kCheck,
+      kStackLength,
       kFieldsCount,
     };
 
@@ -397,57 +378,56 @@ class Environment {
       kExecutionAsyncId,
       kTriggerAsyncId,
       kAsyncIdCounter,
-      kInitTriggerAsyncId,
+      kDefaultTriggerAsyncId,
       kUidFieldsCount,
     };
 
-    AsyncHooks() = delete;
-
     inline AliasedBuffer<uint32_t, v8::Uint32Array>& fields();
-    inline int fields_count() const;
-
     inline AliasedBuffer<double, v8::Float64Array>& async_id_fields();
-    inline int async_id_fields_count() const;
+    inline AliasedBuffer<double, v8::Float64Array>& async_ids_stack();
 
     inline v8::Local<v8::String> provider_string(int idx);
 
     inline void no_force_checks();
+    inline Environment* env();
 
     inline void push_async_ids(double async_id, double trigger_async_id);
     inline bool pop_async_id(double async_id);
-    inline size_t stack_size();
     inline void clear_async_id_stack();  // Used in fatal exceptions.
 
-    // Used to propagate the trigger_async_id to the constructor of any newly
-    // created resources using RAII. Instead of needing to pass the
-    // trigger_async_id along with other constructor arguments.
-    class InitScope {
+    // Used to set the kDefaultTriggerAsyncId in a scope. This is instead of
+    // passing the trigger_async_id along with other constructor arguments.
+    class DefaultTriggerAsyncIdScope {
      public:
-      InitScope() = delete;
-      explicit InitScope(Environment* env, double init_trigger_async_id);
-      ~InitScope();
+      DefaultTriggerAsyncIdScope() = delete;
+      explicit DefaultTriggerAsyncIdScope(Environment* env,
+                                          double init_trigger_async_id);
+      ~DefaultTriggerAsyncIdScope();
 
      private:
-      Environment* env_;
       AliasedBuffer<double, v8::Float64Array> async_id_fields_ref_;
+      double old_default_trigger_async_id_;
 
-      DISALLOW_COPY_AND_ASSIGN(InitScope);
+      DISALLOW_COPY_AND_ASSIGN(DefaultTriggerAsyncIdScope);
     };
+
 
    private:
     friend class Environment;  // So we can call the constructor.
-    inline explicit AsyncHooks(v8::Isolate* isolate);
+    inline AsyncHooks();
     // Keep a list of all Persistent strings used for Provider types.
     v8::Eternal<v8::String> providers_[AsyncWrap::PROVIDERS_LENGTH];
-    // Used by provider_string().
-    v8::Isolate* isolate_;
+    // Keep track of the environment copy itself.
+    Environment* env_;
     // Stores the ids of the current execution context stack.
-    std::stack<struct node_async_ids> async_ids_stack_;
+    AliasedBuffer<double, v8::Float64Array> async_ids_stack_;
     // Attached to a Uint32Array that tracks the number of active hooks for
     // each type.
     AliasedBuffer<uint32_t, v8::Uint32Array> fields_;
     // Attached to a Float64Array that tracks the state of async resources.
     AliasedBuffer<double, v8::Float64Array> async_id_fields_;
+
+    void grow_async_ids_stack();
 
     DISALLOW_COPY_AND_ASSIGN(AsyncHooks);
   };
@@ -465,45 +445,54 @@ class Environment {
     DISALLOW_COPY_AND_ASSIGN(AsyncCallbackScope);
   };
 
-  class DomainFlag {
+  class ImmediateInfo {
    public:
-    inline uint32_t* fields();
-    inline int fields_count() const;
+    inline AliasedBuffer<uint32_t, v8::Uint32Array>& fields();
     inline uint32_t count() const;
+    inline uint32_t ref_count() const;
+    inline bool has_outstanding() const;
+
+    inline void count_inc(uint32_t increment);
+    inline void count_dec(uint32_t decrement);
+
+    inline void ref_count_inc(uint32_t increment);
+    inline void ref_count_dec(uint32_t decrement);
 
    private:
     friend class Environment;  // So we can call the constructor.
-    inline DomainFlag();
+    inline explicit ImmediateInfo(v8::Isolate* isolate);
 
     enum Fields {
       kCount,
+      kRefCount,
+      kHasOutstanding,
       kFieldsCount
     };
 
-    uint32_t fields_[kFieldsCount];
+    AliasedBuffer<uint32_t, v8::Uint32Array> fields_;
 
-    DISALLOW_COPY_AND_ASSIGN(DomainFlag);
+    DISALLOW_COPY_AND_ASSIGN(ImmediateInfo);
   };
 
   class TickInfo {
    public:
-    inline uint32_t* fields();
-    inline int fields_count() const;
-    inline uint32_t index() const;
-    inline uint32_t length() const;
-    inline void set_index(uint32_t value);
+    inline AliasedBuffer<uint8_t, v8::Uint8Array>& fields();
+    inline bool has_scheduled() const;
+    inline bool has_promise_rejections() const;
+
+    inline void promise_rejections_toggle_on();
 
    private:
     friend class Environment;  // So we can call the constructor.
-    inline TickInfo();
+    inline explicit TickInfo(v8::Isolate* isolate);
 
     enum Fields {
-      kIndex,
-      kLength,
+      kHasScheduled,
+      kHasPromiseRejections,
       kFieldsCount
     };
 
-    uint32_t fields_[kFieldsCount];
+    AliasedBuffer<uint8_t, v8::Uint8Array> fields_;
 
     DISALLOW_COPY_AND_ASSIGN(TickInfo);
   };
@@ -545,23 +534,21 @@ class Environment {
              int exec_argc,
              const char* const* exec_argv,
              bool start_profiler_idle_notifier);
-  void AssignToContext(v8::Local<v8::Context> context);
   void CleanupHandles();
+
+  inline void AssignToContext(v8::Local<v8::Context> context,
+                              const ContextInfo& info);
 
   void StartProfilerIdleNotifier();
   void StopProfilerIdleNotifier();
 
   inline v8::Isolate* isolate() const;
   inline uv_loop_t* event_loop() const;
-  inline bool in_domain() const;
   inline uint32_t watched_providers() const;
 
   static inline Environment* from_immediate_check_handle(uv_check_t* handle);
-  static inline Environment* from_destroy_async_ids_timer_handle(
-    uv_timer_t* handle);
   inline uv_check_t* immediate_check_handle();
   inline uv_idle_t* immediate_idle_handle();
-  inline uv_timer_t* destroy_async_ids_timer_handle();
 
   // Register clean-up cb to be called on environment destruction.
   inline void RegisterHandleCleanup(uv_handle_t* handle,
@@ -570,14 +557,11 @@ class Environment {
   inline void FinishHandleCleanup(uv_handle_t* handle);
 
   inline AsyncHooks* async_hooks();
-  inline DomainFlag* domain_flag();
+  inline ImmediateInfo* immediate_info();
   inline TickInfo* tick_info();
   inline uint64_t timer_base() const;
 
   inline IsolateData* isolate_data() const;
-
-  inline bool using_domains() const;
-  inline void set_using_domains(bool value);
 
   inline bool printed_error() const;
   inline void set_printed_error(bool value);
@@ -585,15 +569,21 @@ class Environment {
   void PrintSyncTrace() const;
   inline void set_trace_sync_io(bool value);
 
+  // This stores whether the --abort-on-uncaught-exception flag was passed
+  // to Node.
   inline bool abort_on_uncaught_exception() const;
   inline void set_abort_on_uncaught_exception(bool value);
+  // This is a pseudo-boolean that keeps track of whether an uncaught exception
+  // should abort the process or not if --abort-on-uncaught-exception was
+  // passed to Node. If the flag was not passed, it is ignored.
+  inline AliasedBuffer<uint32_t, v8::Uint32Array>&
+  should_abort_on_uncaught_toggle();
 
   // The necessary API for async_hooks.
   inline double new_async_id();
   inline double execution_async_id();
   inline double trigger_async_id();
-  inline double get_init_trigger_async_id();
-  inline void set_init_trigger_async_id(const double id);
+  inline double get_default_trigger_async_id();
 
   // List of id's that have been destroyed and need the destroy() cb called.
   inline std::vector<double>* destroy_async_id_list();
@@ -610,10 +600,9 @@ class Environment {
   inline void set_http_parser_buffer(char* buffer);
 
   inline http2::http2_state* http2_state() const;
-  inline void set_http2_state(http2::http2_state * state);
+  inline void set_http2_state(std::unique_ptr<http2::http2_state> state);
 
-  inline double* fs_stats_field_array() const;
-  inline void set_fs_stats_field_array(double* fields);
+  inline AliasedBuffer<double, v8::Float64Array>* fs_stats_field_array();
 
   inline performance::performance_state* performance_state();
   inline std::map<std::string, uint64_t>* performance_marks();
@@ -660,6 +649,8 @@ class Environment {
                                 const char* name,
                                 v8::FunctionCallback callback);
 
+  void BeforeExit(void (*cb)(void* arg), void* arg);
+  void RunBeforeExitCallbacks();
   void AtExit(void (*cb)(void* arg), void* arg);
   void RunAtExitCallbacks();
 
@@ -683,7 +674,7 @@ class Environment {
 
 #if HAVE_INSPECTOR
   inline inspector::Agent* inspector_agent() const {
-    return inspector_agent_;
+    return inspector_agent_.get();
   }
 #endif
 
@@ -700,7 +691,39 @@ class Environment {
   bool RemovePromiseHook(promise_hook_func fn, void* arg);
   bool EmitNapiWarning();
 
+  typedef void (*native_immediate_callback)(Environment* env, void* data);
+  // cb will be called as cb(env, data) on the next event loop iteration.
+  // obj will be kept alive between now and after the callback has run.
+  inline void SetImmediate(native_immediate_callback cb,
+                           void* data,
+                           v8::Local<v8::Object> obj = v8::Local<v8::Object>());
+  inline void SetUnrefImmediate(native_immediate_callback cb,
+                                void* data,
+                                v8::Local<v8::Object> obj =
+                                    v8::Local<v8::Object>());
+  // This needs to be available for the JS-land setImmediate().
+  void ToggleImmediateRef(bool ref);
+
+  class ShouldNotAbortOnUncaughtScope {
+   public:
+    explicit inline ShouldNotAbortOnUncaughtScope(Environment* env);
+    inline void Close();
+    inline ~ShouldNotAbortOnUncaughtScope();
+
+   private:
+    Environment* env_;
+  };
+
+  inline bool inside_should_not_abort_on_uncaught_scope() const;
+
+  static inline Environment* ForAsyncHooks(AsyncHooks* hooks);
+
  private:
+  inline void CreateImmediate(native_immediate_callback cb,
+                              void* data,
+                              v8::Local<v8::Object> obj,
+                              bool ref);
+
   inline void ThrowError(v8::Local<v8::Value> (*fun)(v8::Local<v8::String>),
                          const char* errmsg);
 
@@ -708,15 +731,13 @@ class Environment {
   IsolateData* const isolate_data_;
   uv_check_t immediate_check_handle_;
   uv_idle_t immediate_idle_handle_;
-  uv_timer_t destroy_async_ids_timer_handle_;
   uv_prepare_t idle_prepare_handle_;
   uv_check_t idle_check_handle_;
 
   AsyncHooks async_hooks_;
-  DomainFlag domain_flag_;
+  ImmediateInfo immediate_info_;
   TickInfo tick_info_;
   const uint64_t timer_base_;
-  bool using_domains_;
   bool printed_error_;
   bool trace_sync_io_;
   bool abort_on_uncaught_exception_;
@@ -724,13 +745,23 @@ class Environment {
   size_t makecallback_cntr_;
   std::vector<double> destroy_async_id_list_;
 
-  performance::performance_state* performance_state_ = nullptr;
+  AliasedBuffer<uint32_t, v8::Uint32Array> should_abort_on_uncaught_toggle_;
+
+  int should_not_abort_scope_counter_ = 0;
+
+  std::unique_ptr<performance::performance_state> performance_state_;
   std::map<std::string, uint64_t> performance_marks_;
 
 #if HAVE_INSPECTOR
-  inspector::Agent* const inspector_agent_;
+  std::unique_ptr<inspector::Agent> inspector_agent_;
 #endif
 
+  // handle_wrap_queue_ and req_wrap_queue_ needs to be at a fixed offset from
+  // the start of the class because it is used by
+  // src/node_postmortem_metadata.cc to calculate offsets and generate debug
+  // symbols for Environment, which assumes that the position of members in
+  // memory are predictable. For more information please refer to
+  // `doc/guides/node-postmortem-support.md`
   HandleWrapQueue handle_wrap_queue_;
   ReqWrapQueue req_wrap_queue_;
   ListHead<HandleCleanup,
@@ -741,9 +772,18 @@ class Environment {
   double* heap_space_statistics_buffer_ = nullptr;
 
   char* http_parser_buffer_;
-  http2::http2_state* http2_state_ = nullptr;
+  std::unique_ptr<http2::http2_state> http2_state_;
 
-  double* fs_stats_field_array_;
+  // stat fields contains twice the number of entries because `fs.StatWatcher`
+  // needs room to store data for *two* `fs.Stats` instances.
+  static const int kFsStatsFieldsLength = 2 * 14;
+  AliasedBuffer<double, v8::Float64Array> fs_stats_field_array_;
+
+  struct BeforeExitCallback {
+    void (*cb_)(void* arg);
+    void* arg_;
+  };
+  std::list<BeforeExitCallback> before_exit_functions_;
 
   struct AtExitCallback {
     void (*cb_)(void* arg);
@@ -757,6 +797,16 @@ class Environment {
     size_t enable_count_;
   };
   std::vector<PromiseHookCallback> promise_hooks_;
+
+  struct NativeImmediateCallback {
+    native_immediate_callback cb_;
+    void* data_;
+    std::unique_ptr<v8::Persistent<v8::Object>> keep_alive_;
+    bool refed_;
+  };
+  std::vector<NativeImmediateCallback> native_immediate_callbacks_;
+  void RunAndClearNativeImmediates();
+  static void CheckImmediate(uv_check_t* handle);
 
   static void EnvPromiseHook(v8::PromiseHookType type,
                              v8::Local<v8::Promise> promise,

@@ -63,6 +63,8 @@ Handle<V> CustomArguments<T>::GetReturnValue(Isolate* isolate) {
   return result;
 }
 
+// Note: Calling args.Call() sets the return value on args. For multiple
+// Call()'s, a new args should be used every time.
 class PropertyCallbackArguments
     : public CustomArguments<PropertyCallbackInfo<Value> > {
  public:
@@ -78,7 +80,7 @@ class PropertyCallbackArguments
   static const int kShouldThrowOnErrorIndex = T::kShouldThrowOnErrorIndex;
 
   PropertyCallbackArguments(Isolate* isolate, Object* data, Object* self,
-                            JSObject* holder, Object::ShouldThrow should_throw)
+                            JSObject* holder, ShouldThrow should_throw)
       : Super(isolate) {
     Object** values = this->begin();
     values[T::kThisIndex] = self;
@@ -86,7 +88,7 @@ class PropertyCallbackArguments
     values[T::kDataIndex] = data;
     values[T::kIsolateIndex] = reinterpret_cast<Object*>(isolate);
     values[T::kShouldThrowOnErrorIndex] =
-        Smi::FromInt(should_throw == Object::THROW_ON_ERROR ? 1 : 0);
+        Smi::FromInt(should_throw == kThrowOnError ? 1 : 0);
 
     // Here the hole is set as default value.
     // It cannot escape into js as it's removed in Call below.
@@ -97,14 +99,14 @@ class PropertyCallbackArguments
     DCHECK(values[T::kIsolateIndex]->IsSmi());
   }
 
-/*
- * The following Call functions wrap the calling of all callbacks to handle
- * calling either the old or the new style callbacks depending on which one
- * has been registered.
- * For old callbacks which return an empty handle, the ReturnValue is checked
- * and used if it's been set to anything inside the callback.
- * New style callbacks always use the return value.
- */
+  /*
+   * The following Call functions wrap the calling of all callbacks to handle
+   * calling either the old or the new style callbacks depending on which one
+   * has been registered.
+   * For old callbacks which return an empty handle, the ReturnValue is checked
+   * and used if it's been set to anything inside the callback.
+   * New style callbacks always use the return value.
+   */
   Handle<JSObject> Call(IndexedPropertyEnumeratorCallback f);
 
   inline Handle<Object> Call(AccessorNameGetterCallback f, Handle<Name> name);
@@ -139,6 +141,10 @@ class PropertyCallbackArguments
   }
 
   bool PerformSideEffectCheck(Isolate* isolate, Address function);
+
+  // Don't copy PropertyCallbackArguments, because they would both have the
+  // same prev_ pointer.
+  DISALLOW_COPY_AND_ASSIGN(PropertyCallbackArguments);
 };
 
 class FunctionCallbackArguments
@@ -152,8 +158,6 @@ class FunctionCallbackArguments
   static const int kReturnValueDefaultValueIndex =
       T::kReturnValueDefaultValueIndex;
   static const int kIsolateIndex = T::kIsolateIndex;
-  static const int kCalleeIndex = T::kCalleeIndex;
-  static const int kContextSaveIndex = T::kContextSaveIndex;
   static const int kNewTargetIndex = T::kNewTargetIndex;
 
   FunctionCallbackArguments(internal::Isolate* isolate, internal::Object* data,
@@ -164,18 +168,14 @@ class FunctionCallbackArguments
       : Super(isolate), argv_(argv), argc_(argc) {
     Object** values = begin();
     values[T::kDataIndex] = data;
-    values[T::kCalleeIndex] = callee;
     values[T::kHolderIndex] = holder;
     values[T::kNewTargetIndex] = new_target;
-    values[T::kContextSaveIndex] = isolate->heap()->the_hole_value();
     values[T::kIsolateIndex] = reinterpret_cast<internal::Object*>(isolate);
     // Here the hole is set as default value.
     // It cannot escape into js as it's remove in Call below.
     values[T::kReturnValueDefaultValueIndex] =
         isolate->heap()->the_hole_value();
     values[T::kReturnValueIndex] = isolate->heap()->the_hole_value();
-    DCHECK(values[T::kCalleeIndex]->IsJSFunction() ||
-           values[T::kCalleeIndex]->IsFunctionTemplateInfo());
     DCHECK(values[T::kHolderIndex]->IsHeapObject());
     DCHECK(values[T::kIsolateIndex]->IsSmi());
   }

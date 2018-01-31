@@ -125,6 +125,11 @@ class V8_EXPORT_PRIVATE LoadElimination final
     size_t next_index_ = 0;
   };
 
+  // Information we use to resolve object aliasing. Currently, we consider
+  // object not aliased if they have different maps or if the nodes may
+  // not alias.
+  class AliasStateInfo;
+
   // Abstract state to approximate the current state of a certain field along
   // the effect paths through the graph.
   class AbstractField final : public ZoneObject {
@@ -143,8 +148,8 @@ class V8_EXPORT_PRIVATE LoadElimination final
       return that;
     }
     Node* Lookup(Node* object) const;
-    AbstractField const* Kill(Node* object, MaybeHandle<Name> name,
-                              Zone* zone) const;
+    AbstractField const* Kill(const AliasStateInfo& alias_info,
+                              MaybeHandle<Name> name, Zone* zone) const;
     bool Equals(AbstractField const* that) const {
       return this == that || this->info_for_node_ == that->info_for_node_;
     }
@@ -187,16 +192,14 @@ class V8_EXPORT_PRIVATE LoadElimination final
   // effect paths through the graph.
   class AbstractMaps final : public ZoneObject {
    public:
-    explicit AbstractMaps(Zone* zone) : info_for_node_(zone) {}
-    AbstractMaps(Node* object, ZoneHandleSet<Map> maps, Zone* zone)
-        : info_for_node_(zone) {
-      info_for_node_.insert(std::make_pair(object, maps));
-    }
+    explicit AbstractMaps(Zone* zone);
+    AbstractMaps(Node* object, ZoneHandleSet<Map> maps, Zone* zone);
 
     AbstractMaps const* Extend(Node* object, ZoneHandleSet<Map> maps,
                                Zone* zone) const;
     bool Lookup(Node* object, ZoneHandleSet<Map>* object_maps) const;
-    AbstractMaps const* Kill(Node* object, Zone* zone) const;
+    AbstractMaps const* Kill(const AliasStateInfo& alias_info,
+                             Zone* zone) const;
     bool Equals(AbstractMaps const* that) const {
       return this == that || this->info_for_node_ == that->info_for_node_;
     }
@@ -219,13 +222,18 @@ class V8_EXPORT_PRIVATE LoadElimination final
     bool Equals(AbstractState const* that) const;
     void Merge(AbstractState const* that, Zone* zone);
 
-    AbstractState const* AddMaps(Node* object, ZoneHandleSet<Map> maps,
+    AbstractState const* SetMaps(Node* object, ZoneHandleSet<Map> maps,
                                  Zone* zone) const;
     AbstractState const* KillMaps(Node* object, Zone* zone) const;
+    AbstractState const* KillMaps(const AliasStateInfo& alias_info,
+                                  Zone* zone) const;
     bool LookupMaps(Node* object, ZoneHandleSet<Map>* object_maps) const;
 
     AbstractState const* AddField(Node* object, size_t index, Node* value,
                                   MaybeHandle<Name> name, Zone* zone) const;
+    AbstractState const* KillField(const AliasStateInfo& alias_info,
+                                   size_t index, MaybeHandle<Name> name,
+                                   Zone* zone) const;
     AbstractState const* KillField(Node* object, size_t index,
                                    MaybeHandle<Name> name, Zone* zone) const;
     AbstractState const* KillFields(Node* object, MaybeHandle<Name> name,

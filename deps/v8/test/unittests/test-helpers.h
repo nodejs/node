@@ -40,7 +40,6 @@ class ScriptResource : public v8::String::ExternalOneByteStringResource {
   DISALLOW_COPY_AND_ASSIGN(ScriptResource);
 };
 
-Handle<Object> RunJS(v8::Isolate* isolate, const char* script);
 Handle<String> CreateSource(
     Isolate* isolate,
     v8::String::ExternalOneByteStringResource* maybe_resource);

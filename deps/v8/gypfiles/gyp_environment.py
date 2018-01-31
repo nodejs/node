@@ -10,7 +10,6 @@ make sure settings are consistent between them, all setup should happen here.
 
 import os
 import sys
-import vs_toolchain
 
 SCRIPT_DIR = os.path.dirname(os.path.realpath(__file__))
 V8_ROOT = os.path.abspath(os.path.join(SCRIPT_DIR, os.pardir))
@@ -56,5 +55,3 @@ def set_environment():
     if not os.environ.get('GYP_GENERATORS'):
       # Default to ninja on all platforms.
       os.environ['GYP_GENERATORS'] = 'ninja'
-
-    vs_toolchain.SetEnvironmentAndGetRuntimeDllDirs()

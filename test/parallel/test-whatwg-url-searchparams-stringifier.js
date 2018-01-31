@@ -1,7 +1,6 @@
 'use strict';
 
 const common = require('../common');
-const assert = require('assert');
 const URLSearchParams = require('url').URLSearchParams;
 const { test, assert_equals } = require('../common/wpt');
 
@@ -126,11 +125,11 @@ test(function() {
 // Tests below are not from WPT.
 {
   const params = new URLSearchParams();
-  assert.throws(() => {
+  common.expectsError(() => {
     params.toString.call(undefined);
-  }, common.expectsError({
+  }, {
     code: 'ERR_INVALID_THIS',
     type: TypeError,
     message: 'Value of "this" must be of type URLSearchParams'
-  }));
+  });
 }

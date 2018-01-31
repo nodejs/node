@@ -154,3 +154,27 @@ const stream = require('stream');
   };
   rs.pipe(ws);
 }
+
+{
+  const w = new stream.Writable();
+  w._write = (chunk, encoding, cb) => {
+    process.nextTick(cb);
+  };
+  w.on('error', common.mustCall());
+  w.on('prefinish', () => {
+    w.write("shouldn't write in prefinish listener");
+  });
+  w.end();
+}
+
+{
+  const w = new stream.Writable();
+  w._write = (chunk, encoding, cb) => {
+    process.nextTick(cb);
+  };
+  w.on('error', common.mustCall());
+  w.on('finish', () => {
+    w.write("should't write in finish listener");
+  });
+  w.end();
+}

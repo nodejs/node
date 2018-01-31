@@ -143,7 +143,8 @@ class ProcessWrap : public HandleWrap {
     ProcessWrap* wrap;
     ASSIGN_OR_RETURN_UNWRAP(&wrap, args.Holder());
 
-    Local<Object> js_options = args[0]->ToObject(env->isolate());
+    Local<Object> js_options =
+        args[0]->ToObject(env->context()).ToLocalChecked();
 
     uv_process_options_t options;
     memset(&options, 0, sizeof(uv_process_options_t));
@@ -311,4 +312,4 @@ class ProcessWrap : public HandleWrap {
 }  // anonymous namespace
 }  // namespace node
 
-NODE_MODULE_CONTEXT_AWARE_BUILTIN(process_wrap, node::ProcessWrap::Initialize)
+NODE_BUILTIN_MODULE_CONTEXT_AWARE(process_wrap, node::ProcessWrap::Initialize)

@@ -301,5 +301,31 @@ TEST(WorkListTest, MultipleSegmentsStolen) {
   EXPECT_TRUE(worklist.IsGlobalEmpty());
 }
 
+TEST(WorkListTest, MergeGlobalPool) {
+  TestWorklist worklist1;
+  TestWorklist::View worklist_view1(&worklist1, 0);
+  SomeObject dummy;
+  for (size_t i = 0; i < TestWorklist::kSegmentCapacity; i++) {
+    EXPECT_TRUE(worklist_view1.Push(&dummy));
+  }
+  SomeObject* retrieved = nullptr;
+  // One more push/pop to publish the full segment.
+  EXPECT_TRUE(worklist_view1.Push(nullptr));
+  EXPECT_TRUE(worklist_view1.Pop(&retrieved));
+  EXPECT_EQ(nullptr, retrieved);
+  // Merging global pool into a new Worklist.
+  TestWorklist worklist2;
+  TestWorklist::View worklist_view2(&worklist2, 0);
+  worklist2.MergeGlobalPool(&worklist1);
+  EXPECT_FALSE(worklist2.IsGlobalEmpty());
+  for (size_t i = 0; i < TestWorklist::kSegmentCapacity; i++) {
+    EXPECT_TRUE(worklist_view2.Pop(&retrieved));
+    EXPECT_EQ(&dummy, retrieved);
+    EXPECT_FALSE(worklist_view1.Pop(&retrieved));
+  }
+  EXPECT_TRUE(worklist1.IsGlobalEmpty());
+  EXPECT_TRUE(worklist2.IsGlobalEmpty());
+}
+
 }  // namespace internal
 }  // namespace v8

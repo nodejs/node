@@ -94,9 +94,8 @@ The listener callback is invoked with the following arguments:
 * `sendHandle` {Handle object} a [`net.Socket`][] or [`net.Server`][] object, or
   undefined.
 
-*Note*: The message goes through JSON serialization and parsing. The resulting
-message might not be the same as what is originally sent. See notes in
-[the `JSON.stringify()` specification][`JSON.stringify` spec].
+*Note*: The message goes through serialization and parsing. The resulting
+message might not be the same as what is originally sent.
 
 ### Event: 'rejectionHandled'
 <!-- YAML
@@ -275,7 +274,7 @@ A process warning is similar to an error in that it describes exceptional
 conditions that are being brought to the user's attention. However, warnings
 are not part of the normal Node.js and JavaScript error handling flow.
 Node.js can emit warnings whenever it detects bad coding practices that could
-lead to sub-optimal application performance, bugs or security vulnerabilities.
+lead to sub-optimal application performance, bugs, or security vulnerabilities.
 
 The listener function is called with a single `warning` argument whose value is
 an `Error` object. There are three key properties that describe the warning:
@@ -350,6 +349,9 @@ Signal events will be emitted when the Node.js process receives a signal. Please
 refer to signal(7) for a listing of standard POSIX signal names such as
 `SIGINT`, `SIGHUP`, etc.
 
+The signal handler will receive the signal's name (`'SIGINT'`,
+ `'SIGTERM'`, etc.) as the first argument.
+
 The name of each event will be the uppercase common name for the signal (e.g.
 `'SIGINT'` for `SIGINT` signals).
 
@@ -362,18 +364,21 @@ process.stdin.resume();
 process.on('SIGINT', () => {
   console.log('Received SIGINT.  Press Control-D to exit.');
 });
+
+// Using a single function to handle multiple signals
+function handle(signal) {
+  console.log(`Received ${signal}`);
+}
+
+process.on('SIGINT', handle);
+process.on('SIGTERM', handle);
 ```
 
-*Note*: An easy way to send the `SIGINT` signal is with `<Ctrl>-C` in most
-terminal programs.
-
-It is important to take note of the following:
-
-* `SIGUSR1` is reserved by Node.js to start the debugger.  It's possible to
+* `SIGUSR1` is reserved by Node.js to start the [debugger][]. It's possible to
   install a listener but doing so will _not_ stop the debugger from starting.
 * `SIGTERM` and `SIGINT` have default handlers on non-Windows platforms that
-  resets the terminal mode before exiting with code `128 + signal number`. If
-  one of these signals has a listener installed, its default behavior will be
+  reset the terminal mode before exiting with code `128 + signal number`. If one
+  of these signals has a listener installed, its default behavior will be
   removed (Node.js will no longer exit).
 * `SIGPIPE` is ignored by default. It can have a listener installed.
 * `SIGHUP` is generated on Windows when the console window is closed, and on
@@ -384,7 +389,7 @@ It is important to take note of the following:
   installed its default behavior will be removed.
 * `SIGTERM` is not supported on Windows, it can be listened on.
 * `SIGINT` from the terminal is supported on all platforms, and can usually be
-  generated with `CTRL+C` (though this may be configurable). It is not generated
+  generated with `<Ctrl>+C` (though this may be configurable). It is not generated
   when terminal raw mode is enabled.
 * `SIGBREAK` is delivered on Windows when `<Ctrl>+<Break>` is pressed, on
   non-Windows platforms it can be listened on, but there is no way to send or
@@ -422,9 +427,11 @@ added: v0.5.0
 
 * {string}
 
-The `process.arch` property returns a String identifying the processor
-architecture that the Node.js process is currently running on. For instance
-`'arm'`, `'ia32'`, or `'x64'`.
+The `process.arch` property returns a string identifying the operating system CPU
+architecture for which the Node.js binary was compiled.
+
+The current possible values are: `'arm'`, `'arm64'`, `'ia32'`, `'mips'`,
+`'mipsel'`, `'ppc'`, `'ppc64'`, `'s390'`, `'s390x'`, `'x32'`, and `'x64'`.
 
 ```js
 console.log(`This processor architecture is ${process.arch}`);
@@ -977,10 +984,10 @@ process.exit(1);
 
 The shell that executed Node.js should see the exit code as `1`.
 
-It is important to note that calling `process.exit()` will force the process to
-exit as quickly as possible *even if there are still asynchronous operations
-pending* that have not yet completed fully, *including* I/O operations to
-`process.stdout` and `process.stderr`.
+Calling `process.exit()` will force the process to exit as quickly as possible
+even if there are still asynchronous operations pending that have not yet
+completed fully, including I/O operations to `process.stdout` and
+`process.stderr`.
 
 In most situations, it is not actually necessary to call `process.exit()`
 explicitly. The Node.js process will exit on its own *if there is no additional
@@ -1124,6 +1131,16 @@ if (process.getuid) {
 
 *Note*: This function is only available on POSIX platforms (i.e. not Windows
 or Android).
+
+## process.hasUncaughtExceptionCaptureCallback()
+<!-- YAML
+added: v9.3.0
+-->
+
+* Returns: {boolean}
+
+Indicates whether a callback has been set using
+[`process.setUncaughtExceptionCaptureCallback()`][].
 
 ## process.hrtime([time])
 <!-- YAML
@@ -1286,7 +1303,7 @@ objects managed by V8. `rss`, Resident Set Size, is the amount of space
 occupied in the main memory device (that is a subset of the total allocated
 memory) for the process, which includes the _heap_, _code segment_ and _stack_.
 
-The _heap_ is where objects, strings and closures are stored. Variables are
+The _heap_ is where objects, strings, and closures are stored. Variables are
 stored in the _stack_ and the actual JavaScript code resides in the
 _code segment_.
 
@@ -1388,6 +1405,19 @@ event loop **before** additional I/O is processed.  As a result,
 recursively setting nextTick callbacks will block any I/O from
 happening, just like a `while(true);` loop.
 
+## process.noDeprecation
+<!-- YAML
+added: v0.8.0
+-->
+
+* {boolean}
+
+The `process.noDeprecation` property indicates whether the `--no-deprecation`
+flag is set on the current Node.js process. See the documentation for
+the [`warning` event][process_warning] and the
+[`emitWarning` method][process_emit_warning] for more information about this
+flag's behavior.
+
 ## process.pid
 <!-- YAML
 added: v0.1.15
@@ -1409,11 +1439,37 @@ added: v0.1.16
 * {string}
 
 The `process.platform` property returns a string identifying the operating
-system platform on which the Node.js process is running. For instance
-`'darwin'`, `'freebsd'`, `'linux'`, `'sunos'` or `'win32'`
+system platform on which the Node.js process is running.
+
+Currently possible values are:
+
+* `'aix'`
+* `'darwin'`
+* `'freebsd'`
+* `'linux'`
+* `'openbsd'`
+* `'sunos'`
+* `'win32'`
 
 ```js
 console.log(`This platform is ${process.platform}`);
+```
+
+The value `'android'` may also be returned if the Node.js is built on the
+Android operating system. However, Android support in Node.js
+[is experimental][Supported platforms].
+
+## process.ppid
+<!-- YAML
+added: v9.2.0
+-->
+
+* {integer}
+
+The `process.ppid` property returns the PID of the current parent process.
+
+```js
+console.log(`The parent process is pid ${process.ppid}`);
 ```
 
 ## process.release
@@ -1446,9 +1502,9 @@ tarball.
 * `lts` {string} a string label identifying the [LTS][] label for this release.
   This property only exists for LTS releases and is `undefined` for all other
   release types, including _Current_ releases.  Currently the valid values are:
-  - `'Argon'` for the v4.x LTS line beginning with v4.2.0.
-  - `'Boron'` for the v6.x LTS line beginning with v6.9.0.
-  - `'Carbon'` for the v8.x LTS line beginning with v8.9.1.
+  - `'Argon'` for the 4.x LTS line beginning with 4.2.0.
+  - `'Boron'` for the 6.x LTS line beginning with 6.9.0.
+  - `'Carbon'` for the 8.x LTS line beginning with 8.9.1.
 
 For example:
 
@@ -1485,9 +1541,8 @@ used to send messages to the parent process. Messages will be received as a
 If Node.js was not spawned with an IPC channel, `process.send()` will be
 `undefined`.
 
-*Note*: The message goes through JSON serialization and parsing. The resulting
-message might not be the same as what is originally sent. See notes in
-[the `JSON.stringify()` specification][`JSON.stringify` spec].
+*Note*: The message goes through serialization and parsing. The resulting
+message might not be the same as what is originally sent.
 
 ## process.setegid(id)
 <!-- YAML
@@ -1613,6 +1668,29 @@ if (process.getuid && process.setuid) {
 or Android).
 
 
+## process.setUncaughtExceptionCaptureCallback(fn)
+<!-- YAML
+added: v9.3.0
+-->
+
+* `fn` {Function|null}
+
+The `process.setUncaughtExceptionCapture` function sets a function that will
+be invoked when an uncaught exception occurs, which will receive the exception
+value itself as its first argument.
+
+If such a function is set, the [`process.on('uncaughtException')`][] event will
+not be emitted. If `--abort-on-uncaught-exception` was passed from the
+command line or set through [`v8.setFlagsFromString()`][], the process will
+not abort.
+
+To unset the capture function, `process.setUncaughtExceptionCapture(null)`
+may be used. Calling this method with a non-`null` argument while another
+capture function is set will throw an error.
+
+*Note*: Using this function is mutually exclusive with using the
+deprecated [`domain`][] built-in module.
+
 ## process.stderr
 
 * {Stream}
@@ -1726,6 +1804,19 @@ false
 
 See the [TTY][] documentation for more information.
 
+## process.throwDeprecation
+<!-- YAML
+added: v0.9.12
+-->
+
+* {boolean}
+
+The `process.throwDeprecation` property indicates whether the
+`--throw-deprecation` flag is set on the current Node.js process. See the
+documentation for the [`warning` event][process_warning] and the
+[`emitWarning` method][process_emit_warning] for more information about this
+flag's behavior.
+
 ## process.title
 <!-- YAML
 added: v0.1.104
@@ -1745,6 +1836,19 @@ because setting the `process.title` overwrites the `argv` memory of the
 process.  Node.js v0.8 allowed for longer process title strings by also
 overwriting the `environ` memory but that was potentially insecure and
 confusing in some (rather obscure) cases.
+
+## process.traceDeprecation
+<!-- YAML
+added: v0.8.0
+-->
+
+* {boolean}
+
+The `process.traceDeprecation` property indicates whether the
+`--trace-deprecation` flag is set on the current Node.js process. See the
+documentation for the [`warning` event][process_warning] and the
+[`emitWarning` method][process_emit_warning] for more information about this
+flag's behavior.
 
 ## process.umask([mask])
 <!-- YAML
@@ -1820,18 +1924,19 @@ Will generate an object similar to:
 
 <!-- eslint-skip -->
 ```js
-{
-  http_parser: '2.3.0',
-  node: '1.1.1',
-  v8: '6.1.534.42-node.0',
-  uv: '1.3.0',
-  zlib: '1.2.8',
-  ares: '1.10.0-DEV',
-  modules: '43',
-  icu: '55.1',
-  openssl: '1.0.1k',
-  unicode: '8.0',
-  cldr: '29.0',
+{ http_parser: '2.7.0',
+  node: '8.9.0',
+  v8: '6.3.292.48-node.6',
+  uv: '1.18.0',
+  zlib: '1.2.11',
+  ares: '1.13.0',
+  modules: '60',
+  nghttp2: '1.29.0',
+  napi: '2',
+  openssl: '1.0.2n',
+  icu: '60.1',
+  unicode: '10.0',
+  cldr: '32.0',
   tz: '2016b' }
 ```
 
@@ -1894,9 +1999,9 @@ cases:
 [`ChildProcess`]: child_process.html#child_process_class_childprocess
 [`Error`]: errors.html#errors_class_error
 [`EventEmitter`]: events.html#events_class_eventemitter
-[`JSON.stringify` spec]: https://tc39.github.io/ecma262/#sec-json.stringify
 [`console.error()`]: console.html#console_console_error_data_args
 [`console.log()`]: console.html#console_console_log_data_args
+[`domain`]: domain.html
 [`end()`]: stream.html#stream_writable_end_chunk_encoding_callback
 [`net.Server`]: net.html#net_class_net_server
 [`net.Socket`]: net.html#net_class_net_socket
@@ -1906,13 +2011,17 @@ cases:
 [`process.exit()`]: #process_process_exit_code
 [`process.exitCode`]: #process_process_exitcode
 [`process.kill()`]: #process_process_kill_pid_signal
+[`process.on('uncaughtException')`]: process.html#process_event_uncaughtexception
+[`process.setUncaughtExceptionCaptureCallback()`]: process.html#process_process_setuncaughtexceptioncapturecallback_fn
 [`promise.catch()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise/catch
 [`require()`]: globals.html#globals_require
 [`require.main`]: modules.html#modules_accessing_the_main_module
 [`require.resolve()`]: modules.html#modules_require_resolve_request_options
 [`setTimeout(fn, 0)`]: timers.html#timers_settimeout_callback_delay_args
+[`v8.setFlagsFromString()`]: v8.html#v8_v8_setflagsfromstring_flags
 [Child Process]: child_process.html
 [Cluster]: cluster.html
+[debugger]: debugger.html
 [Duplex]: stream.html#stream_duplex_and_transform_streams
 [LTS]: https://github.com/nodejs/LTS/
 [note on process I/O]: process.html#process_a_note_on_process_i_o
@@ -1921,5 +2030,6 @@ cases:
 [Readable]: stream.html#stream_readable_streams
 [Signal Events]: #process_signal_events
 [Stream compatibility]: stream.html#stream_compatibility_with_older_node_js_versions
+[Supported platforms]: https://github.com/nodejs/node/blob/master/BUILDING.md#supported-platforms-1
 [TTY]: tty.html#tty_tty
 [Writable]: stream.html#stream_writable_streams

@@ -179,13 +179,12 @@ class MemoryAllocationPermissionsTest : public ::testing::Test {
 
   void TestPermissions(OS::MemoryPermission permission, bool can_read,
                        bool can_write) {
-    const size_t allocation_size = OS::CommitPageSize();
-    size_t actual = 0;
-    int* buffer =
-        static_cast<int*>(OS::Allocate(allocation_size, &actual, permission));
+    const size_t page_size = OS::AllocatePageSize();
+    int* buffer = static_cast<int*>(
+        OS::Allocate(nullptr, page_size, page_size, permission));
     ProbeMemory(buffer, MemoryAction::kRead, can_read);
     ProbeMemory(buffer, MemoryAction::kWrite, can_write);
-    OS::Free(buffer, actual);
+    CHECK(OS::Free(buffer, page_size));
   }
 };
 

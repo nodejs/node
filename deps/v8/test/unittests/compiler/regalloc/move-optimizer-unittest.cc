@@ -296,7 +296,7 @@ TEST_F(MoveOptimizerTest, GapsCanMoveOverInstruction) {
       last->GetParallelMove(Instruction::GapPosition::START);
   CHECK(inst1_start == nullptr || NonRedundantSize(inst1_start) == 0);
   CHECK(inst1_end == nullptr || NonRedundantSize(inst1_end) == 0);
-  CHECK(last_start->size() == 2);
+  CHECK_EQ(2, last_start->size());
   int redundants = 0;
   int assignment = 0;
   for (MoveOperands* move : *last_start) {

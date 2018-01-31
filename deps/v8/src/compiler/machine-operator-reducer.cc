@@ -7,12 +7,11 @@
 #include "src/base/bits.h"
 #include "src/base/division-by-constant.h"
 #include "src/base/ieee754.h"
-#include "src/codegen.h"
 #include "src/compiler/diamond.h"
 #include "src/compiler/graph.h"
 #include "src/compiler/js-graph.h"
 #include "src/compiler/node-matchers.h"
-#include "src/objects-inl.h"
+#include "src/conversions-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -122,7 +121,7 @@ Node* MachineOperatorReducer::Uint32Div(Node* dividend, uint32_t divisor) {
   DCHECK_LT(0u, divisor);
   // If the divisor is even, we can avoid using the expensive fixup by shifting
   // the dividend upfront.
-  unsigned const shift = base::bits::CountTrailingZeros32(divisor);
+  unsigned const shift = base::bits::CountTrailingZeros(divisor);
   dividend = Word32Shr(dividend, shift);
   divisor >>= shift;
   // Compute the magic number for the (shifted) divisor.
@@ -465,7 +464,7 @@ Reduction MachineOperatorReducer::Reduce(Node* node) {
         return Replace(m.left().node());
       }
       if (m.IsFoldable()) {  // K % K => K
-        return ReplaceFloat64(modulo(m.left().Value(), m.right().Value()));
+        return ReplaceFloat64(Modulo(m.left().Value(), m.right().Value()));
       }
       break;
     }
@@ -1182,7 +1181,7 @@ Reduction MachineOperatorReducer::ReduceWord32And(Node* node) {
       Uint32BinopMatcher mleft(m.left().node());
       if (mleft.right().HasValue() &&
           (mleft.right().Value() & 0x1f) >=
-              base::bits::CountTrailingZeros32(mask)) {
+              base::bits::CountTrailingZeros(mask)) {
         // (x << L) & (-1 << K) => x << L iff L >= K
         return Replace(mleft.node());
       }
@@ -1223,7 +1222,7 @@ Reduction MachineOperatorReducer::ReduceWord32And(Node* node) {
       }
       if (mleft.left().IsWord32Shl()) {
         Int32BinopMatcher mleftleft(mleft.left().node());
-        if (mleftleft.right().Is(base::bits::CountTrailingZeros32(mask))) {
+        if (mleftleft.right().Is(base::bits::CountTrailingZeros(mask))) {
           // (y << L + x) & (-1 << L) => (x & (-1 << L)) + y << L
           node->ReplaceInput(0,
                              Word32And(mleft.right().node(), m.right().node()));
@@ -1235,7 +1234,7 @@ Reduction MachineOperatorReducer::ReduceWord32And(Node* node) {
       }
       if (mleft.right().IsWord32Shl()) {
         Int32BinopMatcher mleftright(mleft.right().node());
-        if (mleftright.right().Is(base::bits::CountTrailingZeros32(mask))) {
+        if (mleftright.right().Is(base::bits::CountTrailingZeros(mask))) {
           // (x + y << L) & (-1 << L) => (x & (-1 << L)) + y << L
           node->ReplaceInput(0,
                              Word32And(mleft.left().node(), m.right().node()));

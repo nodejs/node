@@ -78,6 +78,7 @@
         'src/inet.c',
         'src/queue.h',
         'src/threadpool.c',
+        'src/uv-data-getter-setters.c',
         'src/uv-common.c',
         'src/uv-common.h',
         'src/version.c'
@@ -274,19 +275,43 @@
           },
         }],
         [ 'OS=="aix"', {
-          'sources': [ 'src/unix/aix.c' ],
+          'variables': {
+            'os_name': '<!(uname -s)',
+          },
+          'sources': [
+            'src/unix/aix-common.c',
+          ],
           'defines': [
             '_ALL_SOURCE',
             '_XOPEN_SOURCE=500',
             '_LINUX_SOURCE_COMPAT',
             '_THREAD_SAFE',
-            'HAVE_SYS_AHAFS_EVPRODS_H',
           ],
-          'link_settings': {
-            'libraries': [
-              '-lperfstat',
-            ],
-          },
+          'conditions': [
+            [ '"<(os_name)"=="OS400"', {
+              'sources': [
+                'src/unix/ibmi.c',
+                'src/unix/posix-poll.c',
+                'src/unix/no-fsevents.c',
+                'src/unix/no-proctitle.c',
+              ],
+              'defines': [
+                '_PASE=1'
+              ],
+            }, {
+              'sources': [
+                'src/unix/aix.c'
+              ],
+              'defines': [
+                'HAVE_SYS_AHAFS_EVPRODS_H'
+              ],
+              'link_settings': {
+                'libraries': [
+                  '-lperfstat',
+                ],
+              },
+            }],
+          ]
         }],
         [ 'OS=="freebsd" or OS=="dragonflybsd"', {
           'sources': [ 'src/unix/freebsd.c' ],
@@ -315,7 +340,6 @@
         ['OS=="zos"', {
           'sources': [
             'src/unix/pthread-fixes.c',
-            'src/unix/no-fsevents.c',
             'src/unix/os390.c',
             'src/unix/os390-syscalls.c'
           ]
@@ -342,6 +366,7 @@
         'test/test-callback-order.c',
         'test/test-close-fd.c',
         'test/test-close-order.c',
+        'test/test-connect-unspecified.c',
         'test/test-connection-fail.c',
         'test/test-cwd-and-chdir.c',
         'test/test-default-loop-close.c',
@@ -356,6 +381,7 @@
         'test/test-fs.c',
         'test/test-fs-copyfile.c',
         'test/test-fs-event.c',
+        'test/test-getters-setters.c',
         'test/test-get-currentexe.c',
         'test/test-get-memory.c',
         'test/test-get-passwd.c',
@@ -393,6 +419,7 @@
         'test/test-pipe-server-close.c',
         'test/test-pipe-close-stdout-read-stdin.c',
         'test/test-pipe-set-non-blocking.c',
+        'test/test-pipe-set-fchmod.c',
         'test/test-platform-output.c',
         'test/test-poll.c',
         'test/test-poll-close.c',
@@ -400,6 +427,7 @@
         'test/test-poll-closesocket.c',
         'test/test-poll-oob.c',
         'test/test-process-title.c',
+        'test/test-process-title-threadsafe.c',
         'test/test-queue-foreach-delete.c',
         'test/test-ref.c',
         'test/test-run-nowait.c',

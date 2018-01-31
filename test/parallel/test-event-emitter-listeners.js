@@ -24,12 +24,9 @@
 require('../common');
 const assert = require('assert');
 const events = require('events');
-const util = require('util');
 
 function listener() {}
 function listener2() {}
-class TestStream { constructor() { } }
-util.inherits(TestStream, events.EventEmitter);
 
 {
   const ee = new events.EventEmitter();
@@ -81,6 +78,26 @@ util.inherits(TestStream, events.EventEmitter);
 }
 
 {
+  class TestStream extends events.EventEmitter {}
   const s = new TestStream();
   assert.deepStrictEqual(s.listeners('foo'), []);
+}
+
+{
+  const ee = new events.EventEmitter();
+  ee.on('foo', listener);
+  const wrappedListener = ee.rawListeners('foo');
+  assert.strictEqual(wrappedListener.length, 1);
+  assert.strictEqual(wrappedListener[0], listener);
+  assert.notStrictEqual(wrappedListener, ee.rawListeners('foo'));
+  ee.once('foo', listener);
+  const wrappedListeners = ee.rawListeners('foo');
+  assert.strictEqual(wrappedListeners.length, 2);
+  assert.strictEqual(wrappedListeners[0], listener);
+  assert.notStrictEqual(wrappedListeners[1], listener);
+  assert.strictEqual(wrappedListeners[1].listener, listener);
+  assert.notStrictEqual(wrappedListeners, ee.rawListeners('foo'));
+  ee.emit('foo');
+  assert.strictEqual(wrappedListeners.length, 2);
+  assert.strictEqual(wrappedListeners[1].listener, listener);
 }

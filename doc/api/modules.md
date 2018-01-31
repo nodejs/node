@@ -6,10 +6,8 @@
 
 <!--name=module-->
 
-Node.js has a simple module loading system.  In Node.js, files and modules
-are in one-to-one correspondence (each file is treated as a separate module).
-
-As an example, consider a file named `foo.js`:
+In the Node.js module system, each file is treated as a separate module. For
+example, consider a file named `foo.js`:
 
 ```js
 const circle = require('./circle.js');
@@ -40,22 +38,26 @@ In this example, the variable `PI` is private to `circle.js`.
 The `module.exports` property can be assigned a new value (such as a function
 or object).
 
-Below, `bar.js` makes use of the `square` module, which exports a constructor:
+Below, `bar.js` makes use of the `square` module, which exports a Square class:
 
 ```js
-const square = require('./square.js');
-const mySquare = square(2);
-console.log(`The area of my square is ${mySquare.area()}`);
+const Square = require('./square.js');
+const mySquare = new Square(2);
+console.log(`The area of mySquare is ${mySquare.area()}`);
 ```
 
 The `square` module is defined in `square.js`:
 
 ```js
 // assigning to exports will not modify module, must use module.exports
-module.exports = (width) => {
-  return {
-    area: () => width ** 2
-  };
+module.exports = class Square {
+  constructor(width) {
+    this.width = width;
+  }
+
+  area() {
+    return this.width ** 2;
+  }
 };
 ```
 
@@ -466,7 +468,7 @@ added: v0.1.27
 
 * {string}
 
-The directory name of the current module. This the same as the
+The directory name of the current module. This is the same as the
 [`path.dirname()`][] of the [`__filename`][].
 
 Example: running `node example.js` from `/Users/mjr`
@@ -624,9 +626,11 @@ added: v8.9.0
 -->
 
 * `request` {string} The module path whose lookup paths are being retrieved.
-* Returns: {Array}
+* Returns: {Array|null}
 
-Returns an array containing the paths searched during resolution of `request`.
+Returns an array containing the paths searched during resolution of `request` or
+null if the `request` string references a core module, for example `http` or
+`fs`.
 
 ## The `module` Object
 <!-- YAML
@@ -817,6 +821,35 @@ The `module.require` method provides a way to load a module as if
 `module` is typically *only* available within a specific module's code, it must
 be explicitly exported in order to be used.
 
+## The `Module` Object
+
+<!-- YAML
+added: v0.3.7
+-->
+
+* {Object}
+
+Provides general utility methods when interacting with instances of
+`Module` -- the `module` variable often seen in file modules. Accessed
+via `require('module')`.
+
+### module.builtinModules
+<!-- YAML
+added: v9.3.0
+-->
+
+* {string[]}
+
+A list of the names of all modules provided by Node.js. Can be used to verify
+if a module is maintained by a third party or not.
+
+Note that `module` in this context isn't the same object that's provided
+by the [module wrapper][]. To access it, require the `Module` module:
+
+```js
+const builtin = require('module').builtinModules;
+```
+
 [`__dirname`]: #modules_dirname
 [`__filename`]: #modules_filename
 [`Error`]: errors.html#errors_class_error
@@ -824,4 +857,5 @@ be explicitly exported in order to be used.
 [`path.dirname()`]: path.html#path_path_dirname_path
 [exports shortcut]: #modules_exports_shortcut
 [module resolution]: #modules_all_together
+[module wrapper]: #modules_the_module_wrapper
 [native addons]: addons.html

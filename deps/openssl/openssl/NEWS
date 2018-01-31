@@ -5,6 +5,11 @@
   This file gives a brief overview of the major changes between each OpenSSL
   release. For more details please read the CHANGES file.
 
+  Major changes between OpenSSL 1.0.2m and OpenSSL 1.0.2n [7 Dec 2017]
+
+      o Read/write after SSL object in error state (CVE-2017-3737)
+      o rsaz_1024_mul_avx2 overflow bug on x86_64 (CVE-2017-3738)
+
   Major changes between OpenSSL 1.0.2l and OpenSSL 1.0.2m [2 Nov 2017]
 
       o bn_sqrx8x_internal carry bug on x86_64 (CVE-2017-3736)

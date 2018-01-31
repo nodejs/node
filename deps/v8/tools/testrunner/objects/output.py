@@ -51,11 +51,3 @@ class Output(object):
 
   def HasTimedOut(self):
     return self.timed_out
-
-  def Pack(self):
-    return [self.exit_code, self.timed_out, self.stdout, self.stderr, self.pid]
-
-  @staticmethod
-  def Unpack(packed):
-    # For the order of the fields, refer to Pack() above.
-    return Output(packed[0], packed[1], packed[2], packed[3], packed[4])

@@ -171,8 +171,8 @@ class WasmModuleBuilder {
     return this;
   }
 
-  addMemory(min, max, exp) {
-    this.memory = {min: min, max: max, exp: exp};
+  addMemory(min, max, exp, shared) {
+    this.memory = {min: min, max: max, exp: exp, shared: shared};
     return this;
   }
 
@@ -240,9 +240,9 @@ class WasmModuleBuilder {
     return this.num_imported_globals++;
   }
 
-  addImportedMemory(module = "", name, initial = 0, maximum) {
+  addImportedMemory(module = "", name, initial = 0, maximum, shared) {
     let o = {module: module, name: name, kind: kExternalMemory,
-             initial: initial, maximum: maximum};
+             initial: initial, maximum: maximum, shared: shared};
     this.imports.push(o);
     return this;
   }
@@ -348,7 +348,12 @@ class WasmModuleBuilder {
             section.emit_u8(imp.mutable);
           } else if (imp.kind == kExternalMemory) {
             var has_max = (typeof imp.maximum) != "undefined";
-            section.emit_u8(has_max ? 1 : 0); // flags
+            var is_shared = (typeof imp.shared) != "undefined";
+            if (is_shared) {
+              section.emit_u8(has_max ? 3 : 2); // flags
+            } else {
+              section.emit_u8(has_max ? 1 : 0); // flags
+            }
             section.emit_u32v(imp.initial); // initial
             if (has_max) section.emit_u32v(imp.maximum); // maximum
           } else if (imp.kind == kExternalTable) {
@@ -395,9 +400,16 @@ class WasmModuleBuilder {
       binary.emit_section(kMemorySectionCode, section => {
         section.emit_u8(1);  // one memory entry
         const has_max = wasm.memory.max !== undefined;
-        section.emit_u32v(has_max ? kResizableMaximumFlag : 0);
+        const is_shared = wasm.memory.shared !== undefined;
+        // Emit flags (bit 0: reszeable max, bit 1: shared memory)
+        if (is_shared) {
+          section.emit_u8(has_max ? 3 : 2);
+        } else {
+          section.emit_u8(has_max ? 1 : 0);
+        }
         section.emit_u32v(wasm.memory.min);
         if (has_max) section.emit_u32v(wasm.memory.max);
+        if (wasm.memory.shared) section.emit_u8(1);
       });
     }
 
@@ -511,7 +523,7 @@ class WasmModuleBuilder {
         for (let type of wasm.exceptions) {
           section.emit_u32v(type.params.length);
           for (let param of type.params) {
-            section.enit_u8(param);
+            section.emit_u8(param);
           }
         }
       });
@@ -540,6 +552,9 @@ class WasmModuleBuilder {
             }
             if (l.f64_count > 0) {
               local_decls.push({count: l.f64_count, type: kWasmF64});
+            }
+            if (l.s128_count > 0) {
+              local_decls.push({count: l.s128_count, type: kWasmS128});
             }
           }
 

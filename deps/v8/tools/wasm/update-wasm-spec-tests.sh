@@ -16,7 +16,7 @@ rm -rf ./test/wasm-spec-tests/tests/*
 ./tools/dev/gm.py x64.release d8
 
 cd ${V8_DIR}/test/wasm-js/interpreter
-make
+make clean all
 
 cd ${V8_DIR}/test/wasm-js/test/core
 

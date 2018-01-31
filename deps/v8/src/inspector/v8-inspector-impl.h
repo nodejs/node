@@ -97,6 +97,10 @@ class V8InspectorImpl : public V8Inspector {
   void asyncTaskFinished(void* task) override;
   void allAsyncTasksCanceled() override;
 
+  V8StackTraceId storeCurrentStackTrace(const StringView& description) override;
+  void externalAsyncTaskStarted(const V8StackTraceId& parent) override;
+  void externalAsyncTaskFinished(const V8StackTraceId& parent) override;
+
   unsigned nextExceptionId() { return ++m_lastExceptionId; }
   void enableStackCapturingIfNeeded();
   void disableStackCapturingIfNeeded();

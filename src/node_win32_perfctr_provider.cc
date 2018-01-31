@@ -180,7 +180,7 @@ void InitPerfCountersWin32() {
 
     status = perfctr_setCounterSetInfo(NodeCounterProvider,
                                        &NodeCounterSetInfo.CounterSet,
-                                       sizeof(NodeCounterSetInfo));
+                                       sizeof(NodeCounterSetInfo.CounterSet));
     if (status != ERROR_SUCCESS) {
       perfctr_stopProvider(NodeCounterProvider);
       NodeCounterProvider = nullptr;

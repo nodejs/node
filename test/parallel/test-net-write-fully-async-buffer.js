@@ -3,7 +3,7 @@
 
 // Note: This is a variant of test-net-write-fully-async-hex-string.js.
 // This always worked, but it seemed appropriate to add a test that checks the
-// behaviour for Buffers, too.
+// behavior for Buffers, too.
 const common = require('../common');
 const net = require('net');
 

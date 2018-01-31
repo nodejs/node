@@ -34,7 +34,7 @@ module.exports = http.createServer(function(req, res) {
   const arg = params[2];
   const n_chunks = parseInt(params[3], 10);
   const resHow = params.length >= 5 ? params[4] : 'normal';
-  const chunkedEnc = params.length >= 6 && params[5] === 'false' ? false : true;
+  const chunkedEnc = params.length >= 6 && params[5] === '0' ? false : true;
   var status = 200;
 
   var n, i;

@@ -35,7 +35,7 @@ void IncrementalMarkingJob::Task::Step(Heap* heap) {
       heap->MonotonicallyIncreasingTimeInMs() + kIncrementalMarkingDelayMs;
   heap->incremental_marking()->AdvanceIncrementalMarking(
       deadline, i::IncrementalMarking::NO_GC_VIA_STACK_GUARD,
-      i::IncrementalMarking::FORCE_COMPLETION, i::StepOrigin::kTask);
+      i::StepOrigin::kTask);
   heap->FinalizeIncrementalMarkingIfComplete(
       GarbageCollectionReason::kFinalizeMarkingViaTask);
 }

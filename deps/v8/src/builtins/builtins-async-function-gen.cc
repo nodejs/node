@@ -59,9 +59,14 @@ void AsyncFunctionBuiltinsAssembler::AsyncFunctionAwaitResumeClosure(
           LoadObjectField(generator, JSGeneratorObject::kContinuationOffset),
           SmiConstant(JSGeneratorObject::kGeneratorClosed)));
 
+  // Remember the {resume_mode} for the {generator}.
+  StoreObjectFieldNoWriteBarrier(generator,
+                                 JSGeneratorObject::kResumeModeOffset,
+                                 SmiConstant(resume_mode));
+
   // Resume the {receiver} using our trampoline.
   Callable callable = CodeFactory::ResumeGenerator(isolate());
-  CallStub(callable, context, sent_value, generator, SmiConstant(resume_mode));
+  CallStub(callable, context, sent_value, generator);
 
   // The resulting Promise is a throwaway, so it doesn't matter what it
   // resolves to. What is important is that we don't end up keeping the
@@ -128,8 +133,8 @@ void AsyncFunctionBuiltinsAssembler::AsyncFunctionAwait(
 // Called by the parser from the desugaring of 'await' when catch
 // prediction indicates that there is a locally surrounding catch block.
 TF_BUILTIN(AsyncFunctionAwaitCaught, AsyncFunctionBuiltinsAssembler) {
-  CSA_ASSERT_JS_ARGC_EQ(this, 2);
-  Node* const generator = Parameter(Descriptor::kReceiver);
+  CSA_ASSERT_JS_ARGC_EQ(this, 3);
+  Node* const generator = Parameter(Descriptor::kGenerator);
   Node* const awaited = Parameter(Descriptor::kAwaited);
   Node* const outer_promise = Parameter(Descriptor::kOuterPromise);
   Node* const context = Parameter(Descriptor::kContext);
@@ -143,8 +148,8 @@ TF_BUILTIN(AsyncFunctionAwaitCaught, AsyncFunctionBuiltinsAssembler) {
 // Called by the parser from the desugaring of 'await' when catch
 // prediction indicates no locally surrounding catch block.
 TF_BUILTIN(AsyncFunctionAwaitUncaught, AsyncFunctionBuiltinsAssembler) {
-  CSA_ASSERT_JS_ARGC_EQ(this, 2);
-  Node* const generator = Parameter(Descriptor::kReceiver);
+  CSA_ASSERT_JS_ARGC_EQ(this, 3);
+  Node* const generator = Parameter(Descriptor::kGenerator);
   Node* const awaited = Parameter(Descriptor::kAwaited);
   Node* const outer_promise = Parameter(Descriptor::kOuterPromise);
   Node* const context = Parameter(Descriptor::kContext);

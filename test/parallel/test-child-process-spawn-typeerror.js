@@ -26,12 +26,14 @@ const { spawn, fork, execFile } = require('child_process');
 const fixtures = require('../common/fixtures');
 const cmd = common.isWindows ? 'rundll32' : 'ls';
 const invalidcmd = 'hopefully_you_dont_have_this_on_your_machine';
-const invalidArgsMsg = /Incorrect value of args option/;
-const invalidOptionsMsg = /"options" argument must be an object/;
-const invalidFileMsg =
-  /^TypeError: "file" argument must be a non-empty string$/;
 
 const empty = fixtures.path('empty.js');
+
+const invalidArgValueError =
+  common.expectsError({ code: 'ERR_INVALID_ARG_VALUE', type: TypeError }, 13);
+
+const invalidArgTypeError =
+  common.expectsError({ code: 'ERR_INVALID_ARG_TYPE', type: TypeError }, 11);
 
 assert.throws(function() {
   const child = spawn(invalidcmd, 'this is not an array');
@@ -58,32 +60,32 @@ assert.doesNotThrow(function() {
 // verify that invalid argument combinations throw
 assert.throws(function() {
   spawn();
-}, invalidFileMsg);
+}, invalidArgTypeError);
 
 assert.throws(function() {
   spawn('');
-}, invalidFileMsg);
+}, invalidArgTypeError);
 
 assert.throws(function() {
-  const file = { toString() { throw new Error('foo'); } };
+  const file = { toString() { return null; } };
   spawn(file);
-}, invalidFileMsg);
+}, invalidArgTypeError);
 
 assert.throws(function() {
   spawn(cmd, null);
-}, invalidArgsMsg);
+}, invalidArgTypeError);
 
 assert.throws(function() {
   spawn(cmd, true);
-}, invalidArgsMsg);
+}, invalidArgTypeError);
 
 assert.throws(function() {
   spawn(cmd, [], null);
-}, invalidOptionsMsg);
+}, invalidArgTypeError);
 
 assert.throws(function() {
   spawn(cmd, [], 1);
-}, invalidOptionsMsg);
+}, invalidArgTypeError);
 
 // Argument types for combinatorics
 const a = [];
@@ -107,14 +109,14 @@ assert.doesNotThrow(function() { spawn(cmd, o); });
 assert.doesNotThrow(function() { spawn(cmd, u, o); });
 assert.doesNotThrow(function() { spawn(cmd, a, u); });
 
-assert.throws(function() { spawn(cmd, n, o); }, TypeError);
-assert.throws(function() { spawn(cmd, a, n); }, TypeError);
+assert.throws(function() { spawn(cmd, n, o); }, invalidArgTypeError);
+assert.throws(function() { spawn(cmd, a, n); }, invalidArgTypeError);
 
-assert.throws(function() { spawn(cmd, s); }, TypeError);
-assert.throws(function() { spawn(cmd, a, s); }, TypeError);
+assert.throws(function() { spawn(cmd, s); }, invalidArgTypeError);
+assert.throws(function() { spawn(cmd, a, s); }, invalidArgTypeError);
 
 
-// verify that execFile has same argument parsing behaviour as spawn
+// verify that execFile has same argument parsing behavior as spawn
 //
 // function execFile(file=f [,args=a] [, options=o] [, callback=c]) has valid
 // combinations:
@@ -160,21 +162,21 @@ assert.doesNotThrow(function() { execFile(cmd, c, n); });
 // string is invalid in arg position (this may seem strange, but is
 // consistent across node API, cf. `net.createServer('not options', 'not
 // callback')`
-assert.throws(function() { execFile(cmd, s, o, c); }, TypeError);
-assert.throws(function() { execFile(cmd, a, s, c); }, TypeError);
-assert.throws(function() { execFile(cmd, a, o, s); }, TypeError);
-assert.throws(function() { execFile(cmd, a, s); }, TypeError);
-assert.throws(function() { execFile(cmd, o, s); }, TypeError);
-assert.throws(function() { execFile(cmd, u, u, s); }, TypeError);
-assert.throws(function() { execFile(cmd, n, n, s); }, TypeError);
-assert.throws(function() { execFile(cmd, a, u, s); }, TypeError);
-assert.throws(function() { execFile(cmd, a, n, s); }, TypeError);
-assert.throws(function() { execFile(cmd, u, o, s); }, TypeError);
-assert.throws(function() { execFile(cmd, n, o, s); }, TypeError);
+assert.throws(function() { execFile(cmd, s, o, c); }, invalidArgValueError);
+assert.throws(function() { execFile(cmd, a, s, c); }, invalidArgValueError);
+assert.throws(function() { execFile(cmd, a, o, s); }, invalidArgValueError);
+assert.throws(function() { execFile(cmd, a, s); }, invalidArgValueError);
+assert.throws(function() { execFile(cmd, o, s); }, invalidArgValueError);
+assert.throws(function() { execFile(cmd, u, u, s); }, invalidArgValueError);
+assert.throws(function() { execFile(cmd, n, n, s); }, invalidArgValueError);
+assert.throws(function() { execFile(cmd, a, u, s); }, invalidArgValueError);
+assert.throws(function() { execFile(cmd, a, n, s); }, invalidArgValueError);
+assert.throws(function() { execFile(cmd, u, o, s); }, invalidArgValueError);
+assert.throws(function() { execFile(cmd, n, o, s); }, invalidArgValueError);
 assert.doesNotThrow(function() { execFile(cmd, c, s); });
 
 
-// verify that fork has same argument parsing behaviour as spawn
+// verify that fork has same argument parsing behavior as spawn
 //
 // function fork(file=f [,args=a] [, options=o]) has valid combinations:
 //   (f)
@@ -192,5 +194,5 @@ assert.doesNotThrow(function() { fork(empty, n, n); });
 assert.doesNotThrow(function() { fork(empty, n, o); });
 assert.doesNotThrow(function() { fork(empty, a, n); });
 
-assert.throws(function() { fork(empty, s); }, TypeError);
-assert.throws(function() { fork(empty, a, s); }, TypeError);
+assert.throws(function() { fork(empty, s); }, invalidArgValueError);
+assert.throws(function() { fork(empty, a, s); }, invalidArgValueError);

@@ -60,14 +60,14 @@ const net = require('net');
 {
   // connect({hint}, cb) and connect({hint})
   const hints = (dns.ADDRCONFIG | dns.V4MAPPED) + 42;
-  const hintOptBlocks = doConnect([{ hints: hints }],
+  const hintOptBlocks = doConnect([{ hints }],
                                   () => common.mustNotCall());
   for (const block of hintOptBlocks) {
-    assert.throws(block, common.expectsError({
+    common.expectsError(block, {
       code: 'ERR_INVALID_OPT_VALUE',
       type: TypeError,
       message: /The value "\d+" is invalid for option "hints"/
-    }));
+    });
   }
 }
 

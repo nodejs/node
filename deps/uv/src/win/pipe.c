@@ -31,6 +31,9 @@
 #include "stream-inl.h"
 #include "req-inl.h"
 
+#include <aclapi.h>
+#include <accctrl.h>
+
 typedef struct uv__ipc_queue_item_s uv__ipc_queue_item_t;
 
 struct uv__ipc_queue_item_s {
@@ -202,7 +205,7 @@ int uv_stdio_pipe_server(uv_loop_t* loop, uv_pipe_t* handle, DWORD access,
     uv_unique_pipe_name(ptr, name, nameSize);
 
     pipeHandle = CreateNamedPipeA(name,
-      access | FILE_FLAG_OVERLAPPED | FILE_FLAG_FIRST_PIPE_INSTANCE,
+      access | FILE_FLAG_OVERLAPPED | FILE_FLAG_FIRST_PIPE_INSTANCE | WRITE_DAC,
       PIPE_TYPE_BYTE | PIPE_READMODE_BYTE | PIPE_WAIT, 1, 65536, 65536, 0,
       NULL);
 
@@ -534,7 +537,7 @@ int uv_pipe_bind(uv_pipe_t* handle, const char* name) {
    */
   handle->pipe.serv.accept_reqs[0].pipeHandle = CreateNamedPipeW(handle->name,
       PIPE_ACCESS_DUPLEX | FILE_FLAG_OVERLAPPED |
-      FILE_FLAG_FIRST_PIPE_INSTANCE,
+      FILE_FLAG_FIRST_PIPE_INSTANCE | WRITE_DAC,
       PIPE_TYPE_BYTE | PIPE_READMODE_BYTE | PIPE_WAIT,
       PIPE_UNLIMITED_INSTANCES, 65536, 65536, 0, NULL);
 
@@ -803,7 +806,7 @@ static void uv_pipe_queue_accept(uv_loop_t* loop, uv_pipe_t* handle,
     assert(req->pipeHandle == INVALID_HANDLE_VALUE);
 
     req->pipeHandle = CreateNamedPipeW(handle->name,
-        PIPE_ACCESS_DUPLEX | FILE_FLAG_OVERLAPPED,
+        PIPE_ACCESS_DUPLEX | FILE_FLAG_OVERLAPPED | WRITE_DAC,
         PIPE_TYPE_BYTE | PIPE_READMODE_BYTE | PIPE_WAIT,
         PIPE_UNLIMITED_INSTANCES, 65536, 65536, 0, NULL);
 
@@ -1969,7 +1972,7 @@ int uv_pipe_open(uv_pipe_t* pipe, uv_file file) {
 
   if (pipe->ipc) {
     assert(!(pipe->flags & UV_HANDLE_NON_OVERLAPPED_PIPE));
-    pipe->pipe.conn.ipc_pid = uv_parent_pid();
+    pipe->pipe.conn.ipc_pid = uv_os_getppid();
     assert(pipe->pipe.conn.ipc_pid != -1);
   }
   return 0;
@@ -2131,4 +2134,81 @@ uv_handle_type uv_pipe_pending_type(uv_pipe_t* handle) {
     return UV_UNKNOWN_HANDLE;
   else
     return UV_TCP;
+}
+
+int uv_pipe_chmod(uv_pipe_t* handle, int mode) {
+  SID_IDENTIFIER_AUTHORITY sid_world = SECURITY_WORLD_SID_AUTHORITY;
+  PACL old_dacl, new_dacl;
+  PSECURITY_DESCRIPTOR sd;
+  EXPLICIT_ACCESS ea;
+  PSID everyone;
+  int error;
+
+  if (handle == NULL || handle->handle == INVALID_HANDLE_VALUE)
+    return UV_EBADF;
+
+  if (mode != UV_READABLE &&
+      mode != UV_WRITABLE &&
+      mode != (UV_WRITABLE | UV_READABLE))
+    return UV_EINVAL;
+
+  if (!AllocateAndInitializeSid(&sid_world,
+                                1,
+                                SECURITY_WORLD_RID,
+                                0, 0, 0, 0, 0, 0, 0,
+                                &everyone)) {
+    error = GetLastError();
+    goto done;
+  }
+
+  if (GetSecurityInfo(handle->handle,
+                      SE_KERNEL_OBJECT,
+                      DACL_SECURITY_INFORMATION,
+                      NULL,
+                      NULL,
+                      &old_dacl,
+                      NULL,
+                      &sd)) {
+    error = GetLastError();
+    goto clean_sid;
+  }
+ 
+  memset(&ea, 0, sizeof(EXPLICIT_ACCESS));
+  if (mode & UV_READABLE)
+    ea.grfAccessPermissions |= GENERIC_READ | FILE_WRITE_ATTRIBUTES;
+  if (mode & UV_WRITABLE)
+    ea.grfAccessPermissions |= GENERIC_WRITE | FILE_READ_ATTRIBUTES;
+  ea.grfAccessPermissions |= SYNCHRONIZE;
+  ea.grfAccessMode = SET_ACCESS;
+  ea.grfInheritance = NO_INHERITANCE;
+  ea.Trustee.TrusteeForm = TRUSTEE_IS_SID;
+  ea.Trustee.TrusteeType = TRUSTEE_IS_WELL_KNOWN_GROUP;
+  ea.Trustee.ptstrName = (LPTSTR)everyone;
+
+  if (SetEntriesInAcl(1, &ea, old_dacl, &new_dacl)) {
+    error = GetLastError();
+    goto clean_sd;
+  }
+
+  if (SetSecurityInfo(handle->handle,
+                      SE_KERNEL_OBJECT,
+                      DACL_SECURITY_INFORMATION,
+                      NULL,
+                      NULL,
+                      new_dacl,
+                      NULL)) {
+    error = GetLastError();
+    goto clean_dacl;
+  }
+
+  error = 0;
+
+clean_dacl:
+  LocalFree((HLOCAL) new_dacl);
+clean_sd:
+  LocalFree((HLOCAL) sd);
+clean_sid:
+  FreeSid(everyone);
+done:
+  return uv_translate_sys_error(error);
 }

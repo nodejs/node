@@ -961,6 +961,7 @@ ucase_toFullLower(UChar32 c,
                     0307; ; 0307; 0307; tr After_I; # COMBINING DOT ABOVE
                     0307; ; 0307; 0307; az After_I; # COMBINING DOT ABOVE
                  */
+                *pString=nullptr;
                 return 0; /* remove the dot (continue without output) */
             } else if(loc==UCASE_LOC_TURKISH && c==0x49 && !isFollowedByDotAbove(iter, context)) {
                 /*
@@ -1059,6 +1060,7 @@ toUpperOrTitle(UChar32 c,
 
                     0307; 0307; ; ; lt After_Soft_Dotted; # COMBINING DOT ABOVE
                  */
+                *pString=nullptr;
                 return 0; /* remove the dot (continue without output) */
             } else {
                 /* no known conditional special case mapping, use a normal mapping */

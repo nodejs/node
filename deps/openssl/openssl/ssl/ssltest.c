@@ -423,13 +423,13 @@ static unsigned char *next_protos_parse(unsigned short *outlen,
                 OPENSSL_free(out);
                 return NULL;
             }
-            out[start] = i - start;
+            out[start] = (unsigned char)(i - start);
             start = i + 1;
         } else
             out[i + 1] = in[i];
     }
 
-    *outlen = len + 1;
+    *outlen = (unsigned char)(len + 1);
     return out;
 }
 
@@ -554,6 +554,7 @@ static int cb_ticket2(SSL* s, unsigned char* key_name, unsigned char *iv, EVP_CI
 {
     fprintf(stderr, "ticket callback for SNI context should never be called\n");
     EXIT(1);
+    return 0;
 }
 #endif
 

@@ -83,7 +83,7 @@ BUILTIN(StringPrototypeNormalizeIntl) {
     const icu::Normalizer2* normalizer =
         icu::Normalizer2::getInstance(nullptr, form_name, form_mode, status);
     DCHECK(U_SUCCESS(status));
-    CHECK(normalizer != nullptr);
+    CHECK_NOT_NULL(normalizer);
     int32_t normalized_prefix_length =
         normalizer->spanQuickCheckYes(input, status);
     // Quick return if the input is already normalized.
@@ -351,7 +351,7 @@ BUILTIN(NumberFormatPrototypeFormatToParts) {
   }
 
   Handle<Object> x;
-  if (args.length() >= 1) {
+  if (args.length() >= 2) {
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, x,
                                        Object::ToNumber(args.at(1)));
   } else {

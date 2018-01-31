@@ -134,20 +134,23 @@ testBufs('61c8b462c8b563c8b6', 4, -1, 'hex');
 testBufs('61c8b462c8b563c8b6', 4, 1, 'hex');
 testBufs('61c8b462c8b563c8b6', 12, 1, 'hex');
 
-{
+common.expectsError(() => {
   const buf = Buffer.allocUnsafe(SIZE);
-  assert.doesNotThrow(() => {
-    // Make sure this operation doesn't go on forever.
-    buf.fill('yKJh', 'hex');
-  });
-}
 
-{
+  buf.fill('yKJh', 'hex');
+}, {
+  code: 'ERR_INVALID_ARG_VALUE',
+  type: TypeError
+});
+
+common.expectsError(() => {
   const buf = Buffer.allocUnsafe(SIZE);
-  assert.doesNotThrow(() => {
-    buf.fill('\u0222', 'hex');
-  });
-}
+
+  buf.fill('\u0222', 'hex');
+}, {
+  code: 'ERR_INVALID_ARG_VALUE',
+  type: TypeError
+});
 
 // BASE64
 testBufs('YWJj', 'ucs2');
@@ -303,12 +306,12 @@ function testBufs(string, offset, length, encoding) {
 }
 
 // Make sure these throw.
-assert.throws(
+common.expectsError(
   () => Buffer.allocUnsafe(8).fill('a', -1),
-  common.expectsError({ code: 'ERR_INDEX_OUT_OF_RANGE' }));
-assert.throws(
+  { code: 'ERR_INDEX_OUT_OF_RANGE' });
+common.expectsError(
   () => Buffer.allocUnsafe(8).fill('a', 0, 9),
-  common.expectsError({ code: 'ERR_INDEX_OUT_OF_RANGE' }));
+  { code: 'ERR_INDEX_OUT_OF_RANGE' });
 
 // Make sure this doesn't hang indefinitely.
 Buffer.allocUnsafe(8).fill('');
@@ -357,7 +360,7 @@ Buffer.alloc(8, '');
 // magically mangled using Symbol.toPrimitive.
 {
   let elseWasLast = false;
-  assert.throws(() => {
+  common.expectsError(() => {
     let ctr = 0;
     const start = {
       [Symbol.toPrimitive]() {
@@ -368,14 +371,15 @@ Buffer.alloc(8, '');
           return 0;
         } else {
           elseWasLast = true;
-          // Once buffer.js calls the C++ implemenation of fill, return -1
+          // Once buffer.js calls the C++ implementation of fill, return -1
           return -1;
         }
       }
     };
     Buffer.alloc(1).fill(Buffer.alloc(1), start, 1);
-  }, common.expectsError(
-    { code: undefined, type: RangeError, message: 'Index out of range' }));
+  }, {
+    code: undefined, type: RangeError, message: 'Index out of range'
+  });
   // Make sure -1 is making it to Buffer::Fill().
   assert.ok(elseWasLast,
             'internal API changed, -1 no longer in correct location');
@@ -383,16 +387,17 @@ Buffer.alloc(8, '');
 
 // Testing process.binding. Make sure "start" is properly checked for -1 wrap
 // around.
-assert.throws(() => {
+common.expectsError(() => {
   process.binding('buffer').fill(Buffer.alloc(1), 1, -1, 0, 1);
-}, common.expectsError(
-  { code: undefined, type: RangeError, message: 'Index out of range' }));
+}, {
+  code: undefined, type: RangeError, message: 'Index out of range'
+});
 
 // Make sure "end" is properly checked, even if it's magically mangled using
 // Symbol.toPrimitive.
 {
   let elseWasLast = false;
-  assert.throws(() => {
+  common.expectsError(() => {
     let ctr = 0;
     const end = {
       [Symbol.toPrimitive]() {
@@ -403,14 +408,15 @@ assert.throws(() => {
           return 1;
         } else {
           elseWasLast = true;
-          // Once buffer.js calls the C++ implemenation of fill, return -1
+          // Once buffer.js calls the C++ implementation of fill, return -1
           return -1;
         }
       }
     };
     Buffer.alloc(1).fill(Buffer.alloc(1), 0, end);
-  }, common.expectsError(
-    { code: undefined, type: RangeError, message: 'Index out of range' }));
+  }, {
+    code: undefined, type: RangeError, message: 'Index out of range'
+  });
   // Make sure -1 is making it to Buffer::Fill().
   assert.ok(elseWasLast,
             'internal API changed, -1 no longer in correct location');
@@ -418,21 +424,19 @@ assert.throws(() => {
 
 // Testing process.binding. Make sure "end" is properly checked for -1 wrap
 // around.
-assert.throws(() => {
+common.expectsError(() => {
   process.binding('buffer').fill(Buffer.alloc(1), 1, 1, -2, 1);
-}, common.expectsError(
-  { code: undefined, type: RangeError, message: 'Index out of range' }));
+}, { code: undefined, type: RangeError, message: 'Index out of range' });
 
 // Test that bypassing 'length' won't cause an abort.
-assert.throws(() => {
+common.expectsError(() => {
   const buf = new Buffer('w00t');
   Object.defineProperty(buf, 'length', {
     value: 1337,
     enumerable: true
   });
   buf.fill('');
-}, common.expectsError(
-  { code: undefined, type: RangeError, message: 'Index out of range' }));
+}, { code: undefined, type: RangeError, message: 'Index out of range' });
 
 assert.deepStrictEqual(
   Buffer.allocUnsafeSlow(16).fill('ab', 'utf16le'),
@@ -468,3 +472,12 @@ assert.strictEqual(
 assert.strictEqual(
   Buffer.allocUnsafeSlow(16).fill('Љ', 'utf8').toString('utf8'),
   'Љ'.repeat(8));
+
+common.expectsError(() => {
+  const buf = Buffer.from('a'.repeat(1000));
+
+  buf.fill('This is not correctly encoded', 'hex');
+}, {
+  code: 'ERR_INVALID_ARG_VALUE',
+  type: TypeError
+});

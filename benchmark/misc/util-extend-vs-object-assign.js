@@ -8,19 +8,17 @@ const bench = common.createBenchmark(main, {
   n: [10e4]
 });
 
-function main(conf) {
+function main({ n, type }) {
   let fn;
-  const n = conf.n | 0;
-
-  if (conf.type === 'extend') {
+  if (type === 'extend') {
     fn = util._extend;
-  } else if (conf.type === 'assign') {
+  } else if (type === 'assign') {
     fn = Object.assign;
   }
 
   // Force-optimize the method to test so that the benchmark doesn't
   // get disrupted by the optimizer kicking in halfway through.
-  for (var i = 0; i < conf.type.length * 10; i += 1)
+  for (var i = 0; i < type.length * 10; i += 1)
     fn({}, process.env);
 
   const obj = new Proxy({}, { set: function(a, b, c) { return true; } });

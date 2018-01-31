@@ -5,7 +5,7 @@
 // Load implementations from <project root>/tools.
 // Files: tools/splaytree.js tools/codemap.js tools/csvparser.js
 // Files: tools/consarray.js tools/profile.js tools/profile_view.js
-// Files: tools/logreader.js tools/tickprocessor.js
+// Files: tools/logreader.js tools/arguments.js tools/tickprocessor.js
 // Files: tools/dumpcpp.js
 // Env: TEST_FILE_NAME
 

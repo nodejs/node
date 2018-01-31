@@ -1,0 +1,90 @@
+{
+  "_from": "ssri@^4.1.6",
+  "_id": "ssri@4.1.6",
+  "_inBundle": false,
+  "_integrity": "sha512-WUbCdgSAMQjTFZRWvSPpauryvREEA+Krn19rx67UlJEJx/M192ZHxMmJXjZ4tkdFm+Sb0SXGlENeQVlA5wY7kA==",
+  "_location": "/npm-profile/make-fetch-happen/ssri",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "range",
+    "registry": true,
+    "raw": "ssri@^4.1.6",
+    "name": "ssri",
+    "escapedName": "ssri",
+    "rawSpec": "^4.1.6",
+    "saveSpec": null,
+    "fetchSpec": "^4.1.6"
+  },
+  "_requiredBy": [
+    "/npm-profile/make-fetch-happen",
+    "/npm-profile/make-fetch-happen/cacache"
+  ],
+  "_resolved": "https://registry.npmjs.org/ssri/-/ssri-4.1.6.tgz",
+  "_shasum": "0cb49b6ac84457e7bdd466cb730c3cb623e9a25b",
+  "_spec": "ssri@^4.1.6",
+  "_where": "/Users/zkat/Documents/code/npm/node_modules/npm-profile/node_modules/make-fetch-happen",
+  "author": {
+    "name": "Kat Marchán",
+    "email": "kzm@sykosomatic.org"
+  },
+  "bugs": {
+    "url": "https://github.com/zkat/ssri/issues"
+  },
+  "bundleDependencies": false,
+  "config": {
+    "nyc": {
+      "exclude": [
+        "node_modules/**",
+        "test/**"
+      ]
+    }
+  },
+  "dependencies": {
+    "safe-buffer": "^5.1.0"
+  },
+  "deprecated": false,
+  "description": "Standard Subresource Integrity library --  parses, serializes, generates, and verifies integrity metadata according to the SRI spec.",
+  "devDependencies": {
+    "nyc": "^10.3.2",
+    "standard": "^9.0.2",
+    "standard-version": "^4.1.0",
+    "tap": "^10.3.3",
+    "weallbehave": "^1.2.0",
+    "weallcontribute": "^1.0.8"
+  },
+  "files": [
+    "*.js"
+  ],
+  "homepage": "https://github.com/zkat/ssri#readme",
+  "keywords": [
+    "w3c",
+    "web",
+    "security",
+    "integrity",
+    "checksum",
+    "hashing",
+    "subresource integrity",
+    "sri",
+    "sri hash",
+    "sri string",
+    "sri generator",
+    "html"
+  ],
+  "license": "CC0-1.0",
+  "main": "index.js",
+  "name": "ssri",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/zkat/ssri.git"
+  },
+  "scripts": {
+    "postrelease": "npm publish && git push --follow-tags",
+    "prerelease": "npm t",
+    "pretest": "standard",
+    "release": "standard-version -s",
+    "test": "tap -J --coverage test/*.js",
+    "update-coc": "weallbehave -o . && git add CODE_OF_CONDUCT.md && git commit -m 'docs(coc): updated CODE_OF_CONDUCT.md'",
+    "update-contrib": "weallcontribute -o . && git add CONTRIBUTING.md && git commit -m 'docs(contributing): updated CONTRIBUTING.md'"
+  },
+  "version": "4.1.6"
+}

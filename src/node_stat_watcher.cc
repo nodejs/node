@@ -20,7 +20,7 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include "node_stat_watcher.h"
-#include "async-wrap-inl.h"
+#include "async_wrap-inl.h"
 #include "env-inl.h"
 #include "util-inl.h"
 
@@ -89,7 +89,7 @@ void StatWatcher::Callback(uv_fs_poll_t* handle,
   Context::Scope context_scope(env->context());
 
   FillStatsArray(env->fs_stats_field_array(), curr);
-  FillStatsArray(env->fs_stats_field_array() + 14, prev);
+  FillStatsArray(env->fs_stats_field_array(), prev, 14);
   Local<Value> arg = Integer::New(env->isolate(), status);
   wrap->MakeCallback(env->onchange_string(), 1, &arg);
 }
@@ -111,9 +111,15 @@ void StatWatcher::Start(const FunctionCallbackInfo<Value>& args) {
   const bool persistent = args[1]->BooleanValue();
   const uint32_t interval = args[2]->Uint32Value();
 
-  if (!persistent)
+  if (uv_is_active(reinterpret_cast<uv_handle_t*>(wrap->watcher_)))
+    return;
+  // Safe, uv_ref/uv_unref are idempotent.
+  if (persistent)
+    uv_ref(reinterpret_cast<uv_handle_t*>(wrap->watcher_));
+  else
     uv_unref(reinterpret_cast<uv_handle_t*>(wrap->watcher_));
   uv_fs_poll_start(wrap->watcher_, Callback, *path, interval);
+
   wrap->ClearWeak();
 }
 

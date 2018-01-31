@@ -36,7 +36,7 @@ const code =
     'f;\n';
 
 const x = {};
-const o = vm.createContext({ console: console, x: x });
+const o = vm.createContext({ console, x });
 
 const res = vm.runInContext(code, o, 'test');
 

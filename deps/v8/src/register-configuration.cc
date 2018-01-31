@@ -18,11 +18,11 @@ static const int kMaxAllocatableDoubleRegisterCount =
     ALLOCATABLE_DOUBLE_REGISTERS(REGISTER_COUNT)0;
 
 static const int kAllocatableGeneralCodes[] = {
-#define REGISTER_CODE(R) Register::kCode_##R,
+#define REGISTER_CODE(R) kRegCode_##R,
     ALLOCATABLE_GENERAL_REGISTERS(REGISTER_CODE)};
 #undef REGISTER_CODE
 
-#define REGISTER_CODE(R) DoubleRegister::kCode_##R,
+#define REGISTER_CODE(R) kDoubleCode_##R,
 static const int kAllocatableDoubleCodes[] = {
     ALLOCATABLE_DOUBLE_REGISTERS(REGISTER_CODE)};
 #if V8_TARGET_ARCH_ARM
@@ -58,11 +58,11 @@ static const char* const kSimd128RegisterNames[] = {
 STATIC_ASSERT(RegisterConfiguration::kMaxGeneralRegisters >=
               Register::kNumRegisters);
 STATIC_ASSERT(RegisterConfiguration::kMaxFPRegisters >=
-              FloatRegister::kMaxNumRegisters);
+              FloatRegister::kNumRegisters);
 STATIC_ASSERT(RegisterConfiguration::kMaxFPRegisters >=
-              DoubleRegister::kMaxNumRegisters);
+              DoubleRegister::kNumRegisters);
 STATIC_ASSERT(RegisterConfiguration::kMaxFPRegisters >=
-              Simd128Register::kMaxNumRegisters);
+              Simd128Register::kNumRegisters);
 
 static int get_num_allocatable_general_registers() {
   return
@@ -126,7 +126,7 @@ class ArchDefaultRegisterConfiguration : public RegisterConfiguration {
  public:
   ArchDefaultRegisterConfiguration()
       : RegisterConfiguration(
-            Register::kNumRegisters, DoubleRegister::kMaxNumRegisters,
+            Register::kNumRegisters, DoubleRegister::kNumRegisters,
             get_num_allocatable_general_registers(),
             get_num_allocatable_double_registers(), kAllocatableGeneralCodes,
             get_allocatable_double_codes(),
@@ -155,7 +155,7 @@ class RestrictedRegisterConfiguration : public RegisterConfiguration {
       std::unique_ptr<int[]> allocatable_general_register_codes,
       std::unique_ptr<char const* []> allocatable_general_register_names)
       : RegisterConfiguration(
-            Register::kNumRegisters, DoubleRegister::kMaxNumRegisters,
+            Register::kNumRegisters, DoubleRegister::kNumRegisters,
             num_allocatable_general_registers,
             get_num_allocatable_double_registers(),
             allocatable_general_register_codes.get(),
@@ -240,8 +240,9 @@ RegisterConfiguration::RegisterConfiguration(
       float_register_names_(float_register_names),
       double_register_names_(double_register_names),
       simd128_register_names_(simd128_register_names) {
-  DCHECK(num_general_registers_ <= RegisterConfiguration::kMaxGeneralRegisters);
-  DCHECK(num_double_registers_ <= RegisterConfiguration::kMaxFPRegisters);
+  DCHECK_LE(num_general_registers_,
+            RegisterConfiguration::kMaxGeneralRegisters);
+  DCHECK_LE(num_double_registers_, RegisterConfiguration::kMaxFPRegisters);
   for (int i = 0; i < num_allocatable_general_registers_; ++i) {
     allocatable_general_codes_mask_ |= (1 << allocatable_general_codes_[i]);
   }

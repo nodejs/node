@@ -1916,7 +1916,7 @@ unsigned char *ssl_add_serverhello_tlsext(SSL *s, unsigned char *buf,
         s2n(TLSEXT_TYPE_application_layer_protocol_negotiation, ret);
         s2n(3 + len, ret);
         s2n(1 + len, ret);
-        *ret++ = len;
+        *ret++ = (unsigned char)len;
         memcpy(ret, selected, len);
         ret += len;
     }

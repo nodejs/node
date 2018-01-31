@@ -114,13 +114,13 @@ static void TraceInterpreter(const byte* code_base,
 
 
 static int32_t Load32Aligned(const byte* pc) {
-  DCHECK((reinterpret_cast<intptr_t>(pc) & 3) == 0);
+  DCHECK_EQ(0, reinterpret_cast<intptr_t>(pc) & 3);
   return *reinterpret_cast<const int32_t *>(pc);
 }
 
 
 static int32_t Load16Aligned(const byte* pc) {
-  DCHECK((reinterpret_cast<intptr_t>(pc) & 1) == 0);
+  DCHECK_EQ(0, reinterpret_cast<intptr_t>(pc) & 1);
   return *reinterpret_cast<const uint16_t *>(pc);
 }
 
@@ -300,7 +300,7 @@ static RegExpImpl::IrregexpResult RawMatch(Isolate* isolate,
         break;
       }
       BYTECODE(LOAD_4_CURRENT_CHARS) {
-        DCHECK(sizeof(Char) == 1);
+        DCHECK_EQ(1, sizeof(Char));
         int pos = current + (insn >> BYTECODE_SHIFT);
         if (pos + 4 > subject.length() || pos < 0) {
           pc = code_base + Load32Aligned(pc + 4);
@@ -317,7 +317,7 @@ static RegExpImpl::IrregexpResult RawMatch(Isolate* isolate,
         break;
       }
       BYTECODE(LOAD_4_CURRENT_CHARS_UNCHECKED) {
-        DCHECK(sizeof(Char) == 1);
+        DCHECK_EQ(1, sizeof(Char));
         int pos = current + (insn >> BYTECODE_SHIFT);
         Char next1 = subject[pos + 1];
         Char next2 = subject[pos + 2];

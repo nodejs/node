@@ -296,15 +296,13 @@ void InstructionSelector::VisitLoad(Node* node) {
   ArchOpcode opcode = GetLoadOpcode(load_rep);
   InstructionOperand outputs[1];
   outputs[0] = g.DefineAsRegister(node);
-  InstructionOperand inputs[4];
+  InstructionOperand inputs[3];
   size_t input_count = 0;
   AddressingMode mode =
       g.GetEffectiveAddressMemoryOperand(node, inputs, &input_count);
   InstructionCode code = opcode | AddressingModeField::encode(mode);
   if (node->opcode() == IrOpcode::kProtectedLoad) {
     code |= MiscField::encode(X64MemoryProtection::kProtected);
-    // Add the source position as an input
-    inputs[input_count++] = g.UseImmediate(node->InputAt(2));
   }
   Emit(code, 1, outputs, input_count, inputs);
 }
@@ -379,12 +377,11 @@ void InstructionSelector::VisitStore(Node* node) {
 void InstructionSelector::VisitProtectedStore(Node* node) {
   X64OperandGenerator g(this);
   Node* value = node->InputAt(2);
-  Node* position = node->InputAt(3);
 
   StoreRepresentation store_rep = StoreRepresentationOf(node->op());
 
   ArchOpcode opcode = GetStoreOpcode(store_rep);
-  InstructionOperand inputs[5];
+  InstructionOperand inputs[4];
   size_t input_count = 0;
   AddressingMode addressing_mode =
       g.GetEffectiveAddressMemoryOperand(node, inputs, &input_count);
@@ -393,7 +390,6 @@ void InstructionSelector::VisitProtectedStore(Node* node) {
   InstructionOperand value_operand =
       g.CanBeImmediate(value) ? g.UseImmediate(value) : g.UseRegister(value);
   inputs[input_count++] = value_operand;
-  inputs[input_count++] = g.UseImmediate(position);
   Emit(code, 0, static_cast<InstructionOperand*>(nullptr), input_count, inputs);
 }
 
@@ -1246,13 +1242,13 @@ bool ZeroExtendsWord32ToWord64(Node* node) {
       }
     }
     case IrOpcode::kLoad: {
-      // The movzxbl/movsxbl/movzxwl/movsxwl operations implicitly zero-extend
-      // to 64-bit on x64,
-      // so the zero-extension is a no-op.
+      // The movzxbl/movsxbl/movzxwl/movsxwl/movl operations implicitly
+      // zero-extend to 64-bit on x64, so the zero-extension is a no-op.
       LoadRepresentation load_rep = LoadRepresentationOf(node->op());
       switch (load_rep.representation()) {
         case MachineRepresentation::kWord8:
         case MachineRepresentation::kWord16:
+        case MachineRepresentation::kWord32:
           return true;
         default:
           return false;
@@ -1590,7 +1586,7 @@ void VisitCompareWithMemoryOperand(InstructionSelector* selector,
                                    InstructionCode opcode, Node* left,
                                    InstructionOperand right,
                                    FlagsContinuation* cont) {
-  DCHECK(left->opcode() == IrOpcode::kLoad);
+  DCHECK_EQ(IrOpcode::kLoad, left->opcode());
   X64OperandGenerator g(selector);
   size_t input_count = 0;
   InstructionOperand inputs[6];

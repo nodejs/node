@@ -81,11 +81,8 @@ class MozillaTestSuite(testsuite.TestSuite):
             tests.append(case)
     return tests
 
-  def GetFlagsForTestCase(self, testcase, context):
-    result = []
-    result += context.mode_flags
-    result += ["--expose-gc"]
-    result += [os.path.join(self.root, "mozilla-shell-emulation.js")]
+  def GetParametersForTestCase(self, testcase, context):
+    files = [os.path.join(self.root, "mozilla-shell-emulation.js")]
     testfilename = testcase.path + ".js"
     testfilepath = testfilename.split("/")
     for i in xrange(len(testfilepath)):
@@ -93,9 +90,10 @@ class MozillaTestSuite(testsuite.TestSuite):
                             reduce(os.path.join, testfilepath[:i], ""),
                             "shell.js")
       if os.path.exists(script):
-        result.append(script)
-    result.append(os.path.join(self.testroot, testfilename))
-    return testcase.flags + result
+        files.append(script)
+    files.append(os.path.join(self.testroot, testfilename))
+    flags = testcase.flags + context.mode_flags + ["--expose-gc"]
+    return files, flags, {}
 
   def GetSourceForTest(self, testcase):
     filename = os.path.join(self.testroot, testcase.path + ".js")

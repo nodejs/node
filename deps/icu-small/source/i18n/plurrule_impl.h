@@ -28,6 +28,7 @@
 #include "unicode/ures.h"
 #include "uvector.h"
 #include "hash.h"
+#include "uassert.h"
 
 class PluralRulesTest;
 
@@ -177,6 +178,74 @@ private:
 
 };
 
+enum PluralOperand {
+    /**
+    * The double value of the entire number.
+    */
+    PLURAL_OPERAND_N,
+
+    /**
+     * The integer value, with the fraction digits truncated off.
+     */
+    PLURAL_OPERAND_I,
+
+    /**
+     * All visible fraction digits as an integer, including trailing zeros.
+     */
+    PLURAL_OPERAND_F,
+
+    /**
+     * Visible fraction digits as an integer, not including trailing zeros.
+     */
+    PLURAL_OPERAND_T,
+
+    /**
+     * Number of visible fraction digits.
+     */
+    PLURAL_OPERAND_V,
+
+    /**
+     * Number of visible fraction digits, not including trailing zeros.
+     */
+    PLURAL_OPERAND_W,
+
+    /**
+     * THIS OPERAND IS DEPRECATED AND HAS BEEN REMOVED FROM THE SPEC.
+     *
+     * <p>Returns the integer value, but will fail if the number has fraction digits.
+     * That is, using "j" instead of "i" is like implicitly adding "v is 0".
+     *
+     * <p>For example, "j is 3" is equivalent to "i is 3 and v is 0": it matches
+     * "3" but not "3.1" or "3.0".
+     */
+    PLURAL_OPERAND_J
+};
+
+/**
+ * Converts from the tokenType enum to PluralOperand. Asserts that the given
+ * tokenType can be mapped to a PluralOperand.
+ */
+PluralOperand tokenTypeToPluralOperand(tokenType tt);
+
+/**
+ * An interface to FixedDecimal, allowing for other implementations.
+ * @internal
+ */
+class U_I18N_API IFixedDecimal {
+  public:
+    virtual ~IFixedDecimal();
+
+    /**
+     * Returns the value corresponding to the specified operand (n, i, f, t, v, or w).
+     * If the operand is 'n', returns a double; otherwise, returns an integer.
+     */
+    virtual double getPluralOperand(PluralOperand operand) const = 0;
+
+    virtual bool isNaN() const = 0;
+
+    virtual bool isInfinite() const = 0;
+};
+
 /**
  * class FixedDecimal serves to communicate the properties
  * of a formatted number from a decimal formatter to PluralRules::select()
@@ -184,7 +253,7 @@ private:
  * see DecimalFormat::getFixedDecimal()
  * @internal
  */
-class U_I18N_API FixedDecimal: public UMemory {
+class U_I18N_API FixedDecimal: public IFixedDecimal, public UObject {
   public:
     /**
       * @param n   the number, e.g. 12.345
@@ -196,10 +265,16 @@ class U_I18N_API FixedDecimal: public UMemory {
     explicit FixedDecimal(double n);
     explicit FixedDecimal(const VisibleDigits &n);
     FixedDecimal();
+    ~FixedDecimal() U_OVERRIDE;
     FixedDecimal(const UnicodeString &s, UErrorCode &ec);
     FixedDecimal(const FixedDecimal &other);
 
-    double get(tokenType operand) const;
+    double getPluralOperand(PluralOperand operand) const U_OVERRIDE;
+    bool isNaN() const U_OVERRIDE;
+    bool isInfinite() const U_OVERRIDE;
+
+    bool isNanOrInfinity() const;  // used in decimfmtimpl.cpp
+
     int32_t getVisibleFractionDigitCount() const;
 
     void init(double n, int32_t v, int64_t f);
@@ -217,7 +292,8 @@ class U_I18N_API FixedDecimal: public UMemory {
     int64_t     intValue;
     UBool       hasIntegerValue;
     UBool       isNegative;
-    UBool       isNanOrInfinity;
+    UBool       _isNaN;
+    UBool       _isInfinite;
 };
 
 class AndConstraint : public UMemory  {
@@ -240,7 +316,7 @@ public:
     virtual ~AndConstraint();
     AndConstraint* add();
     // UBool isFulfilled(double number);
-    UBool isFulfilled(const FixedDecimal &number);
+    UBool isFulfilled(const IFixedDecimal &number);
 };
 
 class OrConstraint : public UMemory  {
@@ -253,7 +329,7 @@ public:
     virtual ~OrConstraint();
     AndConstraint* add();
     // UBool isFulfilled(double number);
-    UBool isFulfilled(const FixedDecimal &number);
+    UBool isFulfilled(const IFixedDecimal &number);
 };
 
 class RuleChain : public UMemory  {
@@ -271,7 +347,7 @@ public:
     RuleChain(const RuleChain& other);
     virtual ~RuleChain();
 
-    UnicodeString select(const FixedDecimal &number) const;
+    UnicodeString select(const IFixedDecimal &number) const;
     void          dumpRules(UnicodeString& result);
     UErrorCode    getKeywords(int32_t maxArraySize, UnicodeString *keywords, int32_t& arraySize) const;
     UBool         isKeyword(const UnicodeString& keyword) const;

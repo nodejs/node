@@ -57,6 +57,63 @@ fs.symlink(linkData, linkPath, common.mustCall(function(err) {
   }));
 }));
 
+[false, 1, {}, [], null, undefined].forEach((i) => {
+  common.expectsError(
+    () => fs.symlink(i, '', common.mustNotCall()),
+    {
+      code: 'ERR_INVALID_ARG_TYPE',
+      type: TypeError,
+      message:
+        'The "target" argument must be one of type string, Buffer, or URL'
+    }
+  );
+  common.expectsError(
+    () => fs.symlink('', i, common.mustNotCall()),
+    {
+      code: 'ERR_INVALID_ARG_TYPE',
+      type: TypeError,
+      message:
+        'The "path" argument must be one of type string, Buffer, or URL'
+    }
+  );
+  common.expectsError(
+    () => fs.symlinkSync(i, ''),
+    {
+      code: 'ERR_INVALID_ARG_TYPE',
+      type: TypeError,
+      message:
+        'The "target" argument must be one of type string, Buffer, or URL'
+    }
+  );
+  common.expectsError(
+    () => fs.symlinkSync('', i),
+    {
+      code: 'ERR_INVALID_ARG_TYPE',
+      type: TypeError,
+      message:
+        'The "path" argument must be one of type string, Buffer, or URL'
+    }
+  );
+});
+
+common.expectsError(
+  () => fs.symlink('', '', '🍏', common.mustNotCall()),
+  {
+    code: 'ERR_FS_INVALID_SYMLINK_TYPE',
+    type: Error,
+    message:
+      'Symlink type must be one of "dir", "file", or "junction". Received "🍏"'
+  }
+);
+common.expectsError(
+  () => fs.symlinkSync('', '', '🍏'),
+  {
+    code: 'ERR_FS_INVALID_SYMLINK_TYPE',
+    type: Error,
+    message:
+      'Symlink type must be one of "dir", "file", or "junction". Received "🍏"'
+  }
+);
 
 process.on('exit', function() {
   assert.notStrictEqual(linkTime, fileTime);

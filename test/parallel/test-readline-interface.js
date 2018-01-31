@@ -27,17 +27,14 @@ const assert = require('assert');
 const readline = require('readline');
 const internalReadline = require('internal/readline');
 const EventEmitter = require('events').EventEmitter;
-const inherits = require('util').inherits;
 const { Writable, Readable } = require('stream');
 
-function FakeInput() {
-  EventEmitter.call(this);
+class FakeInput extends EventEmitter {
+  resume() {}
+  pause() {}
+  write() {}
+  end() {}
 }
-inherits(FakeInput, EventEmitter);
-FakeInput.prototype.resume = () => {};
-FakeInput.prototype.pause = () => {};
-FakeInput.prototype.write = () => {};
-FakeInput.prototype.end = () => {};
 
 function isWarned(emitter) {
   for (const name in emitter) {
@@ -360,46 +357,46 @@ function isWarned(emitter) {
   // constructor throws if completer is not a function or undefined
   {
     const fi = new FakeInput();
-    assert.throws(function() {
+    common.expectsError(function() {
       readline.createInterface({
         input: fi,
         completer: 'string is not valid'
       });
-    }, common.expectsError({
+    }, {
       type: TypeError,
       code: 'ERR_INVALID_OPT_VALUE'
-    }));
+    });
   }
 
   // constructor throws if historySize is not a positive number
   {
     const fi = new FakeInput();
-    assert.throws(function() {
+    common.expectsError(function() {
       readline.createInterface({
         input: fi, historySize: 'not a number'
       });
-    }, common.expectsError({
+    }, {
       type: RangeError,
       code: 'ERR_INVALID_OPT_VALUE'
-    }));
+    });
 
-    assert.throws(function() {
+    common.expectsError(function() {
       readline.createInterface({
         input: fi, historySize: -1
       });
-    }, common.expectsError({
+    }, {
       type: RangeError,
       code: 'ERR_INVALID_OPT_VALUE'
-    }));
+    });
 
-    assert.throws(function() {
+    common.expectsError(function() {
       readline.createInterface({
         input: fi, historySize: NaN
       });
-    }, common.expectsError({
+    }, {
       type: RangeError,
       code: 'ERR_INVALID_OPT_VALUE'
-    }));
+    });
   }
 
   // duplicate lines are removed from history when
@@ -811,7 +808,7 @@ function isWarned(emitter) {
     assert.strictEqual(isWarned(process.stdout._events), false);
   }
 
-  // can create a new readline Interface with a null output arugument
+  // can create a new readline Interface with a null output argument
   {
     const fi = new FakeInput();
     const rli = new readline.Interface(

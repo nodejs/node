@@ -22,10 +22,10 @@ server.listen(0, common.mustCall(() => {
       type: Error,
       message: 'Stream closed with error code 11'
     }));
-    req.on('streamClosed', common.mustCall((code) => {
+    req.on('close', common.mustCall((code) => {
       assert.strictEqual(code, NGHTTP2_ENHANCE_YOUR_CALM);
       server.close();
-      client.destroy();
+      client.close();
     }));
   });
 

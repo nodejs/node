@@ -1,8 +1,14 @@
 'use strict';
+
+// This tests that fs.access and fs.accessSync works as expected
+// and the errors thrown from these APIs include the desired properties
+
 const common = require('../common');
 const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
+const uv = process.binding('uv');
+
 const doesNotExist = path.join(common.tmpDir, '__this_should_not_exist');
 const readOnlyFile = path.join(common.tmpDir, 'read_only_file');
 const readWriteFile = path.join(common.tmpDir, 'read_write_file');
@@ -28,7 +34,7 @@ createFileWithPerms(readWriteFile, 0o666);
  * The change of user id is done after creating the fixtures files for the same
  * reason: the test may be run as the superuser within a directory in which
  * only the superuser can create files, and thus it may need superuser
- * priviledges to create them.
+ * privileges to create them.
  *
  * There's not really any point in resetting the process' user id to 0 after
  * changing it to 'nobody', since in the case that the test runs without
@@ -81,9 +87,16 @@ fs.access(readOnlyFile, fs.W_OK, common.mustCall((err) => {
   }
 }));
 
-assert.throws(() => {
-  fs.access(100, fs.F_OK, common.mustNotCall());
-}, /^TypeError: path must be a string or Buffer$/);
+common.expectsError(
+  () => {
+    fs.access(100, fs.F_OK, common.mustNotCall());
+  },
+  {
+    code: 'ERR_INVALID_ARG_TYPE',
+    type: TypeError,
+    message: 'The "path" argument must be one of type string, Buffer, or URL'
+  }
+);
 
 common.expectsError(
   () => {
@@ -123,6 +136,24 @@ assert.throws(
       `ENOENT: no such file or directory, access '${doesNotExist}'`
     );
     assert.strictEqual(err.constructor, Error);
+    assert.strictEqual(err.syscall, 'access');
+    assert.strictEqual(err.errno, uv.UV_ENOENT);
+    return true;
+  }
+);
+
+assert.throws(
+  () => { fs.accessSync(Buffer.from(doesNotExist)); },
+  (err) => {
+    assert.strictEqual(err.code, 'ENOENT');
+    assert.strictEqual(err.path, doesNotExist);
+    assert.strictEqual(
+      err.message,
+      `ENOENT: no such file or directory, access '${doesNotExist}'`
+    );
+    assert.strictEqual(err.constructor, Error);
+    assert.strictEqual(err.syscall, 'access');
+    assert.strictEqual(err.errno, uv.UV_ENOENT);
     return true;
   }
 );

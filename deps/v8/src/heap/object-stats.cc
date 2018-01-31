@@ -5,11 +5,12 @@
 #include "src/heap/object-stats.h"
 
 #include "src/assembler-inl.h"
+#include "src/base/bits.h"
 #include "src/compilation-cache.h"
 #include "src/counters.h"
+#include "src/globals.h"
 #include "src/heap/heap-inl.h"
 #include "src/isolate.h"
-#include "src/objects/code-cache-inl.h"
 #include "src/objects/compilation-cache-inl.h"
 #include "src/utils.h"
 
@@ -210,6 +211,59 @@ void ObjectStats::CheckpointObjectStats() {
   ClearObjectStats();
 }
 
+namespace {
+
+int Log2ForSize(size_t size) {
+  DCHECK_GT(size, 0);
+  return kSizetSize * 8 - 1 - base::bits::CountLeadingZeros(size);
+}
+
+}  // namespace
+
+int ObjectStats::HistogramIndexFromSize(size_t size) {
+  if (size == 0) return 0;
+  return Min(Max(Log2ForSize(size) + 1 - kFirstBucketShift, 0),
+             kLastValueBucketIndex);
+}
+
+void ObjectStats::RecordObjectStats(InstanceType type, size_t size) {
+  DCHECK_LE(type, LAST_TYPE);
+  object_counts_[type]++;
+  object_sizes_[type] += size;
+  size_histogram_[type][HistogramIndexFromSize(size)]++;
+}
+
+void ObjectStats::RecordCodeSubTypeStats(int code_sub_type, size_t size) {
+  int code_sub_type_index = FIRST_CODE_KIND_SUB_TYPE + code_sub_type;
+  DCHECK_GE(code_sub_type_index, FIRST_CODE_KIND_SUB_TYPE);
+  DCHECK_LT(code_sub_type_index, FIRST_FIXED_ARRAY_SUB_TYPE);
+  object_counts_[code_sub_type_index]++;
+  object_sizes_[code_sub_type_index] += size;
+  size_histogram_[code_sub_type_index][HistogramIndexFromSize(size)]++;
+}
+
+bool ObjectStats::RecordFixedArraySubTypeStats(FixedArrayBase* array,
+                                               int array_sub_type, size_t size,
+                                               size_t over_allocated) {
+  auto it = visited_fixed_array_sub_types_.insert(array);
+  if (!it.second) return false;
+  DCHECK_LE(array_sub_type, LAST_FIXED_ARRAY_SUB_TYPE);
+  object_counts_[FIRST_FIXED_ARRAY_SUB_TYPE + array_sub_type]++;
+  object_sizes_[FIRST_FIXED_ARRAY_SUB_TYPE + array_sub_type] += size;
+  size_histogram_[FIRST_FIXED_ARRAY_SUB_TYPE + array_sub_type]
+                 [HistogramIndexFromSize(size)]++;
+  if (over_allocated > 0) {
+    InstanceType type =
+        array->IsHashTable() ? HASH_TABLE_TYPE : FIXED_ARRAY_TYPE;
+    over_allocated_[FIRST_FIXED_ARRAY_SUB_TYPE + array_sub_type] +=
+        over_allocated;
+    over_allocated_histogram_[FIRST_FIXED_ARRAY_SUB_TYPE + array_sub_type]
+                             [HistogramIndexFromSize(over_allocated)]++;
+    over_allocated_[type] += over_allocated;
+    over_allocated_histogram_[type][HistogramIndexFromSize(over_allocated)]++;
+  }
+  return true;
+}
 
 Isolate* ObjectStats::isolate() { return heap()->isolate(); }
 
@@ -306,14 +360,10 @@ void ObjectStatsCollector::CollectGlobalStatistics() {
 }
 
 static bool CanRecordFixedArray(Heap* heap, FixedArrayBase* array) {
-  return (array->map()->instance_type() == FIXED_ARRAY_TYPE ||
-          array->map()->instance_type() == HASH_TABLE_TYPE) &&
-         array->map() != heap->fixed_double_array_map() &&
+  return array->map()->instance_type() == FIXED_ARRAY_TYPE &&
          array != heap->empty_fixed_array() &&
-         array != heap->empty_byte_array() &&
          array != heap->empty_sloppy_arguments_elements() &&
          array != heap->empty_slow_element_dictionary() &&
-         array != heap->empty_descriptor_array() &&
          array != heap->empty_property_dictionary();
 }
 
@@ -368,7 +418,7 @@ void ObjectStatsCollector::RecordJSObjectDetails(JSObject* object) {
   FixedArrayBase* elements = object->elements();
   if (CanRecordFixedArray(heap_, elements) && !IsCowArray(heap_, elements)) {
     if (elements->IsDictionary() && SameLiveness(object, elements)) {
-      SeededNumberDictionary* dict = SeededNumberDictionary::cast(elements);
+      NumberDictionary* dict = NumberDictionary::cast(elements);
       RecordHashTableHelper(object, dict, DICTIONARY_ELEMENTS_SUB_TYPE);
     } else {
       if (IsHoleyElementsKind(object->GetElementsKind())) {
@@ -432,24 +482,10 @@ void ObjectStatsCollector::RecordMapDetails(Map* map_obj) {
   if (map_obj->owns_descriptors() && array != heap_->empty_descriptor_array() &&
       SameLiveness(map_obj, array)) {
     RecordFixedArrayHelper(map_obj, array, DESCRIPTOR_ARRAY_SUB_TYPE, 0);
-    if (array->HasEnumCache()) {
-      RecordFixedArrayHelper(array, array->GetEnumCache(), ENUM_CACHE_SUB_TYPE,
-                             0);
-    }
-    if (array->HasEnumIndicesCache()) {
-      RecordFixedArrayHelper(array, array->GetEnumIndicesCache(),
-                             ENUM_INDICES_CACHE_SUB_TYPE, 0);
-    }
-  }
-
-  FixedArray* code_cache = map_obj->code_cache();
-  if (code_cache->length() > 0) {
-    if (code_cache->IsCodeCacheHashTable()) {
-      RecordHashTableHelper(map_obj, CodeCacheHashTable::cast(code_cache),
-                            MAP_CODE_CACHE_SUB_TYPE);
-    } else {
-      RecordFixedArrayHelper(map_obj, code_cache, MAP_CODE_CACHE_SUB_TYPE, 0);
-    }
+    EnumCache* enum_cache = array->GetEnumCache();
+    RecordFixedArrayHelper(array, enum_cache->keys(), ENUM_CACHE_SUB_TYPE, 0);
+    RecordFixedArrayHelper(array, enum_cache->indices(),
+                           ENUM_INDICES_CACHE_SUB_TYPE, 0);
   }
 
   for (DependentCode* cur_dependent_code = map_obj->dependent_code();
@@ -495,8 +531,8 @@ void ObjectStatsCollector::RecordCodeDetails(Code* code) {
   RecordFixedArrayHelper(code, code->deoptimization_data(),
                          DEOPTIMIZATION_DATA_SUB_TYPE, 0);
   if (code->kind() == Code::Kind::OPTIMIZED_FUNCTION) {
-    DeoptimizationInputData* input_data =
-        DeoptimizationInputData::cast(code->deoptimization_data());
+    DeoptimizationData* input_data =
+        DeoptimizationData::cast(code->deoptimization_data());
     if (input_data->length() > 0) {
       RecordFixedArrayHelper(code->deoptimization_data(),
                              input_data->LiteralArray(),

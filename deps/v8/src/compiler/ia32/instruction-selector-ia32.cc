@@ -46,8 +46,7 @@ class IA32OperandGenerator final : public OperandGenerator {
       case kIA32Sub:
       case kIA32Cmp:
       case kIA32Test:
-        return rep == MachineRepresentation::kWord32 ||
-               rep == MachineRepresentation::kTagged;
+        return rep == MachineRepresentation::kWord32 || IsAnyTagged(rep);
       case kIA32Cmp16:
       case kIA32Test16:
         return rep == MachineRepresentation::kWord16;
@@ -1166,7 +1165,7 @@ void VisitCompareWithMemoryOperand(InstructionSelector* selector,
                                    InstructionCode opcode, Node* left,
                                    InstructionOperand right,
                                    FlagsContinuation* cont) {
-  DCHECK(left->opcode() == IrOpcode::kLoad);
+  DCHECK_EQ(IrOpcode::kLoad, left->opcode());
   IA32OperandGenerator g(selector);
   size_t input_count = 0;
   InstructionOperand inputs[6];
@@ -1916,14 +1915,53 @@ VISIT_ATOMIC_BINOP(Xor)
   V(I32x4MinU)             \
   V(I32x4MaxU)             \
   V(I32x4GtU)              \
-  V(I32x4GeU)
+  V(I32x4GeU)              \
+  V(I16x8Add)              \
+  V(I16x8AddSaturateS)     \
+  V(I16x8Sub)              \
+  V(I16x8SubSaturateS)     \
+  V(I16x8Mul)              \
+  V(I16x8MinS)             \
+  V(I16x8MaxS)             \
+  V(I16x8Eq)               \
+  V(I16x8Ne)               \
+  V(I16x8GtS)              \
+  V(I16x8GeS)              \
+  V(I16x8AddSaturateU)     \
+  V(I16x8SubSaturateU)     \
+  V(I16x8MinU)             \
+  V(I16x8MaxU)             \
+  V(I16x8GtU)              \
+  V(I16x8GeU)              \
+  V(I8x16Add)              \
+  V(I8x16AddSaturateS)     \
+  V(I8x16Sub)              \
+  V(I8x16SubSaturateS)     \
+  V(I8x16MinS)             \
+  V(I8x16MaxS)             \
+  V(I8x16Eq)               \
+  V(I8x16Ne)               \
+  V(I8x16GtS)              \
+  V(I8x16GeS)              \
+  V(I8x16AddSaturateU)     \
+  V(I8x16SubSaturateU)     \
+  V(I8x16MinU)             \
+  V(I8x16MaxU)             \
+  V(I8x16GtU)              \
+  V(I8x16GeU)
 
-#define SIMD_UNOP_LIST(V) V(I32x4Neg)
+#define SIMD_UNOP_LIST(V) \
+  V(I32x4Neg)             \
+  V(I16x8Neg)             \
+  V(I8x16Neg)
 
 #define SIMD_SHIFT_OPCODES(V) \
   V(I32x4Shl)                 \
   V(I32x4ShrS)                \
-  V(I32x4ShrU)
+  V(I32x4ShrU)                \
+  V(I16x8Shl)                 \
+  V(I16x8ShrS)                \
+  V(I16x8ShrU)
 
 #define VISIT_SIMD_SPLAT(Type)                               \
   void InstructionSelector::Visit##Type##Splat(Node* node) { \

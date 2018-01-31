@@ -25,14 +25,14 @@ const server = tls
   })
   .on('listening', common.mustCall(onlistening))
   .on('secureConnection', common.mustCall(onsecureConnection))
-  .listen(common.PORT);
+  .listen(0);
 
 function onlistening() {
   //
   // Creating client and connecting it to server
   //
   tls
-    .connect(common.PORT, { rejectUnauthorized: false })
+    .connect(server.address().port, { rejectUnauthorized: false })
     .on('secureConnect', common.mustCall(onsecureConnect));
 }
 
@@ -55,21 +55,21 @@ function onexit() {
 
   verifyGraph(
     hooks,
-    [ { type: 'TCPWRAP', id: 'tcp:1', triggerAsyncId: null },
-      { type: 'TCPWRAP', id: 'tcp:2', triggerAsyncId: 'tcp:1' },
-      { type: 'TLSWRAP', id: 'tls:1', triggerAsyncId: 'tcp:1' },
+    [ { type: 'TCPSERVERWRAP', id: 'tcpserver:1', triggerAsyncId: null },
+      { type: 'TCPWRAP', id: 'tcp:1', triggerAsyncId: 'tcpserver:1' },
+      { type: 'TLSWRAP', id: 'tls:1', triggerAsyncId: 'tcpserver:1' },
       { type: 'GETADDRINFOREQWRAP',
         id: 'getaddrinforeq:1', triggerAsyncId: 'tls:1' },
       { type: 'TCPCONNECTWRAP',
-        id: 'tcpconnect:1', triggerAsyncId: 'tcp:2' },
+        id: 'tcpconnect:1', triggerAsyncId: 'tcp:1' },
       { type: 'WRITEWRAP', id: 'write:1', triggerAsyncId: 'tcpconnect:1' },
-      { type: 'TCPWRAP', id: 'tcp:3', triggerAsyncId: 'tcp:1' },
-      { type: 'TLSWRAP', id: 'tls:2', triggerAsyncId: 'tcp:1' },
-      { type: 'TIMERWRAP', id: 'timer:1', triggerAsyncId: 'tcp:1' },
+      { type: 'TCPWRAP', id: 'tcp:2', triggerAsyncId: 'tcpserver:1' },
+      { type: 'TLSWRAP', id: 'tls:2', triggerAsyncId: 'tcpserver:1' },
+      { type: 'TIMERWRAP', id: 'timer:1', triggerAsyncId: 'tcpserver:1' },
       { type: 'WRITEWRAP', id: 'write:2', triggerAsyncId: null },
       { type: 'WRITEWRAP', id: 'write:3', triggerAsyncId: null },
       { type: 'WRITEWRAP', id: 'write:4', triggerAsyncId: null },
-      { type: 'Immediate', id: 'immediate:1', triggerAsyncId: 'tcp:2' },
-      { type: 'Immediate', id: 'immediate:2', triggerAsyncId: 'tcp:3' } ]
+      { type: 'Immediate', id: 'immediate:1', triggerAsyncId: 'tcp:1' },
+      { type: 'Immediate', id: 'immediate:2', triggerAsyncId: 'tcp:2' } ]
   );
 }

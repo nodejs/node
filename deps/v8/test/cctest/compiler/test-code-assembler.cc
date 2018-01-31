@@ -4,6 +4,8 @@
 
 #include "src/code-factory.h"
 #include "src/compiler/code-assembler.h"
+#include "src/compiler/node-properties.h"
+#include "src/compiler/opcodes.h"
 #include "src/isolate.h"
 #include "src/objects-inl.h"
 #include "test/cctest/compiler/code-assembler-tester.h"
@@ -289,7 +291,7 @@ TEST(VariableMergeBindFirst) {
   m.Goto(&merge);
   m.Bind(&merge);
   CHECK(var1.value() != temp);
-  CHECK(var1.value() != nullptr);
+  CHECK_NOT_NULL(var1.value());
   m.Goto(&end);
   m.Bind(&l2);
   Node* temp2 = m.Int32Constant(2);
@@ -298,7 +300,7 @@ TEST(VariableMergeBindFirst) {
   m.Goto(&merge);
   m.Bind(&end);
   CHECK(var1.value() != temp);
-  CHECK(var1.value() != nullptr);
+  CHECK_NOT_NULL(var1.value());
 }
 
 TEST(VariableMergeSwitch) {
@@ -309,18 +311,23 @@ TEST(VariableMergeSwitch) {
   Label l1(&m), l2(&m), default_label(&m);
   Label* labels[] = {&l1, &l2};
   int32_t values[] = {1, 2};
-  Node* temp = m.Int32Constant(0);
-  var1.Bind(temp);
+  Node* temp1 = m.Int32Constant(0);
+  var1.Bind(temp1);
   m.Switch(m.Int32Constant(2), &default_label, values, labels, 2);
   m.Bind(&l1);
-  DCHECK_EQ(temp, var1.value());
-  m.Return(temp);
+  CHECK_EQ(temp1, var1.value());
+  m.Return(temp1);
   m.Bind(&l2);
-  DCHECK_EQ(temp, var1.value());
-  m.Return(temp);
+  CHECK_EQ(temp1, var1.value());
+  Node* temp2 = m.Int32Constant(7);
+  var1.Bind(temp2);
+  m.Goto(&default_label);
   m.Bind(&default_label);
-  DCHECK_EQ(temp, var1.value());
-  m.Return(temp);
+  CHECK_EQ(IrOpcode::kPhi, var1.value()->opcode());
+  CHECK_EQ(2, var1.value()->op()->ValueInputCount());
+  CHECK_EQ(temp1, NodeProperties::GetValueInput(var1.value(), 0));
+  CHECK_EQ(temp2, NodeProperties::GetValueInput(var1.value(), 1));
+  m.Return(temp1);
 }
 
 TEST(SplitEdgeBranchMerge) {

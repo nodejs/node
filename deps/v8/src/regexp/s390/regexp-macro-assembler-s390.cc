@@ -6,6 +6,7 @@
 
 #if V8_TARGET_ARCH_S390
 
+#include "src/assembler-inl.h"
 #include "src/base/bits.h"
 #include "src/code-stubs.h"
 #include "src/log.h"
@@ -97,7 +98,7 @@ RegExpMacroAssemblerS390::RegExpMacroAssemblerS390(Isolate* isolate, Zone* zone,
                                                    Mode mode,
                                                    int registers_to_save)
     : NativeRegExpMacroAssembler(isolate, zone),
-      masm_(new MacroAssembler(isolate, NULL, kRegExpCodeSize,
+      masm_(new MacroAssembler(isolate, nullptr, kRegExpCodeSize,
                                CodeObjectRequired::kYes)),
       mode_(mode),
       num_registers_(registers_to_save),
@@ -143,8 +144,8 @@ void RegExpMacroAssemblerS390::AdvanceCurrentPosition(int by) {
 }
 
 void RegExpMacroAssemblerS390::AdvanceRegister(int reg, int by) {
-  DCHECK(reg >= 0);
-  DCHECK(reg < num_registers_);
+  DCHECK_LE(0, reg);
+  DCHECK_GT(num_registers_, reg);
   if (by != 0) {
     if (CpuFeatures::IsSupported(GENERAL_INSTR_EXT) && is_int8(by)) {
       __ AddMI(register_location(reg), Operand(by));
@@ -443,7 +444,7 @@ void RegExpMacroAssemblerS390::CheckNotCharacterAfterAnd(unsigned c,
 
 void RegExpMacroAssemblerS390::CheckNotCharacterAfterMinusAnd(
     uc16 c, uc16 minus, uc16 mask, Label* on_not_equal) {
-  DCHECK(minus < String::kMaxUtf16CodeUnit);
+  DCHECK_GT(String::kMaxUtf16CodeUnit, minus);
   __ lay(r2, MemOperand(current_character(), -minus));
   __ And(r2, Operand(mask));
   if (c != 0) {
@@ -909,7 +910,7 @@ Handle<HeapObject> RegExpMacroAssemblerS390::GetCode(Handle<String> source) {
     __ mov(r4, Operand(ExternalReference::isolate_address(isolate())));
     ExternalReference grow_stack = ExternalReference::re_grow_stack(isolate());
     __ CallCFunction(grow_stack, num_arguments);
-    // If return NULL, we have failed to grow the stack, and
+    // If return nullptr, we have failed to grow the stack, and
     // must exit with a stack-overflow exception.
     __ CmpP(r2, Operand::Zero());
     __ beq(&exit_with_exception);
@@ -929,8 +930,8 @@ Handle<HeapObject> RegExpMacroAssemblerS390::GetCode(Handle<String> source) {
 
   CodeDesc code_desc;
   masm_->GetCode(isolate(), &code_desc);
-  Handle<Code> code = isolate()->factory()->NewCode(
-      code_desc, Code::ComputeFlags(Code::REGEXP), masm_->CodeObject());
+  Handle<Code> code = isolate()->factory()->NewCode(code_desc, Code::REGEXP,
+                                                    masm_->CodeObject());
   PROFILE(masm_->isolate(),
           RegExpCodeCreateEvent(AbstractCode::cast(*code), *source));
   return Handle<HeapObject>::cast(code);
@@ -1085,7 +1086,7 @@ void RegExpMacroAssemblerS390::CallCheckStackGuardState(Register scratch) {
 // Helper function for reading a value out of a stack frame.
 template <typename T>
 static T& frame_entry(Address re_frame, int frame_offset) {
-  DCHECK(sizeof(T) == kPointerSize);
+  DCHECK_EQ(kPointerSize, sizeof(T));
 #ifdef V8_TARGET_ARCH_S390X
   return reinterpret_cast<T&>(Memory::uint64_at(re_frame + frame_offset));
 #else
@@ -1135,14 +1136,14 @@ void RegExpMacroAssemblerS390::CheckPosition(int cp_offset,
 void RegExpMacroAssemblerS390::BranchOrBacktrack(Condition condition, Label* to,
                                                  CRegister cr) {
   if (condition == al) {  // Unconditional.
-    if (to == NULL) {
+    if (to == nullptr) {
       Backtrack();
       return;
     }
     __ b(to);
     return;
   }
-  if (to == NULL) {
+  if (to == nullptr) {
     __ b(condition, &backtrack_label_);
     return;
   }
@@ -1174,14 +1175,14 @@ void RegExpMacroAssemblerS390::SafeCallTarget(Label* name) {
 }
 
 void RegExpMacroAssemblerS390::Push(Register source) {
-  DCHECK(!source.is(backtrack_stackpointer()));
+  DCHECK(source != backtrack_stackpointer());
   __ lay(backtrack_stackpointer(),
          MemOperand(backtrack_stackpointer(), -kPointerSize));
   __ StoreP(source, MemOperand(backtrack_stackpointer()));
 }
 
 void RegExpMacroAssemblerS390::Pop(Register target) {
-  DCHECK(!target.is(backtrack_stackpointer()));
+  DCHECK(target != backtrack_stackpointer());
   __ LoadP(target, MemOperand(backtrack_stackpointer()));
   __ la(backtrack_stackpointer(),
         MemOperand(backtrack_stackpointer(), kPointerSize));
@@ -1207,7 +1208,7 @@ void RegExpMacroAssemblerS390::CheckStackLimit() {
 void RegExpMacroAssemblerS390::CallCFunctionUsingStub(
     ExternalReference function, int num_arguments) {
   // Must pass all arguments in registers. The stub pushes on the stack.
-  DCHECK(num_arguments <= 8);
+  DCHECK_GE(8, num_arguments);
   __ mov(code_pointer(), Operand(function));
   Label ret;
   __ larl(r14, &ret);
@@ -1248,7 +1249,7 @@ void RegExpMacroAssemblerS390::LoadCurrentCharacterUnchecked(int cp_offset,
                            cp_offset * char_size()));
 #endif
     } else {
-      DCHECK(characters == 1);
+      DCHECK_EQ(1, characters);
       __ LoadlB(current_character(),
                 MemOperand(current_input_offset(), end_of_input_address(),
                            cp_offset * char_size()));
@@ -1264,7 +1265,7 @@ void RegExpMacroAssemblerS390::LoadCurrentCharacterUnchecked(int cp_offset,
       __ rll(current_character(), current_character(), Operand(16));
 #endif
     } else {
-      DCHECK(characters == 1);
+      DCHECK_EQ(1, characters);
       __ LoadLogicalHalfWordP(
           current_character(),
                 MemOperand(current_input_offset(), end_of_input_address(),

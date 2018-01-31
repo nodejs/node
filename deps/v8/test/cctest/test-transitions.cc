@@ -12,8 +12,6 @@
 #include "src/factory.h"
 #include "src/field-type.h"
 #include "src/global-handles.h"
-// FIXME(mstarzinger, marja): This is weird, but required because of the missing
-// (disallowed) include: src/field-type.h -> src/objects-inl.h
 #include "src/objects-inl.h"
 #include "src/transitions.h"
 #include "test/cctest/cctest.h"

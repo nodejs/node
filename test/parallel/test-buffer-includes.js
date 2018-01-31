@@ -137,7 +137,7 @@ assert.strictEqual(
 );
 
 
-// test usc2 encoding
+// test ucs2 encoding
 let twoByteString = Buffer.from('\u039a\u0391\u03a3\u03a3\u0395', 'ucs2');
 
 assert(twoByteString.includes('\u0395', 4, 'ucs2'));
@@ -282,7 +282,7 @@ for (let lengthIndex = 0; lengthIndex < lengths.length; lengthIndex++) {
       code: 'ERR_INVALID_ARG_TYPE',
       type: TypeError,
       message: 'The "value" argument must be one of type string, ' +
-               `buffer, or uint8Array. Received type ${typeof val}`
+               `Buffer, or Uint8Array. Received type ${typeof val}`
     }
   );
 });

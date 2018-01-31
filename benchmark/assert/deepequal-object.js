@@ -25,10 +25,9 @@ function createObj(source, add = '') {
   }));
 }
 
-function main(conf) {
-  const size = +conf.size;
-  // TODO: Fix this "hack"
-  const n = (+conf.n) / size;
+function main({ size, n, method }) {
+  // TODO: Fix this "hack". `n` should not be manipulated.
+  n = n / size;
   var i;
 
   const source = Array.apply(null, Array(size));
@@ -36,7 +35,7 @@ function main(conf) {
   const expected = createObj(source);
   const expectedWrong = createObj(source, '4');
 
-  switch (conf.method) {
+  switch (method) {
     case '':
       // Empty string falls through to next line as default, mostly for tests.
     case 'deepEqual':

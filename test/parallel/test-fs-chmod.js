@@ -108,6 +108,15 @@ fs.open(file2, 'w', common.mustCall((err, fd) => {
       assert.strictEqual(mode_async, fs.fstatSync(fd).mode & 0o777);
     }
 
+    common.expectsError(
+      () => fs.fchmod(fd, {}),
+      {
+        code: 'ERR_INVALID_ARG_TYPE',
+        type: TypeError,
+        message: 'The "mode" argument must be of type integer'
+      }
+    );
+
     fs.fchmodSync(fd, mode_sync);
     if (common.isWindows) {
       assert.ok((fs.fstatSync(fd).mode & 0o777) & mode_sync);
@@ -136,6 +145,41 @@ if (fs.lchmod) {
   }));
 }
 
+['', false, null, undefined, {}, []].forEach((i) => {
+  common.expectsError(
+    () => fs.fchmod(i, 0o000),
+    {
+      code: 'ERR_INVALID_ARG_TYPE',
+      type: TypeError,
+      message: 'The "fd" argument must be of type integer'
+    }
+  );
+  common.expectsError(
+    () => fs.fchmodSync(i, 0o000),
+    {
+      code: 'ERR_INVALID_ARG_TYPE',
+      type: TypeError,
+      message: 'The "fd" argument must be of type integer'
+    }
+  );
+});
+
+[false, 1, {}, [], null, undefined].forEach((i) => {
+  common.expectsError(
+    () => fs.chmod(i, 1, common.mustNotCall()),
+    {
+      code: 'ERR_INVALID_ARG_TYPE',
+      type: TypeError
+    }
+  );
+  common.expectsError(
+    () => fs.chmodSync(i, 1),
+    {
+      code: 'ERR_INVALID_ARG_TYPE',
+      type: TypeError
+    }
+  );
+});
 
 process.on('exit', function() {
   assert.strictEqual(0, openCount);

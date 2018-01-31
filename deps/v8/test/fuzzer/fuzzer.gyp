@@ -116,6 +116,8 @@
         'wasm.cc',
         '../common/wasm/wasm-module-runner.cc',
         '../common/wasm/wasm-module-runner.h',
+        'wasm-fuzzer-common.cc',
+        'wasm-fuzzer-common.h',
       ],
     },
     {
@@ -145,6 +147,8 @@
         'wasm-async.cc',
         '../common/wasm/wasm-module-runner.cc',
         '../common/wasm/wasm-module-runner.h',
+        'wasm-fuzzer-common.cc',
+        'wasm-fuzzer-common.h',
       ],
     },
     {

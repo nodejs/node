@@ -35,11 +35,12 @@
 #include "src/macro-assembler.h"
 #include "src/mips64/macro-assembler-mips64.h"
 #include "src/mips64/simulator-mips64.h"
+#include "src/objects-inl.h"
 
+namespace v8 {
+namespace internal {
 
-using namespace v8::internal;
-
-typedef void* (*F)(int64_t x, int64_t y, int p2, int p3, int p4);
+typedef void* (*FV)(int64_t x, int64_t y, int p2, int p3, int p4);
 typedef Object* (*F1)(int x, int p1, int p2, int p3, int p4);
 typedef Object* (*F3)(void* p, int p1, int p2, int p3, int p4);
 typedef Object* (*F4)(void* p0, void* p1, int p2, int p3, int p4);
@@ -63,7 +64,7 @@ TEST(BYTESWAP) {
   };
   T t;
 
-  MacroAssembler assembler(isolate, NULL, 0,
+  MacroAssembler assembler(isolate, nullptr, 0,
                            v8::internal::CodeObjectRequired::kYes);
 
   MacroAssembler* masm = &assembler;
@@ -108,9 +109,9 @@ TEST(BYTESWAP) {
 
   CodeDesc desc;
   masm->GetCode(isolate, &desc);
-  Handle<Code> code = isolate->factory()->NewCode(
-      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
-  ::F3 f = FUNCTION_CAST<::F3>(code->entry());
+  Handle<Code> code =
+      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
+  F3 f = FUNCTION_CAST<F3>(code->entry());
   t.r1 = 0x5612FFCD9D327ACC;
   t.r2 = 0x781A15C3;
   t.r3 = 0xFCDE;
@@ -143,7 +144,7 @@ TEST(LoadConstants) {
     refConstants[i] = ~(mask << i);
   }
 
-  MacroAssembler assembler(isolate, NULL, 0,
+  MacroAssembler assembler(isolate, nullptr, 0,
                            v8::internal::CodeObjectRequired::kYes);
   MacroAssembler* masm = &assembler;
 
@@ -160,10 +161,10 @@ TEST(LoadConstants) {
 
   CodeDesc desc;
   masm->GetCode(isolate, &desc);
-  Handle<Code> code = isolate->factory()->NewCode(
-      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+  Handle<Code> code =
+      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 
-  ::F f = FUNCTION_CAST< ::F>(code->entry());
+  FV f = FUNCTION_CAST<FV>(code->entry());
   (void)CALL_GENERATED_CODE(isolate, f, reinterpret_cast<int64_t>(result), 0, 0,
                             0, 0);
   // Check results.
@@ -178,7 +179,7 @@ TEST(LoadAddress) {
   Isolate* isolate = CcTest::i_isolate();
   HandleScope handles(isolate);
 
-  MacroAssembler assembler(isolate, NULL, 0,
+  MacroAssembler assembler(isolate, nullptr, 0,
                            v8::internal::CodeObjectRequired::kYes);
   MacroAssembler* masm = &assembler;
   Label to_jump, skip;
@@ -205,10 +206,10 @@ TEST(LoadAddress) {
 
   CodeDesc desc;
   masm->GetCode(isolate, &desc);
-  Handle<Code> code = isolate->factory()->NewCode(
-      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+  Handle<Code> code =
+      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 
-  ::F f = FUNCTION_CAST< ::F>(code->entry());
+  FV f = FUNCTION_CAST<FV>(code->entry());
   (void)CALL_GENERATED_CODE(isolate, f, 0, 0, 0, 0, 0);
   // Check results.
 }
@@ -263,8 +264,8 @@ TEST(jump_tables4) {
 
   CodeDesc desc;
   masm->GetCode(isolate, &desc);
-  Handle<Code> code = isolate->factory()->NewCode(
-      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+  Handle<Code> code =
+      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef OBJECT_PRINT
   code->Print(std::cout);
 #endif
@@ -337,8 +338,8 @@ TEST(jump_tables5) {
 
   CodeDesc desc;
   masm->GetCode(isolate, &desc);
-  Handle<Code> code = isolate->factory()->NewCode(
-      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+  Handle<Code> code =
+      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef OBJECT_PRINT
   code->Print(std::cout);
 #endif
@@ -429,8 +430,8 @@ TEST(jump_tables6) {
 
   CodeDesc desc;
   masm->GetCode(isolate, &desc);
-  Handle<Code> code = isolate->factory()->NewCode(
-      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+  Handle<Code> code =
+      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef OBJECT_PRINT
   code->Print(std::cout);
 #endif
@@ -456,8 +457,8 @@ static uint64_t run_lsa(uint32_t rt, uint32_t rs, int8_t sa) {
 
   CodeDesc desc;
   assembler.GetCode(isolate, &desc);
-  Handle<Code> code = isolate->factory()->NewCode(
-      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+  Handle<Code> code =
+      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 
   F1 f = FUNCTION_CAST<F1>(code->entry());
 
@@ -538,10 +539,10 @@ static uint64_t run_dlsa(uint64_t rt, uint64_t rs, int8_t sa) {
 
   CodeDesc desc;
   assembler.GetCode(isolate, &desc);
-  Handle<Code> code = isolate->factory()->NewCode(
-      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+  Handle<Code> code =
+      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 
-  ::F f = FUNCTION_CAST<::F>(code->entry());
+  FV f = FUNCTION_CAST<FV>(code->entry());
 
   uint64_t res = reinterpret_cast<uint64_t>(
       CALL_GENERATED_CODE(isolate, f, rt, rs, 0, 0, 0));
@@ -690,8 +691,8 @@ RET_TYPE run_Cvt(IN_TYPE x, Func GenerateConvertInstructionFunc) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code = isolate->factory()->NewCode(
-      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+  Handle<Code> code =
+      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 
   F_CVT f = FUNCTION_CAST<F_CVT>(code->entry());
 
@@ -853,8 +854,8 @@ static bool runOverflow(IN_TYPE valLeft, IN_TYPE valRight,
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code = isolate->factory()->NewCode(
-      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+  Handle<Code> code =
+      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 
   F_CVT f = FUNCTION_CAST<F_CVT>(code->entry());
 
@@ -980,12 +981,12 @@ TEST(BranchOverflowInt64LeftLabel) {
                 __ li(rc.right, valRight);
                 switch (branchType) {
                   case kAddBranchOverflow:
-                    __ DaddBranchOvf(rc.dst, rc.left, rc.right, &overflow, NULL,
-                                     rc.scratch);
+                    __ DaddBranchOvf(rc.dst, rc.left, rc.right, &overflow,
+                                     nullptr, rc.scratch);
                     break;
                   case kSubBranchOverflow:
-                    __ DsubBranchOvf(rc.dst, rc.left, rc.right, &overflow, NULL,
-                                     rc.scratch);
+                    __ DsubBranchOvf(rc.dst, rc.left, rc.right, &overflow,
+                                     nullptr, rc.scratch);
                     break;
                 }
                 __ li(v0, 0);
@@ -1003,11 +1004,11 @@ TEST(BranchOverflowInt64LeftLabel) {
                 switch (branchType) {
                   case kAddBranchOverflow:
                     __ DaddBranchOvf(rc.dst, rc.left, Operand(valRight),
-                                     &overflow, NULL, rc.scratch);
+                                     &overflow, nullptr, rc.scratch);
                     break;
                   case kSubBranchOverflow:
                     __ DsubBranchOvf(rc.dst, rc.left, Operand(valRight),
-                                     &overflow, NULL, rc.scratch);
+                                     &overflow, nullptr, rc.scratch);
                     break;
                 }
                 __ li(v0, 0);
@@ -1062,11 +1063,11 @@ TEST(BranchOverflowInt64RightLabel) {
                 __ li(rc.right, valRight);
                 switch (branchType) {
                   case kAddBranchOverflow:
-                    __ DaddBranchOvf(rc.dst, rc.left, rc.right, NULL,
+                    __ DaddBranchOvf(rc.dst, rc.left, rc.right, nullptr,
                                      &no_overflow, rc.scratch);
                     break;
                   case kSubBranchOverflow:
-                    __ DsubBranchOvf(rc.dst, rc.left, rc.right, NULL,
+                    __ DsubBranchOvf(rc.dst, rc.left, rc.right, nullptr,
                                      &no_overflow, rc.scratch);
                     break;
                 }
@@ -1084,12 +1085,12 @@ TEST(BranchOverflowInt64RightLabel) {
                 __ li(rc.left, valLeft);
                 switch (branchType) {
                   case kAddBranchOverflow:
-                    __ DaddBranchOvf(rc.dst, rc.left, Operand(valRight), NULL,
-                                     &no_overflow, rc.scratch);
+                    __ DaddBranchOvf(rc.dst, rc.left, Operand(valRight),
+                                     nullptr, &no_overflow, rc.scratch);
                     break;
                   case kSubBranchOverflow:
-                    __ DsubBranchOvf(rc.dst, rc.left, Operand(valRight), NULL,
-                                     &no_overflow, rc.scratch);
+                    __ DsubBranchOvf(rc.dst, rc.left, Operand(valRight),
+                                     nullptr, &no_overflow, rc.scratch);
                     break;
                 }
                 __ li(v0, 1);
@@ -1209,9 +1210,9 @@ TEST(min_max_nan) {
 
   CodeDesc desc;
   masm->GetCode(isolate, &desc);
-  Handle<Code> code = isolate->factory()->NewCode(
-      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
-  ::F3 f = FUNCTION_CAST<::F3>(code->entry());
+  Handle<Code> code =
+      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
+  F3 f = FUNCTION_CAST<F3>(code->entry());
   for (int i = 0; i < kTableLength; i++) {
     test.a = inputsa[i];
     test.b = inputsb[i];
@@ -1245,8 +1246,8 @@ bool run_Unaligned(char* memory_buffer, int32_t in_offset, int32_t out_offset,
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code = isolate->factory()->NewCode(
-      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+  Handle<Code> code =
+      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 
   F_CVT f = FUNCTION_CAST<F_CVT>(code->entry());
 
@@ -1610,8 +1611,8 @@ bool run_Sltu(uint64_t rs, uint64_t rd, Func GenerateSltuInstructionFunc) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code = isolate->factory()->NewCode(
-      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+  Handle<Code> code =
+      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 
   F_CVT f = FUNCTION_CAST<F_CVT>(code->entry());
   int64_t res = reinterpret_cast<int64_t>(
@@ -1641,7 +1642,7 @@ TEST(Sltu) {
 }
 
 template <typename T, typename Inputs, typename Results>
-static ::F4 GenerateMacroFloat32MinMax(MacroAssembler* masm) {
+static F4 GenerateMacroFloat32MinMax(MacroAssembler* masm) {
   T a = T::from_code(4);  // f4
   T b = T::from_code(6);  // f6
   T c = T::from_code(8);  // f8
@@ -1705,13 +1706,13 @@ static ::F4 GenerateMacroFloat32MinMax(MacroAssembler* masm) {
 
   CodeDesc desc;
   masm->GetCode(masm->isolate(), &desc);
-  Handle<Code> code = masm->isolate()->factory()->NewCode(
-      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+  Handle<Code> code =
+      masm->isolate()->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef DEBUG
   OFStream os(stdout);
   code->Print(os);
 #endif
-  return FUNCTION_CAST<::F4>(code->entry());
+  return FUNCTION_CAST<F4>(code->entry());
 }
 
 TEST(macro_float_minmax_f32) {
@@ -1720,7 +1721,7 @@ TEST(macro_float_minmax_f32) {
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
 
-  MacroAssembler assembler(isolate, NULL, 0,
+  MacroAssembler assembler(isolate, nullptr, 0,
                            v8::internal::CodeObjectRequired::kYes);
   MacroAssembler* masm = &assembler;
 
@@ -1740,7 +1741,7 @@ TEST(macro_float_minmax_f32) {
     float max_aba_;
   };
 
-  ::F4 f = GenerateMacroFloat32MinMax<FPURegister, Inputs, Results>(masm);
+  F4 f = GenerateMacroFloat32MinMax<FPURegister, Inputs, Results>(masm);
   Object* dummy = nullptr;
   USE(dummy);
 
@@ -1784,7 +1785,7 @@ TEST(macro_float_minmax_f32) {
 }
 
 template <typename T, typename Inputs, typename Results>
-static ::F4 GenerateMacroFloat64MinMax(MacroAssembler* masm) {
+static F4 GenerateMacroFloat64MinMax(MacroAssembler* masm) {
   T a = T::from_code(4);  // f4
   T b = T::from_code(6);  // f6
   T c = T::from_code(8);  // f8
@@ -1848,13 +1849,13 @@ static ::F4 GenerateMacroFloat64MinMax(MacroAssembler* masm) {
 
   CodeDesc desc;
   masm->GetCode(masm->isolate(), &desc);
-  Handle<Code> code = masm->isolate()->factory()->NewCode(
-      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+  Handle<Code> code =
+      masm->isolate()->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef DEBUG
   OFStream os(stdout);
   code->Print(os);
 #endif
-  return FUNCTION_CAST<::F4>(code->entry());
+  return FUNCTION_CAST<F4>(code->entry());
 }
 
 TEST(macro_float_minmax_f64) {
@@ -1863,7 +1864,7 @@ TEST(macro_float_minmax_f64) {
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
 
-  MacroAssembler assembler(isolate, NULL, 0,
+  MacroAssembler assembler(isolate, nullptr, 0,
                            v8::internal::CodeObjectRequired::kYes);
   MacroAssembler* masm = &assembler;
 
@@ -1883,7 +1884,7 @@ TEST(macro_float_minmax_f64) {
     double max_aba_;
   };
 
-  ::F4 f = GenerateMacroFloat64MinMax<DoubleRegister, Inputs, Results>(masm);
+  F4 f = GenerateMacroFloat64MinMax<DoubleRegister, Inputs, Results>(masm);
   Object* dummy = nullptr;
   USE(dummy);
 
@@ -1927,3 +1928,6 @@ TEST(macro_float_minmax_f64) {
 }
 
 #undef __
+
+}  // namespace internal
+}  // namespace v8

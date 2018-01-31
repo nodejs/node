@@ -34,7 +34,9 @@
 #include "src/v8.h"
 #include "test/cctest/cctest.h"
 
-using namespace v8::internal;
+namespace v8 {
+namespace internal {
+namespace test_macro_assembler_arm {
 
 typedef void* (*F)(int x, int y, int p2, int p3, int p4);
 
@@ -43,18 +45,16 @@ typedef void* (*F)(int x, int y, int p2, int p3, int p4);
 typedef Object* (*F3)(void* p0, int p1, int p2, int p3, int p4);
 typedef int (*F5)(void*, void*, void*, void*, void*);
 
-
 TEST(LoadAndStoreWithRepresentation) {
-  // Allocate an executable page of memory.
-  size_t actual_size;
-  byte* buffer = static_cast<byte*>(v8::base::OS::Allocate(
-      Assembler::kMinimalBufferSize, &actual_size, true));
-  CHECK(buffer);
   Isolate* isolate = CcTest::i_isolate();
   HandleScope handles(isolate);
-  MacroAssembler assembler(isolate, buffer, static_cast<int>(actual_size),
+
+  size_t allocated;
+  byte* buffer = AllocateAssemblerBuffer(&allocated);
+  MacroAssembler assembler(isolate, buffer, static_cast<int>(allocated),
                            v8::internal::CodeObjectRequired::kYes);
   MacroAssembler* masm = &assembler;  // Create a pointer for the __ macro.
+
   __ sub(sp, sp, Operand(1 * kPointerSize));
   Label exit;
 
@@ -125,8 +125,8 @@ TEST(LoadAndStoreWithRepresentation) {
 
   CodeDesc desc;
   masm->GetCode(isolate, &desc);
-  Handle<Code> code = isolate->factory()->NewCode(
-      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+  Handle<Code> code =
+      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 
   // Call the function from C++.
   F5 f = FUNCTION_CAST<F5>(code->entry());
@@ -136,14 +136,12 @@ TEST(LoadAndStoreWithRepresentation) {
 TEST(ExtractLane) {
   if (!CpuFeatures::IsSupported(NEON)) return;
 
-  // Allocate an executable page of memory.
-  size_t actual_size;
-  byte* buffer = static_cast<byte*>(v8::base::OS::Allocate(
-      Assembler::kMinimalBufferSize, &actual_size, true));
-  CHECK(buffer);
   Isolate* isolate = CcTest::i_isolate();
   HandleScope handles(isolate);
-  MacroAssembler assembler(isolate, buffer, static_cast<int>(actual_size),
+
+  size_t allocated;
+  byte* buffer = AllocateAssemblerBuffer(&allocated);
+  MacroAssembler assembler(isolate, buffer, static_cast<int>(allocated),
                            v8::internal::CodeObjectRequired::kYes);
   MacroAssembler* masm = &assembler;  // Create a pointer for the __ macro.
 
@@ -235,8 +233,8 @@ TEST(ExtractLane) {
 
   CodeDesc desc;
   masm->GetCode(isolate, &desc);
-  Handle<Code> code = isolate->factory()->NewCode(
-      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+  Handle<Code> code =
+      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef DEBUG
   OFStream os(stdout);
   code->Print(os);
@@ -279,14 +277,12 @@ TEST(ExtractLane) {
 TEST(ReplaceLane) {
   if (!CpuFeatures::IsSupported(NEON)) return;
 
-  // Allocate an executable page of memory.
-  size_t actual_size;
-  byte* buffer = static_cast<byte*>(v8::base::OS::Allocate(
-      Assembler::kMinimalBufferSize, &actual_size, true));
-  CHECK(buffer);
   Isolate* isolate = CcTest::i_isolate();
   HandleScope handles(isolate);
-  MacroAssembler assembler(isolate, buffer, static_cast<int>(actual_size),
+
+  size_t allocated;
+  byte* buffer = AllocateAssemblerBuffer(&allocated);
+  MacroAssembler assembler(isolate, buffer, static_cast<int>(allocated),
                            v8::internal::CodeObjectRequired::kYes);
   MacroAssembler* masm = &assembler;  // Create a pointer for the __ macro.
 
@@ -370,8 +366,8 @@ TEST(ReplaceLane) {
 
   CodeDesc desc;
   masm->GetCode(isolate, &desc);
-  Handle<Code> code = isolate->factory()->NewCode(
-      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+  Handle<Code> code =
+      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef DEBUG
   OFStream os(stdout);
   code->Print(os);
@@ -404,3 +400,7 @@ TEST(ReplaceLane) {
 }
 
 #undef __
+
+}  // namespace test_macro_assembler_arm
+}  // namespace internal
+}  // namespace v8

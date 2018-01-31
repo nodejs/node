@@ -32,7 +32,6 @@ class UnicodeCache {
  private:
   unibrow::Predicate<IdentifierStart, 128> kIsIdentifierStart;
   unibrow::Predicate<IdentifierPart, 128> kIsIdentifierPart;
-  unibrow::Predicate<unibrow::LineTerminator, 128> kIsLineTerminator;
   unibrow::Predicate<WhiteSpace, 128> kIsWhiteSpace;
   unibrow::Predicate<WhiteSpaceOrLineTerminator, 128>
       kIsWhiteSpaceOrLineTerminator;

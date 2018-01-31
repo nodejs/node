@@ -1022,7 +1022,7 @@ _appendKeywordsToLanguageTag(const char* localeID, char* appendAt, int32_t capac
                     no known mapping. This implementation normalizes the
                     the value to lower case
                     */
-                    int32_t bcpValueLen = uprv_strlen(bcpValue);
+                    int32_t bcpValueLen = static_cast<int32_t>(uprv_strlen(bcpValue));
                     if (bcpValueLen < extBufCapacity) {
                         uprv_strcpy(pExtBuf, bcpValue);
                         T_CString_toLowerCase(pExtBuf);
@@ -1288,7 +1288,7 @@ _appendLDMLExtensionAsKeywords(const char* ldmlext, ExtensionListEntry** appendT
                 bufIdx++;
             }
 
-            len = uprv_strlen(attr->attribute);
+            len = static_cast<int32_t>(uprv_strlen(attr->attribute));
             uprv_memcpy(buf + bufIdx, attr->attribute, len);
             bufIdx += len;
 
@@ -1841,7 +1841,7 @@ ultag_parse(const char* tag, int32_t tagLen, int32_t* parsedLen, UErrorCode* sta
             int32_t newTagLength;
 
             grandfatheredLen = tagLen;  /* back up for output parsedLen */
-            newTagLength = uprv_strlen(GRANDFATHERED[i+1]);
+            newTagLength = static_cast<int32_t>(uprv_strlen(GRANDFATHERED[i+1]));
             if (tagLen < newTagLength) {
                 uprv_free(tagBuf);
                 tagBuf = (char*)uprv_malloc(newTagLength + 1);

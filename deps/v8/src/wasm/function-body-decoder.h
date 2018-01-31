@@ -41,12 +41,6 @@ static inline FunctionBody FunctionBodyForTesting(const byte* start,
   return {nullptr, 0, start, end};
 }
 
-// A {DecodeResult} only stores the failure / success status, but no data. Thus
-// we use {nullptr_t} as data value, such that the only valid data stored in
-// this type is a nullptr.
-// Storing {void} would require template specialization.
-using DecodeResult = Result<std::nullptr_t>;
-
 V8_EXPORT_PRIVATE DecodeResult VerifyWasmCode(AccountingAllocator* allocator,
                                               const wasm::WasmModule* module,
                                               FunctionBody& body);
@@ -184,7 +178,8 @@ class V8_EXPORT_PRIVATE BytecodeIterator : public NON_EXPORTED_BASE(Decoder) {
   }
 
   WasmOpcode current() {
-    return static_cast<WasmOpcode>(read_u8<false>(pc_, "expected bytecode"));
+    return static_cast<WasmOpcode>(
+        read_u8<Decoder::kNoValidate>(pc_, "expected bytecode"));
   }
 
   void next() {
@@ -195,6 +190,12 @@ class V8_EXPORT_PRIVATE BytecodeIterator : public NON_EXPORTED_BASE(Decoder) {
   }
 
   bool has_next() { return pc_ < end_; }
+
+  WasmOpcode prefixed_opcode() {
+    byte prefix = read_u8<Decoder::kNoValidate>(pc_, "expected prefix");
+    byte index = read_u8<Decoder::kNoValidate>(pc_ + 1, "expected index");
+    return static_cast<WasmOpcode>(prefix << 8 | index);
+  }
 };
 
 }  // namespace wasm

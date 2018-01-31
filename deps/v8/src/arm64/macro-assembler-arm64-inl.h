@@ -1045,7 +1045,7 @@ void TurboAssembler::Uxtw(const Register& rd, const Register& rn) {
 void MacroAssembler::AlignAndSetCSPForFrame() {
   int sp_alignment = ActivationFrameAlignment();
   // AAPCS64 mandates at least 16-byte alignment.
-  DCHECK(sp_alignment >= 16);
+  DCHECK_GE(sp_alignment, 16);
   DCHECK(base::bits::IsPowerOfTwo(sp_alignment));
   Bic(csp, StackPointer(), sp_alignment - 1);
   SetStackPointer(csp);
@@ -1124,19 +1124,17 @@ void TurboAssembler::SmiUntag(Register dst, Register src) {
 
 void TurboAssembler::SmiUntag(Register smi) { SmiUntag(smi, smi); }
 
-void MacroAssembler::SmiUntagToDouble(VRegister dst, Register src,
-                                      UntagMode mode) {
+void MacroAssembler::SmiUntagToDouble(VRegister dst, Register src) {
   DCHECK(dst.Is64Bits() && src.Is64Bits());
-  if (FLAG_enable_slow_asserts && (mode == kNotSpeculativeUntag)) {
+  if (FLAG_enable_slow_asserts) {
     AssertSmi(src);
   }
   Scvtf(dst, src, kSmiShift);
 }
 
-void MacroAssembler::SmiUntagToFloat(VRegister dst, Register src,
-                                     UntagMode mode) {
+void MacroAssembler::SmiUntagToFloat(VRegister dst, Register src) {
   DCHECK(dst.Is32Bits() && src.Is64Bits());
-  if (FLAG_enable_slow_asserts && (mode == kNotSpeculativeUntag)) {
+  if (FLAG_enable_slow_asserts) {
     AssertSmi(src);
   }
   Scvtf(dst, src, kSmiShift);
@@ -1175,7 +1173,7 @@ void TurboAssembler::JumpIfSmi(Register value, Label* smi_label,
 
 
 void MacroAssembler::JumpIfNotSmi(Register value, Label* not_smi_label) {
-  JumpIfSmi(value, NULL, not_smi_label);
+  JumpIfSmi(value, nullptr, not_smi_label);
 }
 
 
@@ -1208,14 +1206,14 @@ void MacroAssembler::JumpIfEitherSmi(Register value1,
 void MacroAssembler::JumpIfEitherNotSmi(Register value1,
                                         Register value2,
                                         Label* not_smi_label) {
-  JumpIfBothSmi(value1, value2, NULL, not_smi_label);
+  JumpIfBothSmi(value1, value2, nullptr, not_smi_label);
 }
 
 
 void MacroAssembler::JumpIfBothNotSmi(Register value1,
                                       Register value2,
                                       Label* not_smi_label) {
-  JumpIfEitherSmi(value1, value2, NULL, not_smi_label);
+  JumpIfEitherSmi(value1, value2, nullptr, not_smi_label);
 }
 
 
@@ -1259,7 +1257,7 @@ void TurboAssembler::Push(Smi* smi) {
 }
 
 void TurboAssembler::Claim(int64_t count, uint64_t unit_size) {
-  DCHECK(count >= 0);
+  DCHECK_GE(count, 0);
   uint64_t size = count * unit_size;
 
   if (size == 0) {
@@ -1267,7 +1265,7 @@ void TurboAssembler::Claim(int64_t count, uint64_t unit_size) {
   }
 
   if (csp.Is(StackPointer())) {
-    DCHECK(size % 16 == 0);
+    DCHECK_EQ(size % 16, 0);
   } else {
     BumpSystemStackPointer(size);
   }
@@ -1314,7 +1312,7 @@ void MacroAssembler::ClaimBySMI(const Register& count_smi, uint64_t unit_size) {
 }
 
 void TurboAssembler::Drop(int64_t count, uint64_t unit_size) {
-  DCHECK(count >= 0);
+  DCHECK_GE(count, 0);
   uint64_t size = count * unit_size;
 
   if (size == 0) {
@@ -1324,7 +1322,7 @@ void TurboAssembler::Drop(int64_t count, uint64_t unit_size) {
   Add(StackPointer(), StackPointer(), size);
 
   if (csp.Is(StackPointer())) {
-    DCHECK(size % 16 == 0);
+    DCHECK_EQ(size % 16, 0);
   } else if (emit_debug_code()) {
     // It is safe to leave csp where it is when unwinding the JavaScript stack,
     // but if we keep it matching StackPointer, the simulator can detect memory
@@ -1355,6 +1353,23 @@ void TurboAssembler::Drop(const Register& count, uint64_t unit_size) {
   }
 }
 
+void TurboAssembler::DropArguments(const Register& count,
+                                   ArgumentsCountMode mode) {
+  if (mode == kCountExcludesReceiver) {
+    UseScratchRegisterScope temps(this);
+    Register tmp = temps.AcquireX();
+    Add(tmp, count, 1);
+    Drop(tmp);
+  } else {
+    Drop(count);
+  }
+}
+
+void TurboAssembler::DropSlots(int64_t count, uint64_t unit_size) {
+  Drop(count, unit_size);
+}
+
+void TurboAssembler::PushArgument(const Register& arg) { Push(arg); }
 
 void MacroAssembler::DropBySMI(const Register& count_smi, uint64_t unit_size) {
   DCHECK(unit_size == 0 || base::bits::IsPowerOfTwo(unit_size));
@@ -1399,7 +1414,7 @@ void TurboAssembler::TestAndBranchIfAnySet(const Register& reg,
                                            const uint64_t bit_pattern,
                                            Label* label) {
   int bits = reg.SizeInBits();
-  DCHECK(CountSetBits(bit_pattern, bits) > 0);
+  DCHECK_GT(CountSetBits(bit_pattern, bits), 0);
   if (CountSetBits(bit_pattern, bits) == 1) {
     Tbnz(reg, MaskToBit(bit_pattern), label);
   } else {
@@ -1412,7 +1427,7 @@ void TurboAssembler::TestAndBranchIfAllClear(const Register& reg,
                                              const uint64_t bit_pattern,
                                              Label* label) {
   int bits = reg.SizeInBits();
-  DCHECK(CountSetBits(bit_pattern, bits) > 0);
+  DCHECK_GT(CountSetBits(bit_pattern, bits), 0);
   if (CountSetBits(bit_pattern, bits) == 1) {
     Tbz(reg, MaskToBit(bit_pattern), label);
   } else {
@@ -1442,7 +1457,7 @@ void MacroAssembler::DisableInstrumentation() {
 
 
 void MacroAssembler::AnnotateInstrumentation(const char* marker_name) {
-  DCHECK(strlen(marker_name) == 2);
+  DCHECK_EQ(strlen(marker_name), 2);
 
   // We allow only printable characters in the marker names. Unprintable
   // characters are reserved for controlling features of the instrumentation.

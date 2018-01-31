@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --print-ast
+// Flags: --print-ast --no-stress-background-compile
 
 // Ensures that the --print-ast flag doesn't crash.
 function foo(a) {

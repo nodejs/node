@@ -14,13 +14,13 @@ const spIterator = sp.entries();
 const test = [
   [url, 'URL'],
   [sp, 'URLSearchParams'],
-  [spIterator, 'URLSearchParamsIterator'],
+  [spIterator, 'URLSearchParams Iterator'],
   // Web IDL spec says we have to return 'URLPrototype', but it is too
   // expensive to implement; therefore, use Chrome's behavior for now, until
   // spec is changed.
   [Object.getPrototypeOf(url), 'URL'],
   [Object.getPrototypeOf(sp), 'URLSearchParams'],
-  [Object.getPrototypeOf(spIterator), 'URLSearchParamsIterator'],
+  [Object.getPrototypeOf(spIterator), 'URLSearchParams Iterator'],
 ];
 
 test.forEach(([obj, expected]) => {

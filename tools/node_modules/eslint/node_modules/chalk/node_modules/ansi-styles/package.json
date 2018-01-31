@@ -1,0 +1,86 @@
+{
+  "_from": "ansi-styles@^3.1.0",
+  "_id": "ansi-styles@3.2.0",
+  "_inBundle": false,
+  "_integrity": "sha512-NnSOmMEYtVR2JVMIGTzynRkkaxtiq1xnFBcdQD/DnNCYPoEPsVJhM98BDyaoNOQIi7p4okdi3E27eN7GQbsUug==",
+  "_location": "/eslint/chalk/ansi-styles",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "range",
+    "registry": true,
+    "raw": "ansi-styles@^3.1.0",
+    "name": "ansi-styles",
+    "escapedName": "ansi-styles",
+    "rawSpec": "^3.1.0",
+    "saveSpec": null,
+    "fetchSpec": "^3.1.0"
+  },
+  "_requiredBy": [
+    "/eslint/chalk"
+  ],
+  "_resolved": "https://registry.npmjs.org/ansi-styles/-/ansi-styles-3.2.0.tgz",
+  "_shasum": "c159b8d5be0f9e5a6f346dab94f16ce022161b88",
+  "_spec": "ansi-styles@^3.1.0",
+  "_where": "/home/mzasso/git/nodejs/node/tools/eslint-tmp/node_modules/eslint/node_modules/chalk",
+  "author": {
+    "name": "Sindre Sorhus",
+    "email": "sindresorhus@gmail.com",
+    "url": "sindresorhus.com"
+  },
+  "ava": {
+    "require": "babel-polyfill"
+  },
+  "bugs": {
+    "url": "https://github.com/chalk/ansi-styles/issues"
+  },
+  "bundleDependencies": false,
+  "dependencies": {
+    "color-convert": "^1.9.0"
+  },
+  "deprecated": false,
+  "description": "ANSI escape codes for styling strings in the terminal",
+  "devDependencies": {
+    "ava": "*",
+    "babel-polyfill": "^6.23.0",
+    "xo": "*"
+  },
+  "engines": {
+    "node": ">=4"
+  },
+  "files": [
+    "index.js"
+  ],
+  "homepage": "https://github.com/chalk/ansi-styles#readme",
+  "keywords": [
+    "ansi",
+    "styles",
+    "color",
+    "colour",
+    "colors",
+    "terminal",
+    "console",
+    "cli",
+    "string",
+    "tty",
+    "escape",
+    "formatting",
+    "rgb",
+    "256",
+    "shell",
+    "xterm",
+    "log",
+    "logging",
+    "command-line",
+    "text"
+  ],
+  "license": "MIT",
+  "name": "ansi-styles",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/chalk/ansi-styles.git"
+  },
+  "scripts": {
+    "test": "xo && ava"
+  },
+  "version": "3.2.0"
+}

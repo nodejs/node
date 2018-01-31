@@ -1,8 +1,9 @@
 'use strict';
-require('../common');
+const common = require('../common');
 
 // This test ensures that the stream implementation correctly handles values
-// for highWaterMark which exceed the range of signed 32 bit integers.
+// for highWaterMark which exceed the range of signed 32 bit integers and
+// rejects invalid values.
 
 const assert = require('assert');
 const stream = require('stream');
@@ -16,3 +17,15 @@ assert.strictEqual(readable._readableState.highWaterMark, ovfl);
 
 const writable = stream.Writable({ highWaterMark: ovfl });
 assert.strictEqual(writable._writableState.highWaterMark, ovfl);
+
+for (const invalidHwm of [true, false, '5', {}, -5, NaN]) {
+  for (const type of [stream.Readable, stream.Writable]) {
+    common.expectsError(() => {
+      type({ highWaterMark: invalidHwm });
+    }, {
+      type: TypeError,
+      code: 'ERR_INVALID_OPT_VALUE',
+      message: `The value "${invalidHwm}" is invalid for option "highWaterMark"`
+    });
+  }
+}

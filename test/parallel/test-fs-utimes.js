@@ -97,12 +97,13 @@ function testIt(atime, mtime, callback) {
     tests_run++;
 
     err = undefined;
-    try {
-      fs.futimesSync(-1, atime, mtime);
-    } catch (ex) {
-      err = ex;
-    }
-    expect_errno('futimesSync', -1, err, 'EBADF');
+    common.expectsError(
+      () => fs.futimesSync(-1, atime, mtime),
+      {
+        code: 'ERR_INVALID_ARG_TYPE',
+        type: TypeError
+      }
+    );
     tests_run++;
   }
 
@@ -125,11 +126,16 @@ function testIt(atime, mtime, callback) {
       fs.futimes(fd, atime, mtime, common.mustCall(function(err) {
         expect_ok('futimes', fd, err, atime, mtime);
 
-        fs.futimes(-1, atime, mtime, common.mustCall(function(err) {
-          expect_errno('futimes', -1, err, 'EBADF');
-          syncTests();
-          callback();
-        }));
+        common.expectsError(
+          () => fs.futimes(-1, atime, mtime, common.mustNotCall()),
+          {
+            code: 'ERR_INVALID_ARG_TYPE',
+            type: TypeError,
+          }
+        );
+
+        syncTests();
+
         tests_run++;
       }));
       tests_run++;
@@ -142,7 +148,7 @@ function testIt(atime, mtime, callback) {
 const stats = fs.statSync(common.tmpDir);
 
 // run tests
-const runTest = common.mustCall(testIt, 6);
+const runTest = common.mustCall(testIt, 1);
 
 runTest(new Date('1982-09-10 13:37'), new Date('1982-09-10 13:37'), function() {
   runTest(new Date(), new Date(), function() {
@@ -163,7 +169,7 @@ runTest(new Date('1982-09-10 13:37'), new Date('1982-09-10 13:37'), function() {
 });
 
 process.on('exit', function() {
-  assert.strictEqual(tests_ok, tests_run);
+  assert.strictEqual(tests_ok, tests_run - 2);
 });
 
 
@@ -198,3 +204,20 @@ if (common.isWindows) {
   const overflow_stats = fs.statSync(path);
   assert.strictEqual(overflow_mtime, overflow_stats.mtime.getTime());
 }
+
+[false, 0, {}, [], null, undefined].forEach((i) => {
+  common.expectsError(
+    () => fs.utimes(i, new Date(), new Date(), common.mustNotCall()),
+    {
+      code: 'ERR_INVALID_ARG_TYPE',
+      type: TypeError
+    }
+  );
+  common.expectsError(
+    () => fs.utimesSync(i, new Date(), new Date()),
+    {
+      code: 'ERR_INVALID_ARG_TYPE',
+      type: TypeError
+    }
+  );
+});

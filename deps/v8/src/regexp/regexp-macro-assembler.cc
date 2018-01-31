@@ -8,6 +8,7 @@
 #include "src/isolate-inl.h"
 #include "src/regexp/regexp-stack.h"
 #include "src/simulator.h"
+#include "src/unicode-inl.h"
 
 #ifdef V8_INTL_SUPPORT
 #include "unicode/uchar.h"
@@ -36,7 +37,7 @@ int RegExpMacroAssembler::CaseInsensitiveCompareUC16(Address byte_offset1,
   // This function is not allowed to cause a garbage collection.
   // A GC might move the calling generated code and invalidate the
   // return address on the stack.
-  DCHECK(byte_length % 2 == 0);
+  DCHECK_EQ(0, byte_length % 2);
   uc16* substring1 = reinterpret_cast<uc16*>(byte_offset1);
   uc16* substring2 = reinterpret_cast<uc16*>(byte_offset2);
   size_t length = byte_length >> 1;
@@ -137,8 +138,8 @@ const byte* NativeRegExpMacroAssembler::StringCharacterPosition(
   if (subject->IsThinString()) {
     subject = ThinString::cast(subject)->actual();
   }
-  DCHECK(start_index >= 0);
-  DCHECK(start_index <= subject->length());
+  DCHECK_LE(0, start_index);
+  DCHECK_LE(start_index, subject->length());
   if (subject->IsSeqOneByteString()) {
     return reinterpret_cast<const byte*>(
         SeqOneByteString::cast(subject)->GetChars() + start_index);
@@ -223,8 +224,8 @@ NativeRegExpMacroAssembler::Result NativeRegExpMacroAssembler::Match(
     Isolate* isolate) {
 
   DCHECK(subject->IsFlat());
-  DCHECK(previous_index >= 0);
-  DCHECK(previous_index <= subject->length());
+  DCHECK_LE(0, previous_index);
+  DCHECK_LE(previous_index, subject->length());
 
   // No allocations before calling the regexp, but we can't use
   // DisallowHeapAllocation, since regexps might be preempted, and another
@@ -352,8 +353,8 @@ Address NativeRegExpMacroAssembler::GrowStack(Address stack_pointer,
   DCHECK(stack_pointer <= old_stack_base);
   DCHECK(static_cast<size_t>(old_stack_base - stack_pointer) <= size);
   Address new_stack_base = regexp_stack->EnsureCapacity(size * 2);
-  if (new_stack_base == NULL) {
-    return NULL;
+  if (new_stack_base == nullptr) {
+    return nullptr;
   }
   *stack_base = new_stack_base;
   intptr_t stack_content_size = old_stack_base - stack_pointer;

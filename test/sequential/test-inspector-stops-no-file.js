@@ -7,7 +7,7 @@ const child = spawn(process.execPath,
                     [ '--inspect', 'no-such-script.js' ],
                     { 'stdio': 'inherit' });
 
-function signalHandler(value) {
+function signalHandler() {
   child.kill();
   process.exit(1);
 }

@@ -15,7 +15,7 @@ if (cluster.isMaster) {
   require('../fixtures/simple-http-server.js').listen(port);
 }
 
-function main(conf) {
+function main({ type, len, c }) {
   process.env.PORT = PORT;
   var workers = 0;
   const w1 = cluster.fork();
@@ -27,11 +27,11 @@ function main(conf) {
       return;
 
     setTimeout(function() {
-      const path = `/${conf.type}/${conf.len}`;
+      const path = `/${type}/${len}`;
 
       bench.http({
         path: path,
-        connections: conf.c
+        connections: c
       }, function() {
         w1.destroy();
         w2.destroy();

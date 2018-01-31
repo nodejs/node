@@ -56,7 +56,7 @@ template <typename KeyT>
 class BaseShape {
  public:
   typedef KeyT Key;
-  static inline Map* GetMap(Isolate* isolate);
+  static inline int GetMapRootIndex();
   static const bool kNeedsHoleCheck = true;
   static Object* Unwrap(Object* key) { return key; }
   static bool IsKey(Isolate* isolate, Object* key) {
@@ -225,8 +225,8 @@ class HashTable : public HashTableBase {
     // To scale a computed hash code to fit within the hash table, we
     // use bit-wise AND with a mask, so the capacity must be positive
     // and non-zero.
-    DCHECK(capacity > 0);
-    DCHECK(capacity <= kMaxCapacity);
+    DCHECK_GT(capacity, 0);
+    DCHECK_LE(capacity, kMaxCapacity);
     set(kCapacityIndex, Smi::FromInt(capacity));
   }
 
@@ -437,17 +437,21 @@ class OrderedHashTable : public OrderedHashTableBase {
   // the key has been deleted. This does not shrink the table.
   static bool Delete(Isolate* isolate, Derived* table, Object* key);
 
-  int NumberOfElements() { return Smi::ToInt(get(kNumberOfElementsIndex)); }
+  int NumberOfElements() const {
+    return Smi::ToInt(get(kNumberOfElementsIndex));
+  }
 
-  int NumberOfDeletedElements() {
+  int NumberOfDeletedElements() const {
     return Smi::ToInt(get(kNumberOfDeletedElementsIndex));
   }
 
   // Returns the number of contiguous entries in the data table, starting at 0,
   // that either are real entries or have been deleted.
-  int UsedCapacity() { return NumberOfElements() + NumberOfDeletedElements(); }
+  int UsedCapacity() const {
+    return NumberOfElements() + NumberOfDeletedElements();
+  }
 
-  int NumberOfBuckets() { return Smi::ToInt(get(kNumberOfBucketsIndex)); }
+  int NumberOfBuckets() const { return Smi::ToInt(get(kNumberOfBucketsIndex)); }
 
   // Returns an index into |this| for the given entry.
   int EntryToIndex(int entry) {
@@ -549,6 +553,8 @@ class OrderedHashSet : public OrderedHashTable<OrderedHashSet, 1> {
                                     Handle<Object> value);
   static Handle<FixedArray> ConvertToKeysArray(Handle<OrderedHashSet> table,
                                                GetKeysConversion convert);
+  static HeapObject* GetEmpty(Isolate* isolate);
+  static inline int GetMapRootIndex();
 };
 
 class OrderedHashMap : public OrderedHashTable<OrderedHashMap, 2> {
@@ -563,26 +569,29 @@ class OrderedHashMap : public OrderedHashTable<OrderedHashMap, 2> {
 
   static Object* GetHash(Isolate* isolate, Object* key);
 
+  static HeapObject* GetEmpty(Isolate* isolate);
+  static inline int GetMapRootIndex();
+
   static const int kValueOffset = 1;
 };
 
-template <int entrysize>
 class WeakHashTableShape : public BaseShape<Handle<Object>> {
  public:
   static inline bool IsMatch(Handle<Object> key, Object* other);
   static inline uint32_t Hash(Isolate* isolate, Handle<Object> key);
   static inline uint32_t HashForObject(Isolate* isolate, Object* object);
   static inline Handle<Object> AsHandle(Isolate* isolate, Handle<Object> key);
+  static inline int GetMapRootIndex();
   static const int kPrefixSize = 0;
-  static const int kEntrySize = entrysize;
+  static const int kEntrySize = 2;
   static const bool kNeedsHoleCheck = false;
 };
 
 // WeakHashTable maps keys that are arbitrary heap objects to heap object
 // values. The table wraps the keys in weak cells and store values directly.
 // Thus it references keys weakly and values strongly.
-class WeakHashTable : public HashTable<WeakHashTable, WeakHashTableShape<2>> {
-  typedef HashTable<WeakHashTable, WeakHashTableShape<2>> DerivedHashTable;
+class WeakHashTable : public HashTable<WeakHashTable, WeakHashTableShape> {
+  typedef HashTable<WeakHashTable, WeakHashTableShape> DerivedHashTable;
 
  public:
   DECL_CAST(WeakHashTable)
@@ -596,8 +605,6 @@ class WeakHashTable : public HashTable<WeakHashTable, WeakHashTableShape<2>> {
   MUST_USE_RESULT static Handle<WeakHashTable> Put(Handle<WeakHashTable> table,
                                                    Handle<HeapObject> key,
                                                    Handle<HeapObject> value);
-
-  static Handle<FixedArray> GetValues(Handle<WeakHashTable> table);
 
  private:
   friend class MarkCompactCollector;

@@ -235,6 +235,8 @@ const char* WasmOpcodes::OpcodeName(WasmOpcode opcode) {
     CASE_S1x16_OP(AllTrue, "all_true")
 
     // Atomic operations.
+    CASE_U32_OP(AtomicLoad, "atomic_load")
+    CASE_U32_OP(AtomicStore, "atomic_store")
     CASE_U32_OP(AtomicAdd, "atomic_add")
     CASE_U32_OP(AtomicSub, "atomic_sub")
     CASE_U32_OP(AtomicAnd, "atomic_and")
@@ -247,6 +249,34 @@ const char* WasmOpcodes::OpcodeName(WasmOpcode opcode) {
     // clang-format on
   }
 }
+
+#undef CASE_OP
+#undef CASE_I32_OP
+#undef CASE_I64_OP
+#undef CASE_F32_OP
+#undef CASE_F64_OP
+#undef CASE_F32x4_OP
+#undef CASE_I32x4_OP
+#undef CASE_I16x8_OP
+#undef CASE_I8x16_OP
+#undef CASE_S128_OP
+#undef CASE_S32x4_OP
+#undef CASE_S16x8_OP
+#undef CASE_S8x16_OP
+#undef CASE_S1x4_OP
+#undef CASE_S1x8_OP
+#undef CASE_S1x16_OP
+#undef CASE_INT_OP
+#undef CASE_FLOAT_OP
+#undef CASE_ALL_OP
+#undef CASE_SIMD_OP
+#undef CASE_SIMDI_OP
+#undef CASE_SIGN_OP
+#undef CASE_UNSIGNED_OP
+#undef CASE_ALL_SIGN_OP
+#undef CASE_CONVERT_OP
+#undef CASE_L32_OP
+#undef CASE_U32_OP
 
 bool WasmOpcodes::IsPrefixOpcode(WasmOpcode opcode) {
   switch (opcode) {
@@ -299,81 +329,75 @@ bool IsJSCompatibleSignature(const FunctionSig* sig) {
   for (auto type : sig->all()) {
     if (type == wasm::kWasmI64 || type == wasm::kWasmS128) return false;
   }
-  return true;
+  return sig->return_count() <= 1;
 }
 
 namespace {
 
 #define DECLARE_SIG_ENUM(name, ...) kSigEnum_##name,
-
 enum WasmOpcodeSig : byte {
   kSigEnum_None,
   FOREACH_SIGNATURE(DECLARE_SIG_ENUM)
 };
+#undef DECLARE_SIG_ENUM
 
 #define DECLARE_SIG(name, ...)                         \
   constexpr ValueType kTypes_##name[] = {__VA_ARGS__}; \
   constexpr FunctionSig kSig_##name(                   \
       1, static_cast<int>(arraysize(kTypes_##name)) - 1, kTypes_##name);
-
 FOREACH_SIGNATURE(DECLARE_SIG)
+#undef DECLARE_SIG
 
 #define DECLARE_SIG_ENTRY(name, ...) &kSig_##name,
-
 constexpr const FunctionSig* kSimpleExprSigs[] = {
     nullptr, FOREACH_SIGNATURE(DECLARE_SIG_ENTRY)};
+#undef DECLARE_SIG_ENTRY
 
-// The following constexpr functions are used to initialize the constant arrays
-// defined below. They must have exactly one return statement, and no switch.
-constexpr WasmOpcodeSig GetOpcodeSigIndex(byte opcode) {
-  return
-#define CASE(name, opc, sig) opcode == opc ? kSigEnum_##sig:
-      FOREACH_SIMPLE_OPCODE(CASE)
-#undef CASE
-          kSigEnum_None;
-}
-
-constexpr WasmOpcodeSig GetAsmJsOpcodeSigIndex(byte opcode) {
-  return
-#define CASE(name, opc, sig) opcode == opc ? kSigEnum_##sig:
-      FOREACH_ASMJS_COMPAT_OPCODE(CASE)
-#undef CASE
-          kSigEnum_None;
-}
-
-constexpr WasmOpcodeSig GetSimdOpcodeSigIndex(byte opcode) {
-  return
-#define CASE(name, opc, sig) opcode == (opc & 0xff) ? kSigEnum_##sig:
-      FOREACH_SIMD_0_OPERAND_OPCODE(CASE)
-#undef CASE
-          kSigEnum_None;
-}
-
-constexpr WasmOpcodeSig GetAtomicOpcodeSigIndex(byte opcode) {
-  return
-#define CASE(name, opc, sig) opcode == (opc & 0xff) ? kSigEnum_##sig:
-      FOREACH_ATOMIC_OPCODE(CASE)
-#undef CASE
-          kSigEnum_None;
-}
-
-// gcc 4.7 - 4.9 have a bug which prohibits marking the array constexpr
-// (https://gcc.gnu.org/bugzilla/show_bug.cgi?id=52892).
+// gcc 4.7 - 4.9 has a bug which causes the constexpr attribute to get lost when
+// passing functions (https://gcc.gnu.org/bugzilla/show_bug.cgi?id=52892). Hence
+// encapsulate these constexpr functions in functors.
 // TODO(clemensh): Remove this once we require gcc >= 5.0.
-#if defined(__GNUC__) && !defined(__clang__) && __GNUC__ == 4
-#define CONSTEXPR_IF_NOT_GCC_4
-#else
-#define CONSTEXPR_IF_NOT_GCC_4 constexpr
-#endif
 
-CONSTEXPR_IF_NOT_GCC_4 std::array<WasmOpcodeSig, 256> kSimpleExprSigTable =
-    base::make_array<256>(GetOpcodeSigIndex);
-CONSTEXPR_IF_NOT_GCC_4 std::array<WasmOpcodeSig, 256> kSimpleAsmjsExprSigTable =
-    base::make_array<256>(GetAsmJsOpcodeSigIndex);
-CONSTEXPR_IF_NOT_GCC_4 std::array<WasmOpcodeSig, 256> kSimdExprSigTable =
-    base::make_array<256>(GetSimdOpcodeSigIndex);
-CONSTEXPR_IF_NOT_GCC_4 std::array<WasmOpcodeSig, 256> kAtomicExprSigTable =
-    base::make_array<256>(GetAtomicOpcodeSigIndex);
+struct GetOpcodeSigIndex {
+  constexpr WasmOpcodeSig operator()(byte opcode) const {
+#define CASE(name, opc, sig) opcode == opc ? kSigEnum_##sig:
+    return FOREACH_SIMPLE_OPCODE(CASE) kSigEnum_None;
+#undef CASE
+  }
+};
+
+struct GetAsmJsOpcodeSigIndex {
+  constexpr WasmOpcodeSig operator()(byte opcode) const {
+#define CASE(name, opc, sig) opcode == opc ? kSigEnum_##sig:
+    return FOREACH_ASMJS_COMPAT_OPCODE(CASE) kSigEnum_None;
+#undef CASE
+  }
+};
+
+struct GetSimdOpcodeSigIndex {
+  constexpr WasmOpcodeSig operator()(byte opcode) const {
+#define CASE(name, opc, sig) opcode == (opc & 0xff) ? kSigEnum_##sig:
+    return FOREACH_SIMD_0_OPERAND_OPCODE(CASE) kSigEnum_None;
+#undef CASE
+  }
+};
+
+struct GetAtomicOpcodeSigIndex {
+  constexpr WasmOpcodeSig operator()(byte opcode) const {
+#define CASE(name, opc, sig) opcode == (opc & 0xff) ? kSigEnum_##sig:
+    return FOREACH_ATOMIC_OPCODE(CASE) kSigEnum_None;
+#undef CASE
+}
+};
+
+constexpr std::array<WasmOpcodeSig, 256> kSimpleExprSigTable =
+    base::make_array<256>(GetOpcodeSigIndex{});
+constexpr std::array<WasmOpcodeSig, 256> kSimpleAsmjsExprSigTable =
+    base::make_array<256>(GetAsmJsOpcodeSigIndex{});
+constexpr std::array<WasmOpcodeSig, 256> kSimdExprSigTable =
+    base::make_array<256>(GetSimdOpcodeSigIndex{});
+constexpr std::array<WasmOpcodeSig, 256> kAtomicExprSigTable =
+    base::make_array<256>(GetAtomicOpcodeSigIndex{});
 
 }  // namespace
 
@@ -381,6 +405,9 @@ FunctionSig* WasmOpcodes::Signature(WasmOpcode opcode) {
   if (opcode >> 8 == kSimdPrefix) {
     return const_cast<FunctionSig*>(
         kSimpleExprSigs[kSimdExprSigTable[opcode & 0xff]]);
+  } else if (opcode >> 8 == kAtomicPrefix) {
+    return const_cast<FunctionSig*>(
+        kSimpleExprSigs[kAtomicExprSigTable[opcode & 0xff]]);
   } else {
     DCHECK_GT(kSimpleExprSigTable.size(), opcode);
     return const_cast<FunctionSig*>(
@@ -392,11 +419,6 @@ FunctionSig* WasmOpcodes::AsmjsSignature(WasmOpcode opcode) {
   DCHECK_GT(kSimpleAsmjsExprSigTable.size(), opcode);
   return const_cast<FunctionSig*>(
       kSimpleExprSigs[kSimpleAsmjsExprSigTable[opcode]]);
-}
-
-FunctionSig* WasmOpcodes::AtomicSignature(WasmOpcode opcode) {
-  return const_cast<FunctionSig*>(
-      kSimpleExprSigs[kAtomicExprSigTable[opcode & 0xff]]);
 }
 
 int WasmOpcodes::TrapReasonToMessageId(TrapReason reason) {

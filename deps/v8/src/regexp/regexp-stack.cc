@@ -21,11 +21,7 @@ RegExpStackScope::~RegExpStackScope() {
   regexp_stack_->Reset();
 }
 
-
-RegExpStack::RegExpStack()
-    : isolate_(NULL) {
-}
-
+RegExpStack::RegExpStack() : isolate_(nullptr) {}
 
 RegExpStack::~RegExpStack() {
   thread_local_.Free();
@@ -64,7 +60,7 @@ void RegExpStack::ThreadLocal::Free() {
 
 
 Address RegExpStack::EnsureCapacity(size_t size) {
-  if (size > kMaximumStackSize) return NULL;
+  if (size > kMaximumStackSize) return nullptr;
   if (size < kMinimumStackSize) size = kMinimumStackSize;
   if (thread_local_.memory_size_ < size) {
     Address new_memory = NewArray<byte>(static_cast<int>(size));

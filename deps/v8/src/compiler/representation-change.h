@@ -201,7 +201,7 @@ class UseInfo {
                    Truncation::Any(identify_zeros), TypeCheckKind::kSigned32);
   }
   static UseInfo CheckedNumberAsFloat64() {
-    return UseInfo(MachineRepresentation::kFloat64, Truncation::Float64(),
+    return UseInfo(MachineRepresentation::kFloat64, Truncation::Any(),
                    TypeCheckKind::kNumber);
   }
   static UseInfo CheckedNumberAsWord32() {

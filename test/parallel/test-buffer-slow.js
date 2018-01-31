@@ -34,7 +34,9 @@ try {
   assert.strictEqual(
     SlowBuffer(buffer.kMaxLength).length, buffer.kMaxLength);
 } catch (e) {
-  assert.strictEqual(e.message, 'Array buffer allocation failed');
+  // Don't match on message as it is from the JavaScript engine. V8 and
+  // ChakraCore provide different messages.
+  assert.strictEqual(e.name, 'RangeError');
 }
 
 // should work with number-coercible values
@@ -56,13 +58,13 @@ const bufferMaxSizeMsg = common.expectsError({
 assert.throws(function() {
   SlowBuffer(Infinity);
 }, bufferMaxSizeMsg);
-assert.throws(function() {
+common.expectsError(function() {
   SlowBuffer(-1);
-}, common.expectsError({
+}, {
   code: 'ERR_INVALID_OPT_VALUE',
   type: RangeError,
   message: 'The value "-1" is invalid for option "size"'
-}));
+});
 
 assert.throws(function() {
   SlowBuffer(buffer.kMaxLength + 1);

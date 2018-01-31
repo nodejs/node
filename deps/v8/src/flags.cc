@@ -12,7 +12,6 @@
 #include "src/assembler.h"
 #include "src/base/functional.h"
 #include "src/base/platform/platform.h"
-#include "src/list-inl.h"
 #include "src/ostreams.h"
 #include "src/utils.h"
 #include "src/wasm/wasm-limits.h"
@@ -90,7 +89,7 @@ struct Flag {
   void set_string_value(const char* value, bool owns_ptr) {
     DCHECK(type_ == TYPE_STRING);
     const char** ptr = reinterpret_cast<const char**>(valptr_);
-    if (owns_ptr_ && *ptr != NULL) DeleteArray(*ptr);
+    if (owns_ptr_ && *ptr != nullptr) DeleteArray(*ptr);
     *ptr = value;
     owns_ptr_ = owns_ptr;
   }
@@ -146,8 +145,8 @@ struct Flag {
       case TYPE_STRING: {
         const char* str1 = string_value();
         const char* str2 = string_default();
-        if (str2 == NULL) return str1 == NULL;
-        if (str1 == NULL) return str2 == NULL;
+        if (str2 == nullptr) return str1 == nullptr;
+        if (str1 == nullptr) return str2 == nullptr;
         return strcmp(str1, str2) == 0;
       }
       case TYPE_ARGS:
@@ -230,7 +229,7 @@ std::ostream& operator<<(std::ostream& os, const Flag& flag) {  // NOLINT
       break;
     case Flag::TYPE_STRING: {
       const char* str = flag.string_value();
-      os << (str ? str : "NULL");
+      os << (str ? str : "nullptr");
       break;
     }
     case Flag::TYPE_ARGS: {
@@ -249,14 +248,14 @@ std::ostream& operator<<(std::ostream& os, const Flag& flag) {  // NOLINT
 
 
 // static
-List<const char*>* FlagList::argv() {
-  List<const char*>* args = new List<const char*>(8);
-  Flag* args_flag = NULL;
+std::vector<const char*>* FlagList::argv() {
+  std::vector<const char*>* args = new std::vector<const char*>(8);
+  Flag* args_flag = nullptr;
   for (size_t i = 0; i < num_flags; ++i) {
     Flag* f = &flags[i];
     if (!f->IsDefault()) {
       if (f->type() == Flag::TYPE_ARGS) {
-        DCHECK(args_flag == NULL);
+        DCHECK_NULL(args_flag);
         args_flag = f;  // Must be last in arguments.
         continue;
       }
@@ -264,22 +263,22 @@ List<const char*>* FlagList::argv() {
         bool disabled = f->type() == Flag::TYPE_BOOL && !*f->bool_variable();
         std::ostringstream os;
         os << (disabled ? "--no" : "--") << f->name();
-        args->Add(StrDup(os.str().c_str()));
+        args->push_back(StrDup(os.str().c_str()));
       }
       if (f->type() != Flag::TYPE_BOOL) {
         std::ostringstream os;
         os << *f;
-        args->Add(StrDup(os.str().c_str()));
+        args->push_back(StrDup(os.str().c_str()));
       }
     }
   }
-  if (args_flag != NULL) {
+  if (args_flag != nullptr) {
     std::ostringstream os;
     os << "--" << args_flag->name();
-    args->Add(StrDup(os.str().c_str()));
+    args->push_back(StrDup(os.str().c_str()));
     JSArguments jsargs = *args_flag->args_variable();
     for (int j = 0; j < jsargs.argc; j++) {
-      args->Add(StrDup(jsargs[j]));
+      args->push_back(StrDup(jsargs[j]));
     }
   }
   return args;
@@ -290,9 +289,8 @@ inline char NormalizeChar(char ch) {
   return ch == '_' ? '-' : ch;
 }
 
-
 // Helper function to parse flags: Takes an argument arg and splits it into
-// a flag name and flag value (or NULL if they are missing). is_bool is set
+// a flag name and flag value (or nullptr if they are missing). is_bool is set
 // if the arg started with "-no" or "--no". The buffer may be used to NUL-
 // terminate the name, it must be large enough to hold any possible name.
 static void SplitArgument(const char* arg,
@@ -301,11 +299,11 @@ static void SplitArgument(const char* arg,
                           const char** name,
                           const char** value,
                           bool* is_bool) {
-  *name = NULL;
-  *value = NULL;
+  *name = nullptr;
+  *value = nullptr;
   *is_bool = false;
 
-  if (arg != NULL && *arg == '-') {
+  if (arg != nullptr && *arg == '-') {
     // find the begin of the flag name
     arg++;  // remove 1st '-'
     if (*arg == '-') {
@@ -357,7 +355,7 @@ static Flag* FindFlag(const char* name) {
     if (EqualNames(name, flags[i].name()))
       return &flags[i];
   }
-  return NULL;
+  return nullptr;
 }
 
 
@@ -378,10 +376,10 @@ int FlagList::SetFlagsFromCommandLine(int* argc,
     bool is_bool;
     SplitArgument(arg, buffer, sizeof buffer, &name, &value, &is_bool);
 
-    if (name != NULL) {
+    if (name != nullptr) {
       // lookup the flag
       Flag* flag = FindFlag(name);
-      if (flag == NULL) {
+      if (flag == nullptr) {
         if (remove_flags) {
           // We don't recognize this flag but since we're removing
           // the flags we recognize we assume that the remaining flags
@@ -399,8 +397,7 @@ int FlagList::SetFlagsFromCommandLine(int* argc,
       // if we still need a flag value, use the next argument if available
       if (flag->type() != Flag::TYPE_BOOL &&
           flag->type() != Flag::TYPE_MAYBE_BOOL &&
-          flag->type() != Flag::TYPE_ARGS &&
-          value == NULL) {
+          flag->type() != Flag::TYPE_ARGS && value == nullptr) {
         if (i < *argc) {
           value = argv[i++];
         }
@@ -447,13 +444,13 @@ int FlagList::SetFlagsFromCommandLine(int* argc,
           *flag->float_variable() = strtod(value, &endp);
           break;
         case Flag::TYPE_STRING:
-          flag->set_string_value(value ? StrDup(value) : NULL, true);
+          flag->set_string_value(value ? StrDup(value) : nullptr, true);
           break;
         case Flag::TYPE_ARGS: {
-          int start_pos = (value == NULL) ? i : i - 1;
+          int start_pos = (value == nullptr) ? i : i - 1;
           int js_argc = *argc - start_pos;
           const char** js_argv = NewArray<const char*>(js_argc);
-          if (value != NULL) {
+          if (value != nullptr) {
             js_argv[0] = StrDup(value);
           }
           for (int k = i; k < *argc; k++) {
@@ -468,7 +465,7 @@ int FlagList::SetFlagsFromCommandLine(int* argc,
       // handle errors
       bool is_bool_type = flag->type() == Flag::TYPE_BOOL ||
           flag->type() == Flag::TYPE_MAYBE_BOOL;
-      if ((is_bool_type && value != NULL) || (!is_bool_type && is_bool) ||
+      if ((is_bool_type && value != nullptr) || (!is_bool_type && is_bool) ||
           *endp != '\0') {
         PrintF(stderr, "Error: illegal value for flag %s of type %s\n"
                "Try --help for options\n",
@@ -484,7 +481,7 @@ int FlagList::SetFlagsFromCommandLine(int* argc,
       // remove the flag & value from the command
       if (remove_flags) {
         while (j < i) {
-          argv[j++] = NULL;
+          argv[j++] = nullptr;
         }
       }
     }
@@ -494,8 +491,7 @@ int FlagList::SetFlagsFromCommandLine(int* argc,
   if (remove_flags) {
     int j = 1;
     for (int i = 1; i < *argc; i++) {
-      if (argv[i] != NULL)
-        argv[j++] = argv[i];
+      if (argv[i] != nullptr) argv[j++] = argv[i];
     }
     *argc = j;
   }

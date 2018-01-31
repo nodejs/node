@@ -10,11 +10,7 @@ const includeData = {};
 
 function preprocess(inputFile, input, cb) {
   input = stripComments(input);
-  processIncludes(inputFile, input, function(err, data) {
-    if (err) return cb(err);
-
-    cb(null, data);
-  });
+  processIncludes(inputFile, input, cb);
 }
 
 function stripComments(input) {

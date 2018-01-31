@@ -10,8 +10,14 @@ rules:
   # Custom rules in tools/eslint-rules
   prefer-assert-iferror: error
   prefer-assert-methods: error
+  prefer-common-expectserror: error
   prefer-common-mustnotcall: error
   crypto-check: error
   inspector-check: error
+  number-isnan: error
   ## common module is mandatory in tests
   required-modules: [error, common]
+
+# Global scoped methods and vars
+globals:
+  WebAssembly: false

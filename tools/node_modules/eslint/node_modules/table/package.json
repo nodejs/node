@@ -1,0 +1,97 @@
+{
+  "_from": "table@^4.0.1",
+  "_id": "table@4.0.2",
+  "_inBundle": false,
+  "_integrity": "sha512-UUkEAPdSGxtRpiV9ozJ5cMTtYiqz7Ni1OGqLXRCynrvzdtR1p+cfOWe2RJLwvUG8hNanaSRjecIqwOjqeatDsA==",
+  "_location": "/eslint/table",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "range",
+    "registry": true,
+    "raw": "table@^4.0.1",
+    "name": "table",
+    "escapedName": "table",
+    "rawSpec": "^4.0.1",
+    "saveSpec": null,
+    "fetchSpec": "^4.0.1"
+  },
+  "_requiredBy": [
+    "/eslint"
+  ],
+  "_resolved": "https://registry.npmjs.org/table/-/table-4.0.2.tgz",
+  "_shasum": "a33447375391e766ad34d3486e6e2aedc84d2e36",
+  "_spec": "table@^4.0.1",
+  "_where": "/home/mzasso/git/nodejs/node/tools/eslint-tmp/node_modules/eslint",
+  "author": {
+    "name": "Gajus Kuizinas",
+    "email": "gajus@gajus.com",
+    "url": "http://gajus.com"
+  },
+  "bugs": {
+    "url": "https://github.com/gajus/table/issues"
+  },
+  "bundleDependencies": false,
+  "dependencies": {
+    "ajv": "^5.2.3",
+    "ajv-keywords": "^2.1.0",
+    "chalk": "^2.1.0",
+    "lodash": "^4.17.4",
+    "slice-ansi": "1.0.0",
+    "string-width": "^2.1.1"
+  },
+  "deprecated": false,
+  "description": "Formats data into a string table.",
+  "devDependencies": {
+    "ajv-cli": "^2.1.0",
+    "babel": "^6.23.0",
+    "babel-cli": "^6.26.0",
+    "babel-core": "^6.26.0",
+    "babel-plugin-istanbul": "^4.1.5",
+    "babel-preset-es2015-node4": "^2.1.1",
+    "babel-register": "^6.26.0",
+    "chai": "^4.1.2",
+    "eslint": "^4.7.2",
+    "eslint-config-canonical": "^9.3.1",
+    "gitdown": "^2.5.1",
+    "husky": "^0.14.3",
+    "mocha": "^3.5.3",
+    "nyc": "^11.2.1",
+    "sinon": "^4.0.0"
+  },
+  "homepage": "https://github.com/gajus/table#readme",
+  "keywords": [
+    "ascii",
+    "text",
+    "table",
+    "align",
+    "ansi"
+  ],
+  "license": "BSD-3-Clause",
+  "main": "./dist/index.js",
+  "name": "table",
+  "nyc": {
+    "include": [
+      "src/*.js"
+    ],
+    "instrument": false,
+    "lines": 70,
+    "require": [
+      "babel-register"
+    ],
+    "sourceMap": false
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/gajus/table.git"
+  },
+  "scripts": {
+    "build": "rm -fr ./dist && NODE_ENV=production babel --copy-files ./src --out-dir ./dist && npm run make-validators",
+    "lint": "npm run build && eslint ./src ./tests",
+    "make-readme": "gitdown ./.README/README.md --output-file ./README.md",
+    "make-validators": "ajv compile --all-errors --inline-refs=false -s src/schemas/config -c ajv-keywords/keywords/typeof -o dist/validateConfig.js && ajv compile --all-errors --inline-refs=false -s src/schemas/streamConfig -c ajv-keywords/keywords/typeof -o dist/validateStreamConfig.js",
+    "precommit": "npm run lint && npm run test",
+    "prepublish": "NODE_ENV=production npm run build",
+    "test": "npm run build && nyc --check-coverage mocha"
+  },
+  "version": "4.0.2"
+}

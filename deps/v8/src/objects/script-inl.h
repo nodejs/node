@@ -34,6 +34,7 @@ ACCESSORS(Script, shared_function_infos, FixedArray, kSharedFunctionInfosOffset)
 SMI_ACCESSORS(Script, flags, kFlagsOffset)
 ACCESSORS(Script, source_url, Object, kSourceUrlOffset)
 ACCESSORS(Script, source_mapping_url, Object, kSourceMappingUrlOffset)
+ACCESSORS(Script, host_defined_options, FixedArray, kHostDefinedOptionsOffset)
 ACCESSORS_CHECKED(Script, wasm_compiled_module, Object, kEvalFromSharedOffset,
                   this->type() == TYPE_WASM)
 
@@ -70,9 +71,9 @@ bool Script::HasValidSource() {
   String* src_str = String::cast(src);
   if (!StringShape(src_str).IsExternal()) return true;
   if (src_str->IsOneByteRepresentation()) {
-    return ExternalOneByteString::cast(src)->resource() != NULL;
+    return ExternalOneByteString::cast(src)->resource() != nullptr;
   } else if (src_str->IsTwoByteRepresentation()) {
-    return ExternalTwoByteString::cast(src)->resource() != NULL;
+    return ExternalTwoByteString::cast(src)->resource() != nullptr;
   }
   return true;
 }

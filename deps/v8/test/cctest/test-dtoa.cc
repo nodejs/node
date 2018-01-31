@@ -40,6 +40,7 @@
 
 namespace v8 {
 namespace internal {
+namespace test_dtoa {
 
 // Removes trailing '0' digits.
 static void TrimRepresentation(Vector<char> representation) {
@@ -329,5 +330,6 @@ TEST(DtoaGayPrecision) {
   }
 }
 
+}  // namespace test_dtoa
 }  // namespace internal
 }  // namespace v8

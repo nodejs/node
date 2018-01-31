@@ -2,7 +2,7 @@
 // Flags: --no-force-async-hooks-checks --expose-internals
 const common = require('../common');
 
-const async_hooks = require('async_hooks');
+const async_hooks = require('internal/async_hooks');
 const internal = require('internal/process/next_tick');
 
 // Using undefined as the triggerAsyncId.

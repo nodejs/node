@@ -16,24 +16,17 @@
 #include "test/common/wasm/test-signatures.h"
 #include "test/common/wasm/wasm-macro-gen.h"
 
+namespace v8 {
+namespace internal {
+namespace wasm {
+namespace test_run_wasm_64 {
+
 // If the target architecture is 64-bit, enable all tests.
 #if !V8_TARGET_ARCH_32_BIT || V8_TARGET_ARCH_X64
 #define WASM_64 1
 #else
 #define WASM_64 0
 #endif
-
-#define CHECK_TRAP32(x) \
-  CHECK_EQ(0xdeadbeef, (bit_cast<uint32_t>(x)) & 0xFFFFFFFF)
-#define CHECK_TRAP64(x) \
-  CHECK_EQ(0xdeadbeefdeadbeef, (bit_cast<uint64_t>(x)) & 0xFFFFFFFFFFFFFFFF)
-#define CHECK_TRAP(x) CHECK_TRAP32(x)
-
-#define asi64(x) static_cast<int64_t>(x)
-
-#define asu64(x) static_cast<uint64_t>(x)
-
-#define B2(a, b) kExprBlock, a, b, kExprEnd
 
 // Can't bridge macro land with nested macros.
 #if V8_TARGET_ARCH_MIPS
@@ -94,6 +87,8 @@
 #define DECLARE_CONST(name, cond) static const bool kSupported_##name = cond;
 FOREACH_I64_OPERATOR(DECLARE_CONST)
 #undef DECLARE_CONST
+
+#undef FOREACH_I64_OPERATOR
 
 #define REQUIRE(name) \
   if (!WASM_64 && !kSupported_##name) return
@@ -274,11 +269,11 @@ WASM_EXEC_TEST(I64DivS_Trap) {
   REQUIRE(I64DivS);
   WasmRunner<int64_t, int64_t, int64_t> r(execution_mode);
   BUILD(r, WASM_I64_DIVS(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
-  CHECK_EQ(0, r.Call(asi64(0), asi64(100)));
-  CHECK_TRAP64(r.Call(asi64(100), asi64(0)));
-  CHECK_TRAP64(r.Call(asi64(-1001), asi64(0)));
-  CHECK_TRAP64(r.Call(std::numeric_limits<int64_t>::min(), asi64(-1)));
-  CHECK_TRAP64(r.Call(std::numeric_limits<int64_t>::min(), asi64(0)));
+  CHECK_EQ(0, r.Call(int64_t{0}, int64_t{100}));
+  CHECK_TRAP64(r.Call(int64_t{100}, int64_t{0}));
+  CHECK_TRAP64(r.Call(int64_t{-1001}, int64_t{0}));
+  CHECK_TRAP64(r.Call(std::numeric_limits<int64_t>::min(), int64_t{-1}));
+  CHECK_TRAP64(r.Call(std::numeric_limits<int64_t>::min(), int64_t{0}));
 }
 
 WASM_EXEC_TEST(I64DivS_Byzero_Const) {
@@ -315,10 +310,10 @@ WASM_EXEC_TEST(I64DivU_Trap) {
   REQUIRE(I64DivU);
   WasmRunner<uint64_t, uint64_t, uint64_t> r(execution_mode);
   BUILD(r, WASM_I64_DIVU(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
-  CHECK_EQ(0, r.Call(asu64(0), asu64(100)));
-  CHECK_TRAP64(r.Call(asu64(100), asu64(0)));
-  CHECK_TRAP64(r.Call(asu64(1001), asu64(0)));
-  CHECK_TRAP64(r.Call(std::numeric_limits<uint64_t>::max(), asu64(0)));
+  CHECK_EQ(0, r.Call(uint64_t{0}, uint64_t{100}));
+  CHECK_TRAP64(r.Call(uint64_t{100}, uint64_t{0}));
+  CHECK_TRAP64(r.Call(uint64_t{1001}, uint64_t{0}));
+  CHECK_TRAP64(r.Call(std::numeric_limits<uint64_t>::max(), uint64_t{0}));
 }
 
 WASM_EXEC_TEST(I64DivU_Byzero_Const) {
@@ -356,11 +351,11 @@ WASM_EXEC_TEST(I64RemS_Trap) {
   REQUIRE(I64RemS);
   WasmRunner<int64_t, int64_t, int64_t> r(execution_mode);
   BUILD(r, WASM_I64_REMS(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
-  CHECK_EQ(33, r.Call(asi64(133), asi64(100)));
-  CHECK_EQ(0, r.Call(std::numeric_limits<int64_t>::min(), asi64(-1)));
-  CHECK_TRAP64(r.Call(asi64(100), asi64(0)));
-  CHECK_TRAP64(r.Call(asi64(-1001), asi64(0)));
-  CHECK_TRAP64(r.Call(std::numeric_limits<int64_t>::min(), asi64(0)));
+  CHECK_EQ(33, r.Call(int64_t{133}, int64_t{100}));
+  CHECK_EQ(0, r.Call(std::numeric_limits<int64_t>::min(), int64_t{-1}));
+  CHECK_TRAP64(r.Call(int64_t{100}, int64_t{0}));
+  CHECK_TRAP64(r.Call(int64_t{-1001}, int64_t{0}));
+  CHECK_TRAP64(r.Call(std::numeric_limits<int64_t>::min(), int64_t{0}));
 }
 
 WASM_EXEC_TEST(I64RemU) {
@@ -382,10 +377,10 @@ WASM_EXEC_TEST(I64RemU_Trap) {
   REQUIRE(I64RemU);
   WasmRunner<uint64_t, uint64_t, uint64_t> r(execution_mode);
   BUILD(r, WASM_I64_REMU(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
-  CHECK_EQ(17, r.Call(asu64(217), asu64(100)));
-  CHECK_TRAP64(r.Call(asu64(100), asu64(0)));
-  CHECK_TRAP64(r.Call(asu64(1001), asu64(0)));
-  CHECK_TRAP64(r.Call(std::numeric_limits<uint64_t>::max(), asu64(0)));
+  CHECK_EQ(17, r.Call(uint64_t{217}, uint64_t{100}));
+  CHECK_TRAP64(r.Call(uint64_t{100}, uint64_t{0}));
+  CHECK_TRAP64(r.Call(uint64_t{1001}, uint64_t{0}));
+  CHECK_TRAP64(r.Call(std::numeric_limits<uint64_t>::max(), uint64_t{0}));
 }
 
 WASM_EXEC_TEST(I64And) {
@@ -928,6 +923,25 @@ WASM_EXEC_TEST(CallI64Parameter) {
   }
 }
 
+WASM_EXEC_TEST(CallI64Return) {
+  ValueType return_types[3];  // TODO(rossberg): support more in the future
+  for (int i = 0; i < 3; i++) return_types[i] = kWasmI64;
+  return_types[1] = kWasmI32;
+  FunctionSig sig(2, 1, return_types);
+
+  WasmRunner<int64_t> r(execution_mode);
+  // Build the target function.
+  WasmFunctionCompiler& t = r.NewFunction(&sig);
+  BUILD(t, WASM_GET_LOCAL(0), WASM_I32V(7));
+
+  // Build the first calling function.
+  BUILD(r,
+        WASM_CALL_FUNCTION(
+            t.function_index(), WASM_I64V(0xbcd12340000000b)), WASM_DROP);
+
+  CHECK_EQ(0xbcd12340000000b, r.Call());
+}
+
 void TestI64Binop(WasmExecutionMode execution_mode, WasmOpcode opcode,
                   int64_t expected, int64_t a, int64_t b) {
   {
@@ -998,6 +1012,8 @@ WASM_EXEC_TEST(I64Binops) {
   TEST_I64_BINOP(I64Rol, 8728493013947314237, 0xe07af243ac4d219d, 15);
 }
 
+#undef TEST_I64_BINOP
+
 #define TEST_I64_CMP(name, expected, a, b)                     \
   do {                                                         \
     if (WASM_64 || kSupported_##name)                          \
@@ -1016,6 +1032,8 @@ WASM_EXEC_TEST(I64Compare) {
   TEST_I64_CMP(I64GtU, 0, 0x8F691284E44F7DA9, 0xD5EA9BC1EE149192);
   TEST_I64_CMP(I64GeU, 0, 0x0886A0C58C7AA224, 0x5DDBE5A81FD7EE47);
 }
+
+#undef TEST_I64_CMP
 
 WASM_EXEC_TEST(I64Clz) {
   REQUIRE(I64Clz);
@@ -1476,7 +1494,7 @@ WASM_EXEC_TEST(I64Ror) {
 
   FOR_UINT64_INPUTS(i) {
     FOR_UINT64_INPUTS(j) {
-      int64_t expected = bits::RotateRight64(*i, *j & 0x3f);
+      int64_t expected = base::bits::RotateRight64(*i, *j & 0x3f);
       CHECK_EQ(expected, r.Call(*i, *j));
     }
   }
@@ -1489,7 +1507,7 @@ WASM_EXEC_TEST(I64Rol) {
 
   FOR_UINT64_INPUTS(i) {
     FOR_UINT64_INPUTS(j) {
-      int64_t expected = bits::RotateLeft64(*i, *j & 0x3f);
+      int64_t expected = base::bits::RotateLeft64(*i, *j & 0x3f);
       CHECK_EQ(expected, r.Call(*i, *j));
     }
   }
@@ -1519,7 +1537,7 @@ WASM_EXEC_TEST(StoreMem_offset_oob_i64) {
     CHECK_EQ(0, memcmp(&memory[0], &memory[8 + boundary], memsize));
 
     for (uint32_t offset = boundary + 1; offset < boundary + 19; offset++) {
-      CHECK_TRAP(r.Call(offset));  // out of bounds.
+      CHECK_TRAP32(r.Call(offset));  // out of bounds.
     }
   }
 }
@@ -1546,12 +1564,12 @@ WASM_EXEC_TEST(UnalignedInt64Store) {
     for (size_t i = 0; i < sizeof(__buf); i++) vec.push_back(__buf[i]); \
   } while (false)
 
-static void CompileCallIndirectMany(ValueType param) {
+static void CompileCallIndirectMany(WasmExecutionMode mode, ValueType param) {
   // Make sure we don't run out of registers when compiling indirect calls
   // with many many parameters.
   TestSignatures sigs;
   for (byte num_params = 0; num_params < 40; num_params++) {
-    WasmRunner<void> r(kExecuteCompiled);
+    WasmRunner<void> r(mode);
     FunctionSig* sig = sigs.many(r.zone(), kWasmStmt, param, num_params);
 
     r.builder().AddSignature(sig);
@@ -1571,7 +1589,9 @@ static void CompileCallIndirectMany(ValueType param) {
   }
 }
 
-TEST(Compile_Wasm_CallIndirect_Many_i64) { CompileCallIndirectMany(kWasmI64); }
+WASM_EXEC_TEST(Compile_Wasm_CallIndirect_Many_i64) {
+  CompileCallIndirectMany(execution_mode, kWasmI64);
+}
 
 static void Run_WasmMixedCall_N(WasmExecutionMode execution_mode, int start) {
   const int kExpected = 6333;
@@ -1668,3 +1688,28 @@ WASM_EXEC_TEST(Regress5874) {
 
   r.Call();
 }
+
+WASM_EXEC_TEST(Regression_6858) {
+  REQUIRE(I64DivS);
+  // WasmRunner with 5 params and returns, which is the maximum.
+  WasmRunner<int64_t, int64_t, int64_t, int64_t, int64_t> r(execution_mode);
+  BUILD(r, WASM_I64_DIVS(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
+  int64_t dividend = 15;
+  int64_t divisor = 0;
+  int64_t filler = 34;
+  CHECK_TRAP64(r.Call(dividend, divisor, filler, filler));
+}
+
+#undef WASM_64
+#undef MIPS
+#undef REQUIRE
+#undef ADD_CODE
+
+// clang-format gets confused about these closing parentheses (wants to change
+// the first comment to "// namespace v8". Disable it.
+// clang-format off
+}  // namespace test_run_wasm_64
+}  // namespace wasm
+}  // namespace internal
+}  // namespace v8
+// clang-format on

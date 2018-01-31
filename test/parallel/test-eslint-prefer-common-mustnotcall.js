@@ -2,7 +2,7 @@
 
 require('../common');
 
-const RuleTester = require('../../tools/eslint').RuleTester;
+const RuleTester = require('../../tools/node_modules/eslint').RuleTester;
 const rule = require('../../tools/eslint-rules/prefer-common-mustnotcall');
 
 const message = 'Please use common.mustNotCall(msg) instead of ' +

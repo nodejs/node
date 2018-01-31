@@ -48,6 +48,12 @@ class Builtins {
         builtin_count
   };
 
+  static const int32_t kNoBuiltinId = -1;
+
+  static bool IsBuiltinId(int maybe_id) {
+    return 0 <= maybe_id && maybe_id < builtin_count;
+  }
+
   // The different builtin kinds are documented in builtins-definitions.h.
   enum Kind { CPP, API, TFJ, TFC, TFS, TFH, ASM };
 
@@ -64,20 +70,28 @@ class Builtins {
                                            InterpreterPushArgsMode mode);
   Handle<Code> InterpreterPushArgsThenConstruct(InterpreterPushArgsMode mode);
   Handle<Code> NewFunctionContext(ScopeType scope_type);
-  Handle<Code> NewCloneShallowArray(AllocationSiteMode allocation_mode);
   Handle<Code> JSConstructStubGeneric();
 
-  Code* builtin(Name name) {
+  // Used by BuiltinDeserializer.
+  void set_builtin(int index, HeapObject* builtin);
+
+  Code* builtin(int index) {
+    DCHECK(IsBuiltinId(index));
     // Code::cast cannot be used here since we access builtins
     // during the marking phase of mark sweep. See IC::Clear.
-    return reinterpret_cast<Code*>(builtins_[name]);
+    return reinterpret_cast<Code*>(builtins_[index]);
   }
 
-  Address builtin_address(Name name) {
-    return reinterpret_cast<Address>(&builtins_[name]);
+  Address builtin_address(int index) {
+    DCHECK(IsBuiltinId(index));
+    return reinterpret_cast<Address>(&builtins_[index]);
   }
 
-  V8_EXPORT_PRIVATE Handle<Code> builtin_handle(Name name);
+  V8_EXPORT_PRIVATE Handle<Code> builtin_handle(int index);
+
+  // Used by lazy deserialization to determine whether a given builtin has been
+  // deserialized. See the DeserializeLazy builtin.
+  Object** builtins_table_address() { return &builtins_[0]; }
 
   V8_EXPORT_PRIVATE static Callable CallableFor(Isolate* isolate, Name name);
 
@@ -94,6 +108,11 @@ class Builtins {
 
   static bool IsCpp(int index);
   static bool HasCppImplementation(int index);
+
+  // Returns true iff the given builtin can be lazy-loaded from the snapshot.
+  // This is true in general for most builtins with the exception of a few
+  // special cases such as CompileLazy and DeserializeLazy.
+  static bool IsLazy(int index);
 
   bool is_initialized() const { return initialized_; }
 

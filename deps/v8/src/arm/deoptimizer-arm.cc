@@ -3,7 +3,6 @@
 // found in the LICENSE file.
 
 #include "src/assembler-inl.h"
-#include "src/codegen.h"
 #include "src/deoptimizer.h"
 #include "src/objects-inl.h"
 #include "src/register-configuration.h"
@@ -27,12 +26,12 @@ void Deoptimizer::TableEntryGenerator::Generate() {
   // Everything but pc, lr and ip which will be saved but not restored.
   RegList restored_regs = kJSCallerSaved | kCalleeSaved | ip.bit();
 
-  const int kDoubleRegsSize = kDoubleSize * DwVfpRegister::kMaxNumRegisters;
-  const int kFloatRegsSize = kFloatSize * SwVfpRegister::kMaxNumRegisters;
+  const int kDoubleRegsSize = kDoubleSize * DwVfpRegister::kNumRegisters;
+  const int kFloatRegsSize = kFloatSize * SwVfpRegister::kNumRegisters;
 
   // Save all allocatable VFP registers before messing with them.
-  DCHECK(kDoubleRegZero.code() == 13);
-  DCHECK(kScratchDoubleReg.code() == 14);
+  DCHECK_EQ(kDoubleRegZero.code(), 13);
+  DCHECK_EQ(kScratchDoubleReg.code(), 14);
 
   {
     // We use a run-time check for VFP32DREGS.
@@ -107,7 +106,7 @@ void Deoptimizer::TableEntryGenerator::Generate() {
   __ ldr(r1, MemOperand(r0, Deoptimizer::input_offset()));
 
   // Copy core registers into FrameDescription::registers_[kNumRegisters].
-  DCHECK(Register::kNumRegisters == kNumberOfRegisters);
+  DCHECK_EQ(Register::kNumRegisters, kNumberOfRegisters);
   for (int i = 0; i < kNumberOfRegisters; i++) {
     int offset = (i * kPointerSize) + FrameDescription::registers_offset();
     __ ldr(r2, MemOperand(sp, i * kPointerSize));
@@ -115,7 +114,7 @@ void Deoptimizer::TableEntryGenerator::Generate() {
   }
 
   // Copy VFP registers to
-  // double_registers_[DoubleRegister::kMaxNumAllocatableRegisters]
+  // double_registers_[DoubleRegister::kNumAllocatableRegisters]
   int double_regs_offset = FrameDescription::double_registers_offset();
   const RegisterConfiguration* config = RegisterConfiguration::Default();
   for (int i = 0; i < config->num_allocatable_double_registers(); ++i) {
@@ -128,7 +127,7 @@ void Deoptimizer::TableEntryGenerator::Generate() {
   }
 
   // Copy VFP registers to
-  // float_registers_[FloatRegister::kMaxNumAllocatableRegisters]
+  // float_registers_[FloatRegister::kNumAllocatableRegisters]
   int float_regs_offset = FrameDescription::float_registers_offset();
   for (int i = 0; i < config->num_allocatable_float_registers(); ++i) {
     int code = config->GetAllocatableFloatCode(i);
@@ -210,9 +209,7 @@ void Deoptimizer::TableEntryGenerator::Generate() {
     __ vldr(reg, r1, src_offset);
   }
 
-  // Push state, pc, and continuation from the last output frame.
-  __ ldr(r6, MemOperand(r2, FrameDescription::state_offset()));
-  __ push(r6);
+  // Push pc and continuation from the last output frame.
   __ ldr(r6, MemOperand(r2, FrameDescription::pc_offset()));
   __ push(r6);
   __ ldr(r6, MemOperand(r2, FrameDescription::continuation_offset()));
@@ -295,6 +292,7 @@ void Deoptimizer::TableEntryGenerator::GeneratePrologue() {
   __ push(scratch);
 }
 
+bool Deoptimizer::PadTopOfStackRegister() { return false; }
 
 void FrameDescription::SetCallerPc(unsigned offset, intptr_t value) {
   SetFrameSlot(offset, value);

@@ -18,6 +18,7 @@ function lifecycleOpts (moreOpts) {
       ignorePrepublish: npm.config.get('ignore-prepublish'),
       ignoreScripts: npm.config.get('ignore-scripts'),
       log: log,
+      nodeOptions: npm.config.get('node-options'),
       production: npm.config.get('production'),
       scriptShell: npm.config.get('script-shell'),
       scriptsPrependNodePath: npm.config.get('scripts-prepend-node-path'),

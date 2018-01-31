@@ -6,12 +6,12 @@ const UDP = process.binding('udp_wrap').UDP;
 const _createSocketHandle = dgram._createSocketHandle;
 
 // Throws if an "existing fd" is passed in.
-assert.throws(() => {
+common.expectsError(() => {
   _createSocketHandle(common.localhostIPv4, 0, 'udp4', 42);
-}, common.expectsError({
+}, {
   code: 'ERR_ASSERTION',
   message: /^false == true$/
-}));
+});
 
 {
   // Create a handle that is not bound.

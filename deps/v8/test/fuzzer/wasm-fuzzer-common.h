@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef WASM_SECTION_FUZZERS_H_
-#define WASM_SECTION_FUZZERS_H_
+#ifndef WASM_FUZZER_COMMON_H_
+#define WASM_FUZZER_COMMON_H_
 
 #include <stddef.h>
 #include <stdint.h>
@@ -17,13 +17,20 @@ namespace internal {
 namespace wasm {
 namespace fuzzer {
 
-int FuzzWasmSection(v8::internal::wasm::SectionCode section,
-                    const uint8_t* data, size_t size);
+int FuzzWasmSection(SectionCode section, const uint8_t* data, size_t size);
+
+// First instantiates and interprets the "main" function within module_object if
+// possible. If the interpretation finishes within kMaxSteps steps,
+// module_object is instantiated again and the compiled "main" function is
+// executed.
+void InterpretAndExecuteModule(Isolate* isolate,
+                               Handle<WasmModuleObject> module_object);
 
 class WasmExecutionFuzzer {
  public:
   virtual ~WasmExecutionFuzzer() {}
-  int FuzzWasmModule(const uint8_t* data, size_t size);
+  int FuzzWasmModule(const uint8_t* data, size_t size,
+                     bool require_valid = false);
 
  protected:
   virtual bool GenerateModule(
@@ -37,4 +44,4 @@ class WasmExecutionFuzzer {
 }  // namespace wasm
 }  // namespace internal
 }  // namespace v8
-#endif  // WASM_SECTION_FUZZERS_H_
+#endif  // WASM_FUZZER_COMMON_H_

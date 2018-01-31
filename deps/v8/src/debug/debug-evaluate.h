@@ -5,12 +5,16 @@
 #ifndef V8_DEBUG_DEBUG_EVALUATE_H_
 #define V8_DEBUG_DEBUG_EVALUATE_H_
 
+#include <vector>
+
 #include "src/frames.h"
 #include "src/objects.h"
 #include "src/objects/string-table.h"
 
 namespace v8 {
 namespace internal {
+
+class FrameInspector;
 
 class DebugEvaluate : public AllStatic {
  public:
@@ -66,19 +70,18 @@ class DebugEvaluate : public AllStatic {
       Handle<StringSet> whitelist;
     };
 
-    // Helper function to find or create the arguments object for
-    // Runtime_DebugEvaluate.
-    void MaterializeArgumentsObject(Handle<JSObject> target,
-                                    Handle<JSFunction> function);
-
     void MaterializeReceiver(Handle<JSObject> target,
                              Handle<Context> local_context,
                              Handle<JSFunction> local_function,
                              Handle<StringSet> non_locals);
 
+    void MaterializeStackLocals(Handle<JSObject> target,
+                                Handle<JSFunction> function,
+                                FrameInspector* frame_inspector);
+
     Handle<SharedFunctionInfo> outer_info_;
     Handle<Context> evaluation_context_;
-    List<ContextChainElement> context_chain_;
+    std::vector<ContextChainElement> context_chain_;
     Isolate* isolate_;
     JavaScriptFrame* frame_;
     int inlined_jsframe_index_;

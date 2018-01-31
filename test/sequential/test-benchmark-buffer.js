@@ -8,7 +8,10 @@ runBenchmark('buffers',
              [
                'aligned=true',
                'args=1',
+               'buffer=fast',
+               'byteLength=1',
                'encoding=utf8',
+               'endian=BE',
                'len=2',
                'method=',
                'n=1',
@@ -19,6 +22,7 @@ runBenchmark('buffers',
                'size=1',
                'source=array',
                'type=',
+               'value=0',
                'withTotalLength=0'
              ],
              { NODEJS_BENCHMARK_ZERO_ALLOWED: 1 });

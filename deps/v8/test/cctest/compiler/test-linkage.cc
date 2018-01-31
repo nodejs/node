@@ -33,10 +33,14 @@ static Handle<JSFunction> Compile(const char* source) {
   Handle<String> source_code = isolate->factory()
                                    ->NewStringFromUtf8(CStrVector(source))
                                    .ToHandleChecked();
-  Handle<SharedFunctionInfo> shared = Compiler::GetSharedFunctionInfoForScript(
-      source_code, Handle<String>(), 0, 0, v8::ScriptOriginOptions(),
-      Handle<Object>(), Handle<Context>(isolate->native_context()), NULL, NULL,
-      v8::ScriptCompiler::kNoCompileOptions, NOT_NATIVES_CODE);
+  Handle<SharedFunctionInfo> shared =
+      Compiler::GetSharedFunctionInfoForScript(
+          source_code, MaybeHandle<String>(), 0, 0, v8::ScriptOriginOptions(),
+          MaybeHandle<Object>(), Handle<Context>(isolate->native_context()),
+          nullptr, nullptr, v8::ScriptCompiler::kNoCompileOptions,
+          ScriptCompiler::kNoCacheNoReason, NOT_NATIVES_CODE,
+          MaybeHandle<FixedArray>())
+          .ToHandleChecked();
   return isolate->factory()->NewFunctionFromSharedFunctionInfo(
       shared, isolate->native_context());
 }
@@ -46,9 +50,8 @@ TEST(TestLinkageCreate) {
   HandleAndZoneScope handles;
   Handle<JSFunction> function = Compile("a + b");
   Handle<SharedFunctionInfo> shared(function->shared());
-  Handle<Script> script(Script::cast(shared->script()));
-  CompilationInfo info(handles.main_zone(), function->GetIsolate(), script,
-                       shared, function);
+  CompilationInfo info(handles.main_zone(), function->GetIsolate(), shared,
+                       function);
   CallDescriptor* descriptor = Linkage::ComputeIncoming(info.zone(), &info);
   CHECK(descriptor);
 }
@@ -64,9 +67,8 @@ TEST(TestLinkageJSFunctionIncoming) {
         Handle<JSFunction>::cast(v8::Utils::OpenHandle(
             *v8::Local<v8::Function>::Cast(CompileRun(sources[i]))));
     Handle<SharedFunctionInfo> shared(function->shared());
-    Handle<Script> script(Script::cast(shared->script()));
-    CompilationInfo info(handles.main_zone(), function->GetIsolate(), script,
-                         shared, function);
+    CompilationInfo info(handles.main_zone(), function->GetIsolate(), shared,
+                         function);
     CallDescriptor* descriptor = Linkage::ComputeIncoming(info.zone(), &info);
     CHECK(descriptor);
 
@@ -82,9 +84,8 @@ TEST(TestLinkageJSCall) {
   HandleAndZoneScope handles;
   Handle<JSFunction> function = Compile("a + c");
   Handle<SharedFunctionInfo> shared(function->shared());
-  Handle<Script> script(Script::cast(shared->script()));
-  CompilationInfo info(handles.main_zone(), function->GetIsolate(), script,
-                       shared, function);
+  CompilationInfo info(handles.main_zone(), function->GetIsolate(), shared,
+                       function);
 
   for (int i = 0; i < 32; i++) {
     CallDescriptor* descriptor = Linkage::GetJSCallDescriptor(
@@ -107,8 +108,7 @@ TEST(TestLinkageStubCall) {
   Isolate* isolate = CcTest::InitIsolateOnce();
   Zone zone(isolate->allocator(), ZONE_NAME);
   Callable callable = Builtins::CallableFor(isolate, Builtins::kToNumber);
-  CompilationInfo info(ArrayVector("test"), isolate, &zone,
-                       Code::ComputeFlags(Code::STUB));
+  CompilationInfo info(ArrayVector("test"), &zone, Code::STUB);
   CallDescriptor* descriptor = Linkage::GetStubCallDescriptor(
       isolate, &zone, callable.descriptor(), 0, CallDescriptor::kNoFlags,
       Operator::kNoProperties);

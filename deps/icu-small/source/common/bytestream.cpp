@@ -45,6 +45,12 @@ void CheckedArrayByteSink::Append(const char* bytes, int32_t n) {
   if (n <= 0) {
     return;
   }
+  if (n > (INT32_MAX - appended_)) {
+    // TODO: Report as integer overflow, not merely buffer overflow.
+    appended_ = INT32_MAX;
+    overflowed_ = TRUE;
+    return;
+  }
   appended_ += n;
   int32_t available = capacity_ - size_;
   if (n > available) {

@@ -9,7 +9,6 @@
 #include "src/objects-inl.h"
 #include "src/objects/frame-array-inl.h"
 #include "src/string-builder.h"
-#include "src/wasm/wasm-module.h"
 
 namespace v8 {
 namespace internal {

@@ -15,15 +15,14 @@
 #include "test/common/wasm/test-signatures.h"
 #include "test/common/wasm/wasm-macro-gen.h"
 
-using namespace v8::base;
-using namespace v8::internal;
-using namespace v8::internal::compiler;
-using namespace v8::internal::wasm;
+namespace v8 {
+namespace internal {
+namespace wasm {
+namespace test_run_wasm {
 
 // for even shorter tests.
 #define B1(a) WASM_BLOCK(a)
 #define B2(a, b) WASM_BLOCK(a, b)
-#define B3(a, b, c) WASM_BLOCK(a, b, c)
 #define RET(x) x, kExprReturn
 #define RET_I8(x) WASM_I32V_2(x), kExprReturn
 
@@ -97,7 +96,10 @@ WASM_EXEC_TEST(Int32Add_P_fallthru) {
 
 static void RunInt32AddTest(WasmExecutionMode execution_mode, const byte* code,
                             size_t size) {
+  TestSignatures sigs;
   WasmRunner<int32_t, int32_t, int32_t> r(execution_mode);
+  r.builder().AddSignature(sigs.ii_v());
+  r.builder().AddSignature(sigs.iii_v());
   r.Build(code, code + size);
   FOR_INT32_INPUTS(i) {
     FOR_INT32_INPUTS(j) {
@@ -118,7 +120,7 @@ WASM_EXEC_TEST(Int32Add_P2) {
 WASM_EXEC_TEST(Int32Add_block1) {
   EXPERIMENTAL_FLAG_SCOPE(mv);
   static const byte code[] = {
-      WASM_BLOCK_TT(kWasmI32, kWasmI32, WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)),
+      WASM_BLOCK_X(0, WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)),
       kExprI32Add};
   RunInt32AddTest(execution_mode, code, sizeof(code));
 }
@@ -126,8 +128,7 @@ WASM_EXEC_TEST(Int32Add_block1) {
 WASM_EXEC_TEST(Int32Add_block2) {
   EXPERIMENTAL_FLAG_SCOPE(mv);
   static const byte code[] = {
-      WASM_BLOCK_TT(kWasmI32, kWasmI32, WASM_GET_LOCAL(0), WASM_GET_LOCAL(1),
-                    kExprBr, DEPTH_0),
+      WASM_BLOCK_X(0, WASM_GET_LOCAL(0), WASM_GET_LOCAL(1), kExprBr, DEPTH_0),
       kExprI32Add};
   RunInt32AddTest(execution_mode, code, sizeof(code));
 }
@@ -135,9 +136,9 @@ WASM_EXEC_TEST(Int32Add_block2) {
 WASM_EXEC_TEST(Int32Add_multi_if) {
   EXPERIMENTAL_FLAG_SCOPE(mv);
   static const byte code[] = {
-      WASM_IF_ELSE_TT(kWasmI32, kWasmI32, WASM_GET_LOCAL(0),
-                      WASM_SEQ(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)),
-                      WASM_SEQ(WASM_GET_LOCAL(1), WASM_GET_LOCAL(0))),
+      WASM_IF_ELSE_X(0, WASM_GET_LOCAL(0),
+                     WASM_SEQ(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)),
+                     WASM_SEQ(WASM_GET_LOCAL(1), WASM_GET_LOCAL(0))),
       kExprI32Add};
   RunInt32AddTest(execution_mode, code, sizeof(code));
 }
@@ -157,54 +158,68 @@ WASM_EXEC_TEST(Float64Add) {
   CHECK_EQ(57, r.Call());
 }
 
-void TestInt32Binop(WasmExecutionMode execution_mode, WasmOpcode opcode,
-                    int32_t expected, int32_t a, int32_t b) {
-  {
-    WasmRunner<int32_t> r(execution_mode);
-    // K op K
-    BUILD(r, WASM_BINOP(opcode, WASM_I32V(a), WASM_I32V(b)));
-    CHECK_EQ(expected, r.Call());
+// clang-format messes up the FOR_INT32_INPUTS macros.
+// clang-format off
+template<typename ctype>
+static void TestInt32Binop(WasmExecutionMode execution_mode, WasmOpcode opcode,
+                           ctype(*expected)(ctype, ctype)) {
+  FOR_INT32_INPUTS(i) {
+    FOR_INT32_INPUTS(j) {
+      WasmRunner<ctype> r(execution_mode);
+      // Apply {opcode} on two constants.
+      BUILD(r, WASM_BINOP(opcode, WASM_I32V(*i), WASM_I32V(*j)));
+      CHECK_EQ(expected(*i, *j), r.Call());
+    }
   }
   {
-    WasmRunner<int32_t, int32_t, int32_t> r(execution_mode);
-    // a op b
+    WasmRunner<ctype, ctype, ctype> r(execution_mode);
+    // Apply {opcode} on two parameters.
     BUILD(r, WASM_BINOP(opcode, WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
-    CHECK_EQ(expected, r.Call(a, b));
+    FOR_INT32_INPUTS(i) {
+      FOR_INT32_INPUTS(j) {
+        CHECK_EQ(expected(*i, *j), r.Call(*i, *j));
+      }
+    }
   }
 }
+// clang-format on
 
-WASM_EXEC_TEST(Int32Binops) {
-  TestInt32Binop(execution_mode, kExprI32Add, 88888888, 33333333, 55555555);
-  TestInt32Binop(execution_mode, kExprI32Sub, -1111111, 7777777, 8888888);
-  TestInt32Binop(execution_mode, kExprI32Mul, 65130756, 88734, 734);
-  TestInt32Binop(execution_mode, kExprI32DivS, -66, -4777344, 72384);
-  TestInt32Binop(execution_mode, kExprI32DivU, 805306368, 0xF0000000, 5);
-  TestInt32Binop(execution_mode, kExprI32RemS, -3, -3003, 1000);
-  TestInt32Binop(execution_mode, kExprI32RemU, 4, 4004, 1000);
-  TestInt32Binop(execution_mode, kExprI32And, 0xEE, 0xFFEE, 0xFF0000FF);
-  TestInt32Binop(execution_mode, kExprI32Ior, 0xF0FF00FF, 0xF0F000EE,
-                 0x000F0011);
-  TestInt32Binop(execution_mode, kExprI32Xor, 0xABCDEF01, 0xABCDEFFF, 0xFE);
-  TestInt32Binop(execution_mode, kExprI32Shl, 0xA0000000, 0xA, 28);
-  TestInt32Binop(execution_mode, kExprI32ShrU, 0x07000010, 0x70000100, 4);
-  TestInt32Binop(execution_mode, kExprI32ShrS, 0xFF000000, 0x80000000, 7);
-  TestInt32Binop(execution_mode, kExprI32Ror, 0x01000000, 0x80000000, 7);
-  TestInt32Binop(execution_mode, kExprI32Ror, 0x01000000, 0x80000000, 39);
-  TestInt32Binop(execution_mode, kExprI32Rol, 0x00000040, 0x80000000, 7);
-  TestInt32Binop(execution_mode, kExprI32Rol, 0x00000040, 0x80000000, 39);
-  TestInt32Binop(execution_mode, kExprI32Eq, 1, -99, -99);
-  TestInt32Binop(execution_mode, kExprI32Ne, 0, -97, -97);
+#define WASM_I32_BINOP_TEST(expr, ctype, expected)                             \
+  WASM_EXEC_TEST(I32Binop_##expr) {                                            \
+    TestInt32Binop<ctype>(execution_mode, kExprI32##expr,                      \
+                          [](ctype a, ctype b) -> ctype { return expected; }); \
+  }
 
-  TestInt32Binop(execution_mode, kExprI32LtS, 1, -4, 4);
-  TestInt32Binop(execution_mode, kExprI32LeS, 0, -2, -3);
-  TestInt32Binop(execution_mode, kExprI32LtU, 1, 0, -6);
-  TestInt32Binop(execution_mode, kExprI32LeU, 1, 98978, 0xF0000000);
+WASM_I32_BINOP_TEST(Add, int32_t, a + b)
+WASM_I32_BINOP_TEST(Sub, int32_t, a - b)
+WASM_I32_BINOP_TEST(Mul, int32_t, a* b)
+WASM_I32_BINOP_TEST(DivS, int32_t,
+                    (a == kMinInt && b == -1) || b == 0
+                        ? static_cast<int32_t>(0xdeadbeef)
+                        : a / b)
+WASM_I32_BINOP_TEST(DivU, uint32_t, b == 0 ? 0xdeadbeef : a / b)
+WASM_I32_BINOP_TEST(RemS, int32_t, b == 0 ? 0xdeadbeef : b == -1 ? 0 : a % b)
+WASM_I32_BINOP_TEST(RemU, uint32_t, b == 0 ? 0xdeadbeef : a % b)
+WASM_I32_BINOP_TEST(And, int32_t, a& b)
+WASM_I32_BINOP_TEST(Ior, int32_t, a | b)
+WASM_I32_BINOP_TEST(Xor, int32_t, a ^ b)
+WASM_I32_BINOP_TEST(Shl, int32_t, a << (b & 0x1f))
+WASM_I32_BINOP_TEST(ShrU, uint32_t, a >> (b & 0x1f))
+WASM_I32_BINOP_TEST(ShrS, int32_t, a >> (b & 0x1f))
+WASM_I32_BINOP_TEST(Ror, uint32_t, (a >> (b & 0x1f)) | (a << (32 - (b & 0x1f))))
+WASM_I32_BINOP_TEST(Rol, uint32_t, (a << (b & 0x1f)) | (a >> (32 - (b & 0x1f))))
+WASM_I32_BINOP_TEST(Eq, int32_t, a == b)
+WASM_I32_BINOP_TEST(Ne, int32_t, a != b)
+WASM_I32_BINOP_TEST(LtS, int32_t, a < b)
+WASM_I32_BINOP_TEST(LeS, int32_t, a <= b)
+WASM_I32_BINOP_TEST(LtU, uint32_t, a < b)
+WASM_I32_BINOP_TEST(LeU, uint32_t, a <= b)
+WASM_I32_BINOP_TEST(GtS, int32_t, a > b)
+WASM_I32_BINOP_TEST(GeS, int32_t, a >= b)
+WASM_I32_BINOP_TEST(GtU, uint32_t, a > b)
+WASM_I32_BINOP_TEST(GeU, uint32_t, a >= b)
 
-  TestInt32Binop(execution_mode, kExprI32GtS, 1, 4, -4);
-  TestInt32Binop(execution_mode, kExprI32GeS, 0, -3, -2);
-  TestInt32Binop(execution_mode, kExprI32GtU, 1, -6, 0);
-  TestInt32Binop(execution_mode, kExprI32GeU, 1, 0xF0000000, 98978);
-}
+#undef WASM_I32_BINOP_TEST
 
 void TestInt32Unop(WasmExecutionMode execution_mode, WasmOpcode opcode,
                    int32_t expected, int32_t a) {
@@ -310,41 +325,6 @@ WASM_EXEC_TEST(I32Eqz) {
   TestInt32Unop(execution_mode, kExprI32Eqz, 1, 0);
 }
 
-WASM_EXEC_TEST(I32Shl) {
-  WasmRunner<uint32_t, uint32_t, uint32_t> r(execution_mode);
-  BUILD(r, WASM_I32_SHL(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
-
-  FOR_UINT32_INPUTS(i) {
-    FOR_UINT32_INPUTS(j) {
-      uint32_t expected = (*i) << (*j & 0x1f);
-      CHECK_EQ(expected, r.Call(*i, *j));
-    }
-  }
-}
-
-WASM_EXEC_TEST(I32Shr) {
-  WasmRunner<uint32_t, uint32_t, uint32_t> r(execution_mode);
-  BUILD(r, WASM_I32_SHR(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
-
-  FOR_UINT32_INPUTS(i) {
-    FOR_UINT32_INPUTS(j) {
-      uint32_t expected = (*i) >> (*j & 0x1f);
-      CHECK_EQ(expected, r.Call(*i, *j));
-    }
-  }
-}
-
-WASM_EXEC_TEST(I32Sar) {
-  WasmRunner<int32_t, int32_t, int32_t> r(execution_mode);
-  BUILD(r, WASM_I32_SAR(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
-
-  FOR_INT32_INPUTS(i) {
-    FOR_INT32_INPUTS(j) {
-      int32_t expected = (*i) >> (*j & 0x1f);
-      CHECK_EQ(expected, r.Call(*i, *j));
-    }
-  }
-}
 
 WASM_EXEC_TEST(Int32DivS_trap) {
   WasmRunner<int32_t, int32_t, int32_t> r(execution_mode);
@@ -650,7 +630,6 @@ WASM_EXEC_TEST(IfElse_P) {
     CHECK_EQ(expected, r.Call(*i));
   }
 }
-#define EMPTY
 
 WASM_EXEC_TEST(If_empty1) {
   WasmRunner<uint32_t, uint32_t, uint32_t> r(execution_mode);
@@ -1867,30 +1846,30 @@ WASM_EXEC_TEST(Unreachable0b) {
   CHECK_EQ(7, r.Call(1));
 }
 
-TEST(Build_Wasm_Unreachable1) {
-  WasmRunner<int32_t, int32_t> r(kExecuteCompiled);
+WASM_COMPILED_EXEC_TEST(Build_Wasm_Unreachable1) {
+  WasmRunner<int32_t, int32_t> r(execution_mode);
   BUILD(r, WASM_UNREACHABLE);
 }
 
-TEST(Build_Wasm_Unreachable2) {
-  WasmRunner<int32_t, int32_t> r(kExecuteCompiled);
+WASM_COMPILED_EXEC_TEST(Build_Wasm_Unreachable2) {
+  WasmRunner<int32_t, int32_t> r(execution_mode);
   BUILD(r, WASM_UNREACHABLE, WASM_UNREACHABLE);
 }
 
-TEST(Build_Wasm_Unreachable3) {
-  WasmRunner<int32_t, int32_t> r(kExecuteCompiled);
+WASM_COMPILED_EXEC_TEST(Build_Wasm_Unreachable3) {
+  WasmRunner<int32_t, int32_t> r(execution_mode);
   BUILD(r, WASM_UNREACHABLE, WASM_UNREACHABLE, WASM_UNREACHABLE);
 }
 
-TEST(Build_Wasm_UnreachableIf1) {
-  WasmRunner<int32_t, int32_t> r(kExecuteCompiled);
+WASM_COMPILED_EXEC_TEST(Build_Wasm_UnreachableIf1) {
+  WasmRunner<int32_t, int32_t> r(execution_mode);
   BUILD(r, WASM_UNREACHABLE,
         WASM_IF(WASM_GET_LOCAL(0), WASM_SEQ(WASM_GET_LOCAL(0), WASM_DROP)),
         WASM_ZERO);
 }
 
-TEST(Build_Wasm_UnreachableIf2) {
-  WasmRunner<int32_t, int32_t> r(kExecuteCompiled);
+WASM_COMPILED_EXEC_TEST(Build_Wasm_UnreachableIf2) {
+  WasmRunner<int32_t, int32_t> r(execution_mode);
   BUILD(r, WASM_UNREACHABLE,
         WASM_IF_ELSE_I(WASM_GET_LOCAL(0), WASM_GET_LOCAL(0), WASM_UNREACHABLE));
 }
@@ -1941,18 +1920,21 @@ static void TestBuildGraphForSimpleExpression(WasmOpcode opcode) {
   Zone zone(isolate->allocator(), ZONE_NAME);
   HandleScope scope(isolate);
   // Enable all optional operators.
-  CommonOperatorBuilder common(&zone);
-  MachineOperatorBuilder machine(&zone, MachineType::PointerRepresentation(),
-                                 MachineOperatorBuilder::kAllOptionalOps);
-  Graph graph(&zone);
-  JSGraph jsgraph(isolate, &graph, &common, nullptr, nullptr, &machine);
+  compiler::CommonOperatorBuilder common(&zone);
+  compiler::MachineOperatorBuilder machine(
+      &zone, MachineType::PointerRepresentation(),
+      compiler::MachineOperatorBuilder::kAllOptionalOps);
+  compiler::Graph graph(&zone);
+  compiler::JSGraph jsgraph(isolate, &graph, &common, nullptr, nullptr,
+                            &machine);
   FunctionSig* sig = WasmOpcodes::Signature(opcode);
 
   if (sig->parameter_count() == 1) {
     byte code[] = {WASM_NO_LOCALS, kExprGetLocal, 0, static_cast<byte>(opcode),
                    WASM_END};
     TestBuildingGraph(&zone, &jsgraph, nullptr, sig, nullptr, code,
-                      code + arraysize(code));
+                      code + arraysize(code),
+                      compiler::kNoRuntimeExceptionSupport);
   } else {
     CHECK_EQ(2, sig->parameter_count());
     byte code[] = {WASM_NO_LOCALS,
@@ -1963,7 +1945,8 @@ static void TestBuildGraphForSimpleExpression(WasmOpcode opcode) {
                    static_cast<byte>(opcode),
                    WASM_END};
     TestBuildingGraph(&zone, &jsgraph, nullptr, sig, nullptr, code,
-                      code + arraysize(code));
+                      code + arraysize(code),
+                      compiler::kNoRuntimeExceptionSupport);
   }
 }
 
@@ -2381,7 +2364,7 @@ WASM_EXEC_TEST(MixedCall_2) { Run_WasmMixedCall_N(execution_mode, 2); }
 WASM_EXEC_TEST(MixedCall_3) { Run_WasmMixedCall_N(execution_mode, 3); }
 
 WASM_EXEC_TEST(AddCall) {
-  WasmRunner<int32_t, int32_t> r(kExecuteCompiled);
+  WasmRunner<int32_t, int32_t> r(execution_mode);
   WasmFunctionCompiler& t1 = r.NewFunction<int32_t, int32_t, int32_t>();
   BUILD(t1, WASM_I32_ADD(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
 
@@ -2927,12 +2910,12 @@ WASM_EXEC_TEST(F32CopySign) {
   }
 }
 
-static void CompileCallIndirectMany(ValueType param) {
+static void CompileCallIndirectMany(WasmExecutionMode mode, ValueType param) {
   // Make sure we don't run out of registers when compiling indirect calls
   // with many many parameters.
   TestSignatures sigs;
   for (byte num_params = 0; num_params < 40; ++num_params) {
-    WasmRunner<void> r(kExecuteCompiled);
+    WasmRunner<void> r(mode);
     FunctionSig* sig = sigs.many(r.zone(), kWasmStmt, param, num_params);
 
     r.builder().AddSignature(sig);
@@ -2952,11 +2935,17 @@ static void CompileCallIndirectMany(ValueType param) {
   }
 }
 
-TEST(Compile_Wasm_CallIndirect_Many_i32) { CompileCallIndirectMany(kWasmI32); }
+WASM_COMPILED_EXEC_TEST(Compile_Wasm_CallIndirect_Many_i32) {
+  CompileCallIndirectMany(execution_mode, kWasmI32);
+}
 
-TEST(Compile_Wasm_CallIndirect_Many_f32) { CompileCallIndirectMany(kWasmF32); }
+WASM_COMPILED_EXEC_TEST(Compile_Wasm_CallIndirect_Many_f32) {
+  CompileCallIndirectMany(execution_mode, kWasmF32);
+}
 
-TEST(Compile_Wasm_CallIndirect_Many_f64) { CompileCallIndirectMany(kWasmF64); }
+WASM_COMPILED_EXEC_TEST(Compile_Wasm_CallIndirect_Many_f64) {
+  CompileCallIndirectMany(execution_mode, kWasmF64);
+}
 
 WASM_EXEC_TEST(Int32RemS_dead) {
   WasmRunner<int32_t, int32_t, int32_t> r(execution_mode);
@@ -3037,6 +3026,47 @@ WASM_EXEC_TEST(BranchOverUnreachableCode) {
   CHECK_EQ(18, r.Call());
 }
 
+WASM_EXEC_TEST(BranchOverUnreachableCodeInLoop0) {
+  WasmRunner<int32_t> r(execution_mode);
+  BUILD(r,
+        WASM_BLOCK_I(
+            // Start a loop which breaks in the middle (hence unreachable code
+            // afterwards) and continue execution after this loop.
+            // This should validate even though there is no value on the stack
+            // at the end of the loop.
+            WASM_LOOP_I(WASM_BRV(1, WASM_I32V_1(17)))),
+        // Add one to the 17 returned from the block.
+        WASM_ONE, kExprI32Add);
+  CHECK_EQ(18, r.Call());
+}
+
+WASM_EXEC_TEST(BranchOverUnreachableCodeInLoop1) {
+  WasmRunner<int32_t> r(execution_mode);
+  BUILD(r,
+        WASM_BLOCK_I(
+            // Start a loop which breaks in the middle (hence unreachable code
+            // afterwards) and continue execution after this loop.
+            // Even though unreachable, the loop leaves one value on the stack.
+            WASM_LOOP_I(WASM_BRV(1, WASM_I32V_1(17)), WASM_ONE)),
+        // Add one to the 17 returned from the block.
+        WASM_ONE, kExprI32Add);
+  CHECK_EQ(18, r.Call());
+}
+
+WASM_EXEC_TEST(BranchOverUnreachableCodeInLoop2) {
+  WasmRunner<int32_t> r(execution_mode);
+  BUILD(r,
+        WASM_BLOCK_I(
+            // Start a loop which breaks in the middle (hence unreachable code
+            // afterwards) and continue execution after this loop.
+            // The unreachable code is allowed to pop non-existing values off
+            // the stack and push back the result.
+            WASM_LOOP_I(WASM_BRV(1, WASM_I32V_1(17)), kExprI32Add)),
+        // Add one to the 17 returned from the block.
+        WASM_ONE, kExprI32Add);
+  CHECK_EQ(18, r.Call());
+}
+
 WASM_EXEC_TEST(BlockInsideUnreachable) {
   WasmRunner<int32_t> r(execution_mode);
   BUILD(r, WASM_RETURN1(WASM_I32V_1(17)), WASM_BLOCK(WASM_BR(0)));
@@ -3050,3 +3080,14 @@ WASM_EXEC_TEST(IfInsideUnreachable) {
       WASM_IF_ELSE_I(WASM_ONE, WASM_BRV(0, WASM_ONE), WASM_RETURN1(WASM_ONE)));
   CHECK_EQ(17, r.Call());
 }
+
+#undef B1
+#undef B2
+#undef RET
+#undef RET_I8
+#undef ADD_CODE
+
+}  // namespace test_run_wasm
+}  // namespace wasm
+}  // namespace internal
+}  // namespace v8

@@ -72,28 +72,28 @@ server.listen(0, common.mustCall(function() {
       ':path',
       ':authority',
       ':scheme'
-    ].forEach((header) => assert.throws(
+    ].forEach((header) => common.expectsError(
       () => response.setHeader(header, 'foobar'),
-      common.expectsError({
+      {
         code: 'ERR_HTTP2_PSEUDOHEADER_NOT_ALLOWED',
         type: Error,
         message: 'Cannot set HTTP/2 pseudo-headers'
       })
-    ));
-    assert.throws(function() {
+    );
+    common.expectsError(function() {
       response.setHeader(real, null);
-    }, common.expectsError({
+    }, {
       code: 'ERR_HTTP2_INVALID_HEADER_VALUE',
       type: TypeError,
       message: 'Invalid value "null" for header "foo-bar"'
-    }));
-    assert.throws(function() {
+    });
+    common.expectsError(function() {
       response.setHeader(real, undefined);
-    }, common.expectsError({
+    }, {
       code: 'ERR_HTTP2_INVALID_HEADER_VALUE',
       type: TypeError,
       message: 'Invalid value "undefined" for header "foo-bar"'
-    }));
+    });
     common.expectsError(
       () => response.setHeader(), // header name undefined
       {
@@ -179,7 +179,7 @@ server.listen(0, common.mustCall(function() {
     };
     const request = client.request(headers);
     request.on('end', common.mustCall(function() {
-      client.destroy();
+      client.close();
     }));
     request.end();
     request.resume();

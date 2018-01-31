@@ -13,20 +13,19 @@ snippet: "
    case 2: return 3;
   }
 "
-frame size: 3
+frame size: 2
 parameter count: 1
-bytecode array length: 34
+bytecode array length: 32
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaSmi), I8(1),
                 B(Star), R(0),
-                B(Star), R(1),
   /*   45 S> */ B(LdaSmi), I8(1),
-                B(TestEqualStrict), R(1), U8(0),
-                B(Mov), R(0), R(2),
+                B(TestEqualStrict), R(0), U8(0),
+                B(Mov), R(0), R(1),
                 B(JumpIfTrue), U8(11),
                 B(LdaSmi), I8(2),
-                B(TestEqualStrict), R(2), U8(1),
+                B(TestEqualStrict), R(1), U8(0),
                 B(JumpIfTrue), U8(7),
                 B(Jump), U8(8),
   /*   66 S> */ B(LdaSmi), I8(2),
@@ -49,20 +48,19 @@ snippet: "
    case 2: a = 3; break;
   }
 "
-frame size: 3
+frame size: 2
 parameter count: 1
-bytecode array length: 40
+bytecode array length: 38
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaSmi), I8(1),
                 B(Star), R(0),
-                B(Star), R(1),
   /*   45 S> */ B(LdaSmi), I8(1),
-                B(TestEqualStrict), R(1), U8(0),
-                B(Mov), R(0), R(2),
+                B(TestEqualStrict), R(0), U8(0),
+                B(Mov), R(0), R(1),
                 B(JumpIfTrue), U8(11),
                 B(LdaSmi), I8(2),
-                B(TestEqualStrict), R(2), U8(1),
+                B(TestEqualStrict), R(1), U8(0),
                 B(JumpIfTrue), U8(10),
                 B(Jump), U8(14),
   /*   66 S> */ B(LdaSmi), I8(2),
@@ -87,20 +85,19 @@ snippet: "
    case 2: a = 3; break;
   }
 "
-frame size: 3
+frame size: 2
 parameter count: 1
-bytecode array length: 38
+bytecode array length: 36
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaSmi), I8(1),
                 B(Star), R(0),
-                B(Star), R(1),
   /*   45 S> */ B(LdaSmi), I8(1),
-                B(TestEqualStrict), R(1), U8(0),
-                B(Mov), R(0), R(2),
+                B(TestEqualStrict), R(0), U8(0),
+                B(Mov), R(0), R(1),
                 B(JumpIfTrue), U8(11),
                 B(LdaSmi), I8(2),
-                B(TestEqualStrict), R(2), U8(1),
+                B(TestEqualStrict), R(1), U8(0),
                 B(JumpIfTrue), U8(8),
                 B(Jump), U8(12),
   /*   66 S> */ B(LdaSmi), I8(2),
@@ -125,20 +122,19 @@ snippet: "
    default: a = 1; break;
   }
 "
-frame size: 3
+frame size: 2
 parameter count: 1
-bytecode array length: 38
+bytecode array length: 36
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaSmi), I8(1),
                 B(Star), R(0),
-                B(Star), R(1),
   /*   45 S> */ B(LdaSmi), I8(2),
-                B(TestEqualStrict), R(1), U8(0),
-                B(Mov), R(0), R(2),
+                B(TestEqualStrict), R(0), U8(0),
+                B(Mov), R(0), R(1),
                 B(JumpIfTrue), U8(11),
                 B(LdaSmi), I8(3),
-                B(TestEqualStrict), R(2), U8(1),
+                B(TestEqualStrict), R(1), U8(0),
                 B(JumpIfTrue), U8(6),
                 B(Jump), U8(6),
   /*   66 S> */ B(Jump), U8(10),
@@ -163,21 +159,20 @@ snippet: "
    default: a = 3; break;
   }
 "
-frame size: 3
+frame size: 2
 parameter count: 1
-bytecode array length: 47
+bytecode array length: 44
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaSmi), I8(1),
                 B(Star), R(0),
-  /*   42 E> */ B(TypeOf),
+  /*   45 S> */ B(TypeOf),
                 B(Star), R(1),
-  /*   45 S> */ B(LdaSmi), I8(2),
+                B(LdaSmi), I8(2),
                 B(TestEqualStrict), R(1), U8(0),
-                B(Mov), R(1), R(2),
                 B(JumpIfTrue), U8(11),
                 B(LdaSmi), I8(3),
-                B(TestEqualStrict), R(2), U8(1),
+                B(TestEqualStrict), R(1), U8(0),
                 B(JumpIfTrue), U8(10),
                 B(Jump), U8(14),
   /*   74 S> */ B(LdaSmi), I8(1),
@@ -205,17 +200,16 @@ snippet: "
    default: a = 2; break;
   }
 "
-frame size: 3
+frame size: 2
 parameter count: 1
-bytecode array length: 32
+bytecode array length: 30
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaSmi), I8(1),
                 B(Star), R(0),
-                B(Star), R(1),
   /*   45 S> */ B(TypeOf),
-                B(TestEqualStrict), R(1), U8(0),
-                B(Mov), R(0), R(2),
+                B(TestEqualStrict), R(0), U8(0),
+                B(Mov), R(0), R(1),
                 B(JumpIfTrue), U8(4),
                 B(Jump), U8(8),
   /*   74 S> */ B(LdaSmi), I8(1),
@@ -307,20 +301,19 @@ snippet: "
     break;
   }
 "
-frame size: 3
+frame size: 2
 parameter count: 1
-bytecode array length: 292
+bytecode array length: 290
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaSmi), I8(1),
                 B(Star), R(0),
-                B(Star), R(1),
   /*   45 S> */ B(LdaSmi), I8(1),
-                B(TestEqualStrict), R(1), U8(0),
-                B(Mov), R(0), R(2),
+                B(TestEqualStrict), R(0), U8(0),
+                B(Mov), R(0), R(1),
                 B(JumpIfTrue), U8(11),
                 B(LdaSmi), I8(2),
-                B(TestEqualStrict), R(2), U8(1),
+                B(TestEqualStrict), R(1), U8(0),
                 B(JumpIfTrueConstant), U8(0),
                 B(JumpConstant), U8(1),
   /*   68 S> */ B(LdaSmi), I8(2),
@@ -477,28 +470,26 @@ snippet: "
    case 2: a = 3;
   }
 "
-frame size: 5
+frame size: 3
 parameter count: 1
-bytecode array length: 63
+bytecode array length: 58
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaSmi), I8(1),
                 B(Star), R(0),
-                B(Star), R(2),
   /*   45 S> */ B(LdaSmi), I8(1),
-                B(TestEqualStrict), R(2), U8(3),
-                B(Mov), R(0), R(3),
+                B(TestEqualStrict), R(0), U8(0),
+                B(Mov), R(0), R(1),
                 B(JumpIfTrue), U8(11),
                 B(LdaSmi), I8(2),
-                B(TestEqualStrict), R(3), U8(4),
-                B(JumpIfTrue), U8(35),
-                B(Jump), U8(37),
-                B(Ldar), R(0),
-  /*   79 E> */ B(AddSmi), I8(1), U8(0),
-                B(Star), R(1),
-  /*   70 S> */ B(LdaSmi), I8(2),
-                B(TestEqualStrict), R(1), U8(1),
-                B(Mov), R(1), R(4),
+                B(TestEqualStrict), R(1), U8(0),
+                B(JumpIfTrue), U8(32),
+                B(Jump), U8(34),
+  /*   70 S> */ B(Ldar), R(0),
+  /*   79 E> */ B(AddSmi), I8(1), U8(1),
+                B(Star), R(2),
+                B(LdaSmi), I8(2),
+                B(TestEqualStrict), R(2), U8(2),
                 B(JumpIfTrue), U8(4),
                 B(Jump), U8(8),
   /*  101 S> */ B(LdaSmi), I8(1),

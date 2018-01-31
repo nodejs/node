@@ -10,7 +10,7 @@ const { URL } = require('url');
 const Loader = require('internal/loader/Loader');
 const ModuleMap = require('internal/loader/ModuleMap');
 const ModuleJob = require('internal/loader/ModuleJob');
-const { createDynamicModule } = require('internal/loader/ModuleWrap');
+const createDynamicModule = require('internal/loader/CreateDynamicModule');
 
 const stubModuleUrl = new URL('file://tmp/test');
 const stubModule = createDynamicModule(['default'], stubModuleUrl);

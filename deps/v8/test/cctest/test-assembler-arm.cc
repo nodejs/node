@@ -36,18 +36,15 @@
 #include "src/macro-assembler.h"
 #include "src/ostreams.h"
 #include "src/v8.h"
+#include "test/cctest/assembler-helper-arm.h"
 #include "test/cctest/cctest.h"
+#include "test/cctest/compiler/value-helper.h"
 
-using namespace v8::base;
-using namespace v8::internal;
+namespace v8 {
+namespace internal {
+namespace test_assembler_arm {
 
-
-// Define these function prototypes to match JSEntryFunction in execution.cc.
-typedef Object* (*F1)(int x, int p1, int p2, int p3, int p4);
-typedef Object* (*F2)(int x, int y, int p2, int p3, int p4);
-typedef Object* (*F3)(void* p0, int p1, int p2, int p3, int p4);
-typedef Object* (*F4)(void* p0, void* p1, int p2, int p3, int p4);
-typedef Object* (*F5)(uint32_t p0, void* p1, void* p2, int p3, int p4);
+using base::RandomNumberGenerator;
 
 #define __ assm.
 
@@ -56,20 +53,20 @@ TEST(0) {
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
 
-  Assembler assm(isolate, NULL, 0);
+  Assembler assm(isolate, nullptr, 0);
 
   __ add(r0, r0, Operand(r1));
   __ mov(pc, Operand(lr));
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code = isolate->factory()->NewCode(
-      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+  Handle<Code> code =
+      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef DEBUG
   OFStream os(stdout);
   code->Print(os);
 #endif
-  F2 f = FUNCTION_CAST<F2>(code->entry());
+  F_iiiii f = FUNCTION_CAST<F_iiiii>(code->entry());
   int res =
       reinterpret_cast<int>(CALL_GENERATED_CODE(isolate, f, 3, 4, 0, 0, 0));
   ::printf("f() = %d\n", res);
@@ -82,7 +79,7 @@ TEST(1) {
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
 
-  Assembler assm(isolate, NULL, 0);
+  Assembler assm(isolate, nullptr, 0);
   Label L, C;
 
   __ mov(r1, Operand(r0));
@@ -100,13 +97,13 @@ TEST(1) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code = isolate->factory()->NewCode(
-      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+  Handle<Code> code =
+      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef DEBUG
   OFStream os(stdout);
   code->Print(os);
 #endif
-  F1 f = FUNCTION_CAST<F1>(code->entry());
+  F_iiiii f = FUNCTION_CAST<F_iiiii>(code->entry());
   int res =
       reinterpret_cast<int>(CALL_GENERATED_CODE(isolate, f, 100, 0, 0, 0, 0));
   ::printf("f() = %d\n", res);
@@ -119,7 +116,7 @@ TEST(2) {
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
 
-  Assembler assm(isolate, NULL, 0);
+  Assembler assm(isolate, nullptr, 0);
   Label L, C;
 
   __ mov(r1, Operand(r0));
@@ -146,13 +143,13 @@ TEST(2) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code = isolate->factory()->NewCode(
-      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+  Handle<Code> code =
+      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef DEBUG
   OFStream os(stdout);
   code->Print(os);
 #endif
-  F1 f = FUNCTION_CAST<F1>(code->entry());
+  F_iiiii f = FUNCTION_CAST<F_iiiii>(code->entry());
   int res =
       reinterpret_cast<int>(CALL_GENERATED_CODE(isolate, f, 10, 0, 0, 0, 0));
   ::printf("f() = %d\n", res);
@@ -172,7 +169,7 @@ TEST(3) {
   } T;
   T t;
 
-  Assembler assm(isolate, NULL, 0);
+  Assembler assm(isolate, nullptr, 0);
   Label L, C;
 
   __ mov(ip, Operand(sp));
@@ -194,13 +191,13 @@ TEST(3) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code = isolate->factory()->NewCode(
-      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+  Handle<Code> code =
+      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef DEBUG
   OFStream os(stdout);
   code->Print(os);
 #endif
-  F3 f = FUNCTION_CAST<F3>(code->entry());
+  F_piiii f = FUNCTION_CAST<F_piiii>(code->entry());
   t.i = 100000;
   t.c = 10;
   t.s = 1000;
@@ -242,7 +239,7 @@ TEST(4) {
 
   // Create a function that accepts &t, and loads, manipulates, and stores
   // the doubles and floats.
-  Assembler assm(isolate, NULL, 0);
+  Assembler assm(isolate, nullptr, 0);
   Label L, C;
 
   if (CpuFeatures::IsSupported(VFPv3)) {
@@ -326,13 +323,13 @@ TEST(4) {
 
     CodeDesc desc;
     assm.GetCode(isolate, &desc);
-    Handle<Code> code = isolate->factory()->NewCode(
-        desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+    Handle<Code> code =
+        isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef DEBUG
     OFStream os(stdout);
     code->Print(os);
 #endif
-    F3 f = FUNCTION_CAST<F3>(code->entry());
+    F_piiii f = FUNCTION_CAST<F_piiii>(code->entry());
     t.a = 1.5;
     t.b = 2.75;
     t.c = 17.17;
@@ -375,7 +372,7 @@ TEST(5) {
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
 
-  Assembler assm(isolate, NULL, 0);
+  Assembler assm(isolate, nullptr, 0);
 
   if (CpuFeatures::IsSupported(ARMv7)) {
     CpuFeatureScope scope(&assm, ARMv7);
@@ -389,13 +386,13 @@ TEST(5) {
 
     CodeDesc desc;
     assm.GetCode(isolate, &desc);
-    Handle<Code> code = isolate->factory()->NewCode(
-        desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+    Handle<Code> code =
+        isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef DEBUG
     OFStream os(stdout);
     code->Print(os);
 #endif
-    F1 f = FUNCTION_CAST<F1>(code->entry());
+    F_iiiii f = FUNCTION_CAST<F_iiiii>(code->entry());
     int res = reinterpret_cast<int>(
         CALL_GENERATED_CODE(isolate, f, 0xAAAAAAAA, 0, 0, 0, 0));
     ::printf("f() = %d\n", res);
@@ -410,7 +407,7 @@ TEST(6) {
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
 
-  Assembler assm(isolate, NULL, 0);
+  Assembler assm(isolate, nullptr, 0);
 
   __ usat(r1, 8, Operand(r0));           // Sat 0xFFFF to 0-255 = 0xFF.
   __ usat(r2, 12, Operand(r0, ASR, 9));  // Sat (0xFFFF>>9) to 0-4095 = 0x7F.
@@ -421,13 +418,13 @@ TEST(6) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code = isolate->factory()->NewCode(
-      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+  Handle<Code> code =
+      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef DEBUG
   OFStream os(stdout);
   code->Print(os);
 #endif
-  F1 f = FUNCTION_CAST<F1>(code->entry());
+  F_iiiii f = FUNCTION_CAST<F_iiiii>(code->entry());
   int res = reinterpret_cast<int>(
       CALL_GENERATED_CODE(isolate, f, 0xFFFF, 0, 0, 0, 0));
   ::printf("f() = %d\n", res);
@@ -448,7 +445,7 @@ static void TestRoundingMode(VCVTTypes types,
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
 
-  Assembler assm(isolate, NULL, 0);
+  Assembler assm(isolate, nullptr, 0);
 
   Label wrong_exception;
 
@@ -490,13 +487,13 @@ static void TestRoundingMode(VCVTTypes types,
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code = isolate->factory()->NewCode(
-      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+  Handle<Code> code =
+      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef DEBUG
   OFStream os(stdout);
   code->Print(os);
 #endif
-  F1 f = FUNCTION_CAST<F1>(code->entry());
+  F_iiiii f = FUNCTION_CAST<F_iiiii>(code->entry());
   int res =
       reinterpret_cast<int>(CALL_GENERATED_CODE(isolate, f, 0, 0, 0, 0, 0));
   ::printf("res = %d\n", res);
@@ -647,7 +644,7 @@ TEST(8) {
 
   // Create a function that uses vldm/vstm to move some double and
   // single precision values around in memory.
-  Assembler assm(isolate, NULL, 0);
+  Assembler assm(isolate, nullptr, 0);
 
   __ mov(ip, Operand(sp));
   __ stm(db_w, sp, r4.bit() | fp.bit() | lr.bit());
@@ -673,13 +670,13 @@ TEST(8) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code = isolate->factory()->NewCode(
-      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+  Handle<Code> code =
+      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef DEBUG
   OFStream os(stdout);
   code->Print(os);
 #endif
-  F4 fn = FUNCTION_CAST<F4>(code->entry());
+  F_ppiii fn = FUNCTION_CAST<F_ppiii>(code->entry());
   d.a = 1.1;
   d.b = 2.2;
   d.c = 3.3;
@@ -753,7 +750,7 @@ TEST(9) {
 
   // Create a function that uses vldm/vstm to move some double and
   // single precision values around in memory.
-  Assembler assm(isolate, NULL, 0);
+  Assembler assm(isolate, nullptr, 0);
 
   __ mov(ip, Operand(sp));
   __ stm(db_w, sp, r4.bit() | fp.bit() | lr.bit());
@@ -783,13 +780,13 @@ TEST(9) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code = isolate->factory()->NewCode(
-      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+  Handle<Code> code =
+      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef DEBUG
   OFStream os(stdout);
   code->Print(os);
 #endif
-  F4 fn = FUNCTION_CAST<F4>(code->entry());
+  F_ppiii fn = FUNCTION_CAST<F_ppiii>(code->entry());
   d.a = 1.1;
   d.b = 2.2;
   d.c = 3.3;
@@ -863,7 +860,7 @@ TEST(10) {
 
   // Create a function that uses vldm/vstm to move some double and
   // single precision values around in memory.
-  Assembler assm(isolate, NULL, 0);
+  Assembler assm(isolate, nullptr, 0);
 
   __ mov(ip, Operand(sp));
   __ stm(db_w, sp, r4.bit() | fp.bit() | lr.bit());
@@ -889,13 +886,13 @@ TEST(10) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code = isolate->factory()->NewCode(
-      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+  Handle<Code> code =
+      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef DEBUG
   OFStream os(stdout);
   code->Print(os);
 #endif
-  F4 fn = FUNCTION_CAST<F4>(code->entry());
+  F_ppiii fn = FUNCTION_CAST<F_ppiii>(code->entry());
   d.a = 1.1;
   d.b = 2.2;
   d.c = 3.3;
@@ -954,7 +951,7 @@ TEST(11) {
   i.a = 0xabcd0001;
   i.b = 0xabcd0000;
 
-  Assembler assm(isolate, NULL, 0);
+  Assembler assm(isolate, nullptr, 0);
 
   // Test HeapObject untagging.
   __ ldr(r1, MemOperand(r0, offsetof(I, a)));
@@ -984,13 +981,13 @@ TEST(11) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code = isolate->factory()->NewCode(
-      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+  Handle<Code> code =
+      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef DEBUG
   OFStream os(stdout);
   code->Print(os);
 #endif
-  F3 f = FUNCTION_CAST<F3>(code->entry());
+  F_piiii f = FUNCTION_CAST<F_piiii>(code->entry());
   Object* dummy = CALL_GENERATED_CODE(isolate, f, &i, 0, 0, 0, 0);
   USE(dummy);
 
@@ -1007,7 +1004,7 @@ TEST(12) {
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
 
-  Assembler assm(isolate, NULL, 0);
+  Assembler assm(isolate, nullptr, 0);
   Label target;
   __ b(eq, &target);
   __ b(ne, &target);
@@ -1043,7 +1040,7 @@ TEST(13) {
 
   // Create a function that accepts &t, and loads, manipulates, and stores
   // the doubles and floats.
-  Assembler assm(isolate, NULL, 0);
+  Assembler assm(isolate, nullptr, 0);
   Label L, C;
 
   if (CpuFeatures::IsSupported(VFPv3)) {
@@ -1111,13 +1108,13 @@ TEST(13) {
 
     CodeDesc desc;
     assm.GetCode(isolate, &desc);
-    Handle<Code> code = isolate->factory()->NewCode(
-        desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+    Handle<Code> code =
+        isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef DEBUG
     OFStream os(stdout);
     code->Print(os);
 #endif
-    F3 f = FUNCTION_CAST<F3>(code->entry());
+    F_piiii f = FUNCTION_CAST<F_piiii>(code->entry());
     t.a = 1.5;
     t.b = 2.75;
     t.c = 17.17;
@@ -1158,7 +1155,7 @@ TEST(14) {
   T t;
 
   // Create a function that makes the four basic operations.
-  Assembler assm(isolate, NULL, 0);
+  Assembler assm(isolate, nullptr, 0);
 
   // Ensure FPSCR state (as JSEntryStub does).
   Label fpscr_done;
@@ -1184,13 +1181,13 @@ TEST(14) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code = isolate->factory()->NewCode(
-      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+  Handle<Code> code =
+      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef DEBUG
   OFStream os(stdout);
   code->Print(os);
 #endif
-  F3 f = FUNCTION_CAST<F3>(code->entry());
+  F_piiii f = FUNCTION_CAST<F_piiii>(code->entry());
   t.left = bit_cast<double>(kHoleNanInt64);
   t.right = 1;
   t.add_result = 0;
@@ -1204,7 +1201,7 @@ TEST(14) {
 #ifdef DEBUG
   const uint64_t kArmNanInt64 =
       (static_cast<uint64_t>(kArmNanUpper32) << 32) | kArmNanLower32;
-  CHECK(kArmNanInt64 != kHoleNanInt64);
+  CHECK_NE(kArmNanInt64, kHoleNanInt64);
 #endif
   // With VFP2 the sign of the canonicalized Nan is undefined. So
   // we remove the sign bit for the upper tests.
@@ -1338,7 +1335,7 @@ TEST(15) {
 
   // Create a function that accepts &t, and loads, manipulates, and stores
   // the doubles, floats, and SIMD values.
-  Assembler assm(isolate, NULL, 0);
+  Assembler assm(isolate, nullptr, 0);
 
   if (CpuFeatures::IsSupported(NEON)) {
     CpuFeatureScope scope(&assm, NEON);
@@ -2065,13 +2062,13 @@ TEST(15) {
 
     CodeDesc desc;
     assm.GetCode(isolate, &desc);
-    Handle<Code> code = isolate->factory()->NewCode(
-        desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+    Handle<Code> code =
+        isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef DEBUG
     OFStream os(stdout);
     code->Print(os);
 #endif
-    F3 f = FUNCTION_CAST<F3>(code->entry());
+    F_piiii f = FUNCTION_CAST<F_piiii>(code->entry());
     t.src0 = 0x01020304;
     t.src1 = 0x11121314;
     t.src2 = 0x21222324;
@@ -2314,7 +2311,7 @@ TEST(16) {
 
   // Create a function that accepts &t, and loads, manipulates, and stores
   // the doubles and floats.
-  Assembler assm(isolate, NULL, 0);
+  Assembler assm(isolate, nullptr, 0);
 
   __ stm(db_w, sp, r4.bit() | lr.bit());
 
@@ -2342,13 +2339,13 @@ TEST(16) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code = isolate->factory()->NewCode(
-      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+  Handle<Code> code =
+      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef DEBUG
   OFStream os(stdout);
   code->Print(os);
 #endif
-  F3 f = FUNCTION_CAST<F3>(code->entry());
+  F_piiii f = FUNCTION_CAST<F_piiii>(code->entry());
   t.src0 = 0x01020304;
   t.src1 = 0x11121314;
   t.src2 = 0x11121300;
@@ -2375,7 +2372,7 @@ TEST(17) {
   HandleScope scope(isolate);
 
   // Generate a code segment that will be longer than 2^24 bytes.
-  Assembler assm(isolate, NULL, 0);
+  Assembler assm(isolate, nullptr, 0);
   for (size_t i = 0; i < 1 << 23 ; ++i) {  // 2^23
     __ nop();
   }
@@ -2400,7 +2397,7 @@ TEST(sdiv) {
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
-  Assembler assm(isolate, NULL, 0);
+  Assembler assm(isolate, nullptr, 0);
 
   struct T {
     int32_t dividend;
@@ -2423,13 +2420,13 @@ TEST(sdiv) {
 
     CodeDesc desc;
     assm.GetCode(isolate, &desc);
-    Handle<Code> code = isolate->factory()->NewCode(
-        desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+    Handle<Code> code =
+        isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef DEBUG
     OFStream os(stdout);
     code->Print(os);
 #endif
-    F3 f = FUNCTION_CAST<F3>(code->entry());
+    F_piiii f = FUNCTION_CAST<F_piiii>(code->entry());
     Object* dummy;
     TEST_SDIV(0, kMinInt, 0);
     TEST_SDIV(0, 1024, 0);
@@ -2464,7 +2461,7 @@ TEST(udiv) {
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
-  Assembler assm(isolate, NULL, 0);
+  Assembler assm(isolate, nullptr, 0);
 
   struct T {
     uint32_t dividend;
@@ -2487,13 +2484,13 @@ TEST(udiv) {
 
     CodeDesc desc;
     assm.GetCode(isolate, &desc);
-    Handle<Code> code = isolate->factory()->NewCode(
-        desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+    Handle<Code> code =
+        isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef DEBUG
     OFStream os(stdout);
     code->Print(os);
 #endif
-    F3 f = FUNCTION_CAST<F3>(code->entry());
+    F_piiii f = FUNCTION_CAST<F_piiii>(code->entry());
     Object* dummy;
     TEST_UDIV(0u, 0, 0);
     TEST_UDIV(0u, 1024, 0);
@@ -2518,16 +2515,16 @@ TEST(smmla) {
   __ bx(lr);
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code = isolate->factory()->NewCode(
-      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+  Handle<Code> code =
+      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef OBJECT_PRINT
   code->Print(std::cout);
 #endif
-  F3 f = FUNCTION_CAST<F3>(code->entry());
+  F_piiii f = FUNCTION_CAST<F_piiii>(code->entry());
   for (size_t i = 0; i < 128; ++i) {
     int32_t r, x = rng->NextInt(), y = rng->NextInt(), z = rng->NextInt();
     Object* dummy = CALL_GENERATED_CODE(isolate, f, &r, x, y, z, 0);
-    CHECK_EQ(bits::SignedMulHighAndAdd32(x, y, z), r);
+    CHECK_EQ(base::bits::SignedMulHighAndAdd32(x, y, z), r);
     USE(dummy);
   }
 }
@@ -2544,16 +2541,16 @@ TEST(smmul) {
   __ bx(lr);
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code = isolate->factory()->NewCode(
-      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+  Handle<Code> code =
+      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef OBJECT_PRINT
   code->Print(std::cout);
 #endif
-  F3 f = FUNCTION_CAST<F3>(code->entry());
+  F_piiii f = FUNCTION_CAST<F_piiii>(code->entry());
   for (size_t i = 0; i < 128; ++i) {
     int32_t r, x = rng->NextInt(), y = rng->NextInt();
     Object* dummy = CALL_GENERATED_CODE(isolate, f, &r, x, y, 0, 0);
-    CHECK_EQ(bits::SignedMulHigh32(x, y), r);
+    CHECK_EQ(base::bits::SignedMulHigh32(x, y), r);
     USE(dummy);
   }
 }
@@ -2570,12 +2567,12 @@ TEST(sxtb) {
   __ bx(lr);
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code = isolate->factory()->NewCode(
-      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+  Handle<Code> code =
+      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef OBJECT_PRINT
   code->Print(std::cout);
 #endif
-  F3 f = FUNCTION_CAST<F3>(code->entry());
+  F_piiii f = FUNCTION_CAST<F_piiii>(code->entry());
   for (size_t i = 0; i < 128; ++i) {
     int32_t r, x = rng->NextInt();
     Object* dummy = CALL_GENERATED_CODE(isolate, f, &r, x, 0, 0, 0);
@@ -2596,12 +2593,12 @@ TEST(sxtab) {
   __ bx(lr);
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code = isolate->factory()->NewCode(
-      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+  Handle<Code> code =
+      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef OBJECT_PRINT
   code->Print(std::cout);
 #endif
-  F3 f = FUNCTION_CAST<F3>(code->entry());
+  F_piiii f = FUNCTION_CAST<F_piiii>(code->entry());
   for (size_t i = 0; i < 128; ++i) {
     int32_t r, x = rng->NextInt(), y = rng->NextInt();
     Object* dummy = CALL_GENERATED_CODE(isolate, f, &r, x, y, 0, 0);
@@ -2622,12 +2619,12 @@ TEST(sxth) {
   __ bx(lr);
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code = isolate->factory()->NewCode(
-      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+  Handle<Code> code =
+      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef OBJECT_PRINT
   code->Print(std::cout);
 #endif
-  F3 f = FUNCTION_CAST<F3>(code->entry());
+  F_piiii f = FUNCTION_CAST<F_piiii>(code->entry());
   for (size_t i = 0; i < 128; ++i) {
     int32_t r, x = rng->NextInt();
     Object* dummy = CALL_GENERATED_CODE(isolate, f, &r, x, 0, 0, 0);
@@ -2648,12 +2645,12 @@ TEST(sxtah) {
   __ bx(lr);
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code = isolate->factory()->NewCode(
-      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+  Handle<Code> code =
+      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef OBJECT_PRINT
   code->Print(std::cout);
 #endif
-  F3 f = FUNCTION_CAST<F3>(code->entry());
+  F_piiii f = FUNCTION_CAST<F_piiii>(code->entry());
   for (size_t i = 0; i < 128; ++i) {
     int32_t r, x = rng->NextInt(), y = rng->NextInt();
     Object* dummy = CALL_GENERATED_CODE(isolate, f, &r, x, y, 0, 0);
@@ -2674,12 +2671,12 @@ TEST(uxtb) {
   __ bx(lr);
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code = isolate->factory()->NewCode(
-      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+  Handle<Code> code =
+      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef OBJECT_PRINT
   code->Print(std::cout);
 #endif
-  F3 f = FUNCTION_CAST<F3>(code->entry());
+  F_piiii f = FUNCTION_CAST<F_piiii>(code->entry());
   for (size_t i = 0; i < 128; ++i) {
     int32_t r, x = rng->NextInt();
     Object* dummy = CALL_GENERATED_CODE(isolate, f, &r, x, 0, 0, 0);
@@ -2700,12 +2697,12 @@ TEST(uxtab) {
   __ bx(lr);
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code = isolate->factory()->NewCode(
-      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+  Handle<Code> code =
+      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef OBJECT_PRINT
   code->Print(std::cout);
 #endif
-  F3 f = FUNCTION_CAST<F3>(code->entry());
+  F_piiii f = FUNCTION_CAST<F_piiii>(code->entry());
   for (size_t i = 0; i < 128; ++i) {
     int32_t r, x = rng->NextInt(), y = rng->NextInt();
     Object* dummy = CALL_GENERATED_CODE(isolate, f, &r, x, y, 0, 0);
@@ -2726,12 +2723,12 @@ TEST(uxth) {
   __ bx(lr);
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code = isolate->factory()->NewCode(
-      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+  Handle<Code> code =
+      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef OBJECT_PRINT
   code->Print(std::cout);
 #endif
-  F3 f = FUNCTION_CAST<F3>(code->entry());
+  F_piiii f = FUNCTION_CAST<F_piiii>(code->entry());
   for (size_t i = 0; i < 128; ++i) {
     int32_t r, x = rng->NextInt();
     Object* dummy = CALL_GENERATED_CODE(isolate, f, &r, x, 0, 0, 0);
@@ -2752,12 +2749,12 @@ TEST(uxtah) {
   __ bx(lr);
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code = isolate->factory()->NewCode(
-      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+  Handle<Code> code =
+      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef OBJECT_PRINT
   code->Print(std::cout);
 #endif
-  F3 f = FUNCTION_CAST<F3>(code->entry());
+  F_piiii f = FUNCTION_CAST<F_piiii>(code->entry());
   for (size_t i = 0; i < 128; ++i) {
     int32_t r, x = rng->NextInt(), y = rng->NextInt();
     Object* dummy = CALL_GENERATED_CODE(isolate, f, &r, x, y, 0, 0);
@@ -2794,15 +2791,15 @@ TEST(rbit) {
 
     CodeDesc desc;
     assm.GetCode(isolate, &desc);
-    Handle<Code> code = isolate->factory()->NewCode(
-        desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+    Handle<Code> code =
+        isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 
 #ifdef OBJECT_PRINT
     code->Print(std::cout);
 #endif
 
-    F3 f = FUNCTION_CAST<F3>(code->entry());
-    Object* dummy = NULL;
+    F_piiii f = FUNCTION_CAST<F_piiii>(code->entry());
+    Object* dummy = nullptr;
     TEST_RBIT(0xffffffff, 0xffffffff);
     TEST_RBIT(0x00000000, 0x00000000);
     TEST_RBIT(0xffff0000, 0x0000ffff);
@@ -2823,7 +2820,7 @@ TEST(code_relative_offset) {
   // Initialize a code object that will contain the code.
   Handle<HeapObject> code_object(isolate->heap()->undefined_value(), isolate);
 
-  Assembler assm(isolate, NULL, 0);
+  Assembler assm(isolate, nullptr, 0);
 
   Label start, target_away, target_faraway;
 
@@ -2876,9 +2873,9 @@ TEST(code_relative_offset) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code = isolate->factory()->NewCode(
-      desc, Code::ComputeFlags(Code::STUB), code_object);
-  F1 f = FUNCTION_CAST<F1>(code->entry());
+  Handle<Code> code =
+      isolate->factory()->NewCode(desc, Code::STUB, code_object);
+  F_iiiii f = FUNCTION_CAST<F_iiiii>(code->entry());
   int res =
       reinterpret_cast<int>(CALL_GENERATED_CODE(isolate, f, 21, 0, 0, 0, 0));
   ::printf("f() = %d\n", res);
@@ -2891,7 +2888,7 @@ TEST(msr_mrs) {
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
 
-  Assembler assm(isolate, NULL, 0);
+  Assembler assm(isolate, nullptr, 0);
 
   // Create a helper function:
   //  void TestMsrMrs(uint32_t nzcv,
@@ -2916,13 +2913,13 @@ TEST(msr_mrs) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code = isolate->factory()->NewCode(
-      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+  Handle<Code> code =
+      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef DEBUG
   OFStream os(stdout);
   code->Print(os);
 #endif
-  F5 f = FUNCTION_CAST<F5>(code->entry());
+  F_ippii f = FUNCTION_CAST<F_ippii>(code->entry());
   Object* dummy = nullptr;
   USE(dummy);
 
@@ -2976,7 +2973,7 @@ TEST(ARMv8_float32_vrintX) {
 
   // Create a function that accepts &t, and loads, manipulates, and stores
   // the floats.
-  Assembler assm(isolate, NULL, 0);
+  Assembler assm(isolate, nullptr, 0);
   Label L, C;
 
 
@@ -3017,13 +3014,13 @@ TEST(ARMv8_float32_vrintX) {
 
     CodeDesc desc;
     assm.GetCode(isolate, &desc);
-    Handle<Code> code = isolate->factory()->NewCode(
-        desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+    Handle<Code> code =
+        isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef DEBUG
     OFStream os(stdout);
     code->Print(os);
 #endif
-    F3 f = FUNCTION_CAST<F3>(code->entry());
+    F_piiii f = FUNCTION_CAST<F_piiii>(code->entry());
 
     Object* dummy = nullptr;
     USE(dummy);
@@ -3081,7 +3078,7 @@ TEST(ARMv8_vrintX) {
 
   // Create a function that accepts &t, and loads, manipulates, and stores
   // the doubles and floats.
-  Assembler assm(isolate, NULL, 0);
+  Assembler assm(isolate, nullptr, 0);
   Label L, C;
 
 
@@ -3122,13 +3119,13 @@ TEST(ARMv8_vrintX) {
 
     CodeDesc desc;
     assm.GetCode(isolate, &desc);
-    Handle<Code> code = isolate->factory()->NewCode(
-        desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+    Handle<Code> code =
+        isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef DEBUG
     OFStream os(stdout);
     code->Print(os);
 #endif
-    F3 f = FUNCTION_CAST<F3>(code->entry());
+    F_piiii f = FUNCTION_CAST<F_piiii>(code->entry());
 
     Object* dummy = nullptr;
     USE(dummy);
@@ -3173,7 +3170,7 @@ TEST(ARMv8_vsel) {
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
 
-  Assembler assm(isolate, NULL, 0);
+  Assembler assm(isolate, nullptr, 0);
 
   // Used to indicate whether a condition passed or failed.
   static constexpr float kResultPass = 1.0f;
@@ -3262,13 +3259,13 @@ TEST(ARMv8_vsel) {
 
     CodeDesc desc;
     assm.GetCode(isolate, &desc);
-    Handle<Code> code = isolate->factory()->NewCode(
-        desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+    Handle<Code> code =
+        isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef DEBUG
     OFStream os(stdout);
     code->Print(os);
 #endif
-    F5 f = FUNCTION_CAST<F5>(code->entry());
+    F_ippii f = FUNCTION_CAST<F_ippii>(code->entry());
     Object* dummy = nullptr;
     USE(dummy);
 
@@ -3326,7 +3323,7 @@ TEST(ARMv8_vminmax_f64) {
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
 
-  Assembler assm(isolate, NULL, 0);
+  Assembler assm(isolate, nullptr, 0);
 
   struct Inputs {
     double left_;
@@ -3356,13 +3353,13 @@ TEST(ARMv8_vminmax_f64) {
 
     CodeDesc desc;
     assm.GetCode(isolate, &desc);
-    Handle<Code> code = isolate->factory()->NewCode(
-        desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+    Handle<Code> code =
+        isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef DEBUG
     OFStream os(stdout);
     code->Print(os);
 #endif
-    F4 f = FUNCTION_CAST<F4>(code->entry());
+    F_ppiii f = FUNCTION_CAST<F_ppiii>(code->entry());
     Object* dummy = nullptr;
     USE(dummy);
 
@@ -3408,7 +3405,7 @@ TEST(ARMv8_vminmax_f32) {
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
 
-  Assembler assm(isolate, NULL, 0);
+  Assembler assm(isolate, nullptr, 0);
 
   struct Inputs {
     float left_;
@@ -3438,13 +3435,13 @@ TEST(ARMv8_vminmax_f32) {
 
     CodeDesc desc;
     assm.GetCode(isolate, &desc);
-    Handle<Code> code = isolate->factory()->NewCode(
-        desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+    Handle<Code> code =
+        isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef DEBUG
     OFStream os(stdout);
     code->Print(os);
 #endif
-    F4 f = FUNCTION_CAST<F4>(code->entry());
+    F_ppiii f = FUNCTION_CAST<F_ppiii>(code->entry());
     Object* dummy = nullptr;
     USE(dummy);
 
@@ -3485,7 +3482,7 @@ TEST(ARMv8_vminmax_f32) {
 }
 
 template <typename T, typename Inputs, typename Results>
-static F4 GenerateMacroFloatMinMax(MacroAssembler& assm) {
+static F_ppiii GenerateMacroFloatMinMax(MacroAssembler& assm) {
   T a = T::from_code(0);  // d0/s0
   T b = T::from_code(1);  // d1/s1
   T c = T::from_code(2);  // d2/s2
@@ -3570,13 +3567,13 @@ static F4 GenerateMacroFloatMinMax(MacroAssembler& assm) {
 
   CodeDesc desc;
   assm.GetCode(assm.isolate(), &desc);
-  Handle<Code> code = assm.isolate()->factory()->NewCode(
-      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+  Handle<Code> code =
+      assm.isolate()->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef DEBUG
   OFStream os(stdout);
   code->Print(os);
 #endif
-  return FUNCTION_CAST<F4>(code->entry());
+  return FUNCTION_CAST<F_ppiii>(code->entry());
 }
 
 TEST(macro_float_minmax_f64) {
@@ -3585,7 +3582,7 @@ TEST(macro_float_minmax_f64) {
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
 
-  MacroAssembler assm(isolate, NULL, 0, CodeObjectRequired::kYes);
+  MacroAssembler assm(isolate, nullptr, 0, CodeObjectRequired::kYes);
 
   struct Inputs {
     double left_;
@@ -3603,7 +3600,7 @@ TEST(macro_float_minmax_f64) {
     double max_aba_;
   };
 
-  F4 f = GenerateMacroFloatMinMax<DwVfpRegister, Inputs, Results>(assm);
+  F_ppiii f = GenerateMacroFloatMinMax<DwVfpRegister, Inputs, Results>(assm);
 
   Object* dummy = nullptr;
   USE(dummy);
@@ -3653,7 +3650,7 @@ TEST(macro_float_minmax_f32) {
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
 
-  MacroAssembler assm(isolate, NULL, 0, CodeObjectRequired::kYes);
+  MacroAssembler assm(isolate, nullptr, 0, CodeObjectRequired::kYes);
 
   struct Inputs {
     float left_;
@@ -3671,7 +3668,7 @@ TEST(macro_float_minmax_f32) {
     float max_aba_;
   };
 
-  F4 f = GenerateMacroFloatMinMax<SwVfpRegister, Inputs, Results>(assm);
+  F_ppiii f = GenerateMacroFloatMinMax<SwVfpRegister, Inputs, Results>(assm);
   Object* dummy = nullptr;
   USE(dummy);
 
@@ -3727,7 +3724,7 @@ TEST(unaligned_loads) {
   } T;
   T t;
 
-  Assembler assm(isolate, NULL, 0);
+  Assembler assm(isolate, nullptr, 0);
   __ ldrh(ip, MemOperand(r1, r2));
   __ str(ip, MemOperand(r0, offsetof(T, ldrh)));
   __ ldrsh(ip, MemOperand(r1, r2));
@@ -3738,13 +3735,13 @@ TEST(unaligned_loads) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code = isolate->factory()->NewCode(
-      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+  Handle<Code> code =
+      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef DEBUG
   OFStream os(stdout);
   code->Print(os);
 #endif
-  F4 f = FUNCTION_CAST<F4>(code->entry());
+  F_ppiii f = FUNCTION_CAST<F_ppiii>(code->entry());
 
   Object* dummy = nullptr;
   USE(dummy);
@@ -3777,20 +3774,20 @@ TEST(unaligned_stores) {
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
 
-  Assembler assm(isolate, NULL, 0);
+  Assembler assm(isolate, nullptr, 0);
   __ strh(r3, MemOperand(r0, r2));
   __ str(r3, MemOperand(r1, r2));
   __ bx(lr);
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code = isolate->factory()->NewCode(
-      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+  Handle<Code> code =
+      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef DEBUG
   OFStream os(stdout);
   code->Print(os);
 #endif
-  F4 f = FUNCTION_CAST<F4>(code->entry());
+  F_ppiii f = FUNCTION_CAST<F_ppiii>(code->entry());
 
   Object* dummy = nullptr;
   USE(dummy);
@@ -3834,7 +3831,7 @@ TEST(vswp) {
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
-  Assembler assm(isolate, NULL, 0);
+  Assembler assm(isolate, nullptr, 0);
 
   typedef struct {
     uint64_t vswp_d0;
@@ -3887,13 +3884,13 @@ TEST(vswp) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code = isolate->factory()->NewCode(
-      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+  Handle<Code> code =
+      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef DEBUG
   OFStream os(stdout);
   code->Print(os);
 #endif
-  F3 f = FUNCTION_CAST<F3>(code->entry());
+  F_piiii f = FUNCTION_CAST<F_piiii>(code->entry());
   Object* dummy = CALL_GENERATED_CODE(isolate, f, &t, 0, 0, 0, 0);
   USE(dummy);
   CHECK_EQ(minus_one, t.vswp_d0);
@@ -3917,7 +3914,7 @@ TEST(regress4292_b) {
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
 
-  Assembler assm(isolate, NULL, 0);
+  Assembler assm(isolate, nullptr, 0);
   Label end;
   __ mov(r0, Operand(isolate->factory()->infinity_value()));
   for (int i = 0; i < 1020; ++i) {
@@ -3932,7 +3929,7 @@ TEST(regress4292_bl) {
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
 
-  Assembler assm(isolate, NULL, 0);
+  Assembler assm(isolate, nullptr, 0);
   Label end;
   __ mov(r0, Operand(isolate->factory()->infinity_value()));
   for (int i = 0; i < 1020; ++i) {
@@ -3947,7 +3944,7 @@ TEST(regress4292_blx) {
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
 
-  Assembler assm(isolate, NULL, 0);
+  Assembler assm(isolate, nullptr, 0);
   Label end;
   __ mov(r0, Operand(isolate->factory()->infinity_value()));
   for (int i = 0; i < 1020; ++i) {
@@ -3962,7 +3959,7 @@ TEST(regress4292_CheckConstPool) {
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
 
-  Assembler assm(isolate, NULL, 0);
+  Assembler assm(isolate, nullptr, 0);
   __ mov(r0, Operand(isolate->factory()->infinity_value()));
   __ BlockConstPoolFor(1019);
   for (int i = 0; i < 1019; ++i) __ nop();
@@ -3974,7 +3971,7 @@ TEST(use_scratch_register_scope) {
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
 
-  Assembler assm(isolate, NULL, 0);
+  Assembler assm(isolate, nullptr, 0);
 
   // The assembler should have ip as a scratch by default.
   CHECK_EQ(*assm.GetScratchRegisterList(), ip.bit());
@@ -3991,4 +3988,181 @@ TEST(use_scratch_register_scope) {
   CHECK_EQ(*assm.GetScratchRegisterList(), ip.bit());
 }
 
+TEST(split_add_immediate) {
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+
+  {
+    Assembler assm(isolate, nullptr, 0);
+    __ mov(r1, r0);
+    // Re-use the destination as a scratch.
+    __ add(r0, r1, Operand(0x12345678));
+    __ blx(lr);
+
+    CodeDesc desc;
+    assm.GetCode(isolate, &desc);
+    Handle<Code> code =
+        isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
+#ifdef DEBUG
+    OFStream os(stdout);
+    code->Print(os);
+#endif
+    F_iiiii f = FUNCTION_CAST<F_iiiii>(code->entry());
+    uint32_t res =
+        reinterpret_cast<int>(CALL_GENERATED_CODE(isolate, f, 0, 0, 0, 0, 0));
+    ::printf("f() = 0x%x\n", res);
+    CHECK_EQ(0x12345678, res);
+  }
+
+  {
+    Assembler assm(isolate, nullptr, 0);
+    // Use ip as a scratch.
+    __ add(r0, r0, Operand(0x12345678));
+    __ blx(lr);
+
+    CodeDesc desc;
+    assm.GetCode(isolate, &desc);
+    Handle<Code> code =
+        isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
+#ifdef DEBUG
+    OFStream os(stdout);
+    code->Print(os);
+#endif
+    F_iiiii f = FUNCTION_CAST<F_iiiii>(code->entry());
+    uint32_t res =
+        reinterpret_cast<int>(CALL_GENERATED_CODE(isolate, f, 0, 0, 0, 0, 0));
+    ::printf("f() = 0x%x\n", res);
+    CHECK_EQ(0x12345678, res);
+  }
+
+  {
+    Assembler assm(isolate, nullptr, 0);
+    UseScratchRegisterScope temps(&assm);
+    Register reserved = temps.Acquire();
+    USE(reserved);
+    // If ip is not available, split the operation into multiple additions.
+    __ add(r0, r0, Operand(0x12345678));
+    __ blx(lr);
+
+    CodeDesc desc;
+    assm.GetCode(isolate, &desc);
+    Handle<Code> code =
+        isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
+#ifdef DEBUG
+    OFStream os(stdout);
+    code->Print(os);
+#endif
+    F_iiiii f = FUNCTION_CAST<F_iiiii>(code->entry());
+    uint32_t res =
+        reinterpret_cast<int>(CALL_GENERATED_CODE(isolate, f, 0, 0, 0, 0, 0));
+    ::printf("f() = 0x%x\n", res);
+    CHECK_EQ(0x12345678, res);
+  }
+}
+
+namespace {
+
+std::vector<Float32> Float32Inputs() {
+  std::vector<Float32> inputs;
+  FOR_FLOAT32_INPUTS(f) {
+    inputs.push_back(Float32::FromBits(bit_cast<uint32_t>(*f)));
+  }
+  FOR_UINT32_INPUTS(bits) { inputs.push_back(Float32::FromBits(*bits)); }
+  return inputs;
+}
+
+std::vector<Float64> Float64Inputs() {
+  std::vector<Float64> inputs;
+  FOR_FLOAT64_INPUTS(f) {
+    inputs.push_back(Float64::FromBits(bit_cast<uint64_t>(*f)));
+  }
+  FOR_UINT64_INPUTS(bits) { inputs.push_back(Float64::FromBits(*bits)); }
+  return inputs;
+}
+
+}  // namespace
+
+TEST(vabs_32) {
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+
+  F_iiiii f = FUNCTION_CAST<F_iiiii>(AssembleCode([](Assembler& assm) {
+    __ vmov(s0, r0);
+    __ vabs(s0, s0);
+    __ vmov(r0, s0);
+  }));
+
+  for (Float32 f32 : Float32Inputs()) {
+    Float32 res = Float32::FromBits(reinterpret_cast<uint32_t>(
+        CALL_GENERATED_CODE(isolate, f, f32.get_bits(), 0, 0, 0, 0)));
+    Float32 exp = Float32::FromBits(f32.get_bits() & ~(1 << 31));
+    CHECK_EQ(exp.get_bits(), res.get_bits());
+  }
+}
+
+TEST(vabs_64) {
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+
+  F_iiiii f = FUNCTION_CAST<F_iiiii>(AssembleCode([](Assembler& assm) {
+    __ vmov(d0, r0, r1);
+    __ vabs(d0, d0);
+    __ vmov(r1, r0, d0);
+  }));
+
+  for (Float64 f64 : Float64Inputs()) {
+    uint32_t p0 = static_cast<uint32_t>(f64.get_bits());
+    uint32_t p1 = static_cast<uint32_t>(f64.get_bits() >> 32);
+    uint32_t res = reinterpret_cast<uint32_t>(
+        CALL_GENERATED_CODE(isolate, f, p0, p1, 0, 0, 0));
+    Float64 exp = Float64::FromBits(f64.get_bits() & ~(1ull << 63));
+    // We just get back the top word, so only compare that one.
+    CHECK_EQ(exp.get_bits() >> 32, res);
+  }
+}
+
+TEST(vneg_32) {
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+
+  F_iiiii f = FUNCTION_CAST<F_iiiii>(AssembleCode([](Assembler& assm) {
+    __ vmov(s0, r0);
+    __ vneg(s0, s0);
+    __ vmov(r0, s0);
+  }));
+
+  for (Float32 f32 : Float32Inputs()) {
+    Float32 res = Float32::FromBits(reinterpret_cast<uint32_t>(
+        CALL_GENERATED_CODE(isolate, f, f32.get_bits(), 0, 0, 0, 0)));
+    Float32 exp = Float32::FromBits(f32.get_bits() ^ (1 << 31));
+    CHECK_EQ(exp.get_bits(), res.get_bits());
+  }
+}
+
+TEST(vneg_64) {
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+
+  F_iiiii f = FUNCTION_CAST<F_iiiii>(AssembleCode([](Assembler& assm) {
+    __ vmov(d0, r0, r1);
+    __ vneg(d0, d0);
+    __ vmov(r1, r0, d0);
+  }));
+
+  for (Float64 f64 : Float64Inputs()) {
+    uint32_t p0 = static_cast<uint32_t>(f64.get_bits());
+    uint32_t p1 = static_cast<uint32_t>(f64.get_bits() >> 32);
+    uint32_t res = reinterpret_cast<uint32_t>(
+        CALL_GENERATED_CODE(isolate, f, p0, p1, 0, 0, 0));
+    Float64 exp = Float64::FromBits(f64.get_bits() ^ (1ull << 63));
+    // We just get back the top word, so only compare that one.
+    CHECK_EQ(exp.get_bits() >> 32, res);
+  }
+}
+
 #undef __
+
+}  // namespace test_assembler_arm
+}  // namespace internal
+}  // namespace v8

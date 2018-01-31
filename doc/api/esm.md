@@ -1,6 +1,6 @@
 # ECMAScript Modules
 
-<!--introduced_in=v9.x.x-->
+<!--introduced_in=v8.5.0-->
 
 > Stability: 1 - Experimental
 
@@ -33,15 +33,14 @@ node --experimental-modules my-app.mjs
 ### Supported
 
 Only the CLI argument for the main entry point to the program can be an entry
-point into an ESM graph. In the future `import()` can be used to create entry
-points into ESM graphs at run time.
+point into an ESM graph. Dynamic import can also be used with the flag
+`--harmony-dynamic-import` to create entry points into ESM graphs at runtime.
 
 ### Unsupported
 
 | Feature | Reason |
 | --- | --- |
-| `require('./foo.mjs')` | ES Modules have differing resolution and timing, use language standard `import()` |
-| `import()` | pending newer V8 release used in Node.js |
+| `require('./foo.mjs')` | ES Modules have differing resolution and timing, use dynamic import |
 | `import.meta` | pending V8 implementation |
 
 ## Notable differences between `import` and `require`
@@ -128,10 +127,18 @@ argument to the resolver for easy compatibility workflows.
 
 In addition to returning the resolved file URL value, the resolve hook also
 returns a `format` property specifying the module format of the resolved
-module. This can be one of `"esm"`, `"cjs"`, `"json"`, `"builtin"` or
-`"addon"`.
+module. This can be one of the following:
 
-For example a dummy loader to load JavaScript restricted to browser resolution
+| `format` | Description |
+| --- | --- |
+| `"esm"` | Load a standard JavaScript module |
+| `"commonjs"` | Load a node-style CommonJS module |
+| `"builtin"` | Load a node builtin CommonJS module |
+| `"json"` | Load a JSON file |
+| `"addon"` | Load a [C++ Addon][addons] |
+| `"dynamic"` | Use a [dynamic instantiate hook][] |
+
+For example, a dummy loader to load JavaScript restricted to browser resolution
 rules with only JS file extension and Node builtin modules support could
 be written:
 
@@ -139,15 +146,13 @@ be written:
 import url from 'url';
 import path from 'path';
 import process from 'process';
+import Module from 'module';
 
-const builtins = new Set(
-  Object.keys(process.binding('natives')).filter((str) =>
-    /^(?!(?:internal|node|v8)\/)/.test(str))
-);
+const builtins = Module.builtinModules;
 const JS_EXTENSIONS = new Set(['.js', '.mjs']);
 
 export function resolve(specifier, parentModuleURL/*, defaultResolve */) {
-  if (builtins.has(specifier)) {
+  if (builtins.includes(specifier)) {
     return {
       url: specifier,
       format: 'builtin'
@@ -201,7 +206,9 @@ export async function dynamicInstantiate(url) {
 ```
 
 With the list of module exports provided upfront, the `execute` function will
-then be called at the exact point of module evalutation order for that module
+then be called at the exact point of module evaluation order for that module
 in the import tree.
 
 [Node.js EP for ES Modules]: https://github.com/nodejs/node-eps/blob/master/002-es-modules.md
+[addons]: addons.html
+[dynamic instantiate hook]: #esm_dynamic_instantiate_hook

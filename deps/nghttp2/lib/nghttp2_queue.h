@@ -36,7 +36,9 @@ typedef struct nghttp2_queue_cell {
   struct nghttp2_queue_cell *next;
 } nghttp2_queue_cell;
 
-typedef struct { nghttp2_queue_cell *front, *back; } nghttp2_queue;
+typedef struct {
+  nghttp2_queue_cell *front, *back;
+} nghttp2_queue;
 
 void nghttp2_queue_init(nghttp2_queue *queue);
 void nghttp2_queue_free(nghttp2_queue *queue);

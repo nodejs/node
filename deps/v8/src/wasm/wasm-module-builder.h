@@ -10,7 +10,6 @@
 
 #include "src/wasm/leb-helper.h"
 #include "src/wasm/local-decl-encoder.h"
-#include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-opcodes.h"
 #include "src/wasm/wasm-result.h"
 
@@ -236,6 +235,7 @@ class V8_EXPORT_PRIVATE WasmModuleBuilder : public ZoneObject {
   void AddExport(Vector<const char> name, WasmFunctionBuilder* builder);
   void SetMinMemorySize(uint32_t value);
   void SetMaxMemorySize(uint32_t value);
+  void SetHasSharedMemory();
 
   // Writing methods.
   void WriteTo(ZoneBuffer& buffer) const;
@@ -295,6 +295,7 @@ class V8_EXPORT_PRIVATE WasmModuleBuilder : public ZoneObject {
   uint32_t min_memory_size_;
   uint32_t max_memory_size_;
   bool has_max_memory_size_;
+  bool has_shared_memory_;
 };
 
 inline FunctionSig* WasmFunctionBuilder::signature() {

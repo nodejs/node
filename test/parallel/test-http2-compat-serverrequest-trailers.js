@@ -19,7 +19,7 @@ server.listen(0, common.mustCall(function() {
   server.once('request', common.mustCall(function(request, response) {
     let data = '';
     request.setEncoding('utf8');
-    request.on('data', common.mustCall((chunk) => data += chunk));
+    request.on('data', common.mustCallAtLeast((chunk) => data += chunk));
     request.on('end', common.mustCall(() => {
       const trailers = request.trailers;
       for (const [name, value] of Object.entries(expectedTrailers)) {
@@ -62,7 +62,7 @@ server.listen(0, common.mustCall(function() {
     request.resume();
     request.on('end', common.mustCall(function() {
       server.close();
-      client.destroy();
+      client.close();
     }));
     request.write('test\n');
     request.end('test');

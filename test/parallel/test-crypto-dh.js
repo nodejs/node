@@ -22,6 +22,28 @@ assert.strictEqual(secret2.toString('base64'), secret1);
 assert.strictEqual(dh1.verifyError, 0);
 assert.strictEqual(dh2.verifyError, 0);
 
+{
+  const DiffieHellman = crypto.DiffieHellman;
+  const dh = DiffieHellman(p1, 'buffer');
+  assert(dh instanceof DiffieHellman, 'DiffieHellman is expected to return a ' +
+                                      'new instance when called without `new`');
+}
+
+{
+  const DiffieHellmanGroup = crypto.DiffieHellmanGroup;
+  const dhg = DiffieHellmanGroup('modp5');
+  assert(dhg instanceof DiffieHellmanGroup, 'DiffieHellmanGroup is expected ' +
+                                            'to return a new instance when ' +
+                                            'called without `new`');
+}
+
+{
+  const ECDH = crypto.ECDH;
+  const ecdh = ECDH('prime256v1');
+  assert(ecdh instanceof ECDH, 'ECDH is expected to return a new instance ' +
+                               'when called without `new`');
+}
+
 [
   [0x1, 0x2],
   () => { },
@@ -55,6 +77,19 @@ assert.strictEqual(dh3.verifyError, 0);
 const secret3 = dh3.computeSecret(key2, 'hex', 'base64');
 
 assert.strictEqual(secret1, secret3);
+
+// computeSecret works without a public key set at all.
+const dh4 = crypto.createDiffieHellman(p1, 'buffer');
+dh4.setPrivateKey(privkey1);
+
+assert.deepStrictEqual(dh1.getPrime(), dh4.getPrime());
+assert.deepStrictEqual(dh1.getGenerator(), dh4.getGenerator());
+assert.deepStrictEqual(dh1.getPrivateKey(), dh4.getPrivateKey());
+assert.strictEqual(dh4.verifyError, 0);
+
+const secret4 = dh4.computeSecret(key2, 'hex', 'base64');
+
+assert.strictEqual(secret1, secret4);
 
 const wrongBlockLength =
   /^Error: error:0606506D:digital envelope routines:EVP_DecryptFinal_ex:wrong final block length$/;
@@ -209,9 +244,13 @@ if (availableCurves.has('prime256v1') && availableCurves.has('secp256k1')) {
   const ecdh3 = crypto.createECDH('secp256k1');
   const key3 = ecdh3.generateKeys();
 
-  assert.throws(() => {
-    ecdh2.computeSecret(key3, 'latin1', 'buffer');
-  }, /^Error: Failed to translate Buffer to a EC_POINT$/);
+  common.expectsError(
+    () => ecdh2.computeSecret(key3, 'latin1', 'buffer'),
+    {
+      code: 'ERR_CRYPTO_ECDH_INVALID_PUBLIC_KEY',
+      type: Error,
+      message: 'Public key is not valid for specified curve'
+    });
 
   // ECDH should allow .setPrivateKey()/.setPublicKey()
   const ecdh4 = crypto.createECDH('prime256v1');
@@ -318,9 +357,13 @@ if (availableCurves.has('prime256v1') && availableHashes.has('sha256')) {
   const invalidKey = Buffer.alloc(65);
   invalidKey.fill('\0');
   curve.generateKeys();
-  assert.throws(() => {
-    curve.computeSecret(invalidKey);
-  }, /^Error: Failed to translate Buffer to a EC_POINT$/);
+  common.expectsError(
+    () => curve.computeSecret(invalidKey),
+    {
+      code: 'ERR_CRYPTO_ECDH_INVALID_PUBLIC_KEY',
+      type: Error,
+      message: 'Public key is not valid for specified curve'
+    });
   // Check that signing operations are not impacted by the above error.
   const ecPrivateKey =
     '-----BEGIN EC PRIVATE KEY-----\n' +

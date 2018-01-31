@@ -112,11 +112,7 @@ function listening() {
 
 function makeReq(path, port, error, host, ca) {
   pending++;
-  const options = {
-    port: port,
-    path: path,
-    ca: ca
-  };
+  const options = { port, path, ca };
 
   if (!ca) {
     options.agent = agent0;
@@ -134,7 +130,7 @@ function makeReq(path, port, error, host, ca) {
   }
 
   if (host) {
-    options.headers = { host: host };
+    options.headers = { host };
   }
   const req = https.get(options);
   const server = port === server1.address().port ? server1 :

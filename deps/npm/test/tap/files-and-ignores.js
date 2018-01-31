@@ -626,6 +626,36 @@ test('folder-based inclusion works', function (t) {
   })
 })
 
+test('file that starts with @ sign included normally', (t) => {
+  const fixture = new Tacks(
+    Dir({
+      'package.json': File({
+        name: 'npm-test-files',
+        version: '1.2.5'
+      }),
+      '@sub1': Dir({
+        sub: Dir({
+          include1: File('')
+        })
+      }),
+      sub2: Dir({
+        '@include': File(''),
+        '@sub3': Dir({
+          include1: File('')
+        })
+      })
+    })
+  )
+  withFixture(t, fixture, function (done) {
+    t.ok(fileExists('@sub1/sub/include1'), '@ dir included')
+
+    t.ok(fileExists('sub2/@include'), '@ file included')
+    t.ok(fileExists('sub2/@sub3/include1'), 'nested @ dir included')
+
+    done()
+  })
+})
+
 function fileExists (file) {
   try {
     return !!fs.statSync(path.resolve(targetpath, 'package', file))

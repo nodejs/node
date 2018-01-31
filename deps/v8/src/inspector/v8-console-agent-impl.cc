@@ -70,7 +70,7 @@ void V8ConsoleAgentImpl::reportAllMessages() {
 
 bool V8ConsoleAgentImpl::reportMessage(V8ConsoleMessage* message,
                                        bool generatePreview) {
-  DCHECK(message->origin() == V8MessageOrigin::kConsole);
+  DCHECK_EQ(V8MessageOrigin::kConsole, message->origin());
   message->reportToFrontend(&m_frontend);
   m_frontend.flush();
   return m_session->inspector()->hasConsoleMessageStorage(

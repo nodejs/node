@@ -235,13 +235,6 @@ class InternalFrameConstants : public TypedFrameConstants {
   DEFINE_TYPED_FRAME_SIZES(1);
 };
 
-class FrameDropperFrameConstants : public InternalFrameConstants {
- public:
-  // FP-relative.
-  static const int kFunctionOffset = TYPED_FRAME_PUSHED_VALUE_OFFSET(1);
-  DEFINE_TYPED_FRAME_SIZES(2);
-};
-
 class ConstructFrameConstants : public TypedFrameConstants {
  public:
   // FP-relative.
@@ -258,8 +251,16 @@ class BuiltinContinuationFrameConstants : public TypedFrameConstants {
   // FP-relative.
   static const int kFunctionOffset = TYPED_FRAME_PUSHED_VALUE_OFFSET(0);
   static const int kBuiltinOffset = TYPED_FRAME_PUSHED_VALUE_OFFSET(1);
+  // The argument count is in the first allocatable register, stored below the
+  // fixed part of the frame and therefore is not part of the fixed frame size.
   static const int kArgCOffset = TYPED_FRAME_PUSHED_VALUE_OFFSET(2);
   DEFINE_TYPED_FRAME_SIZES(2);
+
+  // Returns the number of padding stack slots needed when we have
+  // 'register_count' register slots.
+  // This is needed on some architectures to ensure the stack pointer is
+  // aligned.
+  static int PaddingSlotCount(int register_count);
 };
 
 // Behaves like an exit frame but with target and new target args.
@@ -268,6 +269,9 @@ class BuiltinExitFrameConstants : public CommonFrameConstants {
   static const int kNewTargetOffset = kCallerPCOffset + 1 * kPointerSize;
   static const int kTargetOffset = kNewTargetOffset + 1 * kPointerSize;
   static const int kArgcOffset = kTargetOffset + 1 * kPointerSize;
+  static const int kPaddingOffset = kArgcOffset + 1 * kPointerSize;
+  static const int kFirstArgumentOffset = kPaddingOffset + 1 * kPointerSize;
+  static const int kNumExtraArgsWithReceiver = 5;
 };
 
 class InterpreterFrameConstants : public AllStatic {
@@ -300,6 +304,11 @@ class InterpreterFrameConstants : public AllStatic {
   static const int kBytecodeArrayExpressionIndex = -2;
   static const int kBytecodeOffsetExpressionIndex = -1;
   static const int kRegisterFileExpressionIndex = 0;
+
+  // Returns the number of stack slots needed for 'register_count' registers.
+  // This is needed because some architectures must pad the stack frame with
+  // additional stack slots to ensure the stack pointer is aligned.
+  static int RegisterStackSlotCount(int register_count);
 };
 
 inline static int FPOffsetToFrameSlot(int frame_offset) {

@@ -10,7 +10,7 @@ function benchy(name, test, testSetup) {
 }
 
 benchy('SmiToString', SmiToString, SmiToStringSetup);
-benchy('SmiToString', SmiToString, SmiToStringSetup);
+benchy('StringToString', StringToString, StringToStringSetup);
 benchy('SparseSmiToString', SparseSmiToString, SparseSmiToStringSetup);
 benchy('SparseStringToString', SparseStringToString, SparseStringToStringSetup);
 

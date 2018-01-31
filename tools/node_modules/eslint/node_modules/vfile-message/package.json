@@ -1,0 +1,99 @@
+{
+  "_from": "vfile-message@^1.0.0",
+  "_id": "vfile-message@1.0.0",
+  "_inBundle": false,
+  "_integrity": "sha512-HPREhzTOB/sNDc9/Mxf8w0FmHnThg5CRSJdR9VRFkD2riqYWs+fuXlj5z8mIpv2LrD7uU41+oPWFOL4Mjlf+dw==",
+  "_location": "/vfile-message",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "range",
+    "registry": true,
+    "raw": "vfile-message@^1.0.0",
+    "name": "vfile-message",
+    "escapedName": "vfile-message",
+    "rawSpec": "^1.0.0",
+    "saveSpec": null,
+    "fetchSpec": "^1.0.0"
+  },
+  "_requiredBy": [
+    "/vfile"
+  ],
+  "_resolved": "https://registry.npmjs.org/vfile-message/-/vfile-message-1.0.0.tgz",
+  "_shasum": "a6adb0474ea400fa25d929f1d673abea6a17e359",
+  "_spec": "vfile-message@^1.0.0",
+  "_where": "/home/mzasso/git/nodejs/node/tools/eslint-tmp/node_modules/eslint/node_modules/vfile",
+  "author": {
+    "name": "Titus Wormer",
+    "email": "tituswormer@gmail.com",
+    "url": "http://wooorm.com"
+  },
+  "bugs": {
+    "url": "https://github.com/vfile/vfile-message/issues"
+  },
+  "bundleDependencies": false,
+  "contributors": [
+    {
+      "name": "Titus Wormer",
+      "email": "tituswormer@gmail.com",
+      "url": "http://wooorm.com"
+    }
+  ],
+  "dependencies": {
+    "unist-util-stringify-position": "^1.1.1"
+  },
+  "deprecated": false,
+  "description": "Create a virtual message",
+  "devDependencies": {
+    "browserify": "^14.1.0",
+    "esmangle": "^1.0.1",
+    "nyc": "^11.0.0",
+    "remark-cli": "^4.0.0",
+    "remark-preset-wooorm": "^3.0.0",
+    "tape": "^4.0.0",
+    "xo": "^0.18.0"
+  },
+  "files": [
+    "index.js"
+  ],
+  "homepage": "https://github.com/vfile/vfile-message#readme",
+  "keywords": [
+    "vfile",
+    "virtual",
+    "message"
+  ],
+  "license": "MIT",
+  "name": "vfile-message",
+  "nyc": {
+    "check-coverage": true,
+    "lines": 100,
+    "functions": 100,
+    "branches": 100
+  },
+  "remarkConfig": {
+    "plugins": [
+      "preset-wooorm"
+    ]
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/vfile/vfile-message.git"
+  },
+  "scripts": {
+    "build": "npm run build-md && npm run build-bundle && npm run build-mangle",
+    "build-bundle": "browserify index.js --bare -s vfileMessage > vfile-message.js",
+    "build-mangle": "esmangle vfile-message.js > vfile-message.min.js",
+    "build-md": "remark . -qfo",
+    "lint": "xo",
+    "test": "npm run build && npm run lint && npm run test-coverage",
+    "test-api": "node test",
+    "test-coverage": "nyc --reporter lcov tape test.js"
+  },
+  "version": "1.0.0",
+  "xo": {
+    "space": true,
+    "esnext": false,
+    "ignores": [
+      "vfile-message.js"
+    ]
+  }
+}

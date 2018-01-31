@@ -87,7 +87,7 @@ class StringSearch : private StringSearchBase {
       // Latin1 needle.
       return kLatin1AlphabetSize;
     } else {
-      DCHECK(sizeof(PatternChar) == 2);
+      DCHECK_EQ(sizeof(PatternChar), 2);
       // UC16 needle.
       return kUC16AlphabetSize;
     }
@@ -220,7 +220,7 @@ inline int FindFirstCharacter(Vector<const PatternChar> pattern,
     const SubjectChar* char_pos = reinterpret_cast<const SubjectChar*>(
         memchr(subject.start() + pos, search_byte,
                (max_n - pos) * sizeof(SubjectChar)));
-    if (char_pos == NULL) return -1;
+    if (char_pos == nullptr) return -1;
     char_pos = AlignDown(char_pos, sizeof(SubjectChar));
     pos = static_cast<int>(char_pos - subject.start());
     if (subject[pos] == search_char) return pos;
@@ -258,7 +258,7 @@ template <typename PatternChar, typename SubjectChar>
 inline bool CharCompare(const PatternChar* pattern,
                         const SubjectChar* subject,
                         int length) {
-  DCHECK(length > 0);
+  DCHECK_GT(length, 0);
   int pos = 0;
   do {
     if (pattern[pos] != subject[pos]) {
@@ -277,7 +277,7 @@ int StringSearch<PatternChar, SubjectChar>::LinearSearch(
     Vector<const SubjectChar> subject,
     int index) {
   Vector<const PatternChar> pattern = search->pattern_;
-  DCHECK(pattern.length() > 1);
+  DCHECK_GT(pattern.length(), 1);
   int pattern_length = pattern.length();
   int i = index;
   int n = subject.length() - pattern_length;

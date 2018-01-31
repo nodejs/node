@@ -7,6 +7,8 @@
 
 #include "src/objects/name.h"
 
+#include "src/heap/heap-inl.h"
+
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
 
@@ -39,7 +41,7 @@ void Name::set_hash_field(uint32_t value) {
   WRITE_UINT32_FIELD(this, kHashFieldOffset, value);
 #if V8_HOST_ARCH_64_BIT
 #if V8_TARGET_LITTLE_ENDIAN
-  WRITE_UINT32_FIELD(this, kHashFieldSlot + kIntSize, 0);
+  WRITE_UINT32_FIELD(this, kHashFieldSlot + kInt32Size, 0);
 #else
   WRITE_UINT32_FIELD(this, kHashFieldSlot, 0);
 #endif

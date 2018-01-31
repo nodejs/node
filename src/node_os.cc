@@ -382,7 +382,7 @@ static void GetUserInfo(const FunctionCallbackInfo<Value>& args) {
                                                   &error);
   MaybeLocal<Value> shell;
 
-  if (pwd.shell == NULL)
+  if (pwd.shell == nullptr)
     shell = Null(env->isolate());
   else
     shell = StringBytes::Encode(env->isolate(), pwd.shell, encoding, &error);
@@ -428,4 +428,4 @@ void Initialize(Local<Object> target,
 }  // namespace os
 }  // namespace node
 
-NODE_MODULE_CONTEXT_AWARE_BUILTIN(os, node::os::Initialize)
+NODE_BUILTIN_MODULE_CONTEXT_AWARE(os, node::os::Initialize)

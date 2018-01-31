@@ -11,7 +11,7 @@ const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
 
-const apiPath = path.resolve(common.projectDir, 'out', 'doc', 'api');
+const apiPath = path.resolve(__dirname, '..', '..', 'out', 'doc', 'api');
 const docs = fs.readdirSync(apiPath);
 assert.ok(docs.includes('_toc.html'));
 
@@ -28,7 +28,7 @@ for (const html of linkedHtmls) {
   assert.ok(docs.includes(html), `${html} does not exist`);
 }
 
-const excludes = ['.json', '_toc', 'assets'];
+const excludes = ['.json', '.md', '_toc', 'assets'];
 const generatedHtmls = docs.filter(function(doc) {
   for (const exclude of excludes) {
     if (doc.includes(exclude)) {

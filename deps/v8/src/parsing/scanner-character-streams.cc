@@ -310,7 +310,7 @@ void Utf8ExternalStreamingStream::FillBufferFromCurrentChunk() {
     unibrow::uchar t =
         unibrow::Utf8::ValueOfIncrementalFinish(&current_.pos.incomplete_char);
     if (t != unibrow::Utf8::kBufferEmpty) {
-      DCHECK(t < unibrow::Utf16::kMaxNonSurrogateCharCode);
+      DCHECK_LT(t, unibrow::Utf16::kMaxNonSurrogateCharCode);
       *cursor = static_cast<uc16>(t);
       buffer_end_++;
       current_.pos.chars++;
@@ -443,7 +443,9 @@ size_t Utf8ExternalStreamingStream::FillBuffer(size_t position) {
 
   SearchPosition(position);
   bool out_of_data = current_.chunk_no != chunks_.size() &&
-                     chunks_[current_.chunk_no].length == 0;
+                     chunks_[current_.chunk_no].length == 0 &&
+                     current_.pos.incomplete_char == 0;
+
   if (out_of_data) return 0;
 
   // Fill the buffer, until we have at least one char (or are out of data).
@@ -833,9 +835,9 @@ Utf16CharacterStream* ScannerStream::For(Handle<String> data) {
 
 Utf16CharacterStream* ScannerStream::For(Handle<String> data, int start_pos,
                                          int end_pos) {
-  DCHECK(start_pos >= 0);
-  DCHECK(start_pos <= end_pos);
-  DCHECK(end_pos <= data->length());
+  DCHECK_GE(start_pos, 0);
+  DCHECK_LE(start_pos, end_pos);
+  DCHECK_LE(end_pos, data->length());
   if (data->IsExternalOneByteString()) {
     return new ExternalOneByteStringUtf16CharacterStream(
         Handle<ExternalOneByteString>::cast(data),

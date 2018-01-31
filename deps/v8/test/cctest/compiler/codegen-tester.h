@@ -68,10 +68,9 @@ class RawMachineAssemblerTester : public HandleAndZoneScope,
       Schedule* schedule = this->Export();
       CallDescriptor* call_descriptor = this->call_descriptor();
       Graph* graph = this->graph();
-      CompilationInfo info(ArrayVector("testing"), main_isolate(), main_zone(),
-                           Code::ComputeFlags(Code::STUB));
-      code_ = Pipeline::GenerateCodeForTesting(&info, call_descriptor, graph,
-                                               schedule);
+      CompilationInfo info(ArrayVector("testing"), main_zone(), Code::STUB);
+      code_ = Pipeline::GenerateCodeForTesting(
+          &info, main_isolate(), call_descriptor, graph, schedule);
     }
     return this->code_.ToHandleChecked()->entry();
   }
@@ -100,7 +99,7 @@ class BufferedRawMachineAssemblerTester
   // parameters from memory. Thereby it is possible to pass 64 bit parameters
   // to the IR graph.
   Node* Parameter(size_t index) {
-    CHECK(index < 4);
+    CHECK_GT(4, index);
     return parameter_nodes_[index];
   }
 
@@ -260,7 +259,7 @@ class BufferedRawMachineAssemblerTester<void>
   // parameters from memory. Thereby it is possible to pass 64 bit parameters
   // to the IR graph.
   Node* Parameter(size_t index) {
-    CHECK(index < 4);
+    CHECK_GT(4, index);
     return parameter_nodes_[index];
   }
 
@@ -475,7 +474,7 @@ class CompareWrapper {
       default:
         UNREACHABLE();
     }
-    return NULL;
+    return nullptr;
   }
 
   bool Int32Compare(int32_t a, int32_t b) {

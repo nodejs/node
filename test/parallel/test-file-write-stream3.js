@@ -42,8 +42,8 @@ const fileDataExpected_3 = 'abcdefghij\u2026\u2026qrstuvwxyz';
 process.on('exit', function() {
   if (cb_occurred !== cb_expected) {
     console.log('  Test callback events missing or out of order:');
-    console.log('    expected: %j', cb_expected);
-    console.log('    occurred: %j', cb_occurred);
+    console.log(`    expected: ${cb_expected}`);
+    console.log(`    occurred: ${cb_occurred}`);
     assert.strictEqual(
       cb_occurred, cb_expected,
       `events missing or out of order: "${cb_occurred}" !== "${cb_expected}"`);
@@ -180,8 +180,9 @@ const run_test_4 = common.mustCall(function() {
     fs.createWriteStream(filepath, { start: -5, flags: 'r+' });
   };
   const err = {
-    code: 'ERR_VALUE_OUT_OF_RANGE',
-    message: 'The value of "start" must be >= 0. Received "{start: -5}"',
+    code: 'ERR_OUT_OF_RANGE',
+    message: 'The value of "start" is out of range. ' +
+             'It must be >= 0. Received {start: -5}',
     type: RangeError
   };
   common.expectsError(block, err);

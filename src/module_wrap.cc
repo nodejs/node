@@ -103,9 +103,17 @@ void ModuleWrap::New(const FunctionCallbackInfo<Value>& args) {
                         False(isolate),                       // is opaque (?)
                         False(isolate),                       // is WASM
                         True(isolate));                       // is ES6 module
+    TryCatch try_catch(isolate);
     ScriptCompiler::Source source(source_text, origin);
-    if (!ScriptCompiler::CompileModule(isolate, &source).ToLocal(&module))
+    if (!ScriptCompiler::CompileModule(isolate, &source).ToLocal(&module)) {
+      CHECK(try_catch.HasCaught());
+      CHECK(!try_catch.Message().IsEmpty());
+      CHECK(!try_catch.Exception().IsEmpty());
+      AppendExceptionLine(env, try_catch.Exception(), try_catch.Message(),
+                          ErrorHandlingMode::MODULE_ERROR);
+      try_catch.ReThrow();
       return;
+    }
   }
 
   Local<Object> that = args.This();
@@ -171,6 +179,7 @@ void ModuleWrap::Link(const FunctionCallbackInfo<Value>& args) {
 }
 
 void ModuleWrap::Instantiate(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
   Isolate* isolate = args.GetIsolate();
   Local<Object> that = args.This();
   Local<Context> context = that->CreationContext();
@@ -178,6 +187,7 @@ void ModuleWrap::Instantiate(const FunctionCallbackInfo<Value>& args) {
   ModuleWrap* obj = Unwrap<ModuleWrap>(that);
   CHECK_NE(obj, nullptr);
   Local<Module> module = obj->module_.Get(isolate);
+  TryCatch try_catch(isolate);
   Maybe<bool> ok =
       module->InstantiateModule(context, ModuleWrap::ResolveCallback);
 
@@ -187,6 +197,12 @@ void ModuleWrap::Instantiate(const FunctionCallbackInfo<Value>& args) {
   obj->resolve_cache_.clear();
 
   if (!ok.FromMaybe(false)) {
+    CHECK(try_catch.HasCaught());
+    CHECK(!try_catch.Message().IsEmpty());
+    CHECK(!try_catch.Exception().IsEmpty());
+    AppendExceptionLine(env, try_catch.Exception(), try_catch.Message(),
+                        ErrorHandlingMode::MODULE_ERROR);
+    try_catch.ReThrow();
     return;
   }
 }
@@ -550,6 +566,62 @@ void ModuleWrap::Resolve(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(result.FromJust().ToObject(env));
 }
 
+static MaybeLocal<Promise> ImportModuleDynamically(
+    Local<Context> context,
+    Local<v8::ScriptOrModule> referrer,
+    Local<String> specifier) {
+  Isolate* iso = context->GetIsolate();
+  Environment* env = Environment::GetCurrent(context);
+  v8::EscapableHandleScope handle_scope(iso);
+
+  if (env->context() != context) {
+    auto maybe_resolver = Promise::Resolver::New(context);
+    Local<Promise::Resolver> resolver;
+    if (maybe_resolver.ToLocal(&resolver)) {
+      // TODO(jkrems): Turn into proper error object w/ code
+      Local<Value> error = v8::Exception::Error(
+        OneByteString(iso, "import() called outside of main context"));
+      if (resolver->Reject(context, error).IsJust()) {
+        return handle_scope.Escape(resolver.As<Promise>());
+      }
+    }
+    return MaybeLocal<Promise>();
+  }
+
+  Local<Function> import_callback =
+    env->host_import_module_dynamically_callback();
+  Local<Value> import_args[] = {
+    referrer->GetResourceName(),
+    Local<Value>(specifier)
+  };
+  MaybeLocal<Value> maybe_result = import_callback->Call(context,
+                                                         v8::Undefined(iso),
+                                                         2,
+                                                         import_args);
+
+  Local<Value> result;
+  if (maybe_result.ToLocal(&result)) {
+    return handle_scope.Escape(result.As<Promise>());
+  }
+  return MaybeLocal<Promise>();
+}
+
+void ModuleWrap::SetImportModuleDynamicallyCallback(
+    const FunctionCallbackInfo<Value>& args) {
+  Isolate* iso = args.GetIsolate();
+  Environment* env = Environment::GetCurrent(args);
+  HandleScope handle_scope(iso);
+  if (!args[0]->IsFunction()) {
+    env->ThrowError("first argument is not a function");
+    return;
+  }
+
+  Local<Function> import_callback = args[0].As<Function>();
+  env->set_host_import_module_dynamically_callback(import_callback);
+
+  iso->SetHostImportModuleDynamicallyCallback(ImportModuleDynamically);
+}
+
 void ModuleWrap::Initialize(Local<Object> target,
                             Local<Value> unused,
                             Local<Context> context) {
@@ -567,6 +639,9 @@ void ModuleWrap::Initialize(Local<Object> target,
 
   target->Set(FIXED_ONE_BYTE_STRING(isolate, "ModuleWrap"), tpl->GetFunction());
   env->SetMethod(target, "resolve", node::loader::ModuleWrap::Resolve);
+  env->SetMethod(target,
+                 "setImportModuleDynamicallyCallback",
+                 node::loader::ModuleWrap::SetImportModuleDynamicallyCallback);
 }
 
 }  // namespace loader

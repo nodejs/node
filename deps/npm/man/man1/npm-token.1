@@ -1,4 +1,4 @@
-.TH "NPM\-TOKEN" "1" "October 2017" "" ""
+.TH "NPM\-TOKEN" "1" "December 2017" "" ""
 .SH "NAME"
 \fBnpm-token\fR \- Manage your authentication tokens
 .SH SYNOPSIS
@@ -7,12 +7,12 @@
 .nf
 npm token list [\-\-json|\-\-parseable]
 npm token create [\-\-read\-only] [\-\-cidr=1\.1\.1\.1/24,2\.2\.2\.2/16]
-npm token delete <id|token>
+npm token revoke <id|token>
 .fi
 .RE
 .SH DESCRIPTION
 .P
-This list you list, create and delete authentication tokens\.
+This list you list, create and revoke authentication tokens\.
 .RS 0
 .IP \(bu 2
 \fBnpm token list\fP:
@@ -64,7 +64,7 @@ two\-factor authentication enabled, an otp\.
 .RE
 .RS 0
 .IP \(bu 2
-\fBnpm token delete <token|id>\fP:
+\fBnpm token revoke <token|id>\fP:
 This removes an authentication token, making it immediately unusable\. This can accept
 both complete tokens (as you get back from \fBnpm token create\fP and will
 find in your \fB\|\.npmrc\fP) and ids as seen in the \fBnpm token list\fP output\.

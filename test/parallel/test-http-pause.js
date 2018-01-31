@@ -29,17 +29,17 @@ let resultServer = '';
 const expectedClient = 'Response Body from Server';
 let resultClient = '';
 
-const server = http.createServer(function(req, res) {
+const server = http.createServer((req, res) => {
   console.error('pause server request');
   req.pause();
-  setTimeout(function() {
+  setTimeout(() => {
     console.error('resume server request');
     req.resume();
     req.setEncoding('utf8');
-    req.on('data', function(chunk) {
+    req.on('data', (chunk) => {
       resultServer += chunk;
     });
-    req.on('end', function() {
+    req.on('end', () => {
       console.error(resultServer);
       res.writeHead(200);
       res.end(expectedClient);
@@ -52,16 +52,16 @@ server.listen(0, function() {
     port: this.address().port,
     path: '/',
     method: 'POST'
-  }, function(res) {
+  }, (res) => {
     console.error('pause client response');
     res.pause();
-    setTimeout(function() {
+    setTimeout(() => {
       console.error('resume client response');
       res.resume();
-      res.on('data', function(chunk) {
+      res.on('data', (chunk) => {
         resultClient += chunk;
       });
-      res.on('end', function() {
+      res.on('end', () => {
         console.error(resultClient);
         server.close();
       });
@@ -70,7 +70,7 @@ server.listen(0, function() {
   req.end(expectedServer);
 });
 
-process.on('exit', function() {
+process.on('exit', () => {
   assert.strictEqual(expectedServer, resultServer);
   assert.strictEqual(expectedClient, resultClient);
 });

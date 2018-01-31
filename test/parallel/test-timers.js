@@ -47,19 +47,19 @@ const inputs = [
   0.5,
   1,
   1.0,
-  2147483648,     // browser behaviour: timeouts > 2^31-1 run on next tick
+  2147483648,     // browser behavior: timeouts > 2^31-1 run on next tick
   12345678901234  // ditto
 ];
 
 const timeouts = [];
 const intervals = [];
 
-inputs.forEach(function(value, index) {
-  setTimeout(function() {
+inputs.forEach((value, index) => {
+  setTimeout(() => {
     timeouts[index] = true;
   }, value);
 
-  const handle = setInterval(function() {
+  const handle = setInterval(() => {
     clearInterval(handle); // disarm timer or we'll never finish
     intervals[index] = true;
   }, value);
@@ -68,9 +68,9 @@ inputs.forEach(function(value, index) {
 // All values in inputs array coerce to 1 ms. Therefore, they should all run
 // before a timer set here for 2 ms.
 
-setTimeout(common.mustCall(function() {
+setTimeout(common.mustCall(() => {
   // assert that all other timers have run
-  inputs.forEach(function(value, index) {
+  inputs.forEach((value, index) => {
     assert(timeouts[index]);
     assert(intervals[index]);
   });

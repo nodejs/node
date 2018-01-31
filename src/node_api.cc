@@ -18,8 +18,6 @@
 #include "node_api.h"
 #include "node_internals.h"
 
-#define NAPI_VERSION  1
-
 static
 napi_status napi_set_last_error(napi_env env, napi_status error_code,
                                 uint32_t engine_error_code = 0,
@@ -28,8 +26,10 @@ static
 napi_status napi_clear_last_error(napi_env env);
 
 struct napi_env__ {
-  explicit napi_env__(v8::Isolate* _isolate): isolate(_isolate),
-      last_error() {}
+  explicit napi_env__(v8::Isolate* _isolate, uv_loop_t* _loop)
+      : isolate(_isolate),
+        last_error(),
+        loop(_loop) {}
   ~napi_env__() {
     last_exception.Reset();
     wrap_template.Reset();
@@ -43,6 +43,7 @@ struct napi_env__ {
   v8::Persistent<v8::ObjectTemplate> accessor_data_template;
   napi_extended_error_info last_error;
   int open_handle_scopes = 0;
+  uv_loop_t* loop = nullptr;
 };
 
 #define ENV_OBJECT_TEMPLATE(env, prefix, destination, field_count) \
@@ -140,6 +141,30 @@ struct napi_env__ {
 #define GET_RETURN_STATUS(env)      \
   (!try_catch.HasCaught() ? napi_ok \
                          : napi_set_last_error((env), napi_pending_exception))
+
+#define THROW_RANGE_ERROR_IF_FALSE(env, condition, error, message) \
+  do {                                                             \
+    if (!(condition)) {                                            \
+      napi_throw_range_error((env), (error), (message));           \
+      return napi_set_last_error((env), napi_generic_failure);     \
+    }                                                              \
+  } while (0)
+
+#define CREATE_TYPED_ARRAY(                                                    \
+    env, type, size_of_element, buffer, byte_offset, length, out)              \
+  do {                                                                         \
+    if ((size_of_element) > 1) {                                               \
+      THROW_RANGE_ERROR_IF_FALSE(                                              \
+          (env), (byte_offset) % (size_of_element) == 0,                       \
+          "ERR_NAPI_INVALID_TYPEDARRAY_ALIGNMENT",                             \
+          "start offset of "#type" should be a multiple of "#size_of_element); \
+    }                                                                          \
+    THROW_RANGE_ERROR_IF_FALSE((env), (length) * (size_of_element) +           \
+        (byte_offset) <= buffer->ByteLength(),                                 \
+        "ERR_NAPI_INVALID_TYPEDARRAY_LENGTH",                                  \
+        "Invalid typed array length");                                         \
+    (out) = v8::type::New((buffer), (byte_offset), (length));                  \
+  } while (0)
 
 namespace {
 namespace v8impl {
@@ -771,7 +796,7 @@ napi_env GetEnv(v8::Local<v8::Context> context) {
   if (value->IsExternal()) {
     result = static_cast<napi_env>(value.As<v8::External>()->Value());
   } else {
-    result = new napi_env__(isolate);
+    result = new napi_env__(isolate, node::GetCurrentEventLoop(isolate));
     auto external = v8::External::New(isolate, result);
 
     // We must also stop hard if the result of assigning the env to the global
@@ -898,7 +923,8 @@ const char* error_messages[] = {nullptr,
                                 "Unknown failure",
                                 "An exception is pending",
                                 "The async work item was cancelled",
-                                "napi_escape_handle already called on scope"};
+                                "napi_escape_handle already called on scope",
+                                "Invalid handle scope usage"};
 
 static inline napi_status napi_clear_last_error(napi_env env) {
   env->last_error.error_code = napi_ok;
@@ -929,9 +955,9 @@ napi_status napi_get_last_error_info(napi_env env,
   // We don't have a napi_status_last as this would result in an ABI
   // change each time a message was added.
   static_assert(
-      node::arraysize(error_messages) == napi_escape_called_twice + 1,
+      node::arraysize(error_messages) == napi_handle_scope_mismatch + 1,
       "Count of error messages must match count of error values");
-  CHECK_LE(env->last_error.error_code, napi_escape_called_twice);
+  CHECK_LE(env->last_error.error_code, napi_handle_scope_mismatch);
 
   // Wait until someone requests the last error information to fetch the error
   // message string
@@ -1216,7 +1242,7 @@ napi_status napi_delete_property(napi_env env,
   v8::Maybe<bool> delete_maybe = obj->Delete(context, k);
   CHECK_MAYBE_NOTHING(env, delete_maybe, napi_generic_failure);
 
-  if (result != NULL)
+  if (result != nullptr)
     *result = delete_maybe.FromMaybe(false);
 
   return GET_RETURN_STATUS(env);
@@ -1394,7 +1420,7 @@ napi_status napi_delete_element(napi_env env,
   v8::Maybe<bool> delete_maybe = obj->Delete(context, index);
   CHECK_MAYBE_NOTHING(env, delete_maybe, napi_generic_failure);
 
-  if (result != NULL)
+  if (result != nullptr)
     *result = delete_maybe.FromMaybe(false);
 
   return GET_RETURN_STATUS(env);
@@ -2766,6 +2792,8 @@ napi_status napi_async_destroy(napi_env env,
       reinterpret_cast<node::async_context*>(async_context);
   node::EmitAsyncDestroy(isolate, *node_async_context);
 
+  delete node_async_context;
+
   return napi_clear_last_error(env);
 }
 
@@ -3059,31 +3087,40 @@ napi_status napi_create_typedarray(napi_env env,
 
   switch (type) {
     case napi_int8_array:
-      typedArray = v8::Int8Array::New(buffer, byte_offset, length);
+      CREATE_TYPED_ARRAY(
+          env, Int8Array, 1, buffer, byte_offset, length, typedArray);
       break;
     case napi_uint8_array:
-      typedArray = v8::Uint8Array::New(buffer, byte_offset, length);
+      CREATE_TYPED_ARRAY(
+          env, Uint8Array, 1, buffer, byte_offset, length, typedArray);
       break;
     case napi_uint8_clamped_array:
-      typedArray = v8::Uint8ClampedArray::New(buffer, byte_offset, length);
+      CREATE_TYPED_ARRAY(
+          env, Uint8ClampedArray, 1, buffer, byte_offset, length, typedArray);
       break;
     case napi_int16_array:
-      typedArray = v8::Int16Array::New(buffer, byte_offset, length);
+      CREATE_TYPED_ARRAY(
+          env, Int16Array, 2, buffer, byte_offset, length, typedArray);
       break;
     case napi_uint16_array:
-      typedArray = v8::Uint16Array::New(buffer, byte_offset, length);
+      CREATE_TYPED_ARRAY(
+          env, Uint16Array, 2, buffer, byte_offset, length, typedArray);
       break;
     case napi_int32_array:
-      typedArray = v8::Int32Array::New(buffer, byte_offset, length);
+      CREATE_TYPED_ARRAY(
+          env, Int32Array, 4, buffer, byte_offset, length, typedArray);
       break;
     case napi_uint32_array:
-      typedArray = v8::Uint32Array::New(buffer, byte_offset, length);
+      CREATE_TYPED_ARRAY(
+          env, Uint32Array, 4, buffer, byte_offset, length, typedArray);
       break;
     case napi_float32_array:
-      typedArray = v8::Float32Array::New(buffer, byte_offset, length);
+      CREATE_TYPED_ARRAY(
+          env, Float32Array, 4, buffer, byte_offset, length, typedArray);
       break;
     case napi_float64_array:
-      typedArray = v8::Float64Array::New(buffer, byte_offset, length);
+      CREATE_TYPED_ARRAY(
+          env, Float64Array, 8, buffer, byte_offset, length, typedArray);
       break;
     default:
       return napi_set_last_error(env, napi_invalid_arg);
@@ -3164,6 +3201,14 @@ napi_status napi_create_dataview(napi_env env,
   RETURN_STATUS_IF_FALSE(env, value->IsArrayBuffer(), napi_invalid_arg);
 
   v8::Local<v8::ArrayBuffer> buffer = value.As<v8::ArrayBuffer>();
+  if (byte_length + byte_offset > buffer->ByteLength()) {
+    napi_throw_range_error(
+        env,
+        "ERR_NAPI_INVALID_DATAVIEW_ARGS",
+        "byte_offset + byte_length should be less than or "
+        "equal to the size in bytes of the array passed in");
+    return napi_set_last_error(env, napi_pending_exception);
+  }
   v8::Local<v8::DataView> DataView = v8::DataView::New(buffer, byte_offset,
                                                        byte_length);
 
@@ -3401,15 +3446,22 @@ napi_status napi_delete_async_work(napi_env env, napi_async_work work) {
   return napi_clear_last_error(env);
 }
 
+napi_status napi_get_uv_event_loop(napi_env env, uv_loop_t** loop) {
+  CHECK_ENV(env);
+  CHECK_ARG(env, loop);
+  *loop = env->loop;
+  return napi_clear_last_error(env);
+}
+
 napi_status napi_queue_async_work(napi_env env, napi_async_work work) {
   CHECK_ENV(env);
   CHECK_ARG(env, work);
 
-  // Consider: Encapsulate the uv_loop_t into an opaque pointer parameter.
-  // Currently the environment event loop is the same as the UV default loop.
-  // Someday (if node ever supports multiple isolates), it may be better to get
-  // the loop from node::Environment::GetCurrent(env->isolate)->event_loop();
-  uv_loop_t* event_loop = uv_default_loop();
+  napi_status status;
+  uv_loop_t* event_loop = nullptr;
+  status = napi_get_uv_event_loop(env, &event_loop);
+  if (status != napi_ok)
+    return napi_set_last_error(env, status);
 
   uvimpl::Work* w = reinterpret_cast<uvimpl::Work*>(work);
 

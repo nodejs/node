@@ -3,7 +3,7 @@
 #include <string.h>
 
 // these tests validate the handle scope functions in the normal
-// flow.  Forcing gc behaviour to fully validate they are doing
+// flow.  Forcing gc behavior to fully validate they are doing
 // the right right thing would be quite hard so we keep it
 // simple for now.
 

@@ -33,6 +33,8 @@ class U_COMMON_API Hashtable : public UMemory {
 
     inline void init(UHashFunction *keyHash, UKeyComparator *keyComp, UValueComparator *valueComp, UErrorCode& status);
 
+    inline void initSize(UHashFunction *keyHash, UKeyComparator *keyComp, UValueComparator *valueComp, int32_t size, UErrorCode& status);
+
 public:
     /**
      * Construct a hashtable
@@ -40,6 +42,14 @@ public:
      * @param status Error code
     */
     Hashtable(UBool ignoreKeyCase, UErrorCode& status);
+
+    /**
+     * Construct a hashtable
+     * @param ignoreKeyCase If true, keys are case insensitive.
+     * @param size initial size allocation
+     * @param status Error code
+    */
+    Hashtable(UBool ignoreKeyCase, int32_t size, UErrorCode& status);
 
     /**
      * Construct a hashtable
@@ -119,10 +129,23 @@ inline void Hashtable::init(UHashFunction *keyHash, UKeyComparator *keyComp,
     }
 }
 
+inline void Hashtable::initSize(UHashFunction *keyHash, UKeyComparator *keyComp,
+                                UValueComparator *valueComp, int32_t size, UErrorCode& status) {
+    if (U_FAILURE(status)) {
+        return;
+    }
+    uhash_initSize(&hashObj, keyHash, keyComp, valueComp, size, &status);
+    if (U_SUCCESS(status)) {
+        hash = &hashObj;
+        uhash_setKeyDeleter(hash, uprv_deleteUObject);
+    }
+}
+
 inline Hashtable::Hashtable(UKeyComparator *keyComp, UValueComparator *valueComp,
                  UErrorCode& status) : hash(0) {
     init( uhash_hashUnicodeString, keyComp, valueComp, status);
 }
+
 inline Hashtable::Hashtable(UBool ignoreKeyCase, UErrorCode& status)
  : hash(0)
 {
@@ -131,6 +154,17 @@ inline Hashtable::Hashtable(UBool ignoreKeyCase, UErrorCode& status)
             ignoreKeyCase ? uhash_compareCaselessUnicodeString
                         : uhash_compareUnicodeString,
             NULL,
+            status);
+}
+
+inline Hashtable::Hashtable(UBool ignoreKeyCase, int32_t size, UErrorCode& status)
+ : hash(0)
+{
+    initSize(ignoreKeyCase ? uhash_hashCaselessUnicodeString
+                        : uhash_hashUnicodeString,
+            ignoreKeyCase ? uhash_compareCaselessUnicodeString
+                        : uhash_compareUnicodeString,
+            NULL, size,
             status);
 }
 

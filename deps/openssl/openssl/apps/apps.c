@@ -148,6 +148,10 @@
 #ifdef _WIN32
 static int WIN32_rename(const char *from, const char *to);
 # define rename(from,to) WIN32_rename((from),(to))
+# ifdef fileno
+#  undef fileno
+# endif
+# define fileno(a) (int)_fileno(a)
 #endif
 
 typedef struct {
@@ -2788,13 +2792,13 @@ unsigned char *next_protos_parse(unsigned short *outlen, const char *in)
                 OPENSSL_free(out);
                 return NULL;
             }
-            out[start] = i - start;
+            out[start] = (unsigned char)(i - start);
             start = i + 1;
         } else
             out[i + 1] = in[i];
     }
 
-    *outlen = len + 1;
+    *outlen = (unsigned char)(len + 1);
     return out;
 }
 #endif                          /* ndef OPENSSL_NO_TLSEXT */

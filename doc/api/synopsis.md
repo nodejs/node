@@ -3,7 +3,7 @@
 <!--introduced_in=v0.10.0-->
 <!--type=misc-->
 
-`node [options] [v8 options] [script.js | -e "script" | - ] [arguments]`
+`node [options] [V8 options] [script.js | -e "script" | - ] [arguments]`
 
 Please see the [Command Line Options][] document for information about
 different options and ways to run scripts with Node.js.
@@ -38,7 +38,7 @@ $ node example.js
 Server running at http://127.0.0.1:3000/
 ```
 
-All of the examples in the documentation can be run similarly.
+Many of the examples in the documentation can be run similarly.
 
 [Command Line Options]: cli.html#cli_command_line_options
 [web server]: http.html

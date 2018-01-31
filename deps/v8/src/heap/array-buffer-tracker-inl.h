@@ -14,13 +14,12 @@ namespace v8 {
 namespace internal {
 
 void ArrayBufferTracker::RegisterNew(Heap* heap, JSArrayBuffer* buffer) {
-  void* data = buffer->backing_store();
-  if (!data) return;
+  if (buffer->backing_store() == nullptr) return;
 
-  size_t length = buffer->allocation_length();
+  const size_t length = NumberToSize(buffer->byte_length());
   Page* page = Page::FromAddress(buffer->address());
   {
-    base::LockGuard<base::RecursiveMutex> guard(page->mutex());
+    base::LockGuard<base::Mutex> guard(page->mutex());
     LocalArrayBufferTracker* tracker = page->local_tracker();
     if (tracker == nullptr) {
       page->AllocateLocalTracker();
@@ -36,13 +35,12 @@ void ArrayBufferTracker::RegisterNew(Heap* heap, JSArrayBuffer* buffer) {
 }
 
 void ArrayBufferTracker::Unregister(Heap* heap, JSArrayBuffer* buffer) {
-  void* data = buffer->backing_store();
-  if (!data) return;
+  if (buffer->backing_store() == nullptr) return;
 
   Page* page = Page::FromAddress(buffer->address());
-  size_t length = buffer->allocation_length();
+  const size_t length = NumberToSize(buffer->byte_length());
   {
-    base::LockGuard<base::RecursiveMutex> guard(page->mutex());
+    base::LockGuard<base::Mutex> guard(page->mutex());
     LocalArrayBufferTracker* tracker = page->local_tracker();
     DCHECK_NOT_NULL(tracker);
     tracker->Remove(buffer, length);
@@ -52,26 +50,25 @@ void ArrayBufferTracker::Unregister(Heap* heap, JSArrayBuffer* buffer) {
 
 template <typename Callback>
 void LocalArrayBufferTracker::Free(Callback should_free) {
-  size_t freed_memory = 0;
-  size_t retained_size = 0;
+  size_t new_retained_size = 0;
   for (TrackingData::iterator it = array_buffers_.begin();
        it != array_buffers_.end();) {
     JSArrayBuffer* buffer = reinterpret_cast<JSArrayBuffer*>(*it);
     const size_t length = buffer->allocation_length();
     if (should_free(buffer)) {
-      freed_memory += length;
       buffer->FreeBackingStore();
       it = array_buffers_.erase(it);
     } else {
-      retained_size += length;
+      new_retained_size += length;
       ++it;
     }
   }
-  retained_size_ = retained_size;
+  const size_t freed_memory = retained_size_ - new_retained_size;
   if (freed_memory > 0) {
     heap_->update_external_memory_concurrently_freed(
         static_cast<intptr_t>(freed_memory));
   }
+  retained_size_ = new_retained_size;
 }
 
 template <typename MarkingState>

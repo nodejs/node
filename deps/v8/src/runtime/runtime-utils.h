@@ -94,9 +94,9 @@ namespace internal {
 // Cast the given argument to PropertyAttributes and store its value in a
 // variable with the given name.  If the argument is not a Smi or the
 // enum value is out of range, we crash safely.
-#define CONVERT_PROPERTY_ATTRIBUTES_CHECKED(name, index)                     \
-  CHECK(args[index]->IsSmi());                                               \
-  CHECK((args.smi_at(index) & ~(READ_ONLY | DONT_ENUM | DONT_DELETE)) == 0); \
+#define CONVERT_PROPERTY_ATTRIBUTES_CHECKED(name, index)                    \
+  CHECK(args[index]->IsSmi());                                              \
+  CHECK_EQ(args.smi_at(index) & ~(READ_ONLY | DONT_ENUM | DONT_DELETE), 0); \
   PropertyAttributes name = static_cast<PropertyAttributes>(args.smi_at(index));
 
 // A mechanism to return a pair of Object pointers in registers (if possible).
@@ -151,22 +151,6 @@ static inline ObjectPair MakePair(Object* x, Object* y) {
 #endif
 }
 #endif
-
-
-// A mechanism to return a triple of Object pointers. In all calling
-// conventions, a struct of two pointers is returned in memory,
-// allocated by the caller, and passed as a pointer in a hidden first parameter.
-struct ObjectTriple {
-  Object* x;
-  Object* y;
-  Object* z;
-};
-
-static inline ObjectTriple MakeTriple(Object* x, Object* y, Object* z) {
-  ObjectTriple result = {x, y, z};
-  // ObjectTriple is assigned to a hidden first argument.
-  return result;
-}
 
 }  // namespace internal
 }  // namespace v8
