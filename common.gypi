@@ -32,6 +32,8 @@
     # Enable disassembler for `--print-code` v8 options
     'v8_enable_disassembler': 1,
 
+    'v8_extra_library_files': ['./lib/extras/v8_extras.js'],
+
     # Don't bake anything extra into the snapshot.
     'v8_use_external_startup_data%': 0,
 

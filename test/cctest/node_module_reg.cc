@@ -6,6 +6,7 @@ void _register_cares_wrap() {}
 void _register_config() {}
 void _register_contextify() {}
 void _register_domain() {}
+void _register_extras() {}
 void _register_fs() {}
 void _register_fs_event_wrap() {}
 void _register_http2() {}
