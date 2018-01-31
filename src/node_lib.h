@@ -11,31 +11,30 @@ namespace node { namespace lib {
 
     namespace internal { // internals, made for experienced users
 
+        /**
+         * @brief Returns the `v8::Isolate` for Node.js.
+         * 
+         * Returns a pointer to the currently used `v8::Isolate`, if the Node.js engine is initialized already.
+         * *Important* Use with caution, changing this object might break Node.js.
+         * @return Pointer to the `v8::Isolate`.
+         */
         v8::Isolate* isolate();
 
-        Environment* environment();
-    }
-
         /**
-         * @brief Internal function to register a native C++ module.
+         * @brief Returns the `node::Environment` for Node.js.
          * 
-         * Internally used function to register a new C++ module for Node.js.
-         * @param exports The exports object, which is exposed to JavaScript.
-         * @param module The v8 module.
-         * @param context The current v8 context.
-         * @param priv Private data for the module.
+         * Returns a pointer to the currently used `node::Environment`, if the Node.js engine is initialized already.
+         * *Important* Use with caution, changing this object might break Node.js.
+         * @return Pointer to the `node::Environment`.
          */
-        void _RegisterModuleCallback(v8::Local<v8::Object> exports,
-              v8::Local<v8::Value> module,
-              v8::Local<v8::Context> context,
-              void* priv);
+        Environment* environment();
     }
 
     /**
      * @brief Indicates, whether the Node.js event loop is executed by `RunEventLoop`.
      * @return True, if the Node.js event loop is executed by `RunEventLoop`. False otherwise. 
      */
-    bool EventLoopIsRunning() { return _event_loop_running; }
+    bool EventLoopIsRunning();
 
     /*********************************************************
      * Start Node.js engine
@@ -49,6 +48,7 @@ namespace node { namespace lib {
      * Additionally, Node.js will not process any pending events caused by the JavaScript execution as long as
      * `ProcessEvents` or `RunMainLoop` is not called.
      * @param program_name The name for the Node.js application.
+     * @param node_args List of arguments for the Node.js engine.
      */
     NODE_EXTERN void Initialize(const std::string& program_name = "node_lib_executable", const std::vector<std::string>& node_args = {});
 
@@ -143,6 +143,8 @@ namespace node { namespace lib {
      * @param name The name for the module.
      * @param callback The method, which initializes the module (e.g. by adding methods to the module).
      * @param priv Any private data, which should be included within the module.
+     * @param target The name for the module within the JavaScript context. (e.g. `const target = process.binding(module_name)`)
+     * If empty, the module will *not* be registered within the global JavaScript context automatically.
      */
     NODE_EXTERN void RegisterModule(const std::string & name, const addon_context_register_func & callback, void *priv = nullptr, const std::string & target = "");
 
@@ -154,6 +156,8 @@ namespace node { namespace lib {
      * The module can be used in JavaScript by calling `let cpp_module = process.binding('module_name')`.
      * @param name The name for the module.
      * @param module_functions A list of functions and their names for the module.
+     * @param target The name for the module within the JavaScript context. (e.g. `const target = process.binding(module_name)`)
+     * If empty, the module will *not* be registered within the global JavaScript context automatically.
      */
     NODE_EXTERN void RegisterModule(const std::string & name, const std::map<std::string, v8::FunctionCallback> & module_functions, const std::string & target = "");
 
