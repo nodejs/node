@@ -107,6 +107,7 @@
       'lib/internal/loader/DefaultResolve.js',
       'lib/internal/loader/ModuleJob.js',
       'lib/internal/loader/ModuleMap.js',
+      'lib/internal/loader/ModuleWrap.js',
       'lib/internal/loader/Translators.js',
       'lib/internal/safe_globals.js',
       'lib/internal/net.js',
