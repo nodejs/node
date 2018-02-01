@@ -4,28 +4,29 @@ const common = require('../common');
 // This test ensures that fs.readFile correctly returns the
 // contents of varying-sized files.
 
+const tmpdir = require('../../test/common/tmpdir');
 const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
 
 const prefix = `.removeme-fs-readfile-${process.pid}`;
 
-common.refreshTmpDir();
+tmpdir.refresh();
 
 const fileInfo = [
-  { name: path.join(common.tmpDir, `${prefix}-1K.txt`),
+  { name: path.join(tmpdir.path, `${prefix}-1K.txt`),
     len: 1024,
   },
-  { name: path.join(common.tmpDir, `${prefix}-64K.txt`),
+  { name: path.join(tmpdir.path, `${prefix}-64K.txt`),
     len: 64 * 1024,
   },
-  { name: path.join(common.tmpDir, `${prefix}-64KLessOne.txt`),
+  { name: path.join(tmpdir.path, `${prefix}-64KLessOne.txt`),
     len: (64 * 1024) - 1,
   },
-  { name: path.join(common.tmpDir, `${prefix}-1M.txt`),
+  { name: path.join(tmpdir.path, `${prefix}-1M.txt`),
     len: 1 * 1024 * 1024,
   },
-  { name: path.join(common.tmpDir, `${prefix}-1MPlusOne.txt`),
+  { name: path.join(tmpdir.path, `${prefix}-1MPlusOne.txt`),
     len: (1 * 1024 * 1024) + 1,
   },
 ];
