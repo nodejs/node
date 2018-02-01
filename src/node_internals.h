@@ -120,6 +120,7 @@ struct sockaddr;
     V(signal_wrap)                                                            \
     V(spawn_sync)                                                             \
     V(stream_wrap)                                                            \
+    V(string_decoder)                                                         \
     V(tcp_wrap)                                                               \
     V(timer_wrap)                                                             \
     V(trace_events)                                                           \
