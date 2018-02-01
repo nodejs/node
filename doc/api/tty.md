@@ -126,7 +126,7 @@ is updated whenever the `'resize'` event is emitted.
 added: REPLACEME
 -->
 
-* `env` {object} A object containing the environment variables to check.
+* `env` {Object} A object containing the environment variables to check.
   Defaults to `process.env`.
 * Returns: {number}
 
