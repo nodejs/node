@@ -52,14 +52,15 @@ Windows PowerShell:
 > cd $env:USERPROFILE\projects
 ```
 
-Next, create a new source file in the `projects` folder
-and call it `hello-world.js`.
+Next, create a new source file in the `projects`
+ folder and call it `hello-world.js`.
 
-In Node.js it is considered good style to use hyphens (`-`) or underscores (`_`) to separate
-multiple words in filenames. 
+In Node.js it is considered good style to use 
+hyphens (`-`) or underscores (`_`) to separate
+ multiple words in filenames. 
 
-Open `hello-world.js` in any preferred text editor and paste in the following 
-content.
+Open `hello-world.js` in any preferred text editor and 
+paste in the following content.
 
 ```js
 const http = require('http');
