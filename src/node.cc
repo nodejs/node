@@ -5384,17 +5384,20 @@ v8::MaybeLocal<v8::Object> GetRootObject() {
 }
 
 
-v8::MaybeLocal<v8::Value> Call(v8::Local<v8::Object> receiver, v8::Local<v8::Function> function,
-                               const std::vector<v8::Local<v8::Value>> & args) {
+v8::MaybeLocal<v8::Value> Call(v8::Local<v8::Object> receiver,
+                               v8::Local<v8::Function> function,
+                               const std::vector<v8::Local<v8::Value>>& args) {
   return function->Call(receiver, args.size(), const_cast<v8::Local<v8::Value>*>(&args[0]));
 }
 
-v8::MaybeLocal<v8::Value> Call(v8::Local<v8::Object> receiver, v8::Local<v8::Function> function,
+v8::MaybeLocal<v8::Value> Call(v8::Local<v8::Object> receiver,
+                               v8::Local<v8::Function> function,
                                std::initializer_list<v8::Local<v8::Value>> args) {
   return Call(receiver, function, std::vector<v8::Local<v8::Value>>(args));
 }
 
-v8::MaybeLocal<v8::Value> Call(v8::Local<v8::Object> object, const std::string& function_name,
+v8::MaybeLocal<v8::Value> Call(v8::Local<v8::Object> object,
+                               const std::string& function_name,
                                const std::vector<v8::Local<v8::Value>>& args) {
   MaybeLocal<v8::String> maybe_function_name = v8::String::NewFromUtf8(_isolate, function_name.c_str());
   Local<v8::String> v8_function_name;
@@ -5419,7 +5422,7 @@ v8::MaybeLocal<v8::Value> Call(v8::Local<v8::Object> object, const std::string& 
 }
 
 v8::MaybeLocal<v8::Value> Call(v8::Local<v8::Object> object,
-                               const std::string & function_name,
+                               const std::string& function_name,
                                std::initializer_list<v8::Local<v8::Value>> args) {
   return Call(object, function_name, std::vector<v8::Local<v8::Value>>(args));
 }
@@ -5465,7 +5468,10 @@ v8::MaybeLocal<v8::Value> GetValue(v8::Local<v8::Object> object, const std::stri
   return object->Get(context, key);
 }
 
-void RegisterModule(const std::string & name, const addon_context_register_func & callback, void *priv, const std::string & target) {
+void RegisterModule(const std::string& name,
+                    const addon_context_register_func& callback,
+                    void* priv,
+                    const std::string& target) {
   node::node_module* module = new node::node_module();
 
   module->nm_version = NODE_MODULE_VERSION;
@@ -5477,14 +5483,14 @@ void RegisterModule(const std::string & name, const addon_context_register_func 
 
   node_module_register(module);
 
-  if(target != "") {
+  if (target != "") {
     Evaluate("const " + target + " = process.binding('" + name + "')");
   }
 }
 
-void RegisterModule(const std::string & name,
-                    const std::map<std::string, v8::FunctionCallback> & module_functions,
-                    const std::string & target) {
+void RegisterModule(const std::string& name,
+                    const std::map<std::string, v8::FunctionCallback>& module_functions,
+                    const std::string& target) {
   auto map_on_heap = new const std::map<std::string, v8::FunctionCallback>(module_functions);
   RegisterModule(name, node::lib::_RegisterModuleCallback, const_cast<std::map<std::string, v8::FunctionCallback>*>(map_on_heap), target);
 }
