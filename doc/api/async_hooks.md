@@ -599,10 +599,6 @@ own resources.
 
 The `init` hook will trigger when an `AsyncResource` is instantiated.
 
-*Note*: `before` and `after` calls must be unwound in the same order that they
-are called. Otherwise, an unrecoverable exception will occur and the process
-will abort.
-
 The following is an overview of the `AsyncResource` API.
 
 ```js
@@ -615,11 +611,13 @@ const asyncResource = new AsyncResource(
   type, { triggerAsyncId: executionAsyncId(), requireManualDestroy: false }
 );
 
-// Call AsyncHooks before callbacks.
-asyncResource.emitBefore();
-
-// Call AsyncHooks after callbacks.
-asyncResource.emitAfter();
+// Run a function in the execution context of the resource. This will
+// * establish the context of the resource
+// * trigger the AsyncHooks before callbacks
+// * call the provided function `fn` with the supplied arguments
+// * trigger the AsyncHooks after callbacks
+// * restore the original execution context
+asyncResource.runInAsyncScope(fn, thisArg, ...args);
 
 // Call AsyncHooks destroy callbacks.
 asyncResource.emitDestroy();
@@ -629,6 +627,14 @@ asyncResource.asyncId();
 
 // Return the trigger ID for the AsyncResource instance.
 asyncResource.triggerAsyncId();
+
+// Call AsyncHooks before callbacks.
+// Deprecated: Use asyncResource.runInAsyncScope instead.
+asyncResource.emitBefore();
+
+// Call AsyncHooks after callbacks.
+// Deprecated: Use asyncResource.runInAsyncScope instead.
+asyncResource.emitAfter();
 ```
 
 #### `AsyncResource(type[, options])`
@@ -654,9 +660,7 @@ class DBQuery extends AsyncResource {
 
   getInfo(query, callback) {
     this.db.get(query, (err, data) => {
-      this.emitBefore();
-      callback(err, data);
-      this.emitAfter();
+      this.runInAsyncScope(callback, null, err, data);
     });
   }
 
@@ -667,7 +671,26 @@ class DBQuery extends AsyncResource {
 }
 ```
 
+#### `asyncResource.runInAsyncScope(fn[, thisArg, ...args])`
+<!-- YAML
+added: REPLACEME
+-->
+
+* `fn` {Function} The function to call in the execution context of this async
+  resource.
+* `thisArg` {any} The receiver to be used for the function call.
+* `...args` {any} Optional arguments to pass to the function.
+
+Call the provided function with the provided arguments in the execution context
+of the async resource. This will establish the context, trigger the AsyncHooks
+before callbacks, call the function, trigger the AsyncHooks after callbacks, and
+then restore the original execution context.
+
 #### `asyncResource.emitBefore()`
+<!-- YAML
+deprecated: REPLACEME
+-->
+> Stability: 0 - Deprecated: Use [`asyncResource.runInAsyncScope()`][] instead.
 
 * Returns: {undefined}
 
@@ -675,7 +698,17 @@ Call all `before` callbacks to notify that a new asynchronous execution context
 is being entered. If nested calls to `emitBefore()` are made, the stack of
 `asyncId`s will be tracked and properly unwound.
 
+`before` and `after` calls must be unwound in the same order that they
+are called. Otherwise, an unrecoverable exception will occur and the process
+will abort. For this reason, the `emitBefore` and `emitAfter` APIs are
+considered deprecated. Please use `runInAsyncScope`, as it provides a much safer
+alternative.
+
 #### `asyncResource.emitAfter()`
+<!-- YAML
+deprecated: REPLACEME
+-->
+> Stability: 0 - Deprecated: Use [`asyncResource.runInAsyncScope()`][] instead.
 
 * Returns: {undefined}
 
@@ -685,6 +718,12 @@ make sure the stack is unwound properly. Otherwise an error will be thrown.
 If the user's callback throws an exception, `emitAfter()` will automatically be
 called for all `asyncId`s on the stack if the error is handled by a domain or
 `'uncaughtException'` handler.
+
+`before` and `after` calls must be unwound in the same order that they
+are called. Otherwise, an unrecoverable exception will occur and the process
+will abort. For this reason, the `emitBefore` and `emitAfter` APIs are
+considered deprecated. Please use `runInAsyncScope`, as it provides a much safer
+alternative.
 
 #### `asyncResource.emitDestroy()`
 
@@ -705,6 +744,7 @@ never be called.
 constructor.
 
 [`after` callback]: #async_hooks_after_asyncid
+[`asyncResource.runInAsyncScope()`]: #async_hooks_asyncresource_runinasyncscope_fn_thisarg_args
 [`before` callback]: #async_hooks_before_asyncid
 [`destroy` callback]: #async_hooks_destroy_asyncid
 [`init` callback]: #async_hooks_init_asyncid_type_triggerasyncid_resource
