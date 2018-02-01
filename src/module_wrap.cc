@@ -37,6 +37,7 @@ using v8::ScriptCompiler;
 using v8::ScriptOrigin;
 using v8::String;
 using v8::TryCatch;
+using v8::Undefined;
 using v8::Value;
 
 static const char* const EXTENSIONS[] = {".mjs", ".js", ".json", ".node"};
@@ -62,6 +63,19 @@ ModuleWrap::~ModuleWrap() {
 
   module_.Reset();
   context_.Reset();
+}
+
+ModuleWrap* ModuleWrap::GetFromModule(Environment* env,
+                                      Local<Module> module) {
+  ModuleWrap* ret = nullptr;
+  auto range = env->module_map.equal_range(module->GetIdentityHash());
+  for (auto it = range.first; it != range.second; ++it) {
+    if (it->second->module_ == module) {
+      ret = it->second;
+      break;
+    }
+  }
+  return ret;
 }
 
 void ModuleWrap::New(const FunctionCallbackInfo<Value>& args) {
@@ -133,9 +147,7 @@ void ModuleWrap::New(const FunctionCallbackInfo<Value>& args) {
     }
   }
 
-  Local<String> url_str = FIXED_ONE_BYTE_STRING(isolate, "url");
-
-  if (!that->Set(context, url_str, url).FromMaybe(false)) {
+  if (!that->Set(context, env->url_string(), url).FromMaybe(false)) {
     return;
   }
 
@@ -361,14 +373,7 @@ MaybeLocal<Module> ModuleWrap::ResolveCallback(Local<Context> context,
     return MaybeLocal<Module>();
   }
 
-  ModuleWrap* dependent = nullptr;
-  auto range = env->module_map.equal_range(referrer->GetIdentityHash());
-  for (auto it = range.first; it != range.second; ++it) {
-    if (it->second->module_ == referrer) {
-      dependent = it->second;
-      break;
-    }
-  }
+  ModuleWrap* dependent = ModuleWrap::GetFromModule(env, referrer);
 
   if (dependent == nullptr) {
     env->ThrowError("linking error, null dep");
@@ -728,6 +733,40 @@ void ModuleWrap::SetImportModuleDynamicallyCallback(
   iso->SetHostImportModuleDynamicallyCallback(ImportModuleDynamically);
 }
 
+void ModuleWrap::HostInitializeImportMetaObjectCallback(
+    Local<Context> context, Local<Module> module, Local<Object> meta) {
+  Isolate* isolate = context->GetIsolate();
+  Environment* env = Environment::GetCurrent(context);
+  ModuleWrap* module_wrap = ModuleWrap::GetFromModule(env, module);
+
+  if (module_wrap == nullptr) {
+    return;
+  }
+
+  Local<Object> wrap = module_wrap->object();
+  Local<Function> callback =
+      env->host_initialize_import_meta_object_callback();
+  Local<Value> args[] = { wrap, meta };
+  callback->Call(context, Undefined(isolate), arraysize(args), args)
+      .ToLocalChecked();
+}
+
+void ModuleWrap::SetInitializeImportMetaObjectCallback(
+    const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  Isolate* isolate = env->isolate();
+  if (!args[0]->IsFunction()) {
+    env->ThrowError("first argument is not a function");
+    return;
+  }
+
+  Local<Function> import_meta_callback = args[0].As<Function>();
+  env->set_host_initialize_import_meta_object_callback(import_meta_callback);
+
+  isolate->SetHostInitializeImportMetaObjectCallback(
+      HostInitializeImportMetaObjectCallback);
+}
+
 void ModuleWrap::Initialize(Local<Object> target,
                             Local<Value> unused,
                             Local<Context> context) {
@@ -752,6 +791,9 @@ void ModuleWrap::Initialize(Local<Object> target,
   env->SetMethod(target,
                  "setImportModuleDynamicallyCallback",
                  node::loader::ModuleWrap::SetImportModuleDynamicallyCallback);
+  env->SetMethod(target,
+                 "setInitializeImportMetaObjectCallback",
+                 ModuleWrap::SetInitializeImportMetaObjectCallback);
 
 #define V(name)                                                                \
     target->Set(context,                                                       \
