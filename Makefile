@@ -619,7 +619,7 @@ doc-only: $(apidoc_dirs) $(apiassets)  ## Builds the docs with the local or the 
 	if [ ! -d doc/api/assets ]; then \
 		$(MAKE) tools/doc/node_modules/js-yaml/package.json; \
 	fi;
-	@$(MAKE) -s $(apidocs_html) $(apidocs_json)
+	@$(MAKE) $(apidocs_html) $(apidocs_json)
 
 .PHONY: doc
 doc: $(NODE_EXE) doc-only
