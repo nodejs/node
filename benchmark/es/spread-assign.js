@@ -5,7 +5,7 @@ const assert = require('assert');
 const util = require('util');
 
 const bench = common.createBenchmark(main, {
-  method: ['rest', 'assign', '_extend'],
+  method: ['spread', 'assign', '_extend'],
   count: [5, 10, 20],
   millions: [1]
 });
@@ -23,7 +23,7 @@ function main({ millions, context, count, rest, method }) {
   switch (method) {
     case '':
       // Empty string falls through to next line as default, mostly for tests.
-    case 'extend':
+    case '_extend':
       bench.start();
       for (i = 0; i < n; i++)
         obj = util._extend({}, src);
@@ -35,7 +35,7 @@ function main({ millions, context, count, rest, method }) {
         obj = Object.assign({}, src);
       bench.end(n);
       break;
-    case 'rest':
+    case 'spread':
       bench.start();
       for (i = 0; i < n; i++)
         obj = { ...src };
