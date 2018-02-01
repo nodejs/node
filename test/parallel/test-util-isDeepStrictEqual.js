@@ -481,3 +481,22 @@ utilIsDeepStrict(-0, -0);
   boxedStringA[symbol1] = true;
   utilIsDeepStrict(a, b);
 }
+
+// Handle WeakMap and WeakSet
+{
+  const wm1 = new WeakMap();
+  const wm2 = new WeakMap();
+  const key = {};
+  wm1.set(key, 1);
+  wm2.set(key, 1);
+  // seems to be equal but WeakMap is always false
+  notUtilIsDeepStrict(wm1, wm2);
+
+  const ws1 = new WeakSet();
+  const ws2 = new WeakSet();
+  const obj = {};
+  ws1.add(obj);
+  ws2.add(obj);
+  // seems to be equal but WeakSet is always false
+  notUtilIsDeepStrict(ws1, ws2);
+}
