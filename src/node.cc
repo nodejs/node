@@ -5306,7 +5306,7 @@ void Initialize(const std::string& program_name, const std::vector<std::string>&
   // Start environment
   //////////
 
-  initialize::_StartEnv(cmd_args->argc, (const char* const*)cmd_args->argv);
+  initialize::_StartEnv(cmd_args->argc, const_cast<const char* const*>(cmd_args->argv));
 }
 
 int Deinitialize() {
