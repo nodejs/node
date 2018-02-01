@@ -34,7 +34,7 @@ const bench = common.createBenchmark(main, {
 });
 
 function main({ n, key }) {
-  if (key == 'LONG_AND_INVALID') {
+  if (key === 'LONG_AND_INVALID') {
     key = LONG_AND_INVALID;
   }
   bench.start();
