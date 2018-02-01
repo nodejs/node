@@ -831,8 +831,8 @@ Type: Runtime
 
 The [`crypto.DEFAULT_ENCODING`][] property is deprecated.
 
-<a id="DEP00XX"></a>
-### DEP00XX: Top-level `this` bound to `module.exports`
+<a id="DEP0092"></a>
+### DEP0092: Top-level `this` bound to `module.exports`
 
 Type: Documentation-only
 
