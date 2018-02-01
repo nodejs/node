@@ -880,6 +880,18 @@ Users of `MakeCallback` that add the `domain` property to carry context,
 should start using the `async_context` variant of `MakeCallback` or
 `CallbackScope`, or the the high-level `AsyncResource` class.
 
+<a id="DEP0098"></a>
+### DEP0098: AsyncHooks Embedder AsyncResource.emit{Before,After} APIs
+
+Type: Runtime
+
+The embedded API provided by AsyncHooks exposes emit{Before,After} methods
+which are very easy to use incorrectly which can lead to unrecoverable errors.
+
+Use [`asyncResource.runInAsyncScope()`][] API instead which provides a much
+safer, and more convenient, alternative. See
+https://github.com/nodejs/node/pull/18513 for more details.
+
 [`--pending-deprecation`]: cli.html#cli_pending_deprecation
 [`Buffer.allocUnsafeSlow(size)`]: buffer.html#buffer_class_method_buffer_allocunsafeslow_size
 [`Buffer.from(array)`]: buffer.html#buffer_class_method_buffer_from_array
@@ -892,6 +904,7 @@ should start using the `async_context` variant of `MakeCallback` or
 [`Server.getConnections()`]: net.html#net_server_getconnections_callback
 [`Server.listen({fd: <number>})`]: net.html#net_server_listen_handle_backlog_callback
 [`SlowBuffer`]: buffer.html#buffer_class_slowbuffer
+[`asyncResource.runInAsyncScope()`]: async_hooks.html#async_hooks_asyncresource_runinasyncscope_fn_thisarg_args
 [`child_process`]: child_process.html
 [`console.error()`]: console.html#console_console_error_data_args
 [`console.log()`]: console.html#console_console_log_data_args
