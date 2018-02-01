@@ -3,6 +3,10 @@
 const common = require('../common.js');
 const _checkInvalidHeaderChar = require('_http_common')._checkInvalidHeaderChar;
 
+// Put it here so the benchmark result lines will not be super long.
+const LONG_AND_INVALID = 'Here is a value that is really a folded header ' +
+  'value\r\n  this should be \supported, but it is not currently';
+
 const bench = common.createBenchmark(main, {
   key: [
     // Valid
@@ -21,8 +25,7 @@ const bench = common.createBenchmark(main, {
     'en-US',
 
     // Invalid
-    'Here is a value that is really a folded header value\r\n  this should be \
-     supported, but it is not currently',
+    'LONG_AND_INVALID',
     '中文呢', // unicode
     'foo\nbar',
     '\x7F'
@@ -31,6 +34,9 @@ const bench = common.createBenchmark(main, {
 });
 
 function main({ n, key }) {
+  if (key === 'LONG_AND_INVALID') {
+    key = LONG_AND_INVALID;
+  }
   bench.start();
   for (var i = 0; i < n; i++) {
     _checkInvalidHeaderChar(key);
