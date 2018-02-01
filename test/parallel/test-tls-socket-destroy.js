@@ -19,6 +19,7 @@ const server = net.createServer(common.mustCall((conn) => {
   const socket = new tls.TLSSocket(conn, options);
   socket.once('data', common.mustCall(() => {
     socket._destroySSL();  // Should not crash.
+    socket.destroy();
     server.close();
   }));
 }));
