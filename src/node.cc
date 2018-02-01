@@ -3530,6 +3530,8 @@ static void CheckIfAllowedInEnv(const char* exe, bool is_env,
     "--icu-data-dir",
 
     // V8 options (define with '_', which allows '-' or '_')
+    "--perf_prof",
+    "--perf_basic_prof",
     "--abort_on_uncaught_exception",
     "--max_old_space_size",
     "--stack_trace_limit",
