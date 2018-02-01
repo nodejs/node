@@ -17,8 +17,9 @@ const fs = require('fs');
 if (process.argv[2] === 'child') {
   // Do nothing.
 } else {
-  common.refreshTmpDir();
-  const dir = fs.mkdtempSync(`${common.tmpDir}/`);
+  const tmpdir = require('../common/tmpdir');
+  tmpdir.refresh();
+  const dir = fs.mkdtempSync(`${tmpdir.path}/`);
   process.chdir(dir);
   fs.rmdirSync(dir);
   assert.throws(process.cwd,

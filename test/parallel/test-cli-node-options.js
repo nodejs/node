@@ -8,8 +8,9 @@ if (process.config.variables.node_without_node_options)
 const assert = require('assert');
 const exec = require('child_process').execFile;
 
-common.refreshTmpDir();
-process.chdir(common.tmpDir);
+const tmpdir = require('../common/tmpdir');
+tmpdir.refresh();
+process.chdir(tmpdir.path);
 
 expect(`-r ${require.resolve('../fixtures/printA.js')}`, 'A\nB\n');
 expect('--no-deprecation', 'B\n');

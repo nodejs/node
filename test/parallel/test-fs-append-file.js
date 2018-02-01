@@ -25,7 +25,9 @@ const assert = require('assert');
 const fs = require('fs');
 const join = require('path').join;
 
-const filename = join(common.tmpDir, 'append.txt');
+const tmpdir = require('../common/tmpdir');
+
+const filename = join(tmpdir.path, 'append.txt');
 
 const currentFileData = 'ABCD';
 
@@ -40,7 +42,7 @@ const s = '南越国是前203年至前111年存在于岭南地区的一个国家
 
 let ncallbacks = 0;
 
-common.refreshTmpDir();
+tmpdir.refresh();
 
 // test that empty file will be created and have content added
 fs.appendFile(filename, s, function(e) {
@@ -56,7 +58,7 @@ fs.appendFile(filename, s, function(e) {
 });
 
 // test that appends data to a non empty file
-const filename2 = join(common.tmpDir, 'append2.txt');
+const filename2 = join(tmpdir.path, 'append2.txt');
 fs.writeFileSync(filename2, currentFileData);
 
 fs.appendFile(filename2, s, function(e) {
@@ -73,7 +75,7 @@ fs.appendFile(filename2, s, function(e) {
 });
 
 // test that appendFile accepts buffers
-const filename3 = join(common.tmpDir, 'append3.txt');
+const filename3 = join(tmpdir.path, 'append3.txt');
 fs.writeFileSync(filename3, currentFileData);
 
 const buf = Buffer.from(s, 'utf8');
@@ -91,7 +93,7 @@ fs.appendFile(filename3, buf, function(e) {
 });
 
 // test that appendFile accepts numbers.
-const filename4 = join(common.tmpDir, 'append4.txt');
+const filename4 = join(tmpdir.path, 'append4.txt');
 fs.writeFileSync(filename4, currentFileData);
 
 const m = 0o600;
@@ -115,7 +117,7 @@ fs.appendFile(filename4, n, { mode: m }, function(e) {
 });
 
 // test that appendFile accepts file descriptors
-const filename5 = join(common.tmpDir, 'append5.txt');
+const filename5 = join(tmpdir.path, 'append5.txt');
 fs.writeFileSync(filename5, currentFileData);
 
 fs.open(filename5, 'a+', function(e, fd) {
@@ -146,7 +148,7 @@ fs.open(filename5, 'a+', function(e, fd) {
 
 // test that a missing callback emits a warning, even if the last argument is a
 // function.
-const filename6 = join(common.tmpDir, 'append6.txt');
+const filename6 = join(tmpdir.path, 'append6.txt');
 const warn = 'Calling an asynchronous function without callback is deprecated.';
 common.expectWarning('DeprecationWarning', warn);
 fs.appendFile(filename6, console.log);

@@ -20,13 +20,14 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-const common = require('../common');
+require('../common');
 const assert = require('assert');
 const path = require('path');
 const fs = require('fs');
-const filename = path.join(common.tmpDir, 'write.txt');
+const tmpdir = require('../common/tmpdir');
+const filename = path.join(tmpdir.path, 'write.txt');
 
-common.refreshTmpDir();
+tmpdir.refresh();
 
 // fs.writeSync with all parameters provided:
 {

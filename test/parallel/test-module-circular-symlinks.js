@@ -29,8 +29,9 @@ const fs = require('fs');
 //         └── node_modules
 //         └── moduleA -> {tmpDir}/node_modules/moduleA
 
-common.refreshTmpDir();
-const tmpDir = common.tmpDir;
+const tmpdir = require('../common/tmpdir');
+tmpdir.refresh();
+const tmpDir = tmpdir.path;
 
 const node_modules = path.join(tmpDir, 'node_modules');
 const moduleA = path.join(node_modules, 'moduleA');
