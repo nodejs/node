@@ -128,6 +128,10 @@ assert.strictEqual(decoder.write(Buffer.from('3DD8', 'hex')), '');
 assert.strictEqual(decoder.write(Buffer.from('4D', 'hex')), '');
 assert.strictEqual(decoder.end(), '\ud83d');
 
+decoder = new StringDecoder('utf16le');
+assert.strictEqual(decoder.write(Buffer.from('3DD84D', 'hex')), '\ud83d');
+assert.strictEqual(decoder.end(), '');
+
 common.expectsError(
   () => new StringDecoder(1),
   {
