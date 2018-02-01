@@ -171,6 +171,9 @@ void ModuleWrap::Link(const FunctionCallbackInfo<Value>& args) {
   Local<Context> mod_context = obj->context_.Get(isolate);
   Local<Module> module = obj->module_.Get(isolate);
 
+  Local<Array> promises = Array::New(isolate,
+                                     module->GetModuleRequestsLength());
+
   // call the dependency resolve callbacks
   for (int i = 0; i < module->GetModuleRequestsLength(); i++) {
     Local<String> specifier = module->GetModuleRequest(i);
@@ -193,9 +196,11 @@ void ModuleWrap::Link(const FunctionCallbackInfo<Value>& args) {
     }
     Local<Promise> resolve_promise = resolve_return_value.As<Promise>();
     obj->resolve_cache_[specifier_std].Reset(env->isolate(), resolve_promise);
+
+    promises->Set(mod_context, specifier, resolve_promise).FromJust();
   }
 
-  args.GetReturnValue().Set(that);
+  args.GetReturnValue().Set(promises);
 }
 
 void ModuleWrap::Instantiate(const FunctionCallbackInfo<Value>& args) {
