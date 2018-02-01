@@ -692,9 +692,8 @@ parameter is an instance of an [`Error`][] then it will be thrown instead of the
 added: v0.1.21
 changes:
   - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/17581
-    description: assert.ok() will throw a `ERR_MISSING_ARGS` error.
-                 Use assert.fail() instead.
+    pr-url: https://github.com/nodejs/node/pull/REPLACEME
+    description: assert.ok() (no arguments) will now use a predefined error msg.
 -->
 * `value` {any}
 * `message` {any}
@@ -707,6 +706,8 @@ property set equal to the value of the `message` parameter. If the `message`
 parameter is `undefined`, a default error message is assigned. If the `message`
 parameter is an instance of an [`Error`][] then it will be thrown instead of the
 `AssertionError`.
+If no arguments are passed in at all `message` will be set to the string:
+"No value argument passed to assert.ok".
 
 Be aware that in the `repl` the error message will be different to the one
 thrown in a file! See below for further details.
@@ -718,6 +719,10 @@ assert.ok(true);
 // OK
 assert.ok(1);
 // OK
+
+assert.ok();
+// throws:
+// "AssertionError: No value argument passed to `assert.ok`.
 
 assert.ok(false, 'it\'s false');
 // throws "AssertionError: it's false"
