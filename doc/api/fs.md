@@ -2250,10 +2250,9 @@ Any specified file descriptor has to support reading.
 *Note*: If a file descriptor is specified as the `path`, it will not be closed
 automatically.
 
-*Note*: `fs.readFile()` reads the entire file in a single threadpool request.
-To minimize threadpool task length variation, prefer the partitioned APIs
-`fs.read()` and `fs.createReadStream()` when reading files as part of
-fulfilling a client request.
+*Note*: `fs.readFile()` buffers the entire file.
+To minimize memory costs, when possible prefer streaming via
+`fs.createReadStream()`.
 
 ## fs.readFileSync(path[, options])
 <!-- YAML
