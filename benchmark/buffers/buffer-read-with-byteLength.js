@@ -16,21 +16,17 @@ const bench = common.createBenchmark(main, {
   byteLength: [1, 2, 4, 6]
 });
 
-function main(conf) {
-  const noAssert = conf.noAssert === 'true';
-  const len = conf.millions * 1e6;
-  const clazz = conf.buf === 'fast' ? Buffer : require('buffer').SlowBuffer;
+function main({ millions, noAssert, buf, type, byteLength }) {
+  noAssert = noAssert === 'true';
+  type = type || 'UInt8';
+  const clazz = buf === 'fast' ? Buffer : require('buffer').SlowBuffer;
   const buff = new clazz(8);
-  const type = conf.type || 'UInt8';
   const fn = `read${type}`;
 
   buff.writeDoubleLE(0, 0, noAssert);
-  const testFunction = new Function('buff', `
-    for (var i = 0; i !== ${len}; i++) {
-      buff.${fn}(0, ${conf.byteLength}, ${JSON.stringify(noAssert)});
-    }
-  `);
   bench.start();
-  testFunction(buff);
-  bench.end(len / 1e6);
+  for (var i = 0; i !== millions * 1e6; i++) {
+    buff[fn](0, byteLength, noAssert);
+  }
+  bench.end(millions);
 }

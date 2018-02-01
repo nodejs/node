@@ -11,12 +11,13 @@ const bench = common.createBenchmark(main, {
 
 var clientConn = 0;
 var serverConn = 0;
-var server;
 var dur;
 var concurrency;
 var running = true;
 
-function main({ dur, concurrency }) {
+function main(conf) {
+  dur = conf.dur;
+  concurrency = conf.concurrency;
   const cert_dir = path.resolve(__dirname, '../../test/fixtures');
   const options = {
     key: fs.readFileSync(`${cert_dir}/test_key.pem`),
@@ -25,7 +26,7 @@ function main({ dur, concurrency }) {
     ciphers: 'AES256-GCM-SHA384'
   };
 
-  server = tls.createServer(options, onConnection);
+  const server = tls.createServer(options, onConnection);
   server.listen(common.PORT, onListening);
 }
 

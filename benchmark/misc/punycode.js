@@ -55,9 +55,8 @@ function runPunycode(n, val) {
 }
 
 function runICU(n, val) {
-  var i = 0;
   bench.start();
-  for (; i < n; i++)
+  for (var i = 0; i < n; i++)
     usingICU(val);
   bench.end(n);
 }
@@ -76,6 +75,6 @@ function main({ n, val, method }) {
       }
       // fallthrough
     default:
-      throw new Error('Unexpected method');
+      throw new Error(`Unexpected method "${method}"`);
   }
 }
