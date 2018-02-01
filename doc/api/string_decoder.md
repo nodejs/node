@@ -66,6 +66,16 @@ substitution characters appropriate for the character encoding.
 If the `buffer` argument is provided, one final call to `stringDecoder.write()`
 is performed before returning the remaining input.
 
+### stringDecoder.reset([encoding])
+<!-- YAML
+added: REPLACEME
+-->
+
+* `encoding` {string} The character encoding the `StringDecoder` will use.
+  Defaults to the current `encoding` of the decoder.
+
+Flushes all the internal data and the decoder will behave like a new object.
+
 ### stringDecoder.write(buffer)
 <!-- YAML
 added: v0.1.99
@@ -82,3 +92,4 @@ Returns a decoded string, ensuring that any incomplete multibyte characters at
 the end of the `Buffer` are omitted from the returned string and stored in an
 internal buffer for the next call to `stringDecoder.write()` or
 `stringDecoder.end()`.
+

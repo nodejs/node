@@ -66,3 +66,13 @@ function testBuf(encoding, buf) {
   assert.strictEqual(res1, res3, 'one byte at a time should match toString');
   assert.strictEqual(res2, res3, 'all bytes at once should match toString');
 }
+
+{
+  // test to check if the write after end doesn't accumulate the data
+  const decoder = new SD('utf8');
+  const euroPart1 = Buffer.from([0xE2]);
+  const euroPart2 = Buffer.from([0x82, 0xAC]);
+  decoder.end(euroPart1);
+  const result = decoder.write(euroPart2);
+  assert.notStrictEqual(result, '€');
+}
