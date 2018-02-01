@@ -558,7 +558,7 @@ doc-only: $(apidoc_dirs) $(apiassets)
 	if [ ! -d doc/api/assets ]; then \
 		$(MAKE) tools/doc/node_modules/js-yaml/package.json; \
 	fi;
-	@$(MAKE) -s $(apidocs_html) $(apidocs_json)
+	@$(MAKE) $(apidocs_html) $(apidocs_json)
 
 doc: $(NODE_EXE) doc-only
 
