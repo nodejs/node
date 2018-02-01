@@ -197,7 +197,7 @@ void ModuleWrap::Link(const FunctionCallbackInfo<Value>& args) {
     Local<Promise> resolve_promise = resolve_return_value.As<Promise>();
     obj->resolve_cache_[specifier_std].Reset(env->isolate(), resolve_promise);
 
-    promises->Set(mod_context, specifier, resolve_promise).FromJust();
+    promises->Set(mod_context, i, resolve_promise).FromJust();
   }
 
   args.GetReturnValue().Set(promises);
