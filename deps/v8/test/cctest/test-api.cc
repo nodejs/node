@@ -19108,6 +19108,7 @@ TEST(Regress528) {
 
 THREADED_TEST(ScriptOrigin) {
   LocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
   // Backed out for ABI compatibility with V8 6.2
   // v8::Isolate* isolate = env->GetIsolate();
   // v8::HandleScope scope(isolate);
