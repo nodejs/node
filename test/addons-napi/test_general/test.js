@@ -73,14 +73,15 @@ assert.strictEqual(derefItemWasCalled, true,
 // Assert that wrapping twice fails.
 const x = {};
 test_general.wrap(x);
-assert.throws(() => test_general.wrap(x), Error);
+common.expectsError(() => test_general.wrap(x),
+                    { type: Error, message: 'Invalid argument' });
 
 // Ensure that wrapping, removing the wrap, and then wrapping again works.
 const y = {};
 test_general.wrap(y);
 test_general.removeWrap(y);
 // Wrapping twice succeeds if a remove_wrap() separates the instances
-assert.doesNotThrow(() => test_general.wrap(y))
+assert.doesNotThrow(() => test_general.wrap(y));
 
 // Ensure that removing a wrap and garbage collecting does not fire the
 // finalize callback.
