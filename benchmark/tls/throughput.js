@@ -40,11 +40,11 @@ function main({ dur, type, size }) {
   };
 
   server = tls.createServer(options, onConnection);
-  setTimeout(done, dur * 1000);
   var conn;
   server.listen(common.PORT, function() {
     const opt = { port: common.PORT, rejectUnauthorized: false };
     conn = tls.connect(opt, function() {
+      setTimeout(done, dur * 1000);
       bench.start();
       conn.on('drain', write);
       write();
