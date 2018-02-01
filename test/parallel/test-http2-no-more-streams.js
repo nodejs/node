@@ -26,7 +26,7 @@ server.listen(0, common.mustCall(() => {
     const countdown = new Countdown(2, () => {
       server.close();
       client.close();
-    }));
+    });
 
     {
       // This one will be ok

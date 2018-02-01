@@ -42,8 +42,7 @@ function onUncaughtException(err) {
 }
 
 process.on('uncaughtException',
-           common.mustCall(onUncaughtException, NUMBER_OF_EXCEPTIONS)
-);
+           common.mustCall(onUncaughtException, NUMBER_OF_EXCEPTIONS));
 
 server.listen(0, function() {
   for (let i = 0; i < NUMBER_OF_EXCEPTIONS; i += 1) {
