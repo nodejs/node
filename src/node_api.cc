@@ -75,10 +75,12 @@ struct napi_env__ {
     }                                                                   \
   } while (0)
 
-#define CHECK_ENV(env)        \
-  if ((env) == nullptr) {     \
-    return napi_invalid_arg;  \
-  }
+#define CHECK_ENV(env)          \
+  do {                          \
+    if ((env) == nullptr) {     \
+      return napi_invalid_arg;  \
+    }                           \
+  } while (0)
 
 #define CHECK_ARG(env, arg) \
   RETURN_STATUS_IF_FALSE((env), ((arg) != nullptr), napi_invalid_arg)
