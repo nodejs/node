@@ -579,7 +579,9 @@ Defaults to `'utf8'`.
 The `callback` argument is optional and will be called when this chunk of data
 is flushed.
 
-Returns `request`.
+Returns `true` if the entire data was flushed successfully to the kernel
+buffer. Returns `false` if all or part of the data was queued in user memory.
+`'drain'` will be emitted when the buffer is free again.
 
 ## Class: http.Server
 <!-- YAML
