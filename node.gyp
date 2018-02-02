@@ -237,6 +237,11 @@
             }],
           ],
         }],
+        [ 'node_shared=="true"', {
+          'xcode_settings': {
+            'OTHER_LDFLAGS': [ '-Wl,-rpath,@loader_path', ],
+          },
+        }],
         [ 'node_intermediate_lib_type=="shared_library" and OS=="win"', {
           # On Windows, having the same name for both executable and shared
           # lib causes filename collision. Need a different PRODUCT_NAME for
@@ -390,6 +395,10 @@
       'conditions': [
         [ 'node_shared=="true" and node_module_version!="" and OS!="win"', {
           'product_extension': '<(shlib_suffix)',
+          'xcode_settings': {
+            'LD_DYLIB_INSTALL_NAME':
+              '@rpath/lib<(node_core_target_name).<(shlib_suffix)'
+          },
         }],
         ['node_shared=="true" and OS=="aix"', {
           'product_name': 'node_base',
@@ -981,6 +990,9 @@
             '<@(library_files)',
             'common.gypi',
           ],
+          'direct_dependent_settings': {
+            'ldflags': [ '-Wl,-brtl' ],
+          },
         },
       ]
     }], # end aix section

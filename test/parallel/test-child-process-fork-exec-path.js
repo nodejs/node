@@ -28,6 +28,9 @@ const tmpdir = require('../common/tmpdir');
 const msg = { test: 'this' };
 const nodePath = process.execPath;
 const copyPath = path.join(tmpdir.path, 'node-copy.exe');
+const { addLibraryPath } = require('../common/shared-lib-util');
+
+addLibraryPath(process.env);
 
 if (process.env.FORK) {
   assert(process.send);
