@@ -3148,7 +3148,7 @@ Afterward, additional manipulation of the wrapper's prototype chain may cause
 
 *Note*: Calling `napi_wrap()` a second time on an object that already has a
 native instance associated with it by virtue of a previous call to
-`napi_wrap()` will cause an error to be returned. If you wish to associate
+`napi_wrap()` will cause an error to be returned. In order to associate
 another native instance with the given object, call `napi_remove_wrap()` on it
 first.
 
