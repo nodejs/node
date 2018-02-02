@@ -8,7 +8,11 @@
 #define __NUMBER_PATTERNSTRING_H__
 
 
+#if __cplusplus < 201000
 #include <cstdint>
+#else
+#include <stdint.h>
+#endif
 #include "unicode/unum.h"
 #include "unicode/unistr.h"
 #include "number_types.h"

@@ -8,7 +8,11 @@
 #define __NUMBER_DECIMFMTPROPS_H__
 
 #include "unicode/unistr.h"
+#if __cplusplus < 201000
 #include <cstdint>
+#else
+#include <stdint.h>
+#endif
 #include "unicode/plurrule.h"
 #include "unicode/currpinf.h"
 #include "unicode/unum.h"

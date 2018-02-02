@@ -8,7 +8,11 @@
 #define __NUMBER_STRINGBUILDER_H__
 
 
+#if __cplusplus < 201000
 #include <cstdint>
+#else
+#include <stdint.h>
+#endif
 #include "unicode/numfmt.h"
 #include "unicode/ustring.h"
 #include "cstring.h"

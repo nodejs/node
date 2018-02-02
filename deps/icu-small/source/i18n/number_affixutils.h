@@ -7,7 +7,11 @@
 #ifndef __NUMBER_AFFIXUTILS_H__
 #define __NUMBER_AFFIXUTILS_H__
 
+#if __cplusplus < 201000
 #include <cstdint>
+#else
+#include <stdint.h>
+#endif
 #include "number_types.h"
 #include "unicode/stringpiece.h"
 #include "unicode/unistr.h"

@@ -8,7 +8,11 @@
 #define __NUMBER_MODIFIERS_H__
 
 #include <algorithm>
+#if __cplusplus < 201000
 #include <cstdint>
+#else
+#include <stdint.h>
+#endif
 #include "unicode/uniset.h"
 #include "unicode/simpleformatter.h"
 #include "standardplural.h"

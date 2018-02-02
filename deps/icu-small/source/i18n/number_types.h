@@ -7,7 +7,11 @@
 #ifndef __NUMBER_TYPES_H__
 #define __NUMBER_TYPES_H__
 
+#if __cplusplus < 201000
 #include <cstdint>
+#else
+#include <stdint.h>
+#endif
 #include "unicode/decimfmt.h"
 #include "unicode/unum.h"
 #include "unicode/numsys.h"

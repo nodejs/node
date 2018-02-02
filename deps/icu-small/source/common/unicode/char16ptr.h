@@ -10,6 +10,11 @@
 #include <cstddef>
 #include "unicode/utypes.h"
 
+#if __cplusplus > 201000
+namespace std {
+    typedef decltype(nullptr) nullptr_t;
+}
+#endif
 /**
  * \file
  * \brief C++ API: char16_t pointer wrappers with

@@ -7,7 +7,11 @@
 #ifndef __NUMBER_DECIMALQUANTITY_H__
 #define __NUMBER_DECIMALQUANTITY_H__
 
+#if __cplusplus < 201000
 #include <cstdint>
+#else
+#include <stdint.h>
+#endif
 #include "unicode/umachine.h"
 #include "decNumber.h"
 #include "standardplural.h"
