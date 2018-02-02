@@ -130,7 +130,7 @@ TEST_F(DebugSymbolsTest, ReqWrapList) {
   // NOTE (mmarchini): Workaround to fix failing tests on ARM64 machines with
   // older GCC. Should be removed once we upgrade the GCC version used on our
   // ARM64 CI machinies.
-  for (auto it : *(*env)->req_wrap_queue()) {}
+  for (auto it : *(*env)->req_wrap_queue()) (void) &it;
 
   auto queue = reinterpret_cast<uintptr_t>((*env)->req_wrap_queue());
   auto head = queue +
