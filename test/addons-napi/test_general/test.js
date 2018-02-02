@@ -92,8 +92,8 @@ z = null;
 global.gc();
 const finalizeWasCalled = test_general.finalizeWasCalled();
 assert.strictEqual(finalizeWasCalled, false,
-                   'finalize callback was not called upon garbage collection' +
-                   'test_general.finalizeWasCalled() ' +
+                   'finalize callback was not called upon garbage collection.' +
+                   ' test_general.finalizeWasCalled() ' +
                    `returned ${finalizeWasCalled}`);
 
 // test napi_adjust_external_memory
