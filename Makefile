@@ -191,6 +191,9 @@ coverage-test: coverage-build
 	$(RM) out/$(BUILDTYPE)/obj.target/node/gen/*.gcda
 	$(RM) out/$(BUILDTYPE)/obj.target/node/src/*.gcda
 	$(RM) out/$(BUILDTYPE)/obj.target/node/src/tracing/*.gcda
+	$(RM) out/$(BUILDTYPE)/obj.target/node_lib/gen/*.gcda
+	$(RM) out/$(BUILDTYPE)/obj.target/node_lib/src/*.gcda
+	$(RM) out/$(BUILDTYPE)/obj.target/node_lib/src/tracing/*.gcda
 	-$(MAKE) $(COVTESTS)
 	mv lib lib__
 	mv lib_ lib
@@ -201,7 +204,7 @@ coverage-test: coverage-build
 		--temp-directory "$(CURDIR)/.cov_tmp" \
 		--report-dir "../coverage")
 	-(cd out && "../gcovr/scripts/gcovr" --gcov-exclude='.*deps' \
-		--gcov-exclude='.*usr' -v -r Release/obj.target/node \
+		--gcov-exclude='.*usr' -v -r Release/obj.target \
 		--html --html-detail -o ../coverage/cxxcoverage.html \
 		--gcov-executable="$(GCOV)")
 	mv lib lib_
