@@ -6,6 +6,9 @@ const path = require('path');
 const fs = require('fs');
 const child_process = require('child_process');
 const pkgName = 'foo';
+const { addLibraryPath } = require('../common/shared-lib-util');
+
+addLibraryPath(process.env);
 
 if (process.argv[2] === 'child') {
   console.log(require(pkgName).string);
