@@ -3161,11 +3161,8 @@ required in order to enable correct proper of the reference.
 Afterward, additional manipulation of the wrapper's prototype chain may cause
 `napi_unwrap()` to fail.
 
-*Note*: Calling `napi_wrap()` a second time on an object that already has a
-native instance associated with it by virtue of a previous call to
-`napi_wrap()` will cause an error to be returned. If you wish to associate
-another native instance with the given object, call `napi_remove_wrap()` on it
-first.
+Calling napi_wrap() a second time on an object will return an error. To associate
+another native instance with the object, use napi_remove_wrap() first.
 
 ### napi_unwrap
 <!-- YAML
