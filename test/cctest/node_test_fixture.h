@@ -63,10 +63,6 @@ class NodeTestFixture : public ::testing::Test {
  protected:
   v8::Isolate* isolate_;
 
-  ~NodeTestFixture() {
-    TearDown();
-  }
-
   virtual void SetUp() {
     CHECK_EQ(0, uv_loop_init(&current_loop));
     platform_ = new node::NodePlatform(8, nullptr);
@@ -78,7 +74,6 @@ class NodeTestFixture : public ::testing::Test {
   }
 
   virtual void TearDown() {
-    if (platform_ == nullptr) return;
     platform_->Shutdown();
     while (uv_loop_alive(&current_loop)) {
       uv_run(&current_loop, UV_RUN_ONCE);

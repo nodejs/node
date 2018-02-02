@@ -5,16 +5,7 @@
 
 using node::AliasedBuffer;
 
-class AliasBufferTest : public NodeTestFixture {
- protected:
-  void SetUp() override {
-    NodeTestFixture::SetUp();
-  }
-
-  void TearDown() override {
-    NodeTestFixture::TearDown();
-  }
-};
+class AliasBufferTest : public NodeTestFixture {};
 
 template<class NativeT>
 void CreateOracleValues(NativeT* buf, size_t count) {
