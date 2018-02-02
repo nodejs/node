@@ -33,6 +33,7 @@
 #include "req_wrap.h"
 #include "util.h"
 #include "uv.h"
+#include "v8-profiler.h"
 #include "v8.h"
 #include "node.h"
 #include "node_http2_state.h"
@@ -338,6 +339,8 @@ class IsolateData {
   std::unordered_map<nghttp2_rcbuf*, v8::Eternal<v8::String>> http2_static_strs;
   inline v8::Isolate* isolate() const;
 
+  v8::CpuProfiler* GetCpuProfiler();
+
  private:
 #define VP(PropertyName, StringValue) V(v8::Private, PropertyName)
 #define VS(PropertyName, StringValue) V(v8::String, PropertyName)
@@ -353,6 +356,7 @@ class IsolateData {
   uv_loop_t* const event_loop_;
   uint32_t* const zero_fill_field_;
   MultiIsolatePlatform* platform_;
+  v8::CpuProfiler* cpu_profiler_ = nullptr;
 
   DISALLOW_COPY_AND_ASSIGN(IsolateData);
 };
