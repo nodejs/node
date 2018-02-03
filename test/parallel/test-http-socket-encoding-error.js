@@ -1,11 +1,11 @@
 'use strict';
 
-const common = require( '../common' );
+const common = require('../common');
 const http = require('http');
 
 const server = http.createServer().listen(0, connectToServer);
 
-server.on('connection', socket => {
+server.on('connection', (socket) => {
   common.expectsError(() => socket.setEncoding(''),
                       {
                         code: 'ERR_METHOD_NOT_IMPLEMENTED',
