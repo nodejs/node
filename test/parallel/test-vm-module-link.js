@@ -18,7 +18,7 @@ async function simple() {
 
   assert.deepStrictEqual(bar.dependencySpecifiers, ['foo']);
 
-  await bar.link(common.mustCall((module, specifier) => {
+  await bar.link(common.mustCall((specifier, module) => {
     assert.strictEqual(module, bar);
     assert.strictEqual(specifier, 'foo');
     return foo;
@@ -38,7 +38,7 @@ async function depth() {
       import ${parentName} from '${parentName}';
       export default ${parentName};
     `);
-    await mod.link(common.mustCall((module, specifier) => {
+    await mod.link(common.mustCall((specifier, module) => {
       assert.strictEqual(module, mod);
       assert.strictEqual(specifier, parentName);
       return parentModule;
@@ -68,10 +68,10 @@ async function circular() {
       return foo;
     }
   `);
-  await foo.link(common.mustCall(async (fooModule, fooSpecifier) => {
+  await foo.link(common.mustCall(async (fooSpecifier, fooModule) => {
     assert.strictEqual(fooModule, foo);
     assert.strictEqual(fooSpecifier, 'bar');
-    await bar.link(common.mustCall((barModule, barSpecifier) => {
+    await bar.link(common.mustCall((barSpecifier, barModule) => {
       assert.strictEqual(barModule, bar);
       assert.strictEqual(barSpecifier, 'foo');
       assert.strictEqual(foo.linkingStatus, 'linking');
@@ -111,7 +111,7 @@ async function circular2() {
   };
   const moduleMap = new Map();
   const rootModule = new Module(sourceMap.root, { url: 'vm:root' });
-  async function link(referencingModule, specifier) {
+  async function link(specifier, referencingModule) {
     if (moduleMap.has(specifier)) {
       return moduleMap.get(specifier);
     }

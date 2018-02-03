@@ -117,7 +117,7 @@ const contextifiedSandbox = vm.createContext({ secret: 42 });
   // "foo" module every time it is called. In a full-fledged module system, a
   // cache would probably be used to avoid duplicated modules.
 
-  async function linker(referencingModule, specifier) {
+  async function linker(specifier, referencingModule) {
     if (specifier === 'foo') {
       return new vm.Module(`
         // The "secret" variable refers to the global variable we added to
@@ -319,14 +319,13 @@ can only be called once per module.
 
 Two parameters will be passed to the `linker` function:
 
-- `referencingModule` The `Module` object `link()` is called on.
 - `specifier` The specifier of the requested module:
-
   <!-- eslint-skip -->
   ```js
   import foo from 'foo';
   //              ^^^^^ the module specifier
   ```
+- `referencingModule` The `Module` object `link()` is called on.
 
 The function is expected to return a `Module` object or a `Promise` that
 eventually resolves to a `Module` object. The returned `Module` must satisfy the
