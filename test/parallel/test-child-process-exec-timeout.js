@@ -18,7 +18,7 @@ const cmd = `"${process.execPath}" "${__filename}" child`;
 cp.exec(cmd, { timeout: 1 }, common.mustCall((err, stdout, stderr) => {
   let sigterm = 'SIGTERM';
   assert.strictEqual(err.killed, true);
-  // TODO OpenBSD returns a null signal
+  // TODO OpenBSD returns a null signal and 143 for code
   if (!common.isOpenBSD)
     assert.strictEqual(err.code, null);
   else
