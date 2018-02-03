@@ -29,7 +29,7 @@ const invalidUrls = [
   'mailto:asdf@asdf.com',
   'ftp://www.example.com',
   'javascript:alert(\'hello\');',
-  'xmpp:isaacschlueter@jabber.org',
+  'xmpp:foo@bar.com',
   'f://some.host/path'
 ];
 
