@@ -1004,17 +1004,21 @@ static void Unlink(const FunctionCallbackInfo<Value>& args) {
 static void RMDir(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
-  CHECK_GE(args.Length(), 1);
+  const int argc = args.Length();
+  CHECK_GE(argc, 2);
 
   BufferValue path(env->isolate(), args[0]);
   CHECK_NE(*path, nullptr);
 
-  FSReqBase* req_wrap = GetReqWrap(env, args[1]);
+  FSReqBase* req_wrap = GetReqWrap(env, args[1]);  // rmdir(path, req)
   if (req_wrap != nullptr) {
     AsyncCall(env, req_wrap, args, "rmdir", UTF8, AfterNoArgs,
               uv_fs_rmdir, *path);
-  } else {
-    SYNC_CALL(rmdir, *path, *path)
+  } else {  // rmdir(path, undefined, ctx)
+    CHECK_EQ(argc, 3);
+    fs_req_wrap req_wrap;
+    SyncCall(env, args[2], &req_wrap, "rmdir",
+             uv_fs_rmdir, *path);
   }
 }
 
