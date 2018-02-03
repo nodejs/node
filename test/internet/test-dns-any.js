@@ -59,9 +59,6 @@ const checkers = {
   checkTXT(r) {
     assert.ok(Array.isArray(r.entries));
     assert.ok(r.entries.length > 0);
-    r.entries.forEach((txt) => {
-      assert(txt.startsWith('v=spf1'));
-    });
     assert.strictEqual(r.type, 'TXT');
   },
   checkSOA(r) {
