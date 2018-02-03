@@ -1090,7 +1090,8 @@ static void RealPath(const FunctionCallbackInfo<Value>& args) {
 static void ReadDir(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
-  CHECK_GE(args.Length(), 1);
+  const int argc = args.Length();
+  CHECK_GE(argc, 3);
 
   BufferValue path(env->isolate(), args[0]);
   CHECK_NE(*path, nullptr);
@@ -1098,13 +1099,19 @@ static void ReadDir(const FunctionCallbackInfo<Value>& args) {
   const enum encoding encoding = ParseEncoding(env->isolate(), args[1], UTF8);
 
   FSReqBase* req_wrap = GetReqWrap(env, args[2]);
-  if (req_wrap != nullptr) {
+  if (req_wrap != nullptr) {  // readdir(path, encoding, req)
     AsyncCall(env, req_wrap, args, "scandir", encoding, AfterScanDir,
               uv_fs_scandir, *path, 0 /*flags*/);
-  } else {
-    SYNC_CALL(scandir, *path, *path, 0 /*flags*/)
+  } else {  // readdir(path, encoding, undefined, ctx)
+    CHECK_EQ(argc, 4);
+    fs_req_wrap req_wrap;
+    int err = SyncCall(env, args[3], &req_wrap, "scandir",
+                       uv_fs_scandir, *path, 0 /*flags*/);
+    if (err < 0) {
+      return;  // syscall failed, no need to continue, error info is in ctx
+    }
 
-    CHECK_GE(SYNC_REQ.result, 0);
+    CHECK_GE(req_wrap.req.result, 0);
     int r;
     Local<Array> names = Array::New(env->isolate(), 0);
     Local<Function> fn = env->push_values_to_array_function();
@@ -1114,11 +1121,17 @@ static void ReadDir(const FunctionCallbackInfo<Value>& args) {
     for (int i = 0; ; i++) {
       uv_dirent_t ent;
 
-      r = uv_fs_scandir_next(&SYNC_REQ, &ent);
+      r = uv_fs_scandir_next(&(req_wrap.req), &ent);
       if (r == UV_EOF)
         break;
-      if (r != 0)
-        return env->ThrowUVException(r, "readdir", "", *path);
+      if (r != 0) {
+        Local<Object> ctx = args[3].As<Object>();
+        ctx->Set(env->context(), env->errno_string(),
+                 Integer::New(env->isolate(), r)).FromJust();
+        ctx->Set(env->context(), env->syscall_string(),
+                 OneByteString(env->isolate(), "readdir")).FromJust();
+        return;
+      }
 
       Local<Value> error;
       MaybeLocal<Value> filename = StringBytes::Encode(env->isolate(),
@@ -1126,7 +1139,8 @@ static void ReadDir(const FunctionCallbackInfo<Value>& args) {
                                                        encoding,
                                                        &error);
       if (filename.IsEmpty()) {
-        env->isolate()->ThrowException(error);
+        Local<Object> ctx = args[3].As<Object>();
+        ctx->Set(env->context(), env->error_string(), error).FromJust();
         return;
       }
 
