@@ -16,15 +16,22 @@ const cmd = `"${process.execPath}" "${__filename}" child`;
 
 // Test the case where a timeout is set, and it expires.
 cp.exec(cmd, { timeout: 1 }, common.mustCall((err, stdout, stderr) => {
+  let sigterm = 'SIGTERM';
   assert.strictEqual(err.killed, true);
-  assert.strictEqual(err.code, null);
+  // TODO OpenBSD returns a null signal and 143 for code
+  if (common.isOpenBSD) {
+    assert.strictEqual(err.code, 143);
+    sigterm = null;
+  } else {
+    assert.strictEqual(err.code, null);
+  }
   // At least starting with Darwin Kernel Version 16.4.0, sending a SIGTERM to a
   // process that is still starting up kills it with SIGKILL instead of SIGTERM.
   // See: https://github.com/libuv/libuv/issues/1226
   if (common.isOSX)
     assert.ok(err.signal === 'SIGTERM' || err.signal === 'SIGKILL');
   else
-    assert.strictEqual(err.signal, 'SIGTERM');
+    assert.strictEqual(err.signal, sigterm);
   assert.strictEqual(err.cmd, cmd);
   assert.strictEqual(stdout.trim(), '');
   assert.strictEqual(stderr.trim(), '');
