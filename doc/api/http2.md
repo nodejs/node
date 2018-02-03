@@ -476,7 +476,6 @@ added: v8.4.0
 Used to set a callback function that is called when there is no activity on
 the `Http2Session` after `msecs` milliseconds. The given `callback` is
 registered as a listener on the `'timeout'` event.
-```
 
 #### http2session.socket
 <!-- YAML
