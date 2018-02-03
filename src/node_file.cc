@@ -1025,20 +1025,24 @@ static void RMDir(const FunctionCallbackInfo<Value>& args) {
 static void MKDir(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
-  CHECK_GE(args.Length(), 2);
-  CHECK(args[1]->IsInt32());
+  const int argc = args.Length();
+  CHECK_GE(argc, 3);
 
   BufferValue path(env->isolate(), args[0]);
   CHECK_NE(*path, nullptr);
 
-  int mode = static_cast<int>(args[1]->Int32Value());
+  CHECK(args[1]->IsInt32());
+  const int mode = args[1].As<Int32>()->Value();
 
   FSReqBase* req_wrap = GetReqWrap(env, args[2]);
-  if (req_wrap != nullptr) {
+  if (req_wrap != nullptr) {  // mkdir(path, mode, req)
     AsyncCall(env, req_wrap, args, "mkdir", UTF8, AfterNoArgs,
               uv_fs_mkdir, *path, mode);
-  } else {
-    SYNC_CALL(mkdir, *path, *path, mode)
+  } else {  // mkdir(path, mode, undefined, ctx)
+    CHECK_EQ(argc, 4);
+    fs_req_wrap req_wrap;
+    SyncCall(env, args[3], &req_wrap, "mkdir",
+             uv_fs_mkdir, *path, mode);
   }
 }
 
