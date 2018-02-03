@@ -172,8 +172,8 @@ process.on('exit', function() {
 const path = `${tmpdir.path}/test-utimes-precision`;
 fs.writeFileSync(path, '');
 
-// test Y2K38 for all platforms [except 'arm', and 'SunOS']
-if (!process.arch.includes('arm') && !common.isSunOS) {
+// test Y2K38 for all platforms [except 'arm', 'OpenBSD' and 'SunOS']
+if (!process.arch.includes('arm') && !common.isOpenBSD && !common.isSunOS) {
   // because 2 ** 31 doesn't look right
   // eslint-disable-next-line space-infix-ops
   const Y2K38_mtime = 2**31;
