@@ -55,13 +55,9 @@ struct Argv {
 
 
 class NodeTestFixture : public ::testing::Test {
- public:
-  static uv_loop_t* CurrentLoop() { return &current_loop; }
-
-  node::MultiIsolatePlatform* Platform() const { return platform.get(); }
-
  protected:
   static std::unique_ptr<v8::ArrayBuffer::Allocator> allocator;
+  static std::unique_ptr<v8::TracingController> tracing_controller;
   static std::unique_ptr<node::NodePlatform> platform;
   static v8::Isolate::CreateParams params;
   static uv_loop_t current_loop;
@@ -69,18 +65,14 @@ class NodeTestFixture : public ::testing::Test {
 
   static void SetUpTestCase() {
     platform.reset(new node::NodePlatform(4, nullptr));
+    tracing_controller.reset(new v8::TracingController());
     allocator.reset(v8::ArrayBuffer::Allocator::NewDefaultAllocator());
     params.array_buffer_allocator = allocator.get();
+    node::tracing::TraceEventHelper::SetTracingController(
+        tracing_controller.get());
     CHECK_EQ(0, uv_loop_init(&current_loop));
     v8::V8::InitializePlatform(platform.get());
     v8::V8::Initialize();
-
-    // As the TracingController is stored globally, we only need to create it
-    // one time for all tests.
-    if (node::tracing::TraceEventHelper::GetTracingController() == nullptr) {
-      node::tracing::TraceEventHelper::SetTracingController(
-          new v8::TracingController());
-    }
   }
 
   static void TearDownTestCase() {
@@ -117,8 +109,8 @@ class EnvironmentTestFixture : public NodeTestFixture {
       context_->Enter();
 
       isolate_data_ = node::CreateIsolateData(isolate,
-                                              NodeTestFixture::CurrentLoop(),
-                                              test_fixture->Platform());
+                                              &NodeTestFixture::current_loop,
+                                              platform.get());
       CHECK_NE(nullptr, isolate_data_);
       environment_ = node::CreateEnvironment(isolate_data_,
                                              context_,
