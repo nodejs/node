@@ -12,6 +12,9 @@ const args = [process.execPath];
 if (common.isAIX)
   args.unshift('-Xany', '-B');
 
+if (common.isOpenBSD)
+  common.skip('no v8 debug symbols on OpenBSD');
+
 const nm = spawnSync('nm', args);
 
 if (nm.error && nm.error.errno === 'ENOENT')

@@ -20,7 +20,7 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 const path = require('path');
 const fs = require('fs');
@@ -197,7 +197,10 @@ try {
     require(`${loadOrder}file3`);
   } catch (e) {
     // Not a real .node module, but we know we require'd the right thing.
-    assert.ok(/file3\.node/.test(e.message.replace(backslash, '/')));
+    if (common.isOpenBSD) // OpenBSD errors with non-ELF object error
+      assert.ok(/File not an ELF object/.test(e.message.replace(backslash, '/')));
+    else
+      assert.ok(/file3\.node/.test(e.message.replace(backslash, '/')));
   }
   assert.strictEqual(require(`${loadOrder}file4`).file4, 'file4.reg', msg);
   assert.strictEqual(require(`${loadOrder}file5`).file5, 'file5.reg2', msg);
@@ -205,7 +208,10 @@ try {
   try {
     require(`${loadOrder}file7`);
   } catch (e) {
-    assert.ok(/file7\/index\.node/.test(e.message.replace(backslash, '/')));
+    if (common.isOpenBSD)
+      assert.ok(/File not an ELF object/.test(e.message.replace(backslash, '/')));
+    else
+      assert.ok(/file7\/index\.node/.test(e.message.replace(backslash, '/')));
   }
   assert.strictEqual(require(`${loadOrder}file8`).file8, 'file8/index.reg',
                      msg);
