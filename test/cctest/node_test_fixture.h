@@ -100,9 +100,7 @@ class EnvironmentTestFixture : public NodeTestFixture {
  public:
   class Env {
    public:
-    Env(const v8::HandleScope& handle_scope,
-        const Argv& argv,
-        NodeTestFixture* test_fixture) {
+    Env(const v8::HandleScope& handle_scope, const Argv& argv) {
       auto isolate = handle_scope.GetIsolate();
       context_ = node::NewContext(isolate);
       CHECK(!context_.IsEmpty());
