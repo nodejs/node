@@ -3,7 +3,6 @@
 
 static double value_ = 1;
 static double static_value_ = 10;
-napi_ref constructor_;
 
 napi_value GetValue(napi_env env, napi_callback_info info) {
   size_t argc = 0;
@@ -79,8 +78,6 @@ napi_value Init(napi_env env, napi_value exports) {
   napi_value cons;
   NAPI_CALL(env, napi_define_class(env, "MyObject", NAPI_AUTO_LENGTH, New,
       NULL, sizeof(properties)/sizeof(*properties), properties, &cons));
-
-  NAPI_CALL(env, napi_create_reference(env, cons, 1, &constructor_));
 
   return cons;
 }
