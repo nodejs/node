@@ -5,13 +5,17 @@ const spawnSync = require('child_process').spawnSync;
 const signals = process.binding('constants').os.signals;
 
 let invalidArgTypeError;
+let errCode = 56;
+if (common.isOpenBSD)
+  errCode = 46;
 
 if (common.isWindows) {
   invalidArgTypeError =
     common.expectsError({ code: 'ERR_INVALID_ARG_TYPE', type: TypeError }, 36);
 } else {
   invalidArgTypeError =
-    common.expectsError({ code: 'ERR_INVALID_ARG_TYPE', type: TypeError }, 56);
+    common.expectsError({ code: 'ERR_INVALID_ARG_TYPE', type: TypeError },
+                        errCode);
 }
 
 const invalidRangeError =
