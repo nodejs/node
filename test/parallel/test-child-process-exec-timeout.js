@@ -16,6 +16,7 @@ const cmd = `"${process.execPath}" "${__filename}" child`;
 
 // Test the case where a timeout is set, and it expires.
 cp.exec(cmd, { timeout: 1 }, common.mustCall((err, stdout, stderr) => {
+  let sigterm = 'SIGTERM';
   assert.strictEqual(err.killed, true);
   // TODO OpenBSD returns a null code
   if (!common.isOpenBSD)
