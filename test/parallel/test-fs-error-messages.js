@@ -125,6 +125,27 @@ function re(literals, ...values) {
   );
 }
 
+// native realpath
+{
+  const validateError = (err) => {
+    assert.strictEqual(nonexistentFile, err.path);
+    assert.strictEqual(
+      err.message,
+      `ENOENT: no such file or directory, realpath '${nonexistentFile}'`);
+    assert.strictEqual(err.errno, uv.UV_ENOENT);
+    assert.strictEqual(err.code, 'ENOENT');
+    assert.strictEqual(err.syscall, 'realpath');
+    return true;
+  };
+
+  fs.realpath.native(nonexistentFile, common.mustCall(validateError));
+
+  assert.throws(
+    () => fs.realpathSync.native(nonexistentFile),
+    validateError
+  );
+}
+
 // readlink
 {
   const validateError = (err) => {
