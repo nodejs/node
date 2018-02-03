@@ -32,7 +32,7 @@ class EnvironmentTest : public EnvironmentTestFixture {
 TEST_F(EnvironmentTest, AtExitWithEnvironment) {
   const v8::HandleScope handle_scope(isolate_);
   const Argv argv;
-  Env env {handle_scope, argv, this};
+  Env env {handle_scope, argv};
 
   AtExit(*env, at_exit_callback1);
   RunAtExit(*env);
@@ -42,7 +42,7 @@ TEST_F(EnvironmentTest, AtExitWithEnvironment) {
 TEST_F(EnvironmentTest, AtExitWithArgument) {
   const v8::HandleScope handle_scope(isolate_);
   const Argv argv;
-  Env env {handle_scope, argv, this};
+  Env env {handle_scope, argv};
 
   std::string arg{"some args"};
   AtExit(*env, at_exit_callback1, static_cast<void*>(&arg));
@@ -53,8 +53,8 @@ TEST_F(EnvironmentTest, AtExitWithArgument) {
 TEST_F(EnvironmentTest, MultipleEnvironmentsPerIsolate) {
   const v8::HandleScope handle_scope(isolate_);
   const Argv argv;
-  Env env1 {handle_scope, argv, this};
-  Env env2 {handle_scope, argv, this};
+  Env env1 {handle_scope, argv};
+  Env env2 {handle_scope, argv};
 
   AtExit(*env1, at_exit_callback1);
   AtExit(*env2, at_exit_callback2);
