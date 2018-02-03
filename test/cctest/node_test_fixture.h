@@ -52,42 +52,47 @@ struct Argv {
   int nr_args_;
 };
 
-extern uv_loop_t current_loop;
 
 class NodeTestFixture : public ::testing::Test {
  public:
   static uv_loop_t* CurrentLoop() { return &current_loop; }
 
-  node::MultiIsolatePlatform* Platform() const { return platform_; }
+  node::MultiIsolatePlatform* Platform() const { return platform.get(); }
 
  protected:
+  static std::unique_ptr<v8::ArrayBuffer::Allocator> allocator;
+  static std::unique_ptr<node::NodePlatform> platform;
+  static v8::Isolate::CreateParams params;
+  static uv_loop_t current_loop;
   v8::Isolate* isolate_;
 
-  virtual void SetUp() {
+  static void SetUpTestCase() {
+    platform.reset(new node::NodePlatform(4, nullptr));
+    allocator.reset(v8::ArrayBuffer::Allocator::NewDefaultAllocator());
+    params.array_buffer_allocator = allocator.get();
     CHECK_EQ(0, uv_loop_init(&current_loop));
-    platform_ = new node::NodePlatform(8, nullptr);
-    v8::V8::InitializePlatform(platform_);
+    v8::V8::InitializePlatform(platform.get());
     v8::V8::Initialize();
-    v8::Isolate::CreateParams params_;
-    params_.array_buffer_allocator = allocator_.get();
-    isolate_ = v8::Isolate::New(params_);
   }
 
-  virtual void TearDown() {
-    platform_->Shutdown();
+  static void TearDownTestCase() {
+    platform->Shutdown();
     while (uv_loop_alive(&current_loop)) {
       uv_run(&current_loop, UV_RUN_ONCE);
     }
     v8::V8::ShutdownPlatform();
-    delete platform_;
-    platform_ = nullptr;
     CHECK_EQ(0, uv_loop_close(&current_loop));
   }
 
- private:
-  node::NodePlatform* platform_ = nullptr;
-  std::unique_ptr<v8::ArrayBuffer::Allocator> allocator_{
-      v8::ArrayBuffer::Allocator::NewDefaultAllocator()};
+  virtual void SetUp() {
+    isolate_ = v8::Isolate::New(params);
+    CHECK_NE(isolate_, nullptr);
+  }
+
+  virtual void TearDown() {
+    isolate_->Dispose();
+    isolate_ = nullptr;
+  }
 };
 
 #endif  // TEST_CCTEST_NODE_TEST_FIXTURE_H_
