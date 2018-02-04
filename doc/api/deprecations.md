@@ -840,15 +840,16 @@ Assigning properties to the top-level `this` as an alternative
 to `module.exports` is deprecated. Developers should use `exports`
 or `module.exports` instead.
 
-### DEP00XX: crypto.fips is deprecated and replaced.
+<a id="DEP0093"></a>
+### DEP0093: crypto.fips is deprecated and replaced.
 
 Type: Documentation-only
 
 The [`crypto.fips`][] property is deprecated. Please use `crypto.setFips()`
 and `crypto.getFips()` instead.
 
-<a id="DEP0XX"></a>
-### DEP0XXX: Using `assert.fail()` with more than one argument.
+<a id="DEP0094"></a>
+### DEP0094: Using `assert.fail()` with more than one argument.
 
 Type: Runtime
 
@@ -856,15 +857,15 @@ Using `assert.fail()` with more than one argument has no benefit over writing an
 individual error message. Either use `assert.fail()` with one argument or switch
 to one of the other assert methods.
 
-<a id="DEP00XX"></a>
-### DEP00XX: timers.enroll()
+<a id="DEP0095"></a>
+### DEP0095: timers.enroll()
 
 Type: Runtime
 
 `timers.enroll()` is deprecated. Please use the publicly documented [`setTimeout()`][] or [`setInterval()`][] instead.
 
-<a id="DEP00XX"></a>
-### DEP00XX: timers.unenroll()
+<a id="DEP0096"></a>
+### DEP0096: timers.unenroll()
 
 Type: Runtime
 
