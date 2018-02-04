@@ -1278,7 +1278,7 @@ In line with OpenSSL's recommendation to use PBKDF2 instead of
 [`EVP_BytesToKey`][] it is recommended that developers derive a key and IV on
 their own using [`crypto.pbkdf2()`][] and to use [`crypto.createCipheriv()`][]
 to create the `Cipher` object. Users should not use ciphers with counter mode
-(e.g. CTR, GCM, or CCM) in `crypto.createCipher()`. A warning is emitted when
+(for example: CTR, GCM, or CCM) in `crypto.createCipher()`. A warning is emitted when
 they are used in order to avoid the risk of IV reuse that causes
 vulnerabilities. For the case when IV is reused in GCM, see [Nonce-Disrespecting
 Adversaries][] for details.
@@ -2048,7 +2048,7 @@ The Crypto module was added to Node.js before there was the concept of a
 unified Stream API, and before there were [`Buffer`][] objects for handling
 binary data. As such, the many of the `crypto` defined classes have methods not
 typically found on other Node.js classes that implement the [streams][stream]
-API (e.g. `update()`, `final()`, or `digest()`). Also, many methods accepted
+API (for example: `update()`, `final()`, or `digest()`). Also, many methods accepted
 and returned `'latin1'` encoded strings by default rather than Buffers. This
 default was changed after Node.js v0.8 to use [`Buffer`][] objects by default
 instead.

@@ -149,7 +149,7 @@ added: v0.11.2
 -->
 
 * `code` {number} The exit code, if it exited normally.
-* `signal` {string} The name of the signal (e.g. `'SIGHUP'`) that caused
+* `signal` {string} The name of the signal (for example: `'SIGHUP'`) that caused
   the process to be killed.
 
 Similar to the `cluster.on('exit')` event, but specific to this worker.
@@ -482,7 +482,7 @@ added: v0.7.9
 
 * `worker` {cluster.Worker}
 * `code` {number} The exit code, if it exited normally.
-* `signal` {string} The name of the signal (e.g. `'SIGHUP'`) that caused
+* `signal` {string} The name of the signal (for example: `'SIGHUP'`) that caused
   the process to be killed.
 
 When any of the workers die the cluster module will emit the `'exit'` event.

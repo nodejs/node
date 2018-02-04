@@ -517,21 +517,21 @@ The `error.syscall` property is a string describing the [syscall][] that failed.
 
 * {string}
 
-When present (e.g. in `fs` or `child_process`), the `error.path` property is a
+When present (for example: in `fs` or `child_process`), the `error.path` property is a
 string containing a relevant invalid pathname.
 
 #### error.address
 
 * {string}
 
-When present (e.g. in `net` or `dgram`), the `error.address` property is a
+When present (for example: in `net` or `dgram`), the `error.address` property is a
 string describing the address to which the connection failed.
 
 #### error.port
 
 * {number}
 
-When present (e.g. in `net` or `dgram`), the `error.port` property is a number
+When present (for example: in `net` or `dgram`), the `error.port` property is a number
 representing the connection's port that is not available.
 
 ### Common System Errors
@@ -707,7 +707,7 @@ available.
 The UTF-16 encoding was used with [`hash.digest()`][]. While the
 `hash.digest()` method does allow an `encoding` argument to be passed in,
 causing the method to return a string rather than a `Buffer`, the UTF-16
-encoding (e.g. `ucs` or `utf16le`) is not supported.
+encoding (for example: `ucs` or `utf16le`) is not supported.
 
 <a id="ERR_CRYPTO_HASH_FINALIZED"></a>
 ### ERR_CRYPTO_HASH_FINALIZED
@@ -1047,7 +1047,7 @@ made to mark a stream and dependent of itself.
 <a id="ERR_INDEX_OUT_OF_RANGE"></a>
 ### ERR_INDEX_OUT_OF_RANGE
 
-A given index was out of the accepted range (e.g. negative offsets).
+A given index was out of the accepted range (for example: negative offsets).
 
 <a id="ERR_INSPECTOR_ALREADY_CONNECTED"></a>
 ### ERR_INSPECTOR_ALREADY_CONNECTED
@@ -1123,7 +1123,7 @@ specified column.
 <a id="ERR_INVALID_FD"></a>
 ### ERR_INVALID_FD
 
-A file descriptor ('fd') was not valid (e.g. it was a negative value).
+A file descriptor ('fd') was not valid (for example: it was a negative value).
 
 <a id="ERR_INVALID_FD_TYPE"></a>
 ### ERR_INVALID_FD_TYPE

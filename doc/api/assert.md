@@ -74,7 +74,7 @@ Please note that this will also deactivate the colors in the REPL.
 
 When accessing `assert` directly instead of using the `strict` property, the
 [Abstract Equality Comparison][] will be used for any function without a
-"strict" in its name (e.g. [`assert.deepEqual()`][]).
+"strict" in its name (for example: [`assert.deepEqual()`][]).
 
 It can be accessed using:
 
@@ -768,7 +768,7 @@ assert.ok(typeof 123 === 'string');
 // throws:
 // "AssertionError: false == true
 
-// In a file (e.g. test.js):
+// In a file (for example: test.js):
 assert.ok(typeof 123 === 'string');
 // throws:
 // "AssertionError: The expression evaluated to a falsy value:

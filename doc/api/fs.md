@@ -678,7 +678,7 @@ Tests a user's permissions for the file or directory specified by `path`.
 The `mode` argument is an optional integer that specifies the accessibility
 checks to be performed. The following constants define the possible values of
 `mode`. It is possible to create a mask consisting of the bitwise OR of two or
-more values (e.g. `fs.constants.W_OK | fs.constants.R_OK`).
+more values (for example: `fs.constants.W_OK | fs.constants.R_OK`).
 
 * `fs.constants.F_OK` - `path` is visible to the calling process. This is useful
 for determining if a file exists, but says nothing about `rwx` permissions.
@@ -804,7 +804,7 @@ Synchronously tests a user's permissions for the file or directory specified by
 `path`. The `mode` argument is an optional integer that specifies the
 accessibility checks to be performed. The following constants define the
 possible values of `mode`. It is possible to create a mask consisting of the
-bitwise OR of two or more values (e.g. `fs.constants.W_OK | fs.constants.R_OK`).
+bitwise OR of two or more values (for example: `fs.constants.W_OK | fs.constants.R_OK`).
 
 * `fs.constants.F_OK` - `path` is visible to the calling process. This is useful
 for determining if a file exists, but says nothing about `rwx` permissions.
@@ -985,7 +985,7 @@ constants:
 | `fs.constants.S_IXOTH` | `0o1`   | execute/search by others |
 
 An easier method of constructing the `mode` is to use a sequence of three
-octal digits (e.g. `765`). The left-most digit (`7` in the example), specifies
+octal digits (for example: `765`). The left-most digit (`7` in the example), specifies
 the permissions for the file owner. The middle digit (`6` in the example),
 specifies permissions for the group. The right-most digit (`5` in the example),
 specifies the permissions for others.
@@ -2031,7 +2031,7 @@ systems.
 
 `flags` can also be a number as documented by open(2); commonly used constants
 are available from `fs.constants`.  On Windows, flags are translated to
-their equivalent ones where applicable, e.g. `O_WRONLY` to `FILE_GENERIC_WRITE`,
+their equivalent ones where applicable, for example: `O_WRONLY` to `FILE_GENERIC_WRITE`,
 or `O_EXCL|O_CREAT` to `CREATE_NEW`, as accepted by CreateFileW.
 
 On Linux, positional writes don't work when the file is opened in append mode.

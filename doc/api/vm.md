@@ -771,7 +771,7 @@ console.log('localVar:', localVar);
 Because `vm.runInThisContext()` does not have access to the local scope,
 `localVar` is unchanged. In contrast, [`eval()`][] *does* have access to the
 local scope, so the value `localVar` is changed. In this way
-`vm.runInThisContext()` is much like an [indirect `eval()` call][], e.g.
+`vm.runInThisContext()` is much like an [indirect `eval()` call][], for example:
 `(0,eval)('code')`.
 
 ## Example: Running an HTTP Server within a VM
@@ -804,7 +804,7 @@ vm.runInThisContext(code)(require);
  ```
 
 *Note*: The `require()` in the above case shares the state with the context it
-is passed from. This may introduce risks when untrusted code is executed, e.g.
+is passed from. This may introduce risks when untrusted code is executed, for example:
 altering objects in the context in unwanted ways.
 
 ## What does it mean to "contextify" an object?

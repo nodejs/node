@@ -146,7 +146,7 @@ zlib.unzip(
   });
 ```
 
-This will not change the behavior in other error-throwing situations, e.g.
+This will not change the behavior in other error-throwing situations, for example:
 when the input data has an invalid format. Using this method, it will not be
 possible to determine whether the input ended prematurely or lacks the
 integrity checks, making it necessary to manually check that the

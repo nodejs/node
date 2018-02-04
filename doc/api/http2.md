@@ -755,7 +755,7 @@ single object (with a `null` prototype) that the listener may use to specify
 the trailing header fields to send to the peer.
 
 *Note*: The HTTP/1 specification forbids trailers from containing HTTP/2
-pseudo-header fields (e.g. `':method'`, `':path'`, etc). An `'error'` event
+pseudo-header fields (for example: `':method'`, `':path'`, etc). An `'error'` event
 will be emitted if the `getTrailers` callback attempts to set such header
 fields.
 
@@ -1268,7 +1268,7 @@ server.on('stream', (stream) => {
 ```
 
 *Note*: The HTTP/1 specification forbids trailers from containing HTTP/2
-pseudo-header fields (e.g. `':status'`, `':path'`, etc). An `'error'` event
+pseudo-header fields (for example: `':status'`, `':path'`, etc). An `'error'` event
 will be emitted if the `getTrailers` callback attempts to set such header
 fields.
 
@@ -1352,7 +1352,7 @@ server.on('close', () => fs.closeSync(fd));
 ```
 
 *Note*: The HTTP/1 specification forbids trailers from containing HTTP/2
-pseudo-header fields (e.g. `':status'`, `':path'`, etc). An `'error'` event
+pseudo-header fields (for example: `':status'`, `':path'`, etc). An `'error'` event
 will be emitted if the `getTrailers` callback attempts to set such header
 fields.
 
@@ -1461,7 +1461,7 @@ server.on('stream', (stream) => {
 ```
 
 *Note*: The HTTP/1 specification forbids trailers from containing HTTP/2
-pseudo-header fields (e.g. `':status'`, `':path'`, etc). An `'error'` event
+pseudo-header fields (for example: `':status'`, `':path'`, etc). An `'error'` event
 will be emitted if the `getTrailers` callback attempts to set such header
 fields.
 
@@ -1493,7 +1493,7 @@ not listened for, the server will automatically respond with a status
 
 Handling this event involves calling [`response.writeContinue()`][] if the client
 should continue to send the request body, or generating an appropriate HTTP
-response (e.g. 400 Bad Request) if the client should not continue to send the
+response (for example: 400 Bad Request) if the client should not continue to send the
 request body.
 
 Note that when this event is emitted and handled, the [`'request'`][] event will
@@ -1663,7 +1663,7 @@ is not listened for, the server will automatically respond with a status
 
 Handling this event involves calling [`response.writeContinue()`][] if the client
 should continue to send the request body, or generating an appropriate HTTP
-response (e.g. 400 Bad Request) if the client should not continue to send the
+response (for example: 400 Bad Request) if the client should not continue to send the
 request body.
 
 Note that when this event is emitted and handled, the [`'request'`][] event will
@@ -1688,7 +1688,7 @@ changes:
     for deflating header fields. **Default:** `4Kib`
   * `maxSessionMemory`{number} Sets the maximum memory that the `Http2Session`
     is permitted to use. The value is expressed in terms of number of megabytes,
-    e.g. `1` equal 1 megabyte. The minimum value allowed is `1`. **Default:**
+    for example: `1` equal 1 megabyte. The minimum value allowed is `1`. **Default:**
     `10`. This is a credit based limit, existing `Http2Stream`s may cause this
     limit to be exceeded, but new `Http2Stream` instances will be rejected
     while this limit is exceeded. The current number of `Http2Stream` sessions,
@@ -1775,7 +1775,7 @@ changes:
     for deflating header fields. **Default:** `4Kib`
   * `maxSessionMemory`{number} Sets the maximum memory that the `Http2Session`
     is permitted to use. The value is expressed in terms of number of megabytes,
-    e.g. `1` equal 1 megabyte. The minimum value allowed is `1`. **Default:**
+    for example: `1` equal 1 megabyte. The minimum value allowed is `1`. **Default:**
     `10`. This is a credit based limit, existing `Http2Stream`s may cause this
     limit to be exceeded, but new `Http2Stream` instances will be rejected
     while this limit is exceeded. The current number of `Http2Stream` sessions,
@@ -1867,7 +1867,7 @@ changes:
     for deflating header fields. **Default:** `4Kib`
   * `maxSessionMemory`{number} Sets the maximum memory that the `Http2Session`
     is permitted to use. The value is expressed in terms of number of megabytes,
-    e.g. `1` equal 1 megabyte. The minimum value allowed is `1`. **Default:**
+    for example: `1` equal 1 megabyte. The minimum value allowed is `1`. **Default:**
     `10`. This is a credit based limit, existing `Http2Stream`s may cause this
     limit to be exceeded, but new `Http2Stream` instances will be rejected
     while this limit is exceeded. The current number of `Http2Stream` sessions,
@@ -2127,8 +2127,8 @@ HTTP header names and values than the HTTP/1 implementation.
 
 Header field names are *case-insensitive* and are transmitted over the wire
 strictly as lower-case strings. The API provided by Node.js allows header
-names to be set as mixed-case strings (e.g. `Content-Type`) but will convert
-those to lower-case (e.g. `content-type`) upon transmission.
+names to be set as mixed-case strings (for example: `Content-Type`) but will convert
+those to lower-case (for example: `content-type`) upon transmission.
 
 Header field-names *must only* contain one or more of the following ASCII
 characters: `a`-`z`, `A`-`Z`, `0`-`9`, `!`, `#`, `$`, `%`, `&`, `'`, `*`, `+`,
@@ -2374,7 +2374,7 @@ console.log(request.headers);
 See [HTTP2 Headers Object][].
 
 *Note*: In HTTP/2, the request path, hostname, protocol, and method are
-represented as special headers prefixed with the `:` character (e.g. `':path'`).
+represented as special headers prefixed with the `:` character (for example: `':path'`).
 These special headers will be included in the `request.headers` object. Care
 must be taken not to inadvertently modify these special headers or errors may
 occur. For instance, removing all headers from the request will cause errors

@@ -62,7 +62,7 @@ Where:
 * `in`: is the signed certificate
 * `inkey`: is the associated private key
 * `certfile`: is a concatenation of all Certificate Authority (CA) certs into
-   a single file, e.g. `cat ca1-cert.pem ca2-cert.pem > ca-cert.pem`
+   a single file, for example: `cat ca1-cert.pem ca2-cert.pem > ca-cert.pem`
 
 ### Perfect Forward Secrecy
 
@@ -360,9 +360,9 @@ called:
 added: v0.5.3
 -->
 
-* `hostname` {string} A SNI hostname or wildcard (e.g. `'*'`)
+* `hostname` {string} A SNI hostname or wildcard (for example: `'*'`)
 * `context` {Object} An object containing any of the possible properties
-  from the [`tls.createSecureContext()`][] `options` arguments (e.g. `key`,
+  from the [`tls.createSecureContext()`][] `options` arguments (for example: `key`,
   `cert`, `ca`, etc).
 
 The `server.addContext()` method adds a secure context that will be used if
@@ -442,7 +442,7 @@ encryption of written data and all required TLS negotiation.
 
 Instances of `tls.TLSSocket` implement the duplex [Stream][] interface.
 
-*Note*: Methods that return TLS connection metadata (e.g.
+*Note*: Methods that return TLS connection metadata (for example:
 [`tls.TLSSocket.getPeerCertificate()`][] will only return data while the
 connection is open.
 
@@ -521,7 +521,7 @@ added: v0.11.4
 
 Returns the bound address, the address family name, and port of the
 underlying socket as reported by the operating system. Returns an
-object with three properties, e.g.
+object with three properties, for example:
 `{ port: 12346, family: 'IPv4', address: '127.0.0.1' }`
 
 ### tlsSocket.authorizationError
@@ -834,15 +834,15 @@ changes:
   * `NPNProtocols` {string[]|Buffer[]|Uint8Array[]|Buffer|Uint8Array}
     An array of strings, `Buffer`s or `Uint8Array`s, or a single `Buffer` or
     `Uint8Array` containing supported NPN protocols. `Buffer`s should have the
-    format `[len][name][len][name]...` e.g. `0x05hello0x05world`, where the
+    format `[len][name][len][name]...` for example: `0x05hello0x05world`, where the
     first byte is the length of the next protocol name. Passing an array is
-    usually much simpler, e.g. `['hello', 'world']`.
+    usually much simpler, for example: `['hello', 'world']`.
   * `ALPNProtocols`: {string[]|Buffer[]|Uint8Array[]|Buffer|Uint8Array}
     An array of strings, `Buffer`s or `Uint8Array`s, or a single `Buffer` or
     `Uint8Array` containing the supported ALPN protocols. `Buffer`s should have
-    the format `[len][name][len][name]...` e.g. `0x05hello0x05world`, where the
+    the format `[len][name][len][name]...` for example: `0x05hello0x05world`, where the
     first byte is the length of the next protocol name. Passing an array is
-    usually much simpler, e.g. `['hello', 'world']`.
+    usually much simpler, for example: `['hello', 'world']`.
   * `servername`: {string} Server name for the SNI (Server Name Indication) TLS
     extension.
   * `checkServerIdentity(servername, cert)` {Function} A callback function
@@ -1104,16 +1104,16 @@ changes:
   * `NPNProtocols` {string[]|Buffer[]|Uint8Array[]|Buffer|Uint8Array}
     An array of strings, `Buffer`s or `Uint8Array`s, or a single `Buffer` or
     `Uint8Array` containing supported NPN protocols. `Buffer`s should have the
-    format `[len][name][len][name]...` e.g. `0x05hello0x05world`, where the
+    format `[len][name][len][name]...` for example: `0x05hello0x05world`, where the
     first byte is the length of the next protocol name. Passing an array is
-    usually much simpler, e.g. `['hello', 'world']`.
+    usually much simpler, for example: `['hello', 'world']`.
     (Protocols should be ordered by their priority.)
   * `ALPNProtocols`: {string[]|Buffer[]|Uint8Array[]|Buffer|Uint8Array}
     An array of strings, `Buffer`s or `Uint8Array`s, or a single `Buffer` or
     `Uint8Array` containing the supported ALPN protocols. `Buffer`s should have
-    the format `[len][name][len][name]...` e.g. `0x05hello0x05world`, where the
+    the format `[len][name][len][name]...` for example: `0x05hello0x05world`, where the
     first byte is the length of the next protocol name. Passing an array is
-    usually much simpler, e.g. `['hello', 'world']`.
+    usually much simpler, for example: `['hello', 'world']`.
     (Protocols should be ordered by their priority.)
     When the server receives both NPN and ALPN extensions from the client,
     ALPN takes precedence over NPN and the server does not send an NPN

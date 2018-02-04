@@ -325,7 +325,7 @@ added: v0.1.23
 The `path.normalize()` method normalizes the given `path`, resolving `'..'` and
 `'.'` segments.
 
-When multiple, sequential path segment separation characters are found (e.g.
+When multiple, sequential path segment separation characters are found (for example:
 `/` on POSIX and either `\` or `/` on Windows), they are replaced by a single
 instance of the platform specific path segment separator (`/` on POSIX and
 `\` on Windows). Trailing separators are preserved.

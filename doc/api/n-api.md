@@ -3289,7 +3289,7 @@ required.
 
 *Note*: The `async_resource_name` identifier is provided by the user and should
 be representative of the type of async work being performed. It is also
-recommended to apply namespacing to the identifier, e.g. by including the
+recommended to apply namespacing to the identifier, for example: by including the
 module name. See the [`async_hooks` documentation][async_hooks `type`]
 for more information.
 

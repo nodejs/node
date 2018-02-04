@@ -53,7 +53,7 @@ In versions of Node.js prior to v6, `Buffer` instances were created using the
 `Buffer` constructor function, which allocates the returned `Buffer`
 differently based on what arguments are provided:
 
-* Passing a number as the first argument to `Buffer()` (e.g. `new Buffer(10)`),
+* Passing a number as the first argument to `Buffer()` (for example: `new Buffer(10)`),
   allocates a new `Buffer` object of the specified size. Prior to Node.js 8.0.0,
   the memory allocated for such `Buffer` instances is *not* initialized and
   *can contain sensitive data*. Such `Buffer` instances *must* be subsequently
@@ -703,7 +703,7 @@ Returns the actual byte length of a string. This is not the same as
 a string.
 
 *Note*: For `'base64'` and `'hex'`, this function assumes valid input. For
-strings that contain non-Base64/Hex-encoded data (e.g. whitespace), the return
+strings that contain non-Base64/Hex-encoded data (for example: whitespace), the return
 value might be greater than the length of a `Buffer` created from the string.
 
 Example:
