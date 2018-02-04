@@ -84,10 +84,12 @@ module.exports = function(context) {
         node,
         message: msg,
         fix: (fixer) => {
-          return fixer.insertTextAfter(
-            commonModuleNodes[0],
-            '\nif (!common.hasCrypto)\n  common.skip("missing crypto");'
-          );
+          if (commonModuleNodes.length) {
+            return fixer.insertTextAfter(
+              commonModuleNodes[0],
+              '\nif (!common.hasCrypto)\n  common.skip("missing crypto");'
+            );
+          }
         }
       });
     });
