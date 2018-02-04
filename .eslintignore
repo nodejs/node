@@ -11,3 +11,4 @@ tools/remark-*
 node_modules
 benchmark/tmp
 doc/**/*.js
+!.eslintrc.js

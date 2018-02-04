@@ -13,7 +13,7 @@ function main({ n }) {
 
   const line = `${'abcd'.repeat(charsPerLine / 4)}\n`;
   const data = line.repeat(linesCount);
-  // eslint-disable-next-line no-unescaped-regexp-dot
+  // eslint-disable-next-line node-core/no-unescaped-regexp-dot
   data.match(/./);  // Flatten the string
   const buffer = Buffer.alloc(bytesCount, line, 'base64');
 

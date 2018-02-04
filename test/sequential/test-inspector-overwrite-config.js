@@ -8,7 +8,7 @@
 
 // We cannot do a check for the inspector because the configuration variables
 // were reset/removed by overwrite-config-preload-module.js.
-/* eslint-disable inspector-check */
+/* eslint-disable node-core/inspector-check */
 
 const common = require('../common');
 const assert = require('assert');
