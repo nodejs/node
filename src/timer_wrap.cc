@@ -37,6 +37,7 @@ using v8::FunctionTemplate;
 using v8::HandleScope;
 using v8::Integer;
 using v8::Local;
+using v8::Number;
 using v8::Object;
 using v8::String;
 using v8::Value;
@@ -138,19 +139,32 @@ class TimerWrap : public HandleWrap {
     Environment* env = wrap->env();
     HandleScope handle_scope(env->isolate());
     Context::Scope context_scope(env->context());
-    wrap->MakeCallback(kOnTimeout, 0, nullptr);
+    Local<Value> ret;
+    Local<Value> args[1];
+    do {
+      args[0] = GetNow(env);
+      ret = wrap->MakeCallback(kOnTimeout, 1, args).ToLocalChecked();
+    } while (ret->IsUndefined() &&
+             !env->tick_info()->has_thrown() &&
+             wrap->object()->Get(env->context(),
+                                 env->owner_string()).ToLocalChecked()
+                                                     ->IsUndefined());
   }
 
   static void Now(const FunctionCallbackInfo<Value>& args) {
     Environment* env = Environment::GetCurrent(args);
+    args.GetReturnValue().Set(GetNow(env));
+  }
+
+  static Local<Value> GetNow(Environment* env) {
     uv_update_time(env->event_loop());
     uint64_t now = uv_now(env->event_loop());
     CHECK(now >= env->timer_base());
     now -= env->timer_base();
     if (now <= 0xfffffff)
-      args.GetReturnValue().Set(static_cast<uint32_t>(now));
+      return Integer::New(env->isolate(), static_cast<uint32_t>(now));
     else
-      args.GetReturnValue().Set(static_cast<double>(now));
+      return Number::New(env->isolate(), static_cast<double>(now));
   }
 
   uv_timer_t handle_;
