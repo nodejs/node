@@ -86,6 +86,7 @@ class NodeTestFixture : public ::testing::Test {
 
   virtual void SetUp() {
     isolate_ = v8::Isolate::New(params);
+    CHECK_NE(isolate_, nullptr);
   }
 
   virtual void TearDown() {
