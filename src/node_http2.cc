@@ -775,13 +775,7 @@ inline ssize_t Http2Session::Write(const uv_buf_t* bufs, size_t nbufs) {
                                bufs[n].len);
     CHECK_NE(ret, NGHTTP2_ERR_NOMEM);
 
-    // If there is an error calling any of the callbacks, ret will be a
-    // negative number identifying the error code. This can happen, for
-    // instance, if the session is destroyed during any of the JS callbacks
-    // Note: if ssize_t is not defined (e.g. on Win32), nghttp2 will typedef
-    // ssize_t to int. Cast here so that the < 0 check actually works on
-    // Windows.
-    if (static_cast<int>(ret) < 0)
+    if (ret < 0)
       return ret;
 
     total += ret;
@@ -1693,7 +1687,7 @@ void Http2Session::OnStreamReadImpl(ssize_t nread,
     // ssize_t to int. Cast here so that the < 0 check actually works on
     // Windows.
     if (static_cast<int>(ret) < 0) {
-      DEBUG_HTTP2SESSION2(session, "fatal error receiving data: %d", ret);
+      DEBUG_HTTP2SESSION2(this, "fatal error receiving data: %d", ret);
 
       Local<Value> argv[1] = {
         Integer::New(isolate, ret),
