@@ -1101,7 +1101,7 @@ endif
 LINT_JS_TARGETS = benchmark doc lib test tools
 
 run-lint-js = tools/node_modules/eslint/bin/eslint.js --cache \
-	--rulesdir=tools/eslint-rules --ext=.js,.mjs,.md $(LINT_JS_TARGETS)
+	--ext=.js,.mjs,.md $(LINT_JS_TARGETS) --ignore-pattern '!.eslintrc.js'
 run-lint-js-fix = $(run-lint-js) --fix
 
 .PHONY: lint-js-fix

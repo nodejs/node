@@ -1,7 +1,7 @@
 rules:
   # Custom rules in tools/eslint-rules
-  require-buffer: error
-  buffer-constructor: error
-  no-let-in-for-declaration: error
-  lowercase-name-for-primitive: error
-  non-ascii-character: error
+  node-core/require-buffer: error
+  node-core/buffer-constructor: error
+  node-core/no-let-in-for-declaration: error
+  node-core/lowercase-name-for-primitive: error
+  node-core/non-ascii-character: error

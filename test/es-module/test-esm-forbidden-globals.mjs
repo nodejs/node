@@ -1,5 +1,5 @@
 // Flags: --experimental-modules
-/* eslint-disable required-modules */
+/* eslint-disable node-core/required-modules */
 
 if (typeof arguments !== 'undefined') {
   throw new Error('not an ESM');

@@ -91,7 +91,7 @@ function testInitialized(req, ctor_name) {
 }
 
 
-if (common.hasCrypto) { // eslint-disable-line crypto-check
+if (common.hasCrypto) { // eslint-disable-line node-core/crypto-check
   const crypto = require('crypto');
 
   // The handle for PBKDF2 and RandomBytes isn't returned by the function call,
@@ -239,7 +239,7 @@ if (common.hasCrypto) { // eslint-disable-line crypto-check
 }
 
 
-if (common.hasCrypto) { // eslint-disable-line crypto-check
+if (common.hasCrypto) { // eslint-disable-line node-core/crypto-check
   const { TCP, constants: TCPConstants } = process.binding('tcp_wrap');
   const tcp = new TCP(TCPConstants.SOCKET);
 
