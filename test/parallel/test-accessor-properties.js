@@ -51,7 +51,7 @@ const UDP = process.binding('udp_wrap').UDP;
     'object'
   );
 
-  if (common.hasCrypto) { // eslint-disable-line crypto-check
+  if (common.hasCrypto) { // eslint-disable-line node-core/crypto-check
     // There are accessor properties in crypto too
     const crypto = process.binding('crypto');
 

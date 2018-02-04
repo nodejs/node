@@ -1,3 +1,3 @@
-/* eslint-disable required-modules */
+/* eslint-disable node-core/required-modules */
 'use strict';
 module.exports = 1;

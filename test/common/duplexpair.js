@@ -1,4 +1,4 @@
-/* eslint-disable required-modules */
+/* eslint-disable node-core/required-modules */
 'use strict';
 const { Duplex } = require('stream');
 const assert = require('assert');

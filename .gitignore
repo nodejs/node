@@ -6,7 +6,7 @@
 !tools/doc/node_modules/**/.*
 !.editorconfig
 !.eslintignore
-!.eslintrc.yaml
+!.eslintrc.js
 !.gitattributes
 !.github
 !.gitignore
