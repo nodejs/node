@@ -25,12 +25,13 @@ const assert = require('assert');
 const http = require('http');
 
 const test_res_body = 'other stuff!\n';
-let got_processing = false;
-
+let processing_count = 0;
 
 const server = http.createServer((req, res) => {
-  console.error('Server sending informational message...');
-  res.writeInformation(102, 'Processing');
+  console.error('Server sending informational message #1...');
+  res.writeProcessing();
+  console.error('Server sending informational message #2...');
+  res.writeProcessing();
   console.error('Server sending full response...');
   res.writeHead(200, {
     'Content-Type': 'text/plain',
@@ -49,16 +50,14 @@ server.listen(0, function() {
 
   let body = '';
 
-  req.on('information', function(payload) {
+  req.on('information', function(res) {
     console.error('Client got 102 Processing...');
-    assert.strictEqual(JSON.stringify(payload.headers), '{}',
-                       '102 Processing contained headers');
-    got_processing = true;
+    processing_count++;
   });
 
   req.on('response', function(res) {
-    assert.strictEqual(got_processing, true,
-                       'Full response received before 102 Processing');
+    assert.strictEqual(processing_count, 2,
+                       'Full response received before all 102 Processing');
     assert.strictEqual(200, res.statusCode,
                        `Final status code was ${res.statusCode}, not 200.`);
     res.setEncoding('utf8');
