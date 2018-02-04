@@ -349,7 +349,7 @@ Local<Value> Environment::GetNow() {
   uint64_t now = uv_now(event_loop());
   CHECK(now >= timer_base());
   now -= timer_base();
-  if (now <= 0xfffffff)
+  if (now <= 0xffffffff)
     return Integer::New(isolate(), static_cast<uint32_t>(now));
   else
     return Number::New(isolate(), static_cast<double>(now));
