@@ -400,6 +400,16 @@ Emitted when the server sends a '100 Continue' HTTP response, usually because
 the request contained 'Expect: 100-continue'. This is an instruction that
 the client should send the request body.
 
+### Event: 'information'
+<!-- YAML
+added: v10.0.0
+-->
+
+Emitted when the server sends a '102 Processing', '103 Early Hints', or
+undefined HTTP response with a status code between 104 and 199. This event is
+emitted with a 'headers' property, which can be used to retrieve early
+response information as is the case with 103 status codes.
+
 ### Event: 'response'
 <!-- YAML
 added: v0.1.0
@@ -1378,6 +1388,54 @@ If the body contains higher coded characters then `Buffer.byteLength()`
 should be used to determine the number of bytes in a given encoding.
 And Node.js does not check whether Content-Length and the length of the body
 which has been transmitted are equal or not.
+
+Attempting to set a header field name or value that contains invalid characters
+will result in a [`TypeError`][] being thrown.
+
+### response.writeInformation(statusCode[, statusMessage][, headers])
+<!-- YAML
+added: v10.0.0
+-->
+
+* `statusCode` {number}
+* `statusMessage` {string}
+* `headers` {Object}
+
+Sends an informational response header (1xx status codes) to the request. The
+status code is a 3-digit HTTP status code, like `103`. The last argument,
+`headers`, are the response headers. Optionally one can give a human-readable
+`statusMessage` as the second argument.
+
+Information responses are always followed by either additional information
+responses or a more typical 2xx, 3xx, 4xx, or 5xx response.
+
+Example:
+
+```js
+const body = …;
+response.writeInformation(103, {
+  'Link': '</style.css>; rel=preload; as=style',
+  'Link': '</script.js>; rel=preload; as=script'
+});
+
+response.writeHead(200, {
+  'Content-Length': Buffer.byteLength(body),
+  'Content-Type': 'text/html',
+  'Link': '</style.css>; rel=preload; as=style',
+  'Link': '</script.js>; rel=preload; as=script'
+});
+response.end(body);
+```
+
+This method may be called multiple times but must be called before
+[`response.writeHead()`][], [`response.write()`][], or
+[`response.end()`][] is called.
+
+If [`response.writeHead()`][], [`response.write()`][], or [`response.end()`][]
+are called before calling this, an exception will be thrown stating that
+headers have already been sent, mirroring the behavior where
+[`response.write()`][] or [`response.end()`][] are called before
+[`response.writeHead()`][].
 
 Attempting to set a header field name or value that contains invalid characters
 will result in a [`TypeError`][] being thrown.
