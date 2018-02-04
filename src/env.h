@@ -735,6 +735,8 @@ class Environment {
 
   static inline Environment* ForAsyncHooks(AsyncHooks* hooks);
 
+  v8::Local<v8::Value> GetNow();
+
  private:
   inline void CreateImmediate(native_immediate_callback cb,
                               void* data,

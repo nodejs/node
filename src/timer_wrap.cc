@@ -37,7 +37,6 @@ using v8::FunctionTemplate;
 using v8::HandleScope;
 using v8::Integer;
 using v8::Local;
-using v8::Number;
 using v8::Object;
 using v8::String;
 using v8::Value;
@@ -142,7 +141,7 @@ class TimerWrap : public HandleWrap {
     Local<Value> ret;
     Local<Value> args[1];
     do {
-      args[0] = GetNow(env);
+      args[0] = env->GetNow();
       ret = wrap->MakeCallback(kOnTimeout, 1, args).ToLocalChecked();
     } while (ret->IsUndefined() &&
              !env->tick_info()->has_thrown() &&
@@ -153,18 +152,7 @@ class TimerWrap : public HandleWrap {
 
   static void Now(const FunctionCallbackInfo<Value>& args) {
     Environment* env = Environment::GetCurrent(args);
-    args.GetReturnValue().Set(GetNow(env));
-  }
-
-  static Local<Value> GetNow(Environment* env) {
-    uv_update_time(env->event_loop());
-    uint64_t now = uv_now(env->event_loop());
-    CHECK(now >= env->timer_base());
-    now -= env->timer_base();
-    if (now <= 0xfffffff)
-      return Integer::New(env->isolate(), static_cast<uint32_t>(now));
-    else
-      return Number::New(env->isolate(), static_cast<double>(now));
+    args.GetReturnValue().Set(env->GetNow());
   }
 
   uv_timer_t handle_;
