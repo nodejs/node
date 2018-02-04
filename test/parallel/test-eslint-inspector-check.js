@@ -13,13 +13,13 @@ new RuleTester().run('inspector-check', rule, {
   valid: [
     'foo;',
     'common.skipIfInspectorDisabled(); require("inspector");',
-    `require("common");
-     common.skipIfInspectorDisabled();
-     require("inspector");`
+    'require("common");\n' +
+    'common.skipIfInspectorDisabled();\n' +
+    'require("inspector");'
   ],
   invalid: [
     {
-      code: 'require("inspector")',
+      code: 'require("inspector");',
       errors: [{ message }],
       output: 'require("common");\n' +
               'common.skipIfInspectorDisabled();\n' +
