@@ -14,7 +14,7 @@ const utils = require('./rules-utils.js');
 // Rule Definition
 //------------------------------------------------------------------------------
 const msg = 'Please add a hasCrypto check to allow this test to be skipped ' +
-  'when Node is built "--without-ssl".';
+            'when Node is built "--without-ssl".';
 
 const cryptoModules = ['crypto', 'http2'];
 const requireModules = cryptoModules.concat(['tls', 'https']);
