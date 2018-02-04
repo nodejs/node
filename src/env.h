@@ -70,11 +70,13 @@ struct PackageConfig {
   enum class Exists { Yes, No };
   enum class IsValid { Yes, No };
   enum class HasMain { Yes, No };
+  enum class PackageMode { NONE, CJS, ESM };
 
-  Exists exists;
-  IsValid is_valid;
-  HasMain has_main;
-  std::string main;
+  const Exists exists;
+  const IsValid is_valid;
+  const HasMain has_main;
+  const std::string main;
+  const PackageMode mode;
 };
 }  // namespace loader
 
@@ -161,6 +163,8 @@ struct PackageConfig {
   V(env_var_settings_string, "envVarSettings")                                \
   V(errno_string, "errno")                                                    \
   V(error_string, "error")                                                    \
+  V(esm_string, "esm")                                                        \
+  V(exiting_string, "_exiting")                                               \
   V(exit_code_string, "exitCode")                                             \
   V(expire_string, "expire")                                                  \
   V(exponent_string, "exponent")                                              \
@@ -202,6 +206,7 @@ struct PackageConfig {
   V(message_port_string, "messagePort")                                       \
   V(message_port_constructor_string, "MessagePort")                           \
   V(minttl_string, "minttl")                                                  \
+  V(mode_string, "mode")                                                      \
   V(modulus_string, "modulus")                                                \
   V(name_string, "name")                                                      \
   V(netmask_string, "netmask")                                                \

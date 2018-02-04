@@ -502,7 +502,7 @@ const PackageConfig& GetPackageConfig(Environment* env,
   Maybe<uv_file> check = CheckFile(path, LEAVE_OPEN_AFTER_CHECK);
   if (check.IsNothing()) {
     auto entry = env->package_json_cache.emplace(path,
-        PackageConfig { Exists::No, IsValid::Yes, HasMain::No, "" });
+        PackageConfig { Exists::No, IsValid::Yes, HasMain::No, "", NONE });
     return entry.first->second;
   }
 
@@ -520,7 +520,7 @@ const PackageConfig& GetPackageConfig(Environment* env,
                            v8::NewStringType::kNormal,
                            pkg_src.length()).ToLocal(&src)) {
     auto entry = env->package_json_cache.emplace(path,
-        PackageConfig { Exists::No, IsValid::Yes, HasMain::No, "" });
+        PackageConfig { Exists::No, IsValid::Yes, HasMain::No, "", NONE });
     return entry.first->second;
   }
 
@@ -530,7 +530,7 @@ const PackageConfig& GetPackageConfig(Environment* env,
   if (!JSON::Parse(env->context(), src).ToLocal(&pkg_json_v) ||
       !pkg_json_v->ToObject(env->context()).ToLocal(&pkg_json)) {
     auto entry = env->package_json_cache.emplace(path,
-        PackageConfig { Exists::Yes, IsValid::No, HasMain::No, "" });
+        PackageConfig { Exists::Yes, IsValid::No, HasMain::No, "", NONE });
     return entry.first->second;
   }
 
@@ -543,9 +543,49 @@ const PackageConfig& GetPackageConfig(Environment* env,
     main_std.assign(std::string(*main_utf8, main_utf8.length()));
   }
 
+  Local<Value> pkg_mode_v;
+  PackageMode pkg_mode = CJS;
+  std::string pkg_mode_std;
+  if (pkg_json->Get(env->context(), env->mode_string()).ToLocal(&pkg_mode_v)) {
+    Utf8Value pkg_mode_utf8(isolate, pkg_mode_v);
+    pkg_mode_std.assign(std::string(*pkg_mode_utf8, pkg_mode_utf8.length()));
+    if (pkg_mode_std == "esm") {
+      pkg_mode = ESM;
+    }
+  }
+
   auto entry = env->package_json_cache.emplace(path,
-      PackageConfig { Exists::Yes, IsValid::Yes, has_main, main_std });
+      PackageConfig { Exists::Yes, IsValid::Yes, has_main,
+                      main_std, pkg_mode });
   return entry.first->second;
+}
+
+PackageMode GetPackageMode(Environment* env, const URL& search) {
+  URL pjsonPath("package.json", &search);
+  while (true) {
+    const PackageConfig& pkg_json =
+        GetPackageConfig(env, pjsonPath.ToFilePath());
+    if (pkg_json.exists == Exists::Yes) {
+      return pkg_json.mode;
+    }
+    URL lastPjsonPath = pjsonPath;
+    pjsonPath = URL("../package.json", pjsonPath);
+    if (pjsonPath.path() == lastPjsonPath.path()) {
+      return CJS;
+    }
+  }
+}
+
+void SetPackageMode(Environment* env, const URL& search,
+                    PackageMode pkg_mode) {
+  std::string pjsonPathStr = URL("package.json", &search).ToFilePath();
+  const PackageConfig& pkg_json = GetPackageConfig(env, pjsonPathStr);
+  if (pkg_json.mode != pkg_mode) {
+    env->package_json_cache.erase(env->package_json_cache.find(pjsonPathStr));
+    env->package_json_cache.emplace(pjsonPathStr,
+        PackageConfig { pkg_json.exists, pkg_json.is_valid,
+                        pkg_json.has_main, pkg_json.main, pkg_mode });
+  }
 }
 
 enum ResolveExtensionsOptions {
@@ -670,8 +710,8 @@ Maybe<URL> Resolve(Environment* env,
 void ModuleWrap::Resolve(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
-  // module.resolve(specifier, url)
-  CHECK_EQ(args.Length(), 2);
+  // module.resolve(specifier, url, setPackageEsmMode)
+  CHECK_EQ(args.Length(), 3);
 
   CHECK(args[0]->IsString());
   Utf8Value specifier_utf8(env->isolate(), args[0]);
@@ -686,13 +726,49 @@ void ModuleWrap::Resolve(const FunctionCallbackInfo<Value>& args) {
         env, "second argument is not a URL string");
   }
 
+  if (!args[2]->IsBoolean()) {
+    env->ThrowError("third argument is not a boolean");
+    return;
+  }
+
   Maybe<URL> result = node::loader::Resolve(env, specifier_std, url);
   if (result.IsNothing() || (result.FromJust().flags() & URL_FLAGS_FAILED)) {
     std::string msg = "Cannot find module " + specifier_std;
     return node::THROW_ERR_MISSING_MODULE(env, msg.c_str());
   }
 
-  args.GetReturnValue().Set(result.FromJust().ToObject(env));
+  bool esmPackage = false;
+  bool set_package_esm_mode = args[2]->ToBoolean().As<v8::Boolean>()->Value();
+  if (set_package_esm_mode) {
+    esmPackage = true;
+    SetPackageMode(env, result.FromJust(), ESM);
+  } else {
+    std::string filePath = result.FromJust().ToFilePath();
+    // check the package esm mode for ambiguous extensions
+    if (filePath.substr(filePath.length() - 4, 4) != ".mjs" &&
+        filePath.substr(filePath.length() - 5, 5) != ".json" &&
+        filePath.substr(filePath.length() - 5, 5) != ".node") {
+      if (GetPackageMode(env, result.FromJust()) == ESM) {
+        esmPackage = true;
+      }
+    }
+  }
+
+  Local<Object> resolved = Object::New(env->isolate());
+
+  (void)resolved->DefineOwnProperty(
+    env->context(),
+    env->esm_string(),
+    v8::Boolean::New(env->isolate(), esmPackage),
+    v8::ReadOnly);
+
+  (void)resolved->DefineOwnProperty(
+    env->context(),
+    env->url_string(),
+    result.FromJust().ToObject(env),
+    v8::ReadOnly);
+
+  args.GetReturnValue().Set(resolved);
 }
 
 static MaybeLocal<Promise> ImportModuleDynamically(

@@ -34,9 +34,10 @@ module.exports = {
   overrides: [
     {
       files: [
-        'doc/api/esm.md',
-        '*.mjs',
-        'test/es-module/test-esm-example-loader.js',
+        "doc/api/esm.md",
+        "*.mjs",
+        "test/es-module/esm-dep.js",
+        "test/es-module/test-esm-example-loader.js"
       ],
       parserOptions: { sourceType: 'module' },
     },
