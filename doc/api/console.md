@@ -108,7 +108,7 @@ new Console(process.stdout, process.stderr);
 added: v0.1.101
 changes:
   - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/17706
     description: The implementation is now spec compliant and does not throw
                  anymore.
 -->

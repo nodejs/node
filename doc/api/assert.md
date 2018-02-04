@@ -18,7 +18,7 @@ For more information about the used equality comparisons see
 added: REPLACEME
 changes:
   - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/17615
     description: Added error diffs to the strict mode
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/17002
@@ -445,7 +445,7 @@ See below for further details.
 added: v0.1.21
 changes:
   - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/18418
     description: Calling `assert.fail` with more than one argument is deprecated
                  and emits a warning.
 -->
@@ -728,7 +728,7 @@ parameter is an instance of an [`Error`][] then it will be thrown instead of the
 added: v0.1.21
 changes:
   - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/18319
     description: assert.ok() (no arguments) will now use a predefined error msg.
 -->
 * `value` {any}
@@ -834,7 +834,7 @@ instead of the `AssertionError`.
 added: v0.1.21
 changes:
   - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/17584
     description: The `error` parameter can now be an object as well.
   - version: v4.2.0
     pr-url: https://github.com/nodejs/node/pull/3276
