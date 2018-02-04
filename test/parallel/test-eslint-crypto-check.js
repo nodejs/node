@@ -16,7 +16,7 @@ new RuleTester().run('crypto-check', rule, {
     if (!common.hasCrypto) {
       common.skip();
     }
-    require('crypto');
+    require("crypto");
     `
   ],
   invalid: [
@@ -25,9 +25,9 @@ new RuleTester().run('crypto-check', rule, {
       errors: [{ message }],
       output: `
       if (!common.hasCrypto) {
-        common.skip();
+        common.skip("missing crypto");
       }
-      require('crypto');
+      require("crypto");
       `
     },
     {
@@ -35,9 +35,9 @@ new RuleTester().run('crypto-check', rule, {
       errors: [{ message }],
       output:  `
       if (!common.hasCrypto) {
-        common.skip();
+        common.skip("missing crypto");
       }
-      require('crypto');
+      require("crypto");
       `
     }
   ]
