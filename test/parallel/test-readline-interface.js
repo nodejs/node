@@ -36,8 +36,6 @@ class FakeInput extends EventEmitter {
   end() {}
 }
 
-const crlfDelay = common.platformTimeout(1000);
-
 function isWarned(emitter) {
   for (const name in emitter) {
     const listeners = emitter[name];
@@ -871,6 +869,12 @@ function isWarned(emitter) {
     assert.strictEqual(rl._prompt, '$ ');
   }
 });
+
+// For the purposes of the following tests, we do not care about the exact
+// value of crlfDelay, only that the behaviour conforms to what's expected.
+// Setting it to Infinity allows the test to succeed even under extreme
+// CPU stress.
+const crlfDelay = Infinity;
 
 [ true, false ].forEach(function(terminal) {
   // sending multiple newlines at once that does not end with a new line
