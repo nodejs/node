@@ -12,13 +12,16 @@ namespace node {
 using v8::Context;
 using v8::FunctionTemplate;
 using v8::HandleScope;
+using v8::Integer;
 using v8::Isolate;
 using v8::Local;
 using v8::Message;
+using v8::Number;
 using v8::Private;
 using v8::StackFrame;
 using v8::StackTrace;
 using v8::String;
+using v8::Value;
 
 IsolateData::IsolateData(Isolate* isolate,
                          uv_loop_t* event_loop,
@@ -338,6 +341,18 @@ void Environment::ToggleImmediateRef(bool ref) {
   } else {
     uv_idle_stop(immediate_idle_handle());
   }
+}
+
+
+Local<Value> Environment::GetNow() {
+  uv_update_time(event_loop());
+  uint64_t now = uv_now(event_loop());
+  CHECK(now >= timer_base());
+  now -= timer_base();
+  if (now <= 0xfffffff)
+    return Integer::New(isolate(), static_cast<uint32_t>(now));
+  else
+    return Number::New(isolate(), static_cast<double>(now));
 }
 
 
