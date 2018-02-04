@@ -64,7 +64,7 @@ class NodeTestFixture : public ::testing::Test {
   v8::Isolate* isolate_;
 
   static void SetUpTestCase() {
-    platform.reset(new node::NodePlatform(8, nullptr));
+    platform.reset(new node::NodePlatform(4, nullptr));
     tracing_controller.reset(new v8::TracingController());
     allocator.reset(v8::ArrayBuffer::Allocator::NewDefaultAllocator());
     params.array_buffer_allocator = allocator.get();
