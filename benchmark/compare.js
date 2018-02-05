@@ -1,6 +1,7 @@
 'use strict';
 
-const fork = require('child_process').fork;
+const { fork } = require('child_process');
+const { inspect } = require('util');
 const path = require('path');
 const CLI = require('./_cli.js');
 const BenchmarkProgress = require('./_benchmark_progress.js');
@@ -76,7 +77,7 @@ if (showProgress) {
       // Construct configuration string, " A=a, B=b, ..."
       let conf = '';
       for (const key of Object.keys(data.conf)) {
-        conf += ` ${key}=${JSON.stringify(data.conf[key])}`;
+        conf += ` ${key}=${inspect(data.conf[key])}`;
       }
       conf = conf.slice(1);
       // Escape quotes (") for correct csv formatting
