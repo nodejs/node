@@ -2,38 +2,61 @@
 const common = require('../common');
 const { Readable, PassThrough } = require('stream');
 
-const source = new Readable({
-  read: () => {}
-});
+function test(r) {
+  const wrapper = new Readable({
+    read: () => {
+      let data = r.read();
 
-source.push('foo');
-source.push('bar');
-source.push(null);
-
-const pt = source.pipe(new PassThrough());
-
-const wrapper = new Readable({
-  read: () => {
-    let data = pt.read();
-
-    if (data) {
-      wrapper.push(data);
-      return;
-    }
-
-    pt.once('readable', function() {
-      data = pt.read();
       if (data) {
         wrapper.push(data);
+        return;
       }
-      // else the end event should fire
-    });
-  }
-});
 
-pt.once('end', function() {
-  wrapper.push(null);
-});
+      r.once('readable', function() {
+        data = r.read();
+        if (data) {
+          wrapper.push(data);
+        }
+        // else the end event should fire
+      });
+    },
+  });
 
-wrapper.resume();
-wrapper.once('end', common.mustCall());
+  r.once('end', function() {
+    wrapper.push(null);
+  });
+
+  wrapper.resume();
+  wrapper.once('end', common.mustCall());
+}
+
+{
+  const source = new Readable({
+    read: () => {}
+  });
+  source.push('foo');
+  source.push('bar');
+  source.push(null);
+
+  const pt = source.pipe(new PassThrough());
+  test(pt);
+}
+
+{
+  // This is the underlying cause of the above test case.
+  const pushChunks = ['foo', 'bar'];
+  const r = new Readable({
+    read: () => {
+      const chunk = pushChunks.shift();
+      if (chunk) {
+        // synchronous call
+        r.push(chunk);
+      } else {
+        // asynchronous call
+        process.nextTick(() => r.push(null));
+      }
+    },
+  });
+
+  test(r);
+}
