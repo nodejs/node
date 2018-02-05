@@ -22,6 +22,6 @@ void Initialize(Local<Object> exports) {
   NODE_SET_METHOD(exports, "getTriggerAsyncId", GetTriggerAsyncId);
 }
 
-}  // namespace
+}  // anonymous namespace
 
 NODE_MODULE(NODE_GYP_MODULE_NAME, Initialize)
