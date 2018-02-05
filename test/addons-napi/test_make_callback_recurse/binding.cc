@@ -28,6 +28,6 @@ napi_value Init(napi_env env, napi_value exports) {
   return exports;
 }
 
-}  // namespace
+}  // anonymous namespace
 
 NAPI_MODULE(NODE_GYP_MODULE_NAME, Init)
