@@ -34,6 +34,6 @@ void Initialize(v8::Local<v8::Object> exports) {
   NODE_SET_METHOD(exports, "makeCallback", MakeCallback);
 }
 
-}  // namespace
+}  // anonymous namespace
 
 NODE_MODULE(NODE_GYP_MODULE_NAME, Initialize)
