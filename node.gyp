@@ -907,7 +907,7 @@
       'type': 'executable',
 
       'dependencies': [
-        '<(node_core_target_name)',
+        '<(node_lib_target_name)',
         'rename_node_bin_win',
         'deps/gtest/gtest.gyp:gtest',
         'node_js2c#host',
@@ -915,39 +915,6 @@
         'node_dtrace_ustack',
         'node_dtrace_provider',
       ],
-
-      'variables': {
-        'obj_path': '<(obj_dir)/<(node_lib_target_name)/src',
-        'obj_gen_path': '<(obj_dir)/<(node_lib_target_name)/gen',
-        'obj_tracing_path': '<(obj_dir)/<(node_lib_target_name)/src/tracing',
-        'obj_suffix': 'o',
-        'obj_separator': '/',
-        'conditions': [
-          ['OS=="win"', {
-            'obj_suffix': 'obj',
-          }],
-          ['GENERATOR=="ninja"', {
-            'obj_path': '<(obj_dir)/src',
-            'obj_gen_path': '<(obj_dir)/gen',
-            'obj_tracing_path': '<(obj_dir)/src/tracing',
-            'obj_separator': '/<(node_lib_target_name).',
-          }, {
-            'conditions': [
-              ['OS=="win"', {
-                'obj_path': '<(obj_dir)/<(node_lib_target_name)',
-                'obj_gen_path': '<(obj_dir)/<(node_lib_target_name)',
-                'obj_tracing_path': '<(obj_dir)/<(node_lib_target_name)',
-              }],
-              ['OS=="aix"', {
-                'obj_path': '<(obj_dir)/<(node_lib_target_name)/src',
-                'obj_gen_path': '<(obj_dir)/<(node_lib_target_name)/gen',
-                'obj_tracing_path':
-                  '<(obj_dir)/<(node_lib_target_name)/src/tracing',
-              }],
-            ]}
-          ]
-        ],
-       },
 
       'includes': [
         'node.gypi'
@@ -965,7 +932,6 @@
       'defines': [ 'NODE_WANT_INTERNALS=1' ],
 
       'sources': [
-        'test/cctest/node_module_reg.cc',
         'test/cctest/node_test_fixture.cc',
         'test/cctest/test_aliased_buffer.cc',
         'test/cctest/test_base64.cc',
@@ -975,119 +941,30 @@
         'test/cctest/test_url.cc'
       ],
 
-      'libraries': [
-        '<(obj_path)<(obj_separator)async_wrap.<(obj_suffix)',
-        '<(obj_path)<(obj_separator)handle_wrap.<(obj_suffix)',
-        '<(obj_path)<(obj_separator)env.<(obj_suffix)',
-        '<(obj_path)<(obj_separator)node.<(obj_suffix)',
-        '<(obj_path)<(obj_separator)node_buffer.<(obj_suffix)',
-        '<(obj_path)<(obj_separator)node_debug_options.<(obj_suffix)',
-        '<(obj_path)<(obj_separator)node_i18n.<(obj_suffix)',
-        '<(obj_path)<(obj_separator)node_perf.<(obj_suffix)',
-        '<(obj_path)<(obj_separator)node_platform.<(obj_suffix)',
-        '<(obj_path)<(obj_separator)node_url.<(obj_suffix)',
-        '<(obj_path)<(obj_separator)util.<(obj_suffix)',
-        '<(obj_path)<(obj_separator)string_bytes.<(obj_suffix)',
-        '<(obj_path)<(obj_separator)string_search.<(obj_suffix)',
-        '<(obj_path)<(obj_separator)stream_base.<(obj_suffix)',
-        '<(obj_path)<(obj_separator)node_constants.<(obj_suffix)',
-        '<(obj_tracing_path)<(obj_separator)agent.<(obj_suffix)',
-        '<(obj_tracing_path)<(obj_separator)node_trace_buffer.<(obj_suffix)',
-        '<(obj_tracing_path)<(obj_separator)node_trace_writer.<(obj_suffix)',
-        '<(obj_tracing_path)<(obj_separator)trace_event.<(obj_suffix)',
-        '<(obj_gen_path)<(obj_separator)node_javascript.<(obj_suffix)',
-      ],
-
       'conditions': [
         [ 'node_use_openssl=="true"', {
-          'conditions': [
-            ['node_target_type!="static_library"', {
-              'libraries': [
-                '<(obj_path)<(obj_separator)node_crypto.<(obj_suffix)',
-                '<(obj_path)<(obj_separator)node_crypto_bio.<(obj_suffix)',
-                '<(obj_path)<(obj_separator)node_crypto_clienthello.<(obj_suffix)',
-                '<(obj_path)<(obj_separator)tls_wrap.<(obj_suffix)',
-              ],
-            }],
-          ],
           'defines': [
             'HAVE_OPENSSL=1',
           ],
         }],
         [ 'node_use_perfctr=="true"', {
           'defines': [ 'HAVE_PERFCTR=1' ],
-          'libraries': [
-            '<(obj_path)<(obj_separator)node_counters.<(obj_suffix)',
-            '<(obj_path)<(obj_separator)'
-              'node_win32_perfctr_provider.<(obj_suffix)',
-          ],
         }],
         ['v8_enable_inspector==1', {
           'sources': [
             'test/cctest/test_inspector_socket.cc',
             'test/cctest/test_inspector_socket_server.cc'
           ],
-          'conditions': [
-            ['node_target_type!="static_library"', {
-              'libraries': [
-                '<(obj_path)<(obj_separator)inspector_agent.<(obj_suffix)',
-                '<(obj_path)<(obj_separator)inspector_io.<(obj_suffix)',
-                '<(obj_path)<(obj_separator)inspector_js_api.<(obj_suffix)',
-                '<(obj_path)<(obj_separator)inspector_socket.<(obj_suffix)',
-                '<(obj_path)<(obj_separator)inspector_socket_server.<(obj_suffix)',
-              ],
-            }],
-          ],
           'defines': [
             'HAVE_INSPECTOR=1',
           ],
-        }],
-        [ 'node_use_dtrace=="true" and node_target_type!="static_library"', {
-          'libraries': [
-            '<(obj_path)<(obj_separator)node_dtrace.<(obj_suffix)',
-          ],
-          'conditions': [
-            ['OS!="mac" and OS!="linux"', {
-              'libraries': [
-                '<(obj_path)<(obj_separator)node_dtrace_provider.<(obj_suffix)',
-                '<(obj_path)<(obj_separator)node_dtrace_ustack.<(obj_suffix)',
-              ]
-            }],
-            ['OS=="linux"', {
-              'libraries': [
-                '<(SHARED_INTERMEDIATE_DIR)<(obj_separator)'
-                  'node_dtrace_provider.<(obj_suffix)',
-              ]
-            }],
-          ],
         }, {
-          'conditions': [
-            [ 'node_use_etw=="true" and OS=="win"', {
-              'libraries': [
-                '<(obj_path)<(obj_separator)node_dtrace.<(obj_suffix)',
-                '<(obj_path)<(obj_separator)'
-                  'node_win32_etw_provider.<(obj_suffix)',
-              ],
-            }]
-          ]
-        }],
-        [ 'OS=="win" and node_target_type!="static_library"', {
-          'libraries': [
-            '<(obj_path)<(obj_separator)backtrace_win32.<(obj_suffix)',
-          ],
-        }, {
-          'conditions': [
-            ['node_target_type!="static_library"', {
-              'libraries': [
-                '<(obj_path)<(obj_separator)backtrace_posix.<(obj_suffix)',
-              ],
-            }],
-          ],
+          'defines': [ 'HAVE_INSPECTOR=0' ]
         }],
         ['OS=="solaris"', {
           'ldflags': [ '-I<(SHARED_INTERMEDIATE_DIR)' ]
         }],
-      ]
+      ],
     }
   ], # end targets
 
