@@ -684,6 +684,7 @@ class JavaScriptFrame : public StandardFrame {
 
   // Accessors.
   virtual JSFunction* function() const;
+  Object* unchecked_function() const;
   Object* receiver() const override;
   Object* context() const override;
   Script* script() const override;
