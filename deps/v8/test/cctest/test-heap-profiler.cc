@@ -3083,7 +3083,7 @@ TEST(SamplingHeapProfilerPretenuredInlineAllocations) {
   // Suppress randomness to avoid flakiness in tests.
   v8::internal::FLAG_sampling_heap_profiler_suppress_randomness = true;
 
-  // Grow new space unitl maximum capacity reached.
+  // Grow new space until maximum capacity reached.
   while (!CcTest::heap()->new_space()->IsAtMaximumCapacity()) {
     CcTest::heap()->new_space()->Grow();
   }
@@ -3137,4 +3137,50 @@ TEST(SamplingHeapProfilerPretenuredInlineAllocations) {
   }
 
   CHECK_GE(count, 8000);
+}
+
+TEST(SamplingHeapProfilerSampleDuringDeopt) {
+  i::FLAG_allow_natives_syntax = true;
+
+  v8::HandleScope scope(v8::Isolate::GetCurrent());
+  LocalContext env;
+  v8::HeapProfiler* heap_profiler = env->GetIsolate()->GetHeapProfiler();
+
+  // Suppress randomness to avoid flakiness in tests.
+  v8::internal::FLAG_sampling_heap_profiler_suppress_randomness = true;
+
+  // Small sample interval to force each object to be sampled.
+  heap_profiler->StartSamplingHeapProfiler(i::kPointerSize);
+
+  // Lazy deopt from runtime call from inlined callback function.
+  const char* source =
+      "var b = "
+      "  [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25];"
+      "(function f() {"
+      "  var result = 0;"
+      "  var lazyDeopt = function(deopt) {"
+      "    var callback = function(v,i,o) {"
+      "      result += i;"
+      "      if (i == 13 && deopt) {"
+      "          %DeoptimizeNow();"
+      "      }"
+      "      return v;"
+      "    };"
+      "    b.map(callback);"
+      "  };"
+      "  lazyDeopt();"
+      "  lazyDeopt();"
+      "  %OptimizeFunctionOnNextCall(lazyDeopt);"
+      "  lazyDeopt();"
+      "  lazyDeopt(true);"
+      "  lazyDeopt();"
+      "})();";
+
+  CompileRun(source);
+  // Should not crash.
+
+  std::unique_ptr<v8::AllocationProfile> profile(
+      heap_profiler->GetAllocationProfile());
+  CHECK(profile);
+  heap_profiler->StopSamplingHeapProfiler();
 }
