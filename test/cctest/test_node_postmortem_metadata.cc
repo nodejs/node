@@ -1,5 +1,3 @@
-#include "node_postmortem_metadata.cc"
-
 #include "gtest/gtest.h"
 #include "node.h"
 #include "node_internals.h"
@@ -7,6 +5,28 @@
 #include "req_wrap-inl.h"
 #include "tracing/agent.h"
 #include "v8.h"
+#include "v8abbr.h"
+
+extern "C" {
+extern uintptr_t
+    nodedbg_offset_HandleWrap__handle_wrap_queue___ListNode_HandleWrap;
+extern uintptr_t
+    nodedbg_offset_Environment__handle_wrap_queue___Environment_HandleWrapQueue;
+extern int debug_symbols_generated;
+extern int nodedbg_const_Environment__kContextEmbedderDataIndex__int;
+extern uintptr_t
+    nodedbg_offset_Environment_HandleWrapQueue__head___ListNode_HandleWrap;
+extern uintptr_t
+    nodedbg_offset_Environment__req_wrap_queue___Environment_ReqWrapQueue;
+extern uintptr_t nodedbg_offset_ExternalString__data__uintptr_t;
+extern uintptr_t nodedbg_offset_ListNode_ReqWrap__next___uintptr_t;
+extern uintptr_t nodedbg_offset_ReqWrap__req_wrap_queue___ListNode_ReqWrapQueue;
+extern uintptr_t nodedbg_offset_ListNode_HandleWrap__next___uintptr_t;
+extern uintptr_t
+    nodedbg_offset_Environment_ReqWrapQueue__head___ListNode_ReqWrapQueue;
+extern uintptr_t
+    nodedbg_offset_BaseObject__persistent_handle___v8_Persistent_v8_Object;
+}
 
 
 class DebugSymbolsTest : public EnvironmentTestFixture {};
