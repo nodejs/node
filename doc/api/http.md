@@ -402,7 +402,7 @@ the client should send the request body.
 
 ### Event: 'information'
 <!-- YAML
-added: v10.0.0
+added: REPLACEME
 -->
 
 Emitted when the server sends a 1xx response (excluding 101 Upgrade). This
@@ -1392,7 +1392,7 @@ will result in a [`TypeError`][] being thrown.
 
 ### response.writeProcessing()
 <!-- YAML
-added: v10.0.0
+added: REPLACEME
 -->
 
 Sends a HTTP/1.1 102 Processing message to the client, indicating that
