@@ -26,6 +26,6 @@ void Initialize(Local<Object> exports) {
   NODE_SET_METHOD(exports, "makeCallback", MakeCallback);
 }
 
-}  // namespace
+}  // anonymous namespace
 
 NODE_MODULE(NODE_GYP_MODULE_NAME, Initialize)
