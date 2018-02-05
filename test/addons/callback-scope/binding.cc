@@ -69,6 +69,6 @@ void Initialize(v8::Local<v8::Object> exports) {
   NODE_SET_METHOD(exports, "testResolveAsync", TestResolveAsync);
 }
 
-}  // namespace
+}  // anonymous namespace
 
 NODE_MODULE(NODE_GYP_MODULE_NAME, Initialize)
