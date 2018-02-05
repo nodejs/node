@@ -54,7 +54,7 @@ napi_value RunInCallbackScope(napi_env env, napi_callback_info info) {
 
   // if the function has an exception pending after the call that is ok
   // so we don't use NAPI_CALL as we must close the callback scope regardless
-  napi_value result;
+  napi_value result = nullptr;
   napi_status function_call_result =
       napi_call_function(env, args[0], args[3], 0, nullptr, &result);
   if (function_call_result != napi_ok) {
@@ -104,7 +104,7 @@ static void Callback(uv_work_t* req, int ignored) {
 }
 
 napi_value TestResolveAsync(napi_env env, napi_callback_info info) {
-  napi_value promise;
+  napi_value promise = nullptr;
   if (deferred == nullptr) {
     shared_env = env;
     NAPI_CALL(env, napi_create_promise(env, &deferred, &promise));
