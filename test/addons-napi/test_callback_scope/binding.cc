@@ -18,7 +18,7 @@ napi_value RunInCallbackScope(napi_env env, napi_callback_info info) {
   napi_value args[4];
 
   NAPI_CALL(env, napi_get_cb_info(env, info, &argc, nullptr, nullptr, nullptr));
-  NAPI_ASSERT(env, argc ==4 , "Wrong number of arguments");
+  NAPI_ASSERT(env, argc == 4 , "Wrong number of arguments");
 
   NAPI_CALL(env, napi_get_cb_info(env, info, &argc, args, nullptr, nullptr));
 
@@ -112,7 +112,7 @@ napi_value TestResolveAsync(napi_env env, napi_callback_info info) {
     uv_loop_t* loop = nullptr;
     NAPI_CALL(env, napi_get_uv_event_loop(env, &loop));
 
-    uv_work_t* req = new uv_work_t;
+    uv_work_t* req = new uv_work_t();
     uv_queue_work(loop,
                   req,
                   [](uv_work_t*) {},
@@ -133,6 +133,6 @@ napi_value Init(napi_env env, napi_value exports) {
   return exports;
 }
 
-}  // namespace
+}  // anonymous namespace
 
 NAPI_MODULE(NODE_GYP_MODULE_NAME, Init)
