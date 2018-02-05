@@ -4296,12 +4296,18 @@ Environment* CreateEnvironment(IsolateData* isolate_data,
   HandleScope handle_scope(isolate);
   Context::Scope context_scope(context);
   auto env = new Environment(isolate_data, context);
+  CHECK_EQ(0, uv_key_create(&thread_local_env));
+  uv_key_set(&thread_local_env, env);
   env->Start(argc, argv, exec_argc, exec_argv, v8_is_profiling);
   return env;
 }
 
 
 void FreeEnvironment(Environment* env) {
+  auto tl_env = static_cast<Environment*>(uv_key_get(&thread_local_env));
+  if (tl_env == env) {
+    uv_key_delete(&thread_local_env);
+  }
   delete env;
 }
 
