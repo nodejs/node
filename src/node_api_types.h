@@ -15,6 +15,7 @@ typedef struct napi_value__ *napi_value;
 typedef struct napi_ref__ *napi_ref;
 typedef struct napi_handle_scope__ *napi_handle_scope;
 typedef struct napi_escapable_handle_scope__ *napi_escapable_handle_scope;
+typedef struct napi_callback_scope__ *napi_callback_scope;
 typedef struct napi_callback_info__ *napi_callback_info;
 typedef struct napi_async_context__ *napi_async_context;
 typedef struct napi_async_work__ *napi_async_work;
@@ -70,7 +71,8 @@ typedef enum {
   napi_pending_exception,
   napi_cancelled,
   napi_escape_called_twice,
-  napi_handle_scope_mismatch
+  napi_handle_scope_mismatch,
+  napi_callback_scope_mismatch
 } napi_status;
 
 typedef napi_value (*napi_callback)(napi_env env,
