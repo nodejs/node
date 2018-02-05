@@ -906,7 +906,7 @@
       'type': 'executable',
 
       'dependencies': [
-        '<(node_core_target_name)',
+        '<(node_lib_target_name)',
         'rename_node_bin_win',
         'deps/gtest/gtest.gyp:gtest',
         'node_js2c#host',
@@ -914,39 +914,6 @@
         'node_dtrace_ustack',
         'node_dtrace_provider',
       ],
-
-      'variables': {
-        'OBJ_PATH': '<(OBJ_DIR)/<(node_lib_target_name)/src',
-        'OBJ_GEN_PATH': '<(OBJ_DIR)/<(node_lib_target_name)/gen',
-        'OBJ_TRACING_PATH': '<(OBJ_DIR)/<(node_lib_target_name)/src/tracing',
-        'OBJ_SUFFIX': 'o',
-        'OBJ_SEPARATOR': '/',
-        'conditions': [
-          ['OS=="win"', {
-            'OBJ_SUFFIX': 'obj',
-          }],
-          ['GENERATOR=="ninja"', {
-            'OBJ_PATH': '<(OBJ_DIR)/src',
-            'OBJ_GEN_PATH': '<(OBJ_DIR)/gen',
-            'OBJ_TRACING_PATH': '<(OBJ_DIR)/src/tracing',
-            'OBJ_SEPARATOR': '/<(node_lib_target_name).',
-          }, {
-            'conditions': [
-              ['OS=="win"', {
-                'OBJ_PATH': '<(OBJ_DIR)/<(node_lib_target_name)',
-                'OBJ_GEN_PATH': '<(OBJ_DIR)/<(node_lib_target_name)',
-                'OBJ_TRACING_PATH': '<(OBJ_DIR)/<(node_lib_target_name)',
-              }],
-              ['OS=="aix"', {
-                'OBJ_PATH': '<(OBJ_DIR)/<(node_lib_target_name)/src',
-                'OBJ_GEN_PATH': '<(OBJ_DIR)/<(node_lib_target_name)/gen',
-                'OBJ_TRACING_PATH':
-                  '<(OBJ_DIR)/<(node_lib_target_name)/src/tracing',
-              }],
-            ]}
-          ]
-        ],
-       },
 
       'includes': [
         'node.gypi'
@@ -964,7 +931,6 @@
       'defines': [ 'NODE_WANT_INTERNALS=1' ],
 
       'sources': [
-        'test/cctest/node_module_reg.cc',
         'test/cctest/node_test_fixture.cc',
         'test/cctest/test_aliased_buffer.cc',
         'test/cctest/test_base64.cc',
@@ -973,118 +939,30 @@
         'test/cctest/test_url.cc'
       ],
 
-      'libraries': [
-        '<(OBJ_PATH)<(OBJ_SEPARATOR)async_wrap.<(OBJ_SUFFIX)',
-        '<(OBJ_PATH)<(OBJ_SEPARATOR)env.<(OBJ_SUFFIX)',
-        '<(OBJ_PATH)<(OBJ_SEPARATOR)node.<(OBJ_SUFFIX)',
-        '<(OBJ_PATH)<(OBJ_SEPARATOR)node_buffer.<(OBJ_SUFFIX)',
-        '<(OBJ_PATH)<(OBJ_SEPARATOR)node_debug_options.<(OBJ_SUFFIX)',
-        '<(OBJ_PATH)<(OBJ_SEPARATOR)node_i18n.<(OBJ_SUFFIX)',
-        '<(OBJ_PATH)<(OBJ_SEPARATOR)node_perf.<(OBJ_SUFFIX)',
-        '<(OBJ_PATH)<(OBJ_SEPARATOR)node_platform.<(OBJ_SUFFIX)',
-        '<(OBJ_PATH)<(OBJ_SEPARATOR)node_url.<(OBJ_SUFFIX)',
-        '<(OBJ_PATH)<(OBJ_SEPARATOR)util.<(OBJ_SUFFIX)',
-        '<(OBJ_PATH)<(OBJ_SEPARATOR)string_bytes.<(OBJ_SUFFIX)',
-        '<(OBJ_PATH)<(OBJ_SEPARATOR)string_search.<(OBJ_SUFFIX)',
-        '<(OBJ_PATH)<(OBJ_SEPARATOR)stream_base.<(OBJ_SUFFIX)',
-        '<(OBJ_PATH)<(OBJ_SEPARATOR)node_constants.<(OBJ_SUFFIX)',
-        '<(OBJ_TRACING_PATH)<(OBJ_SEPARATOR)agent.<(OBJ_SUFFIX)',
-        '<(OBJ_TRACING_PATH)<(OBJ_SEPARATOR)node_trace_buffer.<(OBJ_SUFFIX)',
-        '<(OBJ_TRACING_PATH)<(OBJ_SEPARATOR)node_trace_writer.<(OBJ_SUFFIX)',
-        '<(OBJ_TRACING_PATH)<(OBJ_SEPARATOR)trace_event.<(OBJ_SUFFIX)',
-        '<(OBJ_GEN_PATH)<(OBJ_SEPARATOR)node_javascript.<(OBJ_SUFFIX)',
-      ],
-
       'conditions': [
         [ 'node_use_openssl=="true"', {
-          'conditions': [
-            ['node_target_type!="static_library"', {
-              'libraries': [
-                '<(OBJ_PATH)<(OBJ_SEPARATOR)node_crypto.<(OBJ_SUFFIX)',
-                '<(OBJ_PATH)<(OBJ_SEPARATOR)node_crypto_bio.<(OBJ_SUFFIX)',
-                '<(OBJ_PATH)<(OBJ_SEPARATOR)node_crypto_clienthello.<(OBJ_SUFFIX)',
-                '<(OBJ_PATH)<(OBJ_SEPARATOR)tls_wrap.<(OBJ_SUFFIX)',
-              ],
-            }],
-          ],
           'defines': [
             'HAVE_OPENSSL=1',
           ],
         }],
         [ 'node_use_perfctr=="true"', {
           'defines': [ 'HAVE_PERFCTR=1' ],
-          'libraries': [
-            '<(OBJ_PATH)<(OBJ_SEPARATOR)node_counters.<(OBJ_SUFFIX)',
-            '<(OBJ_PATH)<(OBJ_SEPARATOR)'
-              'node_win32_perfctr_provider.<(OBJ_SUFFIX)',
-          ],
         }],
         ['v8_enable_inspector==1', {
           'sources': [
             'test/cctest/test_inspector_socket.cc',
             'test/cctest/test_inspector_socket_server.cc'
           ],
-          'conditions': [
-            ['node_target_type!="static_library"', {
-              'libraries': [
-                '<(OBJ_PATH)<(OBJ_SEPARATOR)inspector_agent.<(OBJ_SUFFIX)',
-                '<(OBJ_PATH)<(OBJ_SEPARATOR)inspector_io.<(OBJ_SUFFIX)',
-                '<(OBJ_PATH)<(OBJ_SEPARATOR)inspector_js_api.<(OBJ_SUFFIX)',
-                '<(OBJ_PATH)<(OBJ_SEPARATOR)inspector_socket.<(OBJ_SUFFIX)',
-                '<(OBJ_PATH)<(OBJ_SEPARATOR)inspector_socket_server.<(OBJ_SUFFIX)',
-              ],
-            }],
-          ],
           'defines': [
             'HAVE_INSPECTOR=1',
           ],
-        }],
-        [ 'node_use_dtrace=="true" and node_target_type!="static_library"', {
-          'libraries': [
-            '<(OBJ_PATH)<(OBJ_SEPARATOR)node_dtrace.<(OBJ_SUFFIX)',
-          ],
-          'conditions': [
-            ['OS!="mac" and OS!="linux"', {
-              'libraries': [
-                '<(OBJ_PATH)<(OBJ_SEPARATOR)node_dtrace_provider.<(OBJ_SUFFIX)',
-                '<(OBJ_PATH)<(OBJ_SEPARATOR)node_dtrace_ustack.<(OBJ_SUFFIX)',
-              ]
-            }],
-            ['OS=="linux"', {
-              'libraries': [
-                '<(SHARED_INTERMEDIATE_DIR)<(OBJ_SEPARATOR)'
-                  'node_dtrace_provider.<(OBJ_SUFFIX)',
-              ]
-            }],
-          ],
         }, {
-          'conditions': [
-            [ 'node_use_etw=="true" and OS=="win"', {
-              'libraries': [
-                '<(OBJ_PATH)<(OBJ_SEPARATOR)node_dtrace.<(OBJ_SUFFIX)',
-                '<(OBJ_PATH)<(OBJ_SEPARATOR)'
-                  'node_win32_etw_provider.<(OBJ_SUFFIX)',
-              ],
-            }]
-          ]
-        }],
-        [ 'OS=="win" and node_target_type!="static_library"', {
-          'libraries': [
-            '<(OBJ_PATH)<(OBJ_SEPARATOR)backtrace_win32.<(OBJ_SUFFIX)',
-          ],
-        }, {
-          'conditions': [
-            ['node_target_type!="static_library"', {
-              'libraries': [
-                '<(OBJ_PATH)<(OBJ_SEPARATOR)backtrace_posix.<(OBJ_SUFFIX)',
-              ],
-            }],
-          ],
+          'defines': [ 'HAVE_INSPECTOR=0' ]
         }],
         ['OS=="solaris"', {
           'ldflags': [ '-I<(SHARED_INTERMEDIATE_DIR)' ]
         }],
-      ]
+      ],
     }
   ], # end targets
 
