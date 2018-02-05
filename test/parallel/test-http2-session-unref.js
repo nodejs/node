@@ -49,5 +49,3 @@ server.listen(0, common.mustCall(() => {
 }));
 server.emit('connection', serverSide);
 server.unref();
-
-setTimeout(common.mustNotCall(() => {}), 1000).unref();
