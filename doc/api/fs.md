@@ -3548,7 +3548,7 @@ the error raised if the file is not accessible.
 added: REPLACEME
 -->
 
-* `file` {string|Buffer|[FileHandle][]} filename or `FileHandle`
+* `file` {string|Buffer|URL|[FileHandle][]} filename or `FileHandle`
 * `data` {string|Buffer}
 * `options` {Object|string}
   * `encoding` {string|null} **Default:** `'utf8'`
@@ -3762,7 +3762,7 @@ This function does not work on AIX versions before 7.1, it will resolve the
 deprecated: REPLACEME
 -->
 
-* `path` {string|Buffer}
+* `path` {string|Buffer|URL}
 * `mode` {integer}
 * Returns: {Promise}
 
@@ -3774,7 +3774,7 @@ no arguments upon success. This method is only implemented on macOS.
 deprecated: REPLACEME
 -->
 
-* `path` {string|Buffer}
+* `path` {string|Buffer|URL}
 * `uid` {integer}
 * `gid` {integer}
 * Returns: {Promise}
@@ -4105,7 +4105,7 @@ the `target` argument will automatically be normalized to absolute path.
 added: REPLACEME
 -->
 
-* `path` {string|Buffer}
+* `path` {string|Buffer|URL}
 * `len` {integer} **Default:** `0`
 * Returns: {Promise}
 
@@ -4180,7 +4180,7 @@ the end of the file.
 added: REPLACEME
 -->
 
-* `file` {string|Buffer|[FileHandle][]} filename or `FileHandle`
+* `file` {string|Buffer|URL|[FileHandle][]} filename or `FileHandle`
 * `data` {string|Buffer|Uint8Array}
 * `options` {Object|string}
   * `encoding` {string|null} **Default:** `'utf8'`
