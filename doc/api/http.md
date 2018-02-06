@@ -1663,10 +1663,17 @@ A collection of all the standard HTTP response status codes, and the
 short description of each.  For example, `http.STATUS_CODES[404] === 'Not
 Found'`.
 
-## http.createServer([requestListener])
+## http.createServer([options][, requestListener])
 <!-- YAML
 added: v0.1.13
 -->
+- `options` {Object}
+  * `IncomingMessage` {http.IncomingMessage} Specifies the IncomingMessage class to
+    be used. Useful for extending the original `IncomingMessage`.
+    Defaults to: `IncomingMessage`
+  * `ServerResponse` {http.ServerResponse} Specifies the ServerResponse class to
+    be used. Useful for extending the original `ServerResponse`.
+    Defaults to: `ServerResponse`
 - `requestListener` {Function}
 
 * Returns: {http.Server}
