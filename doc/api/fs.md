@@ -3548,7 +3548,7 @@ the error raised if the file is not accessible.
 added: REPLACEME
 -->
 
-* `file` {string|Buffer|URL|[FileHandle][]} filename or `FileHandle`
+* `file` {string|Buffer|URL|FileHandle} filename or `FileHandle`
 * `data` {string|Buffer}
 * `options` {Object|string}
   * `encoding` {string|null} **Default:** `'utf8'`
@@ -3640,7 +3640,7 @@ fs.promises.copyFile('source.txt', 'destination.txt', COPYFILE_EXCL)
 added: REPLACEME
 -->
 
-* `filehandle` {[FileHandle][]}
+* `filehandle` {FileHandle}
 * `mode` {integer}
 * Returns: {Promise}
 
@@ -3652,7 +3652,7 @@ success.
 added: REPLACEME
 -->
 
-* `filehandle` {[FileHandle][]}
+* `filehandle` {FileHandle}
 * `uid` {integer}
 * `gid` {integer}
 * Returns: {Promise}
@@ -3665,7 +3665,7 @@ the `Promise` with no arguments upon success.
 added: REPLACEME
 -->
 
-* `filehandle` {[FileHandle][]}
+* `filehandle` {FileHandle}
 * Returns: {Promise}
 
 Asynchronous fdatasync(2). The `Promise` is resolved with no arguments upon
@@ -3676,7 +3676,7 @@ success.
 added: REPLACEME
 -->
 
-* `filehandle` {[FileHandle][]}
+* `filehandle` {FileHandle}
 * Returns: {Promise}
 
 Retrieves the [`fs.Stats`][] for the given `filehandle`.
@@ -3686,7 +3686,7 @@ Retrieves the [`fs.Stats`][] for the given `filehandle`.
 added: REPLACEME
 -->
 
-* `filehandle` {[FileHandle][]}
+* `filehandle` {FileHandle}
 * Returns: {Promise}
 
 Asynchronous fsync(2). The `Promise` is resolved with no arguments upon
@@ -3697,7 +3697,7 @@ success.
 added: REPLACEME
 -->
 
-* `filehandle` {[FileHandle][]}
+* `filehandle` {FileHandle}
 * `len` {integer} **Default:** `0`
 * Returns: {Promise}
 
@@ -3746,7 +3746,7 @@ The last three bytes are null bytes ('\0'), to compensate the over-truncation.
 added: REPLACEME
 -->
 
-* `filehandle` {[FileHandle][]}
+* `filehandle` {FileHandle}
 * `atime` {number|string|Date}
 * `mtime` {number|string|Date}`
 * Returns: {Promise}
@@ -3934,7 +3934,7 @@ files can be opened for writing with the `r+` flag. A call to
 added: REPLACEME
 -->
 
-* `filehandle` {[FileHandle][]}
+* `filehandle` {FileHandle}
 * `buffer` {Buffer|Uint8Array}
 * `offset` {integer}
 * `length` {integer}
@@ -3981,7 +3981,7 @@ will be passed as `Buffer` objects.
 added: REPLACEME
 -->
 
-* `path` {string|Buffer|URL|[FileHandle][]} filename or `FileHandle`
+* `path` {string|Buffer|URL|FileHandle} filename or `FileHandle`
 * `options` {Object|string}
   * `encoding` {string|null} **Default:** `null`
   * `flag` {string} **Default:** `'r'`
@@ -4147,7 +4147,7 @@ The `atime` and `mtime` arguments follow these rules:
 added: REPLACEME
 -->
 
-* `filehandle` {[FileHandle][]}
+* `filehandle` {FileHandle}
 * `buffer` {Buffer|Uint8Array}
 * `offset` {integer}
 * `length` {integer}
@@ -4180,7 +4180,7 @@ the end of the file.
 added: REPLACEME
 -->
 
-* `file` {string|Buffer|URL|[FileHandle][]} filename or `FileHandle`
+* `file` {string|Buffer|URL|FileHandle} filename or `FileHandle`
 * `data` {string|Buffer|Uint8Array}
 * `options` {Object|string}
   * `encoding` {string|null} **Default:** `'utf8'`
@@ -4469,7 +4469,6 @@ The following constants are meant for use with the [`fs.Stats`][] object's
 [`util.promisify()`]: util.html#util_util_promisify_original
 [Caveats]: #fs_caveats
 [Common System Errors]: errors.html#errors_common_system_errors
-[FileHandle]: #fs_class_filehandle
 [FS Constants]: #fs_fs_constants_1
 [MDN-Date]: https://developer.mozilla.org/en/JavaScript/Reference/Global_Objects/Date
 [MDN-Number]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#Number_type
