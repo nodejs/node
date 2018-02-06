@@ -53,49 +53,46 @@ struct Argv {
   int nr_args_;
 };
 
-extern uv_loop_t current_loop;
 
 class NodeTestFixture : public ::testing::Test {
- public:
-  static uv_loop_t* CurrentLoop() { return &current_loop; }
-
-  node::MultiIsolatePlatform* Platform() const { return platform_; }
-
  protected:
+  static std::unique_ptr<v8::ArrayBuffer::Allocator> allocator;
+  static std::unique_ptr<v8::TracingController> tracing_controller;
+  static std::unique_ptr<node::NodePlatform> platform;
+  static v8::Isolate::CreateParams params;
+  static uv_loop_t current_loop;
   v8::Isolate* isolate_;
 
-  virtual void SetUp() {
+  static void SetUpTestCase() {
+    platform.reset(new node::NodePlatform(4, nullptr));
+    tracing_controller.reset(new v8::TracingController());
+    allocator.reset(v8::ArrayBuffer::Allocator::NewDefaultAllocator());
+    params.array_buffer_allocator = allocator.get();
+    node::tracing::TraceEventHelper::SetTracingController(
+        tracing_controller.get());
     CHECK_EQ(0, uv_loop_init(&current_loop));
-    platform_ = new node::NodePlatform(8, nullptr);
-    v8::V8::InitializePlatform(platform_);
+    v8::V8::InitializePlatform(platform.get());
     v8::V8::Initialize();
-    v8::Isolate::CreateParams params_;
-    params_.array_buffer_allocator = allocator_.get();
-    isolate_ = v8::Isolate::New(params_);
-
-    // As the TracingController is stored globally, we only need to create it
-    // one time for all tests.
-    if (node::tracing::TraceEventHelper::GetTracingController() == nullptr) {
-      node::tracing::TraceEventHelper::SetTracingController(
-          new v8::TracingController());
-    }
   }
 
-  virtual void TearDown() {
-    platform_->Shutdown();
+  static void TearDownTestCase() {
+    platform->Shutdown();
     while (uv_loop_alive(&current_loop)) {
       uv_run(&current_loop, UV_RUN_ONCE);
     }
     v8::V8::ShutdownPlatform();
-    delete platform_;
-    platform_ = nullptr;
     CHECK_EQ(0, uv_loop_close(&current_loop));
   }
 
- private:
-  node::NodePlatform* platform_ = nullptr;
-  std::unique_ptr<v8::ArrayBuffer::Allocator> allocator_{
-      v8::ArrayBuffer::Allocator::NewDefaultAllocator()};
+  virtual void SetUp() {
+    isolate_ = v8::Isolate::New(params);
+    CHECK_NE(isolate_, nullptr);
+  }
+
+  virtual void TearDown() {
+    isolate_->Dispose();
+    isolate_ = nullptr;
+  }
 };
 
 
@@ -103,17 +100,15 @@ class EnvironmentTestFixture : public NodeTestFixture {
  public:
   class Env {
    public:
-    Env(const v8::HandleScope& handle_scope,
-        const Argv& argv,
-        NodeTestFixture* test_fixture) {
+    Env(const v8::HandleScope& handle_scope, const Argv& argv) {
       auto isolate = handle_scope.GetIsolate();
       context_ = node::NewContext(isolate);
       CHECK(!context_.IsEmpty());
       context_->Enter();
 
       isolate_data_ = node::CreateIsolateData(isolate,
-                                              NodeTestFixture::CurrentLoop(),
-                                              test_fixture->Platform());
+                                              &NodeTestFixture::current_loop,
+                                              platform.get());
       CHECK_NE(nullptr, isolate_data_);
       environment_ = node::CreateEnvironment(isolate_data_,
                                              context_,
