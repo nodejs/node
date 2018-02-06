@@ -1,7 +1,9 @@
 'use strict';
+
 const common = require('../common');
 const assert = require('assert');
 const util = require('util');
+const { AssertionError } = assert;
 
 // Template tag function turning an error message into a RegExp
 // for assert.throws()
@@ -25,7 +27,7 @@ function re(literals, ...values) {
 // That is why we discourage using deepEqual in our own tests.
 
 // Turn off no-restricted-properties because we are testing deepEqual!
-/* eslint-disable no-restricted-properties */
+/* eslint-disable no-restricted-properties, prefer-common-expectserror */
 
 const arr = new Uint8Array([120, 121, 122, 10]);
 const buf = Buffer.from(arr);
@@ -545,4 +547,298 @@ assertDeepAndStrictEqual(-0, -0);
   assertDeepAndStrictEqual(a, b);
 }
 
+assert.doesNotThrow(
+  () => assert.deepEqual(new Date(2000, 3, 14), new Date(2000, 3, 14)),
+  'deepEqual(new Date(2000, 3, 14), new Date(2000, 3, 14))');
+
+assert.throws(() => assert.deepEqual(new Date(), new Date(2000, 3, 14)),
+              AssertionError,
+              'deepEqual(new Date(), new Date(2000, 3, 14))');
+
+assert.throws(
+  () => assert.notDeepEqual(new Date(2000, 3, 14), new Date(2000, 3, 14)),
+  AssertionError,
+  'notDeepEqual(new Date(2000, 3, 14), new Date(2000, 3, 14))'
+);
+
+assert.doesNotThrow(
+  () => assert.notDeepEqual(new Date(), new Date(2000, 3, 14)),
+  'notDeepEqual(new Date(), new Date(2000, 3, 14))'
+);
+
+assert.deepEqual(/a/, /a/);
+assert.deepEqual(/a/g, /a/g);
+assert.deepEqual(/a/i, /a/i);
+assert.deepEqual(/a/m, /a/m);
+assert.deepEqual(/a/igm, /a/igm);
+common.expectsError(() => assert.deepEqual(/ab/, /a/),
+                    {
+                      code: 'ERR_ASSERTION',
+                      name: 'AssertionError [ERR_ASSERTION]',
+                      message: '/ab/ deepEqual /a/'
+                    });
+common.expectsError(() => assert.deepEqual(/a/g, /a/),
+                    {
+                      code: 'ERR_ASSERTION',
+                      name: 'AssertionError [ERR_ASSERTION]',
+                      message: '/a/g deepEqual /a/'
+                    });
+common.expectsError(() => assert.deepEqual(/a/i, /a/),
+                    {
+                      code: 'ERR_ASSERTION',
+                      name: 'AssertionError [ERR_ASSERTION]',
+                      message: '/a/i deepEqual /a/'
+                    });
+common.expectsError(() => assert.deepEqual(/a/m, /a/),
+                    {
+                      code: 'ERR_ASSERTION',
+                      name: 'AssertionError [ERR_ASSERTION]',
+                      message: '/a/m deepEqual /a/'
+                    });
+common.expectsError(() => assert.deepEqual(/a/igm, /a/im),
+                    {
+                      code: 'ERR_ASSERTION',
+                      name: 'AssertionError [ERR_ASSERTION]',
+                      message: '/a/gim deepEqual /a/im'
+                    });
+
+{
+  const re1 = /a/g;
+  re1.lastIndex = 3;
+  assert.doesNotThrow(() => assert.deepEqual(re1, /a/g));
+}
+
+assert.doesNotThrow(() => assert.deepEqual(4, '4'), 'deepEqual(4, \'4\')');
+assert.doesNotThrow(() => assert.deepEqual(true, 1), 'deepEqual(true, 1)');
+assert.throws(() => assert.deepEqual(4, '5'),
+              AssertionError,
+              'deepEqual( 4, \'5\')');
+
+// Having the same number of owned properties && the same set of keys.
+assert.doesNotThrow(() => assert.deepEqual({ a: 4 }, { a: 4 }));
+assert.doesNotThrow(() => assert.deepEqual({ a: 4, b: '2' }, { a: 4, b: '2' }));
+assert.doesNotThrow(() => assert.deepEqual([4], ['4']));
+assert.throws(
+  () => assert.deepEqual({ a: 4 }, { a: 4, b: true }), AssertionError);
+assert.doesNotThrow(() => assert.deepEqual(['a'], { 0: 'a' }));
+assert.doesNotThrow(() => assert.deepEqual({ a: 4, b: '1' }, { b: '1', a: 4 }));
+const a1 = [1, 2, 3];
+const a2 = [1, 2, 3];
+a1.a = 'test';
+a1.b = true;
+a2.b = true;
+a2.a = 'test';
+assert.throws(() => assert.deepEqual(Object.keys(a1), Object.keys(a2)),
+              AssertionError);
+assert.doesNotThrow(() => assert.deepEqual(a1, a2));
+
+// Having an identical prototype property.
+const nbRoot = {
+  toString() { return `${this.first} ${this.last}`; }
+};
+
+function nameBuilder(first, last) {
+  this.first = first;
+  this.last = last;
+  return this;
+}
+nameBuilder.prototype = nbRoot;
+
+function nameBuilder2(first, last) {
+  this.first = first;
+  this.last = last;
+  return this;
+}
+nameBuilder2.prototype = nbRoot;
+
+const nb1 = new nameBuilder('Ryan', 'Dahl');
+let nb2 = new nameBuilder2('Ryan', 'Dahl');
+
+assert.doesNotThrow(() => assert.deepEqual(nb1, nb2));
+
+nameBuilder2.prototype = Object;
+nb2 = new nameBuilder2('Ryan', 'Dahl');
+assert.doesNotThrow(() => assert.deepEqual(nb1, nb2));
+
+// Primitives and object.
+assert.throws(() => assert.deepEqual(null, {}), AssertionError);
+assert.throws(() => assert.deepEqual(undefined, {}), AssertionError);
+assert.throws(() => assert.deepEqual('a', ['a']), AssertionError);
+assert.throws(() => assert.deepEqual('a', { 0: 'a' }), AssertionError);
+assert.throws(() => assert.deepEqual(1, {}), AssertionError);
+assert.throws(() => assert.deepEqual(true, {}), AssertionError);
+assert.throws(() => assert.deepEqual(Symbol(), {}), AssertionError);
+
+// Primitive wrappers and object.
+assert.doesNotThrow(() => assert.deepEqual(new String('a'), ['a']),
+                    AssertionError);
+assert.doesNotThrow(() => assert.deepEqual(new String('a'), { 0: 'a' }),
+                    AssertionError);
+assert.doesNotThrow(() => assert.deepEqual(new Number(1), {}), AssertionError);
+assert.doesNotThrow(() => assert.deepEqual(new Boolean(true), {}),
+                    AssertionError);
+
+// Same number of keys but different key names.
+assert.throws(() => assert.deepEqual({ a: 1 }, { b: 1 }), AssertionError);
+
+assert.doesNotThrow(
+  () => assert.deepStrictEqual(new Date(2000, 3, 14), new Date(2000, 3, 14)),
+  'deepStrictEqual(new Date(2000, 3, 14), new Date(2000, 3, 14))'
+);
+
+assert.throws(
+  () => assert.deepStrictEqual(new Date(), new Date(2000, 3, 14)),
+  AssertionError,
+  'deepStrictEqual(new Date(), new Date(2000, 3, 14))'
+);
+
+assert.throws(
+  () => assert.notDeepStrictEqual(new Date(2000, 3, 14), new Date(2000, 3, 14)),
+  AssertionError,
+  'notDeepStrictEqual(new Date(2000, 3, 14), new Date(2000, 3, 14))'
+);
+
+assert.doesNotThrow(
+  () => assert.notDeepStrictEqual(new Date(), new Date(2000, 3, 14)),
+  'notDeepStrictEqual(new Date(), new Date(2000, 3, 14))'
+);
+
+assert.deepStrictEqual(/a/, /a/);
+assert.deepStrictEqual(/a/g, /a/g);
+assert.deepStrictEqual(/a/i, /a/i);
+assert.deepStrictEqual(/a/m, /a/m);
+assert.deepStrictEqual(/a/igm, /a/igm);
+common.expectsError(
+  () => assert.deepStrictEqual(/ab/, /a/),
+  {
+    code: 'ERR_ASSERTION',
+    name: 'AssertionError [ERR_ASSERTION]',
+    message: '/ab/ deepStrictEqual /a/'
+  });
+common.expectsError(
+  () => assert.deepStrictEqual(/a/g, /a/),
+  {
+    code: 'ERR_ASSERTION',
+    name: 'AssertionError [ERR_ASSERTION]',
+    message: '/a/g deepStrictEqual /a/'
+  });
+common.expectsError(
+  () => assert.deepStrictEqual(/a/i, /a/),
+  {
+    code: 'ERR_ASSERTION',
+    name: 'AssertionError [ERR_ASSERTION]',
+    message: '/a/i deepStrictEqual /a/'
+  });
+common.expectsError(
+  () => assert.deepStrictEqual(/a/m, /a/),
+  {
+    code: 'ERR_ASSERTION',
+    name: 'AssertionError [ERR_ASSERTION]',
+    message: '/a/m deepStrictEqual /a/'
+  });
+common.expectsError(
+  () => assert.deepStrictEqual(/a/igm, /a/im),
+  {
+    code: 'ERR_ASSERTION',
+    name: 'AssertionError [ERR_ASSERTION]',
+    message: '/a/gim deepStrictEqual /a/im'
+  });
+
+{
+  const re1 = /a/;
+  re1.lastIndex = 3;
+  assert.doesNotThrow(() => assert.deepStrictEqual(re1, /a/));
+}
+
+assert.throws(() => assert.deepStrictEqual(4, '4'),
+              AssertionError,
+              'deepStrictEqual(4, \'4\')');
+
+assert.throws(() => assert.deepStrictEqual(true, 1),
+              AssertionError,
+              'deepStrictEqual(true, 1)');
+
+assert.throws(() => assert.deepStrictEqual(4, '5'),
+              AssertionError,
+              'deepStrictEqual(4, \'5\')');
+
+// Having the same number of owned properties && the same set of keys.
+assert.deepStrictEqual({ a: 4 }, { a: 4 });
+assert.deepStrictEqual({ a: 4, b: '2' }, { a: 4, b: '2' });
+common.expectsError(() => assert.deepStrictEqual([4], ['4']),
+                    {
+                      code: 'ERR_ASSERTION',
+                      name: 'AssertionError [ERR_ASSERTION]',
+                      message: "[ 4 ] deepStrictEqual [ '4' ]"
+                    });
+common.expectsError(() => assert.deepStrictEqual({ a: 4 }, { a: 4, b: true }),
+                    {
+                      code: 'ERR_ASSERTION',
+                      name: 'AssertionError [ERR_ASSERTION]',
+                      message: '{ a: 4 } deepStrictEqual { a: 4, b: true }'
+                    });
+common.expectsError(() => assert.deepStrictEqual(['a'], { 0: 'a' }),
+                    {
+                      code: 'ERR_ASSERTION',
+                      name: 'AssertionError [ERR_ASSERTION]',
+                      message: "[ 'a' ] deepStrictEqual { '0': 'a' }"
+                    });
+
 /* eslint-enable */
+
+assert.doesNotThrow(
+  () => assert.deepStrictEqual({ a: 4, b: '1' }, { b: '1', a: 4 }));
+
+assert.throws(
+  () => assert.deepStrictEqual([0, 1, 2, 'a', 'b'], [0, 1, 2, 'b', 'a']),
+  AssertionError);
+
+assert.doesNotThrow(() => assert.deepStrictEqual(a1, a2));
+
+// Prototype check.
+function Constructor1(first, last) {
+  this.first = first;
+  this.last = last;
+}
+
+function Constructor2(first, last) {
+  this.first = first;
+  this.last = last;
+}
+
+const obj1 = new Constructor1('Ryan', 'Dahl');
+let obj2 = new Constructor2('Ryan', 'Dahl');
+
+assert.throws(() => assert.deepStrictEqual(obj1, obj2), AssertionError);
+
+Constructor2.prototype = Constructor1.prototype;
+obj2 = new Constructor2('Ryan', 'Dahl');
+
+assert.doesNotThrow(() => assert.deepStrictEqual(obj1, obj2));
+
+// primitives
+assert.throws(() => assert.deepStrictEqual(4, '4'), AssertionError);
+assert.throws(() => assert.deepStrictEqual(true, 1), AssertionError);
+assert.throws(() => assert.deepStrictEqual(Symbol(), Symbol()),
+              AssertionError);
+
+const s = Symbol();
+assert.doesNotThrow(() => assert.deepStrictEqual(s, s));
+
+// Primitives and object.
+assert.throws(() => assert.deepStrictEqual(null, {}), AssertionError);
+assert.throws(() => assert.deepStrictEqual(undefined, {}), AssertionError);
+assert.throws(() => assert.deepStrictEqual('a', ['a']), AssertionError);
+assert.throws(() => assert.deepStrictEqual('a', { 0: 'a' }), AssertionError);
+assert.throws(() => assert.deepStrictEqual(1, {}), AssertionError);
+assert.throws(() => assert.deepStrictEqual(true, {}), AssertionError);
+assert.throws(() => assert.deepStrictEqual(Symbol(), {}), AssertionError);
+
+// Primitive wrappers and object.
+assert.throws(() => assert.deepStrictEqual(new String('a'), ['a']),
+              AssertionError);
+assert.throws(() => assert.deepStrictEqual(new String('a'), { 0: 'a' }),
+              AssertionError);
+assert.throws(() => assert.deepStrictEqual(new Number(1), {}), AssertionError);
+assert.throws(() => assert.deepStrictEqual(new Boolean(true), {}),
+              AssertionError);
