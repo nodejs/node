@@ -80,6 +80,8 @@ if (showProgress) {
         conf += ` ${key}=${inspect(data.conf[key])}`;
       }
       conf = conf.slice(1);
+      // Escape quotes (") for correct csv formatting
+      conf = conf.replace(/"/g, '""');
 
       console.log(`"${job.binary}", "${job.filename}", "${conf}", ` +
                   `${data.rate}, ${data.time}`);
