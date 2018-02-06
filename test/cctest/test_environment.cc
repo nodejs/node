@@ -36,7 +36,7 @@ TEST_F(EnvironmentTest, AtExitWithEnvironment) {
 TEST_F(EnvironmentTest, AtExitWithoutEnvironment) {
   const v8::HandleScope handle_scope(isolate_);
   const Argv argv;
-  Env env {handle_scope, argv, this};
+  Env env {handle_scope, argv};
 
   AtExit(at_exit_callback1);  // No Environment is passed to AtExit.
   RunAtExit(*env);
