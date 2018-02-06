@@ -1,5 +1,5 @@
 'use strict';
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 
 const Writable = require('stream').Writable;
@@ -25,6 +25,16 @@ w2.cork();
 w2.write(Buffer.from('blerg'));
 w2.write(Buffer.from('blerg'));
 w2.end();
+
+const w3 = new Writable();
+
+w3.on('error', common.expectsError({
+  type: Error,
+  code: 'ERR_METHOD_NOT_IMPLEMENTED',
+  message: 'The _write method is not implemented'
+}));
+
+w3.end(Buffer.from('blerg'));
 
 process.on('exit', function() {
   assert.strictEqual(w._write, _write);
