@@ -86,8 +86,8 @@ be omitted, in which case a default callback is used that rethrows errors. To
 get a trace to the original call site, set the `NODE_DEBUG` environment
 variable:
 
-*Note*: Omitting the callback function on asynchronous fs functions is
-deprecated and may result in an error being thrown in the future.
+Omitting the callback function on asynchronous fs functions is deprecated and
+may result in an error being thrown in the future.
 
 ```txt
 $ cat script.js
@@ -178,7 +178,7 @@ const fileUrl = new URL('file:///tmp/hello');
 fs.readFileSync(fileUrl);
 ```
 
-*Note*: `file:` URLs are always absolute paths.
+`file:` URLs are always absolute paths.
 
 Using WHATWG [`URL`][] objects might introduce platform-specific behaviors.
 
@@ -203,7 +203,7 @@ fs.readFileSync(new URL('file:///c/p/a/t/h/file'));
 // TypeError [ERR_INVALID_FILE_URL_PATH]: File URL path must be absolute
 ```
 
-*Note*: `file:` URLs with drive letters must use `:` as a separator just after
+`file:` URLs with drive letters must use `:` as a separator just after
 the drive letter. Using another separator will result in a throw.
 
 On all other platforms, `file:` URLs with a hostname are unsupported and will
@@ -471,7 +471,7 @@ Returns `true` if the `fs.Stats` object describes a socket.
 
 Returns `true` if the `fs.Stats` object describes a symbolic link.
 
-*Note*: This method is only valid when using [`fs.lstat()`][]
+This method is only valid when using [`fs.lstat()`][]
 
 ### stats.dev
 
@@ -581,12 +581,13 @@ The timestamp indicating the creation time of this file.
 
 ### Stat Time Values
 
-*Note*: `atimeMs`, `mtimeMs`, `ctimeMs`, `birthtimeMs` are [numbers][MDN-Number]
-that hold the corresponding times in milliseconds. Their precision is platform
-specific. `atime`, `mtime`, `ctime`, and `birthtime` are [`Date`][MDN-Date]
-object alternate representations of the various times. The `Date` and number
-values are not connected. Assigning a new number value, or mutating the `Date`
-value, will not be reflected in the corresponding alternate representation.
+The `atimeMs`, `mtimeMs`, `ctimeMs`, `birthtimeMs` properties are
+[numbers][MDN-Number] that hold the corresponding times in milliseconds. Their
+precision is platform specific. `atime`, `mtime`, `ctime`, and `birthtime` are
+[`Date`][MDN-Date] object alternate representations of the various times. The
+`Date` and number values are not connected. Assigning a new number value, or
+mutating the `Date` value, will not be reflected in the corresponding alternate
+representation.
 
 The times in the stat object have the following semantics:
 
@@ -1679,8 +1680,8 @@ changes:
 Change the file system timestamps of the object referenced by the supplied file
 descriptor. See [`fs.utimes()`][].
 
-*Note*: This function does not work on AIX versions before 7.1, it will return
-the error `UV_ENOSYS`.
+This function does not work on AIX versions before 7.1, it will return the
+error `UV_ENOSYS`.
 
 ## fs.futimesSync(fd, atime, mtime)
 <!-- YAML
@@ -1918,10 +1919,10 @@ fs.mkdtemp(path.join(os.tmpdir(), 'foo-'), (err, folder) => {
 });
 ```
 
-*Note*: The `fs.mkdtemp()` method will append the six randomly selected
-characters directly to the `prefix` string. For instance, given a directory
-`/tmp`, if the intention is to create a temporary directory *within* `/tmp`,
-the `prefix` *must* end with a trailing platform-specific path separator
+The `fs.mkdtemp()` method will append the six randomly selected characters
+directly to the `prefix` string. For instance, given a directory `/tmp`, if the
+intention is to create a temporary directory *within* `/tmp`, the `prefix`
+*must* end with a trailing platform-specific path separator
 (`require('path').sep`).
 
 ```js
@@ -2038,8 +2039,8 @@ On Linux, positional writes don't work when the file is opened in append mode.
 The kernel ignores the position argument and always appends the data to
 the end of the file.
 
-*Note*: The behavior of `fs.open()` is platform-specific for some flags. As
-such, opening a directory on macOS and Linux with the `'a+'` flag - see example
+The behavior of `fs.open()` is platform-specific for some flags. As such,
+opening a directory on macOS and Linux with the `'a+'` flag - see example
 below - will return an error. In contrast, on Windows and FreeBSD, a file
 descriptor will be returned.
 
@@ -2228,10 +2229,11 @@ If `options` is a string, then it specifies the encoding. Example:
 ```js
 fs.readFile('/etc/passwd', 'utf8', callback);
 ```
-*Note*: When the path is a directory, the behavior of
-`fs.readFile()` and [`fs.readFileSync()`][] is platform-specific. On macOS,
-Linux, and Windows, an error will be returned. On FreeBSD, a representation
-of the directory's contents will be returned.
+
+When the path is a directory, the behavior of `fs.readFile()` and
+[`fs.readFileSync()`][] is platform-specific. On macOS, Linux, and Windows, an
+error will be returned. On FreeBSD, a representation of the directory's contents
+will be returned.
 
 ```js
 // macOS, Linux, and Windows
@@ -2247,12 +2249,11 @@ fs.readFile('<directory>', (err, data) => {
 
 Any specified file descriptor has to support reading.
 
-*Note*: If a file descriptor is specified as the `path`, it will not be closed
+If a file descriptor is specified as the `path`, it will not be closed
 automatically.
 
-*Note*: `fs.readFile()` buffers the entire file.
-To minimize memory costs, when possible prefer streaming via
-`fs.createReadStream()`.
+The `fs.readFile()` function buffers the entire file. To minimize memory costs,
+when possible prefer streaming via `fs.createReadStream()`.
 
 ## fs.readFileSync(path[, options])
 <!-- YAML
@@ -2277,8 +2278,8 @@ Synchronous version of [`fs.readFile()`][]. Returns the contents of the `path`.
 If the `encoding` option is specified then this function returns a
 string. Otherwise it returns a buffer.
 
-*Note*: Similar to [`fs.readFile()`][], when the path is a directory, the
-behavior of `fs.readFileSync()` is platform-specific.
+Similar to [`fs.readFile()`][], when the path is a directory, the behavior of
+`fs.readFileSync()` is platform-specific.
 
 ```js
 // macOS, Linux, and Windows
@@ -2410,8 +2411,8 @@ object with an `encoding` property specifying the character encoding to use for
 the path passed to the callback. If the `encoding` is set to `'buffer'`,
 the path returned will be passed as a `Buffer` object.
 
-*Note*: If `path` resolves to a socket or a pipe, the function will return a
-system dependent name for that object.
+If `path` resolves to a socket or a pipe, the function will return a system
+dependent name for that object.
 
 ## fs.realpath.native(path[, options], callback)
 <!-- YAML
@@ -2436,9 +2437,9 @@ object with an `encoding` property specifying the character encoding to use for
 the path passed to the callback. If the `encoding` is set to `'buffer'`,
 the path returned will be passed as a `Buffer` object.
 
-*Note*: On Linux, when Node.js is linked against musl libc, the procfs file
-system must be mounted on `/proc` in order for this function to work.  Glibc
-does not have this restriction.
+On Linux, when Node.js is linked against musl libc, the procfs file system must
+be mounted on `/proc` in order for this function to work.  Glibc does not have
+this restriction.
 
 ## fs.realpathSync(path[, options])
 <!-- YAML
@@ -2482,8 +2483,8 @@ object with an `encoding` property specifying the character encoding to use for
 the returned value. If the `encoding` is set to `'buffer'`, the path returned
 will be passed as a `Buffer` object.
 
-*Note*: If `path` resolves to a socket or a pipe, the function will return a
-system dependent name for that object.
+If `path` resolves to a socket or a pipe, the function will return a system
+dependent name for that object.
 
 ## fs.realpathSync.native(path[, options])
 <!-- YAML
@@ -2503,9 +2504,9 @@ object with an `encoding` property specifying the character encoding to use for
 the path passed to the callback. If the `encoding` is set to `'buffer'`,
 the path returned will be passed as a `Buffer` object.
 
-*Note*: On Linux, when Node.js is linked against musl libc, the procfs file
-system must be mounted on `/proc` in order for this function to work.  Glibc
-does not have this restriction.
+On Linux, when Node.js is linked against musl libc, the procfs file system must
+be mounted on `/proc` in order for this function to work.  Glibc does not have
+this restriction.
 
 ## fs.rename(oldPath, newPath, callback)
 <!-- YAML
@@ -2567,8 +2568,8 @@ changes:
 Asynchronous rmdir(2). No arguments other than a possible exception are given
 to the completion callback.
 
-*Note*: Using `fs.rmdir()` on a file (not a directory) results in an `ENOENT`
-error on Windows and an `ENOTDIR` error on POSIX.
+Using `fs.rmdir()` on a file (not a directory) results in an `ENOENT` error on
+Windows and an `ENOTDIR` error on POSIX.
 
 ## fs.rmdirSync(path)
 <!-- YAML
@@ -2584,8 +2585,8 @@ changes:
 
 Synchronous rmdir(2). Returns `undefined`.
 
-*Note*: Using `fs.rmdirSync()` on a file (not a directory) results in an `ENOENT`
-error on Windows and an `ENOTDIR` error on POSIX.
+Using `fs.rmdirSync()` on a file (not a directory) results in an `ENOENT` error
+on Windows and an `ENOTDIR` error on POSIX.
 
 ## fs.stat(path, callback)
 <!-- YAML
@@ -2701,8 +2702,8 @@ Asynchronous truncate(2). No arguments other than a possible exception are
 given to the completion callback. A file descriptor can also be passed as the
 first argument. In this case, `fs.ftruncate()` is called.
 
-*Note*: Passing a file descriptor is deprecated and may result in an error
-being thrown in the future.
+Passing a file descriptor is deprecated and may result in an error being thrown
+in the future.
 
 ## fs.truncateSync(path[, len])
 <!-- YAML
@@ -2715,8 +2716,8 @@ added: v0.8.6
 Synchronous truncate(2). Returns `undefined`. A file descriptor can also be
 passed as the first argument. In this case, `fs.ftruncateSync()` is called.
 
-*Note*: Passing a file descriptor is deprecated and may result in an error
-being thrown in the future.
+Passing a file descriptor is deprecated and may result in an error being thrown
+in the future.
 
 ## fs.unlink(path, callback)
 <!-- YAML
@@ -2769,7 +2770,7 @@ effectively stopping watching of `filename`.
 Calling `fs.unwatchFile()` with a filename that is not being watched is a
 no-op, not an error.
 
-*Note*: [`fs.watch()`][] is more efficient than `fs.watchFile()` and
+Using [`fs.watch()`][] is more efficient than `fs.watchFile()` and
 `fs.unwatchFile()`.  `fs.watch()` should be used instead of `fs.watchFile()`
 and `fs.unwatchFile()` when possible.
 
@@ -2986,18 +2987,18 @@ These stat objects are instances of `fs.Stat`.
 To be notified when the file was modified, not just accessed, it is necessary
 to compare `curr.mtime` and `prev.mtime`.
 
-*Note*: When an `fs.watchFile` operation results in an `ENOENT` error, it
+When an `fs.watchFile` operation results in an `ENOENT` error, it
 will invoke the listener once, with all the fields zeroed (or, for dates, the
 Unix Epoch). In Windows, `blksize` and `blocks` fields will be `undefined`,
 instead of zero. If the file is created later on, the listener will be called
 again, with the latest stat objects. This is a change in functionality since
 v0.10.
 
-*Note*: [`fs.watch()`][] is more efficient than `fs.watchFile` and
+Using [`fs.watch()`][] is more efficient than `fs.watchFile` and
 `fs.unwatchFile`. `fs.watch` should be used instead of `fs.watchFile` and
 `fs.unwatchFile` when possible.
 
-*Note:* When a file being watched by `fs.watchFile()` disappears and reappears,
+When a file being watched by `fs.watchFile()` disappears and reappears,
 then the `previousStat` reported in the second callback event (the file's
 reappearance) will be the same as the `previousStat` of the first callback
 event (its disappearance).
@@ -3154,7 +3155,7 @@ Note that it is unsafe to use `fs.writeFile` multiple times on the same file
 without waiting for the callback. For this scenario,
 `fs.createWriteStream` is strongly recommended.
 
-*Note*: If a file descriptor is specified as the `file`, it will not be closed
+If a file descriptor is specified as the `file`, it will not be closed
 automatically.
 
 ## fs.writeFileSync(file, data[, options])
@@ -4207,7 +4208,7 @@ without waiting for the `Promise` to be resolved (or rejected).
 
 The following constants are exported by `fs.constants`.
 
-*Note*: Not every constant will be available on every operating system.
+Not every constant will be available on every operating system.
 
 ### File Access Constants
 

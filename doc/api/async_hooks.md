@@ -306,8 +306,8 @@ set to the `asyncId` of a parent Promise, if there is one, and `undefined`
 otherwise. For example, in the case of `b = a.then(handler)`, `a` is considered
 a parent Promise of `b`.
 
-*Note*: In some cases the resource object is reused for performance reasons,
-it is thus not safe to use it as a key in a `WeakMap` or add properties to it.
+In some cases the resource object is reused for performance reasons, it is
+thus not safe to use it as a key in a `WeakMap` or add properties to it.
 
 ###### Asynchronous context example
 
@@ -377,9 +377,9 @@ destroy: 9
 destroy: 5
 ```
 
-*Note*: As illustrated in the example, `executionAsyncId()` and `execution`
-each specify the value of the current execution context; which is delineated by
-calls to `before` and `after`.
+As illustrated in the example, `executionAsyncId()` and `execution` each specify
+the value of the current execution context; which is delineated by calls to
+`before` and `after`.
 
 Only using `execution` to graph resource allocation results in the following:
 
@@ -599,7 +599,7 @@ own resources.
 
 The `init` hook will trigger when an `AsyncResource` is instantiated.
 
-*Note*: `before` and `after` calls must be unwound in the same order that they
+The `before` and `after` calls must be unwound in the same order that they
 are called. Otherwise, an unrecoverable exception will occur and the process
 will abort.
 
