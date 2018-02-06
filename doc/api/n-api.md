@@ -3462,7 +3462,7 @@ invoking the callback. This should be a value previously obtained
 from [`napi_async_init`][].
 - `[out] result`: The newly created scope.
 
-There are cases(for example resolving promises) where it is
+There are cases (for example resolving promises) where it is
 necessary to have the equivalent of the scope associated with a callback
 in place when making certain N-API calls.  If there is no other script on
 the stack the [`napi_open_callback_scope`][] and
