@@ -1857,10 +1857,10 @@ Note that this API uses libuv's threadpool, which can have surprising and
 negative performance implications for some applications, see the
 [`UV_THREADPOOL_SIZE`][] documentation for more information.
 
-*Note*: The asynchronous version of `crypto.randomBytes()` is carried out
-in a single threadpool request. To minimize threadpool task length variation,
-partition large `randomBytes` requests when doing so as part of fulfilling a
-client request.
+The asynchronous version of `crypto.randomBytes()` is carried out in a single
+threadpool request. To minimize threadpool task length variation, partition
+large `randomBytes` requests when doing so as part of fulfilling a client
+request.
 
 ### crypto.randomFillSync(buffer[, offset][, size])
 <!-- YAML
@@ -1969,10 +1969,10 @@ Note that this API uses libuv's threadpool, which can have surprising and
 negative performance implications for some applications, see the
 [`UV_THREADPOOL_SIZE`][] documentation for more information.
 
-*Note*: The asynchronous version of `crypto.randomFill()` is carried out
-in a single threadpool request. To minimize threadpool task length variation,
-partition large `randomFill` requests when doing so as part of fulfilling a
-client request.
+The asynchronous version of `crypto.randomFill()` is carried out in a single
+threadpool request. To minimize threadpool task length variation, partition
+large `randomFill` requests when doing so as part of fulfilling a client
+request.
 
 ### crypto.setEngine(engine[, flags])
 <!-- YAML
@@ -2019,9 +2019,9 @@ comparing HMAC digests or secret values like authentication cookies or
 `a` and `b` must both be `Buffer`s, `TypedArray`s, or `DataView`s, and they
 must have the same length.
 
-*Note*: Use of `crypto.timingSafeEqual` does not guarantee that the
-*surrounding* code is timing-safe. Care should be taken to ensure that the
-surrounding code does not introduce timing vulnerabilities.
+Use of `crypto.timingSafeEqual` does not guarantee that the *surrounding* code
+is timing-safe. Care should be taken to ensure that the surrounding code does
+not introduce timing vulnerabilities.
 
 ## Notes
 

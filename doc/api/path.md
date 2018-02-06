@@ -529,9 +529,9 @@ On Windows:
 // Returns: ['foo', 'bar', 'baz']
 ```
 
-*Note*: On Windows, both the forward slash (`/`) and backward slash (`\`) are
-accepted as path segment separators; however, the `path` methods only add
-backward slashes (`\`).
+On Windows, both the forward slash (`/`) and backward slash (`\`) are accepted
+as path segment separators; however, the `path` methods only add backward
+slashes (`\`).
 
 ## path.toNamespacedPath(path)
 <!-- YAML

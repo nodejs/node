@@ -55,9 +55,9 @@ The API has proven satisfactory. Compatibility with the npm ecosystem
 is a high priority, and will not be broken unless absolutely necessary.
 ```
 
-*Note*: Caution must be used when making use of `Experimental` features,
-particularly within modules that may be used as dependencies (or dependencies
-of dependencies) within a Node.js application. End users may not be aware that
+Caution must be used when making use of `Experimental` features, particularly
+within modules that may be used as dependencies (or dependencies of
+dependencies) within a Node.js application. End users may not be aware that
 experimental features are being used, and therefore may experience unexpected
 failures or behavior changes when API modifications occur. To help avoid such
 surprises, `Experimental` features may require a command-line flag to

@@ -138,7 +138,7 @@ added: v8.4.0
 The `'connect'` event is emitted once the `Http2Session` has been successfully
 connected to the remote peer and communication may begin.
 
-*Note*: User code will typically not listen for this event directly.
+User code will typically not listen for this event directly.
 
 #### Event: 'error'
 <!-- YAML
@@ -184,8 +184,8 @@ the handler function will receive three arguments:
 * `opaqueData` {Buffer} If additional opaque data was included in the GOAWAY
   frame, a `Buffer` instance will be passed containing that data.
 
-*Note*: The `Http2Session` instance will be shut down automatically when the
-`'goaway'` event is emitted.
+The `Http2Session` instance will be shut down automatically when the `'goaway'`
+event is emitted.
 
 #### Event: 'localSettings'
 <!-- YAML
@@ -196,9 +196,8 @@ The `'localSettings'` event is emitted when an acknowledgment SETTINGS frame
 has been received. When invoked, the handler function will receive a copy of
 the local settings.
 
-*Note*: When using `http2session.settings()` to submit new settings, the
-modified settings do not take effect until the `'localSettings'` event is
-emitted.
+When using `http2session.settings()` to submit new settings, the modified
+settings do not take effect until the `'localSettings'` event is emitted.
 
 ```js
 session.settings({ enablePush: false });
@@ -540,10 +539,9 @@ Once called, the `http2session.pendingSettingsAck` property will be `true`
 while the session is waiting for the remote peer to acknowledge the new
 settings.
 
-*Note*: The new settings will not become effective until the SETTINGS
-acknowledgment is received and the `'localSettings'` event is emitted. It
-is possible to send multiple SETTINGS frames while acknowledgment is still
-pending.
+The new settings will not become effective until the SETTINGS acknowledgment is
+received and the `'localSettings'` event is emitted. It is possible to send
+multiple SETTINGS frames while acknowledgment is still pending.
 
 #### http2session.type
 <!-- YAML
@@ -718,10 +716,9 @@ queuing the last chunk of payload data to be sent. The callback is passed a
 single object (with a `null` prototype) that the listener may use to specify
 the trailing header fields to send to the peer.
 
-*Note*: The HTTP/1 specification forbids trailers from containing HTTP/2
-pseudo-header fields (e.g. `':method'`, `':path'`, etc). An `'error'` event
-will be emitted if the `getTrailers` callback attempts to set such header
-fields.
+The HTTP/1 specification forbids trailers from containing HTTP/2 pseudo-header
+fields (e.g. `':method'`, `':path'`, etc). An `'error'` event will be emitted
+if the `getTrailers` callback attempts to set such header fields.
 
 The `:method` and `:path` pseudo-headers are not specified within `headers`,
 they respectively default to:
@@ -749,7 +746,7 @@ On the client, `Http2Stream` instances are created and returned when either the
 `http2session.request()` method is called, or in response to an incoming
 `'push'` event.
 
-*Note*: The `Http2Stream` class is a base for the [`ServerHttp2Stream`][] and
+The `Http2Stream` class is a base for the [`ServerHttp2Stream`][] and
 [`ClientHttp2Stream`][] classes, each of which is used specifically by either
 the Server or Client side, respectively.
 
@@ -770,14 +767,13 @@ when:
 On the client side, instances of [`ClientHttp2Stream`][] are created when the
 `http2session.request()` method is called.
 
-*Note*: On the client, the `Http2Stream` instance returned by
-`http2session.request()` may not be immediately ready for use if the parent
-`Http2Session` has not yet been fully established. In such cases, operations
-called on the `Http2Stream` will be buffered until the `'ready'` event is
-emitted. User code should rarely, if ever, need to handle the `'ready'`
-event directly. The ready status of an `Http2Stream` can be determined by
-checking the value of `http2stream.id`. If the value is `undefined`, the stream
-is not yet ready for use.
+On the client, the `Http2Stream` instance returned by `http2session.request()`
+may not be immediately ready for use if the parent `Http2Session` has not yet
+been fully established. In such cases, operations called on the `Http2Stream`
+will be buffered until the `'ready'` event is emitted. User code should rarely,
+if ever, need to handle the `'ready'` event directly. The ready status of an
+`Http2Stream` can be determined by checking the value of `http2stream.id`. If
+the value is `undefined`, the stream is not yet ready for use.
 
 ##### Destruction
 
@@ -809,8 +805,8 @@ added: v8.4.0
 The `'aborted'` event is emitted whenever a `Http2Stream` instance is
 abnormally aborted in mid-communication.
 
-*Note*: The `'aborted'` event will only be emitted if the `Http2Stream`
-writable side has not been ended.
+The `'aborted'` event will only be emitted if the `Http2Stream` writable side
+has not been ended.
 
 #### Event: 'close'
 <!-- YAML
@@ -1223,10 +1219,9 @@ server.on('stream', (stream) => {
 });
 ```
 
-*Note*: The HTTP/1 specification forbids trailers from containing HTTP/2
-pseudo-header fields (e.g. `':status'`, `':path'`, etc). An `'error'` event
-will be emitted if the `getTrailers` callback attempts to set such header
-fields.
+The HTTP/1 specification forbids trailers from containing HTTP/2 pseudo-header
+fields (e.g. `':status'`, `':path'`, etc). An `'error'` event will be emitted
+if the `getTrailers` callback attempts to set such header fields.
 
 #### http2stream.respondWithFD(fd[, headers[, options]])
 <!-- YAML
@@ -1314,10 +1309,9 @@ server.on('stream', (stream) => {
 });
 ```
 
-*Note*: The HTTP/1 specification forbids trailers from containing HTTP/2
-pseudo-header fields (e.g. `':status'`, `':path'`, etc). An `'error'` event
-will be emitted if the `getTrailers` callback attempts to set such header
-fields.
+The HTTP/1 specification forbids trailers from containing HTTP/2 pseudo-header
+fields (e.g. `':status'`, `':path'`, etc). An `'error'` event will be emitted
+if the `getTrailers` callback attempts to set such header fields.
 
 #### http2stream.respondWithFile(path[, headers[, options]])
 <!-- YAML
@@ -1423,10 +1417,9 @@ server.on('stream', (stream) => {
 });
 ```
 
-*Note*: The HTTP/1 specification forbids trailers from containing HTTP/2
-pseudo-header fields (e.g. `':status'`, `':path'`, etc). An `'error'` event
-will be emitted if the `getTrailers` callback attempts to set such header
-fields.
+The HTTP/1 specification forbids trailers from containing HTTP/2 pseudo-header
+fields (e.g. `':status'`, `':path'`, etc). An `'error'` event will be emitted
+if the `getTrailers` callback attempts to set such header fields.
 
 ### Class: Http2Server
 <!-- YAML
@@ -2018,8 +2011,8 @@ const headers = {
 stream.respond(headers);
 ```
 
-*Note*: Header objects passed to callback functions will have a `null`
-prototype. This means that normal JavaScript object methods such as
+Header objects passed to callback functions will have a `null` prototype. This
+means that normal JavaScript object methods such as
 `Object.prototype.toString()` and `Object.prototype.hasOwnProperty()` will
 not work.
 
@@ -2091,9 +2084,8 @@ const server = http2.createServer({
 });
 ```
 
-*Note*: The `options.selectPadding` function is invoked once for *every*
-HEADERS and DATA frame. This has a definite noticeable impact on
-performance.
+The `options.selectPadding` function is invoked once for *every* HEADERS and
+DATA frame. This has a definite noticeable impact on performance.
 
 ### Error Handling
 
@@ -2324,8 +2316,8 @@ added: v8.4.0
 The `'aborted'` event is emitted whenever a `Http2ServerRequest` instance is
 abnormally aborted in mid-communication.
 
-*Note*: The `'aborted'` event will only be emitted if the
-`Http2ServerRequest` writable side has not been ended.
+The `'aborted'` event will only be emitted if the `Http2ServerRequest` writable
+side has not been ended.
 
 #### Event: 'close'
 <!-- YAML
@@ -2371,12 +2363,11 @@ console.log(request.headers);
 
 See [HTTP2 Headers Object][].
 
-*Note*: In HTTP/2, the request path, hostname, protocol, and method are
-represented as special headers prefixed with the `:` character (e.g. `':path'`).
-These special headers will be included in the `request.headers` object. Care
-must be taken not to inadvertently modify these special headers or errors may
-occur. For instance, removing all headers from the request will cause errors
-to occur:
+In HTTP/2, the request path, hostname, protocol, and method are represented as
+special headers prefixed with the `:` character (e.g. `':path'`). These special
+headers will be included in the `request.headers` object. Care must be taken not
+to inadvertently modify these special headers or errors may occur. For instance,
+removing all headers from the request will cause errors to occur:
 
 ```js
 removeAllHeaders(request.headers);
@@ -2708,7 +2699,7 @@ header-related http module methods. The keys of the returned object are the
 header names and the values are the respective header values. All header names
 are lowercase.
 
-*Note*: The object returned by the `response.getHeaders()` method _does not_
+The object returned by the `response.getHeaders()` method _does not_
 prototypically inherit from the JavaScript `Object`. This means that typical
 `Object` methods such as `obj.toString()`, `obj.hasOwnProperty()`, and others
 are not defined and *will not work*.
@@ -2936,8 +2927,8 @@ the second parameter specifies how to encode it into a byte stream.
 By default the `encoding` is `'utf8'`. `callback` will be called when this chunk
 of data is flushed.
 
-*Note*: This is the raw HTTP body and has nothing to do with
-higher-level multi-part body encodings that may be used.
+This is the raw HTTP body and has nothing to do with higher-level multi-part
+body encodings that may be used.
 
 The first time [`response.write()`][] is called, it will send the buffered
 header information and the first chunk of the body to the client. The second

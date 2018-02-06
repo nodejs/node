@@ -29,9 +29,9 @@ rl.question('What do you think of Node.js? ', (answer) => {
 });
 ```
 
-*Note*: Once this code is invoked, the Node.js application will not
-terminate until the `readline.Interface` is closed because the interface
-waits for data to be received on the `input` stream.
+Once this code is invoked, the Node.js application will not terminate until the
+`readline.Interface` is closed because the interface waits for data to be
+received on the `input` stream.
 
 ## Class: Interface
 <!-- YAML
@@ -136,7 +136,7 @@ rl.on('SIGCONT', () => {
 });
 ```
 
-*Note*: The `'SIGCONT'` event is _not_ supported on Windows.
+The `'SIGCONT'` event is _not_ supported on Windows.
 
 ### Event: 'SIGINT'
 <!-- YAML
@@ -184,7 +184,7 @@ rl.on('SIGTSTP', () => {
 });
 ```
 
-*Note*: The `'SIGTSTP'` event is _not_ supported on Windows.
+The `'SIGTSTP'` event is _not_ supported on Windows.
 
 ### rl.close()
 <!-- YAML
@@ -252,8 +252,8 @@ rl.question('What is your favorite food? ', (answer) => {
 });
 ```
 
-*Note*: The `callback` function passed to `rl.question()` does not follow the
-typical pattern of accepting an `Error` object or `null` as the first argument.
+The `callback` function passed to `rl.question()` does not follow the typical
+pattern of accepting an `Error` object or `null` as the first argument.
 The `callback` is called with the provided answer as the only argument.
 
 ### rl.resume()
@@ -303,8 +303,8 @@ rl.write('Delete this!');
 rl.write(null, { ctrl: true, name: 'u' });
 ```
 
-*Note*: The `rl.write()` method will write the data to the `readline`
-Interface's `input` *as if it were provided by the user*.
+The `rl.write()` method will write the data to the `readline` Interface's
+`input` *as if it were provided by the user*.
 
 ## readline.clearLine(stream, dir)
 <!-- YAML
@@ -453,8 +453,8 @@ autocompletion is disabled when copy-pasted input is detected.
 
 If the `stream` is a [TTY][], then it must be in raw mode.
 
-*Note*: This is automatically called by any readline instance on its `input`
-if the `input` is a terminal. Closing the `readline` instance does not stop
+This is automatically called by any readline instance on its `input` if the
+`input` is a terminal. Closing the `readline` instance does not stop
 the `input` from emitting `'keypress'` events.
 
 ```js

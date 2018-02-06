@@ -307,7 +307,7 @@ Until the data is consumed, the `'end'` event will not fire.  Also, until
 the data is read it will consume memory that can eventually lead to a
 'process out of memory' error.
 
-*Note*: Node.js does not check whether Content-Length and the length of the
+Node.js does not check whether Content-Length and the length of the
 body which has been transmitted are equal or not.
 
 The request implements the [Writable Stream][] interface. This is an
@@ -817,7 +817,7 @@ access this event. In particular, the socket will not emit `'readable'` events
 because of how the protocol parser attaches to the socket. The `socket` can
 also be accessed at `request.connection`.
 
-*Note*: This event can also be explicitly emitted by users to inject connections
+This event can also be explicitly emitted by users to inject connections
 into the HTTP server. In that case, any [`Duplex`][] stream can be passed.
 
 ### Event: 'request'
@@ -916,7 +916,7 @@ to have timed out.
 
 A value of `0` will disable the timeout behavior on incoming connections.
 
-*Note*: The socket timeout logic is set up on connection, so changing this
+The socket timeout logic is set up on connection, so changing this
 value only affects new connections to the server, not any existing connections.
 
 ### server.keepAliveTimeout
@@ -936,8 +936,8 @@ A value of `0` will disable the keep-alive timeout behavior on incoming connecti
 A value of `0` makes the http server behave similarly to Node.js versions prior to 8.0.0,
 which did not have a keep-alive timeout.
 
-*Note*: The socket timeout logic is set up on connection, so changing this
-value only affects new connections to the server, not any existing connections.
+The socket timeout logic is set up on connection, so changing this value only
+affects new connections to the server, not any existing connections.
 
 ## Class: http.ServerResponse
 <!-- YAML
@@ -1087,7 +1087,7 @@ header-related http module methods. The keys of the returned object are the
 header names and the values are the respective header values. All header names
 are lowercase.
 
-*Note*: The object returned by the `response.getHeaders()` method _does not_
+The object returned by the `response.getHeaders()` method _does not_
 prototypically inherit from the JavaScript `Object`. This means that typical
 `Object` methods such as `obj.toString()`, `obj.hasOwnProperty()`, and others
 are not defined and *will not work*.
@@ -1306,8 +1306,8 @@ the second parameter specifies how to encode it into a byte stream.
 By default the `encoding` is `'utf8'`. `callback` will be called when this chunk
 of data is flushed.
 
-*Note*: This is the raw HTTP body and has nothing to do with
-higher-level multi-part body encodings that may be used.
+This is the raw HTTP body and has nothing to do with higher-level multi-part
+body encodings that may be used.
 
 The first time [`response.write()`][] is called, it will send the buffered
 header information and the first chunk of the body to the client. The second

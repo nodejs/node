@@ -53,9 +53,9 @@ changes:
 Evaluate the following argument as JavaScript. The modules which are
 predefined in the REPL can also be used in `script`.
 
-*Note*: On Windows, using `cmd.exe` a single quote will not work correctly
-because it only recognizes double `"` for quoting. In Powershell or
-Git bash, both `'` and `"` are usable.
+On Windows, using `cmd.exe` a single quote will not work correctly because it
+only recognizes double `"` for quoting. In Powershell or Git bash, both `'`
+and `"` are usable.
 
 
 ### `-p`, `--print "script"`
@@ -161,9 +161,9 @@ added: v8.0.0
 
 Emit pending deprecation warnings.
 
-*Note*: Pending deprecations are generally identical to a runtime deprecation
-with the notable exception that they are turned *off* by default and will not
-be emitted unless either the `--pending-deprecation` command line flag, or the
+Pending deprecations are generally identical to a runtime deprecation with the
+notable exception that they are turned *off* by default and will not be emitted
+unless either the `--pending-deprecation` command line flag, or the
 `NODE_PENDING_DEPRECATION=1` environment variable, is set. Pending deprecations
 are used to provide a kind of selective "early warning" mechanism that
 developers may leverage to detect deprecated API usage.
@@ -183,9 +183,9 @@ added: v0.10
 Aborting instead of exiting causes a core file to be generated for post-mortem
 analysis using a debugger (such as `lldb`, `gdb`, and `mdb`).
 
-*Note*: If this flag is passed, the behavior can still be set to not abort
-through [`process.setUncaughtExceptionCaptureCallback()`][] (and through usage
-of the `domain` module that uses it).
+If this flag is passed, the behavior can still be set to not abort through
+[`process.setUncaughtExceptionCaptureCallback()`][] (and through usage of the
+`domain` module that uses it).
 
 ### `--trace-warnings`
 <!-- YAML
@@ -315,7 +315,7 @@ added: v0.1.3
 
 Print V8 command line options.
 
-*Note*: V8 options allow words to be separated by both dashes (`-`) or
+V8 options allow words to be separated by both dashes (`-`) or
 underscores (`_`).
 
 For example, `--stack-trace-limit` is equivalent to `--stack_trace_limit`.
@@ -419,7 +419,7 @@ added: v0.1.32
 
 `':'`-separated list of directories prefixed to the module search path.
 
-*Note*: On Windows, this is a `';'`-separated list instead.
+On Windows, this is a `';'`-separated list instead.
 
 
 ### `NODE_DISABLE_COLORS=1`
@@ -495,9 +495,9 @@ added: v8.0.0
 
 When set to `1`, emit pending deprecation warnings.
 
-*Note*: Pending deprecations are generally identical to a runtime deprecation
-with the notable exception that they are turned *off* by default and will not
-be emitted unless either the `--pending-deprecation` command line flag, or the
+Pending deprecations are generally identical to a runtime deprecation with the
+notable exception that they are turned *off* by default and will not be emitted
+unless either the `--pending-deprecation` command line flag, or the
 `NODE_PENDING_DEPRECATION=1` environment variable, is set. Pending deprecations
 are used to provide a kind of selective "early warning" mechanism that
 developers may leverage to detect deprecated API usage.
@@ -554,9 +554,9 @@ added: v7.7.0
 If `--use-openssl-ca` is enabled, this overrides and sets OpenSSL's directory
 containing trusted certificates.
 
-*Note*: Be aware that unless the child environment is explicitly set, this
-environment variable will be inherited by any child processes, and if they use
-OpenSSL, it may cause them to trust the same CAs as node.
+Be aware that unless the child environment is explicitly set, this environment
+variable will be inherited by any child processes, and if they use OpenSSL, it
+may cause them to trust the same CAs as node.
 
 ### `SSL_CERT_FILE=file`
 <!-- YAML
@@ -566,9 +566,9 @@ added: v7.7.0
 If `--use-openssl-ca` is enabled, this overrides and sets OpenSSL's file
 containing trusted certificates.
 
-*Note*: Be aware that unless the child environment is explicitly set, this
-environment variable will be inherited by any child processes, and if they use
-OpenSSL, it may cause them to trust the same CAs as node.
+Be aware that unless the child environment is explicitly set, this environment
+variable will be inherited by any child processes, and if they use OpenSSL, it
+may cause them to trust the same CAs as node.
 
 ### `NODE_REDIRECT_WARNINGS=file`
 <!-- YAML

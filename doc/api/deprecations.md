@@ -544,8 +544,8 @@ Type: Documentation-only
 The `http` module `ServerResponse.prototype.writeHeader()` API has been
 deprecated. Please use `ServerResponse.prototype.writeHead()` instead.
 
-*Note*: The `ServerResponse.prototype.writeHeader()` method was never
-documented as an officially supported API.
+The `ServerResponse.prototype.writeHeader()` method was never documented as an
+officially supported API.
 
 <a id="DEP0064"></a>
 ### DEP0064: tls.createSecurePair()
@@ -581,8 +581,8 @@ properties have been deprecated. Please instead use one of the public methods
 `outgoingMessage.removeHeader()`, `outgoingMessage.setHeader()`) for working
 with outgoing headers.
 
-*Note*: `outgoingMessage._headers` and `outgoingMessage._headerNames` were
-never documented as officially supported properties.
+The `outgoingMessage._headers` and `outgoingMessage._headerNames` properties
+were never documented as officially supported properties.
 
 <a id="DEP0067"></a>
 ### DEP0067: OutgoingMessage.prototype.\_renderHeaders
@@ -592,7 +592,7 @@ Type: Documentation-only
 The `http` module `OutgoingMessage.prototype._renderHeaders()` API has been
 deprecated.
 
-*Note*: `OutgoingMessage.prototype._renderHeaders` was never documented as
+The `OutgoingMessage.prototype._renderHeaders` property was never documented as
 an officially supported API.
 
 <a id="DEP0068"></a>
@@ -611,7 +611,7 @@ Type: Runtime
 The DebugContext will be removed in V8 soon and will not be available in Node
 10+.
 
-*Note*: DebugContext was an experimental API.
+DebugContext was an experimental API.
 
 <a id="DEP0070"></a>
 ### DEP0070: async_hooks.currentId()
@@ -621,7 +621,7 @@ Type: End-of-Life
 `async_hooks.currentId()` was renamed to `async_hooks.executionAsyncId()` for
 clarity.
 
-*Note*: change was made while `async_hooks` was an experimental API.
+This change was made while `async_hooks` was an experimental API.
 
 <a id="DEP0071"></a>
 ### DEP0071: async_hooks.triggerId()
@@ -631,7 +631,7 @@ Type: End-of-Life
 `async_hooks.triggerId()` was renamed to `async_hooks.triggerAsyncId()` for
 clarity.
 
-*Note*: change was made while `async_hooks` was an experimental API.
+This change was made while `async_hooks` was an experimental API.
 
 <a id="DEP0072"></a>
 ### DEP0072: async_hooks.AsyncResource.triggerId()
@@ -641,7 +641,7 @@ Type: End-of-Life
 `async_hooks.AsyncResource.triggerId()` was renamed to
 `async_hooks.AsyncResource.triggerAsyncId()` for clarity.
 
-*Note*: change was made while `async_hooks` was an experimental API.
+This change was made while `async_hooks` was an experimental API.
 
 <a id="DEP0073"></a>
 ### DEP0073: Several internal properties of net.Server
@@ -651,8 +651,8 @@ Type: Runtime
 Accessing several internal, undocumented properties of `net.Server` instances
 with inappropriate names has been deprecated.
 
-*Note*: As the original API was undocumented and not generally useful for
-non-internal code, no replacement API is provided.
+As the original API was undocumented and not generally useful for non-internal
+code, no replacement API is provided.
 
 <a id="DEP0074"></a>
 ### DEP0074: REPLServer.bufferedCommand
@@ -682,7 +682,7 @@ const querystring = require('querystring');
 querystring.parse(str, '\n', '=');
 ```
 
-*Note*: This function is not completely equivalent to `querystring.parse()`. One
+This function is not completely equivalent to `querystring.parse()`. One
 difference is that `querystring.parse()` does url decoding:
 
 ```sh
@@ -699,7 +699,7 @@ Type: Runtime
 
 `Module._debug()` has been deprecated.
 
-*Note*: `Module._debug()` was never documented as an officially supported API.
+The `Module._debug()` function   was never documented as an officially supported API.
 
 <a id="DEP0078"></a>
 ### DEP0078: REPLServer.turnOffEditorMode()

@@ -306,8 +306,8 @@ property, set to `true` if the promise has a parent promise, and `false`
 otherwise. For example, in the case of `b = a.then(handler)`, `a` is considered
 a parent Promise of `b`. Here, `b` is considered a chained promise.
 
-*Note*: In some cases the resource object is reused for performance reasons,
-it is thus not safe to use it as a key in a `WeakMap` or add properties to it.
+In some cases the resource object is reused for performance reasons, it is
+thus not safe to use it as a key in a `WeakMap` or add properties to it.
 
 ###### Asynchronous context example
 
@@ -377,9 +377,9 @@ destroy: 9
 destroy: 5
 ```
 
-*Note*: As illustrated in the example, `executionAsyncId()` and `execution`
-each specify the value of the current execution context; which is delineated by
-calls to `before` and `after`.
+As illustrated in the example, `executionAsyncId()` and `execution` each specify
+the value of the current execution context; which is delineated by calls to
+`before` and `after`.
 
 Only using `execution` to graph resource allocation results in the following:
 

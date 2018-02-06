@@ -46,13 +46,11 @@ Will print:
 hello world
 ```
 
-*Note*:
-
-* The callback is executed asynchronously, and will have a limited stack trace.
+The callback is executed asynchronously, and will have a limited stack trace.
 If the callback throws, the process will emit an [`'uncaughtException'`][]
 event, and if not handled will exit.
 
-* Since `null` has a special meaning as the first argument to a callback, if a
+Since `null` has a special meaning as the first argument to a callback, if a
 wrapped function rejects a `Promise` with a falsy value as a reason, the value
 is wrapped in an `Error` with the original value stored in a field named
 `reason`.
@@ -258,8 +256,8 @@ changes:
     description: The `constructor` parameter can refer to an ES6 class now.
 -->
 
-*Note*: Usage of `util.inherits()` is discouraged. Please use the ES6 `class`
-and `extends` keywords to get language level inheritance support. Also note
+Usage of `util.inherits()` is discouraged. Please use the ES6 `class` and
+`extends` keywords to get language level inheritance support. Also note
 that the two styles are [semantically incompatible][].
 
 * `constructor` {Function}
@@ -749,7 +747,7 @@ with ICU and using the full ICU data (see [Internationalization][]).
 | `'shift_jis'`      | `'csshiftjis'`, `'ms932'`, `'ms_kanji'`, `'shift-jis'`, `'sjis'`, `'windows-31j'`, `'x-sjis'` |
 | `'euc-kr'`         | `'cseuckr'`, `'csksc56011987'`, `'iso-ir-149'`, `'korean'`, `'ks_c_5601-1987'`, `'ks_c_5601-1989'`, `'ksc5601'`, `'ksc_5601'`, `'windows-949'` |
 
-*Note*: The `'iso-8859-16'` encoding listed in the [WHATWG Encoding Standard][]
+The `'iso-8859-16'` encoding listed in the [WHATWG Encoding Standard][]
 is not supported.
 
 ### new TextDecoder([encoding[, options]])

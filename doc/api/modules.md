@@ -352,9 +352,9 @@ If this was in a folder at `./some-library`, then
 
 This is the extent of Node.js's awareness of package.json files.
 
-*Note*: If the file specified by the `"main"` entry of `package.json` is
-missing and can not be resolved, Node.js will report the entire module as
-missing with the default error:
+If the file specified by the `"main"` entry of `package.json` is missing and
+can not be resolved, Node.js will report the entire module as missing with the
+default error:
 
 ```txt
 Error: Cannot find module 'some-library'
@@ -407,7 +407,7 @@ If the `NODE_PATH` environment variable is set to a colon-delimited list
 of absolute paths, then Node.js will search those paths for modules if they
 are not found elsewhere.
 
-*Note*: On Windows, `NODE_PATH` is delimited by semicolons instead of colons.
+On Windows, `NODE_PATH` is delimited by semicolons (`;`) instead of colons.
 
 `NODE_PATH` was originally created to support loading modules from
 varying paths before the current [module resolution][] algorithm was frozen.
@@ -430,8 +430,8 @@ configured `node_prefix`.
 
 These are mostly for historic reasons.
 
-*Note*: It is strongly encouraged to place dependencies in the local
-`node_modules` folder. These will be loaded faster, and more reliably.
+It is strongly encouraged to place dependencies in the local `node_modules`
+folder. These will be loaded faster, and more reliably.
 
 ## The module wrapper
 
@@ -816,10 +816,10 @@ added: v0.5.1
 The `module.require` method provides a way to load a module as if
 `require()` was called from the original module.
 
-*Note*: In order to do this, it is necessary to get a reference to the
-`module` object.  Since `require()` returns the `module.exports`, and the
-`module` is typically *only* available within a specific module's code, it must
-be explicitly exported in order to be used.
+In order to do this, it is necessary to get a reference to the `module` object.
+Since `require()` returns the `module.exports`, and the `module` is typically
+*only* available within a specific module's code, it must be explicitly exported
+in order to be used.
 
 ## The `Module` Object
 

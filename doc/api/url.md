@@ -21,8 +21,8 @@ The `url` module provides two APIs for working with URLs: a legacy API that is
 Node.js specific, and a newer API that implements the same
 [WHATWG URL Standard][] used by web browsers.
 
-*Note*: While the Legacy API has not been deprecated, it is maintained solely
-for backwards compatibility with existing applications. New application code
+While the Legacy API has not been deprecated, it is maintained solely for
+backwards compatibility with existing applications. New application code
 should use the WHATWG API.
 
 A comparison between the WHATWG and Legacy APIs is provided below. Above the URL
@@ -30,7 +30,7 @@ A comparison between the WHATWG and Legacy APIs is provided below. Above the URL
 an object returned by the legacy `url.parse()` are shown. Below it are
 properties of a WHATWG `URL` object.
 
-*Note*: WHATWG URL's `origin` property includes `protocol` and `host`, but not
+WHATWG URL's `origin` property includes `protocol` and `host`, but not
 `username` or `password`.
 
 ```txt
@@ -84,7 +84,7 @@ added: v7.0.0
 Browser-compatible `URL` class, implemented by following the WHATWG URL
 Standard. [Examples of parsed URLs][] may be found in the Standard itself.
 
-*Note*: In accordance with browser conventions, all properties of `URL` objects
+In accordance with browser conventions, all properties of `URL` objects
 are implemented as getters and setters on the class prototype, rather than as
 data properties on the object itself. Thus, unlike [legacy urlObject][]s, using
 the `delete` keyword on any properties of `URL` objects (e.g. `delete
@@ -125,8 +125,8 @@ const myURL = new URL('https://你好你好');
 // https://xn--6qqa088eba/
 ```
 
-*Note*: This feature is only available if the `node` executable was compiled
-with [ICU][] enabled. If not, the domain names are passed through unchanged.
+This feature is only available if the `node` executable was compiled with
+[ICU][] enabled. If not, the domain names are passed through unchanged.
 
 #### url.hash
 
@@ -529,9 +529,9 @@ added: v7.10.0
 Instantiate a new `URLSearchParams` object with a query hash map. The key and
 value of each property of `obj` are always coerced to strings.
 
-*Note*: Unlike [`querystring`][] module, duplicate keys in the form of array
-values are not allowed. Arrays are stringified using [`array.toString()`][],
-which simply joins all array elements with commas.
+Unlike [`querystring`][] module, duplicate keys in the form of array values are
+not allowed. Arrays are stringified using [`array.toString()`][], which simply
+joins all array elements with commas.
 
 ```js
 const { URLSearchParams } = require('url');

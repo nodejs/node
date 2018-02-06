@@ -63,10 +63,10 @@ the compression encodings accepted by the client. The [`Content-Encoding`][]
 header is used to identify the compression encodings actually applied to a
 message.
 
-*Note*: the examples given below are drastically simplified to show
-the basic concept.  Using `zlib` encoding can be expensive, and the results
-ought to be cached.  See [Memory Usage Tuning][] for more information
-on the speed/memory/compression tradeoffs involved in `zlib` usage.
+The examples given below are drastically simplified to show the basic concept.
+Using `zlib` encoding can be expensive, and the results ought to be cached.
+See [Memory Usage Tuning][] for more information on the speed/memory/compression
+tradeoffs involved in `zlib` usage.
 
 ```js
 // client request example
@@ -238,10 +238,9 @@ not surprising. This section is taken almost directly from the
 [zlib documentation][].  See <https://zlib.net/manual.html#Constants> for more
 details.
 
-*Note*: Previously, the constants were available directly from
-`require('zlib')`, for instance `zlib.Z_NO_FLUSH`. Accessing the constants
-directly from the module is currently still possible but should be considered
-deprecated.
+Previously, the constants were available directly from `require('zlib')`, for
+instance `zlib.Z_NO_FLUSH`. Accessing the constants directly from the module is
+currently still possible but is deprecated.
 
 Allowed flush values.
 
@@ -468,7 +467,7 @@ added: v0.5.8
 
 Creates and returns a new [DeflateRaw][] object with the given [options][].
 
-*Note*: An upgrade of zlib from 1.2.8 to 1.2.11 changed behavior when windowBits
+An upgrade of zlib from 1.2.8 to 1.2.11 changed behavior when windowBits
 is set to 8 for raw deflate streams. zlib would automatically set windowBits
 to 9 if was initially set to 8. Newer versions of zlib will throw an exception,
 so Node.js restored the original behavior of upgrading a value of 8 to 9,

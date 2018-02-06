@@ -33,7 +33,7 @@ to `'example.com'`) is represented by Punycode as the ASCII string
 
 The `punycode` module provides a simple implementation of the Punycode standard.
 
-*Note*: The `punycode` module is a third-party dependency used by Node.js and
+The `punycode` module is a third-party dependency used by Node.js and
 made available to developers as a convenience. Fixes or other modifications to
 the module must be directed to the [Punycode.js][] project.
 

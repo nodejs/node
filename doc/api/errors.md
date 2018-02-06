@@ -1205,7 +1205,7 @@ A failure occurred resolving imports in an [ES6 module][].
 
 A callback was called more than once.
 
-*Note*: A callback is almost always meant to only be called once as the query
+A callback is almost always meant to only be called once as the query
 can either be fulfilled or rejected but not both at the same time. The latter
 would be possible by calling a callback more than once.
 
