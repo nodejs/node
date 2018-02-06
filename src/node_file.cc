@@ -652,9 +652,8 @@ void Close(const FunctionCallbackInfo<Value>& args) {
 
 
 // Used to speed up module loading.  Returns the contents of the file as
-// a string or undefined when the file cannot be opened.  Returns an empty
-// string when the file does not contain the substring '"main"' because that
-// is the property we care about.
+// a string or undefined when the file cannot be opened or "main" is not found
+// in the file.
 static void InternalModuleReadJSON(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   uv_loop_t* loop = env->event_loop();
@@ -708,7 +707,7 @@ static void InternalModuleReadJSON(const FunctionCallbackInfo<Value>& args) {
 
   const size_t size = offset - start;
   if (size == 0 || size == SearchString(&chars[start], size, "\"main\"")) {
-    args.GetReturnValue().SetEmptyString();
+    return;
   } else {
     Local<String> chars_string =
         String::NewFromUtf8(env->isolate(),
