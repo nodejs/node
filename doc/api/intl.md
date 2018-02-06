@@ -56,8 +56,8 @@ option:
 | [REPL][]                                | partial (inaccurate line editing) | full                         | full                   | full       |
 | [`require('util').TextDecoder`][]       | partial (basic encodings support) | partial/full (depends on OS) | partial (Unicode-only) | full       |
 
-*Note*: The "(not locale-aware)" designation denotes that the function carries
-out its operation just like the non-`Locale` version of the function, if one
+The "(not locale-aware)" designation denotes that the function carries out its
+operation just like the non-`Locale` version of the function, if one
 exists. For example, under `none` mode, `Date.prototype.toLocaleString()`'s
 operation is identical to that of `Date.prototype.toString()`.
 
