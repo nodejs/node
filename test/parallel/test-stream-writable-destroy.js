@@ -185,3 +185,17 @@ const { inherits } = require('util');
     assert.strictEqual(expected, err);
   }));
 }
+
+{
+  // Checks that `._undestroy()` restores the state so that `final` will be
+  // called again.
+  const write = new Writable({
+    write: common.mustNotCall(),
+    final: common.mustCall((cb) => cb(), 2)
+  });
+
+  write.end();
+  write.destroy();
+  write._undestroy();
+  write.end();
+}

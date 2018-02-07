@@ -24,11 +24,13 @@ let endedConnection = false;
 function onconnection(c) {
   assert.strictEqual(hooks.activitiesOfTypes('SHUTDOWNWRAP').length, 0);
   c.end();
-  endedConnection = true;
-  const as = hooks.activitiesOfTypes('SHUTDOWNWRAP');
-  assert.strictEqual(as.length, 1);
-  checkInvocations(as[0], { init: 1 }, 'after ending client connection');
-  this.close(onserverClosed);
+  process.nextTick(() => {
+    endedConnection = true;
+    const as = hooks.activitiesOfTypes('SHUTDOWNWRAP');
+    assert.strictEqual(as.length, 1);
+    checkInvocations(as[0], { init: 1 }, 'after ending client connection');
+    this.close(onserverClosed);
+  });
 }
 
 function onconnected() {
