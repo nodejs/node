@@ -899,7 +899,11 @@ common.expectsError(
     message: `${start}\n` +
     `${actExp}\n` +
     '\n' +
-    '  {}'
+    `${minus} {}\n` +
+    `${plus} {\n` +
+    `${plus}   loop: 'forever',\n` +
+    `${plus}   [Symbol(util.inspect.custom)]: [Function]\n` +
+    `${plus} }`
   });
 
   // notDeepEqual tests
