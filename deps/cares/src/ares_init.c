@@ -567,7 +567,7 @@ static int init_by_environment(ares_channel channel)
  * get_REG_SZ()
  *
  * Given a 'hKey' handle to an open registry key and a 'leafKeyName' pointer
- * to the name of the registry leaf key to be queried, fetch it's string
+ * to the name of the registry leaf key to be queried, fetch its string
  * value and return a pointer in *outptr to a newly allocated memory area
  * holding it as a null-terminated string.
  *
