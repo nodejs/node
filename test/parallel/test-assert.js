@@ -25,6 +25,7 @@
 
 const common = require('../common');
 const assert = require('assert');
+const { inspect } = require('util');
 const a = assert;
 
 function makeBlock(f) {
@@ -889,6 +890,17 @@ common.expectsError(
   assert.throws(
     () => assert.deepEqual(Array(12).fill(1), Array(12).fill(2)),
     { message });
+
+  const obj1 = {};
+  const obj2 = { loop: 'forever' };
+  obj2[inspect.custom] = () => '{}';
+  // No infinite loop and no custom inspect.
+  assert.throws(() => assert.deepEqual(obj1, obj2), {
+    message: `${start}\n` +
+    `${actExp}\n` +
+    '\n' +
+    '  {}'
+  });
 
   // notDeepEqual tests
   message = 'Identical input passed to notDeepStrictEqual:\n[\n  1\n]';
