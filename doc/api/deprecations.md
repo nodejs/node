@@ -871,6 +871,15 @@ Type: Runtime
 
 `timers.unenroll()` is deprecated. Please use the publicly documented [`clearTimeout()`][] or [`clearInterval()`][] instead.
 
+<a id="DEP0097"></a>
+### DEP0097: MakeCallback with domain property
+
+Type: Runtime
+
+Users of `MakeCallback` that add the `domain` property to carry context,
+should start using the `async_context` variant of `MakeCallback` or
+`CallbackScope`, or the the high-level `AsyncResource` class.
+
 [`--pending-deprecation`]: cli.html#cli_pending_deprecation
 [`Buffer.allocUnsafeSlow(size)`]: buffer.html#buffer_class_method_buffer_allocunsafeslow_size
 [`Buffer.from(array)`]: buffer.html#buffer_class_method_buffer_from_array
