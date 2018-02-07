@@ -1,0 +1,48 @@
+language: cpp
+sudo: false
+dist: trusty
+
+os:
+  - linux
+  - osx
+
+compiler:
+  - gcc
+  - clang
+
+cache:
+  directories:
+    - out/Release
+
+env:
+  matrix:
+    - LINT_ONLY=1
+    - LINT_ONLY=0
+
+matrix:
+  exclude:
+    - os: osx
+      compiler: gcc
+    # Exclude LINT_ONLY jobs on osx as well as clang.
+    # This should result in a single LINT_ONLY job overall.
+    - env: LINT_ONLY=1
+      os: osx
+    - env: LINT_ONLY=1
+      compiler: clang
+
+addons:
+  apt:
+    sources:
+      - ubuntu-toolchain-r-test
+    packages:
+      - g++-4.9
+
+before_install:
+  - if [ $TRAVIS_OS_NAME == linux ]; then CC=gcc-4.9 && CXX=g++-4.9; fi
+
+before_script:
+  - ./configure --shared
+
+script:
+  - if [ $LINT_ONLY == 1 ]; then make lint-cpp; fi
+  - if [ $LINT_ONLY == 0 ]; then make -j5; fi

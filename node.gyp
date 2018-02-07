@@ -362,6 +362,7 @@
         'src/node_http2_state.h',
         'src/node_internals.h',
         'src/node_javascript.h',
+        'src/node_lib.h',
         'src/node_mutex.h',
         'src/node_platform.h',
         'src/node_perf.h',
