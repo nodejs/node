@@ -257,7 +257,7 @@ const req = https.request(options, (res) => {
 [`http.Server#setTimeout()`]: http.html#http_server_settimeout_msecs_callback
 [`http.Server#timeout`]: http.html#http_server_timeout
 [`http.Server`]: http.html#http_class_http_server
-[`http.createServer()`]: http.html#httpcreateserveroptions-requestlistener
+[`http.createServer()`]: http.html#http_http_createserver_options_requestlistener
 [`http.close()`]: http.html#http_server_close_callback
 [`http.get()`]: http.html#http_http_get_options_callback
 [`http.request()`]: http.html#http_http_request_options_callback
