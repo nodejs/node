@@ -62,7 +62,7 @@ class FSReqBase : public ReqWrap<uv_fs_t> {
 
  private:
   enum encoding encoding_ = UTF8;
-  const char* syscall_;
+  const char* syscall_ = nullptr;
 
   const char* data_ = nullptr;
   MaybeStackBuffer<char> buffer_;
