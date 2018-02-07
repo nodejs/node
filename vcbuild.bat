@@ -169,6 +169,9 @@ if "%target%"=="Clean" echo deleting %~dp0deps\icu
 if "%target%"=="Clean" rmdir /S /Q %~dp0deps\icu
 :no-depsicu
 
+call tools\msvs\find_python.cmd
+if errorlevel 1 echo Could not find python2 & goto :exit
+
 call :getnodeversion || exit /b 1
 
 if defined TAG set configure_flags=%configure_flags% --tag=%TAG%
@@ -265,7 +268,8 @@ goto run
 if defined noprojgen goto msbuild
 
 @rem Generate the VS project.
-call :run-python configure %configure_flags%
+echo configure %configure_flags%
+python configure %configure_flags%
 if errorlevel 1 goto create-msvs-files-failed
 if not exist node.sln goto create-msvs-files-failed
 echo Project files generated.
@@ -457,7 +461,7 @@ if defined test_node_inspect goto node-test-inspect
 goto node-tests
 
 :node-check-deopts
-call :run-python tools\test.py --mode=release --check-deopts parallel sequential -J
+python tools\test.py --mode=release --check-deopts parallel sequential -J
 if defined test_node_inspect goto node-test-inspect
 goto node-tests
 
@@ -481,7 +485,8 @@ if defined no_cctest echo Skipping cctest because no-cctest was specified && got
 echo running 'cctest %cctest_args%'
 "%config%\cctest" %cctest_args%
 :run-test-py
-call :run-python tools\test.py %test_args%
+echo running 'python tools\test.py %test_args%'
+python tools\test.py %test_args%
 goto test-v8
 
 :test-v8
@@ -493,7 +498,7 @@ goto lint-cpp
 :lint-cpp
 if not defined lint_cpp goto lint-js
 call :run-lint-cpp src\*.c src\*.cc src\*.h test\addons\*.cc test\addons\*.h test\addons-napi\*.cc test\addons-napi\*.h test\cctest\*.cc test\cctest\*.h test\gc\binding.cc tools\icu\*.cc tools\icu\*.h
-call :run-python tools/check-imports.py
+python tools/check-imports.py
 goto lint-js
 
 :run-lint-cpp
@@ -509,7 +514,7 @@ for /f "tokens=*" %%G in ('dir /b /s /a %*') do (
 ( endlocal
   set cppfilelist=%localcppfilelist%
 )
-call :run-python tools/cpplint.py %cppfilelist% > nul
+python tools/cpplint.py %cppfilelist% > nul
 goto exit
 
 :add-to-list
@@ -571,14 +576,6 @@ echo   vcbuild.bat lint                     : runs the C++ and JavaScript linter
 echo   vcbuild.bat no-cctest                : skip building cctest.exe
 goto exit
 
-:run-python
-call tools\msvs\find_python.cmd
-if errorlevel 1 echo Could not find python2 & goto :exit
-set cmd1="%VCBUILD_PYTHON_LOCATION%" %*
-echo %cmd1%
-%cmd1%
-exit /b %ERRORLEVEL%
-
 :exit
 goto :EOF
 
@@ -591,9 +588,8 @@ rem ***************
 set NODE_VERSION=
 set TAG=
 set FULLVERSION=
-:: Call as subroutine for validation of python
-call :run-python tools\getnodeversion.py > nul
-for /F "tokens=*" %%i in ('"%VCBUILD_PYTHON_LOCATION%" tools\getnodeversion.py') do set NODE_VERSION=%%i
+
+for /F "usebackq tokens=*" %%i in (`python "%~dp0tools\getnodeversion.py"`) do set NODE_VERSION=%%i
 if not defined NODE_VERSION (
   echo Cannot determine current version of Node.js
   exit /b 1
