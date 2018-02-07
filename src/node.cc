@@ -4346,7 +4346,7 @@ inline static bool TickEventLoop(Environment* env,
     return true;
   }
 
-  v8_platform.DrainVMTasks();
+  v8_platform.DrainVMTasks(env->isolate());
 
   if (uv_loop_alive(env->event_loop())) {
     return true;
@@ -4689,7 +4689,7 @@ int _StopEnv() {
   RunAtExit(_environment);
   uv_key_delete(&thread_local_env);
 
-  v8_platform.DrainVMTasks();
+  v8_platform.DrainVMTasks(_environment->isolate());
   WaitForInspectorDisconnect(_environment);
 
   return exit_code;
@@ -4724,7 +4724,7 @@ void _DeinitV8() {
 namespace initialize {
 
 void _InitV8() {
-  v8_platform.Initialize(v8_thread_pool_size, uv_default_loop());
+  v8_platform.Initialize(v8_thread_pool_size);
   // Enable tracing when argv has --trace-events-enabled.
   if (trace_enabled) {
     fprintf(stderr, "Warning: Trace event is an experimental feature "
@@ -4773,8 +4773,7 @@ void _CreateInitialEnvironment() {
   // TODO(jh): Once we write a Deinit(), we need to put this on the heap
   // to call the deconstructor.
   static HandleScope handle_scope(_isolate);
-  isolate_data = new IsolateData(_isolate, uv_default_loop(),
-                                 allocator->zero_fill_field());
+  isolate_data = new IsolateData(_isolate, uv_default_loop(), nullptr);
 
   //////////
   // Start 3
