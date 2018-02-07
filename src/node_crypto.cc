@@ -1924,6 +1924,14 @@ static Local<Object> X509ToObject(Environment* env, X509* cert) {
                                   String::kNormalString,
                                   mem->length)).FromJust();
     USE(BIO_reset(bio));
+
+    int size = i2d_RSA_PUBKEY(rsa, nullptr);
+    CHECK_GE(size, 0);
+    Local<Object> pubbuff = Buffer::New(env, size).ToLocalChecked();
+    unsigned char* pubserialized =
+        reinterpret_cast<unsigned char*>(Buffer::Data(pubbuff));
+    i2d_RSA_PUBKEY(rsa, &pubserialized);
+    info->Set(env->pubkey_string(), pubbuff);
   }
 
   if (pkey != nullptr) {
