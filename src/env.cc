@@ -347,7 +347,7 @@ void Environment::ToggleImmediateRef(bool ref) {
 Local<Value> Environment::GetNow() {
   uv_update_time(event_loop());
   uint64_t now = uv_now(event_loop());
-  CHECK(now >= timer_base());
+  CHECK_GE(now, timer_base());
   now -= timer_base();
   if (now <= 0xffffffff)
     return Integer::New(isolate(), static_cast<uint32_t>(now));
