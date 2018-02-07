@@ -1188,13 +1188,9 @@ static void OpenFileHandle(const FunctionCallbackInfo<Value>& args) {
     req_wrap->SetReturnValue(args);
   } else {
     SYNC_CALL(open, *path, *path, flags, mode)
-    if (SYNC_RESULT < 0) {
-      args.GetReturnValue().Set(SYNC_RESULT);
-    } else {
-      HandleScope scope(env->isolate());
-      FileHandle* fd = new FileHandle(env, SYNC_RESULT);
-      args.GetReturnValue().Set(fd->object());
-    }
+    HandleScope scope(env->isolate());
+    FileHandle* fd = new FileHandle(env, SYNC_RESULT);
+    args.GetReturnValue().Set(fd->object());
   }
 }
 
