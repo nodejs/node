@@ -38,7 +38,7 @@ prefix. For example, if there is a <code>devDependency</code> on <code>tap</code
 you should write:</p>
 <pre><code>&quot;scripts&quot;: {&quot;test&quot;: &quot;tap test/\*.js&quot;}
 </code></pre><p>instead of</p>
-<pre><code>&quot;scripts&quot;: {&quot;test&quot;: &quot;node_modules/.bin/tap test/\*.js&quot;}
+<pre><code>&quot;scripts&quot;: {&quot;test&quot;: &quot;node_modules/.bin/tap test/\*.js&quot;}  
 </code></pre><p>to run your tests.</p>
 <p>The actual shell your script is run within is platform dependent. By default,
 on Unix-like systems it is the <code>/bin/sh</code> command, on Windows it is the <code>cmd.exe</code>.
