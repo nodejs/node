@@ -102,10 +102,9 @@
  * V8 5.9: 56
  * V8 6.0: 57
  * V8 6.1: 58
- * V8 6.2: 59
  *
  * More information can be found at https://nodejs.org/en/download/releases/
  */
-#define NODE_MODULE_VERSION 59
+#define NODE_MODULE_VERSION 57
 
 #endif  // SRC_NODE_VERSION_H_
