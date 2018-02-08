@@ -152,8 +152,8 @@ class FileHandle : public AsyncWrap {
     }
     ~CloseReq() {
       uv_fs_req_cleanup(req());
-      promise_.Empty();
-      ref_.Empty();
+      promise_.Reset();
+      ref_.Reset();
     }
 
     FileHandle* file_handle();
