@@ -10,6 +10,8 @@
 
 namespace node {
 
+int GenDebugSymbols();
+
 template <typename T>
 class ReqWrap : public AsyncWrap {
  public:
@@ -22,6 +24,7 @@ class ReqWrap : public AsyncWrap {
 
  private:
   friend class Environment;
+  friend int GenDebugSymbols();
   ListNode<ReqWrap> req_wrap_queue_;
 
  protected:

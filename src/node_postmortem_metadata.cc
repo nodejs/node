@@ -44,14 +44,6 @@
 #include <utility>
 #include <vector>
 
-namespace node {
-// Forward declaration needed before redefining private.
-int GenDebugSymbols();
-}  // namespace node
-
-
-#define private friend int GenDebugSymbols(); private
-
 #include "env.h"
 #include "base_object-inl.h"
 #include "handle_wrap.h"

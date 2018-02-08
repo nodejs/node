@@ -37,6 +37,8 @@
 
 namespace node {
 
+int GenDebugSymbols();
+
 // These should be used in our code as opposed to the native
 // versions as they abstract out some platform and or
 // compiler version specific functionality
@@ -159,6 +161,7 @@ class ListNode {
 
  private:
   template <typename U, ListNode<U> (U::*M)> friend class ListHead;
+  friend int GenDebugSymbols();
   ListNode* prev_;
   ListNode* next_;
   DISALLOW_COPY_AND_ASSIGN(ListNode);
@@ -189,6 +192,7 @@ class ListHead {
   inline Iterator end() const;
 
  private:
+  friend int GenDebugSymbols();
   ListNode<T> head_;
   DISALLOW_COPY_AND_ASSIGN(ListHead);
 };

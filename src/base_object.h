@@ -28,6 +28,8 @@
 
 namespace node {
 
+int GenDebugSymbols();
+
 class Environment;
 
 class BaseObject {
@@ -70,6 +72,7 @@ class BaseObject {
   // offsets and generate debug symbols for BaseObject, which assumes that the
   // position of members in memory are predictable. For more information please
   // refer to `doc/guides/node-postmortem-support.md`
+  friend int GenDebugSymbols();
   v8::Persistent<v8::Object> persistent_handle_;
   Environment* env_;
 };
