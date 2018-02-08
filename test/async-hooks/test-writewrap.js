@@ -47,6 +47,7 @@ function checkDestroyedWriteWraps(n, stage) {
 }
 
 function onconnection(conn) {
+  conn.write('hi');  // Let the client know we're ready.
   conn.resume();
   //
   // Server received client connection
@@ -60,15 +61,35 @@ function onconnect() {
   //
   checkDestroyedWriteWraps(0, 'client connected');
 
+  this.once('data', common.mustCall(ondata));
+}
+
+function ondata() {
   //
-  // Destroying client socket
+  // Writing data to client socket
   //
-  this.write('f'.repeat(128000), () => onafterwrite(this));
+  const write = () => {
+    let writeFinished = false;
+    this.write('f'.repeat(1280000), () => {
+      writeFinished = true;
+    });
+    process.nextTick(() => {
+      if (writeFinished) {
+        // Synchronous finish, write more data immediately.
+        writeFinished = false;
+        write();
+      } else {
+        // Asynchronous write; this is what we are here for.
+        onafterwrite(this);
+      }
+    });
+  };
+  write();
 }
 
 function onafterwrite(self) {
   checkDestroyedWriteWraps(1, 'client destroyed');
-  self.destroy();
+  self.end();
 
   checkDestroyedWriteWraps(1, 'client destroyed');
 
