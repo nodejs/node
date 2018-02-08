@@ -886,7 +886,7 @@ static void ReadLink(const FunctionCallbackInfo<Value>& args) {
     fs_req_wrap req;
     int err = SyncCall(env, args[3], &req, "readlink",
                        uv_fs_readlink, *path);
-    if (err) {
+    if (err < 0) {
       return;  // syscall failed, no need to continue, error info is in ctx
     }
     const char* link_path = static_cast<const char*>(req.req.ptr);
