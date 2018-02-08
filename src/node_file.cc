@@ -951,14 +951,20 @@ static void ReadDir(const FunctionCallbackInfo<Value>& args) {
       name_v[name_idx++] = filename.ToLocalChecked();
 
       if (name_idx >= arraysize(name_v)) {
-        fn->Call(env->context(), names, name_idx, name_v)
-            .ToLocalChecked();
+        MaybeLocal<Value> ret = fn->Call(env->context(), names, name_idx,
+                                         name_v);
+        if (ret.IsEmpty()) {
+          return;
+        }
         name_idx = 0;
       }
     }
 
     if (name_idx > 0) {
-      fn->Call(env->context(), names, name_idx, name_v).ToLocalChecked();
+      MaybeLocal<Value> ret = fn->Call(env->context(), names, name_idx, name_v);
+      if (ret.IsEmpty()) {
+        return;
+      }
     }
 
     args.GetReturnValue().Set(names);
