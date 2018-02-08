@@ -73,6 +73,9 @@ class LibuvStreamWrap : public HandleWrap, public StreamBase {
     return stream()->type == UV_TCP;
   }
 
+  ShutdownWrap* CreateShutdownWrap(v8::Local<v8::Object> object) override;
+  WriteWrap* CreateWriteWrap(v8::Local<v8::Object> object) override;
+
  protected:
   LibuvStreamWrap(Environment* env,
                   v8::Local<v8::Object> object,

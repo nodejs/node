@@ -601,9 +601,6 @@ class Http2Stream : public AsyncWrap,
 
   inline void Close(int32_t code);
 
-  // Shutdown the writable side of the stream
-  inline void Shutdown();
-
   // Destroy this stream instance and free all held memory.
   inline void Destroy();
 
@@ -818,6 +815,10 @@ class Http2Session : public AsyncWrap, public StreamListener {
 
   inline void EmitStatistics();
 
+  inline StreamBase* underlying_stream() {
+    return static_cast<StreamBase*>(stream_);
+  }
+
   void Start();
   void Stop();
   void Close(uint32_t code = NGHTTP2_NO_ERROR,
@@ -906,8 +907,6 @@ class Http2Session : public AsyncWrap, public StreamListener {
 
   template <get_setting fn>
   static void GetSettings(const FunctionCallbackInfo<Value>& args);
-
-  WriteWrap* AllocateSend();
 
   uv_loop_t* event_loop() const {
     return env()->event_loop();
