@@ -31,8 +31,6 @@
 
 namespace node {
 
-int GenDebugSymbols();
-
 class Environment;
 
 // Rules:

@@ -48,8 +48,6 @@ struct nghttp2_rcbuf;
 
 namespace node {
 
-int GenDebugSymbols();
-
 namespace performance {
 class performance_state;
 }

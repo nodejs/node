@@ -28,8 +28,6 @@
 
 namespace node {
 
-int GenDebugSymbols();
-
 class Environment;
 
 class BaseObject {

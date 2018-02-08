@@ -37,8 +37,6 @@
 
 namespace node {
 
-int GenDebugSymbols();
-
 // These should be used in our code as opposed to the native
 // versions as they abstract out some platform and or
 // compiler version specific functionality

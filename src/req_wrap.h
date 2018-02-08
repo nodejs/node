@@ -10,8 +10,6 @@
 
 namespace node {
 
-int GenDebugSymbols();
-
 template <typename T>
 class ReqWrap : public AsyncWrap {
  public:
