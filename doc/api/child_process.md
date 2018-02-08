@@ -239,7 +239,7 @@ async function lsExample() {
 lsExample();
 ```
 
-### child_process.execFile(file[, args][, options][, callback])
+### child_process.execFile([command][, args][, options][, callback])
 <!-- YAML
 added: v0.1.91
 changes:
@@ -248,8 +248,8 @@ changes:
     description: The `windowsHide` option is supported now.
 -->
 
-* `file` {string} The name or path of the executable file to run.
-* `args` {string[]} List of string arguments.
+* `command` {string} The command to run.
+* `args` {string[]} The name of the executable file to run followed by a list of string arguments.
 * `options` {Object}
   * `cwd` {string} Current working directory of the child process.
   * `env` {Object} Environment key-value pairs.
