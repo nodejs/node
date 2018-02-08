@@ -323,6 +323,9 @@ The `'unpipe'` event is emitted when the [`stream.unpipe()`][] method is called
 on a [Readable][] stream, removing this [Writable][] from its set of
 destinations.
 
+This is also emitted in case this [Writable][] stream emits an error when a
+[Readable][] stream pipes into it.
+
 ```js
 const writer = getWritableStreamSomehow();
 const reader = getReadableStreamSomehow();
@@ -1495,6 +1498,9 @@ the callback and passing the error as the first argument. This will cause an
 `writable._write()` can result in unexpected and inconsistent behavior depending
 on how the stream is being used.  Using the callback ensures consistent and
 predictable handling of errors.
+
+If a Readable stream pipes into a Writable stream when Writable emits an
+error, the Readable stream will be unpiped.
 
 ```js
 const { Writable } = require('stream');
