@@ -5,12 +5,6 @@
 #include "gtest/gtest.h"
 #include "node_test_fixture.h"
 
-using node::Environment;
-using node::IsolateData;
-using node::CreateIsolateData;
-using node::FreeIsolateData;
-using node::CreateEnvironment;
-using node::FreeEnvironment;
 using node::AtExit;
 using node::RunAtExit;
 
