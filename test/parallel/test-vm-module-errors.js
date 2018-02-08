@@ -44,7 +44,7 @@ async function checkArgType() {
   });
 
   for (const invalidOptions of [
-    0, 1, null, true, 'str', () => {}, Symbol.iterator
+    0, 1, null, true, 'str', () => {}, { url: 0 }, Symbol.iterator
   ]) {
     common.expectsError(() => {
       new Module('', invalidOptions);
