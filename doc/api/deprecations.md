@@ -902,11 +902,21 @@ Certain versions of `node::MakeCallback` APIs available to native modules are
 deprecated. Please use the versions of the API that accept an `async_context`
 parameter.
 
+<a id="DEP0100"></a>
+### DEP0100: process.assert()
+
+Type: Runtime
+
+`process.assert()` is deprecated. Please use the [`assert`][] module instead.
+
+This was never a documented feature.
+
 [`--pending-deprecation`]: cli.html#cli_pending_deprecation
 [`Buffer.allocUnsafeSlow(size)`]: buffer.html#buffer_class_method_buffer_allocunsafeslow_size
 [`Buffer.from(array)`]: buffer.html#buffer_class_method_buffer_from_array
 [`Buffer.from(buffer)`]: buffer.html#buffer_class_method_buffer_from_buffer
 [`Buffer.isBuffer()`]: buffer.html#buffer_class_method_buffer_isbuffer_obj
+[`assert`]: assert.html
 [`clearInterval()`]: timers.html#timers_clearinterval_timeout
 [`clearTimeout()`]: timers.html#timers_cleartimeout_timeout
 [`EventEmitter.listenerCount(emitter, eventName)`]: events.html#events_eventemitter_listenercount_emitter_eventname
