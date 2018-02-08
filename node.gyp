@@ -95,6 +95,7 @@
       'lib/internal/crypto/random.js',
       'lib/internal/crypto/sig.js',
       'lib/internal/crypto/util.js',
+      'lib/internal/constants.js',
       'lib/internal/encoding.js',
       'lib/internal/errors.js',
       'lib/internal/freelist.js',
