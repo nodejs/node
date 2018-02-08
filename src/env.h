@@ -750,6 +750,7 @@ class Environment {
   // symbols for Environment, which assumes that the position of members in
   // memory are predictable. For more information please refer to
   // `doc/guides/node-postmortem-support.md`
+  friend int GenDebugSymbols();
   HandleWrapQueue handle_wrap_queue_;
   ReqWrapQueue req_wrap_queue_;
   ListHead<HandleCleanup,

@@ -22,6 +22,7 @@ class ReqWrap : public AsyncWrap {
 
  private:
   friend class Environment;
+  friend int GenDebugSymbols();
   ListNode<ReqWrap> req_wrap_queue_;
 
  protected:
