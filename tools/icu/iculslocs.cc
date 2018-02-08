@@ -64,7 +64,7 @@ int VERBOSE = 0;
 #define RES_INDEX "res_index"
 #define INSTALLEDLOCALES "InstalledLocales"
 
-CharString packageName;
+icu::CharString packageName;
 const char* locale = RES_INDEX;  // locale referring to our index
 
 void usage() {
@@ -147,7 +147,7 @@ int localeExists(const char* loc, UBool* exists) {
   if (VERBOSE > 1) {
     printf("Trying to open %s:%s\n", packageName.data(), loc);
   }
-  LocalUResourceBundlePointer aResource(
+  icu::LocalUResourceBundlePointer aResource(
       ures_openDirect(packageName.data(), loc, &status));
   *exists = FALSE;
   if (U_SUCCESS(status)) {
@@ -189,11 +189,11 @@ void printIndent(FILE* bf, int indent) {
  * @return 0 for OK, 1 for err
  */
 int dumpAllButInstalledLocales(int lev,
-                               LocalUResourceBundlePointer* bund,
+                               icu::LocalUResourceBundlePointer* bund,
                                FILE* bf,
                                UErrorCode* status) {
   ures_resetIterator(bund->getAlias());
-  LocalUResourceBundlePointer t;
+  icu::LocalUResourceBundlePointer t;
   while (U_SUCCESS(*status) && ures_hasNext(bund->getAlias())) {
     t.adoptInstead(ures_getNextResource(bund->getAlias(), t.orphan(), status));
     ASSERT_SUCCESS(status, "while processing table");
@@ -254,10 +254,10 @@ int list(const char* toBundle) {
     printf("\"locale\": %s\n", locale);
   }
 
-  LocalUResourceBundlePointer bund(
+  icu::LocalUResourceBundlePointer bund(
       ures_openDirect(packageName.data(), locale, &status));
   ASSERT_SUCCESS(&status, "while opening the bundle");
-  LocalUResourceBundlePointer installedLocales(
+  icu::LocalUResourceBundlePointer installedLocales(
       // NOLINTNEXTLINE (readability/null_usage)
       ures_getByKey(bund.getAlias(), INSTALLEDLOCALES, NULL, &status));
   ASSERT_SUCCESS(&status, "while fetching installed locales");
@@ -295,7 +295,7 @@ int list(const char* toBundle) {
   }
 
   // OK, now list them.
-  LocalUResourceBundlePointer subkey;
+  icu::LocalUResourceBundlePointer subkey;
 
   int validCount = 0;
   for (int32_t i = 0; i < count; i++) {
