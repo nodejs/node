@@ -5,9 +5,9 @@ const assert = require('assert');
 const domain = require('domain');
 const binding = require(`./build/${common.buildType}/binding`);
 
-function makeCallback (object, cb) {
-  binding.makeCallback(object, () => setImmediate(cb))
-};
+function makeCallback(object, cb) {
+  binding.makeCallback(object, () => setImmediate(cb));
+}
 
 let latestWarning = null;
 process.on('warning', function(warning) {
