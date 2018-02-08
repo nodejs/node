@@ -916,7 +916,7 @@ For example, to set a function to be returned by the `require()` for the addon:
 napi_value Init(napi_env env, napi_value exports) {
   napi_value method;
   napi_status status;
-  status = napi_create_function(env, "exports", Method, NULL, &method);
+  status = napi_create_function(env, "exports", NAPI_AUTO_LENGTH, Method, NULL, &method);
   if (status != napi_ok) return NULL;
   return method;
 }
