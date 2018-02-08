@@ -26,10 +26,9 @@ const fs = require('fs');
 const { URL } = require('url');
 const f = __filename;
 
-// Only warnings are emitted when the callback is invalid
-fs.exists(f);
-fs.exists();
-fs.exists(f, {});
+assert.throws(() => fs.exists(f), { code: 'ERR_INVALID_CALLBACK' });
+assert.throws(() => fs.exists(), { code: 'ERR_INVALID_CALLBACK' });
+assert.throws(() => fs.exists(f, {}), { code: 'ERR_INVALID_CALLBACK' });
 
 fs.exists(f, common.mustCall(function(y) {
   assert.strictEqual(y, true);

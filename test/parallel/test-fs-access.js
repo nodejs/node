@@ -80,7 +80,8 @@ fs.access(readOnlyFile, fs.F_OK | fs.R_OK, common.mustCall((err) => {
   assert.ifError(err);
 }));
 
-fs.access(readOnlyFile, fs.W_OK, common.mustCall((err) => {
+fs.access(readOnlyFile, fs.W_OK, common.mustCall(function(err) {
+  assert.strictEqual(this, undefined);
   if (hasWriteAccessForReadonlyFile) {
     assert.ifError(err);
   } else {
