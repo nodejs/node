@@ -65,6 +65,8 @@ class TLSWrap : public AsyncWrap,
   int ReadStart() override;
   int ReadStop() override;
 
+  ShutdownWrap* CreateShutdownWrap(
+      v8::Local<v8::Object> req_wrap_object) override;
   int DoShutdown(ShutdownWrap* req_wrap) override;
   int DoWrite(WriteWrap* w,
               uv_buf_t* bufs,
@@ -78,6 +80,10 @@ class TLSWrap : public AsyncWrap,
   size_t self_size() const override { return sizeof(*this); }
 
  protected:
+  inline StreamBase* underlying_stream() {
+    return static_cast<StreamBase*>(stream_);
+  }
+
   static const int kClearOutChunkSize = 16384;
 
   // Maximum number of bytes for hello parser

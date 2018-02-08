@@ -51,7 +51,7 @@ function main({ dur, len, type }) {
       if (err)
         fail(err, 'write');
 
-      writeReq.oncomplete = function(status, handle, req, err) {
+      writeReq.oncomplete = function(status, handle, err) {
         if (err)
           fail(err, 'write');
       };
@@ -130,7 +130,7 @@ function main({ dur, len, type }) {
       fail(err, 'write');
   }
 
-  function afterWrite(err, handle, req) {
+  function afterWrite(err, handle) {
     if (err)
       fail(err, 'write');
 

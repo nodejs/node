@@ -292,37 +292,29 @@ void TLSWrap::EncOut() {
   for (size_t i = 0; i < count; i++)
     buf[i] = uv_buf_init(data[i], size[i]);
 
-  int err = stream_->DoTryWrite(&bufs, &count);
-  if (err != 0) {
-    InvokeQueued(err);
-  } else if (count == 0) {
-    env()->SetImmediate([](Environment* env, void* data) {
-      NODE_COUNT_NET_BYTES_SENT(write_size_);
-      static_cast<TLSWrap*>(data)->OnStreamAfterWrite(nullptr, 0);
-    }, this, object());
+  StreamWriteResult res = underlying_stream()->Write(bufs, count);
+  if (res.err != 0) {
+    InvokeQueued(res.err);
     return;
   }
 
-  Local<Object> req_wrap_obj =
-      env()->write_wrap_constructor_function()
-          ->NewInstance(env()->context()).ToLocalChecked();
-  WriteWrap* write_req = WriteWrap::New(env(),
-                                        req_wrap_obj,
-                                        static_cast<StreamBase*>(stream_));
+  NODE_COUNT_NET_BYTES_SENT(write_size_);
 
-  err = stream_->DoWrite(write_req, buf, count, nullptr);
-
-  // Ignore errors, this should be already handled in js
-  if (err) {
-    write_req->Dispose();
-    InvokeQueued(err);
-  } else {
-    NODE_COUNT_NET_BYTES_SENT(write_size_);
+  if (!res.async) {
+    // Simulate asynchronous finishing, TLS cannot handle this at the moment.
+    env()->SetImmediate([](Environment* env, void* data) {
+      static_cast<TLSWrap*>(data)->OnStreamAfterWrite(nullptr, 0);
+    }, this, object());
   }
 }
 
 
 void TLSWrap::OnStreamAfterWrite(WriteWrap* req_wrap, int status) {
+  // Report back to the previous listener as well. This is only needed for the
+  // "empty" writes that are passed through directly to the underlying stream.
+  if (req_wrap != nullptr)
+    previous_listener_->OnStreamAfterWrite(req_wrap, status);
+
   if (ssl_ == nullptr)
     status = UV_ECANCELED;
 
@@ -520,24 +512,24 @@ AsyncWrap* TLSWrap::GetAsyncWrap() {
 
 
 bool TLSWrap::IsIPCPipe() {
-  return static_cast<StreamBase*>(stream_)->IsIPCPipe();
+  return underlying_stream()->IsIPCPipe();
 }
 
 
 int TLSWrap::GetFD() {
-  return static_cast<StreamBase*>(stream_)->GetFD();
+  return underlying_stream()->GetFD();
 }
 
 
 bool TLSWrap::IsAlive() {
   return ssl_ != nullptr &&
       stream_ != nullptr &&
-      static_cast<StreamBase*>(stream_)->IsAlive();
+      underlying_stream()->IsAlive();
 }
 
 
 bool TLSWrap::IsClosing() {
-  return static_cast<StreamBase*>(stream_)->IsClosing();
+  return underlying_stream()->IsClosing();
 }
 
 
@@ -587,6 +579,17 @@ int TLSWrap::DoWrite(WriteWrap* w,
     // However, if there is any data that should be written to the socket,
     // the callback should not be invoked immediately
     if (BIO_pending(enc_out_) == 0) {
+      // We destroy the current WriteWrap* object and create a new one that
+      // matches the underlying stream, rather than the TLSWrap itself.
+
+      // Note: We cannot simply use w->object() because of the "optimized"
+      // way in which we read persistent handles; the JS object itself might be
+      // destroyed by w->Dispose(), and the Local<Object> we have is not a
+      // "real" handle in the sense the V8 is aware of its existence.
+      Local<Object> req_wrap_obj =
+          w->GetAsyncWrap()->persistent().Get(env()->isolate());
+      w->Dispose();
+      w = underlying_stream()->CreateWriteWrap(req_wrap_obj);
       return stream_->DoWrite(w, bufs, count, send_handle);
     }
   }
@@ -594,7 +597,6 @@ int TLSWrap::DoWrite(WriteWrap* w,
   // Store the current write wrap
   CHECK_EQ(current_write_, nullptr);
   current_write_ = w;
-  w->Dispatched();
 
   // Write queued data
   if (empty) {
@@ -681,6 +683,11 @@ void TLSWrap::OnStreamRead(ssize_t nread, const uv_buf_t& buf) {
 
   // Cycle OpenSSL's state
   Cycle();
+}
+
+
+ShutdownWrap* TLSWrap::CreateShutdownWrap(Local<Object> req_wrap_object) {
+  return underlying_stream()->CreateShutdownWrap(req_wrap_object);
 }
 
 

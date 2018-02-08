@@ -61,19 +61,22 @@ void LibuvStreamWrap::Initialize(Local<Object> target,
       [](const FunctionCallbackInfo<Value>& args) {
     CHECK(args.IsConstructCall());
     ClearWrap(args.This());
+    args.This()->SetAlignedPointerInInternalField(
+        StreamReq::kStreamReqField, nullptr);
   };
   Local<FunctionTemplate> sw =
       FunctionTemplate::New(env->isolate(), is_construct_call_callback);
-  sw->InstanceTemplate()->SetInternalFieldCount(1);
+  sw->InstanceTemplate()->SetInternalFieldCount(StreamReq::kStreamReqField + 1);
   Local<String> wrapString =
       FIXED_ONE_BYTE_STRING(env->isolate(), "ShutdownWrap");
   sw->SetClassName(wrapString);
   AsyncWrap::AddWrapMethods(env, sw);
   target->Set(wrapString, sw->GetFunction());
+  env->set_shutdown_wrap_constructor_function(sw->GetFunction());
 
   Local<FunctionTemplate> ww =
       FunctionTemplate::New(env->isolate(), is_construct_call_callback);
-  ww->InstanceTemplate()->SetInternalFieldCount(1);
+  ww->InstanceTemplate()->SetInternalFieldCount(StreamReq::kStreamReqField + 1);
   Local<String> writeWrapString =
       FIXED_ONE_BYTE_STRING(env->isolate(), "WriteWrap");
   ww->SetClassName(writeWrapString);
@@ -261,8 +264,20 @@ void LibuvStreamWrap::SetBlocking(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(uv_stream_set_blocking(wrap->stream(), enable));
 }
 
+typedef SimpleShutdownWrap<ReqWrap<uv_shutdown_t>, false> LibuvShutdownWrap;
+typedef SimpleWriteWrap<ReqWrap<uv_write_t>, false> LibuvWriteWrap;
 
-int LibuvStreamWrap::DoShutdown(ShutdownWrap* req_wrap) {
+ShutdownWrap* LibuvStreamWrap::CreateShutdownWrap(Local<Object> object) {
+  return new LibuvShutdownWrap(this, object);
+}
+
+WriteWrap* LibuvStreamWrap::CreateWriteWrap(Local<Object> object) {
+  return new LibuvWriteWrap(this, object);
+}
+
+
+int LibuvStreamWrap::DoShutdown(ShutdownWrap* req_wrap_) {
+  LibuvShutdownWrap* req_wrap = static_cast<LibuvShutdownWrap*>(req_wrap_);
   int err;
   err = uv_shutdown(req_wrap->req(), stream(), AfterUvShutdown);
   req_wrap->Dispatched();
@@ -271,7 +286,8 @@ int LibuvStreamWrap::DoShutdown(ShutdownWrap* req_wrap) {
 
 
 void LibuvStreamWrap::AfterUvShutdown(uv_shutdown_t* req, int status) {
-  ShutdownWrap* req_wrap = ShutdownWrap::from_req(req);
+  LibuvShutdownWrap* req_wrap = static_cast<LibuvShutdownWrap*>(
+      LibuvShutdownWrap::from_req(req));
   CHECK_NE(req_wrap, nullptr);
   HandleScope scope(req_wrap->env()->isolate());
   Context::Scope context_scope(req_wrap->env()->context());
@@ -319,10 +335,11 @@ int LibuvStreamWrap::DoTryWrite(uv_buf_t** bufs, size_t* count) {
 }
 
 
-int LibuvStreamWrap::DoWrite(WriteWrap* w,
-                        uv_buf_t* bufs,
-                        size_t count,
-                        uv_stream_t* send_handle) {
+int LibuvStreamWrap::DoWrite(WriteWrap* req_wrap,
+                             uv_buf_t* bufs,
+                             size_t count,
+                             uv_stream_t* send_handle) {
+  LibuvWriteWrap* w = static_cast<LibuvWriteWrap*>(req_wrap);
   int r;
   if (send_handle == nullptr) {
     r = uv_write(w->req(), stream(), bufs, count, AfterUvWrite);
@@ -349,7 +366,8 @@ int LibuvStreamWrap::DoWrite(WriteWrap* w,
 
 
 void LibuvStreamWrap::AfterUvWrite(uv_write_t* req, int status) {
-  WriteWrap* req_wrap = WriteWrap::from_req(req);
+  LibuvWriteWrap* req_wrap = static_cast<LibuvWriteWrap*>(
+      LibuvWriteWrap::from_req(req));
   CHECK_NE(req_wrap, nullptr);
   HandleScope scope(req_wrap->env()->isolate());
   Context::Scope context_scope(req_wrap->env()->context());

@@ -118,7 +118,7 @@ function client(type, len) {
       fail(err, 'write');
   }
 
-  function afterWrite(err, handle, req) {
+  function afterWrite(err, handle) {
     if (err)
       fail(err, 'write');
 

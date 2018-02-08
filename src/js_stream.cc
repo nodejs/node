@@ -91,8 +91,6 @@ int JSStream::DoShutdown(ShutdownWrap* req_wrap) {
     req_wrap->object()
   };
 
-  req_wrap->Dispatched();
-
   TryCatch try_catch(env()->isolate());
   Local<Value> value;
   int value_int = UV_EPROTO;
@@ -127,8 +125,6 @@ int JSStream::DoWrite(WriteWrap* w,
     bufs_arr
   };
 
-  w->Dispatched();
-
   TryCatch try_catch(env()->isolate());
   Local<Value> value;
   int value_int = UV_EPROTO;
@@ -154,9 +150,8 @@ void JSStream::New(const FunctionCallbackInfo<Value>& args) {
 
 template <class Wrap>
 void JSStream::Finish(const FunctionCallbackInfo<Value>& args) {
-  Wrap* w;
   CHECK(args[0]->IsObject());
-  ASSIGN_OR_RETURN_UNWRAP(&w, args[0].As<Object>());
+  Wrap* w = static_cast<Wrap*>(StreamReq::FromObject(args[0].As<Object>()));
 
   w->Done(args[1]->Int32Value());
 }
