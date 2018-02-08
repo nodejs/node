@@ -1214,6 +1214,9 @@ vulnerabilities. For the case when IV is reused in GCM, see [Nonce-Disrespecting
 Adversaries][] for details.
 
 ### crypto.createCipheriv(algorithm, key, iv[, options])
+<!-- YAML
+added: v0.1.94
+-->
 - `algorithm` {string}
 - `key` {string | Buffer | TypedArray | DataView}
 - `iv` {string | Buffer | TypedArray | DataView}
