@@ -127,9 +127,8 @@ console.assert(false, 'Whoops %s work', 'didn\'t');
 // Assertion failed: Whoops didn't work
 ```
 
-*Note*: Calling `console.assert()` with a falsy assertion will only cause the
-`message` to be printed to the console without interrupting execution of
-subsequent code.
+Calling `console.assert()` with a falsy assertion will only cause the `message`
+to be printed to the console without interrupting execution of subsequent code.
 
 ### console.clear()
 <!-- YAML
@@ -139,8 +138,8 @@ added: v8.3.0
 When `stdout` is a TTY, calling `console.clear()` will attempt to clear the
 TTY. When `stdout` is not a TTY, this method does nothing.
 
-*Note*: The specific operation of `console.clear()` can vary across operating
-systems and terminal types. For most Linux operating systems, `console.clear()`
+The specific operation of `console.clear()` can vary across operating systems
+and terminal types. For most Linux operating systems, `console.clear()`
 operates similarly to the `clear` shell command. On Windows, `console.clear()`
 will clear only the output in the current terminal viewport for the Node.js
 binary.
