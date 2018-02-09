@@ -984,6 +984,11 @@ The formatting process operates as follows:
 ### url.parse(urlString[, parseQueryString[, slashesDenoteHost]])
 <!-- YAML
 added: v0.1.25
+changes:
+  - version: v9.0.0
+    pr-url: https://github.com/nodejs/node/pull/13606
+    description: The `search` property on the returned URL object is now `null`
+                 when no query string is present.
 -->
 
 * `urlString` {string} The URL string to parse.
