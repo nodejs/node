@@ -356,6 +356,62 @@ assert.strictEqual(
   );
 }
 
+{
+  const error = new errors.TypeError(
+    'ERR_INVALID_SIGNATURE',
+    'foo', '(a)',
+    []
+  );
+  assert.strictEqual(
+    error.message,
+    'Function was invoked with an unknown combination of arguments.\n' +
+    'Expected foo(a)\n' +
+    'Received foo()'
+  );
+}
+
+{
+  const error = new errors.TypeError(
+    'ERR_INVALID_SIGNATURE',
+    'foo', '()',
+    [[1, 2, 3, 4], { a: 1 }, function c() {}]
+  );
+  assert.strictEqual(
+    error.message,
+    'Function was invoked with an unknown combination of arguments.\n' +
+    'Expected foo()\n' +
+    'Received foo([Array], [Object], [Function: c])'
+  );
+}
+
+{
+  const error = new errors.TypeError(
+    'ERR_INVALID_SIGNATURE',
+    'obj.foo', '(a)',
+    [null, true, undefined]
+  );
+  assert.strictEqual(
+    error.message,
+    'Function was invoked with an unknown combination of arguments.\n' +
+    'Expected obj.foo(a)\n' +
+    'Received obj.foo(null, true, undefined)'
+  );
+}
+
+{
+  const error = new errors.TypeError(
+    'ERR_INVALID_SIGNATURE',
+    'foo', '(a, [arg])',
+    ['test', 123, NaN, Symbol()]
+  );
+  assert.strictEqual(
+    error.message,
+    'Function was invoked with an unknown combination of arguments.\n' +
+    'Expected foo(a, [arg])\n' +
+    'Received foo(\'test\', 123, NaN, Symbol())'
+  );
+}
+
 // Test that `code` property is mutable and that changing it does not change the
 // name.
 {
