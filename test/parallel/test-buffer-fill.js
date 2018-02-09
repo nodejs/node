@@ -136,17 +136,13 @@ testBufs('61c8b462c8b563c8b6', 12, 1, 'hex');
 
 {
   const buf = Buffer.allocUnsafe(SIZE);
-  assert.doesNotThrow(() => {
-    // Make sure this operation doesn't go on forever.
-    buf.fill('yKJh', 'hex');
-  });
+  // Make sure this operation doesn't go on forever.
+  buf.fill('yKJh', 'hex'); // Should not throw.
 }
 
 {
   const buf = Buffer.allocUnsafe(SIZE);
-  assert.doesNotThrow(() => {
-    buf.fill('\u0222', 'hex');
-  });
+  buf.fill('\u0222', 'hex'); // Should not throw.
 }
 
 // BASE64

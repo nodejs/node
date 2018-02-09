@@ -32,32 +32,22 @@ assert.ok(a.AssertionError.prototype instanceof Error,
           'a.AssertionError instanceof Error');
 
 assert.throws(() => a(false), a.AssertionError, 'ok(false)');
-
-assert.doesNotThrow(() => a(true), a.AssertionError, 'ok(true)');
-
-assert.doesNotThrow(() => a('test', 'ok(\'test\')'));
-
 assert.throws(() => a.ok(false), a.AssertionError, 'ok(false)');
 
-assert.doesNotThrow(() => a.ok(true), a.AssertionError, 'ok(true)');
-
-assert.doesNotThrow(() => a.ok('test'), 'ok(\'test\')');
+a(true);
+a('test', 'ok(\'test\')');
+a.ok(true);
+a.ok('test');
 
 assert.throws(() => a.equal(true, false),
               a.AssertionError, 'equal(true, false)');
 
-assert.doesNotThrow(() => a.equal(null, null), 'equal(null, null)');
-
-assert.doesNotThrow(() => a.equal(undefined, undefined),
-                    'equal(undefined, undefined)');
-
-assert.doesNotThrow(() => a.equal(null, undefined), 'equal(null, undefined)');
-
-assert.doesNotThrow(() => a.equal(true, true), 'equal(true, true)');
-
-assert.doesNotThrow(() => a.equal(2, '2'), 'equal(2, \'2\')');
-
-assert.doesNotThrow(() => a.notEqual(true, false), 'notEqual(true, false)');
+a.equal(null, null);
+a.equal(undefined, undefined);
+a.equal(null, undefined);
+a.equal(true, true);
+a.equal(2, '2');
+a.notEqual(true, false);
 
 assert.throws(() => a.notEqual(true, true),
               a.AssertionError, 'notEqual(true, true)');
@@ -71,7 +61,7 @@ assert.throws(() => a.strictEqual(null, undefined),
 assert.throws(() => a.notStrictEqual(2, 2),
               a.AssertionError, 'notStrictEqual(2, 2)');
 
-assert.doesNotThrow(() => a.notStrictEqual(2, '2'), 'notStrictEqual(2, \'2\')');
+a.notStrictEqual(2, '2');
 
 // Testing the throwing.
 function thrower(errorConstructor) {
@@ -126,8 +116,8 @@ assert.throws(() => thrower(TypeError));
 
 assert.throws(() => { assert.ifError(new Error('test error')); },
               /^Error: test error$/);
-assert.doesNotThrow(() => { assert.ifError(null); });
-assert.doesNotThrow(() => { assert.ifError(); });
+assert.ifError(null);
+assert.ifError();
 
 common.expectsError(
   () => assert.doesNotThrow(() => thrower(Error), 'user message'),

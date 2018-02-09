@@ -105,15 +105,10 @@ common.expectsError(
     type: TypeError
   });
 
-assert.doesNotThrow(() => {
-  fs.accessSync(__filename);
-});
+fs.accessSync(__filename);
 
-assert.doesNotThrow(() => {
-  const mode = fs.F_OK | fs.R_OK | fs.W_OK;
-
-  fs.accessSync(readWriteFile, mode);
-});
+const mode = fs.F_OK | fs.R_OK | fs.W_OK;
+fs.accessSync(readWriteFile, mode);
 
 assert.throws(
   () => { fs.accessSync(doesNotExist); },

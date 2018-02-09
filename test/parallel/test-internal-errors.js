@@ -138,32 +138,24 @@ common.expectsError(
     message: invalidKey('true')
   });
 
-
 // Tests for common.expectsError
-assert.doesNotThrow(() => {
-  common.expectsError(() => {
-    throw new errors.TypeError('TEST_ERROR_1', 'a');
-  }, { code: 'TEST_ERROR_1' });
-});
-
-assert.doesNotThrow(() => {
-  common.expectsError(() => {
-    throw new errors.TypeError('TEST_ERROR_1', 'a');
-  }, { code: 'TEST_ERROR_1',
-       type: TypeError,
-       message: /^Error for testing/ });
-});
-
-assert.doesNotThrow(() => {
-  common.expectsError(() => {
-    throw new errors.TypeError('TEST_ERROR_1', 'a');
-  }, { code: 'TEST_ERROR_1', type: TypeError });
-});
-
-assert.doesNotThrow(() => {
-  common.expectsError(() => {
-    throw new errors.TypeError('TEST_ERROR_1', 'a');
-  }, { code: 'TEST_ERROR_1', type: Error });
+common.expectsError(() => {
+  throw new errors.TypeError('TEST_ERROR_1', 'a');
+}, { code: 'TEST_ERROR_1' });
+common.expectsError(() => {
+  throw new errors.TypeError('TEST_ERROR_1', 'a');
+}, { code: 'TEST_ERROR_1',
+     type: TypeError,
+     message: /^Error for testing/ });
+common.expectsError(() => {
+  throw new errors.TypeError('TEST_ERROR_1', 'a');
+}, { code: 'TEST_ERROR_1', type: TypeError });
+common.expectsError(() => {
+  throw new errors.TypeError('TEST_ERROR_1', 'a');
+}, {
+  code: 'TEST_ERROR_1',
+  type: TypeError,
+  message: 'Error for testing purposes: a'
 });
 
 common.expectsError(() => {

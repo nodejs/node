@@ -44,9 +44,7 @@ assert.strictEqual(readBuf.toString(), message);
 fs.readSync(fd, readBuf, 0, 1, 0);
 assert.strictEqual(readBuf[0], 0);
 
-assert.doesNotThrow(
-  () => { fs.writeSync(fd, writeBuf, 0, writeBuf.length, 42.000001); }
-);
+fs.writeSync(fd, writeBuf, 0, writeBuf.length, 42.000001);
 fs.close(fd);
 
 // Normally, we don't clean up tmp files at the end of a test, but we'll make an

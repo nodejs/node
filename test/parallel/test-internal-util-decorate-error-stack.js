@@ -12,12 +12,10 @@ const kDecoratedPrivateSymbolIndex = binding.decorated_private_symbol;
 
 const decorateErrorStack = internalUtil.decorateErrorStack;
 
-assert.doesNotThrow(function() {
-  decorateErrorStack();
-  decorateErrorStack(null);
-  decorateErrorStack(1);
-  decorateErrorStack(true);
-});
+decorateErrorStack();
+decorateErrorStack(null);
+decorateErrorStack(1);
+decorateErrorStack(true);
 
 // Verify that a stack property is not added to non-Errors
 const obj = {};

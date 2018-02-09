@@ -3,7 +3,6 @@ const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
-const assert = require('assert');
 const tls = require('tls');
 
 ['foobar', 1, {}, []].forEach(function connectThrows(input) {
@@ -30,7 +29,5 @@ function connectDoesNotThrow(input) {
     lookup: input
   };
 
-  assert.doesNotThrow(function() {
-    tls.connect(opts);
-  });
+  tls.connect(opts);
 }

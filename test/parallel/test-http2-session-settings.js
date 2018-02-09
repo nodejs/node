@@ -76,9 +76,7 @@ server.listen(
 
     // State will only be valid after connect event is emitted
     req.on('ready', common.mustCall(() => {
-      assert.doesNotThrow(() => {
-        client.settings({ maxHeaderListSize: 1 }, common.mustCall());
-      });
+      client.settings({ maxHeaderListSize: 1 }, common.mustCall());
 
       // Verify valid error ranges
       [

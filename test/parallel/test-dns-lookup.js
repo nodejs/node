@@ -53,55 +53,47 @@ common.expectsError(() => {
   message: 'The value "20" is invalid for option "family"'
 });
 
-assert.doesNotThrow(() => {
-  dns.lookup(false, {
-    hints: 0,
-    family: 0,
-    all: true
-  }, common.mustCall((error, result, addressType) => {
-    assert.ifError(error);
-    assert.deepStrictEqual(result, []);
-    assert.strictEqual(addressType, undefined);
-  }));
-});
+dns.lookup(false, {
+  hints: 0,
+  family: 0,
+  all: true
+}, common.mustCall((error, result, addressType) => {
+  assert.ifError(error);
+  assert.deepStrictEqual(result, []);
+  assert.strictEqual(addressType, undefined);
+}));
 
-assert.doesNotThrow(() => {
-  dns.lookup('127.0.0.1', {
-    hints: 0,
-    family: 4,
-    all: true
-  }, common.mustCall((error, result, addressType) => {
-    assert.ifError(error);
-    assert.deepStrictEqual(result, [{
-      address: '127.0.0.1',
-      family: 4
-    }]);
-    assert.strictEqual(addressType, undefined);
-  }));
-});
+dns.lookup('127.0.0.1', {
+  hints: 0,
+  family: 4,
+  all: true
+}, common.mustCall((error, result, addressType) => {
+  assert.ifError(error);
+  assert.deepStrictEqual(result, [{
+    address: '127.0.0.1',
+    family: 4
+  }]);
+  assert.strictEqual(addressType, undefined);
+}));
 
-assert.doesNotThrow(() => {
-  dns.lookup('127.0.0.1', {
-    hints: 0,
-    family: 4,
-    all: false
-  }, common.mustCall((error, result, addressType) => {
-    assert.ifError(error);
-    assert.deepStrictEqual(result, '127.0.0.1');
-    assert.strictEqual(addressType, 4);
-  }));
-});
+dns.lookup('127.0.0.1', {
+  hints: 0,
+  family: 4,
+  all: false
+}, common.mustCall((error, result, addressType) => {
+  assert.ifError(error);
+  assert.deepStrictEqual(result, '127.0.0.1');
+  assert.strictEqual(addressType, 4);
+}));
 
-assert.doesNotThrow(() => {
-  let tickValue = 0;
+let tickValue = 0;
 
-  dns.lookup('example.com', common.mustCall((error, result, addressType) => {
-    assert(error);
-    assert.strictEqual(tickValue, 1);
-    assert.strictEqual(error.code, 'ENOENT');
-  }));
+dns.lookup('example.com', common.mustCall((error, result, addressType) => {
+  assert(error);
+  assert.strictEqual(tickValue, 1);
+  assert.strictEqual(error.code, 'ENOENT');
+}));
 
-  // Make sure that the error callback is called
-  // on next tick.
-  tickValue = 1;
-});
+// Make sure that the error callback is called
+// on next tick.
+tickValue = 1;

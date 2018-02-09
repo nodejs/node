@@ -48,9 +48,9 @@ assert(TextEncoder);
     message: 'Value of "this" must be of type TextEncoder'
   };
 
-  assert.doesNotThrow(() => inspectFn.call(instance, Infinity, {}));
-  assert.doesNotThrow(() => encodeFn.call(instance));
-  assert.doesNotThrow(() => encodingGetter.call(instance));
+  inspectFn.call(instance, Infinity, {});
+  encodeFn.call(instance);
+  encodingGetter.call(instance);
 
   const invalidThisArgs = [{}, [], true, 1, '', new TextDecoder()];
   invalidThisArgs.forEach((i) => {

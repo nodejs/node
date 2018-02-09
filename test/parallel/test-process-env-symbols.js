@@ -28,4 +28,4 @@ assert.strictEqual(symbol in process.env, false);
 assert.strictEqual(delete process.env[symbol], true);
 
 // Checks that well-known symbols like `Symbol.toStringTag` won’t throw.
-assert.doesNotThrow(() => Object.prototype.toString.call(process.env));
+Object.prototype.toString.call(process.env);

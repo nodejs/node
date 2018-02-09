@@ -45,7 +45,7 @@ server.on('request', common.mustCall(function(request, response) {
 
   request.on('end', common.mustCall(() => {
     assert.strictEqual(request.socket.readable, false);
-    assert.doesNotThrow(() => response.socket.destroy());
+    response.socket.destroy();
   }));
   response.on('finish', common.mustCall(() => {
     assert.ok(request.socket);

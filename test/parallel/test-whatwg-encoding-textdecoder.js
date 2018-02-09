@@ -63,8 +63,8 @@ if (common.hasIntl) {
 
   ['unicode-1-1-utf-8', 'utf8', 'utf-8'].forEach((i) => {
     const dec = new TextDecoder(i, { fatal: true });
-    assert.doesNotThrow(() => dec.decode(buf.slice(0, 8), { stream: true }));
-    assert.doesNotThrow(() => dec.decode(buf.slice(8)));
+    dec.decode(buf.slice(0, 8), { stream: true });
+    dec.decode(buf.slice(8));
   });
 } else {
   common.expectsError(
@@ -107,11 +107,11 @@ if (common.hasIntl) {
     message: 'Value of "this" must be of type TextDecoder'
   };
 
-  assert.doesNotThrow(() => inspectFn.call(instance, Infinity, {}));
-  assert.doesNotThrow(() => decodeFn.call(instance));
-  assert.doesNotThrow(() => encodingGetter.call(instance));
-  assert.doesNotThrow(() => fatalGetter.call(instance));
-  assert.doesNotThrow(() => ignoreBOMGetter.call(instance));
+  inspectFn.call(instance, Infinity, {});
+  decodeFn.call(instance);
+  encodingGetter.call(instance);
+  fatalGetter.call(instance);
+  ignoreBOMGetter.call(instance);
 
   const invalidThisArgs = [{}, [], true, 1, '', new TextEncoder()];
   invalidThisArgs.forEach((i) => {

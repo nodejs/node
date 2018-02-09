@@ -34,10 +34,8 @@ invalidTypes.forEach((invalidType) => {
 
 // Error must not be thrown with valid types
 validTypes.forEach((validType) => {
-  assert.doesNotThrow(() => {
-    const socket = dgram.createSocket(validType);
-    socket.close();
-  });
+  const socket = dgram.createSocket(validType);
+  socket.close();
 });
 
 // Ensure buffer sizes can be set

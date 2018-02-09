@@ -70,7 +70,7 @@ assert(inited < 20000);
 {
   performance.mark('A');
   [undefined, null, 'foo', 'initialize', 1].forEach((i) => {
-    assert.doesNotThrow(() => performance.measure('test', i, 'A'));
+    performance.measure('test', i, 'A');
   });
 
   [undefined, null, 'foo', 1].forEach((i) => {

@@ -144,6 +144,4 @@ assert.strictEqual(ret, `${msg}\n`);
 }
 
 // Verify the shell option works properly
-assert.doesNotThrow(() => {
-  execFileSync(process.execPath, [], execOpts);
-});
+execFileSync(process.execPath, [], execOpts);

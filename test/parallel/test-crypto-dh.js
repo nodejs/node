@@ -363,9 +363,7 @@ if (availableCurves.has('prime256v1') && availableHashes.has('sha256')) {
     'AwEHoUQDQgAEurOxfSxmqIRYzJVagdZfMMSjRNNhB8i3mXyIMq704m2m52FdfKZ2\n' +
     'pQhByd5eyj3lgZ7m7jbchtdgyOF8Io/1ng==\n' +
     '-----END EC PRIVATE KEY-----';
-  assert.doesNotThrow(() => {
-    crypto.createSign('SHA256').sign(ecPrivateKey);
-  });
+  crypto.createSign('SHA256').sign(ecPrivateKey);
 }
 
 // invalid test: curve argument is undefined

@@ -9,22 +9,18 @@ const path = require('path');
 const tmpdir = require('../common/tmpdir');
 tmpdir.refresh();
 
-assert.doesNotThrow(() => {
-  fs.access(Buffer.from(tmpdir.path), common.mustCall((err) => {
-    assert.ifError(err);
-  }));
-});
+fs.access(Buffer.from(tmpdir.path), common.mustCall((err) => {
+  assert.ifError(err);
+}));
 
-assert.doesNotThrow(() => {
-  const buf = Buffer.from(path.join(tmpdir.path, 'a.txt'));
-  fs.open(buf, 'w+', common.mustCall((err, fd) => {
+const buf = Buffer.from(path.join(tmpdir.path, 'a.txt'));
+fs.open(buf, 'w+', common.mustCall((err, fd) => {
+  assert.ifError(err);
+  assert(fd);
+  fs.close(fd, common.mustCall((err) => {
     assert.ifError(err);
-    assert(fd);
-    fs.close(fd, common.mustCall((err) => {
-      assert.ifError(err);
-    }));
   }));
-});
+}));
 
 assert.throws(() => {
   fs.accessSync(true);

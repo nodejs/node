@@ -9,7 +9,7 @@ const decompress = zlib.createGunzip(15);
 
 decompress.on('error', common.mustCall((err) => {
   assert.strictEqual(decompress._closed, true);
-  assert.doesNotThrow(() => decompress.close());
+  decompress.close();
 }));
 
 assert.strictEqual(decompress._closed, false);

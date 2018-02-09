@@ -44,7 +44,7 @@ class CustomWarning extends Error {
   [testMsg, { type: testType, code: testCode, detail: null }],
   [testMsg, { type: testType, code: testCode, detail: 1 }]
 ].forEach((i) => {
-  assert.doesNotThrow(() => process.emitWarning.apply(null, i));
+  process.emitWarning.apply(null, i);
 });
 
 const warningNoToString = new CustomWarning();
