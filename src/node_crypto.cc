@@ -3112,11 +3112,13 @@ void CipherBase::InitIv(const char* cipher_type,
   const bool encrypt = (kind_ == kCipher);
   EVP_CipherInit_ex(ctx_, cipher, nullptr, nullptr, nullptr, encrypt);
 
-  if (is_gcm_mode &&
-      !EVP_CIPHER_CTX_ctrl(ctx_, EVP_CTRL_GCM_SET_IVLEN, iv_len, nullptr)) {
-    EVP_CIPHER_CTX_free(ctx_);
-    ctx_ = nullptr;
-    return env()->ThrowError("Invalid IV length");
+  if (is_gcm_mode) {
+    CHECK(has_iv);
+    if (!EVP_CIPHER_CTX_ctrl(ctx_, EVP_CTRL_GCM_SET_IVLEN, iv_len, nullptr)) {
+      EVP_CIPHER_CTX_free(ctx_);
+      ctx_ = nullptr;
+      return env()->ThrowError("Invalid IV length");
+    }
   }
 
   if (!EVP_CIPHER_CTX_set_key_length(ctx_, key_len)) {
