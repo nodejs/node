@@ -1397,6 +1397,7 @@ fs.open('myfile', 'wx', (err, fd) => {
 fs.exists('myfile', (exists) => {
   if (exists) {
     fs.open('myfile', 'r', (err, fd) => {
+      if (err) throw err;
       readMyData(fd);
     });
   } else {
