@@ -61,7 +61,7 @@
     [ 'node_use_bundled_v8=="true"', {
       'conditions': [
         [ 'build_v8_with_gn=="true"', {
-          'dependencies': ['deps/v8/gypfiles/v8.gyp:v8_monolith'],
+          'dependencies': ['deps/v8/gypfiles/v8-monolithic.gyp:v8_monolith'],
         }, {
           'dependencies': [
             'deps/v8/gypfiles/v8.gyp:v8',
