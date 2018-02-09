@@ -3184,3 +3184,14 @@ TEST(SamplingHeapProfilerSampleDuringDeopt) {
   CHECK(profile);
   heap_profiler->StopSamplingHeapProfiler();
 }
+
+TEST(HeapSnapshotPrototypeNotJSReceiver) {
+  LocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
+  v8::HeapProfiler* heap_profiler = env->GetIsolate()->GetHeapProfiler();
+  CompileRun(
+      "function object() {}"
+      "object.prototype = 42;");
+  const v8::HeapSnapshot* snapshot = heap_profiler->TakeHeapSnapshot();
+  CHECK(ValidateSnapshot(snapshot));
+}
