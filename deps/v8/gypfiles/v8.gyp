@@ -2580,42 +2580,5 @@
         },
       ],
     },
-    {
-      'target_name': 'v8_monolith',
-      'type': 'none',
-      'direct_dependent_settings': {
-        'include_dirs': [
-          '../include/',
-        ],
-      },
-      'actions': [
-        {
-          'action_name': 'build_with_gn',
-          'inputs': [
-            '../tools//node/build_gn.py',
-          ],
-          'outputs': [
-            '<(INTERMEDIATE_DIR)/gn/obj/libv8_monolith.a',
-            '<(INTERMEDIATE_DIR)/gn/args.gn',
-          ],
-          'action': [
-            '../tools//node/build_gn.py',
-            '--mode', '<(CONFIGURATION_NAME)',
-            '--v8_path', '../',
-            '--build_path', '<(INTERMEDIATE_DIR)/gn',
-            '--host_os', '<(host_os)',
-            '--flag', 'v8_promise_internal_field_count=<(v8_promise_internal_field_count)',
-            '--flag', 'target_cpu="<(target_arch)"',
-            '--flag', 'target_os="<(OS)"',
-            '--flag', 'v8_target_cpu="<(v8_target_arch)"',
-            '--flag', 'v8_embedder_string="<(v8_embedder_string)"',
-            '--flag', 'v8_use_snapshot=<(v8_use_snapshot)',
-            '--flag', 'v8_optimized_debug=<(v8_optimized_debug)',
-            '--flag', 'v8_enable_disassembler=<(v8_enable_disassembler)',
-            '--flag', 'v8_postmortem_support=<(v8_postmortem_support)',
-          ],
-        },
-      ],
-    },
   ],
 }
