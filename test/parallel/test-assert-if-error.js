@@ -67,9 +67,9 @@ assert.throws(
   }
 );
 
-assert.doesNotThrow(() => { assert.ifError(null); });
-assert.doesNotThrow(() => { assert.ifError(); });
-assert.doesNotThrow(() => { assert.ifError(undefined); });
+assert.ifError(null);
+assert.ifError();
+assert.ifError(undefined);
 
 // https://github.com/nodejs/node-v0.x-archive/issues/2893
 {

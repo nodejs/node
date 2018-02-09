@@ -27,9 +27,9 @@ const { URL } = require('url');
 const f = __filename;
 
 // Only warnings are emitted when the callback is invalid
-assert.doesNotThrow(() => fs.exists(f));
-assert.doesNotThrow(() => fs.exists());
-assert.doesNotThrow(() => fs.exists(f, {}));
+fs.exists(f);
+fs.exists();
+fs.exists(f, {});
 
 fs.exists(f, common.mustCall(function(y) {
   assert.strictEqual(y, true);

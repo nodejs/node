@@ -537,30 +537,26 @@ assert.strictEqual(util.inspect(-5e-324), '-5e-324');
 assert.strictEqual(util.inspect(Object.create(Date.prototype)), 'Date {}');
 
 // GH-1944
-assert.doesNotThrow(() => {
+{
   const d = new Date();
   d.toUTCString = null;
   util.inspect(d);
-});
+}
 
-assert.doesNotThrow(() => {
+{
   const d = new Date();
   d.toISOString = null;
   util.inspect(d);
-});
+}
 
-assert.doesNotThrow(() => {
-  const r = /regexp/;
-  r.toString = null;
-  util.inspect(r);
-});
+const r = /regexp/;
+r.toString = null;
+util.inspect(r);
 
 // bug with user-supplied inspect function returns non-string
-assert.doesNotThrow(() => {
-  util.inspect([{
-    inspect: () => 123
-  }]);
-});
+util.inspect([{
+  inspect: () => 123
+}]);
 
 // GH-2225
 {
@@ -624,10 +620,8 @@ assert.doesNotThrow(() => {
 }
 
 // an object with "hasOwnProperty" overwritten should not throw
-assert.doesNotThrow(() => {
-  util.inspect({
-    hasOwnProperty: null
-  });
+util.inspect({
+  hasOwnProperty: null
 });
 
 // new API, accepts an "options" object
@@ -1157,7 +1151,7 @@ if (typeof Symbol !== 'undefined') {
   );
 }
 
-assert.doesNotThrow(() => util.inspect(process));
+util.inspect(process);
 
 // Setting custom inspect property to a non-function should do nothing.
 {

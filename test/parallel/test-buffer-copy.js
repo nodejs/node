@@ -93,7 +93,7 @@ bb.fill('hello crazy world');
 
 
 // try to copy from before the beginning of b
-assert.doesNotThrow(() => { b.copy(c, 0, 100, 10); });
+b.copy(c, 0, 100, 10);
 
 // copy throws at negative sourceStart
 assert.throws(function() {

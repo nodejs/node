@@ -11,7 +11,6 @@
 const common = require('../common');
 const fs = require('fs');
 const path = require('path');
-const assert = require('assert');
 
 const tmpdir = require('../common/tmpdir');
 tmpdir.refresh();
@@ -60,6 +59,4 @@ fs.writeFileSync(path.join(moduleB, 'package.json'),
 fs.writeFileSync(path.join(moduleB, 'index.js'),
                  'module.exports = 1;', 'utf8');
 
-assert.doesNotThrow(() => {
-  require(path.join(app, 'index'));
-});
+require(path.join(app, 'index'));

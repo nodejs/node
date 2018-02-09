@@ -171,27 +171,26 @@ function canConnect(port) {
   // connect(port, cb) and connect(port)
   const portArgBlocks = doConnect([port], noop);
   for (const block of portArgBlocks) {
-    assert.doesNotThrow(block, `${block.name}(${port})`);
+    block();
   }
 
   // connect(port, host, cb) and connect(port, host)
   const portHostArgBlocks = doConnect([port, 'localhost'], noop);
   for (const block of portHostArgBlocks) {
-    assert.doesNotThrow(block, `${block.name}(${port})`);
+    block();
   }
 
   // connect({port}, cb) and connect({port})
   const portOptBlocks = doConnect([{ port }], noop);
   for (const block of portOptBlocks) {
-    assert.doesNotThrow(block, `${block.name}({port: ${port}})`);
+    block();
   }
 
   // connect({port, host}, cb) and connect({port, host})
   const portHostOptBlocks = doConnect([{ port: port, host: 'localhost' }],
                                       noop);
   for (const block of portHostOptBlocks) {
-    assert.doesNotThrow(block,
-                        `${block.name}({port: ${port}, host: 'localhost'})`);
+    block();
   }
 }
 
@@ -205,25 +204,19 @@ function asyncFailToConnect(port) {
   // connect(port, cb) and connect(port)
   const portArgBlocks = doConnect([port], dont);
   for (const block of portArgBlocks) {
-    assert.doesNotThrow(function() {
-      block().on('error', onError());
-    }, `${block.name}(${port})`);
+    block().on('error', onError());
   }
 
   // connect({port}, cb) and connect({port})
   const portOptBlocks = doConnect([{ port }], dont);
   for (const block of portOptBlocks) {
-    assert.doesNotThrow(function() {
-      block().on('error', onError());
-    }, `${block.name}({port: ${port}})`);
+    block().on('error', onError());
   }
 
   // connect({port, host}, cb) and connect({port, host})
   const portHostOptBlocks = doConnect([{ port: port, host: 'localhost' }],
                                       dont);
   for (const block of portHostOptBlocks) {
-    assert.doesNotThrow(function() {
-      block().on('error', onError());
-    }, `${block.name}({port: ${port}, host: 'localhost'})`);
+    block().on('error', onError());
   }
 }

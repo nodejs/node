@@ -6,7 +6,6 @@ const fixtures = require('../common/fixtures');
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
-const assert = require('assert');
 const https = require('https');
 
 function toArrayBuffer(buf) {
@@ -65,11 +64,9 @@ const invalidCertRE = /^The "cert" argument must be one of type string, Buffer, 
   [[{ pem: keyBuff }], false],
   [[{ pem: keyBuff }, { pem: keyBuff }], false]
 ].forEach((params) => {
-  assert.doesNotThrow(() => {
-    https.createServer({
-      key: params[0],
-      cert: params[1]
-    });
+  https.createServer({
+    key: params[0],
+    cert: params[1]
   });
 });
 
@@ -124,12 +121,10 @@ const invalidCertRE = /^The "cert" argument must be one of type string, Buffer, 
   [keyBuff, certBuff, caArrDataView],
   [keyBuff, certBuff, false],
 ].forEach((params) => {
-  assert.doesNotThrow(() => {
-    https.createServer({
-      key: params[0],
-      cert: params[1],
-      ca: params[2]
-    });
+  https.createServer({
+    key: params[0],
+    cert: params[1],
+    ca: params[2]
   });
 });
 

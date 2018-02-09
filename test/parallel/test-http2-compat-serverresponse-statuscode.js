@@ -27,12 +27,10 @@ server.listen(0, common.mustCall(function() {
 
     assert.strictEqual(response.statusCode, expectedDefaultStatusCode);
 
-    assert.doesNotThrow(function() {
-      response.statusCode = realStatusCodes.ok;
-      response.statusCode = realStatusCodes.multipleChoices;
-      response.statusCode = realStatusCodes.badRequest;
-      response.statusCode = realStatusCodes.internalServerError;
-    });
+    response.statusCode = realStatusCodes.ok;
+    response.statusCode = realStatusCodes.multipleChoices;
+    response.statusCode = realStatusCodes.badRequest;
+    response.statusCode = realStatusCodes.internalServerError;
 
     common.expectsError(function() {
       response.statusCode = realStatusCodes.continue;

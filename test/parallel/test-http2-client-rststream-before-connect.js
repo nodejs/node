@@ -23,7 +23,7 @@ server.listen(0, common.mustCall(() => {
   req._destroy = common.mustCall(req._destroy.bind(req));
 
   // second call doesn't do anything
-  assert.doesNotThrow(() => req.close(8));
+  req.close(8);
 
   req.on('close', common.mustCall((code) => {
     assert.strictEqual(req.destroyed, true);

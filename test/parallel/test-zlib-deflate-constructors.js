@@ -93,25 +93,11 @@ common.expectsError(
 );
 
 // Does not throw if opts.strategy is valid
-assert.doesNotThrow(
-  () => { new zlib.Deflate({ strategy: zlib.constants.Z_FILTERED }); }
-);
-
-assert.doesNotThrow(
-  () => { new zlib.Deflate({ strategy: zlib.constants.Z_HUFFMAN_ONLY }); }
-);
-
-assert.doesNotThrow(
-  () => { new zlib.Deflate({ strategy: zlib.constants.Z_RLE }); }
-);
-
-assert.doesNotThrow(
-  () => { new zlib.Deflate({ strategy: zlib.constants.Z_FIXED }); }
-);
-
-assert.doesNotThrow(
-  () => { new zlib.Deflate({ strategy: zlib.constants.Z_DEFAULT_STRATEGY }); }
-);
+new zlib.Deflate({ strategy: zlib.constants.Z_FILTERED });
+new zlib.Deflate({ strategy: zlib.constants.Z_HUFFMAN_ONLY });
+new zlib.Deflate({ strategy: zlib.constants.Z_RLE });
+new zlib.Deflate({ strategy: zlib.constants.Z_FIXED });
+new zlib.Deflate({ strategy: zlib.constants.Z_DEFAULT_STRATEGY });
 
 // Throws if opt.strategy is the wrong type.
 common.expectsError(

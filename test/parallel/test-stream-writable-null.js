@@ -27,14 +27,14 @@ common.expectsError(
   }
 );
 
-assert.doesNotThrow(() => {
+{
   const m = new MyWritable({ objectMode: true }).on('error', (e) => {
     assert.ok(e);
   });
   m.write(null, (err) => {
     assert.ok(err);
   });
-});
+}
 
 common.expectsError(
   () => {
@@ -47,24 +47,25 @@ common.expectsError(
   }
 );
 
-assert.doesNotThrow(() => {
+{
   const m = new MyWritable().on('error', (e) => {
     assert.ok(e);
   });
   m.write(false, (err) => {
     assert.ok(err);
   });
-});
+}
 
-assert.doesNotThrow(() => {
+{
   const m = new MyWritable({ objectMode: true });
   m.write(false, (err) => assert.ifError(err));
-});
-assert.doesNotThrow(() => {
+}
+
+{
   const m = new MyWritable({ objectMode: true }).on('error', (e) => {
     assert.ifError(e || new Error('should not get here'));
   });
   m.write(false, (err) => {
     assert.ifError(err);
   });
-});
+}
