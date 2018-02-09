@@ -10,12 +10,12 @@ namespace node {
 class StringDecoder {
  public:
   StringDecoder() { state_[kEncodingField] = BUFFER; }
-  void SetEncoding(enum encoding encoding);
-  enum encoding Encoding() const;
+  inline void SetEncoding(enum encoding encoding);
+  inline enum encoding Encoding() const;
 
-  char* IncompleteCharacterBuffer();
-  unsigned MissingBytes() const;
-  unsigned BufferedBytes() const;
+  inline char* IncompleteCharacterBuffer();
+  inline unsigned MissingBytes() const;
+  inline unsigned BufferedBytes() const;
 
   // Decode a string from the specified encoding.
   // The value pointed to by `nread` will be modified to reflect that
