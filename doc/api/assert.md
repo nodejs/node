@@ -208,7 +208,9 @@ changes:
     description: Enumerable symbol properties are now compared.
   - version: v9.0.0
     pr-url: https://github.com/nodejs/node/pull/15036
-    description: NaN is now compared using the [SameValueZero][] comparison.
+    description: NaN is now compared using the
+                 [SameValueZero](https://tc39.github.io/ecma262/#sec-samevaluezero)
+                 comparison.
   - version: v8.5.0
     pr-url: https://github.com/nodejs/node/pull/15001
     description: Error names and messages are now properly compared
@@ -615,7 +617,9 @@ changes:
     description: -0 and +0 are not considered equal anymore.
   - version: v9.0.0
     pr-url: https://github.com/nodejs/node/pull/15036
-    description: NaN is now compared using the [SameValueZero][] comparison.
+    description: NaN is now compared using the
+                 [SameValueZero](https://tc39.github.io/ecma262/#sec-samevaluezero)
+                 comparison.
   - version: v9.0.0
     pr-url: https://github.com/nodejs/node/pull/15001
     description: Error names and messages are now properly compared
