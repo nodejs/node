@@ -287,6 +287,12 @@ int StreamBase::WriteString(const FunctionCallbackInfo<Value>& args) {
                     Integer::NewFromUnsigned(env->isolate(), data_size))
       .FromJust();
 
+  if (res.wrap != nullptr) {
+    res.wrap->SetAllocatedStorage(data, data_size);
+  } else {
+    free(data);
+  }
+
   return res.err;
 }
 
