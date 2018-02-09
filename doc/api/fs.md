@@ -3388,7 +3388,7 @@ added: REPLACEME
 Asynchronous fsync(2). The `Promise` is resolved with no arguments upon
 success.
 
-#### filehandle.truncate(len = 0)
+#### filehandle.truncate(len)
 <!-- YAML
 added: REPLACEME
 -->
