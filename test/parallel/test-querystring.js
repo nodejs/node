@@ -300,9 +300,7 @@ assert.strictEqual('foo=', qs.stringify({ foo: Infinity }));
   assert.strictEqual(f, 'a=b&q=x%3Dy%26y%3Dz');
 }
 
-assert.doesNotThrow(() => {
-  qs.parse(undefined);
-});
+qs.parse(undefined);
 
 // nested in colon
 {

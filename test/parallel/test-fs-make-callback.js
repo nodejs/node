@@ -1,6 +1,5 @@
 'use strict';
 const common = require('../common');
-const assert = require('assert');
 const fs = require('fs');
 const callbackThrowValues = [null, true, false, 0, 1, 'foo', /foo/, [], {}];
 
@@ -20,7 +19,7 @@ function testMakeCallback(cb) {
 common.expectWarning('DeprecationWarning', warn);
 
 // Passing undefined/nothing calls rethrow() internally, which emits a warning
-assert.doesNotThrow(testMakeCallback());
+testMakeCallback()();
 
 function invalidCallbackThrowsTests() {
   callbackThrowValues.forEach((value) => {

@@ -29,18 +29,14 @@ assert.ok(process.stderr.writable);
 assert.strictEqual(typeof process.stdout.fd, 'number');
 assert.strictEqual(typeof process.stderr.fd, 'number');
 
-assert.doesNotThrow(function() {
-  process.once('warning', common.mustCall((warning) => {
-    assert(/no such label/.test(warning.message));
-  }));
+process.once('warning', common.mustCall((warning) => {
+  assert(/no such label/.test(warning.message));
+}));
 
-  console.timeEnd('no such label');
-});
+console.timeEnd('no such label');
 
-assert.doesNotThrow(function() {
-  console.time('label');
-  console.timeEnd('label');
-});
+console.time('label');
+console.timeEnd('label');
 
 // Check that the `Error` is a `TypeError` but do not check the message as it
 // will be different in different JavaScript engines.
@@ -140,15 +136,11 @@ console.timeEnd();
 console.time(NaN);
 console.timeEnd(NaN);
 
-assert.doesNotThrow(() => {
-  console.assert(false, '%s should', 'console.assert', 'not throw');
-  assert.strictEqual(errStrings[errStrings.length - 1],
-                     'Assertion failed: console.assert should not throw\n');
-});
+console.assert(false, '%s should', 'console.assert', 'not throw');
+assert.strictEqual(errStrings[errStrings.length - 1],
+                   'Assertion failed: console.assert should not throw\n');
 
-assert.doesNotThrow(() => {
-  console.assert(true, 'this should not throw');
-});
+console.assert(true, 'this should not throw');
 
 assert.strictEqual(strings.length, process.stdout.writeTimes);
 assert.strictEqual(errStrings.length, process.stderr.writeTimes);

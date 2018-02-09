@@ -580,14 +580,10 @@ process.on('exit', function() {
 });
 
 
-assert.doesNotThrow(() =>
-  dns.lookup(addresses.INET6_HOST, 6, common.mustCall()));
+dns.lookup(addresses.INET6_HOST, 6, common.mustCall());
 
-assert.doesNotThrow(() =>
-  dns.lookup(addresses.INET_HOST, {}, common.mustCall()));
+dns.lookup(addresses.INET_HOST, {}, common.mustCall());
 
-assert.doesNotThrow(() =>
-  dns.lookupService('0.0.0.0', '0', common.mustCall()));
+dns.lookupService('0.0.0.0', '0', common.mustCall());
 
-assert.doesNotThrow(() =>
-  dns.lookupService('0.0.0.0', 0, common.mustCall()));
+dns.lookupService('0.0.0.0', 0, common.mustCall());

@@ -77,7 +77,7 @@ assert.strictEqual(counts[NODE_PERFORMANCE_ENTRY_TYPE_FUNCTION], 0);
     countdown.dec();
   }
   assert.strictEqual(counts[NODE_PERFORMANCE_ENTRY_TYPE_MARK], 1);
-  assert.doesNotThrow(() => observer.observe({ entryTypes: ['mark'] }));
+  observer.observe({ entryTypes: ['mark'] });
   assert.strictEqual(counts[NODE_PERFORMANCE_ENTRY_TYPE_MARK], 2);
   performance.mark('test1');
   performance.mark('test2');
@@ -125,13 +125,9 @@ assert.strictEqual(counts[NODE_PERFORMANCE_ENTRY_TYPE_FUNCTION], 0);
     }
   }
 
-  assert.doesNotThrow(() => {
-    observer.observe({ entryTypes: ['mark', 'measure'], buffered: true });
-  });
+  observer.observe({ entryTypes: ['mark', 'measure'], buffered: true });
   // Do this twice to make sure it doesn't throw
-  assert.doesNotThrow(() => {
-    observer.observe({ entryTypes: ['mark', 'measure'], buffered: true });
-  });
+  observer.observe({ entryTypes: ['mark', 'measure'], buffered: true });
   // Even tho we called twice, count should be 1
   assert.strictEqual(counts[NODE_PERFORMANCE_ENTRY_TYPE_MARK], 2);
   performance.mark('test1');

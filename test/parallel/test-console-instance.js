@@ -87,9 +87,7 @@ out.write = common.mustCall((d) => {
 [1, 2, 3].forEach(c.log);
 
 // Console() detects if it is called without `new` keyword
-assert.doesNotThrow(() => {
-  Console(out, err);
-});
+Console(out, err);
 
 // Instance that does not ignore the stream errors.
 const c2 = new Console(out, err, false);

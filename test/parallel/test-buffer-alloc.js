@@ -63,16 +63,16 @@ assert.throws(() => b.write('test', 'utf8', 0),
 
 
 // try to create 0-length buffers
-assert.doesNotThrow(() => Buffer.from(''));
-assert.doesNotThrow(() => Buffer.from('', 'ascii'));
-assert.doesNotThrow(() => Buffer.from('', 'latin1'));
-assert.doesNotThrow(() => Buffer.alloc(0));
-assert.doesNotThrow(() => Buffer.allocUnsafe(0));
-assert.doesNotThrow(() => new Buffer(''));
-assert.doesNotThrow(() => new Buffer('', 'ascii'));
-assert.doesNotThrow(() => new Buffer('', 'latin1'));
-assert.doesNotThrow(() => new Buffer('', 'binary'));
-assert.doesNotThrow(() => Buffer(0));
+Buffer.from('');
+Buffer.from('', 'ascii');
+Buffer.from('', 'latin1');
+Buffer.alloc(0);
+Buffer.allocUnsafe(0);
+new Buffer('');
+new Buffer('', 'ascii');
+new Buffer('', 'latin1');
+new Buffer('', 'binary');
+Buffer(0);
 
 // try to write a 0-length string beyond the end of b
 assert.throws(() => b.write('', 2048), RangeError);
@@ -109,7 +109,7 @@ b.copy(Buffer.alloc(1), 0, 2048, 2048);
 
 // Offset points to the end of the buffer
 // (see https://github.com/nodejs/node/issues/8127).
-assert.doesNotThrow(() => Buffer.alloc(1).write('', 1, 0));
+Buffer.alloc(1).write('', 1, 0);
 
 // ASCII slice test
 {
@@ -963,7 +963,7 @@ assert.strictEqual(SlowBuffer.prototype.offset, undefined);
                          Buffer.from(''));
 
   // Check pool offset after that by trying to write string into the pool.
-  assert.doesNotThrow(() => Buffer.from('abc'));
+  Buffer.from('abc');
 }
 
 
@@ -993,12 +993,12 @@ common.expectsError(() => {
 }
 
 // Regression test
-assert.doesNotThrow(() => Buffer.from(new ArrayBuffer()));
+Buffer.from(new ArrayBuffer());
 
 // Test that ArrayBuffer from a different context is detected correctly
 const arrayBuf = vm.runInNewContext('new ArrayBuffer()');
-assert.doesNotThrow(() => Buffer.from(arrayBuf));
-assert.doesNotThrow(() => Buffer.from({ buffer: arrayBuf }));
+Buffer.from(arrayBuf);
+Buffer.from({ buffer: arrayBuf });
 
 assert.throws(() => Buffer.alloc({ valueOf: () => 1 }),
               /"size" argument must be of type number/);
