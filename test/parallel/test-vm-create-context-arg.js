@@ -28,13 +28,9 @@ assert.throws(function() {
   vm.createContext('string is not supported');
 }, /^TypeError: sandbox must be an object$/);
 
-assert.doesNotThrow(function() {
-  vm.createContext({ a: 1 });
-  vm.createContext([0, 1, 2, 3]);
-});
+vm.createContext({ a: 1 });
+vm.createContext([0, 1, 2, 3]);
 
-assert.doesNotThrow(function() {
-  const sandbox = {};
-  vm.createContext(sandbox);
-  vm.createContext(sandbox);
-});
+const sandbox = {};
+vm.createContext(sandbox);
+vm.createContext(sandbox);

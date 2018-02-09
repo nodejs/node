@@ -11,5 +11,5 @@ if (!process.versions.openssl) {
   });
   assert.throws(() => util.assertCrypto(), expectedError);
 } else {
-  assert.doesNotThrow(() => util.assertCrypto());
+  util.assertCrypto();
 }

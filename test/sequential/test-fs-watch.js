@@ -42,19 +42,15 @@ tmpdir.refresh();
 
   fs.writeFileSync(filepath, 'hello');
 
-  assert.doesNotThrow(
-    function() {
-      const watcher = fs.watch(filepath);
-      watcher.on('change', common.mustCall(function(event, filename) {
-        assert.strictEqual(event, 'change');
+  const watcher = fs.watch(filepath);
+  watcher.on('change', common.mustCall(function(event, filename) {
+    assert.strictEqual(event, 'change');
 
-        if (expectFilePath) {
-          assert.strictEqual(filename, 'watch.txt');
-        }
-        watcher.close();
-      }));
+    if (expectFilePath) {
+      assert.strictEqual(filename, 'watch.txt');
     }
-  );
+    watcher.close();
+  }));
 
   setImmediate(function() {
     fs.writeFileSync(filepath, 'world');
@@ -68,19 +64,15 @@ tmpdir.refresh();
 
   fs.writeFileSync(filepathAbs, 'howdy');
 
-  assert.doesNotThrow(
-    function() {
-      const watcher =
-        fs.watch('hasOwnProperty', common.mustCall(function(event, filename) {
-          assert.strictEqual(event, 'change');
+  const watcher =
+    fs.watch('hasOwnProperty', common.mustCall(function(event, filename) {
+      assert.strictEqual(event, 'change');
 
-          if (expectFilePath) {
-            assert.strictEqual(filename, 'hasOwnProperty');
-          }
-          watcher.close();
-        }));
-    }
-  );
+      if (expectFilePath) {
+        assert.strictEqual(filename, 'hasOwnProperty');
+      }
+      watcher.close();
+    }));
 
   setImmediate(function() {
     fs.writeFileSync(filepathAbs, 'pardner');
@@ -91,21 +83,17 @@ tmpdir.refresh();
   const testsubdir = fs.mkdtempSync(testDir + path.sep);
   const filepath = path.join(testsubdir, 'newfile.txt');
 
-  assert.doesNotThrow(
-    function() {
-      const watcher =
-        fs.watch(testsubdir, common.mustCall(function(event, filename) {
-          const renameEv = common.isSunOS || common.isAIX ? 'change' : 'rename';
-          assert.strictEqual(event, renameEv);
-          if (expectFilePath) {
-            assert.strictEqual(filename, 'newfile.txt');
-          } else {
-            assert.strictEqual(filename, null);
-          }
-          watcher.close();
-        }));
-    }
-  );
+  const watcher =
+    fs.watch(testsubdir, common.mustCall(function(event, filename) {
+      const renameEv = common.isSunOS || common.isAIX ? 'change' : 'rename';
+      assert.strictEqual(event, renameEv);
+      if (expectFilePath) {
+        assert.strictEqual(filename, 'newfile.txt');
+      } else {
+        assert.strictEqual(filename, null);
+      }
+      watcher.close();
+    }));
 
   setImmediate(function() {
     const fd = fs.openSync(filepath, 'w');

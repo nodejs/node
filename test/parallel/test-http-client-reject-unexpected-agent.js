@@ -59,7 +59,7 @@ server.listen(0, baseOptions.host, common.mustCall(function() {
   });
 
   acceptableAgentOptions.forEach((agent) => {
-    assert.doesNotThrow(() => createRequest(agent));
+    createRequest(agent);
   });
 }));
 

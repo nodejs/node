@@ -126,18 +126,18 @@ testCipher2(Buffer.from('0123456789abcdef'));
   let decipher = crypto.createDecipher('aes192', key);
 
   let txt;
-  assert.doesNotThrow(() => txt = decipher.update(ciph, 'base64', 'ucs2'));
-  assert.doesNotThrow(() => txt += decipher.final('ucs2'));
+  txt = decipher.update(ciph, 'base64', 'ucs2');
+  txt += decipher.final('ucs2');
   assert.strictEqual(txt, plaintext);
 
   decipher = crypto.createDecipher('aes192', key);
-  assert.doesNotThrow(() => txt = decipher.update(ciph, 'base64', 'ucs-2'));
-  assert.doesNotThrow(() => txt += decipher.final('ucs-2'));
+  txt = decipher.update(ciph, 'base64', 'ucs-2');
+  txt += decipher.final('ucs-2');
   assert.strictEqual(txt, plaintext);
 
   decipher = crypto.createDecipher('aes192', key);
-  assert.doesNotThrow(() => txt = decipher.update(ciph, 'base64', 'utf-16le'));
-  assert.doesNotThrow(() => txt += decipher.final('utf-16le'));
+  txt = decipher.update(ciph, 'base64', 'utf-16le');
+  txt += decipher.final('utf-16le');
   assert.strictEqual(txt, plaintext);
 }
 

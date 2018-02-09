@@ -21,14 +21,8 @@
 
 'use strict';
 require('../common');
-const assert = require('assert');
-
-assert.doesNotThrow(function() {
-  require('vm').runInNewContext('"use strict"; var v = 1; v = 2');
-});
 
 // This test ensures v8 correctly sets a property on the global object if it
 // has a setter interceptor in strict mode.
 // https://github.com/nodejs/node-v0.x-archive/issues/6235
-
 require('vm').runInNewContext('"use strict"; var v = 1; v = 2');

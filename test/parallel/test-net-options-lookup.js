@@ -1,6 +1,5 @@
 'use strict';
 const common = require('../common');
-const assert = require('assert');
 const net = require('net');
 
 ['foobar', 1, {}, []].forEach((input) => connectThrows(input));
@@ -30,7 +29,5 @@ function connectDoesNotThrow(input) {
     lookup: input
   };
 
-  assert.doesNotThrow(() => {
-    net.connect(opts);
-  });
+  net.connect(opts);
 }

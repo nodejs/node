@@ -152,9 +152,7 @@ class SlowStream extends stream.Stream {
 }
 
 // windowBits: 8 shouldn't throw
-assert.doesNotThrow(() => {
-  zlib.createDeflateRaw({ windowBits: 8 });
-}, 'windowsBits set to 8 should follow legacy zlib behavior');
+zlib.createDeflateRaw({ windowBits: 8 });
 
 {
   const node = fs.createReadStream(fixtures.path('person.jpg'));

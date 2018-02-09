@@ -26,11 +26,11 @@ assert.deepStrictEqual(val, check);
   ['maxHeaderListSize', 0],
   ['maxHeaderListSize', 2 ** 32 - 1]
 ].forEach((i) => {
-  assert.doesNotThrow(() => http2.getPackedSettings({ [i[0]]: i[1] }));
+  http2.getPackedSettings({ [i[0]]: i[1] });
 });
 
-assert.doesNotThrow(() => http2.getPackedSettings({ enablePush: true }));
-assert.doesNotThrow(() => http2.getPackedSettings({ enablePush: false }));
+http2.getPackedSettings({ enablePush: true });
+http2.getPackedSettings({ enablePush: false });
 
 [
   ['headerTableSize', -1],
@@ -151,9 +151,7 @@ assert.doesNotThrow(() => http2.getPackedSettings({ enablePush: false }));
     0x00, 0x00, 0x00, 0x64, 0x00, 0x06, 0x00, 0x00, 0x00, 0x64,
     0x00, 0x02, 0x00, 0x00, 0x00, 0x01]);
 
-  assert.doesNotThrow(() => {
-    http2.getUnpackedSettings(packed, { validate: true });
-  });
+  http2.getUnpackedSettings(packed, { validate: true });
 }
 
 // check for maxFrameSize failing the max number

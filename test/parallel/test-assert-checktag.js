@@ -30,8 +30,8 @@ function re(literals, ...values) {
   FakeDate.prototype = Date.prototype;
   const fake = new FakeDate();
 
-  assert.doesNotThrow(() => assert.deepEqual(date, fake));
-  assert.doesNotThrow(() => assert.deepEqual(fake, date));
+  assert.deepEqual(date, fake);
+  assert.deepEqual(fake, date);
 
   // For deepStrictEqual we check the runtime type,
   // then reveal the fakeness of the fake date
@@ -47,7 +47,7 @@ function re(literals, ...values) {
   for (const prop of Object.keys(global)) {
     fakeGlobal[prop] = global[prop];
   }
-  assert.doesNotThrow(() => assert.deepEqual(fakeGlobal, global));
+  assert.deepEqual(fakeGlobal, global);
   // Message will be truncated anyway, don't validate
   assert.throws(() => assert.deepStrictEqual(fakeGlobal, global),
                 assert.AssertionError);
@@ -59,7 +59,7 @@ function re(literals, ...values) {
   for (const prop of Object.keys(process)) {
     fakeProcess[prop] = process[prop];
   }
-  assert.doesNotThrow(() => assert.deepEqual(fakeProcess, process));
+  assert.deepEqual(fakeProcess, process);
   // Message will be truncated anyway, don't validate
   assert.throws(() => assert.deepStrictEqual(fakeProcess, process),
                 assert.AssertionError);

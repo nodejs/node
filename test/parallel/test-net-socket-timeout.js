@@ -46,9 +46,7 @@ for (let i = 0; i < badRangeDelays.length; i++) {
 }
 
 for (let i = 0; i < validDelays.length; i++) {
-  assert.doesNotThrow(function() {
-    s.setTimeout(validDelays[i], () => {});
-  });
+  s.setTimeout(validDelays[i], () => {});
 }
 
 const server = net.Server();

@@ -2,7 +2,6 @@
 'use strict';
 
 const common = require('../common');
-const assert = require('assert');
 const {
   assertIsObject,
   assertWithinRange,
@@ -15,7 +14,7 @@ const {
   new Date(),
   new (class Foo {})()
 ].forEach((i) => {
-  assert.doesNotThrow(() => assertIsObject(i, 'foo', 'Object'));
+  assertIsObject(i, 'foo', 'Object');
 });
 
 [
@@ -34,7 +33,7 @@ const {
                       });
 });
 
-assert.doesNotThrow(() => assertWithinRange('foo', 1, 0, 2));
+assertWithinRange('foo', 1, 0, 2);
 
 common.expectsError(() => assertWithinRange('foo', 1, 2, 3),
                     {

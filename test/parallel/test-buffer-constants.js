@@ -11,7 +11,7 @@ assert(MAX_STRING_LENGTH <= MAX_LENGTH);
 assert.throws(() => ' '.repeat(MAX_STRING_LENGTH + 1),
               /^RangeError: Invalid string length$/);
 
-assert.doesNotThrow(() => ' '.repeat(MAX_STRING_LENGTH));
+' '.repeat(MAX_STRING_LENGTH);
 
 // Legacy values match:
 assert.strictEqual(kMaxLength, MAX_LENGTH);

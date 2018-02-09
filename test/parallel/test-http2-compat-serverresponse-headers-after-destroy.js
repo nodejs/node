@@ -15,12 +15,12 @@ server.listen(0, common.mustCall(function() {
   server.once('request', common.mustCall(function(request, response) {
     response.on('finish', common.mustCall(() => {
       assert.strictEqual(response.headersSent, false);
-      assert.doesNotThrow(() => response.setHeader('test', 'value'));
-      assert.doesNotThrow(() => response.removeHeader('test', 'value'));
+      response.setHeader('test', 'value');
+      response.removeHeader('test', 'value');
 
       process.nextTick(() => {
-        assert.doesNotThrow(() => response.setHeader('test', 'value'));
-        assert.doesNotThrow(() => response.removeHeader('test', 'value'));
+        response.setHeader('test', 'value');
+        response.removeHeader('test', 'value');
 
         server.close();
       });

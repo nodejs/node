@@ -29,18 +29,14 @@ assert.ok(process.stderr.writable);
 assert.strictEqual(typeof process.stdout.fd, 'number');
 assert.strictEqual(typeof process.stderr.fd, 'number');
 
-assert.doesNotThrow(function() {
-  process.once('warning', common.mustCall((warning) => {
-    assert(/no such label/.test(warning.message));
-  }));
+process.once('warning', common.mustCall((warning) => {
+  assert(/no such label/.test(warning.message));
+}));
 
-  console.timeEnd('no such label');
-});
+console.timeEnd('no such label');
 
-assert.doesNotThrow(function() {
-  console.time('label');
-  console.timeEnd('label');
-});
+console.time('label');
+console.timeEnd('label');
 
 // Check that the `Error` is a `TypeError` but do not check the message as it
 // will be different in different JavaScript engines.
@@ -207,9 +203,7 @@ common.expectsError(() => {
   message: /^should throw$/
 });
 
-assert.doesNotThrow(() => {
-  console.assert(true, 'this should not throw');
-});
+console.assert(true, 'this should not throw');
 
 // hijack stderr to catch `process.emitWarning` which is using
 // `process.nextTick`

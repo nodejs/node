@@ -56,9 +56,7 @@ assert.throws(function() {
 });
 
 // PFX tests
-assert.doesNotThrow(function() {
-  tls.createSecureContext({ pfx: certPfx, passphrase: 'sample' });
-});
+tls.createSecureContext({ pfx: certPfx, passphrase: 'sample' });
 
 assert.throws(function() {
   tls.createSecureContext({ pfx: certPfx });
