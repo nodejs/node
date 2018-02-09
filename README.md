@@ -340,6 +340,8 @@ For more information about the governance of the Node.js project, see
 **Daniel Bevenius** &lt;daniel.bevenius@gmail.com&gt;
 * [DavidCai1993](https://github.com/DavidCai1993) -
 **David Cai** &lt;davidcai1993@yahoo.com&gt; (he/him)
+* [devsnek](https://github.com/devsnek) -
+**Gus Caplan** &lt;me@gus.host&gt; (he/him)
 * [edsadr](https://github.com/edsadr) -
 **Adrian Estrada** &lt;edsadr@gmail.com&gt; (he/him)
 * [eljefedelrodeodeljefe](https://github.com/eljefedelrodeodeljefe) -
