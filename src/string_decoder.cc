@@ -65,7 +65,7 @@ MaybeLocal<String> MakeString(Isolate* isolate,
 
 MaybeLocal<String> StringDecoder::DecodeData(Isolate* isolate,
                                              const char* data,
-                                             ssize_t* nread_ptr) {
+                                             size_t* nread_ptr) {
   Local<String> prepend, body;
 
   size_t nread = *nread_ptr;
@@ -150,7 +150,7 @@ MaybeLocal<String> StringDecoder::DecodeData(Isolate* isolate,
 #endif
           state_[kBufferedBytes]++;
           if ((data[i] & 0xC0) == 0x80) {
-            // This byte does not start a character (a "trailing" bytes).
+            // This byte does not start a character (a "trailing" byte).
             if (state_[kBufferedBytes] >= 4 || i == 0) {
               // We either have more then 4 trailing bytes (which means
               // the current character would not be inside the range for
@@ -223,11 +223,11 @@ MaybeLocal<String> StringDecoder::DecodeData(Isolate* isolate,
       }
     }
 
-    if (!prepend.IsEmpty()) {
+    if (prepend.IsEmpty()) {
+      return body;
+    } else {
       return String::Concat(prepend, body);
     }
-
-    return body;
   } else {
     CHECK(Encoding() == ASCII || Encoding() == HEX || Encoding() == LATIN1);
     return MakeString(isolate, data, nread, Encoding());
@@ -240,7 +240,7 @@ MaybeLocal<String> StringDecoder::FlushData(Isolate* isolate) {
     CHECK_EQ(BufferedBytes(), 0);
   }
 
-  if (Encoding() == UCS2 && (BufferedBytes() % 2) == 1) {
+  if (Encoding() == UCS2 && BufferedBytes() % 2 == 1) {
     // Ignore a single trailing byte, like the JS decoder does.
     state_[kMissingBytes]--;
     state_[kBufferedBytes]--;
@@ -267,7 +267,7 @@ void DecodeData(const FunctionCallbackInfo<Value>& args) {
   StringDecoder* decoder =
       reinterpret_cast<StringDecoder*>(Buffer::Data(args[0]));
   CHECK_NE(decoder, nullptr);
-  ssize_t nread = Buffer::Length(args[1]);
+  size_t nread = Buffer::Length(args[1]);
   MaybeLocal<String> ret =
       decoder->DecodeData(args.GetIsolate(), Buffer::Data(args[1]), &nread);
   if (!ret.IsEmpty())

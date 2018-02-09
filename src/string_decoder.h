@@ -24,7 +24,7 @@ class StringDecoder {
   // was finished.
   v8::MaybeLocal<v8::String> DecodeData(v8::Isolate* isolate,
                                         const char* data,
-                                        ssize_t* nread);
+                                        size_t* nread);
   // Flush an incomplete character. For character encodings like UTF8 this
   // means printing replacement characters, buf for e.g. Base64 the returned
   // string contains more data.
