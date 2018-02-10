@@ -5,7 +5,7 @@ require('../common');
 const { test, assert_equals, assert_true, assert_false } =
   require('../common/wpt');
 
-global.console = global.console;
+global.console = global.console; // Should not throw.
 
 const self = global;
 

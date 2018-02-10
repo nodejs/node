@@ -27,6 +27,7 @@ server.listen(0, common.mustCall(function() {
 
     assert.strictEqual(response.statusCode, expectedDefaultStatusCode);
 
+    // Setting the response.statusCode should not throw.
     response.statusCode = realStatusCodes.ok;
     response.statusCode = realStatusCodes.multipleChoices;
     response.statusCode = realStatusCodes.badRequest;

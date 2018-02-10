@@ -4,7 +4,7 @@ const fixtures = require('../common/fixtures');
 const fs = require('fs');
 
 const example = fixtures.path('x.txt');
-
+// Should not throw.
 fs.createReadStream(example, undefined);
 fs.createReadStream(example, null);
 fs.createReadStream(example, 'utf8');

@@ -64,7 +64,7 @@ assert.strictEqual(typeof performance.timeOrigin, 'number');
 {
   performance.mark('A');
   [undefined, null, 'foo', 'initialize', 1].forEach((i) => {
-    performance.measure('test', i, 'A');
+    performance.measure('test', i, 'A'); // Should not throw.
   });
 
   [undefined, null, 'foo', 1].forEach((i) => {

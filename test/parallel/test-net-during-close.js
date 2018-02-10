@@ -30,11 +30,11 @@ const server = net.createServer(function(socket) {
 server.listen(0, common.mustCall(function() {
   const client = net.createConnection(this.address().port);
   server.close();
-  // server connection event has not yet fired
-  // client is still attempting to connect
+  // Server connection event has not yet fired client is still attempting to
+  // connect. Accessing properties should not throw in this case.
   client.remoteAddress;
   client.remoteFamily;
   client.remotePort;
-  // exit now, do not wait for the client error event
+  // Exit now, do not wait for the client error event.
   process.exit(0);
 }));

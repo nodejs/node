@@ -67,6 +67,7 @@ assert.throws(
   }
 );
 
+// Should not throw.
 assert.ifError(null);
 assert.ifError();
 assert.ifError(undefined);

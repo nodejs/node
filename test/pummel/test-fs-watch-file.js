@@ -68,6 +68,7 @@ assert.throws(
   }
 );
 
+// Does not throw.
 fs.watchFile(filepathOne, function() {
   fs.unwatchFile(filepathOne);
   ++watchSeenOne;
@@ -91,7 +92,7 @@ assert.throws(
   }
 );
 
-{
+{ // Does not throw.
   function a() {
     fs.unwatchFile(filepathTwo, a);
     ++watchSeenTwo;
@@ -108,7 +109,7 @@ setTimeout(function() {
   fs.writeFileSync(filepathTwoAbs, 'pardner');
 }, 1000);
 
-{
+{ // Does not throw.
   function b() {
     fs.unwatchFile(filenameThree, b);
     ++watchSeenThree;
@@ -130,7 +131,7 @@ setTimeout(function() {
   fs.writeFileSync(filenameFour, 'hey');
 }, 500);
 
-{
+{ // Does not throw.
   function a() {
     ++watchSeenFour;
     assert.strictEqual(1, watchSeenFour);

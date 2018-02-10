@@ -8,7 +8,7 @@ const tmpdir = require('../common/tmpdir');
 const example = path.join(tmpdir.path, 'dummy');
 
 tmpdir.refresh();
-
+// Should not throw.
 fs.createWriteStream(example, undefined);
 fs.createWriteStream(example, null);
 fs.createWriteStream(example, 'utf8');

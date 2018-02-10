@@ -61,6 +61,7 @@ assert.deepStrictEqual(writable.data, CSI.kClearLine);
   assert.deepStrictEqual(writable.data, set[2]);
 });
 
+// Undefined or null as stream should not throw.
 readline.cursorTo(null);
 readline.cursorTo();
 

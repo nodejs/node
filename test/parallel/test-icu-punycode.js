@@ -34,12 +34,12 @@ const wptToASCIITests = require('../fixtures/url-toascii.js');
     if (output === null) {
       assert.throws(() => icu.toASCII(input),
                     errMessage, `ToASCII ${caseComment}`);
-      icu.toASCII(input, true);
+      icu.toASCII(input, true); // Should not throw.
     } else {
       assert.strictEqual(icu.toASCII(input), output, `ToASCII ${caseComment}`);
       assert.strictEqual(icu.toASCII(input, true), output,
                          `ToASCII ${caseComment} in lenient mode`);
     }
-    icu.toUnicode(input);
+    icu.toUnicode(input); // Should not throw.
   }
 }

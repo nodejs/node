@@ -56,4 +56,5 @@ common.expectsError(
 );
 
 session.disconnect();
+// Calling disconnect twice should not throw.
 session.disconnect();
