@@ -1119,7 +1119,7 @@ const client = http2.connect('https://localhost');
 const req = client.request({ ':path': '/' });
 
 req.on('information', (res) => {
-  console.log('got information status prior to main response: ' + res.statusCode);
+  console.log('got information prior to main response: ' + res.statusCode);
 });
 ```
 
