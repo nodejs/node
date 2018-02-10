@@ -24,6 +24,16 @@ function testRunnerMain() {
     workers: [{ expectedPort: 9230 }]
   });
 
+  spawnMaster({
+    execArgv: ['--inspect=65534'],
+    workers: [
+      { expectedPort: 65535 },
+      { expectedPort: 1024 },
+      { expectedPort: 1025 },
+      { expectedPort: 1026 }
+    ]
+  });
+
   let port = debuggerPort + offset++ * 5;
 
   spawnMaster({
