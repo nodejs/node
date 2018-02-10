@@ -34,6 +34,11 @@ template int StreamBase::WriteString<LATIN1>(
     const FunctionCallbackInfo<Value>& args);
 
 
+struct Free {
+  void operator()(char* ptr) const { free(ptr); }
+};
+
+
 int StreamBase::ReadStartJS(const FunctionCallbackInfo<Value>& args) {
   return ReadStart();
 }
@@ -107,9 +112,9 @@ int StreamBase::Writev(const FunctionCallbackInfo<Value>& args) {
     }
   }
 
-  char* storage = nullptr;
+  std::unique_ptr<char, Free> storage;
   if (storage_size > 0)
-    storage = Malloc(storage_size);
+    storage = std::unique_ptr<char, Free>(Malloc(storage_size));
 
   offset = 0;
   if (!all_buffers) {
@@ -126,7 +131,7 @@ int StreamBase::Writev(const FunctionCallbackInfo<Value>& args) {
 
       // Write string
       CHECK_LE(offset, storage_size);
-      char* str_storage = storage + offset;
+      char* str_storage = storage.get() + offset;
       size_t str_size = storage_size - offset;
 
       Local<String> string = chunk->ToString(env->context()).ToLocalChecked();
@@ -146,10 +151,8 @@ int StreamBase::Writev(const FunctionCallbackInfo<Value>& args) {
 
   StreamWriteResult res = Write(*bufs, count, nullptr, req_wrap_obj);
   req_wrap_obj->Set(env->bytes_string(), Number::New(env->isolate(), bytes));
-  if (res.wrap != nullptr && storage != nullptr) {
-    res.wrap->SetAllocatedStorage(storage, storage_size);
-  } else {
-    free(storage);
+  if (res.wrap != nullptr && storage) {
+    res.wrap->SetAllocatedStorage(storage.release(), storage_size);
   }
   return res.err;
 }
@@ -243,18 +246,18 @@ int StreamBase::WriteString(const FunctionCallbackInfo<Value>& args) {
     CHECK_EQ(count, 1);
   }
 
-  char* data;
+  std::unique_ptr<char, Free> data;
 
   if (try_write) {
     // Copy partial data
-    data = Malloc(buf.len);
-    memcpy(data, buf.base, buf.len);
+    data = std::unique_ptr<char, Free>(Malloc(buf.len));
+    memcpy(data.get(), buf.base, buf.len);
     data_size = buf.len;
   } else {
     // Write it
-    data = Malloc(storage_size);
+    data = std::unique_ptr<char, Free>(Malloc(storage_size));
     data_size = StringBytes::Write(env->isolate(),
-                                   data,
+                                   data.get(),
                                    storage_size,
                                    string,
                                    enc);
@@ -262,7 +265,7 @@ int StreamBase::WriteString(const FunctionCallbackInfo<Value>& args) {
 
   CHECK_LE(data_size, storage_size);
 
-  buf = uv_buf_init(data, data_size);
+  buf = uv_buf_init(data.get(), data_size);
 
   uv_stream_t* send_handle = nullptr;
 
@@ -288,9 +291,7 @@ int StreamBase::WriteString(const FunctionCallbackInfo<Value>& args) {
       .FromJust();
 
   if (res.wrap != nullptr) {
-    res.wrap->SetAllocatedStorage(data, data_size);
-  } else {
-    free(data);
+    res.wrap->SetAllocatedStorage(data.release(), data_size);
   }
 
   return res.err;
