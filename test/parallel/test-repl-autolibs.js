@@ -29,7 +29,22 @@ const repl = require('repl');
 common.globalCheck = false;
 
 const putIn = new common.ArrayStream();
-repl.start('', putIn, null, true);
+
+
+const replserver = repl.start('', putIn, null, true);
+const callbacks = [];
+const $eval = replserver.eval;
+replserver.eval = function(code, context, file, cb) {
+  const expected = callbacks.shift();
+  return $eval.call(this, code, context, file, (...args) => {
+    try {
+      expected(cb, ...args);
+    } catch (e) {
+      console.error(e);
+      process.exit(1);
+    }
+  });
+};
 
 test1();
 
@@ -48,6 +63,11 @@ function test1() {
     }
   };
   assert(!gotWrite);
+  callbacks.push(common.mustCall((cb, err, result) => {
+    assert.ifError(err);
+    assert.strictEqual(result, require('fs'));
+    cb(err, result);
+  }));
   putIn.run(['fs']);
   assert(gotWrite);
 }
@@ -66,6 +86,11 @@ function test2() {
   const val = {};
   global.url = val;
   assert(!gotWrite);
+  callbacks.push(common.mustCall((cb, err, result) => {
+    assert.ifError(err);
+    assert.strictEqual(result, val);
+    cb(err, result);
+  }));
   putIn.run(['url']);
   assert(gotWrite);
 }

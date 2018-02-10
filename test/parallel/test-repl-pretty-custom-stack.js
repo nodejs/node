@@ -22,7 +22,9 @@ function run({ command, expected }) {
   });
 
   r.write(`${command}\n`);
-  assert.strictEqual(accum, expected);
+  r.on('exit', common.mustCall(() => {
+    assert.strictEqual(accum, expected);
+  }));
   r.close();
 }
 
