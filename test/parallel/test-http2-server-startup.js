@@ -19,20 +19,20 @@ const options = {
   cert: commonFixtures.readKey('agent2-cert.pem')
 };
 
-// There should not be any throws
+// There should not be any throws.
 const serverTLS = http2.createSecureServer(options, () => {});
 serverTLS.listen(0, common.mustCall(() => serverTLS.close()));
 
-// There should not be an error event reported either
+// There should not be an error event reported either.
 serverTLS.on('error', common.mustNotCall());
 
 const server = http2.createServer(options, common.mustNotCall());
 server.listen(0, common.mustCall(() => server.close()));
 
-// There should not be an error event reported either
+// There should not be an error event reported either.
 server.on('error', common.mustNotCall());
 
-// Test the plaintext server socket timeout
+// Test the plaintext server socket timeout.
 {
   let client;
   const server = http2.createServer();
@@ -48,7 +48,7 @@ server.on('error', common.mustNotCall());
   }));
 }
 
-// Test the secure server socket timeout
+// Test the secure server socket timeout.
 {
   let client;
   const server = http2.createSecureServer(options);

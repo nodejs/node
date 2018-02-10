@@ -29,11 +29,7 @@ const crypto = require('crypto');
 
 crypto.DEFAULT_ENCODING = 'buffer';
 
-
-/*
- * Input data
- */
-
+// Input data.
 const ODD_LENGTH_PLAIN = 'Hello node world!';
 const EVEN_LENGTH_PLAIN = 'Hello node world!AbC09876dDeFgHi';
 
@@ -42,10 +38,7 @@ const IV_PLAIN = 'blahFizz2011Buzz';
 
 const CIPHER_NAME = 'aes-128-cbc';
 
-
-/*
- * Expected result data
- */
+// Expected result data.
 
 // echo -n 'Hello node world!' | \
 // openssl enc -aes-128-cbc -e -K 5333632e722e652e742e4b2e652e5921 \
@@ -67,10 +60,7 @@ const EVEN_LENGTH_ENCRYPTED_NOPAD =
     '7f57859550d4d2fdb9806da2a750461ab46e71b3d78ebe2d9684dfc87f7575b9';
 
 
-/*
- * Helper wrappers
- */
-
+// Helper wrappers.
 function enc(plain, pad) {
   const encrypt = crypto.createCipheriv(CIPHER_NAME, KEY_PLAIN, IV_PLAIN);
   encrypt.setAutoPadding(pad);
@@ -87,16 +77,12 @@ function dec(encd, pad) {
   return plain;
 }
 
-
-/*
- * Test encryption
- */
-
+// Test encryption
 assert.strictEqual(enc(ODD_LENGTH_PLAIN, true), ODD_LENGTH_ENCRYPTED);
 assert.strictEqual(enc(EVEN_LENGTH_PLAIN, true), EVEN_LENGTH_ENCRYPTED);
 
 assert.throws(function() {
-  // input must have block length %
+  // Input must have block length %.
   enc(ODD_LENGTH_PLAIN, false);
 }, /data not multiple of block length/);
 
@@ -104,24 +90,20 @@ assert.strictEqual(
   enc(EVEN_LENGTH_PLAIN, false), EVEN_LENGTH_ENCRYPTED_NOPAD
 );
 
-
-/*
- * Test decryption
- */
-
+// Test decryption.
 assert.strictEqual(dec(ODD_LENGTH_ENCRYPTED, true), ODD_LENGTH_PLAIN);
 assert.strictEqual(dec(EVEN_LENGTH_ENCRYPTED, true), EVEN_LENGTH_PLAIN);
 
-// returns including original padding
+// Returns including original padding.
 assert.strictEqual(dec(ODD_LENGTH_ENCRYPTED, false).length, 32);
 assert.strictEqual(dec(EVEN_LENGTH_ENCRYPTED, false).length, 48);
 
 assert.throws(function() {
-  // must have at least 1 byte of padding (PKCS):
+  // Must have at least 1 byte of padding (PKCS):
   assert.strictEqual(dec(EVEN_LENGTH_ENCRYPTED_NOPAD, true), EVEN_LENGTH_PLAIN);
 }, /bad decrypt/);
 
-// no-pad encrypted string should return the same:
+// No-pad encrypted string should return the same:
 assert.strictEqual(
   dec(EVEN_LENGTH_ENCRYPTED_NOPAD, false), EVEN_LENGTH_PLAIN
 );

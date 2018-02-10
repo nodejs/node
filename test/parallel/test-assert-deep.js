@@ -492,8 +492,8 @@ assertOnlyDeepEqual([1, , , 3], [1, , , 3, , , ]);
 
 // Handle NaN
 assert.throws(() => { assert.deepEqual(NaN, NaN); }, assert.AssertionError);
-{ assert.deepStrictEqual(NaN, NaN); }
-{ assert.deepStrictEqual({ a: NaN }, { a: NaN }); }
+assert.deepStrictEqual(NaN, NaN);
+assert.deepStrictEqual({ a: NaN }, { a: NaN });
 assert.deepStrictEqual([ 1, 2, NaN, 4 ], [ 1, 2, NaN, 4 ]);
 
 // Handle boxed primitives

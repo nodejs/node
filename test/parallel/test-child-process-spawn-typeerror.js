@@ -38,13 +38,13 @@ assert.throws(function() {
   child.on('error', common.mustNotCall());
 }, TypeError);
 
-// verify that valid argument combinations do not throw
+// Verify that valid argument combinations do not throw.
 spawn(cmd);
 spawn(cmd, []);
 spawn(cmd, {});
 spawn(cmd, [], {});
 
-// verify that invalid argument combinations throw
+// Verify that invalid argument combinations throw.
 assert.throws(function() {
   spawn();
 }, invalidFileMsg);
@@ -74,7 +74,7 @@ assert.throws(function() {
   spawn(cmd, [], 1);
 }, invalidOptionsMsg);
 
-// Argument types for combinatorics
+// Argument types for combinatorics.
 const a = [];
 const o = {};
 function c() {}
@@ -92,7 +92,7 @@ spawn(cmd, a);
 spawn(cmd, a, o);
 spawn(cmd, o);
 
-// Variants of undefined as explicit 'no argument' at a position
+// Variants of undefined as explicit 'no argument' at a position.
 spawn(cmd, u, o);
 spawn(cmd, a, u);
 
@@ -103,7 +103,7 @@ assert.throws(function() { spawn(cmd, s); }, TypeError);
 assert.throws(function() { spawn(cmd, a, s); }, TypeError);
 
 
-// verify that execFile has same argument parsing behavior as spawn
+// Verify that execFile has same argument parsing behavior as spawn.
 //
 // function execFile(file=f [,args=a] [, options=o] [, callback=c]) has valid
 // combinations:
@@ -124,7 +124,7 @@ execFile(cmd, o);
 execFile(cmd, o, c);
 execFile(cmd, c);
 
-// Variants of undefined as explicit 'no argument' at a position
+// Variants of undefined as explicit 'no argument' at a position.
 execFile(cmd, u, o, c);
 execFile(cmd, a, u, c);
 execFile(cmd, a, o, u);
@@ -146,7 +146,7 @@ execFile(cmd, o, n);
 execFile(cmd, c, u);
 execFile(cmd, c, n);
 
-// string is invalid in arg position (this may seem strange, but is
+// String is invalid in arg position (this may seem strange, but is
 // consistent across node API, cf. `net.createServer('not options', 'not
 // callback')`
 assert.throws(function() { execFile(cmd, s, o, c); }, TypeError);
@@ -160,10 +160,9 @@ assert.throws(function() { execFile(cmd, a, u, s); }, TypeError);
 assert.throws(function() { execFile(cmd, a, n, s); }, TypeError);
 assert.throws(function() { execFile(cmd, u, o, s); }, TypeError);
 assert.throws(function() { execFile(cmd, n, o, s); }, TypeError);
-execFile(cmd, c, s);
+execFile(cmd, c, s); // Should not throw.
 
-
-// verify that fork has same argument parsing behavior as spawn
+// Verify that fork has same argument parsing behavior as spawn.
 //
 // function fork(file=f [,args=a] [, options=o]) has valid combinations:
 //   (f)
