@@ -12,8 +12,7 @@ for (const method of ['dir', 'log', 'warn']) {
     });
 
     const c = new Console(out, out, true);
-
-    c[method]('abc');
+    c[method]('abc'); // Should not throw.
   }
 
   {
@@ -24,8 +23,7 @@ for (const method of ['dir', 'log', 'warn']) {
     });
 
     const c = new Console(out, out, true);
-
-    c[method]('abc');
+    c[method]('abc'); // Should not throw.
   }
 
   {
@@ -36,7 +34,6 @@ for (const method of ['dir', 'log', 'warn']) {
     });
 
     const c = new Console(out, out, true);
-
-    c[method]('abc');
+    c[method]('abc'); // Should not throw.
   }
 }

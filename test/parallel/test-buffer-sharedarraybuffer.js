@@ -22,8 +22,7 @@ arr2[1] = 6000;
 
 assert.deepStrictEqual(arr_buf, ar_buf);
 
-// Checks for calling Buffer.byteLength on a SharedArrayBuffer
-
+// Checks for calling Buffer.byteLength on a SharedArrayBuffer.
 assert.strictEqual(Buffer.byteLength(sab), sab.byteLength);
 
-Buffer.from({ buffer: sab });
+Buffer.from({ buffer: sab }); // Should not throw.

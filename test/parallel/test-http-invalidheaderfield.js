@@ -35,6 +35,7 @@ server.listen(0, function() {
     }
   );
 
+  // Should not throw.
   const options = {
     port: server.address().port,
     headers: { 'testing_123': 123 }

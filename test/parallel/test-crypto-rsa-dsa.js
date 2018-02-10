@@ -256,7 +256,6 @@ const input = 'I AM THE WALRUS';
   // against
   const sign = crypto.createSign('SHA1');
   sign.update(input);
-
   const signOptions = { key: dsaKeyPemEncrypted, passphrase: 'password' };
   const signature = sign.sign(signOptions, 'hex');
 

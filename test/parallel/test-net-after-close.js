@@ -34,6 +34,8 @@ server.listen(0, common.mustCall(function() {
   c.on('close', common.mustCall(function() {
     console.error('connection closed');
     assert.strictEqual(c._handle, null);
+    // Calling functions / accessing properties of a closed socket should not
+    // throw.
     c.setNoDelay();
     c.setKeepAlive();
     c.bufferSize;

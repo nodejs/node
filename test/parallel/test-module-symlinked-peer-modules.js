@@ -59,4 +59,4 @@ fs.writeFileSync(path.join(moduleB, 'package.json'),
 fs.writeFileSync(path.join(moduleB, 'index.js'),
                  'module.exports = 1;', 'utf8');
 
-require(path.join(app, 'index'));
+require(path.join(app, 'index')); // Should not throw.
