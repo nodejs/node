@@ -5,8 +5,6 @@ if (!common.hasCrypto)
   common.skip('missing crypto');
 const assert = require('assert');
 
-process.binding('http2');
-
 const binding = process.binding('http2');
 const http2 = require('http2');
 

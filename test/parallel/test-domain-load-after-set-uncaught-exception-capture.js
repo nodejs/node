@@ -13,5 +13,4 @@ common.expectsError(
 );
 
 process.setUncaughtExceptionCaptureCallback(null);
-
-require('domain');
+require('domain'); // Should not throw.

@@ -105,8 +105,8 @@ common.expectsError(
     type: TypeError
   });
 
+// Regular access should not throw.
 fs.accessSync(__filename);
-
 const mode = fs.F_OK | fs.R_OK | fs.W_OK;
 fs.accessSync(readWriteFile, mode);
 

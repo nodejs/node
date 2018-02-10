@@ -47,6 +47,7 @@ server.on('stream', common.mustCall(function(stream, headers) {
   common.expectsError(() => (socket.resume = undefined), errMsg);
   common.expectsError(() => (socket.write = undefined), errMsg);
 
+  // Resetting the socket listeners to their own value should not throw.
   socket.on = socket.on;
   socket.once = socket.once;
 

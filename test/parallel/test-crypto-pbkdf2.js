@@ -99,9 +99,7 @@ common.expectsError(
 
 // Should not get FATAL ERROR with empty password and salt
 // https://github.com/nodejs/node/issues/8571
-crypto.pbkdf2('', '', 1, 32, 'sha256', common.mustCall((e) => {
-  assert.ifError(e);
-}));
+crypto.pbkdf2('', '', 1, 32, 'sha256', common.mustCall(assert.ifError));
 
 common.expectsError(
   () => crypto.pbkdf2('password', 'salt', 8, 8, common.mustNotCall()),

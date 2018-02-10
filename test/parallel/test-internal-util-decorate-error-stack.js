@@ -12,12 +12,13 @@ const kDecoratedPrivateSymbolIndex = binding.decorated_private_symbol;
 
 const decorateErrorStack = internalUtil.decorateErrorStack;
 
+// Verify that decorateErrorStack does not throw with non-objects.
 decorateErrorStack();
 decorateErrorStack(null);
 decorateErrorStack(1);
 decorateErrorStack(true);
 
-// Verify that a stack property is not added to non-Errors
+// Verify that a stack property is not added to non-Errors.
 const obj = {};
 decorateErrorStack(obj);
 assert.strictEqual(obj.stack, undefined);
@@ -46,12 +47,12 @@ try {
 assert(typeof err, 'object');
 checkStack(err.stack);
 
-// Verify that the stack is only decorated once
+// Verify that the stack is only decorated once.
 decorateErrorStack(err);
 decorateErrorStack(err);
 checkStack(err.stack);
 
-// Verify that the stack is only decorated once for uncaught exceptions
+// Verify that the stack is only decorated once for uncaught exceptions.
 const args = [
   '-e',
   `require('${badSyntaxPath}')`
@@ -59,14 +60,14 @@ const args = [
 const result = spawnSync(process.argv[0], args, { encoding: 'utf8' });
 checkStack(result.stderr);
 
-// Verify that the stack is unchanged when there is no arrow message
+// Verify that the stack is unchanged when there is no arrow message.
 err = new Error('foo');
 let originalStack = err.stack;
 decorateErrorStack(err);
 assert.strictEqual(originalStack, err.stack);
 
 // Verify that the arrow message is added to the start of the stack when it
-// exists
+// exists.
 const arrowMessage = 'arrow_message';
 err = new Error('foo');
 originalStack = err.stack;

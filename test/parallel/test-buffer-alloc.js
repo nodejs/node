@@ -62,7 +62,7 @@ assert.throws(() => b.write('test', 'utf8', 0),
               /is no longer supported/);
 
 
-// try to create 0-length buffers
+// Try to create 0-length buffers. Should not throw.
 Buffer.from('');
 Buffer.from('', 'ascii');
 Buffer.from('', 'latin1');
@@ -107,7 +107,7 @@ b.copy(Buffer.alloc(1), 0, 2048, 2048);
   assert.strictEqual(writeTest.toString(), 'nodejs');
 }
 
-// Offset points to the end of the buffer
+// Offset points to the end of the buffer and does not throw.
 // (see https://github.com/nodejs/node/issues/8127).
 Buffer.alloc(1).write('', 1, 0);
 
@@ -992,10 +992,10 @@ common.expectsError(() => {
   assert.strictEqual(ubuf.buffer.byteLength, 10);
 }
 
-// Regression test
+// Regression test to verify that an empty ArrayBuffer does not throw.
 Buffer.from(new ArrayBuffer());
 
-// Test that ArrayBuffer from a different context is detected correctly
+// Test that ArrayBuffer from a different context is detected correctly.
 const arrayBuf = vm.runInNewContext('new ArrayBuffer()');
 Buffer.from(arrayBuf);
 Buffer.from({ buffer: arrayBuf });

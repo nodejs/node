@@ -579,11 +579,8 @@ process.on('exit', function() {
   assert.ok(getaddrinfoCallbackCalled);
 });
 
-
+// Should not throw.
 dns.lookup(addresses.INET6_HOST, 6, common.mustCall());
-
 dns.lookup(addresses.INET_HOST, {}, common.mustCall());
-
 dns.lookupService('0.0.0.0', '0', common.mustCall());
-
 dns.lookupService('0.0.0.0', 0, common.mustCall());

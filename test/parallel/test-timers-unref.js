@@ -30,6 +30,7 @@ let checks = 0;
 const LONG_TIME = 10 * 1000;
 const SHORT_TIME = 100;
 
+// Should not throw.
 setTimeout(() => {}, 10).unref().ref().unref();
 setInterval(() => {}, 10).unref().ref().unref();
 
