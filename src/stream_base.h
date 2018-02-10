@@ -116,13 +116,13 @@ class StreamListener {
 
   // This is called once a write has finished. `status` may be 0 or,
   // if negative, a libuv error code.
-  // By the fault, this is simply passed on to the previous listener
+  // By default, this is simply passed on to the previous listener
   // (and raises an assertion if there is none).
   virtual void OnStreamAfterWrite(WriteWrap* w, int status);
 
   // This is called once a shutdown has finished. `status` may be 0 or,
   // if negative, a libuv error code.
-  // By the fault, this is simply passed on to the previous listener
+  // By default, this is simply passed on to the previous listener
   // (and raises an assertion if there is none).
   virtual void OnStreamAfterShutdown(ShutdownWrap* w, int status);
 

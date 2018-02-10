@@ -168,7 +168,7 @@ int StreamBase::WriteBuffer(const FunctionCallbackInfo<Value>& args) {
   Local<Object> req_wrap_obj = args[0].As<Object>();
 
   uv_buf_t buf;
-  buf.base = const_cast<char*>(Buffer::Data(args[1]));
+  buf.base = Buffer::Data(args[1]);
   buf.len = Buffer::Length(args[1]);
 
   StreamWriteResult res = Write(&buf, 1, nullptr, req_wrap_obj);

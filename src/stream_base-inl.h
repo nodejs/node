@@ -37,8 +37,7 @@ inline StreamReq* StreamReq::FromObject(v8::Local<v8::Object> req_wrap_obj) {
 }
 
 inline void StreamReq::Dispose() {
-  object()->SetAlignedPointerInInternalField(
-      kStreamReqField, nullptr);
+  object()->SetAlignedPointerInInternalField(kStreamReqField, nullptr);
   delete this;
 }
 
@@ -152,10 +151,6 @@ inline void StreamBase::AfterRequest(Wrap* req_wrap, EmitEvent emit) {
 
   v8::HandleScope handle_scope(env->isolate());
   v8::Context::Scope context_scope(env->context());
-
-  // Remove the reference to the .handle property
-  v8::Local<v8::Object> req_wrap_obj = req_wrap->object();
-  req_wrap_obj->Delete(env->context(), env->handle_string()).FromJust();
 
   emit();
   req_wrap->Dispose();
