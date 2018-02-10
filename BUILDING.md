@@ -124,18 +124,20 @@ On macOS, you will need to install the `Xcode Command Line Tools` by running
 installed, you can find them under the menu `Xcode -> Open Developer Tool ->
 More Developer Tools...`. This step will install `clang`, `clang++`, and
 `make`.
-* After building, you may want to setup [firewall rules](tools/macosx-firewall.sh)
-to avoid popups asking to accept incoming network connections when running
-tests:
 
 If the path to your build directory contains a space, the build will likely
 fail.
 
+After building, you may want to setup [firewall rules](tools/macosx-firewall.sh)
+to avoid popups asking to accept incoming network connections when running tests.
+
+Running this script on macOS
+
 ```console
 $ sudo ./tools/macosx-firewall.sh
 ```
-Running this script will add rules for the executable `node` in the `out`
-directory and the symbolic `node` link in the project's root directory.
+will add the firewall rules for the executable `node` in the `out` directory and
+the symbolic `node` link in the project's root directory.
 
 On FreeBSD and OpenBSD, you may also need:
 * libexecinfo
