@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 /*
 *******************************************************************************
@@ -15,6 +15,9 @@
 #define __DTPTNGEN_IMPL_H__
 
 #include "unicode/udatpg.h"
+
+#include "unicode/strenum.h"
+#include "unicode/unistr.h"
 #include "uvector.h"
 
 // TODO(claireho): Split off Builder class.
@@ -89,10 +92,11 @@
 #define LOW_X             ((UChar)0x0078)
 #define LOW_Y             ((UChar)0x0079)
 #define LOW_Z             ((UChar)0x007A)
-#define DT_SHORT          -0x102
-#define DT_LONG           -0x103
-#define DT_NUMERIC         0x100
 #define DT_NARROW         -0x101
+#define DT_SHORTER        -0x102
+#define DT_SHORT          -0x103
+#define DT_LONG           -0x104
+#define DT_NUMERIC         0x100
 #define DT_DELTA           0x10
 
 U_NAMESPACE_BEGIN
@@ -152,6 +156,7 @@ public:
     int32_t type[UDATPG_FIELD_COUNT];
     SkeletonFields original;
     SkeletonFields baseOriginal;
+    UBool addedDefaultDayPeriod;
 
     PtnSkeleton();
     PtnSkeleton(const PtnSkeleton& other);

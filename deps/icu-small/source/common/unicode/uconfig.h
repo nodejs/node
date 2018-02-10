@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 /*
 **********************************************************************
@@ -6,7 +6,7 @@
 *   Corporation and others.  All Rights Reserved.
 **********************************************************************
 *   file name:  uconfig.h
-*   encoding:   US-ASCII
+*   encoding:   UTF-8
 *   tab size:   8 (not used)
 *   indentation:4
 *
@@ -76,7 +76,7 @@
 #endif
 
 /**
- * Determines wheter to enable auto cleanup of libraries.
+ * Determines whether to enable auto cleanup of libraries.
  * @internal
  */
 #ifndef UCLN_NO_AUTO_CLEANUP
@@ -262,7 +262,8 @@
 
 /**
  * \def UCONFIG_NO_CONVERSION
- * ICU will not completely build with this switch turned on.
+ * ICU will not completely build (compiling the tools fails) with this
+ * switch turned on.
  * This switch turns off all converters.
  *
  * You may want to use this together with U_CHARSET_IS_UTF8 defined to 1
@@ -320,7 +321,9 @@
  */
 #ifndef UCONFIG_NO_NORMALIZATION
 #   define UCONFIG_NO_NORMALIZATION 0
-#elif UCONFIG_NO_NORMALIZATION
+#endif
+
+#if UCONFIG_NO_NORMALIZATION
     /* common library */
     /* ICU 50 CJK dictionary BreakIterator uses normalization */
 #   define UCONFIG_NO_BREAK_ITERATION 1

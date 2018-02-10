@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 /*
 **********************************************************************
@@ -496,16 +496,6 @@ u_strCompare(const UChar *s1, int32_t length1,
  */
 U_STABLE int32_t U_EXPORT2
 u_strCompareIter(UCharIterator *iter1, UCharIterator *iter2, UBool codePointOrder);
-
-#ifndef U_COMPARE_CODE_POINT_ORDER
-/* see also unistr.h and unorm.h */
-/**
- * Option bit for u_strCaseCompare, u_strcasecmp, unorm_compare, etc:
- * Compare strings in code point order instead of code unit order.
- * @stable ICU 2.2
- */
-#define U_COMPARE_CODE_POINT_ORDER  0x8000
-#endif
 
 /**
  * Compare two strings case-insensitively using full case folding.

@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 /*
 *******************************************************************************
@@ -6,7 +6,7 @@
 *   Corporation and others.  All Rights Reserved.
 *******************************************************************************
 *   file name:  ucharstriebuilder.h
-*   encoding:   US-ASCII
+*   encoding:   UTF-8
 *   tab size:   8 (not used)
 *   indentation:4
 *
@@ -89,21 +89,21 @@ public:
     UCharsTrie *build(UStringTrieBuildOption buildOption, UErrorCode &errorCode);
 
     /**
-     * Builds a UCharsTrie for the add()ed data and UChar-serializes it.
+     * Builds a UCharsTrie for the add()ed data and char16_t-serializes it.
      * Once built, no further data can be add()ed until clear() is called.
      *
      * A UCharsTrie cannot be empty. At least one (string, value) pair
      * must have been add()ed.
      *
      * Multiple calls to buildUnicodeString() set the UnicodeStrings to the
-     * builder's same UChar array, without rebuilding.
+     * builder's same char16_t array, without rebuilding.
      * If buildUnicodeString() is called after build(), the trie will be
      * re-serialized into a new array.
      * If build() is called after buildUnicodeString(), the trie object will become
      * the owner of the previously returned array.
      * After clear() has been called, a new array will be used as well.
      * @param buildOption Build option, see UStringTrieBuildOption.
-     * @param result A UnicodeString which will be set to the UChar-serialized
+     * @param result A UnicodeString which will be set to the char16_t-serialized
      *               UCharsTrie for the add()ed data.
      * @param errorCode Standard ICU error code. Its input value must
      *                  pass the U_SUCCESS() test, or else the function returns
@@ -135,14 +135,14 @@ private:
     void buildUChars(UStringTrieBuildOption buildOption, UErrorCode &errorCode);
 
     virtual int32_t getElementStringLength(int32_t i) const;
-    virtual UChar getElementUnit(int32_t i, int32_t unitIndex) const;
+    virtual char16_t getElementUnit(int32_t i, int32_t unitIndex) const;
     virtual int32_t getElementValue(int32_t i) const;
 
     virtual int32_t getLimitOfLinearMatch(int32_t first, int32_t last, int32_t unitIndex) const;
 
     virtual int32_t countElementUnits(int32_t start, int32_t limit, int32_t unitIndex) const;
     virtual int32_t skipElementsBySomeUnits(int32_t i, int32_t unitIndex, int32_t count) const;
-    virtual int32_t indexOfElementWithNextUnit(int32_t i, int32_t unitIndex, UChar unit) const;
+    virtual int32_t indexOfElementWithNextUnit(int32_t i, int32_t unitIndex, char16_t unit) const;
 
     virtual UBool matchNodesCanHaveValues() const { return TRUE; }
 
@@ -152,11 +152,11 @@ private:
 
     class UCTLinearMatchNode : public LinearMatchNode {
     public:
-        UCTLinearMatchNode(const UChar *units, int32_t len, Node *nextNode);
+        UCTLinearMatchNode(const char16_t *units, int32_t len, Node *nextNode);
         virtual UBool operator==(const Node &other) const;
         virtual void write(StringTrieBuilder &builder);
     private:
-        const UChar *s;
+        const char16_t *s;
     };
 
     virtual Node *createLinearMatchNode(int32_t i, int32_t unitIndex, int32_t length,
@@ -164,7 +164,7 @@ private:
 
     UBool ensureCapacity(int32_t length);
     virtual int32_t write(int32_t unit);
-    int32_t write(const UChar *s, int32_t length);
+    int32_t write(const char16_t *s, int32_t length);
     virtual int32_t writeElementUnits(int32_t i, int32_t unitIndex, int32_t length);
     virtual int32_t writeValueAndFinal(int32_t i, UBool isFinal);
     virtual int32_t writeValueAndType(UBool hasValue, int32_t value, int32_t node);
@@ -175,9 +175,9 @@ private:
     int32_t elementsCapacity;
     int32_t elementsLength;
 
-    // UChar serialization of the trie.
+    // char16_t serialization of the trie.
     // Grows from the back: ucharsLength measures from the end of the buffer!
-    UChar *uchars;
+    char16_t *uchars;
     int32_t ucharsCapacity;
     int32_t ucharsLength;
 };

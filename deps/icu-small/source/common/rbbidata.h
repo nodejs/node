@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 /*
 *******************************************************************************
@@ -8,7 +8,7 @@
 *
 *******************************************************************************
 *   file name:  rbbidata.h
-*   encoding:   US-ASCII
+*   encoding:   UTF-8
 *   tab size:   8 (not used)
 *   indentation:4
 *
@@ -51,22 +51,23 @@ ubrk_swap(const UDataSwapper *ds,
 
 #include "unicode/uobject.h"
 #include "unicode/unistr.h"
+#include "unicode/uversion.h"
 #include "umutex.h"
-#include "utrie.h"
+#include "utrie2.h"
 
 U_NAMESPACE_BEGIN
+
+// The current RBBI data format version.
+static const uint8_t RBBI_DATA_FORMAT_VERSION[] = {4, 0, 0, 0};
 
 /*
  *   The following structs map exactly onto the raw data from ICU common data file.
  */
 struct RBBIDataHeader {
     uint32_t         fMagic;           /*  == 0xbla0                                               */
-    uint8_t          fFormatVersion[4]; /* Data Format.  Same as the value in struct UDataInfo      */
+    UVersionInfo     fFormatVersion;   /* Data Format.  Same as the value in struct UDataInfo      */
                                        /*   if there is one associated with this data.             */
                                        /*     (version originates in rbbi, is copied to UDataInfo) */
-                                       /*   For ICU 3.2 and earlier, this field was                */
-                                       /*       uint32_t  fVersion                                 */
-                                       /*   with a value of 1.                                     */
     uint32_t         fLength;          /*  Total length in bytes of this RBBI Data,                */
                                        /*      including all sections, not just the header.        */
     uint32_t         fCatCount;        /*  Number of character categories.                         */
@@ -152,6 +153,8 @@ public:
     RBBIDataWrapper(UDataMemory* udm, UErrorCode &status);
     ~RBBIDataWrapper();
 
+    static UBool          isDataVersionAcceptable(const UVersionInfo version);
+
     void                  init0();
     void                  init(const RBBIDataHeader *data, UErrorCode &status);
     RBBIDataWrapper      *addReference();
@@ -181,11 +184,11 @@ public:
     /* number of int32_t values in the rule status table.   Used to sanity check indexing */
     int32_t             fStatusMaxIdx;
 
-    UTrie               fTrie;
+    UTrie2             *fTrie;
 
 private:
     u_atomic_int32_t    fRefCount;
-    UDataMemory  *fUDataMem;
+    UDataMemory        *fUDataMem;
     UnicodeString       fRuleString;
     UBool               fDontFreeData;
 

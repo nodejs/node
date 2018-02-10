@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 /*
 ******************************************************************************
@@ -8,7 +8,7 @@
 *
 ******************************************************************************
 *   file name:  udata.cpp
-*   encoding:   US-ASCII
+*   encoding:   UTF-8
 *   tab size:   8 (not used)
 *   indentation:4
 *
@@ -110,8 +110,12 @@ static u_atomic_int32_t gHaveTriedToLoadCommonData = ATOMIC_INT32_T_INITIALIZER(
 static UHashtable  *gCommonDataCache = NULL;  /* Global hash table of opened ICU data files.  */
 static icu::UInitOnce gCommonDataCacheInitOnce = U_INITONCE_INITIALIZER;
 
+#if U_PLATFORM_HAS_WINUWP_API == 0
 static UDataFileAccess  gDataFileAccess = UDATA_DEFAULT_ACCESS;  // Access not synchronized.
                                                                  // Modifying is documented as thread-unsafe.
+#else
+static UDataFileAccess  gDataFileAccess = UDATA_NO_FILES;        // Windows UWP looks in one spot explicitly
+#endif
 
 static UBool U_CALLCONV
 udata_cleanup(void)
@@ -202,6 +206,8 @@ setCommonICUData(UDataMemory *pData,     /*  The new common data.  Belongs to ca
     return didUpdate;
 }
 
+#if U_PLATFORM_HAS_WINUWP_API == 0
+
 static UBool
 setCommonICUDataPointer(const void *pData, UBool /*warn*/, UErrorCode *pErrorCode) {
     UDataMemory tData;
@@ -210,6 +216,8 @@ setCommonICUDataPointer(const void *pData, UBool /*warn*/, UErrorCode *pErrorCod
     udata_checkCommonData(&tData, pErrorCode);
     return setCommonICUData(&tData, FALSE, pErrorCode);
 }
+
+#endif
 
 static const char *
 findBasename(const char *path) {
@@ -619,12 +627,14 @@ U_NAMESPACE_END
 
 /*----------------------------------------------------------------------*
  *                                                                      *
- *  Add a static reference to the common data  library                  *
+ *  Add a static reference to the common data library                   *
  *   Unless overridden by an explicit udata_setCommonData, this will be *
  *      our common data.                                                *
  *                                                                      *
  *----------------------------------------------------------------------*/
+#if U_PLATFORM_HAS_WINUWP_API == 0 // Windows UWP Platform does not support dll icu data at this time
 extern "C" const DataHeader U_DATA_API U_ICUDATA_ENTRY_POINT;
+#endif
 
 /*
  * This would be a good place for weak-linkage declarations of
@@ -672,6 +682,7 @@ openCommonData(const char *path,          /*  Path from OpenChoice?          */
             if(gCommonICUDataArray[commonDataIndex] != NULL) {
                 return gCommonICUDataArray[commonDataIndex];
             }
+#if U_PLATFORM_HAS_WINUWP_API == 0 // Windows UWP Platform does not support dll icu data at this time
             int32_t i;
             for(i = 0; i < commonDataIndex; ++i) {
                 if(gCommonICUDataArray[i]->pHeader == &U_ICUDATA_ENTRY_POINT) {
@@ -679,6 +690,7 @@ openCommonData(const char *path,          /*  Path from OpenChoice?          */
                     return NULL;
                 }
             }
+#endif
         }
 
         /* Add the linked-in data to the list. */
@@ -694,11 +706,13 @@ openCommonData(const char *path,          /*  Path from OpenChoice?          */
             setCommonICUDataPointer(uprv_getICUData_conversion(), FALSE, pErrorCode);
         }
         */
+#if U_PLATFORM_HAS_WINUWP_API == 0 // Windows UWP Platform does not support dll icu data at this time
         setCommonICUDataPointer(&U_ICUDATA_ENTRY_POINT, FALSE, pErrorCode);
         {
             Mutex lock;
             return gCommonICUDataArray[commonDataIndex];
         }
+#endif
     }
 
 
@@ -972,7 +986,7 @@ static UDataMemory *doLoadFromIndividualFiles(const char *pkgName,
     /* init path iterator for individual files */
     UDataPathIterator iter(dataPath, pkgName, path, tocEntryPathSuffix, FALSE, pErrorCode);
 
-    while((pathBuffer = iter.next(pErrorCode)))
+    while((pathBuffer = iter.next(pErrorCode)) != NULL)
     {
 #ifdef UDATA_DEBUG
         fprintf(stderr, "UDATA: trying individual file %s\n", pathBuffer);
@@ -1155,7 +1169,7 @@ doOpenChoice(const char *path, const char *type, const char *name,
         if(uprv_strchr(path,U_FILE_ALT_SEP_CHAR) != NULL) {
             altSepPath.append(path, *pErrorCode);
             char *p;
-            while((p=uprv_strchr(altSepPath.data(), U_FILE_ALT_SEP_CHAR))) {
+            while ((p = uprv_strchr(altSepPath.data(), U_FILE_ALT_SEP_CHAR)) != NULL) {
                 *p = U_FILE_SEP_CHAR;
             }
 #if defined (UDATA_DEBUG)
@@ -1245,9 +1259,14 @@ doOpenChoice(const char *path, const char *type, const char *name,
     fprintf(stderr, " tocEntryPath = %s\n", tocEntryName.data());
 #endif
 
+#if U_PLATFORM_HAS_WINUWP_API == 0 // Windows UWP Platform does not support dll icu data at this time
     if(path == NULL) {
         path = COMMON_DATA_NAME; /* "icudt26e" */
     }
+#else
+    // Windows UWP expects only a single data file.
+    path = COMMON_DATA_NAME; /* "icudt26e" */
+#endif
 
     /************************ Begin loop looking for ind. files ***************/
 #ifdef UDATA_DEBUG

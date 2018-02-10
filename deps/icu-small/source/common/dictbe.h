@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 /**
  *******************************************************************************
@@ -15,6 +15,7 @@
 #include "unicode/utext.h"
 
 #include "brkeng.h"
+#include "uvectr32.h"
 
 U_NAMESPACE_BEGIN
 
@@ -84,21 +85,18 @@ class DictionaryBreakEngine : public LanguageBreakEngine {
    *
    * @param text A UText representing the text. The iterator is left at
    * the end of the run of characters which the engine is capable of handling
-   * that starts from the first (or last) character in the range.
+   * that starts from the first character in the range.
    * @param startPos The start of the run within the supplied text.
    * @param endPos The end of the run within the supplied text.
-   * @param reverse Whether the caller is looking for breaks in a reverse
-   * direction.
    * @param breakType The type of break desired, or -1.
-   * @param foundBreaks An allocated C array of the breaks found, if any
+   * @param foundBreaks vector of int32_t to receive the break positions
    * @return The number of breaks found.
    */
   virtual int32_t findBreaks( UText *text,
                               int32_t startPos,
                               int32_t endPos,
-                              UBool reverse,
                               int32_t breakType,
-                              UStack &foundBreaks ) const;
+                              UVector32 &foundBreaks ) const;
 
  protected:
 
@@ -128,7 +126,7 @@ class DictionaryBreakEngine : public LanguageBreakEngine {
   virtual int32_t divideUpDictionaryRange( UText *text,
                                            int32_t rangeStart,
                                            int32_t rangeEnd,
-                                           UStack &foundBreaks ) const = 0;
+                                           UVector32 &foundBreaks ) const = 0;
 
 };
 
@@ -185,7 +183,7 @@ class ThaiBreakEngine : public DictionaryBreakEngine {
   virtual int32_t divideUpDictionaryRange( UText *text,
                                            int32_t rangeStart,
                                            int32_t rangeEnd,
-                                           UStack &foundBreaks ) const;
+                                           UVector32 &foundBreaks ) const;
 
 };
 
@@ -241,7 +239,7 @@ class LaoBreakEngine : public DictionaryBreakEngine {
   virtual int32_t divideUpDictionaryRange( UText *text,
                                            int32_t rangeStart,
                                            int32_t rangeEnd,
-                                           UStack &foundBreaks ) const;
+                                           UVector32 &foundBreaks ) const;
 
 };
 
@@ -297,7 +295,7 @@ class BurmeseBreakEngine : public DictionaryBreakEngine {
   virtual int32_t divideUpDictionaryRange( UText *text,
                                            int32_t rangeStart,
                                            int32_t rangeEnd,
-                                           UStack &foundBreaks ) const;
+                                           UVector32 &foundBreaks ) const;
 
 };
 
@@ -353,7 +351,7 @@ class KhmerBreakEngine : public DictionaryBreakEngine {
   virtual int32_t divideUpDictionaryRange( UText *text,
                                            int32_t rangeStart,
                                            int32_t rangeEnd,
-                                           UStack &foundBreaks ) const;
+                                           UVector32 &foundBreaks ) const;
 
 };
 
@@ -417,7 +415,7 @@ class CjkBreakEngine : public DictionaryBreakEngine {
   virtual int32_t divideUpDictionaryRange( UText *text,
           int32_t rangeStart,
           int32_t rangeEnd,
-          UStack &foundBreaks ) const;
+          UVector32 &foundBreaks ) const;
 
 };
 

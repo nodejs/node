@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 /*
 ******************************************************************************
@@ -230,6 +230,25 @@ uhash_init(UHashtable *hash,
            UKeyComparator *keyComp,
            UValueComparator *valueComp,
            UErrorCode *status);
+
+/**
+ * Initialize an existing UHashtable.
+ * @param keyHash A pointer to the key hashing function.  Must not be
+ * NULL.
+ * @param keyComp A pointer to the function that compares keys.  Must
+ * not be NULL.
+ * @param size The initial capacity of this hash table.
+ * @param status A pointer to an UErrorCode to receive any errors.
+ * @return A pointer to a UHashtable, or 0 if an error occurred.
+ * @see uhash_openSize
+ */
+U_CAPI UHashtable* U_EXPORT2
+uhash_initSize(UHashtable *hash,
+               UHashFunction *keyHash,
+               UKeyComparator *keyComp,
+               UValueComparator *valueComp,
+               int32_t size,
+               UErrorCode *status);
 
 /**
  * Close a UHashtable, releasing the memory used.

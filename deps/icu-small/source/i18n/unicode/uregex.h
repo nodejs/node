@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 /*
 **********************************************************************
@@ -6,7 +6,7 @@
 *   Corporation and others.  All Rights Reserved.
 **********************************************************************
 *   file name:  uregex.h
-*   encoding:   US-ASCII
+*   encoding:   UTF-8
 *   indentation:4
 *
 *   created on: 2004mar09

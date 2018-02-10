@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 /*
  * Copyright (C) 2015, International Business Machines
@@ -177,7 +177,7 @@ UnicodeString &DigitFormatter::format(
     int32_t digitsLeftOfDecimal = interval.getMostSignificantExclusive();
     int32_t lastDigitPos = interval.getLeastSignificantInclusive();
     int32_t intBegin = appendTo.length();
-    int32_t fracBegin;
+    int32_t fracBegin = 0; /* initialize to avoid compiler warning */
 
     // Emit "0" instead of empty string.
     if (digitsLeftOfDecimal == 0 && lastDigitPos == 0) {

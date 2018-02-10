@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 /*
  *******************************************************************************
@@ -1189,13 +1189,22 @@ SimpleTimeZone::initTransitionRules(UErrorCode& status) {
         // Create a TimeZoneRule for initial time
         if (firstStdStart < firstDstStart) {
             initialRule = new InitialTimeZoneRule(tzid+UnicodeString(DST_STR), getRawOffset(), dstRule->getDSTSavings());
+            if (initialRule == NULL) {
+                status = U_MEMORY_ALLOCATION_ERROR;
+                deleteTransitionRules();
+                return;
+            }
             firstTransition = new TimeZoneTransition(firstStdStart, *initialRule, *stdRule);
         } else {
             initialRule = new InitialTimeZoneRule(tzid+UnicodeString(STD_STR), getRawOffset(), 0);
+            if (initialRule == NULL) {
+                status = U_MEMORY_ALLOCATION_ERROR;
+                deleteTransitionRules();
+                return;
+            }
             firstTransition = new TimeZoneTransition(firstDstStart, *initialRule, *dstRule);
         }
-        // Check for null pointers.
-        if (initialRule == NULL || firstTransition == NULL) {
+        if (firstTransition == NULL) {
             status = U_MEMORY_ALLOCATION_ERROR;
             deleteTransitionRules();
             return;

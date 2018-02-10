@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 /*
 *******************************************************************************
@@ -8,7 +8,7 @@
 *
 *******************************************************************************
 *   file name:  swapimpl.cpp
-*   encoding:   US-ASCII
+*   encoding:   UTF-8
 *   tab size:   8 (not used)
 *   indentation:4
 *
@@ -56,6 +56,7 @@
 #include "sprpimpl.h"
 #include "propname.h"
 #include "rbbidata.h"
+#include "utrie.h"
 #include "utrie2.h"
 #include "dictionarydata.h"
 

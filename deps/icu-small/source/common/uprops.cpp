@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 /*
 *******************************************************************************
@@ -8,7 +8,7 @@
 *
 *******************************************************************************
 *   file name:  uprops.cpp
-*   encoding:   US-ASCII
+*   encoding:   UTF-8
 *   tab size:   8 (not used)
 *   indentation:4
 *
@@ -128,9 +128,8 @@ static UBool changesWhenCasefolded(const BinaryProperty &/*prop*/, UChar32 c, UP
     }
     if(c>=0) {
         /* single code point */
-        const UCaseProps *csp=ucase_getSingleton();
         const UChar *resultString;
-        return (UBool)(ucase_toFullFolding(csp, c, &resultString, U_FOLD_CASE_DEFAULT)>=0);
+        return (UBool)(ucase_toFullFolding(c, &resultString, U_FOLD_CASE_DEFAULT)>=0);
     } else {
         /* guess some large but stack-friendly capacity */
         UChar dest[2*UCASE_MAX_STRING_LENGTH];
@@ -207,6 +206,11 @@ static UBool isPOSIX_xdigit(const BinaryProperty &/*prop*/, UChar32 c, UProperty
     return u_isxdigit(c);
 }
 
+static UBool isRegionalIndicator(const BinaryProperty &/*prop*/, UChar32 c, UProperty /*which*/) {
+    // Property starts are a subset of lb=RI etc.
+    return 0x1F1E6<=c && c<=0x1F1FF;
+}
+
 static const BinaryProperty binProps[UCHAR_BINARY_LIMIT]={
     /*
      * column and mask values for binary properties from u_getUnicodeProperties().
@@ -277,6 +281,9 @@ static const BinaryProperty binProps[UCHAR_BINARY_LIMIT]={
     { 2,                U_MASK(UPROPS_2_EMOJI_PRESENTATION), defaultContains },
     { 2,                U_MASK(UPROPS_2_EMOJI_MODIFIER), defaultContains },
     { 2,                U_MASK(UPROPS_2_EMOJI_MODIFIER_BASE), defaultContains },
+    { 2,                U_MASK(UPROPS_2_EMOJI_COMPONENT), defaultContains },
+    { 2,                0, isRegionalIndicator },
+    { 1,                U_MASK(UPROPS_PREPENDED_CONCATENATION_MARK), defaultContains },
 };
 
 U_CAPI UBool U_EXPORT2
@@ -576,14 +583,13 @@ u_getFC_NFKC_Closure(UChar32 c, UChar *dest, int32_t destCapacity, UErrorCode *p
     // case folding and NFKC.)
     // For the derivation, see Unicode's DerivedNormalizationProps.txt.
     const Normalizer2 *nfkc=Normalizer2::getNFKCInstance(*pErrorCode);
-    const UCaseProps *csp=ucase_getSingleton();
     if(U_FAILURE(*pErrorCode)) {
         return 0;
     }
     // first: b = NFKC(Fold(a))
     UnicodeString folded1String;
     const UChar *folded1;
-    int32_t folded1Length=ucase_toFullFolding(csp, c, &folded1, U_FOLD_CASE_DEFAULT);
+    int32_t folded1Length=ucase_toFullFolding(c, &folded1, U_FOLD_CASE_DEFAULT);
     if(folded1Length<0) {
         const Normalizer2Impl *nfkcImpl=Normalizer2Factory::getImpl(nfkc);
         if(nfkcImpl->getCompQuickCheck(nfkcImpl->getNorm16(c))!=UNORM_NO) {

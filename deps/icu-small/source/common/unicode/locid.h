@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 /*
 ******************************************************************************
@@ -33,10 +33,8 @@
 
 #include "unicode/utypes.h"
 #include "unicode/uobject.h"
-#include "unicode/unistr.h"
 #include "unicode/putil.h"
 #include "unicode/uloc.h"
-#include "unicode/strenum.h"
 
 /**
  * \file
@@ -47,6 +45,9 @@ U_NAMESPACE_BEGIN
 
 // Forward Declarations
 void U_CALLCONV locale_available_init(); /**< @internal */
+
+class StringEnumeration;
+class UnicodeString;
 
 /**
  * A <code>Locale</code> object represents a specific geographical, political,
@@ -87,7 +88,7 @@ void U_CALLCONV locale_available_init(); /**< @internal */
  * <P>
  * The third constructor requires a third argument--the <STRONG>Variant.</STRONG>
  * The Variant codes are vendor and browser-specific.
- * For example, use REVISED for a langauge's revised script orthography, and POSIX for POSIX.
+ * For example, use REVISED for a language's revised script orthography, and POSIX for POSIX.
  * Where there are two variants, separate them with an underscore, and
  * put the most important one first. For
  * example, a Traditional Spanish collation might be referenced, with

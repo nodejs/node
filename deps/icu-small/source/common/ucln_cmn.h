@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 /*
 ******************************************************************************
@@ -6,7 +6,7 @@
 *                Corporation and others. All Rights Reserved.
 ******************************************************************************
 *   file name:  ucln_cmn.h
-*   encoding:   US-ASCII
+*   encoding:   UTF-8
 *   tab size:   8 (not used)
 *   indentation:4
 *
@@ -35,7 +35,7 @@ typedef enum ECleanupCommonType {
     UCLN_COMMON_START = -1,
     UCLN_COMMON_USPREP,
     UCLN_COMMON_BREAKITERATOR,
-    UCLN_COMMON_BREAKITERATOR_DICT,
+    UCLN_COMMON_RBBI,
     UCLN_COMMON_SERVICE,
     UCLN_COMMON_LOCALE_KEY_TYPE,
     UCLN_COMMON_LOCALE,

@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 /**
  *******************************************************************************
@@ -46,9 +46,9 @@ int32_t
 DictionaryBreakEngine::findBreaks( UText *text,
                                  int32_t startPos,
                                  int32_t endPos,
-                                 UBool reverse,
                                  int32_t breakType,
-                                 UStack &foundBreaks ) const {
+                                 UVector32 &foundBreaks ) const {
+    (void)startPos;            // TODO: remove this param?
     int32_t result = 0;
 
     // Find the span of characters included in the set.
@@ -60,34 +60,12 @@ DictionaryBreakEngine::findBreaks( UText *text,
     int32_t rangeStart;
     int32_t rangeEnd;
     UChar32 c = utext_current32(text);
-    if (reverse) {
-        UBool   isDict = fSet.contains(c);
-        while((current = (int32_t)utext_getNativeIndex(text)) > startPos && isDict) {
-            c = utext_previous32(text);
-            isDict = fSet.contains(c);
-        }
-        if (current < startPos) {
-            rangeStart = startPos;
-        } else {
-            rangeStart = current;
-            if (!isDict) {
-                utext_next32(text);
-                rangeStart = (int32_t)utext_getNativeIndex(text);
-            }
-        }
-        // rangeEnd = start + 1;
-        utext_setNativeIndex(text, start);
-        utext_next32(text);
-        rangeEnd = (int32_t)utext_getNativeIndex(text);
+    while((current = (int32_t)utext_getNativeIndex(text)) < endPos && fSet.contains(c)) {
+        utext_next32(text);         // TODO:  recast loop for postincrement
+        c = utext_current32(text);
     }
-    else {
-        while((current = (int32_t)utext_getNativeIndex(text)) < endPos && fSet.contains(c)) {
-            utext_next32(text);         // TODO:  recast loop for postincrement
-            c = utext_current32(text);
-        }
-        rangeStart = start;
-        rangeEnd = current;
-    }
+    rangeStart = start;
+    rangeEnd = current;
     if (breakType >= 0 && breakType < 32 && (((uint32_t)1 << breakType) & fTypes)) {
         result = divideUpDictionaryRange(text, rangeStart, rangeEnd, foundBreaks);
         utext_setNativeIndex(text, current);
@@ -248,7 +226,7 @@ int32_t
 ThaiBreakEngine::divideUpDictionaryRange( UText *text,
                                                 int32_t rangeStart,
                                                 int32_t rangeEnd,
-                                                UStack &foundBreaks ) const {
+                                                UVector32 &foundBreaks ) const {
     utext_setNativeIndex(text, rangeStart);
     utext_moveIndex32(text, THAI_MIN_WORD_SPAN);
     if (utext_getNativeIndex(text) >= rangeEnd) {
@@ -487,7 +465,7 @@ int32_t
 LaoBreakEngine::divideUpDictionaryRange( UText *text,
                                                 int32_t rangeStart,
                                                 int32_t rangeEnd,
-                                                UStack &foundBreaks ) const {
+                                                UVector32 &foundBreaks ) const {
     if ((rangeEnd - rangeStart) < LAO_MIN_WORD_SPAN) {
         return 0;       // Not enough characters for two words
     }
@@ -680,7 +658,7 @@ int32_t
 BurmeseBreakEngine::divideUpDictionaryRange( UText *text,
                                                 int32_t rangeStart,
                                                 int32_t rangeEnd,
-                                                UStack &foundBreaks ) const {
+                                                UVector32 &foundBreaks ) const {
     if ((rangeEnd - rangeStart) < BURMESE_MIN_WORD_SPAN) {
         return 0;       // Not enough characters for two words
     }
@@ -885,7 +863,7 @@ int32_t
 KhmerBreakEngine::divideUpDictionaryRange( UText *text,
                                                 int32_t rangeStart,
                                                 int32_t rangeEnd,
-                                                UStack &foundBreaks ) const {
+                                                UVector32 &foundBreaks ) const {
     if ((rangeEnd - rangeStart) < KHMER_MIN_WORD_SPAN) {
         return 0;       // Not enough characters for two words
     }
@@ -1110,9 +1088,9 @@ static inline uint32_t getKatakanaCost(int32_t wordLength){
     return (wordLength > kMaxKatakanaLength) ? 8192 : katakanaCost[wordLength];
 }
 
-static inline bool isKatakana(uint16_t value) {
-    return (value >= 0x30A1u && value <= 0x30FEu && value != 0x30FBu) ||
-            (value >= 0xFF66u && value <= 0xFF9fu);
+static inline bool isKatakana(UChar32 value) {
+    return (value >= 0x30A1 && value <= 0x30FE && value != 0x30FB) ||
+            (value >= 0xFF66 && value <= 0xFF9f);
 }
 
 
@@ -1128,14 +1106,14 @@ static inline int32_t utext_i32_flag(int32_t bitIndex) {
  * @param text A UText representing the text
  * @param rangeStart The start of the range of dictionary characters
  * @param rangeEnd The end of the range of dictionary characters
- * @param foundBreaks Output of C array of int32_t break positions, or 0
+ * @param foundBreaks vector<int32> to receive the break positions
  * @return The number of breaks found
  */
 int32_t
 CjkBreakEngine::divideUpDictionaryRange( UText *inText,
         int32_t rangeStart,
         int32_t rangeEnd,
-        UStack &foundBreaks ) const {
+        UVector32 &foundBreaks ) const {
     if (rangeStart >= rangeEnd) {
         return 0;
     }
@@ -1385,13 +1363,27 @@ CjkBreakEngine::divideUpDictionaryRange( UText *inText,
     // Now that we're done, convert positions in t_boundary[] (indices in
     // the normalized input string) back to indices in the original input UText
     // while reversing t_boundary and pushing values to foundBreaks.
+    int32_t prevCPPos = -1;
+    int32_t prevUTextPos = -1;
     for (int32_t i = numBreaks-1; i >= 0; i--) {
         int32_t cpPos = t_boundary.elementAti(i);
+        U_ASSERT(cpPos > prevCPPos);
         int32_t utextPos =  inputMap.isValid() ? inputMap->elementAti(cpPos) : cpPos + rangeStart;
-        // Boundaries are added to foundBreaks output in ascending order.
-        U_ASSERT(foundBreaks.size() == 0 ||foundBreaks.peeki() < utextPos);
-        foundBreaks.push(utextPos, status);
+        U_ASSERT(utextPos >= prevUTextPos);
+        if (utextPos > prevUTextPos) {
+            // Boundaries are added to foundBreaks output in ascending order.
+            U_ASSERT(foundBreaks.size() == 0 || foundBreaks.peeki() < utextPos);
+            foundBreaks.push(utextPos, status);
+        } else {
+            // Normalization expanded the input text, the dictionary found a boundary
+            // within the expansion, giving two boundaries with the same index in the
+            // original text. Ignore the second. See ticket #12918.
+            --numBreaks;
+        }
+        prevCPPos = cpPos;
+        prevUTextPos = utextPos;
     }
+    (void)prevCPPos; // suppress compiler warnings about unused variable
 
     // inString goes out of scope
     // inputMap goes out of scope

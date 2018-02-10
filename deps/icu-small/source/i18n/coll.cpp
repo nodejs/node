@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 /*
  ******************************************************************************
@@ -63,8 +63,10 @@
 
 static icu::Locale* availableLocaleList = NULL;
 static int32_t  availableLocaleListCount;
+#if !UCONFIG_NO_SERVICE
 static icu::ICULocaleService* gService = NULL;
 static icu::UInitOnce gServiceInitOnce = U_INITONCE_INITIALIZER;
+#endif
 static icu::UInitOnce gAvailableLocaleListInitOnce;
 
 /**

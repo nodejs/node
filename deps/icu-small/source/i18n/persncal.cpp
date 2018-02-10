@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 /*
  ******************************************************************************
@@ -213,7 +213,7 @@ void PersianCalendar::handleComputeFields(int32_t julianDay, UErrorCode &/*statu
     int32_t year, month, dayOfMonth, dayOfYear;
 
     int32_t daysSinceEpoch = julianDay - PERSIAN_EPOCH;
-    year = 1 + ClockMath::floorDivide(33 * daysSinceEpoch + 3, 12053);
+    year = 1 + (int32_t)ClockMath::floorDivide(33 * (int64_t)daysSinceEpoch + 3, (int64_t)12053);
 
     int32_t farvardin1 = 365 * (year - 1) + ClockMath::floorDivide(8 * year + 21, 33);
     dayOfYear = (daysSinceEpoch - farvardin1); // 0-based

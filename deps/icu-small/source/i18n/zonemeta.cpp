@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 /*
 *******************************************************************************
@@ -17,7 +17,7 @@
 #include "unicode/ustring.h"
 #include "unicode/putil.h"
 #include "unicode/simpletz.h"
-
+#include "unicode/strenum.h"
 #include "umutex.h"
 #include "uvector.h"
 #include "cmemory.h"
@@ -28,6 +28,7 @@
 #include "uresimp.h"
 #include "uhash.h"
 #include "olsontz.h"
+#include "uinvchar.h"
 
 static UMutex gZoneMetaLock = U_MUTEX_INITIALIZER;
 
@@ -254,6 +255,12 @@ ZoneMeta::getCanonicalCLDRID(const UnicodeString &tzid, UErrorCode& status) {
     UChar utzid[ZID_KEY_MAX + 1];
     tzid.extract(utzid, ZID_KEY_MAX + 1, tmpStatus);
     U_ASSERT(tmpStatus == U_ZERO_ERROR);    // we checked the length of tzid already
+
+    if (!uprv_isInvariantUString(utzid, -1)) {
+        // All of known tz IDs are only containing ASCII invariant characters.
+        status = U_ILLEGAL_ARGUMENT_ERROR;
+        return NULL;
+    }
 
     // Check if it was already cached
     umtx_lock(&gZoneMetaLock);
@@ -683,7 +690,6 @@ ZoneMeta::createMetazoneMappings(const UnicodeString &tzid) {
                     mzMappings = new UVector(deleteOlsonToMetaMappingEntry, NULL, status);
                     if (U_FAILURE(status)) {
                         delete mzMappings;
-                        deleteOlsonToMetaMappingEntry(entry);
                         uprv_free(entry);
                         break;
                     }
@@ -785,7 +791,7 @@ static void U_CALLCONV initAvailableMetaZoneIDs () {
             break;
         }
         const char *mzID = ures_getKey(&res);
-        int32_t len = uprv_strlen(mzID);
+        int32_t len = static_cast<int32_t>(uprv_strlen(mzID));
         UChar *uMzID = (UChar*)uprv_malloc(sizeof(UChar) * (len + 1));
         if (uMzID == NULL) {
             status = U_MEMORY_ALLOCATION_ERROR;

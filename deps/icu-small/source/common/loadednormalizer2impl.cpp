@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 /*
 *******************************************************************************
@@ -62,7 +62,7 @@ LoadedNormalizer2Impl::isAcceptable(void * /*context*/,
         pInfo->dataFormat[1]==0x72 &&
         pInfo->dataFormat[2]==0x6d &&
         pInfo->dataFormat[3]==0x32 &&
-        pInfo->formatVersion[0]==2
+        pInfo->formatVersion[0]==3
     ) {
         // Normalizer2Impl *me=(Normalizer2Impl *)context;
         // uprv_memcpy(me->dataVersion, pInfo->dataVersion, 4);
@@ -84,7 +84,7 @@ LoadedNormalizer2Impl::load(const char *packageName, const char *name, UErrorCod
     const uint8_t *inBytes=(const uint8_t *)udata_getMemory(memory);
     const int32_t *inIndexes=(const int32_t *)inBytes;
     int32_t indexesLength=inIndexes[IX_NORM_TRIE_OFFSET]/4;
-    if(indexesLength<=IX_MIN_MAYBE_YES) {
+    if(indexesLength<=IX_MIN_LCCC_CP) {
         errorCode=U_INVALID_FORMAT_ERROR;  // Not enough indexes.
         return;
     }
@@ -232,6 +232,7 @@ Normalizer2::getInstance(const char *packageName,
             }
         }
         if(allModes==NULL) {
+            ucln_common_registerCleanup(UCLN_COMMON_LOADED_NORMALIZER2, uprv_loaded_normalizer2_cleanup);
             LocalPointer<Norm2AllModes> localAllModes(
                 Norm2AllModes::createInstance(packageName, name, errorCode));
             if(U_SUCCESS(errorCode)) {

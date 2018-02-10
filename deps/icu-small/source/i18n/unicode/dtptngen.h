@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 /*
 *******************************************************************************
@@ -18,6 +18,7 @@
 #include "unicode/locid.h"
 #include "unicode/udat.h"
 #include "unicode/udatpg.h"
+#include "unicode/unistr.h"
 
 U_NAMESPACE_BEGIN
 
@@ -27,6 +28,7 @@ U_NAMESPACE_BEGIN
  */
 
 
+class CharString;
 class Hashtable;
 class FormatParser;
 class DateTimeMatcher;
@@ -205,11 +207,11 @@ public:
      * @return conflicting status.  The value could be UDATPG_NO_CONFLICT,
      *                             UDATPG_BASE_CONFLICT or UDATPG_CONFLICT.
      * @stable ICU 3.8
-	 * <p>
-	 * <h4>Sample code</h4>
-	 * \snippet samples/dtptngsample/dtptngsample.cpp getBestPatternExample1
-	 * \snippet samples/dtptngsample/dtptngsample.cpp addPatternExample
-	 * <p>
+     * <p>
+     * <h4>Sample code</h4>
+     * \snippet samples/dtptngsample/dtptngsample.cpp getBestPatternExample1
+     * \snippet samples/dtptngsample/dtptngsample.cpp addPatternExample
+     * <p>
      */
     UDateTimePatternConflict addPattern(const UnicodeString& pattern,
                                         UBool override,
@@ -311,11 +313,11 @@ public:
      * @return bestPattern
      *            The best pattern found from the given skeleton.
      * @stable ICU 3.8
-	 * <p>
-	 * <h4>Sample code</h4>
-	 * \snippet samples/dtptngsample/dtptngsample.cpp getBestPatternExample1
-	 * \snippet samples/dtptngsample/dtptngsample.cpp getBestPatternExample
-	 * <p>
+     * <p>
+     * <h4>Sample code</h4>
+     * \snippet samples/dtptngsample/dtptngsample.cpp getBestPatternExample1
+     * \snippet samples/dtptngsample/dtptngsample.cpp getBestPatternExample
+     * <p>
      */
      UnicodeString getBestPattern(const UnicodeString& skeleton, UErrorCode& status);
 
@@ -359,11 +361,11 @@ public:
      *               which must not indicate a failure before the function call.
      * @return pattern adjusted to match the skeleton fields widths and subtypes.
      * @stable ICU 3.8
-	 * <p>
-	 * <h4>Sample code</h4>
-	 * \snippet samples/dtptngsample/dtptngsample.cpp getBestPatternExample1
-	 * \snippet samples/dtptngsample/dtptngsample.cpp replaceFieldTypesExample
-	 * <p>
+     * <p>
+     * <h4>Sample code</h4>
+     * \snippet samples/dtptngsample/dtptngsample.cpp getBestPatternExample1
+     * \snippet samples/dtptngsample/dtptngsample.cpp replaceFieldTypesExample
+     * <p>
      */
      UnicodeString replaceFieldTypes(const UnicodeString& pattern,
                                      const UnicodeString& skeleton,
@@ -517,7 +519,7 @@ private:
     DateTimeMatcher *skipMatcher;
     Hashtable *fAvailableFormatKeyHash;
     UnicodeString emptyString;
-    UChar fDefaultHourFormatChar;
+    char16_t fDefaultHourFormatChar;
 
     int32_t fAllowedHourFormats[7];  // Actually an array of AllowedHourFormat enum type, ending with UNKNOWN.
 
@@ -525,9 +527,8 @@ private:
     enum {
         kDTPGNoFlags = 0,
         kDTPGFixFractionalSeconds = 1,
-        kDTPGSkeletonUsesCapJ = 2,
-        kDTPGSkeletonUsesLowB = 3,
-        kDTPGSkeletonUsesCapB = 4
+        kDTPGSkeletonUsesCapJ = 2
+        // with #13183, no longer need flags for b, B
     };
 
     void initData(const Locale &locale, UErrorCode &status);
@@ -545,6 +546,7 @@ private:
     UDateTimePatternField getAppendNameNumber(const char* field) const;
     UnicodeString& getMutableAppendItemName(UDateTimePatternField field);
     void getAppendName(UDateTimePatternField field, UnicodeString& value);
+    UnicodeString mapSkeletonMetacharacters(const UnicodeString& patternForm, int32_t* flags, UErrorCode& status);
     int32_t getCanonicalIndex(const UnicodeString& field);
     const UnicodeString* getBestRaw(DateTimeMatcher& source, int32_t includeMask, DistanceInfo* missingFields, const PtnSkeleton** specifiedSkeletonPtr = 0);
     UnicodeString adjustFieldTypes(const UnicodeString& pattern, const PtnSkeleton* specifiedSkeleton, int32_t flags, UDateTimePatternMatchOptions options = UDATPG_MATCH_NO_OPTIONS);

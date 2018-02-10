@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 /*
 *******************************************************************************
@@ -29,6 +29,9 @@
 
 #include "unicode/format.h"
 #include "unicode/upluralrules.h"
+#ifndef U_HIDE_INTERNAL_API
+#include "unicode/numfmt.h"
+#endif  /* U_HIDE_INTERNAL_API */
 
 /**
  * Value returned by PluralRules::getUniqueKeywordValue() when there is no
@@ -40,7 +43,7 @@
 U_NAMESPACE_BEGIN
 
 class Hashtable;
-class FixedDecimal;
+class IFixedDecimal;
 class VisibleDigitsWithExponent;
 class RuleChain;
 class PluralRuleParser;
@@ -346,9 +349,25 @@ public:
 
 #ifndef U_HIDE_INTERNAL_API
     /**
+     * Given a number and a format, returns the keyword of the first applicable
+     * rule for this PluralRules object.
+     * Note: This internal preview interface may be removed in the future if
+     * an architecturally cleaner solution reaches stable status.
+     * @param obj The numeric object for which the rule should be determined.
+     * @param fmt The NumberFormat specifying how the number will be formatted
+     *        (this can affect the plural form, e.g. "1 dollar" vs "1.0 dollars").
+     * @param status  Input/output parameter. If at entry this indicates a
+     *                failure status, the method returns immediately; otherwise
+     *                this is set to indicate the outcome of the call.
+     * @return The keyword of the selected rule. Undefined in the case of an error.
+     * @internal ICU 59 technology preview, may be removed in the future
+     */
+    UnicodeString select(const Formattable& obj, const NumberFormat& fmt, UErrorCode& status) const;
+
+    /**
       * @internal
       */
-    UnicodeString select(const FixedDecimal &number) const;
+    UnicodeString select(const IFixedDecimal &number) const;
     /**
       * @internal
       */
@@ -383,7 +402,7 @@ public:
     /**
      * Deprecated Function, does not produce useful results.
      *
-     * Orginally intended to return all the values for which select() would return the keyword.
+     * Originally intended to return all the values for which select() would return the keyword.
      * If the keyword is unknown, returns no values, but this is not an error.  If
      * the number of values is unlimited, returns no values and -1 as the
      * count.

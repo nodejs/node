@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 /*
 ********************************************************************************
@@ -46,6 +46,13 @@ U_NAMESPACE_END
 U_NAMESPACE_BEGIN
 
 class UVector32;
+
+// Forward declaration for number formatting:
+namespace number {
+namespace impl {
+class NumberStringBuilder;
+}
+}
 
 /**
  * FieldPositionIterator returns the field ids and their start/limit positions generated
@@ -99,14 +106,15 @@ public:
     UBool next(FieldPosition& fp);
 
 private:
-    friend class FieldPositionIteratorHandler;
-
     /**
      * Sets the data used by the iterator, and resets the position.
      * Returns U_ILLEGAL_ARGUMENT_ERROR in status if the data is not valid
      * (length is not a multiple of 3, or start >= limit for any run).
      */
     void setData(UVector32 *adopt, UErrorCode& status);
+
+    friend class FieldPositionIteratorHandler;
+    friend class number::impl::NumberStringBuilder;
 
     UVector32 *data;
     int32_t pos;

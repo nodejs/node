@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 /*
 *******************************************************************************
@@ -529,7 +529,7 @@ UnicodeString& NumberFormat::format(const DigitList &number,
                       FieldPositionIterator* posIter,
                       UErrorCode& status) const {
     // DecimalFormat overrides this function, and handles DigitList based big decimals.
-    // Other subclasses (ChoiceFormat, RuleBasedNumberFormat) do not (yet) handle DigitLists,
+    // Other subclasses (ChoiceFormat) do not (yet) handle DigitLists,
     // so this default implementation falls back to formatting decimal numbers as doubles.
     if (U_FAILURE(status)) {
         return appendTo;
@@ -547,7 +547,7 @@ NumberFormat::format(const DigitList &number,
                      FieldPosition& pos,
                      UErrorCode &status) const {
     // DecimalFormat overrides this function, and handles DigitList based big decimals.
-    // Other subclasses (ChoiceFormat, RuleBasedNumberFormat) do not (yet) handle DigitLists,
+    // Other subclasses (ChoiceFormat) do not (yet) handle DigitLists,
     // so this default implementation falls back to formatting decimal numbers as doubles.
     if (U_FAILURE(status)) {
         return appendTo;
@@ -1188,7 +1188,7 @@ void NumberFormat::setCurrency(const UChar* theCurrency, UErrorCode& ec) {
     }
 }
 
-const UChar* NumberFormat::getCurrency() const {
+const char16_t* NumberFormat::getCurrency() const {
     return fCurrency;
 }
 
@@ -1507,6 +1507,24 @@ NumberFormat::makeInstance(const Locale& desiredLocale,
         return NULL;
     }
     return f;
+}
+
+/**
+ * Get the rounding mode.
+ * @return A rounding mode
+ */
+NumberFormat::ERoundingMode NumberFormat::getRoundingMode() const {
+    // Default value. ICU4J throws an exception and we can't change this API.
+    return NumberFormat::ERoundingMode::kRoundUnnecessary;
+}
+
+/**
+ * Set the rounding mode.  This has no effect unless the rounding
+ * increment is greater than zero.
+ * @param roundingMode A rounding mode
+ */
+void NumberFormat::setRoundingMode(NumberFormat::ERoundingMode /*roundingMode*/) {
+    // No-op ICU4J throws an exception, and we can't change this API.
 }
 
 U_NAMESPACE_END

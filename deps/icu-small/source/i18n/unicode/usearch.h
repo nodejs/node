@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 /*
 **********************************************************************
@@ -196,7 +196,7 @@ typedef enum {
      * @deprecated ICU 58 The numeric value may change over time, see ICU ticket #12420.
      */
     USEARCH_ATTRIBUTE_COUNT = 3
-#endif  // U_HIDE_DEPRECATED_API
+#endif  /* U_HIDE_DEPRECATED_API */
 } USearchAttribute;
 
 /**
@@ -272,7 +272,7 @@ typedef enum {
      * @deprecated ICU 58 The numeric value may change over time, see ICU ticket #12420.
      */
     USEARCH_ATTRIBUTE_VALUE_COUNT
-#endif  // U_HIDE_DEPRECATED_API
+#endif  /* U_HIDE_DEPRECATED_API */
 } USearchAttributeValue;
 
 /* open and close ------------------------------------------------------ */

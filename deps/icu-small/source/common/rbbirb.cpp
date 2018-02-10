@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 //
 //  file:  rbbirb.cpp
@@ -24,16 +24,16 @@
 #include "unicode/uchriter.h"
 #include "unicode/parsepos.h"
 #include "unicode/parseerr.h"
+
 #include "cmemory.h"
 #include "cstring.h"
-
 #include "rbbirb.h"
 #include "rbbinode.h"
-
 #include "rbbiscan.h"
 #include "rbbisetb.h"
 #include "rbbitblb.h"
 #include "rbbidata.h"
+#include "uassert.h"
 
 
 U_NAMESPACE_BEGIN
@@ -164,8 +164,13 @@ RBBIDataHeader *RBBIRuleBuilder::flattenData() {
     int32_t statusTableSize   = align8(fRuleStatusVals->size() * sizeof(int32_t));
     int32_t rulesSize         = align8((strippedRules.length()+1) * sizeof(UChar));
 
-    int32_t         totalSize = headerSize + forwardTableSize + reverseTableSize
-                                + safeFwdTableSize + safeRevTableSize
+    (void)safeFwdTableSize;
+
+    int32_t         totalSize = headerSize
+                                + forwardTableSize
+                                + /* reverseTableSize */ 0
+                                + /* safeFwdTableSize */ 0
+                                + (safeRevTableSize ? safeRevTableSize : reverseTableSize)
                                 + statusTableSize + trieSize + rulesSize;
 
     RBBIDataHeader  *data     = (RBBIDataHeader *)uprv_malloc(totalSize);
@@ -177,23 +182,45 @@ RBBIDataHeader *RBBIRuleBuilder::flattenData() {
 
 
     data->fMagic            = 0xb1a0;
-    data->fFormatVersion[0] = 3;
-    data->fFormatVersion[1] = 1;
-    data->fFormatVersion[2] = 0;
-    data->fFormatVersion[3] = 0;
+    data->fFormatVersion[0] = RBBI_DATA_FORMAT_VERSION[0];
+    data->fFormatVersion[1] = RBBI_DATA_FORMAT_VERSION[1];
+    data->fFormatVersion[2] = RBBI_DATA_FORMAT_VERSION[2];
+    data->fFormatVersion[3] = RBBI_DATA_FORMAT_VERSION[3];
     data->fLength           = totalSize;
     data->fCatCount         = fSetBuilder->getNumCharCategories();
 
+    // Only save the forward table and the safe reverse table,
+    // because these are the only ones used at run-time.
+    //
+    // For the moment, we still build the other tables if they are present in the rule source files,
+    // for backwards compatibility. Old rule files need to work, and this is the simplest approach.
+    //
+    // Additional backwards compatibility consideration: if no safe rules are provided, consider the
+    // reverse rules to actually be the safe reverse rules.
+
     data->fFTable        = headerSize;
     data->fFTableLen     = forwardTableSize;
-    data->fRTable        = data->fFTable  + forwardTableSize;
-    data->fRTableLen     = reverseTableSize;
-    data->fSFTable       = data->fRTable  + reverseTableSize;
-    data->fSFTableLen    = safeFwdTableSize;
-    data->fSRTable       = data->fSFTable + safeFwdTableSize;
-    data->fSRTableLen    = safeRevTableSize;
 
-    data->fTrie          = data->fSRTable + safeRevTableSize;
+    // Do not save Reverse Table.
+    data->fRTable        = data->fFTable  + forwardTableSize;
+    data->fRTableLen     = 0;
+
+    // Do not save the Safe Forward table.
+    data->fSFTable       = data->fRTable + 0;
+    data->fSFTableLen    = 0;
+
+    data->fSRTable       = data->fSFTable + 0;
+    if (safeRevTableSize > 0) {
+        data->fSRTableLen    = safeRevTableSize;
+    } else if (reverseTableSize > 0) {
+        data->fSRTableLen    = reverseTableSize;
+    } else {
+        U_ASSERT(FALSE);    // Rule build should have failed for lack of a reverse table
+                            // before reaching this point.
+    }
+
+
+    data->fTrie          = data->fSRTable + data->fSRTableLen;
     data->fTrieLen       = fSetBuilder->getTrieSize();
     data->fStatusTable   = data->fTrie    + trieSize;
     data->fStatusTableLen= statusTableSize;
@@ -203,9 +230,14 @@ RBBIDataHeader *RBBIRuleBuilder::flattenData() {
     uprv_memset(data->fReserved, 0, sizeof(data->fReserved));
 
     fForwardTables->exportTable((uint8_t *)data + data->fFTable);
-    fReverseTables->exportTable((uint8_t *)data + data->fRTable);
-    fSafeFwdTables->exportTable((uint8_t *)data + data->fSFTable);
-    fSafeRevTables->exportTable((uint8_t *)data + data->fSRTable);
+    // fReverseTables->exportTable((uint8_t *)data + data->fRTable);
+    // fSafeFwdTables->exportTable((uint8_t *)data + data->fSFTable);
+    if (safeRevTableSize > 0) {
+        fSafeRevTables->exportTable((uint8_t *)data + data->fSRTable);
+    } else {
+        fReverseTables->exportTable((uint8_t *)data + data->fSRTable);
+    }
+
     fSetBuilder->serializeTrie ((uint8_t *)data + data->fTrie);
 
     int32_t *ruleStatusTable = (int32_t *)((uint8_t *)data + data->fStatusTable);

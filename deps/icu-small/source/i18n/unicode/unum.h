@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 /*
 *******************************************************************************
@@ -25,6 +25,7 @@
 #include "unicode/parseerr.h"
 #include "unicode/uformattable.h"
 #include "unicode/udisplaycontext.h"
+#include "unicode/ufieldpositer.h"
 
 /**
  * \file
@@ -114,7 +115,7 @@
  * <P>
  * You can also control the display of numbers with such function as
  * unum_getAttributes() and unum_setAttributes(), which let you set the
- * miminum fraction digits, grouping, etc.
+ * minimum fraction digits, grouping, etc.
  * @see UNumberFormatAttributes for more details
  * <P>
  * You can also use forms of the parse and format methods with
@@ -125,7 +126,7 @@
  * </ul>
  * <p>
  * It is also possible to change or set the symbols used for a particular
- * locale like the currency symbol, the grouping seperator , monetary seperator
+ * locale like the currency symbol, the grouping separator , monetary separator
  * etc by making use of functions unum_setSymbols() and unum_getSymbols().
  */
 
@@ -249,7 +250,7 @@ typedef enum UNumberFormatStyle {
      * @deprecated ICU 58 The numeric value may change over time, see ICU ticket #12420.
      */
     UNUM_FORMAT_STYLE_COUNT=17,
-#endif  // U_HIDE_DEPRECATED_API
+#endif  /* U_HIDE_DEPRECATED_API */
 
     /**
      * Default format
@@ -264,7 +265,12 @@ typedef enum UNumberFormatStyle {
 } UNumberFormatStyle;
 
 /** The possible number format rounding modes.
- *  @stable ICU 2.0
+ *
+ * <p>
+ * For more detail on rounding modes, see:
+ * http://userguide.icu-project.org/formatparse/numbers/rounding-modes
+ *
+ * @stable ICU 2.0
  */
 typedef enum UNumberFormatRoundingMode {
     UNUM_ROUND_CEILING,
@@ -326,8 +332,8 @@ enum UCurrencySpacing {
     /** @stable ICU 4.8 */
     UNUM_CURRENCY_INSERT,
 
-    // Do not conditionalize the following with #ifndef U_HIDE_DEPRECATED_API,
-    // it is needed for layout of DecimalFormatSymbols object.
+    /* Do not conditionalize the following with #ifndef U_HIDE_DEPRECATED_API,
+     * it is needed for layout of DecimalFormatSymbols object. */
     /**
      * One more than the highest normal UCurrencySpacing value.
      * @deprecated ICU 58 The numeric value may change over time, see ICU ticket #12420.
@@ -371,7 +377,7 @@ typedef enum UNumberFormatFields {
      * @deprecated ICU 58 The numeric value may change over time, see ICU ticket #12420.
      */
     UNUM_FIELD_COUNT
-#endif  // U_HIDE_DEPRECATED_API
+#endif  /* U_HIDE_DEPRECATED_API */
 } UNumberFormatFields;
 
 
@@ -552,6 +558,59 @@ unum_formatDouble(    const    UNumberFormat*  fmt,
             int32_t         resultLength,
             UFieldPosition  *pos, /* 0 if ignore */
             UErrorCode*     status);
+
+#ifndef U_HIDE_DRAFT_API
+/**
+* Format a double using a UNumberFormat according to the UNumberFormat's locale,
+* and initialize a UFieldPositionIterator that enumerates the subcomponents of
+* the resulting string.
+*
+* @param format
+*          The formatter to use.
+* @param number
+*          The number to format.
+* @param result
+*          A pointer to a buffer to receive the NULL-terminated formatted
+*          number. If the formatted number fits into dest but cannot be
+*          NULL-terminated (length == resultLength) then the error code is set
+*          to U_STRING_NOT_TERMINATED_WARNING. If the formatted number doesn't
+*          fit into result then the error code is set to
+*          U_BUFFER_OVERFLOW_ERROR.
+* @param resultLength
+*          The maximum size of result.
+* @param fpositer
+*          A pointer to a UFieldPositionIterator created by {@link #ufieldpositer_open}
+*          (may be NULL if field position information is not needed, but in this
+*          case it's preferable to use {@link #unum_formatDouble}). Iteration
+*          information already present in the UFieldPositionIterator is deleted,
+*          and the iterator is reset to apply to the fields in the formatted
+*          string created by this function call. The field values and indexes
+*          returned by {@link #ufieldpositer_next} represent fields denoted by
+*          the UNumberFormatFields enum. Fields are not returned in a guaranteed
+*          order. Fields cannot overlap, but they may nest. For example, 1234
+*          could format as "1,234" which might consist of a grouping separator
+*          field for ',' and an integer field encompassing the entire string.
+* @param status
+*          A pointer to an UErrorCode to receive any errors
+* @return
+*          The total buffer size needed; if greater than resultLength, the
+*          output was truncated.
+* @see unum_formatDouble
+* @see unum_parse
+* @see unum_parseDouble
+* @see UFieldPositionIterator
+* @see UNumberFormatFields
+* @draft ICU 59
+*/
+U_DRAFT int32_t U_EXPORT2
+unum_formatDoubleForFields(const UNumberFormat* format,
+                           double number,
+                           UChar* result,
+                           int32_t resultLength,
+                           UFieldPositionIterator* fpositer,
+                           UErrorCode* status);
+
+#endif  /* U_HIDE_DRAFT_API */
 
 /**
 * Format a decimal number using a UNumberFormat.
@@ -829,7 +888,7 @@ unum_parseToUFormattable(const UNumberFormat* fmt,
  * @param localized TRUE if the pattern is localized, FALSE otherwise.
  * @param pattern The new pattern
  * @param patternLength The length of pattern, or -1 if null-terminated.
- * @param parseError A pointer to UParseError to recieve information
+ * @param parseError A pointer to UParseError to receive information
  * about errors occurred during parsing, or NULL if no parse error
  * information is desired.
  * @param status A pointer to an input-output UErrorCode.
@@ -1291,7 +1350,7 @@ typedef enum UNumberFormatSymbol {
      * @deprecated ICU 58 The numeric value may change over time, see ICU ticket #12420.
      */
   UNUM_FORMAT_SYMBOL_COUNT = 28
-#endif  // U_HIDE_DEPRECATED_API
+#endif  /* U_HIDE_DEPRECATED_API */
 } UNumberFormatSymbol;
 
 /**

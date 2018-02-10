@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 /*
 ******************************************************************************
@@ -6,7 +6,7 @@
 *                Corporation and others. All Rights Reserved.
 ******************************************************************************
 *   file name:  ucln_in.h
-*   encoding:   US-ASCII
+*   encoding:   UTF-8
 *   tab size:   8 (not used)
 *   indentation:4
 *
@@ -26,6 +26,7 @@ as the functions are suppose to be called.
 It's usually best to have child dependencies called first. */
 typedef enum ECleanupI18NType {
     UCLN_I18N_START = -1,
+    UCLN_I18N_CURRENCY_SPACING,
     UCLN_I18N_SPOOF,
     UCLN_I18N_SPOOFDATA,
     UCLN_I18N_TRANSLITERATOR,

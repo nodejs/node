@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 /*
 *******************************************************************************
@@ -358,7 +358,7 @@ static void millisToOffset(int32_t millis, UnicodeString& str) {
 /*
  * Create a default TZNAME from TZID
  */
-static void getDefaultTZName(const UnicodeString tzid, UBool isDST, UnicodeString& zonename) {
+static void getDefaultTZName(const UnicodeString &tzid, UBool isDST, UnicodeString& zonename) {
     zonename = tzid;
     if (isDST) {
         zonename += UNICODE_STRING_SIMPLE("(DST)");
@@ -1747,26 +1747,16 @@ VTimeZone::write(VTZWriter& writer, UErrorCode& status) const {
             }
         }
     } else {
-        UVector *customProps = NULL;
+        UnicodeString icutzprop;
+        UVector customProps(nullptr, uhash_compareUnicodeString, status);
         if (olsonzid.length() > 0 && icutzver.length() > 0) {
-            customProps = new UVector(uprv_deleteUObject, uhash_compareUnicodeString, status);
-            if (U_FAILURE(status)) {
-                return;
-            }
-            UnicodeString *icutzprop = new UnicodeString(ICU_TZINFO_PROP);
-            icutzprop->append(olsonzid);
-            icutzprop->append((UChar)0x005B/*'['*/);
-            icutzprop->append(icutzver);
-            icutzprop->append((UChar)0x005D/*']'*/);
-            customProps->addElement(icutzprop, status);
-            if (U_FAILURE(status)) {
-                delete icutzprop;
-                delete customProps;
-                return;
-            }
+            icutzprop.append(olsonzid);
+            icutzprop.append(u'[');
+            icutzprop.append(icutzver);
+            icutzprop.append(u']');
+            customProps.addElement(&icutzprop, status);
         }
-        writeZone(writer, *tz, customProps, status);
-        delete customProps;
+        writeZone(writer, *tz, &customProps, status);
     }
 }
 

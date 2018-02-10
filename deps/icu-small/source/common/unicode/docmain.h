@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 /********************************************************************
  * COPYRIGHT:
@@ -98,6 +98,11 @@
  *     <td>C API</td>
  *   </tr>
  *   <tr>
+ *     <td>Codepage Detection</td>
+ *     <td>ucsdet.h</td>
+ *     <td>C API</td>
+ *   </tr>
+ *   <tr>
  *     <td>Unicode Text Compression</td>
  *     <td>ucnv.h<br/>(encoding name "SCSU" or "BOCU-1")</td>
  *     <td>C API</td>
@@ -135,7 +140,7 @@
  *   <tr>
  *     <td>Number Formatting</td>
  *     <td>unum.h</td>
- *     <td>icu::NumberFormat</td>
+ *     <td>icu::number::NumberFormatter (ICU 60+) or icu::NumberFormat (older versions)</td>
  *   </tr>
  *   <tr>
  *     <td>Number Spellout<br/>(Rule Based Number Formatting)</td>

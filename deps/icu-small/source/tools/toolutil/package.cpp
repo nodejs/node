@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 /*
 *******************************************************************************
@@ -8,7 +8,7 @@
 *
 *******************************************************************************
 *   file name:  package.cpp
-*   encoding:   US-ASCII
+*   encoding:   UTF-8
 *   tab size:   8 (not used)
 *   indentation:4
 *
@@ -663,7 +663,7 @@ Package::readPackage(const char *filename) {
         // set the last item's platform type
         typeEnum=getTypeEnumForInputData(items[itemCount-1].data, items[itemCount-1].length, &errorCode);
         if(typeEnum<0 || U_FAILURE(errorCode)) {
-            fprintf(stderr, "icupkg: not an ICU data file: item \"%s\" in \"%s\"\n", items[i-1].name, filename);
+            fprintf(stderr, "icupkg: not an ICU data file: item \"%s\" in \"%s\"\n", items[itemCount-1].name, filename);
             exit(U_INVALID_FORMAT_ERROR);
         }
         items[itemCount-1].type=makeTypeLetter(typeEnum);
@@ -1290,7 +1290,7 @@ void Package::setItemCapacity(int32_t max)
   Item *oldItems = items;
   if(newItems == NULL) {
     fprintf(stderr, "icupkg: Out of memory trying to allocate %lu bytes for %d items\n",
-        (unsigned long)max*sizeof(items[0]), max);
+        (unsigned long)(max*sizeof(items[0])), max);
     exit(U_MEMORY_ALLOCATION_ERROR);
   }
   if(items && itemCount>0) {

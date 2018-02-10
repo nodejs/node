@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 /*
 **********************************************************************
@@ -61,7 +61,7 @@
  * http://www.ics.uci.edu/pub/ietf/http/related/iso639.txt</a>
  *
  * <P>
- * The second option includes an additonal <STRONG>ISO Country
+ * The second option includes an additional <STRONG>ISO Country
  * Code.</STRONG> These codes are the upper-case two-letter codes
  * as defined by ISO-3166.
  * You can find a full list of these codes at a number of sites, such as:
@@ -69,7 +69,7 @@
  * http://www.chemie.fu-berlin.de/diverse/doc/ISO_3166.html</a>
  *
  * <P>
- * The third option requires another additonal information--the
+ * The third option requires another additional information--the
  * <STRONG>Variant.</STRONG>
  * The Variant codes are vendor and browser-specific.
  * For example, use WIN for Windows, MAC for Macintosh, and POSIX for POSIX.
@@ -157,7 +157,7 @@
  * <STRONG>just</STRONG> a mechanism for identifying these services.
  *
  * <P>
- * Each international serivce that performs locale-sensitive operations
+ * Each international service that performs locale-sensitive operations
  * allows you
  * to get all the available objects of that type. You can sift
  * through these objects by language, country, or variant,
@@ -539,6 +539,9 @@ uloc_getISO3Country(const char* localeID);
  * Gets the Win32 LCID value for the specified locale.
  * If the ICU locale is not recognized by Windows, 0 will be returned.
  *
+ * LCIDs were deprecated with Windows Vista and Microsoft recommends
+ * that developers use BCP47 style tags instead (uloc_toLanguageTag).
+ *
  * @param localeID the locale to get the Win32 LCID value with
  * @return country the Win32 LCID for localeID
  * @stable ICU 2.0
@@ -577,7 +580,7 @@ uloc_getDisplayLanguage(const char* locale,
  *                 if the locale's language code is "en", passing Locale::getFrench() for
  *                 inLocale would result in "", while passing Locale::getGerman()
  *                 for inLocale would result in "". NULL may be used to specify the default.
- * @param script the displayable country code for localeID
+ * @param script the displayable script for the localeID
  * @param scriptCapacity the size of the script buffer to store the
  * displayable script code with
  * @param status error information if retrieving the displayable script code failed
@@ -852,10 +855,12 @@ uloc_openKeywords(const char* localeID,
  * Get the value for a keyword. Locale name does not need to be normalized.
  *
  * @param localeID locale name containing the keyword ("de_DE@currency=EURO;collation=PHONEBOOK")
- * @param keywordName name of the keyword for which we want the value. Case insensitive.
+ * @param keywordName name of the keyword for which we want the value; must not be
+ *  NULL or empty, and must consist only of [A-Za-z0-9]. Case insensitive.
  * @param buffer receiving buffer
  * @param bufferCapacity capacity of receiving buffer
- * @param status containing error code - buffer not big enough.
+ * @param status containing error code: e.g. buffer not big enough or ill-formed localeID
+ *  or keywordName parameters.
  * @return the length of keyword value
  * @stable ICU 2.8
  */
@@ -872,18 +877,26 @@ uloc_getKeywordValue(const char* localeID,
  * For removing all keywords, use uloc_getBaseName().
  *
  * NOTE: Unlike almost every other ICU function which takes a
- * buffer, this function will NOT truncate the output text. If a
- * BUFFER_OVERFLOW_ERROR is received, it means that the original
- * buffer is untouched. This is done to prevent incorrect or possibly
- * even malformed locales from being generated and used.
+ * buffer, this function will NOT truncate the output text, and will
+ * not update the buffer with unterminated text setting a status of
+ * U_STRING_NOT_TERMINATED_WARNING. If a BUFFER_OVERFLOW_ERROR is received,
+ * it means a terminated version of the updated locale ID would not fit
+ * in the buffer, and the original buffer is untouched. This is done to
+ * prevent incorrect or possibly even malformed locales from being generated
+ * and used.
  *
- * @param keywordName name of the keyword to be set. Case insensitive.
+ * @param keywordName name of the keyword to be set; must not be
+ *  NULL or empty, and must consist only of [A-Za-z0-9]. Case insensitive.
  * @param keywordValue value of the keyword to be set. If 0-length or
- *  NULL, will result in the keyword being removed. No error is given if
- *  that keyword does not exist.
- * @param buffer input buffer containing locale to be modified.
+ *  NULL, will result in the keyword being removed; no error is given if
+ *  that keyword does not exist. Otherwise, must consist only of
+ *  [A-Za-z0-9] and [/_+-].
+ * @param buffer input buffer containing well-formed locale ID to be
+ *  modified.
  * @param bufferCapacity capacity of receiving buffer
- * @param status containing error code - buffer not big enough.
+ * @param status containing error code: e.g. buffer not big enough
+ *  or ill-formed keywordName or keywordValue parameters, or ill-formed
+ *  locale ID in buffer on input.
  * @return the length needed for the buffer
  * @see uloc_getKeywordValue
  * @stable ICU 3.2

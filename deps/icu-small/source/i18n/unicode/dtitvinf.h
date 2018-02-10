@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 /*
  *******************************************************************************
@@ -152,8 +152,6 @@ U_NAMESPACE_BEGIN
 
 class U_I18N_API DateIntervalInfo U_FINAL : public UObject {
 public:
-    // Do not enclose the protected default constructor with #ifndef U_HIDE_INTERNAL_API
-    // or else the compiler will create a public default constructor.
     /**
      * Default constructor.
      * It does not initialize any interval patterns except

@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 /*
 **************************************************************************
@@ -2200,7 +2200,7 @@ int32_t  RegexMatcher::split(UText *input,
                     if (dest[i] == NULL) {
                         dest[i] = utext_openUChars(NULL, NULL, 0, &status);
                     } else {
-                        static UChar emptyString[] = {(UChar)0};
+                        static const UChar emptyString[] = {(UChar)0};
                         utext_replace(dest[i], 0, utext_nativeLength(dest[i]), emptyString, 0, &status);
                     }
                 }
@@ -3566,7 +3566,14 @@ GC_Done:
                         }
                     }
                     fp = StateSave(fp, fp->fPatIdx, status);
+                } else {
+                    // Increment time-out counter. (StateSave() does it if count >= minCount)
+                    fTickCounter--;
+                    if (fTickCounter <= 0) {
+                        IncrementTime(status);    // Re-initializes fTickCounter
+                    }
                 }
+
                 fp->fPatIdx = opValue + 4;    // Loop back.
             }
             break;
@@ -3623,6 +3630,11 @@ GC_Done:
                     // We haven't met the minimum number of matches yet.
                     //   Loop back for another one.
                     fp->fPatIdx = opValue + 4;    // Loop back.
+                    // Increment time-out counter. (StateSave() does it if count >= minCount)
+                    fTickCounter--;
+                    if (fTickCounter <= 0) {
+                        IncrementTime(status);    // Re-initializes fTickCounter
+                    }
                 } else {
                     // We do have the minimum number of matches.
 
@@ -5099,6 +5111,12 @@ GC_Done:
                         }
                     }
                     fp = StateSave(fp, fp->fPatIdx, status);
+                } else {
+                    // Increment time-out counter. (StateSave() does it if count >= minCount)
+                    fTickCounter--;
+                    if (fTickCounter <= 0) {
+                        IncrementTime(status);    // Re-initializes fTickCounter
+                    }
                 }
                 fp->fPatIdx = opValue + 4;    // Loop back.
             }
@@ -5156,6 +5174,10 @@ GC_Done:
                     // We haven't met the minimum number of matches yet.
                     //   Loop back for another one.
                     fp->fPatIdx = opValue + 4;    // Loop back.
+                    fTickCounter--;
+                    if (fTickCounter <= 0) {
+                        IncrementTime(status);    // Re-initializes fTickCounter
+                    }
                 } else {
                     // We do have the minimum number of matches.
 
