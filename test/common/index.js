@@ -803,7 +803,7 @@ exports.hijackStderr = hijackStdWritable.bind(null, 'stderr');
 exports.restoreStdout = restoreWritable.bind(null, 'stdout');
 exports.restoreStderr = restoreWritable.bind(null, 'stderr');
 exports.isSymbolAvailable = exports.isWindows ||
-                           exports.isSunOS ||
-                           exports.isAIX ||
-                           exports.isLinuxPPCBE ||
-                           exports.isFreeBSD;
+                            exports.isSunOS ||
+                            exports.isAIX ||
+                            exports.isLinuxPPCBE ||
+                            exports.isFreeBSD;
