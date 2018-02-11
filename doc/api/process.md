@@ -636,7 +636,7 @@ added: v0.7.2
 -->
 * {number}
 
-A port number for the debugger to listen to.
+The port used by Node's debugger when enabled.
 
 ```js
   process.debugPort = 5858;
