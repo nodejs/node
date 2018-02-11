@@ -621,7 +621,17 @@ process.
 ```js
 console.log(`Current directory: ${process.cwd()}`);
 ```
+## process.debugPort
+<!-- YAML
+added: v0.7.2
+-->
+* {number}
 
+The port used by Node.js's debugger when enabled.
+
+```js
+process.debugPort = 5858;
+```
 ## process.disconnect()
 <!-- YAML
 added: v0.7.2
