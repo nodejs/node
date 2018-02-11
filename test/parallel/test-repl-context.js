@@ -27,57 +27,40 @@ function testContext(repl) {
   repl.close();
 }
 
-const replserver = repl.start({ input: stream, output: stream });
-const callbacks = [];
-const $eval = replserver.eval;
-replserver.eval = function(code, context, file, cb) {
-  const expected = callbacks.shift();
-  return $eval.call(this, code, context, file, (...args) => {
-    try {
-      expected(cb, ...args);
-    } catch (e) {
-      console.error(e);
-      process.exit(1);
-    }
-  });
-};
-testContextSideEffects(replserver);
+testContextSideEffects(repl.start({ input: stream, output: stream }));
 
 function testContextSideEffects(server) {
   assert.ok(!server.underscoreAssigned);
   assert.strictEqual(server.lines.length, 0);
 
   // an assignment to '_' in the repl server
-  callbacks.push(common.mustCall((cb, ...args) => {
-    assert.ok(server.underscoreAssigned);
-    assert.strictEqual(server.last, 500);
-    cb(...args);
-    assert.strictEqual(server.lines.length, 1);
-    assert.strictEqual(server.lines[0], '_ = 500;');
-
-    // use the server to create a new context
-    const context = server.createContext();
-
-    // ensure that creating a new context does not
-    // have side effects on the server
-    assert.ok(server.underscoreAssigned);
-    assert.strictEqual(server.lines.length, 1);
-    assert.strictEqual(server.lines[0], '_ = 500;');
-    assert.strictEqual(server.last, 500);
-
-    // reset the server context
-    server.resetContext();
-    assert.ok(!server.underscoreAssigned);
-    assert.strictEqual(server.lines.length, 0);
-
-    // ensure that assigning to '_' in the new context
-    // does not change the value in our server.
-    assert.ok(!server.underscoreAssigned);
-    vm.runInContext('_ = 1000;\n', context);
-
-    assert.ok(!server.underscoreAssigned);
-    assert.strictEqual(server.lines.length, 0);
-    server.close();
-  }));
   server.write('_ = 500;\n');
+  assert.ok(server.underscoreAssigned);
+  assert.strictEqual(server.lines.length, 1);
+  assert.strictEqual(server.lines[0], '_ = 500;');
+  assert.strictEqual(server.last, 500);
+
+  // use the server to create a new context
+  const context = server.createContext();
+
+  // ensure that creating a new context does not
+  // have side effects on the server
+  assert.ok(server.underscoreAssigned);
+  assert.strictEqual(server.lines.length, 1);
+  assert.strictEqual(server.lines[0], '_ = 500;');
+  assert.strictEqual(server.last, 500);
+
+  // reset the server context
+  server.resetContext();
+  assert.ok(!server.underscoreAssigned);
+  assert.strictEqual(server.lines.length, 0);
+
+  // ensure that assigning to '_' in the new context
+  // does not change the value in our server.
+  assert.ok(!server.underscoreAssigned);
+  vm.runInContext('_ = 1000;\n', context);
+
+  assert.ok(!server.underscoreAssigned);
+  assert.strictEqual(server.lines.length, 0);
+  server.close();
 }

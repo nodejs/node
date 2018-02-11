@@ -28,22 +28,20 @@ function testSloppyMode() {
           _;           // remains 30 from user input
           `);
 
-  r.on('exit', () => {
-    assertOutput(r.output, [
-      'undefined',
-      'undefined',
-      'undefined',
-      '10',
-      '10',
-      'Expression assignment to _ now disabled.',
-      '20',
-      '20',
-      '30',
-      '30',
-      '40',
-      '30'
-    ]);
-  });
+  assertOutput(r.output, [
+    'undefined',
+    'undefined',
+    'undefined',
+    '10',
+    '10',
+    'Expression assignment to _ now disabled.',
+    '20',
+    '20',
+    '30',
+    '30',
+    '40',
+    '30'
+  ]);
 }
 
 function testStrictMode() {
@@ -63,22 +61,20 @@ function testStrictMode() {
           _;           // remains 30 from user input
           `);
 
-  r.on('exit', () => {
-    assertOutput(r.output, [
-      'undefined',
-      'undefined',
-      'undefined',
-      'undefined',
-      '20',
-      '30',
-      '30',
-      'undefined',
-      '30',
-      'undefined',
-      'undefined',
-      '30'
-    ]);
-  });
+  assertOutput(r.output, [
+    'undefined',
+    'undefined',
+    'undefined',
+    'undefined',
+    '20',
+    '30',
+    '30',
+    'undefined',
+    '30',
+    'undefined',
+    'undefined',
+    '30'
+  ]);
 }
 
 function testMagicMode() {
@@ -98,22 +94,20 @@ function testMagicMode() {
           _;           // remains 30 from user input
           `);
 
-  r.on('exit', () => {
-    assertOutput(r.output, [
-      'undefined',
-      '10',
-      '10',
-      'undefined',
-      '20',
-      '30',
-      '30',
-      'undefined',
-      '30',
-      'undefined',
-      '50',
-      '30'
-    ]);
-  });
+  assertOutput(r.output, [
+    'undefined',
+    '10',
+    '10',
+    'undefined',
+    '20',
+    '30',
+    '30',
+    'undefined',
+    '30',
+    'undefined',
+    '50',
+    '30'
+  ]);
 }
 
 function testResetContext() {
@@ -127,17 +121,15 @@ function testResetContext() {
           _;           // expect 20
           `);
 
-  r.on('exit', () => {
-    assertOutput(r.output, [
-      'Expression assignment to _ now disabled.',
-      '10',
-      '10',
-      'Clearing context...',
-      '10',
-      '20',
-      '20'
-    ]);
-  });
+  assertOutput(r.output, [
+    'Expression assignment to _ now disabled.',
+    '10',
+    '10',
+    'Clearing context...',
+    '10',
+    '20',
+    '20'
+  ]);
 }
 
 function testResetContextGlobal() {
@@ -149,14 +141,12 @@ function testResetContextGlobal() {
           _;           // remains 10
           `);
 
-  r.on('exit', () => {
-    assertOutput(r.output, [
-      'Expression assignment to _ now disabled.',
-      '10',
-      '10',
-      '10',
-    ]);
-  });
+  assertOutput(r.output, [
+    'Expression assignment to _ now disabled.',
+    '10',
+    '10',
+    '10',
+  ]);
 
   // delete globals leaked by REPL when `useGlobal` is `true`
   delete global.module;
