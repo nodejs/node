@@ -9,8 +9,10 @@ const assert = require('assert');
 const net = require('net');
 const http = require('http');
 const uv = process.binding('uv');
-const { async_id_symbol } = process.binding('async_wrap');
-const { newUid } = require('internal/async_hooks');
+const {
+  newUid,
+  symbols: { async_id_symbol }
+} = require('internal/async_hooks');
 
 const agent = new http.Agent();
 agent.createConnection = common.mustCall((cfg) => {

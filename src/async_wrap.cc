@@ -47,7 +47,6 @@ using v8::PromiseHookType;
 using v8::PropertyCallbackInfo;
 using v8::RetainedObjectInfo;
 using v8::String;
-using v8::Symbol;
 using v8::TryCatch;
 using v8::Undefined;
 using v8::Value;
@@ -472,12 +471,6 @@ void AsyncWrap::PopAsyncIds(const FunctionCallbackInfo<Value>& args) {
 }
 
 
-void AsyncWrap::ClearAsyncIdStack(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-  env->async_hooks()->clear_async_id_stack();
-}
-
-
 void AsyncWrap::AsyncReset(const FunctionCallbackInfo<Value>& args) {
   AsyncWrap* wrap;
   ASSIGN_OR_RETURN_UNWRAP(&wrap, args.Holder());
@@ -512,7 +505,6 @@ void AsyncWrap::Initialize(Local<Object> target,
   env->SetMethod(target, "setupHooks", SetupHooks);
   env->SetMethod(target, "pushAsyncIds", PushAsyncIds);
   env->SetMethod(target, "popAsyncIds", PopAsyncIds);
-  env->SetMethod(target, "clearAsyncIdStack", ClearAsyncIdStack);
   env->SetMethod(target, "queueDestroyAsyncId", QueueDestroyAsyncId);
   env->SetMethod(target, "enablePromiseHook", EnablePromiseHook);
   env->SetMethod(target, "disablePromiseHook", DisablePromiseHook);
@@ -580,17 +572,6 @@ void AsyncWrap::Initialize(Local<Object> target,
   NODE_ASYNC_PROVIDER_TYPES(V)
 #undef V
   FORCE_SET_TARGET_FIELD(target, "Providers", async_providers);
-
-  // These Symbols are used throughout node so the stored values on each object
-  // can be accessed easily across files.
-  FORCE_SET_TARGET_FIELD(
-      target,
-      "async_id_symbol",
-      Symbol::New(isolate, FIXED_ONE_BYTE_STRING(isolate, "asyncId")));
-  FORCE_SET_TARGET_FIELD(
-      target,
-      "trigger_async_id_symbol",
-      Symbol::New(isolate, FIXED_ONE_BYTE_STRING(isolate, "triggerAsyncId")));
 
 #undef FORCE_SET_TARGET_FIELD
 
