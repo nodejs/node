@@ -833,3 +833,9 @@ exports.firstInvalidFD = function firstInvalidFD() {
   } catch (e) {}
   return fd;
 };
+
+exports.isCPPSymbolsNotMapped = exports.isWindows ||
+                                exports.isSunOS ||
+                                exports.isAIX ||
+                                exports.isLinuxPPCBE ||
+                                exports.isFreeBSD;
