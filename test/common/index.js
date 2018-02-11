@@ -802,3 +802,8 @@ exports.hijackStdout = hijackStdWritable.bind(null, 'stdout');
 exports.hijackStderr = hijackStdWritable.bind(null, 'stderr');
 exports.restoreStdout = restoreWritable.bind(null, 'stdout');
 exports.restoreStderr = restoreWritable.bind(null, 'stderr');
+exports.isSymbolAvailable = exports.isWindows ||
+                           exports.isSunOS ||
+                           exports.isAIX ||
+                           exports.isLinuxPPCBE ||
+                           exports.isFreeBSD;

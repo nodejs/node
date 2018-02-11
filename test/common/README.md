@@ -243,6 +243,11 @@ Platform check for Windows.
 
 Platform check for Windows 32-bit on Windows 64-bit.
 
+### isSymbolAvailable
+* [&lt;Boolean>]
+
+Platform check for if symbol available.
+
 ### leakedGlobals()
 * return [&lt;Array>]
 

@@ -4,13 +4,7 @@ const common = require('../common');
 if (!common.enoughTestCpu)
   common.skip('test is CPU-intensive');
 
-if (
-  common.isWindows ||
-  common.isSunOS ||
-  common.isAIX ||
-  common.isLinuxPPCBE ||
-  common.isFreeBSD
-) {
+if (common.isSymbolAvailable) {
   common.skip('C++ symbols are not mapped for this os.');
 }
 
