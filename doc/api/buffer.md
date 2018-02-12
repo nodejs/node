@@ -163,11 +163,10 @@ Example:
 ```js
 const buf = Buffer.from('hello world', 'ascii');
 
-// Prints: 68656c6c6f20776f726c64
 console.log(buf.toString('hex'));
-
-// Prints: aGVsbG8gd29ybGQ=
+// Prints: 68656c6c6f20776f726c64
 console.log(buf.toString('base64'));
+// Prints: aGVsbG8gd29ybGQ=
 ```
 
 The character encodings currently supported by Node.js include:
@@ -241,23 +240,20 @@ arr[1] = 4000;
 
 // Copies the contents of `arr`
 const buf1 = Buffer.from(arr);
-
 // Shares memory with `arr`
 const buf2 = Buffer.from(arr.buffer);
 
-// Prints: <Buffer 88 a0>
 console.log(buf1);
-
-// Prints: <Buffer 88 13 a0 0f>
+// Prints: <Buffer 88 a0>
 console.log(buf2);
+// Prints: <Buffer 88 13 a0 0f>
 
 arr[1] = 6000;
 
-// Prints: <Buffer 88 a0>
 console.log(buf1);
-
-// Prints: <Buffer 88 13 70 17>
+// Prints: <Buffer 88 a0>
 console.log(buf2);
+// Prints: <Buffer 88 13 70 17>
 ```
 
 Note that when creating a `Buffer` using a [`TypedArray`]'s `.buffer`, it is
@@ -270,8 +266,8 @@ Example:
 const arr = new Uint16Array(20);
 const buf = Buffer.from(arr.buffer, 0, 16);
 
-// Prints: 16
 console.log(buf.length);
+// Prints: 16
 ```
 
 The `Buffer.from()` and [`TypedArray.from()`] have different signatures and
@@ -386,14 +382,14 @@ arr[1] = 4000;
 // Shares memory with `arr`
 const buf = new Buffer(arr.buffer);
 
-// Prints: <Buffer 88 13 a0 0f>
 console.log(buf);
+// Prints: <Buffer 88 13 a0 0f>
 
 // Changing the original Uint16Array changes the Buffer also
 arr[1] = 6000;
 
-// Prints: <Buffer 88 13 70 17>
 console.log(buf);
+// Prints: <Buffer 88 13 70 17>
 ```
 
 ### new Buffer(buffer)
@@ -422,11 +418,10 @@ const buf2 = new Buffer(buf1);
 
 buf1[0] = 0x61;
 
-// Prints: auffer
 console.log(buf1.toString());
-
-// Prints: buffer
+// Prints: auffer
 console.log(buf2.toString());
+// Prints: buffer
 ```
 
 ### new Buffer(size)
@@ -464,8 +459,8 @@ Example:
 ```js
 const buf = new Buffer(10);
 
-// Prints: <Buffer 00 00 00 00 00 00 00 00 00 00>
 console.log(buf);
+// Prints: <Buffer 00 00 00 00 00 00 00 00 00 00>
 ```
 
 ### new Buffer(string[, encoding])
@@ -493,18 +488,14 @@ Examples:
 
 ```js
 const buf1 = new Buffer('this is a tést');
-
-// Prints: this is a tést
-console.log(buf1.toString());
-
-// Prints: this is a tC)st
-console.log(buf1.toString('ascii'));
-
-
 const buf2 = new Buffer('7468697320697320612074c3a97374', 'hex');
 
+console.log(buf1.toString());
 // Prints: this is a tést
 console.log(buf2.toString());
+// Prints: this is a tést
+console.log(buf1.toString('ascii'));
+// Prints: this is a tC)st
 ```
 
 ### Class Method: Buffer.alloc(size[, fill[, encoding]])
@@ -539,8 +530,8 @@ Example:
 ```js
 const buf = Buffer.alloc(5);
 
-// Prints: <Buffer 00 00 00 00 00>
 console.log(buf);
+// Prints: <Buffer 00 00 00 00 00>
 ```
 
 Allocates a new `Buffer` of `size` bytes.  If the `size` is larger than
@@ -555,8 +546,8 @@ Example:
 ```js
 const buf = Buffer.alloc(5, 'a');
 
-// Prints: <Buffer 61 61 61 61 61>
 console.log(buf);
+// Prints: <Buffer 61 61 61 61 61>
 ```
 
 If both `fill` and `encoding` are specified, the allocated `Buffer` will be
@@ -567,8 +558,8 @@ Example:
 ```js
 const buf = Buffer.alloc(11, 'aGVsbG8gd29ybGQ=', 'base64');
 
-// Prints: <Buffer 68 65 6c 6c 6f 20 77 6f 72 6c 64>
 console.log(buf);
+// Prints: <Buffer 68 65 6c 6c 6f 20 77 6f 72 6c 64>
 ```
 
 Calling [`Buffer.alloc()`] can be significantly slower than the alternative
@@ -602,13 +593,13 @@ Example:
 ```js
 const buf = Buffer.allocUnsafe(10);
 
-// Prints: (contents may vary): <Buffer a0 8b 28 3f 01 00 00 00 50 32>
 console.log(buf);
+// Prints: (contents may vary): <Buffer a0 8b 28 3f 01 00 00 00 50 32>
 
 buf.fill(0);
 
-// Prints: <Buffer 00 00 00 00 00 00 00 00 00 00>
 console.log(buf);
+// Prints: <Buffer 00 00 00 00 00 00 00 00 00 00>
 ```
 
 A `TypeError` will be thrown if `size` is not a number.
@@ -711,9 +702,9 @@ Example:
 ```js
 const str = '\u00bd + \u00bc = \u00be';
 
-// Prints: ½ + ¼ = ¾: 9 characters, 12 bytes
 console.log(`${str}: ${str.length} characters, ` +
             `${Buffer.byteLength(str, 'utf8')} bytes`);
+// Prints: ½ + ¼ = ¾: 9 characters, 12 bytes
 ```
 
 When `string` is a `Buffer`/[`DataView`]/[`TypedArray`]/[`ArrayBuffer`]/
@@ -743,9 +734,9 @@ const buf1 = Buffer.from('1234');
 const buf2 = Buffer.from('0123');
 const arr = [buf1, buf2];
 
+console.log(arr.sort(Buffer.compare));
 // Prints: [ <Buffer 30 31 32 33>, <Buffer 31 32 33 34> ]
 // (This result is equal to: [buf2, buf1])
-console.log(arr.sort(Buffer.compare));
 ```
 
 ### Class Method: Buffer.concat(list[, totalLength])
@@ -785,16 +776,15 @@ const buf2 = Buffer.alloc(14);
 const buf3 = Buffer.alloc(18);
 const totalLength = buf1.length + buf2.length + buf3.length;
 
-// Prints: 42
 console.log(totalLength);
+// Prints: 42
 
 const bufA = Buffer.concat([buf1, buf2, buf3], totalLength);
 
-// Prints: <Buffer 00 00 00 00 ...>
 console.log(bufA);
-
-// Prints: 42
+// Prints: <Buffer 00 00 00 00 ...>
 console.log(bufA.length);
+// Prints: 42
 ```
 
 ### Class Method: Buffer.from(array)
@@ -842,14 +832,14 @@ arr[1] = 4000;
 // Shares memory with `arr`
 const buf = Buffer.from(arr.buffer);
 
-// Prints: <Buffer 88 13 a0 0f>
 console.log(buf);
+// Prints: <Buffer 88 13 a0 0f>
 
 // Changing the original Uint16Array changes the Buffer also
 arr[1] = 6000;
 
-// Prints: <Buffer 88 13 70 17>
 console.log(buf);
+// Prints: <Buffer 88 13 70 17>
 ```
 
 The optional `byteOffset` and `length` arguments specify a memory range within
@@ -861,8 +851,8 @@ Example:
 const ab = new ArrayBuffer(10);
 const buf = Buffer.from(ab, 0, 2);
 
-// Prints: 2
 console.log(buf.length);
+// Prints: 2
 ```
 
 A `TypeError` will be thrown if `arrayBuffer` is not an [`ArrayBuffer`] or a
@@ -885,11 +875,10 @@ const buf2 = Buffer.from(buf1);
 
 buf1[0] = 0x61;
 
-// Prints: auffer
 console.log(buf1.toString());
-
-// Prints: buffer
+// Prints: auffer
 console.log(buf2.toString());
+// Prints: buffer
 ```
 
 A `TypeError` will be thrown if `buffer` is not a `Buffer`.
@@ -909,18 +898,14 @@ Examples:
 
 ```js
 const buf1 = Buffer.from('this is a tést');
-
-// Prints: this is a tést
-console.log(buf1.toString());
-
-// Prints: this is a tC)st
-console.log(buf1.toString('ascii'));
-
-
 const buf2 = Buffer.from('7468697320697320612074c3a97374', 'hex');
 
+console.log(buf1.toString());
 // Prints: this is a tést
 console.log(buf2.toString());
+// Prints: this is a tést
+console.log(buf1.toString('ascii'));
+// Prints: this is a tC)st
 ```
 
 A `TypeError` will be thrown if `string` is not a string.
@@ -944,7 +929,7 @@ For example:
 
 ```js
 const buf = Buffer.from(new String('this is a test'));
-// <Buffer 74 68 69 73 20 69 73 20 61 20 74 65 73 74>
+// Prints: <Buffer 74 68 69 73 20 69 73 20 61 20 74 65 73 74>
 ```
 
 For objects that support `Symbol.toPrimitive`, returns
@@ -960,7 +945,7 @@ class Foo {
 }
 
 const buf = Buffer.from(new Foo(), 'utf8');
-// <Buffer 74 68 69 73 20 69 73 20 61 20 74 65 73 74>
+// Prints: <Buffer 74 68 69 73 20 69 73 20 61 20 74 65 73 74>
 ```
 
 ### Class Method: Buffer.isBuffer(obj)
@@ -1018,8 +1003,8 @@ for (let i = 0; i < str.length; i++) {
   buf[i] = str.charCodeAt(i);
 }
 
-// Prints: Node.js
 console.log(buf.toString('ascii'));
+// Prints: Node.js
 ```
 
 ### buf.buffer
@@ -1073,24 +1058,19 @@ const buf1 = Buffer.from('ABC');
 const buf2 = Buffer.from('BCD');
 const buf3 = Buffer.from('ABCD');
 
-// Prints: 0
 console.log(buf1.compare(buf1));
-
-// Prints: -1
+// Prints: 0
 console.log(buf1.compare(buf2));
-
 // Prints: -1
 console.log(buf1.compare(buf3));
-
-// Prints: 1
+// Prints: -1
 console.log(buf2.compare(buf1));
-
 // Prints: 1
 console.log(buf2.compare(buf3));
-
+// Prints: 1
+console.log([buf1, buf2, buf3].sort(Buffer.compare));
 // Prints: [ <Buffer 41 42 43>, <Buffer 41 42 43 44>, <Buffer 42 43 44> ]
 // (This result is equal to: [buf1, buf3, buf2])
-console.log([buf1, buf2, buf3].sort(Buffer.compare));
 ```
 
 The optional `targetStart`, `targetEnd`, `sourceStart`, and `sourceEnd`
@@ -1103,14 +1083,12 @@ Examples:
 const buf1 = Buffer.from([1, 2, 3, 4, 5, 6, 7, 8, 9]);
 const buf2 = Buffer.from([5, 6, 7, 8, 9, 1, 2, 3, 4]);
 
-// Prints: 0
 console.log(buf1.compare(buf2, 5, 9, 0, 4));
-
-// Prints: -1
+// Prints: 0
 console.log(buf1.compare(buf2, 0, 6, 4));
-
-// Prints: 1
+// Prints: -1
 console.log(buf1.compare(buf2, 5, 6, 5));
+// Prints: 1
 ```
 
 A `RangeError` will be thrown if: `targetStart < 0`, `sourceStart < 0`,
@@ -1147,8 +1125,8 @@ for (let i = 0; i < 26; i++) {
 
 buf1.copy(buf2, 8, 16, 20);
 
-// Prints: !!!!!!!!qrst!!!!!!!!!!!!!
 console.log(buf2.toString('ascii', 0, 25));
+// Prints: !!!!!!!!qrst!!!!!!!!!!!!!
 ```
 
 Example: Create a single `Buffer` and copy data from one region to an
@@ -1164,8 +1142,8 @@ for (let i = 0; i < 26; i++) {
 
 buf.copy(buf, 0, 4, 10);
 
-// Prints: efghijghijklmnopqrstuvwxyz
 console.log(buf.toString());
+// Prints: efghijghijklmnopqrstuvwxyz
 ```
 
 ### buf.entries()
@@ -1183,6 +1161,9 @@ Example: Log the entire contents of a `Buffer`
 ```js
 const buf = Buffer.from('buffer');
 
+for (const pair of buf.entries()) {
+  console.log(pair);
+}
 // Prints:
 //   [0, 98]
 //   [1, 117]
@@ -1190,9 +1171,6 @@ const buf = Buffer.from('buffer');
 //   [3, 102]
 //   [4, 101]
 //   [5, 114]
-for (const pair of buf.entries()) {
-  console.log(pair);
-}
 ```
 
 ### buf.equals(otherBuffer)
@@ -1217,11 +1195,10 @@ const buf1 = Buffer.from('ABC');
 const buf2 = Buffer.from('414243', 'hex');
 const buf3 = Buffer.from('ABCD');
 
-// Prints: true
 console.log(buf1.equals(buf2));
-
-// Prints: false
+// Prints: true
 console.log(buf1.equals(buf3));
+// Prints: false
 ```
 
 ### buf.fill(value[, offset[, end]][, encoding])
@@ -1257,8 +1234,8 @@ Example: Fill a `Buffer` with the ASCII character `'h'`
 ```js
 const b = Buffer.allocUnsafe(50).fill('h');
 
-// Prints: hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh
 console.log(b.toString());
+// Prints: hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh
 ```
 
 `value` is coerced to a `uint32` value if it is not a String or Integer.
@@ -1269,8 +1246,8 @@ then only the first bytes of that character that fit into `buf` are written.
 Example: Fill a `Buffer` with a two-byte character
 
 ```js
-// Prints: <Buffer c8 a2 c8>
 console.log(Buffer.allocUnsafe(3).fill('\u0222'));
+// Prints: <Buffer c8 a2 c8>
 ```
 
 If `value` contains invalid characters, it is truncated; if no valid
@@ -1278,12 +1255,13 @@ fill data remains, an exception is thrown:
 
 ```js
 const buf = Buffer.allocUnsafe(5);
-// Prints: <Buffer 61 61 61 61 61>
+
 console.log(buf.fill('a'));
-// Prints: <Buffer aa aa aa aa aa>
+// Prints: <Buffer 61 61 61 61 61>
 console.log(buf.fill('aazz', 'hex'));
-// Throws an exception.
+// Prints: <Buffer aa aa aa aa aa>
 console.log(buf.fill('zz', 'hex'));
+// Throws an exception.
 ```
 
 ### buf.includes(value[, byteOffset][, encoding])
@@ -1304,27 +1282,20 @@ Examples:
 ```js
 const buf = Buffer.from('this is a buffer');
 
-// Prints: true
 console.log(buf.includes('this'));
-
 // Prints: true
 console.log(buf.includes('is'));
-
 // Prints: true
 console.log(buf.includes(Buffer.from('a buffer')));
-
 // Prints: true
-// (97 is the decimal ASCII value for 'a')
 console.log(buf.includes(97));
-
-// Prints: false
+// Prints: true (97 is the decimal ASCII value for 'a')
 console.log(buf.includes(Buffer.from('a buffer example')));
-
-// Prints: true
-console.log(buf.includes(Buffer.from('a buffer example').slice(0, 8)));
-
 // Prints: false
+console.log(buf.includes(Buffer.from('a buffer example').slice(0, 8)));
+// Prints: true
 console.log(buf.includes('this', 4));
+// Prints: false
 ```
 
 ### buf.indexOf(value[, byteOffset][, encoding])
@@ -1361,33 +1332,25 @@ Examples:
 ```js
 const buf = Buffer.from('this is a buffer');
 
-// Prints: 0
 console.log(buf.indexOf('this'));
-
-// Prints: 2
+// Prints: 0
 console.log(buf.indexOf('is'));
-
-// Prints: 8
+// Prints: 2
 console.log(buf.indexOf(Buffer.from('a buffer')));
-
 // Prints: 8
-// (97 is the decimal ASCII value for 'a')
 console.log(buf.indexOf(97));
-
-// Prints: -1
+// Prints: 8 (97 is the decimal ASCII value for 'a')
 console.log(buf.indexOf(Buffer.from('a buffer example')));
-
-// Prints: 8
+// Prints: -1
 console.log(buf.indexOf(Buffer.from('a buffer example').slice(0, 8)));
-
+// Prints: 8
 
 const utf16Buffer = Buffer.from('\u039a\u0391\u03a3\u03a3\u0395', 'ucs2');
 
-// Prints: 4
 console.log(utf16Buffer.indexOf('\u03a3', 0, 'ucs2'));
-
-// Prints: 6
+// Prints: 4
 console.log(utf16Buffer.indexOf('\u03a3', -4, 'ucs2'));
+// Prints: 6
 ```
 
 If `value` is not a string, number, or `Buffer`, this method will throw a
@@ -1432,6 +1395,9 @@ Example:
 ```js
 const buf = Buffer.from('buffer');
 
+for (const key of buf.keys()) {
+  console.log(key);
+}
 // Prints:
 //   0
 //   1
@@ -1439,9 +1405,6 @@ const buf = Buffer.from('buffer');
 //   3
 //   4
 //   5
-for (const key of buf.keys()) {
-  console.log(key);
-}
 ```
 
 ### buf.lastIndexOf(value[, byteOffset][, encoding])
@@ -1469,36 +1432,27 @@ Examples:
 ```js
 const buf = Buffer.from('this buffer is a buffer');
 
-// Prints: 0
 console.log(buf.lastIndexOf('this'));
-
-// Prints: 17
+// Prints: 0
 console.log(buf.lastIndexOf('buffer'));
-
 // Prints: 17
 console.log(buf.lastIndexOf(Buffer.from('buffer')));
-
-// Prints: 15
-// (97 is the decimal ASCII value for 'a')
+// Prints: 17
 console.log(buf.lastIndexOf(97));
-
-// Prints: -1
+// Prints: 15 (97 is the decimal ASCII value for 'a')
 console.log(buf.lastIndexOf(Buffer.from('yolo')));
-
-// Prints: 5
-console.log(buf.lastIndexOf('buffer', 5));
-
 // Prints: -1
+console.log(buf.lastIndexOf('buffer', 5));
+// Prints: 5
 console.log(buf.lastIndexOf('buffer', 4));
-
+// Prints: -1
 
 const utf16Buffer = Buffer.from('\u039a\u0391\u03a3\u03a3\u0395', 'ucs2');
 
-// Prints: 6
 console.log(utf16Buffer.lastIndexOf('\u03a3', undefined, 'ucs2'));
-
-// Prints: 4
+// Prints: 6
 console.log(utf16Buffer.lastIndexOf('\u03a3', -5, 'ucs2'));
+// Prints: 4
 ```
 
 If `value` is not a string, number, or `Buffer`, this method will throw a
@@ -1545,13 +1499,13 @@ Example: Create a `Buffer` and write a shorter ASCII string to it
 ```js
 const buf = Buffer.alloc(1234);
 
-// Prints: 1234
 console.log(buf.length);
+// Prints: 1234
 
 buf.write('some string', 0, 'ascii');
 
-// Prints: 1234
 console.log(buf.length);
+// Prints: 1234
 ```
 
 While the `length` property is not immutable, changing the value of `length`
@@ -1566,13 +1520,13 @@ let buf = Buffer.allocUnsafe(10);
 
 buf.write('abcdefghj', 0, 'ascii');
 
-// Prints: 10
 console.log(buf.length);
+// Prints: 10
 
 buf = buf.slice(0, 5);
 
-// Prints: 5
 console.log(buf.length);
+// Prints: 5
 ```
 
 ### buf.parent
@@ -1606,18 +1560,15 @@ Examples:
 ```js
 const buf = Buffer.from([1, 2, 3, 4, 5, 6, 7, 8]);
 
-// Prints: 8.20788039913184e-304
 console.log(buf.readDoubleBE());
-
-// Prints: 5.447603722011605e-270
+// Prints: 8.20788039913184e-304
 console.log(buf.readDoubleLE());
-
-// Throws an exception: RangeError: Index out of range
+// Prints: 5.447603722011605e-270
 console.log(buf.readDoubleLE(1));
-
+// Throws an exception: RangeError: Index out of range
+console.log(buf.readDoubleLE(1, true));
 // Warning: reads passed end of buffer!
 // This will result in a segmentation fault! Don't do this!
-console.log(buf.readDoubleLE(1, true));
 ```
 
 ### buf.readFloatBE(offset[, noAssert])
@@ -1642,18 +1593,15 @@ Examples:
 ```js
 const buf = Buffer.from([1, 2, 3, 4]);
 
-// Prints: 2.387939260590663e-38
 console.log(buf.readFloatBE());
-
-// Prints: 1.539989614439558e-36
+// Prints: 2.387939260590663e-38
 console.log(buf.readFloatLE());
-
-// Throws an exception: RangeError: Index out of range
+// Prints: 1.539989614439558e-36
 console.log(buf.readFloatLE(1));
-
+// Throws an exception: RangeError: Index out of range
+console.log(buf.readFloatLE(1, true));
 // Warning: reads passed end of buffer!
 // This will result in a segmentation fault! Don't do this!
-console.log(buf.readFloatLE(1, true));
 ```
 
 ### buf.readInt8(offset[, noAssert])
@@ -1677,14 +1625,12 @@ Examples:
 ```js
 const buf = Buffer.from([-1, 5]);
 
-// Prints: -1
 console.log(buf.readInt8(0));
-
-// Prints: 5
+// Prints: -1
 console.log(buf.readInt8(1));
-
-// Throws an exception: RangeError: Index out of range
+// Prints: 5
 console.log(buf.readInt8(2));
+// Throws an exception: RangeError: Index out of range
 ```
 
 ### buf.readInt16BE(offset[, noAssert])
@@ -1711,14 +1657,12 @@ Examples:
 ```js
 const buf = Buffer.from([0, 5]);
 
-// Prints: 5
 console.log(buf.readInt16BE());
-
-// Prints: 1280
+// Prints: 5
 console.log(buf.readInt16LE());
-
-// Throws an exception: RangeError: Index out of range
+// Prints: 1280
 console.log(buf.readInt16LE(1));
+// Throws an exception: RangeError: Index out of range
 ```
 
 ### buf.readInt32BE(offset[, noAssert])
@@ -1745,14 +1689,12 @@ Examples:
 ```js
 const buf = Buffer.from([0, 0, 0, 5]);
 
-// Prints: 5
 console.log(buf.readInt32BE());
-
-// Prints: 83886080
+// Prints: 5
 console.log(buf.readInt32LE());
-
-// Throws an exception: RangeError: Index out of range
+// Prints: 83886080
 console.log(buf.readInt32LE(1));
+// Throws an exception: RangeError: Index out of range
 ```
 
 ### buf.readIntBE(offset, byteLength[, noAssert])
@@ -1778,17 +1720,14 @@ Examples:
 ```js
 const buf = Buffer.from([0x12, 0x34, 0x56, 0x78, 0x90, 0xab]);
 
-// Prints: -546f87a9cbee
 console.log(buf.readIntLE(0, 6).toString(16));
-
-// Prints: 1234567890ab
+// Prints: -546f87a9cbee
 console.log(buf.readIntBE(0, 6).toString(16));
-
-// Throws ERR_INDEX_OUT_OF_RANGE:
+// Prints: 1234567890ab
 console.log(buf.readIntBE(1, 6).toString(16));
-
-// Throws ERR_OUT_OF_RANGE:
+// Throws ERR_INDEX_OUT_OF_RANGE:
 console.log(buf.readIntBE(1, 0).toString(16));
+// Throws ERR_OUT_OF_RANGE:
 ```
 
 ### buf.readUInt8(offset[, noAssert])
@@ -1810,14 +1749,12 @@ Examples:
 ```js
 const buf = Buffer.from([1, -2]);
 
-// Prints: 1
 console.log(buf.readUInt8(0));
-
-// Prints: 254
+// Prints: 1
 console.log(buf.readUInt8(1));
-
-// Throws an exception: RangeError: Index out of range
+// Prints: 254
 console.log(buf.readUInt8(2));
+// Throws an exception: RangeError: Index out of range
 ```
 
 ### buf.readUInt16BE(offset[, noAssert])
@@ -1842,20 +1779,16 @@ Examples:
 ```js
 const buf = Buffer.from([0x12, 0x34, 0x56]);
 
-// Prints: 1234
 console.log(buf.readUInt16BE(0).toString(16));
-
-// Prints: 3412
+// Prints: 1234
 console.log(buf.readUInt16LE(0).toString(16));
-
-// Prints: 3456
+// Prints: 3412
 console.log(buf.readUInt16BE(1).toString(16));
-
-// Prints: 5634
+// Prints: 3456
 console.log(buf.readUInt16LE(1).toString(16));
-
-// Throws an exception: RangeError: Index out of range
+// Prints: 5634
 console.log(buf.readUInt16LE(2).toString(16));
+// Throws an exception: RangeError: Index out of range
 ```
 
 ### buf.readUInt32BE(offset[, noAssert])
@@ -1880,14 +1813,12 @@ Examples:
 ```js
 const buf = Buffer.from([0x12, 0x34, 0x56, 0x78]);
 
-// Prints: 12345678
 console.log(buf.readUInt32BE(0).toString(16));
-
-// Prints: 78563412
+// Prints: 12345678
 console.log(buf.readUInt32LE(0).toString(16));
-
-// Throws an exception: RangeError: Index out of range
+// Prints: 78563412
 console.log(buf.readUInt32LE(1).toString(16));
+// Throws an exception: RangeError: Index out of range
 ```
 
 ### buf.readUIntBE(offset, byteLength[, noAssert])
@@ -1913,14 +1844,12 @@ Examples:
 ```js
 const buf = Buffer.from([0x12, 0x34, 0x56, 0x78, 0x90, 0xab]);
 
-// Prints: 1234567890ab
 console.log(buf.readUIntBE(0, 6).toString(16));
-
-// Prints: ab9078563412
+// Prints: 1234567890ab
 console.log(buf.readUIntLE(0, 6).toString(16));
-
-// Throws an exception: RangeError: Index out of range
+// Prints: ab9078563412
 console.log(buf.readUIntBE(1, 6).toString(16));
+// Throws an exception: RangeError: Index out of range
 ```
 
 ### buf.slice([start[, end]])
@@ -1964,13 +1893,13 @@ for (let i = 0; i < 26; i++) {
 
 const buf2 = buf1.slice(0, 3);
 
-// Prints: abc
 console.log(buf2.toString('ascii', 0, buf2.length));
+// Prints: abc
 
 buf1[0] = 33;
 
-// Prints: !bc
 console.log(buf2.toString('ascii', 0, buf2.length));
+// Prints: !bc
 ```
 
 Specifying negative indexes causes the slice to be generated relative to the
@@ -1981,17 +1910,17 @@ Examples:
 ```js
 const buf = Buffer.from('buffer');
 
+console.log(buf.slice(-6, -1).toString());
 // Prints: buffe
 // (Equivalent to buf.slice(0, 5))
-console.log(buf.slice(-6, -1).toString());
 
+console.log(buf.slice(-6, -2).toString());
 // Prints: buff
 // (Equivalent to buf.slice(0, 4))
-console.log(buf.slice(-6, -2).toString());
 
+console.log(buf.slice(-5, -2).toString());
 // Prints: uff
 // (Equivalent to buf.slice(1, 4))
-console.log(buf.slice(-5, -2).toString());
 ```
 
 ### buf.swap16()
@@ -2009,19 +1938,18 @@ Examples:
 ```js
 const buf1 = Buffer.from([0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, 0x8]);
 
-// Prints: <Buffer 01 02 03 04 05 06 07 08>
 console.log(buf1);
+// Prints: <Buffer 01 02 03 04 05 06 07 08>
 
 buf1.swap16();
 
-// Prints: <Buffer 02 01 04 03 06 05 08 07>
 console.log(buf1);
-
+// Prints: <Buffer 02 01 04 03 06 05 08 07>
 
 const buf2 = Buffer.from([0x1, 0x2, 0x3]);
 
-// Throws an exception: RangeError: Buffer size must be a multiple of 16-bits
 buf2.swap16();
+// Throws an exception: RangeError: Buffer size must be a multiple of 16-bits
 ```
 
 ### buf.swap32()
@@ -2039,19 +1967,18 @@ Examples:
 ```js
 const buf1 = Buffer.from([0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, 0x8]);
 
-// Prints: <Buffer 01 02 03 04 05 06 07 08>
 console.log(buf1);
+// Prints: <Buffer 01 02 03 04 05 06 07 08>
 
 buf1.swap32();
 
-// Prints: <Buffer 04 03 02 01 08 07 06 05>
 console.log(buf1);
-
+// Prints: <Buffer 04 03 02 01 08 07 06 05>
 
 const buf2 = Buffer.from([0x1, 0x2, 0x3]);
 
-// Throws an exception: RangeError: Buffer size must be a multiple of 32-bits
 buf2.swap32();
+// Throws an exception: RangeError: Buffer size must be a multiple of 32-bits
 ```
 
 ### buf.swap64()
@@ -2069,19 +1996,18 @@ Examples:
 ```js
 const buf1 = Buffer.from([0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, 0x8]);
 
-// Prints: <Buffer 01 02 03 04 05 06 07 08>
 console.log(buf1);
+// Prints: <Buffer 01 02 03 04 05 06 07 08>
 
 buf1.swap64();
 
-// Prints: <Buffer 08 07 06 05 04 03 02 01>
 console.log(buf1);
-
+// Prints: <Buffer 08 07 06 05 04 03 02 01>
 
 const buf2 = Buffer.from([0x1, 0x2, 0x3]);
 
-// Throws an exception: RangeError: Buffer size must be a multiple of 64-bits
 buf2.swap64();
+// Throws an exception: RangeError: Buffer size must be a multiple of 64-bits
 ```
 
 Note that JavaScript cannot encode 64-bit integers. This method is intended
@@ -2103,8 +2029,8 @@ Example:
 const buf = Buffer.from([0x1, 0x2, 0x3, 0x4, 0x5]);
 const json = JSON.stringify(buf);
 
-// Prints: {"type":"Buffer","data":[1,2,3,4,5]}
 console.log(json);
+// Prints: {"type":"Buffer","data":[1,2,3,4,5]}
 
 const copy = JSON.parse(json, (key, value) => {
   return value && value.type === 'Buffer' ?
@@ -2112,8 +2038,8 @@ const copy = JSON.parse(json, (key, value) => {
     value;
 });
 
-// Prints: <Buffer 01 02 03 04 05>
 console.log(copy);
+// Prints: <Buffer 01 02 03 04 05>
 ```
 
 ### buf.toString([encoding[, start[, end]]])
@@ -2143,23 +2069,19 @@ for (let i = 0; i < 26; i++) {
   buf1[i] = i + 97;
 }
 
-// Prints: abcdefghijklmnopqrstuvwxyz
 console.log(buf1.toString('ascii'));
-
-// Prints: abcde
+// Prints: abcdefghijklmnopqrstuvwxyz
 console.log(buf1.toString('ascii', 0, 5));
-
+// Prints: abcde
 
 const buf2 = Buffer.from('tést');
 
-// Prints: 74c3a97374
 console.log(buf2.toString('hex'));
-
-// Prints: té
+// Prints: 74c3a97374
 console.log(buf2.toString('utf8', 0, 3));
-
 // Prints: té
 console.log(buf2.toString(undefined, 0, 3));
+// Prints: té
 ```
 
 ### buf.values()
@@ -2177,17 +2099,9 @@ Examples:
 ```js
 const buf = Buffer.from('buffer');
 
-// Prints:
-//   98
-//   117
-//   102
-//   102
-//   101
-//   114
 for (const value of buf.values()) {
   console.log(value);
 }
-
 // Prints:
 //   98
 //   117
@@ -2195,9 +2109,17 @@ for (const value of buf.values()) {
 //   102
 //   101
 //   114
+
 for (const value of buf) {
   console.log(value);
 }
+// Prints:
+//   98
+//   117
+//   102
+//   102
+//   101
+//   114
 ```
 
 ### buf.write(string[, offset[, length]][, encoding])
@@ -2223,8 +2145,8 @@ const buf = Buffer.allocUnsafe(256);
 
 const len = buf.write('\u00bd + \u00bc = \u00be', 0);
 
-// Prints: 12 bytes: ½ + ¼ = ¾
 console.log(`${len} bytes: ${buf.toString('utf8', 0, len)}`);
+// Prints: 12 bytes: ½ + ¼ = ¾
 ```
 
 ### buf.writeDoubleBE(value, offset[, noAssert])
@@ -2253,13 +2175,13 @@ const buf = Buffer.allocUnsafe(8);
 
 buf.writeDoubleBE(0xdeadbeefcafebabe, 0);
 
-// Prints: <Buffer 43 eb d5 b7 dd f9 5f d7>
 console.log(buf);
+// Prints: <Buffer 43 eb d5 b7 dd f9 5f d7>
 
 buf.writeDoubleLE(0xdeadbeefcafebabe, 0);
 
-// Prints: <Buffer d7 5f f9 dd b7 d5 eb 43>
 console.log(buf);
+// Prints: <Buffer d7 5f f9 dd b7 d5 eb 43>
 ```
 
 ### buf.writeFloatBE(value, offset[, noAssert])
@@ -2288,13 +2210,13 @@ const buf = Buffer.allocUnsafe(4);
 
 buf.writeFloatBE(0xcafebabe, 0);
 
-// Prints: <Buffer 4f 4a fe bb>
 console.log(buf);
+// Prints: <Buffer 4f 4a fe bb>
 
 buf.writeFloatLE(0xcafebabe, 0);
 
-// Prints: <Buffer bb fe 4a 4f>
 console.log(buf);
+// Prints: <Buffer bb fe 4a 4f>
 ```
 
 ### buf.writeInt8(value, offset[, noAssert])
@@ -2324,8 +2246,8 @@ const buf = Buffer.allocUnsafe(2);
 buf.writeInt8(2, 0);
 buf.writeInt8(-2, 1);
 
-// Prints: <Buffer 02 fe>
 console.log(buf);
+// Prints: <Buffer 02 fe>
 ```
 
 ### buf.writeInt16BE(value, offset[, noAssert])
@@ -2357,8 +2279,8 @@ const buf = Buffer.allocUnsafe(4);
 buf.writeInt16BE(0x0102, 0);
 buf.writeInt16LE(0x0304, 2);
 
-// Prints: <Buffer 01 02 04 03>
 console.log(buf);
+// Prints: <Buffer 01 02 04 03>
 ```
 
 ### buf.writeInt32BE(value, offset[, noAssert])
@@ -2390,8 +2312,8 @@ const buf = Buffer.allocUnsafe(8);
 buf.writeInt32BE(0x01020304, 0);
 buf.writeInt32LE(0x05060708, 4);
 
-// Prints: <Buffer 01 02 03 04 08 07 06 05>
 console.log(buf);
+// Prints: <Buffer 01 02 03 04 08 07 06 05>
 ```
 
 ### buf.writeIntBE(value, offset, byteLength[, noAssert])
@@ -2421,13 +2343,13 @@ const buf = Buffer.allocUnsafe(6);
 
 buf.writeIntBE(0x1234567890ab, 0, 6);
 
-// Prints: <Buffer 12 34 56 78 90 ab>
 console.log(buf);
+// Prints: <Buffer 12 34 56 78 90 ab>
 
 buf.writeIntLE(0x1234567890ab, 0, 6);
 
-// Prints: <Buffer ab 90 78 56 34 12>
 console.log(buf);
+// Prints: <Buffer ab 90 78 56 34 12>
 ```
 
 ### buf.writeUInt8(value, offset[, noAssert])
@@ -2457,8 +2379,8 @@ buf.writeUInt8(0x4, 1);
 buf.writeUInt8(0x23, 2);
 buf.writeUInt8(0x42, 3);
 
-// Prints: <Buffer 03 04 23 42>
 console.log(buf);
+// Prints: <Buffer 03 04 23 42>
 ```
 
 ### buf.writeUInt16BE(value, offset[, noAssert])
@@ -2488,14 +2410,14 @@ const buf = Buffer.allocUnsafe(4);
 buf.writeUInt16BE(0xdead, 0);
 buf.writeUInt16BE(0xbeef, 2);
 
-// Prints: <Buffer de ad be ef>
 console.log(buf);
+// Prints: <Buffer de ad be ef>
 
 buf.writeUInt16LE(0xdead, 0);
 buf.writeUInt16LE(0xbeef, 2);
 
-// Prints: <Buffer ad de ef be>
 console.log(buf);
+// Prints: <Buffer ad de ef be>
 ```
 
 ### buf.writeUInt32BE(value, offset[, noAssert])
@@ -2524,13 +2446,13 @@ const buf = Buffer.allocUnsafe(4);
 
 buf.writeUInt32BE(0xfeedface, 0);
 
-// Prints: <Buffer fe ed fa ce>
 console.log(buf);
+// Prints: <Buffer fe ed fa ce>
 
 buf.writeUInt32LE(0xfeedface, 0);
 
-// Prints: <Buffer ce fa ed fe>
 console.log(buf);
+// Prints: <Buffer ce fa ed fe>
 ```
 
 ### buf.writeUIntBE(value, offset, byteLength[, noAssert])
@@ -2560,13 +2482,13 @@ const buf = Buffer.allocUnsafe(6);
 
 buf.writeUIntBE(0x1234567890ab, 0, 6);
 
-// Prints: <Buffer 12 34 56 78 90 ab>
 console.log(buf);
+// Prints: <Buffer 12 34 56 78 90 ab>
 
 buf.writeUIntLE(0x1234567890ab, 0, 6);
 
-// Prints: <Buffer ab 90 78 56 34 12>
 console.log(buf);
+// Prints: <Buffer ab 90 78 56 34 12>
 ```
 
 ## buffer.INSPECT_MAX_BYTES
@@ -2694,13 +2616,13 @@ const { SlowBuffer } = require('buffer');
 
 const buf = new SlowBuffer(5);
 
-// Prints: (contents may vary): <Buffer 78 e0 82 02 01>
 console.log(buf);
+// Prints: (contents may vary): <Buffer 78 e0 82 02 01>
 
 buf.fill(0);
 
-// Prints: <Buffer 00 00 00 00 00>
 console.log(buf);
+// Prints: <Buffer 00 00 00 00 00>
 ```
 
 ## Buffer Constants
