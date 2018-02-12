@@ -121,7 +121,7 @@ assert.throws(() => thrower(TypeError));
 }
 
 common.expectsError(
-  () => assert.doesNotThrow(() => thrower(Error), 'user message'),
+  () => a.doesNotThrow(() => thrower(Error), 'user message'),
   {
     type: a.AssertionError,
     code: 'ERR_ASSERTION',
@@ -131,7 +131,7 @@ common.expectsError(
 );
 
 common.expectsError(
-  () => assert.doesNotThrow(() => thrower(Error), 'user message'),
+  () => a.doesNotThrow(() => thrower(Error), 'user message'),
   {
     code: 'ERR_ASSERTION',
     message: /Got unwanted exception: user message\n\[object Object\]/
@@ -139,7 +139,7 @@ common.expectsError(
 );
 
 common.expectsError(
-  () => assert.doesNotThrow(() => thrower(Error)),
+  () => a.doesNotThrow(() => thrower(Error)),
   {
     code: 'ERR_ASSERTION',
     message: /Got unwanted exception\.\n\[object Object\]/
@@ -292,7 +292,7 @@ try {
 
   // Verify AssertionError is the result from doesNotThrow with custom Error.
   try {
-    assert.doesNotThrow(() => {
+    a.doesNotThrow(() => {
       throw new TypeError('wrong type');
     }, TypeError, rangeError);
   } catch (e) {
@@ -760,7 +760,6 @@ common.expectsError(
 
   errObj.code = '404';
   common.expectsError(
-  // eslint-disable-next-line no-restricted-syntax
     () => assert.throws(errFn, errObj),
     {
       code: 'ERR_ASSERTION',
@@ -772,7 +771,6 @@ common.expectsError(
   errObj.code = 404;
   errObj.foo = 'bar';
   common.expectsError(
-  // eslint-disable-next-line no-restricted-syntax
     () => assert.throws(errFn, errObj),
     {
       code: 'ERR_ASSERTION',
@@ -791,7 +789,7 @@ common.expectsError(
   );
 
   common.expectsError(
-    () => assert.doesNotThrow(() => { throw new Error(); }, { foo: 'bar' }),
+    () => a.doesNotThrow(() => { throw new Error(); }, { foo: 'bar' }),
     {
       type: TypeError,
       code: 'ERR_INVALID_ARG_TYPE',
@@ -822,7 +820,7 @@ common.expectsError(
   assert.throws(() => { throw undefined; }, /undefined/);
   common.expectsError(
     // eslint-disable-next-line no-throw-literal
-    () => assert.doesNotThrow(() => { throw undefined; }),
+    () => a.doesNotThrow(() => { throw undefined; }),
     {
       type: assert.AssertionError,
       code: 'ERR_ASSERTION',
