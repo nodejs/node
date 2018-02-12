@@ -341,6 +341,7 @@ to the caller.
 The following, for instance, will throw the [`TypeError`][] because there is no
 matching error type in the assertion:
 
+<!-- eslint-disable no-restricted-syntax -->
 ```js
 assert.doesNotThrow(
   () => {
@@ -353,6 +354,7 @@ assert.doesNotThrow(
 However, the following will result in an `AssertionError` with the message
 'Got unwanted exception (TypeError)..':
 
+<!-- eslint-disable no-restricted-syntax -->
 ```js
 assert.doesNotThrow(
   () => {
@@ -366,6 +368,7 @@ If an `AssertionError` is thrown and a value is provided for the `message`
 parameter, the value of `message` will be appended to the `AssertionError`
 message:
 
+<!-- eslint-disable no-restricted-syntax -->
 ```js
 assert.doesNotThrow(
   () => {
