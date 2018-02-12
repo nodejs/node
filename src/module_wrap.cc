@@ -528,9 +528,11 @@ const Environment::PackageConfig& GetPackageConfig(Environment* env,
   Local<Value> pkg_json_v;
   Local<Object> pkg_json;
 
+  // TODO: Invalid package.json MUST THROW the resolve
+  // currently this will just silently ignore
   if (!JSON::Parse(env->context(), src).ToLocal(&pkg_json_v) ||
       !pkg_json_v->ToObject(env->context()).ToLocal(&pkg_json))
-    return kEmptyPackage;  // Exception pending.
+    return kEmptyPackage;
 
   Local<Value> pkg_main;
   bool has_main = false;
