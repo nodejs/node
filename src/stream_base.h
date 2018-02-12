@@ -95,7 +95,7 @@ class StreamListener {
  public:
   virtual ~StreamListener();
 
-  // This is called when a stream wants to allocate memory immediately before
+  // This is called when a stream wants to allocate memory before
   // reading data into the freshly allocated buffer (i.e. it is always followed
   // by a `OnStreamRead()` call).
   // This memory may be statically or dynamically allocated; for example,
@@ -105,6 +105,9 @@ class StreamListener {
   // The returned buffer does not need to contain `suggested_size` bytes.
   // The default implementation of this method returns a buffer that has exactly
   // the suggested size and is allocated using malloc().
+  // It is not valid to return a zero-length buffer from this method.
+  // It is not guaranteed that the corresponding `OnStreamRead()` call
+  // happens in the same event loop turn as this call.
   virtual uv_buf_t OnStreamAlloc(size_t suggested_size);
 
   // `OnStreamRead()` is called when data is available on the socket and has

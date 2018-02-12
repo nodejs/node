@@ -34,6 +34,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <functional>  // std::function
 #include <type_traits>  // std::remove_reference
 
 namespace node {
@@ -433,7 +434,6 @@ class BufferValue : public MaybeStackBuffer<char> {
 // Use this when a variable or parameter is unused in order to explicitly
 // silence a compiler warning about that.
 template <typename T> inline void USE(T&&) {}
-
 }  // namespace node
 
 #endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS

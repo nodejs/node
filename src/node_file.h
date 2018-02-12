@@ -4,6 +4,7 @@
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #include "node.h"
+#include "stream_base.h"
 #include "req_wrap-inl.h"
 
 namespace node {
@@ -19,6 +20,7 @@ using v8::Undefined;
 using v8::Value;
 
 namespace fs {
+
 
 class FSReqBase : public ReqWrap<uv_fs_t> {
  public:
@@ -120,12 +122,37 @@ class FSReqAfterScope {
   Context::Scope context_scope_;
 };
 
+class FileHandle;
+
+// A request wrap specifically for uv_fs_read()s scheduled for reading
+// from a FileHandle.
+class FileHandleReadWrap : public ReqWrap<uv_fs_t> {
+ public:
+  FileHandleReadWrap(FileHandle* handle, v8::Local<v8::Object> obj);
+
+  static inline FileHandleReadWrap* from_req(uv_fs_t* req) {
+    return static_cast<FileHandleReadWrap*>(ReqWrap::from_req(req));
+  }
+
+  size_t self_size() const override { return sizeof(*this); }
+
+ private:
+  FileHandle* file_handle_;
+  uv_buf_t buffer_;
+
+  friend class FileHandle;
+};
+
 // A wrapper for a file descriptor that will automatically close the fd when
 // the object is garbage collected
-class FileHandle : public AsyncWrap {
+class FileHandle : public AsyncWrap, public StreamBase {
  public:
-  FileHandle(Environment* env, int fd);
+  FileHandle(Environment* env,
+             int fd,
+             v8::Local<v8::Object> obj = v8::Local<v8::Object>());
   virtual ~FileHandle();
+
+  static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
 
   int fd() const { return fd_; }
   size_t self_size() const override { return sizeof(*this); }
@@ -134,9 +161,32 @@ class FileHandle : public AsyncWrap {
   // be resolved once closing is complete.
   static void Close(const FunctionCallbackInfo<Value>& args);
 
+  // Releases ownership of the FD.
+  static void ReleaseFD(const FunctionCallbackInfo<Value>& args);
+
+  // StreamBase interface:
+  int ReadStart() override;
+  int ReadStop() override;
+
+  bool IsAlive() override { return !closed_; }
+  bool IsClosing() override { return closing_; }
+  AsyncWrap* GetAsyncWrap() override { return this; }
+
+  // In the case of file streams, shutting down corresponds to closing.
+  ShutdownWrap* CreateShutdownWrap(v8::Local<v8::Object> object) override;
+  int DoShutdown(ShutdownWrap* req_wrap) override;
+
+  int DoWrite(WriteWrap* w,
+              uv_buf_t* bufs,
+              size_t count,
+              uv_stream_t* send_handle) override {
+    return UV_ENOSYS;  // Not implemented (yet).
+  }
+
  private:
   // Synchronous close that emits a warning
-  inline void Close();
+  void Close();
+  void AfterClose();
 
   class CloseReq : public ReqWrap<uv_fs_t> {
    public:
@@ -176,6 +226,12 @@ class FileHandle : public AsyncWrap {
   int fd_;
   bool closing_ = false;
   bool closed_ = false;
+  int64_t read_offset_ = -1;
+  int64_t read_length_ = -1;
+
+  bool reading_ = false;
+  std::unique_ptr<FileHandleReadWrap> current_read_ = nullptr;
+
 
   DISALLOW_COPY_AND_ASSIGN(FileHandle);
 };

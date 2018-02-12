@@ -48,6 +48,10 @@ struct nghttp2_rcbuf;
 
 namespace node {
 
+namespace fs {
+class FileHandleReadWrap;
+}
+
 namespace performance {
 class performance_state;
 }
@@ -297,6 +301,7 @@ struct PackageConfig {
   V(context, v8::Context)                                                     \
   V(domain_callback, v8::Function)                                            \
   V(fd_constructor_template, v8::ObjectTemplate)                              \
+  V(filehandlereadwrap_template, v8::ObjectTemplate)                          \
   V(fsreqpromise_constructor_template, v8::ObjectTemplate)                    \
   V(fdclose_constructor_template, v8::ObjectTemplate)                         \
   V(host_import_module_dynamically_callback, v8::Function)                    \
@@ -642,6 +647,9 @@ class Environment {
 
   inline AliasedBuffer<double, v8::Float64Array>* fs_stats_field_array();
 
+  inline std::vector<std::unique_ptr<fs::FileHandleReadWrap>>&
+      file_handle_read_wrap_freelist();
+
   inline performance::performance_state* performance_state();
   inline std::map<std::string, uint64_t>* performance_marks();
 
@@ -821,6 +829,9 @@ class Environment {
   // needs room to store data for *two* `fs.Stats` instances.
   static const int kFsStatsFieldsLength = 2 * 14;
   AliasedBuffer<double, v8::Float64Array> fs_stats_field_array_;
+
+  std::vector<std::unique_ptr<fs::FileHandleReadWrap>>
+      file_handle_read_wrap_freelist_;
 
   struct ExitCallback {
     void (*cb_)(void* arg);
