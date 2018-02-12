@@ -148,3 +148,6 @@ b.writeDoubleBE(11.11, 0, true);
     message: '"length" is outside of buffer bounds'
   });
 }
+
+// Test a array like entry with the length set to NaN.
+assert.deepStrictEqual(Buffer.from({ length: NaN }), Buffer.alloc(0));
