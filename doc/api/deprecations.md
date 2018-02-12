@@ -892,6 +892,14 @@ Use [`asyncResource.runInAsyncScope()`][] API instead which provides a much
 safer, and more convenient, alternative. See
 https://github.com/nodejs/node/pull/18513 for more details.
 
+<a id="DEP0XXX"></a>
+### DEP0XXX: NODE_REPL_HISTORY_FILE environment variable
+
+Type: End-of-life
+
+`NODE_REPL_HISTORY_FILE` environment variable was removed. Please use
+`NODE_REPL_HISTORY` instead.
+
 [`--pending-deprecation`]: cli.html#cli_pending_deprecation
 [`Buffer.allocUnsafeSlow(size)`]: buffer.html#buffer_class_method_buffer_allocunsafeslow_size
 [`Buffer.from(array)`]: buffer.html#buffer_class_method_buffer_from_array
