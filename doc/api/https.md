@@ -12,8 +12,8 @@ separate module.
 added: v0.4.5
 -->
 
-An [`Agent`][] object for HTTPS similar to [`http.Agent`][].  See [`https.request()`][]
-for more information.
+An [`Agent`][] object for HTTPS similar to [`http.Agent`][].  See
+[`https.request()`][] for more information.
 
 ## Class: https.Server
 <!-- YAML
@@ -158,8 +158,8 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/10638
     description: The `options` parameter can be a WHATWG `URL` object.
 -->
-- `options` {Object | string | URL} Accepts all `options` from [`http.request()`][],
-  with some differences in default values:
+- `options` {Object | string | URL} Accepts all `options` from
+  [`http.request()`][], with some differences in default values:
   - `protocol` Defaults to `https:`
   - `port` Defaults to `443`.
   - `agent` Defaults to `https.globalAgent`.
