@@ -54,7 +54,26 @@ class performance_state;
 
 namespace loader {
 class ModuleWrap;
-}
+
+struct Exists {
+  enum Bool { Yes, No };
+};
+
+struct IsValid {
+  enum Bool { Yes, No };
+};
+
+struct HasMain {
+  enum Bool { Yes, No };
+};
+
+struct PackageConfig {
+  const Exists::Bool exists;
+  const IsValid::Bool is_valid;
+  const HasMain::Bool has_main;
+  const std::string main;
+};
+}  // namespace loader
 
 // Pick an index that's hopefully out of the way when we're embedded inside
 // another application. Performance-wise or memory-wise it doesn't matter:
@@ -602,6 +621,8 @@ class Environment {
   inline std::vector<double>* destroy_async_id_list();
 
   std::unordered_multimap<int, loader::ModuleWrap*> module_map;
+
+  std::unordered_map<std::string, loader::PackageConfig> package_json_cache;
 
   inline double* heap_statistics_buffer() const;
   inline void set_heap_statistics_buffer(double* pointer);
