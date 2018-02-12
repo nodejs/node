@@ -10,6 +10,7 @@ module.exports.plugins = [
   require('remark-lint-final-definition'),
   require('remark-lint-final-newline'),
   require('remark-lint-hard-break-spaces'),
+  require('remark-lint-maximum-line-length'),
   require('remark-lint-no-auto-link-without-protocol'),
   require('remark-lint-no-blockquote-without-caret'),
   require('remark-lint-no-duplicate-definitions'),
