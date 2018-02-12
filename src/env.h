@@ -608,6 +608,13 @@ class Environment {
 
   std::unordered_multimap<int, loader::ModuleWrap*> module_map;
 
+  struct PackageConfig {
+    bool exists;
+    bool has_main;
+    std::string main;
+  };
+  std::unordered_map<std::string, PackageConfig> package_json_cache;
+
   inline double* heap_statistics_buffer() const;
   inline void set_heap_statistics_buffer(double* pointer);
 
