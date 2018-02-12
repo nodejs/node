@@ -284,9 +284,11 @@ if (common.hasCrypto) { // eslint-disable-line crypto-check
   testInitialized(handle, 'UDP');
   testUninitialized(req, 'SendWrap');
 
-  handle.bind('0.0.0.0', common.PORT, undefined);
+  handle.bind('0.0.0.0', 0, undefined);
+  const addr = {};
+  handle.getsockname(addr);
   req.address = '127.0.0.1';
-  req.port = common.PORT;
+  req.port = addr.port;
   req.oncomplete = () => handle.close();
   handle.send(req, [Buffer.alloc(1)], 1, req.port, req.address, true);
   testInitialized(req, 'SendWrap');
