@@ -3279,7 +3279,7 @@ static void RawDebug(const FunctionCallbackInfo<Value>& args) {
   fflush(stderr);
 }
 
-void LoadEnvironment(Environment* env) {
+void LoadEnvironment(Environment* env, const bool allow_repl) {
   HandleScope handle_scope(env->isolate());
 
   TryCatch try_catch(env->isolate());
@@ -3341,6 +3341,13 @@ void LoadEnvironment(Environment* env) {
   // who do not like how bootstrap_node.js sets up the module system but do
   // like Node's I/O bindings may want to replace 'f' with their own function.
   Local<Value> arg = env->process_object();
+  Local<Object> process_object = env->process_object();
+
+  // add allow_repl parameter to JS process so we can use it in 
+  // bootstrap_node.js
+  process_object->Set(env->context(),
+                      String::NewFromUtf8(env->isolate(), "allow_repl"),
+                      Boolean::New(env->isolate(), allow_repl));
 
   auto ret = f->Call(env->context(), Null(env->isolate()), 1, &arg);
   // If there was an error during bootstrap then it was either handled by the
@@ -4627,7 +4634,8 @@ void _ConfigureOpenSsl() {
 void _StartEnv(int argc,
                const char* const* argv,
                int v8_argc,
-               const char* const* v8_argv) {
+               const char* const* v8_argv,
+               const bool allow_repl) {
   std::cout << "Starting environment" << std::endl;
 
   _environment->Start(argc, argv, v8_argc, v8_argv, v8_is_profiling);
@@ -4650,7 +4658,7 @@ void _StartEnv(int argc,
   {
     Environment::AsyncCallbackScope callback_scope(_environment);
     _environment->async_hooks()->push_async_ids(1, 0);
-    LoadEnvironment(_environment);
+    LoadEnvironment(_environment, allow_repl);
     _environment->async_hooks()->pop_async_id(1);
   }
 
@@ -4660,12 +4668,13 @@ void _StartEnv(int argc,
 }  // namespace initialize
 
 void Initialize(const std::string& program_name,
-                const std::vector<std::string>& node_args) {
+                const std::vector<std::string>& node_args,
+                const bool allow_repl) {
   cmd_args = new CmdArgs(program_name, node_args);
-  Initialize(cmd_args->argc, cmd_args->argv);
+  Initialize(cmd_args->argc, cmd_args->argv, allow_repl);
 }
 
-void Initialize(int argc, const char** argv) {
+void Initialize(int argc, const char** argv, const bool allow_repl) {
   //////////
   // Start 1
   //////////
@@ -4701,7 +4710,7 @@ void Initialize(int argc, const char** argv) {
   // Start environment
   //////////
 
-  initialize::_StartEnv(argc, argv, exec_argc, exec_argv);
+  initialize::_StartEnv(argc, argv, exec_argc, exec_argv, allow_repl);
 }
 
 int Deinitialize() {
@@ -4924,7 +4933,7 @@ bool ProcessEvents(UvLoopBehavior behavior) {
 }
 
 int Start(int argc, char** argv) {
-  Initialize(argc, const_cast<const char**>(argv));
+  Initialize(argc, const_cast<const char**>(argv), true);
   SealHandleScope seal(_environment->isolate());
   PERFORMANCE_MARK(_environment, LOOP_START);
   RunEventLoop([] () {}, UvLoopBehavior::RUN_DEFAULT);
