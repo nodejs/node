@@ -1,11 +1,11 @@
 'use strict';
-const common = require('../common');
+require('../common');
 const assert = require('assert');
 const http = require('http');
 const Countdown = require('../common/countdown');
 
 const test_res_body = 'other stuff!\n';
-const countdown = new Countdown(3, common.mustCall(() => server.close()));
+const countdown = new Countdown(3, () => server.close());
 
 const server = http.createServer((req, res) => {
   console.error('Server sending informational message #1...');
