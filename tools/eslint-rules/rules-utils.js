@@ -8,7 +8,7 @@
  * require calls.
  */
 module.exports.isRequired = function(node, modules) {
-  return node.callee.name === 'require' &&
+  return node.callee.name === 'require' && node.arguments.length !== 0 &&
     modules.includes(node.arguments[0].value);
 };
 
