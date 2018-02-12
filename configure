@@ -180,6 +180,54 @@ parser.add_option('--openssl-system-ca-path',
     help='Use the specified path to system CA (PEM format) in addition to '
          'the OpenSSL supplied CA store or compiled-in Mozilla CA copy.')
 
+shared_optgroup.add_option('--shared-jemalloc',
+    action='store_true',
+    dest='shared_jemalloc',
+    help='Use jemalloc instead of libc malloc'
+         'Use this option for custom builds, after examining the impact'
+         'on performance. Ensure that the native add-on is linked to either'
+         'libc or jemalloc and uses the same allocator to alloc and free.')
+
+shared_optgroup.add_option('--shared-jemalloc-includes',
+    action='store',
+    dest='shared_jemalloc_includes',
+    help='directory containing lib jemalloc header files')
+
+shared_optgroup.add_option('--shared-jemalloc-libname',
+    action='store',
+    dest='shared_jemalloc_libname',
+    default='jemalloc',
+    help='alternative lib name to link to [default: %default]')
+
+shared_optgroup.add_option('--shared-jemalloc-libpath',
+    action='store',
+    dest='shared_jemalloc_libpath',
+    help='directory to search for the jemalloc lib')
+
+shared_optgroup.add_option('--shared-tcmalloc',
+    action='store_true',
+    dest='shared_tcmalloc',
+    help='Use tcmalloc instead of libc malloc'
+         'Use this option for custom builds, after examining the impact'
+         'on performance. Ensure that the native add-on is linked to either'
+         'libc or jemalloc and uses the same allocator to alloc and free.')
+
+shared_optgroup.add_option('--shared-tcmalloc-includes',
+    action='store',
+    dest='shared_tcmalloc_includes',
+    help='directory containing lib tcmalloc header files')
+
+shared_optgroup.add_option('--shared-tcmalloc-libname',
+    action='store',
+    dest='shared_tcmalloc_libname',
+    default='tcmalloc',
+    help='alternative lib name to link to [default: %default]')
+
+shared_optgroup.add_option('--shared-tcmalloc-libpath',
+    action='store',
+    dest='shared_tcmalloc_libpath',
+    help='directory to search for the tcmalloc lib')
+
 shared_optgroup.add_option('--shared-http-parser',
     action='store_true',
     dest='shared_http_parser',
@@ -1446,6 +1494,11 @@ configure_library('http_parser', output)
 configure_library('libuv', output)
 configure_library('libcares', output)
 configure_library('nghttp2', output)
+
+# we don't want to link to both tcmalloc and jemalloc
+if bool(options.shared_jemalloc) != bool(options.shared_tcmalloc): 
+  configure_library('jemalloc', output)
+  configure_library('tcmalloc', output)
 # stay backwards compatible with shared cares builds
 output['variables']['node_shared_cares'] = \
     output['variables'].pop('node_shared_libcares')
