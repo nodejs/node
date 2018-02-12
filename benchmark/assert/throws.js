@@ -26,6 +26,7 @@ function main({ n, method }) {
     case 'doesNotThrow':
       bench.start();
       for (i = 0; i < n; ++i) {
+        // eslint-disable-next-line no-restricted-syntax
         assert.doesNotThrow(doesNotThrow);
       }
       bench.end(n);
