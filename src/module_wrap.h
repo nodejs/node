@@ -12,6 +12,12 @@
 namespace node {
 namespace loader {
 
+struct PackageConfig {
+  bool exists;
+  bool has_main;
+  std::string main;
+};
+
 v8::Maybe<url::URL> Resolve(Environment* env,
                             const std::string& specifier,
                             const url::URL& base,

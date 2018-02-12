@@ -117,15 +117,18 @@ The resolve hook returns the resolved file URL and module format for a
 given module specifier and parent file URL:
 
 ```js
-import url from 'url';
+const baseURL = new URL('file://');
+baseURL.pathname = process.cwd() + '/';
 
 export async function resolve(specifier, parentModuleURL, defaultResolver) {
   return {
-    url: new URL(specifier, parentModuleURL).href,
+    url: new URL(specifier, parentModuleURL || baseURL).href,
     format: 'esm'
   };
 }
 ```
+
+The parentURL is provided as `undefined` when performing main NodeJS load itself.
 
 The default NodeJS ES module resolution function is provided as a third
 argument to the resolver for easy compatibility workflows.
@@ -155,7 +158,10 @@ import Module from 'module';
 const builtins = Module.builtinModules;
 const JS_EXTENSIONS = new Set(['.js', '.mjs']);
 
-export function resolve(specifier, parentModuleURL/*, defaultResolve */) {
+const baseURL = new URL('file://');
+baseURL.pathname = process.cwd() + '/';
+
+export function resolve(specifier, parentModuleURL = baseURL, defaultResolve) {
   if (builtins.includes(specifier)) {
     return {
       url: specifier,
