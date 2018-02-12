@@ -31,6 +31,7 @@ const { EOL } = require('os');
 const EventEmitter = require('events');
 const { errorCache } = require('internal/errors');
 const { writeFileSync, unlinkSync } = require('fs');
+const { inspect } = require('util');
 const a = assert;
 
 assert.ok(a.AssertionError.prototype instanceof Error,
@@ -564,6 +565,21 @@ common.expectsError(
   assert.throws(
     () => assert.deepEqual(Array(12).fill(1), Array(12).fill(2)),
     { message });
+
+  const obj1 = {};
+  const obj2 = { loop: 'forever' };
+  obj2[inspect.custom] = () => '{}';
+  // No infinite loop and no custom inspect.
+  assert.throws(() => assert.deepEqual(obj1, obj2), {
+    message: `${start}\n` +
+    `${actExp}\n` +
+    '\n' +
+    `${minus} {}\n` +
+    `${plus} {\n` +
+    `${plus}   loop: 'forever',\n` +
+    `${plus}   [Symbol(util.inspect.custom)]: [Function]\n` +
+    `${plus} }`
+  });
 
   // notDeepEqual tests
   message = 'Identical input passed to notDeepStrictEqual:\n[\n  1\n]';
