@@ -503,7 +503,8 @@ PackageConfig& GetPackageConfig(Environment* env, const std::string path) {
   }
   Maybe<uv_file> check = CheckFile(path, LEAVE_OPEN_AFTER_CHECK);
   if (check.IsNothing()) {
-    return pjson_cache_[path] = emptyPackage;
+    return pjson_cache_[path] =
+           emptyPackage;
   }
 
   Isolate* isolate = env->isolate();
@@ -522,12 +523,14 @@ PackageConfig& GetPackageConfig(Environment* env, const std::string path) {
                            pkg_src.c_str(),
                            v8::NewStringType::kNormal,
                            pkg_src.length()).ToLocal(&src)) {
-    return pjson_cache_[path] = emptyPackage;
+    return pjson_cache_[path] =
+           emptyPackage;
   }
 
   Local<Value> pkg_json;
   if (!JSON::Parse(context, src).ToLocal(&pkg_json) || !pkg_json->IsObject())
-    return (pjson_cache_[path] = emptyPackage);
+    return pjson_cache_[path] =
+           emptyPackage;
   Local<Value> pkg_main;
   bool has_main = false;
   std::string main_std;
@@ -539,7 +542,8 @@ PackageConfig& GetPackageConfig(Environment* env, const std::string path) {
   }
 
   PackageConfig pjson = { true, has_main, main_std };
-  return pjson_cache_[path] = pjson;
+  return pjson_cache_[path] =
+         pjson;
 }
 
 enum ResolveExtensionsOptions {
@@ -548,7 +552,7 @@ enum ResolveExtensionsOptions {
 };
 
 template<ResolveExtensionsOptions options>
-Maybe<URL> ResolveExtensions(Environment* env, const URL& search) {
+Maybe<URL> ResolveExtensions(const URL& search) {
   if (options == TRY_EXACT_NAME) {
     std::string filePath = search.ToFilePath();
     Maybe<uv_file> check = CheckFile(filePath);
@@ -568,8 +572,8 @@ Maybe<URL> ResolveExtensions(Environment* env, const URL& search) {
   return Nothing<URL>();
 }
 
-inline Maybe<URL> ResolveIndex(Environment* env, const URL& search) {
-  return ResolveExtensions<ONLY_VIA_EXTENSIONS>(env, URL("index", search));
+inline Maybe<URL> ResolveIndex(const URL& search) {
+  return ResolveExtensions<ONLY_VIA_EXTENSIONS>(URL("index", search));
 }
 
 Maybe<URL> ResolveMain(Environment* env, const URL& search) {
@@ -620,7 +624,7 @@ Maybe<URL> ResolveDirectory(Environment* env,
     if (!main.IsNothing())
       return main;
   }
-  return ResolveIndex(env, search);
+  return ResolveIndex(search);
 }
 
 }  // anonymous namespace
@@ -643,7 +647,7 @@ Maybe<URL> Resolve(Environment* env,
   }
   if (ShouldBeTreatedAsRelativeOrAbsolutePath(specifier)) {
     URL resolved(specifier, base);
-    Maybe<URL> file = ResolveExtensions<TRY_EXACT_NAME>(env, resolved);
+    Maybe<URL> file = ResolveExtensions<TRY_EXACT_NAME>(resolved);
     if (!file.IsNothing())
       return file;
     if (specifier.back() != '/') {
