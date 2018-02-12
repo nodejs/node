@@ -4,11 +4,14 @@ const common = require('../common');
 const assert = require('assert');
 const repl = require('repl');
 
+let evalCount = 0;
 let recovered = false;
 let rendered = false;
 
 function customEval(code, context, file, cb) {
-  return cb(!recovered ? new repl.Recoverable() : null, true);
+  evalCount++;
+
+  return cb(evalCount === 1 ? new repl.Recoverable() : null, true);
 }
 
 const putIn = new common.ArrayStream();
@@ -23,7 +26,7 @@ putIn.write = function(msg) {
   }
 };
 
-repl.start('', putIn, common.mustCall(customEval, 2));
+repl.start('', putIn, customEval);
 
 // https://github.com/nodejs/node/issues/2939
 // Expose recoverable errors to the consumer.
@@ -33,4 +36,5 @@ putIn.emit('data', '2\n');
 process.on('exit', function() {
   assert(recovered, 'REPL never recovered');
   assert(rendered, 'REPL never rendered the result');
+  assert.strictEqual(evalCount, 2);
 });
