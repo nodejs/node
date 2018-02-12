@@ -29,6 +29,11 @@ const StringDecoder = require('string_decoder').StringDecoder;
 let decoder = new StringDecoder();
 assert.strictEqual(decoder.encoding, 'utf8');
 
+// Should work without 'new' keyword
+const decoder2 = {};
+StringDecoder.call(decoder2);
+assert.strictEqual(decoder2.encoding, 'utf8');
+
 // UTF-8
 test('utf-8', Buffer.from('$', 'utf-8'), '$');
 test('utf-8', Buffer.from('¢', 'utf-8'), '¢');
