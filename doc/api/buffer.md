@@ -1,6 +1,7 @@
 # Buffer
 
 <!--introduced_in=v0.10.0-->
+<!--lint disable maximum-line-length-->
 
 > Stability: 2 - Stable
 

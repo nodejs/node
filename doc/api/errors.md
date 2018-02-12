@@ -227,7 +227,8 @@ Error.captureStackTrace(myObject);
 myObject.stack;  // similar to `new Error().stack`
 ```
 
-The first line of the trace will be prefixed with `${myObject.name}: ${myObject.message}`.
+The first line of the trace will be prefixed with
+`${myObject.name}: ${myObject.message}`.
 
 The optional `constructorOpt` argument accepts a function. If given, all frames
 above `constructorOpt`, including `constructorOpt`, will be omitted from the
@@ -1321,7 +1322,8 @@ An attempt was made to `require()` an [ES6 module][].
 <a id="ERR_SCRIPT_EXECUTION_INTERRUPTED"></a>
 ### ERR_SCRIPT_EXECUTION_INTERRUPTED
 
-Script execution was interrupted by `SIGINT` (For example, when Ctrl+C was pressed).
+Script execution was interrupted by `SIGINT` (For example, when Ctrl+C was
+pressed).
 
 <a id="ERR_SERVER_ALREADY_LISTEN"></a>
 ### ERR_SERVER_ALREADY_LISTEN
