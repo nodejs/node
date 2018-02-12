@@ -269,7 +269,7 @@ changes:
 
 * Returns: {cluster.Worker} A reference to `worker`.
 
-In a worker, this function will close all servers, wait for the `'close'` event 
+In a worker, this function will close all servers, wait for the `'close'` event
 on those servers, and then disconnect the IPC channel.
 
 In the master, an internal message is sent to the worker causing it to call
@@ -280,7 +280,7 @@ Causes `.exitedAfterDisconnect` to be set.
 Note that after a server is closed, it will no longer accept new connections,
 but connections may be accepted by any other listening worker. Existing
 connections will be allowed to close as usual. When no more connections exist,
-see [`server.close()`][], the IPC channel to the worker will close allowing it 
+see [`server.close()`][], the IPC channel to the worker will close allowing it
 to die gracefully.
 
 The above applies *only* to server connections, client connections are not
@@ -639,7 +639,7 @@ Calls `.disconnect()` on each worker in `cluster.workers`.
 When they are disconnected all internal handles will be closed, allowing the
 master process to die gracefully if no other event is waiting.
 
-The method takes an optional callback argument which will be called when 
+The method takes an optional callback argument which will be called when
 finished.
 
 This can only be called from the master process.

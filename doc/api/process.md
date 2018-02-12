@@ -193,9 +193,9 @@ of allocated resources (e.g. file descriptors, handles, etc) before shutting
 down the process. **It is not safe to resume normal operation after
 `'uncaughtException'`.**
 
-To restart a crashed application in a more reliable way, whether 
-`uncaughtException` is emitted or not, an external monitor should be employed 
-in a separate process to detect application failures and recover or restart as 
+To restart a crashed application in a more reliable way, whether
+`uncaughtException` is emitted or not, an external monitor should be employed
+in a separate process to detect application failures and recover or restart as
 needed.
 
 ### Event: 'unhandledRejection'
@@ -380,7 +380,7 @@ process.on('SIGTERM', handle);
   installed its default behavior will be removed.
 * `SIGTERM` is not supported on Windows, it can be listened on.
 * `SIGINT` from the terminal is supported on all platforms, and can usually be
-  generated with `<Ctrl>+C` (though this may be configurable). It is not 
+  generated with `<Ctrl>+C` (though this may be configurable). It is not
   generated when terminal raw mode is enabled.
 * `SIGBREAK` is delivered on Windows when `<Ctrl>+<Break>` is pressed, on
   non-Windows platforms it can be listened on, but there is no way to send or
@@ -417,7 +417,7 @@ added: v0.5.0
 
 * {string}
 
-The `process.arch` property returns a string identifying the operating system 
+The `process.arch` property returns a string identifying the operating system
 CPU architecture for which the Node.js binary was compiled.
 
 The current possible values are: `'arm'`, `'arm64'`, `'ia32'`, `'mips'`,
@@ -1631,7 +1631,7 @@ added: v0.9.4
 * `groups` {integer[]}
 
 The `process.setgroups()` method sets the supplementary group IDs for the
-Node.js process. This is a privileged operation that requires the Node.js 
+Node.js process. This is a privileged operation that requires the Node.js
 process to have `root` or the `CAP_SETGID` capability.
 
 The `groups` array can contain numeric group IDs, group names or both.
