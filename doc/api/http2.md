@@ -1105,29 +1105,6 @@ stream.on('headers', (headers, flags) => {
 });
 ```
 
-### Event: 'information'
-<!-- YAML
-added: REPLACEME
--->
-
-Emitted when the server sends a 1xx response (excluding 101 Upgrade). This
-event is emitted with a callback containing an object with a status code.
-
-```js
-const http2 = require('http2');
-const client = http2.connect('https://localhost');
-const req = client.request({ ':path': '/' });
-
-req.on('information', (res) => {
-  console.log('got information prior to main response: ' + res.statusCode);
-});
-```
-
-101 Upgrade statuses are not used within HTTP 2.0 since this status was already
-explicitly used to establish an HTTP 2.0 connection. If this event were fired
-for 101 Upgrade statuses, it would do so (arguably uselessly) for each and
-every HTTP 2.0 connection made by the client.
-
 #### Event: 'push'
 <!-- YAML
 added: v8.4.0
