@@ -456,10 +456,9 @@ enum CheckFileOptions {
   CLOSE_AFTER_CHECK
 };
 
-Maybe<uv_file> CheckFile(const URL& search,
+Maybe<uv_file> CheckFile(const std::string& path,
                          CheckFileOptions opt = CLOSE_AFTER_CHECK) {
   uv_fs_t fs_req;
-  std::string path = search.ToFilePath();
   if (path.empty()) {
     return Nothing<uv_file>();
   }
@@ -476,17 +475,72 @@ Maybe<uv_file> CheckFile(const URL& search,
   uv_fs_req_cleanup(&fs_req);
 
   if (is_directory) {
-    uv_fs_close(nullptr, &fs_req, fd, nullptr);
+    CHECK_EQ(0, uv_fs_close(nullptr, &fs_req, fd, nullptr));
     uv_fs_req_cleanup(&fs_req);
     return Nothing<uv_file>();
   }
 
   if (opt == CLOSE_AFTER_CHECK) {
-    uv_fs_close(nullptr, &fs_req, fd, nullptr);
+    CHECK_EQ(0, uv_fs_close(nullptr, &fs_req, fd, nullptr));
     uv_fs_req_cleanup(&fs_req);
   }
 
   return Just(fd);
+}
+
+const PackageConfig& GetPackageConfig(Environment* env,
+                                                   const std::string path) {
+  auto existing = env->package_json_cache.find(path);
+  if (existing != env->package_json_cache.end()) {
+    return existing->second;
+  }
+  Maybe<uv_file> check = CheckFile(path, LEAVE_OPEN_AFTER_CHECK);
+  if (check.IsNothing()) {
+    auto entry = env->package_json_cache.emplace(path,
+        PackageConfig { Exists::No, IsValid::Yes, HasMain::No, "" });
+    return entry.first->second;
+  }
+
+  Isolate* isolate = env->isolate();
+  v8::HandleScope handle_scope(isolate);
+
+  std::string pkg_src = ReadFile(check.FromJust());
+  uv_fs_t fs_req;
+  CHECK_EQ(0, uv_fs_close(nullptr, &fs_req, check.FromJust(), nullptr));
+  uv_fs_req_cleanup(&fs_req);
+
+  Local<String> src;
+  if (!String::NewFromUtf8(isolate,
+                           pkg_src.c_str(),
+                           v8::NewStringType::kNormal,
+                           pkg_src.length()).ToLocal(&src)) {
+    auto entry = env->package_json_cache.emplace(path,
+        PackageConfig { Exists::No, IsValid::Yes, HasMain::No, "" });
+    return entry.first->second;
+  }
+
+  Local<Value> pkg_json_v;
+  Local<Object> pkg_json;
+
+  if (!JSON::Parse(env->context(), src).ToLocal(&pkg_json_v) ||
+      !pkg_json_v->ToObject(env->context()).ToLocal(&pkg_json)) {
+    auto entry = env->package_json_cache.emplace(path,
+        PackageConfig { Exists::Yes, IsValid::No, HasMain::No, "" });
+    return entry.first->second;
+  }
+
+  Local<Value> pkg_main;
+  HasMain::Bool has_main = HasMain::No;
+  std::string main_std;
+  if (pkg_json->Get(env->context(), env->main_string()).ToLocal(&pkg_main)) {
+    has_main = HasMain::Yes;
+    Utf8Value main_utf8(isolate, pkg_main);
+    main_std.assign(std::string(*main_utf8, main_utf8.length()));
+  }
+
+  auto entry = env->package_json_cache.emplace(path,
+      PackageConfig { Exists::Yes, IsValid::Yes, has_main, "" });
+  return entry.first->second;
 }
 
 enum ResolveExtensionsOptions {
@@ -497,7 +551,8 @@ enum ResolveExtensionsOptions {
 template<ResolveExtensionsOptions options>
 Maybe<URL> ResolveExtensions(const URL& search) {
   if (options == TRY_EXACT_NAME) {
-    Maybe<uv_file> check = CheckFile(search);
+    std::string filePath = search.ToFilePath();
+    Maybe<uv_file> check = CheckFile(filePath);
     if (!check.IsNothing()) {
       return Just(search);
     }
@@ -505,7 +560,7 @@ Maybe<URL> ResolveExtensions(const URL& search) {
 
   for (const char* extension : EXTENSIONS) {
     URL guess(search.path() + extension, &search);
-    Maybe<uv_file> check = CheckFile(guess);
+    Maybe<uv_file> check = CheckFile(guess.ToFilePath());
     if (!check.IsNothing()) {
       return Just(guess);
     }
@@ -520,44 +575,18 @@ inline Maybe<URL> ResolveIndex(const URL& search) {
 
 Maybe<URL> ResolveMain(Environment* env, const URL& search) {
   URL pkg("package.json", &search);
-  Maybe<uv_file> check = CheckFile(pkg, LEAVE_OPEN_AFTER_CHECK);
-  if (check.IsNothing()) {
+
+  const PackageConfig& pjson =
+      GetPackageConfig(env, pkg.ToFilePath());
+  // Note invalid package.json should throw in resolver
+  // currently we silently ignore which is incorrect
+  if (!pjson.exists || !pjson.is_valid || !pjson.has_main) {
     return Nothing<URL>();
   }
-
-  Isolate* isolate = env->isolate();
-  Local<Context> context = isolate->GetCurrentContext();
-  std::string pkg_src = ReadFile(check.FromJust());
-  uv_fs_t fs_req;
-  uv_fs_close(nullptr, &fs_req, check.FromJust(), nullptr);
-  uv_fs_req_cleanup(&fs_req);
-
-  // It's not okay for the called of this method to not be able to tell
-  // whether an exception is pending or not.
-  TryCatch try_catch(isolate);
-
-  Local<String> src;
-  if (!String::NewFromUtf8(isolate,
-                           pkg_src.c_str(),
-                           v8::NewStringType::kNormal,
-                           pkg_src.length()).ToLocal(&src)) {
-    return Nothing<URL>();
+  if (!ShouldBeTreatedAsRelativeOrAbsolutePath(pjson.main)) {
+    return Resolve(env, "./" + pjson.main, search);
   }
-
-  Local<Value> pkg_json;
-  if (!JSON::Parse(context, src).ToLocal(&pkg_json) || !pkg_json->IsObject())
-    return Nothing<URL>();
-  Local<Value> pkg_main;
-  if (!pkg_json.As<Object>()->Get(context, env->main_string())
-                              .ToLocal(&pkg_main) || !pkg_main->IsString()) {
-    return Nothing<URL>();
-  }
-  Utf8Value main_utf8(isolate, pkg_main.As<String>());
-  std::string main_std(*main_utf8, main_utf8.length());
-  if (!ShouldBeTreatedAsRelativeOrAbsolutePath(main_std)) {
-    main_std.insert(0, "./");
-  }
-  return Resolve(env, main_std, search);
+  return Resolve(env, pjson.main, search);
 }
 
 Maybe<URL> ResolveModule(Environment* env,
@@ -567,7 +596,8 @@ Maybe<URL> ResolveModule(Environment* env,
   URL dir("");
   do {
     dir = parent;
-    Maybe<URL> check = Resolve(env, "./node_modules/" + specifier, dir, true);
+    Maybe<URL> check =
+        Resolve(env, "./node_modules/" + specifier, dir, IgnoreMain);
     if (!check.IsNothing()) {
       const size_t limit = specifier.find('/');
       const size_t spec_len =
@@ -589,8 +619,8 @@ Maybe<URL> ResolveModule(Environment* env,
 
 Maybe<URL> ResolveDirectory(Environment* env,
                             const URL& search,
-                            bool read_pkg_json) {
-  if (read_pkg_json) {
+                            PackageMainCheck check_pjson_main) {
+  if (check_pjson_main) {
     Maybe<URL> main = ResolveMain(env, search);
     if (!main.IsNothing())
       return main;
@@ -600,15 +630,14 @@ Maybe<URL> ResolveDirectory(Environment* env,
 
 }  // anonymous namespace
 
-
 Maybe<URL> Resolve(Environment* env,
                    const std::string& specifier,
                    const URL& base,
-                   bool read_pkg_json) {
+                   PackageMainCheck check_pjson_main) {
   URL pure_url(specifier);
   if (!(pure_url.flags() & URL_FLAGS_FAILED)) {
     // just check existence, without altering
-    Maybe<uv_file> check = CheckFile(pure_url);
+    Maybe<uv_file> check = CheckFile(pure_url.ToFilePath());
     if (check.IsNothing()) {
       return Nothing<URL>();
     }
@@ -625,7 +654,7 @@ Maybe<URL> Resolve(Environment* env,
     if (specifier.back() != '/') {
       resolved = URL(specifier + "/", base);
     }
-    return ResolveDirectory(env, resolved, read_pkg_json);
+    return ResolveDirectory(env, resolved, check_pjson_main);
   } else {
     return ResolveModule(env, specifier, base);
   }
@@ -662,7 +691,7 @@ void ModuleWrap::Resolve(const FunctionCallbackInfo<Value>& args) {
     return;
   }
 
-  Maybe<URL> result = node::loader::Resolve(env, specifier_std, url, true);
+  Maybe<URL> result = node::loader::Resolve(env, specifier_std, url);
   if (result.IsNothing() || (result.FromJust().flags() & URL_FLAGS_FAILED)) {
     std::string msg = "Cannot find module " + specifier_std;
     env->ThrowError(msg.c_str());
