@@ -515,10 +515,10 @@ listener array for the specified `eventName`, then `removeListener` must be
 called multiple times to remove each instance.
 
 Note that once an event has been emitted, all listeners attached to it at the
-time of emitting will be called in order. This implies that any `removeListener()`
-or `removeAllListeners()` calls *after* emitting and *before* the last listener
-finishes execution will not remove them from `emit()` in progress. Subsequent
-events will behave as expected.
+time of emitting will be called in order. This implies that any 
+`removeListener()` or `removeAllListeners()` calls *after* emitting and 
+*before* the last listener finishes execution will not remove them from 
+`emit()` in progress. Subsequent events will behave as expected.
 
 ```js
 const myEmitter = new MyEmitter();

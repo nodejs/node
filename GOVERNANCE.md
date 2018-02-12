@@ -159,9 +159,9 @@ repository, with a summary of the nominee's contributions, for example:
 * Participation in other projects, teams, and working groups of the
   Node.js organization
   * Can be shown using the links
-    `https://github.com/search?q=author%3A${GITHUB_ID}++org%3Anodejs&type=Issues`
+  `https://github.com/search?q=author%3A${GITHUB_ID}++org%3Anodejs&type=Issues`
     and
-    `https://github.com/search?q=commenter%3A${GITHUB_ID}++org%3Anodejs&type=Issues`
+`https://github.com/search?q=commenter%3A${GITHUB_ID}++org%3Anodejs&type=Issues`
 * Other participation in the wider Node.js community
 
 Mention @nodejs/collaborators in the issue to notify other Collaborators about

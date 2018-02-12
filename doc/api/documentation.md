@@ -85,8 +85,8 @@ like [`fs.open()`][], will document that. The docs link to the corresponding man
 pages (short for manual pages) which describe how the syscalls work.
 
 Some syscalls, like lchown(2), are BSD-specific. That means, for
-example, that [`fs.lchown()`][] only works on macOS and other BSD-derived systems,
-and is not available on Linux.
+example, that [`fs.lchown()`][] only works on macOS and other BSD-derived 
+systems, and is not available on Linux.
 
 Most Unix syscalls have Windows equivalents, but behavior may differ on Windows
 relative to Linux and macOS. For an example of the subtle ways in which it's

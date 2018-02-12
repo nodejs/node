@@ -107,7 +107,8 @@ const debuglog = util.debuglog('foo-bar');
 debuglog('hi there, it\'s foo-bar [%d]', 2333);
 ```
 
-if it is run with `NODE_DEBUG=foo*` in the environment, then it will output something like:
+if it is run with `NODE_DEBUG=foo*` in the environment, then it will output 
+something like:
 ```txt
 FOO-BAR 3257: hi there, it's foo-bar [2333]
 ```
@@ -206,8 +207,9 @@ corresponding argument. Supported placeholders are:
 contains circular references.
 * `%o` - Object. A string representation of an object
   with generic JavaScript object formatting.
-  Similar to `util.inspect()` with options `{ showHidden: true, showProxy: true }`.
-  This will show the full object including non-enumerable properties and proxies.
+  Similar to `util.inspect()` with options 
+  `{ showHidden: true, showProxy: true }`. This will show the full object 
+  including non-enumerable properties and proxies.
 * `%O` - Object. A string representation of an object with generic JavaScript
   object formatting. Similar to `util.inspect()` without options. This will show
   the full object not including non-enumerable properties and proxies.
@@ -400,8 +402,8 @@ The `util.inspect()` method returns a string representation of `object` that is
 intended for debugging. The output of `util.inspect` may change at any time
 and should not be depended upon programmatically. Additional `options` may be
 passed that alter certain aspects of the formatted string.
-`util.inspect()` will use the constructor's name and/or `@@toStringTag` to make an
-identifiable tag for an inspected value.
+`util.inspect()` will use the constructor's name and/or `@@toStringTag` to make 
+an identifiable tag for an inspected value.
 
 ```js
 class Foo {
@@ -702,7 +704,8 @@ console.log(promisified === doSomething[util.promisify.custom]);
 This can be useful for cases where the original function does not follow the
 standard format of taking an error-first callback as the last argument.
 
-For example, with a function that takes in `(foo, onSuccessCallback, onErrorCallback)`:
+For example, with a function that takes in 
+`(foo, onSuccessCallback, onErrorCallback)`:
 
 ```js
 doSomething[util.promisify.custom] = (foo) => {
