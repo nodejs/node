@@ -246,7 +246,7 @@ Platform check for Windows 32-bit on Windows 64-bit.
 ### isCPPSymbolsNotMapped
 * [&lt;Boolean>]
 
-Platform check for c++ symbols are mapped or not.
+Platform check for C++ symbols are mapped or not.
 
 ### leakedGlobals()
 * return [&lt;Array>]
