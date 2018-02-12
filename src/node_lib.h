@@ -103,7 +103,9 @@ NODE_EXTERN void Initialize(const std::string& program_name = "node_lib",
  * @param allow_repl Controls wether the node.js REPL gets spawned when no
  * script is given on initialization.
  */
-NODE_EXTERN void Initialize(int argc, const char** argv, const bool allow_repl = false);
+NODE_EXTERN void Initialize(int argc,
+                            const char** argv,
+                            const bool allow_repl = false);
 
 /**
  * @brief Stops the Node.js engine and destroys all current state.

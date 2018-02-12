@@ -3343,7 +3343,7 @@ void LoadEnvironment(Environment* env, const bool allow_repl) {
   Local<Value> arg = env->process_object();
   Local<Object> process_object = env->process_object();
 
-  // add allow_repl parameter to JS process so we can use it in 
+  // add allow_repl parameter to JS process so we can use it in
   // bootstrap_node.js
   process_object->Set(env->context(),
                       String::NewFromUtf8(env->isolate(), "allow_repl"),
