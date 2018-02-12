@@ -2,6 +2,7 @@
 #include "async_wrap.h"
 #include "node_buffer.h"
 #include "node_platform.h"
+#include "node_file.h"
 
 #include <stdio.h>
 #include <algorithm>

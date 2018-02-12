@@ -484,6 +484,11 @@ Environment::fs_stats_field_array() {
   return &fs_stats_field_array_;
 }
 
+inline std::vector<std::unique_ptr<fs::FileHandleReadWrap>>&
+Environment::file_handle_read_wrap_freelist() {
+  return file_handle_read_wrap_freelist_;
+}
+
 void Environment::CreateImmediate(native_immediate_callback cb,
                                void* data,
                                v8::Local<v8::Object> obj,
