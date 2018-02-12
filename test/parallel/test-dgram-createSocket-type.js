@@ -52,10 +52,12 @@ validTypes.forEach((validType) => {
     // note: linux will double the buffer size
     assert.ok(socket.getRecvBufferSize() === 10000 ||
               socket.getRecvBufferSize() === 20000,
-              'SO_RCVBUF not 1300 or 2600');
+              'SO_RCVBUF not 10000 or 20000, ' +
+              `was ${socket.getRecvBufferSize()}`);
     assert.ok(socket.getSendBufferSize() === 15000 ||
               socket.getSendBufferSize() === 30000,
-              'SO_SNDBUF not 1800 or 3600');
+              'SO_SNDBUF not 15000 or 30000, ' +
+              `was ${socket.getRecvBufferSize()}`);
     socket.close();
   }));
 }
