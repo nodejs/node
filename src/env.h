@@ -610,6 +610,7 @@ class Environment {
 
   struct PackageConfig {
     bool exists;
+    bool is_valid;
     bool has_main;
     std::string main;
   };

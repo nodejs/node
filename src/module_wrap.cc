@@ -495,7 +495,10 @@ Maybe<uv_file> CheckFile(const std::string& path,
 
 const Environment::PackageConfig& GetPackageConfig(Environment* env,
                                                    const std::string path) {
-  static const Environment::PackageConfig kEmptyPackage = { false, false, "" };
+  static const Environment::PackageConfig kEmptyPackage =
+      { false, true, false, "" };
+  static const Environment::PackageConfig kInvalidPackage =
+      { true, false, false, "" };
 
   auto existing = env->package_json_cache.find(path);
   if (existing != env->package_json_cache.end())
@@ -528,11 +531,9 @@ const Environment::PackageConfig& GetPackageConfig(Environment* env,
   Local<Value> pkg_json_v;
   Local<Object> pkg_json;
 
-  // TODO: Invalid package.json MUST THROW the resolve
-  // currently this will just silently ignore
   if (!JSON::Parse(env->context(), src).ToLocal(&pkg_json_v) ||
       !pkg_json_v->ToObject(env->context()).ToLocal(&pkg_json))
-    return kEmptyPackage;
+    return env->package_json_cache[path] = kInvalidPackage;
 
   Local<Value> pkg_main;
   bool has_main = false;
@@ -544,7 +545,7 @@ const Environment::PackageConfig& GetPackageConfig(Environment* env,
     main_std = std::string(*main_utf8, main_utf8.length());
   }
 
-  Environment::PackageConfig pjson = { true, has_main, main_std };
+  Environment::PackageConfig pjson = { true, true, has_main, main_std };
   return env->package_json_cache[path] = pjson;
 }
 
@@ -583,7 +584,9 @@ Maybe<URL> ResolveMain(Environment* env, const URL& search) {
 
   const Environment::PackageConfig& pjson =
       GetPackageConfig(env, pkg.ToFilePath());
-  if (!pjson.exists || !pjson.has_main) {
+  // Note invalid package.json should throw in resolver
+  // currently we silently ignore which is incorrect
+  if (!pjson.exists || !pjson.is_valid || !pjson.has_main) {
     return Nothing<URL>();
   }
   if (!ShouldBeTreatedAsRelativeOrAbsolutePath(pjson.main)) {
