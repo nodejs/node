@@ -55,10 +55,10 @@ class performance_state;
 namespace loader {
 class ModuleWrap;
 struct PackageConfig {
-  bool exists;
-  bool is_valid;
-  bool has_main;
-  std::string main;
+  const bool exists;
+  const bool is_valid;
+  const bool has_main;
+  const std::string main;
 };
 }
 

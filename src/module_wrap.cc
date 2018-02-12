@@ -506,7 +506,9 @@ const PackageConfig& GetPackageConfig(Environment* env,
   }
   Maybe<uv_file> check = CheckFile(path, LEAVE_OPEN_AFTER_CHECK);
   if (check.IsNothing()) {
-    return env->package_json_cache[path] = kEmptyPackage;
+    env->package_json_cache.emplace(path,
+        PackageConfig{ false, true, false, "" });
+    return kEmptyPackage;
   }
 
   Isolate* isolate = env->isolate();
@@ -522,7 +524,9 @@ const PackageConfig& GetPackageConfig(Environment* env,
                            pkg_src.c_str(),
                            v8::NewStringType::kNormal,
                            pkg_src.length()).ToLocal(&src)) {
-    return env->package_json_cache[path] = kEmptyPackage;
+    env->package_json_cache.emplace(path,
+        PackageConfig{ false, true, false, "" });
+    return kEmptyPackage;
   }
 
   Local<Value> pkg_json_v;
@@ -530,7 +534,9 @@ const PackageConfig& GetPackageConfig(Environment* env,
 
   if (!JSON::Parse(env->context(), src).ToLocal(&pkg_json_v) ||
       !pkg_json_v->ToObject(env->context()).ToLocal(&pkg_json)) {
-    return env->package_json_cache[path] = kInvalidPackage;
+    env->package_json_cache.emplace(path,
+        PackageConfig{ true, false, false, "" });
+    return kInvalidPackage;
   }
 
   Local<Value> pkg_main;
@@ -542,8 +548,9 @@ const PackageConfig& GetPackageConfig(Environment* env,
     main_std.assign(std::string(*main_utf8, main_utf8.length()));
   }
 
-  PackageConfig pjson = { true, true, has_main, main_std };
-  return env->package_json_cache[path] = pjson;
+  env->package_json_cache.emplace(path,
+      PackageConfig{ true, true, has_main, main_std });
+  return env->package_json_cache.find(path)->second;
 }
 
 enum ResolveExtensionsOptions {
