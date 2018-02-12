@@ -74,6 +74,7 @@ rules:
       message: __defineSetter__ is deprecated.
   no-return-await: error
   no-self-assign: error
+  no-self-compare: error
   no-throw-literal: error
   no-unused-labels: error
   no-useless-call: error
