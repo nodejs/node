@@ -417,7 +417,7 @@ const options = {
   path: '/length_request'
 };
 
-// make a request
+// Make a request
 const req = http.request(options);
 req.end();
 

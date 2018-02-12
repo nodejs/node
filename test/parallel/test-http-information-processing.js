@@ -1,10 +1,11 @@
 'use strict';
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 const http = require('http');
+const Countdown = require('../common/countdown');
 
 const test_res_body = 'other stuff!\n';
-let processing_count = 0;
+const countdown = new Countdown(3, common.mustCall(() => server.close()));
 
 const server = http.createServer((req, res) => {
   console.error('Server sending informational message #1...');
@@ -31,11 +32,11 @@ server.listen(0, function() {
 
   req.on('information', function(res) {
     console.error('Client got 102 Processing...');
-    processing_count++;
+    countdown.dec();
   });
 
   req.on('response', function(res) {
-    assert.strictEqual(processing_count, 2,
+    assert.strictEqual(countdown.remaining, 1,
                        'Full response received before all 102 Processing');
     assert.strictEqual(200, res.statusCode,
                        `Final status code was ${res.statusCode}, not 200.`);
@@ -43,9 +44,9 @@ server.listen(0, function() {
     res.on('data', function(chunk) { body += chunk; });
     res.on('end', function() {
       console.error('Got full response.');
-      assert.strictEqual(body, test_res_body, 'Response body doesn\'t match.');
-      assert.ok('abcd' in res.headers, 'Response headers missing.');
-      server.close();
+      assert.strictEqual(body, test_res_body);
+      assert.ok('abcd' in res.headers);
+      countdown.dec();
     });
   });
 });
