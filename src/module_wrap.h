@@ -12,7 +12,7 @@
 namespace node {
 namespace loader {
 
-enum package_main_check : bool {
+enum PackageMainCheck : bool {
     CheckMain = true,
     IgnoreMain = false
 };
@@ -20,7 +20,7 @@ enum package_main_check : bool {
 v8::Maybe<url::URL> Resolve(Environment* env,
                             const std::string& specifier,
                             const url::URL& base,
-                            package_main_check read_pkg_json = CheckMain);
+                            PackageMainCheck read_pkg_json = CheckMain);
 
 class ModuleWrap : public BaseObject {
  public:

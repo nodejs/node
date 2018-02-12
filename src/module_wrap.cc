@@ -505,20 +505,15 @@ const Environment::PackageConfig& GetPackageConfig(Environment* env,
     return existing->second;
   Maybe<uv_file> check = CheckFile(path, LEAVE_OPEN_AFTER_CHECK);
   if (check.IsNothing())
-    return kEmptyPackage;
+    return env->package_json_cache[path] = kEmptyPackage;
 
   Isolate* isolate = env->isolate();
-
   v8::HandleScope handle_scope(isolate);
 
   std::string pkg_src = ReadFile(check.FromJust());
   uv_fs_t fs_req;
   CHECK_EQ(0, uv_fs_close(nullptr, &fs_req, check.FromJust(), nullptr));
   uv_fs_req_cleanup(&fs_req);
-
-  // It's not okay for the called of this method to not be able to tell
-  // whether an exception is pending or not.
-  TryCatch try_catch(isolate);
 
   Local<String> src;
   if (!String::NewFromUtf8(isolate,
@@ -538,11 +533,10 @@ const Environment::PackageConfig& GetPackageConfig(Environment* env,
   Local<Value> pkg_main;
   bool has_main = false;
   std::string main_std;
-  if (pkg_json->Get(env->context(), env->main_string())
-                              .ToLocal(&pkg_main) && pkg_main->IsString()) {
+  if (pkg_json->Get(env->context(), env->main_string()).ToLocal(&pkg_main)) {
     has_main = true;
-    Utf8Value main_utf8(isolate, pkg_main.As<String>());
-    main_std = std::string(*main_utf8, main_utf8.length());
+    Utf8Value main_utf8(isolate, pkg_main);
+    main_std.assign(std::string(*main_utf8, main_utf8.length()));
   }
 
   Environment::PackageConfig pjson = { true, true, has_main, main_std };
@@ -625,7 +619,7 @@ Maybe<URL> ResolveModule(Environment* env,
 
 Maybe<URL> ResolveDirectory(Environment* env,
                             const URL& search,
-                            package_main_check check_pjson_main) {
+                            PackageMainCheck check_pjson_main) {
   if (check_pjson_main) {
     Maybe<URL> main = ResolveMain(env, search);
     if (!main.IsNothing())
@@ -639,7 +633,7 @@ Maybe<URL> ResolveDirectory(Environment* env,
 Maybe<URL> Resolve(Environment* env,
                    const std::string& specifier,
                    const URL& base,
-                   package_main_check check_pjson_main) {
+                   PackageMainCheck check_pjson_main) {
   URL pure_url(specifier);
   if (!(pure_url.flags() & URL_FLAGS_FAILED)) {
     // just check existence, without altering
