@@ -493,19 +493,21 @@ Maybe<uv_file> CheckFile(const std::string& path,
   return Just(fd);
 }
 
-const Environment::PackageConfig& GetPackageConfig(Environment* env,
+const PackageConfig& GetPackageConfig(Environment* env,
                                                    const std::string path) {
-  static const Environment::PackageConfig kEmptyPackage =
+  static const PackageConfig kEmptyPackage =
       { false, true, false, "" };
-  static const Environment::PackageConfig kInvalidPackage =
+  static const PackageConfig kInvalidPackage =
       { true, false, false, "" };
 
   auto existing = env->package_json_cache.find(path);
-  if (existing != env->package_json_cache.end())
+  if (existing != env->package_json_cache.end()) {
     return existing->second;
+  }
   Maybe<uv_file> check = CheckFile(path, LEAVE_OPEN_AFTER_CHECK);
-  if (check.IsNothing())
+  if (check.IsNothing()) {
     return env->package_json_cache[path] = kEmptyPackage;
+  }
 
   Isolate* isolate = env->isolate();
   v8::HandleScope handle_scope(isolate);
@@ -527,8 +529,9 @@ const Environment::PackageConfig& GetPackageConfig(Environment* env,
   Local<Object> pkg_json;
 
   if (!JSON::Parse(env->context(), src).ToLocal(&pkg_json_v) ||
-      !pkg_json_v->ToObject(env->context()).ToLocal(&pkg_json))
+      !pkg_json_v->ToObject(env->context()).ToLocal(&pkg_json)) {
     return env->package_json_cache[path] = kInvalidPackage;
+  }
 
   Local<Value> pkg_main;
   bool has_main = false;
@@ -539,7 +542,7 @@ const Environment::PackageConfig& GetPackageConfig(Environment* env,
     main_std.assign(std::string(*main_utf8, main_utf8.length()));
   }
 
-  Environment::PackageConfig pjson = { true, true, has_main, main_std };
+  PackageConfig pjson = { true, true, has_main, main_std };
   return env->package_json_cache[path] = pjson;
 }
 
@@ -576,7 +579,7 @@ inline Maybe<URL> ResolveIndex(const URL& search) {
 Maybe<URL> ResolveMain(Environment* env, const URL& search) {
   URL pkg("package.json", &search);
 
-  const Environment::PackageConfig& pjson =
+  const PackageConfig& pjson =
       GetPackageConfig(env, pkg.ToFilePath());
   // Note invalid package.json should throw in resolver
   // currently we silently ignore which is incorrect

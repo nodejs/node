@@ -54,6 +54,12 @@ class performance_state;
 
 namespace loader {
 class ModuleWrap;
+struct PackageConfig {
+  bool exists;
+  bool is_valid;
+  bool has_main;
+  std::string main;
+};
 }
 
 // Pick an index that's hopefully out of the way when we're embedded inside
@@ -608,13 +614,7 @@ class Environment {
 
   std::unordered_multimap<int, loader::ModuleWrap*> module_map;
 
-  struct PackageConfig {
-    bool exists;
-    bool is_valid;
-    bool has_main;
-    std::string main;
-  };
-  std::unordered_map<std::string, PackageConfig> package_json_cache;
+  std::unordered_map<std::string, loader::PackageConfig> package_json_cache;
 
   inline double* heap_statistics_buffer() const;
   inline void set_heap_statistics_buffer(double* pointer);
