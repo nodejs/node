@@ -26,7 +26,7 @@ const tests = [
 
 const server = http2.createServer();
 server.on('stream', (stream, headers) => {
-  stream.close(headers['rstcode'] | 0);
+  stream.close(headers.rstcode | 0);
 });
 
 server.listen(0, common.mustCall(() => {

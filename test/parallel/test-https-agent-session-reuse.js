@@ -112,11 +112,11 @@ const server = https.createServer(options, function(req, res) {
 
 process.on('exit', function() {
   assert.strictEqual(serverRequests, 6);
-  assert.strictEqual(clientSessions['first'].toString('hex'),
+  assert.strictEqual(clientSessions.first.toString('hex'),
                      clientSessions['first-reuse'].toString('hex'));
-  assert.notStrictEqual(clientSessions['first'].toString('hex'),
+  assert.notStrictEqual(clientSessions.first.toString('hex'),
                         clientSessions['cipher-change'].toString('hex'));
-  assert.notStrictEqual(clientSessions['first'].toString('hex'),
+  assert.notStrictEqual(clientSessions.first.toString('hex'),
                         clientSessions['before-drop'].toString('hex'));
   assert.notStrictEqual(clientSessions['cipher-change'].toString('hex'),
                         clientSessions['before-drop'].toString('hex'));

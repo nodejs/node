@@ -1236,7 +1236,7 @@ const server = http2.createServer();
 server.on('stream', (stream) => {
   stream.respond({ ':status': 200 }, {
     getTrailers(trailers) {
-      trailers['ABC'] = 'some value to send';
+      trailers.ABC = 'some value to send';
     }
   });
   stream.end('some data');
@@ -1326,7 +1326,7 @@ server.on('stream', (stream) => {
   };
   stream.respondWithFD(fd, headers, {
     getTrailers(trailers) {
-      trailers['ABC'] = 'some value to send';
+      trailers.ABC = 'some value to send';
     }
   });
 
@@ -1435,7 +1435,7 @@ const http2 = require('http2');
 const server = http2.createServer();
 server.on('stream', (stream) => {
   function getTrailers(trailers) {
-    trailers['ABC'] = 'some value to send';
+    trailers.ABC = 'some value to send';
   }
   stream.respondWithFile('/some/file',
                          { 'content-type': 'text/plain' },

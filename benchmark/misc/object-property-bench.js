@@ -1,5 +1,7 @@
 'use strict';
 
+/* eslint-disable dot-notation */
+
 const common = require('../common.js');
 
 const bench = common.createBenchmark(main, {
