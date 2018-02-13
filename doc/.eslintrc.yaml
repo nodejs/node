@@ -12,3 +12,6 @@ rules:
   no-var: error
   prefer-const: error
   prefer-rest-params: error
+
+  # Stylistic Issues
+  no-multiple-empty-lines: [error, {max: 1, maxEOF: 0, maxBOF: 0}]
