@@ -46,8 +46,8 @@ const tests = specificTests.concat(genericTests);
 
 let currentError;
 
-// mock respondFD because we only care about testing error handling
-Http2Stream.prototype.respondFD = () => currentError.ngError;
+// mock `respond` because we only care about testing error handling
+Http2Stream.prototype.respond = () => currentError.ngError;
 
 const server = http2.createServer();
 server.on('stream', common.mustCall((stream, headers) => {

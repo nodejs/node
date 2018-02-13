@@ -580,13 +580,6 @@ class Http2Stream : public AsyncWrap,
                             size_t len,
                             int options);
 
-  // Send data read from a file descriptor as the response on this stream.
-  inline int SubmitFile(int fd,
-                        nghttp2_nv* nva, size_t len,
-                        int64_t offset,
-                        int64_t length,
-                        int options);
-
   // Submit informational headers for this stream
   inline int SubmitInfo(nghttp2_nv* nva, size_t len);
 
@@ -709,7 +702,6 @@ class Http2Stream : public AsyncWrap,
   static void PushPromise(const FunctionCallbackInfo<Value>& args);
   static void RefreshState(const FunctionCallbackInfo<Value>& args);
   static void Info(const FunctionCallbackInfo<Value>& args);
-  static void RespondFD(const FunctionCallbackInfo<Value>& args);
   static void Respond(const FunctionCallbackInfo<Value>& args);
   static void RstStream(const FunctionCallbackInfo<Value>& args);
 
@@ -753,8 +745,6 @@ class Http2Stream : public AsyncWrap,
   // waiting to be written out to the socket.
   std::queue<nghttp2_stream_write> queue_;
   size_t available_outbound_length_ = 0;
-  int64_t fd_offset_ = 0;
-  int64_t fd_length_ = -1;
 
   Http2StreamListener stream_listener_;
 
@@ -778,20 +768,6 @@ class Http2Stream::Provider {
 
  private:
   bool empty_ = false;
-};
-
-class Http2Stream::Provider::FD : public Http2Stream::Provider {
- public:
-  FD(int options, int fd);
-  FD(Http2Stream* stream, int options, int fd);
-
-  static ssize_t OnRead(nghttp2_session* session,
-                        int32_t id,
-                        uint8_t* buf,
-                        size_t length,
-                        uint32_t* flags,
-                        nghttp2_data_source* source,
-                        void* user_data);
 };
 
 class Http2Stream::Provider::Stream : public Http2Stream::Provider {
