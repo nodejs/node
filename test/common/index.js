@@ -514,21 +514,13 @@ exports.canCreateSymLink = function() {
     const whoamiPath = path.join(process.env.SystemRoot,
                                  'System32', 'whoami.exe');
 
-    let err = false;
-    let output = '';
-
     try {
-      output = execSync(`${whoamiPath} /priv`, { timout: 1000 });
+      const output = execSync(`${whoamiPath} /priv`, { timout: 1000 });
+      return output.includes('SeCreateSymbolicLinkPrivilege');
     } catch (e) {
-      err = true;
-    } finally {
-      if (err || !output.includes('SeCreateSymbolicLinkPrivilege')) {
-        return false;
-      }
+      return false;
     }
   }
-
-  return true;
 };
 
 exports.getCallSite = function getCallSite(top) {
