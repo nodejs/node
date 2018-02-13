@@ -16,9 +16,10 @@ async function runTests() {
   const session = await child.connectInspectorSession();
 
   let stderrString = await child.nextStderrString();
-  while (!stderrString.includes('Debugger listening on')) {
-    stderrString += await child.nextStderrString();
-  }
+  assert(stderrString.includes('Debugger listening on'), stderrString);
+  // if (!stderrString.includes('Debugger listening on')) {
+  //   stderrString += await child.nextStderrString();
+  // }
 
   session.send([
     { 'method': 'Profiler.setSamplingInterval', 'params': { 'interval': 100 } },
@@ -27,8 +28,11 @@ async function runTests() {
     { 'method': 'Profiler.start' }
   ]);
 
+  let limit = 0;
   while (!stderrString.includes('Waiting for the debugger to disconnect...')) {
     stderrString += await child.nextStderrString();
+    if (limit++ > 10)
+      throw new Error('no!');
   }
 
   await session.send({ 'method': 'Profiler.stop' });
