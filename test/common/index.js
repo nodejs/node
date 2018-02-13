@@ -504,17 +504,13 @@ exports.canCreateSymLink = function() {
     const whoamiPath = path.join(process.env['SystemRoot'],
                                  'System32', 'whoami.exe');
 
-    let err = false;
-    let output = '';
-
     try {
-      output = execSync(`${whoamiPath} /priv`, { timout: 1000 });
-    } catch (e) {
-      err = true;
-    } finally {
-      if (err || !output.includes('SeCreateSymbolicLinkPrivilege')) {
+      const output = execSync(`${whoamiPath} /priv`, { timout: 1000 });
+      if (!output.includes('SeCreateSymbolicLinkPrivilege')) {
         return false;
       }
+    } catch (e) {
+      return false;
     }
   }
 
