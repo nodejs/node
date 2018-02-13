@@ -393,11 +393,11 @@ deprecation as a semver-minor.
 
 Possible reasons for Runtime deprecations can be:
 
-* Node.js will no longer be able to support the API, for example if required
+* Node.js will no longer be able to support the API, for example, if required
   code is being removed in an upstream project.
 
-* The API is too hard or impossible to use correctly, increasing the risk of
-  undetected bugs or security issues in existing code.
+* The API is deemed too hard or impossible to use correctly, increasing the
+  risk of undetected bugs or security issues in existing code.
 
 * Breaking the API makes way for simplification of its implementation that is
   significant enough to make maintainability of Node.js easier, or enables
@@ -407,10 +407,11 @@ In addition, a Documentation-Only deprecation may be issued if it is desirable
 to recommend a single canonical way out of multiple different ones
 which achieve a particular goal with Node.js.
 
-In particular, a Runtime deprecation should *not* be added to an API that
-that requires only trivial maintenance, or only because it has
-never been documented or has only accidentally been exposed and there is
-usage of said API in existing ecosystem code.
+A Runtime deprecation should not be added to an API that
+requires only trivial maintenance. A Runtime deprecation should
+not be added simply because an API has never been documented
+(or has only accidentally been exposed) if there is significant usage
+of the API in the ecosystem.
 
 All Documentation-Only and Runtime deprecations will be assigned a unique
 identifier that can be used to persistently refer to the deprecation in
