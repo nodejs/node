@@ -58,7 +58,7 @@ server.on('listening', common.mustCall(() => {
       assert.strictEqual(headers[':status'], 200, 'status code is set');
       assert.strictEqual(headers['content-type'], 'text/html',
                          'content type is set');
-      assert(headers['date'], 'there is a date');
+      assert(headers.date);
     }));
 
     let data = '';

@@ -167,9 +167,7 @@ class InspectorSession {
         reject(message.error);
     } else {
       if (message.method === 'Debugger.scriptParsed') {
-        const script = message['params'];
-        const scriptId = script['scriptId'];
-        const url = script['url'];
+        const { scriptId, url } = message.params;
         this._scriptsIdsByUrl.set(scriptId, url);
         if (url === _MAINSCRIPT)
           this.mainScriptId = scriptId;
@@ -188,12 +186,12 @@ class InspectorSession {
 
   _sendMessage(message) {
     const msg = JSON.parse(JSON.stringify(message)); // Clone!
-    msg['id'] = this._nextId++;
+    msg.id = this._nextId++;
     if (DEBUG)
       console.log('[sent]', JSON.stringify(msg));
 
     const responsePromise = new Promise((resolve, reject) => {
-      this._commandResponsePromises.set(msg['id'], { resolve, reject });
+      this._commandResponsePromises.set(msg.id, { resolve, reject });
     });
 
     return new Promise(
@@ -238,12 +236,15 @@ class InspectorSession {
     return notification;
   }
 
-  _isBreakOnLineNotification(message, line, url) {
-    if ('Debugger.paused' === message['method']) {
-      const callFrame = message['params']['callFrames'][0];
-      const location = callFrame['location'];
-      assert.strictEqual(url, this._scriptsIdsByUrl.get(location['scriptId']));
-      assert.strictEqual(line, location['lineNumber']);
+  _isBreakOnLineNotification(message, line, expectedScriptPath) {
+    if ('Debugger.paused' === message.method) {
+      const callFrame = message.params.callFrames[0];
+      const location = callFrame.location;
+      const scriptPath = this._scriptsIdsByUrl.get(location.scriptId);
+      assert.strictEqual(scriptPath.toString(),
+                         expectedScriptPath.toString(),
+                         `${scriptPath} !== ${expectedScriptPath}`);
+      assert.strictEqual(line, location.lineNumber);
       return true;
     }
   }
@@ -259,12 +260,12 @@ class InspectorSession {
   _matchesConsoleOutputNotification(notification, type, values) {
     if (!Array.isArray(values))
       values = [ values ];
-    if ('Runtime.consoleAPICalled' === notification['method']) {
-      const params = notification['params'];
-      if (params['type'] === type) {
+    if ('Runtime.consoleAPICalled' === notification.method) {
+      const params = notification.params;
+      if (params.type === type) {
         let i = 0;
-        for (const value of params['args']) {
-          if (value['value'] !== values[i++])
+        for (const value of params.args) {
+          if (value.value !== values[i++])
             return false;
         }
         return i === values.length;
@@ -389,7 +390,7 @@ class NodeInstance {
   async connectInspectorSession() {
     console.log('[test]', 'Connecting to a child Node process');
     const response = await this.httpGet(null, '/json/list');
-    const url = response[0]['webSocketDebuggerUrl'];
+    const url = response[0].webSocketDebuggerUrl;
     return this.wsHandshake(url);
   }
 
