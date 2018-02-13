@@ -12,3 +12,7 @@ rules:
   no-var: error
   prefer-const: error
   prefer-rest-params: error
+
+  # Possible Errors
+  # http://eslint.org/docs/rules/#possible-errors
+  no-prototype-builtins: error

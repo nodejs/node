@@ -7,3 +7,7 @@ rules:
   no-let-in-for-declaration: error
   lowercase-name-for-primitive: error
   non-ascii-character: error
+
+  # Possible Errors
+  # http://eslint.org/docs/rules/#possible-errors
+  no-prototype-builtins: error
