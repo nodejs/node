@@ -3351,7 +3351,7 @@ void LoadEnvironment(Environment* env, const bool allow_repl) {
                       Boolean::New(env->isolate(), allow_repl)).FromJust()) {
     env->async_hooks()->clear_async_id_stack();
     return;
-  };
+  }
 
   auto ret = f->Call(env->context(), Null(env->isolate()), 1, &arg);
   // If there was an error during bootstrap then it was either handled by the
