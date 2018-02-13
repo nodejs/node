@@ -24,7 +24,7 @@ const cipherlist = {
 };
 
 function test(size, type, name, next) {
-  const cipher = type ? cipherlist[type] : cipherlist['NOT_PFS'];
+  const cipher = type ? cipherlist[type] : cipherlist.NOT_PFS;
 
   if (name) tls.DEFAULT_ECDH_CURVE = name;
 

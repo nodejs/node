@@ -47,6 +47,7 @@ rules:
   accessor-pairs: error
   array-callback-return: error
   dot-location: [error, property]
+  dot-notation: error
   eqeqeq: [error, smart]
   no-fallthrough: error
   no-global-assign: error
