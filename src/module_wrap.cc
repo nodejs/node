@@ -495,20 +495,15 @@ Maybe<uv_file> CheckFile(const std::string& path,
 
 const PackageConfig& GetPackageConfig(Environment* env,
                                                    const std::string path) {
-  static const PackageConfig kEmptyPackage =
-      { false, true, false, "" };
-  static const PackageConfig kInvalidPackage =
-      { true, false, false, "" };
-
   auto existing = env->package_json_cache.find(path);
   if (existing != env->package_json_cache.end()) {
     return existing->second;
   }
   Maybe<uv_file> check = CheckFile(path, LEAVE_OPEN_AFTER_CHECK);
   if (check.IsNothing()) {
-    env->package_json_cache.emplace(path,
+    auto entry = env->package_json_cache.emplace(path,
         PackageConfig{ false, true, false, "" });
-    return kEmptyPackage;
+    return entry.first->second;
   }
 
   Isolate* isolate = env->isolate();
@@ -524,9 +519,9 @@ const PackageConfig& GetPackageConfig(Environment* env,
                            pkg_src.c_str(),
                            v8::NewStringType::kNormal,
                            pkg_src.length()).ToLocal(&src)) {
-    env->package_json_cache.emplace(path,
+    auto entry = env->package_json_cache.emplace(path,
         PackageConfig{ false, true, false, "" });
-    return kEmptyPackage;
+    return entry.first->second;
   }
 
   Local<Value> pkg_json_v;
@@ -534,9 +529,9 @@ const PackageConfig& GetPackageConfig(Environment* env,
 
   if (!JSON::Parse(env->context(), src).ToLocal(&pkg_json_v) ||
       !pkg_json_v->ToObject(env->context()).ToLocal(&pkg_json)) {
-    env->package_json_cache.emplace(path,
+    auto entry = env->package_json_cache.emplace(path,
         PackageConfig{ true, false, false, "" });
-    return kInvalidPackage;
+    return entry.first->second;
   }
 
   Local<Value> pkg_main;
@@ -548,9 +543,9 @@ const PackageConfig& GetPackageConfig(Environment* env,
     main_std.assign(std::string(*main_utf8, main_utf8.length()));
   }
 
-  env->package_json_cache.emplace(path,
+  auto entry = env->package_json_cache.emplace(path,
       PackageConfig{ true, true, has_main, main_std });
-  return env->package_json_cache.find(path)->second;
+  return entry.first->second;
 }
 
 enum ResolveExtensionsOptions {
