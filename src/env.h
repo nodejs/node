@@ -222,6 +222,7 @@ struct PackageConfig {
   V(onstop_string, "onstop")                                                  \
   V(onstreamclose_string, "onstreamclose")                                    \
   V(ontrailers_string, "ontrailers")                                          \
+  V(onunpipe_string, "onunpipe")                                              \
   V(onwrite_string, "onwrite")                                                \
   V(openssl_error_stack, "opensslErrorStack")                                 \
   V(output_string, "output")                                                  \
@@ -233,6 +234,8 @@ struct PackageConfig {
   V(pbkdf2_error_string, "PBKDF2 Error")                                      \
   V(pid_string, "pid")                                                        \
   V(pipe_string, "pipe")                                                      \
+  V(pipe_target_string, "pipeTarget")                                         \
+  V(pipe_source_string, "pipeSource")                                         \
   V(port_string, "port")                                                      \
   V(preference_string, "preference")                                          \
   V(priority_string, "priority")                                              \
@@ -255,9 +258,11 @@ struct PackageConfig {
   V(session_id_string, "sessionId")                                           \
   V(shell_string, "shell")                                                    \
   V(signal_string, "signal")                                                  \
+  V(sink_string, "sink")                                                      \
   V(size_string, "size")                                                      \
   V(sni_context_err_string, "Invalid SNI context")                            \
   V(sni_context_string, "sni_context")                                        \
+  V(source_string, "source")                                                  \
   V(stack_string, "stack")                                                    \
   V(status_string, "status")                                                  \
   V(stdio_string, "stdio")                                                    \
