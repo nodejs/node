@@ -30,11 +30,11 @@ const partC = '';
 if (common.isWindows) {
   partA = 'C:\\Users\\Rocko Artischocko\\AppData\\Roaming\\npm';
   partB = 'C:\\Program Files (x86)\\nodejs\\';
-  process.env['NODE_PATH'] = `${partA};${partB};${partC}`;
+  process.env.NODE_PATH = `${partA};${partB};${partC}`;
 } else {
   partA = '/usr/test/lib/node_modules';
   partB = '/usr/test/lib/node';
-  process.env['NODE_PATH'] = `${partA}:${partB}:${partC}`;
+  process.env.NODE_PATH = `${partA}:${partB}:${partC}`;
 }
 
 mod._initPaths();

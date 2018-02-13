@@ -39,14 +39,14 @@ if (process.argv[2] === 'child') {
 
   const env = Object.assign({}, process.env);
   // Turn on module debug to aid diagnosing failures.
-  env['NODE_DEBUG'] = 'module';
+  env.NODE_DEBUG = 'module';
   // Unset NODE_PATH.
-  delete env['NODE_PATH'];
+  delete env.NODE_PATH;
 
   // Test empty global path.
   const noPkgHomeDir = path.join(tmpdir.path, 'home-no-pkg');
   fs.mkdirSync(noPkgHomeDir);
-  env['HOME'] = env['USERPROFILE'] = noPkgHomeDir;
+  env.HOME = env.USERPROFILE = noPkgHomeDir;
   assert.throws(
     () => {
       child_process.execFileSync(testExecPath, [ __filename, 'child' ],
@@ -56,17 +56,17 @@ if (process.argv[2] === 'child') {
 
   // Test module in $HOME/.node_modules.
   const modHomeDir = path.join(testFixturesDir, 'home-pkg-in-node_modules');
-  env['HOME'] = env['USERPROFILE'] = modHomeDir;
+  env.HOME = env.USERPROFILE = modHomeDir;
   runTest('$HOME/.node_modules', env);
 
   // Test module in $HOME/.node_libraries.
   const libHomeDir = path.join(testFixturesDir, 'home-pkg-in-node_libraries');
-  env['HOME'] = env['USERPROFILE'] = libHomeDir;
+  env.HOME = env.USERPROFILE = libHomeDir;
   runTest('$HOME/.node_libraries', env);
 
   // Test module both $HOME/.node_modules and $HOME/.node_libraries.
   const bothHomeDir = path.join(testFixturesDir, 'home-pkg-in-both');
-  env['HOME'] = env['USERPROFILE'] = bothHomeDir;
+  env.HOME = env.USERPROFILE = bothHomeDir;
   runTest('$HOME/.node_modules', env);
 
   // Test module in $PREFIX/lib/node.
@@ -79,22 +79,22 @@ if (process.argv[2] === 'child') {
   const pkgPath = path.join(prefixLibNodePath, `${pkgName}.js`);
   fs.writeFileSync(pkgPath, `exports.string = '${expectedString}';`);
 
-  env['HOME'] = env['USERPROFILE'] = noPkgHomeDir;
+  env.HOME = env.USERPROFILE = noPkgHomeDir;
   runTest(expectedString, env);
 
   // Test module in all global folders.
-  env['HOME'] = env['USERPROFILE'] = bothHomeDir;
+  env.HOME = env.USERPROFILE = bothHomeDir;
   runTest('$HOME/.node_modules', env);
 
   // Test module in NODE_PATH is loaded ahead of global folders.
-  env['HOME'] = env['USERPROFILE'] = bothHomeDir;
-  env['NODE_PATH'] = path.join(testFixturesDir, 'node_path');
+  env.HOME = env.USERPROFILE = bothHomeDir;
+  env.NODE_PATH = path.join(testFixturesDir, 'node_path');
   runTest('$NODE_PATH', env);
 
   // Test module in local folder is loaded ahead of global folders.
   const localDir = path.join(testFixturesDir, 'local-pkg');
-  env['HOME'] = env['USERPROFILE'] = bothHomeDir;
-  env['NODE_PATH'] = path.join(testFixturesDir, 'node_path');
+  env.HOME = env.USERPROFILE = bothHomeDir;
+  env.NODE_PATH = path.join(testFixturesDir, 'node_path');
   const child = child_process.execFileSync(testExecPath,
                                            [ path.join(localDir, 'test.js') ],
                                            { encoding: 'utf8', env: env });

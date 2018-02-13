@@ -501,7 +501,7 @@ exports.canCreateSymLink = function() {
     // whoami.exe needs to be the one from System32
     // If unix tools are in the path, they can shadow the one we want,
     // so use the full path while executing whoami
-    const whoamiPath = path.join(process.env['SystemRoot'],
+    const whoamiPath = path.join(process.env.SystemRoot,
                                  'System32', 'whoami.exe');
 
     let err = false;
