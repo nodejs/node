@@ -1569,7 +1569,7 @@ class Assembler : public AssemblerBase {
     --code_target_sharing_blocked_nesting_;
   }
 
-  // Prevent contant pool emission until EndBlockConstPool is called.
+  // Prevent constant pool emission until EndBlockConstPool is called.
   // Calls to this function can be nested but must be followed by an equal
   // number of call to EndBlockConstpool.
   void StartBlockConstPool() {

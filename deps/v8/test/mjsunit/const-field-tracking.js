@@ -32,7 +32,7 @@ function TestLoadFromConstantFieldOfAConstantObject(the_value, other_value) {
   // life.
   new A(the_value).blah = 0;
 
-  // Ensure that constant tracking is enabled for {contant_object}.
+  // Ensure that constant tracking is enabled for {constant_object}.
   delete global.constant_object;
   global.constant_object = the_object;
   assertEquals(the_object, constant_object);
@@ -189,7 +189,7 @@ function TestStoreToConstantFieldOfConstantObject(the_value, other_value) {
   // life.
   new A(the_value).blah = 0;
 
-  // Ensure that constant tracking is enabled for {contant_object}.
+  // Ensure that constant tracking is enabled for {constant_object}.
   delete global.constant_object;
   global.constant_object = the_object;
   assertEquals(the_object, constant_object);

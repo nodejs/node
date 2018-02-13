@@ -566,7 +566,7 @@ void ArrayLiteral::BuildConstantElements(Isolate* isolate) {
       m_literal->BuildConstants(isolate);
     }
 
-    // New handle scope here, needs to be after BuildContants().
+    // New handle scope here, needs to be after BuildConstants().
     HandleScope scope(isolate);
     Handle<Object> boilerplate_value = GetBoilerplateValue(element, isolate);
     if (boilerplate_value->IsTheHole(isolate)) {

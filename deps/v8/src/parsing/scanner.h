@@ -207,7 +207,7 @@ class Scanner {
   static const int kNoOctalLocation = -1;
   static const uc32 kEndOfInput = Utf16CharacterStream::kEndOfInput;
 
-  explicit Scanner(UnicodeCache* scanner_contants, int* use_counts_);
+  explicit Scanner(UnicodeCache* scanner_constants, int* use_counts_);
 
   void Initialize(Utf16CharacterStream* source, bool is_module);
 
