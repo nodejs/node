@@ -93,7 +93,6 @@ const contextifiedSandbox = vm.createContext({ secret: 42 });
     s;
   `, { context: contextifiedSandbox });
 
-
   // Step 2
   //
   // "Link" the imported dependencies of this Module to it.
@@ -132,7 +131,6 @@ const contextifiedSandbox = vm.createContext({ secret: 42 });
   }
   await bar.link(linker);
 
-
   // Step 3
   //
   // Instantiate the top-level Module.
@@ -141,7 +139,6 @@ const contextifiedSandbox = vm.createContext({ secret: 42 });
   // dependencies will be recursively instantiated by instantiate().
 
   bar.instantiate();
-
 
   // Step 4
   //
