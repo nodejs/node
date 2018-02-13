@@ -283,7 +283,8 @@ void FSReqWrap::SetReturnValue(const FunctionCallbackInfo<Value>& args) {
 void FSReqPromise::SetReturnValue(const FunctionCallbackInfo<Value>& args) {
   Local<Context> context = env()->context();
   args.GetReturnValue().Set(
-    object()->Get(context, env()->promise_string()).ToLocalChecked());
+    object()->Get(context, env()->promise_string()).ToLocalChecked()
+      .As<Promise::Resolver>()->GetPromise());
 }
 
 void NewFSReqWrap(const FunctionCallbackInfo<Value>& args) {
@@ -300,7 +301,7 @@ FSReqPromise::FSReqPromise(Environment* env)
       stats_field_array_(env->isolate(), 14) {
   auto resolver = Promise::Resolver::New(env->context()).ToLocalChecked();
   object()->Set(env->context(), env->promise_string(),
-                resolver.As<Promise>()).FromJust();
+                resolver).FromJust();
 }
 
 FSReqPromise::~FSReqPromise() {
@@ -315,9 +316,7 @@ void FSReqPromise::Reject(Local<Value> reject) {
   Local<Value> value =
       object()->Get(env()->context(),
                     env()->promise_string()).ToLocalChecked();
-  CHECK(value->IsPromise());
-  Local<Promise> promise = value.As<Promise>();
-  Local<Promise::Resolver> resolver = promise.As<Promise::Resolver>();
+  Local<Promise::Resolver> resolver = value.As<Promise::Resolver>();
   resolver->Reject(env()->context(), reject).FromJust();
 }
 
@@ -336,7 +335,6 @@ void FSReqPromise::Resolve(Local<Value> value) {
   Local<Value> val =
       object()->Get(env()->context(),
                     env()->promise_string()).ToLocalChecked();
-  CHECK(val->IsPromise());
   Local<Promise::Resolver> resolver = val.As<Promise::Resolver>();
   resolver->Resolve(env()->context(), value).FromJust();
 }
