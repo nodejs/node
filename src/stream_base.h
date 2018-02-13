@@ -141,6 +141,9 @@ class StreamListener {
   // This is called immediately before the stream is destroyed.
   virtual void OnStreamDestroy() {}
 
+  // The stream this is currently associated with, or nullptr if there is none.
+  inline StreamResource* stream() { return stream_; }
+
  protected:
   // Pass along a read error to the `StreamListener` instance that was active
   // before this one. For example, a protocol parser does not care about read

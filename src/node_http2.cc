@@ -1813,7 +1813,9 @@ inline void Http2Stream::Close(int32_t code) {
 }
 
 int Http2Stream::DoShutdown(ShutdownWrap* req_wrap) {
-  CHECK(!this->IsDestroyed());
+  if (IsDestroyed())
+    return UV_EPIPE;
+
   {
     Http2Scope h2scope(this);
     flags_ |= NGHTTP2_STREAM_FLAG_SHUT;

@@ -35,6 +35,7 @@ common.crashOnUnhandledRejection();
     delete providers.HTTP2STREAM;
     delete providers.HTTP2PING;
     delete providers.HTTP2SETTINGS;
+    delete providers.STREAMPIPE;
 
     const objKeys = Object.keys(providers);
     if (objKeys.length > 0)
