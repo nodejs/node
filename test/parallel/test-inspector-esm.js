@@ -17,9 +17,9 @@ function assertNoUrlsWhileConnected(response) {
 function assertScopeValues({ result }, expected) {
   const unmatched = new Set(Object.keys(expected));
   for (const actual of result) {
-    const value = expected[actual['name']];
-    assert.strictEqual(actual['value']['value'], value);
-    unmatched.delete(actual['name']);
+    const value = expected[actual.name];
+    assert.strictEqual(actual.value.value, value);
+    unmatched.delete(actual.name);
   }
   assert.deepStrictEqual(Array.from(unmatched.values()), []);
 }
@@ -93,14 +93,14 @@ async function testBreakpoint(session) {
     }
   });
 
-  assert.strictEqual(result['value'], 1002);
+  assert.strictEqual(result.value, 1002);
 
   result = (await session.send({
     'method': 'Runtime.evaluate', 'params': {
       'expression': '5 * 5'
     }
   })).result;
-  assert.strictEqual(result['value'], 25);
+  assert.strictEqual(result.value, 25);
 }
 
 async function runTest() {
