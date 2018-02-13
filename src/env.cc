@@ -147,6 +147,9 @@ void Environment::Start(int argc,
 
   SetupProcessObject(this, argc, argv, exec_argc, exec_argv);
   LoadAsyncWrapperInfo(this);
+
+  CHECK_EQ(0, uv_key_create(&thread_local_env));
+  uv_key_set(&thread_local_env, this);
 }
 
 void Environment::CleanupHandles() {
@@ -470,5 +473,7 @@ void Environment::AsyncHooks::grow_async_ids_stack() {
       env()->async_ids_stack_string(),
       async_ids_stack_.GetJSArray()).FromJust();
 }
+
+uv_key_t Environment::thread_local_env = {};
 
 }  // namespace node

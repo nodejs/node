@@ -4207,11 +4207,8 @@ uv_loop_t* GetCurrentEventLoop(v8::Isolate* isolate) {
 }
 
 
-static uv_key_t thread_local_env;
-
-
 void AtExit(void (*cb)(void* arg), void* arg) {
-  auto env = static_cast<Environment*>(uv_key_get(&thread_local_env));
+  auto env = Environment::GetThreadLocalEnv();
   AtExit(env, cb, arg);
 }
 
@@ -4296,18 +4293,12 @@ Environment* CreateEnvironment(IsolateData* isolate_data,
   HandleScope handle_scope(isolate);
   Context::Scope context_scope(context);
   auto env = new Environment(isolate_data, context);
-  CHECK_EQ(0, uv_key_create(&thread_local_env));
-  uv_key_set(&thread_local_env, env);
   env->Start(argc, argv, exec_argc, exec_argv, v8_is_profiling);
   return env;
 }
 
 
 void FreeEnvironment(Environment* env) {
-  auto tl_env = static_cast<Environment*>(uv_key_get(&thread_local_env));
-  if (tl_env == env) {
-    uv_key_delete(&thread_local_env);
-  }
   delete env;
 }
 
@@ -4348,8 +4339,6 @@ inline int Start(Isolate* isolate, IsolateData* isolate_data,
   Local<Context> context = NewContext(isolate);
   Context::Scope context_scope(context);
   Environment env(isolate_data, context);
-  CHECK_EQ(0, uv_key_create(&thread_local_env));
-  uv_key_set(&thread_local_env, &env);
   env.Start(argc, argv, exec_argc, exec_argv, v8_is_profiling);
 
   const char* path = argc > 1 ? argv[1] : nullptr;
@@ -4399,7 +4388,6 @@ inline int Start(Isolate* isolate, IsolateData* isolate_data,
 
   const int exit_code = EmitExit(&env);
   RunAtExit(&env);
-  uv_key_delete(&thread_local_env);
 
   v8_platform.DrainVMTasks(isolate);
   v8_platform.CancelVMTasks(isolate);

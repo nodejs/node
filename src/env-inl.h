@@ -311,6 +311,10 @@ inline Environment* Environment::GetCurrent(
       info.Data().template As<v8::External>()->Value());
 }
 
+inline Environment* Environment::GetThreadLocalEnv() {
+  return static_cast<Environment*>(uv_key_get(&thread_local_env));
+}
+
 inline Environment::Environment(IsolateData* isolate_data,
                                 v8::Local<v8::Context> context)
     : isolate_(context->GetIsolate()),
@@ -368,6 +372,11 @@ inline Environment::~Environment() {
 #define V(PropertyName, TypeName) PropertyName ## _.Reset();
   ENVIRONMENT_STRONG_PERSISTENT_PROPERTIES(V)
 #undef V
+
+  auto tl_env = static_cast<Environment*>(uv_key_get(&thread_local_env));
+  if (tl_env == this) {
+    uv_key_delete(&Environment::thread_local_env);
+  }
 
   delete[] heap_statistics_buffer_;
   delete[] heap_space_statistics_buffer_;

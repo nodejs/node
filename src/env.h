@@ -371,6 +371,7 @@ struct ContextInfo {
   bool is_default = false;
 };
 
+
 class Environment {
  public:
   class AsyncHooks {
@@ -543,6 +544,8 @@ class Environment {
   template <typename T>
   static inline Environment* GetCurrent(
       const v8::PropertyCallbackInfo<T>& info);
+
+  static inline Environment* GetThreadLocalEnv();
 
   inline Environment(IsolateData* isolate_data, v8::Local<v8::Context> context);
   inline ~Environment();
@@ -831,6 +834,8 @@ class Environment {
   static void EnvPromiseHook(v8::PromiseHookType type,
                              v8::Local<v8::Promise> promise,
                              v8::Local<v8::Value> parent);
+
+  static uv_key_t thread_local_env;
 
 #define V(PropertyName, TypeName)                                             \
   v8::Persistent<TypeName> PropertyName ## _;
