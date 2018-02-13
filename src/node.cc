@@ -3341,13 +3341,17 @@ void LoadEnvironment(Environment* env, const bool allow_repl) {
   // who do not like how bootstrap_node.js sets up the module system but do
   // like Node's I/O bindings may want to replace 'f' with their own function.
   Local<Value> arg = env->process_object();
-  Local<Object> process_object = env->process_object();
 
   // add allow_repl parameter to JS process so we can use it in
-  // bootstrap_node.js
-  process_object->Set(env->context(),
-                      String::NewFromUtf8(env->isolate(), "allow_repl"),
-                      Boolean::New(env->isolate(), allow_repl));
+  // bootstrap_node.js.
+  // If adding the parameter fails, bootstrapping will fail too,
+  // so we can cleanup and return before we even bootstrap.
+  if (!Object::Cast(*arg)->Set(env->context(),
+                      String::NewFromUtf8(env->isolate(), "_allowRepl"),
+                      Boolean::New(env->isolate(), allow_repl)).FromJust()) {
+    env->async_hooks()->clear_async_id_stack();
+    return;
+  };
 
   auto ret = f->Call(env->context(), Null(env->isolate()), 1, &arg);
   // If there was an error during bootstrap then it was either handled by the
