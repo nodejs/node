@@ -497,7 +497,6 @@ console.log(buf1.toString());
 // Prints: this is a tC)st
 console.log(buf1.toString('ascii'));
 
-
 const buf2 = new Buffer('7468697320697320612074c3a97374', 'hex');
 
 // Prints: this is a tést
@@ -905,7 +904,6 @@ console.log(buf1.toString());
 
 // Prints: this is a tC)st
 console.log(buf1.toString('ascii'));
-
 
 const buf2 = Buffer.from('7468697320697320612074c3a97374', 'hex');
 
@@ -1366,7 +1364,6 @@ console.log(buf.indexOf(Buffer.from('a buffer example')));
 // Prints: 8
 console.log(buf.indexOf(Buffer.from('a buffer example').slice(0, 8)));
 
-
 const utf16Buffer = Buffer.from('\u039a\u0391\u03a3\u03a3\u0395', 'ucs2');
 
 // Prints: 4
@@ -1476,7 +1473,6 @@ console.log(buf.lastIndexOf('buffer', 5));
 
 // Prints: -1
 console.log(buf.lastIndexOf('buffer', 4));
-
 
 const utf16Buffer = Buffer.from('\u039a\u0391\u03a3\u03a3\u0395', 'ucs2');
 
@@ -2000,7 +1996,6 @@ buf1.swap16();
 // Prints: <Buffer 02 01 04 03 06 05 08 07>
 console.log(buf1);
 
-
 const buf2 = Buffer.from([0x1, 0x2, 0x3]);
 
 // Throws an exception: RangeError: Buffer size must be a multiple of 16-bits
@@ -2030,7 +2025,6 @@ buf1.swap32();
 // Prints: <Buffer 04 03 02 01 08 07 06 05>
 console.log(buf1);
 
-
 const buf2 = Buffer.from([0x1, 0x2, 0x3]);
 
 // Throws an exception: RangeError: Buffer size must be a multiple of 32-bits
@@ -2059,7 +2053,6 @@ buf1.swap64();
 
 // Prints: <Buffer 08 07 06 05 04 03 02 01>
 console.log(buf1);
-
 
 const buf2 = Buffer.from([0x1, 0x2, 0x3]);
 
@@ -2131,7 +2124,6 @@ console.log(buf1.toString('ascii'));
 
 // Prints: abcde
 console.log(buf1.toString('ascii', 0, 5));
-
 
 const buf2 = Buffer.from('tést');
 
