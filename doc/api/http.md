@@ -307,7 +307,7 @@ Until the data is consumed, the `'end'` event will not fire.  Also, until
 the data is read it will consume memory that can eventually lead to a
 'process out of memory' error.
 
-*Note*: Node.js does not check whether Content-Length and the length of the
+Node.js does not check whether Content-Length and the length of the
 body which has been transmitted are equal or not.
 
 The request implements the [Writable Stream][] interface. This is an
@@ -681,7 +681,9 @@ Defaults to `'utf8'`.
 The `callback` argument is optional and will be called when this chunk of data
 is flushed.
 
-Returns `request`.
+Returns `true` if the entire data was flushed successfully to the kernel
+buffer. Returns `false` if all or part of the data was queued in user memory.
+`'drain'` will be emitted when the buffer is free again.
 
 ## Class: http.Server
 <!-- YAML
@@ -814,7 +816,7 @@ access this event. In particular, the socket will not emit `'readable'` events
 because of how the protocol parser attaches to the socket. The `socket` can
 also be accessed at `request.connection`.
 
-*Note*: This event can also be explicitly emitted by users to inject connections
+This event can also be explicitly emitted by users to inject connections
 into the HTTP server. In that case, any [`Duplex`][] stream can be passed.
 
 ### Event: 'request'
@@ -913,7 +915,7 @@ to have timed out.
 
 A value of `0` will disable the timeout behavior on incoming connections.
 
-*Note*: The socket timeout logic is set up on connection, so changing this
+The socket timeout logic is set up on connection, so changing this
 value only affects new connections to the server, not any existing connections.
 
 ### server.keepAliveTimeout
@@ -933,8 +935,8 @@ A value of `0` will disable the keep-alive timeout behavior on incoming connecti
 A value of `0` makes the http server behave similarly to Node.js versions prior to 8.0.0,
 which did not have a keep-alive timeout.
 
-*Note*: The socket timeout logic is set up on connection, so changing this
-value only affects new connections to the server, not any existing connections.
+The socket timeout logic is set up on connection, so changing this value only
+affects new connections to the server, not any existing connections.
 
 ## Class: http.ServerResponse
 <!-- YAML
@@ -1084,7 +1086,7 @@ header-related http module methods. The keys of the returned object are the
 header names and the values are the respective header values. All header names
 are lowercase.
 
-*Note*: The object returned by the `response.getHeaders()` method _does not_
+The object returned by the `response.getHeaders()` method _does not_
 prototypically inherit from the JavaScript `Object`. This means that typical
 `Object` methods such as `obj.toString()`, `obj.hasOwnProperty()`, and others
 are not defined and *will not work*.
@@ -1303,8 +1305,8 @@ the second parameter specifies how to encode it into a byte stream.
 By default the `encoding` is `'utf8'`. `callback` will be called when this chunk
 of data is flushed.
 
-*Note*: This is the raw HTTP body and has nothing to do with
-higher-level multi-part body encodings that may be used.
+This is the raw HTTP body and has nothing to do with higher-level multi-part
+body encodings that may be used.
 
 The first time [`response.write()`][] is called, it will send the buffered
 header information and the first chunk of the body to the client. The second
@@ -1661,10 +1663,21 @@ A collection of all the standard HTTP response status codes, and the
 short description of each.  For example, `http.STATUS_CODES[404] === 'Not
 Found'`.
 
-## http.createServer([requestListener])
+## http.createServer([options][, requestListener])
 <!-- YAML
 added: v0.1.13
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/15752
+    description: The `options` argument is supported now.
 -->
+- `options` {Object}
+  * `IncomingMessage` {http.IncomingMessage} Specifies the IncomingMessage class
+    to be used. Useful for extending the original `IncomingMessage`. Defaults
+    to: `IncomingMessage`
+  * `ServerResponse` {http.ServerResponse} Specifies the ServerResponse class to
+    be used. Useful for extending the original `ServerResponse`. Defaults to:
+    `ServerResponse`
 - `requestListener` {Function}
 
 * Returns: {http.Server}
@@ -1877,6 +1890,49 @@ const req = http.request(options, (res) => {
   // ...
 });
 ```
+
+In a successful request, the following events will be emitted in the following
+order:
+
+* `socket`
+* `response`
+  * `data` any number of times, on the `res` object
+    (`data` will not be emitted at all if the response body is empty, for
+    instance, in most redirects)
+  * `end` on the `res` object
+* `close`
+
+In the case of a connection error, the following events will be emitted:
+
+* `socket`
+* `error`
+* `close`
+
+If `req.abort()` is called before the connection succeeds, the following events
+will be emitted in the following order:
+
+* `socket`
+* (`req.abort()` called here)
+* `abort`
+* `close`
+* `error` with an error with message `Error: socket hang up` and code
+  `ECONNRESET`
+
+If `req.abort()` is called after the response is received, the following events
+will be emitted in the following order:
+
+* `socket`
+* `response`
+  * `data` any number of times, on the `res` object
+* (`req.abort()` called here)
+* `abort`
+* `close`
+  * `aborted` on the `res` object
+  * `end` on the `res` object
+  * `close` on the `res` object
+
+Note that setting the `timeout` option or using the `setTimeout` function will
+not abort the request or do anything besides add a `timeout` event.
 
 [`'checkContinue'`]: #http_event_checkcontinue
 [`'request'`]: #http_event_request

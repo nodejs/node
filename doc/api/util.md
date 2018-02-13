@@ -48,13 +48,11 @@ Will print:
 hello world
 ```
 
-*Note*:
-
-* The callback is executed asynchronously, and will have a limited stack trace.
+The callback is executed asynchronously, and will have a limited stack trace.
 If the callback throws, the process will emit an [`'uncaughtException'`][]
 event, and if not handled will exit.
 
-* Since `null` has a special meaning as the first argument to a callback, if a
+Since `null` has a special meaning as the first argument to a callback, if a
 wrapped function rejects a `Promise` with a falsy value as a reason, the value
 is wrapped in an `Error` with the original value stored in a field named
 `reason`.
@@ -285,8 +283,8 @@ changes:
     description: The `constructor` parameter can refer to an ES6 class now.
 -->
 
-*Note*: Usage of `util.inherits()` is discouraged. Please use the ES6 `class`
-and `extends` keywords to get language level inheritance support. Also note
+Usage of `util.inherits()` is discouraged. Please use the ES6 `class` and
+`extends` keywords to get language level inheritance support. Also note
 that the two styles are [semantically incompatible][].
 
 * `constructor` {Function}
@@ -352,7 +350,7 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/17907
     description: The `depth` default changed to Infinity.
   - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/17576
     description: The `compact` option is supported now.
   - version: v6.6.0
     pr-url: https://github.com/nodejs/node/pull/8174
@@ -812,7 +810,7 @@ with ICU and using the full ICU data (see [Internationalization][]).
 | `'shift_jis'`      | `'csshiftjis'`, `'ms932'`, `'ms_kanji'`, `'shift-jis'`, `'sjis'`, `'windows-31j'`, `'x-sjis'` |
 | `'euc-kr'`         | `'cseuckr'`, `'csksc56011987'`, `'iso-ir-149'`, `'korean'`, `'ks_c_5601-1987'`, `'ks_c_5601-1989'`, `'ksc5601'`, `'ksc_5601'`, `'windows-949'` |
 
-*Note*: The `'iso-8859-16'` encoding listed in the [WHATWG Encoding Standard][]
+The `'iso-8859-16'` encoding listed in the [WHATWG Encoding Standard][]
 is not supported.
 
 ### new TextDecoder([encoding[, options]])
@@ -1370,7 +1368,7 @@ Deprecated predecessor of `console.log`.
 [`Array.isArray`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/isArray
 [`Buffer.isBuffer()`]: buffer.html#buffer_class_method_buffer_isbuffer_obj
 [`Error`]: errors.html#errors_class_error
-[`Object.assign()`]: https://developer.mozilla.org/en/docs/Web/JavaScript/Reference/Global_Objects/Object/assign
+[`Object.assign()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/assign
 [`assert.deepStrictEqual()`]: assert.html#assert_assert_deepstrictequal_actual_expected_message
 [`console.error()`]: console.html#console_console_error_data_args
 [`console.log()`]: console.html#console_console_log_data_args
@@ -1382,6 +1380,6 @@ Deprecated predecessor of `console.log`.
 [Internationalization]: intl.html
 [WHATWG Encoding Standard]: https://encoding.spec.whatwg.org/
 [Common System Errors]: errors.html#errors_common_system_errors
-[constructor]: https://developer.mozilla.org/en/JavaScript/Reference/Global_Objects/Object/constructor
+[constructor]: https://developer.mozilla.org/en-US/JavaScript/Reference/Global_Objects/Object/constructor
 [list of deprecated APIS]: deprecations.html#deprecations_list_of_deprecated_apis
 [semantically incompatible]: https://github.com/nodejs/node/issues/4179

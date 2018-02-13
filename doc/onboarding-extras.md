@@ -31,7 +31,7 @@
 | `test/*`                                 | @nodejs/testing                                                       |
 | `tools/node_modules/eslint`, `.eslintrc` | @not-an-aardvark, @silverwind, @trott                                 |
 | build                                    | @nodejs/build                                                         |
-| ES Modules                               | @bmeck, @Fishrock123, @guybedford, @MylesBorins, @targos              |
+| `src/module_wrap.*`, `lib/internal/loader/*`, `lib/internal/vm/Module.js` | @nodejs/modules                      |
 | GYP                                      | @nodejs/gyp                                                           |
 | performance                              | @nodejs/performance                                                   |
 | platform specific                        | @nodejs/platform-{aix,arm,freebsd,macos,ppc,smartos,s390,windows}     |

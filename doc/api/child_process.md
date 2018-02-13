@@ -44,7 +44,7 @@ implemented on top of [`child_process.spawn()`][] or [`child_process.spawnSync()
   * [`child_process.exec()`][]: spawns a shell and runs a command within that shell,
     passing the `stdout` and `stderr` to a callback function when complete.
   * [`child_process.execFile()`][]: similar to [`child_process.exec()`][] except that
-    it spawns the command directly without first spawning a shell.
+    it spawns the command directly without first spawning a shell by default.
   * [`child_process.fork()`][]: spawns a new Node.js process and invokes a
     specified module with an IPC communication channel established that allows
     sending messages between parent and child.
@@ -78,7 +78,7 @@ when the child process terminates.
 The importance of the distinction between [`child_process.exec()`][] and
 [`child_process.execFile()`][] can vary based on platform. On Unix-type operating
 systems (Unix, Linux, macOS) [`child_process.execFile()`][] can be more efficient
-because it does not spawn a shell. On Windows, however, `.bat` and `.cmd`
+because it does not spawn a shell by default. On Windows, however, `.bat` and `.cmd`
 files are not executable on their own without a terminal, and therefore cannot
 be launched using [`child_process.execFile()`][]. When running on Windows, `.bat`
 and `.cmd` files can be invoked using [`child_process.spawn()`][] with the `shell`
@@ -170,9 +170,8 @@ exec('echo "The \\$HOME variable is $HOME"');
 //The $HOME variable is escaped in the first instance, but not in the second
 ```
 
-*Note*: Never pass unsanitized user input to this function. Any input
-containing shell metacharacters may be used to trigger arbitrary command
-execution.
+**Never pass unsanitized user input to this function. Any input containing shell
+metacharacters may be used to trigger arbitrary command execution.**
 
 ```js
 const { exec } = require('child_process');
@@ -218,8 +217,8 @@ If `timeout` is greater than `0`, the parent will send the signal
 identified by the `killSignal` property (the default is `'SIGTERM'`) if the
 child runs longer than `timeout` milliseconds.
 
-*Note*: Unlike the exec(3) POSIX system call, `child_process.exec()` does not
-replace the existing process and uses a shell to execute the command.
+Unlike the exec(3) POSIX system call, `child_process.exec()` does not replace
+the existing process and uses a shell to execute the command.
 
 If this method is invoked as its [`util.promisify()`][]ed version, it returns
 a Promise for an object with `stdout` and `stderr` properties. In case of an
@@ -266,6 +265,10 @@ changes:
     normally be created on Windows systems. **Default:** `false`.
   * `windowsVerbatimArguments` {boolean} No quoting or escaping of arguments is
     done on Windows. Ignored on Unix. **Default:** `false`.
+  * `shell` {boolean|string} If `true`, runs `command` inside of a shell. Uses
+    `'/bin/sh'` on UNIX, and `process.env.ComSpec` on Windows. A different
+    shell can be specified as a string. See [Shell Requirements][] and
+    [Default Windows Shell][]. **Default:** `false` (no shell).
 * `callback` {Function} Called with the output when process terminates.
   * `error` {Error}
   * `stdout` {string|Buffer}
@@ -273,7 +276,7 @@ changes:
 * Returns: {ChildProcess}
 
 The `child_process.execFile()` function is similar to [`child_process.exec()`][]
-except that it does not spawn a shell. Rather, the specified executable `file`
+except that it does not spawn a shell by default. Rather, the specified executable `file`
 is spawned directly as a new process making it slightly more efficient than
 [`child_process.exec()`][].
 
@@ -311,6 +314,10 @@ async function getVersion() {
 }
 getVersion();
 ```
+
+**If the `shell` option is enabled, do not pass unsanitized user input to this
+function. Any input containing shell metacharacters may be used to trigger
+arbitrary command execution.**
 
 ### child_process.fork(modulePath[, args][, options])
 <!-- YAML
@@ -368,11 +375,11 @@ Node.js processes launched with a custom `execPath` will communicate with the
 parent process using the file descriptor (fd) identified using the
 environment variable `NODE_CHANNEL_FD` on the child process.
 
-*Note*: Unlike the fork(2) POSIX system call, `child_process.fork()` does
-not clone the current process.
+Unlike the fork(2) POSIX system call, `child_process.fork()` does not clone the
+current process.
 
-*Note*: The `shell` option available in [`child_process.spawn()`][] is not
-supported by `child_process.fork()` and will be ignored if set.
+The `shell` option available in [`child_process.spawn()`][] is not supported by
+`child_process.fork()` and will be ignored if set.
 
 ### child_process.spawn(command[, args][, options])
 <!-- YAML
@@ -418,9 +425,9 @@ The `child_process.spawn()` method spawns a new process using the given
 `command`, with command line arguments in `args`. If omitted, `args` defaults
 to an empty array.
 
-*Note*: If the `shell` option is enabled, do not pass unsanitized user input to
-this function. Any input containing shell metacharacters may be used to
-trigger arbitrary command execution.
+**If the `shell` option is enabled, do not pass unsanitized user input to this
+function. Any input containing shell metacharacters may be used to trigger
+arbitrary command execution.**
 
 A third argument may be used to specify additional options, with these defaults:
 
@@ -509,12 +516,12 @@ subprocess.on('error', (err) => {
 });
 ```
 
-*Note*: Certain platforms (macOS, Linux) will use the value of `argv[0]` for
-the process title while others (Windows, SunOS) will use `command`.
+Certain platforms (macOS, Linux) will use the value of `argv[0]` for the process
+title while others (Windows, SunOS) will use `command`.
 
-*Note*: Node.js currently overwrites `argv[0]` with `process.execPath` on
-startup, so `process.argv[0]` in a Node.js child process will not match the
-`argv0` parameter passed to `spawn` from the parent, retrieve it with the
+Node.js currently overwrites `argv[0]` with `process.execPath` on startup, so
+`process.argv[0]` in a Node.js child process will not match the `argv0`
+parameter passed to `spawn` from the parent, retrieve it with the
 `process.argv0` property instead.
 
 #### options.detached
@@ -705,6 +712,10 @@ changes:
   * `encoding` {string} The encoding used for all stdio inputs and outputs. **Default:** `'buffer'`
   * `windowsHide` {boolean} Hide the subprocess console window that would
     normally be created on Windows systems. **Default:** `false`.
+  * `shell` {boolean|string} If `true`, runs `command` inside of a shell. Uses
+    `'/bin/sh'` on UNIX, and `process.env.ComSpec` on Windows. A different
+    shell can be specified as a string. See [Shell Requirements][] and
+    [Default Windows Shell][]. **Default:** `false` (no shell).
 * Returns: {Buffer|string} The stdout from the command.
 
 The `child_process.execFileSync()` method is generally identical to
@@ -713,13 +724,17 @@ until the child process has fully closed. When a timeout has been encountered
 and `killSignal` is sent, the method won't return until the process has
 completely exited.
 
-*Note*: If the child process intercepts and handles the `SIGTERM` signal and
+If the child process intercepts and handles the `SIGTERM` signal and
 does not exit, the parent process will still wait until the child process has
 exited.
 
 If the process times out or has a non-zero exit code, this method ***will***
 throw an [`Error`][] that will include the full result of the underlying
 [`child_process.spawnSync()`][].
+
+**If the `shell` option is enabled, do not pass unsanitized user input to this
+function. Any input containing shell metacharacters may be used to trigger
+arbitrary command execution.**
 
 ### child_process.execSync(command[, options])
 <!-- YAML
@@ -773,9 +788,8 @@ If the process times out or has a non-zero exit code, this method ***will***
 throw.  The [`Error`][] object will contain the entire result from
 [`child_process.spawnSync()`][]
 
-*Note*: Never pass unsanitized user input to this function. Any input
-containing shell metacharacters may be used to trigger arbitrary command
-execution.
+**Never pass unsanitized user input to this function. Any input containing shell
+metacharacters may be used to trigger arbitrary command execution.**
 
 ### child_process.spawnSync(command[, args][, options])
 <!-- YAML
@@ -841,9 +855,9 @@ completely exited. Note that if the process intercepts and handles the
 `SIGTERM` signal and doesn't exit, the parent process will wait until the child
 process has exited.
 
-*Note*: If the `shell` option is enabled, do not pass unsanitized user input
-to this function. Any input containing shell metacharacters may be used to
-trigger arbitrary command execution.
+**If the `shell` option is enabled, do not pass unsanitized user input to this
+function. Any input containing shell metacharacters may be used to trigger
+arbitrary command execution.**
 
 ## Class: ChildProcess
 <!-- YAML
@@ -891,9 +905,9 @@ The `'error'` event is emitted whenever:
 2. The process could not be killed, or
 3. Sending a message to the child process failed.
 
-*Note*: The `'exit'` event may or may not fire after an error has occurred.
-When listening to both the `'exit'` and `'error'` events, it is important
-to guard against accidentally invoking handler functions multiple times.
+The `'exit'` event may or may not fire after an error has occurred. When
+listening to both the `'exit'` and `'error'` events, it is important to guard
+against accidentally invoking handler functions multiple times.
 
 See also [`subprocess.kill()`][] and [`subprocess.send()`][].
 
@@ -932,7 +946,7 @@ added: v0.5.9
 The `'message'` event is triggered when a child process uses [`process.send()`][]
 to send messages.
 
-*Note*: The message goes through serialization and parsing. The resulting
+The message goes through serialization and parsing. The resulting
 message might not be the same as what is originally sent.
 
 ### subprocess.channel
@@ -1095,7 +1109,7 @@ be used to send messages to the child process. When the child process is a
 Node.js instance, these messages can be received via the
 [`process.on('message')`][] event.
 
-*Note*: The message goes through serialization and parsing. The resulting
+The message goes through serialization and parsing. The resulting
 message might not be the same as what is originally sent.
 
 For example, in the parent script:

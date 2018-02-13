@@ -340,6 +340,8 @@ For more information about the governance of the Node.js project, see
 **Daniel Bevenius** &lt;daniel.bevenius@gmail.com&gt;
 * [DavidCai1993](https://github.com/DavidCai1993) -
 **David Cai** &lt;davidcai1993@yahoo.com&gt; (he/him)
+* [devsnek](https://github.com/devsnek) -
+**Gus Caplan** &lt;me@gus.host&gt; (he/him)
 * [edsadr](https://github.com/edsadr) -
 **Adrian Estrada** &lt;edsadr@gmail.com&gt; (he/him)
 * [eljefedelrodeodeljefe](https://github.com/eljefedelrodeodeljefe) -
@@ -424,6 +426,8 @@ For more information about the governance of the Node.js project, see
 **Mikeal Rogers** &lt;mikeal.rogers@gmail.com&gt;
 * [misterdjules](https://github.com/misterdjules) -
 **Julien Gilli** &lt;jgilli@nodejs.org&gt;
+* [mmarchini](https://github.com/mmarchini) -
+**Matheus Marchini**  &lt;matheus@sthima.com&gt;
 * [mscdex](https://github.com/mscdex) -
 **Brian White** &lt;mscdex@mscdex.net&gt;
 * [MylesBorins](https://github.com/MylesBorins) -
@@ -591,6 +595,7 @@ Previous releases may also have been signed with one of the following GPG keys:
 
 * [Contributing to the project][]
 * [Working Groups][]
+* [Strategic Initiatives][]
 
 [Code of Conduct]: https://github.com/nodejs/admin/blob/master/CODE_OF_CONDUCT.md
 [Contributing to the project]: CONTRIBUTING.md
@@ -598,4 +603,5 @@ Previous releases may also have been signed with one of the following GPG keys:
 [Node.js Website]: https://nodejs.org/en/
 [Questions tagged 'node.js' on StackOverflow]: https://stackoverflow.com/questions/tagged/node.js
 [Working Groups]: https://github.com/nodejs/TSC/blob/master/WORKING_GROUPS.md
+[Strategic Initiatives]: https://github.com/nodejs/TSC/blob/master/Strategic-Initiatives.md
 [#node.js channel on chat.freenode.net]: https://webchat.freenode.net?channels=node.js&uio=d4

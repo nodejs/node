@@ -250,9 +250,9 @@ typedef struct napi_extended_error_info {
 [`napi_get_last_error_info`][] returns the information for the last
 N-API call that was made.
 
-*Note*: Do not rely on the content or format of any of the extended
-information as it is not subject to SemVer and may change at any time.
-It is intended only for logging purposes.
+Do not rely on the content or format of any of the extended information as it
+is not subject to SemVer and may change at any time. It is intended only for
+logging purposes.
 
 #### napi_get_last_error_info
 <!-- YAML
@@ -272,12 +272,12 @@ Returns `napi_ok` if the API succeeded.
 This API retrieves a `napi_extended_error_info` structure with information
 about the last error that occurred.
 
-*Note*: The content of the `napi_extended_error_info` returned is only
-valid up until an n-api function is called on the same `env`.
+The content of the `napi_extended_error_info` returned is only valid up until
+an n-api function is called on the same `env`.
 
-*Note*: Do not rely on the content or format of any of the extended
-information as it is not subject to SemVer and may change at any time.
-It is intended only for logging purposes.
+Do not rely on the content or format of any of the extended information as it
+is not subject to SemVer and may change at any time. It is intended only for
+logging purposes.
 
 
 ### Exceptions
@@ -554,10 +554,10 @@ NAPI_NO_RETURN void napi_fatal_error(const char* location,
 
 - `[in] location`: Optional location at which the error occurred.
 - `[in] location_len`: The length of the location in bytes, or
-NAPI_AUTO_LENGTH if it is null-terminated.
+`NAPI_AUTO_LENGTH` if it is null-terminated.
 - `[in] message`: The message associated with the error.
 - `[in] message_len`: The length of the message in bytes, or
-NAPI_AUTO_LENGTH if it is
+`NAPI_AUTO_LENGTH` if it is
 null-terminated.
 
 The function call does not return, the process will be terminated.
@@ -918,7 +918,7 @@ For example, to set a function to be returned by the `require()` for the addon:
 napi_value Init(napi_env env, napi_value exports) {
   napi_value method;
   napi_status status;
-  status = napi_create_function(env, "exports", Method, NULL, &method));
+  status = napi_create_function(env, "exports", NAPI_AUTO_LENGTH, Method, NULL, &method);
   if (status != napi_ok) return NULL;
   return method;
 }
@@ -1169,9 +1169,9 @@ later by native code. The API allows the caller to pass in a finalize callback,
 in case the underlying native resource needs to be cleaned up when the external
 JavaScript value gets collected.
 
-*Note*: The created value is not an object, and therefore does not support
-additional properties. It is considered a distinct value type: calling
-`napi_typeof()` with an external value yields `napi_external`.
+The created value is not an object, and therefore does not support additional
+properties. It is considered a distinct value type: calling `napi_typeof()` with
+an external value yields `napi_external`.
 
 #### napi_create_external_arraybuffer
 <!-- YAML
@@ -1236,7 +1236,7 @@ This API allocates a `node::Buffer` object and initializes it with data
 backed by the passed in buffer. While this is still a fully-supported data
 structure, in most cases using a TypedArray will suffice.
 
-*Note*: For Node.js >=4 `Buffers` are Uint8Arrays.
+For Node.js >=4 `Buffers` are Uint8Arrays.
 
 #### napi_create_function
 <!-- YAML
@@ -1255,7 +1255,7 @@ napi_status napi_create_function(napi_env env,
 - `[in] utf8name`: A string representing the name of the function encoded as
 UTF8.
 - `[in] length`: The length of the utf8name in bytes, or
-NAPI_AUTO_LENGTH if it is null-terminated.
+`NAPI_AUTO_LENGTH` if it is null-terminated.
 - `[in] cb`: A function pointer to the native function to be invoked when the
 created function is invoked from JavaScript.
 - `[in] data`: Optional arbitrary context data to be passed into the native
@@ -1483,7 +1483,7 @@ napi_status napi_create_string_latin1(napi_env env,
 - `[in] env`: The environment that the API is invoked under.
 - `[in] str`: Character buffer representing a ISO-8859-1-encoded string.
 - `[in] length`: The length of the string in bytes, or
-NAPI_AUTO_LENGTH if it is null-terminated.
+`NAPI_AUTO_LENGTH` if it is null-terminated.
 - `[out] result`: A `napi_value` representing a JavaScript String.
 
 Returns `napi_ok` if the API succeeded.
@@ -1507,7 +1507,7 @@ napi_status napi_create_string_utf16(napi_env env,
 - `[in] env`: The environment that the API is invoked under.
 - `[in] str`: Character buffer representing a UTF16-LE-encoded string.
 - `[in] length`: The length of the string in two-byte code units, or
-NAPI_AUTO_LENGTH if it is null-terminated.
+`NAPI_AUTO_LENGTH` if it is null-terminated.
 - `[out] result`: A `napi_value` representing a JavaScript String.
 
 Returns `napi_ok` if the API succeeded.
@@ -1530,7 +1530,7 @@ napi_status napi_create_string_utf8(napi_env env,
 
 - `[in] env`: The environment that the API is invoked under.
 - `[in] str`: Character buffer representing a UTF8-encoded string.
-- `[in] length`: The length of the string in bytes, or NAPI_AUTO_LENGTH
+- `[in] length`: The length of the string in bytes, or `NAPI_AUTO_LENGTH`
 if it is null-terminated.
 - `[out] result`: A `napi_value` representing a JavaScript String.
 
@@ -2850,10 +2850,9 @@ This API allows an add-on author to create a function object in native code.
 This is the primary mechanism to allow calling *into* the add-on's native code
 *from* JavaScript.
 
-*Note*: The newly created function is not automatically visible from
-script after this call. Instead, a property must be explicitly set on any
-object that is visible to JavaScript, in order for the function to be accessible
-from script.
+The newly created function is not automatically visible from script after this
+call. Instead, a property must be explicitly set on any object that is visible
+to JavaScript, in order for the function to be accessible from script.
 
 In order to expose a function as part of the
 add-on's module exports, set the newly created function on the exports
@@ -2886,7 +2885,7 @@ const myaddon = require('./addon');
 myaddon.sayHello();
 ```
 
-*Note*: The string passed to require is not necessarily the name passed into
+The string passed to require is not necessarily the name passed into
 `NAPI_MODULE` in the earlier snippet but the name of the target in `binding.gyp`
 responsible for creating the `.node` file.
 
@@ -3053,7 +3052,7 @@ napi_status napi_define_class(napi_env env,
  - `[in] utf8name`: Name of the JavaScript constructor function; this is
    not required to be the same as the C++ class name, though it is recommended
    for clarity.
- - `[in] length`: The length of the utf8name in bytes, or NAPI_AUTO_LENGTH
+ - `[in] length`: The length of the utf8name in bytes, or `NAPI_AUTO_LENGTH`
 if it is null-terminated.
  - `[in] constructor`: Callback function that handles constructing instances
    of the class. (This should be a static method on the class, not an actual
@@ -3142,15 +3141,12 @@ invocation. (If it is deleted before then, then the finalize callback may never
 be invoked.) Therefore, when obtaining a reference a finalize callback is also
 required in order to enable correct proper of the reference.
 
-*Note*: This API may modify the prototype chain of the wrapper object.
-Afterward, additional manipulation of the wrapper's prototype chain may cause
+This API may modify the prototype chain of the wrapper object. Afterward,
+additional manipulation of the wrapper's prototype chain may cause
 `napi_unwrap()` to fail.
 
-*Note*: Calling `napi_wrap()` a second time on an object that already has a
-native instance associated with it by virtue of a previous call to
-`napi_wrap()` will cause an error to be returned. If you wish to associate
-another native instance with the given object, call `napi_remove_wrap()` on it
-first.
+Calling napi_wrap() a second time on an object will return an error. To associate
+another native instance with the object, use napi_remove_wrap() first.
 
 ### napi_unwrap
 <!-- YAML
@@ -3287,11 +3283,10 @@ required.
 
 `async_resource_name` should be a null-terminated, UTF-8-encoded string.
 
-*Note*: The `async_resource_name` identifier is provided by the user and should
-be representative of the type of async work being performed. It is also
-recommended to apply namespacing to the identifier, e.g. by including the
-module name. See the [`async_hooks` documentation][async_hooks `type`]
-for more information.
+The `async_resource_name` identifier is provided by the user and should be
+representative of the type of async work being performed. It is also recommended
+to apply namespacing to the identifier, e.g. by including the module name. See
+the [`async_hooks` documentation][async_hooks `type`] for more information.
 
 ### napi_delete_async_work
 <!-- YAML
@@ -3433,6 +3428,42 @@ context has already been set up, so a direct call to `napi_call_function`
 is sufficient and appropriate. Use of the `napi_make_callback` function
 may be required when implementing custom async behavior that does not use
 `napi_create_async_work`.
+
+### *napi_open_callback_scope*
+<!-- YAML
+added: REPLACEME
+-->
+```C
+NAPI_EXTERN napi_status napi_open_callback_scope(napi_env env,
+                                                 napi_value resource_object,
+                                                 napi_async_context context,
+                                                 napi_callback_scope* result)
+```
+- `[in] env`: The environment that the API is invoked under.
+- `[in] resource_object`: An optional object associated with the async work
+  that will be passed to possible async_hooks [`init` hooks][].
+- `[in] context`: Context for the async operation that is
+invoking the callback. This should be a value previously obtained
+from [`napi_async_init`][].
+- `[out] result`: The newly created scope.
+
+There are cases (for example resolving promises) where it is
+necessary to have the equivalent of the scope associated with a callback
+in place when making certain N-API calls.  If there is no other script on
+the stack the [`napi_open_callback_scope`][] and
+[`napi_close_callback_scope`][] functions can be used to open/close
+the required scope.
+
+### *napi_close_callback_scope*
+<!-- YAML
+added: REPLACEME
+-->
+```C
+NAPI_EXTERN napi_status napi_close_callback_scope(napi_env env,
+                                                  napi_callback_scope scope)
+```
+- `[in] env`: The environment that the API is invoked under.
+- `[in] scope`: The scope to be closed.
 
 ## Version Management
 
@@ -3719,6 +3750,7 @@ NAPI_EXTERN napi_status napi_get_uv_event_loop(napi_env env,
 [`napi_async_init`]: #n_api_napi_async_init
 [`napi_cancel_async_work`]: #n_api_napi_cancel_async_work
 [`napi_close_escapable_handle_scope`]: #n_api_napi_close_escapable_handle_scope
+[`napi_close_callback_scope`]: #n_api_napi_close_callback_scope
 [`napi_close_handle_scope`]: #n_api_napi_close_handle_scope
 [`napi_create_async_work`]: #n_api_napi_create_async_work
 [`napi_create_error`]: #n_api_napi_create_error
@@ -3744,6 +3776,7 @@ NAPI_EXTERN napi_status napi_get_uv_event_loop(napi_env env,
 [`napi_get_last_error_info`]: #n_api_napi_get_last_error_info
 [`napi_get_and_clear_last_exception`]: #n_api_napi_get_and_clear_last_exception
 [`napi_make_callback`]: #n_api_napi_make_callback
+[`napi_open_callback_scope`]: #n_api_napi_open_callback_scope
 [`napi_open_escapable_handle_scope`]: #n_api_napi_open_escapable_handle_scope
 [`napi_open_handle_scope`]: #n_api_napi_open_handle_scope
 [`napi_property_descriptor`]: #n_api_napi_property_descriptor

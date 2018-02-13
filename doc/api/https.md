@@ -12,7 +12,7 @@ separate module.
 added: v0.4.5
 -->
 
-An Agent object for HTTPS similar to [`http.Agent`][].  See [`https.request()`][]
+An [`Agent`][] object for HTTPS similar to [`http.Agent`][].  See [`https.request()`][]
 for more information.
 
 ## Class: https.Server
@@ -65,7 +65,8 @@ See [`http.Server#keepAliveTimeout`][].
 <!-- YAML
 added: v0.3.4
 -->
-- `options` {Object} Accepts `options` from [`tls.createServer()`][] and [`tls.createSecureContext()`][].
+- `options` {Object} Accepts `options` from [`tls.createServer()`][],
+ [`tls.createSecureContext()`][] and [`http.createServer()`][].
 - `requestListener` {Function} A listener to be added to the `request` event.
 
 Example:
@@ -167,9 +168,10 @@ changes:
 
 Makes a request to a secure web server.
 
-The following additional `options` from [`tls.connect()`][] are also accepted
-when using a custom [`Agent`][]: `ca`, `cert`, `ciphers`, `clientCertEngine`,
-`key`, `passphrase`, `pfx`, `rejectUnauthorized`, `secureProtocol`, `servername`
+The following additional `options` from [`tls.connect()`][] are also accepted:
+`ca`, `cert`, `ciphers`, `clientCertEngine`, `crl`, `dhparam`, `ecdhCurve`,
+`honorCipherOrder`, `key`, `passphrase`, `pfx`, `rejectUnauthorized`,
+`secureOptions`, `secureProtocol`, `servername`, `sessionIdContext`
 
 `options` can be an object, a string, or a [`URL`][] object. If `options` is a
 string, it is automatically parsed with [`url.parse()`][]. If it is a [`URL`][]
@@ -219,7 +221,7 @@ const req = https.request(options, (res) => {
 });
 ```
 
-Alternatively, opt out of connection pooling by not using an `Agent`.
+Alternatively, opt out of connection pooling by not using an [`Agent`][].
 
 Example:
 
@@ -256,6 +258,7 @@ const req = https.request(options, (res) => {
 [`http.Server#setTimeout()`]: http.html#http_server_settimeout_msecs_callback
 [`http.Server#timeout`]: http.html#http_server_timeout
 [`http.Server`]: http.html#http_class_http_server
+[`http.createServer()`]: http.html#http_http_createserver_options_requestlistener
 [`http.close()`]: http.html#http_server_close_callback
 [`http.get()`]: http.html#http_http_get_options_callback
 [`http.request()`]: http.html#http_http_request_options_callback

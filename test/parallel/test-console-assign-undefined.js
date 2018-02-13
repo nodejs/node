@@ -17,8 +17,7 @@ assert.strictEqual(global.console, 42);
 common.expectsError(
   () => console.log('foo'),
   {
-    type: TypeError,
-    message: 'console.log is not a function'
+    type: TypeError
   }
 );
 

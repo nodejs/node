@@ -41,8 +41,6 @@ using v8::Object;
 using v8::String;
 using v8::Value;
 
-const uint32_t kOnTimeout = 0;
-
 class TimerWrap : public HandleWrap {
  public:
   static void Initialize(Local<Object> target,
@@ -53,8 +51,6 @@ class TimerWrap : public HandleWrap {
     Local<String> timerString = FIXED_ONE_BYTE_STRING(env->isolate(), "Timer");
     constructor->InstanceTemplate()->SetInternalFieldCount(1);
     constructor->SetClassName(timerString);
-    constructor->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "kOnTimeout"),
-                     Integer::New(env->isolate(), kOnTimeout));
 
     env->SetTemplateMethod(constructor, "now", Now);
 
@@ -71,18 +67,22 @@ class TimerWrap : public HandleWrap {
     target->Set(timerString, constructor->GetFunction());
 
     target->Set(env->context(),
-                FIXED_ONE_BYTE_STRING(env->isolate(), "setImmediateCallback"),
-                env->NewFunctionTemplate(SetImmediateCallback)
+                FIXED_ONE_BYTE_STRING(env->isolate(), "setupTimers"),
+                env->NewFunctionTemplate(SetupTimers)
                    ->GetFunction(env->context()).ToLocalChecked()).FromJust();
   }
 
   size_t self_size() const override { return sizeof(*this); }
 
  private:
-  static void SetImmediateCallback(const FunctionCallbackInfo<Value>& args) {
+  static void SetupTimers(const FunctionCallbackInfo<Value>& args) {
     CHECK(args[0]->IsFunction());
+    CHECK(args[1]->IsFunction());
     auto env = Environment::GetCurrent(args);
+
     env->set_immediate_callback_function(args[0].As<Function>());
+    env->set_timers_callback_function(args[1].As<Function>());
+
     auto toggle_ref_cb = [] (const FunctionCallbackInfo<Value>& args) {
       Environment::GetCurrent(args)->ToggleImmediateRef(args[0]->IsTrue());
     };
@@ -138,19 +138,22 @@ class TimerWrap : public HandleWrap {
     Environment* env = wrap->env();
     HandleScope handle_scope(env->isolate());
     Context::Scope context_scope(env->context());
-    wrap->MakeCallback(kOnTimeout, 0, nullptr);
+    Local<Value> ret;
+    Local<Value> args[1];
+    do {
+      args[0] = env->GetNow();
+      ret = wrap->MakeCallback(env->timers_callback_function(), 1, args)
+                .ToLocalChecked();
+    } while (ret->IsUndefined() &&
+             !env->tick_info()->has_thrown() &&
+             wrap->object()->Get(env->context(),
+                                 env->owner_string()).ToLocalChecked()
+                                                     ->IsUndefined());
   }
 
   static void Now(const FunctionCallbackInfo<Value>& args) {
     Environment* env = Environment::GetCurrent(args);
-    uv_update_time(env->event_loop());
-    uint64_t now = uv_now(env->event_loop());
-    CHECK(now >= env->timer_base());
-    now -= env->timer_base();
-    if (now <= 0xfffffff)
-      args.GetReturnValue().Set(static_cast<uint32_t>(now));
-    else
-      args.GetReturnValue().Set(static_cast<double>(now));
+    args.GetReturnValue().Set(env->GetNow());
   }
 
   uv_timer_t handle_;

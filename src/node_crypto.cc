@@ -3090,8 +3090,17 @@ void CipherBase::InitIv(const char* cipher_type,
   const int expected_iv_len = EVP_CIPHER_iv_length(cipher);
   const int mode = EVP_CIPHER_mode(cipher);
   const bool is_gcm_mode = (EVP_CIPH_GCM_MODE == mode);
+  const bool has_iv = iv_len >= 0;
 
-  if (is_gcm_mode == false && iv_len != expected_iv_len) {
+  // Throw if no IV was passed and the cipher requires an IV
+  if (!has_iv && expected_iv_len != 0) {
+    char msg[128];
+    snprintf(msg, sizeof(msg), "Missing IV for cipher %s", cipher_type);
+    return env()->ThrowError(msg);
+  }
+
+  // Throw if an IV was passed which does not match the cipher's fixed IV length
+  if (is_gcm_mode == false && has_iv && iv_len != expected_iv_len) {
     return env()->ThrowError("Invalid IV length");
   }
 
@@ -3103,11 +3112,13 @@ void CipherBase::InitIv(const char* cipher_type,
   const bool encrypt = (kind_ == kCipher);
   EVP_CipherInit_ex(ctx_, cipher, nullptr, nullptr, nullptr, encrypt);
 
-  if (is_gcm_mode &&
-      !EVP_CIPHER_CTX_ctrl(ctx_, EVP_CTRL_GCM_SET_IVLEN, iv_len, nullptr)) {
-    EVP_CIPHER_CTX_free(ctx_);
-    ctx_ = nullptr;
-    return env()->ThrowError("Invalid IV length");
+  if (is_gcm_mode) {
+    CHECK(has_iv);
+    if (!EVP_CIPHER_CTX_ctrl(ctx_, EVP_CTRL_GCM_SET_IVLEN, iv_len, nullptr)) {
+      EVP_CIPHER_CTX_free(ctx_);
+      ctx_ = nullptr;
+      return env()->ThrowError("Invalid IV length");
+    }
   }
 
   if (!EVP_CIPHER_CTX_set_key_length(ctx_, key_len)) {
@@ -3135,8 +3146,15 @@ void CipherBase::InitIv(const FunctionCallbackInfo<Value>& args) {
   const node::Utf8Value cipher_type(env->isolate(), args[0]);
   ssize_t key_len = Buffer::Length(args[1]);
   const char* key_buf = Buffer::Data(args[1]);
-  ssize_t iv_len = Buffer::Length(args[2]);
-  const char* iv_buf = Buffer::Data(args[2]);
+  ssize_t iv_len;
+  const char* iv_buf;
+  if (args[2]->IsNull()) {
+    iv_buf = nullptr;
+    iv_len = -1;
+  } else {
+    iv_buf = Buffer::Data(args[2]);
+    iv_len = Buffer::Length(args[2]);
+  }
   cipher->InitIv(*cipher_type, key_buf, key_len, iv_buf, iv_len);
 }
 
@@ -4943,7 +4961,7 @@ void PBKDF2Request::Work(uv_work_t* work_req) {
 
 void PBKDF2Request::After(Local<Value> (*argv)[2]) {
   if (success_) {
-    (*argv)[0] = Undefined(env()->isolate());
+    (*argv)[0] = Null(env()->isolate());
     (*argv)[1] = Buffer::New(env(), key_, keylen_).ToLocalChecked();
     key_ = nullptr;
     keylen_ = 0;

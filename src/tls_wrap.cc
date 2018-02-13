@@ -230,7 +230,8 @@ void TLSWrap::SSLInfoCallback(const SSL* ssl_, int where, int ret) {
   if (where & SSL_CB_HANDSHAKE_START) {
     Local<Value> callback = object->Get(env->onhandshakestart_string());
     if (callback->IsFunction()) {
-      c->MakeCallback(callback.As<Function>(), 0, nullptr);
+      Local<Value> argv[] = { env->GetNow() };
+      c->MakeCallback(callback.As<Function>(), arraysize(argv), argv);
     }
   }
 

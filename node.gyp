@@ -95,6 +95,7 @@
       'lib/internal/crypto/random.js',
       'lib/internal/crypto/sig.js',
       'lib/internal/crypto/util.js',
+      'lib/internal/constants.js',
       'lib/internal/encoding.js',
       'lib/internal/errors.js',
       'lib/internal/freelist.js',
@@ -124,6 +125,7 @@
       'lib/internal/repl.js',
       'lib/internal/repl/await.js',
       'lib/internal/socket_list.js',
+      'lib/internal/test/binding.js',
       'lib/internal/test/unicode.js',
       'lib/internal/timers.js',
       'lib/internal/tls.js',
@@ -234,7 +236,7 @@
             },
           },
           'conditions': [
-            ['OS in "linux freebsd openbsd solaris android"', {
+            ['OS!="aix"', {
               'ldflags': [
                 '-Wl,--whole-archive,<(obj_dir)/<(STATIC_LIB_PREFIX)'
                     '<(node_core_target_name)<(STATIC_LIB_SUFFIX)',
@@ -325,6 +327,7 @@
         'src/signal_wrap.cc',
         'src/spawn_sync.cc',
         'src/string_bytes.cc',
+        'src/string_decoder.cc',
         'src/string_search.cc',
         'src/stream_base.cc',
         'src/stream_wrap.cc',
@@ -378,6 +381,8 @@
         'src/req_wrap.h',
         'src/req_wrap-inl.h',
         'src/string_bytes.h',
+        'src/string_decoder.h',
+        'src/string_decoder-inl.h',
         'src/stream_base.h',
         'src/stream_base-inl.h',
         'src/stream_wrap.h',
@@ -389,7 +394,6 @@
         'src/util-inl.h',
         'deps/http_parser/http_parser.h',
         'deps/v8/include/v8.h',
-        'deps/v8/include/v8-debug.h',
         # javascript files to make for an even more pleasant IDE experience
         '<@(library_files)',
         # node.gyp is added to the project by default.
@@ -988,6 +992,7 @@
         '<(obj_path)<(obj_separator)node_url.<(obj_suffix)',
         '<(obj_path)<(obj_separator)util.<(obj_suffix)',
         '<(obj_path)<(obj_separator)string_bytes.<(obj_suffix)',
+        '<(obj_path)<(obj_separator)string_decoder.<(obj_suffix)',
         '<(obj_path)<(obj_separator)string_search.<(obj_suffix)',
         '<(obj_path)<(obj_separator)stream_base.<(obj_suffix)',
         '<(obj_path)<(obj_separator)node_constants.<(obj_suffix)',

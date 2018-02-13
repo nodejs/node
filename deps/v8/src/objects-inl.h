@@ -2231,7 +2231,8 @@ int Map::NumberOfOwnDescriptors() const {
 
 
 void Map::SetNumberOfOwnDescriptors(int number) {
-  DCHECK(number <= instance_descriptors()->number_of_descriptors());
+  CHECK_LE(static_cast<unsigned>(number),
+           static_cast<unsigned>(kMaxNumberOfDescriptors));
   set_bit_field3(NumberOfOwnDescriptorsBits::update(bit_field3(), number));
 }
 
@@ -2239,8 +2240,9 @@ int Map::EnumLength() const { return EnumLengthBits::decode(bit_field3()); }
 
 void Map::SetEnumLength(int length) {
   if (length != kInvalidEnumCacheSentinel) {
-    DCHECK_GE(length, 0);
-    DCHECK(length <= NumberOfOwnDescriptors());
+    DCHECK_LE(length, NumberOfOwnDescriptors());
+    CHECK_LE(static_cast<unsigned>(length),
+             static_cast<unsigned>(kMaxNumberOfDescriptors));
   }
   set_bit_field3(EnumLengthBits::update(bit_field3(), length));
 }
@@ -3002,9 +3004,9 @@ int Map::instance_size() const {
 }
 
 void Map::set_instance_size(int value) {
-  DCHECK_EQ(0, value & (kPointerSize - 1));
+  CHECK_EQ(0, value & (kPointerSize - 1));
   value >>= kPointerSizeLog2;
-  DCHECK(0 <= value && value < 256);
+  CHECK_LT(static_cast<unsigned>(value), 256);
   set_instance_size_in_words(value);
 }
 
@@ -3015,8 +3017,7 @@ int Map::inobject_properties_start_or_constructor_function_index() const {
 
 void Map::set_inobject_properties_start_or_constructor_function_index(
     int value) {
-  DCHECK_LE(0, value);
-  DCHECK_LT(value, 256);
+  CHECK_LT(static_cast<unsigned>(value), 256);
   RELAXED_WRITE_BYTE_FIELD(
       this, kInObjectPropertiesStartOrConstructorFunctionIndexOffset,
       static_cast<byte>(value));
@@ -3028,7 +3029,7 @@ int Map::GetInObjectPropertiesStartInWords() const {
 }
 
 void Map::SetInObjectPropertiesStartInWords(int value) {
-  DCHECK(IsJSObjectMap());
+  CHECK(IsJSObjectMap());
   set_inobject_properties_start_or_constructor_function_index(value);
 }
 
@@ -3044,7 +3045,7 @@ int Map::GetConstructorFunctionIndex() const {
 
 
 void Map::SetConstructorFunctionIndex(int value) {
-  DCHECK(IsPrimitiveMap());
+  CHECK(IsPrimitiveMap());
   set_inobject_properties_start_or_constructor_function_index(value);
 }
 
@@ -3153,8 +3154,7 @@ int Map::used_or_unused_instance_size_in_words() const {
 }
 
 void Map::set_used_or_unused_instance_size_in_words(int value) {
-  DCHECK_LE(0, value);
-  DCHECK_LE(value, 255);
+  CHECK_LE(static_cast<unsigned>(value), 255);
   WRITE_BYTE_FIELD(this, kUsedOrUnusedInstanceSizeInWordsOffset,
                    static_cast<byte>(value));
 }
@@ -3172,12 +3172,12 @@ int Map::UsedInstanceSize() const {
 void Map::SetInObjectUnusedPropertyFields(int value) {
   STATIC_ASSERT(JSObject::kFieldsAdded == JSObject::kHeaderSize / kPointerSize);
   if (!IsJSObjectMap()) {
-    DCHECK_EQ(0, value);
+    CHECK_EQ(0, value);
     set_used_or_unused_instance_size_in_words(0);
     DCHECK_EQ(0, UnusedPropertyFields());
     return;
   }
-  DCHECK_LE(0, value);
+  CHECK_LE(0, value);
   DCHECK_LE(value, GetInObjectProperties());
   int used_inobject_properties = GetInObjectProperties() - value;
   set_used_or_unused_instance_size_in_words(
@@ -3187,8 +3187,7 @@ void Map::SetInObjectUnusedPropertyFields(int value) {
 
 void Map::SetOutOfObjectUnusedPropertyFields(int value) {
   STATIC_ASSERT(JSObject::kFieldsAdded == JSObject::kHeaderSize / kPointerSize);
-  DCHECK_LE(0, value);
-  DCHECK_LT(value, JSObject::kFieldsAdded);
+  CHECK_LT(static_cast<unsigned>(value), JSObject::kFieldsAdded);
   // For out of object properties "used_instance_size_in_words" byte encodes
   // the slack in the property array.
   set_used_or_unused_instance_size_in_words(value);
@@ -3227,8 +3226,8 @@ void Map::AccountAddedOutOfObjectPropertyField(int unused_in_property_array) {
   if (unused_in_property_array < 0) {
     unused_in_property_array += JSObject::kFieldsAdded;
   }
-  DCHECK_GE(unused_in_property_array, 0);
-  DCHECK_LT(unused_in_property_array, JSObject::kFieldsAdded);
+  CHECK_LT(static_cast<unsigned>(unused_in_property_array),
+           JSObject::kFieldsAdded);
   set_used_or_unused_instance_size_in_words(unused_in_property_array);
   DCHECK_EQ(unused_in_property_array, UnusedPropertyFields());
 }
@@ -3358,7 +3357,7 @@ bool Map::should_be_fast_prototype_map() const {
 }
 
 void Map::set_elements_kind(ElementsKind elements_kind) {
-  DCHECK_LT(static_cast<int>(elements_kind), kElementsKindCount);
+  CHECK_LT(static_cast<int>(elements_kind), kElementsKindCount);
   DCHECK_LE(kElementsKindCount, 1 << Map::ElementsKindBits::kSize);
   set_bit_field2(Map::ElementsKindBits::update(bit_field2(), elements_kind));
   DCHECK(this->elements_kind() == elements_kind);
@@ -3700,7 +3699,7 @@ Object* Map::prototype_info() const {
 
 
 void Map::set_prototype_info(Object* value, WriteBarrierMode mode) {
-  DCHECK(is_prototype_map());
+  CHECK(is_prototype_map());
   WRITE_FIELD(this, Map::kTransitionsOrPrototypeInfoOffset, value);
   CONDITIONAL_WRITE_BARRIER(
       GetHeap(), this, Map::kTransitionsOrPrototypeInfoOffset, value, mode);
@@ -3708,11 +3707,11 @@ void Map::set_prototype_info(Object* value, WriteBarrierMode mode) {
 
 
 void Map::SetBackPointer(Object* value, WriteBarrierMode mode) {
-  DCHECK(instance_type() >= FIRST_JS_RECEIVER_TYPE);
-  DCHECK(value->IsMap());
-  DCHECK(GetBackPointer()->IsUndefined(GetIsolate()));
-  DCHECK(!value->IsMap() ||
-         Map::cast(value)->GetConstructor() == constructor_or_backpointer());
+  CHECK_GE(instance_type(), FIRST_JS_RECEIVER_TYPE);
+  CHECK(value->IsMap());
+  CHECK(GetBackPointer()->IsUndefined(GetIsolate()));
+  CHECK_IMPLIES(value->IsMap(), Map::cast(value)->GetConstructor() ==
+                                    constructor_or_backpointer());
   set_constructor_or_backpointer(value, mode);
 }
 
@@ -3743,7 +3742,7 @@ FunctionTemplateInfo* Map::GetFunctionTemplateInfo() const {
 
 void Map::SetConstructor(Object* constructor, WriteBarrierMode mode) {
   // Never overwrite a back pointer with a constructor.
-  DCHECK(!constructor_or_backpointer()->IsMap());
+  CHECK(!constructor_or_backpointer()->IsMap());
   set_constructor_or_backpointer(constructor, mode);
 }
 

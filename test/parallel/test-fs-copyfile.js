@@ -102,26 +102,6 @@ common.expectsError(() => {
   );
 });
 
-// Throws if the source path is an invalid path.
-common.expectsError(() => {
-  fs.copyFileSync('\u0000', dest);
-}, {
-  code: 'ERR_INVALID_ARG_TYPE',
-  type: Error,
-  message: 'The "path" argument must be of type string without null bytes.' +
-           ' Received type string'
-});
-
-// Throws if the destination path is an invalid path.
-common.expectsError(() => {
-  fs.copyFileSync(src, '\u0000');
-}, {
-  code: 'ERR_INVALID_ARG_TYPE',
-  type: Error,
-  message: 'The "path" argument must be of type string without null bytes.' +
-           ' Received type string'
-});
-
 // Errors if invalid flags are provided.
 assert.throws(() => {
   fs.copyFileSync(src, dest, -1);

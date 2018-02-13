@@ -45,6 +45,7 @@ const typeMap = {
 
   'EventEmitter': 'events.html#events_class_eventemitter',
 
+  'FileHandle': 'fs.html#fs_class_filehandle',
   'fs.Stats': 'fs.html#fs_class_fs_stats',
 
   'http.Agent': 'http.html#http_class_http_agent',

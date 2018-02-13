@@ -105,7 +105,7 @@ function testCipher3(key, iv) {
     });
 
   common.expectsError(
-    () => crypto.createCipheriv('des-ede3-cbc', key, null),
+    () => crypto.createCipheriv('des-ede3-cbc', key, 10),
     {
       code: 'ERR_INVALID_ARG_TYPE',
       type: TypeError,
@@ -141,7 +141,7 @@ function testCipher3(key, iv) {
     });
 
   common.expectsError(
-    () => crypto.createDecipheriv('des-ede3-cbc', key, null),
+    () => crypto.createDecipheriv('des-ede3-cbc', key, 10),
     {
       code: 'ERR_INVALID_ARG_TYPE',
       type: TypeError,
@@ -161,8 +161,9 @@ if (!common.hasFipsCrypto) {
               Buffer.from('A6A6A6A6A6A6A6A6', 'hex'));
 }
 
-// Zero-sized IV should be accepted in ECB mode.
+// Zero-sized IV or null should be accepted in ECB mode.
 crypto.createCipheriv('aes-128-ecb', Buffer.alloc(16), Buffer.alloc(0));
+crypto.createCipheriv('aes-128-ecb', Buffer.alloc(16), null);
 
 const errMessage = /Invalid IV length/;
 
@@ -185,6 +186,11 @@ for (let n = 0; n < 256; n += 1) {
                                 Buffer.alloc(n)),
     errMessage);
 }
+
+// And so should null be.
+assert.throws(() => {
+  crypto.createCipheriv('aes-128-cbc', Buffer.alloc(16), null);
+}, /Missing IV for cipher aes-128-cbc/);
 
 // Zero-sized IV should be rejected in GCM mode.
 assert.throws(

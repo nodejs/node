@@ -50,7 +50,7 @@ TEST_F(DebugSymbolsTest, ExternalStringDataOffset) {
 TEST_F(DebugSymbolsTest, BaseObjectPersistentHandle) {
   const v8::HandleScope handle_scope(isolate_);
   const Argv argv;
-  Env env{handle_scope, argv, this};
+  Env env{handle_scope, argv};
 
   v8::Local<v8::Object> object = v8::Object::New(isolate_);
   node::BaseObject obj(*env, object);
@@ -67,7 +67,7 @@ TEST_F(DebugSymbolsTest, BaseObjectPersistentHandle) {
 TEST_F(DebugSymbolsTest, EnvironmentHandleWrapQueue) {
   const v8::HandleScope handle_scope(isolate_);
   const Argv argv;
-  Env env{handle_scope, argv, this};
+  Env env{handle_scope, argv};
 
   auto expected = reinterpret_cast<uintptr_t>((*env)->handle_wrap_queue());
   auto calculated = reinterpret_cast<uintptr_t>(*env) +
@@ -78,7 +78,7 @@ TEST_F(DebugSymbolsTest, EnvironmentHandleWrapQueue) {
 TEST_F(DebugSymbolsTest, EnvironmentReqWrapQueue) {
   const v8::HandleScope handle_scope(isolate_);
   const Argv argv;
-  Env env{handle_scope, argv, this};
+  Env env{handle_scope, argv};
 
   auto expected = reinterpret_cast<uintptr_t>((*env)->req_wrap_queue());
   auto calculated = reinterpret_cast<uintptr_t>(*env) +
@@ -89,7 +89,7 @@ TEST_F(DebugSymbolsTest, EnvironmentReqWrapQueue) {
 TEST_F(DebugSymbolsTest, HandleWrapList) {
   const v8::HandleScope handle_scope(isolate_);
   const Argv argv;
-  Env env{handle_scope, argv, this};
+  Env env{handle_scope, argv};
 
   uv_tcp_t handle;
 
@@ -118,7 +118,7 @@ TEST_F(DebugSymbolsTest, HandleWrapList) {
 TEST_F(DebugSymbolsTest, ReqWrapList) {
   const v8::HandleScope handle_scope(isolate_);
   const Argv argv;
-  Env env{handle_scope, argv, this};
+  Env env{handle_scope, argv};
 
   auto obj_template = v8::FunctionTemplate::New(isolate_);
   obj_template->InstanceTemplate()->SetInternalFieldCount(1);
@@ -130,7 +130,7 @@ TEST_F(DebugSymbolsTest, ReqWrapList) {
   // NOTE (mmarchini): Workaround to fix failing tests on ARM64 machines with
   // older GCC. Should be removed once we upgrade the GCC version used on our
   // ARM64 CI machinies.
-  for (auto it : *(*env)->req_wrap_queue()) {}
+  for (auto it : *(*env)->req_wrap_queue()) (void) &it;
 
   auto queue = reinterpret_cast<uintptr_t>((*env)->req_wrap_queue());
   auto head = queue +

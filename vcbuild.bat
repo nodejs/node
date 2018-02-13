@@ -103,7 +103,7 @@ if /i "%1"=="build-release" set build_release=1&set sign=1&goto arg-ok
 if /i "%1"=="upload"        set upload=1&goto arg-ok
 if /i "%1"=="small-icu"     set i18n_arg=%1&goto arg-ok
 if /i "%1"=="full-icu"      set i18n_arg=%1&goto arg-ok
-if /i "%1"=="intl-none"     set i18n_arg=%1&goto arg-ok
+if /i "%1"=="intl-none"     set i18n_arg=none&goto arg-ok
 if /i "%1"=="without-intl"  set i18n_arg=none&goto arg-ok
 if /i "%1"=="download-all"  set download_arg="--download=all"&goto arg-ok
 if /i "%1"=="ignore-flaky"  set test_args=%test_args% --flaky-tests=dontcare&goto arg-ok
@@ -509,7 +509,7 @@ if defined lint_js_ci goto lint-js-ci
 if not defined lint_js goto exit
 if not exist tools\node_modules\eslint goto no-lint
 echo running lint-js
-%config%\node tools\node_modules\eslint\bin\eslint.js --cache --rule "linebreak-style: 0" --rulesdir=tools\eslint-rules --ext=.js,.md benchmark doc lib test tools
+%config%\node tools\node_modules\eslint\bin\eslint.js --cache --rule "linebreak-style: 0" --rulesdir=tools\eslint-rules --ext=.js,.mjs,.md benchmark doc lib test tools
 goto exit
 
 :lint-js-ci
