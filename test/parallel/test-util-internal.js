@@ -6,7 +6,7 @@ const assert = require('assert');
 const fixtures = require('../common/fixtures');
 
 const binding = process.binding('util');
-const kArrowMessagePrivateSymbolIndex = binding['arrow_message_private_symbol'];
+const kArrowMessagePrivateSymbolIndex = binding.arrow_message_private_symbol;
 
 function getHiddenValue(obj, index) {
   return function() {

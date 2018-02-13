@@ -12,7 +12,7 @@ const src = Object.create(null);
 src['www-authenticate'] = 'foo';
 src['WWW-Authenticate'] = 'bar';
 src['WWW-AUTHENTICATE'] = 'baz';
-src['test'] = 'foo, bar, baz';
+src.test = 'foo, bar, baz';
 
 server.on('stream', common.mustCall((stream, headers, flags, rawHeaders) => {
   const expected = [

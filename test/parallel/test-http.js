@@ -33,8 +33,8 @@ const server = http.Server(common.mustCall(function(req, res) {
   switch (req.url) {
     case '/hello':
       assert.strictEqual(req.method, 'GET');
-      assert.strictEqual(req.headers['accept'], '*/*');
-      assert.strictEqual(req.headers['foo'], 'bar');
+      assert.strictEqual(req.headers.accept, '*/*');
+      assert.strictEqual(req.headers.foo, 'bar');
       assert.strictEqual(req.headers.cookie, 'foo=bar; bar=baz; baz=quux');
       break;
     case '/there':
