@@ -211,7 +211,7 @@ This LTS release comes with 112 commits, 17 of which are considered Semver-Minor
 * [[`00b279087e`](https://github.com/nodejs/node/commit/00b279087e)] - **(SEMVER-MINOR)** **tls**: accept `lookup` option for `tls.connect()` (Fedor Indutny) [#12839](https://github.com/nodejs/node/pull/12839)
 * [[`521dc2511f`](https://github.com/nodejs/node/commit/521dc2511f)] - **tls**: properly track writeQueueSize during writes (Anatoli Papirovski) [#15791](https://github.com/nodejs/node/pull/15791)
 * [[`51bfd32922`](https://github.com/nodejs/node/commit/51bfd32922)] - **tools**: do not override V8's gitignore (Yang Guo) [#18010](https://github.com/nodejs/node/pull/18010)
-* [[`32f528a92e`](https://github.com/nodejs/node/commit/32f528a92e)] - **tools**: fix AttributeError: __exit__ on Python 2.6 (Dmitriy Kasyanov) [#17663](https://github.com/nodejs/node/pull/17663)
+* [[`32f528a92e`](https://github.com/nodejs/node/commit/32f528a92e)] - **tools**: fix AttributeError: \_\_exit\_\_ on Python 2.6 (Dmitriy Kasyanov) [#17663](https://github.com/nodejs/node/pull/17663)
 * [[`6187aec242`](https://github.com/nodejs/node/commit/6187aec242)] - **tools**: autofixer for lowercase-name-for-primitive (Shobhit Chittora) [#17715](https://github.com/nodejs/node/pull/17715)
 * [[`928b7c87cd`](https://github.com/nodejs/node/commit/928b7c87cd)] - **tools**: simplify lowercase-name-for-primitive rule (cjihrig) [#17653](https://github.com/nodejs/node/pull/17653)
 * [[`7821a4c899`](https://github.com/nodejs/node/commit/7821a4c899)] - **tools**: add lowercase-name-for-primitive eslint rule (Weijia Wang) [#17568](https://github.com/nodejs/node/pull/17568)
