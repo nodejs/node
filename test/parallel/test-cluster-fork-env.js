@@ -31,8 +31,8 @@ const cluster = require('cluster');
 
 if (cluster.isWorker) {
   const result = cluster.worker.send({
-    prop: process.env['cluster_test_prop'],
-    overwrite: process.env['cluster_test_overwrite']
+    prop: process.env.cluster_test_prop,
+    overwrite: process.env.cluster_test_overwrite
   });
 
   assert.strictEqual(result, true);
@@ -45,7 +45,7 @@ if (cluster.isWorker) {
 
   // To check that the cluster extend on the process.env we will overwrite a
   // property
-  process.env['cluster_test_overwrite'] = 'old';
+  process.env.cluster_test_overwrite = 'old';
 
   // Fork worker
   const worker = cluster.fork({

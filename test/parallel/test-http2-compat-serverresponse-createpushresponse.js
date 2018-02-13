@@ -77,7 +77,7 @@ server.listen(0, common.mustCall(() => {
       let actual = '';
       pushStream.on('push', common.mustCall((headers) => {
         assert.strictEqual(headers[':status'], 200);
-        assert(headers['date']);
+        assert(headers.date);
       }));
       pushStream.setEncoding('utf8');
       pushStream.on('data', (chunk) => actual += chunk);
@@ -89,7 +89,7 @@ server.listen(0, common.mustCall(() => {
 
     req.on('response', common.mustCall((headers) => {
       assert.strictEqual(headers[':status'], 200);
-      assert(headers['date']);
+      assert(headers.date);
     }));
 
     let actual = '';

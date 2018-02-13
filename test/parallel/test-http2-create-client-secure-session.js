@@ -62,7 +62,7 @@ function verifySecureSession(key, cert, ca, opts) {
     req.on('response', common.mustCall((headers) => {
       assert.strictEqual(headers[':status'], 200);
       assert.strictEqual(headers['content-type'], 'application/json');
-      assert(headers['date']);
+      assert(headers.date);
     }));
 
     let data = '';

@@ -168,9 +168,7 @@ class InspectorSession {
         reject(message.error);
     } else {
       if (message.method === 'Debugger.scriptParsed') {
-        const script = message['params'];
-        const scriptId = script['scriptId'];
-        const url = script['url'];
+        const { scriptId, url } = message.params;
         this._scriptsIdsByUrl.set(scriptId, url);
         const fileUrl = url.startsWith('file:') ?
           url : getURLFromFilePath(url).toString();
@@ -192,12 +190,12 @@ class InspectorSession {
 
   _sendMessage(message) {
     const msg = JSON.parse(JSON.stringify(message)); // Clone!
-    msg['id'] = this._nextId++;
+    msg.id = this._nextId++;
     if (DEBUG)
       console.log('[sent]', JSON.stringify(msg));
 
     const responsePromise = new Promise((resolve, reject) => {
-      this._commandResponsePromises.set(msg['id'], { resolve, reject });
+      this._commandResponsePromises.set(msg.id, { resolve, reject });
     });
 
     return new Promise(
@@ -243,14 +241,14 @@ class InspectorSession {
   }
 
   _isBreakOnLineNotification(message, line, expectedScriptPath) {
-    if ('Debugger.paused' === message['method']) {
-      const callFrame = message['params']['callFrames'][0];
-      const location = callFrame['location'];
-      const scriptPath = this._scriptsIdsByUrl.get(location['scriptId']);
+    if ('Debugger.paused' === message.method) {
+      const callFrame = message.params.callFrames[0];
+      const location = callFrame.location;
+      const scriptPath = this._scriptsIdsByUrl.get(location.scriptId);
       assert.strictEqual(scriptPath.toString(),
                          expectedScriptPath.toString(),
                          `${scriptPath} !== ${expectedScriptPath}`);
-      assert.strictEqual(line, location['lineNumber']);
+      assert.strictEqual(line, location.lineNumber);
       return true;
     }
   }
@@ -266,12 +264,12 @@ class InspectorSession {
   _matchesConsoleOutputNotification(notification, type, values) {
     if (!Array.isArray(values))
       values = [ values ];
-    if ('Runtime.consoleAPICalled' === notification['method']) {
-      const params = notification['params'];
-      if (params['type'] === type) {
+    if ('Runtime.consoleAPICalled' === notification.method) {
+      const params = notification.params;
+      if (params.type === type) {
         let i = 0;
-        for (const value of params['args']) {
-          if (value['value'] !== values[i++])
+        for (const value of params.args) {
+          if (value.value !== values[i++])
             return false;
         }
         return i === values.length;
@@ -392,7 +390,7 @@ class NodeInstance {
 
   async sendUpgradeRequest() {
     const response = await this.httpGet(null, '/json/list');
-    const devtoolsUrl = response[0]['webSocketDebuggerUrl'];
+    const devtoolsUrl = response[0].webSocketDebuggerUrl;
     const port = await this.portPromise;
     return http.get({
       port,
