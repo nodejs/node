@@ -1074,7 +1074,7 @@ class Assembler : public AssemblerBase {
     return SizeOfCodeGeneratedSince(label) / kInstructionSize;
   }
 
-  // Prevent contant pool emission until EndBlockConstPool is called.
+  // Prevent constant pool emission until EndBlockConstPool is called.
   // Call to this function can be nested but must be followed by an equal
   // number of calls to EndBlockConstpool.
   void StartBlockConstPool();
