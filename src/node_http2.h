@@ -815,6 +815,10 @@ class Http2Session : public AsyncWrap, public StreamListener {
 
   inline void EmitStatistics();
 
+  inline StreamBase* underlying_stream() {
+    return static_cast<StreamBase*>(stream_);
+  }
+
   void Start();
   void Stop();
   void Close(uint32_t code = NGHTTP2_NO_ERROR,

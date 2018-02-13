@@ -80,6 +80,10 @@ class TLSWrap : public AsyncWrap,
   size_t self_size() const override { return sizeof(*this); }
 
  protected:
+  inline StreamBase* underlying_stream() {
+    return static_cast<StreamBase*>(stream_);
+  }
+
   static const int kClearOutChunkSize = 16384;
 
   // Maximum number of bytes for hello parser

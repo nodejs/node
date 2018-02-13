@@ -285,7 +285,7 @@ void TLSWrap::EncOut() {
   for (size_t i = 0; i < count; i++)
     buf[i] = uv_buf_init(data[i], size[i]);
 
-  StreamWriteResult res = static_cast<StreamBase*>(stream_)->Write(bufs, count);
+  StreamWriteResult res = underlying_stream()->Write(bufs, count);
   if (res.err != 0) {
     InvokeQueued(res.err);
     return;
@@ -505,24 +505,24 @@ AsyncWrap* TLSWrap::GetAsyncWrap() {
 
 
 bool TLSWrap::IsIPCPipe() {
-  return static_cast<StreamBase*>(stream_)->IsIPCPipe();
+  return underlying_stream()->IsIPCPipe();
 }
 
 
 int TLSWrap::GetFD() {
-  return static_cast<StreamBase*>(stream_)->GetFD();
+  return underlying_stream()->GetFD();
 }
 
 
 bool TLSWrap::IsAlive() {
   return ssl_ != nullptr &&
       stream_ != nullptr &&
-      static_cast<StreamBase*>(stream_)->IsAlive();
+      underlying_stream()->IsAlive();
 }
 
 
 bool TLSWrap::IsClosing() {
-  return static_cast<StreamBase*>(stream_)->IsClosing();
+  return underlying_stream()->IsClosing();
 }
 
 
@@ -582,7 +582,7 @@ int TLSWrap::DoWrite(WriteWrap* w,
       Local<Object> req_wrap_obj =
           w->GetAsyncWrap()->persistent().Get(env()->isolate());
       w->Dispose();
-      w = static_cast<StreamBase*>(stream_)->CreateWriteWrap(req_wrap_obj);
+      w = underlying_stream()->CreateWriteWrap(req_wrap_obj);
       return stream_->DoWrite(w, bufs, count, send_handle);
     }
   }
@@ -680,7 +680,7 @@ void TLSWrap::OnStreamRead(ssize_t nread, const uv_buf_t& buf) {
 
 
 ShutdownWrap* TLSWrap::CreateShutdownWrap(Local<Object> req_wrap_object) {
-  return static_cast<StreamBase*>(stream_)->CreateShutdownWrap(req_wrap_object);
+  return underlying_stream()->CreateShutdownWrap(req_wrap_object);
 }
 
 

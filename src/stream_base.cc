@@ -112,9 +112,9 @@ int StreamBase::Writev(const FunctionCallbackInfo<Value>& args) {
     }
   }
 
-  std::unique_ptr<char, Free> storage;
+  std::unique_ptr<char[], Free> storage;
   if (storage_size > 0)
-    storage = std::unique_ptr<char, Free>(Malloc(storage_size));
+    storage = std::unique_ptr<char[], Free>(Malloc(storage_size));
 
   offset = 0;
   if (!all_buffers) {
@@ -246,16 +246,16 @@ int StreamBase::WriteString(const FunctionCallbackInfo<Value>& args) {
     CHECK_EQ(count, 1);
   }
 
-  std::unique_ptr<char, Free> data;
+  std::unique_ptr<char[], Free> data;
 
   if (try_write) {
     // Copy partial data
-    data = std::unique_ptr<char, Free>(Malloc(buf.len));
+    data = std::unique_ptr<char[], Free>(Malloc(buf.len));
     memcpy(data.get(), buf.base, buf.len);
     data_size = buf.len;
   } else {
     // Write it
-    data = std::unique_ptr<char, Free>(Malloc(storage_size));
+    data = std::unique_ptr<char[], Free>(Malloc(storage_size));
     data_size = StringBytes::Write(env->isolate(),
                                    data.get(),
                                    storage_size,

@@ -1552,8 +1552,7 @@ void Http2Session::SendPendingData() {
 
   chunks_sent_since_last_write_++;
 
-  StreamWriteResult res =
-      static_cast<StreamBase*>(stream_)->Write(*bufs, count);
+  StreamWriteResult res = underlying_stream()->Write(*bufs, count);
   if (!res.async) {
     ClearOutgoing(res.err);
   }
