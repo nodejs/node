@@ -506,15 +506,11 @@ exports.canCreateSymLink = function() {
 
     try {
       const output = execSync(`${whoamiPath} /priv`, { timout: 1000 });
-      if (!output.includes('SeCreateSymbolicLinkPrivilege')) {
-        return false;
-      }
+      return output.includes('SeCreateSymbolicLinkPrivilege');
     } catch (e) {
       return false;
     }
   }
-
-  return true;
 };
 
 exports.getCallSite = function getCallSite(top) {
