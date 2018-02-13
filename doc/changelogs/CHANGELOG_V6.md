@@ -94,13 +94,13 @@ This LTS release comes with 112 commits, 17 of which are considered Semver-Minor
   - more robust stringification for unhandled rejections (Timothy Gu) [#13784](https://github.com/nodejs/node/pull/13784)
 * **repl**:
   - improve require() autocompletion (Alexey Orlenko) [#14409](https://github.com/nodejs/node/pull/14409)
-* **src**: 
+* **src**:
   - add openssl-system-ca-path configure option (Daniel Bevenius) [#16790](https://github.com/nodejs/node/pull/16790)
   - add --use-bundled-ca --use-openssl-ca check (Daniel Bevenius) [#12087](https://github.com/nodejs/node/pull/12087)
   - add process.ppid (cjihrig) [#16839](https://github.com/nodejs/node/pull/16839)
 * **tls**:
   - accept `lookup` option for `tls.connect()` (Fedor Indutny) [#12839](https://github.com/nodejs/node/pull/12839)
-* **tools, build**: 
+* **tools, build**:
   - a new macOS installer! (JP Wesselink) [#15179](https://github.com/nodejs/node/pull/15179)
 * **url**:
   - WHATWG URL api support (James M Snell) [#7448](https://github.com/nodejs/node/pull/7448)
@@ -211,7 +211,7 @@ This LTS release comes with 112 commits, 17 of which are considered Semver-Minor
 * [[`00b279087e`](https://github.com/nodejs/node/commit/00b279087e)] - **(SEMVER-MINOR)** **tls**: accept `lookup` option for `tls.connect()` (Fedor Indutny) [#12839](https://github.com/nodejs/node/pull/12839)
 * [[`521dc2511f`](https://github.com/nodejs/node/commit/521dc2511f)] - **tls**: properly track writeQueueSize during writes (Anatoli Papirovski) [#15791](https://github.com/nodejs/node/pull/15791)
 * [[`51bfd32922`](https://github.com/nodejs/node/commit/51bfd32922)] - **tools**: do not override V8's gitignore (Yang Guo) [#18010](https://github.com/nodejs/node/pull/18010)
-* [[`32f528a92e`](https://github.com/nodejs/node/commit/32f528a92e)] - **tools**: fix AttributeError: __exit__ on Python 2.6 (Dmitriy Kasyanov) [#17663](https://github.com/nodejs/node/pull/17663)
+* [[`32f528a92e`](https://github.com/nodejs/node/commit/32f528a92e)] - **tools**: fix AttributeError: `__exit__` on Python 2.6 (Dmitriy Kasyanov) [#17663](https://github.com/nodejs/node/pull/17663)
 * [[`6187aec242`](https://github.com/nodejs/node/commit/6187aec242)] - **tools**: autofixer for lowercase-name-for-primitive (Shobhit Chittora) [#17715](https://github.com/nodejs/node/pull/17715)
 * [[`928b7c87cd`](https://github.com/nodejs/node/commit/928b7c87cd)] - **tools**: simplify lowercase-name-for-primitive rule (cjihrig) [#17653](https://github.com/nodejs/node/pull/17653)
 * [[`7821a4c899`](https://github.com/nodejs/node/commit/7821a4c899)] - **tools**: add lowercase-name-for-primitive eslint rule (Weijia Wang) [#17568](https://github.com/nodejs/node/pull/17568)
@@ -574,7 +574,7 @@ This LTS release comes with 263 commits. This includes 173 which are test relate
 * [[`4c98e07702`](https://github.com/nodejs/node/commit/4c98e07702)] - **test**: fixtures in test-net-pipe-connect-errors (Eric Freiberg) [#15922](https://github.com/nodejs/node/pull/15922)
 * [[`244bfb398d`](https://github.com/nodejs/node/commit/244bfb398d)] - **test**: fixtures in test-process-redirect-warnings-env (Kat Rosario) [#15930](https://github.com/nodejs/node/pull/15930)
 * [[`18479d3cff`](https://github.com/nodejs/node/commit/18479d3cff)] - **test**: fix ordering of strictEqual actual/expected (Chad Zezula) [#16008](https://github.com/nodejs/node/pull/16008)
-* [[`66fd6a1409`](https://github.com/nodejs/node/commit/66fd6a1409)] - **test**: use fixtures.readSync (szhang351) 
+* [[`66fd6a1409`](https://github.com/nodejs/node/commit/66fd6a1409)] - **test**: use fixtures.readSync (szhang351)
 * [[`6d33564b1a`](https://github.com/nodejs/node/commit/6d33564b1a)] - **test**: replaced fixturesDir with common.fixtures (Dolapo Toki) [#15836](https://github.com/nodejs/node/pull/15836)
 * [[`a6f04bec9e`](https://github.com/nodejs/node/commit/a6f04bec9e)] - **test**: use fixtures.fixturesDir (Gene Wu) [#15822](https://github.com/nodejs/node/pull/15822)
 * [[`2103453977`](https://github.com/nodejs/node/commit/2103453977)] - **test**: replaces fixturesDir with fixtures methods (Christian Murphy) [#15817](https://github.com/nodejs/node/pull/15817)
@@ -684,7 +684,7 @@ This release includes a security update to openssl that has been deemed low seve
 * **process**:
   - add --redirect-warnings command line argument (James M Snell) [#10116](https://github.com/nodejs/node/pull/10116)
 * **src**:
-  - allow CLI args in env with NODE_OPTIONS (Sam Roberts) [#12028](https://github.com/nodejs/node/pull/12028) 
+  - allow CLI args in env with NODE_OPTIONS (Sam Roberts) [#12028](https://github.com/nodejs/node/pull/12028)
   - --abort-on-uncaught-exception in NODE_OPTIONS (Sam Roberts) [#13932](https://github.com/nodejs/node/pull/13932)
   - allow --tls-cipher-list in NODE_OPTIONS (Sam Roberts) [#13172](https://github.com/nodejs/node/pull/13172)
   - use SafeGetenv() for NODE_REDIRECT_WARNINGS (Sam Roberts) [#12677](https://github.com/nodejs/node/pull/12677)
@@ -770,7 +770,7 @@ This release includes a security update to openssl that has been deemed low seve
 * [[`b166837551`](https://github.com/nodejs/node/commit/b166837551)] - **src,etw**: fix event 9 on 64 bit Windows (João Reis) [#15563](https://github.com/nodejs/node/pull/15563)
 * [[`18987794bd`](https://github.com/nodejs/node/commit/18987794bd)] - **test**: move test-cluster-debug-port to sequential (Oleksandr Kushchak) [#16292](https://github.com/nodejs/node/pull/16292)
 * [[`1fdbaed2f2`](https://github.com/nodejs/node/commit/1fdbaed2f2)] - **test**: begin normalizing fixtures use (James M Snell) [#14332](https://github.com/nodejs/node/pull/14332)
-* [[`3ad6a9dfc4`](https://github.com/nodejs/node/commit/3ad6a9dfc4)] - **test**: remove assert message (Joe Henry) 
+* [[`3ad6a9dfc4`](https://github.com/nodejs/node/commit/3ad6a9dfc4)] - **test**: remove assert message (Joe Henry)
 * [[`58509ec471`](https://github.com/nodejs/node/commit/58509ec471)] - **test**: clarify assert messages in crypto tests (cpandrews8) [#16019](https://github.com/nodejs/node/pull/16019)
 * [[`ab7f43aa41`](https://github.com/nodejs/node/commit/ab7f43aa41)] - **test**: include expected result in error messages (Chowdhurian) [#16039](https://github.com/nodejs/node/pull/16039)
 * [[`342ac9f0c6`](https://github.com/nodejs/node/commit/342ac9f0c6)] - **test**: cleanup test-buffer-sharedarraybuffer (Rafal Leszczynski) [#15896](https://github.com/nodejs/node/pull/15896)
