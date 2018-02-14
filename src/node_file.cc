@@ -1169,25 +1169,29 @@ static void ReadDir(const FunctionCallbackInfo<Value>& args) {
 
 static void Open(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
-  Local<Context> context = env->context();
 
-  CHECK_GE(args.Length(), 3);
-  CHECK(args[1]->IsInt32());
-  CHECK(args[2]->IsInt32());
+  const int argc = args.Length();
+  CHECK_GE(argc, 3);
 
   BufferValue path(env->isolate(), args[0]);
   CHECK_NE(*path, nullptr);
 
-  int flags = args[1]->Int32Value(context).ToChecked();
-  int mode = args[2]->Int32Value(context).ToChecked();
+  CHECK(args[1]->IsInt32());
+  const int flags = args[1].As<Int32>()->Value();
+
+  CHECK(args[2]->IsInt32());
+  const int mode = args[2].As<Int32>()->Value();
 
   FSReqBase* req_wrap = GetReqWrap(env, args[3]);
-  if (req_wrap != nullptr) {
+  if (req_wrap != nullptr) {  // open(path, flags, mode, req)
     AsyncCall(env, req_wrap, args, "open", UTF8, AfterInteger,
               uv_fs_open, *path, flags, mode);
-  } else {
-    SYNC_CALL(open, *path, *path, flags, mode)
-    args.GetReturnValue().Set(SYNC_RESULT);
+  } else {  // open(path, flags, mode, undefined, ctx)
+    CHECK_EQ(argc, 5);
+    fs_req_wrap req_wrap;
+    int result = SyncCall(env, args[4], &req_wrap, "open",
+                          uv_fs_open, *path, flags, mode);
+    args.GetReturnValue().Set(result);
   }
 }
 
