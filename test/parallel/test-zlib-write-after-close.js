@@ -31,7 +31,7 @@ zlib.gzip('hello', common.mustCall(function(err, out) {
     {
       code: 'ERR_STREAM_DESTROYED',
       type: Error,
-      message: 'stream.destroy() was called'
+      message: 'Cannot call write after a stream was destroyed'
     }
   );
 }));

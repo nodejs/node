@@ -179,3 +179,16 @@ const { inherits } = require('util');
     assert.strictEqual(expected, err);
   }));
 }
+
+{
+  const read = new Readable();
+
+  read.on('error', common.expectsError({
+    code: 'ERR_STREAM_DESTROYED',
+    message: 'Cannot call push after a stream was destroyed',
+    type: Error
+  }));
+
+  read.destroy();
+  read.push('hi');
+}

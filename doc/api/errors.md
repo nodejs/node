@@ -1621,11 +1621,6 @@ The fulfilled value of a linking promise is not a `vm.Module` object.
 The current module's status does not allow for this operation. The specific
 meaning of the error depends on the specific function.
 
-<a id="ERR_ZLIB_BINDING_CLOSED"></a>
-### ERR_ZLIB_BINDING_CLOSED
-
-An attempt was made to use a `zlib` object after it has already been closed.
-
 <a id="ERR_ZLIB_INITIALIZATION_FAILED"></a>
 ### ERR_ZLIB_INITIALIZATION_FAILED
 

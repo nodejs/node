@@ -543,8 +543,8 @@ added: v8.0.0
 
 * Returns: {this}
 
-Destroy the stream, and emit the passed error and a close event.
-After this call, the writable stream has ended and subsequent calls 
+Destroy the stream, and emit the passed `error` and a `close` event.
+After this call, the writable stream has ended and subsequent calls
 to `write` / `end` will give an `ERR_STREAM_DESTROYED` error.
 Implementors should not override this method,
 but instead implement [`writable._destroy`][writable-_destroy].
@@ -1385,6 +1385,12 @@ constructor and implement the `writable._write()` method. The
 `writable._writev()` method *may* also be implemented.
 
 #### Constructor: new stream.Writable([options])
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/18438
+    description: add emitClose option to specify if close is emitted on destroy
+-->
 
 * `options` {Object}
   * `highWaterMark` {number} Buffer level when

@@ -14,13 +14,13 @@ server.listen(0, common.mustCall(function() {
     assert.strictEqual(conn, conn.destroy().destroy());
     conn.on('error', common.expectsError({
       code: 'ERR_STREAM_DESTROYED',
-      message: 'stream.destroy() was called',
+      message: 'Cannot call write after a stream was destroyed',
       type: Error
     }));
 
     conn.write(Buffer.from('kaboom'), common.expectsError({
       code: 'ERR_STREAM_DESTROYED',
-      message: 'stream.destroy() was called',
+      message: 'Cannot call write after a stream was destroyed',
       type: Error
     }));
     server.close();
