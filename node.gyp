@@ -912,6 +912,7 @@
 
       'dependencies': [
         '<(node_lib_target_name)',
+        'rename_node_bin_win',
         'deps/gtest/gtest.gyp:gtest',
         'node_js2c#host',
         'node_dtrace_header',
