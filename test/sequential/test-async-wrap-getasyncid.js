@@ -3,6 +3,7 @@
 const common = require('../common');
 const assert = require('assert');
 const fs = require('fs');
+const fsPromises = require('fs/promises');
 const net = require('net');
 const providers = Object.assign({}, process.binding('async_wrap').Providers);
 const fixtures = require('../common/fixtures');
@@ -171,7 +172,7 @@ if (common.hasCrypto) { // eslint-disable-line crypto-check
 
 {
   async function openTest() {
-    const fd = await fs.promises.open(__filename, 'r');
+    const fd = await fsPromises.open(__filename, 'r');
     testInitialized(fd, 'FileHandle');
     await fd.close();
   }
