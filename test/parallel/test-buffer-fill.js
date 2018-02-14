@@ -19,15 +19,11 @@ testBufs('\u0222aa', 2);
 testBufs('\u0222aa', 8);
 testBufs('a\u0234b\u0235c\u0236', 4);
 testBufs('a\u0234b\u0235c\u0236', 12);
-testBufs('abc', 4, -1);
 testBufs('abc', 4, 1);
 testBufs('abc', 5, 1);
-testBufs('\u0222aa', 2, -1);
 testBufs('\u0222aa', 8, 1);
-testBufs('a\u0234b\u0235c\u0236', 4, -1);
 testBufs('a\u0234b\u0235c\u0236', 4, 1);
 testBufs('a\u0234b\u0235c\u0236', 12, 1);
-
 
 // UTF8
 testBufs('abc', 'utf8');
@@ -40,16 +36,12 @@ testBufs('\u0222aa', 2, 'utf8');
 testBufs('\u0222aa', 8, 'utf8');
 testBufs('a\u0234b\u0235c\u0236', 4, 'utf8');
 testBufs('a\u0234b\u0235c\u0236', 12, 'utf8');
-testBufs('abc', 4, -1, 'utf8');
 testBufs('abc', 4, 1, 'utf8');
 testBufs('abc', 5, 1, 'utf8');
-testBufs('\u0222aa', 2, -1, 'utf8');
 testBufs('\u0222aa', 8, 1, 'utf8');
-testBufs('a\u0234b\u0235c\u0236', 4, -1, 'utf8');
 testBufs('a\u0234b\u0235c\u0236', 4, 1, 'utf8');
 testBufs('a\u0234b\u0235c\u0236', 12, 1, 'utf8');
 assert.strictEqual(Buffer.allocUnsafe(1).fill(0).fill('\u0222')[0], 0xc8);
-
 
 // BINARY
 testBufs('abc', 'binary');
@@ -62,15 +54,11 @@ testBufs('\u0222aa', 2, 'binary');
 testBufs('\u0222aa', 8, 'binary');
 testBufs('a\u0234b\u0235c\u0236', 4, 'binary');
 testBufs('a\u0234b\u0235c\u0236', 12, 'binary');
-testBufs('abc', 4, -1, 'binary');
 testBufs('abc', 4, 1, 'binary');
 testBufs('abc', 5, 1, 'binary');
-testBufs('\u0222aa', 2, -1, 'binary');
 testBufs('\u0222aa', 8, 1, 'binary');
-testBufs('a\u0234b\u0235c\u0236', 4, -1, 'binary');
 testBufs('a\u0234b\u0235c\u0236', 4, 1, 'binary');
 testBufs('a\u0234b\u0235c\u0236', 12, 1, 'binary');
-
 
 // LATIN1
 testBufs('abc', 'latin1');
@@ -83,15 +71,11 @@ testBufs('\u0222aa', 2, 'latin1');
 testBufs('\u0222aa', 8, 'latin1');
 testBufs('a\u0234b\u0235c\u0236', 4, 'latin1');
 testBufs('a\u0234b\u0235c\u0236', 12, 'latin1');
-testBufs('abc', 4, -1, 'latin1');
 testBufs('abc', 4, 1, 'latin1');
 testBufs('abc', 5, 1, 'latin1');
-testBufs('\u0222aa', 2, -1, 'latin1');
 testBufs('\u0222aa', 8, 1, 'latin1');
-testBufs('a\u0234b\u0235c\u0236', 4, -1, 'latin1');
 testBufs('a\u0234b\u0235c\u0236', 4, 1, 'latin1');
 testBufs('a\u0234b\u0235c\u0236', 12, 1, 'latin1');
-
 
 // UCS2
 testBufs('abc', 'ucs2');
@@ -103,16 +87,12 @@ testBufs('\u0222aa', 2, 'ucs2');
 testBufs('\u0222aa', 8, 'ucs2');
 testBufs('a\u0234b\u0235c\u0236', 4, 'ucs2');
 testBufs('a\u0234b\u0235c\u0236', 12, 'ucs2');
-testBufs('abc', 4, -1, 'ucs2');
 testBufs('abc', 4, 1, 'ucs2');
 testBufs('abc', 5, 1, 'ucs2');
-testBufs('\u0222aa', 2, -1, 'ucs2');
 testBufs('\u0222aa', 8, 1, 'ucs2');
-testBufs('a\u0234b\u0235c\u0236', 4, -1, 'ucs2');
 testBufs('a\u0234b\u0235c\u0236', 4, 1, 'ucs2');
 testBufs('a\u0234b\u0235c\u0236', 12, 1, 'ucs2');
 assert.strictEqual(Buffer.allocUnsafe(1).fill('\u0222', 'ucs2')[0], 0x22);
-
 
 // HEX
 testBufs('616263', 'hex');
@@ -125,12 +105,9 @@ testBufs('c8a26161', 2, 'hex');
 testBufs('c8a26161', 8, 'hex');
 testBufs('61c8b462c8b563c8b6', 4, 'hex');
 testBufs('61c8b462c8b563c8b6', 12, 'hex');
-testBufs('616263', 4, -1, 'hex');
 testBufs('616263', 4, 1, 'hex');
 testBufs('616263', 5, 1, 'hex');
-testBufs('c8a26161', 2, -1, 'hex');
 testBufs('c8a26161', 8, 1, 'hex');
-testBufs('61c8b462c8b563c8b6', 4, -1, 'hex');
 testBufs('61c8b462c8b563c8b6', 4, 1, 'hex');
 testBufs('61c8b462c8b563c8b6', 12, 1, 'hex');
 
@@ -162,15 +139,11 @@ testBufs('yKJhYQ==', 2, 'ucs2');
 testBufs('yKJhYQ==', 8, 'ucs2');
 testBufs('Yci0Ysi1Y8i2', 4, 'ucs2');
 testBufs('Yci0Ysi1Y8i2', 12, 'ucs2');
-testBufs('YWJj', 4, -1, 'ucs2');
 testBufs('YWJj', 4, 1, 'ucs2');
 testBufs('YWJj', 5, 1, 'ucs2');
-testBufs('yKJhYQ==', 2, -1, 'ucs2');
 testBufs('yKJhYQ==', 8, 1, 'ucs2');
-testBufs('Yci0Ysi1Y8i2', 4, -1, 'ucs2');
 testBufs('Yci0Ysi1Y8i2', 4, 1, 'ucs2');
 testBufs('Yci0Ysi1Y8i2', 12, 1, 'ucs2');
-
 
 // Buffer
 function deepStrictEqualValues(buf, arr) {
@@ -179,27 +152,24 @@ function deepStrictEqualValues(buf, arr) {
   }
 }
 
-
 const buf2Fill = Buffer.allocUnsafe(1).fill(2);
 deepStrictEqualValues(genBuffer(4, [buf2Fill]), [2, 2, 2, 2]);
 deepStrictEqualValues(genBuffer(4, [buf2Fill, 1]), [0, 2, 2, 2]);
 deepStrictEqualValues(genBuffer(4, [buf2Fill, 1, 3]), [0, 2, 2, 0]);
 deepStrictEqualValues(genBuffer(4, [buf2Fill, 1, 1]), [0, 0, 0, 0]);
-deepStrictEqualValues(genBuffer(4, [buf2Fill, 1, -1]), [0, 0, 0, 0]);
 const hexBufFill = Buffer.allocUnsafe(2).fill(0).fill('0102', 'hex');
 deepStrictEqualValues(genBuffer(4, [hexBufFill]), [1, 2, 1, 2]);
 deepStrictEqualValues(genBuffer(4, [hexBufFill, 1]), [0, 1, 2, 1]);
 deepStrictEqualValues(genBuffer(4, [hexBufFill, 1, 3]), [0, 1, 2, 0]);
 deepStrictEqualValues(genBuffer(4, [hexBufFill, 1, 1]), [0, 0, 0, 0]);
-deepStrictEqualValues(genBuffer(4, [hexBufFill, 1, -1]), [0, 0, 0, 0]);
-
 
 // Check exceptions
 [
   [0, -1],
   [0, 0, buf1.length + 1],
   ['', -1],
-  ['', 0, buf1.length + 1]
+  ['', 0, buf1.length + 1],
+  ['', 1, -1],
 ].forEach((args) => {
   common.expectsError(
     () => buf1.fill(...args),
@@ -218,7 +188,7 @@ common.expectsError(
 
 [
   ['a', 0, 0, NaN],
-  ['a', 0, 0, null]
+  ['a', 0, 0, false]
 ].forEach((args) => {
   common.expectsError(
     () => buf1.fill(...args),
@@ -356,42 +326,10 @@ Buffer.alloc(8, '');
   assert.strictEqual(buf.toString(), 'էէէէէ');
 }
 
-// Testing public API. Make sure "start" is properly checked, even if it's
-// magically mangled using Symbol.toPrimitive.
-{
-  let elseWasLast = false;
-  common.expectsError(() => {
-    let ctr = 0;
-    const start = {
-      [Symbol.toPrimitive]() {
-        // We use this condition to get around the check in lib/buffer.js
-        if (ctr <= 0) {
-          elseWasLast = false;
-          ctr = ctr + 1;
-          return 0;
-        } else {
-          elseWasLast = true;
-          // Once buffer.js calls the C++ implementation of fill, return -1
-          return -1;
-        }
-      }
-    };
-    Buffer.alloc(1).fill(Buffer.alloc(1), start, 1);
-  }, {
-    code: undefined, type: RangeError, message: 'Index out of range'
-  });
-  // Make sure -1 is making it to Buffer::Fill().
-  assert.ok(elseWasLast,
-            'internal API changed, -1 no longer in correct location');
-}
-
 // Testing process.binding. Make sure "start" is properly checked for -1 wrap
 // around.
-common.expectsError(() => {
-  process.binding('buffer').fill(Buffer.alloc(1), 1, -1, 0, 1);
-}, {
-  code: undefined, type: RangeError, message: 'Index out of range'
-});
+assert.strictEqual(
+  process.binding('buffer').fill(Buffer.alloc(1), 1, -1, 0, 1), -2);
 
 // Make sure "end" is properly checked, even if it's magically mangled using
 // Symbol.toPrimitive.
@@ -402,20 +340,21 @@ common.expectsError(() => {
     const end = {
       [Symbol.toPrimitive]() {
         // We use this condition to get around the check in lib/buffer.js
-        if (ctr <= 1) {
+        if (ctr === 0) {
           elseWasLast = false;
-          ctr = ctr + 1;
+          ctr++;
           return 1;
-        } else {
-          elseWasLast = true;
-          // Once buffer.js calls the C++ implementation of fill, return -1
-          return -1;
         }
+        elseWasLast = true;
+        // Once buffer.js calls the C++ implementation of fill, return -1
+        return -1;
       }
     };
     Buffer.alloc(1).fill(Buffer.alloc(1), 0, end);
   }, {
-    code: undefined, type: RangeError, message: 'Index out of range'
+    code: 'ERR_INDEX_OUT_OF_RANGE',
+    type: RangeError,
+    message: 'Index out of range'
   });
   // Make sure -1 is making it to Buffer::Fill().
   assert.ok(elseWasLast,
@@ -424,9 +363,8 @@ common.expectsError(() => {
 
 // Testing process.binding. Make sure "end" is properly checked for -1 wrap
 // around.
-common.expectsError(() => {
-  process.binding('buffer').fill(Buffer.alloc(1), 1, 1, -2, 1);
-}, { code: undefined, type: RangeError, message: 'Index out of range' });
+assert.strictEqual(
+  process.binding('buffer').fill(Buffer.alloc(1), 1, 1, -2, 1), -2);
 
 // Test that bypassing 'length' won't cause an abort.
 common.expectsError(() => {
@@ -436,7 +374,11 @@ common.expectsError(() => {
     enumerable: true
   });
   buf.fill('');
-}, { code: undefined, type: RangeError, message: 'Index out of range' });
+}, {
+  code: 'ERR_INDEX_OUT_OF_RANGE',
+  type: RangeError,
+  message: 'Index out of range'
+});
 
 assert.deepStrictEqual(
   Buffer.allocUnsafeSlow(16).fill('ab', 'utf16le'),

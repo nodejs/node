@@ -571,10 +571,10 @@ void Fill(const FunctionCallbackInfo<Value>& args) {
   Local<String> str_obj;
   size_t str_length;
   enum encoding enc;
-  THROW_AND_RETURN_IF_OOB(start <= end);
-  THROW_AND_RETURN_IF_OOB(fill_length + start <= ts_obj_length);
 
-  args.GetReturnValue().Set(static_cast<double>(fill_length));
+  // OOB Check. Throw the error in JS.
+  if (start > end || fill_length + start > ts_obj_length)
+    return args.GetReturnValue().Set(-2);
 
   // First check if Buffer has been passed.
   if (Buffer::HasInstance(args[1])) {
@@ -593,22 +593,16 @@ void Fill(const FunctionCallbackInfo<Value>& args) {
 
   str_obj = args[1]->ToString(env->context()).ToLocalChecked();
   enc = ParseEncoding(env->isolate(), args[4], UTF8);
-  str_length =
-      enc == UTF8 ? str_obj->Utf8Length() :
-      enc == UCS2 ? str_obj->Length() * sizeof(uint16_t) : str_obj->Length();
-
-  if (str_length == 0) {
-    args.GetReturnValue().Set(0);
-    return;
-  }
 
   // Can't use StringBytes::Write() in all cases. For example if attempting
   // to write a two byte character into a one byte Buffer.
   if (enc == UTF8) {
+    str_length = str_obj->Utf8Length();
     node::Utf8Value str(env->isolate(), args[1]);
     memcpy(ts_obj_data + start, *str, MIN(str_length, fill_length));
 
   } else if (enc == UCS2) {
+    str_length = str_obj->Length() * sizeof(uint16_t);
     node::TwoByteValue str(env->isolate(), args[1]);
     if (IsBigEndian())
       SwapBytes16(reinterpret_cast<char*>(&str[0]), str_length);
@@ -616,6 +610,7 @@ void Fill(const FunctionCallbackInfo<Value>& args) {
     memcpy(ts_obj_data + start, *str, MIN(str_length, fill_length));
 
   } else {
+    str_length = str_obj->Length();
     // Write initial String to Buffer, then use that memory to copy remainder
     // of string. Correct the string length for cases like HEX where less than
     // the total string length is written.
