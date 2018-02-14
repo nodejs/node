@@ -534,7 +534,7 @@ const PackageConfig& GetPackageConfig(Environment* env,
   }
 
   auto entry = env->package_json_cache.emplace(path,
-      PackageConfig { Exists::Yes, IsValid::Yes, has_main, "" });
+      PackageConfig { Exists::Yes, IsValid::Yes, has_main, main_std });
   return entry.first->second;
 }
 
@@ -575,13 +575,15 @@ Maybe<URL> ResolveMain(Environment* env, const URL& search) {
       GetPackageConfig(env, pkg.ToFilePath());
   // Note invalid package.json should throw in resolver
   // currently we silently ignore which is incorrect
-  if (!pjson.exists || !pjson.is_valid || !pjson.has_main) {
+  if (pjson.exists == Exists::No ||
+      pjson.is_valid == IsValid::No ||
+      pjson.has_main == HasMain::No) {
     return Nothing<URL>();
   }
   if (!ShouldBeTreatedAsRelativeOrAbsolutePath(pjson.main)) {
-    return Resolve(env, "./" + pjson.main, search);
+    return Resolve(env, "./" + pjson.main, search, IgnoreMain);
   }
-  return Resolve(env, pjson.main, search);
+  return Resolve(env, pjson.main, search, IgnoreMain);
 }
 
 Maybe<URL> ResolveModule(Environment* env,
@@ -592,7 +594,7 @@ Maybe<URL> ResolveModule(Environment* env,
   do {
     dir = parent;
     Maybe<URL> check =
-        Resolve(env, "./node_modules/" + specifier, dir, IgnoreMain);
+        Resolve(env, "./node_modules/" + specifier, dir, CheckMain);
     if (!check.IsNothing()) {
       const size_t limit = specifier.find('/');
       const size_t spec_len =
