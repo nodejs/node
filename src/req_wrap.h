@@ -20,8 +20,11 @@ class ReqWrap : public AsyncWrap {
   inline void Dispatched();  // Call this after the req has been dispatched.
   T* req() { return &req_; }
 
+  static ReqWrap* from_req(T* req);
+
  private:
   friend class Environment;
+  friend int GenDebugSymbols();
   ListNode<ReqWrap> req_wrap_queue_;
 
  protected:

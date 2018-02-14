@@ -54,7 +54,26 @@ class performance_state;
 
 namespace loader {
 class ModuleWrap;
-}
+
+struct Exists {
+  enum Bool { Yes, No };
+};
+
+struct IsValid {
+  enum Bool { Yes, No };
+};
+
+struct HasMain {
+  enum Bool { Yes, No };
+};
+
+struct PackageConfig {
+  const Exists::Bool exists;
+  const IsValid::Bool is_valid;
+  const HasMain::Bool has_main;
+  const std::string main;
+};
+}  // namespace loader
 
 // Pick an index that's hopefully out of the way when we're embedded inside
 // another application. Performance-wise or memory-wise it doesn't matter:
@@ -306,6 +325,7 @@ class ModuleWrap;
   V(script_context_constructor_template, v8::FunctionTemplate)                \
   V(script_data_constructor_function, v8::Function)                           \
   V(secure_context_constructor_template, v8::FunctionTemplate)                \
+  V(shutdown_wrap_constructor_function, v8::Function)                         \
   V(tcp_constructor_template, v8::FunctionTemplate)                           \
   V(tick_callback_function, v8::Function)                                     \
   V(timers_callback_function, v8::Function)                                   \
@@ -608,6 +628,8 @@ class Environment {
 
   std::unordered_multimap<int, loader::ModuleWrap*> module_map;
 
+  std::unordered_map<std::string, loader::PackageConfig> package_json_cache;
+
   inline double* heap_statistics_buffer() const;
   inline void set_heap_statistics_buffer(double* pointer);
 
@@ -782,6 +804,7 @@ class Environment {
   // symbols for Environment, which assumes that the position of members in
   // memory are predictable. For more information please refer to
   // `doc/guides/node-postmortem-support.md`
+  friend int GenDebugSymbols();
   HandleWrapQueue handle_wrap_queue_;
   ReqWrapQueue req_wrap_queue_;
   ListHead<HandleCleanup,

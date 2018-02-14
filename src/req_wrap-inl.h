@@ -33,6 +33,11 @@ void ReqWrap<T>::Dispatched() {
   req_.data = this;
 }
 
+template <typename T>
+ReqWrap<T>* ReqWrap<T>::from_req(T* req) {
+  return ContainerOf(&ReqWrap<T>::req_, req);
+}
+
 }  // namespace node
 
 #endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS

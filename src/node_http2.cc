@@ -1552,18 +1552,9 @@ void Http2Session::SendPendingData() {
 
   chunks_sent_since_last_write_++;
 
-  // DoTryWrite may modify both the buffer list start itself and the
-  // base pointers/length of the individual buffers.
-  uv_buf_t* writebufs = *bufs;
-  if (stream_->DoTryWrite(&writebufs, &count) != 0 || count == 0) {
-    // All writes finished synchronously, nothing more to do here.
-    ClearOutgoing(0);
-    return;
-  }
-
-  WriteWrap* req = AllocateSend();
-  if (stream_->DoWrite(req, writebufs, count, nullptr) != 0) {
-    req->Dispose();
+  StreamWriteResult res = underlying_stream()->Write(*bufs, count);
+  if (!res.async) {
+    ClearOutgoing(res.err);
   }
 
   DEBUG_HTTP2SESSION2(this, "wants data in return? %d",
@@ -1647,15 +1638,6 @@ inline Http2Stream* Http2Session::SubmitRequest(
 
 inline void Http2Session::SetChunksSinceLastWrite(size_t n) {
   chunks_sent_since_last_write_ = n;
-}
-
-// Allocates the data buffer used to pass outbound data to the i/o stream.
-WriteWrap* Http2Session::AllocateSend() {
-  HandleScope scope(env()->isolate());
-  Local<Object> obj =
-      env()->write_wrap_constructor_function()
-          ->NewInstance(env()->context()).ToLocalChecked();
-  return WriteWrap::New(env(), obj, static_cast<StreamBase*>(stream_));
 }
 
 // Callback used to receive inbound data from the i/o stream
@@ -1833,20 +1815,15 @@ inline void Http2Stream::Close(int32_t code) {
   DEBUG_HTTP2STREAM2(this, "closed with code %d", code);
 }
 
-
-inline void Http2Stream::Shutdown() {
-  CHECK(!this->IsDestroyed());
-  Http2Scope h2scope(this);
-  flags_ |= NGHTTP2_STREAM_FLAG_SHUT;
-  CHECK_NE(nghttp2_session_resume_data(session_->session(), id_),
-           NGHTTP2_ERR_NOMEM);
-  DEBUG_HTTP2STREAM(this, "writable side shutdown");
-}
-
 int Http2Stream::DoShutdown(ShutdownWrap* req_wrap) {
   CHECK(!this->IsDestroyed());
-  req_wrap->Dispatched();
-  Shutdown();
+  {
+    Http2Scope h2scope(this);
+    flags_ |= NGHTTP2_STREAM_FLAG_SHUT;
+    CHECK_NE(nghttp2_session_resume_data(session_->session(), id_),
+             NGHTTP2_ERR_NOMEM);
+    DEBUG_HTTP2STREAM(this, "writable side shutdown");
+  }
   req_wrap->Done(0);
   return 0;
 }
@@ -2038,7 +2015,6 @@ inline int Http2Stream::DoWrite(WriteWrap* req_wrap,
   CHECK_EQ(send_handle, nullptr);
   Http2Scope h2scope(this);
   session_->SetChunksSinceLastWrite();
-  req_wrap->Dispatched();
   if (!IsWritable()) {
     req_wrap->Done(UV_EOF);
     return 0;
