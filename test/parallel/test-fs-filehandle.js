@@ -2,6 +2,7 @@
 'use strict';
 
 const common = require('../common');
+const assert = require('assert');
 const path = require('path');
 const fs = process.binding('fs');
 const { stringToFlags } = require('internal/fs');
@@ -11,8 +12,10 @@ const { stringToFlags } = require('internal/fs');
 
 let fdnum;
 {
+  const ctx = {};
   fdnum = fs.openFileHandle(path.toNamespacedPath(__filename),
-                            stringToFlags('r'), 0o666).fd;
+                            stringToFlags('r'), 0o666, undefined, ctx).fd;
+  assert.strictEqual(ctx.errno, undefined);
 }
 
 common.expectWarning(
