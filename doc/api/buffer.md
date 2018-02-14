@@ -1203,6 +1203,9 @@ console.log(buf1.equals(buf3));
 added: v0.5.0
 changes:
   - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/18790
+    description: Negative `end` values throw an `ERR_INDEX_OUT_OF_RANGE` error.
+  - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/18129
     description: Attempting to fill a non-zero length buffer with a zero length
                  buffer triggers a thrown exception.
