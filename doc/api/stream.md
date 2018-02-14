@@ -355,6 +355,9 @@ See also: [`writable.uncork()`][].
 <!-- YAML
 added: v0.9.4
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/18780
+    description: This method now returns a reference to `writable`.
   - version: v8.0.0
     pr-url: https://github.com/nodejs/node/pull/11608
     description: The `chunk` argument can now be a `Uint8Array` instance.
@@ -366,6 +369,7 @@ changes:
   other than `null`.
 * `encoding` {string} The encoding, if `chunk` is a string
 * `callback` {Function} Optional callback for when the stream is finished
+* Returns: {this}
 
 Calling the `writable.end()` method signals that no more data will be written
 to the [Writable][]. The optional `chunk` and `encoding` arguments allow one
