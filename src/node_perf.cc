@@ -89,7 +89,7 @@ void PerformanceEntry::Notify(Environment* env,
   if (type != NODE_PERFORMANCE_ENTRY_TYPE_INVALID &&
       observers[type]) {
     node::MakeCallback(env->isolate(),
-                       env->process_object(),
+                       object.As<Object>(),
                        env->performance_entry_callback(),
                        1, &object,
                        node::async_context{0, 0}).ToLocalChecked();
