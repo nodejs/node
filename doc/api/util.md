@@ -190,6 +190,7 @@ contains circular references.
   Similar to `util.inspect()` without options.
   This will show the full object not including non-enumerable symbols and properties.
 * `%%` - single percent sign (`'%'`). This does not consume an argument.
+* Returns: {string} The formatted string
 
 If the placeholder does not have a corresponding argument, the placeholder is
 not replaced.
@@ -806,6 +807,7 @@ deprecated: v4.0.0
 > Stability: 0 - Deprecated
 
 * `object` {any}
+* Returns: {boolean}
 
 Internal alias for [`Array.isArray`][].
 
@@ -831,6 +833,7 @@ deprecated: v4.0.0
 > Stability: 0 - Deprecated
 
 * `object` {any}
+* Returns: {boolean}
 
 Returns `true` if the given `object` is a `Boolean`. Otherwise, returns `false`.
 
@@ -854,6 +857,7 @@ deprecated: v4.0.0
 > Stability: 0 - Deprecated: Use [`Buffer.isBuffer()`][] instead.
 
 * `object` {any}
+* Returns: {boolean}
 
 Returns `true` if the given `object` is a `Buffer`. Otherwise, returns `false`.
 
@@ -877,6 +881,7 @@ deprecated: v4.0.0
 > Stability: 0 - Deprecated
 
 * `object` {any}
+* Returns: {boolean}
 
 Returns `true` if the given `object` is a `Date`. Otherwise, returns `false`.
 
@@ -900,6 +905,7 @@ deprecated: v4.0.0
 > Stability: 0 - Deprecated
 
 * `object` {any}
+* Returns: {boolean}
 
 Returns `true` if the given `object` is an [`Error`][]. Otherwise, returns
 `false`.
@@ -939,6 +945,7 @@ deprecated: v4.0.0
 > Stability: 0 - Deprecated
 
 * `object` {any}
+* Returns: {boolean}
 
 Returns `true` if the given `object` is a `Function`. Otherwise, returns
 `false`.
@@ -966,6 +973,7 @@ deprecated: v4.0.0
 > Stability: 0 - Deprecated
 
 * `object` {any}
+* Returns: {boolean}
 
 Returns `true` if the given `object` is strictly `null`. Otherwise, returns
 `false`.
@@ -990,6 +998,7 @@ deprecated: v4.0.0
 > Stability: 0 - Deprecated
 
 * `object` {any}
+* Returns: {boolean}
 
 Returns `true` if the given `object` is `null` or `undefined`. Otherwise,
 returns `false`.
@@ -1014,6 +1023,7 @@ deprecated: v4.0.0
 > Stability: 0 - Deprecated
 
 * `object` {any}
+* Returns: {boolean}
 
 Returns `true` if the given `object` is a `Number`. Otherwise, returns `false`.
 
@@ -1039,6 +1049,7 @@ deprecated: v4.0.0
 > Stability: 0 - Deprecated
 
 * `object` {any}
+* Returns: {boolean}
 
 Returns `true` if the given `object` is strictly an `Object` **and** not a
 `Function`. Otherwise, returns `false`.
@@ -1065,6 +1076,7 @@ deprecated: v4.0.0
 > Stability: 0 - Deprecated
 
 * `object` {any}
+* Returns: {boolean}
 
 Returns `true` if the given `object` is a primitive type. Otherwise, returns
 `false`.
@@ -1101,6 +1113,7 @@ deprecated: v4.0.0
 > Stability: 0 - Deprecated
 
 * `object` {any}
+* Returns: {boolean}
 
 Returns `true` if the given `object` is a `RegExp`. Otherwise, returns `false`.
 
@@ -1124,6 +1137,7 @@ deprecated: v4.0.0
 > Stability: 0 - Deprecated
 
 * `object` {any}
+* Returns: {boolean}
 
 Returns `true` if the given `object` is a `string`. Otherwise, returns `false`.
 
@@ -1149,6 +1163,7 @@ deprecated: v4.0.0
 > Stability: 0 - Deprecated
 
 * `object` {any}
+* Returns: {boolean}
 
 Returns `true` if the given `object` is a `Symbol`. Otherwise, returns `false`.
 
@@ -1172,6 +1187,7 @@ deprecated: v4.0.0
 > Stability: 0 - Deprecated
 
 * `object` {any}
+* Returns: {boolean}
 
 Returns `true` if the given `object` is `undefined`. Otherwise, returns `false`.
 
