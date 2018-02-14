@@ -397,6 +397,9 @@ Cherry-pick the release commit to `master`. After cherry-picking, edit
 `src/node_version.h` to ensure the version macros contain whatever values were
 previously on `master`. `NODE_VERSION_IS_RELEASE` should be `0`.
 
+Run `make lint-md-build; make lint` before pushing to `master`, to make sure the
+Changelog formatting passes the lint rules on `master`.
+
 ### 12. Promote and Sign the Release Builds
 
 **It is important that the same individual who signed the release tag be the one
