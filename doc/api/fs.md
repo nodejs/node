@@ -1210,7 +1210,7 @@ changes:
   * `start` {integer}
   * `end` {integer}
   * `highWaterMark` {integer}
-* Returns: {ReadStream}
+* Returns: {stream.Readable}
 
 Returns a new [`ReadStream`][] object. (See [Readable Streams][]).
 
@@ -1286,7 +1286,7 @@ changes:
   * `mode` {integer}
   * `autoClose` {boolean}
   * `start` {integer}
-* Returns: {WriteStream}
+* Returns: {stream.Writable}
 
 Returns a new [`WriteStream`][] object. (See [Writable Stream][]).
 
