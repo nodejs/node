@@ -429,7 +429,7 @@ req.on('information', (res) => {
 101 Upgrade statuses do not fire this event due to their break from the
 traditional HTTP request/response chain, such as web sockets, in-place TLS
 upgrades, or HTTP 2.0. To be notified of 101 Upgrade notices, listen for the
-[`'upgrade'`]() event instead.
+[`'upgrade'`][] event instead.
 
 ### Event: 'response'
 <!-- YAML
