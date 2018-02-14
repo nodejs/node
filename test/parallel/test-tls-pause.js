@@ -25,7 +25,7 @@ if (!common.hasCrypto)
   common.skip('missing crypto');
 
 // This test ensures that the data received over tls-server after pause
-// is same as what it was send
+// is same as what it was sent
 
 const assert = require('assert');
 const tls = require('tls');
@@ -47,7 +47,7 @@ const server = tls.Server(options, common.mustCall((socket) => {
   });
 }));
 
-server.listen(0, () => {
+server.listen(0, common.mustCall(() => {
   let resumed = false;
   const client = tls.connect({
     port: server.address().port,
@@ -85,7 +85,7 @@ server.listen(0, () => {
       server.close();
     }
   });
-});
+}));
 
 process.on('exit', () => {
   assert.strictEqual(sent, received);
