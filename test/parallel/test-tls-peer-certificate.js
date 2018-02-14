@@ -20,14 +20,22 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-require('../common');
+const common = require('../common');
 const fixtures = require('../common/fixtures');
+if (!common.hasCrypto) {
+  common.skip('missing crypto');
+}
+const crypto = require('crypto');
 
 // Verify that detailed getPeerCertificate() return value has all certs.
 
 const {
   assert, connect, debug, keys
 } = require(fixtures.path('tls-connect'));
+
+function sha256(s) {
+  return crypto.createHash('sha256').update(s);
+}
 
 connect({
   client: { rejectUnauthorized: false },
@@ -49,6 +57,24 @@ connect({
     peerCert.fingerprint,
     '8D:06:3A:B3:E5:8B:85:29:72:4F:7D:1B:54:CD:95:19:3C:EF:6F:AA'
   );
+  assert.strictEqual(
+    peerCert.fingerprint256,
+    'A1:DC:01:1A:EC:A3:7B:86:A8:C2:3E:26:9F:EB:EE:5C:A9:3B:BE:06' +
+    ':4C:A4:00:53:93:A9:66:07:A7:BC:13:32'
+  );
+
+  // SHA256 fingerprint of the public key
+  assert.strictEqual(
+    sha256(peerCert.pubkey).digest('hex'),
+    'fa5152e4407bad1e7537ef5bfc3f19fa9a62ee04432fd75e109b1803704c31ba'
+  );
+
+  // HPKP / RFC7469 "pin-sha256" of the public key
+  assert.strictEqual(
+    sha256(peerCert.pubkey).digest('base64'),
+    '+lFS5EB7rR51N+9b/D8Z+ppi7gRDL9deEJsYA3BMMbo='
+  );
+
   assert.deepStrictEqual(peerCert.infoAccess['OCSP - URI'],
                          [ 'http://ocsp.nodejs.org/' ]);
 
