@@ -244,9 +244,20 @@ enum CategoryGroupEnabledFlags {
 
 // Adds a trace event with a given id, thread_id, and timestamp. Not
 // Implemented.
-#define INTERNAL_TRACE_EVENT_ADD_WITH_ID_TID_AND_TIMESTAMP(            \
-    phase, category_group, name, id, thread_id, timestamp, flags, ...) \
-  UNIMPLEMENTED()
+#define INTERNAL_TRACE_EVENT_ADD_WITH_ID_TID_AND_TIMESTAMP(                  \
+    phase, category_group, name, id, thread_id, timestamp, flags, ...)       \
+  do {                                                                       \
+    INTERNAL_TRACE_EVENT_GET_CATEGORY_INFO(category_group);                  \
+    if (INTERNAL_TRACE_EVENT_CATEGORY_GROUP_ENABLED_FOR_RECORDING_MODE()) {  \
+      unsigned int trace_event_flags = flags | TRACE_EVENT_FLAG_HAS_ID;      \
+      node::tracing::TraceID trace_event_trace_id(id,                        \
+                                                  &trace_event_flags);       \
+      node::tracing::AddTraceEventWithTimestamp(                             \
+          phase, INTERNAL_TRACE_EVENT_UID(category_group_enabled), name,     \
+          trace_event_trace_id.scope(), trace_event_trace_id.raw_id(),       \
+          node::tracing::kNoId, trace_event_flags, timestamp, ##__VA_ARGS__);\
+    }                                                                        \
+  } while (0)
 
 // Enter and leave a context based on the current scope.
 #define INTERNAL_TRACE_EVENT_SCOPED_CONTEXT(category_group, name, context) \

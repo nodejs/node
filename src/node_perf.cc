@@ -105,8 +105,8 @@ void Mark(const FunctionCallbackInfo<Value>& args) {
   auto marks = env->performance_marks();
   (*marks)[*name] = now;
 
-  // TODO(jasnell): Once Tracing API is fully implemented, this should
-  // record a trace event also.
+  TRACE_EVENT_COPY_MARK_WITH_TIMESTAMP(
+      "node.perf,node.perf.usertiming", *name, now / 1000);
 
   PerformanceEntry entry(env, *name, "mark", now, now);
   Local<Object> obj = entry.ToObject();
@@ -153,8 +153,10 @@ void Measure(const FunctionCallbackInfo<Value>& args) {
   if (endTimestamp < startTimestamp)
     endTimestamp = startTimestamp;
 
-  // TODO(jasnell): Once Tracing API is fully implemented, this should
-  // record a trace event also.
+  TRACE_EVENT_COPY_NESTABLE_ASYNC_BEGIN_WITH_TIMESTAMP0(
+      "node.perf,node.perf.usertiming", *name, *name, startTimestamp / 1000);
+  TRACE_EVENT_COPY_NESTABLE_ASYNC_END_WITH_TIMESTAMP0(
+      "node.perf,node.perf.usertiming", *name, *name, endTimestamp / 1000);
 
   PerformanceEntry entry(env, *name, "measure", startTimestamp, endTimestamp);
   Local<Object> obj = entry.ToObject();
@@ -269,10 +271,15 @@ void TimerFunctionCall(const FunctionCallbackInfo<Value>& args) {
   v8::TryCatch try_catch(isolate);
   if (args.IsConstructCall()) {
     start = PERFORMANCE_NOW();
+    TRACE_EVENT_COPY_NESTABLE_ASYNC_BEGIN_WITH_TIMESTAMP0(
+        "node.perf,node.perf.timerify", *name, *name, start / 1000);
     v8::MaybeLocal<Object> ret = fn->NewInstance(context,
                                                  call_args.size(),
                                                  call_args.data());
     end = PERFORMANCE_NOW();
+    TRACE_EVENT_COPY_NESTABLE_ASYNC_END_WITH_TIMESTAMP0(
+        "node.perf,node.perf.timerify", *name, *name, end / 1000);
+
     if (ret.IsEmpty()) {
       try_catch.ReThrow();
       return;
@@ -280,11 +287,16 @@ void TimerFunctionCall(const FunctionCallbackInfo<Value>& args) {
     args.GetReturnValue().Set(ret.ToLocalChecked());
   } else {
     start = PERFORMANCE_NOW();
+    TRACE_EVENT_COPY_NESTABLE_ASYNC_BEGIN_WITH_TIMESTAMP0(
+        "node.perf,node.perf.timerify", *name, *name, start / 1000);
     v8::MaybeLocal<Value> ret = fn->Call(context,
                                          args.This(),
                                          call_args.size(),
                                          call_args.data());
     end = PERFORMANCE_NOW();
+    TRACE_EVENT_COPY_NESTABLE_ASYNC_END_WITH_TIMESTAMP0(
+        "node.perf,node.perf.timerify", *name, *name, end / 1000);
+
     if (ret.IsEmpty()) {
       try_catch.ReThrow();
       return;

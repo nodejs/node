@@ -4,6 +4,7 @@
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #include "node.h"
+#include "node_internals.h"
 #include "node_perf_common.h"
 #include "env.h"
 #include "base_object-inl.h"
