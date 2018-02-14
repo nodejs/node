@@ -54,13 +54,26 @@ class performance_state;
 
 namespace loader {
 class ModuleWrap;
+
+struct Exists {
+  enum Bool { Yes, No };
+};
+
+struct IsValid {
+  enum Bool { Yes, No };
+};
+
+struct HasMain {
+  enum Bool { Yes, No };
+};
+
 struct PackageConfig {
-  const bool exists;
-  const bool is_valid;
-  const bool has_main;
+  const Exists::Bool exists;
+  const IsValid::Bool is_valid;
+  const HasMain::Bool has_main;
   const std::string main;
 };
-}
+}  // namespace loader
 
 // Pick an index that's hopefully out of the way when we're embedded inside
 // another application. Performance-wise or memory-wise it doesn't matter:

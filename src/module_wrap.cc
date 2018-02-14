@@ -502,7 +502,7 @@ const PackageConfig& GetPackageConfig(Environment* env,
   Maybe<uv_file> check = CheckFile(path, LEAVE_OPEN_AFTER_CHECK);
   if (check.IsNothing()) {
     auto entry = env->package_json_cache.emplace(path,
-        PackageConfig{ false, true, false, "" });
+        PackageConfig { Exists::No, IsValid::Yes, HasMain::No, "" });
     return entry.first->second;
   }
 
@@ -520,7 +520,7 @@ const PackageConfig& GetPackageConfig(Environment* env,
                            v8::NewStringType::kNormal,
                            pkg_src.length()).ToLocal(&src)) {
     auto entry = env->package_json_cache.emplace(path,
-        PackageConfig{ false, true, false, "" });
+        PackageConfig { Exists::No, IsValid::Yes, HasMain::No, "" });
     return entry.first->second;
   }
 
@@ -530,21 +530,21 @@ const PackageConfig& GetPackageConfig(Environment* env,
   if (!JSON::Parse(env->context(), src).ToLocal(&pkg_json_v) ||
       !pkg_json_v->ToObject(env->context()).ToLocal(&pkg_json)) {
     auto entry = env->package_json_cache.emplace(path,
-        PackageConfig{ true, false, false, "" });
+        PackageConfig { Exists::Yes, IsValid::No, HasMain::No, "" });
     return entry.first->second;
   }
 
   Local<Value> pkg_main;
-  bool has_main = false;
+  HasMain::Bool has_main = HasMain::No;
   std::string main_std;
   if (pkg_json->Get(env->context(), env->main_string()).ToLocal(&pkg_main)) {
-    has_main = true;
+    has_main = HasMain::Yes;
     Utf8Value main_utf8(isolate, pkg_main);
     main_std.assign(std::string(*main_utf8, main_utf8.length()));
   }
 
   auto entry = env->package_json_cache.emplace(path,
-      PackageConfig{ true, true, has_main, main_std });
+      PackageConfig { Exists::Yes, IsValid::Yes, has_main, "" });
   return entry.first->second;
 }
 
