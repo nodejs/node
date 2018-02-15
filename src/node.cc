@@ -3279,7 +3279,7 @@ static void RawDebug(const FunctionCallbackInfo<Value>& args) {
   fflush(stderr);
 }
 
-void LoadEnvironment(Environment* env) {
+void LoadEnvironment(Environment* env, const bool allow_repl) {
   HandleScope handle_scope(env->isolate());
 
   TryCatch try_catch(env->isolate());
@@ -3341,6 +3341,20 @@ void LoadEnvironment(Environment* env) {
   // who do not like how bootstrap_node.js sets up the module system but do
   // like Node's I/O bindings may want to replace 'f' with their own function.
   Local<Value> arg = env->process_object();
+
+  // add allow_repl parameter to JS process so we can use it in
+  // bootstrap_node.js.
+  // If adding the parameter fails, bootstrapping will fail too,
+  // so we can cleanup and return before we even bootstrap.
+  bool successfully_set_allow_repl = Object::Cast(*arg)->Set(
+        env->context(),
+        String::NewFromUtf8(env->isolate(), "_allowRepl"),
+        Boolean::New(env->isolate(), allow_repl)).FromJust();
+
+  if (!successfully_set_allow_repl) {
+    env->async_hooks()->clear_async_id_stack();
+    return;
+  }
 
   auto ret = f->Call(env->context(), Null(env->isolate()), 1, &arg);
   // If there was an error during bootstrap then it was either handled by the
@@ -4359,197 +4373,6 @@ inline static bool TickEventLoop(Environment* env,
   return uv_loop_alive(env->event_loop());
 }
 
-// This is where the magic happens. Creates JavaScript context and a JS
-// Environment, then runs the uv event loop until it is no longer alive (see
-// TickEventLoop()), then tears down Env and context and returns JS exit code.
-inline int Start(Isolate* isolate, IsolateData* isolate_data,
-                 int argc, const char* const* argv,
-                 int exec_argc, const char* const* exec_argv) {
-  HandleScope handle_scope(isolate);
-  Local<Context> context = NewContext(isolate);
-  Context::Scope context_scope(context);
-  Environment env(isolate_data, context);
-  CHECK_EQ(0, uv_key_create(&thread_local_env));
-  uv_key_set(&thread_local_env, &env);
-  env.Start(argc, argv, exec_argc, exec_argv, v8_is_profiling);
-
-  const char* path = argc > 1 ? argv[1] : nullptr;
-  StartInspector(&env, path, debug_options);
-
-  if (debug_options.inspector_enabled() && !v8_platform.InspectorStarted(&env))
-    return 12;  // Signal internal error.
-
-  env.set_abort_on_uncaught_exception(abort_on_uncaught_exception);
-
-  if (no_force_async_hooks_checks) {
-    env.async_hooks()->no_force_checks();
-  }
-
-  {
-    Environment::AsyncCallbackScope callback_scope(&env);
-    env.async_hooks()->push_async_ids(1, 0);
-    LoadEnvironment(&env);
-    env.async_hooks()->pop_async_id(1);
-  }
-
-  env.set_trace_sync_io(trace_sync_io);
-
-  {
-    SealHandleScope seal(isolate);
-    bool more;
-    PERFORMANCE_MARK(&env, LOOP_START);
-    do {
-      uv_run(env.event_loop(), UV_RUN_DEFAULT);
-
-      v8_platform.DrainVMTasks(isolate);
-
-      more = uv_loop_alive(env.event_loop());
-      if (more)
-        continue;
-
-      RunBeforeExit(&env);
-
-      // Emit `beforeExit` if the loop became alive either after emitting
-      // event, or after running some callbacks.
-      more = uv_loop_alive(env.event_loop());
-    } while (more == true);
-    PERFORMANCE_MARK(&env, LOOP_EXIT);
-  }
-
-  env.set_trace_sync_io(false);
-
-  const int exit_code = EmitExit(&env);
-  RunAtExit(&env);
-  uv_key_delete(&thread_local_env);
-
-  v8_platform.DrainVMTasks(isolate);
-  v8_platform.CancelVMTasks(isolate);
-  WaitForInspectorDisconnect(&env);
-#if defined(LEAK_SANITIZER)
-  __lsan_do_leak_check();
-#endif
-
-  return exit_code;
-}
-
-// Creates V8 Isolate, calls 3rd start, then disposes of isolate afterwards.
-inline int Start(uv_loop_t* event_loop,
-                 int argc, const char* const* argv,
-                 int exec_argc, const char* const* exec_argv) {
-  Isolate::CreateParams params;
-  ArrayBufferAllocator allocator;
-  params.array_buffer_allocator = &allocator;
-#ifdef NODE_ENABLE_VTUNE_PROFILING
-  params.code_event_handler = vTune::GetVtuneCodeEventHandler();
-#endif
-
-  Isolate* const isolate = Isolate::New(params);
-  if (isolate == nullptr)
-    return 12;  // Signal internal error.
-
-  isolate->AddMessageListener(OnMessage);
-  isolate->SetAbortOnUncaughtExceptionCallback(ShouldAbortOnUncaughtException);
-  isolate->SetAutorunMicrotasks(false);
-  isolate->SetFatalErrorHandler(OnFatalError);
-
-  {
-    Mutex::ScopedLock scoped_lock(node_isolate_mutex);
-    CHECK_EQ(node_isolate, nullptr);
-    node_isolate = isolate;
-  }
-
-  int exit_code;
-  {
-    Locker locker(isolate);
-    Isolate::Scope isolate_scope(isolate);
-    HandleScope handle_scope(isolate);
-    IsolateData isolate_data(
-        isolate,
-        event_loop,
-        v8_platform.Platform(),
-        allocator.zero_fill_field());
-    if (track_heap_objects) {
-      isolate->GetHeapProfiler()->StartTrackingHeapObjects(true);
-    }
-    exit_code = Start(isolate, &isolate_data, argc, argv, exec_argc, exec_argv);
-  }
-
-  {
-    Mutex::ScopedLock scoped_lock(node_isolate_mutex);
-    CHECK_EQ(node_isolate, isolate);
-    node_isolate = nullptr;
-  }
-
-  isolate->Dispose();
-
-  return exit_code;
-}
-
-// Initializes V8, calls second Start(), then de-inits V8
-int Start(int argc, char** argv) {
-  atexit([] () { uv_tty_reset_mode(); });
-  PlatformInit();
-  node::performance::performance_node_start = PERFORMANCE_NOW();
-
-  CHECK_GT(argc, 0);
-
-  // Hack around with the argv pointer. Used for process.title = "blah".
-  argv = uv_setup_args(argc, argv);
-
-  // This needs to run *before* V8::Initialize().  The const_cast is not
-  // optional, in case you're wondering.
-  int exec_argc;
-  const char** exec_argv;
-  Init(&argc, const_cast<const char**>(argv), &exec_argc, &exec_argv);
-
-#if HAVE_OPENSSL
-  {
-    std::string extra_ca_certs;
-    if (SafeGetenv("NODE_EXTRA_CA_CERTS", &extra_ca_certs))
-      crypto::UseExtraCaCerts(extra_ca_certs);
-  }
-#ifdef NODE_FIPS_MODE
-  // In the case of FIPS builds we should make sure
-  // the random source is properly initialized first.
-  OPENSSL_init();
-#endif  // NODE_FIPS_MODE
-  // V8 on Windows doesn't have a good source of entropy. Seed it from
-  // OpenSSL's pool.
-  V8::SetEntropySource(crypto::EntropySource);
-#endif  // HAVE_OPENSSL
-
-  v8_platform.Initialize(v8_thread_pool_size);
-  // Enable tracing when argv has --trace-events-enabled.
-  if (trace_enabled) {
-    fprintf(stderr, "Warning: Trace event is an experimental feature "
-            "and could change at any time.\n");
-    v8_platform.StartTracingAgent();
-  }
-  V8::Initialize();
-  node::performance::performance_v8_start = PERFORMANCE_NOW();
-  v8_initialized = true;
-  const int exit_code =
-      Start(uv_default_loop(), argc, argv, exec_argc, exec_argv);
-  if (trace_enabled) {
-    v8_platform.StopTracingAgent();
-  }
-  v8_initialized = false;
-  V8::Dispose();
-
-  // uv_run cannot be called from the time before the beforeExit callback
-  // runs until the program exits unless the event loop has any referenced
-  // handles after beforeExit terminates. This prevents unrefed timers
-  // that happen to terminate during shutdown from being run unsafely.
-  // Since uv_run cannot be called, uv_async handles held by the platform
-  // will never be fully cleaned up.
-  v8_platform.Dispose();
-
-  delete[] exec_argv;
-  exec_argv = nullptr;
-
-  return exit_code;
-}
-
 // Call built-in modules' _register_<module name> function to
 // do module registration explicitly.
 void RegisterBuiltinModules() {
@@ -4851,7 +4674,8 @@ void _ConfigureOpenSsl() {
 void _StartEnv(int argc,
                const char* const* argv,
                int v8_argc,
-               const char* const* v8_argv) {
+               const char* const* v8_argv,
+               const bool allow_repl) {
   std::cout << "Starting environment" << std::endl;
 
   _environment->Start(argc, argv, v8_argc, v8_argv, v8_is_profiling);
@@ -4874,7 +4698,7 @@ void _StartEnv(int argc,
   {
     Environment::AsyncCallbackScope callback_scope(_environment);
     _environment->async_hooks()->push_async_ids(1, 0);
-    LoadEnvironment(_environment);
+    LoadEnvironment(_environment, allow_repl);
     _environment->async_hooks()->pop_async_id(1);
   }
 
@@ -4884,12 +4708,13 @@ void _StartEnv(int argc,
 }  // namespace initialize
 
 void Initialize(const std::string& program_name,
-                const std::vector<std::string>& node_args) {
+                const std::vector<std::string>& node_args,
+                const bool allow_repl) {
   cmd_args = new CmdArgs(program_name, node_args);
-  Initialize(cmd_args->argc, cmd_args->argv);
+  Initialize(cmd_args->argc, cmd_args->argv, allow_repl);
 }
 
-void Initialize(int argc, const char** argv) {
+void Initialize(int argc, const char** argv, const bool allow_repl) {
   //////////
   // Start 1
   //////////
@@ -4925,7 +4750,7 @@ void Initialize(int argc, const char** argv) {
   // Start environment
   //////////
 
-  initialize::_StartEnv(argc, argv, exec_argc, exec_argv);
+  initialize::_StartEnv(argc, argv, exec_argc, exec_argv, allow_repl);
 }
 
 int Deinitialize() {
@@ -5147,6 +4972,15 @@ void StopEventLoop() {
 
 bool ProcessEvents(UvLoopBehavior behavior) {
   return TickEventLoop(_environment, behavior);
+}
+
+int Start(int argc, char** argv) {
+  Initialize(argc, const_cast<const char**>(argv), true);
+  SealHandleScope seal(_environment->isolate());
+  PERFORMANCE_MARK(_environment, LOOP_START);
+  RunEventLoop([] () {}, UvLoopBehavior::RUN_DEFAULT);
+  PERFORMANCE_MARK(_environment, LOOP_EXIT);
+  return Deinitialize();
 }
 
 }  // namespace node
