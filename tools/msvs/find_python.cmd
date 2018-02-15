@@ -45,7 +45,7 @@ IF NOT EXIST "%p%python.exe" EXIT /B 1
 IF ERRORLEVEL 1 EXIT /B %ERRORLEVEL%
 :: We can wrap it up
 ENDLOCAL & SET pt=%p%& SET need_path_ext=%need_path%
-SET VCBUILD_PYTHON_LOCATION=%pt%python.exe
+SET PYTHON=%pt%python.exe
 IF %need_path_ext%==1 SET Path=%Path%;%pt%
 SET need_path_ext=
 EXIT /B %ERRORLEVEL%
