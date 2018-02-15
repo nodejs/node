@@ -1,6 +1,8 @@
 'use strict';
 
-require('../common');
+const common = require('../common');
+
+common.skipIfEslintMissing();
 
 const RuleTester = require('../../tools/eslint').RuleTester;
 const rule = require('../../tools/eslint-rules/prefer-assert-iferror');
