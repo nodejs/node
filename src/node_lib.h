@@ -80,8 +80,8 @@ bool eventLoopIsRunning();
  * not called.
  * @param program_name The name for the Node.js application.
  * @param node_args List of arguments for the Node.js engine.
- * @param allow_repl Controls wether the node.js REPL gets spawned when no
- * script is given on initialization.
+ * @param allow_repl Controls whether the node.js REPL gets spawned when stdin
+ * is an interactive terminal.
  */
 NODE_EXTERN void Initialize(const std::string& program_name = "node_lib",
                             const std::vector<std::string>& node_args = {},
@@ -100,8 +100,8 @@ NODE_EXTERN void Initialize(const std::string& program_name = "node_lib",
  * @param argv List of arguments for the Node.js engine,
  * where the first argument needs to be the program name.
  * The number of arguments must correspond to argc.
- * @param allow_repl Controls wether the node.js REPL gets spawned when no
- * script is given on initialization.
+ * @param allow_repl Controls whether the node.js REPL gets spawned when stdin
+ * is an interactive terminal.
  */
 NODE_EXTERN void Initialize(int argc,
                             const char** argv,
