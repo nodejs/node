@@ -18,6 +18,13 @@ Add tests when:
 - Fixing regressions and bugs.
 - Expanding test coverage.
 
+## Where does the test go
+One can refer [test directory structure](https://github.com/nodejs/node/tree/master/test)
+to decide where to put your test cases. If you want to find any current test that exist then
+go to the defined [test directory structure](https://github.com/nodejs/node/tree/master/test) 
+and search for similar APIs and see if there is similar file available 
+
+
 ## Test structure
 
 Let's analyze this basic test from the Node.js test suite:
