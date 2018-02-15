@@ -11,7 +11,6 @@ const who = process.argv.length <= 2 ? 'runner' : process.argv[2];
 switch (who) {
   case 'runner':
     for (let num = 0; num < numTries; ++num) {
-      console.log('Try: ' + num);
       spawnSync(process.argv0,
                 [process.argv[1], 'parent'],
                 { 'stdio': 'inherit' });
