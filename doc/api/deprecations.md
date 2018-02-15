@@ -923,6 +923,15 @@ Type: End-of-Life
 
 The `--with-lttng` compile time option is removed.
 
+<a id="DEP0102"></a>
+### DEP0102: Using `noAssert` in Buffer#(read|write) operations.
+
+Type: End-of-Life
+
+Using the `noAssert` argument has no functionality anymore. All input is going
+to be verified, no matter if it is set to true or not. Skipping the verification
+could lead to hard to find errors and crashes.
+
 [`--pending-deprecation`]: cli.html#cli_pending_deprecation
 [`Buffer.allocUnsafeSlow(size)`]: buffer.html#buffer_class_method_buffer_allocunsafeslow_size
 [`Buffer.from(array)`]: buffer.html#buffer_class_method_buffer_from_array
