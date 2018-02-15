@@ -7,7 +7,13 @@
 const common = require('../common');
 const assert = require('assert');
 const { spawnSync } = require('child_process');
-const args = [process.execPath];
+const { getSharedLibPath } = require('../common/shared-lib-util.js');
+
+// For shared lib case, check shared lib instead
+const args = [
+  process.config.variables.node_shared ?
+    getSharedLibPath() : process.execPath
+];
 
 if (common.isAIX)
   args.unshift('-Xany', '-B');
