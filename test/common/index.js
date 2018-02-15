@@ -493,6 +493,14 @@ exports.fileExists = function(pathname) {
   }
 };
 
+exports.skipIfEslintMissing = function() {
+  if (!exports.fileExists(
+    path.join('..', '..', 'tools', 'node_modules', 'eslint')
+  )) {
+    exports.skip('missing ESLint');
+  }
+};
+
 exports.canCreateSymLink = function() {
   // On Windows, creating symlinks requires admin privileges.
   // We'll only try to run symlink test if we have enough privileges.
