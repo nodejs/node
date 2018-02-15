@@ -2,7 +2,9 @@
 
 /* eslint-disable no-template-curly-in-string */
 
-require('../common');
+const common = require('../common');
+
+common.skipIfEslintMissing();
 
 const RuleTester = require('../../tools/node_modules/eslint').RuleTester;
 const rule = require('../../tools/eslint-rules/prefer-util-format-errors');
