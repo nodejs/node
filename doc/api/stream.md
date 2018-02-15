@@ -381,6 +381,7 @@ Calling the [`stream.write()`][stream-write] method after calling
 
 ```js
 // write 'hello, ' and then end with 'world!'
+const fs = require('fs');
 const file = fs.createWriteStream('example.txt');
 file.write('hello, ');
 file.end('world!');
@@ -858,6 +859,7 @@ The following example pipes all of the data from the `readable` into a file
 named `file.txt`:
 
 ```js
+const fs = require('fs');
 const readable = getReadableStreamSomehow();
 const writable = fs.createWriteStream('file.txt');
 // All the data from readable goes into 'file.txt'
@@ -869,6 +871,7 @@ The `readable.pipe()` method returns a reference to the *destination* stream
 making it possible to set up chains of piped streams:
 
 ```js
+const fs = require('fs');
 const r = fs.createReadStream('file.txt');
 const z = zlib.createGzip();
 const w = fs.createWriteStream('file.txt.gz');
@@ -1029,6 +1032,7 @@ If the `destination` is specified, but no pipe is set up for it, then
 the method does nothing.
 
 ```js
+const fs = require('fs');
 const readable = getReadableStreamSomehow();
 const writable = fs.createWriteStream('file.txt');
 // All the data from readable goes into 'file.txt',
