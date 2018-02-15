@@ -12,7 +12,7 @@ module.exports.isRequired = function(node, modules) {
     modules.includes(node.arguments[0].value);
 };
 
-/** 
+/**
 * Return true if common module is required
 * in AST Node under inspection
 */

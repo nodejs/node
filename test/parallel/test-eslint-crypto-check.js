@@ -12,32 +12,35 @@ new RuleTester().run('crypto-check', rule, {
   valid: [
     'foo',
     'crypto',
-    `if (!common.hasCrypto) {
-      common.skip();
+    `
+    if (!common.hasCrypto) {
+      common.skip("missing crypto");
     }
     require("crypto");
     `
   ],
   invalid: [
     {
-      code: 'require("crypto")',
+      code: 'require("common")\n' +
+            'require("crypto")',
       errors: [{ message }],
-      output:
-      `if (!common.hasCrypto) {
-        common.skip("missing crypto");
-      }
-      require("crypto");
-      `
+      output: 'require("common")\n' +
+              'if (!common.hasCrypto) {' +
+              ' common.skip("missing crypto");' +
+              '}\n' +
+              'require("crypto")'
     },
     {
-      code: 'if (common.foo) {} require("crypto")',
+      code: 'require("common")\n' + 
+            'if (common.foo) {}\n' +
+            'require("crypto")',
       errors: [{ message }],
-      output:
-      `if (!common.hasCrypto) {
-        common.skip("missing crypto");
-      }
-      require("crypto");
-      `
+      output: 'require("common")\n' +
+              'if (!common.hasCrypto) {' +
+              ' common.skip("missing crypto");' +
+              '}\n' +
+              'if (common.foo) {}\n' +
+              'require("crypto")'
     }
   ]
 });

@@ -87,9 +87,9 @@ module.exports = function(context) {
           if (commonModuleNode) {
             return fixer.insertTextAfter(
               commonModuleNode,
-              `\nif (!common.hasCrypto) {
-                common.skip("missing crypto");
-              }`
+              '\nif (!common.hasCrypto) {' +
+              ' common.skip("missing crypto");' +
+              '}'
             );
           }
         }
