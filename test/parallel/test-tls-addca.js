@@ -1,5 +1,5 @@
 'use strict';
-require('../common');
+const common = require('../common');
 const fixtures = require('../common/fixtures');
 
 // Adding a CA certificate to contextWithCert should not also add it to
@@ -32,7 +32,7 @@ clientOptions.secureContext = contextWithoutCert;
 connect({
   client: clientOptions,
   server: serverOptions,
-}, function(err, pair, cleanup) {
+}, common.mustCall((err, pair, cleanup) => {
   assert(err);
   assert.strictEqual(err.message, 'unable to verify the first certificate');
   cleanup();
@@ -43,8 +43,8 @@ connect({
   connect({
     client: clientOptions,
     server: serverOptions,
-  }, function(err, pair, cleanup) {
+  }, common.mustCall((err, pair, cleanup) => {
     assert.ifError(err);
     cleanup();
-  });
-});
+  }));
+}));
