@@ -22,7 +22,7 @@ Add tests when:
 One can refer [test directory structure](https://github.com/nodejs/node/tree/master/test)
 to decide where to put your test cases. If you want to find any current test that exists then
 go to the defined [test directory structure](https://github.com/nodejs/node/tree/master/test) 
-and search for similar APIs and see if there is similar file available 
+and search for similar APIs and see if there is similar file available. 
 
 
 ## Test structure
