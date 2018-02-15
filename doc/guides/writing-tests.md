@@ -18,6 +18,13 @@ Add tests when:
 - Fixing regressions and bugs.
 - Expanding test coverage.
 
+## Test directory structure
+
+See [directory structure overview][] for outline of existing test & locations.
+When deciding on whether to expand an existing test file or create a new one,
+consider going through the files related to the subsystem.
+For example, look for `test-streams` when writing a test for `lib/streams.js`.
+
 ## Test structure
 
 Let's analyze this basic test from the Node.js test suite:
@@ -380,3 +387,4 @@ will depend on what is being tested if this is required or not.
 [all maintained branches]: https://github.com/nodejs/lts
 [node.green]: http://node.green/
 [test fixture]: https://github.com/google/googletest/blob/master/googletest/docs/Primer.md#test-fixtures-using-the-same-data-configuration-for-multiple-tests
+[directory structure overview]: https://github.com/nodejs/node/blob/master/test/README.md#test-directories
