@@ -12,18 +12,18 @@ const message = 'Please add a skipIfInspectorDisabled() call to allow this ' +
 new RuleTester().run('inspector-check', rule, {
   valid: [
     'foo;',
-    'common.skipIfInspectorDisabled(); require("inspector");',
-    'require("common");\n' +
+    'require("common")\n' +
     'common.skipIfInspectorDisabled();\n' +
-    'require("inspector");'
+    'require("inspector")'
   ],
   invalid: [
     {
-      code: 'require("inspector");',
+      code: 'require("common")\n' +
+            'require("inspector")',
       errors: [{ message }],
-      output: 'require("common");\n' +
+      output: 'require("common")\n' +
               'common.skipIfInspectorDisabled();\n' +
-              'require("inspector");'
+              'require("inspector")'
     }
   ]
 });
