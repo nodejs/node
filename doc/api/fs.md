@@ -2008,10 +2008,16 @@ The file is created if it does not exist.
 
 * `'ax'` - Like `'a'` but fails if `path` exists.
 
+* `'as'` - Open file for appending in synchronous mode.
+The file is created if it does not exist.
+
 * `'a+'` - Open file for reading and appending.
 The file is created if it does not exist.
 
 * `'ax+'` - Like `'a+'` but fails if `path` exists.
+
+* `'as+'` - Open file for reading and appending in synchronous mode.
+The file is created if it does not exist.
 
 `mode` sets the file mode (permission and sticky bits), but only if the file was
 created. It defaults to `0o666` (readable and writable).
