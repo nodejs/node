@@ -80,6 +80,11 @@ v8::CpuProfiler* IsolateData::GetCpuProfiler() {
   return cpu_profiler_;
 }
 
+
+void InitThreadLocalOnce() {
+  CHECK_EQ(0, uv_key_create(&Environment::thread_local_env));
+}
+
 void Environment::Start(int argc,
                         const char* const* argv,
                         int exec_argc,
@@ -148,7 +153,8 @@ void Environment::Start(int argc,
   SetupProcessObject(this, argc, argv, exec_argc, exec_argv);
   LoadAsyncWrapperInfo(this);
 
-  CHECK_EQ(0, uv_key_create(&thread_local_env));
+  static uv_once_t init_once = UV_ONCE_INIT;
+  uv_once(&init_once, InitThreadLocalOnce);
   uv_key_set(&thread_local_env, this);
 }
 

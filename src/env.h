@@ -545,6 +545,7 @@ class Environment {
   static inline Environment* GetCurrent(
       const v8::PropertyCallbackInfo<T>& info);
 
+  static uv_key_t thread_local_env;
   static inline Environment* GetThreadLocalEnv();
 
   inline Environment(IsolateData* isolate_data, v8::Local<v8::Context> context);
@@ -835,7 +836,6 @@ class Environment {
                              v8::Local<v8::Promise> promise,
                              v8::Local<v8::Value> parent);
 
-  static uv_key_t thread_local_env;
 
 #define V(PropertyName, TypeName)                                             \
   v8::Persistent<TypeName> PropertyName ## _;

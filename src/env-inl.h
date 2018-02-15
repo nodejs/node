@@ -373,11 +373,6 @@ inline Environment::~Environment() {
   ENVIRONMENT_STRONG_PERSISTENT_PROPERTIES(V)
 #undef V
 
-  auto tl_env = static_cast<Environment*>(uv_key_get(&thread_local_env));
-  if (tl_env == this) {
-    uv_key_delete(&Environment::thread_local_env);
-  }
-
   delete[] heap_statistics_buffer_;
   delete[] heap_space_statistics_buffer_;
   delete[] http_parser_buffer_;
