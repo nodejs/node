@@ -3346,9 +3346,12 @@ void LoadEnvironment(Environment* env, const bool allow_repl) {
   // bootstrap_node.js.
   // If adding the parameter fails, bootstrapping will fail too,
   // so we can cleanup and return before we even bootstrap.
-  if (!Object::Cast(*arg)->Set(env->context(),
-                      String::NewFromUtf8(env->isolate(), "_allowRepl"),
-                      Boolean::New(env->isolate(), allow_repl)).FromJust()) {
+  bool successfully_set_allow_repl = Object::Cast(*arg)->Set(
+        env->context(),
+        String::NewFromUtf8(env->isolate(), "_allowRepl"),
+        Boolean::New(env->isolate(), allow_repl)).FromJust();
+
+  if (!successfully_set_allow_repl) {
     env->async_hooks()->clear_async_id_stack();
     return;
   }
