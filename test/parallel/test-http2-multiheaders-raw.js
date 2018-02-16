@@ -24,14 +24,14 @@ server.on('stream', common.mustCall((stream, headers, flags, rawHeaders) => {
     `localhost:${server.address().port}`,
     ':method',
     'GET',
+    'test',
+    'foo, bar, baz',
     'www-authenticate',
-    'foo',
+    'baz',
     'www-authenticate',
     'bar',
     'www-authenticate',
-    'baz',
-    'test',
-    'foo, bar, baz'
+    'foo'
   ];
 
   assert.deepStrictEqual(expected, rawHeaders);

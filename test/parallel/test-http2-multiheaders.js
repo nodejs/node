@@ -30,15 +30,15 @@ src['__Proto__'] = 'baz';
 
 function checkHeaders(headers) {
   assert.deepStrictEqual(headers['accept'],
-                         'abc, def, ghijklmnop');
+                         'ghijklmnop, abc, def');
   assert.deepStrictEqual(headers['www-authenticate'],
-                         'foo, bar, baz');
+                         'baz, bar, foo');
   assert.deepStrictEqual(headers['proxy-authenticate'],
-                         'foo, bar, baz');
-  assert.deepStrictEqual(headers['x-foo'], 'foo, bar, baz');
-  assert.deepStrictEqual(headers['constructor'], 'foo, bar, baz');
+                         'baz, bar, foo');
+  assert.deepStrictEqual(headers['x-foo'], 'baz, bar, foo');
+  assert.deepStrictEqual(headers['constructor'], 'baz, bar, foo');
   // eslint-disable-next-line no-proto
-  assert.deepStrictEqual(headers['__proto__'], 'foo, bar, baz');
+  assert.deepStrictEqual(headers['__proto__'], 'baz, bar, foo');
 }
 
 server.on('stream', common.mustCall((stream, headers) => {
