@@ -36,11 +36,10 @@ void Method(const FunctionCallbackInfo<Value>& args) {
     Boolean::New(isolate, true),
     Boolean::New(isolate, false)
   };
-  Local<Value> ret = node::MakeCallback(isolate,
-                                        isolate->GetCurrentContext()->Global(),
-                                        args[0].As<Function>(),
-                                        2,
-                                        params);
+  Local<Value> ret =
+      node::MakeCallback(isolate, isolate->GetCurrentContext()->Global(),
+                         args[0].As<Function>(), 2, params,
+                         node::async_context{0, 0}).ToLocalChecked();
   assert(ret->IsTrue());
 }
 
