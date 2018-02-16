@@ -679,6 +679,12 @@ The realpath of the testing temporary directory.
 
 Deletes and recreates the testing temporary directory.
 
+### getTTYfd()
+
+Attempts to get a valid TTY file descriptor. Returns `-1` if it fails.
+
+The TTY file descriptor is assumed to be capable of being writable.
+
 ## WPT Module
 
 The wpt.js module is a port of parts of
