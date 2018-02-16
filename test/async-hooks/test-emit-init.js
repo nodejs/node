@@ -7,8 +7,8 @@ const spawnSync = require('child_process').spawnSync;
 const async_hooks = require('internal/async_hooks');
 const initHooks = require('./init-hooks');
 
-const expectedId = async_hooks.newUid();
-const expectedTriggerId = async_hooks.newUid();
+const expectedId = async_hooks.newAsyncId();
+const expectedTriggerId = async_hooks.newAsyncId();
 const expectedType = 'test_emit_init_type';
 const expectedResource = { key: 'test_emit_init_resource' };
 

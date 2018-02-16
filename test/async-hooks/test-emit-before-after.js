@@ -34,8 +34,8 @@ assert.strictEqual(
   'RangeError [ERR_INVALID_ASYNC_ID]: Invalid triggerAsyncId value: -2');
 assert.strictEqual(c2.status, 1);
 
-const expectedId = async_hooks.newUid();
-const expectedTriggerId = async_hooks.newUid();
+const expectedId = async_hooks.newAsyncId();
+const expectedTriggerId = async_hooks.newAsyncId();
 const expectedType = 'test_emit_before_after_type';
 
 // Verify that if there is no registered hook, then nothing will happen.
