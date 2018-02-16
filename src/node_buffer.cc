@@ -52,14 +52,12 @@
 
 namespace node {
 
-// if true, all Buffer and SlowBuffer instances will automatically zero-fill
-bool zero_fill_all_buffers = false;
-
 namespace {
 
-inline void* BufferMalloc(size_t length) {
-  return zero_fill_all_buffers ? node::UncheckedCalloc(length) :
-                                 node::UncheckedMalloc(length);
+inline void* BufferMalloc(Environment* env, size_t length) {
+  return env->options()->IsSet(NODE_OPTION_ZERO_FILL_BUFFERS)
+      ? node::UncheckedCalloc(length)
+      : node::UncheckedMalloc(length);
 }
 
 }  // namespace
@@ -239,6 +237,7 @@ size_t Length(Local<Object> obj) {
 MaybeLocal<Object> New(Isolate* isolate,
                        Local<String> string,
                        enum encoding enc) {
+  Environment* env = Environment::GetCurrent(isolate);
   EscapableHandleScope scope(isolate);
 
   const size_t length = StringBytes::Size(isolate, string, enc);
@@ -246,7 +245,7 @@ MaybeLocal<Object> New(Isolate* isolate,
   char* data = nullptr;
 
   if (length > 0) {
-    data = static_cast<char*>(BufferMalloc(length));
+    data = static_cast<char*>(BufferMalloc(env, length));
 
     if (data == nullptr)
       return Local<Object>();
@@ -291,7 +290,7 @@ MaybeLocal<Object> New(Environment* env, size_t length) {
 
   void* data;
   if (length > 0) {
-    data = BufferMalloc(length);
+    data = BufferMalloc(env, length);
     if (data == nullptr)
       return Local<Object>();
   } else {

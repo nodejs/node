@@ -312,8 +312,10 @@ inline Environment* Environment::GetCurrent(
 }
 
 inline Environment::Environment(IsolateData* isolate_data,
-                                v8::Local<v8::Context> context)
-    : isolate_(context->GetIsolate()),
+                                v8::Local<v8::Context> context,
+                                NodeOptions* state)
+    : state_(state),
+      isolate_(context->GetIsolate()),
       isolate_data_(isolate_data),
       immediate_info_(context->GetIsolate()),
       tick_info_(context->GetIsolate()),
@@ -372,6 +374,10 @@ inline Environment::~Environment() {
   delete[] heap_statistics_buffer_;
   delete[] heap_space_statistics_buffer_;
   delete[] http_parser_buffer_;
+}
+
+inline NodeOptions* Environment::options() const {
+  return state_;
 }
 
 inline v8::Isolate* Environment::isolate() const {

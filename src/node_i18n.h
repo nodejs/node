@@ -31,8 +31,6 @@
 
 namespace node {
 
-extern std::string icu_data_dir;  // NOLINT(runtime/string)
-
 namespace i18n {
 
 bool InitializeICUDirectory(const std::string& path);

@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include "gtest/gtest.h"
 #include "node.h"
+#include "node_options.h"
 #include "node_platform.h"
 #include "node_internals.h"
 #include "env.h"
@@ -113,7 +114,7 @@ class EnvironmentTestFixture : public NodeTestFixture {
       environment_ = node::CreateEnvironment(isolate_data_,
                                              context_,
                                              1, *argv,
-                                             argv.nr_args(), *argv);
+                                             argv.nr_args(), *argv, &state_);
       CHECK_NE(nullptr, environment_);
     }
 
@@ -135,6 +136,7 @@ class EnvironmentTestFixture : public NodeTestFixture {
    private:
     v8::Local<v8::Context> context_;
     node::IsolateData* isolate_data_;
+    node::NodeOptions state_;
     node::Environment* environment_;
     DISALLOW_COPY_AND_ASSIGN(Env);
   };

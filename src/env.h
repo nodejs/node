@@ -36,6 +36,7 @@
 #include "v8-profiler.h"
 #include "v8.h"
 #include "node.h"
+#include "node_options.h"
 #include "node_http2_state.h"
 
 #include <list>
@@ -564,7 +565,9 @@ class Environment {
   static inline Environment* GetCurrent(
       const v8::PropertyCallbackInfo<T>& info);
 
-  inline Environment(IsolateData* isolate_data, v8::Local<v8::Context> context);
+  inline Environment(IsolateData* isolate_data,
+                     v8::Local<v8::Context> context,
+                     NodeOptions* state);
   inline ~Environment();
 
   void Start(int argc,
@@ -580,6 +583,7 @@ class Environment {
   void StartProfilerIdleNotifier();
   void StopProfilerIdleNotifier();
 
+  inline NodeOptions* options() const;
   inline v8::Isolate* isolate() const;
   inline uv_loop_t* event_loop() const;
   inline uint32_t watched_providers() const;
@@ -769,6 +773,7 @@ class Environment {
   inline void ThrowError(v8::Local<v8::Value> (*fun)(v8::Local<v8::String>),
                          const char* errmsg);
 
+  NodeOptions* const state_;
   v8::Isolate* const isolate_;
   IsolateData* const isolate_data_;
   uv_check_t immediate_check_handle_;

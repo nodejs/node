@@ -51,10 +51,6 @@ namespace node {
 using v8::Local;
 using v8::Object;
 
-#if HAVE_OPENSSL
-const char* default_cipher_list = DEFAULT_CIPHER_LIST_CORE;
-#endif
-
 namespace {
 
 void DefineErrnoConstants(Local<Object> target) {
@@ -1177,14 +1173,16 @@ void DefineSystemConstants(Local<Object> target) {
 #endif
 }
 
-void DefineCryptoConstants(Local<Object> target) {
+void DefineCryptoConstants(Environment* env, Local<Object> target) {
 #if HAVE_OPENSSL
   NODE_DEFINE_STRING_CONSTANT(target,
                               "defaultCoreCipherList",
                               DEFAULT_CIPHER_LIST_CORE);
-  NODE_DEFINE_STRING_CONSTANT(target,
-                              "defaultCipherList",
-                              default_cipher_list);
+  NODE_DEFINE_STRING_CONSTANT(
+      target,
+      "defaultCipherList",
+      env->options()->GetString(
+          NODE_OPTION_STRING_OPENSSL_DEFAULT_CIPHER_LIST).data());
 #endif
   NODE_DEFINE_CONSTANT(target, INT_MAX);
 }
@@ -1312,7 +1310,7 @@ void DefineConstants(v8::Isolate* isolate, Local<Object> target) {
   DefineSignalConstants(sig_constants);
   DefineSystemConstants(fs_constants);
   DefineOpenSSLConstants(crypto_constants);
-  DefineCryptoConstants(crypto_constants);
+  DefineCryptoConstants(env, crypto_constants);
   DefineZlibConstants(zlib_constants);
   DefineDLOpenConstants(dlopen_constants);
 

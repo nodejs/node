@@ -159,44 +159,7 @@ struct sockaddr;
 
 namespace node {
 
-// Set in node.cc by ParseArgs with the value of --openssl-config.
-// Used in node_crypto.cc when initializing OpenSSL.
-extern std::string openssl_config;
-
-// Set in node.cc by ParseArgs when --preserve-symlinks is used.
-// Used in node_config.cc to set a constant on process.binding('config')
-// that is used by lib/module.js
-extern bool config_preserve_symlinks;
-
-// Set in node.cc by ParseArgs when --experimental-modules is used.
-// Used in node_config.cc to set a constant on process.binding('config')
-// that is used by lib/module.js
-extern bool config_experimental_modules;
-
-// Set in node.cc by ParseArgs when --experimental-vm-modules is used.
-// Used in node_config.cc to set a constant on process.binding('config')
-// that is used by lib/vm.js
-extern bool config_experimental_vm_modules;
-
-// Set in node.cc by ParseArgs when --loader is used.
-// Used in node_config.cc to set a constant on process.binding('config')
-// that is used by lib/internal/bootstrap_node.js
-extern std::string config_userland_loader;
-
-// Set in node.cc by ParseArgs when --expose-internals or --expose_internals is
-// used.
-// Used in node_config.cc to set a constant on process.binding('config')
-// that is used by lib/internal/bootstrap_node.js
-extern bool config_expose_internals;
-
-// Set in node.cc by ParseArgs when --redirect-warnings= is used.
-// Used to redirect warning output to a file rather than sending
-// it to stderr.
-extern std::string config_warning_file;  // NOLINT(runtime/string)
-
-// Set in node.cc by ParseArgs when --pending-deprecation or
-// NODE_PENDING_DEPRECATION is used
-extern bool config_pending_deprecation;
+extern uv_key_t thread_local_env;
 
 // Tells whether it is safe to call v8::Isolate::GetCurrent().
 extern bool v8_initialized;

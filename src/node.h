@@ -199,16 +199,10 @@ typedef intptr_t ssize_t;
 
 namespace node {
 
-NODE_EXTERN extern bool no_deprecation;
-#if HAVE_OPENSSL
-NODE_EXTERN extern bool ssl_openssl_cert_store;
-# if NODE_FIPS_MODE
-NODE_EXTERN extern bool enable_fips_crypto;
-NODE_EXTERN extern bool force_fips_crypto;
-# endif
-#endif
+// Forward References
+class NodeOptions;
 
-NODE_EXTERN int Start(int argc, char *argv[]);
+NODE_EXTERN int Start(int argc, char *argv[], NodeOptions* state);
 NODE_EXTERN void Init(int* argc,
                       const char** argv,
                       int* exec_argc,
@@ -246,7 +240,8 @@ NODE_EXTERN Environment* CreateEnvironment(IsolateData* isolate_data,
                                            int argc,
                                            const char* const* argv,
                                            int exec_argc,
-                                           const char* const* exec_argv);
+                                           const char* const* exec_argv,
+                                           NodeOptions* state);
 
 NODE_EXTERN void LoadEnvironment(Environment* env);
 NODE_EXTERN void FreeEnvironment(Environment* env);

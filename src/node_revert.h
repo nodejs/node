@@ -4,6 +4,7 @@
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #include "node.h"
+#include "node_options.h"
 
 /**
  * Note that it is expected for this list to vary across specific LTS and
@@ -24,9 +25,7 @@ enum reversion {
 #undef V
 };
 
-extern unsigned int reverted;
-
-inline const char* RevertMessage(const reversion cve) {
+inline const char* RevertMessage(int cve) {
 #define V(code, label, msg) case SECURITY_REVERT_##code: return label ": " msg;
   switch (cve) {
     SECURITY_REVERSIONS(V)
@@ -36,27 +35,27 @@ inline const char* RevertMessage(const reversion cve) {
 #undef V
 }
 
-inline void Revert(const reversion cve) {
-  reverted |= 1 << cve;
+inline void Revert(NodeOptions* state, int cve) {
+  state->SetRevert(cve);
   printf("SECURITY WARNING: Reverting %s\n", RevertMessage(cve));
 }
 
-inline void Revert(const char* cve) {
+inline void Revert(NodeOptions* state, const char* cve) {
 #define V(code, label, _)                                                     \
-  if (strcmp(cve, label) == 0) return Revert(SECURITY_REVERT_##code);
+  if (strcmp(cve, label) == 0) return Revert(state, SECURITY_REVERT_##code);
   SECURITY_REVERSIONS(V)
 #undef V
   printf("Error: Attempt to revert an unknown CVE [%s]\n", cve);
   exit(12);
 }
 
-inline bool IsReverted(const reversion cve) {
-  return reverted & (1 << cve);
+inline bool IsReverted(NodeOptions* state, int cve) {
+  return state->IsReverted(cve);
 }
 
-inline bool IsReverted(const char* cve) {
+inline bool IsReverted(NodeOptions* state, const char* cve) {
 #define V(code, label, _)                                                     \
-  if (strcmp(cve, label) == 0) return IsReverted(SECURITY_REVERT_##code);
+  if (strcmp(cve, label) == 0) return IsReverted(state, SECURITY_REVERT_##code);
   SECURITY_REVERSIONS(V)
   return false;
 #undef V

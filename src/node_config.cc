@@ -41,10 +41,11 @@ static void InitConfig(Local<Object> target,
                        Local<Context> context) {
   Environment* env = Environment::GetCurrent(context);
   Isolate* isolate = env->isolate();
+  NodeOptions* options = env->options();
 
 #ifdef NODE_FIPS_MODE
   READONLY_BOOLEAN_PROPERTY("fipsMode");
-  if (force_fips_crypto)
+  if (options->IsSet(NODE_OPTION_OPENSSL_FORCE_FIPS))
     READONLY_BOOLEAN_PROPERTY("fipsForced");
 #endif
 
@@ -59,36 +60,39 @@ static void InitConfig(Local<Object> target,
   target->DefineOwnProperty(
       context,
       FIXED_ONE_BYTE_STRING(isolate, "icuDataDir"),
-      String::NewFromUtf8(isolate,
-                          icu_data_dir.data(),
-                          v8::NewStringType::kNormal).ToLocalChecked(),
+      String::NewFromUtf8(
+          isolate,
+          options->GetString(NODE_OPTION_STRING_ICU_DATA_DIR).data(),
+          v8::NewStringType::kNormal).ToLocalChecked(),
       ReadOnly).FromJust();
 
 #endif  // NODE_HAVE_I18N_SUPPORT
 
-  if (config_preserve_symlinks)
+  if (options->IsSet(NODE_OPTION_PRESERVE_SYMLINKS))
     READONLY_BOOLEAN_PROPERTY("preserveSymlinks");
 
-  if (config_experimental_modules) {
+  if (options->IsSet(NODE_OPTION_EXPERIMENTAL_MODULES)) {
     READONLY_BOOLEAN_PROPERTY("experimentalModules");
-    if (!config_userland_loader.empty()) {
+    auto userland_loader =
+        options->GetString(NODE_OPTION_STRING_USERLAND_LOADER);
+    if (!userland_loader.empty()) {
       target->DefineOwnProperty(
           context,
           FIXED_ONE_BYTE_STRING(isolate, "userLoader"),
           String::NewFromUtf8(isolate,
-                              config_userland_loader.data(),
+                              userland_loader.data(),
                               v8::NewStringType::kNormal).ToLocalChecked(),
           ReadOnly).FromJust();
     }
   }
 
-  if (config_experimental_vm_modules)
+  if (options->IsSet(NODE_OPTION_EXPERIMENTAL_VM_MODULES))
     READONLY_BOOLEAN_PROPERTY("experimentalVMModules");
 
-  if (config_pending_deprecation)
+  if (options->IsSet(NODE_OPTION_PENDING_DEPRECATION))
     READONLY_BOOLEAN_PROPERTY("pendingDeprecation");
 
-  if (config_expose_internals)
+  if (options->IsSet(NODE_OPTION_EXPOSE_INTERNALS))
     READONLY_BOOLEAN_PROPERTY("exposeInternals");
 
   if (env->abort_on_uncaught_exception())
@@ -98,12 +102,12 @@ static void InitConfig(Local<Object> target,
                     "bits",
                     Number::New(env->isolate(), 8 * sizeof(intptr_t)));
 
-  if (!config_warning_file.empty()) {
+  auto warning_file = options->GetString(NODE_OPTION_STRING_WARNING_FILE);
+  if (!warning_file.empty()) {
     target->DefineOwnProperty(
         context,
         FIXED_ONE_BYTE_STRING(isolate, "warningFile"),
-        String::NewFromUtf8(isolate,
-                            config_warning_file.data(),
+        String::NewFromUtf8(isolate, warning_file.data(),
                             v8::NewStringType::kNormal).ToLocalChecked(),
         ReadOnly).FromJust();
   }

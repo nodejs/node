@@ -915,7 +915,7 @@ void SecureContext::SetCert(const FunctionCallbackInfo<Value>& args) {
 }
 
 
-static X509_STORE* NewRootCertStore() {
+static X509_STORE* NewRootCertStore(Environment* env) {
   static std::vector<X509*> root_certs_vector;
   if (root_certs_vector.empty()) {
     for (size_t i = 0; i < arraysize(root_certs); i++) {
@@ -934,7 +934,7 @@ static X509_STORE* NewRootCertStore() {
   if (*system_cert_path != '\0') {
     X509_STORE_load_locations(store, system_cert_path, nullptr);
   }
-  if (ssl_openssl_cert_store) {
+  if (env->options()->IsSet(NODE_OPTION_OPENSSL_CERT_STORE)) {
     X509_STORE_set_default_paths(store);
   } else {
     for (X509 *cert : root_certs_vector) {
@@ -967,7 +967,7 @@ void SecureContext::AddCACert(const FunctionCallbackInfo<Value>& args) {
   while (X509* x509 =
              PEM_read_bio_X509(bio, nullptr, NoPasswordCallback, nullptr)) {
     if (cert_store == root_cert_store) {
-      cert_store = NewRootCertStore();
+      cert_store = NewRootCertStore(env);
       SSL_CTX_set_cert_store(sc->ctx_, cert_store);
     }
     X509_STORE_add_cert(cert_store, x509);
@@ -1005,7 +1005,7 @@ void SecureContext::AddCRL(const FunctionCallbackInfo<Value>& args) {
 
   X509_STORE* cert_store = SSL_CTX_get_cert_store(sc->ctx_);
   if (cert_store == root_cert_store) {
-    cert_store = NewRootCertStore();
+    cert_store = NewRootCertStore(env);
     SSL_CTX_set_cert_store(sc->ctx_, cert_store);
   }
 
@@ -1052,12 +1052,13 @@ static unsigned long AddCertsFromFile(  // NOLINT(runtime/int)
 }
 
 void SecureContext::AddRootCerts(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
   SecureContext* sc;
   ASSIGN_OR_RETURN_UNWRAP(&sc, args.Holder());
   ClearErrorOnReturn clear_error_on_return;
 
   if (!root_cert_store) {
-    root_cert_store = NewRootCertStore();
+    root_cert_store = NewRootCertStore(env);
 
     if (!extra_root_certs_file.empty()) {
       unsigned long err = AddCertsFromFile(  // NOLINT(runtime/int)
@@ -1298,7 +1299,7 @@ void SecureContext::LoadPKCS12(const FunctionCallbackInfo<Value>& args) {
       X509* ca = sk_X509_value(extra_certs, i);
 
       if (cert_store == root_cert_store) {
-        cert_store = NewRootCertStore();
+        cert_store = NewRootCertStore(env);
         SSL_CTX_set_cert_store(sc->ctx_, cert_store);
       }
       X509_STORE_add_cert(cert_store, ca);
@@ -5531,10 +5532,13 @@ void TimingSafeEqual(const FunctionCallbackInfo<Value>& args) {
 }
 
 void InitCryptoOnce() {
+  auto env = static_cast<Environment*>(uv_key_get(&thread_local_env));
+  NodeOptions* state = env->options();
   SSL_load_error_strings();
   OPENSSL_no_config();
 
   // --openssl-config=...
+  auto openssl_config = state->GetString(NODE_OPTION_STRING_OPENSSL_CONFIG);
   if (!openssl_config.empty()) {
     OPENSSL_load_builtin_modules();
 #ifndef OPENSSL_NO_ENGINE
@@ -5566,7 +5570,8 @@ void InitCryptoOnce() {
 #ifdef NODE_FIPS_MODE
   /* Override FIPS settings in cnf file, if needed. */
   unsigned long err = 0;  // NOLINT(runtime/int)
-  if (enable_fips_crypto || force_fips_crypto) {
+  if (state->IsSet(NODE_OPTION_OPENSSL_ENABLE_FIPS) ||
+      state->IsSet(NODE_OPTION_OPENSSL_FORCE_FIPS)) {
     if (0 == FIPS_mode() && !FIPS_mode_set(1)) {
       err = ERR_get_error();
     }
@@ -5626,8 +5631,8 @@ void GetFipsCrypto(const FunctionCallbackInfo<Value>& args) {
 }
 
 void SetFipsCrypto(const FunctionCallbackInfo<Value>& args) {
-  CHECK(!force_fips_crypto);
   Environment* env = Environment::GetCurrent(args);
+  CHECK(!env->options()->IsSet(NODE_OPTION_OPENSSL_FORCE_FIPS));
   const bool enabled = FIPS_mode();
   const bool enable = args[0]->BooleanValue();
   if (enable == enabled)
@@ -5645,8 +5650,8 @@ void InitCrypto(Local<Object> target,
                 void* priv) {
   static uv_once_t init_once = UV_ONCE_INIT;
   uv_once(&init_once, InitCryptoOnce);
-
   Environment* env = Environment::GetCurrent(context);
+
   SecureContext::Initialize(env, target);
   CipherBase::Initialize(env, target);
   DiffieHellman::Initialize(env, target);
