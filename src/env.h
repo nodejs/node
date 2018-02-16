@@ -371,7 +371,6 @@ struct ContextInfo {
   bool is_default = false;
 };
 
-
 class Environment {
  public:
   class AsyncHooks {
@@ -835,7 +834,6 @@ class Environment {
   static void EnvPromiseHook(v8::PromiseHookType type,
                              v8::Local<v8::Promise> promise,
                              v8::Local<v8::Value> parent);
-
 
 #define V(PropertyName, TypeName)                                             \
   v8::Persistent<TypeName> PropertyName ## _;
