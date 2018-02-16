@@ -17,9 +17,11 @@ async function runTests() {
 
   let stderrString = await child.nextStderrString();
   assert(stderrString.includes('Debugger listening on'), stderrString);
-  // if (!stderrString.includes('Debugger listening on')) {
-  //   stderrString += await child.nextStderrString();
-  // }
+  stderrString = await child.nextStderrString();
+  assert.strictEqual(stderrString,
+                     'For help see https://nodejs.org/en/docs/inspector');
+  stderrString = await child.nextStderrString();
+  assert.strictEqual(stderrString, '');
 
   session.send([
     { 'method': 'Profiler.setSamplingInterval', 'params': { 'interval': 100 } },
@@ -28,12 +30,12 @@ async function runTests() {
     { 'method': 'Profiler.start' }
   ]);
 
-  let limit = 0;
-  while (!stderrString.includes('Waiting for the debugger to disconnect...')) {
-    stderrString += await child.nextStderrString();
-    if (limit++ > 10)
-      throw new Error('no!');
-  }
+  stderrString = await child.nextStderrString();
+  assert.strictEqual(stderrString, 'Debugger attached.')
+  stderrString = await child.nextStderrString();
+  assert.strictEqual(stderrString, '');
+  stderrString = await child.nextStderrString();
+  assert.strictEqual(stderrString, 'Waiting for the debugger to disconnect...');
 
   await session.send({ 'method': 'Profiler.stop' });
   session.disconnect();
