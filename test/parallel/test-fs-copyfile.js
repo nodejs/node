@@ -4,6 +4,7 @@ const fixtures = require('../common/fixtures');
 const tmpdir = require('../common/tmpdir');
 const assert = require('assert');
 const fs = require('fs');
+const uv = process.binding('uv');
 const path = require('path');
 const src = fixtures.path('a.js');
 const dest = path.join(tmpdir.path, 'copyfile.out');
@@ -37,15 +38,6 @@ verify(src, dest);
 fs.copyFileSync(src, dest, 0);
 verify(src, dest);
 
-// Throws if destination exists and the COPYFILE_EXCL flag is provided.
-assert.throws(() => {
-  fs.copyFileSync(src, dest, COPYFILE_EXCL);
-}, /^Error: EEXIST|ENOENT:.+, copyfile/);
-
-// Throws if the source does not exist.
-assert.throws(() => {
-  fs.copyFileSync(`${src}__does_not_exist`, dest, COPYFILE_EXCL);
-}, /^Error: ENOENT: no such file or directory, copyfile/);
 
 // Copies asynchronously.
 fs.unlinkSync(dest);
@@ -55,9 +47,21 @@ fs.copyFile(src, dest, common.mustCall((err) => {
 
   // Copy asynchronously with flags.
   fs.copyFile(src, dest, COPYFILE_EXCL, common.mustCall((err) => {
-    assert(
-      /^Error: EEXIST: file already exists, copyfile/.test(err.toString())
-    );
+    if (err.code === 'ENOENT') {  // Could be ENOENT or EEXIST
+      assert.strictEqual(err.message,
+                         'ENOENT: no such file or directory, copyfile ' +
+                         `'${src}' -> '${dest}'`);
+      assert.strictEqual(err.errno, uv.UV_ENOENT);
+      assert.strictEqual(err.code, 'ENOENT');
+      assert.strictEqual(err.syscall, 'copyfile');
+    } else {
+      assert.strictEqual(err.message,
+                         'EEXIST: file already exists, copyfile ' +
+                         `'${src}' -> '${dest}'`);
+      assert.strictEqual(err.errno, uv.UV_EEXIST);
+      assert.strictEqual(err.code, 'EEXIST');
+      assert.strictEqual(err.syscall, 'copyfile');
+    }
   }));
 }));
 
@@ -65,9 +69,8 @@ fs.copyFile(src, dest, common.mustCall((err) => {
 common.expectsError(() => {
   fs.copyFile(src, dest, 0, 0);
 }, {
-  code: 'ERR_INVALID_ARG_TYPE',
-  type: TypeError,
-  message: 'The "callback" argument must be of type Function'
+  code: 'ERR_INVALID_CALLBACK',
+  type: TypeError
 });
 
 // Throws if the source path is not a string.
@@ -101,8 +104,3 @@ common.expectsError(() => {
     }
   );
 });
-
-// Errors if invalid flags are provided.
-assert.throws(() => {
-  fs.copyFileSync(src, dest, -1);
-}, /^Error: EINVAL: invalid argument, copyfile/);
