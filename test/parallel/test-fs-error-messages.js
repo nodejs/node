@@ -30,6 +30,7 @@ const existingFile = fixtures.path('exit.js');
 const existingFile2 = fixtures.path('create-file.js');
 const existingDir = fixtures.path('empty');
 const existingDir2 = fixtures.path('keys');
+const { COPYFILE_EXCL } = fs.constants;
 const uv = process.binding('uv');
 
 // Template tag function for escaping special characters in strings so that:
@@ -631,6 +632,79 @@ if (!common.isAIX) {
 
   assert.throws(
     () => fs.mkdtempSync(nonexistentDir),
+    validateError
+  );
+}
+
+// copyFile with invalid flags
+{
+  const validateError = (err) => {
+    assert.strictEqual(err.message,
+                       'EINVAL: invalid argument, copyfile ' +
+                       `'${existingFile}' -> '${nonexistentFile}'`);
+    assert.strictEqual(err.errno, uv.UV_EINVAL);
+    assert.strictEqual(err.code, 'EINVAL');
+    assert.strictEqual(err.syscall, 'copyfile');
+    return true;
+  };
+
+  // TODO(joyeecheung): test fs.copyFile() when uv_fs_copyfile does not
+  // keep the loop open when the flags are invalid.
+  // See https://github.com/libuv/libuv/pull/1747
+
+  assert.throws(
+    () => fs.copyFileSync(existingFile, nonexistentFile, -1),
+    validateError
+  );
+}
+
+// copyFile: destination exists but the COPYFILE_EXCL flag is provided.
+{
+  const validateError = (err) => {
+    if (err.code === 'ENOENT') {  // Could be ENOENT or EEXIST
+      assert.strictEqual(err.message,
+                         'ENOENT: no such file or directory, copyfile ' +
+                         `'${existingFile}' -> '${existingFile2}'`);
+      assert.strictEqual(err.errno, uv.UV_ENOENT);
+      assert.strictEqual(err.code, 'ENOENT');
+      assert.strictEqual(err.syscall, 'copyfile');
+    } else {
+      assert.strictEqual(err.message,
+                         'EEXIST: file already exists, copyfile ' +
+                         `'${existingFile}' -> '${existingFile2}'`);
+      assert.strictEqual(err.errno, uv.UV_EEXIST);
+      assert.strictEqual(err.code, 'EEXIST');
+      assert.strictEqual(err.syscall, 'copyfile');
+    }
+    return true;
+  };
+
+  fs.copyFile(existingFile, existingFile2, COPYFILE_EXCL,
+              common.mustCall(validateError));
+
+  assert.throws(
+    () => fs.copyFileSync(existingFile, existingFile2, COPYFILE_EXCL),
+    validateError
+  );
+}
+
+// copyFile: the source does not exist.
+{
+  const validateError = (err) => {
+    assert.strictEqual(err.message,
+                       'ENOENT: no such file or directory, copyfile ' +
+                       `'${nonexistentFile}' -> '${existingFile2}'`);
+    assert.strictEqual(err.errno, uv.UV_ENOENT);
+    assert.strictEqual(err.code, 'ENOENT');
+    assert.strictEqual(err.syscall, 'copyfile');
+    return true;
+  };
+
+  fs.copyFile(nonexistentFile, existingFile2, COPYFILE_EXCL,
+              common.mustCall(validateError));
+
+  assert.throws(
+    () => fs.copyFileSync(nonexistentFile, existingFile2, COPYFILE_EXCL),
     validateError
   );
 }

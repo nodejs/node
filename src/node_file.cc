@@ -1232,21 +1232,28 @@ static void OpenFileHandle(const FunctionCallbackInfo<Value>& args) {
 static void CopyFile(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
-  CHECK_GE(args.Length(), 3);
-  CHECK(args[2]->IsInt32());
+  const int argc = args.Length();
+  CHECK_GE(argc, 3);
 
   BufferValue src(env->isolate(), args[0]);
   CHECK_NE(*src, nullptr);
+
   BufferValue dest(env->isolate(), args[1]);
   CHECK_NE(*dest, nullptr);
-  int flags = args[2]->Int32Value();
+
+  CHECK(args[2]->IsInt32());
+  const int flags = args[2].As<Int32>()->Value();
 
   FSReqBase* req_wrap = GetReqWrap(env, args[3]);
-  if (req_wrap != nullptr) {
-    AsyncCall(env, req_wrap, args, "copyfile", UTF8, AfterNoArgs,
-              uv_fs_copyfile, *src, *dest, flags);
-  } else {
-    SYNC_DEST_CALL(copyfile, *src, *dest, *src, *dest, flags)
+  if (req_wrap != nullptr) {  // copyFile(src, dest, flags, req)
+    AsyncDestCall(env, req_wrap, args, "copyfile",
+                  *dest, dest.length(), UTF8, AfterNoArgs,
+                  uv_fs_copyfile, *src, *dest, flags);
+  } else {  // copyFile(src, dest, flags, undefined, ctx)
+    CHECK_EQ(argc, 5);
+    fs_req_wrap req_wrap;
+    SyncCall(env, args[4], &req_wrap, "copyfile",
+             uv_fs_copyfile, *src, *dest, flags);
   }
 }
 
