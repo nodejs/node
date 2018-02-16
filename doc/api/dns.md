@@ -646,6 +646,25 @@ processing that happens on libuv's threadpool that [`dns.lookup()`][] can have.
 They do not use the same set of configuration files than what [`dns.lookup()`][]
 uses. For instance, _they do not use the configuration from `/etc/hosts`_.
 
+## Monitoring DNS Performance
+
+The [Performance Observer][] API may be used to monitor the duration of DNS
+operations:
+
+```js
+const dns = require('dns');
+const { PerformanceObserver, performance } = require('perf_hooks');
+
+const obs = new PerformanceObserver((items) => {
+  const entry = items.getEntries()[0];
+  console.log(entry.name); // example.org
+  console.log(entry.entryType); // dns
+  console.log(entry.startTime);
+  console.log(entry.duration);
+  performance.clearDNS(); // Always clear to prevent memory leaks
+});
+```
+
 [`Error`]: errors.html#errors_class_error
 [`UV_THREADPOOL_SIZE`]: cli.html#cli_uv_threadpool_size_size
 [`dgram.createSocket()`]: dgram.html#dgram_dgram_createsocket_options_callback
@@ -669,5 +688,6 @@ uses. For instance, _they do not use the configuration from `/etc/hosts`_.
 [`util.promisify()`]: util.html#util_util_promisify_original
 [DNS error codes]: #dns_error_codes
 [Implementation considerations section]: #dns_implementation_considerations
+[Performance Observer]: perf_hooks.html
 [rfc5952]: https://tools.ietf.org/html/rfc5952#section-6
 [supported `getaddrinfo` flags]: #dns_supported_getaddrinfo_flags
