@@ -351,8 +351,8 @@ void MemoryAllocator::Unmapper::WaitUntilCompleted() {
         CancelableTaskManager::kTaskAborted) {
       pending_unmapping_tasks_semaphore_.Wait();
     }
-    concurrent_unmapping_tasks_active_ = 0;
   }
+  concurrent_unmapping_tasks_active_ = 0;
 }
 
 template <MemoryAllocator::Unmapper::FreeMode mode>
