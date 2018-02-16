@@ -65,7 +65,8 @@ is wrapped in an `Error` with the original value stored in a field named
   callbackFunction((err, ret) => {
     // When the Promise was rejected with `null` it is wrapped with an Error and
     // the original value is stored in `reason`.
-    err && err.hasOwnProperty('reason') && err.reason === null;  // true
+    console.log(err && err.reason === null);
+    // Prints: true
   });
   ```
 
