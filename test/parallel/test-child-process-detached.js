@@ -39,7 +39,5 @@ process.on('exit', function() {
   assert.throws(function() {
     process.kill(child.pid);
   }, /^Error: kill ESRCH$/);
-  assert.doesNotThrow(function() {
-    process.kill(persistentPid);
-  });
+  process.kill(persistentPid);
 });

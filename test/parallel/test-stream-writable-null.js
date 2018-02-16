@@ -27,14 +27,10 @@ common.expectsError(
   }
 );
 
-assert.doesNotThrow(() => {
-  const m = new MyWritable({ objectMode: true }).on('error', (e) => {
-    assert.ok(e);
-  });
-  m.write(null, (err) => {
-    assert.ok(err);
-  });
-});
+{ // Should not throw.
+  const m = new MyWritable({ objectMode: true }).on('error', assert);
+  m.write(null, assert);
+}
 
 common.expectsError(
   () => {
@@ -47,24 +43,19 @@ common.expectsError(
   }
 );
 
-assert.doesNotThrow(() => {
-  const m = new MyWritable().on('error', (e) => {
-    assert.ok(e);
-  });
-  m.write(false, (err) => {
-    assert.ok(err);
-  });
-});
+{ // Should not throw.
+  const m = new MyWritable().on('error', assert);
+  m.write(false, assert);
+}
 
-assert.doesNotThrow(() => {
+{ // Should not throw.
   const m = new MyWritable({ objectMode: true });
-  m.write(false, (err) => assert.ifError(err));
-});
-assert.doesNotThrow(() => {
+  m.write(false, assert.ifError);
+}
+
+{ // Should not throw.
   const m = new MyWritable({ objectMode: true }).on('error', (e) => {
     assert.ifError(e || new Error('should not get here'));
   });
-  m.write(false, (err) => {
-    assert.ifError(err);
-  });
-});
+  m.write(false, assert.ifError);
+}

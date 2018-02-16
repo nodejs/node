@@ -22,7 +22,7 @@ if (common.isWindows) {
 }
 
 if (process.argv[2] === 'child') {
-  [0, 1, 2].forEach((i) => assert.doesNotThrow(() => fs.fstatSync(i)));
+  [0, 1, 2].forEach((i) => fs.fstatSync(i));
   return;
 }
 

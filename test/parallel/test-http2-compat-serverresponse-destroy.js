@@ -3,7 +3,6 @@
 const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
-const assert = require('assert');
 const http2 = require('http2');
 const Countdown = require('../common/countdown');
 
@@ -22,9 +21,9 @@ const server = http2.createServer(common.mustCall((req, res) => {
   res.on('error', common.mustNotCall());
 
   res.on('finish', common.mustCall(() => {
-    assert.doesNotThrow(() => res.destroy(nextError));
+    res.destroy(nextError);
     process.nextTick(() => {
-      assert.doesNotThrow(() => res.destroy(nextError));
+      res.destroy(nextError);
     });
   }));
 

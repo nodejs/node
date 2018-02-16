@@ -29,7 +29,7 @@ const existing = dns.getServers();
 assert(existing.length > 0);
 
 // Verify that setServers() handles arrays with holes and other oddities
-assert.doesNotThrow(() => {
+{
   const servers = [];
 
   servers[0] = '127.0.0.1';
@@ -37,9 +37,9 @@ assert.doesNotThrow(() => {
   dns.setServers(servers);
 
   assert.deepStrictEqual(dns.getServers(), ['127.0.0.1', '0.0.0.0']);
-});
+}
 
-assert.doesNotThrow(() => {
+{
   const servers = ['127.0.0.1', '192.168.1.1'];
 
   servers[3] = '127.1.0.1';
@@ -60,13 +60,13 @@ assert.doesNotThrow(() => {
     '192.168.1.1',
     '0.0.0.0'
   ]);
-});
+}
 
 const goog = [
   '8.8.8.8',
   '8.8.4.4',
 ];
-assert.doesNotThrow(() => dns.setServers(goog));
+dns.setServers(goog);
 assert.deepStrictEqual(dns.getServers(), goog);
 common.expectsError(() => dns.setServers(['foobar']), {
   code: 'ERR_INVALID_IP_ADDRESS',
@@ -84,7 +84,7 @@ const goog6 = [
   '2001:4860:4860::8888',
   '2001:4860:4860::8844',
 ];
-assert.doesNotThrow(() => dns.setServers(goog6));
+dns.setServers(goog6);
 assert.deepStrictEqual(dns.getServers(), goog6);
 
 goog6.push('4.4.4.4');
@@ -106,7 +106,7 @@ const portsExpected = [
 dns.setServers(ports);
 assert.deepStrictEqual(dns.getServers(), portsExpected);
 
-assert.doesNotThrow(() => dns.setServers([]));
+dns.setServers([]);
 assert.deepStrictEqual(dns.getServers(), []);
 
 common.expectsError(() => {
@@ -146,16 +146,11 @@ common.expectsError(() => {
     assert.strictEqual(family, 4);
   };
 
-  assert.doesNotThrow(() => dns.lookup('', common.mustCall(checkCallback)));
-
-  assert.doesNotThrow(() => dns.lookup(null, common.mustCall(checkCallback)));
-
-  assert.doesNotThrow(() => dns.lookup(undefined,
-                                       common.mustCall(checkCallback)));
-
-  assert.doesNotThrow(() => dns.lookup(0, common.mustCall(checkCallback)));
-
-  assert.doesNotThrow(() => dns.lookup(NaN, common.mustCall(checkCallback)));
+  dns.lookup('', common.mustCall(checkCallback));
+  dns.lookup(null, common.mustCall(checkCallback));
+  dns.lookup(undefined, common.mustCall(checkCallback));
+  dns.lookup(0, common.mustCall(checkCallback));
+  dns.lookup(NaN, common.mustCall(checkCallback));
 }
 
 /*
@@ -186,24 +181,18 @@ common.expectsError(() => dns.lookup('nodejs.org', 4), {
   type: TypeError
 });
 
-assert.doesNotThrow(() => dns.lookup('', { family: 4, hints: 0 },
-                                     common.mustCall()));
+dns.lookup('', { family: 4, hints: 0 }, common.mustCall());
 
-assert.doesNotThrow(() => {
-  dns.lookup('', {
-    family: 6,
-    hints: dns.ADDRCONFIG
-  }, common.mustCall());
-});
+dns.lookup('', {
+  family: 6,
+  hints: dns.ADDRCONFIG
+}, common.mustCall());
 
-assert.doesNotThrow(() => dns.lookup('', { hints: dns.V4MAPPED },
-                                     common.mustCall()));
+dns.lookup('', { hints: dns.V4MAPPED }, common.mustCall());
 
-assert.doesNotThrow(() => {
-  dns.lookup('', {
-    hints: dns.ADDRCONFIG | dns.V4MAPPED
-  }, common.mustCall());
-});
+dns.lookup('', {
+  hints: dns.ADDRCONFIG | dns.V4MAPPED
+}, common.mustCall());
 
 common.expectsError(() => dns.lookupService('0.0.0.0'), {
   code: 'ERR_MISSING_ARGS',

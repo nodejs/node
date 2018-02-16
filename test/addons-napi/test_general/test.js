@@ -81,7 +81,7 @@ const y = {};
 test_general.wrap(y);
 test_general.removeWrap(y);
 // Wrapping twice succeeds if a remove_wrap() separates the instances
-assert.doesNotThrow(() => test_general.wrap(y));
+test_general.wrap(y);
 
 // Ensure that removing a wrap and garbage collecting does not fire the
 // finalize callback.

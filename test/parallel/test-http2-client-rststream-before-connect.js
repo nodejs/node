@@ -19,11 +19,11 @@ server.listen(0, common.mustCall(() => {
   req.close(1);
   assert.strictEqual(req.closed, true);
 
-  // make sure that destroy is called
+  // Make sure that destroy is called.
   req._destroy = common.mustCall(req._destroy.bind(req));
 
-  // second call doesn't do anything
-  assert.doesNotThrow(() => req.close(8));
+  // Second call doesn't do anything.
+  req.close(8);
 
   req.on('close', common.mustCall((code) => {
     assert.strictEqual(req.destroyed, true);

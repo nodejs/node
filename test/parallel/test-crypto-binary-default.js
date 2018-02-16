@@ -46,9 +46,7 @@ const rsaPubPem = fixtures.readSync('test_rsa_pubkey.pem', 'ascii');
 const rsaKeyPem = fixtures.readSync('test_rsa_privkey.pem', 'ascii');
 
 // PFX tests
-assert.doesNotThrow(function() {
-  tls.createSecureContext({ pfx: certPfx, passphrase: 'sample' });
-});
+tls.createSecureContext({ pfx: certPfx, passphrase: 'sample' });
 
 assert.throws(function() {
   tls.createSecureContext({ pfx: certPfx });

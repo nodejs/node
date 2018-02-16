@@ -1,6 +1,5 @@
 'use strict';
 const common = require('../common');
-const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
 
@@ -9,22 +8,11 @@ const tmpdir = require('../common/tmpdir');
 const example = path.join(tmpdir.path, 'dummy');
 
 tmpdir.refresh();
-
-assert.doesNotThrow(() => {
-  fs.createWriteStream(example, undefined);
-});
-
-assert.doesNotThrow(() => {
-  fs.createWriteStream(example, null);
-});
-
-assert.doesNotThrow(() => {
-  fs.createWriteStream(example, 'utf8');
-});
-
-assert.doesNotThrow(() => {
-  fs.createWriteStream(example, { encoding: 'utf8' });
-});
+// Should not throw.
+fs.createWriteStream(example, undefined);
+fs.createWriteStream(example, null);
+fs.createWriteStream(example, 'utf8');
+fs.createWriteStream(example, { encoding: 'utf8' });
 
 const createWriteStreamErr = (path, opt) => {
   common.expectsError(

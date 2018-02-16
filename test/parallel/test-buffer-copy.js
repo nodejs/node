@@ -92,8 +92,8 @@ const bb = Buffer.allocUnsafe(10);
 bb.fill('hello crazy world');
 
 
-// try to copy from before the beginning of b
-assert.doesNotThrow(() => { b.copy(c, 0, 100, 10); });
+// Try to copy from before the beginning of b. Should not throw.
+b.copy(c, 0, 100, 10);
 
 // copy throws at negative sourceStart
 assert.throws(function() {

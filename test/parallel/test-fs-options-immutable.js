@@ -17,19 +17,11 @@ const options = Object.freeze({});
 const tmpdir = require('../common/tmpdir');
 tmpdir.refresh();
 
-{
-  assert.doesNotThrow(() =>
-    fs.readFile(__filename, options, common.mustCall(errHandler))
-  );
-  assert.doesNotThrow(() => fs.readFileSync(__filename, options));
-}
+fs.readFile(__filename, options, common.mustCall(errHandler));
+fs.readFileSync(__filename, options);
 
-{
-  assert.doesNotThrow(() =>
-    fs.readdir(__dirname, options, common.mustCall(errHandler))
-  );
-  assert.doesNotThrow(() => fs.readdirSync(__dirname, options));
-}
+fs.readdir(__dirname, options, common.mustCall(errHandler));
+fs.readdirSync(__dirname, options);
 
 if (common.canCreateSymLink()) {
   const sourceFile = path.resolve(tmpdir.path, 'test-readlink');
@@ -38,63 +30,46 @@ if (common.canCreateSymLink()) {
   fs.writeFileSync(sourceFile, '');
   fs.symlinkSync(sourceFile, linkFile);
 
-  assert.doesNotThrow(() =>
-    fs.readlink(linkFile, options, common.mustCall(errHandler))
-  );
-  assert.doesNotThrow(() => fs.readlinkSync(linkFile, options));
+  fs.readlink(linkFile, options, common.mustCall(errHandler));
+  fs.readlinkSync(linkFile, options);
 }
 
 {
   const fileName = path.resolve(tmpdir.path, 'writeFile');
-  assert.doesNotThrow(() => fs.writeFileSync(fileName, 'ABCD', options));
-  assert.doesNotThrow(() =>
-    fs.writeFile(fileName, 'ABCD', options, common.mustCall(errHandler))
-  );
+  fs.writeFileSync(fileName, 'ABCD', options);
+  fs.writeFile(fileName, 'ABCD', options, common.mustCall(errHandler));
 }
 
 {
   const fileName = path.resolve(tmpdir.path, 'appendFile');
-  assert.doesNotThrow(() => fs.appendFileSync(fileName, 'ABCD', options));
-  assert.doesNotThrow(() =>
-    fs.appendFile(fileName, 'ABCD', options, common.mustCall(errHandler))
-  );
+  fs.appendFileSync(fileName, 'ABCD', options);
+  fs.appendFile(fileName, 'ABCD', options, common.mustCall(errHandler));
 }
 
 {
-  let watch;
-  assert.doesNotThrow(() => {
-    watch = fs.watch(__filename, options, common.mustNotCall());
-  });
+  const watch = fs.watch(__filename, options, common.mustNotCall());
   watch.close();
 }
 
 {
-  assert.doesNotThrow(
-    () => fs.watchFile(__filename, options, common.mustNotCall())
-  );
+  fs.watchFile(__filename, options, common.mustNotCall());
   fs.unwatchFile(__filename);
 }
 
 {
-  assert.doesNotThrow(() => fs.realpathSync(__filename, options));
-  assert.doesNotThrow(() =>
-    fs.realpath(__filename, options, common.mustCall(errHandler))
-  );
+  fs.realpathSync(__filename, options);
+  fs.realpath(__filename, options, common.mustCall(errHandler));
 }
 
 {
   const tempFileName = path.resolve(tmpdir.path, 'mkdtemp-');
-  assert.doesNotThrow(() => fs.mkdtempSync(tempFileName, options));
-  assert.doesNotThrow(() =>
-    fs.mkdtemp(tempFileName, options, common.mustCall(errHandler))
-  );
+  fs.mkdtempSync(tempFileName, options);
+  fs.mkdtemp(tempFileName, options, common.mustCall(errHandler));
 }
 
 {
   const fileName = path.resolve(tmpdir.path, 'streams');
-  assert.doesNotThrow(() => {
-    fs.WriteStream(fileName, options).once('open', common.mustCall(() => {
-      assert.doesNotThrow(() => fs.ReadStream(fileName, options));
-    }));
-  });
+  fs.WriteStream(fileName, options).once('open', common.mustCall(() => {
+    fs.ReadStream(fileName, options);
+  }));
 }

@@ -1,7 +1,6 @@
 'use strict';
 
 const common = require('../common');
-const assert = require('assert');
 const net = require('net');
 
 // First test. Check that after error event you can listen right away.
@@ -16,12 +15,10 @@ const net = require('net');
   }));
 
   server.on('error', common.mustCall((e) => {
-    assert.doesNotThrow(
-      () => server.listen(common.mustCall(() => {
-        dummyServer.close();
-        server.close();
-      }))
-    );
+    server.listen(common.mustCall(() => {
+      dummyServer.close();
+      server.close();
+    }));
   }));
 }
 
@@ -44,8 +41,6 @@ const net = require('net');
 
   server.listen(common.mustCall(() => {
     server.close();
-    assert.doesNotThrow(
-      () => server.listen(common.mustCall(() => server.close()))
-    );
+    server.listen(common.mustCall(() => server.close()));
   }));
 }

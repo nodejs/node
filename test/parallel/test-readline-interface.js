@@ -823,23 +823,12 @@ function isWarned(emitter) {
     fi.emit('data', 'asdf\n');
     assert.ok(called);
 
-    assert.doesNotThrow(function() {
-      rli.setPrompt('ddd> ');
-    });
-
-    assert.doesNotThrow(function() {
-      rli.prompt();
-    });
-
-    assert.doesNotThrow(function() {
-      rli.write('really shouldnt be seeing this');
-    });
-
-    assert.doesNotThrow(function() {
-      rli.question('What do you think of node.js? ', function(answer) {
-        console.log('Thank you for your valuable feedback:', answer);
-        rli.close();
-      });
+    rli.setPrompt('ddd> ');
+    rli.prompt();
+    rli.write('really shouldnt be seeing this');
+    rli.question('What do you think of node.js? ', function(answer) {
+      console.log('Thank you for your valuable feedback:', answer);
+      rli.close();
     });
   }
 

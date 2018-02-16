@@ -9,9 +9,7 @@ const ee = new EventEmitter();
 let count = 3;
 
 const server = http.createServer(function(req, res) {
-  assert.doesNotThrow(function() {
-    res.setHeader('testing_123', 123);
-  });
+  res.setHeader('testing_123', 123);
   assert.throws(function() {
     res.setHeader('testing 123', 123);
   }, TypeError);
@@ -37,17 +35,14 @@ server.listen(0, function() {
     }
   );
 
-  assert.doesNotThrow(
-    function() {
-      const options = {
-        port: server.address().port,
-        headers: { 'testing_123': 123 }
-      };
-      http.get(options, function() {
-        ee.emit('done');
-      });
-    }, TypeError
-  );
+  // Should not throw.
+  const options = {
+    port: server.address().port,
+    headers: { 'testing_123': 123 }
+  };
+  http.get(options, function() {
+    ee.emit('done');
+  });
 });
 
 ee.on('done', function() {
