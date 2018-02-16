@@ -63,5 +63,5 @@ assert.notStrictEqual(newgid, oldgid);
 
 const olduid = process.getuid();
 process.setuid('nobody');
-const newAsyncId = process.getuid();
-assert.notStrictEqual(newAsyncId, olduid);
+const newuid = process.getuid();
+assert.notStrictEqual(newuid, olduid);
