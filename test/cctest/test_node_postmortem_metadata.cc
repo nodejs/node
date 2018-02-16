@@ -7,6 +7,7 @@
 #include "v8.h"
 #include "v8abbr.h"
 
+extern "C" {
 extern uintptr_t
     nodedbg_offset_HandleWrap__handle_wrap_queue___ListNode_HandleWrap;
 extern uintptr_t
@@ -25,6 +26,7 @@ extern uintptr_t
     nodedbg_offset_Environment_ReqWrapQueue__head___ListNode_ReqWrapQueue;
 extern uintptr_t
     nodedbg_offset_BaseObject__persistent_handle___v8_Persistent_v8_Object;
+}
 
 
 class DebugSymbolsTest : public EnvironmentTestFixture {};
