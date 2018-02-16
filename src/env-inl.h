@@ -311,6 +311,10 @@ inline Environment* Environment::GetCurrent(
       info.Data().template As<v8::External>()->Value());
 }
 
+inline Environment* Environment::GetThreadLocalEnv() {
+  return static_cast<Environment*>(uv_key_get(&thread_local_env));
+}
+
 inline Environment::Environment(IsolateData* isolate_data,
                                 v8::Local<v8::Context> context)
     : isolate_(context->GetIsolate()),

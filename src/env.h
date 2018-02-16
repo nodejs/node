@@ -564,6 +564,9 @@ class Environment {
   static inline Environment* GetCurrent(
       const v8::PropertyCallbackInfo<T>& info);
 
+  static uv_key_t thread_local_env;
+  static inline Environment* GetThreadLocalEnv();
+
   inline Environment(IsolateData* isolate_data, v8::Local<v8::Context> context);
   inline ~Environment();
 
