@@ -1207,6 +1207,7 @@ changes:
   * `start` {integer}
   * `end` {integer}
   * `highWaterMark` {integer}
+* Returns: {stream.Readable}
 
 Returns a new [`ReadStream`][] object. (See [Readable Streams][]).
 
@@ -1282,6 +1283,7 @@ changes:
   * `mode` {integer}
   * `autoClose` {boolean}
   * `start` {integer}
+* Returns: {stream.Writable}
 
 Returns a new [`WriteStream`][] object. (See [Writable Stream][]).
 
@@ -1439,6 +1441,7 @@ changes:
 -->
 
 * `path` {string|Buffer|URL}
+* Returns: {boolean}
 
 Synchronous version of [`fs.exists()`][].
 Returns `true` if the path exists, `false` otherwise.
@@ -1557,6 +1560,7 @@ added: v0.1.95
 -->
 
 * `fd` {integer}
+* Returns: {fs.Stats}
 
 Synchronous fstat(2). Returns an instance of [`fs.Stats`][].
 
@@ -1831,6 +1835,7 @@ changes:
 -->
 
 * `path` {string|Buffer|URL}
+* Returns: {fs.Stats}
 
 Synchronous lstat(2). Returns an instance of [`fs.Stats`][].
 
@@ -1956,6 +1961,7 @@ added: v5.10.0
 * `prefix` {string}
 * `options` {string|Object}
   * `encoding` {string} **Default:** `'utf8'`
+* Returns: {string}
 
 The synchronous version of [`fs.mkdtemp()`][]. Returns the created
 folder path.
@@ -2080,6 +2086,7 @@ changes:
 * `path` {string|Buffer|URL}
 * `flags` {string|number}
 * `mode` {integer} **Default:** `0o666`
+* Returns: {number}
 
 Synchronous version of [`fs.open()`][]. Returns an integer representing the file
 descriptor.
@@ -2170,6 +2177,7 @@ changes:
 * `path` {string|Buffer|URL}
 * `options` {string|Object}
   * `encoding` {string} **Default:** `'utf8'`
+* Returns: {Array} An array of filenames
 
 Synchronous readdir(3). Returns an array of filenames excluding `'.'` and
 `'..'`.
@@ -2270,6 +2278,7 @@ changes:
 * `options` {Object|string}
   * `encoding` {string|null} **Default:** `null`
   * `flag` {string} **Default:** `'r'`
+* Returns: {string|Buffer}
 
 Synchronous version of [`fs.readFile()`][]. Returns the contents of the `path`.
 
@@ -2330,6 +2339,7 @@ changes:
 * `path` {string|Buffer|URL}
 * `options` {string|Object}
   * `encoding` {string} **Default:** `'utf8'`
+* Returns: {string|Buffer}
 
 Synchronous readlink(2). Returns the symbolic link's string value.
 
@@ -2352,6 +2362,7 @@ changes:
 * `offset` {integer}
 * `length` {integer}
 * `position` {integer}
+* Returns: {number}
 
 Synchronous version of [`fs.read()`][]. Returns the number of `bytesRead`.
 
@@ -2462,6 +2473,7 @@ changes:
 * `path` {string|Buffer|URL}
 * `options` {string|Object}
   * `encoding` {string} **Default:** `'utf8'`
+* Returns: {string|Buffer}
 
 Synchronously computes the canonical pathname by resolving `.`, `..` and
 symbolic links.
@@ -2492,6 +2504,7 @@ added: v9.2.0
 * `path` {string|Buffer|URL}
 * `options` {string|Object}
   * `encoding` {string} **Default:** `'utf8'`
+* Returns: {string|Buffer}
 
 Synchronous realpath(3).
 
@@ -2629,6 +2642,7 @@ changes:
 -->
 
 * `path` {string|Buffer|URL}
+* Returns: {fs.Stats}
 
 Synchronous stat(2). Returns an instance of [`fs.Stats`][].
 
@@ -3194,6 +3208,7 @@ changes:
 * `offset` {integer}
 * `length` {integer}
 * `position` {integer}
+* Returns: {number}
 
 ## fs.writeSync(fd, string[, position[, encoding]])
 <!-- YAML
@@ -3208,6 +3223,7 @@ changes:
 * `string` {string}
 * `position` {integer}
 * `encoding` {string}
+* Returns: {number}
 
 Synchronous versions of [`fs.write()`][]. Returns the number of bytes written.
 

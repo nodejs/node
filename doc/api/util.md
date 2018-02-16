@@ -216,6 +216,7 @@ contains circular references.
   object formatting. Similar to `util.inspect()` without options. This will show
   the full object not including non-enumerable properties and proxies.
 * `%%` - single percent sign (`'%'`). This does not consume an argument.
+* Returns: {string} The formatted string
 
 If the placeholder does not have a corresponding argument, the placeholder is
 not replaced.
@@ -397,6 +398,7 @@ changes:
     This is useful to minimize the inspection output for large complicated
     objects. To make it recurse indefinitely pass `null` or `Infinity`. Defaults
     to `Infinity`.
+* Returns: {string} The representation of passed object
 
 The `util.inspect()` method returns a string representation of `object` that is
 intended for debugging. The output of `util.inspect` may change at any time
@@ -627,7 +629,7 @@ added: v9.0.0
 * `val2` {any}
 * Returns: {boolean}
 
-Returns `true` if there is deep strict equality between `val` and `val2`.
+Returns `true` if there is deep strict equality between `val1` and `val2`.
 Otherwise, returns `false`.
 
 See [`assert.deepStrictEqual()`][] for more information about deep strict
@@ -944,6 +946,7 @@ deprecated: v4.0.0
 > Stability: 0 - Deprecated
 
 * `object` {any}
+* Returns: {boolean}
 
 Internal alias for [`Array.isArray`][].
 
@@ -969,6 +972,7 @@ deprecated: v4.0.0
 > Stability: 0 - Deprecated
 
 * `object` {any}
+* Returns: {boolean}
 
 Returns `true` if the given `object` is a `Boolean`. Otherwise, returns `false`.
 
@@ -992,6 +996,7 @@ deprecated: v4.0.0
 > Stability: 0 - Deprecated: Use [`Buffer.isBuffer()`][] instead.
 
 * `object` {any}
+* Returns: {boolean}
 
 Returns `true` if the given `object` is a `Buffer`. Otherwise, returns `false`.
 
@@ -1015,6 +1020,7 @@ deprecated: v4.0.0
 > Stability: 0 - Deprecated
 
 * `object` {any}
+* Returns: {boolean}
 
 Returns `true` if the given `object` is a `Date`. Otherwise, returns `false`.
 
@@ -1038,6 +1044,7 @@ deprecated: v4.0.0
 > Stability: 0 - Deprecated
 
 * `object` {any}
+* Returns: {boolean}
 
 Returns `true` if the given `object` is an [`Error`][]. Otherwise, returns
 `false`.
@@ -1077,6 +1084,7 @@ deprecated: v4.0.0
 > Stability: 0 - Deprecated
 
 * `object` {any}
+* Returns: {boolean}
 
 Returns `true` if the given `object` is a `Function`. Otherwise, returns
 `false`.
@@ -1104,6 +1112,7 @@ deprecated: v4.0.0
 > Stability: 0 - Deprecated
 
 * `object` {any}
+* Returns: {boolean}
 
 Returns `true` if the given `object` is strictly `null`. Otherwise, returns
 `false`.
@@ -1128,6 +1137,7 @@ deprecated: v4.0.0
 > Stability: 0 - Deprecated
 
 * `object` {any}
+* Returns: {boolean}
 
 Returns `true` if the given `object` is `null` or `undefined`. Otherwise,
 returns `false`.
@@ -1152,6 +1162,7 @@ deprecated: v4.0.0
 > Stability: 0 - Deprecated
 
 * `object` {any}
+* Returns: {boolean}
 
 Returns `true` if the given `object` is a `Number`. Otherwise, returns `false`.
 
@@ -1177,6 +1188,7 @@ deprecated: v4.0.0
 > Stability: 0 - Deprecated
 
 * `object` {any}
+* Returns: {boolean}
 
 Returns `true` if the given `object` is strictly an `Object` **and** not a
 `Function`. Otherwise, returns `false`.
@@ -1203,6 +1215,7 @@ deprecated: v4.0.0
 > Stability: 0 - Deprecated
 
 * `object` {any}
+* Returns: {boolean}
 
 Returns `true` if the given `object` is a primitive type. Otherwise, returns
 `false`.
@@ -1239,6 +1252,7 @@ deprecated: v4.0.0
 > Stability: 0 - Deprecated
 
 * `object` {any}
+* Returns: {boolean}
 
 Returns `true` if the given `object` is a `RegExp`. Otherwise, returns `false`.
 
@@ -1262,6 +1276,7 @@ deprecated: v4.0.0
 > Stability: 0 - Deprecated
 
 * `object` {any}
+* Returns: {boolean}
 
 Returns `true` if the given `object` is a `string`. Otherwise, returns `false`.
 
@@ -1287,6 +1302,7 @@ deprecated: v4.0.0
 > Stability: 0 - Deprecated
 
 * `object` {any}
+* Returns: {boolean}
 
 Returns `true` if the given `object` is a `Symbol`. Otherwise, returns `false`.
 
@@ -1310,6 +1326,7 @@ deprecated: v4.0.0
 > Stability: 0 - Deprecated
 
 * `object` {any}
+* Returns: {boolean}
 
 Returns `true` if the given `object` is `undefined`. Otherwise, returns `false`.
 
