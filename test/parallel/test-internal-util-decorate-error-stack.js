@@ -7,8 +7,8 @@ const internalUtil = require('internal/util');
 const binding = process.binding('util');
 const spawnSync = require('child_process').spawnSync;
 
-const kArrowMessagePrivateSymbolIndex = binding['arrow_message_private_symbol'];
-const kDecoratedPrivateSymbolIndex = binding['decorated_private_symbol'];
+const kArrowMessagePrivateSymbolIndex = binding.arrow_message_private_symbol;
+const kDecoratedPrivateSymbolIndex = binding.decorated_private_symbol;
 
 const decorateErrorStack = internalUtil.decorateErrorStack;
 

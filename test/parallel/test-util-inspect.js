@@ -285,7 +285,7 @@ assert.strictEqual(
     '{ writeonly: [Setter] }');
 
   const value = {};
-  value['a'] = value;
+  value.a = value;
   assert.strictEqual(util.inspect(value), '{ a: [Circular] }');
 }
 

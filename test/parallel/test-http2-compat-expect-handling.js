@@ -11,7 +11,7 @@ const expectValue = 'meoww';
 const server = http2.createServer(common.mustNotCall());
 
 server.once('checkExpectation', common.mustCall((req, res) => {
-  assert.strictEqual(req.headers['expect'], expectValue);
+  assert.strictEqual(req.headers.expect, expectValue);
   res.statusCode = 417;
   res.end();
 }));
