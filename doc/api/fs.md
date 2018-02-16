@@ -2529,8 +2529,19 @@ changes:
 * `callback` {Function}
   * `err` {Error}
 
-Asynchronous rename(2). No arguments other than a possible exception are given
-to the completion callback.
+Asynchronously rename file at `oldPath` to the pathname provided
+as `newPath`. In the case that `newPath` already exists, it will
+be overwritten. No arguments other than a possible exception are
+given to the completion callback.
+
+See also: rename(2).
+
+```js
+fs.rename('oldFile.txt', 'newFile.txt', (err) => {
+  if (err) throw err;
+  console.log('Rename complete!');
+});
+```
 
 ## fs.renameSync(oldPath, newPath)
 <!-- YAML
