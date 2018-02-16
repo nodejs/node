@@ -893,8 +893,8 @@ Use [`asyncResource.runInAsyncScope()`][] API instead which provides a much
 safer, and more convenient, alternative. See
 https://github.com/nodejs/node/pull/18513 for more details.
 
-<a id="DEP0098"></a>
-### DEP0098: async context-unaware node::MakeCallback C++ APIs
+<a id="DEP0099"></a>
+### DEP0099: async context-unaware node::MakeCallback C++ APIs
 
 Type: Compile-time
 
