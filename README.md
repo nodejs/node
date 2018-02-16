@@ -514,6 +514,8 @@ For more information about the governance of the Node.js project, see
 **Jeremy Whitlock** &lt;jwhitlock@apache.org&gt;
 * [XadillaX](https://github.com/XadillaX) -
 **Khaidi Chu** &lt;i@2333.moe&gt; (he/him)
+* [yhwang](https://github.com/yhwang) -
+**Yihong Wang** &lt;yh.wang@ibm.com&gt;
 * [yorkie](https://github.com/yorkie) -
 **Yorkie Liu** &lt;yorkiefixer@gmail.com&gt;
 * [yosuke-furukawa](https://github.com/yosuke-furukawa) -
