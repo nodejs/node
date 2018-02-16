@@ -36,7 +36,8 @@ static v8::Persistent<v8::Promise::Resolver> persistent;
 static void Callback(uv_work_t* req, int ignored) {
   v8::Isolate* isolate = v8::Isolate::GetCurrent();
   v8::HandleScope scope(isolate);
-  node::CallbackScope callback_scope(isolate, v8::Object::New(isolate), {0, 0});
+  node::CallbackScope callback_scope(isolate, v8::Object::New(isolate),
+                                     node::async_context{0, 0});
 
   v8::Local<v8::Promise::Resolver> local =
       v8::Local<v8::Promise::Resolver>::New(isolate, persistent);
