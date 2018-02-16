@@ -24,7 +24,7 @@ const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
-// This test ensures that the data throught tls over http tunnel
+// This test ensures that the data received through tls over http tunnel
 // is same as what is sent.
 
 const assert = require('assert');
