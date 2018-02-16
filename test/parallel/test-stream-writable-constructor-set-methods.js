@@ -26,12 +26,12 @@ w.write(Buffer.from('blerg'));
 
 w.end();
 
-const w3 = new Writable();
+const w2 = new Writable();
 
-w3.on('error', common.expectsError({
+w2.on('error', common.expectsError({
   type: Error,
   code: 'ERR_METHOD_NOT_IMPLEMENTED',
   message: 'The _write method is not implemented'
 }));
 
-w3.end(Buffer.from('blerg'));
+w2.end(Buffer.from('blerg'));
