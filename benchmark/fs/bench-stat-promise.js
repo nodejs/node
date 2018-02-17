@@ -1,7 +1,7 @@
 'use strict';
 
 const common = require('../common');
-const fs = require('fs');
+const fsPromises = require('fs/promises');
 
 const bench = common.createBenchmark(main, {
   n: [20e4],
@@ -10,11 +10,11 @@ const bench = common.createBenchmark(main, {
 
 async function run(n, statType) {
   const arg = statType === 'fstat' ?
-    await fs.promises.open(__filename, 'r') : __filename;
+    await fsPromises.open(__filename, 'r') : __filename;
   let remaining = n;
   bench.start();
   while (remaining-- > 0)
-    await fs.promises[statType](arg);
+    await fsPromises[statType](arg);
   bench.end(n);
 
   if (typeof arg.close === 'function')
