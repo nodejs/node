@@ -15,7 +15,7 @@ async function runTests() {
                                  }, 10);`);
   const session = await child.connectInspectorSession();
 
-  // let stderrString = await child.nextStderrString();
+  let stderrString = await child.nextStderrString();
   // assert(stderrString.includes('Debugger listening on'), stderrString);
   // stderrString = await child.nextStderrString();
   // assert.strictEqual(stderrString,
