@@ -217,7 +217,7 @@ module.exports = {
     'one-var': ['error', { initialized: 'never' }],
     'one-var-declaration-per-line': 'error',
     'operator-linebreak': ['error', 'after'],
-    quotes: ['error', 'single', 'avoid-escape'],
+    quotes: ['error', 'single', { avoidEscape: true }],
     semi: 'error',
     'semi-spacing': 'error',
     'space-before-blocks': ['error', 'always'],
