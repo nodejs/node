@@ -1,7 +1,7 @@
 'use strict';
-var fs = require('fs'),
-  path = require('path'),
-  tls = require('tls');
+const fs = require('fs');
+const path = require('path');
+const tls = require('tls');
 
 const common = require('../common.js');
 const bench = common.createBenchmark(main, {
