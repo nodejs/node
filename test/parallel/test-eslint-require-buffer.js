@@ -36,14 +36,14 @@ ruleTester.run('require-buffer', rule, {
       output: useStrict + bufferModule + useBuffer,
     },
     {
-      code:  mockComment + useBuffer,
+      code: mockComment + useBuffer,
       errors: [{ message }],
-      output:  mockComment + bufferModule + useBuffer,
+      output: mockComment + bufferModule + useBuffer,
     },
     {
-      code:  mockComment + useStrict + useBuffer,
+      code: mockComment + useStrict + useBuffer,
       errors: [{ message }],
-      output:  mockComment + useStrict + bufferModule + useBuffer,
+      output: mockComment + useStrict + bufferModule + useBuffer,
     },
   ]
 });
