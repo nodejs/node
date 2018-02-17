@@ -360,6 +360,139 @@ testMe.complete('var log = console.lo', common.mustCall((error, data) => {
   assert.deepStrictEqual(data, [['console.log'], 'console.lo']);
 }));
 
+// Test tab complete for fs module
+putIn.run(['.clear']);
+
+// does not auto complete empty paths
+testMe.complete('fs.readFileSync("', common.mustCall((error, data) => {
+  assert.strictEqual(error, null);
+  assert.strictEqual(data[0].length, 0);
+}));
+
+// does not complete non-relative paths
+testMe.complete('fs.readFileSync("n', common.mustCall((error, data) => {
+  assert.strictEqual(error, null);
+  assert.strictEqual(data[0].length, 0);
+}));
+
+// does not complete scoped modules paths
+
+testMe.complete('fs.readFileSync("@nodejs', common.mustCall((error, data) => {
+  assert.strictEqual(error, null);
+  assert.strictEqual(data[0].length, 0);
+}));
+
+
+// Test tab completion for fs module paths relative to the current directory
+{
+  putIn.run(['.clear']);
+
+  const cwd = process.cwd();
+  process.chdir(__dirname);
+
+  ['fs.readFileSync(\'.', 'fs.readFileSync(".'].forEach((input) => {
+    testMe.complete(input, common.mustCall((err, data) => {
+      assert.strictEqual(err, null);
+      assert.strictEqual(data.length, 2);
+      assert.strictEqual(data[1], '.');
+      assert.strictEqual(data[0].length, 2);
+      assert.ok(data[0].includes('./'));
+      assert.ok(data[0].includes('../'));
+    }));
+  });
+
+  ['fs.readFileSync(\'..', 'fs.readFileSync("..'].forEach((input) => {
+    testMe.complete(input, common.mustCall((err, data) => {
+      assert.strictEqual(err, null);
+      assert.deepStrictEqual(data, [['../'], '..']);
+    }));
+  });
+
+  const fsTabbableMethods = [
+    'access',
+    'accessSync',
+    'chmod',
+    'chmodSync',
+    'chown',
+    'chownSync',
+    'createReadStream',
+    'createWriteStream',
+    'exists',
+    'existsSync',
+    'lchmod',
+    'lchmodSync',
+    'lchown',
+    'lchownSync',
+    'lstat',
+    'lstatSync',
+    'mkdir',
+    'mkdirSync',
+    'open',
+    'openSync',
+    'readdir',
+    'readdirSync',
+    'readFile',
+    'readFileSync',
+    'readlink',
+    'readlinkSync',
+    'realpath',
+    'realpath',
+    'realpathSync',
+    'realpathSync',
+    'rmdir',
+    'rmdirSync',
+    'stat',
+    'statSync',
+    'symlink',
+    'symlinkSync',
+    'truncate',
+    'truncateSync',
+    'unlink',
+    'unlinkSync',
+    'utimes',
+    'utimesSync',
+  ];
+
+  // test that all tabbable methods allow this featuer
+  fsTabbableMethods.forEach((method) => {
+    testMe.complete(`fs.${method}('..`, common.mustCall((err, data) => {
+      assert.strictEqual(err, null);
+      assert.deepStrictEqual(data, [['../'], '..']);
+    }));
+  });
+
+  ['./', './test-'].forEach((path) => {
+    testMe.complete(`fs.readFileSync('${path}`, common.mustCall((err, data) => {
+      assert.strictEqual(err, null);
+      assert.strictEqual(data.length, 2);
+      assert.strictEqual(data[1], path);
+      assert.ok(data[0].includes('./test-repl-tab-complete'));
+    }));
+  });
+
+  ['../parallel/', '../parallel/test-'].forEach((path) => {
+    testMe.complete(`fs.readFileSync('${path}`, common.mustCall((err, data) => {
+      assert.strictEqual(err, null);
+      assert.strictEqual(data.length, 2);
+      assert.strictEqual(data[1], path);
+      assert.ok(data[0].includes('../parallel/test-repl-tab-complete'));
+    }));
+  });
+
+  {
+    const path = '../fixtures/repl-folder-extensions/f';
+    testMe.complete(`fs.readFileSync('${path}`, common.mustCall((err, data) => {
+      assert.ifError(err);
+      assert.strictEqual(data.length, 2);
+      assert.strictEqual(data[1], path);
+      assert.ok(data[0].includes('../fixtures/repl-folder-extensions/foo.js'));
+    }));
+  }
+
+
+  process.chdir(cwd);
+}
+
 // tab completion for defined commands
 putIn.run(['.clear']);
 
