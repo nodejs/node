@@ -518,8 +518,8 @@ bool TLSWrap::ClearIn() {
     // This can be skipped in the error case because no further writes
     // would succeed anyway.
     pending_cleartext_input_.insert(pending_cleartext_input_.end(),
-                                    &buffers[i],
-                                    &buffers[buffers.size()]);
+                                    buffers.begin() + i,
+                                    buffers.end());
   }
 
   return false;
