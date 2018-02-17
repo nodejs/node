@@ -130,6 +130,7 @@ module.exports = {
     // http://eslint.org/docs/rules/#variables
     'no-delete-var': 'error',
     'no-undef': 'error',
+    'no-undef-init': 'error',
     'no-unused-vars': ['error', { args: 'none' }],
     'no-use-before-define': ['error', {
       classes: true,
