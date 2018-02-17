@@ -114,7 +114,7 @@ given module specifier and parent file URL:
 
 ```js
 const baseURL = new URL('file://');
-baseURL.pathname = process.cwd() + '/';
+baseURL.pathname = `${process.cwd()}/`;
 
 export async function resolve(specifier,
                               parentModuleURL = baseURL,
@@ -158,7 +158,7 @@ const builtins = Module.builtinModules;
 const JS_EXTENSIONS = new Set(['.js', '.mjs']);
 
 const baseURL = new URL('file://');
-baseURL.pathname = process.cwd() + '/';
+baseURL.pathname = `${process.cwd()}/`;
 
 export function resolve(specifier, parentModuleURL = baseURL, defaultResolve) {
   if (builtins.includes(specifier)) {
