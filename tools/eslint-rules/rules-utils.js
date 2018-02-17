@@ -31,6 +31,7 @@ module.exports.isBinding = function(node, modules) {
 var commonModuleRegExp = new RegExp(/^(\.\.\/)*common(\.js)?$/);
 module.exports.isCommonModule = function(node) {
   return node.callee.name === 'require' &&
+         node.arguments.length !== 0 &&
          commonModuleRegExp.test(node.arguments[0].value);
 };
 

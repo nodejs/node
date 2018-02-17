@@ -13,8 +13,8 @@ new RuleTester().run('inspector-check', rule, {
   valid: [
     'foo;',
     'require("common")\n' +
-    'common.skipIfInspectorDisabled();\n' +
-    'require("inspector")'
+      'common.skipIfInspectorDisabled();\n' +
+      'require("inspector")'
   ],
   invalid: [
     {
