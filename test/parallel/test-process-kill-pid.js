@@ -58,14 +58,14 @@ assert.throws(function() { process.kill(-1 / 0); },
               invalidPidArgument);
 
 // Test that kill throws an error for unknown signal names
-common.expectsError(() => process.kill(1, 'test'), {
+common.expectsError(() => process.kill(0, 'test'), {
   code: 'ERR_UNKNOWN_SIGNAL',
   type: TypeError,
   message: 'Unknown signal: test'
 });
 
 // Test that kill throws an error for invalid signal numbers
-common.expectsError(() => process.kill(1, 987), {
+common.expectsError(() => process.kill(0, 987), {
   code: 'EINVAL',
   type: Error,
   message: 'kill EINVAL'
