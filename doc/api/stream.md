@@ -46,7 +46,7 @@ There are four fundamental stream types within Node.js:
 * [Transform][] - Duplex streams that can modify or transform the data as it
   is written and read (for example [`zlib.createDeflate()`][]).
 
-Additionally this module inclues a utility function [pump][].
+Additionally this module includes the utility function [pump][].
 
 ### Object Mode
 
@@ -1247,9 +1247,13 @@ implementors should not override this method, but instead implement
 The default implementation of `_destroy` for `Transform` also emit `'close'`.
 
 #### Class Method: stream.pump(...streams[, callback])
+<!-- YAML
+added: REPLACEME
+-->
 
-* two or more streams to pipe between
-* optional callback
+* `...streams` {Stream} Two or more streams to pipe between.
+* `callback` {Function} A callback function that takes an optional error
+  argument.
 
 A class method to pipe between streams forwarding errors and properly cleaning
 up.
