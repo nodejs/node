@@ -36,6 +36,17 @@ module.exports.isBinding = function(node, modules) {
 };
 
 /**
+ * Return true if common module is required
+ * in AST Node under inspection
+ */
+var commonModuleRegExp = new RegExp(/^(\.\.\/)*common(\.js)?$/);
+module.exports.isCommonModule = function(node) {
+  return node.callee.name === 'require' &&
+         node.arguments.length !== 0 &&
+         commonModuleRegExp.test(node.arguments[0].value);
+};
+
+/**
  * Returns true is the node accesses any property in the properties
  * array on the 'common' object.
  */
