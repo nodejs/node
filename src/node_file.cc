@@ -535,11 +535,10 @@ inline FSReqBase* AsyncDestCall(Environment* env,
     uv_req->path = nullptr;
     after(uv_req);  // after may delete req_wrap if there is an error
     req_wrap = nullptr;
-  }
-
-  if (req_wrap != nullptr) {
+  } else {
     req_wrap->SetReturnValue(args);
   }
+
   return req_wrap;
 }
 
