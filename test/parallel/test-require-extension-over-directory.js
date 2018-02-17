@@ -15,7 +15,11 @@ assert.strictEqual(
   ' requirements'
 );
 
-const fakePath = [fixtures.path('module-extension-over-directory', 'inner'), 'fake', '..'].join(path.sep);
+const fakePath = [
+  fixtures.path('module-extension-over-directory', 'inner'),
+  'fake',
+  '..'
+].join(path.sep);
 const fixturesRequireDir = require(fakePath);
 
 assert.strictEqual(
