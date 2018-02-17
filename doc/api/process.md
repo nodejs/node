@@ -639,7 +639,7 @@ added: v0.7.2
 The port used by Node.js's debugger when enabled.
 
 ```js
-  process.debugPort = 5858;
+process.debugPort = 5858;
 ```
 ## process.disconnect()
 <!-- YAML
