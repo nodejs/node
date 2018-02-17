@@ -13,7 +13,7 @@ async function runTests() {
                                    if (c++ === 10)
                                      clearInterval(interval);
                                  }, 10);`);
-  // const session = await child.connectInspectorSession();
+  const session = await child.connectInspectorSession();
 
   // let stderrString = await child.nextStderrString();
   // assert(stderrString.includes('Debugger listening on'), stderrString);
