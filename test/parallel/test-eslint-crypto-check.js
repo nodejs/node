@@ -31,7 +31,7 @@ new RuleTester().run('crypto-check', rule, {
               'require("crypto")'
     },
     {
-      code: 'require("common")\n' + 
+      code: 'require("common")\n' +
             'if (common.foo) {}\n' +
             'require("crypto")',
       errors: [{ message }],
