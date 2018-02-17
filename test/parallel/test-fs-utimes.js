@@ -88,7 +88,7 @@ function testIt(atime, mtime, callback) {
       expect_errno('futimesSync', fd, ex, 'ENOSYS');
     }
 
-    let err = undefined;
+    let err;
     try {
       fs.utimesSync('foobarbaz', atime, mtime);
     } catch (ex) {
