@@ -214,6 +214,7 @@ module.exports = {
     'no-unsafe-finally': 'error',
     'no-whitespace-before-property': 'error',
     'object-curly-spacing': ['error', 'always'],
+    'one-var': ['error', { initialized: 'never' }],
     'one-var-declaration-per-line': 'error',
     'operator-linebreak': ['error', 'after'],
     quotes: ['error', 'single', 'avoid-escape'],
