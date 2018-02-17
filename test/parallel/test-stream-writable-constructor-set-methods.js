@@ -1,45 +1,37 @@
 'use strict';
 const common = require('../common');
-const assert = require('assert');
 
-const Writable = require('stream').Writable;
+const { strictEqual } = require('assert');
+const { Writable } = require('stream');
 
-let _writeCalled = false;
-function _write(d, e, n) {
-  _writeCalled = true;
-}
+const _write = common.mustCall((chunk, _, next) => {
+  next();
+});
 
-const w = new Writable({ write: _write });
-w.end(Buffer.from('blerg'));
+const _writev = common.mustCall((chunks, next) => {
+  strictEqual(chunks.length, 2);
+  next();
+});
 
-let _writevCalled = false;
-let dLength = 0;
-function _writev(d, n) {
-  dLength = d.length;
-  _writevCalled = true;
-}
+const w = new Writable({ write: _write, writev: _writev });
 
-const w2 = new Writable({ writev: _writev });
-w2.cork();
+strictEqual(w._write, _write);
+strictEqual(w._writev, _writev);
 
-w2.write(Buffer.from('blerg'));
-w2.write(Buffer.from('blerg'));
-w2.end();
+w.write(Buffer.from('blerg'));
 
-const w3 = new Writable();
+w.cork();
+w.write(Buffer.from('blerg'));
+w.write(Buffer.from('blerg'));
 
-w3.on('error', common.expectsError({
+w.end();
+
+const w2 = new Writable();
+
+w2.on('error', common.expectsError({
   type: Error,
   code: 'ERR_METHOD_NOT_IMPLEMENTED',
   message: 'The _write method is not implemented'
 }));
 
-w3.end(Buffer.from('blerg'));
-
-process.on('exit', function() {
-  assert.strictEqual(w._write, _write);
-  assert(_writeCalled);
-  assert.strictEqual(w2._writev, _writev);
-  assert.strictEqual(dLength, 2);
-  assert(_writevCalled);
-});
+w2.end(Buffer.from('blerg'));
