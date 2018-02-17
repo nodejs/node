@@ -7,12 +7,12 @@ if (!common.enoughTestCpu)
   common.skip('test is CPU-intensive');
 
 if (common.isCPPSymbolsNotMapped) {
-  common.skip('C++ symbols are not mapped for this os.');
+  common.skip('C++ symbols are not mapped for this OS.');
 }
 
-//This test will produce a broken profile log.
-//ensure prof-polyfill not stuck in infinite loop
-//and success process
+// This test will produce a broken profile log.
+// ensure prof-polyfill not stuck in infinite loop
+// and success process
 
 
 const assert = require('assert');
@@ -23,7 +23,8 @@ const fs = require('fs');
 const LOG_FILE = path.join(tmpdir.path, 'tick-processor.log');
 const RETRY_TIMEOUT = 150;
 const BROKEN_PART = 'tick,';
-const WARN_REG_EXP = /\(node:\d+\) \[BROKEN_PROFILE_FILE\] Warning: profile file is broken[\r\n]+".*tick," at the file end is broken/;
+const WARN_REG_EXP = /\(node:\d+\) \[BROKEN_PROFILE_FILE] Warning: Profile file .* is broken/;
+const WARN_DETAIL_REG_EXP = /".*tick," at the file end is broken/;
 
 const code = `function f() {
            this.ts = Date.now();
@@ -54,7 +55,8 @@ function runPolyfill(content) {
       '--prof-process', LOG_FILE
     ]);
   assert(WARN_REG_EXP.test(child.stderr.toString()));
-  assert.strictEqual(child.status, 0, 'broken file should success too');
+  assert(WARN_DETAIL_REG_EXP.test(child.stderr.toString()));
+  assert.strictEqual(child.status, 0);
 }
 
 setTimeout(() => runPolyfill(ticks), RETRY_TIMEOUT);
