@@ -166,7 +166,7 @@ module.exports = {
       ObjectExpression: 'first',
       SwitchCase: 1,
     }],
-    'key-spacing': ['error', { mode: 'minimum' }],
+    'key-spacing': ['error', { mode: 'strict' }],
     'keyword-spacing': 'error',
     'linebreak-style': ['error', 'unix'],
     'max-len': ['error', {
