@@ -38,7 +38,7 @@ responsibility for the change. In the case of pull requests proposed
 by an existing Collaborator, an additional Collaborator is required
 for sign-off.
 
-If one or more Collaborators oppose a proposed change, then the change can not
+If one or more Collaborators oppose a proposed change, then the change cannot
 be accepted unless:
 
 * Discussions and/or additional changes result in no Collaborators objecting to
@@ -73,7 +73,7 @@ may request that the TSC restore them to active status.
 
 ## Technical Steering Committee
 
-A subset of the Collaborators form the Technical Steering Committee (TSC).
+A subset of the Collaborators forms the Technical Steering Committee (TSC).
 The TSC has final authority over this project, including:
 
 * Technical direction
