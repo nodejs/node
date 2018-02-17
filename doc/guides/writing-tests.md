@@ -22,8 +22,10 @@ Add tests when:
 See the test [directory structure overview](https://github.com/nodejs/node/blob/master/test/README.md)
 for an outline of existing test types and their locations.
 When deciding on whether to expand an existing test file or create a new one, 
-consider going through the files related to the subsystem (e.g. ones starting with "test-streams" for `lib/streams.js`) 
-and assessing whether a related test already exists.
+consider going through the files related to the subsystem.
+For example, take a look at tests starting with "test-streams" 
+when writing tests for `lib/streams.js`
+
 
 ## Test structure
 
