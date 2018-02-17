@@ -212,6 +212,7 @@ module.exports = {
     'no-tabs': 'error',
     'no-trailing-spaces': 'error',
     'no-unsafe-finally': 'error',
+    'no-whitespace-before-property': 'error',
     'object-curly-spacing': ['error', 'always'],
     'one-var-declaration-per-line': 'error',
     'operator-linebreak': ['error', 'after'],
