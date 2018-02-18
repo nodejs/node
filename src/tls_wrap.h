@@ -152,6 +152,7 @@ class TLSWrap : public AsyncWrap,
   std::vector<uv_buf_t> pending_cleartext_input_;
   size_t write_size_;
   WriteWrap* current_write_ = nullptr;
+  WriteWrap* current_empty_write_ = nullptr;
   bool write_callback_scheduled_ = false;
   bool started_;
   bool established_;
