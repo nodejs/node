@@ -2760,7 +2760,7 @@ fs.unlink('path/file.txt', (err) => {
 });
 ```
 
-`fs.unlink()` will not work on a directory, empty or otherwise.
+`fs.unlink()` will not work on a directory, empty or otherwise. To remove a directory, use `fs.rmdir()`.
 
 ```js
 // Assuming that 'tmpDir' is a directory.
