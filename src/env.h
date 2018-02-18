@@ -76,7 +76,7 @@ struct PackageConfig {
   const IsValid is_valid;
   const HasMain has_main;
   const std::string main;
-  const PackageMode mode;
+  const PackageMode::Mode mode;
 };
 }  // namespace loader
 
