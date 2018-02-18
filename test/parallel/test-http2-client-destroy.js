@@ -59,7 +59,6 @@ const Countdown = require('../common/countdown');
       assert(socket.destroyed);
     }));
 
-
     const req = client.request();
     req.on('error', common.expectsError({
       code: 'ERR_HTTP2_STREAM_CANCEL',
@@ -77,15 +76,21 @@ const Countdown = require('../common/countdown');
       message: 'The session has been destroyed'
     };
 
-    common.expectsError(() => client.request(), sessionError);
+    common.expectsError(() => client.setNextStreamID(), sessionError);
+    common.expectsError(() => client.ping(), sessionError);
     common.expectsError(() => client.settings({}), sessionError);
+    common.expectsError(() => client.goaway(), sessionError);
+    common.expectsError(() => client.request(), sessionError);
     client.close();  // should be a non-op at this point
 
     // Wait for setImmediate call from destroy() to complete
     // so that state.destroyed is set to true
     setImmediate(() => {
-      common.expectsError(() => client.request(), sessionError);
+      common.expectsError(() => client.setNextStreamID(), sessionError);
+      common.expectsError(() => client.ping(), sessionError);
       common.expectsError(() => client.settings({}), sessionError);
+      common.expectsError(() => client.goaway(), sessionError);
+      common.expectsError(() => client.request(), sessionError);
       client.close();  // should be a non-op at this point
     });
 
