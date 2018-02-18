@@ -2745,7 +2745,7 @@ changes:
                  it will emit a deprecation warning.
 -->
 
-* `path` {string|Buffer|URL} File name or file descriptor
+* `path` {string|Buffer|URL}
 * `callback` {Function}
   * `err` {Error}
 
@@ -2760,7 +2760,7 @@ fs.unlink('path/file.txt', (err) => {
 });
 ```
 
-Note that unlink() will not work on a directory, empty or otherwise.
+`fs.unlink()` will not work on a directory, empty or otherwise.
 
 ```js
 // Assuming that 'tmpDir' is a directory.
