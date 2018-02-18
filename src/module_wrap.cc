@@ -545,11 +545,9 @@ const PackageConfig& GetPackageConfig(Environment* env,
 
   Local<Value> pkg_mode_v;
   PackageMode::Mode pkg_mode = PackageMode::CJS;
-  if (pkg_json->Get(env->context(), env->mode_string()).ToLocal(&pkg_mode_v)) {
-    if (pkg_json->Get(env->context(), env->mode_string()).ToLocal(&pkg_mode_v) &&
-        pkg_mode_v->StrictEquals(env->esm_string())) {
-      pkg_mode = PackageMode::ESM;
-    }
+  if (pkg_json->Get(env->context(), env->mode_string()).ToLocal(&pkg_mode_v) &&
+      pkg_mode_v->StrictEquals(env->esm_string())) {
+    pkg_mode = PackageMode::ESM;
   }
 
   auto entry = env->package_json_cache.emplace(path,
@@ -578,11 +576,11 @@ PackageMode::Mode GetPackageMode(Environment* env, const URL& search) {
 
 void SetPackageMode(Environment* env, const URL& search,
                     PackageMode::Mode pkg_mode) {
-  std::string pjsonPathStr = URL("package.json", &search).ToFilePath();
-  const PackageConfig& pkg_json = GetPackageConfig(env, pjsonPathStr);
+  std::string pjson_path_str = URL("package.json", &search).ToFilePath();
+  const PackageConfig& pkg_json = GetPackageConfig(env, pjson_path_str);
   if (pkg_json.mode != pkg_mode) {
-    env->package_json_cache.erase(env->package_json_cache.find(pjsonPathStr));
-    env->package_json_cache.emplace(pjsonPathStr,
+    env->package_json_cache.erase(env->package_json_cache.find(pjson_path_str));
+    env->package_json_cache.emplace(pjson_path_str,
         PackageConfig { pkg_json.exists, pkg_json.is_valid,
                         pkg_json.has_main, pkg_json.main, pkg_mode });
   }
@@ -596,8 +594,8 @@ enum ResolveExtensionsOptions {
 template <ResolveExtensionsOptions options>
 Maybe<URL> ResolveExtensions(const URL& search) {
   if (options == TRY_EXACT_NAME) {
-    std::string filePath = search.ToFilePath();
-    Maybe<uv_file> check = CheckFile(filePath);
+    std::string file_path = search.ToFilePath();
+    Maybe<uv_file> check = CheckFile(file_path);
     if (!check.IsNothing()) {
       return Just(search);
     }
@@ -737,21 +735,20 @@ void ModuleWrap::Resolve(const FunctionCallbackInfo<Value>& args) {
     return node::THROW_ERR_MISSING_MODULE(env, msg.c_str());
   }
 
-  bool esmPackage = false;
+  bool esm_package = false;
   bool set_package_esm_mode = args[2]->IsTrue();
   if (set_package_esm_mode) {
-    esmPackage = true;
+    esm_package = true;
     SetPackageMode(env, result.FromJust(), PackageMode::ESM);
   } else {
-    std::string filePath = result.FromJust().ToFilePath();
     // Check the package esm mode for ambiguous extensions.
-    if (filePath.length() < 5 ||
-        (filePath.substr(filePath.length() - 4, 4) != ".mjs" &&
-          (filePath.length() < 6 ||
-            (filePath.substr(filePath.length() - 5, 5) != ".json" &&
-            filePath.substr(filePath.length() - 5, 5) != ".node")))) {
+    std::string file_path = result.FromJust().ToFilePath();
+    std::string ext;
+    const size_t pos = file_path.rfind('.');
+    if (pos != 0 && pos != std::string::npos) ext = file_path.substr(pos);
+    if (ext != ".mjs" && ext != ".json" && ext != ".node") {
       if (GetPackageMode(env, result.FromJust()) == PackageMode::ESM) {
-        esmPackage = true;
+        esm_package = true;
       }
     }
   }
@@ -761,7 +758,7 @@ void ModuleWrap::Resolve(const FunctionCallbackInfo<Value>& args) {
   resolved->DefineOwnProperty(
     env->context(),
     env->esm_string(),
-    v8::Boolean::New(env->isolate(), esmPackage),
+    v8::Boolean::New(env->isolate(), esm_package),
     v8::ReadOnly).FromJust();
 
   resolved->DefineOwnProperty(
