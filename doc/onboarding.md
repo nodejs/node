@@ -200,7 +200,9 @@ onboarding session.
 * Collaborators are in alphabetical order by GitHub username.
 * Optionally, include your personal pronouns.
 * Label your pull request with the `doc` subsystem label.
-* Run CI on your PR.
+* Run CI on the PR. Because the PR does not affect any code, use either the
+  `node-test-pull-request-lite` CI task or else cancel the CI run after the
+  linter and one other subtask have passed.
 * After one or two approvals, land the PR (PRs of this type do not need to wait
   for 48/72 hours to land).
   * Be sure to add the `PR-URL: <full-pr-url>` and appropriate `Reviewed-By:`
