@@ -2745,12 +2745,31 @@ changes:
                  it will emit a deprecation warning.
 -->
 
-* `path` {string|Buffer|URL}
+* `path` {string|Buffer|URL} File name or file descriptor
 * `callback` {Function}
   * `err` {Error}
 
-Asynchronous unlink(2). No arguments other than a possible exception are given
-to the completion callback.
+Asynchronously removes a file or symbolic link. No arguments other than a
+possible exception are given to the completion callback.
+
+```js
+// Assuming that 'path/file.txt' is a regular file.
+fs.unlink('path/file.txt', (err) => {
+  if (err) throw err;
+  console.log('path/file.txt was deleted');
+});
+```
+
+Note that unlink() will not work on a directory, empty or otherwise.
+
+```js
+// Assuming that 'tmpDir' is a directory.
+fs.unlink('tmpDir', (err) => {
+  // err is not null because a directory cannot be deleted through unlink().
+});
+```
+
+See also: unlink(2)
 
 ## fs.unlinkSync(path)
 <!-- YAML
