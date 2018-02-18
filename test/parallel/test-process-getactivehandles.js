@@ -30,7 +30,7 @@ function clientConnected(client) {
 
 
 function checkAll() {
-  const handles = process._getActiveHandles();
+  const handles = process.getActiveHandles();
 
   clients.forEach(function(item) {
     assert.ok(handles.includes(item));
