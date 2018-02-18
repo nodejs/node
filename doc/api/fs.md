@@ -2760,14 +2760,7 @@ fs.unlink('path/file.txt', (err) => {
 });
 ```
 
-`fs.unlink()` will not work on a directory, empty or otherwise. To remove a directory, use `fs.rmdir()`.
-
-```js
-// Assuming that 'tmpDir' is a directory.
-fs.unlink('tmpDir', (err) => {
-  // err is not null because a directory cannot be deleted through unlink().
-});
-```
+`fs.unlink()` will not work on a directory, empty or otherwise. To remove a directory, use [`fs.rmdir()`][].
 
 See also: unlink(2)
 
@@ -4491,6 +4484,7 @@ The following constants are meant for use with the [`fs.Stats`][] object's
 [`fs.read()`]: #fs_fs_read_fd_buffer_offset_length_position_callback
 [`fs.readFile()`]: #fs_fs_readfile_path_options_callback
 [`fs.readFileSync()`]: #fs_fs_readfilesync_path_options
+[`fs.rmdir()`]: #fs_fs_rmdir_path_callback
 [`fs.stat()`]: #fs_fs_stat_path_callback
 [`fs.utimes()`]: #fs_fs_utimes_path_atime_mtime_callback
 [`fs.watch()`]: #fs_fs_watch_filename_options_listener
