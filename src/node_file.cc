@@ -1608,7 +1608,8 @@ static void FUTimes(const FunctionCallbackInfo<Value>& args) {
 static void Mkdtemp(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
-  CHECK_GE(args.Length(), 2);
+  const int argc = args.Length();
+  CHECK_GE(argc, 2);
 
   BufferValue tmpl(env->isolate(), args[0]);
   CHECK_NE(*tmpl, nullptr);
@@ -1616,18 +1617,22 @@ static void Mkdtemp(const FunctionCallbackInfo<Value>& args) {
   const enum encoding encoding = ParseEncoding(env->isolate(), args[1], UTF8);
 
   FSReqBase* req_wrap = GetReqWrap(env, args[2]);
-  if (req_wrap != nullptr) {
+  if (req_wrap != nullptr) {  // mkdtemp(tmpl, encoding, req)
     AsyncCall(env, req_wrap, args, "mkdtemp", encoding, AfterStringPath,
               uv_fs_mkdtemp, *tmpl);
-  } else {
-    SYNC_CALL(mkdtemp, *tmpl, *tmpl);
-    const char* path = static_cast<const char*>(SYNC_REQ.path);
+  } else {  // mkdtemp(tmpl, encoding, undefined, ctx)
+    CHECK_EQ(argc, 4);
+    fs_req_wrap req_wrap;
+    SyncCall(env, args[3], &req_wrap, "mkdtemp",
+             uv_fs_mkdtemp, *tmpl);
+    const char* path = static_cast<const char*>(req_wrap.req.path);
 
     Local<Value> error;
     MaybeLocal<Value> rc =
         StringBytes::Encode(env->isolate(), path, encoding, &error);
     if (rc.IsEmpty()) {
-      env->isolate()->ThrowException(error);
+      Local<Object> ctx = args[3].As<Object>();
+      ctx->Set(env->context(), env->error_string(), error).FromJust();
       return;
     }
     args.GetReturnValue().Set(rc.ToLocalChecked());

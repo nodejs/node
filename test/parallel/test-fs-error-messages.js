@@ -25,6 +25,7 @@ const fixtures = require('../common/fixtures');
 const assert = require('assert');
 const fs = require('fs');
 const nonexistentFile = fixtures.path('non-existent');
+const nonexistentDir = fixtures.path('non-existent', 'foo', 'bar');
 const existingFile = fixtures.path('exit.js');
 const existingFile2 = fixtures.path('create-file.js');
 const existingDir = fixtures.path('empty');
@@ -604,6 +605,32 @@ if (!common.isAIX) {
 
   assert.throws(
     () => fs.utimesSync(nonexistentFile, new Date(), new Date()),
+    validateError
+  );
+}
+
+// mkdtemp
+{
+  const validateError = (err) => {
+    const pathPrefix = new RegExp('^' + re`${nonexistentDir}`);
+    assert(pathPrefix.test(err.path),
+           `Expect ${err.path} to match ${pathPrefix}`);
+
+    const prefix = new RegExp('^ENOENT: no such file or directory, mkdtemp ' +
+                              re`'${nonexistentDir}`);
+    assert(prefix.test(err.message),
+           `Expect ${err.message} to match ${prefix}`);
+
+    assert.strictEqual(err.errno, uv.UV_ENOENT);
+    assert.strictEqual(err.code, 'ENOENT');
+    assert.strictEqual(err.syscall, 'mkdtemp');
+    return true;
+  };
+
+  fs.mkdtemp(nonexistentDir, common.mustCall(validateError));
+
+  assert.throws(
+    () => fs.mkdtempSync(nonexistentDir),
     validateError
   );
 }
