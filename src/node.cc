@@ -3279,7 +3279,7 @@ static void RawDebug(const FunctionCallbackInfo<Value>& args) {
   fflush(stderr);
 }
 
-void LoadEnvironment(Environment* env, const bool allow_repl) {
+void LoadEnvironment(Environment* env, const bool startup_only) {
   HandleScope handle_scope(env->isolate());
 
   TryCatch try_catch(env->isolate());
@@ -3342,16 +3342,16 @@ void LoadEnvironment(Environment* env, const bool allow_repl) {
   // like Node's I/O bindings may want to replace 'f' with their own function.
   Local<Value> arg = env->process_object();
 
-  // add allow_repl parameter to JS process so we can use it in
+  // add startup_only parameter to JS process so we can use it in
   // bootstrap_node.js.
   // If adding the parameter fails, bootstrapping will fail too,
   // so we can cleanup and return before we even bootstrap.
-  bool successfully_set_allow_repl = Object::Cast(*arg)->Set(
+  bool successfully_set_startup_only = Object::Cast(*arg)->Set(
         env->context(),
-        String::NewFromUtf8(env->isolate(), "_allowRepl"),
-        Boolean::New(env->isolate(), allow_repl)).FromJust();
+        String::NewFromUtf8(env->isolate(), "_startupOnly"),
+        Boolean::New(env->isolate(), startup_only)).FromJust();
 
-  if (!successfully_set_allow_repl) {
+  if (!successfully_set_startup_only) {
     env->async_hooks()->clear_async_id_stack();
     return;
   }
@@ -4675,7 +4675,7 @@ void _StartEnv(int argc,
                const char* const* argv,
                int v8_argc,
                const char* const* v8_argv,
-               const bool allow_repl) {
+               const bool startup_only) {
   std::cout << "Starting environment" << std::endl;
 
   _environment->Start(argc, argv, v8_argc, v8_argv, v8_is_profiling);
@@ -4698,7 +4698,7 @@ void _StartEnv(int argc,
   {
     Environment::AsyncCallbackScope callback_scope(_environment);
     _environment->async_hooks()->push_async_ids(1, 0);
-    LoadEnvironment(_environment, allow_repl);
+    LoadEnvironment(_environment, startup_only);
     _environment->async_hooks()->pop_async_id(1);
   }
 
@@ -4709,12 +4709,16 @@ void _StartEnv(int argc,
 
 void Initialize(const std::string& program_name,
                 const std::vector<std::string>& node_args,
-                const bool allow_repl) {
+                const bool startup_only) {
   cmd_args = new CmdArgs(program_name, node_args);
-  Initialize(cmd_args->argc, cmd_args->argv, allow_repl);
+  Initialize(cmd_args->argc, cmd_args->argv, startup_only);
 }
 
-void Initialize(int argc, const char** argv, const bool allow_repl) {
+void Initialize(int argc, const char** argv) {
+  Initialize(argc, argv, false) {
+}
+
+void Initialize(int argc, const char** argv, const bool startup_only) {
   //////////
   // Start 1
   //////////
@@ -4750,7 +4754,7 @@ void Initialize(int argc, const char** argv, const bool allow_repl) {
   // Start environment
   //////////
 
-  initialize::_StartEnv(argc, argv, exec_argc, exec_argv, allow_repl);
+  initialize::_StartEnv(argc, argv, exec_argc, exec_argv, startup_only);
 }
 
 int Deinitialize() {
