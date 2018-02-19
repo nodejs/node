@@ -562,3 +562,26 @@ function re(literals, ...values) {
     );
   });
 }
+
+// chown
+if (!common.isWindows) {
+  const validateError = (err) => {
+    assert.strictEqual(nonexistentFile, err.path);
+    assert.strictEqual(
+      err.message,
+      `ENOENT: no such file or directory, chown '${nonexistentFile}'`);
+    assert.strictEqual(err.errno, uv.UV_ENOENT);
+    assert.strictEqual(err.code, 'ENOENT');
+    assert.strictEqual(err.syscall, 'chown');
+    return true;
+  };
+
+  fs.chown(nonexistentFile, process.getuid(), process.getgid(),
+           common.mustCall(validateError));
+
+  assert.throws(
+    () => fs.chownSync(nonexistentFile,
+                       process.getuid(), process.getgid()),
+    validateError
+  );
+}

@@ -102,6 +102,7 @@ using v8::ObjectTemplate;
 using v8::Promise;
 using v8::String;
 using v8::Symbol;
+using v8::Uint32;
 using v8::Undefined;
 using v8::Value;
 
@@ -1508,23 +1509,27 @@ static void FChmod(const FunctionCallbackInfo<Value>& args) {
 static void Chown(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
-  int len = args.Length();
-  CHECK_GE(len, 3);
-  CHECK(args[1]->IsUint32());
-  CHECK(args[2]->IsUint32());
+  const int argc = args.Length();
+  CHECK_GE(argc, 3);
 
   BufferValue path(env->isolate(), args[0]);
   CHECK_NE(*path, nullptr);
 
-  uv_uid_t uid = static_cast<uv_uid_t>(args[1]->Uint32Value());
-  uv_gid_t gid = static_cast<uv_gid_t>(args[2]->Uint32Value());
+  CHECK(args[1]->IsUint32());
+  const uv_uid_t uid = static_cast<uv_uid_t>(args[1].As<Uint32>()->Value());
+
+  CHECK(args[2]->IsUint32());
+  const uv_gid_t gid = static_cast<uv_gid_t>(args[2].As<Uint32>()->Value());
 
   FSReqBase* req_wrap = GetReqWrap(env, args[3]);
-  if (req_wrap != nullptr) {
+  if (req_wrap != nullptr) {  // chown(path, uid, gid, req)
     AsyncCall(env, req_wrap, args, "chown", UTF8, AfterNoArgs,
               uv_fs_chown, *path, uid, gid);
-  } else {
-    SYNC_CALL(chown, *path, *path, uid, gid);
+  } else {  // chown(path, uid, gid, undefined, ctx)
+    CHECK_EQ(argc, 5);
+    fs_req_wrap req_wrap;
+    SyncCall(env, args[4], &req_wrap, "chown",
+             uv_fs_chown, *path, uid, gid);
   }
 }
 
