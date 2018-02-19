@@ -1718,7 +1718,7 @@ changes:
     Http2ServerRequest class to use.
     Useful for extending the original `Http2ServerRequest`.
     **Default:** `Http2ServerRequest`
-  * `Http2ServerResponse` {htt2.Http2ServerResponse} Specifies the
+  * `Http2ServerResponse` {http2.Http2ServerResponse} Specifies the
     Http2ServerResponse class to use.
     Useful for extending the original `Http2ServerResponse`.
     **Default:** `Http2ServerResponse`
