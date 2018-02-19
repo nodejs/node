@@ -585,3 +585,25 @@ if (!common.isWindows) {
     validateError
   );
 }
+
+// utimes
+if (!common.isAIX) {
+  const validateError = (err) => {
+    assert.strictEqual(nonexistentFile, err.path);
+    assert.strictEqual(
+      err.message,
+      `ENOENT: no such file or directory, utime '${nonexistentFile}'`);
+    assert.strictEqual(err.errno, uv.UV_ENOENT);
+    assert.strictEqual(err.code, 'ENOENT');
+    assert.strictEqual(err.syscall, 'utime');
+    return true;
+  };
+
+  fs.utimes(nonexistentFile, new Date(), new Date(),
+            common.mustCall(validateError));
+
+  assert.throws(
+    () => fs.utimesSync(nonexistentFile, new Date(), new Date()),
+    validateError
+  );
+}
