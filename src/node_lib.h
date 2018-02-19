@@ -102,8 +102,26 @@ NODE_EXTERN void Initialize(const std::string& program_name = "node_lib",
  * where the first argument needs to be the program name.
  * The number of arguments must correspond to argc.
  */
-NODE_EXTERN void Initialize(int argc,
-                            const char** argv);
+NODE_EXTERN void Initialize(int argc, const char** argv);
+
+/**
+ * @brief Starts the Node.js engine.
+ *
+ * Starts the Node.js engine by executing bootstrap code.
+ * This is required in order to load scripts (e.g. `Run`) or evaluate
+ * JavaScript code (e.g. `Evaluate`).
+ * Additionally, Node.js will not process any pending events caused by the
+ * JavaScript execution as long as `ProcessEvents` or `RunEventLoop` is
+ * not called.
+ * @param argc The number of arguments.
+ * @param argv List of arguments for the Node.js engine,
+ * where the first argument needs to be the program name.
+ * The number of arguments must correspond to argc.
+ * @param startup_only Controls whether the Node.js JavaScript code also
+ *                     executes additional startup tasks like reading
+ *                     and executing stdin, starting the REPL and so on.
+ */
+void Initialize(int argc, const char** argv, const bool startup_only);
 
 /**
  * @brief Stops the Node.js engine and destroys all current state.
