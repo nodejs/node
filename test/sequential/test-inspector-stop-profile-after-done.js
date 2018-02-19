@@ -18,10 +18,10 @@ async function runTests() {
   let stderrString = await child.nextStderrString();
   assert(stderrString.includes('Debugger listening on'), stderrString);
   stderrString = await child.nextStderrString();
-  // assert.strictEqual(stderrString,
-  //                    'For help see https://nodejs.org/en/docs/inspector');
-  // stderrString = await child.nextStderrString();
-  // assert.strictEqual(stderrString, '');
+  assert.strictEqual(stderrString,
+                     'For help see https://nodejs.org/en/docs/inspector');
+  stderrString = await child.nextStderrString();
+  assert.strictEqual(stderrString, '');
 
   // session.send([
   //   { 'method': 'Profiler.setSamplingInterval', 'params': { 'interval': 100 } },
