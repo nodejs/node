@@ -24,10 +24,13 @@ writable.on('finish', () => {
   testStates(true, true, true);
 });
 
-writable.end('testing function end()', () => {
+const result = writable.end('testing function end()', () => {
   // ending, finished, ended = true.
   testStates(true, true, true);
 });
+
+// end returns the writable instance
+assert.strictEqual(result, writable);
 
 // ending, ended = true.
 // finished = false.

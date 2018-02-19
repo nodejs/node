@@ -544,11 +544,16 @@ See [`request.socket`][]
 ### request.end([data[, encoding]][, callback])
 <!-- YAML
 added: v0.1.90
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/18780
+    description: This method now returns a reference to `ClientRequest`.
 -->
 
 * `data` {string|Buffer}
 * `encoding` {string}
 * `callback` {Function}
+* Returns: {this}
 
 Finishes sending the request. If any parts of the body are
 unsent, it will flush them to the stream. If the request is
@@ -1041,11 +1046,16 @@ See [`response.socket`][].
 ### response.end([data][, encoding][, callback])
 <!-- YAML
 added: v0.1.90
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/18780
+    description: This method now returns a reference to `ServerResponse`.
 -->
 
 * `data` {string|Buffer}
 * `encoding` {string}
 * `callback` {Function}
+* Returns: {this}
 
 This method signals to the server that all of the response headers and body
 have been sent; that server should consider this message complete.
