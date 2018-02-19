@@ -4715,7 +4715,7 @@ void Initialize(const std::string& program_name,
 }
 
 void Initialize(int argc, const char** argv) {
-  Initialize(argc, argv, false) {
+  Initialize(argc, argv, false);
 }
 
 void Initialize(int argc, const char** argv, const bool startup_only) {
