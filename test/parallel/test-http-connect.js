@@ -62,6 +62,7 @@ server.listen(0, common.mustCall(() => {
     assert(!socket.onend);
     assert.strictEqual(socket.listeners('connect').length, 0);
     assert.strictEqual(socket.listeners('data').length, 0);
+    assert.strictEqual(socket.listeners('drain').length, 0);
 
     // the stream.Duplex onend listener
     // allow 0 here, so that i can run the same test on streams1 impl
