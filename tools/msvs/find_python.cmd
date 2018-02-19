@@ -1,4 +1,5 @@
 @IF NOT DEFINED DEBUG_HELPER @ECHO OFF
+echo Looking for Python 2.x
 SETLOCAL
 :: If python.exe is in %Path%, just validate
 FOR /F "delims=" %%a IN ('where python 2^> NUL') DO (
@@ -14,7 +15,7 @@ FOR %%K IN ( "HKCU\Software", "HKLM\SOFTWARE", "HKLM\Software\Wow6432Node") DO (
   :: If validate returns 0 just jump to the end
   IF NOT ERRORLEVEL 1 GOTO :validate
 )
-EXIT /B 1
+goto :no-python
 
 :: Helper subroutine to handle quotes in %1
 :find-main-branch
@@ -39,13 +40,20 @@ EXIT /B 1
 
 :: Check if %p% holds a path to a real python2 executable
 :validate
-IF NOT EXIST "%p%python.exe" EXIT /B 1
+IF NOT EXIST "%p%python.exe" goto :no-python
 :: Check if %p% is python2
 "%p%python.exe" -V 2>&1 | findstr /R "^Python.2.*" > NUL
-IF ERRORLEVEL 1 EXIT /B %ERRORLEVEL%
+IF ERRORLEVEL 1 goto :no-python2
 :: We can wrap it up
 ENDLOCAL & SET pt=%p%& SET need_path_ext=%need_path%
 SET VCBUILD_PYTHON_LOCATION=%pt%python.exe
 IF %need_path_ext%==1 SET Path=%Path%;%pt%
 SET need_path_ext=
 EXIT /B %ERRORLEVEL%
+
+:no-python2
+echo Python found in %p%, but it is not v2.x.
+exit /B 1
+:no-python
+echo Could not find Python.
+exit /B 1
