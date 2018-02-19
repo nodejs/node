@@ -4677,8 +4677,6 @@ void _StartEnv(int argc,
                int v8_argc,
                const char* const* v8_argv,
                const bool allow_repl) {
-  std::cout << "Starting environment" << std::endl;
-
   _environment->Start(argc, argv, v8_argc, v8_argv, v8_is_profiling);
 
   const char* path = argc > 1 ? argv[1] : nullptr;
@@ -4757,8 +4755,8 @@ void Initialize(int argc, const char** argv, const bool allow_repl) {
 int Deinitialize() {
   // Empty event queue
   // TODO(cf): Investigate when this is really needed.
-  //Evaluate("process.exit();");
-  //while (ProcessEvents()) { }
+  // Evaluate("process.exit();");
+  // while (ProcessEvents()) { }
 
   auto exit_code = deinitialize::_StopEnv();
 
