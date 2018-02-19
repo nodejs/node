@@ -49,6 +49,10 @@ server.listen(0, common.mustCall(() => {
     path: 'google.com:443'
   }, common.mustNotCall());
 
+  req.on('socket', common.mustCall((socket) => {
+    assert.strictEqual(socket._httpMessage, req);
+  }));
+
   req.on('close', common.mustCall());
 
   req.on('connect', common.mustCall((res, socket, firstBodyChunk) => {
@@ -60,6 +64,7 @@ server.listen(0, common.mustCall(() => {
     // Make sure this socket has detached.
     assert(!socket.ondata);
     assert(!socket.onend);
+    assert.strictEqual(socket._httpMessage, null);
     assert.strictEqual(socket.listeners('connect').length, 0);
     assert.strictEqual(socket.listeners('data').length, 0);
 
