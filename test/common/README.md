@@ -139,6 +139,14 @@ consisting of all `ArrayBufferView` and an `ArrayBuffer`.
 
 Returns the file name and line number for the provided Function.
 
+### runWithInvalidFD(func)
+* `func` [&lt;Function>]
+
+Runs `func` with an invalid file descriptor that is an unsigned integer and
+can be used to trigger `EBADF` as the first argument. If no such file
+descriptor could be generated, a skip message will be printed and the `func`
+will not be run.
+
 ### globalCheck
 * [&lt;Boolean>]
 
