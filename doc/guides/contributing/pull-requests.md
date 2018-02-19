@@ -660,4 +660,4 @@ you can take a look at the
 [guide for writing tests in Node.js]: ../writing-tests.md
 [https://ci.nodejs.org/]: https://ci.nodejs.org/
 [IRC in the #node-dev channel]: https://webchat.freenode.net?channels=node-dev&uio=d4
-[Onboarding guide]: ../onboarding.md
+[Onboarding guide]: ../../onboarding.md
