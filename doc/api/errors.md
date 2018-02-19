@@ -793,12 +793,6 @@ An invalid symlink type was passed to the [`fs.symlink()`][] or
 
 An attempt was made to add more headers after the headers had already been sent.
 
-<a id="ERR_HTTP_INVALID_CHAR"></a>
-### ERR_HTTP_INVALID_CHAR
-
-An invalid character was found in an HTTP response status message (reason
-phrase).
-
 <a id="ERR_HTTP_INVALID_HEADER_VALUE"></a>
 ### ERR_HTTP_INVALID_HEADER_VALUE
 
@@ -814,11 +808,6 @@ Status code was outside the regular status code range (100-999).
 
 The `Trailer` header was set even though the transfer encoding does not support
 that.
-
-<a id="ERR_HTTP2_ALREADY_SHUTDOWN"></a>
-### ERR_HTTP2_ALREADY_SHUTDOWN
-
-Occurs with multiple attempts to shutdown an HTTP/2 session.
 
 <a id="ERR_HTTP2_ALTSVC_INVALID_ORIGIN"></a>
 ### ERR_HTTP2_ALTSVC_INVALID_ORIGIN
@@ -848,21 +837,11 @@ forbidden.
 For HTTP/2 requests using the `CONNECT` method, the `:scheme` pseudo-header is
 forbidden.
 
-<a id="ERR_HTTP2_FRAME_ERROR"></a>
-### ERR_HTTP2_FRAME_ERROR
-
-A failure occurred sending an individual frame on the HTTP/2 session.
-
 <a id="ERR_HTTP2_GOAWAY_SESSION"></a>
 ### ERR_HTTP2_GOAWAY_SESSION
 
 New HTTP/2 Streams may not be opened after the `Http2Session` has received a
 `GOAWAY` frame from the connected peer.
-
-<a id="ERR_HTTP2_HEADER_REQUIRED"></a>
-### ERR_HTTP2_HEADER_REQUIRED
-
-A required header was missing in an HTTP/2 message.
 
 <a id="ERR_HTTP2_HEADER_SINGLE_VALUE"></a>
 ### ERR_HTTP2_HEADER_SINGLE_VALUE
@@ -875,21 +854,10 @@ have only a single value.
 
 An additional headers was specified after an HTTP/2 response was initiated.
 
-<a id="ERR_HTTP2_HEADERS_OBJECT"></a>
-### ERR_HTTP2_HEADERS_OBJECT
-
-An HTTP/2 Headers Object was expected.
-
 <a id="ERR_HTTP2_HEADERS_SENT"></a>
 ### ERR_HTTP2_HEADERS_SENT
 
 An attempt was made to send multiple response headers.
-
-<a id="ERR_HTTP2_INFO_HEADERS_AFTER_RESPOND"></a>
-### ERR_HTTP2_INFO_HEADERS_AFTER_RESPOND
-
-HTTP/2 Informational headers must only be sent *prior* to calling the
-`Http2Stream.prototype.respond()` method.
 
 <a id="ERR_HTTP2_INFO_STATUS_NOT_ALLOWED"></a>
 ### ERR_HTTP2_INFO_STATUS_NOT_ALLOWED
@@ -1280,14 +1248,6 @@ strict compliance with the API specification (which in some cases may accept
 `func(undefined)` and `func()` are treated identically, and the
 [`ERR_INVALID_ARG_TYPE`][] error code may be used instead.
 
-<a id="ERR_MISSING_DYNAMIC_INSTANTIATE_HOOK"></a>
-### ERR_MISSING_DYNAMIC_INSTANTIATE_HOOK
-
-> Stability: 1 - Experimental
-
-An [ES6 module][] loader hook specified `format: 'dynamic` but did not provide a
-`dynamicInstantiate` hook.
-
 <a id="ERR_MISSING_MODULE"></a>
 ### ERR_MISSING_MODULE
 
@@ -1315,11 +1275,6 @@ would be possible by calling a callback more than once.
 ### ERR_NAPI_CONS_FUNCTION
 
 While using `N-API`, a constructor passed was not a function.
-
-<a id="ERR_NAPI_CONS_PROTOTYPE_OBJECT"></a>
-### ERR_NAPI_CONS_PROTOTYPE_OBJECT
-
-While using `N-API`, `Constructor.prototype` was not an object.
 
 <a id="ERR_NAPI_INVALID_DATAVIEW_ARGS"></a>
 ### ERR_NAPI_INVALID_DATAVIEW_ARGS
@@ -1362,11 +1317,6 @@ For example: `Buffer.write(string, encoding, offset[, length])`
 ### ERR_OUT_OF_RANGE
 
 A given value is out of the accepted range.
-
-<a id="ERR_PARSE_HISTORY_DATA"></a>
-### ERR_PARSE_HISTORY_DATA
-
-The `REPL` module was unable parse data from the REPL history file.
 
 <a id="ERR_REQUIRE_ESM"></a>
 ### ERR_REQUIRE_ESM
@@ -1523,11 +1473,6 @@ recommended to use 2048 bits or larger for stronger security.
 
 A TLS/SSL handshake timed out. In this case, the server must also abort the
 connection.
-
-<a id="ERR_TLS_RENEGOTIATION_FAILED"></a>
-### ERR_TLS_RENEGOTIATION_FAILED
-
-A TLS renegotiation request has failed in a non-specific way.
 
 <a id="ERR_TLS_REQUIRED_SERVER_NAME"></a>
 ### ERR_TLS_REQUIRED_SERVER_NAME

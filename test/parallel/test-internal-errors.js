@@ -305,19 +305,6 @@ assert.strictEqual(
   errors.message('ERR_ENCODING_NOT_SUPPORTED', ['enc']),
   'The "enc" encoding is not supported');
 
-// Test ERR_HTTP2_HEADER_REQUIRED
-assert.strictEqual(
-  errors.message('ERR_HTTP2_HEADER_REQUIRED', ['test']),
-  'The test header is required');
-
-// Test ERR_HTTP2_FRAME_ERROR
-assert.strictEqual(
-  errors.message('ERR_HTTP2_FRAME_ERROR', ['foo', 'bar', 'baz']),
-  'Error sending frame type foo for stream baz with code bar');
-assert.strictEqual(
-  errors.message('ERR_HTTP2_FRAME_ERROR', ['foo', 'bar']),
-  'Error sending frame type foo with code bar');
-
 // Test error messages for async_hooks
 assert.strictEqual(
   errors.message('ERR_ASYNC_CALLBACK', ['init']),
