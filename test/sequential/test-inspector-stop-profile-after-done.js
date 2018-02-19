@@ -23,12 +23,12 @@ async function runTests() {
   stderrString = await child.nextStderrString();
   assert.strictEqual(stderrString, '');
 
-  // session.send([
-  //   { 'method': 'Profiler.setSamplingInterval', 'params': { 'interval': 100 } },
-  //   { 'method': 'Profiler.enable' },
-  //   { 'method': 'Runtime.runIfWaitingForDebugger' },
-  //   { 'method': 'Profiler.start' }
-  // ]);
+  session.send([
+    { 'method': 'Profiler.setSamplingInterval', 'params': { 'interval': 100 } },
+    { 'method': 'Profiler.enable' },
+    { 'method': 'Runtime.runIfWaitingForDebugger' },
+    { 'method': 'Profiler.start' }
+  ]);
 
   // stderrString = await child.nextStderrString();
   // assert.strictEqual(stderrString, 'Debugger attached.')
