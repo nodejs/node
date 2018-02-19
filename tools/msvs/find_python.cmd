@@ -25,7 +25,7 @@ EXIT /B
 
 :: Query registry sub-tree for InstallPath
 :find-key
-FOR /F "delims=" %%a IN ('REG QUERY %1 /s  ^| findstr "2." ^| findstr InstallPath') DO IF NOT ERRORLEVEL 1 CALL :find-path %%a
+FOR /F "delims=" %%a IN ('REG QUERY %1 /s 2> NUL ^| findstr "2." ^| findstr InstallPath') DO IF NOT ERRORLEVEL 1 CALL :find-path %%a
 EXIT /B
 
 :: Parse the value of %1 as the path for python.exe

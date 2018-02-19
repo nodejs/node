@@ -166,8 +166,8 @@ if "%target%"=="Clean" rmdir /S /Q %~dp0deps\icu
 :no-depsicu
 
 echo Looking for Python 2.x
-call tools\msvs\find_python.cmd > NUL 2> NUL
-if errorlevel 1 echo Could not find Python installation & goto :exit
+call tools\msvs\find_python.cmd
+if errorlevel 1 echo Could not find Python & goto :exit
 
 call :getnodeversion || exit /b 1
 
