@@ -21,7 +21,7 @@ The `benchmark` module is used by tests to run benchmarks.
 
 ### runBenchmark(name, args, env)
 
-* `name` [&lt;String>] Name of benchmark suite to be run.
+* `name` [&lt;string>] Name of benchmark suite to be run.
 * `args` [&lt;Array>] Array of environment variable key/value pairs (ex:
   `n=1`) to be applied via `--set`.
 * `env` [&lt;Object>] Environment variables to be applied during the run.
@@ -41,12 +41,12 @@ Takes `whitelist` and concats that with predefined `knownGlobals`.
 A stream to push an array into a REPL
 
 ### busyLoop(time)
-* `time` [&lt;Number>]
+* `time` [&lt;number>]
 
 Blocks for `time` amount of time.
 
 ### canCreateSymLink()
-* return [&lt;Boolean>]
+* return [&lt;boolean>]
 
 Checks whether the current running process can create symlinks. On Windows, this
 returns `false` if the process running doesn't have privileges to create
@@ -67,7 +67,7 @@ failures.
 Platform normalizes the `dd` command
 
 ### enoughTestMem
-* [&lt;Boolean>]
+* [&lt;boolean>]
 
 Indicates if there is more than 1gb of total memory.
 
@@ -76,17 +76,17 @@ Indicates if there is more than 1gb of total memory.
 * `settings` [&lt;Object>]
   that must contain the `code` property plus any of the other following
   properties (some properties only apply for `AssertionError`):
-  * `code` [&lt;String>]
+  * `code` [&lt;string>]
     expected error must have this value for its `code` property.
   * `type` [&lt;Function>]
     expected error must be an instance of `type` and must be an Error subclass.
-  * `message` [&lt;String>] or [&lt;RegExp>]
+  * `message` [&lt;string>] or [&lt;RegExp>]
     if a string is provided for `message`, expected error must have it for its
     `message` property; if a regular expression is provided for `message`, the
     regular expression must match the `message` property of the expected error.
-  * `name` [&lt;String>]
+  * `name` [&lt;string>]
     expected error must have this value for its `name` property.
-  * `generatedMessage` [&lt;String>]
+  * `generatedMessage` [&lt;string>]
     (`AssertionError` only) expected error must have this value for its
     `generatedMessage` property.
   * `actual` &lt;any>
@@ -98,7 +98,7 @@ Indicates if there is more than 1gb of total memory.
   * `operator` &lt;any>
     (`AssertionError` only) expected error must have this value for its
     `operator` property.
-* `exact` [&lt;Number>] default = 1
+* `exact` [&lt;number>] default = 1
 * return [&lt;Function>]
 
   If `fn` is provided, it will be passed to `assert.throws` as first argument
@@ -109,14 +109,14 @@ Indicates if there is more than 1gb of total memory.
   test is complete, then the test will fail.
 
 ### expectWarning(name, expected)
-* `name` [&lt;String>]
-* `expected` [&lt;String>] | [&lt;Array>]
+* `name` [&lt;string>]
+* `expected` [&lt;string>] | [&lt;Array>]
 
 Tests whether `name` and `expected` are part of a raised warning.
 
 ### fileExists(pathname)
-* pathname [&lt;String>]
-* return [&lt;Boolean>]
+* pathname [&lt;string>]
+* return [&lt;boolean>]
 
 Checks if `pathname` exists
 
@@ -135,42 +135,42 @@ consisting of all `ArrayBufferView` and an `ArrayBuffer`.
 
 ### getCallSite(func)
 * `func` [&lt;Function>]
-* return [&lt;String>]
+* return [&lt;string>]
 
 Returns the file name and line number for the provided Function.
 
 ### globalCheck
-* [&lt;Boolean>]
+* [&lt;boolean>]
 
 Set to `false` if the test should not check for global leaks.
 
 ### hasCrypto
-* [&lt;Boolean>]
+* [&lt;boolean>]
 
 Indicates whether OpenSSL is available.
 
 ### hasFipsCrypto
-* [&lt;Boolean>]
+* [&lt;boolean>]
 
 Indicates `hasCrypto` and `crypto` with fips.
 
 ### hasIntl
-* [&lt;Boolean>]
+* [&lt;boolean>]
 
 Indicates if [internationalization] is supported.
 
 ### hasSmallICU
-* [&lt;Boolean>]
+* [&lt;boolean>]
 
 Indicates `hasIntl` and `small-icu` are supported.
 
 ### hasIPv6
-* [&lt;Boolean>]
+* [&lt;boolean>]
 
 Indicates whether `IPv6` is supported on this platform.
 
 ### hasMultiLocalhost
-* [&lt;Boolean>]
+* [&lt;boolean>]
 
 Indicates if there are multiple localhosts available.
 
@@ -193,58 +193,58 @@ be passed to `listener`. What's more, `process.stdout.writeTimes` is a count of
 the number of calls.
 
 ### inFreeBSDJail
-* [&lt;Boolean>]
+* [&lt;boolean>]
 
 Checks whether free BSD Jail is true or false.
 
 ### isAIX
-* [&lt;Boolean>]
+* [&lt;boolean>]
 
 Platform check for Advanced Interactive eXecutive (AIX).
 
 ### isAlive(pid)
-* `pid` [&lt;Number>]
-* return [&lt;Boolean>]
+* `pid` [&lt;number>]
+* return [&lt;boolean>]
 
 Attempts to 'kill' `pid`
 
 ### isFreeBSD
-* [&lt;Boolean>]
+* [&lt;boolean>]
 
 Platform check for Free BSD.
 
 ### isLinux
-* [&lt;Boolean>]
+* [&lt;boolean>]
 
 Platform check for Linux.
 
 ### isLinuxPPCBE
-* [&lt;Boolean>]
+* [&lt;boolean>]
 
 Platform check for Linux on PowerPC.
 
 ### isOSX
-* [&lt;Boolean>]
+* [&lt;boolean>]
 
 Platform check for macOS.
 
 ### isSunOS
-* [&lt;Boolean>]
+* [&lt;boolean>]
 
 Platform check for SunOS.
 
 ### isWindows
-* [&lt;Boolean>]
+* [&lt;boolean>]
 
 Platform check for Windows.
 
 ### isWOW64
-* [&lt;Boolean>]
+* [&lt;boolean>]
 
 Platform check for Windows 32-bit on Windows 64-bit.
 
 ### isCPPSymbolsNotMapped
-* [&lt;Boolean>]
+* [&lt;boolean>]
 
 Platform check for C++ symbols are mapped or not.
 
@@ -254,7 +254,7 @@ Platform check for C++ symbols are mapped or not.
 Indicates whether any globals are not on the `knownGlobals` list.
 
 ### localhostIPv4
-* [&lt;String>]
+* [&lt;string>]
 
 IP of `localhost`.
 
@@ -265,7 +265,7 @@ Array of IPV6 representations for `localhost`.
 
 ### mustCall([fn][, exact])
 * `fn` [&lt;Function>] default = () => {}
-* `exact` [&lt;Number>] default = 1
+* `exact` [&lt;number>] default = 1
 * return [&lt;Function>]
 
 Returns a function that calls `fn`. If the returned function has not been called
@@ -276,7 +276,7 @@ If `fn` is not provided, an empty function will be used.
 
 ### mustCallAsync([fn][, exact])
 * `fn` [&lt;Function>]
-* `exact` [&lt;Number>] default = 1
+* `exact` [&lt;number>] default = 1
 * return [&lt;Function>]
 
 The same as `mustCall()`, except that it is also checked that the Promise
@@ -287,7 +287,7 @@ function, if necessary wrapped as a promise.
 
 ### mustCallAtLeast([fn][, minimum])
 * `fn` [&lt;Function>] default = () => {}
-* `minimum` [&lt;Number>] default = 1
+* `minimum` [&lt;number>] default = 1
 * return [&lt;Function>]
 
 Returns a function that calls `fn`. If the returned function has not been called
@@ -297,44 +297,44 @@ fail.
 If `fn` is not provided, an empty function will be used.
 
 ### mustNotCall([msg])
-* `msg` [&lt;String>] default = 'function should not have been called'
+* `msg` [&lt;string>] default = 'function should not have been called'
 * return [&lt;Function>]
 
 Returns a function that triggers an `AssertionError` if it is invoked. `msg` is
 used as the error message for the `AssertionError`.
 
 ### nodeProcessAborted(exitCode, signal)
-* `exitCode` [&lt;Number>]
-* `signal` [&lt;String>]
-* return [&lt;Boolean>]
+* `exitCode` [&lt;number>]
+* `signal` [&lt;string>]
+* return [&lt;boolean>]
 
 Returns `true` if the exit code `exitCode` and/or signal name `signal` represent
 the exit code and/or signal name of a node process that aborted, `false`
 otherwise.
 
 ### opensslCli
-* [&lt;Boolean>]
+* [&lt;boolean>]
 
 Indicates whether 'opensslCli' is supported.
 
 ### platformTimeout(ms)
-* `ms` [&lt;Number>]
-* return [&lt;Number>]
+* `ms` [&lt;number>]
+* return [&lt;number>]
 
 Platform normalizes timeout.
 
 ### PIPE
-* [&lt;String>]
+* [&lt;string>]
 
 Path to the test socket.
 
 ### PORT
-* [&lt;Number>]
+* [&lt;number>]
 
 A port number for tests to use if one is needed.
 
 ### printSkipMessage(msg)
-* `msg` [&lt;String>]
+* `msg` [&lt;string>]
 
 Logs '1..0 # Skipped: ' + `msg`
 
@@ -349,7 +349,7 @@ Restore the original `process.stdout.write`. Used to restore `stdout` to its
 original state after calling [`common.hijackStdOut()`][].
 
 ### rootDir
-* [&lt;String>]
+* [&lt;string>]
 
 Path to the 'root' directory. either `/` or `c:\\` (windows)
 
@@ -359,7 +359,7 @@ Path to the 'root' directory. either `/` or `c:\\` (windows)
 Path to the project directory.
 
 ### skip(msg)
-* `msg` [&lt;String>]
+* `msg` [&lt;string>]
 
 Logs '1..0 # Skipped: ' + `msg` and exits with exit code `0`.
 
@@ -432,8 +432,8 @@ The `DNS` module provides utilities related to the `dns` built-in module.
 
 ### errorLookupMock(code, syscall)
 
-* `code` [&lt;String>] Defaults to `dns.mockedErrorCode`.
-* `syscall` [&lt;String>] Defaults to `dns.mockedSysCall`.
+* `code` [&lt;string>] Defaults to `dns.mockedErrorCode`.
+* `syscall` [&lt;string>] Defaults to `dns.mockedSysCall`.
 * return [&lt;Function>]
 
 A mock for the `lookup` option of `net.connect()` that would result in an error
@@ -451,7 +451,7 @@ The default `syscall` of errors generated by `errorLookupMock`.
 ### readDomainFromPacket(buffer, offset)
 
 * `buffer` [&lt;Buffer>]
-* `offset` [&lt;Number>]
+* `offset` [&lt;number>]
 * return [&lt;Object>]
 
 Reads the domain string from a packet and returns an object containing the
@@ -467,14 +467,14 @@ the packet depending on the type of packet.
 
 ### writeIPv6(ip)
 
-* `ip` [&lt;String>]
+* `ip` [&lt;string>]
 * return [&lt;Buffer>]
 
 Reads an IPv6 String and returns a Buffer containing the parts.
 
 ### writeDomainName(domain)
 
-* `domain` [&lt;String>]
+* `domain` [&lt;string>]
 * return [&lt;Buffer>]
 
 Reads a Domain String and returns a Buffer containing the domain.
@@ -502,26 +502,26 @@ files in the `test/fixtures` directory.
 
 ### fixtures.fixturesDir
 
-* [&lt;String>]
+* [&lt;string>]
 
 The absolute path to the `test/fixtures/` directory.
 
 ### fixtures.path(...args)
 
-* `...args` [&lt;String>]
+* `...args` [&lt;string>]
 
 Returns the result of `path.join(fixtures.fixturesDir, ...args)`.
 
 ### fixtures.readSync(args[, enc])
 
-* `args` [&lt;String>] | [&lt;Array>]
+* `args` [&lt;string>] | [&lt;Array>]
 
 Returns the result of
 `fs.readFileSync(path.join(fixtures.fixturesDir, ...args), 'enc')`.
 
 ### fixtures.readKey(arg[, enc])
 
-* `arg` [&lt;String>]
+* `arg` [&lt;string>]
 
 Returns the result of
 `fs.readFileSync(path.join(fixtures.fixturesDir, 'keys', arg), 'enc')`.
@@ -645,26 +645,26 @@ internet-related tests.
 ### internet.addresses
 
 * [&lt;Object>]
-  * `INET_HOST` [&lt;String>] A generic host that has registered common
+  * `INET_HOST` [&lt;string>] A generic host that has registered common
     DNS records, supports both IPv4 and IPv6, and provides basic HTTP/HTTPS
     services
-  * `INET4_HOST` [&lt;String>] A host that provides IPv4 services
-  * `INET6_HOST` [&lt;String>] A host that provides IPv6 services
-  * `INET4_IP` [&lt;String>] An accessible IPv4 IP, defaults to the
+  * `INET4_HOST` [&lt;string>] A host that provides IPv4 services
+  * `INET6_HOST` [&lt;string>] A host that provides IPv6 services
+  * `INET4_IP` [&lt;string>] An accessible IPv4 IP, defaults to the
     Google Public DNS IPv4 address
-  * `INET6_IP` [&lt;String>] An accessible IPv6 IP, defaults to the
+  * `INET6_IP` [&lt;string>] An accessible IPv6 IP, defaults to the
     Google Public DNS IPv6 address
-  * `INVALID_HOST` [&lt;String>] An invalid host that cannot be resolved
-  * `MX_HOST` [&lt;String>] A host with MX records registered
-  * `SRV_HOST` [&lt;String>] A host with SRV records registered
-  * `PTR_HOST` [&lt;String>] A host with PTR records registered
-  * `NAPTR_HOST` [&lt;String>] A host with NAPTR records registered
-  * `SOA_HOST` [&lt;String>] A host with SOA records registered
-  * `CNAME_HOST` [&lt;String>] A host with CNAME records registered
-  * `NS_HOST` [&lt;String>] A host with NS records registered
-  * `TXT_HOST` [&lt;String>] A host with TXT records registered
-  * `DNS4_SERVER` [&lt;String>] An accessible IPv4 DNS server
-  * `DNS6_SERVER` [&lt;String>] An accessible IPv6 DNS server
+  * `INVALID_HOST` [&lt;string>] An invalid host that cannot be resolved
+  * `MX_HOST` [&lt;string>] A host with MX records registered
+  * `SRV_HOST` [&lt;string>] A host with SRV records registered
+  * `PTR_HOST` [&lt;string>] A host with PTR records registered
+  * `NAPTR_HOST` [&lt;string>] A host with NAPTR records registered
+  * `SOA_HOST` [&lt;string>] A host with SOA records registered
+  * `CNAME_HOST` [&lt;string>] A host with CNAME records registered
+  * `NS_HOST` [&lt;string>] A host with NS records registered
+  * `TXT_HOST` [&lt;string>] A host with TXT records registered
+  * `DNS4_SERVER` [&lt;string>] An accessible IPv4 DNS server
+  * `DNS6_SERVER` [&lt;string>] An accessible IPv6 DNS server
 
 A set of addresses for internet-related tests. All properties are configurable
 via `NODE_TEST_*` environment variables. For example, to configure
@@ -676,7 +676,7 @@ variable `NODE_TEST_INET_HOST` to a specified host.
 The `tmpdir` module supports the use of a temporary directory for testing.
 
 ### path
-* [&lt;String>]
+* [&lt;string>]
 
 The realpath of the testing temporary directory.
 
@@ -696,13 +696,13 @@ implementation with tests from
 
 [&lt;Array>]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array
 [&lt;ArrayBufferView&#91;&#93;>]: https://developer.mozilla.org/en-US/docs/Web/API/ArrayBufferView
-[&lt;Boolean>]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#Boolean_type
 [&lt;Buffer>]: https://nodejs.org/api/buffer.html#buffer_class_buffer
 [&lt;Function>]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Function
-[&lt;Number>]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#Number_type
 [&lt;Object>]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object
 [&lt;RegExp>]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/RegExp
-[&lt;String>]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#String_type
+[&lt;boolean>]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#Boolean_type
+[&lt;number>]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#Number_type
+[&lt;string>]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#String_type
 [`common.hijackStdErr()`]: #hijackstderrlistener
 [`common.hijackStdOut()`]: #hijackstdoutlistener
 [internationalization]: https://github.com/nodejs/node/wiki/Intl
