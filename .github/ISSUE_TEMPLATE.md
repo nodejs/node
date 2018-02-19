@@ -1,10 +1,14 @@
 <!--
 Thank you for reporting an issue.
 
-This issue tracker is for bugs and issues found within Node.js core.
-If you require more general support please file an issue on our help
-repo. https://github.com/nodejs/help
+This issue tracker is exclusively for bugs and issues found within
+Node.js core: either a confirmed bug that manifests as a difference
+in documented behavior, or an unexpected program state such as
+a crash or a hang.
 
+If that is not the case or if you are unable to make judgement,
+please file an issue on our help repo instead:
+https://github.com/nodejs/help . This repo is actively tracked.
 
 Please fill in as much of the template below as you're able.
 
