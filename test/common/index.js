@@ -816,6 +816,19 @@ function restoreWritable(name) {
   delete process[name].writeTimes;
 }
 
+exports.runWithInvalidFD = function(func) {
+  let fd = 1 << 30;
+  // Get first known bad file descriptor. 1 << 30 is usually unlikely to
+  // be an valid one.
+  try {
+    while (fs.fstatSync(fd--) && fd > 0);
+  } catch (e) {
+    return func(fd);
+  }
+
+  exports.printSkipMessage('Could not generate an invalid fd');
+};
+
 exports.hijackStdout = hijackStdWritable.bind(null, 'stdout');
 exports.hijackStderr = hijackStdWritable.bind(null, 'stderr');
 exports.restoreStdout = restoreWritable.bind(null, 'stdout');
