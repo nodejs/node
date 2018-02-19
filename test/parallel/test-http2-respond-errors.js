@@ -5,95 +5,81 @@ const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
 const http2 = require('http2');
-const {
-  constants,
-  Http2Stream,
-  nghttp2ErrorString
-} = process.binding('http2');
-const { NghttpError } = require('internal/http2/util');
+const { Http2Stream } = process.binding('http2');
 
-// tests error handling within respond
-// - every other NGHTTP2 error from binding (should emit stream error)
-
-const specificTestKeys = [];
-
-const specificTests = [];
-
-const genericTests = Object.getOwnPropertyNames(constants)
-  .filter((key) => (
-    key.indexOf('NGHTTP2_ERR') === 0 && specificTestKeys.indexOf(key) < 0
-  ))
-  .map((key) => ({
-    ngError: constants[key],
-    error: {
-      code: 'ERR_HTTP2_ERROR',
-      type: NghttpError,
-      name: 'Error [ERR_HTTP2_ERROR]',
-      message: nghttp2ErrorString(constants[key])
-    },
-    type: 'stream'
-  }));
-
-
-const tests = specificTests.concat(genericTests);
-
-let currentError;
-
-// mock submitResponse because we only care about testing error handling
-Http2Stream.prototype.respond = () => currentError.ngError;
+const types = {
+  boolean: true,
+  function: () => {},
+  number: 1,
+  object: {},
+  array: [],
+  null: null,
+  symbol: Symbol('test')
+};
 
 const server = http2.createServer();
-server.on('stream', common.mustCall((stream, headers) => {
-  const errorMustCall = common.expectsError(currentError.error);
-  const errorMustNotCall = common.mustNotCall(
-    `${currentError.error.code} should emit on ${currentError.type}`
+
+Http2Stream.prototype.respond = () => 1;
+server.on('stream', common.mustCall((stream) => {
+
+  // Check for all possible TypeError triggers on options.getTrailers
+  Object.entries(types).forEach(([type, value]) => {
+    if (type === 'function') {
+      return;
+    }
+
+    common.expectsError(
+      () => stream.respond({
+        'content-type': 'text/plain'
+      }, {
+        ['getTrailers']: value
+      }),
+      {
+        type: TypeError,
+        code: 'ERR_INVALID_OPT_VALUE',
+        message: `The value "${String(value)}" is invalid ` +
+                  'for option "getTrailers"'
+      }
+    );
+  });
+
+  // Send headers
+  stream.respond({
+    'content-type': 'text/plain'
+  }, {
+    ['getTrailers']: () => common.mustCall()
+  });
+
+  // Should throw if headers already sent
+  common.expectsError(
+    () => stream.respond(),
+    {
+      type: Error,
+      code: 'ERR_HTTP2_HEADERS_SENT',
+      message: 'Response has already been initiated.'
+    }
   );
 
-  if (currentError.type === 'stream') {
-    stream.session.on('error', errorMustNotCall);
-    stream.on('error', errorMustCall);
-    stream.on('error', common.mustCall(() => {
-      stream.destroy();
-    }));
-  } else {
-    stream.session.once('error', errorMustCall);
-    stream.on('error', errorMustNotCall);
-  }
+  // Should throw if stream already destroyed
+  stream.destroy();
+  common.expectsError(
+    () => stream.respond(),
+    {
+      type: Error,
+      code: 'ERR_HTTP2_INVALID_STREAM',
+      message: 'The stream has been destroyed'
+    }
+  );
+}));
 
-  stream.respond();
-}, tests.length));
-
-server.listen(0, common.mustCall(() => runTest(tests.shift())));
-
-function runTest(test) {
-  const port = server.address().port;
-  const url = `http://localhost:${port}`;
-  const headers = {
-    ':path': '/',
-    ':method': 'POST',
-    ':scheme': 'http',
-    ':authority': `localhost:${port}`
-  };
-
-  const client = http2.connect(url);
-  const req = client.request(headers);
-  req.on('error', common.expectsError({
-    code: 'ERR_HTTP2_STREAM_ERROR',
-    type: Error,
-    message: 'Stream closed with error code 2'
-  }));
-
-  currentError = test;
-  req.resume();
-  req.end();
+server.listen(0, common.mustCall(() => {
+  const client = http2.connect(`http://localhost:${server.address().port}`);
+  const req = client.request();
 
   req.on('end', common.mustCall(() => {
     client.close();
-
-    if (!tests.length) {
-      server.close();
-    } else {
-      runTest(tests.shift());
-    }
+    server.close();
   }));
-}
+  req.resume();
+  req.end();
+}));
