@@ -292,8 +292,6 @@ console.error(err.message);
 The `error.stack` property is a string describing the point in the code at which
 the `Error` was instantiated.
 
-For example:
-
 ```txt
 Error: Things keep happening!
    at /home/gbusey/file.js:525:2
@@ -368,8 +366,6 @@ detailed [here](#errors_system_errors).
 A subclass of `Error` that indicates the failure of an assertion. Such errors
 commonly indicate inequality of actual and expected value.
 
-For example:
-
 ```js
 assert.strictEqual(1, 2);
 // AssertionError [ERR_ASSERTION]: 1 === 2
@@ -380,8 +376,6 @@ assert.strictEqual(1, 2);
 A subclass of `Error` that indicates that a provided argument was not within the
 set or range of acceptable values for a function; whether that is a numeric
 range, or outside the set of options for a given function parameter.
-
-For example:
 
 ```js
 require('net').connect(-1);
@@ -1298,9 +1292,8 @@ compiled with ICU support.
 <a id="ERR_NO_LONGER_SUPPORTED"></a>
 ### ERR_NO_LONGER_SUPPORTED
 
-A Node.js API was called in an unsupported manner.
-
-For example: `Buffer.write(string, encoding, offset[, length])`
+A Node.js API was called in an unsupported manner, such as
+`Buffer.write(string, encoding, offset[, length])`.
 
 <a id="ERR_OUT_OF_RANGE"></a>
 ### ERR_OUT_OF_RANGE

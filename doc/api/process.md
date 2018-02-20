@@ -58,8 +58,6 @@ The listener callback function is invoked with the exit code specified either
 by the [`process.exitCode`][] property, or the `exitCode` argument passed to the
 [`process.exit()`] method, as the only argument.
 
-For example:
-
 ```js
 process.on('exit', (code) => {
   console.log(`About to exit with code: ${code}`);
@@ -129,8 +127,6 @@ In asynchronous code, the `'unhandledRejection'` event is emitted when the list
 of unhandled rejections grows, and the `'rejectionHandled'` event is emitted
 when the list of unhandled rejections shrinks.
 
-For example:
-
 ```js
 const unhandledRejections = new Map();
 process.on('unhandledRejection', (reason, p) => {
@@ -160,8 +156,6 @@ behavior.
 
 The listener function is called with the `Error` object passed as the only
 argument.
-
-For example:
 
 ```js
 process.on('uncaughtException', (err) => {
@@ -229,8 +223,6 @@ The listener function is called with the following arguments:
 * `reason` {Error|any} The object with which the promise was rejected
   (typically an [`Error`][] object).
 * `p` the `Promise` that was rejected.
-
-For example:
 
 ```js
 process.on('unhandledRejection', (reason, p) => {
@@ -354,8 +346,6 @@ The signal handler will receive the signal's name (`'SIGINT'`,
 
 The name of each event will be the uppercase common name for the signal (e.g.
 `'SIGINT'` for `SIGINT` signals).
-
-For example:
 
 ```js
 // Begin reading from stdin so the process does not exit.
@@ -925,8 +915,6 @@ include the Node.js executable, the name of the script, or any options following
 the script name. These options are useful in order to spawn child processes with
 the same execution environment as the parent.
 
-For example:
-
 ```console
 $ node --harmony script.js --version
 ```
@@ -954,8 +942,6 @@ added: v0.1.100
 
 The `process.execPath` property returns the absolute pathname of the executable
 that started the Node.js process.
-
-For example:
 
 <!-- eslint-disable semi -->
 ```js
@@ -1228,8 +1214,6 @@ group.
 *Note*: Even though the name of this function is `process.kill()`, it is
 really just a signal sender, like the `kill` system call.  The signal sent may
 do something other than kill the target process.
-
-For example:
 
 ```js
 process.on('SIGHUP', () => {
@@ -1506,8 +1490,6 @@ tarball.
   - `'Boron'` for the 6.x LTS line beginning with 6.9.0.
   - `'Carbon'` for the 8.x LTS line beginning with 8.9.1.
 
-For example:
-
 <!-- eslint-skip -->
 ```js
 {
@@ -1711,8 +1693,6 @@ The `process.stdin` property returns a stream connected to
 `stdin` (fd `0`). It is a [`net.Socket`][] (which is a [Duplex][]
 stream) unless fd `0` refers to a file, in which case it is
 a [Readable][] stream.
-
-For example:
 
 ```js
 process.stdin.setEncoding('utf8');
