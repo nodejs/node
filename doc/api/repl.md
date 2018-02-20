@@ -96,7 +96,7 @@ are declared at the global scope.
 
 The default evaluator provides access to any variables that exist in the global
 scope. It is possible to expose a variable to the REPL explicitly by assigning
-it to the `context` object associated with each `REPLServer`.  For example:
+it to the `context` object associated with each `REPLServer`:
 
 ```js
 const repl = require('repl');
