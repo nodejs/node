@@ -25,9 +25,9 @@ async function runTests() {
 
   session.send([
     { 'method': 'Profiler.setSamplingInterval', 'params': { 'interval': 100 } },
-    { 'method': 'Profiler.enable' },
-    { 'method': 'Runtime.runIfWaitingForDebugger' },
-    { 'method': 'Profiler.start' }
+    // { 'method': 'Profiler.enable' },
+    // { 'method': 'Runtime.runIfWaitingForDebugger' },
+    // { 'method': 'Profiler.start' }
   ]);
 
   // stderrString = await child.nextStderrString();
