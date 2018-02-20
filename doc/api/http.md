@@ -748,10 +748,11 @@ changes:
 
 If a client connection emits an `'error'` event, it will be forwarded here.
 Listener of this event is responsible for closing/destroying the underlying
-socket. For example, one may wish to more gracefully close the socket with an
-HTTP '400 Bad Request' response instead of abruptly severing the connection.
+socket. For example, one may wish to more gracefully close the socket with a
+custom HTTP response instead of abruptly severing the connection.
 
-Default behavior is to destroy the socket immediately on malformed request.
+Default behavior is to close the socket with an HTTP '400 Bad Request' response
+if possible, otherwise the socket is immediately destroyed.
 
 `socket` is the [`net.Socket`][] object that the error originated from.
 
