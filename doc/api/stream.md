@@ -1148,8 +1148,6 @@ It will rarely be necessary to use `readable.wrap()` but the method has been
 provided as a convenience for interacting with older Node.js applications and
 libraries.
 
-For example:
-
 ```js
 const { OldReader } = require('./old-api-module.js');
 const { Readable } = require('stream');
@@ -1352,8 +1350,6 @@ inheritance. This can be accomplished by directly creating instances of the
 `stream.Writable`, `stream.Readable`, `stream.Duplex` or `stream.Transform`
 objects and passing appropriate methods as constructor options.
 
-For example:
-
 ```js
 const { Writable } = require('stream');
 
@@ -1394,8 +1390,6 @@ constructor and implement the `writable._write()` method. The
     [`stream._destroy()`][writable-_destroy] method.
   * `final` {Function} Implementation for the
     [`stream._final()`][stream-_final] method.
-
-For example:
 
 ```js
 const { Writable } = require('stream');
@@ -1644,8 +1638,6 @@ constructor and implement the `readable._read()` method.
     method.
   * `destroy` {Function} Implementation for the [`stream._destroy()`][readable-_destroy]
     method.
-
-For example:
 
 ```js
 const { Readable } = require('stream');
@@ -1903,8 +1895,6 @@ changes:
   * `writableHighWaterMark` {number} Sets `highWaterMark` for the writable side
     of the stream. Has no effect if `highWaterMark` is provided.
 
-For example:
-
 ```js
 const { Duplex } = require('stream');
 
@@ -2058,8 +2048,6 @@ on the Readable side is not consumed.
     [`stream._transform()`][stream-_transform] method.
   * `flush` {Function} Implementation for the [`stream._flush()`][stream-_flush]
     method.
-
-For example:
 
 ```js
 const { Transform } = require('stream');

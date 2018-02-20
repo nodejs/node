@@ -729,7 +729,7 @@ exports = { hello: false };  // Not exported, only available in the module
 ```
 
 When the `module.exports` property is being completely replaced by a new
-object, it is common to also reassign `exports`, for example:
+object, it is common to also reassign `exports`:
 
 <!-- eslint-disable func-name-matching -->
 ```js
