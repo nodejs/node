@@ -1,4 +1,4 @@
-# Issues
+# Issues [![Open Source Helpers](https://www.codetriage.com/nodejs/node/badges/users.svg)](https://www.codetriage.com/nodejs/node)
 
 * [How to Contribute in Issues](#how-to-contribute-in-issues)
 * [Asking for General Help](#asking-for-general-help)
@@ -22,6 +22,8 @@ contribute:
    of demonstrating that the issue reported is not a problem after all, or more
    often, by opening a Pull Request that changes some bit of something in
    `nodejs/node` in a concrete and reviewable manner.
+
+If you don't know what issues to look at, you can [subscribe to nodejs/node on CodeTriage](https://www.codetriage.com). The service will send you issues in your email that you can help to triage. If you get busy, it backs-off so you don't get overwhelmed.
 
 ## Asking for General Help
 
