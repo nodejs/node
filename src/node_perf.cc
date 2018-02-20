@@ -91,7 +91,8 @@ void PerformanceEntry::Notify(Environment* env,
     node::MakeCallback(env->isolate(),
                        env->process_object(),
                        env->performance_entry_callback(),
-                       1, &object);
+                       1, &object,
+                       node::async_context{0, 0}).ToLocalChecked();
   }
 }
 
