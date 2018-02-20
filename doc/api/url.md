@@ -951,9 +951,7 @@ The `url.format()` method returns a formatted URL string derived from
 Example:
 
 ```js
-const URL = require('url');
-
-URL.format({
+url.format({
   protocol: 'https',
   hostname: `example.com`,
   pathname: '/some/path',
