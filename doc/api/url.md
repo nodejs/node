@@ -948,8 +948,6 @@ changes:
 The `url.format()` method returns a formatted URL string derived from
 `urlObject`.
 
-Example:
-
 ```js
 url.format({
   protocol: 'https',
