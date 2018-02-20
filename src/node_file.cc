@@ -825,6 +825,7 @@ static void Symlink(const FunctionCallbackInfo<Value>& args) {
   if (req_wrap != nullptr) {  // symlink(target, path, flags, req)
     AsyncDestCall(env, req_wrap, args, "symlink", *path, path.length(), UTF8,
                   AfterNoArgs, uv_fs_symlink, *target, *path, flags);
+    req_wrap->SetReturnValue(args);
   } else {  // symlink(target, path, flags, undefinec, ctx)
     CHECK_EQ(argc, 5);
     fs_req_wrap req;
