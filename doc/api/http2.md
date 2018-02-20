@@ -1094,8 +1094,6 @@ received for this stream from the connected HTTP/2 server. The listener is
 invoked with two arguments: an Object containing the received
 [HTTP2 Headers Object][], and flags associated with the headers.
 
-For example:
-
 ```js
 const http2 = require('http2');
 const client = http2.connect('https://localhost');
@@ -2007,8 +2005,6 @@ Headers are represented as own-properties on JavaScript objects. The property
 keys will be serialized to lower-case. Property values should be strings (if
 they are not they will be coerced to strings) or an Array of strings (in order
 to send more than one value per header field).
-
-For example:
 
 ```js
 const headers = {

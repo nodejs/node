@@ -127,7 +127,7 @@ explanation go [here](https://github.com/nodejs/testing/issues/27).
 
 In the event a test needs a timer, consider using the
 `common.platformTimeout()` method. It allows setting specific timeouts
-depending on the platform. For example:
+depending on the platform:
 
 ```javascript
 const timer = setTimeout(fail, common.platformTimeout(4000));
@@ -259,9 +259,7 @@ features in JavaScript code in the `lib` directory. However, when writing
 tests, for the ease of backporting, it is encouraged to use those ES.Next
 features that can be used directly without a flag in
 [all maintained branches][]. [node.green][] lists available features
-in each release.
-
-For example:
+in each release, such as:
 
 - `let` and `const` over `var`
 - Template literals over string concatenation

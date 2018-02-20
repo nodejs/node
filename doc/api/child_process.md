@@ -226,8 +226,6 @@ a Promise for an object with `stdout` and `stderr` properties. In case of an
 error, a rejected promise is returned, with the same `error` object given in the
 callback, but with an additional two properties `stdout` and `stderr`.
 
-For example:
-
 ```js
 const util = require('util');
 const exec = util.promisify(require('child_process').exec);

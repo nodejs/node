@@ -22,8 +22,6 @@ The arguments passed to the completion callback depend on the method, but the
 first argument is always reserved for an exception. If the operation was
 completed successfully, then the first argument will be `null` or `undefined`.
 
-For example:
-
 ```js
 const fs = require('fs');
 
@@ -35,8 +33,6 @@ fs.unlink('/tmp/hello', (err) => {
 
 Exceptions that occur using synchronous operations are thrown immediately and
 may be handled using `try`/`catch`, or may be allowed to bubble up.
-
-For example:
 
 ```js
 const fs = require('fs');
@@ -403,7 +399,6 @@ A `fs.Stats` object provides information about a file.
 Objects returned from [`fs.stat()`][], [`fs.lstat()`][] and [`fs.fstat()`][] and
 their synchronous counterparts are of this type.
 
-For example:
 ```console
 Stats {
   dev: 2114,
@@ -702,9 +697,6 @@ Using `fs.access()` to check for the accessibility of a file before calling
 so introduces a race condition, since other processes may change the file's
 state between the two calls. Instead, user code should open/read/write the
 file directly and handle the error raised if the file is not accessible.
-
-For example:
-
 
 **write (NOT RECOMMENDED)**
 
@@ -1353,8 +1345,6 @@ Using `fs.exists()` to check for the existence of a file before calling
 so introduces a race condition, since other processes may change the file's
 state between the two calls. Instead, user code should open/read/write the
 file directly and handle the error raised if the file does not exist.
-
-For example:
 
 **write (NOT RECOMMENDED)**
 

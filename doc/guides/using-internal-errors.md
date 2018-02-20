@@ -99,8 +99,6 @@ special cases, they should only validate that the expected code is received
 and NOT validate the message.  This will reduce the amount of test change
 required when the message for an error changes.
 
-For example:
-
 ```js
 assert.throws(() => {
   socket.bind();

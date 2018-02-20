@@ -75,8 +75,6 @@ presses the `<Enter>`, or `<Return>` keys.
 The listener function is called with a string containing the single line of
 received input.
 
-For example:
-
 ```js
 rl.on('line', (input) => {
   console.log(`Received: ${input}`);
@@ -95,8 +93,6 @@ The `'pause'` event is emitted when one of the following occur:
   events [`SIGTSTP`][] and [`SIGCONT`][])
 
 The listener function is called without passing any arguments.
-
-For example:
 
 ```js
 rl.on('pause', () => {
@@ -133,8 +129,6 @@ not be emitted.
 
 The listener function is invoked without passing any arguments.
 
-For example:
-
 ```js
 rl.on('SIGCONT', () => {
   // `prompt` will automatically resume the stream
@@ -155,8 +149,6 @@ listeners registered when the `input` stream receives a `SIGINT`, the `'pause'`
 event will be emitted.
 
 The listener function is invoked without passing any arguments.
-
-For example:
 
 ```js
 rl.on('SIGINT', () => {
@@ -183,8 +175,6 @@ The `'pause'` and `'SIGCONT'` events will not be emitted if the `input` was
 paused before the process was sent to the background.
 
 The listener function is invoked without passing any arguments.
-
-For example:
 
 ```js
 rl.on('SIGTSTP', () => {
@@ -307,8 +297,6 @@ paused.
 If the `readline.Interface` was created with `output` set to `null` or
 `undefined` the `data` and `key` are not written.
 
-For example:
-
 ```js
 rl.write('Delete this!');
 // Simulate Ctrl+u to delete the line written previously
@@ -386,8 +374,6 @@ changes:
 
 The `readline.createInterface()` method creates a new `readline.Interface`
 instance.
-
-For example:
 
 ```js
 const readline = require('readline');

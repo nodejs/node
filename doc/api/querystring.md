@@ -108,8 +108,6 @@ It serializes the following types of values passed in `obj`:
 {string|number|boolean|string[]|number[]|boolean[]}
 Any other input values will be coerced to empty strings.
 
-For example:
-
 ```js
 querystring.stringify({ foo: 'bar', baz: ['qux', 'quux'], corge: '' });
 // returns 'foo=bar&baz=qux&baz=quux&corge='
