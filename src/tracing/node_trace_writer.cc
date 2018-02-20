@@ -2,7 +2,6 @@
 
 #include <string.h>
 #include <fcntl.h>
-#include <regex>  // NOLINT(build/c++11)
 
 #include "util.h"
 
