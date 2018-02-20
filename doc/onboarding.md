@@ -14,7 +14,7 @@ onboarding session.
 
 ## Fifteen minutes before the onboarding session
 
-* Prior to the onboarding session, add the new Collaborator to the
+* Prior to the onboarding session, add the new Collaborator to
   [the Collaborators team](https://github.com/orgs/nodejs/teams/collaborators), if
   they are not already part of it. Note that this is the step that gives the
   account elevated privileges, so do not perform this step (or any subsequent
