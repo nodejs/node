@@ -15,12 +15,10 @@ onboarding session.
 ## Fifteen minutes before the onboarding session
 
 * Prior to the onboarding session, add the new Collaborator to
-  [the Collaborators team](https://github.com/orgs/nodejs/teams/collaborators),
-  and to [the Members team](https://github.com/orgs/nodejs/teams/members) if
-  they are not already part of it. Note that this is the step that gives the
-  account elevated privileges, so do not perform this step (or any subsequent
-  steps) unless two-factor authentication is enabled on the new Collaborator's
-  GitHub account.
+  [the Collaborators team](https://github.com/orgs/nodejs/teams/collaborators).
+  Note that this is the step that gives the account elevated privileges, so do
+  not perform this step (or any subsequent steps) unless two-factor
+  authentication is enabled on the new Collaborator's GitHub account.
 
 ## Onboarding session
 
