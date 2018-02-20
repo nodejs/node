@@ -948,6 +948,24 @@ changes:
 The `url.format()` method returns a formatted URL string derived from
 `urlObject`.
 
+Example:
+
+```js
+const URL = require('url');
+
+URL.format({
+  protocol: 'https',
+  hostname: `example.com`,
+  pathname: '/some/path',
+  query: {
+    page: 1,
+    format: 'json'
+  }
+});
+
+// => 'https://example.com/some/path?page=1&format=json'
+```
+
 If `urlObject` is not an object or a string, `url.format()` will throw a
 [`TypeError`][].
 
