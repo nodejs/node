@@ -128,8 +128,8 @@ More Developer Tools...`. This step will install `clang`, `clang++`, and
 If the path to your build directory contains a space, the build will likely
 fail.
 
-After building, you may want to setup [firewall rules](tools/macosx-firewall.sh)
-to avoid popups asking to accept incoming network connections when running tests.
+After building, setting up [filewall rules](tools/macosx-firewall.sh) can avoid popups
+asking to accept incoming network connections when running tests.
 
 Running this script on macOS
 
