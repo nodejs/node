@@ -426,8 +426,6 @@ void AsyncWrap::WeakCallback(const v8::WeakCallbackInfo<DestroyParam>& info) {
   if (val->IsFalse()) {
     AsyncWrap::EmitDestroy(env, p->asyncId);
   }
-  p->target.Reset();
-  p->propBag.Reset();
   delete p;
 }
 

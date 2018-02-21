@@ -84,10 +84,6 @@ class JSBindingsConnection : public AsyncWrap {
     inspector->Connect(&delegate_);
   }
 
-  ~JSBindingsConnection() override {
-    callback_.Reset();
-  }
-
   void OnMessage(Local<Value> value) {
     MakeCallback(callback_.Get(env()->isolate()), 1, &value);
   }
@@ -111,7 +107,6 @@ class JSBindingsConnection : public AsyncWrap {
     delegate_.Disconnect();
     if (!persistent().IsEmpty()) {
       ClearWrap(object());
-      persistent().Reset();
     }
     delete this;
   }

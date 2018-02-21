@@ -225,14 +225,6 @@ class SSLWrap {
       SSL_SESSION_free(next_sess_);
       next_sess_ = nullptr;
     }
-
-#ifdef SSL_CTRL_SET_TLSEXT_SERVERNAME_CB
-    sni_context_.Reset();
-#endif
-
-#ifdef NODE__HAVE_TLSEXT_STATUS_CB
-    ocsp_response_.Reset();
-#endif  // NODE__HAVE_TLSEXT_STATUS_CB
   }
 
   inline SSL* ssl() const { return ssl_; }
