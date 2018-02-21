@@ -5463,8 +5463,8 @@ bool Heap::ConfigureHeap(size_t max_semi_space_size_in_kb,
 
   // The new space size must be a power of two to support single-bit testing
   // for containment.
-  max_semi_space_size_ = base::bits::RoundUpToPowerOfTwo32(
-      static_cast<uint32_t>(max_semi_space_size_));
+  max_semi_space_size_ = static_cast<size_t>(base::bits::RoundUpToPowerOfTwo64(
+      static_cast<uint64_t>(max_semi_space_size_)));
 
   if (max_semi_space_size_ == kMaxSemiSpaceSizeInKB * KB) {
     // Start with at least 1*MB semi-space on machines with a lot of memory.
