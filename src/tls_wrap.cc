@@ -86,12 +86,7 @@ TLSWrap::TLSWrap(Environment* env,
 TLSWrap::~TLSWrap() {
   enc_in_ = nullptr;
   enc_out_ = nullptr;
-
   sc_ = nullptr;
-
-#ifdef SSL_CTRL_SET_TLSEXT_SERVERNAME_CB
-  sni_context_.Reset();
-#endif  // SSL_CTRL_SET_TLSEXT_SERVERNAME_CB
 }
 
 
@@ -852,7 +847,6 @@ int TLSWrap::SelectSNIContextCallback(SSL* s, int* ad, void* arg) {
     return SSL_TLSEXT_ERR_NOACK;
   }
 
-  p->sni_context_.Reset();
   p->sni_context_.Reset(env->isolate(), ctx);
 
   SecureContext* sc = Unwrap<SecureContext>(ctx.As<Object>());

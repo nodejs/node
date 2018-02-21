@@ -157,7 +157,6 @@ class Parser : public AsyncWrap, public StreamListener {
 
   ~Parser() override {
     ClearWrap(object());
-    persistent().Reset();
   }
 
 
