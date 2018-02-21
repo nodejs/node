@@ -42,11 +42,6 @@ inline BaseObject::BaseObject(Environment* env, v8::Local<v8::Object> handle)
 }
 
 
-inline BaseObject::~BaseObject() {
-  CHECK(persistent_handle_.IsEmpty());
-}
-
-
 inline Persistent<v8::Object>& BaseObject::persistent() {
   return persistent_handle_;
 }
@@ -65,8 +60,7 @@ inline Environment* BaseObject::env() const {
 template <typename Type>
 inline void BaseObject::WeakCallback(
     const v8::WeakCallbackInfo<Type>& data) {
-  std::unique_ptr<Type> self(data.GetParameter());
-  self->persistent().Reset();
+  delete data.GetParameter();
 }
 
 

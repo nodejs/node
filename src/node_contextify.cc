@@ -109,11 +109,6 @@ ContextifyContext::ContextifyContext(
 }
 
 
-ContextifyContext::~ContextifyContext() {
-  context_.Reset();
-}
-
-
 // This is an object that just keeps an internal pointer to this
 // ContextifyContext.  It's passed to the NamedPropertyHandler.  If we
 // pass the main JavaScript context object we're embedded in, then the
@@ -1156,11 +1151,6 @@ class ContextifyScript : public BaseObject {
   ContextifyScript(Environment* env, Local<Object> object)
       : BaseObject(env, object) {
     MakeWeak<ContextifyScript>(this);
-  }
-
-
-  ~ContextifyScript() override {
-    script_.Reset();
   }
 };
 

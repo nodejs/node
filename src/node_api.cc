@@ -31,12 +31,6 @@ struct napi_env__ {
       : isolate(_isolate),
         last_error(),
         loop(_loop) {}
-  ~napi_env__() {
-    last_exception.Reset();
-    wrap_template.Reset();
-    function_data_template.Reset();
-    accessor_data_template.Reset();
-  }
   v8::Isolate* isolate;
   node::Persistent<v8::Value> last_exception;
   node::Persistent<v8::ObjectTemplate> wrap_template;
@@ -379,16 +373,6 @@ class Reference : private Finalizer {
           this, FinalizeCallback, v8::WeakCallbackType::kParameter);
       _persistent.MarkIndependent();
     }
-  }
-
-  ~Reference() {
-    // The V8 Persistent class currently does not reset in its destructor:
-    // see NonCopyablePersistentTraits::kResetInDestructor = false.
-    // (Comments there claim that might change in the future.)
-    // To avoid memory leaks, it is better to reset at this time, however
-    // care must be taken to avoid attempting this after the Isolate has
-    // shut down, for example via a static (atexit) destructor.
-    _persistent.Reset();
   }
 
  public:
@@ -857,7 +841,6 @@ napi_status ConcludeDeferred(napi_env env,
       v8_resolver->Resolve(context, v8impl::V8LocalValueFromJsValue(result)) :
       v8_resolver->Reject(context, v8impl::V8LocalValueFromJsValue(result));
 
-  deferred_ref->Reset();
   delete deferred_ref;
 
   RETURN_STATUS_IF_FALSE(env, success.FromMaybe(false), napi_generic_failure);
