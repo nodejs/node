@@ -128,7 +128,7 @@ RetainedObjectInfo* WrapperInfo(uint16_t class_id, Local<Value> wrapper) {
   CHECK_GT(object->InternalFieldCount(), 0);
 
   AsyncWrap* wrap = Unwrap<AsyncWrap>(object);
-  CHECK_NE(nullptr, wrap);
+  if (wrap == nullptr) return nullptr;  // ClearWrap() already called.
 
   return new RetainedAsyncInfo(class_id, wrap);
 }
