@@ -531,8 +531,6 @@ Http2Session::Http2Session(Environment* env,
 
 Http2Session::~Http2Session() {
   CHECK_EQ(flags_ & SESSION_STATE_HAS_SCOPE, 0);
-  if (!object().IsEmpty())
-    ClearWrap(object());
   DEBUG_HTTP2SESSION(this, "freeing nghttp2 session");
   nghttp2_session_del(session_);
 }
