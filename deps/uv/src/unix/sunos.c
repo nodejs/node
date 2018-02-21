@@ -73,7 +73,7 @@ int uv__platform_loop_init(uv_loop_t* loop) {
 
   fd = port_create();
   if (fd == -1)
-    return -errno;
+    return UV__ERR(errno);
 
   err = uv__cloexec(fd, 1);
   if (err) {
@@ -132,7 +132,7 @@ void uv__platform_invalidate_fd(uv_loop_t* loop, int fd) {
 
 int uv__io_check_fd(uv_loop_t* loop, int fd) {
   if (port_associate(loop->backend_fd, PORT_SOURCE_FD, fd, POLLIN, 0))
-    return -errno;
+    return UV__ERR(errno);
 
   if (port_dissociate(loop->backend_fd, PORT_SOURCE_FD, fd))
     abort();
@@ -342,7 +342,7 @@ int uv_exepath(char* buffer, size_t* size) {
   char buf[128];
 
   if (buffer == NULL || size == NULL || *size == 0)
-    return -EINVAL;
+    return UV_EINVAL;
 
   snprintf(buf, sizeof(buf), "/proc/%lu/path/a.out", (unsigned long) getpid());
 
@@ -351,7 +351,7 @@ int uv_exepath(char* buffer, size_t* size) {
     res = readlink(buf, buffer, res);
 
   if (res == -1)
-    return -errno;
+    return UV__ERR(errno);
 
   buffer[res] = '\0';
   *size = res;
@@ -378,14 +378,14 @@ void uv_loadavg(double avg[3]) {
 
 static int uv__fs_event_rearm(uv_fs_event_t *handle) {
   if (handle->fd == -1)
-    return -EBADF;
+    return UV_EBADF;
 
   if (port_associate(handle->loop->fs_fd,
                      PORT_SOURCE_FILE,
                      (uintptr_t) &handle->fo,
                      FILE_ATTRIB | FILE_MODIFIED,
                      handle) == -1) {
-    return -errno;
+    return UV__ERR(errno);
   }
   handle->fd = PORT_LOADED;
 
@@ -462,13 +462,13 @@ int uv_fs_event_start(uv_fs_event_t* handle,
   int err;
 
   if (uv__is_active(handle))
-    return -EINVAL;
+    return UV_EINVAL;
 
   first_run = 0;
   if (handle->loop->fs_fd == -1) {
     portfd = port_create();
     if (portfd == -1)
-      return -errno;
+      return UV__ERR(errno);
     handle->loop->fs_fd = portfd;
     first_run = 1;
   }
@@ -521,7 +521,7 @@ void uv__fs_event_close(uv_fs_event_t* handle) {
 #else /* !defined(PORT_SOURCE_FILE) */
 
 int uv_fs_event_init(uv_loop_t* loop, uv_fs_event_t* handle) {
-  return -ENOSYS;
+  return UV_ENOSYS;
 }
 
 
@@ -529,12 +529,12 @@ int uv_fs_event_start(uv_fs_event_t* handle,
                       uv_fs_event_cb cb,
                       const char* filename,
                       unsigned int flags) {
-  return -ENOSYS;
+  return UV_ENOSYS;
 }
 
 
 int uv_fs_event_stop(uv_fs_event_t* handle) {
-  return -ENOSYS;
+  return UV_ENOSYS;
 }
 
 
@@ -552,10 +552,10 @@ int uv_resident_set_memory(size_t* rss) {
 
   fd = open("/proc/self/psinfo", O_RDONLY);
   if (fd == -1)
-    return -errno;
+    return UV__ERR(errno);
 
   /* FIXME(bnoordhuis) Handle EINTR. */
-  err = -EINVAL;
+  err = UV_EINVAL;
   if (read(fd, &psinfo, sizeof(psinfo)) == sizeof(psinfo)) {
     *rss = (size_t)psinfo.pr_rssize * 1024;
     err = 0;
@@ -575,7 +575,7 @@ int uv_uptime(double* uptime) {
 
   kc = kstat_open();
   if (kc == NULL)
-    return -EPERM;
+    return UV_EPERM;
 
   ksp = kstat_lookup(kc, (char*) "unix", 0, (char*) "system_misc");
   if (kstat_read(kc, ksp, NULL) == -1) {
@@ -599,7 +599,7 @@ int uv_cpu_info(uv_cpu_info_t** cpu_infos, int* count) {
 
   kc = kstat_open();
   if (kc == NULL)
-    return -EPERM;
+    return UV_EPERM;
 
   /* Get count of cpus */
   lookup_instance = 0;
@@ -610,7 +610,7 @@ int uv_cpu_info(uv_cpu_info_t** cpu_infos, int* count) {
   *cpu_infos = uv__malloc(lookup_instance * sizeof(**cpu_infos));
   if (!(*cpu_infos)) {
     kstat_close(kc);
-    return -ENOMEM;
+    return UV_ENOMEM;
   }
 
   *count = lookup_instance;
@@ -692,7 +692,7 @@ void uv_free_cpu_info(uv_cpu_info_t* cpu_infos, int count) {
 
 #ifdef SUNOS_NO_IFADDRS
 int uv_interface_addresses(uv_interface_address_t** addresses, int* count) {
-  return -ENOSYS;
+  return UV_ENOSYS;
 }
 #else  /* SUNOS_NO_IFADDRS */
 /*
@@ -730,11 +730,11 @@ static int uv__set_phys_addr(uv_interface_address_t* address,
 
   sockfd = socket(AF_INET, SOCK_DGRAM, 0);
   if (sockfd < 0)
-    return -errno;
+    return UV__ERR(errno);
 
   if (ioctl(sockfd, SIOCGARP, (char*)&arpreq) == -1) {
     uv__close(sockfd);
-    return -errno;
+    return UV__ERR(errno);
   }
   memcpy(address->phys_addr, arpreq.arp_ha.sa_data, sizeof(address->phys_addr));
   uv__close(sockfd);
@@ -759,7 +759,7 @@ int uv_interface_addresses(uv_interface_address_t** addresses, int* count) {
   struct ifaddrs* ent;
 
   if (getifaddrs(&addrs))
-    return -errno;
+    return UV__ERR(errno);
 
   *count = 0;
 
@@ -773,7 +773,7 @@ int uv_interface_addresses(uv_interface_address_t** addresses, int* count) {
   *addresses = uv__malloc(*count * sizeof(**addresses));
   if (!(*addresses)) {
     freeifaddrs(addrs);
-    return -ENOMEM;
+    return UV_ENOMEM;
   }
 
   address = *addresses;

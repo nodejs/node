@@ -1559,6 +1559,7 @@ UV_EXTERN void uv_loop_set_data(uv_loop_t*, void* data);
 #undef UV_SIGNAL_PRIVATE_FIELDS
 #undef UV_LOOP_PRIVATE_FIELDS
 #undef UV_LOOP_PRIVATE_PLATFORM_FIELDS
+#undef UV__ERR
 
 #ifdef __cplusplus
 }

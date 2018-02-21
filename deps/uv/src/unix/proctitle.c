@@ -105,14 +105,14 @@ int uv_set_process_title(const char* title) {
 
 int uv_get_process_title(char* buffer, size_t size) {
   if (buffer == NULL || size == 0)
-    return -EINVAL;
+    return UV_EINVAL;
 
   uv_once(&process_title_mutex_once, init_process_title_mutex_once);
   uv_mutex_lock(&process_title_mutex);
 
   if (size <= process_title.len) {
     uv_mutex_unlock(&process_title_mutex);
-    return -ENOBUFS;
+    return UV_ENOBUFS;
   }
 
   if (process_title.len != 0)
