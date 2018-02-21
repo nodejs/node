@@ -36,8 +36,11 @@ class ModuleWrap : public BaseObject {
   static void Instantiate(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Evaluate(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Namespace(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void GetUrl(v8::Local<v8::String> property,
-                     const v8::PropertyCallbackInfo<v8::Value>& info);
+  static void GetStatus(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void GetError(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void GetStaticDependencySpecifiers(
+      const v8::FunctionCallbackInfo<v8::Value>& args);
+
   static void Resolve(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void SetImportModuleDynamicallyCallback(
       const v8::FunctionCallbackInfo<v8::Value>& args);
@@ -50,6 +53,7 @@ class ModuleWrap : public BaseObject {
   v8::Persistent<v8::String> url_;
   bool linked_ = false;
   std::unordered_map<std::string, v8::Persistent<v8::Promise>> resolve_cache_;
+  v8::Persistent<v8::Context> context_;
 };
 
 }  // namespace loader
