@@ -51,7 +51,7 @@ static void uv__fs_event(uv_loop_t* loop, uv__io_t* w, unsigned int fflags);
 int uv__kqueue_init(uv_loop_t* loop) {
   loop->backend_fd = kqueue();
   if (loop->backend_fd == -1)
-    return -errno;
+    return UV__ERR(errno);
 
   uv__cloexec(loop->backend_fd, 1);
 
@@ -98,7 +98,7 @@ int uv__io_check_fd(uv_loop_t* loop, int fd) {
   rc = 0;
   EV_SET(&ev, fd, EVFILT_READ, EV_ADD, 0, 0, 0);
   if (kevent(loop->backend_fd, &ev, 1, NULL, 0, NULL))
-    rc = -errno;
+    rc = UV__ERR(errno);
 
   EV_SET(&ev, fd, EVFILT_READ, EV_DELETE, 0, 0, 0);
   if (rc == 0)
@@ -458,12 +458,12 @@ int uv_fs_event_start(uv_fs_event_t* handle,
   int fd;
 
   if (uv__is_active(handle))
-    return -EINVAL;
+    return UV_EINVAL;
 
   /* TODO open asynchronously - but how do we report back errors? */
   fd = open(path, O_RDONLY);
   if (fd == -1)
-    return -errno;
+    return UV__ERR(errno);
 
   uv__handle_start(handle);
   uv__io_init(&handle->event_watcher, uv__fs_event, fd);
