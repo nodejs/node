@@ -14,7 +14,6 @@ using v8::HandleScope;
 using v8::Local;
 using v8::MaybeLocal;
 using v8::Object;
-using v8::Persistent;
 using v8::Promise;
 using v8::Undefined;
 using v8::Value;

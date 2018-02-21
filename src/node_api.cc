@@ -38,10 +38,10 @@ struct napi_env__ {
     accessor_data_template.Reset();
   }
   v8::Isolate* isolate;
-  v8::Persistent<v8::Value> last_exception;
-  v8::Persistent<v8::ObjectTemplate> wrap_template;
-  v8::Persistent<v8::ObjectTemplate> function_data_template;
-  v8::Persistent<v8::ObjectTemplate> accessor_data_template;
+  node::Persistent<v8::Value> last_exception;
+  node::Persistent<v8::ObjectTemplate> wrap_template;
+  node::Persistent<v8::ObjectTemplate> function_data_template;
+  node::Persistent<v8::ObjectTemplate> accessor_data_template;
   napi_extended_error_info last_error;
   int open_handle_scopes = 0;
   int open_callback_scopes = 0;
@@ -274,13 +274,13 @@ static_assert(sizeof(v8::Local<v8::Value>) == sizeof(napi_value),
   "Cannot convert between v8::Local<v8::Value> and napi_value");
 
 static
-napi_deferred JsDeferredFromV8Persistent(v8::Persistent<v8::Value>* local) {
+napi_deferred JsDeferredFromNodePersistent(node::Persistent<v8::Value>* local) {
   return reinterpret_cast<napi_deferred>(local);
 }
 
 static
-v8::Persistent<v8::Value>* V8PersistentFromJsDeferred(napi_deferred local) {
-  return reinterpret_cast<v8::Persistent<v8::Value>*>(local);
+node::Persistent<v8::Value>* NodePersistentFromJsDeferred(napi_deferred local) {
+  return reinterpret_cast<node::Persistent<v8::Value>*>(local);
 }
 
 static
@@ -360,7 +360,7 @@ class Finalizer {
   void* _finalize_hint;
 };
 
-// Wrapper around v8::Persistent that implements reference counting.
+// Wrapper around node::Persistent that implements reference counting.
 class Reference : private Finalizer {
  private:
   Reference(napi_env env,
@@ -470,7 +470,7 @@ class Reference : private Finalizer {
     }
   }
 
-  v8::Persistent<v8::Value> _persistent;
+  node::Persistent<v8::Value> _persistent;
   uint32_t _refcount;
   bool _delete_self;
 };
@@ -846,8 +846,8 @@ napi_status ConcludeDeferred(napi_env env,
   CHECK_ARG(env, result);
 
   v8::Local<v8::Context> context = env->isolate->GetCurrentContext();
-  v8::Persistent<v8::Value>* deferred_ref =
-      V8PersistentFromJsDeferred(deferred);
+  node::Persistent<v8::Value>* deferred_ref =
+      NodePersistentFromJsDeferred(deferred);
   v8::Local<v8::Value> v8_deferred =
       v8::Local<v8::Value>::New(env->isolate, *deferred_ref);
 
@@ -3493,10 +3493,10 @@ napi_status napi_create_promise(napi_env env,
   CHECK_MAYBE_EMPTY(env, maybe, napi_generic_failure);
 
   auto v8_resolver = maybe.ToLocalChecked();
-  auto v8_deferred = new v8::Persistent<v8::Value>();
+  auto v8_deferred = new node::Persistent<v8::Value>();
   v8_deferred->Reset(env->isolate, v8_resolver);
 
-  *deferred = v8impl::JsDeferredFromV8Persistent(v8_deferred);
+  *deferred = v8impl::JsDeferredFromNodePersistent(v8_deferred);
   *promise = v8impl::JsValueFromV8LocalValue(v8_resolver->GetPromise());
   return GET_RETURN_STATUS(env);
 }

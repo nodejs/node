@@ -322,7 +322,7 @@ class StreamBase : public StreamResource {
 // `OtherBase` must have a constructor that matches the `AsyncWrap`
 // constructors’s (Environment*, Local<Object>, AsyncWrap::Provider) signature
 // and be a subclass of `AsyncWrap`.
-template <typename OtherBase, bool kResetPersistentOnDestroy = true>
+template <typename OtherBase>
 class SimpleShutdownWrap : public ShutdownWrap, public OtherBase {
  public:
   SimpleShutdownWrap(StreamBase* stream,
@@ -333,7 +333,7 @@ class SimpleShutdownWrap : public ShutdownWrap, public OtherBase {
   size_t self_size() const override { return sizeof(*this); }
 };
 
-template <typename OtherBase, bool kResetPersistentOnDestroy = true>
+template <typename OtherBase>
 class SimpleWriteWrap : public WriteWrap, public OtherBase {
  public:
   SimpleWriteWrap(StreamBase* stream,
