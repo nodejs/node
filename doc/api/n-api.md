@@ -3433,7 +3433,7 @@ may be required when implementing custom async behavior that does not use
 
 ### *napi_open_callback_scope*
 <!-- YAML
-added: REPLACEME
+added: v9.6.0
 -->
 ```C
 NAPI_EXTERN napi_status napi_open_callback_scope(napi_env env,
@@ -3458,7 +3458,7 @@ the required scope.
 
 ### *napi_close_callback_scope*
 <!-- YAML
-added: REPLACEME
+added: v9.6.0
 -->
 ```C
 NAPI_EXTERN napi_status napi_close_callback_scope(napi_env env,

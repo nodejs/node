@@ -673,7 +673,7 @@ class DBQuery extends AsyncResource {
 
 #### `asyncResource.runInAsyncScope(fn[, thisArg, ...args])`
 <!-- YAML
-added: REPLACEME
+added: v9.6.0
 -->
 
 * `fn` {Function} The function to call in the execution context of this async
@@ -688,7 +688,7 @@ then restore the original execution context.
 
 #### `asyncResource.emitBefore()`
 <!-- YAML
-deprecated: REPLACEME
+deprecated: v9.6.0
 -->
 > Stability: 0 - Deprecated: Use [`asyncResource.runInAsyncScope()`][] instead.
 
@@ -706,7 +706,7 @@ alternative.
 
 #### `asyncResource.emitAfter()`
 <!-- YAML
-deprecated: REPLACEME
+deprecated: v9.6.0
 -->
 > Stability: 0 - Deprecated: Use [`asyncResource.runInAsyncScope()`][] instead.
 

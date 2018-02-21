@@ -45,7 +45,7 @@ console.log(x); // 1; y is not defined.
 
 ## Class: vm.Module
 <!-- YAML
-added: REPLACEME
+added: v9.6.0
 -->
 
 > Stability: 1 - Experimental
