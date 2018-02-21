@@ -50,7 +50,6 @@ using v8::NamedPropertyHandlerConfiguration;
 using v8::Nothing;
 using v8::Object;
 using v8::ObjectTemplate;
-using v8::Persistent;
 using v8::PropertyAttribute;
 using v8::PropertyCallbackInfo;
 using v8::PropertyDescriptor;

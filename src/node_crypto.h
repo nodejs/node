@@ -354,11 +354,11 @@ class SSLWrap {
   ClientHelloParser hello_parser_;
 
 #ifdef NODE__HAVE_TLSEXT_STATUS_CB
-  v8::Persistent<v8::Object> ocsp_response_;
+  Persistent<v8::Object> ocsp_response_;
 #endif  // NODE__HAVE_TLSEXT_STATUS_CB
 
 #ifdef SSL_CTRL_SET_TLSEXT_SERVERNAME_CB
-  v8::Persistent<v8::Value> sni_context_;
+  Persistent<v8::Value> sni_context_;
 #endif
 
   friend class SecureContext;
