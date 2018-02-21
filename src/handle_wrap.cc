@@ -98,11 +98,6 @@ HandleWrap::HandleWrap(Environment* env,
 }
 
 
-HandleWrap::~HandleWrap() {
-  CHECK(persistent().IsEmpty());
-}
-
-
 void HandleWrap::OnClose(uv_handle_t* handle) {
   HandleWrap* wrap = static_cast<HandleWrap*>(handle->data);
   Environment* env = wrap->env();
@@ -120,7 +115,6 @@ void HandleWrap::OnClose(uv_handle_t* handle) {
     wrap->MakeCallback(env->onclose_string(), 0, nullptr);
 
   ClearWrap(wrap->object());
-  wrap->persistent().Reset();
   delete wrap;
 }
 

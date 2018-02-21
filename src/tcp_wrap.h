@@ -55,7 +55,6 @@ class TCPWrap : public ConnectionWrap<TCPWrap, uv_tcp_t> {
 
   TCPWrap(Environment* env, v8::Local<v8::Object> object,
           ProviderType provider);
-  ~TCPWrap();
 
   static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void SetNoDelay(const v8::FunctionCallbackInfo<v8::Value>& args);

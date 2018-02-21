@@ -132,7 +132,6 @@ FileHandle::~FileHandle() {
   CHECK(!closing_);  // We should not be deleting while explicitly closing!
   Close();           // Close synchronously and emit warning
   CHECK(closed_);    // We have to be closed at the point
-  CHECK(persistent().IsEmpty());
 }
 
 

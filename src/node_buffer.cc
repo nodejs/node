@@ -102,7 +102,6 @@ class CallbackInfo {
                       FreeCallback callback,
                       char* data,
                       void* hint);
-  ~CallbackInfo();
   Persistent<ArrayBuffer> persistent_;
   FreeCallback const callback_;
   char* const data_;
@@ -143,11 +142,6 @@ CallbackInfo::CallbackInfo(Isolate* isolate,
   persistent_.SetWrapperClassId(BUFFER_ID);
   persistent_.MarkIndependent();
   isolate->AdjustAmountOfExternalAllocatedMemory(sizeof(*this));
-}
-
-
-CallbackInfo::~CallbackInfo() {
-  persistent_.Reset();
 }
 
 

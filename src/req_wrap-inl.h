@@ -25,7 +25,6 @@ template <typename T>
 ReqWrap<T>::~ReqWrap() {
   CHECK_EQ(req_.data, this);  // Assert that someone has called Dispatched().
   CHECK_EQ(false, persistent().IsEmpty());
-  persistent().Reset();
 }
 
 template <typename T>

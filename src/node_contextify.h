@@ -21,7 +21,6 @@ class ContextifyContext {
   ContextifyContext(Environment* env,
                     v8::Local<v8::Object> sandbox_obj,
                     v8::Local<v8::Object> options_obj);
-  ~ContextifyContext();
 
   v8::Local<v8::Value> CreateDataWrapper(Environment* env);
   v8::Local<v8::Context> CreateV8Context(Environment* env,

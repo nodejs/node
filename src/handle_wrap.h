@@ -75,7 +75,6 @@ class HandleWrap : public AsyncWrap {
              v8::Local<v8::Object> object,
              uv_handle_t* handle,
              AsyncWrap::ProviderType provider);
-  ~HandleWrap() override;
 
  private:
   friend class Environment;
