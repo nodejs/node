@@ -165,13 +165,23 @@ const errorTests = [
     send: '.break',
     expect: ''
   },
-  // Template expressions can cross lines
+  // Template expressions
   {
     send: '`io.js ${"1.0"',
+    expect: [
+      kSource,
+      kArrow,
+      '',
+      /^SyntaxError: /,
+      ''
+    ]
+  },
+  {
+    send: '`io.js ${',
     expect: '... '
   },
   {
-    send: '+ ".2"}`',
+    send: '"1.0" + ".2"}`',
     expect: '\'io.js 1.0.2\''
   },
   // Dot prefix in multiline commands aren't treated as commands
@@ -636,14 +646,68 @@ const errorTests = [
   },
   // Do not parse `...[]` as a REPL keyword
   {
-    send: '...[]\n',
-    expect: '... ... '
+    send: '...[]',
+    expect: [
+      kSource,
+      kArrow,
+      '',
+      /^SyntaxError: /,
+      ''
+    ]
   },
   // bring back the repl to prompt
   {
     send: '.break',
     expect: ''
-  }
+  },
+  {
+    send: 'console.log("Missing comma in arg list" process.version)',
+    expect: [
+      kSource,
+      kArrow,
+      '',
+      /^SyntaxError: /,
+      ''
+    ]
+  },
+  {
+    send: 'x = {\nfield\n{',
+    expect: [
+      '... ... {',
+      kArrow,
+      '',
+      /^SyntaxError: /,
+      ''
+    ]
+  },
+  {
+    send: '(2 + 3))',
+    expect: [
+      kSource,
+      kArrow,
+      '',
+      /^SyntaxError: /,
+      ''
+    ]
+  },
+  {
+    send: 'if (typeof process === "object"); {',
+    expect: '... '
+  },
+  {
+    send: 'console.log("process is defined");',
+    expect: '... '
+  },
+  {
+    send: '} else {',
+    expect: [
+      kSource,
+      kArrow,
+      '',
+      /^SyntaxError: /,
+      ''
+    ]
+  },
 ];
 
 const tcpTests = [
