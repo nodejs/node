@@ -161,6 +161,7 @@ struct MaybeBoolFlag {
 #define DEFINE_INT(nam, def, cmt) FLAG(INT, int, nam, def, cmt)
 #define DEFINE_UINT(nam, def, cmt) FLAG(UINT, unsigned int, nam, def, cmt)
 #define DEFINE_FLOAT(nam, def, cmt) FLAG(FLOAT, double, nam, def, cmt)
+#define DEFINE_SIZE_T(nam, def, cmt) FLAG(SIZE_T, size_t, nam, def, cmt)
 #define DEFINE_STRING(nam, def, cmt) FLAG(STRING, const char*, nam, def, cmt)
 #define DEFINE_ARGS(nam, cmt) \
   FLAG(ARGS, JSArguments, nam, {0 COMMA nullptr}, cmt)
@@ -168,6 +169,7 @@ struct MaybeBoolFlag {
 #define DEFINE_ALIAS_BOOL(alias, nam) FLAG_ALIAS(BOOL, bool, alias, nam)
 #define DEFINE_ALIAS_INT(alias, nam) FLAG_ALIAS(INT, int, alias, nam)
 #define DEFINE_ALIAS_FLOAT(alias, nam) FLAG_ALIAS(FLOAT, double, alias, nam)
+#define DEFINE_ALIAS_SIZE_T(alias, nam) FLAG_ALIAS(SIZE_T, size_t, alias, nam)
 #define DEFINE_ALIAS_STRING(alias, nam) \
   FLAG_ALIAS(STRING, const char*, alias, nam)
 #define DEFINE_ALIAS_ARGS(alias, nam) FLAG_ALIAS(ARGS, JSArguments, alias, nam)
@@ -580,18 +582,18 @@ DEFINE_INT(generic_ic_threshold, 30,
 DEFINE_INT(self_opt_count, 130, "call count before self-optimization")
 
 // Garbage collections flags.
-DEFINE_INT(min_semi_space_size, 0,
-           "min size of a semi-space (in MBytes), the new space consists of two"
-           "semi-spaces")
-DEFINE_INT(max_semi_space_size, 0,
-           "max size of a semi-space (in MBytes), the new space consists of two"
-           "semi-spaces")
+DEFINE_SIZE_T(min_semi_space_size, 0,
+              "min size of a semi-space (in MBytes), the new space consists of "
+              "two semi-spaces")
+DEFINE_SIZE_T(max_semi_space_size, 0,
+              "max size of a semi-space (in MBytes), the new space consists of "
+              "two semi-spaces")
 DEFINE_INT(semi_space_growth_factor, 2, "factor by which to grow the new space")
 DEFINE_BOOL(experimental_new_space_growth_heuristic, false,
             "Grow the new space based on the percentage of survivors instead "
             "of their absolute value.")
-DEFINE_INT(max_old_space_size, 0, "max size of the old space (in Mbytes)")
-DEFINE_INT(initial_old_space_size, 0, "initial old space size (in Mbytes)")
+DEFINE_SIZE_T(max_old_space_size, 0, "max size of the old space (in Mbytes)")
+DEFINE_SIZE_T(initial_old_space_size, 0, "initial old space size (in Mbytes)")
 DEFINE_BOOL(gc_global, false, "always perform global GCs")
 DEFINE_INT(gc_interval, -1, "garbage collect after <n> allocations")
 DEFINE_INT(retain_maps_for_n_gc, 2,
