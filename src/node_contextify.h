@@ -15,7 +15,7 @@ class ContextifyContext {
   enum { kSandboxObjectIndex = 1 };
 
   Environment* const env_;
-  v8::Persistent<v8::Context> context_;
+  Persistent<v8::Context> context_;
 
  public:
   ContextifyContext(Environment* env,
