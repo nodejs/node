@@ -4535,7 +4535,8 @@ int _StopEnv() {
   context_scope = nullptr;
 
   if (!context.IsEmpty()) {
-    delete *context;
+    // No need to delete the context value (delete *context),
+    // this is already done by deleting the context_scope above.
     context.Clear();
   }
 
@@ -4676,8 +4677,6 @@ void _StartEnv(int argc,
                int v8_argc,
                const char* const* v8_argv,
                const bool allow_repl) {
-  std::cout << "Starting environment" << std::endl;
-
   _environment->Start(argc, argv, v8_argc, v8_argv, v8_is_profiling);
 
   const char* path = argc > 1 ? argv[1] : nullptr;
@@ -4755,8 +4754,9 @@ void Initialize(int argc, const char** argv, const bool allow_repl) {
 
 int Deinitialize() {
   // Empty event queue
-  Evaluate("process.exit();");
-  while (ProcessEvents()) { }
+  // TODO(cf): Investigate when this is really needed.
+  // Evaluate("process.exit();");
+  // while (ProcessEvents()) { }
 
   auto exit_code = deinitialize::_StopEnv();
 
