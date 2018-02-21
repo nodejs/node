@@ -1061,11 +1061,16 @@ int uv_spawn(uv_loop_t* loop,
   process_flags = CREATE_UNICODE_ENVIRONMENT;
 
   if (options->flags & UV_PROCESS_WINDOWS_HIDE) {
+    /* Avoid creating console window if stdio is not inherited. */
+    for (i = 0; i < options->stdio_count; i++) {
+      if (options->stdio[i].flags & UV_INHERIT_FD)
+        break;
+      if (i == options->stdio_count - 1)
+        process_flags |= CREATE_NO_WINDOW;
+    }
+
     /* Use SW_HIDE to avoid any potential process window. */
     startup.wShowWindow = SW_HIDE;
-
-    /* Hide console windows. */
-    process_flags |= CREATE_NO_WINDOW;
   } else {
     startup.wShowWindow = SW_SHOWDEFAULT;
   }

@@ -37,7 +37,7 @@ int uv__platform_loop_init(uv_loop_t* loop) {
   loop->cf_state = NULL;
 
   if (uv__kqueue_init(loop))
-    return -errno;
+    return UV__ERR(errno);
 
   return 0;
 }
@@ -68,18 +68,18 @@ int uv_exepath(char* buffer, size_t* size) {
   size_t abspath_size;
 
   if (buffer == NULL || size == NULL || *size == 0)
-    return -EINVAL;
+    return UV_EINVAL;
 
   exepath_size = sizeof(exepath);
   if (_NSGetExecutablePath(exepath, &exepath_size))
-    return -EIO;
+    return UV_EIO;
 
   if (realpath(exepath, abspath) != abspath)
-    return -errno;
+    return UV__ERR(errno);
 
   abspath_size = strlen(abspath);
   if (abspath_size == 0)
-    return -EIO;
+    return UV_EIO;
 
   *size -= 1;
   if (*size > abspath_size)
@@ -98,7 +98,7 @@ uint64_t uv_get_free_memory(void) {
 
   if (host_statistics(mach_host_self(), HOST_VM_INFO,
                       (host_info_t)&info, &count) != KERN_SUCCESS) {
-    return -EINVAL;  /* FIXME(bnoordhuis) Translate error. */
+    return UV_EINVAL;  /* FIXME(bnoordhuis) Translate error. */
   }
 
   return (uint64_t) info.free_count * sysconf(_SC_PAGESIZE);
@@ -111,7 +111,7 @@ uint64_t uv_get_total_memory(void) {
   size_t size = sizeof(info);
 
   if (sysctl(which, 2, &info, &size, NULL, 0))
-    return -errno;
+    return UV__ERR(errno);
 
   return (uint64_t) info;
 }
@@ -158,7 +158,7 @@ int uv_uptime(double* uptime) {
   static int which[] = {CTL_KERN, KERN_BOOTTIME};
 
   if (sysctl(which, 2, &info, &size, NULL, 0))
-    return -errno;
+    return UV__ERR(errno);
 
   now = time(NULL);
   *uptime = now - info.tv_sec;
@@ -181,23 +181,23 @@ int uv_cpu_info(uv_cpu_info_t** cpu_infos, int* count) {
   size = sizeof(model);
   if (sysctlbyname("machdep.cpu.brand_string", &model, &size, NULL, 0) &&
       sysctlbyname("hw.model", &model, &size, NULL, 0)) {
-    return -errno;
+    return UV__ERR(errno);
   }
 
   size = sizeof(cpuspeed);
   if (sysctlbyname("hw.cpufrequency", &cpuspeed, &size, NULL, 0))
-    return -errno;
+    return UV__ERR(errno);
 
   if (host_processor_info(mach_host_self(), PROCESSOR_CPU_LOAD_INFO, &numcpus,
                           (processor_info_array_t*)&info,
                           &msg_type) != KERN_SUCCESS) {
-    return -EINVAL;  /* FIXME(bnoordhuis) Translate error. */
+    return UV_EINVAL;  /* FIXME(bnoordhuis) Translate error. */
   }
 
   *cpu_infos = uv__malloc(numcpus * sizeof(**cpu_infos));
   if (!(*cpu_infos)) {
     vm_deallocate(mach_task_self(), (vm_address_t)info, msg_type);
-    return -ENOMEM;
+    return UV_ENOMEM;
   }
 
   *count = numcpus;
