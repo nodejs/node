@@ -27,15 +27,15 @@ async function runTests() {
     { 'method': 'Profiler.setSamplingInterval', 'params': { 'interval': 100 } },
     { 'method': 'Profiler.enable' },
     { 'method': 'Runtime.runIfWaitingForDebugger' },
-    // { 'method': 'Profiler.start' }
+    { 'method': 'Profiler.start' }
   ]);
 
   stderrString = await child.nextStderrString();
   assert.strictEqual(stderrString, 'Debugger attached.')
   stderrString = await child.nextStderrString();
   assert.strictEqual(stderrString, '');
-  // stderrString = await child.nextStderrString();
-  // assert.strictEqual(stderrString, 'Waiting for the debugger to disconnect...');
+  stderrString = await child.nextStderrString();
+  assert.strictEqual(stderrString, 'Waiting for the debugger to disconnect...');
 
   // await session.send({ 'method': 'Profiler.stop' });
   // session.disconnect();
