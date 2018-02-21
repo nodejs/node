@@ -24,6 +24,7 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
+#include "node_persistent.h"
 #include "v8.h"
 
 namespace node {
@@ -39,12 +40,7 @@ class BaseObject {
   // persistent.IsEmpty() is true.
   inline v8::Local<v8::Object> object();
 
-  // The parent class is responsible for calling .Reset() on destruction
-  // when the persistent handle is strong because there is no way for
-  // BaseObject to know when the handle goes out of scope.
-  // Weak handles have been reset by the time the destructor runs but
-  // calling .Reset() again is harmless.
-  inline v8::Persistent<v8::Object>& persistent();
+  inline Persistent<v8::Object>& persistent();
 
   inline Environment* env() const;
 
@@ -71,7 +67,7 @@ class BaseObject {
   // position of members in memory are predictable. For more information please
   // refer to `doc/guides/node-postmortem-support.md`
   friend int GenDebugSymbols();
-  v8::Persistent<v8::Object> persistent_handle_;
+  Persistent<v8::Object> persistent_handle_;
   Environment* env_;
 };
 

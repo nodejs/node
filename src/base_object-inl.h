@@ -47,7 +47,7 @@ inline BaseObject::~BaseObject() {
 }
 
 
-inline v8::Persistent<v8::Object>& BaseObject::persistent() {
+inline Persistent<v8::Object>& BaseObject::persistent() {
   return persistent_handle_;
 }
 

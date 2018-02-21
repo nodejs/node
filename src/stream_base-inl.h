@@ -223,8 +223,8 @@ inline StreamWriteResult StreamBase::Write(
   return StreamWriteResult { async, err, req_wrap };
 }
 
-template<typename OtherBase, bool kResetPersistent>
-SimpleShutdownWrap<OtherBase, kResetPersistent>::SimpleShutdownWrap(
+template <typename OtherBase>
+SimpleShutdownWrap<OtherBase>::SimpleShutdownWrap(
     StreamBase* stream,
     v8::Local<v8::Object> req_wrap_obj)
   : ShutdownWrap(stream, req_wrap_obj),
@@ -234,14 +234,9 @@ SimpleShutdownWrap<OtherBase, kResetPersistent>::SimpleShutdownWrap(
   Wrap(req_wrap_obj, static_cast<AsyncWrap*>(this));
 }
 
-template<typename OtherBase, bool kResetPersistent>
-SimpleShutdownWrap<OtherBase, kResetPersistent>::~SimpleShutdownWrap() {
+template <typename OtherBase>
+SimpleShutdownWrap<OtherBase>::~SimpleShutdownWrap() {
   ClearWrap(static_cast<AsyncWrap*>(this)->object());
-  if (kResetPersistent) {
-    auto& persistent = static_cast<AsyncWrap*>(this)->persistent();
-    CHECK_EQ(persistent.IsEmpty(), false);
-    persistent.Reset();
-  }
 }
 
 inline ShutdownWrap* StreamBase::CreateShutdownWrap(
@@ -249,8 +244,8 @@ inline ShutdownWrap* StreamBase::CreateShutdownWrap(
   return new SimpleShutdownWrap<AsyncWrap>(this, object);
 }
 
-template<typename OtherBase, bool kResetPersistent>
-SimpleWriteWrap<OtherBase, kResetPersistent>::SimpleWriteWrap(
+template <typename OtherBase>
+SimpleWriteWrap<OtherBase>::SimpleWriteWrap(
     StreamBase* stream,
     v8::Local<v8::Object> req_wrap_obj)
   : WriteWrap(stream, req_wrap_obj),
@@ -260,14 +255,9 @@ SimpleWriteWrap<OtherBase, kResetPersistent>::SimpleWriteWrap(
   Wrap(req_wrap_obj, static_cast<AsyncWrap*>(this));
 }
 
-template<typename OtherBase, bool kResetPersistent>
-SimpleWriteWrap<OtherBase, kResetPersistent>::~SimpleWriteWrap() {
+template <typename OtherBase>
+SimpleWriteWrap<OtherBase>::~SimpleWriteWrap() {
   ClearWrap(static_cast<AsyncWrap*>(this)->object());
-  if (kResetPersistent) {
-    auto& persistent = static_cast<AsyncWrap*>(this)->persistent();
-    CHECK_EQ(persistent.IsEmpty(), false);
-    persistent.Reset();
-  }
 }
 
 inline WriteWrap* StreamBase::CreateWriteWrap(

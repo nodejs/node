@@ -24,6 +24,7 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
+#include "node_persistent.h"
 #include "v8.h"
 
 #include <assert.h>
@@ -218,7 +219,7 @@ inline ContainerOfHelper<Inner, Outer> ContainerOf(Inner Outer::*field,
 template <class TypeName>
 inline v8::Local<TypeName> PersistentToLocal(
     v8::Isolate* isolate,
-    const v8::Persistent<TypeName>& persistent);
+    const Persistent<TypeName>& persistent);
 
 // Unchecked conversion from a non-weak Persistent<T> to Local<TLocal<T>,
 // use with care!
@@ -227,12 +228,12 @@ inline v8::Local<TypeName> PersistentToLocal(
 // scope, it will destroy the reference to the object.
 template <class TypeName>
 inline v8::Local<TypeName> StrongPersistentToLocal(
-    const v8::Persistent<TypeName>& persistent);
+    const Persistent<TypeName>& persistent);
 
 template <class TypeName>
 inline v8::Local<TypeName> WeakPersistentToLocal(
     v8::Isolate* isolate,
-    const v8::Persistent<TypeName>& persistent);
+    const Persistent<TypeName>& persistent);
 
 // Convenience wrapper around v8::String::NewFromOneByte().
 inline v8::Local<v8::String> OneByteString(v8::Isolate* isolate,
