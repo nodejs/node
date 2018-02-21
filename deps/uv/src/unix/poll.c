@@ -47,7 +47,7 @@ static void uv__poll_io(uv_loop_t* loop, uv__io_t* w, unsigned int events) {
   if ((events & POLLERR) && !(events & UV__POLLPRI)) {
     uv__io_stop(loop, w, POLLIN | POLLOUT | UV__POLLRDHUP | UV__POLLPRI);
     uv__handle_stop(handle);
-    handle->poll_cb(handle, -EBADF, 0);
+    handle->poll_cb(handle, UV_EBADF, 0);
     return;
   }
 
@@ -76,7 +76,7 @@ int uv_poll_init(uv_loop_t* loop, uv_poll_t* handle, int fd) {
    * Workaround for e.g. kqueue fds not supporting ioctls.
    */
   err = uv__nonblock(fd, 1);
-  if (err == -ENOTTY)
+  if (err == UV_ENOTTY)
     if (uv__nonblock == uv__nonblock_ioctl)
       err = uv__nonblock_fcntl(fd, 1);
 

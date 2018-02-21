@@ -89,7 +89,7 @@ static int maybe_new_socket(uv_tcp_t* handle, int domain, unsigned long flags) {
       slen = sizeof(saddr);
       memset(&saddr, 0, sizeof(saddr));
       if (getsockname(uv__stream_fd(handle), (struct sockaddr*) &saddr, &slen))
-        return -errno;
+        return UV__ERR(errno);
 
       if ((saddr.ss_family == AF_INET6 &&
           ((struct sockaddr_in6*) &saddr)->sin6_port != 0) ||
@@ -102,7 +102,7 @@ static int maybe_new_socket(uv_tcp_t* handle, int domain, unsigned long flags) {
 
       /* Bind to arbitrary port */
       if (bind(uv__stream_fd(handle), (struct sockaddr*) &saddr, slen))
-        return -errno;
+        return UV__ERR(errno);
     }
 
     handle->flags |= flags;
@@ -119,10 +119,10 @@ int uv_tcp_init_ex(uv_loop_t* loop, uv_tcp_t* tcp, unsigned int flags) {
   /* Use the lower 8 bits for the domain */
   domain = flags & 0xFF;
   if (domain != AF_INET && domain != AF_INET6 && domain != AF_UNSPEC)
-    return -EINVAL;
+    return UV_EINVAL;
 
   if (flags & ~0xFF)
-    return -EINVAL;
+    return UV_EINVAL;
 
   uv__stream_init(loop, (uv_stream_t*)tcp, UV_TCP);
 
@@ -156,7 +156,7 @@ int uv__tcp_bind(uv_tcp_t* tcp,
 
   /* Cannot set IPv6-only mode on non-IPv6 socket. */
   if ((flags & UV_TCP_IPV6ONLY) && addr->sa_family != AF_INET6)
-    return -EINVAL;
+    return UV_EINVAL;
 
   err = maybe_new_socket(tcp,
                          addr->sa_family,
@@ -166,7 +166,7 @@ int uv__tcp_bind(uv_tcp_t* tcp,
 
   on = 1;
   if (setsockopt(tcp->io_watcher.fd, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on)))
-    return -errno;
+    return UV__ERR(errno);
 
 #ifdef IPV6_V6ONLY
   if (addr->sa_family == AF_INET6) {
@@ -178,9 +178,9 @@ int uv__tcp_bind(uv_tcp_t* tcp,
                    sizeof on) == -1) {
 #if defined(__MVS__)
       if (errno == EOPNOTSUPP)
-        return -EINVAL;
+        return UV_EINVAL;
 #endif
-      return -errno;
+      return UV__ERR(errno);
     }
   }
 #endif
@@ -190,10 +190,10 @@ int uv__tcp_bind(uv_tcp_t* tcp,
     if (errno == EAFNOSUPPORT)
       /* OSX, other BSDs and SunoS fail with EAFNOSUPPORT when binding a
        * socket created with AF_INET to an AF_INET6 address or vice versa. */
-      return -EINVAL;
-    return -errno;
+      return UV_EINVAL;
+    return UV__ERR(errno);
   }
-  tcp->delayed_error = -errno;
+  tcp->delayed_error = UV__ERR(errno);
 
   tcp->flags |= UV_HANDLE_BOUND;
   if (addr->sa_family == AF_INET6)
@@ -214,7 +214,7 @@ int uv__tcp_connect(uv_connect_t* req,
   assert(handle->type == UV_TCP);
 
   if (handle->connect_req != NULL)
-    return -EALREADY;  /* FIXME(bnoordhuis) -EINVAL or maybe -EBUSY. */
+    return UV_EALREADY;  /* FIXME(bnoordhuis) UV_EINVAL or maybe UV_EBUSY. */
 
   err = maybe_new_socket(handle,
                          addr->sa_family,
@@ -242,9 +242,9 @@ int uv__tcp_connect(uv_connect_t* req,
      * error. Solaris wants to report immediately--other unixes want to
      * wait.
      */
-      handle->delayed_error = -errno;
+      handle->delayed_error = UV__ERR(errno);
     else
-      return -errno;
+      return UV__ERR(errno);
   }
 
   uv__req_init(handle->loop, req, UV_CONNECT);
@@ -284,13 +284,13 @@ int uv_tcp_getsockname(const uv_tcp_t* handle,
     return handle->delayed_error;
 
   if (uv__stream_fd(handle) < 0)
-    return -EINVAL;  /* FIXME(bnoordhuis) -EBADF */
+    return UV_EINVAL;  /* FIXME(bnoordhuis) UV_EBADF */
 
   /* sizeof(socklen_t) != sizeof(int) on some systems. */
   socklen = (socklen_t) *namelen;
 
   if (getsockname(uv__stream_fd(handle), name, &socklen))
-    return -errno;
+    return UV__ERR(errno);
 
   *namelen = (int) socklen;
   return 0;
@@ -306,13 +306,13 @@ int uv_tcp_getpeername(const uv_tcp_t* handle,
     return handle->delayed_error;
 
   if (uv__stream_fd(handle) < 0)
-    return -EINVAL;  /* FIXME(bnoordhuis) -EBADF */
+    return UV_EINVAL;  /* FIXME(bnoordhuis) UV_EBADF */
 
   /* sizeof(socklen_t) != sizeof(int) on some systems. */
   socklen = (socklen_t) *namelen;
 
   if (getpeername(uv__stream_fd(handle), name, &socklen))
-    return -errno;
+    return UV__ERR(errno);
 
   *namelen = (int) socklen;
   return 0;
@@ -348,7 +348,7 @@ int uv_tcp_listen(uv_tcp_t* tcp, int backlog, uv_connection_cb cb) {
     return err;
 
   if (listen(tcp->io_watcher.fd, backlog))
-    return -errno;
+    return UV__ERR(errno);
 
   tcp->connection_cb = cb;
   tcp->flags |= UV_HANDLE_BOUND;
@@ -363,18 +363,18 @@ int uv_tcp_listen(uv_tcp_t* tcp, int backlog, uv_connection_cb cb) {
 
 int uv__tcp_nodelay(int fd, int on) {
   if (setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, &on, sizeof(on)))
-    return -errno;
+    return UV__ERR(errno);
   return 0;
 }
 
 
 int uv__tcp_keepalive(int fd, int on, unsigned int delay) {
   if (setsockopt(fd, SOL_SOCKET, SO_KEEPALIVE, &on, sizeof(on)))
-    return -errno;
+    return UV__ERR(errno);
 
 #ifdef TCP_KEEPIDLE
   if (on && setsockopt(fd, IPPROTO_TCP, TCP_KEEPIDLE, &delay, sizeof(delay)))
-    return -errno;
+    return UV__ERR(errno);
 #endif
 
   /* Solaris/SmartOS, if you don't support keep-alive,
@@ -383,7 +383,7 @@ int uv__tcp_keepalive(int fd, int on, unsigned int delay) {
   /* FIXME(bnoordhuis) That's possibly because sizeof(delay) should be 1. */
 #if defined(TCP_KEEPALIVE) && !defined(__sun)
   if (on && setsockopt(fd, IPPROTO_TCP, TCP_KEEPALIVE, &delay, sizeof(delay)))
-    return -errno;
+    return UV__ERR(errno);
 #endif
 
   return 0;

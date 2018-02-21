@@ -315,10 +315,10 @@ int uv__io_check_fd(uv_loop_t* loop, int fd) {
   while (rv == -1 && (errno == EINTR || errno == EAGAIN));
 
   if (rv == -1)
-    return -errno;
+    return UV__ERR(errno);
 
   if (p[0].revents & POLLNVAL)
-    return -EINVAL;
+    return UV_EINVAL;
 
   return 0;
 }

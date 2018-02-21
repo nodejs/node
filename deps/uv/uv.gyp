@@ -1,44 +1,38 @@
 {
-  'target_defaults': {
+  'variables': {
     'conditions': [
-      ['OS != "win"', {
-        'defines': [
+      ['OS=="win"', {
+        'shared_unix_defines': [
           '_LARGEFILE_SOURCE',
           '_FILE_OFFSET_BITS=64',
         ],
-        'conditions': [
-          ['OS=="solaris"', {
-            'cflags': [ '-pthreads' ],
-          }],
-          ['OS not in "solaris android zos"', {
-            'cflags': [ '-pthread' ],
-          }],
-          ['OS in "zos"', {
-            'defines': [
-              '_UNIX03_THREADS',
-              '_UNIX03_SOURCE',
-              '_UNIX03_WITHDRAWN',
-              '_OPEN_SYS_IF_EXT',
-              '_OPEN_SYS_SOCK_IPV6',
-              '_OPEN_MSGQ_EXT',
-              '_XOPEN_SOURCE_EXTENDED',
-              '_ALL_SOURCE',
-              '_LARGE_TIME_API',
-              '_OPEN_SYS_FILE_EXT',
-              '_AE_BIMODAL',
-              'PATH_MAX=255'
-            ],
-            'cflags': [ '-qxplink' ],
-            'ldflags': [ '-qxplink' ],
-          }]
+      }, {
+        'shared_unix_defines': [ ],
+      }],
+      ['OS in "mac ios"', {
+        'shared_mac_defines': [ '_DARWIN_USE_64_BIT_INODE=1' ],
+      }, {
+        'shared_mac_defines': [ ],
+      }],
+      ['OS=="zos"', {
+        'shared_zos_defines': [
+          '_UNIX03_THREADS',
+          '_UNIX03_SOURCE',
+          '_UNIX03_WITHDRAWN',
+          '_OPEN_SYS_IF_EXT',
+          '_OPEN_SYS_SOCK_IPV6',
+          '_OPEN_MSGQ_EXT',
+          '_XOPEN_SOURCE_EXTENDED',
+          '_ALL_SOURCE',
+          '_LARGE_TIME_API',
+          '_OPEN_SYS_FILE_EXT',
+          '_AE_BIMODAL',
+          'PATH_MAX=255'
         ],
+      }, {
+        'shared_zos_defines': [ ],
       }],
     ],
-    'xcode_settings': {
-      'GCC_SYMBOLS_PRIVATE_EXTERN': 'YES',  # -fvisibility=hidden
-      'WARNING_CFLAGS': [ '-Wall', '-Wextra', '-Wno-unused-parameter', '-Wstrict-prototypes' ],
-      'OTHER_CFLAGS': [ '-g', '--std=gnu89', '-pedantic' ],
-    }
   },
 
   'targets': [
@@ -49,18 +43,19 @@
         'include',
         'src/',
       ],
+      'defines': [
+        '<@(shared_mac_defines)',
+        '<@(shared_unix_defines)',
+        '<@(shared_zos_defines)',
+      ],
       'direct_dependent_settings': {
+        'defines': [
+          '<@(shared_mac_defines)',
+          '<@(shared_unix_defines)',
+          '<@(shared_zos_defines)',
+        ],
         'include_dirs': [ 'include' ],
         'conditions': [
-          ['OS != "win"', {
-            'defines': [
-              '_LARGEFILE_SOURCE',
-              '_FILE_OFFSET_BITS=64',
-            ],
-          }],
-          ['OS in "mac ios"', {
-            'defines': [ '_DARWIN_USE_64_BIT_INODE=1' ],
-          }],
           ['OS == "linux"', {
             'defines': [ '_POSIX_C_SOURCE=200112' ],
           }],
@@ -83,6 +78,16 @@
         'src/uv-common.h',
         'src/version.c'
       ],
+      'xcode_settings': {
+        'GCC_SYMBOLS_PRIVATE_EXTERN': 'YES',  # -fvisibility=hidden
+        'WARNING_CFLAGS': [
+          '-Wall',
+          '-Wextra',
+          '-Wno-unused-parameter',
+          '-Wstrict-prototypes',
+        ],
+        'OTHER_CFLAGS': [ '-g', '--std=gnu89', '-pedantic' ],
+      },
       'conditions': [
         [ 'OS=="win"', {
           'defines': [
@@ -345,274 +350,6 @@
           ]
         }],
       ]
-    },
-
-    {
-      'target_name': 'run-tests',
-      'type': 'executable',
-      'dependencies': [ 'libuv' ],
-      'sources': [
-        'test/blackhole-server.c',
-        'test/echo-server.c',
-        'test/run-tests.c',
-        'test/runner.c',
-        'test/runner.h',
-        'test/test-get-loadavg.c',
-        'test/task.h',
-        'test/test-active.c',
-        'test/test-async.c',
-        'test/test-async-null-cb.c',
-        'test/test-callback-stack.c',
-        'test/test-callback-order.c',
-        'test/test-close-fd.c',
-        'test/test-close-order.c',
-        'test/test-connect-unspecified.c',
-        'test/test-connection-fail.c',
-        'test/test-cwd-and-chdir.c',
-        'test/test-default-loop-close.c',
-        'test/test-delayed-accept.c',
-        'test/test-eintr-handling.c',
-        'test/test-error.c',
-        'test/test-embed.c',
-        'test/test-emfile.c',
-        'test/test-env-vars.c',
-        'test/test-fail-always.c',
-        'test/test-fork.c',
-        'test/test-fs.c',
-        'test/test-fs-copyfile.c',
-        'test/test-fs-event.c',
-        'test/test-getters-setters.c',
-        'test/test-get-currentexe.c',
-        'test/test-get-memory.c',
-        'test/test-get-passwd.c',
-        'test/test-getaddrinfo.c',
-        'test/test-gethostname.c',
-        'test/test-getnameinfo.c',
-        'test/test-getsockname.c',
-        'test/test-handle-fileno.c',
-        'test/test-homedir.c',
-        'test/test-hrtime.c',
-        'test/test-idle.c',
-        'test/test-ip6-addr.c',
-        'test/test-ipc.c',
-        'test/test-ipc-send-recv.c',
-        'test/test-list.h',
-        'test/test-loop-handles.c',
-        'test/test-loop-alive.c',
-        'test/test-loop-close.c',
-        'test/test-loop-stop.c',
-        'test/test-loop-time.c',
-        'test/test-loop-configure.c',
-        'test/test-walk-handles.c',
-        'test/test-watcher-cross-stop.c',
-        'test/test-multiple-listen.c',
-        'test/test-osx-select.c',
-        'test/test-pass-always.c',
-        'test/test-ping-pong.c',
-        'test/test-pipe-bind-error.c',
-        'test/test-pipe-connect-error.c',
-        'test/test-pipe-connect-multiple.c',
-        'test/test-pipe-connect-prepare.c',
-        'test/test-pipe-getsockname.c',
-        'test/test-pipe-pending-instances.c',
-        'test/test-pipe-sendmsg.c',
-        'test/test-pipe-server-close.c',
-        'test/test-pipe-close-stdout-read-stdin.c',
-        'test/test-pipe-set-non-blocking.c',
-        'test/test-pipe-set-fchmod.c',
-        'test/test-platform-output.c',
-        'test/test-poll.c',
-        'test/test-poll-close.c',
-        'test/test-poll-close-doesnt-corrupt-stack.c',
-        'test/test-poll-closesocket.c',
-        'test/test-poll-oob.c',
-        'test/test-process-title.c',
-        'test/test-process-title-threadsafe.c',
-        'test/test-queue-foreach-delete.c',
-        'test/test-ref.c',
-        'test/test-run-nowait.c',
-        'test/test-run-once.c',
-        'test/test-semaphore.c',
-        'test/test-shutdown-close.c',
-        'test/test-shutdown-eof.c',
-        'test/test-shutdown-twice.c',
-        'test/test-signal.c',
-        'test/test-signal-multiple-loops.c',
-        'test/test-socket-buffer-size.c',
-        'test/test-spawn.c',
-        'test/test-fs-poll.c',
-        'test/test-stdio-over-pipes.c',
-        'test/test-tcp-alloc-cb-fail.c',
-        'test/test-tcp-bind-error.c',
-        'test/test-tcp-bind6-error.c',
-        'test/test-tcp-close.c',
-        'test/test-tcp-close-accept.c',
-        'test/test-tcp-close-while-connecting.c',
-        'test/test-tcp-create-socket-early.c',
-        'test/test-tcp-connect-error-after-write.c',
-        'test/test-tcp-shutdown-after-write.c',
-        'test/test-tcp-flags.c',
-        'test/test-tcp-connect-error.c',
-        'test/test-tcp-connect-timeout.c',
-        'test/test-tcp-connect6-error.c',
-        'test/test-tcp-open.c',
-        'test/test-tcp-write-to-half-open-connection.c',
-        'test/test-tcp-write-after-connect.c',
-        'test/test-tcp-writealot.c',
-        'test/test-tcp-write-fail.c',
-        'test/test-tcp-try-write.c',
-        'test/test-tcp-unexpected-read.c',
-        'test/test-tcp-oob.c',
-        'test/test-tcp-read-stop.c',
-        'test/test-tcp-write-queue-order.c',
-        'test/test-threadpool.c',
-        'test/test-threadpool-cancel.c',
-        'test/test-thread-equal.c',
-        'test/test-tmpdir.c',
-        'test/test-mutexes.c',
-        'test/test-thread.c',
-        'test/test-barrier.c',
-        'test/test-condvar.c',
-        'test/test-timer-again.c',
-        'test/test-timer-from-check.c',
-        'test/test-timer.c',
-        'test/test-tty.c',
-        'test/test-udp-alloc-cb-fail.c',
-        'test/test-udp-bind.c',
-        'test/test-udp-create-socket-early.c',
-        'test/test-udp-dgram-too-big.c',
-        'test/test-udp-ipv6.c',
-        'test/test-udp-open.c',
-        'test/test-udp-options.c',
-        'test/test-udp-send-and-recv.c',
-        'test/test-udp-send-hang-loop.c',
-        'test/test-udp-send-immediate.c',
-        'test/test-udp-send-unreachable.c',
-        'test/test-udp-multicast-join.c',
-        'test/test-udp-multicast-join6.c',
-        'test/test-dlerror.c',
-        'test/test-udp-multicast-ttl.c',
-        'test/test-ip4-addr.c',
-        'test/test-ip6-addr.c',
-        'test/test-udp-multicast-interface.c',
-        'test/test-udp-multicast-interface6.c',
-        'test/test-udp-try-send.c',
-      ],
-      'conditions': [
-        [ 'OS=="win"', {
-          'sources': [
-            'test/runner-win.c',
-            'test/runner-win.h',
-            'src/win/snprintf.c',
-          ],
-          'libraries': [ '-lws2_32' ]
-        }, { # POSIX
-          'sources': [
-            'test/runner-unix.c',
-            'test/runner-unix.h',
-          ],
-          'conditions': [
-            [ 'OS != "zos"', {
-              'defines': [ '_GNU_SOURCE' ],
-              'cflags': [ '-Wno-long-long' ],
-              'xcode_settings': {
-                'WARNING_CFLAGS': [ '-Wno-long-long' ]
-              }
-            }],
-          ]},
-        ],
-        [ 'OS in "mac dragonflybsd freebsd linux netbsd openbsd".split()', {
-          'link_settings': {
-            'libraries': [ '-lutil' ],
-          },
-        }],
-        [ 'OS=="solaris"', { # make test-fs.c compile, needs _POSIX_C_SOURCE
-          'defines': [
-            '__EXTENSIONS__',
-            '_XOPEN_SOURCE=500',
-          ],
-        }],
-        [ 'OS=="aix"', {     # make test-fs.c compile, needs _POSIX_C_SOURCE
-          'defines': [
-            '_ALL_SOURCE',
-            '_XOPEN_SOURCE=500',
-          ],
-        }],
-        ['uv_library=="shared_library"', {
-          'defines': [ 'USING_UV_SHARED=1' ],
-          'conditions': [
-            [ 'OS == "zos"', {
-              'cflags': [ '-Wc,DLL' ],
-            }],
-          ],
-        }],
-      ],
-      'msvs-settings': {
-        'VCLinkerTool': {
-          'SubSystem': 1, # /subsystem:console
-        },
-      },
-    },
-
-    {
-      'target_name': 'run-benchmarks',
-      'type': 'executable',
-      'dependencies': [ 'libuv' ],
-      'sources': [
-        'test/benchmark-async.c',
-        'test/benchmark-async-pummel.c',
-        'test/benchmark-fs-stat.c',
-        'test/benchmark-getaddrinfo.c',
-        'test/benchmark-list.h',
-        'test/benchmark-loop-count.c',
-        'test/benchmark-million-async.c',
-        'test/benchmark-million-timers.c',
-        'test/benchmark-multi-accept.c',
-        'test/benchmark-ping-pongs.c',
-        'test/benchmark-pound.c',
-        'test/benchmark-pump.c',
-        'test/benchmark-sizes.c',
-        'test/benchmark-spawn.c',
-        'test/benchmark-thread.c',
-        'test/benchmark-tcp-write-batch.c',
-        'test/benchmark-udp-pummel.c',
-        'test/dns-server.c',
-        'test/echo-server.c',
-        'test/blackhole-server.c',
-        'test/run-benchmarks.c',
-        'test/runner.c',
-        'test/runner.h',
-        'test/task.h',
-      ],
-      'conditions': [
-        [ 'OS=="win"', {
-          'sources': [
-            'test/runner-win.c',
-            'test/runner-win.h',
-            'src/win/snprintf.c',
-          ],
-          'libraries': [ '-lws2_32' ]
-        }, { # POSIX
-          'defines': [ '_GNU_SOURCE' ],
-          'sources': [
-            'test/runner-unix.c',
-            'test/runner-unix.h',
-          ]
-        }],
-        ['uv_library=="shared_library"', {
-          'defines': [ 'USING_UV_SHARED=1' ],
-          'conditions': [
-            [ 'OS == "zos"', {
-              'cflags': [ '-Wc,DLL' ],
-            }],
-          ],
-        }],
-      ],
-      'msvs-settings': {
-        'VCLinkerTool': {
-          'SubSystem': 1, # /subsystem:console
-        },
-      },
     },
   ]
 }

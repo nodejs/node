@@ -50,12 +50,12 @@ int uv_pipe_bind(uv_pipe_t* handle, const char* name) {
 
   /* Already bound? */
   if (uv__stream_fd(handle) >= 0)
-    return -EINVAL;
+    return UV_EINVAL;
 
   /* Make a copy of the file name, it outlives this function's scope. */
   pipe_fname = uv__strdup(name);
   if (pipe_fname == NULL)
-    return -ENOMEM;
+    return UV_ENOMEM;
 
   /* We've got a copy, don't touch the original any more. */
   name = NULL;
@@ -71,10 +71,10 @@ int uv_pipe_bind(uv_pipe_t* handle, const char* name) {
   saddr.sun_family = AF_UNIX;
 
   if (bind(sockfd, (struct sockaddr*)&saddr, sizeof saddr)) {
-    err = -errno;
+    err = UV__ERR(errno);
     /* Convert ENOENT to EACCES for compatibility with Windows. */
-    if (err == -ENOENT)
-      err = -EACCES;
+    if (err == UV_ENOENT)
+      err = UV_EACCES;
 
     uv__close(sockfd);
     goto err_socket;
@@ -94,7 +94,7 @@ err_socket:
 
 int uv_pipe_listen(uv_pipe_t* handle, int backlog, uv_connection_cb cb) {
   if (uv__stream_fd(handle) == -1)
-    return -EINVAL;
+    return UV_EINVAL;
 
 #if defined(__MVS__)
   /* On zOS, backlog=0 has undefined behaviour */
@@ -105,7 +105,7 @@ int uv_pipe_listen(uv_pipe_t* handle, int backlog, uv_connection_cb cb) {
 #endif
 
   if (listen(uv__stream_fd(handle), backlog))
-    return -errno;
+    return UV__ERR(errno);
 
   handle->connection_cb = cb;
   handle->io_watcher.cb = uv__server_io;
@@ -180,14 +180,14 @@ void uv_pipe_connect(uv_connect_t* req,
   while (r == -1 && errno == EINTR);
 
   if (r == -1 && errno != EINPROGRESS) {
-    err = -errno;
+    err = UV__ERR(errno);
 #if defined(__CYGWIN__) || defined(__MSYS__)
     /* EBADF is supposed to mean that the socket fd is bad, but
        Cygwin reports EBADF instead of ENOTSOCK when the file is
        not a socket.  We do not expect to see a bad fd here
        (e.g. due to new_sock), so translate the error.  */
-    if (err == -EBADF)
-      err = -ENOTSOCK;
+    if (err == UV_EBADF)
+      err = UV_ENOTSOCK;
 #endif
     goto out;
   }
@@ -234,7 +234,7 @@ static int uv__pipe_getsockpeername(const uv_pipe_t* handle,
   err = func(uv__stream_fd(handle), (struct sockaddr*) &sa, &addrlen);
   if (err < 0) {
     *size = 0;
-    return -errno;
+    return UV__ERR(errno);
   }
 
 #if defined(__linux__)
@@ -312,15 +312,15 @@ int uv_pipe_chmod(uv_pipe_t* handle, int mode) {
   int r;
 
   if (handle == NULL || uv__stream_fd(handle) == -1)
-    return -EBADF;
+    return UV_EBADF;
 
   if (mode != UV_READABLE &&
       mode != UV_WRITABLE &&
       mode != (UV_WRITABLE | UV_READABLE))
-    return -EINVAL;
+    return UV_EINVAL;
 
   if (fstat(uv__stream_fd(handle), &pipe_stat) == -1)
-    return -errno;
+    return UV__ERR(errno);
 
   desired_mode = 0;
   if (mode & UV_READABLE)
@@ -353,5 +353,5 @@ int uv_pipe_chmod(uv_pipe_t* handle, int mode) {
   r = chmod(name_buffer, pipe_stat.st_mode);
   uv__free(name_buffer);
 
-  return r != -1 ? 0 : -errno;
+  return r != -1 ? 0 : UV__ERR(errno);
 }
