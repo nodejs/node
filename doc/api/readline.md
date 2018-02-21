@@ -306,6 +306,37 @@ rl.write(null, { ctrl: true, name: 'u' });
 The `rl.write()` method will write the data to the `readline` `Interface`'s
 `input` *as if it were provided by the user*.
 
+### rl[@@asyncIterator]
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+Returns an [AsyncIterator][async-iterator] to fully consume the stream.
+
+```js
+const readline = require('readline');
+const fs = require('fs');
+
+async function processLineByLine(readable) {
+  readable.setEncoding('utf8');
+  const rli = readline.createInterface({
+    input: readable,
+    crlfDelay: Infinity
+  });
+
+  for await (const line of rli) {
+    console.log(line);
+  }
+}
+
+processLineByLine(fs.createReadStream('file')).catch(console.error);
+```
+
+If the loop terminates with a `break` or a `throw`, the stream will be destroyed.
+In other terms, iterating over a stream will consume the stream fully.
+
 ## readline.clearLine(stream, dir)
 <!-- YAML
 added: v0.7.7
@@ -527,6 +558,29 @@ rl.on('line', (line) => {
 });
 ```
 
+> Stability: 1 - Experimental
+
+Another way is to use async [for-await-of][for-await-of] iteration statement:
+
+```js
+const readline = require('readline');
+const fs = require('fs');
+
+async function processLineByLine(readable) {
+  readable.setEncoding('utf8');
+  const rli = readline.createInterface({
+    input: readable,
+    crlfDelay: Infinity
+  });
+
+  for await (const line of rli) {
+    console.log(line);
+  }
+}
+
+processLineByLine(fs.createReadStream('file')).catch(console.error);
+```
+
 [`'SIGCONT'`]: readline.html#readline_event_sigcont
 [`'SIGTSTP'`]: readline.html#readline_event_sigtstp
 [`process.stdin`]: process.html#process_process_stdin
@@ -535,3 +589,6 @@ rl.on('line', (line) => {
 [TTY]: tty.html
 [Writable]: stream.html#stream_writable_streams
 [reading files]: #readline_example_read_file_stream_line_by_line
+[async-iterator]: https://github.com/tc39/proposal-async-iteration
+[for-await-of]: https://github.com/tc39/proposal-async-iteration#the-async-iteration-statement-for-await-of
+

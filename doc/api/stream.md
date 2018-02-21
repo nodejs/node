@@ -1241,6 +1241,8 @@ fully. The stream will be read in chunks of size equal to the `highWaterMark`
 option. In the code example above, data will be in a single chunk if the file
 has less then 64kb of data because no `highWaterMark` option is provided to
 [`fs.createReadStream()`][].
+Use [readline][readline-async-iterator] if there is a need for line-by-line
+async file iteration.
 
 ### Duplex and Transform Streams
 
@@ -2518,3 +2520,4 @@ contain multi-byte characters.
 [readable-destroy]: #stream_readable_destroy_error
 [writable-_destroy]: #stream_writable_destroy_err_callback
 [writable-destroy]: #stream_writable_destroy_error
+[readline-async-iterator]: readline.html#readline_rl_asynciterator

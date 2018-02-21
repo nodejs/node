@@ -127,6 +127,7 @@
       'lib/internal/querystring.js',
       'lib/internal/process/write-coverage.js',
       'lib/internal/readline.js',
+      'lib/internal/readline/async_iterator.js',
       'lib/internal/repl.js',
       'lib/internal/repl/await.js',
       'lib/internal/socket_list.js',
