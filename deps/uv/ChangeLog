@@ -1,3 +1,48 @@
+2018.02.22, Version 1.19.2 (Stable), c5afc37e2a8a70d8ab0da8dac10b77ba78c0488c
+
+Changes since version 1.19.1:
+
+* test: fix incorrect asserts (cjihrig)
+
+* test: fix a typo in test-fork.c (Felix Yan)
+
+* build: remove long-obsolete gyp workarounds (Ben Noordhuis)
+
+* build: split off tests into separate gyp file (Ben Noordhuis)
+
+* test: check uv_cond_timedwait more carefully (Jamie Davis)
+
+* include,src: introduce UV__ERR() macro (Mason X)
+
+* build: add url field to libuv.pc (Ben Noordhuis)
+
+* doc: mark IBM i as Tier 3 support (Jesse Gorzinski)
+
+* win,build: correct C2059 errors (Michael Fero)
+
+* zos: fix timeout for condition variable (jBarz)
+
+* win: CREATE_NO_WINDOW when stdio is not inherited (Nick Logan)
+
+* build: fix commmon.gypi comment (Ryuichi KAWAMATA)
+
+* doc: document uv_timer_start() on an active timer (Vladimír Čunát)
+
+* doc: add note about handle movability (Bartosz Sosnowski)
+
+* doc: fix syntax error in loop documentation (Bartosz Sosnowski)
+
+* osx,stream: retry sending handle on EMSGSIZE error (Santiago Gimeno)
+
+* unix: delay fs req register until after validation (cjihrig)
+
+* test: add tests for bad inputs (Joyee Cheung)
+
+* unix,win: ensure req->bufs is freed (cjihrig)
+
+* test: add additional fs memory management checks (cjihrig)
+
+
 2018.01.20, Version 1.19.1 (Stable), 8202d1751196c2374ad370f7f3779daef89befae
 
 Changes since version 1.19.0:
