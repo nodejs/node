@@ -951,7 +951,7 @@ The `url.format()` method returns a formatted URL string derived from
 ```js
 url.format({
   protocol: 'https',
-  hostname: `example.com`,
+  hostname: 'example.com',
   pathname: '/some/path',
   query: {
     page: 1,
