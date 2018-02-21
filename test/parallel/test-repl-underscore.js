@@ -10,6 +10,7 @@ testStrictMode();
 testResetContext();
 testResetContextGlobal();
 testMagicMode();
+testError();
 
 function testSloppyMode() {
   const r = initRepl(repl.REPL_MODE_SLOPPY);
@@ -151,6 +152,73 @@ function testResetContextGlobal() {
   // delete globals leaked by REPL when `useGlobal` is `true`
   delete global.module;
   delete global.require;
+}
+
+function testError() {
+  const r = initRepl(repl.REPL_MODE_STRICT);
+
+  r.write(`_err;                                  // initial value undefined
+           throw new Error('foo');                // throws error
+           _err;                                  // shows error
+           fs.readdirSync('/nonexistent?');       // throws error, sync
+           _err.code;                             // shows error code
+           _err.syscall;                          // shows error syscall
+           setImmediate(() => { throw new Error('baz'); }); undefined;
+                                                  // throws error, async
+           `);
+
+  setImmediate(() => {
+    const lines = r.output.accum.trim().split('\n');
+    const expectedLines = [
+      'undefined',
+
+      // The error, both from the original throw and the `_err` echo.
+      'Error: foo',
+      'Error: foo',
+
+      // The sync error, with individual property echoes
+      /Error: ENOENT: no such file or directory, scandir '.*nonexistent.*'/,
+      /fs\.readdirSync/,
+      "'ENOENT'",
+      "'scandir'",
+
+      // Dummy 'undefined' from the explicit silencer + one from the comment
+      'undefined',
+      'undefined',
+
+      // The message from the original throw
+      'Error: baz',
+      /setImmediate/,
+      /^    at/,
+      /^    at/,
+      /^    at/,
+      /^    at/,
+    ];
+    for (const line of lines) {
+      const expected = expectedLines.shift();
+      if (typeof expected === 'string')
+        assert.strictEqual(line, expected);
+      else
+        assert(expected.test(line), `${line} should match ${expected}`);
+    }
+    assert.strictEqual(expectedLines.length, 0);
+
+    // Reset output, check that '_err' is the asynchronously caught error.
+    r.output.accum = '';
+    r.write(`_err.message                 // show the message
+             _err = 0;                    // disable auto-assignment
+             throw new Error('quux');     // new error
+             _err;                        // should not see the new error
+             `);
+
+    assertOutput(r.output, [
+      "'baz'",
+      'Expression assignment to _err now disabled.',
+      '0',
+      'Error: quux',
+      '0'
+    ]);
+  });
 }
 
 function initRepl(mode, useGlobal) {

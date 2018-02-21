@@ -162,6 +162,17 @@ Expression assignment to _ now disabled.
 4
 ```
 
+Similarly, `_err` will refer to the last seen error, if there was any.
+Explicitly setting `_err` to a value will disable this behavior.
+
+<!-- eslint-skip -->
+```js
+> throw new Error('foo');
+Error: foo
+> _err.message
+'foo'
+```
+
 ### Custom Evaluation Functions
 
 When a new `repl.REPLServer` is created, a custom evaluation function may be
