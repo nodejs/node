@@ -36,9 +36,9 @@ onboarding session.
 * git:
   * Make sure you have whitespace=fix: `git config --global --add
     apply.whitespace fix`
-  * Always continue to PR from your own github fork
-    * Branches in the nodejs/node repository are only for release lines
-  * [See "Updating Node.js from Upstream"][]
+  * Always continue to PR from your own GitHub fork
+    * Branches in the `nodejs/node` repository are only for release lines
+  * See [Updating Node.js from Upstream][]
   * Make a new branch for each PR you submit.
   * Membership: Consider making your membership in the Node.js GitHub
     organization public. This makes it easier to identify Collaborators.
@@ -68,8 +68,8 @@ onboarding session.
   * The best outcome is for people who come to our issue tracker to feel like
     they can come back again.
 
-* We have a [Code of Conduct][] that you are expected to follow *and* hold
-  others accountable to
+* You are expected to follow *and* hold others accountable to the
+  [Code of Conduct][].
 
 ## Managing the issue tracker
 
@@ -89,8 +89,8 @@ onboarding session.
   * `semver-{minor,major}`:
     * If a change has the remote *chance* of breaking something, use the
       `semver-major` label
-    * When adding a semver label, add a comment explaining why you're adding it.
-      Do it right away so you don't forget!
+    * When adding a `semver-*` label, add a comment explaining why you're adding
+      it. Do it right away so you don't forget!
 
 * [**See "Who to CC in issues"**](./onboarding-extras.md#who-to-cc-in-issues)
   * This will come more naturally over time
@@ -114,10 +114,9 @@ onboarding session.
 * Secondary (but not far off) is for the person submitting code to succeed. A
     pull request from a new contributor is an opportunity to grow the community.
 * Review a bit at a time. Do not overwhelm new contributors.
-  * It is tempting to micro-optimize and make everything about relative
-      performance. Don't succumb to that temptation. We change V8 often.
-      Techniques that provide improved performance today may be unnecessary in
-      the future.
+  * It is tempting to micro-optimize. Don't succumb to that temptation. We
+      change V8 often. Techniques that provide improved performance today may be
+      unnecessary in the future.
 * Be aware: Your opinion carries a lot of weight!
 * Nits (requests for small changes that are not essential) are fine, but try to
   avoid stalling the pull request.
@@ -128,7 +127,7 @@ onboarding session.
   by tools but are not, consider implementing the necessary tooling.
 * Minimum wait for comments time
   * There is a minimum waiting time which we try to respect for non-trivial
-      changes, so that people who may have important input in such a distributed
+      changes so that people who may have important input in such a distributed
       project are able to respond.
   * For non-trivial changes, leave the pull request open for at least 48 hours
       (72 hours on a weekend).
@@ -151,12 +150,12 @@ onboarding session.
 
 * What belongs in Node.js:
   * Opinions vary – it’s good to have a broad collaborator base for that reason!
-  * If Node.js itself needs it (due to historic reasons), then it belongs in
-    Node.js
-    * That is to say, url is there because of http, freelist is there because of
-      http, etc.
+  * If Node.js itself needs it (due to historical reasons), then it belongs in
+    Node.js.
+    * That is to say, `url` is there because of `http`, `freelist` is there
+      because of `http`, etc.
   * Things that cannot be done outside of core, or only with significant pain
-    (for example `async_hooks`)
+    such as `async_hooks`.
 
 * Continuous Integration (CI) Testing:
   * [https://ci.nodejs.org/](https://ci.nodejs.org/)
@@ -226,9 +225,9 @@ onboarding session.
   * [https://github.com/nodejs/LTS](https://github.com/nodejs/LTS)
   * [https://github.com/nodejs/citgm](https://github.com/nodejs/citgm)
 * The Node.js Foundation hosts regular summits for active contributors to the
-  Node.js project, where we have face-to-face discussion about our work on the
-  project. The foundation has travel funds to cover participants' expenses
-  including accommodation, transportation, visa fees etc. if needed. Check out
+  Node.js project, where we have face-to-face discussions about our work on the
+  project. The Foundation has travel funds to cover participants' expenses
+  including accommodations, transportation, visa fees, etc. if needed. Check out
   the [summit](https://github.com/nodejs/summit) repository for details.
 
 [Code of Conduct]: https://github.com/nodejs/admin/blob/master/CODE_OF_CONDUCT.md
@@ -238,4 +237,4 @@ onboarding session.
 [Landing Pull Requests]: https://github.com/nodejs/node/blob/master/COLLABORATOR_GUIDE.md#landing-pull-requests
 [https://github.com/nodejs/node/commit/ce986de829457c39257cd205067602e765768fb0]: https://github.com/nodejs/node/commit/ce986de829457c39257cd205067602e765768fb0
 [Publicizing or hiding organization membership]: https://help.github.com/articles/publicizing-or-hiding-organization-membership/
-[See "Updating Node.js from Upstream"]: ./onboarding-extras.md#updating-nodejs-from-upstream
+[Updating Node.js from Upstream]: ./onboarding-extras.md#updating-nodejs-from-upstream
