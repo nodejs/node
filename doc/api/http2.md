@@ -328,7 +328,6 @@ added: v8.4.0
 * `code` {number} The HTTP/2 error code to send in the final `GOAWAY` frame.
   If unspecified, and `error` is not undefined, the default is `INTERNAL_ERROR`,
   otherwise defaults to `NO_ERROR`.
-* Returns: {undefined}
 
 Immediately terminates the `Http2Session` and the associated `net.Socket` or
 `tls.TLSSocket`.
@@ -471,7 +470,6 @@ added: v8.4.0
 
 * `msecs` {number}
 * `callback` {Function}
-* Returns: {undefined}
 
 Used to set a callback function that is called when there is no activity on
 the `Http2Session` after `msecs` milliseconds. The given `callback` is
@@ -531,7 +529,6 @@ added: v8.4.0
 -->
 
 * `settings` {HTTP2 Settings Object}
-* Returns {undefined}
 
 Updates the current local settings for this `Http2Session` and sends a new
 `SETTINGS` frame to the connected HTTP/2 peer.
@@ -886,7 +883,6 @@ added: v8.4.0
   `http2.constants.NGHTTP2_NO_ERROR` (`0x00`)
 * `callback` {Function} An optional function registered to listen for the
   `'close'` event.
-* Returns: {undefined}
 
 Closes the `Http2Stream` instance by sending an `RST_STREAM` frame to the
 connected HTTP/2 peer.
@@ -937,7 +933,6 @@ added: v8.4.0
     and `256` (inclusive).
   * `silent` {boolean} When `true`, changes the priority locally without
     sending a `PRIORITY` frame to the connected peer.
-* Returns: {undefined}
 
 Updates the priority for this `Http2Stream` instance.
 
@@ -998,7 +993,6 @@ added: v8.4.0
 
 * `msecs` {number}
 * `callback` {Function}
-* Returns: {undefined}
 
 ```js
 const http2 = require('http2');
@@ -1121,7 +1115,6 @@ added: v8.4.0
 -->
 
 * `headers` {HTTP2 Headers Object}
-* Returns: {undefined}
 
 Sends an additional informational `HEADERS` frame to the connected HTTP/2 peer.
 
@@ -1165,7 +1158,6 @@ added: v8.4.0
   * `pushStream` {ServerHttp2Stream} The returned pushStream object.
   * `headers` {HTTP2 Headers Object} Headers object the pushStream was
   initiated with.
-* Returns: {undefined}
 
 Initiates a push stream. The callback is invoked with the new `Http2Stream`
 instance created for the push stream passed as the second argument, or an
@@ -1200,7 +1192,6 @@ added: v8.4.0
     include payload data.
   * `getTrailers` {Function} Callback function invoked to collect trailer
     headers.
-* Returns: {undefined}
 
 ```js
 const http2 = require('http2');
