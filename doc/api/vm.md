@@ -45,7 +45,7 @@ code**.
 
 ## Class: vm.Module
 <!-- YAML
-added: REPLACEME
+added: v9.6.0
 -->
 
 > Stability: 1 - Experimental
