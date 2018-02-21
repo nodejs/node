@@ -354,11 +354,11 @@ class SSLWrap {
   ClientHelloParser hello_parser_;
 
 #ifdef NODE__HAVE_TLSEXT_STATUS_CB
-  v8::Persistent<v8::Object> ocsp_response_;
+  Persistent<v8::Object> ocsp_response_;
 #endif  // NODE__HAVE_TLSEXT_STATUS_CB
 
 #ifdef SSL_CTRL_SET_TLSEXT_SERVERNAME_CB
-  v8::Persistent<v8::Value> sni_context_;
+  Persistent<v8::Value> sni_context_;
 #endif
 
   friend class SecureContext;
@@ -380,13 +380,13 @@ class Connection : public AsyncWrap, public SSLWrap<Connection> {
   void NewSessionDoneCb();
 
 #ifndef OPENSSL_NO_NEXTPROTONEG
-  v8::Persistent<v8::Object> npnProtos_;
-  v8::Persistent<v8::Value> selectedNPNProto_;
+  Persistent<v8::Object> npnProtos_;
+  Persistent<v8::Value> selectedNPNProto_;
 #endif
 
 #ifdef SSL_CTRL_SET_TLSEXT_SERVERNAME_CB
-  v8::Persistent<v8::Object> sniObject_;
-  v8::Persistent<v8::String> servername_;
+  Persistent<v8::Object> sniObject_;
+  Persistent<v8::String> servername_;
 #endif
 
   size_t self_size() const override { return sizeof(*this); }

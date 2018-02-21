@@ -97,7 +97,7 @@ class Agent {
 
  private:
   void ToggleAsyncHook(v8::Isolate* isolate,
-                       const v8::Persistent<v8::Function>& fn);
+                       const Persistent<v8::Function>& fn);
 
   node::Environment* parent_env_;
   std::unique_ptr<NodeInspectorClient> client_;
@@ -109,8 +109,8 @@ class Agent {
 
   bool pending_enable_async_hook_;
   bool pending_disable_async_hook_;
-  v8::Persistent<v8::Function> enable_async_hook_function_;
-  v8::Persistent<v8::Function> disable_async_hook_function_;
+  Persistent<v8::Function> enable_async_hook_function_;
+  Persistent<v8::Function> disable_async_hook_function_;
 };
 
 }  // namespace inspector

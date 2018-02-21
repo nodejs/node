@@ -410,8 +410,8 @@ static void DisablePromiseHook(const FunctionCallbackInfo<Value>& args) {
 class DestroyParam {
  public:
   double asyncId;
-  v8::Persistent<Object> target;
-  v8::Persistent<Object> propBag;
+  Persistent<Object> target;
+  Persistent<Object> propBag;
 };
 
 

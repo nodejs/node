@@ -366,7 +366,8 @@ class fs_req_wrap {
     After(uv_req);                                                            \
     req_wrap = nullptr;                                                       \
   } else {                                                                    \
-    args.GetReturnValue().Set(req_wrap->persistent());                        \
+    args.GetReturnValue().Set(                                                \
+        PersistentToLocal(env->isolate(), req_wrap->persistent()));           \
   }
 
 #define ASYNC_CALL(func, req, encoding, ...)                                  \
@@ -1140,7 +1141,8 @@ static void WriteString(const FunctionCallbackInfo<Value>& args) {
     return;
   }
 
-  return args.GetReturnValue().Set(req_wrap->persistent());
+  return args.GetReturnValue().Set(
+      PersistentToLocal(env->isolate(), req_wrap->persistent()));
 }
 
 
