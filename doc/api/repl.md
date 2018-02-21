@@ -142,6 +142,12 @@ global or scoped variable, the input `fs` will be evaluated on-demand as
 ```
 
 #### Assignment of the `_` (underscore) variable
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/18919
+    description: Added `_err` support.
+-->
 
 The default evaluator will, by default, assign the result of the most recently
 evaluated expression to the special variable `_` (underscore).
