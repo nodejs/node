@@ -300,8 +300,6 @@ void Environment::RunAndClearNativeImmediates() {
       v8::TryCatch try_catch(isolate());
       for (auto it = list.begin(); it != list.end(); ++it) {
         it->cb_(this, it->data_);
-        if (it->keep_alive_)
-          it->keep_alive_->Reset();
         if (it->refed_)
           ref_count++;
         if (UNLIKELY(try_catch.HasCaught())) {

@@ -174,11 +174,6 @@ TCPWrap::TCPWrap(Environment* env, Local<Object> object, ProviderType provider)
 }
 
 
-TCPWrap::~TCPWrap() {
-  CHECK(persistent().IsEmpty());
-}
-
-
 void TCPWrap::SetNoDelay(const FunctionCallbackInfo<Value>& args) {
   TCPWrap* wrap;
   ASSIGN_OR_RETURN_UNWRAP(&wrap,

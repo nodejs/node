@@ -2826,7 +2826,6 @@ void SSLWrap<Base>::CertCbDone(const FunctionCallbackInfo<Value>& args) {
   if (cons->HasInstance(ctx)) {
     SecureContext* sc;
     ASSIGN_OR_RETURN_UNWRAP(&sc, ctx.As<Object>());
-    w->sni_context_.Reset();
     w->sni_context_.Reset(env->isolate(), ctx);
 
     int rv;
@@ -5580,7 +5579,6 @@ class PBKDF2Request : public AsyncWrap {
     keylen_ = 0;
 
     ClearWrap(object());
-    persistent().Reset();
   }
 
   uv_work_t* work_req() {
@@ -5747,7 +5745,6 @@ class RandomBytesRequest : public AsyncWrap {
 
   ~RandomBytesRequest() override {
     ClearWrap(object());
-    persistent().Reset();
   }
 
   uv_work_t* work_req() {

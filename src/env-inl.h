@@ -357,9 +357,6 @@ inline Environment::~Environment() {
 
   context()->SetAlignedPointerInEmbedderData(kContextEmbedderDataIndex,
                                              nullptr);
-#define V(PropertyName, TypeName) PropertyName ## _.Reset();
-  ENVIRONMENT_STRONG_PERSISTENT_PROPERTIES(V)
-#undef V
 
   delete[] heap_statistics_buffer_;
   delete[] heap_space_statistics_buffer_;
