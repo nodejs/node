@@ -686,8 +686,6 @@ deprecated: v9.6.0
 -->
 > Stability: 0 - Deprecated: Use [`asyncResource.runInAsyncScope()`][] instead.
 
-* Returns: {undefined}
-
 Call all `before` callbacks to notify that a new asynchronous execution context
 is being entered. If nested calls to `emitBefore()` are made, the stack of
 `asyncId`s will be tracked and properly unwound.
@@ -704,8 +702,6 @@ deprecated: v9.6.0
 -->
 > Stability: 0 - Deprecated: Use [`asyncResource.runInAsyncScope()`][] instead.
 
-* Returns: {undefined}
-
 Call all `after` callbacks. If nested calls to `emitBefore()` were made, then
 make sure the stack is unwound properly. Otherwise an error will be thrown.
 
@@ -720,8 +716,6 @@ considered deprecated. Please use `runInAsyncScope`, as it provides a much safer
 alternative.
 
 #### `asyncResource.emitDestroy()`
-
-* Returns: {undefined}
 
 Call all `destroy` hooks. This should only ever be called once. An error will
 be thrown if it is called more than once. This **must** be manually called. If
