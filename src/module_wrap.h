@@ -49,11 +49,11 @@ class ModuleWrap : public BaseObject {
       v8::Local<v8::String> specifier,
       v8::Local<v8::Module> referrer);
 
-  v8::Persistent<v8::Module> module_;
-  v8::Persistent<v8::String> url_;
+  Persistent<v8::Module> module_;
+  Persistent<v8::String> url_;
   bool linked_ = false;
-  std::unordered_map<std::string, v8::Persistent<v8::Promise>> resolve_cache_;
-  v8::Persistent<v8::Context> context_;
+  std::unordered_map<std::string, Persistent<v8::Promise>> resolve_cache_;
+  Persistent<v8::Context> context_;
 };
 
 }  // namespace loader

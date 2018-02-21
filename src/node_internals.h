@@ -25,6 +25,7 @@
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #include "node.h"
+#include "node_persistent.h"
 #include "util-inl.h"
 #include "env-inl.h"
 #include "uv.h"
@@ -214,7 +215,7 @@ class Environment;
 template <class TypeName>
 inline v8::Local<TypeName> PersistentToLocal(
     v8::Isolate* isolate,
-    const v8::Persistent<TypeName>& persistent);
+    const Persistent<TypeName>& persistent);
 
 // Creates a new context with Node.js-specific tweaks.  Currently, it removes
 // the `v8BreakIterator` property from the global `Intl` object if present.
