@@ -278,8 +278,6 @@ Http2Session::Http2Settings::Http2Settings(
 Http2Session::Http2Settings::~Http2Settings() {
   if (!object().IsEmpty())
     ClearWrap(object());
-  persistent().Reset();
-  CHECK(persistent().IsEmpty());
 }
 
 // Generates a Buffer that contains the serialized payload of a SETTINGS
@@ -535,8 +533,6 @@ Http2Session::~Http2Session() {
   CHECK_EQ(flags_ & SESSION_STATE_HAS_SCOPE, 0);
   if (!object().IsEmpty())
     ClearWrap(object());
-  persistent().Reset();
-  CHECK(persistent().IsEmpty());
   DEBUG_HTTP2SESSION(this, "freeing nghttp2 session");
   nghttp2_session_del(session_);
 }
@@ -1766,8 +1762,6 @@ Http2Stream::~Http2Stream() {
 
   if (!object().IsEmpty())
     ClearWrap(object());
-  persistent().Reset();
-  CHECK(persistent().IsEmpty());
 }
 
 // Notify the Http2Stream that a new block of HEADERS is being processed.
@@ -2784,8 +2778,6 @@ Http2Session::Http2Ping::Http2Ping(
 Http2Session::Http2Ping::~Http2Ping() {
   if (!object().IsEmpty())
     ClearWrap(object());
-  persistent().Reset();
-  CHECK(persistent().IsEmpty());
 }
 
 void Http2Session::Http2Ping::Send(uint8_t* payload) {

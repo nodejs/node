@@ -59,9 +59,6 @@ ModuleWrap::~ModuleWrap() {
       break;
     }
   }
-
-  module_.Reset();
-  context_.Reset();
 }
 
 void ModuleWrap::New(const FunctionCallbackInfo<Value>& args) {
@@ -215,8 +212,6 @@ void ModuleWrap::Instantiate(const FunctionCallbackInfo<Value>& args) {
       module->InstantiateModule(context, ModuleWrap::ResolveCallback);
 
   // clear resolve cache on instantiate
-  for (auto& entry : obj->resolve_cache_)
-    entry.second.Reset();
   obj->resolve_cache_.clear();
 
   if (!ok.FromMaybe(false)) {
