@@ -94,15 +94,14 @@ function re(literals, ...values) {
     return true;
   };
 
-  const fd = fs.openSync(existingFile, 'r');
-  fs.closeSync(fd);
+  common.runWithInvalidFD((fd) => {
+    fs.fstat(fd, common.mustCall(validateError));
 
-  fs.fstat(fd, common.mustCall(validateError));
-
-  assert.throws(
-    () => fs.fstatSync(fd),
-    validateError
-  );
+    assert.throws(
+      () => fs.fstatSync(fd),
+      validateError
+    );
+  });
 }
 
 // realpath
@@ -414,6 +413,27 @@ function re(literals, ...values) {
   );
 }
 
+
+// close
+{
+  const validateError = (err) => {
+    assert.strictEqual(err.message, 'EBADF: bad file descriptor, close');
+    assert.strictEqual(err.errno, uv.UV_EBADF);
+    assert.strictEqual(err.code, 'EBADF');
+    assert.strictEqual(err.syscall, 'close');
+    return true;
+  };
+
+  common.runWithInvalidFD((fd) => {
+    fs.close(fd, common.mustCall(validateError));
+
+    assert.throws(
+      () => fs.closeSync(fd),
+      validateError
+    );
+  });
+}
+
 // readFile
 {
   const validateError = (err) => {
@@ -472,15 +492,14 @@ function re(literals, ...values) {
     return true;
   };
 
-  const fd = fs.openSync(existingFile, 'r');
-  fs.closeSync(fd);
+  common.runWithInvalidFD((fd) => {
+    fs.ftruncate(fd, 4, common.mustCall(validateError));
 
-  fs.ftruncate(fd, 4, common.mustCall(validateError));
-
-  assert.throws(
-    () => fs.ftruncateSync(fd, 4),
-    validateError
-  );
+    assert.throws(
+      () => fs.ftruncateSync(fd, 4),
+      validateError
+    );
+  });
 }
 
 // fdatasync
@@ -493,15 +512,14 @@ function re(literals, ...values) {
     return true;
   };
 
-  const fd = fs.openSync(existingFile, 'r');
-  fs.closeSync(fd);
+  common.runWithInvalidFD((fd) => {
+    fs.fdatasync(fd, common.mustCall(validateError));
 
-  fs.fdatasync(fd, common.mustCall(validateError));
-
-  assert.throws(
-    () => fs.fdatasyncSync(fd),
-    validateError
-  );
+    assert.throws(
+      () => fs.fdatasyncSync(fd),
+      validateError
+    );
+  });
 }
 
 // fsync
@@ -514,13 +532,12 @@ function re(literals, ...values) {
     return true;
   };
 
-  const fd = fs.openSync(existingFile, 'r');
-  fs.closeSync(fd);
+  common.runWithInvalidFD((fd) => {
+    fs.fsync(fd, common.mustCall(validateError));
 
-  fs.fsync(fd, common.mustCall(validateError));
-
-  assert.throws(
-    () => fs.fsyncSync(fd),
-    validateError
-  );
+    assert.throws(
+      () => fs.fsyncSync(fd),
+      validateError
+    );
+  });
 }
