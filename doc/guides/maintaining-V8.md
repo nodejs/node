@@ -3,15 +3,14 @@
 ## Background
 
 V8 follows the Chromium release schedule. The support horizon for Chromium is
-very different from the support horizon that Node.js needs to provide to its
-users. As a result Node.js needs to support a version of V8 for quite a bit
-longer than what upstream needs to support. Since V8 doesn't have an LTS
-supported branch, there is no official process around how the V8 branches in
-Node.js are maintained.
+different compared to the support horizon for Node.js. As a result, Node.js
+needs to support multiple versions of V8 longer than what upstream needs
+to support. V8 branches in Node.js lack of an official maintenance process due
+to a missing LTS supported branch.
 
-This document attempts to document the current processes and proposes a workflow
-for maintaining the V8 branches in Node.js LTS and Current releases and how the
-Node.js and V8 teams at Google can help.
+This document attempts to outline the current maintenance processes, proposes
+a workflow for maintaining the V8 branches in both Node.js LTS and current
+releases, and discusses how the Node.js and V8 teams at Google can help.
 
 ## V8 Release Schedule
 
