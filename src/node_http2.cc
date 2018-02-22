@@ -1630,10 +1630,6 @@ inline Http2Stream* Http2Session::SubmitRequest(
   return stream;
 }
 
-inline void Http2Session::SetChunksSinceLastWrite(size_t n) {
-  chunks_sent_since_last_write_ = n;
-}
-
 // Callback used to receive inbound data from the i/o stream
 void Http2Session::OnStreamRead(ssize_t nread, const uv_buf_t& buf) {
   Http2Scope h2scope(this);
@@ -2016,7 +2012,6 @@ inline int Http2Stream::DoWrite(WriteWrap* req_wrap,
   CHECK(!this->IsDestroyed());
   CHECK_EQ(send_handle, nullptr);
   Http2Scope h2scope(this);
-  session_->SetChunksSinceLastWrite();
   if (!IsWritable()) {
     req_wrap->Done(UV_EOF);
     return 0;
@@ -2518,8 +2513,6 @@ void Http2Stream::RespondFD(const FunctionCallbackInfo<Value>& args) {
   int64_t offset = args[2]->IntegerValue(context).ToChecked();
   int64_t length = args[3]->IntegerValue(context).ToChecked();
   int options = args[4]->IntegerValue(context).ToChecked();
-
-  stream->session()->SetChunksSinceLastWrite();
 
   Headers list(isolate, context, headers);
   args.GetReturnValue().Set(stream->SubmitFile(fd, *list, list.length(),
