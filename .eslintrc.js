@@ -260,5 +260,6 @@ module.exports = {
     LTTNG_NET_SERVER_CONNECTION: false,
     LTTNG_NET_STREAM_END: false,
     internalBinding: false,
+    frenemies: false,
   },
 };
