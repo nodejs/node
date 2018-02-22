@@ -71,6 +71,7 @@ module.exports = {
     'accessor-pairs': 'error',
     'array-callback-return': 'error',
     'dot-location': ['error', 'property'],
+    'dot-notation': 'error',
     eqeqeq: ['error', 'smart'],
     'no-fallthrough': 'error',
     'no-global-assign': 'error',
@@ -111,6 +112,7 @@ module.exports = {
     ],
     'no-return-await': 'error',
     'no-self-assign': 'error',
+    'no-self-compare': 'error',
     'no-throw-literal': 'error',
     'no-unused-labels': 'error',
     'no-useless-call': 'error',
@@ -181,6 +183,10 @@ module.exports = {
     'no-restricted-syntax': [
       'error',
       {
+        selector: "CallExpression[callee.object.name='assert'][callee.property.name='doesNotThrow']",
+        message: "Please replace `assert.doesNotThrow()` and add a comment next to the code instead."
+      },
+      {
         selector: `CallExpression[callee.object.name='assert'][callee.property.name='throws'][arguments.1.type='Literal']:not([arguments.1.regex])`,
         message: 'use a regular expression for second argument of assert.throws()',
       },
@@ -204,6 +210,7 @@ module.exports = {
     /* eslint-enable max-len, quotes */
     'no-tabs': 'error',
     'no-trailing-spaces': 'error',
+    'no-unsafe-finally': 'error',
     'object-curly-spacing': ['error', 'always'],
     'one-var-declaration-per-line': 'error',
     'operator-linebreak': ['error', 'after'],
