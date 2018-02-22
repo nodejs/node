@@ -30,6 +30,13 @@ server.on('connect', common.mustCall((req, socket, firstBodyChunk) => {
   assert.strictEqual(req.method, 'CONNECT');
   assert.strictEqual(req.url, 'google.com:443');
 
+  // Make sure this socket has detached.
+  assert.strictEqual(socket.listeners('close').length, 0);
+  assert.strictEqual(socket.listeners('drain').length, 0);
+  assert.strictEqual(socket.listeners('data').length, 0);
+  assert.strictEqual(socket.listeners('end').length, 1);
+  assert.strictEqual(socket.listeners('error').length, 0);
+
   socket.write('HTTP/1.1 200 Connection established\r\n\r\n');
 
   let data = firstBodyChunk.toString();
