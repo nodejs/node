@@ -2184,6 +2184,17 @@ ssize_t Http2Stream::Provider::Stream::OnRead(nghttp2_session* handle,
 
   size_t amount = 0;          // amount of data being sent in this data frame.
 
+  // Remove all empty chunks from the head of the queue.
+  // This is done here so that .write('', cb) is still a meaningful way to
+  // find out when the HTTP2 stream wants to consume data, and because the
+  // StreamBase API allows empty input chunks.
+  while (!stream->queue_.empty() && stream->queue_.front().buf.len == 0) {
+    WriteWrap* finished = stream->queue_.front().req_wrap;
+    stream->queue_.pop();
+    if (finished != nullptr)
+      finished->Done(0);
+  }
+
   if (!stream->queue_.empty()) {
     DEBUG_HTTP2SESSION2(session, "stream %d has pending outbound data", id);
     amount = std::min(stream->available_outbound_length_, length);
@@ -2197,7 +2208,8 @@ ssize_t Http2Stream::Provider::Stream::OnRead(nghttp2_session* handle,
     }
   }
 
-  if (amount == 0 && stream->IsWritable() && stream->queue_.empty()) {
+  if (amount == 0 && stream->IsWritable()) {
+    CHECK(stream->queue_.empty());
     DEBUG_HTTP2SESSION2(session, "deferring stream %d", id);
     return NGHTTP2_ERR_DEFERRED;
   }
