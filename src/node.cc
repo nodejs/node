@@ -2483,6 +2483,7 @@ struct DLib {
 
   inline bool Open();
   inline void Close();
+  inline void* GetSymbolAddress(const char* name);
 
   const std::string filename_;
   const int flags_;
@@ -2510,6 +2511,10 @@ void DLib::Close() {
   dlclose(handle_);
   handle_ = nullptr;
 }
+
+void* DLib::GetSymbolAddress(const char* name) {
+  return dlsym(handle_, name);
+}
 #else  // !__POSIX__
 bool DLib::Open() {
   int ret = uv_dlopen(filename_.c_str(), &lib_);
@@ -2527,7 +2532,22 @@ void DLib::Close() {
   uv_dlclose(&lib_);
   handle_ = nullptr;
 }
+
+void* DLib::GetSymbolAddress(const char* name) {
+  void* address;
+  if (0 == uv_dlsym(&lib_, name, &address)) return address;
+  return nullptr;
+}
 #endif  // !__POSIX__
+
+using InitializerCallback = void (*)(Local<Object> exports,
+                                     Local<Value> module,
+                                     Local<Context> context);
+
+inline InitializerCallback GetInitializerCallback(DLib* dlib) {
+  const char* name = "node_register_module_v" STRINGIFY(NODE_MODULE_VERSION);
+  return reinterpret_cast<InitializerCallback>(dlib->GetSymbolAddress(name));
+}
 
 // DLOpen is process.dlopen(module, filename, flags).
 // Used to load 'module.node' dynamically shared objects.
@@ -2583,10 +2603,15 @@ static void DLOpen(const FunctionCallbackInfo<Value>& args) {
   }
 
   if (mp == nullptr) {
-    dlib.Close();
-    env->ThrowError("Module did not self-register.");
+    if (auto callback = GetInitializerCallback(&dlib)) {
+      callback(exports, module, context);
+    } else {
+      dlib.Close();
+      env->ThrowError("Module did not self-register.");
+    }
     return;
   }
+
   if (mp->nm_version == -1) {
     if (env->EmitNapiWarning()) {
       if (ProcessEmitWarning(env, "N-API is an experimental feature and could "
