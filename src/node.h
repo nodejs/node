@@ -535,6 +535,9 @@ extern "C" NODE_EXTERN void node_module_register(void* mod);
     }                                                                 \
   }
 
+// Usage: `NODE_MODULE(NODE_GYP_MODULE_NAME, InitializerFunction)`
+// If no NODE_MODULE is declared, Node.js looks for the well-known
+// symbol `node_register_module_v${NODE_MODULE_VERSION}`.
 #define NODE_MODULE(modname, regfunc)                                 \
   NODE_MODULE_X(modname, regfunc, NULL, 0)  // NOLINT (readability/null_usage)
 
