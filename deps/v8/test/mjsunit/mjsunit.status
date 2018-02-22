@@ -682,6 +682,10 @@
 
   # TODO(ppc/s390): implement atomic operations
   'wasm/atomics': [SKIP],
+  'wasm/shared-memory': [SKIP],
+  # TODO(ppc/s390): fix constant pool issue and implement tagging for reloc
+  'wasm/compiled-module-serialization': [SKIP],
+  'regress/wasm/regress-808980': [SKIP],
 }],  # 'arch == ppc64 or arch == ppc or arch == s390 or arch == s390x'
 
 ##############################################################################
