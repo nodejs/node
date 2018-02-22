@@ -131,6 +131,13 @@ class StreamListener {
   // (and raises an assertion if there is none).
   virtual void OnStreamAfterShutdown(ShutdownWrap* w, int status);
 
+  // This is called by the stream if it determines that it wants more data
+  // to be written to it. Not all streams support this.
+  // This callback will not be called as long as there are active writes.
+  // It is not supported by all streams; `stream->HasWantsWrite()` returns
+  // true if it is supported by a stream.
+  virtual void OnStreamWantsWrite(size_t suggested_size) {}
+
   // This is called immediately before the stream is destroyed.
   virtual void OnStreamDestroy() {}
 
@@ -199,6 +206,9 @@ class StreamResource {
                       size_t count,
                       uv_stream_t* send_handle) = 0;
 
+  // Returns true if the stream supports the `OnStreamWantsWrite()` interface.
+  virtual bool HasWantsWrite() const { return false; }
+
   // Optionally, this may provide an error message to be used for
   // failing writes.
   virtual const char* Error() const;
@@ -222,6 +232,8 @@ class StreamResource {
   void EmitAfterWrite(WriteWrap* w, int status);
   // Call the current listener's OnStreamAfterShutdown() method.
   void EmitAfterShutdown(ShutdownWrap* w, int status);
+  // Call the current listener's OnStreamWantsWrite() method.
+  void EmitWantsWrite(size_t suggested_size);
 
   StreamListener* listener_ = nullptr;
   uint64_t bytes_read_ = 0;

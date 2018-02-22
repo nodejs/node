@@ -2219,6 +2219,11 @@ ssize_t Http2Stream::Provider::Stream::OnRead(nghttp2_session* handle,
   if (amount == 0 && stream->IsWritable()) {
     CHECK(stream->queue_.empty());
     DEBUG_HTTP2SESSION2(session, "deferring stream %d", id);
+    stream->EmitWantsWrite(length);
+    if (stream->available_outbound_length_ > 0 || !stream->IsWritable()) {
+      // EmitWantsWrite() did something interesting synchronously, restart:
+      return OnRead(handle, id, buf, length, flags, source, user_data);
+    }
     return NGHTTP2_ERR_DEFERRED;
   }
 

@@ -136,6 +136,13 @@ inline void StreamResource::EmitAfterShutdown(ShutdownWrap* w, int status) {
   listener_->OnStreamAfterShutdown(w, status);
 }
 
+inline void StreamResource::EmitWantsWrite(size_t suggested_size) {
+#ifdef DEBUG
+  v8::SealHandleScope handle_scope(v8::Isolate::GetCurrent());
+#endif
+  listener_->OnStreamWantsWrite(suggested_size);
+}
+
 inline StreamBase::StreamBase(Environment* env) : env_(env) {
   PushStreamListener(&default_listener_);
 }
