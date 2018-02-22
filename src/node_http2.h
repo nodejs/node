@@ -815,8 +815,6 @@ class Http2Session : public AsyncWrap {
   // Write data to the session
   inline ssize_t Write(const uv_buf_t* bufs, size_t nbufs);
 
-  inline void SetChunksSinceLastWrite(size_t n = 0);
-
   size_t self_size() const override { return sizeof(*this); }
 
   char* stream_alloc() {
