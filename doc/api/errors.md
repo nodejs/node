@@ -1189,6 +1189,11 @@ An invalid `options.protocol` was passed.
 Both `breakEvalOnSigint` and `eval` options were set in the REPL config, which
 is not supported.
 
+<a id="ERR_INVALID_SIGNATURE"></a>
+### ERR_INVALID_SIGNATURE
+
+A Node.js API was called with arguments that don't match any valid signatures.
+
 <a id="ERR_INVALID_SYNC_FORK_INPUT"></a>
 ### ERR_INVALID_SYNC_FORK_INPUT
 
