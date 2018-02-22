@@ -1,5 +1,7 @@
 'use strict';
 
+const { isDefiningError } = require('./rules-utils.js');
+
 const errMsg = 'Please use a printf-like formatted string that util.format' +
                ' can consume.';
 
@@ -8,18 +10,11 @@ function isArrowFunctionWithTemplateLiteral(node) {
          node.body.type === 'TemplateLiteral';
 }
 
-function isDefiningError(node) {
-  return node.expression &&
-         node.expression.type === 'CallExpression' &&
-         node.expression.callee &&
-         node.expression.callee.name === 'E';
-}
-
 module.exports = {
   create: function(context) {
     return {
       ExpressionStatement: function(node) {
-        if (!isDefiningError(node))
+        if (!isDefiningError(node) || node.expression.arguments.length < 2)
           return;
 
         const msg = node.expression.arguments[1];
