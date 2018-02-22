@@ -2472,46 +2472,62 @@ node_module* get_linked_module(const char* name) {
 }
 
 struct DLib {
-  std::string filename_;
-  std::string errmsg_;
-  void* handle_;
-  int flags_;
-
 #ifdef __POSIX__
   static const int kDefaultFlags = RTLD_LAZY;
-
-  bool Open() {
-    handle_ = dlopen(filename_.c_str(), flags_);
-    if (handle_ != nullptr)
-      return true;
-    errmsg_ = dlerror();
-    return false;
-  }
-
-  void Close() {
-    if (handle_ != nullptr)
-      dlclose(handle_);
-  }
-#else  // !__POSIX__
+#else
   static const int kDefaultFlags = 0;
+#endif
+
+  inline DLib(const char* filename, int flags)
+      : filename_(filename), flags_(flags), handle_(nullptr) {}
+
+  inline bool Open();
+  inline void Close();
+
+  const std::string filename_;
+  const int flags_;
+  std::string errmsg_;
+  void* handle_;
+#ifndef __POSIX__
   uv_lib_t lib_;
+#endif
 
-  bool Open() {
-    int ret = uv_dlopen(filename_.c_str(), &lib_);
-    if (ret == 0) {
-      handle_ = static_cast<void*>(lib_.handle);
-      return true;
-    }
-    errmsg_ = uv_dlerror(&lib_);
-    uv_dlclose(&lib_);
-    return false;
-  }
-
-  void Close() {
-    uv_dlclose(&lib_);
-  }
-#endif  // !__POSIX__
+  DISALLOW_COPY_AND_ASSIGN(DLib);
 };
+
+
+#ifdef __POSIX__
+bool DLib::Open() {
+  handle_ = dlopen(filename_.c_str(), flags_);
+  if (handle_ != nullptr)
+    return true;
+  errmsg_ = dlerror();
+  return false;
+}
+
+void DLib::Close() {
+  if (handle_ == nullptr) return;
+  dlclose(handle_);
+  handle_ = nullptr;
+}
+#else  // !__POSIX__
+bool DLib::Open() {
+  int ret = uv_dlopen(filename_.c_str(), &lib_);
+  if (ret == 0) {
+    handle_ = static_cast<void*>(lib_.handle);
+    return true;
+  }
+  errmsg_ = uv_dlerror(&lib_);
+  uv_dlclose(&lib_);
+  return false;
+}
+
+void DLib::Close() {
+  if (handle_ == nullptr) return;
+  uv_dlclose(&lib_);
+  handle_ = nullptr;
+}
+#endif  // !__POSIX__
 
 // DLOpen is process.dlopen(module, filename, flags).
 // Used to load 'module.node' dynamically shared objects.
@@ -2521,6 +2537,7 @@ struct DLib {
 // cache that's a plain C list or hash table that's shared across contexts?
 static void DLOpen(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
+  auto context = env->context();
 
   CHECK_EQ(modpending, nullptr);
 
@@ -2530,16 +2547,21 @@ static void DLOpen(const FunctionCallbackInfo<Value>& args) {
   }
 
   int32_t flags = DLib::kDefaultFlags;
-  if (args.Length() > 2 && !args[2]->Int32Value(env->context()).To(&flags)) {
+  if (args.Length() > 2 && !args[2]->Int32Value(context).To(&flags)) {
     return env->ThrowTypeError("flag argument must be an integer.");
   }
 
-  Local<Object> module =
-      args[0]->ToObject(env->context()).ToLocalChecked();  // Cast
+  Local<Object> module;
+  Local<Object> exports;
+  Local<Value> exports_v;
+  if (!args[0]->ToObject(context).ToLocal(&module) ||
+      !module->Get(context, env->exports_string()).ToLocal(&exports_v) ||
+      !exports_v->ToObject(context).ToLocal(&exports)) {
+    return;  // Exception pending.
+  }
+
   node::Utf8Value filename(env->isolate(), args[1]);  // Cast
-  DLib dlib;
-  dlib.filename_ = *filename;
-  dlib.flags_ = flags;
+  DLib dlib(*filename, flags);
   bool is_opened = dlib.Open();
 
   // Objects containing v14 or later modules will have registered themselves
@@ -2554,7 +2576,7 @@ static void DLOpen(const FunctionCallbackInfo<Value>& args) {
 #ifdef _WIN32
     // Windows needs to add the filename into the error message
     errmsg = String::Concat(errmsg,
-                            args[1]->ToString(env->context()).ToLocalChecked());
+                            args[1]->ToString(context).ToLocalChecked());
 #endif  // _WIN32
     env->isolate()->ThrowException(Exception::Error(errmsg));
     return;
@@ -2601,22 +2623,8 @@ static void DLOpen(const FunctionCallbackInfo<Value>& args) {
   mp->nm_link = modlist_addon;
   modlist_addon = mp;
 
-  Local<String> exports_string = env->exports_string();
-  MaybeLocal<Value> maybe_exports =
-      module->Get(env->context(), exports_string);
-
-  if (maybe_exports.IsEmpty() ||
-      maybe_exports.ToLocalChecked()->ToObject(env->context()).IsEmpty()) {
-    dlib.Close();
-    return;
-  }
-
-  Local<Object> exports =
-      maybe_exports.ToLocalChecked()->ToObject(env->context())
-          .FromMaybe(Local<Object>());
-
   if (mp->nm_context_register_func != nullptr) {
-    mp->nm_context_register_func(exports, module, env->context(), mp->nm_priv);
+    mp->nm_context_register_func(exports, module, context, mp->nm_priv);
   } else if (mp->nm_register_func != nullptr) {
     mp->nm_register_func(exports, module, mp->nm_priv);
   } else {
