@@ -130,6 +130,7 @@ module.exports = {
     // http://eslint.org/docs/rules/#variables
     'no-delete-var': 'error',
     'no-undef': 'error',
+    'no-undef-init': 'error',
     'no-unused-vars': ['error', { args: 'none' }],
     'no-use-before-define': ['error', {
       classes: true,
@@ -165,7 +166,7 @@ module.exports = {
       ObjectExpression: 'first',
       SwitchCase: 1,
     }],
-    'key-spacing': ['error', { mode: 'minimum' }],
+    'key-spacing': ['error', { mode: 'strict' }],
     'keyword-spacing': 'error',
     'linebreak-style': ['error', 'unix'],
     'max-len': ['error', {
@@ -211,10 +212,12 @@ module.exports = {
     'no-tabs': 'error',
     'no-trailing-spaces': 'error',
     'no-unsafe-finally': 'error',
+    'no-whitespace-before-property': 'error',
     'object-curly-spacing': ['error', 'always'],
+    'one-var': ['error', { initialized: 'never' }],
     'one-var-declaration-per-line': 'error',
     'operator-linebreak': ['error', 'after'],
-    quotes: ['error', 'single', 'avoid-escape'],
+    quotes: ['error', 'single', { avoidEscape: true }],
     semi: 'error',
     'semi-spacing': 'error',
     'space-before-blocks': ['error', 'always'],
