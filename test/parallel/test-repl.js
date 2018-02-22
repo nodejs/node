@@ -440,7 +440,7 @@ const errorTests = [
   },
   // Regression test for https://github.com/nodejs/node/issues/597
   {
-    send: '/(.)(.)(.)(.)(.)(.)(.)(.)(.)/.test(\'123456789\')\n',
+    send: '/(.)(.)(.)(.)(.)(.)(.)(.)(.)/.test(\'123456789abc\')\n',
     expect: 'true'
   },
   // the following test's result depends on the RegExp's match from the above
@@ -449,6 +449,66 @@ const errorTests = [
           'RegExp.$6\nRegExp.$7\nRegExp.$8\nRegExp.$9\n',
     expect: ['\'1\'', '\'2\'', '\'3\'', '\'4\'', '\'5\'', '\'6\'',
              '\'7\'', '\'8\'', '\'9\'']
+  },
+  // input against which a regular expression is matched
+  {
+    send: 'RegExp.$_',
+    expect: '\'123456789abc\''
+  },
+  // substring of input against which a regular expression is matched
+  {
+    send: 'RegExp.lastMatch',
+    expect: '\'123456789\''
+  },
+  {
+    send: 'RegExp.lastParen',
+    expect: '\'9\''
+  },
+  {
+    send: 'RegExp.leftContext',
+    expect: '\'\''
+  },
+  {
+    send: 'RegExp.rightContext',
+    expect: '\'abc\''
+  },
+  {
+    send: 'new RegExp(\'XXX(.*)x(Jkl.*)XxX\', \'i\')' +
+      '.test(\'ABCDXXXEFGHIXJKLMNXXXOPQ\')\n',
+    expect: 'true'
+  },
+  // the following test's result depends on the RegExp's match from the above
+  {
+    send: 'RegExp.$1\nRegExp.$2\nRegExp.$3\nRegExp.$4\nRegExp.$5\n' +
+          'RegExp.$6\nRegExp.$7\nRegExp.$8\nRegExp.$9\n',
+    expect: ['\'EFGHI\'', '\'JKLMN\'', '\'\'', '\'\'', '\'\'', '\'\'',
+             '\'\'', '\'\'', '\'\'']
+  },
+  // input against which a regular expression is matched
+  {
+    send: 'RegExp.$_',
+    expect: '\'ABCDXXXEFGHIXJKLMNXXXOPQ\''
+  },
+  // substring of input against which a regular expression is matched
+  {
+    send: 'RegExp.lastMatch',
+    expect: '\'XXXEFGHIXJKLMNXXX\''
+  },
+  {
+    send: 'RegExp.lastParen',
+    expect: '\'JKLMN\''
+  },
+  {
+    send: 'RegExp.leftContext',
+    expect: '\'ABCD\''
+  },
+  {
+    send: 'RegExp.rightContext',
+    expect: '\'OPQ\''
+  },
+  {
+    send: '/XXX(.*)X(.*)XXX/.test(\'ABCDXXXEFGHIXJKLMNXXXOPQ\')\n',
+    expect: 'true'
   },
   // regression tests for https://github.com/nodejs/node/issues/2749
   {
