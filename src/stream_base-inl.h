@@ -164,8 +164,9 @@ inline int StreamBase::Shutdown(v8::Local<v8::Object> req_wrap_obj) {
 
   if (req_wrap_obj.IsEmpty()) {
     req_wrap_obj =
-        env->shutdown_wrap_constructor_function()
+        env->shutdown_wrap_template()
             ->NewInstance(env->context()).ToLocalChecked();
+    StreamReq::ResetObject(req_wrap_obj);
   }
 
   AsyncHooks::DefaultTriggerAsyncIdScope trigger_scope(GetAsyncWrap());
@@ -203,8 +204,9 @@ inline StreamWriteResult StreamBase::Write(
 
   if (req_wrap_obj.IsEmpty()) {
     req_wrap_obj =
-        env->write_wrap_constructor_function()
+        env->write_wrap_template()
             ->NewInstance(env->context()).ToLocalChecked();
+    StreamReq::ResetObject(req_wrap_obj);
   }
 
   AsyncHooks::DefaultTriggerAsyncIdScope trigger_scope(GetAsyncWrap());
@@ -426,6 +428,15 @@ inline void StreamReq::Done(int status, const char* error_str) {
 
   OnDone(status);
 }
+
+inline void StreamReq::ResetObject(v8::Local<v8::Object> obj) {
+#ifdef DEBUG
+  CHECK_GT(obj->InternalFieldCount(), StreamReq::kStreamReqField);
+#endif
+  ClearWrap(obj);
+  obj->SetAlignedPointerInInternalField(StreamReq::kStreamReqField, nullptr);
+}
+
 
 }  // namespace node
 

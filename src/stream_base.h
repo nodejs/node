@@ -46,6 +46,13 @@ class StreamReq {
 
   static StreamReq* FromObject(v8::Local<v8::Object> req_wrap_obj);
 
+  // Sets all internal fields of `req_wrap_obj` to `nullptr`.
+  // This is what the `WriteWrap` and `ShutdownWrap` JS constructors do,
+  // and what we use in C++ after creating these objects from their
+  // v8::ObjectTemplates, to avoid the overhead of calling the
+  // constructor explicitly.
+  static inline void ResetObject(v8::Local<v8::Object> req_wrap_obj);
+
  protected:
   virtual void OnDone(int status) = 0;
 
