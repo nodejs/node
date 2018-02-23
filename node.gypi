@@ -107,6 +107,32 @@
     }],
     [ 'node_shared_zlib=="false"', {
       'dependencies': [ 'deps/zlib/zlib.gyp:zlib' ],
+      'conditions': [
+        [ 'force_load=="true"', {
+          'xcode_settings': {
+            'OTHER_LDFLAGS': [
+              '-Wl,-force_load,<(PRODUCT_DIR)/<(STATIC_LIB_PREFIX)'
+                  'zlib<(STATIC_LIB_SUFFIX)',
+            ],
+          },
+          'msvs_settings': {
+            'VCLinkerTool': {
+              'AdditionalOptions': [
+                '/WHOLEARCHIVE:<(PRODUCT_DIR)\\lib\\zlib<(STATIC_LIB_SUFFIX)',
+              ],
+            },
+          },
+          'conditions': [
+            ['OS!="aix" and node_shared=="false"', {
+              'ldflags': [
+                '-Wl,--whole-archive,<(OBJ_DIR)/deps/zlib/<(STATIC_LIB_PREFIX)'
+                    'zlib<(STATIC_LIB_SUFFIX)',
+                '-Wl,--no-whole-archive',
+              ],
+            }],
+          ],
+        }],
+      ],
     }],
 
     [ 'node_shared_http_parser=="false"', {
@@ -119,6 +145,32 @@
 
     [ 'node_shared_libuv=="false"', {
       'dependencies': [ 'deps/uv/uv.gyp:libuv' ],
+      'conditions': [
+        [ 'force_load=="true"', {
+          'xcode_settings': {
+            'OTHER_LDFLAGS': [
+              '-Wl,-force_load,<(PRODUCT_DIR)/<(STATIC_LIB_PREFIX)'
+                  'uv<(STATIC_LIB_SUFFIX)',
+            ],
+          },
+          'msvs_settings': {
+            'VCLinkerTool': {
+              'AdditionalOptions': [
+                '/WHOLEARCHIVE:<(PRODUCT_DIR)\\lib\\libuv<(STATIC_LIB_SUFFIX)',
+              ],
+            },
+          },
+          'conditions': [
+            ['OS!="aix" and node_shared=="false"', {
+              'ldflags': [
+                '-Wl,--whole-archive,<(OBJ_DIR)/deps/uv/<(STATIC_LIB_PREFIX)'
+                    'uv<(STATIC_LIB_SUFFIX)',
+                '-Wl,--no-whole-archive',
+              ],
+            }],
+          ],
+        }],
+      ],
     }],
 
     [ 'node_shared_nghttp2=="false"', {
@@ -240,12 +292,18 @@
                   '-Wl,-force_load,<(PRODUCT_DIR)/<(OPENSSL_PRODUCT)',
                 ],
               },
+              'msvs_settings': {
+                'VCLinkerTool': {
+                  'AdditionalOptions': [
+                    '/WHOLEARCHIVE:<(PRODUCT_DIR)\\lib\\<(OPENSSL_PRODUCT)',
+                  ],
+                },
+              },
               'conditions': [
                 ['OS in "linux freebsd" and node_shared=="false"', {
                   'ldflags': [
                     '-Wl,--whole-archive,'
-                        '<(OBJ_DIR)/deps/openssl/'
-                        '<(OPENSSL_PRODUCT)',
+                      '<(OBJ_DIR)/deps/openssl/<(OPENSSL_PRODUCT)',
                     '-Wl,--no-whole-archive',
                   ],
                 }],
