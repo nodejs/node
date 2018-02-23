@@ -29,6 +29,8 @@ const stream = new Duplex({ objectMode: true });
 assert(Duplex() instanceof Duplex);
 assert(stream._readableState.objectMode);
 assert(stream._writableState.objectMode);
+assert(stream.allowHalfOpen);
+assert.strictEqual(stream.listenerCount('end'), 0);
 
 let written;
 let read;
