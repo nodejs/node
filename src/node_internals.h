@@ -82,7 +82,7 @@ struct sockaddr;
 
 
 #if HAVE_OPENSSL
-#define NODE_BUILTIN_OPENSSL_MODULES(V) V(crypto) V(tls_wrap)
+#define NODE_BUILTIN_OPENSSL_MODULES(V) V(crypto) V(tls_wrap) V(http2)
 #else
 #define NODE_BUILTIN_OPENSSL_MODULES(V)
 #endif
@@ -108,7 +108,6 @@ struct sockaddr;
     V(domain)                                                                 \
     V(fs)                                                                     \
     V(fs_event_wrap)                                                          \
-    V(http2)                                                                  \
     V(http_parser)                                                            \
     V(inspector)                                                              \
     V(js_stream)                                                              \
