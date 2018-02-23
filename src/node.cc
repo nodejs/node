@@ -165,7 +165,7 @@ using v8::Undefined;
 using v8::V8;
 using v8::Value;
 
-using AsyncHooks = node::Environment::AsyncHooks;
+using AsyncHooks = Environment::AsyncHooks;
 
 static bool print_eval = false;
 static bool force_repl = false;
@@ -266,7 +266,7 @@ double prog_start_time;
 static Mutex node_isolate_mutex;
 static v8::Isolate* node_isolate;
 
-node::DebugOptions debug_options;
+DebugOptions debug_options;
 
 static struct {
 #if NODE_USE_V8_PLATFORM
@@ -304,7 +304,7 @@ static struct {
 
 #if HAVE_INSPECTOR
   bool StartInspector(Environment *env, const char* script_path,
-                      const node::DebugOptions& options) {
+                      const DebugOptions& options) {
     // Inspector agent can't fail to start, but if it was configured to listen
     // right away on the websocket port and fails to bind/etc, this will return
     // false.
@@ -337,7 +337,7 @@ static struct {
   void DrainVMTasks(Isolate* isolate) {}
   void CancelVMTasks(Isolate* isolate) {}
   bool StartInspector(Environment *env, const char* script_path,
-                      const node::DebugOptions& options) {
+                      const DebugOptions& options) {
     env->ThrowError("Node compiled with NODE_USE_V8_PLATFORM=0");
     return true;
   }
@@ -1101,9 +1101,9 @@ Local<Value> WinapiErrnoException(Isolate* isolate,
 
 void* ArrayBufferAllocator::Allocate(size_t size) {
   if (zero_fill_field_ || zero_fill_all_buffers)
-    return node::UncheckedCalloc(size);
+    return UncheckedCalloc(size);
   else
-    return node::UncheckedMalloc(size);
+    return UncheckedMalloc(size);
 }
 
 namespace {
@@ -3841,7 +3841,7 @@ void Init(int* argc,
   prog_start_time = static_cast<double>(uv_now(uv_default_loop()));
 
   // Register built-in modules
-  node::RegisterBuiltinModules();
+  RegisterBuiltinModules();
 
   // Make inherited handles noninheritable.
   uv_disable_stdio_inheritance();
@@ -4181,7 +4181,7 @@ inline int Start(uv_loop_t* event_loop,
 int Start(int argc, char** argv) {
   atexit([] () { uv_tty_reset_mode(); });
   PlatformInit();
-  node::performance::performance_node_start = PERFORMANCE_NOW();
+  performance::performance_node_start = PERFORMANCE_NOW();
 
   CHECK_GT(argc, 0);
 
@@ -4218,7 +4218,7 @@ int Start(int argc, char** argv) {
     v8_platform.StartTracingAgent();
   }
   V8::Initialize();
-  node::performance::performance_v8_start = PERFORMANCE_NOW();
+  performance::performance_v8_start = PERFORMANCE_NOW();
   v8_initialized = true;
   const int exit_code =
       Start(uv_default_loop(), argc, argv, exec_argc, exec_argv);
