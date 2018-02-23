@@ -88,7 +88,7 @@ function runTest(test) {
   req.on('error', common.expectsError({
     code: 'ERR_HTTP2_STREAM_ERROR',
     type: Error,
-    message: 'Stream closed with error code 2'
+    message: 'Stream closed with error code NGHTTP2_INTERNAL_ERROR'
   }));
 
   currentError = test;

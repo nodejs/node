@@ -2857,29 +2857,39 @@ void Initialize(Local<Object> target,
               session->GetFunction()).FromJust();
 
   Local<Object> constants = Object::New(isolate);
-  NODE_DEFINE_CONSTANT(constants, NGHTTP2_SESSION_SERVER);
-  NODE_DEFINE_CONSTANT(constants, NGHTTP2_SESSION_CLIENT);
-  NODE_DEFINE_CONSTANT(constants, NGHTTP2_STREAM_STATE_IDLE);
-  NODE_DEFINE_CONSTANT(constants, NGHTTP2_STREAM_STATE_OPEN);
-  NODE_DEFINE_CONSTANT(constants, NGHTTP2_STREAM_STATE_RESERVED_LOCAL);
-  NODE_DEFINE_CONSTANT(constants, NGHTTP2_STREAM_STATE_RESERVED_REMOTE);
-  NODE_DEFINE_CONSTANT(constants, NGHTTP2_STREAM_STATE_HALF_CLOSED_LOCAL);
-  NODE_DEFINE_CONSTANT(constants, NGHTTP2_STREAM_STATE_HALF_CLOSED_REMOTE);
-  NODE_DEFINE_CONSTANT(constants, NGHTTP2_STREAM_STATE_CLOSED);
-  NODE_DEFINE_CONSTANT(constants, NGHTTP2_NO_ERROR);
-  NODE_DEFINE_CONSTANT(constants, NGHTTP2_PROTOCOL_ERROR);
-  NODE_DEFINE_CONSTANT(constants, NGHTTP2_INTERNAL_ERROR);
-  NODE_DEFINE_CONSTANT(constants, NGHTTP2_FLOW_CONTROL_ERROR);
-  NODE_DEFINE_CONSTANT(constants, NGHTTP2_SETTINGS_TIMEOUT);
-  NODE_DEFINE_CONSTANT(constants, NGHTTP2_STREAM_CLOSED);
-  NODE_DEFINE_CONSTANT(constants, NGHTTP2_FRAME_SIZE_ERROR);
-  NODE_DEFINE_CONSTANT(constants, NGHTTP2_REFUSED_STREAM);
-  NODE_DEFINE_CONSTANT(constants, NGHTTP2_CANCEL);
-  NODE_DEFINE_CONSTANT(constants, NGHTTP2_COMPRESSION_ERROR);
-  NODE_DEFINE_CONSTANT(constants, NGHTTP2_CONNECT_ERROR);
-  NODE_DEFINE_CONSTANT(constants, NGHTTP2_ENHANCE_YOUR_CALM);
-  NODE_DEFINE_CONSTANT(constants, NGHTTP2_INADEQUATE_SECURITY);
-  NODE_DEFINE_CONSTANT(constants, NGHTTP2_HTTP_1_1_REQUIRED);
+  Local<Array> name_for_error_code = Array::New(isolate);
+
+#define NODE_NGHTTP2_ERROR_CODES(V)                       \
+  V(NGHTTP2_SESSION_SERVER);                              \
+  V(NGHTTP2_SESSION_CLIENT);                              \
+  V(NGHTTP2_STREAM_STATE_IDLE);                           \
+  V(NGHTTP2_STREAM_STATE_OPEN);                           \
+  V(NGHTTP2_STREAM_STATE_RESERVED_LOCAL);                 \
+  V(NGHTTP2_STREAM_STATE_RESERVED_REMOTE);                \
+  V(NGHTTP2_STREAM_STATE_HALF_CLOSED_LOCAL);              \
+  V(NGHTTP2_STREAM_STATE_HALF_CLOSED_REMOTE);             \
+  V(NGHTTP2_STREAM_STATE_CLOSED);                         \
+  V(NGHTTP2_NO_ERROR);                                    \
+  V(NGHTTP2_PROTOCOL_ERROR);                              \
+  V(NGHTTP2_INTERNAL_ERROR);                              \
+  V(NGHTTP2_FLOW_CONTROL_ERROR);                          \
+  V(NGHTTP2_SETTINGS_TIMEOUT);                            \
+  V(NGHTTP2_STREAM_CLOSED);                               \
+  V(NGHTTP2_FRAME_SIZE_ERROR);                            \
+  V(NGHTTP2_REFUSED_STREAM);                              \
+  V(NGHTTP2_CANCEL);                                      \
+  V(NGHTTP2_COMPRESSION_ERROR);                           \
+  V(NGHTTP2_CONNECT_ERROR);                               \
+  V(NGHTTP2_ENHANCE_YOUR_CALM);                           \
+  V(NGHTTP2_INADEQUATE_SECURITY);                         \
+  V(NGHTTP2_HTTP_1_1_REQUIRED);                           \
+
+#define V(name)                                                         \
+  NODE_DEFINE_CONSTANT(constants, name);                                \
+  name_for_error_code->Set(static_cast<int>(name),                      \
+                           FIXED_ONE_BYTE_STRING(isolate, #name));
+  NODE_NGHTTP2_ERROR_CODES(V)
+#undef V
 
   NODE_DEFINE_HIDDEN_CONSTANT(constants, NGHTTP2_HCAT_REQUEST);
   NODE_DEFINE_HIDDEN_CONSTANT(constants, NGHTTP2_HCAT_RESPONSE);
@@ -2944,6 +2954,9 @@ HTTP_STATUS_CODES(V)
   target->Set(context,
               FIXED_ONE_BYTE_STRING(isolate, "constants"),
               constants).FromJust();
+  target->Set(context,
+              FIXED_ONE_BYTE_STRING(isolate, "nameForErrorCode"),
+              name_for_error_code).FromJust();
 }
 }  // namespace http2
 }  // namespace node
