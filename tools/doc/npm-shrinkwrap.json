@@ -2,8 +2,14 @@
   "name": "node-doc-generator",
   "version": "0.0.0",
   "lockfileVersion": 1,
+  "preserveSymlinks": "1",
   "requires": true,
   "dependencies": {
+    "js-yaml": {
+      "version": "3.10.0",
+      "resolved": "https://registry.npmjs.org/js-yaml/-/js-yaml-3.10.0.tgz",
+      "integrity": "sha512-O2v52ffjLa9VeM43J4XocZE//WT9N0IiwDa3KSHH7Tu8CtH+1qM8SIZvnsTh6v+4yFy5KUY3BHUVwjpfAWsjIA=="
+    },
     "marked": {
       "version": "0.3.6",
       "resolved": "https://registry.npmjs.org/marked/-/marked-0.3.6.tgz",

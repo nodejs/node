@@ -105,6 +105,7 @@ deps/npm/node_modules/.bin/
 /SHASUMS*.txt*
 
 # test artifacts
+package-lock.json
 tools/faketime
 tools/remark-cli/node_modules
 tools/remark-preset-lint-node/node_modules
