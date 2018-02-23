@@ -1,6 +1,8 @@
+import { message } from './message';
+
 var t = 1;
 var k = 1;
-console.log('A message', 5);
+console.log(message, 5);
 while (t > 0) {
   if (t++ === 1000) {
     t = 0;
