@@ -2,6 +2,8 @@
 'use strict';
 
 const common = require('../common');
+if (!common.hasCrypto)
+  common.skip('missing crypto');
 
 // Tests the assertValidPseudoHeader function that is used within the
 // mapToHeaders function. The assert function is not exported so we
