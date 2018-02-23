@@ -20,7 +20,7 @@ server.listen(0, common.mustCall(() => {
     req.on('error', common.expectsError({
       code: 'ERR_HTTP2_STREAM_ERROR',
       type: Error,
-      message: 'Stream closed with error code 11'
+      message: 'Stream closed with error code NGHTTP2_ENHANCE_YOUR_CALM'
     }));
     req.on('close', common.mustCall((code) => {
       assert.strictEqual(code, NGHTTP2_ENHANCE_YOUR_CALM);
