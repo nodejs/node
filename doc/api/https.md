@@ -251,7 +251,8 @@ const req = https.request(options, (res) => {
 });
 ```
 
-Example pinning on certificate fingerprint, or the public key (similar to `pin-sha256`):
+Example pinning on certificate fingerprint, or the public key (similar to 
+`pin-sha256`):
 
 ```js
 const tls = require('tls');
