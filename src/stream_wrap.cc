@@ -60,9 +60,7 @@ void LibuvStreamWrap::Initialize(Local<Object> target,
   auto is_construct_call_callback =
       [](const FunctionCallbackInfo<Value>& args) {
     CHECK(args.IsConstructCall());
-    ClearWrap(args.This());
-    args.This()->SetAlignedPointerInInternalField(
-        StreamReq::kStreamReqField, nullptr);
+    StreamReq::ResetObject(args.This());
   };
   Local<FunctionTemplate> sw =
       FunctionTemplate::New(env->isolate(), is_construct_call_callback);
@@ -72,7 +70,7 @@ void LibuvStreamWrap::Initialize(Local<Object> target,
   sw->SetClassName(wrapString);
   AsyncWrap::AddWrapMethods(env, sw);
   target->Set(wrapString, sw->GetFunction());
-  env->set_shutdown_wrap_constructor_function(sw->GetFunction());
+  env->set_shutdown_wrap_template(sw->InstanceTemplate());
 
   Local<FunctionTemplate> ww =
       FunctionTemplate::New(env->isolate(), is_construct_call_callback);
@@ -82,7 +80,7 @@ void LibuvStreamWrap::Initialize(Local<Object> target,
   ww->SetClassName(writeWrapString);
   AsyncWrap::AddWrapMethods(env, ww);
   target->Set(writeWrapString, ww->GetFunction());
-  env->set_write_wrap_constructor_function(ww->GetFunction());
+  env->set_write_wrap_template(ww->InstanceTemplate());
 }
 
 

@@ -329,7 +329,7 @@ struct PackageConfig {
   V(script_context_constructor_template, v8::FunctionTemplate)                \
   V(script_data_constructor_function, v8::Function)                           \
   V(secure_context_constructor_template, v8::FunctionTemplate)                \
-  V(shutdown_wrap_constructor_function, v8::Function)                         \
+  V(shutdown_wrap_template, v8::ObjectTemplate)                               \
   V(tcp_constructor_template, v8::FunctionTemplate)                           \
   V(tick_callback_function, v8::Function)                                     \
   V(timers_callback_function, v8::Function)                                   \
@@ -338,7 +338,7 @@ struct PackageConfig {
   V(udp_constructor_function, v8::Function)                                   \
   V(vm_parsing_context_symbol, v8::Symbol)                                    \
   V(url_constructor_function, v8::Function)                                   \
-  V(write_wrap_constructor_function, v8::Function)                            \
+  V(write_wrap_template, v8::ObjectTemplate)                                  \
   V(fs_use_promises_symbol, v8::Symbol)
 
 class Environment;
