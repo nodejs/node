@@ -8,6 +8,7 @@
 </tr>
 <tr>
 <td>
+<a href="#9.6.1">9.6.1</a><br/>
 <a href="#9.6.0">9.6.0</a><br/>
 <a href="#9.5.0">9.5.0</a><br/>
 <a href="#9.4.0">9.4.0</a><br/>
@@ -30,6 +31,20 @@
   * [0.10.x](CHANGELOG_V010.md)
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
+
+<a id="9.6.1"></a>
+## 2018-02-22, Version 9.6.1 (Current), @MylesBorins
+
+This is a special release to fix potentially Semver-Major regression that was released in v9.6.0
+
+### Notable Changes
+
+* **events**:
+  - `events.usingDomains` being set to `false` by default was removed in 9.6.0 which was a change in behavior compares to 9.5.0. This behavior change has been reverted and the `events` object now has `usingDomains` preset to `false`, which is the behavior in 9.x prior to 9.6.0 (Myles Borins) [#18944](https://github.com/nodejs/node/pull/18944)
+
+### Commits
+
+* [[`761caec379`](https://github.com/nodejs/node/commit/761caec379)] - **events**: preset `usingDomains` to false (Myles Borins) [#18944](https://github.com/nodejs/node/pull/18944)
 
 <a id="9.6.0"></a>
 ## 2018-02-22, Version 9.6.0 (Current), @MylesBorins
