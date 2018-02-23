@@ -1,5 +1,7 @@
 # Node.js Changelog
 
+<!--lint disable maximum-line-length-->
+
 To make the changelog easier to both use and manage, it has been split into
 multiple files organized according to significant major and minor Node.js
 release lines.
