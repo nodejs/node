@@ -220,8 +220,6 @@ inline StreamWriteResult StreamBase::Write(
     ClearError();
   }
 
-  req_wrap_obj->Set(env->async(), v8::Boolean::New(env->isolate(), async));
-
   return StreamWriteResult { async, err, req_wrap };
 }
 

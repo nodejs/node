@@ -14,6 +14,7 @@
 namespace node {
 
 using v8::Array;
+using v8::Boolean;
 using v8::Context;
 using v8::FunctionCallbackInfo;
 using v8::HandleScope;
@@ -56,6 +57,20 @@ int StreamBase::Shutdown(const FunctionCallbackInfo<Value>& args) {
   return Shutdown(req_wrap_obj);
 }
 
+inline void SetWriteResultPropertiesOnWrapObject(
+    Environment* env,
+    Local<Object> req_wrap_obj,
+    const StreamWriteResult& res,
+    size_t bytes) {
+  req_wrap_obj->Set(
+      env->context(),
+      env->bytes_string(),
+      Number::New(env->isolate(), bytes)).FromJust();
+  req_wrap_obj->Set(
+      env->context(),
+      env->async(),
+      Boolean::New(env->isolate(), res.async)).FromJust();
+}
 
 int StreamBase::Writev(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
@@ -150,7 +165,7 @@ int StreamBase::Writev(const FunctionCallbackInfo<Value>& args) {
   }
 
   StreamWriteResult res = Write(*bufs, count, nullptr, req_wrap_obj);
-  req_wrap_obj->Set(env->bytes_string(), Number::New(env->isolate(), bytes));
+  SetWriteResultPropertiesOnWrapObject(env, req_wrap_obj, res, bytes);
   if (res.wrap != nullptr && storage) {
     res.wrap->SetAllocatedStorage(storage.release(), storage_size);
   }
@@ -178,9 +193,7 @@ int StreamBase::WriteBuffer(const FunctionCallbackInfo<Value>& args) {
 
   if (res.async)
     req_wrap_obj->Set(env->context(), env->buffer_string(), args[1]).FromJust();
-  req_wrap_obj->Set(env->context(), env->bytes_string(),
-                    Integer::NewFromUnsigned(env->isolate(), buf.len))
-      .FromJust();
+  SetWriteResultPropertiesOnWrapObject(env, req_wrap_obj, res, buf.len);
 
   return res.err;
 }
@@ -286,10 +299,7 @@ int StreamBase::WriteString(const FunctionCallbackInfo<Value>& args) {
 
   StreamWriteResult res = Write(&buf, 1, send_handle, req_wrap_obj);
 
-  req_wrap_obj->Set(env->context(), env->bytes_string(),
-                    Integer::NewFromUnsigned(env->isolate(), data_size))
-      .FromJust();
-
+  SetWriteResultPropertiesOnWrapObject(env, req_wrap_obj, res, data_size);
   if (res.wrap != nullptr) {
     res.wrap->SetAllocatedStorage(data.release(), data_size);
   }
