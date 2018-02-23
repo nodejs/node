@@ -122,3 +122,8 @@ deps/uv/docs/src/guide/
 
 # do not override V8's .gitignore
 !deps/v8/**
+# ignore VS compiler output unhandled by V8's .gitignore
+deps/v8/src/Debug/
+deps/v8/src/Release/
+deps/v8/src/inspector/Debug/
+deps/v8/src/inspector/Release/
