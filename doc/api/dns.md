@@ -114,8 +114,6 @@ Returns an array of IP address strings, formatted according to [rfc5952][],
 that are currently configured for DNS resolution. A string will include a port
 section if a custom port is used.
 
-For example:
-
 <!-- eslint-disable semi-->
 ```js
 [
@@ -369,8 +367,6 @@ function will contain an array of objects with the following properties:
 * `order`
 * `preference`
 
-For example:
-
 <!-- eslint-skip -->
 ```js
 {
@@ -557,8 +553,6 @@ added: v0.11.3
 Sets the IP address and port of servers to be used when performing DNS
 resolution. The `servers` argument is an array of [rfc5952][] formatted
 addresses. If the port is the IANA default DNS port (53) it can be omitted.
-
-For example:
 
 ```js
 dns.setServers([

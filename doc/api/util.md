@@ -26,8 +26,6 @@ a `(err, value) => ...` callback as the last argument. In the callback, the
 first argument will be the rejection reason (or `null` if the Promise
 resolved), and the second argument will be the resolved value.
 
-For example:
-
 ```js
 const util = require('util');
 
@@ -84,8 +82,6 @@ environment variable.  If the `section` name appears within the value of that
 environment variable, then the returned function operates similar to
 [`console.error()`][].  If not, then the returned function is a no-op.
 
-For example:
-
 ```js
 const util = require('util');
 const debuglog = util.debuglog('foo');
@@ -103,7 +99,7 @@ FOO 3245: hello from foo [123]
 where `3245` is the process id.  If it is not run with that
 environment variable set, then it will not print anything.
 
-The `section` supports wildcard also, for example:
+The `section` supports wildcard also:
 ```js
 const util = require('util');
 const debuglog = util.debuglog('foo-bar');
@@ -117,7 +113,7 @@ FOO-BAR 3257: hi there, it's foo-bar [2333]
 ```
 
 Multiple comma-separated `section` names may be specified in the `NODE_DEBUG`
-environment variable. For example: `NODE_DEBUG=fs,net,tls`.
+environment variable: `NODE_DEBUG=fs,net,tls`.
 
 ## util.deprecate(fn, msg[, code])
 <!-- YAML
@@ -646,8 +642,6 @@ added: v8.0.0
 Takes a function following the common error-first callback style, i.e. taking
 a `(err, value) => ...` callback as the last argument, and returns a version
 that returns promises.
-
-For example:
 
 ```js
 const util = require('util');

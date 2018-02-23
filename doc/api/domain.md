@@ -239,8 +239,6 @@ perhaps we would like to have a separate domain to use for each request.
 
 That is possible via explicit binding.
 
-For example:
-
 ```js
 // create a top-level domain for the server
 const domain = require('domain');
