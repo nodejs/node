@@ -17,7 +17,7 @@ For more information about the used equality comparisons see
 <!-- YAML
 added: REPLACEME
 changes:
-  - version: REPLACEME
+  - version: 9.5.0
     pr-url: https://github.com/nodejs/node/pull/17615
     description: Added error diffs to the strict mode
   - version: REPLACEME
