@@ -263,12 +263,6 @@ module.exports = {
     DTRACE_HTTP_SERVER_RESPONSE: false,
     DTRACE_NET_SERVER_CONNECTION: false,
     DTRACE_NET_STREAM_END: false,
-    LTTNG_HTTP_CLIENT_REQUEST: false,
-    LTTNG_HTTP_CLIENT_RESPONSE: false,
-    LTTNG_HTTP_SERVER_REQUEST: false,
-    LTTNG_HTTP_SERVER_RESPONSE: false,
-    LTTNG_NET_SERVER_CONNECTION: false,
-    LTTNG_NET_STREAM_END: false,
     internalBinding: false,
   },
 };

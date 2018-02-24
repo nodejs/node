@@ -3,7 +3,6 @@
     'v8_use_snapshot%': 'false',
     'v8_trace_maps%': 0,
     'node_use_dtrace%': 'false',
-    'node_use_lttng%': 'false',
     'node_use_etw%': 'false',
     'node_use_perfctr%': 'false',
     'node_no_browser_globals%': 'false',
@@ -530,19 +529,6 @@
             }],
           ],
         }],
-        [ 'node_use_lttng=="true"', {
-          'defines': [ 'HAVE_LTTNG=1' ],
-          'include_dirs': [ '<(SHARED_INTERMEDIATE_DIR)' ],
-          'libraries': [ '-llttng-ust' ],
-          'include_dirs': [
-            'src',
-            'tools/msvs/genfiles',
-            '<(SHARED_INTERMEDIATE_DIR)' # for node_natives.h
-          ],
-          'sources': [
-            'src/node_lttng.cc'
-          ],
-        }],
         [ 'node_use_dtrace=="true"', {
           'defines': [ 'HAVE_DTRACE=1' ],
           'dependencies': [
@@ -735,9 +721,6 @@
           'conditions': [
             [ 'node_use_dtrace=="false" and node_use_etw=="false"', {
               'inputs': [ 'src/notrace_macros.py' ]
-            }],
-            [ 'node_use_lttng=="false"', {
-              'inputs': [ 'src/nolttng_macros.py' ]
             }],
             [ 'node_use_perfctr=="false"', {
               'inputs': [ 'src/noperfctr_macros.py' ]

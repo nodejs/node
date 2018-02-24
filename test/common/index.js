@@ -334,15 +334,6 @@ if (global.COUNTER_NET_SERVER_CONNECTION) {
   knownGlobals.push(COUNTER_HTTP_CLIENT_RESPONSE);
 }
 
-if (global.LTTNG_HTTP_SERVER_RESPONSE) {
-  knownGlobals.push(LTTNG_HTTP_SERVER_RESPONSE);
-  knownGlobals.push(LTTNG_HTTP_SERVER_REQUEST);
-  knownGlobals.push(LTTNG_HTTP_CLIENT_RESPONSE);
-  knownGlobals.push(LTTNG_HTTP_CLIENT_REQUEST);
-  knownGlobals.push(LTTNG_NET_STREAM_END);
-  knownGlobals.push(LTTNG_NET_SERVER_CONNECTION);
-}
-
 if (global.ArrayBuffer) {
   knownGlobals.push(ArrayBuffer);
   knownGlobals.push(Int8Array);
