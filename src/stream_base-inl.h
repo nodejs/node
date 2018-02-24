@@ -106,22 +106,33 @@ inline void StreamResource::RemoveStreamListener(StreamListener* listener) {
   listener->previous_listener_ = nullptr;
 }
 
-
 inline uv_buf_t StreamResource::EmitAlloc(size_t suggested_size) {
+#ifdef DEBUG
+  v8::SealHandleScope handle_scope(v8::Isolate::GetCurrent());
+#endif
   return listener_->OnStreamAlloc(suggested_size);
 }
 
 inline void StreamResource::EmitRead(ssize_t nread, const uv_buf_t& buf) {
+#ifdef DEBUG
+  v8::SealHandleScope handle_scope(v8::Isolate::GetCurrent());
+#endif
   if (nread > 0)
     bytes_read_ += static_cast<uint64_t>(nread);
   listener_->OnStreamRead(nread, buf);
 }
 
 inline void StreamResource::EmitAfterWrite(WriteWrap* w, int status) {
+#ifdef DEBUG
+  v8::SealHandleScope handle_scope(v8::Isolate::GetCurrent());
+#endif
   listener_->OnStreamAfterWrite(w, status);
 }
 
 inline void StreamResource::EmitAfterShutdown(ShutdownWrap* w, int status) {
+#ifdef DEBUG
+  v8::SealHandleScope handle_scope(v8::Isolate::GetCurrent());
+#endif
   listener_->OnStreamAfterShutdown(w, status);
 }
 
@@ -131,29 +142,6 @@ inline StreamBase::StreamBase(Environment* env) : env_(env) {
 
 inline Environment* StreamBase::stream_env() const {
   return env_;
-}
-
-inline void StreamBase::AfterWrite(WriteWrap* req_wrap, int status) {
-  AfterRequest(req_wrap, [&]() {
-    EmitAfterWrite(req_wrap, status);
-  });
-}
-
-inline void StreamBase::AfterShutdown(ShutdownWrap* req_wrap, int status) {
-  AfterRequest(req_wrap, [&]() {
-    EmitAfterShutdown(req_wrap, status);
-  });
-}
-
-template<typename Wrap, typename EmitEvent>
-inline void StreamBase::AfterRequest(Wrap* req_wrap, EmitEvent emit) {
-  Environment* env = stream_env();
-
-  v8::HandleScope handle_scope(env->isolate());
-  v8::Context::Scope context_scope(env->context());
-
-  emit();
-  req_wrap->Dispose();
 }
 
 inline int StreamBase::Shutdown(v8::Local<v8::Object> req_wrap_obj) {
@@ -387,7 +375,8 @@ void StreamBase::JSMethod(const FunctionCallbackInfo<Value>& args) {
 
 
 inline void ShutdownWrap::OnDone(int status) {
-  stream()->AfterShutdown(this, status);
+  stream()->EmitAfterShutdown(this, status);
+  Dispose();
 }
 
 inline void WriteWrap::SetAllocatedStorage(char* data, size_t size) {
@@ -405,7 +394,8 @@ inline size_t WriteWrap::StorageSize() const {
 }
 
 inline void WriteWrap::OnDone(int status) {
-  stream()->AfterWrite(this, status);
+  stream()->EmitAfterWrite(this, status);
+  Dispose();
 }
 
 inline void StreamReq::Done(int status, const char* error_str) {

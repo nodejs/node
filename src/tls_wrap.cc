@@ -220,6 +220,8 @@ void TLSWrap::SSLInfoCallback(const SSL* ssl_, int where, int ret) {
   SSL* ssl = const_cast<SSL*>(ssl_);
   TLSWrap* c = static_cast<TLSWrap*>(SSL_get_app_data(ssl));
   Environment* env = c->env();
+  HandleScope handle_scope(env->isolate());
+  Context::Scope context_scope(env->context());
   Local<Object> object = c->object();
 
   if (where & SSL_CB_HANDSHAKE_START) {
@@ -289,6 +291,8 @@ void TLSWrap::EncOut() {
   NODE_COUNT_NET_BYTES_SENT(write_size_);
 
   if (!res.async) {
+    HandleScope handle_scope(env()->isolate());
+
     // Simulate asynchronous finishing, TLS cannot handle this at the moment.
     env()->SetImmediate([](Environment* env, void* data) {
       static_cast<TLSWrap*>(data)->OnStreamAfterWrite(nullptr, 0);
@@ -427,6 +431,7 @@ void TLSWrap::ClearOut() {
   // shutdown cleanly (SSL_ERROR_ZERO_RETURN) even when read == 0.
   // See node#1642 and SSL_read(3SSL) for details.
   if (read <= 0) {
+    HandleScope handle_scope(env()->isolate());
     int err;
     Local<Value> arg = GetSSLError(read, &err, nullptr);
 
@@ -477,6 +482,9 @@ bool TLSWrap::ClearIn() {
   }
 
   // Error or partial write
+  HandleScope handle_scope(env()->isolate());
+  Context::Scope context_scope(env()->context());
+
   int err;
   std::string error_str;
   Local<Value> arg = GetSSLError(written, &err, &error_str);
@@ -813,6 +821,9 @@ int TLSWrap::SelectSNIContextCallback(SSL* s, int* ad, void* arg) {
 
   if (servername == nullptr)
     return SSL_TLSEXT_ERR_OK;
+
+  HandleScope handle_scope(env->isolate());
+  Context::Scope context_scope(env->context());
 
   // Call the SNI callback and use its return value as context
   Local<Object> object = p->object();
