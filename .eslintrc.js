@@ -251,6 +251,7 @@ module.exports = {
     'node-core/no-unescaped-regexp-dot': 'error',
   },
   globals: {
+    WebAssembly: false,
     COUNTER_HTTP_CLIENT_REQUEST: false,
     COUNTER_HTTP_CLIENT_RESPONSE: false,
     COUNTER_HTTP_SERVER_REQUEST: false,

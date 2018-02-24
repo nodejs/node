@@ -100,6 +100,11 @@ export function leakedGlobals() {
 // Turn this off if the test should not check for global leaks.
 export let globalCheck = true;  // eslint-disable-line
 
+export function crashOnUnhandledRejection() {
+  process.on('unhandledRejection',
+             (err) => process.nextTick(() => { throw err; }));
+}
+
 process.on('exit', function() {
   if (!globalCheck) return;
   const leaked = leakedGlobals();
