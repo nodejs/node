@@ -1132,6 +1132,8 @@ void Http2StreamListener::OnStreamRead(ssize_t nread, const uv_buf_t& buf) {
   Http2Stream* stream = static_cast<Http2Stream*>(stream_);
   Http2Session* session = stream->session();
   Environment* env = stream->env();
+  HandleScope handle_scope(env->isolate());
+  Context::Scope context_scope(env->context());
 
   if (nread < 0) {
     PassReadErrorToPreviousListener(nread);
@@ -1422,6 +1424,7 @@ void Http2Session::OnStreamAfterWrite(WriteWrap* w, int status) {
 void Http2Session::MaybeScheduleWrite() {
   CHECK_EQ(flags_ & SESSION_STATE_WRITE_SCHEDULED, 0);
   if (session_ != nullptr && nghttp2_session_want_write(session_)) {
+    HandleScope handle_scope(env()->isolate());
     DEBUG_HTTP2SESSION(this, "scheduling write");
     flags_ |= SESSION_STATE_WRITE_SCHEDULED;
     env()->SetImmediate([](Environment* env, void* data) {
@@ -1632,6 +1635,8 @@ inline Http2Stream* Http2Session::SubmitRequest(
 
 // Callback used to receive inbound data from the i/o stream
 void Http2Session::OnStreamRead(ssize_t nread, const uv_buf_t& buf) {
+  HandleScope handle_scope(env()->isolate());
+  Context::Scope context_scope(env()->context());
   Http2Scope h2scope(this);
   CHECK_NE(stream_, nullptr);
   DEBUG_HTTP2SESSION2(this, "receiving %d bytes", nread);
@@ -1661,8 +1666,6 @@ void Http2Session::OnStreamRead(ssize_t nread, const uv_buf_t& buf) {
     CHECK_LE(static_cast<size_t>(nread), stream_buf_.len);
 
     Isolate* isolate = env()->isolate();
-    HandleScope scope(isolate);
-    Context::Scope context_scope(env()->context());
 
     // Create an array buffer for the read data. DATA frames will be emitted
     // as slices of this array buffer to avoid having to copy memory.

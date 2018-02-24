@@ -61,7 +61,8 @@ class ShutdownWrap : public StreamReq {
                v8::Local<v8::Object> req_wrap_obj)
     : StreamReq(stream, req_wrap_obj) { }
 
-  void OnDone(int status) override;  // Just calls stream()->AfterShutdown()
+  // Call stream()->EmitAfterShutdown() and dispose of this request wrap.
+  void OnDone(int status) override;
 };
 
 class WriteWrap : public StreamReq {
@@ -78,7 +79,8 @@ class WriteWrap : public StreamReq {
     free(storage_);
   }
 
-  void OnDone(int status) override;  // Just calls stream()->AfterWrite()
+  // Call stream()->EmitAfterWrite() and dispose of this request wrap.
+  void OnDone(int status) override;
 
  private:
   char* storage_ = nullptr;
@@ -305,13 +307,6 @@ class StreamBase : public StreamResource {
  private:
   Environment* env_;
   EmitToJSStreamListener default_listener_;
-
-  // These are called by the respective {Write,Shutdown}Wrap class.
-  void AfterShutdown(ShutdownWrap* req, int status);
-  void AfterWrite(WriteWrap* req, int status);
-
-  template <typename Wrap, typename EmitEvent>
-  void AfterRequest(Wrap* req_wrap, EmitEvent emit);
 
   friend class WriteWrap;
   friend class ShutdownWrap;
