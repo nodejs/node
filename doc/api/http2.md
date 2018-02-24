@@ -528,7 +528,6 @@ added: v8.4.0
 -->
 
 * `settings` {HTTP2 Settings Object}
-* Returns {undefined}
 
 Updates the current local settings for this `Http2Session` and sends a new
 `SETTINGS` frame to the connected HTTP/2 peer.
