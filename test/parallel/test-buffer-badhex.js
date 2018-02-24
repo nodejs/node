@@ -6,12 +6,12 @@ const assert = require('assert');
 {
   const buf = Buffer.alloc(4);
   assert.strictEqual(buf.length, 4);
-  assert.deepStrictEqual(buf, new Buffer([0, 0, 0, 0]));
+  assert.deepStrictEqual(buf, Buffer.from([0, 0, 0, 0]));
   assert.strictEqual(buf.write('abcdxx', 0, 'hex'), 2);
-  assert.deepStrictEqual(buf, new Buffer([0xab, 0xcd, 0x00, 0x00]));
+  assert.deepStrictEqual(buf, Buffer.from([0xab, 0xcd, 0x00, 0x00]));
   assert.strictEqual(buf.toString('hex'), 'abcd0000');
   assert.strictEqual(buf.write('abcdef01', 0, 'hex'), 4);
-  assert.deepStrictEqual(buf, new Buffer([0xab, 0xcd, 0xef, 0x01]));
+  assert.deepStrictEqual(buf, Buffer.from([0xab, 0xcd, 0xef, 0x01]));
   assert.strictEqual(buf.toString('hex'), 'abcdef01');
 
   const copy = Buffer.from(buf.toString('hex'), 'hex');
@@ -26,13 +26,13 @@ const assert = require('assert');
 
 {
   const buf = Buffer.alloc(4);
-  assert.deepStrictEqual(buf, new Buffer([0, 0, 0, 0]));
+  assert.deepStrictEqual(buf, Buffer.from([0, 0, 0, 0]));
   assert.strictEqual(buf.write('xxabcd', 0, 'hex'), 0);
-  assert.deepStrictEqual(buf, new Buffer([0, 0, 0, 0]));
+  assert.deepStrictEqual(buf, Buffer.from([0, 0, 0, 0]));
   assert.strictEqual(buf.write('xxab', 1, 'hex'), 0);
-  assert.deepStrictEqual(buf, new Buffer([0, 0, 0, 0]));
+  assert.deepStrictEqual(buf, Buffer.from([0, 0, 0, 0]));
   assert.strictEqual(buf.write('cdxxab', 0, 'hex'), 1);
-  assert.deepStrictEqual(buf, new Buffer([0xcd, 0, 0, 0]));
+  assert.deepStrictEqual(buf, Buffer.from([0xcd, 0, 0, 0]));
 }
 
 {
