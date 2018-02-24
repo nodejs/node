@@ -914,6 +914,13 @@ Type: Runtime
 
 This was never a documented feature.
 
+<a id="DEP0XXX"></a>
+### DEP0XXX: with-lttng
+
+Type: Documentation-only
+
+`with-lttng` compile time option is deprecated.
+
 [`--pending-deprecation`]: cli.html#cli_pending_deprecation
 [`Buffer.allocUnsafeSlow(size)`]: buffer.html#buffer_class_method_buffer_allocunsafeslow_size
 [`Buffer.from(array)`]: buffer.html#buffer_class_method_buffer_from_array
