@@ -16,7 +16,7 @@ server.listen(0, common.mustCall(function() {
   socket.cork();
 
   socket.write('one');
-  socket.write(new Buffer('twø', 'utf8'));
+  socket.write(Buffer.from('twø', 'utf8'));
 
   socket.uncork();
 

@@ -504,7 +504,7 @@ assert.strictEqual(buf_bc.lastIndexOf('你好', 5, 'binary'), -1);
 assert.strictEqual(buf_bc.lastIndexOf(Buffer.from('你好'), 7), -1);
 
 // Test lastIndexOf on a longer buffer:
-const bufferString = new Buffer('a man a plan a canal panama');
+const bufferString = Buffer.from('a man a plan a canal panama');
 assert.strictEqual(15, bufferString.lastIndexOf('canal'));
 assert.strictEqual(21, bufferString.lastIndexOf('panama'));
 assert.strictEqual(0, bufferString.lastIndexOf('a man a plan a canal panama'));
@@ -566,7 +566,7 @@ const parts = [];
 for (let i = 0; i < 1000000; i++) {
   parts.push((countBits(i) % 2 === 0) ? 'yolo' : 'swag');
 }
-const reallyLong = new Buffer(parts.join(' '));
+const reallyLong = Buffer.from(parts.join(' '));
 assert.strictEqual('yolo swag swag yolo', reallyLong.slice(0, 19).toString());
 
 // Expensive reverse searches. Stress test lastIndexOf:

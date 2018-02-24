@@ -8,7 +8,7 @@ const bench = common.createBenchmark(main, {
 });
 
 function main({ n }) {
-  const b = new Buffer(1024);
+  const b = Buffer.alloc(1024);
   const r = new Readable();
   const w = new Writable();
 
