@@ -469,7 +469,7 @@ $ npm install -g node-core-utils
 $ git node land $PRID
 ```
 
-If it's the first time you have ever use `node-core-utils`, you will be prompted
+If it's the first time you ever use `node-core-utils`, you will be prompted
 to type the password of your GitHub account in the console so the tool can
 create the GitHub access token for you. If you do not want to do that, follow
 [the guide of `node-core-utils`][node-core-utils-credentials]
@@ -590,7 +590,7 @@ commit logs, ensure that they are properly formatted, and add
 
 <a name="metadata"></a>
 * Modify the original commit message to include additional metadata regarding
-  the change process. (the [`git node metadata`][git-node-metadata] command
+  the change process. (The [`git node metadata`][git-node-metadata] command
   can generate the metadata for you.)
 
   * Required: A `PR-URL:` line that references the *full* GitHub URL of the
