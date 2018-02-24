@@ -41,3 +41,25 @@ const unicode = '中文测试'; // length = 4, byte length = 12
 
   cp.exec(cmd, { maxBuffer: 10 }, checkFactory('stderr'));
 }
+
+{
+  const cmd = `"${process.execPath}" -e "console.log('${unicode}');"`;
+
+  const child = cp.exec(
+    cmd,
+    { encoding: null, maxBuffer: 10 },
+    checkFactory('stdout'));
+
+  child.stdout.setEncoding('utf-8');
+}
+
+{
+  const cmd = `"${process.execPath}" -e "console.error('${unicode}');"`;
+
+  const child = cp.exec(
+    cmd,
+    { encoding: null, maxBuffer: 10 },
+    checkFactory('stderr'));
+
+  child.stderr.setEncoding('utf-8');
+}
