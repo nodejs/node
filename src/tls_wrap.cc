@@ -601,7 +601,12 @@ int TLSWrap::DoWrite(WriteWrap* w,
                      size_t count,
                      uv_stream_t* send_handle) {
   CHECK_EQ(send_handle, nullptr);
-  CHECK_NE(ssl_, nullptr);
+
+  if (ssl_ == nullptr) {
+    ClearError();
+    error_ = "Write after DestroySSL";
+    return UV_EPROTO;
+  }
 
   bool empty = true;
 
@@ -640,12 +645,6 @@ int TLSWrap::DoWrite(WriteWrap* w,
     for (i = 0; i < count; i++)
       clear_in_->Write(bufs[i].base, bufs[i].len);
     return 0;
-  }
-
-  if (ssl_ == nullptr) {
-    ClearError();
-    error_ = "Write after DestroySSL";
-    return UV_EPROTO;
   }
 
   crypto::MarkPopErrorOnReturn mark_pop_error_on_return;
