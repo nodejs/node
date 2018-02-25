@@ -22,6 +22,10 @@ using v8::Local;
 using v8::Object;
 using v8::Value;
 
+extern const uint64_t timeOrigin;
+
+double GetCurrentTimeInMicroseconds();
+
 static inline PerformanceMilestone ToPerformanceMilestoneEnum(const char* str) {
 #define V(name, label)                                                        \
   if (strcmp(str, label) == 0) return NODE_PERFORMANCE_MILESTONE_##name;
@@ -77,11 +81,11 @@ class PerformanceEntry {
     return ToPerformanceEntryTypeEnum(type().c_str());
   }
 
-  double startTime() const { return startTime_ / 1e6; }
+  double startTime() const { return startTimeNano() / 1e6; }
 
   double duration() const { return durationNano() / 1e6; }
 
-  uint64_t startTimeNano() const { return startTime_; }
+  uint64_t startTimeNano() const { return startTime_ - timeOrigin; }
 
   uint64_t durationNano() const { return endTime_ - startTime_; }
 
