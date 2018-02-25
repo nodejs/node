@@ -29,6 +29,6 @@ const server = tls.createServer(options, (c) => {
   }, common.mustNotCall());
 
   c.on('error', common.mustCall((err) => {
-    assert(/socket hang up/.test(err.message));
+    assert(/Client network socket disconnected/.test(err.message));
   }));
 }));
