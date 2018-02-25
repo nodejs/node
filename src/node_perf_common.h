@@ -4,6 +4,7 @@
 #include "node.h"
 #include "v8.h"
 
+#include <algorithm>
 #include <map>
 #include <string>
 
@@ -76,7 +77,10 @@ class performance_state {
       isolate,
       offsetof(performance_state_internal, observers),
       NODE_PERFORMANCE_ENTRY_TYPE_INVALID,
-      root) {}
+      root) {
+    for (size_t i = 0; i < milestones.Length(); i++)
+      milestones[i] = -1.;
+  }
 
   AliasedBuffer<uint8_t, v8::Uint8Array> root;
   AliasedBuffer<double, v8::Float64Array> milestones;
