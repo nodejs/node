@@ -33,10 +33,11 @@ async function runTests() {
   assert.strictEqual(stderrString, 'Debugger attached.')
   stderrString = await child.nextStderrString();
   assert.strictEqual(stderrString, '');
+
+  await session.send({ 'method': 'Profiler.start' });
+
   stderrString = await child.nextStderrString();
   assert.strictEqual(stderrString, 'Waiting for the debugger to disconnect...');
-
-  session.send({ 'method': 'Profiler.start' });
 
   // await session.send({ 'method': 'Profiler.stop' });
   // session.disconnect();
