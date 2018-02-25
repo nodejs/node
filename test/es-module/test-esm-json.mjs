@@ -1,5 +1,5 @@
 // Flags: --experimental-modules
-/* eslint-disable required-modules */
+/* eslint-disable node-core/required-modules */
 import '../common/index';
 import assert from 'assert';
 import ok from './test-esm-ok.mjs';

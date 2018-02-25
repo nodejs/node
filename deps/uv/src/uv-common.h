@@ -41,6 +41,12 @@
 #include "tree.h"
 #include "queue.h"
 
+#if EDOM > 0
+# define UV__ERR(x) (-(x))
+#else
+# define UV__ERR(x) (x)
+#endif
+
 #if !defined(snprintf) && defined(_MSC_VER) && _MSC_VER < 1900
 extern int snprintf(char*, size_t, const char*, ...);
 #endif

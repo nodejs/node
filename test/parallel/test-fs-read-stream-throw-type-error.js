@@ -1,23 +1,14 @@
 'use strict';
 const common = require('../common');
 const fixtures = require('../common/fixtures');
-const assert = require('assert');
 const fs = require('fs');
 
 const example = fixtures.path('x.txt');
-
-assert.doesNotThrow(function() {
-  fs.createReadStream(example, undefined);
-});
-assert.doesNotThrow(function() {
-  fs.createReadStream(example, null);
-});
-assert.doesNotThrow(function() {
-  fs.createReadStream(example, 'utf8');
-});
-assert.doesNotThrow(function() {
-  fs.createReadStream(example, { encoding: 'utf8' });
-});
+// Should not throw.
+fs.createReadStream(example, undefined);
+fs.createReadStream(example, null);
+fs.createReadStream(example, 'utf8');
+fs.createReadStream(example, { encoding: 'utf8' });
 
 const createReadStreamErr = (path, opt) => {
   common.expectsError(

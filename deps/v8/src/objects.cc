@@ -13014,14 +13014,19 @@ MaybeHandle<Map> JSFunction::GetDerivedMap(Isolate* isolate,
                           constructor_initial_map->UnusedPropertyFields();
       int instance_size;
       int in_object_properties;
-      CalculateInstanceSizeForDerivedClass(function, instance_type,
-                                           embedder_fields, &instance_size,
-                                           &in_object_properties);
+      bool success = CalculateInstanceSizeForDerivedClass(
+          function, instance_type, embedder_fields, &instance_size,
+          &in_object_properties);
 
       int unused_property_fields = in_object_properties - pre_allocated;
-      Handle<Map> map =
-          Map::CopyInitialMap(constructor_initial_map, instance_size,
-                              in_object_properties, unused_property_fields);
+
+      Handle<Map> map;
+      if (success) {
+        map = Map::CopyInitialMap(constructor_initial_map, instance_size,
+                                  in_object_properties, unused_property_fields);
+      } else {
+        map = Map::CopyInitialMap(constructor_initial_map);
+      }
       map->set_new_target_is_base(false);
 
       JSFunction::SetInitialMap(function, map, prototype);
@@ -13726,12 +13731,14 @@ void JSFunction::CalculateInstanceSizeHelper(InstanceType instance_type,
                           requested_embedder_fields;
 }
 
-void JSFunction::CalculateInstanceSizeForDerivedClass(
+// static
+bool JSFunction::CalculateInstanceSizeForDerivedClass(
     Handle<JSFunction> function, InstanceType instance_type,
     int requested_embedder_fields, int* instance_size,
     int* in_object_properties) {
   Isolate* isolate = function->GetIsolate();
   int expected_nof_properties = 0;
+  bool result = true;
   for (PrototypeIterator iter(isolate, function, kStartAtReceiver);
        !iter.IsAtEnd(); iter.Advance()) {
     Handle<JSReceiver> current =
@@ -13745,6 +13752,11 @@ void JSFunction::CalculateInstanceSizeForDerivedClass(
         Compiler::Compile(func, Compiler::CLEAR_EXCEPTION)) {
       DCHECK(shared->is_compiled());
       expected_nof_properties += shared->expected_nof_properties();
+    } else if (!shared->is_compiled()) {
+      // In case there was a compilation error for the constructor we will
+      // throw an error during instantiation. Hence we directly return 0;
+      result = false;
+      break;
     }
     if (!IsDerivedConstructor(shared->kind())) {
       break;
@@ -13753,6 +13765,7 @@ void JSFunction::CalculateInstanceSizeForDerivedClass(
   CalculateInstanceSizeHelper(instance_type, true, requested_embedder_fields,
                               expected_nof_properties, instance_size,
                               in_object_properties);
+  return result;
 }
 
 

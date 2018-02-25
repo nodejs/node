@@ -219,7 +219,7 @@ API
 
     .. caution::
 
-       Any previous value returned from :c:func`uv_backend_fd` is now
+       Any previous value returned from :c:func:`uv_backend_fd` is now
        invalid. That function must be called again to determine the
        correct backend file descriptor.
 

@@ -25,12 +25,16 @@ template <typename T>
 ReqWrap<T>::~ReqWrap() {
   CHECK_EQ(req_.data, this);  // Assert that someone has called Dispatched().
   CHECK_EQ(false, persistent().IsEmpty());
-  persistent().Reset();
 }
 
 template <typename T>
 void ReqWrap<T>::Dispatched() {
   req_.data = this;
+}
+
+template <typename T>
+ReqWrap<T>* ReqWrap<T>::from_req(T* req) {
+  return ContainerOf(&ReqWrap<T>::req_, req);
 }
 
 }  // namespace node

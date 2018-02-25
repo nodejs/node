@@ -81,7 +81,7 @@ function expect(expected) {
   // Check for regression where removeAllListeners() throws when
   // there exists a 'removeListener' listener, but there exists
   // no listeners for the provided event type.
-  assert.doesNotThrow(ee.removeAllListeners.bind(ee, 'foo'));
+  ee.removeAllListeners.bind(ee, 'foo');
 }
 
 {

@@ -172,6 +172,7 @@ inline bool Environment::AsyncHooks::pop_async_id(double async_id) {
   return fields_[kStackLength] > 0;
 }
 
+// Keep in sync with clearAsyncIdStack in lib/internal/async_hooks.js.
 inline void Environment::AsyncHooks::clear_async_id_stack() {
   async_id_fields_[kExecutionAsyncId] = 0;
   async_id_fields_[kTriggerAsyncId] = 0;
@@ -311,6 +312,10 @@ inline Environment* Environment::GetCurrent(
       info.Data().template As<v8::External>()->Value());
 }
 
+inline Environment* Environment::GetThreadLocalEnv() {
+  return static_cast<Environment*>(uv_key_get(&thread_local_env));
+}
+
 inline Environment::Environment(IsolateData* isolate_data,
                                 v8::Local<v8::Context> context)
     : isolate_(context->GetIsolate()),
@@ -365,9 +370,6 @@ inline Environment::~Environment() {
 
   context()->SetAlignedPointerInEmbedderData(kContextEmbedderDataIndex,
                                              nullptr);
-#define V(PropertyName, TypeName) PropertyName ## _.Reset();
-  ENVIRONMENT_STRONG_PERSISTENT_PROPERTIES(V)
-#undef V
 
   delete[] heap_statistics_buffer_;
   delete[] heap_space_statistics_buffer_;
@@ -545,8 +547,8 @@ void Environment::CreateImmediate(native_immediate_callback cb,
   native_immediate_callbacks_.push_back({
     cb,
     data,
-    std::unique_ptr<v8::Persistent<v8::Object>>(obj.IsEmpty() ?
-        nullptr : new v8::Persistent<v8::Object>(isolate_, obj)),
+    std::unique_ptr<Persistent<v8::Object>>(obj.IsEmpty() ?
+        nullptr : new Persistent<v8::Object>(isolate_, obj)),
     ref
   });
   immediate_info()->count_inc(1);

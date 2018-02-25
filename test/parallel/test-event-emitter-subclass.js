@@ -36,6 +36,7 @@ function MyEE(cb) {
 
 const myee = new MyEE(common.mustCall());
 
+myee.hasOwnProperty('usingDomains');
 
 util.inherits(ErrorEE, EventEmitter);
 function ErrorEE() {

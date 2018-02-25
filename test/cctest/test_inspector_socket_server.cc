@@ -398,7 +398,7 @@ static const std::string WsHandshakeRequest(const std::string& target_id) {
          "Sec-WebSocket-Key: aaa==\r\n"
          "Sec-WebSocket-Version: 13\r\n\r\n";
 }
-}  // namespace
+}  // anonymous namespace
 
 
 TEST_F(InspectorSocketServerTest, InspectorSessions) {

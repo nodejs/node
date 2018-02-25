@@ -19,7 +19,6 @@ using v8::Local;
 using v8::MaybeLocal;
 using v8::NewStringType;
 using v8::Object;
-using v8::Persistent;
 using v8::String;
 using v8::Value;
 
@@ -85,10 +84,6 @@ class JSBindingsConnection : public AsyncWrap {
     inspector->Connect(&delegate_);
   }
 
-  ~JSBindingsConnection() override {
-    callback_.Reset();
-  }
-
   void OnMessage(Local<Value> value) {
     MakeCallback(callback_.Get(env()->isolate()), 1, &value);
   }
@@ -112,7 +107,6 @@ class JSBindingsConnection : public AsyncWrap {
     delegate_.Disconnect();
     if (!persistent().IsEmpty()) {
       ClearWrap(object());
-      persistent().Reset();
     }
     delete this;
   }

@@ -1613,6 +1613,7 @@ Handle<JSFunction> Factory::NewFunction(const NewFunctionArgs& args) {
     }
     Handle<Map> initial_map = NewMap(args.type_, args.instance_size_,
                                      elements_kind, args.inobject_properties_);
+    result->shared()->set_expected_nof_properties(args.inobject_properties_);
     // TODO(littledan): Why do we have this is_generator test when
     // NewFunctionPrototype already handles finding an appropriately
     // shared prototype?

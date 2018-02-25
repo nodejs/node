@@ -1,17 +1,12 @@
 'use strict';
 
+const { isDefiningError } = require('./rules-utils.js');
+
 const prefix = 'Out of ASCIIbetical order - ';
 const opStr = ' >= ';
 
 function errorForNode(node) {
   return node.expression.arguments[0].value;
-}
-
-function isDefiningError(node) {
-  return node.expression &&
-         node.expression.type === 'CallExpression' &&
-         node.expression.callee &&
-         node.expression.callee.name === 'E';
 }
 
 module.exports = {

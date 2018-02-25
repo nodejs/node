@@ -9,8 +9,10 @@ const assert = require('assert');
 const net = require('net');
 const http = require('http');
 const uv = process.binding('uv');
-const { async_id_symbol } = process.binding('async_wrap');
-const { newUid } = require('internal/async_hooks');
+const {
+  newAsyncId,
+  symbols: { async_id_symbol }
+} = require('internal/async_hooks');
 
 const agent = new http.Agent();
 agent.createConnection = common.mustCall((cfg) => {
@@ -26,7 +28,7 @@ agent.createConnection = common.mustCall((cfg) => {
   };
 
   // Simulate just enough socket handle initialization
-  sock[async_id_symbol] = newUid();
+  sock[async_id_symbol] = newAsyncId();
 
   sock.connect(cfg);
   return sock;

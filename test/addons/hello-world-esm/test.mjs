@@ -1,4 +1,4 @@
-/* eslint-disable required-modules */
+/* eslint-disable node-core/required-modules */
 
 import assert from 'assert';
 import binding from './build/binding.node';

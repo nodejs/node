@@ -9,10 +9,10 @@ const { NodeInstance } = require('../common/inspector-helper.js');
 
 function checkListResponse(response) {
   assert.strictEqual(1, response.length);
-  assert.ok(response[0]['devtoolsFrontendUrl']);
+  assert.ok(response[0].devtoolsFrontendUrl);
   assert.ok(
     /ws:\/\/127\.0\.0\.1:\d+\/[0-9A-Fa-f]{8}-/
-      .test(response[0]['webSocketDebuggerUrl']));
+      .test(response[0].webSocketDebuggerUrl));
 }
 
 function checkVersion(response) {
@@ -32,7 +32,7 @@ function checkBadPath(err) {
 }
 
 function checkException(message) {
-  assert.strictEqual(message['exceptionDetails'], undefined,
+  assert.strictEqual(message.exceptionDetails, undefined,
                      'An exception occurred during execution');
 }
 
@@ -45,10 +45,10 @@ function assertNoUrlsWhileConnected(response) {
 function assertScopeValues({ result }, expected) {
   const unmatched = new Set(Object.keys(expected));
   for (const actual of result) {
-    const value = expected[actual['name']];
+    const value = expected[actual.name];
     if (value) {
-      assert.strictEqual(value, actual['value']['value']);
-      unmatched.delete(actual['name']);
+      assert.strictEqual(value, actual.value.value);
+      unmatched.delete(actual.name);
     }
   }
   if (unmatched.size)
@@ -124,14 +124,14 @@ async function testBreakpoint(session) {
     }
   });
 
-  assert.strictEqual(1002, result['value']);
+  assert.strictEqual(1002, result.value);
 
   result = (await session.send({
     'method': 'Runtime.evaluate', 'params': {
       'expression': '5 * 5'
     }
   })).result;
-  assert.strictEqual(25, result['value']);
+  assert.strictEqual(25, result.value);
 }
 
 async function testI18NCharacters(session) {
@@ -168,7 +168,7 @@ async function testCommandLineAPI(session) {
       }
     });
   checkException(result);
-  assert.strictEqual(result['result']['value'], true);
+  assert.strictEqual(result.result.value, true);
 
   // the global require has the same properties as a normal `require`
   result = await session.send(
@@ -183,7 +183,7 @@ async function testCommandLineAPI(session) {
       }
     });
   checkException(result);
-  assert.strictEqual(result['result']['value'], true);
+  assert.strictEqual(result.result.value, true);
   // `require` twice returns the same value
   result = await session.send(
     {
@@ -199,7 +199,7 @@ async function testCommandLineAPI(session) {
       }
     });
   checkException(result);
-  assert.strictEqual(result['result']['value'], true);
+  assert.strictEqual(result.result.value, true);
   // after require the module appears in require.cache
   result = await session.send(
     {
@@ -211,7 +211,7 @@ async function testCommandLineAPI(session) {
       }
     });
   checkException(result);
-  assert.deepStrictEqual(JSON.parse(result['result']['value']),
+  assert.deepStrictEqual(JSON.parse(result.result.value),
                          { old: 'yes' });
   // remove module from require.cache
   result = await session.send(
@@ -222,7 +222,7 @@ async function testCommandLineAPI(session) {
       }
     });
   checkException(result);
-  assert.strictEqual(result['result']['value'], true);
+  assert.strictEqual(result.result.value, true);
   // require again, should get fresh (empty) exports
   result = await session.send(
     {
@@ -232,7 +232,7 @@ async function testCommandLineAPI(session) {
       }
     });
   checkException(result);
-  assert.deepStrictEqual(JSON.parse(result['result']['value']), {});
+  assert.deepStrictEqual(JSON.parse(result.result.value), {});
   // require 2nd module, exports an empty object
   result = await session.send(
     {
@@ -242,7 +242,7 @@ async function testCommandLineAPI(session) {
       }
     });
   checkException(result);
-  assert.deepStrictEqual(JSON.parse(result['result']['value']), {});
+  assert.deepStrictEqual(JSON.parse(result.result.value), {});
   // both modules end up with the same module.parent
   result = await session.send(
     {
@@ -257,7 +257,7 @@ async function testCommandLineAPI(session) {
       }
     });
   checkException(result);
-  assert.deepStrictEqual(JSON.parse(result['result']['value']), {
+  assert.deepStrictEqual(JSON.parse(result.result.value), {
     parentsEqual: true,
     parentId: '<inspector console>'
   });
@@ -274,7 +274,7 @@ async function testCommandLineAPI(session) {
       }
     });
   checkException(result);
-  assert.notStrictEqual(result['result']['value'],
+  assert.notStrictEqual(result.result.value,
                         '<inspector console>');
 }
 

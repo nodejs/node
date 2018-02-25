@@ -58,8 +58,6 @@ The listener callback function is invoked with the exit code specified either
 by the [`process.exitCode`][] property, or the `exitCode` argument passed to the
 [`process.exit()`] method, as the only argument.
 
-For example:
-
 ```js
 process.on('exit', (code) => {
   console.log(`About to exit with code: ${code}`);
@@ -94,8 +92,8 @@ The listener callback is invoked with the following arguments:
 * `sendHandle` {Handle object} a [`net.Socket`][] or [`net.Server`][] object, or
   undefined.
 
-*Note*: The message goes through serialization and parsing. The resulting
-message might not be the same as what is originally sent.
+The message goes through serialization and parsing. The resulting message might
+not be the same as what is originally sent.
 
 ### Event: 'rejectionHandled'
 <!-- YAML
@@ -129,8 +127,6 @@ In asynchronous code, the `'unhandledRejection'` event is emitted when the list
 of unhandled rejections grows, and the `'rejectionHandled'` event is emitted
 when the list of unhandled rejections shrinks.
 
-For example:
-
 ```js
 const unhandledRejections = new Map();
 process.on('unhandledRejection', (reason, p) => {
@@ -160,8 +156,6 @@ behavior.
 
 The listener function is called with the `Error` object passed as the only
 argument.
-
-For example:
 
 ```js
 process.on('uncaughtException', (err) => {
@@ -199,9 +193,10 @@ of allocated resources (e.g. file descriptors, handles, etc) before shutting
 down the process. **It is not safe to resume normal operation after
 `'uncaughtException'`.**
 
-To restart a crashed application in a more reliable way, whether `uncaughtException`
-is emitted or not, an external monitor should be employed in a separate process
-to detect application failures and recover or restart as needed.
+To restart a crashed application in a more reliable way, whether
+`uncaughtException` is emitted or not, an external monitor should be employed
+in a separate process to detect application failures and recover or restart as
+needed.
 
 ### Event: 'unhandledRejection'
 <!-- YAML
@@ -229,8 +224,6 @@ The listener function is called with the following arguments:
 * `reason` {Error|any} The object with which the promise was rejected
   (typically an [`Error`][] object).
 * `p` the `Promise` that was rejected.
-
-For example:
 
 ```js
 process.on('unhandledRejection', (reason, p) => {
@@ -355,8 +348,6 @@ The signal handler will receive the signal's name (`'SIGINT'`,
 The name of each event will be the uppercase common name for the signal (e.g.
 `'SIGINT'` for `SIGINT` signals).
 
-For example:
-
 ```js
 // Begin reading from stdin so the process does not exit.
 process.stdin.resume();
@@ -389,8 +380,8 @@ process.on('SIGTERM', handle);
   installed its default behavior will be removed.
 * `SIGTERM` is not supported on Windows, it can be listened on.
 * `SIGINT` from the terminal is supported on all platforms, and can usually be
-  generated with `<Ctrl>+C` (though this may be configurable). It is not generated
-  when terminal raw mode is enabled.
+  generated with `<Ctrl>+C` (though this may be configurable). It is not
+  generated when terminal raw mode is enabled.
 * `SIGBREAK` is delivered on Windows when `<Ctrl>+<Break>` is pressed, on
   non-Windows platforms it can be listened on, but there is no way to send or
   generate it.
@@ -406,11 +397,10 @@ process.on('SIGTERM', handle);
    hanging in an endless loop, since listeners attached using `process.on()` are
    called asynchronously and therefore unable to correct the underlying problem.
 
-*Note*: Windows does not support sending signals, but Node.js offers some
-emulation with [`process.kill()`][], and [`subprocess.kill()`][]. Sending
-signal `0` can be used to test for the existence of a process. Sending `SIGINT`,
-`SIGTERM`, and `SIGKILL` cause the unconditional termination of the target
-process.
+Windows does not support sending signals, but Node.js offers some emulation
+with [`process.kill()`][], and [`subprocess.kill()`][]. Sending signal `0` can
+be used to test for the existence of a process. Sending `SIGINT`, `SIGTERM`,
+and `SIGKILL` cause the unconditional termination of the target process.
 
 ## process.abort()
 <!-- YAML
@@ -427,8 +417,8 @@ added: v0.5.0
 
 * {string}
 
-The `process.arch` property returns a string identifying the operating system CPU
-architecture for which the Node.js binary was compiled.
+The `process.arch` property returns a string identifying the operating system
+CPU architecture for which the Node.js binary was compiled.
 
 The current possible values are: `'arm'`, `'arm64'`, `'ia32'`, `'mips'`,
 `'mipsel'`, `'ppc'`, `'ppc64'`, `'s390'`, `'s390x'`, `'x32'`, and `'x64'`.
@@ -567,9 +557,9 @@ An example of the possible output looks like:
 }
 ```
 
-*Note*: The `process.config` property is **not** read-only and there are
-existing modules in the ecosystem that are known to extend, modify, or entirely
-replace the value of `process.config`.
+The `process.config` property is **not** read-only and there are existing
+modules in the ecosystem that are known to extend, modify, or entirely replace
+the value of `process.config`.
 
 ## process.connected
 <!-- YAML
@@ -674,9 +664,9 @@ If there are specific reasons to use `process.dlopen()` (for instance,
 to specify dlopen flags), it's often useful to use [`require.resolve()`][]
 to look up the module's path.
 
-*Note*: An important drawback when calling `process.dlopen()` is that the
-`module` instance must be passed. Functions exported by the C++ Addon will
-be accessible via `module.exports`.
+An important drawback when calling `process.dlopen()` is that the `module`
+instance must be passed. Functions exported by the C++ Addon will be accessible
+via `module.exports`.
 
 The example below shows how to load a C++ Addon, named as `binding`,
 that exports a `foo` function. All the symbols will be loaded before
@@ -925,8 +915,6 @@ include the Node.js executable, the name of the script, or any options following
 the script name. These options are useful in order to spawn child processes with
 the same execution environment as the parent.
 
-For example:
-
 ```console
 $ node --harmony script.js --version
 ```
@@ -954,8 +942,6 @@ added: v0.1.100
 
 The `process.execPath` property returns the absolute pathname of the executable
 that started the Node.js process.
-
-For example:
 
 <!-- eslint-disable semi -->
 ```js
@@ -1057,8 +1043,8 @@ if (process.getegid) {
 }
 ```
 
-*Note*: This function is only available on POSIX platforms (i.e. not Windows
-or Android).
+This function is only available on POSIX platforms (i.e. not Windows or
+Android).
 
 ## process.geteuid()
 <!-- YAML
@@ -1076,8 +1062,8 @@ if (process.geteuid) {
 }
 ```
 
-*Note*: This function is only available on POSIX platforms (i.e. not Windows
-or Android).
+This function is only available on POSIX platforms (i.e. not Windows or
+Android).
 
 ## process.getgid()
 <!-- YAML
@@ -1095,9 +1081,8 @@ if (process.getgid) {
 }
 ```
 
-*Note*: This function is only available on POSIX platforms (i.e. not Windows
-or Android).
-
+This function is only available on POSIX platforms (i.e. not Windows or
+Android).
 
 ## process.getgroups()
 <!-- YAML
@@ -1110,8 +1095,8 @@ The `process.getgroups()` method returns an array with the supplementary group
 IDs. POSIX leaves it unspecified if the effective group ID is included but
 Node.js ensures it always is.
 
-*Note*: This function is only available on POSIX platforms (i.e. not Windows
-or Android).
+This function is only available on POSIX platforms (i.e. not Windows or
+Android).
 
 ## process.getuid()
 <!-- YAML
@@ -1129,8 +1114,8 @@ if (process.getuid) {
 }
 ```
 
-*Note*: This function is only available on POSIX platforms (i.e. not Windows
-or Android).
+This function is only available on POSIX platforms (i.e. not Windows or
+Android).
 
 ## process.hasUncaughtExceptionCaptureCallback()
 <!-- YAML
@@ -1202,8 +1187,8 @@ process.setgid(1000);                     // drop root gid
 console.log(process.getgroups());         // [ 27, 30, 46, 1000 ]
 ```
 
-*Note*: This function is only available on POSIX platforms (i.e. not Windows
-or Android).
+This function is only available on POSIX platforms (i.e. not Windows or
+Android).
 
 ## process.kill(pid[, signal])
 <!-- YAML
@@ -1225,11 +1210,9 @@ case, a signal of `0` can be used to test for the existence of a process.
 Windows platforms will throw an error if the `pid` is used to kill a process
 group.
 
-*Note*: Even though the name of this function is `process.kill()`, it is
-really just a signal sender, like the `kill` system call.  The signal sent may
-do something other than kill the target process.
-
-For example:
+Even though the name of this function is `process.kill()`, it is really just a
+signal sender, like the `kill` system call.  The signal sent may do something
+other than kill the target process.
 
 ```js
 process.on('SIGHUP', () => {
@@ -1244,8 +1227,8 @@ setTimeout(() => {
 process.kill(process.pid, 'SIGHUP');
 ```
 
-*Note*: When `SIGUSR1` is received by a Node.js process, Node.js will start
-the debugger, see [Signal Events][].
+When `SIGUSR1` is received by a Node.js process, Node.js will start the
+debugger, see [Signal Events][].
 
 ## process.mainModule
 <!-- YAML
@@ -1400,10 +1383,10 @@ function definitelyAsync(arg, cb) {
 }
 ```
 
-*Note*: The next tick queue is completely drained on each pass of the
-event loop **before** additional I/O is processed.  As a result,
-recursively setting nextTick callbacks will block any I/O from
-happening, just like a `while(true);` loop.
+The next tick queue is completely drained on each pass of the event loop
+**before** additional I/O is processed.  As a result, recursively setting
+nextTick callbacks will block any I/O from happening, just like a
+`while(true);` loop.
 
 ## process.noDeprecation
 <!-- YAML
@@ -1506,8 +1489,6 @@ tarball.
   - `'Boron'` for the 6.x LTS line beginning with 6.9.0.
   - `'Carbon'` for the 8.x LTS line beginning with 8.9.1.
 
-For example:
-
 <!-- eslint-skip -->
 ```js
 {
@@ -1541,8 +1522,8 @@ used to send messages to the parent process. Messages will be received as a
 If Node.js was not spawned with an IPC channel, `process.send()` will be
 `undefined`.
 
-*Note*: The message goes through serialization and parsing. The resulting
-message might not be the same as what is originally sent.
+The message goes through serialization and parsing. The resulting message might
+not be the same as what is originally sent.
 
 ## process.setegid(id)
 <!-- YAML
@@ -1568,8 +1549,8 @@ if (process.getegid && process.setegid) {
 }
 ```
 
-*Note*: This function is only available on POSIX platforms (i.e. not Windows
-or Android).
+This function is only available on POSIX platforms (i.e. not Windows or
+Android).
 
 
 ## process.seteuid(id)
@@ -1596,8 +1577,8 @@ if (process.geteuid && process.seteuid) {
 }
 ```
 
-*Note*: This function is only available on POSIX platforms (i.e. not Windows
-or Android).
+This function is only available on POSIX platforms (i.e. not Windows or
+Android).
 
 ## process.setgid(id)
 <!-- YAML
@@ -1623,8 +1604,8 @@ if (process.getgid && process.setgid) {
 }
 ```
 
-*Note*: This function is only available on POSIX platforms (i.e. not Windows
-or Android).
+This function is only available on POSIX platforms (i.e. not Windows or
+Android).
 
 ## process.setgroups(groups)
 <!-- YAML
@@ -1634,13 +1615,13 @@ added: v0.9.4
 * `groups` {Array}
 
 The `process.setgroups()` method sets the supplementary group IDs for the
-Node.js process. This is a privileged operation that requires the Node.js process
-to have `root` or the `CAP_SETGID` capability.
+Node.js process. This is a privileged operation that requires the Node.js
+process to have `root` or the `CAP_SETGID` capability.
 
 The `groups` array can contain numeric group IDs, group names or both.
 
-*Note*: This function is only available on POSIX platforms (i.e. not Windows
-or Android).
+This function is only available on POSIX platforms (i.e. not Windows or
+Android).
 
 ## process.setuid(id)
 <!-- YAML
@@ -1664,9 +1645,8 @@ if (process.getuid && process.setuid) {
 }
 ```
 
-*Note*: This function is only available on POSIX platforms (i.e. not Windows
-or Android).
-
+This function is only available on POSIX platforms (i.e. not Windows or
+Android).
 
 ## process.setUncaughtExceptionCaptureCallback(fn)
 <!-- YAML
@@ -1688,8 +1668,8 @@ To unset the capture function, `process.setUncaughtExceptionCapture(null)`
 may be used. Calling this method with a non-`null` argument while another
 capture function is set will throw an error.
 
-*Note*: Using this function is mutually exclusive with using the
-deprecated [`domain`][] built-in module.
+Using this function is mutually exclusive with using the deprecated
+[`domain`][] built-in module.
 
 ## process.stderr
 
@@ -1700,8 +1680,8 @@ The `process.stderr` property returns a stream connected to
 stream) unless fd `2` refers to a file, in which case it is
 a [Writable][] stream.
 
-*Note*: `process.stderr` differs from other Node.js streams in important ways,
-see [note on process I/O][] for more information.
+`process.stderr` differs from other Node.js streams in important ways, see
+[note on process I/O][] for more information.
 
 ## process.stdin
 
@@ -1711,8 +1691,6 @@ The `process.stdin` property returns a stream connected to
 `stdin` (fd `0`). It is a [`net.Socket`][] (which is a [Duplex][]
 stream) unless fd `0` refers to a file, in which case it is
 a [Readable][] stream.
-
-For example:
 
 ```js
 process.stdin.setEncoding('utf8');
@@ -1733,7 +1711,7 @@ As a [Duplex][] stream, `process.stdin` can also be used in "old" mode that
 is compatible with scripts written for Node.js prior to v0.10.
 For more information see [Stream compatibility][].
 
-*Note*: In "old" streams mode the `stdin` stream is paused by default, so one
+In "old" streams mode the `stdin` stream is paused by default, so one
 must call `process.stdin.resume()` to read from it. Note also that calling
 `process.stdin.resume()` itself would switch stream to "old" mode.
 
@@ -1752,8 +1730,8 @@ For example, to copy process.stdin to process.stdout:
 process.stdin.pipe(process.stdout);
 ```
 
-*Note*: `process.stdout` differs from other Node.js streams in important ways,
-see [note on process I/O][] for more information.
+`process.stdout` differs from other Node.js streams in important ways, see
+[note on process I/O][] for more information.
 
 ### A note on process I/O
 
@@ -1828,14 +1806,14 @@ The `process.title` property returns the current process title (i.e. returns
 the current value of `ps`). Assigning a new value to `process.title` modifies
 the current value of `ps`.
 
-*Note*: When a new value is assigned, different platforms will impose
-different maximum length restrictions on the title. Usually such restrictions
-are quite limited. For instance, on Linux and macOS, `process.title` is limited
-to the size of the binary name plus the length of the command line arguments
-because setting the `process.title` overwrites the `argv` memory of the
-process.  Node.js v0.8 allowed for longer process title strings by also
-overwriting the `environ` memory but that was potentially insecure and
-confusing in some (rather obscure) cases.
+When a new value is assigned, different platforms will impose different maximum
+length restrictions on the title. Usually such restrictions are quite limited.
+For instance, on Linux and macOS, `process.title` is limited to the size of the
+binary name plus the length of the command line arguments because setting the
+`process.title` overwrites the `argv` memory of the process.  Node.js v0.8
+allowed for longer process title strings by also overwriting the `environ`
+memory but that was potentially insecure and confusing in some (rather obscure)
+cases.
 
 ## process.traceDeprecation
 <!-- YAML
@@ -1881,8 +1859,8 @@ added: v0.5.0
 The `process.uptime()` method returns the number of seconds the current Node.js
 process has been running.
 
-*Note*: The return value includes fractions of a second. Use `Math.floor()`
-to get whole seconds.
+The return value includes fractions of a second. Use `Math.floor()` to get whole
+seconds.
 
 ## process.version
 <!-- YAML

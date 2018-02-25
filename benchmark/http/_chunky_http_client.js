@@ -5,8 +5,8 @@ const common = require('../common.js');
 const net = require('net');
 
 const bench = common.createBenchmark(main, {
-  len:  [1, 4, 8, 16, 32, 64, 128],
-  n:  [5, 50, 500, 2000],
+  len: [1, 4, 8, 16, 32, 64, 128],
+  n: [5, 50, 500, 2000],
   type: ['send'],
 });
 

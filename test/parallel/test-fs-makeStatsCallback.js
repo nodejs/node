@@ -1,6 +1,5 @@
 'use strict';
 const common = require('../common');
-const assert = require('assert');
 const fs = require('fs');
 const callbackThrowValues = [null, true, false, 0, 1, 'foo', /foo/, [], {}];
 const warn = 'Calling an asynchronous function without callback is deprecated.';
@@ -15,10 +14,10 @@ function testMakeStatsCallback(cb) {
 common.expectWarning('DeprecationWarning', warn);
 
 // Verify the case where a callback function is provided
-assert.doesNotThrow(testMakeStatsCallback(common.mustCall()));
+testMakeStatsCallback(common.mustCall())();
 
 // Passing undefined/nothing calls rethrow() internally, which emits a warning
-assert.doesNotThrow(testMakeStatsCallback());
+testMakeStatsCallback()();
 
 function invalidCallbackThrowsTests() {
   callbackThrowValues.forEach((value) => {

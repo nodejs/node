@@ -38,7 +38,7 @@ responsibility for the change. In the case of pull requests proposed
 by an existing Collaborator, an additional Collaborator is required
 for sign-off.
 
-If one or more Collaborators oppose a proposed change, then the change can not
+If one or more Collaborators oppose a proposed change, then the change cannot
 be accepted unless:
 
 * Discussions and/or additional changes result in no Collaborators objecting to
@@ -73,7 +73,7 @@ may request that the TSC restore them to active status.
 
 ## Technical Steering Committee
 
-A subset of the Collaborators form the Technical Steering Committee (TSC).
+A subset of the Collaborators forms the Technical Steering Committee (TSC).
 The TSC has final authority over this project, including:
 
 * Technical direction
@@ -159,9 +159,9 @@ repository, with a summary of the nominee's contributions, for example:
 * Participation in other projects, teams, and working groups of the
   Node.js organization
   * Can be shown using the links
-    `https://github.com/search?q=author%3A${GITHUB_ID}++org%3Anodejs&type=Issues`
+  `https://github.com/search?q=author%3A${GITHUB_ID}++org%3Anodejs&type=Issues`
     and
-    `https://github.com/search?q=commenter%3A${GITHUB_ID}++org%3Anodejs&type=Issues`
+`https://github.com/search?q=commenter%3A${GITHUB_ID}++org%3Anodejs&type=Issues`
 * Other participation in the wider Node.js community
 
 Mention @nodejs/collaborators in the issue to notify other Collaborators about

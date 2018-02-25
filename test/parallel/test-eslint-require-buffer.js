@@ -1,6 +1,8 @@
 'use strict';
 
-require('../common');
+const common = require('../common');
+
+common.skipIfEslintMissing();
 
 const RuleTester = require('../../tools/node_modules/eslint').RuleTester;
 const rule = require('../../tools/eslint-rules/require-buffer');
@@ -34,14 +36,14 @@ ruleTester.run('require-buffer', rule, {
       output: useStrict + bufferModule + useBuffer,
     },
     {
-      code:  mockComment + useBuffer,
+      code: mockComment + useBuffer,
       errors: [{ message }],
-      output:  mockComment + bufferModule + useBuffer,
+      output: mockComment + bufferModule + useBuffer,
     },
     {
-      code:  mockComment + useStrict + useBuffer,
+      code: mockComment + useStrict + useBuffer,
       errors: [{ message }],
-      output:  mockComment + useStrict + bufferModule + useBuffer,
+      output: mockComment + useStrict + bufferModule + useBuffer,
     },
   ]
 });

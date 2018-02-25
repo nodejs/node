@@ -92,7 +92,7 @@ int uv_cpu_info(uv_cpu_info_t** cpu_infos, int* count) {
 
   *cpu_infos = uv__malloc(numcpus * sizeof(uv_cpu_info_t));
   if (!*cpu_infos) {
-    return -ENOMEM;
+    return UV_ENOMEM;
   }
 
   cpu_info = *cpu_infos;

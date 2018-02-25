@@ -114,8 +114,6 @@ Returns an array of IP address strings, formatted according to [rfc5952][],
 that are currently configured for DNS resolution. A string will include a port
 section if a custom port is used.
 
-For example:
-
 <!-- eslint-disable semi-->
 ```js
 [
@@ -145,8 +143,8 @@ changes:
   - `verbatim` {boolean} When `true`, the callback receives IPv4 and IPv6
     addresses in the order the DNS resolver returned them.  When `false`,
     IPv4 addresses are placed before IPv6 addresses.
-    **Default:** currently `false` (addresses are reordered) but this is expected
-    to change in the not too distant future.
+    **Default:** currently `false` (addresses are reordered) but this is
+    expected to change in the not too distant future.
     New code should use `{ verbatim: true }`.
 - `callback` {Function}
   - `err` {Error}
@@ -369,8 +367,6 @@ function will contain an array of objects with the following properties:
 * `order`
 * `preference`
 
-For example:
-
 <!-- eslint-skip -->
 ```js
 {
@@ -557,8 +553,6 @@ added: v0.11.3
 Sets the IP address and port of servers to be used when performing DNS
 resolution. The `servers` argument is an array of [rfc5952][] formatted
 addresses. If the port is the IANA default DNS port (53) it can be omitted.
-
-For example:
 
 ```js
 dns.setServers([

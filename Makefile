@@ -619,7 +619,7 @@ doc-only: $(apidoc_dirs) $(apiassets)  ## Builds the docs with the local or the 
 	if [ ! -d doc/api/assets ]; then \
 		$(MAKE) tools/doc/node_modules/js-yaml/package.json; \
 	fi;
-	@$(MAKE) -s $(apidocs_html) $(apidocs_json)
+	@$(MAKE) $(apidocs_html) $(apidocs_json)
 
 .PHONY: doc
 doc: $(NODE_EXE) doc-only
@@ -1101,7 +1101,7 @@ endif
 LINT_JS_TARGETS = benchmark doc lib test tools
 
 run-lint-js = tools/node_modules/eslint/bin/eslint.js --cache \
-	--rulesdir=tools/eslint-rules --ext=.js,.mjs,.md $(LINT_JS_TARGETS)
+	--ext=.js,.mjs,.md $(LINT_JS_TARGETS) --ignore-pattern '!.eslintrc.js'
 run-lint-js-fix = $(run-lint-js) --fix
 
 .PHONY: lint-js-fix
@@ -1186,6 +1186,7 @@ lint: ## Run JS, C++, MD and doc linters.
 	$(MAKE) lint-js || EXIT_STATUS=$$? ; \
 	$(MAKE) lint-cpp || EXIT_STATUS=$$? ; \
 	$(MAKE) lint-addon-docs || EXIT_STATUS=$$? ; \
+	$(MAKE) lint-md || EXIT_STATUS=$$? ; \
 	exit $$EXIT_STATUS
 CONFLICT_RE=^>>>>>>> [0-9A-Fa-f]+|^<<<<<<< [A-Za-z]+
 

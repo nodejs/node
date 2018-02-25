@@ -598,7 +598,6 @@ class QueryWrap : public AsyncWrap {
   ~QueryWrap() override {
     CHECK_EQ(false, persistent().IsEmpty());
     ClearWrap(object());
-    persistent().Reset();
   }
 
   // Subclasses should implement the appropriate Send method.

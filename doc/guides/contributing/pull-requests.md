@@ -109,12 +109,12 @@ If you are modifying code, please be sure to run `make lint` from time to
 time to ensure that the changes follow the Node.js code style guide.
 
 Any documentation you write (including code comments and API documentation)
-should follow the [Style Guide](doc/STYLE_GUIDE.md). Code samples included
+should follow the [Style Guide](../../STYLE_GUIDE.md). Code samples included
 in the API docs will also be checked when running `make lint` (or
 `vcbuild.bat lint` on Windows).
 
 For contributing C++ code, you may want to look at the
-[C++ Style Guide](CPP_STYLE_GUIDE.md).
+[C++ Style Guide](../../../CPP_STYLE_GUIDE.md).
 
 ### Step 4: Commit
 
@@ -660,4 +660,4 @@ you can take a look at the
 [guide for writing tests in Node.js]: ../writing-tests.md
 [https://ci.nodejs.org/]: https://ci.nodejs.org/
 [IRC in the #node-dev channel]: https://webchat.freenode.net?channels=node-dev&uio=d4
-[Onboarding guide]: ../onboarding.md
+[Onboarding guide]: ../../onboarding.md

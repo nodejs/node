@@ -12,10 +12,15 @@
 namespace node {
 namespace loader {
 
+enum PackageMainCheck : bool {
+    CheckMain = true,
+    IgnoreMain = false
+};
+
 v8::Maybe<url::URL> Resolve(Environment* env,
                             const std::string& specifier,
                             const url::URL& base,
-                            bool read_pkg_json = false);
+                            PackageMainCheck read_pkg_json = CheckMain);
 
 class ModuleWrap : public BaseObject {
  public:
@@ -57,11 +62,11 @@ class ModuleWrap : public BaseObject {
   static ModuleWrap* GetFromModule(node::Environment*, v8::Local<v8::Module>);
 
 
-  v8::Persistent<v8::Module> module_;
-  v8::Persistent<v8::String> url_;
+  Persistent<v8::Module> module_;
+  Persistent<v8::String> url_;
   bool linked_ = false;
-  std::unordered_map<std::string, v8::Persistent<v8::Promise>> resolve_cache_;
-  v8::Persistent<v8::Context> context_;
+  std::unordered_map<std::string, Persistent<v8::Promise>> resolve_cache_;
+  Persistent<v8::Context> context_;
 };
 
 }  // namespace loader

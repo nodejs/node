@@ -25,9 +25,9 @@ changes:
     description: Added strict mode to the assert module.
 -->
 
-When using the `strict mode`, any `assert` function will use the equality used in
-the strict function mode. So [`assert.deepEqual()`][] will, for example, work the
-same as [`assert.deepStrictEqual()`][].
+When using the `strict mode`, any `assert` function will use the equality used
+in the strict function mode. So [`assert.deepEqual()`][] will, for example,
+work the same as [`assert.deepStrictEqual()`][].
 
 On top of that, error messages which involve objects produce an error diff
 instead of displaying both objects. That is not the case for the legacy mode.
@@ -208,7 +208,9 @@ changes:
     description: Enumerable symbol properties are now compared.
   - version: v9.0.0
     pr-url: https://github.com/nodejs/node/pull/15036
-    description: NaN is now compared using the [SameValueZero][] comparison.
+    description: NaN is now compared using the
+              [SameValueZero](https://tc39.github.io/ecma262/#sec-samevaluezero)
+              comparison.
   - version: v8.5.0
     pr-url: https://github.com/nodejs/node/pull/15001
     description: Error names and messages are now properly compared
@@ -339,6 +341,7 @@ to the caller.
 The following, for instance, will throw the [`TypeError`][] because there is no
 matching error type in the assertion:
 
+<!-- eslint-disable no-restricted-syntax -->
 ```js
 assert.doesNotThrow(
   () => {
@@ -351,6 +354,7 @@ assert.doesNotThrow(
 However, the following will result in an `AssertionError` with the message
 'Got unwanted exception (TypeError)..':
 
+<!-- eslint-disable no-restricted-syntax -->
 ```js
 assert.doesNotThrow(
   () => {
@@ -364,6 +368,7 @@ If an `AssertionError` is thrown and a value is provided for the `message`
 parameter, the value of `message` will be appended to the `AssertionError`
 message:
 
+<!-- eslint-disable no-restricted-syntax -->
 ```js
 assert.doesNotThrow(
   () => {
@@ -615,7 +620,9 @@ changes:
     description: -0 and +0 are not considered equal anymore.
   - version: v9.0.0
     pr-url: https://github.com/nodejs/node/pull/15036
-    description: NaN is now compared using the [SameValueZero][] comparison.
+    description: NaN is now compared using the
+              [SameValueZero](https://tc39.github.io/ecma262/#sec-samevaluezero)
+              comparison.
   - version: v9.0.0
     pr-url: https://github.com/nodejs/node/pull/15001
     description: Error names and messages are now properly compared
@@ -950,14 +957,14 @@ second argument. This might lead to difficult-to-spot errors.
 
 [`Error.captureStackTrace`]: errors.html#errors_error_capturestacktrace_targetobject_constructoropt
 [`Error`]: errors.html#errors_class_error
-[`Map`]: https://developer.mozilla.org/en/docs/Web/JavaScript/Reference/Global_Objects/Map
+[`Map`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Map
 [`Object.is()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/is
 [`RegExp`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Regular_Expressions
-[`Set`]: https://developer.mozilla.org/en/docs/Web/JavaScript/Reference/Global_Objects/Set
-[`Symbol`]: https://developer.mozilla.org/en/docs/Web/JavaScript/Reference/Global_Objects/Symbol
+[`Set`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Set
+[`Symbol`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Symbol
 [`TypeError`]: errors.html#errors_class_typeerror
-[`WeakMap`]: https://developer.mozilla.org/en/docs/Web/JavaScript/Reference/Global_Objects/WeakMap
-[`WeakSet`]: https://developer.mozilla.org/en/docs/Web/JavaScript/Reference/Global_Objects/WeakSet
+[`WeakMap`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/WeakMap
+[`WeakSet`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/WeakSet
 [`assert.deepEqual()`]: #assert_assert_deepequal_actual_expected_message
 [`assert.deepStrictEqual()`]: #assert_assert_deepstrictequal_actual_expected_message
 [`assert.notDeepStrictEqual()`]: #assert_assert_notdeepstrictequal_actual_expected_message

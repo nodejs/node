@@ -13,7 +13,7 @@ const handler = {
 const proxyObj = new Proxy(target, handler);
 
 // Inspecting the proxy should not actually walk it's properties
-assert.doesNotThrow(() => util.inspect(proxyObj, opts));
+util.inspect(proxyObj, opts);
 
 // getProxyDetails is an internal method, not intended for public use.
 // This is here to test that the internals are working correctly.

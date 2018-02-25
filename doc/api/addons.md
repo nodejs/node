@@ -115,7 +115,7 @@ specifically to compile Node.js Addons.
 }
 ```
 
-*Note*: A version of the `node-gyp` utility is bundled and distributed with
+A version of the `node-gyp` utility is bundled and distributed with
 Node.js as part of `npm`. This version is not made directly available for
 developers to use and is intended only to support the ability to use the
 `npm install` command to compile and install Addons. Developers who wish to
@@ -292,7 +292,7 @@ Each of these examples using the following `binding.gyp` file:
 ```
 
 In cases where there is more than one `.cc` file, simply add the additional
-filename to the `sources` array. For example:
+filename to the `sources` array:
 
 ```json
 "sources": ["addon.cc", "myexample.cc"]

@@ -125,9 +125,9 @@ const qsColonTestCases = [
 function extendedFunction() {}
 extendedFunction.prototype = { a: 'b' };
 const qsWeirdObjects = [
-  // eslint-disable-next-line no-unescaped-regexp-dot
+  // eslint-disable-next-line node-core/no-unescaped-regexp-dot
   [{ regexp: /./g }, 'regexp=', { 'regexp': '' }],
-  // eslint-disable-next-line no-unescaped-regexp-dot
+  // eslint-disable-next-line node-core/no-unescaped-regexp-dot
   [{ regexp: new RegExp('.', 'g') }, 'regexp=', { 'regexp': '' }],
   [{ fn: () => {} }, 'fn=', { 'fn': '' }],
   [{ fn: new Function('') }, 'fn=', { 'fn': '' }],
@@ -300,9 +300,7 @@ assert.strictEqual('foo=', qs.stringify({ foo: Infinity }));
   assert.strictEqual(f, 'a=b&q=x%3Dy%26y%3Dz');
 }
 
-assert.doesNotThrow(() => {
-  qs.parse(undefined);
-});
+qs.parse(undefined); // Should not throw.
 
 // nested in colon
 {

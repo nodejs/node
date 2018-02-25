@@ -2,13 +2,10 @@
 
 require('../common');
 
-const assert = require('assert');
 const { test, assert_equals, assert_true, assert_false } =
   require('../common/wpt');
 
-assert.doesNotThrow(() => {
-  global.console = global.console;
-});
+global.console = global.console; // Should not throw.
 
 const self = global;
 

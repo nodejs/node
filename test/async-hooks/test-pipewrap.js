@@ -78,7 +78,7 @@ function onexit() {
   // Usually it is just one event, but it can be more.
   assert.ok(ioEvents >= 3, `at least 3 stdout io events, got ${ioEvents}`);
 
-  checkInvocations(pipe1, { init: 1, before: 2, after: 2 },
+  checkInvocations(pipe1, { init: 1, before: 1, after: 1 },
                    'pipe wrap when sleep.spawn was called');
   checkInvocations(pipe2, { init: 1, before: ioEvents, after: ioEvents },
                    'pipe wrap when sleep.spawn was called');

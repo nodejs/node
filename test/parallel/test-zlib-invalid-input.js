@@ -43,11 +43,9 @@ const unzips = [
 
 nonStringInputs.forEach(common.mustCall((input) => {
   // zlib.gunzip should not throw an error when called with bad input.
-  assert.doesNotThrow(function() {
-    zlib.gunzip(input, function(err, buffer) {
-      // zlib.gunzip should pass the error to the callback.
-      assert.ok(err);
-    });
+  zlib.gunzip(input, function(err, buffer) {
+    // zlib.gunzip should pass the error to the callback.
+    assert.ok(err);
   });
 }, nonStringInputs.length));
 

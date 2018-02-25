@@ -87,13 +87,13 @@ const wikipedia = [
 ];
 
 for (let i = 0, l = wikipedia.length; i < l; i++) {
-  for (const hash in wikipedia[i]['hmac']) {
+  for (const hash in wikipedia[i].hmac) {
     // FIPS does not support MD5.
     if (common.hasFipsCrypto && hash === 'md5')
       continue;
-    const expected = wikipedia[i]['hmac'][hash];
-    const actual = crypto.createHmac(hash, wikipedia[i]['key'])
-                         .update(wikipedia[i]['data'])
+    const expected = wikipedia[i].hmac[hash];
+    const actual = crypto.createHmac(hash, wikipedia[i].key)
+                         .update(wikipedia[i].data)
                          .digest('hex');
     assert.strictEqual(
       actual,
@@ -252,18 +252,18 @@ const rfc4231 = [
 ];
 
 for (let i = 0, l = rfc4231.length; i < l; i++) {
-  for (const hash in rfc4231[i]['hmac']) {
+  for (const hash in rfc4231[i].hmac) {
     const str = crypto.createHmac(hash, rfc4231[i].key);
     str.end(rfc4231[i].data);
     let strRes = str.read().toString('hex');
-    let actual = crypto.createHmac(hash, rfc4231[i]['key'])
-                       .update(rfc4231[i]['data'])
+    let actual = crypto.createHmac(hash, rfc4231[i].key)
+                       .update(rfc4231[i].data)
                        .digest('hex');
-    if (rfc4231[i]['truncate']) {
+    if (rfc4231[i].truncate) {
       actual = actual.substr(0, 32); // first 128 bits == 32 hex chars
       strRes = strRes.substr(0, 32);
     }
-    const expected = rfc4231[i]['hmac'][hash];
+    const expected = rfc4231[i].hmac[hash];
     assert.strictEqual(
       actual,
       expected,
@@ -384,10 +384,10 @@ const rfc2202_sha1 = [
 
 if (!common.hasFipsCrypto) {
   for (let i = 0, l = rfc2202_md5.length; i < l; i++) {
-    const actual = crypto.createHmac('md5', rfc2202_md5[i]['key'])
-      .update(rfc2202_md5[i]['data'])
+    const actual = crypto.createHmac('md5', rfc2202_md5[i].key)
+      .update(rfc2202_md5[i].data)
       .digest('hex');
-    const expected = rfc2202_md5[i]['hmac'];
+    const expected = rfc2202_md5[i].hmac;
     assert.strictEqual(
       actual,
       expected,
@@ -396,10 +396,10 @@ if (!common.hasFipsCrypto) {
   }
 }
 for (let i = 0, l = rfc2202_sha1.length; i < l; i++) {
-  const actual = crypto.createHmac('sha1', rfc2202_sha1[i]['key'])
-    .update(rfc2202_sha1[i]['data'])
+  const actual = crypto.createHmac('sha1', rfc2202_sha1[i].key)
+    .update(rfc2202_sha1[i].data)
     .digest('hex');
-  const expected = rfc2202_sha1[i]['hmac'];
+  const expected = rfc2202_sha1[i].hmac;
   assert.strictEqual(
     actual,
     expected,

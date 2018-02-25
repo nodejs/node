@@ -78,7 +78,6 @@ using v8::Local;
 using v8::Maybe;
 using v8::MaybeLocal;
 using v8::Object;
-using v8::Persistent;
 using v8::String;
 using v8::Uint32Array;
 using v8::Uint8Array;
@@ -103,7 +102,6 @@ class CallbackInfo {
                       FreeCallback callback,
                       char* data,
                       void* hint);
-  ~CallbackInfo();
   Persistent<ArrayBuffer> persistent_;
   FreeCallback const callback_;
   char* const data_;
@@ -144,11 +142,6 @@ CallbackInfo::CallbackInfo(Isolate* isolate,
   persistent_.SetWrapperClassId(BUFFER_ID);
   persistent_.MarkIndependent();
   isolate->AdjustAmountOfExternalAllocatedMemory(sizeof(*this));
-}
-
-
-CallbackInfo::~CallbackInfo() {
-  persistent_.Reset();
 }
 
 

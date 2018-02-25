@@ -8,8 +8,16 @@ const fixtures = require('../common/fixtures');
 const {
   getHiddenValue,
   setHiddenValue,
-  arrow_message_private_symbol: kArrowMessagePrivateSymbolIndex
+  arrow_message_private_symbol: kArrowMessagePrivateSymbolIndex,
+  safeGetenv
 } = process.binding('util');
+
+for (const oneEnv in process.env) {
+  assert.strictEqual(
+    safeGetenv(oneEnv),
+    process.env[oneEnv]
+  );
+}
 
 assert.strictEqual(
   getHiddenValue({}, kArrowMessagePrivateSymbolIndex),
