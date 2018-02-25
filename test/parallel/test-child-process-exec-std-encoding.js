@@ -18,5 +18,6 @@ if (process.argv[2] === 'child') {
     assert.strictEqual(stdout, expectedStdout);
     assert.strictEqual(stderr, expectedStderr);
   }));
-  child.stdout.encoding = 'utf-8';
+  child.stdout.setEncoding('utf-8');
+  child.stderr.setEncoding('utf-8');
 }
