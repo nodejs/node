@@ -6,7 +6,7 @@ const fixtures = require('../common/fixtures');
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
-const { strictEqual } = require('assert');
+const { strictEqual, ok } = require('assert');
 const { createSecureContext } = require('tls');
 const { createSecureServer, connect } = require('http2');
 const { get } = require('https');
@@ -131,10 +131,17 @@ function onSession(session) {
 
     // HTTP/1.1 client
     get(Object.assign(parse(origin), clientOptions), common.mustNotCall())
-      .on('error', common.mustCall(cleanup));
+      .on('error', common.mustCall(cleanup))
+      .end();
 
     // Incompatible ALPN TLS client
+    let text = '';
     tls(Object.assign({ port, ALPNProtocols: ['fake'] }, clientOptions))
-      .on('error', common.mustCall(cleanup));
+      .setEncoding('utf8')
+      .on('data', (chunk) => text += chunk)
+      .on('end', common.mustCall(() => {
+        ok(/Unknown ALPN Protocol, expected `h2` to be available/.test(text));
+        cleanup();
+      }));
   }));
 }
