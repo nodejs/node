@@ -91,9 +91,14 @@ function runTest(test) {
     req.on('error', errorMustCall);
   } else {
     client.on('error', errorMustCall);
-    req.on('error', common.expectsError({
-      code: 'ERR_HTTP2_STREAM_CANCEL'
-    }));
+    req.on('error', (err) => {
+      common.expectsError({
+        code: 'ERR_HTTP2_STREAM_CANCEL'
+      })(err);
+      common.expectsError({
+        code: 'ERR_HTTP2_ERROR'
+      })(err.cause);
+    });
   }
 
   req.on('end', common.mustCall());
