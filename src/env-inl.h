@@ -327,6 +327,7 @@ inline Environment::Environment(IsolateData* isolate_data,
       trace_sync_io_(false),
       abort_on_uncaught_exception_(false),
       emit_napi_warning_(true),
+      emit_env_nonstring_warning_(true),
       makecallback_cntr_(0),
       should_abort_on_uncaught_toggle_(isolate_, 1),
 #if HAVE_INSPECTOR

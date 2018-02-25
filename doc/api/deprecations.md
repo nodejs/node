@@ -915,7 +915,6 @@ Type: Runtime
 
 This was never a documented feature.
 
-
 <a id="DEP0101"></a>
 ### DEP0101: --with-lttng
 
@@ -931,6 +930,17 @@ Type: End-of-Life
 Using the `noAssert` argument has no functionality anymore. All input is going
 to be verified, no matter if it is set to true or not. Skipping the verification
 could lead to hard to find errors and crashes.
+
+<a id="DEP00XX"></a>
+### DEP00XX: process.env string coercion
+
+Type: Documentation-only (supports [`--pending-deprecation`][])
+
+Currently when assigning a property to [`process.env`][], the assigned value is
+implicitly converted to a string if it is not a string. This behavior is
+deprecated if the assigned value is not a string, boolean, or number. In the
+future, such assignment may result in a thrown error. Please convert the
+property to a string before assigning it to `process.env`.
 
 [`--pending-deprecation`]: cli.html#cli_pending_deprecation
 [`Buffer.allocUnsafeSlow(size)`]: buffer.html#buffer_class_method_buffer_allocunsafeslow_size
@@ -968,6 +978,7 @@ could lead to hard to find errors and crashes.
 [`fs.stat()`]: fs.html#fs_fs_stat_path_callback
 [`os.networkInterfaces`]: os.html#os_os_networkinterfaces
 [`os.tmpdir()`]: os.html#os_os_tmpdir
+[`process.env`]: process.html#process_process_env
 [`punycode`]: punycode.html
 [`require.extensions`]: modules.html#modules_require_extensions
 [`setInterval()`]: timers.html#timers_setinterval_callback_delay_args
