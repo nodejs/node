@@ -762,6 +762,9 @@ changes:
     description: >
       'readable' is always emitted in the next tick after
       .push() is called
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/18994
+    description: Using 'readable' requires calling .read().
 -->
 
 The `'readable'` event is emitted when there is data available to be read from
@@ -770,10 +773,16 @@ cause some amount of data to be read into an internal buffer.
 
 ```javascript
 const readable = getReadableStreamSomehow();
-readable.on('readable', () => {
+readable.on('readable', function() {
   // there is some data to read now
+  let data;
+
+  while (data = this.read()) {
+    console.log(data);
+  }
 });
 ```
+
 The `'readable'` event will also be emitted once the end of the stream data
 has been reached but before the `'end'` event is emitted.
 
@@ -805,6 +814,10 @@ end
 In general, the `readable.pipe()` and `'data'` event mechanisms are easier to
 understand than the `'readable'` event. However, handling `'readable'` might
 result in increased throughput.
+
+If both `'readable'` and [`'data'`][]  are used at the same time, `'readable'`
+takes precedence in controlling the flow, i.e. `'data'` will be emitted
+only when [`stream.read()`][stream-read] is called.
 
 ##### readable.destroy([error])
 <!-- YAML
@@ -997,6 +1010,10 @@ the status of the `highWaterMark`.
 ##### readable.resume()
 <!-- YAML
 added: v0.9.4
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/18994
+    description: Resume has no effect if there is a 'readable' event listening
 -->
 
 * Returns: {this}
@@ -1015,6 +1032,9 @@ getReadableStreamSomehow()
     console.log('Reached the end, but did not read anything.');
   });
 ```
+
+The `readable.resume()` method has no effect if there is a `'readable'`
+event listener.
 
 ##### readable.setEncoding(encoding)
 <!-- YAML

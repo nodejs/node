@@ -35,6 +35,7 @@ let expectEndingData = expectTotalData;
 const r = new Readable({ highWaterMark: 1000 });
 let chunks = totalChunks;
 r._read = function(n) {
+  console.log('_read called', chunks);
   if (!(chunks % 2))
     setImmediate(push);
   else if (!(chunks % 3))
@@ -49,6 +50,7 @@ function push() {
   if (chunk) {
     totalPushed += chunk.length;
   }
+  console.log('chunks', chunks);
   r.push(chunk);
 }
 
@@ -64,6 +66,7 @@ function readn(n, then) {
   expectEndingData -= n;
   (function read() {
     const c = r.read(n);
+    console.error('c', c);
     if (!c)
       r.once('readable', read);
     else {
