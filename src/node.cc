@@ -3279,7 +3279,7 @@ static void RawDebug(const FunctionCallbackInfo<Value>& args) {
   fflush(stderr);
 }
 
-void LoadEnvironment(Environment* env, const bool startup_only) {
+void LoadEnvironment(Environment* env, const bool evaluate_stdin) {
   HandleScope handle_scope(env->isolate());
 
   TryCatch try_catch(env->isolate());
@@ -3342,16 +3342,16 @@ void LoadEnvironment(Environment* env, const bool startup_only) {
   // like Node's I/O bindings may want to replace 'f' with their own function.
   Local<Value> arg = env->process_object();
 
-  // add startup_only parameter to JS process so we can use it in
+  // add evaluate_stdin parameter to JS process so we can use it in
   // bootstrap_node.js.
   // If adding the parameter fails, bootstrapping will fail too,
   // so we can cleanup and return before we even bootstrap.
-  bool successfully_set_startup_only = Object::Cast(*arg)->Set(
+  bool successfully_set_evaluate_stdin = Object::Cast(*arg)->Set(
         env->context(),
-        String::NewFromUtf8(env->isolate(), "_startupOnly"),
-        Boolean::New(env->isolate(), startup_only)).FromJust();
+        String::NewFromUtf8(env->isolate(), "_evaluateStdin"),
+        Boolean::New(env->isolate(), evaluate_stdin)).FromJust();
 
-  if (!successfully_set_startup_only) {
+  if (!successfully_set_evaluate_stdin) {
     env->async_hooks()->clear_async_id_stack();
     return;
   }
@@ -4676,7 +4676,7 @@ void _StartEnv(int argc,
                const char* const* argv,
                int v8_argc,
                const char* const* v8_argv,
-               const bool startup_only) {
+               const bool evaluate_stdin) {
   _environment->Start(argc, argv, v8_argc, v8_argv, v8_is_profiling);
 
   const char* path = argc > 1 ? argv[1] : nullptr;
@@ -4697,7 +4697,7 @@ void _StartEnv(int argc,
   {
     Environment::AsyncCallbackScope callback_scope(_environment);
     _environment->async_hooks()->push_async_ids(1, 0);
-    LoadEnvironment(_environment, startup_only);
+    LoadEnvironment(_environment, evaluate_stdin);
     _environment->async_hooks()->pop_async_id(1);
   }
 
@@ -4708,16 +4708,16 @@ void _StartEnv(int argc,
 
 void Initialize(const std::string& program_name,
                 const std::vector<std::string>& node_args,
-                const bool startup_only) {
+                const bool evaluate_stdin) {
   cmd_args = new CmdArgs(program_name, node_args);
-  Initialize(cmd_args->argc, cmd_args->argv, startup_only);
+  Initialize(cmd_args->argc, cmd_args->argv, evaluate_stdin);
 }
 
 void Initialize(int argc, const char** argv) {
-  Initialize(argc, argv, false);
+  Initialize(argc, argv, true);
 }
 
-void Initialize(int argc, const char** argv, const bool startup_only) {
+void Initialize(int argc, const char** argv, const bool evaluate_stdin) {
   //////////
   // Start 1
   //////////
@@ -4753,7 +4753,7 @@ void Initialize(int argc, const char** argv, const bool startup_only) {
   // Start environment
   //////////
 
-  initialize::_StartEnv(argc, argv, exec_argc, exec_argv, startup_only);
+  initialize::_StartEnv(argc, argv, exec_argc, exec_argv, evaluate_stdin);
 }
 
 int Deinitialize() {
