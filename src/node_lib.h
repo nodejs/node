@@ -83,10 +83,11 @@ bool eventLoopIsRunning();
  * @param evaluate_stdin Controls whether the Node.js JavaScript code also
  * executes additional startup tasks like reading
  * and executing stdin, starting the REPL and so on.
+ * @return Potential errors are indicated by a return value not equal to 0.
  */
-NODE_EXTERN void Initialize(const std::string& program_name = "node_lib",
-                            const std::vector<std::string>& node_args = {},
-                            const bool evaluate_stdin = false);
+NODE_EXTERN int Initialize(const std::string& program_name = "node_lib",
+                           const std::vector<std::string>& node_args = {},
+                           const bool evaluate_stdin = false);
 
 /**
  * @brief Starts the Node.js engine.
@@ -101,27 +102,14 @@ NODE_EXTERN void Initialize(const std::string& program_name = "node_lib",
  * @param argv List of arguments for the Node.js engine,
  * where the first argument needs to be the program name.
  * The number of arguments must correspond to argc.
+ * @param evaluate_stdin Controls whether the node.js REPL gets spawned when stdin
+ * is an interactive terminal.
+ * @return Potential errors are indicated by a return value not equal to 0.
  */
-NODE_EXTERN void Initialize(int argc, const char** argv);
+NODE_EXTERN int Initialize(int argc,
+                           const char** argv,
+                           const bool evaluate_stdin = false);
 
-/**
- * @brief Starts the Node.js engine.
- *
- * Starts the Node.js engine by executing bootstrap code.
- * This is required in order to load scripts (e.g. `Run`) or evaluate
- * JavaScript code (e.g. `Evaluate`).
- * Additionally, Node.js will not process any pending events caused by the
- * JavaScript execution as long as `ProcessEvents` or `RunEventLoop` is
- * not called.
- * @param argc The number of arguments.
- * @param argv List of arguments for the Node.js engine,
- * where the first argument needs to be the program name.
- * The number of arguments must correspond to argc.
- * @param evaluate_stdin Controls whether the Node.js JavaScript code also
- * executes additional startup tasks like reading
- * and executing stdin, starting the REPL and so on.
- */
-void Initialize(int argc, const char** argv, const bool evaluate_stdin);
 
 /**
  * @brief Stops the Node.js engine and destroys all current state.

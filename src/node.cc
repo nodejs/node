@@ -4511,7 +4511,7 @@ void _DeleteCmdArgs() {
   cmd_args = nullptr;
 }
 
-int _StopEnv() {
+int _ExitV8() {
   _environment->set_trace_sync_io(false);
 
   int exit_code = EmitExit(_environment);
@@ -4524,6 +4524,10 @@ int _StopEnv() {
   __lsan_do_leak_check();
 #endif
 
+  return exit_code;
+}
+
+void _StopEnv() {
   delete _environment;
   _environment = nullptr;
 
@@ -4547,8 +4551,6 @@ int _StopEnv() {
 
   delete locker;
   locker = nullptr;
-
-  return exit_code;
 }
 
 void _DeleteIsolate() {
@@ -4595,7 +4597,7 @@ void _InitV8() {
   v8_initialized = true;
 }
 
-void _CreateIsolate() {
+int _CreateIsolate() {
   allocator = new ArrayBufferAllocator();
   params.array_buffer_allocator = allocator;
 #ifdef NODE_ENABLE_VTUNE_PROFILING
@@ -4606,8 +4608,7 @@ void _CreateIsolate() {
   if (_isolate == nullptr) {
     fprintf(stderr, "Could not create isolate.");
     fflush(stderr);
-    return;  // TODO(luminosuslight): Handle error
-    // return 12;  // Signal internal error.
+    return 12;  // Signal internal error.
   }
 
   _isolate->AddMessageListener(OnMessage);
@@ -4620,6 +4621,8 @@ void _CreateIsolate() {
     CHECK_EQ(node_isolate, nullptr);
     node_isolate = _isolate;
   }
+
+  return 0;
 }
 
 void _CreateInitialEnvironment() {
@@ -4664,7 +4667,7 @@ void _ConfigureOpenSsl() {
 #endif  // HAVE_OPENSSL
 }
 
-void _StartEnv(int argc,
+int _StartEnv(int argc,
                const char* const* argv,
                int v8_argc,
                const char* const* v8_argv,
@@ -4676,8 +4679,7 @@ void _StartEnv(int argc,
 
   if (debug_options.inspector_enabled() &&
       !v8_platform.InspectorStarted(_environment)) {
-    return;  // TODO(justus-hildebrand): Handle error
-    // return 12;  // Signal internal error.
+    return 12;  // Signal internal error.
   }
 
   _environment->set_abort_on_uncaught_exception(abort_on_uncaught_exception);
@@ -4694,22 +4696,20 @@ void _StartEnv(int argc,
   }
 
   _environment->set_trace_sync_io(trace_sync_io);
+
+  return 0;
 }
 
 }  // namespace initialize
 
-void Initialize(const std::string& program_name,
+int Initialize(const std::string& program_name,
                 const std::vector<std::string>& node_args,
                 const bool evaluate_stdin) {
   cmd_args = new CmdArgs(program_name, node_args);
-  Initialize(cmd_args->argc, cmd_args->argv, evaluate_stdin);
+  return Initialize(cmd_args->argc, cmd_args->argv, evaluate_stdin);
 }
 
-void Initialize(int argc, const char** argv) {
-  Initialize(argc, argv, true);
-}
-
-void Initialize(int argc, const char** argv, const bool evaluate_stdin) {
+int Initialize(int argc, const char** argv, const bool evaluate_stdin) {
   atexit([] () { uv_tty_reset_mode(); });
   PlatformInit();
   node::performance::performance_node_start = PERFORMANCE_NOW();
@@ -4726,9 +4726,19 @@ void Initialize(int argc, const char** argv, const bool evaluate_stdin) {
 
   initialize::_ConfigureOpenSsl();
   initialize::_InitV8();
-  initialize::_CreateIsolate();
+
+  auto exit_code = initialize::_CreateIsolate();
+  if (exit_code != 0) {
+    return exit_code;
+  }
+
   initialize::_CreateInitialEnvironment();
-  initialize::_StartEnv(argc, argv, exec_argc, exec_argv, evaluate_stdin);
+  exit_code = initialize::_StartEnv(argc, argv, exec_argc, exec_argv, evaluate_stdin);
+  if (exit_code != 0) {
+    return exit_code;
+  }
+
+  return 0;
 }
 
 int Deinitialize() {
@@ -4737,18 +4747,12 @@ int Deinitialize() {
   // Evaluate("process.exit();");
   // while (ProcessEvents()) { }
 
-  auto exit_code = deinitialize::_StopEnv();
+  auto exit_code = deinitialize::_ExitV8();
 
-#if defined(LEAK_SANITIZER)
-  __lsan_do_leak_check();
-#endif
-
+  deinitialize::_StopEnv();
   deinitialize::_DeleteIsolate();
-
   deinitialize::_DeinitV8();
-
   // TODO(Hannes01071995): Do we need to tear down OpenSsl?
-
   deinitialize::_DeleteCmdArgs();
 
   return exit_code;
@@ -4955,12 +4959,20 @@ bool ProcessEvents(UvLoopBehavior behavior) {
 }
 
 int Start(int argc, char** argv) {
-  Initialize(argc, const_cast<const char**>(argv), true);
-  SealHandleScope seal(_environment->isolate());
-  PERFORMANCE_MARK(_environment, LOOP_START);
-  RunEventLoop([] () {}, UvLoopBehavior::RUN_DEFAULT);
-  PERFORMANCE_MARK(_environment, LOOP_EXIT);
-  return Deinitialize();
+  auto exit_code = Initialize(argc, const_cast<const char**>(argv), true);
+  if (exit_code != 0) {
+    return exit_code;
+  }
+
+  {
+    SealHandleScope seal(_environment->isolate());
+    PERFORMANCE_MARK(_environment, LOOP_START);
+    RunEventLoop([] () {}, UvLoopBehavior::RUN_DEFAULT);
+    PERFORMANCE_MARK(_environment, LOOP_EXIT);
+  }
+  exit_code = Deinitialize();
+
+  return exit_code;
 }
 
 }  // namespace node
