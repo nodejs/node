@@ -4733,10 +4733,10 @@ int Initialize(int argc, const char** argv, const bool evaluate_stdin) {
   }
 
   initialize::_CreateInitialEnvironment();
-  exit_code = initialize::_StartEnv(argc, 
-                                    argv, 
+  exit_code = initialize::_StartEnv(argc,
+                                    argv,
                                     exec_argc,
-                                    exec_argv, 
+                                    exec_argv,
                                     evaluate_stdin);
   if (exit_code != 0) {
     return exit_code;
