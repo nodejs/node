@@ -80,9 +80,7 @@ bool eventLoopIsRunning();
  * not called.
  * @param program_name The name for the Node.js application.
  * @param node_args List of arguments for the Node.js engine.
- * @param evaluate_stdin Controls whether the Node.js JavaScript code also
- * executes additional startup tasks like reading
- * and executing stdin, starting the REPL and so on.
+ * @param evaluate_stdin Controls whether stdin is evaluated.
  * @return Potential errors are indicated by a return value not equal to 0.
  */
 NODE_EXTERN int Initialize(const std::string& program_name = "node_lib",
@@ -102,8 +100,7 @@ NODE_EXTERN int Initialize(const std::string& program_name = "node_lib",
  * @param argv List of arguments for the Node.js engine,
  * where the first argument needs to be the program name.
  * The number of arguments must correspond to argc.
- * @param evaluate_stdin Controls whether the node.js REPL gets spawned when stdin
- * is an interactive terminal.
+ * @param evaluate_stdin Controls whether stdin is evaluated.
  * @return Potential errors are indicated by a return value not equal to 0.
  */
 NODE_EXTERN int Initialize(int argc,
