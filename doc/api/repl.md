@@ -146,7 +146,7 @@ global or scoped variable, the input `fs` will be evaluated on-demand as
 changes:
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/18919
-    description: Added `_err` support.
+    description: Added `_error` support.
 -->
 
 The default evaluator will, by default, assign the result of the most recently
@@ -168,14 +168,14 @@ Expression assignment to _ now disabled.
 4
 ```
 
-Similarly, `_err` will refer to the last seen error, if there was any.
-Explicitly setting `_err` to a value will disable this behavior.
+Similarly, `_error` will refer to the last seen error, if there was any.
+Explicitly setting `_error` to a value will disable this behavior.
 
 <!-- eslint-skip -->
 ```js
 > throw new Error('foo');
 Error: foo
-> _err.message
+> _error.message
 'foo'
 ```
 

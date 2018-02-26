@@ -157,12 +157,12 @@ function testResetContextGlobal() {
 function testError() {
   const r = initRepl(repl.REPL_MODE_STRICT);
 
-  r.write(`_err;                                  // initial value undefined
+  r.write(`_error;                                // initial value undefined
            throw new Error('foo');                // throws error
-           _err;                                  // shows error
+           _error;                                // shows error
            fs.readdirSync('/nonexistent?');       // throws error, sync
-           _err.code;                             // shows error code
-           _err.syscall;                          // shows error syscall
+           _error.code;                           // shows error code
+           _error.syscall;                        // shows error syscall
            setImmediate(() => { throw new Error('baz'); }); undefined;
                                                   // throws error, async
            `);
@@ -172,7 +172,7 @@ function testError() {
     const expectedLines = [
       'undefined',
 
-      // The error, both from the original throw and the `_err` echo.
+      // The error, both from the original throw and the `_error` echo.
       'Error: foo',
       'Error: foo',
 
@@ -203,17 +203,17 @@ function testError() {
     }
     assert.strictEqual(expectedLines.length, 0);
 
-    // Reset output, check that '_err' is the asynchronously caught error.
+    // Reset output, check that '_error' is the asynchronously caught error.
     r.output.accum = '';
-    r.write(`_err.message                 // show the message
-             _err = 0;                    // disable auto-assignment
-             throw new Error('quux');     // new error
-             _err;                        // should not see the new error
+    r.write(`_error.message                 // show the message
+             _error = 0;                    // disable auto-assignment
+             throw new Error('quux');       // new error
+             _error;                        // should not see the new error
              `);
 
     assertOutput(r.output, [
       "'baz'",
-      'Expression assignment to _err now disabled.',
+      'Expression assignment to _error now disabled.',
       '0',
       'Error: quux',
       '0'
