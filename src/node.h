@@ -248,7 +248,8 @@ NODE_EXTERN Environment* CreateEnvironment(IsolateData* isolate_data,
                                            int exec_argc,
                                            const char* const* exec_argv);
 
-NODE_EXTERN void LoadEnvironment(Environment* env);
+NODE_EXTERN void LoadEnvironment(Environment* env,
+                                 const bool evaluate_stdin = true);
 NODE_EXTERN void FreeEnvironment(Environment* env);
 
 NODE_EXTERN MultiIsolatePlatform* CreatePlatform(
