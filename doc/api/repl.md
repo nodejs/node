@@ -96,7 +96,7 @@ are declared at the global scope.
 
 The default evaluator provides access to any variables that exist in the global
 scope. It is possible to expose a variable to the REPL explicitly by assigning
-it to the `context` object associated with each `REPLServer`.  For example:
+it to the `context` object associated with each `REPLServer`:
 
 ```js
 const repl = require('repl');
@@ -412,8 +412,8 @@ changes:
 * `options` {Object|string}
   * `prompt` {string} The input prompt to display. Defaults to `> `
     (with a trailing space).
-  * `input` {stream.Readable} The Readable stream from which REPL input will be read.
-    Defaults to `process.stdin`.
+  * `input` {stream.Readable} The Readable stream from which REPL input will be
+    read. Defaults to `process.stdin`.
   * `output` {stream.Writable} The Writable stream to which REPL output will be
     written. Defaults to `process.stdout`.
   * `terminal` {boolean} If `true`, specifies that the `output` should be
@@ -505,22 +505,6 @@ By default, the Node.js REPL will persist history between `node` REPL sessions
 by saving inputs to a `.node_repl_history` file located in the user's home
 directory. This can be disabled by setting the environment variable
 `NODE_REPL_HISTORY=""`.
-
-#### NODE_REPL_HISTORY_FILE
-<!-- YAML
-added: v2.0.0
-deprecated: v3.0.0
--->
-
-> Stability: 0 - Deprecated: Use `NODE_REPL_HISTORY` instead.
-
-Previously in Node.js/io.js v2.x, REPL history was controlled by using a
-`NODE_REPL_HISTORY_FILE` environment variable, and the history was saved in JSON
-format. This variable has now been deprecated, and the old JSON REPL history
-file will be automatically converted to a simplified plain text format. This new
-file will be saved to either the user's home directory, or a directory defined
-by the `NODE_REPL_HISTORY` variable, as documented in the
-[Environment Variable Options](#repl_environment_variable_options).
 
 ### Using the Node.js REPL with advanced line-editors
 

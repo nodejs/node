@@ -1013,6 +1013,15 @@ JSFunction* JavaScriptFrame::function() const {
   return JSFunction::cast(function_slot_object());
 }
 
+Object* JavaScriptFrame::unchecked_function() const {
+  // During deoptimization of an optimized function, we may have yet to
+  // materialize some closures on the stack. The arguments marker object
+  // marks this case.
+  DCHECK(function_slot_object()->IsJSFunction() ||
+         isolate()->heap()->arguments_marker() == function_slot_object());
+  return function_slot_object();
+}
+
 Object* JavaScriptFrame::receiver() const { return GetParameter(-1); }
 
 Object* JavaScriptFrame::context() const {

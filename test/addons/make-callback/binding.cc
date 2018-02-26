@@ -19,11 +19,13 @@ void MakeCallback(const v8::FunctionCallbackInfo<v8::Value>& args) {
   if (args[1]->IsFunction()) {
     auto method = args[1].As<v8::Function>();
     result =
-        node::MakeCallback(isolate, recv, method, argv.size(), argv.data());
+        node::MakeCallback(isolate, recv, method, argv.size(), argv.data(),
+                           node::async_context{0, 0}).ToLocalChecked();
   } else if (args[1]->IsString()) {
     auto method = args[1].As<v8::String>();
     result =
-        node::MakeCallback(isolate, recv, method, argv.size(), argv.data());
+        node::MakeCallback(isolate, recv, method, argv.size(), argv.data(),
+                           node::async_context{0, 0}).ToLocalChecked();
   } else {
     assert(0 && "unreachable");
   }
@@ -34,6 +36,6 @@ void Initialize(v8::Local<v8::Object> exports) {
   NODE_SET_METHOD(exports, "makeCallback", MakeCallback);
 }
 
-}  // namespace
+}  // anonymous namespace
 
 NODE_MODULE(NODE_GYP_MODULE_NAME, Initialize)

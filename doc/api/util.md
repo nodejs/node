@@ -26,8 +26,6 @@ a `(err, value) => ...` callback as the last argument. In the callback, the
 first argument will be the rejection reason (or `null` if the Promise
 resolved), and the second argument will be the resolved value.
 
-For example:
-
 ```js
 const util = require('util');
 
@@ -48,13 +46,11 @@ Will print:
 hello world
 ```
 
-*Note*:
-
-* The callback is executed asynchronously, and will have a limited stack trace.
+The callback is executed asynchronously, and will have a limited stack trace.
 If the callback throws, the process will emit an [`'uncaughtException'`][]
 event, and if not handled will exit.
 
-* Since `null` has a special meaning as the first argument to a callback, if a
+Since `null` has a special meaning as the first argument to a callback, if a
 wrapped function rejects a `Promise` with a falsy value as a reason, the value
 is wrapped in an `Error` with the original value stored in a field named
 `reason`.
@@ -86,8 +82,6 @@ environment variable.  If the `section` name appears within the value of that
 environment variable, then the returned function operates similar to
 [`console.error()`][].  If not, then the returned function is a no-op.
 
-For example:
-
 ```js
 const util = require('util');
 const debuglog = util.debuglog('foo');
@@ -105,7 +99,7 @@ FOO 3245: hello from foo [123]
 where `3245` is the process id.  If it is not run with that
 environment variable set, then it will not print anything.
 
-The `section` supports wildcard also, for example:
+The `section` supports wildcard also:
 ```js
 const util = require('util');
 const debuglog = util.debuglog('foo-bar');
@@ -113,13 +107,14 @@ const debuglog = util.debuglog('foo-bar');
 debuglog('hi there, it\'s foo-bar [%d]', 2333);
 ```
 
-if it is run with `NODE_DEBUG=foo*` in the environment, then it will output something like:
+if it is run with `NODE_DEBUG=foo*` in the environment, then it will output
+something like:
 ```txt
 FOO-BAR 3257: hi there, it's foo-bar [2333]
 ```
 
 Multiple comma-separated `section` names may be specified in the `NODE_DEBUG`
-environment variable. For example: `NODE_DEBUG=fs,net,tls`.
+environment variable: `NODE_DEBUG=fs,net,tls`.
 
 ## util.deprecate(fn, msg[, code])
 <!-- YAML
@@ -212,12 +207,14 @@ corresponding argument. Supported placeholders are:
 contains circular references.
 * `%o` - Object. A string representation of an object
   with generic JavaScript object formatting.
-  Similar to `util.inspect()` with options `{ showHidden: true, showProxy: true }`.
-  This will show the full object including non-enumerable properties and proxies.
+  Similar to `util.inspect()` with options
+  `{ showHidden: true, showProxy: true }`. This will show the full object
+  including non-enumerable properties and proxies.
 * `%O` - Object. A string representation of an object with generic JavaScript
   object formatting. Similar to `util.inspect()` without options. This will show
   the full object not including non-enumerable properties and proxies.
 * `%%` - single percent sign (`'%'`). This does not consume an argument.
+* Returns: {string} The formatted string
 
 If the placeholder does not have a corresponding argument, the placeholder is
 not replaced.
@@ -285,8 +282,8 @@ changes:
     description: The `constructor` parameter can refer to an ES6 class now.
 -->
 
-*Note*: Usage of `util.inherits()` is discouraged. Please use the ES6 `class`
-and `extends` keywords to get language level inheritance support. Also note
+Usage of `util.inherits()` is discouraged. Please use the ES6 `class` and
+`extends` keywords to get language level inheritance support. Also note
 that the two styles are [semantically incompatible][].
 
 * `constructor` {Function}
@@ -399,13 +396,14 @@ changes:
     This is useful to minimize the inspection output for large complicated
     objects. To make it recurse indefinitely pass `null` or `Infinity`. Defaults
     to `Infinity`.
+* Returns: {string} The representation of passed object
 
 The `util.inspect()` method returns a string representation of `object` that is
 intended for debugging. The output of `util.inspect` may change at any time
 and should not be depended upon programmatically. Additional `options` may be
 passed that alter certain aspects of the formatted string.
-`util.inspect()` will use the constructor's name and/or `@@toStringTag` to make an
-identifiable tag for an inspected value.
+`util.inspect()` will use the constructor's name and/or `@@toStringTag` to make
+an identifiable tag for an inspected value.
 
 ```js
 class Foo {
@@ -629,7 +627,7 @@ added: v9.0.0
 * `val2` {any}
 * Returns: {boolean}
 
-Returns `true` if there is deep strict equality between `val` and `val2`.
+Returns `true` if there is deep strict equality between `val1` and `val2`.
 Otherwise, returns `false`.
 
 See [`assert.deepStrictEqual()`][] for more information about deep strict
@@ -646,8 +644,6 @@ added: v8.0.0
 Takes a function following the common error-first callback style, i.e. taking
 a `(err, value) => ...` callback as the last argument, and returns a version
 that returns promises.
-
-For example:
 
 ```js
 const util = require('util');
@@ -708,7 +704,8 @@ console.log(promisified === doSomething[util.promisify.custom]);
 This can be useful for cases where the original function does not follow the
 standard format of taking an error-first callback as the last argument.
 
-For example, with a function that takes in `(foo, onSuccessCallback, onErrorCallback)`:
+For example, with a function that takes in
+`(foo, onSuccessCallback, onErrorCallback)`:
 
 ```js
 doSomething[util.promisify.custom] = (foo) => {
@@ -812,7 +809,7 @@ with ICU and using the full ICU data (see [Internationalization][]).
 | `'shift_jis'`      | `'csshiftjis'`, `'ms932'`, `'ms_kanji'`, `'shift-jis'`, `'sjis'`, `'windows-31j'`, `'x-sjis'` |
 | `'euc-kr'`         | `'cseuckr'`, `'csksc56011987'`, `'iso-ir-149'`, `'korean'`, `'ks_c_5601-1987'`, `'ks_c_5601-1989'`, `'ksc5601'`, `'ksc_5601'`, `'windows-949'` |
 
-*Note*: The `'iso-8859-16'` encoding listed in the [WHATWG Encoding Standard][]
+The `'iso-8859-16'` encoding listed in the [WHATWG Encoding Standard][]
 is not supported.
 
 ### new TextDecoder([encoding[, options]])
@@ -946,6 +943,7 @@ deprecated: v4.0.0
 > Stability: 0 - Deprecated
 
 * `object` {any}
+* Returns: {boolean}
 
 Internal alias for [`Array.isArray`][].
 
@@ -971,6 +969,7 @@ deprecated: v4.0.0
 > Stability: 0 - Deprecated
 
 * `object` {any}
+* Returns: {boolean}
 
 Returns `true` if the given `object` is a `Boolean`. Otherwise, returns `false`.
 
@@ -994,6 +993,7 @@ deprecated: v4.0.0
 > Stability: 0 - Deprecated: Use [`Buffer.isBuffer()`][] instead.
 
 * `object` {any}
+* Returns: {boolean}
 
 Returns `true` if the given `object` is a `Buffer`. Otherwise, returns `false`.
 
@@ -1017,6 +1017,7 @@ deprecated: v4.0.0
 > Stability: 0 - Deprecated
 
 * `object` {any}
+* Returns: {boolean}
 
 Returns `true` if the given `object` is a `Date`. Otherwise, returns `false`.
 
@@ -1040,6 +1041,7 @@ deprecated: v4.0.0
 > Stability: 0 - Deprecated
 
 * `object` {any}
+* Returns: {boolean}
 
 Returns `true` if the given `object` is an [`Error`][]. Otherwise, returns
 `false`.
@@ -1079,6 +1081,7 @@ deprecated: v4.0.0
 > Stability: 0 - Deprecated
 
 * `object` {any}
+* Returns: {boolean}
 
 Returns `true` if the given `object` is a `Function`. Otherwise, returns
 `false`.
@@ -1106,6 +1109,7 @@ deprecated: v4.0.0
 > Stability: 0 - Deprecated
 
 * `object` {any}
+* Returns: {boolean}
 
 Returns `true` if the given `object` is strictly `null`. Otherwise, returns
 `false`.
@@ -1130,6 +1134,7 @@ deprecated: v4.0.0
 > Stability: 0 - Deprecated
 
 * `object` {any}
+* Returns: {boolean}
 
 Returns `true` if the given `object` is `null` or `undefined`. Otherwise,
 returns `false`.
@@ -1154,6 +1159,7 @@ deprecated: v4.0.0
 > Stability: 0 - Deprecated
 
 * `object` {any}
+* Returns: {boolean}
 
 Returns `true` if the given `object` is a `Number`. Otherwise, returns `false`.
 
@@ -1179,6 +1185,7 @@ deprecated: v4.0.0
 > Stability: 0 - Deprecated
 
 * `object` {any}
+* Returns: {boolean}
 
 Returns `true` if the given `object` is strictly an `Object` **and** not a
 `Function`. Otherwise, returns `false`.
@@ -1205,6 +1212,7 @@ deprecated: v4.0.0
 > Stability: 0 - Deprecated
 
 * `object` {any}
+* Returns: {boolean}
 
 Returns `true` if the given `object` is a primitive type. Otherwise, returns
 `false`.
@@ -1241,6 +1249,7 @@ deprecated: v4.0.0
 > Stability: 0 - Deprecated
 
 * `object` {any}
+* Returns: {boolean}
 
 Returns `true` if the given `object` is a `RegExp`. Otherwise, returns `false`.
 
@@ -1264,6 +1273,7 @@ deprecated: v4.0.0
 > Stability: 0 - Deprecated
 
 * `object` {any}
+* Returns: {boolean}
 
 Returns `true` if the given `object` is a `string`. Otherwise, returns `false`.
 
@@ -1289,6 +1299,7 @@ deprecated: v4.0.0
 > Stability: 0 - Deprecated
 
 * `object` {any}
+* Returns: {boolean}
 
 Returns `true` if the given `object` is a `Symbol`. Otherwise, returns `false`.
 
@@ -1312,6 +1323,7 @@ deprecated: v4.0.0
 > Stability: 0 - Deprecated
 
 * `object` {any}
+* Returns: {boolean}
 
 Returns `true` if the given `object` is `undefined`. Otherwise, returns `false`.
 
@@ -1370,7 +1382,7 @@ Deprecated predecessor of `console.log`.
 [`Array.isArray`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/isArray
 [`Buffer.isBuffer()`]: buffer.html#buffer_class_method_buffer_isbuffer_obj
 [`Error`]: errors.html#errors_class_error
-[`Object.assign()`]: https://developer.mozilla.org/en/docs/Web/JavaScript/Reference/Global_Objects/Object/assign
+[`Object.assign()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/assign
 [`assert.deepStrictEqual()`]: assert.html#assert_assert_deepstrictequal_actual_expected_message
 [`console.error()`]: console.html#console_console_error_data_args
 [`console.log()`]: console.html#console_console_log_data_args
@@ -1382,6 +1394,6 @@ Deprecated predecessor of `console.log`.
 [Internationalization]: intl.html
 [WHATWG Encoding Standard]: https://encoding.spec.whatwg.org/
 [Common System Errors]: errors.html#errors_common_system_errors
-[constructor]: https://developer.mozilla.org/en/JavaScript/Reference/Global_Objects/Object/constructor
+[constructor]: https://developer.mozilla.org/en-US/JavaScript/Reference/Global_Objects/Object/constructor
 [list of deprecated APIS]: deprecations.html#deprecations_list_of_deprecated_apis
 [semantically incompatible]: https://github.com/nodejs/node/issues/4179

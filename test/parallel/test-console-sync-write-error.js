@@ -2,7 +2,6 @@
 const common = require('../common');
 const { Console } = require('console');
 const { Writable } = require('stream');
-const assert = require('assert');
 
 for (const method of ['dir', 'log', 'warn']) {
   {
@@ -13,10 +12,7 @@ for (const method of ['dir', 'log', 'warn']) {
     });
 
     const c = new Console(out, out, true);
-
-    assert.doesNotThrow(() => {
-      c[method]('abc');
-    });
+    c[method]('abc'); // Should not throw.
   }
 
   {
@@ -27,10 +23,7 @@ for (const method of ['dir', 'log', 'warn']) {
     });
 
     const c = new Console(out, out, true);
-
-    assert.doesNotThrow(() => {
-      c[method]('abc');
-    });
+    c[method]('abc'); // Should not throw.
   }
 
   {
@@ -41,9 +34,6 @@ for (const method of ['dir', 'log', 'warn']) {
     });
 
     const c = new Console(out, out, true);
-
-    assert.doesNotThrow(() => {
-      c[method]('abc');
-    });
+    c[method]('abc'); // Should not throw.
   }
 }

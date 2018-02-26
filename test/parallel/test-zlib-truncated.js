@@ -29,10 +29,8 @@ const errMessage = /unexpected end of file/;
     const toUTF8 = (buffer) => buffer.toString('utf-8');
 
     // sync sanity
-    assert.doesNotThrow(function() {
-      const decompressed = zlib[methods.decompSync](compressed);
-      assert.strictEqual(toUTF8(decompressed), inputString);
-    });
+    const decompressed = zlib[methods.decompSync](compressed);
+    assert.strictEqual(toUTF8(decompressed), inputString);
 
     // async sanity
     zlib[methods.decomp](compressed, function(err, result) {
@@ -53,10 +51,8 @@ const errMessage = /unexpected end of file/;
     const syncFlushOpt = { finishFlush: zlib.constants.Z_SYNC_FLUSH };
 
     // sync truncated input test, finishFlush = Z_SYNC_FLUSH
-    assert.doesNotThrow(function() {
-      const result = toUTF8(zlib[methods.decompSync](truncated, syncFlushOpt));
-      assert.strictEqual(result, inputString.substr(0, result.length));
-    });
+    const result = toUTF8(zlib[methods.decompSync](truncated, syncFlushOpt));
+    assert.strictEqual(result, inputString.substr(0, result.length));
 
     // async truncated input test, finishFlush = Z_SYNC_FLUSH
     zlib[methods.decomp](truncated, syncFlushOpt, function(err, decompressed) {

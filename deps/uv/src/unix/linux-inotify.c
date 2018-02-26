@@ -73,11 +73,11 @@ static int new_inotify_fd(void) {
     return fd;
 
   if (errno != ENOSYS)
-    return -errno;
+    return UV__ERR(errno);
 
   fd = uv__inotify_init();
   if (fd == -1)
-    return -errno;
+    return UV__ERR(errno);
 
   err = uv__cloexec(fd, 1);
   if (err == 0)
@@ -283,7 +283,7 @@ int uv_fs_event_start(uv_fs_event_t* handle,
   int wd;
 
   if (uv__is_active(handle))
-    return -EINVAL;
+    return UV_EINVAL;
 
   err = init_inotify(handle->loop);
   if (err)
@@ -300,7 +300,7 @@ int uv_fs_event_start(uv_fs_event_t* handle,
 
   wd = uv__inotify_add_watch(handle->loop->inotify_fd, path, events);
   if (wd == -1)
-    return -errno;
+    return UV__ERR(errno);
 
   w = find_watcher(handle->loop, wd);
   if (w)
@@ -308,7 +308,7 @@ int uv_fs_event_start(uv_fs_event_t* handle,
 
   w = uv__malloc(sizeof(*w) + strlen(path) + 1);
   if (w == NULL)
-    return -ENOMEM;
+    return UV_ENOMEM;
 
   w->wd = wd;
   w->path = strcpy((char*)(w + 1), path);

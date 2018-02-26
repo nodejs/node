@@ -26,16 +26,16 @@ const tests = [
 
 const server = http2.createServer();
 server.on('stream', (stream, headers) => {
-  stream.close(headers['rstcode'] | 0);
+  stream.close(headers.rstcode | 0);
 });
 
 server.listen(0, common.mustCall(() => {
   const client = http2.connect(`http://localhost:${server.address().port}`);
 
-  const countdown = new Countdown(tests.length, common.mustCall(() => {
+  const countdown = new Countdown(tests.length, () => {
     client.close();
     server.close();
-  }));
+  });
 
   tests.forEach((test) => {
     const req = client.request({

@@ -335,7 +335,7 @@ TEST_IMPL(fork_signal_to_child_closed) {
     /* Note that we're deliberately not running the loop
      * in the child, and also not closing the loop's handles,
      * so the child default loop can't be cleanly closed.
-     * We need te explicitly exit to avoid an automatic failure
+     * We need to explicitly exit to avoid an automatic failure
      * in that case.
      */
     exit(0);

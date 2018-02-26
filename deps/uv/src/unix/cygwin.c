@@ -29,7 +29,7 @@ int uv_uptime(double* uptime) {
   struct sysinfo info;
 
   if (sysinfo(&info) < 0)
-    return -errno;
+    return UV__ERR(errno);
 
   *uptime = info.uptime;
   return 0;

@@ -1,6 +1,5 @@
 'use strict';
 require('../common');
-const assert = require('assert');
 const vm = require('vm');
 
 // Check that we do not accidentally query attributes.
@@ -13,4 +12,4 @@ const handler = {
 const sandbox = new Proxy({ foo: 'bar' }, handler);
 const context = vm.createContext(sandbox);
 
-assert.doesNotThrow(() => vm.runInContext('', context));
+vm.runInContext('', context);

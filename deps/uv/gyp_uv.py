@@ -43,28 +43,7 @@ def run_gyp(args):
 
 if __name__ == '__main__':
   args = sys.argv[1:]
-
-  # GYP bug.
-  # On msvs it will crash if it gets an absolute path.
-  # On Mac/make it will crash if it doesn't get an absolute path.
-  if sys.platform == 'win32':
-    args.append(os.path.join(uv_root, 'uv.gyp'))
-    common_fn  = os.path.join(uv_root, 'common.gypi')
-    options_fn = os.path.join(uv_root, 'options.gypi')
-    # we force vs 2010 over 2008 which would otherwise be the default for gyp
-    if not os.environ.get('GYP_MSVS_VERSION'):
-      os.environ['GYP_MSVS_VERSION'] = '2010'
-  else:
-    args.append(os.path.join(os.path.abspath(uv_root), 'uv.gyp'))
-    common_fn  = os.path.join(os.path.abspath(uv_root), 'common.gypi')
-    options_fn = os.path.join(os.path.abspath(uv_root), 'options.gypi')
-
-  if os.path.exists(common_fn):
-    args.extend(['-I', common_fn])
-
-  if os.path.exists(options_fn):
-    args.extend(['-I', options_fn])
-
+  args.extend('-I common.gypi test/test.gyp'.split(' '))
   args.append('--depth=' + uv_root)
 
   # There's a bug with windows which doesn't allow this feature.

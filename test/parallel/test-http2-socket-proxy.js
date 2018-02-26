@@ -51,8 +51,9 @@ server.on('stream', common.mustCall(function(stream, headers) {
   common.expectsError(() => (socket.resume = undefined), errMsg);
   common.expectsError(() => (socket.write = undefined), errMsg);
 
-  assert.doesNotThrow(() => (socket.on = socket.on));
-  assert.doesNotThrow(() => (socket.once = socket.once));
+  // Resetting the socket listeners to their own value should not throw.
+  socket.on = socket.on;
+  socket.once = socket.once;
 
   stream.respond();
 

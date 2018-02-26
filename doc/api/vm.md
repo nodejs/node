@@ -40,12 +40,12 @@ console.log(sandbox.y); // 17
 console.log(x); // 1; y is not defined.
 ```
 
-*Note*: The vm module is not a security mechanism.
-**Do not use it to run untrusted code**.
+**The vm module is not a security mechanism. Do not use it to run untrusted
+code**.
 
 ## Class: vm.Module
 <!-- YAML
-added: REPLACEME
+added: v9.6.0
 -->
 
 > Stability: 1 - Experimental
@@ -68,7 +68,7 @@ Using a `vm.Module` object requires four distinct steps: creation/parsing,
 linking, instantiation, and evaluation. These four steps are illustrated in the
 following example.
 
-*Note*: This implementation lies at a lower level than the [ECMAScript Module
+This implementation lies at a lower level than the [ECMAScript Module
 loader][]. There is also currently no way to interact with the Loader, though
 support is planned.
 
@@ -92,7 +92,6 @@ const contextifiedSandbox = vm.createContext({ secret: 42 });
     import s from 'foo';
     s;
   `, { context: contextifiedSandbox });
-
 
   // Step 2
   //
@@ -132,7 +131,6 @@ const contextifiedSandbox = vm.createContext({ secret: 42 });
   }
   await bar.link(linker);
 
-
   // Step 3
   //
   // Instantiate the top-level Module.
@@ -141,7 +139,6 @@ const contextifiedSandbox = vm.createContext({ secret: 42 });
   // dependencies will be recursively instantiated by instantiate().
 
   bar.instantiate();
-
 
   // Step 4
   //
@@ -187,11 +184,11 @@ in the ECMAScript specification.
 
 * {any}
 
-If the `module.status` is `'errored'`, this property contains the exception thrown
-by the module during evaluation. If the status is anything else, accessing this
-property will result in a thrown exception.
+If the `module.status` is `'errored'`, this property contains the exception
+thrown by the module during evaluation. If the status is anything else,
+accessing this property will result in a thrown exception.
 
-*Note*: `undefined` cannot be used for cases where there is not a thrown
+The value `undefined` cannot be used for cases where there is not a thrown
 exception due to possible ambiguity with `throw undefined;`.
 
 Corresponds to the [[EvaluationError]] field of [Source Text Module Record][]s
@@ -465,9 +462,9 @@ console.log(util.inspect(sandbox));
 // { animal: 'cat', count: 12, name: 'kitty' }
 ```
 
-*Note*: Using the `timeout` or `breakOnSigint` options will result in new
-event loops and corresponding threads being started, which have a non-zero
-performance overhead.
+Using the `timeout` or `breakOnSigint` options will result in new event loops
+and corresponding threads being started, which have a non-zero performance
+overhead.
 
 ### script.runInNewContext([sandbox[, options]])
 <!-- YAML
@@ -776,9 +773,9 @@ local scope, so the value `localVar` is changed. In this way
 
 ## Example: Running an HTTP Server within a VM
 
-When using either [`script.runInThisContext()`][] or [`vm.runInThisContext()`][], the
-code is executed within the current V8 global context. The code passed
-to this VM context will have its own isolated scope.
+When using either [`script.runInThisContext()`][] or
+[`vm.runInThisContext()`][], the code is executed within the current V8 global
+context. The code passed to this VM context will have its own isolated scope.
 
 In order to run a simple web server using the `http` module the code passed to
 the context must either call `require('http')` on its own, or have a reference
@@ -803,8 +800,8 @@ const code = `
 vm.runInThisContext(code)(require);
  ```
 
-*Note*: The `require()` in the above case shares the state with the context it
-is passed from. This may introduce risks when untrusted code is executed, e.g.
+The `require()` in the above case shares the state with the context it is
+passed from. This may introduce risks when untrusted code is executed, e.g.
 altering objects in the context in unwanted ways.
 
 ## What does it mean to "contextify" an object?

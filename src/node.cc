@@ -4225,11 +4225,8 @@ uv_loop_t* GetCurrentEventLoop(v8::Isolate* isolate) {
 }
 
 
-static uv_key_t thread_local_env;
-
-
 void AtExit(void (*cb)(void* arg), void* arg) {
-  auto env = static_cast<Environment*>(uv_key_get(&thread_local_env));
+  auto env = Environment::GetThreadLocalEnv();
   AtExit(env, cb, arg);
 }
 
@@ -4519,7 +4516,6 @@ int _StopEnv() {
 
   int exit_code = EmitExit(_environment);
   RunAtExit(_environment);
-  uv_key_delete(&thread_local_env);
 
   v8_platform.DrainVMTasks(_environment->isolate());
   v8_platform.CancelVMTasks(_environment->isolate());
@@ -4610,13 +4606,13 @@ void _CreateIsolate() {
   if (_isolate == nullptr) {
     fprintf(stderr, "Could not create isolate.");
     fflush(stderr);
-    return;  // TODO(th): Handle error
+    return;  // TODO(luminosuslight): Handle error
     // return 12;  // Signal internal error.
   }
 
   _isolate->AddMessageListener(OnMessage);
   _isolate->SetAbortOnUncaughtExceptionCallback(ShouldAbortOnUncaughtException);
-  _isolate->SetAutorunMicrotasks(false);
+  _isolate->SetMicrotasksPolicy(v8::MicrotasksPolicy::kExplicit);
   _isolate->SetFatalErrorHandler(OnFatalError);
 
   {
@@ -4641,17 +4637,13 @@ void _CreateInitialEnvironment() {
     _isolate->GetHeapProfiler()->StartTrackingHeapObjects(true);
   }
 
-  //////////
-  // Start 3
-  //////////
-  // (jh) in the initial Start functions, two handle scopes were created
+  // TODO(justus-hildebrand): in the initial Start functions,
+  // two handle scopes were created
   // (one in Start() 2 and one in Start() 3). Currently, we have no idea why.
   // HandleScope handle_scope(isolate);
   context = NewContext(_isolate);
   context_scope = new Context::Scope(context);
   _environment = new node::Environment(isolate_data, context);
-  CHECK_EQ(0, uv_key_create(&thread_local_env));
-  uv_key_set(&thread_local_env, _environment);
 }
 
 void _ConfigureOpenSsl() {
@@ -4684,7 +4676,7 @@ void _StartEnv(int argc,
 
   if (debug_options.inspector_enabled() &&
       !v8_platform.InspectorStarted(_environment)) {
-    return;  // TODO(jh): Handle error
+    return;  // TODO(justus-hildebrand): Handle error
     // return 12;  // Signal internal error.
   }
 
@@ -4718,9 +4710,6 @@ void Initialize(int argc, const char** argv) {
 }
 
 void Initialize(int argc, const char** argv, const bool evaluate_stdin) {
-  //////////
-  // Start 1
-  //////////
   atexit([] () { uv_tty_reset_mode(); });
   PlatformInit();
   node::performance::performance_node_start = PERFORMANCE_NOW();
@@ -4729,36 +4718,22 @@ void Initialize(int argc, const char** argv, const bool evaluate_stdin) {
   // argv won't be modified
   uv_setup_args(argc, const_cast<char**>(argv));
 
-  // This needs to run *before* V8::Initialize().  The const_cast is not
-  // optional, in case you're wondering.
-  // Init() puts the v8 specific cmd args in exec_argc and exec_argv, but as we
-  // don't support these, they are not used.
+  // This needs to run *before* V8::Initialize().
+  // Init() puts the v8 specific cmd args in exec_argc and exec_argv.
   int exec_argc = 0;
   const char** exec_argv = nullptr;
   Init(&argc, argv, &exec_argc, &exec_argv);
 
   initialize::_ConfigureOpenSsl();
-
   initialize::_InitV8();
-
-  //////////
-  // Start 2
-  //////////
-
   initialize::_CreateIsolate();
-
   initialize::_CreateInitialEnvironment();
-
-  //////////
-  // Start environment
-  //////////
-
   initialize::_StartEnv(argc, argv, exec_argc, exec_argv, evaluate_stdin);
 }
 
 int Deinitialize() {
   // Empty event queue
-  // TODO(cf): Investigate when this is really needed.
+  // TODO(cmfcmf): Investigate when this is needed.
   // Evaluate("process.exit();");
   // while (ProcessEvents()) { }
 
@@ -4772,7 +4747,7 @@ int Deinitialize() {
 
   deinitialize::_DeinitV8();
 
-  // TODO(js): Do we need to tear down OpenSsl?
+  // TODO(Hannes01071995): Do we need to tear down OpenSsl?
 
   deinitialize::_DeleteCmdArgs();
 
@@ -4780,7 +4755,8 @@ int Deinitialize() {
 }
 
 v8::MaybeLocal<v8::Value> Run(const std::string& path) {
-  // Read entire file into string. There is most certainly a better way ;)
+  // TODO(cmfcmf) Read entire file into string.
+  // There is most certainly a better way
   // https://stackoverflow.com/a/2602258/2560557
   std::ifstream t(path);
   std::stringstream buffer;
@@ -4797,7 +4773,7 @@ v8::MaybeLocal<v8::Value> Evaluate(const std::string& js_code) {
   // we will handle exceptions ourself.
   try_catch.SetVerbose(false);
 
-  // TODO(jh): set reasonable ScriptOrigin. This is used for debugging
+  // TODO(justus-hildebrand): set reasonable ScriptOrigin. This is used for debugging
   // ScriptOrigin origin(filename);
   MaybeLocal<v8::Script> script = v8::Script::Compile(
         _environment->context(),
@@ -4815,9 +4791,9 @@ v8::MaybeLocal<v8::Value> Evaluate(const std::string& js_code) {
 void RunEventLoop(const std::function<void()>& callback,
                   UvLoopBehavior behavior) {
   if (_event_loop_running) {
-    return;  // TODO(th): return error
+    return;  // TODO(luminosuslight): return error
   }
-  // TODO(jh): this was missing after building RunEventLoop from the Start()
+  // TODO(justus-hildebrand): this was missing after building RunEventLoop from the Start()
   // functions. We are not sure why the sealed scope is necessary.
   // Please investigate.
   // SealHandleScope seal(isolate);

@@ -26,11 +26,12 @@ assert.deepStrictEqual(val, check);
   ['maxHeaderListSize', 0],
   ['maxHeaderListSize', 2 ** 32 - 1]
 ].forEach((i) => {
-  assert.doesNotThrow(() => http2.getPackedSettings({ [i[0]]: i[1] }));
+  // Valid options should not throw.
+  http2.getPackedSettings({ [i[0]]: i[1] });
 });
 
-assert.doesNotThrow(() => http2.getPackedSettings({ enablePush: true }));
-assert.doesNotThrow(() => http2.getPackedSettings({ enablePush: false }));
+http2.getPackedSettings({ enablePush: true });
+http2.getPackedSettings({ enablePush: false });
 
 [
   ['headerTableSize', -1],
@@ -85,7 +86,7 @@ assert.doesNotThrow(() => http2.getPackedSettings({ enablePush: false }));
   assert.deepStrictEqual(packed, check);
 }
 
-// check for not passing settings
+// Check for not passing settings.
 {
   const packed = http2.getPackedSettings();
   assert.strictEqual(packed.length, 0);
@@ -143,7 +144,7 @@ assert.doesNotThrow(() => http2.getPackedSettings({ enablePush: false }));
   assert.strictEqual(settings.enablePush, true);
 }
 
-//check for what happens if passing {validate: true} and no errors happen
+// Verify that passing {validate: true} does not throw.
 {
   const packed = Buffer.from([
     0x00, 0x01, 0x00, 0x00, 0x00, 0x64, 0x00, 0x03, 0x00, 0x00,
@@ -151,12 +152,10 @@ assert.doesNotThrow(() => http2.getPackedSettings({ enablePush: false }));
     0x00, 0x00, 0x00, 0x64, 0x00, 0x06, 0x00, 0x00, 0x00, 0x64,
     0x00, 0x02, 0x00, 0x00, 0x00, 0x01]);
 
-  assert.doesNotThrow(() => {
-    http2.getUnpackedSettings(packed, { validate: true });
-  });
+  http2.getUnpackedSettings(packed, { validate: true });
 }
 
-// check for maxFrameSize failing the max number
+// Check for maxFrameSize failing the max number.
 {
   const packed = Buffer.from([0x00, 0x05, 0x01, 0x00, 0x00, 0x00]);
 
@@ -169,7 +168,7 @@ assert.doesNotThrow(() => http2.getPackedSettings({ enablePush: false }));
   });
 }
 
-// check for maxConcurrentStreams failing the max number
+// Check for maxConcurrentStreams failing the max number.
 {
   const packed = Buffer.from([0x00, 0x03, 0xFF, 0xFF, 0xFF, 0xFF]);
 

@@ -15,13 +15,12 @@ class ContextifyContext {
   enum { kSandboxObjectIndex = 1 };
 
   Environment* const env_;
-  v8::Persistent<v8::Context> context_;
+  Persistent<v8::Context> context_;
 
  public:
   ContextifyContext(Environment* env,
                     v8::Local<v8::Object> sandbox_obj,
                     v8::Local<v8::Object> options_obj);
-  ~ContextifyContext();
 
   v8::Local<v8::Value> CreateDataWrapper(Environment* env);
   v8::Local<v8::Context> CreateV8Context(Environment* env,

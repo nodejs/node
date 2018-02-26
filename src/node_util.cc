@@ -14,6 +14,7 @@ using v8::Object;
 using v8::Private;
 using v8::Promise;
 using v8::Proxy;
+using v8::String;
 using v8::Value;
 
 
@@ -174,6 +175,16 @@ void PromiseReject(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(ret.FromMaybe(false));
 }
 
+void SafeGetenv(const FunctionCallbackInfo<Value>& args) {
+  CHECK(args[0]->IsString());
+  Utf8Value strenvtag(args.GetIsolate(), args[0]);
+  std::string text;
+  if (!node::SafeGetenv(*strenvtag, &text)) return;
+  args.GetReturnValue()
+      .Set(String::NewFromUtf8(
+            args.GetIsolate(), text.c_str(),
+            v8::NewStringType::kNormal).ToLocalChecked());
+}
 
 void Initialize(Local<Object> target,
                 Local<Value> unused,
@@ -225,6 +236,8 @@ void Initialize(Local<Object> target,
   env->SetMethod(target, "createPromise", CreatePromise);
   env->SetMethod(target, "promiseResolve", PromiseResolve);
   env->SetMethod(target, "promiseReject", PromiseReject);
+
+  env->SetMethod(target, "safeGetenv", SafeGetenv);
 }
 
 }  // namespace util

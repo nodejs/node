@@ -48,7 +48,6 @@ using v8::NamedPropertyHandlerConfiguration;
 using v8::Nothing;
 using v8::Object;
 using v8::ObjectTemplate;
-using v8::Persistent;
 using v8::PropertyAttribute;
 using v8::PropertyCallbackInfo;
 using v8::PropertyDescriptor;
@@ -105,11 +104,6 @@ ContextifyContext::ContextifyContext(
     return;
   context_.SetWeak(this, WeakCallback, v8::WeakCallbackType::kParameter);
   context_.MarkIndependent();
-}
-
-
-ContextifyContext::~ContextifyContext() {
-  context_.Reset();
 }
 
 
@@ -1123,11 +1117,6 @@ class ContextifyScript : public BaseObject {
   ContextifyScript(Environment* env, Local<Object> object)
       : BaseObject(env, object) {
     MakeWeak<ContextifyScript>(this);
-  }
-
-
-  ~ContextifyScript() override {
-    script_.Reset();
   }
 };
 

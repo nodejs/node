@@ -1,7 +1,8 @@
 'use strict';
+// Flags: --expose-internals
 const common = require('../common');
 const assert = require('assert');
-const async_id_symbol = process.binding('async_wrap').async_id_symbol;
+const { async_id_symbol } = require('internal/async_hooks').symbols;
 const http = require('http');
 
 // Regression test for https://github.com/nodejs/node/issues/13325

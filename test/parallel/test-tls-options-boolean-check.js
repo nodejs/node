@@ -6,7 +6,6 @@ const fixtures = require('../common/fixtures');
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
-const assert = require('assert');
 const tls = require('tls');
 
 function toArrayBuffer(buf) {
@@ -65,9 +64,7 @@ const invalidCertRE = /^The "cert" argument must be one of type string, Buffer, 
   [[{ pem: keyBuff }], false],
   [[{ pem: keyBuff }, { pem: keyBuff }], false]
 ].forEach(([key, cert]) => {
-  assert.doesNotThrow(() => {
-    tls.createServer({ key, cert });
-  });
+  tls.createServer({ key, cert });
 });
 
 // Checks to ensure tls.createServer predictably throws an error
@@ -118,9 +115,7 @@ const invalidCertRE = /^The "cert" argument must be one of type string, Buffer, 
   [keyBuff, certBuff, caArrDataView],
   [keyBuff, certBuff, false],
 ].forEach(([key, cert, ca]) => {
-  assert.doesNotThrow(() => {
-    tls.createServer({ key, cert, ca });
-  });
+  tls.createServer({ key, cert, ca });
 });
 
 // Checks to ensure tls.createServer throws an error for CA assignment
@@ -168,7 +163,5 @@ const invalidCertRE = /^The "cert" argument must be one of type string, Buffer, 
   ['', '', ''],
   [0, 0, 0]
 ].forEach(([key, cert, ca]) => {
-  assert.doesNotThrow(() => {
-    tls.createSecureContext({ key, cert, ca });
-  });
+  tls.createSecureContext({ key, cert, ca });
 });

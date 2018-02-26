@@ -74,14 +74,14 @@ function main({ dur, len, type }) {
         fail(err, 'write');
       } else if (!writeReq.async) {
         process.nextTick(function() {
-          afterWrite(null, clientHandle, writeReq);
+          afterWrite(0, clientHandle);
         });
       }
     }
 
-    function afterWrite(status, handle, req, err) {
-      if (err)
-        fail(err, 'write');
+    function afterWrite(status, handle) {
+      if (status)
+        fail(status, 'write');
 
       while (clientHandle.writeQueueSize === 0)
         write();

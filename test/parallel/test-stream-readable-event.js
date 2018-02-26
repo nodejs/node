@@ -83,3 +83,33 @@ const Readable = require('stream').Readable;
     r.on('readable', common.mustCall());
   }, 1);
 }
+
+{
+  // pushing a empty string in non-objectMode should
+  // trigger next `read()`.
+  const underlyingData = ['', 'x', 'y', '', 'z'];
+  const expected = underlyingData.filter((data) => data);
+  const result = [];
+
+  const r = new Readable({
+    encoding: 'utf8',
+  });
+  r._read = function() {
+    process.nextTick(() => {
+      if (!underlyingData.length) {
+        this.push(null);
+      } else {
+        this.push(underlyingData.shift());
+      }
+    });
+  };
+
+  r.on('readable', () => {
+    const data = r.read();
+    if (data !== null) result.push(data);
+  });
+
+  r.on('end', common.mustCall(() => {
+    assert.deepStrictEqual(result, expected);
+  }));
+}

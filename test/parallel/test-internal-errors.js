@@ -138,36 +138,24 @@ common.expectsError(
     message: invalidKey('true')
   });
 
-
 // Tests for common.expectsError
-assert.doesNotThrow(() => {
-  common.expectsError(() => {
-    throw new errors.TypeError('TEST_ERROR_1', 'a');
-  }, { code: 'TEST_ERROR_1' });
-});
-
-assert.doesNotThrow(() => {
-  common.expectsError(() => {
-    throw new errors.TypeError('TEST_ERROR_1', 'a');
-  }, { code: 'TEST_ERROR_1',
-       type: TypeError,
-       message: /^Error for testing/ });
-});
-
-assert.doesNotThrow(() => {
-  common.expectsError(() => {
-    throw new errors.TypeError('TEST_ERROR_1', 'a');
-  }, { code: 'TEST_ERROR_1', type: TypeError });
-});
-
-assert.doesNotThrow(() => {
-  common.expectsError(() => {
-    throw new errors.TypeError('TEST_ERROR_1', 'a');
-  }, {
-    code: 'TEST_ERROR_1',
-    type: TypeError,
-    message: 'Error for testing purposes: a'
-  });
+common.expectsError(() => {
+  throw new errors.TypeError('TEST_ERROR_1', 'a');
+}, { code: 'TEST_ERROR_1' });
+common.expectsError(() => {
+  throw new errors.TypeError('TEST_ERROR_1', 'a');
+}, { code: 'TEST_ERROR_1',
+     type: TypeError,
+     message: /^Error for testing/ });
+common.expectsError(() => {
+  throw new errors.TypeError('TEST_ERROR_1', 'a');
+}, { code: 'TEST_ERROR_1', type: TypeError });
+common.expectsError(() => {
+  throw new errors.TypeError('TEST_ERROR_1', 'a');
+}, {
+  code: 'TEST_ERROR_1',
+  type: TypeError,
+  message: 'Error for testing purposes: a'
 });
 
 common.expectsError(() => {
@@ -316,19 +304,6 @@ assert.strictEqual(
 assert.strictEqual(
   errors.message('ERR_ENCODING_NOT_SUPPORTED', ['enc']),
   'The "enc" encoding is not supported');
-
-// Test ERR_HTTP2_HEADER_REQUIRED
-assert.strictEqual(
-  errors.message('ERR_HTTP2_HEADER_REQUIRED', ['test']),
-  'The test header is required');
-
-// Test ERR_HTTP2_FRAME_ERROR
-assert.strictEqual(
-  errors.message('ERR_HTTP2_FRAME_ERROR', ['foo', 'bar', 'baz']),
-  'Error sending frame type foo for stream baz with code bar');
-assert.strictEqual(
-  errors.message('ERR_HTTP2_FRAME_ERROR', ['foo', 'bar']),
-  'Error sending frame type foo with code bar');
 
 // Test error messages for async_hooks
 assert.strictEqual(

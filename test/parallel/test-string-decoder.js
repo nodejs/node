@@ -29,6 +29,11 @@ const StringDecoder = require('string_decoder').StringDecoder;
 let decoder = new StringDecoder();
 assert.strictEqual(decoder.encoding, 'utf8');
 
+// Should work without 'new' keyword
+const decoder2 = {};
+StringDecoder.call(decoder2);
+assert.strictEqual(decoder2.encoding, 'utf8');
+
 // UTF-8
 test('utf-8', Buffer.from('$', 'utf-8'), '$');
 test('utf-8', Buffer.from('¢', 'utf-8'), '¢');
@@ -84,6 +89,11 @@ test('utf16le', Buffer.from('3DD84DDC', 'hex'), '\ud83d\udc4d'); // thumbs up
 // Additional UTF-8 tests
 decoder = new StringDecoder('utf8');
 assert.strictEqual(decoder.write(Buffer.from('E1', 'hex')), '');
+
+// A quick test for lastNeed & lastTotal which are undocumented.
+assert.strictEqual(decoder.lastNeed, 2);
+assert.strictEqual(decoder.lastTotal, 3);
+
 assert.strictEqual(decoder.end(), '\ufffd');
 
 decoder = new StringDecoder('utf8');
@@ -127,6 +137,10 @@ decoder = new StringDecoder('utf16le');
 assert.strictEqual(decoder.write(Buffer.from('3DD8', 'hex')), '');
 assert.strictEqual(decoder.write(Buffer.from('4D', 'hex')), '');
 assert.strictEqual(decoder.end(), '\ud83d');
+
+decoder = new StringDecoder('utf16le');
+assert.strictEqual(decoder.write(Buffer.from('3DD84D', 'hex')), '\ud83d');
+assert.strictEqual(decoder.end(), '');
 
 common.expectsError(
   () => new StringDecoder(1),

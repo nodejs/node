@@ -21,10 +21,9 @@ assert.throws(() => {
 
 // If we're not running as super user...
 if (process.getuid() !== 0) {
-  assert.doesNotThrow(() => {
-    process.getegid();
-    process.geteuid();
-  });
+  // Should not throw.
+  process.getegid();
+  process.geteuid();
 
   assert.throws(() => {
     process.setegid('nobody');

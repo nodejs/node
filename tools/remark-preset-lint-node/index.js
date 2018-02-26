@@ -49,5 +49,6 @@ module.exports.plugins = [
     ]
   ],
   [require('remark-lint-strong-marker'), '*'],
-  [require('remark-lint-table-cell-padding'), 'padded']
+  [require('remark-lint-table-cell-padding'), 'padded'],
+  [require('remark-lint-maximum-line-length'), 80]
 ];

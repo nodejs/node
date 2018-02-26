@@ -39,6 +39,7 @@
       'lib/domain.js',
       'lib/events.js',
       'lib/fs.js',
+      'lib/fs/promises.js',
       'lib/http.js',
       'lib/http2.js',
       'lib/_http_agent.js',
@@ -95,6 +96,7 @@
       'lib/internal/crypto/random.js',
       'lib/internal/crypto/sig.js',
       'lib/internal/crypto/util.js',
+      'lib/internal/constants.js',
       'lib/internal/encoding.js',
       'lib/internal/errors.js',
       'lib/internal/freelist.js',
@@ -107,7 +109,6 @@
       'lib/internal/loader/DefaultResolve.js',
       'lib/internal/loader/ModuleJob.js',
       'lib/internal/loader/ModuleMap.js',
-      'lib/internal/loader/ModuleWrap.js',
       'lib/internal/loader/Translators.js',
       'lib/internal/safe_globals.js',
       'lib/internal/net.js',
@@ -125,6 +126,7 @@
       'lib/internal/repl.js',
       'lib/internal/repl/await.js',
       'lib/internal/socket_list.js',
+      'lib/internal/test/binding.js',
       'lib/internal/test/unicode.js',
       'lib/internal/timers.js',
       'lib/internal/tls.js',
@@ -259,6 +261,11 @@
             }],
           ],
         }],
+        [ 'node_shared=="true"', {
+          'xcode_settings': {
+            'OTHER_LDFLAGS': [ '-Wl,-rpath,@loader_path', ],
+          },
+        }],
         [ 'node_intermediate_lib_type=="shared_library" and OS=="win"', {
           # On Windows, having the same name for both executable and shared
           # lib causes filename collision. Need a different PRODUCT_NAME for
@@ -326,6 +333,7 @@
         'src/signal_wrap.cc',
         'src/spawn_sync.cc',
         'src/string_bytes.cc',
+        'src/string_decoder.cc',
         'src/string_search.cc',
         'src/stream_base.cc',
         'src/stream_wrap.cc',
@@ -364,9 +372,10 @@
         'src/node_javascript.h',
         'src/node_lib.h',
         'src/node_mutex.h',
-        'src/node_platform.h',
         'src/node_perf.h',
         'src/node_perf_common.h',
+        'src/node_persistent.h',
+        'src/node_platform.h',
         'src/node_root_certs.h',
         'src/node_version.h',
         'src/node_watchdog.h',
@@ -380,6 +389,8 @@
         'src/req_wrap.h',
         'src/req_wrap-inl.h',
         'src/string_bytes.h',
+        'src/string_decoder.h',
+        'src/string_decoder-inl.h',
         'src/stream_base.h',
         'src/stream_base-inl.h',
         'src/stream_wrap.h',
@@ -391,7 +402,6 @@
         'src/util-inl.h',
         'deps/http_parser/http_parser.h',
         'deps/v8/include/v8.h',
-        'deps/v8/include/v8-debug.h',
         # javascript files to make for an even more pleasant IDE experience
         '<@(library_files)',
         # node.gyp is added to the project by default.
@@ -414,6 +424,10 @@
       'conditions': [
         [ 'node_shared=="true" and node_module_version!="" and OS!="win"', {
           'product_extension': '<(shlib_suffix)',
+          'xcode_settings': {
+            'LD_DYLIB_INSTALL_NAME':
+              '@rpath/lib<(node_core_target_name).<(shlib_suffix)'
+          },
         }],
         ['node_shared=="true" and OS=="aix"', {
           'product_name': 'node_base',
@@ -909,7 +923,7 @@
       'type': 'executable',
 
       'dependencies': [
-        '<(node_core_target_name)',
+        '<(node_lib_target_name)',
         'rename_node_bin_win',
         'deps/gtest/gtest.gyp:gtest',
         'node_js2c#host',
@@ -917,39 +931,6 @@
         'node_dtrace_ustack',
         'node_dtrace_provider',
       ],
-
-      'variables': {
-        'obj_path': '<(obj_dir)/<(node_lib_target_name)/src',
-        'obj_gen_path': '<(obj_dir)/<(node_lib_target_name)/gen',
-        'obj_tracing_path': '<(obj_dir)/<(node_lib_target_name)/src/tracing',
-        'obj_suffix': 'o',
-        'obj_separator': '/',
-        'conditions': [
-          ['OS=="win"', {
-            'obj_suffix': 'obj',
-          }],
-          ['GENERATOR=="ninja"', {
-            'obj_path': '<(obj_dir)/src',
-            'obj_gen_path': '<(obj_dir)/gen',
-            'obj_tracing_path': '<(obj_dir)/src/tracing',
-            'obj_separator': '/<(node_lib_target_name).',
-          }, {
-            'conditions': [
-              ['OS=="win"', {
-                'obj_path': '<(obj_dir)/<(node_lib_target_name)',
-                'obj_gen_path': '<(obj_dir)/<(node_lib_target_name)',
-                'obj_tracing_path': '<(obj_dir)/<(node_lib_target_name)',
-              }],
-              ['OS=="aix"', {
-                'obj_path': '<(obj_dir)/<(node_lib_target_name)/src',
-                'obj_gen_path': '<(obj_dir)/<(node_lib_target_name)/gen',
-                'obj_tracing_path':
-                  '<(obj_dir)/<(node_lib_target_name)/src/tracing',
-              }],
-            ]}
-          ]
-        ],
-       },
 
       'includes': [
         'node.gypi'
@@ -967,7 +948,6 @@
       'defines': [ 'NODE_WANT_INTERNALS=1' ],
 
       'sources': [
-        'test/cctest/node_module_reg.cc',
         'test/cctest/node_test_fixture.cc',
         'test/cctest/test_aliased_buffer.cc',
         'test/cctest/test_base64.cc',
@@ -977,119 +957,30 @@
         'test/cctest/test_url.cc'
       ],
 
-      'libraries': [
-        '<(obj_path)<(obj_separator)async_wrap.<(obj_suffix)',
-        '<(obj_path)<(obj_separator)handle_wrap.<(obj_suffix)',
-        '<(obj_path)<(obj_separator)env.<(obj_suffix)',
-        '<(obj_path)<(obj_separator)node.<(obj_suffix)',
-        '<(obj_path)<(obj_separator)node_buffer.<(obj_suffix)',
-        '<(obj_path)<(obj_separator)node_debug_options.<(obj_suffix)',
-        '<(obj_path)<(obj_separator)node_i18n.<(obj_suffix)',
-        '<(obj_path)<(obj_separator)node_perf.<(obj_suffix)',
-        '<(obj_path)<(obj_separator)node_platform.<(obj_suffix)',
-        '<(obj_path)<(obj_separator)node_url.<(obj_suffix)',
-        '<(obj_path)<(obj_separator)util.<(obj_suffix)',
-        '<(obj_path)<(obj_separator)string_bytes.<(obj_suffix)',
-        '<(obj_path)<(obj_separator)string_search.<(obj_suffix)',
-        '<(obj_path)<(obj_separator)stream_base.<(obj_suffix)',
-        '<(obj_path)<(obj_separator)node_constants.<(obj_suffix)',
-        '<(obj_tracing_path)<(obj_separator)agent.<(obj_suffix)',
-        '<(obj_tracing_path)<(obj_separator)node_trace_buffer.<(obj_suffix)',
-        '<(obj_tracing_path)<(obj_separator)node_trace_writer.<(obj_suffix)',
-        '<(obj_tracing_path)<(obj_separator)trace_event.<(obj_suffix)',
-        '<(obj_gen_path)<(obj_separator)node_javascript.<(obj_suffix)',
-      ],
-
       'conditions': [
         [ 'node_use_openssl=="true"', {
-          'conditions': [
-            ['node_target_type!="static_library"', {
-              'libraries': [
-                '<(obj_path)<(obj_separator)node_crypto.<(obj_suffix)',
-                '<(obj_path)<(obj_separator)node_crypto_bio.<(obj_suffix)',
-                '<(obj_path)<(obj_separator)node_crypto_clienthello.<(obj_suffix)',
-                '<(obj_path)<(obj_separator)tls_wrap.<(obj_suffix)',
-              ],
-            }],
-          ],
           'defines': [
             'HAVE_OPENSSL=1',
           ],
         }],
         [ 'node_use_perfctr=="true"', {
           'defines': [ 'HAVE_PERFCTR=1' ],
-          'libraries': [
-            '<(obj_path)<(obj_separator)node_counters.<(obj_suffix)',
-            '<(obj_path)<(obj_separator)'
-              'node_win32_perfctr_provider.<(obj_suffix)',
-          ],
         }],
         ['v8_enable_inspector==1', {
           'sources': [
             'test/cctest/test_inspector_socket.cc',
             'test/cctest/test_inspector_socket_server.cc'
           ],
-          'conditions': [
-            ['node_target_type!="static_library"', {
-              'libraries': [
-                '<(obj_path)<(obj_separator)inspector_agent.<(obj_suffix)',
-                '<(obj_path)<(obj_separator)inspector_io.<(obj_suffix)',
-                '<(obj_path)<(obj_separator)inspector_js_api.<(obj_suffix)',
-                '<(obj_path)<(obj_separator)inspector_socket.<(obj_suffix)',
-                '<(obj_path)<(obj_separator)inspector_socket_server.<(obj_suffix)',
-              ],
-            }],
-          ],
           'defines': [
             'HAVE_INSPECTOR=1',
           ],
-        }],
-        [ 'node_use_dtrace=="true" and node_target_type!="static_library"', {
-          'libraries': [
-            '<(obj_path)<(obj_separator)node_dtrace.<(obj_suffix)',
-          ],
-          'conditions': [
-            ['OS!="mac" and OS!="linux"', {
-              'libraries': [
-                '<(obj_path)<(obj_separator)node_dtrace_provider.<(obj_suffix)',
-                '<(obj_path)<(obj_separator)node_dtrace_ustack.<(obj_suffix)',
-              ]
-            }],
-            ['OS=="linux"', {
-              'libraries': [
-                '<(SHARED_INTERMEDIATE_DIR)<(obj_separator)'
-                  'node_dtrace_provider.<(obj_suffix)',
-              ]
-            }],
-          ],
         }, {
-          'conditions': [
-            [ 'node_use_etw=="true" and OS=="win"', {
-              'libraries': [
-                '<(obj_path)<(obj_separator)node_dtrace.<(obj_suffix)',
-                '<(obj_path)<(obj_separator)'
-                  'node_win32_etw_provider.<(obj_suffix)',
-              ],
-            }]
-          ]
-        }],
-        [ 'OS=="win" and node_target_type!="static_library"', {
-          'libraries': [
-            '<(obj_path)<(obj_separator)backtrace_win32.<(obj_suffix)',
-          ],
-        }, {
-          'conditions': [
-            ['node_target_type!="static_library"', {
-              'libraries': [
-                '<(obj_path)<(obj_separator)backtrace_posix.<(obj_suffix)',
-              ],
-            }],
-          ],
+          'defines': [ 'HAVE_INSPECTOR=0' ]
         }],
         ['OS=="solaris"', {
           'ldflags': [ '-I<(SHARED_INTERMEDIATE_DIR)' ]
         }],
-      ]
+      ],
     }
   ], # end targets
 
@@ -1127,6 +1018,9 @@
             '<@(library_files)',
             'common.gypi',
           ],
+          'direct_dependent_settings': {
+            'ldflags': [ '-Wl,-brtl' ],
+          },
         },
       ]
     }], # end aix section

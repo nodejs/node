@@ -1,6 +1,7 @@
 # io.js ChangeLog
 
 <!--lint disable prohibited-strings-->
+<!--lint disable maximum-line-length-->
 
 <table>
 <tr>

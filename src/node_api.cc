@@ -31,19 +31,14 @@ struct napi_env__ {
       : isolate(_isolate),
         last_error(),
         loop(_loop) {}
-  ~napi_env__() {
-    last_exception.Reset();
-    wrap_template.Reset();
-    function_data_template.Reset();
-    accessor_data_template.Reset();
-  }
   v8::Isolate* isolate;
-  v8::Persistent<v8::Value> last_exception;
-  v8::Persistent<v8::ObjectTemplate> wrap_template;
-  v8::Persistent<v8::ObjectTemplate> function_data_template;
-  v8::Persistent<v8::ObjectTemplate> accessor_data_template;
+  node::Persistent<v8::Value> last_exception;
+  node::Persistent<v8::ObjectTemplate> wrap_template;
+  node::Persistent<v8::ObjectTemplate> function_data_template;
+  node::Persistent<v8::ObjectTemplate> accessor_data_template;
   napi_extended_error_info last_error;
   int open_handle_scopes = 0;
+  int open_callback_scopes = 0;
   uv_loop_t* loop = nullptr;
 };
 
@@ -70,10 +65,12 @@ struct napi_env__ {
     }                                                                   \
   } while (0)
 
-#define CHECK_ENV(env)        \
-  if ((env) == nullptr) {     \
-    return napi_invalid_arg;  \
-  }
+#define CHECK_ENV(env)          \
+  do {                          \
+    if ((env) == nullptr) {     \
+      return napi_invalid_arg;  \
+    }                           \
+  } while (0)
 
 #define CHECK_ARG(env, arg) \
   RETURN_STATUS_IF_FALSE((env), ((arg) != nullptr), napi_invalid_arg)
@@ -251,6 +248,18 @@ V8EscapableHandleScopeFromJsEscapableHandleScope(
   return reinterpret_cast<EscapableHandleScopeWrapper*>(s);
 }
 
+static
+napi_callback_scope JsCallbackScopeFromV8CallbackScope(
+    node::CallbackScope* s) {
+  return reinterpret_cast<napi_callback_scope>(s);
+}
+
+static
+node::CallbackScope* V8CallbackScopeFromJsCallbackScope(
+    napi_callback_scope s) {
+  return reinterpret_cast<node::CallbackScope*>(s);
+}
+
 //=== Conversion between V8 Handles and napi_value ========================
 
 // This asserts v8::Local<> will always be implemented with a single
@@ -259,13 +268,13 @@ static_assert(sizeof(v8::Local<v8::Value>) == sizeof(napi_value),
   "Cannot convert between v8::Local<v8::Value> and napi_value");
 
 static
-napi_deferred JsDeferredFromV8Persistent(v8::Persistent<v8::Value>* local) {
+napi_deferred JsDeferredFromNodePersistent(node::Persistent<v8::Value>* local) {
   return reinterpret_cast<napi_deferred>(local);
 }
 
 static
-v8::Persistent<v8::Value>* V8PersistentFromJsDeferred(napi_deferred local) {
-  return reinterpret_cast<v8::Persistent<v8::Value>*>(local);
+node::Persistent<v8::Value>* NodePersistentFromJsDeferred(napi_deferred local) {
+  return reinterpret_cast<node::Persistent<v8::Value>*>(local);
 }
 
 static
@@ -345,7 +354,7 @@ class Finalizer {
   void* _finalize_hint;
 };
 
-// Wrapper around v8::Persistent that implements reference counting.
+// Wrapper around node::Persistent that implements reference counting.
 class Reference : private Finalizer {
  private:
   Reference(napi_env env,
@@ -364,16 +373,6 @@ class Reference : private Finalizer {
           this, FinalizeCallback, v8::WeakCallbackType::kParameter);
       _persistent.MarkIndependent();
     }
-  }
-
-  ~Reference() {
-    // The V8 Persistent class currently does not reset in its destructor:
-    // see NonCopyablePersistentTraits::kResetInDestructor = false.
-    // (Comments there claim that might change in the future.)
-    // To avoid memory leaks, it is better to reset at this time, however
-    // care must be taken to avoid attempting this after the Isolate has
-    // shut down, for example via a static (atexit) destructor.
-    _persistent.Reset();
   }
 
  public:
@@ -455,7 +454,7 @@ class Reference : private Finalizer {
     }
   }
 
-  v8::Persistent<v8::Value> _persistent;
+  node::Persistent<v8::Value> _persistent;
   uint32_t _refcount;
   bool _delete_self;
 };
@@ -542,6 +541,7 @@ class CallbackWrapperBase : public CallbackWrapper {
     napi_clear_last_error(env);
 
     int open_handle_scopes = env->open_handle_scopes;
+    int open_callback_scopes = env->open_callback_scopes;
 
     napi_value result = cb(env, cbinfo_wrapper);
 
@@ -550,6 +550,7 @@ class CallbackWrapperBase : public CallbackWrapper {
     }
 
     CHECK_EQ(env->open_handle_scopes, open_handle_scopes);
+    CHECK_EQ(env->open_callback_scopes, open_callback_scopes);
 
     if (!env->last_exception.IsEmpty()) {
       isolate->ThrowException(
@@ -829,8 +830,8 @@ napi_status ConcludeDeferred(napi_env env,
   CHECK_ARG(env, result);
 
   v8::Local<v8::Context> context = env->isolate->GetCurrentContext();
-  v8::Persistent<v8::Value>* deferred_ref =
-      V8PersistentFromJsDeferred(deferred);
+  node::Persistent<v8::Value>* deferred_ref =
+      NodePersistentFromJsDeferred(deferred);
   v8::Local<v8::Value> v8_deferred =
       v8::Local<v8::Value>::New(env->isolate, *deferred_ref);
 
@@ -840,7 +841,6 @@ napi_status ConcludeDeferred(napi_env env,
       v8_resolver->Resolve(context, v8impl::V8LocalValueFromJsValue(result)) :
       v8_resolver->Reject(context, v8impl::V8LocalValueFromJsValue(result));
 
-  deferred_ref->Reset();
   delete deferred_ref;
 
   RETURN_STATUS_IF_FALSE(env, success.FromMaybe(false), napi_generic_failure);
@@ -909,7 +909,8 @@ const char* error_messages[] = {nullptr,
                                 "An exception is pending",
                                 "The async work item was cancelled",
                                 "napi_escape_handle already called on scope",
-                                "Invalid handle scope usage"};
+                                "Invalid handle scope usage",
+                                "Invalid callback scope usage"};
 
 static inline napi_status napi_clear_last_error(napi_env env) {
   env->last_error.error_code = napi_ok;
@@ -940,9 +941,9 @@ napi_status napi_get_last_error_info(napi_env env,
   // We don't have a napi_status_last as this would result in an ABI
   // change each time a message was added.
   static_assert(
-      node::arraysize(error_messages) == napi_handle_scope_mismatch + 1,
+      node::arraysize(error_messages) == napi_callback_scope_mismatch + 1,
       "Count of error messages must match count of error values");
-  CHECK_LE(env->last_error.error_code, napi_handle_scope_mismatch);
+  CHECK_LE(env->last_error.error_code, napi_callback_scope_mismatch);
 
   // Wait until someone requests the last error information to fetch the error
   // message string
@@ -2631,6 +2632,46 @@ napi_status napi_escape_handle(napi_env env,
   return napi_set_last_error(env, napi_escape_called_twice);
 }
 
+napi_status napi_open_callback_scope(napi_env env,
+                                     napi_value resource_object,
+                                     napi_async_context async_context_handle,
+                                     napi_callback_scope* result) {
+  // Omit NAPI_PREAMBLE and GET_RETURN_STATUS because V8 calls here cannot throw
+  // JS exceptions.
+  CHECK_ENV(env);
+  CHECK_ARG(env, result);
+
+  v8::Local<v8::Context> context = env->isolate->GetCurrentContext();
+
+  node::async_context* node_async_context =
+      reinterpret_cast<node::async_context*>(async_context_handle);
+
+  v8::Local<v8::Object> resource;
+  CHECK_TO_OBJECT(env, context, resource, resource_object);
+
+  *result = v8impl::JsCallbackScopeFromV8CallbackScope(
+      new node::CallbackScope(env->isolate,
+                              resource,
+                              *node_async_context));
+
+  env->open_callback_scopes++;
+  return napi_clear_last_error(env);
+}
+
+napi_status napi_close_callback_scope(napi_env env, napi_callback_scope scope) {
+  // Omit NAPI_PREAMBLE and GET_RETURN_STATUS because V8 calls here cannot throw
+  // JS exceptions.
+  CHECK_ENV(env);
+  CHECK_ARG(env, scope);
+  if (env->open_callback_scopes == 0) {
+    return napi_callback_scope_mismatch;
+  }
+
+  env->open_callback_scopes--;
+  delete v8impl::V8CallbackScopeFromJsCallbackScope(scope);
+  return napi_clear_last_error(env);
+}
+
 napi_status napi_new_instance(napi_env env,
                               napi_value constructor,
                               size_t argc,
@@ -3435,10 +3476,10 @@ napi_status napi_create_promise(napi_env env,
   CHECK_MAYBE_EMPTY(env, maybe, napi_generic_failure);
 
   auto v8_resolver = maybe.ToLocalChecked();
-  auto v8_deferred = new v8::Persistent<v8::Value>();
+  auto v8_deferred = new node::Persistent<v8::Value>();
   v8_deferred->Reset(env->isolate, v8_resolver);
 
-  *deferred = v8impl::JsDeferredFromV8Persistent(v8_deferred);
+  *deferred = v8impl::JsDeferredFromNodePersistent(v8_deferred);
   *promise = v8impl::JsValueFromV8LocalValue(v8_resolver->GetPromise());
   return GET_RETURN_STATUS(env);
 }

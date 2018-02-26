@@ -100,7 +100,6 @@ using v8::MaybeLocal;
 using v8::Null;
 using v8::Object;
 using v8::ObjectTemplate;
-using v8::Persistent;
 using v8::PropertyAttribute;
 using v8::ReadOnly;
 using v8::Signature;
@@ -1791,6 +1790,25 @@ static bool SafeX509ExtPrint(BIO* out, X509_EXTENSION* ext) {
 }
 
 
+static void AddFingerprintDigest(const unsigned char* md,
+                                 unsigned int md_size,
+                                 char (*fingerprint)[3 * EVP_MAX_MD_SIZE + 1]) {
+  unsigned int i;
+  const char hex[] = "0123456789ABCDEF";
+
+  for (i = 0; i < md_size; i++) {
+    (*fingerprint)[3*i] = hex[(md[i] & 0xf0) >> 4];
+    (*fingerprint)[(3*i)+1] = hex[(md[i] & 0x0f)];
+    (*fingerprint)[(3*i)+2] = ':';
+  }
+
+  if (md_size > 0) {
+    (*fingerprint)[(3*(md_size-1))+2] = '\0';
+  } else {
+    (*fingerprint)[0] = '\0';
+  }
+}
+
 static Local<Object> X509ToObject(Environment* env, X509* cert) {
   EscapableHandleScope scope(env->isolate());
   Local<Context> context = env->context();
@@ -1880,6 +1898,14 @@ static Local<Object> X509ToObject(Environment* env, X509* cert) {
                                   String::kNormalString,
                                   mem->length)).FromJust();
     USE(BIO_reset(bio));
+
+    int size = i2d_RSA_PUBKEY(rsa, nullptr);
+    CHECK_GE(size, 0);
+    Local<Object> pubbuff = Buffer::New(env, size).ToLocalChecked();
+    unsigned char* pubserialized =
+        reinterpret_cast<unsigned char*>(Buffer::Data(pubbuff));
+    i2d_RSA_PUBKEY(rsa, &pubserialized);
+    info->Set(env->pubkey_string(), pubbuff);
   }
 
   if (pkey != nullptr) {
@@ -1907,26 +1933,18 @@ static Local<Object> X509ToObject(Environment* env, X509* cert) {
                                 mem->length)).FromJust();
   BIO_free_all(bio);
 
-  unsigned int md_size, i;
   unsigned char md[EVP_MAX_MD_SIZE];
+  unsigned int md_size;
+  char fingerprint[EVP_MAX_MD_SIZE * 3 + 1];
   if (X509_digest(cert, EVP_sha1(), md, &md_size)) {
-    const char hex[] = "0123456789ABCDEF";
-    char fingerprint[EVP_MAX_MD_SIZE * 3];
-
-    for (i = 0; i < md_size; i++) {
-      fingerprint[3*i] = hex[(md[i] & 0xf0) >> 4];
-      fingerprint[(3*i)+1] = hex[(md[i] & 0x0f)];
-      fingerprint[(3*i)+2] = ':';
-    }
-
-    if (md_size > 0) {
-      fingerprint[(3*(md_size-1))+2] = '\0';
-    } else {
-      fingerprint[0] = '\0';
-    }
-
-    info->Set(context, env->fingerprint_string(),
-              OneByteString(env->isolate(), fingerprint)).FromJust();
+      AddFingerprintDigest(md, md_size, &fingerprint);
+      info->Set(context, env->fingerprint_string(),
+                OneByteString(env->isolate(), fingerprint)).FromJust();
+  }
+  if (X509_digest(cert, EVP_sha256(), md, &md_size)) {
+      AddFingerprintDigest(md, md_size, &fingerprint);
+      info->Set(context, env->fingerprint256_string(),
+                OneByteString(env->isolate(), fingerprint)).FromJust();
   }
 
   STACK_OF(ASN1_OBJECT)* eku = static_cast<STACK_OF(ASN1_OBJECT)*>(
@@ -2772,7 +2790,6 @@ void SSLWrap<Base>::CertCbDone(const FunctionCallbackInfo<Value>& args) {
   if (cons->HasInstance(ctx)) {
     SecureContext* sc;
     ASSIGN_OR_RETURN_UNWRAP(&sc, ctx.As<Object>());
-    w->sni_context_.Reset();
     w->sni_context_.Reset(env->isolate(), ctx);
 
     int rv;
@@ -3090,8 +3107,17 @@ void CipherBase::InitIv(const char* cipher_type,
   const int expected_iv_len = EVP_CIPHER_iv_length(cipher);
   const int mode = EVP_CIPHER_mode(cipher);
   const bool is_gcm_mode = (EVP_CIPH_GCM_MODE == mode);
+  const bool has_iv = iv_len >= 0;
 
-  if (is_gcm_mode == false && iv_len != expected_iv_len) {
+  // Throw if no IV was passed and the cipher requires an IV
+  if (!has_iv && expected_iv_len != 0) {
+    char msg[128];
+    snprintf(msg, sizeof(msg), "Missing IV for cipher %s", cipher_type);
+    return env()->ThrowError(msg);
+  }
+
+  // Throw if an IV was passed which does not match the cipher's fixed IV length
+  if (is_gcm_mode == false && has_iv && iv_len != expected_iv_len) {
     return env()->ThrowError("Invalid IV length");
   }
 
@@ -3103,11 +3129,13 @@ void CipherBase::InitIv(const char* cipher_type,
   const bool encrypt = (kind_ == kCipher);
   EVP_CipherInit_ex(ctx_, cipher, nullptr, nullptr, nullptr, encrypt);
 
-  if (is_gcm_mode &&
-      !EVP_CIPHER_CTX_ctrl(ctx_, EVP_CTRL_GCM_SET_IVLEN, iv_len, nullptr)) {
-    EVP_CIPHER_CTX_free(ctx_);
-    ctx_ = nullptr;
-    return env()->ThrowError("Invalid IV length");
+  if (is_gcm_mode) {
+    CHECK(has_iv);
+    if (!EVP_CIPHER_CTX_ctrl(ctx_, EVP_CTRL_GCM_SET_IVLEN, iv_len, nullptr)) {
+      EVP_CIPHER_CTX_free(ctx_);
+      ctx_ = nullptr;
+      return env()->ThrowError("Invalid IV length");
+    }
   }
 
   if (!EVP_CIPHER_CTX_set_key_length(ctx_, key_len)) {
@@ -3135,8 +3163,15 @@ void CipherBase::InitIv(const FunctionCallbackInfo<Value>& args) {
   const node::Utf8Value cipher_type(env->isolate(), args[0]);
   ssize_t key_len = Buffer::Length(args[1]);
   const char* key_buf = Buffer::Data(args[1]);
-  ssize_t iv_len = Buffer::Length(args[2]);
-  const char* iv_buf = Buffer::Data(args[2]);
+  ssize_t iv_len;
+  const char* iv_buf;
+  if (args[2]->IsNull()) {
+    iv_buf = nullptr;
+    iv_len = -1;
+  } else {
+    iv_buf = Buffer::Data(args[2]);
+    iv_len = Buffer::Length(args[2]);
+  }
   cipher->InitIv(*cipher_type, key_buf, key_len, iv_buf, iv_len);
 }
 
@@ -4895,7 +4930,6 @@ class PBKDF2Request : public AsyncWrap {
     keylen_ = 0;
 
     ClearWrap(object());
-    persistent().Reset();
   }
 
   uv_work_t* work_req() {
@@ -4943,7 +4977,7 @@ void PBKDF2Request::Work(uv_work_t* work_req) {
 
 void PBKDF2Request::After(Local<Value> (*argv)[2]) {
   if (success_) {
-    (*argv)[0] = Undefined(env()->isolate());
+    (*argv)[0] = Null(env()->isolate());
     (*argv)[1] = Buffer::New(env(), key_, keylen_).ToLocalChecked();
     key_ = nullptr;
     keylen_ = 0;
@@ -5062,7 +5096,6 @@ class RandomBytesRequest : public AsyncWrap {
 
   ~RandomBytesRequest() override {
     ClearWrap(object());
-    persistent().Reset();
   }
 
   uv_work_t* work_req() {

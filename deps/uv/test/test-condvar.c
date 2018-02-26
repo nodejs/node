@@ -34,7 +34,7 @@ typedef struct worker_config {
   volatile int posted_1;
   volatile int posted_2;
   void (*signal_cond)(struct worker_config* c, volatile int* flag);
-  void (*wait_cond)(struct worker_config* c, const volatile int* flag);
+  int (*wait_cond)(struct worker_config* c, const volatile int* flag);
 } worker_config;
 
 
@@ -44,6 +44,9 @@ static void worker(void* arg) {
   c->wait_cond(c, &c->posted_2);
 }
 
+static void noop_worker(void* arg) {
+  return;
+}
 
 static void condvar_signal(worker_config* c, volatile int* flag) {
   if (c->signal_delay)
@@ -60,7 +63,7 @@ static void condvar_signal(worker_config* c, volatile int* flag) {
 }
 
 
-static void condvar_wait(worker_config* c, const volatile int* flag) {
+static int condvar_wait(worker_config* c, const volatile int* flag) {
   uv_mutex_lock(&c->mutex);
   if (c->wait_delay)
     uv_sleep(c->wait_delay);
@@ -69,6 +72,8 @@ static void condvar_wait(worker_config* c, const volatile int* flag) {
   }
   ASSERT(*flag == 1);
   uv_mutex_unlock(&c->mutex);
+
+  return 0;
 }
 
 
@@ -85,7 +90,7 @@ TEST_IMPL(condvar_1) {
   ASSERT(0 == uv_mutex_init(&wc.mutex));
   ASSERT(0 == uv_thread_create(&thread, worker, &wc));
 
-  wc.wait_cond(&wc, &wc.posted_1);
+  ASSERT(0 == wc.wait_cond(&wc, &wc.posted_1));
   wc.signal_cond(&wc, &wc.posted_2);
 
   ASSERT(0 == uv_thread_join(&thread));
@@ -109,7 +114,7 @@ TEST_IMPL(condvar_2) {
   ASSERT(0 == uv_mutex_init(&wc.mutex));
   ASSERT(0 == uv_thread_create(&thread, worker, &wc));
 
-  wc.wait_cond(&wc, &wc.posted_1);
+  ASSERT(0 == wc.wait_cond(&wc, &wc.posted_1));
   wc.signal_cond(&wc, &wc.posted_2);
 
   ASSERT(0 == uv_thread_join(&thread));
@@ -120,20 +125,26 @@ TEST_IMPL(condvar_2) {
 }
 
 
-static void condvar_timedwait(worker_config* c, const volatile int* flag) {
+static int condvar_timedwait(worker_config* c, const volatile int* flag) {
   int r;
+
+  r = 0;
 
   uv_mutex_lock(&c->mutex);
   if (c->wait_delay)
     uv_sleep(c->wait_delay);
   while (*flag == 0) {
     r = uv_cond_timedwait(&c->cond, &c->mutex, (uint64_t)(150 * 1e6));
-    ASSERT(r == 0);
+    ASSERT(r == 0 || r == UV_ETIMEDOUT);
+    if (r == UV_ETIMEDOUT)
+      break;
   }
   uv_mutex_unlock(&c->mutex);
+
+  return r;
 }
 
-
+/* Test that uv_cond_timedwait will return early when cond is signaled. */
 TEST_IMPL(condvar_3) {
   uv_thread_t thread;
   worker_config wc;
@@ -147,7 +158,7 @@ TEST_IMPL(condvar_3) {
   ASSERT(0 == uv_mutex_init(&wc.mutex));
   ASSERT(0 == uv_thread_create(&thread, worker, &wc));
 
-  wc.wait_cond(&wc, &wc.posted_1);
+  ASSERT(0 == wc.wait_cond(&wc, &wc.posted_1));
   wc.signal_cond(&wc, &wc.posted_2);
 
   ASSERT(0 == uv_thread_join(&thread));
@@ -198,6 +209,33 @@ TEST_IMPL(condvar_5) {
 
   wc.wait_cond(&wc, &wc.posted_1);
   wc.signal_cond(&wc, &wc.posted_2);
+
+  ASSERT(0 == uv_thread_join(&thread));
+  uv_mutex_destroy(&wc.mutex);
+  uv_cond_destroy(&wc.cond);
+
+  return 0;
+}
+
+/* Test that uv_cond_timedwait will time out when cond is not signaled. */
+TEST_IMPL(condvar_6) {
+  uv_thread_t thread;
+  worker_config wc;
+  int r;
+
+  memset(&wc, 0, sizeof(wc));
+  wc.signal_delay = 100;
+  wc.signal_cond = condvar_signal;
+  wc.wait_cond = condvar_timedwait;
+
+  ASSERT(0 == uv_cond_init(&wc.cond));
+  ASSERT(0 == uv_mutex_init(&wc.mutex));
+  ASSERT(0 == uv_thread_create(&thread, noop_worker, &wc));
+
+  /* This can only return having timed out, because otherwise we
+   * loop forever in condvar_timedwait. */
+  r = wc.wait_cond(&wc, &wc.posted_1);
+  ASSERT(r == UV_ETIMEDOUT);
 
   ASSERT(0 == uv_thread_join(&thread));
   uv_mutex_destroy(&wc.mutex);

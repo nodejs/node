@@ -160,7 +160,7 @@ const BATCH = 10;
   });
 
   readable.on('end', common.mustCall(() => {
-    assert.strictEqual(nextTickPassed, false);
+    assert.strictEqual(nextTickPassed, true);
   }));
 }
 
