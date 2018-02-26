@@ -3279,7 +3279,7 @@ static void RawDebug(const FunctionCallbackInfo<Value>& args) {
   fflush(stderr);
 }
 
-void LoadEnvironment(Environment* env, const bool allow_repl) {
+void LoadEnvironment(Environment* env, const bool evaluate_stdin) {
   HandleScope handle_scope(env->isolate());
 
   TryCatch try_catch(env->isolate());
@@ -3342,16 +3342,16 @@ void LoadEnvironment(Environment* env, const bool allow_repl) {
   // like Node's I/O bindings may want to replace 'f' with their own function.
   Local<Value> arg = env->process_object();
 
-  // add allow_repl parameter to JS process so we can use it in
+  // add evaluate_stdin parameter to JS process so we can use it in
   // bootstrap_node.js.
   // If adding the parameter fails, bootstrapping will fail too,
   // so we can cleanup and return before we even bootstrap.
-  bool successfully_set_allow_repl = Object::Cast(*arg)->Set(
+  bool successfully_set_evaluate_stdin = Object::Cast(*arg)->Set(
         env->context(),
-        String::NewFromUtf8(env->isolate(), "_allowRepl"),
-        Boolean::New(env->isolate(), allow_repl)).FromJust();
+        String::NewFromUtf8(env->isolate(), "_evaluateStdin"),
+        Boolean::New(env->isolate(), evaluate_stdin)).FromJust();
 
-  if (!successfully_set_allow_repl) {
+  if (!successfully_set_evaluate_stdin) {
     env->async_hooks()->clear_async_id_stack();
     return;
   }
@@ -4671,7 +4671,7 @@ int _StartEnv(int argc,
                const char* const* argv,
                int v8_argc,
                const char* const* v8_argv,
-               const bool allow_repl) {
+               const bool evaluate_stdin) {
   _environment->Start(argc, argv, v8_argc, v8_argv, v8_is_profiling);
 
   const char* path = argc > 1 ? argv[1] : nullptr;
@@ -4691,7 +4691,7 @@ int _StartEnv(int argc,
   {
     Environment::AsyncCallbackScope callback_scope(_environment);
     _environment->async_hooks()->push_async_ids(1, 0);
-    LoadEnvironment(_environment, allow_repl);
+    LoadEnvironment(_environment, evaluate_stdin);
     _environment->async_hooks()->pop_async_id(1);
   }
 
@@ -4704,12 +4704,12 @@ int _StartEnv(int argc,
 
 int Initialize(const std::string& program_name,
                 const std::vector<std::string>& node_args,
-                const bool allow_repl) {
+                const bool evaluate_stdin) {
   cmd_args = new CmdArgs(program_name, node_args);
-  return Initialize(cmd_args->argc, cmd_args->argv, allow_repl);
+  return Initialize(cmd_args->argc, cmd_args->argv, evaluate_stdin);
 }
 
-int Initialize(int argc, const char** argv, const bool allow_repl) {
+int Initialize(int argc, const char** argv, const bool evaluate_stdin) {
   atexit([] () { uv_tty_reset_mode(); });
   PlatformInit();
   node::performance::performance_node_start = PERFORMANCE_NOW();
@@ -4733,12 +4733,11 @@ int Initialize(int argc, const char** argv, const bool allow_repl) {
   }
 
   initialize::_CreateInitialEnvironment();
-
-  exit_code = initialize::_StartEnv(argc,
-                                    argv,
+  exit_code = initialize::_StartEnv(argc, 
+                                    argv, 
                                     exec_argc,
-                                    exec_argv,
-                                    allow_repl);
+                                    exec_argv, 
+                                    evaluate_stdin);
   if (exit_code != 0) {
     return exit_code;
   }
