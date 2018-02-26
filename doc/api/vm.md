@@ -495,6 +495,14 @@ added: v0.3.1
     value of the [`url.origin`][] property of a [`URL`][] object. Most notably,
     this string should omit the trailing slash, as that denotes a path.
     **Default:** `''`.
+  * `contextCodeGeneration` {Object}
+    * `strings` {boolean} If set to false any calls to `eval` or function
+      constructors (`Function`, `GeneratorFunction`, etc) will throw an
+      `EvalError`.
+      **Default**: `true`.
+    * `wasm` {boolean} If set to false any attempt to compile a WebAssembly
+      module will throw a `WebAssembly.CompileError`.
+      **Default**: `true`.
 
 First contextifies the given `sandbox`, runs the compiled code contained by
 the `vm.Script` object within the created sandbox, and returns the result.
@@ -578,6 +586,14 @@ added: v0.3.1
     the [`url.origin`][] property of a [`URL`][] object. Most notably, this
     string should omit the trailing slash, as that denotes a path.
     **Default:** `''`.
+  * `codeGeneration` {Object}
+    * `strings` {boolean} If set to false any calls to `eval` or function
+      constructors (`Function`, `GeneratorFunction`, etc) will throw an
+      `EvalError`.
+      **Default**: `true`.
+    * `wasm` {boolean} If set to false any attempt to compile a WebAssembly
+      module will throw a `WebAssembly.CompileError`.
+      **Default**: `true`.
 
 If given a `sandbox` object, the `vm.createContext()` method will [prepare
 that sandbox][contextified] so that it can be used in calls to

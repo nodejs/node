@@ -15,9 +15,14 @@ namespace node {
 #define NODE_CONTEXT_SANDBOX_OBJECT_INDEX 33
 #endif
 
+#ifndef NODE_CONTEXT_ALLOW_WASM_CODE_GENERATION_INDEX
+#define NODE_CONTEXT_ALLOW_WASM_CODE_GENERATION_INDEX 34
+#endif
+
 enum ContextEmbedderIndex {
   kEnvironment = NODE_CONTEXT_EMBEDDER_DATA_INDEX,
   kSandboxObject = NODE_CONTEXT_SANDBOX_OBJECT_INDEX,
+  kAllowWasmCodeGeneration = NODE_CONTEXT_ALLOW_WASM_CODE_GENERATION_INDEX,
 };
 
 }  // namespace node
