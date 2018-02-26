@@ -4512,7 +4512,7 @@ void _DeleteCmdArgs() {
 }
 
 int _ExitV8() {
-   _environment->set_trace_sync_io(false);
+  _environment->set_trace_sync_io(false);
 
   int exit_code = EmitExit(_environment);
   RunAtExit(_environment);
@@ -4640,7 +4640,7 @@ void _CreateInitialEnvironment() {
     _isolate->GetHeapProfiler()->StartTrackingHeapObjects(true);
   }
 
-  // TODO(justus-hildebrand): in the initial Start functions, 
+  // TODO(justus-hildebrand): in the initial Start functions,
   // two handle scopes were created
   // (one in Start() 2 and one in Start() 3). Currently, we have no idea why.
   // HandleScope handle_scope(isolate);

@@ -82,6 +82,7 @@ bool eventLoopIsRunning();
  * @param node_args List of arguments for the Node.js engine.
  * @param allow_repl Controls whether the node.js REPL gets spawned when stdin
  * is an interactive terminal.
+ * @return Potential errors are indicated by a return value not equal to 0.
  */
 NODE_EXTERN int Initialize(const std::string& program_name = "node_lib",
                             const std::vector<std::string>& node_args = {},
@@ -102,6 +103,7 @@ NODE_EXTERN int Initialize(const std::string& program_name = "node_lib",
  * The number of arguments must correspond to argc.
  * @param allow_repl Controls whether the node.js REPL gets spawned when stdin
  * is an interactive terminal.
+ * @return Potential errors are indicated by a return value not equal to 0.
  */
 NODE_EXTERN int Initialize(int argc,
                             const char** argv,
