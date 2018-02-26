@@ -4741,8 +4741,6 @@ int Initialize(int argc, const char** argv, const bool allow_repl) {
 
   auto exit_code = initialize::_CreateIsolate();
   if (exit_code != 0) {
-    deinitialize::_DeinitV8();
-    deinitialize::_DeleteCmdArgs();
     return exit_code;
   }
 
@@ -4754,12 +4752,6 @@ int Initialize(int argc, const char** argv, const bool allow_repl) {
 
   exit_code = initialize::_StartEnv(argc, argv, exec_argc, exec_argv, allow_repl);
   if (exit_code != 0) {
-    deinitialize::_StopEnv();
-    deinitialize::_DeleteIsolate();
-    deinitialize::_DeinitV8();
-    // TODO(js): Do we need to tear down OpenSsl?
-    deinitialize::_DeleteCmdArgs();
-
     return exit_code;
   }
 
