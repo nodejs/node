@@ -116,21 +116,24 @@ function verifyStatObject(stat) {
     stats = await stat(newPath);
     verifyStatObject(stats);
 
-    const newLink = path.resolve(tmpDir, 'baz3.js');
-    await symlink(newPath, newLink);
+    if (common.canCreateSymLink()) {
+      const newLink = path.resolve(tmpDir, 'baz3.js');
+      await symlink(newPath, newLink);
+
+      stats = await lstat(newLink);
+      verifyStatObject(stats);
+
+      assert.strictEqual(newPath.toLowerCase(),
+                         (await realpath(newLink)).toLowerCase());
+      assert.strictEqual(newPath.toLowerCase(),
+                         (await readlink(newLink)).toLowerCase());
+
+      await unlink(newLink);
+    }
 
     const newLink2 = path.resolve(tmpDir, 'baz4.js');
     await link(newPath, newLink2);
 
-    stats = await lstat(newLink);
-    verifyStatObject(stats);
-
-    assert.strictEqual(newPath.toLowerCase(),
-                       (await realpath(newLink)).toLowerCase());
-    assert.strictEqual(newPath.toLowerCase(),
-                       (await readlink(newLink)).toLowerCase());
-
-    await unlink(newLink);
     await unlink(newLink2);
 
     const newdir = path.resolve(tmpDir, 'dir');
