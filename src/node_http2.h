@@ -878,6 +878,9 @@ class Http2Session : public AsyncWrap, public StreamListener {
   // Removes a stream instance from this session
   inline void RemoveStream(Http2Stream* stream);
 
+  // Indicates whether there currently exist outgoing buffers for this stream.
+  bool HasWritesOnSocketForStream(Http2Stream* stream);
+
   // Write data to the session
   inline ssize_t Write(const uv_buf_t* bufs, size_t nbufs);
 
