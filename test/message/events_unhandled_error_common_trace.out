@@ -3,9 +3,9 @@ events.js:*
       ^
 
 Error: foo:bar
-    at bar (*test-unhandled-error-stack.js:*:*)
-    at foo (*test-unhandled-error-stack.js:*:*)
-    at Object.<anonymous> (*test-unhandled-error-stack.js:*:*)
+    at bar (*events_unhandled_error_common_trace.js:*:*)
+    at foo (*events_unhandled_error_common_trace.js:*:*)
+    at Object.<anonymous> (*events_unhandled_error_common_trace.js:*:*)
     at Module._compile (module.js:*:*)
     at Object.Module._extensions..js (module.js:*:*)
     at Module.load (module.js:*:*)
@@ -14,8 +14,8 @@ Error: foo:bar
     at Function.Module.runMain (module.js:*:*)
     at startup (bootstrap_node.js:*:*)
 Emitted 'error' event at at:
-    at quux (*test-unhandled-error-stack.js:*:*)
-    at Object.<anonymous> (*test-unhandled-error-stack.js:*:*)
+    at quux (*events_unhandled_error_common_trace.js:*:*)
+    at Object.<anonymous> (*events_unhandled_error_common_trace.js:*:*)
     at Module._compile (module.js:*:*)
     [... lines matching original stack trace ...]
     at startup (bootstrap_node.js:*:*)
