@@ -343,6 +343,10 @@ inline void Http2Session::Http2Settings::RefreshDefaults(Environment* env) {
 
 void Http2Session::Http2Settings::Send() {
   Http2Scope h2scope(session_);
+  TRACE_EVENT_NESTABLE_ASYNC_INSTANT1(
+      NODE_HTTP2_TRACING, "Send Settings",
+      static_cast<uint64_t>(session_->get_async_id()),
+      "count", length());
   CHECK_EQ(nghttp2_submit_settings(**session_, NGHTTP2_FLAG_NONE,
                                    *entries_, length()), 0);
 }
@@ -350,11 +354,15 @@ void Http2Session::Http2Settings::Send() {
 void Http2Session::Http2Settings::Done(bool ack) {
   uint64_t end = uv_hrtime();
   double duration = (end - startTime_) / 1e6;
-
   Local<Value> argv[2] = {
     Boolean::New(env()->isolate(), ack),
     Number::New(env()->isolate(), duration)
   };
+
+  TRACE_EVENT_NESTABLE_ASYNC_INSTANT0(
+      NODE_HTTP2_TRACING, "Send Settings (Ack)",
+      static_cast<uint64_t>(session_->get_async_id()));
+
   MakeCallback(env()->ondone_string(), arraysize(argv), argv);
   delete this;
 }
@@ -450,6 +458,8 @@ Headers::Headers(Isolate* isolate,
 Http2Session::Callbacks::Callbacks(bool kHasGetPaddingCallback) {
   CHECK_EQ(nghttp2_session_callbacks_new(&callbacks), 0);
 
+  nghttp2_session_callbacks_set_before_frame_send_callback(
+    callbacks, OnBeforeFrameSend);
   nghttp2_session_callbacks_set_on_begin_headers_callback(
     callbacks, OnBeginHeadersCallback);
   nghttp2_session_callbacks_set_on_header_callback2(
@@ -527,6 +537,12 @@ Http2Session::Http2Session(Environment* env,
 
   outgoing_storage_.reserve(4096);
   outgoing_buffers_.reserve(32);
+
+  TRACE_EVENT_NESTABLE_ASYNC_BEGIN1(
+      NODE_HTTP2_TRACING,
+      "Http2Session",
+      static_cast<uint64_t>(get_async_id()),
+      "type", TypeName());
 }
 
 Http2Session::~Http2Session() {
@@ -643,6 +659,11 @@ void Http2Session::Close(uint32_t code, bool socket_closed) {
   }
 
   statistics_.end_time = uv_hrtime();
+  TRACE_EVENT_NESTABLE_ASYNC_END1(
+      NODE_HTTP2_TRACING,
+      "Http2Session",
+      static_cast<uint64_t>(get_async_id()),
+      "code", code);
   EmitStatistics();
 }
 
@@ -748,6 +769,9 @@ inline ssize_t Http2Session::Write(const uv_buf_t* bufs, size_t nbufs) {
   // Note that nghttp2_session_mem_recv is a synchronous operation that
   // will trigger a number of other callbacks. Those will, in turn have
   // multiple side effects.
+  TRACE_EVENT_NESTABLE_ASYNC_BEGIN0(
+      NODE_HTTP2_TRACING, "Receive Session Data",
+      static_cast<uint64_t>(get_async_id()));
   for (size_t n = 0; n < nbufs; n++) {
     DEBUG_HTTP2SESSION2(this, "receiving %d bytes [wants data? %d]",
                         bufs[n].len,
@@ -763,6 +787,9 @@ inline ssize_t Http2Session::Write(const uv_buf_t* bufs, size_t nbufs) {
 
     total += ret;
   }
+  TRACE_EVENT_NESTABLE_ASYNC_END0(
+      NODE_HTTP2_TRACING, "Receive Session Data",
+      static_cast<uint64_t>(get_async_id()));
   // Send any data that was queued up while processing the received data.
   if (!IsDestroyed()) {
     SendPendingData();
@@ -776,6 +803,27 @@ inline int32_t GetFrameID(const nghttp2_frame* frame) {
   return (frame->hd.type == NGHTTP2_PUSH_PROMISE) ?
       frame->push_promise.promised_stream_id :
       frame->hd.stream_id;
+}
+
+inline int Http2Session::OnBeforeFrameSend(nghttp2_session* handle,
+                                           const nghttp2_frame* frame,
+                                           void* user_data) {
+  Http2Session* session = static_cast<Http2Session*>(user_data);
+  int32_t id = GetFrameID(frame);
+  Http2Stream* stream = session->FindStream(id);
+  switch (frame->hd.type) {
+    case NGHTTP2_HEADERS:
+      TRACE_EVENT_NESTABLE_ASYNC_BEGIN1(
+          NODE_HTTP2_TRACING,
+          "Send Headers",
+          static_cast<uint64_t>(stream->get_async_id()),
+          "count", frame->headers.nvlen);
+      break;
+    default:
+      break;
+      // Fall-through
+  }
+  return 0;
 }
 
 
@@ -793,7 +841,7 @@ inline int Http2Session::OnBeginHeadersCallback(nghttp2_session* handle,
   Http2Stream* stream = session->FindStream(id);
   if (stream == nullptr) {
     if (session->CanAddStream()) {
-      new Http2Stream(session, id, frame->headers.cat);
+      stream = new Http2Stream(session, id, frame->headers.cat);
     } else {
       // Too many concurrent streams being opened
       nghttp2_submit_rst_stream(**session, NGHTTP2_FLAG_NONE, id,
@@ -806,6 +854,24 @@ inline int Http2Session::OnBeginHeadersCallback(nghttp2_session* handle,
       return 0;
     stream->StartHeaders(frame->headers.cat);
   }
+
+  if (frame->hd.flags & NGHTTP2_FLAG_END_STREAM) {
+    // If we've received data but have not received end of stream,
+    // mark the end of data at this point. This may happen if there
+    // are trailing headers
+    if (stream->statistics_.first_byte != 0 && !stream->eos_) {
+      TRACE_EVENT_NESTABLE_ASYNC_END0(
+          NODE_HTTP2_TRACING,
+          "Receive Data",
+          static_cast<uint64_t>(stream->get_async_id()));
+      stream->eos_ = true;
+    }
+  }
+
+  TRACE_EVENT_NESTABLE_ASYNC_BEGIN0(
+      NODE_HTTP2_TRACING,
+      "Receive Headers",
+      static_cast<uint64_t>(stream->get_async_id()));
   return 0;
 }
 
@@ -938,6 +1004,30 @@ inline int Http2Session::OnFrameSent(nghttp2_session* handle,
                                      void* user_data) {
   Http2Session* session = static_cast<Http2Session*>(user_data);
   session->statistics_.frame_sent += 1;
+
+  int32_t id = GetFrameID(frame);
+  Http2Stream* stream = session->FindStream(id);
+  switch (frame->hd.type) {
+    case NGHTTP2_RST_STREAM:
+      TRACE_EVENT_NESTABLE_ASYNC_INSTANT2(
+          NODE_HTTP2_TRACING, "RST_STREAM",
+          static_cast<uint64_t>(session->get_async_id()),
+          "id", id,
+          "code", frame->rst_stream.error_code);
+      break;
+    case NGHTTP2_HEADERS:
+      TRACE_EVENT_NESTABLE_ASYNC_END1(
+          NODE_HTTP2_TRACING,
+          "Send Headers",
+          static_cast<uint64_t>(stream->get_async_id()),
+          "deflate_table_size",
+          nghttp2_session_get_hd_deflate_dynamic_table_size(**session));
+      break;
+    default:
+      break;
+      // Fall-through
+  }
+
   return 0;
 }
 
@@ -1019,6 +1109,13 @@ inline int Http2Session::OnDataChunkReceived(nghttp2_session* handle,
     if (stream->IsDestroyed())
       return 0;
 
+    if (stream->statistics_.received_bytes == 0) {
+      stream->statistics_.first_byte = uv_hrtime();
+      TRACE_EVENT_NESTABLE_ASYNC_BEGIN0(
+          NODE_HTTP2_TRACING,
+          "Receive Data",
+          static_cast<uint64_t>(stream->get_async_id()));
+    }
     stream->statistics_.received_bytes += len;
 
     // Repeatedly ask the stream's owner for memory, and copy the read data
@@ -1174,7 +1271,6 @@ inline void Http2Stream::SubmitTrailers::Submit(nghttp2_nv* trailers,
       nghttp2_submit_trailer(**session_, stream_->id(), trailers, length), 0);
 }
 
-
 // Called by OnFrameReceived to notify JavaScript land that a complete
 // HEADERS frame has been received and processed. This method converts the
 // received headers into a JavaScript array and pushes those out to JS.
@@ -1201,6 +1297,18 @@ inline void Http2Session::HandleHeadersFrame(const nghttp2_frame* frame) {
   Local<Array> holder = Array::New(isolate);
   Local<Function> fn = env()->push_values_to_array_function();
   Local<Value> argv[NODE_PUSH_VAL_TO_ARRAY_MAX * 2];
+
+  // TODO(jasnell): Figure out an efficient way of including the pseudo
+  // headers in the trace event output. At this point we're only working
+  // with persistent buffers provided by nghttp2 and we're not peering
+  // into them at all.
+  TRACE_EVENT_NESTABLE_ASYNC_END2(
+      NODE_HTTP2_TRACING,
+      "Receive Headers",
+      static_cast<uint64_t>(stream->get_async_id()),
+      "count", count,
+      "inflate_table_size",
+      nghttp2_session_get_hd_inflate_dynamic_table_size(session_));
 
   // The headers are passed in above as a queue of nghttp2_header structs.
   // The following converts that into a JS array with the structure:
@@ -1282,6 +1390,13 @@ inline void Http2Session::HandleDataFrame(const nghttp2_frame* frame) {
     return;
 
   if (frame->hd.flags & NGHTTP2_FLAG_END_STREAM) {
+    if (!stream->eos_) {
+      TRACE_EVENT_NESTABLE_ASYNC_END0(
+          NODE_HTTP2_TRACING,
+          "Receive Data",
+          static_cast<uint64_t>(stream->get_async_id()));
+    stream->eos_ = true;
+    }
     stream->EmitRead(UV_EOF);
   }
 }
@@ -1398,6 +1513,9 @@ inline void Http2Session::HandleSettingsFrame(const nghttp2_frame* frame) {
     }
   } else {
     // Otherwise, notify the session about a new settings
+    TRACE_EVENT_NESTABLE_ASYNC_INSTANT0(
+      NODE_HTTP2_TRACING, "Receive Settings",
+      static_cast<uint64_t>(get_async_id()));
     MakeCallback(env()->onsettings_string(), 0, nullptr);
   }
 }
@@ -1749,6 +1867,13 @@ Http2Stream::Http2Stream(
   if (options & STREAM_OPTION_EMPTY_PAYLOAD)
     Shutdown();
   session->AddStream(this);
+
+  TRACE_EVENT_NESTABLE_ASYNC_BEGIN2(
+      NODE_HTTP2_TRACING,
+      "Http2Stream",
+      static_cast<uint64_t>(get_async_id()),
+      "id", id,
+      "type", session->TypeName());
 }
 
 
@@ -1852,6 +1977,13 @@ inline void Http2Stream::Destroy() {
   session_->statistics_.stream_average_duration =
       ((statistics_.end_time - statistics_.start_time) /
           session_->statistics_.stream_count) / 1e6;
+
+  TRACE_EVENT_NESTABLE_ASYNC_END1(
+      NODE_HTTP2_TRACING,
+      "Http2Stream",
+      static_cast<uint64_t>(get_async_id()),
+      "code", code_);
+
   EmitStatistics();
 }
 
@@ -1869,6 +2001,10 @@ inline int Http2Stream::SubmitResponse(nghttp2_nv* nva,
 
   if (!IsWritable())
     options |= STREAM_OPTION_EMPTY_PAYLOAD;
+
+  TRACE_EVENT_NESTABLE_ASYNC_INSTANT0(
+      NODE_HTTP2_TRACING, "Submit Response (Stream)",
+      static_cast<uint64_t>(get_async_id()));
 
   Http2Stream::Provider::Stream prov(this, options);
   int ret = nghttp2_submit_response(session_->session(), id_, nva, len, *prov);
@@ -1892,6 +2028,11 @@ inline int Http2Stream::SubmitFile(int fd,
   if (offset > 0) fd_offset_ = offset;
   if (length > -1) fd_length_ = length;
 
+  TRACE_EVENT_NESTABLE_ASYNC_INSTANT1(
+      NODE_HTTP2_TRACING, "Submit Response (FD)",
+      static_cast<uint64_t>(get_async_id()),
+      "fd", fd);
+
   Http2Stream::Provider::FD prov(this, options, fd);
   int ret = nghttp2_submit_response(session_->session(), id_, nva, len, *prov);
   CHECK_NE(ret, NGHTTP2_ERR_NOMEM);
@@ -1904,6 +2045,12 @@ inline int Http2Stream::SubmitInfo(nghttp2_nv* nva, size_t len) {
   CHECK(!this->IsDestroyed());
   Http2Scope h2scope(this);
   DEBUG_HTTP2STREAM2(this, "sending %d informational headers", len);
+
+  TRACE_EVENT_NESTABLE_ASYNC_INSTANT1(
+      NODE_HTTP2_TRACING, "Submit Info Headers",
+      static_cast<uint64_t>(get_async_id()),
+      "count", len);
+
   int ret = nghttp2_submit_headers(session_->session(),
                                    NGHTTP2_FLAG_NONE,
                                    id_, nullptr,
@@ -1953,9 +2100,14 @@ inline Http2Stream* Http2Stream::SubmitPushPromise(nghttp2_nv* nva,
                                      id_, nva, len, nullptr);
   CHECK_NE(*ret, NGHTTP2_ERR_NOMEM);
   Http2Stream* stream = nullptr;
-  if (*ret > 0)
+  if (*ret > 0) {
+    TRACE_EVENT_NESTABLE_ASYNC_INSTANT1(
+        NODE_HTTP2_TRACING,
+        "Push Promise",
+        static_cast<uint64_t>(get_async_id()),
+        "count", len);
     stream = new Http2Stream(session_, *ret, NGHTTP2_HCAT_HEADERS, options);
-
+  }
   return stream;
 }
 
@@ -2012,6 +2164,9 @@ inline int Http2Stream::DoWrite(WriteWrap* req_wrap,
     return 0;
   }
   DEBUG_HTTP2STREAM2(this, "queuing %d buffers to send", id_, nbufs);
+  TRACE_EVENT_NESTABLE_ASYNC_INSTANT0(
+      NODE_HTTP2_TRACING, "Write Data (Stream)",
+      static_cast<uint64_t>(get_async_id()));
   for (size_t i = 0; i < nbufs; ++i) {
     // Store the req_wrap on the last write info in the queue, so that it is
     // only marked as finished once all buffers associated with it are finished.
@@ -2100,8 +2255,14 @@ ssize_t Http2Stream::Provider::FD::OnRead(nghttp2_session* handle,
                                           void* user_data) {
   Http2Session* session = static_cast<Http2Session*>(user_data);
   Http2Stream* stream = session->FindStream(id);
-  if (stream->statistics_.first_byte_sent == 0)
+  if (stream->statistics_.first_byte_sent == 0) {
     stream->statistics_.first_byte_sent = uv_hrtime();
+    TRACE_EVENT_NESTABLE_ASYNC_BEGIN1(
+        NODE_HTTP2_TRACING,
+        "Send Data",
+        static_cast<uint64_t>(stream->get_async_id()),
+        "provider", "fd");
+  }
 
   DEBUG_HTTP2SESSION2(session, "reading outbound file data for stream %d", id);
   CHECK_EQ(id, stream->id());
@@ -2150,6 +2311,11 @@ ssize_t Http2Stream::Provider::FD::OnRead(nghttp2_session* handle,
       return NGHTTP2_ERR_TEMPORAL_CALLBACK_FAILURE;
     if (session->IsDestroyed())
       return NGHTTP2_ERR_CALLBACK_FAILURE;
+
+    TRACE_EVENT_NESTABLE_ASYNC_END0(
+        NODE_HTTP2_TRACING,
+        "Send Data",
+        static_cast<uint64_t>(stream->get_async_id()));
   }
 
   stream->statistics_.sent_bytes += numchars;
@@ -2178,8 +2344,14 @@ ssize_t Http2Stream::Provider::Stream::OnRead(nghttp2_session* handle,
   Http2Session* session = static_cast<Http2Session*>(user_data);
   DEBUG_HTTP2SESSION2(session, "reading outbound data for stream %d", id);
   Http2Stream* stream = GetStream(session, id, source);
-  if (stream->statistics_.first_byte_sent == 0)
+  if (stream->statistics_.first_byte_sent == 0) {
     stream->statistics_.first_byte_sent = uv_hrtime();
+    TRACE_EVENT_NESTABLE_ASYNC_BEGIN1(
+        NODE_HTTP2_TRACING,
+        "Send Data",
+        static_cast<uint64_t>(stream->get_async_id()),
+        "provider", "stream");
+  }
   CHECK_EQ(id, stream->id());
 
   size_t amount = 0;          // amount of data being sent in this data frame.
@@ -2212,6 +2384,11 @@ ssize_t Http2Stream::Provider::Stream::OnRead(nghttp2_session* handle,
       return NGHTTP2_ERR_TEMPORAL_CALLBACK_FAILURE;
     if (session->IsDestroyed())
       return NGHTTP2_ERR_CALLBACK_FAILURE;
+
+    TRACE_EVENT_NESTABLE_ASYNC_END0(
+        NODE_HTTP2_TRACING,
+        "Send Data",
+        static_cast<uint64_t>(stream->get_async_id()));
   }
 
   stream->statistics_.sent_bytes += amount;
@@ -2220,11 +2397,17 @@ ssize_t Http2Stream::Provider::Stream::OnRead(nghttp2_session* handle,
 
 inline void Http2Stream::IncrementAvailableOutboundLength(size_t amount) {
   available_outbound_length_ += amount;
+  TRACE_COUNTER_ID1(NODE_HTTP2_TRACING, "Outbound Data",
+                    static_cast<uint64_t>(session_->get_async_id()),
+                    available_outbound_length_);
   session_->IncrementCurrentSessionMemory(amount);
 }
 
 inline void Http2Stream::DecrementAvailableOutboundLength(size_t amount) {
   available_outbound_length_ -= amount;
+  TRACE_COUNTER_ID1(NODE_HTTP2_TRACING, "Outbound Data",
+                    static_cast<uint64_t>(session_->get_async_id()),
+                    available_outbound_length_);
   session_->DecrementCurrentSessionMemory(amount);
 }
 
