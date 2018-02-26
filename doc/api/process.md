@@ -1415,7 +1415,7 @@ console.log(`This platform is ${process.platform}`);
 
 The value `'android'` may also be returned if the Node.js is built on the
 Android operating system. However, Android support in Node.js
-[is experimental][Supported platforms].
+[is experimental][Android building].
 
 ## process.ppid
 <!-- YAML
@@ -1942,6 +1942,7 @@ cases:
 [`promise.catch()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise/catch
 [`require.main`]: modules.html#modules_accessing_the_main_module
 [`setTimeout(fn, 0)`]: timers.html#timers_settimeout_callback_delay_args
+[Android building]: https://github.com/nodejs/node/blob/master/BUILDING.md#androidandroid-based-devices-eg-firefox-os
 [Child Process]: child_process.html
 [Cluster]: cluster.html
 [debugger]: debugger.html
@@ -1953,6 +1954,5 @@ cases:
 [Readable]: stream.html#stream_readable_streams
 [Signal Events]: #process_signal_events
 [Stream compatibility]: stream.html#stream_compatibility_with_older_node_js_versions
-[Supported platforms]: https://github.com/nodejs/node/blob/master/BUILDING.md#supported-platforms-1
 [TTY]: tty.html#tty_tty
 [Writable]: stream.html#stream_writable_streams
