@@ -28,6 +28,7 @@
 #include "node_revert.h"
 #include "node_debug_options.h"
 #include "node_perf.h"
+#include "node_context_data.h"
 
 #if defined HAVE_PERFCTR
 #include "node_counters.h"
@@ -4421,6 +4422,8 @@ Local<Context> NewContext(Isolate* isolate,
   HandleScope handle_scope(isolate);
   auto intl_key = FIXED_ONE_BYTE_STRING(isolate, "Intl");
   auto break_iter_key = FIXED_ONE_BYTE_STRING(isolate, "v8BreakIterator");
+  context->SetEmbedderData(
+      ContextEmbedderIndex::kAllowWasmCodeGeneration, True(isolate));
   Local<Value> intl_v;
   if (context->Global()->Get(context, intl_key).ToLocal(&intl_v) &&
       intl_v->IsObject()) {
@@ -4498,6 +4501,13 @@ inline int Start(Isolate* isolate, IsolateData* isolate_data,
   return exit_code;
 }
 
+bool AllowWasmCodeGenerationCallback(
+    Local<Context> context, Local<String>) {
+  Local<Value> wasm_code_gen =
+    context->GetEmbedderData(ContextEmbedderIndex::kAllowWasmCodeGeneration);
+  return wasm_code_gen->IsUndefined() || wasm_code_gen->IsTrue();
+}
+
 inline int Start(uv_loop_t* event_loop,
                  int argc, const char* const* argv,
                  int exec_argc, const char* const* exec_argv) {
@@ -4516,6 +4526,7 @@ inline int Start(uv_loop_t* event_loop,
   isolate->SetAbortOnUncaughtExceptionCallback(ShouldAbortOnUncaughtException);
   isolate->SetMicrotasksPolicy(v8::MicrotasksPolicy::kExplicit);
   isolate->SetFatalErrorHandler(OnFatalError);
+  isolate->SetAllowWasmCodeGenerationCallback(AllowWasmCodeGenerationCallback);
 
   {
     Mutex::ScopedLock scoped_lock(node_isolate_mutex);

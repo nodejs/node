@@ -185,6 +185,30 @@ Local<Context> ContextifyContext::CreateV8Context(
   CHECK(name->IsString());
   Utf8Value name_val(env->isolate(), name);
 
+  Local<Value> codegen = options_obj->Get(env->context(),
+      FIXED_ONE_BYTE_STRING(env->isolate(), "codeGeneration"))
+          .ToLocalChecked();
+
+  if (!codegen->IsUndefined()) {
+    CHECK(codegen->IsObject());
+    Local<Object> codegen_obj = codegen.As<Object>();
+
+    Local<Value> allow_code_gen_from_strings =
+      codegen_obj->Get(env->context(),
+          FIXED_ONE_BYTE_STRING(env->isolate(), "strings"))
+      .ToLocalChecked();
+    ctx->AllowCodeGenerationFromStrings(
+        allow_code_gen_from_strings->IsUndefined() ||
+            allow_code_gen_from_strings->IsTrue());
+
+    Local<Value> allow_wasm_code_gen = codegen_obj->Get(env->context(),
+        FIXED_ONE_BYTE_STRING(env->isolate(), "wasm"))
+      .ToLocalChecked();
+    ctx->SetEmbedderData(ContextEmbedderIndex::kAllowWasmCodeGeneration,
+        Boolean::New(env->isolate(), allow_wasm_code_gen->IsUndefined() ||
+            allow_wasm_code_gen->IsTrue()));
+  }
+
   ContextInfo info(*name_val);
 
   Local<Value> origin =
