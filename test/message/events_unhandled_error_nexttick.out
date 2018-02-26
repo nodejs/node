@@ -1,0 +1,20 @@
+events.js:*
+      throw er; // Unhandled 'error' event
+      ^
+
+Error
+    at Object.<anonymous> (*events_unhandled_error_nexttick.js:*:*)
+    at Module._compile (module.js:*:*)
+    at Object.Module._extensions..js (module.js:*:*)
+    at Module.load (module.js:*:*)
+    at tryModuleLoad (module.js:*:*)
+    at Function.Module._load (module.js:*:*)
+    at Function.Module.runMain (module.js:*:*)
+    at startup (bootstrap_node.js:*:*)
+    at bootstrap_node.js:*:*
+Emitted 'error' event at:
+    at process.nextTick (*events_unhandled_error_nexttick.js:*:*)
+    at process._tickCallback (internal/process/next_tick.js:*:*)
+    at Function.Module.runMain (module.js:*:*)
+    at startup (bootstrap_node.js:*:*)
+    at bootstrap_node.js:*:*
