@@ -83,7 +83,7 @@ bool eventLoopIsRunning();
  * @param allow_repl Controls whether the node.js REPL gets spawned when stdin
  * is an interactive terminal.
  */
-NODE_EXTERN void Initialize(const std::string& program_name = "node_lib",
+NODE_EXTERN int Initialize(const std::string& program_name = "node_lib",
                             const std::vector<std::string>& node_args = {},
                             const bool allow_repl = false);
 
@@ -103,7 +103,7 @@ NODE_EXTERN void Initialize(const std::string& program_name = "node_lib",
  * @param allow_repl Controls whether the node.js REPL gets spawned when stdin
  * is an interactive terminal.
  */
-NODE_EXTERN void Initialize(int argc,
+NODE_EXTERN int Initialize(int argc,
                             const char** argv,
                             const bool allow_repl = false);
 
