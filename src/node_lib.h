@@ -81,8 +81,8 @@ bool eventLoopIsRunning();
  * @param program_name The name for the Node.js application.
  * @param node_args List of arguments for the Node.js engine.
  * @param startup_only Controls whether the Node.js JavaScript code also
- *                     executes additional startup tasks like reading
- *                     and executing stdin, starting the REPL and so on.
+ * executes additional startup tasks like reading
+ * and executing stdin, starting the REPL and so on.
  */
 NODE_EXTERN void Initialize(const std::string& program_name = "node_lib",
                             const std::vector<std::string>& node_args = {},
@@ -118,8 +118,8 @@ NODE_EXTERN void Initialize(int argc, const char** argv);
  * where the first argument needs to be the program name.
  * The number of arguments must correspond to argc.
  * @param startup_only Controls whether the Node.js JavaScript code also
- *                     executes additional startup tasks like reading
- *                     and executing stdin, starting the REPL and so on.
+ * executes additional startup tasks like reading
+ * and executing stdin, starting the REPL and so on.
  */
 void Initialize(int argc, const char** argv, const bool startup_only);
 
