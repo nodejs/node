@@ -4734,7 +4734,11 @@ int Initialize(int argc, const char** argv, const bool allow_repl) {
 
   initialize::_CreateInitialEnvironment();
 
-  exit_code = initialize::_StartEnv(argc, argv, exec_argc, exec_argv, allow_repl);
+  exit_code = initialize::_StartEnv(argc,
+                                    argv,
+                                    exec_argc,
+                                    exec_argv,
+                                    allow_repl);
   if (exit_code != 0) {
     return exit_code;
   }
@@ -4778,7 +4782,8 @@ v8::MaybeLocal<v8::Value> Evaluate(const std::string& js_code) {
   // we will handle exceptions ourself.
   try_catch.SetVerbose(false);
 
-  // TODO(justus-hildebrand): set reasonable ScriptOrigin. This is used for debugging
+  // TODO(justus-hildebrand): set reasonable ScriptOrigin.
+  // This is used for debugging
   // ScriptOrigin origin(filename);
   MaybeLocal<v8::Script> script = v8::Script::Compile(
         _environment->context(),
@@ -4798,8 +4803,9 @@ void RunEventLoop(const std::function<void()>& callback,
   if (_event_loop_running) {
     return;  // TODO(luminosuslight): return error
   }
-  // TODO(justus-hildebrand): this was missing after building RunEventLoop from the Start()
-  // functions. We are not sure why the sealed scope is necessary.
+  // TODO(justus-hildebrand): this was missing after building
+  // RunEventLoop from the Start() functions.
+  // We are not sure why the sealed scope is necessary.
   // Please investigate.
   // SealHandleScope seal(isolate);
   bool more = false;
