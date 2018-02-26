@@ -1144,25 +1144,25 @@ void SetupNextTick(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
   CHECK(args[0]->IsFunction());
-  CHECK(args[1]->IsObject());
 
   env->set_tick_callback_function(args[0].As<Function>());
 
-  env->SetMethod(args[1].As<Object>(), "runMicrotasks", RunMicrotasks);
-
-  // Do a little housekeeping.
   env->process_object()->Delete(
       env->context(),
-      FIXED_ONE_BYTE_STRING(args.GetIsolate(), "_setupNextTick")).FromJust();
+      FIXED_ONE_BYTE_STRING(env->isolate(), "_setupNextTick")).FromJust();
 
-  // Values use to cross communicate with processNextTick.
-  uint32_t* const fields = env->tick_info()->fields();
-  uint32_t const fields_count = env->tick_info()->fields_count();
+  v8::Local<v8::Function> run_microtasks_fn =
+      env->NewFunctionTemplate(RunMicrotasks)->GetFunction(env->context())
+          .ToLocalChecked();
+  run_microtasks_fn->SetName(
+      FIXED_ONE_BYTE_STRING(env->isolate(), "runMicrotasks"));
 
-  Local<ArrayBuffer> array_buffer =
-      ArrayBuffer::New(env->isolate(), fields, sizeof(*fields) * fields_count);
+  Local<Array> ret = Array::New(env->isolate(), 2);
+  ret->Set(env->context(), 0,
+           env->tick_info()->fields().GetJSArray()).FromJust();
+  ret->Set(env->context(), 1, run_microtasks_fn).FromJust();
 
-  args.GetReturnValue().Set(Uint32Array::New(array_buffer, 0, fields_count));
+  args.GetReturnValue().Set(ret);
 }
 
 void PromiseRejectCallback(PromiseRejectMessage message) {
@@ -1278,7 +1278,7 @@ void InternalCallbackScope::Close() {
 
   Environment::TickInfo* tick_info = env_->tick_info();
 
-  if (tick_info->length() == 0) {
+  if (!tick_info->has_scheduled()) {
     env_->isolate()->RunMicrotasks();
   }
 
@@ -1289,10 +1289,7 @@ void InternalCallbackScope::Close() {
     CHECK_EQ(env_->trigger_async_id(), 0);
   }
 
-  Local<Object> process = env_->process_object();
-
-  if (tick_info->length() == 0) {
-    tick_info->set_index(0);
+  if (!tick_info->has_scheduled()) {
     return;
   }
 
@@ -1300,6 +1297,8 @@ void InternalCallbackScope::Close() {
     CHECK_EQ(env_->execution_async_id(), 0);
     CHECK_EQ(env_->trigger_async_id(), 0);
   }
+
+  Local<Object> process = env_->process_object();
 
   if (env_->tick_callback_function()->Call(process, 0, nullptr).IsEmpty()) {
     failed_ = true;
@@ -3162,12 +3161,6 @@ static void DebugEnd(const FunctionCallbackInfo<Value>& args);
 
 namespace {
 
-void ActivateImmediateCheck(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-  env->ActivateImmediateCheck();
-}
-
-
 void StartProfilerIdleNotifier(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   env->StartProfilerIdleNotifier();
@@ -3392,12 +3385,6 @@ void SetupProcessObject(Environment* env,
                              FIXED_ONE_BYTE_STRING(env->isolate(), "ppid"),
                              GetParentProcessId).FromJust());
 
-  auto scheduled_immediate_count =
-      FIXED_ONE_BYTE_STRING(env->isolate(), "_scheduledImmediateCount");
-  CHECK(process->Set(env->context(),
-                     scheduled_immediate_count,
-                     env->scheduled_immediate_count().GetJSArray()).FromJust());
-
   auto should_abort_on_uncaught_toggle =
       FIXED_ONE_BYTE_STRING(env->isolate(), "_shouldAbortOnUncaughtToggle");
   CHECK(process->Set(env->context(),
@@ -3529,9 +3516,6 @@ void SetupProcessObject(Environment* env,
                              env->as_external()).FromJust());
 
   // define various internal methods
-  env->SetMethod(process,
-                 "_activateImmediateCheck",
-                 ActivateImmediateCheck);
   env->SetMethod(process,
                  "_startProfilerIdleNotifier",
                  StartProfilerIdleNotifier);

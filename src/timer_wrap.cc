@@ -29,7 +29,9 @@
 namespace node {
 namespace {
 
+using v8::Array;
 using v8::Context;
+using v8::Function;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
 using v8::HandleScope;
@@ -67,11 +69,33 @@ class TimerWrap : public HandleWrap {
     env->SetProtoMethod(constructor, "stop", Stop);
 
     target->Set(timerString, constructor->GetFunction());
+
+    target->Set(env->context(),
+                FIXED_ONE_BYTE_STRING(env->isolate(), "setImmediateCallback"),
+                env->NewFunctionTemplate(SetImmediateCallback)
+                   ->GetFunction(env->context()).ToLocalChecked()).FromJust();
   }
 
   size_t self_size() const override { return sizeof(*this); }
 
  private:
+  static void SetImmediateCallback(const FunctionCallbackInfo<Value>& args) {
+    CHECK(args[0]->IsFunction());
+    auto env = Environment::GetCurrent(args);
+    env->set_immediate_callback_function(args[0].As<Function>());
+    auto toggle_ref_cb = [] (const FunctionCallbackInfo<Value>& args) {
+      Environment::GetCurrent(args)->ToggleImmediateRef(args[0]->IsTrue());
+    };
+    auto toggle_ref_function =
+        env->NewFunctionTemplate(toggle_ref_cb)->GetFunction(env->context())
+        .ToLocalChecked();
+    auto result = Array::New(env->isolate(), 2);
+    result->Set(env->context(), 0,
+                env->immediate_info()->fields().GetJSArray()).FromJust();
+    result->Set(env->context(), 1, toggle_ref_function).FromJust();
+    args.GetReturnValue().Set(result);
+  }
+
   static void New(const FunctionCallbackInfo<Value>& args) {
     // This constructor should not be exposed to public javascript.
     // Therefore we assert that we are not trying to call this as a

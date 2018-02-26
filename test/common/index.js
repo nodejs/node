@@ -21,6 +21,7 @@
 
 /* eslint-disable required-modules, crypto-check */
 'use strict';
+const process = global.process;  // Some tests tamper with the process global.
 const path = require('path');
 const fs = require('fs');
 const assert = require('assert');

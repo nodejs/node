@@ -158,7 +158,6 @@ class ModuleWrap;
   V(homedir_string, "homedir")                                                \
   V(hostmaster_string, "hostmaster")                                          \
   V(ignore_string, "ignore")                                                  \
-  V(immediate_callback_string, "_immediateCallback")                          \
   V(infoaccess_string, "infoAccess")                                          \
   V(inherit_string, "inherit")                                                \
   V(input_string, "input")                                                    \
@@ -289,6 +288,7 @@ class ModuleWrap;
   V(http2ping_constructor_template, v8::ObjectTemplate)                       \
   V(http2stream_constructor_template, v8::ObjectTemplate)                     \
   V(http2settings_constructor_template, v8::ObjectTemplate)                   \
+  V(immediate_callback_function, v8::Function)                                \
   V(inspector_console_api_object, v8::Object)                                 \
   V(pbkdf2_constructor_template, v8::ObjectTemplate)                          \
   V(pipe_constructor_template, v8::FunctionTemplate)                          \
@@ -451,25 +451,50 @@ class Environment {
     DISALLOW_COPY_AND_ASSIGN(AsyncCallbackScope);
   };
 
-  class TickInfo {
+  class ImmediateInfo {
    public:
-    inline uint32_t* fields();
-    inline int fields_count() const;
-    inline uint32_t index() const;
-    inline uint32_t length() const;
-    inline void set_index(uint32_t value);
+    inline AliasedBuffer<uint32_t, v8::Uint32Array>& fields();
+    inline uint32_t count() const;
+    inline uint32_t ref_count() const;
+    inline bool has_outstanding() const;
+
+    inline void count_inc(uint32_t increment);
+    inline void count_dec(uint32_t decrement);
+
+    inline void ref_count_inc(uint32_t increment);
+    inline void ref_count_dec(uint32_t decrement);
 
    private:
     friend class Environment;  // So we can call the constructor.
-    inline TickInfo();
+    inline explicit ImmediateInfo(v8::Isolate* isolate);
 
     enum Fields {
-      kIndex,
-      kLength,
+      kCount,
+      kRefCount,
+      kHasOutstanding,
       kFieldsCount
     };
 
-    uint32_t fields_[kFieldsCount];
+    AliasedBuffer<uint32_t, v8::Uint32Array> fields_;
+
+    DISALLOW_COPY_AND_ASSIGN(ImmediateInfo);
+  };
+
+  class TickInfo {
+   public:
+    inline AliasedBuffer<uint8_t, v8::Uint8Array>& fields();
+    inline bool has_scheduled() const;
+
+   private:
+    friend class Environment;  // So we can call the constructor.
+    inline explicit TickInfo(v8::Isolate* isolate);
+
+    enum Fields {
+      kHasScheduled,
+      kFieldsCount
+    };
+
+    AliasedBuffer<uint8_t, v8::Uint8Array> fields_;
 
     DISALLOW_COPY_AND_ASSIGN(TickInfo);
   };
@@ -534,6 +559,7 @@ class Environment {
   inline void FinishHandleCleanup(uv_handle_t* handle);
 
   inline AsyncHooks* async_hooks();
+  inline ImmediateInfo* immediate_info();
   inline TickInfo* tick_info();
   inline uint64_t timer_base() const;
 
@@ -580,8 +606,6 @@ class Environment {
 
   inline double* fs_stats_field_array() const;
   inline void set_fs_stats_field_array(double* fields);
-
-  inline AliasedBuffer<uint32_t, v8::Uint32Array>& scheduled_immediate_count();
 
   inline performance::performance_state* performance_state();
   inline std::map<std::string, uint64_t>* performance_marks();
@@ -661,8 +685,12 @@ class Environment {
   inline void SetImmediate(native_immediate_callback cb,
                            void* data,
                            v8::Local<v8::Object> obj = v8::Local<v8::Object>());
+  inline void SetUnrefImmediate(native_immediate_callback cb,
+                                void* data,
+                                v8::Local<v8::Object> obj =
+                                    v8::Local<v8::Object>());
   // This needs to be available for the JS-land setImmediate().
-  void ActivateImmediateCheck();
+  void ToggleImmediateRef(bool ref);
 
   class ShouldNotAbortOnUncaughtScope {
    public:
@@ -679,6 +707,11 @@ class Environment {
   static inline Environment* ForAsyncHooks(AsyncHooks* hooks);
 
  private:
+  inline void CreateImmediate(native_immediate_callback cb,
+                              void* data,
+                              v8::Local<v8::Object> obj,
+                              bool ref);
+
   inline void ThrowError(v8::Local<v8::Value> (*fun)(v8::Local<v8::String>),
                          const char* errmsg);
 
@@ -690,6 +723,7 @@ class Environment {
   uv_check_t idle_check_handle_;
 
   AsyncHooks async_hooks_;
+  ImmediateInfo immediate_info_;
   TickInfo tick_info_;
   const uint64_t timer_base_;
   bool printed_error_;
@@ -699,7 +733,6 @@ class Environment {
   size_t makecallback_cntr_;
   std::vector<double> destroy_async_id_list_;
 
-  AliasedBuffer<uint32_t, v8::Uint32Array> scheduled_immediate_count_;
   AliasedBuffer<uint32_t, v8::Uint32Array> should_abort_on_uncaught_toggle_;
 
   int should_not_abort_scope_counter_ = 0;
@@ -742,6 +775,7 @@ class Environment {
     native_immediate_callback cb_;
     void* data_;
     std::unique_ptr<v8::Persistent<v8::Object>> keep_alive_;
+    bool refed_;
   };
   std::vector<NativeImmediateCallback> native_immediate_callbacks_;
   void RunAndClearNativeImmediates();
