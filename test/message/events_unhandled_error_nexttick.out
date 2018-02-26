@@ -12,7 +12,7 @@ Error
     at Function.Module.runMain (module.js:*:*)
     at startup (bootstrap_node.js:*:*)
     at bootstrap_node.js:*:*
-Emitted 'error' event at at:
+Emitted 'error' event at:
     at process.nextTick (*events_unhandled_error_nexttick.js:*:*)
     at process._tickCallback (internal/process/next_tick.js:*:*)
     at Function.Module.runMain (module.js:*:*)

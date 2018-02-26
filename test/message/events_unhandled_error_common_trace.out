@@ -13,7 +13,7 @@ Error: foo:bar
     at Function.Module._load (module.js:*:*)
     at Function.Module.runMain (module.js:*:*)
     at startup (bootstrap_node.js:*:*)
-Emitted 'error' event at at:
+Emitted 'error' event at:
     at quux (*events_unhandled_error_common_trace.js:*:*)
     at Object.<anonymous> (*events_unhandled_error_common_trace.js:*:*)
     at Module._compile (module.js:*:*)
