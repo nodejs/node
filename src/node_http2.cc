@@ -1712,6 +1712,14 @@ void Http2Session::OnStreamDestructImpl(void* ctx) {
   session->stream_ = nullptr;
 }
 
+bool Http2Session::HasWritesOnSocketForStream(Http2Stream* stream) {
+  for (const nghttp2_stream_write& wr : outgoing_buffers_) {
+    if (wr.req_wrap != nullptr && wr.req_wrap->stream() == stream)
+      return true;
+  }
+  return false;
+}
+
 // Every Http2Session session is tightly bound to a single i/o StreamBase
 // (typically a net.Socket or tls.TLSSocket). The lifecycle of the two is
 // tightly coupled with all data transfer between the two happening at the
@@ -1770,13 +1778,12 @@ Http2Stream::Http2Stream(
 
 
 Http2Stream::~Http2Stream() {
+  DEBUG_HTTP2STREAM(this, "tearing down stream");
   if (session_ != nullptr) {
     session_->RemoveStream(this);
     session_ = nullptr;
   }
 
-  if (!object().IsEmpty())
-    ClearWrap(object());
   persistent().Reset();
   CHECK(persistent().IsEmpty());
 }
@@ -1861,7 +1868,7 @@ inline void Http2Stream::Destroy() {
     Http2Stream* stream = static_cast<Http2Stream*>(data);
     // Free any remaining outgoing data chunks here. This should be done
     // here because it's possible for destroy to have been called while
-    // we still have qeueued outbound writes.
+    // we still have queued outbound writes.
     while (!stream->queue_.empty()) {
       nghttp2_stream_write& head = stream->queue_.front();
       if (head.req_wrap != nullptr)
@@ -1869,7 +1876,11 @@ inline void Http2Stream::Destroy() {
       stream->queue_.pop();
     }
 
-    delete stream;
+    // We can destroy the stream now if there are no writes for it
+    // already on the socket. Otherwise, we'll wait for the garbage collector
+    // to take care of cleaning up.
+    if (!stream->session()->HasWritesOnSocketForStream(stream))
+      delete stream;
   }, this, this->object());
 
   statistics_.end_time = uv_hrtime();
