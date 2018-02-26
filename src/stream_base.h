@@ -15,6 +15,7 @@ namespace node {
 
 // Forward declarations
 class StreamBase;
+class StreamResource;
 
 template<typename Base>
 class StreamReq {
@@ -123,38 +124,69 @@ class WriteWrap : public ReqWrap<uv_write_t>,
   const size_t storage_size_;
 };
 
+
+// This is the generic interface for objects that control Node.js' C++ streams.
+// For example, the default `EmitToJSStreamListener` emits a stream's data
+// as Buffers in JS, or `TLSWrap` reads and decrypts data from a stream.
+class StreamListener {
+ public:
+  virtual ~StreamListener();
+
+  // This is called when a stream wants to allocate memory immediately before
+  // reading data into the freshly allocated buffer (i.e. it is always followed
+  // by a `OnStreamRead()` call).
+  // This memory may be statically or dynamically allocated; for example,
+  // a protocol parser may want to read data into a static buffer if it knows
+  // that all data is going to be fully handled during the next
+  // `OnStreamRead()` call.
+  // The returned buffer does not need to contain `suggested_size` bytes.
+  // The default implementation of this method returns a buffer that has exactly
+  // the suggested size and is allocated using malloc().
+  virtual uv_buf_t OnStreamAlloc(size_t suggested_size);
+
+  // `OnStreamRead()` is called when data is available on the socket and has
+  // been read into the buffer provided by `OnStreamAlloc()`.
+  // The `buf` argument is the return value of `uv_buf_t`, or may be a buffer
+  // with base nullpptr in case of an error.
+  // `nread` is the number of read bytes (which is at most the buffer length),
+  // or, if negative, a libuv error code.
+  virtual void OnStreamRead(ssize_t nread,
+                            const uv_buf_t& buf) = 0;
+
+  // This is called once a Write has finished. `status` may be 0 or,
+  // if negative, a libuv error code.
+  virtual void OnStreamAfterWrite(WriteWrap* w, int status) {}
+
+  // This is called immediately before the stream is destroyed.
+  virtual void OnStreamDestroy() {}
+
+ protected:
+  // Pass along a read error to the `StreamListener` instance that was active
+  // before this one. For example, a protocol parser does not care about read
+  // errors and may instead want to let the original handler
+  // (e.g. the JS handler) take care of the situation.
+  void PassReadErrorToPreviousListener(ssize_t nread);
+
+  StreamResource* stream_ = nullptr;
+  StreamListener* previous_listener_ = nullptr;
+
+  friend class StreamResource;
+};
+
+
+// A default emitter that just pushes data chunks as Buffer instances to
+// JS land via the handle’s .ondata method.
+class EmitToJSStreamListener : public StreamListener {
+ public:
+  void OnStreamRead(ssize_t nread, const uv_buf_t& buf) override;
+};
+
+
+// A generic stream, comparable to JS land’s `Duplex` streams.
+// A stream is always controlled through one `StreamListener` instance.
 class StreamResource {
  public:
-  template <class T>
-  struct Callback {
-    Callback() : fn(nullptr), ctx(nullptr) {}
-    Callback(T fn, void* ctx) : fn(fn), ctx(ctx) {}
-    Callback(const Callback&) = default;
-
-    inline bool is_empty() { return fn == nullptr; }
-    inline void clear() {
-      fn = nullptr;
-      ctx = nullptr;
-    }
-
-    T fn;
-    void* ctx;
-  };
-
-  typedef void (*AfterWriteCb)(WriteWrap* w, int status, void* ctx);
-  typedef void (*AllocCb)(size_t size, uv_buf_t* buf, void* ctx);
-  typedef void (*ReadCb)(ssize_t nread,
-                         const uv_buf_t* buf,
-                         uv_handle_type pending,
-                         void* ctx);
-  typedef void (*DestructCb)(void* ctx);
-
-  StreamResource() : bytes_read_(0) {
-  }
-  virtual ~StreamResource() {
-    if (!destruct_cb_.is_empty())
-      destruct_cb_.fn(destruct_cb_.ctx);
-  }
+  virtual ~StreamResource();
 
   virtual int DoShutdown(ShutdownWrap* req_wrap) = 0;
   virtual int DoTryWrite(uv_buf_t** bufs, size_t* count);
@@ -163,49 +195,42 @@ class StreamResource {
                       size_t count,
                       uv_stream_t* send_handle) = 0;
   virtual bool HasWriteQueue();
+
+  // Start reading from the underlying resource. This is called by the consumer
+  // when more data is desired.
+  virtual int ReadStart() = 0;
+  // Stop reading from the underlying resource. This is called by the
+  // consumer when its buffers are full and no more data can be handled.
+  virtual int ReadStop() = 0;
+
+  // Optionally, this may provide an error message to be used for
+  // failing writes.
   virtual const char* Error() const;
+  // Clear the current error (i.e. that would be returned by Error()).
   virtual void ClearError();
 
-  // Events
-  inline void EmitAfterWrite(WriteWrap* w, int status) {
-    if (!after_write_cb_.is_empty())
-      after_write_cb_.fn(w, status, after_write_cb_.ctx);
-  }
-
-  inline void EmitAlloc(size_t size, uv_buf_t* buf) {
-    if (!alloc_cb_.is_empty())
-      alloc_cb_.fn(size, buf, alloc_cb_.ctx);
-  }
-
-  inline void EmitRead(ssize_t nread,
-                       const uv_buf_t* buf,
-                       uv_handle_type pending = UV_UNKNOWN_HANDLE) {
-    if (nread > 0)
-      bytes_read_ += static_cast<uint64_t>(nread);
-    if (!read_cb_.is_empty())
-      read_cb_.fn(nread, buf, pending, read_cb_.ctx);
-  }
-
-  inline void set_after_write_cb(Callback<AfterWriteCb> c) {
-    after_write_cb_ = c;
-  }
-
-  inline void set_alloc_cb(Callback<AllocCb> c) { alloc_cb_ = c; }
-  inline void set_read_cb(Callback<ReadCb> c) { read_cb_ = c; }
-  inline void set_destruct_cb(Callback<DestructCb> c) { destruct_cb_ = c; }
-
-  inline Callback<AfterWriteCb> after_write_cb() { return after_write_cb_; }
-  inline Callback<AllocCb> alloc_cb() { return alloc_cb_; }
-  inline Callback<ReadCb> read_cb() { return read_cb_; }
-  inline Callback<DestructCb> destruct_cb() { return destruct_cb_; }
+  // Transfer ownership of this tream to `listener`. The previous listener
+  // will not receive any more callbacks while the new listener was active.
+  void PushStreamListener(StreamListener* listener);
+  // Remove a listener, and, if this was the currently active one,
+  // transfer ownership back to the previous listener.
+  void RemoveStreamListener(StreamListener* listener);
 
  protected:
-  Callback<AfterWriteCb> after_write_cb_;
-  Callback<AllocCb> alloc_cb_;
-  Callback<ReadCb> read_cb_;
-  Callback<DestructCb> destruct_cb_;
-  uint64_t bytes_read_;
+  // Call the current listener's OnStreamAlloc() method.
+  uv_buf_t EmitAlloc(size_t suggested_size);
+  // Call the current listener's OnStreamRead() method and update the
+  // stream's read byte counter.
+  void EmitRead(ssize_t nread, const uv_buf_t& buf = uv_buf_init(nullptr, 0));
+  // Call the current listener's OnStreamAfterWrite() method.
+  void EmitAfterWrite(WriteWrap* w, int status);
+
+  StreamListener* listener_ = nullptr;
+  uint64_t bytes_read_ = 0;
+
+  friend class StreamListener;
 };
+
 
 class StreamBase : public StreamResource {
  public:
@@ -225,40 +250,26 @@ class StreamBase : public StreamResource {
   virtual bool IsIPCPipe();
   virtual int GetFD();
 
-  virtual int ReadStart() = 0;
-  virtual int ReadStop() = 0;
-
-  inline void Consume() {
-    CHECK_EQ(consumed_, false);
-    consumed_ = true;
-  }
-
-  inline void Unconsume() {
-    CHECK_EQ(consumed_, true);
-    consumed_ = false;
-  }
-
-  void EmitData(ssize_t nread,
-                v8::Local<v8::Object> buf,
-                v8::Local<v8::Object> handle);
+  void CallJSOnreadMethod(ssize_t nread, v8::Local<v8::Object> buf);
 
   // These are called by the respective {Write,Shutdown}Wrap class.
   virtual void AfterShutdown(ShutdownWrap* req, int status);
   virtual void AfterWrite(WriteWrap* req, int status);
 
- protected:
-  explicit StreamBase(Environment* env) : env_(env), consumed_(false) {
-  }
+  // This is named `stream_env` to avoid name clashes, because a lot of
+  // subclasses are also `BaseObject`s.
+  Environment* stream_env() const;
 
-  virtual ~StreamBase() = default;
+ protected:
+  explicit StreamBase(Environment* env);
 
   // One of these must be implemented
   virtual AsyncWrap* GetAsyncWrap() = 0;
   virtual v8::Local<v8::Object> GetObject();
 
   // JS Methods
-  int ReadStart(const v8::FunctionCallbackInfo<v8::Value>& args);
-  int ReadStop(const v8::FunctionCallbackInfo<v8::Value>& args);
+  int ReadStartJS(const v8::FunctionCallbackInfo<v8::Value>& args);
+  int ReadStopJS(const v8::FunctionCallbackInfo<v8::Value>& args);
   int Shutdown(const v8::FunctionCallbackInfo<v8::Value>& args);
   int Writev(const v8::FunctionCallbackInfo<v8::Value>& args);
   int WriteBuffer(const v8::FunctionCallbackInfo<v8::Value>& args);
@@ -281,7 +292,7 @@ class StreamBase : public StreamResource {
 
  private:
   Environment* env_;
-  bool consumed_;
+  EmitToJSStreamListener default_listener_;
 };
 
 }  // namespace node

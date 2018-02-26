@@ -80,9 +80,6 @@ class LibuvStreamWrap : public HandleWrap, public StreamBase {
                   uv_stream_t* stream,
                   AsyncWrap::ProviderType provider);
 
-  ~LibuvStreamWrap() {
-  }
-
   AsyncWrap* GetAsyncWrap() override;
 
   static void AddMethods(Environment* env,
@@ -95,24 +92,11 @@ class LibuvStreamWrap : public HandleWrap, public StreamBase {
   static void SetBlocking(const v8::FunctionCallbackInfo<v8::Value>& args);
 
   // Callbacks for libuv
-  static void OnAlloc(uv_handle_t* handle,
-                      size_t suggested_size,
-                      uv_buf_t* buf);
+  void OnUvAlloc(size_t suggested_size, uv_buf_t* buf);
+  void OnUvRead(ssize_t nread, const uv_buf_t* buf);
 
-  static void OnRead(uv_stream_t* handle,
-                     ssize_t nread,
-                     const uv_buf_t* buf);
   static void AfterUvWrite(uv_write_t* req, int status);
   static void AfterUvShutdown(uv_shutdown_t* req, int status);
-
-  // Resource interface implementation
-  static void OnAllocImpl(size_t size, uv_buf_t* buf, void* ctx);
-  static void OnReadImpl(ssize_t nread,
-                         const uv_buf_t* buf,
-                         uv_handle_type pending,
-                         void* ctx);
-
-  void AfterWrite(WriteWrap* req_wrap, int status) override;
 
   uv_stream_t* const stream_;
 };

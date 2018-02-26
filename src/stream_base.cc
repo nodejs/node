@@ -34,12 +34,12 @@ template int StreamBase::WriteString<LATIN1>(
     const FunctionCallbackInfo<Value>& args);
 
 
-int StreamBase::ReadStart(const FunctionCallbackInfo<Value>& args) {
+int StreamBase::ReadStartJS(const FunctionCallbackInfo<Value>& args) {
   return ReadStart();
 }
 
 
-int StreamBase::ReadStop(const FunctionCallbackInfo<Value>& args) {
+int StreamBase::ReadStopJS(const FunctionCallbackInfo<Value>& args) {
   return ReadStop();
 }
 
@@ -433,22 +433,16 @@ void StreamBase::AfterWrite(WriteWrap* req_wrap, int status) {
 }
 
 
-void StreamBase::EmitData(ssize_t nread,
-                          Local<Object> buf,
-                          Local<Object> handle) {
+void StreamBase::CallJSOnreadMethod(ssize_t nread, Local<Object> buf) {
   Environment* env = env_;
 
   Local<Value> argv[] = {
     Integer::New(env->isolate(), nread),
-    buf,
-    handle
+    buf
   };
 
   if (argv[1].IsEmpty())
     argv[1] = Undefined(env->isolate());
-
-  if (argv[2].IsEmpty())
-    argv[2] = Undefined(env->isolate());
 
   AsyncWrap* wrap = GetAsyncWrap();
   CHECK_NE(wrap, nullptr);
@@ -488,6 +482,32 @@ const char* StreamResource::Error() const {
 
 void StreamResource::ClearError() {
   // No-op
+}
+
+
+uv_buf_t StreamListener::OnStreamAlloc(size_t suggested_size) {
+  return uv_buf_init(Malloc(suggested_size), suggested_size);
+}
+
+
+void EmitToJSStreamListener::OnStreamRead(ssize_t nread, const uv_buf_t& buf) {
+  CHECK_NE(stream_, nullptr);
+  StreamBase* stream = static_cast<StreamBase*>(stream_);
+  Environment* env = stream->stream_env();
+  HandleScope handle_scope(env->isolate());
+  Context::Scope context_scope(env->context());
+
+  if (nread <= 0)  {
+    free(buf.base);
+    if (nread < 0)
+      stream->CallJSOnreadMethod(nread, Local<Object>());
+    return;
+  }
+
+  CHECK_LE(static_cast<size_t>(nread), buf.len);
+
+  Local<Object> obj = Buffer::New(env, buf.base, nread).ToLocalChecked();
+  stream->CallJSOnreadMethod(nread, obj);
 }
 
 }  // namespace node
