@@ -7,7 +7,6 @@ prefix sequential
 [true] # This section applies to all platforms
 
 [$system==win32]
-test-inspector-stop-profile-after-done: PASS, FLAKY
 
 [$system==linux]
 
