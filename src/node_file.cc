@@ -1493,18 +1493,24 @@ static void Chmod(const FunctionCallbackInfo<Value>& args) {
 static void FChmod(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
-  CHECK(args[0]->IsInt32());
-  CHECK(args[1]->IsInt32());
+  const int argc = args.Length();
+  CHECK_GE(argc, 2);
 
-  int fd = args[0]->Int32Value();
-  int mode = static_cast<int>(args[1]->Int32Value());
+  CHECK(args[0]->IsInt32());
+  const int fd = args[0].As<Int32>()->Value();
+
+  CHECK(args[1]->IsInt32());
+  const int mode = args[1].As<Int32>()->Value();
 
   FSReqBase* req_wrap = GetReqWrap(env, args[2]);
-  if (req_wrap != nullptr) {
+  if (req_wrap != nullptr) {  // fchmod(fd, mode, req)
     AsyncCall(env, req_wrap, args, "fchmod", UTF8, AfterNoArgs,
               uv_fs_fchmod, fd, mode);
-  } else {
-    SYNC_CALL(fchmod, 0, fd, mode);
+  } else {  // fchmod(fd, mode, undefined, ctx)
+    CHECK_EQ(argc, 4);
+    fs_req_wrap req_wrap;
+    SyncCall(env, args[3], &req_wrap, "fchmod",
+             uv_fs_fchmod, fd, mode);
   }
 }
 
