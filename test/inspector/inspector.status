@@ -5,6 +5,5 @@ prefix inspector
 # sample-test                        : PASS,FLAKY
 
 [true] # This section applies to all platforms
-test-inspector-port-zero-cluster     : PASS,FLAKY
 
 [$system==win32]
