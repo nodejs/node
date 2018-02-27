@@ -26,8 +26,6 @@ a `(err, value) => ...` callback as the last argument. In the callback, the
 first argument will be the rejection reason (or `null` if the Promise
 resolved), and the second argument will be the resolved value.
 
-For example:
-
 ```js
 const util = require('util');
 
@@ -84,8 +82,6 @@ environment variable.  If the `section` name appears within the value of that
 environment variable, then the returned function operates similar to
 [`console.error()`][].  If not, then the returned function is a no-op.
 
-For example:
-
 ```js
 const util = require('util');
 const debuglog = util.debuglog('foo');
@@ -103,7 +99,7 @@ FOO 3245: hello from foo [123]
 where `3245` is the process id.  If it is not run with that
 environment variable set, then it will not print anything.
 
-The `section` supports wildcard also, for example:
+The `section` supports wildcard also:
 ```js
 const util = require('util');
 const debuglog = util.debuglog('foo-bar');
@@ -111,13 +107,14 @@ const debuglog = util.debuglog('foo-bar');
 debuglog('hi there, it\'s foo-bar [%d]', 2333);
 ```
 
-if it is run with `NODE_DEBUG=foo*` in the environment, then it will output something like:
+if it is run with `NODE_DEBUG=foo*` in the environment, then it will output
+something like:
 ```txt
 FOO-BAR 3257: hi there, it's foo-bar [2333]
 ```
 
 Multiple comma-separated `section` names may be specified in the `NODE_DEBUG`
-environment variable. For example: `NODE_DEBUG=fs,net,tls`.
+environment variable: `NODE_DEBUG=fs,net,tls`.
 
 ## util.deprecate(fn, msg[, code])
 <!-- YAML
@@ -210,8 +207,9 @@ corresponding argument. Supported placeholders are:
 contains circular references.
 * `%o` - Object. A string representation of an object
   with generic JavaScript object formatting.
-  Similar to `util.inspect()` with options `{ showHidden: true, showProxy: true }`.
-  This will show the full object including non-enumerable properties and proxies.
+  Similar to `util.inspect()` with options
+  `{ showHidden: true, showProxy: true }`. This will show the full object
+  including non-enumerable properties and proxies.
 * `%O` - Object. A string representation of an object with generic JavaScript
   object formatting. Similar to `util.inspect()` without options. This will show
   the full object not including non-enumerable properties and proxies.
@@ -404,8 +402,8 @@ The `util.inspect()` method returns a string representation of `object` that is
 intended for debugging. The output of `util.inspect` may change at any time
 and should not be depended upon programmatically. Additional `options` may be
 passed that alter certain aspects of the formatted string.
-`util.inspect()` will use the constructor's name and/or `@@toStringTag` to make an
-identifiable tag for an inspected value.
+`util.inspect()` will use the constructor's name and/or `@@toStringTag` to make
+an identifiable tag for an inspected value.
 
 ```js
 class Foo {
@@ -647,8 +645,6 @@ Takes a function following the common error-first callback style, i.e. taking
 a `(err, value) => ...` callback as the last argument, and returns a version
 that returns promises.
 
-For example:
-
 ```js
 const util = require('util');
 const fs = require('fs');
@@ -708,7 +704,8 @@ console.log(promisified === doSomething[util.promisify.custom]);
 This can be useful for cases where the original function does not follow the
 standard format of taking an error-first callback as the last argument.
 
-For example, with a function that takes in `(foo, onSuccessCallback, onErrorCallback)`:
+For example, with a function that takes in
+`(foo, onSuccessCallback, onErrorCallback)`:
 
 ```js
 doSomething[util.promisify.custom] = (foo) => {

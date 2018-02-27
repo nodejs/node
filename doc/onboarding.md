@@ -5,22 +5,17 @@ onboarding session.
 
 ## One week before the onboarding session
 
-* Confirm that the new Collaborator is using two-factor authentication on their
-  GitHub account. Unless two-factor authentication is enabled, do not give an
-  account elevated privileges such as the ability to land code in the main
-  repository or to start continuous integration (CI) jobs.
+* If the new Collaborator is not yet a member of the nodejs GitHub organization,
+  confirm that they are using two-factor authentication. It will not be possible
+  to add them to the organization if they are not using two-factor
+  authentication.
 * Announce the accepted nomination in a TSC meeting and in the TSC
   mailing list.
 
 ## Fifteen minutes before the onboarding session
 
 * Prior to the onboarding session, add the new Collaborator to
-  [the Collaborators team](https://github.com/orgs/nodejs/teams/collaborators),
-  and to [the Members team](https://github.com/orgs/nodejs/teams/members) if
-  they are not already part of it. Note that this is the step that gives the
-  account elevated privileges, so do not perform this step (or any subsequent
-  steps) unless two-factor authentication is enabled on the new Collaborator's
-  GitHub account.
+  [the Collaborators team](https://github.com/orgs/nodejs/teams/collaborators).
 
 ## Onboarding session
 

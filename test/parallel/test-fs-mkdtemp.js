@@ -29,8 +29,3 @@ fs.mkdtemp(path.join(tmpdir.path, 'bar.'), common.mustCall(handler));
 // Same test as above, but making sure that passing an options object doesn't
 // affect the way the callback function is handled.
 fs.mkdtemp(path.join(tmpdir.path, 'bar.'), {}, common.mustCall(handler));
-
-// Making sure that not passing a callback doesn't crash, as a default function
-// is passed internally.
-fs.mkdtemp(path.join(tmpdir.path, 'bar-'));
-fs.mkdtemp(path.join(tmpdir.path, 'bar-'), {});

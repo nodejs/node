@@ -131,8 +131,15 @@ Functions return 0 on success or an error code < 0 (unless the
 return type is void, of course).
 
 .. note::
-    Callers should be prepared to deal with spurious wakeups on :c:func:`uv_cond_wait` and
-    :c:func:`uv_cond_timedwait`.
+    1. Callers should be prepared to deal with spurious wakeups on :c:func:`uv_cond_wait`
+       and :c:func:`uv_cond_timedwait`.
+    2. The timeout parameter for :c:func:`uv_cond_timedwait` is relative to the time
+       at which function is called.
+    3. On z/OS, the timeout parameter for :c:func:`uv_cond_timedwait` is converted to an
+       absolute system time at which the wait expires. If the current system clock time
+       passes the absolute time calculated before the condition is signaled, an ETIMEDOUT
+       error results. After the wait begins, the wait time is not affected by changes
+       to the system clock.
 
 .. c:function:: int uv_cond_init(uv_cond_t* cond)
 .. c:function:: void uv_cond_destroy(uv_cond_t* cond)

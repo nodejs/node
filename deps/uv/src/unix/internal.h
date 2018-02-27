@@ -29,6 +29,7 @@
 #include <string.h> /* strrchr */
 #include <fcntl.h>  /* O_CLOEXEC, may be */
 #include <stdio.h>
+#include <errno.h>
 
 #if defined(__STRICT_ANSI__)
 # define inline __inline

@@ -170,6 +170,7 @@ struct PackageConfig {
   V(fd_string, "fd")                                                          \
   V(file_string, "file")                                                      \
   V(fingerprint_string, "fingerprint")                                        \
+  V(fingerprint256_string, "fingerprint256")                                  \
   V(flags_string, "flags")                                                    \
   V(get_data_clone_error_string, "_getDataCloneError")                        \
   V(get_shared_array_buffer_id_string, "_getSharedArrayBufferId")             \
@@ -241,6 +242,7 @@ struct PackageConfig {
   V(priority_string, "priority")                                              \
   V(produce_cached_data_string, "produceCachedData")                          \
   V(promise_string, "promise")                                                \
+  V(pubkey_string, "pubkey")                                                  \
   V(raw_string, "raw")                                                        \
   V(read_host_object_string, "_readHostObject")                               \
   V(readable_string, "readable")                                              \

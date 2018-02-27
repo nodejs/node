@@ -424,8 +424,8 @@ stream.write('data ');
 process.nextTick(() => stream.uncork());
 ```
 
-If the [`writable.cork()`][] method is called multiple times on a stream, the same
-number of calls to `writable.uncork()` must be called to flush the buffered
+If the [`writable.cork()`][] method is called multiple times on a stream, the
+same number of calls to `writable.uncork()` must be called to flush the buffered
 data.
 
 ```js
@@ -620,8 +620,8 @@ possible states:
 
 When `readable.readableFlowing` is `null`, no mechanism for consuming the
 streams data is provided so the stream will not generate its data. While in this
-state, attaching a listener for the `'data'` event, calling the `readable.pipe()`
-method, or calling the `readable.resume()` method will switch
+state, attaching a listener for the `'data'` event, calling the
+`readable.pipe()` method, or calling the `readable.resume()` method will switch
 `readable.readableFlowing` to `true`, causing the Readable to begin
 actively emitting events as data is generated.
 
@@ -1148,8 +1148,6 @@ It will rarely be necessary to use `readable.wrap()` but the method has been
 provided as a convenience for interacting with older Node.js applications and
 libraries.
 
-For example:
-
 ```js
 const { OldReader } = require('./old-api-module.js');
 const { Readable } = require('stream');
@@ -1195,8 +1193,9 @@ async function print(readable) {
 print(fs.createReadStream('file')).catch(console.log);
 ```
 
-If the loop terminates with a `break` or a `throw`, the stream will be destroyed.
-In other terms, iterating over a stream will consume the stream fully.
+If the loop terminates with a `break` or a `throw`, the stream will be
+destroyed. In other terms, iterating over a stream will consume the stream
+fully.
 
 ### Duplex and Transform Streams
 
@@ -1307,8 +1306,11 @@ on the type of stream being created, as detailed in the chart below:
       <p>[Writable](#stream_class_stream_writable)</p>
     </td>
     <td>
-      <p><code>[_write][stream-_write]</code>, <code>[_writev][stream-_writev]</code>,
-      <code>[_final][stream-_final]</code></p>
+      <p>
+        <code>[_write][stream-_write]</code>,
+        <code>[_writev][stream-_writev]</code>,
+        <code>[_final][stream-_final]</code>
+      </p>
     </td>
   </tr>
   <tr>
@@ -1319,8 +1321,11 @@ on the type of stream being created, as detailed in the chart below:
       <p>[Duplex](#stream_class_stream_duplex)</p>
     </td>
     <td>
-      <p><code>[_read][stream-_read]</code>, <code>[_write][stream-_write]</code>, <code>[_writev][stream-_writev]</code>,
-      <code>[_final][stream-_final]</code></p>
+      <p>
+        <code>[_read][stream-_read]</code>,
+        <code>[_write][stream-_write]</code>,
+        <code>[_writev][stream-_writev]</code>,
+        <code>[_final][stream-_final]</code></p>
     </td>
   </tr>
   <tr>
@@ -1331,8 +1336,11 @@ on the type of stream being created, as detailed in the chart below:
       <p>[Transform](#stream_class_stream_transform)</p>
     </td>
     <td>
-      <p><code>[_transform][stream-_transform]</code>, <code>[_flush][stream-_flush]</code>,
-      <code>[_final][stream-_final]</code></p>
+      <p>
+        <code>[_transform][stream-_transform]</code>,
+        <code>[_flush][stream-_flush]</code>,
+        <code>[_final][stream-_final]</code>
+      </p>
     </td>
   </tr>
 </table>
@@ -1351,8 +1359,6 @@ For many simple cases, it is possible to construct a stream without relying on
 inheritance. This can be accomplished by directly creating instances of the
 `stream.Writable`, `stream.Readable`, `stream.Duplex` or `stream.Transform`
 objects and passing appropriate methods as constructor options.
-
-For example:
 
 ```js
 const { Writable } = require('stream');
@@ -1394,8 +1400,6 @@ constructor and implement the `writable._write()` method. The
     [`stream._destroy()`][writable-_destroy] method.
   * `final` {Function} Implementation for the
     [`stream._final()`][stream-_final] method.
-
-For example:
 
 ```js
 const { Writable } = require('stream');
@@ -1642,10 +1646,8 @@ constructor and implement the `readable._read()` method.
     a single value instead of a Buffer of size n. Defaults to `false`
   * `read` {Function} Implementation for the [`stream._read()`][stream-_read]
     method.
-  * `destroy` {Function} Implementation for the [`stream._destroy()`][readable-_destroy]
-    method.
-
-For example:
+  * `destroy` {Function} Implementation for the
+    [`stream._destroy()`][readable-_destroy] method.
 
 ```js
 const { Readable } = require('stream');
@@ -1806,6 +1808,10 @@ class SourceWrapper extends Readable {
 The `readable.push()` method is intended be called only by Readable
 Implementers, and only from within the `readable._read()` method.
 
+For streams not operating in object mode, if the `chunk` parameter of
+`readable.push()` is `undefined`, it will be treated as empty string or
+buffer. See [`readable.push('')`][] for more information.
+
 #### Errors While Reading
 
 It is recommended that errors occurring during the processing of the
@@ -1852,7 +1858,7 @@ class Counter extends Readable {
     if (i > this._max)
       this.push(null);
     else {
-      const str = '' + i;
+      const str = String(i);
       const buf = Buffer.from(str, 'ascii');
       this.push(buf);
     }
@@ -1902,8 +1908,6 @@ changes:
     of the stream. Has no effect if `highWaterMark` is provided.
   * `writableHighWaterMark` {number} Sets `highWaterMark` for the writable side
     of the stream. Has no effect if `highWaterMark` is provided.
-
-For example:
 
 ```js
 const { Duplex } = require('stream');
@@ -2058,8 +2062,6 @@ on the Readable side is not consumed.
     [`stream._transform()`][stream-_transform] method.
   * `flush` {Function} Implementation for the [`stream._flush()`][stream-_flush]
     method.
-
-For example:
 
 ```js
 const { Transform } = require('stream');
@@ -2325,6 +2327,7 @@ contain multi-byte characters.
 [`stream.uncork()`]: #stream_writable_uncork
 [`stream.unpipe()`]: #stream_readable_unpipe_destination
 [`stream.wrap()`]: #stream_readable_wrap_stream
+[`readable.push('')`]: #stream_readable_push
 [`writable.cork()`]: #stream_writable_cork
 [`writable.uncork()`]: #stream_writable_uncork
 [`zlib.createDeflate()`]: zlib.html#zlib_zlib_createdeflate_options

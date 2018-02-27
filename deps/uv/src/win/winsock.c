@@ -580,8 +580,10 @@ int uv__convert_to_localhost_if_unspecified(const struct sockaddr* addr,
     memcpy(dest6, addr, sizeof(*dest6));
     if (memcmp(&dest6->sin6_addr,
                &uv_addr_ip6_any_.sin6_addr,
-               sizeof(uv_addr_ip6_any_.sin6_addr)) == 0)
-      dest6->sin6_addr = (struct in6_addr) IN6ADDR_LOOPBACK_INIT;
+               sizeof(uv_addr_ip6_any_.sin6_addr)) == 0) {
+      struct in6_addr init_sin6_addr = IN6ADDR_LOOPBACK_INIT;
+      dest6->sin6_addr = init_sin6_addr;
+    }
     return 0;
   default:
     return UV_EINVAL;

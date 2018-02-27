@@ -2,7 +2,6 @@
 // Flags: --expose-internals
 
 const common = require('../common');
-const fs = require('fs');
 const tty = require('tty');
 const { SystemError } = require('internal/errors');
 
@@ -22,12 +21,9 @@ common.expectsError(
 
   common.expectsError(
     () => {
-      let fd = 2;
-      // Get first known bad file descriptor.
-      try {
-        while (fs.fstatSync(++fd));
-      } catch (e) { }
-      new tty.WriteStream(fd);
+      common.runWithInvalidFD((fd) => {
+        new tty.WriteStream(fd);
+      });
     }, {
       code: 'ERR_SYSTEM_ERROR',
       type: SystemError,
@@ -37,12 +33,9 @@ common.expectsError(
 
   common.expectsError(
     () => {
-      let fd = 2;
-      // Get first known bad file descriptor.
-      try {
-        while (fs.fstatSync(++fd));
-      } catch (e) { }
-      new tty.ReadStream(fd);
+      common.runWithInvalidFD((fd) => {
+        new tty.ReadStream(fd);
+      });
     }, {
       code: 'ERR_SYSTEM_ERROR',
       type: SystemError,

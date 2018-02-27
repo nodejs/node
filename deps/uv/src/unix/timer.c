@@ -66,7 +66,7 @@ int uv_timer_start(uv_timer_t* handle,
   uint64_t clamped_timeout;
 
   if (cb == NULL)
-    return -EINVAL;
+    return UV_EINVAL;
 
   if (uv__is_active(handle))
     uv_timer_stop(handle);
@@ -105,7 +105,7 @@ int uv_timer_stop(uv_timer_t* handle) {
 
 int uv_timer_again(uv_timer_t* handle) {
   if (handle->timer_cb == NULL)
-    return -EINVAL;
+    return UV_EINVAL;
 
   if (handle->repeat) {
     uv_timer_stop(handle);

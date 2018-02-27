@@ -8,8 +8,8 @@
 
 Node.js includes an out-of-process debugging utility accessible via a
 [V8 Inspector][] and built-in debugging client. To use it, start Node.js
-with the `inspect` argument followed by the path to the script to debug; a prompt
-will be displayed indicating successful launch of the debugger:
+with the `inspect` argument followed by the path to the script to debug; a
+prompt will be displayed indicating successful launch of the debugger:
 
 ```txt
 $ node inspect myscript.js
@@ -173,7 +173,8 @@ breakpoint)
 ### V8 Inspector Integration for Node.js
 
 V8 Inspector integration allows attaching Chrome DevTools to Node.js
-instances for debugging and profiling. It uses the [Chrome Debugging Protocol][].
+instances for debugging and profiling. It uses the
+[Chrome Debugging Protocol][].
 
 V8 Inspector can be enabled by passing the `--inspect` flag when starting a
 Node.js application. It is also possible to supply a custom port with that flag,

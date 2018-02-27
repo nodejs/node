@@ -146,12 +146,9 @@ fs.open(filename5, 'a+', function(e, fd) {
   });
 });
 
-// test that a missing callback emits a warning, even if the last argument is a
-// function.
-const filename6 = join(tmpdir.path, 'append6.txt');
-const warn = 'Calling an asynchronous function without callback is deprecated.';
-common.expectWarning('DeprecationWarning', warn);
-fs.appendFile(filename6, console.log);
+assert.throws(
+  () => fs.appendFile(join(tmpdir.path, 'append6.txt'), console.log),
+  { code: 'ERR_INVALID_CALLBACK' });
 
 process.on('exit', function() {
   assert.strictEqual(12, ncallbacks);

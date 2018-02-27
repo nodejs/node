@@ -911,8 +911,7 @@ void ResourceConstraints::ConfigureDefaults(uint64_t physical_memory,
                                             uint64_t virtual_memory_limit) {
   set_max_semi_space_size_in_kb(
       i::Heap::ComputeMaxSemiSpaceSize(physical_memory));
-  set_max_old_space_size(
-      static_cast<int>(i::Heap::ComputeMaxOldGenerationSize(physical_memory)));
+  set_max_old_space_size(i::Heap::ComputeMaxOldGenerationSize(physical_memory));
   set_max_zone_pool_size(i::AccountingAllocator::kMaxPoolSize);
 
   if (virtual_memory_limit > 0 && i::kRequiresCodeRange) {
@@ -927,7 +926,9 @@ void ResourceConstraints::ConfigureDefaults(uint64_t physical_memory,
 void SetResourceConstraints(i::Isolate* isolate,
                             const ResourceConstraints& constraints) {
   size_t semi_space_size = constraints.max_semi_space_size_in_kb();
-  int old_space_size = constraints.max_old_space_size();
+  size_t old_space_size =
+      static_cast<size_t>(
+          static_cast<unsigned int>(constraints.max_old_space_size()));
   size_t code_range_size = constraints.code_range_size();
   size_t max_pool_size = constraints.max_zone_pool_size();
   if (semi_space_size != 0 || old_space_size != 0 || code_range_size != 0) {

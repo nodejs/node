@@ -3,6 +3,14 @@
  */
 'use strict';
 
+module.exports.isDefiningError = function(node) {
+  return node.expression &&
+         node.expression.type === 'CallExpression' &&
+         node.expression.callee &&
+         node.expression.callee.name === 'E' &&
+         node.expression.arguments.length !== 0;
+};
+
 /**
  * Returns true if any of the passed in modules are used in
  * require calls.

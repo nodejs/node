@@ -206,8 +206,8 @@ instance is destroyed.
 * `type` {string} The type of the async resource.
 * `triggerAsyncId` {number} The unique ID of the async resource in whose
   execution context this async resource was created.
-* `resource` {Object} Reference to the resource representing the async operation,
-  needs to be released during _destroy_.
+* `resource` {Object} Reference to the resource representing the async
+  operation, needs to be released during _destroy_.
 
 Called when a class is constructed that has the _possibility_ to emit an
 asynchronous event. This _does not_ mean the instance must call
@@ -283,11 +283,11 @@ The `TCPSERVERWRAP` is the server which receives the connections.
 
 The `TCPWRAP` is the new connection from the client. When a new
 connection is made the `TCPWrap` instance is immediately constructed. This
-happens outside of any JavaScript stack (side note: a `executionAsyncId()` of `0`
-means it's being executed from C++, with no JavaScript stack above it).
+happens outside of any JavaScript stack (side note: a `executionAsyncId()` of
+`0` means it's being executed from C++, with no JavaScript stack above it).
 With only that information, it would be impossible to link resources together in
-terms of what caused them to be created, so `triggerAsyncId` is given the task of
-propagating what resource is responsible for the new resource's existence.
+terms of what caused them to be created, so `triggerAsyncId` is given the task
+of propagating what resource is responsible for the new resource's existence.
 
 ###### `resource`
 
@@ -451,8 +451,6 @@ Note that `resolve()` does not do any observable synchronous work.
 rejected at this point, if the `Promise` was resolved by assuming the state
 of another `Promise`.
 
-For example:
-
 ```js
 new Promise((resolve) => resolve(true)).then((a) => {});
 ```
@@ -481,8 +479,6 @@ changes:
 * Returns: {number} The `asyncId` of the current execution context. Useful to
   track when something calls.
 
-For example:
-
 ```js
 const async_hooks = require('async_hooks');
 
@@ -493,7 +489,7 @@ fs.open(path, 'r', (err, fd) => {
 ```
 
 The ID returned from `executionAsyncId()` is related to execution timing, not
-causality (which is covered by `triggerAsyncId()`). For example:
+causality (which is covered by `triggerAsyncId()`):
 
 ```js
 const server = net.createServer(function onConnection(conn) {
@@ -516,8 +512,6 @@ See the section on [promise execution tracking][].
 
 * Returns: {number} The ID of the resource responsible for calling the callback
   that is currently being executed.
-
-For example:
 
 ```js
 const server = net.createServer((conn) => {
@@ -588,8 +582,8 @@ the details of the V8 [PromiseHooks][] API.
 ## JavaScript Embedder API
 
 Library developers that handle their own asynchronous resources performing tasks
-like I/O, connection pooling, or managing callback queues may use the `AsyncWrap`
-JavaScript API so that all the appropriate callbacks are called.
+like I/O, connection pooling, or managing callback queues may use the
+`AsyncWrap` JavaScript API so that all the appropriate callbacks are called.
 
 ### `class AsyncResource()`
 
@@ -673,7 +667,7 @@ class DBQuery extends AsyncResource {
 
 #### `asyncResource.runInAsyncScope(fn[, thisArg, ...args])`
 <!-- YAML
-added: REPLACEME
+added: v9.6.0
 -->
 
 * `fn` {Function} The function to call in the execution context of this async
@@ -688,11 +682,9 @@ then restore the original execution context.
 
 #### `asyncResource.emitBefore()`
 <!-- YAML
-deprecated: REPLACEME
+deprecated: v9.6.0
 -->
 > Stability: 0 - Deprecated: Use [`asyncResource.runInAsyncScope()`][] instead.
-
-* Returns: {undefined}
 
 Call all `before` callbacks to notify that a new asynchronous execution context
 is being entered. If nested calls to `emitBefore()` are made, the stack of
@@ -706,11 +698,9 @@ alternative.
 
 #### `asyncResource.emitAfter()`
 <!-- YAML
-deprecated: REPLACEME
+deprecated: v9.6.0
 -->
 > Stability: 0 - Deprecated: Use [`asyncResource.runInAsyncScope()`][] instead.
-
-* Returns: {undefined}
 
 Call all `after` callbacks. If nested calls to `emitBefore()` were made, then
 make sure the stack is unwound properly. Otherwise an error will be thrown.
@@ -727,8 +717,6 @@ alternative.
 
 #### `asyncResource.emitDestroy()`
 
-* Returns: {undefined}
-
 Call all `destroy` hooks. This should only ever be called once. An error will
 be thrown if it is called more than once. This **must** be manually called. If
 the resource is left to be collected by the GC then the `destroy` hooks will
@@ -740,8 +728,8 @@ never be called.
 
 #### `asyncResource.triggerAsyncId()`
 
-* Returns: {number} The same `triggerAsyncId` that is passed to the `AsyncResource`
-constructor.
+* Returns: {number} The same `triggerAsyncId` that is passed to the
+`AsyncResource` constructor.
 
 [`after` callback]: #async_hooks_after_asyncid
 [`asyncResource.runInAsyncScope()`]: #async_hooks_asyncresource_runinasyncscope_fn_thisarg_args

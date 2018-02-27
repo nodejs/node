@@ -1,5 +1,5 @@
-/* eslint-disable node-core/required-modules */
 'use strict';
+const common = require('../common');
 const path = require('path');
 
 // If node executable is linked to shared lib, need to take care about the
@@ -26,4 +26,18 @@ exports.addLibraryPath = function(env) {
   env.PATH =
     (env.PATH ? env.PATH + path.delimiter : '') +
     path.dirname(process.execPath);
+};
+
+// Get the full path of shared lib
+exports.getSharedLibPath = function() {
+  if (common.isWindows) {
+    return path.join(path.dirname(process.execPath), 'node.dll');
+  } else if (common.isOSX) {
+    return path.join(path.dirname(process.execPath),
+                     `libnode.${process.config.variables.shlib_suffix}`);
+  } else {
+    return path.join(path.dirname(process.execPath),
+                     'lib.target',
+                     `libnode.${process.config.variables.shlib_suffix}`);
+  }
 };

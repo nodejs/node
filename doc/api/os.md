@@ -70,8 +70,6 @@ The properties included on each object include:
   * `idle` {number} The number of milliseconds the CPU has spent in idle mode.
   * `irq` {number} The number of milliseconds the CPU has spent in irq mode.
 
-For example:
-
 <!-- eslint-disable semi -->
 ```js
 [
@@ -324,7 +322,7 @@ Equivalent to [`process.platform`][].
 
 The value `'android'` may also be returned if the Node.js is built on the
 Android operating system. However, Android support in Node.js is considered
-to be experimental at this time.
+[to be experimental][Android building] at this time.
 
 ## os.release()
 <!-- YAML
@@ -1222,4 +1220,5 @@ information.
 
 [`process.arch`]: process.html#process_process_arch
 [`process.platform`]: process.html#process_process_platform
+[Android building]: https://github.com/nodejs/node/blob/master/BUILDING.md#androidandroid-based-devices-eg-firefox-os
 [uname(3)]: https://linux.die.net/man/3/uname

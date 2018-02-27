@@ -4,7 +4,6 @@ const fs = require('fs');
 const callbackThrowValues = [null, true, false, 0, 1, 'foo', /foo/, [], {}];
 
 const { sep } = require('path');
-const warn = 'Calling an asynchronous function without callback is deprecated.';
 
 const tmpdir = require('../common/tmpdir');
 tmpdir.refresh();
@@ -15,11 +14,6 @@ function testMakeCallback(cb) {
     fs.mkdtemp(`${tmpdir.path}${sep}`, {}, cb);
   };
 }
-
-common.expectWarning('DeprecationWarning', warn);
-
-// Passing undefined/nothing calls rethrow() internally, which emits a warning
-testMakeCallback()();
 
 function invalidCallbackThrowsTests() {
   callbackThrowValues.forEach((value) => {

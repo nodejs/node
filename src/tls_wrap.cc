@@ -298,10 +298,12 @@ void TLSWrap::EncOut() {
 
 
 void TLSWrap::OnStreamAfterWrite(WriteWrap* req_wrap, int status) {
-  // Report back to the previous listener as well. This is only needed for the
-  // "empty" writes that are passed through directly to the underlying stream.
-  if (req_wrap != nullptr)
-    previous_listener_->OnStreamAfterWrite(req_wrap, status);
+  if (current_empty_write_ != nullptr) {
+    WriteWrap* finishing = current_empty_write_;
+    current_empty_write_ = nullptr;
+    finishing->Done(status);
+    return;
+  }
 
   if (ssl_ == nullptr)
     status = UV_ECANCELED;
@@ -567,18 +569,17 @@ int TLSWrap::DoWrite(WriteWrap* w,
     // However, if there is any data that should be written to the socket,
     // the callback should not be invoked immediately
     if (BIO_pending(enc_out_) == 0) {
-      // We destroy the current WriteWrap* object and create a new one that
-      // matches the underlying stream, rather than the TLSWrap itself.
-
-      // Note: We cannot simply use w->object() because of the "optimized"
-      // way in which we read persistent handles; the JS object itself might be
-      // destroyed by w->Dispose(), and the Local<Object> we have is not a
-      // "real" handle in the sense the V8 is aware of its existence.
-      Local<Object> req_wrap_obj =
-          w->GetAsyncWrap()->persistent().Get(env()->isolate());
-      w->Dispose();
-      w = underlying_stream()->CreateWriteWrap(req_wrap_obj);
-      return stream_->DoWrite(w, bufs, count, send_handle);
+      CHECK_EQ(current_empty_write_, nullptr);
+      current_empty_write_ = w;
+      StreamWriteResult res =
+          underlying_stream()->Write(bufs, count, send_handle);
+      if (!res.async) {
+        env()->SetImmediate([](Environment* env, void* data) {
+          TLSWrap* self = static_cast<TLSWrap*>(data);
+          self->OnStreamAfterWrite(self->current_empty_write_, 0);
+        }, this, object());
+      }
+      return 0;
     }
   }
 

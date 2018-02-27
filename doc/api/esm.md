@@ -118,7 +118,7 @@ given module specifier and parent file URL:
 
 ```js
 const baseURL = new URL('file://');
-baseURL.pathname = process.cwd() + '/';
+baseURL.pathname = `${process.cwd()}/`;
 
 export async function resolve(specifier,
                               parentModuleURL = baseURL,
@@ -130,7 +130,8 @@ export async function resolve(specifier,
 }
 ```
 
-The parentURL is provided as `undefined` when performing main Node.js load itself.
+The parentURL is provided as `undefined` when performing main Node.js load
+itself.
 
 The default Node.js ES module resolution function is provided as a third
 argument to the resolver for easy compatibility workflows.
@@ -161,7 +162,7 @@ const builtins = Module.builtinModules;
 const JS_EXTENSIONS = new Set(['.js', '.mjs']);
 
 const baseURL = new URL('file://');
-baseURL.pathname = process.cwd() + '/';
+baseURL.pathname = `${process.cwd()}/`;
 
 export function resolve(specifier, parentModuleURL = baseURL, defaultResolve) {
   if (builtins.includes(specifier)) {

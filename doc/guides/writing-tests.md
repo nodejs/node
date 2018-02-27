@@ -127,7 +127,7 @@ explanation go [here](https://github.com/nodejs/testing/issues/27).
 
 In the event a test needs a timer, consider using the
 `common.platformTimeout()` method. It allows setting specific timeouts
-depending on the platform. For example:
+depending on the platform:
 
 ```javascript
 const timer = setTimeout(fail, common.platformTimeout(4000));
@@ -138,15 +138,15 @@ platforms.
 
 ### The *common* API
 
-Make use of the helpers from the `common` module as much as possible. Please refer
-to the [common file documentation](https://github.com/nodejs/node/tree/master/test/common)
+Make use of the helpers from the `common` module as much as possible. Please
+refer to the [common file documentation](https://github.com/nodejs/node/tree/master/test/common)
 for the full details of the helpers.
 
 #### common.mustCall
 
-One interesting case is `common.mustCall`. The use of `common.mustCall` may avoid
-the use of extra variables and the corresponding assertions. Let's explain this
-with a real test from the test suite.
+One interesting case is `common.mustCall`. The use of `common.mustCall` may
+avoid the use of extra variables and the corresponding assertions. Let's
+explain this with a real test from the test suite.
 
 ```javascript
 'use strict';
@@ -200,9 +200,10 @@ const server = http.createServer(common.mustCall(function(req, res) {
 ```
 #### Countdown Module
 
-The common [Countdown module](https://github.com/nodejs/node/tree/master/test/common#countdown-module) provides a simple countdown mechanism for tests that
-require a particular action to be taken after a given number of completed tasks
-(for instance, shutting down an HTTP server after a specific number of requests).
+The common [Countdown module](https://github.com/nodejs/node/tree/master/test/common#countdown-module)
+provides a simple countdown mechanism for tests that require a particular
+action to be taken after a given number of completed tasks (for instance,
+shutting down an HTTP server after a specific number of requests).
 
 ```javascript
 const Countdown = require('../common/countdown');
@@ -259,9 +260,7 @@ features in JavaScript code in the `lib` directory. However, when writing
 tests, for the ease of backporting, it is encouraged to use those ES.Next
 features that can be used directly without a flag in
 [all maintained branches][]. [node.green][] lists available features
-in each release.
-
-For example:
+in each release, such as:
 
 - `let` and `const` over `var`
 - Template literals over string concatenation

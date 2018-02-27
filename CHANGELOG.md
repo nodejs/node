@@ -1,5 +1,7 @@
 # Node.js Changelog
 
+<!--lint disable maximum-line-length-->
+
 To make the changelog easier to both use and manage, it has been split into
 multiple files organized according to significant major and minor Node.js
 release lines.
@@ -29,7 +31,9 @@ release.
 </tr>
 <tr>
     <td valign="top">
-<b><a href="doc/changelogs/CHANGELOG_V9.md#9.5.0">9.5.0</a></b><br/>
+<b><a href="doc/changelogs/CHANGELOG_V9.md#9.6.1">9.6.1</a></b><br/>
+<a href="doc/changelogs/CHANGELOG_V9.md#9.6.0">9.6.0</a><br/>
+<a href="doc/changelogs/CHANGELOG_V9.md#9.5.0">9.5.0</a><br/>
 <a href="doc/changelogs/CHANGELOG_V9.md#9.4.0">9.4.0</a><br/>
 <a href="doc/changelogs/CHANGELOG_V9.md#9.3.0">9.3.0</a><br/>
 <a href="doc/changelogs/CHANGELOG_V9.md#9.2.1">9.2.1</a><br/>

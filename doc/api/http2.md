@@ -327,7 +327,6 @@ added: v8.4.0
 * `code` {number} The HTTP/2 error code to send in the final `GOAWAY` frame.
   If unspecified, and `error` is not undefined, the default is `INTERNAL_ERROR`,
   otherwise defaults to `NO_ERROR`.
-* Returns: {undefined}
 
 Immediately terminates the `Http2Session` and the associated `net.Socket` or
 `tls.TLSSocket`.
@@ -470,7 +469,6 @@ added: v8.4.0
 
 * `msecs` {number}
 * `callback` {Function}
-* Returns: {undefined}
 
 Used to set a callback function that is called when there is no activity on
 the `Http2Session` after `msecs` milliseconds. The given `callback` is
@@ -530,7 +528,6 @@ added: v8.4.0
 -->
 
 * `settings` {HTTP2 Settings Object}
-* Returns {undefined}
 
 Updates the current local settings for this `Http2Session` and sends a new
 `SETTINGS` frame to the connected HTTP/2 peer.
@@ -882,7 +879,6 @@ added: v8.4.0
   `http2.constants.NGHTTP2_NO_ERROR` (`0x00`)
 * `callback` {Function} An optional function registered to listen for the
   `'close'` event.
-* Returns: {undefined}
 
 Closes the `Http2Stream` instance by sending an `RST_STREAM` frame to the
 connected HTTP/2 peer.
@@ -933,7 +929,6 @@ added: v8.4.0
     and `256` (inclusive).
   * `silent` {boolean} When `true`, changes the priority locally without
     sending a `PRIORITY` frame to the connected peer.
-* Returns: {undefined}
 
 Updates the priority for this `Http2Stream` instance.
 
@@ -994,7 +989,6 @@ added: v8.4.0
 
 * `msecs` {number}
 * `callback` {Function}
-* Returns: {undefined}
 
 ```js
 const http2 = require('http2');
@@ -1090,8 +1084,6 @@ received for this stream from the connected HTTP/2 server. The listener is
 invoked with two arguments: an Object containing the received
 [HTTP2 Headers Object][], and flags associated with the headers.
 
-For example:
-
 ```js
 const http2 = require('http2');
 const client = http2.connect('https://localhost');
@@ -1119,7 +1111,6 @@ added: v8.4.0
 -->
 
 * `headers` {HTTP2 Headers Object}
-* Returns: {undefined}
 
 Sends an additional informational `HEADERS` frame to the connected HTTP/2 peer.
 
@@ -1163,7 +1154,6 @@ added: v8.4.0
   * `pushStream` {ServerHttp2Stream} The returned pushStream object.
   * `headers` {HTTP2 Headers Object} Headers object the pushStream was
   initiated with.
-* Returns: {undefined}
 
 Initiates a push stream. The callback is invoked with the new `Http2Stream`
 instance created for the push stream passed as the second argument, or an
@@ -1198,7 +1188,6 @@ added: v8.4.0
     include payload data.
   * `getTrailers` {Function} Callback function invoked to collect trailer
     headers.
-* Returns: {undefined}
 
 ```js
 const http2 = require('http2');
@@ -1454,10 +1443,10 @@ a request with an HTTP `Expect: 100-continue` is received. If this event is
 not listened for, the server will automatically respond with a status
 `100 Continue` as appropriate.
 
-Handling this event involves calling [`response.writeContinue()`][] if the client
-should continue to send the request body, or generating an appropriate HTTP
-response (e.g. 400 Bad Request) if the client should not continue to send the
-request body.
+Handling this event involves calling [`response.writeContinue()`][] if the
+client should continue to send the request body, or generating an appropriate
+HTTP response (e.g. 400 Bad Request) if the client should not continue to send
+the request body.
 
 Note that when this event is emitted and handled, the [`'request'`][] event will
 not be emitted.
@@ -1557,10 +1546,10 @@ time a request with an HTTP `Expect: 100-continue` is received. If this event
 is not listened for, the server will automatically respond with a status
 `100 Continue` as appropriate.
 
-Handling this event involves calling [`response.writeContinue()`][] if the client
-should continue to send the request body, or generating an appropriate HTTP
-response (e.g. 400 Bad Request) if the client should not continue to send the
-request body.
+Handling this event involves calling [`response.writeContinue()`][] if the
+client should continue to send the request body, or generating an appropriate
+HTTP response (e.g. 400 Bad Request) if the client should not continue to send
+the request body.
 
 Note that when this event is emitted and handled, the [`'request'`][] event will
 not be emitted.
@@ -1655,7 +1644,7 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/16676
     description: Added the `maxHeaderListPairs` option with a default limit of
                  128 header pairs.
-  - version: REPLACEME
+  - version: v9.6.0
     pr-url: https://github.com/nodejs/node/pull/15752
     description: Added the `Http1IncomingMessage` and `Http1ServerResponse`
                  option.
@@ -2000,8 +1989,6 @@ Headers are represented as own-properties on JavaScript objects. The property
 keys will be serialized to lower-case. Property values should be strings (if
 they are not they will be coerced to strings) or an Array of strings (in order
 to send more than one value per header field).
-
-For example:
 
 ```js
 const headers = {

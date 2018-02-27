@@ -166,7 +166,7 @@ static int uv__async_start(uv_loop_t* loop) {
     pipefd[0] = err;
     pipefd[1] = -1;
   }
-  else if (err == -ENOSYS) {
+  else if (err == UV_ENOSYS) {
     err = uv__make_pipe(pipefd, UV__F_NONBLOCK);
 #if defined(__linux__)
     /* Save a file descriptor by opening one of the pipe descriptors as
@@ -240,7 +240,7 @@ static int uv__async_eventfd(void) {
     return fd;
 
   if (errno != ENOSYS)
-    return -errno;
+    return UV__ERR(errno);
 
   no_eventfd2 = 1;
 
@@ -257,7 +257,7 @@ skip_eventfd2:
   }
 
   if (errno != ENOSYS)
-    return -errno;
+    return UV__ERR(errno);
 
   no_eventfd = 1;
 
@@ -265,5 +265,5 @@ skip_eventfd:
 
 #endif
 
-  return -ENOSYS;
+  return UV_ENOSYS;
 }

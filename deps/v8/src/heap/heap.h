@@ -626,15 +626,15 @@ class Heap {
 #endif
 
   // Semi-space size needs to be a multiple of page size.
-  static const int kMinSemiSpaceSizeInKB =
+  static const size_t kMinSemiSpaceSizeInKB =
       1 * kPointerMultiplier * ((1 << kPageSizeBits) / KB);
-  static const int kMaxSemiSpaceSizeInKB =
+  static const size_t kMaxSemiSpaceSizeInKB =
       16 * kPointerMultiplier * ((1 << kPageSizeBits) / KB);
 
   // The old space size has to be a multiple of Page::kPageSize.
   // Sizes are in MB.
-  static const int kMinOldGenerationSize = 128 * kPointerMultiplier;
-  static const int kMaxOldGenerationSize = 1024 * kPointerMultiplier;
+  static const size_t kMinOldGenerationSize = 128 * kPointerMultiplier;
+  static const size_t kMaxOldGenerationSize = 1024 * kPointerMultiplier;
 
   static const int kTraceRingBufferSize = 512;
   static const int kStacktraceBufferSize = 512;
@@ -1372,10 +1372,10 @@ class Heap {
   size_t MaxOldGenerationSize() { return max_old_generation_size_; }
 
   static size_t ComputeMaxOldGenerationSize(uint64_t physical_memory) {
-    const int old_space_physical_memory_factor = 4;
-    int computed_size =
-        static_cast<int>(physical_memory / i::MB /
-                         old_space_physical_memory_factor * kPointerMultiplier);
+    const size_t old_space_physical_memory_factor = 4;
+    size_t computed_size = static_cast<size_t>(
+        physical_memory / i::MB / old_space_physical_memory_factor *
+        kPointerMultiplier);
     return Max(Min(computed_size, kMaxOldGenerationSize),
                kMinOldGenerationSize);
   }
@@ -1387,11 +1387,11 @@ class Heap {
     uint64_t capped_physical_memory =
         Max(Min(physical_memory, max_physical_memory), min_physical_memory);
     // linearly scale max semi-space size: (X-A)/(B-A)*(D-C)+C
-    int semi_space_size_in_kb =
-        static_cast<int>(((capped_physical_memory - min_physical_memory) *
-                          (kMaxSemiSpaceSizeInKB - kMinSemiSpaceSizeInKB)) /
-                             (max_physical_memory - min_physical_memory) +
-                         kMinSemiSpaceSizeInKB);
+    size_t semi_space_size_in_kb =
+        static_cast<size_t>(((capped_physical_memory - min_physical_memory) *
+                             (kMaxSemiSpaceSizeInKB - kMinSemiSpaceSizeInKB)) /
+                                (max_physical_memory - min_physical_memory) +
+                            kMinSemiSpaceSizeInKB);
     return RoundUp(semi_space_size_in_kb, (1 << kPageSizeBits) / KB);
   }
 
