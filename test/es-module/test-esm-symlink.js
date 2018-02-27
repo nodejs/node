@@ -37,7 +37,7 @@ try {
   fs.symlinkSync(real, link_absolute_path);
   fs.symlinkSync(path.basename(real), link_relative_path);
   fs.symlinkSync(real, link_ignore_extension);
-  fs.symlinkSync(path.dirname(real), link_directory);
+  fs.symlinkSync(path.dirname(real), link_directory, 'dir');
 } catch (err) {
   if (err.code !== 'EPERM') throw err;
   common.skip('insufficient privileges for symlinks');
