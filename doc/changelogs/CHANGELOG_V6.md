@@ -10,6 +10,7 @@
 </tr>
 <tr>
 <td valign="top">
+<a href="#6.13.1">6.13.1</a><br/>
 <a href="#6.13.0">6.13.0</a><br/>
 <a href="#6.12.3">6.12.3</a><br/>
 <a href="#6.12.2">6.12.2</a><br/>
@@ -64,6 +65,40 @@
 *Note*: Node.js v6 is covered by the
 [Node.js Long Term Support Plan](https://github.com/nodejs/LTS) and
 will be supported actively until April 2018 and maintained until April 2019.
+
+<a id="6.13.1"></a>
+## 2018-03-06, Version 6.13.1 'Boron' (LTS), @MylesBorins
+
+### Notable Changes
+
+* **http, tls**:
+  - better support for IPv6 addresses (Mattias Holmlund) [#14772](https://github.com/nodejs/node/pull/14772)
+
+### Commits
+
+* [[`d333ba5e2a`](https://github.com/nodejs/node/commit/d333ba5e2a)] - **doc**: add vdeturckheim as collaborator (vdeturckheim) [#18432](https://github.com/nodejs/node/pull/18432)
+* [[`7fc5c69a4a`](https://github.com/nodejs/node/commit/7fc5c69a4a)] - **doc**: use PBKDF2 in text (Tobias Nießen) [#18279](https://github.com/nodejs/node/pull/18279)
+* [[`1e8d1200ce`](https://github.com/nodejs/node/commit/1e8d1200ce)] - **doc**: Add example of null to assert.ifError (Leko) [#18236](https://github.com/nodejs/node/pull/18236)
+* [[`46e43111af`](https://github.com/nodejs/node/commit/46e43111af)] - **doc**: V8 branch used in 8.x not active anymore (Franziska Hinkelmann) [#18155](https://github.com/nodejs/node/pull/18155)
+* [[`b83b104c17`](https://github.com/nodejs/node/commit/b83b104c17)] - **doc**: add builtin module in building.md (Suixinlei) [#17705](https://github.com/nodejs/node/pull/17705)
+* [[`2e76df5b4e`](https://github.com/nodejs/node/commit/2e76df5b4e)] - **doc**: warn users about non-ASCII paths on build (Matheus Marchini) [#16735](https://github.com/nodejs/node/pull/16735)
+* [[`2c21421092`](https://github.com/nodejs/node/commit/2c21421092)] - **doc**: simplify sentences that use "considered" (Rich Trott) [#18095](https://github.com/nodejs/node/pull/18095)
+* [[`8f9362d6e8`](https://github.com/nodejs/node/commit/8f9362d6e8)] - **doc**: add documentation for deprecation properties (Jon Moss) [#16539](https://github.com/nodejs/node/pull/16539)
+* [[`1505b71dab`](https://github.com/nodejs/node/commit/1505b71dab)] - **doc**: add Leko to collaborators (Leko) [#18117](https://github.com/nodejs/node/pull/18117)
+* [[`838f7bdb6e`](https://github.com/nodejs/node/commit/838f7bdb6e)] - **doc**: be less tentative about undefined behavior (Rich Trott) [#18091](https://github.com/nodejs/node/pull/18091)
+* [[`17c88c4c18`](https://github.com/nodejs/node/commit/17c88c4c18)] - **doc**: examples for fast-tracking regression fixes (Refael Ackermann) [#17379](https://github.com/nodejs/node/pull/17379)
+* [[`e021fb73d2`](https://github.com/nodejs/node/commit/e021fb73d2)] - **doc,test**: mention Duplex support for TLS (Anna Henningsen) [#17599](https://github.com/nodejs/node/pull/17599)
+* [[`df038ad90f`](https://github.com/nodejs/node/commit/df038ad90f)] - **fs**: fix options.end of fs.ReadStream() (陈刚) [#18121](https://github.com/nodejs/node/pull/18121)
+* [[`8e7ac25aa6`](https://github.com/nodejs/node/commit/8e7ac25aa6)] - **http, tls**: better support for IPv6 addresses (Mattias Holmlund) [#14772](https://github.com/nodejs/node/pull/14772)
+* [[`969c39eb3a`](https://github.com/nodejs/node/commit/969c39eb3a)] - **lib**: enable dot-notation eslint rule (Anatoli Papirovski) [#18007](https://github.com/nodejs/node/pull/18007)
+* [[`37071b8dda`](https://github.com/nodejs/node/commit/37071b8dda)] - **path**: fix path.normalize for relative paths (Weijia Wang) [#17974](https://github.com/nodejs/node/pull/17974)
+* [[`fdf73b110f`](https://github.com/nodejs/node/commit/fdf73b110f)] - **test**: preserve env in test cases (Beth Griggs) [#14822](https://github.com/nodejs/node/pull/14822)
+* [[`bb2d292562`](https://github.com/nodejs/node/commit/bb2d292562)] - **test**: change assert message to default (ryanmahan) [#18259](https://github.com/nodejs/node/pull/18259)
+* [[`27107b957c`](https://github.com/nodejs/node/commit/27107b957c)] - **test**: use countdown timer (Mandeep Singh) [#17326](https://github.com/nodejs/node/pull/17326)
+* [[`eaa30e4947`](https://github.com/nodejs/node/commit/eaa30e4947)] - **test**: simplify loadDHParam in TLS test (Tobias Nießen) [#18103](https://github.com/nodejs/node/pull/18103)
+* [[`2004efded8`](https://github.com/nodejs/node/commit/2004efded8)] - **test**: improve to use template string (sreepurnajasti) [#18097](https://github.com/nodejs/node/pull/18097)
+* [[`16ef24bccf`](https://github.com/nodejs/node/commit/16ef24bccf)] - **test**: use smaller input file for test-zlib.js (Rich Trott) [#17988](https://github.com/nodejs/node/pull/17988)
+* [[`48790382f1`](https://github.com/nodejs/node/commit/48790382f1)] - **tools**: add number-isnan rule (Jon Moss) [#17556](https://github.com/nodejs/node/pull/17556)
 
 <a id="6.13.0"></a>
 ## 2018-02-13, Version 6.13.0 'Boron' (LTS), @MylesBorins
