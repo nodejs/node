@@ -575,24 +575,6 @@ inline int SyncCall(Environment* env, Local<Value> ctx, fs_req_wrap* req_wrap,
   return err;
 }
 
-#define SYNC_DEST_CALL(func, path, dest, ...)                                 \
-  fs_req_wrap sync_wrap;                                                      \
-  env->PrintSyncTrace();                                                      \
-  int err = uv_fs_ ## func(env->event_loop(),                                 \
-                         &sync_wrap.req,                                      \
-                         __VA_ARGS__,                                         \
-                         nullptr);                                            \
-  if (err < 0) {                                                              \
-    return env->ThrowUVException(err, #func, nullptr, path, dest);            \
-  }                                                                           \
-
-#define SYNC_CALL(func, path, ...)                                            \
-  SYNC_DEST_CALL(func, path, nullptr, __VA_ARGS__)                            \
-
-#define SYNC_REQ sync_wrap.req
-
-#define SYNC_RESULT err
-
 inline FSReqBase* GetReqWrap(Environment* env, Local<Value> value) {
   if (value->IsObject()) {
     return Unwrap<FSReqBase>(value.As<Object>());
