@@ -749,3 +749,24 @@ if (!common.isAIX) {
     );
   });
 }
+
+// fchown
+if (!common.isWindows) {
+  const validateError = (err) => {
+    assert.strictEqual(err.message, 'EBADF: bad file descriptor, fchown');
+    assert.strictEqual(err.errno, uv.UV_EBADF);
+    assert.strictEqual(err.code, 'EBADF');
+    assert.strictEqual(err.syscall, 'fchown');
+    return true;
+  };
+
+  common.runWithInvalidFD((fd) => {
+    fs.fchown(fd, process.getuid(), process.getgid(),
+              common.mustCall(validateError));
+
+    assert.throws(
+      () => fs.fchownSync(fd, process.getuid(), process.getgid()),
+      validateError
+    );
+  });
+}
