@@ -836,6 +836,11 @@ emitMyWarning();
 ## process.env
 <!-- YAML
 added: v0.1.27
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/18158
+    description: Assigning a property to `undefined` now deletes it from the
+                 environment.
 -->
 
 * {Object}
@@ -885,12 +890,13 @@ Example:
 process.env.test = null;
 console.log(process.env.test);
 // => 'null'
-process.env.test = undefined;
+process.env.test = 42;
 console.log(process.env.test);
-// => 'undefined'
+// => '42'
 ```
 
-Use `delete` to delete a property from `process.env`.
+Use `delete` to delete a property from `process.env` or assign it to
+`undefined`.
 
 Example:
 
@@ -899,6 +905,10 @@ process.env.TEST = 1;
 delete process.env.TEST;
 console.log(process.env.TEST);
 // => undefined
+process.env.TEST = 1;
+process.env.TEST = undefined;
+console.log('TEST' in process.env);
+// => false
 ```
 
 On Windows operating systems, environment variables are case-insensitive.
