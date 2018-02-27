@@ -8,10 +8,10 @@ let invalidArgTypeError;
 
 if (common.isWindows) {
   invalidArgTypeError =
-    common.expectsError({ code: 'ERR_INVALID_ARG_TYPE', type: TypeError }, 36);
+    common.expectsError({ code: 'ERR_INVALID_ARG_TYPE', type: TypeError }, 42);
 } else {
   invalidArgTypeError =
-    common.expectsError({ code: 'ERR_INVALID_ARG_TYPE', type: TypeError }, 56);
+    common.expectsError({ code: 'ERR_INVALID_ARG_TYPE', type: TypeError }, 62);
 }
 
 const invalidRangeError =
@@ -127,18 +127,16 @@ if (!common.isWindows) {
 
 {
   // Validate the windowsHide option
-  const err = /^TypeError: "windowsHide" must be a boolean$/;
-
   pass('windowsHide', undefined);
   pass('windowsHide', null);
   pass('windowsHide', true);
   pass('windowsHide', false);
-  fail('windowsHide', 0, err);
-  fail('windowsHide', 1, err);
-  fail('windowsHide', __dirname, err);
-  fail('windowsHide', [], err);
-  fail('windowsHide', {}, err);
-  fail('windowsHide', common.mustNotCall(), err);
+  fail('windowsHide', 0, invalidArgTypeError);
+  fail('windowsHide', 1, invalidArgTypeError);
+  fail('windowsHide', __dirname, invalidArgTypeError);
+  fail('windowsHide', [], invalidArgTypeError);
+  fail('windowsHide', {}, invalidArgTypeError);
+  fail('windowsHide', common.mustNotCall(), invalidArgTypeError);
 }
 
 {
