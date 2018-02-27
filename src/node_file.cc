@@ -1270,35 +1270,43 @@ static void CopyFile(const FunctionCallbackInfo<Value>& args) {
 static void WriteBuffer(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
+  const int argc = args.Length();
+  CHECK_GE(argc, 4);
+
   CHECK(args[0]->IsInt32());
+  const int fd = args[0].As<Int32>()->Value();
+
   CHECK(Buffer::HasInstance(args[1]));
+  Local<Object> buffer_obj = args[1].As<Object>();
+  char* buffer_data = Buffer::Data(buffer_obj);
+  size_t buffer_length = Buffer::Length(buffer_obj);
 
-  int fd = args[0]->Int32Value();
-  Local<Object> obj = args[1].As<Object>();
-  const char* buf = Buffer::Data(obj);
-  size_t buffer_length = Buffer::Length(obj);
-  size_t off = args[2]->Uint32Value();
-  size_t len = args[3]->Uint32Value();
-  int64_t pos = GET_OFFSET(args[4]);
-
+  CHECK(args[2]->IsInt32());
+  const size_t off = static_cast<size_t>(args[2].As<Int32>()->Value());
   CHECK_LE(off, buffer_length);
+
+  CHECK(args[3]->IsInt32());
+  const size_t len = static_cast<size_t>(args[3].As<Int32>()->Value());
+  CHECK(Buffer::IsWithinBounds(off, len, buffer_length));
   CHECK_LE(len, buffer_length);
   CHECK_GE(off + len, off);
-  CHECK(Buffer::IsWithinBounds(off, len, buffer_length));
 
-  buf += off;
+  const int64_t pos = GET_OFFSET(args[4]);
 
+  char* buf = buffer_data + off;
   uv_buf_t uvbuf = uv_buf_init(const_cast<char*>(buf), len);
 
   FSReqBase* req_wrap = GetReqWrap(env, args[5]);
-  if (req_wrap != nullptr) {
+  if (req_wrap != nullptr) {  // write(fd, buffer, off, len, pos, req)
     AsyncCall(env, req_wrap, args, "write", UTF8, AfterInteger,
               uv_fs_write, fd, &uvbuf, 1, pos);
-    return;
+  } else {  // write(fd, buffer, off, len, pos, undefined, ctx)
+    CHECK_EQ(argc, 7);
+    fs_req_wrap req_wrap;
+    int bytesWritten = SyncCall(env, args[6], &req_wrap, "write",
+                                uv_fs_write, fd, &uvbuf, 1, pos);
+    args.GetReturnValue().Set(bytesWritten);
   }
-
-  SYNC_CALL(write, nullptr, fd, &uvbuf, 1, pos)
-  args.GetReturnValue().Set(SYNC_RESULT);
 }
 
 
@@ -1350,19 +1358,23 @@ static void WriteBuffers(const FunctionCallbackInfo<Value>& args) {
 static void WriteString(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
-  CHECK(args[0]->IsInt32());
+  const int argc = args.Length();
+  CHECK_GE(argc, 4);
 
-  std::unique_ptr<char[]> delete_on_return;
-  Local<Value> req;
-  Local<Value> value = args[1];
-  int fd = args[0]->Int32Value();
-  char* buf = nullptr;
-  size_t len;
+  CHECK(args[0]->IsInt32());
+  const int fd = args[0].As<Int32>()->Value();
+
   const int64_t pos = GET_OFFSET(args[2]);
+
   const auto enc = ParseEncoding(env->isolate(), args[3], UTF8);
 
+  std::unique_ptr<char[]> delete_on_return;
+  Local<Value> value = args[1];
+  char* buf = nullptr;
+  size_t len;
+
   FSReqBase* req_wrap = GetReqWrap(env, args[4]);
-  const auto is_async = req_wrap != nullptr;
+  const bool is_async = req_wrap != nullptr;
 
   // Avoid copying the string when it is externalized but only when:
   // 1. The target encoding is compatible with the string's encoding, and
@@ -1396,12 +1408,15 @@ static void WriteString(const FunctionCallbackInfo<Value>& args) {
 
   uv_buf_t uvbuf = uv_buf_init(buf, len);
 
-  if (req_wrap != nullptr) {
+  if (is_async) {  // write(fd, string, pos, enc, req)
     AsyncCall(env, req_wrap, args, "write", UTF8, AfterInteger,
               uv_fs_write, fd, &uvbuf, 1, pos);
-  } else {
-    SYNC_CALL(write, nullptr, fd, &uvbuf, 1, pos)
-    return args.GetReturnValue().Set(SYNC_RESULT);
+  } else {  // write(fd, string, pos, enc, undefined, ctx)
+    CHECK_EQ(argc, 6);
+    fs_req_wrap req_wrap;
+    int bytesWritten = SyncCall(env, args[5], &req_wrap, "write",
+                                uv_fs_write, fd, &uvbuf, 1, pos);
+    args.GetReturnValue().Set(bytesWritten);
   }
 }
 
