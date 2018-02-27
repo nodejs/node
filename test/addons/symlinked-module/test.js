@@ -19,7 +19,7 @@ const addonPath = path.join(__dirname, 'build', common.buildType);
 const addonLink = path.join(tmpdir.path, 'addon');
 
 try {
-  fs.symlinkSync(addonPath, addonLink);
+  fs.symlinkSync(addonPath, addonLink, 'dir');
 } catch (err) {
   if (err.code !== 'EPERM') throw err;
   common.skip('module identity test (no privs for symlinks)');

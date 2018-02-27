@@ -42,7 +42,7 @@ fs.mkdirSync(moduleB);
 // Attempt to make the symlink. If this fails due to lack of sufficient
 // permissions, the test will bail out and be skipped.
 try {
-  fs.symlinkSync(moduleA, moduleA_link);
+  fs.symlinkSync(moduleA, moduleA_link, 'dir');
 } catch (err) {
   if (err.code !== 'EPERM') throw err;
   common.skip('insufficient privileges for symlinks');
