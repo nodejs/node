@@ -1,7 +1,6 @@
 #include <node_api.h>
 #include "../common.h"
 #include <string.h>
-#include <stdlib.h>
 
 static int test_value = 3;
 
@@ -199,9 +198,7 @@ napi_value Wrap(napi_env env, napi_callback_info info) {
   napi_value arg;
   NAPI_CALL(env, napi_get_cb_info(env, info, &argc, &arg, NULL, NULL));
 
-  int32_t* data = malloc(sizeof(int32_t));
-  *data = test_value;
-  NAPI_CALL(env, napi_wrap(env, arg, data, NULL, NULL, NULL));
+  NAPI_CALL(env, napi_wrap(env, arg, &test_value, NULL, NULL, NULL));
   return NULL;
 }
 
