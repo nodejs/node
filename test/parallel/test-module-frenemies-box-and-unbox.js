@@ -3,9 +3,9 @@
 
 require('../common');
 const assert = require('assert');
-const alice = require('./alice');
-const bob = require('./bob');
-const carol = require('./carol');
+const alice = require('../fixtures/module-frenemies/box-and-unbox/alice');
+const bob = require('../fixtures/module-frenemies/box-and-unbox/bob');
+const carol = require('../fixtures/module-frenemies/box-and-unbox/carol');
 
 alice.send();
 

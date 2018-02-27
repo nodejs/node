@@ -2,7 +2,7 @@
 // Maybe she's a message bus.  Who knows?!
 'use strict';
 
-require('../common');
+require('../../../common');
 
 // Maybe Carol is evil!  Maybe not!  Again, who knows?!
 const evil = true;

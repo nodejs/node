@@ -1,7 +1,7 @@
 // Alice sends a message to Bob for Bob's eyes only.
 'use strict';
 
-require('../common');
+require('../../../common');
 const bob = require('./bob');
 const carol = require('./carol');
 

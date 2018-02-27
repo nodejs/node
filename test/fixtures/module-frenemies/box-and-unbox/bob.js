@@ -1,7 +1,7 @@
 // Bob gets a message from Alice and verifies that it comes from her.
 'use strict';
 
-require('../common');
+require('../../../common');
 
 function ifFrom(sender) {
   const alice = require('./alice');
