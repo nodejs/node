@@ -1320,11 +1320,15 @@ static void WriteBuffer(const FunctionCallbackInfo<Value>& args) {
 static void WriteBuffers(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
-  CHECK(args[0]->IsInt32());
-  CHECK(args[1]->IsArray());
+  const int argc = args.Length();
+  CHECK_GE(argc, 3);
 
-  int fd = args[0]->Int32Value();
+  CHECK(args[0]->IsInt32());
+  const int fd = args[0].As<Int32>()->Value();
+
+  CHECK(args[1]->IsArray());
   Local<Array> chunks = args[1].As<Array>();
+
   int64_t pos = GET_OFFSET(args[2]);
 
   MaybeStackBuffer<uv_buf_t> iovs(chunks->Length());
@@ -1336,14 +1340,16 @@ static void WriteBuffers(const FunctionCallbackInfo<Value>& args) {
   }
 
   FSReqBase* req_wrap = GetReqWrap(env, args[3]);
-  if (req_wrap != nullptr) {
+  if (req_wrap != nullptr) {  // writeBuffers(fd, chunks, pos, req)
     AsyncCall(env, req_wrap, args, "write", UTF8, AfterInteger,
               uv_fs_write, fd, *iovs, iovs.length(), pos);
-    return;
+  } else {  // writeBuffers(fd, chunks, pos, undefined, ctx)
+    CHECK_EQ(argc, 5);
+    fs_req_wrap req_wrap;
+    int bytesWritten = SyncCall(env, args[4], &req_wrap, "write",
+                                uv_fs_write, fd, *iovs, iovs.length(), pos);
+    args.GetReturnValue().Set(bytesWritten);
   }
-
-  SYNC_CALL(write, nullptr, fd, *iovs, iovs.length(), pos)
-  args.GetReturnValue().Set(SYNC_RESULT);
 }
 
 
