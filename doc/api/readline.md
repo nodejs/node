@@ -60,8 +60,8 @@ The `'close'` event is emitted when one of the following occur:
 
 The listener function is called without passing any arguments.
 
-The `readline.Interface` instance should be considered to be "finished" once
-the `'close'` event is emitted.
+The `readline.Interface` instance is finished once the `'close'` event is
+emitted.
 
 ### Event: 'line'
 <!-- YAML

@@ -127,12 +127,14 @@ Before landing pull requests, sufficient time should be left for input
 from other Collaborators. In general, leave at least 48 hours during the
 week and 72 hours over weekends to account for international time
 differences and work schedules. However, certain types of pull requests
-can be fast-tracked and may be landed after a shorter delay:
+can be fast-tracked and may be landed after a shorter delay. For example:
 
-* Focused changes that affect only documentation and/or the test suite.
-  `code-and-learn` and `good-first-issue` pull requests typically fall
-  into this category.
-* Changes that fix regressions.
+* Focused changes that affect only documentation and/or the test suite:
+  * `code-and-learn` tasks typically fall into this category.
+  * `good-first-issue` pull requests may also be suitable.
+* Changes that fix regressions:
+  * Regressions that break the workflow (red CI or broken compilation).
+  * Regressions that happen right before a release, or reported soon after.
 
 When a pull request is deemed suitable to be fast-tracked, label it with
 `fast-track`. The pull request can be landed once 2 or more Collaborators

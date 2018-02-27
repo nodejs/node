@@ -1281,6 +1281,28 @@ static void IsIPv6(const FunctionCallbackInfo<Value>& args) {
   }
 }
 
+
+void CanonicalizeIP(const FunctionCallbackInfo<Value>& args) {
+  v8::Isolate* isolate = args.GetIsolate();
+  node::Utf8Value ip(isolate, args[0]);
+  char address_buffer[sizeof(struct in6_addr)];
+  char canonical_ip[INET6_ADDRSTRLEN];
+
+  int af;
+  if (uv_inet_pton(AF_INET, *ip, &address_buffer) == 0)
+    af = AF_INET;
+  else if (uv_inet_pton(AF_INET6, *ip, &address_buffer) == 0)
+    af = AF_INET6;
+  else
+    return;
+
+  int err = uv_inet_ntop(af, address_buffer, canonical_ip,
+                         sizeof(canonical_ip));
+  CHECK_EQ(err, 0);
+
+  args.GetReturnValue().Set(String::NewFromUtf8(isolate, canonical_ip));
+}
+
 static void GetAddrInfo(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
@@ -1514,6 +1536,7 @@ static void Initialize(Local<Object> target,
   env->SetMethod(target, "isIP", IsIP);
   env->SetMethod(target, "isIPv4", IsIPv4);
   env->SetMethod(target, "isIPv6", IsIPv6);
+  env->SetMethod(target, "canonicalizeIP", CanonicalizeIP);
 
   env->SetMethod(target, "strerror", StrError);
   env->SetMethod(target, "getServers", GetServers);

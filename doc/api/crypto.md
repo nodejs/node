@@ -1099,7 +1099,7 @@ password always creates the same key. The low iteration count and
 non-cryptographically secure hash algorithm allow passwords to be tested very
 rapidly.
 
-In line with OpenSSL's recommendation to use pbkdf2 instead of
+In line with OpenSSL's recommendation to use PBKDF2 instead of
 [`EVP_BytesToKey`][] it is recommended that developers derive a key and IV on
 their own using [`crypto.pbkdf2()`][] and to use [`crypto.createCipheriv()`][]
 to create the `Cipher` object. Users should not use ciphers with counter mode
@@ -1154,7 +1154,7 @@ password always creates the same key. The low iteration count and
 non-cryptographically secure hash algorithm allow passwords to be tested very
 rapidly.
 
-In line with OpenSSL's recommendation to use pbkdf2 instead of
+In line with OpenSSL's recommendation to use PBKDF2 instead of
 [`EVP_BytesToKey`][] it is recommended that developers derive a key and IV on
 their own using [`crypto.pbkdf2()`][] and to use [`crypto.createDecipheriv()`][]
 to create the `Decipher` object.

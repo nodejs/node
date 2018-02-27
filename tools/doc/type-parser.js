@@ -26,6 +26,7 @@ const typeMap = {
   'Stream': 'stream.html#stream_stream',
   'stream.Writable': 'stream.html#stream_class_stream_writable',
   'stream.Readable': 'stream.html#stream_class_stream_readable',
+  'stream.Duplex': 'stream.html#stream_class_stream_duplex',
   'ChildProcess': 'child_process.html#child_process_class_childprocess',
   'cluster.Worker': 'cluster.html#cluster_class_worker',
   'dgram.Socket': 'dgram.html#dgram_class_dgram_socket',

@@ -215,7 +215,8 @@ Prerequisites:
   [Git for Windows](http://git-scm.com/download/win) includes Git Bash
   and tools which can be included in the global `PATH`.
 
-If the path to your build directory contains a space, the build will likely fail.
+If the path to your build directory contains a space or a non-ASCII character, the
+build will likely fail.
 
 ```console
 > .\vcbuild nosign
@@ -385,3 +386,26 @@ and [user guide](https://openssl.org/docs/fips/UserGuide-2.0.pdf).
    `/usr/local/ssl/fips-2.0`
 8. Build Node.js with `make -j`
 9. Verify with `node -p "process.versions.openssl"` (for example `1.0.2a-fips`)
+
+## Building Node.js with external core modules
+
+It is possible to specify one or more JavaScript text files to be bundled in
+the binary as builtin modules when building Node.js.
+
+### Unix / macOS
+
+This command will make `/root/myModule.js` available via
+`require('/root/myModule')` and `./myModule2.js` available via
+`require('myModule2')`.
+
+```console
+$ ./configure --link-module '/root/myModule.js' --link-module './myModule2.js'
+```
+
+### Windows
+
+To make `./myCustomModule.js` available via `require('myCustomModule')`.
+
+```console
+> .\vcbuild link-module './myCustomModule.js'
+```

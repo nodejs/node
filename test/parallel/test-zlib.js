@@ -136,7 +136,7 @@ assert.doesNotThrow(() => {
 }, 'windowsBits set to 8 should follow legacy zlib behavior');
 
 {
-  const node = fs.createReadStream(process.execPath);
+  const node = fs.createReadStream(fixtures.path('person.jpg'));
   const raw = [];
   const reinflated = [];
   node.on('data', (chunk) => raw.push(chunk));

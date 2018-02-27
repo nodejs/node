@@ -41,7 +41,7 @@ server.listen(0, next);
 
 function next() {
   const port = this.address().port;
-  console.log('listening on localhost:%d', port);
+  console.log(`listening on localhost:${port}`);
 
   let requests = 0;
   let responses = 0;
@@ -66,7 +66,7 @@ function next() {
     dom.add(req);
     req.on('response', function(res) {
       responses++;
-      console.error('requests=%d responses=%d', requests, responses);
+      console.error(`requests=${requests} responses=${responses}`);
       if (responses === requests) {
         console.error('done, closing server');
         // no more coming.

@@ -36,6 +36,6 @@ function testContextLeak() {
 }
 
 process.on('exit', function() {
-  console.error('max mem: %dmb', Math.round(maxMem / (1024 * 1024)));
+  console.error(`max mem: ${Math.round(maxMem / (1024 * 1024))}mb`);
   assert.ok(maxMem < 64 * 1024 * 1024);
 });

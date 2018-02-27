@@ -408,8 +408,8 @@ For more information about the governance of the Node.js project, see
 **Kunal Pathak** &lt;kunal.pathak@microsoft.com&gt;
 * [lance](https://github.com/lance) -
 **Lance Ball** &lt;lball@redhat.com&gt;
-* [lucamaraschi](https://github.com/lucamaraschi) -
-**Luca Maraschi** &lt;luca.maraschi@gmail.com&gt; (he/him)
+* [Leko](https://github.com/Leko) -
+**Shingo Inoue** &lt;leko.noor@gmail.com&gt; (he/him)
 * [lpinca](https://github.com/lpinca) -
 **Luigi Pinca** &lt;luigipinca@gmail.com&gt; (he/him)
 * [lucamaraschi](https://github.com/lucamaraschi) -
@@ -500,6 +500,8 @@ For more information about the governance of the Node.js project, see
 **Rich Trott** &lt;rtrott@gmail.com&gt; (he/him)
 * [tunniclm](https://github.com/tunniclm) -
 **Mike Tunnicliffe** &lt;m.j.tunnicliffe@gmail.com&gt;
+* [vdeturckheim](https://github.com/vdeturckheim) -
+**Vladimir de Turckheim** &lt;vlad2t@hotmail.com&gt; (he/him)
 * [vkurchatkin](https://github.com/vkurchatkin) -
 **Vladimir Kurchatkin** &lt;vladimir.kurchatkin@gmail.com&gt;
 * [vsemozhetbyt](https://github.com/vsemozhetbyt) -

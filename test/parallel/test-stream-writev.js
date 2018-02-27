@@ -24,7 +24,7 @@ function run() {
 }
 
 function test(decode, uncork, multi, next) {
-  console.log('# decode=%j uncork=%j multi=%j', decode, uncork, multi);
+  console.log(`# decode=${decode} uncork=${uncork} multi=${multi}`);
   let counter = 0;
   let expectCount = 0;
   function cnt(msg) {

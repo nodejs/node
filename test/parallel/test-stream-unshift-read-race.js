@@ -82,9 +82,9 @@ w.on('finish', common.mustCall(function() {
   // lacking that piece.
   assert.strictEqual(written[0], 'asdfasdfas');
   let asdf = 'd';
-  console.error('0: %s', written[0]);
+  console.error(`0: ${written[0]}`);
   for (let i = 1; i < written.length; i++) {
-    console.error('%s: %s', i.toString(32), written[i]);
+    console.error(`${i.toString(32)}: ${written[i]}`);
     assert.strictEqual(written[i].slice(0, 4), '1234');
     for (let j = 4; j < written[i].length; j++) {
       const c = written[i].charAt(j);

@@ -82,11 +82,11 @@ const server = https.Server(serverOptions, function(req, res) {
 });
 
 server.listen(common.PORT, function() {
-  console.log('expecting %d bytes', bytesExpected);
+  console.log(`expecting ${bytesExpected} bytes`);
   makeRequest();
 });
 
 process.on('exit', function() {
-  console.error('got %d bytes', uploadCount);
+  console.error(`got ${uploadCount} bytes`);
   assert.strictEqual(uploadCount, bytesExpected);
 });

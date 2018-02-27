@@ -51,8 +51,8 @@ server.listen(common.PORT, function() {
 
 
 function displayCounts() {
-  console.log('body.length: %d', body.length);
-  console.log('  recvCount: %d', recvCount);
+  console.log(`body.length: ${body.length}`);
+  console.log(`  recvCount: ${recvCount}`);
 }
 
 
