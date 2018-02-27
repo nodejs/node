@@ -1552,20 +1552,27 @@ static void Chown(const FunctionCallbackInfo<Value>& args) {
 static void FChown(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
-  CHECK(args[0]->IsInt32());
-  CHECK(args[1]->IsUint32());
-  CHECK(args[2]->IsUint32());
+  const int argc = args.Length();
+  CHECK_GE(argc, 3);
 
-  int fd = args[0]->Int32Value();
-  uv_uid_t uid = static_cast<uv_uid_t>(args[1]->Uint32Value());
-  uv_gid_t gid = static_cast<uv_gid_t>(args[2]->Uint32Value());
+  CHECK(args[0]->IsInt32());
+  const int fd = args[0].As<Int32>()->Value();
+
+  CHECK(args[1]->IsUint32());
+  const uv_uid_t uid = static_cast<uv_uid_t>(args[1].As<Uint32>()->Value());
+
+  CHECK(args[2]->IsUint32());
+  const uv_gid_t gid = static_cast<uv_gid_t>(args[2].As<Uint32>()->Value());
 
   FSReqBase* req_wrap = GetReqWrap(env, args[3]);
-  if (req_wrap != nullptr) {
+  if (req_wrap != nullptr) {  // fchown(fd, uid, gid, req)
     AsyncCall(env, req_wrap, args, "fchown", UTF8, AfterNoArgs,
               uv_fs_fchown, fd, uid, gid);
-  } else {
-    SYNC_CALL(fchown, 0, fd, uid, gid);
+  } else {  // fchown(fd, uid, gid, undefined, ctx)
+    CHECK_EQ(argc, 5);
+    fs_req_wrap req_wrap;
+    SyncCall(env, args[4], &req_wrap, "fchown",
+             uv_fs_fchown, fd, uid, gid);
   }
 }
 
