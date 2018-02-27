@@ -1622,20 +1622,27 @@ static void UTimes(const FunctionCallbackInfo<Value>& args) {
 static void FUTimes(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
-  CHECK(args[0]->IsInt32());
-  CHECK(args[1]->IsNumber());
-  CHECK(args[2]->IsNumber());
+  const int argc = args.Length();
+  CHECK_GE(argc, 3);
 
-  const int fd = args[0]->Int32Value();
-  const double atime = static_cast<double>(args[1]->NumberValue());
-  const double mtime = static_cast<double>(args[2]->NumberValue());
+  CHECK(args[0]->IsInt32());
+  const int fd = args[0].As<Int32>()->Value();
+
+  CHECK(args[1]->IsNumber());
+  const double atime = args[1].As<Number>()->Value();
+
+  CHECK(args[2]->IsNumber());
+  const double mtime = args[2].As<Number>()->Value();
 
   FSReqBase* req_wrap = GetReqWrap(env, args[3]);
-  if (req_wrap != nullptr) {
+  if (req_wrap != nullptr) {  // futimes(fd, atime, mtime, req)
     AsyncCall(env, req_wrap, args, "futime", UTF8, AfterNoArgs,
               uv_fs_futime, fd, atime, mtime);
-  } else {
-    SYNC_CALL(futime, 0, fd, atime, mtime);
+  } else {  // futimes(fd, atime, mtime, undefined, ctx)
+    CHECK_EQ(argc, 5);
+    fs_req_wrap req_wrap;
+    SyncCall(env, args[4], &req_wrap, "futime",
+             uv_fs_futime, fd, atime, mtime);
   }
 }
 
