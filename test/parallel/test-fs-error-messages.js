@@ -708,3 +708,24 @@ if (!common.isAIX) {
     validateError
   );
 }
+
+// read
+{
+  const validateError = (err) => {
+    assert.strictEqual(err.message, 'EBADF: bad file descriptor, read');
+    assert.strictEqual(err.errno, uv.UV_EBADF);
+    assert.strictEqual(err.code, 'EBADF');
+    assert.strictEqual(err.syscall, 'read');
+    return true;
+  };
+
+  common.runWithInvalidFD((fd) => {
+    const buf = Buffer.alloc(5);
+    fs.read(fd, buf, 0, 1, 1, common.mustCall(validateError));
+
+    assert.throws(
+      () => fs.readSync(fd, buf, 0, 1, 1),
+      validateError
+    );
+  });
+}
