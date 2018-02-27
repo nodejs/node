@@ -3,17 +3,10 @@
 const common = require('../common');
 const http = require('http');
 const assert = require('assert');
-const fs = require('fs');
+const { Writable } = require('stream');
 const Countdown = require('../common/countdown');
 
-function cleanup(fname) {
-  try {
-    if (fs.statSync(fname)) fs.unlinkSync(fname);
-  } catch (err) {}
-}
-
 const N = 2;
-const fname = '/dev/null';
 let abortRequest = true;
 
 const server = http.Server(common.mustCall((req, res) => {
@@ -21,19 +14,15 @@ const server = http.Server(common.mustCall((req, res) => {
   headers['Content-Length'] = 50;
   const socket = res.socket;
   res.writeHead(200, headers);
-  setTimeout(() => res.write('aaaaaaaaaa'), 100);
-  setTimeout(() => res.write('bbbbbbbbbb'), 200);
-  setTimeout(() => res.write('cccccccccc'), 300);
-  setTimeout(() => res.write('dddddddddd'), 400);
+  res.write('aaaaaaaaaabbbbbbbbbbccccccccccdddddddddd');
   if (abortRequest) {
-    setTimeout(() => socket.destroy(), 600);
+    process.nextTick(() => socket.destroy());
   } else {
-    setTimeout(() => res.end('eeeeeeeeee'), 1000);
+    process.nextTick(() => res.end('eeeeeeeeee'));
   }
 }, N));
 
 server.listen(0, common.mustCall(() => {
-  cleanup(fname);
   download();
 }));
 
@@ -53,13 +42,17 @@ function download() {
     assert.strictEqual(res.statusCode, 200);
     assert.strictEqual(res.headers.connection, 'close');
     let aborted = false;
-    const fstream = fs.createWriteStream(fname);
-    res.pipe(fstream);
+    const writable = new Writable({
+      write(chunk, encoding, callback) {
+        callback();
+      }
+    });
+    res.pipe(writable);
     const _handle = res.socket._handle;
     _handle._close = res.socket._handle.close;
     _handle.close = function(callback) {
       _handle._close();
-      // set readable to true event though request is complete
+      // set readable to true even though request is complete
       if (res.complete) res.readable = true;
       callback();
     };
@@ -70,9 +63,8 @@ function download() {
       aborted = true;
     });
     res.on('error', common.mustNotCall());
-    fstream.on('finish', () => {
+    writable.on('finish', () => {
       assert.strictEqual(aborted, abortRequest);
-      cleanup(fname);
       finishCountdown.dec();
       if (finishCountdown.remaining === 0) return;
       abortRequest = false; // next one should be a good response
