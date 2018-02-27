@@ -63,8 +63,9 @@ function translateOptions(cliOptions) {
         cache: cliOptions.cache,
         cacheFile: cliOptions.cacheFile,
         cacheLocation: cliOptions.cacheLocation,
-        fix: cliOptions.fix && (cliOptions.quiet ? quietFixPredicate : true),
-        allowInlineConfig: cliOptions.inlineConfig
+        fix: (cliOptions.fix || cliOptions.fixDryRun) && (cliOptions.quiet ? quietFixPredicate : true),
+        allowInlineConfig: cliOptions.inlineConfig,
+        reportUnusedDisableDirectives: cliOptions.reportUnusedDisableDirectives
     };
 }
 
@@ -143,6 +144,8 @@ const cli = {
 
         const files = currentOptions._;
 
+        const useStdin = typeof text === "string";
+
         if (currentOptions.version) { // version from package.json
 
             log.info(`v${require("../package.json").version}`);
@@ -151,7 +154,8 @@ const cli = {
             if (files.length) {
                 log.error("The --print-config option must be used with exactly one file name.");
                 return 1;
-            } else if (text) {
+            }
+            if (useStdin) {
                 log.error("The --print-config option is not available for piped-in code.");
                 return 1;
             }
@@ -162,23 +166,27 @@ const cli = {
 
             log.info(JSON.stringify(fileConfig, null, "  "));
             return 0;
-        } else if (currentOptions.help || (!files.length && !text)) {
+        } else if (currentOptions.help || (!files.length && !useStdin)) {
 
             log.info(options.generateHelp());
 
         } else {
 
-            debug(`Running on ${text ? "text" : "files"}`);
+            debug(`Running on ${useStdin ? "text" : "files"}`);
 
-            // disable --fix for piped-in code until we know how to do it correctly
-            if (text && currentOptions.fix) {
-                log.error("The --fix option is not available for piped-in code.");
+            if (currentOptions.fix && currentOptions.fixDryRun) {
+                log.error("The --fix option and the --fix-dry-run option cannot be used together.");
+                return 1;
+            }
+
+            if (useStdin && currentOptions.fix) {
+                log.error("The --fix option is not available for piped-in code; use --fix-dry-run instead.");
                 return 1;
             }
 
             const engine = new CLIEngine(translateOptions(currentOptions));
 
-            const report = text ? engine.executeOnText(text, currentOptions.stdinFilename, true) : engine.executeOnFiles(files);
+            const report = useStdin ? engine.executeOnText(text, currentOptions.stdinFilename, true) : engine.executeOnFiles(files);
 
             if (currentOptions.fix) {
                 debug("Fix mode enabled - applying fixes");

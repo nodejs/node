@@ -1,5 +1,5 @@
 'use strict';
-module.exports = function generate__limit(it, $keyword) {
+module.exports = function generate__limit(it, $keyword, $ruleType) {
   var out = ' ';
   var $lvl = it.level;
   var $dataLvl = it.dataLevel;
@@ -9,7 +9,7 @@ module.exports = function generate__limit(it, $keyword) {
   var $breakOnError = !it.opts.allErrors;
   var $errorKeyword;
   var $data = 'data' + ($dataLvl || '');
-  var $isData = it.opts.v5 && $schema && $schema.$data,
+  var $isData = it.opts.$data && $schema && $schema.$data,
     $schemaValue;
   if ($isData) {
     out += ' var schema' + ($lvl) + ' = ' + (it.util.getData($schema.$data, $dataLvl, it.dataPathArr)) + '; ';
@@ -20,17 +20,20 @@ module.exports = function generate__limit(it, $keyword) {
   var $isMax = $keyword == 'maximum',
     $exclusiveKeyword = $isMax ? 'exclusiveMaximum' : 'exclusiveMinimum',
     $schemaExcl = it.schema[$exclusiveKeyword],
-    $isDataExcl = it.opts.v5 && $schemaExcl && $schemaExcl.$data,
+    $isDataExcl = it.opts.$data && $schemaExcl && $schemaExcl.$data,
     $op = $isMax ? '<' : '>',
-    $notOp = $isMax ? '>' : '<';
+    $notOp = $isMax ? '>' : '<',
+    $errorKeyword = undefined;
   if ($isDataExcl) {
     var $schemaValueExcl = it.util.getData($schemaExcl.$data, $dataLvl, it.dataPathArr),
       $exclusive = 'exclusive' + $lvl,
+      $exclType = 'exclType' + $lvl,
+      $exclIsNumber = 'exclIsNumber' + $lvl,
       $opExpr = 'op' + $lvl,
       $opStr = '\' + ' + $opExpr + ' + \'';
     out += ' var schemaExcl' + ($lvl) + ' = ' + ($schemaValueExcl) + '; ';
     $schemaValueExcl = 'schemaExcl' + $lvl;
-    out += ' var exclusive' + ($lvl) + '; if (typeof ' + ($schemaValueExcl) + ' != \'boolean\' && typeof ' + ($schemaValueExcl) + ' != \'undefined\') { ';
+    out += ' var ' + ($exclusive) + '; var ' + ($exclType) + ' = typeof ' + ($schemaValueExcl) + '; if (' + ($exclType) + ' != \'boolean\' && ' + ($exclType) + ' != \'undefined\' && ' + ($exclType) + ' != \'number\') { ';
     var $errorKeyword = $exclusiveKeyword;
     var $$outStack = $$outStack || [];
     $$outStack.push(out);
@@ -58,27 +61,49 @@ module.exports = function generate__limit(it, $keyword) {
     } else {
       out += ' var err = ' + (__err) + ';  if (vErrors === null) vErrors = [err]; else vErrors.push(err); errors++; ';
     }
-    out += ' } else if( ';
+    out += ' } else if ( ';
     if ($isData) {
       out += ' (' + ($schemaValue) + ' !== undefined && typeof ' + ($schemaValue) + ' != \'number\') || ';
     }
-    out += ' ((exclusive' + ($lvl) + ' = ' + ($schemaValueExcl) + ' === true) ? ' + ($data) + ' ' + ($notOp) + '= ' + ($schemaValue) + ' : ' + ($data) + ' ' + ($notOp) + ' ' + ($schemaValue) + ') || ' + ($data) + ' !== ' + ($data) + ') { var op' + ($lvl) + ' = exclusive' + ($lvl) + ' ? \'' + ($op) + '\' : \'' + ($op) + '=\';';
+    out += ' ' + ($exclType) + ' == \'number\' ? ( (' + ($exclusive) + ' = ' + ($schemaValue) + ' === undefined || ' + ($schemaValueExcl) + ' ' + ($op) + '= ' + ($schemaValue) + ') ? ' + ($data) + ' ' + ($notOp) + '= ' + ($schemaValueExcl) + ' : ' + ($data) + ' ' + ($notOp) + ' ' + ($schemaValue) + ' ) : ( (' + ($exclusive) + ' = ' + ($schemaValueExcl) + ' === true) ? ' + ($data) + ' ' + ($notOp) + '= ' + ($schemaValue) + ' : ' + ($data) + ' ' + ($notOp) + ' ' + ($schemaValue) + ' ) || ' + ($data) + ' !== ' + ($data) + ') { var op' + ($lvl) + ' = ' + ($exclusive) + ' ? \'' + ($op) + '\' : \'' + ($op) + '=\';';
   } else {
-    var $exclusive = $schemaExcl === true,
+    var $exclIsNumber = typeof $schemaExcl == 'number',
       $opStr = $op;
-    if (!$exclusive) $opStr += '=';
-    var $opExpr = '\'' + $opStr + '\'';
-    out += ' if ( ';
-    if ($isData) {
-      out += ' (' + ($schemaValue) + ' !== undefined && typeof ' + ($schemaValue) + ' != \'number\') || ';
+    if ($exclIsNumber && $isData) {
+      var $opExpr = '\'' + $opStr + '\'';
+      out += ' if ( ';
+      if ($isData) {
+        out += ' (' + ($schemaValue) + ' !== undefined && typeof ' + ($schemaValue) + ' != \'number\') || ';
+      }
+      out += ' ( ' + ($schemaValue) + ' === undefined || ' + ($schemaExcl) + ' ' + ($op) + '= ' + ($schemaValue) + ' ? ' + ($data) + ' ' + ($notOp) + '= ' + ($schemaExcl) + ' : ' + ($data) + ' ' + ($notOp) + ' ' + ($schemaValue) + ' ) || ' + ($data) + ' !== ' + ($data) + ') { ';
+    } else {
+      if ($exclIsNumber && $schema === undefined) {
+        $exclusive = true;
+        $errorKeyword = $exclusiveKeyword;
+        $errSchemaPath = it.errSchemaPath + '/' + $exclusiveKeyword;
+        $schemaValue = $schemaExcl;
+        $notOp += '=';
+      } else {
+        if ($exclIsNumber) $schemaValue = Math[$isMax ? 'min' : 'max']($schemaExcl, $schema);
+        if ($schemaExcl === ($exclIsNumber ? $schemaValue : true)) {
+          $exclusive = true;
+          $errorKeyword = $exclusiveKeyword;
+          $errSchemaPath = it.errSchemaPath + '/' + $exclusiveKeyword;
+          $notOp += '=';
+        } else {
+          $exclusive = false;
+          $opStr += '=';
+        }
+      }
+      var $opExpr = '\'' + $opStr + '\'';
+      out += ' if ( ';
+      if ($isData) {
+        out += ' (' + ($schemaValue) + ' !== undefined && typeof ' + ($schemaValue) + ' != \'number\') || ';
+      }
+      out += ' ' + ($data) + ' ' + ($notOp) + ' ' + ($schemaValue) + ' || ' + ($data) + ' !== ' + ($data) + ') { ';
     }
-    out += ' ' + ($data) + ' ' + ($notOp);
-    if ($exclusive) {
-      out += '=';
-    }
-    out += ' ' + ($schemaValue) + ' || ' + ($data) + ' !== ' + ($data) + ') {';
   }
-  var $errorKeyword = $keyword;
+  $errorKeyword = $errorKeyword || $keyword;
   var $$outStack = $$outStack || [];
   $$outStack.push(out);
   out = ''; /* istanbul ignore else */
@@ -89,7 +114,7 @@ module.exports = function generate__limit(it, $keyword) {
       if ($isData) {
         out += '\' + ' + ($schemaValue);
       } else {
-        out += '' + ($schema) + '\'';
+        out += '' + ($schemaValue) + '\'';
       }
     }
     if (it.opts.verbose) {

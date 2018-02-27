@@ -5,6 +5,8 @@ A simple temporary file and directory creator for [node.js.][1]
 [![Build Status](https://travis-ci.org/raszi/node-tmp.svg?branch=master)](https://travis-ci.org/raszi/node-tmp)
 [![Dependencies](https://david-dm.org/raszi/node-tmp.svg)](https://david-dm.org/raszi/node-tmp)
 [![npm version](https://badge.fury.io/js/tmp.svg)](https://badge.fury.io/js/tmp)
+[![API documented](https://img.shields.io/badge/API-documented-brightgreen.svg)](https://raszi.github.io/node-tmp/)
+[![Known Vulnerabilities](https://snyk.io/test/npm/tmp/badge.svg)](https://snyk.io/test/npm/tmp)
 
 ## About
 
@@ -12,7 +14,8 @@ This is a [widely used library][2] to create temporary files and directories
 in a [node.js][1] environment.
 
 Tmp offers both an asynchronous and a synchronous API. For all API calls, all
-the parameters are optional.
+the parameters are optional. There also exists a promisified version of the
+API, see (5) under references below.
 
 Tmp uses crypto for determining random file names, or, when using templates,
 a six letter random identifier. And just in case that you do not have that much
@@ -29,6 +32,8 @@ npm install tmp
 
 ## Usage
 
+Please also check [API docs][4].
+
 ### Asynchronous file creation
 
 Simple temporary file creation, the file will be closed and unlinked on process exit.
@@ -39,8 +44,8 @@ var tmp = require('tmp');
 tmp.file(function _tempFileCreated(err, path, fd, cleanupCallback) {
   if (err) throw err;
 
-  console.log("File: ", path);
-  console.log("Filedescriptor: ", fd);
+  console.log('File: ', path);
+  console.log('Filedescriptor: ', fd);
   
   // If we don't need the file anymore we could manually call the cleanupCallback
   // But that is not necessary if we didn't pass the keep option because the library
@@ -57,8 +62,8 @@ A synchronous version of the above.
 var tmp = require('tmp');
 
 var tmpobj = tmp.fileSync();
-console.log("File: ", tmpobj.name);
-console.log("Filedescriptor: ", tmpobj.fd);
+console.log('File: ', tmpobj.name);
+console.log('Filedescriptor: ', tmpobj.fd);
   
 // If we don't need the file anymore we could manually call the removeCallback
 // But that is not necessary if we didn't pass the keep option because the library
@@ -82,7 +87,7 @@ var tmp = require('tmp');
 tmp.dir(function _tempDirCreated(err, path, cleanupCallback) {
   if (err) throw err;
 
-  console.log("Dir: ", path);
+  console.log('Dir: ', path);
   
   // Manual cleanup
   cleanupCallback();
@@ -100,7 +105,7 @@ A synchronous version of the above.
 var tmp = require('tmp');
 
 var tmpobj = tmp.dirSync();
-console.log("Dir: ", tmpobj.name);
+console.log('Dir: ', tmpobj.name);
 // Manual cleanup
 tmpobj.removeCallback();
 ```
@@ -120,7 +125,7 @@ var tmp = require('tmp');
 tmp.tmpName(function _tempNameGenerated(err, path) {
     if (err) throw err;
 
-    console.log("Created temporary filename: ", path);
+    console.log('Created temporary filename: ', path);
 });
 ```
 
@@ -132,7 +137,7 @@ A synchronous version of the above.
 var tmp = require('tmp');
 
 var name = tmp.tmpNameSync();
-console.log("Created temporary filename: ", name);
+console.log('Created temporary filename: ', name);
 ```
 
 ## Advanced usage
@@ -147,8 +152,8 @@ var tmp = require('tmp');
 tmp.file({ mode: 0644, prefix: 'prefix-', postfix: '.txt' }, function _tempFileCreated(err, path, fd) {
   if (err) throw err;
 
-  console.log("File: ", path);
-  console.log("Filedescriptor: ", fd);
+  console.log('File: ', path);
+  console.log('Filedescriptor: ', fd);
 });
 ```
 
@@ -160,8 +165,8 @@ A synchronous version of the above.
 var tmp = require('tmp');
 
 var tmpobj = tmp.fileSync({ mode: 0644, prefix: 'prefix-', postfix: '.txt' });
-console.log("File: ", tmpobj.name);
-console.log("Filedescriptor: ", tmpobj.fd);
+console.log('File: ', tmpobj.name);
+console.log('Filedescriptor: ', tmpobj.fd);
 ```
 
 ### Controlling the Descriptor
@@ -213,7 +218,7 @@ var tmp = require('tmp');
 tmp.dir({ mode: 0750, prefix: 'myTmpDir_' }, function _tempDirCreated(err, path) {
   if (err) throw err;
 
-  console.log("Dir: ", path);
+  console.log('Dir: ', path);
 });
 ```
 
@@ -225,7 +230,7 @@ Again, a synchronous version of the above.
 var tmp = require('tmp');
 
 var tmpobj = tmp.dirSync({ mode: 0750, prefix: 'myTmpDir_' });
-console.log("Dir: ", tmpobj.name);
+console.log('Dir: ', tmpobj.name);
 ```
 
 ### mkstemp like, asynchronously
@@ -238,7 +243,7 @@ var tmp = require('tmp');
 tmp.dir({ template: '/tmp/tmp-XXXXXX' }, function _tempDirCreated(err, path) {
   if (err) throw err;
 
-  console.log("Dir: ", path);
+  console.log('Dir: ', path);
 });
 ```
 
@@ -250,7 +255,7 @@ This will behave similarly to the asynchronous version.
 var tmp = require('tmp');
 
 var tmpobj = tmp.dirSync({ template: '/tmp/tmp-XXXXXX' });
-console.log("Dir: ", tmpobj.name);
+console.log('Dir: ', tmpobj.name);
 ```
 
 ### Asynchronous filename generation
@@ -263,7 +268,7 @@ var tmp = require('tmp');
 tmp.tmpName({ template: '/tmp/tmp-XXXXXX' }, function _tempNameGenerated(err, path) {
     if (err) throw err;
 
-    console.log("Created temporary filename: ", path);
+    console.log('Created temporary filename: ', path);
 });
 ```
 
@@ -274,7 +279,7 @@ The `tmpNameSync()` function works similarly to `tmpName()`.
 ```javascript
 var tmp = require('tmp');
 var tmpname = tmp.tmpNameSync({ template: '/tmp/tmp-XXXXXX' });
-console.log("Created temporary filename: ", tmpname);
+console.log('Created temporary filename: ', tmpname);
 ```
 
 ## Graceful cleanup
@@ -305,3 +310,5 @@ All options are optional :)
 [1]: http://nodejs.org/
 [2]: https://www.npmjs.com/browse/depended/tmp
 [3]: http://www.kernel.org/doc/man-pages/online/pages/man3/mkstemp.3.html
+[4]: https://raszi.github.io/node-tmp/
+[5]: https://github.com/benjamingr/tmp-promise

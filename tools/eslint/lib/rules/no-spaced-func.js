@@ -16,7 +16,8 @@ module.exports = {
             description: "disallow spacing between function identifiers and their applications (deprecated)",
             category: "Stylistic Issues",
             recommended: false,
-            replacedBy: ["func-call-spacing"]
+            replacedBy: ["func-call-spacing"],
+            url: "https://eslint.org/docs/rules/no-spaced-func"
         },
 
         deprecated: true,

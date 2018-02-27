@@ -71,7 +71,7 @@
   {{ var $format = it.formats[$schema]; }}
   {{? !$format }}
     {{? $unknownFormats == 'ignore' }}
-      {{ console.warn('unknown format "' + $schema + '" ignored in schema at path "' + it.errSchemaPath + '"'); }}
+      {{ it.logger.warn('unknown format "' + $schema + '" ignored in schema at path "' + it.errSchemaPath + '"'); }}
       {{# def.skipFormat }}
     {{?? $allowUnknown && $unknownFormats.indexOf($schema) >= 0 }}
       {{# def.skipFormat }}

@@ -41,7 +41,8 @@ module.exports = {
         docs: {
             description: "disallow `parseInt()` and `Number.parseInt()` in favor of binary, octal, and hexadecimal literals",
             category: "ECMAScript 6",
-            recommended: false
+            recommended: false,
+            url: "https://eslint.org/docs/rules/prefer-numeric-literals"
         },
 
         schema: [],
@@ -96,8 +97,10 @@ module.exports = {
 
                             if (+(newPrefix + node.arguments[0].value) !== parseInt(node.arguments[0].value, node.arguments[1].value)) {
 
-                                // If the newly-produced literal would be invalid, (e.g. 0b1234),
-                                // or it would yield an incorrect parseInt result for some other reason, don't make a fix.
+                                /*
+                                 * If the newly-produced literal would be invalid, (e.g. 0b1234),
+                                 * or it would yield an incorrect parseInt result for some other reason, don't make a fix.
+                                 */
                                 return null;
                             }
                             return fixer.replaceText(node, prefixMap[node.arguments[1].value] + node.arguments[0].value);

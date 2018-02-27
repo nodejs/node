@@ -15,9 +15,7 @@ const astUtils = require("../ast-utils");
 // Helpers
 //------------------------------------------------------------------------------
 
-const ALWAYS_MESSAGE = "Comments should not begin with a lowercase character",
-    NEVER_MESSAGE = "Comments should not begin with an uppercase character",
-    DEFAULT_IGNORE_PATTERN = astUtils.COMMENTS_IGNORE_PATTERN,
+const DEFAULT_IGNORE_PATTERN = astUtils.COMMENTS_IGNORE_PATTERN,
     WHITESPACE = /\s/g,
     MAYBE_URL = /^\s*[^:/?#\s]+:\/\/[^?#]/, // TODO: Combine w/ max-len pattern?
     DEFAULTS = {
@@ -113,7 +111,8 @@ module.exports = {
         docs: {
             description: "enforce or disallow capitalization of the first letter of a comment",
             category: "Stylistic Issues",
-            recommended: false
+            recommended: false,
+            url: "https://eslint.org/docs/rules/capitalized-comments"
         },
         fixable: "code",
         schema: [
@@ -131,7 +130,12 @@ module.exports = {
                     }
                 ]
             }
-        ]
+        ],
+
+        messages: {
+            unexpectedLowercaseComment: "Comments should not begin with a lowercase character",
+            unexpectedUppercaseComment: "Comments should not begin with an uppercase character"
+        }
     },
 
     create(context) {
@@ -247,7 +251,8 @@ module.exports = {
 
             if (capitalize === "always" && isLowercase) {
                 return false;
-            } else if (capitalize === "never" && isUppercase) {
+            }
+            if (capitalize === "never" && isUppercase) {
                 return false;
             }
 
@@ -265,14 +270,14 @@ module.exports = {
                 commentValid = isCommentValid(comment, options);
 
             if (!commentValid) {
-                const message = capitalize === "always"
-                    ? ALWAYS_MESSAGE
-                    : NEVER_MESSAGE;
+                const messageId = capitalize === "always"
+                    ? "unexpectedLowercaseComment"
+                    : "unexpectedUppercaseComment";
 
                 context.report({
                     node: null, // Intentionally using loc instead
                     loc: comment.loc,
-                    message,
+                    messageId,
                     fix(fixer) {
                         const match = comment.value.match(LETTER_PATTERN);
 

@@ -104,7 +104,8 @@ module.exports = {
         docs: {
             description: "disallow unreachable code after `return`, `throw`, `continue`, and `break` statements",
             category: "Possible Errors",
-            recommended: true
+            recommended: true,
+            url: "https://eslint.org/docs/rules/no-unreachable"
         },
 
         schema: []
@@ -145,8 +146,10 @@ module.exports = {
                 nextNode = node;
             }
 
-            // Report the current range since this statement is reachable or is
-            // not consecutive to the current range.
+            /*
+             * Report the current range since this statement is reachable or is
+             * not consecutive to the current range.
+             */
             if (!range.isEmpty) {
                 context.report({
                     message: "Unreachable code.",

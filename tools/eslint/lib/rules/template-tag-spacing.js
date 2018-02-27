@@ -14,7 +14,8 @@ module.exports = {
         docs: {
             description: "require or disallow spacing between template tags and their literals",
             category: "Stylistic Issues",
-            recommended: false
+            recommended: false,
+            url: "https://eslint.org/docs/rules/template-tag-spacing"
         },
 
         fixable: "whitespace",

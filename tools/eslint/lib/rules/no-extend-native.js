@@ -27,7 +27,8 @@ module.exports = {
         docs: {
             description: "disallow extending native types",
             category: "Best Practices",
-            recommended: false
+            recommended: false,
+            url: "https://eslint.org/docs/rules/no-extend-native"
         },
 
         schema: [
@@ -44,7 +45,11 @@ module.exports = {
                 },
                 additionalProperties: false
             }
-        ]
+        ],
+
+        messages: {
+            unexpected: "{{builtin}} prototype is read only, properties should not be added."
+        }
     },
 
     create(context) {
@@ -66,7 +71,7 @@ module.exports = {
         function reportNode(node, builtin) {
             context.report({
                 node,
-                message: "{{builtin}} prototype is read only, properties should not be added.",
+                messageId: "unexpected",
                 data: {
                     builtin
                 }

@@ -15,7 +15,8 @@ module.exports = {
         docs: {
             description: "require `default` cases in `switch` statements",
             category: "Best Practices",
-            recommended: false
+            recommended: false,
+            url: "https://eslint.org/docs/rules/default-case"
         },
 
         schema: [{
@@ -26,7 +27,11 @@ module.exports = {
                 }
             },
             additionalProperties: false
-        }]
+        }],
+
+        messages: {
+            missingDefaultCase: "Expected a default case."
+        }
     },
 
     create(context) {
@@ -81,7 +86,7 @@ module.exports = {
                     }
 
                     if (!comment || !commentPattern.test(comment.value.trim())) {
-                        context.report({ node, message: "Expected a default case." });
+                        context.report({ node, messageId: "missingDefaultCase" });
                     }
                 }
             }

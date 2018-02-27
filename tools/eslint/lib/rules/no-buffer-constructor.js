@@ -13,9 +13,13 @@ module.exports = {
         docs: {
             description: "disallow use of the Buffer() constructor",
             category: "Node.js and CommonJS",
-            recommended: false
+            recommended: false,
+            url: "https://eslint.org/docs/rules/no-buffer-constructor"
         },
-        schema: []
+        schema: [],
+        messages: {
+            deprecated: "{{expr}} is deprecated. Use Buffer.from(), Buffer.alloc(), or Buffer.allocUnsafe() instead."
+        }
     },
 
     create(context) {
@@ -28,8 +32,8 @@ module.exports = {
             "CallExpression[callee.name='Buffer'], NewExpression[callee.name='Buffer']"(node) {
                 context.report({
                     node,
-                    message: "{{example}} is deprecated. Use Buffer.from(), Buffer.alloc(), or Buffer.allocUnsafe() instead.",
-                    data: { example: node.type === "CallExpression" ? "Buffer()" : "new Buffer()" }
+                    messageId: "deprecated",
+                    data: { expr: node.type === "CallExpression" ? "Buffer()" : "new Buffer()" }
                 });
             }
         };

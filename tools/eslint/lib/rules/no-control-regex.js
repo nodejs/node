@@ -14,10 +14,15 @@ module.exports = {
         docs: {
             description: "disallow control characters in regular expressions",
             category: "Possible Errors",
-            recommended: true
+            recommended: true,
+            url: "https://eslint.org/docs/rules/no-control-regex"
         },
 
-        schema: []
+        schema: [],
+
+        messages: {
+            unexpected: "Unexpected control character(s) in regular expression: {{controlChars}}."
+        }
     },
 
     create(context) {
@@ -25,13 +30,14 @@ module.exports = {
         /**
          * Get the regex expression
          * @param {ASTNode} node node to evaluate
-         * @returns {*} Regex if found else null
+         * @returns {RegExp|null} Regex if found else null
          * @private
          */
         function getRegExp(node) {
             if (node.value instanceof RegExp) {
                 return node.value;
-            } else if (typeof node.value === "string") {
+            }
+            if (typeof node.value === "string") {
 
                 const parent = context.getAncestors().pop();
 
@@ -112,7 +118,7 @@ module.exports = {
                     if (controlCharacters.length > 0) {
                         context.report({
                             node,
-                            message: "Unexpected control character(s) in regular expression: {{controlChars}}.",
+                            messageId: "unexpected",
                             data: {
                                 controlChars: controlCharacters.join(", ")
                             }

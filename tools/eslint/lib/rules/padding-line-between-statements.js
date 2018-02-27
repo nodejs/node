@@ -85,8 +85,10 @@ function isBlockLikeStatement(sourceCode, node) {
         return true;
     }
 
-    // IIFE is a block-like statement specially from
-    // JSCS#disallowPaddingNewLinesAfterBlocks.
+    /*
+     * IIFE is a block-like statement specially from
+     * JSCS#disallowPaddingNewLinesAfterBlocks.
+     */
     if (isIIFEStatement(node)) {
         return true;
     }
@@ -205,14 +207,14 @@ function verifyForAny() {
  * blank lines automatically.
  *
  * @param {RuleContext} context The rule context to report.
- * @param {ASTNode} prevNode The previous node to check.
+ * @param {ASTNode} _ Unused. The previous node to check.
  * @param {ASTNode} nextNode The next node to check.
  * @param {Array<Token[]>} paddingLines The array of token pairs that blank
  * lines exist between the pair.
  * @returns {void}
  * @private
  */
-function verifyForNever(context, prevNode, nextNode, paddingLines) {
+function verifyForNever(context, _, nextNode, paddingLines) {
     if (paddingLines.length === 0) {
         return;
     }
@@ -356,6 +358,12 @@ const StatementTypes = {
             node.loc.start.line !== node.loc.end.line &&
             isBlockLikeStatement(sourceCode, node)
     },
+    "multiline-expression": {
+        test: (node, sourceCode) =>
+            node.loc.start.line !== node.loc.end.line &&
+            node.type === "ExpressionStatement" &&
+            !isDirectivePrologue(node, sourceCode)
+    },
 
     block: newNodeTypeTester("BlockStatement"),
     empty: newNodeTypeTester("EmptyStatement"),
@@ -392,7 +400,8 @@ module.exports = {
         docs: {
             description: "require or disallow padding lines between statements",
             category: "Stylistic Issues",
-            recommended: false
+            recommended: false,
+            url: "https://eslint.org/docs/rules/padding-line-between-statements"
         },
         fixable: "whitespace",
         schema: {

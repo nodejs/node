@@ -12,11 +12,11 @@ const astUtils = require("../ast-utils");
 //------------------------------------------------------------------------------
 
 /**
-* Returns the union of two sets.
-* @param {Set} setA The first set
-* @param {Set} setB The second set
-* @returns {Set} The union of the two sets
-*/
+ * Returns the union of two sets.
+ * @param {Set} setA The first set
+ * @param {Set} setB The second set
+ * @returns {Set} The union of the two sets
+ */
 function union(setA, setB) {
     return new Set(function *() {
         yield* setA;
@@ -29,22 +29,22 @@ const REGEX_GENERAL_ESCAPES = new Set("\\bcdDfnrsStvwWxu0123456789]");
 const REGEX_NON_CHARCLASS_ESCAPES = union(REGEX_GENERAL_ESCAPES, new Set("^/.$*+?[{}|()B"));
 
 /**
-* Parses a regular expression into a list of characters with character class info.
-* @param {string} regExpText The raw text used to create the regular expression
-* @returns {Object[]} A list of characters, each with info on escaping and whether they're in a character class.
-* @example
-*
-* parseRegExp('a\\b[cd-]')
-*
-* returns:
-* [
-*   {text: 'a', index: 0, escaped: false, inCharClass: false, startsCharClass: false, endsCharClass: false},
-*   {text: 'b', index: 2, escaped: true, inCharClass: false, startsCharClass: false, endsCharClass: false},
-*   {text: 'c', index: 4, escaped: false, inCharClass: true, startsCharClass: true, endsCharClass: false},
-*   {text: 'd', index: 5, escaped: false, inCharClass: true, startsCharClass: false, endsCharClass: false},
-*   {text: '-', index: 6, escaped: false, inCharClass: true, startsCharClass: false, endsCharClass: false}
-* ]
-*/
+ * Parses a regular expression into a list of characters with character class info.
+ * @param {string} regExpText The raw text used to create the regular expression
+ * @returns {Object[]} A list of characters, each with info on escaping and whether they're in a character class.
+ * @example
+ *
+ * parseRegExp('a\\b[cd-]')
+ *
+ * returns:
+ * [
+ *   {text: 'a', index: 0, escaped: false, inCharClass: false, startsCharClass: false, endsCharClass: false},
+ *   {text: 'b', index: 2, escaped: true, inCharClass: false, startsCharClass: false, endsCharClass: false},
+ *   {text: 'c', index: 4, escaped: false, inCharClass: true, startsCharClass: true, endsCharClass: false},
+ *   {text: 'd', index: 5, escaped: false, inCharClass: true, startsCharClass: false, endsCharClass: false},
+ *   {text: '-', index: 6, escaped: false, inCharClass: true, startsCharClass: false, endsCharClass: false}
+ * ]
+ */
 function parseRegExp(regExpText) {
     const charList = [];
 
@@ -63,7 +63,14 @@ function parseRegExp(regExpText) {
                 return Object.assign(state, { inCharClass: false, startingCharClass: false });
             }
         }
-        charList.push({ text: char, index, escaped: state.escapeNextChar, inCharClass: state.inCharClass, startsCharClass: state.startingCharClass, endsCharClass: false });
+        charList.push({
+            text: char,
+            index,
+            escaped: state.escapeNextChar,
+            inCharClass: state.inCharClass,
+            startsCharClass: state.startingCharClass,
+            endsCharClass: false
+        });
         return Object.assign(state, { escapeNextChar: false, startingCharClass: false });
     }, { escapeNextChar: false, inCharClass: false, startingCharClass: false });
 
@@ -75,7 +82,8 @@ module.exports = {
         docs: {
             description: "disallow unnecessary escape characters",
             category: "Best Practices",
-            recommended: true
+            recommended: true,
+            url: "https://eslint.org/docs/rules/no-useless-escape"
         },
 
         schema: []
@@ -123,7 +131,8 @@ module.exports = {
                     isUnnecessaryEscape = match.input[match.index + 2] !== "{";
                 } else if (escapedChar === "{") {
 
-                    /* Warn if `\{` is not preceded by `$`. If preceded by `$`, escaping
+                    /*
+                     * Warn if `\{` is not preceded by `$`. If preceded by `$`, escaping
                      * is necessary and the rule should not warn. If preceded by `/$`, the rule
                      * will warn for the `/$` instead, as it is the first unnecessarily escaped character.
                      */

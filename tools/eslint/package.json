@@ -1,48 +1,26 @@
 {
-  "_args": [
-    [
-      {
-        "raw": "eslint@latest",
-        "scope": null,
-        "escapedName": "eslint",
-        "name": "eslint",
-        "rawSpec": "latest",
-        "spec": "latest",
-        "type": "tag"
-      },
-      "/Users/mborins/code/node/v6.x/tools/eslint-tmp"
-    ]
-  ],
   "_from": "eslint@latest",
-  "_id": "eslint@4.4.1",
-  "_inCache": true,
+  "_id": "eslint@4.18.1",
+  "_inBundle": false,
+  "_integrity": "sha512-gPSfpSRCHre1GLxGmO68tZNxOlL2y7xBd95VcLD+Eo4S2js31YoMum3CAQIOaxY24hqYOMksMvW38xuuWKQTgw==",
   "_location": "/eslint",
-  "_nodeVersion": "6.11.1",
-  "_npmOperationalInternal": {
-    "host": "s3://npm-registry-packages",
-    "tmp": "tmp/eslint-4.4.1.tgz_1502121565448_0.9195736704859883"
-  },
-  "_npmUser": {
-    "name": "eslint",
-    "email": "nicholas+eslint@nczconsulting.com"
-  },
-  "_npmVersion": "3.10.10",
   "_phantomChildren": {},
   "_requested": {
+    "type": "tag",
+    "registry": true,
     "raw": "eslint@latest",
-    "scope": null,
-    "escapedName": "eslint",
     "name": "eslint",
+    "escapedName": "eslint",
     "rawSpec": "latest",
-    "spec": "latest",
-    "type": "tag"
+    "saveSpec": null,
+    "fetchSpec": "latest"
   },
   "_requiredBy": [
-    "#USER"
+    "#USER",
+    "/"
   ],
-  "_resolved": "https://registry.npmjs.org/eslint/-/eslint-4.4.1.tgz",
-  "_shasum": "99cd7eafcffca2ff99a5c8f5f2a474d6364b4bd3",
-  "_shrinkwrap": null,
+  "_resolved": "https://registry.npmjs.org/eslint/-/eslint-4.18.1.tgz",
+  "_shasum": "b9138440cb1e98b2f44a0d578c6ecf8eae6150b0",
   "_spec": "eslint@latest",
   "_where": "/Users/mborins/code/node/v6.x/tools/eslint-tmp",
   "author": {
@@ -55,29 +33,31 @@
   "bugs": {
     "url": "https://github.com/eslint/eslint/issues/"
   },
+  "bundleDependencies": false,
   "dependencies": {
-    "ajv": "^5.2.0",
+    "ajv": "^5.3.0",
     "babel-code-frame": "^6.22.0",
-    "chalk": "^1.1.3",
+    "chalk": "^2.1.0",
     "concat-stream": "^1.6.0",
     "cross-spawn": "^5.1.0",
-    "debug": "^2.6.8",
-    "doctrine": "^2.0.0",
+    "debug": "^3.1.0",
+    "doctrine": "^2.1.0",
+    "eslint-plugin-markdown": "^1.0.0-beta.4",
     "eslint-scope": "^3.7.1",
-    "espree": "^3.5.0",
+    "eslint-visitor-keys": "^1.0.0",
+    "espree": "^3.5.2",
     "esquery": "^1.0.0",
-    "estraverse": "^4.2.0",
     "esutils": "^2.0.2",
     "file-entry-cache": "^2.0.0",
     "functional-red-black-tree": "^1.0.1",
     "glob": "^7.1.2",
-    "globals": "^9.17.0",
+    "globals": "^11.0.1",
     "ignore": "^3.3.3",
     "imurmurhash": "^0.1.4",
     "inquirer": "^3.0.6",
     "is-resolvable": "^1.0.0",
     "js-yaml": "^3.9.1",
-    "json-stable-stringify": "^1.0.1",
+    "json-stable-stringify-without-jsonify": "^1.0.1",
     "levn": "^0.3.0",
     "lodash": "^4.17.4",
     "minimatch": "^3.0.2",
@@ -85,14 +65,16 @@
     "natural-compare": "^1.4.0",
     "optionator": "^0.8.2",
     "path-is-inside": "^1.0.2",
-    "pluralize": "^4.0.0",
+    "pluralize": "^7.0.0",
     "progress": "^2.0.0",
     "require-uncached": "^1.0.3",
     "semver": "^5.3.0",
+    "strip-ansi": "^4.0.0",
     "strip-json-comments": "~2.0.1",
     "table": "^4.0.1",
     "text-table": "~0.2.0"
   },
+  "deprecated": false,
   "description": "An AST-based pattern checker for JavaScript.",
   "devDependencies": {
     "babel-polyfill": "^6.23.0",
@@ -106,11 +88,13 @@
     "coveralls": "^2.13.1",
     "dateformat": "^2.0.0",
     "ejs": "^2.5.6",
-    "eslint-plugin-eslint-plugin": "^0.8.0",
+    "eslint-plugin-eslint-plugin": "^1.2.0",
     "eslint-plugin-node": "^5.1.0",
+    "eslint-plugin-rulesdir": "^0.1.0",
     "eslint-release": "^0.10.1",
+    "eslint-rule-composer": "^0.1.0",
     "eslump": "1.6.0",
-    "esprima": "^3.1.3",
+    "esprima": "^4.0.0",
     "esprima-fb": "^15001.1001.0-dev-harmony-fb",
     "istanbul": "^0.4.5",
     "jsdoc": "^3.4.3",
@@ -121,22 +105,16 @@
     "karma-phantomjs-launcher": "^1.0.4",
     "leche": "^2.1.2",
     "load-perf": "^0.2.0",
-    "markdownlint": "^0.5.0",
+    "markdownlint": "^0.6.1",
     "mocha": "^3.4.2",
     "mock-fs": "^4.3.0",
     "npm-license": "^0.3.3",
     "phantomjs-prebuilt": "^2.1.14",
     "proxyquire": "^1.8.0",
     "shelljs": "^0.7.7",
-    "shelljs-nodecli": "~0.1.1",
-    "sinon": "^2.3.2",
+    "sinon": "^3.2.1",
     "temp": "^0.8.3",
     "through": "^2.3.8"
-  },
-  "directories": {},
-  "dist": {
-    "shasum": "99cd7eafcffca2ff99a5c8f5f2a474d6364b4bd3",
-    "tarball": "https://registry.npmjs.org/eslint/-/eslint-4.4.1.tgz"
   },
   "engines": {
     "node": ">=4"
@@ -149,8 +127,7 @@
     "lib",
     "messages"
   ],
-  "gitHead": "0d9da6d9698a59cef3daff3dd1c10f8975b6f3cb",
-  "homepage": "http://eslint.org",
+  "homepage": "https://eslint.org",
   "keywords": [
     "ast",
     "lint",
@@ -160,23 +137,7 @@
   ],
   "license": "MIT",
   "main": "./lib/api.js",
-  "maintainers": [
-    {
-      "name": "eslint",
-      "email": "nicholas+eslint@nczconsulting.com"
-    },
-    {
-      "name": "ivolodin",
-      "email": "ivolodin@gmail.com"
-    },
-    {
-      "name": "nzakas",
-      "email": "nicholas@nczconsulting.com"
-    }
-  ],
   "name": "eslint",
-  "optionalDependencies": {},
-  "readme": "ERROR: No README data found!",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/eslint/eslint.git"
@@ -185,7 +146,6 @@
     "alpharelease": "node Makefile.js prerelease -- alpha",
     "betarelease": "node Makefile.js prerelease -- beta",
     "browserify": "node Makefile.js browserify",
-    "check-commit": "node Makefile.js checkGitCommit",
     "ci-release": "node Makefile.js ciRelease",
     "coveralls": "cat ./coverage/lcov.info | coveralls",
     "docs": "node Makefile.js docs",
@@ -197,5 +157,5 @@
     "release": "node Makefile.js release",
     "test": "node Makefile.js test"
   },
-  "version": "4.4.1"
+  "version": "4.18.1"
 }

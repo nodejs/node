@@ -24,7 +24,7 @@ const debug = require("debug")("eslint:config");
 // Constants
 //------------------------------------------------------------------------------
 
-const PERSONAL_CONFIG_DIR = os.homedir() || null;
+const PERSONAL_CONFIG_DIR = os.homedir();
 const SUBCONFIG_SEP = ":";
 
 //------------------------------------------------------------------------------
@@ -120,10 +120,10 @@ class Config {
     }
 
     /**
-    * Loads the config options from a config specified on the command line.
-    * @param {string} [config] A shareable named config or path to a config file.
-    * @returns {void}
-    */
+     * Loads the config options from a config specified on the command line.
+     * @param {string} [config] A shareable named config or path to a config file.
+     * @returns {void}
+     */
     loadSpecificConfig(config) {
         if (config) {
             debug(`Using command line config ${config}`);
@@ -148,15 +148,13 @@ class Config {
     getPersonalConfig() {
         if (typeof this.personalConfig === "undefined") {
             let config;
+            const filename = ConfigFile.getFilenameForDirectory(PERSONAL_CONFIG_DIR);
 
-            if (PERSONAL_CONFIG_DIR) {
-                const filename = ConfigFile.getFilenameForDirectory(PERSONAL_CONFIG_DIR);
-
-                if (filename) {
-                    debug("Using personal config");
-                    config = ConfigFile.load(filename, this);
-                }
+            if (filename) {
+                debug("Using personal config");
+                config = ConfigFile.load(filename, this);
             }
+
             this.personalConfig = config || null;
         }
 
@@ -218,8 +216,10 @@ class Config {
                 return localConfigHierarchy;
             }
 
-            // Don't consider the personal config file in the home directory,
-            // except if the home directory is the same as the current working directory
+            /*
+             * Don't consider the personal config file in the home directory,
+             * except if the home directory is the same as the current working directory
+             */
             if (localConfigDirectory === PERSONAL_CONFIG_DIR && localConfigFile !== projectConfigPath) {
                 continue;
             }
@@ -345,16 +345,16 @@ class Config {
             this.plugins.loadAll(this.cliConfig.plugins);
         }
 
-        // Step 3: Override parser only if it is passed explicitly through the command line
-        // or if it's not defined yet (because the final object will at least have the parser key)
+        /*
+         * Step 3: Override parser only if it is passed explicitly through the command line
+         * or if it's not defined yet (because the final object will at least have the parser key)
+         */
         if (this.parser || !config.parser) {
             config = ConfigOps.merge(config, { parser: this.parser });
         }
 
-        // Step 4: Apply environments to the config if present
-        if (config.env) {
-            config = ConfigOps.applyEnvironments(config, this.linterContext.environments);
-        }
+        // Step 4: Apply environments to the config
+        config = ConfigOps.applyEnvironments(config, this.linterContext.environments);
 
         this.configCache.setMergedConfig(vector, config);
 

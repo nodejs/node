@@ -14,7 +14,8 @@ module.exports = {
         docs: {
             description: "require or disallow padding within blocks",
             category: "Stylistic Issues",
-            recommended: false
+            recommended: false,
+            url: "https://eslint.org/docs/rules/padded-blocks"
         },
 
         fixable: "whitespace",
@@ -111,7 +112,7 @@ module.exports = {
          * @returns {boolean} Whether or not the token is followed by a blank line.
          */
         function getFirstBlockToken(token) {
-            let prev = token,
+            let prev,
                 first = token;
 
             do {
@@ -129,7 +130,7 @@ module.exports = {
          */
         function getLastBlockToken(token) {
             let last = token,
-                next = token;
+                next;
 
             do {
                 next = last;

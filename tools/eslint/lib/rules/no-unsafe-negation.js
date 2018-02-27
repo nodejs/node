@@ -44,7 +44,8 @@ module.exports = {
         docs: {
             description: "disallow negating the left operand of relational operators",
             category: "Possible Errors",
-            recommended: true
+            recommended: true,
+            url: "https://eslint.org/docs/rules/no-unsafe-negation"
         },
         schema: [],
         fixable: "code"

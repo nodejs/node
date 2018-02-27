@@ -79,7 +79,8 @@ module.exports = {
         docs: {
             description: "require or disallow trailing commas",
             category: "Stylistic Issues",
-            recommended: false
+            recommended: false,
+            url: "https://eslint.org/docs/rules/comma-dangle"
         },
         fixable: "code",
         schema: {
@@ -123,14 +124,17 @@ module.exports = {
                     ]
                 }
             ]
+        },
+
+        messages: {
+            unexpected: "Unexpected trailing comma.",
+            missing: "Missing trailing comma."
         }
     },
 
     create(context) {
         const options = normalizeOptions(context.options[0]);
         const sourceCode = context.getSourceCode();
-        const UNEXPECTED_MESSAGE = "Unexpected trailing comma.";
-        const MISSING_MESSAGE = "Missing trailing comma.";
 
         /**
          * Gets the last item of the given node.
@@ -229,7 +233,7 @@ module.exports = {
                 context.report({
                     node: lastItem,
                     loc: trailingToken.loc.start,
-                    message: UNEXPECTED_MESSAGE,
+                    messageId: "unexpected",
                     fix(fixer) {
                         return fixer.remove(trailingToken);
                     }
@@ -266,7 +270,7 @@ module.exports = {
                 context.report({
                     node: lastItem,
                     loc: trailingToken.loc.end,
-                    message: MISSING_MESSAGE,
+                    messageId: "missing",
                     fix(fixer) {
                         return fixer.insertTextAfter(trailingToken, ",");
                     }

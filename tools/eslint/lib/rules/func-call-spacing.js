@@ -20,7 +20,8 @@ module.exports = {
         docs: {
             description: "require or disallow spacing between function identifiers and their invocations",
             category: "Stylistic Issues",
-            recommended: false
+            recommended: false,
+            url: "https://eslint.org/docs/rules/func-call-spacing"
         },
 
         fixable: "whitespace",
@@ -118,8 +119,10 @@ module.exports = {
                     message: "Unexpected space between function name and paren.",
                     fix(fixer) {
 
-                        // Only autofix if there is no newline
-                        // https://github.com/eslint/eslint/issues/7787
+                        /*
+                         * Only autofix if there is no newline
+                         * https://github.com/eslint/eslint/issues/7787
+                         */
                         if (!hasNewline) {
                             return fixer.removeRange([prevToken.range[1], parenToken.range[0]]);
                         }

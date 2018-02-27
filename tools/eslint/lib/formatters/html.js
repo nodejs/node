@@ -51,7 +51,8 @@ function renderSummary(totalErrors, totalWarnings) {
 function renderColor(totalErrors, totalWarnings) {
     if (totalErrors !== 0) {
         return 2;
-    } else if (totalWarnings !== 0) {
+    }
+    if (totalWarnings !== 0) {
         return 1;
     }
     return 0;

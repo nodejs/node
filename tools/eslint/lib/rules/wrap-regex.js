@@ -14,7 +14,8 @@ module.exports = {
         docs: {
             description: "require parenthesis around regex literals",
             category: "Stylistic Issues",
-            recommended: false
+            recommended: false,
+            url: "https://eslint.org/docs/rules/wrap-regex"
         },
 
         schema: [],

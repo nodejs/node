@@ -14,7 +14,8 @@ module.exports = {
         docs: {
             description: "require identifiers to match a specified regular expression",
             category: "Stylistic Issues",
-            recommended: false
+            recommended: false,
+            url: "https://eslint.org/docs/rules/id-match"
         },
 
         schema: [

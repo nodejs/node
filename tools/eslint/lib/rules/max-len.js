@@ -68,7 +68,8 @@ module.exports = {
         docs: {
             description: "enforce a maximum line length",
             category: "Stylistic Issues",
-            recommended: false
+            recommended: false,
+            url: "https://eslint.org/docs/rules/max-len"
         },
 
         schema: [
@@ -181,11 +182,10 @@ module.exports = {
          * Gets the line after the comment and any remaining trailing whitespace is
          * stripped.
          * @param {string} line The source line with a trailing comment
-         * @param {number} lineNumber The one-indexed line number this is on
          * @param {ASTNode} comment The comment to remove
          * @returns {string} Line without comment and trailing whitepace
          */
-        function stripTrailingComment(line, lineNumber, comment) {
+        function stripTrailingComment(line, comment) {
 
             // loc.column is zero-indexed
             return line.slice(0, comment.loc.start.column).replace(/\s+$/, "");
@@ -306,7 +306,7 @@ module.exports = {
                     if (isFullLineComment(line, lineNumber, comment)) {
                         lineIsComment = true;
                     } else if (ignoreTrailingComments && isTrailingComment(line, lineNumber, comment)) {
-                        line = stripTrailingComment(line, lineNumber, comment);
+                        line = stripTrailingComment(line, comment);
                     }
                 }
                 if (ignorePattern && ignorePattern.test(line) ||

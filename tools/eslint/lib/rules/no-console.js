@@ -20,7 +20,8 @@ module.exports = {
         docs: {
             description: "disallow the use of `console`",
             category: "Possible Errors",
-            recommended: true
+            recommended: true,
+            url: "https://eslint.org/docs/rules/no-console"
         },
 
         schema: [
@@ -38,7 +39,11 @@ module.exports = {
                 },
                 additionalProperties: false
             }
-        ]
+        ],
+
+        messages: {
+            unexpected: "Unexpected console statement."
+        }
     },
 
     create(context) {
@@ -101,7 +106,7 @@ module.exports = {
             context.report({
                 node,
                 loc: node.loc,
-                message: "Unexpected console statement."
+                messageId: "unexpected"
             });
         }
 
@@ -111,7 +116,8 @@ module.exports = {
                 const consoleVar = astUtils.getVariableByName(scope, "console");
                 const shadowed = consoleVar && consoleVar.defs.length > 0;
 
-                /* 'scope.through' includes all references to undefined
+                /*
+                 * 'scope.through' includes all references to undefined
                  * variables. If the variable 'console' is not defined, it uses
                  * 'scope.through'.
                  */

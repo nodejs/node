@@ -10,13 +10,11 @@
 
     var typed,
         utility,
-        isArray,
         jsdoc,
         esutils,
         hasOwnProperty;
 
     esutils = require('esutils');
-    isArray = require('isarray');
     typed = require('./typed');
     utility = require('./utility');
 
@@ -92,63 +90,49 @@
             title === 'public' || title === 'private' || title === 'protected';
     }
 
-    function trim(str) {
-        return str.replace(/^\s+/, '').replace(/\s+$/, '');
-    }
+    // A regex character class that contains all whitespace except linebreak characters (\r, \n, \u2028, \u2029)
+    var WHITESPACE = '[ \\f\\t\\v\\u00a0\\u1680\\u180e\\u2000-\\u200a\\u202f\\u205f\\u3000\\ufeff]';
+
+    var STAR_MATCHER = '(' + WHITESPACE + '*(?:\\*' + WHITESPACE + '?)?)(.+|[\r\n\u2028\u2029])';
 
     function unwrapComment(doc) {
         // JSDoc comment is following form
         //   /**
         //    * .......
         //    */
-        // remove /**, */ and *
-        var BEFORE_STAR = 0,
-            STAR = 1,
-            AFTER_STAR = 2,
-            index,
-            len,
-            mode,
-            result,
-            ch;
 
-        doc = doc.replace(/^\/\*\*?/, '').replace(/\*\/$/, '');
-        index = 0;
-        len = doc.length;
-        mode = BEFORE_STAR;
-        result = '';
+        return doc.
+            // remove /**
+            replace(/^\/\*\*?/, '').
+            // remove */
+            replace(/\*\/$/, '').
+            // remove ' * ' at the beginning of a line
+            replace(new RegExp(STAR_MATCHER, 'g'), '$2').
+            // remove trailing whitespace
+            replace(/\s*$/, '');
+    }
 
-        while (index < len) {
-            ch = doc.charCodeAt(index);
-            switch (mode) {
-            case BEFORE_STAR:
-                if (esutils.code.isLineTerminator(ch)) {
-                    result += String.fromCharCode(ch);
-                } else if (ch === 0x2A  /* '*' */) {
-                    mode = STAR;
-                } else if (!esutils.code.isWhiteSpace(ch)) {
-                    result += String.fromCharCode(ch);
-                    mode = AFTER_STAR;
-                }
-                break;
+    /**
+     * Converts an index in an "unwrapped" JSDoc comment to the corresponding index in the original "wrapped" version
+     * @param {string} originalSource The original wrapped comment
+     * @param {number} unwrappedIndex The index of a character in the unwrapped string
+     * @returns {number} The index of the corresponding character in the original wrapped string
+     */
+    function convertUnwrappedCommentIndex(originalSource, unwrappedIndex) {
+        var replacedSource = originalSource.replace(/^\/\*\*?/, '');
+        var numSkippedChars = 0;
+        var matcher = new RegExp(STAR_MATCHER, 'g');
+        var match;
 
-            case STAR:
-                if (!esutils.code.isWhiteSpace(ch)) {
-                    result += String.fromCharCode(ch);
-                }
-                mode = esutils.code.isLineTerminator(ch) ? BEFORE_STAR : AFTER_STAR;
-                break;
+        while ((match = matcher.exec(replacedSource))) {
+            numSkippedChars += match[1].length;
 
-            case AFTER_STAR:
-                result += String.fromCharCode(ch);
-                if (esutils.code.isLineTerminator(ch)) {
-                    mode = BEFORE_STAR;
-                }
-                break;
+            if (match.index + match[0].length > unwrappedIndex + numSkippedChars) {
+                return unwrappedIndex + numSkippedChars + originalSource.length - replacedSource.length;
             }
-            index += 1;
         }
 
-        return result.replace(/\s+$/, '');
+        return originalSource.replace(/\*\/$/, '').replace(/\s*$/, '').length;
     }
 
     // JSDoc Tag Parser
@@ -159,6 +143,7 @@
             lineNumber,
             length,
             source,
+            originalSource,
             recoverable,
             sloppy,
             strict;
@@ -209,8 +194,8 @@
         // { { ok: string } }
         //
         // therefore, scanning type expression with balancing braces.
-        function parseType(title, last) {
-            var ch, brace, type, direct = false;
+        function parseType(title, last, addRange) {
+            var ch, brace, type, startIndex, direct = false;
 
 
             // search '{'
@@ -250,6 +235,9 @@
                     } else if (ch === 0x7B  /* '{' */) {
                         brace += 1;
                     }
+                    if (type === '') {
+                        startIndex = index;
+                    }
                     type += advance();
                 }
             }
@@ -260,15 +248,15 @@
             }
 
             if (isAllowedOptional(title)) {
-                return typed.parseParamType(type);
+                return typed.parseParamType(type, {startIndex: convertIndex(startIndex), range: addRange});
             }
 
-            return typed.parseType(type);
+            return typed.parseType(type, {startIndex: convertIndex(startIndex), range: addRange});
         }
 
         function scanIdentifier(last) {
             var identifier;
-            if (!esutils.code.isIdentifierStartES5(source.charCodeAt(index))) {
+            if (!esutils.code.isIdentifierStartES5(source.charCodeAt(index)) && !source[index].match(/[0-9]/)) {
                 return null;
             }
             identifier = advance();
@@ -296,13 +284,13 @@
                 return null;
             }
 
-            if (allowBrackets && source.charCodeAt(index) === 0x5B  /* '[' */) {
-                useBrackets = true;
-                name = advance();
-            }
-
-            if (!esutils.code.isIdentifierStartES5(source.charCodeAt(index))) {
-                return null;
+            if (source.charCodeAt(index) === 0x5B  /* '[' */) {
+                if (allowBrackets) {
+                    useBrackets = true;
+                    name = advance();
+                } else {
+                    return null;
+                }
             }
 
             name += scanIdentifier(last);
@@ -408,6 +396,13 @@
             return true;
         }
 
+        function convertIndex(rangeIndex) {
+            if (source === originalSource) {
+                return rangeIndex;
+            }
+            return convertUnwrappedCommentIndex(originalSource, rangeIndex);
+        }
+
         function TagParser(options, title) {
             this._options = options;
             this._title = title.toLowerCase();
@@ -418,6 +413,7 @@
             if (this._options.lineNumbers) {
                 this._tag.lineNumber = lineNumber;
             }
+            this._first = index - title.length - 1;
             this._last = 0;
             // space to save special information for title parsers.
             this._extra = { };
@@ -448,7 +444,7 @@
             // type required titles
             if (isTypeParameterRequired(this._title)) {
                 try {
-                    this._tag.type = parseType(this._title, this._last);
+                    this._tag.type = parseType(this._title, this._last, this._options.range);
                     if (!this._tag.type) {
                         if (!isParamTitle(this._title) && !isReturnTitle(this._title)) {
                             if (!this.addError('Missing or invalid tag type')) {
@@ -465,7 +461,7 @@
             } else if (isAllowedType(this._title)) {
                 // optional types
                 try {
-                    this._tag.type = parseType(this._title, this._last);
+                    this._tag.type = parseType(this._title, this._last, this._options.range);
                 } catch (e) {
                     //For optional types, lets drop the thrown error when we hit the end of the file
                 }
@@ -525,8 +521,8 @@
                         // extract the default value if there is one
                         // example: @param {string} [somebody=John Doe] description
                         assign = name.substring(1, name.length - 1).split('=');
-                        if (assign[1]) {
-                            this._tag['default'] = assign[1];
+                        if (assign.length > 1) {
+                            this._tag['default'] = assign.slice(1).join('=');
                         }
                         this._tag.name = assign[0];
 
@@ -546,7 +542,7 @@
         };
 
         TagParser.prototype.parseDescription = function parseDescription() {
-            var description = trim(sliceSource(source, index, this._last));
+            var description = sliceSource(source, index, this._last).trim();
             if (description) {
                 if ((/^-\s+/).test(description)) {
                     description = description.substring(2);
@@ -557,15 +553,15 @@
         };
 
         TagParser.prototype.parseCaption = function parseDescription() {
-            var description = trim(sliceSource(source, index, this._last));
+            var description = sliceSource(source, index, this._last).trim();
             var captionStartTag = '<caption>';
             var captionEndTag = '</caption>';
             var captionStart = description.indexOf(captionStartTag);
             var captionEnd = description.indexOf(captionEndTag);
             if (captionStart >= 0 && captionEnd >= 0) {
-                this._tag.caption = trim(description.substring(
-                    captionStart + captionStartTag.length, captionEnd));
-                this._tag.description = trim(description.substring(captionEnd + captionEndTag.length));
+                this._tag.caption = description.substring(
+                    captionStart + captionStartTag.length, captionEnd).trim();
+                this._tag.description = description.substring(captionEnd + captionEndTag.length).trim();
             } else {
                 this._tag.description = description;
             }
@@ -587,7 +583,7 @@
                 'namespace': true,
                 'typedef': true
             };
-            kind = trim(sliceSource(source, index, this._last));
+            kind = sliceSource(source, index, this._last).trim();
             this._tag.kind = kind;
             if (!hasOwnProperty(kinds, kind)) {
                 if (!this.addError('Invalid kind name \'%0\'', kind)) {
@@ -599,7 +595,7 @@
 
         TagParser.prototype.parseAccess = function parseAccess() {
             var access;
-            access = trim(sliceSource(source, index, this._last));
+            access = sliceSource(source, index, this._last).trim();
             this._tag.access = access;
             if (access !== 'private' && access !== 'protected' && access !== 'public') {
                 if (!this.addError('Invalid access name \'%0\'', access)) {
@@ -609,13 +605,13 @@
             return true;
         };
 
-        TagParser.prototype.parseThis = function parseAccess() {
-            // this name may be a name expression (e.g. {foo.bar})
-            // or a name path (e.g. foo.bar)
-            var value = trim(sliceSource(source, index, this._last));
+        TagParser.prototype.parseThis = function parseThis() {
+            // this name may be a name expression (e.g. {foo.bar}),
+            // an union (e.g. {foo.bar|foo.baz}) or a name path (e.g. foo.bar)
+            var value = sliceSource(source, index, this._last).trim();
             if (value && value.charAt(0) === '{') {
                 var gotType = this.parseType();
-                if (gotType && this._tag.type.type === 'NameExpression') {
+                if (gotType && this._tag.type.type === 'NameExpression' || this._tag.type.type === 'UnionType') {
                     this._tag.name = this._tag.type.name;
                     return true;
                 } else {
@@ -628,7 +624,7 @@
 
         TagParser.prototype.parseVariation = function parseVariation() {
             var variation, text;
-            text = trim(sliceSource(source, index, this._last));
+            text = sliceSource(source, index, this._last).trim();
             variation = parseFloat(text, 10);
             this._tag.variation = variation;
             if (isNaN(variation)) {
@@ -640,7 +636,7 @@
         };
 
         TagParser.prototype.ensureEnd = function () {
-            var shouldBeEmpty = trim(sliceSource(source, index, this._last));
+            var shouldBeEmpty = sliceSource(source, index, this._last).trim();
             if (shouldBeEmpty) {
                 if (!this.addError('Unknown content \'%0\'', shouldBeEmpty)) {
                     return false;
@@ -757,6 +753,10 @@
             // Seek to content last index.
             this._last = seekContent(this._title);
 
+            if (this._options.range) {
+                this._tag.range = [this._first, source.slice(0, this._last).replace(/\s*$/, '').length].map(convertIndex);
+            }
+
             if (hasOwnProperty(Rules, this._title)) {
                 sequences = Rules[this._title];
             } else {
@@ -821,7 +821,7 @@
                 description += advance();
             }
 
-            return preserveWhitespace ? description : trim(description);
+            return preserveWhitespace ? description : description.trim();
         }
 
         function parse(comment, options) {
@@ -837,9 +837,11 @@
                 source = comment;
             }
 
+            originalSource = comment;
+
             // array of relevant tags
             if (options.tags) {
-                if (isArray(options.tags)) {
+                if (Array.isArray(options.tags)) {
                     interestingTags = { };
                     for (i = 0, iz = options.tags.length; i < iz; i++) {
                         if (typeof options.tags[i] === 'string') {

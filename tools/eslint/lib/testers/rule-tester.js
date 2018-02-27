@@ -47,7 +47,8 @@ const lodash = require("lodash"),
     ajv = require("../util/ajv"),
     Linter = require("../linter"),
     Environments = require("../config/environments"),
-    SourceCodeFixer = require("../util/source-code-fixer");
+    SourceCodeFixer = require("../util/source-code-fixer"),
+    interpolate = require("../util/interpolate");
 
 //------------------------------------------------------------------------------
 // Private Members
@@ -131,13 +132,31 @@ const DESCRIBE = Symbol("describe");
 const IT = Symbol("it");
 
 /**
- * This is `it` or `describe` if those don't exist.
+ * This is `it` default handler if `it` don't exist.
  * @this {Mocha}
  * @param {string} text - The description of the test case.
  * @param {Function} method - The logic of the test case.
  * @returns {any} Returned value of `method`.
  */
-function defaultHandler(text, method) {
+function itDefaultHandler(text, method) {
+    try {
+        return method.apply(this);
+    } catch (err) {
+        if (err instanceof assert.AssertionError) {
+            err.message += ` (${util.inspect(err.actual)} ${err.operator} ${util.inspect(err.expected)})`;
+        }
+        throw err;
+    }
+}
+
+/**
+ * This is `describe` default handler if `describe` don't exist.
+ * @this {Mocha}
+ * @param {string} text - The description of the test case.
+ * @param {Function} method - The logic of the test case.
+ * @returns {any} Returned value of `method`.
+ */
+function describeDefaultHandler(text, method) {
     return method.apply(this);
 }
 
@@ -159,7 +178,8 @@ class RuleTester {
 
             // we have to clone because merge uses the first argument for recipient
             lodash.cloneDeep(defaultConfig),
-            testerConfig
+            testerConfig,
+            { rules: { "rule-tester/validate-ast": "error" } }
         );
 
         /**
@@ -177,7 +197,7 @@ class RuleTester {
      */
     static setDefaultConfig(config) {
         if (typeof config !== "object") {
-            throw new Error("RuleTester.setDefaultConfig: config must be an object");
+            throw new TypeError("RuleTester.setDefaultConfig: config must be an object");
         }
         defaultConfig = config;
 
@@ -203,13 +223,15 @@ class RuleTester {
     }
 
 
-    // If people use `mocha test.js --watch` command, `describe` and `it` function
-    // instances are different for each execution. So `describe` and `it` should get fresh instance
-    // always.
+    /*
+     * If people use `mocha test.js --watch` command, `describe` and `it` function
+     * instances are different for each execution. So `describe` and `it` should get fresh instance
+     * always.
+     */
     static get describe() {
         return (
             this[DESCRIBE] ||
-            (typeof describe === "function" ? describe : defaultHandler)
+            (typeof describe === "function" ? describe : describeDefaultHandler)
         );
     }
 
@@ -220,7 +242,7 @@ class RuleTester {
     static get it() {
         return (
             this[IT] ||
-            (typeof it === "function" ? it : defaultHandler)
+            (typeof it === "function" ? it : itDefaultHandler)
         );
     }
 
@@ -253,7 +275,7 @@ class RuleTester {
             linter = this.linter;
 
         if (lodash.isNil(test) || typeof test !== "object") {
-            throw new Error(`Test Scenarios for rule ${ruleName} : Could not find test scenario object`);
+            throw new TypeError(`Test Scenarios for rule ${ruleName} : Could not find test scenario object`);
         }
 
         requiredScenarios.forEach(scenarioType => {
@@ -267,6 +289,23 @@ class RuleTester {
                 `Test Scenarios for rule ${ruleName} is invalid:`
             ].concat(scenarioErrors).join("\n"));
         }
+
+
+        linter.defineRule(ruleName, Object.assign({}, rule, {
+
+            // Create a wrapper rule that freezes the `context` properties.
+            create(context) {
+                freezeDeeply(context.options);
+                freezeDeeply(context.settings);
+                freezeDeeply(context.parserOptions);
+
+                return (typeof rule === "function" ? rule : rule.create)(context);
+            }
+        }));
+
+        linter.defineRules(this.rules);
+
+        const ruleMap = linter.getRules();
 
         /**
          * Run the rule for the given item
@@ -283,12 +322,16 @@ class RuleTester {
             } else {
                 code = item.code;
 
-                // Assumes everything on the item is a config except for the
-                // parameters used by this tester
+                /*
+                 * Assumes everything on the item is a config except for the
+                 * parameters used by this tester
+                 */
                 const itemConfig = lodash.omit(item, RuleTesterParameters);
 
-                // Create the config object from the tester config and this item
-                // specific configurations.
+                /*
+                 * Create the config object from the tester config and this item
+                 * specific configurations.
+                 */
                 config = lodash.merge(
                     config,
                     itemConfig
@@ -306,9 +349,21 @@ class RuleTester {
                 config.rules[ruleName] = 1;
             }
 
-            linter.defineRule(ruleName, rule);
+            const schema = validator.getRuleOptionsSchema(rule);
 
-            const schema = validator.getRuleOptionsSchema(ruleName, linter.rules);
+            /*
+             * Setup AST getters.
+             * The goal is to check whether or not AST was modified when
+             * running the rule under test.
+             */
+            linter.defineRule("rule-tester/validate-ast", () => ({
+                Program(node) {
+                    beforeAST = cloneDeeplyExcludesParent(node);
+                },
+                "Program:exit"(node) {
+                    afterAST = node;
+                }
+            }));
 
             if (schema) {
                 ajv.validateSchema(schema);
@@ -324,62 +379,13 @@ class RuleTester {
                 }
             }
 
-            validator.validate(config, "rule-tester", linter.rules, new Environments());
+            validator.validate(config, "rule-tester", ruleMap.get.bind(ruleMap), new Environments());
 
-            /*
-             * Setup AST getters.
-             * The goal is to check whether or not AST was modified when
-             * running the rule under test.
-             */
-            linter.reset();
-
-            linter.on("Program", node => {
-                beforeAST = cloneDeeplyExcludesParent(node);
-            });
-
-            linter.on("Program:exit", node => {
-                afterAST = node;
-            });
-
-            // Freezes rule-context properties.
-            const originalGet = linter.rules.get;
-
-            try {
-                linter.rules.get = function(ruleId) {
-                    const originalRule = originalGet.call(linter.rules, ruleId);
-
-                    if (typeof originalRule === "function") {
-                        return function(context) {
-                            Object.freeze(context);
-                            freezeDeeply(context.options);
-                            freezeDeeply(context.settings);
-                            freezeDeeply(context.parserOptions);
-
-                            return originalRule(context);
-                        };
-                    }
-                    return {
-                        meta: originalRule.meta,
-                        create(context) {
-                            Object.freeze(context);
-                            freezeDeeply(context.options);
-                            freezeDeeply(context.settings);
-                            freezeDeeply(context.parserOptions);
-
-                            return originalRule.create(context);
-                        }
-                    };
-
-                };
-
-                return {
-                    messages: linter.verify(code, config, filename, true),
-                    beforeAST,
-                    afterAST: cloneDeeplyExcludesParent(afterAST)
-                };
-            } finally {
-                linter.rules.get = originalGet;
-            }
+            return {
+                messages: linter.verify(code, config, filename, true),
+                beforeAST,
+                afterAST: cloneDeeplyExcludesParent(afterAST)
+            };
         }
 
         /**
@@ -393,6 +399,7 @@ class RuleTester {
             if (!lodash.isEqual(beforeAST, afterAST)) {
 
                 // Not using directly to avoid performance problem in node 6.1.0. See #6111
+                // eslint-disable-next-line no-restricted-properties
                 assert.deepEqual(beforeAST, afterAST, "Rule should not modify AST.");
             }
         }
@@ -408,7 +415,7 @@ class RuleTester {
             const result = runRuleForItem(item);
             const messages = result.messages;
 
-            assert.equal(messages.length, 0, util.format("Should have no errors but had %d: %s",
+            assert.strictEqual(messages.length, 0, util.format("Should have no errors but had %d: %s",
                 messages.length, util.inspect(messages)));
 
             assertASTDidntChange(result.beforeAST, result.afterAST);
@@ -432,7 +439,7 @@ class RuleTester {
                     `Expected '${actual}' to match ${expected}`
                 );
             } else {
-                assert.equal(actual, expected);
+                assert.strictEqual(actual, expected);
             }
         }
 
@@ -452,10 +459,10 @@ class RuleTester {
 
 
             if (typeof item.errors === "number") {
-                assert.equal(messages.length, item.errors, util.format("Should have %d error%s but had %d: %s",
+                assert.strictEqual(messages.length, item.errors, util.format("Should have %d error%s but had %d: %s",
                     item.errors, item.errors === 1 ? "" : "s", messages.length, util.inspect(messages)));
             } else {
-                assert.equal(
+                assert.strictEqual(
                     messages.length, item.errors.length,
                     util.format(
                         "Should have %d error%s but had %d: %s",
@@ -466,47 +473,73 @@ class RuleTester {
                 const hasMessageOfThisRule = messages.some(m => m.ruleId === ruleName);
 
                 for (let i = 0, l = item.errors.length; i < l; i++) {
-                    assert(!messages[i].fatal, `A fatal parsing error occurred: ${messages[i].message}`);
+                    const error = item.errors[i];
+                    const message = messages[i];
+
+                    assert(!message.fatal, `A fatal parsing error occurred: ${message.message}`);
                     assert(hasMessageOfThisRule, "Error rule name should be the same as the name of the rule being tested");
 
-                    if (typeof item.errors[i] === "string" || item.errors[i] instanceof RegExp) {
+                    if (typeof error === "string" || error instanceof RegExp) {
 
                         // Just an error message.
-                        assertMessageMatches(messages[i].message, item.errors[i]);
-                    } else if (typeof item.errors[i] === "object") {
+                        assertMessageMatches(message.message, error);
+                    } else if (typeof error === "object") {
 
                         /*
                          * Error object.
                          * This may have a message, node type, line, and/or
                          * column.
                          */
-                        if (item.errors[i].message) {
-                            assertMessageMatches(messages[i].message, item.errors[i].message);
+                        if (error.message) {
+                            assertMessageMatches(message.message, error.message);
                         }
 
-                        if (item.errors[i].type) {
-                            assert.equal(messages[i].nodeType, item.errors[i].type, `Error type should be ${item.errors[i].type}, found ${messages[i].nodeType}`);
+                        if (error.messageId) {
+                            const hOP = Object.hasOwnProperty.call.bind(Object.hasOwnProperty);
+
+                            // verify that `error.message` is `undefined`
+                            assert.strictEqual(error.message, void 0, "Error should not specify both a message and a messageId.");
+                            if (!hOP(rule, "meta") || !hOP(rule.meta, "messages")) {
+                                assert.fail("Rule must specify a messages hash in `meta`");
+                            }
+                            if (!hOP(rule.meta.messages, error.messageId)) {
+                                const friendlyIDList = `[${Object.keys(rule.meta.messages).map(key => `'${key}'`).join(", ")}]`;
+
+                                assert.fail(`Invalid messageId '${error.messageId}'. Expected one of ${friendlyIDList}.`);
+                            }
+
+                            let expectedMessage = rule.meta.messages[error.messageId];
+
+                            if (error.data) {
+                                expectedMessage = interpolate(expectedMessage, error.data);
+                            }
+
+                            assertMessageMatches(message.message, expectedMessage);
                         }
 
-                        if (item.errors[i].hasOwnProperty("line")) {
-                            assert.equal(messages[i].line, item.errors[i].line, `Error line should be ${item.errors[i].line}`);
+                        if (error.type) {
+                            assert.strictEqual(message.nodeType, error.type, `Error type should be ${error.type}, found ${message.nodeType}`);
                         }
 
-                        if (item.errors[i].hasOwnProperty("column")) {
-                            assert.equal(messages[i].column, item.errors[i].column, `Error column should be ${item.errors[i].column}`);
+                        if (error.hasOwnProperty("line")) {
+                            assert.strictEqual(message.line, error.line, `Error line should be ${error.line}`);
                         }
 
-                        if (item.errors[i].hasOwnProperty("endLine")) {
-                            assert.equal(messages[i].endLine, item.errors[i].endLine, `Error endLine should be ${item.errors[i].endLine}`);
+                        if (error.hasOwnProperty("column")) {
+                            assert.strictEqual(message.column, error.column, `Error column should be ${error.column}`);
                         }
 
-                        if (item.errors[i].hasOwnProperty("endColumn")) {
-                            assert.equal(messages[i].endColumn, item.errors[i].endColumn, `Error endColumn should be ${item.errors[i].endColumn}`);
+                        if (error.hasOwnProperty("endLine")) {
+                            assert.strictEqual(message.endLine, error.endLine, `Error endLine should be ${error.endLine}`);
+                        }
+
+                        if (error.hasOwnProperty("endColumn")) {
+                            assert.strictEqual(message.endColumn, error.endColumn, `Error endColumn should be ${error.endColumn}`);
                         }
                     } else {
 
                         // Message was an unexpected type
-                        assert.fail(messages[i], null, "Error should be a string, object, or RegExp.");
+                        assert.fail(message, null, "Error should be a string, object, or RegExp.");
                     }
                 }
             }
@@ -519,8 +552,9 @@ class RuleTester {
                         "Expected no autofixes to be suggested"
                     );
                 } else {
-                    const fixResult = SourceCodeFixer.applyFixes(linter.getSourceCode(), messages);
+                    const fixResult = SourceCodeFixer.applyFixes(item.code, messages);
 
+                    // eslint-disable-next-line no-restricted-properties
                     assert.equal(fixResult.output, item.output, "Output is incorrect.");
                 }
             }
@@ -536,7 +570,6 @@ class RuleTester {
             RuleTester.describe("valid", () => {
                 test.valid.forEach(valid => {
                     RuleTester.it(typeof valid === "object" ? valid.code : valid, () => {
-                        linter.defineRules(this.rules);
                         testValidTemplate(valid);
                     });
                 });
@@ -545,7 +578,6 @@ class RuleTester {
             RuleTester.describe("invalid", () => {
                 test.invalid.forEach(invalid => {
                     RuleTester.it(invalid.code, () => {
-                        linter.defineRules(this.rules);
                         testInvalidTemplate(invalid);
                     });
                 });

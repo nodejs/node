@@ -14,7 +14,8 @@ module.exports = {
         docs: {
             description: "require `var` declarations be placed at the top of their containing scope",
             category: "Best Practices",
-            recommended: false
+            recommended: false,
+            url: "https://eslint.org/docs/rules/vars-on-top"
         },
 
         schema: []

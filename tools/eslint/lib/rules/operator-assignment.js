@@ -77,11 +77,11 @@ function same(a, b) {
 }
 
 /**
-* Determines if the left side of a node can be safely fixed (i.e. if it activates the same getters/setters and)
-* toString calls regardless of whether assignment shorthand is used)
-* @param {ASTNode} node The node on the left side of the expression
-* @returns {boolean} `true` if the node can be fixed
-*/
+ * Determines if the left side of a node can be safely fixed (i.e. if it activates the same getters/setters and)
+ * toString calls regardless of whether assignment shorthand is used)
+ * @param {ASTNode} node The node on the left side of the expression
+ * @returns {boolean} `true` if the node can be fixed
+ */
 function canBeFixed(node) {
     return node.type === "Identifier" ||
         node.type === "MemberExpression" && node.object.type === "Identifier" && (!node.computed || node.property.type === "Literal");
@@ -92,7 +92,8 @@ module.exports = {
         docs: {
             description: "require or disallow assignment operator shorthand where possible",
             category: "Stylistic Issues",
-            recommended: false
+            recommended: false,
+            url: "https://eslint.org/docs/rules/operator-assignment"
         },
 
         schema: [
@@ -109,10 +110,10 @@ module.exports = {
         const sourceCode = context.getSourceCode();
 
         /**
-        * Returns the operator token of an AssignmentExpression or BinaryExpression
-        * @param {ASTNode} node An AssignmentExpression or BinaryExpression node
-        * @returns {Token} The operator token in the node
-        */
+         * Returns the operator token of an AssignmentExpression or BinaryExpression
+         * @param {ASTNode} node An AssignmentExpression or BinaryExpression node
+         * @returns {Token} The operator token in the node
+         */
         function getOperatorToken(node) {
             return sourceCode.getFirstTokenBetween(node.left, node.right, token => token.value === node.operator);
         }

@@ -107,84 +107,6 @@ const isInLoop = {
 };
 
 /**
- * Checks whether or not a given group node has any dynamic elements.
- *
- * @param {ASTNode} root - A node to check.
- *      This node is one of BinaryExpression or ConditionalExpression.
- * @returns {boolean} `true` if the node is dynamic.
- */
-function hasDynamicExpressions(root) {
-    let retv = false;
-    const traverser = new Traverser();
-
-    traverser.traverse(root, {
-        enter(node) {
-            if (DYNAMIC_PATTERN.test(node.type)) {
-                retv = true;
-                this.break();
-            } else if (SKIP_PATTERN.test(node.type)) {
-                this.skip();
-            }
-        }
-    });
-
-    return retv;
-}
-
-/**
- * Creates the loop condition information from a given reference.
- *
- * @param {eslint-scope.Reference} reference - A reference to create.
- * @returns {LoopConditionInfo|null} Created loop condition info, or null.
- */
-function toLoopCondition(reference) {
-    if (reference.init) {
-        return null;
-    }
-
-    let group = null;
-    let child = reference.identifier;
-    let node = child.parent;
-
-    while (node) {
-        if (SENTINEL_PATTERN.test(node.type)) {
-            if (LOOP_PATTERN.test(node.type) && node.test === child) {
-
-                // This reference is inside of a loop condition.
-                return {
-                    reference,
-                    group,
-                    isInLoop: isInLoop[node.type].bind(null, node),
-                    modified: false
-                };
-            }
-
-            // This reference is outside of a loop condition.
-            break;
-        }
-
-        /*
-         * If it's inside of a group, OK if either operand is modified.
-         * So stores the group this reference belongs to.
-         */
-        if (GROUP_PATTERN.test(node.type)) {
-
-            // If this expression is dynamic, no need to check.
-            if (hasDynamicExpressions(node)) {
-                break;
-            } else {
-                group = node;
-            }
-        }
-
-        child = node;
-        node = node.parent;
-    }
-
-    return null;
-}
-
-/**
  * Gets the function which encloses a given reference.
  * This supports only FunctionDeclaration.
  *
@@ -213,13 +135,13 @@ function getEncloseFunctionDeclaration(reference) {
  * @returns {void}
  */
 function updateModifiedFlag(conditions, modifiers) {
-    let funcNode, funcVar;
 
     for (let i = 0; i < conditions.length; ++i) {
         const condition = conditions[i];
 
         for (let j = 0; !condition.modified && j < modifiers.length; ++j) {
             const modifier = modifiers[j];
+            let funcNode, funcVar;
 
             /*
              * Besides checking for the condition being in the loop, we want to
@@ -247,13 +169,15 @@ module.exports = {
         docs: {
             description: "disallow unmodified loop conditions",
             category: "Best Practices",
-            recommended: false
+            recommended: false,
+            url: "https://eslint.org/docs/rules/no-unmodified-loop-condition"
         },
 
         schema: []
     },
 
     create(context) {
+        const sourceCode = context.getSourceCode();
         let groupMap = null;
 
         /**
@@ -305,6 +229,84 @@ module.exports = {
             if (conditions.every(isUnmodified)) {
                 conditions.forEach(report);
             }
+        }
+
+        /**
+         * Checks whether or not a given group node has any dynamic elements.
+         *
+         * @param {ASTNode} root - A node to check.
+         *      This node is one of BinaryExpression or ConditionalExpression.
+         * @returns {boolean} `true` if the node is dynamic.
+         */
+        function hasDynamicExpressions(root) {
+            let retv = false;
+
+            Traverser.traverse(root, {
+                visitorKeys: sourceCode.visitorKeys,
+                enter(node) {
+                    if (DYNAMIC_PATTERN.test(node.type)) {
+                        retv = true;
+                        this.break();
+                    } else if (SKIP_PATTERN.test(node.type)) {
+                        this.skip();
+                    }
+                }
+            });
+
+            return retv;
+        }
+
+        /**
+         * Creates the loop condition information from a given reference.
+         *
+         * @param {eslint-scope.Reference} reference - A reference to create.
+         * @returns {LoopConditionInfo|null} Created loop condition info, or null.
+         */
+        function toLoopCondition(reference) {
+            if (reference.init) {
+                return null;
+            }
+
+            let group = null;
+            let child = reference.identifier;
+            let node = child.parent;
+
+            while (node) {
+                if (SENTINEL_PATTERN.test(node.type)) {
+                    if (LOOP_PATTERN.test(node.type) && node.test === child) {
+
+                        // This reference is inside of a loop condition.
+                        return {
+                            reference,
+                            group,
+                            isInLoop: isInLoop[node.type].bind(null, node),
+                            modified: false
+                        };
+                    }
+
+                    // This reference is outside of a loop condition.
+                    break;
+                }
+
+                /*
+                 * If it's inside of a group, OK if either operand is modified.
+                 * So stores the group this reference belongs to.
+                 */
+                if (GROUP_PATTERN.test(node.type)) {
+
+                    // If this expression is dynamic, no need to check.
+                    if (hasDynamicExpressions(node)) {
+                        break;
+                    } else {
+                        group = node;
+                    }
+                }
+
+                child = node;
+                node = node.parent;
+            }
+
+            return null;
         }
 
         /**

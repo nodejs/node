@@ -13,10 +13,14 @@ module.exports = {
         docs: {
             description: "disallow comparing against -0",
             category: "Possible Errors",
-            recommended: true
+            recommended: true,
+            url: "https://eslint.org/docs/rules/no-compare-neg-zero"
         },
         fixable: null,
-        schema: []
+        schema: [],
+        messages: {
+            unexpected: "Do not use the '{{operator}}' operator to compare against -0."
+        }
     },
 
     create(context) {
@@ -42,7 +46,7 @@ module.exports = {
                     if (isNegZero(node.left) || isNegZero(node.right)) {
                         context.report({
                             node,
-                            message: "Do not use the '{{operator}}' operator to compare against -0.",
+                            messageId: "unexpected",
                             data: { operator: node.operator }
                         });
                     }

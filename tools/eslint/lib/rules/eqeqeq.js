@@ -20,7 +20,8 @@ module.exports = {
         docs: {
             description: "require the use of `===` and `!==`",
             category: "Best Practices",
-            recommended: false
+            recommended: false,
+            url: "https://eslint.org/docs/rules/eqeqeq"
         },
 
         schema: {
@@ -55,7 +56,11 @@ module.exports = {
             ]
         },
 
-        fixable: "code"
+        fixable: "code",
+
+        messages: {
+            unexpected: "Expected '{{expectedOperator}}' and instead saw '{{actualOperator}}'."
+        }
     },
 
     create(context) {
@@ -133,7 +138,7 @@ module.exports = {
             context.report({
                 node,
                 loc: getOperatorLocation(node),
-                message: "Expected '{{expectedOperator}}' and instead saw '{{actualOperator}}'.",
+                messageId: "unexpected",
                 data: { expectedOperator, actualOperator: node.operator },
                 fix(fixer) {
 

@@ -9,13 +9,13 @@
 //------------------------------------------------------------------------------
 
 const debug = require("debug")("eslint:plugins");
+const naming = require("../util/naming");
 
 //------------------------------------------------------------------------------
 // Private
 //------------------------------------------------------------------------------
 
-const PLUGIN_NAME_PREFIX = "eslint-plugin-",
-    NAMESPACE_REGEX = /^@.*\//i;
+const PLUGIN_NAME_PREFIX = "eslint-plugin-";
 
 //------------------------------------------------------------------------------
 // Public Interface
@@ -38,42 +38,15 @@ class Plugins {
     }
 
     /**
-     * Removes the prefix `eslint-plugin-` from a plugin name.
-     * @param {string} pluginName The name of the plugin which may have the prefix.
-     * @returns {string} The name of the plugin without prefix.
-     */
-    static removePrefix(pluginName) {
-        return pluginName.startsWith(PLUGIN_NAME_PREFIX) ? pluginName.slice(PLUGIN_NAME_PREFIX.length) : pluginName;
-    }
-
-    /**
-     * Gets the scope (namespace) of a plugin.
-     * @param {string} pluginName The name of the plugin which may have the prefix.
-     * @returns {string} The name of the plugins namepace if it has one.
-     */
-    static getNamespace(pluginName) {
-        return pluginName.match(NAMESPACE_REGEX) ? pluginName.match(NAMESPACE_REGEX)[0] : "";
-    }
-
-    /**
-     * Removes the namespace from a plugin name.
-     * @param {string} pluginName The name of the plugin which may have the prefix.
-     * @returns {string} The name of the plugin without the namespace.
-     */
-    static removeNamespace(pluginName) {
-        return pluginName.replace(NAMESPACE_REGEX, "");
-    }
-
-    /**
      * Defines a plugin with a given name rather than loading from disk.
      * @param {string} pluginName The name of the plugin to load.
      * @param {Object} plugin The plugin object.
      * @returns {void}
      */
     define(pluginName, plugin) {
-        const pluginNamespace = Plugins.getNamespace(pluginName),
-            pluginNameWithoutNamespace = Plugins.removeNamespace(pluginName),
-            pluginNameWithoutPrefix = Plugins.removePrefix(pluginNameWithoutNamespace),
+        const pluginNamespace = naming.getNamespaceFromTerm(pluginName),
+            pluginNameWithoutNamespace = naming.removeNamespaceFromTerm(pluginName),
+            pluginNameWithoutPrefix = naming.removePrefixFromTerm(PLUGIN_NAME_PREFIX, pluginNameWithoutNamespace),
             shortName = pluginNamespace + pluginNameWithoutPrefix;
 
         // load up environments and rules
@@ -106,9 +79,9 @@ class Plugins {
      * @throws {Error} If the plugin cannot be loaded.
      */
     load(pluginName) {
-        const pluginNamespace = Plugins.getNamespace(pluginName),
-            pluginNameWithoutNamespace = Plugins.removeNamespace(pluginName),
-            pluginNameWithoutPrefix = Plugins.removePrefix(pluginNameWithoutNamespace),
+        const pluginNamespace = naming.getNamespaceFromTerm(pluginName),
+            pluginNameWithoutNamespace = naming.removeNamespaceFromTerm(pluginName),
+            pluginNameWithoutPrefix = naming.removePrefixFromTerm(PLUGIN_NAME_PREFIX, pluginNameWithoutNamespace),
             shortName = pluginNamespace + pluginNameWithoutPrefix,
             longName = pluginNamespace + PLUGIN_NAME_PREFIX + pluginNameWithoutPrefix;
         let plugin = null;

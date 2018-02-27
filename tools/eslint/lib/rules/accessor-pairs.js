@@ -75,7 +75,8 @@ module.exports = {
         docs: {
             description: "enforce getter and setter pairs in objects",
             category: "Best Practices",
-            recommended: false
+            recommended: false,
+            url: "https://eslint.org/docs/rules/accessor-pairs"
         },
         schema: [{
             type: "object",
@@ -88,7 +89,11 @@ module.exports = {
                 }
             },
             additionalProperties: false
-        }]
+        }],
+        messages: {
+            getter: "Getter is not present.",
+            setter: "Setter is not present."
+        }
     },
     create(context) {
         const config = context.options[0] || {};
@@ -139,9 +144,9 @@ module.exports = {
             }
 
             if (checkSetWithoutGet && isSetPresent && !isGetPresent) {
-                context.report({ node, message: "Getter is not present." });
+                context.report({ node, messageId: "getter" });
             } else if (checkGetWithoutSet && isGetPresent && !isSetPresent) {
-                context.report({ node, message: "Setter is not present." });
+                context.report({ node, messageId: "setter" });
             }
         }
 

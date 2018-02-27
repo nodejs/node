@@ -4,12 +4,6 @@ Object.defineProperty(exports, "__esModule", {
   value: true
 });
 
-var _lodash = require('lodash');
-
-var _lodash2 = _interopRequireDefault(_lodash);
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
 /**
  * @typedef {string} cell
  */
@@ -23,8 +17,8 @@ function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { de
  * @returns {undefined}
  */
 exports.default = rows => {
-  if (!_lodash2.default.isArray(rows)) {
-    throw new Error('Table data must be an array.');
+  if (!Array.isArray(rows)) {
+    throw new TypeError('Table data must be an array.');
   }
 
   if (rows.length === 0) {
@@ -37,9 +31,9 @@ exports.default = rows => {
 
   const columnNumber = rows[0].length;
 
-  _lodash2.default.forEach(rows, cells => {
-    if (!_lodash2.default.isArray(cells)) {
-      throw new Error('Table row data must be an array.');
+  for (const cells of rows) {
+    if (!Array.isArray(cells)) {
+      throw new TypeError('Table row data must be an array.');
     }
 
     if (cells.length !== columnNumber) {
@@ -48,10 +42,10 @@ exports.default = rows => {
 
     // @todo Make an exception for newline characters.
     // @see https://github.com/gajus/table/issues/9
-    _lodash2.default.forEach(cells, cell => {
-      if (/[\x01-\x1A]/.test(cell)) {
+    for (const cell of cells) {
+      if (/[\u0001-\u001A]/.test(cell)) {
         throw new Error('Table data must not contain control characters.');
       }
-    });
-  });
+    }
+  }
 };

@@ -16,10 +16,15 @@ module.exports = {
         docs: {
             description: "disallow reassigning `const` variables",
             category: "ECMAScript 6",
-            recommended: true
+            recommended: true,
+            url: "https://eslint.org/docs/rules/no-const-assign"
         },
 
-        schema: []
+        schema: [],
+
+        messages: {
+            const: "'{{name}}' is constant."
+        }
     },
 
     create(context) {
@@ -31,7 +36,7 @@ module.exports = {
          */
         function checkVariable(variable) {
             astUtils.getModifyingReferences(variable.references).forEach(reference => {
-                context.report({ node: reference.identifier, message: "'{{name}}' is constant.", data: { name: reference.identifier.name } });
+                context.report({ node: reference.identifier, messageId: "const", data: { name: reference.identifier.name } });
             });
         }
 

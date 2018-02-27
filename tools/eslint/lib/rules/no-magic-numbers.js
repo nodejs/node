@@ -14,7 +14,8 @@ module.exports = {
         docs: {
             description: "disallow magic numbers",
             category: "Best Practices",
-            recommended: false
+            recommended: false,
+            url: "https://eslint.org/docs/rules/no-magic-numbers"
         },
 
         schema: [{

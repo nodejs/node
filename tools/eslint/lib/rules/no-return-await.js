@@ -17,7 +17,11 @@ module.exports = {
         docs: {
             description: "disallow unnecessary `return await`",
             category: "Best Practices",
-            recommended: false // TODO: set to true
+
+            // TODO: set to true
+            recommended: false,
+
+            url: "https://eslint.org/docs/rules/no-return-await"
         },
         fixable: null,
         schema: [
@@ -40,12 +44,12 @@ module.exports = {
         }
 
         /**
-        * Determines whether a thrown error from this node will be caught/handled within this function rather than immediately halting
-        * this function. For example, a statement in a `try` block will always have an error handler. A statement in
-        * a `catch` block will only have an error handler if there is also a `finally` block.
-        * @param {ASTNode} node A node representing a location where an could be thrown
-        * @returns {boolean} `true` if a thrown error will be caught/handled in this function
-        */
+         * Determines whether a thrown error from this node will be caught/handled within this function rather than immediately halting
+         * this function. For example, a statement in a `try` block will always have an error handler. A statement in
+         * a `catch` block will only have an error handler if there is also a `finally` block.
+         * @param {ASTNode} node A node representing a location where an could be thrown
+         * @returns {boolean} `true` if a thrown error will be caught/handled in this function
+         */
         function hasErrorHandler(node) {
             let ancestor = node;
 

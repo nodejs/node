@@ -14,21 +14,27 @@ const util = require("../ast-utils");
 module.exports = {
     meta: {
         docs: {
-            description: "enforce consistent spacing inside single-line blocks",
+            description: "disallow or enforce spaces inside of blocks after opening block and before closing block",
             category: "Stylistic Issues",
-            recommended: false
+            recommended: false,
+            url: "https://eslint.org/docs/rules/block-spacing"
         },
 
         fixable: "whitespace",
 
         schema: [
             { enum: ["always", "never"] }
-        ]
+        ],
+
+        messages: {
+            missing: "Requires a space {{location}} '{{token}}'",
+            extra: "Unexpected space(s) {{location}} '{{token}}'"
+        }
     },
 
     create(context) {
         const always = (context.options[0] !== "never"),
-            message = always ? "Requires a space" : "Unexpected space(s)",
+            messageId = always ? "missing" : "extra",
             sourceCode = context.getSourceCode();
 
         /**
@@ -97,9 +103,10 @@ module.exports = {
                 context.report({
                     node,
                     loc: openBrace.loc.start,
-                    message: "{{message}} after '{'.",
+                    messageId,
                     data: {
-                        message
+                        location: "after",
+                        token: openBrace.value
                     },
                     fix(fixer) {
                         if (always) {
@@ -114,9 +121,10 @@ module.exports = {
                 context.report({
                     node,
                     loc: closeBrace.loc.start,
-                    message: "{{message}} before '}'.",
+                    messageId,
                     data: {
-                        message
+                        location: "before",
+                        token: closeBrace.value
                     },
                     fix(fixer) {
                         if (always) {

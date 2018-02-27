@@ -15,7 +15,8 @@ module.exports = {
         docs: {
             description: "disallow the unary operators `++` and `--`",
             category: "Stylistic Issues",
-            recommended: false
+            recommended: false,
+            url: "https://eslint.org/docs/rules/no-plusplus"
         },
 
         schema: [

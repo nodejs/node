@@ -22,7 +22,8 @@ module.exports = {
         docs: {
             description: "enforce dot notation whenever possible",
             category: "Best Practices",
-            recommended: false
+            recommended: false,
+            url: "https://eslint.org/docs/rules/dot-notation"
         },
 
         schema: [
@@ -40,7 +41,12 @@ module.exports = {
             }
         ],
 
-        fixable: "code"
+        fixable: "code",
+
+        messages: {
+            useDot: "[{{key}}] is better written in dot notation.",
+            useBrackets: ".{{key}} is a syntax error."
+        }
     },
 
     create(context) {
@@ -54,46 +60,67 @@ module.exports = {
             allowPattern = new RegExp(options.allowPattern);
         }
 
+        /**
+         * Check if the property is valid dot notation
+         * @param {ASTNode} node The dot notation node
+         * @param {string} value Value which is to be checked
+         * @returns {void}
+         */
+        function checkComputedProperty(node, value) {
+            if (
+                validIdentifier.test(value) &&
+                (allowKeywords || keywords.indexOf(String(value)) === -1) &&
+                !(allowPattern && allowPattern.test(value))
+            ) {
+                const formattedValue = node.property.type === "Literal" ? JSON.stringify(value) : `\`${value}\``;
+
+                context.report({
+                    node: node.property,
+                    messageId: "useDot",
+                    data: {
+                        key: formattedValue
+                    },
+                    fix(fixer) {
+                        const leftBracket = sourceCode.getTokenAfter(node.object, astUtils.isOpeningBracketToken);
+                        const rightBracket = sourceCode.getLastToken(node);
+
+                        if (sourceCode.getFirstTokenBetween(leftBracket, rightBracket, { includeComments: true, filter: astUtils.isCommentToken })) {
+
+                            // Don't perform any fixes if there are comments inside the brackets.
+                            return null;
+                        }
+
+                        const tokenAfterProperty = sourceCode.getTokenAfter(rightBracket);
+                        const needsSpaceAfterProperty = tokenAfterProperty &&
+                            rightBracket.range[1] === tokenAfterProperty.range[0] &&
+                            !astUtils.canTokensBeAdjacent(String(value), tokenAfterProperty);
+
+                        const textBeforeDot = astUtils.isDecimalInteger(node.object) ? " " : "";
+                        const textAfterProperty = needsSpaceAfterProperty ? " " : "";
+
+                        return fixer.replaceTextRange(
+                            [leftBracket.range[0], rightBracket.range[1]],
+                            `${textBeforeDot}.${value}${textAfterProperty}`
+                        );
+                    }
+                });
+            }
+        }
+
         return {
             MemberExpression(node) {
                 if (
                     node.computed &&
-                    node.property.type === "Literal" &&
-                    validIdentifier.test(node.property.value) &&
-                    (allowKeywords || keywords.indexOf(String(node.property.value)) === -1)
+                    node.property.type === "Literal"
                 ) {
-                    if (!(allowPattern && allowPattern.test(node.property.value))) {
-                        context.report({
-                            node: node.property,
-                            message: "[{{propertyValue}}] is better written in dot notation.",
-                            data: {
-                                propertyValue: JSON.stringify(node.property.value)
-                            },
-                            fix(fixer) {
-                                const leftBracket = sourceCode.getTokenAfter(node.object, astUtils.isOpeningBracketToken);
-                                const rightBracket = sourceCode.getLastToken(node);
-
-                                if (sourceCode.getFirstTokenBetween(leftBracket, rightBracket, { includeComments: true, filter: astUtils.isCommentToken })) {
-
-                                    // Don't perform any fixes if there are comments inside the brackets.
-                                    return null;
-                                }
-
-                                const tokenAfterProperty = sourceCode.getTokenAfter(rightBracket);
-                                const needsSpaceAfterProperty = tokenAfterProperty &&
-                                    rightBracket.range[1] === tokenAfterProperty.range[0] &&
-                                    !astUtils.canTokensBeAdjacent(String(node.property.value), tokenAfterProperty);
-
-                                const textBeforeDot = astUtils.isDecimalInteger(node.object) ? " " : "";
-                                const textAfterProperty = needsSpaceAfterProperty ? " " : "";
-
-                                return fixer.replaceTextRange(
-                                    [leftBracket.range[0], rightBracket.range[1]],
-                                    `${textBeforeDot}.${node.property.value}${textAfterProperty}`
-                                );
-                            }
-                        });
-                    }
+                    checkComputedProperty(node, node.property.value);
+                }
+                if (
+                    node.computed &&
+                    node.property.type === "TemplateLiteral" &&
+                    node.property.expressions.length === 0
+                ) {
+                    checkComputedProperty(node, node.property.quasis[0].value.cooked);
                 }
                 if (
                     !allowKeywords &&
@@ -102,9 +129,9 @@ module.exports = {
                 ) {
                     context.report({
                         node: node.property,
-                        message: ".{{propertyName}} is a syntax error.",
+                        messageId: "useBrackets",
                         data: {
-                            propertyName: node.property.name
+                            key: node.property.name
                         },
                         fix(fixer) {
                             const dot = sourceCode.getTokenBefore(node.property);

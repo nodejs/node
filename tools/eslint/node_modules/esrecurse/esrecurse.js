@@ -24,25 +24,7 @@
 (function () {
     'use strict';
 
-    var assign,
-        estraverse,
-        isArray,
-        objectKeys;
-
-    assign = require('object-assign');
-    estraverse = require('estraverse');
-
-    isArray = Array.isArray || function isArray(array) {
-        return Object.prototype.toString.call(array) === '[object Array]';
-    };
-
-    objectKeys = Object.keys || function (o) {
-        var keys = [], key;
-        for (key in o) {
-            keys.push(key);
-        }
-        return keys;
-    };
+    var estraverse = require('estraverse');
 
     function isNode(node) {
         if (node == null) {
@@ -60,10 +42,10 @@
 
         this.__visitor = visitor ||  this;
         this.__childVisitorKeys = options.childVisitorKeys
-            ? assign({}, estraverse.VisitorKeys, options.childVisitorKeys)
+            ? Object.assign({}, estraverse.VisitorKeys, options.childVisitorKeys)
             : estraverse.VisitorKeys;
         if (options.fallback === 'iteration') {
-            this.__fallback = objectKeys;
+            this.__fallback = Object.keys;
         } else if (typeof options.fallback === 'function') {
             this.__fallback = options.fallback;
         }
@@ -94,7 +76,7 @@
         for (i = 0, iz = children.length; i < iz; ++i) {
             child = node[children[i]];
             if (child) {
-                if (isArray(child)) {
+                if (Array.isArray(child)) {
                     for (j = 0, jz = child.length; j < jz; ++j) {
                         if (child[j]) {
                             if (isNode(child[j]) || isProperty(type, children[i])) {

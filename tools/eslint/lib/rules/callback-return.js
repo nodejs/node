@@ -13,13 +13,18 @@ module.exports = {
         docs: {
             description: "require `return` statements after callbacks",
             category: "Node.js and CommonJS",
-            recommended: false
+            recommended: false,
+            url: "https://eslint.org/docs/rules/callback-return"
         },
 
         schema: [{
             type: "array",
             items: { type: "string" }
-        }]
+        }],
+
+        messages: {
+            missingReturn: "Expected return with your callback function."
+        }
     },
 
     create(context) {
@@ -60,7 +65,8 @@ module.exports = {
             if (node.type === "MemberExpression") {
                 if (node.object.type === "Identifier") {
                     return true;
-                } else if (node.object.type === "MemberExpression") {
+                }
+                if (node.object.type === "MemberExpression") {
                     return containsOnlyIdentifiers(node.object);
                 }
             }
@@ -164,7 +170,7 @@ module.exports = {
 
                 // as long as you're the child of a function at this point you should be asked to return
                 if (findClosestParentOfType(node, ["FunctionDeclaration", "FunctionExpression", "ArrowFunctionExpression"])) {
-                    context.report({ node, message: "Expected return with your callback function." });
+                    context.report({ node, messageId: "missingReturn" });
                 }
 
             }

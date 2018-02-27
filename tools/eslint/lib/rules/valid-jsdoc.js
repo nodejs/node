@@ -19,7 +19,8 @@ module.exports = {
         docs: {
             description: "enforce valid JSDoc comments",
             category: "Possible Errors",
-            recommended: false
+            recommended: false,
+            url: "https://eslint.org/docs/rules/valid-jsdoc"
         },
 
         schema: [
@@ -56,7 +57,9 @@ module.exports = {
                 },
                 additionalProperties: false
             }
-        ]
+        ],
+
+        fixable: "code"
     },
 
     create(context) {
@@ -144,23 +147,35 @@ module.exports = {
         /**
          * Extract the current and expected type based on the input type object
          * @param {Object} type JSDoc tag
-         * @returns {Object} current and expected type object
+         * @returns {{currentType: Doctrine.Type, expectedTypeName: string}} The current type annotation and
+         * the expected name of the annotation
          * @private
          */
         function getCurrentExpectedTypes(type) {
             let currentType;
 
             if (type.name) {
-                currentType = type.name;
+                currentType = type;
             } else if (type.expression) {
-                currentType = type.expression.name;
+                currentType = type.expression;
             }
-
-            const expectedType = currentType && preferType[currentType];
 
             return {
                 currentType,
-                expectedType
+                expectedTypeName: currentType && preferType[currentType.name]
+            };
+        }
+
+        /**
+         * Gets the location of a JSDoc node in a file
+         * @param {Token} jsdocComment The comment that this node is parsed from
+         * @param {{range: number[]}} parsedJsdocNode A tag or other node which was parsed from this comment
+         * @returns {{start: SourceLocation, end: SourceLocation}} The 0-based source location for the tag
+         */
+        function getAbsoluteRange(jsdocComment, parsedJsdocNode) {
+            return {
+                start: sourceCode.getLocFromIndex(jsdocComment.range[0] + 2 + parsedJsdocNode.range[0]),
+                end: sourceCode.getLocFromIndex(jsdocComment.range[0] + 2 + parsedJsdocNode.range[1])
             };
         }
 
@@ -203,14 +218,21 @@ module.exports = {
             elements.forEach(validateType.bind(null, jsdocNode));
 
             typesToCheck.forEach(typeToCheck => {
-                if (typeToCheck.expectedType &&
-                    typeToCheck.expectedType !== typeToCheck.currentType) {
+                if (typeToCheck.expectedTypeName &&
+                    typeToCheck.expectedTypeName !== typeToCheck.currentType.name) {
                     context.report({
                         node: jsdocNode,
-                        message: "Use '{{expectedType}}' instead of '{{currentType}}'.",
+                        message: "Use '{{expectedTypeName}}' instead of '{{currentTypeName}}'.",
+                        loc: getAbsoluteRange(jsdocNode, typeToCheck.currentType),
                         data: {
-                            currentType: typeToCheck.currentType,
-                            expectedType: typeToCheck.expectedType
+                            currentTypeName: typeToCheck.currentType.name,
+                            expectedTypeName: typeToCheck.expectedTypeName
+                        },
+                        fix(fixer) {
+                            return fixer.replaceTextRange(
+                                typeToCheck.currentType.range.map(indexInComment => jsdocNode.range[0] + 2 + indexInComment),
+                                typeToCheck.expectedTypeName
+                            );
                         }
                     });
                 }
@@ -226,22 +248,25 @@ module.exports = {
         function checkJSDoc(node) {
             const jsdocNode = sourceCode.getJSDocComment(node),
                 functionData = fns.pop(),
-                params = Object.create(null);
+                paramTagsByName = Object.create(null),
+                paramTags = [];
             let hasReturns = false,
+                returnsTag,
                 hasConstructor = false,
                 isInterface = false,
                 isOverride = false,
-                isAbstract = false,
-                jsdoc;
+                isAbstract = false;
 
             // make sure only to validate JSDoc comments
             if (jsdocNode) {
+                let jsdoc;
 
                 try {
                     jsdoc = doctrine.parse(jsdocNode.value, {
                         strict: true,
                         unwrap: true,
-                        sloppy: true
+                        sloppy: true,
+                        range: true
                     });
                 } catch (ex) {
 
@@ -261,43 +286,13 @@ module.exports = {
                         case "param":
                         case "arg":
                         case "argument":
-                            if (!tag.type) {
-                                context.report({ node: jsdocNode, message: "Missing JSDoc parameter type for '{{name}}'.", data: { name: tag.name } });
-                            }
-
-                            if (!tag.description && requireParamDescription) {
-                                context.report({ node: jsdocNode, message: "Missing JSDoc parameter description for '{{name}}'.", data: { name: tag.name } });
-                            }
-
-                            if (params[tag.name]) {
-                                context.report({ node: jsdocNode, message: "Duplicate JSDoc parameter '{{name}}'.", data: { name: tag.name } });
-                            } else if (tag.name.indexOf(".") === -1) {
-                                params[tag.name] = 1;
-                            }
+                            paramTags.push(tag);
                             break;
 
                         case "return":
                         case "returns":
                             hasReturns = true;
-
-                            if (!requireReturn && !functionData.returnPresent && (tag.type === null || !isValidReturnType(tag)) && !isAbstract) {
-                                context.report({
-                                    node: jsdocNode,
-                                    message: "Unexpected @{{title}} tag; function has no return statement.",
-                                    data: {
-                                        title: tag.title
-                                    }
-                                });
-                            } else {
-                                if (requireReturnType && !tag.type) {
-                                    context.report({ node: jsdocNode, message: "Missing JSDoc return type." });
-                                }
-
-                                if (!isValidReturnType(tag) && !tag.description && requireReturnDescription) {
-                                    context.report({ node: jsdocNode, message: "Missing JSDoc return description." });
-                                }
-                            }
-
+                            returnsTag = tag;
                             break;
 
                         case "constructor":
@@ -324,7 +319,29 @@ module.exports = {
 
                     // check tag preferences
                     if (prefer.hasOwnProperty(tag.title) && tag.title !== prefer[tag.title]) {
-                        context.report({ node: jsdocNode, message: "Use @{{name}} instead.", data: { name: prefer[tag.title] } });
+                        const entireTagRange = getAbsoluteRange(jsdocNode, tag);
+
+                        context.report({
+                            node: jsdocNode,
+                            message: "Use @{{name}} instead.",
+                            loc: {
+                                start: entireTagRange.start,
+                                end: {
+                                    line: entireTagRange.start.line,
+                                    column: entireTagRange.start.column + `@${tag.title}`.length
+                                }
+                            },
+                            data: { name: prefer[tag.title] },
+                            fix(fixer) {
+                                return fixer.replaceTextRange(
+                                    [
+                                        jsdocNode.range[0] + tag.range[0] + 3,
+                                        jsdocNode.range[0] + tag.range[0] + tag.title.length + 3
+                                    ],
+                                    prefer[tag.title]
+                                );
+                            }
+                        });
                     }
 
                     // validate the types
@@ -332,6 +349,56 @@ module.exports = {
                         validateType(jsdocNode, tag.type);
                     }
                 });
+
+                paramTags.forEach(param => {
+                    if (!param.type) {
+                        context.report({
+                            node: jsdocNode,
+                            message: "Missing JSDoc parameter type for '{{name}}'.",
+                            loc: getAbsoluteRange(jsdocNode, param),
+                            data: { name: param.name }
+                        });
+                    }
+                    if (!param.description && requireParamDescription) {
+                        context.report({
+                            node: jsdocNode,
+                            message: "Missing JSDoc parameter description for '{{name}}'.",
+                            loc: getAbsoluteRange(jsdocNode, param),
+                            data: { name: param.name }
+                        });
+                    }
+                    if (paramTagsByName[param.name]) {
+                        context.report({
+                            node: jsdocNode,
+                            message: "Duplicate JSDoc parameter '{{name}}'.",
+                            loc: getAbsoluteRange(jsdocNode, param),
+                            data: { name: param.name }
+                        });
+                    } else if (param.name.indexOf(".") === -1) {
+                        paramTagsByName[param.name] = param;
+                    }
+                });
+
+                if (hasReturns) {
+                    if (!requireReturn && !functionData.returnPresent && (returnsTag.type === null || !isValidReturnType(returnsTag)) && !isAbstract) {
+                        context.report({
+                            node: jsdocNode,
+                            message: "Unexpected @{{title}} tag; function has no return statement.",
+                            loc: getAbsoluteRange(jsdocNode, returnsTag),
+                            data: {
+                                title: returnsTag.title
+                            }
+                        });
+                    } else {
+                        if (requireReturnType && !returnsTag.type) {
+                            context.report({ node: jsdocNode, message: "Missing JSDoc return type." });
+                        }
+
+                        if (!isValidReturnType(returnsTag) && !returnsTag.description && requireReturnDescription) {
+                            context.report({ node: jsdocNode, message: "Missing JSDoc return description." });
+                        }
+                    }
+                }
 
                 // check for functions missing @returns
                 if (!isOverride && !hasReturns && !hasConstructor && !isInterface &&
@@ -349,10 +416,10 @@ module.exports = {
                 }
 
                 // check the parameters
-                const jsdocParams = Object.keys(params);
+                const jsdocParamNames = Object.keys(paramTagsByName);
 
                 if (node.params) {
-                    node.params.forEach((param, i) => {
+                    node.params.forEach((param, paramsIndex) => {
                         if (param.type === "AssignmentPattern") {
                             param = param.left;
                         }
@@ -361,16 +428,17 @@ module.exports = {
 
                         // TODO(nzakas): Figure out logical things to do with destructured, default, rest params
                         if (param.type === "Identifier") {
-                            if (jsdocParams[i] && (name !== jsdocParams[i])) {
+                            if (jsdocParamNames[paramsIndex] && (name !== jsdocParamNames[paramsIndex])) {
                                 context.report({
                                     node: jsdocNode,
                                     message: "Expected JSDoc for '{{name}}' but found '{{jsdocName}}'.",
+                                    loc: getAbsoluteRange(jsdocNode, paramTagsByName[jsdocParamNames[paramsIndex]]),
                                     data: {
                                         name,
-                                        jsdocName: jsdocParams[i]
+                                        jsdocName: jsdocParamNames[paramsIndex]
                                     }
                                 });
-                            } else if (!params[name] && !isOverride) {
+                            } else if (!paramTagsByName[name] && !isOverride) {
                                 context.report({
                                     node: jsdocNode,
                                     message: "Missing JSDoc for parameter '{{name}}'.",

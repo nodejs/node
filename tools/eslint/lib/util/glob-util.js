@@ -8,7 +8,8 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-const fs = require("fs"),
+const lodash = require("lodash"),
+    fs = require("fs"),
     path = require("path"),
     GlobSync = require("./glob"),
 
@@ -88,6 +89,8 @@ function resolveFileGlobPatterns(patterns, options) {
     return patterns.filter(p => p.length).map(processPathExtensions);
 }
 
+const dotfilesPattern = /(?:(?:^\.)|(?:[/\\]\.))[^/\\.].*/;
+
 /**
  * Build a list of absolute filesnames on which ESLint will act.
  * Ignored files are excluded from the results, as are duplicates.
@@ -106,6 +109,11 @@ function listFilesToProcess(globPatterns, options) {
         added = {};
 
     const cwd = (options && options.cwd) || process.cwd();
+
+    const getIgnorePaths = lodash.memoize(
+        optionsObj =>
+            new IgnoredPaths(optionsObj)
+    );
 
     /**
      * Executes the linter on a file defined by the `filename`. Skips
@@ -151,15 +159,20 @@ function listFilesToProcess(globPatterns, options) {
         const file = path.resolve(cwd, pattern);
 
         if (fs.existsSync(file) && fs.statSync(file).isFile()) {
-            const ignoredPaths = new IgnoredPaths(options);
+            const ignoredPaths = getIgnorePaths(options);
 
             addFile(fs.realpathSync(file), true, ignoredPaths);
         } else {
 
             // regex to find .hidden or /.hidden patterns, but not ./relative or ../relative
-            const globIncludesDotfiles = /(?:(?:^\.)|(?:[/\\]\.))[^/\\.].*/.test(pattern);
+            const globIncludesDotfiles = dotfilesPattern.test(pattern);
+            let newOptions = options;
 
-            const ignoredPaths = new IgnoredPaths(Object.assign({}, options, { dotfiles: options.dotfiles || globIncludesDotfiles }));
+            if (!options.dotfiles) {
+                newOptions = Object.assign({}, options, { dotfiles: globIncludesDotfiles });
+            }
+
+            const ignoredPaths = getIgnorePaths(newOptions);
             const shouldIgnore = ignoredPaths.getIgnoredFoldersGlobChecker();
             const globOptions = {
                 nodir: true,

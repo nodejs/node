@@ -95,10 +95,20 @@ module.exports = {
         docs: {
             description: "require `super()` calls in constructors",
             category: "ECMAScript 6",
-            recommended: true
+            recommended: true,
+            url: "https://eslint.org/docs/rules/constructor-super"
         },
 
-        schema: []
+        schema: [],
+
+        messages: {
+            missingSome: "Lacked a call of 'super()' in some code paths.",
+            missingAll: "Expected to call 'super()'.",
+
+            duplicate: "Unexpected duplicate 'super()'.",
+            badSuper: "Unexpected 'super()' because 'super' is not a constructor.",
+            unexpected: "Unexpected 'super()'."
+        }
     },
 
     create(context) {
@@ -209,9 +219,9 @@ module.exports = {
 
                 if (!calledInEveryPaths) {
                     context.report({
-                        message: calledInSomePaths
-                            ? "Lacked a call of 'super()' in some code paths."
-                            : "Expected to call 'super()'.",
+                        messageId: calledInSomePaths
+                            ? "missingSome"
+                            : "missingAll",
                         node: node.parent
                     });
                 }
@@ -280,7 +290,7 @@ module.exports = {
                                 const node = nodes[i];
 
                                 context.report({
-                                    message: "Unexpected duplicate 'super()'.",
+                                    messageId: "duplicate",
                                     node
                                 });
                             }
@@ -324,12 +334,12 @@ module.exports = {
                     if (info) {
                         if (duplicate) {
                             context.report({
-                                message: "Unexpected duplicate 'super()'.",
+                                messageId: "duplicate",
                                 node
                             });
                         } else if (!funcInfo.superIsConstructor) {
                             context.report({
-                                message: "Unexpected 'super()' because 'super' is not a constructor.",
+                                messageId: "badSuper",
                                 node
                             });
                         } else {
@@ -338,7 +348,7 @@ module.exports = {
                     }
                 } else if (funcInfo.codePath.currentSegments.some(isReachable)) {
                     context.report({
-                        message: "Unexpected 'super()'.",
+                        messageId: "unexpected",
                         node
                     });
                 }

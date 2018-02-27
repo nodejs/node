@@ -1,26 +1,16 @@
 'use strict';
 
-var tryit = require('tryit');
+var inspect = require('util').inspect;
 
-module.exports = function isResolvable(moduleId) {
-  if (typeof moduleId !== 'string') {
-    throw new TypeError(
-      moduleId +
-      ' is not a string. A module identifier to be checked if resolvable is required.'
-    );
-  }
+module.exports = function isResolvable(moduleId, options) {
+	if (typeof moduleId !== 'string') {
+		throw new TypeError(inspect(moduleId) + ' is not a string. Expected a valid Node.js module identifier (<string>), for example \'eslint\', \'./index.js\', \'./lib\'.');
+	}
 
-  var result;
-  tryit(function() {
-    require.resolve(moduleId);
-  }, function(err) {
-    if (err) {
-      result = false;
-      return;
-    }
-
-    result = true;
-  });
-
-  return result;
+	try {
+		require.resolve(moduleId, options);
+		return true;
+	} catch (err) {
+		return false;
+	}
 };

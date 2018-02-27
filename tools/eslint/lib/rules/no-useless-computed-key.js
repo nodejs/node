@@ -21,7 +21,8 @@ module.exports = {
         docs: {
             description: "disallow unnecessary computed property keys in object literals",
             category: "ECMAScript 6",
-            recommended: false
+            recommended: false,
+            url: "https://eslint.org/docs/rules/no-useless-computed-key"
         },
 
         schema: [],
@@ -50,7 +51,8 @@ module.exports = {
                             const rightSquareBracket = sourceCode.getFirstTokenBetween(node.key, node.value, astUtils.isClosingBracketToken);
                             const tokensBetween = sourceCode.getTokensBetween(leftSquareBracket, rightSquareBracket, 1);
 
-                            if (tokensBetween.slice(0, -1).some((token, index) => sourceCode.getText().slice(token.range[1], tokensBetween[index + 1].range[0]).trim())) {
+                            if (tokensBetween.slice(0, -1).some((token, index) =>
+                                sourceCode.getText().slice(token.range[1], tokensBetween[index + 1].range[0]).trim())) {
 
                                 // If there are comments between the brackets and the property name, don't do a fix.
                                 return null;

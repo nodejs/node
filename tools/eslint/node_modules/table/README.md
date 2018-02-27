@@ -454,7 +454,7 @@ output = table(data, {
         paddingLeft: 0,
         paddingRight: 1
     },
-    drawJoin: () => {
+    drawHorizontalLine: () => {
         return false
     }
 });
