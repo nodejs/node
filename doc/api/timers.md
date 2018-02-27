@@ -25,7 +25,7 @@ functions that can be used to control this default behavior.
 
 ### immediate.ref()
 <!-- YAML
-added: REPLACEME
+added: v9.7.0
 -->
 
 When called, requests that the Node.js event loop *not* exit so long as the
@@ -39,7 +39,7 @@ Returns a reference to the `Immediate`.
 
 ### immediate.unref()
 <!-- YAML
-added: REPLACEME
+added: v9.7.0
 -->
 
 When called, the active `Immediate` object will not require the Node.js event

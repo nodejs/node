@@ -256,7 +256,7 @@ with care and never in a hot code path.
 
 ## util.getSystemErrorName(err)
 <!-- YAML
-added: REPLACEME
+added: v9.7.0
 -->
 
 * `err` {number}
