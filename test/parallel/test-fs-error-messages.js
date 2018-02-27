@@ -770,3 +770,44 @@ if (!common.isWindows) {
     );
   });
 }
+
+// write buffer
+{
+  const validateError = (err) => {
+    assert.strictEqual(err.message, 'EBADF: bad file descriptor, write');
+    assert.strictEqual(err.errno, uv.UV_EBADF);
+    assert.strictEqual(err.code, 'EBADF');
+    assert.strictEqual(err.syscall, 'write');
+    return true;
+  };
+
+  common.runWithInvalidFD((fd) => {
+    const buf = Buffer.alloc(5);
+    fs.write(fd, buf, 0, 1, 1, common.mustCall(validateError));
+
+    assert.throws(
+      () => fs.writeSync(fd, buf, 0, 1, 1),
+      validateError
+    );
+  });
+}
+
+// write string
+{
+  const validateError = (err) => {
+    assert.strictEqual(err.message, 'EBADF: bad file descriptor, write');
+    assert.strictEqual(err.errno, uv.UV_EBADF);
+    assert.strictEqual(err.code, 'EBADF');
+    assert.strictEqual(err.syscall, 'write');
+    return true;
+  };
+
+  common.runWithInvalidFD((fd) => {
+    fs.write(fd, 'test', 1, common.mustCall(validateError));
+
+    assert.throws(
+      () => fs.writeSync(fd, 'test', 1),
+      validateError
+    );
+  });
+}
