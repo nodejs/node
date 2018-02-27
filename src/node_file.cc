@@ -110,7 +110,7 @@ using v8::Value;
 # define MIN(a, b) ((a) < (b) ? (a) : (b))
 #endif
 
-#define GET_OFFSET(a) ((a)->IsNumber() ? (a)->IntegerValue() : -1)
+#define GET_OFFSET(a) ((a)->IsNumber() ? (a).As<Integer>()->Value() : -1)
 
 // The FileHandle object wraps a file descriptor and will close it on garbage
 // collection if necessary. If that happens, a process warning will be
@@ -1411,51 +1411,50 @@ static void WriteString(const FunctionCallbackInfo<Value>& args) {
  *
  * bytesRead = fs.read(fd, buffer, offset, length, position)
  *
- * 0 fd        integer. file descriptor
+ * 0 fd        int32. file descriptor
  * 1 buffer    instance of Buffer
- * 2 offset    integer. offset to start reading into inside buffer
- * 3 length    integer. length to read
- * 4 position  file position - null for current position
- *
+ * 2 offset    int32. offset to start reading into inside buffer
+ * 3 length    int32. length to read
+ * 4 position  int64. file position - -1 for current position
  */
 static void Read(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
+  const int argc = args.Length();
+  CHECK_GE(argc, 5);
+
   CHECK(args[0]->IsInt32());
+  const int fd = args[0].As<Int32>()->Value();
+
   CHECK(Buffer::HasInstance(args[1]));
-
-  int fd = args[0]->Int32Value();
-
-  Local<Value> req;
-
-  size_t len;
-  int64_t pos;
-
-  char * buf = nullptr;
-
   Local<Object> buffer_obj = args[1].As<Object>();
-  char *buffer_data = Buffer::Data(buffer_obj);
+  char* buffer_data = Buffer::Data(buffer_obj);
   size_t buffer_length = Buffer::Length(buffer_obj);
 
-  size_t off = args[2]->Int32Value();
+  CHECK(args[2]->IsInt32());
+  const size_t off = static_cast<size_t>(args[2].As<Int32>()->Value());
   CHECK_LT(off, buffer_length);
 
-  len = args[3]->Int32Value();
+  CHECK(args[3]->IsInt32());
+  const size_t len = static_cast<size_t>(args[3].As<Int32>()->Value());
   CHECK(Buffer::IsWithinBounds(off, len, buffer_length));
 
-  pos = GET_OFFSET(args[4]);
+  CHECK(args[4]->IsNumber());
+  const int64_t pos = args[4].As<Integer>()->Value();
 
-  buf = buffer_data + off;
-
+  char* buf = buffer_data + off;
   uv_buf_t uvbuf = uv_buf_init(const_cast<char*>(buf), len);
 
   FSReqBase* req_wrap = GetReqWrap(env, args[5]);
-  if (req_wrap != nullptr) {
+  if (req_wrap != nullptr) {  // read(fd, buffer, offset, len, pos, req)
     AsyncCall(env, req_wrap, args, "read", UTF8, AfterInteger,
               uv_fs_read, fd, &uvbuf, 1, pos);
-  } else {
-    SYNC_CALL(read, 0, fd, &uvbuf, 1, pos)
-    args.GetReturnValue().Set(SYNC_RESULT);
+  } else {  // read(fd, buffer, offset, len, pos, undefined, ctx)
+    CHECK_EQ(argc, 7);
+    fs_req_wrap req_wrap;
+    const int bytesRead = SyncCall(env, args[6], &req_wrap, "read",
+                                   uv_fs_read, fd, &uvbuf, 1, pos);
+    args.GetReturnValue().Set(bytesRead);
   }
 }
 
