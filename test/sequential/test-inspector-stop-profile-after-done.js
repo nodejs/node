@@ -11,7 +11,7 @@ async function runTests() {
   const child = new NodeInstance(['--inspect-brk=0'],
                                  `const interval = setInterval(() => {
                                     console.log(new Object());
-                                  }, 70);
+                                  }, 140);
                                   process.stdin.on('data', (msg) => {
                                     if (msg.toString() === 'fhqwhgads') {
                                       clearInterval(interval);
@@ -31,7 +31,7 @@ async function runTests() {
   const session = await child.connectInspectorSession();
 
   session.send([
-    { 'method': 'Profiler.setSamplingInterval', 'params': { 'interval': 700 } },
+    { 'method': 'Profiler.setSamplingInterval', 'params': { 'interval': 1400 } },
     { 'method': 'Profiler.enable' },
     { 'method': 'Runtime.runIfWaitingForDebugger' }
   ]);
@@ -43,7 +43,7 @@ async function runTests() {
   assert.strictEqual(stderrString, 'Debugger attached.');
 
   session.send({ 'method': 'Profiler.start' })
-  setTimeout(() => { child._process.stdin.write('fhqwhgads'); }, 1400);
+  setTimeout(() => { child._process.stdin.write('fhqwhgads'); }, 2800);
 }
 
 common.crashOnUnhandledRejection();
