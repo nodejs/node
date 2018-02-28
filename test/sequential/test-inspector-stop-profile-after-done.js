@@ -9,12 +9,15 @@ const stderrMessages = [];
 
 async function runTests() {
   const child = new NodeInstance(['--inspect-brk=0'],
-                                 `let c = 0;
-                                  const interval = setInterval(() => {
-                                   console.log(new Object());
-                                   if (c++ === 10)
-                                     clearInterval(interval);
-                                 }, 10);`);
+                                 `const interval = setInterval(() => {
+                                    console.log(new Object());
+                                  }, 10);
+                                  process.stdin.on('data', (msg) => {
+                                    if (msg.toString() === 'fhqwhgads') {
+                                      clearInterval(interval);
+                                      process.exit();
+                                    }
+                                  });`);
 
   child._process.stderr.on('data', async (data) => {
     const message = data.toString();
@@ -30,9 +33,17 @@ async function runTests() {
   session.send([
     { 'method': 'Profiler.setSamplingInterval', 'params': { 'interval': 100 } },
     { 'method': 'Profiler.enable' },
-    { 'method': 'Runtime.runIfWaitingForDebugger' },
-    { 'method': 'Profiler.start' }
-  ]);  
+    { 'method': 'Runtime.runIfWaitingForDebugger' }
+  ]);
+
+  await child.nextStderrString();
+  await child.nextStderrString();
+  await child.nextStderrString();
+  const stderrString = await child.nextStderrString();
+  assert.strictEqual(stderrString, 'Debugger attached.');
+
+  session.send({ 'method': 'Profiler.start' })
+  setTimeout(() => { child._process.stdin.write('fhqwhgads'); }, 200);
 }
 
 common.crashOnUnhandledRejection();
