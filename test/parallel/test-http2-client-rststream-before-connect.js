@@ -16,7 +16,31 @@ server.on('stream', (stream) => {
 server.listen(0, common.mustCall(() => {
   const client = h2.connect(`http://localhost:${server.address().port}`);
   const req = client.request();
-  req.close(1);
+  const closeCode = 1;
+
+  common.expectsError(
+    () => req.close(2 ** 32),
+    {
+      type: RangeError,
+      code: 'ERR_OUT_OF_RANGE',
+      message: 'The value of "code" is out of range.'
+    }
+  );
+  assert.strictEqual(req.closed, false);
+
+  [true, 1, {}, [], null, 'test'].forEach((notFunction) => {
+    common.expectsError(
+      () => req.close(closeCode, notFunction),
+      {
+        type: TypeError,
+        code: 'ERR_INVALID_CALLBACK',
+        message: 'Callback must be a function'
+      }
+    );
+    assert.strictEqual(req.closed, false);
+  });
+
+  req.close(closeCode, common.mustCall());
   assert.strictEqual(req.closed, true);
 
   // make sure that destroy is called
