@@ -23,7 +23,7 @@ async function runTests() {
     const message = data.toString();
     stderrMessages.push(message);
     if (message.trim() === 'Waiting for the debugger to disconnect...') {
-      await session.send({ 'method': 'Profiler.stop' });
+      // await session.send({ 'method': 'Profiler.stop' });
       session.disconnect();
       assert.strictEqual(0, (await child.expectShutdown()).exitCode);
     }
@@ -42,7 +42,7 @@ async function runTests() {
   const stderrString = await child.nextStderrString();
   assert.strictEqual(stderrString, 'Debugger attached.');
 
-  session.send({ 'method': 'Profiler.start' })
+  // session.send({ 'method': 'Profiler.start' })
   setTimeout(() => { child._process.stdin.write('fhqwhgads'); }, 200);
 }
 
