@@ -9,8 +9,10 @@ const fsPromises = require('fs/promises');
 const {
   access,
   chmod,
+  chown,
   copyFile,
   fchmod,
+  fchown,
   fdatasync,
   fstat,
   fsync,
@@ -27,6 +29,8 @@ const {
   realpath,
   rename,
   rmdir,
+  lchmod,
+  lchown,
   stat,
   symlink,
   write,
@@ -95,6 +99,21 @@ function verifyStatObject(stat) {
 
     await chmod(dest, 0o666);
     await fchmod(handle, 0o666);
+    // lchmod is only available on OSX
+    if (common.isOSX) {
+      await lchmod(dest, 0o666);
+    }
+
+    if (!common.isWindows) {
+      const gid = process.getgid();
+      const uid = process.getuid();
+      await chown(dest, uid, gid);
+      await fchown(handle, uid, gid);
+      // lchown is only available on OSX
+      if (common.isOSX) {
+        await lchown(dest, uid, gid);
+      }
+    }
 
     await utimes(dest, new Date(), new Date());
 
