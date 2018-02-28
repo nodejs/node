@@ -11,7 +11,7 @@ async function runTests() {
   const child = new NodeInstance(['--inspect-brk=0'],
                                  `const interval = setInterval(() => {
                                     console.log(new Object());
-                                  }, 10);
+                                  }, 70);
                                   process.stdin.on('data', (msg) => {
                                     if (msg.toString() === 'fhqwhgads') {
                                       clearInterval(interval);
@@ -23,7 +23,7 @@ async function runTests() {
     const message = data.toString();
     stderrMessages.push(message);
     if (message.trim() === 'Waiting for the debugger to disconnect...') {
-      // await session.send({ 'method': 'Profiler.stop' });
+      await session.send({ 'method': 'Profiler.stop' });
       session.disconnect();
       assert.strictEqual(0, (await child.expectShutdown()).exitCode);
     }
@@ -31,7 +31,7 @@ async function runTests() {
   const session = await child.connectInspectorSession();
 
   session.send([
-    { 'method': 'Profiler.setSamplingInterval', 'params': { 'interval': 100 } },
+    { 'method': 'Profiler.setSamplingInterval', 'params': { 'interval': 700 } },
     { 'method': 'Profiler.enable' },
     { 'method': 'Runtime.runIfWaitingForDebugger' }
   ]);
@@ -42,8 +42,8 @@ async function runTests() {
   const stderrString = await child.nextStderrString();
   assert.strictEqual(stderrString, 'Debugger attached.');
 
-  // session.send({ 'method': 'Profiler.start' })
-  setTimeout(() => { child._process.stdin.write('fhqwhgads'); }, 200);
+  session.send({ 'method': 'Profiler.start' })
+  setTimeout(() => { child._process.stdin.write('fhqwhgads'); }, 1400);
 }
 
 common.crashOnUnhandledRejection();
