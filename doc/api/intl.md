@@ -19,6 +19,7 @@ programs. Some of them are:
 - [`require('buffer').transcode()`][]
 - More accurate [REPL][] line editing
 - [`require('util').TextDecoder`][]
+- [RegExp Unicode Property Escapes][]
 
 Node.js (and its underlying V8 engine) uses [ICU][] to implement these features
 in native C/C++ code. However, some of them require a very large ICU data file
@@ -55,6 +56,7 @@ option:
 | [`require('buffer').transcode()`][]     | none (function does not exist)    | full                         | full                   | full       |
 | [REPL][]                                | partial (inaccurate line editing) | full                         | full                   | full       |
 | [`require('util').TextDecoder`][]       | partial (basic encodings support) | partial/full (depends on OS) | partial (Unicode-only) | full       |
+| [RegExp Unicode Property Escapes][]     | none (invalid RegExp error)       | full                         | full                   | full       |
 
 *Note*: The "(not locale-aware)" designation denotes that the function carries
 out its operation just like the non-`Locale` version of the function, if one
@@ -207,6 +209,7 @@ to be helpful:
 [ECMA-402]: https://tc39.github.io/ecma402/
 [ICU]: http://icu-project.org/
 [REPL]: repl.html#repl_repl
+[RegExp Unicode Property Escapes]: https://github.com/tc39/proposal-regexp-unicode-property-escapes
 [Test262]: https://github.com/tc39/test262/tree/master/test/intl402
 [WHATWG URL parser]: url.html#url_the_whatwg_url_api
 [btest402]: https://github.com/srl295/btest402
