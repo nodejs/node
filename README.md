@@ -29,6 +29,7 @@ policies, and releases are managed under an
     * [Nightly Releases](#nightly-releases)
     * [API Documentation](#api-documentation)
   * [Verifying Binaries](#verifying-binaries)
+  * [Third Party Binaries](#third-party-binaries)
 * [Building Node.js](#building-nodejs)
 * [Security](#security)
 * [Current Project Team Members](#current-project-team-members)
@@ -160,6 +161,22 @@ that the file has been signed by an authorized member of the Node.js team.
 
 Once verified, use the SHASUMS256.txt file to get the checksum for
 the binary verification command above.
+
+### Third Party Binaries
+
+Support of some operating systems is still experimental in Node.js,
+so precompiled binaries for them are not provided by Node.js developers.
+
+However, there are some third party solutions. For example,
+[Termux](https://termux.com/) community provides terminal emulator and
+Linux environment for Android, as well as own package manager and
+extensive collection of many precompiled applications. These commands
+will install the last LTS or a current Node.js version respectively:
+
+```console
+$ pkg install nodejs
+$ pkg install nodejs-current
+```
 
 ## Building Node.js
 
