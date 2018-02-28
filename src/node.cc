@@ -4314,6 +4314,9 @@ void FreePlatform(MultiIsolatePlatform* platform) {
   delete platform;
 }
 
+MultiIsolatePlatform* GetCurrentPlatform() {
+  return v8_platform.Platform();
+}
 
 Local<Context> NewContext(Isolate* isolate,
                           Local<ObjectTemplate> object_template) {

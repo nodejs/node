@@ -256,6 +256,8 @@ NODE_EXTERN MultiIsolatePlatform* CreatePlatform(
     v8::TracingController* tracing_controller);
 NODE_EXTERN void FreePlatform(MultiIsolatePlatform* platform);
 
+NODE_EXTERN MultiIsolatePlatform* GetCurrentPlatform();
+
 NODE_EXTERN void EmitBeforeExit(Environment* env);
 NODE_EXTERN int EmitExit(Environment* env);
 NODE_EXTERN void RunAtExit(Environment* env);
