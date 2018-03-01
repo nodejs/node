@@ -2,8 +2,10 @@
 
 ## How to upgrade ICU
 
-- Make sure your node workspace is clean (clean `git status`) should be sufficient.
-- Configure Node with the specific [ICU version](http://icu-project.org/download) you want to upgrade to, for example:
+- Make sure your node workspace is clean (clean `git status`) should be 
+  sufficient.
+- Configure Node with the specific [ICU version](http://icu-project.org/download)
+  you want to upgrade to, for example:
 
 ```shell
 ./configure \
@@ -12,11 +14,11 @@
 make
 ```
 
-(The equivalent `vcbuild.bat` commands should work also. Note that we use the `.tgz` and not the `.zip` here,
-that is because of line endings.)
+(The equivalent `vcbuild.bat` commands should work also. Note that we use the 
+`.tgz` and not the `.zip` here, that is because of line endings.)
 
-- (note- may need to make changes in `icu-generic.gyp` or `tools/icu/patches` for
-version specific stuff)
+- (note- may need to make changes in `icu-generic.gyp` or `tools/icu/patches` 
+for version specific stuff)
 
 - Verify the node build works
 

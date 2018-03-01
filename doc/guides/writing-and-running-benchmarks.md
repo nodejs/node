@@ -31,8 +31,8 @@ either [`wrk`][wrk] or [`autocannon`][autocannon].
 path. In order to compare two HTTP benchmark runs, make sure that the
 Node.js version in the path is not altered.
 
-`wrk` may be available through one of the available package managers. If not, it can
-be easily built [from source][wrk] via `make`.
+`wrk` may be available through one of the available package managers. If not, 
+it can be easily built [from source][wrk] via `make`.
 
 By default, `wrk` will be used as the benchmarker. If it is not available,
 `autocannon` will be used in its place. When creating an HTTP benchmark, the
@@ -222,9 +222,9 @@ is less than `0.05`._
 The `compare.R` tool can also produce a box plot by using the `--plot filename`
 option. In this case there are 48 different benchmark combinations, and there
 may be a need to filter the csv file. This can be done while benchmarking
-using the `--set` parameter (e.g. `--set encoding=ascii`) or by filtering results
-afterwards using tools such as `sed` or `grep`. In the `sed` case be sure to
-keep the first line since that contains the header information.
+using the `--set` parameter (e.g. `--set encoding=ascii`) or by filtering 
+results afterwards using tools such as `sed` or `grep`. In the `sed` case be 
+sure to keep the first line since that contains the header information.
 
 ```console
 $ cat compare-pr-5134.csv | sed '1p;/encoding=ascii/!d' | Rscript benchmark/compare.R --plot compare-plot.png

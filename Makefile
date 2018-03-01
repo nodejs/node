@@ -1005,13 +1005,17 @@ lint-md-clean:
 	$(RM) -r tools/remark-preset-lint-node/node_modules
 	$(RM) tools/.*mdlintstamp
 
-lint-md-build:
-	@if [ ! -d tools/remark-cli/node_modules ]; then \
-		echo "Markdown linter: installing remark-cli into tools/"; \
-		cd tools/remark-cli && ../../$(NODE) ../../$(NPM) install; fi
-	@if [ ! -d tools/remark-preset-lint-node/node_modules ]; then \
-		echo "Markdown linter: installing remark-preset-lint-node into tools/"; \
-		cd tools/remark-preset-lint-node && ../../$(NODE) ../../$(NPM) install; fi
+tools/remark-cli/node_modules: tools/remark-cli/package.json
+	@echo "Markdown linter: installing remark-cli into tools/"
+	@cd tools/remark-cli && $(call available-node,$(run-npm-install))
+
+tools/remark-preset-lint-node/node_modules: \
+	tools/remark-preset-lint-node/package.json
+	@echo "Markdown linter: installing remark-preset-lint-node into tools/"
+	@cd tools/remark-preset-lint-node && $(call available-node,$(run-npm-install))
+
+lint-md-build: tools/remark-cli/node_modules \
+	tools/remark-preset-lint-node/node_modules
 
 ifneq ("","$(wildcard tools/remark-cli/node_modules/)")
 LINT_MD_TARGETS = src lib benchmark tools/doc tools/icu

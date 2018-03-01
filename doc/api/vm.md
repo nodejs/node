@@ -455,9 +455,9 @@ local scope, so the value `localVar` is changed. In this way
 
 ## Example: Running an HTTP Server within a VM
 
-When using either [`script.runInThisContext()`][] or [`vm.runInThisContext()`][], the
-code is executed within the current V8 global context. The code passed
-to this VM context will have its own isolated scope.
+When using either [`script.runInThisContext()`][] or 
+[`vm.runInThisContext()`][], the code is executed within the current V8 global 
+context. The code passed to this VM context will have its own isolated scope.
 
 In order to run a simple web server using the `http` module the code passed to
 the context must either call `require('http')` on its own, or have a reference

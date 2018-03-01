@@ -21,7 +21,9 @@ $ git checkout vX.Y.Z
 $ make release
 ```
 
-Note: please run `npm dist-tag ls npm` and make sure this is the `latest` **dist-tag**. `latest` on git is usually released as `next` when it's time to downstream
+Note: please run `npm dist-tag ls npm` and make sure this is the `latest` 
+**dist-tag**. `latest` on git is usually released as `next` when it's time to 
+downstream
 
 ## Step 3: Remove old npm
 

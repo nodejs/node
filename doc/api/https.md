@@ -12,8 +12,8 @@ separate module.
 added: v0.4.5
 -->
 
-An Agent object for HTTPS similar to [`http.Agent`][].  See [`https.request()`][]
-for more information.
+An Agent object for HTTPS similar to [`http.Agent`][].  See 
+[`https.request()`][] for more information.
 
 ## Class: https.Server
 <!-- YAML
@@ -65,7 +65,8 @@ See [`http.Server#keepAliveTimeout`][].
 <!-- YAML
 added: v0.3.4
 -->
-- `options` {Object} Accepts `options` from [`tls.createServer()`][] and [`tls.createSecureContext()`][].
+- `options` {Object} Accepts `options` from [`tls.createServer()`][] and 
+  [`tls.createSecureContext()`][].
 - `requestListener` {Function} A listener to be added to the `request` event.
 
 Example:
@@ -154,8 +155,8 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/10638
     description: The `options` parameter can be a WHATWG `URL` object.
 -->
-- `options` {Object | string | URL} Accepts all `options` from [`http.request()`][],
-  with some differences in default values:
+- `options` {Object | string | URL} Accepts all `options` from 
+  [`http.request()`][], with some differences in default values:
   - `protocol` Defaults to `https:`
   - `port` Defaults to `443`.
   - `agent` Defaults to `https.globalAgent`.
@@ -164,9 +165,9 @@ changes:
 
 Makes a request to a secure web server.
 
-The following additional `options` from [`tls.connect()`][] are also accepted when using a
-  custom [`Agent`][]:
-  `pfx`, `key`, `passphrase`, `cert`, `ca`, `ciphers`, `rejectUnauthorized`, `secureProtocol`, `servername`
+The following additional `options` from [`tls.connect()`][] are also accepted 
+  when using a custom [`Agent`][]: `pfx`, `key`, `passphrase`, `cert`, `ca`, 
+  `ciphers`, `rejectUnauthorized`, `secureProtocol`, `servername`
 
 `options` can be an object, a string, or a [`URL`][] object. If `options` is a
 string, it is automatically parsed with [`url.parse()`][]. If it is a [`URL`][]
