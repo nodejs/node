@@ -3272,7 +3272,7 @@ being provided for diagnostic information exposed by the `async_hooks` API.
 the logic asynchronously. The given function is called from a worker pool
 thread and executes in parallel with the main event loop thread.
 - `[in] complete`: The native function which will be called when the
-asynchronous logic is comple or is cancelled. The given function is called
+asynchronous logic is completed or is cancelled. The given function is called
 from the main event loop thread.
 - `[in] data`: User-provided data context. This will be passed back into the
 execute and complete functions.
