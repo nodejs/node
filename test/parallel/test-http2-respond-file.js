@@ -48,5 +48,6 @@ server.listen(0, () => {
     client.close();
     server.close();
   }));
+  assert.strictEqual(req.headersSent, true);
   req.end();
 });
