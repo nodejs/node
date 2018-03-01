@@ -17,11 +17,7 @@ test-fs-read-buffer-tostring-fail      : PASS,FLAKY
 test-npm-install:      PASS,FLAKY
 
 [$system==solaris] # Also applies to SmartOS
-test-debug-signal-cluster         : PASS,FLAKY
 
 [$system==freebsd]
 
 [$system==aix]
-#covered by  https://github.com/nodejs/node/issues/3796
-# but more frequent on AIX ?
-test-debug-signal-cluster                : PASS, FLAKY
