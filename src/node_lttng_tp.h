@@ -25,6 +25,7 @@ TRACEPOINT_EVENT(
     ctf_string(url, url)
     ctf_string(method, method)
     ctf_string(forwardedFor, forwardedFor))
+)
 
 TRACEPOINT_EVENT(
   node,
@@ -37,6 +38,7 @@ TRACEPOINT_EVENT(
     ctf_integer(int, port, port)
     ctf_string(remote, remote)
     ctf_integer(int, fd, fd))
+)
 
 TRACEPOINT_EVENT(
   node,
@@ -47,6 +49,7 @@ TRACEPOINT_EVENT(
   TP_FIELDS(
     ctf_string(url, url)
     ctf_string(method, method))
+)
 
 TRACEPOINT_EVENT(
   node,
@@ -59,6 +62,7 @@ TRACEPOINT_EVENT(
     ctf_integer(int, port, port)
     ctf_string(remote, remote)
     ctf_integer(int, fd, fd))
+)
 
 TRACEPOINT_EVENT(
   node,
@@ -73,6 +77,7 @@ TRACEPOINT_EVENT(
     ctf_integer(int, port, port)
     ctf_integer(int, fd, fd)
     ctf_integer(int, buffered, buffered))
+)
 
 TRACEPOINT_EVENT(
   node,
@@ -85,6 +90,7 @@ TRACEPOINT_EVENT(
     ctf_string(remote, remote)
     ctf_integer(int, port, port)
     ctf_integer(int, fd, fd))
+)
 
 TRACEPOINT_EVENT(
   node,
@@ -106,6 +112,7 @@ TRACEPOINT_EVENT(
   TP_FIELDS(
     ctf_string(gctype, gctype)
     ctf_string(gcflags, gcflags))
+)
 
 #endif /* __NODE_LTTNG_TP_H */
 
