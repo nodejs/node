@@ -279,6 +279,8 @@ valid up until an n-api function is called on the same `env`.
 information as it is not subject to SemVer and may change at any time.
 It is intended only for logging purposes.
 
+This API can be called even if there is a pending JavaScript exception.
+
 
 ### Exceptions
 Any N-API function call may result in a pending JavaScript exception. This is
@@ -504,7 +506,6 @@ Returns `napi_ok` if the API succeeded.
 
 This API returns a JavaScript RangeError with the text provided.
 
-
 #### napi_get_and_clear_last_exception
 <!-- YAML
 added: v8.0.0
@@ -521,6 +522,8 @@ Returns `napi_ok` if the API succeeded.
 
 This API returns true if an exception is pending.
 
+This API can be called even if there is a pending JavaScript exception.
+
 #### napi_is_exception_pending
 <!-- YAML
 added: v8.0.0
@@ -535,6 +538,8 @@ napi_status napi_is_exception_pending(napi_env env, bool* result);
 Returns `napi_ok` if the API succeeded.
 
 This API returns true if an exception is pending.
+
+This API can be called even if there is a pending JavaScript exception.
 
 ### Fatal Errors
 
@@ -561,6 +566,8 @@ NAPI_NO_RETURN void napi_fatal_error(const char* location,
 null-terminated.
 
 The function call does not return, the process will be terminated.
+
+This API can be called even if there is a pending JavaScript exception.
 
 ## Object Lifetime management
 
@@ -682,6 +689,8 @@ Returns `napi_ok` if the API succeeded.
 This API closes the scope passed in. Scopes must be closed in the
 reverse order from which they were created.
 
+This API can be called even if there is a pending JavaScript exception.
+
 #### napi_open_escapable_handle_scope
 <!-- YAML
 added: v8.0.0
@@ -716,6 +725,8 @@ Returns `napi_ok` if the API succeeded.
 This API closes the scope passed in. Scopes must be closed in the
 reverse order from which they were created.
 
+This API can be called even if there is a pending JavaScript exception.
+
 #### napi_escape_handle
 <!-- YAML
 added: v8.0.0
@@ -739,7 +750,10 @@ This API promotes the handle to the JavaScript object so that it is valid
 for the lifetime of the outer scope. It can only be called once per scope.
 If it is called more than once an error will be returned.
 
+This API can be called even if there is a pending JavaScript exception.
+
 ### References to objects with a lifespan longer than that of the native method
+
 In some cases an addon will need to be able to create and reference objects
 with a lifespan longer than that of a single native method invocation. For
 example, to create a constructor and later use that constructor
@@ -814,6 +828,8 @@ Returns `napi_ok` if the API succeeded.
 
 This API deletes the reference passed in.
 
+This API can be called even if there is a pending JavaScript exception.
+
 #### napi_reference_ref
 <!-- YAML
 added: v8.0.0
@@ -832,7 +848,6 @@ Returns `napi_ok` if the API succeeded.
 This API increments the reference count for the reference
 passed in and returns the resulting reference count.
 
-
 #### napi_reference_unref
 <!-- YAML
 added: v8.0.0
@@ -850,7 +865,6 @@ Returns `napi_ok` if the API succeeded.
 
 This API decrements the reference count for the reference
 passed in and returns the resulting reference count.
-
 
 #### napi_get_reference_value
 <!-- YAML
@@ -1678,8 +1692,6 @@ This API returns various properties of a typed array.
 *Warning*: Use caution while using this API since the underlying data buffer
 is managed by the VM
 
-
-
 #### napi_get_dataview_info
 <!-- YAML
 added: v8.3.0
@@ -1706,7 +1718,6 @@ napi_status napi_get_dataview_info(napi_env env,
 Returns `napi_ok` if the API succeeded.
 
 This API returns various properties of a DataView.
-
 
 #### napi_get_value_bool
 <!-- YAML
@@ -1747,7 +1758,6 @@ in it returns `napi_number_expected`.
 
 This API returns the C double primitive equivalent of the given JavaScript
 Number.
-
 
 #### napi_get_value_external
 <!-- YAML
@@ -1810,7 +1820,7 @@ Returns `napi_ok` if the API succeeded. If a non-number `napi_value`
 is passed in it returns `napi_number_expected`.
 
 This API returns the C int64 primitive equivalent of the given
-JavaScript Number
+JavaScript Number.
 
 #### napi_get_value_string_latin1
 <!-- YAML
@@ -2201,8 +2211,6 @@ napi_status napi_is_typedarray(napi_env env, napi_value value, bool* result)
 Returns `napi_ok` if the API succeeded.
 
 This API checks if the Object passsed in is a typed array.
-
-
 
 ### napi_is_dataview
 <!-- YAML
@@ -3323,6 +3331,8 @@ Returns `napi_ok` if the API succeeded.
 
 This API frees a previously allocated work object.
 
+This API can be called even if there is a pending JavaScript exception.
+
 ### napi_queue_async_work
 <!-- YAML
 added: v8.0.0
@@ -3360,6 +3370,8 @@ cancelled and `napi_generic_failure` will be returned. If successful,
 the `complete` callback will be invoked with a status value of
 `napi_cancelled`. The work should not be deleted before the `complete`
 callback invocation, even if it has been successfully cancelled.
+
+This API can be called even if there is a pending JavaScript exception.
 
 ## Custom Asynchronous Operations
 The simple asynchronous work APIs above may not be appropriate for every
@@ -3401,6 +3413,8 @@ napi_status napi_async_destroy(napi_env env,
 - `[in] async_context`: The async context to be destroyed.
 
 Returns `napi_ok` if the API succeeded.
+
+This API can be called even if there is a pending JavaScript exception.
 
 ### napi_make_callback
 <!-- YAML
@@ -3483,6 +3497,8 @@ NAPI_EXTERN napi_status napi_close_callback_scope(napi_env env,
 ```
 - `[in] env`: The environment that the API is invoked under.
 - `[in] scope`: The scope to be closed.
+
+This API can be called even if there is a pending JavaScript exception.
 
 ## Version Management
 
