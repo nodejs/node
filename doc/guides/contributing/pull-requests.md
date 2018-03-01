@@ -146,7 +146,7 @@ A good commit message should describe what changed and why.
 
    Examples:
    - `net: add localAddress and localPort to Socket`
-   - `src: fix typos in node_lttng_provider.h`
+   - `src: fix typos in async_wrap.h`
 
 
 2. Keep the second line blank.
