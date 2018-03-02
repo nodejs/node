@@ -2002,7 +2002,89 @@ static Local<Object> X509ToObject(Environment* env, X509* cert) {
 }
 
 
-// TODO(indutny): Split it into multiple smaller functions
+static Local<Object> AddIssuerChainToObject(X509** cert,
+                                            Local<Object> object,
+                                            STACK_OF(X509)* const peer_certs,
+                                            Environment* const env) {
+  Local<Context> context = env->isolate()->GetCurrentContext();
+  *cert = sk_X509_delete(peer_certs, 0);
+  for (;;) {
+    int i;
+    for (i = 0; i < sk_X509_num(peer_certs); i++) {
+      X509* ca = sk_X509_value(peer_certs, i);
+      if (X509_check_issued(ca, *cert) != X509_V_OK)
+        continue;
+
+      Local<Object> ca_info = X509ToObject(env, ca);
+      object->Set(context, env->issuercert_string(), ca_info).FromJust();
+      object = ca_info;
+
+      // NOTE: Intentionally freeing cert that is not used anymore.
+      X509_free(*cert);
+
+      // Delete cert and continue aggregating issuers.
+      *cert = sk_X509_delete(peer_certs, i);
+      break;
+    }
+
+    // Issuer not found, break out of the loop.
+    if (i == sk_X509_num(peer_certs))
+      break;
+  }
+  sk_X509_pop_free(peer_certs, X509_free);
+  return object;
+}
+
+
+static bool CloneSSLCerts(X509** cert,
+                          const STACK_OF(X509)* const ssl_certs,
+                          STACK_OF(X509)** peer_certs) {
+  *peer_certs = sk_X509_new(nullptr);
+  bool result = true;
+  if (*cert != nullptr)
+    sk_X509_push(*peer_certs, *cert);
+  for (int i = 0; i < sk_X509_num(ssl_certs); i++) {
+    *cert = X509_dup(sk_X509_value(ssl_certs, i));
+    if (*cert == nullptr) {
+      result = false;
+      break;
+    }
+    if (!sk_X509_push(*peer_certs, *cert)) {
+      result = false;
+      break;
+    }
+  }
+  if (!result) {
+    sk_X509_pop_free(*peer_certs, X509_free);
+  }
+  return result;
+}
+
+
+static Local<Object> GetLastIssuedCert(X509** cert,
+                                       const SSL* const ssl,
+                                       Local<Object> issuer_chain,
+                                       Environment* const env) {
+  Local<Context> context = env->isolate()->GetCurrentContext();
+  while (X509_check_issued(*cert, *cert) != X509_V_OK) {
+    X509* ca;
+    if (SSL_CTX_get_issuer(SSL_get_SSL_CTX(ssl), *cert, &ca) <= 0)
+      break;
+
+    Local<Object> ca_info = X509ToObject(env, ca);
+    issuer_chain->Set(context, env->issuercert_string(), ca_info).FromJust();
+    issuer_chain = ca_info;
+
+    // NOTE: Intentionally freeing cert that is not used anymore.
+    X509_free(*cert);
+
+    // Delete cert and continue aggregating issuers.
+    *cert = ca;
+  }
+  return issuer_chain;
+}
+
+
 template <class Base>
 void SSLWrap<Base>::GetPeerCertificate(
     const FunctionCallbackInfo<Value>& args) {
@@ -2014,97 +2096,43 @@ void SSLWrap<Base>::GetPeerCertificate(
   ClearErrorOnReturn clear_error_on_return;
 
   Local<Object> result;
-  Local<Object> info;
+  // Used to build the issuer certificate chain.
+  Local<Object> issuer_chain;
 
   // NOTE: This is because of the odd OpenSSL behavior. On client `cert_chain`
-  // contains the `peer_certificate`, but on server it doesn't
+  // contains the `peer_certificate`, but on server it doesn't.
   X509* cert = w->is_server() ? SSL_get_peer_certificate(w->ssl_) : nullptr;
   STACK_OF(X509)* ssl_certs = SSL_get_peer_cert_chain(w->ssl_);
   STACK_OF(X509)* peer_certs = nullptr;
-  if (cert == nullptr && ssl_certs == nullptr)
+  if (cert == nullptr && (ssl_certs == nullptr || sk_X509_num(ssl_certs) == 0))
     goto done;
 
-  if (cert == nullptr && sk_X509_num(ssl_certs) == 0)
-    goto done;
-
-  // Short result requested
+  // Short result requested.
   if (args.Length() < 1 || !args[0]->IsTrue()) {
     result = X509ToObject(env,
                           cert == nullptr ? sk_X509_value(ssl_certs, 0) : cert);
     goto done;
   }
 
-  // Clone `ssl_certs`, because we are going to destruct it
-  peer_certs = sk_X509_new(nullptr);
-  if (cert != nullptr)
-    sk_X509_push(peer_certs, cert);
-  for (int i = 0; i < sk_X509_num(ssl_certs); i++) {
-    cert = X509_dup(sk_X509_value(ssl_certs, i));
-    if (cert == nullptr)
-      goto done;
-    if (!sk_X509_push(peer_certs, cert))
-      goto done;
+  if (CloneSSLCerts(&cert, ssl_certs, &peer_certs)) {
+    // First and main certificate.
+    cert = sk_X509_value(peer_certs, 0);
+    result = X509ToObject(env, cert);
+
+    issuer_chain = AddIssuerChainToObject(&cert, result, peer_certs, env);
+    issuer_chain = GetLastIssuedCert(&cert, w->ssl_, issuer_chain, env);
+    // Last certificate should be self-signed.
+    if (X509_check_issued(cert, cert) == X509_V_OK)
+      issuer_chain->Set(env->context(),
+                        env->issuercert_string(),
+                        issuer_chain).FromJust();
+
+    CHECK_NE(cert, nullptr);
   }
-
-  // First and main certificate
-  cert = sk_X509_value(peer_certs, 0);
-  result = X509ToObject(env, cert);
-  info = result;
-
-  // Put issuer inside the object
-  cert = sk_X509_delete(peer_certs, 0);
-  while (sk_X509_num(peer_certs) > 0) {
-    int i;
-    for (i = 0; i < sk_X509_num(peer_certs); i++) {
-      X509* ca = sk_X509_value(peer_certs, i);
-      if (X509_check_issued(ca, cert) != X509_V_OK)
-        continue;
-
-      Local<Object> ca_info = X509ToObject(env, ca);
-      info->Set(context, env->issuercert_string(), ca_info).FromJust();
-      info = ca_info;
-
-      // NOTE: Intentionally freeing cert that is not used anymore
-      X509_free(cert);
-
-      // Delete cert and continue aggregating issuers
-      cert = sk_X509_delete(peer_certs, i);
-      break;
-    }
-
-    // Issuer not found, break out of the loop
-    if (i == sk_X509_num(peer_certs))
-      break;
-  }
-
-  // Last certificate should be self-signed
-  while (X509_check_issued(cert, cert) != X509_V_OK) {
-    X509* ca;
-    if (SSL_CTX_get_issuer(SSL_get_SSL_CTX(w->ssl_), cert, &ca) <= 0)
-      break;
-
-    Local<Object> ca_info = X509ToObject(env, ca);
-    info->Set(context, env->issuercert_string(), ca_info).FromJust();
-    info = ca_info;
-
-    // NOTE: Intentionally freeing cert that is not used anymore
-    X509_free(cert);
-
-    // Delete cert and continue aggregating issuers
-    cert = ca;
-  }
-
-  // Self-issued certificate
-  if (X509_check_issued(cert, cert) == X509_V_OK)
-    info->Set(context, env->issuercert_string(), info).FromJust();
-
-  CHECK_NE(cert, nullptr);
 
  done:
   if (cert != nullptr)
     X509_free(cert);
-  if (peer_certs != nullptr)
-    sk_X509_pop_free(peer_certs, X509_free);
   if (result.IsEmpty())
     result = Object::New(env->isolate());
   args.GetReturnValue().Set(result);
