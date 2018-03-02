@@ -130,12 +130,14 @@ function onSession(session, next) {
     connect(
       origin,
       clientOptions,
-      common.mustCall(function (session) {
-        onSession.call({ cleanup, server }, session, testNoTls);
+      common.mustCall(function(session) {
+        onSession.call({ cleanup, server },
+                       session,
+                       common.mustCall(testNoTls));
       })
     );
 
-    function testNoTls () {
+    function testNoTls() {
       // HTTP/1.1 client
       get(Object.assign(parse(origin), clientOptions), common.mustNotCall)
         .on('error', common.mustCall(cleanup))
