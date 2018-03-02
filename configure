@@ -439,6 +439,11 @@ intl_optgroup.add_option('--download-path',
 
 parser.add_option_group(intl_optgroup)
 
+parser.add_option('--debug-lib',
+    action='store_true',
+    dest='node_debug_lib',
+    help='build lib with DCHECK macros')
+
 http2_optgroup.add_option('--debug-http2',
     action='store_true',
     dest='debug_http2',
@@ -948,6 +953,8 @@ def configure_node(o):
 
   if options.enable_static:
     o['variables']['node_target_type'] = 'static_library'
+
+  o['variables']['node_debug_lib'] = b(options.node_debug_lib)
 
   if options.debug_http2:
     o['variables']['debug_http2'] = 1

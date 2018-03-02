@@ -74,20 +74,27 @@ def ExpandConstants(lines, constants):
 
 
 def ExpandMacros(lines, macros):
+  def expander(s):
+    return ExpandMacros(s, macros)
   for name, macro in macros.items():
-    start = lines.find(name + '(', 0)
-    while start != -1:
+    name_pattern = re.compile("\\b%s\\(" % name)
+    pattern_match = name_pattern.search(lines, 0)
+    while pattern_match is not None:
       # Scan over the arguments
-      assert lines[start + len(name)] == '('
       height = 1
-      end = start + len(name) + 1
+      start = pattern_match.start()
+      end = pattern_match.end()
+      assert lines[end - 1] == '('
       last_match = end
-      arg_index = 0
-      mapping = { }
+      arg_index = [0]  # Wrap state into array, to work around Python "scoping"
+      mapping = {}
       def add_arg(str):
         # Remember to expand recursively in the arguments
-        replacement = ExpandMacros(str.strip(), macros)
-        mapping[macro.args[arg_index]] = replacement
+        if arg_index[0] >= len(macro.args):
+          return
+        replacement = expander(str.strip())
+        mapping[macro.args[arg_index[0]]] = replacement
+        arg_index[0] += 1
       while end < len(lines) and height > 0:
         # We don't count commas at higher nesting levels.
         if lines[end] == ',' and height == 1:
@@ -100,10 +107,13 @@ def ExpandMacros(lines, macros):
         end = end + 1
       # Remember to add the last match.
       add_arg(lines[last_match:end-1])
+      if arg_index[0] < len(macro.args) -1:
+        lineno = lines.count(os.linesep, 0, start) + 1
+        raise Exception('line %s: Too few arguments for macro "%s"' % (lineno, name))
       result = macro.expand(mapping)
       # Replace the occurrence of the macro with the expansion
       lines = lines[:start] + result + lines[end:]
-      start = lines.find(name + '(', start)
+      pattern_match = name_pattern.search(lines, start + len(result))
   return lines
 
 
