@@ -25,7 +25,8 @@ switch (process.argv[2]) {
     break;
   default:
     // Verify that the flag is off by default.
-    assert.strictEqual(config.pendingDeprecation, undefined);
+    const envvar = process.env.NODE_PENDING_DEPRECATION;
+    assert.strictEqual(config.pendingDeprecation, envvar && envvar[0] === '1');
 
     // Test the --pending-deprecation command line switch.
     fork(__filename, ['switch'], {
