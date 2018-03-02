@@ -1,19 +1,14 @@
 'use strict';
 
-require('../common');
-const process = require('process');
-const assert = require('assert');
+const { expectsError } = require('../common');
 
-assert.throws(
+expectsError(
   () => {
     process.chdir('does-not-exist');
   },
-  (error) => {
-    assert.strictEqual(error instanceof Error, true);
-    assert.strictEqual(
-      error.message,
-      "ENOENT: no such file or directory, chdir 'does-not-exist'"
-    );
-    return true;
+  {
+    type: Error,
+    code: 'ENOENT',
+    message: "ENOENT: no such file or directory, chdir 'does-not-exist'",
   }
 );
