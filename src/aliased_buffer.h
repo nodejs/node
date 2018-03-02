@@ -141,6 +141,30 @@ class AliasedBuffer {
       return aliased_buffer_->GetValue(index_);
     }
 
+    template <typename T>
+    inline Reference& operator+=(const T& val) {
+      const T current = aliased_buffer_->GetValue(index_);
+      aliased_buffer_->SetValue(index_, current + val);
+      return *this;
+    }
+
+    inline Reference& operator+=(const Reference& val) {
+      this->operator+=(static_cast<NativeT>(val));
+      return *this;
+    }
+
+    template <typename T>
+    inline Reference& operator-=(const T& val) {
+      const T current = aliased_buffer_->GetValue(index_);
+      aliased_buffer_->SetValue(index_, current - val);
+      return *this;
+    }
+
+    inline Reference& operator-=(const Reference& val) {
+      this->operator-=(static_cast<NativeT>(val));
+      return *this;
+    }
+
    private:
     AliasedBuffer<NativeT, V8T>* aliased_buffer_;
     size_t index_;
