@@ -242,7 +242,7 @@
         'SuppressStartupBanner': 'true',
       },
     },
-    'msvs_disabled_warnings': [4351, 4355, 4800],
+    'msvs_disabled_warnings': [4351, 4355, 4800 ],
     'conditions': [
       ['asan == 1 and OS != "mac"', {
         'cflags+': [
@@ -283,7 +283,6 @@
           '_CRT_NONSTDC_NO_DEPRECATE',
           # Make sure the STL doesn't try to use exceptions
           '_HAS_EXCEPTIONS=0',
-          'BUILDING_V8_SHARED=1',
           'BUILDING_UV_SHARED=1',
         ],
       }],
