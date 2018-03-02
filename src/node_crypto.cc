@@ -5575,7 +5575,7 @@ void ConvertKey(const FunctionCallbackInfo<Value>& args) {
 
   int nid = OBJ_sn2nid(*curve);
   if (nid == NID_undef)
-    return env->ThrowTypeError("Second argument should be a valid curve name");
+    return env->ThrowTypeError("Invalid ECDH curve name");
 
   EC_GROUP* group = EC_GROUP_new_by_curve_name(nid);
   if (group == nullptr)
