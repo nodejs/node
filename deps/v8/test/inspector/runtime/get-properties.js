@@ -34,7 +34,7 @@ InspectorTest.runAsyncTestSuite([
   },
 
   async function testArrayBuffer() {
-    let objectId = await evaluateToObjectId('new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8]).buffer');
+    let objectId = await evaluateToObjectId('new Uint8Array([1, 1, 1, 1, 1, 1, 1, 1]).buffer');
     let props = await Protocol.Runtime.getProperties({ objectId, ownProperties: true });
     for (let prop of props.result.result) {
       if (prop.name === '__proto__')
@@ -49,7 +49,7 @@ InspectorTest.runAsyncTestSuite([
       this.uint8array_old = this.Uint8Array;
       this.Uint8Array = 42;
     })()`);
-    await logExpressionProperties('new Int8Array([1, 2, 3, 4, 5, 6, 7]).buffer');
+    await logExpressionProperties('new Int8Array([1, 1, 1, 1, 1, 1, 1]).buffer');
     await evaluateToObjectId(`(function() {
       this.Uint8Array = this.uint8array_old;
       delete this.uint8array_old;
