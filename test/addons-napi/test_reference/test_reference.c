@@ -1,6 +1,5 @@
 #include <node_api.h>
 #include "../common.h"
-#include <stdlib.h>
 
 static int test_value = 1;
 static int finalize_count = 0;
@@ -13,7 +12,9 @@ napi_value GetFinalizeCount(napi_env env, napi_callback_info info) {
 }
 
 void FinalizeExternal(napi_env env, void* data, void* hint) {
-  free(data);
+  int *actual_value = data;
+  NAPI_ASSERT_RETURN_VOID(env, actual_value == &test_value,
+      "The correct pointer was passed to the finalizer");
   finalize_count++;
 }
 
@@ -33,13 +34,10 @@ napi_value CreateExternal(napi_env env, napi_callback_info info) {
 }
 
 napi_value CreateExternalWithFinalize(napi_env env, napi_callback_info info) {
-  int* data = malloc(sizeof(int));
-  *data = test_value;
-
   napi_value result;
   NAPI_CALL(env,
       napi_create_external(env,
-                           data,
+                           &test_value,
                            FinalizeExternal,
                            NULL, /* finalize_hint */
                            &result));
