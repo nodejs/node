@@ -1580,7 +1580,7 @@ static void Chdir(const FunctionCallbackInfo<Value>& args) {
   node::Utf8Value path(args.GetIsolate(), args[0]);
   int err = uv_chdir(*path);
   if (err) {
-    return env->ThrowUVException(err, "uv_chdir");
+    return env->ThrowUVException(err, "chdir", nullptr, *path, nullptr);
   }
 }
 
