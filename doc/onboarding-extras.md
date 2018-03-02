@@ -5,40 +5,40 @@
 | Subsystem                                | Maintainers                                                           |
 | ---                                      | ---                                                                   |
 | `benchmark/*`                            | @nodejs/benchmarking, @mscdex                                         |
-| `bootstrap_node.js`                      | @fishrock123                                                          |
+| `bootstrap_node.js`                      | @nodejs/process                                                       |
 | `doc/*`, `*.md`                          | @nodejs/documentation                                                 |
 | `lib/assert`                             | @nodejs/testing                                                       |
 | `lib/async_hooks`                        | @nodejs/async\_hooks for bugs/reviews (+ @nodejs/diagnostics for API) |
 | `lib/buffer`                             | @nodejs/buffer                                                        |
-| `lib/child_process`                      | @bnoordhuis, @cjihrig                                                 |
-| `lib/cluster`                            | @bnoordhuis, @cjihrig, @mcollina                                      |
+| `lib/child_process`                      | @nodejs/child\_process                                                |
+| `lib/cluster`                            | @nodejs/cluster                                                       |
 | `lib/{crypto,tls,https}`                 | @nodejs/crypto                                                        |
-| `lib/dgram`                              | @cjihrig, @mcollina                                                   |
-| `lib/domains`                            | @misterdjules                                                         |
+| `lib/dgram`                              | @nodejs/dgram                                                         |
+| `lib/domains`                            | @nodejs/domains                                                       |
 | `lib/fs`, `src/{fs,file}`                | @nodejs/fs                                                            |
 | `lib/{_}http{*}`                         | @nodejs/http                                                          |
 | `lib/inspector.js`, `src/inspector_*`    | @nodejs/v8-inspector                                                  |
 | `lib/internal/url`, `src/node_url`       | @nodejs/url                                                           |
 | `lib/net`                                | @bnoordhuis, @indutny, @nodejs/streams                                |
-| `lib/repl`                               | @addaleax, @fishrock123                                               |
+| `lib/repl`                               | @nodejs/repl                                                          |
 | `lib/{_}stream{*}`                       | @nodejs/streams                                                       |
-| `lib/timers`                             | @fishrock123, @misterdjules                                           |
-| `lib/util`                               | @bnoordhuis, @cjihrig, @evanlucas                                     |
-| `lib/zlib`                               | @addaleax, @bnoordhuis, @indutny                                      |
+| `lib/timers`                             | @nodejs/timers                                                        |
+| `lib/util`                               | @nodejs/util                                                          |
+| `lib/zlib`                               | @nodejs/zlib                                                          |
 | `src/async-wrap.*`                       | @nodejs/async\_hooks                                                  |
 | `src/node_api.*`                         | @nodejs/n-api                                                         |
 | `src/node_crypto.*`                      | @nodejs/crypto                                                        |
 | `test/*`                                 | @nodejs/testing                                                       |
-| `tools/node_modules/eslint`, `.eslintrc` | @not-an-aardvark, @silverwind, @trott                                 |
+| `tools/node_modules/eslint`, `.eslintrc` | @nodejs/linting                                                       |
 | build                                    | @nodejs/build                                                         |
 | `src/module_wrap.*`, `lib/internal/loader/*`, `lib/internal/vm/Module.js` | @nodejs/modules                      |
 | GYP                                      | @nodejs/gyp                                                           |
 | performance                              | @nodejs/performance                                                   |
 | platform specific                        | @nodejs/platform-{aix,arm,freebsd,macos,ppc,smartos,s390,windows}     |
 | python code                              | @nodejs/python                                                        |
-| upgrading c-ares                         | @jbergstroem                                                          |
-| upgrading http-parser                    | @jbergstroem, @nodejs/http                                            |
-| upgrading libuv                          | @saghul                                                               |
+| upgrading c-ares                         | @rvagg                                                                |
+| upgrading http-parser                    | @nodejs/http, @nodejs/http2                                           |
+| upgrading libuv                          | @nodejs/libuv                                                         |
 | upgrading npm                            | @fishrock123, @MylesBorins                                            |
 | upgrading V8                             | @nodejs/v8, @nodejs/post-mortem                                       |
 | Embedded use or delivery of Node.js      | @nodejs/delivery-channels                                             |
