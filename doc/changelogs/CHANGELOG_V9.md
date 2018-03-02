@@ -8,6 +8,7 @@
 </tr>
 <tr>
 <td>
+<a href="#9.7.1">9.7.1</a><br/>
 <a href="#9.7.0">9.7.0</a><br/>
 <a href="#9.6.1">9.6.1</a><br/>
 <a href="#9.6.0">9.6.0</a><br/>
@@ -32,6 +33,11 @@
   * [0.10.x](CHANGELOG_V010.md)
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
+
+<a id="9.7.1"></a>
+## 2018-03-02, Version 9.7.1 (Current), @rvagg
+
+No additional commits. New version published due to a bad node-v9.7.0.pkg file that was published to nodejs.org in the previous release.
 
 <a id="9.7.0"></a>
 ## 2018-03-01, Version 9.7.0 (Current), @rvagg prepared by @addaleax
