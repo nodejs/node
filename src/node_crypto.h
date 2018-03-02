@@ -709,6 +709,10 @@ class ECDH : public BaseObject {
   }
 
   static void Initialize(Environment* env, v8::Local<v8::Object> target);
+  static EC_POINT* BufferToPoint(Environment* env,
+                                 const EC_GROUP* group,
+                                 char* data,
+                                 size_t len);
 
  protected:
   ECDH(Environment* env, v8::Local<v8::Object> wrap, EC_KEY* key)
@@ -726,8 +730,6 @@ class ECDH : public BaseObject {
   static void SetPrivateKey(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void GetPublicKey(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void SetPublicKey(const v8::FunctionCallbackInfo<v8::Value>& args);
-
-  EC_POINT* BufferToPoint(char* data, size_t len);
 
   bool IsKeyPairValid();
   bool IsKeyValidForCurve(const BIGNUM* private_key);
