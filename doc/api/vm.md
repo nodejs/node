@@ -510,7 +510,7 @@ overhead.
 <!-- YAML
 added: v0.3.1
 changes:
-  - version: REPLACEME
+  - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/19016
     description: The `contextCodeGeneration` option is supported now.
 -->
@@ -616,10 +616,10 @@ console.log(globalVar);
 <!-- YAML
 added: v0.3.1
 changes:
-  - version: REPLACEME
+  - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/19398
     description: The `sandbox` option can no longer be a function.
-  - version: REPLACEME
+  - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/19016
     description: The `codeGeneration` option is supported now.
 -->

@@ -140,7 +140,7 @@ added: v0.0.1
 
 ## URL
 <!-- YAML
-added: REPLACEME
+added: v10.0.0
 -->
 
 <!-- type=global -->
@@ -149,7 +149,7 @@ The WHATWG `URL` class. See the [`URL`][] section.
 
 ## URLSearchParams
 <!-- YAML
-added: REPLACEME
+added: v10.0.0
 -->
 
 <!-- type=global -->

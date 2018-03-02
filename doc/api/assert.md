@@ -376,7 +376,7 @@ parameter is an instance of an [`Error`][] then it will be thrown instead of the
 
 ## assert.doesNotReject(block[, error][, message])
 <!-- YAML
-added: REPLACEME
+added: v10.0.0
 -->
 * `block` {Function|Promise}
 * `error` {RegExp|Function}
@@ -565,7 +565,7 @@ See below for further details.
 <!-- YAML
 added: v0.1.21
 changes:
-  - version: REPLACEME
+  - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/18418
     description: Calling `assert.fail()` with more than one argument is
                  deprecated and emits a warning.
@@ -627,11 +627,11 @@ suppressFrame();
 <!-- YAML
 added: v0.1.97
 changes:
-  - version: REPLACEME
+  - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/18247
     description: Instead of throwing the original error it is now wrapped into
                  a AssertionError that contains the full stack trace.
-  - version: REPLACEME
+  - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/18247
     description: Value may now only be `undefined` or `null`. Before any truthy
                  input was accepted.
@@ -816,7 +816,7 @@ instance of an [`Error`][] then it will be thrown instead of the
 <!-- YAML
 added: v0.1.21
 changes:
-  - version: REPLACEME
+  - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/17003
     description: Used comparison changed from Strict Equality to `Object.is()`
 -->
@@ -850,7 +850,7 @@ parameter is an instance of an [`Error`][] then it will be thrown instead of the
 <!-- YAML
 added: v0.1.21
 changes:
-  - version: REPLACEME
+  - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/18319
     description: assert.ok() (no arguments) will now use a predefined error msg.
 -->
@@ -920,7 +920,7 @@ assert(0);
 
 ## assert.rejects(block[, error][, message])
 <!-- YAML
-added: REPLACEME
+added: v10.0.0
 -->
 * `block` {Function|Promise}
 * `error` {RegExp|Function|Object|Error}
@@ -980,7 +980,7 @@ argument gets considered.
 <!-- YAML
 added: v0.1.21
 changes:
-  - version: REPLACEME
+  - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/17003
     description: Used comparison changed from Strict Equality to `Object.is()`
 -->

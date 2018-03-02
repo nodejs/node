@@ -374,7 +374,7 @@ but instead implement [`writable._destroy()`][writable-_destroy].
 <!-- YAML
 added: v0.9.4
 changes:
-  - version: REPLACEME
+  - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/18780
     description: This method now returns a reference to `writable`.
   - version: v8.0.0
@@ -763,12 +763,12 @@ The listener callback will be passed a single `Error` object.
 <!-- YAML
 added: v0.9.4
 changes:
-  - version: REPLACEME
+  - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/17979
     description: >
       The `'readable'` is always emitted in the next tick after `.push()`
       is called
-  - version: REPLACEME
+  - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/18994
     description: Using `'readable'` requires calling `.read()`.
 -->
@@ -1017,7 +1017,7 @@ the status of the `highWaterMark`.
 <!-- YAML
 added: v0.9.4
 changes:
-  - version: REPLACEME
+  - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/18994
     description: The `resume()` has no effect if there is a `'readable'` event
                  listening.
@@ -1211,7 +1211,7 @@ myReader.on('readable', () => {
 
 ##### readable\[Symbol.asyncIterator\]()
 <!-- YAML
-added: REPLACEME
+added: v10.0.0
 -->
 
 > Stability: 1 - Experimental
@@ -1292,7 +1292,7 @@ The default implementation of `_destroy()` for `Transform` also emit `'close'`.
 
 ### stream.finished(stream, callback)
 <!-- YAML
-added: REPLACEME
+added: v10.0.0
 -->
 
 * `stream` {Stream} A readable and/or writable stream.
@@ -1340,7 +1340,7 @@ rs.resume(); // drain the stream
 
 ### stream.pipeline(...streams[, callback])
 <!-- YAML
-added: REPLACEME
+added: v10.0.0
 -->
 
 * `...streams` {Stream} Two or more streams to pipe between.
@@ -1525,7 +1525,7 @@ constructor and implement the `writable._write()` method. The
 #### Constructor: new stream.Writable([options])
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/18438
     description: >
       Add `emitClose` option to specify if `'close'` is emitted on destroy
@@ -1845,7 +1845,7 @@ const myReadable = new Readable({
 <!-- YAML
 added: v0.9.4
 changes:
-  - version: REPLACEME
+  - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/17979
     description: call _read() only once per microtick
 -->

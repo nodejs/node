@@ -85,7 +85,7 @@ changes:
   - version: v8.0.0
     pr-url: https://github.com/nodejs/node/pull/9744
     description: The `ignoreErrors` option was introduced.
-  - version: REPLACEME
+  - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/19372
     description: The `Console` constructor now supports an `options` argument,
                  and the `colorMode` option was introduced.
@@ -128,7 +128,7 @@ new Console({ stdout: process.stdout, stderr: process.stderr });
 <!-- YAML
 added: v0.1.101
 changes:
-  - version: REPLACEME
+  - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/17706
     description: The implementation is now spec compliant and does not throw
                  anymore.
@@ -347,7 +347,7 @@ See [`util.format()`][] for more information.
 
 ### console.table(tabularData[, properties])
 <!-- YAML
-added: REPLACEME
+added: v10.0.0
 -->
 
 * `tabularData` {any}

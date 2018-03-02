@@ -441,8 +441,8 @@ Returns `true` if `keyword` is a valid keyword, otherwise `false`.
 <!-- YAML
 added: v0.1.91
 changes:
-  - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/REPLACEME
+  - version: v10.0.0
+    pr-url: https://github.com/nodejs/node/pull/v10.0.0
     description: The `REPL_MAGIC_MODE` replMode was removed.
   - version: v5.8.0
     pr-url: https://github.com/nodejs/node/pull/5388

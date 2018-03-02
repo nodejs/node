@@ -75,7 +75,7 @@ const myURL =
 <!-- YAML
 added: v7.0.0
 changes:
-  - version: REPLACEME
+  - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/18281
     description: The class is now available on the global object.
 -->
@@ -477,7 +477,7 @@ console.log(JSON.stringify(myURLs));
 <!-- YAML
 added: v7.5.0
 changes:
-  - version: REPLACEME
+  - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/18281
     description: The class is now available on the global object.
 -->

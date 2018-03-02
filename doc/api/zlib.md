@@ -400,7 +400,7 @@ class of the compressor/decompressor classes.
 ### zlib.bytesRead
 <!-- YAML
 added: v8.1.0
-deprecated: REPLACEME
+deprecated: v10.0.0
 -->
 
 > Stability: 0 - Deprecated: Use [`zlib.bytesWritten`][] instead.
@@ -414,7 +414,7 @@ expose values under these names.
 
 ### zlib.bytesWritten
 <!-- YAML
-added: REPLACEME
+added: v10.0.0
 -->
 
 * {number}

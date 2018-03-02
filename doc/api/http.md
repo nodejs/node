@@ -403,7 +403,7 @@ the client should send the request body.
 
 ### Event: 'information'
 <!-- YAML
-added: REPLACEME
+added: v10.0.0
 -->
 
 Emitted when the server sends a 1xx response (excluding 101 Upgrade). This
@@ -547,7 +547,7 @@ See [`request.socket`][]
 <!-- YAML
 added: v0.1.90
 changes:
-  - version: REPLACEME
+  - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/18780
     description: This method now returns a reference to `ClientRequest`.
 -->
@@ -888,8 +888,8 @@ per connection (in the case of HTTP Keep-Alive connections).
 <!-- YAML
 added: v0.1.94
 changes:
-  - version: REPLACEME
-    pr-url: REPLACEME
+  - version: v10.0.0
+    pr-url: v10.0.0
     description: Not listening to this event no longer causes the socket
                  to be destroyed if a client sends an Upgrade header.
 -->
@@ -1068,7 +1068,7 @@ See [`response.socket`][].
 <!-- YAML
 added: v0.1.90
 changes:
-  - version: REPLACEME
+  - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/18780
     description: This method now returns a reference to `ServerResponse`.
 -->
@@ -1459,7 +1459,7 @@ will result in a [`TypeError`][] being thrown.
 
 ### response.writeProcessing()
 <!-- YAML
-added: REPLACEME
+added: v10.0.0
 -->
 
 Sends a HTTP/1.1 102 Processing message to the client, indicating that
