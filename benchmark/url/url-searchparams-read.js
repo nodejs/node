@@ -12,12 +12,11 @@ const str = 'one=single&two=first&three=first&two=2nd&three=2nd&three=3rd';
 
 function main({ method, param, n }) {
   const params = new URLSearchParams(str);
-  const fn = params[method];
-  if (!fn)
+  if (!params[method])
     throw new Error(`Unknown method ${method}`);
 
   bench.start();
   for (var i = 0; i < n; i += 1)
-    fn(param);
+    params[method](param);
   bench.end(n);
 }
