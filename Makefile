@@ -172,13 +172,13 @@ coverage-build: all
 		$(NODE) ./deps/npm install istanbul-merge --no-save --no-package-lock; fi
 	if [ ! -d node_modules/nyc ]; then \
 		$(NODE) ./deps/npm install nyc --no-save --no-package-lock; fi
-	if [ ! -d gcovr ]; then git clone --depth=1 \
+	if [ ! -d gcovr ]; then git clone -b 3.4 --depth=1 \
 		--single-branch git://github.com/gcovr/gcovr.git; fi
 	if [ ! -d build ]; then git clone --depth=1 \
 		--single-branch https://github.com/nodejs/build.git; fi
-	if [ ! -f gcovr/gcovr/gcov.py.orig ]; then \
-		(cd gcovr && patch -b -N -p1 < \
-		"$(CURDIR)/build/jenkins/scripts/coverage/gcovr-patches.diff"); fi
+	if [ ! -f gcovr/scripts/gcovr.orig ]; then \
+		(cd gcovr && patch -N -p1 < \
+		"$(CURDIR)/build/jenkins/scripts/coverage/gcovr-patches-3.4.diff"); fi
 	if [ -d lib_ ]; then $(RM) -r lib; mv lib_ lib; fi
 	mv lib lib_
 	$(NODE) ./node_modules/.bin/nyc instrument --extension .js --extension .mjs lib_/ lib/
@@ -203,7 +203,7 @@ coverage-test: coverage-build
 	(cd lib && .$(NODE) ../node_modules/.bin/nyc report \
 		--temp-directory "$(CURDIR)/.cov_tmp" \
 		--report-dir "../coverage")
-	-(cd out && PYTHONPATH=$(CURDIR)/gcovr $(PYTHON) -m gcovr --gcov-exclude='.*deps' \
+	-(cd out && "../gcovr/scripts/gcovr" --gcov-exclude='.*deps' \
 		--gcov-exclude='.*usr' -v -r Release/obj.target \
 		--html --html-detail -o ../coverage/cxxcoverage.html \
 		--gcov-executable="$(GCOV)")
