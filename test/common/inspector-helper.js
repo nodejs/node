@@ -241,7 +241,7 @@ class InspectorSession {
   }
 
   _isBreakOnLineNotification(message, line, expectedScriptPath) {
-    if ('Debugger.paused' === message.method) {
+    if (message.method === 'Debugger.paused') {
       const callFrame = message.params.callFrames[0];
       const location = callFrame.location;
       const scriptPath = this._scriptsIdsByUrl.get(location.scriptId);
@@ -264,7 +264,7 @@ class InspectorSession {
   _matchesConsoleOutputNotification(notification, type, values) {
     if (!Array.isArray(values))
       values = [ values ];
-    if ('Runtime.consoleAPICalled' === notification.method) {
+    if (notification.method === 'Runtime.consoleAPICalled') {
       const params = notification.params;
       if (params.type === type) {
         let i = 0;
