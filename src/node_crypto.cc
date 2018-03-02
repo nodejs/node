@@ -5550,6 +5550,72 @@ void ExportChallenge(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(outString);
 }
 
+
+// convert public key to compressed, uncompressed, hybrid format
+void ConvertKey(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+
+  CHECK_EQ(args.Length(), 3);
+
+  THROW_AND_RETURN_IF_NOT_BUFFER(args[0], "Public key");
+
+  size_t len = Buffer::Length(args[0]);
+  if (len == 0)
+    return args.GetReturnValue().SetEmptyString();
+
+  THROW_AND_RETURN_IF_NOT_STRING(args[1], "ECDH curve name");
+  node::Utf8Value curve(env->isolate(), args[1]);
+
+  int nid = OBJ_sn2nid(*curve);
+  if (nid == NID_undef)
+    return env->ThrowTypeError("Second argument should be a valid curve name");
+
+  EC_GROUP* group = EC_GROUP_new_by_curve_name(nid);
+  if (group == nullptr)
+    return env->ThrowError("Failed to get EC_GROUP");
+
+  EC_POINT* pub = EC_POINT_new(group);
+  if (pub == nullptr)
+    return env->ThrowError("Failed to allocate EC_POINT for a public key");
+
+  int r = EC_POINT_oct2point(
+          group,
+          pub,
+          reinterpret_cast<unsigned char*>(Buffer::Data(args[0])),
+          len,
+          nullptr);
+  if (!r)
+    return env->ThrowError("Failed to convert key to point");
+
+  if (pub == nullptr)
+    return env->ThrowError("Failed to convert Buffer to EC_POINT");
+
+  // convert to the specified format
+  int size;
+  point_conversion_form_t form =
+      static_cast<point_conversion_form_t>(args[2]->Uint32Value());
+
+  size = EC_POINT_point2oct(group, pub, form, nullptr, 0, nullptr);
+  if (size == 0)
+    return env->ThrowError("Failed to get public key length");
+
+  unsigned char* out = node::Malloc<unsigned char>(size);
+
+  r = EC_POINT_point2oct(group, pub, form, out, size, nullptr);
+  if (r != size) {
+    free(out);
+    return env->ThrowError("Failed to get public key");
+  }
+
+  Local<Object> buf =
+      Buffer::New(env, reinterpret_cast<char*>(out), size).ToLocalChecked();
+  args.GetReturnValue().Set(buf);
+
+  EC_GROUP_free(group);
+  EC_POINT_free(pub);
+}
+
+
 void TimingSafeEqual(const FunctionCallbackInfo<Value>& args) {
   CHECK(Buffer::HasInstance(args[0]));
   CHECK(Buffer::HasInstance(args[1]));
@@ -5692,6 +5758,8 @@ void InitCrypto(Local<Object> target,
   env->SetMethod(target, "certVerifySpkac", VerifySpkac);
   env->SetMethod(target, "certExportPublicKey", ExportPublicKey);
   env->SetMethod(target, "certExportChallenge", ExportChallenge);
+
+  env->SetMethod(target, "ECDHConvertKey", ConvertKey);
 #ifndef OPENSSL_NO_ENGINE
   env->SetMethod(target, "setEngine", SetEngine);
 #endif  // !OPENSSL_NO_ENGINE
