@@ -8,6 +8,7 @@ release lines.
 
 Select a Node.js version below to view the changelog history:
 
+* [Node.js 10](doc/changelogs/CHANGELOG_V10.md)
 * [Node.js 9](doc/changelogs/CHANGELOG_V9.md)
 * [Node.js 8](doc/changelogs/CHANGELOG_V8.md)
 * [Node.js 7](doc/changelogs/CHANGELOG_V7.md)
@@ -24,12 +25,16 @@ release.
 
 <table>
 <tr>
-  <th title="Current"><a href="doc/changelogs/CHANGELOG_V9.md">9</a><sup>Current</sup></th>
+  <th title="Current"><a href="doc/changelogs/CHANGELOG_V10.md">10</a><sup>Current</sup></th>
+  <th><a href="doc/changelogs/CHANGELOG_V9.md">9</a></th>
   <th title="LTS Until 2019-12"><a href="doc/changelogs/CHANGELOG_V8.md">8</a><sup>LTS</sup></th>
   <th title="LTS Until 2019-04"><a href="doc/changelogs/CHANGELOG_V6.md">6</a><sup>LTS</sup></th>
   <th title="LTS Until 2018-04"><a href="doc/changelogs/CHANGELOG_V4.md">4</a><sup>LTS</sup></th>
 </tr>
 <tr>
+    <td valign="top">
+<b><a href="doc/changelogs/CHANGELOG_V10.md#10.0.0">10.0.0</a></b><br/>
+    </td>
     <td valign="top">
 <b><a href="doc/changelogs/CHANGELOG_V9.md#9.11.1">9.11.1</a></b><br/>
 <a href="doc/changelogs/CHANGELOG_V9.md#9.11.0">9.11.0</a><br/>

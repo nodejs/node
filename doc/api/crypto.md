@@ -669,7 +669,7 @@ assert.strictEqual(aliceSecret.toString('hex'), bobSecret.toString('hex'));
 
 ### ECDH.convertKey(key, curve[, inputEncoding[, outputEncoding[, format]]])
 <!-- YAML
-added: REPLACEME
+added: v10.0.0
 -->
 
 - `key` {string | Buffer | TypedArray | DataView}
@@ -723,7 +723,7 @@ changes:
   - version: v6.0.0
     pr-url: https://github.com/nodejs/node/pull/5522
     description: The default `inputEncoding` changed from `binary` to `utf8`
-  - version: REPLACEME
+  - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/16849
     description: Changed error format to better support invalid public key
                  error
@@ -1286,7 +1286,7 @@ added: v6.3.0
 ### crypto.DEFAULT_ENCODING
 <!-- YAML
 added: v0.9.3
-deprecated: REPLACEME
+deprecated: v10.0.0
 -->
 
 The default encoding to use for functions that can take either strings
@@ -1303,7 +1303,7 @@ This property is deprecated.
 ### crypto.fips
 <!-- YAML
 added: v6.0.0
-deprecated: REPLACEME
+deprecated: v10.0.0
 -->
 
 Property for checking and controlling whether a FIPS compliant crypto provider
@@ -1315,7 +1315,7 @@ This property is deprecated. Please use `crypto.setFips()` and
 ### crypto.createCipher(algorithm, password[, options])
 <!-- YAML
 added: v0.1.94
-deprecated: REPLACEME
+deprecated: v10.0.0
 -->
 
 > Stability: 0 - Deprecated: Use [`crypto.createCipheriv()`][] instead.
@@ -1418,7 +1418,7 @@ called.
 ### crypto.createDecipher(algorithm, password[, options])
 <!-- YAML
 added: v0.1.94
-deprecated: REPLACEME
+deprecated: v10.0.0
 -->
 
 > Stability: 0 - Deprecated: Use [`crypto.createDecipheriv()`][] instead.
@@ -1713,7 +1713,7 @@ console.log(aliceSecret === bobSecret);
 
 ### crypto.getFips()
 <!-- YAML
-added: REPLACEME
+added: v10.0.0
 -->
 - Returns: {boolean} `true` if and only if a FIPS compliant crypto provider is
   currently in use.
@@ -2147,7 +2147,7 @@ The flags below are deprecated in OpenSSL-1.1.0.
 
 ### crypto.setFips(bool)
 <!-- YAML
-added: REPLACEME
+added: v10.0.0
 -->
 * `bool` {boolean} `true` to enable FIPS mode.
 

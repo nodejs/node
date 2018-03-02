@@ -94,7 +94,7 @@ is strongly recommended:
 * [`Buffer.from(string[, encoding])`][from_string_encoding] - Create a `Buffer`
   that copies `string`.
 
-As of REPLACEME, a deprecation warning is printed at runtime when
+As of v10.0.0, a deprecation warning is printed at runtime when
 `--pending-deprecation` is used or when the calling code is
 outside `node_modules` in order to better target developers, rather than users.
 
@@ -170,7 +170,7 @@ explicitly via error event handlers set on the domain instead.
 Type: End-of-Life
 
 Calling an asynchronous function without a callback throws a `TypeError`
-REPLACEME onwards. Refer: [PR 12562](https://github.com/nodejs/node/pull/12562)
+v10.0.0 onwards. Refer: [PR 12562](https://github.com/nodejs/node/pull/12562)
 
 <a id="DEP0014"></a>
 ### DEP0014: fs.read legacy String interface

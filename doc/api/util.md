@@ -120,7 +120,7 @@ environment variable: `NODE_DEBUG=fs,net,tls`.
 <!-- YAML
 added: v0.8.0
 changes:
-  - version: REPLACEME
+  - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/16393
     description: Deprecation warnings are only emitted once for each code.
 -->
@@ -253,7 +253,7 @@ with care and never in a hot code path.
 
 ## util.formatWithOptions(inspectOptions, format[, ...args])
 <!-- YAML
-added: REPLACEME
+added: v10.0.0
 -->
 
 * `inspectOptions` {Object}
@@ -360,7 +360,7 @@ stream.write('With ES6');
 <!-- YAML
 added: v0.3.0
 changes:
-  - version: REPLACEME
+  - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/19259
     description: WeakMap and WeakSet entries can now be inspected as well.
   - version: v9.9.0
@@ -921,7 +921,7 @@ The encoding supported by the `TextEncoder` instance. Always set to `'utf-8'`.
 
 ## util.types
 <!-- YAML
-added: REPLACEME
+added: v10.0.0
 -->
 
 `util.types` provides a number of type checks for different kinds of built-in
@@ -936,7 +936,7 @@ useful for addon developers who prefer to do type checking in JavaScript.
 
 ### util.types.isAnyArrayBuffer(value)
 <!-- YAML
-added: REPLACEME
+added: v10.0.0
 -->
 
 * Returns: {boolean}
@@ -956,7 +956,7 @@ util.types.isAnyArrayBuffer(new SharedArrayBuffer());  // Returns true
 
 ### util.types.isArgumentsObject(value)
 <!-- YAML
-added: REPLACEME
+added: v10.0.0
 -->
 
 * Returns: {boolean}
@@ -974,7 +974,7 @@ function foo() {
 
 ### util.types.isArrayBuffer(value)
 <!-- YAML
-added: REPLACEME
+added: v10.0.0
 -->
 
 * Returns: {boolean}
@@ -992,7 +992,7 @@ util.types.isArrayBuffer(new SharedArrayBuffer());  // Returns false
 
 ### util.types.isAsyncFunction(value)
 <!-- YAML
-added: REPLACEME
+added: v10.0.0
 -->
 
 * Returns: {boolean}
@@ -1011,7 +1011,7 @@ util.types.isAsyncFunction(async function foo() {});  // Returns true
 
 ### util.types.isBooleanObject(value)
 <!-- YAML
-added: REPLACEME
+added: v10.0.0
 -->
 
 * Returns: {boolean}
@@ -1032,7 +1032,7 @@ util.types.isBooleanObject(Boolean(true)); // Returns false
 
 ### util.types.isDataView(value)
 <!-- YAML
-added: REPLACEME
+added: v10.0.0
 -->
 
 * Returns: {boolean}
@@ -1051,7 +1051,7 @@ See also [`ArrayBuffer.isView()`][].
 
 ### util.types.isDate(value)
 <!-- YAML
-added: REPLACEME
+added: v10.0.0
 -->
 
 * Returns: {boolean}
@@ -1066,7 +1066,7 @@ util.types.isDate(new Date());  // Returns true
 
 ### util.types.isExternal(value)
 <!-- YAML
-added: REPLACEME
+added: v10.0.0
 -->
 
 * Returns: {boolean}
@@ -1075,7 +1075,7 @@ Returns `true` if the value is a native `External` value.
 
 ### util.types.isFloat32Array(value)
 <!-- YAML
-added: REPLACEME
+added: v10.0.0
 -->
 
 * Returns: {boolean}
@@ -1092,7 +1092,7 @@ util.types.isFloat32Array(new Float64Array());  // Returns false
 
 ### util.types.isFloat64Array(value)
 <!-- YAML
-added: REPLACEME
+added: v10.0.0
 -->
 
 * Returns: {boolean}
@@ -1109,7 +1109,7 @@ util.types.isFloat64Array(new Float64Array());  // Returns true
 
 ### util.types.isGeneratorFunction(value)
 <!-- YAML
-added: REPLACEME
+added: v10.0.0
 -->
 
 * Returns: {boolean}
@@ -1128,7 +1128,7 @@ util.types.isGeneratorFunction(function* foo() {});  // Returns true
 
 ### util.types.isGeneratorObject(value)
 <!-- YAML
-added: REPLACEME
+added: v10.0.0
 -->
 
 * Returns: {boolean}
@@ -1149,7 +1149,7 @@ util.types.isGeneratorObject(generator);  // Returns true
 
 ### util.types.isInt8Array(value)
 <!-- YAML
-added: REPLACEME
+added: v10.0.0
 -->
 
 * Returns: {boolean}
@@ -1166,7 +1166,7 @@ util.types.isInt8Array(new Float64Array());  // Returns false
 
 ### util.types.isInt16Array(value)
 <!-- YAML
-added: REPLACEME
+added: v10.0.0
 -->
 
 * Returns: {boolean}
@@ -1183,7 +1183,7 @@ util.types.isInt16Array(new Float64Array());  // Returns false
 
 ### util.types.isInt32Array(value)
 <!-- YAML
-added: REPLACEME
+added: v10.0.0
 -->
 
 * Returns: {boolean}
@@ -1200,7 +1200,7 @@ util.types.isInt32Array(new Float64Array());  // Returns false
 
 ### util.types.isMap(value)
 <!-- YAML
-added: REPLACEME
+added: v10.0.0
 -->
 
 * Returns: {boolean}
@@ -1215,7 +1215,7 @@ util.types.isMap(new Map());  // Returns true
 
 ### util.types.isMapIterator(value)
 <!-- YAML
-added: REPLACEME
+added: v10.0.0
 -->
 
 * Returns: {boolean}
@@ -1235,7 +1235,7 @@ util.types.isMapIterator(map[Symbol.iterator]());  // Returns true
 
 ### util.types.isNativeError(value)
 <!-- YAML
-added: REPLACEME
+added: v10.0.0
 -->
 
 * Returns: {boolean}
@@ -1252,7 +1252,7 @@ util.types.isNativeError(new RangeError());  // Returns true
 
 ### util.types.isNumberObject(value)
 <!-- YAML
-added: REPLACEME
+added: v10.0.0
 -->
 
 * Returns: {boolean}
@@ -1269,7 +1269,7 @@ util.types.isNumberObject(new Number(0));   // Returns true
 
 ### util.types.isPromise(value)
 <!-- YAML
-added: REPLACEME
+added: v10.0.0
 -->
 
 * Returns: {boolean}
@@ -1284,7 +1284,7 @@ util.types.isPromise(Promise.resolve(42));  // Returns true
 
 ### util.types.isProxy(value)
 <!-- YAML
-added: REPLACEME
+added: v10.0.0
 -->
 
 * Returns: {boolean}
@@ -1302,7 +1302,7 @@ util.types.isProxy(proxy);  // Returns true
 
 ### util.types.isRegExp(value)
 <!-- YAML
-added: REPLACEME
+added: v10.0.0
 -->
 
 * Returns: {boolean}
@@ -1318,7 +1318,7 @@ util.types.isRegExp(new RegExp('abc'));  // Returns true
 
 ### util.types.isSet(value)
 <!-- YAML
-added: REPLACEME
+added: v10.0.0
 -->
 
 * Returns: {boolean}
@@ -1333,7 +1333,7 @@ util.types.isSet(new Set());  // Returns true
 
 ### util.types.isSetIterator(value)
 <!-- YAML
-added: REPLACEME
+added: v10.0.0
 -->
 
 * Returns: {boolean}
@@ -1353,7 +1353,7 @@ util.types.isSetIterator(set[Symbol.iterator]());  // Returns true
 
 ### util.types.isSharedArrayBuffer(value)
 <!-- YAML
-added: REPLACEME
+added: v10.0.0
 -->
 
 * Returns: {boolean}
@@ -1371,7 +1371,7 @@ util.types.isSharedArrayBuffer(new SharedArrayBuffer());  // Returns true
 
 ### util.types.isStringObject(value)
 <!-- YAML
-added: REPLACEME
+added: v10.0.0
 -->
 
 * Returns: {boolean}
@@ -1388,7 +1388,7 @@ util.types.isStringObject(new String('foo'));   // Returns true
 
 ### util.types.isSymbolObject(value)
 <!-- YAML
-added: REPLACEME
+added: v10.0.0
 -->
 
 * Returns: {boolean}
@@ -1406,7 +1406,7 @@ util.types.isSymbolObject(Object(symbol));   // Returns true
 
 ### util.types.isTypedArray(value)
 <!-- YAML
-added: REPLACEME
+added: v10.0.0
 -->
 
 * Returns: {boolean}
@@ -1425,7 +1425,7 @@ See also [`ArrayBuffer.isView()`][].
 
 ### util.types.isUint8Array(value)
 <!-- YAML
-added: REPLACEME
+added: v10.0.0
 -->
 
 * Returns: {boolean}
@@ -1442,7 +1442,7 @@ util.types.isUint8Array(new Float64Array());  // Returns false
 
 ### util.types.isUint8ClampedArray(value)
 <!-- YAML
-added: REPLACEME
+added: v10.0.0
 -->
 
 * Returns: {boolean}
@@ -1459,7 +1459,7 @@ util.types.isUint8ClampedArray(new Float64Array());  // Returns false
 
 ### util.types.isUint16Array(value)
 <!-- YAML
-added: REPLACEME
+added: v10.0.0
 -->
 
 * Returns: {boolean}
@@ -1476,7 +1476,7 @@ util.types.isUint16Array(new Float64Array());  // Returns false
 
 ### util.types.isUint32Array(value)
 <!-- YAML
-added: REPLACEME
+added: v10.0.0
 -->
 
 * Returns: {boolean}
@@ -1493,7 +1493,7 @@ util.types.isUint32Array(new Float64Array());  // Returns false
 
 ### util.types.isWeakMap(value)
 <!-- YAML
-added: REPLACEME
+added: v10.0.0
 -->
 
 * Returns: {boolean}
@@ -1508,7 +1508,7 @@ util.types.isWeakMap(new WeakMap());  // Returns true
 
 ### util.types.isWeakSet(value)
 <!-- YAML
-added: REPLACEME
+added: v10.0.0
 -->
 
 * Returns: {boolean}
@@ -1523,7 +1523,7 @@ util.types.isWeakSet(new WeakSet());  // Returns true
 
 ### util.types.isWebAssemblyCompiledModule(value)
 <!-- YAML
-added: REPLACEME
+added: v10.0.0
 -->
 
 * Returns: {boolean}
