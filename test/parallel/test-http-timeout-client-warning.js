@@ -14,7 +14,8 @@ const server = http.createServer((req, resp) => resp.end());
 server.listen(common.mustCall(() => {
   http.request(`http://localhost:${server.address().port}`)
     .setTimeout(2 ** 40)
-    .end(() => {
+    .on('response', common.mustCall(() => {
       server.close();
-    });
+    }))
+    .end();
 }));
