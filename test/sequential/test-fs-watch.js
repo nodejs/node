@@ -112,12 +112,15 @@ tmpdir.refresh();
 // https://github.com/joyent/node/issues/6690
 {
   let oldhandle;
-  assert.throws(function() {
+  common.expectsError(() => {
     const w = fs.watch(__filename, common.mustNotCall());
     oldhandle = w._handle;
     w._handle = { close: w._handle.close };
     w.close();
-  }, /^TypeError: Illegal invocation$/);
+  }, {
+    message: 'handle must be a FSEvent',
+    code: 'ERR_ASSERTION'
+  });
   oldhandle.close(); // clean up
 
   assert.throws(function() {

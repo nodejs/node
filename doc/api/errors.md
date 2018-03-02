@@ -783,6 +783,18 @@ falsy value.
 An invalid symlink type was passed to the [`fs.symlink()`][] or
 [`fs.symlinkSync()`][] methods.
 
+<a id="ERR_FS_WATCHER_ALREADY_STARTED"></a>
+### ERR_FS_WATCHER_ALREADY_STARTED
+
+An attempt was made to start a watcher returned by `fs.watch()` that has
+already been started.
+
+<a id="ERR_FS_WATCHER_NOT_STARTED"></a>
+### ERR_FS_WATCHER_NOT_STARTED
+
+An attempt was made to initiate operations on a watcher returned by
+`fs.watch()` that has not yet been started.
+
 <a id="ERR_HTTP_HEADERS_SENT"></a>
 ### ERR_HTTP_HEADERS_SENT
 
