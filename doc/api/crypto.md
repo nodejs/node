@@ -656,6 +656,54 @@ assert.strictEqual(aliceSecret.toString('hex'), bobSecret.toString('hex'));
 // OK
 ```
 
+### ECDH.convertKey(key, curve[, inputEncoding[, outputEncoding[, format]]])
+<!-- YAML
+added: REPLACEME
+-->
+
+- `key` {string | Buffer | TypedArray | DataView}
+- `curve` {string}
+- `inputEncoding` {string}
+- `outputEncoding` {string}
+- `format` {string} **Default:** `uncompressed`
+
+Converts the EC Diffie-Hellman public key specified by `key` and `curve` to the
+format specified by `format`. The `format` argument specifies point encoding
+and can be `'compressed'`, `'uncompressed'` or `'hybrid'`. The supplied key is
+interpreted using the specified `inputEncoding`, and the returned key is encoded
+using the specified `outputEncoding`. Encodings can be `'latin1'`, `'hex'`,
+or `'base64'`.
+
+Use [`crypto.getCurves()`][] to obtain a list of available curve names.
+On recent OpenSSL releases, `openssl ecparam -list_curves` will also display
+the name and description of each available elliptic curve.
+
+If `format` is not specified the point will be returned in `'uncompressed'`
+format.
+
+If the `inputEncoding` is not provided, `key` is expected to be a [`Buffer`][],
+`TypedArray`, or `DataView`.
+
+Example (uncompressing a key):
+
+```js
+const { ECDH } = require('crypto');
+
+const ecdh = ECDH('secp256k1');
+ecdh.generateKeys();
+
+const compressedKey = ecdh.getPublicKey('hex', 'compressed');
+
+const uncompressedKey = ECDH.convertKey(compressedKey,
+                                        'secp256k1',
+                                        'hex',
+                                        'hex',
+                                        'uncompressed');
+
+// the converted key and the uncompressed public key should be the same
+console.log(uncompressedKey === ecdh.getPublicKey('hex'));
+```
+
 ### ecdh.computeSecret(otherPublicKey[, inputEncoding][, outputEncoding])
 <!-- YAML
 added: v0.11.14

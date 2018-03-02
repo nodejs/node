@@ -5283,32 +5283,32 @@ void ECDH::GenerateKeys(const FunctionCallbackInfo<Value>& args) {
 }
 
 
-EC_POINT* ECDH::BufferToPoint(char* data, size_t len) {
+EC_POINT* ECDH::BufferToPoint(Environment* env,
+                              const EC_GROUP* group,
+                              char* data,
+                              size_t len) {
   EC_POINT* pub;
   int r;
 
-  pub = EC_POINT_new(group_);
+  pub = EC_POINT_new(group);
   if (pub == nullptr) {
-    env()->ThrowError("Failed to allocate EC_POINT for a public key");
+    env->ThrowError("Failed to allocate EC_POINT for a public key");
     return nullptr;
   }
 
   r = EC_POINT_oct2point(
-      group_,
+      group,
       pub,
       reinterpret_cast<unsigned char*>(data),
       len,
       nullptr);
   if (!r) {
-    env()->ThrowError("Failed to translate Buffer to a EC_POINT");
-    goto fatal;
+    env->ThrowError("Failed to translate Buffer to a EC_POINT");
+    EC_POINT_free(pub);
+    return nullptr;
   }
 
   return pub;
-
- fatal:
-  EC_POINT_free(pub);
-  return nullptr;
 }
 
 
@@ -5325,7 +5325,9 @@ void ECDH::ComputeSecret(const FunctionCallbackInfo<Value>& args) {
   if (!ecdh->IsKeyPairValid())
     return env->ThrowError("Invalid key pair");
 
-  EC_POINT* pub = ecdh->BufferToPoint(Buffer::Data(args[0]),
+  EC_POINT* pub = ECDH::BufferToPoint(env,
+                                      ecdh->group_,
+                                      Buffer::Data(args[0]),
                                       Buffer::Length(args[0]));
   if (pub == nullptr)
     return;
@@ -5470,7 +5472,9 @@ void ECDH::SetPublicKey(const FunctionCallbackInfo<Value>& args) {
 
   MarkPopErrorOnReturn mark_pop_error_on_return;
 
-  EC_POINT* pub = ecdh->BufferToPoint(Buffer::Data(args[0].As<Object>()),
+  EC_POINT* pub = ECDH::BufferToPoint(env,
+                                      ecdh->group_,
+                                      Buffer::Data(args[0].As<Object>()),
                                       Buffer::Length(args[0].As<Object>()));
   if (pub == nullptr)
     return env->ThrowError("Failed to convert Buffer to EC_POINT");
@@ -6146,6 +6150,61 @@ void ExportChallenge(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(outString);
 }
 
+
+// Convert the input public key to compressed, uncompressed, or hybrid formats.
+void ConvertKey(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+
+  CHECK_EQ(args.Length(), 3);
+
+  size_t len = Buffer::Length(args[0]);
+  if (len == 0)
+    return args.GetReturnValue().SetEmptyString();
+
+  node::Utf8Value curve(env->isolate(), args[1]);
+
+  int nid = OBJ_sn2nid(*curve);
+  if (nid == NID_undef)
+    return env->ThrowTypeError("Invalid ECDH curve name");
+
+  EC_GROUP* group = EC_GROUP_new_by_curve_name(nid);
+  if (group == nullptr)
+    return env->ThrowError("Failed to get EC_GROUP");
+
+  EC_POINT* pub = ECDH::BufferToPoint(env,
+                                      group,
+                                      Buffer::Data(args[0]),
+                                      len);
+
+  std::shared_ptr<void> cleanup(nullptr, [group, pub] (...) {
+    EC_GROUP_free(group);
+    EC_POINT_free(pub);
+  });
+
+  if (pub == nullptr)
+    return env->ThrowError("Failed to convert Buffer to EC_POINT");
+
+  point_conversion_form_t form =
+      static_cast<point_conversion_form_t>(args[2]->Uint32Value());
+
+  int size = EC_POINT_point2oct(group, pub, form, nullptr, 0, nullptr);
+  if (size == 0)
+    return env->ThrowError("Failed to get public key length");
+
+  unsigned char* out = node::Malloc<unsigned char>(size);
+
+  int r = EC_POINT_point2oct(group, pub, form, out, size, nullptr);
+  if (r != size) {
+    free(out);
+    return env->ThrowError("Failed to get public key");
+  }
+
+  Local<Object> buf =
+      Buffer::New(env, reinterpret_cast<char*>(out), size).ToLocalChecked();
+  args.GetReturnValue().Set(buf);
+}
+
+
 void TimingSafeEqual(const FunctionCallbackInfo<Value>& args) {
   CHECK(Buffer::HasInstance(args[0]));
   CHECK(Buffer::HasInstance(args[1]));
@@ -6289,6 +6348,8 @@ void Initialize(Local<Object> target,
   env->SetMethod(target, "certVerifySpkac", VerifySpkac);
   env->SetMethod(target, "certExportPublicKey", ExportPublicKey);
   env->SetMethod(target, "certExportChallenge", ExportChallenge);
+
+  env->SetMethod(target, "ECDHConvertKey", ConvertKey);
 #ifndef OPENSSL_NO_ENGINE
   env->SetMethod(target, "setEngine", SetEngine);
 #endif  // !OPENSSL_NO_ENGINE
