@@ -31,7 +31,7 @@ function onRequest(request, response) {
   }));
 }
 
-function onSession(session) {
+function onSession(session, next) {
   const headers = {
     ':path': '/',
     ':method': 'GET',
@@ -54,6 +54,10 @@ function onSession(session) {
 
     session.close();
     this.cleanup();
+
+    if (typeof next === 'function') {
+      next();
+    }
   }));
   request.end();
 }
@@ -126,22 +130,31 @@ function onSession(session) {
     connect(
       origin,
       clientOptions,
-      common.mustCall(onSession.bind({ cleanup, server }))
+      common.mustCall(function(session) {
+        onSession.call({ cleanup, server },
+                       session,
+                       common.mustCall(testNoTls));
+      })
     );
 
-    // HTTP/1.1 client
-    get(Object.assign(parse(origin), clientOptions), common.mustNotCall())
-      .on('error', common.mustCall(cleanup))
-      .end();
+    function testNoTls() {
+      // HTTP/1.1 client
+      get(Object.assign(parse(origin), clientOptions), common.mustNotCall)
+        .on('error', common.mustCall(cleanup))
+        .on('error', common.mustCall(testWrongALPN))
+        .end();
+    }
 
-    // Incompatible ALPN TLS client
-    let text = '';
-    tls(Object.assign({ port, ALPNProtocols: ['fake'] }, clientOptions))
-      .setEncoding('utf8')
-      .on('data', (chunk) => text += chunk)
-      .on('end', common.mustCall(() => {
-        ok(/Unknown ALPN Protocol, expected `h2` to be available/.test(text));
-        cleanup();
-      }));
+    function testWrongALPN() {
+      // Incompatible ALPN TLS client
+      let text = '';
+      tls(Object.assign({ port, ALPNProtocols: ['fake'] }, clientOptions))
+        .setEncoding('utf8')
+        .on('data', (chunk) => text += chunk)
+        .on('end', common.mustCall(() => {
+          ok(/Unknown ALPN Protocol, expected `h2` to be available/.test(text));
+          cleanup();
+        }));
+    }
   }));
 }
