@@ -773,13 +773,6 @@ void WriteDoubleBE(const FunctionCallbackInfo<Value>& args) {
 }
 
 
-void ByteLengthUtf8(const FunctionCallbackInfo<Value> &args) {
-  CHECK(args[0]->IsString());
-
-  // Fast case: avoid StringBytes on UTF8 string. Jump to v8.
-  args.GetReturnValue().Set(args[0].As<String>()->Utf8Length());
-}
-
 // Normalize val to be an integer in the range of [1, -1] since
 // implementations of memcmp() can vary by platform.
 static int normalizeCompareVal(int val, size_t a_length, size_t b_length) {
@@ -1202,7 +1195,6 @@ void Initialize(Local<Object> target,
   env->SetMethod(target, "setupBufferJS", SetupBufferJS);
   env->SetMethod(target, "createFromString", CreateFromString);
 
-  env->SetMethod(target, "byteLengthUtf8", ByteLengthUtf8);
   env->SetMethod(target, "copy", Copy);
   env->SetMethod(target, "compare", Compare);
   env->SetMethod(target, "compareOffset", CompareOffset);
