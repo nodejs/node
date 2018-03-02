@@ -583,6 +583,23 @@ if called on a server socket. The supported types are `'DH'` and `'ECDH'`. The
 
 For Example: `{ type: 'ECDH', name: 'prime256v1', size: 256 }`
 
+### tlsSocket.getFinished()
+<!-- YAML
+added: REPLACEME
+-->
+
+* Returns: {Buffer|undefined} The latest `Finished` message that has been
+sent to the socket as part of a SSL/TLS handshake, or `undefined` if
+no `Finished` message has been sent yet.
+
+As the `Finished` messages are message digests of the complete handshake
+(with a total of 192 bits for TLS 1.0 and more for SSL 3.0), they can
+be used for external authentication procedures when the authentication
+provided by SSL/TLS is not desired or is not enough.
+
+Corresponds to the `SSL_get_finished` routine in OpenSSL and may be used
+to implement the `tls-unique` channel binding from [RFC 5929][].
+
 ### tlsSocket.getPeerCertificate([detailed])
 <!-- YAML
 added: v0.11.4
@@ -627,6 +644,23 @@ For example:
 ```
 
 If the peer does not provide a certificate, an empty object will be returned.
+
+### tlsSocket.getPeerFinished()
+<!-- YAML
+added: REPLACEME
+-->
+
+* Returns: {Buffer|undefined} The latest `Finished` message that is expected
+or has actually been received from the socket as part of a SSL/TLS handshake,
+or `undefined` if there is no `Finished` message so far.
+
+As the `Finished` messages are message digests of the complete handshake
+(with a total of 192 bits for TLS 1.0 and more for SSL 3.0), they can
+be used for external authentication procedures when the authentication
+provided by SSL/TLS is not desired or is not enough.
+
+Corresponds to the `SSL_get_peer_finished` routine in OpenSSL and may be used
+to implement the `tls-unique` channel binding from [RFC 5929][].
 
 ### tlsSocket.getProtocol()
 <!-- YAML
@@ -1368,3 +1402,4 @@ where `secure_socket` has the same API as `pair.cleartext`.
 [specific attacks affecting larger AES key sizes]: https://www.schneier.com/blog/archives/2009/07/another_new_aes.html
 [tls.Server]: #tls_class_tls_server
 [`dns.lookup()`]: dns.html#dns_dns_lookup_hostname_options_callback
+[RFC 5929]: https://tools.ietf.org/html/rfc5929

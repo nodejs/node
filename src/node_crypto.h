@@ -269,6 +269,8 @@ class SSLWrap {
 
   static void GetPeerCertificate(
       const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void GetFinished(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void GetPeerFinished(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void GetSession(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void SetSession(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void LoadSession(const v8::FunctionCallbackInfo<v8::Value>& args);
