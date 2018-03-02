@@ -276,10 +276,8 @@ void ContextifyContext::MakeContext(const FunctionCallbackInfo<Value>& args) {
 void ContextifyContext::IsContext(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
-  if (!args[0]->IsObject()) {
-    env->ThrowTypeError("sandbox must be an object");
-    return;
-  }
+  CHECK(args[0]->IsObject());
+
   Local<Object> sandbox = args[0].As<Object>();
 
   Maybe<bool> result =

@@ -20,7 +20,7 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 
 const vm = require('vm');
@@ -44,9 +44,12 @@ assert.strictEqual(3, context.foo);
 assert.strictEqual('lala', context.thing);
 
 // Issue GH-227:
-assert.throws(() => {
+common.expectsError(() => {
   vm.runInNewContext('', null, 'some.js');
-}, /^TypeError: sandbox must be an object$/);
+}, {
+  code: 'ERR_INVALID_ARG_TYPE',
+  type: TypeError
+});
 
 // Issue GH-1140:
 // Test runInContext signature
