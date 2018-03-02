@@ -43,12 +43,14 @@
 // StartComAndWoSignData.inc
 #include "StartComAndWoSignData.inc"
 
-#include <algorithm>
 #include <errno.h>
 #include <limits.h>  // INT_MAX
 #include <math.h>
 #include <stdlib.h>
 #include <string.h>
+
+#include <algorithm>
+#include <memory>
 #include <vector>
 
 #define THROW_AND_RETURN_IF_NOT_BUFFER(val, prefix)           \
@@ -106,6 +108,12 @@ using v8::Signature;
 using v8::String;
 using v8::Value;
 
+
+struct StackOfX509Deleter {
+  void operator()(STACK_OF(X509)* p) const { sk_X509_pop_free(p, X509_free); }
+};
+
+using StackOfX509 = std::unique_ptr<STACK_OF(X509), StackOfX509Deleter>;
 
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
 static void RSA_get0_key(const RSA* r, const BIGNUM** n, const BIGNUM** e,
@@ -829,17 +837,15 @@ int SSL_CTX_use_certificate_chain(SSL_CTX* ctx,
   int ret = 0;
   unsigned long err = 0;  // NOLINT(runtime/int)
 
-  // Read extra certs
-  STACK_OF(X509)* extra_certs = sk_X509_new_null();
-  if (extra_certs == nullptr) {
+  StackOfX509 extra_certs(sk_X509_new_null());
+  if (!extra_certs)
     goto done;
-  }
 
   while ((extra = PEM_read_bio_X509(in,
                                     nullptr,
                                     NoPasswordCallback,
                                     nullptr))) {
-    if (sk_X509_push(extra_certs, extra))
+    if (sk_X509_push(extra_certs.get(), extra))
       continue;
 
     // Failure, free all certs
@@ -857,13 +863,11 @@ int SSL_CTX_use_certificate_chain(SSL_CTX* ctx,
     goto done;
   }
 
-  ret = SSL_CTX_use_certificate_chain(ctx, x, extra_certs, cert, issuer);
+  ret = SSL_CTX_use_certificate_chain(ctx, x, extra_certs.get(), cert, issuer);
   if (!ret)
     goto done;
 
  done:
-  if (extra_certs != nullptr)
-    sk_X509_pop_free(extra_certs, X509_free);
   if (extra != nullptr)
     X509_free(extra);
   if (x != nullptr)
@@ -1990,14 +1994,14 @@ static Local<Object> X509ToObject(Environment* env, X509* cert) {
 
 static Local<Object> AddIssuerChainToObject(X509** cert,
                                             Local<Object> object,
-                                            STACK_OF(X509)* const peer_certs,
+                                            StackOfX509 peer_certs,
                                             Environment* const env) {
   Local<Context> context = env->isolate()->GetCurrentContext();
-  *cert = sk_X509_delete(peer_certs, 0);
+  *cert = sk_X509_delete(peer_certs.get(), 0);
   for (;;) {
     int i;
-    for (i = 0; i < sk_X509_num(peer_certs); i++) {
-      X509* ca = sk_X509_value(peer_certs, i);
+    for (i = 0; i < sk_X509_num(peer_certs.get()); i++) {
+      X509* ca = sk_X509_value(peer_certs.get(), i);
       if (X509_check_issued(ca, *cert) != X509_V_OK)
         continue;
 
@@ -2009,41 +2013,31 @@ static Local<Object> AddIssuerChainToObject(X509** cert,
       X509_free(*cert);
 
       // Delete cert and continue aggregating issuers.
-      *cert = sk_X509_delete(peer_certs, i);
+      *cert = sk_X509_delete(peer_certs.get(), i);
       break;
     }
 
     // Issuer not found, break out of the loop.
-    if (i == sk_X509_num(peer_certs))
+    if (i == sk_X509_num(peer_certs.get()))
       break;
   }
-  sk_X509_pop_free(peer_certs, X509_free);
   return object;
 }
 
 
-static bool CloneSSLCerts(X509** cert,
-                          const STACK_OF(X509)* const ssl_certs,
-                          STACK_OF(X509)** peer_certs) {
-  *peer_certs = sk_X509_new(nullptr);
-  bool result = true;
+static StackOfX509 CloneSSLCerts(X509** cert,
+                                 const STACK_OF(X509)* const ssl_certs) {
+  StackOfX509 peer_certs(sk_X509_new(nullptr));
   if (*cert != nullptr)
-    sk_X509_push(*peer_certs, *cert);
+    sk_X509_push(peer_certs.get(), *cert);
   for (int i = 0; i < sk_X509_num(ssl_certs); i++) {
     *cert = X509_dup(sk_X509_value(ssl_certs, i));
-    if (*cert == nullptr) {
-      result = false;
-      break;
-    }
-    if (!sk_X509_push(*peer_certs, *cert)) {
-      result = false;
-      break;
-    }
+    if (*cert == nullptr)
+      return StackOfX509();
+    if (!sk_X509_push(peer_certs.get(), *cert))
+      return StackOfX509();
   }
-  if (!result) {
-    sk_X509_pop_free(*peer_certs, X509_free);
-  }
-  return result;
+  return peer_certs;
 }
 
 
@@ -2077,7 +2071,6 @@ void SSLWrap<Base>::GetPeerCertificate(
   Base* w;
   ASSIGN_OR_RETURN_UNWRAP(&w, args.Holder());
   Environment* env = w->ssl_env();
-  Local<Context> context = env->context();
 
   ClearErrorOnReturn clear_error_on_return;
 
@@ -2089,23 +2082,25 @@ void SSLWrap<Base>::GetPeerCertificate(
   // contains the `peer_certificate`, but on server it doesn't.
   X509* cert = w->is_server() ? SSL_get_peer_certificate(w->ssl_) : nullptr;
   STACK_OF(X509)* ssl_certs = SSL_get_peer_cert_chain(w->ssl_);
-  STACK_OF(X509)* peer_certs = nullptr;
   if (cert == nullptr && (ssl_certs == nullptr || sk_X509_num(ssl_certs) == 0))
     goto done;
 
   // Short result requested.
   if (args.Length() < 1 || !args[0]->IsTrue()) {
-    result = X509ToObject(env,
-                          cert == nullptr ? sk_X509_value(ssl_certs, 0) : cert);
+    X509* target_cert = cert;
+    if (target_cert == nullptr)
+      target_cert = sk_X509_value(ssl_certs, 0);
+    result = X509ToObject(env, target_cert);
     goto done;
   }
 
-  if (CloneSSLCerts(&cert, ssl_certs, &peer_certs)) {
+  if (auto peer_certs = CloneSSLCerts(&cert, ssl_certs)) {
     // First and main certificate.
-    cert = sk_X509_value(peer_certs, 0);
+    cert = sk_X509_value(peer_certs.get(), 0);
     result = X509ToObject(env, cert);
 
-    issuer_chain = AddIssuerChainToObject(&cert, result, peer_certs, env);
+    issuer_chain =
+        AddIssuerChainToObject(&cert, result, std::move(peer_certs), env);
     issuer_chain = GetLastIssuedCert(&cert, w->ssl_, issuer_chain, env);
     // Last certificate should be self-signed.
     if (X509_check_issued(cert, cert) == X509_V_OK)
@@ -2959,25 +2954,23 @@ inline CheckResult CheckWhitelistedServerCert(X509_STORE_CTX* ctx) {
   unsigned char hash[CNNIC_WHITELIST_HASH_LEN];
   unsigned int hashlen = CNNIC_WHITELIST_HASH_LEN;
 
-  STACK_OF(X509)* chain = X509_STORE_CTX_get1_chain(ctx);
-  CHECK_NE(chain, nullptr);
-  CHECK_GT(sk_X509_num(chain), 0);
+  StackOfX509 chain(X509_STORE_CTX_get1_chain(ctx));
+  CHECK(chain);
+  CHECK_GT(sk_X509_num(chain.get()), 0);
 
   // Take the last cert as root at the first time.
-  X509* root_cert = sk_X509_value(chain, sk_X509_num(chain)-1);
+  X509* root_cert = sk_X509_value(chain.get(), sk_X509_num(chain.get())-1);
   X509_NAME* root_name = X509_get_subject_name(root_cert);
 
   if (!IsSelfSigned(root_cert)) {
-    root_cert = FindRoot(chain);
+    root_cert = FindRoot(chain.get());
     CHECK_NE(root_cert, nullptr);
     root_name = X509_get_subject_name(root_cert);
   }
 
-  X509* leaf_cert = sk_X509_value(chain, 0);
-  if (!CheckStartComOrWoSign(root_name, leaf_cert)) {
-    sk_X509_pop_free(chain, X509_free);
+  X509* leaf_cert = sk_X509_value(chain.get(), 0);
+  if (!CheckStartComOrWoSign(root_name, leaf_cert))
     return CHECK_CERT_REVOKED;
-  }
 
   // When the cert is issued from either CNNNIC ROOT CA or CNNNIC EV
   // ROOT CA, check a hash of its leaf cert if it is in the whitelist.
@@ -2990,13 +2983,10 @@ inline CheckResult CheckWhitelistedServerCert(X509_STORE_CTX* ctx) {
     void* result = bsearch(hash, WhitelistedCNNICHashes,
                            arraysize(WhitelistedCNNICHashes),
                            CNNIC_WHITELIST_HASH_LEN, compar);
-    if (result == nullptr) {
-      sk_X509_pop_free(chain, X509_free);
+    if (result == nullptr)
       return CHECK_CERT_REVOKED;
-    }
   }
 
-  sk_X509_pop_free(chain, X509_free);
   return CHECK_OK;
 }
 
