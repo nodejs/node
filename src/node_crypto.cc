@@ -4684,18 +4684,21 @@ void ECDH::GenerateKeys(const FunctionCallbackInfo<Value>& args) {
 }
 
 
-EC_POINT* ECDH::BufferToPoint(char* data, size_t len) {
+EC_POINT* ECDH::BufferToPoint(Environment* env,
+                              const EC_GROUP* group,
+                              char* data,
+                              size_t len) {
   EC_POINT* pub;
   int r;
 
-  pub = EC_POINT_new(group_);
+  pub = EC_POINT_new(group);
   if (pub == nullptr) {
-    env()->ThrowError("Failed to allocate EC_POINT for a public key");
+    env->ThrowError("Failed to allocate EC_POINT for a public key");
     return nullptr;
   }
 
   r = EC_POINT_oct2point(
-      group_,
+      group,
       pub,
       reinterpret_cast<unsigned char*>(data),
       len,
@@ -4725,7 +4728,9 @@ void ECDH::ComputeSecret(const FunctionCallbackInfo<Value>& args) {
   if (!ecdh->IsKeyPairValid())
     return env->ThrowError("Invalid key pair");
 
-  EC_POINT* pub = ecdh->BufferToPoint(Buffer::Data(args[0]),
+  EC_POINT* pub = ECDH::BufferToPoint(env,
+                                      ecdh->group_,
+                                      Buffer::Data(args[0]),
                                       Buffer::Length(args[0]));
   if (pub == nullptr) {
     args.GetReturnValue().Set(
@@ -4874,7 +4879,9 @@ void ECDH::SetPublicKey(const FunctionCallbackInfo<Value>& args) {
 
   MarkPopErrorOnReturn mark_pop_error_on_return;
 
-  EC_POINT* pub = ecdh->BufferToPoint(Buffer::Data(args[0].As<Object>()),
+  EC_POINT* pub = ECDH::BufferToPoint(env,
+                                      ecdh->group_,
+                                      Buffer::Data(args[0].As<Object>()),
                                       Buffer::Length(args[0].As<Object>()));
   if (pub == nullptr)
     return env->ThrowError("Failed to convert Buffer to EC_POINT");
@@ -5574,19 +5581,10 @@ void ConvertKey(const FunctionCallbackInfo<Value>& args) {
   if (group == nullptr)
     return env->ThrowError("Failed to get EC_GROUP");
 
-  EC_POINT* pub = EC_POINT_new(group);
-  if (pub == nullptr)
-    return env->ThrowError("Failed to allocate EC_POINT for a public key");
-
-  int r = EC_POINT_oct2point(
-          group,
-          pub,
-          reinterpret_cast<unsigned char*>(Buffer::Data(args[0])),
-          len,
-          nullptr);
-  if (!r)
-    return env->ThrowError("Failed to convert key to point");
-
+  EC_POINT* pub = ECDH::BufferToPoint(env,
+                                      group,
+                                      Buffer::Data(args[0]),
+                                      len);
   if (pub == nullptr)
     return env->ThrowError("Failed to convert Buffer to EC_POINT");
 
@@ -5601,7 +5599,7 @@ void ConvertKey(const FunctionCallbackInfo<Value>& args) {
 
   unsigned char* out = node::Malloc<unsigned char>(size);
 
-  r = EC_POINT_point2oct(group, pub, form, out, size, nullptr);
+  int r = EC_POINT_point2oct(group, pub, form, out, size, nullptr);
   if (r != size) {
     free(out);
     return env->ThrowError("Failed to get public key");
