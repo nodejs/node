@@ -13,7 +13,6 @@ test-inspector-debug-end              : PASS, FLAKY
 test-inspector-async-hook-setup-at-signal:  PASS, FLAKY
 test-http2-ping-flood                 : PASS, FLAKY
 test-http2-settings-flood             : PASS, FLAKY
-test-inspector-stop-profile-after-done: PASS, FLAKY
 
 [$system==linux]
 
