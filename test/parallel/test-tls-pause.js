@@ -60,7 +60,7 @@ server.listen(0, common.mustCall(() => {
       console.error('sending');
       const ret = client.write(Buffer.allocUnsafe(bufSize));
       console.error(`write => ${ret}`);
-      if (false !== ret) {
+      if (ret !== false) {
         console.error('write again');
         sent += bufSize;
         assert.ok(sent < 100 * 1024 * 1024); // max 100MB

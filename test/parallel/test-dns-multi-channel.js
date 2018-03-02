@@ -31,7 +31,7 @@ for (const { socket, reply } of servers) {
   }));
 
   socket.bind(0, common.mustCall(() => {
-    if (0 === --waiting) ready();
+    if (--waiting === 0) ready();
   }));
 }
 
