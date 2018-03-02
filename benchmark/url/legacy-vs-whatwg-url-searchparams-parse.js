@@ -2,10 +2,10 @@
 const common = require('../common.js');
 const { URLSearchParams } = require('url');
 const querystring = require('querystring');
-const inputs = require('../fixtures/url-inputs.js').searchParams;
+const searchParams = require('../fixtures/url-inputs.js').searchParams;
 
 const bench = common.createBenchmark(main, {
-  type: Object.keys(inputs),
+  searchParam: Object.keys(searchParams),
   method: ['legacy', 'whatwg'],
   n: [1e6]
 });
@@ -19,27 +19,27 @@ function useLegacy(n, input) {
   bench.end(n);
 }
 
-function useWHATWG(n, input) {
-  new URLSearchParams(input);
+function useWHATWG(n, param) {
+  new URLSearchParams(param);
   bench.start();
   for (var i = 0; i < n; i += 1) {
-    new URLSearchParams(input);
+    new URLSearchParams(param);
   }
   bench.end(n);
 }
 
-function main({ type, n, method }) {
-  const input = inputs[type];
-  if (!input) {
-    throw new Error(`Unknown input type "${type}"`);
+function main({ searchParam, n, method }) {
+  const param = searchParams[searchParam];
+  if (!param) {
+    throw new Error(`Unknown search parameter type "${searchParam}"`);
   }
 
   switch (method) {
     case 'legacy':
-      useLegacy(n, input);
+      useLegacy(n, param);
       break;
     case 'whatwg':
-      useWHATWG(n, input);
+      useWHATWG(n, param);
       break;
     default:
       throw new Error(`Unknown method ${method}`);
