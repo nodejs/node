@@ -10,7 +10,7 @@
 | `lib/assert`                             | @nodejs/testing                                                       |
 | `lib/async_hooks`                        | @nodejs/async\_hooks for bugs/reviews (+ @nodejs/diagnostics for API) |
 | `lib/buffer`                             | @nodejs/buffer                                                        |
-| `lib/child_process`                      | @nodejs/child_process                                                 |
+| `lib/child_process`                      | @nodejs/child\_process                                                |
 | `lib/cluster`                            | @nodejs/cluster                                                       |
 | `lib/{crypto,tls,https}`                 | @nodejs/crypto                                                        |
 | `lib/dgram`                              | @nodejs/dgram                                                         |
