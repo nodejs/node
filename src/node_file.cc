@@ -110,7 +110,7 @@ using v8::Value;
 # define MIN(a, b) ((a) < (b) ? (a) : (b))
 #endif
 
-#define GET_OFFSET(a) ((a)->IsNumber() ? (a)->IntegerValue() : -1)
+#define GET_OFFSET(a) ((a)->IsNumber() ? (a).As<Integer>()->Value() : -1)
 
 // The FileHandle object wraps a file descriptor and will close it on garbage
 // collection if necessary. If that happens, a process warning will be
@@ -574,24 +574,6 @@ inline int SyncCall(Environment* env, Local<Value> ctx, fs_req_wrap* req_wrap,
   }
   return err;
 }
-
-#define SYNC_DEST_CALL(func, path, dest, ...)                                 \
-  fs_req_wrap sync_wrap;                                                      \
-  env->PrintSyncTrace();                                                      \
-  int err = uv_fs_ ## func(env->event_loop(),                                 \
-                         &sync_wrap.req,                                      \
-                         __VA_ARGS__,                                         \
-                         nullptr);                                            \
-  if (err < 0) {                                                              \
-    return env->ThrowUVException(err, #func, nullptr, path, dest);            \
-  }                                                                           \
-
-#define SYNC_CALL(func, path, ...)                                            \
-  SYNC_DEST_CALL(func, path, nullptr, __VA_ARGS__)                            \
-
-#define SYNC_REQ sync_wrap.req
-
-#define SYNC_RESULT err
 
 inline FSReqBase* GetReqWrap(Environment* env, Local<Value> value) {
   if (value->IsObject()) {
@@ -1270,35 +1252,43 @@ static void CopyFile(const FunctionCallbackInfo<Value>& args) {
 static void WriteBuffer(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
+  const int argc = args.Length();
+  CHECK_GE(argc, 4);
+
   CHECK(args[0]->IsInt32());
+  const int fd = args[0].As<Int32>()->Value();
+
   CHECK(Buffer::HasInstance(args[1]));
+  Local<Object> buffer_obj = args[1].As<Object>();
+  char* buffer_data = Buffer::Data(buffer_obj);
+  size_t buffer_length = Buffer::Length(buffer_obj);
 
-  int fd = args[0]->Int32Value();
-  Local<Object> obj = args[1].As<Object>();
-  const char* buf = Buffer::Data(obj);
-  size_t buffer_length = Buffer::Length(obj);
-  size_t off = args[2]->Uint32Value();
-  size_t len = args[3]->Uint32Value();
-  int64_t pos = GET_OFFSET(args[4]);
-
+  CHECK(args[2]->IsInt32());
+  const size_t off = static_cast<size_t>(args[2].As<Int32>()->Value());
   CHECK_LE(off, buffer_length);
+
+  CHECK(args[3]->IsInt32());
+  const size_t len = static_cast<size_t>(args[3].As<Int32>()->Value());
+  CHECK(Buffer::IsWithinBounds(off, len, buffer_length));
   CHECK_LE(len, buffer_length);
   CHECK_GE(off + len, off);
-  CHECK(Buffer::IsWithinBounds(off, len, buffer_length));
 
-  buf += off;
+  const int64_t pos = GET_OFFSET(args[4]);
 
+  char* buf = buffer_data + off;
   uv_buf_t uvbuf = uv_buf_init(const_cast<char*>(buf), len);
 
   FSReqBase* req_wrap = GetReqWrap(env, args[5]);
-  if (req_wrap != nullptr) {
+  if (req_wrap != nullptr) {  // write(fd, buffer, off, len, pos, req)
     AsyncCall(env, req_wrap, args, "write", UTF8, AfterInteger,
               uv_fs_write, fd, &uvbuf, 1, pos);
-    return;
+  } else {  // write(fd, buffer, off, len, pos, undefined, ctx)
+    CHECK_EQ(argc, 7);
+    fs_req_wrap req_wrap;
+    int bytesWritten = SyncCall(env, args[6], &req_wrap, "write",
+                                uv_fs_write, fd, &uvbuf, 1, pos);
+    args.GetReturnValue().Set(bytesWritten);
   }
-
-  SYNC_CALL(write, nullptr, fd, &uvbuf, 1, pos)
-  args.GetReturnValue().Set(SYNC_RESULT);
 }
 
 
@@ -1312,11 +1302,15 @@ static void WriteBuffer(const FunctionCallbackInfo<Value>& args) {
 static void WriteBuffers(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
-  CHECK(args[0]->IsInt32());
-  CHECK(args[1]->IsArray());
+  const int argc = args.Length();
+  CHECK_GE(argc, 3);
 
-  int fd = args[0]->Int32Value();
+  CHECK(args[0]->IsInt32());
+  const int fd = args[0].As<Int32>()->Value();
+
+  CHECK(args[1]->IsArray());
   Local<Array> chunks = args[1].As<Array>();
+
   int64_t pos = GET_OFFSET(args[2]);
 
   MaybeStackBuffer<uv_buf_t> iovs(chunks->Length());
@@ -1328,14 +1322,16 @@ static void WriteBuffers(const FunctionCallbackInfo<Value>& args) {
   }
 
   FSReqBase* req_wrap = GetReqWrap(env, args[3]);
-  if (req_wrap != nullptr) {
+  if (req_wrap != nullptr) {  // writeBuffers(fd, chunks, pos, req)
     AsyncCall(env, req_wrap, args, "write", UTF8, AfterInteger,
               uv_fs_write, fd, *iovs, iovs.length(), pos);
-    return;
+  } else {  // writeBuffers(fd, chunks, pos, undefined, ctx)
+    CHECK_EQ(argc, 5);
+    fs_req_wrap req_wrap;
+    int bytesWritten = SyncCall(env, args[4], &req_wrap, "write",
+                                uv_fs_write, fd, *iovs, iovs.length(), pos);
+    args.GetReturnValue().Set(bytesWritten);
   }
-
-  SYNC_CALL(write, nullptr, fd, *iovs, iovs.length(), pos)
-  args.GetReturnValue().Set(SYNC_RESULT);
 }
 
 
@@ -1350,19 +1346,23 @@ static void WriteBuffers(const FunctionCallbackInfo<Value>& args) {
 static void WriteString(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
-  CHECK(args[0]->IsInt32());
+  const int argc = args.Length();
+  CHECK_GE(argc, 4);
 
-  std::unique_ptr<char[]> delete_on_return;
-  Local<Value> req;
-  Local<Value> value = args[1];
-  int fd = args[0]->Int32Value();
-  char* buf = nullptr;
-  size_t len;
+  CHECK(args[0]->IsInt32());
+  const int fd = args[0].As<Int32>()->Value();
+
   const int64_t pos = GET_OFFSET(args[2]);
+
   const auto enc = ParseEncoding(env->isolate(), args[3], UTF8);
 
+  std::unique_ptr<char[]> delete_on_return;
+  Local<Value> value = args[1];
+  char* buf = nullptr;
+  size_t len;
+
   FSReqBase* req_wrap = GetReqWrap(env, args[4]);
-  const auto is_async = req_wrap != nullptr;
+  const bool is_async = req_wrap != nullptr;
 
   // Avoid copying the string when it is externalized but only when:
   // 1. The target encoding is compatible with the string's encoding, and
@@ -1396,12 +1396,15 @@ static void WriteString(const FunctionCallbackInfo<Value>& args) {
 
   uv_buf_t uvbuf = uv_buf_init(buf, len);
 
-  if (req_wrap != nullptr) {
+  if (is_async) {  // write(fd, string, pos, enc, req)
     AsyncCall(env, req_wrap, args, "write", UTF8, AfterInteger,
               uv_fs_write, fd, &uvbuf, 1, pos);
-  } else {
-    SYNC_CALL(write, nullptr, fd, &uvbuf, 1, pos)
-    return args.GetReturnValue().Set(SYNC_RESULT);
+  } else {  // write(fd, string, pos, enc, undefined, ctx)
+    CHECK_EQ(argc, 6);
+    fs_req_wrap req_wrap;
+    int bytesWritten = SyncCall(env, args[5], &req_wrap, "write",
+                                uv_fs_write, fd, &uvbuf, 1, pos);
+    args.GetReturnValue().Set(bytesWritten);
   }
 }
 
@@ -1411,51 +1414,50 @@ static void WriteString(const FunctionCallbackInfo<Value>& args) {
  *
  * bytesRead = fs.read(fd, buffer, offset, length, position)
  *
- * 0 fd        integer. file descriptor
+ * 0 fd        int32. file descriptor
  * 1 buffer    instance of Buffer
- * 2 offset    integer. offset to start reading into inside buffer
- * 3 length    integer. length to read
- * 4 position  file position - null for current position
- *
+ * 2 offset    int32. offset to start reading into inside buffer
+ * 3 length    int32. length to read
+ * 4 position  int64. file position - -1 for current position
  */
 static void Read(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
+  const int argc = args.Length();
+  CHECK_GE(argc, 4);
+
   CHECK(args[0]->IsInt32());
+  const int fd = args[0].As<Int32>()->Value();
+
   CHECK(Buffer::HasInstance(args[1]));
-
-  int fd = args[0]->Int32Value();
-
-  Local<Value> req;
-
-  size_t len;
-  int64_t pos;
-
-  char * buf = nullptr;
-
   Local<Object> buffer_obj = args[1].As<Object>();
-  char *buffer_data = Buffer::Data(buffer_obj);
+  char* buffer_data = Buffer::Data(buffer_obj);
   size_t buffer_length = Buffer::Length(buffer_obj);
 
-  size_t off = args[2]->Int32Value();
+  CHECK(args[2]->IsInt32());
+  const size_t off = static_cast<size_t>(args[2].As<Int32>()->Value());
   CHECK_LT(off, buffer_length);
 
-  len = args[3]->Int32Value();
+  CHECK(args[3]->IsInt32());
+  const size_t len = static_cast<size_t>(args[3].As<Int32>()->Value());
   CHECK(Buffer::IsWithinBounds(off, len, buffer_length));
 
-  pos = GET_OFFSET(args[4]);
+  CHECK(args[4]->IsNumber());
+  const int64_t pos = args[4].As<Integer>()->Value();
 
-  buf = buffer_data + off;
-
+  char* buf = buffer_data + off;
   uv_buf_t uvbuf = uv_buf_init(const_cast<char*>(buf), len);
 
   FSReqBase* req_wrap = GetReqWrap(env, args[5]);
-  if (req_wrap != nullptr) {
+  if (req_wrap != nullptr) {  // read(fd, buffer, offset, len, pos, req)
     AsyncCall(env, req_wrap, args, "read", UTF8, AfterInteger,
               uv_fs_read, fd, &uvbuf, 1, pos);
-  } else {
-    SYNC_CALL(read, 0, fd, &uvbuf, 1, pos)
-    args.GetReturnValue().Set(SYNC_RESULT);
+  } else {  // read(fd, buffer, offset, len, pos, undefined, ctx)
+    CHECK_EQ(argc, 7);
+    fs_req_wrap req_wrap;
+    const int bytesRead = SyncCall(env, args[6], &req_wrap, "read",
+                                   uv_fs_read, fd, &uvbuf, 1, pos);
+    args.GetReturnValue().Set(bytesRead);
   }
 }
 
@@ -1494,18 +1496,24 @@ static void Chmod(const FunctionCallbackInfo<Value>& args) {
 static void FChmod(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
-  CHECK(args[0]->IsInt32());
-  CHECK(args[1]->IsInt32());
+  const int argc = args.Length();
+  CHECK_GE(argc, 2);
 
-  int fd = args[0]->Int32Value();
-  int mode = static_cast<int>(args[1]->Int32Value());
+  CHECK(args[0]->IsInt32());
+  const int fd = args[0].As<Int32>()->Value();
+
+  CHECK(args[1]->IsInt32());
+  const int mode = args[1].As<Int32>()->Value();
 
   FSReqBase* req_wrap = GetReqWrap(env, args[2]);
-  if (req_wrap != nullptr) {
+  if (req_wrap != nullptr) {  // fchmod(fd, mode, req)
     AsyncCall(env, req_wrap, args, "fchmod", UTF8, AfterNoArgs,
               uv_fs_fchmod, fd, mode);
-  } else {
-    SYNC_CALL(fchmod, 0, fd, mode);
+  } else {  // fchmod(fd, mode, undefined, ctx)
+    CHECK_EQ(argc, 4);
+    fs_req_wrap req_wrap;
+    SyncCall(env, args[3], &req_wrap, "fchmod",
+             uv_fs_fchmod, fd, mode);
   }
 }
 
@@ -1547,20 +1555,27 @@ static void Chown(const FunctionCallbackInfo<Value>& args) {
 static void FChown(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
-  CHECK(args[0]->IsInt32());
-  CHECK(args[1]->IsUint32());
-  CHECK(args[2]->IsUint32());
+  const int argc = args.Length();
+  CHECK_GE(argc, 3);
 
-  int fd = args[0]->Int32Value();
-  uv_uid_t uid = static_cast<uv_uid_t>(args[1]->Uint32Value());
-  uv_gid_t gid = static_cast<uv_gid_t>(args[2]->Uint32Value());
+  CHECK(args[0]->IsInt32());
+  const int fd = args[0].As<Int32>()->Value();
+
+  CHECK(args[1]->IsUint32());
+  const uv_uid_t uid = static_cast<uv_uid_t>(args[1].As<Uint32>()->Value());
+
+  CHECK(args[2]->IsUint32());
+  const uv_gid_t gid = static_cast<uv_gid_t>(args[2].As<Uint32>()->Value());
 
   FSReqBase* req_wrap = GetReqWrap(env, args[3]);
-  if (req_wrap != nullptr) {
+  if (req_wrap != nullptr) {  // fchown(fd, uid, gid, req)
     AsyncCall(env, req_wrap, args, "fchown", UTF8, AfterNoArgs,
               uv_fs_fchown, fd, uid, gid);
-  } else {
-    SYNC_CALL(fchown, 0, fd, uid, gid);
+  } else {  // fchown(fd, uid, gid, undefined, ctx)
+    CHECK_EQ(argc, 5);
+    fs_req_wrap req_wrap;
+    SyncCall(env, args[4], &req_wrap, "fchown",
+             uv_fs_fchown, fd, uid, gid);
   }
 }
 
@@ -1595,20 +1610,27 @@ static void UTimes(const FunctionCallbackInfo<Value>& args) {
 static void FUTimes(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
-  CHECK(args[0]->IsInt32());
-  CHECK(args[1]->IsNumber());
-  CHECK(args[2]->IsNumber());
+  const int argc = args.Length();
+  CHECK_GE(argc, 3);
 
-  const int fd = args[0]->Int32Value();
-  const double atime = static_cast<double>(args[1]->NumberValue());
-  const double mtime = static_cast<double>(args[2]->NumberValue());
+  CHECK(args[0]->IsInt32());
+  const int fd = args[0].As<Int32>()->Value();
+
+  CHECK(args[1]->IsNumber());
+  const double atime = args[1].As<Number>()->Value();
+
+  CHECK(args[2]->IsNumber());
+  const double mtime = args[2].As<Number>()->Value();
 
   FSReqBase* req_wrap = GetReqWrap(env, args[3]);
-  if (req_wrap != nullptr) {
+  if (req_wrap != nullptr) {  // futimes(fd, atime, mtime, req)
     AsyncCall(env, req_wrap, args, "futime", UTF8, AfterNoArgs,
               uv_fs_futime, fd, atime, mtime);
-  } else {
-    SYNC_CALL(futime, 0, fd, atime, mtime);
+  } else {  // futimes(fd, atime, mtime, undefined, ctx)
+    CHECK_EQ(argc, 5);
+    fs_req_wrap req_wrap;
+    SyncCall(env, args[4], &req_wrap, "futime",
+             uv_fs_futime, fd, atime, mtime);
   }
 }
 

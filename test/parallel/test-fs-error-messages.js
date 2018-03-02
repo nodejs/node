@@ -708,3 +708,127 @@ if (!common.isAIX) {
     validateError
   );
 }
+
+// read
+{
+  const validateError = (err) => {
+    assert.strictEqual(err.message, 'EBADF: bad file descriptor, read');
+    assert.strictEqual(err.errno, uv.UV_EBADF);
+    assert.strictEqual(err.code, 'EBADF');
+    assert.strictEqual(err.syscall, 'read');
+    return true;
+  };
+
+  common.runWithInvalidFD((fd) => {
+    const buf = Buffer.alloc(5);
+    fs.read(fd, buf, 0, 1, 1, common.mustCall(validateError));
+
+    assert.throws(
+      () => fs.readSync(fd, buf, 0, 1, 1),
+      validateError
+    );
+  });
+}
+
+// fchmod
+{
+  const validateError = (err) => {
+    assert.strictEqual(err.message, 'EBADF: bad file descriptor, fchmod');
+    assert.strictEqual(err.errno, uv.UV_EBADF);
+    assert.strictEqual(err.code, 'EBADF');
+    assert.strictEqual(err.syscall, 'fchmod');
+    return true;
+  };
+
+  common.runWithInvalidFD((fd) => {
+    fs.fchmod(fd, 0o666, common.mustCall(validateError));
+
+    assert.throws(
+      () => fs.fchmodSync(fd, 0o666),
+      validateError
+    );
+  });
+}
+
+// fchown
+if (!common.isWindows) {
+  const validateError = (err) => {
+    assert.strictEqual(err.message, 'EBADF: bad file descriptor, fchown');
+    assert.strictEqual(err.errno, uv.UV_EBADF);
+    assert.strictEqual(err.code, 'EBADF');
+    assert.strictEqual(err.syscall, 'fchown');
+    return true;
+  };
+
+  common.runWithInvalidFD((fd) => {
+    fs.fchown(fd, process.getuid(), process.getgid(),
+              common.mustCall(validateError));
+
+    assert.throws(
+      () => fs.fchownSync(fd, process.getuid(), process.getgid()),
+      validateError
+    );
+  });
+}
+
+// write buffer
+{
+  const validateError = (err) => {
+    assert.strictEqual(err.message, 'EBADF: bad file descriptor, write');
+    assert.strictEqual(err.errno, uv.UV_EBADF);
+    assert.strictEqual(err.code, 'EBADF');
+    assert.strictEqual(err.syscall, 'write');
+    return true;
+  };
+
+  common.runWithInvalidFD((fd) => {
+    const buf = Buffer.alloc(5);
+    fs.write(fd, buf, 0, 1, 1, common.mustCall(validateError));
+
+    assert.throws(
+      () => fs.writeSync(fd, buf, 0, 1, 1),
+      validateError
+    );
+  });
+}
+
+// write string
+{
+  const validateError = (err) => {
+    assert.strictEqual(err.message, 'EBADF: bad file descriptor, write');
+    assert.strictEqual(err.errno, uv.UV_EBADF);
+    assert.strictEqual(err.code, 'EBADF');
+    assert.strictEqual(err.syscall, 'write');
+    return true;
+  };
+
+  common.runWithInvalidFD((fd) => {
+    fs.write(fd, 'test', 1, common.mustCall(validateError));
+
+    assert.throws(
+      () => fs.writeSync(fd, 'test', 1),
+      validateError
+    );
+  });
+}
+
+
+// futimes
+if (!common.isAIX) {
+  const validateError = (err) => {
+    assert.strictEqual(err.message, 'EBADF: bad file descriptor, futime');
+    assert.strictEqual(err.errno, uv.UV_EBADF);
+    assert.strictEqual(err.code, 'EBADF');
+    assert.strictEqual(err.syscall, 'futime');
+    return true;
+  };
+
+  common.runWithInvalidFD((fd) => {
+    fs.futimes(fd, new Date(), new Date(), common.mustCall(validateError));
+
+    assert.throws(
+      () => fs.futimesSync(fd, new Date(), new Date()),
+      validateError
+    );
+  });
+}
