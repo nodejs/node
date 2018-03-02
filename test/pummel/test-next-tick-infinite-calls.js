@@ -28,7 +28,7 @@ let complete = 0;
 //  FATAL ERROR: JS Allocation failed - process out of memory
 // if the depth counter doesn't clear the nextTickQueue properly.
 (function runner() {
-  if (1e8 > ++complete)
+  if (++complete < 1e8)
     process.nextTick(runner);
 }());
 

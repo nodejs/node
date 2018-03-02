@@ -88,7 +88,7 @@ function makeConnection(index) {
 
   c.on('data', function(b) {
     gotData = true;
-    assert.ok(0 < b.length);
+    assert.ok(b.length > 0);
   });
 
   c.on('error', function(e) {
