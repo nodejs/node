@@ -26,6 +26,11 @@ const nm = spawnSync('nm', args);
 if (nm.error && nm.error.errno === 'ENOENT')
   common.skip('nm not found on system');
 
+const stderr = nm.stderr.toString();
+if (stderr.length > 0) {
+  common.skip(`Failed to execute nm: ${stderr}`);
+}
+
 const symbolRe = /\s_?(v8dbg_.+)$/;
 const symbols = nm.stdout.toString().split('\n').reduce((filtered, line) => {
   const match = line.match(symbolRe);
