@@ -175,7 +175,11 @@ namespace node {{
 
 {definitions}
 
-v8::Local<v8::String> MainSource(Environment* env) {{
+v8::Local<v8::String> LoadersBootstrapperSource(Environment* env) {{
+  return internal_bootstrap_loaders_value.ToStringChecked(env->isolate());
+}}
+
+v8::Local<v8::String> NodeBootstrapperSource(Environment* env) {{
   return internal_bootstrap_node_value.ToStringChecked(env->isolate());
 }}
 

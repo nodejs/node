@@ -11,9 +11,9 @@ Error
     at Function.Module._load (module.js:*:*)
     at Function.Module.runMain (module.js:*:*)
     at startup (bootstrap_node.js:*:*)
-    at bootstrap_node.js:*:*
+    at bootstrapNodeJSCore (bootstrap_node.js:*:*)
 Emitted 'error' event at:
     at Object.<anonymous> (*events_unhandled_error_sameline.js:*:*)
     at Module._compile (module.js:*:*)
     [... lines matching original stack trace ...]
-    at bootstrap_node.js:*:*
+    at bootstrapNodeJSCore (bootstrap_node.js:*:*)

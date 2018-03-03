@@ -2854,7 +2854,7 @@ static void ThrowIfNoSuchModule(Environment* env, const char* module_v) {
   env->ThrowError(errmsg);
 }
 
-static void Binding(const FunctionCallbackInfo<Value>& args) {
+static void GetBinding(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
   CHECK(args[0]->IsString());
@@ -2881,7 +2881,7 @@ static void Binding(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(exports);
 }
 
-static void InternalBinding(const FunctionCallbackInfo<Value>& args) {
+static void GetInternalBinding(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
   CHECK(args[0]->IsString());
@@ -2896,7 +2896,7 @@ static void InternalBinding(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(exports);
 }
 
-static void LinkedBinding(const FunctionCallbackInfo<Value>& args) {
+static void GetLinkedBinding(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args.GetIsolate());
 
   CHECK(args[0]->IsString());
@@ -3596,10 +3596,6 @@ void SetupProcessObject(Environment* env,
   env->SetMethod(process, "uptime", Uptime);
   env->SetMethod(process, "memoryUsage", MemoryUsage);
 
-  env->SetMethod(process, "binding", Binding);
-  env->SetMethod(process, "_linkedBinding", LinkedBinding);
-  env->SetMethod(process, "_internalBinding", InternalBinding);
-
   env->SetMethod(process, "_setupProcessObject", SetupProcessObject);
   env->SetMethod(process, "_setupNextTick", SetupNextTick);
   env->SetMethod(process, "_setupPromises", SetupPromises);
@@ -3637,8 +3633,10 @@ static void RawDebug(const FunctionCallbackInfo<Value>& args) {
   fflush(stderr);
 }
 
-void LoadEnvironment(Environment* env) {
-  HandleScope handle_scope(env->isolate());
+
+static Local<Function> GetBootstrapper(Environment* env, Local<String> source,
+                                  Local<String> script_name) {
+  EscapableHandleScope scope(env->isolate());
 
   TryCatch try_catch(env->isolate());
 
@@ -3647,20 +3645,59 @@ void LoadEnvironment(Environment* env) {
   // are not safe to ignore.
   try_catch.SetVerbose(false);
 
-  // Execute the lib/internal/bootstrap_node.js file which was included as a
-  // static C string in node_natives.h by node_js2c.
-  // 'internal_bootstrap_node_native' is the string containing that source code.
-  Local<String> script_name = FIXED_ONE_BYTE_STRING(env->isolate(),
-                                                    "bootstrap_node.js");
-  Local<Value> f_value = ExecuteString(env, MainSource(env), script_name);
+  // Execute the factory javascript file
+  Local<Value> factory_v = ExecuteString(env, source, script_name);
   if (try_catch.HasCaught())  {
     ReportException(env, try_catch);
     exit(10);
   }
-  // The bootstrap_node.js file returns a function 'f'
-  CHECK(f_value->IsFunction());
 
-  Local<Function> f = Local<Function>::Cast(f_value);
+  CHECK(factory_v->IsFunction());
+  Local<Function> factory = Local<Function>::Cast(factory_v);
+
+  return scope.Escape(factory);
+}
+
+static bool ExecuteBootstrapper(Environment* env, Local<Function> factory,
+                                int argc, Local<Value> argv[],
+                                Local<Value>* out) {
+  bool ret = factory->Call(
+      env->context(), Null(env->isolate()), argc, argv).ToLocal(out);
+
+  // If there was an error during bootstrap then it was either handled by the
+  // FatalException handler or it's unrecoverable (e.g. max call stack
+  // exceeded). Either way, clear the stack so that the AsyncCallbackScope
+  // destructor doesn't fail on the id check.
+  // There are only two ways to have a stack size > 1: 1) the user manually
+  // called MakeCallback or 2) user awaited during bootstrap, which triggered
+  // _tickCallback().
+  if (!ret) {
+    env->async_hooks()->clear_async_id_stack();
+  }
+
+  return ret;
+}
+
+
+void LoadEnvironment(Environment* env) {
+  HandleScope handle_scope(env->isolate());
+
+  TryCatch try_catch(env->isolate());
+  // Disable verbose mode to stop FatalException() handler from trying
+  // to handle the exception. Errors this early in the start-up phase
+  // are not safe to ignore.
+  try_catch.SetVerbose(false);
+
+  // The factory scripts are lib/internal/bootstrap_loaders.js and
+  // lib/internal/bootstrap_node.js, each included as a static C string
+  // defined in node_javascript.h, generated in node_javascript.cc by
+  // node_js2c.
+  Local<Function> loaders_bootstrapper =
+      GetBootstrapper(env, LoadersBootstrapperSource(env),
+                 FIXED_ONE_BYTE_STRING(env->isolate(), "bootstrap_loaders.js"));
+  Local<Function> node_bootstrapper =
+      GetBootstrapper(env, NodeBootstrapperSource(env),
+                 FIXED_ONE_BYTE_STRING(env->isolate(), "bootstrap_node.js"));
 
   // Add a reference to the global object
   Local<Object> global = env->context()->Global();
@@ -3691,25 +3728,47 @@ void LoadEnvironment(Environment* env) {
   // (Allows you to set stuff on `global` from anywhere in JavaScript.)
   global->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "global"), global);
 
-  // Now we call 'f' with the 'process' variable that we've built up with
-  // all our bindings. Inside bootstrap_node.js and internal/process we'll
-  // take care of assigning things to their places.
+  // Create binding loaders
+  v8::Local<v8::Function> get_binding_fn =
+      env->NewFunctionTemplate(GetBinding)->GetFunction(env->context())
+          .ToLocalChecked();
 
-  // We start the process this way in order to be more modular. Developers
-  // who do not like how bootstrap_node.js sets up the module system but do
-  // like Node's I/O bindings may want to replace 'f' with their own function.
-  Local<Value> arg = env->process_object();
+  v8::Local<v8::Function> get_linked_binding_fn =
+      env->NewFunctionTemplate(GetLinkedBinding)->GetFunction(env->context())
+          .ToLocalChecked();
 
-  auto ret = f->Call(env->context(), Null(env->isolate()), 1, &arg);
-  // If there was an error during bootstrap then it was either handled by the
-  // FatalException handler or it's unrecoverable (e.g. max call stack
-  // exceeded). Either way, clear the stack so that the AsyncCallbackScope
-  // destructor doesn't fail on the id check.
-  // There are only two ways to have a stack size > 1: 1) the user manually
-  // called MakeCallback or 2) user awaited during bootstrap, which triggered
-  // _tickCallback().
-  if (ret.IsEmpty())
-    env->async_hooks()->clear_async_id_stack();
+  v8::Local<v8::Function> get_internal_binding_fn =
+      env->NewFunctionTemplate(GetInternalBinding)->GetFunction(env->context())
+          .ToLocalChecked();
+
+  Local<Value> loaders_bootstrapper_args[] = {
+    env->process_object(),
+    get_binding_fn,
+    get_linked_binding_fn,
+    get_internal_binding_fn
+  };
+
+  // Bootstrap internal loaders
+  Local<Value> bootstrapped_loaders;
+  if (!ExecuteBootstrapper(env, loaders_bootstrapper,
+                           arraysize(loaders_bootstrapper_args),
+                           loaders_bootstrapper_args,
+                           &bootstrapped_loaders)) {
+    return;
+  }
+
+  // Bootstrap Node.js
+  Local<Value> bootstrapped_node;
+  Local<Value> node_bootstrapper_args[] = {
+    env->process_object(),
+    bootstrapped_loaders
+  };
+  if (!ExecuteBootstrapper(env, node_bootstrapper,
+                           arraysize(node_bootstrapper_args),
+                           node_bootstrapper_args,
+                           &bootstrapped_node)) {
+    return;
+  }
 }
 
 static void PrintHelp() {
