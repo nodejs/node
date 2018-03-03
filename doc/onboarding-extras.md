@@ -36,8 +36,8 @@
 | performance                              | @nodejs/performance                                                   |
 | platform specific                        | @nodejs/platform-{aix,arm,freebsd,macos,ppc,smartos,s390,windows}     |
 | python code                              | @nodejs/python                                                        |
-| upgrading c-ares                         | @rvagg,                                                               |
-| upgrading http-parser                    | @nodejs/http nodejs/http2                                             |
+| upgrading c-ares                         | @rvagg                                                                |
+| upgrading http-parser                    | @nodejs/http, @nodejs/http2                                           |
 | upgrading libuv                          | @nodejs/libuv                                                         |
 | upgrading npm                            | @fishrock123, @MylesBorins                                            |
 | upgrading V8                             | @nodejs/v8, @nodejs/post-mortem                                       |
