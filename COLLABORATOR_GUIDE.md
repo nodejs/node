@@ -1,13 +1,16 @@
 # Node.js Collaborator Guide
 
-**Contents**
+## Contents
 
 * [Issues and Pull Requests](#issues-and-pull-requests)
   - [Managing Issues and Pull Requests](#managing-issues-and-pull-requests)
   - [Welcoming First-Time Contributors](#welcoming-first-time-contributors)
   - [Closing Issues and Pull Requests](#closing-issues-and-pull-requests)
+  - [Ready to land pull requests](#ready-to-land-pull-requests)
+  - [Handling own pull requests](#handling-own-pull-requests)
 * [Accepting Modifications](#accepting-modifications)
-  - [Code Reviews and Consensus Seeking](#code-reviews-and-consensus-seeking)
+  - [Code Reviews](#code-reviews)
+  - [Consensus Seeking](#consensus-seeking)
   - [Waiting for Approvals](#waiting-for-approvals)
   - [Testing and CI](#testing-and-ci)
     - [Useful CI Jobs](#useful-ci-jobs)
@@ -45,13 +48,12 @@ understand the project governance model as outlined in
 
 ### Managing Issues and Pull Requests
 
-Collaborators should feel free to take full responsibility for
-managing issues and pull requests they feel qualified to handle, as
-long as this is done while being mindful of these guidelines, the
-opinions of other Collaborators and guidance of the [TSC][]. They
-may also notify other qualified parties for more input on an issue
-or a pull request.
-[See "Who to CC in issues"](./doc/onboarding-extras.md#who-to-cc-in-issues)
+Collaborators should take full responsibility for managing issues and pull
+requests they feel qualified to handle. Just make sure this is done while being
+mindful of these guidelines, the opinions of other Collaborators and guidance of
+the [TSC][]. They may also notify other qualified parties for more input on an
+issue or a pull request. [See "Who to CC in
+issues"](./doc/onboarding-extras.md#who-to-cc-in-issues)
 
 ### Welcoming First-Time Contributors
 
@@ -75,26 +77,71 @@ Collaborators or additional evidence that the issue has relevance, the
 issue may be closed. Remember that issues can always be re-opened if
 necessary.
 
+### Ready to land pull requests
+
+A pull request that is still awaiting the minimum review time is considered
+`ready` as soon as the CI got kicked off, it got at least one approval and
+it has no outstanding review comments. Please always make sure to add the
+appropriate `ready` label to the PR in that case and remove it again as soon
+as that condition is not met anymore.
+
+### Handling own pull requests
+
+If you as a collaborator open a pull request, please always start a CI right
+after (see [testing and CI](#testing-and-ci) for further information on how to
+do that) and post the link to it as well. Please also make sure that you start a
+new CI after each update (due to e.g., a change request in a review or due to
+rebasing).
+
+As soon as the PR is ready to land, please go ahead and do so on your own.
+Landing own pull requests distributes the work load for each collaborator
+equally. If it is still awaiting the
+[minimum time to land](#waiting-for-approvals), please add the `ready` label to
+it so it is obvious that the PR can land as soon as the time ends.
+
 ## Accepting Modifications
 
-All modifications to the Node.js code and documentation should be
-performed via GitHub pull requests, including modifications by
-Collaborators and TSC members. A pull request must be reviewed, and usually
-must also be tested with CI, before being landed into the codebase.
+All modifications to the Node.js code and documentation should be performed via
+GitHub pull requests, including modifications by Collaborators and TSC members.
+A pull request must be reviewed, and must also be tested with CI, before being
+landed into the codebase. There may be exception to the latter.
 
-### Code Reviews and Consensus Seeking
+### Code Reviews
 
 All pull requests must be reviewed and accepted by a Collaborator with
 sufficient expertise who is able to take full responsibility for the
 change. In the case of pull requests proposed by an existing
 Collaborator, an additional Collaborator is required for sign-off.
 
-In some cases, it may be necessary to summon a qualified Collaborator
-or a GitHub team to a pull request for review by @-mention.
-[See "Who to CC in issues"](./doc/onboarding-extras.md#who-to-cc-in-issues)
+In some cases, it may be necessary to summon a GitHub team to a pull request for
+review by @-mention.
+[See "Who to CC in issues"](./doc/onboarding-extras.md#who-to-cc-in-issues).
 
 If you are unsure about the modification and are not prepared to take
 full responsibility for the change, defer to another Collaborator.
+
+If you are the first collaborator to approve a pull request that has no CI yet,
+please start one (see [testing and CI](#testing-and-ci) for further information
+on how to do that) and post the link to the CI in the PR. Please also start a
+new CI in case a code change was done due to a addressed review comment or a
+rebase.
+
+In case there are already enough approvals (`LGTM`), a CI run and the PR is open
+longer than the minimum waiting time without any open comments, please do not
+just add another approval. Instead go ahead and land the PR after checking the
+CI outcome.
+
+### Consensus Seeking
+
+If there is no disagreement amongst Collaborators, a pull request should be
+landed given appropriate review, a green CI and the minimum
+[waiting time](#waiting-for-approvals) for a PR. If it is still awaiting the
+[minimum time to land](#waiting-for-approvals), please add the `ready` label to
+it so it is obvious that the PR can land as soon as the time ends.
+
+Where there is discussion amongst Collaborators, consensus should be sought if
+possible. The lack of consensus may indicate the need to elevate discussion to
+the TSC for resolution.
 
 If any Collaborator objects to a change *without giving any additional
 explanation or context*, and the objecting Collaborator fails to respond to
@@ -102,20 +149,14 @@ explicit requests for explanation or context within a reasonable period of
 time, the objection may be dismissed. Note that this does not apply to
 objections that are explained.
 
-For non-breaking changes, if there is no disagreement amongst
-Collaborators, a pull request may be landed given appropriate review.
-Where there is discussion amongst Collaborators, consensus should be
-sought if possible. The lack of consensus may indicate the need to
-elevate discussion to the TSC for resolution (see below).
-
-Breaking changes (that is, pull requests that require an increase in
-the major version number, known as `semver-major` changes) must be
-[elevated for review by the TSC](#involving-the-tsc).
-This does not necessarily mean that the PR must be put onto the TSC meeting
-agenda. If multiple TSC members approve (`LGTM`) the PR and no Collaborators
-oppose the PR, it can be landed. Where there is disagreement among TSC members
-or objections from one or more Collaborators, `semver-major` pull requests
-should be put on the TSC meeting agenda.
+Note that breaking changes (that is, pull requests that require an increase in
+the major version number, known as `semver-major` changes) must be [elevated for
+review by the TSC](#involving-the-tsc). This does not necessarily mean that the
+PR must be put onto the TSC meeting agenda. If multiple TSC members approve
+(`LGTM`) the PR and no Collaborators oppose the PR, it should be landed. Where
+there is disagreement among TSC members or objections from one or more
+Collaborators, `semver-major` pull requests should be put on the TSC meeting
+agenda.
 
 #### Helpful resources
 
@@ -147,10 +188,10 @@ CI testing is done.
 All bugfixes require a test case which demonstrates the defect. The
 test should *fail* before the change, and *pass* after the change.
 
-All pull requests that modify executable code should be subjected to
-continuous integration tests on the
-[project CI server](https://ci.nodejs.org/).
-The pull request should have a CI status indicator if possible.
+All pull requests that modify executable code should also include a test case
+and be subjected to continuous integration tests on the
+[project CI server](https://ci.nodejs.org/). The pull request should have a CI
+status indicator if possible.
 
 #### Useful CI Jobs
 
@@ -262,7 +303,7 @@ backward-incompatible way) without a deprecation.
 Exceptions to this rule may be made in the following cases:
 
 * Adding or removing errors thrown or reported by a Public API;
-* Changing error messages;
+* Changing error messages for errors without error code;
 * Altering the timing and non-internal side effects of the Public API.
 
 Such changes *must* be handled as semver-major changes but MAY be landed
@@ -432,28 +473,33 @@ The TSC should serve as the final arbiter where required.
 
 ## Landing Pull Requests
 
-* Please never use GitHub's green ["Merge Pull Request"](https://help.github.com/articles/merging-a-pull-request/#merging-a-pull-request-on-github) button.
-  * If you do, please force-push removing the merge.
-  * Reasons for not using the web interface button:
-    * The merge method will add an unnecessary merge commit.
-    * The squash & merge method has been known to add metadata to the
-    commit title (the PR #).
-    * If more than one author has contributed to the PR, keep the most recent
-      author when squashing.
-
-Review the commit message to ensure that it adheres to the guidelines outlined
-in the [contributing](./doc/guides/contributing/pull-requests.md#commit-message-guidelines) guide.
-
-Add all necessary [metadata](#metadata) to commit messages before landing.
-
-See the commit log for examples such as
-[this one](https://github.com/nodejs/node/commit/b636ba8186) if unsure
-exactly how to format your commit messages.
+1. Never use GitHub's green ["Merge Pull Request"][] button. Reasons for not
+   using the web interface button:
+   * The merge method will add an unnecessary merge commit.
+   * The squash & merge method has been known to add metadata to the commit
+     title (the PR #).
+   * If more than one author has contributed to the PR, keep the most recent
+     author when squashing.
+1. Make sure the CI is done and the result is green. If the CI is not green,
+   check for flaky tests and infrastructure failures. Please check if those were
+   already reported in the appropriate repository ([node][flaky tests] and
+   [build](https://github.com/nodejs/build/issues)) or not and open new issues
+   in case they are not. If not CI was run or the run is outdated because code
+   was pushed after the last run, please first start a new CI and wait for the
+   result. If no CI is required, please leave a comment in case non is already
+   present.
+1. Review the commit message to ensure that it adheres to the guidelines
+   outlined in the [contributing][] guide.
+1. Add all necessary [metadata](#metadata) to commit messages before landing.
+   See the commit log for examples such as [this
+   one](https://github.com/nodejs/node/commit/b636ba8186) if unsure exactly how
+   to format your commit messages.
 
 Additionally:
-- Double check PRs to make sure the person's _full name_ and email
+
+* Double check PRs to make sure the person's _full name_ and email
   address are correct before merging.
-- All commits should be self-contained (meaning every commit should pass all
+* All commits should be self-contained (meaning every commit should pass all
   tests). This makes it much easier when bisecting to find a breaking change.
 
 ### Using `git-node`
@@ -541,7 +587,7 @@ This will open a screen like this (in the default shell editor):
 ```text
 pick 6928fc1 crypto: add feature A
 pick 8120c4c add test for feature A
-pick 51759dc feature B
+pick 51759dc crypto: feature B
 pick 7d6f433 test for feature B
 
 # Rebase f9456a2..7d6f433 onto f9456a2
@@ -569,7 +615,7 @@ previous commit:
 ```text
 pick 6928fc1 crypto: add feature A
 fixup 8120c4c add test for feature A
-pick 51759dc feature B
+pick 51759dc crypto: feature B
 fixup 7d6f433 test for feature B
 ```
 
@@ -578,7 +624,7 @@ Replace `pick` with `reword` to change the commit message:
 ```text
 reword 6928fc1 crypto: add feature A
 fixup 8120c4c add test for feature A
-reword 51759dc feature B
+reword 51759dc crypto: feature B
 fixup 7d6f433 test for feature B
 ```
 
@@ -655,12 +701,12 @@ hint: See the 'Note about fast-forwards' in 'git push --help' for details.
 ```
 
 That means a commit has landed since your last rebase against `upstream/master`.
-To fix this, fetch, rebase, run the tests again (to make sure no interactions
-between your changes and the new changes cause any problems), and push again:
+To fix this pull with rebase from upstream and run the tests again (to make sure
+no interactions between your changes and the new changes cause any problems),
+and push again:
 
 ```sh
-git fetch upstream
-git rebase upstream/master
+git pull upstream master --rebase
 make -j4 test
 git push upstream master
 ```
@@ -721,8 +767,8 @@ TSC for further discussion.
 
 #### How are LTS Branches Managed?
 
-There are currently two LTS branches: `v6.x` and `v4.x`. Each of these is paired
-with a staging branch: `v6.x-staging` and `v4.x-staging`.
+There are multiple LTS branches, e.g. `v8.x` and `v6.x`. Each of these is paired
+with a staging branch: `v8.x-staging` and `v6.x-staging`.
 
 As commits land on the master branch, they are cherry-picked back to each
 staging branch as appropriate. If the commit applies only to the LTS branch, the
@@ -737,10 +783,10 @@ LTS release.
 
 #### How can I help?
 
-When you send your pull request, consider including information about
-whether your change is breaking. If you think your patch can be backported,
-please feel free to include that information in the PR thread. For more
-information on backporting, please see the [backporting guide][].
+When you send your pull request, please include information about whether your
+change is breaking. If you think your patch can be backported, please include
+that information in the PR thread or your PR description. For more information
+on backporting, please see the [backporting guide][].
 
 Several LTS related issue and PR labels have been provided:
 
@@ -769,6 +815,7 @@ release. This process of making a release will be a collaboration between the
 LTS working group and the Release team.
 
 [backporting guide]: doc/guides/backporting-to-release-lines.md
+[contributing]: ./doc/guides/contributing/pull-requests.md#commit-message-guidelines
 [Stability Index]: doc/api/documentation.md#stability-index
 [Enhancement Proposal]: https://github.com/nodejs/node-eps
 [`--pending-deprecation`]: doc/api/cli.md#--pending-deprecation
@@ -779,3 +826,5 @@ LTS working group and the Release team.
 [TSC]: https://github.com/nodejs/TSC
 [node-core-utils-issues]: https://github.com/nodejs/node-core-utils/issues
 [node-core-utils-credentials]: https://github.com/nodejs/node-core-utils#setting-up-credentials
+["Merge Pull Request"]: https://help.github.com/articles/merging-a-pull-request/#merging-a-pull-request-on-github
+[flaky tests]: https://github.com/nodejs/node/issues?q=is%3Aopen+is%3Aissue+label%3A%22CI+%2F+flaky+test%22

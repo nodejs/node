@@ -86,6 +86,10 @@ onboarding session.
       `semver-major` label
     * When adding a `semver-*` label, add a comment explaining why you're adding
       it. Do it right away so you don't forget!
+  * Please add the `ready` label for PRs where the CI was just kicked off and
+    that are good to go (no outstanding review items), pending the CI outcome
+    and possibly the 48/72 hour waiting rule and the necessary LGs for
+    semver-major.
 
 * [**See "Who to CC in issues"**](./onboarding-extras.md#who-to-cc-in-issues)
   * This will come more naturally over time
@@ -107,11 +111,11 @@ onboarding session.
 
 * The primary goal is for the codebase to improve.
 * Secondary (but not far off) is for the person submitting code to succeed. A
-    pull request from a new contributor is an opportunity to grow the community.
+  pull request from a new contributor is an opportunity to grow the community.
 * Review a bit at a time. Do not overwhelm new contributors.
   * It is tempting to micro-optimize. Don't succumb to that temptation. We
-      change V8 often. Techniques that provide improved performance today may be
-      unnecessary in the future.
+    change V8 often. Techniques that provide improved performance today may be
+    unnecessary in the future.
 * Be aware: Your opinion carries a lot of weight!
 * Nits (requests for small changes that are not essential) are fine, but try to
   avoid stalling the pull request.
@@ -122,15 +126,15 @@ onboarding session.
   by tools but are not, consider implementing the necessary tooling.
 * Minimum wait for comments time
   * There is a minimum waiting time which we try to respect for non-trivial
-      changes so that people who may have important input in such a distributed
-      project are able to respond.
+    changes so that people who may have important input in such a distributed
+    project are able to respond.
   * For non-trivial changes, leave the pull request open for at least 48 hours
-      (72 hours on a weekend).
+    (72 hours on a weekend).
   * If a pull request is abandoned, check if they'd mind if you took it over
-      (especially if it just has nits left).
+    (especially if it just has nits left).
 * Approving a change
   * Collaborators indicate that they have reviewed and approve of the changes in
-      a pull request using Github’s approval interface
+    a pull request using Github’s approval interface
   * Some people like to comment `LGTM` (“Looks Good To Me”)
   * You have the authority to approve any other collaborator’s work.
   * You cannot approve your own pull requests.
