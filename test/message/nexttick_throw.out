@@ -7,4 +7,4 @@ ReferenceError: undefined_reference_error_maker is not defined
     at process._tickCallback (internal/process/next_tick.js:*:*)
     at Function.Module.runMain (module.js:*:*)
     at startup (bootstrap_node.js:*:*)
-    at bootstrap_node.js:*:*
+    at bootstrapNodeJSCore (bootstrap_node.js:*:*)
