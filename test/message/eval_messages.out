@@ -10,7 +10,7 @@ SyntaxError: Strict mode code may not include a with statement
     at Module._compile (module.js:*:*)
     at evalScript (bootstrap_node.js:*:*)
     at startup (bootstrap_node.js:*:*)
-    at bootstrap_node.js:*:*
+    at bootstrapNodeJSCore (bootstrap_node.js:*:*)
 42
 42
 [eval]:1
@@ -25,7 +25,7 @@ Error: hello
     at Module._compile (module.js:*:*)
     at evalScript (bootstrap_node.js:*:*)
     at startup (bootstrap_node.js:*:*)
-    at bootstrap_node.js:*:*
+    at bootstrapNodeJSCore (bootstrap_node.js:*:*)
 
 [eval]:1
 throw new Error("hello")
@@ -39,7 +39,7 @@ Error: hello
     at Module._compile (module.js:*:*)
     at evalScript (bootstrap_node.js:*:*)
     at startup (bootstrap_node.js:*:*)
-    at bootstrap_node.js:*:*
+    at bootstrapNodeJSCore (bootstrap_node.js:*:*)
 100
 [eval]:1
 var x = 100; y = x;
@@ -53,7 +53,7 @@ ReferenceError: y is not defined
     at Module._compile (module.js:*:*)
     at evalScript (bootstrap_node.js:*:*)
     at startup (bootstrap_node.js:*:*)
-    at bootstrap_node.js:*:*
+    at bootstrapNodeJSCore (bootstrap_node.js:*:*)
 
 [eval]:1
 var ______________________________________________; throw 10

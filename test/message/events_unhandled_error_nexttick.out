@@ -11,10 +11,10 @@ Error
     at Function.Module._load (module.js:*:*)
     at Function.Module.runMain (module.js:*:*)
     at startup (bootstrap_node.js:*:*)
-    at bootstrap_node.js:*:*
+    at bootstrapNodeJSCore (bootstrap_node.js:*:*)
 Emitted 'error' event at:
     at process.nextTick (*events_unhandled_error_nexttick.js:*:*)
     at process._tickCallback (internal/process/next_tick.js:*:*)
     at Function.Module.runMain (module.js:*:*)
     at startup (bootstrap_node.js:*:*)
-    at bootstrap_node.js:*:*
+    at bootstrapNodeJSCore (bootstrap_node.js:*:*)
