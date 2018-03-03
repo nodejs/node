@@ -149,8 +149,7 @@ class AliasedBuffer {
     }
 
     inline Reference& operator+=(const Reference& val) {
-      this->operator+=(static_cast<NativeT>(val));
-      return *this;
+      return *this->operator+=(static_cast<NativeT>(val));
     }
 
     template <typename T>
@@ -161,8 +160,7 @@ class AliasedBuffer {
     }
 
     inline Reference& operator-=(const Reference& val) {
-      this->operator-=(static_cast<NativeT>(val));
-      return *this;
+      return *this->operator-=(static_cast<NativeT>(val));
     }
 
    private:
