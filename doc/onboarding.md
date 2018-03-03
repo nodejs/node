@@ -6,16 +6,21 @@ onboarding session.
 ## One week before the onboarding session
 
 * If the new Collaborator is not yet a member of the nodejs GitHub organization,
-  confirm that they are using two-factor authentication. It will not be possible
-  to add them to the organization if they are not using two-factor
-  authentication.
+  confirm that they are using [two-factor authentication][]. It will not be
+  possible to add them to the organization if they are not using two-factor
+  authentication. If they cannot receive SMS messages from GitHub, try
+  [using a TOTP mobile app][].
 * Announce the accepted nomination in a TSC meeting and in the TSC
   mailing list.
+* Suggest the new Collaborator install [`node-core-utils`][] and
+  [set up the credentials][] for it.
 
 ## Fifteen minutes before the onboarding session
 
 * Prior to the onboarding session, add the new Collaborator to
   [the Collaborators team](https://github.com/orgs/nodejs/teams/collaborators).
+* Ask them if they want to join any subsystem teams. See
+  [Who to CC for Issues][who-to-cc].
 
 ## Onboarding session
 
@@ -87,7 +92,7 @@ onboarding session.
     * When adding a `semver-*` label, add a comment explaining why you're adding
       it. Do it right away so you don't forget!
 
-* [**See "Who to CC in issues"**](./onboarding-extras.md#who-to-cc-in-issues)
+* [**See "Who to CC in issues"**][who-to-cc]
   * This will come more naturally over time
   * For many of the teams listed there, you can ask to be added if you are
     interested
@@ -183,7 +188,13 @@ onboarding session.
 
 ## Landing PRs
 
-* See the Collaborator Guide: [Landing Pull Requests][]
+See the Collaborator Guide: [Landing Pull Requests][].
+
+Note that commits in one PR that belong to one logical change should
+be squashed. It is rarely the case in onboarding exercises, so this
+needs to be pointed out separately during the onboarding.
+
+<!-- TODO(joyeechueng): provide examples about "one logical change" -->
 
 ## Exercise: Make a PR adding yourself to the README
 
@@ -202,9 +213,11 @@ onboarding session.
   for 48/72 hours to land).
   * Be sure to add the `PR-URL: <full-pr-url>` and appropriate `Reviewed-By:`
     metadata.
-  * [`core-validate-commit`][] automates the validation of commit messages.
   * [`node-core-utils`][] automates the generation of metadata and the landing
     process. See the documentation of [`git-node`][].
+  * [`core-validate-commit`][] automates the validation of commit messages.
+    This will be run during `git node land --final` of the [`git-node`][]
+    command.
 
 ## Final notes
 
@@ -227,9 +240,13 @@ onboarding session.
 
 [Code of Conduct]: https://github.com/nodejs/admin/blob/master/CODE_OF_CONDUCT.md
 [`core-validate-commit`]: https://github.com/evanlucas/core-validate-commit
-[`git-node`]: https://github.com/nodejs/node-core-utils#git-node
+[`git-node`]: https://github.com/nodejs/node-core-utils/blob/master/docs/git-node.md
 [`node-core-utils`]: https://github.com/nodejs/node-core-utils
 [Landing Pull Requests]: https://github.com/nodejs/node/blob/master/COLLABORATOR_GUIDE.md#landing-pull-requests
 [https://github.com/nodejs/node/commit/ce986de829457c39257cd205067602e765768fb0]: https://github.com/nodejs/node/commit/ce986de829457c39257cd205067602e765768fb0
 [Publicizing or hiding organization membership]: https://help.github.com/articles/publicizing-or-hiding-organization-membership/
+[set up the credentials]: https://github.com/nodejs/node-core-utils#setting-up-credentials
+[two-factor authentication]: https://help.github.com/articles/securing-your-account-with-two-factor-authentication-2fa/
 [Updating Node.js from Upstream]: ./onboarding-extras.md#updating-nodejs-from-upstream
+[using a TOTP mobile app]: https://help.github.com/articles/configuring-two-factor-authentication-via-a-totp-mobile-app/
+[who-to-cc]: ./onboarding-extras.md#who-to-cc-in-issues
