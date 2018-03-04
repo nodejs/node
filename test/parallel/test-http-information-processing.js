@@ -15,7 +15,7 @@ const server = http.createServer((req, res) => {
   console.error('Server sending full response...');
   res.writeHead(200, {
     'Content-Type': 'text/plain',
-    'ABCD': '1'
+    'ABCD': '1',
   });
   res.end(test_res_body);
 });
@@ -23,7 +23,7 @@ const server = http.createServer((req, res) => {
 server.listen(0, function() {
   const req = http.request({
     port: this.address().port,
-    path: '/world'
+    path: '/world',
   });
   req.end();
   console.error('Client sending request...');

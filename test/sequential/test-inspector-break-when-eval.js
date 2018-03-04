@@ -28,8 +28,8 @@ async function breakOnLine(session) {
       'params': { 'lineNumber': 9,
                   'url': script,
                   'columnNumber': 0,
-                  'condition': ''
-      }
+                  'condition': '',
+      },
     },
     { 'method': 'Runtime.evaluate',
       'params': { 'expression': 'sum()',
@@ -40,9 +40,9 @@ async function breakOnLine(session) {
                   'returnByValue': false,
                   'generatePreview': true,
                   'userGesture': true,
-                  'awaitPromise': false
-      }
-    }
+                  'awaitPromise': false,
+      },
+    },
   ];
   session.send(commands);
   await session.waitForBreakOnLine(9, script);

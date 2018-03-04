@@ -60,7 +60,7 @@ tmpdir.refresh();
   }, {
     code: 'ERR_INVALID_ARG_TYPE',
     type: TypeError,
-    message: 'The "data" argument must be of type Buffer. Received type number'
+    message: 'The "data" argument must be of type Buffer. Received type number',
   });
   stream.destroy();
 }

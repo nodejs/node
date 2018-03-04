@@ -12,7 +12,7 @@ const repl = require('repl');
     }),
     input: stream,
     output: stream,
-    terminal: true
+    terminal: true,
   };
 
   const r = repl.start(options);

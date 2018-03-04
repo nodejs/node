@@ -6,7 +6,7 @@ const TTY = process.binding('tty_wrap').TTY = function() {};
 
 TTY.prototype = {
   setBlocking: noop,
-  getWindowSize: noop
+  getWindowSize: noop,
 };
 
 const { WriteStream } = require('tty');
@@ -15,7 +15,7 @@ const methods = [
   'cursorTo',
   'moveCursor',
   'clearLine',
-  'clearScreenDown'
+  'clearScreenDown',
 ];
 
 methods.forEach((method) => {

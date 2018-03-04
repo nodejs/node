@@ -35,7 +35,7 @@ const maxChunk = 768;
 
 const server = tls.createServer({
   key: fixtures.readKey('agent1-key.pem'),
-  cert: fixtures.readKey('agent1-cert.pem')
+  cert: fixtures.readKey('agent1-cert.pem'),
 }, function(c) {
   // Lower and upper limits
   assert(!c.setMaxSendFragment(511));
@@ -47,7 +47,7 @@ const server = tls.createServer({
   c.end(buf);
 }).listen(0, common.mustCall(function() {
   const c = tls.connect(this.address().port, {
-    rejectUnauthorized: false
+    rejectUnauthorized: false,
   }, common.mustCall(function() {
     c.on('data', function(chunk) {
       assert(chunk.length <= maxChunk);

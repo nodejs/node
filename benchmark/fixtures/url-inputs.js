@@ -12,7 +12,7 @@ exports.urls = {
   ws: 'ws://localhost:9229/f46db715-70df-43ad-a359-7f9949f39868',
   javascript: 'javascript:alert("node is awesome");',
   percent: 'https://%E4%BD%A0/foo',
-  dot: 'https://example.org/./a/../b/./c'
+  dot: 'https://example.org/./a/../b/./c',
 };
 
 exports.searchParams = {
@@ -26,5 +26,5 @@ exports.searchParams = {
                   'foo=ghi&foo=jkl&foo=mno&foo=pqr&foo=stu&foo=vwxyz',
   manypairs: 'a&b&c&d&e&f&g&h&i&j&k&l&m&n&o&p&q&r&s&t&u&v&w&x&y&z',
   manyblankpairs: '&&&&&&&&&&&&&&&&&&&&&&&&',
-  altspaces: 'foo+bar=baz+quux&xyzzy+thud=quuy+quuz&abc=def+ghi'
+  altspaces: 'foo+bar=baz+quux&xyzzy+thud=quuy+quuz&abc=def+ghi',
 };

@@ -15,7 +15,7 @@ const ajs_data = fixtures.readSync('a.js', 'utf8');
 
 const {
   HTTP2_HEADER_PATH,
-  HTTP2_HEADER_STATUS
+  HTTP2_HEADER_STATUS,
 } = http2.constants;
 
 const key = fixtures.readKey('agent8-key.pem', 'binary');

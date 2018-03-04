@@ -19,7 +19,7 @@ function invalidCallbackThrowsTests() {
   callbackThrowValues.forEach((value) => {
     common.expectsError(testMakeCallback(value), {
       code: 'ERR_INVALID_CALLBACK',
-      type: TypeError
+      type: TypeError,
     });
   });
 }

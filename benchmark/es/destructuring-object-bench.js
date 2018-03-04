@@ -4,7 +4,7 @@ const common = require('../common.js');
 
 const bench = common.createBenchmark(main, {
   method: ['normal', 'destructureObject'],
-  millions: [100]
+  millions: [100],
 });
 
 function runNormal(millions) {

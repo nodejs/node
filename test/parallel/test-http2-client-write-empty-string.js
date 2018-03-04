@@ -9,7 +9,7 @@ if (!common.hasCrypto)
 
 for (const chunkSequence of [
   [ '' ],
-  [ '', '' ]
+  [ '', '' ],
 ]) {
   const server = http2.createServer();
   server.on('stream', common.mustCall((stream, headers, flags) => {
@@ -30,7 +30,7 @@ for (const chunkSequence of [
 
     const req = client.request({
       ':method': 'POST',
-      ':path': '/'
+      ':path': '/',
     });
 
     req.on('response', common.mustCall((headers) => {

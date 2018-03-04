@@ -30,7 +30,7 @@ server.listen(0, common.mustCall(function() {
   const req = http.request({
     port: this.address().port,
     method: 'CONNECT',
-    path: 'example.com:443'
+    path: 'example.com:443',
   }, common.mustNotCall());
 
   req.on('close', common.mustCall());

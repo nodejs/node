@@ -57,7 +57,7 @@ if (common.hasIntl) {
                           code: 'ERR_ENCODING_INVALID_ENCODED_DATA',
                           type: TypeError,
                           message: 'The encoded data was not valid ' +
-                          'for encoding utf-8'
+                          'for encoding utf-8',
                         });
   });
 
@@ -72,7 +72,8 @@ if (common.hasIntl) {
     {
       code: 'ERR_NO_ICU',
       type: TypeError,
-      message: '"fatal" option is not supported on Node.js compiled without ICU'
+      message: '"fatal" option is not supported on ' +
+               'Node.js compiled without ICU',
     });
 }
 
@@ -104,7 +105,7 @@ if (common.hasIntl) {
   const expectedError = {
     code: 'ERR_INVALID_THIS',
     type: TypeError,
-    message: 'Value of "this" must be of type TextDecoder'
+    message: 'Value of "this" must be of type TextDecoder',
   };
 
   inspectFn.call(instance, Infinity, {});
@@ -145,7 +146,7 @@ const sample = 'z\xA2\u6C34\uD834\uDD1E\uF8FF\uDBFF\uDFFD\uFFFE';
     0x7A, 0xC2, 0xA2, 0xE6, 0xB0, 0xB4,
     0xF0, 0x9D, 0x84, 0x9E, 0xEF, 0xA3,
     0xBF, 0xF4, 0x8F, 0xBF, 0xBD, 0xEF,
-    0xBF, 0xBE
+    0xBF, 0xBE,
   ];
   const encoded = new TextEncoder().encode(string);
   assert.deepStrictEqual([].slice.call(encoded), bytes);
@@ -163,7 +164,7 @@ testDecodeSample(
   [
     0x7A, 0x00, 0xA2, 0x00, 0x34, 0x6C,
     0x34, 0xD8, 0x1E, 0xDD, 0xFF, 0xF8,
-    0xFF, 0xDB, 0xFD, 0xDF, 0xFE, 0xFF
+    0xFF, 0xDB, 0xFD, 0xDF, 0xFE, 0xFF,
   ]
 );
 
@@ -174,7 +175,7 @@ if (common.hasIntl) {
     [
       0x00, 0x7A, 0x00, 0xA2, 0x6C, 0x34,
       0xD8, 0x34, 0xDD, 0x1E, 0xF8, 0xFF,
-      0xDB, 0xFF, 0xDF, 0xFD, 0xFF, 0xFE
+      0xDB, 0xFF, 0xDF, 0xFD, 0xFF, 0xFE,
     ]
   );
 }
@@ -185,7 +186,7 @@ testDecodeSample(
   [
     0x7A, 0x00, 0xA2, 0x00, 0x34, 0x6C,
     0x34, 0xD8, 0x1E, 0xDD, 0xFF, 0xF8,
-    0xFF, 0xDB, 0xFD, 0xDF, 0xFE, 0xFF
+    0xFF, 0xDB, 0xFD, 0xDF, 0xFE, 0xFF,
   ]
 );
 
@@ -196,14 +197,14 @@ testDecodeSample(
   'utf8',
   'utf-16be',
   'utf-16le',
-  'utf-16'
+  'utf-16',
 ].forEach((i) => {
   ['\u0000', '\u000b', '\u00a0', '\u2028', '\u2029'].forEach((ws) => {
     common.expectsError(
       () => new TextDecoder(`${ws}${i}`),
       {
         code: 'ERR_ENCODING_NOT_SUPPORTED',
-        type: RangeError
+        type: RangeError,
       }
     );
 
@@ -211,7 +212,7 @@ testDecodeSample(
       () => new TextDecoder(`${i}${ws}`),
       {
         code: 'ERR_ENCODING_NOT_SUPPORTED',
-        type: RangeError
+        type: RangeError,
       }
     );
 
@@ -219,7 +220,7 @@ testDecodeSample(
       () => new TextDecoder(`${ws}${i}${ws}`),
       {
         code: 'ERR_ENCODING_NOT_SUPPORTED',
-        type: RangeError
+        type: RangeError,
       }
     );
   });

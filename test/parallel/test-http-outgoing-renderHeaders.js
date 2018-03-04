@@ -16,7 +16,7 @@ const OutgoingMessage = http.OutgoingMessage;
     {
       code: 'ERR_HTTP_HEADERS_SENT',
       type: Error,
-      message: 'Cannot render headers after they are sent to the client'
+      message: 'Cannot render headers after they are sent to the client',
     }
   );
 }
@@ -40,11 +40,11 @@ const OutgoingMessage = http.OutgoingMessage;
   const outgoingMessage = new OutgoingMessage();
   outgoingMessage[outHeadersKey] = {
     host: ['host', 'nodejs.org'],
-    origin: ['Origin', 'localhost']
+    origin: ['Origin', 'localhost'],
   };
   const result = outgoingMessage._renderHeaders();
   assert.deepStrictEqual(result, {
     host: 'nodejs.org',
-    Origin: 'localhost'
+    Origin: 'localhost',
   });
 }

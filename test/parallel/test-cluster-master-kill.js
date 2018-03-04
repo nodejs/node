@@ -36,7 +36,7 @@ if (cluster.isWorker) {
 
   // send PID info to testcase process
   process.send({
-    pid: worker.process.pid
+    pid: worker.process.pid,
   });
 
   // terminate the cluster process

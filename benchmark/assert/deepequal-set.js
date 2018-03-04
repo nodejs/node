@@ -23,7 +23,7 @@ const bench = common.createBenchmark(main, {
     'notDeepEqual_mixed',
     'notDeepStrictEqual_mixed',
     'notDeepEqual_looseMatches',
-  ]
+  ],
 });
 
 function benchmark(method, n, values, values2) {

@@ -31,7 +31,7 @@ const fixtures = require('../common/fixtures');
 
 const options = {
   key: fixtures.readSync('agent.key'),
-  cert: fixtures.readSync('multi-alice.crt')
+  cert: fixtures.readSync('multi-alice.crt'),
 };
 
 const server = tls.createServer(options, function(cleartext) {
@@ -40,7 +40,7 @@ const server = tls.createServer(options, function(cleartext) {
 server.listen(0, common.mustCall(function() {
   const socket = tls.connect({
     port: this.address().port,
-    rejectUnauthorized: false
+    rejectUnauthorized: false,
   }, common.mustCall(function() {
     const peerCert = socket.getPeerCertificate();
     console.error(util.inspect(peerCert));

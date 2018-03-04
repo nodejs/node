@@ -30,7 +30,7 @@ for (let i = 0; i <= 32; i += 1) {
     {
       code: 'ERR_UNESCAPED_CHARACTERS',
       type: TypeError,
-      message: 'Request path contains unescaped characters'
+      message: 'Request path contains unescaped characters',
     }
   );
 }

@@ -13,7 +13,7 @@ const { PassThrough, Writable } = require('stream');
     write: common.mustCall((chunk, encoding, cb) => {
       assert.strictEqual(`${chunk}`, 'foobar');
       cb();
-    })
+    }),
   });
 
   passThrough.pipe(dest);
@@ -40,7 +40,7 @@ const { PassThrough, Writable } = require('stream');
     write: common.mustCall((chunk, encoding, cb) => {
       assert.strictEqual(`${chunk}`, 'foobar');
       cb();
-    }, 2)
+    }, 2),
   });
 
   passThrough.pipe(dest);
@@ -57,7 +57,7 @@ const { PassThrough, Writable } = require('stream');
 {
   const passThrough = new PassThrough();
   const dest = new Writable({
-    write: common.mustNotCall()
+    write: common.mustNotCall(),
   });
 
   passThrough.pipe(dest);

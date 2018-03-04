@@ -16,7 +16,7 @@ let output = '';
 const outputExpect = {
   code: 'EPIPE',
   errno: 'EPIPE',
-  syscall: 'write'
+  syscall: 'write',
 };
 
 child.stderr.on('data', function(c) {

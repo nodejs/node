@@ -1231,7 +1231,7 @@ const defaults = {
   fd: null,
   mode: 0o666,
   autoClose: true,
-  highWaterMark: 64 * 1024
+  highWaterMark: 64 * 1024,
 };
 ```
 
@@ -1302,7 +1302,7 @@ const defaults = {
   encoding: 'utf8',
   fd: null,
   mode: 0o666,
-  autoClose: true
+  autoClose: true,
 };
 ```
 

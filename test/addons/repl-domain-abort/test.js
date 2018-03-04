@@ -63,7 +63,7 @@ const options = {
   input: dInput,
   output: dOutput,
   terminal: false,
-  ignoreUndefined: true
+  ignoreUndefined: true,
 };
 
 // Run commands from fake REPL.

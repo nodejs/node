@@ -43,7 +43,7 @@ server.listen(0, function() {
   http.request({
     port: this.address().port,
     path: '/',
-    method: 'POST'
+    method: 'POST',
   }, (res) => {
     console.log(res.statusCode);
     res.resume();

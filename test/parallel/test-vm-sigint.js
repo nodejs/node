@@ -33,7 +33,7 @@ for (const method of ['runInThisContext', 'runInContext']) {
   for (const listeners of [0, 1, 2]) {
     const args = [__filename, 'child', method, listeners];
     const child = spawn(process.execPath, args, {
-      stdio: [null, 'pipe', 'inherit', 'ipc']
+      stdio: [null, 'pipe', 'inherit', 'ipc'],
     });
 
     child.on('message', common.mustCall(() => {

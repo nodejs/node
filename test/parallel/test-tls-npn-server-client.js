@@ -46,7 +46,7 @@ const serverOptions = {
       crl: loadPEM('ca2-crl'),
     }));
   },
-  NPNProtocols: ['a', 'b', 'c']
+  NPNProtocols: ['a', 'b', 'c'],
 };
 
 const clientsOptions = [{
@@ -55,27 +55,27 @@ const clientsOptions = [{
   cert: serverOptions.cert,
   crl: serverOptions.crl,
   NPNProtocols: ['a', 'b', 'c'],
-  rejectUnauthorized: false
+  rejectUnauthorized: false,
 }, {
   port: undefined,
   key: serverOptions.key,
   cert: serverOptions.cert,
   crl: serverOptions.crl,
   NPNProtocols: ['c', 'b', 'e'],
-  rejectUnauthorized: false
+  rejectUnauthorized: false,
 }, {
   port: undefined,
   key: serverOptions.key,
   cert: serverOptions.cert,
   crl: serverOptions.crl,
-  rejectUnauthorized: false
+  rejectUnauthorized: false,
 }, {
   port: undefined,
   key: serverOptions.key,
   cert: serverOptions.cert,
   crl: serverOptions.crl,
   NPNProtocols: ['first-priority-unsupported', 'x', 'y'],
-  rejectUnauthorized: false
+  rejectUnauthorized: false,
 }];
 
 const serverResults = [];

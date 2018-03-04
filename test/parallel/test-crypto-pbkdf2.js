@@ -61,7 +61,7 @@ common.expectsError(
   () => crypto.pbkdf2('password', 'salt', 1, 20, null),
   {
     code: 'ERR_INVALID_CALLBACK',
-    type: TypeError
+    type: TypeError,
   }
 );
 
@@ -71,7 +71,7 @@ common.expectsError(
     code: 'ERR_OUT_OF_RANGE',
     type: RangeError,
     message: 'The value of "iterations" is out of range. ' +
-             'It must be a non-negative number. Received -1'
+             'It must be a non-negative number. Received -1',
   }
 );
 
@@ -82,7 +82,7 @@ common.expectsError(
     }, {
       code: 'ERR_INVALID_ARG_TYPE',
       type: TypeError,
-      message: 'The "keylen" argument must be of type number'
+      message: 'The "keylen" argument must be of type number',
     });
 });
 
@@ -94,7 +94,7 @@ common.expectsError(
     }, {
       code: 'ERR_OUT_OF_RANGE',
       type: RangeError,
-      message: 'The value of "keylen" is out of range.'
+      message: 'The value of "keylen" is out of range.',
     });
 });
 
@@ -107,7 +107,7 @@ common.expectsError(
   {
     code: 'ERR_INVALID_ARG_TYPE',
     type: TypeError,
-    message: 'The "digest" argument must be one of type string or null'
+    message: 'The "digest" argument must be one of type string or null',
   });
 
 common.expectsError(
@@ -115,7 +115,7 @@ common.expectsError(
   {
     code: 'ERR_INVALID_ARG_TYPE',
     type: TypeError,
-    message: 'The "digest" argument must be one of type string or null'
+    message: 'The "digest" argument must be one of type string or null',
   });
 
 [1, {}, [], true, undefined, null].forEach((i) => {
@@ -125,7 +125,7 @@ common.expectsError(
       code: 'ERR_INVALID_ARG_TYPE',
       type: TypeError,
       message: 'The "password" argument must be one of type string, ' +
-               'Buffer, or TypedArray'
+               'Buffer, or TypedArray',
     }
   );
 
@@ -135,7 +135,7 @@ common.expectsError(
       code: 'ERR_INVALID_ARG_TYPE',
       type: TypeError,
       message: 'The "salt" argument must be one of type string, ' +
-               'Buffer, or TypedArray'
+               'Buffer, or TypedArray',
     }
   );
 
@@ -145,7 +145,7 @@ common.expectsError(
       code: 'ERR_INVALID_ARG_TYPE',
       type: TypeError,
       message: 'The "password" argument must be one of type string, ' +
-               'Buffer, or TypedArray'
+               'Buffer, or TypedArray',
     }
   );
 
@@ -155,7 +155,7 @@ common.expectsError(
       code: 'ERR_INVALID_ARG_TYPE',
       type: TypeError,
       message: 'The "salt" argument must be one of type string, ' +
-               'Buffer, or TypedArray'
+               'Buffer, or TypedArray',
     }
   );
 });
@@ -166,7 +166,7 @@ common.expectsError(
     {
       code: 'ERR_INVALID_ARG_TYPE',
       type: TypeError,
-      message: 'The "iterations" argument must be of type number'
+      message: 'The "iterations" argument must be of type number',
     }
   );
 
@@ -175,7 +175,7 @@ common.expectsError(
     {
       code: 'ERR_INVALID_ARG_TYPE',
       type: TypeError,
-      message: 'The "iterations" argument must be of type number'
+      message: 'The "iterations" argument must be of type number',
     }
   );
 });
@@ -208,7 +208,7 @@ common.expectsError(
   {
     code: 'ERR_CRYPTO_INVALID_DIGEST',
     type: TypeError,
-    message: 'Invalid digest: md55'
+    message: 'Invalid digest: md55',
   }
 );
 
@@ -217,6 +217,6 @@ common.expectsError(
   {
     code: 'ERR_CRYPTO_INVALID_DIGEST',
     type: TypeError,
-    message: 'Invalid digest: md55'
+    message: 'Invalid digest: md55',
   }
 );

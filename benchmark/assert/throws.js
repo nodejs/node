@@ -9,8 +9,8 @@ const bench = common.createBenchmark(main, {
     'doesNotThrow',
     'throws',
     'throws_TypeError',
-    'throws_RegExp'
-  ]
+    'throws_RegExp',
+  ],
 });
 
 function main({ n, method }) {

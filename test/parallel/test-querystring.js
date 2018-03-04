@@ -107,7 +107,7 @@ const qsTestCases = [
   ['%20+&', '%20%20=', { '  ': '' }],
   ['=%20+&', '=%20%20', { '': '  ' }],
   [null, '', {}],
-  [undefined, '', {}]
+  [undefined, '', {}],
 ];
 
 // [ wonkyQS, canonicalQS, obj ]
@@ -118,7 +118,7 @@ const qsColonTestCases = [
    'foo:1%26bar%3A2;baz:quux',
    { 'foo': '1&bar:2', 'baz': 'quux' }],
   ['foo%3Abaz:bar', 'foo%3Abaz:bar', { 'foo:baz': 'bar' }],
-  ['foo:baz:bar', 'foo:baz%3Abar', { 'foo': 'baz:bar' }]
+  ['foo:baz:bar', 'foo:baz%3Abar', { 'foo': 'baz:bar' }],
 ];
 
 // [wonkyObj, qs, canonicalObj]
@@ -138,13 +138,13 @@ const qsWeirdObjects = [
   [
     { f: new Boolean(false), t: new Boolean(true) },
     'f=&t=',
-    { 'f': '', 't': '' }
+    { 'f': '', 't': '' },
   ],
   [{ f: false, t: true }, 'f=false&t=true', { 'f': 'false', 't': 'true' }],
   [{ n: null }, 'n=', { 'n': '' }],
   [{ nan: NaN }, 'nan=', { 'nan': '' }],
   [{ inf: Infinity }, 'inf=', { 'inf': '' }],
-  [{ a: [], b: [] }, '', {}]
+  [{ a: [], b: [] }, '', {}],
 ];
 // }}}
 
@@ -163,7 +163,7 @@ const qsNoMungeTestCases = [
   ['gragh=1&gragh=3&goo=2', { 'gragh': ['1', '3'], 'goo': '2' }],
   ['frappucino=muffin&goat%5B%5D=scone&pond=moose',
    { 'frappucino': 'muffin', 'goat[]': 'scone', 'pond': 'moose' }],
-  ['trololol=yes&lololo=no', { 'trololol': 'yes', 'lololo': 'no' }]
+  ['trololol=yes&lololo=no', { 'trololol': 'yes', 'lololo': 'no' }],
 ];
 
 const qsUnescapeTestCases = [
@@ -174,7 +174,7 @@ const qsUnescapeTestCases = [
   ['there%2Qare%0-fake%escaped values in%%%%this%9Hstring',
    'there%2Qare%0-fake%escaped values in%%%%this%9Hstring'],
   ['%20%21%22%23%24%25%26%27%28%29%2A%2B%2C%2D%2E%2F%30%31%32%33%34%35%36%37',
-   ' !"#$%&\'()*+,-./01234567']
+   ' !"#$%&\'()*+,-./01234567'],
 ];
 
 assert.strictEqual('918854443121279438895193',
@@ -229,13 +229,13 @@ qsNoMungeTestCases.forEach((testCase) => {
   const f = qs.parse('a=b&q=x%3Dy%26y%3Dz');
   check(f, createWithNoPrototype([
     { key: 'a', value: 'b' },
-    { key: 'q', value: 'x=y&y=z' }
+    { key: 'q', value: 'x=y&y=z' },
   ]));
 
   f.q = qs.parse(f.q);
   const expectedInternal = createWithNoPrototype([
     { key: 'x', value: 'y' },
-    { key: 'y', value: 'z' }
+    { key: 'y', value: 'z' },
   ]);
   check(f.q, expectedInternal);
 }
@@ -245,12 +245,12 @@ qsNoMungeTestCases.forEach((testCase) => {
   const f = qs.parse('a:b;q:x%3Ay%3By%3Az', ';', ':');
   check(f, createWithNoPrototype([
     { key: 'a', value: 'b' },
-    { key: 'q', value: 'x:y;y:z' }
+    { key: 'q', value: 'x:y;y:z' },
   ]));
   f.q = qs.parse(f.q, ';', ':');
   const expectedInternal = createWithNoPrototype([
     { key: 'x', value: 'y' },
-    { key: 'y', value: 'z' }
+    { key: 'y', value: 'z' },
   ]);
   check(f.q, expectedInternal);
 }
@@ -276,7 +276,7 @@ common.expectsError(
   {
     code: 'ERR_INVALID_URI',
     type: URIError,
-    message: 'URI malformed'
+    message: 'URI malformed',
   }
 );
 
@@ -294,8 +294,8 @@ assert.strictEqual('foo=', qs.stringify({ foo: Infinity }));
     a: 'b',
     q: qs.stringify({
       x: 'y',
-      y: 'z'
-    })
+      y: 'z',
+    }),
   });
   assert.strictEqual(f, 'a=b&q=x%3Dy%26y%3Dz');
 }
@@ -308,8 +308,8 @@ qs.parse(undefined); // Should not throw.
     a: 'b',
     q: qs.stringify({
       x: 'y',
-      y: 'z'
-    }, ';', ':')
+      y: 'z',
+    }, ';', ':'),
   }, ';', ':');
   assert.strictEqual(f, 'a:b;q:x%3Ay%3By%3Az');
 }

@@ -60,7 +60,7 @@ async function runTests() {
   const session = await instance.connectInspectorSession();
   await session.send([
     { 'method': 'Debugger.enable' },
-    { 'method': 'Runtime.runIfWaitingForDebugger' }
+    { 'method': 'Runtime.runIfWaitingForDebugger' },
   ]);
   await session.waitForBreakOnLine(0, '[eval]');
 

@@ -23,7 +23,7 @@ common.expectsError(
   {
     code: 'ERR_CRYPTO_TIMING_SAFE_EQUAL_LENGTH',
     type: RangeError,
-    message: 'Input buffers must have the same length'
+    message: 'Input buffers must have the same length',
   }
 );
 
@@ -33,7 +33,7 @@ common.expectsError(
     code: 'ERR_INVALID_ARG_TYPE',
     type: TypeError,
     message:
-      'The "a" argument must be one of type Buffer, TypedArray, or DataView'
+      'The "a" argument must be one of type Buffer, TypedArray, or DataView',
   }
 );
 
@@ -43,6 +43,6 @@ common.expectsError(
     code: 'ERR_INVALID_ARG_TYPE',
     type: TypeError,
     message:
-      'The "b" argument must be one of type Buffer, TypedArray, or DataView'
+      'The "b" argument must be one of type Buffer, TypedArray, or DataView',
   }
 );

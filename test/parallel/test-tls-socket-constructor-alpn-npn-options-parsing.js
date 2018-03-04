@@ -12,7 +12,7 @@ const tls = require('tls');
 
 new tls.TLSSocket(null, {
   ALPNProtocols: ['http/1.1'],
-  NPNProtocols: ['http/1.1']
+  NPNProtocols: ['http/1.1'],
 });
 
 if (!process.features.tls_npn)
@@ -37,13 +37,13 @@ const server = net.createServer(common.mustCall((s) => {
     key,
     cert,
     ALPNProtocols: ['http/1.1'],
-    NPNProtocols: ['http/1.1']
+    NPNProtocols: ['http/1.1'],
   });
 
   tlsSocket.on('secure', common.mustCall(() => {
     protocols.push({
       alpnProtocol: tlsSocket.alpnProtocol,
-      npnProtocol: tlsSocket.npnProtocol
+      npnProtocol: tlsSocket.npnProtocol,
     });
     tlsSocket.end();
   }));
@@ -53,12 +53,12 @@ server.listen(0, common.mustCall(() => {
   const alpnOpts = {
     port: server.address().port,
     rejectUnauthorized: false,
-    ALPNProtocols: ['h2', 'http/1.1']
+    ALPNProtocols: ['h2', 'http/1.1'],
   };
   const npnOpts = {
     port: server.address().port,
     rejectUnauthorized: false,
-    NPNProtocols: ['h2', 'http/1.1']
+    NPNProtocols: ['h2', 'http/1.1'],
   };
 
   tls.connect(alpnOpts, function() {
@@ -71,7 +71,7 @@ server.listen(0, common.mustCall(() => {
 
       assert.deepStrictEqual(protocols, [
         { alpnProtocol: 'http/1.1', npnProtocol: false },
-        { alpnProtocol: false, npnProtocol: 'http/1.1' }
+        { alpnProtocol: false, npnProtocol: 'http/1.1' },
       ]);
     });
   });

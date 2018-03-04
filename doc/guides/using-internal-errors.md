@@ -104,7 +104,7 @@ assert.throws(() => {
   socket.bind();
 }, common.expectsError({
   code: 'ERR_SOCKET_ALREADY_BOUND',
-  type: Error
+  type: Error,
 }));
 ```
 

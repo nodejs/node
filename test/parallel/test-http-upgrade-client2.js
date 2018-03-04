@@ -43,7 +43,7 @@ server.listen(0, common.mustCall(function() {
     const header = { 'Connection': 'Upgrade', 'Upgrade': 'Test' };
     const request = http.request({
       port: server.address().port,
-      headers: header
+      headers: header,
     });
     let wasUpgrade = false;
 

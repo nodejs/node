@@ -30,7 +30,7 @@ function nextTest(testsToRun) {
     ':method': 'GET',
     ':scheme': 'http',
     ':authority': `localhost:${port}`,
-    expect: expectValue
+    expect: expectValue,
   });
 
   req.on('response', common.mustCall((headers) => {

@@ -49,7 +49,7 @@ common.expectsError(
   () => { assert.fail('fhqwhgads'); },
   {
     code: 'ERR_ASSERTION',
-    message: /^fhqwhgads$/
+    message: /^fhqwhgads$/,
   });
 
 const fnOnce = common.mustCall(() => {});
@@ -73,11 +73,11 @@ fnAtLeast2Called3();
 const failFixtures = [
   [
     fixtures.path('failmustcall1.js'),
-    'Mismatched <anonymous> function calls. Expected exactly 2, actual 1.'
+    'Mismatched <anonymous> function calls. Expected exactly 2, actual 1.',
   ], [
     fixtures.path('failmustcall2.js'),
-    'Mismatched <anonymous> function calls. Expected at least 2, actual 1.'
-  ]
+    'Mismatched <anonymous> function calls. Expected at least 2, actual 1.',
+  ],
 ];
 for (const p of failFixtures) {
   const [file, expected] = p;

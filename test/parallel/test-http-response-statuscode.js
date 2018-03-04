@@ -13,7 +13,7 @@ function test(res, header, code) {
   }, {
     code: 'ERR_HTTP_INVALID_STATUS_CODE',
     type: RangeError,
-    message: `Invalid status code: ${code}`
+    message: `Invalid status code: ${code}`,
   });
 }
 
@@ -60,7 +60,7 @@ const server = http.Server(common.mustCall(function(req, res) {
                           {
                             code: 'ERR_HTTP_INVALID_STATUS_CODE',
                             type: RangeError,
-                            message: 'Invalid status code: undefined'
+                            message: 'Invalid status code: undefined',
                           });
       this.close();
       break;
@@ -76,7 +76,7 @@ const countdown = new Countdown(MAX_REQUESTS, () => server.close());
 
 server.on('listening', function makeRequest() {
   http.get({
-    port: this.address().port
+    port: this.address().port,
   }, (res) => {
     assert.strictEqual(res.statusCode, 200);
     res.on('end', () => {

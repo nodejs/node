@@ -53,7 +53,7 @@ server.listen(0, baseOptions.host, common.mustCall(function() {
         code: 'ERR_INVALID_ARG_TYPE',
         type: TypeError,
         message: 'The "Agent option" argument must be one of type ' +
-                 'Agent-like Object, undefined, or false'
+                 'Agent-like Object, undefined, or false',
       }
     );
   });

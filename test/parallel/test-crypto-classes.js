@@ -19,7 +19,7 @@ const TEST_CASES = {
   'DiffieHellman': [1024],
   'DiffieHellmanGroup': ['modp5'],
   'ECDH': ['prime256v1'],
-  'Credentials': []
+  'Credentials': [],
 };
 
 if (!common.hasFipsCrypto) {

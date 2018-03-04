@@ -24,7 +24,7 @@ assert.deepStrictEqual(val, check);
   ['maxConcurrentStreams', 0],
   ['maxConcurrentStreams', 2 ** 31 - 1],
   ['maxHeaderListSize', 0],
-  ['maxHeaderListSize', 2 ** 32 - 1]
+  ['maxHeaderListSize', 2 ** 32 - 1],
 ].forEach((i) => {
   // Valid options should not throw.
   http2.getPackedSettings({ [i[0]]: i[1] });
@@ -43,26 +43,26 @@ http2.getPackedSettings({ enablePush: false });
   ['maxConcurrentStreams', -1],
   ['maxConcurrentStreams', 2 ** 31],
   ['maxHeaderListSize', -1],
-  ['maxHeaderListSize', 2 ** 32]
+  ['maxHeaderListSize', 2 ** 32],
 ].forEach((i) => {
   common.expectsError(() => {
     http2.getPackedSettings({ [i[0]]: i[1] });
   }, {
     code: 'ERR_HTTP2_INVALID_SETTING_VALUE',
     type: RangeError,
-    message: `Invalid value for setting "${i[0]}": ${i[1]}`
+    message: `Invalid value for setting "${i[0]}": ${i[1]}`,
   });
 });
 
 [
-  1, null, '', Infinity, new Date(), {}, NaN, [false]
+  1, null, '', Infinity, new Date(), {}, NaN, [false],
 ].forEach((i) => {
   common.expectsError(() => {
     http2.getPackedSettings({ enablePush: i });
   }, {
     code: 'ERR_HTTP2_INVALID_SETTING_VALUE',
     type: TypeError,
-    message: `Invalid value for setting "enablePush": ${i}`
+    message: `Invalid value for setting "enablePush": ${i}`,
   });
 });
 
@@ -80,7 +80,7 @@ http2.getPackedSettings({ enablePush: false });
     maxConcurrentStreams: 200,
     maxHeaderListSize: 100,
     enablePush: true,
-    foo: 'ignored'
+    foo: 'ignored',
   });
   assert.strictEqual(packed.length, 36);
   assert.deepStrictEqual(packed, check);
@@ -106,7 +106,8 @@ http2.getPackedSettings({ enablePush: false });
       code: 'ERR_INVALID_ARG_TYPE',
       type: TypeError,
       message:
-        'The "buf" argument must be one of type Buffer, TypedArray, or DataView'
+        'The "buf" argument must be one of type ' +
+        'Buffer, TypedArray, or DataView',
     });
   });
 
@@ -115,7 +116,7 @@ http2.getPackedSettings({ enablePush: false });
   }, {
     code: 'ERR_HTTP2_INVALID_PACKED_SETTINGS_LENGTH',
     type: RangeError,
-    message: 'Packed settings length must be a multiple of six'
+    message: 'Packed settings length must be a multiple of six',
   });
 
   const settings = http2.getUnpackedSettings(packed);
@@ -164,7 +165,7 @@ http2.getPackedSettings({ enablePush: false });
   }, {
     code: 'ERR_HTTP2_INVALID_SETTING_VALUE',
     type: RangeError,
-    message: 'Invalid value for setting "maxFrameSize": 16777216'
+    message: 'Invalid value for setting "maxFrameSize": 16777216',
   });
 }
 
@@ -177,6 +178,6 @@ http2.getPackedSettings({ enablePush: false });
   }, {
     code: 'ERR_HTTP2_INVALID_SETTING_VALUE',
     type: RangeError,
-    message: 'Invalid value for setting "maxConcurrentStreams": 4294967295'
+    message: 'Invalid value for setting "maxConcurrentStreams": 4294967295',
   });
 }

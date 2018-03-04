@@ -20,7 +20,7 @@ const read = new Readable({
   read() {
     this.push(Buffer.from('a test string'));
     this.push(null);
-  }
+  },
 });
 
 read.pipe(dest);

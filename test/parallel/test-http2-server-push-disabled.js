@@ -29,7 +29,7 @@ server.on('stream', common.mustCall((stream) => {
     }, common.mustNotCall());
   }, {
     code: 'ERR_HTTP2_PUSH_DISABLED',
-    type: Error
+    type: Error,
   });
 
   stream.respond({ ':status': 200 });

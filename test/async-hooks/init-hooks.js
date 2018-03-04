@@ -26,7 +26,7 @@ class ActivityCollector {
     onafter,
     ondestroy,
     logid = null,
-    logtype = null
+    logtype = null,
   } = {}) {
     this._start = start;
     this._allowNoInit = allowNoInit;
@@ -45,7 +45,7 @@ class ActivityCollector {
       init: this._init.bind(this),
       before: this._before.bind(this),
       after: this._after.bind(this),
-      destroy: this._destroy.bind(this)
+      destroy: this._destroy.bind(this),
     });
   }
 
@@ -177,7 +177,7 @@ class ActivityCollector {
       triggerAsyncId,
       // In some cases (e.g. Timeout) the handle is a function, thus the usual
       // `typeof handle === 'object' && handle !== null` check can't be used.
-      handleIsObject: handle instanceof Object
+      handleIsObject: handle instanceof Object,
     };
     this._stamp(activity, 'init');
     this._activities.set(uid, activity);
@@ -221,7 +221,7 @@ exports = module.exports = function initHooks({
   ondestroy,
   allowNoInit,
   logid,
-  logtype
+  logtype,
 } = {}) {
   return new ActivityCollector(process.hrtime(), {
     oninit,
@@ -230,6 +230,6 @@ exports = module.exports = function initHooks({
     ondestroy,
     allowNoInit,
     logid,
-    logtype
+    logtype,
   });
 };

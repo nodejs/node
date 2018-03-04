@@ -8,12 +8,12 @@ const dgram = require('dgram');
 const servers = [
   {
     socket: dgram.createSocket('udp4'),
-    reply: { type: 'A', address: '1.2.3.4', ttl: 123, domain: 'example.org' }
+    reply: { type: 'A', address: '1.2.3.4', ttl: 123, domain: 'example.org' },
   },
   {
     socket: dgram.createSocket('udp4'),
-    reply: { type: 'A', address: '5.6.7.8', ttl: 123, domain: 'example.org' }
-  }
+    reply: { type: 'A', address: '5.6.7.8', ttl: 123, domain: 'example.org' },
+  },
 ];
 
 let waiting = servers.length;
@@ -39,7 +39,7 @@ for (const { socket, reply } of servers) {
 function ready() {
   const resolvers = servers.map((server) => ({
     server,
-    resolver: new Resolver()
+    resolver: new Resolver(),
   }));
 
   for (const { server: { socket, reply }, resolver } of resolvers) {

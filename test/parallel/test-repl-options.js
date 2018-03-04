@@ -33,7 +33,7 @@ const stream = new common.ArrayStream();
 const r1 = repl.start({
   input: stream,
   output: stream,
-  terminal: true
+  terminal: true,
 });
 
 assert.strictEqual(r1.input, stream);
@@ -67,7 +67,7 @@ const r2 = repl.start({
   ignoreUndefined: true,
   eval: evaler,
   writer: writer,
-  replMode: repl.REPL_MODE_STRICT
+  replMode: repl.REPL_MODE_STRICT,
 });
 assert.strictEqual(r2.input, stream);
 assert.strictEqual(r2.output, stream);
@@ -93,7 +93,7 @@ const r3 = repl.start({
   output: stream,
   writer: writer,
   replMode: repl.REPL_MODE_MAGIC,
-  historySize: 50
+  historySize: 50,
 });
 
 assert.strictEqual(r3.replMode, repl.REPL_MODE_MAGIC);

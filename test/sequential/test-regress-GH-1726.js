@@ -39,7 +39,7 @@ if (gen === maxGen) {
 }
 
 const child = ch.spawn(process.execPath, [__filename, gen + 1], {
-  stdio: [ 'ignore', 'pipe', 'ignore' ]
+  stdio: [ 'ignore', 'pipe', 'ignore' ],
 });
 assert.ok(!child.stdin);
 assert.ok(child.stdout);

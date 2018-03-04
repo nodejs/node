@@ -11,7 +11,7 @@ const primValues = {
   'boolean': true,
   'object': { 0: 'a' },
   'array': [1, 2, 3],
-  'new-array': new Array([1, 2, 3])
+  'new-array': new Array([1, 2, 3]),
 };
 
 const bench = common.createBenchmark(main, {
@@ -26,8 +26,8 @@ const bench = common.createBenchmark(main, {
     'deepEqual_Set',
     'deepStrictEqual_Set',
     'notDeepEqual_Set',
-    'notDeepStrictEqual_Set'
-  ]
+    'notDeepStrictEqual_Set',
+  ],
 });
 
 function run(fn, n, actual, expected) {

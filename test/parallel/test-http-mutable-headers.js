@@ -36,7 +36,7 @@ let test = 'headers';
 const content = 'hello world\n';
 const cookies = [
   'session_token=; path=/; expires=Sun, 15-Sep-2030 13:48:52 GMT',
-  'prefers_open_id=; path=/; expires=Thu, 01-Jan-1970 00:00:00 GMT'
+  'prefers_open_id=; path=/; expires=Thu, 01-Jan-1970 00:00:00 GMT',
 ];
 
 const s = http.createServer(common.mustCall((req, res) => {
@@ -55,7 +55,7 @@ const s = http.createServer(common.mustCall((req, res) => {
         {
           code: 'ERR_INVALID_HTTP_TOKEN',
           type: TypeError,
-          message: 'Header name must be a valid HTTP token ["undefined"]'
+          message: 'Header name must be a valid HTTP token ["undefined"]',
         }
       );
       common.expectsError(
@@ -63,7 +63,7 @@ const s = http.createServer(common.mustCall((req, res) => {
         {
           code: 'ERR_HTTP_INVALID_HEADER_VALUE',
           type: TypeError,
-          message: 'Invalid value "undefined" for header "someHeader"'
+          message: 'Invalid value "undefined" for header "someHeader"',
         }
       );
       common.expectsError(
@@ -71,7 +71,7 @@ const s = http.createServer(common.mustCall((req, res) => {
         {
           code: 'ERR_INVALID_ARG_TYPE',
           type: TypeError,
-          message: 'The "name" argument must be of type string'
+          message: 'The "name" argument must be of type string',
         }
       );
       common.expectsError(
@@ -79,7 +79,7 @@ const s = http.createServer(common.mustCall((req, res) => {
         {
           code: 'ERR_INVALID_ARG_TYPE',
           type: TypeError,
-          message: 'The "name" argument must be of type string'
+          message: 'The "name" argument must be of type string',
         }
       );
 
@@ -97,7 +97,7 @@ const s = http.createServer(common.mustCall((req, res) => {
         'x-test-header': 'testing',
         'x-test-header2': 'testing',
         'set-cookie': cookies,
-        'x-test-array-header': arrayValues
+        'x-test-array-header': arrayValues,
       };
       Object.setPrototypeOf(expected, null);
       assert.deepStrictEqual(headersCopy, expected);
@@ -115,14 +115,14 @@ const s = http.createServer(common.mustCall((req, res) => {
         true,
         {},
         { toString: () => 'X-TEST-HEADER2' },
-        () => { }
+        () => { },
       ].forEach((val) => {
         common.expectsError(
           () => res.hasHeader(val),
           {
             code: 'ERR_INVALID_ARG_TYPE',
             type: TypeError,
-            message: 'The "name" argument must be of type string'
+            message: 'The "name" argument must be of type string',
           }
         );
       });

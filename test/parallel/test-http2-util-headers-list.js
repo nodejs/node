@@ -87,7 +87,7 @@ const {
   HTTP2_HEADER_TRANSFER_ENCODING,
   HTTP2_HEADER_HOST,
   HTTP2_HEADER_KEEP_ALIVE,
-  HTTP2_HEADER_PROXY_CONNECTION
+  HTTP2_HEADER_PROXY_CONNECTION,
 } = process.binding('http2').constants;
 
 {
@@ -97,7 +97,7 @@ const {
     ':path': 'abc',
     'xyz': [1, '2', { toString() { return '3'; } }, 4],
     'foo': [],
-    'BAR': [1]
+    'BAR': [1],
   };
 
   assert.deepStrictEqual(
@@ -113,7 +113,7 @@ const {
     ':path': 'abc',
     ':status': [200],
     ':authority': [],
-    'xyz': [1, 2, 3, 4]
+    'xyz': [1, 2, 3, 4],
   };
 
   assert.deepStrictEqual(
@@ -130,7 +130,7 @@ const {
     'xyz': [1, 2, 3, 4],
     '': 1,
     ':status': 200,
-    [Symbol('test')]: 1 // Symbol keys are ignored
+    [Symbol('test')]: 1, // Symbol keys are ignored
   };
 
   assert.deepStrictEqual(
@@ -160,7 +160,7 @@ const {
   // Arrays containing a single set-cookie value are handled correctly
   // (https://github.com/nodejs/node/issues/16452)
   const headers = {
-    'set-cookie': ['foo=bar']
+    'set-cookie': ['foo=bar'],
   };
   assert.deepStrictEqual(
     mapToHeaders(headers),
@@ -178,7 +178,7 @@ const {
   common.expectsError({
     code: 'ERR_HTTP2_HEADER_SINGLE_VALUE',
     type: Error,
-    message: 'Header field ":status" must have only a single value'
+    message: 'Header field ":status" must have only a single value',
   })(mapToHeaders(headers));
 }
 
@@ -221,12 +221,12 @@ const {
   HTTP2_HEADER_TK,
   HTTP2_HEADER_UPGRADE_INSECURE_REQUESTS,
   HTTP2_HEADER_USER_AGENT,
-  HTTP2_HEADER_X_CONTENT_TYPE_OPTIONS
+  HTTP2_HEADER_X_CONTENT_TYPE_OPTIONS,
 ].forEach((name) => {
   const msg = `Header field "${name}" must have only a single value`;
   common.expectsError({
     code: 'ERR_HTTP2_HEADER_SINGLE_VALUE',
-    message: msg
+    message: msg,
   })(mapToHeaders({ [name]: [1, 2, 3] }));
 });
 
@@ -259,7 +259,7 @@ const {
   HTTP2_HEADER_VIA,
   HTTP2_HEADER_WARNING,
   HTTP2_HEADER_WWW_AUTHENTICATE,
-  HTTP2_HEADER_X_FRAME_OPTIONS
+  HTTP2_HEADER_X_FRAME_OPTIONS,
 ].forEach((name) => {
   assert(!(mapToHeaders({ [name]: [1, 2, 3] }) instanceof Error), name);
 });
@@ -279,25 +279,25 @@ const {
   'TE',
   'Transfer-Encoding',
   'Proxy-Connection',
-  'Keep-Alive'
+  'Keep-Alive',
 ].forEach((name) => {
   common.expectsError({
     code: 'ERR_HTTP2_INVALID_CONNECTION_HEADERS',
     message: 'HTTP/1 Connection specific headers are forbidden: ' +
-             `"${name.toLowerCase()}"`
+             `"${name.toLowerCase()}"`,
   })(mapToHeaders({ [name]: 'abc' }));
 });
 
 common.expectsError({
   code: 'ERR_HTTP2_INVALID_CONNECTION_HEADERS',
   message: 'HTTP/1 Connection specific headers are forbidden: ' +
-           `"${HTTP2_HEADER_TE}"`
+           `"${HTTP2_HEADER_TE}"`,
 })(mapToHeaders({ [HTTP2_HEADER_TE]: ['abc'] }));
 
 common.expectsError({
   code: 'ERR_HTTP2_INVALID_CONNECTION_HEADERS',
   message: 'HTTP/1 Connection specific headers are forbidden: ' +
-           `"${HTTP2_HEADER_TE}"`
+           `"${HTTP2_HEADER_TE}"`,
 })(mapToHeaders({ [HTTP2_HEADER_TE]: ['abc', 'trailers'] }));
 
 assert(!(mapToHeaders({ te: 'trailers' }) instanceof Error));

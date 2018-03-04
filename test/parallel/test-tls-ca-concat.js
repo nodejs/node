@@ -6,7 +6,7 @@ const fixtures = require('../common/fixtures');
 // non-CA cert and showing that agent6's CA root is still found.
 
 const {
-  assert, connect, keys
+  assert, connect, keys,
 } = require(fixtures.path('tls-connect'));
 
 connect({

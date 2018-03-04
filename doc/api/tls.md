@@ -886,7 +886,7 @@ const options = {
   cert: fs.readFileSync('client-cert.pem'),
 
   // Necessary only if the server uses the self-signed certificate
-  ca: [ fs.readFileSync('server-cert.pem') ]
+  ca: [ fs.readFileSync('server-cert.pem') ],
 };
 
 const socket = tls.connect(8000, options, () => {
@@ -911,7 +911,7 @@ const tls = require('tls');
 const fs = require('fs');
 
 const options = {
-  pfx: fs.readFileSync('client.pfx')
+  pfx: fs.readFileSync('client.pfx'),
 };
 
 const socket = tls.connect(8000, options, () => {
@@ -1155,7 +1155,7 @@ const options = {
   requestCert: true,
 
   // This is necessary only if the client uses the self-signed certificate.
-  ca: [ fs.readFileSync('client-cert.pem') ]
+  ca: [ fs.readFileSync('client-cert.pem') ],
 };
 
 const server = tls.createServer(options, (socket) => {

@@ -9,7 +9,7 @@ const assert = require('assert');
 const {
   assertIsObject,
   assertWithinRange,
-  sessionName
+  sessionName,
 } = require('internal/http2/util');
 
 // Code coverage for sessionName utility function
@@ -25,7 +25,7 @@ common.expectsError(
   {
     code: 'ERR_HTTP2_INVALID_SETTING_VALUE',
     type: RangeError,
-    message: 'Invalid value for setting "test": -1'
+    message: 'Invalid value for setting "test": -1',
   });
 
 assertWithinRange('test', 1);
@@ -35,7 +35,7 @@ common.expectsError(
   {
     code: 'ERR_INVALID_ARG_TYPE',
     type: TypeError,
-    message: 'The "test" argument must be of type Object'
+    message: 'The "test" argument must be of type Object',
   });
 
 common.expectsError(
@@ -43,7 +43,7 @@ common.expectsError(
   {
     code: 'ERR_INVALID_ARG_TYPE',
     type: TypeError,
-    message: 'The "test" argument must be of type Date'
+    message: 'The "test" argument must be of type Date',
   });
 
 assertIsObject({}, 'test');

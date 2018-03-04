@@ -32,7 +32,7 @@ const server = http.createServer(function(req, res) {
 server.listen(0, function() {
   const req = http.request({
     method: 'POST',
-    port: server.address().port
+    port: server.address().port,
   });
 
   // Send the http request without waiting

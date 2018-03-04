@@ -49,15 +49,15 @@ function run(buffers, initialWindowSize) {
         h2.connect({
           authority: 'localhost',
           protocol: 'http:',
-          port
+          port,
         }, {
           settings: {
-            initialWindowSize
-          }
+            initialWindowSize,
+          },
         }).on('connect', common.mustCall(() => {
           const req = client.request({
             ':method': 'GET',
-            ':path': '/'
+            ':path': '/',
           });
           const responses = [];
           req.on('data', (data) => {
@@ -90,7 +90,7 @@ const initialWindowSizeList = [
   (1 << 8) - 1,
   1 << 8,
   1 << 17,
-  undefined // use default window size which is (1 << 16) - 1
+  undefined, // use default window size which is (1 << 16) - 1
 ];
 
 // Call `run` on each element in the cartesian product of buffersList and

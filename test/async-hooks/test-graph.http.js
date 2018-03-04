@@ -19,7 +19,7 @@ server.listen(0, common.mustCall(function() {
   http.get({
     host: '::1',
     family: 6,
-    port: server.address().port
+    port: server.address().port,
   }, common.mustCall());
 }));
 

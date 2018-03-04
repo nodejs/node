@@ -29,7 +29,7 @@ const net = require('net');
       client.on('error', common.expectsError({
         code: 'ERR_SOCKET_CLOSED',
         message: 'Socket is closed',
-        type: Error
+        type: Error,
       }));
 
       server.close();

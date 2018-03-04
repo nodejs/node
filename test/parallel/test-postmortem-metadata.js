@@ -12,7 +12,7 @@ const { getSharedLibPath } = require('../common/shared-lib-util.js');
 // For shared lib case, check shared lib instead
 const args = [
   process.config.variables.node_shared ?
-    getSharedLibPath() : process.execPath
+    getSharedLibPath() : process.execPath,
 ];
 
 if (common.isAIX)

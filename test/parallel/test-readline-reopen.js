@@ -14,7 +14,7 @@ const output = new PassThrough();
 const rl1 = readline.createInterface({
   input,
   output,
-  terminal: true
+  terminal: true,
 });
 
 rl1.on('line', common.mustCall(rl1OnLine));
@@ -23,7 +23,7 @@ rl1.on('line', common.mustCall(rl1OnLine));
 // that it doesn’t get lost when closing the readline instance.
 input.write(Buffer.concat([
   Buffer.from('foo\n'),
-  Buffer.from([ 0xe2 ])  // Exactly one third of a ☃ snowman.
+  Buffer.from([ 0xe2 ]),  // Exactly one third of a ☃ snowman.
 ]));
 
 function rl1OnLine(line) {
@@ -32,7 +32,7 @@ function rl1OnLine(line) {
   const rl2 = readline.createInterface({
     input,
     output,
-    terminal: true
+    terminal: true,
   });
 
   rl2.on('line', common.mustCall((line) => {

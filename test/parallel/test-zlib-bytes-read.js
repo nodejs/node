@@ -25,7 +25,7 @@ for (const method of [
   ['createGzip', 'createGunzip', false],
   ['createGzip', 'createUnzip', false],
   ['createDeflate', 'createInflate', true],
-  ['createDeflateRaw', 'createInflateRaw', true]
+  ['createDeflateRaw', 'createInflateRaw', true],
 ]) {
   let compWriter;
   let compData = Buffer.alloc(0);

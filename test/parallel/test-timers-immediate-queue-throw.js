@@ -20,7 +20,7 @@ const QUEUE = 10;
 
 const errObj = {
   type: Error,
-  message: 'setImmediate Err'
+  message: 'setImmediate Err',
 };
 
 process.once('uncaughtException', common.expectsError(errObj));

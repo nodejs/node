@@ -7,7 +7,7 @@ const { inherits } = require('util');
 
 {
   const read = new Readable({
-    read() {}
+    read() {},
   });
   read.resume();
 
@@ -19,7 +19,7 @@ const { inherits } = require('util');
 
 {
   const read = new Readable({
-    read() {}
+    read() {},
   });
   read.resume();
 
@@ -36,7 +36,7 @@ const { inherits } = require('util');
 
 {
   const read = new Readable({
-    read() {}
+    read() {},
   });
 
   read._destroy = common.mustCall(function(err, cb) {
@@ -61,7 +61,7 @@ const { inherits } = require('util');
     destroy: common.mustCall(function(err, cb) {
       assert.strictEqual(err, expected);
       cb();
-    })
+    }),
   });
 
   const expected = new Error('kaboom');
@@ -77,7 +77,7 @@ const { inherits } = require('util');
 
 {
   const read = new Readable({
-    read() {}
+    read() {},
   });
 
   read._destroy = common.mustCall(function(err, cb) {
@@ -91,7 +91,7 @@ const { inherits } = require('util');
 
 {
   const read = new Readable({
-    read() {}
+    read() {},
   });
   read.resume();
 
@@ -116,7 +116,7 @@ const { inherits } = require('util');
 
 {
   const read = new Readable({
-    read() {}
+    read() {},
   });
 
   const expected = new Error('kaboom');
@@ -137,7 +137,7 @@ const { inherits } = require('util');
 
 {
   const read = new Readable({
-    read() {}
+    read() {},
   });
   read.resume();
 
@@ -164,7 +164,7 @@ const { inherits } = require('util');
 {
   // destroy and destroy callback
   const read = new Readable({
-    read() {}
+    read() {},
   });
   read.resume();
 

@@ -45,7 +45,7 @@ function download() {
     const writable = new Writable({
       write(chunk, encoding, callback) {
         callback();
-      }
+      },
     });
     res.pipe(writable);
     const _handle = res.socket._handle;

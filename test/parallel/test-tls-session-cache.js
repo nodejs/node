@@ -48,7 +48,7 @@ function doTest(testOptions, callback) {
     cert,
     ca: [cert],
     requestCert: true,
-    rejectUnauthorized: false
+    rejectUnauthorized: false,
   };
   let requestCount = 0;
   let resumeCount = 0;
@@ -102,7 +102,7 @@ function doTest(testOptions, callback) {
       '-servername', 'ohgod',
       '-key', fixtures.path('agent.key'),
       '-cert', fixtures.path('agent.crt'),
-      '-reconnect'
+      '-reconnect',
     ].concat(testOptions.tickets ? [] : '-no_ticket');
 
     // for the performance and stability issue in s_client on Windows
@@ -111,7 +111,7 @@ function doTest(testOptions, callback) {
 
     function spawnClient() {
       const client = spawn(common.opensslCli, args, {
-        stdio: [ 0, 1, 'pipe' ]
+        stdio: [ 0, 1, 'pipe' ],
       });
       let err = '';
       client.stderr.setEncoding('utf8');

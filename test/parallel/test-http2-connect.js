@@ -45,6 +45,6 @@ const { createServer, connect } = require('http2');
     connect(authority);
   }, {
     code: 'ERR_HTTP2_UNSUPPORTED_PROTOCOL',
-    type: Error
+    type: Error,
   });
 }

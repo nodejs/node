@@ -11,7 +11,7 @@ const util = require('util');
 const bench = common.createBenchmark(main, {
   len: [102400, 1024 * 1024 * 16],
   type: ['utf', 'asc', 'buf'],
-  dur: [5]
+  dur: [5],
 });
 
 const { TCP, constants: TCPConstants } = process.binding('tcp_wrap');

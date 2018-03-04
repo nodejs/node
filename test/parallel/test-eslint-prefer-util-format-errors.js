@@ -15,15 +15,15 @@ new RuleTester({ parserOptions: { ecmaVersion: 6 } })
       'E(\'ABC\', \'abc\');',
       'E(\'ABC\', (arg1, arg2) => `${arg2}${arg1}`);',
       'E(\'ABC\', (arg1, arg2) => `${arg1}{arg2.something}`);',
-      'E(\'ABC\', (arg1, arg2) => fn(arg1, arg2));'
+      'E(\'ABC\', (arg1, arg2) => fn(arg1, arg2));',
     ],
     invalid: [
       {
         code: 'E(\'ABC\', (arg1, arg2) => `${arg1}${arg2}`);',
         errors: [{
           message: 'Please use a printf-like formatted string that ' +
-                   'util.format can consume.'
-        }]
-      }
-    ]
+                   'util.format can consume.',
+        }],
+      },
+    ],
   });

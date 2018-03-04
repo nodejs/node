@@ -81,7 +81,7 @@ const t = new stream.Transform({
       assert.strictEqual(state, 15, 'flushCallback part 2');
       done();
     });
-  }, 1)
+  }, 1),
 });
 t.on('finish', common.mustCall(function() {
   state++;

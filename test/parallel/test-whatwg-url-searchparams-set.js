@@ -43,19 +43,19 @@ test(function() {
   }, {
     code: 'ERR_INVALID_THIS',
     type: TypeError,
-    message: 'Value of "this" must be of type URLSearchParams'
+    message: 'Value of "this" must be of type URLSearchParams',
   });
   common.expectsError(() => {
     params.set('a');
   }, {
     code: 'ERR_MISSING_ARGS',
     type: TypeError,
-    message: 'The "name" and "value" arguments must be specified'
+    message: 'The "name" and "value" arguments must be specified',
   });
 
   const obj = {
     toString() { throw new Error('toString'); },
-    valueOf() { throw new Error('valueOf'); }
+    valueOf() { throw new Error('valueOf'); },
   };
   const sym = Symbol();
   assert.throws(() => params.append(obj, 'b'), /^Error: toString$/);

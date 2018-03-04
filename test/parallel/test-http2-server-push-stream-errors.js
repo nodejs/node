@@ -8,7 +8,7 @@ const http2 = require('http2');
 const {
   constants,
   Http2Stream,
-  nghttp2ErrorString
+  nghttp2ErrorString,
 } = process.binding('http2');
 const { NghttpError } = require('internal/http2/util');
 
@@ -19,7 +19,7 @@ const { NghttpError } = require('internal/http2/util');
 
 const specificTestKeys = [
   'NGHTTP2_ERR_STREAM_ID_NOT_AVAILABLE',
-  'NGHTTP2_ERR_STREAM_CLOSED'
+  'NGHTTP2_ERR_STREAM_CLOSED',
 ];
 
 const specificTests = [
@@ -29,17 +29,17 @@ const specificTests = [
       code: 'ERR_HTTP2_OUT_OF_STREAMS',
       type: Error,
       message: 'No stream ID is available because ' +
-               'maximum stream ID has been reached'
+               'maximum stream ID has been reached',
     },
-    type: 'stream'
+    type: 'stream',
   },
   {
     ngError: constants.NGHTTP2_ERR_STREAM_CLOSED,
     error: {
       code: 'ERR_HTTP2_INVALID_STREAM',
-      type: Error
+      type: Error,
     },
-    type: 'stream'
+    type: 'stream',
   },
 ];
 
@@ -53,9 +53,9 @@ const genericTests = Object.getOwnPropertyNames(constants)
       code: 'ERR_HTTP2_ERROR',
       type: NghttpError,
       name: 'Error [ERR_HTTP2_ERROR]',
-      message: nghttp2ErrorString(constants[key])
+      message: nghttp2ErrorString(constants[key]),
     },
-    type: 'stream'
+    type: 'stream',
   }));
 
 

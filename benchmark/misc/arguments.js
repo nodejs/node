@@ -7,12 +7,12 @@ const methods = [
   'restAndSpread',
   'argumentsAndApply',
   'restAndApply',
-  'predefined'
+  'predefined',
 ];
 
 const bench = createBenchmark(main, {
   method: methods,
-  n: [1e6]
+  n: [1e6],
 });
 
 function usingRestAndSpread(...args) {

@@ -15,9 +15,9 @@ function runTest(test) {
     '--no_logfile_per_isolate',
     '--logfile=-',
     '--prof',
-    '-pe', test.code
+    '-pe', test.code,
   ], {
-    stdio: [ 'ignore', 'pipe', 'inherit' ]
+    stdio: [ 'ignore', 'pipe', 'inherit' ],
   });
 
   let ticks = '';
@@ -37,9 +37,9 @@ function match(pattern, parent, ticks, flags = []) {
     '--prof-process',
     '--call-graph-size=10',
     ...flags,
-    LOG_FILE
+    LOG_FILE,
   ], {
-    stdio: [ 'ignore', 'pipe', 'inherit' ]
+    stdio: [ 'ignore', 'pipe', 'inherit' ],
   });
 
   let out = '';

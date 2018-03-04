@@ -30,7 +30,7 @@ const server = http.createServer((req, res) => {
 server.listen(0, common.mustCall(() => {
   const req = http.request({
     port: server.address().port,
-    method: 'POST'
+    method: 'POST',
   }, (res) => {
     const interval = setInterval(() => {
       intervalWasInvoked = true;

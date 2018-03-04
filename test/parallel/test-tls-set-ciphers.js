@@ -36,7 +36,7 @@ const fixtures = require('../common/fixtures');
 const options = {
   key: fixtures.readKey('agent2-key.pem'),
   cert: fixtures.readKey('agent2-cert.pem'),
-  ciphers: 'AES256-SHA'
+  ciphers: 'AES256-SHA',
 };
 
 const reply = 'I AM THE WALRUS'; // something recognizable

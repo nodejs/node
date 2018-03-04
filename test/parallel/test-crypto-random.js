@@ -41,7 +41,7 @@ process.setMaxListeners(256);
       {
         code: 'ERR_INVALID_ARG_TYPE',
         type: TypeError,
-        message: /^The "size" argument must be of type (number|uint32)$/
+        message: /^The "size" argument must be of type (number|uint32)$/,
       }
     );
 
@@ -50,7 +50,7 @@ process.setMaxListeners(256);
       {
         code: 'ERR_INVALID_ARG_TYPE',
         type: TypeError,
-        message: /^The "size" argument must be of type (number|uint32)$/
+        message: /^The "size" argument must be of type (number|uint32)$/,
       }
     );
   });
@@ -241,7 +241,7 @@ process.setMaxListeners(256);
 {
   const bufs = [
     Buffer.alloc(10),
-    new Uint8Array(new Array(10).fill(0))
+    new Uint8Array(new Array(10).fill(0)),
   ];
 
   const max = require('buffer').kMaxLength + 1;
@@ -255,7 +255,7 @@ process.setMaxListeners(256);
       {
         code: 'ERR_INVALID_ARG_TYPE',
         type: TypeError,
-        message: 'The "offset" argument must be of type number'
+        message: 'The "offset" argument must be of type number',
       }
     );
 
@@ -264,7 +264,7 @@ process.setMaxListeners(256);
       {
         code: 'ERR_INVALID_ARG_TYPE',
         type: TypeError,
-        message: 'The "offset" argument must be of type number'
+        message: 'The "offset" argument must be of type number',
       }
     );
 
@@ -273,7 +273,7 @@ process.setMaxListeners(256);
       {
         code: 'ERR_INVALID_ARG_TYPE',
         type: TypeError,
-        message: 'The "offset" argument must be of type number'
+        message: 'The "offset" argument must be of type number',
       }
     );
 
@@ -282,7 +282,7 @@ process.setMaxListeners(256);
       {
         code: 'ERR_INVALID_ARG_TYPE',
         type: TypeError,
-        message: 'The "offset" argument must be of type number'
+        message: 'The "offset" argument must be of type number',
       }
     );
 
@@ -291,7 +291,7 @@ process.setMaxListeners(256);
       {
         code: 'ERR_OUT_OF_RANGE',
         type: RangeError,
-        message: 'The value of "offset" is out of range.'
+        message: 'The value of "offset" is out of range.',
       }
     );
 
@@ -300,7 +300,7 @@ process.setMaxListeners(256);
       {
         code: 'ERR_OUT_OF_RANGE',
         type: RangeError,
-        message: 'The value of "offset" is out of range.'
+        message: 'The value of "offset" is out of range.',
       }
     );
 
@@ -309,7 +309,7 @@ process.setMaxListeners(256);
       {
         code: 'ERR_OUT_OF_RANGE',
         type: RangeError,
-        message: 'The value of "offset" is out of range.'
+        message: 'The value of "offset" is out of range.',
       }
     );
 
@@ -318,7 +318,7 @@ process.setMaxListeners(256);
       {
         code: 'ERR_OUT_OF_RANGE',
         type: RangeError,
-        message: 'The value of "offset" is out of range.'
+        message: 'The value of "offset" is out of range.',
       }
     );
 
@@ -327,7 +327,7 @@ process.setMaxListeners(256);
       {
         code: 'ERR_INVALID_ARG_TYPE',
         type: TypeError,
-        message: 'The "size" argument must be of type number'
+        message: 'The "size" argument must be of type number',
       }
     );
 
@@ -336,7 +336,7 @@ process.setMaxListeners(256);
       {
         code: 'ERR_INVALID_ARG_TYPE',
         type: TypeError,
-        message: 'The "size" argument must be of type number'
+        message: 'The "size" argument must be of type number',
       }
     );
 
@@ -345,7 +345,7 @@ process.setMaxListeners(256);
       {
         code: 'ERR_INVALID_ARG_TYPE',
         type: TypeError,
-        message: 'The "size" argument must be of type number'
+        message: 'The "size" argument must be of type number',
       }
     );
 
@@ -354,7 +354,7 @@ process.setMaxListeners(256);
       {
         code: 'ERR_INVALID_ARG_TYPE',
         type: TypeError,
-        message: 'The "size" argument must be of type number'
+        message: 'The "size" argument must be of type number',
       }
     );
 
@@ -366,7 +366,7 @@ process.setMaxListeners(256);
         {
           code: 'ERR_INVALID_ARG_TYPE',
           type: TypeError,
-          message: 'The "size" argument must be of type uint32'
+          message: 'The "size" argument must be of type uint32',
         }
       );
 
@@ -375,7 +375,7 @@ process.setMaxListeners(256);
         {
           code: 'ERR_INVALID_ARG_TYPE',
           type: TypeError,
-          message: 'The "size" argument must be of type uint32'
+          message: 'The "size" argument must be of type uint32',
         }
       );
 
@@ -384,7 +384,7 @@ process.setMaxListeners(256);
         {
           code: 'ERR_INVALID_ARG_TYPE',
           type: TypeError,
-          message: 'The "size" argument must be of type uint32'
+          message: 'The "size" argument must be of type uint32',
         }
       );
 
@@ -393,7 +393,7 @@ process.setMaxListeners(256);
         {
           code: 'ERR_INVALID_ARG_TYPE',
           type: TypeError,
-          message: 'The "size" argument must be of type uint32'
+          message: 'The "size" argument must be of type uint32',
         }
       );
     }
@@ -403,7 +403,7 @@ process.setMaxListeners(256);
       {
         code: 'ERR_INVALID_ARG_TYPE',
         type: TypeError,
-        message: 'The "offset" argument must be of type uint32'
+        message: 'The "offset" argument must be of type uint32',
       }
     );
 
@@ -412,7 +412,7 @@ process.setMaxListeners(256);
       {
         code: 'ERR_INVALID_ARG_TYPE',
         type: TypeError,
-        message: 'The "offset" argument must be of type uint32'
+        message: 'The "offset" argument must be of type uint32',
       }
     );
 
@@ -421,7 +421,7 @@ process.setMaxListeners(256);
       {
         code: 'ERR_OUT_OF_RANGE',
         type: RangeError,
-        message: 'The value of "size" is out of range.'
+        message: 'The value of "size" is out of range.',
       }
     );
 
@@ -430,7 +430,7 @@ process.setMaxListeners(256);
       {
         code: 'ERR_OUT_OF_RANGE',
         type: RangeError,
-        message: 'The value of "size" is out of range.'
+        message: 'The value of "size" is out of range.',
       }
     );
 
@@ -439,7 +439,7 @@ process.setMaxListeners(256);
       {
         code: 'ERR_OUT_OF_RANGE',
         type: RangeError,
-        message: 'The value of "size" is out of range.'
+        message: 'The value of "size" is out of range.',
       }
     );
 
@@ -448,7 +448,7 @@ process.setMaxListeners(256);
       {
         code: 'ERR_OUT_OF_RANGE',
         type: RangeError,
-        message: 'The value of "size" is out of range.'
+        message: 'The value of "size" is out of range.',
       }
     );
 
@@ -460,7 +460,7 @@ process.setMaxListeners(256);
         {
           code: 'ERR_INVALID_ARG_TYPE',
           type: TypeError,
-          message: 'The "offset" argument must be of type uint32'
+          message: 'The "offset" argument must be of type uint32',
         }
       );
 
@@ -469,7 +469,7 @@ process.setMaxListeners(256);
         {
           code: 'ERR_INVALID_ARG_TYPE',
           type: TypeError,
-          message: 'The "offset" argument must be of type uint32'
+          message: 'The "offset" argument must be of type uint32',
         }
       );
     }
@@ -484,7 +484,7 @@ common.expectsError(
   {
     code: 'ERR_INVALID_ARG_TYPE',
     type: TypeError,
-    message: 'The "size" argument must be of type uint32'
+    message: 'The "size" argument must be of type uint32',
   }
 );
 
@@ -494,14 +494,14 @@ common.expectsError(
     () => crypto.randomFillSync(i),
     {
       code: 'ERR_INVALID_ARG_TYPE',
-      type: TypeError
+      type: TypeError,
     }
   );
   common.expectsError(
     () => crypto.randomFill(i, common.mustNotCall()),
     {
       code: 'ERR_INVALID_ARG_TYPE',
-      type: TypeError
+      type: TypeError,
     }
   );
   common.expectsError(

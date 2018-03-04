@@ -13,11 +13,11 @@ const types = {
   PTR: 12,
   MX: 15,
   TXT: 16,
-  ANY: 255
+  ANY: 255,
 };
 
 const classes = {
-  IN: 1
+  IN: 1,
 };
 
 // Naïve DNS parser/serializer.
@@ -34,7 +34,7 @@ function readDomainFromPacket(buffer, offset) {
     const { nread, domain } = readDomainFromPacket(buffer, offset + length);
     return {
       nread: 1 + length + nread,
-      domain: domain ? `${chunk}.${domain}` : chunk
+      domain: domain ? `${chunk}.${domain}` : chunk,
     };
   } else {
     // Pointer to another part of the packet.
@@ -43,7 +43,7 @@ function readDomainFromPacket(buffer, offset) {
     const pointeeOffset = buffer.readUInt16BE(offset) &~ 0xC000;
     return {
       nread: 2,
-      domain: readDomainFromPacket(buffer, pointeeOffset)
+      domain: readDomainFromPacket(buffer, pointeeOffset),
     };
   }
 }
@@ -60,7 +60,7 @@ function parseDNSPacket(buffer) {
     ['questions', buffer.readUInt16BE(4)],
     ['answers', buffer.readUInt16BE(6)],
     ['authorityAnswers', buffer.readUInt16BE(8)],
-    ['additionalRecords', buffer.readUInt16BE(10)]
+    ['additionalRecords', buffer.readUInt16BE(10)],
   ];
 
   let offset = 12;
@@ -185,7 +185,7 @@ function writeDomainName(domain) {
     assert(label.length < 64);
     return Buffer.concat([
       Buffer.from([label.length]),
-      Buffer.from(label, 'ascii')
+      Buffer.from(label, 'ascii'),
     ]);
   }).concat([Buffer.alloc(1)]));
 }
@@ -208,7 +208,7 @@ function writeDNSPacket(parsed) {
     buffers.push(writeDomainName(q.domain));
     buffers.push(new Uint16Array([
       types[q.type],
-      q.cls === undefined ? classes.IN : q.cls
+      q.cls === undefined ? classes.IN : q.cls,
     ]));
   }
 
@@ -221,7 +221,7 @@ function writeDNSPacket(parsed) {
     buffers.push(writeDomainName(rr.domain));
     buffers.push(new Uint16Array([
       types[rr.type],
-      rr.cls === undefined ? classes.IN : rr.cls
+      rr.cls === undefined ? classes.IN : rr.cls,
     ]));
     buffers.push(new Int32Array([rr.ttl]));
 
@@ -266,7 +266,7 @@ function writeDNSPacket(parsed) {
         rdLengthBuf[0] = mname.length + rname.length + 20;
         buffers.push(mname, rname);
         buffers.push(new Uint32Array([
-          rr.serial, rr.refresh, rr.retry, rr.expire, rr.minttl
+          rr.serial, rr.refresh, rr.retry, rr.expire, rr.minttl,
         ]));
         break;
       }
@@ -308,5 +308,5 @@ module.exports = {
   parseDNSPacket,
   errorLookupMock,
   mockedErrorCode,
-  mockedSysCall
+  mockedSysCall,
 };

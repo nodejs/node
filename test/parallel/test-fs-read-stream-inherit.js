@@ -120,7 +120,7 @@ const rangeFile = fixtures.path('x.txt');
     {
       code: 'ERR_OUT_OF_RANGE',
       message,
-      type: RangeError
+      type: RangeError,
     });
 }
 

@@ -31,7 +31,7 @@ zlib.gzip('hello', common.mustCall(function(err, out) {
     {
       code: 'ERR_ZLIB_BINDING_CLOSED',
       type: Error,
-      message: 'zlib binding closed'
+      message: 'zlib binding closed',
     }
   );
 }));

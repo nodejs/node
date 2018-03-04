@@ -10,7 +10,7 @@ const optionsWithTypeError = {
   offset: 'number',
   length: 'number',
   statCheck: 'function',
-  getTrailers: 'function'
+  getTrailers: 'function',
 };
 
 const types = {
@@ -20,7 +20,7 @@ const types = {
   object: {},
   array: [],
   null: null,
-  symbol: Symbol('test')
+  symbol: Symbol('test'),
 };
 
 const fname = fixtures.path('elipses.txt');
@@ -38,15 +38,15 @@ server.on('stream', common.mustCall((stream) => {
 
       common.expectsError(
         () => stream.respondWithFile(fname, {
-          'content-type': 'text/plain'
+          'content-type': 'text/plain',
         }, {
-          [option]: types[type]
+          [option]: types[type],
         }),
         {
           type: TypeError,
           code: 'ERR_INVALID_OPT_VALUE',
           message: `The value "${String(types[type])}" is invalid ` +
-                   `for option "${option}"`
+                   `for option "${option}"`,
         }
       );
     });
@@ -60,7 +60,7 @@ server.on('stream', common.mustCall((stream) => {
     }),
     {
       code: 'ERR_HTTP2_PAYLOAD_FORBIDDEN',
-      message: `Responses with ${status} status must not have a payload`
+      message: `Responses with ${status} status must not have a payload`,
     }
   ));
 
@@ -68,11 +68,11 @@ server.on('stream', common.mustCall((stream) => {
   stream.respond({ ':status': 200 });
   common.expectsError(
     () => stream.respondWithFile(fname, {
-      'content-type': 'text/plain'
+      'content-type': 'text/plain',
     }),
     {
       code: 'ERR_HTTP2_HEADERS_SENT',
-      message: 'Response has already been initiated.'
+      message: 'Response has already been initiated.',
     }
   );
 
@@ -80,11 +80,11 @@ server.on('stream', common.mustCall((stream) => {
   stream.destroy();
   common.expectsError(
     () => stream.respondWithFile(fname, {
-      'content-type': 'text/plain'
+      'content-type': 'text/plain',
     }),
     {
       code: 'ERR_HTTP2_INVALID_STREAM',
-      message: 'The stream has been destroyed'
+      message: 'The stream has been destroyed',
     }
   );
 }));

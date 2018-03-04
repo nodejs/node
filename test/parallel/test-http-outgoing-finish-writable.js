@@ -25,7 +25,7 @@ server.on('listening', common.mustCall(function() {
   const clientRequest = http.request({
     port: server.address().port,
     method: 'GET',
-    path: '/'
+    path: '/',
   });
 
   assert.strictEqual(clientRequest.writable, true);

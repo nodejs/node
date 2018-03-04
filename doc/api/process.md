@@ -713,7 +713,7 @@ specific process warnings. These can be listened for by adding a handler to the
 // Emit a warning with a code and additional detail.
 process.emitWarning('Something happened!', {
   code: 'MY_WARNING',
-  detail: 'This is some additional information'
+  detail: 'This is some additional information',
 });
 // Emits:
 // (node:56338) [MY_WARNING] Warning: Something happened!

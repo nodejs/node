@@ -17,7 +17,7 @@ new tls.TLSSocket(serverSide, {
   isServer: true,
   SNICallback: common.mustCall((servername, cb) => {
     assert.strictEqual(servername, 'www.google.com');
-  })
+  }),
 });
 
 // captured traffic from browser's request to https://www.google.com

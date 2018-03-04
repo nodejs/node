@@ -10,7 +10,7 @@ const jsPrimitives = {
   'number': 'Number',
   'string': 'String',
   'symbol': 'Symbol',
-  'undefined': 'Undefined'
+  'undefined': 'Undefined',
 };
 const jsGlobalTypes = [
   'Array', 'ArrayBuffer', 'AsyncFunction', 'DataView', 'Date', 'Error',
@@ -19,7 +19,7 @@ const jsGlobalTypes = [
   'Promise', 'Proxy', 'RangeError', 'ReferenceError', 'RegExp', 'Set',
   'SharedArrayBuffer', 'SyntaxError', 'TypeError', 'TypedArray', 'URIError',
   'Uint16Array', 'Uint32Array', 'Uint8Array', 'Uint8ClampedArray', 'WeakMap',
-  'WeakSet'
+  'WeakSet',
 ];
 const typeMap = {
   'Iterable':
@@ -91,7 +91,7 @@ const typeMap = {
   'tls.TLSSocket': 'tls.html#tls_class_tls_tlssocket',
 
   'URL': 'url.html#url_the_whatwg_url_api',
-  'URLSearchParams': 'url.html#url_class_urlsearchparams'
+  'URLSearchParams': 'url.html#url_class_urlsearchparams',
 };
 
 const arrayPart = /(?:\[])+$/;
@@ -132,5 +132,5 @@ module.exports = {
     });
 
     return typeLinks.length ? typeLinks.join(' | ') : typeInput;
-  }
+  },
 };

@@ -10,7 +10,7 @@ const throwsObjsAndReportTypes = new Map([
   [false, 'boolean'],
   [0, 'number'],
   [function() {}, 'function'],
-  [Symbol('foo'), 'symbol']
+  [Symbol('foo'), 'symbol'],
 ]);
 
 for (const [urlObject, type] of throwsObjsAndReportTypes) {
@@ -20,7 +20,7 @@ for (const [urlObject, type] of throwsObjsAndReportTypes) {
     code: 'ERR_INVALID_ARG_TYPE',
     type: TypeError,
     message: 'The "urlObject" argument must be one of type Object or string. ' +
-             `Received type ${type}`
+             `Received type ${type}`,
   });
 }
 assert.strictEqual(url.format(''), '');

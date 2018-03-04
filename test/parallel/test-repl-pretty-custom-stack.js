@@ -18,7 +18,7 @@ function run({ command, expected }) {
     input: inputStream,
     output: outputStream,
     terminal: false,
-    useColors: false
+    useColors: false,
   });
 
   r.write(`${command}\n`);
@@ -46,25 +46,25 @@ const tests = [
     // test .load for a file that throws
     command: `.load ${fixtures.path('repl-pretty-stack.js')}`,
     expected: 'Error: Whoops!--->\nrepl:9:24--->\nd (repl:12:3)--->\nc ' +
-              '(repl:9:3)--->\nb (repl:6:3)--->\na (repl:3:3)\n'
+              '(repl:9:3)--->\nb (repl:6:3)--->\na (repl:3:3)\n',
   },
   {
     command: 'let x y;',
-    expected: 'let x y;\n      ^\n\nSyntaxError: Unexpected identifier\n'
+    expected: 'let x y;\n      ^\n\nSyntaxError: Unexpected identifier\n',
   },
   {
     command: 'throw new Error(\'Whoops!\')',
-    expected: 'Error: Whoops!\n'
+    expected: 'Error: Whoops!\n',
   },
   {
     command: 'foo = bar;',
-    expected: 'ReferenceError: bar is not defined\n'
+    expected: 'ReferenceError: bar is not defined\n',
   },
   // test anonymous IIFE
   {
     command: '(function() { throw new Error(\'Whoops!\'); })()',
-    expected: 'Error: Whoops!--->\nrepl:1:21\n'
-  }
+    expected: 'Error: Whoops!--->\nrepl:1:21\n',
+  },
 ];
 
 tests.forEach(run);

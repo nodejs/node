@@ -12,7 +12,7 @@ function doCheck(arg, check) {
   let out = '';
   arg = arg.concat([
     '-pe',
-    'require("crypto").constants.defaultCipherList'
+    'require("crypto").constants.defaultCipherList',
   ]);
   spawn(process.execPath, arg, {})
     .on('error', common.mustNotCall())

@@ -15,7 +15,7 @@ const Countdown = require('../common/countdown');
   server.listen(0, common.mustCall(() => {
     const destroyCallbacks = [
       (client) => client.destroy(),
-      (client) => client[kSocket].destroy()
+      (client) => client[kSocket].destroy(),
     ];
 
     const countdown = new Countdown(destroyCallbacks.length, () => {
@@ -63,7 +63,7 @@ const Countdown = require('../common/countdown');
     req.on('error', common.expectsError({
       code: 'ERR_HTTP2_STREAM_CANCEL',
       type: Error,
-      message: 'The pending stream has been canceled'
+      message: 'The pending stream has been canceled',
     }));
 
     client.destroy();
@@ -73,7 +73,7 @@ const Countdown = require('../common/countdown');
     const sessionError = {
       type: Error,
       code: 'ERR_HTTP2_INVALID_SESSION',
-      message: 'The session has been destroyed'
+      message: 'The session has been destroyed',
     };
 
     common.expectsError(() => client.setNextStreamID(), sessionError);

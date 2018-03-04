@@ -8,7 +8,7 @@ const inputs = require('../fixtures/url-inputs.js').urls;
 const bench = common.createBenchmark(main, {
   type: Object.keys(inputs),
   method: ['legacy', 'whatwg'],
-  n: [1e5]
+  n: [1e5],
 });
 
 function useLegacy(n, input) {

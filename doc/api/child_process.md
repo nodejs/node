@@ -210,7 +210,7 @@ const defaults = {
   maxBuffer: 200 * 1024,
   killSignal: 'SIGTERM',
   cwd: null,
-  env: null
+  env: null,
 };
 ```
 
@@ -433,7 +433,7 @@ A third argument may be used to specify additional options, with these defaults:
 ```js
 const defaults = {
   cwd: undefined,
-  env: process.env
+  env: process.env,
 };
 ```
 
@@ -558,7 +558,7 @@ const { spawn } = require('child_process');
 
 const subprocess = spawn(process.argv[0], ['child_program.js'], {
   detached: true,
-  stdio: 'ignore'
+  stdio: 'ignore',
 });
 
 subprocess.unref();
@@ -574,7 +574,7 @@ const err = fs.openSync('./out.log', 'a');
 
 const subprocess = spawn('prg', [], {
   detached: true,
-  stdio: [ 'ignore', out, err ]
+  stdio: [ 'ignore', out, err ],
 });
 
 subprocess.unref();
@@ -1042,9 +1042,9 @@ const subprocess = spawn(
     '-c',
     `node -e "setInterval(() => {
       console.log(process.pid, 'is alive')
-    }, 500);"`
+    }, 500);"`,
   ], {
-    stdio: ['inherit', 'inherit', 'inherit']
+    stdio: ['inherit', 'inherit', 'inherit'],
   }
 );
 
@@ -1327,8 +1327,8 @@ const subprocess = child_process.spawn('ls', {
   stdio: [
     0, // Use parent's stdin for child
     'pipe', // Pipe child's stdout to parent
-    fs.openSync('err.out', 'w') // Direct child's stderr to a file
-  ]
+    fs.openSync('err.out', 'w'), // Direct child's stderr to a file
+  ],
 });
 
 assert.strictEqual(subprocess.stdio[0], null);

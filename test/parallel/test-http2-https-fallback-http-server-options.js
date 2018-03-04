@@ -25,7 +25,7 @@ function onRequest(request, response) {
   response.end(JSON.stringify({
     alpnProtocol,
     httpVersion: request.httpVersion,
-    userAgent: request.getUserAgent()
+    userAgent: request.getUserAgent(),
   }));
 }
 
@@ -48,7 +48,7 @@ class MyServerResponse extends http.ServerResponse {
       cert,
       key, allowHTTP1: true,
       Http1IncomingMessage: MyIncomingMessage,
-      Http1ServerResponse: MyServerResponse
+      Http1ServerResponse: MyServerResponse,
     },
     common.mustCall(onRequest, 1)
   );
@@ -63,7 +63,7 @@ class MyServerResponse extends http.ServerResponse {
     https.get(
       Object.assign(url.parse(origin), {
         secureContext: tls.createSecureContext({ ca }),
-        headers: { 'User-Agent': 'node-test' }
+        headers: { 'User-Agent': 'node-test' },
       }),
       common.mustCall((response) => {
         assert.strictEqual(response.statusCode, 200);

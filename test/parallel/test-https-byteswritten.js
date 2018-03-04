@@ -30,7 +30,7 @@ const https = require('https');
 
 const options = {
   key: fixtures.readKey('agent1-key.pem'),
-  cert: fixtures.readKey('agent1-cert.pem')
+  cert: fixtures.readKey('agent1-cert.pem'),
 };
 
 const body = 'hello world\n';
@@ -49,6 +49,6 @@ const httpsServer = https.createServer(options, function(req, res) {
 httpsServer.listen(0, function() {
   https.get({
     port: this.address().port,
-    rejectUnauthorized: false
+    rejectUnauthorized: false,
   });
 });

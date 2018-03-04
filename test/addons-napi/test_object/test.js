@@ -9,11 +9,11 @@ const test_object = require(`./build/${common.buildType}/test_object`);
 const object = {
   hello: 'world',
   array: [
-    1, 94, 'str', 12.321, { test: 'obj in arr' }
+    1, 94, 'str', 12.321, { test: 'obj in arr' },
   ],
   newObject: {
-    test: 'obj in obj'
-  }
+    test: 'obj in obj',
+  },
 };
 
 assert.strictEqual(test_object.Get(object, 'hello'), 'world');
@@ -89,7 +89,7 @@ assert.strictEqual(newObject.test_string, 'test string');
   const cube = {
     x: 10,
     y: 10,
-    z: 10
+    z: 10,
   };
 
   assert.deepStrictEqual(test_object.Inflate(cube), { x: 11, y: 11, z: 11 });
@@ -105,7 +105,7 @@ assert.strictEqual(newObject.test_string, 'test string');
   const sym4 = Symbol('4');
   const object2 = {
     [sym1]: '@@iterator',
-    [sym2]: sym3
+    [sym2]: sym3,
   };
 
   assert(test_object.Has(object2, sym1));

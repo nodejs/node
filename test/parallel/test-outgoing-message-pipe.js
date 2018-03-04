@@ -9,6 +9,6 @@ common.expectsError(
   () => { outgoingMessage.pipe(outgoingMessage); },
   {
     code: 'ERR_STREAM_CANNOT_PIPE',
-    type: Error
+    type: Error,
   }
 );

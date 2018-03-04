@@ -9,7 +9,7 @@ const zlib = require('zlib');
 let data = Buffer.concat([
   zlib.gzipSync('abc'),
   zlib.gzipSync('def'),
-  Buffer.alloc(10)
+  Buffer.alloc(10),
 ]);
 
 assert.strictEqual(zlib.gunzipSync(data).toString(), 'abcdef');
@@ -29,7 +29,7 @@ data = Buffer.concat([
   zlib.gzipSync('abc'),
   zlib.gzipSync('def'),
   Buffer.from([0x1f, 0x8b, 0xff, 0xff]),
-  Buffer.alloc(10)
+  Buffer.alloc(10),
 ]);
 
 assert.throws(
@@ -41,7 +41,7 @@ zlib.gunzip(data, common.mustCall((err, result) => {
   common.expectsError({
     code: 'Z_DATA_ERROR',
     type: Error,
-    message: 'unknown compression method'
+    message: 'unknown compression method',
   })(err);
   assert.strictEqual(result, undefined);
 }));
@@ -51,7 +51,7 @@ zlib.gunzip(data, common.mustCall((err, result) => {
 data = Buffer.concat([
   zlib.gzipSync('abc'),
   zlib.gzipSync('def'),
-  Buffer.from([0x1f, 0x8b, 0xff, 0xff])
+  Buffer.from([0x1f, 0x8b, 0xff, 0xff]),
 ]);
 
 assert.throws(

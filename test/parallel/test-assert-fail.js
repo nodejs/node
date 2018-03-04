@@ -12,7 +12,7 @@ assert.throws(
     message: 'Failed',
     operator: undefined,
     actual: undefined,
-    expected: undefined
+    expected: undefined,
   }
 );
 
@@ -25,7 +25,7 @@ assert.throws(() => {
   message: 'custom message',
   operator: undefined,
   actual: undefined,
-  expected: undefined
+  expected: undefined,
 });
 
 // One arg = Error
@@ -36,5 +36,5 @@ assert.throws(() => {
   message: 'custom message',
   operator: undefined,
   actual: undefined,
-  expected: undefined
+  expected: undefined,
 });

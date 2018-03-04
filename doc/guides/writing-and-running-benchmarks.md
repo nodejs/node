@@ -383,12 +383,12 @@ const configs = {
   // Most benchmarks just use one value for all runs.
   n: [1024],
   type: ['fast', 'slow'],  // Custom configurations
-  size: [16, 128, 1024]  // Custom configurations
+  size: [16, 128, 1024],  // Custom configurations
 };
 
 const options = {
   // Add --expose-internals in order to require internal modules in main
-  flags: ['--zero-fill-buffers']
+  flags: ['--zero-fill-buffers'],
 };
 
 // main and configs are required, options is optional.
@@ -431,7 +431,7 @@ const common = require('../common.js');
 
 const bench = common.createBenchmark(main, {
   kb: [64, 128, 256, 1024],
-  connections: [100, 500]
+  connections: [100, 500],
 });
 
 function main(conf) {

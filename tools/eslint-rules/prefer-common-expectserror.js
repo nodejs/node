@@ -16,6 +16,6 @@ const astSelector =
 
 module.exports = function(context) {
   return {
-    [astSelector]: (node) => context.report(node, msg)
+    [astSelector]: (node) => context.report(node, msg),
   };
 };

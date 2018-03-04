@@ -10,9 +10,9 @@ const s = new net.Socket({
     readStart: function() {
       setImmediate(() => this.onread(uv.UV_EOF, null));
     },
-    close: (cb) => setImmediate(cb)
+    close: (cb) => setImmediate(cb),
   },
-  writable: false
+  writable: false,
 });
 assert.strictEqual(s, s.resume());
 

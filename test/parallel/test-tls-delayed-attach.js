@@ -34,14 +34,14 @@ let received = '';
 
 const options = {
   key: fixtures.readKey('agent1-key.pem'),
-  cert: fixtures.readKey('agent1-cert.pem')
+  cert: fixtures.readKey('agent1-cert.pem'),
 };
 
 const server = net.createServer(function(c) {
   setTimeout(function() {
     const s = new tls.TLSSocket(c, {
       isServer: true,
-      secureContext: tls.createSecureContext(options)
+      secureContext: tls.createSecureContext(options),
     });
 
     s.on('data', function(chunk) {
@@ -55,7 +55,7 @@ const server = net.createServer(function(c) {
   }, 200);
 }).listen(0, function() {
   const c = tls.connect(this.address().port, {
-    rejectUnauthorized: false
+    rejectUnauthorized: false,
   }, function() {
     c.end(sent);
   });

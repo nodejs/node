@@ -25,7 +25,7 @@ common.hijackStderr(noOutput);
     O: 'Node.js Foundation',
     OU: 'Node.js',
     CN: 'ca1',
-    emailAddress: 'ry@clouds.org'
+    emailAddress: 'ry@clouds.org',
   });
 }
 
@@ -36,7 +36,7 @@ common.hijackStderr(noOutput);
   assert.deepStrictEqual(doublesOut, {
     __proto__: null,
     OU: [ 'Domain Control Validated', 'PositiveSSL Wildcard' ],
-    CN: '*.nodejs.org'
+    CN: '*.nodejs.org',
   });
 }
 

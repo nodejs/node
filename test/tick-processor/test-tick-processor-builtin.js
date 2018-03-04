@@ -16,5 +16,5 @@ base.runTest({
            this.ts = Date.now();
            setImmediate(function() { new f(); });
          };
-         f();`
+         f();`,
 });

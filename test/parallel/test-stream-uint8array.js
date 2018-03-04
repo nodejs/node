@@ -22,7 +22,7 @@ const GHI = new Uint8Array([0x47, 0x48, 0x49]);
       }
 
       cb();
-    }, 2)
+    }, 2),
   });
 
   writable.write(ABC);
@@ -40,7 +40,7 @@ const GHI = new Uint8Array([0x47, 0x48, 0x49]);
       assert.strictEqual(chunk, ABC);
       assert.strictEqual(encoding, 'utf8');
       cb();
-    })
+    }),
   });
 
   writable.end(ABC);
@@ -62,7 +62,7 @@ const GHI = new Uint8Array([0x47, 0x48, 0x49]);
       assert.strictEqual(chunks[0].encoding, 'buffer');
       assert.strictEqual(chunks[1].encoding, 'buffer');
       assert.strictEqual(chunks[0].chunk + chunks[1].chunk, 'DEFGHI');
-    })
+    }),
   });
 
   writable.write(ABC);
@@ -74,7 +74,7 @@ const GHI = new Uint8Array([0x47, 0x48, 0x49]);
 {
   // Simple Readable test.
   const readable = new Readable({
-    read() {}
+    read() {},
   });
 
   readable.push(DEF);
@@ -88,7 +88,7 @@ const GHI = new Uint8Array([0x47, 0x48, 0x49]);
 {
   // Readable test, setEncoding.
   const readable = new Readable({
-    read() {}
+    read() {},
   });
 
   readable.setEncoding('utf8');

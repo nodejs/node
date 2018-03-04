@@ -5,7 +5,7 @@ const path = require('path');
 const emptyJsFile = path.resolve(__dirname, '../../test/fixtures/semicolon.js');
 
 const bench = common.createBenchmark(startNode, {
-  dur: [1]
+  dur: [1],
 });
 
 function startNode({ dur }) {

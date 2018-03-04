@@ -27,7 +27,7 @@ const server = net.createServer(common.mustCall((s) => {
       assert.strictEqual(hostname, 'test.test');
 
       callback(null, null);
-    })
+    }),
   });
 
   tlsSocket.on('secure', common.mustCall(() => {
@@ -39,7 +39,7 @@ const server = net.createServer(common.mustCall((s) => {
     servername: 'test.test',
     port: server.address().port,
     rejectUnauthorized: false,
-    requestOCSP: true
+    requestOCSP: true,
   };
 
   tls.connect(opts, function() {

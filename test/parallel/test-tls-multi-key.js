@@ -36,7 +36,7 @@ const options = {
   cert: [
     fixtures.readKey('agent1-cert.pem'),
     fixtures.readKey('ec-cert.pem'),
-  ]
+  ],
 };
 
 const ciphers = [];
@@ -46,12 +46,12 @@ const server = tls.createServer(options, function(conn) {
 }).listen(0, function() {
   const ecdsa = tls.connect(this.address().port, {
     ciphers: 'ECDHE-ECDSA-AES256-GCM-SHA384',
-    rejectUnauthorized: false
+    rejectUnauthorized: false,
   }, function() {
     ciphers.push(ecdsa.getCipher());
     const rsa = tls.connect(server.address().port, {
       ciphers: 'ECDHE-RSA-AES256-GCM-SHA384',
-      rejectUnauthorized: false
+      rejectUnauthorized: false,
     }, function() {
       ciphers.push(rsa.getCipher());
       ecdsa.end();
@@ -64,9 +64,9 @@ const server = tls.createServer(options, function(conn) {
 process.on('exit', function() {
   assert.deepStrictEqual(ciphers, [{
     name: 'ECDHE-ECDSA-AES256-GCM-SHA384',
-    version: 'TLSv1/SSLv3'
+    version: 'TLSv1/SSLv3',
   }, {
     name: 'ECDHE-RSA-AES256-GCM-SHA384',
-    version: 'TLSv1/SSLv3'
+    version: 'TLSv1/SSLv3',
   }]);
 });

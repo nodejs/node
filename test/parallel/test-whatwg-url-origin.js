@@ -10,7 +10,7 @@ const URL = require('url').URL;
 const { test, assert_equals } = require('../common/wpt');
 
 const request = {
-  response: require(fixtures.path('url-tests'))
+  response: require(fixtures.path('url-tests')),
 };
 
 /* The following tests are copied from WPT. Modifications to them should be

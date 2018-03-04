@@ -38,28 +38,28 @@ common.expectsError(() => {
 }, {
   code: 'ERR_INVALID_ARG_TYPE',
   type: TypeError,
-  message: 'The "time" argument must be of type Array. Received type number'
+  message: 'The "time" argument must be of type Array. Received type number',
 });
 common.expectsError(() => {
   process.hrtime([]);
 }, {
   code: 'ERR_INVALID_ARRAY_LENGTH',
   type: TypeError,
-  message: 'The array "time" (length 0) must be of length 2.'
+  message: 'The array "time" (length 0) must be of length 2.',
 });
 common.expectsError(() => {
   process.hrtime([1]);
 }, {
   code: 'ERR_INVALID_ARRAY_LENGTH',
   type: TypeError,
-  message: 'The array "time" (length 1) must be of length 2.'
+  message: 'The array "time" (length 1) must be of length 2.',
 });
 common.expectsError(() => {
   process.hrtime([1, 2, 3]);
 }, {
   code: 'ERR_INVALID_ARRAY_LENGTH',
   type: TypeError,
-  message: 'The array "time" (length 3) must be of length 2.'
+  message: 'The array "time" (length 3) must be of length 2.',
 });
 
 function validateTuple(tuple) {

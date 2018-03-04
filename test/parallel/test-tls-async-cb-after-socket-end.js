@@ -10,7 +10,7 @@ const tls = require('tls');
 const options = {
   secureOptions: SSL_OP_NO_TICKET,
   key: fixtures.readSync('test_key.pem'),
-  cert: fixtures.readSync('test_cert.pem')
+  cert: fixtures.readSync('test_cert.pem'),
 };
 
 const server = tls.createServer(options, function(c) {
@@ -33,7 +33,7 @@ server.listen(0, function() {
   const clientOpts = {
     port: this.address().port,
     rejectUnauthorized: false,
-    session: false
+    session: false,
   };
 
   const s1 = tls.connect(clientOpts, function() {

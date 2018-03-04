@@ -39,7 +39,7 @@ tmpdir.refresh();
 
 console.log({
   filenameLength: fileName.length,
-  fullPathLength: fullPath.length
+  fullPathLength: fullPath.length,
 });
 
 fs.writeFile(fullPath, 'ok', common.mustCall(function(err) {

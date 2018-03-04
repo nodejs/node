@@ -29,7 +29,7 @@ const tmpdir = require('../common/tmpdir');
 const fn = path.join(tmpdir.path, 'write.txt');
 tmpdir.refresh();
 const file = fs.createWriteStream(fn, {
-  highWaterMark: 10
+  highWaterMark: 10,
 });
 
 const EXPECTED = '012345678910';
@@ -37,7 +37,7 @@ const EXPECTED = '012345678910';
 const callbacks = {
   open: -1,
   drain: -2,
-  close: -1
+  close: -1,
 };
 
 file
@@ -73,7 +73,7 @@ file
       {
         code: 'ERR_STREAM_WRITE_AFTER_END',
         type: Error,
-        message: 'write after end'
+        message: 'write after end',
       }
     );
 

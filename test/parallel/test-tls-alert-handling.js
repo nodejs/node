@@ -23,7 +23,7 @@ function loadPEM(n) {
 
 const opts = {
   key: loadPEM('agent2-key'),
-  cert: loadPEM('agent2-cert')
+  cert: loadPEM('agent2-cert'),
 };
 
 const max_iter = 20;
@@ -46,7 +46,7 @@ server.listen(0, common.mustCall(function() {
 
 function sendClient() {
   const client = tls.connect(server.address().port, {
-    rejectUnauthorized: false
+    rejectUnauthorized: false,
   });
   client.on('data', common.mustCall(function() {
     if (iter++ === 2) sendBADTLSRecord();
@@ -71,7 +71,7 @@ function sendBADTLSRecord() {
   const socket = net.connect(server.address().port);
   const client = tls.connect({
     socket: socket,
-    rejectUnauthorized: false
+    rejectUnauthorized: false,
   }, common.mustCall(function() {
     socket.write(BAD_RECORD);
     socket.end();

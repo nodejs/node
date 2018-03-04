@@ -16,7 +16,7 @@ const proc = cp.spawn(process.execPath, [
   '--trace-event-file-pattern',
   // eslint-disable-next-line no-template-curly-in-string
   '${pid}-${rotation}-${pid}-${rotation}.tracing.log',
-  '-e', CODE
+  '-e', CODE,
 ]);
 
 proc.once('exit', common.mustCall(() => {

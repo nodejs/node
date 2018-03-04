@@ -19,7 +19,7 @@ module.exports = function(context) {
         const rangeNeedle = hasUseStrict ? useStrict.lastIndex : firstLOC;
 
         return fixer.insertTextBeforeRange([rangeNeedle], BUFFER_REQUIRE);
-      }
+      },
     });
   }
 
@@ -30,6 +30,6 @@ module.exports = function(context) {
       if (variable) {
         variable.references.forEach(flagIt);
       }
-    }
+    },
   };
 };

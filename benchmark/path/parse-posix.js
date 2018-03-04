@@ -10,9 +10,9 @@ const bench = common.createBenchmark(main, {
     '/foo/bar.baz',
     'foo/.bar.baz',
     'foo/bar',
-    '/foo/bar/baz/asdf/.quux'
+    '/foo/bar/baz/asdf/.quux',
   ],
-  n: [1e6]
+  n: [1e6],
 });
 
 function main({ n, path }) {

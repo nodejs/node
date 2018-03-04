@@ -31,7 +31,7 @@ const https = require('https');
 
 const options = {
   key: fixtures.readSync('test_key.pem'),
-  cert: fixtures.readSync('test_cert.pem')
+  cert: fixtures.readSync('test_cert.pem'),
 };
 
 const server = https.createServer(options, common.mustCall(function(req, res) {
@@ -45,7 +45,7 @@ const server = https.createServer(options, common.mustCall(function(req, res) {
 function unauthorized() {
   const req = https.request({
     port: server.address().port,
-    rejectUnauthorized: false
+    rejectUnauthorized: false,
   }, function(res) {
     assert(!req.socket.authorized);
     res.resume();
@@ -59,7 +59,7 @@ function unauthorized() {
 
 function rejectUnauthorized() {
   const options = {
-    port: server.address().port
+    port: server.address().port,
   };
   options.agent = new https.Agent(options);
   const req = https.request(options, common.mustNotCall());
@@ -72,7 +72,7 @@ function rejectUnauthorized() {
 function authorized() {
   const options = {
     port: server.address().port,
-    ca: [fixtures.readSync('test_cert.pem')]
+    ca: [fixtures.readSync('test_cert.pem')],
   };
   options.agent = new https.Agent(options);
   const req = https.request(options, function(res) {

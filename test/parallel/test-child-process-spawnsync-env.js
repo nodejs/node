@@ -29,7 +29,7 @@ if (process.argv[2] === 'child') {
 } else {
   const expected = 'bar';
   const child = cp.spawnSync(process.execPath, [__filename, 'child'], {
-    env: Object.assign(process.env, { foo: expected })
+    env: Object.assign(process.env, { foo: expected }),
   });
 
   assert.strictEqual(child.stdout.toString().trim(), expected);

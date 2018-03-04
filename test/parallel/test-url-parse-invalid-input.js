@@ -14,14 +14,14 @@ const url = require('url');
   [[], 'object'],
   [{}, 'object'],
   [() => {}, 'function'],
-  [Symbol('foo'), 'symbol']
+  [Symbol('foo'), 'symbol'],
 ].forEach(([val, type]) => {
   common.expectsError(() => {
     url.parse(val);
   }, {
     code: 'ERR_INVALID_ARG_TYPE',
     type: TypeError,
-    message: `The "url" argument must be of type string. Received type ${type}`
+    message: `The "url" argument must be of type string. Received type ${type}`,
   });
 });
 

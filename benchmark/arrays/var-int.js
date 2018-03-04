@@ -12,9 +12,9 @@ const bench = common.createBenchmark(main, {
     'Int32Array',
     'Uint32Array',
     'Float32Array',
-    'Float64Array'
+    'Float64Array',
   ],
-  n: [25]
+  n: [25],
 });
 
 function main({ type, n }) {

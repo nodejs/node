@@ -61,12 +61,12 @@ assert.throws(function() {
   common.expectsError(() => Buffer.from(ab.buffer, 6), {
     code: 'ERR_BUFFER_OUT_OF_BOUNDS',
     type: RangeError,
-    message: '"offset" is outside of buffer bounds'
+    message: '"offset" is outside of buffer bounds',
   });
   common.expectsError(() => Buffer.from(ab.buffer, 3, 6), {
     code: 'ERR_BUFFER_OUT_OF_BOUNDS',
     type: RangeError,
-    message: '"length" is outside of buffer bounds'
+    message: '"length" is outside of buffer bounds',
   });
 }
 
@@ -89,12 +89,12 @@ assert.throws(function() {
   common.expectsError(() => Buffer(ab.buffer, 6), {
     code: 'ERR_BUFFER_OUT_OF_BOUNDS',
     type: RangeError,
-    message: '"offset" is outside of buffer bounds'
+    message: '"offset" is outside of buffer bounds',
   });
   common.expectsError(() => Buffer(ab.buffer, 3, 6), {
     code: 'ERR_BUFFER_OUT_OF_BOUNDS',
     type: RangeError,
-    message: '"length" is outside of buffer bounds'
+    message: '"length" is outside of buffer bounds',
   });
 }
 
@@ -116,7 +116,7 @@ assert.throws(function() {
   }, {
     code: 'ERR_BUFFER_OUT_OF_BOUNDS',
     type: RangeError,
-    message: '"offset" is outside of buffer bounds'
+    message: '"offset" is outside of buffer bounds',
   });
 }
 
@@ -138,7 +138,7 @@ assert.throws(function() {
   }, {
     code: 'ERR_BUFFER_OUT_OF_BOUNDS',
     type: RangeError,
-    message: '"length" is outside of buffer bounds'
+    message: '"length" is outside of buffer bounds',
   });
 }
 

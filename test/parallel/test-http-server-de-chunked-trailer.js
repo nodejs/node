@@ -12,7 +12,7 @@ const server = http.createServer(common.mustCall(function(req, res) {
   const trailerInvalidErr = {
     code: 'ERR_HTTP_TRAILER_INVALID',
     message: 'Trailers are invalid with this transfer encoding',
-    type: Error
+    type: Error,
   };
   common.expectsError(() => res.writeHead(200, { 'Content-Length': '2' }),
                       trailerInvalidErr);

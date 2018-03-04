@@ -17,7 +17,7 @@ const createReadStreamErr = (path, opt) => {
     },
     {
       code: 'ERR_INVALID_ARG_TYPE',
-      type: TypeError
+      type: TypeError,
     });
 };
 

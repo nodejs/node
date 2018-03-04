@@ -9,7 +9,7 @@ const len = 1422561062959;
 const message = common.expectsError({
   code: 'ERR_INVALID_OPT_VALUE',
   type: RangeError,
-  message: /^The value "[^"]*" is invalid for option "size"$/
+  message: /^The value "[^"]*" is invalid for option "size"$/,
 }, 5);
 assert.throws(() => Buffer(len).toString('utf8'), message);
 assert.throws(() => SlowBuffer(len).toString('utf8'), message);

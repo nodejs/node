@@ -25,7 +25,8 @@ for (const invalidHwm of [true, false, '5', {}, -5, NaN]) {
     }, {
       type: TypeError,
       code: 'ERR_INVALID_OPT_VALUE',
-      message: `The value "${invalidHwm}" is invalid for option "highWaterMark"`
+      message: `The value "${invalidHwm}" is invalid for option ` +
+               '"highWaterMark"',
     });
   }
 }

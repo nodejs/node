@@ -33,7 +33,7 @@ const options = {
   secureOptions: 0,
   secureProtocol: 'secureProtocol',
   servername: 'localhost',
-  sessionIdContext: 'sessionIdContext'
+  sessionIdContext: 'sessionIdContext',
 };
 
 assert.strictEqual(

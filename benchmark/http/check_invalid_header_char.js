@@ -18,12 +18,12 @@ const groupedInputs = {
     'sessionid=; Path=/', 'text/html; charset=utf-8',
     'text/html; charset=utf-8', '10', 'W/"a-eda64de5"', 'OK', 'Express',
     'Express', 'X-HTTP-Method-Override', 'sessionid=; Path=/',
-    'application/json'
+    'application/json',
   ],
 
   // Put it here so the benchmark result lines will not be super long.
   LONG_AND_INVALID: ['Here is a value that is really a folded header ' +
-    'value\r\n  this should be supported, but it is not currently']
+    'value\r\n  this should be supported, but it is not currently'],
 };
 
 const inputs = [
@@ -45,7 +45,7 @@ const inputs = [
   // Invalid
   '中文呢', // unicode
   'foo\nbar',
-  '\x7F'
+  '\x7F',
 ];
 
 const bench = common.createBenchmark(main, {

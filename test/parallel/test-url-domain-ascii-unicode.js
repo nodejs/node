@@ -18,7 +18,7 @@ const domainWithASCII = [
   ['名がドメイン.com', 'xn--v8jxj3d1dzdz08w.com'],
   ['افغانستا.icom.museum', 'xn--mgbaal8b0b9b2b.icom.museum'],
   ['الجزائر.icom.fake', 'xn--lgbbat1ad8j.icom.fake'],
-  ['भारत.org', 'xn--h2brj9c.org']
+  ['भारत.org', 'xn--h2brj9c.org'],
 ];
 
 domainWithASCII.forEach((pair) => {

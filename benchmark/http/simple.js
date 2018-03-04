@@ -7,7 +7,7 @@ const bench = common.createBenchmark(main, {
   len: [4, 1024, 102400],
   chunks: [1, 4],
   c: [50, 500],
-  chunkedEnc: [1, 0]
+  chunkedEnc: [1, 0],
 });
 
 function main({ type, len, chunks, c, chunkedEnc, res }) {
@@ -18,7 +18,7 @@ function main({ type, len, chunks, c, chunkedEnc, res }) {
 
     bench.http({
       path: path,
-      connections: c
+      connections: c,
     }, function() {
       server.close();
     });

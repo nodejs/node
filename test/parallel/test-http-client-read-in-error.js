@@ -34,7 +34,7 @@ class Agent extends http.Agent {
 const agent = new Agent();
 
 http.request({
-  agent
+  agent,
 }).once('error', function() {
   console.log('ignore');
 });

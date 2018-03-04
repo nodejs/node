@@ -48,7 +48,7 @@ assert.strictEqual(release, process.release.name);
   new Object(),
   true,
   undefined,
-  Symbol()
+  Symbol(),
 ].forEach((val) => {
   assert.strictEqual(test_general.testNapiTypeof(val), typeof val);
 });

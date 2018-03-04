@@ -31,7 +31,7 @@ const w2 = new Writable();
 w2.on('error', common.expectsError({
   type: Error,
   code: 'ERR_METHOD_NOT_IMPLEMENTED',
-  message: 'The _write method is not implemented'
+  message: 'The _write method is not implemented',
 }));
 
 w2.end(Buffer.from('blerg'));

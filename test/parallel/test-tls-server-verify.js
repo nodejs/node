@@ -53,8 +53,8 @@ const testCases =
      [{ name: 'agent1', shouldReject: false, shouldAuth: false },
       { name: 'agent2', shouldReject: false, shouldAuth: false },
       { name: 'agent3', shouldReject: false, shouldAuth: false },
-      { name: 'nocert', shouldReject: false, shouldAuth: false }
-     ]
+      { name: 'nocert', shouldReject: false, shouldAuth: false },
+     ],
   },
 
    { title: 'Allow both authed and unauthed connections with CA1',
@@ -66,8 +66,8 @@ const testCases =
     [{ name: 'agent1', shouldReject: false, shouldAuth: true },
      { name: 'agent2', shouldReject: false, shouldAuth: false },
      { name: 'agent3', shouldReject: false, shouldAuth: false },
-     { name: 'nocert', shouldReject: false, shouldAuth: false }
-    ]
+     { name: 'nocert', shouldReject: false, shouldAuth: false },
+    ],
    },
 
    { title: 'Do not request certs at connection. Do that later',
@@ -79,8 +79,8 @@ const testCases =
     [{ name: 'agent1', shouldReject: false, shouldAuth: true },
      { name: 'agent2', shouldReject: false, shouldAuth: false },
      { name: 'agent3', shouldReject: false, shouldAuth: false },
-     { name: 'nocert', shouldReject: false, shouldAuth: false }
-    ]
+     { name: 'nocert', shouldReject: false, shouldAuth: false },
+    ],
    },
 
    { title: 'Allow only authed connections with CA1',
@@ -92,8 +92,8 @@ const testCases =
     [{ name: 'agent1', shouldReject: false, shouldAuth: true },
      { name: 'agent2', shouldReject: true },
      { name: 'agent3', shouldReject: true },
-     { name: 'nocert', shouldReject: true }
-    ]
+     { name: 'nocert', shouldReject: true },
+    ],
    },
 
    { title: 'Allow only authed connections with CA1 and CA2',
@@ -105,8 +105,8 @@ const testCases =
     [{ name: 'agent1', shouldReject: false, shouldAuth: true },
      { name: 'agent2', shouldReject: true },
      { name: 'agent3', shouldReject: false, shouldAuth: true },
-     { name: 'nocert', shouldReject: true }
-    ]
+     { name: 'nocert', shouldReject: true },
+    ],
    },
 
 
@@ -122,9 +122,9 @@ const testCases =
        { name: 'agent3', shouldReject: false, shouldAuth: true },
        // Agent4 has a cert in the CRL.
        { name: 'agent4', shouldReject: true, shouldAuth: false },
-       { name: 'nocert', shouldReject: true }
-     ]
-   }
+       { name: 'nocert', shouldReject: true },
+     ],
+   },
   ];
 
 function filenamePEM(n) {
@@ -271,7 +271,7 @@ function runTest(port, testIndex) {
     ca: cas,
     crl: crl,
     requestCert: tcase.requestCert,
-    rejectUnauthorized: tcase.rejectUnauthorized
+    rejectUnauthorized: tcase.rejectUnauthorized,
   };
 
   /*
@@ -298,7 +298,7 @@ function runTest(port, testIndex) {
         c.write('\n_renegotiating\n');
         return c.renegotiate({
           requestCert: true,
-          rejectUnauthorized: false
+          rejectUnauthorized: false,
         }, function(err) {
           assert.ifError(err);
           c.write('\n_renegotiated\n');

@@ -39,7 +39,7 @@ const dest = new TestWriter();
 class TestReader extends stream.Readable {
   constructor() {
     super({
-      highWaterMark: 0x10000
+      highWaterMark: 0x10000,
     });
   }
 

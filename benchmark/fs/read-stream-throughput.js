@@ -13,7 +13,7 @@ let encodingType, encoding, size, filesize;
 const bench = common.createBenchmark(main, {
   encodingType: ['buf', 'asc', 'utf'],
   filesize: [1000 * 1024 * 1024],
-  size: [1024, 4096, 65535, 1024 * 1024]
+  size: [1024, 4096, 65535, 1024 * 1024],
 });
 
 function main(conf) {
@@ -42,7 +42,7 @@ function runTest() {
   assert(fs.statSync(filename).size === filesize);
   const rs = fs.createReadStream(filename, {
     highWaterMark: size,
-    encoding: encoding
+    encoding: encoding,
   });
 
   rs.on('open', function() {

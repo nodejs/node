@@ -8,7 +8,7 @@ const bench = common.createBenchmark(main, {
   dur: [5],
   type: ['asc', 'utf', 'buf'],
   len: [32, 256, 1024],
-  method: ['write', 'end']
+  method: ['write', 'end'],
 });
 
 function main({ dur, len, type, method }) {
@@ -34,7 +34,7 @@ function main({ dur, len, type, method }) {
     host: '127.0.0.1',
     port: common.PORT,
     path: '/',
-    method: 'POST'
+    method: 'POST',
   };
 
   const server = http.createServer(function(req, res) {

@@ -13,6 +13,6 @@ common.expectsError(
   () => recurse(),
   {
     type: RangeError,
-    message: 'Maximum call stack size exceeded'
+    message: 'Maximum call stack size exceeded',
   }
 );

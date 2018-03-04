@@ -11,7 +11,7 @@ const stream = new common.ArrayStream();
 testContext(repl.start({
   input: stream,
   output: stream,
-  useGlobal: false
+  useGlobal: false,
 }));
 
 function testContext(repl) {

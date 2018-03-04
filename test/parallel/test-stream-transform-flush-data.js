@@ -18,7 +18,7 @@ function _flush(n) {
 
 const t = new Transform({
   transform: _transform,
-  flush: _flush
+  flush: _flush,
 });
 
 t.end(Buffer.from('blerg'));

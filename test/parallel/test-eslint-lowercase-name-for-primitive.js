@@ -12,7 +12,7 @@ const valid = [
   'number',
   'boolean',
   'null',
-  'undefined'
+  'undefined',
 ];
 
 new RuleTester().run('lowercase-name-for-primitive', rule, {
@@ -20,7 +20,7 @@ new RuleTester().run('lowercase-name-for-primitive', rule, {
     'new errors.TypeError("ERR_INVALID_ARG_TYPE", "a", ["string", "number"])',
     ...valid.map((name) =>
       `new errors.TypeError("ERR_INVALID_ARG_TYPE", "name", "${name}")`
-    )
+    ),
   ],
   invalid: [
     {
@@ -28,24 +28,24 @@ new RuleTester().run('lowercase-name-for-primitive', rule, {
             '\'Number\')',
       errors: [{ message: 'primitive should use lowercase: Number' }],
       output: 'new errors.TypeError(\'ERR_INVALID_ARG_TYPE\', \'a\', ' +
-              '\'number\')'
+              '\'number\')',
     },
     {
       code: 'new errors.TypeError(\'ERR_INVALID_ARG_TYPE\', \'a\', ' +
             '\'STRING\')',
       errors: [{ message: 'primitive should use lowercase: STRING' }],
       output: 'new errors.TypeError(\'ERR_INVALID_ARG_TYPE\', \'a\', ' +
-               '\'string\')'
+               '\'string\')',
     },
     {
       code: 'new errors.TypeError(\'ERR_INVALID_ARG_TYPE\', \'a\', ' +
             '[\'String\', \'Number\']) ',
       errors: [
         { message: 'primitive should use lowercase: String' },
-        { message: 'primitive should use lowercase: Number' }
+        { message: 'primitive should use lowercase: Number' },
       ],
       output: 'new errors.TypeError(\'ERR_INVALID_ARG_TYPE\', \'a\', ' +
-              '[\'string\', \'number\']) '
-    }
-  ]
+              '[\'string\', \'number\']) ',
+    },
+  ],
 });

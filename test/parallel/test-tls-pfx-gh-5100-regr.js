@@ -15,7 +15,7 @@ const server = tls.createServer({
   pfx: pfx,
   passphrase: 'sample',
   requestCert: true,
-  rejectUnauthorized: false
+  rejectUnauthorized: false,
 }, common.mustCall(function(c) {
   assert.strictEqual(c.authorizationError, null);
   c.end();
@@ -24,7 +24,7 @@ const server = tls.createServer({
     port: this.address().port,
     pfx: pfx,
     passphrase: 'sample',
-    rejectUnauthorized: false
+    rejectUnauthorized: false,
   }, function() {
     client.end();
     server.close();

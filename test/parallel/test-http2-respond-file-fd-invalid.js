@@ -9,13 +9,13 @@ const fs = require('fs');
 const http2 = require('http2');
 
 const {
-  NGHTTP2_INTERNAL_ERROR
+  NGHTTP2_INTERNAL_ERROR,
 } = http2.constants;
 
 const errorCheck = common.expectsError({
   code: 'ERR_HTTP2_STREAM_ERROR',
   type: Error,
-  message: 'Stream closed with error code NGHTTP2_INTERNAL_ERROR'
+  message: 'Stream closed with error code NGHTTP2_INTERNAL_ERROR',
 }, 2);
 
 const server = http2.createServer();

@@ -19,13 +19,13 @@ const types = [
   'FloatLE',
   'FloatBE',
   'DoubleLE',
-  'DoubleBE'
+  'DoubleBE',
 ];
 
 const bench = common.createBenchmark(main, {
   buffer: ['fast', 'slow'],
   type: types,
-  millions: [1]
+  millions: [1],
 });
 
 const INT8 = 0x7f;
@@ -49,14 +49,14 @@ const mod = {
   writeUIntLE: INT8,
   writeUIntBE: INT16,
   writeIntLE: INT32,
-  writeIntBE: INT48
+  writeIntBE: INT48,
 };
 
 const byteLength = {
   writeUIntLE: 1,
   writeUIntBE: 2,
   writeIntLE: 4,
-  writeIntBE: 6
+  writeIntBE: 6,
 };
 
 function main({ millions, buf, type }) {

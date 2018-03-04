@@ -34,7 +34,7 @@ const fixtures = require('../common/fixtures');
 
 const options = {
   key: fixtures.readKey('agent2-key.pem'),
-  cert: fixtures.readKey('agent2-cert.pem')
+  cert: fixtures.readKey('agent2-cert.pem'),
 };
 
 const big = Buffer.alloc(2 * 1024 * 1024, 'Y');
@@ -49,7 +49,7 @@ const server = tls.createServer(options, common.mustCall(function(socket) {
 server.listen(0, common.mustCall(function() {
   const client = tls.connect({
     port: this.address().port,
-    rejectUnauthorized: false
+    rejectUnauthorized: false,
   }, common.mustCall(function() {
     let bytesRead = 0;
 

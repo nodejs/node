@@ -105,125 +105,125 @@ async function runReplTests(socket, prompt, tests) {
 const unixTests = [
   {
     send: '',
-    expect: ''
+    expect: '',
   },
   {
     send: 'message',
-    expect: `'${message}'`
+    expect: `'${message}'`,
   },
   {
     send: 'invoke_me(987)',
-    expect: '\'invoked 987\''
+    expect: '\'invoked 987\'',
   },
   {
     send: 'a = 12345',
-    expect: '12345'
+    expect: '12345',
   },
   {
     send: '{a:1}',
-    expect: '{ a: 1 }'
-  }
+    expect: '{ a: 1 }',
+  },
 ];
 
 const strictModeTests = [
   {
     send: 'ref = 1',
-    expect: /^ReferenceError:\s/
-  }
+    expect: /^ReferenceError:\s/,
+  },
 ];
 
 const errorTests = [
   // Uncaught error throws and prints out
   {
     send: 'throw new Error(\'test error\');',
-    expect: /^Error: test error/
+    expect: /^Error: test error/,
   },
   // Common syntax error is treated as multiline command
   {
     send: 'function test_func() {',
-    expect: '... '
+    expect: '... ',
   },
   // You can recover with the .break command
   {
     send: '.break',
-    expect: ''
+    expect: '',
   },
   // But passing the same string to eval() should throw
   {
     send: 'eval("function test_func() {")',
-    expect: /^SyntaxError: /
+    expect: /^SyntaxError: /,
   },
   // Can handle multiline template literals
   {
     send: '`io.js',
-    expect: '... '
+    expect: '... ',
   },
   // Special REPL commands still available
   {
     send: '.break',
-    expect: ''
+    expect: '',
   },
   // Template expressions can cross lines
   {
     send: '`io.js ${"1.0"',
-    expect: '... '
+    expect: '... ',
   },
   {
     send: '+ ".2"}`',
-    expect: '\'io.js 1.0.2\''
+    expect: '\'io.js 1.0.2\'',
   },
   // Dot prefix in multiline commands aren't treated as commands
   {
     send: '("a"',
-    expect: '... '
+    expect: '... ',
   },
   {
     send: '.charAt(0))',
-    expect: '\'a\''
+    expect: '\'a\'',
   },
   // Floating point numbers are not interpreted as REPL commands.
   {
     send: '.1234',
-    expect: '0.1234'
+    expect: '0.1234',
   },
   // Floating point expressions are not interpreted as REPL commands
   {
     send: '.1+.1',
-    expect: '0.2'
+    expect: '0.2',
   },
   // Can parse valid JSON
   {
     send: 'JSON.parse(\'{"valid": "json"}\');',
-    expect: '{ valid: \'json\' }'
+    expect: '{ valid: \'json\' }',
   },
   // invalid input to JSON.parse error is special case of syntax error,
   // should throw
   {
     send: 'JSON.parse(\'{invalid: \\\'json\\\'}\');',
-    expect: [/^SyntaxError: /, '']
+    expect: [/^SyntaxError: /, ''],
   },
   // end of input to JSON.parse error is special case of syntax error,
   // should throw
   {
     send: 'JSON.parse(\'066\');',
-    expect: [/^SyntaxError: /, '']
+    expect: [/^SyntaxError: /, ''],
   },
   // should throw
   {
     send: 'JSON.parse(\'{\');',
-    expect: [/^SyntaxError: /, '']
+    expect: [/^SyntaxError: /, ''],
   },
   // invalid RegExps are a special case of syntax error,
   // should throw
   {
     send: '/(/;',
-    expect: /^SyntaxError: /
+    expect: /^SyntaxError: /,
   },
   // invalid RegExp modifiers are a special case of syntax error,
   // should throw (GH-4012)
   {
     send: 'new RegExp("foo", "wrong modifier");',
-    expect: [/^SyntaxError: /, '']
+    expect: [/^SyntaxError: /, ''],
   },
   // strict mode syntax errors should be caught (GH-5178)
   {
@@ -233,8 +233,8 @@ const errorTests = [
       kArrow,
       '',
       /^SyntaxError: /,
-      ''
-    ]
+      '',
+    ],
   },
   {
     send: '(function(a, a, b) { "use strict"; return a + b + c; })()',
@@ -243,8 +243,8 @@ const errorTests = [
       kArrow,
       '',
       /^SyntaxError: /,
-      ''
-    ]
+      '',
+    ],
   },
   {
     send: '(function() { "use strict"; with (this) {} })()',
@@ -253,8 +253,8 @@ const errorTests = [
       kArrow,
       '',
       /^SyntaxError: /,
-      ''
-    ]
+      '',
+    ],
   },
   {
     send: '(function() { "use strict"; var x; delete x; })()',
@@ -263,8 +263,8 @@ const errorTests = [
       kArrow,
       '',
       /^SyntaxError: /,
-      ''
-    ]
+      '',
+    ],
   },
   {
     send: '(function() { "use strict"; eval = 17; })()',
@@ -273,8 +273,8 @@ const errorTests = [
       kArrow,
       '',
       /^SyntaxError: /,
-      ''
-    ]
+      '',
+    ],
   },
   {
     send: '(function() { "use strict"; if (true) function f() { } })()',
@@ -283,97 +283,97 @@ const errorTests = [
       kArrow,
       '',
       /^SyntaxError: /,
-      ''
-    ]
+      '',
+    ],
   },
   // Named functions can be used:
   {
     send: 'function blah() { return 1; }',
-    expect: 'undefined'
+    expect: 'undefined',
   },
   {
     send: 'blah()',
-    expect: '1'
+    expect: '1',
   },
   // Functions should not evaluate twice (#2773)
   {
     send: 'var I = [1,2,3,function() {}]; I.pop()',
-    expect: '[Function]'
+    expect: '[Function]',
   },
   // Multiline object
   {
     send: '{ a: ',
-    expect: '... '
+    expect: '... ',
   },
   {
     send: '1 }',
-    expect: '{ a: 1 }'
+    expect: '{ a: 1 }',
   },
   // Multiline anonymous function with comment
   {
     send: '(function() {',
-    expect: '... '
+    expect: '... ',
   },
   {
     send: '// blah',
-    expect: '... '
+    expect: '... ',
   },
   {
     send: 'return 1;',
-    expect: '... '
+    expect: '... ',
   },
   {
     send: '})()',
-    expect: '1'
+    expect: '1',
   },
   // Multiline function call
   {
     send: 'function f(){}; f(f(1,',
-    expect: '... '
+    expect: '... ',
   },
   {
     send: '2)',
-    expect: '... '
+    expect: '... ',
   },
   {
     send: ')',
-    expect: 'undefined'
+    expect: 'undefined',
   },
   // npm prompt error message
   {
     send: 'npm install foobar',
     expect: [
       'npm should be run outside of the node repl, in your normal shell.',
-      '(Press Control-D to exit.)'
-    ]
+      '(Press Control-D to exit.)',
+    ],
   },
   {
     send: '(function() {\n\nreturn 1;\n})()',
-    expect: '... ... ... 1'
+    expect: '... ... ... 1',
   },
   {
     send: '{\n\na: 1\n}',
-    expect: '... ... ... { a: 1 }'
+    expect: '... ... ... { a: 1 }',
   },
   {
     send: 'url.format("http://google.com")',
-    expect: '\'http://google.com/\''
+    expect: '\'http://google.com/\'',
   },
   {
     send: 'var path = 42; path',
-    expect: '42'
+    expect: '42',
   },
   // this makes sure that we don't print `undefined` when we actually print
   // the error message
   {
     send: '.invalid_repl_command',
-    expect: 'Invalid REPL keyword'
+    expect: 'Invalid REPL keyword',
   },
   // this makes sure that we don't crash when we use an inherited property as
   // a REPL command
   {
     send: '.toString',
-    expect: 'Invalid REPL keyword'
+    expect: 'Invalid REPL keyword',
   },
   // fail when we are not inside a String and a line continuation is used
   {
@@ -383,13 +383,13 @@ const errorTests = [
       kArrow,
       '',
       /^SyntaxError: /,
-      ''
-    ]
+      '',
+    ],
   },
   // do not fail when a String is created with line continuation
   {
     send: '\'the\\\nfourth\\\neye\'',
-    expect: ['... ... \'thefourtheye\'']
+    expect: ['... ... \'thefourtheye\''],
   },
   // Don't fail when a partial String is created and line continuation is used
   // with whitespace characters at the end of the string. We are to ignore it.
@@ -397,22 +397,22 @@ const errorTests = [
   // characters at the end of line, unlike the buggy `trimWhitespace` function
   {
     send: '  \t    .break  \t  ',
-    expect: ''
+    expect: '',
   },
   // multiline strings preserve whitespace characters in them
   {
     send: '\'the \\\n   fourth\t\t\\\n  eye  \'',
-    expect: '... ... \'the    fourth\\t\\t  eye  \''
+    expect: '... ... \'the    fourth\\t\\t  eye  \'',
   },
   // more than one multiline strings also should preserve whitespace chars
   {
     send: '\'the \\\n   fourth\' +  \'\t\t\\\n  eye  \'',
-    expect: '... ... \'the    fourth\\t\\t  eye  \''
+    expect: '... ... \'the    fourth\\t\\t  eye  \'',
   },
   // using REPL commands within a string literal should still work
   {
     send: '\'\\\n.break',
-    expect: '... ' + prompt_unix
+    expect: '... ' + prompt_unix,
   },
   // using REPL command "help" within a string literal should still work
   {
@@ -425,88 +425,88 @@ const errorTests = [
       /\.help/,
       /\.load/,
       /\.save/,
-      /'thefourtheye'/
-    ]
+      /'thefourtheye'/,
+    ],
   },
   // empty lines in the REPL should be allowed
   {
     send: '\n\r\n\r\n',
-    expect: ''
+    expect: '',
   },
   // empty lines in the string literals should not affect the string
   {
     send: '\'the\\\n\\\nfourtheye\'\n',
-    expect: '... ... \'thefourtheye\''
+    expect: '... ... \'thefourtheye\'',
   },
   // Regression test for https://github.com/nodejs/node/issues/597
   {
     send: '/(.)(.)(.)(.)(.)(.)(.)(.)(.)/.test(\'123456789\')\n',
-    expect: 'true'
+    expect: 'true',
   },
   // the following test's result depends on the RegExp's match from the above
   {
     send: 'RegExp.$1\nRegExp.$2\nRegExp.$3\nRegExp.$4\nRegExp.$5\n' +
           'RegExp.$6\nRegExp.$7\nRegExp.$8\nRegExp.$9\n',
     expect: ['\'1\'', '\'2\'', '\'3\'', '\'4\'', '\'5\'', '\'6\'',
-             '\'7\'', '\'8\'', '\'9\'']
+             '\'7\'', '\'8\'', '\'9\''],
   },
   // regression tests for https://github.com/nodejs/node/issues/2749
   {
     send: 'function x() {\nreturn \'\\n\';\n }',
-    expect: '... ... undefined'
+    expect: '... ... undefined',
   },
   {
     send: 'function x() {\nreturn \'\\\\\';\n }',
-    expect: '... ... undefined'
+    expect: '... ... undefined',
   },
   // regression tests for https://github.com/nodejs/node/issues/3421
   {
     send: 'function x() {\n//\'\n }',
-    expect: '... ... undefined'
+    expect: '... ... undefined',
   },
   {
     send: 'function x() {\n//"\n }',
-    expect: '... ... undefined'
+    expect: '... ... undefined',
   },
   {
     send: 'function x() {//\'\n }',
-    expect: '... undefined'
+    expect: '... undefined',
   },
   {
     send: 'function x() {//"\n }',
-    expect: '... undefined'
+    expect: '... undefined',
   },
   {
     send: 'function x() {\nvar i = "\'";\n }',
-    expect: '... ... undefined'
+    expect: '... ... undefined',
   },
   {
     send: 'function x(/*optional*/) {}',
-    expect: 'undefined'
+    expect: 'undefined',
   },
   {
     send: 'function x(/* // 5 */) {}',
-    expect: 'undefined'
+    expect: 'undefined',
   },
   {
     send: '// /* 5 */',
-    expect: 'undefined'
+    expect: 'undefined',
   },
   {
     send: '"//"',
-    expect: '\'//\''
+    expect: '\'//\'',
   },
   {
     send: '"data /*with*/ comment"',
-    expect: '\'data /*with*/ comment\''
+    expect: '\'data /*with*/ comment\'',
   },
   {
     send: 'function x(/*fn\'s optional params*/) {}',
-    expect: 'undefined'
+    expect: 'undefined',
   },
   {
     send: '/* \'\n"\n\'"\'\n*/',
-    expect: '... ... ... undefined'
+    expect: '... ... ... undefined',
   },
   // REPL should get a normal require() function, not one that allows
   // access to internal modules without the --expose_internals flag.
@@ -517,29 +517,29 @@ const errorTests = [
       /^    at .*/,
       /^    at .*/,
       /^    at .*/,
-      /^    at .*/
-    ]
+      /^    at .*/,
+    ],
   },
   // REPL should handle quotes within regexp literal in multiline mode
   {
     send: "function x(s) {\nreturn s.replace(/'/,'');\n}",
-    expect: '... ... undefined'
+    expect: '... ... undefined',
   },
   {
     send: "function x(s) {\nreturn s.replace(/'/,'');\n}",
-    expect: '... ... undefined'
+    expect: '... ... undefined',
   },
   {
     send: 'function x(s) {\nreturn s.replace(/"/,"");\n}',
-    expect: '... ... undefined'
+    expect: '... ... undefined',
   },
   {
     send: 'function x(s) {\nreturn s.replace(/.*/,"");\n}',
-    expect: '... ... undefined'
+    expect: '... ... undefined',
   },
   {
     send: '{ var x = 4; }',
-    expect: 'undefined'
+    expect: 'undefined',
   },
   // Illegal token is not recoverable outside string literal, RegExp literal,
   // or block comment. https://github.com/nodejs/node/issues/3611
@@ -550,17 +550,17 @@ const errorTests = [
       kArrow,
       '',
       /^SyntaxError: /,
-      ''
-    ]
+      '',
+    ],
   },
   // Mitigate https://github.com/nodejs/node/issues/548
   {
     send: 'function name(){ return "node"; };name()',
-    expect: '\'node\''
+    expect: '\'node\'',
   },
   {
     send: 'function name(){ return "nodejs"; };name()',
-    expect: '\'nodejs\''
+    expect: '\'nodejs\'',
   },
   // Avoid emitting repl:line-number for SyntaxError
   {
@@ -570,8 +570,8 @@ const errorTests = [
       kArrow,
       '',
       /^SyntaxError: /,
-      ''
-    ]
+      '',
+    ],
   },
   // Avoid emitting stack trace
   {
@@ -581,96 +581,96 @@ const errorTests = [
       kArrow,
       '',
       /^SyntaxError: /,
-      ''
-    ]
+      '',
+    ],
   },
 
   // https://github.com/nodejs/node/issues/9850
   {
     send: 'function* foo() {}; foo().next();',
-    expect: '{ value: undefined, done: true }'
+    expect: '{ value: undefined, done: true }',
   },
 
   {
     send: 'function *foo() {}; foo().next();',
-    expect: '{ value: undefined, done: true }'
+    expect: '{ value: undefined, done: true }',
   },
 
   {
     send: 'function*foo() {}; foo().next();',
-    expect: '{ value: undefined, done: true }'
+    expect: '{ value: undefined, done: true }',
   },
 
   {
     send: 'function * foo() {}; foo().next()',
-    expect: '{ value: undefined, done: true }'
+    expect: '{ value: undefined, done: true }',
   },
 
   // https://github.com/nodejs/node/issues/9300
   {
     send: 'function foo() {\nvar bar = 1 / 1; // "/"\n}',
-    expect: '... ... undefined'
+    expect: '... ... undefined',
   },
 
   {
     send: '(function() {\nreturn /foo/ / /bar/;\n}())',
-    expect: '... ... NaN'
+    expect: '... ... NaN',
   },
 
   {
     send: '(function() {\nif (false) {} /bar"/;\n}())',
-    expect: '... ... undefined'
+    expect: '... ... undefined',
   },
 
   // https://github.com/nodejs/node/issues/16483
   {
     send: 'new Proxy({x:42}, {get(){throw null}});',
-    expect: 'Proxy [ { x: 42 }, { get: [Function: get] } ]'
+    expect: 'Proxy [ { x: 42 }, { get: [Function: get] } ]',
   },
   {
     send: 'repl.writer.options.showProxy = false, new Proxy({x:42}, {});',
-    expect: '{ x: 42 }'
+    expect: '{ x: 42 }',
   },
 
   // Newline within template string maintains whitespace.
   {
     send: '`foo \n`',
-    expect: '... \'foo \\n\''
+    expect: '... \'foo \\n\'',
   },
   // Whitespace is not evaluated.
   {
     send: ' \t  \n',
-    expect: 'undefined'
+    expect: 'undefined',
   },
   // Do not parse `...[]` as a REPL keyword
   {
     send: '...[]\n',
-    expect: '... ... '
+    expect: '... ... ',
   },
   // bring back the repl to prompt
   {
     send: '.break',
-    expect: ''
-  }
+    expect: '',
+  },
 ];
 
 const tcpTests = [
   {
     send: '',
-    expect: ''
+    expect: '',
   },
   {
     send: 'invoke_me(333)',
-    expect: '\'invoked 333\''
+    expect: '\'invoked 333\'',
   },
   {
     send: 'a += 1',
-    expect: '12346'
+    expect: '12346',
   },
   {
     send: `require(${JSON.stringify(moduleFilename)}).number`,
-    expect: '42'
-  }
+    expect: '42',
+  },
 ];
 
 (async function() {
@@ -725,7 +725,7 @@ function startTCPRepl() {
 
   return Promise.all([
     new Promise((resolve) => resolveSocket = resolve),
-    new Promise((resolve) => resolveReplServer = resolve)
+    new Promise((resolve) => resolveReplServer = resolve),
   ]);
 }
 
@@ -743,7 +743,7 @@ function startUnixRepl() {
       prompt: prompt_unix,
       input: socket,
       output: socket,
-      useGlobal: true
+      useGlobal: true,
     });
     replServer.context.message = message;
     resolveReplServer(replServer);
@@ -768,7 +768,7 @@ function startUnixRepl() {
 
   return Promise.all([
     new Promise((resolve) => resolveSocket = resolve),
-    new Promise((resolve) => resolveReplServer = resolve)
+    new Promise((resolve) => resolveReplServer = resolve),
   ]);
 }
 

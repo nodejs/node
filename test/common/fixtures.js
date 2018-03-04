@@ -24,5 +24,5 @@ module.exports = {
   fixturesDir,
   path: fixturesPath,
   readSync: readFixtureSync,
-  readKey: readFixtureKey
+  readKey: readFixtureKey,
 };

@@ -35,7 +35,7 @@ const messages = [
   Buffer.from('First message to send'),
   Buffer.from('Second message to send'),
   Buffer.from('Third message to send'),
-  Buffer.from('Fourth message to send')
+  Buffer.from('Fourth message to send'),
 ];
 const workers = {};
 const listeners = 3;
@@ -195,7 +195,7 @@ if (process.argv[2] === 'child') {
   const receivedMessages = [];
   const listenSocket = dgram.createSocket({
     type: 'udp4',
-    reuseAddr: true
+    reuseAddr: true,
   });
 
   listenSocket.on('listening', function() {

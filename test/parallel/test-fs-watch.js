@@ -32,7 +32,7 @@ const cases = [
     'watch2',
     'bar',
     'dirPath'
-  )
+  ),
 ];
 
 const tmpdir = require('../common/tmpdir');

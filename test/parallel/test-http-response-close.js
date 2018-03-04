@@ -39,7 +39,7 @@ server.listen(0);
 server.on('listening', function() {
   console.error('make req');
   http.get({
-    port: this.address().port
+    port: this.address().port,
   }, function(res) {
     console.error('got res');
     res.on('data', function(data) {

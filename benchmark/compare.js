@@ -69,7 +69,7 @@ if (showProgress) {
   const job = queue[i];
 
   const child = fork(path.resolve(__dirname, job.filename), cli.optional.set, {
-    execPath: cli.optional[job.binary]
+    execPath: cli.optional[job.binary],
   });
 
   child.on('message', function(data) {

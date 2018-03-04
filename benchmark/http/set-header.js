@@ -3,7 +3,7 @@ const common = require('../common.js');
 const PORT = common.PORT;
 
 const bench = common.createBenchmark(main, {
-  res: ['normal', 'setHeader', 'setHeaderWH']
+  res: ['normal', 'setHeader', 'setHeaderWH'],
 });
 
 const type = 'bytes';
@@ -24,7 +24,7 @@ function main({ res }) {
 
     bench.http({
       path: path,
-      connections: c
+      connections: c,
     }, function() {
       server.close();
     });

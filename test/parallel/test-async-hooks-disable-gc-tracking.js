@@ -8,7 +8,7 @@ const common = require('../common');
 const async_hooks = require('async_hooks');
 
 const hook = async_hooks.createHook({
-  destroy: common.mustCall(1) // only 1 immediate is destroyed
+  destroy: common.mustCall(1), // only 1 immediate is destroyed
 }).enable();
 
 new async_hooks.AsyncResource('foobar', { requireManualDestroy: true });

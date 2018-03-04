@@ -18,6 +18,6 @@ function typeErrorForFunction(functionName) {
   }, {
     code: 'ERR_ASYNC_CALLBACK',
     type: TypeError,
-    message: `hook.${functionName} must be a function`
+    message: `hook.${functionName} must be a function`,
   });
 }

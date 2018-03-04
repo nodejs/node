@@ -18,7 +18,7 @@ s.listen(0, nextTest);
 function nextTest() {
   const options = {
     port: s.address().port,
-    headers: { 'Expect': 'meoww' }
+    headers: { 'Expect': 'meoww' },
   };
 
   if (testIdx === tests.length) {

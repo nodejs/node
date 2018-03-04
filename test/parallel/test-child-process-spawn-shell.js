@@ -20,7 +20,7 @@ doesNotExist.on('exit', common.mustCall((code, signal) => {
 // Verify that passing arguments works
 const echo = cp.spawn('echo', ['foo'], {
   encoding: 'utf8',
-  shell: true
+  shell: true,
 });
 let echoOutput = '';
 
@@ -37,7 +37,7 @@ echo.on('close', common.mustCall((code, signal) => {
 const cmd = 'echo bar | cat';
 const command = cp.spawn(cmd, {
   encoding: 'utf8',
-  shell: true
+  shell: true,
 });
 let commandOutput = '';
 
@@ -52,7 +52,7 @@ command.on('close', common.mustCall((code, signal) => {
 const env = cp.spawn(`"${process.execPath}" -pe process.env.BAZ`, {
   env: Object.assign({}, process.env, { BAZ: 'buzz' }),
   encoding: 'utf8',
-  shell: true
+  shell: true,
 });
 let envOutput = '';
 

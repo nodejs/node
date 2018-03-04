@@ -53,7 +53,7 @@ testMe._domain.on('error', function(err) {
 putIn.run(['.clear']);
 putIn.run([
   'var inner = {',
-  'one:1'
+  'one:1',
 ]);
 testMe.complete('inner.o', getNoResultsFunction());
 
@@ -73,7 +73,7 @@ putIn.run(['.clear']);
 putIn.run([
   'var inner = ( true ',
   '?',
-  '{one: 1} : '
+  '{one: 1} : ',
 ]);
 testMe.complete('inner.o', getNoResultsFunction());
 
@@ -82,7 +82,7 @@ putIn.run(['.clear']);
 // Tab Complete will return a simple local variable
 putIn.run([
   'var top = function() {',
-  'var inner = {one:1};'
+  'var inner = {one:1};',
 ]);
 testMe.complete('inner.o', common.mustCall(function(error, data) {
   assert.deepStrictEqual(data, works);
@@ -100,7 +100,7 @@ putIn.run([
   'var top = function() {',
   'var inner = {',
   ' one:1',
-  '};'
+  '};',
 ]);
 testMe.complete('inner.o', common.mustCall(function(error, data) {
   assert.deepStrictEqual(data, works);
@@ -114,7 +114,7 @@ putIn.run([
   'var top = function(one, two) {',
   'var inner = {',
   ' one:1',
-  '};'
+  '};',
 ]);
 testMe.complete('inner.o', common.mustCall(function(error, data) {
   assert.deepStrictEqual(data, works);
@@ -129,7 +129,7 @@ putIn.run([
   '(function test () {',
   'var inner = {',
   ' one:1',
-  '};'
+  '};',
 ]);
 testMe.complete('inner.o', common.mustCall(function(error, data) {
   assert.deepStrictEqual(data, works);
@@ -144,7 +144,7 @@ putIn.run([
   ' one, two) {',
   'var inner = {',
   ' one:1',
-  '};'
+  '};',
 ]);
 testMe.complete('inner.o', getNoResultsFunction());
 
@@ -157,7 +157,7 @@ putIn.run([
   '{',
   'var inner = {',
   ' one:1',
-  '};'
+  '};',
 ]);
 testMe.complete('inner.o', getNoResultsFunction());
 
@@ -171,7 +171,7 @@ putIn.run([
   '{',
   'var inner = {',
   ' one:1',
-  '};'
+  '};',
 ]);
 testMe.complete('inner.o', getNoResultsFunction());
 
@@ -179,7 +179,7 @@ putIn.run(['.clear']);
 
 // make sure tab completion works on non-Objects
 putIn.run([
-  'var str = "test";'
+  'var str = "test";',
 ]);
 testMe.complete('str.len', common.mustCall(function(error, data) {
   assert.deepStrictEqual(data, [['str.length'], 'str.len']);
@@ -298,7 +298,7 @@ testMe.complete('require(\'n', common.mustCall(function(error, data) {
 putIn.run(['.clear']);
 
 putIn.run([
-  'var custom = "test";'
+  'var custom = "test";',
 ]);
 testMe.complete('cus', common.mustCall(function(error, data) {
   assert.deepStrictEqual(data, [['custom'], 'cus']);
@@ -309,7 +309,7 @@ testMe.complete('cus', common.mustCall(function(error, data) {
 putIn.run(['.clear']);
 
 putIn.run([
-  'var proxy = new Proxy({}, {ownKeys: () => { throw new Error(); }});'
+  'var proxy = new Proxy({}, {ownKeys: () => { throw new Error(); }});',
 ]);
 
 testMe.complete('proxy.', common.mustCall(function(error, data) {
@@ -394,7 +394,7 @@ const warningRegEx = new RegExp(
     putIn.run([
       'var ele = [];',
       'for (let i = 0; i < 1e6 + 1; i++) ele[i] = 0;',
-      'ele.biu = 1;'
+      'ele.biu = 1;',
     ]);
   } else if (type === Buffer) {
     putIn.run(['var ele = Buffer.alloc(1e6 + 1); ele.biu = 1;']);
@@ -435,7 +435,7 @@ testMe.complete('Buffer.prototype.', common.mustCall());
 const testNonGlobal = repl.start({
   input: putIn,
   output: putIn,
-  useGlobal: false
+  useGlobal: false,
 });
 
 const builtins = [['Infinity', '', 'Int16Array', 'Int32Array',
@@ -459,7 +459,7 @@ const testCustomCompleterSyncMode = repl.start({
     const hits = customCompletions.filter((c) => c.startsWith(line));
     // Show all completions if none found.
     return [hits.length ? hits : customCompletions, line];
-  }
+  },
 });
 
 // On empty line should output all the custom completions
@@ -467,7 +467,7 @@ const testCustomCompleterSyncMode = repl.start({
 testCustomCompleterSyncMode.complete('', common.mustCall((error, data) => {
   assert.deepStrictEqual(data, [
     customCompletions,
-    ''
+    '',
   ]);
 }));
 
@@ -475,7 +475,7 @@ testCustomCompleterSyncMode.complete('', common.mustCall((error, data) => {
 testCustomCompleterSyncMode.complete('a', common.mustCall((error, data) => {
   assert.deepStrictEqual(data, [
     'aaa aa1 aa2'.split(' '),
-    'a'
+    'a',
   ]);
 }));
 
@@ -489,7 +489,7 @@ const testCustomCompleterAsyncMode = repl.start({
     const hits = customCompletions.filter((c) => c.startsWith(line));
     // Show all completions if none found.
     callback(null, [hits.length ? hits : customCompletions, line]);
-  }
+  },
 });
 
 // On empty line should output all the custom completions
@@ -497,7 +497,7 @@ const testCustomCompleterAsyncMode = repl.start({
 testCustomCompleterAsyncMode.complete('', common.mustCall((error, data) => {
   assert.deepStrictEqual(data, [
     customCompletions,
-    ''
+    '',
   ]);
 }));
 
@@ -505,7 +505,7 @@ testCustomCompleterAsyncMode.complete('', common.mustCall((error, data) => {
 testCustomCompleterAsyncMode.complete('a', common.mustCall((error, data) => {
   assert.deepStrictEqual(data, [
     'aaa aa1 aa2'.split(' '),
-    'a'
+    'a',
   ]);
 }));
 
@@ -514,7 +514,7 @@ const editorStream = new common.ArrayStream();
 const editor = repl.start({
   stream: editorStream,
   terminal: true,
-  useColors: false
+  useColors: false,
 });
 
 editorStream.run(['.clear']);

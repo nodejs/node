@@ -30,7 +30,7 @@ const fixtures = require('../common/fixtures');
 
 const options = {
   key: fixtures.readSync('test_key.pem'),
-  cert: fixtures.readSync('test_cert.pem')
+  cert: fixtures.readSync('test_cert.pem'),
 };
 
 const buf = Buffer.allocUnsafe(1024 * 1024);
@@ -47,7 +47,7 @@ server.listen(common.PORT, function() {
   const req = https.request({
     method: 'POST',
     port: common.PORT,
-    rejectUnauthorized: false
+    rejectUnauthorized: false,
   }, function(res) {
     res.read(0);
 

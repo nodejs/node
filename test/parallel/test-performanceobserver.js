@@ -4,12 +4,12 @@ const common = require('../common');
 const Countdown = require('../common/countdown');
 const assert = require('assert');
 const {
-  observerCounts: counts
+  observerCounts: counts,
 } = process.binding('performance');
 const {
   performance,
   PerformanceObserver,
-  constants
+  constants,
 } = require('perf_hooks');
 
 const {
@@ -32,7 +32,7 @@ assert.strictEqual(counts[NODE_PERFORMANCE_ENTRY_TYPE_FUNCTION], 0);
                         {
                           code: 'ERR_INVALID_CALLBACK',
                           type: TypeError,
-                          message: 'Callback must be a function'
+                          message: 'Callback must be a function',
                         });
   });
   const observer = new PerformanceObserver(common.mustNotCall());
@@ -44,7 +44,7 @@ assert.strictEqual(counts[NODE_PERFORMANCE_ENTRY_TYPE_FUNCTION], 0);
       {
         code: 'ERR_INVALID_ARG_TYPE',
         type: TypeError,
-        message: 'The "options" argument must be of type Object'
+        message: 'The "options" argument must be of type Object',
       });
   });
 
@@ -54,7 +54,7 @@ assert.strictEqual(counts[NODE_PERFORMANCE_ENTRY_TYPE_FUNCTION], 0);
                           code: 'ERR_INVALID_OPT_VALUE',
                           type: TypeError,
                           message: 'The value "[object Object]" is invalid ' +
-                                   'for option "entryTypes"'
+                                   'for option "entryTypes"',
                         });
   });
 }

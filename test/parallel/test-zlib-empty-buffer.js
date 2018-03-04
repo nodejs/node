@@ -14,7 +14,7 @@ common.crashOnUnhandledRejection();
     [ zlib.gzipSync, zlib.gunzipSync, 'gzip sync' ],
     [ promisify(zlib.deflateRaw), promisify(zlib.inflateRaw), 'raw' ],
     [ promisify(zlib.deflate), promisify(zlib.inflate), 'deflate' ],
-    [ promisify(zlib.gzip), promisify(zlib.gunzip), 'gzip' ]
+    [ promisify(zlib.gzip), promisify(zlib.gunzip), 'gzip' ],
   ]) {
     const compressed = await compress(emptyBuffer);
     const decompressed = await decompress(compressed);

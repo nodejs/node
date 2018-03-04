@@ -47,7 +47,7 @@ const winPaths = [
   ['\\\\server two\\shared folder\\file path.zip',
    '\\\\server two\\shared folder\\'],
   ['\\\\teela\\admin$\\system32', '\\\\teela\\admin$\\'],
-  ['\\\\?\\UNC\\server\\share', '\\\\?\\UNC\\']
+  ['\\\\?\\UNC\\server\\share', '\\\\?\\UNC\\'],
 ];
 
 const winSpecialCaseParseTests = [
@@ -61,7 +61,7 @@ const winSpecialCaseFormatTests = [
   [{ name: 'index', ext: '.html' }, 'index.html'],
   [{ dir: 'some\\dir', name: 'index', ext: '.html' }, 'some\\dir\\index.html'],
   [{ root: 'C:\\', name: 'index', ext: '.html' }, 'C:\\index.html'],
-  [{}, '']
+  [{}, ''],
 ];
 
 const unixPaths = [
@@ -85,7 +85,7 @@ const unixPaths = [
   ['/.', '/'],
   ['/.foo', '/'],
   ['/.foo.bar', '/'],
-  ['/foo/bar.baz', '/']
+  ['/foo/bar.baz', '/'],
 ];
 
 const unixSpecialCaseFormatTests = [
@@ -95,12 +95,12 @@ const unixSpecialCaseFormatTests = [
   [{ name: 'index', ext: '.html' }, 'index.html'],
   [{ dir: 'some/dir', name: 'index', ext: '.html' }, 'some/dir/index.html'],
   [{ root: '/', name: 'index', ext: '.html' }, '/index.html'],
-  [{}, '']
+  [{}, ''],
 ];
 
 const expectedMessage = common.expectsError({
   code: 'ERR_INVALID_ARG_TYPE',
-  type: TypeError
+  type: TypeError,
 }, 18);
 
 const errors = [
@@ -136,10 +136,10 @@ const trailingTests = [
         dir: 'D:\\foo\\\\',
         base: 'bar.baz',
         ext: '.baz',
-        name: 'bar'
-      }
-     ]
-    ]
+        name: 'bar',
+      },
+     ],
+    ],
   ],
   [ path.posix.parse,
     [['./', { root: '', dir: '', base: '.', ext: '', name: '.' }],
@@ -147,10 +147,10 @@ const trailingTests = [
      ['///', { root: '/', dir: '/', base: '', ext: '', name: '' }],
      ['/foo///', { root: '/', dir: '/', base: 'foo', ext: '', name: 'foo' }],
      ['/foo///bar.baz',
-      { root: '/', dir: '/foo//', base: 'bar.baz', ext: '.baz', name: 'bar' }
-     ]
-    ]
-  ]
+      { root: '/', dir: '/foo//', base: 'bar.baz', ext: '.baz', name: 'bar' },
+     ],
+    ],
+  ],
 ];
 const failures = [];
 trailingTests.forEach(function(test) {
@@ -231,7 +231,7 @@ function checkFormat(path, testCases) {
       code: 'ERR_INVALID_ARG_TYPE',
       type: TypeError,
       message: 'The "pathObject" argument must be of type Object. ' +
-               `Received type ${typeName(pathObject)}`
+               `Received type ${typeName(pathObject)}`,
     });
   });
 }

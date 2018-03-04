@@ -9,14 +9,14 @@ const tls = require('tls');
   const opts = {
     host: 'localhost',
     port: common.PORT,
-    lookup: input
+    lookup: input,
   };
 
   common.expectsError(function() {
     tls.connect(opts);
   }, {
     code: 'ERR_INVALID_ARG_TYPE',
-    type: TypeError
+    type: TypeError,
   });
 });
 
@@ -26,7 +26,7 @@ function connectDoesNotThrow(input) {
   const opts = {
     host: 'localhost',
     port: common.PORT,
-    lookup: input
+    lookup: input,
   };
 
   tls.connect(opts);

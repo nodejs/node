@@ -52,21 +52,21 @@ srv.listen(0, '127.0.0.1', common.mustCall(function() {
   const headers = [
     {
       connection: 'upgrade',
-      upgrade: 'websocket'
+      upgrade: 'websocket',
     },
     [
       ['Host', 'echo.websocket.org'],
       ['Connection', 'Upgrade'],
       ['Upgrade', 'websocket'],
-      ['Origin', 'http://www.websocket.org']
-    ]
+      ['Origin', 'http://www.websocket.org'],
+    ],
   ];
   const countdown = new Countdown(headers.length, () => srv.close());
 
   headers.forEach(function(h) {
     const req = http.get({
       port: port,
-      headers: h
+      headers: h,
     });
     let sawUpgrade = false;
     req.on('upgrade', common.mustCall(function(res, socket, upgradeHead) {
@@ -84,7 +84,7 @@ srv.listen(0, '127.0.0.1', common.mustCall(function() {
       const expectedHeaders = {
         hello: 'world',
         connection: 'upgrade',
-        upgrade: 'websocket'
+        upgrade: 'websocket',
       };
       assert.deepStrictEqual(expectedHeaders, res.headers);
 

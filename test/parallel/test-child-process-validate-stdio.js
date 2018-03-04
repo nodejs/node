@@ -37,9 +37,9 @@ common.expectsError(() => _validateStdio(stdio2, true),
     stdio: [
       { type: 'fd', fd: 0 },
       { type: 'fd', fd: 1 },
-      { type: 'fd', fd: 2 }
+      { type: 'fd', fd: 2 },
     ],
     ipc: undefined,
-    ipcFd: undefined
+    ipcFd: undefined,
   });
 }

@@ -37,7 +37,7 @@ common.expectsError(
   {
     code: 'ERR_INVALID_URL_SCHEME',
     type: TypeError,
-    message: 'The URL must be of scheme file'
+    message: 'The URL must be of scheme file',
   });
 
 // pct-encoded characters in the path will be decoded and checked
@@ -51,7 +51,7 @@ if (common.isWindows) {
       {
         code: 'ERR_INVALID_FILE_URL_PATH',
         type: TypeError,
-        message: 'File URL path must not include encoded \\ or / characters'
+        message: 'File URL path must not include encoded \\ or / characters',
       }
     );
   });
@@ -63,7 +63,7 @@ if (common.isWindows) {
       code: 'ERR_INVALID_ARG_VALUE',
       type: Error,
       message: 'The argument \'path\' must be a string or Uint8Array without ' +
-               'null bytes. Received \'c:/tmp/\\u0000test\''
+               'null bytes. Received \'c:/tmp/\\u0000test\'',
     }
   );
 } else {
@@ -76,7 +76,7 @@ if (common.isWindows) {
       {
         code: 'ERR_INVALID_FILE_URL_PATH',
         type: TypeError,
-        message: 'File URL path must not include encoded / characters'
+        message: 'File URL path must not include encoded / characters',
       });
   });
   common.expectsError(
@@ -86,7 +86,7 @@ if (common.isWindows) {
     {
       code: 'ERR_INVALID_FILE_URL_HOST',
       type: TypeError,
-      message: `File URL host must be "localhost" or empty on ${os.platform()}`
+      message: `File URL host must be "localhost" or empty on ${os.platform()}`,
     }
   );
   common.expectsError(
@@ -97,7 +97,7 @@ if (common.isWindows) {
       code: 'ERR_INVALID_ARG_VALUE',
       type: Error,
       message: 'The argument \'path\' must be a string or Uint8Array without ' +
-               'null bytes. Received \'/tmp/\\u0000test\''
+               'null bytes. Received \'/tmp/\\u0000test\'',
     }
   );
 }

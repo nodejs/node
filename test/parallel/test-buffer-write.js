@@ -6,7 +6,7 @@ const assert = require('assert');
 const outsideBounds = common.expectsError({
   code: 'ERR_BUFFER_OUT_OF_BOUNDS',
   type: RangeError,
-  message: 'Attempt to write outside buffer bounds'
+  message: 'Attempt to write outside buffer bounds',
 }, 2);
 
 assert.throws(() => Buffer.alloc(9).write('foo', -1), outsideBounds);
@@ -20,7 +20,7 @@ const resultMap = new Map([
   ['binary', Buffer.from([102, 111, 111, 0, 0, 0, 0, 0, 0])],
   ['utf16le', Buffer.from([102, 0, 111, 0, 111, 0, 0, 0, 0])],
   ['base64', Buffer.from([102, 111, 111, 0, 0, 0, 0, 0, 0])],
-  ['hex', Buffer.from([102, 111, 111, 0, 0, 0, 0, 0, 0])]
+  ['hex', Buffer.from([102, 111, 111, 0, 0, 0, 0, 0, 0])],
 ]);
 
 // utf8, ucs2, ascii, latin1, utf16le
@@ -64,7 +64,7 @@ for (let i = 1; i < 10; i++) {
   const error = common.expectsError({
     code: 'ERR_UNKNOWN_ENCODING',
     type: TypeError,
-    message: `Unknown encoding: ${encoding}`
+    message: `Unknown encoding: ${encoding}`,
   });
 
   assert.ok(!Buffer.isEncoding(encoding));

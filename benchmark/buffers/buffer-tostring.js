@@ -6,7 +6,7 @@ const bench = common.createBenchmark(main, {
   encoding: ['', 'utf8', 'ascii', 'latin1', 'binary', 'hex', 'UCS-2'],
   args: [0, 1, 2, 3],
   len: [0, 1, 64, 1024],
-  n: [1e7]
+  n: [1e7],
 });
 
 function main({ encoding, args, len, n }) {

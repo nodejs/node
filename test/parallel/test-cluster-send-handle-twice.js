@@ -28,7 +28,7 @@ const cluster = require('cluster');
 const net = require('net');
 
 const workers = {
-  toStart: 1
+  toStart: 1,
 };
 
 if (cluster.isMaster) {
@@ -48,7 +48,7 @@ if (cluster.isMaster) {
   server.listen(0, function() {
     const client = net.connect({
       host: 'localhost',
-      port: server.address().port
+      port: server.address().port,
     });
     client.on('close', common.mustCall(() => { cluster.worker.disconnect(); }));
     setTimeout(function() { client.end(); }, 50);

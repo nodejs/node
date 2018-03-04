@@ -10,7 +10,7 @@ common.expectsError(
   {
     code: 'ERR_SYSTEM_ERROR',
     type: errors.SystemError,
-    message: 'A system error occurred'
+    message: 'A system error occurred',
   }
 );
 
@@ -19,7 +19,7 @@ common.expectsError(
   {
     code: 'ERR_SYSTEM_ERROR',
     type: errors.SystemError,
-    message: 'A system error occurred'
+    message: 'A system error occurred',
   }
 );
 
@@ -28,7 +28,7 @@ common.expectsError(
   {
     code: 'ERR_SYSTEM_ERROR',
     type: errors.SystemError,
-    message: 'A system error occurred'
+    message: 'A system error occurred',
   }
 );
 
@@ -37,37 +37,21 @@ common.expectsError(
   {
     code: 'ERR_SYSTEM_ERROR',
     type: errors.SystemError,
-    message: 'A system error occurred: ERR'
+    message: 'A system error occurred: ERR',
   }
 );
 
 {
   const ctx = {
     code: 'ERR',
-    syscall: 'foo'
-  };
-  common.expectsError(
-    () => { throw new errors.SystemError(ctx); },
-    {
-      code: 'ERR_SYSTEM_ERROR',
-      type: errors.SystemError,
-      message: 'A system error occurred: ERR [foo]'
-    }
-  );
-}
-
-{
-  const ctx = {
-    code: 'ERR',
     syscall: 'foo',
-    path: Buffer.from('a')
   };
   common.expectsError(
     () => { throw new errors.SystemError(ctx); },
     {
       code: 'ERR_SYSTEM_ERROR',
       type: errors.SystemError,
-      message: 'A system error occurred: ERR [foo]: a'
+      message: 'A system error occurred: ERR [foo]',
     }
   );
 }
@@ -77,14 +61,30 @@ common.expectsError(
     code: 'ERR',
     syscall: 'foo',
     path: Buffer.from('a'),
-    dest: Buffer.from('b')
   };
   common.expectsError(
     () => { throw new errors.SystemError(ctx); },
     {
       code: 'ERR_SYSTEM_ERROR',
       type: errors.SystemError,
-      message: 'A system error occurred: ERR [foo]: a => b'
+      message: 'A system error occurred: ERR [foo]: a',
+    }
+  );
+}
+
+{
+  const ctx = {
+    code: 'ERR',
+    syscall: 'foo',
+    path: Buffer.from('a'),
+    dest: Buffer.from('b'),
+  };
+  common.expectsError(
+    () => { throw new errors.SystemError(ctx); },
+    {
+      code: 'ERR_SYSTEM_ERROR',
+      type: errors.SystemError,
+      message: 'A system error occurred: ERR [foo]: a => b',
     }
   );
 }
@@ -93,14 +93,14 @@ common.expectsError(
   const ctx = {
     syscall: 'foo',
     path: Buffer.from('a'),
-    dest: Buffer.from('b')
+    dest: Buffer.from('b'),
   };
   common.expectsError(
     () => { throw new errors.SystemError(ctx); },
     {
       code: 'ERR_SYSTEM_ERROR',
       type: errors.SystemError,
-      message: 'A system error occurred: [foo]: a => b'
+      message: 'A system error occurred: [foo]: a => b',
     }
   );
 }
@@ -108,14 +108,14 @@ common.expectsError(
 {
   const ctx = {
     path: Buffer.from('a'),
-    dest: Buffer.from('b')
+    dest: Buffer.from('b'),
   };
   common.expectsError(
     () => { throw new errors.SystemError(ctx); },
     {
       code: 'ERR_SYSTEM_ERROR',
       type: errors.SystemError,
-      message: 'A system error occurred: a => b'
+      message: 'A system error occurred: a => b',
     }
   );
 }
@@ -126,27 +126,27 @@ common.expectsError(
     message: 'something happened',
     syscall: 'foo',
     path: Buffer.from('a'),
-    dest: Buffer.from('b')
+    dest: Buffer.from('b'),
   };
   common.expectsError(
     () => { throw new errors.SystemError(ctx); },
     {
       code: 'ERR_SYSTEM_ERROR',
       type: errors.SystemError,
-      message: 'something happened: ERR [foo]: a => b'
+      message: 'something happened: ERR [foo]: a => b',
     }
   );
 }
 
 {
   const ctx = {
-    code: 'ERR_ASSERTION'
+    code: 'ERR_ASSERTION',
   };
   common.expectsError(
     () => { throw new errors.SystemError(ctx); },
     {
       code: 'ERR_ASSERTION',
-      type: errors.SystemError
+      type: errors.SystemError,
     }
   );
 }
@@ -158,7 +158,7 @@ common.expectsError(
     message: 'something happened',
     syscall: 'foo',
     path: Buffer.from('a'),
-    dest: Buffer.from('b')
+    dest: Buffer.from('b'),
   };
   const err = new errors.SystemError(ctx);
   assert.strictEqual(err.info, ctx);

@@ -46,7 +46,7 @@ const s = http.createServer(common.mustCall((req, res) => {
     {
       code: 'ERR_HTTP_INVALID_HEADER_VALUE',
       type: TypeError,
-      message: 'Invalid value "undefined" for header "foo"'
+      message: 'Invalid value "undefined" for header "foo"',
     }
   );
 
@@ -57,7 +57,7 @@ const s = http.createServer(common.mustCall((req, res) => {
   }, {
     code: 'ERR_HTTP_HEADERS_SENT',
     type: Error,
-    message: 'Cannot render headers after they are sent to the client'
+    message: 'Cannot render headers after they are sent to the client',
   });
 
   res.end();

@@ -10,7 +10,7 @@ const fixtures = require('../common/fixtures');
 
 const server = tls.createServer({
   key: fixtures.readKey('agent1-key.pem'),
-  cert: fixtures.readKey('agent1-cert.pem')
+  cert: fixtures.readKey('agent1-cert.pem'),
 }, function(c) {
 }).listen(0, common.mustCall(function() {
   const c = tls.connect(this.address().port, common.mustNotCall());

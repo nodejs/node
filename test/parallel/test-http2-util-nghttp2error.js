@@ -12,5 +12,5 @@ common.expectsError(() => {
 }, {
   code: 'ERR_HTTP2_ERROR',
   type: NghttpError,
-  message: 'Invalid argument'
+  message: 'Invalid argument',
 });

@@ -11,7 +11,7 @@ common.expectsError(() => {
 }, {
   code: 'ERR_INVALID_ARG_TYPE',
   type: TypeError,
-  message: errorMessageOffset
+  message: errorMessageOffset,
 });
 
 common.expectsError(() => {
@@ -19,7 +19,7 @@ common.expectsError(() => {
 }, {
   code: 'ERR_INVALID_ARG_TYPE',
   type: TypeError,
-  message: /^The "length" argument must be of type number$/
+  message: /^The "length" argument must be of type number$/,
 });
 
 common.expectsError(() => {
@@ -27,7 +27,7 @@ common.expectsError(() => {
 }, {
   code: 'ERR_INVALID_ARG_TYPE',
   type: TypeError,
-  message: errorMessageOffset
+  message: errorMessageOffset,
 });
 
 common.expectsError(() => {
@@ -35,7 +35,7 @@ common.expectsError(() => {
 }, {
   code: 'ERR_INVALID_ARG_TYPE',
   type: TypeError,
-  message: /^The "address" argument must be of type string$/
+  message: /^The "address" argument must be of type string$/,
 });
 
 common.expectsError(() => {
@@ -43,5 +43,5 @@ common.expectsError(() => {
 }, {
   code: 'ERR_INVALID_ARG_TYPE',
   type: TypeError,
-  message: /^The "port" argument must be of type number$/
+  message: /^The "port" argument must be of type number$/,
 });

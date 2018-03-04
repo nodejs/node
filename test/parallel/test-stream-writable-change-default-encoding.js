@@ -63,7 +63,7 @@ common.expectsError(function changeDefaultEncodingToInvalidValue() {
 }, {
   type: TypeError,
   code: 'ERR_UNKNOWN_ENCODING',
-  message: 'Unknown encoding: [object Object]'
+  message: 'Unknown encoding: [object Object]',
 });
 
 (function checkVairableCaseEncoding() {

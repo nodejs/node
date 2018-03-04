@@ -16,7 +16,7 @@ const key = fixtures.readSync('test_key.pem');
 //   CN:'localhost'
 const server = tls.createServer({
   key,
-  cert
+  cert,
 }).listen(0, common.mustCall(function() {
   const socket = tls.connect({
     port: this.address().port,

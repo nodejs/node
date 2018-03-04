@@ -33,7 +33,7 @@ const body = 'c'.repeat(bodyLength);
 const server = http.createServer(function(req, res) {
   res.writeHead(200, {
     'Content-Length': bodyLength,
-    'Content-Type': 'text/plain'
+    'Content-Type': 'text/plain',
   });
   res.end(body);
 });

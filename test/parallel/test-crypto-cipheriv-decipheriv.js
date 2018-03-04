@@ -92,7 +92,7 @@ function testCipher3(key, iv) {
     {
       code: 'ERR_INVALID_ARG_TYPE',
       type: TypeError,
-      message: 'The "cipher" argument must be of type string'
+      message: 'The "cipher" argument must be of type string',
     });
 
   common.expectsError(
@@ -101,7 +101,7 @@ function testCipher3(key, iv) {
       code: 'ERR_INVALID_ARG_TYPE',
       type: TypeError,
       message: 'The "key" argument must be one of type string, Buffer, ' +
-               'TypedArray, or DataView'
+               'TypedArray, or DataView',
     });
 
   common.expectsError(
@@ -110,7 +110,7 @@ function testCipher3(key, iv) {
       code: 'ERR_INVALID_ARG_TYPE',
       type: TypeError,
       message: 'The "iv" argument must be one of type string, Buffer, ' +
-               'TypedArray, or DataView'
+               'TypedArray, or DataView',
     });
 }
 
@@ -128,7 +128,7 @@ function testCipher3(key, iv) {
     {
       code: 'ERR_INVALID_ARG_TYPE',
       type: TypeError,
-      message: 'The "cipher" argument must be of type string'
+      message: 'The "cipher" argument must be of type string',
     });
 
   common.expectsError(
@@ -137,7 +137,7 @@ function testCipher3(key, iv) {
       code: 'ERR_INVALID_ARG_TYPE',
       type: TypeError,
       message: 'The "key" argument must be one of type string, Buffer, ' +
-               'TypedArray, or DataView'
+               'TypedArray, or DataView',
     });
 
   common.expectsError(
@@ -146,7 +146,7 @@ function testCipher3(key, iv) {
       code: 'ERR_INVALID_ARG_TYPE',
       type: TypeError,
       message: 'The "iv" argument must be one of type string, Buffer, ' +
-               'TypedArray, or DataView'
+               'TypedArray, or DataView',
     });
 }
 

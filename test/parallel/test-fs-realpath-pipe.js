@@ -24,9 +24,9 @@ for (const code of [
     }
   } catch (e) {
     process.exit(1);
-  }`
+  }`,
 ]) {
   assert.strictEqual(spawnSync(process.execPath, ['-e', code], {
-    stdio: 'pipe'
+    stdio: 'pipe',
   }).status, 2);
 }

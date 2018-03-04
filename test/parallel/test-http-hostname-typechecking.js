@@ -15,7 +15,7 @@ vals.forEach((v) => {
       type: TypeError,
       message: 'The "options.hostname" property must be one of ' +
                'type string, undefined, or null. ' +
-               `Received type ${typeof v}`
+               `Received type ${typeof v}`,
     }
   );
 
@@ -26,7 +26,7 @@ vals.forEach((v) => {
       type: TypeError,
       message: 'The "options.host" property must be one of ' +
                'type string, undefined, or null. ' +
-               `Received type ${typeof v}`
+               `Received type ${typeof v}`,
     }
   );
 });

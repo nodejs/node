@@ -18,7 +18,7 @@ assert.throws(() => {
   message: '\'first\' != \'second\'',
   operator: '!=',
   actual: 'first',
-  expected: 'second'
+  expected: 'second',
 });
 
 // Three args
@@ -30,7 +30,7 @@ assert.throws(() => {
   message: 'another custom message',
   operator: undefined,
   actual: 'ignored',
-  expected: 'ignored'
+  expected: 'ignored',
 });
 
 // Three args with custom Error
@@ -42,7 +42,7 @@ assert.throws(() => {
   operator: undefined,
   actual: undefined,
   expected: undefined,
-  code: undefined
+  code: undefined,
 });
 
 // No third arg (but a fourth arg)
@@ -54,7 +54,7 @@ assert.throws(() => {
   message: '\'first\' operator \'second\'',
   operator: 'operator',
   actual: 'first',
-  expected: 'second'
+  expected: 'second',
 });
 
 // The stackFrameFunction should exclude the foo frame

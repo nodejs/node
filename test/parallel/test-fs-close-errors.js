@@ -12,7 +12,7 @@ const fs = require('fs');
     {
       code: 'ERR_INVALID_ARG_TYPE',
       type: TypeError,
-      message: 'The "fd" argument must be of type integer'
+      message: 'The "fd" argument must be of type integer',
     }
   );
   common.expectsError(
@@ -20,7 +20,7 @@ const fs = require('fs');
     {
       code: 'ERR_INVALID_ARG_TYPE',
       type: TypeError,
-      message: 'The "fd" argument must be of type integer'
+      message: 'The "fd" argument must be of type integer',
     }
   );
 });

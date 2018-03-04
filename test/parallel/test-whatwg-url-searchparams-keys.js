@@ -12,19 +12,19 @@ assert.strictEqual(typeof keys[Symbol.iterator], 'function');
 assert.strictEqual(keys[Symbol.iterator](), keys);
 assert.deepStrictEqual(keys.next(), {
   value: 'a',
-  done: false
+  done: false,
 });
 assert.deepStrictEqual(keys.next(), {
   value: 'c',
-  done: false
+  done: false,
 });
 assert.deepStrictEqual(keys.next(), {
   value: undefined,
-  done: true
+  done: true,
 });
 assert.deepStrictEqual(keys.next(), {
   value: undefined,
-  done: true
+  done: true,
 });
 
 common.expectsError(() => {
@@ -32,12 +32,12 @@ common.expectsError(() => {
 }, {
   code: 'ERR_INVALID_THIS',
   type: TypeError,
-  message: 'Value of "this" must be of type URLSearchParamsIterator'
+  message: 'Value of "this" must be of type URLSearchParamsIterator',
 });
 common.expectsError(() => {
   params.keys.call(undefined);
 }, {
   code: 'ERR_INVALID_THIS',
   type: TypeError,
-  message: 'Value of "this" must be of type URLSearchParams'
+  message: 'Value of "this" must be of type URLSearchParams',
 });

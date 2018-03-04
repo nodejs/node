@@ -9,14 +9,14 @@ const arg = process.argv[2];
 switch (arg) {
   case 'test_init_callback':
     initHooks({
-      oninit: common.mustCall(() => { throw new Error(arg); })
+      oninit: common.mustCall(() => { throw new Error(arg); }),
     }).enable();
     new async_hooks.AsyncResource(`${arg}_type`);
     return;
 
   case 'test_callback':
     initHooks({
-      onbefore: common.mustCall(() => { throw new Error(arg); })
+      onbefore: common.mustCall(() => { throw new Error(arg); }),
     }).enable();
     const resource = new async_hooks.AsyncResource(`${arg}_type`);
     resource.emitBefore();
@@ -24,7 +24,7 @@ switch (arg) {
 
   case 'test_callback_abort':
     initHooks({
-      oninit: common.mustCall(() => { throw new Error(arg); })
+      oninit: common.mustCall(() => { throw new Error(arg); }),
     }).enable();
     new async_hooks.AsyncResource(`${arg}_type`);
     return;
@@ -64,7 +64,7 @@ assert.ok(!arg);
   // Ref: https://github.com/nodejs/node/pull/13559
   const opts = {
     execArgv: ['--abort-on-uncaught-exception'],
-    silent: true
+    silent: true,
   };
   const child = fork(__filename, ['test_callback_abort'], opts);
 

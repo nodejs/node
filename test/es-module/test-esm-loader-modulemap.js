@@ -24,7 +24,7 @@ common.expectsError(
   {
     code: 'ERR_INVALID_ARG_TYPE',
     type: TypeError,
-    message: 'The "url" argument must be of type string'
+    message: 'The "url" argument must be of type string',
   }
 );
 
@@ -33,7 +33,7 @@ common.expectsError(
   {
     code: 'ERR_INVALID_ARG_TYPE',
     type: TypeError,
-    message: 'The "url" argument must be of type string'
+    message: 'The "url" argument must be of type string',
   }
 );
 
@@ -42,7 +42,7 @@ common.expectsError(
   {
     code: 'ERR_INVALID_ARG_TYPE',
     type: TypeError,
-    message: 'The "job" argument must be of type ModuleJob'
+    message: 'The "job" argument must be of type ModuleJob',
   }
 );
 
@@ -51,6 +51,6 @@ common.expectsError(
   {
     code: 'ERR_INVALID_ARG_TYPE',
     type: TypeError,
-    message: 'The "url" argument must be of type string'
+    message: 'The "url" argument must be of type string',
   }
 );

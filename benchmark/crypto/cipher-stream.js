@@ -6,7 +6,7 @@ const bench = common.createBenchmark(main, {
   cipher: [ 'AES192', 'AES256' ],
   type: ['asc', 'utf', 'buf'],
   len: [2, 1024, 102400, 1024 * 1024],
-  api: ['legacy', 'stream']
+  api: ['legacy', 'stream'],
 });
 
 function main({ api, cipher, type, len, writes }) {

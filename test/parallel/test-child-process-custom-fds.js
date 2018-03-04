@@ -17,7 +17,7 @@ const oldSpawnSync = internalCp.spawnSync;
     assert.deepStrictEqual(opts.options.stdio, [
       { type: 'pipe', readable: true, writable: false },
       { type: 'fd', fd: process.stdout.fd },
-      { type: 'fd', fd: process.stderr.fd }
+      { type: 'fd', fd: process.stderr.fd },
     ]);
   });
   common.spawnSyncPwd({ customFds });
@@ -32,7 +32,7 @@ const oldSpawnSync = internalCp.spawnSync;
     assert.deepStrictEqual(opts.options.stdio, [
       { type: 'pipe', readable: true, writable: false },
       { type: 'pipe', readable: false, writable: true },
-      { type: 'pipe', readable: false, writable: true }
+      { type: 'pipe', readable: false, writable: true },
     ]);
   });
   common.spawnSyncPwd({ customFds, stdio: 'pipe' });

@@ -38,7 +38,7 @@ const testMe = repl.start('', putIn);
 
 const testFile = [
   'var top = function() {',
-  'var inner = {one:1};'
+  'var inner = {one:1};',
 ];
 const saveFileName = join(tmpdir.path, 'test.save.js');
 
@@ -57,7 +57,7 @@ assert.strictEqual(fs.readFileSync(saveFileName, 'utf8'),
   const cmds = [
     'function testSave() {',
     'return "saved";',
-    '}'
+    '}',
   ];
   const putIn = new common.ArrayStream();
   const replServer = repl.start('', putIn);

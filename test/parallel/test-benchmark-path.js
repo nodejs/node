@@ -10,5 +10,5 @@ runBenchmark('path',
                'path=',
                'pathext=',
                'paths=',
-               'props='
+               'props=',
              ], { NODEJS_BENCHMARK_ZERO_ALLOWED: 1 });

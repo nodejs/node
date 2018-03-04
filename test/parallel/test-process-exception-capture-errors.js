@@ -6,7 +6,7 @@ common.expectsError(
   {
     code: 'ERR_INVALID_ARG_TYPE',
     type: TypeError,
-    message: 'The "fn" argument must be one of type Function or null'
+    message: 'The "fn" argument must be one of type Function or null',
   }
 );
 
@@ -17,6 +17,6 @@ common.expectsError(
   {
     code: 'ERR_UNCAUGHT_EXCEPTION_CAPTURE_ALREADY_SET',
     type: Error,
-    message: /setupUncaughtExceptionCapture.*called while a capture callback/
+    message: /setupUncaughtExceptionCapture.*called while a capture callback/,
   }
 );

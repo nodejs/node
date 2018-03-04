@@ -27,7 +27,7 @@ const http = require('http');
 const server = http.createServer(function(req, res) {
   res.writeHead(200, {
     'Content-Type': 'text/plain',
-    'Connection': 'close'
+    'Connection': 'close',
   });
   res.write('hello ');
   res.write('world\n');
@@ -41,7 +41,7 @@ server.listen(common.PIPE, common.mustCall(function() {
 
   const options = {
     socketPath: common.PIPE,
-    path: '/'
+    path: '/',
   };
 
   const req = http.get(options, common.mustCall(function(res) {
@@ -62,7 +62,7 @@ server.listen(common.PIPE, common.mustCall(function() {
         server.close(common.expectsError({
           code: 'ERR_SERVER_NOT_RUNNING',
           message: 'Server is not running.',
-          type: Error
+          type: Error,
         }));
       }));
     }));

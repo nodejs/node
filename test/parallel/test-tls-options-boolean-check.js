@@ -62,7 +62,7 @@ const invalidCertRE = /^The "cert" argument must be one of type string, Buffer, 
   [[keyStr, keyStr2], false],
   [false, [certStr, certStr2]],
   [[{ pem: keyBuff }], false],
-  [[{ pem: keyBuff }, { pem: keyBuff }], false]
+  [[{ pem: keyBuff }, { pem: keyBuff }], false],
 ].forEach(([key, cert]) => {
   tls.createServer({ key, cert });
 });
@@ -93,14 +93,14 @@ const invalidCertRE = /^The "cert" argument must be one of type string, Buffer, 
   [[true, false], [certBuff, certBuff2], invalidKeyRE],
   [[keyStr, keyStr2], [true, false], invalidCertRE],
   [[keyStr, keyStr2], true, invalidCertRE],
-  [true, [certBuff, certBuff2], invalidKeyRE]
+  [true, [certBuff, certBuff2], invalidKeyRE],
 ].forEach(([key, cert, message]) => {
   common.expectsError(() => {
     tls.createServer({ key, cert });
   }, {
     code: 'ERR_INVALID_ARG_TYPE',
     type: TypeError,
-    message
+    message,
   });
 });
 
@@ -125,14 +125,14 @@ const invalidCertRE = /^The "cert" argument must be one of type string, Buffer, 
   [keyBuff, certBuff, {}],
   [keyBuff, certBuff, 1],
   [keyBuff, certBuff, true],
-  [keyBuff, certBuff, [caCert, true]]
+  [keyBuff, certBuff, [caCert, true]],
 ].forEach(([key, cert, ca]) => {
   common.expectsError(() => {
     tls.createServer({ key, cert, ca });
   }, {
     code: 'ERR_INVALID_ARG_TYPE',
     type: TypeError,
-    message: /^The "ca" argument must be one of type string, Buffer, TypedArray, or DataView$/
+    message: /^The "ca" argument must be one of type string, Buffer, TypedArray, or DataView$/,
   });
 });
 
@@ -143,14 +143,14 @@ const invalidCertRE = /^The "cert" argument must be one of type string, Buffer, 
   [keyBuff, certBuff, {}],
   [keyBuff, certBuff, 1],
   [keyBuff, certBuff, true],
-  [keyBuff, certBuff, [caCert, true]]
+  [keyBuff, certBuff, [caCert, true]],
 ].forEach(([key, cert, ca]) => {
   common.expectsError(() => {
     tls.createServer({ key, cert, ca });
   }, {
     code: 'ERR_INVALID_ARG_TYPE',
     type: TypeError,
-    message: /^The "ca" argument must be one of type string, Buffer, TypedArray, or DataView$/
+    message: /^The "ca" argument must be one of type string, Buffer, TypedArray, or DataView$/,
   });
 });
 
@@ -161,7 +161,7 @@ const invalidCertRE = /^The "cert" argument must be one of type string, Buffer, 
   [false, false, false],
   [undefined, undefined, undefined],
   ['', '', ''],
-  [0, 0, 0]
+  [0, 0, 0],
 ].forEach(([key, cert, ca]) => {
   tls.createSecureContext({ key, cert, ca });
 });

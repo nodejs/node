@@ -35,7 +35,7 @@ const bench = common.createBenchmark(main, {
     '中文呢', // unicode
     '((((())))', // invalid
     ':alternate-protocol', // fast bailout
-    'alternate-protocol:' // slow bailout
+    'alternate-protocol:', // slow bailout
   ],
   n: [1e6],
 });

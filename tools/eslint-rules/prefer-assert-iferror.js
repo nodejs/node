@@ -52,10 +52,10 @@ module.exports = {
                   `assert.ifError(${argument});`
                 );
               }
-            }
+            },
           });
         }
-      }
+      },
     };
-  }
+  },
 };

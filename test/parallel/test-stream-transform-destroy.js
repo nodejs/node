@@ -6,7 +6,7 @@ const assert = require('assert');
 
 {
   const transform = new Transform({
-    transform(chunk, enc, cb) {}
+    transform(chunk, enc, cb) {},
   });
 
   transform.resume();
@@ -20,7 +20,7 @@ const assert = require('assert');
 
 {
   const transform = new Transform({
-    transform(chunk, enc, cb) {}
+    transform(chunk, enc, cb) {},
   });
   transform.resume();
 
@@ -38,7 +38,7 @@ const assert = require('assert');
 
 {
   const transform = new Transform({
-    transform(chunk, enc, cb) {}
+    transform(chunk, enc, cb) {},
   });
 
   transform._destroy = common.mustCall(function(err, cb) {
@@ -64,7 +64,7 @@ const assert = require('assert');
     destroy: common.mustCall(function(err, cb) {
       assert.strictEqual(err, expected);
       cb();
-    }, 1)
+    }, 1),
   });
   transform.resume();
 
@@ -80,7 +80,7 @@ const assert = require('assert');
 
 {
   const transform = new Transform({
-    transform(chunk, enc, cb) {}
+    transform(chunk, enc, cb) {},
   });
 
   transform._destroy = common.mustCall(function(err, cb) {
@@ -93,7 +93,7 @@ const assert = require('assert');
 
 {
   const transform = new Transform({
-    transform(chunk, enc, cb) {}
+    transform(chunk, enc, cb) {},
   });
   transform.resume();
 
@@ -122,7 +122,7 @@ const assert = require('assert');
 
 {
   const transform = new Transform({
-    transform(chunk, enc, cb) {}
+    transform(chunk, enc, cb) {},
   });
 
   const expected = new Error('kaboom');

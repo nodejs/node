@@ -4,9 +4,9 @@ const http = require('http');
 
 common.expectsError(() => {
   http.request({
-    path: '/thisisinvalid\uffe2'
+    path: '/thisisinvalid\uffe2',
   }).end();
 }, {
   code: 'ERR_UNESCAPED_CHARACTERS',
-  type: TypeError
+  type: TypeError,
 });

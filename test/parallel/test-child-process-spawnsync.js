@@ -57,6 +57,6 @@ assert.deepStrictEqual(ret_err.spawnargs, ['bar']);
   assert.deepStrictEqual([
     null,
     noEncoding.stdout.toString(),
-    noEncoding.stderr.toString()
+    noEncoding.stderr.toString(),
   ], utf8Encoding.output);
 }

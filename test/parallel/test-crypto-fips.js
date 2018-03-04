@@ -35,7 +35,7 @@ function testHelper(stream, args, expectedOutput, cmd, env) {
   const fullArgs = args.concat(['-e', `console.log(${cmd})`]);
   const child = spawnSync(process.execPath, fullArgs, {
     cwd: path.dirname(process.execPath),
-    env: env
+    env: env,
   });
 
   console.error(

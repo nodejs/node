@@ -31,7 +31,7 @@ const expectedHeaders = {
   'HEAD': ['host', 'connection'],
   'OPTIONS': ['host', 'connection'],
   'POST': ['host', 'connection', 'content-length'],
-  'PUT': ['host', 'connection', 'content-length']
+  'PUT': ['host', 'connection', 'content-length'],
 };
 
 const expectedMethods = Object.keys(expectedHeaders);
@@ -68,7 +68,7 @@ server.listen(0, common.mustCall(() => {
   expectedMethods.forEach((method) => {
     http.request({
       method: method,
-      port: server.address().port
+      port: server.address().port,
     }).end();
   });
 }));

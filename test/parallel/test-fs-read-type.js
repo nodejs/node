@@ -14,7 +14,7 @@ common.expectsError(
   {
     code: 'ERR_INVALID_ARG_TYPE',
     type: TypeError,
-    message: 'The "buffer" argument must be one of type Buffer or Uint8Array'
+    message: 'The "buffer" argument must be one of type Buffer or Uint8Array',
   }
 );
 
@@ -56,7 +56,7 @@ common.expectsError(
   {
     code: 'ERR_INVALID_ARG_TYPE',
     type: TypeError,
-    message: 'The "buffer" argument must be one of type Buffer or Uint8Array'
+    message: 'The "buffer" argument must be one of type Buffer or Uint8Array',
   }
 );
 

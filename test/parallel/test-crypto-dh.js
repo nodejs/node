@@ -48,7 +48,7 @@ assert.strictEqual(dh2.verifyError, 0);
   [0x1, 0x2],
   () => { },
   /abc/,
-  {}
+  {},
 ].forEach((i) => {
   common.expectsError(
     () => crypto.createDiffieHellman(i),
@@ -56,7 +56,7 @@ assert.strictEqual(dh2.verifyError, 0);
       code: 'ERR_INVALID_ARG_TYPE',
       type: TypeError,
       message: 'The "sizeOrKey" argument must be one of type number, string, ' +
-               'Buffer, TypedArray, or DataView'
+               'Buffer, TypedArray, or DataView',
     }
   );
 });
@@ -141,7 +141,7 @@ const modp2buf = Buffer.from([
   0x5c, 0xb6, 0xf4, 0x06, 0xb7, 0xed, 0xee, 0x38, 0x6b, 0xfb,
   0x5a, 0x89, 0x9f, 0xa5, 0xae, 0x9f, 0x24, 0x11, 0x7c, 0x4b,
   0x1f, 0xe6, 0x49, 0x28, 0x66, 0x51, 0xec, 0xe6, 0x53, 0x81,
-  0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff
+  0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
 ]);
 
 {
@@ -237,7 +237,7 @@ if (availableCurves.has('prime256v1') && availableCurves.has('secp256k1')) {
     {
       code: 'ERR_CRYPTO_ECDH_INVALID_FORMAT',
       type: TypeError,
-      message: 'Invalid ECDH format: 10'
+      message: 'Invalid ECDH format: 10',
     });
 
   // ECDH should check that point is on curve
@@ -249,7 +249,7 @@ if (availableCurves.has('prime256v1') && availableCurves.has('secp256k1')) {
     {
       code: 'ERR_CRYPTO_ECDH_INVALID_PUBLIC_KEY',
       type: Error,
-      message: 'Public key is not valid for specified curve'
+      message: 'Public key is not valid for specified curve',
     });
 
   // ECDH should allow .setPrivateKey()/.setPublicKey()
@@ -362,7 +362,7 @@ if (availableCurves.has('prime256v1') && availableHashes.has('sha256')) {
     {
       code: 'ERR_CRYPTO_ECDH_INVALID_PUBLIC_KEY',
       type: Error,
-      message: 'Public key is not valid for specified curve'
+      message: 'Public key is not valid for specified curve',
     });
   // Check that signing operations are not impacted by the above error.
   const ecPrivateKey =
@@ -380,5 +380,5 @@ common.expectsError(
   {
     code: 'ERR_INVALID_ARG_TYPE',
     type: TypeError,
-    message: 'The "curve" argument must be of type string'
+    message: 'The "curve" argument must be of type string',
   });

@@ -12,7 +12,7 @@ common.expectsError(
   {
     code: 'ERR_METHOD_NOT_IMPLEMENTED',
     type: Error,
-    message: 'The _implicitHeader() method is not implemented'
+    message: 'The _implicitHeader() method is not implemented',
   }
 );
 assert.strictEqual(
@@ -27,7 +27,7 @@ common.expectsError(() => {
 }, {
   code: 'ERR_INVALID_HTTP_TOKEN',
   type: TypeError,
-  message: 'Header name must be a valid HTTP token ["undefined"]'
+  message: 'Header name must be a valid HTTP token ["undefined"]',
 });
 
 common.expectsError(() => {
@@ -36,7 +36,7 @@ common.expectsError(() => {
 }, {
   code: 'ERR_HTTP_INVALID_HEADER_VALUE',
   type: TypeError,
-  message: 'Invalid value "undefined" for header "test"'
+  message: 'Invalid value "undefined" for header "test"',
 });
 
 common.expectsError(() => {
@@ -45,7 +45,7 @@ common.expectsError(() => {
 }, {
   code: 'ERR_INVALID_HTTP_TOKEN',
   type: TypeError,
-  message: 'Header name must be a valid HTTP token ["404"]'
+  message: 'Header name must be a valid HTTP token ["404"]',
 });
 
 common.expectsError(() => {
@@ -54,7 +54,7 @@ common.expectsError(() => {
 }, {
   code: 'ERR_HTTP_HEADERS_SENT',
   type: Error,
-  message: 'Cannot set headers after they are sent to the client'
+  message: 'Cannot set headers after they are sent to the client',
 });
 
 common.expectsError(() => {
@@ -63,7 +63,7 @@ common.expectsError(() => {
 }, {
   code: 'ERR_INVALID_CHAR',
   type: TypeError,
-  message: 'Invalid character in header content ["200"]'
+  message: 'Invalid character in header content ["200"]',
 });
 
 // write
@@ -73,7 +73,7 @@ common.expectsError(() => {
 }, {
   code: 'ERR_METHOD_NOT_IMPLEMENTED',
   type: Error,
-  message: 'The _implicitHeader() method is not implemented'
+  message: 'The _implicitHeader() method is not implemented',
 });
 
 assert(OutgoingMessage.prototype.write.call({ _header: 'test' }));
@@ -84,7 +84,7 @@ common.expectsError(() => {
 }, {
   code: 'ERR_INVALID_ARG_TYPE',
   type: TypeError,
-  message: 'The first argument must be one of type string or Buffer'
+  message: 'The first argument must be one of type string or Buffer',
 });
 
 common.expectsError(() => {
@@ -93,7 +93,7 @@ common.expectsError(() => {
 }, {
   code: 'ERR_INVALID_ARG_TYPE',
   type: TypeError,
-  message: 'The first argument must be one of type string or Buffer'
+  message: 'The first argument must be one of type string or Buffer',
 });
 
 // addTrailers()
@@ -111,7 +111,7 @@ common.expectsError(() => {
 }, {
   code: 'ERR_INVALID_HTTP_TOKEN',
   type: TypeError,
-  message: 'Trailer name must be a valid HTTP token ["あ"]'
+  message: 'Trailer name must be a valid HTTP token ["あ"]',
 });
 
 common.expectsError(() => {
@@ -120,5 +120,5 @@ common.expectsError(() => {
 }, {
   code: 'ERR_INVALID_CHAR',
   type: TypeError,
-  message: 'Invalid character in trailer content ["404"]'
+  message: 'Invalid character in trailer content ["404"]',
 });

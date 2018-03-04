@@ -6,7 +6,7 @@ const fixtures = require('../common/fixtures');
 // known to the client.
 
 const {
-  assert, connect, debug, keys
+  assert, connect, debug, keys,
 } = require(fixtures.path('tls-connect'));
 
 // agent6-cert.pem includes cert for agent6 and ca3

@@ -9,7 +9,7 @@ const assert = require('assert');
 
 const {
   HTTP2_HEADER_CONTENT_TYPE,
-  HTTP2_HEADER_STATUS
+  HTTP2_HEADER_STATUS,
 } = http2.constants;
 
 const fname = fixtures.path('elipses.txt');
@@ -17,13 +17,13 @@ const fname = fixtures.path('elipses.txt');
 const server = http2.createServer();
 server.on('stream', (stream) => {
   stream.respondWithFile(fname, {
-    [HTTP2_HEADER_CONTENT_TYPE]: 'text/plain'
+    [HTTP2_HEADER_CONTENT_TYPE]: 'text/plain',
   }, {
     statCheck(stat, headers) {
       // abort the send and return a 304 Not Modified instead
       stream.respond({ [HTTP2_HEADER_STATUS]: 304 });
       return false;
-    }
+    },
   });
 });
 server.listen(0, () => {

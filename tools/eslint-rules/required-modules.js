@@ -83,7 +83,7 @@ module.exports = function(context) {
           );
         });
       }
-    }
+    },
   };
 
   if (isESM) {
@@ -111,7 +111,7 @@ module.exports = function(context) {
 module.exports.schema = {
   'type': 'array',
   'additionalItems': {
-    'type': 'string'
+    'type': 'string',
   },
-  'uniqueItems': true
+  'uniqueItems': true,
 };

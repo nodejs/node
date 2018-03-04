@@ -6,7 +6,7 @@ const util = require('util');
 const bench = common.createBenchmark(main, {
   method: ['spread', 'assign', '_extend'],
   count: [5, 10, 20],
-  millions: [1]
+  millions: [1],
 });
 
 function main({ millions, context, count, rest, method }) {

@@ -27,7 +27,7 @@ const BATCH = 10;
         console.log('pushing');
         data.forEach((d) => this.push(d));
       });
-    }, Math.floor(MAX / BATCH) + 2)
+    }, Math.floor(MAX / BATCH) + 2),
   });
 
   let i = 0;
@@ -77,7 +77,7 @@ const BATCH = 10;
         console.log('pushing');
         data.forEach((d) => this.push(d));
       });
-    }, Math.floor(MAX / BATCH) + 2)
+    }, Math.floor(MAX / BATCH) + 2),
   });
 
   let i = 0;
@@ -122,7 +122,7 @@ const BATCH = 10;
           this.push(null);
         }
       });
-    }, Math.floor(MAX / BATCH) + 1)
+    }, Math.floor(MAX / BATCH) + 1),
   });
 
   let i = 0;
@@ -147,7 +147,7 @@ const BATCH = 10;
 {
   const readable = new Readable({
     objectMode: true,
-    read: common.mustNotCall()
+    read: common.mustNotCall(),
   });
 
   readable.on('data', common.mustNotCall());
@@ -167,7 +167,7 @@ const BATCH = 10;
 {
   const readable = new Readable({
     objectMode: true,
-    read: common.mustCall()
+    read: common.mustCall(),
   });
 
   readable.on('data', (data) => {

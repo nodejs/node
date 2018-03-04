@@ -33,7 +33,7 @@ const IDX_OPTIONS_FLAGS = 9;
     maxHeaderListPairs: 6,
     maxOutstandingPings: 7,
     maxOutstandingSettings: 8,
-    maxSessionMemory: 9
+    maxSessionMemory: 9,
   });
 
   strictEqual(optionsBuffer[IDX_OPTIONS_MAX_DEFLATE_DYNAMIC_TABLE_SIZE], 1);
@@ -67,7 +67,7 @@ const IDX_OPTIONS_FLAGS = 9;
     maxReservedRemoteStreams: 2,
     peerMaxConcurrentStreams: 4,
     paddingStrategy: 5,
-    maxHeaderListPairs: 6
+    maxHeaderListPairs: 6,
   });
 
   strictEqual(optionsBuffer[IDX_OPTIONS_MAX_DEFLATE_DYNAMIC_TABLE_SIZE], 1);

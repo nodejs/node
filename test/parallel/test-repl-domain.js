@@ -40,5 +40,5 @@ putIn.write = function(data) {
 
 putIn.run([
   'require("domain").create().on("error", function() { console.log("OK") })' +
-  '.run(function() { throw new Error("threw") })'
+  '.run(function() { throw new Error("threw") })',
 ]);

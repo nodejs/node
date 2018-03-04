@@ -23,7 +23,7 @@ server.listen(0, common.mustCall(() => {
     {
       type: RangeError,
       code: 'ERR_OUT_OF_RANGE',
-      message: 'The value of "code" is out of range.'
+      message: 'The value of "code" is out of range.',
     }
   );
   assert.strictEqual(req.closed, false);
@@ -34,7 +34,7 @@ server.listen(0, common.mustCall(() => {
       {
         type: TypeError,
         code: 'ERR_INVALID_CALLBACK',
-        message: 'Callback must be a function'
+        message: 'Callback must be a function',
       }
     );
     assert.strictEqual(req.closed, false);
@@ -59,7 +59,7 @@ server.listen(0, common.mustCall(() => {
   req.on('error', common.expectsError({
     code: 'ERR_HTTP2_STREAM_ERROR',
     type: Error,
-    message: 'Stream closed with error code NGHTTP2_PROTOCOL_ERROR'
+    message: 'Stream closed with error code NGHTTP2_PROTOCOL_ERROR',
   }));
 
   req.on('response', common.mustCall());

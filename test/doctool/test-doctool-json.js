@@ -31,12 +31,12 @@ const testData = [
           desc: '<ol>\n<li>fish</li>\n<li><p>fish</p>\n</li>\n<li>' +
                   '<p>Red fish</p>\n</li>\n<li>Blue fish</li>\n</ol>\n',
           type: 'module',
-          displayName: 'Seussian Rhymes'
+          displayName: 'Seussian Rhymes',
         }],
         type: 'module',
-        displayName: 'Sample Markdown'
-      }]
-    }
+        displayName: 'Sample Markdown',
+      }],
+    },
   },
   {
     file: fixtures.path('order_of_end_tags_5873.md'),
@@ -57,23 +57,23 @@ const testData = [
                 params: [{
                   textRaw: '`array` {Array} ',
                   name: 'array',
-                  type: 'Array'
-                }]
+                  type: 'Array',
+                }],
               },
               {
                 params: [{
-                  name: 'array'
-                }]
-              }
-            ]
+                  name: 'array',
+                }],
+              },
+            ],
           }],
           type: 'module',
-          displayName: 'Subsection'
+          displayName: 'Subsection',
         }],
         type: 'module',
-        displayName: 'Title'
-      }]
-    }
+        displayName: 'Title',
+      }],
+    },
   },
   {
     file: fixtures.path('doc_with_yaml.md'),
@@ -89,12 +89,12 @@ const testData = [
               name: 'foobar',
               meta: {
                 added: ['v1.0.0'],
-                changes: []
+                changes: [],
               },
               desc: '<p>Describe <code>Foobar</code> in more detail ' +
                 'here.</p>\n',
               type: 'module',
-              displayName: 'Foobar'
+              displayName: 'Foobar',
             },
             {
               textRaw: 'Foobar II',
@@ -105,14 +105,14 @@ const testData = [
                   { version: 'v4.2.0',
                     'pr-url': 'https://github.com/nodejs/node/pull/3276',
                     description: 'The `error` parameter can now be ' +
-                      'an arrow function.'
-                  }
-                ]
+                      'an arrow function.',
+                  },
+                ],
               },
               desc: '<p>Describe <code>Foobar II</code> in more detail ' +
                 'here. fg(1)</p>\n',
               type: 'module',
-              displayName: 'Foobar II'
+              displayName: 'Foobar II',
             },
             {
               textRaw: 'Deprecated thingy',
@@ -120,12 +120,12 @@ const testData = [
               meta: {
                 added: ['v1.0.0'],
                 deprecated: ['v2.0.0'],
-                changes: []
+                changes: [],
               },
               desc: '<p>Describe <code>Deprecated thingy</code> in more ' +
                 'detail here. fg(1p)</p>\n',
               type: 'module',
-              displayName: 'Deprecated thingy'
+              displayName: 'Deprecated thingy',
             },
             {
               textRaw: 'Something',
@@ -133,15 +133,15 @@ const testData = [
               desc: '<!-- This is not a metadata comment -->\n<p>' +
                 'Describe <code>Something</code> in more detail here.</p>\n',
               type: 'module',
-              displayName: 'Something'
-            }
+              displayName: 'Something',
+            },
           ],
           type: 'module',
-          displayName: 'Sample Markdown with YAML info'
-        }
-      ]
-    }
-  }
+          displayName: 'Sample Markdown with YAML info',
+        },
+      ],
+    },
+  },
 ];
 
 testData.forEach((item) => {

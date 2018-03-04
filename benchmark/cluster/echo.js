@@ -7,7 +7,7 @@ if (cluster.isMaster) {
     workers: [1],
     payload: ['string', 'object'],
     sendsPerBroadcast: [1, 10],
-    n: [1e5]
+    n: [1e5],
   });
 
   function main({ n, workers, sendsPerBroadcast, payload }) {

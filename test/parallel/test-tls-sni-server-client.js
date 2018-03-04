@@ -38,50 +38,50 @@ function loadPEM(n) {
 
 const serverOptions = {
   key: loadPEM('agent2-key'),
-  cert: loadPEM('agent2-cert')
+  cert: loadPEM('agent2-cert'),
 };
 
 const SNIContexts = {
   'a.example.com': {
     key: loadPEM('agent1-key'),
-    cert: loadPEM('agent1-cert')
+    cert: loadPEM('agent1-cert'),
   },
   'asterisk.test.com': {
     key: loadPEM('agent3-key'),
-    cert: loadPEM('agent3-cert')
+    cert: loadPEM('agent3-cert'),
   },
   'chain.example.com': {
     key: loadPEM('agent6-key'),
     // NOTE: Contains ca3 chain cert
-    cert: loadPEM('agent6-cert')
-  }
+    cert: loadPEM('agent6-cert'),
+  },
 };
 
 const clientsOptions = [{
   port: undefined,
   ca: [loadPEM('ca1-cert')],
   servername: 'a.example.com',
-  rejectUnauthorized: false
+  rejectUnauthorized: false,
 }, {
   port: undefined,
   ca: [loadPEM('ca2-cert')],
   servername: 'b.test.com',
-  rejectUnauthorized: false
+  rejectUnauthorized: false,
 }, {
   port: undefined,
   ca: [loadPEM('ca2-cert')],
   servername: 'a.b.test.com',
-  rejectUnauthorized: false
+  rejectUnauthorized: false,
 }, {
   port: undefined,
   ca: [loadPEM('ca1-cert')],
   servername: 'c.wrong.com',
-  rejectUnauthorized: false
+  rejectUnauthorized: false,
 }, {
   port: undefined,
   ca: [loadPEM('ca1-cert')],
   servername: 'chain.example.com',
-  rejectUnauthorized: false
+  rejectUnauthorized: false,
 }];
 
 const serverResults = [];
@@ -123,7 +123,7 @@ function startTest() {
 process.on('exit', function() {
   assert.deepStrictEqual(serverResults, [
     'a.example.com', 'b.test.com', 'a.b.test.com', 'c.wrong.com',
-    'chain.example.com'
+    'chain.example.com',
   ]);
   assert.deepStrictEqual(clientResults, [true, true, false, false, true]);
 });

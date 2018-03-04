@@ -33,7 +33,7 @@ const https = require('https');
         assert.strictEqual(addr, HOSTNAME);
         assert.strictEqual(opt.family, 6);
         cb(null, hostAddrIPv6, opt.family);
-      })
+      }),
     };
     // Will fail with ECONNREFUSED if the address family is not honored.
     https.get(options, common.mustCall(function() {

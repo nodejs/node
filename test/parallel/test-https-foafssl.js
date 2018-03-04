@@ -36,7 +36,7 @@ const options = {
   key: fixtures.readSync('agent.key'),
   cert: fixtures.readSync('agent.crt'),
   requestCert: true,
-  rejectUnauthorized: false
+  rejectUnauthorized: false,
 };
 
 const modulus = 'A6F44A9C25791431214F5C87AF9E040177A8BB89AC803F7E09BBC3A5519F' +

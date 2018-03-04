@@ -27,7 +27,7 @@ const str = 'asdfasdfasdfasdfasdf';
 
 const r = new stream.Readable({
   highWaterMark: 5,
-  encoding: 'utf8'
+  encoding: 'utf8',
 });
 
 let reads = 0;

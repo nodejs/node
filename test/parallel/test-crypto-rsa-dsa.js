@@ -37,29 +37,29 @@ const decryptError =
 
   let decryptedBufferWithPassword = crypto.privateDecrypt({
     key: rsaKeyPemEncrypted,
-    passphrase: 'password'
+    passphrase: 'password',
   }, encryptedBuffer);
   assert.strictEqual(decryptedBufferWithPassword.toString(), input);
 
   encryptedBuffer = crypto.publicEncrypt({
     key: rsaKeyPemEncrypted,
-    passphrase: 'password'
+    passphrase: 'password',
   }, bufferToEncrypt);
 
   decryptedBufferWithPassword = crypto.privateDecrypt({
     key: rsaKeyPemEncrypted,
-    passphrase: 'password'
+    passphrase: 'password',
   }, encryptedBuffer);
   assert.strictEqual(decryptedBufferWithPassword.toString(), input);
 
   encryptedBuffer = crypto.privateEncrypt({
     key: rsaKeyPemEncrypted,
-    passphrase: Buffer.from('password')
+    passphrase: Buffer.from('password'),
   }, bufferToEncrypt);
 
   decryptedBufferWithPassword = crypto.publicDecrypt({
     key: rsaKeyPemEncrypted,
-    passphrase: Buffer.from('password')
+    passphrase: Buffer.from('password'),
   }, encryptedBuffer);
   assert.strictEqual(decryptedBufferWithPassword.toString(), input);
 
@@ -81,26 +81,26 @@ const decryptError =
   assert.throws(() => {
     crypto.privateDecrypt({
       key: rsaKeyPemEncrypted,
-      passphrase: 'wrong'
+      passphrase: 'wrong',
     }, bufferToEncrypt);
   }, decryptError);
 
   assert.throws(() => {
     crypto.publicEncrypt({
       key: rsaKeyPemEncrypted,
-      passphrase: 'wrong'
+      passphrase: 'wrong',
     }, encryptedBuffer);
   }, decryptError);
 
   encryptedBuffer = crypto.privateEncrypt({
     key: rsaKeyPemEncrypted,
-    passphrase: Buffer.from('password')
+    passphrase: Buffer.from('password'),
   }, bufferToEncrypt);
 
   assert.throws(() => {
     crypto.publicDecrypt({
       key: rsaKeyPemEncrypted,
-      passphrase: [].concat.apply([], Buffer.from('password'))
+      passphrase: [].concat.apply([], Buffer.from('password')),
     }, encryptedBuffer);
   }, decryptError);
 }
@@ -116,12 +116,12 @@ function test_rsa(padding) {
 
   const encryptedBuffer = crypto.publicEncrypt({
     key: rsaPubPem,
-    padding: padding
+    padding: padding,
   }, bufferToEncrypt);
 
   const decryptedBuffer = crypto.privateDecrypt({
     key: rsaKeyPem,
-    padding: padding
+    padding: padding,
   }, encryptedBuffer);
   assert.deepStrictEqual(decryptedBuffer, input);
 }

@@ -10,13 +10,13 @@ const common = require('../common');
 const timers = require('timers');
 
 const foo = {
-  _onTimeout: common.mustNotCall('_onTimeout should not be called')
+  _onTimeout: common.mustNotCall('_onTimeout should not be called'),
 };
 
 const bar = {
   _onTimeout: common.mustCall(function() {
     timers.unenroll(foo);
-  })
+  }),
 };
 
 // We use timers with expiration times that are sufficiently apart to make

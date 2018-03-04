@@ -10,7 +10,7 @@ assert.deepStrictEqual(
     value: URL,
     writable: true,
     configurable: true,
-    enumerable: false
+    enumerable: false,
   }
 );
 
@@ -20,6 +20,6 @@ assert.deepStrictEqual(
     value: URLSearchParams,
     writable: true,
     configurable: true,
-    enumerable: false
+    enumerable: false,
   }
 );

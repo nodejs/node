@@ -44,7 +44,7 @@ const options = {
   key: readKey('agent2-key.pem'),
   cert: readKey('agent2-cert.pem'),
   ciphers: 'ECDHE-RSA-AES128-SHA',
-  ecdhCurve: false
+  ecdhCurve: false,
 };
 
 common.expectWarning('DeprecationWarning',

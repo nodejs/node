@@ -7,7 +7,7 @@ const { inherits } = require('util');
 
 {
   const write = new Writable({
-    write(chunk, enc, cb) { cb(); }
+    write(chunk, enc, cb) { cb(); },
   });
 
   write.on('finish', common.mustCall());
@@ -18,7 +18,7 @@ const { inherits } = require('util');
 
 {
   const write = new Writable({
-    write(chunk, enc, cb) { cb(); }
+    write(chunk, enc, cb) { cb(); },
   });
 
   const expected = new Error('kaboom');
@@ -34,7 +34,7 @@ const { inherits } = require('util');
 
 {
   const write = new Writable({
-    write(chunk, enc, cb) { cb(); }
+    write(chunk, enc, cb) { cb(); },
   });
 
   write._destroy = function(err, cb) {
@@ -59,7 +59,7 @@ const { inherits } = require('util');
     destroy: common.mustCall(function(err, cb) {
       assert.strictEqual(err, expected);
       cb();
-    })
+    }),
   });
 
   const expected = new Error('kaboom');
@@ -75,7 +75,7 @@ const { inherits } = require('util');
 
 {
   const write = new Writable({
-    write(chunk, enc, cb) { cb(); }
+    write(chunk, enc, cb) { cb(); },
   });
 
   write._destroy = common.mustCall(function(err, cb) {
@@ -89,7 +89,7 @@ const { inherits } = require('util');
 
 {
   const write = new Writable({
-    write(chunk, enc, cb) { cb(); }
+    write(chunk, enc, cb) { cb(); },
   });
 
   write._destroy = common.mustCall(function(err, cb) {
@@ -113,7 +113,7 @@ const { inherits } = require('util');
 
 {
   const write = new Writable({
-    write(chunk, enc, cb) { cb(); }
+    write(chunk, enc, cb) { cb(); },
   });
 
   const expected = new Error('kaboom');
@@ -135,7 +135,7 @@ const { inherits } = require('util');
 {
   // double error case
   const write = new Writable({
-    write(chunk, enc, cb) { cb(); }
+    write(chunk, enc, cb) { cb(); },
   });
 
   write.on('error', common.mustCall());
@@ -148,7 +148,7 @@ const { inherits } = require('util');
 
 {
   const write = new Writable({
-    write(chunk, enc, cb) { cb(); }
+    write(chunk, enc, cb) { cb(); },
   });
 
   write.destroyed = true;
@@ -174,7 +174,7 @@ const { inherits } = require('util');
 {
   // destroy and destroy callback
   const write = new Writable({
-    write(chunk, enc, cb) { cb(); }
+    write(chunk, enc, cb) { cb(); },
   });
 
   write.destroy();
@@ -191,7 +191,7 @@ const { inherits } = require('util');
   // called again.
   const write = new Writable({
     write: common.mustNotCall(),
-    final: common.mustCall((cb) => cb(), 2)
+    final: common.mustCall((cb) => cb(), 2),
   });
 
   write.end();

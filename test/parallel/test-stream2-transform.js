@@ -28,7 +28,7 @@ const Transform = require('_stream_transform');
 {
   // Verify writable side consumption
   const tx = new Transform({
-    highWaterMark: 10
+    highWaterMark: 10,
   });
 
   let transformed = 0;
@@ -408,7 +408,7 @@ const Transform = require('_stream_transform');
     { foo: 'bar' },
     100,
     'string',
-    { nested: { things: [ { foo: 'bar' }, 100, 'string' ] } }
+    { nested: { things: [ { foo: 'bar' }, 100, 'string' ] } },
   ];
 
   let ended = false;
@@ -449,7 +449,7 @@ const Transform = require('_stream_transform');
     { foo: 'bar' },
     100,
     'string',
-    { nested: { things: [ { foo: 'bar' }, 100, 'string' ] } }
+    { nested: { things: [ { foo: 'bar' }, 100, 'string' ] } },
   ];
 
   let ended = false;

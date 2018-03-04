@@ -25,7 +25,7 @@ function test(honorCipherOrder, clientCipher, expectedCipher, cb) {
     cert: fixtures.readKey('agent2-cert.pem'),
     ciphers: 'AES256-SHA256:AES128-GCM-SHA256:AES128-SHA256:' +
              'ECDHE-RSA-AES128-GCM-SHA256',
-    honorCipherOrder: !!honorCipherOrder
+    honorCipherOrder: !!honorCipherOrder,
   };
 
   const server = tls.createServer(soptions, function(cleartextStream) {
@@ -38,7 +38,7 @@ function test(honorCipherOrder, clientCipher, expectedCipher, cb) {
   server.listen(0, localhost, function() {
     const coptions = {
       rejectUnauthorized: false,
-      secureProtocol: SSL_Method
+      secureProtocol: SSL_Method,
     };
     if (clientCipher) {
       coptions.ciphers = clientCipher;

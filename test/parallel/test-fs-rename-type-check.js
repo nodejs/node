@@ -10,7 +10,7 @@ const fs = require('fs');
       code: 'ERR_INVALID_ARG_TYPE',
       type: TypeError,
       message:
-        'The "oldPath" argument must be one of type string, Buffer, or URL'
+        'The "oldPath" argument must be one of type string, Buffer, or URL',
     }
   );
   common.expectsError(
@@ -19,7 +19,7 @@ const fs = require('fs');
       code: 'ERR_INVALID_ARG_TYPE',
       type: TypeError,
       message:
-        'The "newPath" argument must be one of type string, Buffer, or URL'
+        'The "newPath" argument must be one of type string, Buffer, or URL',
     }
   );
   common.expectsError(
@@ -28,7 +28,7 @@ const fs = require('fs');
       code: 'ERR_INVALID_ARG_TYPE',
       type: TypeError,
       message:
-        'The "oldPath" argument must be one of type string, Buffer, or URL'
+        'The "oldPath" argument must be one of type string, Buffer, or URL',
     }
   );
   common.expectsError(
@@ -37,7 +37,7 @@ const fs = require('fs');
       code: 'ERR_INVALID_ARG_TYPE',
       type: TypeError,
       message:
-        'The "newPath" argument must be one of type string, Buffer, or URL'
+        'The "newPath" argument must be one of type string, Buffer, or URL',
     }
   );
 });

@@ -39,7 +39,7 @@ const options = {
   pfx: pfx,
   passphrase: 'sample',
   requestCert: true,
-  rejectUnauthorized: false
+  rejectUnauthorized: false,
 };
 
 const server = https.createServer(options, function(req, res) {

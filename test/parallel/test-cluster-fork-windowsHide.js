@@ -29,7 +29,7 @@ if (!process.argv[2]) {
     workerExit: common.mustCall((msg) => {
       assert.strictEqual(msg.code, 0);
       assert.strictEqual(msg.signal, null);
-    })
+    }),
   };
 
   master.on('message', (msg) => {
@@ -46,7 +46,7 @@ if (!process.argv[2]) {
 } else if (cluster.isMaster) {
   cluster.setupMaster({
     silient: true,
-    windowsHide: true
+    windowsHide: true,
   });
 
   const worker = cluster.fork();

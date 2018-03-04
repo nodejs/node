@@ -11,13 +11,13 @@ const invalidTypes = [
   true,
   false,
   null,
-  undefined
+  undefined,
 ];
 const validTypes = [
   'udp4',
   'udp6',
   { type: 'udp4' },
-  { type: 'udp6' }
+  { type: 'udp6' },
 ];
 const errMessage = /^Bad socket type specified\. Valid types are: udp4, udp6$/;
 
@@ -28,7 +28,7 @@ invalidTypes.forEach((invalidType) => {
   }, {
     code: 'ERR_SOCKET_BAD_TYPE',
     type: TypeError,
-    message: errMessage
+    message: errMessage,
   });
 });
 
@@ -43,7 +43,7 @@ validTypes.forEach((validType) => {
   const socket = dgram.createSocket({
     type: 'udp4',
     recvBufferSize: 10000,
-    sendBufferSize: 15000
+    sendBufferSize: 15000,
   });
 
   socket.bind(common.mustCall(() => {

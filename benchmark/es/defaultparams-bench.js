@@ -5,7 +5,7 @@ const assert = require('assert');
 
 const bench = common.createBenchmark(main, {
   method: ['withoutdefaults', 'withdefaults'],
-  millions: [100]
+  millions: [100],
 });
 
 function oldStyleDefaults(x, y) {

@@ -4,7 +4,7 @@ const assert = require('assert');
 const Readable = require('stream').Readable;
 
 const readable = new Readable({
-  read(size) {}
+  read(size) {},
 });
 
 const state = readable._readableState;

@@ -4,7 +4,7 @@ const common = require('../common');
 const assert = require('assert');
 const {
   getSystemErrorName,
-  _errnoException
+  _errnoException,
 } = require('util');
 
 const uv = process.binding('uv');
@@ -30,7 +30,7 @@ function runTest(fn) {
         code: 'ERR_INVALID_ARG_TYPE',
         type: TypeError,
         message: 'The "err" argument must be of type number. ' +
-                 `Received type ${typeof err}`
+                 `Received type ${typeof err}`,
       });
   });
 
@@ -42,7 +42,7 @@ function runTest(fn) {
         type: RangeError,
         message: 'The value of "err" is out of range. ' +
                  'It must be a negative integer. ' +
-                 `Received ${err}`
+                 `Received ${err}`,
       });
   });
 }

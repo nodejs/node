@@ -5,7 +5,7 @@ const assert = require('assert');
 
 const {
   performance,
-  PerformanceObserver
+  PerformanceObserver,
 } = require('perf_hooks');
 
 {
@@ -75,7 +75,7 @@ const {
                         {
                           code: 'ERR_INVALID_ARG_TYPE',
                           type: TypeError,
-                          message: 'The "fn" argument must be of type Function'
+                          message: 'The "fn" argument must be of type Function',
                         });
   });
 }

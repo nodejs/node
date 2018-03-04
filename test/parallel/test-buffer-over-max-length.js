@@ -9,7 +9,7 @@ const kMaxLength = buffer.kMaxLength;
 const bufferMaxSizeMsg = common.expectsError({
   code: 'ERR_INVALID_OPT_VALUE',
   type: RangeError,
-  message: /^The value "[^"]*" is invalid for option "size"$/
+  message: /^The value "[^"]*" is invalid for option "size"$/,
 }, 12);
 
 assert.throws(() => Buffer((-1 >>> 0) + 1), bufferMaxSizeMsg);

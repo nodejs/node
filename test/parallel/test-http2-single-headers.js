@@ -18,7 +18,7 @@ const singles = [
   'if-unmodified-since',
   'from',
   'location',
-  'max-forwards'
+  'max-forwards',
 ];
 
 server.on('stream', common.mustNotCall());
@@ -32,7 +32,7 @@ server.listen(0, common.mustCall(() => {
       {
         code: 'ERR_HTTP2_HEADER_SINGLE_VALUE',
         type: Error,
-        message: `Header field "${i}" must have only a single value`
+        message: `Header field "${i}" must have only a single value`,
       }
     );
 
@@ -41,7 +41,7 @@ server.listen(0, common.mustCall(() => {
       {
         code: 'ERR_HTTP2_HEADER_SINGLE_VALUE',
         type: Error,
-        message: `Header field "${i}" must have only a single value`
+        message: `Header field "${i}" must have only a single value`,
       }
     );
   });

@@ -13,6 +13,6 @@ common.expectsError(
   {
     code: 'ERR_MISSING_MODULE',
     type: errors.Error,
-    message: 'Cannot find module target'
+    message: 'Cannot find module target',
   }
 );

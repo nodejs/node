@@ -14,7 +14,7 @@ const maxOutstandingSettings = 2;
 function doTest(session) {
   session.on('error', common.expectsError({
     code: 'ERR_HTTP2_MAX_PENDING_SETTINGS_ACK',
-    type: Error
+    type: Error,
   }));
   for (let n = 0; n < maxOutstandingSettings; n++) {
     session.settings({ enablePush: false });

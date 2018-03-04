@@ -12,7 +12,7 @@ const tls = require('tls');
 
 const options = {
   key: fixtures.readKey('agent1-key.pem'),
-  cert: fixtures.readKey('agent1-cert.pem')
+  cert: fixtures.readKey('agent1-cert.pem'),
 };
 
 const server = tls.Server(options, common.mustCall((socket) => {
@@ -20,7 +20,7 @@ const server = tls.Server(options, common.mustCall((socket) => {
     common.expectsError({
       type: Error,
       code: 'ERR_TLS_RENEGOTIATION_DISABLED',
-      message: 'TLS session renegotiation disabled for this socket'
+      message: 'TLS session renegotiation disabled for this socket',
     })(err);
     socket.destroy();
     server.close();
@@ -43,7 +43,7 @@ server.listen(0, common.mustCall(() => {
   const port = server.address().port;
   const options = {
     rejectUnauthorized: false,
-    port
+    port,
   };
   const client =
     tls.connect(options, common.mustCall(() => {

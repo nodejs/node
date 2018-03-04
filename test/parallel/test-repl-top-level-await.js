@@ -60,7 +60,7 @@ const testMe = repl.start({
   stream: putIn,
   terminal: true,
   useColors: false,
-  breakEvalOnSigint: true
+  breakEvalOnSigint: true,
 });
 
 function runAndWait(cmds, lookFor) {
@@ -80,7 +80,7 @@ async function ordinaryTests() {
   // https://cs.chromium.org/chromium/src/third_party/WebKit/LayoutTests/http/tests/devtools/console/console-top-level-await.js?rcl=5d0ea979f0ba87655b7ef0e03b58fa3c04986ba6
   putIn.run([
     'function foo(x) { return x; }',
-    'function koo() { return Promise.resolve(4); }'
+    'function koo() { return Promise.resolve(4); }',
   ]);
   const testCases = [
     [ 'await Promise.resolve(0)', '0' ],
@@ -131,7 +131,7 @@ async function ordinaryTests() {
     [ 'let o = await 1, p', 'undefined' ],
     [ 'p', 'undefined' ],
     [ 'let q = 1, s = await 2', 'undefined' ],
-    [ 's', '2' ]
+    [ 's', '2' ],
   ];
 
   for (const [input, expected, options = {}] of testCases) {
@@ -151,18 +151,18 @@ async function ctrlCTest() {
   putIn.run([
     `const timeout = (msecs) => new Promise((resolve) => {
        setTimeout(resolve, msecs).unref();
-     });`
+     });`,
   ]);
 
   console.log('Testing Ctrl+C');
   assert.deepStrictEqual(await runAndWait([
     'await timeout(100000)',
-    { ctrl: true, name: 'c' }
+    { ctrl: true, name: 'c' },
   ]), [
     'await timeout(100000)\r',
     'Thrown: Error [ERR_SCRIPT_EXECUTION_INTERRUPTED]: ' +
       'Script execution was interrupted by `SIGINT`.',
-    PROMPT
+    PROMPT,
   ]);
 }
 

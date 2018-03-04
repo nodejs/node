@@ -18,7 +18,7 @@ tmpdir.refresh();
 
 const file = path.join(tmpdir.path, 'toobig.txt');
 const stream = fs.createWriteStream(file, {
-  flags: 'a'
+  flags: 'a',
 });
 
 const size = kStringMaxLength / 200;

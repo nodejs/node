@@ -36,7 +36,7 @@ function handler(req, res) {
   console.error('Server sending full response...');
   res.writeHead(200, {
     'Content-Type': 'text/plain',
-    'ABCD': '1'
+    'ABCD': '1',
   });
   res.end(test_res_body);
 }
@@ -58,7 +58,7 @@ server.on('listening', function() {
     port: this.address().port,
     method: 'POST',
     path: '/world',
-    headers: { 'Expect': '100-continue' }
+    headers: { 'Expect': '100-continue' },
   });
   console.error('Client sending request...');
   outstanding_reqs++;

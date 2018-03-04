@@ -17,7 +17,7 @@ class MyIncomingMessage extends http.IncomingMessage {
 }
 
 const server = http.Server({
-  IncomingMessage: MyIncomingMessage
+  IncomingMessage: MyIncomingMessage,
 }, common.mustCall(function(req, res) {
   assert.strictEqual(req.getUserAgent(), 'node-test');
   res.statusCode = 200;
@@ -29,8 +29,8 @@ server.on('listening', function makeRequest() {
   http.get({
     port: this.address().port,
     headers: {
-      'User-Agent': 'node-test'
-    }
+      'User-Agent': 'node-test',
+    },
   }, (res) => {
     assert.strictEqual(res.statusCode, 200);
     res.on('end', () => {

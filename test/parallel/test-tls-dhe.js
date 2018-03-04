@@ -55,7 +55,7 @@ function test(keylen, expectedCipher, cb) {
     key: key,
     cert: cert,
     ciphers: ciphers,
-    dhparam: loadDHParam(keylen)
+    dhparam: loadDHParam(keylen),
   };
 
   const server = tls.createServer(options, function(conn) {

@@ -15,7 +15,7 @@ performance.maxEntries = 1;
     () => performance.maxEntries = i,
     {
       code: 'ERR_INVALID_ARG_TYPE',
-      type: TypeError
+      type: TypeError,
     }
   );
 });

@@ -21,23 +21,23 @@ ruleTester.run('no-let-in-for-declaration', rule, {
     'for (const foo of bar);',
     'for (var foo of bar);',
     'for (const foo in bar);',
-    'for (var foo in bar);'
+    'for (var foo in bar);',
   ],
   invalid: [
     {
       code: 'for (let foo = 1;;);',
       output: 'for (var foo = 1;;);',
-      errors: [{ message }]
+      errors: [{ message }],
     },
     {
       code: 'for (let foo in bar);',
       output: 'for (var foo in bar);',
-      errors: [{ message }]
+      errors: [{ message }],
     },
     {
       code: 'for (let foo of bar);',
       output: 'for (var foo of bar);',
-      errors: [{ message }]
-    }
-  ]
+      errors: [{ message }],
+    },
+  ],
 });

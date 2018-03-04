@@ -26,7 +26,7 @@ module.exports = {
         node,
         message,
         fix: (fixer) =>
-          fixer.replaceText(sourceCode.getFirstToken(node), 'var')
+          fixer.replaceText(sourceCode.getFirstToken(node), 'var'),
       });
     }
 
@@ -34,5 +34,5 @@ module.exports = {
       [forSelector]: (node) => report(node.init),
       [forInOfSelector]: (node) => report(node.left),
     };
-  }
+  },
 };

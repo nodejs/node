@@ -13,7 +13,7 @@ common.expectsError(
   {
     code: 'ERR_INSPECTOR_NOT_CONNECTED',
     type: Error,
-    message: 'Session is not connected'
+    message: 'Session is not connected',
   }
 );
 
@@ -28,7 +28,7 @@ session.post('Runtime.evaluate', { expression: '2 + 2' });
       type: TypeError,
       message:
         'The "method" argument must be of type string. ' +
-        `Received type ${typeof i}`
+        `Received type ${typeof i}`,
     }
   );
 });
@@ -41,7 +41,7 @@ session.post('Runtime.evaluate', { expression: '2 + 2' });
       type: TypeError,
       message:
         'The "params" argument must be of type Object. ' +
-        `Received type ${typeof i}`
+        `Received type ${typeof i}`,
     }
   );
 });
@@ -51,7 +51,7 @@ common.expectsError(
   {
     code: 'ERR_INSPECTOR_ALREADY_CONNECTED',
     type: Error,
-    message: 'The inspector is already connected'
+    message: 'The inspector is already connected',
   }
 );
 

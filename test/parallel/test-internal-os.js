@@ -19,7 +19,7 @@ const specs = [
   ['255.255.9.0', 'ipv4', null],
   ['255.255.1.0', 'ipv4', null],
   ['ffff:ffff:43::', 'ipv6', null],
-  ['ffff:ffff:ffff:1::', 'ipv6', null]
+  ['ffff:ffff:ffff:1::', 'ipv6', null],
 ];
 
 specs.forEach(([mask, protocol, expectedSuffix]) => {

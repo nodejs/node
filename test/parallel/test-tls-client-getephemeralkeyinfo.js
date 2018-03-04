@@ -20,7 +20,7 @@ function loadDHParam(n) {
 const cipherlist = {
   'NOT_PFS': 'AES128-SHA256',
   'DH': 'DHE-RSA-AES128-GCM-SHA256',
-  'ECDH': 'ECDHE-RSA-AES128-GCM-SHA256'
+  'ECDH': 'ECDHE-RSA-AES128-GCM-SHA256',
 };
 
 function test(size, type, name, next) {
@@ -31,7 +31,7 @@ function test(size, type, name, next) {
   const options = {
     key: key,
     cert: cert,
-    ciphers: cipher
+    ciphers: cipher,
   };
 
   if (type === 'DH') options.dhparam = loadDHParam(size);
@@ -49,7 +49,7 @@ function test(size, type, name, next) {
   server.listen(0, '127.0.0.1', common.mustCall(function() {
     const client = tls.connect({
       port: this.address().port,
-      rejectUnauthorized: false
+      rejectUnauthorized: false,
     }, function() {
       const ekeyinfo = client.getEphemeralKeyInfo();
       assert.strictEqual(ekeyinfo.type, type);

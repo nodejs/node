@@ -19,7 +19,7 @@ common.expectsError(
     code: 'ERR_INVALID_ARG_TYPE',
     type: TypeError,
     message: 'The "options.chunkSize" property must be of type number. ' +
-             'Received type string'
+             'Received type string',
   }
 );
 
@@ -29,7 +29,7 @@ common.expectsError(
     code: 'ERR_OUT_OF_RANGE',
     type: RangeError,
     message: 'The value of "options.chunkSize" is out of range. It must ' +
-             'be a finite number. Received -Infinity'
+             'be a finite number. Received -Infinity',
   }
 );
 
@@ -39,7 +39,7 @@ common.expectsError(
     code: 'ERR_OUT_OF_RANGE',
     type: RangeError,
     message: 'The value of "options.chunkSize" is out of range. It must ' +
-             'be >= 64. Received 0'
+             'be >= 64. Received 0',
   }
 );
 
@@ -53,7 +53,7 @@ common.expectsError(
     code: 'ERR_INVALID_ARG_TYPE',
     type: TypeError,
     message: 'The "options.windowBits" property must be of type number. ' +
-             'Received type string'
+             'Received type string',
   }
 );
 
@@ -63,7 +63,7 @@ common.expectsError(
     code: 'ERR_OUT_OF_RANGE',
     type: RangeError,
     message: 'The value of "options.windowBits" is out of range. It must ' +
-             'be a finite number. Received -Infinity'
+             'be a finite number. Received -Infinity',
   }
 );
 
@@ -73,7 +73,7 @@ common.expectsError(
     code: 'ERR_OUT_OF_RANGE',
     type: RangeError,
     message: 'The value of "options.windowBits" is out of range. It must ' +
-             'be a finite number. Received Infinity'
+             'be a finite number. Received Infinity',
   }
 );
 
@@ -83,7 +83,7 @@ common.expectsError(
     code: 'ERR_OUT_OF_RANGE',
     type: RangeError,
     message: 'The value of "options.windowBits" is out of range. It must ' +
-             'be >= 8 and <= 15. Received 0'
+             'be >= 8 and <= 15. Received 0',
   }
 );
 
@@ -94,7 +94,7 @@ common.expectsError(
     code: 'ERR_INVALID_ARG_TYPE',
     type: TypeError,
     message: 'The "options.level" property must be of type number. ' +
-             'Received type string'
+             'Received type string',
   }
 );
 
@@ -104,7 +104,7 @@ common.expectsError(
     code: 'ERR_OUT_OF_RANGE',
     type: RangeError,
     message: 'The value of "options.level" is out of range. It must ' +
-             'be a finite number. Received -Infinity'
+             'be a finite number. Received -Infinity',
   }
 );
 
@@ -114,7 +114,7 @@ common.expectsError(
     code: 'ERR_OUT_OF_RANGE',
     type: RangeError,
     message: 'The value of "options.level" is out of range. It must ' +
-             'be a finite number. Received Infinity'
+             'be a finite number. Received Infinity',
   }
 );
 
@@ -124,7 +124,7 @@ common.expectsError(
     code: 'ERR_OUT_OF_RANGE',
     type: RangeError,
     message: 'The value of "options.level" is out of range. It must ' +
-             'be >= -1 and <= 9. Received -2'
+             'be >= -1 and <= 9. Received -2',
   }
 );
 
@@ -135,7 +135,7 @@ common.expectsError(
     code: 'ERR_INVALID_ARG_TYPE',
     type: TypeError,
     message: 'The "level" argument must be of type number. ' +
-             'Received type string'
+             'Received type string',
   }
 );
 
@@ -145,7 +145,7 @@ common.expectsError(
     code: 'ERR_OUT_OF_RANGE',
     type: RangeError,
     message: 'The value of "level" is out of range. It must ' +
-             'be a finite number. Received -Infinity'
+             'be a finite number. Received -Infinity',
   }
 );
 
@@ -155,7 +155,7 @@ common.expectsError(
     code: 'ERR_OUT_OF_RANGE',
     type: RangeError,
     message: 'The value of "level" is out of range. It must ' +
-             'be a finite number. Received Infinity'
+             'be a finite number. Received Infinity',
   }
 );
 
@@ -165,7 +165,7 @@ common.expectsError(
     code: 'ERR_OUT_OF_RANGE',
     type: RangeError,
     message: 'The value of "level" is out of range. It must ' +
-             'be >= -1 and <= 9. Received -2'
+             'be >= -1 and <= 9. Received -2',
   }
 );
 
@@ -176,7 +176,7 @@ common.expectsError(
     code: 'ERR_INVALID_ARG_TYPE',
     type: TypeError,
     message: 'The "options.memLevel" property must be of type number. ' +
-             'Received type string'
+             'Received type string',
   }
 );
 
@@ -186,7 +186,7 @@ common.expectsError(
     code: 'ERR_OUT_OF_RANGE',
     type: RangeError,
     message: 'The value of "options.memLevel" is out of range. It must ' +
-             'be a finite number. Received -Infinity'
+             'be a finite number. Received -Infinity',
   }
 );
 
@@ -196,7 +196,7 @@ common.expectsError(
     code: 'ERR_OUT_OF_RANGE',
     type: RangeError,
     message: 'The value of "options.memLevel" is out of range. It must ' +
-             'be a finite number. Received Infinity'
+             'be a finite number. Received Infinity',
   }
 );
 
@@ -206,7 +206,7 @@ common.expectsError(
     code: 'ERR_OUT_OF_RANGE',
     type: RangeError,
     message: 'The value of "options.memLevel" is out of range. It must ' +
-             'be >= 1 and <= 9. Received -2'
+             'be >= 1 and <= 9. Received -2',
   }
 );
 
@@ -224,7 +224,7 @@ common.expectsError(
     code: 'ERR_INVALID_ARG_TYPE',
     type: TypeError,
     message: 'The "options.strategy" property must be of type number. ' +
-             'Received type string'
+             'Received type string',
   }
 );
 
@@ -234,7 +234,7 @@ common.expectsError(
     code: 'ERR_OUT_OF_RANGE',
     type: RangeError,
     message: 'The value of "options.strategy" is out of range. It must ' +
-             'be a finite number. Received -Infinity'
+             'be a finite number. Received -Infinity',
   }
 );
 
@@ -244,7 +244,7 @@ common.expectsError(
     code: 'ERR_OUT_OF_RANGE',
     type: RangeError,
     message: 'The value of "options.strategy" is out of range. It must ' +
-             'be a finite number. Received Infinity'
+             'be a finite number. Received Infinity',
   }
 );
 
@@ -254,7 +254,7 @@ common.expectsError(
     code: 'ERR_OUT_OF_RANGE',
     type: RangeError,
     message: 'The value of "options.strategy" is out of range. It must ' +
-             'be >= 0 and <= 4. Received -2'
+             'be >= 0 and <= 4. Received -2',
   }
 );
 
@@ -265,7 +265,7 @@ common.expectsError(
     code: 'ERR_INVALID_ARG_TYPE',
     type: TypeError,
     message: 'The "strategy" argument must be of type number. ' +
-             'Received type string'
+             'Received type string',
   }
 );
 
@@ -275,7 +275,7 @@ common.expectsError(
     code: 'ERR_OUT_OF_RANGE',
     type: RangeError,
     message: 'The value of "strategy" is out of range. It must ' +
-             'be a finite number. Received -Infinity'
+             'be a finite number. Received -Infinity',
   }
 );
 
@@ -285,7 +285,7 @@ common.expectsError(
     code: 'ERR_OUT_OF_RANGE',
     type: RangeError,
     message: 'The value of "strategy" is out of range. It must ' +
-             'be a finite number. Received Infinity'
+             'be a finite number. Received Infinity',
   }
 );
 
@@ -295,7 +295,7 @@ common.expectsError(
     code: 'ERR_OUT_OF_RANGE',
     type: RangeError,
     message: 'The value of "strategy" is out of range. It must ' +
-             'be >= 0 and <= 4. Received -2'
+             'be >= 0 and <= 4. Received -2',
   }
 );
 
@@ -306,6 +306,6 @@ common.expectsError(
     code: 'ERR_INVALID_ARG_TYPE',
     type: TypeError,
     message: 'The "options.dictionary" property must be one of type Buffer, ' +
-             'TypedArray, DataView, or ArrayBuffer. Received type string'
+             'TypedArray, DataView, or ArrayBuffer. Received type string',
   }
 );

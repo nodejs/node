@@ -18,7 +18,7 @@ const readline = require('readline');
 
 const rl = readline.createInterface({
   input: process.stdin,
-  output: process.stdout
+  output: process.stdout,
 });
 
 rl.question('What do you think of Node.js? ', (answer) => {
@@ -381,7 +381,7 @@ instance.
 const readline = require('readline');
 const rl = readline.createInterface({
   input: process.stdin,
-  output: process.stdout
+  output: process.stdout,
 });
 ```
 
@@ -488,7 +488,7 @@ const readline = require('readline');
 const rl = readline.createInterface({
   input: process.stdin,
   output: process.stdout,
-  prompt: 'OHAI> '
+  prompt: 'OHAI> ',
 });
 
 rl.prompt();
@@ -521,7 +521,7 @@ const fs = require('fs');
 
 const rl = readline.createInterface({
   input: fs.createReadStream('sample.txt'),
-  crlfDelay: Infinity
+  crlfDelay: Infinity,
 });
 
 rl.on('line', (line) => {

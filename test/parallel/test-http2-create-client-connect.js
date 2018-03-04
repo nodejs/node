@@ -23,7 +23,7 @@ const URL = url.URL;
       [new URL(`http://localhost:${port}`)],
       [url.parse(`http://localhost:${port}`)],
       [{ port }, { protocol: 'http:' }],
-      [{ port, hostname: '127.0.0.1' }, { protocol: 'http:' }]
+      [{ port, hostname: '127.0.0.1' }, { protocol: 'http:' }],
     ];
 
     const serverClose = new Countdown(items.length + 1,
@@ -51,7 +51,7 @@ const URL = url.URL;
 
   const options = {
     key: fixtures.readKey('agent3-key.pem'),
-    cert: fixtures.readKey('agent3-cert.pem')
+    cert: fixtures.readKey('agent3-cert.pem'),
   };
 
   const server = h2.createSecureServer(options);
@@ -65,7 +65,7 @@ const URL = url.URL;
       [new URL(`https://localhost:${port}`), opts],
       [url.parse(`https://localhost:${port}`), opts],
       [{ port: port, protocol: 'https:' }, opts],
-      [{ port: port, hostname: '127.0.0.1', protocol: 'https:' }, opts]
+      [{ port: port, hostname: '127.0.0.1', protocol: 'https:' }, opts],
     ];
 
     const serverClose = new Countdown(items.length,

@@ -29,7 +29,7 @@ const net = require('net');
 {
   const portTypeError = common.expectsError({
     code: 'ERR_INVALID_ARG_TYPE',
-    type: TypeError
+    type: TypeError,
   }, 96);
 
   syncFailToConnect(true, portTypeError);
@@ -43,7 +43,7 @@ const net = require('net');
 {
   const portRangeError = common.expectsError({
     code: 'ERR_SOCKET_BAD_PORT',
-    type: RangeError
+    type: RangeError,
   }, 168);
 
   syncFailToConnect('', portRangeError);
@@ -66,7 +66,7 @@ const net = require('net');
     common.expectsError(block, {
       code: 'ERR_INVALID_OPT_VALUE',
       type: TypeError,
-      message: /The value "\d+" is invalid for option "hints"/
+      message: /The value "\d+" is invalid for option "hints"/,
     });
   }
 }
@@ -123,7 +123,7 @@ function doConnect(args, getCb) {
       const socket = new net.Socket();
       return socket.connect.apply(socket, args)
         .on('connect', getCb());
-    }
+    },
   ];
 }
 

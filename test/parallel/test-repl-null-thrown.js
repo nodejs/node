@@ -12,7 +12,7 @@ output.write = output.pause = output.resume = function(buf) {
 
 const replserver = repl.start({
   output: output,
-  input: process.stdin
+  input: process.stdin,
 });
 
 replserver.emit('line', 'process.nextTick(() => { throw null; })');

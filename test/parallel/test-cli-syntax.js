@@ -10,7 +10,7 @@ const node = process.execPath;
 // test both sets of arguments that check syntax
 const syntaxArgs = [
   ['-c'],
-  ['--check']
+  ['--check'],
 ];
 
 // Match on the name of the `Error` but not the message as it is different
@@ -24,7 +24,7 @@ const notFoundRE = /^Error: Cannot find module/m;
   'syntax/good_syntax',
   'syntax/good_syntax_shebang.js',
   'syntax/good_syntax_shebang',
-  'syntax/illegal_if_not_wrapped.js'
+  'syntax/illegal_if_not_wrapped.js',
 ].forEach(function(file) {
   file = fixtures.path(file);
 
@@ -46,7 +46,7 @@ const notFoundRE = /^Error: Cannot find module/m;
   'syntax/bad_syntax.js',
   'syntax/bad_syntax',
   'syntax/bad_syntax_shebang.js',
-  'syntax/bad_syntax_shebang'
+  'syntax/bad_syntax_shebang',
 ].forEach(function(file) {
   file = fixtures.path(file);
 
@@ -73,7 +73,7 @@ const notFoundRE = /^Error: Cannot find module/m;
 // test file not found
 [
   'syntax/file_not_found.js',
-  'syntax/file_not_found'
+  'syntax/file_not_found',
 ].forEach(function(file) {
   file = fixtures.path(file);
 

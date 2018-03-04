@@ -4,9 +4,9 @@ const { win32 } = require('path');
 
 const bench = common.createBenchmark(main, {
   paths: [
-    ['C:\\foo', 'bar', '', 'baz\\asdf', 'quux', '..'].join('|')
+    ['C:\\foo', 'bar', '', 'baz\\asdf', 'quux', '..'].join('|'),
   ],
-  n: [1e6]
+  n: [1e6],
 });
 
 function main({ n, paths }) {

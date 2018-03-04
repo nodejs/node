@@ -10,7 +10,7 @@ const primValues = {
   'boolean': true,
   'object': { 0: 'a' },
   'array': [1, 2, 3],
-  'new-array': new Array([1, 2, 3])
+  'new-array': new Array([1, 2, 3]),
 };
 
 const bench = common.createBenchmark(main, {
@@ -20,8 +20,8 @@ const bench = common.createBenchmark(main, {
     'deepEqual',
     'deepStrictEqual',
     'notDeepEqual',
-    'notDeepStrictEqual'
-  ]
+    'notDeepStrictEqual',
+  ],
 });
 
 function main({ n, primitive, method }) {

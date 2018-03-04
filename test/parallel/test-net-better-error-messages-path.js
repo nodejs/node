@@ -9,7 +9,7 @@ const net = require('net');
   c.on('connect', common.mustNotCall());
   c.on('error', common.expectsError({
     code: 'ENOENT',
-    message: `connect ENOENT ${fp}`
+    message: `connect ENOENT ${fp}`,
   }));
 }
 

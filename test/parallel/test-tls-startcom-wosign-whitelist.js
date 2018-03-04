@@ -18,28 +18,28 @@ const testCases = [
     // Oct 20 23:59:59 2016 GMT. It passes StartCom/WoSign check.
     serverOpts: {
       key: loadPEM('agent8-key'),
-      cert: loadPEM('agent8-cert')
+      cert: loadPEM('agent8-cert'),
     },
     clientOpts: {
       ca: loadPEM('fake-startcom-root-cert'),
       port: undefined,
-      rejectUnauthorized: true
+      rejectUnauthorized: true,
     },
-    errorCode: 'CERT_OK'
+    errorCode: 'CERT_OK',
   },
   { // agent9 is signed by fake-startcom-root with notBefore of
     // Oct 21 00:00:01 2016 GMT. It fails StartCom/WoSign check.
     serverOpts: {
       key: loadPEM('agent9-key'),
-      cert: loadPEM('agent9-cert')
+      cert: loadPEM('agent9-cert'),
     },
     clientOpts: {
       ca: loadPEM('fake-startcom-root-cert'),
       port: undefined,
-      rejectUnauthorized: true
+      rejectUnauthorized: true,
     },
-    errorCode: 'CERT_REVOKED'
-  }
+    errorCode: 'CERT_REVOKED',
+  },
 ];
 
 

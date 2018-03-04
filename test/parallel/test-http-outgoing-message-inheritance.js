@@ -22,7 +22,7 @@ const ws = new Writable({
   write: common.mustCall((chunk, encoding, callback) => {
     assert(chunk.toString().match(/hello world/));
     setImmediate(callback);
-  })
+  }),
 });
 
 res.socket = ws;

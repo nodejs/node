@@ -19,7 +19,7 @@ const _flush = common.mustCall((next) => {
 const t = new Transform({
   transform: _transform,
   flush: _flush,
-  final: _final
+  final: _final,
 });
 
 strictEqual(t._transform, _transform);
@@ -36,5 +36,5 @@ common.expectsError(() => {
 }, {
   type: Error,
   code: 'ERR_METHOD_NOT_IMPLEMENTED',
-  message: 'The _transform method is not implemented'
+  message: 'The _transform method is not implemented',
 });

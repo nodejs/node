@@ -9,7 +9,7 @@ const fs = require('fs');
     },
     {
       code: 'ERR_INVALID_ARG_TYPE',
-      type: TypeError
+      type: TypeError,
     });
 });
 
@@ -19,7 +19,7 @@ common.expectsError(
   },
   {
     code: 'ERR_INVALID_ARG_TYPE',
-    type: TypeError
+    type: TypeError,
   });
 
 const okInputs = [1, -1, '1', '-1', Date.now()];

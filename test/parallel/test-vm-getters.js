@@ -8,7 +8,7 @@ const sandbox = {};
 Object.defineProperty(sandbox, 'prop', {
   get() {
     return 'foo';
-  }
+  },
 });
 
 const descriptor = Object.getOwnPropertyDescriptor(sandbox, 'prop');

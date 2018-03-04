@@ -13,12 +13,12 @@ const fixtures = require('../common/fixtures');
 const server = tls.createServer({
   key: fixtures.readKey('agent1-key.pem'),
   cert: fixtures.readKey('agent1-cert.pem'),
-  rejectUnauthorized: true
+  rejectUnauthorized: true,
 }, function(c) {
 }).listen(0, common.mustCall(function() {
   const c = tls.connect({
     port: this.address().port,
-    ciphers: 'RC4'
+    ciphers: 'RC4',
   }, common.mustNotCall());
 
   c.on('error', common.mustCall(function(err) {

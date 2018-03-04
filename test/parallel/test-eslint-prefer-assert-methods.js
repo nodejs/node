@@ -19,36 +19,36 @@ new RuleTester().run('prefer-assert-methods', rule, {
     'assert(foo != bar && baz);',
     'assert.ok(foo);',
     'assert.ok(foo != bar);',
-    'assert.ok(foo === bar && baz);'
+    'assert.ok(foo === bar && baz);',
   ],
   invalid: [
     {
       code: 'assert(foo == bar);',
       errors: [{
-        message: "'assert.equal' should be used instead of '=='"
+        message: "'assert.equal' should be used instead of '=='",
       }],
-      output: 'assert.equal(foo, bar);'
+      output: 'assert.equal(foo, bar);',
     },
     {
       code: 'assert(foo === bar);',
       errors: [{
-        message: "'assert.strictEqual' should be used instead of '==='"
+        message: "'assert.strictEqual' should be used instead of '==='",
       }],
-      output: 'assert.strictEqual(foo, bar);'
+      output: 'assert.strictEqual(foo, bar);',
     },
     {
       code: 'assert(foo != bar);',
       errors: [{
-        message: "'assert.notEqual' should be used instead of '!='"
+        message: "'assert.notEqual' should be used instead of '!='",
       }],
-      output: 'assert.notEqual(foo, bar);'
+      output: 'assert.notEqual(foo, bar);',
     },
     {
       code: 'assert(foo !== bar);',
       errors: [{
-        message: "'assert.notStrictEqual' should be used instead of '!=='"
+        message: "'assert.notStrictEqual' should be used instead of '!=='",
       }],
-      output: 'assert.notStrictEqual(foo, bar);'
-    }
-  ]
+      output: 'assert.notStrictEqual(foo, bar);',
+    },
+  ],
 });

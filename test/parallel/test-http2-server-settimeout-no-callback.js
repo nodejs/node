@@ -14,7 +14,7 @@ const verifyCallbacks = (server) => {
   const invalidCallBackError = {
     type: TypeError,
     code: 'ERR_INVALID_CALLBACK',
-    message: 'Callback must be a function'
+    message: 'Callback must be a function',
   };
 
   notFunctions.forEach((notFunction) =>

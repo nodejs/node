@@ -54,7 +54,7 @@ const tls = require('tls');
     cert: cert,
     key: key,
     port: common.PORT,
-    ciphers: 'rick-128-roll'
+    ciphers: 'rick-128-roll',
   }, common.mustNotCall());
 
   conn.on(

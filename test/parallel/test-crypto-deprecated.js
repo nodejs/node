@@ -9,7 +9,8 @@ const tls = require('tls');
 
 common.expectWarning('DeprecationWarning', [
   'crypto.Credentials is deprecated. Use tls.SecureContext instead.',
-  'crypto.createCredentials is deprecated. Use tls.createSecureContext instead.'
+  'crypto.createCredentials is deprecated.' +
+  ' Use tls.createSecureContext instead.',
 ]);
 
 // Accessing the deprecated function is enough to trigger the warning event.

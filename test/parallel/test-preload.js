@@ -93,7 +93,7 @@ replProc.on('close', function(code) {
   assert.strictEqual(code, 0);
   const output = [
     'A',
-    '> '
+    '> ',
   ].join('\n');
   assert.strictEqual(replStdout, output);
 });

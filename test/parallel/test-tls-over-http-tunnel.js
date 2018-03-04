@@ -43,7 +43,7 @@ const options = { key, cert };
 const server = https.createServer(options, common.mustCall((req, res) => {
   console.log('SERVER: got request');
   res.writeHead(200, {
-    'content-type': 'text/plain'
+    'content-type': 'text/plain',
   });
   console.log('SERVER: sending response');
   res.end('hello world\n');
@@ -104,8 +104,8 @@ proxy.listen(0, common.mustCall(() => {
     method: 'CONNECT',
     path: `localhost:${server.address().port}`,
     headers: {
-      'Proxy-Connections': 'keep-alive'
-    }
+      'Proxy-Connections': 'keep-alive',
+    },
   });
   req.useChunkedEncodingByDefault = false; // for v0.6
   req.on('response', onResponse); // for v0.6
@@ -147,7 +147,7 @@ proxy.listen(0, common.mustCall(() => {
       cert: cert,
       socket: socket,  // reuse the socket
       agent: false,
-      rejectUnauthorized: false
+      rejectUnauthorized: false,
     }, (res) => {
       assert.strictEqual(200, res.statusCode);
 

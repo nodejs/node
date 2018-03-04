@@ -19,7 +19,7 @@ const assert = require('assert');
 const bench = common.createBenchmark(main, {
   dur: [5],
   len: [1024, 16 * 1024 * 1024],
-  concurrent: [1, 10]
+  concurrent: [1, 10],
 });
 
 function main(conf) {

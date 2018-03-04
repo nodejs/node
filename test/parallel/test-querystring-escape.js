@@ -18,7 +18,7 @@ common.expectsError(
   {
     code: 'ERR_INVALID_URI',
     type: URIError,
-    message: 'URI malformed'
+    message: 'URI malformed',
   }
 );
 

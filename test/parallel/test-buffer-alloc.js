@@ -895,7 +895,7 @@ common.expectsError(
   {
     code: 'ERR_UNKNOWN_ENCODING',
     type: TypeError,
-    message: 'Unknown encoding: buffer'
+    message: 'Unknown encoding: buffer',
   }
 );
 
@@ -972,7 +972,7 @@ assert.strictEqual(SlowBuffer.prototype.offset, undefined);
   const errMsg = common.expectsError({
     code: 'ERR_BUFFER_OUT_OF_BOUNDS',
     type: RangeError,
-    message: '"offset" is outside of buffer bounds'
+    message: '"offset" is outside of buffer bounds',
   });
   assert.throws(() => Buffer.from(new ArrayBuffer(0), -1 >>> 0), errMsg);
 }
@@ -1015,19 +1015,19 @@ common.expectsError(() => {
   Buffer.alloc(0x1000, 'This is not correctly encoded', 'hex');
 }, {
   code: 'ERR_INVALID_ARG_VALUE',
-  type: TypeError
+  type: TypeError,
 });
 
 common.expectsError(() => {
   Buffer.alloc(0x1000, 'c', 'hex');
 }, {
   code: 'ERR_INVALID_ARG_VALUE',
-  type: TypeError
+  type: TypeError,
 });
 
 common.expectsError(() => {
   Buffer.alloc(1, Buffer.alloc(0));
 }, {
   code: 'ERR_INVALID_ARG_VALUE',
-  type: TypeError
+  type: TypeError,
 });

@@ -32,7 +32,7 @@ const server = http.Server(function(req, res) {
 server.listen(0, common.mustCall(function() {
   const opts = {
     port: this.address().port,
-    headers: { connection: 'close' }
+    headers: { connection: 'close' },
   };
 
   http.get(opts, common.mustCall(function(res) {

@@ -18,11 +18,11 @@ server.listen(0, common.mustCall(function() {
       ok: 200,
       multipleChoices: 300,
       badRequest: 400,
-      internalServerError: 500
+      internalServerError: 500,
     };
     const fakeStatusCodes = {
       tooLow: 99,
-      tooHigh: 600
+      tooHigh: 600,
     };
 
     assert.strictEqual(response.statusCode, expectedDefaultStatusCode);
@@ -37,19 +37,19 @@ server.listen(0, common.mustCall(function() {
       response.statusCode = realStatusCodes.continue;
     }, {
       code: 'ERR_HTTP2_INFO_STATUS_NOT_ALLOWED',
-      type: RangeError
+      type: RangeError,
     });
     common.expectsError(function() {
       response.statusCode = fakeStatusCodes.tooLow;
     }, {
       code: 'ERR_HTTP2_STATUS_INVALID',
-      type: RangeError
+      type: RangeError,
     });
     common.expectsError(function() {
       response.statusCode = fakeStatusCodes.tooHigh;
     }, {
       code: 'ERR_HTTP2_STATUS_INVALID',
-      type: RangeError
+      type: RangeError,
     });
 
     response.on('finish', common.mustCall(function() {
@@ -64,7 +64,7 @@ server.listen(0, common.mustCall(function() {
       ':path': '/',
       ':method': 'GET',
       ':scheme': 'http',
-      ':authority': `localhost:${port}`
+      ':authority': `localhost:${port}`,
     };
     const request = client.request(headers);
     request.on('end', common.mustCall(function() {

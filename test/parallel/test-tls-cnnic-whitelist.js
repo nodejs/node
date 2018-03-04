@@ -21,14 +21,14 @@ const testCases = [
     // rootCA.
     serverOpts: {
       key: loadPEM('agent7-key'),
-      cert: loadPEM('agent7-cert')
+      cert: loadPEM('agent7-cert'),
     },
     clientOpts: {
       port: undefined,
       rejectUnauthorized: true,
-      ca: [loadPEM('fake-cnnic-root-cert')]
+      ca: [loadPEM('fake-cnnic-root-cert')],
     },
-    errorCode: 'CERT_REVOKED'
+    errorCode: 'CERT_REVOKED',
   },
   // Test 1: for the fix of node#2061
   // agent6-cert.pem is signed by intermediate cert of ca3.
@@ -40,14 +40,14 @@ const testCases = [
     serverOpts: {
       ca: loadPEM('ca3-key'),
       key: loadPEM('agent6-key'),
-      cert: loadPEM('agent6-cert')
+      cert: loadPEM('agent6-cert'),
     },
     clientOpts: {
       port: undefined,
-      rejectUnauthorized: true
+      rejectUnauthorized: true,
     },
-    errorCode: 'UNABLE_TO_GET_ISSUER_CERT_LOCALLY'
-  }
+    errorCode: 'UNABLE_TO_GET_ISSUER_CERT_LOCALLY',
+  },
 ];
 
 function runTest(tindex) {

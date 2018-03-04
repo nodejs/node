@@ -11,7 +11,7 @@ function testShutdown(callback) {
     read: function() {
     },
     write: function() {
-    }
+    },
   });
 
   const wrap = new StreamWrap(stream);

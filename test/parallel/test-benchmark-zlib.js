@@ -9,5 +9,5 @@ runBenchmark('zlib',
                'method=deflate',
                'n=1',
                'options=true',
-               'type=Deflate'
+               'type=Deflate',
              ]);

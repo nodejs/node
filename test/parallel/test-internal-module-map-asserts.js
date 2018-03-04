@@ -11,7 +11,7 @@ const ModuleMap = require('internal/loader/ModuleMap');
   const errorReg = common.expectsError({
     code: 'ERR_INVALID_ARG_TYPE',
     type: TypeError,
-    message: /^The "url" argument must be of type string/
+    message: /^The "url" argument must be of type string/,
   }, 15);
 
   const moduleMap = new ModuleMap();
@@ -33,7 +33,7 @@ const ModuleMap = require('internal/loader/ModuleMap');
   const errorReg = common.expectsError({
     code: 'ERR_INVALID_ARG_TYPE',
     type: TypeError,
-    message: /^The "job" argument must be of type ModuleJob/
+    message: /^The "job" argument must be of type ModuleJob/,
   }, 5);
 
   const moduleMap = new ModuleMap();

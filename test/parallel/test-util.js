@@ -146,7 +146,7 @@ common.expectWarning('DeprecationWarning', [
   'util.print is deprecated. Use console.log instead.',
   'util.puts is deprecated. Use console.log instead.',
   'util.debug is deprecated. Use console.error instead.',
-  'util.error is deprecated. Use console.error instead.'
+  'util.error is deprecated. Use console.error instead.',
 ]);
 
 util.print('test');

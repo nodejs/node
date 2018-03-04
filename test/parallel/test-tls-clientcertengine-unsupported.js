@@ -21,7 +21,7 @@ const tls = require('tls');
     () => { tls.createSecureContext({ clientCertEngine: 'Cannonmouth' }); },
     {
       code: 'ERR_CRYPTO_CUSTOM_ENGINE_NOT_SUPPORTED',
-      message: 'Custom engines not supported by this OpenSSL'
+      message: 'Custom engines not supported by this OpenSSL',
     }
   );
 }

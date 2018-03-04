@@ -11,13 +11,13 @@ const ctrlU = { ctrl: true, name: 'u' };
   const rl = readline.createInterface({
     terminal: true,
     input: input,
-    prompt: ''
+    prompt: '',
   });
 
   const tests = [
     [1, 'a'],
     [2, 'ab'],
-    [2, '丁']
+    [2, '丁'],
   ];
 
   // The non-ICU JS implementation of character width calculation is only aware

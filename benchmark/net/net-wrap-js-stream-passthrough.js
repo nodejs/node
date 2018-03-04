@@ -9,7 +9,7 @@ const bench = common.createBenchmark(main, {
   type: ['utf', 'asc', 'buf'],
   dur: [5],
 }, {
-  flags: ['--expose-internals']
+  flags: ['--expose-internals'],
 });
 
 var chunk;

@@ -5,7 +5,7 @@ const fsPromises = require('fs/promises');
 
 const bench = common.createBenchmark(main, {
   n: [20e4],
-  statType: ['fstat', 'lstat', 'stat']
+  statType: ['fstat', 'lstat', 'stat'],
 });
 
 async function run(n, statType) {

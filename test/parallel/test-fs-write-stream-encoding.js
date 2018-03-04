@@ -15,11 +15,11 @@ const dummyPath = path.join(tmpdir.path, 'x.txt');
 tmpdir.refresh();
 
 const exampleReadStream = fs.createReadStream(examplePath, {
-  encoding: firstEncoding
+  encoding: firstEncoding,
 });
 
 const dummyWriteStream = fs.createWriteStream(dummyPath, {
-  encoding: firstEncoding
+  encoding: firstEncoding,
 });
 
 exampleReadStream.pipe(dummyWriteStream).on('finish', function() {
@@ -27,10 +27,10 @@ exampleReadStream.pipe(dummyWriteStream).on('finish', function() {
     write: function(chunk, enc, next) {
       const expected = Buffer.from('xyz\n');
       assert(chunk.equals(expected));
-    }
+    },
   });
   assertWriteStream.setDefaultEncoding(secondEncoding);
   fs.createReadStream(dummyPath, {
-    encoding: secondEncoding
+    encoding: secondEncoding,
   }).pipe(assertWriteStream);
 });

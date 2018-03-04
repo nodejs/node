@@ -10,5 +10,5 @@ runBenchmark('misc', [
   'millions=.000001',
   'n=1',
   'type=extend',
-  'val=magyarország.icom.museum'
+  'val=magyarország.icom.museum',
 ], { NODEJS_BENCHMARK_ZERO_ALLOWED: 1 });

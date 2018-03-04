@@ -11,7 +11,7 @@ const fs = require('fs');
 const {
   HTTP2_HEADER_CONTENT_TYPE,
   HTTP2_HEADER_CONTENT_LENGTH,
-  HTTP2_HEADER_LAST_MODIFIED
+  HTTP2_HEADER_LAST_MODIFIED,
 } = http2.constants;
 
 const fname = fixtures.path('elipses.txt');
@@ -21,12 +21,12 @@ const stat = fs.statSync(fname);
 const server = http2.createServer();
 server.on('stream', (stream) => {
   stream.respondWithFile(fname, {
-    [HTTP2_HEADER_CONTENT_TYPE]: 'text/plain'
+    [HTTP2_HEADER_CONTENT_TYPE]: 'text/plain',
   }, {
     statCheck(stat, headers) {
       headers[HTTP2_HEADER_LAST_MODIFIED] = stat.mtime.toUTCString();
       headers[HTTP2_HEADER_CONTENT_LENGTH] = stat.size;
-    }
+    },
   });
 });
 server.listen(0, () => {

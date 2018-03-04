@@ -6,25 +6,25 @@ const common = require('../common');
 
 const assert = require('assert');
 const {
-  TextDecoder
+  TextDecoder,
 } = require('util');
 
 const cases = [
   {
     encoding: 'utf-8',
     bytes: [0xEF, 0xBB, 0xBF, 0x61, 0x62, 0x63],
-    skipNoIntl: false
+    skipNoIntl: false,
   },
   {
     encoding: 'utf-16le',
     bytes: [0xFF, 0xFE, 0x61, 0x00, 0x62, 0x00, 0x63, 0x00],
-    skipNoIntl: false
+    skipNoIntl: false,
   },
   {
     encoding: 'utf-16be',
     bytes: [0xFE, 0xFF, 0x00, 0x61, 0x00, 0x62, 0x00, 0x63],
-    skipNoIntl: true
-  }
+    skipNoIntl: true,
+  },
 ];
 
 cases.forEach((testCase) => {

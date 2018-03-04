@@ -97,7 +97,7 @@ common.expectsError(
   () => crypto.createHash('sha1').update({ foo: 'bar' }),
   {
     code: 'ERR_INVALID_ARG_TYPE',
-    type: TypeError
+    type: TypeError,
   });
 
 
@@ -207,7 +207,7 @@ assert.throws(function() {
     'eKN7LggbF3Dk5wIQN6SL+fQ5H/+7NgARsVBp0QIRANxYRukavs4QvuyNhMx+vrkCEQCbf6j/',
     'Ig6/HueCK/0Jkmp+',
     '-----END RSA PRIVATE KEY-----',
-    ''
+    '',
   ].join('\n');
   crypto.createSign('SHA256').update('test').sign(priv);
 }, (err) => {
@@ -290,9 +290,9 @@ testEncoding(undefined, assertionHashUtf8);
 testEncoding({}, assertionHashUtf8);
 
 testEncoding({
-  defaultEncoding: 'utf8'
+  defaultEncoding: 'utf8',
 }, assertionHashUtf8);
 
 testEncoding({
-  defaultEncoding: 'latin1'
+  defaultEncoding: 'latin1',
 }, assertionHashLatin1);

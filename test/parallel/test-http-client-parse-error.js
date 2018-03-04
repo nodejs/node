@@ -29,7 +29,7 @@ const countdown = new Countdown(2, () => server.close());
 
 const payloads = [
   'HTTP/1.1 302 Object Moved\r\nContent-Length: 0\r\n\r\nhi world',
-  'bad http = should trigger parse error'
+  'bad http = should trigger parse error',
 ];
 
 // Create a TCP server
@@ -40,11 +40,11 @@ server.listen(0, common.mustCall(() => {
   for (let i = 0; i < 2; i++) {
     http.get({
       port: server.address().port,
-      path: '/'
+      path: '/',
     }).on('error', common.mustCall((e) => {
       common.expectsError({
         code: 'HPE_INVALID_CONSTANT',
-        message: 'Parse Error'
+        message: 'Parse Error',
       })(e);
       countdown.dec();
     }));

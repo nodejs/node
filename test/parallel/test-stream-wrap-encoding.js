@@ -7,7 +7,7 @@ const Duplex = require('stream').Duplex;
 {
   const stream = new Duplex({
     read() {},
-    write() {}
+    write() {},
   });
 
   stream.setEncoding('ascii');
@@ -17,7 +17,7 @@ const Duplex = require('stream').Duplex;
   wrap.on('error', common.expectsError({
     type: Error,
     code: 'ERR_STREAM_WRAP',
-    message: 'Stream has StringDecoder set or is in objectMode'
+    message: 'Stream has StringDecoder set or is in objectMode',
   }));
 
   stream.push('ohai');
@@ -27,7 +27,7 @@ const Duplex = require('stream').Duplex;
   const stream = new Duplex({
     read() {},
     write() {},
-    objectMode: true
+    objectMode: true,
   });
 
   const wrap = new StreamWrap(stream);
@@ -35,7 +35,7 @@ const Duplex = require('stream').Duplex;
   wrap.on('error', common.expectsError({
     type: Error,
     code: 'ERR_STREAM_WRAP',
-    message: 'Stream has StringDecoder set or is in objectMode'
+    message: 'Stream has StringDecoder set or is in objectMode',
   }));
 
   stream.push(new Error('foo'));

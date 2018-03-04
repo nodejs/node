@@ -30,7 +30,7 @@ const crypto = require('crypto');
 // Verify that detailed getPeerCertificate() return value has all certs.
 
 const {
-  assert, connect, debug, keys
+  assert, connect, debug, keys,
 } = require(fixtures.path('tls-connect'));
 
 function sha256(s) {

@@ -23,6 +23,6 @@ runBenchmark('buffers',
                'source=array',
                'type=',
                'value=0',
-               'withTotalLength=0'
+               'withTotalLength=0',
              ],
              { NODEJS_BENCHMARK_ZERO_ALLOWED: 1 });

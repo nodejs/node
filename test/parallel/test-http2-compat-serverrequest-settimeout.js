@@ -28,7 +28,7 @@ server.listen(0, common.mustCall(() => {
     ':path': '/',
     ':method': 'GET',
     ':scheme': 'http',
-    ':authority': `localhost:${port}`
+    ':authority': `localhost:${port}`,
   });
   req.on('end', common.mustCall(() => {
     client.close();

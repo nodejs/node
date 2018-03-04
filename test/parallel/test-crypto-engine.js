@@ -12,7 +12,7 @@ common.expectsError(
   {
     code: 'ERR_INVALID_ARG_TYPE',
     type: TypeError,
-    message: 'The "id" argument must be of type string'
+    message: 'The "id" argument must be of type string',
   });
 
 common.expectsError(
@@ -20,7 +20,7 @@ common.expectsError(
   {
     code: 'ERR_INVALID_ARG_TYPE',
     type: TypeError,
-    message: 'The "flags" argument must be of type number'
+    message: 'The "flags" argument must be of type number',
   });
 
 common.expectsError(
@@ -28,7 +28,7 @@ common.expectsError(
   {
     code: 'ERR_CRYPTO_ENGINE_UNKNOWN',
     type: Error,
-    message: `Engine "${invalidEngineName}" was not found`
+    message: `Engine "${invalidEngineName}" was not found`,
   });
 
 common.expectsError(
@@ -36,5 +36,5 @@ common.expectsError(
   {
     code: 'ERR_CRYPTO_ENGINE_UNKNOWN',
     type: Error,
-    message: `Engine "${invalidEngineName}" was not found`
+    message: `Engine "${invalidEngineName}" was not found`,
   });

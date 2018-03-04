@@ -7,7 +7,7 @@ const SlowBuffer = require('buffer').SlowBuffer;
 const bufferNegativeMsg = common.expectsError({
   code: 'ERR_INVALID_OPT_VALUE',
   type: RangeError,
-  message: /^The value "[^"]*" is invalid for option "size"$/
+  message: /^The value "[^"]*" is invalid for option "size"$/,
 }, 5);
 assert.throws(() => Buffer(-1).toString('utf8'), bufferNegativeMsg);
 assert.throws(() => SlowBuffer(-1).toString('utf8'), bufferNegativeMsg);

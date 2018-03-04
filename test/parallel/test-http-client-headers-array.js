@@ -10,7 +10,7 @@ function execute(options) {
     const expectHeaders = {
       'x-foo': 'boom',
       cookie: 'a=1; b=2; c=3',
-      connection: 'close'
+      connection: 'close',
     };
 
     // no Host header when you set headers an array
@@ -32,7 +32,7 @@ function execute(options) {
   }).listen(0, function() {
     options = Object.assign(options, {
       port: this.address().port,
-      path: '/'
+      path: '/',
     });
     const req = http.request(options);
     req.end();
@@ -44,11 +44,11 @@ execute({ headers: { 'x-foo': 'boom', 'cookie': 'a=1; b=2; c=3' } });
 execute({ headers: { 'x-foo': 'boom', 'cookie': [ 'a=1', 'b=2', 'c=3' ] } });
 execute({ headers: [[ 'x-foo', 'boom' ], [ 'cookie', 'a=1; b=2; c=3' ]] });
 execute({ headers: [
-  [ 'x-foo', 'boom' ], [ 'cookie', [ 'a=1', 'b=2', 'c=3' ]]
+  [ 'x-foo', 'boom' ], [ 'cookie', [ 'a=1', 'b=2', 'c=3' ]],
 ] });
 execute({ headers: [
   [ 'x-foo', 'boom' ], [ 'cookie', 'a=1' ],
-  [ 'cookie', 'b=2' ], [ 'cookie', 'c=3']
+  [ 'cookie', 'b=2' ], [ 'cookie', 'c=3'],
 ] });
 
 // Authorization and Host header both missing from the second
@@ -56,5 +56,5 @@ execute({ auth: 'foo:bar', headers:
   { 'x-foo': 'boom', 'cookie': 'a=1; b=2; c=3' } });
 execute({ auth: 'foo:bar', headers: [
   [ 'x-foo', 'boom' ], [ 'cookie', 'a=1' ],
-  [ 'cookie', 'b=2' ], [ 'cookie', 'c=3']
+  [ 'cookie', 'b=2' ], [ 'cookie', 'c=3'],
 ] });

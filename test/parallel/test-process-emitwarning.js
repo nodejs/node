@@ -42,7 +42,7 @@ class CustomWarning extends Error {
   [testMsg, { type: testType, code: testCode, detail: true }],
   [testMsg, { type: testType, code: testCode, detail: [] }],
   [testMsg, { type: testType, code: testCode, detail: null }],
-  [testMsg, { type: testType, code: testCode, detail: 1 }]
+  [testMsg, { type: testType, code: testCode, detail: 1 }],
 ].forEach((i) => {
   process.emitWarning.apply(null, i);
 });

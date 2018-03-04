@@ -14,7 +14,7 @@ common.expectsError(
   },
   {
     code: 'ERR_INVALID_ARG_TYPE',
-    type: TypeError
+    type: TypeError,
   });
 
 common.expectsError(
@@ -23,7 +23,7 @@ common.expectsError(
   },
   {
     code: 'ERR_INVALID_ARG_TYPE',
-    type: TypeError
+    type: TypeError,
   });
 
 common.expectsError(function() {

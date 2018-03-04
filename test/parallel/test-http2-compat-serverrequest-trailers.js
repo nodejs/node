@@ -10,7 +10,7 @@ const h2 = require('http2');
 
 const expectedTrailers = {
   'x-foo': 'xOxOxOx, OxOxOxO, xOxOxOx, OxOxOxO',
-  'x-foo-test': 'test, test'
+  'x-foo-test': 'test, test',
 };
 
 const server = h2.createServer();
@@ -35,7 +35,7 @@ server.listen(0, common.mustCall(function() {
         'x-foo',
         'OxOxOxO',
         'x-foo-test',
-        'test, test'
+        'test, test',
       ], request.rawTrailers);
       assert.strictEqual(data, 'test\ntest');
       response.end();
@@ -48,7 +48,7 @@ server.listen(0, common.mustCall(function() {
       ':path': '/foobar',
       ':method': 'POST',
       ':scheme': 'http',
-      ':authority': `localhost:${port}`
+      ':authority': `localhost:${port}`,
     };
     const request = client.request(headers, {
       getTrailers(trailers) {
@@ -57,7 +57,7 @@ server.listen(0, common.mustCall(function() {
         trailers['X-fOo'] = 'xOxOxOx';
         trailers['X-foO'] = 'OxOxOxO';
         trailers['x-foo-test'] = 'test, test';
-      }
+      },
     });
     request.resume();
     request.on('end', common.mustCall(function() {

@@ -22,7 +22,7 @@ function checkScope(session, scopeId) {
     'objectId': scopeId,
     'ownProperties': false,
     'accessorPropertiesOnly': false,
-    'generatePreview': true
+    'generatePreview': true,
   }, scopeCallback);
 }
 
@@ -60,7 +60,7 @@ function testSampleDebugSession() {
   const failures = [];
   const expects = {
     i: [0, 1, 2, 3, 4],
-    accum: [0, 0, 1, 3, 6]
+    accum: [0, 0, 1, 3, 6],
   };
   scopeCallback = function(error, result) {
     const i = cur++;
@@ -96,7 +96,7 @@ function testSampleDebugSession() {
     'lineNumber': 12,
     'url': path.resolve(__dirname, __filename),
     'columnNumber': 0,
-    'condition': ''
+    'condition': '',
   });
 
   debuggedFunction();

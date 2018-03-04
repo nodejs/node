@@ -35,7 +35,7 @@ const msgErrBuf = Buffer.from(`${msgErr}\n`);
 
 const args = [
   '-e',
-  `console.log("${msgOut}"); console.error("${msgErr}");`
+  `console.log("${msgOut}"); console.error("${msgErr}");`,
 ];
 
 let ret;
@@ -60,7 +60,7 @@ if (process.argv.includes('spawnchild')) {
       break;
     case '2':
       ret = spawnSync(process.execPath, args, {
-        stdio: ['inherit', 'inherit', 'inherit']
+        stdio: ['inherit', 'inherit', 'inherit'],
       });
       checkSpawnSyncRet(ret);
       break;
@@ -73,7 +73,7 @@ verifyBufOutput(spawnSync(process.execPath, [__filename, 'spawnchild', 1]));
 verifyBufOutput(spawnSync(process.execPath, [__filename, 'spawnchild', 2]));
 
 let options = {
-  input: 1234
+  input: 1234,
 };
 
 common.expectsError(
@@ -81,7 +81,7 @@ common.expectsError(
   { code: 'ERR_INVALID_ARG_TYPE', type: TypeError });
 
 options = {
-  input: 'hello world'
+  input: 'hello world',
 };
 
 ret = spawnSync('cat', [], options);
@@ -91,7 +91,7 @@ assert.strictEqual(ret.stdout.toString('utf8'), options.input);
 assert.strictEqual(ret.stderr.toString('utf8'), '');
 
 options = {
-  input: Buffer.from('hello world')
+  input: Buffer.from('hello world'),
 };
 
 ret = spawnSync('cat', [], options);
@@ -101,7 +101,7 @@ assert.deepStrictEqual(ret.stdout, options.input);
 assert.deepStrictEqual(ret.stderr, Buffer.from(''));
 
 options = {
-  input: Uint8Array.from(Buffer.from('hello world'))
+  input: Uint8Array.from(Buffer.from('hello world')),
 };
 
 ret = spawnSync('cat', [], options);

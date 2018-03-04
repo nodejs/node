@@ -35,7 +35,7 @@ renderer.heading = function(text, level) {
   return `<h${level}>${text}</h${level}>\n`;
 };
 marked.setOptions({
-  renderer: renderer
+  renderer: renderer,
 });
 
 function doJSON(input, filename, cb) {

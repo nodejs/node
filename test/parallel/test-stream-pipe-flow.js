@@ -12,13 +12,13 @@ const { Readable, Writable, PassThrough } = require('stream');
         return process.nextTick(() => rs.push({}));
       rs.push({});
       rs.push(null);
-    }
+    },
   });
 
   const ws = new Writable({
     highWaterMark: 0,
     objectMode: true,
-    write: (data, end, cb) => setImmediate(cb)
+    write: (data, end, cb) => setImmediate(cb),
   });
 
   rs.on('end', common.mustCall());
@@ -34,7 +34,7 @@ const { Readable, Writable, PassThrough } = require('stream');
     read: () => {
       if (missing--) rs.push({});
       else rs.push(null);
-    }
+    },
   });
 
   const pt = rs
@@ -59,7 +59,7 @@ const { Readable, Writable, PassThrough } = require('stream');
           wrapper.push(data);
         }
       });
-    }
+    },
   });
 
   wrapper.resume();

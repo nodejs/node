@@ -11,23 +11,23 @@ new RuleTester().run('required-modules', rule, {
   valid: [
     {
       code: 'require("common")',
-      options: ['common']
+      options: ['common'],
     },
     {
       code: 'foo',
-      options: []
+      options: [],
     },
   ],
   invalid: [
     {
       code: 'foo',
       options: ['common'],
-      errors: [{ message: 'Mandatory module "common" must be loaded.' }]
+      errors: [{ message: 'Mandatory module "common" must be loaded.' }],
     },
     {
       code: 'require("somethingElse")',
       options: ['common'],
-      errors: [{ message: 'Mandatory module "common" must be loaded.' }]
-    }
-  ]
+      errors: [{ message: 'Mandatory module "common" must be loaded.' }],
+    },
+  ],
 });
