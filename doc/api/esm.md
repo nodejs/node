@@ -106,7 +106,7 @@ fs.readFile('./foo.txt', (err, body) => {
 <!-- type=misc -->
 
 To customize the default module resolution, loader hooks can optionally be
-provided via a `--loader ./loader-name.mjs` argument to Node.
+provided via a `--loader ./loader-name.mjs` argument to Node.js.
 
 When hooks are used they only apply to ES module loading and not to any
 CommonJS modules loaded.
@@ -150,7 +150,7 @@ module. This can be one of the following:
 | `"dynamic"` | Use a [dynamic instantiate hook][] |
 
 For example, a dummy loader to load JavaScript restricted to browser resolution
-rules with only JS file extension and Node builtin modules support could
+rules with only JS file extension and Node.js builtin modules support could
 be written:
 
 ```js

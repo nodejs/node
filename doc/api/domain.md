@@ -443,7 +443,7 @@ than crashing the program.
 
 ## Domains and Promises
 
-As of Node 8.0.0, the handlers of Promises are run inside the domain in
+As of Node.js 8.0.0, the handlers of Promises are run inside the domain in
 which the call to `.then` or `.catch` itself was made:
 
 ```js

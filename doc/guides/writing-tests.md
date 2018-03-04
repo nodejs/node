@@ -365,7 +365,7 @@ The test can be executed by running the `cctest` target:
 $ make cctest
 ```
 
-### Node test fixture
+### Node.js test fixture
 There is a [test fixture][] named `node_test_fixture.h` which can be included by
 unit tests. The fixture takes care of setting up the Node.js environment
 and tearing it down after the tests have finished.
