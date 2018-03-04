@@ -30,10 +30,10 @@ const https = require('https');
 
 const http = require('http');
 
-https.get(`https://${addresses.INET_HOST}/`, common.mustCall(function(res) {
+https.get(`https://${addresses.INET_HOST}/`, common.mustCall((res) => {
   res.resume();
 }));
 
-http.get(`http://${addresses.INET_HOST}/`, common.mustCall(function(res) {
+http.get(`http://${addresses.INET_HOST}/`, common.mustCall((res) => {
   res.resume();
 }));
