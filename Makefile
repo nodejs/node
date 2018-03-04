@@ -1101,7 +1101,7 @@ lint-md:
 	@echo "To install (requires internet access) run: $ make lint-md-build"
 endif
 
-LINT_JS_TARGETS = benchmark doc lib test tools
+LINT_JS_TARGETS = .eslintrc.js benchmark doc lib test tools
 
 run-lint-js = tools/node_modules/eslint/bin/eslint.js --cache \
 	--ext=.js,.mjs,.md $(LINT_JS_TARGETS) --ignore-pattern '!.eslintrc.js'
