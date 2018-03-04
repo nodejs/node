@@ -5,7 +5,7 @@ const {
   mustNotCall,
   expectsError,
   hasCrypto,
-  skip
+  skip,
 } = require('../common');
 if (!hasCrypto)
   skip('missing crypto');
@@ -38,7 +38,7 @@ server.listen(0, mustCall(() => {
         {
           type: Error,
           code: 'ERR_HTTP2_INVALID_STREAM',
-          message: 'The stream has been destroyed'
+          message: 'The stream has been destroyed',
         }
       );
 

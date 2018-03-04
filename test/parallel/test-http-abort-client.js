@@ -33,7 +33,7 @@ const server = http.Server((req, res) => {
 server.listen(0, common.mustCall(() => {
   http.get({
     port: server.address().port,
-    headers: { connection: 'keep-alive' }
+    headers: { connection: 'keep-alive' },
   }, common.mustCall((res) => {
     server.close();
     serverRes.destroy();

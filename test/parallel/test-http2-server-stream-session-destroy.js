@@ -22,7 +22,7 @@ server.on('stream', common.mustCall((stream) => {
   const invalidStreamError = {
     type: Error,
     code: 'ERR_HTTP2_INVALID_STREAM',
-    message: 'The stream has been destroyed'
+    message: 'The stream has been destroyed',
   };
   common.expectsError(() => stream.additionalHeaders(), invalidStreamError);
   common.expectsError(() => stream.priority(), invalidStreamError);
@@ -31,7 +31,7 @@ server.on('stream', common.mustCall((stream) => {
     () => stream.pushStream({}, common.mustNotCall()),
     {
       code: 'ERR_HTTP2_PUSH_DISABLED',
-      type: Error
+      type: Error,
     }
   );
   assert.strictEqual(stream.write('data'), false);

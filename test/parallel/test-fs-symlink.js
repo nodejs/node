@@ -65,7 +65,7 @@ fs.symlink(linkData, linkPath, common.mustCall(function(err) {
       code: 'ERR_INVALID_ARG_TYPE',
       type: TypeError,
       message:
-        'The "target" argument must be one of type string, Buffer, or URL'
+        'The "target" argument must be one of type string, Buffer, or URL',
     }
   );
   common.expectsError(
@@ -74,7 +74,7 @@ fs.symlink(linkData, linkPath, common.mustCall(function(err) {
       code: 'ERR_INVALID_ARG_TYPE',
       type: TypeError,
       message:
-        'The "path" argument must be one of type string, Buffer, or URL'
+        'The "path" argument must be one of type string, Buffer, or URL',
     }
   );
   common.expectsError(
@@ -83,7 +83,7 @@ fs.symlink(linkData, linkPath, common.mustCall(function(err) {
       code: 'ERR_INVALID_ARG_TYPE',
       type: TypeError,
       message:
-        'The "target" argument must be one of type string, Buffer, or URL'
+        'The "target" argument must be one of type string, Buffer, or URL',
     }
   );
   common.expectsError(
@@ -92,7 +92,7 @@ fs.symlink(linkData, linkPath, common.mustCall(function(err) {
       code: 'ERR_INVALID_ARG_TYPE',
       type: TypeError,
       message:
-        'The "path" argument must be one of type string, Buffer, or URL'
+        'The "path" argument must be one of type string, Buffer, or URL',
     }
   );
 });
@@ -103,7 +103,7 @@ common.expectsError(
     code: 'ERR_FS_INVALID_SYMLINK_TYPE',
     type: Error,
     message:
-      'Symlink type must be one of "dir", "file", or "junction". Received "🍏"'
+      'Symlink type must be one of "dir", "file", or "junction". Received "🍏"',
   }
 );
 common.expectsError(
@@ -112,7 +112,7 @@ common.expectsError(
     code: 'ERR_FS_INVALID_SYMLINK_TYPE',
     type: Error,
     message:
-      'Symlink type must be one of "dir", "file", or "junction". Received "🍏"'
+      'Symlink type must be one of "dir", "file", or "junction". Received "🍏"',
   }
 );
 

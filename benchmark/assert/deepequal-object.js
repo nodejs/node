@@ -10,8 +10,8 @@ const bench = common.createBenchmark(main, {
     'deepEqual',
     'deepStrictEqual',
     'notDeepEqual',
-    'notDeepStrictEqual'
-  ]
+    'notDeepStrictEqual',
+  ],
 });
 
 function createObj(source, add = '') {
@@ -20,8 +20,8 @@ function createObj(source, add = '') {
     nope: {
       bar: `123${add}`,
       a: [1, 2, 3],
-      baz: n
-    }
+      baz: n,
+    },
   }));
 }
 

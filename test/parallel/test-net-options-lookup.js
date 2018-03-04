@@ -9,14 +9,14 @@ function connectThrows(input) {
   const opts = {
     host: 'localhost',
     port: 0,
-    lookup: input
+    lookup: input,
   };
 
   common.expectsError(() => {
     net.connect(opts);
   }, {
     code: 'ERR_INVALID_ARG_TYPE',
-    type: TypeError
+    type: TypeError,
   });
 }
 
@@ -26,7 +26,7 @@ function connectDoesNotThrow(input) {
   const opts = {
     host: 'localhost',
     port: 0,
-    lookup: input
+    lookup: input,
   };
 
   net.connect(opts);

@@ -117,7 +117,7 @@ common.expectsError(() => {
   buf.fill('yKJh', 'hex');
 }, {
   code: 'ERR_INVALID_ARG_VALUE',
-  type: TypeError
+  type: TypeError,
 });
 
 common.expectsError(() => {
@@ -126,7 +126,7 @@ common.expectsError(() => {
   buf.fill('\u0222', 'hex');
 }, {
   code: 'ERR_INVALID_ARG_VALUE',
-  type: TypeError
+  type: TypeError,
 });
 
 // BASE64
@@ -182,20 +182,20 @@ common.expectsError(
   {
     code: 'ERR_UNKNOWN_ENCODING',
     type: TypeError,
-    message: 'Unknown encoding: node rocks!'
+    message: 'Unknown encoding: node rocks!',
   }
 );
 
 [
   ['a', 0, 0, NaN],
-  ['a', 0, 0, false]
+  ['a', 0, 0, false],
 ].forEach((args) => {
   common.expectsError(
     () => buf1.fill(...args),
     {
       code: 'ERR_INVALID_ARG_TYPE',
       message: 'The "encoding" argument must be of type ' +
-      `string. Received type ${args[3] === null ? 'null' : typeof args[3]}`
+      `string. Received type ${args[3] === null ? 'null' : typeof args[3]}`,
     }
   );
 });
@@ -205,7 +205,7 @@ common.expectsError(
   {
     code: 'ERR_UNKNOWN_ENCODING',
     type: TypeError,
-    message: 'Unknown encoding: foo'
+    message: 'Unknown encoding: foo',
   }
 );
 
@@ -348,13 +348,13 @@ assert.strictEqual(
         elseWasLast = true;
         // Once buffer.js calls the C++ implementation of fill, return -1
         return -1;
-      }
+      },
     };
     Buffer.alloc(1).fill(Buffer.alloc(1), 0, end);
   }, {
     code: 'ERR_INDEX_OUT_OF_RANGE',
     type: RangeError,
-    message: 'Index out of range'
+    message: 'Index out of range',
   });
   // Make sure -1 is making it to Buffer::Fill().
   assert.ok(elseWasLast,
@@ -371,13 +371,13 @@ common.expectsError(() => {
   const buf = Buffer.from('w00t');
   Object.defineProperty(buf, 'length', {
     value: 1337,
-    enumerable: true
+    enumerable: true,
   });
   buf.fill('');
 }, {
   code: 'ERR_INDEX_OUT_OF_RANGE',
   type: RangeError,
-  message: 'Index out of range'
+  message: 'Index out of range',
 });
 
 assert.deepStrictEqual(
@@ -421,5 +421,5 @@ common.expectsError(() => {
   buf.fill('This is not correctly encoded', 'hex');
 }, {
   code: 'ERR_INVALID_ARG_VALUE',
-  type: TypeError
+  type: TypeError,
 });

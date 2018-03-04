@@ -13,7 +13,7 @@ const server = http2.createServer(common.mustCall((req, res) => {
     read() {
       this.push('test');
       this.push(null);
-    }
+    },
   });
   input.pipe(res);
 }));

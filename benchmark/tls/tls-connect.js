@@ -6,7 +6,7 @@ const tls = require('tls');
 const common = require('../common.js');
 const bench = common.createBenchmark(main, {
   concurrency: [1, 10],
-  dur: [5]
+  dur: [5],
 });
 
 var clientConn = 0;
@@ -23,7 +23,7 @@ function main(conf) {
     key: fs.readFileSync(`${cert_dir}/test_key.pem`),
     cert: fs.readFileSync(`${cert_dir}/test_cert.pem`),
     ca: [ fs.readFileSync(`${cert_dir}/test_ca.pem`) ],
-    ciphers: 'AES256-GCM-SHA384'
+    ciphers: 'AES256-GCM-SHA384',
   };
 
   const server = tls.createServer(options, onConnection);
@@ -44,7 +44,7 @@ function onConnection(conn) {
 function makeConnection() {
   const options = {
     port: common.PORT,
-    rejectUnauthorized: false
+    rejectUnauthorized: false,
   };
   var conn = tls.connect(options, function() {
     clientConn++;

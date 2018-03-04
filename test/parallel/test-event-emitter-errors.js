@@ -9,7 +9,7 @@ common.expectsError(
   {
     code: 'ERR_UNHANDLED_ERROR',
     type: Error,
-    message: 'Unhandled error. (Accepts a string)'
+    message: 'Unhandled error. (Accepts a string)',
   }
 );
 
@@ -18,6 +18,6 @@ common.expectsError(
   {
     code: 'ERR_UNHANDLED_ERROR',
     type: Error,
-    message: 'Unhandled error. ([object Object])'
+    message: 'Unhandled error. ([object Object])',
   }
 );

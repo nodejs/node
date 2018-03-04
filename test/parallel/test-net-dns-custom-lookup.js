@@ -16,7 +16,7 @@ function check(addressType, cb) {
       port: this.address().port,
       host: 'localhost',
       family: addressType,
-      lookup: lookup
+      lookup: lookup,
     }).on('lookup', common.mustCall(function(err, ip, type) {
       assert.strictEqual(err, null);
       assert.strictEqual(address, ip);

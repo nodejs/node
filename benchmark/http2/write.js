@@ -6,7 +6,7 @@ const bench = common.createBenchmark(main, {
   streams: [100, 200, 1000],
   length: [64 * 1024, 128 * 1024, 256 * 1024, 1024 * 1024],
   size: [100000],
-  benchmarker: ['h2load']
+  benchmarker: ['h2load'],
 }, { flags: ['--no-warnings', '--expose-http2'] });
 
 function main({ streams, length, size }) {

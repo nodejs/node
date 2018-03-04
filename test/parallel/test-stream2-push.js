@@ -31,7 +31,7 @@ const EE = require('events').EventEmitter;
 
 const stream = new Readable({
   highWaterMark: 16,
-  encoding: 'utf8'
+  encoding: 'utf8',
 });
 
 const source = new EE();
@@ -75,7 +75,7 @@ function readStop() {
 }
 
 const writer = new Writable({
-  decodeStrings: false
+  decodeStrings: false,
 });
 
 const written = [];

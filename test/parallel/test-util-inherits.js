@@ -80,7 +80,7 @@ common.expectsError(function() {
 }, {
   code: 'ERR_INVALID_ARG_TYPE',
   type: TypeError,
-  message: 'The "superCtor.prototype" property must be of type Function'
+  message: 'The "superCtor.prototype" property must be of type Function',
 });
 
 common.expectsError(function() {
@@ -88,7 +88,7 @@ common.expectsError(function() {
 }, {
   code: 'ERR_INVALID_ARG_TYPE',
   type: TypeError,
-  message: 'The "superCtor" argument must be of type Function'
+  message: 'The "superCtor" argument must be of type Function',
 });
 
 common.expectsError(function() {
@@ -96,5 +96,5 @@ common.expectsError(function() {
 }, {
   code: 'ERR_INVALID_ARG_TYPE',
   type: TypeError,
-  message: 'The "ctor" argument must be of type Function'
+  message: 'The "ctor" argument must be of type Function',
 });

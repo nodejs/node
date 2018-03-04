@@ -30,7 +30,7 @@ const fixtures = require('../common/fixtures');
 
 const options = {
   key: fixtures.readSync('test_key.pem'),
-  cert: fixtures.readSync('test_cert.pem')
+  cert: fixtures.readSync('test_cert.pem'),
 };
 
 const server = tls.createServer(options, common.mustCall(function(socket) {
@@ -46,7 +46,7 @@ function unauthorized() {
   const socket = tls.connect({
     port: server.address().port,
     servername: 'localhost',
-    rejectUnauthorized: false
+    rejectUnauthorized: false,
   }, common.mustCall(function() {
     assert(!socket.authorized);
     socket.end();
@@ -58,7 +58,7 @@ function unauthorized() {
 
 function rejectUnauthorized() {
   const socket = tls.connect(server.address().port, {
-    servername: 'localhost'
+    servername: 'localhost',
   }, common.mustNotCall());
   socket.on('error', common.mustCall(function(err) {
     console.error(err);
@@ -70,7 +70,7 @@ function rejectUnauthorized() {
 function authorized() {
   const socket = tls.connect(server.address().port, {
     ca: [fixtures.readSync('test_cert.pem')],
-    servername: 'localhost'
+    servername: 'localhost',
   }, common.mustCall(function() {
     assert(socket.authorized);
     socket.end();

@@ -43,7 +43,7 @@ server.listen(0, common.mustCall(() => {
   http.get({
     path: '/',
     host: 'localhost',
-    port: server.address().port
+    port: server.address().port,
   }, common.mustCall((x) => {
     x.setEncoding('utf8');
     x.on('data', (c) => data += c);

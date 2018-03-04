@@ -56,7 +56,7 @@ function doTest() {
     key: key,
     cert: cert,
     ca: [cert],
-    sessionTimeout: SESSION_TIMEOUT
+    sessionTimeout: SESSION_TIMEOUT,
   };
 
   // We need to store a sample session ticket in the fixtures directory because
@@ -79,10 +79,10 @@ function doTest() {
       's_client',
       '-connect', `localhost:${common.PORT}`,
       '-sess_in', sessionFileName,
-      '-sess_out', sessionFileName
+      '-sess_out', sessionFileName,
     ];
     const client = spawn(common.opensslCli, flags, {
-      stdio: ['ignore', 'pipe', 'ignore']
+      stdio: ['ignore', 'pipe', 'ignore'],
     });
 
     let clientOutput = '';

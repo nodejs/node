@@ -8,7 +8,7 @@ if (cluster.isMaster) {
   const buf = Buffer.from('foobar');
 
   cluster.setupMaster({
-    stdio: ['pipe', 'pipe', 'pipe', 'ipc', 'pipe']
+    stdio: ['pipe', 'pipe', 'pipe', 'ipc', 'pipe'],
   });
 
   const worker = cluster.fork();

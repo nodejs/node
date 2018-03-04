@@ -105,19 +105,19 @@ assert.strictEqual(util.format('%j %j', 42), '42 %j');
 const obj = {
   foo: 'bar',
   foobar: 1,
-  func: function() {}
+  func: function() {},
 };
 const nestedObj = {
   foo: 'bar',
   foobar: {
     foo: 'bar',
-    func: function() {}
-  }
+    func: function() {},
+  },
 };
 const nestedObj2 = {
   foo: 'bar',
   foobar: 1,
-  func: [{ a: function() {} }]
+  func: [{ a: function() {} }],
 };
 assert.strictEqual(util.format('%o'), '%o');
 assert.strictEqual(util.format('%o', 42), '42');
@@ -240,7 +240,7 @@ assert.strictEqual(util.format('abc%', 1), 'abc% 1');
   const o = {
     toJSON() {
       throw new Error('Not a circular object but still not serializable');
-    }
+    },
   };
   assert.throws(() => util.format('%j', o),
                 /^Error: Not a circular object but still not serializable$/);

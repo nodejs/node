@@ -33,7 +33,7 @@ const request = Buffer.from('ABCD'.repeat(1024 * 256 - 1)); // 1mb
 
 const options = {
   key: fixtures.readKey('agent1-key.pem'),
-  cert: fixtures.readKey('agent1-cert.pem')
+  cert: fixtures.readKey('agent1-cert.pem'),
 };
 
 class Mediator extends stream.Writable {
@@ -62,7 +62,7 @@ const server = tls.Server(options, common.mustCall(function(socket) {
 server.listen(common.PORT, common.mustCall(function() {
   const client1 = tls.connect({
     port: common.PORT,
-    rejectUnauthorized: false
+    rejectUnauthorized: false,
   }, common.mustCall(function() {
     client1.end(request);
   }));

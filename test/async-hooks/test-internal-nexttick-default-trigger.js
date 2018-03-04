@@ -36,12 +36,12 @@ process.on('exit', function() {
 
   const as = hooks.activitiesOfTypes('TickObject');
   checkInvocations(as[0], {
-    init: 1, before: 1, after: 1, destroy: 1
+    init: 1, before: 1, after: 1, destroy: 1,
   }, 'when process exits');
   checkInvocations(as[1], {
-    init: 1, before: 1, after: 1, destroy: 1
+    init: 1, before: 1, after: 1, destroy: 1,
   }, 'when process exits');
   checkInvocations(as[2], {
-    init: 1, before: 1, after: 1, destroy: 1
+    init: 1, before: 1, after: 1, destroy: 1,
   }, 'when process exits');
 });

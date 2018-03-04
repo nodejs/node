@@ -88,7 +88,7 @@ assert(Certificate() instanceof Certificate);
       code: 'ERR_INVALID_ARG_TYPE',
       type: TypeError,
       message: 'The "spkac" argument must be one of type Buffer, TypedArray, ' +
-               'or DataView'
+               'or DataView',
     }
   );
 });
@@ -100,7 +100,7 @@ assert(Certificate() instanceof Certificate);
       code: 'ERR_INVALID_ARG_TYPE',
       type: TypeError,
       message: 'The "spkac" argument must be one of type string, Buffer,' +
-               ' TypedArray, or DataView'
+               ' TypedArray, or DataView',
     }
   );
 
@@ -110,7 +110,7 @@ assert(Certificate() instanceof Certificate);
       code: 'ERR_INVALID_ARG_TYPE',
       type: TypeError,
       message: 'The "spkac" argument must be one of type string, Buffer,' +
-               ' TypedArray, or DataView'
+               ' TypedArray, or DataView',
     }
   );
 });

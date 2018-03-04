@@ -53,7 +53,7 @@ server.listen(0, common.mustCall(() => {
   const req = http.request({
     port: server.address().port,
     method: 'CONNECT',
-    path: 'google.com:443'
+    path: 'google.com:443',
   }, common.mustNotCall());
 
   req.on('socket', common.mustCall((socket) => {

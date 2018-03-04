@@ -12,7 +12,7 @@ async function runTests() {
   const session = await node.connectInspectorSession();
   await session.send([
     { 'method': 'Debugger.enable' },
-    { 'method': 'Debugger.pause' }
+    { 'method': 'Debugger.pause' },
   ]);
   session.disconnect();
   node.kill();

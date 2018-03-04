@@ -7,7 +7,7 @@ const server = http.createServer((req, res) => {
 }).listen(0, common.mustCall(() => {
   const agent = new http.Agent({
     maxSockets: 1,
-    keepAlive: true
+    keepAlive: true,
   });
 
   const port = server.address().port;

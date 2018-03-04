@@ -13,12 +13,12 @@ const fixtures = require('../common/fixtures');
 const clientConfigs = [
   { secureProtocol: 'TLSv1_method', version: 'TLSv1' },
   { secureProtocol: 'TLSv1_1_method', version: 'TLSv1.1' },
-  { secureProtocol: 'TLSv1_2_method', version: 'TLSv1.2' }
+  { secureProtocol: 'TLSv1_2_method', version: 'TLSv1.2' },
 ];
 
 const serverConfig = {
   key: fixtures.readSync('/keys/agent2-key.pem'),
-  cert: fixtures.readSync('/keys/agent2-cert.pem')
+  cert: fixtures.readSync('/keys/agent2-cert.pem'),
 };
 
 const server = tls.createServer(serverConfig, common.mustCall(function() {
@@ -30,7 +30,7 @@ const server = tls.createServer(serverConfig, common.mustCall(function() {
       host: common.localhostIPv4,
       port: server.address().port,
       rejectUnauthorized: false,
-      secureProtocol: v.secureProtocol
+      secureProtocol: v.secureProtocol,
     }, common.mustCall(function() {
       assert.strictEqual(this.getProtocol(), v.version);
       this.on('end', common.mustCall(function() {

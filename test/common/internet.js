@@ -39,7 +39,7 @@ const addresses = {
   // An accessible IPv4 DNS server
   DNS4_SERVER: '8.8.8.8',
   // An accessible IPv4 DNS server
-  DNS6_SERVER: '2001:4860:4860::8888'
+  DNS6_SERVER: '2001:4860:4860::8888',
 };
 
 for (const key of Object.keys(addresses)) {
@@ -50,5 +50,5 @@ for (const key of Object.keys(addresses)) {
 }
 
 module.exports = {
-  addresses
+  addresses,
 };

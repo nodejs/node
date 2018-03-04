@@ -137,7 +137,7 @@ Benchmark.prototype._run = function() {
     process.send({
       type: 'config',
       name: this.name,
-      queueLength: this.queue.length
+      queueLength: this.queue.length,
     });
   }
 
@@ -160,7 +160,7 @@ Benchmark.prototype._run = function() {
 
     const child = child_process.fork(require.main.filename, childArgs, {
       env: childEnv,
-      execArgv: self.flags.concat(process.execArgv)
+      execArgv: self.flags.concat(process.execArgv),
     });
     child.on('message', sendResult);
     child.on('close', function(code) {
@@ -239,6 +239,6 @@ Benchmark.prototype.report = function(rate, elapsed) {
     conf: this.config,
     rate: rate,
     time: elapsed[0] + elapsed[1] / 1e9,
-    type: 'report'
+    type: 'report',
   });
 };

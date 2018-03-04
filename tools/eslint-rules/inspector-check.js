@@ -47,7 +47,7 @@ module.exports = function(context) {
                 '\ncommon.skipIfInspectorDisabled();'
               );
             }
-          }
+          },
         });
       });
     }
@@ -56,6 +56,6 @@ module.exports = function(context) {
   return {
     'CallExpression': (node) => testInspectorUsage(context, node),
     'MemberExpression': (node) => checkMemberExpression(context, node),
-    'Program:exit': (node) => reportIfMissing(context, node)
+    'Program:exit': (node) => reportIfMissing(context, node),
   };
 };

@@ -34,7 +34,7 @@ const tls = require('tls');
 
 const options = {
   key: fixtures.readKey('agent1-key.pem'),
-  cert: fixtures.readKey('agent1-cert.pem')
+  cert: fixtures.readKey('agent1-cert.pem'),
 };
 
 // Force splitting incoming data
@@ -55,8 +55,8 @@ server.listen(0, function() {
     agent: false,
     headers: {
       Connection: 'Upgrade',
-      Upgrade: 'Websocket'
-    }
+      Upgrade: 'Websocket',
+    },
   }, function() {
     req.socket.destroy();
     server.close();

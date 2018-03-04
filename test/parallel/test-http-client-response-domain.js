@@ -52,7 +52,7 @@ function test() {
     socketPath: common.PIPE,
     headers: { 'Content-Length': '1' },
     method: 'POST',
-    path: '/'
+    path: '/',
   });
   req.on('response', function(res) {
     res.on('end', function() {

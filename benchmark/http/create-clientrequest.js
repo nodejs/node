@@ -5,7 +5,7 @@ const ClientRequest = require('http').ClientRequest;
 
 const bench = common.createBenchmark(main, {
   len: [1, 8, 16, 32, 64, 128],
-  n: [1e6]
+  n: [1e6],
 });
 
 function main({ len, n }) {

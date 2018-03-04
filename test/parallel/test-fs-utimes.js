@@ -102,7 +102,7 @@ function testIt(atime, mtime, callback) {
       () => fs.futimesSync(-1, atime, mtime),
       {
         code: 'ERR_INVALID_ARG_TYPE',
-        type: TypeError
+        type: TypeError,
       }
     );
     tests_run++;
@@ -211,14 +211,14 @@ if (common.isWindows) {
     () => fs.utimes(i, new Date(), new Date(), common.mustNotCall()),
     {
       code: 'ERR_INVALID_ARG_TYPE',
-      type: TypeError
+      type: TypeError,
     }
   );
   common.expectsError(
     () => fs.utimesSync(i, new Date(), new Date()),
     {
       code: 'ERR_INVALID_ARG_TYPE',
-      type: TypeError
+      type: TypeError,
     }
   );
 });

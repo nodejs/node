@@ -9,7 +9,7 @@ const http2 = require('http2');
 const errCheck = common.expectsError({
   type: Error,
   code: 'ERR_STREAM_WRITE_AFTER_END',
-  message: 'write after end'
+  message: 'write after end',
 }, 2);
 
 const {
@@ -38,7 +38,7 @@ server.listen(0, () => {
 
   const req = client.request({
     [HTTP2_HEADER_METHOD]: HTTP2_METHOD_HEAD,
-    [HTTP2_HEADER_PATH]: '/'
+    [HTTP2_HEADER_PATH]: '/',
   });
 
   // Because it is a HEAD request, the payload is meaningless. The

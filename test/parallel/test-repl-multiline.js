@@ -14,7 +14,7 @@ const r = repl.start({
   input: inputStream,
   output: outputStream,
   terminal: true,
-  useColors: false
+  useColors: false,
 });
 
 r.on('exit', common.mustCall(() => {

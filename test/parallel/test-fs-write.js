@@ -139,14 +139,14 @@ fs.open(fn3, 'w', 0o644, common.mustCall(function(err, fd) {
     () => fs.write(i, common.mustNotCall()),
     {
       code: 'ERR_INVALID_ARG_TYPE',
-      type: TypeError
+      type: TypeError,
     }
   );
   common.expectsError(
     () => fs.writeSync(i),
     {
       code: 'ERR_INVALID_ARG_TYPE',
-      type: TypeError
+      type: TypeError,
     }
   );
 });

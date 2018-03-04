@@ -95,7 +95,7 @@ function test(cb) {
 
     const spawn = require('child_process').spawn;
     const child = spawn(process.execPath, [__filename, 'child'], {
-      stdio: [ 0, 1, 2, server._handle, 'ipc' ]
+      stdio: [ 0, 1, 2, server._handle, 'ipc' ],
     });
 
     console.log('%j\n', { pid: child.pid });

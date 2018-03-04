@@ -35,8 +35,8 @@ const testCases =
      servers: [
       { ok: true, key: 'agent1-key', cert: 'agent1-cert' },
       { ok: false, key: 'agent2-key', cert: 'agent2-cert' },
-      { ok: false, key: 'agent3-key', cert: 'agent3-cert' }
-    ]
+      { ok: false, key: 'agent3-key', cert: 'agent3-cert' },
+    ],
   },
 
    { ca: [],
@@ -45,8 +45,8 @@ const testCases =
      servers: [
        { ok: false, key: 'agent1-key', cert: 'agent1-cert' },
        { ok: false, key: 'agent2-key', cert: 'agent2-cert' },
-       { ok: false, key: 'agent3-key', cert: 'agent3-cert' }
-     ]
+       { ok: false, key: 'agent3-key', cert: 'agent3-cert' },
+     ],
    },
 
    { ca: ['ca1-cert', 'ca2-cert'],
@@ -55,9 +55,9 @@ const testCases =
      servers: [
        { ok: true, key: 'agent1-key', cert: 'agent1-cert' },
        { ok: false, key: 'agent2-key', cert: 'agent2-cert' },
-       { ok: true, key: 'agent3-key', cert: 'agent3-cert' }
-     ]
-   }
+       { ok: true, key: 'agent3-key', cert: 'agent3-cert' },
+     ],
+   },
   ];
 
 
@@ -127,7 +127,7 @@ function runTest(testIndex) {
     ca: tcase.ca.map(loadPEM),
     key: loadPEM(tcase.key),
     cert: loadPEM(tcase.cert),
-    rejectUnauthorized: false
+    rejectUnauthorized: false,
   };
 
 

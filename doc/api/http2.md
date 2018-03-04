@@ -33,7 +33,7 @@ const fs = require('fs');
 
 const server = http2.createSecureServer({
   key: fs.readFileSync('localhost-privkey.pem'),
-  cert: fs.readFileSync('localhost-cert.pem')
+  cert: fs.readFileSync('localhost-cert.pem'),
 });
 server.on('error', (err) => console.error(err));
 
@@ -41,7 +41,7 @@ server.on('stream', (stream, headers) => {
   // stream is a Duplex
   stream.respond({
     'content-type': 'text/html',
-    ':status': 200
+    ':status': 200,
   });
   stream.end('<h1>Hello World</h1>');
 });
@@ -64,7 +64,7 @@ The following illustrates an HTTP/2 client:
 const http2 = require('http2');
 const fs = require('fs');
 const client = http2.connect('https://localhost:8443', {
-  ca: fs.readFileSync('localhost-cert.pem')
+  ca: fs.readFileSync('localhost-cert.pem'),
 });
 client.on('error', (err) => console.error(err));
 
@@ -237,7 +237,7 @@ session.on('stream', (stream, headers, flags) => {
   // ...
   stream.respond({
     ':status': 200,
-    'content-type': 'text/plain'
+    'content-type': 'text/plain',
   });
   stream.write('hello ');
   stream.end('world');
@@ -258,7 +258,7 @@ const server = http2.createServer();
 server.on('stream', (stream, headers) => {
   stream.respond({
     'content-type': 'text/html',
-    ':status': 200
+    ':status': 200,
   });
   stream.end('<h1>Hello World</h1>');
 });
@@ -697,7 +697,7 @@ const http2 = require('http2');
 const clientSession = http2.connect('https://localhost:1234');
 const {
   HTTP2_HEADER_PATH,
-  HTTP2_HEADER_STATUS
+  HTTP2_HEADER_STATUS,
 } = http2.constants;
 
 const req = clientSession.request({ [HTTP2_HEADER_PATH]: '/' });
@@ -1210,7 +1210,7 @@ server.on('stream', (stream) => {
   stream.respond({ ':status': 200 }, {
     getTrailers(trailers) {
       trailers.ABC = 'some value to send';
-    }
+    },
   });
   stream.end('some data');
 });
@@ -1254,7 +1254,7 @@ server.on('stream', (stream) => {
   const headers = {
     'content-length': stat.size,
     'last-modified': stat.mtime.toUTCString(),
-    'content-type': 'text/plain'
+    'content-type': 'text/plain',
   };
   stream.respondWithFD(fd, headers);
   stream.on('close', () => fs.closeSync(fd));
@@ -1294,12 +1294,12 @@ server.on('stream', (stream) => {
   const headers = {
     'content-length': stat.size,
     'last-modified': stat.mtime.toUTCString(),
-    'content-type': 'text/plain'
+    'content-type': 'text/plain',
   };
   stream.respondWithFD(fd, headers, {
     getTrailers(trailers) {
       trailers.ABC = 'some value to send';
-    }
+    },
   });
 
   stream.on('close', () => fs.closeSync(fd));
@@ -1500,7 +1500,7 @@ const {
   HTTP2_HEADER_METHOD,
   HTTP2_HEADER_PATH,
   HTTP2_HEADER_STATUS,
-  HTTP2_HEADER_CONTENT_TYPE
+  HTTP2_HEADER_CONTENT_TYPE,
 } = http2.constants;
 
 const server = http2.createServer();
@@ -1510,7 +1510,7 @@ server.on('stream', (stream, headers, flags) => {
   // ...
   stream.respond({
     [HTTP2_HEADER_STATUS]: 200,
-    [HTTP2_HEADER_CONTENT_TYPE]: 'text/plain'
+    [HTTP2_HEADER_CONTENT_TYPE]: 'text/plain',
   });
   stream.write('hello ');
   stream.end('world');
@@ -1595,7 +1595,7 @@ const {
   HTTP2_HEADER_METHOD,
   HTTP2_HEADER_PATH,
   HTTP2_HEADER_STATUS,
-  HTTP2_HEADER_CONTENT_TYPE
+  HTTP2_HEADER_CONTENT_TYPE,
 } = http2.constants;
 
 const options = getOptionsSomehow();
@@ -1607,7 +1607,7 @@ server.on('stream', (stream, headers, flags) => {
   // ...
   stream.respond({
     [HTTP2_HEADER_STATUS]: 200,
-    [HTTP2_HEADER_CONTENT_TYPE]: 'text/plain'
+    [HTTP2_HEADER_CONTENT_TYPE]: 'text/plain',
   });
   stream.write('hello ');
   stream.end('world');
@@ -1726,7 +1726,7 @@ const server = http2.createServer();
 server.on('stream', (stream, headers) => {
   stream.respond({
     'content-type': 'text/html',
-    ':status': 200
+    ':status': 200,
   });
   stream.end('<h1>Hello World</h1>');
 });
@@ -1811,7 +1811,7 @@ const http2 = require('http2');
 
 const options = {
   key: fs.readFileSync('server-key.pem'),
-  cert: fs.readFileSync('server-cert.pem')
+  cert: fs.readFileSync('server-cert.pem'),
 };
 
 // Create a secure HTTP/2 server
@@ -1820,7 +1820,7 @@ const server = http2.createSecureServer(options);
 server.on('stream', (stream, headers) => {
   stream.respond({
     'content-type': 'text/html',
-    ':status': 200
+    ':status': 200,
   });
   stream.end('<h1>Hello World</h1>');
 });
@@ -1994,7 +1994,7 @@ to send more than one value per header field).
 const headers = {
   ':status': '200',
   'content-type': 'text-plain',
-  'ABC': ['has', 'more', 'than', 'one', 'value']
+  'ABC': ['has', 'more', 'than', 'one', 'value'],
 };
 
 stream.respond(headers);
@@ -2069,7 +2069,7 @@ const server = http2.createServer({
   paddingStrategy: http2.constants.PADDING_STRATEGY_CALLBACK,
   selectPadding(frameLen, maxFrameLen) {
     return maxFrameLen;
-  }
+  },
 });
 ```
 
@@ -2199,7 +2199,7 @@ const client = http2.connect('http://localhost:8001');
 // for CONNECT requests or an error will be thrown.
 const req = client.request({
   ':method': 'CONNECT',
-  ':authority': `localhost:${port}`
+  ':authority': `localhost:${port}`,
 });
 
 req.on('response', (headers) => {
@@ -2275,7 +2275,7 @@ function onRequest(req, res) {
   res.writeHead(200, { 'content-type': 'application/json' });
   res.end(JSON.stringify({
     alpnProtocol,
-    httpVersion: req.httpVersion
+    httpVersion: req.httpVersion,
   }));
 }
 ```

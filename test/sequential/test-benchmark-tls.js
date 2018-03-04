@@ -20,9 +20,9 @@ runBenchmark('tls',
                'dur=0.1',
                'n=1',
                'size=2',
-               'type=asc'
+               'type=asc',
              ],
              {
                NODEJS_BENCHMARK_ZERO_ALLOWED: 1,
-               duration: 0
+               duration: 0,
              });

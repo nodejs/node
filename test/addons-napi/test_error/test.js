@@ -64,21 +64,21 @@ common.expectsError(
   () => test_error.throwErrorCode(),
   {
     code: 'ERR_TEST_CODE',
-    message: 'Error [error]'
+    message: 'Error [error]',
   });
 
 common.expectsError(
   () => test_error.throwRangeErrorCode(),
   {
     code: 'ERR_TEST_CODE',
-    message: 'RangeError [range error]'
+    message: 'RangeError [range error]',
   });
 
 common.expectsError(
   () => test_error.throwTypeErrorCode(),
   {
     code: 'ERR_TEST_CODE',
-    message: 'TypeError [type error]'
+    message: 'TypeError [type error]',
   });
 
 let error = test_error.createError();

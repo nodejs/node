@@ -29,7 +29,7 @@ server.on('listening', common.mustCall(() => {
   const client = http2.connect(`http://localhost:${server.address().port}`);
   const req = client.request({
     ':method': 'POST',
-    expect: '100-continue'
+    expect: '100-continue',
   });
 
   let gotContinue = false;

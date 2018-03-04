@@ -48,7 +48,7 @@ function test(testOptions, cb) {
   const options = {
     key,
     cert,
-    ca: [ca]
+    ca: [ca],
   };
   let requestCount = 0;
   let clientSecure = 0;
@@ -90,7 +90,7 @@ function test(testOptions, cb) {
       requestOCSP: testOptions.ocsp !== false,
       secureOptions: testOptions.ocsp === false ?
         SSL_OP_NO_TICKET : 0,
-      rejectUnauthorized: false
+      rejectUnauthorized: false,
     }, function() {
       clientSecure++;
     });
@@ -125,7 +125,7 @@ function test(testOptions, cb) {
 const tests = [
   { response: false },
   { response: 'hello world' },
-  { ocsp: false }
+  { ocsp: false },
 ];
 
 if (!common.hasFipsCrypto) {

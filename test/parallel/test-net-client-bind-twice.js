@@ -14,7 +14,7 @@ server1.listen(0, common.localhostIPv4, common.mustCall(() => {
       host: common.localhostIPv4,
       port: server1.address().port,
       localAddress: common.localhostIPv4,
-      localPort: server2.address().port
+      localPort: server2.address().port,
     }, common.mustNotCall());
 
     client.on('error', common.mustCall((err) => {

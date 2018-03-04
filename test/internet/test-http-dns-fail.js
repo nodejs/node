@@ -36,7 +36,7 @@ function httpreq(count) {
     host: 'not-a-real-domain-name.nobody-would-register-this-as-a-tld',
     port: 80,
     path: '/',
-    method: 'GET'
+    method: 'GET',
   }, common.mustNotCall());
 
   req.on('error', common.mustCall((e) => {

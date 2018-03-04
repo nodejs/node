@@ -11,16 +11,16 @@ const message = 'Use of the Buffer() constructor has been deprecated. ' +
 
 new RuleTester().run('buffer-constructor', rule, {
   valid: [
-    'Buffer.from(foo)'
+    'Buffer.from(foo)',
   ],
   invalid: [
     {
       code: 'Buffer(foo)',
-      errors: [{ message }]
+      errors: [{ message }],
     },
     {
       code: 'new Buffer(foo)',
-      errors: [{ message }]
-    }
-  ]
+      errors: [{ message }],
+    },
+  ],
 });

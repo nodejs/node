@@ -11,14 +11,14 @@ const assert = require('assert');
 const { addresses } = require('../common/internet');
 const {
   errorLookupMock,
-  mockedErrorCode
+  mockedErrorCode,
 } = require('../common/dns');
 
 // Using port 0 as hostname used is already invalid.
 const c = net.createConnection({
   port: 0,
   host: addresses.INVALID_HOST,
-  lookup: common.mustCall(errorLookupMock())
+  lookup: common.mustCall(errorLookupMock()),
 });
 
 c.on('connect', common.mustNotCall());

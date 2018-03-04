@@ -70,7 +70,7 @@ common.expectsError(() => {
   fs.copyFile(src, dest, 0, 0);
 }, {
   code: 'ERR_INVALID_CALLBACK',
-  type: TypeError
+  type: TypeError,
 });
 
 // Throws if the source path is not a string.
@@ -79,28 +79,28 @@ common.expectsError(() => {
     () => fs.copyFile(i, dest, common.mustNotCall()),
     {
       code: 'ERR_INVALID_ARG_TYPE',
-      type: TypeError
+      type: TypeError,
     }
   );
   common.expectsError(
     () => fs.copyFile(src, i, common.mustNotCall()),
     {
       code: 'ERR_INVALID_ARG_TYPE',
-      type: TypeError
+      type: TypeError,
     }
   );
   common.expectsError(
     () => fs.copyFileSync(i, dest),
     {
       code: 'ERR_INVALID_ARG_TYPE',
-      type: TypeError
+      type: TypeError,
     }
   );
   common.expectsError(
     () => fs.copyFileSync(src, i),
     {
       code: 'ERR_INVALID_ARG_TYPE',
-      type: TypeError
+      type: TypeError,
     }
   );
 });

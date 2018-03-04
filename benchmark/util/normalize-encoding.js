@@ -7,7 +7,7 @@ const groupedInputs = {
   group_common: ['undefined', 'utf8', 'utf-8', 'base64', 'binary', 'latin1'],
   group_upper: ['UTF-8', 'UTF8', 'UCS2', 'UTF-16LE', 'UTF16LE', 'BASE64'],
   group_uncommon: [ 'foo', '1', 'false', 'undefined', '[]'],
-  group_misc: ['', 'utf16le', 'usc2', 'hex', 'HEX', 'BINARY']
+  group_misc: ['', 'utf16le', 'usc2', 'hex', 'HEX', 'BINARY'],
 };
 
 const inputs = [
@@ -19,9 +19,9 @@ const inputs = [
 
 const bench = common.createBenchmark(main, {
   input: inputs.concat(Object.keys(groupedInputs)),
-  n: [1e7]
+  n: [1e7],
 }, {
-  flags: '--expose-internals'
+  flags: '--expose-internals',
 });
 
 function getInput(input) {

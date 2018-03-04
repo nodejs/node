@@ -97,7 +97,7 @@ common.expectsError(
   {
     code: 'ERR_INVALID_ARG_TYPE',
     type: TypeError,
-    message: 'The "path" argument must be one of type string, Buffer, or URL'
+    message: 'The "path" argument must be one of type string, Buffer, or URL',
   }
 );
 
@@ -107,7 +107,7 @@ common.expectsError(
   },
   {
     code: 'ERR_INVALID_CALLBACK',
-    type: TypeError
+    type: TypeError,
   });
 
 common.expectsError(
@@ -116,7 +116,7 @@ common.expectsError(
   },
   {
     code: 'ERR_INVALID_CALLBACK',
-    type: TypeError
+    type: TypeError,
   });
 
 // Regular access should not throw.

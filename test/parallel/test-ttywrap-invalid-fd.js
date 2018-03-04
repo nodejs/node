@@ -10,7 +10,7 @@ common.expectsError(
   {
     code: 'ERR_INVALID_FD',
     type: RangeError,
-    message: '"fd" must be a positive integer: -1'
+    message: '"fd" must be a positive integer: -1',
   }
 );
 
@@ -27,7 +27,7 @@ common.expectsError(
     }, {
       code: 'ERR_SYSTEM_ERROR',
       type: SystemError,
-      message
+      message,
     }
   );
 
@@ -39,7 +39,7 @@ common.expectsError(
     }, {
       code: 'ERR_SYSTEM_ERROR',
       type: SystemError,
-      message
+      message,
     });
 }
 
@@ -48,6 +48,6 @@ common.expectsError(
   {
     code: 'ERR_INVALID_FD',
     type: RangeError,
-    message: '"fd" must be a positive integer: -1'
+    message: '"fd" must be a positive integer: -1',
   }
 );

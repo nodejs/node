@@ -15,7 +15,7 @@ server.on('stream', common.mustCall((stream) => {
   stream.respond({ abc: 'xyz' }, {
     getTrailers(headers) {
       headers.xyz = 'abc';
-    }
+    },
   });
   assert.strictEqual(stream.sentHeaders.abc, 'xyz');
   assert.strictEqual(stream.sentHeaders[':status'], 200);

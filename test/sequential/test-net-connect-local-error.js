@@ -9,7 +9,7 @@ const expectedErrorCodes = ['ECONNREFUSED', 'EADDRINUSE'];
 const client = net.connect({
   port: common.PORT,
   localPort: common.PORT + 1,
-  localAddress: common.localhostIPv4
+  localAddress: common.localhostIPv4,
 });
 
 client.on('error', common.mustCall(function onError(err) {

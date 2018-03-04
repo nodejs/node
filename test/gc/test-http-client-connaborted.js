@@ -32,7 +32,7 @@ function getall() {
     const req = http.get({
       hostname: 'localhost',
       pathname: '/',
-      port: server.address().port
+      port: server.address().port,
     }, cb).on('error', cb);
 
     count++;

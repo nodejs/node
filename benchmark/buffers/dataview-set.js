@@ -15,12 +15,12 @@ const types = [
   'Float32LE',
   'Float32BE',
   'Float64LE',
-  'Float64BE'
+  'Float64BE',
 ];
 
 const bench = common.createBenchmark(main, {
   type: types,
-  millions: [1]
+  millions: [1],
 });
 
 const INT8 = 0x7f;
@@ -36,7 +36,7 @@ const mod = {
   setInt32: INT32,
   setUint8: UINT8,
   setUint16: UINT16,
-  setUint32: UINT32
+  setUint32: UINT32,
 };
 
 function main({ millions, type }) {

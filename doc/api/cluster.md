@@ -763,12 +763,12 @@ const cluster = require('cluster');
 cluster.setupMaster({
   exec: 'worker.js',
   args: ['--use', 'https'],
-  silent: true
+  silent: true,
 });
 cluster.fork(); // https worker
 cluster.setupMaster({
   exec: 'worker.js',
-  args: ['--use', 'http']
+  args: ['--use', 'http'],
 });
 cluster.fork(); // http worker
 ```

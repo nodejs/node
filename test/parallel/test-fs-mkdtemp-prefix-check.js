@@ -11,7 +11,7 @@ function fail(value) {
     },
     {
       code: 'ERR_INVALID_ARG_TYPE',
-      type: TypeError
+      type: TypeError,
     });
 }
 
@@ -22,7 +22,7 @@ function failAsync(value) {
     },
     {
       code: 'ERR_INVALID_ARG_TYPE',
-      type: TypeError
+      type: TypeError,
     });
 }
 

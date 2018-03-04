@@ -6,7 +6,7 @@ const active = require('timers').active;
 // active() should create timers for these
 const legitTimers = [
   { _idleTimeout: 0 },
-  { _idleTimeout: 1 }
+  { _idleTimeout: 1 },
 ];
 
 legitTimers.forEach(function(legit) {

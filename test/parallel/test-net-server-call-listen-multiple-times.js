@@ -30,7 +30,7 @@ const net = require('net');
 
   common.expectsError(() => server.listen(), {
     code: 'ERR_SERVER_ALREADY_LISTEN',
-    type: Error
+    type: Error,
   });
 }
 

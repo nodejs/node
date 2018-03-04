@@ -10,7 +10,7 @@ const setup = 'const enc = { toString: () => { throw new Error("xyz"); } };';
 
 const scripts = [
   'crypto.createHash("sha256").digest(enc)',
-  'crypto.createHmac("sha256", "msg").digest(enc)'
+  'crypto.createHmac("sha256", "msg").digest(enc)',
 ];
 
 scripts.forEach((script) => {

@@ -68,7 +68,7 @@ if (!common.hasIntl) {
   const dtf = new Intl.DateTimeFormat(['en'], {
     timeZone: GMT,
     month: 'short',
-    year: '2-digit'
+    year: '2-digit',
   });
 
   // If list is specified and doesn't contain 'en' then return.

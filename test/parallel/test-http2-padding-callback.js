@@ -20,7 +20,7 @@ function selectPadding(frameLen, max) {
 // 3. For the server response data frame
 const options = {
   paddingStrategy: PADDING_STRATEGY_CALLBACK,
-  selectPadding: common.mustCall(selectPadding, 3)
+  selectPadding: common.mustCall(selectPadding, 3),
 };
 
 const server = h2.createServer(options);
@@ -29,7 +29,7 @@ server.on('stream', common.mustCall(onStream));
 function onStream(stream, headers, flags) {
   stream.respond({
     'content-type': 'text/html',
-    ':status': 200
+    ':status': 200,
   });
   stream.end('hello world');
 }

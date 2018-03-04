@@ -11,7 +11,7 @@ const fixtures = require('../common/fixtures');
 
 const options = {
   key: fixtures.readKey('agent1-key.pem'),
-  cert: fixtures.readKey('agent1-cert.pem')
+  cert: fixtures.readKey('agent1-cert.pem'),
 };
 
 const ca = fixtures.readKey('ca1-cert.pem');
@@ -20,7 +20,7 @@ const clientSessions = {};
 let serverRequests = 0;
 
 const agent = new https.Agent({
-  maxCachedSessions: 1
+  maxCachedSessions: 1,
 });
 
 const server = https.createServer(options, function(req, res) {
@@ -38,7 +38,7 @@ const server = https.createServer(options, function(req, res) {
       path: '/',
       servername: 'agent1',
       ca: ca,
-      port: this.address().port
+      port: this.address().port,
     },
     {
       name: 'first-reuse',
@@ -47,7 +47,7 @@ const server = https.createServer(options, function(req, res) {
       path: '/',
       servername: 'agent1',
       ca: ca,
-      port: this.address().port
+      port: this.address().port,
     },
     {
       name: 'cipher-change',
@@ -59,7 +59,7 @@ const server = https.createServer(options, function(req, res) {
       // Choose different cipher to use different cache entry
       ciphers: 'AES256-SHA',
       ca: ca,
-      port: this.address().port
+      port: this.address().port,
     },
     // Change the ticket key to ensure session is updated in cache
     {
@@ -69,7 +69,7 @@ const server = https.createServer(options, function(req, res) {
       path: '/drop-key',
       servername: 'agent1',
       ca: ca,
-      port: this.address().port
+      port: this.address().port,
     },
 
     // Ticket will be updated starting from this
@@ -80,7 +80,7 @@ const server = https.createServer(options, function(req, res) {
       path: '/',
       servername: 'agent1',
       ca: ca,
-      port: this.address().port
+      port: this.address().port,
     },
     {
       name: 'after-drop-reuse',
@@ -89,8 +89,8 @@ const server = https.createServer(options, function(req, res) {
       path: '/',
       servername: 'agent1',
       ca: ca,
-      port: this.address().port
-    }
+      port: this.address().port,
+    },
   ];
 
   function request() {

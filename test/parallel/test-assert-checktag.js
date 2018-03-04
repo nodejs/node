@@ -16,7 +16,7 @@ function re(literals, ...values) {
   }
   return common.expectsError({
     code: 'ERR_ASSERTION',
-    message: new RegExp(`^${result}$`)
+    message: new RegExp(`^${result}$`),
   });
 }
 

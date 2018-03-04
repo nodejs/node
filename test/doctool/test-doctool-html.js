@@ -24,7 +24,7 @@ const testData = [
   {
     file: fixtures.path('sample_document.md'),
     html: '<ol><li>fish</li><li><p>fish</p></li><li><p>Redfish</p></li>' +
-      '<li>Bluefish</li></ol>'
+      '<li>Bluefish</li></ol>',
   },
   {
     file: fixtures.path('order_of_end_tags_5873.md'),
@@ -34,7 +34,7 @@ const testData = [
       'class="signature"><ul><li><code>array</code><a ' +
       'href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/' +
       'Reference/Global_Objects/Array" class="type">&lt;Array&gt;</a></li>' +
-      '</ul></div>'
+      '</ul></div>',
   },
   {
     file: fixtures.path('doc_with_yaml.md'),
@@ -70,7 +70,7 @@ const testData = [
       'id="foo_something">#</a></span></h2> ' +
       '<!-- This is not a metadata comment --> ' +
       '<p>Describe <code>Something</code> in more detail here. ' +
-      '</p>'
+      '</p>',
   },
   {
     file: fixtures.path('doc_with_includes.md'),
@@ -81,13 +81,13 @@ const testData = [
     '<h1>foobar<span><a class="mark" href="#doc_inc_2_foobar" ' +
     'id="doc_inc_2_foobar">#</a></span></h1>' +
     '<p>I exist and am being linked to.</p>' +
-    '<!-- [end-include:doc_inc_2.md] -->'
+    '<!-- [end-include:doc_inc_2.md] -->',
   },
   {
     file: fixtures.path('sample_document.md'),
     html: '<ol><li>fish</li><li><p>fish</p></li><li><p>Redfish</p></li>' +
       '<li>Bluefish</li></ol>',
-    analyticsId: 'UA-67020396-1'
+    analyticsId: 'UA-67020396-1',
   },
 ];
 

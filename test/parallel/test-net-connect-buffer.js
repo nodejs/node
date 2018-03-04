@@ -54,7 +54,7 @@ tcp.listen(0, common.mustCall(function() {
                       {
                         code: 'ERR_STREAM_NULL_VALUES',
                         type: TypeError,
-                        message: 'May not write null values to stream'
+                        message: 'May not write null values to stream',
                       });
   [
     true,
@@ -66,12 +66,12 @@ tcp.listen(0, common.mustCall(function() {
     +Infinity,
     -Infinity,
     [],
-    {}
+    {},
   ].forEach((v) => {
     common.expectsError(() => socket.write(v), {
       code: 'ERR_INVALID_ARG_TYPE',
       type: TypeError,
-      message: 'The "chunk" argument must be one of type string or Buffer'
+      message: 'The "chunk" argument must be one of type string or Buffer',
     });
   });
 

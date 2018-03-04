@@ -66,18 +66,18 @@ function runTest(clientsOptions, serverOptions, cb) {
 function Test1() {
   const serverOptions = {
     ALPNProtocols: ['a', 'b', 'c'],
-    NPNProtocols: ['a', 'b', 'c']
+    NPNProtocols: ['a', 'b', 'c'],
   };
 
   const clientsOptions = [{
     ALPNProtocols: ['a', 'b', 'c'],
-    NPNProtocols: ['a', 'b', 'c']
+    NPNProtocols: ['a', 'b', 'c'],
   }, {
     ALPNProtocols: ['c', 'b', 'e'],
-    NPNProtocols: ['c', 'b', 'e']
+    NPNProtocols: ['c', 'b', 'e'],
   }, {
     ALPNProtocols: ['first-priority-unsupported', 'x', 'y'],
-    NPNProtocols: ['first-priority-unsupported', 'x', 'y']
+    NPNProtocols: ['first-priority-unsupported', 'x', 'y'],
   }];
 
   runTest(clientsOptions, serverOptions, function(results) {
@@ -102,15 +102,15 @@ function Test1() {
 function Test2() {
   const serverOptions = {
     ALPNProtocols: ['a', 'b', 'c'],
-    NPNProtocols: ['a', 'b', 'c']
+    NPNProtocols: ['a', 'b', 'c'],
   };
 
   const clientsOptions = [{
-    ALPNProtocols: ['a', 'b', 'c']
+    ALPNProtocols: ['a', 'b', 'c'],
   }, {
-    ALPNProtocols: ['c', 'b', 'e']
+    ALPNProtocols: ['c', 'b', 'e'],
   }, {
-    ALPNProtocols: ['first-priority-unsupported', 'x', 'y']
+    ALPNProtocols: ['first-priority-unsupported', 'x', 'y'],
   }];
 
   runTest(clientsOptions, serverOptions, function(results) {
@@ -135,15 +135,15 @@ function Test2() {
 function Test3() {
   const serverOptions = {
     ALPNProtocols: ['a', 'b', 'c'],
-    NPNProtocols: ['a', 'b', 'c']
+    NPNProtocols: ['a', 'b', 'c'],
   };
 
   const clientsOptions = [{
-    NPNProtocols: ['a', 'b', 'c']
+    NPNProtocols: ['a', 'b', 'c'],
   }, {
-    NPPNProtocols: ['c', 'b', 'e']
+    NPPNProtocols: ['c', 'b', 'e'],
   }, {
-    NPPNProtocols: ['first-priority-unsupported', 'x', 'y']
+    NPPNProtocols: ['first-priority-unsupported', 'x', 'y'],
   }];
 
   runTest(clientsOptions, serverOptions, function(results) {
@@ -168,7 +168,7 @@ function Test3() {
 function Test4() {
   const serverOptions = {
     ALPNProtocols: ['a', 'b', 'c'],
-    NPNProtocols: ['a', 'b', 'c']
+    NPNProtocols: ['a', 'b', 'c'],
   };
 
   const clientsOptions = [{}, {}, {}];
@@ -194,18 +194,18 @@ function Test4() {
 // Server: ALPN, Client: ALPN/NPN
 function Test5() {
   const serverOptions = {
-    ALPNProtocols: ['a', 'b', 'c']
+    ALPNProtocols: ['a', 'b', 'c'],
   };
 
   const clientsOptions = [{
     ALPNProtocols: ['a', 'b', 'c'],
-    NPNProtocols: ['a', 'b', 'c']
+    NPNProtocols: ['a', 'b', 'c'],
   }, {
     ALPNProtocols: ['c', 'b', 'e'],
-    NPNProtocols: ['c', 'b', 'e']
+    NPNProtocols: ['c', 'b', 'e'],
   }, {
     ALPNProtocols: ['first-priority-unsupported', 'x', 'y'],
-    NPNProtocols: ['first-priority-unsupported', 'x', 'y']
+    NPNProtocols: ['first-priority-unsupported', 'x', 'y'],
   }];
 
   runTest(clientsOptions, serverOptions, function(results) {
@@ -227,15 +227,15 @@ function Test5() {
 // Server: ALPN, Client: ALPN
 function Test6() {
   const serverOptions = {
-    ALPNProtocols: ['a', 'b', 'c']
+    ALPNProtocols: ['a', 'b', 'c'],
   };
 
   const clientsOptions = [{
-    ALPNProtocols: ['a', 'b', 'c']
+    ALPNProtocols: ['a', 'b', 'c'],
   }, {
-    ALPNProtocols: ['c', 'b', 'e']
+    ALPNProtocols: ['c', 'b', 'e'],
   }, {
-    ALPNProtocols: ['first-priority-unsupported', 'x', 'y']
+    ALPNProtocols: ['first-priority-unsupported', 'x', 'y'],
   }];
 
   runTest(clientsOptions, serverOptions, function(results) {
@@ -256,15 +256,15 @@ function Test6() {
 // Server: ALPN, Client: NPN
 function Test7() {
   const serverOptions = {
-    ALPNProtocols: ['a', 'b', 'c']
+    ALPNProtocols: ['a', 'b', 'c'],
   };
 
   const clientsOptions = [{
-    NPNProtocols: ['a', 'b', 'c']
+    NPNProtocols: ['a', 'b', 'c'],
   }, {
-    NPNProtocols: ['c', 'b', 'e']
+    NPNProtocols: ['c', 'b', 'e'],
   }, {
-    NPNProtocols: ['first-priority-unsupported', 'x', 'y']
+    NPNProtocols: ['first-priority-unsupported', 'x', 'y'],
   }];
 
   runTest(clientsOptions, serverOptions, function(results) {
@@ -286,7 +286,7 @@ function Test7() {
 // Server: ALPN, Client: Nothing
 function Test8() {
   const serverOptions = {
-    ALPNProtocols: ['a', 'b', 'c']
+    ALPNProtocols: ['a', 'b', 'c'],
   };
 
   const clientsOptions = [{}, {}, {}];
@@ -310,18 +310,18 @@ function Test8() {
 // Server: NPN, Client: ALPN/NPN
 function Test9() {
   const serverOptions = {
-    NPNProtocols: ['a', 'b', 'c']
+    NPNProtocols: ['a', 'b', 'c'],
   };
 
   const clientsOptions = [{
     ALPNrotocols: ['a', 'b', 'c'],
-    NPNProtocols: ['a', 'b', 'c']
+    NPNProtocols: ['a', 'b', 'c'],
   }, {
     ALPNProtocols: ['c', 'b', 'e'],
-    NPNProtocols: ['c', 'b', 'e']
+    NPNProtocols: ['c', 'b', 'e'],
   }, {
     ALPNProtocols: ['first-priority-unsupported', 'x', 'y'],
-    NPNProtocols: ['first-priority-unsupported', 'x', 'y']
+    NPNProtocols: ['first-priority-unsupported', 'x', 'y'],
   }];
 
   runTest(clientsOptions, serverOptions, function(results) {
@@ -343,15 +343,15 @@ function Test9() {
 // Server: NPN, Client: ALPN
 function Test10() {
   const serverOptions = {
-    NPNProtocols: ['a', 'b', 'c']
+    NPNProtocols: ['a', 'b', 'c'],
   };
 
   const clientsOptions = [{
-    ALPNProtocols: ['a', 'b', 'c']
+    ALPNProtocols: ['a', 'b', 'c'],
   }, {
-    ALPNProtocols: ['c', 'b', 'e']
+    ALPNProtocols: ['c', 'b', 'e'],
   }, {
-    ALPNProtocols: ['first-priority-unsupported', 'x', 'y']
+    ALPNProtocols: ['first-priority-unsupported', 'x', 'y'],
   }];
 
   runTest(clientsOptions, serverOptions, function(results) {
@@ -372,15 +372,15 @@ function Test10() {
 // Server: NPN, Client: NPN
 function Test11() {
   const serverOptions = {
-    NPNProtocols: ['a', 'b', 'c']
+    NPNProtocols: ['a', 'b', 'c'],
   };
 
   const clientsOptions = [{
-    NPNProtocols: ['a', 'b', 'c']
+    NPNProtocols: ['a', 'b', 'c'],
   }, {
-    NPNProtocols: ['c', 'b', 'e']
+    NPNProtocols: ['c', 'b', 'e'],
   }, {
-    NPNProtocols: ['first-priority-unsupported', 'x', 'y']
+    NPNProtocols: ['first-priority-unsupported', 'x', 'y'],
   }];
 
   runTest(clientsOptions, serverOptions, function(results) {
@@ -402,7 +402,7 @@ function Test11() {
 // Server: NPN, Client: Nothing
 function Test12() {
   const serverOptions = {
-    NPNProtocols: ['a', 'b', 'c']
+    NPNProtocols: ['a', 'b', 'c'],
   };
 
   const clientsOptions = [{}, {}, {}];
@@ -429,13 +429,13 @@ function Test13() {
 
   const clientsOptions = [{
     ALPNrotocols: ['a', 'b', 'c'],
-    NPNProtocols: ['a', 'b', 'c']
+    NPNProtocols: ['a', 'b', 'c'],
   }, {
     ALPNProtocols: ['c', 'b', 'e'],
-    NPNProtocols: ['c', 'b', 'e']
+    NPNProtocols: ['c', 'b', 'e'],
   }, {
     ALPNProtocols: ['first-priority-unsupported', 'x', 'y'],
-    NPNProtocols: ['first-priority-unsupported', 'x', 'y']
+    NPNProtocols: ['first-priority-unsupported', 'x', 'y'],
   }];
 
   runTest(clientsOptions, serverOptions, function(results) {
@@ -459,11 +459,11 @@ function Test14() {
   const serverOptions = {};
 
   const clientsOptions = [{
-    ALPNrotocols: ['a', 'b', 'c']
+    ALPNrotocols: ['a', 'b', 'c'],
   }, {
-    ALPNProtocols: ['c', 'b', 'e']
+    ALPNProtocols: ['c', 'b', 'e'],
   }, {
-    ALPNProtocols: ['first-priority-unsupported', 'x', 'y']
+    ALPNProtocols: ['first-priority-unsupported', 'x', 'y'],
   }];
 
   runTest(clientsOptions, serverOptions, function(results) {
@@ -487,11 +487,11 @@ function Test15() {
   const serverOptions = {};
 
   const clientsOptions = [{
-    NPNProtocols: ['a', 'b', 'c']
+    NPNProtocols: ['a', 'b', 'c'],
   }, {
-    NPNProtocols: ['c', 'b', 'e']
+    NPNProtocols: ['c', 'b', 'e'],
   }, {
-    NPNProtocols: ['first-priority-unsupported', 'x', 'y']
+    NPNProtocols: ['first-priority-unsupported', 'x', 'y'],
   }];
 
   runTest(clientsOptions, serverOptions, function(results) {

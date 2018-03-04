@@ -103,7 +103,7 @@ TEST(function test_lookup_ipv6_implicit(done) {
 
 TEST(function test_lookup_ipv6_explicit_object(done) {
   const req = dns.lookup(addresses.INET6_HOST, {
-    family: 6
+    family: 6,
   }, common.mustCall((err, ip, family) => {
     assert.ifError(err);
     assert.ok(isIPv6(ip));
@@ -118,7 +118,7 @@ TEST(function test_lookup_ipv6_explicit_object(done) {
 TEST(function test_lookup_ipv6_hint(done) {
   const req = dns.lookup(addresses.INET6_HOST, {
     family: 6,
-    hints: dns.V4MAPPED
+    hints: dns.V4MAPPED,
   }, common.mustCall((err, ip, family) => {
     if (err) {
       // FreeBSD does not support V4MAPPED

@@ -11,7 +11,7 @@ const server = h2.createServer();
 const setCookie = [
   'a=b',
   'c=d; Wed, 21 Oct 2015 07:28:00 GMT; Secure; HttpOnly',
-  'e=f'
+  'e=f',
 ];
 
 // we use the lower-level API here
@@ -27,7 +27,7 @@ function onStream(stream, headers, flags) {
   stream.respond({
     'content-type': 'text/html',
     ':status': 200,
-    'set-cookie': setCookie
+    'set-cookie': setCookie,
   });
 
   stream.end('hello world');

@@ -40,7 +40,7 @@ async function testBreakpointOnStart(session) {
       'params': { 'interval': 100 } },
     { 'method': 'Debugger.setBlackboxPatterns',
       'params': { 'patterns': [] } },
-    { 'method': 'Runtime.runIfWaitingForDebugger' }
+    { 'method': 'Runtime.runIfWaitingForDebugger' },
   ];
 
   await session.send(commands);
@@ -55,8 +55,8 @@ async function testBreakpoint(session) {
       'params': { 'lineNumber': 7,
                   'url': session.scriptURL(),
                   'columnNumber': 0,
-                  'condition': ''
-      }
+                  'condition': '',
+      },
     },
     { 'method': 'Debugger.resume' },
   ];
@@ -78,8 +78,8 @@ async function testBreakpoint(session) {
       'objectId': scopeId,
       'ownProperties': false,
       'accessorPropertiesOnly': false,
-      'generatePreview': true
-    }
+      'generatePreview': true,
+    },
   });
   assertScopeValues(response, { t: 1001, k: 1, message: 'A message' });
 
@@ -91,16 +91,16 @@ async function testBreakpoint(session) {
       'includeCommandLineAPI': true,
       'silent': false,
       'returnByValue': false,
-      'generatePreview': true
-    }
+      'generatePreview': true,
+    },
   });
 
   assert.strictEqual(result.value, 1002);
 
   result = (await session.send({
     'method': 'Runtime.evaluate', 'params': {
-      'expression': '5 * 5'
-    }
+      'expression': '5 * 5',
+    },
   })).result;
   assert.strictEqual(result.value, 25);
 }

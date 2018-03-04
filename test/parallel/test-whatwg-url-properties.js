@@ -156,7 +156,7 @@ assert.strictEqual(url.searchParams, oldParams);
   { expected: 'ws://example.org', url: 'ws://example.org/foo' },
   { expected: 'wss://example.org', url: 'wss://example.org/foo' },
   { expected: 'null', url: 'file:///tmp/mock/path' },
-  { expected: 'null', url: 'npm://nodejs/rules' }
+  { expected: 'null', url: 'npm://nodejs/rules' },
 ].forEach((test) => {
   assert.strictEqual(new URL(test.url).origin, test.expected);
 });

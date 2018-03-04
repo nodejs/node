@@ -185,7 +185,7 @@ const run_test_4 = common.mustCall(function() {
     code: 'ERR_OUT_OF_RANGE',
     message: 'The value of "start" is out of range. ' +
              'It must be >= 0. Received {start: -5}',
-    type: RangeError
+    type: RangeError,
   };
   common.expectsError(block, err);
 });

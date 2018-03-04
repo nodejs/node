@@ -3,7 +3,7 @@ const common = require('../common');
 const assert = require('assert');
 
 process.once('uncaughtException', common.expectsError({
-  message: 'Timeout Error'
+  message: 'Timeout Error',
 }));
 
 let called = false;

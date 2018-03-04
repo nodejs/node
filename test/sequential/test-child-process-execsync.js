@@ -84,7 +84,7 @@ assert.strictEqual(ret, `${msg}\n`);
 
 const args = [
   '-e',
-  `console.log("${msg}");`
+  `console.log("${msg}");`,
 ];
 ret = execFileSync(process.execPath, args);
 
@@ -123,7 +123,7 @@ assert.strictEqual(ret, `${msg}\n`);
     'signal',
     'status',
     'stderr',
-    'stdout'
+    'stdout',
   ]);
 
   assert.throws(() => {

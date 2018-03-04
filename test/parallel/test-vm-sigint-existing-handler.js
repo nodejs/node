@@ -11,7 +11,7 @@ const spawn = require('child_process').spawn;
 
 const methods = [
   'runInThisContext',
-  'runInContext'
+  'runInContext',
 ];
 
 if (process.argv[2] === 'child') {
@@ -69,7 +69,7 @@ if (process.argv[2] === 'child') {
 
 for (const method of methods) {
   const child = spawn(process.execPath, [__filename, 'child', method], {
-    stdio: [null, 'inherit', 'inherit', 'ipc']
+    stdio: [null, 'inherit', 'inherit', 'ipc'],
   });
 
   child.on('message', common.mustCall(() => {

@@ -9,7 +9,7 @@ common.globalCheck = false;
 const tests = [
   testSloppyMode,
   testStrictMode,
-  testAutoMode
+  testAutoMode,
 ];
 
 tests.forEach(function(test) {
@@ -67,6 +67,6 @@ function initRepl(mode) {
     output: output,
     useColors: false,
     terminal: false,
-    replMode: mode
+    replMode: mode,
   });
 }

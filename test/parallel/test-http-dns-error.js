@@ -54,7 +54,7 @@ function tryRequest(mod, tries) {
   const req = mod.request({
     method: 'GET',
     host: host,
-    port: 42
+    port: 42,
   }, common.mustNotCall());
   req.on('error', common.mustCall(function(err) {
     if (err.code === 'EAGAIN' && tries < MAX_TRIES) {

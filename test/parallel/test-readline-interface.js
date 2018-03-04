@@ -66,7 +66,7 @@ function isWarned(emitter) {
   const rli = new readline.Interface({
     input: fi,
     output: fi,
-    crlfDelay: 100.5
+    crlfDelay: 100.5,
   });
   assert.strictEqual(rli.crlfDelay, 100.5);
   rli.close();
@@ -78,7 +78,7 @@ function isWarned(emitter) {
   const rli = new readline.Interface({
     input: fi,
     output: fi,
-    crlfDelay: 5000
+    crlfDelay: 5000,
   });
   assert.strictEqual(rli.crlfDelay, 5000);
   rli.close();
@@ -274,7 +274,7 @@ function isWarned(emitter) {
       input: fi,
       output: fi,
       terminal: terminal,
-      crlfDelay: delay
+      crlfDelay: delay,
     });
     let callCount = 0;
     rli.on('line', function(line) {
@@ -297,7 +297,7 @@ function isWarned(emitter) {
       input: fi,
       output: fi,
       terminal: terminal,
-      crlfDelay
+      crlfDelay,
     });
     let callCount = 0;
     rli.on('line', function(line) {
@@ -338,7 +338,7 @@ function isWarned(emitter) {
       input: fi,
       output: fi,
       terminal: true,
-      completer: completer
+      completer: completer,
     });
     let called = false;
     rli.on('line', function(line) {
@@ -360,11 +360,11 @@ function isWarned(emitter) {
     common.expectsError(function() {
       readline.createInterface({
         input: fi,
-        completer: 'string is not valid'
+        completer: 'string is not valid',
       });
     }, {
       type: TypeError,
-      code: 'ERR_INVALID_OPT_VALUE'
+      code: 'ERR_INVALID_OPT_VALUE',
     });
   }
 
@@ -373,29 +373,29 @@ function isWarned(emitter) {
     const fi = new FakeInput();
     common.expectsError(function() {
       readline.createInterface({
-        input: fi, historySize: 'not a number'
+        input: fi, historySize: 'not a number',
       });
     }, {
       type: RangeError,
-      code: 'ERR_INVALID_OPT_VALUE'
+      code: 'ERR_INVALID_OPT_VALUE',
     });
 
     common.expectsError(function() {
       readline.createInterface({
-        input: fi, historySize: -1
+        input: fi, historySize: -1,
       });
     }, {
       type: RangeError,
-      code: 'ERR_INVALID_OPT_VALUE'
+      code: 'ERR_INVALID_OPT_VALUE',
     });
 
     common.expectsError(function() {
       readline.createInterface({
-        input: fi, historySize: NaN
+        input: fi, historySize: NaN,
       });
     }, {
       type: RangeError,
-      code: 'ERR_INVALID_OPT_VALUE'
+      code: 'ERR_INVALID_OPT_VALUE',
     });
   }
 
@@ -407,7 +407,7 @@ function isWarned(emitter) {
       input: fi,
       output: fi,
       terminal: true,
-      removeHistoryDuplicates: true
+      removeHistoryDuplicates: true,
     });
     const expectedLines = ['foo', 'bar', 'baz', 'bar', 'bat', 'bat'];
     let callCount = 0;
@@ -447,7 +447,7 @@ function isWarned(emitter) {
       input: fi,
       output: fi,
       terminal: true,
-      removeHistoryDuplicates: false
+      removeHistoryDuplicates: false,
     });
     const expectedLines = ['foo', 'bar', 'baz', 'bar', 'bat', 'bat'];
     let callCount = 0;
@@ -599,7 +599,7 @@ function isWarned(emitter) {
         input: fi,
         output: fi,
         prompt: '',
-        terminal: terminal
+        terminal: terminal,
       });
       fi.emit('data', 'the quick brown fox');
       fi.emit('keypress', '.', { ctrl: true, name: 'a' });
@@ -620,7 +620,7 @@ function isWarned(emitter) {
         input: fi,
         output: fi,
         prompt: '',
-        terminal: terminal
+        terminal: terminal,
       });
       fi.emit('data', 'the quick brown fox');
       fi.emit('keypress', '.', { ctrl: true, name: 'left' });
@@ -647,7 +647,7 @@ function isWarned(emitter) {
       [
         { ctrl: true, name: 'w' },
         { ctrl: true, name: 'backspace' },
-        { meta: true, name: 'backspace' }
+        { meta: true, name: 'backspace' },
       ]
         .forEach((deleteWordLeftKey) => {
           let fi = new FakeInput();
@@ -655,7 +655,7 @@ function isWarned(emitter) {
             input: fi,
             output: fi,
             prompt: '',
-            terminal: terminal
+            terminal: terminal,
           });
           fi.emit('data', 'the quick brown fox');
           fi.emit('keypress', '.', { ctrl: true, name: 'left' });
@@ -672,7 +672,7 @@ function isWarned(emitter) {
             input: fi,
             output: fi,
             prompt: '',
-            terminal: terminal
+            terminal: terminal,
           });
           fi.emit('data', 'the quick brown fox');
           fi.emit('keypress', '.', { ctrl: true, name: 'a' });
@@ -690,7 +690,7 @@ function isWarned(emitter) {
       [
         { ctrl: true, name: 'delete' },
         { meta: true, name: 'delete' },
-        { meta: true, name: 'd' }
+        { meta: true, name: 'd' },
       ]
         .forEach((deleteWordRightKey) => {
           let fi = new FakeInput();
@@ -698,7 +698,7 @@ function isWarned(emitter) {
             input: fi,
             output: fi,
             prompt: '',
-            terminal: terminal
+            terminal: terminal,
           });
           fi.emit('data', 'the quick brown fox');
           fi.emit('keypress', '.', { ctrl: true, name: 'left' });
@@ -716,7 +716,7 @@ function isWarned(emitter) {
             input: fi,
             output: fi,
             prompt: '',
-            terminal: terminal
+            terminal: terminal,
           });
           fi.emit('data', 'the quick brown fox');
           rli.on('line', common.mustCall((line) => {
@@ -735,7 +735,7 @@ function isWarned(emitter) {
         input: fi,
         output: fi,
         prompt: '',
-        terminal: terminal
+        terminal: terminal,
       });
       fi.columns = 10;
       fi.emit('data', 'multi-line text');
@@ -801,7 +801,7 @@ function isWarned(emitter) {
   for (let i = 0; i < 12; i++) {
     const rl = readline.createInterface({
       input: process.stdin,
-      output: process.stdout
+      output: process.stdout,
     });
     rl.close();
     assert.strictEqual(isWarned(process.stdin._events), false);
@@ -843,14 +843,14 @@ function isWarned(emitter) {
         assert.strictEqual(chunk.toString(), expected[counter++]);
         cb();
         rl.close();
-      }, expected.length)
+      }, expected.length),
     });
 
     const rl = readline.createInterface({
       input: new Readable({ read: common.mustCall() }),
       output: output,
       prompt: '$ ',
-      terminal: terminal
+      terminal: terminal,
     });
 
     rl.prompt();
@@ -877,7 +877,7 @@ const crlfDelay = Infinity;
         input: fi,
         output: fi,
         terminal: terminal,
-        crlfDelay
+        crlfDelay,
       }
     );
     const expectedLines = ['foo', 'bar', 'baz', 'bat'];
@@ -898,7 +898,7 @@ const crlfDelay = Infinity;
       input: fi,
       output: fi,
       terminal: terminal,
-      crlfDelay
+      crlfDelay,
     });
     const expectedLines = ['foo', 'bar', 'baz', 'bat'];
     let callCount = 0;
@@ -923,7 +923,7 @@ const crlfDelay = Infinity;
       input: fi,
       output: fi,
       terminal: terminal,
-      crlfDelay
+      crlfDelay,
     });
     let callCount = 0;
     rli.on('line', () => callCount++);

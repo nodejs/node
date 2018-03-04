@@ -31,7 +31,7 @@ const server = http.createServer(common.mustCall((req, res) => {
   assert.deepStrictEqual({
     host: 'example.org:443',
     origin: 'http://example.org',
-    cookie: ''
+    cookie: '',
   }, req.headers);
 }));
 

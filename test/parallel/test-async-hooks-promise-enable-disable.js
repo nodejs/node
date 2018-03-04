@@ -29,7 +29,7 @@ const mustCallInit = common.mustCall(function init(id, type, tid, resource) {
 }, EXPECTED_INITS);
 
 const hook = async_hooks.createHook({
-  init: mustCallInit
+  init: mustCallInit,
 // Enable then disable to test whether disable() actually works.
 }).enable().disable().disable();
 

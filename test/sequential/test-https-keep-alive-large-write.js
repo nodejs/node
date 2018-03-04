@@ -14,14 +14,14 @@ let socket;
 
 const server = https.createServer({
   key: fixtures.readKey('agent1-key.pem'),
-  cert: fixtures.readKey('agent1-cert.pem')
+  cert: fixtures.readKey('agent1-cert.pem'),
 }, common.mustCall((req, res) => {
   const content = Buffer.alloc(writeSize, 0x44);
 
   res.writeHead(200, {
     'Content-Type': 'application/octet-stream',
     'Content-Length': content.length.toString(),
-    'Vary': 'Accept-Encoding'
+    'Vary': 'Accept-Encoding',
   });
 
   socket = res.socket;
@@ -36,7 +36,7 @@ server.listen(0, common.mustCall(() => {
   https.get({
     path: '/',
     port: server.address().port,
-    rejectUnauthorized: false
+    rejectUnauthorized: false,
   }, (res) => {
     res.once('data', () => {
       socket._onTimeout();

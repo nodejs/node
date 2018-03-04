@@ -15,7 +15,7 @@ const additionalTestCases =
   require(fixtures.path('url-setter-tests-additional.js'));
 
 const request = {
-  response: require(fixtures.path('url-setter-tests'))
+  response: require(fixtures.path('url-setter-tests')),
 };
 
 /* The following tests are copied from WPT. Modifications to them should be
@@ -110,7 +110,7 @@ startURLSettersTests()
   const url = new URL('http://example.com/');
   const obj = {
     toString() { throw new Error('toString'); },
-    valueOf() { throw new Error('valueOf'); }
+    valueOf() { throw new Error('valueOf'); },
   };
   const sym = Symbol();
   const props = Object.getOwnPropertyDescriptors(Object.getPrototypeOf(url));

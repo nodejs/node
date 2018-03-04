@@ -10,7 +10,7 @@ const https = require('https');
 
 const options = {
   key: fixtures.readKey('agent1-key.pem'),
-  cert: fixtures.readKey('agent1-cert.pem')
+  cert: fixtures.readKey('agent1-cert.pem'),
 };
 const httpsServer = https.createServer(options, reqHandler);
 
@@ -57,7 +57,7 @@ function testHttps() {
       host: 'localhost',
       //agent: false,
       port: this.address().port,
-      rejectUnauthorized: false
+      rejectUnauthorized: false,
     }, cb).on('error', thrower);
 
     https.request({
@@ -66,7 +66,7 @@ function testHttps() {
       host: 'localhost',
       //agent: false,
       port: this.address().port,
-      rejectUnauthorized: false
+      rejectUnauthorized: false,
     }, cb).on('error', thrower).end();
 
     https.request({
@@ -75,7 +75,7 @@ function testHttps() {
       host: 'localhost',
       //agent: false,
       port: this.address().port,
-      rejectUnauthorized: false
+      rejectUnauthorized: false,
     }, cb).on('error', thrower).end();
 
     https.request({
@@ -84,7 +84,7 @@ function testHttps() {
       host: 'localhost',
       //agent: false,
       port: this.address().port,
-      rejectUnauthorized: false
+      rejectUnauthorized: false,
     }, cb).on('error', thrower).end();
 
     https.request({
@@ -93,7 +93,7 @@ function testHttps() {
       host: 'localhost',
       //agent: false,
       port: this.address().port,
-      rejectUnauthorized: false
+      rejectUnauthorized: false,
     }, cb).on('error', thrower).end();
 
     https.get({
@@ -102,7 +102,7 @@ function testHttps() {
       host: 'localhost',
       setHost: false,
       port: this.address().port,
-      rejectUnauthorized: false
+      rejectUnauthorized: false,
     }, cb).on('error', thrower).end();
   });
 }

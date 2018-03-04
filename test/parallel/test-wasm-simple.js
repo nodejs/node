@@ -14,6 +14,6 @@ WebAssembly.instantiate(buffer, {}).then((results) => {
   assert.strictEqual(
     results.instance.exports.addTwo(10, 20),
     30,
-    'Exported function should add two numbers.',
+    'Exported function should add two numbers.'
   );
 });

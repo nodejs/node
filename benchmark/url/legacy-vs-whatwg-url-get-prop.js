@@ -8,7 +8,7 @@ const inputs = require('../fixtures/url-inputs.js').urls;
 const bench = common.createBenchmark(main, {
   type: Object.keys(inputs),
   method: ['legacy', 'whatwg'],
-  n: [1e5]
+  n: [1e5],
 });
 
 // At the time of writing, when using a passed property name to index
@@ -25,7 +25,7 @@ function useLegacy(n, input) {
     port: obj.port,
     pathname: obj.pathname,
     search: obj.search,
-    hash: obj.hash
+    hash: obj.hash,
   };
   // It's necessary to assign the values to an object
   // to avoid loop invariant code motion.
@@ -54,7 +54,7 @@ function useWHATWG(n, input) {
     port: obj.port,
     pathname: obj.pathname,
     search: obj.search,
-    hash: obj.hash
+    hash: obj.hash,
   };
   bench.start();
   for (var i = 0; i < n; i += 1) {

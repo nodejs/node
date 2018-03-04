@@ -99,7 +99,7 @@ function startClient() {
     port: common.PORT,
     method: 'GET',
     path: '/',
-    headers: { 'content-length': buffer.length }
+    headers: { 'content-length': buffer.length },
   }, common.mustCall((res) => {
     res.setEncoding('utf8');
     res.on('data', common.mustCall((string) => {

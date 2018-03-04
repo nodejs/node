@@ -40,7 +40,7 @@ function testSloppyMode() {
     '30',
     '30',
     '40',
-    '30'
+    '30',
   ]);
 }
 
@@ -73,7 +73,7 @@ function testStrictMode() {
     '30',
     'undefined',
     'undefined',
-    '30'
+    '30',
   ]);
 }
 
@@ -106,7 +106,7 @@ function testMagicMode() {
     '30',
     'undefined',
     '50',
-    '30'
+    '30',
   ]);
 }
 
@@ -128,7 +128,7 @@ function testResetContext() {
     'Clearing context...',
     '10',
     '20',
-    '20'
+    '20',
   ]);
 }
 
@@ -169,7 +169,7 @@ function initRepl(mode, useGlobal) {
     terminal: false,
     prompt: '',
     replMode: mode,
-    useGlobal: useGlobal
+    useGlobal: useGlobal,
   });
 }
 

@@ -13,7 +13,7 @@ const socket = new JSStreamWrap(new Duplex({
   read: common.mustCall(),
   write: common.mustCall((buffer, data, cb) => {
     throw new Error('exception!');
-  })
+  }),
 }));
 
 assert.throws(() => socket.end('foo'), /Error: write EPROTO/);

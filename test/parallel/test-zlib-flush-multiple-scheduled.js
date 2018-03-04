@@ -5,7 +5,7 @@ const assert = require('assert');
 const zlib = require('zlib');
 
 const {
-  Z_PARTIAL_FLUSH, Z_SYNC_FLUSH, Z_FULL_FLUSH, Z_FINISH
+  Z_PARTIAL_FLUSH, Z_SYNC_FLUSH, Z_FULL_FLUSH, Z_FINISH,
 } = zlib.constants;
 
 common.crashOnUnhandledRejection();

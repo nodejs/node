@@ -43,7 +43,7 @@ if (cluster.isMaster) {
     console.error('[master] connecting', workerPort);
     const c = tls.connect(workerPort, {
       session: lastSession,
-      rejectUnauthorized: false
+      rejectUnauthorized: false,
     }, function() {
       lastSession = c.getSession();
       c.end();

@@ -51,7 +51,7 @@ for (let i = 0; i < chunks.length; i++) {
 {
   // Verify fast writing
   const tw = new TestWriter({
-    highWaterMark: 100
+    highWaterMark: 100,
   });
 
   tw.on('finish', common.mustCall(function() {
@@ -68,7 +68,7 @@ for (let i = 0; i < chunks.length; i++) {
 {
   // Verify slow writing
   const tw = new TestWriter({
-    highWaterMark: 100
+    highWaterMark: 100,
   });
 
   tw.on('finish', common.mustCall(function() {
@@ -88,7 +88,7 @@ for (let i = 0; i < chunks.length; i++) {
 {
   // Verify write backpressure
   const tw = new TestWriter({
-    highWaterMark: 50
+    highWaterMark: 50,
   });
 
   let drains = 0;
@@ -121,7 +121,7 @@ for (let i = 0; i < chunks.length; i++) {
 {
   // Verify write buffersize
   const tw = new TestWriter({
-    highWaterMark: 100
+    highWaterMark: 100,
   });
 
   const encodings =
@@ -153,7 +153,7 @@ for (let i = 0; i < chunks.length; i++) {
   // Verify write with no buffersize
   const tw = new TestWriter({
     highWaterMark: 100,
-    decodeStrings: false
+    decodeStrings: false,
   });
 
   tw._write = function(chunk, encoding, cb) {
@@ -200,7 +200,7 @@ for (let i = 0; i < chunks.length; i++) {
   callbacks._called = [];
 
   const tw = new TestWriter({
-    highWaterMark: 100
+    highWaterMark: 100,
   });
 
   tw.on('finish', common.mustCall(function() {

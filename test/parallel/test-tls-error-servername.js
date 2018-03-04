@@ -19,7 +19,7 @@ const ca = fixtures.readKey('ca1-cert.pem');
 const client = connect({
   socket: clientSide,
   ca,
-  host: 'agent1'  // Hostname from certificate
+  host: 'agent1',  // Hostname from certificate
 });
 
 [undefined, null, 1, true, {}].forEach((value) => {
@@ -27,7 +27,7 @@ const client = connect({
     client.setServername(value);
   }, {
     code: 'ERR_INVALID_ARG_TYPE',
-    message: 'The "name" argument must be of type string'
+    message: 'The "name" argument must be of type string',
   });
 });
 
@@ -35,12 +35,12 @@ const server = new TLSSocket(serverSide, {
   isServer: true,
   key,
   cert,
-  ca
+  ca,
 });
 
 common.expectsError(() => {
   server.setServername('localhost');
 }, {
   code: 'ERR_TLS_SNI_FROM_SERVER',
-  message: 'Cannot issue SNI from a TLS server-side socket'
+  message: 'Cannot issue SNI from a TLS server-side socket',
 });

@@ -24,8 +24,8 @@ const resolveTests = [
      [['c:/', '//server//share'], '\\\\server\\share\\'],
      [['c:/', '///some//dir'], 'c:\\some\\dir'],
      [['C:\\foo\\tmp.3\\', '..\\tmp.3\\cycles\\root.js'],
-      'C:\\foo\\tmp.3\\cycles\\root.js']
-    ]
+      'C:\\foo\\tmp.3\\cycles\\root.js'],
+    ],
   ],
   [ path.posix.resolve,
     // arguments                    result
@@ -34,9 +34,9 @@ const resolveTests = [
      [['a/b/c/', '../../..'], process.cwd()],
      [['.'], process.cwd()],
      [['/some/dir', '.', '/absolute/'], '/absolute'],
-     [['/foo/tmp.3/', '../tmp.3/cycles/root.js'], '/foo/tmp.3/cycles/root.js']
-    ]
-  ]
+     [['/foo/tmp.3/', '../tmp.3/cycles/root.js'], '/foo/tmp.3/cycles/root.js'],
+    ],
+  ],
 ];
 resolveTests.forEach((test) => {
   const resolve = test[0];

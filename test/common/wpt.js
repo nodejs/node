@@ -26,5 +26,5 @@ module.exports = {
   assert_array_equals: assert.deepStrictEqual,
   assert_unreached(desc) {
     assert.fail(`Reached unreachable code: ${desc}`);
-  }
+  },
 };

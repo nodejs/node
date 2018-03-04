@@ -8,7 +8,7 @@ const common = require('../common');
 const async_hooks = require('async_hooks');
 
 const hook = async_hooks.createHook({
-  destroy: common.mustCall(2) // 1 immediate + manual destroy
+  destroy: common.mustCall(2), // 1 immediate + manual destroy
 }).enable();
 
 {

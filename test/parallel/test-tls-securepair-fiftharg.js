@@ -10,13 +10,13 @@ const fixtures = require('../common/fixtures');
 
 const sslcontext = tls.createSecureContext({
   cert: fixtures.readSync('test_cert.pem'),
-  key: fixtures.readSync('test_key.pem')
+  key: fixtures.readSync('test_key.pem'),
 });
 
 const pair = tls.createSecurePair(sslcontext, true, false, false, {
   SNICallback: common.mustCall((servername, cb) => {
     assert.strictEqual(servername, 'www.google.com');
-  })
+  }),
 });
 
 // captured traffic from browser's request to https://www.google.com

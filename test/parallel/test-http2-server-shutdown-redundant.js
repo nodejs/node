@@ -16,7 +16,7 @@ server.on('stream', common.mustCall((stream) => {
       () => session.goaway(3),
       {
         code: 'ERR_HTTP2_INVALID_SESSION',
-        type: Error
+        type: Error,
       }
     );
   }));
@@ -25,12 +25,12 @@ server.on('stream', common.mustCall((stream) => {
 server.listen(0, common.mustCall(() => {
   const client = http2.connect(`http://localhost:${server.address().port}`);
   client.on('error', common.expectsError({
-    code: 'ERR_HTTP2_SESSION_ERROR'
+    code: 'ERR_HTTP2_SESSION_ERROR',
   }));
 
   const req = client.request();
   req.on('error', common.expectsError({
-    code: 'ERR_HTTP2_SESSION_ERROR'
+    code: 'ERR_HTTP2_SESSION_ERROR',
   }));
   req.resume();
   req.on('close', common.mustCall(() => {

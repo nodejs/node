@@ -11,7 +11,7 @@ let stage = 0;
 
 process.once('uncaughtException', common.expectsError({
   type: Error,
-  message: 'caughtException'
+  message: 'caughtException',
 }));
 
 setImmediate(() => {

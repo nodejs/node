@@ -28,7 +28,7 @@ function test(res, code, key, value) {
     {
       code: 'ERR_INVALID_CHAR',
       type: TypeError,
-      message: `Invalid character in header content ["${key}"]`
+      message: `Invalid character in header content ["${key}"]`,
     }
   );
 }

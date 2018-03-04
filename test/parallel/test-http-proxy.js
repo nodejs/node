@@ -27,7 +27,7 @@ const url = require('url');
 
 const cookies = [
   'session_token=; path=/; expires=Sun, 15-Sep-2030 13:48:52 GMT',
-  'prefers_open_id=; path=/; expires=Thu, 01-Jan-1970 00:00:00 GMT'
+  'prefers_open_id=; path=/; expires=Thu, 01-Jan-1970 00:00:00 GMT',
 ];
 
 const headers = { 'content-type': 'text/plain',
@@ -45,7 +45,7 @@ const proxy = http.createServer(function(req, res) {
   console.error(`proxy req headers: ${JSON.stringify(req.headers)}`);
   http.get({
     port: backend.address().port,
-    path: url.parse(req.url).pathname
+    path: url.parse(req.url).pathname,
   }, function(proxy_res) {
 
     console.error(`proxy res headers: ${JSON.stringify(proxy_res.headers)}`);
@@ -76,7 +76,7 @@ function startReq() {
 
   http.get({
     port: proxy.address().port,
-    path: '/test'
+    path: '/test',
   }, function(res) {
     console.error('got res');
     assert.strictEqual(200, res.statusCode);

@@ -9,7 +9,7 @@ if (!common.hasIntl)
 
 const assert = require('assert');
 const {
-  TextDecoder
+  TextDecoder,
 } = require('util');
 
 const bad = [
@@ -80,7 +80,7 @@ bad.forEach((t) => {
         .decode(new Uint8Array(t.input));
     }, {
       code: 'ERR_ENCODING_INVALID_ENCODED_DATA',
-      type: TypeError
+      type: TypeError,
     }
   );
 });

@@ -149,7 +149,11 @@ module.exports = {
     // http://eslint.org/docs/rules/#stylistic-issues'
     'block-spacing': 'error',
     'brace-style': ['error', '1tbs', { allowSingleLine: true }],
-    'comma-dangle': ['error', 'only-multiline'],
+    'comma-dangle': ['error', {
+      'arrays': 'always-multiline',
+      'objects': 'always-multiline',
+      'functions': 'never',
+    }],
     'comma-spacing': 'error',
     'comma-style': 'error',
     'computed-property-spacing': 'error',

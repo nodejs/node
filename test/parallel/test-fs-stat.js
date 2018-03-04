@@ -96,14 +96,14 @@ fs.stat(__filename, common.mustCall(function(err, s) {
     'dev', 'mode', 'nlink', 'uid',
     'gid', 'rdev', 'ino', 'size',
     'atime', 'mtime', 'ctime', 'birthtime',
-    'atimeMs', 'mtimeMs', 'ctimeMs', 'birthtimeMs'
+    'atimeMs', 'mtimeMs', 'ctimeMs', 'birthtimeMs',
   ];
   if (!common.isWindows) {
     keys.push('blocks', 'blksize');
   }
   const numberFields = [
     'dev', 'mode', 'nlink', 'uid', 'gid', 'rdev', 'ino', 'size',
-    'atimeMs', 'mtimeMs', 'ctimeMs', 'birthtimeMs'
+    'atimeMs', 'mtimeMs', 'ctimeMs', 'birthtimeMs',
   ];
   const dateFields = ['atime', 'mtime', 'ctime', 'birthtime'];
   keys.forEach(function(k) {
@@ -137,7 +137,7 @@ fs.stat(__filename, common.mustCall(function(err, s) {
     {
       code: 'ERR_INVALID_ARG_TYPE',
       type: TypeError,
-      message: 'The "fd" argument must be of type integer'
+      message: 'The "fd" argument must be of type integer',
     }
   );
   common.expectsError(
@@ -145,7 +145,7 @@ fs.stat(__filename, common.mustCall(function(err, s) {
     {
       code: 'ERR_INVALID_ARG_TYPE',
       type: TypeError,
-      message: 'The "fd" argument must be of type integer'
+      message: 'The "fd" argument must be of type integer',
     }
   );
 });
@@ -155,28 +155,28 @@ fs.stat(__filename, common.mustCall(function(err, s) {
     () => fs.lstat(i, common.mustNotCall()),
     {
       code: 'ERR_INVALID_ARG_TYPE',
-      type: TypeError
+      type: TypeError,
     }
   );
   common.expectsError(
     () => fs.lstatSync(i),
     {
       code: 'ERR_INVALID_ARG_TYPE',
-      type: TypeError
+      type: TypeError,
     }
   );
   common.expectsError(
     () => fs.stat(i, common.mustNotCall()),
     {
       code: 'ERR_INVALID_ARG_TYPE',
-      type: TypeError
+      type: TypeError,
     }
   );
   common.expectsError(
     () => fs.statSync(i),
     {
       code: 'ERR_INVALID_ARG_TYPE',
-      type: TypeError
+      type: TypeError,
     }
   );
 });

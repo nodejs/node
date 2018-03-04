@@ -105,7 +105,7 @@ TEST(function test_lookup_ipv4_implicit(done) {
 
 TEST(function test_lookup_ipv4_explicit_object(done) {
   const req = dns.lookup(addresses.INET4_HOST, {
-    family: 4
+    family: 4,
   }, common.mustCall((err, ip, family) => {
     assert.ifError(err);
     assert.ok(net.isIPv4(ip));
@@ -119,7 +119,7 @@ TEST(function test_lookup_ipv4_explicit_object(done) {
 
 TEST(function test_lookup_ipv4_hint_addrconfig(done) {
   const req = dns.lookup(addresses.INET4_HOST, {
-    hints: dns.ADDRCONFIG
+    hints: dns.ADDRCONFIG,
   }, common.mustCall((err, ip, family) => {
     assert.ifError(err);
     assert.ok(net.isIPv4(ip));

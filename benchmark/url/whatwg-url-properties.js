@@ -8,7 +8,7 @@ const bench = common.createBenchmark(main, {
   prop: ['href', 'origin', 'protocol',
          'username', 'password', 'host', 'hostname', 'port',
          'pathname', 'search', 'searchParams', 'hash'],
-  n: [3e5]
+  n: [3e5],
 });
 
 function setAndGet(n, url, prop, alternative) {
@@ -39,7 +39,7 @@ const alternatives = {
   port: '23',
   pathname: '/aaa/bbb',
   search: '?k=99',
-  hash: '#abcd'
+  hash: '#abcd',
 };
 
 function getAlternative(prop) {

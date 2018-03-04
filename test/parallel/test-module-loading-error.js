@@ -30,7 +30,7 @@ const errorMessagesByPlatform = {
   sunos: ['unknown file type', 'not an ELF file'],
   darwin: ['file too short'],
   aix: ['Cannot load module',
-        'Cannot run a file that does not have a valid format.']
+        'Cannot run a file that does not have a valid format.'],
 };
 // If we don't know a priori what the error would be, we accept anything.
 const errorMessages = errorMessagesByPlatform[process.platform] || [''];
@@ -66,7 +66,7 @@ const re = /^The "id" argument must be of type string\. Received type \w+$/;
     {
       type: TypeError,
       code: 'ERR_INVALID_ARG_TYPE',
-      message: re
+      message: re,
     });
 });
 
@@ -76,12 +76,12 @@ common.expectsError(
   {
     type: Error,
     code: 'ERR_INVALID_ARG_VALUE',
-    message: 'The argument \'id\' must be a non-empty string. Received \'\''
+    message: 'The argument \'id\' must be a non-empty string. Received \'\'',
   });
 
 common.expectsError(
   () => { require('../fixtures/packages/is-dir'); },
   {
     code: 'MODULE_NOT_FOUND',
-    message: 'Cannot find module \'../fixtures/packages/is-dir\''
+    message: 'Cannot find module \'../fixtures/packages/is-dir\'',
   });

@@ -8,7 +8,7 @@ const errorOutOfBounds = common.expectsError({
   code: 'ERR_OUT_OF_RANGE',
   type: RangeError,
   message: new RegExp('^The value of "value" is out of range\\. ' +
-                      'It must be >= -\\d+ and <= \\d+\\. Received .+$')
+                      'It must be >= -\\d+ and <= \\d+\\. Received .+$'),
 }, 10);
 
 // Test 8 bit
@@ -98,32 +98,32 @@ const errorOutOfBounds = common.expectsError({
   buffer.writeInt32BE(0x23, 0);
   buffer.writeInt32LE(0x23, 4);
   assert.ok(buffer.equals(new Uint8Array([
-    0x00, 0x00, 0x00, 0x23, 0x23, 0x00, 0x00, 0x00
+    0x00, 0x00, 0x00, 0x23, 0x23, 0x00, 0x00, 0x00,
   ])));
 
   buffer.writeInt32BE(-5, 0);
   buffer.writeInt32LE(-5, 4);
   assert.ok(buffer.equals(new Uint8Array([
-    0xff, 0xff, 0xff, 0xfb, 0xfb, 0xff, 0xff, 0xff
+    0xff, 0xff, 0xff, 0xfb, 0xfb, 0xff, 0xff, 0xff,
   ])));
 
   buffer.writeInt32BE(-805306713, 0);
   buffer.writeInt32LE(-805306713, 4);
   assert.ok(buffer.equals(new Uint8Array([
-    0xcf, 0xff, 0xfe, 0xa7, 0xa7, 0xfe, 0xff, 0xcf
+    0xcf, 0xff, 0xfe, 0xa7, 0xa7, 0xfe, 0xff, 0xcf,
   ])));
 
   /* Make sure we handle min/max correctly */
   buffer.writeInt32BE(0x7fffffff, 0);
   buffer.writeInt32BE(-0x80000000, 4);
   assert.ok(buffer.equals(new Uint8Array([
-    0x7f, 0xff, 0xff, 0xff, 0x80, 0x00, 0x00, 0x00
+    0x7f, 0xff, 0xff, 0xff, 0x80, 0x00, 0x00, 0x00,
   ])));
 
   buffer.writeInt32LE(0x7fffffff, 0);
   buffer.writeInt32LE(-0x80000000, 4);
   assert.ok(buffer.equals(new Uint8Array([
-    0xff, 0xff, 0xff, 0x7f, 0x00, 0x00, 0x00, 0x80
+    0xff, 0xff, 0xff, 0x7f, 0x00, 0x00, 0x00, 0x80,
   ])));
 
   ['writeInt32BE', 'writeInt32LE'].forEach((fn) => {
@@ -166,7 +166,7 @@ const errorOutOfBounds = common.expectsError({
         {
           code: 'ERR_OUT_OF_RANGE',
           message: 'The value of "byteLength" is out of range. ' +
-                   `It must be >= 1 and <= 6. Received ${offset}`
+                   `It must be >= 1 and <= 6. Received ${offset}`,
         }
       );
     });
@@ -178,7 +178,7 @@ const errorOutOfBounds = common.expectsError({
           code: 'ERR_OUT_OF_RANGE',
           name: 'RangeError [ERR_OUT_OF_RANGE]',
           message: 'The value of "byteLength" is out of range. ' +
-                   `It must be an integer. Received ${byteLength}`
+                   `It must be an integer. Received ${byteLength}`,
         });
     });
   });
@@ -196,7 +196,7 @@ const errorOutOfBounds = common.expectsError({
           code: 'ERR_OUT_OF_RANGE',
           name: 'RangeError [ERR_OUT_OF_RANGE]',
           message: 'The value of "value" is out of range. ' +
-                   `It must be >= ${min} and <= ${max}. Received ${val}`
+                   `It must be >= ${min} and <= ${max}. Received ${val}`,
         });
       });
 
@@ -205,7 +205,7 @@ const errorOutOfBounds = common.expectsError({
           () => data[fn](min, o, i),
           {
             code: 'ERR_INVALID_ARG_TYPE',
-            name: 'TypeError [ERR_INVALID_ARG_TYPE]'
+            name: 'TypeError [ERR_INVALID_ARG_TYPE]',
           });
       });
 
@@ -216,7 +216,7 @@ const errorOutOfBounds = common.expectsError({
             code: 'ERR_OUT_OF_RANGE',
             name: 'RangeError [ERR_OUT_OF_RANGE]',
             message: 'The value of "offset" is out of range. ' +
-                     `It must be >= 0 and <= ${8 - i}. Received ${offset}`
+                     `It must be >= 0 and <= ${8 - i}. Received ${offset}`,
           });
       });
 
@@ -227,7 +227,7 @@ const errorOutOfBounds = common.expectsError({
             code: 'ERR_OUT_OF_RANGE',
             name: 'RangeError [ERR_OUT_OF_RANGE]',
             message: 'The value of "offset" is out of range. ' +
-                     `It must be an integer. Received ${offset}`
+                     `It must be an integer. Received ${offset}`,
           });
       });
     });

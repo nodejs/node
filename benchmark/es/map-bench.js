@@ -6,9 +6,9 @@ const assert = require('assert');
 const bench = common.createBenchmark(main, {
   method: [
     'object', 'nullProtoObject', 'nullProtoLiteralObject', 'storageObject',
-    'fakeMap', 'map'
+    'fakeMap', 'map',
   ],
-  millions: [1]
+  millions: [1],
 });
 
 function runObject(millions) {
@@ -72,7 +72,7 @@ function fakeMap() {
     get(key) { return m[`$${key}`]; },
     set(key, val) { m[`$${key}`] = val; },
     get size() { return Object.keys(m).length; },
-    has(key) { return Object.prototype.hasOwnProperty.call(m, `$${key}`); }
+    has(key) { return Object.prototype.hasOwnProperty.call(m, `$${key}`); },
   };
 }
 

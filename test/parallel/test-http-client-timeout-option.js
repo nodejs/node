@@ -8,7 +8,7 @@ const options = {
   port: undefined,
   host: '127.0.0.1',
   path: '/',
-  timeout: 1
+  timeout: 1,
 };
 
 const server = http.createServer();

@@ -43,7 +43,7 @@ if (cluster.isWorker) {
     // Tell master using TCP socket that a message is received.
     socket.write(JSON.stringify({
       code: 'received message',
-      echo: message
+      echo: message,
     }));
   }
 
@@ -66,16 +66,16 @@ if (cluster.isWorker) {
   const checks = {
     global: {
       'receive': false,
-      'correct': false
+      'correct': false,
     },
     master: {
       'receive': false,
-      'correct': false
+      'correct': false,
     },
     worker: {
       'receive': false,
-      'correct': false
-    }
+      'correct': false,
+    },
   };
 
 

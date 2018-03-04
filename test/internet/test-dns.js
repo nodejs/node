@@ -76,7 +76,7 @@ TEST(function test_reverse_bogus(done) {
 
 TEST(function test_resolve4_ttl(done) {
   const req = dns.resolve4(addresses.INET4_HOST, {
-    ttl: true
+    ttl: true,
   }, function(err, result) {
     assert.ifError(err);
     assert.ok(result.length > 0);
@@ -99,7 +99,7 @@ TEST(function test_resolve4_ttl(done) {
 
 TEST(function test_resolve6_ttl(done) {
   const req = dns.resolve6(addresses.INET6_HOST, {
-    ttl: true
+    ttl: true,
   }, function(err, result) {
     assert.ifError(err);
     assert.ok(result.length > 0);
@@ -467,7 +467,7 @@ TEST(function test_lookup_null_all(done) {
 
 TEST(function test_lookup_all_mixed(done) {
   const req = dns.lookup(addresses.INET_HOST, {
-    all: true
+    all: true,
   }, function(err, ips) {
     assert.ifError(err);
     assert.ok(Array.isArray(ips));

@@ -36,7 +36,7 @@ const options = {
   key: fixtures.readKey('agent2-key.pem'),
   cert: fixtures.readKey('agent2-cert.pem'),
   ciphers: cipher_list.join(':'),
-  honorCipherOrder: true
+  honorCipherOrder: true,
 };
 
 const server = tls.createServer(options, common.mustCall());
@@ -46,7 +46,7 @@ server.listen(0, '127.0.0.1', common.mustCall(function() {
     host: '127.0.0.1',
     port: this.address().port,
     ciphers: cipher_list.join(':'),
-    rejectUnauthorized: false
+    rejectUnauthorized: false,
   }, common.mustCall(function() {
     const cipher = client.getCipher();
     assert.strictEqual(cipher.name, cipher_list[0]);

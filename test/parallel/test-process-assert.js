@@ -14,12 +14,12 @@ common.expectsError(() => {
 }, {
   code: 'ERR_ASSERTION',
   type: Error,
-  message: 'errorMessage'
+  message: 'errorMessage',
 });
 common.expectsError(() => {
   process.assert(false);
 }, {
   code: 'ERR_ASSERTION',
   type: Error,
-  message: 'assertion error'
+  message: 'assertion error',
 });

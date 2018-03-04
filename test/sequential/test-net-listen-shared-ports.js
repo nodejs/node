@@ -55,7 +55,7 @@ if (cluster.isMaster) {
   server1.listen({
     host: 'localhost',
     port: common.PORT,
-    exclusive: false
+    exclusive: false,
   }, common.mustCall(function() {
     server2.listen({ port: common.PORT + 1, exclusive: true },
                    common.mustCall(function() {

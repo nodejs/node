@@ -42,7 +42,7 @@ common.expectsError(
   {
     code: 'ERR_CONSOLE_WRITABLE_STREAM',
     type: TypeError,
-    message: /stdout/
+    message: /stdout/,
   }
 );
 
@@ -56,7 +56,7 @@ common.expectsError(
   {
     code: 'ERR_CONSOLE_WRITABLE_STREAM',
     type: TypeError,
-    message: /stderr/
+    message: /stderr/,
   }
 );
 

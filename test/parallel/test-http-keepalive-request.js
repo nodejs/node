@@ -59,7 +59,7 @@ function makeRequest(n) {
   const req = http.request({
     port: server.address().port,
     path: `/${n}`,
-    agent: agent
+    agent: agent,
   });
 
   req.end();

@@ -3,11 +3,11 @@
 const common = require('../common.js');
 const bench = common.createBenchmark(main, {
   encoding: [
-    '', 'utf8', 'ascii', 'hex', 'UCS-2', 'utf16le', 'latin1', 'binary'
+    '', 'utf8', 'ascii', 'hex', 'UCS-2', 'utf16le', 'latin1', 'binary',
   ],
   args: [ '', 'offset', 'offset+length' ],
   len: [10, 2048],
-  n: [1e7]
+  n: [1e7],
 });
 
 function main({ len, n, encoding, args }) {

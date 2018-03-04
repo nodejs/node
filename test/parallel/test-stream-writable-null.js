@@ -23,7 +23,7 @@ common.expectsError(
   {
     code: 'ERR_STREAM_NULL_VALUES',
     type: TypeError,
-    message: 'May not write null values to stream'
+    message: 'May not write null values to stream',
   }
 );
 
@@ -39,7 +39,7 @@ common.expectsError(
   },
   {
     code: 'ERR_INVALID_ARG_TYPE',
-    type: TypeError
+    type: TypeError,
   }
 );
 

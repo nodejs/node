@@ -8,14 +8,14 @@ const fs = require('fs');
     () => fs.rmdir(i, common.mustNotCall()),
     {
       code: 'ERR_INVALID_ARG_TYPE',
-      type: TypeError
+      type: TypeError,
     }
   );
   common.expectsError(
     () => fs.rmdirSync(i),
     {
       code: 'ERR_INVALID_ARG_TYPE',
-      type: TypeError
+      type: TypeError,
     }
   );
 });

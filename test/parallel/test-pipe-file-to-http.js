@@ -69,7 +69,7 @@ function makeRequest() {
   const req = http.request({
     port: server.address().port,
     path: '/',
-    method: 'POST'
+    method: 'POST',
   });
 
   const s = fs.ReadStream(filename);

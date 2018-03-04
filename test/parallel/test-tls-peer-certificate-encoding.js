@@ -32,7 +32,7 @@ const fixtures = require('../common/fixtures');
 const options = {
   key: fixtures.readKey('agent5-key.pem'),
   cert: fixtures.readKey('agent5-cert.pem'),
-  ca: [ fixtures.readKey('ca2-cert.pem') ]
+  ca: [ fixtures.readKey('ca2-cert.pem') ],
 };
 
 const server = tls.createServer(options, function(cleartext) {
@@ -41,7 +41,7 @@ const server = tls.createServer(options, function(cleartext) {
 server.listen(0, common.mustCall(function() {
   const socket = tls.connect({
     port: this.address().port,
-    rejectUnauthorized: false
+    rejectUnauthorized: false,
   }, common.mustCall(function() {
     const peerCert = socket.getPeerCertificate();
 

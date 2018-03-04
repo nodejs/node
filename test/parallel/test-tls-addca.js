@@ -7,7 +7,7 @@ const fixtures = require('../common/fixtures');
 // depends on that CA using contextWithoutCert.
 
 const {
-  assert, connect, keys, tls
+  assert, connect, keys, tls,
 } = require(fixtures.path('tls-connect'));
 
 const contextWithoutCert = tls.createSecureContext({});

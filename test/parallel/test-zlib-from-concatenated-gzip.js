@@ -15,7 +15,7 @@ const defEncoded = zlib.gzipSync(def);
 
 const data = Buffer.concat([
   abcEncoded,
-  defEncoded
+  defEncoded,
 ]);
 
 assert.strictEqual(zlib.gunzipSync(data).toString(), (abc + def));
@@ -33,7 +33,7 @@ zlib.unzip(data, common.mustCall((err, result) => {
 // Multi-member support does not apply to zlib inflate/deflate.
 zlib.unzip(Buffer.concat([
   zlib.deflateSync('abc'),
-  zlib.deflateSync('def')
+  zlib.deflateSync('def'),
 ]), common.mustCall((err, result) => {
   assert.ifError(err);
   assert.strictEqual(result.toString(), abc);
@@ -78,7 +78,7 @@ fs.createReadStream(pmmFileGz)
 
   // first write: write "abc" + the first bytes of "def"
   unzip.write(Buffer.concat([
-    abcEncoded, defEncoded.slice(0, offset)
+    abcEncoded, defEncoded.slice(0, offset),
   ]));
 
   // write remaining bytes of "def"

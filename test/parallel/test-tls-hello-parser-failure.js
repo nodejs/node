@@ -37,7 +37,7 @@ const net = require('net');
 
 const options = {
   key: fixtures.readSync('test_key.pem'),
-  cert: fixtures.readSync('test_cert.pem')
+  cert: fixtures.readSync('test_cert.pem'),
 };
 
 const bonkers = Buffer.alloc(1024 * 1024, 42);

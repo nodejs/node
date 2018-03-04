@@ -32,7 +32,7 @@ const fixtures = require('../common/fixtures');
 
 const server = tls.createServer({
   key: fixtures.readSync(['0-dns', '0-dns-key.pem']),
-  cert: fixtures.readSync(['0-dns', '0-dns-cert.pem'])
+  cert: fixtures.readSync(['0-dns', '0-dns-cert.pem']),
 }, common.mustCall((c) => {
   c.once('data', common.mustCall(() => {
     c.destroy();
@@ -40,7 +40,7 @@ const server = tls.createServer({
   }));
 })).listen(0, common.mustCall(() => {
   const c = tls.connect(server.address().port, {
-    rejectUnauthorized: false
+    rejectUnauthorized: false,
   }, common.mustCall(() => {
     const cert = c.getPeerCertificate();
     assert.strictEqual(cert.subjectaltname,

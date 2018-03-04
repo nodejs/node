@@ -28,7 +28,7 @@ const server = http.createServer(common.mustCall((req, res) => {
 })).listen(0, common.mustCall(() => {
   const options = {
     agent: null,
-    port: server.address().port
+    port: server.address().port,
   };
   http.get(options, common.mustCall((res) => {
     res.resume();

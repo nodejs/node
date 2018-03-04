@@ -21,7 +21,7 @@ hooks.enable();
 const server = tls
   .createServer({
     cert: fixtures.readSync('test_cert.pem'),
-    key: fixtures.readSync('test_key.pem')
+    key: fixtures.readSync('test_key.pem'),
   })
   .on('listening', common.mustCall(onlistening))
   .on('secureConnection', common.mustCall(onsecureConnection))

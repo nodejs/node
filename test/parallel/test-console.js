@@ -158,7 +158,7 @@ console.timeEnd('label3');
 assert.strictEqual(console._times.size, timesMapSize);
 
 const expectedStrings = [
-  'foo', 'foo bar', 'foo bar hop', "{ slashes: '\\\\\\\\' }", 'inspect'
+  'foo', 'foo bar', 'foo bar hop', "{ slashes: '\\\\\\\\' }", 'inspect',
 ];
 
 for (const expected of expectedStrings) {

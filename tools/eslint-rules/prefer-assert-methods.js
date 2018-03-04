@@ -16,7 +16,7 @@ const preferedAssertMethod = {
   '===': 'strictEqual',
   '!==': 'notStrictEqual',
   '==': 'equal',
-  '!=': 'notEqual'
+  '!=': 'notEqual',
 };
 
 module.exports = function(context) {
@@ -36,9 +36,9 @@ module.exports = function(context) {
               node,
               `assert.${assertMethod}(${left}, ${right});`
             );
-          }
+          },
         });
       }
-    }
+    },
   };
 };

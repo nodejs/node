@@ -43,7 +43,7 @@ function testProduceConsume() {
 
   // It should consume code cache
   const script = new vm.Script(source, {
-    cachedData: data
+    cachedData: data,
   });
   assert(!script.cachedDataRejected);
   assert.strictEqual(script.runInThisContext()(), 'original');
@@ -64,7 +64,7 @@ function testRejectInvalid() {
 
   // It should reject invalid code cache
   const script = new vm.Script(getSource('invalid_1'), {
-    cachedData: data
+    cachedData: data,
   });
   assert(script.cachedDataRejected);
   assert.strictEqual(script.runInThisContext()(), 'invalid_1');
@@ -77,7 +77,7 @@ function testRejectSlice() {
   const data = produce(source).slice(4);
 
   const script = new vm.Script(source, {
-    cachedData: data
+    cachedData: data,
   });
   assert(script.cachedDataRejected);
 }
@@ -86,6 +86,6 @@ testRejectSlice();
 // It should throw on non-Buffer cachedData
 assert.throws(() => {
   new vm.Script('function abc() {}', {
-    cachedData: 'ohai'
+    cachedData: 'ohai',
   });
 }, /^TypeError: options\.cachedData must be a Buffer instance$/);

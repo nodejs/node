@@ -5,7 +5,7 @@ const assert = require('assert');
 
 const bench = common.createBenchmark(main, {
   n: [1e6],
-  type: ['raw', 'diff']
+  type: ['raw', 'diff'],
 });
 
 function main({ n, type }) {

@@ -30,7 +30,7 @@ const invalidUrls = [
   'ftp://www.example.com',
   'javascript:alert(\'hello\');',
   'xmpp:foo@bar.com',
-  'f://some.host/path'
+  'f://some.host/path',
 ];
 
 invalidUrls.forEach((invalid) => {
@@ -38,7 +38,7 @@ invalidUrls.forEach((invalid) => {
     () => { http.request(url.parse(invalid)); },
     {
       code: 'ERR_INVALID_PROTOCOL',
-      type: Error
+      type: Error,
     }
   );
 });

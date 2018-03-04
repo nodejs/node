@@ -18,7 +18,7 @@ common.expectsError(
   {
     code: 'ERR_INVALID_ARG_TYPE',
     type: TypeError,
-    message: 'The "hmac" argument must be of type string'
+    message: 'The "hmac" argument must be of type string',
   });
 
 common.expectsError(
@@ -27,7 +27,7 @@ common.expectsError(
     code: 'ERR_INVALID_ARG_TYPE',
     type: TypeError,
     message: 'The "key" argument must be one of type string, TypedArray, or ' +
-             'DataView'
+             'DataView',
   });
 
 {
@@ -51,8 +51,8 @@ const wikipedia = [
       sha1: 'de7c9b85b8b78aa6bc8a7a36f70a90701c9db4d9',
       sha256:
           'f7bc83f430538424b13298e6aa6fb143ef4d59a14946175997479dbc' +
-          '2d1a3cd8'
-    }
+          '2d1a3cd8',
+    },
   },
   {
     key: 'key', data: '',
@@ -61,8 +61,8 @@ const wikipedia = [
       sha1: 'f42bb0eeb018ebbd4597ae7213711ec60760843f',
       sha256:
           '5d5d139563c95b5967b9bd9a8c9b233a9dedb45072794cd232dc1b74' +
-          '832607d0'
-    }
+          '832607d0',
+    },
   },
   {
     key: '', data: 'The quick brown fox jumps over the lazy dog',
@@ -71,8 +71,8 @@ const wikipedia = [
       sha1: '2ba7f707ad5f187c412de3106583c3111d668de8',
       sha256:
           'fb011e6154a19b9a4c767373c305275a5a69e8b68b0b4c9200c383dc' +
-          'ed19a416'
-    }
+          'ed19a416',
+    },
   },
   {
     key: '', data: '',
@@ -81,8 +81,8 @@ const wikipedia = [
       sha1: 'fbdb1d1b18aa6c08324b7d64b71fb76370690e1d',
       sha256:
           'b613679a0814d9ec772f95d778c35fc5ff1697c493715653c6c71214' +
-          '4292c5ad'
-    }
+          '4292c5ad',
+    },
   },
 ];
 
@@ -120,8 +120,8 @@ const rfc4231 = [
       sha512:
           '87aa7cdea5ef619d4ff0b4241a1d6cb02379f4e2ce4ec2787ad0b305' +
           '45e17cdedaa833b7d6b8a702038b274eaea3f4e4be9d914eeb61f170' +
-          '2e696c203a126854'
-    }
+          '2e696c203a126854',
+    },
   },
   {
     key: Buffer.from('4a656665', 'hex'), // 'Jefe'
@@ -138,8 +138,8 @@ const rfc4231 = [
       sha512:
           '164b7a7bfcf819e2e395fbe73b56e0a387bd64222e831fd610270cd7' +
           'ea2505549758bf75c05a994a6d034f65f8f0e6fdcaeab1a34d4a6b4b' +
-          '636e070a38bce737'
-    }
+          '636e070a38bce737',
+    },
   },
   {
     key: Buffer.from('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', 'hex'),
@@ -157,8 +157,8 @@ const rfc4231 = [
       sha512:
           'fa73b0089d56a284efb0f0756c890be9b1b5dbdd8ee81a3655f83e33' +
           'b2279d39bf3e848279a722c806b485a47e67c807b946a337bee89426' +
-          '74278859e13292fb'
-    }
+          '74278859e13292fb',
+    },
   },
   {
     key: Buffer.from('0102030405060708090a0b0c0d0e0f10111213141516171819',
@@ -177,8 +177,8 @@ const rfc4231 = [
       sha512:
           'b0ba465637458c6990e5a8c5f61d4af7e576d97ff94b872de76f8050' +
           '361ee3dba91ca5c11aa25eb4d679275cc5788063a5f19741120c4f2d' +
-          'e2adebeb10a298dd'
-    }
+          'e2adebeb10a298dd',
+    },
   },
 
   {
@@ -189,9 +189,9 @@ const rfc4231 = [
       sha224: '0e2aea68a90c8d37c988bcdb9fca6fa8',
       sha256: 'a3b6167473100ee06e0c796c2955552b',
       sha384: '3abf34c3503b2a23a46efc619baef897',
-      sha512: '415fad6271580a531d4179bc891d87a6'
+      sha512: '415fad6271580a531d4179bc891d87a6',
     },
-    truncate: true
+    truncate: true,
   },
   {
     key: Buffer.from('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' +
@@ -215,8 +215,8 @@ const rfc4231 = [
       sha512:
           '80b24263c7c1a3ebb71493c1dd7be8b49b46d1f41b4aeec1121b0137' +
           '83f8f3526b56d037e05f2598bd0fd2215d6a1e5295e64f73f63f0aec' +
-          '8b915a985d786598'
-    }
+          '8b915a985d786598',
+    },
   },
   {
     key: Buffer.from('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' +
@@ -246,9 +246,9 @@ const rfc4231 = [
       sha512:
           'e37b6a775dc87dbaa4dfa9f96e5e3ffddebd71f8867289865df5a32d' +
           '20cdc944b6022cac3c4982b10d5eeb55c3e4de15134676fb6de04460' +
-          '65c97440fa8c6a58'
-    }
-  }
+          '65c97440fa8c6a58',
+    },
+  },
 ];
 
 for (let i = 0, l = rfc4231.length; i < l; i++) {
@@ -278,19 +278,19 @@ const rfc2202_md5 = [
   {
     key: Buffer.from('0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b', 'hex'),
     data: 'Hi There',
-    hmac: '9294727a3638bb1c13f48ef8158bfc9d'
+    hmac: '9294727a3638bb1c13f48ef8158bfc9d',
   },
   {
     key: 'Jefe',
     data: 'what do ya want for nothing?',
-    hmac: '750c783e6ab0b503eaa86e310a5db738'
+    hmac: '750c783e6ab0b503eaa86e310a5db738',
   },
   {
     key: Buffer.from('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', 'hex'),
     data: Buffer.from('ddddddddddddddddddddddddddddddddddddddddddddddddd' +
                      'ddddddddddddddddddddddddddddddddddddddddddddddddddd',
                       'hex'),
-    hmac: '56be34521d144c88dbb8c733f0e8b3f6'
+    hmac: '56be34521d144c88dbb8c733f0e8b3f6',
   },
   {
     key: Buffer.from('0102030405060708090a0b0c0d0e0f10111213141516171819',
@@ -299,12 +299,12 @@ const rfc2202_md5 = [
                      'dcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd' +
                      'cdcdcdcdcd',
                       'hex'),
-    hmac: '697eaf0aca3a3aea3a75164746ffaa79'
+    hmac: '697eaf0aca3a3aea3a75164746ffaa79',
   },
   {
     key: Buffer.from('0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c', 'hex'),
     data: 'Test With Truncation',
-    hmac: '56461ef2342edc00f9bab995690efd4c'
+    hmac: '56461ef2342edc00f9bab995690efd4c',
   },
   {
     key: Buffer.from('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' +
@@ -313,7 +313,7 @@ const rfc2202_md5 = [
                     'aaaaaaaaaaaaaaaaaaaaaa',
                      'hex'),
     data: 'Test Using Larger Than Block-Size Key - Hash Key First',
-    hmac: '6b1ab7fe4bd7bf8f0b62e6ce61b9d0cd'
+    hmac: '6b1ab7fe4bd7bf8f0b62e6ce61b9d0cd',
   },
   {
     key: Buffer.from('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' +
@@ -324,19 +324,19 @@ const rfc2202_md5 = [
     data:
         'Test Using Larger Than Block-Size Key and Larger Than One ' +
         'Block-Size Data',
-    hmac: '6f630fad67cda0ee1fb1f562db3aa53e'
-  }
+    hmac: '6f630fad67cda0ee1fb1f562db3aa53e',
+  },
 ];
 const rfc2202_sha1 = [
   {
     key: Buffer.from('0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b', 'hex'),
     data: 'Hi There',
-    hmac: 'b617318655057264e28bc0b6fb378c8ef146be00'
+    hmac: 'b617318655057264e28bc0b6fb378c8ef146be00',
   },
   {
     key: 'Jefe',
     data: 'what do ya want for nothing?',
-    hmac: 'effcdf6ae5eb2fa2d27416d5f184df9c259a7c79'
+    hmac: 'effcdf6ae5eb2fa2d27416d5f184df9c259a7c79',
   },
   {
     key: Buffer.from('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', 'hex'),
@@ -344,7 +344,7 @@ const rfc2202_sha1 = [
                      'ddddddddddddddddddddddddddddddddddddddddddddd' +
                      'dddddddddd',
                       'hex'),
-    hmac: '125d7342b9ac11cd91a39af48aa17b4f63f175d3'
+    hmac: '125d7342b9ac11cd91a39af48aa17b4f63f175d3',
   },
   {
     key: Buffer.from('0102030405060708090a0b0c0d0e0f10111213141516171819',
@@ -353,12 +353,12 @@ const rfc2202_sha1 = [
                      'dcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd' +
                      'cdcdcdcdcd',
                       'hex'),
-    hmac: '4c9007f4026250c6bc8414f9bf50c86c2d7235da'
+    hmac: '4c9007f4026250c6bc8414f9bf50c86c2d7235da',
   },
   {
     key: Buffer.from('0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c', 'hex'),
     data: 'Test With Truncation',
-    hmac: '4c1a03424b55e07fe7f27be1d58bb9324a9a5a04'
+    hmac: '4c1a03424b55e07fe7f27be1d58bb9324a9a5a04',
   },
   {
     key: Buffer.from('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' +
@@ -367,7 +367,7 @@ const rfc2202_sha1 = [
                     'aaaaaaaaaaaaaaaaaaaaaa',
                      'hex'),
     data: 'Test Using Larger Than Block-Size Key - Hash Key First',
-    hmac: 'aa4ae5e15272d00e95705637ce8a3b55ed402112'
+    hmac: 'aa4ae5e15272d00e95705637ce8a3b55ed402112',
   },
   {
     key: Buffer.from('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' +
@@ -378,8 +378,8 @@ const rfc2202_sha1 = [
     data:
         'Test Using Larger Than Block-Size Key and Larger Than One ' +
         'Block-Size Data',
-    hmac: 'e8e99d0f45237d786d6bbaa7965c7808bbff1a91'
-  }
+    hmac: 'e8e99d0f45237d786d6bbaa7965c7808bbff1a91',
+  },
 ];
 
 if (!common.hasFipsCrypto) {
@@ -411,7 +411,7 @@ common.expectsError(
   () => crypto.createHmac('sha256', 'w00t').digest('ucs2'),
   {
     code: 'ERR_CRYPTO_HASH_DIGEST_NO_UTF16',
-    type: Error
+    type: Error,
   });
 
 // Check initialized -> uninitialized state transition after calling digest().

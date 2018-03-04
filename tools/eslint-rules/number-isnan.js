@@ -9,6 +9,6 @@ module.exports = function(context) {
   }
 
   return {
-    [astSelector]: report
+    [astSelector]: report,
   };
 };

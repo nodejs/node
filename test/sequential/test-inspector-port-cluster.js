@@ -21,7 +21,7 @@ let offset = 0;
 function testRunnerMain() {
   let defaultPortCase = spawnMaster({
     execArgv: ['--inspect'],
-    workers: [{ expectedPort: 9230 }]
+    workers: [{ expectedPort: 9230 }],
   });
 
   spawnMaster({
@@ -30,8 +30,8 @@ function testRunnerMain() {
       { expectedPort: 65535 },
       { expectedPort: 1024 },
       { expectedPort: 1025 },
-      { expectedPort: 1026 }
-    ]
+      { expectedPort: 1026 },
+    ],
   });
 
   let port = debuggerPort + offset++ * 5;
@@ -41,36 +41,36 @@ function testRunnerMain() {
     workers: [
       { expectedPort: port + 1 },
       { expectedPort: port + 2 },
-      { expectedPort: port + 3 }
-    ]
+      { expectedPort: port + 3 },
+    ],
   });
 
   port = debuggerPort + offset++ * 5;
 
   spawnMaster({
     execArgv: ['--inspect', `--inspect-port=${port}`],
-    workers: [{ expectedPort: port + 1 }]
+    workers: [{ expectedPort: port + 1 }],
   });
 
   port = debuggerPort + offset++ * 5;
 
   spawnMaster({
     execArgv: ['--inspect', `--debug-port=${port}`],
-    workers: [{ expectedPort: port + 1 }]
+    workers: [{ expectedPort: port + 1 }],
   });
 
   port = debuggerPort + offset++ * 5;
 
   spawnMaster({
     execArgv: [`--inspect=0.0.0.0:${port}`],
-    workers: [{ expectedPort: port + 1, expectedHost: '0.0.0.0' }]
+    workers: [{ expectedPort: port + 1, expectedHost: '0.0.0.0' }],
   });
 
   port = debuggerPort + offset++ * 5;
 
   spawnMaster({
     execArgv: [`--inspect=127.0.0.1:${port}`],
-    workers: [{ expectedPort: port + 1, expectedHost: '127.0.0.1' }]
+    workers: [{ expectedPort: port + 1, expectedHost: '127.0.0.1' }],
   });
 
   if (common.hasIPv6) {
@@ -78,14 +78,14 @@ function testRunnerMain() {
 
     spawnMaster({
       execArgv: [`--inspect=[::]:${port}`],
-      workers: [{ expectedPort: port + 1, expectedHost: '::' }]
+      workers: [{ expectedPort: port + 1, expectedHost: '::' }],
     });
 
     port = debuggerPort + offset++ * 5;
 
     spawnMaster({
       execArgv: [`--inspect=[::1]:${port}`],
-      workers: [{ expectedPort: port + 1, expectedHost: '::1' }]
+      workers: [{ expectedPort: port + 1, expectedHost: '::1' }],
     });
   }
 
@@ -97,7 +97,7 @@ function testRunnerMain() {
   spawnMaster({
     execArgv: [`--inspect=${port}`],
     clusterSettings: { inspectPort: port + 2 },
-    workers: [{ expectedPort: port + 2 }]
+    workers: [{ expectedPort: port + 2 }],
   });
 
   port = debuggerPort + offset++ * 5;
@@ -107,8 +107,8 @@ function testRunnerMain() {
     clusterSettings: { inspectPort: 'addTwo' },
     workers: [
       { expectedPort: port + 2 },
-      { expectedPort: port + 4 }
-    ]
+      { expectedPort: port + 4 },
+    ],
   });
 
   port = debuggerPort + offset++ * 5;
@@ -116,7 +116,7 @@ function testRunnerMain() {
   spawnMaster({
     execArgv: [`--inspect=${port}`],
     clusterSettings: { inspectPort: 'string' },
-    workers: [{}]
+    workers: [{}],
   });
 
   port = debuggerPort + offset++ * 5;
@@ -124,7 +124,7 @@ function testRunnerMain() {
   spawnMaster({
     execArgv: [`--inspect=${port}`],
     clusterSettings: { inspectPort: 'null' },
-    workers: [{}]
+    workers: [{}],
   });
 
   port = debuggerPort + offset++ * 5;
@@ -132,7 +132,7 @@ function testRunnerMain() {
   spawnMaster({
     execArgv: [`--inspect=${port}`],
     clusterSettings: { inspectPort: 'bignumber' },
-    workers: [{}]
+    workers: [{}],
   });
 
   port = debuggerPort + offset++ * 5;
@@ -140,7 +140,7 @@ function testRunnerMain() {
   spawnMaster({
     execArgv: [`--inspect=${port}`],
     clusterSettings: { inspectPort: 'negativenumber' },
-    workers: [{}]
+    workers: [{}],
   });
 
   port = debuggerPort + offset++ * 5;
@@ -148,7 +148,7 @@ function testRunnerMain() {
   spawnMaster({
     execArgv: [`--inspect=${port}`],
     clusterSettings: { inspectPort: 'bignumberfunc' },
-    workers: [{}]
+    workers: [{}],
   });
 
   port = debuggerPort + offset++ * 5;
@@ -156,7 +156,7 @@ function testRunnerMain() {
   spawnMaster({
     execArgv: [`--inspect=${port}`],
     clusterSettings: { inspectPort: 'strfunc' },
-    workers: [{}]
+    workers: [{}],
   });
 
   port = debuggerPort + offset++ * 5;
@@ -165,8 +165,8 @@ function testRunnerMain() {
     execArgv: [],
     clusterSettings: { inspectPort: port, execArgv: ['--inspect'] },
     workers: [
-      { expectedPort: port }
-    ]
+      { expectedPort: port },
+    ],
   });
 
   port = debuggerPort + offset++ * 5;
@@ -177,8 +177,8 @@ function testRunnerMain() {
     workers: [
       { expectedInitialPort: 0 },
       { expectedInitialPort: 0 },
-      { expectedInitialPort: 0 }
-    ]
+      { expectedInitialPort: 0 },
+    ],
   });
 
   port = debuggerPort + offset++ * 5;
@@ -189,8 +189,8 @@ function testRunnerMain() {
     workers: [
       { expectedInitialPort: 0 },
       { expectedInitialPort: 0 },
-      { expectedInitialPort: 0 }
-    ]
+      { expectedInitialPort: 0 },
+    ],
   });
 
   defaultPortCase.then(() => {
@@ -199,8 +199,8 @@ function testRunnerMain() {
       execArgv: ['--inspect'],
       clusterSettings: { inspectPort: port + 2 },
       workers: [
-        { expectedInitialPort: port + 2 }
-      ]
+        { expectedInitialPort: port + 2 },
+      ],
     });
   });
 }
@@ -325,9 +325,9 @@ function spawnMaster({ execArgv, workers, clusterSettings = {} }) {
       env: Object.assign({}, process.env, {
         workers: JSON.stringify(workers),
         clusterSettings: JSON.stringify(clusterSettings),
-        testProcess: true
+        testProcess: true,
       }),
-      execArgv
+      execArgv,
     }).on('exit', common.mustCall((code, signal) => {
       checkExitCode(code, signal);
       resolve();

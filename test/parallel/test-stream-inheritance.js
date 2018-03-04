@@ -53,7 +53,7 @@ common.expectsError(
   {
     code: 'ERR_ASSERTION',
     type: assert.AssertionError,
-    message: 'undefined does not inherit from CustomWritable'
+    message: 'undefined does not inherit from CustomWritable',
   }
 );
 

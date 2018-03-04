@@ -12,7 +12,7 @@ async function tests() {
     const max = 5;
     const readable = new Readable({
       objectMode: true,
-      read() {}
+      read() {},
     });
 
     const iter = readable[Symbol.asyncIterator]();
@@ -41,7 +41,7 @@ async function tests() {
     console.log('read without for..await deferred');
     const readable = new Readable({
       objectMode: true,
-      read() {}
+      read() {},
     });
 
     const iter = readable[Symbol.asyncIterator]();
@@ -82,7 +82,7 @@ async function tests() {
     const max = 3;
     const readable = new Readable({
       objectMode: true,
-      read() {}
+      read() {},
     });
 
     const iter = readable[Symbol.asyncIterator]();
@@ -127,7 +127,7 @@ async function tests() {
         if (++readed === max) {
           this.push(null);
         }
-      }
+      },
     });
 
     for await (const k of readable) {
@@ -144,7 +144,7 @@ async function tests() {
       objectMode: true,
       read() {
         this.destroy(new Error('kaboom from read'));
-      }
+      },
     });
 
     let err;
@@ -170,7 +170,7 @@ async function tests() {
             this.destroy(new Error('kaboom'));
           });
         }
-      }
+      },
     });
 
     let received = 0;
@@ -195,7 +195,7 @@ async function tests() {
       objectMode: true,
       read() {
         this.push('hello');
-      }
+      },
     });
 
     let err = null;
@@ -219,7 +219,7 @@ async function tests() {
       read() {
         this.push('hello');
         this.destroy(new Error('kaboom'));
-      }
+      },
     });
 
     let received = 0;
@@ -252,7 +252,7 @@ async function tests() {
             this.push(null);
           }
         });
-      }
+      },
     });
 
     for await (const k of readable) {
@@ -275,7 +275,7 @@ async function tests() {
             this.push(null);
           }
         });
-      }
+      },
     });
 
     let expected = '';

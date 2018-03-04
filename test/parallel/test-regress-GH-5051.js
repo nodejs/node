@@ -5,7 +5,7 @@ const agent = require('http').globalAgent;
 
 // small stub just so we can call addRequest directly
 const req = {
-  getHeader: () => {}
+  getHeader: () => {},
 };
 
 agent.maxSockets = 0;
@@ -25,7 +25,7 @@ agent.addRequest(req, {
   host: 'localhost',
   port: 8080,
   localAddress: '127.0.0.1',
-  path: '/foo'
+  path: '/foo',
 });
 assert.strictEqual(Object.keys(agent.requests).length, 1);
 assert.strictEqual(

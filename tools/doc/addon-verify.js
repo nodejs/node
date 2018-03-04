@@ -19,7 +19,7 @@ tokens.forEach((token) => {
   if (token.type === 'heading' && token.text) {
     currentHeader = token.text;
     addons[currentHeader] = {
-      files: {}
+      files: {},
     };
   }
   if (token.type === 'code') {
@@ -75,7 +75,7 @@ ${files[name].replace(
     return {
       path: path.resolve(dir, name),
       name: name,
-      content: files[name]
+      content: files[name],
     };
   });
 
@@ -88,10 +88,10 @@ ${files[name].replace(
           defines: [ 'V8_DEPRECATION_WARNINGS=1' ],
           sources: files.map(function(file) {
             return file.name;
-          })
-        }
-      ]
-    })
+          }),
+        },
+      ],
+    }),
   });
 
   fs.mkdir(dir, function() {

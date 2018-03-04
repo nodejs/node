@@ -13,7 +13,7 @@ const http = require('http');
 const agent = new http.Agent({
   keepAlive: true,
   keepAliveMsecs: Infinity,
-  maxSockets: 1
+  maxSockets: 1,
 });
 
 const server = http.createServer(common.mustCall((req, res) => {
@@ -31,7 +31,7 @@ const server = http.createServer(common.mustCall((req, res) => {
   // First request. This is useless except for adding a socket to the
   // agent’s pool for reuse.
   const r1 = http.request({
-    agent, port, method: 'POST'
+    agent, port, method: 'POST',
   }, common.mustCall((res) => {
     // Remember which socket we used.
     const socket = res.socket;
@@ -53,8 +53,8 @@ const server = http.createServer(common.mustCall((req, res) => {
         // response header has already been received.
         const r2 = http.request({
           agent, port, method: 'POST', headers: {
-            'Content-Length': payload.length
-          }
+            'Content-Length': payload.length,
+          },
         }, common.mustCall((res) => {
           const asyncId = res.socket[async_id_symbol];
           assert.ok(asyncId > 0, `${asyncId} > 0`);

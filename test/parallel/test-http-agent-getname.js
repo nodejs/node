@@ -13,7 +13,7 @@ const agent = new http.Agent();
 assert.strictEqual(
   agent.getName({
     port: 80,
-    localAddress: '192.168.1.1'
+    localAddress: '192.168.1.1',
   }),
   'localhost:80:192.168.1.1'
 );
@@ -29,7 +29,7 @@ assert.strictEqual(
   agent.getName({
     host: '0.0.0.0',
     port: 80,
-    localAddress: '192.168.1.1'
+    localAddress: '192.168.1.1',
   }),
   '0.0.0.0:80:192.168.1.1'
 );
@@ -38,7 +38,7 @@ assert.strictEqual(
 const socketPath = path.join(tmpdir.path, 'foo', 'bar');
 assert.strictEqual(
   agent.getName({
-    socketPath
+    socketPath,
   }),
   `localhost:::${socketPath}`
 );

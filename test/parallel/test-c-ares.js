@@ -50,14 +50,14 @@ dns.lookup('::1', common.mustCall((error, result, addressType) => {
   // Try calling resolve with an unsupported type.
   'HI',
   // Try calling resolve with an unsupported type that's an object key
-  'toString'
+  'toString',
 ].forEach((val) => {
   common.expectsError(
     () => dns.resolve('www.google.com', val),
     {
       code: 'ERR_INVALID_OPT_VALUE',
       type: TypeError,
-      message: `The value "${val}" is invalid for option "rrtype"`
+      message: `The value "${val}" is invalid for option "rrtype"`,
     }
   );
 });

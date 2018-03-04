@@ -8,7 +8,7 @@ common.expectsError(
   {
     code: 'ERR_DOMAIN_CALLBACK_NOT_AVAILABLE',
     type: Error,
-    message: /^A callback was registered.*with using the `domain` module/
+    message: /^A callback was registered.*with using the `domain` module/,
   }
 );
 

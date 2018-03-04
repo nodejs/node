@@ -34,13 +34,13 @@ for (let i = 0; i < 10; i++) {
 const invalidUserArgument = common.expectsError({
   code: 'ERR_INVALID_ARG_TYPE',
   type: TypeError,
-  message: 'The "preValue.user" property must be of type number'
+  message: 'The "preValue.user" property must be of type number',
 }, 8);
 
 const invalidSystemArgument = common.expectsError({
   code: 'ERR_INVALID_ARG_TYPE',
   type: TypeError,
-  message: 'The "preValue.system" property must be of type number'
+  message: 'The "preValue.system" property must be of type number',
 }, 2);
 
 
@@ -80,14 +80,14 @@ assert.throws(() => {
 assert.throws(() => {
   process.cpuUsage({
     user: Number.POSITIVE_INFINITY,
-    system: 4
+    system: 4,
   });
 }, invalidUserArgument);
 
 assert.throws(() => {
   process.cpuUsage({
     user: 5,
-    system: Number.NEGATIVE_INFINITY
+    system: Number.NEGATIVE_INFINITY,
   });
 }, invalidSystemArgument);
 

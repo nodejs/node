@@ -5,21 +5,21 @@ const common = require('../common');
 const assert = require('assert');
 const {
   performance,
-  PerformanceObserver
+  PerformanceObserver,
 } = require('perf_hooks');
 
 const {
   NODE_PERFORMANCE_GC_MAJOR,
   NODE_PERFORMANCE_GC_MINOR,
   NODE_PERFORMANCE_GC_INCREMENTAL,
-  NODE_PERFORMANCE_GC_WEAKCB
+  NODE_PERFORMANCE_GC_WEAKCB,
 } = process.binding('performance').constants;
 
 const kinds = [
   NODE_PERFORMANCE_GC_MAJOR,
   NODE_PERFORMANCE_GC_MINOR,
   NODE_PERFORMANCE_GC_INCREMENTAL,
-  NODE_PERFORMANCE_GC_WEAKCB
+  NODE_PERFORMANCE_GC_WEAKCB,
 ];
 
 // No observers for GC events, no entries should appear

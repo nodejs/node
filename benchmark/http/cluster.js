@@ -8,7 +8,7 @@ if (cluster.isMaster) {
     // unicode confuses ab on os x.
     type: ['bytes', 'buffer'],
     len: [4, 1024, 102400],
-    c: [50, 500]
+    c: [50, 500],
   });
 } else {
   const port = parseInt(process.env.PORT || PORT);
@@ -31,7 +31,7 @@ function main({ type, len, c }) {
 
       bench.http({
         path: path,
-        connections: c
+        connections: c,
       }, function() {
         w1.destroy();
         w2.destroy();

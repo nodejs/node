@@ -9,6 +9,6 @@ assert.throws(() => {
   new vm.Script({
     toString() {
       throw new Error();
-    }
+    },
   });
 }, Error);

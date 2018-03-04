@@ -70,5 +70,5 @@ common.expectsError(() => a.compare(), {
   code: 'ERR_INVALID_ARG_TYPE',
   type: TypeError,
   message: 'The "target" argument must be one of ' +
-           'type Buffer or Uint8Array. Received type undefined'
+           'type Buffer or Uint8Array. Received type undefined',
 });

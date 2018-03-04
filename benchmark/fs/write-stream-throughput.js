@@ -10,7 +10,7 @@ const fs = require('fs');
 const bench = common.createBenchmark(main, {
   dur: [5],
   encodingType: ['buf', 'asc', 'utf'],
-  size: [2, 1024, 65535, 1024 * 1024]
+  size: [2, 1024, 65535, 1024 * 1024],
 });
 
 function main({ dur, encodingType, size }) {

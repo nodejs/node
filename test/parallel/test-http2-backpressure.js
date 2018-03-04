@@ -17,7 +17,7 @@ common.crashOnUnhandledRejection();
   server.on('stream', common.mustCallAsync(async (stream, headers) => {
     stream.respond({
       'content-type': 'text/html',
-      ':status': 200
+      ':status': 200,
     });
     req._readableState.highWaterMark = 20;
     stream._writableState.highWaterMark = 20;
@@ -34,7 +34,7 @@ common.crashOnUnhandledRejection();
   server.emit('connection', serverSide);
 
   const client = http2.connect('http://localhost:80', {
-    createConnection: common.mustCall(() => clientSide)
+    createConnection: common.mustCall(() => clientSide),
   });
 
   req = client.request({ ':path': '/' });

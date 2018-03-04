@@ -12,7 +12,7 @@ const types = [
   {},
   [],
   null,
-  new Date()
+  new Date(),
 ];
 
 server.on('stream', common.mustCall((stream) => {
@@ -24,7 +24,7 @@ server.on('stream', common.mustCall((stream) => {
       {
         code: 'ERR_INVALID_ARG_TYPE',
         type: TypeError,
-        message: 'The "code" argument must be of type number'
+        message: 'The "code" argument must be of type number',
       }
     );
     common.expectsError(
@@ -32,7 +32,7 @@ server.on('stream', common.mustCall((stream) => {
       {
         code: 'ERR_INVALID_ARG_TYPE',
         type: TypeError,
-        message: 'The "lastStreamID" argument must be of type number'
+        message: 'The "lastStreamID" argument must be of type number',
       }
     );
     common.expectsError(
@@ -41,7 +41,7 @@ server.on('stream', common.mustCall((stream) => {
         code: 'ERR_INVALID_ARG_TYPE',
         type: TypeError,
         message: 'The "opaqueData" argument must be one of type Buffer, ' +
-                 'TypedArray, or DataView'
+                 'TypedArray, or DataView',
       }
     );
   });

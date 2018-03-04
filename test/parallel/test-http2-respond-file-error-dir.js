@@ -9,19 +9,19 @@ const assert = require('assert');
 const server = http2.createServer();
 server.on('stream', (stream) => {
   stream.respondWithFile(process.cwd(), {
-    'content-type': 'text/plain'
+    'content-type': 'text/plain',
   }, {
     onError(err) {
       common.expectsError({
         code: 'ERR_HTTP2_SEND_FILE',
         type: Error,
-        message: 'Only regular files can be sent'
+        message: 'Only regular files can be sent',
       })(err);
 
       stream.respond({ ':status': 404 });
       stream.end();
     },
-    statCheck: common.mustNotCall()
+    statCheck: common.mustNotCall(),
   });
 });
 server.listen(0, () => {

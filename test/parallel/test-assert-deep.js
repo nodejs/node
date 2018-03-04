@@ -18,7 +18,7 @@ function re(literals, ...values) {
   }
   return common.expectsError({
     code: 'ERR_ASSERTION',
-    message: new RegExp(`^${result}$`)
+    message: new RegExp(`^${result}$`),
   });
 }
 
@@ -126,7 +126,7 @@ common.expectsError(() => {
   assert.deepEqual(new Set([{ a: 0 }]), new Set([{ a: 1 }]));
 }, {
   code: 'ERR_ASSERTION',
-  message: /^Set { { a: 0 } } deepEqual Set { { a: 1 } }$/
+  message: /^Set { { a: 0 } } deepEqual Set { { a: 1 } }$/,
 });
 
 function assertDeepAndStrictEqual(a, b) {
@@ -569,31 +569,31 @@ assert.throws(() => assert.deepEqual(/ab/, /a/),
               {
                 code: 'ERR_ASSERTION',
                 name: 'AssertionError [ERR_ASSERTION]',
-                message: '/ab/ deepEqual /a/'
+                message: '/ab/ deepEqual /a/',
               });
 assert.throws(() => assert.deepEqual(/a/g, /a/),
               {
                 code: 'ERR_ASSERTION',
                 name: 'AssertionError [ERR_ASSERTION]',
-                message: '/a/g deepEqual /a/'
+                message: '/a/g deepEqual /a/',
               });
 assert.throws(() => assert.deepEqual(/a/i, /a/),
               {
                 code: 'ERR_ASSERTION',
                 name: 'AssertionError [ERR_ASSERTION]',
-                message: '/a/i deepEqual /a/'
+                message: '/a/i deepEqual /a/',
               });
 assert.throws(() => assert.deepEqual(/a/m, /a/),
               {
                 code: 'ERR_ASSERTION',
                 name: 'AssertionError [ERR_ASSERTION]',
-                message: '/a/m deepEqual /a/'
+                message: '/a/m deepEqual /a/',
               });
 assert.throws(() => assert.deepEqual(/a/igm, /a/im),
               {
                 code: 'ERR_ASSERTION',
                 name: 'AssertionError [ERR_ASSERTION]',
-                message: '/a/gim deepEqual /a/im'
+                message: '/a/gim deepEqual /a/im',
               });
 
 {
@@ -628,7 +628,7 @@ assert.deepEqual(a1, a2);
 
 // Having an identical prototype property.
 const nbRoot = {
-  toString() { return `${this.first} ${this.last}`; }
+  toString() { return `${this.first} ${this.last}`; },
 };
 
 function nameBuilder(first, last) {
@@ -698,35 +698,35 @@ assert.throws(
   {
     code: 'ERR_ASSERTION',
     name: 'AssertionError [ERR_ASSERTION]',
-    message: '/ab/ deepStrictEqual /a/'
+    message: '/ab/ deepStrictEqual /a/',
   });
 assert.throws(
   () => assert.deepStrictEqual(/a/g, /a/),
   {
     code: 'ERR_ASSERTION',
     name: 'AssertionError [ERR_ASSERTION]',
-    message: '/a/g deepStrictEqual /a/'
+    message: '/a/g deepStrictEqual /a/',
   });
 assert.throws(
   () => assert.deepStrictEqual(/a/i, /a/),
   {
     code: 'ERR_ASSERTION',
     name: 'AssertionError [ERR_ASSERTION]',
-    message: '/a/i deepStrictEqual /a/'
+    message: '/a/i deepStrictEqual /a/',
   });
 assert.throws(
   () => assert.deepStrictEqual(/a/m, /a/),
   {
     code: 'ERR_ASSERTION',
     name: 'AssertionError [ERR_ASSERTION]',
-    message: '/a/m deepStrictEqual /a/'
+    message: '/a/m deepStrictEqual /a/',
   });
 assert.throws(
   () => assert.deepStrictEqual(/a/igm, /a/im),
   {
     code: 'ERR_ASSERTION',
     name: 'AssertionError [ERR_ASSERTION]',
-    message: '/a/gim deepStrictEqual /a/im'
+    message: '/a/gim deepStrictEqual /a/im',
   });
 
 {
@@ -754,19 +754,19 @@ assert.throws(() => assert.deepStrictEqual([4], ['4']),
               {
                 code: 'ERR_ASSERTION',
                 name: 'AssertionError [ERR_ASSERTION]',
-                message: "[ 4 ] deepStrictEqual [ '4' ]"
+                message: "[ 4 ] deepStrictEqual [ '4' ]",
               });
 assert.throws(() => assert.deepStrictEqual({ a: 4 }, { a: 4, b: true }),
               {
                 code: 'ERR_ASSERTION',
                 name: 'AssertionError [ERR_ASSERTION]',
-                message: '{ a: 4 } deepStrictEqual { a: 4, b: true }'
+                message: '{ a: 4 } deepStrictEqual { a: 4, b: true }',
               });
 assert.throws(() => assert.deepStrictEqual(['a'], { 0: 'a' }),
               {
                 code: 'ERR_ASSERTION',
                 name: 'AssertionError [ERR_ASSERTION]',
-                message: "[ 'a' ] deepStrictEqual { '0': 'a' }"
+                message: "[ 'a' ] deepStrictEqual { '0': 'a' }",
               });
 
 /* eslint-enable */

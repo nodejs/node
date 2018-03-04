@@ -13,12 +13,12 @@ const tls = require('tls');
 
 const connected = {
   client: 0,
-  server: 0
+  server: 0,
 };
 
 const server = tls.createServer({
   key: fixtures.readKey('agent1-key.pem'),
-  cert: fixtures.readKey('agent1-cert.pem')
+  cert: fixtures.readKey('agent1-cert.pem'),
 }, function(c) {
   console.log('new client');
   connected.server++;
@@ -47,12 +47,12 @@ const server = tls.createServer({
     write: function write(data, enc, cb) {
       console.log('write', data, enc);
       raw.write(data, enc, cb);
-    }
+    },
   });
 
   const socket = tls.connect({
     socket: p,
-    rejectUnauthorized: false
+    rejectUnauthorized: false,
   }, function() {
     console.log('client secure');
 

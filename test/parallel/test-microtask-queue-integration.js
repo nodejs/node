@@ -28,7 +28,7 @@ common.crashOnUnhandledRejection();
 const implementations = [
   function(fn) {
     Promise.resolve().then(fn);
-  }
+  },
 ];
 
 let expected = 0;

@@ -16,7 +16,7 @@ const setup = dgram.createSocket.bind(dgram, { type: 'udp4', reuseAddr: true });
     }, {
       code: 'ERR_SOCKET_DGRAM_NOT_RUNNING',
       type: Error,
-      message: /^Not running$/
+      message: /^Not running$/,
     });
   }));
 }
@@ -30,7 +30,7 @@ const setup = dgram.createSocket.bind(dgram, { type: 'udp4', reuseAddr: true });
     }, {
       code: 'ERR_SOCKET_DGRAM_NOT_RUNNING',
       type: Error,
-      message: /^Not running$/
+      message: /^Not running$/,
     });
   }));
 }
@@ -43,7 +43,7 @@ const setup = dgram.createSocket.bind(dgram, { type: 'udp4', reuseAddr: true });
   }, {
     code: 'ERR_MISSING_ARGS',
     type: TypeError,
-    message: /^The "multicastAddress" argument must be specified$/
+    message: /^The "multicastAddress" argument must be specified$/,
   });
   socket.close();
 }
@@ -56,7 +56,7 @@ const setup = dgram.createSocket.bind(dgram, { type: 'udp4', reuseAddr: true });
   }, {
     code: 'ERR_MISSING_ARGS',
     type: TypeError,
-    message: /^The "multicastAddress" argument must be specified$/
+    message: /^The "multicastAddress" argument must be specified$/,
   });
   socket.close();
 }

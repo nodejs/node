@@ -12,6 +12,6 @@ runBenchmark('net',
              [
                'dur=0',
                'len=1024',
-               'type=buf'
+               'type=buf',
              ],
              { NODEJS_BENCHMARK_ZERO_ALLOWED: 1 });

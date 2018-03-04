@@ -34,7 +34,7 @@ const fixtures = require('../common/fixtures');
 
 const options = {
   key: fixtures.readKey('agent2-key.pem'),
-  cert: fixtures.readKey('agent2-cert.pem')
+  cert: fixtures.readKey('agent2-cert.pem'),
 };
 
 // create server
@@ -48,7 +48,7 @@ server.listen(0, function() {
   let session1 = null;
   const client1 = tls.connect({
     port: this.address().port,
-    rejectUnauthorized: false
+    rejectUnauthorized: false,
   }, function() {
     console.log('connect1');
     assert.ok(!client1.isSessionReused(), 'Session *should not* be reused.');
@@ -61,7 +61,7 @@ server.listen(0, function() {
     const opts = {
       port: server.address().port,
       rejectUnauthorized: false,
-      session: session1
+      session: session1,
     };
 
     const client2 = tls.connect(opts, function() {

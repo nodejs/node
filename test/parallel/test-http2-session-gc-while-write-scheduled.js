@@ -13,7 +13,7 @@ const makeDuplexPair = require('../common/duplexpair');
 {
   // This creates a session and schedules a write (for the settings frame).
   let client = http2.connect('http://localhost:80', {
-    createConnection: common.mustCall(() => makeDuplexPair().clientSide)
+    createConnection: common.mustCall(() => makeDuplexPair().clientSide),
   });
 
   // First, wait for any nextTicks() and their responses

@@ -52,7 +52,7 @@ if (process.env.FORK) {
   envCopy.FORK = 'true';
   const child = require('child_process').fork(__filename, {
     execPath: copyPath,
-    env: envCopy
+    env: envCopy,
   });
   child.on('message', common.mustCall(function(recv) {
     assert.deepStrictEqual(msg, recv);

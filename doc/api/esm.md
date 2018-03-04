@@ -125,7 +125,7 @@ export async function resolve(specifier,
                               defaultResolver) {
   return {
     url: new URL(specifier, parentModuleURL).href,
-    format: 'esm'
+    format: 'esm',
   };
 }
 ```
@@ -168,7 +168,7 @@ export function resolve(specifier, parentModuleURL = baseURL, defaultResolve) {
   if (builtins.includes(specifier)) {
     return {
       url: specifier,
-      format: 'builtin'
+      format: 'builtin',
     };
   }
   if (/^\.{0,2}[/]/.test(specifier) !== true && !specifier.startsWith('file:')) {
@@ -185,7 +185,7 @@ export function resolve(specifier, parentModuleURL = baseURL, defaultResolve) {
   }
   return {
     url: resolved.href,
-    format: 'esm'
+    format: 'esm',
   };
 }
 ```
@@ -213,7 +213,7 @@ export async function dynamicInstantiate(url) {
     execute: (exports) => {
       // get and set functions provided for pre-allocated export names
       exports.customExportName.set('value');
-    }
+    },
   };
 }
 ```

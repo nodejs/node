@@ -49,7 +49,7 @@ proc.once('exit', common.mustCall(() => {
     assert.strictEqual(traces[1].id, '0x14');
     assert.deepStrictEqual(traces[1].args, {
       'first-value': 20,
-      'second-value': 30
+      'second-value': 30,
     });
 
     assert.strictEqual(traces[2].pid, proc.pid);

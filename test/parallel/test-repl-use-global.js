@@ -11,7 +11,7 @@ const assert = require('assert');
 const globalTestCases = [
   [false, 'undefined'],
   [true, '\'tacos\''],
-  [undefined, 'undefined']
+  [undefined, 'undefined'],
 ];
 
 const globalTest = (useGlobal, cb, output) => (err, repl) => {
@@ -76,7 +76,7 @@ function runRepl(useGlobal, testFunc, cb) {
     useGlobal: useGlobal,
     useColors: false,
     terminal: false,
-    prompt: ''
+    prompt: '',
   };
 
   repl.createInternalRepl(

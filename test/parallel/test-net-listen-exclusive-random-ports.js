@@ -28,7 +28,7 @@ if (cluster.isMaster) {
 
   server.listen({
     port: 0,
-    exclusive: true
+    exclusive: true,
   }, function() {
     process.send(server.address().port);
   });

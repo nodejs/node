@@ -20,6 +20,6 @@ runBenchmark('crypto',
                'out=buffer',
                'type=buf',
                'v=crypto',
-               'writes=1'
+               'writes=1',
              ],
              { NODEJS_BENCHMARK_ZERO_ALLOWED: 1 });

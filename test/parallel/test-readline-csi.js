@@ -79,7 +79,7 @@ common.expectsError(
   {
     type: Error,
     code: 'ERR_INVALID_CURSOR_POS',
-    message: 'Cannot set cursor row without setting its column'
+    message: 'Cannot set cursor row without setting its column',
   });
 assert.strictEqual(writable.data, '');
 

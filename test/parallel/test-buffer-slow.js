@@ -53,7 +53,7 @@ assert.strictEqual(SlowBuffer('string').length, 0);
 const bufferMaxSizeMsg = common.expectsError({
   code: 'ERR_INVALID_OPT_VALUE',
   type: RangeError,
-  message: /^The value "[^"]*" is invalid for option "size"$/
+  message: /^The value "[^"]*" is invalid for option "size"$/,
 }, 2);
 assert.throws(function() {
   SlowBuffer(Infinity);
@@ -63,7 +63,7 @@ common.expectsError(function() {
 }, {
   code: 'ERR_INVALID_OPT_VALUE',
   type: RangeError,
-  message: 'The value "-1" is invalid for option "size"'
+  message: 'The value "-1" is invalid for option "size"',
 });
 
 assert.throws(function() {

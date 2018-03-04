@@ -11,12 +11,12 @@ const makeDuplexPair = require('../common/duplexpair');
 {
   const testData = '<h1>Hello World.</h1>';
   const server = http2.createServer({
-    paddingStrategy: PADDING_STRATEGY_ALIGNED
+    paddingStrategy: PADDING_STRATEGY_ALIGNED,
   });
   server.on('stream', common.mustCall((stream, headers) => {
     stream.respond({
       'content-type': 'text/html',
-      ':status': 200
+      ':status': 200,
     });
     stream.end(testData);
   }));
@@ -49,7 +49,7 @@ const makeDuplexPair = require('../common/duplexpair');
 
   const client = http2.connect('http://localhost:80', {
     paddingStrategy: PADDING_STRATEGY_ALIGNED,
-    createConnection: common.mustCall(() => clientSide)
+    createConnection: common.mustCall(() => clientSide),
   });
 
   const req = client.request({ ':path': '/a' });

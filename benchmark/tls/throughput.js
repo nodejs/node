@@ -3,7 +3,7 @@ const common = require('../common.js');
 const bench = common.createBenchmark(main, {
   dur: [5],
   type: ['buf', 'asc', 'utf'],
-  size: [2, 1024, 1024 * 1024]
+  size: [2, 1024, 1024 * 1024],
 });
 
 const path = require('path');
@@ -36,7 +36,7 @@ function main({ dur, type, size }) {
     key: fs.readFileSync(`${cert_dir}/test_key.pem`),
     cert: fs.readFileSync(`${cert_dir}/test_cert.pem`),
     ca: [ fs.readFileSync(`${cert_dir}/test_ca.pem`) ],
-    ciphers: 'AES256-GCM-SHA384'
+    ciphers: 'AES256-GCM-SHA384',
   };
 
   server = tls.createServer(options, onConnection);

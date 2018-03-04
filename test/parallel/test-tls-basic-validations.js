@@ -26,7 +26,7 @@ common.expectsError(() => tls.createServer({ handshakeTimeout: 'abcd' }),
                     {
                       code: 'ERR_INVALID_ARG_TYPE',
                       type: TypeError,
-                      message: 'The "timeout" argument must be of type number'
+                      message: 'The "timeout" argument must be of type number',
                     }
 );
 
@@ -43,7 +43,7 @@ common.expectsError(
   () => tls.createSecurePair({}),
   {
     code: 'ERR_ASSERTION',
-    message: 'context.context must be a NativeSecureContext'
+    message: 'context.context must be a NativeSecureContext',
   }
 );
 

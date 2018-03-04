@@ -42,7 +42,7 @@ Object.defineProperty(exports, 'PORT', {
     }
     return +process.env.NODE_COMMON_PORT || 12346;
   },
-  enumerable: true
+  enumerable: true,
 });
 
 
@@ -147,7 +147,7 @@ Object.defineProperty(exports, 'inFreeBSDJail', {
       inFreeBSDJail = false;
     }
     return inFreeBSDJail;
-  }
+  },
 });
 
 Object.defineProperty(exports, 'localhostIPv4', {
@@ -170,7 +170,7 @@ Object.defineProperty(exports, 'localhostIPv4', {
     if (localhostIPv4 === null) localhostIPv4 = '127.0.0.1';
 
     return localhostIPv4;
-  }
+  },
 });
 
 // opensslCli defined lazily to reduce overhead of spawnSync
@@ -198,13 +198,13 @@ Object.defineProperty(exports, 'opensslCli', { get: function() {
 Object.defineProperty(exports, 'hasCrypto', {
   get: function() {
     return Boolean(process.versions.openssl);
-  }
+  },
 });
 
 Object.defineProperty(exports, 'hasFipsCrypto', {
   get: function() {
     return exports.hasCrypto && require('crypto').fips;
-  }
+  },
 });
 
 {
@@ -309,7 +309,7 @@ let knownGlobals = [
   process,
   setImmediate,
   setInterval,
-  setTimeout
+  setTimeout,
 ];
 
 if (global.gc) {
@@ -454,7 +454,7 @@ function _mustCallInner(fn, criteria = 1, field) {
     [field]: criteria,
     actual: 0,
     stack: (new Error()).stack,
-    name: fn.name || '<anonymous>'
+    name: fn.name || '<anonymous>',
   };
 
   // add the exit listener only once to avoid listener leak warnings
@@ -655,13 +655,13 @@ exports.expectWarning = function(nameOrMap, expected) {
 Object.defineProperty(exports, 'hasIntl', {
   get: function() {
     return process.binding('config').hasIntl;
-  }
+  },
 });
 
 Object.defineProperty(exports, 'hasSmallICU', {
   get: function() {
     return process.binding('config').hasSmallICU;
-  }
+  },
 });
 
 // Useful for testing expected internal/error objects
@@ -744,7 +744,7 @@ exports.getArrayBufferViews = function getArrayBufferViews(buf) {
     Uint32Array,
     Float32Array,
     Float64Array,
-    DataView
+    DataView,
   ];
 
   for (const type of arrayBufferViews) {

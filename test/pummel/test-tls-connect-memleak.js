@@ -39,7 +39,7 @@ assert.strictEqual(
 
 tls.createServer({
   cert: fixtures.readSync('test_cert.pem'),
-  key: fixtures.readSync('test_key.pem')
+  key: fixtures.readSync('test_key.pem'),
 }).listen(common.PORT);
 
 {

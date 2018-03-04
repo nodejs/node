@@ -34,7 +34,7 @@ fs.writeFileSync(pathname, DATA_VALUE);
 
 let content = '';
 const fileDataStream = fs.createReadStream(pathname, {
-  encoding: 'utf8'
+  encoding: 'utf8',
 });
 
 fileDataStream.on('data', (data) => {

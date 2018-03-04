@@ -22,7 +22,7 @@ const writable = new stream.Writable({
     }
 
     cb();
-  }, 3)
+  }, 3),
 });
 
 // A readable stream which produces two buffers.
@@ -32,7 +32,7 @@ const readable = new stream.Readable({
     while (bufs.length > 0) {
       this.push(bufs.shift());
     }
-  }
+  },
 });
 
 readable.pipe(writable);

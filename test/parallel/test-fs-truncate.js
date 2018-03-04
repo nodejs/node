@@ -188,7 +188,7 @@ function testFtruncate(cb) {
       {
         code: 'ERR_INVALID_ARG_TYPE',
         type: TypeError,
-        message: 'The "len" argument must be of type integer'
+        message: 'The "len" argument must be of type integer',
       }
     );
   });
@@ -216,7 +216,7 @@ function testFtruncate(cb) {
     {
       code: 'ERR_INVALID_ARG_TYPE',
       type: TypeError,
-      message: 'The "fd" argument must be of type integer'
+      message: 'The "fd" argument must be of type integer',
     }
   );
   common.expectsError(
@@ -224,7 +224,7 @@ function testFtruncate(cb) {
     {
       code: 'ERR_INVALID_ARG_TYPE',
       type: TypeError,
-      message: 'The "fd" argument must be of type integer'
+      message: 'The "fd" argument must be of type integer',
     }
   );
 });

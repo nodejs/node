@@ -14,7 +14,7 @@ const optionsToTest = {
   weight: 'number',
   parent: 'number',
   exclusive: 'boolean',
-  silent: 'boolean'
+  silent: 'boolean',
 };
 
 const types = {
@@ -24,7 +24,7 @@ const types = {
   object: {},
   array: [],
   null: null,
-  symbol: Symbol('test')
+  symbol: Symbol('test'),
 };
 
 const server = http2.createServer(common.mustNotCall());
@@ -42,14 +42,14 @@ server.listen(0, common.mustCall(() => {
         common.expectsError(
           () => client.request({
             ':method': 'CONNECT',
-            ':authority': `localhost:${port}`
+            ':authority': `localhost:${port}`,
           }, {
-            [option]: types[type]
+            [option]: types[type],
           }), {
             type: TypeError,
             code: 'ERR_INVALID_OPT_VALUE',
             message: `The value "${String(types[type])}" is invalid ` +
-                    `for option "${option}"`
+                    `for option "${option}"`,
           });
       });
     });

@@ -31,7 +31,7 @@ const realEmitWarning = process.emitWarning;
 {
   Object.defineProperty(process, 'emitWarning', {
     get() { throw new Error('bar'); },
-    configurable: true
+    configurable: true,
   });
   assert.throws(() => {
     crypto.createCipher('aes-256-gcm', key);
@@ -42,5 +42,5 @@ const realEmitWarning = process.emitWarning;
 Object.defineProperty(process, 'emitWarning', {
   value: realEmitWarning,
   configurable: true,
-  writable: true
+  writable: true,
 });

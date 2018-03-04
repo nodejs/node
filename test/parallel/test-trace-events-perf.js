@@ -27,22 +27,22 @@ if (process.argv[2] === 'child') {
   const expectedMarks = ['A', 'B'];
   const expectedBegins = [
     { cat: 'node.perf,node.perf.timerify', name: 'f' },
-    { cat: 'node.perf,node.perf.usertiming', name: 'A to B' }
+    { cat: 'node.perf,node.perf.usertiming', name: 'A to B' },
   ];
   const expectedEnds = [
     { cat: 'node.perf,node.perf.timerify', name: 'f' },
-    { cat: 'node.perf,node.perf.usertiming', name: 'A to B' }
+    { cat: 'node.perf,node.perf.usertiming', name: 'A to B' },
   ];
 
   const proc = cp.fork(__filename,
                        [
-                         'child'
+                         'child',
                        ], {
                          execArgv: [
                            '--trace-events-enabled',
                            '--trace-event-categories',
-                           'node.perf'
-                         ]
+                           'node.perf',
+                         ],
                        });
 
   proc.once('exit', common.mustCall(() => {

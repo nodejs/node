@@ -31,7 +31,7 @@ function test1() {
 
 tests.push({
   fn: test1,
-  expectedMessages: ['uncaughtException']
+  expectedMessages: ['uncaughtException'],
 });
 
 function test2() {
@@ -47,7 +47,7 @@ function test2() {
 
 tests.push({
   fn: test2,
-  expectedMessages: ['uncaughtException']
+  expectedMessages: ['uncaughtException'],
 });
 
 function test3() {
@@ -72,7 +72,7 @@ function test3() {
 
 tests.push({
   fn: test3,
-  expectedMessages: ['errorHandledByDomain']
+  expectedMessages: ['errorHandledByDomain'],
 });
 
 function test4() {
@@ -103,7 +103,7 @@ function test4() {
 
 tests.push({
   fn: test4,
-  expectedMessages: ['uncaughtException']
+  expectedMessages: ['uncaughtException'],
 });
 
 function test5() {
@@ -127,7 +127,7 @@ function test5() {
 }
 tests.push({
   fn: test5,
-  expectedMessages: ['errorHandledByDomain']
+  expectedMessages: ['errorHandledByDomain'],
 });
 
 function test6() {
@@ -154,7 +154,7 @@ function test6() {
 
 tests.push({
   fn: test6,
-  expectedMessages: ['errorHandledByDomain']
+  expectedMessages: ['errorHandledByDomain'],
 });
 
 if (process.argv[2] === 'child') {

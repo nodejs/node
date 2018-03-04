@@ -20,7 +20,7 @@ if (process.argv[2] === 'child') {
   [null, undefined, 1, Date, {}, []].forEach((i) => {
     common.expectsError(() => new Foo(i), {
       code: 'ERR_INVALID_ARG_TYPE',
-      type: TypeError
+      type: TypeError,
     });
   });
 

@@ -81,7 +81,7 @@ testCipher2(Buffer.from('0123456789abcdef'));
     {
       code: 'ERR_INVALID_ARG_TYPE',
       type: TypeError,
-      message: 'The "cipher" argument must be of type string'
+      message: 'The "cipher" argument must be of type string',
     });
 
   common.expectsError(
@@ -90,7 +90,7 @@ testCipher2(Buffer.from('0123456789abcdef'));
       code: 'ERR_INVALID_ARG_TYPE',
       type: TypeError,
       message: 'The "password" argument must be one of type string, Buffer, ' +
-               'TypedArray, or DataView'
+               'TypedArray, or DataView',
     });
 
   common.expectsError(
@@ -99,7 +99,7 @@ testCipher2(Buffer.from('0123456789abcdef'));
       code: 'ERR_INVALID_ARG_TYPE',
       type: TypeError,
       message: 'The "data" argument must be one of type string, Buffer, ' +
-               'TypedArray, or DataView'
+               'TypedArray, or DataView',
     });
 
   common.expectsError(
@@ -108,7 +108,7 @@ testCipher2(Buffer.from('0123456789abcdef'));
       code: 'ERR_INVALID_ARG_TYPE',
       type: TypeError,
       message: 'The "buffer" argument must be one of type Buffer, ' +
-               'TypedArray, or DataView'
+               'TypedArray, or DataView',
     });
 
   common.expectsError(
@@ -117,7 +117,7 @@ testCipher2(Buffer.from('0123456789abcdef'));
       code: 'ERR_INVALID_ARG_TYPE',
       type: TypeError,
       message: 'The "buffer" argument must be one of type Buffer, ' +
-               'TypedArray, or DataView'
+               'TypedArray, or DataView',
     });
 }
 
@@ -132,7 +132,7 @@ testCipher2(Buffer.from('0123456789abcdef'));
     {
       code: 'ERR_INVALID_ARG_TYPE',
       type: TypeError,
-      message: 'The "cipher" argument must be of type string'
+      message: 'The "cipher" argument must be of type string',
     });
 
   common.expectsError(
@@ -141,7 +141,7 @@ testCipher2(Buffer.from('0123456789abcdef'));
       code: 'ERR_INVALID_ARG_TYPE',
       type: TypeError,
       message: 'The "password" argument must be one of type string, Buffer, ' +
-               'TypedArray, or DataView'
+               'TypedArray, or DataView',
     });
 }
 
@@ -245,7 +245,7 @@ testCipher2(Buffer.from('0123456789abcdef'));
     {
       code: 'ERR_CRYPTO_INVALID_STATE',
       type: Error,
-      message: 'Invalid state for operation getAuthTag'
+      message: 'Invalid state for operation getAuthTag',
     }
   );
 
@@ -263,7 +263,7 @@ testCipher2(Buffer.from('0123456789abcdef'));
     {
       code: 'ERR_CRYPTO_INVALID_STATE',
       type: Error,
-      message: 'Invalid state for operation setAAD'
+      message: 'Invalid state for operation setAAD',
     });
 
   common.expectsError(
@@ -271,7 +271,7 @@ testCipher2(Buffer.from('0123456789abcdef'));
     {
       code: 'ERR_CRYPTO_INVALID_STATE',
       type: Error,
-      message: 'Invalid state for operation setAuthTag'
+      message: 'Invalid state for operation setAuthTag',
     });
 
   common.expectsError(
@@ -279,7 +279,7 @@ testCipher2(Buffer.from('0123456789abcdef'));
     {
       code: 'ERR_CRYPTO_INVALID_STATE',
       type: Error,
-      message: 'Invalid state for operation setAutoPadding'
+      message: 'Invalid state for operation setAutoPadding',
     }
   );
 }

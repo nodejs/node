@@ -455,7 +455,7 @@ const o = {
       'eiusmod tempor incididunt ut labore et dolore magna aliqua.',
     'test',
     'foo']], 4],
-  b: new Map([['za', 1], ['zb', 'test']])
+  b: new Map([['za', 1], ['zb', 'test']]),
 };
 console.log(util.inspect(o, { compact: true, breakLength: 80 }));
 
@@ -557,7 +557,7 @@ class Box {
     }
 
     const newOptions = Object.assign({}, options, {
-      depth: options.depth === null ? null : options.depth - 1
+      depth: options.depth === null ? null : options.depth - 1,
     });
 
     // Five space padding because that's the size of "Box< ".

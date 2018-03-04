@@ -12,7 +12,7 @@ const bench = common.createBenchmark(main, {
     'slow',
     'buffer()'],
   len: [10, 1024, 2048, 4096, 8192],
-  n: [1024]
+  n: [1024],
 });
 
 function main({ len, n, type }) {

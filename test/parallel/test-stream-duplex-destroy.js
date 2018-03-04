@@ -8,7 +8,7 @@ const { inherits } = require('util');
 {
   const duplex = new Duplex({
     write(chunk, enc, cb) { cb(); },
-    read() {}
+    read() {},
   });
 
   duplex.resume();
@@ -23,7 +23,7 @@ const { inherits } = require('util');
 {
   const duplex = new Duplex({
     write(chunk, enc, cb) { cb(); },
-    read() {}
+    read() {},
   });
   duplex.resume();
 
@@ -42,7 +42,7 @@ const { inherits } = require('util');
 {
   const duplex = new Duplex({
     write(chunk, enc, cb) { cb(); },
-    read() {}
+    read() {},
   });
 
   duplex._destroy = common.mustCall(function(err, cb) {
@@ -69,7 +69,7 @@ const { inherits } = require('util');
     destroy: common.mustCall(function(err, cb) {
       assert.strictEqual(err, expected);
       cb();
-    })
+    }),
   });
   duplex.resume();
 
@@ -86,7 +86,7 @@ const { inherits } = require('util');
 {
   const duplex = new Duplex({
     write(chunk, enc, cb) { cb(); },
-    read() {}
+    read() {},
   });
 
   duplex._destroy = common.mustCall(function(err, cb) {
@@ -101,7 +101,7 @@ const { inherits } = require('util');
 {
   const duplex = new Duplex({
     write(chunk, enc, cb) { cb(); },
-    read() {}
+    read() {},
   });
   duplex.resume();
 
@@ -131,7 +131,7 @@ const { inherits } = require('util');
 {
   const duplex = new Duplex({
     write(chunk, enc, cb) { cb(); },
-    read() {}
+    read() {},
   });
 
   const expected = new Error('kaboom');
@@ -155,7 +155,7 @@ const { inherits } = require('util');
   const duplex = new Duplex({
     write(chunk, enc, cb) { cb(); },
     read() {},
-    allowHalfOpen: true
+    allowHalfOpen: true,
   });
   duplex.resume();
 

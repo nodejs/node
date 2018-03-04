@@ -10,7 +10,7 @@ const crypto = require('crypto');
 const options = {
   key: fixtures.readKey('agent1-key.pem'),
   cert: fixtures.readKey('agent1-cert.pem'),
-  ca: fixtures.readKey('ca1-cert.pem')
+  ca: fixtures.readKey('ca1-cert.pem'),
 };
 
 const server = https.createServer(options, function(req, res) {
@@ -42,7 +42,7 @@ server.listen(0, function() {
       method: 'GET',
       port: addr.port,
       servername: 'agent1',
-      ca: options.ca
+      ca: options.ca,
     }, function(res) {
       res.resume();
       res.once('end', callback);

@@ -14,16 +14,16 @@ new RuleTester().run('prefer-common-expectserror', rule, {
   valid: [
     'assert.throws(fn, /[a-z]/)',
     'assert.throws(function () {}, function() {})',
-    'common.expectsError(function() {}, err)'
+    'common.expectsError(function() {}, err)',
   ],
   invalid: [
     {
       code: 'assert.throws(function() {}, common.expectsError(err))',
-      errors: [{ message }]
+      errors: [{ message }],
     },
     {
       code: 'assert.throws(fn, common.expectsError(err))',
-      errors: [{ message }]
-    }
-  ]
+      errors: [{ message }],
+    },
+  ],
 });

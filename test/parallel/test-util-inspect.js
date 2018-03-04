@@ -248,7 +248,7 @@ for (const showHidden of [true, false]) {
 assert.strictEqual(
   util.inspect(Object.create({}, {
     visible: { value: 1, enumerable: true },
-    hidden: { value: 2 }
+    hidden: { value: 2 },
   }), { showHidden: true }),
   '{ visible: 1, [hidden]: 2 }'
 );
@@ -256,7 +256,7 @@ assert.strictEqual(
 assert.strictEqual(
   util.inspect(Object.create(null, {
     name: { value: 'Tim', enumerable: true },
-    hidden: { value: 'secret' }
+    hidden: { value: 'secret' },
   }), { showHidden: true }),
   "{ name: 'Tim', [hidden]: 'secret' }"
 );
@@ -264,7 +264,7 @@ assert.strictEqual(
 assert.strictEqual(
   util.inspect(Object.create(null, {
     name: { value: 'Tim', enumerable: true },
-    hidden: { value: 'secret' }
+    hidden: { value: 'secret' },
   })),
   '{ name: \'Tim\' }'
 );
@@ -297,7 +297,7 @@ assert.strictEqual(
     'growingLength',
     {
       enumerable: true,
-      get: function() { this.push(true); return this.length; }
+      get: function() { this.push(true); return this.length; },
     }
   );
   Object.defineProperty(
@@ -305,7 +305,7 @@ assert.strictEqual(
     '-1',
     {
       enumerable: true,
-      value: -1
+      value: -1,
     }
   );
   assert.strictEqual(util.inspect(value),
@@ -371,7 +371,7 @@ assert.strictEqual(
                       'true,',
                       "'4294967296': true,",
                       "'4294967295': true,",
-                      "'4294967297': true ]"
+                      "'4294967297': true ]",
                      ].join('\n  '));
 }
 
@@ -473,19 +473,19 @@ assert.strictEqual(util.inspect(-5e-324), '-5e-324');
 {
   const getter = Object.create(null, {
     a: {
-      get: function() { return 'aaa'; }
-    }
+      get: function() { return 'aaa'; },
+    },
   });
   const setter = Object.create(null, {
     b: { // eslint-disable-line accessor-pairs
-      set: function() {}
-    }
+      set: function() {},
+    },
   });
   const getterAndSetter = Object.create(null, {
     c: {
       get: function() { return 'ccc'; },
-      set: function() {}
-    }
+      set: function() {},
+    },
   });
   assert.strictEqual(util.inspect(getter, true), '{ [a]: [Getter] }');
   assert.strictEqual(util.inspect(setter, true), '{ [b]: [Setter] }');
@@ -571,7 +571,7 @@ util.inspect([{ inspect: () => 123 }]);
     '\\\\\\': 3,
     '\\\\\\\\': 4,
     '\n': 5,
-    '\r': 6
+    '\r': 6,
   };
 
   const y = ['a', 'b', 'c'];
@@ -722,7 +722,7 @@ util.inspect({ hasOwnProperty: null });
   // [util.inspect.custom] takes precedence over inspect.
   const subject = {
     [util.inspect.custom]() { return 123; },
-    inspect() { return 456; }
+    inspect() { return 456; },
   };
 
   assert.strictEqual(
@@ -774,7 +774,7 @@ util.inspect({ hasOwnProperty: null });
     baz: 35,
     b: { a: 35 },
     veryLongKey: 'very long value',
-    evenLongerKey: ['with even longer value in array']
+    evenLongerKey: ['with even longer value in array'],
   });
 }
 
@@ -1026,7 +1026,7 @@ if (typeof Symbol !== 'undefined') {
     get: function() {
       throw new Error('should not access constructor');
     },
-    enumerable: true
+    enumerable: true,
   });
   assert.strictEqual(util.inspect(x), '{ constructor: [Getter] }');
 }
@@ -1134,7 +1134,7 @@ if (typeof Symbol !== 'undefined') {
   }, {
     code: 'ERR_INVALID_ARG_TYPE',
     type: TypeError,
-    message: 'The "options" argument must be of type Object'
+    message: 'The "options" argument must be of type Object',
   }
   );
 
@@ -1143,7 +1143,7 @@ if (typeof Symbol !== 'undefined') {
   }, {
     code: 'ERR_INVALID_ARG_TYPE',
     type: TypeError,
-    message: 'The "options" argument must be of type Object'
+    message: 'The "options" argument must be of type Object',
   }
   );
 }
@@ -1183,7 +1183,7 @@ util.inspect(process);
 
   assert.strictEqual(
     util.inspect(Object.create(Object.create(Foo.prototype), {
-      foo: { value: 'bar', enumerable: true }
+      foo: { value: 'bar', enumerable: true },
     })),
     'Foo [bar] { foo: \'bar\' }');
 
@@ -1212,7 +1212,7 @@ util.inspect(process);
         'eiusmod tempor incididunt ut labore et dolore magna aliqua.',
       'test',
       'foo']], 4],
-    b: new Map([['za', 1], ['zb', 'test']])
+    b: new Map([['za', 1], ['zb', 'test']]),
   };
 
   let out = util.inspect(o, { compact: true, depth: 5, breakLength: 80 });
@@ -1251,7 +1251,7 @@ util.inspect(process);
     '    \'za\' => 1,',
     '    \'zb\' => \'test\'',
     '  }',
-    '}'
+    '}',
   ].join('\n');
   assert.strictEqual(out, expect);
 
@@ -1262,7 +1262,7 @@ util.inspect(process);
     '  \'adipiscing elit, sed do \' +',
     '  \'eiusmod tempor incididunt \' +',
     '  \'ut labore et dolore magna \' +',
-    '  \'aliqua.\''
+    '  \'aliqua.\'',
   ].join('\n');
   assert.strictEqual(out, expect);
 
@@ -1278,7 +1278,7 @@ util.inspect(process);
   expect = [
     '\'12 45 78 01 34 \' +',
     '  \'67 90 23 56 89 \' +',
-    '  \'123456789012345678901234567890\''
+    '  \'123456789012345678901234567890\'',
   ].join('\n');
   assert.strictEqual(out, expect);
 
@@ -1288,7 +1288,7 @@ util.inspect(process);
   expect = [
     '\'12 45 78 01 34 \' +',
     '  \'67 90 23 56 89 \' +',
-    '  \'1234567890123 0\''
+    '  \'1234567890123 0\'',
   ].join('\n');
   assert.strictEqual(out, expect);
 
@@ -1299,7 +1299,7 @@ util.inspect(process);
     '\'12 45 78 01 34 \' +',
     '  \'67 90 23 56 89 \' +',
     '  \'12345678901234567 \' +',
-    '  \'0\''
+    '  \'0\'',
   ].join('\n');
   assert.strictEqual(out, expect);
 
@@ -1310,7 +1310,7 @@ util.inspect(process);
     '{',
     '  a: [Function],',
     '  b: [Number: 3]',
-    '}'
+    '}',
   ].join('\n');
   assert.strictEqual(out, expect);
 
@@ -1322,7 +1322,7 @@ util.inspect(process);
     "    [name]: ''",
     '  },',
     '  b: [Number: 3]',
-    '}'
+    '}',
   ].join('\n');
   assert.strictEqual(out, expect);
 

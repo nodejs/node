@@ -49,7 +49,7 @@ function testNextTickWith(val) {
     {
       code: 'ERR_INVALID_CALLBACK',
       name: 'TypeError [ERR_INVALID_CALLBACK]',
-      type: TypeError
+      type: TypeError,
     }
   );
 }

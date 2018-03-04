@@ -101,7 +101,7 @@ http.get({
   hostname: 'localhost',
   port: 80,
   path: '/',
-  agent: false  // create a new agent just for this one request
+  agent: false,  // create a new agent just for this one request
 }, (res) => {
   // Do stuff with response
 });
@@ -368,7 +368,7 @@ proxy.listen(1337, '127.0.0.1', () => {
     port: 1337,
     hostname: '127.0.0.1',
     method: 'CONNECT',
-    path: 'www.google.com:80'
+    path: 'www.google.com:80',
   };
 
   const req = http.request(options);
@@ -415,7 +415,7 @@ const http = require('http');
 const options = {
   hostname: '127.0.0.1',
   port: 8080,
-  path: '/length_request'
+  path: '/length_request',
 };
 
 // Make a request
@@ -502,8 +502,8 @@ srv.listen(1337, '127.0.0.1', () => {
     hostname: '127.0.0.1',
     headers: {
       'Connection': 'Upgrade',
-      'Upgrade': 'websocket'
-    }
+      'Upgrade': 'websocket',
+    },
   };
 
   const req = http.request(options);
@@ -1879,7 +1879,7 @@ Example:
 
 ```js
 const postData = querystring.stringify({
-  'msg': 'Hello World!'
+  'msg': 'Hello World!',
 });
 
 const options = {
@@ -1889,8 +1889,8 @@ const options = {
   method: 'POST',
   headers: {
     'Content-Type': 'application/x-www-form-urlencoded',
-    'Content-Length': Buffer.byteLength(postData)
-  }
+    'Content-Length': Buffer.byteLength(postData),
+  },
 };
 
 const req = http.request(options, (res) => {

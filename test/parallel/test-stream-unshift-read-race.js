@@ -73,7 +73,7 @@ function pushError() {
   }, {
     code: 'ERR_STREAM_PUSH_AFTER_EOF',
     type: Error,
-    message: 'stream.push() after EOF'
+    message: 'stream.push() after EOF',
   });
 }
 
@@ -91,7 +91,7 @@ r.on('end', common.mustCall(function() {
   }, {
     code: 'ERR_STREAM_UNSHIFT_AFTER_END_EVENT',
     type: Error,
-    message: 'stream.unshift() after end event'
+    message: 'stream.unshift() after end event',
   });
   w.end();
 }));

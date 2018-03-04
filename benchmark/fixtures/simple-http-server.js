@@ -84,7 +84,7 @@ module.exports = http.createServer(function(req, res) {
       default:
         res.writeHead(200, {
           'Content-Type': 'text/plain',
-          'Transfer-Encoding': 'chunked'
+          'Transfer-Encoding': 'chunked',
         });
     }
     req.pipe(res);
@@ -117,12 +117,12 @@ module.exports = http.createServer(function(req, res) {
       if (chunkedEnc) {
         res.writeHead(status, {
           'Content-Type': 'text/plain',
-          'Transfer-Encoding': 'chunked'
+          'Transfer-Encoding': 'chunked',
         });
       } else {
         res.writeHead(status, {
           'Content-Type': 'text/plain',
-          'Content-Length': len.toString()
+          'Content-Length': len.toString(),
         });
       }
   }

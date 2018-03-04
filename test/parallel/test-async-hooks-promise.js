@@ -14,7 +14,7 @@ async_hooks.createHook({
   promiseResolve: common.mustCall((id) => {
     assert.strictEqual(initCalls[resolveCalls.length].id, id);
     resolveCalls.push(id);
-  }, 2)
+  }, 2),
 }).enable();
 
 const a = Promise.resolve(42);

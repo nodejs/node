@@ -8,7 +8,7 @@ if (!common.hasCrypto)
 const {
   constants,
   Http2Session,
-  nghttp2ErrorString
+  nghttp2ErrorString,
 } = process.binding('http2');
 const http2 = require('http2');
 const { NghttpError } = require('internal/http2/util');
@@ -20,7 +20,7 @@ const { NghttpError } = require('internal/http2/util');
 
 const specificTestKeys = [
   'NGHTTP2_ERR_STREAM_ID_NOT_AVAILABLE',
-  'NGHTTP2_ERR_INVALID_ARGUMENT'
+  'NGHTTP2_ERR_INVALID_ARGUMENT',
 ];
 
 const specificTests = [
@@ -30,18 +30,18 @@ const specificTests = [
       code: 'ERR_HTTP2_OUT_OF_STREAMS',
       type: Error,
       message: 'No stream ID is available because ' +
-               'maximum stream ID has been reached'
+               'maximum stream ID has been reached',
     },
-    type: 'stream'
+    type: 'stream',
   },
   {
     ngError: constants.NGHTTP2_ERR_INVALID_ARGUMENT,
     error: {
       code: 'ERR_HTTP2_STREAM_SELF_DEPENDENCY',
       type: Error,
-      message: 'A stream cannot depend on itself'
+      message: 'A stream cannot depend on itself',
     },
-    type: 'stream'
+    type: 'stream',
   },
 ];
 
@@ -55,9 +55,9 @@ const genericTests = Object.getOwnPropertyNames(constants)
       code: 'ERR_HTTP2_ERROR',
       type: NghttpError,
       name: 'Error [ERR_HTTP2_ERROR]',
-      message: nghttp2ErrorString(constants[key])
+      message: nghttp2ErrorString(constants[key]),
     },
-    type: 'session'
+    type: 'session',
   }));
 
 const tests = specificTests.concat(genericTests);
@@ -93,10 +93,10 @@ function runTest(test) {
     client.on('error', errorMustCall);
     req.on('error', (err) => {
       common.expectsError({
-        code: 'ERR_HTTP2_STREAM_CANCEL'
+        code: 'ERR_HTTP2_STREAM_CANCEL',
       })(err);
       common.expectsError({
-        code: 'ERR_HTTP2_ERROR'
+        code: 'ERR_HTTP2_ERROR',
       })(err.cause);
     });
   }

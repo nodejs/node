@@ -18,14 +18,14 @@ const deprecatedModules = [
   'v8/tools/profile_view',
   'v8/tools/splaytree',
   'v8/tools/tickprocessor',
-  'v8/tools/tickprocessor-driver'
+  'v8/tools/tickprocessor-driver',
 ];
 
 // Newly added deps that do not have a deprecation wrapper around it would
 // throw an error, but no warning would be emitted.
 const deps = [
   'acorn/dist/acorn',
-  'acorn/dist/walk'
+  'acorn/dist/walk',
 ];
 
 common.expectWarning('DeprecationWarning', deprecatedModules.map((m) => {

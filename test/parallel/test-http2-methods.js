@@ -20,7 +20,7 @@ function onStream(stream, headers, flags) {
   assert(methods.includes(method), `method ${method} not included`);
   stream.respond({
     'content-type': 'text/html',
-    ':status': 200
+    ':status': 200,
   });
   stream.end('hello world');
 }

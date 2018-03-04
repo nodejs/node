@@ -104,7 +104,7 @@ const async_hooks = require('async_hooks');
 
 const asyncHook = async_hooks.createHook({
   init(asyncId, type, triggerAsyncId, resource) { },
-  destroy(asyncId) { }
+  destroy(asyncId) { },
 });
 ```
 
@@ -266,7 +266,7 @@ async_hooks.createHook({
     const eid = async_hooks.executionAsyncId();
     fs.writeSync(
       1, `${type}(${asyncId}): trigger: ${triggerAsyncId} execution: ${eid}\n`);
-  }
+  },
 }).enable();
 
 require('net').createServer((conn) => {}).listen(8080);

@@ -17,7 +17,7 @@ const MakeDuplexPair = require('../common/duplexpair');
   server.emit('connection', serverSide);
 
   const req = http.request({
-    createConnection: common.mustCall(() => clientSide)
+    createConnection: common.mustCall(() => clientSide),
   }, common.mustCall((res) => {
     res.setEncoding('utf8');
     res.on('data', common.mustCall((data) => {
@@ -42,7 +42,7 @@ const MakeDuplexPair = require('../common/duplexpair');
   function doRequest(cb) {
     const req = http.request({
       createConnection: common.mustCall(() => clientSide),
-      headers: { Connection: 'keep-alive' }
+      headers: { Connection: 'keep-alive' },
     }, common.mustCall((res) => {
       res.setEncoding('utf8');
       res.on('data', common.mustCall((data) => {

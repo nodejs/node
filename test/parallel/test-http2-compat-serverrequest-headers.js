@@ -17,7 +17,7 @@ server.listen(0, common.mustCall(function() {
       ':method': 'GET',
       ':scheme': 'http',
       ':authority': `localhost:${port}`,
-      'foo-bar': 'abc123'
+      'foo-bar': 'abc123',
     };
 
     assert.strictEqual(request.path, undefined);
@@ -50,7 +50,7 @@ server.listen(0, common.mustCall(function() {
       {
         code: 'ERR_INVALID_ARG_TYPE',
         type: TypeError,
-        message: 'The "method" argument must be of type string'
+        message: 'The "method" argument must be of type string',
       }
     );
     common.expectsError(
@@ -58,7 +58,7 @@ server.listen(0, common.mustCall(function() {
       {
         code: 'ERR_INVALID_ARG_TYPE',
         type: TypeError,
-        message: 'The "method" argument must be of type string'
+        message: 'The "method" argument must be of type string',
       }
     );
 
@@ -75,7 +75,7 @@ server.listen(0, common.mustCall(function() {
       ':method': 'GET',
       ':scheme': 'http',
       ':authority': `localhost:${port}`,
-      'foo-bar': 'abc123'
+      'foo-bar': 'abc123',
     };
     const request = client.request(headers);
     request.on('end', common.mustCall(function() {

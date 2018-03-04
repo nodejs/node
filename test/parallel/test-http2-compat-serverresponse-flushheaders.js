@@ -24,7 +24,7 @@ server.listen(0, common.mustCall(function() {
     common.expectsError(() => {
       response.writeHead(400, { 'foo-bar': 'abc123' });
     }, {
-      code: 'ERR_HTTP2_HEADERS_SENT'
+      code: 'ERR_HTTP2_HEADERS_SENT',
     });
 
     response.on('finish', common.mustCall(function() {
@@ -42,7 +42,7 @@ server.listen(0, common.mustCall(function() {
       ':path': '/',
       ':method': 'GET',
       ':scheme': 'http',
-      ':authority': `localhost:${port}`
+      ':authority': `localhost:${port}`,
     };
     const request = client.request(headers);
     request.on('response', common.mustCall(function(headers, flags) {

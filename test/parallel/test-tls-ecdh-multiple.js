@@ -23,7 +23,7 @@ const options = {
   key: loadPEM('agent2-key'),
   cert: loadPEM('agent2-cert'),
   ciphers: '-ALL:ECDHE-RSA-AES128-SHA256',
-  ecdhCurve: 'secp256k1:prime256v1:secp521r1'
+  ecdhCurve: 'secp256k1:prime256v1:secp521r1',
 };
 
 const reply = 'I AM THE WALRUS'; // something recognizable
@@ -66,7 +66,7 @@ process.on('exit', function() {
   const unsupportedCurves = [
     'wap-wsg-idm-ecid-wtls1',
     'c2pnb163v1',
-    'prime192v3'
+    'prime192v3',
   ];
 
   // Brainpool is not supported in FIPS mode

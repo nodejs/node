@@ -20,7 +20,7 @@ const answers = [
     refresh: 900,
     retry: 900,
     expire: 1800,
-    minttl: 60
+    minttl: 60,
   },
 ];
 

@@ -8,7 +8,7 @@ const https = require('https');
 
 const options = {
   key: fixtures.readKey('agent1-key.pem'),
-  cert: fixtures.readKey('agent1-cert.pem')
+  cert: fixtures.readKey('agent1-cert.pem'),
 };
 
 const connections = {};
@@ -43,7 +43,7 @@ server.listen(0, function() {
     port: this.address().port,
     path: '/',
     method: 'GET',
-    rejectUnauthorized: false
+    rejectUnauthorized: false,
   };
 
   const req = https.request(requestOptions, function(res) {

@@ -13,7 +13,7 @@ class MyServerRequest extends h2.Http2ServerRequest {
 }
 
 const server = h2.createServer({
-  Http2ServerRequest: MyServerRequest
+  Http2ServerRequest: MyServerRequest,
 }, (req, res) => {
   assert.strictEqual(req.getUserAgent(), 'node-test');
 
@@ -27,7 +27,7 @@ server.on('listening', common.mustCall(() => {
   const client = h2.connect(`http://localhost:${server.address().port}`);
   const req = client.request({
     ':path': '/',
-    'User-Agent': 'node-test'
+    'User-Agent': 'node-test',
   });
 
   req.on('response', common.mustCall());

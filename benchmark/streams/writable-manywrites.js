@@ -4,7 +4,7 @@ const common = require('../common');
 const Writable = require('stream').Writable;
 
 const bench = common.createBenchmark(main, {
-  n: [2e6]
+  n: [2e6],
 });
 
 function main({ n }) {

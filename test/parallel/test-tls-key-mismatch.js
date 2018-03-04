@@ -34,7 +34,7 @@ const errorMessageRegex =
 
 const options = {
   key: fixtures.readKey('agent1-key.pem'),
-  cert: fixtures.readKey('agent2-cert.pem')
+  cert: fixtures.readKey('agent2-cert.pem'),
 };
 
 assert.throws(function() {

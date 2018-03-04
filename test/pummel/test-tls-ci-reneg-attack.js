@@ -48,7 +48,7 @@ const LIMITS = [0, 1, 2, 3, 5, 10, 16];
 function test(next) {
   const options = {
     cert: fixtures.readSync('test_cert.pem'),
-    key: fixtures.readSync('test_key.pem')
+    key: fixtures.readSync('test_key.pem'),
   };
 
   let seenError = false;

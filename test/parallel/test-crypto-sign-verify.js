@@ -37,7 +37,7 @@ common.expectsError(
   {
     code: 'ERR_INVALID_OPT_VALUE',
     type: TypeError,
-    message: 'The value "undefined" is invalid for option "padding"'
+    message: 'The value "undefined" is invalid for option "padding"',
   });
 
 common.expectsError(
@@ -48,7 +48,7 @@ common.expectsError(
   {
     code: 'ERR_INVALID_OPT_VALUE',
     type: TypeError,
-    message: 'The value "undefined" is invalid for option "saltLength"'
+    message: 'The value "undefined" is invalid for option "saltLength"',
   });
 
 // Test signing and verifying
@@ -131,14 +131,14 @@ common.expectsError(
       getEffectiveSaltLength(crypto.constants.RSA_PSS_SALTLEN_DIGEST),
       crypto.constants.RSA_PSS_SALTLEN_MAX_SIGN,
       getEffectiveSaltLength(crypto.constants.RSA_PSS_SALTLEN_MAX_SIGN),
-      0, 16, 32, 64, 128
+      0, 16, 32, 64, 128,
     ];
 
     const verifySaltLengths = [
       crypto.constants.RSA_PSS_SALTLEN_DIGEST,
       getEffectiveSaltLength(crypto.constants.RSA_PSS_SALTLEN_DIGEST),
       getEffectiveSaltLength(crypto.constants.RSA_PSS_SALTLEN_MAX_SIGN),
-      0, 16, 32, 64, 128
+      0, 16, 32, 64, 128,
     ];
     const errMessage = /^Error:.*data too large for key size$/;
 
@@ -151,7 +151,7 @@ common.expectsError(
             .sign({
               key: keyPem,
               padding: crypto.constants.RSA_PKCS1_PSS_PADDING,
-              saltLength: signSaltLength
+              saltLength: signSaltLength,
             });
         }, errMessage);
       } else {
@@ -161,7 +161,7 @@ common.expectsError(
                          .sign({
                            key: keyPem,
                            padding: crypto.constants.RSA_PKCS1_PSS_PADDING,
-                           saltLength: signSaltLength
+                           saltLength: signSaltLength,
                          });
 
         let verified;
@@ -173,7 +173,7 @@ common.expectsError(
                            .verify({
                              key: certPem,
                              padding: crypto.constants.RSA_PKCS1_PSS_PADDING,
-                             saltLength: verifySaltLength
+                             saltLength: verifySaltLength,
                            }, s4);
           const saltLengthCorrect = getEffectiveSaltLength(signSaltLength) ===
                                     getEffectiveSaltLength(verifySaltLength);
@@ -186,7 +186,7 @@ common.expectsError(
                          .verify({
                            key: certPem,
                            padding: crypto.constants.RSA_PKCS1_PSS_PADDING,
-                           saltLength: crypto.constants.RSA_PSS_SALTLEN_AUTO
+                           saltLength: crypto.constants.RSA_PSS_SALTLEN_AUTO,
                          }, s4);
         assert.strictEqual(verified, true, 'verify (PSS with SALTLEN_AUTO)');
 
@@ -196,7 +196,7 @@ common.expectsError(
                          .verify({
                            key: certPem,
                            padding: crypto.constants.RSA_PKCS1_PSS_PADDING,
-                           saltLength: crypto.constants.RSA_PSS_SALTLEN_AUTO
+                           saltLength: crypto.constants.RSA_PSS_SALTLEN_AUTO,
                          }, s4);
         assert.strictEqual(verified, false, 'verify (PSS, incorrect)');
       }
@@ -217,7 +217,7 @@ common.expectsError(
                           .verify({
                             key: cert,
                             padding: crypto.constants.RSA_PKCS1_PSS_PADDING,
-                            saltLength: vector.salt.length / 2
+                            saltLength: vector.salt.length / 2,
                           }, vector.signature, 'hex');
     assert.strictEqual(verified, true, 'verify (PSS)');
   }
@@ -240,11 +240,11 @@ common.expectsError(
           .update('Test123')
           .sign({
             key: keyPem,
-            padding: invalidValue
+            padding: invalidValue,
           });
       }, {
         code: 'ERR_INVALID_OPT_VALUE',
-        type: TypeError
+        type: TypeError,
       });
 
       common.expectsError(() => {
@@ -253,11 +253,11 @@ common.expectsError(
           .sign({
             key: keyPem,
             padding: crypto.constants.RSA_PKCS1_PSS_PADDING,
-            saltLength: invalidValue
+            saltLength: invalidValue,
           });
       }, {
         code: 'ERR_INVALID_OPT_VALUE',
-        type: TypeError
+        type: TypeError,
       });
     });
 
@@ -266,7 +266,7 @@ common.expectsError(
       .update('Test123')
       .sign({
         key: keyPem,
-        padding: crypto.constants.RSA_PKCS1_OAEP_PADDING
+        padding: crypto.constants.RSA_PKCS1_OAEP_PADDING,
       });
   }, /^Error:.*illegal or unsupported padding mode$/);
 }
@@ -277,7 +277,7 @@ common.expectsError(
     crypto.createSign('SHA1').update('Test123').sign(null, 'base64');
   }, {
     code: 'ERR_CRYPTO_SIGN_KEY_REQUIRED',
-    type: Error
+    type: Error,
   });
 }
 
@@ -294,7 +294,7 @@ common.expectsError(
     .update(msg)
     .sign({
       key: privkey,
-      padding: crypto.constants.RSA_PKCS1_PSS_PADDING
+      padding: crypto.constants.RSA_PKCS1_PSS_PADDING,
     });
 
   const tmpdir = require('../common/tmpdir');
@@ -321,7 +321,7 @@ common.expectsError(
     {
       code: 'ERR_INVALID_ARG_TYPE',
       type: TypeError,
-      message: 'The "algorithm" argument must be of type string'
+      message: 'The "algorithm" argument must be of type string',
     }
   );
   common.expectsError(
@@ -329,7 +329,7 @@ common.expectsError(
     {
       code: 'ERR_INVALID_ARG_TYPE',
       type: TypeError,
-      message: 'The "algorithm" argument must be of type string'
+      message: 'The "algorithm" argument must be of type string',
     }
   );
 });
@@ -345,7 +345,7 @@ common.expectsError(
         code: 'ERR_INVALID_ARG_TYPE',
         type: TypeError,
         message: 'The "data" argument must be one of type string, Buffer, ' +
-                 'TypedArray, or DataView'
+                 'TypedArray, or DataView',
       }
     );
     common.expectsError(
@@ -354,7 +354,7 @@ common.expectsError(
         code: 'ERR_INVALID_ARG_TYPE',
         type: TypeError,
         message: 'The "data" argument must be one of type string, Buffer, ' +
-                 'TypedArray, or DataView'
+                 'TypedArray, or DataView',
       }
     );
     common.expectsError(
@@ -363,7 +363,7 @@ common.expectsError(
         code: 'ERR_INVALID_ARG_TYPE',
         type: TypeError,
         message: 'The "data" argument must be one of type string, Buffer, ' +
-                 'TypedArray, or DataView'
+                 'TypedArray, or DataView',
       }
     );
     common.expectsError(
@@ -372,13 +372,13 @@ common.expectsError(
         code: 'ERR_INVALID_ARG_TYPE',
         type: TypeError,
         message: 'The "data" argument must be one of type string, Buffer, ' +
-                 'TypedArray, or DataView'
+                 'TypedArray, or DataView',
       }
     );
   });
 
   [
-    Uint8Array, Uint16Array, Uint32Array, Float32Array, Float64Array
+    Uint8Array, Uint16Array, Uint32Array, Float32Array, Float64Array,
   ].forEach((i) => {
     // These should all just work
     sign.update(new i());
@@ -392,7 +392,7 @@ common.expectsError(
         code: 'ERR_INVALID_ARG_TYPE',
         type: TypeError,
         message: 'The "key" argument must be one of type string, Buffer, ' +
-                 'TypedArray, or DataView'
+                 'TypedArray, or DataView',
       }
     );
 
@@ -402,7 +402,7 @@ common.expectsError(
         code: 'ERR_INVALID_ARG_TYPE',
         type: TypeError,
         message: 'The "key" argument must be one of type string, Buffer, ' +
-                 'TypedArray, or DataView'
+                 'TypedArray, or DataView',
       }
     );
 
@@ -412,7 +412,7 @@ common.expectsError(
         code: 'ERR_INVALID_ARG_TYPE',
         type: TypeError,
         message: 'The "signature" argument must be one of type string, ' +
-                 'Buffer, TypedArray, or DataView'
+                 'Buffer, TypedArray, or DataView',
       }
     );
   });

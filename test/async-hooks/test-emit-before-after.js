@@ -19,7 +19,7 @@ assert.ok(!process.argv[2]);
 
 
 const c1 = spawnSync(process.execPath, [
-  '--expose-internals', __filename, 'test_invalid_async_id'
+  '--expose-internals', __filename, 'test_invalid_async_id',
 ]);
 assert.strictEqual(
   c1.stderr.toString().split(/[\r\n]+/g)[0],
@@ -27,7 +27,7 @@ assert.strictEqual(
 assert.strictEqual(c1.status, 1);
 
 const c2 = spawnSync(process.execPath, [
-  '--expose-internals', __filename, 'test_invalid_trigger_id'
+  '--expose-internals', __filename, 'test_invalid_trigger_id',
 ]);
 assert.strictEqual(
   c2.stderr.toString().split(/[\r\n]+/g)[0],
@@ -45,7 +45,7 @@ async_hooks.emitAfter(expectedId);
 initHooks({
   onbefore: common.mustCall((id) => assert.strictEqual(id, expectedId)),
   onafter: common.mustCall((id) => assert.strictEqual(id, expectedId)),
-  allowNoInit: true
+  allowNoInit: true,
 }).enable();
 
 async_hooks.emitInit(expectedId, expectedType, expectedTriggerId);

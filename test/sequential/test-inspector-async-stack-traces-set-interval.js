@@ -35,7 +35,7 @@ async function runTests() {
       'params': { 'maxDepth': 10 } },
     { 'method': 'Debugger.setBlackboxPatterns',
       'params': { 'patterns': [] } },
-    { 'method': 'Runtime.runIfWaitingForDebugger' }
+    { 'method': 'Runtime.runIfWaitingForDebugger' },
   ]);
 
   await skipFirstBreakpoint(session);

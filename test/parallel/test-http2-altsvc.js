@@ -33,7 +33,7 @@ server.on('session', common.mustCall((session) => {
       () => session.altsvc('h2=":8000"', i),
       {
         code: 'ERR_OUT_OF_RANGE',
-        type: RangeError
+        type: RangeError,
       }
     );
   });
@@ -44,7 +44,7 @@ server.on('session', common.mustCall((session) => {
       () => session.altsvc(i),
       {
         code: 'ERR_INVALID_ARG_TYPE',
-        type: TypeError
+        type: TypeError,
       }
     );
   });
@@ -54,7 +54,7 @@ server.on('session', common.mustCall((session) => {
       () => session.altsvc(i),
       {
         code: 'ERR_INVALID_CHAR',
-        type: TypeError
+        type: TypeError,
       }
     );
   });
@@ -64,7 +64,7 @@ server.on('session', common.mustCall((session) => {
       () => session.altsvc('clear', i),
       {
         code: 'ERR_INVALID_ARG_TYPE',
-        type: TypeError
+        type: TypeError,
       }
     );
   });
@@ -73,13 +73,13 @@ server.on('session', common.mustCall((session) => {
     'abc:',
     new URL('abc:'),
     { origin: 'null' },
-    { origin: '' }
+    { origin: '' },
   ].forEach((i) => {
     common.expectsError(
       () => session.altsvc('h2=":8000', i),
       {
         code: 'ERR_HTTP2_ALTSVC_INVALID_ORIGIN',
-        type: TypeError
+        type: TypeError,
       }
     );
   });
@@ -92,7 +92,7 @@ server.on('session', common.mustCall((session) => {
     },
     {
       code: 'ERR_HTTP2_ALTSVC_LENGTH',
-      type: TypeError
+      type: TypeError,
     }
   );
 }));

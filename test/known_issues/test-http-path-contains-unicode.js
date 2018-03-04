@@ -27,7 +27,7 @@ server.listen(0, function() {
   http.request({
     port: this.address().port,
     path: expected,
-    method: 'GET'
+    method: 'GET',
   }, common.mustCall(function(res) {
     res.resume();
   })).on('error', function(e) {

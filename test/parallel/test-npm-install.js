@@ -28,8 +28,8 @@ const npmPath = path.join(
 
 const pkgContent = JSON.stringify({
   dependencies: {
-    'package-name': fixtures.path('packages/main')
-  }
+    'package-name': fixtures.path('packages/main'),
+  },
 });
 
 const pkgPath = path.join(installDir, 'package.json');
@@ -45,7 +45,7 @@ const env = Object.assign({}, process.env, {
 
 exec(`${process.execPath} ${npmPath} install`, {
   cwd: installDir,
-  env: env
+  env: env,
 }, common.mustCall(handleExit));
 
 function handleExit(error, stdout, stderr) {

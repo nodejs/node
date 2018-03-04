@@ -4,13 +4,13 @@ const common = require('../common');
 const stream = require('stream');
 
 const readable = new stream.Readable({
-  read: () => {}
+  read: () => {},
 });
 
 function checkError(fn) {
   common.expectsError(fn, {
     code: 'ERR_INVALID_ARG_TYPE',
-    type: TypeError
+    type: TypeError,
   });
 }
 

@@ -17,13 +17,13 @@ const { clientSide, serverSide } = makeDuplexPair();
 const clientTLS = connect({
   socket: clientSide,
   ca,
-  host: 'agent1'  // Hostname from certificate
+  host: 'agent1',  // Hostname from certificate
 });
 const serverTLS = new TLSSocket(serverSide, {
   isServer: true,
   key,
   cert,
-  ca
+  ca,
 });
 
 assert.strictEqual(clientTLS.connecting, false);

@@ -4,12 +4,12 @@ const url = require('url');
 
 const inputs = {
   normal: 'http://foo.com/bar',
-  escaped: 'https://foo.bar/{}^`/abcd'
+  escaped: 'https://foo.bar/{}^`/abcd',
 };
 
 const bench = common.createBenchmark(main, {
   type: Object.keys(inputs),
-  n: [1e7]
+  n: [1e7],
 });
 
 function main({ type, n }) {

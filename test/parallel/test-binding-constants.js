@@ -27,5 +27,5 @@ function test(obj) {
 
 [
   constants, constants.crypto, constants.fs, constants.os, constants.zlib,
-  constants.os.dlopen, constants.os.errno, constants.os.signals
+  constants.os.dlopen, constants.os.errno, constants.os.signals,
 ].forEach(test);

@@ -17,7 +17,7 @@ function onStream(stream, headers, flags) {
   common.expectsError(() => {
     stream.additionalHeaders({
       ':status': 123,
-      abc: 123
+      abc: 123,
     });
   }, { code: 'ERR_HTTP2_INVALID_STREAM' });
 }

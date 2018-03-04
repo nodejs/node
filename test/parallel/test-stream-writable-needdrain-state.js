@@ -6,7 +6,7 @@ const assert = require('assert');
 
 const transform = new stream.Transform({
   transform: _transform,
-  highWaterMark: 1
+  highWaterMark: 1,
 });
 
 function _transform(chunk, encoding, cb) {

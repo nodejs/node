@@ -9,8 +9,8 @@ const bench = common.createBenchmark(main, {
     'deepEqual',
     'deepStrictEqual',
     'notDeepEqual',
-    'notDeepStrictEqual'
-  ]
+    'notDeepStrictEqual',
+  ],
 });
 
 function main({ len, n, method }) {

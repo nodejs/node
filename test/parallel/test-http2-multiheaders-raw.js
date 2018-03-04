@@ -31,7 +31,7 @@ server.on('stream', common.mustCall((stream, headers, flags, rawHeaders) => {
     'www-authenticate',
     'baz',
     'test',
-    'foo, bar, baz'
+    'foo, bar, baz',
   ];
 
   assert.deepStrictEqual(expected, rawHeaders);

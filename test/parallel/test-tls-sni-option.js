@@ -54,22 +54,22 @@ const serverOptions = {
         callback(null, null);
       }
     }, 100);
-  }
+  },
 };
 
 const SNIContexts = {
   'a.example.com': {
     key: loadPEM('agent1-key'),
     cert: loadPEM('agent1-cert'),
-    ca: [ loadPEM('ca2-cert') ]
+    ca: [ loadPEM('ca2-cert') ],
   },
   'b.example.com': {
     key: loadPEM('agent3-key'),
-    cert: loadPEM('agent3-cert')
+    cert: loadPEM('agent3-cert'),
   },
   'c.another.com': {
-    emptyRegression: true
-  }
+    emptyRegression: true,
+  },
 };
 
 const clientsOptions = [{
@@ -78,35 +78,35 @@ const clientsOptions = [{
   cert: loadPEM('agent1-cert'),
   ca: [loadPEM('ca1-cert')],
   servername: 'a.example.com',
-  rejectUnauthorized: false
+  rejectUnauthorized: false,
 }, {
   port: undefined,
   key: loadPEM('agent4-key'),
   cert: loadPEM('agent4-cert'),
   ca: [loadPEM('ca1-cert')],
   servername: 'a.example.com',
-  rejectUnauthorized: false
+  rejectUnauthorized: false,
 }, {
   port: undefined,
   key: loadPEM('agent2-key'),
   cert: loadPEM('agent2-cert'),
   ca: [loadPEM('ca2-cert')],
   servername: 'b.example.com',
-  rejectUnauthorized: false
+  rejectUnauthorized: false,
 }, {
   port: undefined,
   key: loadPEM('agent3-key'),
   cert: loadPEM('agent3-cert'),
   ca: [loadPEM('ca1-cert')],
   servername: 'c.wrong.com',
-  rejectUnauthorized: false
+  rejectUnauthorized: false,
 }, {
   port: undefined,
   key: loadPEM('agent3-key'),
   cert: loadPEM('agent3-cert'),
   ca: [loadPEM('ca1-cert')],
   servername: 'c.another.com',
-  rejectUnauthorized: false
+  rejectUnauthorized: false,
 }];
 
 const serverResults = [];
@@ -171,15 +171,15 @@ process.on('exit', function() {
     { sni: 'a.example.com', authorized: true },
     { sni: 'b.example.com', authorized: false },
     { sni: 'c.wrong.com', authorized: false },
-    null
+    null,
   ]);
   assert.deepStrictEqual(clientResults, [true, true, true, false, false]);
   assert.deepStrictEqual(clientErrors, [
     null, null, null, null,
     'Client network socket disconnected before secure TLS ' +
-    'connection was established'
+    'connection was established',
   ]);
   assert.deepStrictEqual(serverErrors, [
-    null, null, null, null, 'Invalid SNI context'
+    null, null, null, null, 'Invalid SNI context',
   ]);
 });

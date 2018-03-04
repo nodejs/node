@@ -18,7 +18,7 @@ server.listen(0, () => {
   const req = http.get({
     port: server.address().port,
     // Send two content-length header values.
-    headers: { 'Content-Length': [1, 2] }
+    headers: { 'Content-Length': [1, 2] },
   }, common.mustNotCall('an error should have occurred'));
   req.on('error', common.mustCall(() => {
     server.close();

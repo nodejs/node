@@ -27,7 +27,7 @@ server.on('stream', common.mustCall((stream, headers) => {
   }
   stream.respond({
     'content-type': 'text/html',
-    ':status': 200
+    ':status': 200,
   });
 }));
 

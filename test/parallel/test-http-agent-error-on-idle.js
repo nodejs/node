@@ -16,7 +16,7 @@ server.listen(0, () => {
     host: 'localhost',
     port: server.address().port,
     agent: agent,
-    path: '/'
+    path: '/',
   };
 
   const socketKey = agent.getName(requestParams);

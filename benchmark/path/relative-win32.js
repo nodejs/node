@@ -8,9 +8,9 @@ const bench = common.createBenchmark(main, {
     ['C:\\', 'D:\\'].join('|'),
     ['C:\\foo\\bar\\baz', 'C:\\foo\\bar\\baz'].join('|'),
     ['C:\\foo\\BAR\\BAZ', 'C:\\foo\\bar\\baz'].join('|'),
-    ['C:\\foo\\bar\\baz\\quux', 'C:\\'].join('|')
+    ['C:\\foo\\bar\\baz\\quux', 'C:\\'].join('|'),
   ],
-  n: [1e6]
+  n: [1e6],
 });
 
 function main({ n, paths }) {

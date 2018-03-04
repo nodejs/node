@@ -74,7 +74,7 @@ module.exports = function verifyGraph(hooks, graph) {
     errors.push({
       id: node.id,
       expectedTid: node.triggerAsyncId,
-      actualTid: uidtoid[x.triggerAsyncId]
+      actualTid: uidtoid[x.triggerAsyncId],
     });
   }
 

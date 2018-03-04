@@ -18,7 +18,7 @@ const hooks1 = initHooks({
     assert.strictEqual(type, expectedType);
     assert.strictEqual(triggerAsyncId, expectedTriggerId);
     assert.strictEqual(resource.key, expectedResource.key);
-  })
+  }),
 });
 
 hooks1.enable();
@@ -38,7 +38,7 @@ assert.ok(!process.argv[2]);
 
 
 const c1 = spawnSync(process.execPath, [
-  '--expose-internals', __filename, 'test_invalid_async_id'
+  '--expose-internals', __filename, 'test_invalid_async_id',
 ]);
 assert.strictEqual(
   c1.stderr.toString().split(/[\r\n]+/g)[0],
@@ -46,7 +46,7 @@ assert.strictEqual(
 assert.strictEqual(c1.status, 1);
 
 const c2 = spawnSync(process.execPath, [
-  '--expose-internals', __filename, 'test_invalid_trigger_id'
+  '--expose-internals', __filename, 'test_invalid_trigger_id',
 ]);
 assert.strictEqual(
   c2.stderr.toString().split(/[\r\n]+/g)[0],
@@ -54,7 +54,7 @@ assert.strictEqual(
 assert.strictEqual(c2.status, 1);
 
 const c3 = spawnSync(process.execPath, [
-  '--expose-internals', __filename, 'test_invalid_trigger_id_negative'
+  '--expose-internals', __filename, 'test_invalid_trigger_id_negative',
 ]);
 assert.strictEqual(
   c3.stderr.toString().split(/[\r\n]+/g)[0],
@@ -73,7 +73,7 @@ initHooks({
     assert.strictEqual(type, expectedType);
     assert.notStrictEqual(triggerAsyncId, expectedTriggerId);
     assert.strictEqual(resource.key, expectedResource.key);
-  })
+  }),
 }).enable();
 
 async_hooks.emitInit(expectedId, expectedType, null, expectedResource);

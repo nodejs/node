@@ -24,7 +24,7 @@ const encodings = {
   'ucs-2': 'ucs2',
   'utf16le': 'ucs2',
   'utf-16le': 'ucs2',
-  'UTF8': 'utf8' // should fall through to Buffer.from
+  'UTF8': 'utf8', // should fall through to Buffer.from
 };
 
 const testsToRun = Object.keys(encodings).length;
@@ -45,7 +45,7 @@ server.listen(0, common.mustCall(function() {
     const client = http2.connect(`http://localhost:${this.address().port}`);
     const req = client.request({
       ':path': `/${writeEncoding}`,
-      ':method': 'POST'
+      ':method': 'POST',
     });
 
     assert.strictEqual(req._writableState.decodeStrings, false);

@@ -45,8 +45,8 @@ server.listen(common.PORT, function connect() {
     port: common.PORT,
     path: '/',
     headers: {
-      'Connection': 'Keep-alive'
-    }
+      'Connection': 'Keep-alive',
+    },
   }, function(res) {
     res.on('end', function() {
       if (++responses < expected) {

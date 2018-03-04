@@ -35,7 +35,7 @@ const body = 'hello world\n';
 const server = http.createServer(function(req, res) {
   res.writeHead(200, {
     'Content-Length': body.length,
-    'Content-Type': 'text/plain'
+    'Content-Type': 'text/plain',
   });
   res.write(body);
   res.end();

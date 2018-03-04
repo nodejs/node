@@ -7,7 +7,7 @@ const bigData = Buffer.alloc(10240, 'x');
 
 const opts = {
   level: 0,
-  highWaterMark: 16
+  highWaterMark: 16,
 };
 
 const deflater = zlib.createDeflate(opts);

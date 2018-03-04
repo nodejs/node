@@ -11,7 +11,7 @@ const repl = require('repl');
       // Assertions here will not cause the test to exit with an error code
       // so set a boolean that is checked later instead.
       evalCalledWithExpectedArgs = (cmd === '\n');
-    })
+    }),
   };
 
   const r = repl.start(options);

@@ -27,7 +27,7 @@ const parseTestsWithQueryString = {
     search: '?baz=quux',
     query: createWithNoPrototype([{ key: 'baz', value: 'quux' }]),
     pathname: '/foo/bar',
-    path: '/foo/bar?baz=quux'
+    path: '/foo/bar?baz=quux',
   },
   'http://example.com': {
     href: 'http://example.com/',
@@ -38,7 +38,7 @@ const parseTestsWithQueryString = {
     query: createWithNoPrototype(),
     search: null,
     pathname: '/',
-    path: '/'
+    path: '/',
   },
   '/example': {
     protocol: null,
@@ -52,7 +52,7 @@ const parseTestsWithQueryString = {
     query: createWithNoPrototype(),
     pathname: '/example',
     path: '/example',
-    href: '/example'
+    href: '/example',
   },
   '/example?query=value': {
     protocol: null,
@@ -66,8 +66,8 @@ const parseTestsWithQueryString = {
     query: createWithNoPrototype([{ key: 'query', value: 'value' }]),
     pathname: '/example',
     path: '/example?query=value',
-    href: '/example?query=value'
-  }
+    href: '/example?query=value',
+  },
 };
 for (const u in parseTestsWithQueryString) {
   const actual = url.parse(u, true);

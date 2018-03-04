@@ -40,16 +40,16 @@ const params = createManyParams(count);
 // this test confirms that the output of parse is the expected length
 // when passed Infinity as the argument for maxKeys
 const resultInfinity = parse(params, undefined, undefined, {
-  maxKeys: Infinity
+  maxKeys: Infinity,
 });
 const resultNaN = parse(params, undefined, undefined, {
-  maxKeys: NaN
+  maxKeys: NaN,
 });
 const resultInfinityString = parse(params, undefined, undefined, {
-  maxKeys: 'Infinity'
+  maxKeys: 'Infinity',
 });
 const resultNaNString = parse(params, undefined, undefined, {
-  maxKeys: 'NaN'
+  maxKeys: 'NaN',
 });
 
 // Non Finite maxKeys should return the length of input

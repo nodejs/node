@@ -19,9 +19,9 @@ const bench = common.createBenchmark(main, {
     'deepEqual',
     'deepStrictEqual',
     'notDeepEqual',
-    'notDeepStrictEqual'
+    'notDeepStrictEqual',
   ],
-  len: [1e6]
+  len: [1e6],
 });
 
 function main({ type, n, len, method }) {

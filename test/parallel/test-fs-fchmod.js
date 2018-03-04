@@ -12,7 +12,7 @@ const fs = require('fs');
     {
       code: 'ERR_INVALID_ARG_TYPE',
       type: TypeError,
-      message: 'The "fd" argument must be of type integer'
+      message: 'The "fd" argument must be of type integer',
     }
   );
   common.expectsError(
@@ -20,7 +20,7 @@ const fs = require('fs');
     {
       code: 'ERR_INVALID_ARG_TYPE',
       type: TypeError,
-      message: 'The "fd" argument must be of type integer'
+      message: 'The "fd" argument must be of type integer',
     }
   );
 
@@ -29,7 +29,7 @@ const fs = require('fs');
     {
       code: 'ERR_INVALID_ARG_TYPE',
       type: TypeError,
-      message: 'The "mode" argument must be of type integer'
+      message: 'The "mode" argument must be of type integer',
     }
   );
   common.expectsError(
@@ -37,7 +37,7 @@ const fs = require('fs');
     {
       code: 'ERR_INVALID_ARG_TYPE',
       type: TypeError,
-      message: 'The "mode" argument must be of type integer'
+      message: 'The "mode" argument must be of type integer',
     }
   );
 });
@@ -54,7 +54,7 @@ common.expectsError(
   {
     code: 'ERR_OUT_OF_RANGE',
     type: RangeError,
-    message: 'The value of "mode" is out of range.'
+    message: 'The value of "mode" is out of range.',
   }
 );
 common.expectsError(
@@ -62,6 +62,6 @@ common.expectsError(
   {
     code: 'ERR_OUT_OF_RANGE',
     type: RangeError,
-    message: 'The value of "mode" is out of range.'
+    message: 'The value of "mode" is out of range.',
   }
 );

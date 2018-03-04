@@ -52,7 +52,7 @@ server.listen(common.PORT, '127.0.0.1', function() {
       const request = http.request({
         port: common.PORT,
         method: 'POST',
-        path: '/'
+        path: '/',
       });
 
       function ping() {

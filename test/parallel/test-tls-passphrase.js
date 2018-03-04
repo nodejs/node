@@ -43,7 +43,7 @@ const server = tls.Server({
   cert: cert,
   ca: [cert],
   requestCert: true,
-  rejectUnauthorized: true
+  rejectUnauthorized: true,
 }, function(s) {
   s.end();
 });
@@ -55,14 +55,14 @@ server.listen(0, common.mustCall(function() {
     key: passKey,
     passphrase: 'passphrase',
     cert: cert,
-    rejectUnauthorized: false
+    rejectUnauthorized: false,
   }, common.mustCall());
 
   tls.connect({
     port: this.address().port,
     key: rawKey,
     cert: cert,
-    rejectUnauthorized: false
+    rejectUnauthorized: false,
   }, common.mustCall());
 
   tls.connect({
@@ -70,7 +70,7 @@ server.listen(0, common.mustCall(function() {
     key: rawKey,
     passphrase: 'ignored',
     cert: cert,
-    rejectUnauthorized: false
+    rejectUnauthorized: false,
   }, common.mustCall());
 
   // Buffer[]
@@ -79,14 +79,14 @@ server.listen(0, common.mustCall(function() {
     key: [passKey],
     passphrase: 'passphrase',
     cert: [cert],
-    rejectUnauthorized: false
+    rejectUnauthorized: false,
   }, common.mustCall());
 
   tls.connect({
     port: this.address().port,
     key: [rawKey],
     cert: [cert],
-    rejectUnauthorized: false
+    rejectUnauthorized: false,
   }, common.mustCall());
 
   tls.connect({
@@ -94,7 +94,7 @@ server.listen(0, common.mustCall(function() {
     key: [rawKey],
     passphrase: 'ignored',
     cert: [cert],
-    rejectUnauthorized: false
+    rejectUnauthorized: false,
   }, common.mustCall());
 
   // string
@@ -103,14 +103,14 @@ server.listen(0, common.mustCall(function() {
     key: passKey.toString(),
     passphrase: 'passphrase',
     cert: cert.toString(),
-    rejectUnauthorized: false
+    rejectUnauthorized: false,
   }, common.mustCall());
 
   tls.connect({
     port: this.address().port,
     key: rawKey.toString(),
     cert: cert.toString(),
-    rejectUnauthorized: false
+    rejectUnauthorized: false,
   }, common.mustCall());
 
   tls.connect({
@@ -118,7 +118,7 @@ server.listen(0, common.mustCall(function() {
     key: rawKey.toString(),
     passphrase: 'ignored',
     cert: cert.toString(),
-    rejectUnauthorized: false
+    rejectUnauthorized: false,
   }, common.mustCall());
 
   // String[]
@@ -127,14 +127,14 @@ server.listen(0, common.mustCall(function() {
     key: [passKey.toString()],
     passphrase: 'passphrase',
     cert: [cert.toString()],
-    rejectUnauthorized: false
+    rejectUnauthorized: false,
   }, common.mustCall());
 
   tls.connect({
     port: this.address().port,
     key: [rawKey.toString()],
     cert: [cert.toString()],
-    rejectUnauthorized: false
+    rejectUnauthorized: false,
   }, common.mustCall());
 
   tls.connect({
@@ -142,7 +142,7 @@ server.listen(0, common.mustCall(function() {
     key: [rawKey.toString()],
     passphrase: 'ignored',
     cert: [cert.toString()],
-    rejectUnauthorized: false
+    rejectUnauthorized: false,
   }, common.mustCall());
 
   // Object[]
@@ -150,7 +150,7 @@ server.listen(0, common.mustCall(function() {
     port: this.address().port,
     key: [{ pem: passKey, passphrase: 'passphrase' }],
     cert: cert,
-    rejectUnauthorized: false
+    rejectUnauthorized: false,
   }, common.mustCall());
 
   tls.connect({
@@ -158,7 +158,7 @@ server.listen(0, common.mustCall(function() {
     key: [{ pem: passKey, passphrase: 'passphrase' }],
     passphrase: 'ignored',
     cert: cert,
-    rejectUnauthorized: false
+    rejectUnauthorized: false,
   }, common.mustCall());
 
   tls.connect({
@@ -166,28 +166,28 @@ server.listen(0, common.mustCall(function() {
     key: [{ pem: passKey }],
     passphrase: 'passphrase',
     cert: cert,
-    rejectUnauthorized: false
+    rejectUnauthorized: false,
   }, common.mustCall());
 
   tls.connect({
     port: this.address().port,
     key: [{ pem: passKey.toString(), passphrase: 'passphrase' }],
     cert: cert,
-    rejectUnauthorized: false
+    rejectUnauthorized: false,
   }, common.mustCall());
 
   tls.connect({
     port: this.address().port,
     key: [{ pem: rawKey, passphrase: 'ignored' }],
     cert: cert,
-    rejectUnauthorized: false
+    rejectUnauthorized: false,
   }, common.mustCall());
 
   tls.connect({
     port: this.address().port,
     key: [{ pem: rawKey.toString(), passphrase: 'ignored' }],
     cert: cert,
-    rejectUnauthorized: false
+    rejectUnauthorized: false,
   }, common.mustCall());
 
   tls.connect({
@@ -195,7 +195,7 @@ server.listen(0, common.mustCall(function() {
     key: [{ pem: rawKey }],
     passphrase: 'ignored',
     cert: cert,
-    rejectUnauthorized: false
+    rejectUnauthorized: false,
   }, common.mustCall());
 
   tls.connect({
@@ -203,21 +203,21 @@ server.listen(0, common.mustCall(function() {
     key: [{ pem: rawKey.toString() }],
     passphrase: 'ignored',
     cert: cert,
-    rejectUnauthorized: false
+    rejectUnauthorized: false,
   }, common.mustCall());
 
   tls.connect({
     port: this.address().port,
     key: [{ pem: rawKey }],
     cert: cert,
-    rejectUnauthorized: false
+    rejectUnauthorized: false,
   }, common.mustCall());
 
   tls.connect({
     port: this.address().port,
     key: [{ pem: rawKey.toString() }],
     cert: cert,
-    rejectUnauthorized: false
+    rejectUnauthorized: false,
   }, common.mustCall());
 })).unref();
 
@@ -229,7 +229,7 @@ assert.throws(function() {
     port: server.address().port,
     key: passKey,
     cert: cert,
-    rejectUnauthorized: false
+    rejectUnauthorized: false,
   });
 }, errMessagePassword);
 
@@ -238,7 +238,7 @@ assert.throws(function() {
     port: server.address().port,
     key: [passKey],
     cert: cert,
-    rejectUnauthorized: false
+    rejectUnauthorized: false,
   });
 }, errMessagePassword);
 
@@ -247,7 +247,7 @@ assert.throws(function() {
     port: server.address().port,
     key: [{ pem: passKey }],
     cert: cert,
-    rejectUnauthorized: false
+    rejectUnauthorized: false,
   });
 }, errMessagePassword);
 
@@ -260,7 +260,7 @@ assert.throws(function() {
     key: passKey,
     passphrase: 'invalid',
     cert: cert,
-    rejectUnauthorized: false
+    rejectUnauthorized: false,
   });
 }, errMessageDecrypt);
 
@@ -270,7 +270,7 @@ assert.throws(function() {
     key: [passKey],
     passphrase: 'invalid',
     cert: cert,
-    rejectUnauthorized: false
+    rejectUnauthorized: false,
   });
 }, errMessageDecrypt);
 
@@ -280,7 +280,7 @@ assert.throws(function() {
     key: [{ pem: passKey }],
     passphrase: 'invalid',
     cert: cert,
-    rejectUnauthorized: false
+    rejectUnauthorized: false,
   });
 }, errMessageDecrypt);
 
@@ -290,6 +290,6 @@ assert.throws(function() {
     key: [{ pem: passKey, passphrase: 'invalid' }],
     passphrase: 'passphrase', // Valid but unused
     cert: cert,
-    rejectUnauthorized: false
+    rejectUnauthorized: false,
   });
 }, errMessageDecrypt);

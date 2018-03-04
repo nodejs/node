@@ -18,7 +18,7 @@ const server = http.createServer(common.mustCall(function(req, res) {
     myStream.emit('data', 'some data');
     res.on('error', common.expectsError({
       code: 'ERR_STREAM_WRITE_AFTER_END',
-      type: Error
+      type: Error,
     }));
 
     process.nextTick(common.mustCall(() => server.close()));
@@ -31,6 +31,6 @@ server.on('listening', common.mustCall(function() {
   http.request({
     port: server.address().port,
     method: 'GET',
-    path: '/'
+    path: '/',
   }).end();
 }));

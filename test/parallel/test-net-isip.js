@@ -72,7 +72,7 @@ assert.strictEqual(net.isIPv4(123), false);
 assert.strictEqual(net.isIPv4(true), false);
 assert.strictEqual(net.isIPv4({}), false);
 assert.strictEqual(net.isIPv4({
-  toString: () => '::2001:252:1:255.255.255.255'
+  toString: () => '::2001:252:1:255.255.255.255',
 }), false);
 assert.strictEqual(net.isIPv4({ toString: () => '127.0.0.1' }), true);
 assert.strictEqual(net.isIPv4({ toString: () => 'bla' }), false);
@@ -87,7 +87,7 @@ assert.strictEqual(net.isIPv6(123), false);
 assert.strictEqual(net.isIPv6(true), false);
 assert.strictEqual(net.isIPv6({}), false);
 assert.strictEqual(net.isIPv6({
-  toString: () => '::2001:252:1:255.255.255.255'
+  toString: () => '::2001:252:1:255.255.255.255',
 }), true);
 assert.strictEqual(net.isIPv6({ toString: () => '127.0.0.1' }), false);
 assert.strictEqual(net.isIPv6({ toString: () => 'bla' }), false);

@@ -2331,7 +2331,7 @@ reasons. Consider the following JavaScript:
 const obj = {};
 Object.defineProperties(obj, {
   'foo': { value: 123, writable: true, configurable: true, enumerable: true },
-  'bar': { value: 456, writable: true, configurable: true, enumerable: true }
+  'bar': { value: 456, writable: true, configurable: true, enumerable: true },
 });
 ```
 

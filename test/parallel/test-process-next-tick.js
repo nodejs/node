@@ -42,6 +42,6 @@ process.on('exit', function() {
                       {
                         code: 'ERR_INVALID_CALLBACK',
                         type: TypeError,
-                        message: 'Callback must be a function'
+                        message: 'Callback must be a function',
                       });
 });

@@ -45,13 +45,13 @@ const re = /^The "request" argument must be of type string\. Received type \w+$/
     () => { require.resolve(value); },
     {
       code: 'ERR_INVALID_ARG_TYPE',
-      message: re
+      message: re,
     });
 
   common.expectsError(
     () => { require.resolve.paths(value); },
     {
       code: 'ERR_INVALID_ARG_TYPE',
-      message: re
+      message: re,
     });
 });

@@ -26,7 +26,7 @@ module.exports = {
           const message = [prefix, prev, opStr, curr].join('');
           context.report({ node, message });
         }
-      }
+      },
     };
-  }
+  },
 };

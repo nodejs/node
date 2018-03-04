@@ -10,7 +10,7 @@ const bench = common.createBenchmark(main, {
   requests: [100, 1000, 10000, 100000, 1000000],
   streams: [100, 200, 1000],
   clients: [1, 2],
-  benchmarker: ['h2load']
+  benchmarker: ['h2load'],
 }, { flags: ['--no-warnings', '--expose-http2'] });
 
 function main({ requests, streams, clients }) {
@@ -30,7 +30,7 @@ function main({ requests, streams, clients }) {
         requests,
         maxConcurrentStreams: streams,
         clients,
-        threads: clients
+        threads: clients,
       }, () => server.close());
     });
 

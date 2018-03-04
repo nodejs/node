@@ -1369,7 +1369,7 @@ const { Writable } = require('stream');
 const myWritable = new Writable({
   write(chunk, encoding, callback) {
     // ...
-  }
+  },
 });
 ```
 
@@ -1441,7 +1441,7 @@ const myWritable = new Writable({
   },
   writev(chunks, callback) {
     // ...
-  }
+  },
 });
 ```
 
@@ -1561,7 +1561,7 @@ const myWritable = new Writable({
     } else {
       callback();
     }
-  }
+  },
 });
 ```
 
@@ -1689,7 +1689,7 @@ const { Readable } = require('stream');
 const myReadable = new Readable({
   read(size) {
     // ...
-  }
+  },
 });
 ```
 
@@ -1838,7 +1838,7 @@ const myReadable = new Readable({
       return;
     }
     // do some work
-  }
+  },
 });
 ```
 
@@ -1951,7 +1951,7 @@ const myDuplex = new Duplex({
   },
   write(chunk, encoding, callback) {
     // ...
-  }
+  },
 });
 ```
 
@@ -2022,7 +2022,7 @@ const myTransform = new Transform({
 
     // Push the data onto the readable queue.
     callback(null, '0'.repeat(data.length % 2) + data);
-  }
+  },
 });
 
 myTransform.setEncoding('ascii');
@@ -2102,7 +2102,7 @@ const { Transform } = require('stream');
 const myTransform = new Transform({
   transform(chunk, encoding, callback) {
     // ...
-  }
+  },
 });
 ```
 

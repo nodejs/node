@@ -346,7 +346,7 @@ expectedDeprecationWarnings.push('crypto.DEFAULT_ENCODING is deprecated.');
 
 common.expectWarning({
   Warning: expectedWarnings,
-  DeprecationWarning: expectedDeprecationWarnings
+  DeprecationWarning: expectedDeprecationWarnings,
 });
 
 for (const test of TEST_CASES) {

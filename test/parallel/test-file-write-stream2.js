@@ -64,7 +64,7 @@ tmpdir.refresh();
 
 // drain at 0, return false at 10.
 const file = fs.createWriteStream(filepath, {
-  highWaterMark: 11
+  highWaterMark: 11,
 });
 
 file.on('open', function(fd) {

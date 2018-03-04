@@ -75,7 +75,7 @@ server.listen(0, function() {
   const req = http.request({
     port: this.address().port,
     method: 'PUT',
-    headers: { 'expect': '100-continue' }
+    headers: { 'expect': '100-continue' },
   });
   req.on('continue', function() {
     // ok, good to go.

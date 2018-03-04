@@ -13,7 +13,7 @@ const onMessage = common.mustCall((err, bytes) => {
 const expectedError = { code: 'ERR_INVALID_ARG_TYPE',
                         type: TypeError,
                         message:
-  /^The "address" argument must be one of type string or falsy$/
+  /^The "address" argument must be one of type string or falsy$/,
 };
 
 const client = dgram.createSocket('udp4').bind(0, () => {

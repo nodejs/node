@@ -30,7 +30,7 @@ const fixtures = require('../common/fixtures');
 
 const options = {
   key: fixtures.readKey('agent2-key.pem'),
-  cert: fixtures.readKey('agent2-cert.pem')
+  cert: fixtures.readKey('agent2-cert.pem'),
 };
 
 // Contains a UTF8 only character
@@ -47,7 +47,7 @@ const server = tls.Server(options, common.mustCall(function(socket) {
 server.listen(0, function() {
   const client = tls.connect({
     port: this.address().port,
-    rejectUnauthorized: false
+    rejectUnauthorized: false,
   });
 
   let buffer = '';

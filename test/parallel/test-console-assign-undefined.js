@@ -17,7 +17,7 @@ assert.strictEqual(global.console, 42);
 common.expectsError(
   () => console.log('foo'),
   {
-    type: TypeError
+    type: TypeError,
   }
 );
 

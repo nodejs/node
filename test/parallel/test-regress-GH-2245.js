@@ -16,7 +16,7 @@ function test() {
     'function bar() {',
     '\'use strict\';',
     'return foo; // foo isn\'t captured in 0.10',
-    '};'
+    '};',
   ].join('\n');
 
   eval(code);

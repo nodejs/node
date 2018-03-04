@@ -32,7 +32,7 @@ const hook = async_hooks.createHook({
     if (pings.has(id)) {
       events[3]++;
     }
-  }
+  },
 });
 hook.enable();
 
@@ -76,7 +76,7 @@ server.listen(0, common.mustCall(() => {
     assert(!client.ping(common.expectsError({
       code: 'ERR_HTTP2_PING_CANCEL',
       type: Error,
-      message: 'HTTP2 ping cancelled'
+      message: 'HTTP2 ping cancelled',
     })));
 
     // should throw if payload is not of type ArrayBufferView
@@ -88,7 +88,7 @@ server.listen(0, common.mustCall(() => {
             type: TypeError,
             code: 'ERR_INVALID_ARG_TYPE',
             message: 'The "payload" argument must be one of type' +
-                     ' Buffer, TypedArray, or DataView'
+                     ' Buffer, TypedArray, or DataView',
           }
         )
       );
@@ -104,7 +104,7 @@ server.listen(0, common.mustCall(() => {
           {
             type: RangeError,
             code: 'ERR_HTTP2_PING_LENGTH',
-            message: 'HTTP2 ping payload must be 8 bytes'
+            message: 'HTTP2 ping payload must be 8 bytes',
           }
         )
       );
@@ -119,7 +119,7 @@ server.listen(0, common.mustCall(() => {
           {
             type: TypeError,
             code: 'ERR_INVALID_CALLBACK',
-            message: 'Callback must be a function'
+            message: 'Callback must be a function',
           }
         )
       );

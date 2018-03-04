@@ -13,7 +13,7 @@ const errMsg = {
   code: 'ERR_HTTP2_NO_SOCKET_MANIPULATION',
   type: Error,
   message: 'HTTP/2 sockets should not be directly manipulated ' +
-           '(e.g. read and written)'
+           '(e.g. read and written)',
 };
 
 const server = h2.createServer();
@@ -94,7 +94,7 @@ server.listen(0, common.mustCall(function() {
       ':path': '/',
       ':method': 'GET',
       ':scheme': 'http',
-      ':authority': `localhost:${port}`
+      ':authority': `localhost:${port}`,
     };
     const request = client.request(headers);
     request.on('end', common.mustCall(() => {

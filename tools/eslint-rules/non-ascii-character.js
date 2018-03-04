@@ -21,7 +21,7 @@ const suggestions = {
   '”': '"',
   '«': '"',
   '»': '"',
-  '—': '-'
+  '—': '-',
 };
 
 module.exports = (context) => {
@@ -51,11 +51,11 @@ module.exports = (context) => {
           node,
           suggestion ? `${suggestion}` : ''
         );
-      }
+      },
     });
   };
 
   return {
-    Program: (node) => reportIfError(node, context.getSourceCode())
+    Program: (node) => reportIfError(node, context.getSourceCode()),
   };
 };

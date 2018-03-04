@@ -31,7 +31,7 @@ const opts = {
   port: null,
   path: '/',
   method: 'GET',
-  agent: false
+  agent: false,
 };
 
 // we just want an "error" (no local HTTP server on port 80) or "response"

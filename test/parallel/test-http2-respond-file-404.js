@@ -8,26 +8,26 @@ const assert = require('assert');
 const path = require('path');
 
 const {
-  HTTP2_HEADER_CONTENT_TYPE
+  HTTP2_HEADER_CONTENT_TYPE,
 } = http2.constants;
 
 const server = http2.createServer();
 server.on('stream', (stream) => {
   const file = path.join(process.cwd(), 'not-a-file');
   stream.respondWithFile(file, {
-    [HTTP2_HEADER_CONTENT_TYPE]: 'text/plain'
+    [HTTP2_HEADER_CONTENT_TYPE]: 'text/plain',
   }, {
     onError(err) {
       common.expectsError({
         code: 'ENOENT',
         type: Error,
-        message: `ENOENT: no such file or directory, open '${file}'`
+        message: `ENOENT: no such file or directory, open '${file}'`,
       })(err);
 
       stream.respond({ ':status': 404 });
       stream.end();
     },
-    statCheck: common.mustNotCall()
+    statCheck: common.mustNotCall(),
   });
 });
 server.listen(0, () => {

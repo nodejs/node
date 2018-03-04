@@ -31,7 +31,7 @@ const agent = new Agent({
   keepAlive: true,
   keepAliveMsecs: 1000,
   maxSockets: 5,
-  maxFreeSockets: 5
+  maxFreeSockets: 5,
 });
 
 const server = http.createServer(common.mustCall((req, res) => {
@@ -51,7 +51,7 @@ function get(path, callback) {
     host: 'localhost',
     port: server.address().port,
     agent: agent,
-    path: path
+    path: path,
   }, callback);
 }
 

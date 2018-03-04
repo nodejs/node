@@ -25,6 +25,6 @@ process.on('exit', () => {
   assert.deepStrictEqual(keys, [
     { sequence: 'f', name: 'f', ctrl: false, meta: false, shift: false },
     { sequence: 'o', name: 'o', ctrl: false, meta: false, shift: false },
-    { sequence: 'o', name: 'o', ctrl: false, meta: false, shift: false }
+    { sequence: 'o', name: 'o', ctrl: false, meta: false, shift: false },
   ]);
 });

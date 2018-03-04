@@ -9,7 +9,7 @@ if (!common.hasIntl)
 
 const assert = require('assert');
 const {
-  TextDecoder
+  TextDecoder,
 } = require('util');
 
 
@@ -17,7 +17,7 @@ const {
   [
     { encoding: 'utf-8', sequence: [0xC0] },
     { encoding: 'utf-16le', sequence: [0x00] },
-    { encoding: 'utf-16be', sequence: [0x00] }
+    { encoding: 'utf-16be', sequence: [0x00] },
   ].forEach((testCase) => {
     const data = new Uint8Array([testCase.sequence]);
     common.expectsError(
@@ -28,7 +28,7 @@ const {
         code: 'ERR_ENCODING_INVALID_ENCODED_DATA',
         type: TypeError,
         message:
-          `The encoded data was not valid for encoding ${testCase.encoding}`
+          `The encoded data was not valid for encoding ${testCase.encoding}`,
       }
     );
 
@@ -55,7 +55,7 @@ const {
       code: 'ERR_ENCODING_INVALID_ENCODED_DATA',
       type: TypeError,
       message:
-        'The encoded data was not valid for encoding utf-16le'
+        'The encoded data was not valid for encoding utf-16le',
     }
   );
 
@@ -67,7 +67,7 @@ const {
       code: 'ERR_ENCODING_INVALID_ENCODED_DATA',
       type: TypeError,
       message:
-        'The encoded data was not valid for encoding utf-16le'
+        'The encoded data was not valid for encoding utf-16le',
     }
   );
 

@@ -2,7 +2,7 @@
 const common = require('../common');
 const assert = require('assert');
 const {
-  createPromise, promiseResolve, promiseReject
+  createPromise, promiseResolve, promiseReject,
 } = process.binding('util');
 const { inspect } = require('util');
 

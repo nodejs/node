@@ -114,7 +114,7 @@ fs.open(file2, 'w', common.mustCall((err, fd) => {
       {
         code: 'ERR_INVALID_ARG_TYPE',
         type: TypeError,
-        message: 'The "mode" argument must be of type integer'
+        message: 'The "mode" argument must be of type integer',
       }
     );
 
@@ -152,7 +152,7 @@ if (fs.lchmod) {
     {
       code: 'ERR_INVALID_ARG_TYPE',
       type: TypeError,
-      message: 'The "fd" argument must be of type integer'
+      message: 'The "fd" argument must be of type integer',
     }
   );
   common.expectsError(
@@ -160,7 +160,7 @@ if (fs.lchmod) {
     {
       code: 'ERR_INVALID_ARG_TYPE',
       type: TypeError,
-      message: 'The "fd" argument must be of type integer'
+      message: 'The "fd" argument must be of type integer',
     }
   );
 });
@@ -170,14 +170,14 @@ if (fs.lchmod) {
     () => fs.chmod(i, 1, common.mustNotCall()),
     {
       code: 'ERR_INVALID_ARG_TYPE',
-      type: TypeError
+      type: TypeError,
     }
   );
   common.expectsError(
     () => fs.chmodSync(i, 1),
     {
       code: 'ERR_INVALID_ARG_TYPE',
-      type: TypeError
+      type: TypeError,
     }
   );
 });

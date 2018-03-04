@@ -9,7 +9,7 @@ const vm = require('vm');
   [32, 'latin1'],
   [NaN, 'utf8'],
   [{}, 'latin1'],
-  []
+  [],
 ].forEach((args) => {
   common.expectsError(
     () => Buffer.byteLength(...args),
@@ -17,7 +17,7 @@ const vm = require('vm');
       code: 'ERR_INVALID_ARG_TYPE',
       type: TypeError,
       message: 'The "string" argument must be one of type string, ' +
-               `Buffer, or ArrayBuffer. Received type ${typeof args[0]}`
+               `Buffer, or ArrayBuffer. Received type ${typeof args[0]}`,
     }
   );
 });

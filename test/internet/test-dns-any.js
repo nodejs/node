@@ -77,7 +77,7 @@ const checkers = {
     assert.strictEqual(typeof r.priority, 'number');
     assert.strictEqual(typeof r.weight, 'number');
     assert.strictEqual(r.type, 'SRV');
-  }
+  },
 };
 
 function TEST(f) {

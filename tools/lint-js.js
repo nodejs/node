@@ -35,7 +35,7 @@ if (cluster.isMaster) {
   var curPath = 'Starting ...';
   var showProgress = true;
   const globOptions = {
-    nodir: true
+    nodir: true,
   };
   const workerConfig = {};
   var startTime;

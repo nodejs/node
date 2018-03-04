@@ -44,7 +44,7 @@ server.listen(0, function() {
   // the test here is if you set a specific authorization header in the
   // request we should not override that with basic auth
   testURL.headers = {
-    Authorization: 'NoAuthForYOU'
+    Authorization: 'NoAuthForYOU',
   };
 
   // make the request

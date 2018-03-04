@@ -6,7 +6,7 @@ if (!common.hasCrypto)
 const http2 = require('http2');
 const assert = require('assert');
 const {
-  NGHTTP2_ENHANCE_YOUR_CALM
+  NGHTTP2_ENHANCE_YOUR_CALM,
 } = http2.constants;
 
 const server = http2.createServer({ settings: { maxHeaderListSize: 100 } });
@@ -20,7 +20,7 @@ server.listen(0, common.mustCall(() => {
     req.on('error', common.expectsError({
       code: 'ERR_HTTP2_STREAM_ERROR',
       type: Error,
-      message: 'Stream closed with error code NGHTTP2_ENHANCE_YOUR_CALM'
+      message: 'Stream closed with error code NGHTTP2_ENHANCE_YOUR_CALM',
     }));
     req.on('close', common.mustCall((code) => {
       assert.strictEqual(code, NGHTTP2_ENHANCE_YOUR_CALM);

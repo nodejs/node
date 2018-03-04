@@ -15,7 +15,7 @@ const methods = [
   'resolveSrv',
   'resolvePtr',
   'resolveNaptr',
-  'resolveSoa'
+  'resolveSoa',
 ];
 
 methods.forEach(function(method) {

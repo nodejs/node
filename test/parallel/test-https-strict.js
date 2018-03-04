@@ -59,17 +59,17 @@ const agent3 = new https.Agent({ ca: [ca1, ca2] });
 
 const options1 = {
   key: key1,
-  cert: cert1
+  cert: cert1,
 };
 
 const options2 = {
   key: key2,
-  cert: cert2
+  cert: cert2,
 };
 
 const options3 = {
   key: key3,
-  cert: cert3
+  cert: cert3,
 };
 
 const server1 = server(options1);

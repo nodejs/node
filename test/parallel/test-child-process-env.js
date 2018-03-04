@@ -30,10 +30,10 @@ const env = {
   'HELLO': 'WORLD',
   'UNDEFINED': undefined,
   'NULL': null,
-  'EMPTY': ''
+  'EMPTY': '',
 };
 Object.setPrototypeOf(env, {
-  'FOO': 'BAR'
+  'FOO': 'BAR',
 });
 
 let child;

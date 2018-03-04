@@ -46,7 +46,7 @@ result = vm.runInContext(
 assert.deepStrictEqual(sandbox2, {
   foo: 'bar',
   baz: 'bar',
-  typeofProcess: 'undefined'
+  typeofProcess: 'undefined',
 });
 assert.strictEqual(result, 'function');
 
@@ -76,7 +76,7 @@ common.expectsError(() => {
 }, {
   code: 'ERR_INVALID_ARG_TYPE',
   type: TypeError,
-  message: 'The "options" argument must be of type object. Received type null'
+  message: 'The "options" argument must be of type object. Received type null',
 });
 
 common.expectsError(() => {
@@ -84,7 +84,8 @@ common.expectsError(() => {
 }, {
   code: 'ERR_INVALID_ARG_TYPE',
   type: TypeError,
-  message: 'The "options" argument must be of type object. Received type string'
+  message: 'The "options" argument must be of type object. ' +
+           'Received type string',
 });
 
 common.expectsError(() => {
@@ -93,7 +94,7 @@ common.expectsError(() => {
   code: 'ERR_INVALID_ARG_TYPE',
   type: TypeError,
   message: 'The "options.name" property must be of type string. ' +
-           'Received type null'
+           'Received type null',
 });
 
 common.expectsError(() => {
@@ -102,7 +103,7 @@ common.expectsError(() => {
   code: 'ERR_INVALID_ARG_TYPE',
   type: TypeError,
   message: 'The "options.origin" property must be of type string. ' +
-           'Received type null'
+           'Received type null',
 });
 
 common.expectsError(() => {
@@ -111,7 +112,7 @@ common.expectsError(() => {
   code: 'ERR_INVALID_ARG_TYPE',
   type: TypeError,
   message: 'The "options.contextName" property must be of type string. ' +
-           'Received type null'
+           'Received type null',
 });
 
 common.expectsError(() => {
@@ -120,5 +121,5 @@ common.expectsError(() => {
   code: 'ERR_INVALID_ARG_TYPE',
   type: TypeError,
   message: 'The "options.contextOrigin" property must be of type string. ' +
-           'Received type null'
+           'Received type null',
 });

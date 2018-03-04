@@ -35,7 +35,7 @@ const messages = [
   Buffer.from('First message to send'),
   Buffer.from('Second message to send'),
   Buffer.from('Third message to send'),
-  Buffer.from('Fourth message to send')
+  Buffer.from('Fourth message to send'),
 ];
 
 let bindAddress = null;
@@ -164,7 +164,7 @@ if (process.argv[2] !== 'child') {
 
   const sendSocket = dgram.createSocket({
     type: 'udp4',
-    reuseAddr: true
+    reuseAddr: true,
   });
 
   // bind the address explicitly for sending
@@ -215,7 +215,7 @@ if (process.argv[2] === 'child') {
   const receivedMessages = [];
   const listenSocket = dgram.createSocket({
     type: 'udp4',
-    reuseAddr: true
+    reuseAddr: true,
   });
 
   listenSocket.on('message', function(buf, rinfo) {

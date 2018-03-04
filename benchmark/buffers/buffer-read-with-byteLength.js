@@ -5,14 +5,14 @@ const types = [
   'IntBE',
   'IntLE',
   'UIntBE',
-  'UIntLE'
+  'UIntLE',
 ];
 
 const bench = common.createBenchmark(main, {
   buffer: ['fast', 'slow'],
   type: types,
   millions: [1],
-  byteLength: [1, 2, 3, 4, 5, 6]
+  byteLength: [1, 2, 3, 4, 5, 6],
 });
 
 function main({ millions, buf, type, byteLength }) {

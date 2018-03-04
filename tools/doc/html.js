@@ -39,7 +39,7 @@ renderer.heading = function(text, level) {
   return `<h${level}>${text}</h${level}>\n`;
 };
 marked.setOptions({
-  renderer: renderer
+  renderer: renderer,
 });
 
 // TODO(chrisdickinson): never stop vomitting / fix this.
@@ -216,7 +216,7 @@ function altDocs(filename) {
     { num: '5.x' },
     { num: '4.x', lts: true },
     { num: '0.12.x' },
-    { num: '0.10.x' }
+    { num: '0.10.x' },
   ];
 
   const host = 'https://nodejs.org';

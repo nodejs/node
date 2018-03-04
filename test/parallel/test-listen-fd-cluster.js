@@ -90,7 +90,7 @@ function test(cb) {
     const spawn = require('child_process').spawn;
     const master = spawn(process.execPath, [__filename, 'master'], {
       stdio: [ 0, 'pipe', 2, server._handle, 'ipc' ],
-      detached: true
+      detached: true,
     });
 
     // Now close the parent, so that the master is the only thing
@@ -117,7 +117,7 @@ function test(cb) {
 function master() {
   console.error('in master, spawning worker');
   cluster.setupMaster({
-    args: [ 'worker' ]
+    args: [ 'worker' ],
   });
   const worker = cluster.fork();
   worker.on('message', function(msg) {

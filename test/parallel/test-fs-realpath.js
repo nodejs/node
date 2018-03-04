@@ -112,7 +112,7 @@ function test_simple_relative_symlink(realpath, realpathSync, callback) {
   const entry = `${tmpDir}/symlink`;
   const expected = `${tmpDir}/cycles/root.js`;
   [
-    [entry, `../${path.basename(tmpDir)}/cycles/root.js`]
+    [entry, `../${path.basename(tmpDir)}/cycles/root.js`],
   ].forEach(function(t) {
     try { fs.unlinkSync(t[0]); } catch (e) {}
     console.log('fs.symlinkSync(%j, %j, %j)', t[1], t[0], 'file');
@@ -138,7 +138,7 @@ function test_simple_absolute_symlink(realpath, realpathSync, callback) {
   const entry = `${tmpAbsDir}/symlink`;
   const expected = fixtures.path('nested-index', 'one');
   [
-    [entry, expected]
+    [entry, expected],
   ].forEach(function(t) {
     try { fs.unlinkSync(t[0]); } catch (e) {}
     console.error('fs.symlinkSync(%j, %j, %j)', t[1], t[0], type);
@@ -220,7 +220,7 @@ function test_cyclic_link_protection(realpath, realpathSync, callback) {
   [
     [entry, '../cycles/realpath-3b'],
     [path.join(tmpDir, '/cycles/realpath-3b'), '../cycles/realpath-3c'],
-    [path.join(tmpDir, '/cycles/realpath-3c'), '../cycles/realpath-3a']
+    [path.join(tmpDir, '/cycles/realpath-3c'), '../cycles/realpath-3a'],
   ].forEach(function(t) {
     try { fs.unlinkSync(t[0]); } catch (e) {}
     fs.symlinkSync(t[1], t[0], 'dir');
@@ -273,7 +273,7 @@ function test_relative_input_cwd(realpath, realpathSync, callback) {
   [
     [entry, '../cycles/realpath-3b'],
     [`${tmpDir}/cycles/realpath-3b`, '../cycles/realpath-3c'],
-    [`${tmpDir}/cycles/realpath-3c`, 'root.js']
+    [`${tmpDir}/cycles/realpath-3c`, 'root.js'],
   ].forEach(function(t) {
     const fn = t[0];
     console.error('fn=%j', fn);
@@ -330,7 +330,7 @@ function test_deep_symlink_mix(realpath, realpathSync, callback) {
       [`${targetsAbsDir}/nested-index/one/realpath-c`,
        `${targetsAbsDir}/nested-index/two/realpath-c`],
       [`${targetsAbsDir}/nested-index/two/realpath-c`,
-       `${tmpDir}/cycles/root.js`]
+       `${tmpDir}/cycles/root.js`],
     ].forEach(function(t) {
       try { fs.unlinkSync(t[0]); } catch (e) {}
       fs.symlinkSync(t[1], t[0]);
@@ -441,14 +441,14 @@ function test_abs_with_kids(realpath, realpathSync, cb) {
   const root = `${tmpAbsDir}/node-test-realpath-abs-kids`;
   function cleanup() {
     ['/a/b/c/x.txt',
-     '/a/link'
+     '/a/link',
     ].forEach(function(file) {
       try { fs.unlinkSync(root + file); } catch (ex) {}
     });
     ['/a/b/c',
      '/a/b',
      '/a',
-     ''
+     '',
     ].forEach(function(folder) {
       try { fs.rmdirSync(root + folder); } catch (ex) {}
     });
@@ -458,7 +458,7 @@ function test_abs_with_kids(realpath, realpathSync, cb) {
     ['',
      '/a',
      '/a/b',
-     '/a/b/c'
+     '/a/b/c',
     ].forEach(function(folder) {
       console.log(`mkdir ${root}${folder}`);
       fs.mkdirSync(root + folder, 0o700);

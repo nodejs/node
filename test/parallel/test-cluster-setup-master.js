@@ -34,7 +34,7 @@ if (cluster.isWorker) {
   const checks = {
     args: false,
     setupEvent: false,
-    settingsObject: false
+    settingsObject: false,
   };
 
   const totalWorkers = 2;
@@ -43,7 +43,7 @@ if (cluster.isWorker) {
   // Setup master
   cluster.setupMaster({
     args: ['custom argument'],
-    silent: true
+    silent: true,
   });
 
   cluster.once('setup', function() {

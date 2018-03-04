@@ -8,7 +8,7 @@ const v8 = require('v8');
     {
       code: 'ERR_INVALID_ARG_TYPE',
       type: TypeError,
-      message: 'The "flags" argument must be of type string'
+      message: 'The "flags" argument must be of type string',
     }
   );
 });

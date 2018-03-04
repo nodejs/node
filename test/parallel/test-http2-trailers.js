@@ -21,11 +21,11 @@ function onStream(stream, headers, flags) {
   }));
   stream.respond({
     'content-type': 'text/html',
-    ':status': 200
+    ':status': 200,
   }, {
     getTrailers: common.mustCall((trailers) => {
       trailers[trailerKey] = trailerValue;
-    })
+    }),
   });
   stream.end(body);
 }
@@ -37,7 +37,7 @@ server.on('listening', common.mustCall(function() {
   const req = client.request({ ':path': '/', ':method': 'POST' }, {
     getTrailers: common.mustCall((trailers) => {
       trailers[trailerKey] = trailerValue;
-    })
+    }),
   });
   req.on('data', common.mustCall());
   req.on('trailers', common.mustCall((headers) => {

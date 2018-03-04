@@ -11,7 +11,7 @@ const msgOutBuf = Buffer.from(`${msgOut}\n`);
 
 const args = [
   '-e',
-  `console.log("${msgOut}");`
+  `console.log("${msgOut}");`,
 ];
 
 // Verify that an error is returned if maxBuffer is surpassed.

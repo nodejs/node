@@ -135,35 +135,35 @@ if (process.argv[2] === 'child') {
 
   testDomainExceptionHandling('--abort_on_uncaught_exception', {
     throwInDomainErrHandler: false,
-    useTryCatch: false
+    useTryCatch: false,
   });
 
   testDomainExceptionHandling('--abort_on_uncaught_exception', {
     throwInDomainErrHandler: false,
-    useTryCatch: true
+    useTryCatch: true,
   });
 
   testDomainExceptionHandling('--abort_on_uncaught_exception', {
     throwInDomainErrHandler: true,
-    useTryCatch: false
+    useTryCatch: false,
   });
 
   testDomainExceptionHandling('--abort_on_uncaught_exception', {
     throwInDomainErrHandler: true,
-    useTryCatch: true
-  });
-
-  testDomainExceptionHandling({
-    throwInDomainErrHandler: false
+    useTryCatch: true,
   });
 
   testDomainExceptionHandling({
     throwInDomainErrHandler: false,
-    useTryCatch: false
+  });
+
+  testDomainExceptionHandling({
+    throwInDomainErrHandler: false,
+    useTryCatch: false,
   });
 
   testDomainExceptionHandling({
     throwInDomainErrHandler: true,
-    useTryCatch: true
+    useTryCatch: true,
   });
 }

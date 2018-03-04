@@ -36,9 +36,9 @@ const proc = cp.spawn(process.execPath, [
   '--no_logfile_per_isolate',
   '--logfile=-',
   '--prof',
-  '-pe', code
+  '-pe', code,
 ], {
-  stdio: ['ignore', 'pipe', 'inherit']
+  stdio: ['ignore', 'pipe', 'inherit'],
 });
 
 let ticks = '';
@@ -52,7 +52,7 @@ function runPolyfill(content) {
   const child = cp.spawnSync(
     `${process.execPath}`,
     [
-      '--prof-process', LOG_FILE
+      '--prof-process', LOG_FILE,
     ]);
   assert(WARN_REG_EXP.test(child.stderr.toString()));
   assert(WARN_DETAIL_REG_EXP.test(child.stderr.toString()));

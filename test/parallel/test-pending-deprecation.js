@@ -31,7 +31,7 @@ switch (process.argv[2]) {
     // Test the --pending-deprecation command line switch.
     fork(__filename, ['switch'], {
       execArgv: ['--pending-deprecation'],
-      silent: true
+      silent: true,
     }).on('exit', common.mustCall((code) => {
       assert.strictEqual(code, 0, message('--pending-deprecation'));
     }));
@@ -39,7 +39,7 @@ switch (process.argv[2]) {
     // Test the NODE_PENDING_DEPRECATION environment var.
     fork(__filename, ['env'], {
       env: Object.assign({}, process.env, { NODE_PENDING_DEPRECATION: 1 }),
-      silent: true
+      silent: true,
     }).on('exit', common.mustCall((code) => {
       assert.strictEqual(code, 0, message('NODE_PENDING_DEPRECATION'));
     }));

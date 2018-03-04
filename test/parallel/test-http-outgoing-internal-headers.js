@@ -18,11 +18,11 @@ const { OutgoingMessage } = require('http');
   const outgoingMessage = new OutgoingMessage();
   outgoingMessage._headers = {
     host: 'risingstack.com',
-    Origin: 'localhost'
+    Origin: 'localhost',
   };
 
   assert.deepStrictEqual(outgoingMessage[outHeadersKey], {
     host: ['host', 'risingstack.com'],
-    origin: ['Origin', 'localhost']
+    origin: ['Origin', 'localhost'],
   });
 }

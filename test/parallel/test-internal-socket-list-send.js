@@ -20,7 +20,7 @@ const key = 'test-key';
     common.expectsError({
       code: 'ERR_CHILD_CLOSED_BEFORE_REPLY',
       type: Error,
-      message: 'Child closed before reply received'
+      message: 'Child closed before reply received',
     })(err);
     assert.strictEqual(child.listenerCount('internalMessage'), 0);
   }));
@@ -34,7 +34,7 @@ const key = 'test-key';
       process.nextTick(() =>
         this.emit('internalMessage', { key, cmd: 'cmd' })
       );
-    }
+    },
   });
 
   const list = new SocketListSend(child, key);
@@ -53,7 +53,7 @@ const key = 'test-key';
 {
   const child = Object.assign(new EventEmitter(), {
     connected: true,
-    send: function(msg) { process.nextTick(() => this.emit('disconnect')); }
+    send: function(msg) { process.nextTick(() => this.emit('disconnect')); },
   });
 
   const list = new SocketListSend(child, key);
@@ -62,7 +62,7 @@ const key = 'test-key';
     common.expectsError({
       code: 'ERR_CHILD_CLOSED_BEFORE_REPLY',
       type: Error,
-      message: 'Child closed before reply received'
+      message: 'Child closed before reply received',
     })(err);
     assert.strictEqual(child.listenerCount('internalMessage'), 0);
   }));
@@ -79,7 +79,7 @@ const key = 'test-key';
       process.nextTick(() =>
         this.emit('internalMessage', { key, cmd: 'NODE_SOCKET_ALL_CLOSED' })
       );
-    }
+    },
   });
 
   const list = new SocketListSend(child, key);
@@ -105,10 +105,10 @@ const key = 'test-key';
         this.emit('internalMessage', {
           key,
           count,
-          cmd: 'NODE_SOCKET_COUNT'
+          cmd: 'NODE_SOCKET_COUNT',
         })
       );
-    }
+    },
   });
 
   const list = new SocketListSend(child, key);
@@ -132,7 +132,7 @@ const key = 'test-key';
         this.emit('disconnect');
         this.emit('internalMessage', { key, count, cmd: 'NODE_SOCKET_COUNT' });
       });
-    }
+    },
   });
 
   const list = new SocketListSend(child, key);
@@ -141,7 +141,7 @@ const key = 'test-key';
     common.expectsError({
       code: 'ERR_CHILD_CLOSED_BEFORE_REPLY',
       type: Error,
-      message: 'Child closed before reply received'
+      message: 'Child closed before reply received',
     })(err);
     assert.strictEqual(child.listenerCount('internalMessage'), 0);
   }));

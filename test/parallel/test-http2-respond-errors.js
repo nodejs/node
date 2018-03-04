@@ -14,7 +14,7 @@ const types = {
   object: {},
   array: [],
   null: null,
-  symbol: Symbol('test')
+  symbol: Symbol('test'),
 };
 
 const server = http2.createServer();
@@ -30,24 +30,24 @@ server.on('stream', common.mustCall((stream) => {
 
     common.expectsError(
       () => stream.respond({
-        'content-type': 'text/plain'
+        'content-type': 'text/plain',
       }, {
-        ['getTrailers']: value
+        ['getTrailers']: value,
       }),
       {
         type: TypeError,
         code: 'ERR_INVALID_OPT_VALUE',
         message: `The value "${String(value)}" is invalid ` +
-                  'for option "getTrailers"'
+                  'for option "getTrailers"',
       }
     );
   });
 
   // Send headers
   stream.respond({
-    'content-type': 'text/plain'
+    'content-type': 'text/plain',
   }, {
-    ['getTrailers']: () => common.mustCall()
+    ['getTrailers']: () => common.mustCall(),
   });
 
   // Should throw if headers already sent
@@ -56,7 +56,7 @@ server.on('stream', common.mustCall((stream) => {
     {
       type: Error,
       code: 'ERR_HTTP2_HEADERS_SENT',
-      message: 'Response has already been initiated.'
+      message: 'Response has already been initiated.',
     }
   );
 
@@ -67,7 +67,7 @@ server.on('stream', common.mustCall((stream) => {
     {
       type: Error,
       code: 'ERR_HTTP2_INVALID_STREAM',
-      message: 'The stream has been destroyed'
+      message: 'The stream has been destroyed',
     }
   );
 }));

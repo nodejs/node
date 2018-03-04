@@ -77,7 +77,7 @@ tests[0].input = pairs.sort(() => Math.random() > 0.5)
 tests.push(
   {
     'input': 'z=a&=b&c=d',
-    'output': [['', 'b'], ['c', 'd'], ['z', 'a']]
+    'output': [['', 'b'], ['c', 'd'], ['z', 'a']],
   }
 );
 

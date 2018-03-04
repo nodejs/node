@@ -12,10 +12,10 @@ const bench = common.createBenchmark(main, {
     'string',
     'string-utf8',
     'string-base64',
-    'object'
+    'object',
   ],
   len: [10, 2048],
-  n: [2048]
+  n: [2048],
 });
 
 function main({ len, n, source }) {

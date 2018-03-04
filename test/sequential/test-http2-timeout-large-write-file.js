@@ -36,13 +36,13 @@ const fd = fs.openSync(filepath, 'r');
 
 const server = http2.createSecureServer({
   key: fixtures.readKey('agent1-key.pem'),
-  cert: fixtures.readKey('agent1-cert.pem')
+  cert: fixtures.readKey('agent1-cert.pem'),
 });
 server.on('stream', common.mustCall((stream) => {
   stream.respondWithFD(fd, {
     'Content-Type': 'application/octet-stream',
     'Content-Length': content.length.toString(),
-    'Vary': 'Accept-Encoding'
+    'Vary': 'Accept-Encoding',
   });
   stream.end();
 }));

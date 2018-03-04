@@ -70,7 +70,7 @@ const contextifiedSandboxErrorMsg =
   [undefined, nonContextualSandboxErrorMsg],
   [null, nonContextualSandboxErrorMsg], [0, nonContextualSandboxErrorMsg],
   [0.0, nonContextualSandboxErrorMsg], ['', nonContextualSandboxErrorMsg],
-  [{}, contextifiedSandboxErrorMsg], [[], contextifiedSandboxErrorMsg]
+  [{}, contextifiedSandboxErrorMsg], [[], contextifiedSandboxErrorMsg],
 ].forEach((e) => {
   assert.throws(() => { script.runInContext(e[0]); }, e[1]);
   assert.throws(() => { vm.runInContext('', e[0]); }, e[1]);
@@ -98,7 +98,7 @@ assert.strictEqual(script.runInContext(ctx), false);
     vm.runInContext(' throw new Error()', context, {
       filename: 'expected-filename.js',
       lineOffset: 32,
-      columnOffset: 123
+      columnOffset: 123,
     });
   }, (err) => {
     stack = err.stack;

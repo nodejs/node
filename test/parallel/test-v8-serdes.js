@@ -17,7 +17,7 @@ const objects = [
   undefined,
   null,
   42,
-  circular
+  circular,
 ];
 
 const hostObject = new (process.binding('js_stream').JSStream)();

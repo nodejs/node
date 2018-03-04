@@ -5,7 +5,7 @@ const assert = require('assert');
 const URLSearchParams = require('url').URLSearchParams;
 const {
   test, assert_equals, assert_true,
-  assert_false, assert_throws, assert_array_equals
+  assert_false, assert_throws, assert_array_equals,
 } = require('../common/wpt');
 
 /* The following tests are copied from WPT. Modifications to them should be
@@ -196,7 +196,7 @@ function makeIterableFunc(array) {
   return Object.assign(() => {}, {
     [Symbol.iterator]() {
       return array[Symbol.iterator]();
-    }
+    },
   });
 }
 
@@ -204,12 +204,12 @@ function makeIterableFunc(array) {
   const iterableError = common.expectsError({
     code: 'ERR_ARG_NOT_ITERABLE',
     type: TypeError,
-    message: 'Query pairs must be iterable'
+    message: 'Query pairs must be iterable',
   });
   const tupleError = common.expectsError({
     code: 'ERR_INVALID_TUPLE',
     type: TypeError,
-    message: 'Each query pair must be an iterable [name, value] tuple'
+    message: 'Each query pair must be an iterable [name, value] tuple',
   }, 6);
 
   let params;
@@ -239,7 +239,7 @@ function makeIterableFunc(array) {
 {
   const obj = {
     toString() { throw new Error('toString'); },
-    valueOf() { throw new Error('valueOf'); }
+    valueOf() { throw new Error('valueOf'); },
   };
   const sym = Symbol();
   const toStringError = /^Error: toString$/;

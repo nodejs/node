@@ -11,7 +11,7 @@ common.expectsError(
     code: 'ERR_OUT_OF_RANGE',
     type: RangeError,
     message: 'The value of "options.chunkSize" is out of range. It must ' +
-             'be >= 64. Received 0'
+             'be >= 64. Received 0',
   }
 );
 
@@ -21,7 +21,7 @@ common.expectsError(
     code: 'ERR_OUT_OF_RANGE',
     type: RangeError,
     message: 'The value of "options.windowBits" is out of range. It must ' +
-             'be >= 8 and <= 15. Received 0'
+             'be >= 8 and <= 15. Received 0',
   }
 );
 
@@ -31,7 +31,7 @@ common.expectsError(
     code: 'ERR_OUT_OF_RANGE',
     type: RangeError,
     message: 'The value of "options.memLevel" is out of range. It must ' +
-             'be >= 1 and <= 9. Received 0'
+             'be >= 1 and <= 9. Received 0',
   }
 );
 

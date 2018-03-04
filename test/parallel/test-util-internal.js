@@ -9,7 +9,7 @@ const {
   getHiddenValue,
   setHiddenValue,
   arrow_message_private_symbol: kArrowMessagePrivateSymbolIndex,
-  safeGetenv
+  safeGetenv,
 } = process.binding('util');
 
 for (const oneEnv in process.env) {

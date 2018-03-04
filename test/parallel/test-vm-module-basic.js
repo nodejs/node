@@ -28,7 +28,7 @@ common.crashOnUnhandledRejection();
   assert.deepStrictEqual(context, {
     foo: 'bar',
     baz: 'bar',
-    typeofProcess: 'undefined'
+    typeofProcess: 'undefined',
   });
   assert.strictEqual(result.result, 'function');
 }());

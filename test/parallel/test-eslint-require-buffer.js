@@ -8,7 +8,7 @@ const RuleTester = require('../../tools/node_modules/eslint').RuleTester;
 const rule = require('../../tools/eslint-rules/require-buffer');
 const ruleTester = new RuleTester({
   parserOptions: { ecmaVersion: 6 },
-  env: { node: true }
+  env: { node: true },
 });
 
 const message = "Use const Buffer = require('buffer').Buffer; " +
@@ -45,5 +45,5 @@ ruleTester.run('require-buffer', rule, {
       errors: [{ message }],
       output: mockComment + useStrict + bufferModule + useBuffer,
     },
-  ]
+  ],
 });

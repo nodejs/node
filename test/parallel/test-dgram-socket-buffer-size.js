@@ -9,7 +9,7 @@ const dgram = require('dgram');
   const errorObj = {
     code: 'ERR_SOCKET_BUFFER_SIZE',
     type: Error,
-    message: /^Could not get or set buffer size:.*$/
+    message: /^Could not get or set buffer size:.*$/,
   };
 
   const socket = dgram.createSocket('udp4');
@@ -36,7 +36,7 @@ const dgram = require('dgram');
   const errorObj = {
     code: 'ERR_SOCKET_BAD_BUFFER_SIZE',
     type: TypeError,
-    message: /^Buffer size must be a positive integer$/
+    message: /^Buffer size must be a positive integer$/,
   };
 
   const badBufferSizes = [-1, Infinity, 'Doh!'];
@@ -77,7 +77,7 @@ function checkBufferSizeError(type, size) {
   const errorObj = {
     code: 'ERR_SOCKET_BUFFER_SIZE',
     type: Error,
-    message: /^Could not get or set buffer size:.*$/
+    message: /^Could not get or set buffer size:.*$/,
   };
   const functionName = `set${type.charAt(0).toUpperCase()}${type.slice(1)}` +
     'BufferSize';

@@ -7,9 +7,9 @@ const bench = common.createBenchmark(main, {
     '',
     ['', ''].join('|'),
     ['foo/bar', '/tmp/file/', '..', 'a/../subfile'].join('|'),
-    ['a/b/c/', '../../..'].join('|')
+    ['a/b/c/', '../../..'].join('|'),
   ],
-  n: [1e6]
+  n: [1e6],
 });
 
 function main({ n, paths }) {

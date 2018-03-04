@@ -20,7 +20,7 @@ server.on('session', common.mustCall((session) => {
   session.on('error', common.expectsError({
     code: 'ERR_HTTP2_ERROR',
     message:
-      'Flooding was detected in this HTTP/2 session, and it must be closed'
+      'Flooding was detected in this HTTP/2 session, and it must be closed',
   }));
   session.on('close', common.mustCall(() => {
     server.close();

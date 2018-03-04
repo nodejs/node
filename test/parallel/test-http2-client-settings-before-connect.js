@@ -34,13 +34,13 @@ server.listen(0, common.mustCall(() => {
     ['enablePush', 1, TypeError],
     ['enablePush', 0, TypeError],
     ['enablePush', null, TypeError],
-    ['enablePush', {}, TypeError]
+    ['enablePush', {}, TypeError],
   ].forEach(([name, value, errorType]) =>
     common.expectsError(
       () => client.settings({ [name]: value }),
       {
         code: 'ERR_HTTP2_INVALID_SETTING_VALUE',
-        type: errorType
+        type: errorType,
       }
     )
   );
@@ -51,7 +51,7 @@ server.listen(0, common.mustCall(() => {
       {
         type: TypeError,
         code: 'ERR_INVALID_CALLBACK',
-        message: 'Callback must be a function'
+        message: 'Callback must be a function',
       }
     )
   );

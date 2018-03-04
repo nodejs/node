@@ -22,7 +22,7 @@ tmpdir.refresh();
 server.listen(socketPath, common.mustCall(() => {
   const agent = new Agent({
     keepAlive: true,
-    maxSockets: 1
+    maxSockets: 1,
   });
 
   http.get({ agent, socketPath }, (res) => res.resume());

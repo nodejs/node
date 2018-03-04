@@ -16,7 +16,7 @@ server.listen(0, common.mustCall(() => {
   // headers block that is too big should cause a 'frameError' to
   // be emitted, and will cause the stream to be shutdown.
   const options = {
-    maxSendHeaderBlockLength: 10
+    maxSendHeaderBlockLength: 10,
   };
 
   const client = h2.connect(`http://localhost:${server.address().port}`,
@@ -38,6 +38,6 @@ server.listen(0, common.mustCall(() => {
   req.on('error', common.expectsError({
     code: 'ERR_HTTP2_STREAM_ERROR',
     type: Error,
-    message: 'Stream closed with error code NGHTTP2_REFUSED_STREAM'
+    message: 'Stream closed with error code NGHTTP2_REFUSED_STREAM',
   }));
 }));

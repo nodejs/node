@@ -15,13 +15,13 @@ const types = [
   'FloatLE',
   'FloatBE',
   'DoubleLE',
-  'DoubleBE'
+  'DoubleBE',
 ];
 
 const bench = common.createBenchmark(main, {
   buffer: ['fast', 'slow'],
   type: types,
-  millions: [1]
+  millions: [1],
 });
 
 function main({ millions, buf, type }) {

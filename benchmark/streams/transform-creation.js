@@ -4,7 +4,7 @@ const Transform = require('stream').Transform;
 const inherits = require('util').inherits;
 
 const bench = common.createBenchmark(main, {
-  n: [1e6]
+  n: [1e6],
 });
 
 function MyTransform() {

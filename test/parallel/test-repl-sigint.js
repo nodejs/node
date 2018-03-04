@@ -10,7 +10,7 @@ const spawn = require('child_process').spawn;
 
 process.env.REPL_TEST_PPID = process.pid;
 const child = spawn(process.execPath, [ '-i' ], {
-  stdio: [null, null, 2]
+  stdio: [null, null, 2],
 });
 
 let stdout = '';

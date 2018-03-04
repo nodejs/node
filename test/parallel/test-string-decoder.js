@@ -147,7 +147,7 @@ common.expectsError(
   {
     code: 'ERR_UNKNOWN_ENCODING',
     type: TypeError,
-    message: 'Unknown encoding: 1'
+    message: 'Unknown encoding: 1',
   }
 );
 
@@ -156,7 +156,7 @@ common.expectsError(
   {
     code: 'ERR_UNKNOWN_ENCODING',
     type: TypeError,
-    message: 'Unknown encoding: test'
+    message: 'Unknown encoding: test',
   }
 );
 

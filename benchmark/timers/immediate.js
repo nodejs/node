@@ -3,7 +3,7 @@ const common = require('../common.js');
 
 const bench = common.createBenchmark(main, {
   thousands: [5000],
-  type: ['depth', 'depth1', 'breadth', 'breadth1', 'breadth4', 'clear']
+  type: ['depth', 'depth1', 'breadth', 'breadth1', 'breadth4', 'clear'],
 });
 
 function main({ thousands, type }) {

@@ -29,7 +29,7 @@ const thorny = new Proxy({}, {
   deleteProperty: throwErr,
   ownKeys: throwErr,
   apply: throwErr,
-  construct: throwErr
+  construct: throwErr,
 });
 
 common.expectWarning({

@@ -9,7 +9,7 @@ const https = require('https');
 
 const options = {
   key: fixtures.readKey('agent1-key.pem'),
-  cert: fixtures.readKey('agent1-cert.pem')
+  cert: fixtures.readKey('agent1-cert.pem'),
 };
 
 const TOTAL = 4;
@@ -19,7 +19,7 @@ const server = https.Server(options, function(req, res) {
   if (--waiting === 0) server.close();
 
   res.writeHead(200, {
-    'x-sni': req.socket.servername
+    'x-sni': req.socket.servername,
   });
   res.end('hello world');
 });
@@ -33,7 +33,7 @@ server.listen(0, function() {
   }
 
   const agent = new https.Agent({
-    maxSockets: 1
+    maxSockets: 1,
   });
   for (let j = 0; j < TOTAL; j++) {
     https.get({
@@ -43,7 +43,7 @@ server.listen(0, function() {
       port: this.address().port,
       host: '127.0.0.1',
       servername: `sni.${j}`,
-      rejectUnauthorized: false
+      rejectUnauthorized: false,
     }, expectResponse(j));
   }
 });

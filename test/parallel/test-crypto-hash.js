@@ -129,21 +129,21 @@ common.expectsError(
   () => h3.digest(),
   {
     code: 'ERR_CRYPTO_HASH_FINALIZED',
-    type: Error
+    type: Error,
   });
 
 common.expectsError(
   () => h3.update('foo'),
   {
     code: 'ERR_CRYPTO_HASH_FINALIZED',
-    type: Error
+    type: Error,
   });
 
 common.expectsError(
   () => crypto.createHash('sha256').digest('ucs2'),
   {
     code: 'ERR_CRYPTO_HASH_DIGEST_NO_UTF16',
-    type: Error
+    type: Error,
   }
 );
 
@@ -152,7 +152,7 @@ common.expectsError(
   {
     code: 'ERR_INVALID_ARG_TYPE',
     type: TypeError,
-    message: 'The "algorithm" argument must be of type string'
+    message: 'The "algorithm" argument must be of type string',
   }
 );
 

@@ -17,7 +17,7 @@ function getSrc() {
         this.push(chunk);
       else
         this.push(null);
-    }
+    },
   });
 }
 

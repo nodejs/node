@@ -11,7 +11,7 @@ const fixtures = require('../common/fixtures');
 const https = require('https');
 const options = {
   cert: fixtures.readSync('test_cert.pem'),
-  key: fixtures.readSync('test_key.pem')
+  key: fixtures.readSync('test_key.pem'),
 };
 
 const server = https.createServer(options, common.mustCall((req, res) => {
@@ -22,6 +22,6 @@ const server = https.createServer(options, common.mustCall((req, res) => {
 server.listen(common.PIPE, common.mustCall(() => {
   https.get({
     socketPath: common.PIPE,
-    rejectUnauthorized: false
+    rejectUnauthorized: false,
   });
 }));

@@ -89,12 +89,12 @@ common.expectsError(() => {
 }, {
   code: 'ERR_UNKNOWN_ENCODING',
   type: TypeError,
-  message: 'Unknown encoding: 0'
+  message: 'Unknown encoding: 0',
 });
 common.expectsError(() => {
   rangeBuffer.toString(null, 1, 2);
 }, {
   code: 'ERR_UNKNOWN_ENCODING',
   type: TypeError,
-  message: 'Unknown encoding: null'
+  message: 'Unknown encoding: null',
 });

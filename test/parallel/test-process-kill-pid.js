@@ -41,7 +41,7 @@ const assert = require('assert');
 const invalidPidArgument = common.expectsError({
   code: 'ERR_INVALID_ARG_TYPE',
   type: TypeError,
-  message: 'The "pid" argument must be of type number'
+  message: 'The "pid" argument must be of type number',
 }, 6);
 
 assert.throws(function() { process.kill('SIGTERM'); },
@@ -61,14 +61,14 @@ assert.throws(function() { process.kill(-1 / 0); },
 common.expectsError(() => process.kill(0, 'test'), {
   code: 'ERR_UNKNOWN_SIGNAL',
   type: TypeError,
-  message: 'Unknown signal: test'
+  message: 'Unknown signal: test',
 });
 
 // Test that kill throws an error for invalid signal numbers
 common.expectsError(() => process.kill(0, 987), {
   code: 'EINVAL',
   type: Error,
-  message: 'kill EINVAL'
+  message: 'kill EINVAL',
 });
 
 // Test kill argument processing in valid cases.

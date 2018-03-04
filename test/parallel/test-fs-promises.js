@@ -31,7 +31,7 @@ const {
   symlink,
   write,
   unlink,
-  utimes
+  utimes,
 } = fsPromises;
 
 const tmpDir = tmpdir.path;
@@ -49,7 +49,7 @@ common.crashOnUnhandledRejection();
       code: 'ENOENT',
       type: Error,
       message:
-        /^ENOENT: no such file or directory, access/
+        /^ENOENT: no such file or directory, access/,
     }));
 }
 
@@ -105,7 +105,7 @@ function verifyStatObject(stat) {
       // expect it to be ENOSYS
       common.expectsError({
         code: 'ENOSYS',
-        type: Error
+        type: Error,
       })(err);
     }
 

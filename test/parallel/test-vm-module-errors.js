@@ -40,29 +40,29 @@ async function checkArgType() {
     new Module();
   }, {
     code: 'ERR_INVALID_ARG_TYPE',
-    type: TypeError
+    type: TypeError,
   });
 
   for (const invalidOptions of [
-    0, 1, null, true, 'str', () => {}, { url: 0 }, Symbol.iterator
+    0, 1, null, true, 'str', () => {}, { url: 0 }, Symbol.iterator,
   ]) {
     common.expectsError(() => {
       new Module('', invalidOptions);
     }, {
       code: 'ERR_INVALID_ARG_TYPE',
-      type: TypeError
+      type: TypeError,
     });
   }
 
   for (const invalidLinker of [
-    0, 1, undefined, null, true, 'str', {}, Symbol.iterator
+    0, 1, undefined, null, true, 'str', {}, Symbol.iterator,
   ]) {
     await expectsRejection(async () => {
       const m = new Module('');
       await m.link(invalidLinker);
     }, {
       code: 'ERR_INVALID_ARG_TYPE',
-      type: TypeError
+      type: TypeError,
     });
   }
 }
@@ -75,7 +75,7 @@ async function checkModuleState() {
     assert.strictEqual(m.linkingStatus, 'linked');
     await m.link(common.mustNotCall());
   }, {
-    code: 'ERR_VM_MODULE_ALREADY_LINKED'
+    code: 'ERR_VM_MODULE_ALREADY_LINKED',
   });
 
   await expectsRejection(async () => {
@@ -84,14 +84,14 @@ async function checkModuleState() {
     assert.strictEqual(m.linkingStatus, 'linking');
     await m.link(common.mustNotCall());
   }, {
-    code: 'ERR_VM_MODULE_ALREADY_LINKED'
+    code: 'ERR_VM_MODULE_ALREADY_LINKED',
   });
 
   common.expectsError(() => {
     const m = new Module('');
     m.instantiate();
   }, {
-    code: 'ERR_VM_MODULE_NOT_LINKED'
+    code: 'ERR_VM_MODULE_NOT_LINKED',
   });
 
   await expectsRejection(async () => {
@@ -104,7 +104,7 @@ async function checkModuleState() {
     }
     assert.fail('Unreachable');
   }, {
-    code: 'ERR_VM_MODULE_NOT_LINKED'
+    code: 'ERR_VM_MODULE_NOT_LINKED',
   });
 
   {
@@ -116,7 +116,7 @@ async function checkModuleState() {
       common.expectsError(() => {
         m.instantiate();
       }, {
-        code: 'ERR_VM_MODULE_NOT_LINKED'
+        code: 'ERR_VM_MODULE_NOT_LINKED',
       });
       return new Module('');
     }));
@@ -129,7 +129,8 @@ async function checkModuleState() {
     await m.evaluate();
   }, {
     code: 'ERR_VM_MODULE_STATUS',
-    message: 'Module status must be one of instantiated, evaluated, and errored'
+    message: 'Module status must be one of ' +
+             'instantiated, evaluated, and errored',
   });
 
   await expectsRejection(async () => {
@@ -137,7 +138,8 @@ async function checkModuleState() {
     await m.evaluate();
   }, {
     code: 'ERR_VM_MODULE_STATUS',
-    message: 'Module status must be one of instantiated, evaluated, and errored'
+    message: 'Module status must be one of ' +
+             'instantiated, evaluated, and errored',
   });
 
   common.expectsError(() => {
@@ -145,7 +147,7 @@ async function checkModuleState() {
     m.error;
   }, {
     code: 'ERR_VM_MODULE_STATUS',
-    message: 'Module status must be errored'
+    message: 'Module status must be errored',
   });
 
   await expectsRejection(async () => {
@@ -155,7 +157,7 @@ async function checkModuleState() {
     m.error;
   }, {
     code: 'ERR_VM_MODULE_STATUS',
-    message: 'Module status must be errored'
+    message: 'Module status must be errored',
   });
 
   common.expectsError(() => {
@@ -163,7 +165,7 @@ async function checkModuleState() {
     m.namespace;
   }, {
     code: 'ERR_VM_MODULE_STATUS',
-    message: 'Module status must not be uninstantiated or instantiating'
+    message: 'Module status must not be uninstantiated or instantiating',
   });
 
   await expectsRejection(async () => {
@@ -171,7 +173,7 @@ async function checkModuleState() {
     m.namespace;
   }, {
     code: 'ERR_VM_MODULE_STATUS',
-    message: 'Module status must not be uninstantiated or instantiating'
+    message: 'Module status must not be uninstantiated or instantiating',
   });
 }
 
@@ -187,7 +189,7 @@ async function checkLinking() {
     }
     assert.fail('Unreachable');
   }, {
-    code: 'ERR_VM_MODULE_NOT_MODULE'
+    code: 'ERR_VM_MODULE_NOT_MODULE',
   });
 
   await expectsRejection(async () => {
@@ -203,7 +205,7 @@ async function checkLinking() {
     }
     assert.fail('Unreachable');
   }, {
-    code: 'ERR_VM_MODULE_DIFFERENT_CONTEXT'
+    code: 'ERR_VM_MODULE_DIFFERENT_CONTEXT',
   });
 
   await expectsRejection(async () => {
@@ -219,7 +221,7 @@ async function checkLinking() {
     const rootModule = new Module('import "errored";');
     await rootModule.link(common.mustCall(() => erroredModule));
   }, {
-    code: 'ERR_VM_MODULE_LINKING_ERRORED'
+    code: 'ERR_VM_MODULE_LINKING_ERRORED',
   });
 }
 

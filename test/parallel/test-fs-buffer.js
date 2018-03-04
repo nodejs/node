@@ -25,7 +25,7 @@ common.expectsError(
   {
     code: 'ERR_INVALID_ARG_TYPE',
     type: TypeError,
-    message: 'The "path" argument must be one of type string, Buffer, or URL'
+    message: 'The "path" argument must be one of type string, Buffer, or URL',
   }
 );
 

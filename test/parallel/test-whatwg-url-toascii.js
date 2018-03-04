@@ -10,7 +10,7 @@ const { URL } = require('url');
 const { test, assert_equals, assert_throws } = require('../common/wpt');
 
 const request = {
-  response: require(fixtures.path('url-toascii'))
+  response: require(fixtures.path('url-toascii')),
 };
 
 /* The following tests are copied from WPT. Modifications to them should be

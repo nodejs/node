@@ -11,7 +11,7 @@ function handle(req, res) {
   res.on('error', common.mustCall((err) => {
     common.expectsError({
       code: 'ERR_STREAM_WRITE_AFTER_END',
-      type: Error
+      type: Error,
     })(err);
     server.close();
   }));

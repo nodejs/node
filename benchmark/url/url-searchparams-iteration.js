@@ -5,7 +5,7 @@ const { URLSearchParams } = require('url');
 
 const bench = common.createBenchmark(main, {
   method: ['forEach', 'iterator'],
-  n: [1e6]
+  n: [1e6],
 });
 
 const str = 'one=single&two=first&three=first&two=2nd&three=2nd&three=3rd';

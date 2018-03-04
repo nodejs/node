@@ -28,20 +28,20 @@ const stealthyUint8Array =
 const all = [
   primitive, arrayBuffer, dataView, int32Array, uint8Array, buffer,
   fakeDataView, fakeInt32Array, fakeUint8Array, fakeBuffer,
-  stealthyDataView, stealthyInt32Array, stealthyUint8Array
+  stealthyDataView, stealthyInt32Array, stealthyUint8Array,
 ];
 
 const expected = {
   isArrayBufferView: [
     dataView, int32Array, uint8Array, buffer,
-    stealthyDataView, stealthyInt32Array, stealthyUint8Array
+    stealthyDataView, stealthyInt32Array, stealthyUint8Array,
   ],
   isTypedArray: [
-    int32Array, uint8Array, buffer, stealthyInt32Array, stealthyUint8Array
+    int32Array, uint8Array, buffer, stealthyInt32Array, stealthyUint8Array,
   ],
   isUint8Array: [
-    uint8Array, buffer, stealthyUint8Array
-  ]
+    uint8Array, buffer, stealthyUint8Array,
+  ],
 };
 
 for (const testedFunc of Object.keys(expected)) {

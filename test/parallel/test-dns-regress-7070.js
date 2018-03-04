@@ -29,10 +29,10 @@ common.expectsError(() => dns.resolveNs([]), // bad name
                     {
                       code: 'ERR_INVALID_ARG_TYPE',
                       type: TypeError,
-                      message: /^The "name" argument must be of type string/
+                      message: /^The "name" argument must be of type string/,
                     });
 common.expectsError(() => dns.resolveNs(''), // bad callback
                     {
                       code: 'ERR_INVALID_CALLBACK',
-                      type: TypeError
+                      type: TypeError,
                     });

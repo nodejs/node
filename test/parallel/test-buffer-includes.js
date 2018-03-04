@@ -274,7 +274,7 @@ for (let lengthIndex = 0; lengthIndex < lengths.length; lengthIndex++) {
 [
   () => { },
   {},
-  []
+  [],
 ].forEach((val) => {
   common.expectsError(
     () => b.includes(val),
@@ -282,7 +282,7 @@ for (let lengthIndex = 0; lengthIndex < lengths.length; lengthIndex++) {
       code: 'ERR_INVALID_ARG_TYPE',
       type: TypeError,
       message: 'The "value" argument must be one of type string, ' +
-               `Buffer, or Uint8Array. Received type ${typeof val}`
+               `Buffer, or Uint8Array. Received type ${typeof val}`,
     }
   );
 });

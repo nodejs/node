@@ -8,7 +8,7 @@ const opts = { showProxy: true };
 
 const target = {};
 const handler = {
-  get: function() { throw new Error('Getter should not be called'); }
+  get: function() { throw new Error('Getter should not be called'); },
 };
 const proxyObj = new Proxy(target, handler);
 

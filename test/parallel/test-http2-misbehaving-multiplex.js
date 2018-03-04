@@ -21,7 +21,7 @@ server.on('session', common.mustCall((session) => {
   session.on('error', common.expectsError({
     code: 'ERR_HTTP2_ERROR',
     type: NghttpError,
-    message: 'Stream was already closed or invalid'
+    message: 'Stream was already closed or invalid',
   }));
 }));
 

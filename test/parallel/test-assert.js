@@ -126,7 +126,7 @@ common.expectsError(
     type: a.AssertionError,
     code: 'ERR_ASSERTION',
     operator: 'doesNotThrow',
-    message: 'Got unwanted exception: user message\n[object Object]'
+    message: 'Got unwanted exception: user message\n[object Object]',
   }
 );
 
@@ -134,7 +134,7 @@ common.expectsError(
   () => a.doesNotThrow(() => thrower(Error), 'user message'),
   {
     code: 'ERR_ASSERTION',
-    message: /Got unwanted exception: user message\n\[object Object\]/
+    message: /Got unwanted exception: user message\n\[object Object\]/,
   }
 );
 
@@ -142,7 +142,7 @@ common.expectsError(
   () => a.doesNotThrow(() => thrower(Error)),
   {
     code: 'ERR_ASSERTION',
-    message: /Got unwanted exception\.\n\[object Object\]/
+    message: /Got unwanted exception\.\n\[object Object\]/,
   }
 );
 
@@ -198,28 +198,28 @@ a.throws(() => thrower(TypeError), (err) => {
     common.expectsError({
       code: 'ERR_ASSERTION',
       message: /^Missing expected exception\.$/,
-      operator: 'throws'
+      operator: 'throws',
     }));
 
   assert.throws(
     () => { a.throws(noop, TypeError); },
     common.expectsError({
       code: 'ERR_ASSERTION',
-      message: /^Missing expected exception \(TypeError\)\.$/
+      message: /^Missing expected exception \(TypeError\)\.$/,
     }));
 
   assert.throws(
     () => { a.throws(noop, 'fhqwhgads'); },
     common.expectsError({
       code: 'ERR_ASSERTION',
-      message: /^Missing expected exception: fhqwhgads$/
+      message: /^Missing expected exception: fhqwhgads$/,
     }));
 
   assert.throws(
     () => { a.throws(noop, TypeError, 'fhqwhgads'); },
     common.expectsError({
       code: 'ERR_ASSERTION',
-      message: /^Missing expected exception \(TypeError\): fhqwhgads$/
+      message: /^Missing expected exception \(TypeError\): fhqwhgads$/,
     }));
 }
 
@@ -317,7 +317,7 @@ try {
         code: 'ERR_INVALID_ARG_TYPE',
         type: TypeError,
         message: 'The "block" argument must be of type Function. Received ' +
-                `type ${typeName(block)}`
+                `type ${typeName(block)}`,
       }
     );
   };
@@ -352,7 +352,7 @@ assert.throws(() => {
   assert.strictEqual('A'.repeat(1000), '');
 }, common.expectsError({
   code: 'ERR_ASSERTION',
-  message: /^'A{124}\.\.\. strictEqual ''$/
+  message: /^'A{124}\.\.\. strictEqual ''$/,
 }));
 
 {
@@ -365,7 +365,7 @@ assert.throws(() => {
       common.expectsError({
         code: 'ERR_INVALID_ARG_TYPE',
         type: TypeError,
-        message: re
+        message: re,
       }));
   });
 }
@@ -375,7 +375,7 @@ common.expectsError(
   {
     code: 'ERR_ASSERTION',
     type: assert.AssertionError,
-    message: /^'Error: foo' strictEqual 'Error: foobar'$/
+    message: /^'Error: foo' strictEqual 'Error: foobar'$/,
   }
 );
 
@@ -399,14 +399,14 @@ common.expectsError(
     () => assert(...[]),
     {
       message: 'No value argument passed to `assert.ok()`',
-      name: 'AssertionError [ERR_ASSERTION]'
+      name: 'AssertionError [ERR_ASSERTION]',
     }
   );
   assert.throws(
     () => a(),
     {
       message: 'No value argument passed to `assert.ok()`',
-      name: 'AssertionError [ERR_ASSERTION]'
+      name: 'AssertionError [ERR_ASSERTION]',
     }
   );
 
@@ -423,7 +423,7 @@ common.expectsError(
       code: 'ERR_ASSERTION',
       type: assert.AssertionError,
       message: `The expression evaluated to a falsy value:${EOL}${EOL}  ` +
-               `assert.ok(typeof 123 === 'string')${EOL}`
+               `assert.ok(typeof 123 === 'string')${EOL}`,
     }
   );
   Error.stackTraceLimit = tmpLimit;
@@ -466,7 +466,7 @@ common.expectsError(
     '    1,',
     '...',
     '    1',
-    '  ]'
+    '  ]',
   ].join('\n');
   assert.throws(
     () => assert.deepEqual(
@@ -486,7 +486,7 @@ common.expectsError(
     '    1,',
     '...',
     '    1',
-    '  ]'
+    '  ]',
   ].join('\n');
   assert.throws(
     () => assert.deepEqual(
@@ -507,7 +507,7 @@ common.expectsError(
     '    0,',
     `${minus}   1,`,
     '    1',
-    '  ]'
+    '  ]',
   ].join('\n');
   assert.throws(
     () => assert.deepEqual(
@@ -538,7 +538,7 @@ common.expectsError(
     `${minus}   1,`,
     '    2,',
     '    1',
-    '  ]'
+    '  ]',
   ].join('\n');
   assert.throws(
     () => assert.deepEqual([1, 2, 1], [2, 1]),
@@ -568,7 +568,7 @@ common.expectsError(
     `${plus} {\n` +
     `${plus}   loop: 'forever',\n` +
     `${plus}   [Symbol(util.inspect.custom)]: [Function]\n` +
-    `${plus} }`
+    `${plus} }`,
   });
 
   // notDeepEqual tests
@@ -593,7 +593,7 @@ common.expectsError(
     type: assert.AssertionError,
     generatedMessage: true,
     message: `The expression evaluated to a falsy value:${EOL}${EOL}  ` +
-             `assert.ok(null)${EOL}`
+             `assert.ok(null)${EOL}`,
   }
 );
 common.expectsError(
@@ -603,7 +603,7 @@ common.expectsError(
     type: assert.AssertionError,
     generatedMessage: true,
     message: `The expression evaluated to a falsy value:${EOL}${EOL}  ` +
-             `assert(typeof 123 === 'string')${EOL}`
+             `assert(typeof 123 === 'string')${EOL}`,
   }
 );
 
@@ -624,7 +624,7 @@ common.expectsError(
       code: 'ERR_ASSERTION',
       type: assert.AssertionError,
       message: `The expression evaluated to a falsy value:${EOL}${EOL}  ` +
-               `assert(Buffer.from('test') instanceof Error)${EOL}`
+               `assert(Buffer.from('test') instanceof Error)${EOL}`,
     }
   );
   common.expectsError(
@@ -633,7 +633,7 @@ common.expectsError(
       code: 'ERR_ASSERTION',
       type: assert.AssertionError,
       message: `The expression evaluated to a falsy value:${EOL}${EOL}  ` +
-               `assert(Buffer.from('test') instanceof Error)${EOL}`
+               `assert(Buffer.from('test') instanceof Error)${EOL}`,
     }
   );
   fs.close = tmp;
@@ -657,7 +657,7 @@ common.expectsError(
              `      // eslint-disable-next-line${EOL}` +
              `      ===${EOL}` +
              `      123 instanceof${EOL}` +
-             `          Buffer)${EOL}`
+             `          Buffer)${EOL}`,
   }
 );
 
@@ -667,7 +667,7 @@ common.expectsError(
     code: 'ERR_ASSERTION',
     type: assert.AssertionError,
     message: `The expression evaluated to a falsy value:${EOL}${EOL}  ` +
-             `assert(null, undefined)${EOL}`
+             `assert(null, undefined)${EOL}`,
   }
 );
 
@@ -676,7 +676,7 @@ common.expectsError(
   {
     code: 'ERR_ASSERTION',
     type: assert.AssertionError,
-    message: '0 == true'
+    message: '0 == true',
   }
 );
 
@@ -686,7 +686,7 @@ common.expectsError(
     code: 'ERR_ASSERTION',
     type: assert.AssertionError,
     message: '0 == true',
-    generatedMessage: true
+    generatedMessage: true,
   }
 );
 
@@ -696,7 +696,7 @@ common.expectsError(
     code: 'ERR_ASSERTION',
     type: assert.AssertionError,
     message: 'test',
-    generatedMessage: false
+    generatedMessage: false,
   }
 );
 
@@ -721,7 +721,7 @@ common.expectsError(
       assert.throws(
         () => e.emit('hello', false),
         {
-          message: 'false == true'
+          message: 'false == true',
         }
       );
       threw = true;
@@ -739,7 +739,7 @@ common.expectsError(
     code: 'ERR_INVALID_ARG_TYPE',
     type: TypeError,
     message: 'The "error" argument must be one of type Function or RegExp. ' +
-             'Received type string'
+             'Received type string',
   }
 );
 
@@ -751,7 +751,7 @@ common.expectsError(
   };
   const errObj = {
     name: 'TypeError',
-    message: 'Wrong value'
+    message: 'Wrong value',
   };
   assert.throws(errFn, errObj);
 
@@ -764,7 +764,7 @@ common.expectsError(
     {
       code: 'ERR_ASSERTION',
       type: assert.AssertionError,
-      message: 'code: expected \'404\', not 404'
+      message: 'code: expected \'404\', not 404',
     }
   );
 
@@ -775,7 +775,7 @@ common.expectsError(
     {
       code: 'ERR_ASSERTION',
       type: assert.AssertionError,
-      message: 'foo: expected \'bar\', not undefined'
+      message: 'foo: expected \'bar\', not undefined',
     }
   );
 
@@ -784,7 +784,7 @@ common.expectsError(
     {
       type: assert.AssertionError,
       code: 'ERR_ASSERTION',
-      message: 'foobar'
+      message: 'foobar',
     }
   );
 
@@ -794,7 +794,7 @@ common.expectsError(
       type: TypeError,
       code: 'ERR_INVALID_ARG_TYPE',
       message: 'The "expected" argument must be one of type Function or ' +
-               'RegExp. Received type object'
+               'RegExp. Received type object',
     }
   );
 
@@ -804,7 +804,7 @@ common.expectsError(
     {
       type: assert.AssertionError,
       code: 'ERR_ASSERTION',
-      message: "name: expected 'Error', not 'TypeError'"
+      message: "name: expected 'Error', not 'TypeError'",
     }
   );
   common.expectsError(
@@ -812,7 +812,7 @@ common.expectsError(
     {
       type: assert.AssertionError,
       code: 'ERR_ASSERTION',
-      message: "message: expected '', not 'foo'"
+      message: "message: expected '', not 'foo'",
     }
   );
 
@@ -824,7 +824,7 @@ common.expectsError(
     {
       type: assert.AssertionError,
       code: 'ERR_ASSERTION',
-      message: 'Got unwanted exception.\nundefined'
+      message: 'Got unwanted exception.\nundefined',
     }
   );
 }

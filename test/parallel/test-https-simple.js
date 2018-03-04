@@ -31,7 +31,7 @@ const https = require('https');
 
 const options = {
   key: fixtures.readKey('agent1-key.pem'),
-  cert: fixtures.readKey('agent1-cert.pem')
+  cert: fixtures.readKey('agent1-cert.pem'),
 };
 
 const tests = 2;
@@ -62,7 +62,7 @@ server.listen(0, common.mustCall(() => {
     port: port,
     path: '/',
     method: 'GET',
-    rejectUnauthorized: false
+    rejectUnauthorized: false,
   };
 
   noCertCheckOptions.Agent = new https.Agent(noCertCheckOptions);
@@ -89,7 +89,7 @@ server.listen(0, common.mustCall(() => {
     hostname: '127.0.0.1',
     port: port,
     path: '/',
-    method: 'GET'
+    method: 'GET',
   };
 
   const checkCertReq = https.request(checkCertOptions, function(res) {

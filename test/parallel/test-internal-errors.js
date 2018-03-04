@@ -56,86 +56,86 @@ common.expectsError(
   () => new errors.Error('TEST_FOO_KEY'),
   {
     code: 'ERR_ASSERTION',
-    message: invalidKey('TEST_FOO_KEY')
+    message: invalidKey('TEST_FOO_KEY'),
   });
 // Calling it twice yields same result (using the key does not create it)
 common.expectsError(
   () => new errors.Error('TEST_FOO_KEY'),
   {
     code: 'ERR_ASSERTION',
-    message: invalidKey('TEST_FOO_KEY')
+    message: invalidKey('TEST_FOO_KEY'),
   });
 common.expectsError(
   () => new errors.Error(1),
   {
     code: 'ERR_ASSERTION',
-    message: invalidKey(1)
+    message: invalidKey(1),
   });
 common.expectsError(
   () => new errors.Error({}),
   {
     code: 'ERR_ASSERTION',
-    message: invalidKey('\\[object Object\\]')
+    message: invalidKey('\\[object Object\\]'),
   });
 common.expectsError(
   () => new errors.Error([]),
   {
     code: 'ERR_ASSERTION',
-    message: invalidKey('')
+    message: invalidKey(''),
   });
 common.expectsError(
   () => new errors.Error(true),
   {
     code: 'ERR_ASSERTION',
-    message: invalidKey('true')
+    message: invalidKey('true'),
   });
 common.expectsError(
   () => new errors.TypeError(1),
   {
     code: 'ERR_ASSERTION',
-    message: invalidKey(1)
+    message: invalidKey(1),
   });
 common.expectsError(
   () => new errors.TypeError({}),
   {
     code: 'ERR_ASSERTION',
-    message: invalidKey('\\[object Object\\]')
+    message: invalidKey('\\[object Object\\]'),
   });
 common.expectsError(
   () => new errors.TypeError([]),
   {
     code: 'ERR_ASSERTION',
-    message: invalidKey('')
+    message: invalidKey(''),
   });
 common.expectsError(
   () => new errors.TypeError(true),
   {
     code: 'ERR_ASSERTION',
-    message: invalidKey('true')
+    message: invalidKey('true'),
   });
 common.expectsError(
   () => new errors.RangeError(1),
   {
     code: 'ERR_ASSERTION',
-    message: invalidKey(1)
+    message: invalidKey(1),
   });
 common.expectsError(
   () => new errors.RangeError({}),
   {
     code: 'ERR_ASSERTION',
-    message: invalidKey('\\[object Object\\]')
+    message: invalidKey('\\[object Object\\]'),
   });
 common.expectsError(
   () => new errors.RangeError([]),
   {
     code: 'ERR_ASSERTION',
-    message: invalidKey('')
+    message: invalidKey(''),
   });
 common.expectsError(
   () => new errors.RangeError(true),
   {
     code: 'ERR_ASSERTION',
-    message: invalidKey('true')
+    message: invalidKey('true'),
   });
 
 // Tests for common.expectsError
@@ -155,7 +155,7 @@ common.expectsError(() => {
 }, {
   code: 'TEST_ERROR_1',
   type: TypeError,
-  message: 'Error for testing purposes: a'
+  message: 'Error for testing purposes: a',
 });
 
 common.expectsError(() => {
@@ -164,7 +164,7 @@ common.expectsError(() => {
   }, { code: 'TEST_ERROR_1', type: RangeError });
 }, {
   code: 'ERR_ASSERTION',
-  message: /^.+ is not instance of \S/
+  message: /^.+ is not instance of \S/,
 });
 
 common.expectsError(() => {
@@ -176,7 +176,7 @@ common.expectsError(() => {
 }, {
   code: 'ERR_ASSERTION',
   type: assert.AssertionError,
-  message: /.+ does not match \S/
+  message: /.+ does not match \S/,
 });
 
 // // Test ERR_INVALID_ARG_TYPE
@@ -227,7 +227,7 @@ common.expectsError(
   {
     code: 'ERR_ASSERTION',
     type: assert.AssertionError,
-    message: /^At least one expected value needs to be specified$/
+    message: /^At least one expected value needs to be specified$/,
   });
 
 // Test ERR_MISSING_ARGS
@@ -242,7 +242,7 @@ common.expectsError(
   {
     code: 'ERR_ASSERTION',
     type: assert.AssertionError,
-    message: /^At least one arg needs to be specified$/
+    message: /^At least one arg needs to be specified$/,
   });
 
 // Test ERR_SOCKET_BAD_PORT

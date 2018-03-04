@@ -15,7 +15,7 @@ const tests = {
   'ascii': [0x74, 0x3f, 0x73, 0x74, 0x20, 0x3f],
   'ucs2': [0x74, 0x00, 0xe9, 0x00, 0x73,
            0x00, 0x74, 0x00, 0x20, 0x00,
-           0xac, 0x20]
+           0xac, 0x20],
 };
 
 for (const test in tests) {
@@ -47,7 +47,7 @@ common.expectsError(
     type: TypeError,
     code: 'ERR_INVALID_ARG_TYPE',
     message: 'The "source" argument must be one of type Buffer ' +
-             'or Uint8Array. Received type null'
+             'or Uint8Array. Received type null',
   }
 );
 

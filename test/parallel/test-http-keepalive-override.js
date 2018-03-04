@@ -10,7 +10,7 @@ const server = http.createServer((req, res) => {
   const agent = http.Agent({
     keepAlive: true,
     maxSockets: 5,
-    maxFreeSockets: 2
+    maxFreeSockets: 2,
   });
 
   const keepSocketAlive = agent.keepSocketAlive;
@@ -45,7 +45,7 @@ const server = http.createServer((req, res) => {
       method: 'GET',
       path: '/',
       agent,
-      port: server.address().port
+      port: server.address().port,
     }, common.mustCall((res) => {
       res.resume();
       res.once('end', common.mustCall(() => {

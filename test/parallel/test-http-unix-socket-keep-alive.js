@@ -30,7 +30,7 @@ function asyncLoop(fn, times, cb) {
 function makeKeepAliveRequest(cb) {
   http.get({
     socketPath: common.PIPE,
-    headers: { connection: 'keep-alive' }
+    headers: { connection: 'keep-alive' },
   }, (res) => res.on('data', common.mustNotCall())
     .on('error', assert.fail)
     .on('end', cb)

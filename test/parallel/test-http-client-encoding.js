@@ -30,7 +30,7 @@ const server = http.createServer((req, res) => {
 }).listen(0, common.mustCall(() => {
   http.request({
     port: server.address().port,
-    encoding: 'utf8'
+    encoding: 'utf8',
   }, common.mustCall((res) => {
     let data = '';
     res.on('data', (chunk) => data += chunk);

@@ -54,6 +54,6 @@ test(function() {
   }, {
     code: 'ERR_INVALID_THIS',
     type: TypeError,
-    message: 'Value of "this" must be of type URLSearchParams'
+    message: 'Value of "this" must be of type URLSearchParams',
   });
 }

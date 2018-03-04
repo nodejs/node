@@ -10,7 +10,7 @@ common.expectsError(() => {
   _createSocketHandle(common.localhostIPv4, 0, 'udp4', 42);
 }, {
   code: 'ERR_ASSERTION',
-  message: /^false == true$/
+  message: /^false == true$/,
 });
 
 {

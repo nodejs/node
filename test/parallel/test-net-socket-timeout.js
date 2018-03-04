@@ -27,7 +27,7 @@ const assert = require('assert');
 // Verify that invalid delays throw
 const s = new net.Socket();
 const nonNumericDelays = [
-  '100', true, false, undefined, null, '', {}, () => {}, []
+  '100', true, false, undefined, null, '', {}, () => {}, [],
 ];
 const badRangeDelays = [-0.001, -1, -Infinity, Infinity, NaN];
 const validDelays = [0, 0.001, 1, 1e6];

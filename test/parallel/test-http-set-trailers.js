@@ -100,7 +100,7 @@ server.on('listening', function() {
   http.get({
     port: this.address().port,
     path: '/hello',
-    headers: {}
+    headers: {},
   }, function(res) {
     res.on('end', function() {
       //console.log(res.trailers);

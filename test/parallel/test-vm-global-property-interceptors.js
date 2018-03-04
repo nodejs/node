@@ -6,26 +6,26 @@ const vm = require('vm');
 const dSymbol = Symbol('d');
 const sandbox = {
   a: 'a',
-  dSymbol
+  dSymbol,
 };
 
 Object.defineProperties(sandbox, {
   b: {
-    value: 'b'
+    value: 'b',
   },
   c: {
     value: 'c',
     writable: true,
-    enumerable: true
+    enumerable: true,
   },
   [dSymbol]: {
-    value: 'd'
+    value: 'd',
   },
   e: {
     value: 'e',
-    configurable: true
+    configurable: true,
   },
-  f: {}
+  f: {},
 });
 
 const ctx = vm.createContext(sandbox);
@@ -55,9 +55,9 @@ assert.deepEqual(result, {
     value: undefined,
     writable: false,
     enumerable: false,
-    configurable: false
+    configurable: false,
   },
-  g: undefined
+  g: undefined,
 });
 
 // define new properties
@@ -78,14 +78,14 @@ assert.deepStrictEqual(Object.getOwnPropertyDescriptor(ctx, 'h'), {
   value: 'h',
   writable: false,
   enumerable: false,
-  configurable: false
+  configurable: false,
 });
 
 assert.deepStrictEqual(Object.getOwnPropertyDescriptor(ctx, 'i'), {
   value: undefined,
   writable: false,
   enumerable: false,
-  configurable: false
+  configurable: false,
 });
 
 const jDesc = Object.getOwnPropertyDescriptor(ctx, 'j');

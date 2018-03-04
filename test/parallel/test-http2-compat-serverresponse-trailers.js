@@ -11,7 +11,7 @@ server.listen(0, common.mustCall(() => {
   const port = server.address().port;
   server.once('request', common.mustCall((request, response) => {
     response.addTrailers({
-      ABC: 123
+      ABC: 123,
     });
     response.setTrailer('ABCD', 123);
 
@@ -20,7 +20,7 @@ server.listen(0, common.mustCall(() => {
       {
         code: 'ERR_INVALID_HTTP_TOKEN',
         type: TypeError,
-        message: 'Header name must be a valid HTTP token [""]'
+        message: 'Header name must be a valid HTTP token [""]',
       }
     );
     common.expectsError(
@@ -28,7 +28,7 @@ server.listen(0, common.mustCall(() => {
       {
         code: 'ERR_HTTP2_INVALID_HEADER_VALUE',
         type: TypeError,
-        message: 'Invalid value "undefined" for header "test"'
+        message: 'Invalid value "undefined" for header "test"',
       }
     );
     common.expectsError(
@@ -36,7 +36,7 @@ server.listen(0, common.mustCall(() => {
       {
         code: 'ERR_HTTP2_INVALID_HEADER_VALUE',
         type: TypeError,
-        message: 'Invalid value "null" for header "test"'
+        message: 'Invalid value "null" for header "test"',
       }
     );
     common.expectsError(
@@ -44,7 +44,7 @@ server.listen(0, common.mustCall(() => {
       {
         code: 'ERR_INVALID_ARG_TYPE',
         type: TypeError,
-        message: 'The "name" argument must be of type string'
+        message: 'The "name" argument must be of type string',
       }
     );
     common.expectsError(
@@ -52,7 +52,7 @@ server.listen(0, common.mustCall(() => {
       {
         code: 'ERR_INVALID_HTTP_TOKEN',
         type: TypeError,
-        message: 'Header name must be a valid HTTP token [""]'
+        message: 'Header name must be a valid HTTP token [""]',
       }
     );
 

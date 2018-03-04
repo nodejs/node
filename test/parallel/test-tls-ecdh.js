@@ -38,7 +38,7 @@ const options = {
   key: fixtures.readKey('agent2-key.pem'),
   cert: fixtures.readKey('agent2-cert.pem'),
   ciphers: '-ALL:ECDHE-RSA-AES128-SHA256',
-  ecdhCurve: 'prime256v1'
+  ecdhCurve: 'prime256v1',
 };
 
 const reply = 'I AM THE WALRUS'; // something recognizable

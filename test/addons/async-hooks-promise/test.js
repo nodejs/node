@@ -28,7 +28,7 @@ let pwrap = null;
 const hook1 = async_hooks.createHook({
   init(id, type, tid, resource) {
     pwrap = resource;
-  }
+  },
 }).enable();
 
 // Check that the internal field returns the same PromiseWrap passed to init().

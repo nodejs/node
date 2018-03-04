@@ -4,7 +4,7 @@ const assert = require('assert');
 const Readable = require('stream').Readable;
 
 const readable = new Readable({
-  read: () => {}
+  read: () => {},
 });
 
 // Initialized to false.
@@ -40,7 +40,7 @@ setImmediate(common.mustCall(() => {
 }));
 
 const noRead = new Readable({
-  read: () => {}
+  read: () => {},
 });
 
 noRead.on('readable', common.mustCall(() => {
@@ -55,7 +55,7 @@ noRead.push('foo');
 noRead.push(null);
 
 const flowing = new Readable({
-  read: () => {}
+  read: () => {},
 });
 
 flowing.on('data', common.mustCall(() => {

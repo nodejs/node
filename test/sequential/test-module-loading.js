@@ -157,7 +157,7 @@ assert.strictEqual(require('../fixtures/registerExt.hello.world').test,
 console.error('load custom file types that return non-strings');
 require.extensions['.test'] = function(module) {
   module.exports = {
-    custom: 'passed'
+    custom: 'passed',
   };
 };
 
@@ -226,7 +226,7 @@ try {
   assert.deepStrictEqual(json, {
     name: 'package-name',
     version: '1.2.3',
-    main: 'package-main-module'
+    main: 'package-main-module',
   });
 }
 
@@ -249,21 +249,21 @@ try {
   assert.deepStrictEqual(children, {
     'common/index.js': {
       'common/fixtures.js': {},
-      'common/tmpdir.js': {}
+      'common/tmpdir.js': {},
     },
     'fixtures/not-main-module.js': {},
     'fixtures/a.js': {
       'fixtures/b/c.js': {
         'fixtures/b/d.js': {},
-        'fixtures/b/package/index.js': {}
-      }
+        'fixtures/b/package/index.js': {},
+      },
     },
     'fixtures/foo': {},
     'fixtures/nested-index/one/index.js': {
-      'fixtures/nested-index/one/hello.js': {}
+      'fixtures/nested-index/one/hello.js': {},
     },
     'fixtures/nested-index/two/index.js': {
-      'fixtures/nested-index/two/hello.js': {}
+      'fixtures/nested-index/two/hello.js': {},
     },
     'fixtures/nested-index/three.js': {},
     'fixtures/nested-index/three/index.js': {},
@@ -271,13 +271,13 @@ try {
     'fixtures/packages/main/package-main-module.js': {},
     'fixtures/packages/main-index/package-main-module/index.js': {},
     'fixtures/cycles/root.js': {
-      'fixtures/cycles/folder/foo.js': {}
+      'fixtures/cycles/folder/foo.js': {},
     },
     'fixtures/node_modules/foo.js': {
       'fixtures/node_modules/baz/index.js': {
         'fixtures/node_modules/bar.js': {},
-        'fixtures/node_modules/baz/node_modules/asdf.js': {}
-      }
+        'fixtures/node_modules/baz/node_modules/asdf.js': {},
+      },
     },
     'fixtures/path.js': {},
     'fixtures/throws_error.js': {},
@@ -296,10 +296,10 @@ try {
     'fixtures/module-load-order/file9/index.reg2': {},
     'fixtures/module-require/parent/index.js': {
       'fixtures/module-require/child/index.js': {
-        'fixtures/module-require/child/node_modules/target.js': {}
-      }
+        'fixtures/module-require/child/node_modules/target.js': {},
+      },
     },
-    'fixtures/packages/main/package.json': {}
+    'fixtures/packages/main/package.json': {},
   });
 }
 

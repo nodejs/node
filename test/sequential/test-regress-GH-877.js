@@ -42,7 +42,7 @@ server.listen(common.PORT, '127.0.0.1', function() {
   for (let i = 0; i < N; i++) {
     const options = {
       host: '127.0.0.1',
-      port: common.PORT
+      port: common.PORT,
     };
 
     const req = http.get(options, function(res) {

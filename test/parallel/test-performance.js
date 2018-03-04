@@ -73,7 +73,7 @@ assert.strictEqual(typeof performance.timeOrigin, 'number');
       {
         code: 'ERR_INVALID_PERFORMANCE_MARK',
         type: Error,
-        message: `The "${i}" performance mark has not been set`
+        message: `The "${i}" performance mark has not been set`,
       });
   });
 
@@ -120,7 +120,7 @@ assert.strictEqual(performance.nodeTiming.entryType, 'node');
   'moduleLoadStart',
   'moduleLoadEnd',
   'preloadModuleLoadStart',
-  'preloadModuleLoadEnd'
+  'preloadModuleLoadEnd',
 ].forEach((i) => {
   assert.strictEqual(typeof performance.nodeTiming[i], 'number');
 });

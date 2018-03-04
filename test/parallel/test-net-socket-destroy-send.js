@@ -15,13 +15,13 @@ server.listen(0, common.mustCall(function() {
     conn.on('error', common.expectsError({
       code: 'ERR_SOCKET_CLOSED',
       message: 'Socket is closed',
-      type: Error
+      type: Error,
     }));
 
     conn.write(Buffer.from('kaboom'), common.expectsError({
       code: 'ERR_SOCKET_CLOSED',
       message: 'Socket is closed',
-      type: Error
+      type: Error,
     }));
     server.close();
   }));

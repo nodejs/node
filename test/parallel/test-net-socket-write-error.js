@@ -10,7 +10,7 @@ function connectToServer() {
     common.expectsError(() => client.write(1337),
                         {
                           code: 'ERR_INVALID_ARG_TYPE',
-                          type: TypeError
+                          type: TypeError,
                         });
 
     client.end();

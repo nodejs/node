@@ -11,12 +11,12 @@ const message = 'Please use Number.isNaN instead of the global isNaN function';
 
 new RuleTester().run('number-isnan', rule, {
   valid: [
-    'Number.isNaN()'
+    'Number.isNaN()',
   ],
   invalid: [
     {
       code: 'isNaN()',
-      errors: [{ message }]
-    }
-  ]
+      errors: [{ message }],
+    },
+  ],
 });

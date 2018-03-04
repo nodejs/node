@@ -207,7 +207,7 @@ event type in order for the timing details to be accessed.
 ```js
 const {
   performance,
-  PerformanceObserver
+  PerformanceObserver,
 } = require('perf_hooks');
 
 function someFunction() {
@@ -432,7 +432,7 @@ added: v8.5.0
 ```js
 const {
   performance,
-  PerformanceObserver
+  PerformanceObserver,
 } = require('perf_hooks');
 
 const obs = new PerformanceObserver((list, observer) => {
@@ -534,7 +534,7 @@ every `PerformanceEntry` instance:
 ```js
 const {
   performance,
-  PerformanceObserver
+  PerformanceObserver,
 } = require('perf_hooks');
 
 const obs = new PerformanceObserver((list, observer) => {
@@ -549,7 +549,7 @@ for (let n = 0; n < 3; n++)
 ```js
 const {
   performance,
-  PerformanceObserver
+  PerformanceObserver,
 } = require('perf_hooks');
 
 const obs = new PerformanceObserver((list, observer) => {
@@ -574,7 +574,7 @@ to execute the callback).
 const async_hooks = require('async_hooks');
 const {
   performance,
-  PerformanceObserver
+  PerformanceObserver,
 } = require('perf_hooks');
 
 const set = new Set();
@@ -593,7 +593,7 @@ const hook = async_hooks.createHook({
                           `Timeout-${id}-Init`,
                           `Timeout-${id}-Destroy`);
     }
-  }
+  },
 });
 hook.enable();
 
@@ -618,7 +618,7 @@ dependencies:
 'use strict';
 const {
   performance,
-  PerformanceObserver
+  PerformanceObserver,
 } = require('perf_hooks');
 const mod = require('module');
 

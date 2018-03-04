@@ -36,7 +36,7 @@ const is = {
   object: (value) => {
     assert.strictEqual(typeof value, 'object');
     assert.notStrictEqual(value, null);
-  }
+  },
 };
 
 const flatten = (arr) =>
@@ -133,7 +133,7 @@ switch (platform) {
       mac: '00:00:00:00:00:00',
       family: 'IPv4',
       internal: true,
-      cidr: '127.0.0.1/8'
+      cidr: '127.0.0.1/8',
     }];
     assert.deepStrictEqual(actual, expected);
     break;
@@ -149,7 +149,7 @@ switch (platform) {
       mac: '00:00:00:00:00:00',
       family: 'IPv4',
       internal: true,
-      cidr: '127.0.0.1/8'
+      cidr: '127.0.0.1/8',
     }];
     assert.deepStrictEqual(actual, expected);
     break;
@@ -159,7 +159,7 @@ const netmaskToCIDRSuffixMap = new Map(Object.entries({
   '255.0.0.0': 8,
   '255.255.255.0': 24,
   'ffff:ffff:ffff:ffff::': 64,
-  'ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff': 128
+  'ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff': 128,
 }));
 
 flatten(Object.values(interfaces))

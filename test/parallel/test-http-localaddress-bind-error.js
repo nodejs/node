@@ -42,7 +42,7 @@ server.listen(0, '127.0.0.1', common.mustCall(function() {
     port: this.address().port,
     path: '/',
     method: 'GET',
-    localAddress: invalidLocalAddress
+    localAddress: invalidLocalAddress,
   }, function(res) {
     assert.fail('unexpectedly got response from server');
   }).on('error', common.mustCall(function(e) {

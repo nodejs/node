@@ -62,11 +62,11 @@ const invalidCertRE = /^The "cert" argument must be one of type string, Buffer, 
   [[keyStr, keyStr2], false],
   [false, [certStr, certStr2]],
   [[{ pem: keyBuff }], false],
-  [[{ pem: keyBuff }, { pem: keyBuff }], false]
+  [[{ pem: keyBuff }, { pem: keyBuff }], false],
 ].forEach((params) => {
   https.createServer({
     key: params[0],
-    cert: params[1]
+    cert: params[1],
   });
 });
 
@@ -96,17 +96,17 @@ const invalidCertRE = /^The "cert" argument must be one of type string, Buffer, 
   [[true, false], [certBuff, certBuff2], invalidKeyRE],
   [[keyStr, keyStr2], [true, false], invalidCertRE],
   [[keyStr, keyStr2], true, invalidCertRE],
-  [true, [certBuff, certBuff2], invalidKeyRE]
+  [true, [certBuff, certBuff2], invalidKeyRE],
 ].forEach((params) => {
   common.expectsError(() => {
     https.createServer({
       key: params[0],
-      cert: params[1]
+      cert: params[1],
     });
   }, {
     code: 'ERR_INVALID_ARG_TYPE',
     type: TypeError,
-    message: params[2]
+    message: params[2],
   });
 });
 
@@ -124,7 +124,7 @@ const invalidCertRE = /^The "cert" argument must be one of type string, Buffer, 
   https.createServer({
     key: params[0],
     cert: params[1],
-    ca: params[2]
+    ca: params[2],
   });
 });
 
@@ -135,17 +135,17 @@ const invalidCertRE = /^The "cert" argument must be one of type string, Buffer, 
   [keyBuff, certBuff, {}],
   [keyBuff, certBuff, 1],
   [keyBuff, certBuff, true],
-  [keyBuff, certBuff, [caCert, true]]
+  [keyBuff, certBuff, [caCert, true]],
 ].forEach((params) => {
   common.expectsError(() => {
     https.createServer({
       key: params[0],
       cert: params[1],
-      ca: params[2]
+      ca: params[2],
     });
   }, {
     code: 'ERR_INVALID_ARG_TYPE',
     type: TypeError,
-    message: /^The "ca" argument must be one of type string, Buffer, TypedArray, or DataView$/
+    message: /^The "ca" argument must be one of type string, Buffer, TypedArray, or DataView$/,
   });
 });

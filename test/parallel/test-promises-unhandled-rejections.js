@@ -46,7 +46,7 @@ const asyncTest = (function() {
     asyncTestQueue.push({
       action: fn,
       stack: stack,
-      description: description
+      description: description,
     });
     if (!asyncTestsEnabled) {
       asyncTestsEnabled = true;

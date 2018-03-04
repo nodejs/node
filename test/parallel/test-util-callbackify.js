@@ -20,7 +20,7 @@ const values = [
   Symbol('I am a symbol'),
   function ok() {},
   ['array', 'with', 4, 'values'],
-  new Error('boo')
+  new Error('boo'),
 ];
 
 {
@@ -53,7 +53,7 @@ const values = [
       return {
         then(onRes, onRej) {
           onRes(value);
-        }
+        },
       };
     }
 
@@ -115,7 +115,7 @@ const values = [
       return {
         then(onRes, onRej) {
           onRej(value);
-        }
+        },
       };
     }
 
@@ -236,7 +236,7 @@ const values = [
     }, {
       code: 'ERR_INVALID_ARG_TYPE',
       type: TypeError,
-      message: 'The "original" argument must be of type Function'
+      message: 'The "original" argument must be of type Function',
     });
   });
 }
@@ -257,7 +257,7 @@ const values = [
     }, {
       code: 'ERR_INVALID_ARG_TYPE',
       type: TypeError,
-      message: 'The last argument must be of type Function'
+      message: 'The last argument must be of type Function',
     });
   });
 }

@@ -22,14 +22,14 @@ function onStream(stream, headers, flags) {
                       {
                         code: 'ERR_HTTP2_INVALID_INFO_STATUS',
                         type: RangeError,
-                        message: /^Invalid informational status code: 201$/
+                        message: /^Invalid informational status code: 201$/,
                       });
 
   common.expectsError(() => stream.additionalHeaders({ ':status': 101 }),
                       {
                         code: 'ERR_HTTP2_STATUS_101',
                         type: Error,
-                        message: status101regex
+                        message: status101regex,
                       });
 
   common.expectsError(
@@ -37,7 +37,7 @@ function onStream(stream, headers, flags) {
     {
       code: 'ERR_HTTP2_INVALID_PSEUDOHEADER',
       type: Error,
-      message: '":method" is an invalid pseudoheader or is used incorrectly'
+      message: '":method" is an invalid pseudoheader or is used incorrectly',
     }
   );
 
@@ -47,14 +47,14 @@ function onStream(stream, headers, flags) {
 
   stream.respond({
     'content-type': 'text/html',
-    ':status': 200
+    ':status': 200,
   });
 
   common.expectsError(() => stream.additionalHeaders({ abc: 123 }),
                       {
                         code: 'ERR_HTTP2_HEADERS_AFTER_RESPOND',
                         type: Error,
-                        message: afterRespondregex
+                        message: afterRespondregex,
                       });
 
   stream.end('hello world');
