@@ -610,7 +610,7 @@ a V8-inspector based CLI debugger available through `node inspect`.
 
 Type: End-of-Life
 
-DebugContext has been removed in V8 and is not available in Node 10+.
+DebugContext has been removed in V8 and is not available in Node.js 10+.
 
 DebugContext was an experimental API.
 

@@ -3489,7 +3489,7 @@ napi_status napi_get_node_version(napi_env env,
 ```
 
 - `[in] env`: The environment that the API is invoked under.
-- `[out] version`: A pointer to version information for Node itself.
+- `[out] version`: A pointer to version information for Node.js itself.
 
 Returns `napi_ok` if the API succeeded.
 

@@ -2,8 +2,8 @@
 
 Postmortem metadata are constants present in the final build which can be used
 by debuggers and other tools to navigate through internal structures of software
-when analyzing its memory (either on a running process or a core dump). Node
-provides this metadata in its builds for V8 and Node internal structures.
+when analyzing its memory (either on a running process or a core dump). Node.js
+provides this metadata in its builds for V8 and Node.js internal structures.
 
 
 ### V8 Postmortem metadata
@@ -11,9 +11,9 @@ provides this metadata in its builds for V8 and Node internal structures.
 V8 prefixes all postmortem constants with `v8dbg_`, and they allow inspection of
 objects on the heap as well as object properties and references. V8 generates
 those symbols with a script (`deps/v8/tools/gen-postmortem-metadata.py`), and
-Node always includes these constants in the final build.
+Node.js always includes these constants in the final build.
 
-### Node Debug Symbols
+### Node.js Debug Symbols
 
 Node prefixes all postmortem constants with `nodedbg_`, and they complement V8
 constants by providing ways to inspect Node-specific structures, like
@@ -24,8 +24,9 @@ time.
 
 #### Calculating offset of class members
 
-Node constants referring to the offset of class members in memory are calculated
-at compile time. Because of that, those class members must be at a fixed offset
+Node.js constants referring to the offset of class members in memory
+are calculated at compile time.
+Because of that, those class members must be at a fixed offset
 from the start of the class. That's not a problem in most cases, but it also
 means that those members should always come after any templated member on the
 class definition.
