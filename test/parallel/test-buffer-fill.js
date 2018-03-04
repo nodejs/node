@@ -368,7 +368,7 @@ assert.strictEqual(
 
 // Test that bypassing 'length' won't cause an abort.
 common.expectsError(() => {
-  const buf = new Buffer('w00t');
+  const buf = Buffer.from('w00t');
   Object.defineProperty(buf, 'length', {
     value: 1337,
     enumerable: true
