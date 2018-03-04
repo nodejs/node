@@ -299,8 +299,9 @@ void Environment::EnvPromiseHook(v8::PromiseHookType type,
                                  v8::Local<v8::Promise> promise,
                                  v8::Local<v8::Value> parent) {
   auto context = promise->CreationContext();
-  // if the context is undefined (not a node context) then skip
-  if (context->GetEmbedderData(node::Environment::kContextEmbedderDataIndex)->IsUndefined()) {
+  auto dataIndex = node::Environment::kContextEmbedderDataIndex;
+  // If the context is undefined (not a node context) then skip.
+  if (context->GetEmbedderData(dataIndex)->IsUndefined()) {
     return;
   }
   Environment* env = Environment::GetCurrent(context);
