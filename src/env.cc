@@ -298,7 +298,12 @@ bool Environment::EmitNapiWarning() {
 void Environment::EnvPromiseHook(v8::PromiseHookType type,
                                  v8::Local<v8::Promise> promise,
                                  v8::Local<v8::Value> parent) {
-  Environment* env = Environment::GetCurrent(promise->CreationContext());
+  auto context = promise->CreationContext();
+  // if the context is undefined (not a node context) then skip
+  if (context->GetEmbedderData(node::Environment::kContextEmbedderDataIndex)->IsNullOrUndefined()) {
+    return;
+  }
+  Environment* env = Environment::GetCurrent(context);
   for (const PromiseHookCallback& hook : env->promise_hooks_) {
     hook.cb_(type, promise, parent, hook.arg_);
   }
