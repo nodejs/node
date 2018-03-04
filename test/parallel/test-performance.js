@@ -7,10 +7,12 @@ const { performance } = require('perf_hooks');
 assert(performance);
 assert(performance.nodeTiming);
 assert.strictEqual(typeof performance.timeOrigin, 'number');
-assert(Math.abs(performance.timeOrigin - Date.now()) < 300);
+// Use a fairly large epsilon value, since we can only guarantee that the node
+// process started up in 20 seconds.
+assert(Math.abs(performance.timeOrigin - Date.now()) < 20000);
 
 const inited = performance.now();
-assert(inited < 300);
+assert(inited < 20000);
 
 {
   const entries = performance.getEntries();
@@ -113,7 +115,7 @@ function checkNodeTiming(props) {
     if (props[prop].around !== undefined) {
       assert.strictEqual(typeof performance.nodeTiming[prop], 'number');
       const delta = performance.nodeTiming[prop] - props[prop].around;
-      assert(Math.abs(delta) < 500);
+      assert(Math.abs(delta) < 1000);
     } else {
       assert.strictEqual(performance.nodeTiming[prop], props[prop]);
     }
