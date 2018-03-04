@@ -157,6 +157,9 @@
       }, {
         'defines': ['<@(openssl_default_defines_not_win)'],
         'cflags': ['-Wno-missing-field-initializers'],
+        'xcode_settings': {
+          'WARNING_CFLAGS': ['-Wno-missing-field-initializers'],
+        },
         'conditions': [
           ['OS=="mac"', {
             'defines': ['<@(openssl_default_defines_mac)'],
