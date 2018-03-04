@@ -4,6 +4,7 @@
 #include "util-inl.h"
 #include "req_wrap.h"
 #include "v8abbr.h"
+#include "node_context_data.h"
 
 #define NODEDBG_SYMBOL(Name)  nodedbg_ ## Name
 
@@ -34,7 +35,7 @@
   V(ListNode_ReqWrap, next_, uintptr_t, ListNode<ReqWrap<uv_req_t>>::next_)
 
 extern "C" {
-int nodedbg_const_Environment__kContextEmbedderDataIndex__int;
+int nodedbg_const_ContextEmbedderIndex__kEnvironment__int;
 uintptr_t nodedbg_offset_ExternalString__data__uintptr_t;
 
 #define V(Class, Member, Type, Accessor)                                      \
@@ -46,8 +47,8 @@ uintptr_t nodedbg_offset_ExternalString__data__uintptr_t;
 namespace node {
 
 int GenDebugSymbols() {
-  nodedbg_const_Environment__kContextEmbedderDataIndex__int =
-      Environment::kContextEmbedderDataIndex;
+  nodedbg_const_ContextEmbedderIndex__kEnvironment__int =
+      ContextEmbedderIndex::kEnvironment;
 
   nodedbg_offset_ExternalString__data__uintptr_t = NODE_OFF_EXTSTR_DATA;
 

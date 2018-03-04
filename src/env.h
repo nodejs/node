@@ -75,14 +75,6 @@ struct PackageConfig {
 };
 }  // namespace loader
 
-// Pick an index that's hopefully out of the way when we're embedded inside
-// another application. Performance-wise or memory-wise it doesn't matter:
-// Context::SetAlignedPointerInEmbedderData() is backed by a FixedArray,
-// worst case we pay a one-time penalty for resizing the array.
-#ifndef NODE_CONTEXT_EMBEDDER_DATA_INDEX
-#define NODE_CONTEXT_EMBEDDER_DATA_INDEX 32
-#endif
-
 // The number of items passed to push_values_to_array_function has diminishing
 // returns around 8. This should be used at all call sites using said function.
 #ifndef NODE_PUSH_VAL_TO_ARRAY_MAX
@@ -729,8 +721,6 @@ class Environment {
 
   inline HandleWrapQueue* handle_wrap_queue() { return &handle_wrap_queue_; }
   inline ReqWrapQueue* req_wrap_queue() { return &req_wrap_queue_; }
-
-  static const int kContextEmbedderDataIndex = NODE_CONTEXT_EMBEDDER_DATA_INDEX;
 
   void AddPromiseHook(promise_hook_func fn, void* arg);
   bool RemovePromiseHook(promise_hook_func fn, void* arg);
