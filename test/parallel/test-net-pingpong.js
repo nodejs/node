@@ -53,7 +53,7 @@ function pingPongTest(port, host) {
       // Since we never queue data (we're always waiting for the PING
       // before sending a pong) the writeQueueSize should always be less
       // than one message.
-      assert.ok(0 <= socket.bufferSize && socket.bufferSize <= 4);
+      assert.ok(socket.bufferSize >= 0 && socket.bufferSize <= 4);
 
       assert.strictEqual(socket.writable, true);
       assert.strictEqual(socket.readable, true);
