@@ -81,8 +81,8 @@ necessary.
 ### Ready to land pull requests
 
 A pull request that is still awaiting the minimum review time is considered
-`ready` as soon as the CI has been kicked off, it has at least one approval, and
-it has no outstanding review comments. Please always make sure to add the
+`ready` as soon as the CI has been started, it has at least one approval, and it
+has no outstanding review comments. Please always make sure to add the
 appropriate `ready` label to the PR in that case and remove it again as soon as
 that condition is not met anymore.
 
