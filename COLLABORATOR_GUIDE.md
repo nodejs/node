@@ -49,17 +49,18 @@ understand the project governance model as outlined in
 ### Managing Issues and Pull Requests
 
 Collaborators should take full responsibility for managing issues and pull
-requests they feel qualified to handle. Just make sure this is done while being
-mindful of these guidelines, the opinions of other Collaborators and guidance of
-the [TSC][]. They may also notify other qualified parties for more input on an
-issue or a pull request. [See "Who to CC in
-issues"](./doc/onboarding-extras.md#who-to-cc-in-issues)
+requests they feel qualified to handle. Make sure this is done while being
+mindful of these guidelines, the opinions of other Collaborators, and guidance
+of the [TSC][]. They may also notify other qualified parties for more input on
+an issue or a pull request.
+[See "Who to CC in issues"](./doc/onboarding-extras.md#who-to-cc-in-issues)
 
 ### Welcoming First-Time Contributors
 
 Courtesy should always be shown to individuals submitting issues and pull
 requests to the Node.js project. Be welcoming to first-time contributors,
-identified by the GitHub ![First-time contributor](./doc/first_timer_badge.png) badge.
+identified by the GitHub ![First-time contributor](./doc/first_timer_badge.png)
+badge.
 
 For first-time contributors, check if the commit author is the same as the
 pull request author, and ask if they have configured their git
@@ -80,21 +81,21 @@ necessary.
 ### Ready to land pull requests
 
 A pull request that is still awaiting the minimum review time is considered
-`ready` as soon as the CI got kicked off, it got at least one approval and
+`ready` as soon as the CI has been kicked off, it has at least one approval, and
 it has no outstanding review comments. Please always make sure to add the
-appropriate `ready` label to the PR in that case and remove it again as soon
-as that condition is not met anymore.
+appropriate `ready` label to the PR in that case and remove it again as soon as
+that condition is not met anymore.
 
 ### Handling own pull requests
 
-If you as a collaborator open a pull request, please always start a CI right
+If you as a Collaborator open a pull request, please always start a CI right
 after (see [testing and CI](#testing-and-ci) for further information on how to
 do that) and post the link to it as well. Please also make sure that you start a
 new CI after each update (due to e.g., a change request in a review or due to
 rebasing).
 
 As soon as the PR is ready to land, please go ahead and do so on your own.
-Landing own pull requests distributes the work load for each collaborator
+Landing your own pull requests distributes the work load for each Collaborator
 equally. If it is still awaiting the
 [minimum time to land](#waiting-for-approvals), please add the `ready` label to
 it so it is obvious that the PR can land as soon as the time ends.
@@ -120,21 +121,21 @@ review by @-mention.
 If you are unsure about the modification and are not prepared to take
 full responsibility for the change, defer to another Collaborator.
 
-If you are the first collaborator to approve a pull request that has no CI yet,
+If you are the first Collaborator to approve a pull request that has no CI yet,
 please start one (see [testing and CI](#testing-and-ci) for further information
 on how to do that) and post the link to the CI in the PR. Please also start a
-new CI in case a code change was done due to a addressed review comment or a
-rebase.
+new CI in case the PR creator pushed new code since the last CI run (due to
+e.g., an addressed review comment or a rebase).
 
-In case there are already enough approvals (`LGTM`), a CI run and the PR is open
-longer than the minimum waiting time without any open comments, please do not
-just add another approval. Instead go ahead and land the PR after checking the
-CI outcome.
+In case there are already enough approvals (`LGTM`), a CI run, and the PR is
+open longer than the minimum waiting time without any open comments, please do
+not (only) add another approval. Instead go ahead and land the PR after checking
+the CI outcome.
 
 ### Consensus Seeking
 
 If there is no disagreement amongst Collaborators, a pull request should be
-landed given appropriate review, a green CI and the minimum
+landed given appropriate review, a green CI, and the minimum
 [waiting time](#waiting-for-approvals) for a PR. If it is still awaiting the
 [minimum time to land](#waiting-for-approvals), please add the `ready` label to
 it so it is obvious that the PR can land as soon as the time ends.
@@ -155,7 +156,7 @@ review by the TSC](#involving-the-tsc). This does not necessarily mean that the
 PR must be put onto the TSC meeting agenda. If multiple TSC members approve
 (`LGTM`) the PR and no Collaborators oppose the PR, it should be landed. Where
 there is disagreement among TSC members or objections from one or more
-Collaborators, `semver-major` pull requests should be put on the TSC meeting
+Collaborators, `semver-major` pull requests may be put on the TSC meeting
 agenda.
 
 #### Helpful resources
@@ -484,9 +485,9 @@ The TSC should serve as the final arbiter where required.
    check for flaky tests and infrastructure failures. Please check if those were
    already reported in the appropriate repository ([node][flaky tests] and
    [build](https://github.com/nodejs/build/issues)) or not and open new issues
-   in case they are not. If not CI was run or the run is outdated because code
+   in case they are not. If no CI was run or the run is outdated because code
    was pushed after the last run, please first start a new CI and wait for the
-   result. If no CI is required, please leave a comment in case non is already
+   result. If no CI is required, please leave a comment in case none is already
    present.
 1. Review the commit message to ensure that it adheres to the guidelines
    outlined in the [contributing][] guide.
@@ -701,9 +702,9 @@ hint: See the 'Note about fast-forwards' in 'git push --help' for details.
 ```
 
 That means a commit has landed since your last rebase against `upstream/master`.
-To fix this pull with rebase from upstream and run the tests again (to make sure
-no interactions between your changes and the new changes cause any problems),
-and push again:
+To fix this, pull with rebase from upstream and run the tests again (to make
+sure no interactions between your changes and the new changes cause any
+problems), and push again:
 
 ```sh
 git pull upstream master --rebase
@@ -760,7 +761,7 @@ and impact of the changes on the code, the risk to ecosystem stability
 incurred by accepting the change, and the expected benefit that landing the
 commit will have for the ecosystem.
 
-Any collaborator who feels a semver-minor commit should be landed in an LTS
+Any Collaborator who feels a semver-minor commit should be landed in an LTS
 branch should attach the `lts-agenda` label to the pull request. The LTS WG
 will discuss the issue and, if necessary, will escalate the issue up to the
 TSC for further discussion.
@@ -777,7 +778,7 @@ pulled from the staging branch into the LTS branch only when a release is
 being prepared and may be pulled into the LTS branch in a different order
 than they were landed in staging.
 
-Any collaborator may land commits into a staging branch, but only the release
+Any Collaborator may land commits into a staging branch, but only the release
 team should land commits into the LTS branch while preparing a new
 LTS release.
 
@@ -799,7 +800,7 @@ Several LTS related issue and PR labels have been provided:
 * `land-on-v4.x` - tells the release team that the commit should be landed
   in a future v4.x release
 
-Any collaborator can attach these labels to any PR/issue. As commits are
+Any Collaborator can attach these labels to any PR/issue. As commits are
 landed into the staging branches, the `lts-watch-` label will be removed.
 Likewise, as commits are landed in a LTS release, the `land-on-` label will
 be removed.

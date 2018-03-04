@@ -86,10 +86,13 @@ onboarding session.
       `semver-major` label
     * When adding a `semver-*` label, add a comment explaining why you're adding
       it. Do it right away so you don't forget!
-  * Please add the `ready` label for PRs where the CI was just kicked off and
-    that are good to go (no outstanding review items), pending the CI outcome
-    and possibly the 48/72 hour waiting rule and the necessary LGs for
-    semver-major.
+  * Please add the `ready` label for PRs where:
+    * the CI has been started,
+    * that have no outstanding review comments and
+    * at least one approval,
+    * pending the CI outcome,
+    * the 48/72 hour waiting rule and
+    * the necessary LGs for semver-major.
 
 * [**See "Who to CC in issues"**](./onboarding-extras.md#who-to-cc-in-issues)
   * This will come more naturally over time
