@@ -12,12 +12,12 @@ const ECDH = crypto.ECDH;
 const cafebabeKey = 'cafebabe'.repeat(8);
 // Associated compressed and uncompressed public keys (points).
 const cafebabePubPtComp =
-'03672a31bfc59d3f04548ec9b7daeeba2f61814e8ccc40448045007f5479f693a3';
+    '03672a31bfc59d3f04548ec9b7daeeba2f61814e8ccc40448045007f5479f693a3';
 const cafebabePubPtUnComp =
-'04672a31bfc59d3f04548ec9b7daeeba2f61814e8ccc40448045007f5479f693a3' +
-'2e02c7f93d13dc2732b760ca377a5897b9dd41a1c1b29dc0442fdce6d0a04d1d';
+    '04672a31bfc59d3f04548ec9b7daeeba2f61814e8ccc40448045007f5479f693a3' +
+    '2e02c7f93d13dc2732b760ca377a5897b9dd41a1c1b29dc0442fdce6d0a04d1d';
 
-// invalid test: key argument is undefined
+// Invalid test: key argument is undefined.
 common.expectsError(
   () => ECDH.convertKey(),
   {
@@ -25,7 +25,7 @@ common.expectsError(
     message: 'Public key must be a buffer'
   });
 
-// invalid test: curve argument is undefined
+// Invalid test: curve argument is undefined.
 common.expectsError(
   () => ECDH.convertKey(cafebabePubPtComp),
   {
@@ -33,7 +33,7 @@ common.expectsError(
     message: 'ECDH curve name must be a string'
   });
 
-// invalid test: curve argument is invalid
+// Invalid test: curve argument is invalid.
 common.expectsError(
   () => ECDH.convertKey(cafebabePubPtComp, 'badcurve'),
   {
@@ -44,7 +44,7 @@ common.expectsError(
 const availableCurves = new Set(crypto.getCurves());
 
 if (availableCurves.has('secp256k1')) {
-  // invalid test: format argument is undefined
+  // Invalid test: format argument is undefined.
   common.expectsError(
     () => ECDH.convertKey(cafebabePubPtComp, 'secp256k1', 'hex', 'hex', 10),
     {
@@ -53,7 +53,7 @@ if (availableCurves.has('secp256k1')) {
       message: 'Invalid ECDH format: 10'
     });
 
-  // Point formats
+  // Point formats.
   let uncompressed = ECDH.convertKey(cafebabePubPtComp,
                                      'secp256k1',
                                      'hex',
@@ -75,7 +75,7 @@ if (availableCurves.has('secp256k1')) {
   firstByte = hybrid[0];
   assert(firstByte === 6 || firstByte === 7);
 
-  // format conversion
+  // Format conversion from hex to hex
   uncompressed = ECDH.convertKey(cafebabePubPtComp,
                                  'secp256k1',
                                  'hex',
@@ -94,7 +94,7 @@ if (availableCurves.has('secp256k1')) {
   assert.strictEqual(uncompressed, cafebabePubPtUnComp);
   assert.strictEqual(compressed, cafebabePubPtComp);
 
-  // compare to getPublicKey
+  // Compare to getPublicKey.
   const ecdh1 = ECDH('secp256k1');
   ecdh1.generateKeys();
   ecdh1.setPrivateKey(cafebabeKey, 'hex');

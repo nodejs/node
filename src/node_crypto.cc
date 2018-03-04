@@ -4704,14 +4704,11 @@ EC_POINT* ECDH::BufferToPoint(Environment* env,
       len,
       nullptr);
   if (!r) {
-    goto fatal;
+    EC_POINT_free(pub);
+    return nullptr;
   }
 
   return pub;
-
- fatal:
-  EC_POINT_free(pub);
-  return nullptr;
 }
 
 
@@ -5558,7 +5555,7 @@ void ExportChallenge(const FunctionCallbackInfo<Value>& args) {
 }
 
 
-// convert public key to compressed, uncompressed, hybrid format
+// Convert the input public key to compressed, uncompressed, or hybrid formats.
 void ConvertKey(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
@@ -5585,15 +5582,19 @@ void ConvertKey(const FunctionCallbackInfo<Value>& args) {
                                       group,
                                       Buffer::Data(args[0]),
                                       len);
+
+  std::shared_ptr<void> cleanup(nullptr, [group, pub] (...) {
+    EC_GROUP_free(group);
+    EC_POINT_free(pub);
+  });
+
   if (pub == nullptr)
     return env->ThrowError("Failed to convert Buffer to EC_POINT");
 
-  // convert to the specified format
-  int size;
   point_conversion_form_t form =
       static_cast<point_conversion_form_t>(args[2]->Uint32Value());
 
-  size = EC_POINT_point2oct(group, pub, form, nullptr, 0, nullptr);
+  int size = EC_POINT_point2oct(group, pub, form, nullptr, 0, nullptr);
   if (size == 0)
     return env->ThrowError("Failed to get public key length");
 
@@ -5608,9 +5609,6 @@ void ConvertKey(const FunctionCallbackInfo<Value>& args) {
   Local<Object> buf =
       Buffer::New(env, reinterpret_cast<char*>(out), size).ToLocalChecked();
   args.GetReturnValue().Set(buf);
-
-  EC_GROUP_free(group);
-  EC_POINT_free(pub);
 }
 
 
