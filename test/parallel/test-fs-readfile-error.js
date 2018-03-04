@@ -46,13 +46,8 @@ function test(env, cb) {
   }));
 }
 
-test({ NODE_DEBUG: '' }, common.mustCall((data) => {
-  assert(/EISDIR/.test(data));
-  assert(/test-fs-readfile-error/.test(data));
-}));
-
 test({ NODE_DEBUG: 'fs' }, common.mustCall((data) => {
-  assert(/EISDIR/.test(data));
+  assert(/ERR_PATH_IS_DIRECTORY/.test(data));
   assert(/test-fs-readfile-error/.test(data));
 }));
 
