@@ -3,7 +3,11 @@ const builtins = new Set(
   Object.keys(process.binding('natives')).filter(str =>
     /^(?!(?:internal|node|v8)\/)/.test(str))
 )
-export function resolve (specifier, base) {
+
+const baseURL = new _url.URL('file://');
+baseURL.pathname = process.cwd() + '/';
+
+export function resolve (specifier, base = baseURL) {
   if (builtins.has(specifier)) {
     return {
       url: specifier,
