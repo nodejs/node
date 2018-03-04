@@ -3269,9 +3269,11 @@ napi_status napi_create_async_work(napi_env env,
 - `[in] async_resource_name`: Identifier for the kind of resource that is
 being provided for diagnostic information exposed by the `async_hooks` API.
 - `[in] execute`: The native function which should be called to excute
-the logic asynchronously.
+the logic asynchronously. The given function is called from a worker pool
+thread and can execute in parallel with the main event loop thread.
 - `[in] complete`: The native function which will be called when the
-asynchronous logic is comple or is cancelled.
+asynchronous logic is completed or is cancelled. The given function is called
+from the main event loop thread.
 - `[in] data`: User-provided data context. This will be passed back into the
 execute and complete functions.
 - `[out] result`: `napi_async_work*` which is the handle to the newly created
@@ -3346,9 +3348,9 @@ callback invocation, even if it has been successfully cancelled.
 
 ## Custom Asynchronous Operations
 The simple asynchronous work APIs above may not be appropriate for every
-scenario, because with those the async execution still happens on the main
-event loop. When using any other async mechanism, the following APIs are
-necessary to ensure an async operation is properly tracked by the runtime.
+scenario. When using any other asynchronous mechanism, the following APIs 
+are necessary to ensure an asynchronous operation is properly tracked by 
+the runtime.
 
 ### napi_async_init
 <!-- YAML
