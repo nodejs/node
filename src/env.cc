@@ -4,6 +4,7 @@
 #include "node_buffer.h"
 #include "node_platform.h"
 #include "node_file.h"
+#include "node_context_data.h"
 #include "node_worker.h"
 #include "tracing/agent.h"
 
@@ -27,6 +28,10 @@ using v8::String;
 using v8::Symbol;
 using v8::Value;
 using worker::Worker;
+
+int const Environment::kNodeContextTag = 0x6e6f64;
+void* Environment::kNodeContextTagPtr = const_cast<void*>(
+    static_cast<const void*>(&Environment::kNodeContextTag));
 
 IsolateData::IsolateData(Isolate* isolate,
                          uv_loop_t* event_loop,
@@ -430,7 +435,20 @@ bool Environment::RemovePromiseHook(promise_hook_func fn, void* arg) {
 void Environment::EnvPromiseHook(v8::PromiseHookType type,
                                  v8::Local<v8::Promise> promise,
                                  v8::Local<v8::Value> parent) {
-  Environment* env = Environment::GetCurrent(promise->CreationContext());
+  Local<v8::Context> context = promise->CreationContext();
+
+  // Grow the embedder data if necessary to make sure we are not out of bounds
+  // when reading the magic number.
+  context->SetAlignedPointerInEmbedderData(
+      ContextEmbedderIndex::kContextTagBoundary, nullptr);
+  int* magicNumberPtr = reinterpret_cast<int*>(
+      context->GetAlignedPointerFromEmbedderData(
+          ContextEmbedderIndex::kContextTag));
+  if (magicNumberPtr != Environment::kNodeContextTagPtr) {
+    return;
+  }
+
+  Environment* env = Environment::GetCurrent(context);
   for (const PromiseHookCallback& hook : env->promise_hooks_) {
     hook.cb_(type, promise, parent, hook.arg_);
   }
