@@ -401,10 +401,10 @@ seem unfamiliar, refer to this
 All Pull Requests require "sign off" in order to land. Whenever a contributor
 reviews a Pull Request they may find specific details that they would like to
 see changed or fixed. These may be as simple as fixing a typo, or may involve
-substantive changes to the code you have written. In general, such requests
-are intended to be helpful, but at times may come across as abrupt or unhelpful,
-especially requests to change things that do not include concrete suggestions
-on *how* to change them.
+substantive changes to the code you have written. While such requests are
+intended to be helpful, they may come across as abrupt or unhelpful, especially
+requests to change things that do not include concrete suggestions on *how* to
+change them.
 
 Try not to be discouraged. If you feel that a particular review is unfair,
 say so, or contact one of the other contributors in the project and seek their
@@ -610,8 +610,8 @@ however, will stay intact on the Pull Request page.
 For the size of "one logical change",
 [0b5191f](https://github.com/nodejs/node/commit/0b5191f15d0f311c804d542b67e2e922d98834f8)
 can be a good example. It touches the implementation, the documentation,
-and the tests, but is still one logical change. In general, the tests should
-always pass when each individual commit lands on the master branch.
+and the tests, but is still one logical change. All tests should always pass
+when each individual commit lands on the master branch.
 
 ### Getting Approvals for Your Pull Request
 
