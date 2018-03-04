@@ -33,6 +33,15 @@ Running Node.js with tracing enabled will produce log files that can be opened
 in the [`chrome://tracing`](https://www.chromium.org/developers/how-tos/trace-event-profiling-tool)
 tab of Chrome.
 
+The logging file is by default called `node_trace.${rotation}.log`, where
+`${rotation}` is an incrementing log-rotation id. The filepath pattern can
+be specified with `--trace-event-file-pattern` that accepts a template
+string that supports `${rotation}` and `${pid}`. For example:
+
+```txt
+node --trace-events-enabled --trace-event-file-pattern '${pid}-${rotation}.log' server.js
+```
+
 Starting with Node 10.0.0, the tracing system uses the same time source as the
 one used by `process.hrtime()` however the trace-event timestamps are expressed
 in microseconds, unlike `process.hrtime()` which returns nanoseconds.
