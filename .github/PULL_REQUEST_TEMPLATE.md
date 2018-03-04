@@ -14,6 +14,3 @@ Contributors guide: https://github.com/nodejs/node/blob/master/CONTRIBUTING.md
 - [ ] tests and/or benchmarks are included
 - [ ] documentation is changed or added
 - [ ] commit message follows [commit guidelines](https://github.com/nodejs/node/blob/master/doc/guides/contributing/pull-requests.md#commit-message-guidelines)
-
-##### Affected core subsystem(s)
-<!-- Provide affected core subsystem(s) (like doc, cluster, crypto, etc). -->
