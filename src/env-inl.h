@@ -31,6 +31,7 @@
 #include "uv.h"
 #include "v8.h"
 #include "node_perf_common.h"
+#include "node_context_data.h"
 
 #include <stddef.h>
 #include <stdint.h>
@@ -283,7 +284,8 @@ inline void Environment::TickInfo::set_has_thrown(bool state) {
 
 inline void Environment::AssignToContext(v8::Local<v8::Context> context,
                                          const ContextInfo& info) {
-  context->SetAlignedPointerInEmbedderData(kContextEmbedderDataIndex, this);
+  context->SetAlignedPointerInEmbedderData(
+      ContextEmbedderIndex::kEnvironment, this);
 #if HAVE_INSPECTOR
   inspector_agent()->ContextCreated(context, info);
 #endif  // HAVE_INSPECTOR
@@ -295,7 +297,8 @@ inline Environment* Environment::GetCurrent(v8::Isolate* isolate) {
 
 inline Environment* Environment::GetCurrent(v8::Local<v8::Context> context) {
   return static_cast<Environment*>(
-      context->GetAlignedPointerFromEmbedderData(kContextEmbedderDataIndex));
+      context->GetAlignedPointerFromEmbedderData(
+          ContextEmbedderIndex::kEnvironment));
 }
 
 inline Environment* Environment::GetCurrent(
@@ -368,8 +371,8 @@ inline Environment::~Environment() {
   inspector_agent_.reset();
 #endif
 
-  context()->SetAlignedPointerInEmbedderData(kContextEmbedderDataIndex,
-                                             nullptr);
+  context()->SetAlignedPointerInEmbedderData(
+      ContextEmbedderIndex::kEnvironment, nullptr);
 
   delete[] heap_statistics_buffer_;
   delete[] heap_space_statistics_buffer_;

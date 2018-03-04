@@ -23,6 +23,7 @@
 #include "node_watchdog.h"
 #include "base_object-inl.h"
 #include "node_contextify.h"
+#include "node_context_data.h"
 
 namespace node {
 namespace contextify {
@@ -173,7 +174,7 @@ Local<Context> ContextifyContext::CreateV8Context(
   // embedder data field. However, we cannot hold a reference to a v8::Context
   // directly in an Object, we instead hold onto the new context's global
   // object instead (which then has a reference to the context).
-  ctx->SetEmbedderData(kSandboxObjectIndex, sandbox_obj);
+  ctx->SetEmbedderData(ContextEmbedderIndex::kSandboxObject, sandbox_obj);
   sandbox_obj->SetPrivate(env->context(),
                           env->contextify_global_private_symbol(),
                           ctx->Global());
