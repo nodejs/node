@@ -42,12 +42,14 @@ v8::GCType performance_last_gc_type_ = v8::GCType::kGCTypeAll;
 
 double GetCurrentTimeInMicroseconds() {
 #ifdef _WIN32
+// The difference between the Unix Epoch and the Windows Epoch in 100-ns ticks.
+#define TICKS_TO_UNIX_EPOCH 116444736000000000LL
   FILETIME ft;
   GetSystemTimeAsFileTime(&ft);
   uint64_t filetime_int = static_cast<uint64_t>(ft.dwHighDateTime) << 32 |
                           ft.dwLowDateTime;
   // FILETIME is measured in terms of 100 ns. Convert that to 1 us (1000 ns).
-  return filetime_int / 10.;
+  return (filetime_int - TICKS_TO_UNIX_EPOCH) / 10.;
 #else
   struct timeval tp;
   gettimeofday(&tp, nullptr);
