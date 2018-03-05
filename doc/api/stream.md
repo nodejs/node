@@ -1171,7 +1171,7 @@ added: v8.0.0
 
 Destroy the stream, and emit `'error'` and `close`. After this call, the
 readable stream will release any internal resources and subsequent calls
-to `push` will result in an `ERR_STREAM_DESTROYED` error.
+to `push` will be ignored.
 Implementors should not override this method, but instead implement
 [`readable._destroy`][readable-_destroy].
 
