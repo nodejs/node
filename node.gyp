@@ -142,6 +142,7 @@
       'lib/internal/vm/Module.js',
       'lib/internal/streams/lazy_transform.js',
       'lib/internal/streams/BufferList.js',
+      'lib/internal/streams/duplex_base.js',
       'lib/internal/streams/legacy.js',
       'lib/internal/streams/destroy.js',
       'lib/internal/wrap_js_stream.js',
