@@ -776,6 +776,15 @@ static inline const char *errno_string(int errorno) {
 #define NODE_MODULE_CONTEXT_AWARE_INTERNAL(modname, regfunc)                  \
   NODE_MODULE_CONTEXT_AWARE_CPP(modname, regfunc, nullptr, NM_F_INTERNAL)
 
+#define TRACING_CATEGORY_NODE "node"
+#define TRACING_CATEGORY_NODE1(one)                                           \
+    TRACING_CATEGORY_NODE ","                                                 \
+    TRACING_CATEGORY_NODE "." #one
+#define TRACING_CATEGORY_NODE2(one, two)                                      \
+    TRACING_CATEGORY_NODE ","                                                 \
+    TRACING_CATEGORY_NODE "." #one ","                                        \
+    TRACING_CATEGORY_NODE "." #one "." #two
+
 }  // namespace node
 
 
