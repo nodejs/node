@@ -9,8 +9,8 @@ function execute(options) {
   http.createServer(function(req, res) {
     const expectHeaders = {
       'x-foo': 'boom',
-      cookie: 'a=1; b=2; c=3',
-      connection: 'close'
+      'cookie': 'a=1; b=2; c=3',
+      'connection': 'close'
     };
 
     // no Host header when you set headers an array
