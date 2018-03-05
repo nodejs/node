@@ -55,6 +55,7 @@ Japanese, it doesn't *claim* to have Japanese.
 #include <unicode/ures.h>
 #include <unicode/udata.h>
 #include <unicode/putil.h>
+#include <stdio.h>
 
 const char* PROG = "iculslocs";
 const char* NAME = U_ICUDATA_NAME;  // assume ICU data
