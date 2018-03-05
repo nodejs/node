@@ -88,7 +88,7 @@ async function circular() {
 
 async function circular2() {
   const sourceMap = {
-    root: `
+    'root': `
       import * as a from './a.mjs';
       import * as b from './b.mjs';
       if (!('fromA' in a))
