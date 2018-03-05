@@ -5561,13 +5561,10 @@ void ConvertKey(const FunctionCallbackInfo<Value>& args) {
 
   CHECK_EQ(args.Length(), 3);
 
-  THROW_AND_RETURN_IF_NOT_BUFFER(args[0], "Public key");
-
   size_t len = Buffer::Length(args[0]);
   if (len == 0)
     return args.GetReturnValue().SetEmptyString();
 
-  THROW_AND_RETURN_IF_NOT_STRING(args[1], "ECDH curve name");
   node::Utf8Value curve(env->isolate(), args[1]);
 
   int nid = OBJ_sn2nid(*curve);

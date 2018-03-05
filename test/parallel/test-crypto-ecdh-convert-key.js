@@ -4,9 +4,8 @@ if (!common.hasCrypto)
   common.skip('missing crypto');
 
 const assert = require('assert');
-const crypto = require('crypto');
 
-const { ECDH, getCurves } = crypto;
+const { ECDH, getCurves } = require('crypto');
 
 // A valid private key for the secp256k1 curve.
 const cafebabeKey = 'cafebabe'.repeat(8);
@@ -21,16 +20,16 @@ const cafebabePubPtUnComp =
 common.expectsError(
   () => ECDH.convertKey(),
   {
+    code: 'ERR_INVALID_ARG_TYPE',
     type: TypeError,
-    message: 'Public key must be a buffer'
   });
 
 // Invalid test: curve argument is undefined.
 common.expectsError(
   () => ECDH.convertKey(cafebabePubPtComp),
   {
+    code: 'ERR_INVALID_ARG_TYPE',
     type: TypeError,
-    message: 'ECDH curve name must be a string'
   });
 
 // Invalid test: curve argument is invalid.
@@ -41,9 +40,7 @@ common.expectsError(
     message: 'Invalid ECDH curve name'
   });
 
-const availableCurves = new Set(getCurves());
-
-if (availableCurves.has('secp256k1')) {
+if (getCurves().includes('secp256k1')) {
   // Invalid test: format argument is undefined.
   common.expectsError(
     () => ECDH.convertKey(cafebabePubPtComp, 'secp256k1', 'hex', 'hex', 10),
