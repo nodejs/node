@@ -735,6 +735,11 @@ class Environment {
   void AddPromiseHook(promise_hook_func fn, void* arg);
   bool RemovePromiseHook(promise_hook_func fn, void* arg);
   bool EmitNapiWarning();
+  inline bool EmitProcessEnvWarning() {
+    bool current_value = emit_env_nonstring_warning_;
+    emit_env_nonstring_warning_ = false;
+    return current_value;
+  }
 
   typedef void (*native_immediate_callback)(Environment* env, void* data);
   // cb will be called as cb(env, data) on the next event loop iteration.
@@ -789,6 +794,7 @@ class Environment {
   bool trace_sync_io_;
   bool abort_on_uncaught_exception_;
   bool emit_napi_warning_;
+  bool emit_env_nonstring_warning_;
   size_t makecallback_cntr_;
   std::vector<double> destroy_async_id_list_;
 

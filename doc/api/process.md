@@ -836,6 +836,10 @@ emitMyWarning();
 ## process.env
 <!-- YAML
 added: v0.1.27
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/18990
+    description: Implicit conversion of variable value to string is deprecated.
 -->
 
 * {Object}
@@ -877,7 +881,8 @@ console.log(process.env.foo);
 ```
 
 Assigning a property on `process.env` will implicitly convert the value
-to a string.
+to a string. **This behavior is deprecated.** Future versions of Node.js may
+throw an error when the value is not a string, number, or boolean.
 
 Example:
 
