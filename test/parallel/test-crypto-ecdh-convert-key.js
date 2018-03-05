@@ -6,7 +6,7 @@ if (!common.hasCrypto)
 const assert = require('assert');
 const crypto = require('crypto');
 
-const ECDH = crypto.ECDH;
+const { ECDH, getCurves } = crypto;
 
 // A valid private key for the secp256k1 curve.
 const cafebabeKey = 'cafebabe'.repeat(8);
@@ -41,7 +41,7 @@ common.expectsError(
     message: 'Invalid ECDH curve name'
   });
 
-const availableCurves = new Set(crypto.getCurves());
+const availableCurves = new Set(getCurves());
 
 if (availableCurves.has('secp256k1')) {
   // Invalid test: format argument is undefined.

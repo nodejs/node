@@ -656,9 +656,9 @@ assert.strictEqual(aliceSecret.toString('hex'), bobSecret.toString('hex'));
 // OK
 ```
 
-### ECDH.convertKey(key, curve[, inputEncoding][, outputEncoding][, format])
+### ECDH.convertKey(key, curve[, inputEncoding[, outputEncoding[, format]]])
 <!-- YAML
-added: v10.0.0
+added: REPLACEME
 -->
 
 - `key` {string | Buffer | TypedArray | DataView}
@@ -687,7 +687,7 @@ If the `inputEncoding` is not provided, `key` is expected to be a [`Buffer`][],
 Example (uncompressing a key):
 
 ```js
-const ECDH = require('crypto').ECDH;
+const { ECDH } = require('crypto');
 
 const ecdh = ECDH('secp256k1');
 ecdh.generateKeys();
