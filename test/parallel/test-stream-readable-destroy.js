@@ -181,14 +181,11 @@ const { inherits } = require('util');
 }
 
 {
-  const read = new Readable();
-
-  read.on('error', common.expectsError({
-    code: 'ERR_STREAM_DESTROYED',
-    message: 'Cannot call push after a stream was destroyed',
-    type: Error
-  }));
+  const read = new Readable({
+    read() {}
+  });
 
   read.destroy();
   read.push('hi');
+  read.on('data', common.mustNotCall());
 }
