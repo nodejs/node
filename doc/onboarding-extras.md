@@ -41,7 +41,7 @@
 | upgrading libuv                          | @saghul                                                               |
 | upgrading npm                            | @fishrock123, @MylesBorins                                            |
 | upgrading V8                             | @nodejs/v8, @nodejs/post-mortem                                       |
-| Embedded use or delivery of Node.js      | @nodejs/delivery_channels                                             |
+| Embedded use or delivery of Node.js      | @nodejs/delivery-channels                                             |
 
 When things need extra attention, are controversial, or `semver-major`:
 @nodejs/tsc
