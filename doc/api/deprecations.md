@@ -932,8 +932,8 @@ Using the `noAssert` argument has no functionality anymore. All input is going
 to be verified, no matter if it is set to true or not. Skipping the verification
 could lead to hard to find errors and crashes.
 
-<a id="DEP0XXX"></a>
-### DEP0XXX: process.binding('util').is[...] typechecks
+<a id="DEP0103"></a>
+### DEP0103: process.binding('util').is[...] typechecks
 
 Type: Documentation-only (supports [`--pending-deprecation`][])
 
