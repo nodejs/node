@@ -5,3 +5,7 @@ rules:
   node-core/no-let-in-for-declaration: error
   node-core/lowercase-name-for-primitive: error
   node-core/non-ascii-character: error
+
+  # Possible Errors
+  # http://eslint.org/docs/rules/#possible-errors
+  no-prototype-builtins: error
