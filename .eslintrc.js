@@ -264,5 +264,6 @@ module.exports = {
     DTRACE_NET_SERVER_CONNECTION: false,
     DTRACE_NET_STREAM_END: false,
     internalBinding: false,
+    frenemies: false,
   },
 };
