@@ -814,8 +814,8 @@ because it also made sense to interpret the value as the number of bytes
 read by the engine, but is inconsistent with other streams in Node.js that
 expose values under these names.
 
-<a id="DEP0XXX"></a>
-### DEP0XXX: process.binding('util').is[...] typechecks
+<a id="DEP0103"></a>
+### DEP0103: process.binding('util').is[...] typechecks
 
 Type: Documentation-only (supports [`--pending-deprecation`][])
 
