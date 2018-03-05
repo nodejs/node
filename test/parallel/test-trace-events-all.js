@@ -35,7 +35,7 @@ proc.once('exit', common.mustCall(() => {
     assert(traces.some((trace) => {
       if (trace.pid !== proc.pid)
         return false;
-      if (trace.cat !== 'node.async_hooks')
+      if (trace.cat !== 'node,node.async_hooks')
         return false;
       if (trace.name !== 'TIMERWRAP')
         return false;
@@ -47,7 +47,7 @@ proc.once('exit', common.mustCall(() => {
     assert(traces.some((trace) => {
       if (trace.pid !== proc.pid)
         return false;
-      if (trace.cat !== 'node.async_hooks')
+      if (trace.cat !== 'node,node.async_hooks')
         return false;
       if (trace.name !== 'Timeout')
         return false;
