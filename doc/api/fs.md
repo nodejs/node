@@ -600,7 +600,7 @@ The times in the stat object have the following semantics:
   set to an earlier value than the current `birthtime` using the
   utimes(2) system call.
 
-Prior to Node v0.12, the `ctime` held the `birthtime` on Windows
+Prior to Node.js v0.12, the `ctime` held the `birthtime` on Windows
 systems.  Note that as of v0.12, `ctime` is not "creation time", and
 on Unix systems, it never was.
 
@@ -657,7 +657,8 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/6534
     description: The constants like `fs.R_OK`, etc which were present directly
                  on `fs` were moved into `fs.constants` as a soft deprecation.
-                 Thus for Node `< v6.3.0` use `fs` to access those constants, or
+                 Thus for Node.js `< v6.3.0` use `fs`
+                 to access those constants, or
                  do something like `(fs.constants || fs).R_OK` to work with all
                  versions.
 -->

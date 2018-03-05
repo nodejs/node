@@ -156,7 +156,7 @@ decompressed result is valid.
 
 <!--type=misc-->
 
-From `zlib/zconf.h`, modified to node.js's usage:
+From `zlib/zconf.h`, modified to Node.js's usage:
 
 The memory requirements for deflate are (in bytes):
 
