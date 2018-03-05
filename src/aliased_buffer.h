@@ -154,13 +154,7 @@ class AliasedBuffer {
 
     template <typename T>
     inline Reference& operator-=(const T& val) {
-      const T current = aliased_buffer_->GetValue(index_);
-      aliased_buffer_->SetValue(index_, current - val);
-      return *this;
-    }
-
-    inline Reference& operator-=(const Reference& val) {
-      return *this->operator-=(static_cast<NativeT>(val));
+      return this->operator+=(-val);
     }
 
    private:
