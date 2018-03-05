@@ -102,9 +102,9 @@ const testData = [
               meta: {
                 added: ['v5.3.0', 'v4.2.0'],
                 changes: [
-                  { version: 'v4.2.0',
+                  { 'version': 'v4.2.0',
                     'pr-url': 'https://github.com/nodejs/node/pull/3276',
-                    description: 'The `error` parameter can now be ' +
+                    'description': 'The `error` parameter can now be ' +
                       'an arrow function.'
                   }
                 ]
