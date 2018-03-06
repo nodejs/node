@@ -422,6 +422,7 @@ void AsyncWrap::WeakCallback(const v8::WeakCallbackInfo<DestroyParam>& info) {
   if (val->IsFalse()) {
     AsyncWrap::EmitDestroy(env, p->asyncId);
   }
+  // unique_ptr goes out of scope here and pointer is deleted.
 }
 
 
