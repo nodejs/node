@@ -1389,7 +1389,8 @@ constructor and implement the `writable._write()` method. The
 changes:
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/18438
-    description: Add `emitClose` option to specify if `close` is emitted on destroy
+    description: >
+      Add `emitClose` option to specify if `close` is emitted on destroy
 -->
 
 * `options` {Object}
