@@ -6,7 +6,7 @@ const common = require('../common');
 common.crashOnUnhandledRejection();
 const assert = require('assert');
 
-const ModuleWrap = require('internal/loader/ModuleWrap');
+const ModuleWrap = require('internal/modules/esm/ModuleWrap');
 const { getPromiseDetails, isPromise } = process.binding('util');
 const setTimeoutAsync = require('util').promisify(setTimeout);
 

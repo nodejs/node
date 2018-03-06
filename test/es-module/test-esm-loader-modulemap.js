@@ -7,10 +7,10 @@
 const common = require('../common');
 
 const { URL } = require('url');
-const Loader = require('internal/loader/Loader');
-const ModuleMap = require('internal/loader/ModuleMap');
-const ModuleJob = require('internal/loader/ModuleJob');
-const createDynamicModule = require('internal/loader/CreateDynamicModule');
+const Loader = require('internal/modules/esm/Loader');
+const ModuleMap = require('internal/modules/esm/ModuleMap');
+const ModuleJob = require('internal/modules/esm/ModuleJob');
+const createDynamicModule = require('internal/modules/esm/CreateDynamicModule');
 
 const stubModuleUrl = new URL('file://tmp/test');
 const stubModule = createDynamicModule(['default'], stubModuleUrl);
