@@ -24,8 +24,8 @@
     'node_lib_target_name%': 'node_lib',
     'node_intermediate_lib_type%': 'static_library',
     'library_files': [
-      'lib/internal/bootstrap_loaders.js',
-      'lib/internal/bootstrap_node.js',
+      'lib/internal/bootstrap/loaders.js',
+      'lib/internal/bootstrap/node.js',
       'lib/async_hooks.js',
       'lib/assert.js',
       'lib/buffer.js',
