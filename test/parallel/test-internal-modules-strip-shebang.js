@@ -3,7 +3,7 @@
 require('../common');
 
 const assert = require('assert');
-const stripShebang = require('internal/module').stripShebang;
+const stripShebang = require('internal/modules/cjs/helpers').stripShebang;
 
 [
   ['', ''],
