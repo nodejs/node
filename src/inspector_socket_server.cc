@@ -16,23 +16,7 @@ namespace inspector {
 // depend on inspector_socket_server.h
 std::string FormatWsAddress(const std::string& host, int port,
                             const std::string& target_id,
-                            bool include_protocol) {
-  // Host is valid (socket was bound) so colon means it's a v6 IP address
-  bool v6 = host.find(':') != std::string::npos;
-  std::ostringstream url;
-  if (include_protocol)
-    url << "ws://";
-  if (v6) {
-    url << '[';
-  }
-  url << host;
-  if (v6) {
-    url << ']';
-  }
-  url << ':' << port << '/' << target_id;
-  return url.str();
-}
-
+                            bool include_protocol);
 namespace {
 
 static const uint8_t PROTOCOL_JSON[] = {
@@ -43,6 +27,31 @@ void Escape(std::string* string) {
   for (char& c : *string) {
     c = (c == '\"' || c == '\\') ? '_' : c;
   }
+}
+
+std::string FormatHostPort(const std::string& host, int port) {
+  // Host is valid (socket was bound) so colon means it's a v6 IP address
+  bool v6 = host.find(':') != std::string::npos;
+  std::ostringstream url;
+  if (v6) {
+    url << '[';
+  }
+  url << host;
+  if (v6) {
+    url << ']';
+  }
+  url << ':' << port;
+  return url.str();
+}
+
+std::string FormatAddress(const std::string& host,
+                          const std::string& target_id,
+                          bool include_protocol) {
+  std::ostringstream url;
+  if (include_protocol)
+    url << "ws://";
+  url << host << '/' << target_id;
+  return url.str();
 }
 
 std::string MapToString(const std::map<std::string, std::string>& object) {
@@ -141,6 +150,11 @@ void SendProtocolJson(InspectorSocket* socket) {
 }
 }  // namespace
 
+std::string FormatWsAddress(const std::string& host, int port,
+                            const std::string& target_id,
+                            bool include_protocol) {
+  return FormatAddress(FormatHostPort(host, port), target_id, include_protocol);
+}
 
 class Closer {
  public:
@@ -213,8 +227,8 @@ class SocketSession {
     ~Delegate() {
       server_->SessionTerminated(session_id_);
     }
-    void OnHttpGet(const std::string& path) override;
-    void OnSocketUpgrade(const std::string& path,
+    void OnHttpGet(const std::string& host, const std::string& path) override;
+    void OnSocketUpgrade(const std::string& host, const std::string& path,
                          const std::string& ws_key) override;
     void OnWsFrame(const std::vector<char>& data) override;
 
@@ -320,6 +334,7 @@ void InspectorSocketServer::SessionTerminated(int session_id) {
 }
 
 bool InspectorSocketServer::HandleGetRequest(int session_id,
+                                             const std::string& host,
                                              const std::string& path) {
   SocketSession* session = Session(session_id);
   InspectorSocket* socket = session->ws_socket();
@@ -328,7 +343,7 @@ bool InspectorSocketServer::HandleGetRequest(int session_id,
     return false;
 
   if (MatchPathSegment(command, "list") || command[0] == '\0') {
-    SendListResponse(socket, session);
+    SendListResponse(socket, host, session);
     return true;
   } else if (MatchPathSegment(command, "protocol")) {
     SendProtocolJson(socket);
@@ -336,17 +351,12 @@ bool InspectorSocketServer::HandleGetRequest(int session_id,
   } else if (MatchPathSegment(command, "version")) {
     SendVersionResponse(socket);
     return true;
-  } else if (const char* target_id = MatchPathSegment(command, "activate")) {
-    if (TargetExists(target_id)) {
-      SendHttpResponse(socket, "Target activated");
-      return true;
-    }
-    return false;
   }
   return false;
 }
 
 void InspectorSocketServer::SendListResponse(InspectorSocket* socket,
+                                             const std::string& host,
                                              SocketSession* session) {
   std::vector<std::map<std::string, std::string>> response;
   for (const std::string& id : delegate_->GetTargetIds()) {
@@ -371,15 +381,18 @@ void InspectorSocketServer::SendListResponse(InspectorSocket* socket,
       }
     }
     if (!connected) {
-      std::string host = socket->GetHost();
-      int port = session->server_port();
+      std::string detected_host = host;
+      if (detected_host.empty()) {
+        detected_host = FormatHostPort(socket->GetHost(),
+                                       session->server_port());
+      }
       std::ostringstream frontend_url;
       frontend_url << "chrome-devtools://devtools/bundled";
       frontend_url << "/inspector.html?experiments=true&v8only=true&ws=";
-      frontend_url << FormatWsAddress(host, port, id, false);
+      frontend_url << FormatAddress(detected_host, id, false);
       target_map["devtoolsFrontendUrl"] += frontend_url.str();
       target_map["webSocketDebuggerUrl"] =
-          FormatWsAddress(host, port, id, true);
+          FormatAddress(detected_host, id, true);
     }
   }
   SendHttpResponse(socket, MapsToString(response));
@@ -531,12 +544,14 @@ void SocketSession::Send(const std::string& message) {
   ws_socket_->Write(message.data(), message.length());
 }
 
-void SocketSession::Delegate::OnHttpGet(const std::string& path) {
-  if (!server_->HandleGetRequest(session_id_, path))
+void SocketSession::Delegate::OnHttpGet(const std::string& host,
+                                        const std::string& path) {
+  if (!server_->HandleGetRequest(session_id_, host, path))
     Session()->ws_socket()->CancelHandshake();
 }
 
-void SocketSession::Delegate::OnSocketUpgrade(const std::string& path,
+void SocketSession::Delegate::OnSocketUpgrade(const std::string& host,
+                                              const std::string& path,
                                               const std::string& ws_key) {
   std::string id = path.empty() ? path : path.substr(1);
   server_->SessionStarted(session_id_, id, ws_key);

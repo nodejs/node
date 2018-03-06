@@ -112,11 +112,11 @@ class TestInspectorDelegate : public InspectorSocket::Delegate {
     delegate = nullptr;
   }
 
-  void OnHttpGet(const std::string& path) override {
+  void OnHttpGet(const std::string& host, const std::string& path) override {
     process(kInspectorHandshakeHttpGet, path);
   }
 
-  void OnSocketUpgrade(const std::string& path,
+  void OnSocketUpgrade(const std::string& host, const std::string& path,
                        const std::string& ws_key) override {
     ws_key_ = ws_key;
     process(kInspectorHandshakeUpgraded, path);
