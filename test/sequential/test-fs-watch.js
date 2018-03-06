@@ -112,7 +112,7 @@ tmpdir.refresh();
 // https://github.com/joyent/node/issues/6690
 {
   let oldhandle;
-  common.expectsError(() => {
+  assert.throws(() => {
     const w = fs.watch(__filename, common.mustNotCall());
     oldhandle = w._handle;
     w._handle = { close: w._handle.close };

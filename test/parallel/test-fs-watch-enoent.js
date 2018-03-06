@@ -16,12 +16,20 @@ tmpdir.refresh();
   const validateError = (err) => {
     assert.strictEqual(nonexistentFile, err.path);
     assert.strictEqual(nonexistentFile, err.filename);
-    assert.strictEqual(
-      err.message,
-      `ENOENT: no such file or directory, watch '${nonexistentFile}'`);
-    assert.strictEqual(err.errno, uv.UV_ENOENT);
-    assert.strictEqual(err.code, 'ENOENT');
     assert.strictEqual(err.syscall, 'watch');
+    if (err.code === 'ENOENT') {
+      assert.strictEqual(
+        err.message,
+        `ENOENT: no such file or directory, watch '${nonexistentFile}'`);
+      assert.strictEqual(err.errno, uv.UV_ENOENT);
+      assert.strictEqual(err.code, 'ENOENT');
+    } else {  // AIX
+      assert.strictEqual(
+        err.message,
+        `ENODEV: no such device, watch '${nonexistentFile}'`);
+      assert.strictEqual(err.errno, uv.UV_ENODEV);
+      assert.strictEqual(err.code, 'ENODEV');
+    }
     return true;
   };
 
