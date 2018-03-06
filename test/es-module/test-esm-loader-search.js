@@ -6,13 +6,12 @@
 const common = require('../common');
 
 const { search } = require('internal/loader/DefaultResolve');
-const errors = require('internal/errors');
 
 common.expectsError(
   () => search('target', undefined),
   {
     code: 'ERR_MISSING_MODULE',
-    type: errors.Error,
+    type: Error,
     message: 'Cannot find module target'
   }
 );
