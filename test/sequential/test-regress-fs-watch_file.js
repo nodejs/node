@@ -21,6 +21,17 @@
 
 'use strict';
 const common = require('../common');
+
+// Make sure the deletion event gets reported in the following scenario:
+// 1. Watch a file.
+// 2. The initial stat() goes okay.
+// 3. Something deletes the watched file.
+// 4. The second stat() fails with ENOENT.
+
+// The second stat() translates into the first 'change' event but a logic error
+// stopped it from getting emitted.
+// https://github.com/nodejs/node-v0.x-archive/issues/4027
+
 const assert = require('assert');
 const path = require('path');
 const fs = require('fs');
