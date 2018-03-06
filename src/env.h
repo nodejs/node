@@ -547,8 +547,8 @@ class Environment {
   static inline Environment* GetCurrent(
       const v8::PropertyCallbackInfo<T>& info);
 
-  inline Environment(IsolateData* isolate_data, v8::Local<v8::Context> context);
-  inline ~Environment();
+  Environment(IsolateData* isolate_data, v8::Local<v8::Context> context);
+  ~Environment();
 
   void Start(int argc,
              const char* const* argv,
