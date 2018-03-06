@@ -495,12 +495,12 @@ class HttpHandler : public ProtocolHandler {
         CancelHandshake();
         return;
       } else if (!event.upgrade) {
-        delegate()->OnHttpGet(event.path);
+        delegate()->OnHttpGet(event.host, event.path);
       } else if (event.ws_key.empty()) {
         CancelHandshake();
         return;
       } else {
-        delegate()->OnSocketUpgrade(event.path, event.ws_key);
+        delegate()->OnSocketUpgrade(event.host, event.path, event.ws_key);
       }
     }
   }
