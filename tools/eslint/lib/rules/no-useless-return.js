@@ -76,7 +76,8 @@ module.exports = {
         docs: {
             description: "disallow redundant return statements",
             category: "Best Practices",
-            recommended: false
+            recommended: false,
+            url: "https://eslint.org/docs/rules/no-useless-return"
         },
         fixable: "code",
         schema: []
@@ -222,10 +223,12 @@ module.exports = {
                         fix(fixer) {
                             if (isRemovable(node)) {
 
-                                // Extend the replacement range to include the
-                                // entire function to avoid conflicting with
-                                // no-else-return.
-                                // https://github.com/eslint/eslint/issues/8026
+                                /*
+                                 * Extend the replacement range to include the
+                                 * entire function to avoid conflicting with
+                                 * no-else-return.
+                                 * https://github.com/eslint/eslint/issues/8026
+                                 */
                                 return new FixTracker(fixer, context.getSourceCode())
                                     .retainEnclosingFunction(node)
                                     .remove(node);
@@ -238,8 +241,10 @@ module.exports = {
                 scopeInfo = scopeInfo.upper;
             },
 
-            // Initializes segments.
-            // NOTE: This event is notified for only reachable segments.
+            /*
+             * Initializes segments.
+             * NOTE: This event is notified for only reachable segments.
+             */
             onCodePathSegmentStart(segment) {
                 const info = {
                     uselessReturns: getUselessReturns([], segment.allPrevSegments),
@@ -270,8 +275,10 @@ module.exports = {
                 scopeInfo.uselessReturns.push(node);
             },
 
-            // Registers for all statement nodes except FunctionDeclaration, BlockStatement, BreakStatement.
-            // Removes return statements of the current segments from the useless return statement list.
+            /*
+             * Registers for all statement nodes except FunctionDeclaration, BlockStatement, BreakStatement.
+             * Removes return statements of the current segments from the useless return statement list.
+             */
             ClassDeclaration: markReturnStatementsOnCurrentSegmentsAsUsed,
             ContinueStatement: markReturnStatementsOnCurrentSegmentsAsUsed,
             DebuggerStatement: markReturnStatementsOnCurrentSegmentsAsUsed,

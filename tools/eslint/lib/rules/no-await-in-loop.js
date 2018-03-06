@@ -4,72 +4,99 @@
  */
 "use strict";
 
-// Node types which are considered loops.
-const loopTypes = new Set([
-    "ForStatement",
-    "ForOfStatement",
-    "ForInStatement",
-    "WhileStatement",
-    "DoWhileStatement"
-]);
+/**
+ * Check whether it should stop traversing ancestors at the given node.
+ * @param {ASTNode} node A node to check.
+ * @returns {boolean} `true` if it should stop traversing.
+ */
+function isBoundary(node) {
+    const t = node.type;
 
-// Node types at which we should stop looking for loops. For example, it is fine to declare an async
-// function within a loop, and use await inside of that.
-const boundaryTypes = new Set([
-    "FunctionDeclaration",
-    "FunctionExpression",
-    "ArrowFunctionExpression"
-]);
+    return (
+        t === "FunctionDeclaration" ||
+        t === "FunctionExpression" ||
+        t === "ArrowFunctionExpression" ||
+
+        /*
+         * Don't report the await expressions on for-await-of loop since it's
+         * asynchronous iteration intentionally.
+         */
+        (t === "ForOfStatement" && node.await === true)
+    );
+}
+
+/**
+ * Check whether the given node is in loop.
+ * @param {ASTNode} node A node to check.
+ * @param {ASTNode} parent A parent node to check.
+ * @returns {boolean} `true` if the node is in loop.
+ */
+function isLooped(node, parent) {
+    switch (parent.type) {
+        case "ForStatement":
+            return (
+                node === parent.test ||
+                node === parent.update ||
+                node === parent.body
+            );
+
+        case "ForOfStatement":
+        case "ForInStatement":
+            return node === parent.body;
+
+        case "WhileStatement":
+        case "DoWhileStatement":
+            return node === parent.test || node === parent.body;
+
+        default:
+            return false;
+    }
+}
 
 module.exports = {
     meta: {
         docs: {
             description: "disallow `await` inside of loops",
             category: "Possible Errors",
-            recommended: false
+            recommended: false,
+            url: "https://eslint.org/docs/rules/no-await-in-loop"
         },
-        schema: []
+        schema: [],
+        messages: {
+            unexpectedAwait: "Unexpected `await` inside a loop."
+        }
     },
     create(context) {
-        return {
-            AwaitExpression(node) {
-                const ancestors = context.getAncestors();
 
-                // Reverse so that we can traverse from the deepest node upwards.
-                ancestors.reverse();
-
-                // Create a set of all the ancestors plus this node so that we can check
-                // if this use of await appears in the body of the loop as opposed to
-                // the right-hand side of a for...of, for example.
-                const ancestorSet = new Set(ancestors).add(node);
-
-                for (let i = 0; i < ancestors.length; i++) {
-                    const ancestor = ancestors[i];
-
-                    if (boundaryTypes.has(ancestor.type)) {
-
-                        // Short-circuit out if we encounter a boundary type. Loops above
-                        // this do not matter.
-                        return;
-                    }
-                    if (loopTypes.has(ancestor.type)) {
-
-                        // Only report if we are actually in the body or another part that gets executed on
-                        // every iteration.
-                        if (
-                            ancestorSet.has(ancestor.body) ||
-                            ancestorSet.has(ancestor.test) ||
-                            ancestorSet.has(ancestor.update)
-                        ) {
-                            context.report({
-                                node,
-                                message: "Unexpected `await` inside a loop."
-                            });
-                            return;
-                        }
-                    }
-                }
+        /**
+         * Validate an await expression.
+         * @param {ASTNode} awaitNode An AwaitExpression or ForOfStatement node to validate.
+         * @returns {void}
+         */
+        function validate(awaitNode) {
+            if (awaitNode.type === "ForOfStatement" && !awaitNode.await) {
+                return;
             }
+
+            let node = awaitNode;
+            let parent = node.parent;
+
+            while (parent && !isBoundary(parent)) {
+                if (isLooped(node, parent)) {
+                    context.report({
+                        node: awaitNode,
+                        messageId: "unexpectedAwait"
+                    });
+                    return;
+                }
+                node = parent;
+                parent = parent.parent;
+            }
+        }
+
+        return {
+            AwaitExpression: validate,
+            ForOfStatement: validate
         };
     }
 };

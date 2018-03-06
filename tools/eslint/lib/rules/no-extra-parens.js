@@ -15,7 +15,8 @@ module.exports = {
         docs: {
             description: "disallow unnecessary parentheses",
             category: "Possible Errors",
-            recommended: false
+            recommended: false,
+            url: "https://eslint.org/docs/rules/no-extra-parens"
         },
 
         fixable: "code",
@@ -54,6 +55,10 @@ module.exports = {
                     maxItems: 2
                 }
             ]
+        },
+
+        messages: {
+            unexpected: "Gratuitous parentheses around expression."
         }
     },
 
@@ -195,10 +200,12 @@ module.exports = {
         function containsAssignment(node) {
             if (node.type === "AssignmentExpression") {
                 return true;
-            } else if (node.type === "ConditionalExpression" &&
+            }
+            if (node.type === "ConditionalExpression" &&
                     (node.consequent.type === "AssignmentExpression" || node.alternate.type === "AssignmentExpression")) {
                 return true;
-            } else if ((node.left && node.left.type === "AssignmentExpression") ||
+            }
+            if ((node.left && node.left.type === "AssignmentExpression") ||
                     (node.right && node.right.type === "AssignmentExpression")) {
                 return true;
             }
@@ -219,7 +226,8 @@ module.exports = {
 
             if (node.type === "ReturnStatement") {
                 return node.argument && containsAssignment(node.argument);
-            } else if (node.type === "ArrowFunctionExpression" && node.body.type !== "BlockStatement") {
+            }
+            if (node.type === "ArrowFunctionExpression" && node.body.type !== "BlockStatement") {
                 return containsAssignment(node.body);
             }
             return containsAssignment(node);
@@ -277,6 +285,15 @@ module.exports = {
         }
 
         /**
+         * Determines if a given expression node is an IIFE
+         * @param {ASTNode} node The node to check
+         * @returns {boolean} `true` if the given node is an IIFE
+         */
+        function isIIFE(node) {
+            return node.type === "CallExpression" && node.callee.type === "FunctionExpression";
+        }
+
+        /**
          * Report the node
          * @param {ASTNode} node node to evaluate
          * @returns {void}
@@ -286,14 +303,20 @@ module.exports = {
             const leftParenToken = sourceCode.getTokenBefore(node);
             const rightParenToken = sourceCode.getTokenAfter(node);
 
-            if (tokensToIgnore.has(sourceCode.getFirstToken(node)) && !isParenthesisedTwice(node)) {
-                return;
+            if (!isParenthesisedTwice(node)) {
+                if (tokensToIgnore.has(sourceCode.getFirstToken(node))) {
+                    return;
+                }
+
+                if (isIIFE(node) && !isParenthesised(node.callee)) {
+                    return;
+                }
             }
 
             context.report({
                 node,
                 loc: leftParenToken.loc.start,
-                message: "Gratuitous parentheses around expression.",
+                messageId: "unexpected",
                 fix(fixer) {
                     const parenthesizedSource = sourceCode.text.slice(leftParenToken.range[1], rightParenToken.range[0]);
 
@@ -322,32 +345,57 @@ module.exports = {
         }
 
         /**
+         * Check if a member expression contains a call expression
+         * @param {ASTNode} node MemberExpression node to evaluate
+         * @returns {boolean} true if found, false if not
+         */
+        function doesMemberExpressionContainCallExpression(node) {
+            let currentNode = node.object;
+            let currentNodeType = node.object.type;
+
+            while (currentNodeType === "MemberExpression") {
+                currentNode = currentNode.object;
+                currentNodeType = currentNode.type;
+            }
+
+            return currentNodeType === "CallExpression";
+        }
+
+        /**
          * Evaluate a new call
          * @param {ASTNode} node node to evaluate
          * @returns {void}
          * @private
          */
         function checkCallNew(node) {
-            if (hasExcessParens(node.callee) && precedence(node.callee) >= precedence(node) && !(
-                node.type === "CallExpression" &&
-                (node.callee.type === "FunctionExpression" ||
-                  node.callee.type === "NewExpression" && !isNewExpressionWithParens(node.callee)) &&
+            const callee = node.callee;
 
-                // One set of parentheses are allowed for a function expression
-                !hasDoubleExcessParens(node.callee)
-            )) {
-                report(node.callee);
+            if (hasExcessParens(callee) && precedence(callee) >= precedence(node)) {
+                const hasNewParensException = callee.type === "NewExpression" && !isNewExpressionWithParens(callee);
+
+                if (
+                    hasDoubleExcessParens(callee) ||
+                    !isIIFE(node) && !hasNewParensException && !(
+
+                        /*
+                         * Allow extra parens around a new expression if
+                         * there are intervening parentheses.
+                         */
+                        callee.type === "MemberExpression" &&
+                        doesMemberExpressionContainCallExpression(callee)
+                    )
+                ) {
+                    report(node.callee);
+                }
             }
             if (node.arguments.length === 1) {
                 if (hasDoubleExcessParens(node.arguments[0]) && precedence(node.arguments[0]) >= PRECEDENCE_OF_ASSIGNMENT_EXPR) {
                     report(node.arguments[0]);
                 }
             } else {
-                [].forEach.call(node.arguments, arg => {
-                    if (hasExcessParens(arg) && precedence(arg) >= PRECEDENCE_OF_ASSIGNMENT_EXPR) {
-                        report(arg);
-                    }
-                });
+                node.arguments
+                    .filter(arg => hasExcessParens(arg) && precedence(arg) >= PRECEDENCE_OF_ASSIGNMENT_EXPR)
+                    .forEach(report);
             }
         }
 
@@ -384,8 +432,10 @@ module.exports = {
                 return;
             }
 
-            // If `node.superClass` is a LeftHandSideExpression, parentheses are extra.
-            // Otherwise, parentheses are needed.
+            /*
+             * If `node.superClass` is a LeftHandSideExpression, parentheses are extra.
+             * Otherwise, parentheses are needed.
+             */
             const hasExtraParens = precedence(node.superClass) > PRECEDENCE_OF_UPDATE_EXPR
                 ? hasExcessParens(node.superClass)
                 : hasDoubleExcessParens(node.superClass);
@@ -442,11 +492,9 @@ module.exports = {
 
         return {
             ArrayExpression(node) {
-                [].forEach.call(node.elements, e => {
-                    if (e && hasExcessParens(e) && precedence(e) >= PRECEDENCE_OF_ASSIGNMENT_EXPR) {
-                        report(e);
-                    }
-                });
+                node.elements
+                    .filter(e => e && hasExcessParens(e) && precedence(e) >= PRECEDENCE_OF_ASSIGNMENT_EXPR)
+                    .forEach(report);
             },
 
             ArrowFunctionExpression(node) {
@@ -521,12 +569,16 @@ module.exports = {
                     if (
                         firstLeftToken.value === "let" && (
 
-                            // If `let` is the only thing on the left side of the loop, it's the loop variable: `for ((let) of foo);`
-                            // Removing it will cause a syntax error, because it will be parsed as the start of a VariableDeclarator.
+                            /*
+                             * If `let` is the only thing on the left side of the loop, it's the loop variable: `for ((let) of foo);`
+                             * Removing it will cause a syntax error, because it will be parsed as the start of a VariableDeclarator.
+                             */
                             firstLeftToken.range[1] === node.left.range[1] ||
 
-                            // If `let` is followed by a `[` token, it's a property access on the `let` value: `for ((let[foo]) of bar);`
-                            // Removing it will cause the property access to be parsed as a destructuring declaration of `foo` instead.
+                            /*
+                             * If `let` is followed by a `[` token, it's a property access on the `let` value: `for ((let[foo]) of bar);`
+                             * Removing it will cause the property access to be parsed as a destructuring declaration of `foo` instead.
+                             */
                             astUtils.isOpeningBracketToken(
                                 sourceCode.getTokenAfter(firstLeftToken, astUtils.isNotClosingParenToken)
                             )
@@ -535,7 +587,7 @@ module.exports = {
                         tokensToIgnore.add(firstLeftToken);
                     }
                 }
-                if (hasExcessParens(node.right)) {
+                if (!(node.type === "ForOfStatement" && node.right.type === "SequenceExpression") && hasExcessParens(node.right)) {
                     report(node.right);
                 }
                 if (hasExcessParens(node.left)) {
@@ -566,8 +618,10 @@ module.exports = {
             LogicalExpression: checkBinaryLogical,
 
             MemberExpression(node) {
+                const nodeObjHasExcessParens = hasExcessParens(node.object);
+
                 if (
-                    hasExcessParens(node.object) &&
+                    nodeObjHasExcessParens &&
                     precedence(node.object) >= precedence(node) &&
                     (
                         node.computed ||
@@ -581,6 +635,13 @@ module.exports = {
                 ) {
                     report(node.object);
                 }
+
+                if (nodeObjHasExcessParens &&
+                  node.object.type === "CallExpression" &&
+                  node.parent.type !== "NewExpression") {
+                    report(node.object);
+                }
+
                 if (node.computed && hasExcessParens(node.property)) {
                     report(node.property);
                 }
@@ -589,13 +650,12 @@ module.exports = {
             NewExpression: checkCallNew,
 
             ObjectExpression(node) {
-                [].forEach.call(node.properties, e => {
-                    const v = e.value;
+                node.properties
+                    .filter(property => {
+                        const value = property.value;
 
-                    if (v && hasExcessParens(v) && precedence(v) >= PRECEDENCE_OF_ASSIGNMENT_EXPR) {
-                        report(v);
-                    }
-                });
+                        return value && hasExcessParens(value) && precedence(value) >= PRECEDENCE_OF_ASSIGNMENT_EXPR;
+                    }).forEach(property => report(property.value));
             },
 
             ReturnStatement(node) {
@@ -615,11 +675,9 @@ module.exports = {
             },
 
             SequenceExpression(node) {
-                [].forEach.call(node.expressions, e => {
-                    if (hasExcessParens(e) && precedence(e) >= precedence(node)) {
-                        report(e);
-                    }
-                });
+                node.expressions
+                    .filter(e => hasExcessParens(e) && precedence(e) >= precedence(node))
+                    .forEach(report);
             },
 
             SwitchCase(node) {

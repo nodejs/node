@@ -19,7 +19,9 @@
         token,
         value,
         esutils,
-        utility;
+        utility,
+        rangeOffset,
+        addRange;
 
     esutils = require('esutils');
     utility = require('./utility');
@@ -93,6 +95,13 @@
     Context.save = function () {
         return new Context(previous, index, token, value);
     };
+
+    function maybeAddRange(node, range) {
+        if (addRange) {
+            node.range = [range[0] + rangeOffset, range[1] + rangeOffset];
+        }
+        return node;
+    }
 
     function advance() {
         var ch = source.charAt(index);
@@ -508,7 +517,7 @@
     //     TypeExpression
     //   | TypeExpression '|' NonemptyTypeUnionList
     function parseUnionType() {
-        var elements;
+        var elements, startIndex = index - 1;
         consume(Token.LPAREN, 'UnionType should start with (');
         elements = [];
         if (token !== Token.RPAREN) {
@@ -521,10 +530,10 @@
             }
         }
         consume(Token.RPAREN, 'UnionType should end with )');
-        return {
+        return maybeAddRange({
             type: Syntax.UnionType,
             elements: elements
-        };
+        }, [startIndex, previous]);
     }
 
     // ArrayType := '[' ElementTypeList ']'
@@ -535,16 +544,17 @@
     //  | '...' TypeExpression
     //  | TypeExpression ',' ElementTypeList
     function parseArrayType() {
-        var elements;
+        var elements, startIndex = index - 1, restStartIndex;
         consume(Token.LBRACK, 'ArrayType should start with [');
         elements = [];
         while (token !== Token.RBRACK) {
             if (token === Token.REST) {
+                restStartIndex = index - 3;
                 consume(Token.REST);
-                elements.push({
+                elements.push(maybeAddRange({
                     type: Syntax.RestType,
                     expression: parseTypeExpression()
-                });
+                }, [restStartIndex, previous]));
                 break;
             } else {
                 elements.push(parseTypeExpression());
@@ -554,10 +564,10 @@
             }
         }
         expect(Token.RBRACK);
-        return {
+        return maybeAddRange({
             type: Syntax.ArrayType,
             elements: elements
-        };
+        }, [startIndex, previous]);
     }
 
     function parseFieldName() {
@@ -585,22 +595,22 @@
     //   | NumberLiteral
     //   | ReservedIdentifier
     function parseFieldType() {
-        var key;
+        var key, rangeStart = previous;
 
         key = parseFieldName();
         if (token === Token.COLON) {
             consume(Token.COLON);
-            return {
+            return maybeAddRange({
                 type: Syntax.FieldType,
                 key: key,
                 value: parseTypeExpression()
-            };
+            }, [rangeStart, previous]);
         }
-        return {
+        return maybeAddRange({
             type: Syntax.FieldType,
             key: key,
             value: null
-        };
+        }, [rangeStart, previous]);
     }
 
     // RecordType := '{' FieldTypeList '}'
@@ -610,7 +620,7 @@
     //   | FieldType
     //   | FieldType ',' FieldTypeList
     function parseRecordType() {
-        var fields;
+        var fields, rangeStart = index - 1, rangeEnd;
 
         consume(Token.LBRACE, 'RecordType should start with {');
         fields = [];
@@ -624,11 +634,12 @@
                 }
             }
         }
+        rangeEnd = index;
         expect(Token.RBRACE);
-        return {
+        return maybeAddRange({
             type: Syntax.RecordType,
             fields: fields
-        };
+        }, [rangeStart, rangeEnd]);
     }
 
     // NameExpression :=
@@ -639,7 +650,7 @@
     // Identifier is the same as Token.NAME, including any dots, something like
     // namespace.module.MyClass
     function parseNameExpression() {
-        var name = value;
+        var name = value, rangeStart = index - name.length;
         expect(Token.NAME);
 
         if (token === Token.COLON && (
@@ -651,10 +662,10 @@
             expect(Token.NAME);
         }
 
-        return {
+        return maybeAddRange({
             type: Syntax.NameExpression,
             name: name
-        };
+        }, [rangeStart, previous]);
     }
 
     // TypeExpressionList :=
@@ -679,18 +690,18 @@
     //     '.<' TypeExpressionList '>'
     //   | '<' TypeExpressionList '>'   // this is extension of doctrine
     function parseTypeName() {
-        var expr, applications;
+        var expr, applications, startIndex = index - value.length;
 
         expr = parseNameExpression();
         if (token === Token.DOT_LT || token === Token.LT) {
             next();
             applications = parseTypeExpressionList();
             expect(Token.GT);
-            return {
+            return maybeAddRange({
                 type: Syntax.TypeApplication,
                 expression: expr,
                 applications: applications
-            };
+            }, [startIndex, previous]);
         }
         return expr;
     }
@@ -737,7 +748,7 @@
     //
     // Identifier is "new" or "this"
     function parseParametersType() {
-        var params = [], optionalSequence = false, expr, rest = false;
+        var params = [], optionalSequence = false, expr, rest = false, startIndex, restStartIndex = index - 3, nameStartIndex;
 
         while (token !== Token.RPAREN) {
             if (token === Token.REST) {
@@ -746,22 +757,25 @@
                 rest = true;
             }
 
+            startIndex = previous;
+
             expr = parseTypeExpression();
             if (expr.type === Syntax.NameExpression && token === Token.COLON) {
+                nameStartIndex = previous - expr.name.length;
                 // Identifier ':' TypeExpression
                 consume(Token.COLON);
-                expr = {
+                expr = maybeAddRange({
                     type: Syntax.ParameterType,
                     name: expr.name,
                     expression: parseTypeExpression()
-                };
+                }, [nameStartIndex, previous]);
             }
             if (token === Token.EQUAL) {
                 consume(Token.EQUAL);
-                expr = {
+                expr = maybeAddRange({
                     type: Syntax.OptionalType,
                     expression: expr
-                };
+                }, [startIndex, previous]);
                 optionalSequence = true;
             } else {
                 if (optionalSequence) {
@@ -769,10 +783,10 @@
                 }
             }
             if (rest) {
-                expr = {
+                expr = maybeAddRange({
                     type: Syntax.RestType,
                     expression: expr
-                };
+                }, [restStartIndex, previous]);
             }
             params.push(expr);
             if (token !== Token.RPAREN) {
@@ -790,7 +804,7 @@
     //   | TypeParameters '(' 'this' ':' TypeName ')' ResultType
     //   | TypeParameters '(' 'this' ':' TypeName ',' ParametersType ')' ResultType
     function parseFunctionType() {
-        var isNew, thisBinding, params, result, fnType;
+        var isNew, thisBinding, params, result, fnType, startIndex = index - value.length;
         utility.assert(token === Token.NAME && value === 'function', 'FunctionType should start with \'function\'');
         consume(Token.NAME);
 
@@ -827,11 +841,11 @@
             result = parseResultType();
         }
 
-        fnType = {
+        fnType = maybeAddRange({
             type: Syntax.FunctionType,
             params: params,
             result: result
-        };
+        }, [startIndex, previous]);
         if (thisBinding) {
             // avoid adding null 'new' and 'this' properties
             fnType['this'] = thisBinding;
@@ -852,13 +866,13 @@
     //   | RecordType
     //   | ArrayType
     function parseBasicTypeExpression() {
-        var context;
+        var context, startIndex;
         switch (token) {
         case Token.STAR:
             consume(Token.STAR);
-            return {
+            return maybeAddRange({
                 type: Syntax.AllLiteral
-            };
+            }, [previous - 1, previous]);
 
         case Token.LPAREN:
             return parseUnionType();
@@ -870,26 +884,28 @@
             return parseRecordType();
 
         case Token.NAME:
+            startIndex = index - value.length;
+
             if (value === 'null') {
                 consume(Token.NAME);
-                return {
+                return maybeAddRange({
                     type: Syntax.NullLiteral
-                };
+                }, [startIndex, previous]);
             }
 
             if (value === 'undefined') {
                 consume(Token.NAME);
-                return {
+                return maybeAddRange({
                     type: Syntax.UndefinedLiteral
-                };
+                }, [startIndex, previous]);
             }
 
             if (value === 'true' || value === 'false') {
                 consume(Token.NAME);
-                return {
+                return maybeAddRange({
                     type: Syntax.BooleanLiteralType,
                     value: value === 'true'
-                };
+                }, [startIndex, previous]);
             }
 
             context = Context.save();
@@ -905,17 +921,17 @@
 
         case Token.STRING:
             next();
-            return {
+            return maybeAddRange({
                 type: Syntax.StringLiteralType,
                 value: value
-            };
+            }, [previous - value.length - 2, previous]);
 
         case Token.NUMBER:
             next();
-            return {
+            return maybeAddRange({
                 type: Syntax.NumericLiteralType,
                 value: value
-            };
+            }, [previous - String(value).length, previous]);
 
         default:
             utility.throwError('unexpected token');
@@ -931,63 +947,65 @@
     //   | '?'
     //   | BasicTypeExpression '[]'
     function parseTypeExpression() {
-        var expr;
+        var expr, rangeStart;
 
         if (token === Token.QUESTION) {
+            rangeStart = index - 1;
             consume(Token.QUESTION);
             if (token === Token.COMMA || token === Token.EQUAL || token === Token.RBRACE ||
                     token === Token.RPAREN || token === Token.PIPE || token === Token.EOF ||
                     token === Token.RBRACK || token === Token.GT) {
-                return {
+                return maybeAddRange({
                     type: Syntax.NullableLiteral
-                };
+                }, [rangeStart, previous]);
             }
-            return {
+            return maybeAddRange({
                 type: Syntax.NullableType,
                 expression: parseBasicTypeExpression(),
                 prefix: true
-            };
-        }
-
-        if (token === Token.BANG) {
+            }, [rangeStart, previous]);
+        } else if (token === Token.BANG) {
+            rangeStart = index - 1;
             consume(Token.BANG);
-            return {
+            return maybeAddRange({
                 type: Syntax.NonNullableType,
                 expression: parseBasicTypeExpression(),
                 prefix: true
-            };
+            }, [rangeStart, previous]);
+        } else {
+            rangeStart = previous;
         }
 
         expr = parseBasicTypeExpression();
         if (token === Token.BANG) {
             consume(Token.BANG);
-            return {
+            return maybeAddRange({
                 type: Syntax.NonNullableType,
                 expression: expr,
                 prefix: false
-            };
+            }, [rangeStart, previous]);
         }
 
         if (token === Token.QUESTION) {
             consume(Token.QUESTION);
-            return {
+            return maybeAddRange({
                 type: Syntax.NullableType,
                 expression: expr,
                 prefix: false
-            };
+            }, [rangeStart, previous]);
         }
 
         if (token === Token.LBRACK) {
             consume(Token.LBRACK);
             expect(Token.RBRACK, 'expected an array-style type declaration (' + value + '[])');
-            return {
+            return maybeAddRange({
                 type: Syntax.TypeApplication,
-                expression: {
+                expression: maybeAddRange({
                     type: Syntax.NameExpression,
                     name: 'Array'
-                },
+                }, [rangeStart, previous]),
                 applications: [expr]
-            };
+            }, [rangeStart, previous]);
         }
 
         return expr;
@@ -1020,10 +1038,10 @@
             consume(Token.PIPE);
         }
 
-        return {
+        return maybeAddRange({
             type: Syntax.UnionType,
             elements: elements
-        };
+        }, [0, index]);
     }
 
     function parseTopParamType() {
@@ -1031,19 +1049,19 @@
 
         if (token === Token.REST) {
             consume(Token.REST);
-            return {
+            return maybeAddRange({
                 type: Syntax.RestType,
                 expression: parseTop()
-            };
+            }, [0, index]);
         }
 
         expr = parseTop();
         if (token === Token.EQUAL) {
             consume(Token.EQUAL);
-            return {
+            return maybeAddRange({
                 type: Syntax.OptionalType,
                 expression: expr
-            };
+            }, [0, index]);
         }
 
         return expr;
@@ -1056,6 +1074,8 @@
         length = source.length;
         index = 0;
         previous = 0;
+        addRange = opt && opt.range;
+        rangeOffset = opt && opt.startIndex || 0;
 
         next();
         expr = parseTop();
@@ -1081,6 +1101,8 @@
         length = source.length;
         index = 0;
         previous = 0;
+        addRange = opt && opt.range;
+        rangeOffset = opt && opt.startIndex || 0;
 
         next();
         expr = parseTopParamType();
@@ -1133,7 +1155,7 @@
             for (i = 0, iz = node.elements.length; i < iz; ++i) {
                 result += stringifyImpl(node.elements[i], compact);
                 if ((i + 1) !== iz) {
-                    result += '|';
+                    result += compact ? '|' : ' | ';
                 }
             }
 

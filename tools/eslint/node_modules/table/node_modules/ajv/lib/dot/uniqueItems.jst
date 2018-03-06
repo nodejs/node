@@ -14,18 +14,34 @@
     else {
   {{?}}
 
-  var {{=$valid}} = true;
-  if ({{=$data}}.length > 1) {
-    var i = {{=$data}}.length, j;
-    outer:
-    for (;i--;) {
-      for (j = i; j--;) {
-        if (equal({{=$data}}[i], {{=$data}}[j])) {
-          {{=$valid}} = false;
-          break outer;
+  var i = {{=$data}}.length
+    , {{=$valid}} = true
+    , j;
+  if (i > 1) {
+    {{ var $itemType = it.schema.items && it.schema.items.type; }}
+    {{? !$itemType || $itemType == 'object' || $itemType == 'array' }}
+      outer:
+      for (;i--;) {
+        for (j = i; j--;) {
+          if (equal({{=$data}}[i], {{=$data}}[j])) {
+            {{=$valid}} = false;
+            break outer;
+          }
         }
       }
-    }
+    {{??}}
+      var itemIndices = {}, item;
+      for (;i--;) {
+        var item = {{=$data}}[i];
+        if (typeof item != '{{=$itemType}}') continue;
+        if (itemIndices[item] !== undefined) {
+          {{=$valid}} = false;
+          j = itemIndices[item];
+          break;
+        }
+        itemIndices[item] = i;
+      }
+    {{?}}
   }
 
   {{? $isData }}  }  {{?}}

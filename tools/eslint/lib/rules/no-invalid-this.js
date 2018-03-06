@@ -20,7 +20,8 @@ module.exports = {
         docs: {
             description: "disallow `this` keywords outside of classes or class-like objects",
             category: "Best Practices",
-            recommended: false
+            recommended: false,
+            url: "https://eslint.org/docs/rules/no-invalid-this"
         },
 
         schema: []
@@ -46,7 +47,8 @@ module.exports = {
                 current.init = true;
                 current.valid = !astUtils.isDefaultThisBinding(
                     current.node,
-                    sourceCode);
+                    sourceCode
+                );
             }
             return current;
         };

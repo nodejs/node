@@ -23,7 +23,8 @@ module.exports = {
         docs: {
             description: "enforce a maximum cyclomatic complexity allowed in a program",
             category: "Best Practices",
-            recommended: false
+            recommended: false,
+            url: "https://eslint.org/docs/rules/complexity"
         },
 
         schema: [
@@ -49,7 +50,11 @@ module.exports = {
                     }
                 ]
             }
-        ]
+        ],
+
+        messages: {
+            complex: "{{name}} has a complexity of {{complexity}}."
+        }
     },
 
     create(context) {
@@ -95,7 +100,7 @@ module.exports = {
             if (complexity > THRESHOLD) {
                 context.report({
                     node,
-                    message: "{{name}} has a complexity of {{complexity}}.",
+                    messageId: "complex",
                     data: { name, complexity }
                 });
             }
@@ -126,20 +131,6 @@ module.exports = {
             }
         }
 
-        /**
-         * Increase the logical path complexity in context
-         * @param {ASTNode} node node to evaluate
-         * @returns {void}
-         * @private
-         */
-        function increaseLogicalComplexity(node) {
-
-            // Avoiding &&
-            if (node.operator === "||") {
-                increaseComplexity();
-            }
-        }
-
         //--------------------------------------------------------------------------
         // Public API
         //--------------------------------------------------------------------------
@@ -154,7 +145,7 @@ module.exports = {
 
             CatchClause: increaseComplexity,
             ConditionalExpression: increaseComplexity,
-            LogicalExpression: increaseLogicalComplexity,
+            LogicalExpression: increaseComplexity,
             ForStatement: increaseComplexity,
             ForInStatement: increaseComplexity,
             ForOfStatement: increaseComplexity,

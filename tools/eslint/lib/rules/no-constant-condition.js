@@ -14,7 +14,8 @@ module.exports = {
         docs: {
             description: "disallow constant expressions in conditions",
             category: "Possible Errors",
-            recommended: true
+            recommended: true,
+            url: "https://eslint.org/docs/rules/no-constant-condition"
         },
 
         schema: [
@@ -27,8 +28,11 @@ module.exports = {
                 },
                 additionalProperties: false
             }
+        ],
 
-        ]
+        messages: {
+            unexpected: "Unexpected constant condition."
+        }
     },
 
     create(context) {
@@ -138,7 +142,7 @@ module.exports = {
         function checkConstantConditionLoopInSet(node) {
             if (loopsInCurrentScope.has(node)) {
                 loopsInCurrentScope.delete(node);
-                context.report({ node, message: "Unexpected constant condition." });
+                context.report({ node: node.test, messageId: "unexpected" });
             }
         }
 
@@ -150,7 +154,7 @@ module.exports = {
          */
         function reportIfConstant(node) {
             if (node.test && isConstant(node.test, true)) {
-                context.report({ node, message: "Unexpected constant condition." });
+                context.report({ node: node.test, messageId: "unexpected" });
             }
         }
 

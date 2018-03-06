@@ -154,7 +154,8 @@ function forwardCurrentToHead(analyzer, node) {
                 analyzer.emitter.emit(
                     "onCodePathSegmentEnd",
                     currentSegment,
-                    node);
+                    node
+                );
             }
         }
     }
@@ -175,7 +176,8 @@ function forwardCurrentToHead(analyzer, node) {
                 analyzer.emitter.emit(
                     "onCodePathSegmentStart",
                     headSegment,
-                    node);
+                    node
+                );
             }
         }
     }
@@ -202,7 +204,8 @@ function leaveFromCurrentSegment(analyzer, node) {
             analyzer.emitter.emit(
                 "onCodePathSegmentEnd",
                 currentSegment,
-                node);
+                node
+            );
         }
     }
 
@@ -369,7 +372,8 @@ function processCodePathToEnter(analyzer, node) {
         case "SwitchStatement":
             state.pushSwitchContext(
                 node.cases.some(isCaseNode),
-                astUtils.getLabel(node));
+                astUtils.getLabel(node)
+            );
             break;
 
         case "TryStatement":
@@ -594,8 +598,10 @@ class CodePathAnalyzer {
             preprocess(this, node);
         }
 
-        // Updates the code path.
-        // And emits onCodePathStart/onCodePathSegmentStart events.
+        /*
+         * Updates the code path.
+         * And emits onCodePathStart/onCodePathSegmentStart events.
+         */
         processCodePathToEnter(this, node);
 
         // Emits node events.
@@ -614,8 +620,10 @@ class CodePathAnalyzer {
     leaveNode(node) {
         this.currentNode = node;
 
-        // Updates the code path.
-        // And emits onCodePathStart/onCodePathSegmentStart events.
+        /*
+         * Updates the code path.
+         * And emits onCodePathStart/onCodePathSegmentStart events.
+         */
         processCodePathToExit(this, node);
 
         // Emits node events.

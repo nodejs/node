@@ -30,7 +30,8 @@ module.exports = {
         docs: {
             description: "disallow irregular whitespace outside of strings and comments",
             category: "Possible Errors",
-            recommended: true
+            recommended: true,
+            url: "https://eslint.org/docs/rules/no-irregular-whitespace"
         },
 
         schema: [

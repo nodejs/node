@@ -19,7 +19,8 @@ module.exports = {
         docs: {
             description: "enforce a maximum number of statements allowed per line",
             category: "Stylistic Issues",
-            recommended: false
+            recommended: false,
+            url: "https://eslint.org/docs/rules/max-statements-per-line"
         },
 
         schema: [
@@ -93,9 +94,11 @@ module.exports = {
         function enterStatement(node) {
             const line = node.loc.start.line;
 
-            // Skip to allow non-block statements if this is direct child of control statements.
-            // `if (a) foo();` is counted as 1.
-            // But `if (a) foo(); else foo();` should be counted as 2.
+            /*
+             * Skip to allow non-block statements if this is direct child of control statements.
+             * `if (a) foo();` is counted as 1.
+             * But `if (a) foo(); else foo();` should be counted as 2.
+             */
             if (SINGLE_CHILD_ALLOWED.test(node.parent.type) &&
                 node.parent.alternate !== node
             ) {

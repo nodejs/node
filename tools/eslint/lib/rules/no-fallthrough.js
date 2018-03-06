@@ -58,7 +58,8 @@ module.exports = {
         docs: {
             description: "disallow fallthrough of `case` statements",
             category: "Best Practices",
-            recommended: true
+            recommended: true,
+            url: "https://eslint.org/docs/rules/no-fallthrough"
         },
 
         schema: [

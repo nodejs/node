@@ -16,7 +16,8 @@ module.exports = {
         docs: {
             description: "enforce consistent comma style",
             category: "Stylistic Issues",
-            recommended: false
+            recommended: false,
+            url: "https://eslint.org/docs/rules/comma-style"
         },
         fixable: "code",
         schema: [
@@ -35,7 +36,12 @@ module.exports = {
                 },
                 additionalProperties: false
             }
-        ]
+        ],
+        messages: {
+            unexpectedLineBeforeAndAfterComma: "Bad line breaking before and after ','.",
+            expectedCommaFirst: "',' should be placed first.",
+            expectedCommaLast: "',' should be placed last."
+        }
     },
 
     create(context) {
@@ -48,7 +54,8 @@ module.exports = {
             FunctionDeclaration: true,
             FunctionExpression: true,
             ImportDeclaration: true,
-            ObjectPattern: true
+            ObjectPattern: true,
+            NewExpression: true
         };
 
         if (context.options.length === 2 && context.options[1].hasOwnProperty("exceptions")) {
@@ -133,7 +140,7 @@ module.exports = {
                         line: commaToken.loc.end.line,
                         column: commaToken.loc.start.column
                     },
-                    message: "Bad line breaking before and after ','.",
+                    messageId: "unexpectedLineBeforeAndAfterComma",
                     fix: getFixerFunction("between", previousItemToken, commaToken, currentItemToken)
                 });
 
@@ -141,7 +148,7 @@ module.exports = {
 
                 context.report({
                     node: reportItem,
-                    message: "',' should be placed first.",
+                    messageId: "expectedCommaFirst",
                     fix: getFixerFunction(style, previousItemToken, commaToken, currentItemToken)
                 });
 
@@ -153,7 +160,7 @@ module.exports = {
                         line: commaToken.loc.end.line,
                         column: commaToken.loc.end.column
                     },
-                    message: "',' should be placed last.",
+                    messageId: "expectedCommaLast",
                     fix: getFixerFunction(style, previousItemToken, commaToken, currentItemToken)
                 });
             }
@@ -208,7 +215,9 @@ module.exports = {
                     if (item) {
                         const tokenAfterItem = sourceCode.getTokenAfter(item, astUtils.isNotClosingParenToken);
 
-                        previousItemToken = tokenAfterItem ? sourceCode.getTokenBefore(tokenAfterItem) : sourceCode.ast.tokens[sourceCode.ast.tokens.length - 1];
+                        previousItemToken = tokenAfterItem
+                            ? sourceCode.getTokenBefore(tokenAfterItem)
+                            : sourceCode.ast.tokens[sourceCode.ast.tokens.length - 1];
                     }
                 });
 
@@ -289,6 +298,11 @@ module.exports = {
         if (!exceptions.ImportDeclaration) {
             nodes.ImportDeclaration = function(node) {
                 validateComma(node, "specifiers");
+            };
+        }
+        if (!exceptions.NewExpression) {
+            nodes.NewExpression = function(node) {
+                validateComma(node, "arguments");
             };
         }
 

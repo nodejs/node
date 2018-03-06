@@ -20,7 +20,8 @@ module.exports = {
         docs: {
             description: "require parentheses around immediate `function` invocations",
             category: "Best Practices",
-            recommended: false
+            recommended: false,
+            url: "https://eslint.org/docs/rules/wrap-iife"
         },
 
         schema: [
@@ -59,10 +60,10 @@ module.exports = {
         }
 
         /**
-        * Get the function node from an IIFE
-        * @param {ASTNode} node node to evaluate
-        * @returns {ASTNode} node that is the function expression of the given IIFE, or null if none exist
-        */
+         * Get the function node from an IIFE
+         * @param {ASTNode} node node to evaluate
+         * @returns {ASTNode} node that is the function expression of the given IIFE, or null if none exist
+         */
         function getFunctionNodeFromIIFE(node) {
             const callee = node.callee;
 

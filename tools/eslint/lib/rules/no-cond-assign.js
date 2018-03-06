@@ -22,14 +22,22 @@ module.exports = {
         docs: {
             description: "disallow assignment operators in conditional expressions",
             category: "Possible Errors",
-            recommended: true
+            recommended: true,
+            url: "https://eslint.org/docs/rules/no-cond-assign"
         },
 
         schema: [
             {
                 enum: ["except-parens", "always"]
             }
-        ]
+        ],
+
+        messages: {
+            unexpected: "Unexpected assignment within {{type}}.",
+
+            // must match JSHint's error message
+            missing: "Expected a conditional expression and instead saw an assignment."
+        }
     },
 
     create(context) {
@@ -94,11 +102,10 @@ module.exports = {
                 )
             ) {
 
-                // must match JSHint's error message
                 context.report({
                     node,
                     loc: node.test.loc.start,
-                    message: "Expected a conditional expression and instead saw an assignment."
+                    messageId: "missing"
                 });
             }
         }
@@ -114,7 +121,7 @@ module.exports = {
             if (ancestor) {
                 context.report({
                     node: ancestor,
-                    message: "Unexpected assignment within {{type}}.",
+                    messageId: "unexpected",
                     data: {
                         type: NODE_DESCRIPTIONS[ancestor.type] || ancestor.type
                     }

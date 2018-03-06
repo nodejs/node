@@ -19,7 +19,8 @@ module.exports = {
         docs: {
             description: "require braces around arrow function bodies",
             category: "ECMAScript 6",
-            recommended: false
+            recommended: false,
+            url: "https://eslint.org/docs/rules/arrow-body-style"
         },
 
         schema: {
@@ -54,7 +55,15 @@ module.exports = {
             ]
         },
 
-        fixable: "code"
+        fixable: "code",
+
+        messages: {
+            unexpectedOtherBlock: "Unexpected block statement surrounding arrow body.",
+            unexpectedEmptyBlock: "Unexpected block statement surrounding arrow body; put a value of `undefined` immediately after the `=>`.",
+            unexpectedObjectBlock: "Unexpected block statement surrounding arrow body; parenthesize the returned value and move it immediately after the `=>`.",
+            unexpectedSingleBlock: "Unexpected block statement surrounding arrow body; move the returned value immediately after the `=>`.",
+            expectedBlock: "Expected block statement surrounding arrow body."
+        }
     },
 
     create(context) {
@@ -109,10 +118,22 @@ module.exports = {
                 }
 
                 if (never || asNeeded && blockBody[0].type === "ReturnStatement") {
+                    let messageId;
+
+                    if (blockBody.length === 0) {
+                        messageId = "unexpectedEmptyBlock";
+                    } else if (blockBody.length > 1) {
+                        messageId = "unexpectedOtherBlock";
+                    } else if (astUtils.isOpeningBraceToken(sourceCode.getFirstToken(blockBody[0], { skip: 1 }))) {
+                        messageId = "unexpectedObjectBlock";
+                    } else {
+                        messageId = "unexpectedSingleBlock";
+                    }
+
                     context.report({
                         node,
                         loc: arrowBody.loc.start,
-                        message: "Unexpected block statement surrounding arrow body.",
+                        messageId,
                         fix(fixer) {
                             const fixes = [];
 
@@ -132,8 +153,10 @@ module.exports = {
                                 sourceCode.commentsExistBetween(openingBrace, firstValueToken) ||
                                 sourceCode.commentsExistBetween(lastValueToken, closingBrace);
 
-                            // Remove tokens around the return value.
-                            // If comments don't exist, remove extra spaces as well.
+                            /*
+                             * Remove tokens around the return value.
+                             * If comments don't exist, remove extra spaces as well.
+                             */
                             if (commentsExist) {
                                 fixes.push(
                                     fixer.remove(openingBrace),
@@ -147,8 +170,10 @@ module.exports = {
                                 );
                             }
 
-                            // If the first token of the reutrn value is `{`,
-                            // enclose the return value by parentheses to avoid syntax error.
+                            /*
+                             * If the first token of the reutrn value is `{`,
+                             * enclose the return value by parentheses to avoid syntax error.
+                             */
                             if (astUtils.isOpeningBraceToken(firstValueToken)) {
                                 fixes.push(
                                     fixer.insertTextBefore(firstValueToken, "("),
@@ -156,8 +181,10 @@ module.exports = {
                                 );
                             }
 
-                            // If the last token of the return statement is semicolon, remove it.
-                            // Non-block arrow body is an expression, not a statement.
+                            /*
+                             * If the last token of the return statement is semicolon, remove it.
+                             * Non-block arrow body is an expression, not a statement.
+                             */
                             if (astUtils.isSemicolonToken(lastValueToken)) {
                                 fixes.push(fixer.remove(lastValueToken));
                             }
@@ -171,7 +198,7 @@ module.exports = {
                     context.report({
                         node,
                         loc: arrowBody.loc.start,
-                        message: "Expected block statement surrounding arrow body.",
+                        messageId: "expectedBlock",
                         fix(fixer) {
                             const fixes = [];
                             const arrowToken = sourceCode.getTokenBefore(arrowBody, astUtils.isArrowToken);

@@ -14,9 +14,7 @@ const ajv = require("../util/ajv"),
     configSchema = require("../../conf/config-schema.js"),
     util = require("util");
 
-const validators = {
-    rules: Object.create(null)
-};
+const ruleValidators = new WeakMap();
 
 //------------------------------------------------------------------------------
 // Private
@@ -25,13 +23,11 @@ let validateSchema;
 
 /**
  * Gets a complete options schema for a rule.
- * @param {string} id The rule's unique name.
- * @param {Rules} rulesContext Rule context
+ * @param {{create: Function, schema: (Array|null)}} rule A new-style rule object
  * @returns {Object} JSON Schema for the rule's options.
  */
-function getRuleOptionsSchema(id, rulesContext) {
-    const rule = rulesContext.get(id),
-        schema = rule && rule.schema || rule && rule.meta && rule.meta.schema;
+function getRuleOptionsSchema(rule) {
+    const schema = rule.schema || rule.meta && rule.meta.schema;
 
     // Given a tuple of schemas, insert warning level at the beginning
     if (Array.isArray(schema)) {
@@ -56,10 +52,10 @@ function getRuleOptionsSchema(id, rulesContext) {
 }
 
 /**
-* Validates a rule's severity and returns the severity value. Throws an error if the severity is invalid.
-* @param {options} options The given options for the rule.
-* @returns {number|string} The rule's severity value
-*/
+ * Validates a rule's severity and returns the severity value. Throws an error if the severity is invalid.
+ * @param {options} options The given options for the rule.
+ * @returns {number|string} The rule's severity value
+ */
 function validateRuleSeverity(options) {
     const severity = Array.isArray(options) ? options[0] : options;
 
@@ -71,46 +67,59 @@ function validateRuleSeverity(options) {
 }
 
 /**
-* Validates the non-severity options passed to a rule, based on its schema.
-* @param {string} id The rule's unique name
-* @param {array} localOptions The options for the rule, excluding severity
-* @param {Rules} rulesContext Rule context
-* @returns {void}
-*/
-function validateRuleSchema(id, localOptions, rulesContext) {
-    const schema = getRuleOptionsSchema(id, rulesContext);
+ * Validates the non-severity options passed to a rule, based on its schema.
+ * @param {{create: Function}} rule The rule to validate
+ * @param {array} localOptions The options for the rule, excluding severity
+ * @returns {void}
+ */
+function validateRuleSchema(rule, localOptions) {
+    if (!ruleValidators.has(rule)) {
+        const schema = getRuleOptionsSchema(rule);
 
-    if (!validators.rules[id] && schema) {
-        validators.rules[id] = ajv.compile(schema);
+        if (schema) {
+            ruleValidators.set(rule, ajv.compile(schema));
+        }
     }
 
-    const validateRule = validators.rules[id];
+    const validateRule = ruleValidators.get(rule);
 
     if (validateRule) {
         validateRule(localOptions);
         if (validateRule.errors) {
-            throw new Error(validateRule.errors.map(error => `\tValue "${error.data}" ${error.message}.\n`).join(""));
+            throw new Error(validateRule.errors.map(
+                error => `\tValue ${JSON.stringify(error.data)} ${error.message}.\n`
+            ).join(""));
         }
     }
 }
 
 /**
  * Validates a rule's options against its schema.
- * @param {string} id The rule's unique name.
+ * @param {{create: Function}|null} rule The rule that the config is being validated for
+ * @param {string} ruleId The rule's unique name.
  * @param {array|number} options The given options for the rule.
- * @param {string} source The name of the configuration source to report in any errors.
- * @param {Rules} rulesContext Rule context
+ * @param {string|null} source The name of the configuration source to report in any errors. If null or undefined,
+ * no source is prepended to the message.
  * @returns {void}
  */
-function validateRuleOptions(id, options, source, rulesContext) {
+function validateRuleOptions(rule, ruleId, options, source) {
+    if (!rule) {
+        return;
+    }
     try {
         const severity = validateRuleSeverity(options);
 
         if (severity !== 0 && !(typeof severity === "string" && severity.toLowerCase() === "off")) {
-            validateRuleSchema(id, Array.isArray(options) ? options.slice(1) : [], rulesContext);
+            validateRuleSchema(rule, Array.isArray(options) ? options.slice(1) : []);
         }
     } catch (err) {
-        throw new Error(`${source}:\n\tConfiguration for rule "${id}" is invalid:\n${err.message}`);
+        const enhancedMessage = `Configuration for rule "${ruleId}" is invalid:\n${err.message}`;
+
+        if (typeof source === "string") {
+            throw new Error(`${source}:\n\t${enhancedMessage}`);
+        } else {
+            throw new Error(enhancedMessage);
+        }
     }
 }
 
@@ -141,16 +150,16 @@ function validateEnvironment(environment, source, envContext) {
  * Validates a rules config object
  * @param {Object} rulesConfig The rules config object to validate.
  * @param {string} source The name of the configuration source to report in any errors.
- * @param {Rules} rulesContext Rule context
+ * @param {function(string): {create: Function}} ruleMapper A mapper function from strings to loaded rules
  * @returns {void}
  */
-function validateRules(rulesConfig, source, rulesContext) {
+function validateRules(rulesConfig, source, ruleMapper) {
     if (!rulesConfig) {
         return;
     }
 
     Object.keys(rulesConfig).forEach(id => {
-        validateRuleOptions(id, rulesConfig[id], source, rulesContext);
+        validateRuleOptions(ruleMapper(id), id, rulesConfig[id], source);
     });
 }
 
@@ -221,13 +230,13 @@ function validateConfigSchema(config, source) {
  * Validates an entire config object.
  * @param {Object} config The config object to validate.
  * @param {string} source The name of the configuration source to report in any errors.
- * @param {Rules} rulesContext The rules context
+ * @param {function(string): {create: Function}} ruleMapper A mapper function from rule IDs to defined rules
  * @param {Environments} envContext The env context
  * @returns {void}
  */
-function validate(config, source, rulesContext, envContext) {
+function validate(config, source, ruleMapper, envContext) {
     validateConfigSchema(config, source);
-    validateRules(config.rules, source, rulesContext);
+    validateRules(config.rules, source, ruleMapper);
     validateEnvironment(config.env, source, envContext);
 }
 

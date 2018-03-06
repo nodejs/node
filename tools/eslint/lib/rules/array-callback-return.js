@@ -85,12 +85,14 @@ function isCallbackOfArrayMethod(node) {
                 node = parent;
                 break;
 
-            // If the upper function is IIFE, checks the destination of the return value.
-            // e.g.
-            //   foo.every((function() {
-            //     // setup...
-            //     return function callback() { ... };
-            //   })());
+            /*
+             * If the upper function is IIFE, checks the destination of the return value.
+             * e.g.
+             *   foo.every((function() {
+             *     // setup...
+             *     return function callback() { ... };
+             *   })());
+             */
             case "ReturnStatement": {
                 const func = astUtils.getUpperFunction(parent);
 
@@ -101,9 +103,11 @@ function isCallbackOfArrayMethod(node) {
                 break;
             }
 
-            // e.g.
-            //   Array.from([], function() {});
-            //   list.every(function() {});
+            /*
+             * e.g.
+             *   Array.from([], function() {});
+             *   list.every(function() {});
+             */
             case "CallExpression":
                 if (astUtils.isArrayFromMethod(parent.callee)) {
                     return (
@@ -138,13 +142,33 @@ module.exports = {
         docs: {
             description: "enforce `return` statements in callbacks of array methods",
             category: "Best Practices",
-            recommended: false
+            recommended: false,
+            url: "https://eslint.org/docs/rules/array-callback-return"
         },
 
-        schema: []
+        schema: [
+            {
+                type: "object",
+                properties: {
+                    allowImplicit: {
+                        type: "boolean"
+                    }
+                },
+                additionalProperties: false
+            }
+        ],
+
+        messages: {
+            expectedAtEnd: "Expected to return a value at the end of {{name}}.",
+            expectedInside: "Expected to return a value in {{name}}.",
+            expectedReturnValue: "{{name}} expected a return value."
+        }
     },
 
     create(context) {
+
+        const options = context.options[0] || { allowImplicit: false };
+
         let funcInfo = {
             upper: null,
             codePath: null,
@@ -170,9 +194,9 @@ module.exports = {
                 context.report({
                     node,
                     loc: getLocation(node, context.getSourceCode()).loc.start,
-                    message: funcInfo.hasReturn
-                        ? "Expected to return a value at the end of {{name}}."
-                        : "Expected to return a value in {{name}}.",
+                    messageId: funcInfo.hasReturn
+                        ? "expectedAtEnd"
+                        : "expectedInside",
                     data: {
                         name: astUtils.getFunctionNameWithKind(funcInfo.node)
                     }
@@ -208,10 +232,11 @@ module.exports = {
                 if (funcInfo.shouldCheck) {
                     funcInfo.hasReturn = true;
 
-                    if (!node.argument) {
+                    // if allowImplicit: false, should also check node.argument
+                    if (!options.allowImplicit && !node.argument) {
                         context.report({
                             node,
-                            message: "{{name}} expected a return value.",
+                            messageId: "expectedReturnValue",
                             data: {
                                 name: lodash.upperFirst(astUtils.getFunctionNameWithKind(funcInfo.node))
                             }

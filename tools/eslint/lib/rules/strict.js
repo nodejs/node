@@ -83,7 +83,8 @@ module.exports = {
         docs: {
             description: "require or disallow strict mode directives",
             category: "Strict Mode",
-            recommended: false
+            recommended: false,
+            url: "https://eslint.org/docs/rules/strict"
         },
 
         schema: [
@@ -109,19 +110,19 @@ module.exports = {
         }
 
         /**
-        * Determines whether a reported error should be fixed, depending on the error type.
-        * @param {string} errorType The type of error
-        * @returns {boolean} `true` if the reported error should be fixed
-        */
+         * Determines whether a reported error should be fixed, depending on the error type.
+         * @param {string} errorType The type of error
+         * @returns {boolean} `true` if the reported error should be fixed
+         */
         function shouldFix(errorType) {
             return errorType === "multiple" || errorType === "unnecessary" || errorType === "module" || errorType === "implied" || errorType === "unnecessaryInClasses";
         }
 
         /**
-        * Gets a fixer function to remove a given 'use strict' directive.
-        * @param {ASTNode} node The directive that should be removed
-        * @returns {Function} A fixer function
-        */
+         * Gets a fixer function to remove a given 'use strict' directive.
+         * @param {ASTNode} node The directive that should be removed
+         * @returns {Function} A fixer function
+         */
         function getFixFunction(node) {
             return fixer => fixer.remove(node);
         }

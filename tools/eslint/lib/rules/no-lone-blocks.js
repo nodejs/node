@@ -14,7 +14,8 @@ module.exports = {
         docs: {
             description: "disallow unnecessary nested blocks",
             category: "Best Practices",
-            recommended: false
+            recommended: false,
+            url: "https://eslint.org/docs/rules/no-lone-blocks"
         },
 
         schema: []
@@ -30,7 +31,7 @@ module.exports = {
          * Reports a node as invalid.
          * @param {ASTNode} node - The node to be reported.
          * @returns {void}
-        */
+         */
         function report(node) {
             const message = node.parent.type === "BlockStatement" ? "Nested block is redundant." : "Block is redundant.";
 
@@ -41,7 +42,7 @@ module.exports = {
          * Checks for any ocurrence of a BlockStatement in a place where lists of statements can appear
          * @param {ASTNode} node The node to check
          * @returns {boolean} True if the node is a lone block.
-        */
+         */
         function isLoneBlock(node) {
             return node.parent.type === "BlockStatement" ||
                 node.parent.type === "Program" ||
@@ -54,7 +55,7 @@ module.exports = {
          * Checks the enclosing block of the current node for block-level bindings,
          * and "marks it" as valid if any.
          * @returns {void}
-        */
+         */
         function markLoneBlock() {
             if (loneBlocks.length === 0) {
                 return;

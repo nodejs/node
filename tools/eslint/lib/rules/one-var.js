@@ -14,7 +14,8 @@ module.exports = {
         docs: {
             description: "enforce variables to be declared either together or separately in functions",
             category: "Stylistic Issues",
-            recommended: false
+            recommended: false,
+            url: "https://eslint.org/docs/rules/one-var"
         },
 
         schema: [
@@ -26,6 +27,9 @@ module.exports = {
                     {
                         type: "object",
                         properties: {
+                            separateRequires: {
+                                type: "boolean"
+                            },
                             var: {
                                 enum: ["always", "never"]
                             },
@@ -62,21 +66,23 @@ module.exports = {
 
         const mode = context.options[0] || MODE_ALWAYS;
 
-        const options = {
-        };
+        const options = {};
 
         if (typeof mode === "string") { // simple options configuration with just a string
             options.var = { uninitialized: mode, initialized: mode };
             options.let = { uninitialized: mode, initialized: mode };
             options.const = { uninitialized: mode, initialized: mode };
         } else if (typeof mode === "object") { // options configuration is an object
-            if (mode.hasOwnProperty("var") && typeof mode.var === "string") {
+            if (mode.hasOwnProperty("separateRequires")) {
+                options.separateRequires = !!mode.separateRequires;
+            }
+            if (mode.hasOwnProperty("var")) {
                 options.var = { uninitialized: mode.var, initialized: mode.var };
             }
-            if (mode.hasOwnProperty("let") && typeof mode.let === "string") {
+            if (mode.hasOwnProperty("let")) {
                 options.let = { uninitialized: mode.let, initialized: mode.let };
             }
-            if (mode.hasOwnProperty("const") && typeof mode.const === "string") {
+            if (mode.hasOwnProperty("const")) {
                 options.const = { uninitialized: mode.const, initialized: mode.const };
             }
             if (mode.hasOwnProperty("uninitialized")) {
@@ -158,7 +164,17 @@ module.exports = {
         }
 
         /**
-         * Records whether initialized or uninitialized variables are defined in current scope.
+         * Check if a variable declaration is a require.
+         * @param {ASTNode} decl variable declaration Node
+         * @returns {bool} if decl is a require, return true; else return false.
+         * @private
+         */
+        function isRequire(decl) {
+            return decl.init && decl.init.type === "CallExpression" && decl.init.callee.name === "require";
+        }
+
+        /**
+         * Records whether initialized/uninitialized/required variables are defined in current scope.
          * @param {string} statementType node.kind, one of: "var", "let", or "const"
          * @param {ASTNode[]} declarations List of declarations
          * @param {Object} currentScope The scope being investigated
@@ -173,7 +189,11 @@ module.exports = {
                     }
                 } else {
                     if (options[statementType] && options[statementType].initialized === MODE_ALWAYS) {
-                        currentScope.initialized = true;
+                        if (options.separateRequires && isRequire(declarations[i])) {
+                            currentScope.required = true;
+                        } else {
+                            currentScope.initialized = true;
+                        }
                     }
                 }
             }
@@ -228,6 +248,7 @@ module.exports = {
             const declarationCounts = countDeclarations(declarations);
             const currentOptions = options[statementType] || {};
             const currentScope = getCurrentScope(statementType);
+            const hasRequires = declarations.some(isRequire);
 
             if (currentOptions.uninitialized === MODE_ALWAYS && currentOptions.initialized === MODE_ALWAYS) {
                 if (currentScope.uninitialized || currentScope.initialized) {
@@ -244,6 +265,9 @@ module.exports = {
                 if (currentOptions.initialized === MODE_ALWAYS && currentScope.initialized) {
                     return false;
                 }
+            }
+            if (currentScope.required && hasRequires) {
+                return false;
             }
             recordTypes(statementType, declarations, currentScope);
             return true;
@@ -275,6 +299,16 @@ module.exports = {
 
                 const declarations = node.declarations;
                 const declarationCounts = countDeclarations(declarations);
+                const mixedRequires = declarations.some(isRequire) && !declarations.every(isRequire);
+
+                if (options[type].initialized === MODE_ALWAYS) {
+                    if (options.separateRequires && mixedRequires) {
+                        context.report({
+                            node,
+                            message: "Split requires to be separated into a single block."
+                        });
+                    }
+                }
 
                 // always
                 if (!hasOnlyOneStatement(type, declarations)) {

@@ -16,6 +16,15 @@ const astUtils = require("../ast-utils");
 //------------------------------------------------------------------------------
 
 /**
+ * Check whether a given variable is a global variable or not.
+ * @param {eslint-scope.Variable} variable The variable to check.
+ * @returns {boolean} `true` if the variable is a global variable.
+ */
+function isGlobal(variable) {
+    return Boolean(variable.scope) && variable.scope.type === "global";
+}
+
+/**
  * Finds the nearest function scope or global scope walking up the scope
  * hierarchy.
  *
@@ -174,7 +183,8 @@ module.exports = {
         docs: {
             description: "require `let` or `const` instead of `var`",
             category: "ECMAScript 6",
-            recommended: false
+            recommended: false,
+            url: "https://eslint.org/docs/rules/no-var"
         },
 
         schema: [],
@@ -203,6 +213,7 @@ module.exports = {
          * Checks whether it can fix a given variable declaration or not.
          * It cannot fix if the following cases:
          *
+         * - A variable is a global variable.
          * - A variable is declared on a SwitchCase node.
          * - A variable is redeclared.
          * - A variable is used from outside the scope.
@@ -256,6 +267,7 @@ module.exports = {
 
             if (node.parent.type === "SwitchCase" ||
                 node.declarations.some(hasSelfReferenceInTDZ) ||
+                variables.some(isGlobal) ||
                 variables.some(isRedeclared) ||
                 variables.some(isUsedFromOutsideOf(scopeNode))
             ) {

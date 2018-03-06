@@ -13,7 +13,8 @@ module.exports = {
         docs: {
             description: "disallow the use of `process.exit()`",
             category: "Node.js and CommonJS",
-            recommended: false
+            recommended: false,
+            url: "https://eslint.org/docs/rules/no-process-exit"
         },
 
         schema: []

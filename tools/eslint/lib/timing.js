@@ -84,11 +84,11 @@ function display(data) {
         }
     });
 
-    const table = rows.map(row =>
+    const table = rows.map(row => (
         row
             .map((cell, index) => ALIGN[index](cell, widths[index]))
             .join(" | ")
-    );
+    ));
 
     table.splice(1, 0, widths.map((w, index) => {
         if (index !== 0 && index !== widths.length - 1) {

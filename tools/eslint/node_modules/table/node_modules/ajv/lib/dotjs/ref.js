@@ -1,5 +1,5 @@
 'use strict';
-module.exports = function generate_ref(it, $keyword) {
+module.exports = function generate_ref(it, $keyword, $ruleType) {
   var out = ' ';
   var $lvl = it.level;
   var $dataLvl = it.dataLevel;
@@ -20,9 +20,9 @@ module.exports = function generate_ref(it, $keyword) {
   } else {
     var $refVal = it.resolveRef(it.baseId, $schema, it.isRoot);
     if ($refVal === undefined) {
-      var $message = 'can\'t resolve reference ' + $schema + ' from id ' + it.baseId;
+      var $message = it.MissingRefError.message(it.baseId, $schema);
       if (it.opts.missingRefs == 'fail') {
-        console.log($message);
+        it.logger.error($message);
         var $$outStack = $$outStack || [];
         $$outStack.push(out);
         out = ''; /* istanbul ignore else */
@@ -53,15 +53,12 @@ module.exports = function generate_ref(it, $keyword) {
           out += ' if (false) { ';
         }
       } else if (it.opts.missingRefs == 'ignore') {
-        console.log($message);
+        it.logger.warn($message);
         if ($breakOnError) {
           out += ' if (true) { ';
         }
       } else {
-        var $error = new Error($message);
-        $error.missingRef = it.resolve.url(it.baseId, $schema);
-        $error.missingSchema = it.resolve.normalizeId(it.resolve.fullPath($error.missingRef));
-        throw $error;
+        throw new it.MissingRefError(it.baseId, $schema, $message);
       }
     } else if ($refVal.inline) {
       var $it = it.util.copy(it);
@@ -76,7 +73,7 @@ module.exports = function generate_ref(it, $keyword) {
         out += ' if (' + ($nextValid) + ') { ';
       }
     } else {
-      $async = $refVal.$async === true;
+      $async = $refVal.$async === true || (it.async && $refVal.$async !== false);
       $refCode = $refVal.code;
     }
   }
@@ -100,11 +97,18 @@ module.exports = function generate_ref(it, $keyword) {
     out = $$outStack.pop();
     if ($async) {
       if (!it.async) throw new Error('async schema referenced by sync schema');
-      out += ' try { ';
       if ($breakOnError) {
-        out += 'var ' + ($valid) + ' =';
+        out += ' var ' + ($valid) + '; ';
       }
-      out += ' ' + (it.yieldAwait) + ' ' + (__callValidate) + '; } catch (e) { if (!(e instanceof ValidationError)) throw e; if (vErrors === null) vErrors = e.errors; else vErrors = vErrors.concat(e.errors); errors = vErrors.length; } ';
+      out += ' try { await ' + (__callValidate) + '; ';
+      if ($breakOnError) {
+        out += ' ' + ($valid) + ' = true; ';
+      }
+      out += ' } catch (e) { if (!(e instanceof ValidationError)) throw e; if (vErrors === null) vErrors = e.errors; else vErrors = vErrors.concat(e.errors); errors = vErrors.length; ';
+      if ($breakOnError) {
+        out += ' ' + ($valid) + ' = false; ';
+      }
+      out += ' } ';
       if ($breakOnError) {
         out += ' if (' + ($valid) + ') { ';
       }

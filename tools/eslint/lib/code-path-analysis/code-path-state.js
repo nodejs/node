@@ -169,6 +169,9 @@ function removeConnection(prevSegments, nextSegments) {
  * @returns {void}
  */
 function makeLooped(state, fromSegments, toSegments) {
+    fromSegments = CodePathSegment.flattenUnusedSegments(fromSegments);
+    toSegments = CodePathSegment.flattenUnusedSegments(toSegments);
+
     const end = Math.min(fromSegments.length, toSegments.length);
 
     for (let i = 0; i < end; ++i) {
@@ -771,8 +774,10 @@ class CodePathState {
         // Sets the normal path as the next.
         this.forkContext.replaceHead(normalSegments);
 
-        // If both paths of the `try` block and the `catch` block are
-        // unreachable, the next path becomes unreachable as well.
+        /*
+         * If both paths of the `try` block and the `catch` block are
+         * unreachable, the next path becomes unreachable as well.
+         */
         if (!context.lastOfTryIsReachable && !context.lastOfCatchIsReachable) {
             this.forkContext.makeUnreachable();
         }
@@ -843,21 +848,23 @@ class CodePathState {
          * This segment will leave at the end of this finally block.
          */
         const segments = forkContext.makeNext(-1, -1);
-        let j;
 
         for (let i = 0; i < forkContext.count; ++i) {
             const prevSegsOfLeavingSegment = [headOfLeavingSegments[i]];
 
-            for (j = 0; j < returned.segmentsList.length; ++j) {
+            for (let j = 0; j < returned.segmentsList.length; ++j) {
                 prevSegsOfLeavingSegment.push(returned.segmentsList[j][i]);
             }
-            for (j = 0; j < thrown.segmentsList.length; ++j) {
+            for (let j = 0; j < thrown.segmentsList.length; ++j) {
                 prevSegsOfLeavingSegment.push(thrown.segmentsList[j][i]);
             }
 
-            segments.push(CodePathSegment.newNext(
-                this.idGenerator.next(),
-                prevSegsOfLeavingSegment));
+            segments.push(
+                CodePathSegment.newNext(
+                    this.idGenerator.next(),
+                    prevSegsOfLeavingSegment
+                )
+            );
         }
 
         this.pushForkContext(true);
@@ -982,7 +989,6 @@ class CodePathState {
 
         const forkContext = this.forkContext;
         const brokenForkContext = this.popBreakContext().brokenForkContext;
-        let choiceContext;
 
         // Creates a looped path.
         switch (context.type) {
@@ -992,11 +998,12 @@ class CodePathState {
                 makeLooped(
                     this,
                     forkContext.head,
-                    context.continueDestSegments);
+                    context.continueDestSegments
+                );
                 break;
 
             case "DoWhileStatement": {
-                choiceContext = this.popChoiceContext();
+                const choiceContext = this.popChoiceContext();
 
                 if (!choiceContext.processed) {
                     choiceContext.trueForkContext.add(forkContext.head);
@@ -1013,7 +1020,8 @@ class CodePathState {
                     makeLooped(
                         this,
                         segmentsList[i],
-                        context.entrySegments);
+                        context.entrySegments
+                    );
                 }
                 break;
             }
@@ -1024,7 +1032,8 @@ class CodePathState {
                 makeLooped(
                     this,
                     forkContext.head,
-                    context.leftSegments);
+                    context.leftSegments
+                );
                 break;
 
             /* istanbul ignore next */
@@ -1149,7 +1158,8 @@ class CodePathState {
             finalizeTestSegmentsOfFor(
                 context,
                 choiceContext,
-                forkContext.head);
+                forkContext.head
+            );
         } else {
             context.endOfInitSegments = forkContext.head;
         }
@@ -1180,13 +1190,15 @@ class CodePathState {
                 makeLooped(
                     this,
                     context.endOfUpdateSegments,
-                    context.testSegments);
+                    context.testSegments
+                );
             }
         } else if (context.testSegments) {
             finalizeTestSegmentsOfFor(
                 context,
                 choiceContext,
-                forkContext.head);
+                forkContext.head
+            );
         } else {
             context.endOfInitSegments = forkContext.head;
         }

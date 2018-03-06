@@ -59,11 +59,11 @@ function isOuterClass(variable, reference) {
 }
 
 /**
-* Checks whether or not a given variable is a variable declaration in an upper function scope.
-* @param {eslint-scope.Variable} variable - A variable to check.
-* @param {eslint-scope.Reference} reference - A reference to check.
-* @returns {boolean} `true` if the variable is a variable declaration.
-*/
+ * Checks whether or not a given variable is a variable declaration in an upper function scope.
+ * @param {eslint-scope.Variable} variable - A variable to check.
+ * @param {eslint-scope.Reference} reference - A reference to check.
+ * @returns {boolean} `true` if the variable is a variable declaration.
+ */
 function isOuterVariable(variable, reference) {
     return (
         variable.defs[0].type === "Variable" &&
@@ -139,7 +139,8 @@ module.exports = {
         docs: {
             description: "disallow the use of variables before they are defined",
             category: "Variables",
-            recommended: false
+            recommended: false,
+            url: "https://eslint.org/docs/rules/no-use-before-define"
         },
 
         schema: [
@@ -194,12 +195,14 @@ module.exports = {
             scope.references.forEach(reference => {
                 const variable = reference.resolved;
 
-                // Skips when the reference is:
-                // - initialization's.
-                // - referring to an undefined variable.
-                // - referring to a global environment variable (there're no identifiers).
-                // - located preceded by the variable (except in initializers).
-                // - allowed by options.
+                /*
+                 * Skips when the reference is:
+                 * - initialization's.
+                 * - referring to an undefined variable.
+                 * - referring to a global environment variable (there're no identifiers).
+                 * - located preceded by the variable (except in initializers).
+                 * - allowed by options.
+                 */
                 if (reference.init ||
                     !variable ||
                     variable.identifiers.length === 0 ||

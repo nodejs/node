@@ -14,7 +14,8 @@ module.exports = {
         docs: {
             description: "enforce spacing between rest and spread operators and their expressions",
             category: "ECMAScript 6",
-            recommended: false
+            recommended: false,
+            url: "https://eslint.org/docs/rules/rest-spread-spacing"
         },
         fixable: "whitespace",
         schema: [
@@ -46,9 +47,15 @@ module.exports = {
             switch (node.type) {
                 case "SpreadElement":
                     type = "spread";
+                    if (node.parent.type === "ObjectExpression") {
+                        type += " property";
+                    }
                     break;
                 case "RestElement":
                     type = "rest";
+                    if (node.parent.type === "ObjectPattern") {
+                        type += " property";
+                    }
                     break;
                 case "ExperimentalSpreadProperty":
                     type = "spread property";

@@ -14,10 +14,15 @@ module.exports = {
         docs: {
             description: "disallow `Array` constructors",
             category: "Stylistic Issues",
-            recommended: false
+            recommended: false,
+            url: "https://eslint.org/docs/rules/no-array-constructor"
         },
 
-        schema: []
+        schema: [],
+
+        messages: {
+            preferLiteral: "The array literal notation [] is preferable."
+        }
     },
 
     create(context) {
@@ -34,7 +39,7 @@ module.exports = {
                 node.callee.type === "Identifier" &&
                 node.callee.name === "Array"
             ) {
-                context.report({ node, message: "The array literal notation [] is preferrable." });
+                context.report({ node, messageId: "preferLiteral" });
             }
         }
 

@@ -41,7 +41,8 @@ module.exports = {
         docs: {
             description: "enforce the consistent use of either double or single quotes in JSX attributes",
             category: "Stylistic Issues",
-            recommended: false
+            recommended: false,
+            url: "https://eslint.org/docs/rules/jsx-quotes"
         },
 
         fixable: "whitespace",

@@ -19,7 +19,8 @@ module.exports = {
         docs: {
             description: "disallow all tabs",
             category: "Stylistic Issues",
-            recommended: false
+            recommended: false,
+            url: "https://eslint.org/docs/rules/no-tabs"
         },
         schema: []
     },
@@ -27,7 +28,7 @@ module.exports = {
     create(context) {
         return {
             Program(node) {
-                context.getSourceLines().forEach((line, index) => {
+                context.getSourceCode().getLines().forEach((line, index) => {
                     const match = regex.exec(line);
 
                     if (match) {

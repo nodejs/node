@@ -79,7 +79,8 @@ module.exports = {
         docs: {
             description: "disallow the use of `eval()`",
             category: "Best Practices",
-            recommended: false
+            recommended: false,
+            url: "https://eslint.org/docs/rules/no-eval"
         },
 
         schema: [
@@ -90,7 +91,11 @@ module.exports = {
                 },
                 additionalProperties: false
             }
-        ]
+        ],
+
+        messages: {
+            unexpected: "eval can be harmful."
+        }
     },
 
     create(context) {
@@ -159,7 +164,7 @@ module.exports = {
             context.report({
                 node,
                 loc: locationNode.loc.start,
-                message: "eval can be harmful."
+                messageId: "unexpected"
             });
         }
 

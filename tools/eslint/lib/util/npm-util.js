@@ -53,22 +53,39 @@ function installSyncSaveDev(packages) {
     if (!Array.isArray(packages)) {
         packages = [packages];
     }
-    spawn.sync("npm", ["i", "--save-dev"].concat(packages), { stdio: "inherit" });
+    const npmProcess = spawn.sync("npm", ["i", "--save-dev"].concat(packages),
+        { stdio: "inherit" });
+    const error = npmProcess.error;
+
+    if (error && error.code === "ENOENT") {
+        const pluralS = packages.length > 1 ? "s" : "";
+
+        log.error(`Could not execute npm. Please install the following package${pluralS} with a package manager of your choice: ${packages.join(", ")}`);
+    }
 }
 
 /**
  * Fetch `peerDependencies` of the given package by `npm show` command.
  * @param {string} packageName The package name to fetch peerDependencies.
- * @returns {Object} Gotten peerDependencies.
+ * @returns {Object} Gotten peerDependencies. Returns null if npm was not found.
  */
 function fetchPeerDependencies(packageName) {
-    const fetchedText = spawn.sync(
+    const npmProcess = spawn.sync(
         "npm",
         ["show", "--json", packageName, "peerDependencies"],
         { encoding: "utf8" }
-    ).stdout.trim();
+    );
+
+    const error = npmProcess.error;
+
+    if (error && error.code === "ENOENT") {
+        return null;
+    }
+    const fetchedText = npmProcess.stdout.trim();
 
     return JSON.parse(fetchedText || "{}");
+
+
 }
 
 /**

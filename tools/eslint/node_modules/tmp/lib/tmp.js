@@ -1,28 +1,29 @@
 /*!
  * Tmp
  *
- * Copyright (c) 2011-2015 KARASZI Istvan <github@spam.raszi.hu>
+ * Copyright (c) 2011-2017 KARASZI Istvan <github@spam.raszi.hu>
  *
  * MIT Licensed
  */
 
-/**
+/*
  * Module dependencies.
  */
-var
-  fs     = require('fs'),
-  path   = require('path'),
-  crypto = require('crypto'),
-  tmpDir = require('os-tmpdir'),
-  _c     = process.binding('constants');
+const fs = require('fs');
+const path = require('path');
+const crypto = require('crypto');
+const osTmpDir = require('os-tmpdir');
+const _c = process.binding('constants');
 
-
-/**
+/*
  * The working inner variables.
  */
-var
-  // store the actual TMP directory
-  _TMP = tmpDir(),
+const
+  /**
+   * The temporary directory.
+   * @type {string}
+   */
+  tmpDir = osTmpDir(),
 
   // the random characters to choose from
   RANDOM_CHARS = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz',
@@ -36,12 +37,13 @@ var
   EBADF = _c.EBADF || _c.os.errno.EBADF,
   ENOENT = _c.ENOENT || _c.os.errno.ENOENT,
 
-  DIR_MODE = 448 /* 0700 */,
-  FILE_MODE = 384 /* 0600 */,
+  DIR_MODE = 448 /* 0o700 */,
+  FILE_MODE = 384 /* 0o600 */,
 
   // this will hold the objects need to be removed on exit
-  _removeObjects = [],
+  _removeObjects = [];
 
+var
   _gracefulCleanup = false,
   _uncaughtException = false;
 
@@ -49,9 +51,9 @@ var
  * Random name generator based on crypto.
  * Adapted from http://blog.tompawlak.org/how-to-generate-random-values-nodejs-javascript
  *
- * @param {Number} howMany
- * @return {String}
- * @api private
+ * @param {number} howMany
+ * @returns {string} the generated random name
+ * @private
  */
 function _randomChars(howMany) {
   var
@@ -76,8 +78,8 @@ function _randomChars(howMany) {
  * Checks whether the `obj` parameter is defined or not.
  *
  * @param {Object} obj
- * @return {Boolean}
- * @api private
+ * @returns {boolean} true if the object is undefined
+ * @private
  */
 function _isUndefined(obj) {
   return typeof obj === 'undefined';
@@ -88,18 +90,18 @@ function _isUndefined(obj) {
  *
  * This function helps to have optional arguments.
  *
- * @param {Object} options
+ * @param {(Options|Function)} options
  * @param {Function} callback
- * @api private
+ * @returns {Array} parsed arguments
+ * @private
  */
 function _parseArguments(options, callback) {
   if (typeof options == 'function') {
-    var
-      tmp = options,
-      options = callback || {},
-      callback = tmp;
-  } else if (typeof options == 'undefined') {
-    options = {};
+    return [callback || {}, options];
+  }
+
+  if (_isUndefined(options)) {
+    return [{}, callback];
   }
 
   return [options, callback];
@@ -109,12 +111,12 @@ function _parseArguments(options, callback) {
  * Generates a new temporary name.
  *
  * @param {Object} opts
- * @returns {String}
- * @api private
+ * @returns {string} the new random name according to opts
+ * @private
  */
 function _generateTmpName(opts) {
   if (opts.name) {
-    return path.join(opts.dir || _TMP, opts.name);
+    return path.join(opts.dir || tmpDir, opts.name);
   }
 
   // mkstemps like template
@@ -123,29 +125,28 @@ function _generateTmpName(opts) {
   }
 
   // prefix and postfix
-  var name = [
+  const name = [
     opts.prefix || 'tmp-',
     process.pid,
     _randomChars(12),
     opts.postfix || ''
   ].join('');
 
-  return path.join(opts.dir || _TMP, name);
+  return path.join(opts.dir || tmpDir, name);
 }
 
 /**
  * Gets a temporary file name.
  *
- * @param {Object} options
- * @param {Function} callback
- * @api private
+ * @param {(Options|tmpNameCallback)} options options or callback
+ * @param {?tmpNameCallback} callback the callback function
  */
-function _getTmpName(options, callback) {
+function tmpName(options, callback) {
   var
     args = _parseArguments(options, callback),
     opts = args[0],
     cb = args[1],
-    tries = opts.tries || DEFAULT_TRIES;
+    tries = opts.name ? 1 : opts.tries || DEFAULT_TRIES;
 
   if (isNaN(tries) || tries < 0)
     return cb(new Error('Invalid tries'));
@@ -154,7 +155,7 @@ function _getTmpName(options, callback) {
     return cb(new Error('Invalid template provided'));
 
   (function _getUniqueName() {
-    var name = _generateTmpName(opts);
+    const name = _generateTmpName(opts);
 
     // check whether the path exists then retry if needed
     fs.stat(name, function (err) {
@@ -170,17 +171,17 @@ function _getTmpName(options, callback) {
 }
 
 /**
- * Synchronous version of _getTmpName.
+ * Synchronous version of tmpName.
  *
  * @param {Object} options
- * @returns {String}
- * @api private
+ * @returns {string} the generated random name
+ * @throws {Error} if the options are invalid or could not generate a filename
  */
-function _getTmpNameSync(options) {
+function tmpNameSync(options) {
   var
     args = _parseArguments(options),
     opts = args[0],
-    tries = opts.tries || DEFAULT_TRIES;
+    tries = opts.name ? 1 : opts.tries || DEFAULT_TRIES;
 
   if (isNaN(tries) || tries < 0)
     throw new Error('Invalid tries');
@@ -189,7 +190,7 @@ function _getTmpNameSync(options) {
     throw new Error('Invalid template provided');
 
   do {
-    var name = _generateTmpName(opts);
+    const name = _generateTmpName(opts);
     try {
       fs.statSync(name);
     } catch (e) {
@@ -203,11 +204,10 @@ function _getTmpNameSync(options) {
 /**
  * Creates and opens a temporary file.
  *
- * @param {Object} options
- * @param {Function} callback
- * @api public
+ * @param {(Options|fileCallback)} options the config options or the callback function
+ * @param {?fileCallback} callback
  */
-function _createTmpFile(options, callback) {
+function file(options, callback) {
   var
     args = _parseArguments(options, callback),
     opts = args[0],
@@ -216,7 +216,7 @@ function _createTmpFile(options, callback) {
   opts.postfix = (_isUndefined(opts.postfix)) ? '.tmp' : opts.postfix;
 
   // gets a temporary filename
-  _getTmpName(opts, function _tmpNameCreated(err, name) {
+  tmpName(opts, function _tmpNameCreated(err, name) {
     if (err) return cb(err);
 
     // create and open the file
@@ -233,7 +233,9 @@ function _createTmpFile(options, callback) {
             try {
               fs.unlinkSync(name);
             } catch (e) {
-              err = e;
+              if (!isENOENT(e)) {
+                err = e;
+              }
             }
             return cb(err);
           }
@@ -249,37 +251,42 @@ function _createTmpFile(options, callback) {
 }
 
 /**
- * Synchronous version of _createTmpFile.
+ * Synchronous version of file.
  *
- * @param {Object} options
- * @returns {Object} object consists of name, fd and removeCallback
- * @api private
+ * @param {Options} options
+ * @returns {FileSyncObject} object consists of name, fd and removeCallback
+ * @throws {Error} if cannot create a file
  */
-function _createTmpFileSync(options) {
+function fileSync(options) {
   var
     args = _parseArguments(options),
     opts = args[0];
 
   opts.postfix = opts.postfix || '.tmp';
 
-  var name = _getTmpNameSync(opts);
+  const discardOrDetachDescriptor = opts.discardDescriptor || opts.detachDescriptor;
+  const name = tmpNameSync(opts);
   var fd = fs.openSync(name, CREATE_FLAGS, opts.mode || FILE_MODE);
+  if (opts.discardDescriptor) {
+    fs.closeSync(fd); 
+    fd = undefined;
+  }
 
   return {
-    name : name,
-    fd : fd,
-    removeCallback : _prepareTmpFileRemoveCallback(name, fd, opts)
+    name: name,
+    fd: fd,
+    removeCallback: _prepareTmpFileRemoveCallback(name, discardOrDetachDescriptor ? -1 : fd, opts)
   };
 }
 
 /**
  * Removes files and folders in a directory recursively.
  *
- * @param {String} root
- * @api private
+ * @param {string} root
+ * @private
  */
 function _rmdirRecursiveSync(root) {
-  var dirs = [root];
+  const dirs = [root];
 
   do {
     var
@@ -312,18 +319,17 @@ function _rmdirRecursiveSync(root) {
 /**
  * Creates a temporary directory.
  *
- * @param {Object} options
- * @param {Function} callback
- * @api public
+ * @param {(Options|dirCallback)} options the options or the callback function
+ * @param {?dirCallback} callback
  */
-function _createTmpDir(options, callback) {
+function dir(options, callback) {
   var
     args = _parseArguments(options, callback),
     opts = args[0],
     cb = args[1];
 
   // gets a temporary filename
-  _getTmpName(opts, function _tmpNameCreated(err, name) {
+  tmpName(opts, function _tmpNameCreated(err, name) {
     if (err) return cb(err);
 
     // create the directory
@@ -336,37 +342,37 @@ function _createTmpDir(options, callback) {
 }
 
 /**
- * Synchronous version of _createTmpDir.
+ * Synchronous version of dir.
  *
- * @param {Object} options
- * @returns {Object} object consists of name and removeCallback
- * @api private
+ * @param {Options} options
+ * @returns {DirSyncObject} object consists of name and removeCallback
+ * @throws {Error} if it cannot create a directory
  */
-function _createTmpDirSync(options) {
+function dirSync(options) {
   var
     args = _parseArguments(options),
     opts = args[0];
 
-  var name = _getTmpNameSync(opts);
+  const name = tmpNameSync(opts);
   fs.mkdirSync(name, opts.mode || DIR_MODE);
 
   return {
-    name : name,
-    removeCallback : _prepareTmpDirRemoveCallback(name, opts)
+    name: name,
+    removeCallback: _prepareTmpDirRemoveCallback(name, opts)
   };
 }
 
 /**
  * Prepares the callback for removal of the temporary file.
  *
- * @param {String} name
- * @param {int} fd
+ * @param {string} name the path of the file
+ * @param {number} fd file descriptor
  * @param {Object} opts
- * @api private
- * @returns {Function} the callback
+ * @returns {fileCallback}
+ * @private
  */
 function _prepareTmpFileRemoveCallback(name, fd, opts) {
-  var removeCallback = _prepareRemoveCallback(function _removeCallback(fdPath) {
+  const removeCallback = _prepareRemoveCallback(function _removeCallback(fdPath) {
     try {
       if (0 <= fdPath[0]) {
         fs.closeSync(fdPath[0]);
@@ -376,12 +382,20 @@ function _prepareTmpFileRemoveCallback(name, fd, opts) {
       // under some node/windows related circumstances, a temporary file
       // may have not be created as expected or the file was already closed
       // by the user, in which case we will simply ignore the error
-      if (e.errno != -EBADF && e.errno != -ENOENT) {
+      if (!isEBADF(e) && !isENOENT(e)) {
         // reraise any unanticipated error
         throw e;
       }
     }
-    fs.unlinkSync(fdPath[1]);
+    try {
+      fs.unlinkSync(fdPath[1]);
+    }
+    catch (e) {
+      if (!isENOENT(e)) {
+        // reraise any unanticipated error
+        throw e;
+      }
+    }
   }, [fd, name]);
 
   if (!opts.keep) {
@@ -394,14 +408,14 @@ function _prepareTmpFileRemoveCallback(name, fd, opts) {
 /**
  * Prepares the callback for removal of the temporary directory.
  *
- * @param {String} name
+ * @param {string} name
  * @param {Object} opts
  * @returns {Function} the callback
- * @api private
+ * @private
  */
 function _prepareTmpDirRemoveCallback(name, opts) {
-  var removeFunction = opts.unsafeCleanup ? _rmdirRecursiveSync : fs.rmdirSync.bind(fs);
-  var removeCallback = _prepareRemoveCallback(removeFunction, name);
+  const removeFunction = opts.unsafeCleanup ? _rmdirRecursiveSync : fs.rmdirSync.bind(fs);
+  const removeCallback = _prepareRemoveCallback(removeFunction, name);
 
   if (!opts.keep) {
     _removeObjects.unshift(removeCallback);
@@ -416,21 +430,22 @@ function _prepareTmpDirRemoveCallback(name, opts) {
  * @param {Function} removeFunction
  * @param {Object} arg
  * @returns {Function}
- * @api private
+ * @private
  */
 function _prepareRemoveCallback(removeFunction, arg) {
   var called = false;
 
   return function _cleanupCallback(next) {
     if (!called) {
-        var index = _removeObjects.indexOf(_cleanupCallback);
-        if (index >= 0) {
-          _removeObjects.splice(index, 1);
-        }
+      const index = _removeObjects.indexOf(_cleanupCallback);
+      if (index >= 0) {
+        _removeObjects.splice(index, 1);
+      }
 
-        called = true;
-        removeFunction(arg);
+      called = true;
+      removeFunction(arg);
     }
+
     if (next) next(null);
   };
 }
@@ -438,7 +453,7 @@ function _prepareRemoveCallback(removeFunction, arg) {
 /**
  * The garbage collector.
  *
- * @api private
+ * @private
  */
 function _garbageCollector() {
   if (_uncaughtException && !_gracefulCleanup) {
@@ -456,11 +471,54 @@ function _garbageCollector() {
   }
 }
 
-function _setGracefulCleanup() {
+/**
+ * Helper for testing against EBADF to compensate changes made to Node 7.x under Windows.
+ */
+function isEBADF(error) {
+  return isExpectedError(error, -EBADF, 'EBADF');
+}
+
+/**
+ * Helper for testing against ENOENT to compensate changes made to Node 7.x under Windows.
+ */
+function isENOENT(error) {
+  return isExpectedError(error, -ENOENT, 'ENOENT');
+}
+
+/**
+ * Helper to determine whether the expected error code matches the actual code and errno,
+ * which will differ between the supported node versions.
+ *
+ * - Node >= 7.0:
+ *   error.code {String}
+ *   error.errno {String|Number} any numerical value will be negated
+ *
+ * - Node >= 6.0 < 7.0:
+ *   error.code {String}
+ *   error.errno {Number} negated
+ *
+ * - Node >= 4.0 < 6.0: introduces SystemError
+ *   error.code {String}
+ *   error.errno {Number} negated
+ *
+ * - Node >= 0.10 < 4.0:
+ *   error.code {Number} negated
+ *   error.errno n/a
+ */
+function isExpectedError(error, code, errno) {
+  return error.code == code || error.code == errno;
+}
+
+/**
+ * Sets the graceful cleanup.
+ *
+ * Also removes the created files and directories when an uncaught exception occurs.
+ */
+function setGracefulCleanup() {
   _gracefulCleanup = true;
 }
 
-var version = process.versions.node.split('.').map(function (value) {
+const version = process.versions.node.split('.').map(function (value) {
   return parseInt(value, 10);
 });
 
@@ -478,12 +536,76 @@ process.addListener('exit', function _exit(code) {
   _garbageCollector();
 });
 
+/**
+ * Configuration options.
+ *
+ * @typedef {Object} Options
+ * @property {?number} tries the number of tries before give up the name generation
+ * @property {?string} template the "mkstemp" like filename template
+ * @property {?string} name fix name
+ * @property {?string} dir the tmp directory to use
+ * @property {?string} prefix prefix for the generated name
+ * @property {?string} postfix postfix for the generated name
+ */
+
+/**
+ * @typedef {Object} FileSyncObject
+ * @property {string} name the name of the file
+ * @property {string} fd the file descriptor
+ * @property {fileCallback} removeCallback the callback function to remove the file
+ */
+
+/**
+ * @typedef {Object} DirSyncObject
+ * @property {string} name the name of the directory
+ * @property {fileCallback} removeCallback the callback function to remove the directory
+ */
+
+/**
+ * @callback tmpNameCallback
+ * @param {?Error} err the error object if anything goes wrong
+ * @param {string} name the temporary file name
+ */
+
+/**
+ * @callback fileCallback
+ * @param {?Error} err the error object if anything goes wrong
+ * @param {string} name the temporary file name
+ * @param {number} fd the file descriptor
+ * @param {cleanupCallback} fn the cleanup callback function
+ */
+
+/**
+ * @callback dirCallback
+ * @param {?Error} err the error object if anything goes wrong
+ * @param {string} name the temporary file name
+ * @param {cleanupCallback} fn the cleanup callback function
+ */
+
+/**
+ * Removes the temporary created file or directory.
+ *
+ * @callback cleanupCallback
+ * @param {simpleCallback} [next] function to call after entry was removed
+ */
+
+/**
+ * Callback function for function composition.
+ * @see {@link https://github.com/raszi/node-tmp/issues/57|raszi/node-tmp#57}
+ *
+ * @callback simpleCallback
+ */
+
 // exporting all the needed methods
-module.exports.tmpdir = _TMP;
-module.exports.dir = _createTmpDir;
-module.exports.dirSync = _createTmpDirSync;
-module.exports.file = _createTmpFile;
-module.exports.fileSync = _createTmpFileSync;
-module.exports.tmpName = _getTmpName;
-module.exports.tmpNameSync = _getTmpNameSync;
-module.exports.setGracefulCleanup = _setGracefulCleanup;
+module.exports.tmpdir = tmpDir;
+
+module.exports.dir = dir;
+module.exports.dirSync = dirSync;
+
+module.exports.file = file;
+module.exports.fileSync = fileSync;
+
+module.exports.tmpName = tmpName;
+module.exports.tmpNameSync = tmpNameSync;
+
+module.exports.setGracefulCleanup = setGracefulCleanup;

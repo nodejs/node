@@ -20,10 +20,15 @@ module.exports = {
         docs: {
             description: "disallow `catch` clause parameters from shadowing variables in the outer scope",
             category: "Variables",
-            recommended: false
+            recommended: false,
+            url: "https://eslint.org/docs/rules/no-catch-shadow"
         },
 
-        schema: []
+        schema: [],
+
+        messages: {
+            mutable: "Value of '{{name}}' may be overwritten in IE 8 and earlier."
+        }
     },
 
     create(context) {
@@ -51,14 +56,16 @@ module.exports = {
             CatchClause(node) {
                 let scope = context.getScope();
 
-                // When blockBindings is enabled, CatchClause creates its own scope
-                // so start from one upper scope to exclude the current node
+                /*
+                 * When ecmaVersion >= 6, CatchClause creates its own scope
+                 * so start from one upper scope to exclude the current node
+                 */
                 if (scope.block === node) {
                     scope = scope.upper;
                 }
 
                 if (paramIsShadowing(scope, node.param.name)) {
-                    context.report({ node, message: "Value of '{{name}}' may be overwritten in IE 8 and earlier.", data: { name: node.param.name } });
+                    context.report({ node, messageId: "mutable", data: { name: node.param.name } });
                 }
             }
         };

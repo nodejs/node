@@ -1,6 +1,6 @@
 'use strict';
 
-var IDENTIFIER = /^[a-z_$][a-z0-9_$\-]*$/i;
+var IDENTIFIER = /^[a-z_$][a-z0-9_$-]*$/i;
 var customRuleCode = require('./dotjs/custom');
 
 module.exports = {
@@ -14,6 +14,7 @@ module.exports = {
  * @this  Ajv
  * @param {String} keyword custom keyword, should be unique (including different from all standard, custom and macro keywords).
  * @param {Object} definition keyword definition object with properties `type` (type(s) which the keyword applies to), `validate` or `compile`.
+ * @return {Ajv} this for method chaining
  */
 function addKeyword(keyword, definition) {
   /* jshint validthis: true */
@@ -40,7 +41,7 @@ function addKeyword(keyword, definition) {
       _addRule(keyword, dataType, definition);
     }
 
-    var $data = definition.$data === true && this._opts.v5;
+    var $data = definition.$data === true && this._opts.$data;
     if ($data && !definition.validate)
       throw new Error('$data support: "validate" function is not defined');
 
@@ -50,7 +51,7 @@ function addKeyword(keyword, definition) {
         metaSchema = {
           anyOf: [
             metaSchema,
-            { '$ref': 'https://raw.githubusercontent.com/epoberezkin/ajv/master/lib/refs/json-schema-v5.json#/definitions/$data' }
+            { '$ref': 'https://raw.githubusercontent.com/epoberezkin/ajv/master/lib/refs/data.json#' }
           ]
         };
       }
@@ -80,7 +81,8 @@ function addKeyword(keyword, definition) {
       keyword: keyword,
       definition: definition,
       custom: true,
-      code: customRuleCode
+      code: customRuleCode,
+      implements: definition.implements
     };
     ruleGroup.rules.push(rule);
     RULES.custom[keyword] = rule;
@@ -90,6 +92,8 @@ function addKeyword(keyword, definition) {
   function checkDataType(dataType) {
     if (!RULES.types[dataType]) throw new Error('Unknown type ' + dataType);
   }
+
+  return this;
 }
 
 
@@ -110,6 +114,7 @@ function getKeyword(keyword) {
  * Remove keyword
  * @this  Ajv
  * @param {String} keyword pre-defined or custom keyword.
+ * @return {Ajv} this for method chaining
  */
 function removeKeyword(keyword) {
   /* jshint validthis: true */
@@ -126,4 +131,5 @@ function removeKeyword(keyword) {
       }
     }
   }
+  return this;
 }

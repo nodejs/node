@@ -9,21 +9,22 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-const assert = require("assert"),
-    EventEmitter = require("events").EventEmitter,
-    eslintScope = require("eslint-scope"),
+const eslintScope = require("eslint-scope"),
+    evk = require("eslint-visitor-keys"),
     levn = require("levn"),
+    lodash = require("lodash"),
     blankScriptAST = require("../conf/blank-script.json"),
     defaultConfig = require("../conf/default-config-options.js"),
-    replacements = require("../conf/replacements.json"),
     CodePathAnalyzer = require("./code-path-analysis/code-path-analyzer"),
     ConfigOps = require("./config/config-ops"),
     validator = require("./config/config-validator"),
     Environments = require("./config/environments"),
+    applyDisableDirectives = require("./util/apply-disable-directives"),
+    createEmitter = require("./util/safe-emitter"),
     NodeEventGenerator = require("./util/node-event-generator"),
     SourceCode = require("./util/source-code"),
     Traverser = require("./util/traverser"),
-    RuleContext = require("./rule-context"),
+    createReportTranslator = require("./report-translator"),
     Rules = require("./rules"),
     timing = require("./timing"),
     astUtils = require("./ast-utils"),
@@ -43,6 +44,16 @@ const MAX_AUTOFIX_PASSES = 10;
  * @property {ASTNode} ast The ESTree AST Program node.
  * @property {Object} services An object containing additional services related
  *      to the parser.
+ * @property {ScopeManager|null} scopeManager The scope manager object of this AST.
+ * @property {Object|null} visitorKeys The visitor keys to traverse this AST.
+ */
+
+/**
+ * @typedef {Object} DisableDirective
+ * @property {("disable"|"enable"|"disable-line"|"disable-next-line")} type
+ * @property {number} line
+ * @property {number} column
+ * @property {(string|null)} ruleId
  */
 
 //------------------------------------------------------------------------------
@@ -87,10 +98,9 @@ function parseBooleanConfig(string, comment) {
  * Parses a JSON-like config.
  * @param {string} string The string to parse.
  * @param {Object} location Start line and column of comments for potential error message.
- * @param {Object[]} messages The messages queue for potential error message.
- * @returns {Object} Result map object
+ * @returns {({success: true, config: Object}|{success: false, error: Problem})} Result map object
  */
-function parseJsonConfig(string, location, messages) {
+function parseJsonConfig(string, location) {
     let items = {};
 
     // Parses a JSON-like comment by the same way as parsing CLI option.
@@ -102,34 +112,44 @@ function parseJsonConfig(string, location, messages) {
         //     "no-alert: 2 no-console: 2" --> {"no-alert": "2 no-console: 2"}
         // Should ignore that case as well.
         if (ConfigOps.isEverySeverityValid(items)) {
-            return items;
+            return {
+                success: true,
+                config: items
+            };
         }
     } catch (ex) {
 
         // ignore to parse the string by a fallback.
     }
 
-    // Optionator cannot parse commaless notations.
-    // But we are supporting that. So this is a fallback for that.
+    /*
+     * Optionator cannot parse commaless notations.
+     * But we are supporting that. So this is a fallback for that.
+     */
     items = {};
     string = string.replace(/([a-zA-Z0-9\-/]+):/g, "\"$1\":").replace(/(]|[0-9])\s+(?=")/, "$1,");
     try {
         items = JSON.parse(`{${string}}`);
     } catch (ex) {
-
-        messages.push({
-            ruleId: null,
-            fatal: true,
-            severity: 2,
-            source: null,
-            message: `Failed to parse JSON from '${string}': ${ex.message}`,
-            line: location.start.line,
-            column: location.start.column + 1
-        });
+        return {
+            success: false,
+            error: {
+                ruleId: null,
+                fatal: true,
+                severity: 2,
+                source: null,
+                message: `Failed to parse JSON from '${string}': ${ex.message}`,
+                line: location.start.line,
+                column: location.start.column + 1
+            }
+        };
 
     }
 
-    return items;
+    return {
+        success: true,
+        config: items
+    };
 }
 
 /**
@@ -157,13 +177,12 @@ function parseListConfig(string) {
  * Ensures that variables representing built-in properties of the Global Object,
  * and any globals declared by special block comments, are present in the global
  * scope.
- * @param {ASTNode} program The top node of the AST.
  * @param {Scope} globalScope The global scope.
  * @param {Object} config The existing configuration data.
  * @param {Environments} envContext Env context
  * @returns {void}
  */
-function addDeclaredGlobals(program, globalScope, config, envContext) {
+function addDeclaredGlobals(globalScope, config, envContext) {
     const declaredGlobals = {},
         exportedGlobals = {},
         explicitGlobals = {},
@@ -171,14 +190,12 @@ function addDeclaredGlobals(program, globalScope, config, envContext) {
 
     Object.assign(declaredGlobals, builtin);
 
-    Object.keys(config.env).forEach(name => {
-        if (config.env[name]) {
-            const env = envContext.get(name),
-                environmentGlobals = env && env.globals;
+    Object.keys(config.env).filter(name => config.env[name]).forEach(name => {
+        const env = envContext.get(name),
+            environmentGlobals = env && env.globals;
 
-            if (environmentGlobals) {
-                Object.assign(declaredGlobals, environmentGlobals);
-            }
+        if (environmentGlobals) {
+            Object.assign(declaredGlobals, environmentGlobals);
         }
     });
 
@@ -246,68 +263,18 @@ function addDeclaredGlobals(program, globalScope, config, envContext) {
 }
 
 /**
- * Add data to reporting configuration to disable reporting for list of rules
- * starting from start location
- * @param  {Object[]} reportingConfig Current reporting configuration
- * @param  {Object} start Position to start
- * @param  {string[]} rulesToDisable List of rules
- * @returns {void}
+ * Creates a collection of disable directives from a comment
+ * @param {("disable"|"enable"|"disable-line"|"disable-next-line")} type The type of directive comment
+ * @param {{line: number, column: number}} loc The 0-based location of the comment token
+ * @param {string} value The value after the directive in the comment
+ * comment specified no specific rules, so it applies to all rules (e.g. `eslint-disable`)
+ * @returns {DisableDirective[]} Directives from the comment
  */
-function disableReporting(reportingConfig, start, rulesToDisable) {
+function createDisableDirectives(type, loc, value) {
+    const ruleIds = Object.keys(parseListConfig(value));
+    const directiveRules = ruleIds.length ? ruleIds : [null];
 
-    if (rulesToDisable.length) {
-        rulesToDisable.forEach(rule => {
-            reportingConfig.push({
-                start,
-                end: null,
-                rule
-            });
-        });
-    } else {
-        reportingConfig.push({
-            start,
-            end: null,
-            rule: null
-        });
-    }
-}
-
-/**
- * Add data to reporting configuration to enable reporting for list of rules
- * starting from start location
- * @param  {Object[]} reportingConfig Current reporting configuration
- * @param  {Object} start Position to start
- * @param  {string[]} rulesToEnable List of rules
- * @returns {void}
- */
-function enableReporting(reportingConfig, start, rulesToEnable) {
-    let i;
-
-    if (rulesToEnable.length) {
-        rulesToEnable.forEach(rule => {
-            for (i = reportingConfig.length - 1; i >= 0; i--) {
-                if (!reportingConfig[i].end && reportingConfig[i].rule === rule) {
-                    reportingConfig[i].end = start;
-                    break;
-                }
-            }
-        });
-    } else {
-
-        // find all previous disabled locations if they was started as list of rules
-        let prevStart;
-
-        for (i = reportingConfig.length - 1; i >= 0; i--) {
-            if (prevStart && prevStart !== reportingConfig[i].start) {
-                break;
-            }
-
-            if (!reportingConfig[i].end) {
-                reportingConfig[i].end = start;
-                prevStart = reportingConfig[i].start;
-            }
-        }
-    }
+    return directiveRules.map(ruleId => ({ type, line: loc.line, column: loc.column + 1, ruleId }));
 }
 
 /**
@@ -317,29 +284,29 @@ function enableReporting(reportingConfig, start, rulesToEnable) {
  * @param {string} filename The file being checked.
  * @param {ASTNode} ast The top node of the AST.
  * @param {Object} config The existing configuration data.
- * @param {Linter} linterContext Linter context object
- * @returns {Object} Modified config object
+ * @param {function(string): {create: Function}} ruleMapper A map from rule IDs to defined rules
+ * @returns {{config: Object, problems: Problem[], disableDirectives: DisableDirective[]}}
+ * Modified config object, along with any problems encountered while parsing config comments
  */
-function modifyConfigsFromComments(filename, ast, config, linterContext) {
+function modifyConfigsFromComments(filename, ast, config, ruleMapper) {
 
-    let commentConfig = {
+    const commentConfig = {
         exported: {},
         astGlobals: {},
         rules: {},
         env: {}
     };
     const commentRules = {};
-    const messages = linterContext.messages;
-    const reportingConfig = linterContext.reportingConfig;
+    const problems = [];
+    const disableDirectives = [];
 
-    ast.comments.forEach(comment => {
+    ast.comments.filter(token => token.type !== "Shebang").forEach(comment => {
 
         let value = comment.value.trim();
         const match = /^(eslint(-\w+){0,3}|exported|globals?)(\s|$)/.exec(value);
 
         if (match) {
             value = value.slice(match.index + match[1].length);
-
             if (comment.type === "Block") {
                 switch (match[1]) {
                     case "exported":
@@ -351,27 +318,54 @@ function modifyConfigsFromComments(filename, ast, config, linterContext) {
                         Object.assign(commentConfig.astGlobals, parseBooleanConfig(value, comment));
                         break;
 
-                    case "eslint-env":
-                        Object.assign(commentConfig.env, parseListConfig(value));
+                    case "eslint-disable":
+                        [].push.apply(disableDirectives, createDisableDirectives("disable", comment.loc.start, value));
                         break;
 
-                    case "eslint-disable":
-                        disableReporting(reportingConfig, comment.loc.start, Object.keys(parseListConfig(value)));
+                    case "eslint-disable-line":
+                        if (comment.loc.start.line === comment.loc.end.line) {
+                            [].push.apply(disableDirectives, createDisableDirectives("disable-line", comment.loc.start, value));
+                        }
+                        break;
+
+                    case "eslint-disable-next-line":
+                        if (comment.loc.start.line === comment.loc.end.line) {
+                            [].push.apply(disableDirectives, createDisableDirectives("disable-next-line", comment.loc.start, value));
+                        }
                         break;
 
                     case "eslint-enable":
-                        enableReporting(reportingConfig, comment.loc.start, Object.keys(parseListConfig(value)));
+                        [].push.apply(disableDirectives, createDisableDirectives("enable", comment.loc.start, value));
                         break;
 
                     case "eslint": {
-                        const items = parseJsonConfig(value, comment.loc, messages);
+                        const parseResult = parseJsonConfig(value, comment.loc);
 
-                        Object.keys(items).forEach(name => {
-                            const ruleValue = items[name];
+                        if (parseResult.success) {
+                            Object.keys(parseResult.config).forEach(name => {
+                                const ruleValue = parseResult.config[name];
 
-                            validator.validateRuleOptions(name, ruleValue, `${filename} line ${comment.loc.start.line}`, linterContext.rules);
-                            commentRules[name] = ruleValue;
-                        });
+                                try {
+                                    validator.validateRuleOptions(ruleMapper(name), name, ruleValue);
+                                } catch (err) {
+                                    problems.push({
+                                        ruleId: name,
+                                        severity: 2,
+                                        source: null,
+                                        message: err.message,
+                                        line: comment.loc.start.line,
+                                        column: comment.loc.start.column + 1,
+                                        endLine: comment.loc.end.line,
+                                        endColumn: comment.loc.end.column + 1,
+                                        nodeType: null
+                                    });
+                                }
+                                commentRules[name] = ruleValue;
+                            });
+                        } else {
+                            problems.push(parseResult.error);
+                        }
+
                         break;
                     }
 
@@ -379,50 +373,21 @@ function modifyConfigsFromComments(filename, ast, config, linterContext) {
                 }
             } else { // comment.type === "Line"
                 if (match[1] === "eslint-disable-line") {
-                    disableReporting(reportingConfig, { line: comment.loc.start.line, column: 0 }, Object.keys(parseListConfig(value)));
-                    enableReporting(reportingConfig, comment.loc.end, Object.keys(parseListConfig(value)));
+                    [].push.apply(disableDirectives, createDisableDirectives("disable-line", comment.loc.start, value));
                 } else if (match[1] === "eslint-disable-next-line") {
-                    disableReporting(reportingConfig, comment.loc.start, Object.keys(parseListConfig(value)));
-                    enableReporting(reportingConfig, { line: comment.loc.start.line + 2 }, Object.keys(parseListConfig(value)));
+                    [].push.apply(disableDirectives, createDisableDirectives("disable-next-line", comment.loc.start, value));
                 }
             }
         }
     });
 
-    // apply environment configs
-    Object.keys(commentConfig.env).forEach(name => {
-        const env = linterContext.environments.get(name);
-
-        if (env) {
-            commentConfig = ConfigOps.merge(commentConfig, env);
-        }
-    });
     Object.assign(commentConfig.rules, commentRules);
 
-    return ConfigOps.merge(config, commentConfig);
-}
-
-/**
- * Check if message of rule with ruleId should be ignored in location
- * @param  {Object[]} reportingConfig  Collection of ignore records
- * @param  {string} ruleId   Id of rule
- * @param  {Object} location Location of message
- * @returns {boolean}          True if message should be ignored, false otherwise
- */
-function isDisabledByReportingConfig(reportingConfig, ruleId, location) {
-
-    for (let i = 0, c = reportingConfig.length; i < c; i++) {
-
-        const ignore = reportingConfig[i];
-
-        if ((!ignore.rule || ignore.rule === ruleId) &&
-            (location.line > ignore.start.line || (location.line === ignore.start.line && location.column >= ignore.start.column)) &&
-            (!ignore.end || (location.line < ignore.end.line || (location.line === ignore.end.line && location.column <= ignore.end.column)))) {
-            return true;
-        }
-    }
-
-    return false;
+    return {
+        config: ConfigOps.merge(config, commentConfig),
+        problems,
+        disableDirectives
+    };
 }
 
 /**
@@ -438,8 +403,10 @@ function normalizeEcmaVersion(ecmaVersion, isModule) {
         ecmaVersion = 6;
     }
 
-    // Calculate ECMAScript edition number from official year version starting with
-    // ES2015, which corresponds with ES6 (or a difference of 2009).
+    /*
+     * Calculate ECMAScript edition number from official year version starting with
+     * ES2015, which corresponds with ES6 (or a difference of 2009).
+     */
     if (ecmaVersion >= 2015) {
         ecmaVersion -= 2009;
     }
@@ -505,51 +472,6 @@ function prepareConfig(config, envContext) {
     return preparedConfig;
 }
 
-/**
- * Provide a stub rule with a given message
- * @param  {string} message The message to be displayed for the rule
- * @returns {Function}      Stub rule function
- */
-function createStubRule(message) {
-
-    /**
-     * Creates a fake rule object
-     * @param {Object} context context object for each rule
-     * @returns {Object} collection of node to listen on
-     */
-    function createRuleModule(context) {
-        return {
-            Program() {
-                context.report({
-                    loc: { line: 1, column: 0 },
-                    message
-                });
-            }
-        };
-    }
-
-    if (message) {
-        return createRuleModule;
-    }
-    throw new Error("No message passed to stub rule");
-
-}
-
-/**
- * Provide a rule replacement message
- * @param  {string} ruleId Name of the rule
- * @returns {string}       Message detailing rule replacement
- */
-function getRuleReplacementMessage(ruleId) {
-    if (ruleId in replacements.rules) {
-        const newRules = replacements.rules[ruleId];
-
-        return `Rule '${ruleId}' was removed and replaced by: ${newRules.join(", ")}`;
-    }
-
-    return null;
-}
-
 const eslintEnvPattern = /\/\*\s*eslint-env\s(.+?)\*\//g;
 
 /**
@@ -589,22 +511,6 @@ function stripUnicodeBOM(text) {
 }
 
 /**
- * Get the severity level of a rule (0 - none, 1 - warning, 2 - error)
- * Returns 0 if the rule config is not valid (an Array or a number)
- * @param {Array|number} ruleConfig rule configuration
- * @returns {number} 0, 1, or 2, indicating rule severity
- */
-function getRuleSeverity(ruleConfig) {
-    if (typeof ruleConfig === "number") {
-        return ruleConfig;
-    } else if (Array.isArray(ruleConfig)) {
-        return ruleConfig[0];
-    }
-    return 0;
-
-}
-
-/**
  * Get the options for a rule (not including severity), if any
  * @param {Array|number} ruleConfig rule configuration
  * @returns {Array} of rule options, empty Array if none
@@ -618,50 +524,51 @@ function getRuleOptions(ruleConfig) {
 }
 
 /**
+ * Analyze scope of the given AST.
+ * @param {ASTNode} ast The `Program` node to analyze.
+ * @param {Object} parserOptions The parser options.
+ * @param {Object} visitorKeys The visitor keys.
+ * @returns {ScopeManager} The analysis result.
+ */
+function analyzeScope(ast, parserOptions, visitorKeys) {
+    const ecmaFeatures = parserOptions.ecmaFeatures || {};
+    const ecmaVersion = parserOptions.ecmaVersion || 5;
+
+    return eslintScope.analyze(ast, {
+        ignoreEval: true,
+        nodejsScope: ecmaFeatures.globalReturn,
+        impliedStrict: ecmaFeatures.impliedStrict,
+        ecmaVersion,
+        sourceType: parserOptions.sourceType || "script",
+        childVisitorKeys: visitorKeys || evk.KEYS,
+        fallback: Traverser.getKeys
+    });
+}
+
+/**
  * Parses text into an AST. Moved out here because the try-catch prevents
  * optimization of functions, so it's best to keep the try-catch as isolated
  * as possible
  * @param {string} text The text to parse.
- * @param {Object} config The ESLint configuration object.
+ * @param {Object} providedParserOptions Options to pass to the parser
+ * @param {Object} parser The parser module
  * @param {string} filePath The path to the file being parsed.
- * @returns {ASTNode|CustomParseResult} The AST or parse result if successful,
- *      or null if not.
- * @param {Array<Object>} messages Messages array for the linter object
- * @returns {*} parsed text if successful otherwise null
+ * @returns {{success: false, error: Problem}|{success: true, sourceCode: SourceCode}}
+ * An object containing the AST and parser services if parsing was successful, or the error if parsing failed
  * @private
  */
-function parse(text, config, filePath, messages) {
-
-    let parser,
-        parserOptions = {
-            loc: true,
-            range: true,
-            raw: true,
-            tokens: true,
-            comment: true,
-            filePath
-        };
-
-    try {
-        parser = require(config.parser);
-    } catch (ex) {
-        messages.push({
-            ruleId: null,
-            fatal: true,
-            severity: 2,
-            source: null,
-            message: ex.message,
-            line: 0,
-            column: 0
-        });
-
-        return null;
-    }
-
-    // merge in any additional parser options
-    if (config.parserOptions) {
-        parserOptions = Object.assign({}, config.parserOptions, parserOptions);
-    }
+function parse(text, providedParserOptions, parser, filePath) {
+    const textToParse = stripUnicodeBOM(text).replace(astUtils.SHEBANG_MATCHER, (match, captured) => `//${captured}`);
+    const parserOptions = Object.assign({}, providedParserOptions, {
+        loc: true,
+        range: true,
+        raw: true,
+        tokens: true,
+        comment: true,
+        eslintVisitorKeys: true,
+        eslintScopeManager: true,
+        filePath
+    });
 
     /*
      * Check for parsing errors first. If there's a parsing error, nothing
@@ -670,31 +577,156 @@ function parse(text, config, filePath, messages) {
      * problem that ESLint identified just like any other.
      */
     try {
-        if (typeof parser.parseForESLint === "function") {
-            return parser.parseForESLint(text, parserOptions);
-        }
-        return parser.parse(text, parserOptions);
+        const parseResult = (typeof parser.parseForESLint === "function")
+            ? parser.parseForESLint(textToParse, parserOptions)
+            : { ast: parser.parse(textToParse, parserOptions) };
+        const ast = parseResult.ast;
+        const parserServices = parseResult.services || {};
+        const visitorKeys = parseResult.visitorKeys || evk.KEYS;
+        const scopeManager = parseResult.scopeManager || analyzeScope(ast, parserOptions, visitorKeys);
 
+        return {
+            success: true,
+
+            /*
+             * Save all values that `parseForESLint()` returned.
+             * If a `SourceCode` object is given as the first parameter instead of source code text,
+             * linter skips the parsing process and reuses the source code object.
+             * In that case, linter needs all the values that `parseForESLint()` returned.
+             */
+            sourceCode: new SourceCode({
+                text,
+                ast,
+                parserServices,
+                scopeManager,
+                visitorKeys
+            })
+        };
     } catch (ex) {
 
         // If the message includes a leading line number, strip it:
-        const message = ex.message.replace(/^line \d+:/i, "").trim();
-        const source = (ex.lineNumber) ? SourceCode.splitLines(text)[ex.lineNumber - 1] : null;
+        const message = `Parsing error: ${ex.message.replace(/^line \d+:/i, "").trim()}`;
+        const source = ex.lineNumber ? SourceCode.splitLines(text)[ex.lineNumber - 1] : null;
 
-        messages.push({
-            ruleId: null,
-            fatal: true,
-            severity: 2,
-            source,
-            message: `Parsing error: ${message}`,
-
-            line: ex.lineNumber,
-            column: ex.column
-        });
-
-        return null;
+        return {
+            success: false,
+            error: {
+                ruleId: null,
+                fatal: true,
+                severity: 2,
+                source,
+                message,
+                line: ex.lineNumber,
+                column: ex.column
+            }
+        };
     }
 }
+
+/**
+ * Gets the scope for the current node
+ * @param {ScopeManager} scopeManager The scope manager for this AST
+ * @param {ASTNode} currentNode The node to get the scope of
+ * @param {number} ecmaVersion The `ecmaVersion` setting that this code was parsed with
+ * @returns {eslint-scope.Scope} The scope information for this node
+ */
+function getScope(scopeManager, currentNode, ecmaVersion) {
+    let initialNode;
+
+    // if current node introduces a scope, add it to the list
+    if (
+        ["FunctionDeclaration", "FunctionExpression", "ArrowFunctionExpression"].indexOf(currentNode.type) >= 0 ||
+        ecmaVersion >= 6 && ["BlockStatement", "SwitchStatement", "CatchClause"].indexOf(currentNode.type) >= 0
+    ) {
+        initialNode = currentNode;
+    } else {
+        initialNode = currentNode.parent;
+    }
+
+    // Ascend the current node's parents
+    for (let node = initialNode; node; node = node.parent) {
+
+        // Get the innermost scope
+        const scope = scopeManager.acquire(node, true);
+
+        if (scope) {
+            if (scope.type === "function-expression-name") {
+                return scope.childScopes[0];
+            }
+            return scope;
+        }
+    }
+
+    return scopeManager.scopes[0];
+}
+
+/**
+ * Marks a variable as used in the current scope
+ * @param {ScopeManager} scopeManager The scope manager for this AST. The scope may be mutated by this function.
+ * @param {ASTNode} currentNode The node currently being traversed
+ * @param {Object} parserOptions The options used to parse this text
+ * @param {string} name The name of the variable that should be marked as used.
+ * @returns {boolean} True if the variable was found and marked as used, false if not.
+ */
+function markVariableAsUsed(scopeManager, currentNode, parserOptions, name) {
+    const hasGlobalReturn = parserOptions.ecmaFeatures && parserOptions.ecmaFeatures.globalReturn;
+    const specialScope = hasGlobalReturn || parserOptions.sourceType === "module";
+    const currentScope = getScope(scopeManager, currentNode, parserOptions.ecmaVersion);
+
+    // Special Node.js scope means we need to start one level deeper
+    const initialScope = currentScope.type === "global" && specialScope ? currentScope.childScopes[0] : currentScope;
+
+    for (let scope = initialScope; scope; scope = scope.upper) {
+        const variable = scope.variables.find(scopeVar => scopeVar.name === name);
+
+        if (variable) {
+            variable.eslintUsed = true;
+            return true;
+        }
+    }
+
+    return false;
+}
+
+// methods that exist on SourceCode object
+const DEPRECATED_SOURCECODE_PASSTHROUGHS = {
+    getSource: "getText",
+    getSourceLines: "getLines",
+    getAllComments: "getAllComments",
+    getNodeByRangeIndex: "getNodeByRangeIndex",
+    getComments: "getComments",
+    getCommentsBefore: "getCommentsBefore",
+    getCommentsAfter: "getCommentsAfter",
+    getCommentsInside: "getCommentsInside",
+    getJSDocComment: "getJSDocComment",
+    getFirstToken: "getFirstToken",
+    getFirstTokens: "getFirstTokens",
+    getLastToken: "getLastToken",
+    getLastTokens: "getLastTokens",
+    getTokenAfter: "getTokenAfter",
+    getTokenBefore: "getTokenBefore",
+    getTokenByRangeStart: "getTokenByRangeStart",
+    getTokens: "getTokens",
+    getTokensAfter: "getTokensAfter",
+    getTokensBefore: "getTokensBefore",
+    getTokensBetween: "getTokensBetween"
+};
+
+const BASE_TRAVERSAL_CONTEXT = Object.freeze(
+    Object.keys(DEPRECATED_SOURCECODE_PASSTHROUGHS).reduce(
+        (contextInfo, methodName) =>
+            Object.assign(contextInfo, {
+                [methodName]() {
+                    const sourceCode = this.getSourceCode();
+
+                    return sourceCode[DEPRECATED_SOURCECODE_PASSTHROUGHS[methodName]].apply(sourceCode, arguments);
+                }
+            }),
+        {}
+    )
+);
+
+const lastSourceCodes = new WeakMap();
 
 //------------------------------------------------------------------------------
 // Public Interface
@@ -704,40 +736,15 @@ function parse(text, config, filePath, messages) {
  * Object that is responsible for verifying JavaScript text
  * @name eslint
  */
-class Linter extends EventEmitter {
+module.exports = class Linter {
 
     constructor() {
-        super();
-        this.messages = [];
-        this.currentConfig = null;
-        this.currentScopes = null;
-        this.scopeManager = null;
-        this.currentFilename = null;
-        this.traverser = null;
-        this.reportingConfig = [];
-        this.sourceCode = null;
+        lastSourceCodes.set(this, null);
         this.version = pkg.version;
 
         this.rules = new Rules();
+        this._parsers = new Map();
         this.environments = new Environments();
-
-        // set unlimited listeners (see https://github.com/eslint/eslint/issues/524)
-        this.setMaxListeners(0);
-    }
-
-    /**
-     * Resets the internal state of the object.
-     * @returns {void}
-     */
-    reset() {
-        this.removeAllListeners();
-        this.messages = [];
-        this.currentConfig = null;
-        this.currentScopes = null;
-        this.scopeManager = null;
-        this.traverser = null;
-        this.reportingConfig = [];
-        this.sourceCode = null;
     }
 
     /**
@@ -752,39 +759,45 @@ class Linter extends EventEmitter {
      */
 
     /**
-     * Verifies the text against the rules specified by the second argument.
+     * Same as linter.verify, except without support for processors.
      * @param {string|SourceCode} textOrSourceCode The text to parse or a SourceCode object.
      * @param {ESLintConfig} config An ESLintConfig instance to configure everything.
      * @param {(string|Object)} [filenameOrOptions] The optional filename of the file being checked.
      *      If this is not set, the filename will default to '<input>' in the rule context. If
      *      an object, then it has "filename", "saveState", and "allowInlineConfig" properties.
-     * @param {boolean} [saveState] Indicates if the state from the last run should be saved.
-     *      Mostly useful for testing purposes.
-     * @param {boolean} [filenameOrOptions.allowInlineConfig] Allow/disallow inline comments' ability to change config once it is set. Defaults to true if not supplied.
+     * @param {boolean} [filenameOrOptions.allowInlineConfig=true] Allow/disallow inline comments' ability to change config once it is set. Defaults to true if not supplied.
      *      Useful if you want to validate JS without comments overriding rules.
+     * @param {boolean} [filenameOrOptions.reportUnusedDisableDirectives=false] Adds reported errors for unused
+     *      eslint-disable directives
      * @returns {Object[]} The results as an array of messages or null if no messages.
      */
-    verify(textOrSourceCode, config, filenameOrOptions, saveState) {
-        const text = (typeof textOrSourceCode === "string") ? textOrSourceCode : null;
-        let ast,
-            parseResult,
-            allowInlineConfig;
+    _verifyWithoutProcessors(textOrSourceCode, config, filenameOrOptions) {
+        let text,
+            allowInlineConfig,
+            providedFilename,
+            reportUnusedDisableDirectives;
 
         // evaluate arguments
         if (typeof filenameOrOptions === "object") {
-            this.currentFilename = filenameOrOptions.filename;
+            providedFilename = filenameOrOptions.filename;
             allowInlineConfig = filenameOrOptions.allowInlineConfig;
-            saveState = filenameOrOptions.saveState;
+            reportUnusedDisableDirectives = filenameOrOptions.reportUnusedDisableDirectives;
         } else {
-            this.currentFilename = filenameOrOptions;
+            providedFilename = filenameOrOptions;
         }
 
-        if (!saveState) {
-            this.reset();
+        if (typeof textOrSourceCode === "string") {
+            lastSourceCodes.set(this, null);
+            text = textOrSourceCode;
+        } else {
+            lastSourceCodes.set(this, textOrSourceCode);
+            text = textOrSourceCode.text;
         }
+
+        const filename = typeof providedFilename === "string" ? providedFilename : "<input>";
 
         // search and apply "eslint-env *".
-        const envInFile = findEslintEnv(text || textOrSourceCode.text);
+        const envInFile = findEslintEnv(text);
 
         config = Object.assign({}, config);
 
@@ -799,231 +812,250 @@ class Linter extends EventEmitter {
         // process initial config to make it safe to extend
         config = prepareConfig(config, this.environments);
 
-        // only do this for text
-        if (text !== null) {
+        if (!lastSourceCodes.get(this)) {
 
             // there's no input, just exit here
             if (text.trim().length === 0) {
-                this.sourceCode = new SourceCode(text, blankScriptAST);
-                return this.messages;
+                lastSourceCodes.set(this, new SourceCode(text, blankScriptAST));
+                return [];
             }
 
-            parseResult = parse(
-                stripUnicodeBOM(text).replace(astUtils.SHEBANG_MATCHER, (match, captured) => `//${captured}`),
-                config,
-                this.currentFilename,
-                this.messages
+            let parser;
+
+            try {
+                parser = this._parsers.get(config.parser) || require(config.parser);
+            } catch (ex) {
+                return [{
+                    ruleId: null,
+                    fatal: true,
+                    severity: 2,
+                    source: null,
+                    message: ex.message,
+                    line: 0,
+                    column: 0
+                }];
+            }
+            const parseResult = parse(
+                text,
+                config.parserOptions,
+                parser,
+                filename
             );
 
-            // if this result is from a parseForESLint() method, normalize
-            if (parseResult && parseResult.ast) {
-                ast = parseResult.ast;
-            } else {
-                ast = parseResult;
-                parseResult = null;
+            if (!parseResult.success) {
+                return [parseResult.error];
             }
 
-            if (ast) {
-                this.sourceCode = new SourceCode(text, ast);
-            }
-
+            lastSourceCodes.set(this, parseResult.sourceCode);
         } else {
-            this.sourceCode = textOrSourceCode;
-            ast = this.sourceCode.ast;
-        }
-
-        // if espree failed to parse the file, there's no sense in setting up rules
-        if (ast) {
-
-            // parse global comments and modify config
-            if (allowInlineConfig !== false) {
-                config = modifyConfigsFromComments(this.currentFilename, ast, config, this);
-            }
-
-            // ensure that severities are normalized in the config
-            ConfigOps.normalize(config);
-
-            // enable appropriate rules
-            Object.keys(config.rules).filter(key => getRuleSeverity(config.rules[key]) > 0).forEach(key => {
-                let ruleCreator;
-
-                ruleCreator = this.rules.get(key);
-
-                if (!ruleCreator) {
-                    const replacementMsg = getRuleReplacementMessage(key);
-
-                    if (replacementMsg) {
-                        ruleCreator = createStubRule(replacementMsg);
-                    } else {
-                        ruleCreator = createStubRule(`Definition for rule '${key}' was not found`);
-                    }
-                    this.rules.define(key, ruleCreator);
-                }
-
-                const severity = getRuleSeverity(config.rules[key]);
-                const options = getRuleOptions(config.rules[key]);
-
-                try {
-                    const ruleContext = new RuleContext(
-                        key, this, severity, options,
-                        config.settings, config.parserOptions, config.parser,
-                        ruleCreator.meta,
-                        (parseResult && parseResult.services ? parseResult.services : {})
-                    );
-
-                    const rule = ruleCreator.create ? ruleCreator.create(ruleContext)
-                        : ruleCreator(ruleContext);
-
-                    // add all the selectors from the rule as listeners
-                    Object.keys(rule).forEach(selector => {
-                        this.on(selector, timing.enabled
-                            ? timing.time(key, rule[selector])
-                            : rule[selector]
-                        );
-                    });
-                } catch (ex) {
-                    ex.message = `Error while loading rule '${key}': ${ex.message}`;
-                    throw ex;
-                }
-            });
-
-            // save config so rules can access as necessary
-            this.currentConfig = config;
-            this.traverser = new Traverser();
-
-            const ecmaFeatures = this.currentConfig.parserOptions.ecmaFeatures || {};
-            const ecmaVersion = this.currentConfig.parserOptions.ecmaVersion || 5;
-
-            // gather scope data that may be needed by the rules
-            this.scopeManager = eslintScope.analyze(ast, {
-                ignoreEval: true,
-                nodejsScope: ecmaFeatures.globalReturn,
-                impliedStrict: ecmaFeatures.impliedStrict,
-                ecmaVersion,
-                sourceType: this.currentConfig.parserOptions.sourceType || "script",
-                fallback: Traverser.getKeys
-            });
-
-            this.currentScopes = this.scopeManager.scopes;
-
-            // augment global scope with declared global variables
-            addDeclaredGlobals(ast, this.currentScopes[0], this.currentConfig, this.environments);
-
-            let eventGenerator = new NodeEventGenerator(this);
-
-            eventGenerator = new CodePathAnalyzer(eventGenerator);
 
             /*
-             * Each node has a type property. Whenever a particular type of
-             * node is found, an event is fired. This allows any listeners to
-             * automatically be informed that this type of node has been found
-             * and react accordingly.
+             * If the given source code object as the first argument does not have scopeManager, analyze the scope.
+             * This is for backward compatibility (SourceCode is frozen so it cannot rebind).
              */
-            this.traverser.traverse(ast, {
-                enter(node, parent) {
-                    node.parent = parent;
-                    eventGenerator.enterNode(node);
-                },
-                leave(node) {
-                    eventGenerator.leaveNode(node);
-                }
-            });
+            const lastSourceCode = lastSourceCodes.get(this);
+
+            if (!lastSourceCode.scopeManager) {
+                lastSourceCodes.set(this, new SourceCode({
+                    text: lastSourceCode.text,
+                    ast: lastSourceCode.ast,
+                    parserServices: lastSourceCode.parserServices,
+                    visitorKeys: lastSourceCode.visitorKeys,
+                    scopeManager: analyzeScope(lastSourceCode.ast, config.parserOptions)
+                }));
+            }
         }
 
-        // sort by line and column
-        this.messages.sort((a, b) => {
-            const lineDiff = a.line - b.line;
+        const problems = [];
+        const sourceCode = lastSourceCodes.get(this);
+        let disableDirectives;
 
-            if (lineDiff === 0) {
-                return a.column - b.column;
+        // parse global comments and modify config
+        if (allowInlineConfig !== false) {
+            const modifyConfigResult = modifyConfigsFromComments(filename, sourceCode.ast, config, ruleId => this.rules.get(ruleId));
+
+            config = modifyConfigResult.config;
+            modifyConfigResult.problems.forEach(problem => problems.push(problem));
+            disableDirectives = modifyConfigResult.disableDirectives;
+        } else {
+            disableDirectives = [];
+        }
+
+        const emitter = createEmitter();
+        const traverser = new Traverser();
+        const scopeManager = sourceCode.scopeManager;
+
+        /*
+         * Create a frozen object with the ruleContext properties and methods that are shared by all rules.
+         * All rule contexts will inherit from this object. This avoids the performance penalty of copying all the
+         * properties once for each rule.
+         */
+        const sharedTraversalContext = Object.freeze(
+            Object.assign(
+                Object.create(BASE_TRAVERSAL_CONTEXT),
+                {
+                    getAncestors: () => traverser.parents(),
+                    getDeclaredVariables: scopeManager.getDeclaredVariables.bind(scopeManager),
+                    getFilename: () => filename,
+                    getScope: () => getScope(scopeManager, traverser.current(), config.parserOptions.ecmaVersion),
+                    getSourceCode: () => sourceCode,
+                    markVariableAsUsed: name => markVariableAsUsed(scopeManager, traverser.current(), config.parserOptions, name),
+                    parserOptions: config.parserOptions,
+                    parserPath: config.parser,
+                    parserServices: sourceCode.parserServices,
+                    settings: config.settings,
+
+                    /**
+                     * This is used to avoid breaking rules that used to monkeypatch the `Linter#report` method
+                     * by using the `_linter` property on rule contexts.
+                     *
+                     * This should be removed in a major release after we create a better way to
+                     * lint for unused disable comments.
+                     * https://github.com/eslint/eslint/issues/9193
+                     */
+                    _linter: {
+                        report() {},
+                        on: emitter.on
+                    }
+                }
+            )
+        );
+
+        // enable appropriate rules
+        Object.keys(config.rules).forEach(ruleId => {
+            const severity = ConfigOps.getRuleSeverity(config.rules[ruleId]);
+
+            if (severity === 0) {
+                return;
             }
-            return lineDiff;
 
+            const rule = this.rules.get(ruleId);
+            const messageIds = rule && rule.meta && rule.meta.messages;
+            let reportTranslator = null;
+            const ruleContext = Object.freeze(
+                Object.assign(
+                    Object.create(sharedTraversalContext),
+                    {
+                        id: ruleId,
+                        options: getRuleOptions(config.rules[ruleId]),
+                        report() {
+
+                            /*
+                             * Create a report translator lazily.
+                             * In a vast majority of cases, any given rule reports zero errors on a given
+                             * piece of code. Creating a translator lazily avoids the performance cost of
+                             * creating a new translator function for each rule that usually doesn't get
+                             * called.
+                             *
+                             * Using lazy report translators improves end-to-end performance by about 3%
+                             * with Node 8.4.0.
+                             */
+                            if (reportTranslator === null) {
+                                reportTranslator = createReportTranslator({ ruleId, severity, sourceCode, messageIds });
+                            }
+                            const problem = reportTranslator.apply(null, arguments);
+
+                            if (problem.fix && rule.meta && !rule.meta.fixable) {
+                                throw new Error("Fixable rules should export a `meta.fixable` property.");
+                            }
+                            problems.push(problem);
+
+                            /*
+                             * This is used to avoid breaking rules that used monkeypatch Linter, and relied on
+                             * `linter.report` getting called with report info every time a rule reports a problem.
+                             * To continue to support this, make sure that `context._linter.report` is called every
+                             * time a problem is reported by a rule, even though `context._linter` is no longer a
+                             * `Linter` instance.
+                             *
+                             * This should be removed in a major release after we create a better way to
+                             * lint for unused disable comments.
+                             * https://github.com/eslint/eslint/issues/9193
+                             */
+                            sharedTraversalContext._linter.report( // eslint-disable-line no-underscore-dangle
+                                problem.ruleId,
+                                problem.severity,
+                                { loc: { start: { line: problem.line, column: problem.column - 1 } } },
+                                problem.message
+                            );
+                        }
+                    }
+                )
+            );
+
+            try {
+                const ruleListeners = rule.create(ruleContext);
+
+                // add all the selectors from the rule as listeners
+                Object.keys(ruleListeners).forEach(selector => {
+                    emitter.on(
+                        selector,
+                        timing.enabled
+                            ? timing.time(ruleId, ruleListeners[selector])
+                            : ruleListeners[selector]
+                    );
+                });
+            } catch (ex) {
+                ex.message = `Error while loading rule '${ruleId}': ${ex.message}`;
+                throw ex;
+            }
         });
 
-        return this.messages;
+        // augment global scope with declared global variables
+        addDeclaredGlobals(scopeManager.scopes[0], config, this.environments);
+
+        const eventGenerator = new CodePathAnalyzer(new NodeEventGenerator(emitter));
+
+        /*
+         * Each node has a type property. Whenever a particular type of
+         * node is found, an event is fired. This allows any listeners to
+         * automatically be informed that this type of node has been found
+         * and react accordingly.
+         */
+        traverser.traverse(sourceCode.ast, {
+            enter(node, parent) {
+                node.parent = parent;
+                eventGenerator.enterNode(node);
+            },
+            leave(node) {
+                eventGenerator.leaveNode(node);
+            },
+            visitorKeys: sourceCode.visitorKeys
+        });
+
+        return applyDisableDirectives({
+            directives: disableDirectives,
+            problems: problems.sort((problemA, problemB) => problemA.line - problemB.line || problemA.column - problemB.column),
+            reportUnusedDisableDirectives
+        });
     }
 
     /**
-     * Reports a message from one of the rules.
-     * @param {string} ruleId The ID of the rule causing the message.
-     * @param {number} severity The severity level of the rule as configured.
-     * @param {ASTNode} node The AST node that the message relates to.
-     * @param {Object=} location An object containing the error line and column
-     *      numbers. If location is not provided the node's start location will
-     *      be used.
-     * @param {string} message The actual message.
-     * @param {Object} opts Optional template data which produces a formatted message
-     *     with symbols being replaced by this object's values.
-     * @param {Object} fix A fix command description.
-     * @param {Object} meta Metadata of the rule
-     * @returns {void}
+     * Verifies the text against the rules specified by the second argument.
+     * @param {string|SourceCode} textOrSourceCode The text to parse or a SourceCode object.
+     * @param {ESLintConfig} config An ESLintConfig instance to configure everything.
+     * @param {(string|Object)} [filenameOrOptions] The optional filename of the file being checked.
+     *      If this is not set, the filename will default to '<input>' in the rule context. If
+     *      an object, then it has "filename", "saveState", and "allowInlineConfig" properties.
+     * @param {boolean} [saveState] Indicates if the state from the last run should be saved.
+     *      Mostly useful for testing purposes.
+     * @param {boolean} [filenameOrOptions.allowInlineConfig] Allow/disallow inline comments' ability to change config once it is set. Defaults to true if not supplied.
+     *      Useful if you want to validate JS without comments overriding rules.
+     * @param {function(string): string[]} [filenameOrOptions.preprocess] preprocessor for source text. If provided,
+     *      this should accept a string of source text, and return an array of code blocks to lint.
+     * @param {function(Array<Object[]>): Object[]} [filenameOrOptions.postprocess] postprocessor for report messages. If provided,
+     *      this should accept an array of the message lists for each code block returned from the preprocessor,
+     *      apply a mapping to the messages as appropriate, and return a one-dimensional array of messages
+     * @returns {Object[]} The results as an array of messages or null if no messages.
      */
-    report(ruleId, severity, node, location, message, opts, fix, meta) {
-        if (node) {
-            assert.strictEqual(typeof node, "object", "Node must be an object");
-        }
+    verify(textOrSourceCode, config, filenameOrOptions) {
+        const preprocess = filenameOrOptions && filenameOrOptions.preprocess || (rawText => [rawText]);
+        const postprocess = filenameOrOptions && filenameOrOptions.postprocess || lodash.flatten;
 
-        let endLocation;
-
-        if (typeof location === "string") {
-            assert.ok(node, "Node must be provided when reporting error if location is not provided");
-
-            meta = fix;
-            fix = opts;
-            opts = message;
-            message = location;
-            location = node.loc.start;
-            endLocation = node.loc.end;
-        } else {
-            endLocation = location.end;
-        }
-
-        location = location.start || location;
-
-        if (isDisabledByReportingConfig(this.reportingConfig, ruleId, location)) {
-            return;
-        }
-
-        if (opts) {
-            message = message.replace(/\{\{\s*([^{}]+?)\s*\}\}/g, (fullMatch, term) => {
-                if (term in opts) {
-                    return opts[term];
-                }
-
-                // Preserve old behavior: If parameter name not provided, don't replace it.
-                return fullMatch;
-            });
-        }
-
-        const problem = {
-            ruleId,
-            severity,
-            message,
-            line: location.line,
-            column: location.column + 1, // switch to 1-base instead of 0-base
-            nodeType: node && node.type,
-            source: this.sourceCode.lines[location.line - 1] || ""
-        };
-
-        // Define endLine and endColumn if exists.
-        if (endLocation) {
-            problem.endLine = endLocation.line;
-            problem.endColumn = endLocation.column + 1; // switch to 1-base instead of 0-base
-        }
-
-        // ensure there's range and text properties, otherwise it's not a valid fix
-        if (fix && Array.isArray(fix.range) && (typeof fix.text === "string")) {
-
-            // If rule uses fix, has metadata, but has no metadata.fixable, we should throw
-            if (meta && !meta.fixable) {
-                throw new Error("Fixable rules should export a `meta.fixable` property.");
-            }
-
-            problem.fix = fix;
-        }
-
-        this.messages.push(problem);
+        return postprocess(
+            preprocess(textOrSourceCode).map(
+                textBlock => this._verifyWithoutProcessors(textBlock, config, filenameOrOptions)
+            )
+        );
     }
 
     /**
@@ -1031,104 +1063,7 @@ class Linter extends EventEmitter {
      * @returns {SourceCode} The SourceCode object.
      */
     getSourceCode() {
-        return this.sourceCode;
-    }
-
-    /**
-     * Gets nodes that are ancestors of current node.
-     * @returns {ASTNode[]} Array of objects representing ancestors.
-     */
-    getAncestors() {
-        return this.traverser.parents();
-    }
-
-    /**
-     * Gets the scope for the current node.
-     * @returns {Object} An object representing the current node's scope.
-     */
-    getScope() {
-        const parents = this.traverser.parents();
-
-        // Don't do this for Program nodes - they have no parents
-        if (parents.length) {
-
-            // if current node introduces a scope, add it to the list
-            const current = this.traverser.current();
-
-            if (this.currentConfig.parserOptions.ecmaVersion >= 6) {
-                if (["BlockStatement", "SwitchStatement", "CatchClause", "FunctionDeclaration", "FunctionExpression", "ArrowFunctionExpression"].indexOf(current.type) >= 0) {
-                    parents.push(current);
-                }
-            } else {
-                if (["FunctionDeclaration", "FunctionExpression", "ArrowFunctionExpression"].indexOf(current.type) >= 0) {
-                    parents.push(current);
-                }
-            }
-
-            // Ascend the current node's parents
-            for (let i = parents.length - 1; i >= 0; --i) {
-
-                // Get the innermost scope
-                const scope = this.scopeManager.acquire(parents[i], true);
-
-                if (scope) {
-                    if (scope.type === "function-expression-name") {
-                        return scope.childScopes[0];
-                    }
-                    return scope;
-
-                }
-
-            }
-
-        }
-
-        return this.currentScopes[0];
-    }
-
-    /**
-     * Record that a particular variable has been used in code
-     * @param {string} name The name of the variable to mark as used
-     * @returns {boolean} True if the variable was found and marked as used,
-     *      false if not.
-     */
-    markVariableAsUsed(name) {
-        const hasGlobalReturn = this.currentConfig.parserOptions.ecmaFeatures && this.currentConfig.parserOptions.ecmaFeatures.globalReturn,
-            specialScope = hasGlobalReturn || this.currentConfig.parserOptions.sourceType === "module";
-        let scope = this.getScope(),
-            i,
-            len;
-
-        // Special Node.js scope means we need to start one level deeper
-        if (scope.type === "global" && specialScope) {
-            scope = scope.childScopes[0];
-        }
-
-        do {
-            const variables = scope.variables;
-
-            for (i = 0, len = variables.length; i < len; i++) {
-                if (variables[i].name === name) {
-                    variables[i].eslintUsed = true;
-                    return true;
-                }
-            }
-        } while ((scope = scope.upper));
-
-        return false;
-    }
-
-    /**
-     * Gets the filename for the currently parsed source.
-     * @returns {string} The filename associated with the source being parsed.
-     *     Defaults to "<input>" if no filename info is present.
-     */
-    getFilename() {
-        if (typeof this.currentFilename === "string") {
-            return this.currentFilename;
-        }
-        return "<input>";
-
+        return lastSourceCodes.get(this);
     }
 
     /**
@@ -1153,14 +1088,6 @@ class Linter extends EventEmitter {
     }
 
     /**
-     * Gets the default eslint configuration.
-     * @returns {Object} Object mapping rule IDs to their default configurations
-     */
-    defaults() { // eslint-disable-line class-methods-use-this
-        return defaultConfig;
-    }
-
-    /**
      * Gets an object with all loaded rules.
      * @returns {Map} All loaded rules
      */
@@ -1169,26 +1096,13 @@ class Linter extends EventEmitter {
     }
 
     /**
-     * Gets variables that are declared by a specified node.
-     *
-     * The variables are its `defs[].node` or `defs[].parent` is same as the specified node.
-     * Specifically, below:
-     *
-     * - `VariableDeclaration` - variables of its all declarators.
-     * - `VariableDeclarator` - variables.
-     * - `FunctionDeclaration`/`FunctionExpression` - its function name and parameters.
-     * - `ArrowFunctionExpression` - its parameters.
-     * - `ClassDeclaration`/`ClassExpression` - its class name.
-     * - `CatchClause` - variables of its exception.
-     * - `ImportDeclaration` - variables of  its all specifiers.
-     * - `ImportSpecifier`/`ImportDefaultSpecifier`/`ImportNamespaceSpecifier` - a variable.
-     * - others - always an empty array.
-     *
-     * @param {ASTNode} node A node to get.
-     * @returns {eslint-scope.Variable[]} Variables that are declared by the node.
+     * Define a new parser module
+     * @param {any} parserId Name of the parser
+     * @param {any} parserModule The parser object
+     * @returns {void}
      */
-    getDeclaredVariables(node) {
-        return (this.scopeManager && this.scopeManager.getDeclaredVariables(node)) || [];
+    defineParser(parserId, parserModule) {
+        this._parsers.set(parserId, parserModule);
     }
 
     /**
@@ -1201,6 +1115,11 @@ class Linter extends EventEmitter {
      * @param {boolean} options.allowInlineConfig Flag indicating if inline comments
      *      should be allowed.
      * @param {boolean|Function} options.fix Determines whether fixes should be applied
+     * @param {Function} options.preprocess preprocessor for source text. If provided, this should
+     *      accept a string of source text, and return an array of code blocks to lint.
+     * @param {Function} options.postprocess postprocessor for report messages. If provided,
+     *      this should accept an array of the message lists for each code block returned from the preprocessor,
+     *      apply a mapping to the messages as appropriate, and return a one-dimensional array of messages
      * @returns {Object} The result of the fix operation as returned from the
      *      SourceCodeFixer.
      */
@@ -1210,7 +1129,7 @@ class Linter extends EventEmitter {
             fixed = false,
             passNumber = 0;
         const debugTextDescription = options && options.filename || `${text.slice(0, 10)}...`;
-        const shouldFix = options && options.fix || true;
+        const shouldFix = options && typeof options.fix !== "undefined" ? options.fix : true;
 
         /**
          * This loop continues until one of the following is true:
@@ -1228,10 +1147,12 @@ class Linter extends EventEmitter {
             messages = this.verify(text, config, options);
 
             debug(`Generating fixed text for ${debugTextDescription} (pass ${passNumber})`);
-            fixedResult = SourceCodeFixer.applyFixes(this.getSourceCode(), messages, shouldFix);
+            fixedResult = SourceCodeFixer.applyFixes(text, messages, shouldFix);
 
-            // stop if there are any syntax errors.
-            // 'fixedResult.output' is a empty string.
+            /*
+             * stop if there are any syntax errors.
+             * 'fixedResult.output' is a empty string.
+             */
             if (messages.length === 1 && messages[0].fatal) {
                 break;
             }
@@ -1261,48 +1182,4 @@ class Linter extends EventEmitter {
 
         return fixedResult;
     }
-}
-
-// methods that exist on SourceCode object
-const externalMethods = {
-    getSource: "getText",
-    getSourceLines: "getLines",
-    getAllComments: "getAllComments",
-    getNodeByRangeIndex: "getNodeByRangeIndex",
-    getComments: "getComments",
-    getCommentsBefore: "getCommentsBefore",
-    getCommentsAfter: "getCommentsAfter",
-    getCommentsInside: "getCommentsInside",
-    getJSDocComment: "getJSDocComment",
-    getFirstToken: "getFirstToken",
-    getFirstTokens: "getFirstTokens",
-    getLastToken: "getLastToken",
-    getLastTokens: "getLastTokens",
-    getTokenAfter: "getTokenAfter",
-    getTokenBefore: "getTokenBefore",
-    getTokenByRangeStart: "getTokenByRangeStart",
-    getTokens: "getTokens",
-    getTokensAfter: "getTokensAfter",
-    getTokensBefore: "getTokensBefore",
-    getTokensBetween: "getTokensBetween"
 };
-
-// copy over methods
-Object.keys(externalMethods).forEach(methodName => {
-    const exMethodName = externalMethods[methodName];
-
-    // Applies the SourceCode methods to the Linter prototype
-    Object.defineProperty(Linter.prototype, methodName, {
-        value() {
-            if (this.sourceCode) {
-                return this.sourceCode[exMethodName].apply(this.sourceCode, arguments);
-            }
-            return null;
-        },
-        configurable: true,
-        writable: true,
-        enumerable: false
-    });
-});
-
-module.exports = Linter;

@@ -1,9 +1,10 @@
 'use strict';
 
 var url = require('url')
-  , equal = require('./equal')
+  , equal = require('fast-deep-equal')
   , util = require('./util')
-  , SchemaObject = require('./schema_obj');
+  , SchemaObject = require('./schema_obj')
+  , traverse = require('json-schema-traverse');
 
 module.exports = resolve;
 
@@ -47,7 +48,7 @@ function resolve(compile, root, ref) {
 
   if (schema instanceof SchemaObject) {
     v = schema.validate || compile.call(this, schema.schema, root, undefined, baseId);
-  } else if (schema) {
+  } else if (schema !== undefined) {
     v = inlineRef(schema, this._opts.inlineRefs)
         ? schema
         : compile.call(this, schema, root, undefined, baseId);
@@ -68,7 +69,7 @@ function resolveSchema(root, ref) {
   /* jshint validthis: true */
   var p = url.parse(ref, false, true)
     , refPath = _getFullPath(p)
-    , baseId = getFullPath(root.schema.id);
+    , baseId = getFullPath(this._getId(root.schema));
   if (refPath !== baseId) {
     var id = normalizeId(refPath);
     var refVal = this._refs[id];
@@ -89,7 +90,7 @@ function resolveSchema(root, ref) {
       }
     }
     if (!root.schema) return;
-    baseId = getFullPath(root.schema.id);
+    baseId = getFullPath(this._getId(root.schema));
   }
   return getJsonPointer.call(this, p, baseId, root.schema, root);
 }
@@ -103,7 +104,8 @@ function resolveRecursive(root, ref, parsedRef) {
     var schema = res.schema;
     var baseId = res.baseId;
     root = res.root;
-    if (schema.id) baseId = resolveUrl(baseId, schema.id);
+    var id = this._getId(schema);
+    if (id) baseId = resolveUrl(baseId, id);
     return getJsonPointer.call(this, parsedRef, baseId, schema, root);
   }
 }
@@ -122,20 +124,24 @@ function getJsonPointer(parsedRef, baseId, schema, root) {
     if (part) {
       part = util.unescapeFragment(part);
       schema = schema[part];
-      if (!schema) break;
-      if (schema.id && !PREVENT_SCOPE_CHANGE[part]) baseId = resolveUrl(baseId, schema.id);
-      if (schema.$ref) {
-        var $ref = resolveUrl(baseId, schema.$ref);
-        var res = resolveSchema.call(this, root, $ref);
-        if (res) {
-          schema = res.schema;
-          root = res.root;
-          baseId = res.baseId;
+      if (schema === undefined) break;
+      var id;
+      if (!PREVENT_SCOPE_CHANGE[part]) {
+        id = this._getId(schema);
+        if (id) baseId = resolveUrl(baseId, id);
+        if (schema.$ref) {
+          var $ref = resolveUrl(baseId, schema.$ref);
+          var res = resolveSchema.call(this, root, $ref);
+          if (res) {
+            schema = res.schema;
+            root = res.root;
+            baseId = res.baseId;
+          }
         }
       }
     }
   }
-  if (schema && schema != root.schema)
+  if (schema !== undefined && schema !== root.schema)
     return { schema: schema, root: root, baseId: baseId };
 }
 
@@ -225,43 +231,41 @@ function resolveUrl(baseId, id) {
 
 /* @this Ajv */
 function resolveIds(schema) {
-  /* eslint no-shadow: 0 */
-  /* jshint validthis: true */
-  var id = normalizeId(schema.id);
+  var schemaId = normalizeId(this._getId(schema));
+  var baseIds = {'': schemaId};
+  var fullPaths = {'': getFullPath(schemaId, false)};
   var localRefs = {};
-  _resolveIds.call(this, schema, getFullPath(id, false), id);
-  return localRefs;
+  var self = this;
 
-  /* @this Ajv */
-  function _resolveIds(schema, fullPath, baseId) {
-    /* jshint validthis: true */
-    if (Array.isArray(schema)) {
-      for (var i=0; i<schema.length; i++)
-        _resolveIds.call(this, schema[i], fullPath+'/'+i, baseId);
-    } else if (schema && typeof schema == 'object') {
-      if (typeof schema.id == 'string') {
-        var id = baseId = baseId
-                          ? url.resolve(baseId, schema.id)
-                          : schema.id;
-        id = normalizeId(id);
+  traverse(schema, {allKeys: true}, function(sch, jsonPtr, rootSchema, parentJsonPtr, parentKeyword, parentSchema, keyIndex) {
+    if (jsonPtr === '') return;
+    var id = self._getId(sch);
+    var baseId = baseIds[parentJsonPtr];
+    var fullPath = fullPaths[parentJsonPtr] + '/' + parentKeyword;
+    if (keyIndex !== undefined)
+      fullPath += '/' + (typeof keyIndex == 'number' ? keyIndex : util.escapeFragment(keyIndex));
 
-        var refVal = this._refs[id];
-        if (typeof refVal == 'string') refVal = this._refs[refVal];
-        if (refVal && refVal.schema) {
-          if (!equal(schema, refVal.schema))
+    if (typeof id == 'string') {
+      id = baseId = normalizeId(baseId ? url.resolve(baseId, id) : id);
+
+      var refVal = self._refs[id];
+      if (typeof refVal == 'string') refVal = self._refs[refVal];
+      if (refVal && refVal.schema) {
+        if (!equal(sch, refVal.schema))
+          throw new Error('id "' + id + '" resolves to more than one schema');
+      } else if (id != normalizeId(fullPath)) {
+        if (id[0] == '#') {
+          if (localRefs[id] && !equal(sch, localRefs[id]))
             throw new Error('id "' + id + '" resolves to more than one schema');
-        } else if (id != normalizeId(fullPath)) {
-          if (id[0] == '#') {
-            if (localRefs[id] && !equal(schema, localRefs[id]))
-              throw new Error('id "' + id + '" resolves to more than one schema');
-            localRefs[id] = schema;
-          } else {
-            this._refs[id] = fullPath;
-          }
+          localRefs[id] = sch;
+        } else {
+          self._refs[id] = fullPath;
         }
       }
-      for (var key in schema)
-        _resolveIds.call(this, schema[key], fullPath+'/'+util.escapeFragment(key), baseId);
     }
-  }
+    baseIds[jsonPtr] = baseId;
+    fullPaths[jsonPtr] = fullPath;
+  });
+
+  return localRefs;
 }

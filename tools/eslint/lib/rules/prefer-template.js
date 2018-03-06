@@ -37,10 +37,10 @@ function getTopConcatBinaryExpression(node) {
 }
 
 /**
-* Checks whether or not a given binary expression has string literals.
-* @param {ASTNode} node - A node to check.
-* @returns {boolean} `true` if the node has string literals.
-*/
+ * Checks whether or not a given binary expression has string literals.
+ * @param {ASTNode} node - A node to check.
+ * @returns {boolean} `true` if the node has string literals.
+ */
 function hasStringLiteral(node) {
     if (isConcatenation(node)) {
 
@@ -65,10 +65,10 @@ function hasNonStringLiteral(node) {
 }
 
 /**
-* Determines whether a given node will start with a template curly expression (`${}`) when being converted to a template literal.
-* @param {ASTNode} node The node that will be fixed to a template literal
-* @returns {boolean} `true` if the node will start with a template curly.
-*/
+ * Determines whether a given node will start with a template curly expression (`${}`) when being converted to a template literal.
+ * @param {ASTNode} node The node that will be fixed to a template literal
+ * @returns {boolean} `true` if the node will start with a template curly.
+ */
 function startsWithTemplateCurly(node) {
     if (node.type === "BinaryExpression") {
         return startsWithTemplateCurly(node.left);
@@ -80,10 +80,10 @@ function startsWithTemplateCurly(node) {
 }
 
 /**
-* Determines whether a given node end with a template curly expression (`${}`) when being converted to a template literal.
-* @param {ASTNode} node The node that will be fixed to a template literal
-* @returns {boolean} `true` if the node will end with a template curly.
-*/
+ * Determines whether a given node end with a template curly expression (`${}`) when being converted to a template literal.
+ * @param {ASTNode} node The node that will be fixed to a template literal
+ * @returns {boolean} `true` if the node will end with a template curly.
+ */
 function endsWithTemplateCurly(node) {
     if (node.type === "BinaryExpression") {
         return startsWithTemplateCurly(node.right);
@@ -103,7 +103,8 @@ module.exports = {
         docs: {
             description: "require template literals instead of string concatenation",
             category: "ECMAScript 6",
-            recommended: false
+            recommended: false,
+            url: "https://eslint.org/docs/rules/prefer-template"
         },
 
         schema: [],
@@ -116,11 +117,11 @@ module.exports = {
         let done = Object.create(null);
 
         /**
-        * Gets the non-token text between two nodes, ignoring any other tokens that appear between the two tokens.
-        * @param {ASTNode} node1 The first node
-        * @param {ASTNode} node2 The second node
-        * @returns {string} The text between the nodes, excluding other tokens
-        */
+         * Gets the non-token text between two nodes, ignoring any other tokens that appear between the two tokens.
+         * @param {ASTNode} node1 The first node
+         * @param {ASTNode} node2 The second node
+         * @returns {string} The text between the nodes, excluding other tokens
+         */
         function getTextBetween(node1, node2) {
             const allTokens = [node1].concat(sourceCode.getTokensBetween(node1, node2)).concat(node2);
             const sourceText = sourceCode.getText();
@@ -129,19 +130,21 @@ module.exports = {
         }
 
         /**
-        * Returns a template literal form of the given node.
-        * @param {ASTNode} currentNode A node that should be converted to a template literal
-        * @param {string} textBeforeNode Text that should appear before the node
-        * @param {string} textAfterNode Text that should appear after the node
-        * @returns {string} A string form of this node, represented as a template literal
-        */
+         * Returns a template literal form of the given node.
+         * @param {ASTNode} currentNode A node that should be converted to a template literal
+         * @param {string} textBeforeNode Text that should appear before the node
+         * @param {string} textAfterNode Text that should appear after the node
+         * @returns {string} A string form of this node, represented as a template literal
+         */
         function getTemplateLiteral(currentNode, textBeforeNode, textAfterNode) {
             if (currentNode.type === "Literal" && typeof currentNode.value === "string") {
 
-                // If the current node is a string literal, escape any instances of ${ or ` to prevent them from being interpreted
-                // as a template placeholder. However, if the code already contains a backslash before the ${ or `
-                // for some reason, don't add another backslash, because that would change the meaning of the code (it would cause
-                // an actual backslash character to appear before the dollar sign).
+                /*
+                 * If the current node is a string literal, escape any instances of ${ or ` to prevent them from being interpreted
+                 * as a template placeholder. However, if the code already contains a backslash before the ${ or `
+                 * for some reason, don't add another backslash, because that would change the meaning of the code (it would cause
+                 * an actual backslash character to appear before the dollar sign).
+                 */
                 return `\`${currentNode.raw.slice(1, -1).replace(/\\*(\${|`)/g, matched => {
                     if (matched.lastIndexOf("\\") % 2) {
                         return `\\${matched}`;
@@ -178,8 +181,10 @@ module.exports = {
                         getTemplateLiteral(currentNode.right, textBeforePlus + textAfterPlus, textAfterNode).slice(1);
                 }
 
-                // Otherwise, these nodes should not be combined into a template curly, since there is nowhere to put
-                // the text between them.
+                /*
+                 * Otherwise, these nodes should not be combined into a template curly, since there is nowhere to put
+                 * the text between them.
+                 */
                 return `${getTemplateLiteral(currentNode.left, textBeforeNode, null)}${textBeforePlus}+${textAfterPlus}${getTemplateLiteral(currentNode.right, textAfterNode, null)}`;
             }
 

@@ -47,7 +47,8 @@ module.exports = {
         docs: {
             description: "enforce `return` statements in getters",
             category: "Possible Errors",
-            recommended: false
+            recommended: false,
+            url: "https://eslint.org/docs/rules/getter-return"
         },
         fixable: null,
         schema: [
@@ -102,7 +103,8 @@ module.exports = {
             }
         }
 
-        /** Checks whether a node means a getter function.
+        /**
+         * Checks whether a node means a getter function.
          * @param {ASTNode} node - a node to check.
          * @returns {boolean} if node means a getter, return true; else return false.
          */

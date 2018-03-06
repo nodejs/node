@@ -16,7 +16,8 @@ module.exports = {
         docs: {
             description: "disallow certain properties on certain objects",
             category: "Best Practices",
-            recommended: false
+            recommended: false,
+            url: "https://eslint.org/docs/rules/no-restricted-properties"
         },
 
         schema: {
@@ -92,12 +93,12 @@ module.exports = {
         });
 
         /**
-        * Checks to see whether a property access is restricted, and reports it if so.
-        * @param {ASTNode} node The node to report
-        * @param {string} objectName The name of the object
-        * @param {string} propertyName The name of the property
-        * @returns {undefined}
-        */
+         * Checks to see whether a property access is restricted, and reports it if so.
+         * @param {ASTNode} node The node to report
+         * @param {string} objectName The name of the object
+         * @param {string} propertyName The name of the property
+         * @returns {undefined}
+         */
         function checkPropertyAccess(node, objectName, propertyName) {
             if (propertyName === null) {
                 return;
@@ -135,10 +136,10 @@ module.exports = {
         }
 
         /**
-        * Checks property accesses in a destructuring assignment expression, e.g. `var foo; ({foo} = bar);`
-        * @param {ASTNode} node An AssignmentExpression or AssignmentPattern node
-        * @returns {undefined}
-        */
+         * Checks property accesses in a destructuring assignment expression, e.g. `var foo; ({foo} = bar);`
+         * @param {ASTNode} node An AssignmentExpression or AssignmentPattern node
+         * @returns {undefined}
+         */
         function checkDestructuringAssignment(node) {
             if (node.right.type === "Identifier") {
                 const objectName = node.right.name;

@@ -57,8 +57,7 @@ class FixTracker {
     retainEnclosingFunction(node) {
         const functionNode = astUtils.getUpperFunction(node);
 
-        return this.retainRange(
-            functionNode ? functionNode.range : this.sourceCode.ast.range);
+        return this.retainRange(functionNode ? functionNode.range : this.sourceCode.ast.range);
     }
 
     /**

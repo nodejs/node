@@ -16,7 +16,8 @@ module.exports = {
         docs: {
             description: "enforce consistent brace style for blocks",
             category: "Stylistic Issues",
-            recommended: false
+            recommended: false,
+            url: "https://eslint.org/docs/rules/brace-style"
         },
 
         schema: [
@@ -34,7 +35,16 @@ module.exports = {
             }
         ],
 
-        fixable: "whitespace"
+        fixable: "whitespace",
+
+        messages: {
+            nextLineOpen: "Opening curly brace does not appear on the same line as controlling statement.",
+            sameLineOpen: "Opening curly brace appears on the same line as controlling statement.",
+            blockSameLine: "Statement inside of curly braces should be on next line.",
+            nextLineClose: "Closing curly brace does not appear on the same line as the subsequent block.",
+            singleLineClose: "Closing curly brace should be on the same line as opening curly brace or on the line after the previous block.",
+            sameLineClose: "Closing curly brace appears on the same line as the subsequent block."
+        }
     },
 
     create(context) {
@@ -42,23 +52,16 @@ module.exports = {
             params = context.options[1] || {},
             sourceCode = context.getSourceCode();
 
-        const OPEN_MESSAGE = "Opening curly brace does not appear on the same line as controlling statement.",
-            OPEN_MESSAGE_ALLMAN = "Opening curly brace appears on the same line as controlling statement.",
-            BODY_MESSAGE = "Statement inside of curly braces should be on next line.",
-            CLOSE_MESSAGE = "Closing curly brace does not appear on the same line as the subsequent block.",
-            CLOSE_MESSAGE_SINGLE = "Closing curly brace should be on the same line as opening curly brace or on the line after the previous block.",
-            CLOSE_MESSAGE_STROUSTRUP_ALLMAN = "Closing curly brace appears on the same line as the subsequent block.";
-
         //--------------------------------------------------------------------------
         // Helpers
         //--------------------------------------------------------------------------
 
         /**
-        * Fixes a place where a newline unexpectedly appears
-        * @param {Token} firstToken The token before the unexpected newline
-        * @param {Token} secondToken The token after the unexpected newline
-        * @returns {Function} A fixer function to remove the newlines between the tokens
-        */
+         * Fixes a place where a newline unexpectedly appears
+         * @param {Token} firstToken The token before the unexpected newline
+         * @param {Token} secondToken The token after the unexpected newline
+         * @returns {Function} A fixer function to remove the newlines between the tokens
+         */
         function removeNewlineBetween(firstToken, secondToken) {
             const textRange = [firstToken.range[1], secondToken.range[0]];
             const textBetween = sourceCode.text.slice(textRange[0], textRange[1]);
@@ -71,11 +74,11 @@ module.exports = {
         }
 
         /**
-        * Validates a pair of curly brackets based on the user's config
-        * @param {Token} openingCurly The opening curly bracket
-        * @param {Token} closingCurly The closing curly bracket
-        * @returns {void}
-        */
+         * Validates a pair of curly brackets based on the user's config
+         * @param {Token} openingCurly The opening curly bracket
+         * @param {Token} closingCurly The closing curly bracket
+         * @returns {void}
+         */
         function validateCurlyPair(openingCurly, closingCurly) {
             const tokenBeforeOpeningCurly = sourceCode.getTokenBefore(openingCurly);
             const tokenAfterOpeningCurly = sourceCode.getTokenAfter(openingCurly);
@@ -85,7 +88,7 @@ module.exports = {
             if (style !== "allman" && !astUtils.isTokenOnSameLine(tokenBeforeOpeningCurly, openingCurly)) {
                 context.report({
                     node: openingCurly,
-                    message: OPEN_MESSAGE,
+                    messageId: "nextLineOpen",
                     fix: removeNewlineBetween(tokenBeforeOpeningCurly, openingCurly)
                 });
             }
@@ -93,7 +96,7 @@ module.exports = {
             if (style === "allman" && astUtils.isTokenOnSameLine(tokenBeforeOpeningCurly, openingCurly) && !singleLineException) {
                 context.report({
                     node: openingCurly,
-                    message: OPEN_MESSAGE_ALLMAN,
+                    messageId: "sameLineOpen",
                     fix: fixer => fixer.insertTextBefore(openingCurly, "\n")
                 });
             }
@@ -101,7 +104,7 @@ module.exports = {
             if (astUtils.isTokenOnSameLine(openingCurly, tokenAfterOpeningCurly) && tokenAfterOpeningCurly !== closingCurly && !singleLineException) {
                 context.report({
                     node: openingCurly,
-                    message: BODY_MESSAGE,
+                    messageId: "blockSameLine",
                     fix: fixer => fixer.insertTextAfter(openingCurly, "\n")
                 });
             }
@@ -109,24 +112,24 @@ module.exports = {
             if (tokenBeforeClosingCurly !== openingCurly && !singleLineException && astUtils.isTokenOnSameLine(tokenBeforeClosingCurly, closingCurly)) {
                 context.report({
                     node: closingCurly,
-                    message: CLOSE_MESSAGE_SINGLE,
+                    messageId: "singleLineClose",
                     fix: fixer => fixer.insertTextBefore(closingCurly, "\n")
                 });
             }
         }
 
         /**
-        * Validates the location of a token that appears before a keyword (e.g. a newline before `else`)
-        * @param {Token} curlyToken The closing curly token. This is assumed to precede a keyword token (such as `else` or `finally`).
-        * @returns {void}
-        */
+         * Validates the location of a token that appears before a keyword (e.g. a newline before `else`)
+         * @param {Token} curlyToken The closing curly token. This is assumed to precede a keyword token (such as `else` or `finally`).
+         * @returns {void}
+         */
         function validateCurlyBeforeKeyword(curlyToken) {
             const keywordToken = sourceCode.getTokenAfter(curlyToken);
 
             if (style === "1tbs" && !astUtils.isTokenOnSameLine(curlyToken, keywordToken)) {
                 context.report({
                     node: curlyToken,
-                    message: CLOSE_MESSAGE,
+                    messageId: "nextLineClose",
                     fix: removeNewlineBetween(curlyToken, keywordToken)
                 });
             }
@@ -134,7 +137,7 @@ module.exports = {
             if (style !== "1tbs" && astUtils.isTokenOnSameLine(curlyToken, keywordToken)) {
                 context.report({
                     node: curlyToken,
-                    message: CLOSE_MESSAGE_STROUSTRUP_ALLMAN,
+                    messageId: "sameLineClose",
                     fix: fixer => fixer.insertTextAfter(curlyToken, "\n")
                 });
             }

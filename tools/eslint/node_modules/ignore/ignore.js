@@ -17,12 +17,16 @@ var REGEX_BLANK_LINE = /^\s+$/;
 var REGEX_LEADING_EXCAPED_EXCLAMATION = /^\\\!/;
 var REGEX_LEADING_EXCAPED_HASH = /^\\#/;
 var SLASH = '/';
+var KEY_IGNORE = typeof Symbol !== 'undefined' ? Symbol.for('node-ignore')
+/* istanbul ignore next */
+: 'node-ignore';
 
 var IgnoreBase = function () {
   function IgnoreBase() {
     _classCallCheck(this, IgnoreBase);
 
     this._rules = [];
+    this[KEY_IGNORE] = true;
     this._initCache();
   }
 
@@ -64,7 +68,8 @@ var IgnoreBase = function () {
   }, {
     key: '_addPattern',
     value: function _addPattern(pattern) {
-      if (pattern instanceof IgnoreBase) {
+      // #32
+      if (pattern && pattern[KEY_IGNORE]) {
         this._rules = this._rules.concat(pattern._rules);
         this._added = true;
         return;
@@ -83,7 +88,7 @@ var IgnoreBase = function () {
       return pattern && typeof pattern === 'string' && !REGEX_BLANK_LINE.test(pattern)
 
       // > A line starting with # serves as a comment.
-       && pattern.indexOf('#') !== 0;
+      && pattern.indexOf('#') !== 0;
     }
   }, {
     key: 'filter',
@@ -153,12 +158,6 @@ var IgnoreBase = function () {
         // path/to/a.js
         // ['path', 'to', 'a.js']
         slices = path.split(SLASH);
-
-        // '/b/a.js' -> ['', 'b', 'a.js'] -> ['']
-        if (slices.length && !slices[0]) {
-          slices = slices.slice(1);
-          slices[0] = SLASH + slices[0];
-        }
       }
 
       slices.pop();
@@ -409,7 +408,9 @@ function make_regex(pattern, negative) {
 // Windows
 // --------------------------------------------------------------
 /* istanbul ignore if  */
-if (process.env.IGNORE_TEST_WIN32 || process.platform === 'win32') {
+if (
+// Detect `process` so that it can run in browsers.
+typeof process !== 'undefined' && (process.env && process.env.IGNORE_TEST_WIN32 || process.platform === 'win32')) {
 
   var filter = IgnoreBase.prototype._filter;
   var make_posix = function make_posix(str) {

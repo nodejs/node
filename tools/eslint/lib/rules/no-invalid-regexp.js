@@ -19,7 +19,8 @@ module.exports = {
         docs: {
             description: "disallow invalid regular expression strings in `RegExp` constructors",
             category: "Possible Errors",
-            recommended: true
+            recommended: true,
+            url: "https://eslint.org/docs/rules/no-invalid-regexp"
         },
 
         schema: [{

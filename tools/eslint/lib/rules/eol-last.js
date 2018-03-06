@@ -19,14 +19,19 @@ module.exports = {
         docs: {
             description: "require or disallow newline at the end of files",
             category: "Stylistic Issues",
-            recommended: false
+            recommended: false,
+            url: "https://eslint.org/docs/rules/eol-last"
         },
         fixable: "whitespace",
         schema: [
             {
                 enum: ["always", "never", "unix", "windows"]
             }
-        ]
+        ],
+        messages: {
+            missing: "Newline required at end of file but not found.",
+            unexpected: "Newline not allowed at end of file."
+        }
     },
     create(context) {
 
@@ -45,6 +50,14 @@ module.exports = {
                     LF = "\n",
                     CRLF = `\r${LF}`,
                     endsWithNewline = lodash.endsWith(src, LF);
+
+                /*
+                 * Empty source is always valid: No content in file so we don't
+                 * need to lint for a newline on the last line of content.
+                 */
+                if (!src.length) {
+                    return;
+                }
 
                 let mode = context.options[0] || "always",
                     appendCRLF = false;
@@ -66,7 +79,7 @@ module.exports = {
                     context.report({
                         node,
                         loc: location,
-                        message: "Newline required at end of file but not found.",
+                        messageId: "missing",
                         fix(fixer) {
                             return fixer.insertTextAfterRange([0, src.length], appendCRLF ? CRLF : LF);
                         }
@@ -77,7 +90,7 @@ module.exports = {
                     context.report({
                         node,
                         loc: location,
-                        message: "Newline not allowed at end of file.",
+                        messageId: "unexpected",
                         fix(fixer) {
                             const finalEOLs = /(?:\r?\n)+$/,
                                 match = finalEOLs.exec(sourceCode.text),

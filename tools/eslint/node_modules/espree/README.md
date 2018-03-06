@@ -93,7 +93,7 @@ Espree is licensed under a permissive BSD 2-clause license.
 
 * The `tokenize()` method does not use `ecmaFeatures`. Any string will be tokenized completely based on ECMAScript 6 semantics.
 * Trailing whitespace no longer is counted as part of a node.
-* `let` and `const` declarations are no longer parsed by default. You must opt-in using `ecmaFeatures.blockBindings`.
+* `let` and `const` declarations are no longer parsed by default. You must opt-in by using an `ecmaVersion` newer than `5` or setting `sourceType` to `module`.
 * The `esparse` and `esvalidate` binary scripts have been removed.
 * There is no `tolerant` option. We will investigate adding this back in the future.
 
@@ -149,6 +149,8 @@ There are two ECMAScript 2017 syntax changes: `async` functions, and trailing co
 Because ECMAScript 2018 is still under development, we are implementing features as they are finalized. Currently, Espree supports:
 
 * Invalid escape sequences in tagged template literals
+* Rest/spread properties
+* Async Iteration
 
 ### How do you determine which experimental features to support?
 

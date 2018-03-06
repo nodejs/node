@@ -20,7 +20,8 @@ module.exports = {
         docs: {
             description: "disallow specified global variables",
             category: "Variables",
-            recommended: false
+            recommended: false,
+            url: "https://eslint.org/docs/rules/no-restricted-globals"
         },
 
         schema: {

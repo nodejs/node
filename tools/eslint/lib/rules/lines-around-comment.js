@@ -55,7 +55,8 @@ module.exports = {
         docs: {
             description: "require empty lines around comments",
             category: "Stylistic Issues",
-            recommended: false
+            recommended: false,
+            url: "https://eslint.org/docs/rules/lines-around-comment"
         },
 
         fixable: "whitespace",
@@ -80,6 +81,12 @@ module.exports = {
                         type: "boolean"
                     },
                     allowBlockEnd: {
+                        type: "boolean"
+                    },
+                    allowClassStart: {
+                        type: "boolean"
+                    },
+                    allowClassEnd: {
                         type: "boolean"
                     },
                     allowObjectStart: {
@@ -225,6 +232,24 @@ module.exports = {
         }
 
         /**
+         * Returns whether or not comments are at the class start or not.
+         * @param {token} token The Comment token.
+         * @returns {boolean} True if the comment is at class start.
+         */
+        function isCommentAtClassStart(token) {
+            return isCommentAtParentStart(token, "ClassBody");
+        }
+
+        /**
+         * Returns whether or not comments are at the class end or not.
+         * @param {token} token The Comment token.
+         * @returns {boolean} True if the comment is at class end.
+         */
+        function isCommentAtClassEnd(token) {
+            return isCommentAtParentEnd(token, "ClassBody");
+        }
+
+        /**
          * Returns whether or not comments are at the object start or not.
          * @param {token} token The Comment token.
          * @returns {boolean} True if the comment is at object start.
@@ -284,15 +309,20 @@ module.exports = {
                 nextLineNum = token.loc.end.line + 1,
                 commentIsNotAlone = codeAroundComment(token);
 
-            const blockStartAllowed = options.allowBlockStart && isCommentAtBlockStart(token),
-                blockEndAllowed = options.allowBlockEnd && isCommentAtBlockEnd(token),
+            const blockStartAllowed = options.allowBlockStart &&
+                    isCommentAtBlockStart(token) &&
+                    !(options.allowClassStart === false &&
+                    isCommentAtClassStart(token)),
+                blockEndAllowed = options.allowBlockEnd && isCommentAtBlockEnd(token) && !(options.allowClassEnd === false && isCommentAtClassEnd(token)),
+                classStartAllowed = options.allowClassStart && isCommentAtClassStart(token),
+                classEndAllowed = options.allowClassEnd && isCommentAtClassEnd(token),
                 objectStartAllowed = options.allowObjectStart && isCommentAtObjectStart(token),
                 objectEndAllowed = options.allowObjectEnd && isCommentAtObjectEnd(token),
                 arrayStartAllowed = options.allowArrayStart && isCommentAtArrayStart(token),
                 arrayEndAllowed = options.allowArrayEnd && isCommentAtArrayEnd(token);
 
-            const exceptionStartAllowed = blockStartAllowed || objectStartAllowed || arrayStartAllowed;
-            const exceptionEndAllowed = blockEndAllowed || objectEndAllowed || arrayEndAllowed;
+            const exceptionStartAllowed = blockStartAllowed || classStartAllowed || objectStartAllowed || arrayStartAllowed;
+            const exceptionEndAllowed = blockEndAllowed || classEndAllowed || objectEndAllowed || arrayEndAllowed;
 
             // ignore top of the file and bottom of the file
             if (prevLineNum < 1) {

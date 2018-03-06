@@ -68,7 +68,8 @@ module.exports = {
         docs: {
             description: "enforce consistent spacing before and after keywords",
             category: "Stylistic Issues",
-            recommended: false
+            recommended: false,
+            url: "https://eslint.org/docs/rules/keyword-spacing"
         },
 
         fixable: "whitespace",
@@ -435,7 +436,12 @@ module.exports = {
          * @returns {void}
          */
         function checkSpacingForForOfStatement(node) {
-            checkSpacingAroundFirstToken(node);
+            if (node.await) {
+                checkSpacingBefore(sourceCode.getFirstToken(node, 0));
+                checkSpacingAfter(sourceCode.getFirstToken(node, 1));
+            } else {
+                checkSpacingAroundFirstToken(node);
+            }
             checkSpacingAround(sourceCode.getTokenBefore(node.right, astUtils.isNotOpeningParenToken));
         }
 

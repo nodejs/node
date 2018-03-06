@@ -20,7 +20,8 @@ module.exports = {
         docs: {
             description: "disallow labels that share a name with a variable",
             category: "Variables",
-            recommended: false
+            recommended: false,
+            url: "https://eslint.org/docs/rules/no-label-var"
         },
 
         schema: []
@@ -54,8 +55,10 @@ module.exports = {
                 // Fetch the innermost scope.
                 const scope = context.getScope();
 
-                // Recursively find the identifier walking up the scope, starting
-                // with the innermost scope.
+                /*
+                 * Recursively find the identifier walking up the scope, starting
+                 * with the innermost scope.
+                 */
                 if (findIdentifier(scope, node.label.name)) {
                     context.report({ node, message: "Found identifier with same name as label." });
                 }

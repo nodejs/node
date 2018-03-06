@@ -21,11 +21,16 @@ module.exports = {
         docs: {
             description: "disallow unnecessary semicolons",
             category: "Possible Errors",
-            recommended: true
+            recommended: true,
+            url: "https://eslint.org/docs/rules/no-extra-semi"
         },
 
         fixable: "code",
-        schema: []
+        schema: [],
+
+        messages: {
+            unexpected: "Unnecessary semicolon."
+        }
     },
 
     create(context) {
@@ -39,12 +44,14 @@ module.exports = {
         function report(nodeOrToken) {
             context.report({
                 node: nodeOrToken,
-                message: "Unnecessary semicolon.",
+                messageId: "unexpected",
                 fix(fixer) {
 
-                    // Expand the replacement range to include the surrounding
-                    // tokens to avoid conflicting with semi.
-                    // https://github.com/eslint/eslint/issues/7928
+                    /*
+                     * Expand the replacement range to include the surrounding
+                     * tokens to avoid conflicting with semi.
+                     * https://github.com/eslint/eslint/issues/7928
+                     */
                     return new FixTracker(fixer, context.getSourceCode())
                         .retainSurroundingTokens(nodeOrToken)
                         .remove(nodeOrToken);
