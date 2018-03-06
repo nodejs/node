@@ -21,6 +21,10 @@
 
 'use strict';
 const common = require('../common');
+
+// Make sure http server doesn't wait for socket pool to establish connections
+// https://github.com/nodejs/node-v0.x-archive/issues/877
+
 const http = require('http');
 const assert = require('assert');
 
