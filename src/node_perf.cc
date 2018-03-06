@@ -40,6 +40,15 @@ uint64_t performance_v8_start;
 uint64_t performance_last_gc_start_mark_ = 0;
 v8::GCType performance_last_gc_type_ = v8::GCType::kGCTypeAll;
 
+void performance_state::Mark(enum PerformanceMilestone milestone,
+                             uint64_t ts) {
+  this->milestones[milestone] = ts;
+  TRACE_EVENT_INSTANT_WITH_TIMESTAMP0(
+      TRACING_CATEGORY_NODE1(bootstrap),
+      GetPerformanceMilestoneName(milestone),
+      TRACE_EVENT_SCOPE_THREAD, ts);
+}
+
 double GetCurrentTimeInMicroseconds() {
 #ifdef _WIN32
 // The difference between the Unix Epoch and the Windows Epoch in 100-ns ticks.
@@ -200,14 +209,11 @@ void Measure(const FunctionCallbackInfo<Value>& args) {
 void MarkMilestone(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   Local<Context> context = env->context();
-  AliasedBuffer<double, v8::Float64Array>& milestones =
-      env->performance_state()->milestones;
   PerformanceMilestone milestone =
       static_cast<PerformanceMilestone>(
           args[0]->Int32Value(context).ToChecked());
-  if (milestone != NODE_PERFORMANCE_MILESTONE_INVALID) {
-    milestones[milestone] = PERFORMANCE_NOW();
-  }
+  if (milestone != NODE_PERFORMANCE_MILESTONE_INVALID)
+    env->performance_state()->Mark(milestone);
 }
 
 

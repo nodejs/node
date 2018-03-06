@@ -16,6 +16,7 @@ The available categories are:
 
 * `node`
 * `node.async_hooks` - Enables capture of detailed async_hooks trace data.
+* `node.bootstrap` - Enables capture of Node.js bootstrap milestones.
 * `node.perf` - Enables capture of [Performance API] measurements.
   * `node.perf.usertiming` - Enables capture of only Performance API User Timing
     measures and marks.
