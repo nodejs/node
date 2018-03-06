@@ -415,14 +415,13 @@ void AsyncWrap::WeakCallback(const v8::WeakCallbackInfo<DestroyParam>& info) {
   HandleScope scope(info.GetIsolate());
 
   Environment* env = Environment::GetCurrent(info.GetIsolate());
-  DestroyParam* p = info.GetParameter();
+  std::unique_ptr<DestroyParam> p{info.GetParameter()};
   Local<Object> prop_bag = PersistentToLocal(info.GetIsolate(), p->propBag);
 
   Local<Value> val = prop_bag->Get(env->destroyed_string());
   if (val->IsFalse()) {
     AsyncWrap::EmitDestroy(env, p->asyncId);
   }
-  delete p;
 }
 
 
