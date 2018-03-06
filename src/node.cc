@@ -190,6 +190,7 @@ static node_module* modlist_builtin;
 static node_module* modlist_internal;
 static node_module* modlist_linked;
 static node_module* modlist_addon;
+static bool trace_forced = false;
 static bool trace_enabled = false;
 static std::string trace_enabled_categories;  // NOLINT(runtime/string)
 static std::string trace_file_pattern =  // NOLINT(runtime/string)
@@ -329,6 +330,16 @@ static struct {
     tracing_agent_->Stop();
   }
 
+  void SetTracingAgent(tracing::Agent* agent) {
+    if (agent) {
+      tracing_agent_.reset(agent);
+      platform_->SetTracingController(agent->GetTracingController());
+    } else {
+      tracing_agent_.reset(nullptr);
+      platform_->SetTracingController(nullptr);
+    }
+  }
+
   NodePlatform* Platform() {
     return platform_;
   }
@@ -351,6 +362,7 @@ static struct {
                     "so event tracing is not available.\n");
   }
   void StopTracingAgent() {}
+  void SetTracingAgent(tracing::Agent* agent) {}
 
   NodePlatform* Platform() {
     return nullptr;
@@ -1994,6 +2006,35 @@ static void Exit(const FunctionCallbackInfo<Value>& args) {
 }
 
 
+static void StartTracingAgent(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  if (!trace_enabled) {
+    if (args[0]->IsString()) {
+      Utf8Value categories(env->isolate(), args[0]);
+      trace_enabled_categories = *categories;
+    }
+    trace_enabled = true;
+    tracing::Agent* agent = new tracing::Agent();
+    v8_platform.SetTracingAgent(agent);
+    tracing::TraceEventHelper::SetTracingController(
+      agent->GetTracingController());
+    v8_platform.StartTracingAgent();
+    return args.GetReturnValue().Set(true);
+  }
+  args.GetReturnValue().Set(false);
+}
+
+static void StopTracingAgent(const FunctionCallbackInfo<Value>& args) {
+  if (trace_enabled && !trace_forced) {
+    v8_platform.StopTracingAgent();
+    v8_platform.SetTracingAgent(nullptr);
+    tracing::TraceEventHelper::SetTracingController(nullptr);
+    trace_enabled = false;
+    return args.GetReturnValue().Set(true);
+  }
+  args.GetReturnValue().Set(false);
+}
+
 static void Uptime(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   double uptime;
@@ -3265,6 +3306,9 @@ void SetupProcessObject(Environment* env,
   env->SetMethod(process, "uptime", Uptime);
   env->SetMethod(process, "memoryUsage", MemoryUsage);
 
+  env->SetMethod(process, "startTracingAgent", StartTracingAgent);
+  env->SetMethod(process, "stopTracingAgent", StopTracingAgent);
+
   env->SetMethod(process, "binding", Binding);
   env->SetMethod(process, "_linkedBinding", LinkedBinding);
   env->SetMethod(process, "_internalBinding", InternalBinding);
@@ -3699,6 +3743,7 @@ static void ParseArgs(int* argc,
     } else if (strcmp(arg, "--no-force-async-hooks-checks") == 0) {
       no_force_async_hooks_checks = true;
     } else if (strcmp(arg, "--trace-events-enabled") == 0) {
+      trace_forced = true;
       trace_enabled = true;
     } else if (strcmp(arg, "--trace-event-categories") == 0) {
       const char* categories = argv[index + 1];
