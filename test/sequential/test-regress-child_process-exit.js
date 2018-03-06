@@ -20,12 +20,13 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
+require('../common');
+
 // Open a chain of five Node processes each a child of the next. The final
-// process exits immediately. Each process in the chain is instructed to
-// exit when its child exits.
+// process exits immediately. Each process in the chain is instructed to exit
+// when its child exits.
 // https://github.com/joyent/node/issues/1726
 
-require('../common');
 const assert = require('assert');
 const ch = require('child_process');
 
