@@ -22,6 +22,8 @@ using v8::StackTrace;
 using v8::String;
 using v8::Value;
 
+const int kNodeContextTag = 0x6e6f64;
+
 IsolateData::IsolateData(Isolate* isolate,
                          uv_loop_t* event_loop,
                          MultiIsolatePlatform* platform,
@@ -154,7 +156,7 @@ void Environment::Start(int argc,
   SetupProcessObject(this, argc, argv, exec_argc, exec_argv);
 
   // Used by EnvPromiseHook to know that we are on a node context.
-  process_object->SetInternalField(0, v8::Int32::New(isolate(), 0x6e6f6465));
+  process_object->SetInternalField(0, v8::Int32::New(isolate(), kNodeContextTag));
 
   LoadAsyncWrapperInfo(this);
 
@@ -317,7 +319,7 @@ void Environment::EnvPromiseHook(v8::PromiseHookType type,
     return;
   }
   Local<v8::Value> internal_field = process_object->GetInternalField(0);
-  if (!internal_field->IsInt32() || internal_field.As<v8::Int32>()->Value() != 0x6e6f6465) {
+  if (!internal_field->IsInt32() || internal_field.As<v8::Int32>()->Value() != kNodeContextTag) {
     return;
   }
 
