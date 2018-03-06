@@ -5475,6 +5475,11 @@ Genesis::Genesis(
     if (!InstallDebuggerNatives()) return;
   }
 
+  if (FLAG_disallow_code_generation_from_strings) {
+    native_context()->set_allow_code_gen_from_strings(
+        isolate->heap()->false_value());
+  }
+
   ConfigureUtilsObject(context_type);
 
   // Check that the script context table is empty except for the 'this' binding.
