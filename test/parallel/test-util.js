@@ -170,7 +170,7 @@ util.error('test');
   assert.strictEqual(util.types.isNativeError(Object.create(Error.prototype)),
                      false);
   assert.strictEqual(
-    util.types.isNativeError(new errors.Error('ERR_IPC_CHANNEL_CLOSED')),
+    util.types.isNativeError(new errors.codes.ERR_IPC_CHANNEL_CLOSED()),
     true
   );
 }
