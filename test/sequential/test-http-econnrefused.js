@@ -20,15 +20,15 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-// Regression test for GH-784
-// https://github.com/joyent/node/issues/784
-//
+const common = require('../common');
+
 // The test works by making a total of 8 requests to the server.  The first
 // two are made with the server off - they should come back as ECONNREFUSED.
 // The next two are made with server on - they should come back successful.
 // The next two are made with the server off - and so on.  Without the fix
-// we were experiencing parse errors and instead of ECONNREFUSED.
-const common = require('../common');
+// we were experiencing parse errors instead of ECONNREFUSED.
+// https://github.com/nodejs/node-v0.x-archive/issues/784
+
 const http = require('http');
 const assert = require('assert');
 
