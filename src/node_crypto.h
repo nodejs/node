@@ -380,13 +380,13 @@ class Connection : public AsyncWrap, public SSLWrap<Connection> {
   void NewSessionDoneCb();
 
 #ifndef OPENSSL_NO_NEXTPROTONEG
-  v8::Persistent<v8::Object> npnProtos_;
-  v8::Persistent<v8::Value> selectedNPNProto_;
+  Persistent<v8::Object> npnProtos_;
+  Persistent<v8::Value> selectedNPNProto_;
 #endif
 
 #ifdef SSL_CTRL_SET_TLSEXT_SERVERNAME_CB
-  v8::Persistent<v8::Object> sniObject_;
-  v8::Persistent<v8::String> servername_;
+  Persistent<v8::Object> sniObject_;
+  Persistent<v8::String> servername_;
 #endif
 
   size_t self_size() const override { return sizeof(*this); }

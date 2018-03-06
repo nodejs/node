@@ -3600,7 +3600,8 @@ void Connection::GetServername(const FunctionCallbackInfo<Value>& args) {
   ASSIGN_OR_RETURN_UNWRAP(&conn, args.Holder());
 
   if (conn->is_server() && !conn->servername_.IsEmpty()) {
-    args.GetReturnValue().Set(conn->servername_);
+    args.GetReturnValue().Set(
+        PersistentToLocal(args.GetIsolate(), conn->servername_));
   } else {
     args.GetReturnValue().Set(false);
   }
