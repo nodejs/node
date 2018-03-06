@@ -52,17 +52,17 @@ If you cannot find who to cc for a file, `git shortlog -n -s <file>` may help.
 
 ### By Subsystem
 
-We generally sort issues by a concept of "subsystem" so that we know what
-part(s) of the codebase it touches.
+Subsystems include:
 
-**Subsystems generally are**:
+* `lib/*.js` (`assert`, `buffer`, etc.)
+* `build`
+* `doc`
+* `lib / src`
+* `test`
+* `tools`
 
-* `lib/*.js`
-* `doc`, `build`, `tools`, `test`, `deps`, `lib / src` (special), and there may
-  be others.
-* `meta` for anything non-code (process) related
-
-There may be more than one subsystem valid for any particular issue / PR.
+There may be more than one subsystem valid for any particular issue or pull
+request.
 
 ### General
 
@@ -72,6 +72,7 @@ Please use these when possible / appropriate
 * `discuss` - Things that need larger discussion
 * `feature request` - Any issue that requests a new feature (usually not PRs)
 * `good first issue` - Issues suitable for newcomers to process
+* `meta` - For issues whose topic is governance, policies, procedures, etc.
 
 --
 
