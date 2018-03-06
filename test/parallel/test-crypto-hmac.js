@@ -272,7 +272,8 @@ for (let i = 0, l = rfc4231.length; i < l; i++) {
     assert.strictEqual(
       actual,
       strRes,
-      `Should get same result from stream: ${actual} must be ${strRes}`
+      `Should get same result from stream (hash: ${hash} and case: ${i + 1})` +
+      ` => ${actual} must be ${strRes}`
     );
   }
 }
