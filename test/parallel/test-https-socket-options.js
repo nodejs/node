@@ -40,7 +40,7 @@ server_http.listen(0, function() {
 });
 
 // Then try https server (requires functions to be
-// mirroed in tls.js's CryptoStream)
+// mirrored in tls.js's CryptoStream)
 
 const server_https = https.createServer(options, function(req, res) {
   console.log('got HTTPS request');
