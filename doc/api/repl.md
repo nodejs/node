@@ -144,7 +144,7 @@ global or scoped variable, the input `fs` will be evaluated on-demand as
 #### Assignment of the `_` (underscore) variable
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v9.8.0
     pr-url: https://github.com/nodejs/node/pull/18919
     description: Added `_error` support.
 -->
