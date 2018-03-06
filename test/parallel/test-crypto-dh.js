@@ -248,7 +248,7 @@ if (availableCurves.has('prime256v1') && availableCurves.has('secp256k1')) {
     () => ecdh2.computeSecret(key3, 'latin1', 'buffer'),
     {
       code: 'ERR_CRYPTO_ECDH_INVALID_PUBLIC_KEY',
-      type: TypeError,
+      type: Error,
       message: 'Public key is not valid for specified curve'
     });
 
@@ -361,7 +361,7 @@ if (availableCurves.has('prime256v1') && availableHashes.has('sha256')) {
     () => curve.computeSecret(invalidKey),
     {
       code: 'ERR_CRYPTO_ECDH_INVALID_PUBLIC_KEY',
-      type: TypeError,
+      type: Error,
       message: 'Public key is not valid for specified curve'
     });
   // Check that signing operations are not impacted by the above error.
