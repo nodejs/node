@@ -145,12 +145,17 @@ void Environment::Start(int argc,
 
   auto process_template = FunctionTemplate::New(isolate());
   process_template->SetClassName(FIXED_ONE_BYTE_STRING(isolate(), "process"));
+  process_template->InstanceTemplate()->SetInternalFieldCount(1);
 
   auto process_object =
       process_template->GetFunction()->NewInstance(context()).ToLocalChecked();
   set_process_object(process_object);
 
   SetupProcessObject(this, argc, argv, exec_argc, exec_argv);
+
+  // Used by EnvPromiseHook to know that we are on a node context.
+  process_object->SetInternalField(0, v8::Int32::New(isolate(), 0x6e6f6465));
+
   LoadAsyncWrapperInfo(this);
 
   static uv_once_t init_once = UV_ONCE_INIT;
@@ -298,12 +303,24 @@ bool Environment::EmitNapiWarning() {
 void Environment::EnvPromiseHook(v8::PromiseHookType type,
                                  v8::Local<v8::Promise> promise,
                                  v8::Local<v8::Value> parent) {
-  auto context = promise->CreationContext();
-  auto dataIndex = node::Environment::kContextEmbedderDataIndex;
-  // If the context is undefined (not a node context) then skip.
-  if (context->GetEmbedderData(dataIndex)->IsUndefined()) {
+  v8::Isolate *isolate = Isolate::GetCurrent();
+  Local<v8::Context> context = isolate->GetCurrentContext();
+  Local<v8::Object> global = context->Global();
+
+  // Make sure process is there and its first internal field is the magic value.
+  Local<v8::Value> process = global->Get(OneByteString(isolate, "process"));
+  if (!process->IsObject()) {
     return;
   }
+  Local<v8::Object> process_object = process.As<v8::Object>();
+  if (process_object->InternalFieldCount() < 1) {
+    return;
+  }
+  Local<v8::Value> internal_field = process_object->GetInternalField(0);
+  if (!internal_field->IsInt32() || internal_field.As<v8::Int32>()->Value() != 0x6e6f6465) {
+    return;
+  }
+
   Environment* env = Environment::GetCurrent(context);
   for (const PromiseHookCallback& hook : env->promise_hooks_) {
     hook.cb_(type, promise, parent, hook.arg_);
