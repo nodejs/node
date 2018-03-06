@@ -12,14 +12,14 @@ onboarding session.
   [using a TOTP mobile app][].
 * Announce the accepted nomination in a TSC meeting and in the TSC
   mailing list.
-* Suggest the new Collaborator to install [`node-core-utils`][] and
+* Suggest the new Collaborator install [`node-core-utils`][] and
   [set up the credentials][] for it.
 
 ## Fifteen minutes before the onboarding session
 
 * Prior to the onboarding session, add the new Collaborator to
   [the Collaborators team](https://github.com/orgs/nodejs/teams/collaborators).
-* Ask them if they want to join any subsystem team. See
+* Ask them if they want to join any subsystem teams. See
   [Who to CC for Issues][who-to-cc].
 
 ## Onboarding session
@@ -240,7 +240,7 @@ needs to be pointed out separately during the onboarding.
 
 [Code of Conduct]: https://github.com/nodejs/admin/blob/master/CODE_OF_CONDUCT.md
 [`core-validate-commit`]: https://github.com/evanlucas/core-validate-commit
-[`git-node`]: https://github.com/nodejs/node-core-utils#git-node
+[`git-node`]: https://github.com/nodejs/node-core-utils/blob/master/docs/git-node.md
 [`node-core-utils`]: https://github.com/nodejs/node-core-utils
 [Landing Pull Requests]: https://github.com/nodejs/node/blob/master/COLLABORATOR_GUIDE.md#landing-pull-requests
 [https://github.com/nodejs/node/commit/ce986de829457c39257cd205067602e765768fb0]: https://github.com/nodejs/node/commit/ce986de829457c39257cd205067602e765768fb0

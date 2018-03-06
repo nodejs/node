@@ -470,10 +470,11 @@ $ npm install -g node-core-utils
 $ git node land $PRID
 ```
 
-If it's the first time you ever use `node-core-utils`, you will be prompted
-to type the password of your GitHub account and the 2FA code in the console
-so the tool can create the GitHub access token for you. If you do not want to
-do that, follow [the guide of `node-core-utils`][node-core-utils-credentials]
+If it's the first time you have used `node-core-utils`, you will be prompted
+to type the password of your GitHub account and the two-factor authentication
+code in the console so the tool can create the GitHub access token for you.
+If you do not want to do that, follow
+[the `node-core-utils` guide][node-core-utils-credentials]
 to set up your credentials manually.
 
 ### Technical HOWTO
