@@ -421,6 +421,9 @@ Returns `true` if `keyword` is a valid keyword, otherwise `false`.
 <!-- YAML
 added: v0.1.91
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/REPLACEME
+    description: The `REPL_MAGIC_MODE` replMode was removed.
   - version: v5.8.0
     pr-url: https://github.com/nodejs/node/pull/5388
     description: The `options` parameter is optional now.
@@ -462,9 +465,6 @@ changes:
     * `repl.REPL_MODE_SLOPPY` - evaluates expressions in sloppy mode.
     * `repl.REPL_MODE_STRICT` - evaluates expressions in strict mode. This is
       equivalent to prefacing every repl statement with `'use strict'`.
-    * `repl.REPL_MODE_MAGIC` - This value is **deprecated**, since enhanced
-      spec compliance in V8 has rendered magic mode unnecessary. It is now
-      equivalent to `repl.REPL_MODE_SLOPPY` (documented above).
   * `breakEvalOnSigint` - Stop evaluating the current piece of code when
     `SIGINT` is received, i.e. `Ctrl+C` is pressed. This cannot be used together
     with a custom `eval` function. Defaults to `false`.
@@ -512,9 +512,8 @@ environment variables:
    REPL history. Whitespace will be trimmed from the value.
  - `NODE_REPL_HISTORY_SIZE` - Defaults to `1000`. Controls how many lines of
    history will be persisted if history is available. Must be a positive number.
- - `NODE_REPL_MODE` - May be any of `sloppy`, `strict`, or `magic`. Defaults
-   to `sloppy`, which will allow non-strict mode code to be run. `magic` is
-   **deprecated** and treated as an alias of `sloppy`.
+ - `NODE_REPL_MODE` - May be either `sloppy` or `strict`. Defaults
+   to `sloppy`, which will allow non-strict mode code to be run.
 
 ### Persistent History
 
