@@ -4474,7 +4474,8 @@ inline int Start(Isolate* isolate, IsolateData* isolate_data,
   {
     SealHandleScope seal(isolate);
     bool more;
-    PERFORMANCE_MARK(&env, LOOP_START);
+    env.performance_state()->Mark(
+        node::performance::NODE_PERFORMANCE_MILESTONE_LOOP_START);
     do {
       uv_run(env.event_loop(), UV_RUN_DEFAULT);
 
@@ -4490,7 +4491,8 @@ inline int Start(Isolate* isolate, IsolateData* isolate_data,
       // event, or after running some callbacks.
       more = uv_loop_alive(env.event_loop());
     } while (more == true);
-    PERFORMANCE_MARK(&env, LOOP_EXIT);
+    env.performance_state()->Mark(
+        node::performance::NODE_PERFORMANCE_MILESTONE_LOOP_EXIT);
   }
 
   env.set_trace_sync_io(false);

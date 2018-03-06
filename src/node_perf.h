@@ -27,6 +27,18 @@ extern const uint64_t timeOrigin;
 
 double GetCurrentTimeInMicroseconds();
 
+static inline const char* GetPerformanceMilestoneName(
+    enum PerformanceMilestone milestone) {
+  switch (milestone) {
+#define V(name, label) case NODE_PERFORMANCE_MILESTONE_##name: return label;
+  NODE_PERFORMANCE_MILESTONES(V)
+#undef V
+    default:
+      UNREACHABLE();
+      return 0;
+  }
+}
+
 static inline PerformanceMilestone ToPerformanceMilestoneEnum(const char* str) {
 #define V(name, label)                                                        \
   if (strcmp(str, label) == 0) return NODE_PERFORMANCE_MILESTONE_##name;
@@ -42,12 +54,6 @@ static inline PerformanceEntryType ToPerformanceEntryTypeEnum(
   NODE_PERFORMANCE_ENTRY_TYPES(V)
 #undef V
   return NODE_PERFORMANCE_ENTRY_TYPE_INVALID;
-}
-
-NODE_EXTERN inline void MarkPerformanceMilestone(
-    Environment* env,
-    PerformanceMilestone milestone) {
-  env->performance_state()->milestones[milestone] = PERFORMANCE_NOW();
 }
 
 class PerformanceEntry {

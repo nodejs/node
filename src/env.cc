@@ -115,15 +115,14 @@ Environment::Environment(IsolateData* isolate_data,
 
   destroy_async_id_list_.reserve(512);
   performance_state_.reset(new performance::performance_state(isolate()));
-  performance_state_->milestones[
-      performance::NODE_PERFORMANCE_MILESTONE_ENVIRONMENT] =
-          PERFORMANCE_NOW();
-  performance_state_->milestones[
-    performance::NODE_PERFORMANCE_MILESTONE_NODE_START] =
-        performance::performance_node_start;
-  performance_state_->milestones[
-    performance::NODE_PERFORMANCE_MILESTONE_V8_START] =
-        performance::performance_v8_start;
+  performance_state_->Mark(
+      performance::NODE_PERFORMANCE_MILESTONE_ENVIRONMENT);
+  performance_state_->Mark(
+      performance::NODE_PERFORMANCE_MILESTONE_NODE_START,
+      performance::performance_node_start);
+  performance_state_->Mark(
+      performance::NODE_PERFORMANCE_MILESTONE_V8_START,
+      performance::performance_v8_start);
 
   // By default, always abort when --abort-on-uncaught-exception was passed.
   should_abort_on_uncaught_toggle_[0] = 1;
