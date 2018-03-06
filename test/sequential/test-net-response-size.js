@@ -23,7 +23,7 @@
 const common = require('../common');
 
 // Make sure the net module's server doesn't throw an error when handling
-// responses that are either too long or too small (especially on windows)
+// responses that are either too long or too small (especially on Windows)
 // https://github.com/nodejs/node-v0.x-archive/issues/1697
 
 const net = require('net');
