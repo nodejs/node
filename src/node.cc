@@ -250,7 +250,7 @@ bool config_experimental_vm_modules = false;
 
 // Set in node.cc by ParseArgs when --loader is used.
 // Used in node_config.cc to set a constant on process.binding('config')
-// that is used by lib/internal/bootstrap_node.js
+// that is used by lib/internal/bootstrap/node.js
 std::string config_userland_loader;  // NOLINT(runtime/string)
 
 // Set by ParseArgs when --pending-deprecation or NODE_PENDING_DEPRECATION
@@ -263,7 +263,7 @@ std::string config_warning_file;  // NOLINT(runtime/string)
 // Set in node.cc by ParseArgs when --expose-internals or --expose_internals is
 // used.
 // Used in node_config.cc to set a constant on process.binding('config')
-// that is used by lib/internal/bootstrap_node.js
+// that is used by lib/internal/bootstrap/node.js
 bool config_expose_internals = false;
 
 bool v8_initialized = false;
@@ -3645,23 +3645,23 @@ static Local<Function> GetBootstrapper(Environment* env, Local<String> source,
   // are not safe to ignore.
   try_catch.SetVerbose(false);
 
-  // Execute the factory javascript file
-  Local<Value> factory_v = ExecuteString(env, source, script_name);
+  // Execute the bootstrapper javascript file
+  Local<Value> bootstrapper_v = ExecuteString(env, source, script_name);
   if (try_catch.HasCaught())  {
     ReportException(env, try_catch);
     exit(10);
   }
 
-  CHECK(factory_v->IsFunction());
-  Local<Function> factory = Local<Function>::Cast(factory_v);
+  CHECK(bootstrapper_v->IsFunction());
+  Local<Function> bootstrapper = Local<Function>::Cast(bootstrapper_v);
 
-  return scope.Escape(factory);
+  return scope.Escape(bootstrapper);
 }
 
-static bool ExecuteBootstrapper(Environment* env, Local<Function> factory,
+static bool ExecuteBootstrapper(Environment* env, Local<Function> bootstrapper,
                                 int argc, Local<Value> argv[],
                                 Local<Value>* out) {
-  bool ret = factory->Call(
+  bool ret = bootstrapper->Call(
       env->context(), Null(env->isolate()), argc, argv).ToLocal(out);
 
   // If there was an error during bootstrap then it was either handled by the
@@ -3688,16 +3688,18 @@ void LoadEnvironment(Environment* env) {
   // are not safe to ignore.
   try_catch.SetVerbose(false);
 
-  // The factory scripts are lib/internal/bootstrap_loaders.js and
-  // lib/internal/bootstrap_node.js, each included as a static C string
+  // The bootstrapper scripts are lib/internal/bootstrap/loaders.js and
+  // lib/internal/bootstrap/node.js, each included as a static C string
   // defined in node_javascript.h, generated in node_javascript.cc by
   // node_js2c.
+  Local<String> loaders_name =
+      FIXED_ONE_BYTE_STRING(env->isolate(), "internal/bootstrap/loaders.js");
   Local<Function> loaders_bootstrapper =
-      GetBootstrapper(env, LoadersBootstrapperSource(env),
-                 FIXED_ONE_BYTE_STRING(env->isolate(), "bootstrap_loaders.js"));
+      GetBootstrapper(env, LoadersBootstrapperSource(env), loaders_name);
+  Local<String> node_name =
+      FIXED_ONE_BYTE_STRING(env->isolate(), "internal/bootstrap/node.js");
   Local<Function> node_bootstrapper =
-      GetBootstrapper(env, NodeBootstrapperSource(env),
-                 FIXED_ONE_BYTE_STRING(env->isolate(), "bootstrap_node.js"));
+      GetBootstrapper(env, NodeBootstrapperSource(env), node_name);
 
   // Add a reference to the global object
   Local<Object> global = env->context()->Global();
