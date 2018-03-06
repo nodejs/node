@@ -6,7 +6,7 @@
   - [Managing Issues and Pull Requests](#managing-issues-and-pull-requests)
   - [Welcoming First-Time Contributors](#welcoming-first-time-contributors)
   - [Closing Issues and Pull Requests](#closing-issues-and-pull-requests)
-  - [Ready to land pull requests](#ready-to-land-pull-requests)
+  - [Author ready pull requests](#author-ready-pull-requests)
   - [Handling own pull requests](#handling-own-pull-requests)
 * [Accepting Modifications](#accepting-modifications)
   - [Code Reviews](#code-reviews)
@@ -78,13 +78,13 @@ Collaborators or additional evidence that the issue has relevance, the
 issue may be closed. Remember that issues can always be re-opened if
 necessary.
 
-### Ready to land pull requests
+### Author ready pull requests
 
 A pull request that is still awaiting the minimum review time is considered
-`ready` as soon as the CI has been started, it has at least one approval, and it
-has no outstanding review comments. Please always make sure to add the
-appropriate `ready` label to the PR in that case and remove it again as soon as
-that condition is not met anymore.
+`author-ready` as soon as the CI has been started, it has at least one approval,
+and it has no outstanding review comments. Please always make sure to add the
+appropriate `author-ready` label to the PR in that case and remove it again as
+soon as that condition is not met anymore.
 
 ### Handling own pull requests
 
@@ -97,15 +97,17 @@ rebasing).
 As soon as the PR is ready to land, please go ahead and do so on your own.
 Landing your own pull requests distributes the work load for each Collaborator
 equally. If it is still awaiting the
-[minimum time to land](#waiting-for-approvals), please add the `ready` label to
-it so it is obvious that the PR can land as soon as the time ends.
+[minimum time to land](#waiting-for-approvals), please add the `author-ready`
+label to it so it is obvious that the PR can land as soon as the time ends.
 
 ## Accepting Modifications
 
 All modifications to the Node.js code and documentation should be performed via
 GitHub pull requests, including modifications by Collaborators and TSC members.
 A pull request must be reviewed, and must also be tested with CI, before being
-landed into the codebase. There may be exception to the latter.
+landed into the codebase. There may be exception to the latter (the changed code
+can not be tested with a CI or similar). If that is the case, please leave a
+comment that explains why the PR does not require a CI run.
 
 ### Code Reviews
 
@@ -137,8 +139,8 @@ the CI outcome.
 If there is no disagreement amongst Collaborators, a pull request should be
 landed given appropriate review, a green CI, and the minimum
 [waiting time](#waiting-for-approvals) for a PR. If it is still awaiting the
-[minimum time to land](#waiting-for-approvals), please add the `ready` label to
-it so it is obvious that the PR can land as soon as the time ends.
+[minimum time to land](#waiting-for-approvals), please add the `author-ready`
+label to it so it is obvious that the PR can land as soon as the time ends.
 
 Where there is discussion amongst Collaborators, consensus should be sought if
 possible. The lack of consensus may indicate the need to elevate discussion to

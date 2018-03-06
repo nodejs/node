@@ -86,7 +86,7 @@ onboarding session.
       `semver-major` label
     * When adding a `semver-*` label, add a comment explaining why you're adding
       it. Do it right away so you don't forget!
-  * Please add the `ready` label for PRs where:
+  * Please add the `author-ready` label for PRs where:
     * the CI has been started,
     * that have no outstanding review comments and
     * at least one approval,
