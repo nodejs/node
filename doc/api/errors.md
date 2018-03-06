@@ -794,6 +794,12 @@ An invalid symlink type was passed to the [`fs.symlink()`][] or
 
 An attempt was made to add more headers after the headers had already been sent.
 
+<a id="ERR_HTTP_INCOMING_SOCKET_ENCODING"></a>
+### ERR_HTTP_INCOMING_SOCKET_ENCODING
+
+An attempt was made to manipulate the encoding of an incoming request packet.
+This is not allowed (RFC2616).
+
 <a id="ERR_HTTP_INVALID_HEADER_VALUE"></a>
 ### ERR_HTTP_INVALID_HEADER_VALUE
 

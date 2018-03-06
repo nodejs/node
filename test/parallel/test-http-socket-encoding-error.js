@@ -8,7 +8,7 @@ const server = http.createServer().listen(0, connectToServer);
 server.on('connection', (socket) => {
   common.expectsError(() => socket.setEncoding(''),
                       {
-                        code: 'ERR_METHOD_NOT_IMPLEMENTED',
+                        code: 'ERR_HTTP_INCOMING_SOCKET_ENCODING',
                         type: Error
                       });
 
