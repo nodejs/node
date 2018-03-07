@@ -6030,13 +6030,13 @@ class V8_EXPORT ResourceConstraints {
 
   // Returns the max semi-space size in MB.
   V8_DEPRECATE_SOON("Use max_semi_space_size_in_kb()",
-                    int max_semi_space_size()) {
-    return static_cast<int>(max_semi_space_size_in_kb_ / 1024);
+                    size_t max_semi_space_size()) {
+    return max_semi_space_size_in_kb_ / 1024;
   }
 
   // Sets the max semi-space size in MB.
   V8_DEPRECATE_SOON("Use set_max_semi_space_size_in_kb(size_t limit_in_kb)",
-                    void set_max_semi_space_size(int limit_in_mb)) {
+                    void set_max_semi_space_size(size_t limit_in_mb)) {
     max_semi_space_size_in_kb_ = limit_in_mb * 1024;
   }
 
@@ -6050,16 +6050,16 @@ class V8_EXPORT ResourceConstraints {
     max_semi_space_size_in_kb_ = limit_in_kb;
   }
 
-  int max_old_space_size() const { return max_old_space_size_; }
-  void set_max_old_space_size(int limit_in_mb) {
+  size_t max_old_space_size() const { return max_old_space_size_; }
+  void set_max_old_space_size(size_t limit_in_mb) {
     max_old_space_size_ = limit_in_mb;
   }
   V8_DEPRECATE_SOON("max_executable_size_ is subsumed by max_old_space_size_",
-                    int max_executable_size() const) {
+                    size_t max_executable_size() const) {
     return max_executable_size_;
   }
   V8_DEPRECATE_SOON("max_executable_size_ is subsumed by max_old_space_size_",
-                    void set_max_executable_size(int limit_in_mb)) {
+                    void set_max_executable_size(size_t limit_in_mb)) {
     max_executable_size_ = limit_in_mb;
   }
   uint32_t* stack_limit() const { return stack_limit_; }
@@ -6070,17 +6070,15 @@ class V8_EXPORT ResourceConstraints {
     code_range_size_ = limit_in_mb;
   }
   size_t max_zone_pool_size() const { return max_zone_pool_size_; }
-  void set_max_zone_pool_size(const size_t bytes) {
-    max_zone_pool_size_ = bytes;
-  }
+  void set_max_zone_pool_size(size_t bytes) { max_zone_pool_size_ = bytes; }
 
  private:
   // max_semi_space_size_ is in KB
   size_t max_semi_space_size_in_kb_;
 
   // The remaining limits are in MB
-  int max_old_space_size_;
-  int max_executable_size_;
+  size_t max_old_space_size_;
+  size_t max_executable_size_;
   uint32_t* stack_limit_;
   size_t code_range_size_;
   size_t max_zone_pool_size_;
