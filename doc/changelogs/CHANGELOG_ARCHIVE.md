@@ -1,6 +1,7 @@
 # Node.js ChangeLog Archive
 
 <!--lint disable prohibited-strings-->
+<!--lint disable maximum-line-length-->
 
 <table>
 <tr>

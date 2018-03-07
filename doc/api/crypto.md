@@ -1232,8 +1232,8 @@ become deprecated in a future Node.js release.
 added: v6.0.0
 -->
 
-Property for checking and controlling whether a FIPS compliant crypto provider is
-currently in use. Setting to true requires a FIPS build of Node.js.
+Property for checking and controlling whether a FIPS compliant crypto provider 
+is currently in use. Setting to true requires a FIPS build of Node.js.
 
 ### crypto.createCipher(algorithm, password[, options])
 <!-- YAML
@@ -1280,7 +1280,8 @@ added: v0.1.94
 - `options` {Object} [`stream.transform` options][]
 
 Creates and returns a `Cipher` object, with the given `algorithm`, `key` and
-initialization vector (`iv`). Optional `options` argument controls stream behavior.
+initialization vector (`iv`). Optional `options` argument controls stream 
+behavior.
 
 The `algorithm` is dependent on OpenSSL, examples are `'aes192'`, etc. On
 recent OpenSSL releases, `openssl list-cipher-algorithms` will display the
@@ -1369,7 +1370,8 @@ changes:
 -->
 - `prime` {string | Buffer | TypedArray | DataView}
 - `primeEncoding` {string}
-- `generator` {number | string | Buffer | TypedArray | DataView} Defaults to `2`.
+- `generator` {number | string | Buffer | TypedArray | DataView} Defaults to 
+  `2`.
 - `generatorEncoding` {string}
 
 Creates a `DiffieHellman` key exchange object using the supplied `prime` and an
@@ -1392,7 +1394,8 @@ otherwise a number, [`Buffer`][], `TypedArray`, or `DataView` is expected.
 added: v0.5.0
 -->
 - `primeLength` {number}
-- `generator` {number | string | Buffer | TypedArray | DataView} Defaults to `2`.
+- `generator` {number | string | Buffer | TypedArray | DataView} Defaults to 
+  `2`.
 
 Creates a `DiffieHellman` key exchange object and generates a prime of
 `primeLength` bits using an optional specific numeric `generator`.
