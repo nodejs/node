@@ -56,6 +56,13 @@ INCLUDE[sha256-armv8.o]=..
 GENERATE[sha512-armv8.S]=asm/sha512-armv8.pl $(PERLASM_SCHEME)
 INCLUDE[sha512-armv8.o]=..
 
+GENERATE[sha1-s390x.S]=asm/sha1-s390x.pl $(PERLASM_SCHEME)
+INCLUDE[sha1-s390x.o]=..
+GENERATE[sha256-s390x.S]=asm/sha512-s390x.pl $(PERLASM_SCHEME)
+INCLUDE[sha256-s390x.o]=..
+GENERATE[sha512-s390x.S]=asm/sha512-s390x.pl $(PERLASM_SCHEME)
+INCLUDE[sha512-s390x.o]=..
+
 BEGINRAW[Makefile(unix)]
 ##### SHA assembler implementations
 
