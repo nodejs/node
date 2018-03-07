@@ -169,6 +169,18 @@ class AsyncWrap : public BaseObject {
 
   static void WeakCallback(const v8::WeakCallbackInfo<DestroyParam> &info);
 
+  // This is a simplified version of InternalCallbackScope that only runs
+  // the `before` and `after` hooks. Only use it when not actually calling
+  // back into JS; otherwise, use InternalCallbackScope.
+  class AsyncScope {
+   public:
+    explicit inline AsyncScope(AsyncWrap* wrap);
+    ~AsyncScope();
+
+   private:
+    AsyncWrap* wrap_ = nullptr;
+  };
+
  private:
   friend class PromiseWrap;
 

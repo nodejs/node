@@ -45,6 +45,22 @@ inline double AsyncWrap::get_trigger_async_id() const {
 }
 
 
+inline AsyncWrap::AsyncScope::AsyncScope(AsyncWrap* wrap)
+    : wrap_(wrap) {
+  Environment* env = wrap->env();
+  if (env->async_hooks()->fields()[Environment::AsyncHooks::kBefore] == 0)
+    return;
+  EmitBefore(env, wrap->get_async_id());
+}
+
+inline AsyncWrap::AsyncScope::~AsyncScope() {
+  Environment* env = wrap_->env();
+  if (env->async_hooks()->fields()[Environment::AsyncHooks::kAfter] == 0)
+    return;
+  EmitAfter(env, wrap_->get_async_id());
+}
+
+
 inline v8::MaybeLocal<v8::Value> AsyncWrap::MakeCallback(
     const v8::Local<v8::String> symbol,
     int argc,
