@@ -164,8 +164,7 @@ inline int StreamBase::Shutdown(v8::Local<v8::Object> req_wrap_obj) {
             ->NewInstance(env->context()).ToLocalChecked();
   }
 
-  AsyncHooks::DefaultTriggerAsyncIdScope trigger_scope(
-      env, GetAsyncWrap()->get_async_id());
+  AsyncHooks::DefaultTriggerAsyncIdScope trigger_scope(GetAsyncWrap());
   ShutdownWrap* req_wrap = CreateShutdownWrap(req_wrap_obj);
   int err = DoShutdown(req_wrap);
 
@@ -202,8 +201,7 @@ inline StreamWriteResult StreamBase::Write(
             ->NewInstance(env->context()).ToLocalChecked();
   }
 
-  AsyncHooks::DefaultTriggerAsyncIdScope trigger_scope(
-      env, GetAsyncWrap()->get_async_id());
+  AsyncHooks::DefaultTriggerAsyncIdScope trigger_scope(GetAsyncWrap());
   WriteWrap* req_wrap = CreateWriteWrap(req_wrap_obj);
 
   err = DoWrite(req_wrap, bufs, count, send_handle);
@@ -383,8 +381,7 @@ void StreamBase::JSMethod(const FunctionCallbackInfo<Value>& args) {
   if (!wrap->IsAlive())
     return args.GetReturnValue().Set(UV_EINVAL);
 
-  AsyncHooks::DefaultTriggerAsyncIdScope trigger_scope(
-    handle->env(), handle->get_async_id());
+  AsyncHooks::DefaultTriggerAsyncIdScope trigger_scope(handle);
   args.GetReturnValue().Set((wrap->*Method)(args));
 }
 

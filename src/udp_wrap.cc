@@ -355,8 +355,7 @@ void UDPWrap::DoSend(const FunctionCallbackInfo<Value>& args, int family) {
 
   SendWrap* req_wrap;
   {
-    AsyncHooks::DefaultTriggerAsyncIdScope trigger_scope(
-      env, wrap->get_async_id());
+    AsyncHooks::DefaultTriggerAsyncIdScope trigger_scope(wrap);
     req_wrap = new SendWrap(env, req_wrap_obj, have_callback);
   }
   size_t msg_size = 0;
@@ -507,8 +506,7 @@ Local<Object> UDPWrap::Instantiate(Environment* env,
                                    AsyncWrap* parent,
                                    UDPWrap::SocketType type) {
   EscapableHandleScope scope(env->isolate());
-  AsyncHooks::DefaultTriggerAsyncIdScope trigger_scope(
-    env, parent->get_async_id());
+  AsyncHooks::DefaultTriggerAsyncIdScope trigger_scope(parent);
 
   // If this assert fires then Initialize hasn't been called yet.
   CHECK_EQ(env->udp_constructor_function().IsEmpty(), false);
