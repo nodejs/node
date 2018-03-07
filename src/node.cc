@@ -2667,7 +2667,7 @@ static void EnvSetter(Local<Name> property,
           "Assigning any value other than a string, number, or boolean to a "
           "process.env property is deprecated. Please make sure to convert the "
           "value to a string before setting process.env with it.",
-          "DEP00XX").IsNothing())
+          "DEP0104").IsNothing())
       return;
   }
 #ifdef __POSIX__
