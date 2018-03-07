@@ -98,6 +98,8 @@ void PipeWrap::Initialize(Local<Object> target,
   env->SetProtoMethod(t, "setPendingInstances", SetPendingInstances);
 #endif
 
+  env->SetProtoMethod(t, "fchmod", Fchmod);
+
   target->Set(pipeString, t->GetFunction());
   env->set_pipe_constructor_template(t);
 
@@ -114,6 +116,8 @@ void PipeWrap::Initialize(Local<Object> target,
   NODE_DEFINE_CONSTANT(constants, SOCKET);
   NODE_DEFINE_CONSTANT(constants, SERVER);
   NODE_DEFINE_CONSTANT(constants, IPC);
+  NODE_DEFINE_CONSTANT(constants, UV_READABLE);
+  NODE_DEFINE_CONSTANT(constants, UV_WRITABLE);
   target->Set(context,
               FIXED_ONE_BYTE_STRING(env->isolate(), "constants"),
               constants).FromJust();
@@ -182,6 +186,17 @@ void PipeWrap::SetPendingInstances(const FunctionCallbackInfo<Value>& args) {
   uv_pipe_pending_instances(&wrap->handle_, instances);
 }
 #endif
+
+
+void PipeWrap::Fchmod(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  PipeWrap* wrap;
+  ASSIGN_OR_RETURN_UNWRAP(&wrap, args.Holder());
+  CHECK(args[0]->IsInt32());
+  int mode = args[0].As<Int32>()->Value();
+  int err = uv_pipe_chmod(reinterpret_cast<uv_pipe_t*>(&wrap->handle_),
+                          mode);
+  args.GetReturnValue().Set(err);
+}
 
 
 void PipeWrap::Listen(const FunctionCallbackInfo<Value>& args) {
