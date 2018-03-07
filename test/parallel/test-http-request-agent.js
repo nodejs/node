@@ -1,14 +1,14 @@
 'use strict';
 const common = require('../common');
 
-// This test ensures that a http request callback is called
-// when the agent option is set
-// See https://github.com/nodejs/node-v0.x-archive/issues/1531
-
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
 const fixtures = require('../common/fixtures');
+
+// This test ensures that a http request callback is called when the agent
+// option is set.
+// See https://github.com/nodejs/node-v0.x-archive/issues/1531
 
 const https = require('https');
 
