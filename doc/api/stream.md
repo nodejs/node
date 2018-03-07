@@ -942,9 +942,6 @@ readable.on('readable', () => {
 });
 ```
 
-Avoid the use of the `'readable'` event and the `readable.read()` method in
-favor of using either `readable.pipe()` or the `'data'` event.
-
 A Readable stream in object mode will always return a single item from
 a call to [`readable.read(size)`][stream-read], regardless of the value of the
 `size` argument.
