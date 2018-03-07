@@ -388,4 +388,4 @@ will depend on what is being tested if this is required or not.
 [all maintained branches]: https://github.com/nodejs/lts
 [node.green]: http://node.green/
 [test fixture]: https://github.com/google/googletest/blob/master/googletest/docs/Primer.md#test-fixtures-using-the-same-data-configuration-for-multiple-tests
-[directory structure overview]: https://github.com/nodejs/node/blob/master/test/README.md
+[directory structure overview]: https://github.com/nodejs/node/blob/master/test/README.md#test-directories
