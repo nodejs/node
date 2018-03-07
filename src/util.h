@@ -436,6 +436,14 @@ class BufferValue : public MaybeStackBuffer<char> {
 template <typename T> inline void USE(T&&) {}
 }  // namespace node
 
+// Run a function when exiting the current scope.
+struct OnScopeLeave {
+  std::function<void()> fn_;
+
+  explicit OnScopeLeave(std::function<void()> fn) : fn_(fn) {}
+  ~OnScopeLeave() { fn_(); }
+};
+
 #endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #endif  // SRC_UTIL_H_

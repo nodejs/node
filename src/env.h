@@ -646,6 +646,8 @@ class Environment {
 
   inline char* http_parser_buffer() const;
   inline void set_http_parser_buffer(char* buffer);
+  inline bool http_parser_buffer_in_use() const;
+  inline void set_http_parser_buffer_in_use(bool in_use);
 
   inline http2::http2_state* http2_state() const;
   inline void set_http2_state(std::unique_ptr<http2::http2_state> state);
@@ -828,6 +830,7 @@ class Environment {
   double* heap_space_statistics_buffer_ = nullptr;
 
   char* http_parser_buffer_;
+  bool http_parser_buffer_in_use_ = false;
   std::unique_ptr<http2::http2_state> http2_state_;
 
   // stat fields contains twice the number of entries because `fs.StatWatcher`
