@@ -44,6 +44,15 @@ V8InspectorImpl* unwrapInspector(
   return inspector;
 }
 
+template <typename TypedArray>
+void addTypedArrayProperty(std::vector<v8::Local<v8::Value>>* props,
+                           v8::Isolate* isolate,
+                           v8::Local<v8::ArrayBuffer> arraybuffer,
+                           String16 name, size_t length) {
+  props->push_back(toV8String(isolate, name));
+  props->push_back(TypedArray::New(arraybuffer, 0, length));
+}
+
 }  // namespace
 
 v8::Local<v8::Object> V8InjectedScriptHost::create(
@@ -83,6 +92,9 @@ v8::Local<v8::Object> V8InjectedScriptHost::create(
                       debuggerExternal);
   setFunctionProperty(context, injectedScriptHost, "nativeAccessorDescriptor",
                       V8InjectedScriptHost::nativeAccessorDescriptorCallback,
+                      debuggerExternal);
+  setFunctionProperty(context, injectedScriptHost, "typedArrayProperties",
+                      V8InjectedScriptHost::typedArrayPropertiesCallback,
                       debuggerExternal);
   createDataProperty(context, injectedScriptHost,
                      toV8StringInternalized(isolate, "keys"),
@@ -335,7 +347,7 @@ void V8InjectedScriptHost::proxyTargetValueCallback(
     UNREACHABLE();
     return;
   }
-  v8::Local<v8::Object> target = info[0].As<v8::Proxy>();
+  v8::Local<v8::Value> target = info[0].As<v8::Proxy>();
   while (target->IsProxy())
     target = v8::Local<v8::Proxy>::Cast(target)->GetTarget();
   info.GetReturnValue().Set(target);
@@ -372,6 +384,42 @@ void V8InjectedScriptHost::nativeAccessorDescriptorCallback(
   createDataProperty(context, result, toV8String(isolate, "hasSetter"),
                      v8::Boolean::New(isolate, hasSetter));
   info.GetReturnValue().Set(result);
+}
+
+void V8InjectedScriptHost::typedArrayPropertiesCallback(
+    const v8::FunctionCallbackInfo<v8::Value>& info) {
+  v8::Isolate* isolate = info.GetIsolate();
+  if (info.Length() != 1 || !info[0]->IsArrayBuffer()) return;
+
+  v8::TryCatch tryCatch(isolate);
+  v8::Isolate::DisallowJavascriptExecutionScope throwJs(
+      isolate, v8::Isolate::DisallowJavascriptExecutionScope::THROW_ON_FAILURE);
+  v8::Local<v8::ArrayBuffer> arrayBuffer = info[0].As<v8::ArrayBuffer>();
+  size_t length = arrayBuffer->ByteLength();
+  if (length == 0) return;
+  std::vector<v8::Local<v8::Value>> arrays_vector;
+  addTypedArrayProperty<v8::Int8Array>(&arrays_vector, isolate, arrayBuffer,
+                                       "[[Int8Array]]", length);
+  addTypedArrayProperty<v8::Uint8Array>(&arrays_vector, isolate, arrayBuffer,
+                                        "[[Uint8Array]]", length);
+
+  if (length % 2 == 0) {
+    addTypedArrayProperty<v8::Int16Array>(&arrays_vector, isolate, arrayBuffer,
+                                          "[[Int16Array]]", length / 2);
+  }
+  if (length % 4 == 0) {
+    addTypedArrayProperty<v8::Int32Array>(&arrays_vector, isolate, arrayBuffer,
+                                          "[[Int32Array]]", length / 4);
+  }
+
+  if (tryCatch.HasCaught()) return;
+  v8::Local<v8::Context> context = isolate->GetCurrentContext();
+  v8::Local<v8::Array> arrays =
+      v8::Array::New(isolate, static_cast<uint32_t>(arrays_vector.size()));
+  for (uint32_t i = 0; i < static_cast<uint32_t>(arrays_vector.size()); i++)
+    createDataProperty(context, arrays, i, arrays_vector[i]);
+  if (tryCatch.HasCaught()) return;
+  info.GetReturnValue().Set(arrays);
 }
 
 }  // namespace v8_inspector

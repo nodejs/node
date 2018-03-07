@@ -22,6 +22,7 @@ class JSInliningHeuristic final : public AdvancedReducer {
         inliner_(editor, local_zone, info, jsgraph, source_positions),
         candidates_(local_zone),
         seen_(local_zone),
+        source_positions_(source_positions),
         jsgraph_(jsgraph) {}
 
   const char* reducer_name() const override { return "JSInliningHeuristic"; }
@@ -85,6 +86,7 @@ class JSInliningHeuristic final : public AdvancedReducer {
   JSInliner inliner_;
   Candidates candidates_;
   ZoneSet<NodeId> seen_;
+  SourcePositionTable* source_positions_;
   JSGraph* const jsgraph_;
   int cumulative_count_ = 0;
 };

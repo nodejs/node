@@ -12,7 +12,6 @@ from standard input or via the --filename option. Examples:
   %prog -f results.json -t "ia32 results" -o results.html
 '''
 
-import commands
 import json
 import math
 from optparse import OptionParser

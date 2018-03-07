@@ -254,7 +254,7 @@ class SharedFunctionInfo : public HeapObject {
   String* DebugName();
 
   // The function cannot cause any side effects.
-  bool HasNoSideEffect();
+  static bool HasNoSideEffect(Handle<SharedFunctionInfo> info);
 
   // Used for flags such as --turbo-filter.
   bool PassesFilter(const char* raw_filter);
@@ -287,6 +287,9 @@ class SharedFunctionInfo : public HeapObject {
   // Indicates the language mode.
   inline LanguageMode language_mode();
   inline void set_language_mode(LanguageMode language_mode);
+
+  // Indicates whether the source is implicitly wrapped in a function.
+  DECL_BOOLEAN_ACCESSORS(is_wrapped)
 
   // True if the function has any duplicated parameter names.
   DECL_BOOLEAN_ACCESSORS(has_duplicate_parameters)
@@ -336,8 +339,8 @@ class SharedFunctionInfo : public HeapObject {
 
   // [source code]: Source code for the function.
   bool HasSourceCode() const;
-  Handle<Object> GetSourceCode();
-  Handle<Object> GetSourceCodeHarmony();
+  static Handle<Object> GetSourceCode(Handle<SharedFunctionInfo> shared);
+  static Handle<Object> GetSourceCodeHarmony(Handle<SharedFunctionInfo> shared);
 
   // Tells whether this function should be subject to debugging.
   inline bool IsSubjectToDebugging();
@@ -465,22 +468,25 @@ class SharedFunctionInfo : public HeapObject {
 #define COMPILER_HINTS_BIT_FIELDS(V, _)                  \
   V(IsNativeBit, bool, 1, _)                             \
   V(IsStrictBit, bool, 1, _)                             \
-  V(FunctionKindBits, FunctionKind, 10, _)               \
+  V(IsWrappedBit, bool, 1, _)                            \
+  V(FunctionKindBits, FunctionKind, 11, _)               \
   V(HasDuplicateParametersBit, bool, 1, _)               \
   V(AllowLazyCompilationBit, bool, 1, _)                 \
   V(NeedsHomeObjectBit, bool, 1, _)                      \
   V(IsDeclarationBit, bool, 1, _)                        \
   V(IsAsmWasmBrokenBit, bool, 1, _)                      \
   V(FunctionMapIndexBits, int, 5, _)                     \
-  V(DisabledOptimizationReasonBits, BailoutReason, 7, _) \
+  V(DisabledOptimizationReasonBits, BailoutReason, 4, _) \
   V(RequiresInstanceFieldsInitializer, bool, 1, _)
 
   DEFINE_BIT_FIELDS(COMPILER_HINTS_BIT_FIELDS)
 #undef COMPILER_HINTS_BIT_FIELDS
 
   // Bailout reasons must fit in the DisabledOptimizationReason bitfield.
-  STATIC_ASSERT(kLastErrorMessage <= DisabledOptimizationReasonBits::kMax);
+  STATIC_ASSERT(BailoutReason::kLastErrorMessage <=
+                DisabledOptimizationReasonBits::kMax);
 
+  STATIC_ASSERT(kLastFunctionKind <= FunctionKindBits::kMax);
   // Masks for checking if certain FunctionKind bits are set without fully
   // decoding of the FunctionKind bit field.
   static const int kClassConstructorMask = FunctionKind::kClassConstructor

@@ -6,6 +6,7 @@
 #define V8_OBJECTS_SCRIPT_H_
 
 #include "src/objects.h"
+#include "src/objects/fixed-array.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -62,9 +63,21 @@ class Script : public Struct {
   // [line_ends]: FixedArray of line ends positions.
   DECL_ACCESSORS(line_ends, Object)
 
+  DECL_ACCESSORS(eval_from_shared_or_wrapped_arguments, Object)
+
   // [eval_from_shared]: for eval scripts the shared function info for the
   // function from which eval was called.
-  DECL_ACCESSORS(eval_from_shared, Object)
+  DECL_ACCESSORS(eval_from_shared, SharedFunctionInfo)
+
+  // [wrapped_arguments]: for the list of arguments in a wrapped script.
+  DECL_ACCESSORS(wrapped_arguments, FixedArray)
+
+  // Whether the script is implicitly wrapped in a function.
+  inline bool is_wrapped() const;
+
+  // Whether the eval_from_shared field is set with a shared function info
+  // for the eval site.
+  inline bool has_eval_from_shared() const;
 
   // [eval_from_position]: the source position in the code for the function
   // from which eval was called, as positive integer. Or the code offset in the
@@ -117,6 +130,9 @@ class Script : public Struct {
 
   // Retrieve source position from where eval was called.
   int GetEvalPosition();
+
+  // Check if the script contains any Asm modules.
+  bool ContainsAsmModule();
 
   // Init line_ends array with source code positions of line ends.
   static void InitLineEnds(Handle<Script> script);
@@ -186,9 +202,10 @@ class Script : public Struct {
   static const int kTypeOffset = kWrapperOffset + kPointerSize;
   static const int kLineEndsOffset = kTypeOffset + kPointerSize;
   static const int kIdOffset = kLineEndsOffset + kPointerSize;
-  static const int kEvalFromSharedOffset = kIdOffset + kPointerSize;
+  static const int kEvalFromSharedOrWrappedArgumentsOffset =
+      kIdOffset + kPointerSize;
   static const int kEvalFromPositionOffset =
-      kEvalFromSharedOffset + kPointerSize;
+      kEvalFromSharedOrWrappedArgumentsOffset + kPointerSize;
   static const int kSharedFunctionInfosOffset =
       kEvalFromPositionOffset + kPointerSize;
   static const int kFlagsOffset = kSharedFunctionInfosOffset + kPointerSize;

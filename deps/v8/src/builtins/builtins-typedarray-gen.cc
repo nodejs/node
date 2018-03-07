@@ -36,15 +36,17 @@ class TypedArrayBuiltinsAssembler : public CodeStubAssembler {
                                                   const char* method_name,
                                                   IterationKind iteration_kind);
 
-  void SetupTypedArray(Node* holder, Node* length, Node* byte_offset,
-                       Node* byte_length);
-  void AttachBuffer(Node* holder, Node* buffer, Node* map, Node* length,
-                    Node* byte_offset);
+  void SetupTypedArray(TNode<JSTypedArray> holder, TNode<Smi> length,
+                       TNode<Number> byte_offset, TNode<Number> byte_length);
+  void AttachBuffer(TNode<JSTypedArray> holder, TNode<JSArrayBuffer> buffer,
+                    TNode<Map> map, TNode<Smi> length,
+                    TNode<Number> byte_offset);
 
-  Node* LoadMapForType(Node* array);
-  Node* CalculateExternalPointer(Node* backing_store, Node* byte_offset);
+  TNode<Map> LoadMapForType(TNode<JSTypedArray> array);
+  TNode<UintPtrT> CalculateExternalPointer(TNode<UintPtrT> backing_store,
+                                           TNode<Number> byte_offset);
   Node* LoadDataPtr(Node* typed_array);
-  Node* ByteLengthIsValid(Node* byte_length);
+  TNode<BoolT> ByteLengthIsValid(TNode<Number> byte_length);
 
   // Returns true if kind is either UINT8_ELEMENTS or UINT8_CLAMPED_ELEMENTS.
   TNode<Word32T> IsUint8ElementsKind(TNode<Word32T> kind);
@@ -78,9 +80,8 @@ class TypedArrayBuiltinsAssembler : public CodeStubAssembler {
                                                TNode<IntPtrT> offset);
 };
 
-Node* TypedArrayBuiltinsAssembler::LoadMapForType(Node* array) {
-  CSA_ASSERT(this, IsJSTypedArray(array));
-
+TNode<Map> TypedArrayBuiltinsAssembler::LoadMapForType(
+    TNode<JSTypedArray> array) {
   Label unreachable(this), done(this);
   Label uint8_elements(this), uint8_clamped_elements(this), int8_elements(this),
       uint16_elements(this), int16_elements(this), uint32_elements(this),
@@ -99,10 +100,10 @@ Node* TypedArrayBuiltinsAssembler::LoadMapForType(Node* array) {
   DCHECK_EQ(kTypedElementsKindCount, arraysize(elements_kinds));
   DCHECK_EQ(kTypedElementsKindCount, arraysize(elements_kind_labels));
 
-  VARIABLE(var_typed_map, MachineRepresentation::kTagged);
+  TVARIABLE(Map, var_typed_map);
 
-  Node* array_map = LoadMap(array);
-  Node* elements_kind = LoadMapElementsKind(array_map);
+  TNode<Map> array_map = LoadMap(array);
+  TNode<Int32T> elements_kind = LoadMapElementsKind(array_map);
   Switch(elements_kind, &unreachable, elements_kinds, elements_kind_labels,
          kTypedElementsKindCount);
 
@@ -113,7 +114,7 @@ Node* TypedArrayBuiltinsAssembler::LoadMapForType(Node* array) {
       ExternalArrayType type =
           isolate()->factory()->GetArrayTypeFromElementsKind(kind);
       Handle<Map> map(isolate()->heap()->MapForFixedTypedArray(type));
-      var_typed_map.Bind(HeapConstant(map));
+      var_typed_map = HeapConstant(map);
       Goto(&done);
     }
   }
@@ -121,7 +122,7 @@ Node* TypedArrayBuiltinsAssembler::LoadMapForType(Node* array) {
   BIND(&unreachable);
   { Unreachable(); }
   BIND(&done);
-  return var_typed_map.value();
+  return var_typed_map;
 }
 
 // The byte_offset can be higher than Smi range, in which case to perform the
@@ -131,10 +132,10 @@ Node* TypedArrayBuiltinsAssembler::LoadMapForType(Node* array) {
 // can't allocate an array bigger than our 32-bit arithmetic range anyway. 64
 // bit platforms could theoretically have an offset up to 2^35 - 1, so we may
 // need to convert the float heap number to an intptr.
-Node* TypedArrayBuiltinsAssembler::CalculateExternalPointer(Node* backing_store,
-                                                            Node* byte_offset) {
-  return IntPtrAdd(backing_store,
-                   ChangeNonnegativeNumberToUintPtr(byte_offset));
+TNode<UintPtrT> TypedArrayBuiltinsAssembler::CalculateExternalPointer(
+    TNode<UintPtrT> backing_store, TNode<Number> byte_offset) {
+  return Unsigned(
+      IntPtrAdd(backing_store, ChangeNonnegativeNumberToUintPtr(byte_offset)));
 }
 
 // Setup the TypedArray which is under construction.
@@ -142,14 +143,10 @@ Node* TypedArrayBuiltinsAssembler::CalculateExternalPointer(Node* backing_store,
 //  - Set the byte_offset.
 //  - Set the byte_length.
 //  - Set EmbedderFields to 0.
-void TypedArrayBuiltinsAssembler::SetupTypedArray(Node* holder, Node* length,
-                                                  Node* byte_offset,
-                                                  Node* byte_length) {
-  CSA_ASSERT(this, IsJSTypedArray(holder));
-  CSA_ASSERT(this, TaggedIsSmi(length));
-  CSA_ASSERT(this, IsNumber(byte_offset));
-  CSA_ASSERT(this, IsNumber(byte_length));
-
+void TypedArrayBuiltinsAssembler::SetupTypedArray(TNode<JSTypedArray> holder,
+                                                  TNode<Smi> length,
+                                                  TNode<Number> byte_offset,
+                                                  TNode<Number> byte_length) {
   StoreObjectField(holder, JSTypedArray::kLengthOffset, length);
   StoreObjectField(holder, JSArrayBufferView::kByteOffsetOffset, byte_offset);
   StoreObjectField(holder, JSArrayBufferView::kByteLengthOffset, byte_length);
@@ -160,15 +157,11 @@ void TypedArrayBuiltinsAssembler::SetupTypedArray(Node* holder, Node* length,
 }
 
 // Attach an off-heap buffer to a TypedArray.
-void TypedArrayBuiltinsAssembler::AttachBuffer(Node* holder, Node* buffer,
-                                               Node* map, Node* length,
-                                               Node* byte_offset) {
-  CSA_ASSERT(this, IsJSTypedArray(holder));
-  CSA_ASSERT(this, IsJSArrayBuffer(buffer));
-  CSA_ASSERT(this, IsMap(map));
-  CSA_ASSERT(this, TaggedIsSmi(length));
-  CSA_ASSERT(this, IsNumber(byte_offset));
-
+void TypedArrayBuiltinsAssembler::AttachBuffer(TNode<JSTypedArray> holder,
+                                               TNode<JSArrayBuffer> buffer,
+                                               TNode<Map> map,
+                                               TNode<Smi> length,
+                                               TNode<Number> byte_offset) {
   StoreObjectField(holder, JSArrayBufferView::kBufferOffset, buffer);
 
   Node* elements = Allocate(FixedTypedArrayBase::kHeaderSize);
@@ -177,10 +170,11 @@ void TypedArrayBuiltinsAssembler::AttachBuffer(Node* holder, Node* buffer,
   StoreObjectFieldNoWriteBarrier(
       elements, FixedTypedArrayBase::kBasePointerOffset, SmiConstant(0));
 
-  Node* backing_store = LoadObjectField(
-      buffer, JSArrayBuffer::kBackingStoreOffset, MachineType::Pointer());
+  TNode<UintPtrT> backing_store =
+      LoadObjectField<UintPtrT>(buffer, JSArrayBuffer::kBackingStoreOffset);
 
-  Node* external_pointer = CalculateExternalPointer(backing_store, byte_offset);
+  TNode<UintPtrT> external_pointer =
+      CalculateExternalPointer(backing_store, byte_offset);
   StoreObjectFieldNoWriteBarrier(
       elements, FixedTypedArrayBase::kExternalPointerOffset, external_pointer,
       MachineType::PointerRepresentation());
@@ -189,23 +183,16 @@ void TypedArrayBuiltinsAssembler::AttachBuffer(Node* holder, Node* buffer,
 }
 
 TF_BUILTIN(TypedArrayInitializeWithBuffer, TypedArrayBuiltinsAssembler) {
-  Node* holder = Parameter(Descriptor::kHolder);
-  Node* length = Parameter(Descriptor::kLength);
-  Node* buffer = Parameter(Descriptor::kBuffer);
-  Node* element_size = Parameter(Descriptor::kElementSize);
-  Node* byte_offset = Parameter(Descriptor::kByteOffset);
+  TNode<JSTypedArray> holder = CAST(Parameter(Descriptor::kHolder));
+  TNode<Smi> length = CAST(Parameter(Descriptor::kLength));
+  TNode<JSArrayBuffer> buffer = CAST(Parameter(Descriptor::kBuffer));
+  TNode<Smi> element_size = CAST(Parameter(Descriptor::kElementSize));
+  TNode<Number> byte_offset = CAST(Parameter(Descriptor::kByteOffset));
 
-  CSA_ASSERT(this, IsJSTypedArray(holder));
-  CSA_ASSERT(this, TaggedIsSmi(length));
-  CSA_ASSERT(this, IsJSArrayBuffer(buffer));
-  CSA_ASSERT(this, TaggedIsSmi(element_size));
-  CSA_ASSERT(this, IsNumber(byte_offset));
-
-  Node* fixed_typed_map = LoadMapForType(holder);
+  TNode<Map> fixed_typed_map = LoadMapForType(holder);
 
   // SmiMul returns a heap number in case of Smi overflow.
-  Node* byte_length = SmiMul(length, element_size);
-  CSA_ASSERT(this, IsNumber(byte_length));
+  TNode<Number> byte_length = SmiMul(length, element_size);
 
   SetupTypedArray(holder, length, byte_offset, byte_length);
   AttachBuffer(holder, buffer, fixed_typed_map, length, byte_offset);
@@ -213,18 +200,17 @@ TF_BUILTIN(TypedArrayInitializeWithBuffer, TypedArrayBuiltinsAssembler) {
 }
 
 TF_BUILTIN(TypedArrayInitialize, TypedArrayBuiltinsAssembler) {
-  Node* holder = Parameter(Descriptor::kHolder);
-  Node* length = Parameter(Descriptor::kLength);
-  Node* element_size = Parameter(Descriptor::kElementSize);
+  TNode<JSTypedArray> holder = CAST(Parameter(Descriptor::kHolder));
+  TNode<Smi> length = CAST(Parameter(Descriptor::kLength));
+  TNode<Smi> element_size = CAST(Parameter(Descriptor::kElementSize));
   Node* initialize = Parameter(Descriptor::kInitialize);
-  Node* context = Parameter(Descriptor::kContext);
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
 
-  CSA_ASSERT(this, IsJSTypedArray(holder));
   CSA_ASSERT(this, TaggedIsPositiveSmi(length));
   CSA_ASSERT(this, TaggedIsPositiveSmi(element_size));
   CSA_ASSERT(this, IsBoolean(initialize));
 
-  Node* byte_offset = SmiConstant(0);
+  TNode<Smi> byte_offset = SmiConstant(0);
 
   static const int32_t fta_base_data_offset =
       FixedTypedArrayBase::kDataOffset - kHeapObjectTag;
@@ -235,16 +221,16 @@ TF_BUILTIN(TypedArrayInitialize, TypedArrayBuiltinsAssembler) {
   VARIABLE(var_total_size, MachineType::PointerRepresentation());
 
   // SmiMul returns a heap number in case of Smi overflow.
-  Node* byte_length = SmiMul(length, element_size);
-  CSA_ASSERT(this, IsNumber(byte_length));
+  TNode<Number> byte_length = SmiMul(length, element_size);
 
   SetupTypedArray(holder, length, byte_offset, byte_length);
 
-  Node* fixed_typed_map = LoadMapForType(holder);
+  TNode<Map> fixed_typed_map = LoadMapForType(holder);
   GotoIf(TaggedIsNotSmi(byte_length), &allocate_off_heap);
   GotoIf(
       SmiGreaterThan(byte_length, SmiConstant(V8_TYPED_ARRAY_MAX_SIZE_IN_HEAP)),
       &allocate_off_heap);
+  TNode<IntPtrT> word_byte_length = SmiToWord(CAST(byte_length));
   Goto(&allocate_on_heap);
 
   BIND(&allocate_on_heap);
@@ -297,7 +283,7 @@ TF_BUILTIN(TypedArrayInitialize, TypedArrayBuiltinsAssembler) {
     DCHECK_EQ(0, FixedTypedArrayBase::kHeaderSize & kObjectAlignmentMask);
     Node* aligned_header_size =
         IntPtrConstant(FixedTypedArrayBase::kHeaderSize + kObjectAlignmentMask);
-    Node* size = IntPtrAdd(SmiToWord(byte_length), aligned_header_size);
+    Node* size = IntPtrAdd(word_byte_length, aligned_header_size);
     var_total_size.Bind(WordAnd(size, IntPtrConstant(~kObjectAlignmentMask)));
     Goto(&allocate_elements);
   }
@@ -305,7 +291,7 @@ TF_BUILTIN(TypedArrayInitialize, TypedArrayBuiltinsAssembler) {
   BIND(&aligned);
   {
     Node* header_size = IntPtrConstant(FixedTypedArrayBase::kHeaderSize);
-    var_total_size.Bind(IntPtrAdd(SmiToWord(byte_length), header_size));
+    var_total_size.Bind(IntPtrAdd(word_byte_length, header_size));
     Goto(&allocate_elements);
   }
 
@@ -344,11 +330,11 @@ TF_BUILTIN(TypedArrayInitialize, TypedArrayBuiltinsAssembler) {
         ExternalConstant(ExternalReference::libc_memset_function(isolate()));
     CallCFunction3(MachineType::AnyTagged(), MachineType::Pointer(),
                    MachineType::IntPtr(), MachineType::UintPtr(), memset,
-                   backing_store, IntPtrConstant(0), SmiToWord(byte_length));
+                   backing_store, IntPtrConstant(0), word_byte_length);
     Goto(&done);
   }
 
-  VARIABLE(var_buffer, MachineRepresentation::kTagged);
+  TVARIABLE(JSArrayBuffer, var_buffer);
 
   BIND(&allocate_off_heap);
   {
@@ -356,8 +342,8 @@ TF_BUILTIN(TypedArrayInitialize, TypedArrayBuiltinsAssembler) {
 
     Node* buffer_constructor = LoadContextElement(
         LoadNativeContext(context), Context::ARRAY_BUFFER_FUN_INDEX);
-    var_buffer.Bind(ConstructJS(CodeFactory::Construct(isolate()), context,
-                                buffer_constructor, byte_length));
+    var_buffer = CAST(ConstructJS(CodeFactory::Construct(isolate()), context,
+                                  buffer_constructor, byte_length));
     Goto(&attach_buffer);
   }
 
@@ -365,16 +351,15 @@ TF_BUILTIN(TypedArrayInitialize, TypedArrayBuiltinsAssembler) {
   {
     Node* buffer_constructor_noinit = LoadContextElement(
         LoadNativeContext(context), Context::ARRAY_BUFFER_NOINIT_FUN_INDEX);
-    var_buffer.Bind(CallJS(CodeFactory::Call(isolate()), context,
-                           buffer_constructor_noinit, UndefinedConstant(),
-                           byte_length));
+    var_buffer = CAST(CallJS(CodeFactory::Call(isolate()), context,
+                             buffer_constructor_noinit, UndefinedConstant(),
+                             byte_length));
     Goto(&attach_buffer);
   }
 
   BIND(&attach_buffer);
   {
-    AttachBuffer(holder, var_buffer.value(), fixed_typed_map, length,
-                 byte_offset);
+    AttachBuffer(holder, var_buffer, fixed_typed_map, length, byte_offset);
     Goto(&done);
   }
 
@@ -385,18 +370,18 @@ TF_BUILTIN(TypedArrayInitialize, TypedArrayBuiltinsAssembler) {
 // ES6 #sec-typedarray-length
 TF_BUILTIN(TypedArrayConstructByLength, TypedArrayBuiltinsAssembler) {
   Node* holder = Parameter(Descriptor::kHolder);
-  Node* length = Parameter(Descriptor::kLength);
-  Node* element_size = Parameter(Descriptor::kElementSize);
-  Node* context = Parameter(Descriptor::kContext);
+  TNode<Object> maybe_length = CAST(Parameter(Descriptor::kLength));
+  TNode<Object> element_size = CAST(Parameter(Descriptor::kElementSize));
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
 
   CSA_ASSERT(this, IsJSTypedArray(holder));
   CSA_ASSERT(this, TaggedIsPositiveSmi(element_size));
 
-  Node* initialize = TrueConstant();
-
   Label invalid_length(this);
 
-  length = ToInteger(context, length, CodeStubAssembler::kTruncateMinusZero);
+  TNode<Number> length = ToInteger_Inline(
+      context, maybe_length, CodeStubAssembler::kTruncateMinusZero);
+
   // The maximum length of a TypedArray is MaxSmi().
   // Note: this is not per spec, but rather a constraint of our current
   // representation (which uses smi's).
@@ -404,7 +389,7 @@ TF_BUILTIN(TypedArrayConstructByLength, TypedArrayBuiltinsAssembler) {
   GotoIf(SmiLessThan(length, SmiConstant(0)), &invalid_length);
 
   CallBuiltin(Builtins::kTypedArrayInitialize, context, holder, length,
-              element_size, initialize);
+              element_size, TrueConstant());
   Return(UndefinedConstant());
 
   BIND(&invalid_length);
@@ -419,10 +404,10 @@ TF_BUILTIN(TypedArrayConstructByLength, TypedArrayBuiltinsAssembler) {
 TF_BUILTIN(TypedArrayConstructByArrayBuffer, TypedArrayBuiltinsAssembler) {
   Node* holder = Parameter(Descriptor::kHolder);
   Node* buffer = Parameter(Descriptor::kBuffer);
-  Node* byte_offset = Parameter(Descriptor::kByteOffset);
+  TNode<Object> byte_offset = CAST(Parameter(Descriptor::kByteOffset));
   Node* length = Parameter(Descriptor::kLength);
   Node* element_size = Parameter(Descriptor::kElementSize);
-  Node* context = Parameter(Descriptor::kContext);
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
 
   CSA_ASSERT(this, IsJSTypedArray(holder));
   CSA_ASSERT(this, IsJSArrayBuffer(buffer));
@@ -440,8 +425,8 @@ TF_BUILTIN(TypedArrayConstructByArrayBuffer, TypedArrayBuiltinsAssembler) {
 
   GotoIf(IsUndefined(byte_offset), &check_length);
 
-  offset.Bind(
-      ToInteger(context, byte_offset, CodeStubAssembler::kTruncateMinusZero));
+  offset.Bind(ToInteger_Inline(context, byte_offset,
+                               CodeStubAssembler::kTruncateMinusZero));
   Branch(TaggedIsSmi(offset.value()), &offset_is_smi, &offset_not_smi);
 
   // Check that the offset is a multiple of the element size.
@@ -569,25 +554,27 @@ Node* TypedArrayBuiltinsAssembler::LoadDataPtr(Node* typed_array) {
   return IntPtrAdd(base_pointer, external_pointer);
 }
 
-Node* TypedArrayBuiltinsAssembler::ByteLengthIsValid(Node* byte_length) {
+TNode<BoolT> TypedArrayBuiltinsAssembler::ByteLengthIsValid(
+    TNode<Number> byte_length) {
   Label smi(this), done(this);
-  VARIABLE(is_valid, MachineRepresentation::kWord32);
+  TVARIABLE(BoolT, is_valid);
   GotoIf(TaggedIsSmi(byte_length), &smi);
 
-  CSA_ASSERT(this, IsHeapNumber(byte_length));
-  Node* float_value = LoadHeapNumberValue(byte_length);
-  Node* max_byte_length_double =
+  TNode<Float64T> float_value = LoadHeapNumberValue(CAST(byte_length));
+  TNode<Float64T> max_byte_length_double =
       Float64Constant(FixedTypedArrayBase::kMaxByteLength);
-  is_valid.Bind(Float64LessThanOrEqual(float_value, max_byte_length_double));
+  is_valid = Float64LessThanOrEqual(float_value, max_byte_length_double);
   Goto(&done);
 
   BIND(&smi);
-  Node* max_byte_length = IntPtrConstant(FixedTypedArrayBase::kMaxByteLength);
-  is_valid.Bind(UintPtrLessThanOrEqual(SmiUntag(byte_length), max_byte_length));
+  TNode<IntPtrT> max_byte_length =
+      IntPtrConstant(FixedTypedArrayBase::kMaxByteLength);
+  is_valid =
+      UintPtrLessThanOrEqual(SmiUntag(CAST(byte_length)), max_byte_length);
   Goto(&done);
 
   BIND(&done);
-  return is_valid.value();
+  return is_valid;
 }
 
 TF_BUILTIN(TypedArrayConstructByArrayLike, TypedArrayBuiltinsAssembler) {
@@ -611,8 +598,8 @@ TF_BUILTIN(TypedArrayConstructByArrayLike, TypedArrayBuiltinsAssembler) {
   Return(UndefinedConstant());
 
   BIND(&fill);
-  Node* holder_kind = LoadMapElementsKind(LoadMap(holder));
-  Node* source_kind = LoadMapElementsKind(LoadMap(array_like));
+  TNode<Int32T> holder_kind = LoadMapElementsKind(LoadMap(holder));
+  TNode<Int32T> source_kind = LoadMapElementsKind(LoadMap(array_like));
   GotoIf(Word32Equal(holder_kind, source_kind), &fast_copy);
 
   // Copy using the elements accessor.
@@ -632,9 +619,10 @@ TF_BUILTIN(TypedArrayConstructByArrayLike, TypedArrayBuiltinsAssembler) {
                                      array_like, JSTypedArray::kBufferOffset)),
                                  Int32Constant(0)));
 
-    Node* byte_length = SmiMul(length, element_size);
+    TNode<Number> byte_length = SmiMul(length, element_size);
     CSA_ASSERT(this, ByteLengthIsValid(byte_length));
-    Node* byte_length_intptr = ChangeNonnegativeNumberToUintPtr(byte_length);
+    TNode<UintPtrT> byte_length_intptr =
+        ChangeNonnegativeNumberToUintPtr(byte_length);
     CSA_ASSERT(this, UintPtrLessThanOrEqual(
                          byte_length_intptr,
                          IntPtrConstant(FixedTypedArrayBase::kMaxByteLength)));
@@ -831,24 +819,9 @@ void TypedArrayBuiltinsAssembler::SetTypedArraySource(
 
   BIND(&fast_c_call);
   {
-    // Overlapping backing stores of different element kinds are handled in
-    // runtime. We're a bit conservative here and bail to runtime if ranges
-    // overlap and element kinds differ.
-
-    TNode<IntPtrT> target_byte_length =
-        IntPtrMul(target_length, target_el_size);
     CSA_ASSERT(
-        this, UintPtrGreaterThanOrEqual(target_byte_length, IntPtrConstant(0)));
-
-    TNode<IntPtrT> target_data_end_ptr =
-        IntPtrAdd(target_data_ptr, target_byte_length);
-    TNode<IntPtrT> source_data_end_ptr =
-        IntPtrAdd(source_data_ptr, source_byte_length);
-
-    GotoIfNot(
-        Word32Or(UintPtrLessThanOrEqual(target_data_end_ptr, source_data_ptr),
-                 UintPtrLessThanOrEqual(source_data_end_ptr, target_data_ptr)),
-        call_runtime);
+        this, UintPtrGreaterThanOrEqual(
+                  IntPtrMul(target_length, target_el_size), IntPtrConstant(0)));
 
     TNode<IntPtrT> source_length =
         LoadAndUntagObjectField(source, JSTypedArray::kLengthOffset);
@@ -959,8 +932,8 @@ TF_BUILTIN(TypedArrayPrototypeSet, TypedArrayBuiltinsAssembler) {
 
   // Normalize offset argument (using ToInteger) and handle heap number cases.
   TNode<Object> offset = args.GetOptionalArgumentValue(1, SmiConstant(0));
-  TNode<Number> offset_num = ToInteger(context, offset, kTruncateMinusZero);
-  CSA_ASSERT(this, IsNumberNormalized(offset_num));
+  TNode<Number> offset_num =
+      ToInteger_Inline(context, offset, kTruncateMinusZero);
 
   // Since ToInteger always returns a Smi if the given value is within Smi
   // range, and the only corner case of -0.0 has already been truncated to 0.0,

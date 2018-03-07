@@ -333,12 +333,12 @@ void StringToIntHelper::DetectRadixInternal(Char current, int length) {
                  (*current == 'o' || *current == 'O')) {
         radix_ = 8;
         ++current;
-        DCHECK(current != end);
+        if (current == end) return set_state(kJunk);
       } else if (allow_binary_and_octal_prefixes_ &&
                  (*current == 'b' || *current == 'B')) {
         radix_ = 2;
         ++current;
-        DCHECK(current != end);
+        if (current == end) return set_state(kJunk);
       } else {
         leading_zero_ = true;
       }
@@ -413,7 +413,7 @@ void StringToIntHelper::ParseInternal(Char start) {
       // in 32 bits. When we can't guarantee that the next iteration
       // will not overflow the multiplier, we stop parsing the part
       // by leaving the loop.
-      const uint32_t kMaximumMultiplier = 0xffffffffU / 36;
+      const uint32_t kMaximumMultiplier = 0xFFFFFFFFU / 36;
       uint32_t m = multiplier * static_cast<uint32_t>(radix_);
       if (m > kMaximumMultiplier) break;
       part = part * radix_ + d;
@@ -953,6 +953,7 @@ MaybeHandle<BigInt> BigIntParseInt(Isolate* isolate, Handle<String> string,
 }
 
 MaybeHandle<BigInt> StringToBigInt(Isolate* isolate, Handle<String> string) {
+  string = String::Flatten(string);
   BigIntParseIntHelper helper(isolate, string);
   return helper.GetResult();
 }

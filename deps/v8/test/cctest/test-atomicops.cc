@@ -168,12 +168,11 @@ static void TestAtomicIncrementBounds() {
   CHECK_EQU(test_val - 1, value);
 }
 
-
-// Return an AtomicType with the value 0xa5a5a5..
+// Return an AtomicType with the value 0xA5A5A5..
 template <class AtomicType>
 static AtomicType TestFillValue() {
   AtomicType val = 0;
-  memset(&val, 0xa5, sizeof(AtomicType));
+  memset(&val, 0xA5, sizeof(AtomicType));
   return val;
 }
 

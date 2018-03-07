@@ -27,6 +27,7 @@ class Thread;
 class WorkerThread;
 class DefaultForegroundTaskRunner;
 class DefaultBackgroundTaskRunner;
+class DefaultPageAllocator;
 
 class V8_PLATFORM_EXPORT DefaultPlatform : public NON_EXPORTED_BASE(Platform) {
  public:
@@ -70,6 +71,7 @@ class V8_PLATFORM_EXPORT DefaultPlatform : public NON_EXPORTED_BASE(Platform) {
   double CurrentClockTimeMillis() override;
   v8::TracingController* GetTracingController() override;
   StackTracePrinter GetStackTracePrinter() override;
+  v8::PageAllocator* GetPageAllocator() override;
 
  private:
   static const int kMaxThreadPoolSize;
@@ -82,6 +84,7 @@ class V8_PLATFORM_EXPORT DefaultPlatform : public NON_EXPORTED_BASE(Platform) {
       foreground_task_runner_map_;
 
   std::unique_ptr<TracingController> tracing_controller_;
+  std::unique_ptr<PageAllocator> page_allocator_;
 
   TimeFunction time_function_for_testing_;
   DISALLOW_COPY_AND_ASSIGN(DefaultPlatform);

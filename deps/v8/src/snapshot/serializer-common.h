@@ -22,6 +22,7 @@ class ExternalReferenceEncoder {
   class Value {
    public:
     explicit Value(uint32_t raw) : value_(raw) {}
+    Value() : value_(0) {}
     static uint32_t Encode(uint32_t index, bool is_from_api) {
       return Index::encode(index) | IsFromAPI::encode(is_from_api);
     }
@@ -40,6 +41,7 @@ class ExternalReferenceEncoder {
   ~ExternalReferenceEncoder();
 
   Value Encode(Address key);
+  Maybe<Value> TryEncode(Address key);
 
   const char* NameOfAddress(Isolate* isolate, Address address) const;
 
@@ -255,6 +257,7 @@ class SerializedData {
  public:
   class Reservation {
    public:
+    Reservation() : reservation_(0) {}
     explicit Reservation(uint32_t size)
         : reservation_(ChunkSizeBits::encode(size)) {}
 

@@ -129,7 +129,7 @@ class SerializedCodeData : public SerializedData {
   // Return ScriptData object and relinquish ownership over it to the caller.
   ScriptData* GetScriptData();
 
-  Vector<const Reservation> Reservations() const;
+  std::vector<Reservation> Reservations() const;
   Vector<const byte> Payload() const;
 
   Vector<const uint32_t> CodeStubKeys() const;

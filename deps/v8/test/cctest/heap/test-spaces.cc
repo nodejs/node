@@ -102,13 +102,12 @@ static void VerifyMemoryChunk(Isolate* isolate,
         reserve_area_size, commit_area_size, executable, nullptr);
     size_t alignment = code_range != nullptr && code_range->valid()
                            ? MemoryChunk::kAlignment
-                           : base::OS::CommitPageSize();
+                           : CommitPageSize();
     size_t reserved_size =
         ((executable == EXECUTABLE))
             ? RoundUp(header_size + guard_size + reserve_area_size + guard_size,
                       alignment)
-            : RoundUp(header_size + reserve_area_size,
-                      base::OS::CommitPageSize());
+            : RoundUp(header_size + reserve_area_size, CommitPageSize());
     CHECK(memory_chunk->size() == reserved_size);
     CHECK(memory_chunk->area_start() <
           memory_chunk->address() + memory_chunk->size());
@@ -231,7 +230,6 @@ TEST(MemoryAllocator) {
         NOT_EXECUTABLE);
 
     first_page->InsertAfter(faked_space.anchor()->prev_page());
-    CHECK(Page::IsValid(first_page));
     CHECK(first_page->next_page() == faked_space.anchor());
     total_pages++;
 
@@ -243,7 +241,6 @@ TEST(MemoryAllocator) {
     Page* other = memory_allocator->AllocatePage(
         faked_space.AreaSize(), static_cast<PagedSpace*>(&faked_space),
         NOT_EXECUTABLE);
-    CHECK(Page::IsValid(other));
     total_pages++;
     other->InsertAfter(first_page);
     int page_count = 0;
@@ -254,7 +251,7 @@ TEST(MemoryAllocator) {
     CHECK(total_pages == page_count);
 
     Page* second_page = first_page->next_page();
-    CHECK(Page::IsValid(second_page));
+    CHECK_NOT_NULL(second_page);
 
     // OldSpace's destructor will tear down the space and free up all pages.
   }
@@ -442,7 +439,7 @@ class Observer : public AllocationObserver {
   explicit Observer(intptr_t step_size)
       : AllocationObserver(step_size), count_(0) {}
 
-  void Step(int bytes_allocated, Address, size_t) override { count_++; }
+  void Step(int bytes_allocated, Address addr, size_t) override { count_++; }
 
   int count() const { return count_; }
 
@@ -621,6 +618,47 @@ HEAP_TEST(Regress777177) {
   old_space->RemoveAllocationObserver(&observer);
 }
 
+HEAP_TEST(Regress791582) {
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  Heap* heap = isolate->heap();
+  HandleScope scope(isolate);
+  NewSpace* new_space = heap->new_space();
+  if (new_space->TotalCapacity() < new_space->MaximumCapacity()) {
+    new_space->Grow();
+  }
+
+  int until_page_end = static_cast<int>(new_space->limit() - new_space->top());
+
+  if (until_page_end % kPointerSize != 0) {
+    // The test works if the size of allocation area size is a multiple of
+    // pointer size. This is usually the case unless some allocation observer
+    // is already active (e.g. incremental marking observer).
+    return;
+  }
+
+  Observer observer(128);
+  new_space->AddAllocationObserver(&observer);
+
+  {
+    AllocationResult result =
+        new_space->AllocateRaw(until_page_end, kWordAligned);
+    HeapObject* obj = result.ToObjectChecked();
+    heap->CreateFillerObjectAt(obj->address(), until_page_end,
+                               ClearRecordedSlots::kNo);
+    // Simulate allocation folding moving the top pointer back.
+    *new_space->allocation_top_address() = obj->address();
+  }
+
+  {
+    // This triggers assert in crbug.com/791582
+    AllocationResult result = new_space->AllocateRaw(256, kWordAligned);
+    HeapObject* obj = result.ToObjectChecked();
+    heap->CreateFillerObjectAt(obj->address(), 256, ClearRecordedSlots::kNo);
+  }
+  new_space->RemoveAllocationObserver(&observer);
+}
+
 TEST(ShrinkPageToHighWaterMarkFreeSpaceEnd) {
   FLAG_stress_incremental_marking = false;
   CcTest::InitializeVM();
@@ -636,8 +674,8 @@ TEST(ShrinkPageToHighWaterMarkFreeSpaceEnd) {
 
   // Reset space so high water mark is consistent.
   PagedSpace* old_space = CcTest::heap()->old_space();
+  old_space->FreeLinearAllocationArea();
   old_space->ResetFreeList();
-  old_space->EmptyAllocationInfo();
 
   HeapObject* filler =
       HeapObject::FromAddress(array->address() + array->Size());
@@ -645,7 +683,7 @@ TEST(ShrinkPageToHighWaterMarkFreeSpaceEnd) {
   size_t shrunk = old_space->ShrinkPageToHighWaterMark(page);
   size_t should_have_shrunk =
       RoundDown(static_cast<size_t>(Page::kAllocatableMemory - array->Size()),
-                base::OS::CommitPageSize());
+                CommitPageSize());
   CHECK_EQ(should_have_shrunk, shrunk);
 }
 
@@ -665,7 +703,7 @@ TEST(ShrinkPageToHighWaterMarkNoFiller) {
   // Reset space so high water mark and fillers are consistent.
   PagedSpace* old_space = CcTest::heap()->old_space();
   old_space->ResetFreeList();
-  old_space->EmptyAllocationInfo();
+  old_space->FreeLinearAllocationArea();
 
   size_t shrunk = old_space->ShrinkPageToHighWaterMark(page);
   CHECK_EQ(0u, shrunk);
@@ -687,8 +725,8 @@ TEST(ShrinkPageToHighWaterMarkOneWordFiller) {
 
   // Reset space so high water mark and fillers are consistent.
   PagedSpace* old_space = CcTest::heap()->old_space();
+  old_space->FreeLinearAllocationArea();
   old_space->ResetFreeList();
-  old_space->EmptyAllocationInfo();
 
   HeapObject* filler =
       HeapObject::FromAddress(array->address() + array->Size());
@@ -714,8 +752,8 @@ TEST(ShrinkPageToHighWaterMarkTwoWordFiller) {
 
   // Reset space so high water mark and fillers are consistent.
   PagedSpace* old_space = CcTest::heap()->old_space();
+  old_space->FreeLinearAllocationArea();
   old_space->ResetFreeList();
-  old_space->EmptyAllocationInfo();
 
   HeapObject* filler =
       HeapObject::FromAddress(array->address() + array->Size());

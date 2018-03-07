@@ -69,16 +69,6 @@ RUNTIME_FUNCTION(Runtime_StringParseFloat) {
   return *isolate->factory()->NewNumber(value);
 }
 
-
-RUNTIME_FUNCTION(Runtime_NumberToString) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(1, args.length());
-  CONVERT_NUMBER_ARG_HANDLE_CHECKED(number, 0);
-
-  return *isolate->factory()->NumberToString(number);
-}
-
-
 RUNTIME_FUNCTION(Runtime_NumberToStringSkipCache) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());

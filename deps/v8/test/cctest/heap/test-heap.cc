@@ -751,7 +751,7 @@ TEST(DeleteWeakGlobalHandle) {
 
 TEST(BytecodeArray) {
   if (FLAG_never_compact) return;
-  static const uint8_t kRawBytes[] = {0xc3, 0x7e, 0xa5, 0x5a};
+  static const uint8_t kRawBytes[] = {0xC3, 0x7E, 0xA5, 0x5A};
   static const int kRawBytesSize = sizeof(kRawBytes);
   static const int kFrameSize = 32;
   static const int kParameterCount = 2;
@@ -810,7 +810,7 @@ TEST(BytecodeArray) {
 }
 
 TEST(BytecodeArrayAging) {
-  static const uint8_t kRawBytes[] = {0xc3, 0x7e, 0xa5, 0x5a};
+  static const uint8_t kRawBytes[] = {0xC3, 0x7E, 0xA5, 0x5A};
   static const int kRawBytesSize = sizeof(kRawBytes);
   static const int kFrameSize = 32;
   static const int kParameterCount = 2;
@@ -1176,7 +1176,7 @@ TEST(StringAllocation) {
   Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
 
-  const unsigned char chars[] = { 0xe5, 0xa4, 0xa7 };
+  const unsigned char chars[] = {0xE5, 0xA4, 0xA7};
   for (int length = 0; length < 100; length++) {
     v8::HandleScope scope(CcTest::isolate());
     char* non_one_byte = NewArray<char>(3 * length + 1);
@@ -1704,7 +1704,7 @@ static Address AlignOldSpace(AllocationAlignment alignment, int offset) {
   }
   Address top = *top_addr;
   // Now force the remaining allocation onto the free list.
-  CcTest::heap()->old_space()->EmptyAllocationInfo();
+  CcTest::heap()->old_space()->FreeLinearAllocationArea();
   return top;
 }
 
@@ -3943,7 +3943,8 @@ static Handle<Code> DummyOptimizedCode(Isolate* isolate) {
                       v8::internal::CodeObjectRequired::kYes);
   CodeDesc desc;
   masm.Push(isolate->factory()->undefined_value());
-  masm.Drop(1);
+  masm.Push(isolate->factory()->undefined_value());
+  masm.Drop(2);
   masm.GetCode(isolate, &desc);
   Handle<Object> undefined(isolate->heap()->undefined_value(), isolate);
   Handle<Code> code =
@@ -5175,7 +5176,7 @@ HEAP_TEST(Regress589413) {
   // Make sure the byte arrays will be promoted on the next GC.
   CcTest::CollectGarbage(NEW_SPACE);
   // This number is close to large free list category threshold.
-  const int N = 0x3eee;
+  const int N = 0x3EEE;
   {
     std::vector<FixedArray*> arrays;
     std::set<Page*> pages;
@@ -5676,9 +5677,8 @@ TEST(UncommitUnusedLargeObjectMemory) {
 
   CcTest::CollectAllGarbage();
   CHECK(chunk->CommittedPhysicalMemory() < committed_memory_before);
-  size_t shrinked_size =
-      RoundUp((array->address() - chunk->address()) + array->Size(),
-              base::OS::CommitPageSize());
+  size_t shrinked_size = RoundUp(
+      (array->address() - chunk->address()) + array->Size(), CommitPageSize());
   CHECK_EQ(shrinked_size, chunk->CommittedPhysicalMemory());
 }
 

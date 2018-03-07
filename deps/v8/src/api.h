@@ -11,6 +11,7 @@
 #include "src/detachable-vector.h"
 #include "src/factory.h"
 #include "src/isolate.h"
+#include "src/objects/js-collection.h"
 
 namespace v8 {
 
@@ -404,6 +405,7 @@ class HandleScopeImplementer {
         call_depth_(0),
         microtasks_depth_(0),
         microtasks_suppressions_(0),
+        entered_contexts_count_(0),
         entered_context_count_during_microtasks_(0),
 #ifdef DEBUG
         debug_microtasks_depth_(0),
@@ -530,6 +532,7 @@ class HandleScopeImplementer {
   int call_depth_;
   int microtasks_depth_;
   int microtasks_suppressions_;
+  size_t entered_contexts_count_;
   size_t entered_context_count_during_microtasks_;
 #ifdef DEBUG
   int debug_microtasks_depth_;
@@ -545,10 +548,25 @@ class HandleScopeImplementer {
 
   friend class DeferredHandles;
   friend class DeferredHandleScope;
+  friend class HandleScopeImplementerOffsets;
 
   DISALLOW_COPY_AND_ASSIGN(HandleScopeImplementer);
 };
 
+class HandleScopeImplementerOffsets {
+ public:
+  enum Offsets {
+    kMicrotaskContext = offsetof(HandleScopeImplementer, microtask_context_),
+    kEnteredContexts = offsetof(HandleScopeImplementer, entered_contexts_),
+    kEnteredContextsCount =
+        offsetof(HandleScopeImplementer, entered_contexts_count_),
+    kEnteredContextCountDuringMicrotasks = offsetof(
+        HandleScopeImplementer, entered_context_count_during_microtasks_)
+  };
+
+ private:
+  DISALLOW_IMPLICIT_CONSTRUCTORS(HandleScopeImplementerOffsets);
+};
 
 const int kHandleBlockSize = v8::internal::KB - 2;  // fit in one page
 
@@ -583,9 +601,13 @@ bool HandleScopeImplementer::HasSavedContexts() {
 
 void HandleScopeImplementer::EnterContext(Handle<Context> context) {
   entered_contexts_.push_back(*context);
+  entered_contexts_count_ = entered_contexts_.size();
 }
 
-void HandleScopeImplementer::LeaveContext() { entered_contexts_.pop_back(); }
+void HandleScopeImplementer::LeaveContext() {
+  entered_contexts_.pop_back();
+  entered_contexts_count_ = entered_contexts_.size();
+}
 
 bool HandleScopeImplementer::LastEnteredContextWas(Handle<Context> context) {
   return !entered_contexts_.empty() && entered_contexts_.back() == *context;

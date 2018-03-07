@@ -57,64 +57,78 @@ ConvertDToIFunc MakeConvertDToIFuncTrampoline(Isolate* isolate,
 
   byte* start = stub.GetCode()->instruction_start();
 
-  __ SetStackPointer(csp);
   __ PushCalleeSavedRegisters();
-  __ Mov(jssp, csp);
-  __ SetStackPointer(jssp);
-
-  // Push the double argument.
-  __ Push(d0);
 
   MacroAssembler::PushPopQueue queue(&masm);
 
   // Save registers make sure they don't get clobbered.
   int source_reg_offset = kDoubleSize;
   int reg_num = 0;
+  queue.Queue(xzr);  // Push xzr to maintain sp alignment.
   for (; reg_num < Register::kNumRegisters; ++reg_num) {
     if (RegisterConfiguration::Default()->IsAllocatableGeneralCode(reg_num)) {
       Register reg = Register::from_code(reg_num);
-      if (!reg.is(destination_reg)) {
-        queue.Queue(reg);
-        source_reg_offset += kPointerSize;
-      }
+      queue.Queue(reg);
+      source_reg_offset += kPointerSize;
     }
   }
-  // Re-push the double argument.
+  // Push the double argument. We push a second copy to maintain sp alignment.
+  queue.Queue(d0);
   queue.Queue(d0);
 
   queue.PushQueued();
 
-  // Call through to the actual stub
+  // Call through to the actual stub.
   __ Call(start, RelocInfo::EXTERNAL_REFERENCE);
 
-  __ Drop(1, kDoubleSize);
+  __ Drop(2, kDoubleSize);
 
-  // // Make sure no registers have been unexpectedly clobbered
-  for (--reg_num; reg_num >= 0; --reg_num) {
-    if (RegisterConfiguration::Default()->IsAllocatableGeneralCode(reg_num)) {
-      Register reg = Register::from_code(reg_num);
+  // Make sure no registers have been unexpectedly clobbered.
+  {
+    const RegisterConfiguration* config(RegisterConfiguration::Default());
+    int allocatable_register_count =
+        config->num_allocatable_general_registers();
+    UseScratchRegisterScope temps(&masm);
+    Register temp0 = temps.AcquireX();
+    Register temp1 = temps.AcquireX();
+    for (int i = allocatable_register_count - 1; i > 0; i -= 2) {
+      int code0 = config->GetAllocatableGeneralCode(i);
+      int code1 = config->GetAllocatableGeneralCode(i - 1);
+      Register reg0 = Register::from_code(code0);
+      Register reg1 = Register::from_code(code1);
+      __ Pop(temp0, temp1);
+      if (!reg0.is(destination_reg)) {
+        __ Cmp(reg0, temp0);
+        __ Assert(eq, AbortReason::kRegisterWasClobbered);
+      }
+      if (!reg1.is(destination_reg)) {
+        __ Cmp(reg1, temp1);
+        __ Assert(eq, AbortReason::kRegisterWasClobbered);
+      }
+    }
+
+    if (allocatable_register_count % 2 != 0) {
+      int code = config->GetAllocatableGeneralCode(0);
+      Register reg = Register::from_code(code);
+      __ Pop(temp0, xzr);
       if (!reg.is(destination_reg)) {
-        __ Pop(ip0);
-        __ cmp(reg, ip0);
-        __ Assert(eq, kRegisterWasClobbered);
+        __ Cmp(reg, temp0);
+        __ Assert(eq, AbortReason::kRegisterWasClobbered);
       }
     }
   }
-
-  __ Drop(1, kDoubleSize);
 
   if (!destination_reg.is(x0))
     __ Mov(x0, destination_reg);
 
   // Restore callee save registers.
-  __ Mov(csp, jssp);
-  __ SetStackPointer(csp);
   __ PopCalleeSavedRegisters();
 
   __ Ret();
 
   CodeDesc desc;
   masm.GetCode(isolate, &desc);
+  MakeAssemblerBufferExecutable(buffer, allocated);
   Assembler::FlushICache(isolate, buffer, allocated);
   return (reinterpret_cast<ConvertDToIFunc>(
       reinterpret_cast<intptr_t>(buffer)));
@@ -131,12 +145,8 @@ static Isolate* GetIsolateFrom(LocalContext* context) {
 int32_t RunGeneratedCodeCallWrapper(ConvertDToIFunc func,
                                     double from) {
 #ifdef USE_SIMULATOR
-  Simulator::CallArgument args[] = {
-      Simulator::CallArgument(from),
-      Simulator::CallArgument::End()
-  };
-  return static_cast<int32_t>(Simulator::current(CcTest::i_isolate())
-                                  ->CallInt64(FUNCTION_ADDR(func), args));
+  return Simulator::current(CcTest::i_isolate())
+      ->Call<int32_t>(FUNCTION_ADDR(func), from);
 #else
   return (*func)(from);
 #endif

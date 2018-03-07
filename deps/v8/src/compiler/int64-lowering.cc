@@ -316,9 +316,10 @@ void Int64Lowering::LowerNode(Node* node) {
     case IrOpcode::kTailCall: {
       CallDescriptor* descriptor =
           const_cast<CallDescriptor*>(CallDescriptorOf(node->op()));
-      if (DefaultLowering(node) ||
-          (descriptor->ReturnCount() == 1 &&
-           descriptor->GetReturnType(0) == MachineType::Int64())) {
+      bool returns_require_lowering =
+          GetReturnCountAfterLowering(descriptor) !=
+          static_cast<int>(descriptor->ReturnCount());
+      if (DefaultLowering(node) || returns_require_lowering) {
         // Tail calls do not have return values, so adjusting the call
         // descriptor is enough.
         auto new_descriptor = GetI32WasmCallDescriptor(zone(), descriptor);
@@ -688,7 +689,7 @@ void Int64Lowering::LowerNode(Node* node) {
       Int32Matcher m(shift);
       if (m.HasValue()) {
         // Precondition: 0 <= shift < 64.
-        int32_t shift_value = m.Value() & 0x3f;
+        int32_t shift_value = m.Value() & 0x3F;
         if (shift_value == 0) {
           ReplaceNode(node, GetReplacementLow(input),
                       GetReplacementHigh(input));
@@ -705,7 +706,7 @@ void Int64Lowering::LowerNode(Node* node) {
             low_input = GetReplacementHigh(input);
             high_input = GetReplacementLow(input);
           }
-          int32_t masked_shift_value = shift_value & 0x1f;
+          int32_t masked_shift_value = shift_value & 0x1F;
           Node* masked_shift =
               graph()->NewNode(common()->Int32Constant(masked_shift_value));
           Node* inv_shift = graph()->NewNode(
@@ -726,7 +727,7 @@ void Int64Lowering::LowerNode(Node* node) {
         if (!machine()->Word32ShiftIsSafe()) {
           safe_shift =
               graph()->NewNode(machine()->Word32And(), shift,
-                               graph()->NewNode(common()->Int32Constant(0x1f)));
+                               graph()->NewNode(common()->Int32Constant(0x1F)));
         }
 
         // By creating this bit-mask with SAR and SHL we do not have to deal
@@ -750,7 +751,7 @@ void Int64Lowering::LowerNode(Node* node) {
         if (machine()->Word32ShiftIsSafe()) {
           masked_shift6 =
               graph()->NewNode(machine()->Word32And(), shift,
-                               graph()->NewNode(common()->Int32Constant(0x3f)));
+                               graph()->NewNode(common()->Int32Constant(0x3F)));
         }
 
         Diamond lt32(

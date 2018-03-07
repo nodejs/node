@@ -341,16 +341,30 @@ function TestTypedArray(constr, elementSize, typicalElement) {
 
   // Modified %ArrayIteratorPrototype%.next() method is honoured (v8:5699)
   const ArrayIteratorPrototype = Object.getPrototypeOf([][Symbol.iterator]());
+  const ArrayIteratorPrototypeNextDescriptor =
+      Object.getOwnPropertyDescriptor(ArrayIteratorPrototype, 'next');
   const ArrayIteratorPrototypeNext = ArrayIteratorPrototype.next;
   ArrayIteratorPrototype.next = function() {
     return { done: true };
   };
   genArr = new constr([1, 2, 3]);
   assertEquals(0, genArr.length);
+
   ArrayIteratorPrototype.next = ArrayIteratorPrototypeNext;
 
-  // Modified %ArrayIteratorPrototype%.next() during iteration is honoured as
-  // well.
+  // Modified %ArrayIteratorPrototype%.next() is only loaded during the iterator
+  // prologue.
+  let nextMethod = ArrayIteratorPrototypeNext;
+  let getNextCount = 0;
+  Object.defineProperty(ArrayIteratorPrototype, 'next', {
+    get() {
+      getNextCount++;
+      return nextMethod;
+    },
+    set(v) { nextMethod = v; },
+    configurable: true
+  });
+
   genArr = new constr(Object.defineProperty([1, , 3], 1, {
     get() {
       ArrayIteratorPrototype.next = function() {
@@ -359,9 +373,13 @@ function TestTypedArray(constr, elementSize, typicalElement) {
       return 2;
     }
   }));
-  assertEquals(2, genArr.length);
+  Object.defineProperty(ArrayIteratorPrototype, 'next',
+                        ArrayIteratorPrototypeNextDescriptor);
+  assertEquals(1, getNextCount);
+  assertEquals(3, genArr.length);
   assertEquals(1, genArr[0]);
   assertEquals(2, genArr[1]);
+  assertEquals(3, genArr[2]);
   ArrayIteratorPrototype.next = ArrayIteratorPrototypeNext;
 }
 

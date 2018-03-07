@@ -298,8 +298,7 @@ Time Time::NowFromSystemTime() {
 
 
 // Time between windows epoch and standard epoch.
-static const int64_t kTimeToEpochInMicroseconds = V8_INT64_C(11644473600000000);
-
+static const int64_t kTimeToEpochInMicroseconds = int64_t{11644473600000000};
 
 Time Time::FromFiletime(FILETIME ft) {
   if (ft.dwLowDateTime == 0 && ft.dwHighDateTime == 0) {

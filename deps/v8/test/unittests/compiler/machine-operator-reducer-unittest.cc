@@ -173,70 +173,116 @@ const int32_t kInt32Values[] = {
     1954730266,                          2008792749,  2045320228,
     std::numeric_limits<int32_t>::max()};
 
-
-const int64_t kInt64Values[] = {
-    std::numeric_limits<int64_t>::min(), V8_INT64_C(-8974392461363618006),
-    V8_INT64_C(-8874367046689588135),    V8_INT64_C(-8269197512118230839),
-    V8_INT64_C(-8146091527100606733),    V8_INT64_C(-7550917981466150848),
-    V8_INT64_C(-7216590251577894337),    V8_INT64_C(-6464086891160048440),
-    V8_INT64_C(-6365616494908257190),    V8_INT64_C(-6305630541365849726),
-    V8_INT64_C(-5982222642272245453),    V8_INT64_C(-5510103099058504169),
-    V8_INT64_C(-5496838675802432701),    V8_INT64_C(-4047626578868642657),
-    V8_INT64_C(-4033755046900164544),    V8_INT64_C(-3554299241457877041),
-    V8_INT64_C(-2482258764588614470),    V8_INT64_C(-1688515425526875335),
-    V8_INT64_C(-924784137176548532),     V8_INT64_C(-725316567157391307),
-    V8_INT64_C(-439022654781092241),     V8_INT64_C(-105545757668917080),
-    V8_INT64_C(-2088319373),             V8_INT64_C(-2073699916),
-    V8_INT64_C(-1844949911),             V8_INT64_C(-1831090548),
-    V8_INT64_C(-1756711933),             V8_INT64_C(-1559409497),
-    V8_INT64_C(-1281179700),             V8_INT64_C(-1211513985),
-    V8_INT64_C(-1182371520),             V8_INT64_C(-785934753),
-    V8_INT64_C(-767480697),              V8_INT64_C(-705745662),
-    V8_INT64_C(-514362436),              V8_INT64_C(-459916580),
-    V8_INT64_C(-312328082),              V8_INT64_C(-302949707),
-    V8_INT64_C(-285499304),              V8_INT64_C(-125701262),
-    V8_INT64_C(-95139843),               V8_INT64_C(-32768),
-    V8_INT64_C(-27542),                  V8_INT64_C(-23600),
-    V8_INT64_C(-18582),                  V8_INT64_C(-17770),
-    V8_INT64_C(-9086),                   V8_INT64_C(-9010),
-    V8_INT64_C(-8244),                   V8_INT64_C(-2890),
-    V8_INT64_C(-103),                    V8_INT64_C(-34),
-    V8_INT64_C(-27),                     V8_INT64_C(-25),
-    V8_INT64_C(-9),                      V8_INT64_C(-7),
-    V8_INT64_C(0),                       V8_INT64_C(2),
-    V8_INT64_C(38),                      V8_INT64_C(58),
-    V8_INT64_C(65),                      V8_INT64_C(93),
-    V8_INT64_C(111),                     V8_INT64_C(1003),
-    V8_INT64_C(1267),                    V8_INT64_C(12797),
-    V8_INT64_C(23122),                   V8_INT64_C(28200),
-    V8_INT64_C(30888),                   V8_INT64_C(42648848),
-    V8_INT64_C(116836693),               V8_INT64_C(263003643),
-    V8_INT64_C(571039860),               V8_INT64_C(1079398689),
-    V8_INT64_C(1145196402),              V8_INT64_C(1184846321),
-    V8_INT64_C(1758281648),              V8_INT64_C(1859991374),
-    V8_INT64_C(1960251588),              V8_INT64_C(2042443199),
-    V8_INT64_C(296220586027987448),      V8_INT64_C(1015494173071134726),
-    V8_INT64_C(1151237951914455318),     V8_INT64_C(1331941174616854174),
-    V8_INT64_C(2022020418667972654),     V8_INT64_C(2450251424374977035),
-    V8_INT64_C(3668393562685561486),     V8_INT64_C(4858229301215502171),
-    V8_INT64_C(4919426235170669383),     V8_INT64_C(5034286595330341762),
-    V8_INT64_C(5055797915536941182),     V8_INT64_C(6072389716149252074),
-    V8_INT64_C(6185309910199801210),     V8_INT64_C(6297328311011094138),
-    V8_INT64_C(6932372858072165827),     V8_INT64_C(8483640924987737210),
-    V8_INT64_C(8663764179455849203),     V8_INT64_C(8877197042645298254),
-    V8_INT64_C(8901543506779157333),     std::numeric_limits<int64_t>::max()};
-
+const int64_t kInt64Values[] = {std::numeric_limits<int64_t>::min(),
+                                int64_t{-8974392461363618006},
+                                int64_t{-8874367046689588135},
+                                int64_t{-8269197512118230839},
+                                int64_t{-8146091527100606733},
+                                int64_t{-7550917981466150848},
+                                int64_t{-7216590251577894337},
+                                int64_t{-6464086891160048440},
+                                int64_t{-6365616494908257190},
+                                int64_t{-6305630541365849726},
+                                int64_t{-5982222642272245453},
+                                int64_t{-5510103099058504169},
+                                int64_t{-5496838675802432701},
+                                int64_t{-4047626578868642657},
+                                int64_t{-4033755046900164544},
+                                int64_t{-3554299241457877041},
+                                int64_t{-2482258764588614470},
+                                int64_t{-1688515425526875335},
+                                int64_t{-924784137176548532},
+                                int64_t{-725316567157391307},
+                                int64_t{-439022654781092241},
+                                int64_t{-105545757668917080},
+                                int64_t{-2088319373},
+                                int64_t{-2073699916},
+                                int64_t{-1844949911},
+                                int64_t{-1831090548},
+                                int64_t{-1756711933},
+                                int64_t{-1559409497},
+                                int64_t{-1281179700},
+                                int64_t{-1211513985},
+                                int64_t{-1182371520},
+                                int64_t{-785934753},
+                                int64_t{-767480697},
+                                int64_t{-705745662},
+                                int64_t{-514362436},
+                                int64_t{-459916580},
+                                int64_t{-312328082},
+                                int64_t{-302949707},
+                                int64_t{-285499304},
+                                int64_t{-125701262},
+                                int64_t{-95139843},
+                                int64_t{-32768},
+                                int64_t{-27542},
+                                int64_t{-23600},
+                                int64_t{-18582},
+                                int64_t{-17770},
+                                int64_t{-9086},
+                                int64_t{-9010},
+                                int64_t{-8244},
+                                int64_t{-2890},
+                                int64_t{-103},
+                                int64_t{-34},
+                                int64_t{-27},
+                                int64_t{-25},
+                                int64_t{-9},
+                                int64_t{-7},
+                                int64_t{0},
+                                int64_t{2},
+                                int64_t{38},
+                                int64_t{58},
+                                int64_t{65},
+                                int64_t{93},
+                                int64_t{111},
+                                int64_t{1003},
+                                int64_t{1267},
+                                int64_t{12797},
+                                int64_t{23122},
+                                int64_t{28200},
+                                int64_t{30888},
+                                int64_t{42648848},
+                                int64_t{116836693},
+                                int64_t{263003643},
+                                int64_t{571039860},
+                                int64_t{1079398689},
+                                int64_t{1145196402},
+                                int64_t{1184846321},
+                                int64_t{1758281648},
+                                int64_t{1859991374},
+                                int64_t{1960251588},
+                                int64_t{2042443199},
+                                int64_t{296220586027987448},
+                                int64_t{1015494173071134726},
+                                int64_t{1151237951914455318},
+                                int64_t{1331941174616854174},
+                                int64_t{2022020418667972654},
+                                int64_t{2450251424374977035},
+                                int64_t{3668393562685561486},
+                                int64_t{4858229301215502171},
+                                int64_t{4919426235170669383},
+                                int64_t{5034286595330341762},
+                                int64_t{5055797915536941182},
+                                int64_t{6072389716149252074},
+                                int64_t{6185309910199801210},
+                                int64_t{6297328311011094138},
+                                int64_t{6932372858072165827},
+                                int64_t{8483640924987737210},
+                                int64_t{8663764179455849203},
+                                int64_t{8877197042645298254},
+                                int64_t{8901543506779157333},
+                                std::numeric_limits<int64_t>::max()};
 
 const uint32_t kUint32Values[] = {
-    0x00000000, 0x00000001, 0xffffffff, 0x1b09788b, 0x04c5fce8, 0xcc0de5bf,
-    0x273a798e, 0x187937a3, 0xece3af83, 0x5495a16b, 0x0b668ecc, 0x11223344,
-    0x0000009e, 0x00000043, 0x0000af73, 0x0000116b, 0x00658ecc, 0x002b3b4c,
-    0x88776655, 0x70000000, 0x07200000, 0x7fffffff, 0x56123761, 0x7fffff00,
-    0x761c4761, 0x80000000, 0x88888888, 0xa0000000, 0xdddddddd, 0xe0000000,
-    0xeeeeeeee, 0xfffffffd, 0xf0000000, 0x007fffff, 0x003fffff, 0x001fffff,
-    0x000fffff, 0x0007ffff, 0x0003ffff, 0x0001ffff, 0x0000ffff, 0x00007fff,
-    0x00003fff, 0x00001fff, 0x00000fff, 0x000007ff, 0x000003ff, 0x000001ff};
-
+    0x00000000, 0x00000001, 0xFFFFFFFF, 0x1B09788B, 0x04C5FCE8, 0xCC0DE5BF,
+    0x273A798E, 0x187937A3, 0xECE3AF83, 0x5495A16B, 0x0B668ECC, 0x11223344,
+    0x0000009E, 0x00000043, 0x0000AF73, 0x0000116B, 0x00658ECC, 0x002B3B4C,
+    0x88776655, 0x70000000, 0x07200000, 0x7FFFFFFF, 0x56123761, 0x7FFFFF00,
+    0x761C4761, 0x80000000, 0x88888888, 0xA0000000, 0xDDDDDDDD, 0xE0000000,
+    0xEEEEEEEE, 0xFFFFFFFD, 0xF0000000, 0x007FFFFF, 0x003FFFFF, 0x001FFFFF,
+    0x000FFFFF, 0x0007FFFF, 0x0003FFFF, 0x0001FFFF, 0x0000FFFF, 0x00007FFF,
+    0x00003FFF, 0x00001FFF, 0x00000FFF, 0x000007FF, 0x000003FF, 0x000001FF};
 
 struct ComparisonBinaryOperator {
   const Operator* (MachineOperatorBuilder::*constructor)();
@@ -1653,7 +1699,7 @@ TEST_F(MachineOperatorReducerTest, Float64DivWithMinusOne) {
 
 TEST_F(MachineOperatorReducerTest, Float64DivWithPowerOfTwo) {
   Node* const p0 = Parameter(0);
-  TRACED_FORRANGE(uint64_t, exponent, 1, 0x7fe) {
+  TRACED_FORRANGE(uint64_t, exponent, 1, 0x7FE) {
     Double divisor = Double(exponent << Double::kPhysicalSignificandSize);
     if (divisor.value() == 1.0) continue;  // Skip x / 1.0 => x.
     Reduction r = Reduce(graph()->NewNode(machine()->Float64Div(), p0,
@@ -1946,7 +1992,7 @@ TEST_F(MachineOperatorReducerTest, Float64InsertLowWord32WithConstant) {
       EXPECT_THAT(
           r.replacement(),
           IsFloat64Constant(BitEq(bit_cast<double>(
-              (bit_cast<uint64_t>(x) & V8_UINT64_C(0xFFFFFFFF00000000)) | y))));
+              (bit_cast<uint64_t>(x) & uint64_t{0xFFFFFFFF00000000}) | y))));
     }
   }
 }
@@ -1965,7 +2011,7 @@ TEST_F(MachineOperatorReducerTest, Float64InsertHighWord32WithConstant) {
       ASSERT_TRUE(r.Changed());
       EXPECT_THAT(r.replacement(),
                   IsFloat64Constant(BitEq(bit_cast<double>(
-                      (bit_cast<uint64_t>(x) & V8_UINT64_C(0xFFFFFFFF)) |
+                      (bit_cast<uint64_t>(x) & uint64_t{0xFFFFFFFF}) |
                       (static_cast<uint64_t>(y) << 32)))));
     }
   }
@@ -2110,7 +2156,7 @@ TEST_F(MachineOperatorReducerTest, StoreRepWord8WithWord32And) {
     Node* const node =
         graph()->NewNode(machine()->Store(rep), base, index,
                          graph()->NewNode(machine()->Word32And(), value,
-                                          Uint32Constant(x | 0xffu)),
+                                          Uint32Constant(x | 0xFFu)),
                          effect, control);
 
     Reduction r = Reduce(node);
@@ -2157,7 +2203,7 @@ TEST_F(MachineOperatorReducerTest, StoreRepWord16WithWord32And) {
     Node* const node =
         graph()->NewNode(machine()->Store(rep), base, index,
                          graph()->NewNode(machine()->Word32And(), value,
-                                          Uint32Constant(x | 0xffffu)),
+                                          Uint32Constant(x | 0xFFFFu)),
                          effect, control);
 
     Reduction r = Reduce(node);

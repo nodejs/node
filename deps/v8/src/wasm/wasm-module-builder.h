@@ -172,8 +172,8 @@ class V8_EXPORT_PRIVATE WasmFunctionBuilder : public ZoneObject {
   void EmitWithU32V(WasmOpcode opcode, uint32_t immediate);
   void EmitDirectCallIndex(uint32_t index);
   void SetName(Vector<const char> name);
-  void AddAsmWasmOffset(int call_position, int to_number_position);
-  void SetAsmFunctionStartPosition(int position);
+  void AddAsmWasmOffset(size_t call_position, size_t to_number_position);
+  void SetAsmFunctionStartPosition(size_t function_position);
 
   size_t GetPosition() const { return body_.size(); }
   void FixupByte(size_t position, byte value) {

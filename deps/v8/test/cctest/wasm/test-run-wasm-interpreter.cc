@@ -294,14 +294,14 @@ TEST(Breakpoint_I32And_disable) {
 TEST(GrowMemory) {
   {
     WasmRunner<int32_t, uint32_t> r(kExecuteInterpreter);
-    r.builder().AddMemory(WasmModule::kPageSize);
+    r.builder().AddMemory(kWasmPageSize);
     r.builder().SetMaxMemPages(10);
     BUILD(r, WASM_GROW_MEMORY(WASM_GET_LOCAL(0)));
     CHECK_EQ(1, r.Call(1));
   }
   {
     WasmRunner<int32_t, uint32_t> r(kExecuteInterpreter);
-    r.builder().AddMemory(WasmModule::kPageSize);
+    r.builder().AddMemory(kWasmPageSize);
     r.builder().SetMaxMemPages(10);
     BUILD(r, WASM_GROW_MEMORY(WASM_GET_LOCAL(0)));
     CHECK_EQ(-1, r.Call(11));
@@ -312,7 +312,7 @@ TEST(GrowMemoryPreservesData) {
   int32_t index = 16;
   int32_t value = 2335;
   WasmRunner<int32_t, uint32_t> r(kExecuteInterpreter);
-  r.builder().AddMemory(WasmModule::kPageSize);
+  r.builder().AddMemory(kWasmPageSize);
   BUILD(r, WASM_STORE_MEM(MachineType::Int32(), WASM_I32V(index),
                           WASM_I32V(value)),
         WASM_GROW_MEMORY(WASM_GET_LOCAL(0)), WASM_DROP,
@@ -323,7 +323,7 @@ TEST(GrowMemoryPreservesData) {
 TEST(GrowMemoryInvalidSize) {
   // Grow memory by an invalid amount without initial memory.
   WasmRunner<int32_t, uint32_t> r(kExecuteInterpreter);
-  r.builder().AddMemory(WasmModule::kPageSize);
+  r.builder().AddMemory(kWasmPageSize);
   BUILD(r, WASM_GROW_MEMORY(WASM_GET_LOCAL(0)));
   CHECK_EQ(-1, r.Call(1048575));
 }
@@ -364,7 +364,7 @@ TEST(TestPossibleNondeterminism) {
   {
     int32_t index = 16;
     WasmRunner<int32_t, float> r(kExecuteInterpreter);
-    r.builder().AddMemory(WasmModule::kPageSize);
+    r.builder().AddMemory(kWasmPageSize);
     BUILD(r, WASM_STORE_MEM(MachineType::Float32(), WASM_I32V(index),
                             WASM_GET_LOCAL(0)),
           WASM_I32V(index));
@@ -376,7 +376,7 @@ TEST(TestPossibleNondeterminism) {
   {
     int32_t index = 16;
     WasmRunner<int32_t, double> r(kExecuteInterpreter);
-    r.builder().AddMemory(WasmModule::kPageSize);
+    r.builder().AddMemory(kWasmPageSize);
     BUILD(r, WASM_STORE_MEM(MachineType::Float64(), WASM_I32V(index),
                             WASM_GET_LOCAL(0)),
           WASM_I32V(index));

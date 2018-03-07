@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --no-always-opt --harmony-async-iteration
+// Flags: --allow-natives-syntax --no-always-opt
 // Files: test/mjsunit/code-coverage-utils.js
 
 %DebugToggleBlockCoverage(true);
@@ -38,20 +38,23 @@ function f(x) {                           // 0050
 }                                         // 0550
 f(42);                                    // 0600
 f(43);                                    // 0650
+if (true) {                               // 0700
+  const foo = 'bar';                      // 0750
+} else {                                  // 0800
+  const bar = 'foo';                      // 0850
+}                                         // 0900
 `,
-[{"start":0,"end":699,"count":1},
+[{"start":0,"end":949,"count":1},
+ {"start":801,"end":901,"count":0},
  {"start":0,"end":15,"count":11},
  {"start":50,"end":551,"count":2},
  {"start":115,"end":203,"count":1},
  {"start":167,"end":171,"count":0},
- {"start":265,"end":273,"count":1},
- {"start":279,"end":287,"count":1},
- {"start":315,"end":319,"count":1},
- {"start":325,"end":329,"count":1},
+ {"start":265,"end":287,"count":1},
+ {"start":315,"end":329,"count":1},
  {"start":363,"end":367,"count":0},
  {"start":413,"end":417,"count":0},
- {"start":472,"end":476,"count":0}]
-
+ {"start":466,"end":476,"count":0}]
 );
 
 TestCoverage(
@@ -82,7 +85,7 @@ TestCoverage(
 `,
 [{"start":0,"end":249,"count":1},
  {"start":1,"end":201,"count":1},
- {"start":124,"end":129,"count":0}]
+ {"start":118,"end":129,"count":0}]
 );
 
 TestCoverage(
@@ -109,7 +112,7 @@ function g() {}                           // 0000
  {"start":330,"end":334,"count":0},
  {"start":431,"end":503,"count":12},
  {"start":470,"end":474,"count":4},
- {"start":480,"end":484,"count":8}]
+ {"start":474,"end":484,"count":8}]
 );
 
 TestCoverage(

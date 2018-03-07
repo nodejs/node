@@ -9,6 +9,8 @@
 #include <cstdint>
 #include <limits>
 
+#include "src/wasm/wasm-constants.h"
+
 namespace v8 {
 namespace internal {
 namespace wasm {
@@ -41,10 +43,11 @@ constexpr size_t kV8MaxWasmTables = 1;
 constexpr size_t kV8MaxWasmMemories = 1;
 
 constexpr size_t kSpecMaxWasmMemoryPages = 65536;
+static_assert(kV8MaxWasmMemoryPages <= kSpecMaxWasmMemoryPages,
+              "v8 should not be more permissive than the spec");
 constexpr size_t kSpecMaxWasmTableSize = 0xFFFFFFFFu;
 
-// TODO(titzer): move WASM page size constant here.
-constexpr size_t kV8MaxWasmMemoryBytes = kV8MaxWasmMemoryPages * 65536;
+constexpr size_t kV8MaxWasmMemoryBytes = kV8MaxWasmMemoryPages * kWasmPageSize;
 
 constexpr uint64_t kWasmMaxHeapOffset =
     static_cast<uint64_t>(

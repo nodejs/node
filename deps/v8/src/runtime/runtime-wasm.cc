@@ -16,9 +16,10 @@
 #include "src/trap-handler/trap-handler.h"
 #include "src/v8memory.h"
 #include "src/wasm/module-compiler.h"
-#include "src/wasm/wasm-heap.h"
+#include "src/wasm/wasm-code-manager.h"
+#include "src/wasm/wasm-constants.h"
+#include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-objects.h"
-#include "src/wasm/wasm-opcodes.h"
 
 namespace v8 {
 namespace internal {
@@ -33,7 +34,7 @@ WasmInstanceObject* GetWasmInstanceOnStackTop(Isolate* isolate) {
   WasmInstanceObject* owning_instance = nullptr;
   if (FLAG_wasm_jit_to_native) {
     owning_instance = WasmInstanceObject::GetOwningInstance(
-        isolate->wasm_code_manager()->LookupCode(pc));
+        isolate->wasm_engine()->code_manager()->LookupCode(pc));
   } else {
     owning_instance = WasmInstanceObject::GetOwningInstanceGC(
         isolate->inner_pointer_to_code_cache()->GetCacheEntry(pc)->code);
@@ -45,14 +46,14 @@ WasmInstanceObject* GetWasmInstanceOnStackTop(Isolate* isolate) {
 Context* GetWasmContextOnStackTop(Isolate* isolate) {
   return GetWasmInstanceOnStackTop(isolate)
       ->compiled_module()
-      ->ptr_to_native_context();
+      ->native_context();
 }
 
 class ClearThreadInWasmScope {
  public:
   explicit ClearThreadInWasmScope(bool coming_from_wasm)
       : coming_from_wasm_(coming_from_wasm) {
-    DCHECK_EQ(trap_handler::UseTrapHandler() && coming_from_wasm,
+    DCHECK_EQ(trap_handler::IsTrapHandlerEnabled() && coming_from_wasm,
               trap_handler::IsThreadInWasm());
     if (coming_from_wasm) trap_handler::ClearThreadInWasm();
   }
@@ -79,7 +80,7 @@ RUNTIME_FUNCTION(Runtime_WasmGrowMemory) {
 
   // Set the current isolate's context.
   DCHECK_NULL(isolate->context());
-  isolate->set_context(instance->compiled_module()->ptr_to_native_context());
+  isolate->set_context(instance->compiled_module()->native_context());
 
   return *isolate->factory()->NewNumberFromInt(
       WasmInstanceObject::GrowMemory(isolate, instance, delta_pages));
@@ -170,7 +171,7 @@ RUNTIME_FUNCTION(Runtime_WasmGetExceptionRuntimeId) {
       }
     }
   }
-  return Smi::FromInt(wasm::WasmModule::kInvalidExceptionTag);
+  return Smi::FromInt(wasm::kInvalidExceptionTag);
 }
 
 RUNTIME_FUNCTION(Runtime_WasmExceptionGetElement) {
@@ -248,7 +249,7 @@ RUNTIME_FUNCTION(Runtime_WasmRunInterpreter) {
 
   // Set the current isolate's context.
   DCHECK_NULL(isolate->context());
-  isolate->set_context(instance->compiled_module()->ptr_to_native_context());
+  isolate->set_context(instance->compiled_module()->native_context());
 
   // Find the frame pointer of the interpreter entry.
   Address frame_pointer = 0;
@@ -275,7 +276,8 @@ RUNTIME_FUNCTION(Runtime_WasmRunInterpreter) {
 RUNTIME_FUNCTION(Runtime_WasmStackGuard) {
   SealHandleScope shs(isolate);
   DCHECK_EQ(0, args.length());
-  DCHECK(!trap_handler::UseTrapHandler() || trap_handler::IsThreadInWasm());
+  DCHECK(!trap_handler::IsTrapHandlerEnabled() ||
+         trap_handler::IsThreadInWasm());
 
   ClearThreadInWasmScope wasm_flag(true);
 

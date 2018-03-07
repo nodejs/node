@@ -35,7 +35,7 @@ static const int kMinDecimalPower = -324;
 // 2^64 = 18446744073709551616
 static const uint64_t kMaxUint64 = V8_2PART_UINT64_C(0xFFFFFFFF, FFFFFFFF);
 
-
+// clang-format off
 static const double exact_powers_of_ten[] = {
   1.0,  // 10^0
   10.0,
@@ -59,9 +59,10 @@ static const double exact_powers_of_ten[] = {
   10000000000000000000.0,
   100000000000000000000.0,  // 10^20
   1000000000000000000000.0,
-  // 10^22 = 0x21e19e0c9bab2400000 = 0x878678326eac9 * 2^22
+  // 10^22 = 0x21E19E0C9BAB2400000 = 0x878678326EAC9 * 2^22
   10000000000000000000000.0
 };
+// clang-format on
 static const int kExactPowersOfTenSize = arraysize(exact_powers_of_ten);
 
 // Maximum number of significant digits in the decimal representation.
@@ -162,8 +163,11 @@ static bool DoubleStrtod(Vector<const char> trimmed,
   // therefore accurate.
   // Note that the ARM and MIPS simulators are compiled for 32bits. They
   // therefore exhibit the same problem.
+  USE(exact_powers_of_ten);
+  USE(kMaxExactDoubleIntegerDecimalDigits);
+  USE(kExactPowersOfTenSize);
   return false;
-#endif
+#else
   if (trimmed.length() <= kMaxExactDoubleIntegerDecimalDigits) {
     int read_digits;
     // The trimmed input fits into a double.
@@ -201,6 +205,7 @@ static bool DoubleStrtod(Vector<const char> trimmed,
     }
   }
   return false;
+#endif
 }
 
 
@@ -213,13 +218,20 @@ static DiyFp AdjustmentPowerOfTen(int exponent) {
   // distance.
   DCHECK_EQ(PowersOfTenCache::kDecimalExponentDistance, 8);
   switch (exponent) {
-    case 1: return DiyFp(V8_2PART_UINT64_C(0xa0000000, 00000000), -60);
-    case 2: return DiyFp(V8_2PART_UINT64_C(0xc8000000, 00000000), -57);
-    case 3: return DiyFp(V8_2PART_UINT64_C(0xfa000000, 00000000), -54);
-    case 4: return DiyFp(V8_2PART_UINT64_C(0x9c400000, 00000000), -50);
-    case 5: return DiyFp(V8_2PART_UINT64_C(0xc3500000, 00000000), -47);
-    case 6: return DiyFp(V8_2PART_UINT64_C(0xf4240000, 00000000), -44);
-    case 7: return DiyFp(V8_2PART_UINT64_C(0x98968000, 00000000), -40);
+    case 1:
+      return DiyFp(V8_2PART_UINT64_C(0xA0000000, 00000000), -60);
+    case 2:
+      return DiyFp(V8_2PART_UINT64_C(0xC8000000, 00000000), -57);
+    case 3:
+      return DiyFp(V8_2PART_UINT64_C(0xFA000000, 00000000), -54);
+    case 4:
+      return DiyFp(V8_2PART_UINT64_C(0x9C400000, 00000000), -50);
+    case 5:
+      return DiyFp(V8_2PART_UINT64_C(0xC3500000, 00000000), -47);
+    case 6:
+      return DiyFp(V8_2PART_UINT64_C(0xF4240000, 00000000), -44);
+    case 7:
+      return DiyFp(V8_2PART_UINT64_C(0x98968000, 00000000), -40);
     default:
       UNREACHABLE();
   }

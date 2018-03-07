@@ -232,10 +232,9 @@ void BaseCollectionsAssembler::AddConstructorEntriesFromIterable(
 
   TNode<Object> add_func = GetAddFunction(variant, context, collection);
   IteratorBuiltinsAssembler iterator_assembler(this->state());
-  TNode<Object> iterator =
-      CAST(iterator_assembler.GetIterator(context, iterable));
+  IteratorRecord iterator = iterator_assembler.GetIterator(context, iterable);
 
-  CSA_ASSERT(this, Word32BinaryNot(IsUndefined(iterator)));
+  CSA_ASSERT(this, Word32BinaryNot(IsUndefined(iterator.object)));
 
   TNode<Object> fast_iterator_result_map =
       LoadContextElement(native_context, Context::ITERATOR_RESULT_MAP_INDEX);

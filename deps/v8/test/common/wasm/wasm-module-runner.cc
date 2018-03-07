@@ -23,7 +23,7 @@ namespace wasm {
 namespace testing {
 
 uint32_t GetInitialMemSize(const WasmModule* module) {
-  return WasmModule::kPageSize * module->initial_pages;
+  return kWasmPageSize * module->initial_pages;
 }
 
 std::unique_ptr<WasmModule> DecodeWasmModuleForTesting(
@@ -173,9 +173,9 @@ int32_t InterpretWasmModule(Isolate* isolate,
   isolate->clear_pending_exception();
 
   *possible_nondeterminism = thread->PossibleNondeterminism();
-  if (stack_overflow) return 0xdeadbeef;
+  if (stack_overflow) return 0xDEADBEEF;
 
-  if (thread->state() == WasmInterpreter::TRAPPED) return 0xdeadbeef;
+  if (thread->state() == WasmInterpreter::TRAPPED) return 0xDEADBEEF;
 
   if (interpreter_result == WasmInterpreter::FINISHED)
     return thread->GetReturnValue().to<int32_t>();

@@ -45,8 +45,8 @@ TEST(Hex) {
   CHECK_EQ(0.0, StringToDouble(&uc, "0X0", ALLOW_HEX | ALLOW_IMPLICIT_OCTAL));
   CHECK_EQ(1.0, StringToDouble(&uc, "0x1", ALLOW_HEX | ALLOW_IMPLICIT_OCTAL));
   CHECK_EQ(16.0, StringToDouble(&uc, "0x10", ALLOW_HEX | ALLOW_IMPLICIT_OCTAL));
-  CHECK_EQ(255.0, StringToDouble(&uc, "0xff",
-                                 ALLOW_HEX | ALLOW_IMPLICIT_OCTAL));
+  CHECK_EQ(255.0,
+           StringToDouble(&uc, "0xFF", ALLOW_HEX | ALLOW_IMPLICIT_OCTAL));
   CHECK_EQ(175.0, StringToDouble(&uc, "0xAF",
                                  ALLOW_HEX | ALLOW_IMPLICIT_OCTAL));
 
@@ -54,7 +54,7 @@ TEST(Hex) {
   CHECK_EQ(0.0, StringToDouble(&uc, "0X0", ALLOW_HEX));
   CHECK_EQ(1.0, StringToDouble(&uc, "0x1", ALLOW_HEX));
   CHECK_EQ(16.0, StringToDouble(&uc, "0x10", ALLOW_HEX));
-  CHECK_EQ(255.0, StringToDouble(&uc, "0xff", ALLOW_HEX));
+  CHECK_EQ(255.0, StringToDouble(&uc, "0xFF", ALLOW_HEX));
   CHECK_EQ(175.0, StringToDouble(&uc, "0xAF", ALLOW_HEX));
 }
 

@@ -42,6 +42,7 @@ void calculateAsyncChain(V8Debugger* debugger, int contextGroupId,
   // not happen if we have proper instrumentation, but let's double-check to be
   // safe.
   if (contextGroupId && *asyncParent &&
+      (*asyncParent)->externalParent().IsInvalid() &&
       (*asyncParent)->contextGroupId() != contextGroupId) {
     asyncParent->reset();
     *externalParent = V8StackTraceId();
@@ -338,14 +339,15 @@ std::shared_ptr<AsyncStackTrace> AsyncStackTrace::capture(
   // but doesn't synchronous we can merge them together. e.g. Promise
   // ThenableJob.
   if (asyncParent && frames.empty() &&
-      asyncParent->m_description == description) {
+      (asyncParent->m_description == description || description.isEmpty())) {
     return asyncParent;
   }
 
-  DCHECK(contextGroupId || asyncParent);
+  DCHECK(contextGroupId || asyncParent || !externalParent.IsInvalid());
   if (!contextGroupId && asyncParent) {
     contextGroupId = asyncParent->m_contextGroupId;
   }
+
   return std::shared_ptr<AsyncStackTrace>(
       new AsyncStackTrace(contextGroupId, description, std::move(frames),
                           asyncParent, externalParent));
@@ -362,7 +364,7 @@ AsyncStackTrace::AsyncStackTrace(
       m_frames(std::move(frames)),
       m_asyncParent(asyncParent),
       m_externalParent(externalParent) {
-  DCHECK(m_contextGroupId);
+  DCHECK(m_contextGroupId || (!externalParent.IsInvalid() && m_frames.empty()));
 }
 
 std::unique_ptr<protocol::Runtime::StackTrace>

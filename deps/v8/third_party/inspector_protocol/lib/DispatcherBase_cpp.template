@@ -118,23 +118,6 @@ void DispatcherBase::markFallThrough(int callbackId)
     m_lastCallbackFallThrough = true;
 }
 
-// static
-bool DispatcherBase::getCommandName(const String& message, String* result)
-{
-    std::unique_ptr<protocol::Value> value = StringUtil::parseJSON(message);
-    if (!value)
-        return false;
-
-    protocol::DictionaryValue* object = DictionaryValue::cast(value.get());
-    if (!object)
-        return false;
-
-    if (!object->getString("method", result))
-        return false;
-
-    return true;
-}
-
 void DispatcherBase::sendResponse(int callId, const DispatchResponse& response, std::unique_ptr<protocol::DictionaryValue> result)
 {
     if (!m_frontendChannel)
@@ -272,7 +255,7 @@ DispatchResponse::Status UberDispatcher::dispatch(std::unique_ptr<Value> parsedM
     if (outCallId)
         *outCallId = callId;
     if (!success) {
-        reportProtocolErrorTo(m_frontendChannel, DispatchResponse::kInvalidRequest, "Message must have integer 'id' porperty");
+        reportProtocolErrorTo(m_frontendChannel, DispatchResponse::kInvalidRequest, "Message must have integer 'id' property");
         return DispatchResponse::kError;
     }
 
@@ -282,7 +265,7 @@ DispatchResponse::Status UberDispatcher::dispatch(std::unique_ptr<Value> parsedM
     if (outMethod)
         *outMethod = method;
     if (!success) {
-        reportProtocolErrorTo(m_frontendChannel, callId, DispatchResponse::kInvalidRequest, "Message must have string 'method' porperty", nullptr);
+        reportProtocolErrorTo(m_frontendChannel, callId, DispatchResponse::kInvalidRequest, "Message must have string 'method' property", nullptr);
         return DispatchResponse::kError;
     }
 
@@ -306,6 +289,29 @@ DispatchResponse::Status UberDispatcher::dispatch(std::unique_ptr<Value> parsedM
         return DispatchResponse::kError;
     }
     return it->second->dispatch(callId, method, std::move(messageObject));
+}
+
+bool UberDispatcher::getCommandName(const String& message, String* method, std::unique_ptr<protocol::DictionaryValue>* parsedMessage)
+{
+    std::unique_ptr<protocol::Value> value = StringUtil::parseJSON(message);
+    if (!value) {
+        reportProtocolErrorTo(m_frontendChannel, DispatchResponse::kParseError, "Message must be a valid JSON");
+        return false;
+   }
+
+    protocol::DictionaryValue* object = DictionaryValue::cast(value.get());
+    if (!object) {
+        reportProtocolErrorTo(m_frontendChannel, DispatchResponse::kInvalidRequest, "Message must be an object");
+        return false;
+    }
+
+    if (!object->getString("method", method)) {
+        reportProtocolErrorTo(m_frontendChannel, DispatchResponse::kInvalidRequest, "Message must have string 'method' property");
+        return false;
+    }
+
+    parsedMessage->reset(DictionaryValue::cast(value.release()));
+    return true;
 }
 
 UberDispatcher::~UberDispatcher() = default;

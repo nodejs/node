@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_MEMORY_TRACING_H
-#define V8_MEMORY_TRACING_H
+#ifndef V8_WASM_MEMORY_TRACING_H_
+#define V8_WASM_MEMORY_TRACING_H_
 
 #include <cstdint>
 
@@ -11,18 +11,31 @@
 
 namespace v8 {
 namespace internal {
-namespace tracing {
+namespace wasm {
 
-enum ExecutionEngine { kWasmCompiled, kWasmInterpreted };
+enum class ExecutionEngine { kTurbofan, kLiftoff, kInterpreter };
+
+// This struct is create in generated code, hence use low-level types.
+struct MemoryTracingInfo {
+  uint32_t address;
+  uint8_t is_store;  // 0 or 1
+  uint8_t mem_rep;
+  static_assert(
+      std::is_same<decltype(mem_rep),
+                   std::underlying_type<MachineRepresentation>::type>::value,
+      "MachineRepresentation uses uint8_t");
+
+  MemoryTracingInfo(uint32_t addr, bool is_store, MachineRepresentation rep)
+      : address(addr), is_store(is_store), mem_rep(static_cast<uint8_t>(rep)) {}
+};
 
 // Callback for tracing a memory operation for debugging.
 // Triggered by --wasm-trace-memory.
-void TraceMemoryOperation(ExecutionEngine, bool is_store, MachineRepresentation,
-                          uint32_t addr, int func_index, int position,
-                          uint8_t* mem_start);
+void TraceMemoryOperation(ExecutionEngine, const MemoryTracingInfo* info,
+                          int func_index, int position, uint8_t* mem_start);
 
-}  // namespace tracing
+}  // namespace wasm
 }  // namespace internal
 }  // namespace v8
 
-#endif /* !V8_MEMORY_TRACING_H */
+#endif  // V8_WASM_MEMORY_TRACING_H_

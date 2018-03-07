@@ -382,8 +382,7 @@ TEST_F(JSTypedLoweringTest, JSLoadNamedStringLength) {
       Reduce(graph()->NewNode(javascript()->LoadNamed(name, feedback), receiver,
                               context, EmptyFrameState(), effect, control));
   ASSERT_TRUE(r.Changed());
-  EXPECT_THAT(r.replacement(), IsLoadField(AccessBuilder::ForStringLength(),
-                                           receiver, effect, control));
+  EXPECT_THAT(r.replacement(), IsStringLength(receiver));
 }
 
 

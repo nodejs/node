@@ -20,7 +20,7 @@ class RepresentationSelector;
 class SourcePositionTable;
 class TypeCache;
 
-class SimplifiedLowering final {
+class V8_EXPORT_PRIVATE SimplifiedLowering final {
  public:
   SimplifiedLowering(JSGraph* jsgraph, Zone* zone,
                      SourcePositionTable* source_positions);

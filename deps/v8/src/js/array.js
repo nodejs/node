@@ -1118,64 +1118,6 @@ DEFINE_METHOD_LEN(
 );
 
 
-function InnerArrayFind(predicate, thisArg, array, length) {
-  if (!IS_CALLABLE(predicate)) {
-    throw %make_type_error(kCalledNonCallable, predicate);
-  }
-
-  for (var i = 0; i < length; i++) {
-    var element = array[i];
-    if (%_Call(predicate, thisArg, element, i, array)) {
-      return element;
-    }
-  }
-
-  return;
-}
-
-
-// ES6 draft 07-15-13, section 15.4.3.23
-DEFINE_METHOD_LEN(
-  GlobalArray.prototype,
-  find(predicate, thisArg) {
-    var array = TO_OBJECT(this);
-    var length = TO_INTEGER(array.length);
-
-    return InnerArrayFind(predicate, thisArg, array, length);
-  },
-  1  /* Set function length */
-);
-
-
-function InnerArrayFindIndex(predicate, thisArg, array, length) {
-  if (!IS_CALLABLE(predicate)) {
-    throw %make_type_error(kCalledNonCallable, predicate);
-  }
-
-  for (var i = 0; i < length; i++) {
-    var element = array[i];
-    if (%_Call(predicate, thisArg, element, i, array)) {
-      return i;
-    }
-  }
-
-  return -1;
-}
-
-
-// ES6 draft 07-15-13, section 15.4.3.24
-DEFINE_METHOD_LEN(
-  GlobalArray.prototype,
-  findIndex(predicate, thisArg) {
-    var array = TO_OBJECT(this);
-    var length = TO_INTEGER(array.length);
-
-    return InnerArrayFindIndex(predicate, thisArg, array, length);
-  },
-  1  /* Set function length */
-);
-
-
 // ES6, draft 04-05-14, section 22.1.3.6
 DEFINE_METHOD_LEN(
   GlobalArray.prototype,

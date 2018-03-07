@@ -18,19 +18,7 @@ class View {
   show(data, rememberedSelection) {
     this.parentNode.appendChild(this.divElement[0][0]);
     this.initializeContent(data, rememberedSelection);
-    this.resizeToParent();
     this.divElement.attr(VISIBILITY, 'visible');
-  }
-
-  resizeToParent() {
-    var view = this;
-    var documentElement = document.documentElement;
-    var y;
-    if (this.parentNode.clientHeight)
-      y = Math.max(this.parentNode.clientHeight, documentElement.clientHeight);
-    else
-      y = documentElement.clientHeight;
-    this.parentNode.style.height = y + 'px';
   }
 
   hide() {

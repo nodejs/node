@@ -57,10 +57,19 @@ class StringBuiltinsAssembler : public CodeStubAssembler {
                                  SloppyTNode<Object> value,
                                  SloppyTNode<Smi> limit);
 
-  TNode<Uint32T> LoadSurrogatePairAt(SloppyTNode<String> string,
-                                     SloppyTNode<IntPtrT> length,
-                                     SloppyTNode<IntPtrT> index,
-                                     UnicodeEncoding encoding);
+  typedef std::function<TNode<Object>(
+      TNode<String> receiver, TNode<IntPtrT> length, TNode<IntPtrT> index)>
+      StringAtAccessor;
+
+  void GenerateStringAt(const char* method_name, TNode<Context> context,
+                        Node* receiver, TNode<Object> maybe_position,
+                        TNode<Object> default_return,
+                        StringAtAccessor accessor);
+
+  TNode<Int32T> LoadSurrogatePairAt(SloppyTNode<String> string,
+                                    SloppyTNode<IntPtrT> length,
+                                    SloppyTNode<IntPtrT> index,
+                                    UnicodeEncoding encoding);
 
   void StringIndexOf(Node* const subject_string, Node* const search_string,
                      Node* const position, std::function<void(Node*)> f_return);

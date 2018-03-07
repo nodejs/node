@@ -154,7 +154,7 @@
 
   # Compiles a long chain of && or || operations, can time out under slower
   # variants.
-  'js1_5/Expressions/regress-394673': [PASS, FAST_VARIANTS],
+  'js1_5/Expressions/regress-394673': [PASS, NO_VARIANTS],
 
   # This takes a long time to run (~100 seconds). It should only be run
   # by the really patient.
@@ -879,10 +879,10 @@
 
 ['no_i18n == True and mode == debug', {
   # Tests too slow for no18n debug.
-  'ecma_3/Statements/regress-302439': [PASS, FAST_VARIANTS],
+  'ecma_3/Statements/regress-302439': [PASS, NO_VARIANTS],
   'js1_5/Regress/regress-98901': [SKIP],
-  'ecma_3/RegExp/perlstress-001': [PASS, FAST_VARIANTS],
-  'js1_5/extensions/regress-311161': [FAIL_OK, FAST_VARIANTS],
+  'ecma_3/RegExp/perlstress-001': [PASS, NO_VARIANTS],
+  'js1_5/extensions/regress-311161': [FAIL_OK, NO_VARIANTS],
 }],  # 'no_i18n == True and mode == debug'
 
 

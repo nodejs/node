@@ -20,6 +20,7 @@ enum class BinaryOperationHint : uint8_t {
   kNumber,
   kNumberOrOddball,
   kString,
+  kBigInt,
   kAny
 };
 
@@ -38,6 +39,7 @@ enum class CompareOperationHint : uint8_t {
   kInternalizedString,
   kString,
   kSymbol,
+  kBigInt,
   kReceiver,
   kAny
 };

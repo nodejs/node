@@ -6,6 +6,7 @@
 
 #include "src/compilation-info.h"
 #include "src/compiler/common-operator.h"
+#include "src/compiler/compiler-source-position-table.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/simplified-operator.h"
 #include "src/objects-inl.h"
@@ -556,6 +557,8 @@ void JSInliningHeuristic::CreateOrReuseDispatch(Node* node, Node* callee,
                                                 Node** if_successes,
                                                 Node** calls, Node** inputs,
                                                 int input_count) {
+  SourcePositionTable::Scope position(
+      source_positions_, source_positions_->GetSourcePosition(node));
   if (TryReuseDispatch(node, callee, candidate, if_successes, calls, inputs,
                        input_count)) {
     return;

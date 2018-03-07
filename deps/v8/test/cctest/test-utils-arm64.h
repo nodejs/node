@@ -244,7 +244,7 @@ RegList PopulateVRegisterArray(VRegister* s, VRegister* d, VRegister* v,
 // top word anyway, so clobbering the full X registers should make tests more
 // rigorous.
 void Clobber(MacroAssembler* masm, RegList reg_list,
-             uint64_t const value = 0xfedcba9876543210UL);
+             uint64_t const value = 0xFEDCBA9876543210UL);
 
 // As Clobber, but for FP registers.
 void ClobberFP(MacroAssembler* masm, RegList reg_list,

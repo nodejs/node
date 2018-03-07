@@ -85,6 +85,7 @@ protocol::Response toProtocolValue(v8::Local<v8::Context> context,
       v8::Local<v8::Value> property;
       if (!object->Get(context, name).ToLocal(&property))
         return Response::InternalError();
+      if (property->IsUndefined()) continue;
       std::unique_ptr<protocol::Value> propertyValue;
       Response response =
           toProtocolValue(context, property, maxDepth, &propertyValue);

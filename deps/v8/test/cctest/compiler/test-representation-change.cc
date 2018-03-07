@@ -285,7 +285,7 @@ static void CheckChange(IrOpcode::Value expected, MachineRepresentation from,
         from_type->Maybe(Type::MinusZero())
             ? use_info.minus_zero_check()
             : CheckForMinusZeroMode::kDontCheckForMinusZero;
-    CHECK_EQ(mode, CheckMinusZeroModeOf(c->op()));
+    CHECK_EQ(mode, CheckMinusZeroParametersOf(c->op()).mode());
   }
 }
 
@@ -444,11 +444,13 @@ TEST(SignednessInWord32) {
 static void TestMinusZeroCheck(IrOpcode::Value expected, Type* from_type) {
   RepresentationChangerTester r;
 
-  CheckChange(expected, MachineRepresentation::kFloat64, from_type,
-              UseInfo::CheckedSignedSmallAsWord32(kDistinguishZeros));
+  CheckChange(
+      expected, MachineRepresentation::kFloat64, from_type,
+      UseInfo::CheckedSignedSmallAsWord32(kDistinguishZeros, VectorSlotPair()));
 
-  CheckChange(expected, MachineRepresentation::kFloat64, from_type,
-              UseInfo::CheckedSignedSmallAsWord32(kIdentifyZeros));
+  CheckChange(
+      expected, MachineRepresentation::kFloat64, from_type,
+      UseInfo::CheckedSignedSmallAsWord32(kIdentifyZeros, VectorSlotPair()));
 
   CheckChange(expected, MachineRepresentation::kFloat64, from_type,
               UseInfo::CheckedSigned32AsWord32(kDistinguishZeros));

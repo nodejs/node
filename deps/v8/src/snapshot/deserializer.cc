@@ -192,14 +192,21 @@ HeapObject* Deserializer<AllocatorT>::PostProcessNewObject(HeapObject* obj,
     if (isolate_->external_reference_redirector()) {
       call_handler_infos_.push_back(CallHandlerInfo::cast(obj));
     }
-  } else if (obj->IsExternalOneByteString()) {
-    DCHECK(obj->map() == isolate_->heap()->native_source_string_map());
-    ExternalOneByteString* string = ExternalOneByteString::cast(obj);
-    DCHECK(string->is_short());
-    string->set_resource(
-        NativesExternalStringResource::DecodeForDeserialization(
-            string->resource()));
-    isolate_->heap()->RegisterExternalString(string);
+  } else if (obj->IsExternalString()) {
+    if (obj->map() == isolate_->heap()->native_source_string_map()) {
+      ExternalOneByteString* string = ExternalOneByteString::cast(obj);
+      DCHECK(string->is_short());
+      string->set_resource(
+          NativesExternalStringResource::DecodeForDeserialization(
+              string->resource()));
+    } else {
+      ExternalString* string = ExternalString::cast(obj);
+      uint32_t index = string->resource_as_uint32();
+      Address address =
+          reinterpret_cast<Address>(isolate_->api_external_references()[index]);
+      string->set_address_as_resource(address);
+    }
+    isolate_->heap()->RegisterExternalString(String::cast(obj));
   } else if (obj->IsJSTypedArray()) {
     JSTypedArray* typed_array = JSTypedArray::cast(obj);
     CHECK(typed_array->byte_offset()->IsSmi());
@@ -234,6 +241,13 @@ HeapObject* Deserializer<AllocatorT>::PostProcessNewObject(HeapObject* obj,
       void* backing_store = off_heap_backing_stores_[store_index->value()];
       fta->set_external_pointer(backing_store);
     }
+  } else if (obj->IsBytecodeArray()) {
+    // TODO(mythria): Remove these once we store the default values for these
+    // fields in the serializer.
+    BytecodeArray* bytecode_array = BytecodeArray::cast(obj);
+    bytecode_array->set_interrupt_budget(
+        interpreter::Interpreter::kInterruptBudget);
+    bytecode_array->set_osr_loop_nesting_level(0);
   }
   // Check alignment.
   DCHECK_EQ(0, Heap::GetFillToAlign(obj->address(), obj->RequiredAlignment()));
@@ -496,8 +510,7 @@ bool Deserializer<AllocatorT>::ReadData(Object** current, Object** limit,
       case kSynchronize:
         // If we get here then that indicates that you have a mismatch between
         // the number of GC roots when serializing and deserializing.
-        CHECK(false);
-        break;
+        UNREACHABLE();
 
       // Deserialize raw data of variable length.
       case kVariableRawData: {
@@ -635,12 +648,30 @@ bool Deserializer<AllocatorT>::ReadData(Object** current, Object** limit,
 #undef SINGLE_CASE
 
       default:
-        CHECK(false);
+        UNREACHABLE();
     }
   }
   CHECK_EQ(limit, current);
   return true;
 }
+
+namespace {
+
+int FixupJSConstructStub(Isolate* isolate, int builtin_id) {
+  if (isolate->serializer_enabled()) return builtin_id;
+
+  if (FLAG_harmony_restrict_constructor_return &&
+      builtin_id == Builtins::kJSConstructStubGenericUnrestrictedReturn) {
+    return Builtins::kJSConstructStubGenericRestrictedReturn;
+  } else if (!FLAG_harmony_restrict_constructor_return &&
+             builtin_id == Builtins::kJSConstructStubGenericRestrictedReturn) {
+    return Builtins::kJSConstructStubGenericUnrestrictedReturn;
+  } else {
+    return builtin_id;
+  }
+}
+
+}  // namespace
 
 template <class AllocatorT>
 template <int where, int how, int within, int space_number_if_any>
@@ -692,7 +723,8 @@ Object** Deserializer<AllocatorT>::ReadDataCase(Isolate* isolate,
       emit_write_barrier = isolate->heap()->InNewSpace(new_object);
     } else {
       DCHECK_EQ(where, kBuiltin);
-      int builtin_id = MaybeReplaceWithDeserializeLazy(source_.GetInt());
+      int raw_id = MaybeReplaceWithDeserializeLazy(source_.GetInt());
+      int builtin_id = FixupJSConstructStub(isolate, raw_id);
       new_object = isolate->builtins()->builtin(builtin_id);
       emit_write_barrier = false;
     }

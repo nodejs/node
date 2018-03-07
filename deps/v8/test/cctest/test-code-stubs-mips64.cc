@@ -100,7 +100,7 @@ ConvertDToIFunc MakeConvertDToIFuncTrampoline(Isolate* isolate,
     Register reg = Register::from_code(reg_num);
     if (reg != destination_reg) {
       __ Ld(at, MemOperand(sp, 0));
-      __ Assert(eq, kRegisterWasClobbered, reg, Operand(at));
+      __ Assert(eq, AbortReason::kRegisterWasClobbered, reg, Operand(at));
       __ Daddu(sp, sp, Operand(kPointerSize));
     }
   }
@@ -125,6 +125,7 @@ ConvertDToIFunc MakeConvertDToIFuncTrampoline(Isolate* isolate,
 
   CodeDesc desc;
   masm.GetCode(isolate, &desc);
+  MakeAssemblerBufferExecutable(buffer, allocated);
   Assembler::FlushICache(isolate, buffer, allocated);
   return (reinterpret_cast<ConvertDToIFunc>(
       reinterpret_cast<intptr_t>(buffer)));

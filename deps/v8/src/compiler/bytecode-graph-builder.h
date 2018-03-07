@@ -16,6 +16,9 @@
 
 namespace v8 {
 namespace internal {
+
+class VectorSlotPair;
+
 namespace compiler {
 
 class Reduction;
@@ -152,7 +155,6 @@ class BytecodeGraphBuilder {
   void BuildCreateArguments(CreateArgumentsType type);
   Node* BuildLoadGlobal(Handle<Name> name, uint32_t feedback_slot_index,
                         TypeofMode typeof_mode);
-  void BuildStoreGlobal(LanguageMode language_mode);
 
   enum class StoreMode {
     // Check the prototype chain before storing.
@@ -231,6 +233,10 @@ class BytecodeGraphBuilder {
   // Helper function to compute call frequency from the recorded type
   // feedback.
   CallFrequency ComputeCallFrequency(int slot_id) const;
+
+  // Helper function to extract the speculation mode from the recorded type
+  // feedback.
+  SpeculationMode GetSpeculationMode(int slot_id) const;
 
   // Control flow plumbing.
   void BuildJump();

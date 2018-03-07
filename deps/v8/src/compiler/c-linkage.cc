@@ -224,7 +224,7 @@ CallDescriptor* Linkage::GetSimplifiedCDescriptor(
   // The target for C calls is always an address (i.e. machine pointer).
   MachineType target_type = MachineType::Pointer();
   LinkageLocation target_loc = LinkageLocation::ForAnyRegister(target_type);
-  CallDescriptor::Flags flags = CallDescriptor::kUseNativeStack;
+  CallDescriptor::Flags flags = CallDescriptor::kNoFlags;
   if (set_initialize_root_flag) {
     flags |= CallDescriptor::kInitializeRootRegister;
   }

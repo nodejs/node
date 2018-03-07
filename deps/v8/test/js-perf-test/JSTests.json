@@ -180,13 +180,17 @@
       "name": "Strings",
       "path": ["Strings"],
       "main": "run.js",
-      "resources": ["harmony-string.js"],
+      "resources": ["harmony-string.js", "string-indexof.js"],
       "results_regexp": "^%s\\-Strings\\(Score\\): (.+)$",
       "run_count": 1,
       "timeout": 240,
       "timeout_arm": 420,
       "tests": [
-        {"name": "StringFunctions"}
+        {"name": "StringFunctions"},
+        {"name": "StringIndexOfConstant"},
+        {"name": "StringIndexOfNonConstant"},
+        {"name": "StringCharCodeAtConstant"},
+        {"name": "StringCharCodeAtNonConstant"}
       ]
     },
     {
@@ -367,10 +371,22 @@
           "test_flags": ["set-from-same-type"]
         },
         {
+          "name": "SliceNoSpecies",
+          "main": "run.js",
+          "resources": ["slice-nospecies.js"],
+          "test_flags": ["slice-nospecies"]
+        },
+        {
           "name": "Sort",
           "main": "run.js",
           "resources": ["sort.js"],
           "test_flags": ["sort"]
+        },
+        {
+          "name": "SubarrayNoSpecies",
+          "main": "run.js",
+          "resources": ["subarray-nospecies.js"],
+          "test_flags": ["subarray-nospecies"]
         }
       ]
     },
@@ -380,29 +396,40 @@
       "main": "run.js",
       "resources": [
         "filter.js", "map.js", "every.js", "join.js", "some.js",
-        "reduce.js", "reduce-right.js", "to-string.js"
+        "reduce.js", "reduce-right.js", "to-string.js", "find.js",
+        "find-index.js", "of.js"
       ],
       "flags": [
         "--allow-natives-syntax"
       ],
       "results_regexp": "^%s\\-Array\\(Score\\): (.+)$",
       "tests": [
+        {"name": "NaiveForEachReplacement"},
+        {"name": "DoubleForEach"},
+        {"name": "SmiForEach"},
+        {"name": "FastForEach"},
+        {"name": "GenericForEach"},
+        {"name": "OptFastForEach"},
+        {"name": "OptUnreliableForEach"},
         {"name": "NaiveFilterReplacement"},
         {"name": "DoubleFilter"},
         {"name": "SmiFilter"},
         {"name": "FastFilter"},
         {"name": "GenericFilter"},
         {"name": "OptFastFilter"},
+        {"name": "OptUnreliableFilter"},
         {"name": "NaiveMapReplacement"},
         {"name": "DoubleMap"},
         {"name": "SmiMap"},
         {"name": "FastMap"},
         {"name": "GenericMap"},
         {"name": "OptFastMap"},
+        {"name": "OptUnreliableMap"},
         {"name": "DoubleEvery"},
         {"name": "SmiEvery"},
         {"name": "FastEvery"},
         {"name": "OptFastEvery"},
+        {"name": "OptUnreliableEvery"},
         {"name": "SmiJoin"},
         {"name": "StringJoin"},
         {"name": "SparseSmiJoin"},
@@ -411,18 +438,42 @@
         {"name": "SmiSome"},
         {"name": "FastSome"},
         {"name": "OptFastSome"},
+        {"name": "OptUnreliableSome"},
         {"name": "DoubleReduce"},
         {"name": "SmiReduce"},
         {"name": "FastReduce"},
         {"name": "OptFastReduce"},
+        {"name": "OptUnreliableReduce"},
         {"name": "DoubleReduceRight"},
         {"name": "SmiReduceRight"},
         {"name": "FastReduceRight"},
         {"name": "OptFastReduceRight"},
+        {"name": "OptUnreliableReduceRight"},
         {"name": "SmiToString"},
         {"name": "StringToString"},
         {"name": "SparseSmiToString"},
-        {"name": "SparseStringToString"}
+        {"name": "SparseStringToString"},
+        {"name": "NaiveFindReplacement"},
+        {"name": "DoubleFind"},
+        {"name": "SmiFind"},
+        {"name": "FastFind"},
+        {"name": "GenericFind"},
+        {"name": "OptFastFind"},
+        {"name": "OptUnreliableFind"},
+        {"name": "NaiveFindIndexReplacement"},
+        {"name": "DoubleFindIndex"},
+        {"name": "SmiFindIndex"},
+        {"name": "FastFindIndex"},
+        {"name": "GenericFindIndex"},
+        {"name": "OptFastFindIndex"},
+        {"name": "OptUnreliableFindIndex"},
+        {"name": "EmptyArrayOf"},
+        {"name": "SmallSmiArrayOf"},
+        {"name": "LargeSmiArrayOf"},
+        {"name": "SmallTransplantedArrayOf"},
+        {"name": "SmallDoubleArrayOf"},
+        {"name": "SmallStringArrayOf"},
+        {"name": "SmallMixedArrayOf"}
       ]
     },
     {
@@ -514,6 +565,7 @@
           "resources": [ "arithmetic.js" ],
           "test_flags": [ "arithmetic" ],
           "results_regexp": "^%s\\-BytecodeHandler\\(Score\\): (.+)$",
+          "timeout": 240,
           "tests": [
             {"name": "Smi-Add"},
             {"name": "Number-Add"},

@@ -322,8 +322,8 @@ void CpuProfiler::CreateEntriesForRuntimeCallStats() {
   static_entries_.clear();
   RuntimeCallStats* rcs = isolate_->counters()->runtime_call_stats();
   CodeMap* code_map = generator_->code_map();
-  for (int i = 0; i < RuntimeCallStats::counters_count; ++i) {
-    RuntimeCallCounter* counter = &(rcs->*(RuntimeCallStats::counters[i]));
+  for (int i = 0; i < RuntimeCallStats::kNumberOfCounters; ++i) {
+    RuntimeCallCounter* counter = rcs->GetCounter(i);
     DCHECK(counter->name());
     std::unique_ptr<CodeEntry> entry(
         new CodeEntry(CodeEventListener::FUNCTION_TAG, counter->name(),

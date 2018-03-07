@@ -557,25 +557,34 @@ inline WasmOpcode LoadStoreOpcodeOf(MachineType type, bool store) {
 #define WASM_I64_REINTERPRET_F64(x) x, kExprI64ReinterpretF64
 
 //------------------------------------------------------------------------------
+// Numeric operations
+//------------------------------------------------------------------------------
+#define WASM_NUMERIC_OP(op) kNumericPrefix, static_cast<byte>(op)
+#define WASM_I32_SCONVERT_SAT_F32(x) x, WASM_NUMERIC_OP(kExprI32SConvertSatF32)
+#define WASM_I32_UCONVERT_SAT_F32(x) x, WASM_NUMERIC_OP(kExprI32UConvertSatF32)
+#define WASM_I32_SCONVERT_SAT_F64(x) x, WASM_NUMERIC_OP(kExprI32SConvertSatF64)
+#define WASM_I32_UCONVERT_SAT_F64(x) x, WASM_NUMERIC_OP(kExprI32UConvertSatF64)
+
+//------------------------------------------------------------------------------
 // Memory Operations.
 //------------------------------------------------------------------------------
 #define WASM_GROW_MEMORY(x) x, kExprGrowMemory, 0
 #define WASM_MEMORY_SIZE kExprMemorySize, 0
 
-#define SIG_ENTRY_v_v kWasmFunctionTypeForm, 0, 0
+#define SIG_ENTRY_v_v kWasmFunctionTypeCode, 0, 0
 #define SIZEOF_SIG_ENTRY_v_v 3
 
-#define SIG_ENTRY_v_x(a) kWasmFunctionTypeForm, 1, a, 0
-#define SIG_ENTRY_v_xx(a, b) kWasmFunctionTypeForm, 2, a, b, 0
-#define SIG_ENTRY_v_xxx(a, b, c) kWasmFunctionTypeForm, 3, a, b, c, 0
+#define SIG_ENTRY_v_x(a) kWasmFunctionTypeCode, 1, a, 0
+#define SIG_ENTRY_v_xx(a, b) kWasmFunctionTypeCode, 2, a, b, 0
+#define SIG_ENTRY_v_xxx(a, b, c) kWasmFunctionTypeCode, 3, a, b, c, 0
 #define SIZEOF_SIG_ENTRY_v_x 4
 #define SIZEOF_SIG_ENTRY_v_xx 5
 #define SIZEOF_SIG_ENTRY_v_xxx 6
 
-#define SIG_ENTRY_x(r) kWasmFunctionTypeForm, 0, 1, r
-#define SIG_ENTRY_x_x(r, a) kWasmFunctionTypeForm, 1, a, 1, r
-#define SIG_ENTRY_x_xx(r, a, b) kWasmFunctionTypeForm, 2, a, b, 1, r
-#define SIG_ENTRY_x_xxx(r, a, b, c) kWasmFunctionTypeForm, 3, a, b, c, 1, r
+#define SIG_ENTRY_x(r) kWasmFunctionTypeCode, 0, 1, r
+#define SIG_ENTRY_x_x(r, a) kWasmFunctionTypeCode, 1, a, 1, r
+#define SIG_ENTRY_x_xx(r, a, b) kWasmFunctionTypeCode, 2, a, b, 1, r
+#define SIG_ENTRY_x_xxx(r, a, b, c) kWasmFunctionTypeCode, 3, a, b, c, 1, r
 #define SIZEOF_SIG_ENTRY_x 4
 #define SIZEOF_SIG_ENTRY_x_x 5
 #define SIZEOF_SIG_ENTRY_x_xx 6

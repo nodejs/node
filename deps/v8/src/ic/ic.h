@@ -119,6 +119,7 @@ class IC {
   bool IsTransitionOfMonomorphicTarget(Map* source_map, Map* target_map);
   void PatchCache(Handle<Name> name, Handle<Object> code);
   FeedbackSlotKind kind() const { return kind_; }
+  bool IsGlobalIC() const { return IsLoadGlobalIC() || IsStoreGlobalIC(); }
   bool IsLoadIC() const { return IsLoadICKind(kind_); }
   bool IsLoadGlobalIC() const { return IsLoadGlobalICKind(kind_); }
   bool IsKeyedLoadIC() const { return IsKeyedLoadICKind(kind_); }
@@ -339,8 +340,7 @@ class StoreGlobalIC : public StoreIC {
   StoreGlobalIC(Isolate* isolate, FeedbackNexus* nexus)
       : StoreIC(isolate, nexus) {}
 
-  MUST_USE_RESULT MaybeHandle<Object> Store(Handle<Object> object,
-                                            Handle<Name> name,
+  MUST_USE_RESULT MaybeHandle<Object> Store(Handle<Name> name,
                                             Handle<Object> value);
 
  protected:

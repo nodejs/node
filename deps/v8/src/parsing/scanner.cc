@@ -174,31 +174,15 @@ bool Scanner::BookmarkScope::HasBeenApplied() {
   return bookmark_ == kBookmarkWasApplied;
 }
 
-// LineTerminator:       'JS_Line_Terminator' in point.properties
-// ES#sec-line-terminators lists exactly 4 code points:
-// LF (U+000A), CR (U+000D), LS(U+2028), PS(U+2029)
-bool Scanner::IsLineTerminator(uc32 c) {
-  if (c == 0x000A || c == 0x000D) {
-    return true;
-  }
-  if (c == 0x2028 || c == 0x2029) {
-    ++use_counts_[v8::Isolate::UseCounterFeature::
-                      kLineOrParagraphSeparatorAsLineTerminator];
-    return true;
-  }
-  return false;
-}
-
 // ----------------------------------------------------------------------------
 // Scanner
 
-Scanner::Scanner(UnicodeCache* unicode_cache, int* use_counts)
+Scanner::Scanner(UnicodeCache* unicode_cache)
     : unicode_cache_(unicode_cache),
       octal_pos_(Location::invalid()),
       octal_message_(MessageTemplate::kNone),
       found_html_comment_(false),
-      allow_harmony_bigint_(false),
-      use_counts_(use_counts) {}
+      allow_harmony_bigint_(false) {}
 
 void Scanner::Initialize(Utf16CharacterStream* source, bool is_module) {
   DCHECK_NOT_NULL(source);
@@ -257,7 +241,8 @@ uc32 Scanner::ScanUnlimitedLengthHexNumber(int max_value, int beg_pos) {
 // Ensure that tokens can be stored in a byte.
 STATIC_ASSERT(Token::NUM_TOKENS <= 0x100);
 
-// Table of one-character tokens, by character (0x00..0x7f only).
+// Table of one-character tokens, by character (0x00..0x7F only).
+// clang-format off
 static const byte one_char_tokens[] = {
   Token::ILLEGAL,
   Token::ILLEGAL,
@@ -303,7 +288,7 @@ static const byte one_char_tokens[] = {
   Token::RPAREN,       // 0x29
   Token::ILLEGAL,
   Token::ILLEGAL,
-  Token::COMMA,        // 0x2c
+  Token::COMMA,        // 0x2C
   Token::ILLEGAL,
   Token::ILLEGAL,
   Token::ILLEGAL,
@@ -317,12 +302,12 @@ static const byte one_char_tokens[] = {
   Token::ILLEGAL,
   Token::ILLEGAL,
   Token::ILLEGAL,
-  Token::COLON,        // 0x3a
-  Token::SEMICOLON,    // 0x3b
+  Token::COLON,        // 0x3A
+  Token::SEMICOLON,    // 0x3B
   Token::ILLEGAL,
   Token::ILLEGAL,
   Token::ILLEGAL,
-  Token::CONDITIONAL,  // 0x3f
+  Token::CONDITIONAL,  // 0x3F
   Token::ILLEGAL,
   Token::ILLEGAL,
   Token::ILLEGAL,
@@ -350,9 +335,9 @@ static const byte one_char_tokens[] = {
   Token::ILLEGAL,
   Token::ILLEGAL,
   Token::ILLEGAL,
-  Token::LBRACK,     // 0x5b
+  Token::LBRACK,     // 0x5B
   Token::ILLEGAL,
-  Token::RBRACK,     // 0x5d
+  Token::RBRACK,     // 0x5D
   Token::ILLEGAL,
   Token::ILLEGAL,
   Token::ILLEGAL,
@@ -382,13 +367,13 @@ static const byte one_char_tokens[] = {
   Token::ILLEGAL,
   Token::ILLEGAL,
   Token::ILLEGAL,
-  Token::LBRACE,       // 0x7b
+  Token::LBRACE,       // 0x7B
   Token::ILLEGAL,
-  Token::RBRACE,       // 0x7d
-  Token::BIT_NOT,      // 0x7e
+  Token::RBRACE,       // 0x7D
+  Token::BIT_NOT,      // 0x7E
   Token::ILLEGAL
 };
-
+// clang-format on
 
 Token::Value Scanner::Next() {
   if (next_.token == Token::EOS) {
@@ -405,7 +390,7 @@ Token::Value Scanner::Next() {
   }
   has_line_terminator_before_next_ = false;
   has_multiline_comment_before_next_ = false;
-  if (static_cast<unsigned>(c0_) <= 0x7f) {
+  if (static_cast<unsigned>(c0_) <= 0x7F) {
     Token::Value token = static_cast<Token::Value>(one_char_tokens[c0_]);
     if (token != Token::ILLEGAL) {
       int pos = source_pos();
@@ -457,7 +442,7 @@ Token::Value Scanner::SkipWhiteSpace() {
 
       // Advance as long as character is a WhiteSpace or LineTerminator.
       // Remember if the latter is the case.
-      if (IsLineTerminator(c0_)) {
+      if (unibrow::IsLineTerminator(c0_)) {
         has_line_terminator_before_next_ = true;
       } else if (!unicode_cache_->IsWhiteSpace(c0_)) {
         break;
@@ -514,7 +499,7 @@ Token::Value Scanner::SkipSingleLineComment() {
   // separately by the lexical grammar and becomes part of the
   // stream of input elements for the syntactic grammar (see
   // ECMA-262, section 7.4).
-  while (c0_ != kEndOfInput && !IsLineTerminator(c0_)) {
+  while (c0_ != kEndOfInput && !unibrow::IsLineTerminator(c0_)) {
     Advance();
   }
 
@@ -524,7 +509,7 @@ Token::Value Scanner::SkipSingleLineComment() {
 
 Token::Value Scanner::SkipSourceURLComment() {
   TryToParseSourceURLComment();
-  while (c0_ != kEndOfInput && !IsLineTerminator(c0_)) {
+  while (c0_ != kEndOfInput && !unibrow::IsLineTerminator(c0_)) {
     Advance();
   }
 
@@ -560,7 +545,7 @@ void Scanner::TryToParseSourceURLComment() {
   while (c0_ != kEndOfInput && unicode_cache_->IsWhiteSpace(c0_)) {
     Advance();
   }
-  while (c0_ != kEndOfInput && !IsLineTerminator(c0_)) {
+  while (c0_ != kEndOfInput && !unibrow::IsLineTerminator(c0_)) {
     // Disallowed characters.
     if (c0_ == '"' || c0_ == '\'') {
       value->Reset();
@@ -573,7 +558,7 @@ void Scanner::TryToParseSourceURLComment() {
     Advance();
   }
   // Allow whitespace at the end.
-  while (c0_ != kEndOfInput && !IsLineTerminator(c0_)) {
+  while (c0_ != kEndOfInput && !unibrow::IsLineTerminator(c0_)) {
     if (!unicode_cache_->IsWhiteSpace(c0_)) {
       value->Reset();
       break;
@@ -590,7 +575,7 @@ Token::Value Scanner::SkipMultiLineComment() {
   while (c0_ != kEndOfInput) {
     uc32 ch = c0_;
     Advance();
-    if (c0_ != kEndOfInput && IsLineTerminator(ch)) {
+    if (c0_ != kEndOfInput && unibrow::IsLineTerminator(ch)) {
       // Following ECMA-262, section 7.4, a comment containing
       // a newline will make the comment count as a line-terminator.
       has_multiline_comment_before_next_ = true;
@@ -875,6 +860,10 @@ void Scanner::Scan() {
         token = ScanTemplateStart();
         break;
 
+      case '#':
+        token = ScanPrivateName();
+        break;
+
       default:
         if (c0_ == kEndOfInput) {
           token = Token::EOS;
@@ -940,6 +929,7 @@ void Scanner::SanityCheckTokenDesc(const TokenDesc& token) const {
     case Token::REGEXP_LITERAL:
     case Token::SMI:
     case Token::STRING:
+    case Token::PRIVATE_NAME:
       DCHECK_NOT_NULL(token.literal_chars);
       DCHECK_NULL(token.raw_literal_chars);
       DCHECK_EQ(token.invalid_template_escape_message, MessageTemplate::kNone);
@@ -987,7 +977,8 @@ bool Scanner::ScanEscape() {
   Advance<capture_raw>();
 
   // Skip escaped newlines.
-  if (!in_template_literal && c0_ != kEndOfInput && IsLineTerminator(c)) {
+  if (!in_template_literal && c0_ != kEndOfInput &&
+      unibrow::IsLineTerminator(c)) {
     // Allow escaped CR+LF newlines in multiline string literals.
     if (IsCarriageReturn(c) && IsLineFeed(c0_)) Advance<capture_raw>();
     return true;
@@ -1080,7 +1071,8 @@ Token::Value Scanner::ScanString() {
     AddLiteralChar(c);
   }
 
-  while (c0_ != quote && c0_ != kEndOfInput && !IsLineTerminator(c0_)) {
+  while (c0_ != quote && c0_ != kEndOfInput &&
+         !unibrow::IsLineTerminator(c0_)) {
     uc32 c = c0_;
     Advance();
     if (c == '\\') {
@@ -1098,6 +1090,26 @@ Token::Value Scanner::ScanString() {
   return Token::STRING;
 }
 
+Token::Value Scanner::ScanPrivateName() {
+  if (!allow_harmony_private_fields()) {
+    ReportScannerError(source_pos(),
+                       MessageTemplate::kInvalidOrUnexpectedToken);
+    return Token::ILLEGAL;
+  }
+
+  LiteralScope literal(this);
+  DCHECK_EQ(c0_, '#');
+  AddLiteralCharAdvance();
+  if (c0_ == kEndOfInput || !unicode_cache_->IsIdentifierStart(c0_)) {
+    PushBack(c0_);
+    ReportScannerError(source_pos(),
+                       MessageTemplate::kInvalidOrUnexpectedToken);
+    return Token::ILLEGAL;
+  }
+
+  Token::Value token = ScanIdentifierOrKeywordInner(&literal);
+  return token == Token::ILLEGAL ? Token::ILLEGAL : Token::PRIVATE_NAME;
+}
 
 Token::Value Scanner::ScanTemplateSpan() {
   // When scanning a TemplateSpan, we are looking for the following construct:
@@ -1136,7 +1148,7 @@ Token::Value Scanner::ScanTemplateSpan() {
       ReduceRawLiteralLength(2);
       break;
     } else if (c == '\\') {
-      if (c0_ != kEndOfInput && IsLineTerminator(c0_)) {
+      if (c0_ != kEndOfInput && unibrow::IsLineTerminator(c0_)) {
         // The TV of LineContinuation :: \ LineTerminatorSequence is the empty
         // code unit sequence.
         uc32 lastChar = c0_;
@@ -1397,7 +1409,7 @@ uc32 Scanner::ScanUnicodeEscape() {
   if (c0_ == '{') {
     int begin = source_pos() - 2;
     Advance<capture_raw>();
-    uc32 cp = ScanUnlimitedLengthHexNumber<capture_raw>(0x10ffff, begin);
+    uc32 cp = ScanUnlimitedLengthHexNumber<capture_raw>(0x10FFFF, begin);
     if (cp < 0 || c0_ != '}') {
       ReportScannerError(source_pos(),
                          MessageTemplate::kInvalidUnicodeEscapeSequence);
@@ -1541,10 +1553,13 @@ static Token::Value KeywordOrIdentifierToken(const uint8_t* input,
   return Token::IDENTIFIER;
 }
 
-
 Token::Value Scanner::ScanIdentifierOrKeyword() {
-  DCHECK(unicode_cache_->IsIdentifierStart(c0_));
   LiteralScope literal(this);
+  return ScanIdentifierOrKeywordInner(&literal);
+}
+
+Token::Value Scanner::ScanIdentifierOrKeywordInner(LiteralScope* literal) {
+  DCHECK(unicode_cache_->IsIdentifierStart(c0_));
   if (IsInRange(c0_, 'a', 'z') || c0_ == '_') {
     do {
       char first_char = static_cast<char>(c0_);
@@ -1564,7 +1579,7 @@ Token::Value Scanner::ScanIdentifierOrKeyword() {
         AddLiteralChar(first_char);
       }
       if (c0_ <= kMaxAscii && c0_ != '\\') {
-        literal.Complete();
+        literal->Complete();
         return Token::IDENTIFIER;
       }
     } else if (c0_ <= kMaxAscii && c0_ != '\\') {
@@ -1575,7 +1590,7 @@ Token::Value Scanner::ScanIdentifierOrKeyword() {
       if (token == Token::IDENTIFIER ||
           token == Token::FUTURE_STRICT_RESERVED_WORD ||
           Token::IsContextualKeyword(token))
-        literal.Complete();
+        literal->Complete();
       return token;
     }
 
@@ -1588,7 +1603,7 @@ Token::Value Scanner::ScanIdentifierOrKeyword() {
     } while (IsAsciiIdentifier(c0_));
 
     if (c0_ <= kMaxAscii && c0_ != '\\') {
-      literal.Complete();
+      literal->Complete();
       return Token::IDENTIFIER;
     }
 
@@ -1603,7 +1618,7 @@ Token::Value Scanner::ScanIdentifierOrKeyword() {
       return Token::ILLEGAL;
     }
     AddLiteralChar(c);
-    return ScanIdentifierSuffix(&literal, true);
+    return ScanIdentifierSuffix(literal, true);
   } else {
     uc32 first_char = c0_;
     Advance();
@@ -1619,7 +1634,7 @@ Token::Value Scanner::ScanIdentifierOrKeyword() {
       continue;
     }
     // Fallthrough if no longer able to complete keyword.
-    return ScanIdentifierSuffix(&literal, false);
+    return ScanIdentifierSuffix(literal, false);
   }
 
   if (next_.literal_chars->is_one_byte()) {
@@ -1629,10 +1644,10 @@ Token::Value Scanner::ScanIdentifierOrKeyword() {
     if (token == Token::IDENTIFIER ||
         token == Token::FUTURE_STRICT_RESERVED_WORD ||
         Token::IsContextualKeyword(token))
-      literal.Complete();
+      literal->Complete();
     return token;
   }
-  literal.Complete();
+  literal->Complete();
   return Token::IDENTIFIER;
 }
 
@@ -1697,12 +1712,12 @@ bool Scanner::ScanRegExpPattern() {
   }
 
   while (c0_ != '/' || in_character_class) {
-    if (c0_ == kEndOfInput || IsLineTerminator(c0_)) {
+    if (c0_ == kEndOfInput || unibrow::IsLineTerminator(c0_)) {
       return false;
     }
     if (c0_ == '\\') {  // Escape sequence.
       AddLiteralCharAdvance();
-      if (c0_ == kEndOfInput || IsLineTerminator(c0_)) {
+      if (c0_ == kEndOfInput || unibrow::IsLineTerminator(c0_)) {
         return false;
       }
       AddLiteralCharAdvance();

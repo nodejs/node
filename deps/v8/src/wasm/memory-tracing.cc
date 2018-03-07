@@ -8,18 +8,18 @@
 
 namespace v8 {
 namespace internal {
-namespace tracing {
+namespace wasm {
 
-void TraceMemoryOperation(ExecutionEngine engine, bool is_store,
-                          MachineRepresentation rep, uint32_t addr,
+void TraceMemoryOperation(ExecutionEngine engine, const MemoryTracingInfo* info,
                           int func_index, int position, uint8_t* mem_start) {
   EmbeddedVector<char, 64> value;
-  switch (rep) {
-#define TRACE_TYPE(rep, str, format, ctype1, ctype2)           \
-  case MachineRepresentation::rep:                             \
-    SNPrintF(value, str ":" format,                            \
-             ReadLittleEndianValue<ctype1>(mem_start + addr),  \
-             ReadLittleEndianValue<ctype2>(mem_start + addr)); \
+  auto mem_rep = static_cast<MachineRepresentation>(info->mem_rep);
+  switch (mem_rep) {
+#define TRACE_TYPE(rep, str, format, ctype1, ctype2)                    \
+  case MachineRepresentation::rep:                                      \
+    SNPrintF(value, str ":" format,                                     \
+             ReadLittleEndianValue<ctype1>(mem_start + info->address),  \
+             ReadLittleEndianValue<ctype2>(mem_start + info->address)); \
     break;
     TRACE_TYPE(kWord8, " i8", "%d / %02x", uint8_t, uint8_t)
     TRACE_TYPE(kWord16, "i16", "%d / %04x", uint16_t, uint16_t)
@@ -33,17 +33,20 @@ void TraceMemoryOperation(ExecutionEngine engine, bool is_store,
   }
   char eng_c = '?';
   switch (engine) {
-    case kWasmCompiled:
-      eng_c = 'C';
+    case ExecutionEngine::kTurbofan:
+      eng_c = 'T';
       break;
-    case kWasmInterpreted:
+    case ExecutionEngine::kLiftoff:
+      eng_c = 'L';
+      break;
+    case ExecutionEngine::kInterpreter:
       eng_c = 'I';
       break;
   }
   printf("%c %8d+0x%-6x %s @%08x %s\n", eng_c, func_index, position,
-         is_store ? "store" : "read ", addr, value.start());
+         info->is_store ? "store" : "load ", info->address, value.start());
 }
 
-}  // namespace tracing
+}  // namespace wasm
 }  // namespace internal
 }  // namespace v8

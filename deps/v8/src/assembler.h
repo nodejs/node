@@ -36,6 +36,7 @@
 #define V8_ASSEMBLER_H_
 
 #include <forward_list>
+#include <iosfwd>
 
 #include "src/allocation.h"
 #include "src/builtins/builtins.h"
@@ -54,9 +55,6 @@ namespace v8 {
 class ApiFunction;
 
 namespace internal {
-namespace wasm {
-class WasmCode;
-}
 
 // Forward declarations.
 class Isolate;
@@ -486,6 +484,7 @@ class RelocInfo {
   Mode rmode() const {  return rmode_; }
   intptr_t data() const { return data_; }
   Code* host() const { return host_; }
+  Address constant_pool() const { return constant_pool_; }
 
   // Apply a relocation by delta bytes. When the code object is moved, PC
   // relative addresses have to be updated as well as absolute addresses
@@ -625,9 +624,6 @@ class RelocInfo {
   byte* pc_;
   Mode rmode_;
   intptr_t data_;
-  // TODO(mtrofin): try remove host_, if all we need is the constant_pool_ or
-  // other few attributes, like start address, etc. This is so that we can reuse
-  // RelocInfo for WasmCode without having a modal design.
   Code* host_;
   Address constant_pool_ = nullptr;
   friend class RelocIterator;
@@ -830,6 +826,9 @@ class ExternalReference BASE_EMBEDDED {
   // The builtins table as an external reference, used by lazy deserialization.
   static ExternalReference builtins_address(Isolate* isolate);
 
+  static ExternalReference handle_scope_implementer_address(Isolate* isolate);
+  static ExternalReference pending_microtask_count_address(Isolate* isolate);
+
   // One-of-a-kind references. These references are not part of a general
   // pattern. This means that they have to be added to the
   // ExternalReferenceTable in serialize.cc manually.
@@ -875,6 +874,8 @@ class ExternalReference BASE_EMBEDDED {
   static ExternalReference wasm_word64_ctz(Isolate* isolate);
   static ExternalReference wasm_word32_popcnt(Isolate* isolate);
   static ExternalReference wasm_word64_popcnt(Isolate* isolate);
+  static ExternalReference wasm_word32_rol(Isolate* isolate);
+  static ExternalReference wasm_word32_ror(Isolate* isolate);
   static ExternalReference wasm_float64_pow(Isolate* isolate);
   static ExternalReference wasm_set_thread_in_wasm_flag(Isolate* isolate);
   static ExternalReference wasm_clear_thread_in_wasm_flag(Isolate* isolate);
@@ -1017,6 +1018,9 @@ class ExternalReference BASE_EMBEDDED {
       Isolate* isolate);
 
   V8_EXPORT_PRIVATE static ExternalReference runtime_function_table_address(
+      Isolate* isolate);
+
+  static ExternalReference invalidate_prototype_chains_function(
       Isolate* isolate);
 
   Address address() const { return reinterpret_cast<Address>(address_); }
@@ -1328,15 +1332,23 @@ class RegisterBase {
 
   int bit() const { return 1 << code(); }
 
-  inline bool operator==(SubType other) const {
+  inline constexpr bool operator==(SubType other) const {
     return reg_code_ == other.reg_code_;
   }
-  inline bool operator!=(SubType other) const { return !(*this == other); }
+  inline constexpr bool operator!=(SubType other) const {
+    return reg_code_ != other.reg_code_;
+  }
 
  protected:
   explicit constexpr RegisterBase(int code) : reg_code_(code) {}
   int reg_code_;
 };
+
+template <typename SubType, int kAfterLastRegister>
+inline std::ostream& operator<<(std::ostream& os,
+                                RegisterBase<SubType, kAfterLastRegister> reg) {
+  return reg.is_valid() ? os << "r" << reg.code() : os << "<invalid reg>";
+}
 
 }  // namespace internal
 }  // namespace v8

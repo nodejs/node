@@ -11,7 +11,7 @@
 # Flags of x64,ignition:
 --abort_on_stack_or_string_length_overflow --expose-gc --allow-natives-syntax --invoke-weak-callbacks --omit-quit --es-staging --random-seed 12345 --turbo-filter=~ --noopt --suppress-asm-messages
 # Flags of x64,ignition_turbo:
---abort_on_stack_or_string_length_overflow --expose-gc --allow-natives-syntax --invoke-weak-callbacks --omit-quit --es-staging --random-seed 12345 --suppress-asm-messages
+--abort_on_stack_or_string_length_overflow --expose-gc --allow-natives-syntax --invoke-weak-callbacks --omit-quit --es-staging --random-seed 12345 --suppress-asm-messages --stress-scavenge=100
 #
 # Difference:
 - unknown

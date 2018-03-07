@@ -43,6 +43,7 @@ namespace compiler {
   V(IA32Lzcnt)                     \
   V(IA32Tzcnt)                     \
   V(IA32Popcnt)                    \
+  V(LFence)                        \
   V(SSEFloat32Cmp)                 \
   V(SSEFloat32Add)                 \
   V(SSEFloat32Sub)                 \
@@ -103,14 +104,45 @@ namespace compiler {
   V(IA32Movl)                      \
   V(IA32Movss)                     \
   V(IA32Movsd)                     \
+  V(IA32Movdqu)                    \
   V(IA32BitcastFI)                 \
   V(IA32BitcastIF)                 \
   V(IA32Lea)                       \
   V(IA32Push)                      \
   V(IA32PushFloat32)               \
   V(IA32PushFloat64)               \
+  V(IA32PushSimd128)               \
   V(IA32Poke)                      \
+  V(IA32Peek)                      \
   V(IA32StackCheck)                \
+  V(SSEF32x4Splat)                 \
+  V(AVXF32x4Splat)                 \
+  V(SSEF32x4ExtractLane)           \
+  V(AVXF32x4ExtractLane)           \
+  V(SSEF32x4ReplaceLane)           \
+  V(AVXF32x4ReplaceLane)           \
+  V(SSEF32x4Abs)                   \
+  V(AVXF32x4Abs)                   \
+  V(SSEF32x4Neg)                   \
+  V(AVXF32x4Neg)                   \
+  V(SSEF32x4Add)                   \
+  V(AVXF32x4Add)                   \
+  V(SSEF32x4Sub)                   \
+  V(AVXF32x4Sub)                   \
+  V(SSEF32x4Mul)                   \
+  V(AVXF32x4Mul)                   \
+  V(SSEF32x4Min)                   \
+  V(AVXF32x4Min)                   \
+  V(SSEF32x4Max)                   \
+  V(AVXF32x4Max)                   \
+  V(SSEF32x4Eq)                    \
+  V(AVXF32x4Eq)                    \
+  V(SSEF32x4Ne)                    \
+  V(AVXF32x4Ne)                    \
+  V(SSEF32x4Lt)                    \
+  V(AVXF32x4Lt)                    \
+  V(SSEF32x4Le)                    \
+  V(AVXF32x4Le)                    \
   V(IA32I32x4Splat)                \
   V(IA32I32x4ExtractLane)          \
   V(SSEI32x4ReplaceLane)           \
@@ -229,7 +261,16 @@ namespace compiler {
   V(SSEI8x16GtU)                   \
   V(AVXI8x16GtU)                   \
   V(SSEI8x16GeU)                   \
-  V(AVXI8x16GeU)
+  V(AVXI8x16GeU)                   \
+  V(IA32S128Zero)                  \
+  V(SSES128Not)                    \
+  V(AVXS128Not)                    \
+  V(SSES128And)                    \
+  V(AVXS128And)                    \
+  V(SSES128Or)                     \
+  V(AVXS128Or)                     \
+  V(SSES128Xor)                    \
+  V(AVXS128Xor)
 
 // Addressing modes represent the "shape" of inputs to an instruction.
 // Many instructions support multiple addressing modes. Addressing modes

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --harmony-regexp-named-captures
+// Flags: --harmony-regexp-named-captures --allow-natives-syntax
 
 // Malformed named captures.
 assertThrows("/(?<>a)/u", SyntaxError);  // Empty name.
@@ -417,4 +417,125 @@ function toSlowMode(re) {
   assertEquals("cd", "abcd".replace(re, "$<42$1>"));
   assertEquals("cd", "abcd".replace(re, "$<fth>"));
   assertEquals("cd", "abcd".replace(re, "$<$1>"));
+}
+
+// Tests for 'groups' semantics on the regexp result object.
+// https://crbug.com/v8/7192
+
+{
+  const re = /./;
+  const result = re.exec("a");
+  assertTrue(%SpeciesProtector());
+  assertEquals(result.__proto__, Array.prototype);
+  assertTrue(result.hasOwnProperty('groups'));
+  assertArrayEquals(["a"], result);
+  assertEquals(0, result.index);
+  assertEquals(undefined, result.groups);
+
+  Array.prototype.groups = { a: "b" };
+  assertTrue(%SpeciesProtector());
+  assertEquals("$<a>", "a".replace(re, "$<a>"));
+  Array.prototype.groups = undefined;
+}
+
+{
+  const re = toSlowMode(/./);
+  const result = re.exec("a");
+  assertTrue(%SpeciesProtector());
+  assertEquals(result.__proto__, Array.prototype);
+  assertTrue(result.hasOwnProperty('groups'));
+  assertArrayEquals(["a"], result);
+  assertEquals(0, result.index);
+  assertEquals(undefined, result.groups);
+
+  Array.prototype.groups = { a: "b" };
+  assertTrue(%SpeciesProtector());
+  assertEquals("$<a>", "a".replace(re, "$<a>"));
+  Array.prototype.groups = undefined;
+}
+
+{
+  const re = /(?<a>a).|(?<x>x)/;
+  const result = re.exec("ab");
+  assertTrue(%SpeciesProtector());
+  assertEquals(result.__proto__, Array.prototype);
+  assertTrue(result.hasOwnProperty('groups'));
+  assertArrayEquals(["ab", "a", undefined], result);
+  assertEquals(0, result.index);
+  assertEquals({a: "a", x: undefined}, result.groups);
+
+  // a is a matched named capture, b is an unmatched named capture, and z
+  // is not a named capture.
+  Array.prototype.groups = { a: "b", x: "y", z: "z" };
+  assertTrue(%SpeciesProtector());
+  assertEquals("a", "ab".replace(re, "$<a>"));
+  assertEquals("", "ab".replace(re, "$<x>"));
+  assertEquals("", "ab".replace(re, "$<z>"));
+  Array.prototype.groups = undefined;
+}
+
+{
+  const re = toSlowMode(/(?<a>a).|(?<x>x)/);
+  const result = re.exec("ab");
+  assertTrue(%SpeciesProtector());
+  assertEquals(result.__proto__, Array.prototype);
+  assertTrue(result.hasOwnProperty('groups'));
+  assertArrayEquals(["ab", "a", undefined], result);
+  assertEquals(0, result.index);
+  assertEquals({a: "a", x: undefined}, result.groups);
+
+  // a is a matched named capture, b is an unmatched named capture, and z
+  // is not a named capture.
+  Array.prototype.groups = { a: "b", x: "y", z: "z" };
+  assertTrue(%SpeciesProtector());
+  assertEquals("a", "ab".replace(re, "$<a>"));
+  assertEquals("", "ab".replace(re, "$<x>"));
+  assertEquals("", "ab".replace(re, "$<z>"));
+  Array.prototype.groups = undefined;
+}
+
+{
+  class FakeRegExp extends RegExp {
+    exec(subject) {
+      const fake_result = [ "ab", "a" ];
+      fake_result.index = 0;
+      // groups is not set, triggering prototype lookup.
+      return fake_result;
+    }
+  };
+
+  const re = new FakeRegExp();
+  const result = re.exec("ab");
+  assertTrue(%SpeciesProtector());
+  assertEquals(result.__proto__, Array.prototype);
+  assertFalse(result.hasOwnProperty('groups'));
+
+  Array.prototype.groups = { a: "b" };
+  Array.prototype.groups.__proto__.b = "c";
+  assertTrue(%SpeciesProtector());
+  assertEquals("b", "ab".replace(re, "$<a>"));
+  assertEquals("c", "ab".replace(re, "$<b>"));
+  Array.prototype.groups = undefined;
+}
+
+{
+  class FakeRegExp extends RegExp {
+    exec(subject) {
+      const fake_result = [ "ab", "a" ];
+      fake_result.index = 0;
+      fake_result.groups = { a: "b" };
+      fake_result.groups.__proto__.b = "c";
+      return fake_result;
+    }
+  };
+
+  const re = new FakeRegExp();
+  const result = re.exec("ab");
+  assertTrue(%SpeciesProtector());
+  assertEquals(result.__proto__, Array.prototype);
+  assertTrue(result.hasOwnProperty('groups'));
+  assertEquals({ a: "b" }, result.groups);
+
+  assertEquals("b", "ab".replace(re, "$<a>"));
+  assertEquals("c", "ab".replace(re, "$<b>"));
 }

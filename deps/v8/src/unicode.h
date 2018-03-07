@@ -7,6 +7,7 @@
 
 #include <sys/types.h>
 #include "src/globals.h"
+#include "src/third_party/utf8-decoder/utf8-decoder.h"
 #include "src/utils.h"
 /**
  * \file
@@ -129,6 +130,8 @@ class Utf16 {
 
 class V8_EXPORT_PRIVATE Utf8 {
  public:
+  using State = Utf8DfaDecoder::State;
+
   static inline uchar Length(uchar chr, int previous);
   static inline unsigned EncodeOneByte(char* out, uint8_t c);
   static inline unsigned Encode(char* out,
@@ -158,9 +161,9 @@ class V8_EXPORT_PRIVATE Utf8 {
   static inline uchar ValueOf(const byte* str, size_t length, size_t* cursor);
 
   typedef uint32_t Utf8IncrementalBuffer;
-  static uchar ValueOfIncremental(byte next_byte,
+  static uchar ValueOfIncremental(byte next_byte, size_t* cursor, State* state,
                                   Utf8IncrementalBuffer* buffer);
-  static uchar ValueOfIncrementalFinish(Utf8IncrementalBuffer* buffer);
+  static uchar ValueOfIncrementalFinish(State* state);
 
   // Excludes non-characters from the set of valid code points.
   static inline bool IsValidCharacter(uchar c);

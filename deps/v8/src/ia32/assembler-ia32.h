@@ -113,6 +113,7 @@ GENERAL_REGISTERS(DEFINE_REGISTER)
 #undef DEFINE_REGISTER
 constexpr Register no_reg = Register::no_reg();
 
+constexpr bool kPadArguments = false;
 constexpr bool kSimpleFPAliasing = true;
 constexpr bool kSimdMaskRegisters = false;
 
@@ -530,10 +531,6 @@ class Assembler : public AssemblerBase {
   inline static void set_target_address_at(
       Isolate* isolate, Address pc, Address constant_pool, Address target,
       ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
-  static inline Address target_address_at(Address pc, Code* code);
-  static inline void set_target_address_at(
-      Isolate* isolate, Address pc, Code* code, Address target,
-      ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
 
   // Return the code target address at a call site from the return address
   // of that call in the instruction stream.
@@ -682,6 +679,9 @@ class Assembler : public AssemblerBase {
   void cmpxchg(const Operand& dst, Register src);
   void cmpxchg_b(const Operand& dst, Register src);
   void cmpxchg_w(const Operand& dst, Register src);
+
+  // Memory Fence
+  void lfence();
 
   // Arithmetics
   void adc(Register dst, int32_t imm32);
@@ -1004,6 +1004,8 @@ class Assembler : public AssemblerBase {
   void rcpps(XMMRegister dst, XMMRegister src) { rcpps(dst, Operand(src)); }
   void rsqrtps(XMMRegister dst, const Operand& src);
   void rsqrtps(XMMRegister dst, XMMRegister src) { rsqrtps(dst, Operand(src)); }
+  void haddps(XMMRegister dst, const Operand& src);
+  void haddps(XMMRegister dst, XMMRegister src) { haddps(dst, Operand(src)); }
 
   void minps(XMMRegister dst, const Operand& src);
   void minps(XMMRegister dst, XMMRegister src) { minps(dst, Operand(src)); }
@@ -1149,6 +1151,10 @@ class Assembler : public AssemblerBase {
   }
   void pextrd(const Operand& dst, XMMRegister src, int8_t offset);
 
+  void insertps(XMMRegister dst, XMMRegister src, int8_t offset) {
+    insertps(dst, Operand(src), offset);
+  }
+  void insertps(XMMRegister dst, const Operand& src, int8_t offset);
   void pinsrb(XMMRegister dst, Register src, int8_t offset) {
     pinsrb(dst, Operand(src), offset);
   }
@@ -1397,6 +1403,14 @@ class Assembler : public AssemblerBase {
   void vrsqrtps(XMMRegister dst, const Operand& src) {
     vinstr(0x52, dst, xmm0, src, kNone, k0F, kWIG);
   }
+  void vmovaps(XMMRegister dst, XMMRegister src) {
+    vps(0x28, dst, xmm0, Operand(src));
+  }
+  void vshufps(XMMRegister dst, XMMRegister src1, XMMRegister src2, byte imm8) {
+    vshufps(dst, src1, Operand(src2), imm8);
+  }
+  void vshufps(XMMRegister dst, XMMRegister src1, const Operand& src2,
+               byte imm8);
 
   void vpsllw(XMMRegister dst, XMMRegister src, int8_t imm8);
   void vpslld(XMMRegister dst, XMMRegister src, int8_t imm8);
@@ -1427,6 +1441,12 @@ class Assembler : public AssemblerBase {
   }
   void vpextrd(const Operand& dst, XMMRegister src, int8_t offset);
 
+  void vinsertps(XMMRegister dst, XMMRegister src1, XMMRegister src2,
+                 int8_t offset) {
+    vinsertps(dst, src1, Operand(src2), offset);
+  }
+  void vinsertps(XMMRegister dst, XMMRegister src1, const Operand& src2,
+                 int8_t offset);
   void vpinsrb(XMMRegister dst, XMMRegister src1, Register src2,
                int8_t offset) {
     vpinsrb(dst, src1, Operand(src2), offset);
@@ -1459,6 +1479,12 @@ class Assembler : public AssemblerBase {
     vinstr(0x5B, dst, xmm0, src, kF3, k0F, kWIG);
   }
 
+  void vmovdqu(XMMRegister dst, const Operand& src) {
+    vinstr(0x6F, dst, xmm0, src, kF3, k0F, kWIG);
+  }
+  void vmovdqu(const Operand& dst, XMMRegister src) {
+    vinstr(0x7F, src, xmm0, dst, kF3, k0F, kWIG);
+  }
   void vmovd(XMMRegister dst, Register src) { vmovd(dst, Operand(src)); }
   void vmovd(XMMRegister dst, const Operand& src) {
     vinstr(0x6E, dst, xmm0, src, k66, k0F, kWIG);

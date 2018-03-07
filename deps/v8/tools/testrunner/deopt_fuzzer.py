@@ -26,7 +26,7 @@ from testrunner.local import verbose
 from testrunner.objects import context
 
 
-DEFAULT_TESTS = ["mjsunit", "webkit"]
+DEFAULT_SUITES = ["mjsunit", "webkit"]
 TIMEOUT_DEFAULT = 60
 
 # Double the timeout for these:
@@ -37,8 +37,8 @@ DISTRIBUTION_MODES = ["smooth", "random"]
 
 
 class DeoptFuzzer(base_runner.BaseTestRunner):
-  def __init__(self):
-    super(DeoptFuzzer, self).__init__()
+  def __init__(self, *args, **kwargs):
+    super(DeoptFuzzer, self).__init__(*args, **kwargs)
 
   class RandomDistribution:
     def __init__(self, seed=None):
@@ -136,12 +136,6 @@ class DeoptFuzzer(base_runner.BaseTestRunner):
                             " (verbose, dots, color, mono)"),
                       choices=progress.PROGRESS_INDICATORS.keys(),
                       default="mono")
-    parser.add_option("--shard-count",
-                      help="Split testsuites into this number of shards",
-                      default=1, type="int")
-    parser.add_option("--shard-run",
-                      help="Run this shard from the split up tests.",
-                      default=1, type="int")
     parser.add_option("--seed", help="The seed for the random distribution",
                       type="int")
     parser.add_option("-t", "--timeout", help="Timeout in seconds",
@@ -184,47 +178,6 @@ class DeoptFuzzer(base_runner.BaseTestRunner):
       options.coverage_lift = 0
     return True
 
-  def _shard_tests(self, tests, shard_count, shard_run):
-    if shard_count < 2:
-      return tests
-    if shard_run < 1 or shard_run > shard_count:
-      print "shard-run not a valid number, should be in [1:shard-count]"
-      print "defaulting back to running all tests"
-      return tests
-    count = 0
-    shard = []
-    for test in tests:
-      if count % shard_count == shard_run - 1:
-        shard.append(test)
-      count += 1
-    return shard
-
-  def _do_execute(self, options, args):
-    suite_paths = utils.GetSuitePaths(join(base_runner.BASE_DIR, "test"))
-
-    if len(args) == 0:
-      suite_paths = [ s for s in suite_paths if s in DEFAULT_TESTS ]
-    else:
-      args_suites = set()
-      for arg in args:
-        suite = arg.split(os.path.sep)[0]
-        if not suite in args_suites:
-          args_suites.add(suite)
-      suite_paths = [ s for s in suite_paths if s in args_suites ]
-
-    suites = []
-    for root in suite_paths:
-      suite = testsuite.TestSuite.LoadTestSuite(
-          os.path.join(base_runner.BASE_DIR, "test", root))
-      if suite:
-        suites.append(suite)
-
-    try:
-      return self._execute(args, options, suites)
-    except KeyboardInterrupt:
-      return 2
-
-
   def _calculate_n_tests(self, m, options):
     """Calculates the number of tests from m deopt points with exponential
     coverage.
@@ -235,8 +188,10 @@ class DeoptFuzzer(base_runner.BaseTestRunner):
     l = float(options.coverage_lift)
     return int(math.pow(m, (m * c + l) / (m + l)))
 
+  def _get_default_suite_names(self):
+    return DEFAULT_SUITES
 
-  def _execute(self, args, options, suites):
+  def _do_execute(self, suites, args, options):
     print(">>> Running tests for %s.%s" % (self.build_config.arch,
                                            self.mode_name))
 
@@ -264,7 +219,6 @@ class DeoptFuzzer(base_runner.BaseTestRunner):
                           True,  # No sorting of test cases.
                           0,  # Don't rerun failing tests.
                           0,  # No use of a rerun-failing-tests maximum.
-                          False,  # No predictable mode.
                           False,  # No no_harness mode.
                           False,  # Don't use perf data.
                           False)  # Coverage not supported.
@@ -305,16 +259,16 @@ class DeoptFuzzer(base_runner.BaseTestRunner):
       if len(args) > 0:
         s.FilterTestCasesByArgs(args)
       s.FilterTestCasesByStatus(False)
-      for t in s.tests:
-        t.flags += s.GetStatusfileFlags(t)
 
       test_backup[s] = s.tests
       analysis_flags = ["--deopt-every-n-times", "%d" % MAX_DEOPT,
                         "--print-deopt-stress"]
-      s.tests = [t.CopyAddingFlags(t.variant, analysis_flags) for t in s.tests]
+      s.tests = [t.create_variant(t.variant, analysis_flags, 'analysis')
+                 for t in s.tests]
       num_tests += len(s.tests)
       for t in s.tests:
         t.id = test_id
+        t.cmd = t.get_command(ctx)
         test_id += 1
 
     if num_tests == 0:
@@ -333,7 +287,7 @@ class DeoptFuzzer(base_runner.BaseTestRunner):
     for s in suites:
       test_results = {}
       for t in s.tests:
-        for line in t.output.stdout.splitlines():
+        for line in runner.outputs[t].stdout.splitlines():
           if line.startswith("=== Stress deopt counter: "):
             test_results[t.path] = MAX_DEOPT - int(line.split(" ")[-1])
       for t in s.tests:
@@ -357,17 +311,18 @@ class DeoptFuzzer(base_runner.BaseTestRunner):
         distribution = dist.Distribute(n_deopt, max_deopt)
         if options.verbose:
           print "%s %s" % (t.path, distribution)
-        for i in distribution:
-          fuzzing_flags = ["--deopt-every-n-times", "%d" % i]
-          s.tests.append(t.CopyAddingFlags(t.variant, fuzzing_flags))
+        for n, d in enumerate(distribution):
+          fuzzing_flags = ["--deopt-every-n-times", "%d" % d]
+          s.tests.append(t.create_variant(t.variant, fuzzing_flags, n))
       num_tests += len(s.tests)
       for t in s.tests:
         t.id = test_id
+        t.cmd = t.get_command(ctx)
         test_id += 1
 
     if num_tests == 0:
       print "No tests to run."
-      return 0
+      return exit_code
 
     print(">>> Deopt fuzzing phase (%d test cases)" % num_tests)
     progress_indicator = progress.PROGRESS_INDICATORS[options.progress]()

@@ -33,18 +33,39 @@ EscapeAnalysisReducer::EscapeAnalysisReducer(
       arguments_elements_(zone),
       zone_(zone) {}
 
-Node* EscapeAnalysisReducer::MaybeGuard(Node* original, Node* replacement) {
-  // We might need to guard the replacement if the type of the {replacement}
-  // node is not in a sub-type relation to the type of the the {original} node.
+Reduction EscapeAnalysisReducer::ReplaceNode(Node* original,
+                                             Node* replacement) {
+  const VirtualObject* vobject =
+      analysis_result().GetVirtualObject(replacement);
+  if (replacement->opcode() == IrOpcode::kDead ||
+      (vobject && !vobject->HasEscaped())) {
+    RelaxEffectsAndControls(original);
+    return Replace(replacement);
+  }
   Type* const replacement_type = NodeProperties::GetType(replacement);
   Type* const original_type = NodeProperties::GetType(original);
-  if (!replacement_type->Is(original_type)) {
-    Node* const control = NodeProperties::GetControlInput(original);
-    replacement = jsgraph()->graph()->NewNode(
-        jsgraph()->common()->TypeGuard(original_type), replacement, control);
-    NodeProperties::SetType(replacement, original_type);
+  if (replacement_type->Is(original_type)) {
+    RelaxEffectsAndControls(original);
+    return Replace(replacement);
   }
-  return replacement;
+
+  // We need to guard the replacement if we would widen the type otherwise.
+  DCHECK_EQ(1, original->op()->EffectOutputCount());
+  DCHECK_EQ(1, original->op()->EffectInputCount());
+  DCHECK_EQ(1, original->op()->ControlInputCount());
+  Node* effect = NodeProperties::GetEffectInput(original);
+  Node* control = NodeProperties::GetControlInput(original);
+  original->TrimInputCount(0);
+  original->AppendInput(jsgraph()->zone(), replacement);
+  original->AppendInput(jsgraph()->zone(), effect);
+  original->AppendInput(jsgraph()->zone(), control);
+  NodeProperties::SetType(
+      original,
+      Type::Intersect(original_type, replacement_type, jsgraph()->zone()));
+  NodeProperties::ChangeOp(original,
+                           jsgraph()->common()->TypeGuard(original_type));
+  ReplaceWithValue(original, original, original, control);
+  return NoChange();
 }
 
 namespace {
@@ -74,11 +95,7 @@ Reduction EscapeAnalysisReducer::Reduce(Node* node) {
     DCHECK(node->opcode() != IrOpcode::kAllocate &&
            node->opcode() != IrOpcode::kFinishRegion);
     DCHECK_NE(replacement, node);
-    if (replacement != jsgraph()->Dead()) {
-      replacement = MaybeGuard(node, replacement);
-    }
-    RelaxEffectsAndControls(node);
-    return Replace(replacement);
+    return ReplaceNode(node, replacement);
   }
 
   switch (node->opcode()) {

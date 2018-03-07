@@ -723,8 +723,6 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
                                    int* target_fragmentation_percent,
                                    size_t* max_evacuated_bytes);
 
-  void VisitAllObjects(HeapObjectVisitor* visitor);
-
   void RecordObjectStats();
 
   // Finishes GC, performs heap verification if enabled.
@@ -751,13 +749,8 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
   // the string table are weak.
   void MarkStringTable(ObjectVisitor* visitor);
 
-  // Mark objects reachable (transitively) from objects in the marking stack
-  // or overflowed in the heap.  This respects references only considered in
-  // the final atomic marking pause including the following:
-  //    - Processing of objects reachable through Harmony WeakMaps.
-  //    - Objects reachable due to host application logic like object groups,
-  //      implicit references' groups, or embedder heap tracing.
-  void ProcessEphemeralMarking(bool only_process_harmony_weak_collections);
+  // Marks object reachable from harmony weak maps and wrapper tracing.
+  void ProcessEphemeralMarking();
 
   // If the call-site of the top optimized code was not prepared for
   // deoptimization, then treat embedded pointers in the code as strong as

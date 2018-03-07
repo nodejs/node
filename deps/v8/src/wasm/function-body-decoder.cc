@@ -142,11 +142,11 @@ class WasmGraphBuildingInterface {
     block->end_env = break_env;
   }
 
-  void FinishFunction(Decoder* decoder) {
-    builder_->PatchInStackCheckIfNeeded();
-  }
+  void FinishFunction(Decoder*) { builder_->PatchInStackCheckIfNeeded(); }
 
-  void OnFirstError(Decoder* decoder) {}
+  void OnFirstError(Decoder*) {}
+
+  void NextInstruction(Decoder*, WasmOpcode) {}
 
   void Block(Decoder* decoder, Control* block) {
     // The break environment is the outer environment.
@@ -215,8 +215,8 @@ class WasmGraphBuildingInterface {
 
   void BinOp(Decoder* decoder, WasmOpcode opcode, FunctionSig* sig,
              const Value& lhs, const Value& rhs, Value* result) {
-    result->node =
-        BUILD(Binop, opcode, lhs.node, rhs.node, decoder->position());
+    auto node = BUILD(Binop, opcode, lhs.node, rhs.node, decoder->position());
+    if (result) result->node = node;
   }
 
   void I32Const(Decoder* decoder, Value* result, int32_t value) {
@@ -340,18 +340,20 @@ class WasmGraphBuildingInterface {
     SetEnv(if_block->false_env);
   }
 
-  void LoadMem(Decoder* decoder, ValueType type, MachineType mem_type,
+  void LoadMem(Decoder* decoder, LoadType type,
                const MemoryAccessOperand<validate>& operand, const Value& index,
                Value* result) {
-    result->node = BUILD(LoadMem, type, mem_type, index.node, operand.offset,
-                         operand.alignment, decoder->position());
+    result->node =
+        BUILD(LoadMem, type.value_type(), type.mem_type(), index.node,
+              operand.offset, operand.alignment, decoder->position());
   }
 
-  void StoreMem(Decoder* decoder, ValueType type, MachineType mem_type,
+  void StoreMem(Decoder* decoder, StoreType type,
                 const MemoryAccessOperand<validate>& operand,
                 const Value& index, const Value& value) {
-    BUILD(StoreMem, mem_type, index.node, operand.offset, operand.alignment,
-          value.node, decoder->position(), type);
+    BUILD(StoreMem, type.mem_rep(), index.node, operand.offset,
+          operand.alignment, value.node, decoder->position(),
+          type.value_type());
   }
 
   void CurrentMemoryPages(Decoder* decoder, Value* result) {
@@ -729,13 +731,12 @@ class WasmGraphBuildingInterface {
     return loop_body_env;
   }
 
-  // Create a complete copy of the {from}.
+  // Create a complete copy of {from}.
   SsaEnv* Split(Decoder* decoder, SsaEnv* from) {
     DCHECK_NOT_NULL(from);
     SsaEnv* result =
         reinterpret_cast<SsaEnv*>(decoder->zone()->New(sizeof(SsaEnv)));
-    // The '+ 2' here is to accommodate for mem_size and mem_start nodes.
-    size_t size = sizeof(TFNode*) * (decoder->NumLocals());
+    size_t size = sizeof(TFNode*) * decoder->NumLocals();
     result->control = from->control;
     result->effect = from->effect;
 
@@ -878,7 +879,8 @@ std::pair<uint32_t, uint32_t> StackEffect(const WasmModule* module,
 
 void PrintRawWasmCode(const byte* start, const byte* end) {
   AccountingAllocator allocator;
-  PrintRawWasmCode(&allocator, FunctionBodyForTesting(start, end), nullptr);
+  PrintRawWasmCode(&allocator, FunctionBody{nullptr, 0, start, end}, nullptr,
+                   kPrintLocals);
 }
 
 namespace {
@@ -897,7 +899,8 @@ const char* RawOpcodeName(WasmOpcode opcode) {
 }  // namespace
 
 bool PrintRawWasmCode(AccountingAllocator* allocator, const FunctionBody& body,
-                      const wasm::WasmModule* module) {
+                      const wasm::WasmModule* module,
+                      PrintLocals print_locals) {
   OFStream os(stdout);
   Zone zone(allocator, ZONE_NAME);
   WasmDecoder<Decoder::kNoValidate> decoder(module, body.sig, body.start,
@@ -913,7 +916,7 @@ bool PrintRawWasmCode(AccountingAllocator* allocator, const FunctionBody& body,
   // Print the local declarations.
   BodyLocalDecls decls(&zone);
   BytecodeIterator i(body.start, body.end, &decls);
-  if (body.start != i.pc() && !FLAG_wasm_code_fuzzer_gen_test) {
+  if (body.start != i.pc() && print_locals == kPrintLocals) {
     os << "// locals: ";
     if (!decls.type_list.empty()) {
       ValueType type = decls.type_list[0];

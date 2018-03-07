@@ -83,6 +83,20 @@ class StartupSerializer : public Serializer<> {
   DISALLOW_COPY_AND_ASSIGN(StartupSerializer);
 };
 
+class SerializedHandleChecker : public RootVisitor {
+ public:
+  SerializedHandleChecker(Isolate* isolate, std::vector<Context*>* contexts);
+  virtual void VisitRootPointers(Root root, Object** start, Object** end);
+  bool CheckGlobalAndEternalHandles();
+
+ private:
+  void AddToSet(FixedArray* serialized);
+
+  Isolate* isolate_;
+  std::unordered_set<Object*> serialized_;
+  bool ok_ = true;
+};
+
 }  // namespace internal
 }  // namespace v8
 

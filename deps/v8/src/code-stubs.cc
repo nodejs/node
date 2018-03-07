@@ -404,30 +404,6 @@ TF_STUB(KeyedStoreSloppyArgumentsStub, CodeStubAssembler) {
   }
 }
 
-TF_STUB(LoadScriptContextFieldStub, CodeStubAssembler) {
-  Comment("LoadScriptContextFieldStub: context_index=%d, slot=%d",
-          stub->context_index(), stub->slot_index());
-
-  Node* context = Parameter(Descriptor::kContext);
-
-  Node* script_context = LoadScriptContext(context, stub->context_index());
-  Node* result = LoadFixedArrayElement(script_context, stub->slot_index());
-  Return(result);
-}
-
-TF_STUB(StoreScriptContextFieldStub, CodeStubAssembler) {
-  Comment("StoreScriptContextFieldStub: context_index=%d, slot=%d",
-          stub->context_index(), stub->slot_index());
-
-  Node* value = Parameter(Descriptor::kValue);
-  Node* context = Parameter(Descriptor::kContext);
-
-  Node* script_context = LoadScriptContext(context, stub->context_index());
-  StoreFixedArrayElement(script_context, IntPtrConstant(stub->slot_index()),
-                         value);
-  Return(value);
-}
-
 // TODO(ishell): move to builtins-handler-gen.
 TF_STUB(StoreInterceptorStub, CodeStubAssembler) {
   Node* receiver = Parameter(Descriptor::kReceiver);
@@ -640,7 +616,7 @@ void ArrayConstructorAssembler::GenerateConstructor(
     Branch(SmiEqual(array_size, SmiConstant(0)), &small_smi_size, &abort);
 
     BIND(&abort);
-    Node* reason = SmiConstant(kAllocatingNonEmptyPackedArray);
+    Node* reason = SmiConstant(AbortReason::kAllocatingNonEmptyPackedArray);
     TailCallRuntime(Runtime::kAbort, context, reason);
   } else {
     int element_size =
@@ -699,23 +675,6 @@ TF_STUB(InternalArraySingleArgumentConstructorStub, ArrayConstructorAssembler) {
 
   GenerateConstructor(context, function, array_map, array_size, allocation_site,
                       stub->elements_kind(), DONT_TRACK_ALLOCATION_SITE);
-}
-
-TF_STUB(GrowArrayElementsStub, CodeStubAssembler) {
-  Label runtime(this, CodeStubAssembler::Label::kDeferred);
-
-  Node* object = Parameter(Descriptor::kObject);
-  Node* key = Parameter(Descriptor::kKey);
-  Node* context = Parameter(Descriptor::kContext);
-  ElementsKind kind = stub->elements_kind();
-
-  Node* elements = LoadElements(object);
-  Node* new_elements =
-      TryGrowElementsCapacity(object, elements, kind, key, &runtime);
-  Return(new_elements);
-
-  BIND(&runtime);
-  TailCallRuntime(Runtime::kGrowArrayElements, context, object, key);
 }
 
 ArrayConstructorStub::ArrayConstructorStub(Isolate* isolate)

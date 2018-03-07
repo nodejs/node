@@ -108,11 +108,9 @@ void Deoptimizer::TableEntryGenerator::Generate() {
   __ PushCPURegList(saved_float_registers);
 
   // We save all the registers except sp, lr and the masm scratches.
-  CPURegList saved_registers(CPURegister::kRegister, kXRegSizeInBits, 0, 27);
+  CPURegList saved_registers(CPURegister::kRegister, kXRegSizeInBits, 0, 28);
   saved_registers.Remove(ip0);
   saved_registers.Remove(ip1);
-  // TODO(arm): padding here can be replaced with jssp/x28 when allocatable.
-  saved_registers.Combine(padreg);
   saved_registers.Combine(fp);
   DCHECK_EQ(saved_registers.Count() % 2, 0);
   __ PushCPURegList(saved_registers);
@@ -220,8 +218,12 @@ void Deoptimizer::TableEntryGenerator::Generate() {
   }
   __ Pop(x4, padreg);  // Restore deoptimizer object (class Deoptimizer).
 
-  __ Ldr(__ StackPointer(),
-         MemOperand(x4, Deoptimizer::caller_frame_top_offset()));
+  {
+    UseScratchRegisterScope temps(masm());
+    Register scratch = temps.AcquireX();
+    __ Ldr(scratch, MemOperand(x4, Deoptimizer::caller_frame_top_offset()));
+    __ Mov(__ StackPointer(), scratch);
+  }
 
   // Replace the current (input) frame with the output frames.
   Label outer_push_loop, inner_push_loop,
@@ -324,7 +326,7 @@ void Deoptimizer::TableEntryGenerator::GeneratePrologue() {
   if (__ emit_debug_code()) {
     // Ensure the entry_id looks sensible, ie. 0 <= entry_id < count().
     __ Cmp(entry_id, count());
-    __ Check(lo, kOffsetOutOfRange);
+    __ Check(lo, AbortReason::kOffsetOutOfRange);
   }
 }
 

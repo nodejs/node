@@ -44,6 +44,8 @@ class V8InjectedScriptHost {
       const v8::FunctionCallbackInfo<v8::Value>&);
   static void nativeAccessorDescriptorCallback(
       const v8::FunctionCallbackInfo<v8::Value>&);
+  static void typedArrayPropertiesCallback(
+      const v8::FunctionCallbackInfo<v8::Value>&);
 };
 
 }  // namespace v8_inspector

@@ -22,48 +22,65 @@ class StubCache;
 
 enum class PrimitiveType { kBoolean, kNumber, kString, kSymbol };
 
-#define HEAP_CONSTANT_LIST(V)                                            \
-  V(AccessorInfoMap, accessor_info_map, AccessorInfoMap)                 \
-  V(AccessorPairMap, accessor_pair_map, AccessorPairMap)                 \
-  V(AllocationSiteMap, allocation_site_map, AllocationSiteMap)           \
-  V(BooleanMap, boolean_map, BooleanMap)                                 \
-  V(CodeMap, code_map, CodeMap)                                          \
-  V(EmptyPropertyDictionary, empty_property_dictionary,                  \
-    EmptyPropertyDictionary)                                             \
-  V(EmptyFixedArray, empty_fixed_array, EmptyFixedArray)                 \
-  V(EmptySlowElementDictionary, empty_slow_element_dictionary,           \
-    EmptySlowElementDictionary)                                          \
-  V(empty_string, empty_string, EmptyString)                             \
-  V(EmptyWeakCell, empty_weak_cell, EmptyWeakCell)                       \
-  V(FalseValue, false_value, False)                                      \
-  V(FeedbackVectorMap, feedback_vector_map, FeedbackVectorMap)           \
-  V(FixedArrayMap, fixed_array_map, FixedArrayMap)                       \
-  V(FixedCOWArrayMap, fixed_cow_array_map, FixedCOWArrayMap)             \
-  V(FixedDoubleArrayMap, fixed_double_array_map, FixedDoubleArrayMap)    \
-  V(FunctionTemplateInfoMap, function_template_info_map,                 \
-    FunctionTemplateInfoMap)                                             \
-  V(GlobalPropertyCellMap, global_property_cell_map, PropertyCellMap)    \
-  V(has_instance_symbol, has_instance_symbol, HasInstanceSymbol)         \
-  V(HeapNumberMap, heap_number_map, HeapNumberMap)                       \
-  V(length_string, length_string, LengthString)                          \
-  V(ManyClosuresCellMap, many_closures_cell_map, ManyClosuresCellMap)    \
-  V(MetaMap, meta_map, MetaMap)                                          \
-  V(MinusZeroValue, minus_zero_value, MinusZero)                         \
-  V(MutableHeapNumberMap, mutable_heap_number_map, MutableHeapNumberMap) \
-  V(NanValue, nan_value, Nan)                                            \
-  V(NoClosuresCellMap, no_closures_cell_map, NoClosuresCellMap)          \
-  V(NullValue, null_value, Null)                                         \
-  V(OneClosureCellMap, one_closure_cell_map, OneClosureCellMap)          \
-  V(prototype_string, prototype_string, PrototypeString)                 \
-  V(SpeciesProtector, species_protector, SpeciesProtector)               \
-  V(SymbolMap, symbol_map, SymbolMap)                                    \
-  V(TheHoleValue, the_hole_value, TheHole)                               \
-  V(TrueValue, true_value, True)                                         \
-  V(Tuple2Map, tuple2_map, Tuple2Map)                                    \
-  V(Tuple3Map, tuple3_map, Tuple3Map)                                    \
-  V(UndefinedValue, undefined_value, Undefined)                          \
-  V(WeakCellMap, weak_cell_map, WeakCellMap)                             \
-  V(SharedFunctionInfoMap, shared_function_info_map, SharedFunctionInfoMap)
+#define HEAP_CONSTANT_LIST(V)                                                 \
+  V(AccessorInfoMap, accessor_info_map, AccessorInfoMap)                      \
+  V(AccessorPairMap, accessor_pair_map, AccessorPairMap)                      \
+  V(AllocationSiteMap, allocation_site_map, AllocationSiteMap)                \
+  V(BooleanMap, boolean_map, BooleanMap)                                      \
+  V(CodeMap, code_map, CodeMap)                                               \
+  V(EmptyPropertyDictionary, empty_property_dictionary,                       \
+    EmptyPropertyDictionary)                                                  \
+  V(EmptyFixedArray, empty_fixed_array, EmptyFixedArray)                      \
+  V(EmptySlowElementDictionary, empty_slow_element_dictionary,                \
+    EmptySlowElementDictionary)                                               \
+  V(empty_string, empty_string, EmptyString)                                  \
+  V(EmptyWeakCell, empty_weak_cell, EmptyWeakCell)                            \
+  V(FalseValue, false_value, False)                                           \
+  V(FeedbackVectorMap, feedback_vector_map, FeedbackVectorMap)                \
+  V(FixedArrayMap, fixed_array_map, FixedArrayMap)                            \
+  V(FixedCOWArrayMap, fixed_cow_array_map, FixedCOWArrayMap)                  \
+  V(FixedDoubleArrayMap, fixed_double_array_map, FixedDoubleArrayMap)         \
+  V(FunctionTemplateInfoMap, function_template_info_map,                      \
+    FunctionTemplateInfoMap)                                                  \
+  V(GlobalPropertyCellMap, global_property_cell_map, PropertyCellMap)         \
+  V(has_instance_symbol, has_instance_symbol, HasInstanceSymbol)              \
+  V(HeapNumberMap, heap_number_map, HeapNumberMap)                            \
+  V(length_string, length_string, LengthString)                               \
+  V(ManyClosuresCellMap, many_closures_cell_map, ManyClosuresCellMap)         \
+  V(MetaMap, meta_map, MetaMap)                                               \
+  V(MinusZeroValue, minus_zero_value, MinusZero)                              \
+  V(MutableHeapNumberMap, mutable_heap_number_map, MutableHeapNumberMap)      \
+  V(NanValue, nan_value, Nan)                                                 \
+  V(NoClosuresCellMap, no_closures_cell_map, NoClosuresCellMap)               \
+  V(NullValue, null_value, Null)                                              \
+  V(OneClosureCellMap, one_closure_cell_map, OneClosureCellMap)               \
+  V(prototype_string, prototype_string, PrototypeString)                      \
+  V(SpeciesProtector, species_protector, SpeciesProtector)                    \
+  V(StoreHandler0Map, store_handler0_map, StoreHandler0Map)                   \
+  V(SymbolMap, symbol_map, SymbolMap)                                         \
+  V(TheHoleValue, the_hole_value, TheHole)                                    \
+  V(TrueValue, true_value, True)                                              \
+  V(Tuple2Map, tuple2_map, Tuple2Map)                                         \
+  V(Tuple3Map, tuple3_map, Tuple3Map)                                         \
+  V(UndefinedValue, undefined_value, Undefined)                               \
+  V(WeakCellMap, weak_cell_map, WeakCellMap)                                  \
+  V(SharedFunctionInfoMap, shared_function_info_map, SharedFunctionInfoMap)   \
+  V(promise_default_reject_handler_symbol,                                    \
+    promise_default_reject_handler_symbol, PromiseDefaultRejectHandlerSymbol) \
+  V(promise_default_resolve_handler_symbol,                                   \
+    promise_default_resolve_handler_symbol,                                   \
+    PromiseDefaultResolveHandlerSymbol)
+
+// Returned from IteratorBuiltinsAssembler::GetIterator(). Struct is declared
+// here to simplify use in other generated builtins.
+struct IteratorRecord {
+ public:
+  // iteratorRecord.[[Iterator]]
+  compiler::TNode<JSReceiver> object;
+
+  // iteratorRecord.[[NextMethod]]
+  compiler::TNode<Object> next;
+};
 
 // Provides JavaScript-specific "macro-assembler" functionality on top of the
 // CodeAssembler. By factoring the JavaScript-isms out of the CodeAssembler,
@@ -77,6 +94,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   using TNode = compiler::TNode<T>;
   template <class T>
   using SloppyTNode = compiler::SloppyTNode<T>;
+
+  template <typename T>
+  using LazyNode = std::function<TNode<T>()>;
 
   CodeStubAssembler(compiler::CodeAssemblerState* state);
 
@@ -274,7 +294,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   // Computes a % b for Smi inputs a and b; result is not necessarily a Smi.
   Node* SmiMod(Node* a, Node* b);
   // Computes a * b for Smi inputs a and b; result is not necessarily a Smi.
-  Node* SmiMul(Node* a, Node* b);
+  TNode<Number> SmiMul(SloppyTNode<Smi> a, SloppyTNode<Smi> b);
   // Tries to computes dividend / divisor for Smi inputs; branching to bailout
   // if the division needs to be performed as a floating point operation.
   Node* TrySmiDiv(Node* dividend, Node* divisor, Label* bailout);
@@ -417,8 +437,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   // It's used for testing to ensure that slow path implementation behave
   // equivalent to corresponding fast paths (where applicable).
   //
-  // Works only in DEBUG mode or with ENABLE_FASTSLOW_SWITCH compile time flag.
-  // Nop otherwise.
+  // Works only with V8_ENABLE_FORCE_SLOW_PATH compile time flag. Nop otherwise.
   void GotoIfForceSlowPath(Label* if_true);
 
   // Load value from current frame by given offset in bytes.
@@ -553,8 +572,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   // Load value field of a JSValue object.
   Node* LoadJSValueValue(Node* object);
   // Load value field of a WeakCell object.
-  Node* LoadWeakCellValueUnchecked(Node* weak_cell);
-  Node* LoadWeakCellValue(Node* weak_cell, Label* if_cleared = nullptr);
+  TNode<Object> LoadWeakCellValueUnchecked(Node* weak_cell);
+  TNode<Object> LoadWeakCellValue(SloppyTNode<WeakCell> weak_cell,
+                                  Label* if_cleared = nullptr);
 
   // Load an array element from a FixedArray.
   Node* LoadFixedArrayElement(Node* object, Node* index,
@@ -577,7 +597,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
       Label* if_hole = nullptr);
 
   // Load a feedback slot from a FeedbackVector.
-  Node* LoadFeedbackVectorSlot(
+  TNode<Object> LoadFeedbackVectorSlot(
       Node* object, Node* index, int additional_offset = 0,
       ParameterMode parameter_mode = INTPTR_PARAMETERS);
 
@@ -988,7 +1008,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   TNode<Number> ChangeInt32ToTagged(SloppyTNode<Int32T> value);
   TNode<Number> ChangeUint32ToTagged(SloppyTNode<Uint32T> value);
   TNode<Float64T> ChangeNumberToFloat64(SloppyTNode<Number> value);
-  TNode<UintPtrT> ChangeNonnegativeNumberToUintPtr(SloppyTNode<Number> value);
+  TNode<UintPtrT> ChangeNonnegativeNumberToUintPtr(TNode<Number> value);
 
   void TaggedToNumeric(Node* context, Node* value, Label* done,
                        Variable* var_numeric);
@@ -1105,7 +1125,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   Node* IsSequentialStringInstanceType(Node* instance_type);
   Node* IsShortExternalStringInstanceType(Node* instance_type);
   Node* IsSpecialReceiverInstanceType(Node* instance_type);
-  Node* IsSpecialReceiverMap(Node* map);
   Node* IsSpeciesProtectorCellInvalid();
   Node* IsStringInstanceType(Node* instance_type);
   Node* IsString(Node* object);
@@ -1145,10 +1164,10 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
 
   // String helpers.
   // Load a character from a String (might flatten a ConsString).
-  TNode<Uint32T> StringCharCodeAt(SloppyTNode<String> string,
-                                  SloppyTNode<IntPtrT> index);
+  TNode<Int32T> StringCharCodeAt(SloppyTNode<String> string,
+                                 SloppyTNode<IntPtrT> index);
   // Return the single character string with only {code}.
-  Node* StringFromCharCode(Node* code);
+  TNode<String> StringFromCharCode(TNode<Int32T> code);
 
   enum class SubStringFlags { NONE, FROM_TO_ARE_BOUNDED };
 
@@ -1179,14 +1198,15 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
                                  Variable* var_right, Node* right_instance_type,
                                  Label* did_something);
 
-  Node* StringFromCodePoint(Node* codepoint, UnicodeEncoding encoding);
+  TNode<String> StringFromCodePoint(TNode<Int32T> codepoint,
+                                    UnicodeEncoding encoding);
 
   // Type conversion helpers.
   enum class BigIntHandling { kConvertToNumber, kThrow };
   // Convert a String to a Number.
-  TNode<Number> StringToNumber(SloppyTNode<Context> context,
-                               SloppyTNode<String> input);
-  Node* NumberToString(Node* context, Node* input);
+  TNode<Number> StringToNumber(SloppyTNode<String> input);
+  // Convert a Number to a String.
+  Node* NumberToString(Node* input);
   // Convert an object to a name.
   Node* ToName(Node* context, Node* input);
   // Convert a Non-Number object to a Number.
@@ -1233,7 +1253,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   // ES6 7.1.15 ToLength, but with inlined fast path.
   Node* ToLength_Inline(Node* const context, Node* const input);
 
-  // Convert any object to an Integer.
+  // ES6 7.1.4 ToInteger ( argument )
+  TNode<Number> ToInteger_Inline(TNode<Context> context, TNode<Object> input,
+                                 ToIntegerTruncationMode mode = kNoTruncation);
   TNode<Number> ToInteger(SloppyTNode<Context> context,
                           SloppyTNode<Object> input,
                           ToIntegerTruncationMode mode = kNoTruncation);
@@ -1248,22 +1270,23 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   // Returns a node that contains a decoded (unsigned!) value of a bit
   // field |BitField| in |word|. Returns result as a word-size node.
   template <typename BitField>
-  Node* DecodeWord(Node* word) {
+  TNode<UintPtrT> DecodeWord(SloppyTNode<WordT> word) {
     return DecodeWord(word, BitField::kShift, BitField::kMask);
   }
 
   // Returns a node that contains a decoded (unsigned!) value of a bit
   // field |BitField| in |word32|. Returns result as a word-size node.
   template <typename BitField>
-  Node* DecodeWordFromWord32(Node* word32) {
+  TNode<UintPtrT> DecodeWordFromWord32(SloppyTNode<Word32T> word32) {
     return DecodeWord<BitField>(ChangeUint32ToWord(word32));
   }
 
   // Returns a node that contains a decoded (unsigned!) value of a bit
   // field |BitField| in |word|. Returns result as an uint32 node.
   template <typename BitField>
-  Node* DecodeWord32FromWord(Node* word) {
-    return TruncateWordToWord32(DecodeWord<BitField>(word));
+  TNode<Uint32T> DecodeWord32FromWord(SloppyTNode<WordT> word) {
+    return UncheckedCast<Uint32T>(
+        TruncateWordToWord32(Signed(DecodeWord<BitField>(word))));
   }
 
   // Decodes an unsigned (!) value from |word32| to an uint32 node.
@@ -1271,7 +1294,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
                               uint32_t mask);
 
   // Decodes an unsigned (!) value from |word| to a word-size node.
-  Node* DecodeWord(Node* word, uint32_t shift, uint32_t mask);
+  TNode<UintPtrT> DecodeWord(SloppyTNode<WordT> word, uint32_t shift,
+                             uint32_t mask);
 
   // Returns a node that contains the updated values of a |BitField|.
   template <typename BitField>
@@ -1559,6 +1583,10 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
                                   Node* name_index, Variable* var_details,
                                   Variable* var_value);
 
+  void LoadPropertyFromFastObject(Node* object, Node* map, Node* descriptors,
+                                  Node* name_index, Node* details,
+                                  Variable* var_value);
+
   void LoadPropertyFromNameDictionary(Node* dictionary, Node* entry,
                                       Variable* var_details,
                                       Variable* var_value);
@@ -1600,6 +1628,15 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
                              Label* if_bailout)>
       LookupInHolder;
 
+  // For integer indexed exotic cases, check if the given string cannot be a
+  // special index. If we are not sure that the given string is not a special
+  // index with a simple check, return False. Note that "False" return value
+  // does not mean that the name_string is a special index in the current
+  // implementation.
+  void BranchIfMaybeSpecialIndex(TNode<String> name_string,
+                                 Label* if_maybe_special_index,
+                                 Label* if_not_special_index);
+
   // Generic property prototype chain lookup generator.
   // For properties it generates lookup using given {lookup_property_in_holder}
   // and for elements it uses {lookup_element_in_holder}.
@@ -1635,8 +1672,14 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   void ReportFeedbackUpdate(SloppyTNode<FeedbackVector> feedback_vector,
                             SloppyTNode<IntPtrT> slot_id, const char* reason);
 
-  // Combine the new feedback with the existing_feedback.
+  // Combine the new feedback with the existing_feedback. Do nothing if
+  // existing_feedback is nullptr.
+  void CombineFeedback(Variable* existing_feedback, int feedback);
   void CombineFeedback(Variable* existing_feedback, Node* feedback);
+
+  // Overwrite the existing feedback with new_feedback. Do nothing if
+  // existing_feedback is nullptr.
+  void OverwriteFeedback(Variable* existing_feedback, int new_feedback);
 
   // Check if a property name might require protector invalidation when it is
   // used for a property store or deletion.
@@ -1657,7 +1700,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   }
 
   // Loads script context from the script context table.
-  Node* LoadScriptContext(Node* context, int context_index);
+  TNode<Context> LoadScriptContext(TNode<Context> context,
+                                   TNode<IntPtrT> context_index);
 
   Node* Int32ToUint8Clamped(Node* int32_value);
   Node* Float64ToUint8Clamped(Node* float64_value);
@@ -1759,11 +1803,12 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   void InitializeFieldsWithRoot(Node* object, Node* start_offset,
                                 Node* end_offset, Heap::RootListIndex root);
 
-  Node* RelationalComparison(Operation op, Node* lhs, Node* rhs, Node* context,
+  Node* RelationalComparison(Operation op, Node* left, Node* right,
+                             Node* context,
                              Variable* var_type_feedback = nullptr);
 
-  void BranchIfNumericRelationalComparison(Operation op, Node* lhs, Node* rhs,
-                                           Label* if_true, Label* if_false);
+  void BranchIfNumberRelationalComparison(Operation op, Node* left, Node* right,
+                                          Label* if_true, Label* if_false);
 
   void BranchIfAccessorPair(Node* value, Label* if_accessor_pair,
                             Label* if_not_accessor_pair) {
@@ -1771,7 +1816,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
     Branch(IsAccessorPair(value), if_accessor_pair, if_not_accessor_pair);
   }
 
-  void GotoIfNumericGreaterThanOrEqual(Node* lhs, Node* rhs, Label* if_false);
+  void GotoIfNumberGreaterThanOrEqual(Node* left, Node* right, Label* if_false);
 
   Node* Equal(Node* lhs, Node* rhs, Node* context,
               Variable* var_type_feedback = nullptr);
@@ -1786,8 +1831,10 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
 
   enum HasPropertyLookupMode { kHasProperty, kForInHasProperty };
 
-  Node* HasProperty(Node* object, Node* key, Node* context,
-                    HasPropertyLookupMode mode);
+  TNode<Oddball> HasProperty(SloppyTNode<HeapObject> object,
+                             SloppyTNode<Name> key,
+                             SloppyTNode<Context> context,
+                             HasPropertyLookupMode mode);
 
   Node* ClassOf(Node* object);
 
@@ -1845,7 +1892,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
                   UndefinedConstant(), SmiConstant(message), args...);
   }
 
-  void Abort(BailoutReason reason) {
+  void Abort(AbortReason reason) {
     CallRuntime(Runtime::kAbort, NoContextConstant(), SmiConstant(reason));
     Unreachable();
   }
@@ -1862,11 +1909,15 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   void DescriptorLookupBinary(Node* unique_name, Node* descriptors, Node* nof,
                               Label* if_found, Variable* var_name_index,
                               Label* if_not_found);
+  Node* DescriptorNumberToIndex(SloppyTNode<Uint32T> descriptor_number);
   // Implements DescriptorArray::ToKeyIndex.
   // Returns an untagged IntPtr.
   Node* DescriptorArrayToKeyIndex(Node* descriptor_number);
   // Implements DescriptorArray::GetKey.
   Node* DescriptorArrayGetKey(Node* descriptors, Node* descriptor_number);
+  // Implements DescriptorArray::GetKey.
+  TNode<Uint32T> DescriptorArrayGetDetails(TNode<DescriptorArray> descriptors,
+                                           TNode<Uint32T> descriptor_number);
 
   Node* CallGetterIfAccessor(Node* value, Node* details, Node* context,
                              Node* receiver, Label* if_bailout,
@@ -1877,6 +1928,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   void BranchIfPrototypesHaveNoElements(Node* receiver_map,
                                         Label* definitely_no_elements,
                                         Label* possibly_elements);
+
+  void InitializeFunctionContext(Node* native_context, Node* context,
+                                 int slots);
 
  private:
   friend class CodeStubArguments;
@@ -1932,12 +1986,10 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
       Node* context, Node* input, Object::Conversion mode,
       BigIntHandling bigint_handling = BigIntHandling::kThrow);
 
-  enum class Feedback { kCollect, kNone };
-  template <Feedback feedback>
   void TaggedToNumeric(Node* context, Node* value, Label* done,
-                       Variable* var_numeric, Variable* var_feedback = nullptr);
+                       Variable* var_numeric, Variable* var_feedback);
 
-  template <Feedback feedback, Object::Conversion conversion>
+  template <Object::Conversion conversion>
   void TaggedToWord32OrBigIntImpl(Node* context, Node* value, Label* if_number,
                                   Variable* var_word32,
                                   Label* if_bigint = nullptr,
@@ -1957,15 +2009,16 @@ class CodeStubArguments {
   // |argc| is an intptr value which specifies the number of arguments passed
   // to the builtin excluding the receiver. The arguments will include a
   // receiver iff |receiver_mode| is kHasReceiver.
-  CodeStubArguments(CodeStubAssembler* assembler, SloppyTNode<IntPtrT> argc,
+  CodeStubArguments(CodeStubAssembler* assembler, Node* argc,
                     ReceiverMode receiver_mode = ReceiverMode::kHasReceiver)
       : CodeStubArguments(assembler, argc, nullptr,
                           CodeStubAssembler::INTPTR_PARAMETERS, receiver_mode) {
   }
+
   // |argc| is either a smi or intptr depending on |param_mode|. The arguments
   // include a receiver iff |receiver_mode| is kHasReceiver.
-  CodeStubArguments(CodeStubAssembler* assembler, SloppyTNode<IntPtrT> argc,
-                    Node* fp, CodeStubAssembler::ParameterMode param_mode,
+  CodeStubArguments(CodeStubAssembler* assembler, Node* argc, Node* fp,
+                    CodeStubAssembler::ParameterMode param_mode,
                     ReceiverMode receiver_mode = ReceiverMode::kHasReceiver);
 
   TNode<Object> GetReceiver() const;
@@ -1987,7 +2040,10 @@ class CodeStubArguments {
   TNode<Object> GetOptionalArgumentValue(int index,
                                          SloppyTNode<Object> default_value);
 
-  TNode<IntPtrT> GetLength() const { return argc_; }
+  Node* GetLength(CodeStubAssembler::ParameterMode mode) const {
+    DCHECK_EQ(mode, argc_mode_);
+    return argc_;
+  }
 
   typedef std::function<void(Node* arg)> ForEachBodyFunction;
 
@@ -2013,7 +2069,7 @@ class CodeStubArguments {
   CodeStubAssembler* assembler_;
   CodeStubAssembler::ParameterMode argc_mode_;
   ReceiverMode receiver_mode_;
-  TNode<IntPtrT> argc_;
+  Node* argc_;
   TNode<RawPtr<Object>> arguments_;
   Node* fp_;
 };

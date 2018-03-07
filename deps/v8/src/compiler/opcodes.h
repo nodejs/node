@@ -175,24 +175,25 @@
   V(JSConstructWithArrayLike)   \
   V(JSConstructWithSpread)
 
-#define JS_OTHER_OP_LIST(V)         \
-  JS_CONSTRUCT_OP_LIST(V)           \
-  V(JSCallForwardVarargs)           \
-  V(JSCall)                         \
-  V(JSCallWithArrayLike)            \
-  V(JSCallWithSpread)               \
-  V(JSCallRuntime)                  \
-  V(JSForInEnumerate)               \
-  V(JSForInNext)                    \
-  V(JSForInPrepare)                 \
-  V(JSLoadMessage)                  \
-  V(JSStoreMessage)                 \
-  V(JSLoadModule)                   \
-  V(JSStoreModule)                  \
-  V(JSGeneratorStore)               \
-  V(JSGeneratorRestoreContinuation) \
-  V(JSGeneratorRestoreRegister)     \
-  V(JSStackCheck)                   \
+#define JS_OTHER_OP_LIST(V)            \
+  JS_CONSTRUCT_OP_LIST(V)              \
+  V(JSCallForwardVarargs)              \
+  V(JSCall)                            \
+  V(JSCallWithArrayLike)               \
+  V(JSCallWithSpread)                  \
+  V(JSCallRuntime)                     \
+  V(JSForInEnumerate)                  \
+  V(JSForInNext)                       \
+  V(JSForInPrepare)                    \
+  V(JSLoadMessage)                     \
+  V(JSStoreMessage)                    \
+  V(JSLoadModule)                      \
+  V(JSStoreModule)                     \
+  V(JSGeneratorStore)                  \
+  V(JSGeneratorRestoreContinuation)    \
+  V(JSGeneratorRestoreRegister)        \
+  V(JSGeneratorRestoreInputOrDebugPos) \
+  V(JSStackCheck)                      \
   V(JSDebugger)
 
 #define JS_OP_LIST(V)     \
@@ -317,6 +318,7 @@
   V(NumberTrunc)                       \
   V(NumberToBoolean)                   \
   V(NumberToInt32)                     \
+  V(NumberToString)                    \
   V(NumberToUint32)                    \
   V(NumberToUint8Clamped)              \
   V(NumberSilenceNaN)
@@ -332,9 +334,12 @@
   V(StringCharAt)                       \
   V(StringCharCodeAt)                   \
   V(SeqStringCharCodeAt)                \
+  V(StringCodePointAt)                  \
+  V(SeqStringCodePointAt)               \
   V(StringFromCharCode)                 \
   V(StringFromCodePoint)                \
   V(StringIndexOf)                      \
+  V(StringLength)                       \
   V(StringToLowerCaseIntl)              \
   V(StringToUpperCaseIntl)              \
   V(CheckBounds)                        \
@@ -371,6 +376,7 @@
   V(TransitionAndStoreNumberElement)    \
   V(TransitionAndStoreNonNumberElement) \
   V(ToBoolean)                          \
+  V(NumberIsFloat64Hole)                \
   V(ObjectIsArrayBufferView)            \
   V(ObjectIsBigInt)                     \
   V(ObjectIsCallable)                   \
@@ -390,6 +396,7 @@
   V(NewDoubleElements)                  \
   V(NewSmiOrObjectElements)             \
   V(NewArgumentsElements)               \
+  V(NewConsString)                      \
   V(ArrayBufferWasNeutered)             \
   V(EnsureWritableFastElements)         \
   V(MaybeGrowFastElements)              \
@@ -593,8 +600,6 @@
   V(LoadStackPointer)           \
   V(LoadFramePointer)           \
   V(LoadParentFramePointer)     \
-  V(CheckedLoad)                \
-  V(CheckedStore)               \
   V(UnalignedLoad)              \
   V(UnalignedStore)             \
   V(Int32PairAdd)               \
@@ -614,6 +619,7 @@
   V(AtomicAnd)                  \
   V(AtomicOr)                   \
   V(AtomicXor)                  \
+  V(SpeculationFence)           \
   V(UnsafePointerAdd)
 
 #define MACHINE_SIMD_OP_LIST(V) \

@@ -223,8 +223,12 @@ class EscapeAnalysisTracker : public ZoneObject {
       replacement_ = replacement;
       vobject_ =
           replacement ? tracker_->virtual_objects_.Get(replacement) : nullptr;
-      TRACE("Set %s#%d as replacement.\n", replacement->op()->mnemonic(),
-            replacement->id());
+      if (replacement) {
+        TRACE("Set %s#%d as replacement.\n", replacement->op()->mnemonic(),
+              replacement->id());
+      } else {
+        TRACE("Set nullptr as replacement.\n");
+      }
     }
 
     void MarkForDeletion() { SetReplacement(tracker_->jsgraph_->Dead()); }
@@ -248,10 +252,6 @@ class EscapeAnalysisTracker : public ZoneObject {
   Node* GetReplacementOf(Node* node) { return replacements_[node]; }
   Node* ResolveReplacement(Node* node) {
     if (Node* replacement = GetReplacementOf(node)) {
-      // Replacements cannot have replacements. This is important to ensure
-      // re-visitation: If a replacement is replaced, then all nodes accessing
-      // the replacement have to be updated.
-      DCHECK_NULL(GetReplacementOf(replacement));
       return replacement;
     }
     return node;
@@ -768,7 +768,12 @@ EscapeAnalysis::EscapeAnalysis(JSGraph* jsgraph, Zone* zone)
       jsgraph_(jsgraph) {}
 
 Node* EscapeAnalysisResult::GetReplacementOf(Node* node) {
-  return tracker_->GetReplacementOf(node);
+  Node* replacement = tracker_->GetReplacementOf(node);
+  // Replacements cannot have replacements. This is important to ensure
+  // re-visitation: If a replacement is replaced, then all nodes accessing
+  // the replacement have to be updated.
+  if (replacement) DCHECK_NULL(tracker_->GetReplacementOf(replacement));
+  return replacement;
 }
 
 Node* EscapeAnalysisResult::GetVirtualObjectField(const VirtualObject* vobject,

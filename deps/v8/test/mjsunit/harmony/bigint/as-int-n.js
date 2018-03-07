@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --harmony-bigint --noopt
+// Flags: --harmony-bigint
 
 // BigInt.asIntN
 {
@@ -145,6 +145,8 @@
 }{
   assertThrows(() => BigInt.asIntN(3, 12), TypeError);
   assertEquals(-4n, BigInt.asIntN(3, "12"));
+  assertEquals(0x123456789abcdefn,
+               BigInt.asIntN(64, 0xabcdef0123456789abcdefn));
 }
 
 // BigInt.asUintN
@@ -244,10 +246,9 @@
   assertEquals(9223372036854775808n - 42n, BigInt.asUintN(63, -42n));
   assertEquals(18446744073709551616n - 42n, BigInt.asUintN(64, -42n));
   assertEquals(36893488147419103232n - 42n, BigInt.asUintN(65, -42n));
-  // TODO(neis): Enable once we have exponentation.
-  // assertEquals(2n**127n - 42n, BigInt.asUintN(127, -42n));
-  // assertEquals(2n**128n - 42n, BigInt.asUintN(128, -42n));
-  // assertEquals(2n**129n - 42n, BigInt.asUintN(129, -42n));
+  assertEquals(2n**127n - 42n, BigInt.asUintN(127, -42n));
+  assertEquals(2n**128n - 42n, BigInt.asUintN(128, -42n));
+  assertEquals(2n**129n - 42n, BigInt.asUintN(129, -42n));
 }{
   assertEquals(0n, BigInt.asUintN(0, 4294967295n));
   assertEquals(1n, BigInt.asUintN(1, 4294967295n));
@@ -274,10 +275,9 @@
       BigInt.asUintN(64,-4294967295n));
   assertEquals(36893488147419103232n - 4294967295n,
       BigInt.asUintN(65, -4294967295n));
-  // TODO(neis): Enable once we have exponentation.
-  // assertEquals(2n**127n - 42n, BigInt.asUintN(127, -4294967295n));
-  // assertEquals(2n**128n - 42n, BigInt.asUintN(128, -4294967295n));
-  // assertEquals(2n**129n - 42n, BigInt.asUintN(129, -4294967295n));
+  assertEquals(2n**127n - 4294967295n, BigInt.asUintN(127, -4294967295n));
+  assertEquals(2n**128n - 4294967295n, BigInt.asUintN(128, -4294967295n));
+  assertEquals(2n**129n - 4294967295n, BigInt.asUintN(129, -4294967295n));
 }{
   assertEquals(42n, BigInt.asUintN(2**32, 42n));
   assertEquals(4294967295n, BigInt.asUintN(2**32, 4294967295n));

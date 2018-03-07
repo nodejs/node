@@ -24,8 +24,7 @@ MemCopyUint8Function CreateMemCopyUint8Function(Isolate* isolate,
   return stub;
 #else
   size_t allocated = 0;
-  byte* buffer =
-      AllocateSystemPage(isolate->heap()->GetRandomMmapAddr(), &allocated);
+  byte* buffer = AllocatePage(isolate->heap()->GetRandomMmapAddr(), &allocated);
   if (buffer == nullptr) return nullptr;
 
   MacroAssembler masm(isolate, buffer, static_cast<int>(allocated),
@@ -97,7 +96,7 @@ MemCopyUint8Function CreateMemCopyUint8Function(Isolate* isolate,
     // copied and a3 to the dst pointer after all the 64 byte chunks have been
     // copied. We will loop, incrementing a0 and a1 until a0 equals a3.
     __ bind(&aligned);
-    __ andi(t8, a2, 0x3f);
+    __ andi(t8, a2, 0x3F);
     __ beq(a2, t8, &chkw);  // Less than 64?
     __ subu(a3, a2, t8);  // In delay slot.
     __ addu(a3, a0, a3);  // Now a3 is the final dst after loop.
@@ -180,7 +179,7 @@ MemCopyUint8Function CreateMemCopyUint8Function(Isolate* isolate,
     // down to chk1w to handle the tail end of the copy.
     __ bind(&chkw);
     __ Pref(pref_hint_load, MemOperand(a1, 0 * pref_chunk));
-    __ andi(t8, a2, 0x1f);
+    __ andi(t8, a2, 0x1F);
     __ beq(a2, t8, &chk1w);  // Less than 32?
     __ nop();  // In delay slot.
     __ lw(t0, MemOperand(a1));
@@ -264,7 +263,7 @@ MemCopyUint8Function CreateMemCopyUint8Function(Isolate* isolate,
     // the dst pointer after all the 64 byte chunks have been copied. We will
     // loop, incrementing a0 and a1 until a0 equals a3.
     __ bind(&ua_chk16w);
-    __ andi(t8, a2, 0x3f);
+    __ andi(t8, a2, 0x3F);
     __ beq(a2, t8, &ua_chkw);
     __ subu(a3, a2, t8);  // In delay slot.
     __ addu(a3, a0, a3);
@@ -436,7 +435,7 @@ MemCopyUint8Function CreateMemCopyUint8Function(Isolate* isolate,
     // ua_chk1w to handle the tail end of the copy.
     __ bind(&ua_chkw);
     __ Pref(pref_hint_load, MemOperand(a1));
-    __ andi(t8, a2, 0x1f);
+    __ andi(t8, a2, 0x1F);
 
     __ beq(a2, t8, &ua_chk1w);
     __ nop();  // In delay slot.
@@ -545,8 +544,7 @@ MemCopyUint8Function CreateMemCopyUint8Function(Isolate* isolate,
   DCHECK(!RelocInfo::RequiresRelocation(isolate, desc));
 
   Assembler::FlushICache(isolate, buffer, allocated);
-  CHECK(base::OS::SetPermissions(buffer, allocated,
-                                 base::OS::MemoryPermission::kReadExecute));
+  CHECK(SetPermissions(buffer, allocated, PageAllocator::kReadExecute));
   return FUNCTION_CAST<MemCopyUint8Function>(buffer);
 #endif
 }
@@ -557,8 +555,7 @@ UnaryMathFunctionWithIsolate CreateSqrtFunction(Isolate* isolate) {
   return nullptr;
 #else
   size_t allocated = 0;
-  byte* buffer =
-      AllocateSystemPage(isolate->heap()->GetRandomMmapAddr(), &allocated);
+  byte* buffer = AllocatePage(isolate->heap()->GetRandomMmapAddr(), &allocated);
   if (buffer == nullptr) return nullptr;
 
   MacroAssembler masm(isolate, buffer, static_cast<int>(allocated),
@@ -574,8 +571,7 @@ UnaryMathFunctionWithIsolate CreateSqrtFunction(Isolate* isolate) {
   DCHECK(!RelocInfo::RequiresRelocation(isolate, desc));
 
   Assembler::FlushICache(isolate, buffer, allocated);
-  CHECK(base::OS::SetPermissions(buffer, allocated,
-                                 base::OS::MemoryPermission::kReadExecute));
+  CHECK(SetPermissions(buffer, allocated, PageAllocator::kReadExecute));
   return FUNCTION_CAST<UnaryMathFunctionWithIsolate>(buffer);
 #endif
 }

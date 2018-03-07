@@ -32,30 +32,34 @@ namespace {
 }  // namespace
 
 TEST(LoggingTest, CheckEQImpl) {
-  CHECK_SUCCEED(EQ, 0.0, 0.0)
-  CHECK_SUCCEED(EQ, 0.0, -0.0)
-  CHECK_SUCCEED(EQ, -0.0, 0.0)
-  CHECK_SUCCEED(EQ, -0.0, -0.0)
+  CHECK_SUCCEED(EQ, 0.0, 0.0);
+  CHECK_SUCCEED(EQ, 0.0, -0.0);
+  CHECK_SUCCEED(EQ, -0.0, 0.0);
+  CHECK_SUCCEED(EQ, -0.0, -0.0);
 }
 
 TEST(LoggingTest, CompareSignedMismatch) {
-  CHECK_SUCCEED(EQ, static_cast<int32_t>(14), static_cast<uint32_t>(14))
-  CHECK_FAIL(EQ, static_cast<int32_t>(14), static_cast<uint32_t>(15))
-  CHECK_FAIL(EQ, static_cast<int32_t>(-1), static_cast<uint32_t>(-1))
-  CHECK_SUCCEED(LT, static_cast<int32_t>(-1), static_cast<uint32_t>(0))
-  CHECK_SUCCEED(LT, static_cast<int32_t>(-1), static_cast<uint32_t>(-1))
-  CHECK_SUCCEED(LE, static_cast<int32_t>(-1), static_cast<uint32_t>(0))
-  CHECK_SUCCEED(LE, static_cast<int32_t>(55), static_cast<uint32_t>(55))
-  CHECK_SUCCEED(LT, static_cast<int32_t>(55), static_cast<uint32_t>(0x7fffff00))
-  CHECK_SUCCEED(LE, static_cast<int32_t>(55), static_cast<uint32_t>(0x7fffff00))
-  CHECK_SUCCEED(GE, static_cast<uint32_t>(0x7fffff00), static_cast<int32_t>(55))
-  CHECK_SUCCEED(GT, static_cast<uint32_t>(0x7fffff00), static_cast<int32_t>(55))
-  CHECK_SUCCEED(GT, static_cast<uint32_t>(-1), static_cast<int32_t>(-1))
-  CHECK_SUCCEED(GE, static_cast<uint32_t>(0), static_cast<int32_t>(-1))
-  CHECK_SUCCEED(LT, static_cast<int8_t>(-1), static_cast<uint32_t>(0))
-  CHECK_SUCCEED(GT, static_cast<uint64_t>(0x7f01010101010101), 0)
-  CHECK_SUCCEED(LE, static_cast<int64_t>(0xff01010101010101),
-                static_cast<uint8_t>(13))
+  CHECK_SUCCEED(EQ, static_cast<int32_t>(14), static_cast<uint32_t>(14));
+  CHECK_FAIL(EQ, static_cast<int32_t>(14), static_cast<uint32_t>(15));
+  CHECK_FAIL(EQ, static_cast<int32_t>(-1), static_cast<uint32_t>(-1));
+  CHECK_SUCCEED(LT, static_cast<int32_t>(-1), static_cast<uint32_t>(0));
+  CHECK_SUCCEED(LT, static_cast<int32_t>(-1), static_cast<uint32_t>(-1));
+  CHECK_SUCCEED(LE, static_cast<int32_t>(-1), static_cast<uint32_t>(0));
+  CHECK_SUCCEED(LE, static_cast<int32_t>(55), static_cast<uint32_t>(55));
+  CHECK_SUCCEED(LT, static_cast<int32_t>(55),
+                static_cast<uint32_t>(0x7FFFFF00));
+  CHECK_SUCCEED(LE, static_cast<int32_t>(55),
+                static_cast<uint32_t>(0x7FFFFF00));
+  CHECK_SUCCEED(GE, static_cast<uint32_t>(0x7FFFFF00),
+                static_cast<int32_t>(55));
+  CHECK_SUCCEED(GT, static_cast<uint32_t>(0x7FFFFF00),
+                static_cast<int32_t>(55));
+  CHECK_SUCCEED(GT, static_cast<uint32_t>(-1), static_cast<int32_t>(-1));
+  CHECK_SUCCEED(GE, static_cast<uint32_t>(0), static_cast<int32_t>(-1));
+  CHECK_SUCCEED(LT, static_cast<int8_t>(-1), static_cast<uint32_t>(0));
+  CHECK_SUCCEED(GT, static_cast<uint64_t>(0x7F01010101010101), 0);
+  CHECK_SUCCEED(LE, static_cast<int64_t>(0xFF01010101010101),
+                static_cast<uint8_t>(13));
 }
 
 TEST(LoggingTest, CompareAgainstStaticConstPointer) {

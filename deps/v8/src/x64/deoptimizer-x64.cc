@@ -12,12 +12,14 @@
 namespace v8 {
 namespace internal {
 
-
-const int Deoptimizer::table_entry_size_ = 10;
+const int Deoptimizer::table_entry_size_ = 5;
 
 #define __ masm()->
 
 void Deoptimizer::TableEntryGenerator::Generate() {
+  Label deopt_table_entry;
+  __ bind(&deopt_table_entry);
+
   GeneratePrologue();
 
   // Save all general purpose registers before messing with them.
@@ -63,7 +65,22 @@ void Deoptimizer::TableEntryGenerator::Generate() {
   Register arg5 = r11;
 
   // Get the bailout id from the stack.
-  __ movp(arg_reg_3, Operand(rsp, kSavedRegistersAreaSize));
+  __ movp(rax, Operand(rsp, kSavedRegistersAreaSize));
+
+  // address of deoptimization table
+  __ leap(rdx, Operand(&deopt_table_entry));
+
+  // rax = deopt_entry - deopt_table_entry - 5
+  __ subp(rax, rdx);
+  __ subl(rax, Immediate(5));
+
+  // rax /= 5
+  __ movl(rbx, Immediate(0xcccccccd));
+  __ imulq(rax, rbx);
+  __ shrq(rax, Immediate(0x22));
+
+  // bailout id
+  __ movl(arg_reg_3, rax);
 
   // Get the address of the location in the code object
   // and compute the fp-to-sp delta in register arg5.
@@ -231,8 +248,7 @@ void Deoptimizer::TableEntryGenerator::GeneratePrologue() {
   for (int i = 0; i < count(); i++) {
     int start = masm()->pc_offset();
     USE(start);
-    __ pushq_imm32(i);
-    __ jmp(&done);
+    __ call(&done);
     DCHECK(masm()->pc_offset() - start == table_entry_size_);
   }
   __ bind(&done);

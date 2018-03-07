@@ -4,15 +4,15 @@
 
 #include "test/cctest/assembler-helper-arm.h"
 
+#include "src/assembler-inl.h"
+#include "src/isolate-inl.h"
 #include "src/v8.h"
 #include "test/cctest/cctest.h"
-
-#include "src/isolate-inl.h"
 
 namespace v8 {
 namespace internal {
 
-Address AssembleCode(std::function<void(Assembler&)> assemble) {
+Handle<Code> AssembleCodeImpl(std::function<void(Assembler&)> assemble) {
   Isolate* isolate = CcTest::i_isolate();
   Assembler assm(isolate, nullptr, 0);
 
@@ -26,7 +26,7 @@ Address AssembleCode(std::function<void(Assembler&)> assemble) {
   if (FLAG_print_code) {
     code->Print();
   }
-  return code->entry();
+  return code;
 }
 
 }  // namespace internal

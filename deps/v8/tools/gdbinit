@@ -13,7 +13,7 @@ end
 
 # Print v8::Local handle value.
 define jlh
-call _v8_internal_Print_Object(*(v8::internal::Object**)(*$arg0))
+call _v8_internal_Print_Object(*((v8::internal::Object**)($arg0).val_))
 end
 document jlh
 Print content of a v8::Local handle

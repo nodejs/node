@@ -649,8 +649,7 @@ int GetFunctionLineNumber(CpuProfiler& profiler, LocalContext& env,
       v8::Utils::OpenHandle(*v8::Local<v8::Function>::Cast(
           env->Global()->Get(env.local(), v8_str(name)).ToLocalChecked())));
   CodeEntry* func_entry = code_map->FindEntry(func->abstract_code()->address());
-  if (!func_entry)
-    FATAL(name);
+  if (!func_entry) FATAL("%s", name);
   return func_entry->line_number();
 }
 

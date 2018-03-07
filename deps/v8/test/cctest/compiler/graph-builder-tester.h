@@ -50,16 +50,12 @@ class GraphBuilderTester : public HandleAndZoneScope,
                            public GraphAndBuilders,
                            public CallHelper<ReturnType> {
  public:
-  explicit GraphBuilderTester(MachineType p0 = MachineType::None(),
-                              MachineType p1 = MachineType::None(),
-                              MachineType p2 = MachineType::None(),
-                              MachineType p3 = MachineType::None(),
-                              MachineType p4 = MachineType::None())
+  template <typename... ParamMachTypes>
+  explicit GraphBuilderTester(ParamMachTypes... p)
       : GraphAndBuilders(main_zone()),
         CallHelper<ReturnType>(
             main_isolate(),
-            CSignature::New(main_zone(), MachineTypeForC<ReturnType>(), p0, p1,
-                            p2, p3, p4)),
+            CSignature::New(main_zone(), MachineTypeForC<ReturnType>(), p...)),
         effect_(nullptr),
         return_(nullptr),
         parameters_(main_zone()->template NewArray<Node*>(parameter_count())) {
@@ -192,37 +188,10 @@ class GraphBuilderTester : public HandleAndZoneScope,
     return NewNode(simplified()->StoreElement(access), object, index, value);
   }
 
-  Node* NewNode(const Operator* op) {
-    return MakeNode(op, 0, static_cast<Node**>(nullptr));
-  }
-
-  Node* NewNode(const Operator* op, Node* n1) { return MakeNode(op, 1, &n1); }
-
-  Node* NewNode(const Operator* op, Node* n1, Node* n2) {
-    Node* buffer[] = {n1, n2};
-    return MakeNode(op, arraysize(buffer), buffer);
-  }
-
-  Node* NewNode(const Operator* op, Node* n1, Node* n2, Node* n3) {
-    Node* buffer[] = {n1, n2, n3};
-    return MakeNode(op, arraysize(buffer), buffer);
-  }
-
-  Node* NewNode(const Operator* op, Node* n1, Node* n2, Node* n3, Node* n4) {
-    Node* buffer[] = {n1, n2, n3, n4};
-    return MakeNode(op, arraysize(buffer), buffer);
-  }
-
-  Node* NewNode(const Operator* op, Node* n1, Node* n2, Node* n3, Node* n4,
-                Node* n5) {
-    Node* buffer[] = {n1, n2, n3, n4, n5};
-    return MakeNode(op, arraysize(buffer), buffer);
-  }
-
-  Node* NewNode(const Operator* op, Node* n1, Node* n2, Node* n3, Node* n4,
-                Node* n5, Node* n6) {
-    Node* nodes[] = {n1, n2, n3, n4, n5, n6};
-    return MakeNode(op, arraysize(nodes), nodes);
+  template <typename... NodePtrs>
+  Node* NewNode(const Operator* op, NodePtrs... n) {
+    std::array<Node*, sizeof...(n)> inputs{{n...}};
+    return MakeNode(op, inputs.size(), inputs.data());
   }
 
   Node* NewNode(const Operator* op, int value_input_count,

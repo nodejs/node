@@ -34,12 +34,11 @@ struct FunctionBody {
   uint32_t offset;    // offset in the module bytes, for error reporting
   const byte* start;  // start of the function body
   const byte* end;    // end of the function body
-};
 
-static inline FunctionBody FunctionBodyForTesting(const byte* start,
-                                                  const byte* end) {
-  return {nullptr, 0, start, end};
-}
+  FunctionBody(FunctionSig* sig, uint32_t offset, const byte* start,
+               const byte* end)
+      : sig(sig), offset(offset), start(start), end(end) {}
+};
 
 V8_EXPORT_PRIVATE DecodeResult VerifyWasmCode(AccountingAllocator* allocator,
                                               const wasm::WasmModule* module,
@@ -54,8 +53,10 @@ DecodeResult VerifyWasmCodeWithStats(AccountingAllocator* allocator,
 
 DecodeResult BuildTFGraph(AccountingAllocator* allocator, TFBuilder* builder,
                           FunctionBody& body);
+enum PrintLocals { kPrintLocals, kOmitLocals };
+V8_EXPORT_PRIVATE
 bool PrintRawWasmCode(AccountingAllocator* allocator, const FunctionBody& body,
-                      const wasm::WasmModule* module);
+                      const wasm::WasmModule* module, PrintLocals print_locals);
 
 // A simplified form of AST printing, e.g. from a debugger.
 void PrintRawWasmCode(const byte* start, const byte* end);
@@ -63,14 +64,14 @@ void PrintRawWasmCode(const byte* start, const byte* end);
 inline DecodeResult VerifyWasmCode(AccountingAllocator* allocator,
                                    const WasmModule* module, FunctionSig* sig,
                                    const byte* start, const byte* end) {
-  FunctionBody body = {sig, 0, start, end};
+  FunctionBody body(sig, 0, start, end);
   return VerifyWasmCode(allocator, module, body);
 }
 
 inline DecodeResult BuildTFGraph(AccountingAllocator* allocator,
                                  TFBuilder* builder, FunctionSig* sig,
                                  const byte* start, const byte* end) {
-  FunctionBody body = {sig, 0, start, end};
+  FunctionBody body(sig, 0, start, end);
   return BuildTFGraph(allocator, builder, body);
 }
 

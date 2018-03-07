@@ -10,6 +10,7 @@
 #include "include/libplatform/libplatform.h"
 #include "src/base/debug/stack_trace.h"
 #include "src/base/logging.h"
+#include "src/base/page-allocator.h"
 #include "src/base/platform/platform.h"
 #include "src/base/platform/time.h"
 #include "src/base/sys-info.h"
@@ -84,6 +85,7 @@ DefaultPlatform::DefaultPlatform(
     : thread_pool_size_(0),
       idle_task_support_(idle_task_support),
       tracing_controller_(std::move(tracing_controller)),
+      page_allocator_(new v8::base::PageAllocator()),
       time_function_for_testing_(nullptr) {
   if (!tracing_controller_) {
     tracing::TracingController* controller = new tracing::TracingController();
@@ -252,6 +254,10 @@ size_t DefaultPlatform::NumberOfAvailableBackgroundThreads() {
 
 Platform::StackTracePrinter DefaultPlatform::GetStackTracePrinter() {
   return PrintStackTrace;
+}
+
+v8::PageAllocator* DefaultPlatform::GetPageAllocator() {
+  return page_allocator_.get();
 }
 
 }  // namespace platform

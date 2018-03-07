@@ -237,7 +237,8 @@ void MathPowStub::Generate(MacroAssembler* masm) {
   // (happens only when input is MIN_INT).
   __ Branch(&bail_out, gt, zero_reg, Operand(scratch));
   __ bind(&positive_exponent);
-  __ Assert(ge, kUnexpectedNegativeValue, scratch, Operand(zero_reg));
+  __ Assert(ge, AbortReason::kUnexpectedNegativeValue, scratch,
+            Operand(zero_reg));
 
   Label while_true, no_carry, loop_end;
   __ bind(&while_true);
@@ -525,7 +526,7 @@ void JSEntryStub::Generate(MacroAssembler* masm) {
   // caller fp          |
   // function slot      | entry frame
   // context slot       |
-  // bad fp (0xff...f)  |
+  // bad fp (0xFF...F)  |
   // callee saved registers + ra
   // [ O32: 4 args slots]
   // args
@@ -587,13 +588,7 @@ void JSEntryStub::Generate(MacroAssembler* masm) {
   // callee saved registers + ra
   // [ O32: 4 args slots]
   // args
-
-  if (type() == StackFrame::CONSTRUCT_ENTRY) {
-    __ Call(BUILTIN_CODE(isolate, JSConstructEntryTrampoline),
-            RelocInfo::CODE_TARGET);
-  } else {
-    __ Call(BUILTIN_CODE(isolate, JSEntryTrampoline), RelocInfo::CODE_TARGET);
-  }
+  __ Call(EntryTrampoline(), RelocInfo::CODE_TARGET);
 
   // Unlink this frame from the handler chain.
   __ PopStackHandler();
@@ -644,8 +639,8 @@ void DirectCEntryStub::Generate(MacroAssembler* masm) {
     // filled with kZapValue by the GC.
     // Dereference the address and check for this.
     __ Uld(a4, MemOperand(t9));
-    __ Assert(ne, kReceivedInvalidReturnAddress, a4,
-        Operand(reinterpret_cast<uint64_t>(kZapValue)));
+    __ Assert(ne, AbortReason::kReceivedInvalidReturnAddress, a4,
+              Operand(reinterpret_cast<uint64_t>(kZapValue)));
   }
   __ Jump(t9);
 }
@@ -760,7 +755,7 @@ static void CreateArrayDispatch(MacroAssembler* masm,
     }
 
     // If we reached this point there is a problem.
-    __ Abort(kUnexpectedElementsKindInArrayConstructor);
+    __ Abort(AbortReason::kUnexpectedElementsKindInArrayConstructor);
   } else {
     UNREACHABLE();
   }
@@ -802,7 +797,7 @@ static void CreateArrayDispatchOneArgument(MacroAssembler* masm,
     if (FLAG_debug_code) {
       __ Ld(a5, FieldMemOperand(a2, 0));
       __ LoadRoot(at, Heap::kAllocationSiteMapRootIndex);
-      __ Assert(eq, kExpectedAllocationSite, a5, Operand(at));
+      __ Assert(eq, AbortReason::kExpectedAllocationSite, a5, Operand(at));
     }
 
     // Save the resulting elements kind in type info. We can't just store a3
@@ -825,7 +820,7 @@ static void CreateArrayDispatchOneArgument(MacroAssembler* masm,
     }
 
     // If we reached this point there is a problem.
-    __ Abort(kUnexpectedElementsKindInArrayConstructor);
+    __ Abort(AbortReason::kUnexpectedElementsKindInArrayConstructor);
   } else {
     UNREACHABLE();
   }
@@ -900,11 +895,11 @@ void ArrayConstructorStub::Generate(MacroAssembler* masm) {
     __ Ld(a4, FieldMemOperand(a1, JSFunction::kPrototypeOrInitialMapOffset));
     // Will both indicate a nullptr and a Smi.
     __ SmiTst(a4, at);
-    __ Assert(ne, kUnexpectedInitialMapForArrayFunction,
-        at, Operand(zero_reg));
+    __ Assert(ne, AbortReason::kUnexpectedInitialMapForArrayFunction, at,
+              Operand(zero_reg));
     __ GetObjectType(a4, a4, a5);
-    __ Assert(eq, kUnexpectedInitialMapForArrayFunction,
-        a5, Operand(MAP_TYPE));
+    __ Assert(eq, AbortReason::kUnexpectedInitialMapForArrayFunction, a5,
+              Operand(MAP_TYPE));
 
     // We should either have undefined in a2 or a valid AllocationSite
     __ AssertUndefinedOrAllocationSite(a2, a4);
@@ -982,11 +977,11 @@ void InternalArrayConstructorStub::Generate(MacroAssembler* masm) {
     __ Ld(a3, FieldMemOperand(a1, JSFunction::kPrototypeOrInitialMapOffset));
     // Will both indicate a nullptr and a Smi.
     __ SmiTst(a3, at);
-    __ Assert(ne, kUnexpectedInitialMapForArrayFunction,
-        at, Operand(zero_reg));
+    __ Assert(ne, AbortReason::kUnexpectedInitialMapForArrayFunction, at,
+              Operand(zero_reg));
     __ GetObjectType(a3, a3, a4);
-    __ Assert(eq, kUnexpectedInitialMapForArrayFunction,
-        a4, Operand(MAP_TYPE));
+    __ Assert(eq, AbortReason::kUnexpectedInitialMapForArrayFunction, a4,
+              Operand(MAP_TYPE));
   }
 
   // Figure out the right elements kind.
@@ -1001,8 +996,10 @@ void InternalArrayConstructorStub::Generate(MacroAssembler* masm) {
   if (FLAG_debug_code) {
     Label done;
     __ Branch(&done, eq, a3, Operand(PACKED_ELEMENTS));
-    __ Assert(eq, kInvalidElementsKindForInternalArrayOrInternalPackedArray, a3,
-              Operand(HOLEY_ELEMENTS));
+    __ Assert(
+        eq,
+        AbortReason::kInvalidElementsKindForInternalArrayOrInternalPackedArray,
+        a3, Operand(HOLEY_ELEMENTS));
     __ bind(&done);
   }
 
@@ -1104,7 +1101,8 @@ static void CallApiFunctionAndReturn(MacroAssembler* masm,
   __ Sd(s0, MemOperand(s3, kNextOffset));
   if (__ emit_debug_code()) {
     __ Lw(a1, MemOperand(s3, kLevelOffset));
-    __ Check(eq, kUnexpectedLevelAfterReturnFromApiCall, a1, Operand(s2));
+    __ Check(eq, AbortReason::kUnexpectedLevelAfterReturnFromApiCall, a1,
+             Operand(s2));
   }
   __ Subu(s2, s2, Operand(1));
   __ Sw(s2, MemOperand(s3, kLevelOffset));

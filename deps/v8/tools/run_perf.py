@@ -106,7 +106,7 @@ import re
 import subprocess
 import sys
 
-from testrunner.local import commands
+from testrunner.local import command
 from testrunner.local import utils
 
 ARCH_GUESS = utils.DefaultArch()
@@ -493,15 +493,23 @@ class RunnableConfig(GraphConfig):
     suffix = ["--"] + self.test_flags if self.test_flags else []
     return self.flags + (extra_flags or []) + [self.main] + suffix
 
-  def GetCommand(self, shell_dir, extra_flags=None):
+  def GetCommand(self, cmd_prefix, shell_dir, extra_flags=None):
     # TODO(machenbach): This requires +.exe if run on windows.
     extra_flags = extra_flags or []
-    cmd = [os.path.join(shell_dir, self.binary)]
-    if self.binary.endswith(".py"):
-      cmd = [sys.executable] + cmd
     if self.binary != 'd8' and '--prof' in extra_flags:
       print "Profiler supported only on a benchmark run with d8"
-    return cmd + self.GetCommandFlags(extra_flags=extra_flags)
+
+    if self.process_size:
+      cmd_prefix = ["/usr/bin/time", "--format=MaxMemory: %MKB"] + cmd_prefix
+    if self.binary.endswith('.py'):
+      # Copy cmd_prefix instead of update (+=).
+      cmd_prefix = cmd_prefix + [sys.executable]
+
+    return command.Command(
+        cmd_prefix=cmd_prefix,
+        shell=os.path.join(shell_dir, self.binary),
+        args=self.GetCommandFlags(extra_flags=extra_flags),
+        timeout=self.timeout or 60)
 
   def Run(self, runner, trybot):
     """Iterates over several runs and handles the output for all traces."""
@@ -677,18 +685,9 @@ class DesktopPlatform(Platform):
     suffix = ' - secondary' if secondary else ''
     shell_dir = self.shell_dir_secondary if secondary else self.shell_dir
     title = ">>> %%s (#%d)%s:" % ((count + 1), suffix)
-    if runnable.process_size:
-      command = ["/usr/bin/time", "--format=MaxMemory: %MKB"]
-    else:
-      command = []
-
-    command += self.command_prefix + runnable.GetCommand(shell_dir,
-                                                        self.extra_flags)
+    cmd = runnable.GetCommand(self.command_prefix, shell_dir, self.extra_flags)
     try:
-      output = commands.Execute(
-        command,
-        timeout=runnable.timeout,
-      )
+      output = cmd.execute()
     except OSError as e:  # pragma: no cover
       print title % "OSError"
       print e

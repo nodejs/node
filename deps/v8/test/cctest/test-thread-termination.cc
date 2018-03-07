@@ -45,11 +45,7 @@ void TerminateCurrentThread(const v8::FunctionCallbackInfo<v8::Value>& args) {
   args.GetIsolate()->TerminateExecution();
 }
 
-
-void Fail(const v8::FunctionCallbackInfo<v8::Value>& args) {
-  CHECK(false);
-}
-
+void Fail(const v8::FunctionCallbackInfo<v8::Value>& args) { UNREACHABLE(); }
 
 void Loop(const v8::FunctionCallbackInfo<v8::Value>& args) {
   CHECK(!args.GetIsolate()->IsExecutionTerminating());
@@ -406,7 +402,7 @@ TEST(TerminateCancelTerminateFromThreadItself) {
 
 
 void MicrotaskShouldNotRun(const v8::FunctionCallbackInfo<v8::Value>& info) {
-  CHECK(false);
+  UNREACHABLE();
 }
 
 

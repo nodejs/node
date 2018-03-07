@@ -63,7 +63,9 @@ RUNTIME_FUNCTION(Runtime_FunctionGetSourceCode) {
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSReceiver, function, 0);
   if (function->IsJSFunction()) {
-    return *Handle<JSFunction>::cast(function)->shared()->GetSourceCode();
+    Handle<SharedFunctionInfo> shared(
+        Handle<JSFunction>::cast(function)->shared());
+    return *SharedFunctionInfo::GetSourceCode(shared);
   }
   return isolate->heap()->undefined_value();
 }

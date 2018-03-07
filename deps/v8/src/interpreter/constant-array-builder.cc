@@ -115,7 +115,7 @@ void ConstantArrayBuilder::ConstantArraySlice::CheckAllElementsAreUnique(
       for (const Entry& prev_entry : constants_) {
         os << i++ << ": " << Brief(*prev_entry.ToHandle(isolate)) << std::endl;
       }
-      FATAL(os.str().c_str());
+      FATAL("%s", os.str().c_str());
     }
   }
 }

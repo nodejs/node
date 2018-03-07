@@ -7,20 +7,27 @@
 
 #include <functional>
 
-#include "src/macro-assembler.h"
+#include "src/handles.h"
+#include "src/simulator.h"
 
 namespace v8 {
 namespace internal {
 
-// These function prototypes have 5 arguments since they are used with the
-// CALL_GENERATED_CODE macro.
-typedef Object* (*F_iiiii)(int x, int p1, int p2, int p3, int p4);
-typedef Object* (*F_piiii)(void* p0, int p1, int p2, int p3, int p4);
-typedef Object* (*F_ppiii)(void* p0, void* p1, int p2, int p3, int p4);
-typedef Object* (*F_pppii)(void* p0, void* p1, void* p2, int p3, int p4);
-typedef Object* (*F_ippii)(int p0, void* p1, void* p2, int p3, int p4);
+// TODO(arm): Refine these signatures per test case, they can have arbitrary
+// return and argument types and arbitrary number of arguments.
+using F_iiiii = Object*(int x, int p1, int p2, int p3, int p4);
+using F_piiii = Object*(void* p0, int p1, int p2, int p3, int p4);
+using F_ppiii = Object*(void* p0, void* p1, int p2, int p3, int p4);
+using F_pppii = Object*(void* p0, void* p1, void* p2, int p3, int p4);
+using F_ippii = Object*(int p0, void* p1, void* p2, int p3, int p4);
 
-Address AssembleCode(std::function<void(Assembler&)> assemble);
+Handle<Code> AssembleCodeImpl(std::function<void(Assembler&)> assemble);
+
+template <typename Signature>
+GeneratedCode<Signature> AssembleCode(
+    std::function<void(Assembler&)> assemble) {
+  return GeneratedCode<Signature>::FromCode(*AssembleCodeImpl(assemble));
+}
 
 }  // namespace internal
 }  // namespace v8
