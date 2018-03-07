@@ -43,9 +43,10 @@ assert.strictEqual(false, util.isArray(Object.create(Array.prototype)));
 
 // isRegExp
 assert.strictEqual(true, util.isRegExp(/regexp/));
-assert.strictEqual(true, util.isRegExp(RegExp()));
+assert.strictEqual(true, util.isRegExp(RegExp(), 'foo'));
 assert.strictEqual(true, util.isRegExp(new RegExp()));
 assert.strictEqual(true, util.isRegExp(context('RegExp')()));
+assert.strictEqual(false, util.isRegExp());
 assert.strictEqual(false, util.isRegExp({}));
 assert.strictEqual(false, util.isRegExp([]));
 assert.strictEqual(false, util.isRegExp(new Date()));
@@ -53,7 +54,7 @@ assert.strictEqual(false, util.isRegExp(Object.create(RegExp.prototype)));
 
 // isDate
 assert.strictEqual(true, util.isDate(new Date()));
-assert.strictEqual(true, util.isDate(new Date(0)));
+assert.strictEqual(true, util.isDate(new Date(0), 'foo'));
 assert.strictEqual(true, util.isDate(new (context('Date'))()));
 assert.strictEqual(false, util.isDate(Date()));
 assert.strictEqual(false, util.isDate({}));
