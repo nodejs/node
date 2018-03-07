@@ -29,7 +29,7 @@ exports.addLibraryPath = function(env) {
     path.dirname(process.execPath);
 };
 
-// Get the full path of shared lib
+// Get the full path of shared lib.
 exports.getSharedLibPath = function() {
   if (common.isWindows) {
     return path.join(path.dirname(process.execPath), 'node.dll');
@@ -41,4 +41,10 @@ exports.getSharedLibPath = function() {
                      'lib.target',
                      `libnode.${process.config.variables.shlib_suffix}`);
   }
+};
+
+// Get the binary path of stack frames.
+exports.getBinaryPath = function() {
+  return process.config.variables.node_shared ?
+    exports.getSharedLibPath() : process.execPath;
 };
