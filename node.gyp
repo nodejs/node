@@ -609,8 +609,8 @@
             {
               'action_name': 'mkssldef',
               'inputs': [
-                'deps/openssl/openssl/util/libeay.num',
-                'deps/openssl/openssl/util/ssleay.num',
+                'deps/openssl/openssl/util/libcrypto.num',
+                'deps/openssl/openssl/util/libssl.num',
               ],
               'outputs': ['<(SHARED_INTERMEDIATE_DIR)/openssl.def'],
               'action': [
