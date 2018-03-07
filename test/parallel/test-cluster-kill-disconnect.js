@@ -1,5 +1,10 @@
 'use strict';
 const common = require('../common');
+
+// Check that cluster works perfectly for both `kill` and `disconnect` cases.
+// Also take into account that the `disconnect` event may be received after the
+// `exit` event.
+
 const assert = require('assert');
 const cluster = require('cluster');
 
