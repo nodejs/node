@@ -63,6 +63,7 @@ class PipeWrap : public ConnectionWrap<PipeWrap, uv_pipe_t> {
   static void SetPendingInstances(
       const v8::FunctionCallbackInfo<v8::Value>& args);
 #endif
+  static void Fchmod(const v8::FunctionCallbackInfo<v8::Value>& args);
 };
 
 
