@@ -25,9 +25,9 @@ changes:
     description: Added strict mode to the assert module.
 -->
 
-When using the `strict mode`, any `assert` function will use the equality used in
-the strict function mode. So [`assert.deepEqual()`][] will, for example, work the
-same as [`assert.deepStrictEqual()`][].
+When using the `strict mode`, any `assert` function will use the equality used
+in the strict function mode. So [`assert.deepEqual()`][] will, for example,
+work the same as [`assert.deepStrictEqual()`][].
 
 On top of that, error messages which involve objects produce an error diff
 instead of displaying both objects. That is not the case for the legacy mode.
@@ -209,8 +209,8 @@ changes:
   - version: v9.0.0
     pr-url: https://github.com/nodejs/node/pull/15036
     description: NaN is now compared using the
-                 [SameValueZero](https://tc39.github.io/ecma262/#sec-samevaluezero)
-                 comparison.
+              [SameValueZero](https://tc39.github.io/ecma262/#sec-samevaluezero)
+              comparison.
   - version: v8.5.0
     pr-url: https://github.com/nodejs/node/pull/15001
     description: Error names and messages are now properly compared
@@ -595,8 +595,8 @@ changes:
   - version: v9.0.0
     pr-url: https://github.com/nodejs/node/pull/15036
     description: NaN is now compared using the
-                 [SameValueZero](https://tc39.github.io/ecma262/#sec-samevaluezero)
-                 comparison.
+              [SameValueZero](https://tc39.github.io/ecma262/#sec-samevaluezero)
+              comparison.
   - version: v9.0.0
     pr-url: https://github.com/nodejs/node/pull/15001
     description: Error names and messages are now properly compared

@@ -394,8 +394,8 @@ added: v8.6.0
 
 *Note: All references to scope in this section are referring to
 [IPv6 Zone Indices][], which are defined by [RFC 4007][]. In string form, an IP
-with a scope index is written as `'IP%scope'` where scope is an interface name or
-interface number.*
+with a scope index is written as `'IP%scope'` where scope is an interface name 
+or interface number.*
 
 Sets the default outgoing multicast interface of the socket to a chosen
 interface or back to system interface selection. The `multicastInterface` must

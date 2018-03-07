@@ -429,8 +429,8 @@ changes:
 * `options` {Object|string}
   * `prompt` {string} The input prompt to display. Defaults to `> `
     (with a trailing space).
-  * `input` {stream.Readable} The Readable stream from which REPL input will be read.
-    Defaults to `process.stdin`.
+  * `input` {stream.Readable} The Readable stream from which REPL input will be 
+    read. Defaults to `process.stdin`.
   * `output` {stream.Writable} The Writable stream to which REPL output will be
     written. Defaults to `process.stdout`.
   * `terminal` {boolean} If `true`, specifies that the `output` should be

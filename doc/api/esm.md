@@ -126,7 +126,8 @@ export async function resolve(specifier,
 }
 ```
 
-The parentURL is provided as `undefined` when performing main Node.js load itself.
+The parentURL is provided as `undefined` when performing main Node.js load
+itself.
 
 The default Node.js ES module resolution function is provided as a third
 argument to the resolver for easy compatibility workflows.
