@@ -260,6 +260,10 @@ added: v0.11.14
   * `backlog` {number} Common parameter of [`server.listen()`][]
     functions.
   * `exclusive` {boolean} **Default:** `false`
+  * `readableAll` {boolean} For IPC servers makes the pipe readable
+    for all users. **Default:** `false`
+  * `writableAll` {boolean} For IPC servers makes the pipe writable
+    for all users. **Default:** `false`
 * `callback` {Function} Common parameter of [`server.listen()`][]
   functions.
 * Returns: {net.Server}
@@ -284,6 +288,10 @@ server.listen({
   exclusive: true
 });
 ```
+
+Starting an IPC server as root may cause the server path to be inaccessible for
+unprivileged users. Using `readableAll` and `writableAll` will make the server
+accessible for all users.
 
 #### server.listen(path[, backlog][, callback])
 <!-- YAML
