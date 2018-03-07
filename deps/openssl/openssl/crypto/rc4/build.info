@@ -10,6 +10,8 @@ GENERATE[rc4-md5-x86_64.s]=asm/rc4-md5-x86_64.pl $(PERLASM_SCHEME)
 
 GENERATE[rc4-parisc.s]=asm/rc4-parisc.pl $(PERLASM_SCHEME)
 
+GENERATE[rc4-s390x.s]=asm/rc4-s390x.pl $(PERLASM_SCHEME)
+
 BEGINRAW[makefile(windows)]
 {- $builddir -}\rc4-ia64.asm: {- $sourcedir -}\asm\rc4-ia64.pl
 	$(PERL) {- $sourcedir -}\asm\rc4-ia64.pl $@.S
