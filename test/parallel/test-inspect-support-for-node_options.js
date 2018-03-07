@@ -2,26 +2,31 @@
 const common = require('../common');
 const cluster = require('cluster');
 const assert = require('assert');
+const numCPUs = require('os').cpus().length;
 
-if (process.config.variables.node_without_node_options)
-  common.skip('missing NODE_OPTIONS support');
-
+common.skipIfInspectorDisabled();
 
 checkForInspectSupport('--inspect');
 
 function checkForInspectSupport(flag) {
-  const env = Object.assign({}, process.env, { NODE_OPTIONS: flag });
-  const o = JSON.stringify(flag);
+
+  const nodeOptions = JSON.stringify(flag);
+  process.env.NODE_OPTIONS = flag;
 
   if (cluster.isMaster) {
-    cluster.fork(env);
+    for (let i = 0; i < numCPUs; i++) {
+      cluster.fork();
+    }
 
     cluster.on('online', (worker) => {
-      process.exit(0);
+      worker.disconnect();
     });
 
     cluster.on('exit', (worker, code, signal) => {
-      assert.fail(`For ${o}, failed to start a cluster with inspect option`);
+      if (worker.exitedAfterDisconnect === false) {
+        assert.fail(`For ${nodeOptions}, failed to start cluster\
+ with inspect option`);
+      }
     });
   }
 }
