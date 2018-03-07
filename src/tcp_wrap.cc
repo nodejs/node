@@ -56,8 +56,7 @@ Local<Object> TCPWrap::Instantiate(Environment* env,
                                    AsyncWrap* parent,
                                    TCPWrap::SocketType type) {
   EscapableHandleScope handle_scope(env->isolate());
-  AsyncHooks::DefaultTriggerAsyncIdScope trigger_scope(
-    env, parent->get_async_id());
+  AsyncHooks::DefaultTriggerAsyncIdScope trigger_scope(parent);
   CHECK_EQ(env->tcp_constructor_template().IsEmpty(), false);
   Local<Function> constructor = env->tcp_constructor_template()->GetFunction();
   CHECK_EQ(constructor.IsEmpty(), false);
@@ -294,8 +293,7 @@ void TCPWrap::Connect(const FunctionCallbackInfo<Value>& args) {
   int err = uv_ip4_addr(*ip_address, port, &addr);
 
   if (err == 0) {
-    AsyncHooks::DefaultTriggerAsyncIdScope trigger_scope(
-      env, wrap->get_async_id());
+    AsyncHooks::DefaultTriggerAsyncIdScope trigger_scope(wrap);
     ConnectWrap* req_wrap =
         new ConnectWrap(env, req_wrap_obj, AsyncWrap::PROVIDER_TCPCONNECTWRAP);
     err = uv_tcp_connect(req_wrap->req(),
@@ -331,8 +329,7 @@ void TCPWrap::Connect6(const FunctionCallbackInfo<Value>& args) {
   int err = uv_ip6_addr(*ip_address, port, &addr);
 
   if (err == 0) {
-    AsyncHooks::DefaultTriggerAsyncIdScope trigger_scope(
-      env, wrap->get_async_id());
+    AsyncHooks::DefaultTriggerAsyncIdScope trigger_scope(wrap);
     ConnectWrap* req_wrap =
         new ConnectWrap(env, req_wrap_obj, AsyncWrap::PROVIDER_TCPCONNECTWRAP);
     err = uv_tcp_connect(req_wrap->req(),
