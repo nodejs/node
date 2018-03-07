@@ -179,6 +179,9 @@ inline void Environment::AsyncHooks::clear_async_id_stack() {
   fields_[kStackLength] = 0;
 }
 
+// The DefaultTriggerAsyncIdScope(AsyncWrap*) constructor is defined in
+// async_wrap-inl.h to avoid a circular dependency.
+
 inline Environment::AsyncHooks::DefaultTriggerAsyncIdScope
   ::DefaultTriggerAsyncIdScope(Environment* env,
                                double default_trigger_async_id)

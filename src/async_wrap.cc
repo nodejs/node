@@ -310,8 +310,7 @@ static void PromiseHook(PromiseHookType type, Local<Promise> promise,
         parent_wrap = PromiseWrap::New(env, parent_promise, nullptr, true);
       }
 
-      AsyncHooks::DefaultTriggerAsyncIdScope trigger_scope(
-        env, parent_wrap->get_async_id());
+      AsyncHooks::DefaultTriggerAsyncIdScope trigger_scope(parent_wrap);
       wrap = PromiseWrap::New(env, promise, parent_wrap, silent);
     } else {
       wrap = PromiseWrap::New(env, promise, nullptr, silent);
