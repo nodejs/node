@@ -1312,6 +1312,11 @@ A Node.js API was called in an unsupported manner, such as
 
 A given value is out of the accepted range.
 
+<a id="ERR_PATH_IS_DIRECTORY"></a>
+### ERR_PATH_IS_DIRECTORY
+
+Provided path ended with an unexpected character `/`.
+
 <a id="ERR_REQUIRE_ESM"></a>
 ### ERR_REQUIRE_ESM
 
