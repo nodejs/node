@@ -51,7 +51,7 @@ class Verifier::Visitor {
       std::ostringstream str;
       str << "TypeError: node #" << node->id() << ":" << *node->op()
           << " should never have a type";
-      FATAL(str.str().c_str());
+      FATAL("%s", str.str().c_str());
     }
   }
   void CheckTypeIs(Node* node, Type* type) {
@@ -62,7 +62,7 @@ class Verifier::Visitor {
       NodeProperties::GetType(node)->PrintTo(str);
       str << " is not ";
       type->PrintTo(str);
-      FATAL(str.str().c_str());
+      FATAL("%s", str.str().c_str());
     }
   }
   void CheckTypeMaybe(Node* node, Type* type) {
@@ -73,7 +73,7 @@ class Verifier::Visitor {
       NodeProperties::GetType(node)->PrintTo(str);
       str << " must intersect ";
       type->PrintTo(str);
-      FATAL(str.str().c_str());
+      FATAL("%s", str.str().c_str());
     }
   }
   void CheckValueInputIs(Node* node, int i, Type* type) {
@@ -86,7 +86,7 @@ class Verifier::Visitor {
       NodeProperties::GetType(input)->PrintTo(str);
       str << " is not ";
       type->PrintTo(str);
-      FATAL(str.str().c_str());
+      FATAL("%s", str.str().c_str());
     }
   }
   void CheckOutput(Node* node, Node* use, int count, const char* kind) {
@@ -95,7 +95,7 @@ class Verifier::Visitor {
       str << "GraphError: node #" << node->id() << ":" << *node->op()
           << " does not produce " << kind << " output used by node #"
           << use->id() << ":" << *use->op();
-      FATAL(str.str().c_str());
+      FATAL("%s", str.str().c_str());
     }
   }
 };
@@ -236,10 +236,19 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
       // Dead is never connected to the graph.
       UNREACHABLE();
     case IrOpcode::kDeadValue:
+      CheckValueInputIs(node, 0, Type::None());
       CheckTypeIs(node, Type::None());
       break;
     case IrOpcode::kUnreachable:
-      CheckNotTyped(node);
+      CheckTypeIs(node, Type::None());
+      for (Edge edge : node->use_edges()) {
+        Node* use = edge.from();
+        if (NodeProperties::IsValueEdge(edge) && all.IsLive(use)) {
+          // {Unreachable} nodes can only be used by {DeadValue}, because they
+          // don't actually produce a value.
+          CHECK_EQ(IrOpcode::kDeadValue, use->opcode());
+        }
+      }
       break;
     case IrOpcode::kBranch: {
       // Branch uses are IfTrue and IfFalse.
@@ -826,6 +835,10 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
       CheckTypeIs(node, Type::Any());
       break;
 
+    case IrOpcode::kJSGeneratorRestoreInputOrDebugPos:
+      CheckTypeIs(node, Type::Any());
+      break;
+
     case IrOpcode::kJSStackCheck:
     case IrOpcode::kJSDebugger:
       // Type is empty.
@@ -984,6 +997,11 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
       CheckValueInputIs(node, 0, Type::Number());
       CheckTypeIs(node, Type::Signed32());
       break;
+    case IrOpcode::kNumberToString:
+      // Number -> String
+      CheckValueInputIs(node, 0, Type::Number());
+      CheckTypeIs(node, Type::String());
+      break;
     case IrOpcode::kNumberToUint32:
     case IrOpcode::kNumberToUint8Clamped:
       // Number -> Unsigned32
@@ -1041,6 +1059,18 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
       CheckValueInputIs(node, 1, Type::Unsigned32());
       CheckTypeIs(node, Type::UnsignedSmall());
       break;
+    case IrOpcode::kStringCodePointAt:
+      // (String, Unsigned32) -> UnsignedSmall
+      CheckValueInputIs(node, 0, Type::String());
+      CheckValueInputIs(node, 1, Type::Unsigned32());
+      CheckTypeIs(node, Type::UnsignedSmall());
+      break;
+    case IrOpcode::kSeqStringCodePointAt:
+      // (String, Unsigned32) -> UnsignedSmall
+      CheckValueInputIs(node, 0, Type::String());
+      CheckValueInputIs(node, 1, Type::Unsigned32());
+      CheckTypeIs(node, Type::UnsignedSmall());
+      break;
     case IrOpcode::kStringFromCharCode:
       // Number -> String
       CheckValueInputIs(node, 0, Type::Number());
@@ -1057,6 +1087,10 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
       CheckValueInputIs(node, 1, Type::String());
       CheckValueInputIs(node, 2, Type::SignedSmall());
       CheckTypeIs(node, Type::SignedSmall());
+      break;
+    case IrOpcode::kStringLength:
+      CheckValueInputIs(node, 0, Type::String());
+      CheckTypeIs(node, TypeCache::Get().kStringLengthType);
       break;
     case IrOpcode::kStringToLowerCaseIntl:
     case IrOpcode::kStringToUpperCaseIntl:
@@ -1094,6 +1128,10 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
       CheckValueInputIs(node, 0, Type::Any());
       CheckTypeIs(node, Type::Boolean());
       break;
+    case IrOpcode::kNumberIsFloat64Hole:
+      CheckValueInputIs(node, 0, Type::NumberOrHole());
+      CheckTypeIs(node, Type::Boolean());
+      break;
     case IrOpcode::kFindOrderedHashMapEntry:
       CheckValueInputIs(node, 0, Type::Any());
       CheckTypeIs(node, Type::SignedSmall());
@@ -1121,6 +1159,12 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
       CheckValueInputIs(node, 1, Type::Range(-Code::kMaxArguments,
                                              Code::kMaxArguments, zone));
       CheckTypeIs(node, Type::OtherInternal());
+      break;
+    case IrOpcode::kNewConsString:
+      CheckValueInputIs(node, 0, TypeCache::Get().kStringLengthType);
+      CheckValueInputIs(node, 1, Type::String());
+      CheckValueInputIs(node, 2, Type::String());
+      CheckTypeIs(node, Type::OtherString());
       break;
     case IrOpcode::kAllocate:
       CheckValueInputIs(node, 0, Type::PlainNumber());
@@ -1591,8 +1635,6 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
     case IrOpcode::kLoadParentFramePointer:
     case IrOpcode::kUnalignedLoad:
     case IrOpcode::kUnalignedStore:
-    case IrOpcode::kCheckedLoad:
-    case IrOpcode::kCheckedStore:
     case IrOpcode::kAtomicLoad:
     case IrOpcode::kAtomicStore:
     case IrOpcode::kAtomicExchange:
@@ -1602,6 +1644,7 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
     case IrOpcode::kAtomicAnd:
     case IrOpcode::kAtomicOr:
     case IrOpcode::kAtomicXor:
+    case IrOpcode::kSpeculationFence:
 
 #define SIMD_MACHINE_OP_CASE(Name) case IrOpcode::k##Name:
       MACHINE_SIMD_OP_LIST(SIMD_MACHINE_OP_CASE)

@@ -92,7 +92,8 @@ UseInfo CheckedUseInfoAsWord32FromHint(
   switch (hint) {
     case NumberOperationHint::kSignedSmall:
     case NumberOperationHint::kSignedSmallInputs:
-      return UseInfo::CheckedSignedSmallAsWord32(identify_zeros);
+      return UseInfo::CheckedSignedSmallAsWord32(identify_zeros,
+                                                 VectorSlotPair());
     case NumberOperationHint::kSigned32:
       return UseInfo::CheckedSigned32AsWord32(identify_zeros);
     case NumberOperationHint::kNumber:
@@ -1345,17 +1346,6 @@ class RepresentationSelector {
 
   void VisitSpeculativeAdditiveOp(Node* node, Truncation truncation,
                                   SimplifiedLowering* lowering) {
-    // ToNumber(x) can throw if x is either a Receiver or a Symbol, so we can
-    // only eliminate an unused speculative number operation if we know that
-    // the inputs are PlainPrimitive, which excludes everything that's might
-    // have side effects or throws during a ToNumber conversion. We are only
-    // allowed to perform a number addition if neither input is a String, even
-    // if the value is never used, so we further limit to NumberOrOddball in
-    // order to explicitly exclude String inputs.
-    if (BothInputsAre(node, Type::NumberOrOddball())) {
-      if (truncation.IsUnused()) return VisitUnused(node);
-    }
-
     if (BothInputsAre(node, type_cache_.kAdditiveSafeIntegerOrMinusZero) &&
         (GetUpperBound(node)->Is(Type::Signed32()) ||
          GetUpperBound(node)->Is(Type::Unsigned32()) ||
@@ -1377,13 +1367,6 @@ class RepresentationSelector {
 
   void VisitSpeculativeNumberModulus(Node* node, Truncation truncation,
                                      SimplifiedLowering* lowering) {
-    // ToNumber(x) can throw if x is either a Receiver or a Symbol, so we
-    // can only eliminate an unused speculative number operation if we know
-    // that the inputs are PlainPrimitive, which excludes everything that's
-    // might have side effects or throws during a ToNumber conversion.
-    if (BothInputsAre(node, Type::PlainPrimitive())) {
-      if (truncation.IsUnused()) return VisitUnused(node);
-    }
     if (BothInputsAre(node, Type::Unsigned32OrMinusZeroOrNaN()) &&
         (truncation.IsUsedAsWord32() ||
          NodeProperties::GetType(node)->Is(Type::Unsigned32()))) {
@@ -1514,8 +1497,20 @@ class RepresentationSelector {
         return VisitLeaf(node, MachineRepresentation::kWord64);
       case IrOpcode::kExternalConstant:
         return VisitLeaf(node, MachineType::PointerRepresentation());
-      case IrOpcode::kNumberConstant:
-        return VisitLeaf(node, MachineRepresentation::kTagged);
+      case IrOpcode::kNumberConstant: {
+        double const value = OpParameter<double>(node);
+        int value_as_int;
+        if (DoubleToSmiInteger(value, &value_as_int)) {
+          VisitLeaf(node, MachineRepresentation::kTaggedSigned);
+          if (lower()) {
+            intptr_t smi = bit_cast<intptr_t>(Smi::FromInt(value_as_int));
+            DeferReplacement(node, lowering->jsgraph()->IntPtrConstant(smi));
+          }
+          return;
+        }
+        VisitLeaf(node, MachineRepresentation::kTagged);
+        return;
+      }
       case IrOpcode::kHeapConstant:
         return VisitLeaf(node, MachineRepresentation::kTaggedPointer);
       case IrOpcode::kPointerConstant: {
@@ -1668,13 +1663,6 @@ class RepresentationSelector {
       case IrOpcode::kSpeculativeNumberLessThan:
       case IrOpcode::kSpeculativeNumberLessThanOrEqual:
       case IrOpcode::kSpeculativeNumberEqual: {
-        // ToNumber(x) can throw if x is either a Receiver or a Symbol, so we
-        // can only eliminate an unused speculative number operation if we know
-        // that the inputs are PlainPrimitive, which excludes everything that's
-        // might have side effects or throws during a ToNumber conversion.
-        if (BothInputsAre(node, Type::PlainPrimitive())) {
-          if (truncation.IsUnused()) return VisitUnused(node);
-        }
         // Number comparisons reduce to integer comparisons for integer inputs.
         if (TypeOf(node->InputAt(0))->Is(Type::Unsigned32()) &&
             TypeOf(node->InputAt(1))->Is(Type::Unsigned32())) {
@@ -1707,8 +1695,10 @@ class RepresentationSelector {
               Node* rhs = node->InputAt(1);
               if (IsNodeRepresentationTagged(lhs) &&
                   IsNodeRepresentationTagged(rhs)) {
-                VisitBinop(node, UseInfo::CheckedSignedSmallAsTaggedSigned(),
-                           MachineRepresentation::kBit);
+                VisitBinop(
+                    node,
+                    UseInfo::CheckedSignedSmallAsTaggedSigned(VectorSlotPair()),
+                    MachineRepresentation::kBit);
                 ChangeToPureOp(
                     node, changer_->TaggedSignedOperatorFor(node->opcode()));
 
@@ -1755,13 +1745,6 @@ class RepresentationSelector {
         return;
       }
       case IrOpcode::kSpeculativeNumberMultiply: {
-        // ToNumber(x) can throw if x is either a Receiver or a Symbol, so we
-        // can only eliminate an unused speculative number operation if we know
-        // that the inputs are PlainPrimitive, which excludes everything that's
-        // might have side effects or throws during a ToNumber conversion.
-        if (BothInputsAre(node, Type::PlainPrimitive())) {
-          if (truncation.IsUnused()) return VisitUnused(node);
-        }
         if (BothInputsAre(node, Type::Integral32()) &&
             (NodeProperties::GetType(node)->Is(Type::Signed32()) ||
              NodeProperties::GetType(node)->Is(Type::Unsigned32()) ||
@@ -1785,7 +1768,7 @@ class RepresentationSelector {
         // Handle the case when no int32 checks on inputs are necessary
         // (but an overflow check is needed on the output).
         if (BothInputsAre(node, Type::Signed32())) {
-          // If both the inputs the feedback are int32, use the overflow op.
+          // If both inputs and feedback are int32, use the overflow op.
           if (hint == NumberOperationHint::kSignedSmall ||
               hint == NumberOperationHint::kSigned32) {
             VisitBinop(node, UseInfo::TruncatingWord32(),
@@ -1836,13 +1819,6 @@ class RepresentationSelector {
         return;
       }
       case IrOpcode::kSpeculativeNumberDivide: {
-        // ToNumber(x) can throw if x is either a Receiver or a Symbol, so we
-        // can only eliminate an unused speculative number operation if we know
-        // that the inputs are PlainPrimitive, which excludes everything that's
-        // might have side effects or throws during a ToNumber conversion.
-        if (BothInputsAre(node, Type::PlainPrimitive())) {
-          if (truncation.IsUnused()) return VisitUnused(node);
-        }
         if (BothInputsAreUnsigned32(node) && truncation.IsUsedAsWord32()) {
           // => unsigned Uint32Div
           VisitWord32TruncatingBinop(node);
@@ -2014,13 +1990,6 @@ class RepresentationSelector {
         return;
       }
       case IrOpcode::kSpeculativeNumberShiftLeft: {
-        // ToNumber(x) can throw if x is either a Receiver or a Symbol, so we
-        // can only eliminate an unused speculative number operation if we know
-        // that the inputs are PlainPrimitive, which excludes everything that's
-        // might have side effects or throws during a ToNumber conversion.
-        if (BothInputsAre(node, Type::PlainPrimitive())) {
-          if (truncation.IsUnused()) return VisitUnused(node);
-        }
         if (BothInputsAre(node, Type::NumberOrOddball())) {
           Type* rhs_type = GetUpperBound(node->InputAt(1));
           VisitBinop(node, UseInfo::TruncatingWord32(),
@@ -2050,13 +2019,6 @@ class RepresentationSelector {
         return;
       }
       case IrOpcode::kSpeculativeNumberShiftRight: {
-        // ToNumber(x) can throw if x is either a Receiver or a Symbol, so we
-        // can only eliminate an unused speculative number operation if we know
-        // that the inputs are PlainPrimitive, which excludes everything that's
-        // might have side effects or throws during a ToNumber conversion.
-        if (BothInputsAre(node, Type::PlainPrimitive())) {
-          if (truncation.IsUnused()) return VisitUnused(node);
-        }
         if (BothInputsAre(node, Type::NumberOrOddball())) {
           Type* rhs_type = GetUpperBound(node->InputAt(1));
           VisitBinop(node, UseInfo::TruncatingWord32(),
@@ -2086,13 +2048,6 @@ class RepresentationSelector {
         return;
       }
       case IrOpcode::kSpeculativeNumberShiftRightLogical: {
-        // ToNumber(x) can throw if x is either a Receiver or a Symbol, so we
-        // can only eliminate an unused speculative number operation if we know
-        // that the inputs are PlainPrimitive, which excludes everything that
-        // might have side effects or throw during a ToNumber conversion.
-        if (BothInputsAre(node, Type::PlainPrimitive())) {
-          if (truncation.IsUnused()) return VisitUnused(node);
-        }
         NumberOperationHint hint = NumberOperationHintOf(node->op());
         Type* rhs_type = GetUpperBound(node->InputAt(1));
         if (rhs_type->Is(type_cache_.kZeroish) &&
@@ -2107,8 +2062,8 @@ class RepresentationSelector {
                      MachineRepresentation::kWord32, Type::Unsigned31());
           if (lower()) {
             node->RemoveInput(1);
-            NodeProperties::ChangeOp(node,
-                                     simplified()->CheckedUint32ToInt32());
+            NodeProperties::ChangeOp(
+                node, simplified()->CheckedUint32ToInt32(VectorSlotPair()));
           }
           return;
         }
@@ -2315,6 +2270,11 @@ class RepresentationSelector {
         if (lower()) DeferReplacement(node, node->InputAt(0));
         return;
       }
+      case IrOpcode::kNumberToString: {
+        VisitUnop(node, UseInfo::AnyTagged(),
+                  MachineRepresentation::kTaggedPointer);
+        return;
+      }
       case IrOpcode::kNumberToUint32: {
         // Just change representation if necessary.
         VisitUnop(node, UseInfo::TruncatingWord32(),
@@ -2365,6 +2325,13 @@ class RepresentationSelector {
         return VisitUnop(node, UseInfo::AnyTagged(),
                          MachineRepresentation::kTaggedPointer);
       }
+      case IrOpcode::kNewConsString: {
+        ProcessInput(node, 0, UseInfo::TaggedSigned());  // length
+        ProcessInput(node, 1, UseInfo::AnyTagged());     // first
+        ProcessInput(node, 2, UseInfo::AnyTagged());     // second
+        SetOutput(node, MachineRepresentation::kTaggedPointer);
+        return;
+      }
       case IrOpcode::kStringEqual:
       case IrOpcode::kStringLessThan:
       case IrOpcode::kStringLessThanOrEqual: {
@@ -2391,6 +2358,12 @@ class RepresentationSelector {
         }
         return;
       }
+      case IrOpcode::kStringCodePointAt: {
+        // TODO(turbofan): Allow builtins to return untagged values.
+        VisitBinop(node, UseInfo::AnyTagged(), UseInfo::TruncatingWord32(),
+                   MachineRepresentation::kTaggedSigned);
+        return;
+      }
       case IrOpcode::kStringFromCharCode: {
         VisitUnop(node, UseInfo::TruncatingWord32(),
                   MachineRepresentation::kTaggedPointer);
@@ -2406,6 +2379,14 @@ class RepresentationSelector {
         ProcessInput(node, 1, UseInfo::AnyTagged());
         ProcessInput(node, 2, UseInfo::TaggedSigned());
         SetOutput(node, MachineRepresentation::kTaggedSigned);
+        return;
+      }
+      case IrOpcode::kStringLength: {
+        // TODO(bmeurer): The input representation should be TaggedPointer.
+        // Fix this once we have a dedicated StringConcat/JSStringAdd
+        // operator, which marks it's output as TaggedPointer properly.
+        VisitUnop(node, UseInfo::AnyTagged(),
+                  MachineRepresentation::kTaggedSigned);
         return;
       }
       case IrOpcode::kStringToLowerCaseIntl:
@@ -2479,13 +2460,17 @@ class RepresentationSelector {
         return;
       }
       case IrOpcode::kCheckSmi: {
+        const CheckParameters& params = CheckParametersOf(node->op());
         if (SmiValuesAre32Bits() && truncation.IsUsedAsWord32()) {
           VisitUnop(node,
-                    UseInfo::CheckedSignedSmallAsWord32(kDistinguishZeros),
+                    UseInfo::CheckedSignedSmallAsWord32(kDistinguishZeros,
+                                                        params.feedback()),
                     MachineRepresentation::kWord32);
         } else {
-          VisitUnop(node, UseInfo::CheckedSignedSmallAsTaggedSigned(),
-                    MachineRepresentation::kTaggedSigned);
+          VisitUnop(
+              node,
+              UseInfo::CheckedSignedSmallAsTaggedSigned(params.feedback()),
+              MachineRepresentation::kTaggedSigned);
         }
         if (lower()) DeferReplacement(node, node->InputAt(0));
         return;
@@ -2587,6 +2572,11 @@ class RepresentationSelector {
                 node, jsgraph_->simplified()->StoreElement(access));
           }
         }
+        return;
+      }
+      case IrOpcode::kNumberIsFloat64Hole: {
+        VisitUnop(node, UseInfo::TruncatingFloat64(),
+                  MachineRepresentation::kBit);
         return;
       }
       case IrOpcode::kTransitionAndStoreElement: {
@@ -2977,7 +2967,6 @@ class RepresentationSelector {
         }
         ProcessRemainingInputs(node, 1);
         SetOutput(node, representation);
-        if (lower()) DeferReplacement(node, node->InputAt(0));
         return;
       }
 
@@ -3702,7 +3691,7 @@ void SimplifiedLowering::DoShift(Node* node, Operator const* op,
   if (!rhs_type->Is(type_cache_.kZeroToThirtyOne)) {
     Node* const rhs = NodeProperties::GetValueInput(node, 1);
     node->ReplaceInput(1, graph()->NewNode(machine()->Word32And(), rhs,
-                                           jsgraph()->Int32Constant(0x1f)));
+                                           jsgraph()->Int32Constant(0x1F)));
   }
   ChangeToPureOp(node, op);
 }

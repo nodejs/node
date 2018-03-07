@@ -19,7 +19,7 @@ Handle<ScriptContextTable> ScriptContextTable::Extend(
   int used = table->used();
   int length = table->length();
   CHECK(used >= 0 && length > 0 && used < length);
-  if (used + kFirstContextSlot == length) {
+  if (used + kFirstContextSlotIndex == length) {
     CHECK(length < Smi::kMaxValue / 2);
     Isolate* isolate = table->GetIsolate();
     Handle<FixedArray> copy =
@@ -32,7 +32,7 @@ Handle<ScriptContextTable> ScriptContextTable::Extend(
   result->set_used(used + 1);
 
   DCHECK(script_context->IsScriptContext());
-  result->set(used + kFirstContextSlot, *script_context);
+  result->set(used + kFirstContextSlotIndex, *script_context);
   return result;
 }
 

@@ -207,7 +207,7 @@ class RegisterConfig {
         compiler::Operator::kNoProperties,  // properties
         kCalleeSaveRegisters,               // callee-saved registers
         kCalleeSaveFPRegisters,             // callee-saved fp regs
-        CallDescriptor::kUseNativeStack,    // flags
+        CallDescriptor::kNoFlags,           // flags
         "c-call");
   }
 
@@ -446,7 +446,7 @@ class Computer {
       inner = CompileGraph("Compute", desc, &graph, raw.Export());
     }
 
-    CSignature0<int32_t> csig;
+    CSignatureOf<int32_t> csig;
     ArgsBuffer<CType> io(num_params, seed);
 
     {
@@ -583,7 +583,7 @@ static void CopyTwentyInt32(CallDescriptor* desc) {
     inner = CompileGraph("CopyTwentyInt32", desc, &graph, raw.Export());
   }
 
-  CSignature0<int32_t> csig;
+  CSignatureOf<int32_t> csig;
   Handle<Code> wrapper = Handle<Code>::null();
   {
     // Loads parameters from the input buffer and calls the above code.
@@ -1076,7 +1076,7 @@ void MixedParamTest(int start) {
       char bytes[kDoubleSize];
       V8_ALIGNED(8) char output[kDoubleSize];
       int expected_size = 0;
-      CSignature0<int32_t> csig;
+      CSignatureOf<int32_t> csig;
       {
         // Wrap the select code with a callable function that passes constants.
         Zone zone(&allocator, ZONE_NAME);
@@ -1211,7 +1211,7 @@ TEST(RunStackSlotInt32) {
 
 #if !V8_TARGET_ARCH_32_BIT
 TEST(RunStackSlotInt64) {
-  int64_t magic = 0x123456789abcdef0;
+  int64_t magic = 0x123456789ABCDEF0;
   TestStackSlot(MachineType::Int64(), magic);
 }
 #endif

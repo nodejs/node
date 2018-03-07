@@ -7,7 +7,7 @@ Running test: testThrowException
         args : [
             [0] : {
                 type : string
-                value : 1
+                value : default: 1
             }
         ]
         executionContextId : <executionContextId>

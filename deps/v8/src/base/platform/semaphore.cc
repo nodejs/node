@@ -136,7 +136,7 @@ bool Semaphore::WaitFor(const TimeDelta& rel_time) {
 
 Semaphore::Semaphore(int count) {
   DCHECK_GE(count, 0);
-  native_handle_ = ::CreateSemaphoreA(nullptr, count, 0x7fffffff, nullptr);
+  native_handle_ = ::CreateSemaphoreA(nullptr, count, 0x7FFFFFFF, nullptr);
   DCHECK_NOT_NULL(native_handle_);
 }
 

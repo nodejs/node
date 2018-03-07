@@ -186,6 +186,10 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
                    old_value, new_value);
   }
 
+  Node* SpeculationFence() {
+    return AddNode(machine()->SpeculationFence().op());
+  }
+
   // Arithmetic Operations.
   Node* WordAnd(Node* a, Node* b) {
     return AddNode(machine()->WordAnd(), a, b);
@@ -828,9 +832,12 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
   void Return(Node* value);
   void Return(Node* v1, Node* v2);
   void Return(Node* v1, Node* v2, Node* v3);
+  void Return(Node* v1, Node* v2, Node* v3, Node* v4);
+  void Return(int count, Node* v[]);
   void PopAndReturn(Node* pop, Node* value);
   void PopAndReturn(Node* pop, Node* v1, Node* v2);
   void PopAndReturn(Node* pop, Node* v1, Node* v2, Node* v3);
+  void PopAndReturn(Node* pop, Node* v1, Node* v2, Node* v3, Node* v4);
   void Bind(RawMachineLabel* label);
   void Deoptimize(Node* state);
   void DebugAbort(Node* message);

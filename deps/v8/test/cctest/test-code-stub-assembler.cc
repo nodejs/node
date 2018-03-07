@@ -237,8 +237,8 @@ TEST(DecodeWordFromWord32) {
   CodeStubAssembler m(asm_tester.state());
 
   class TestBitField : public BitField<unsigned, 3, 3> {};
-  m.Return(
-      m.SmiTag(m.DecodeWordFromWord32<TestBitField>(m.Int32Constant(0x2f))));
+  m.Return(m.SmiTag(
+      m.Signed(m.DecodeWordFromWord32<TestBitField>(m.Int32Constant(0x2F)))));
   FunctionTester ft(asm_tester.GenerateCode());
   MaybeHandle<Object> result = ft.Call();
   // value  = 00101111
@@ -914,7 +914,7 @@ TEST(TryHasOwnProperty) {
     JSFunction::EnsureHasInitialMap(function);
     function->initial_map()->set_instance_type(JS_GLOBAL_OBJECT_TYPE);
     function->initial_map()->set_is_prototype_map(true);
-    function->initial_map()->set_dictionary_map(true);
+    function->initial_map()->set_is_dictionary_map(true);
     function->initial_map()->set_may_have_interesting_symbols(true);
     Handle<JSObject> object = factory->NewJSGlobalObject(function);
     AddProperties(object, names, arraysize(names));
@@ -1706,7 +1706,94 @@ TEST(Arguments) {
   CSA_ASSERT(
       &m, m.WordEqual(arguments.AtIndex(2), m.SmiConstant(Smi::FromInt(14))));
 
-  m.Return(arguments.GetReceiver());
+  arguments.PopAndReturn(arguments.GetReceiver());
+
+  FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
+  Handle<Object> result = ft.Call(isolate->factory()->undefined_value(),
+                                  Handle<Smi>(Smi::FromInt(12), isolate),
+                                  Handle<Smi>(Smi::FromInt(13), isolate),
+                                  Handle<Smi>(Smi::FromInt(14), isolate))
+                              .ToHandleChecked();
+  CHECK_EQ(*isolate->factory()->undefined_value(), *result);
+}
+
+TEST(ArgumentsWithSmiConstantIndices) {
+  Isolate* isolate(CcTest::InitIsolateOnce());
+
+  const int kNumParams = 4;
+  CodeAssemblerTester asm_tester(isolate, kNumParams);
+  CodeStubAssembler m(asm_tester.state());
+
+  CodeStubArguments arguments(&m, m.SmiConstant(3), nullptr,
+                              CodeStubAssembler::SMI_PARAMETERS);
+
+  CSA_ASSERT(&m,
+             m.WordEqual(arguments.AtIndex(m.SmiConstant(0),
+                                           CodeStubAssembler::SMI_PARAMETERS),
+                         m.SmiConstant(Smi::FromInt(12))));
+  CSA_ASSERT(&m,
+             m.WordEqual(arguments.AtIndex(m.SmiConstant(1),
+                                           CodeStubAssembler::SMI_PARAMETERS),
+                         m.SmiConstant(Smi::FromInt(13))));
+  CSA_ASSERT(&m,
+             m.WordEqual(arguments.AtIndex(m.SmiConstant(2),
+                                           CodeStubAssembler::SMI_PARAMETERS),
+                         m.SmiConstant(Smi::FromInt(14))));
+
+  arguments.PopAndReturn(arguments.GetReceiver());
+
+  FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
+  Handle<Object> result = ft.Call(isolate->factory()->undefined_value(),
+                                  Handle<Smi>(Smi::FromInt(12), isolate),
+                                  Handle<Smi>(Smi::FromInt(13), isolate),
+                                  Handle<Smi>(Smi::FromInt(14), isolate))
+                              .ToHandleChecked();
+  CHECK_EQ(*isolate->factory()->undefined_value(), *result);
+}
+
+TNode<Smi> NonConstantSmi(CodeStubAssembler* m, int value) {
+  // Generate a SMI with the given value and feed it through a Phi so it can't
+  // be inferred to be constant.
+  Variable var(m, MachineRepresentation::kTagged, m->SmiConstant(value));
+  Label dummy_done(m);
+  // Even though the Goto always executes, it will taint the variable and thus
+  // make it appear non-constant when used later.
+  m->GotoIf(m->Int32Constant(1), &dummy_done);
+  var.Bind(m->SmiConstant(value));
+  m->Goto(&dummy_done);
+  m->BIND(&dummy_done);
+
+  // Ensure that the above hackery actually created a non-constant SMI.
+  Smi* smi_constant;
+  CHECK(!m->ToSmiConstant(var.value(), smi_constant));
+
+  return m->UncheckedCast<Smi>(var.value());
+}
+
+TEST(ArgumentsWithSmiIndices) {
+  Isolate* isolate(CcTest::InitIsolateOnce());
+
+  const int kNumParams = 4;
+  CodeAssemblerTester asm_tester(isolate, kNumParams);
+  CodeStubAssembler m(asm_tester.state());
+
+  CodeStubArguments arguments(&m, m.SmiConstant(3), nullptr,
+                              CodeStubAssembler::SMI_PARAMETERS);
+
+  CSA_ASSERT(&m,
+             m.WordEqual(arguments.AtIndex(NonConstantSmi(&m, 0),
+                                           CodeStubAssembler::SMI_PARAMETERS),
+                         m.SmiConstant(Smi::FromInt(12))));
+  CSA_ASSERT(&m,
+             m.WordEqual(arguments.AtIndex(NonConstantSmi(&m, 1),
+                                           CodeStubAssembler::SMI_PARAMETERS),
+                         m.SmiConstant(Smi::FromInt(13))));
+  CSA_ASSERT(&m,
+             m.WordEqual(arguments.AtIndex(NonConstantSmi(&m, 2),
+                                           CodeStubAssembler::SMI_PARAMETERS),
+                         m.SmiConstant(Smi::FromInt(14))));
+
+  arguments.PopAndReturn(arguments.GetReceiver());
 
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
   Handle<Object> result = ft.Call(isolate->factory()->undefined_value(),
@@ -1734,7 +1821,7 @@ TEST(ArgumentsForEach) {
   arguments.ForEach(
       list, [&m, &sum](Node* arg) { sum.Bind(m.SmiAdd(sum.value(), arg)); });
 
-  m.Return(sum.value());
+  arguments.PopAndReturn(sum.value());
 
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
   Handle<Object> result = ft.Call(isolate->factory()->undefined_value(),
@@ -2663,7 +2750,7 @@ TEST(GotoIfNotWhiteSpaceOrLineTerminator) {
   }
 }
 
-TEST(BranchIfNumericRelationalComparison) {
+TEST(BranchIfNumberRelationalComparison) {
   Isolate* isolate(CcTest::InitIsolateOnce());
   Factory* f = isolate->factory();
   const int kNumParams = 2;
@@ -2671,9 +2758,9 @@ TEST(BranchIfNumericRelationalComparison) {
   {
     CodeStubAssembler m(asm_tester.state());
     Label return_true(&m), return_false(&m);
-    m.BranchIfNumericRelationalComparison(Operation::kGreaterThanOrEqual,
-                                          m.Parameter(0), m.Parameter(1),
-                                          &return_true, &return_false);
+    m.BranchIfNumberRelationalComparison(Operation::kGreaterThanOrEqual,
+                                         m.Parameter(0), m.Parameter(1),
+                                         &return_true, &return_false);
     m.BIND(&return_true);
     m.Return(m.BooleanConstant(true));
     m.BIND(&return_false);

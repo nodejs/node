@@ -170,6 +170,42 @@ void LoadGlobalWithVectorDescriptor::InitializePlatformSpecific(
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }
 
+void StoreGlobalDescriptor::InitializePlatformIndependent(
+    CallInterfaceDescriptorData* data) {
+  // kName, kValue, kSlot
+  MachineType machine_types[] = {MachineType::AnyTagged(),
+                                 MachineType::AnyTagged(),
+                                 MachineType::TaggedSigned()};
+  data->InitializePlatformIndependent(arraysize(machine_types), 0,
+                                      machine_types);
+}
+
+void StoreGlobalDescriptor::InitializePlatformSpecific(
+    CallInterfaceDescriptorData* data) {
+  Register registers[] = {NameRegister(), ValueRegister(), SlotRegister()};
+
+  int len = arraysize(registers) - kStackArgumentsCount;
+  data->InitializePlatformSpecific(len, registers);
+}
+
+void StoreGlobalWithVectorDescriptor::InitializePlatformIndependent(
+    CallInterfaceDescriptorData* data) {
+  // kName, kValue, kSlot, kVector
+  MachineType machine_types[] = {
+      MachineType::AnyTagged(), MachineType::AnyTagged(),
+      MachineType::TaggedSigned(), MachineType::AnyTagged()};
+  data->InitializePlatformIndependent(arraysize(machine_types), 0,
+                                      machine_types);
+}
+
+void StoreGlobalWithVectorDescriptor::InitializePlatformSpecific(
+    CallInterfaceDescriptorData* data) {
+  Register registers[] = {NameRegister(), ValueRegister(), SlotRegister(),
+                          VectorRegister()};
+  int len = arraysize(registers) - kStackArgumentsCount;
+  data->InitializePlatformSpecific(len, registers);
+}
+
 void StoreDescriptor::InitializePlatformIndependent(
     CallInterfaceDescriptorData* data) {
   // kReceiver, kName, kValue, kSlot
@@ -233,21 +269,7 @@ void StoreNamedTransitionDescriptor::InitializePlatformSpecific(
   data->InitializePlatformSpecific(len, registers);
 }
 
-void StringCharAtDescriptor::InitializePlatformIndependent(
-    CallInterfaceDescriptorData* data) {
-  // kReceiver, kPosition
-  MachineType machine_types[] = {MachineType::AnyTagged(),
-                                 MachineType::IntPtr()};
-  data->InitializePlatformIndependent(arraysize(machine_types), 0,
-                                      machine_types);
-}
-
-void StringCharAtDescriptor::InitializePlatformSpecific(
-    CallInterfaceDescriptorData* data) {
-  DefaultInitializePlatformSpecific(data, kParameterCount);
-}
-
-void StringCharCodeAtDescriptor::InitializePlatformIndependent(
+void StringAtDescriptor::InitializePlatformIndependent(
     CallInterfaceDescriptorData* data) {
   // kReceiver, kPosition
   // TODO(turbofan): Allow builtins to return untagged values.
@@ -257,7 +279,7 @@ void StringCharCodeAtDescriptor::InitializePlatformIndependent(
                                       machine_types);
 }
 
-void StringCharCodeAtDescriptor::InitializePlatformSpecific(
+void StringAtDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   DefaultInitializePlatformSpecific(data, kParameterCount);
 }
@@ -317,24 +339,6 @@ void LoadWithVectorDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   Register registers[] = {ReceiverRegister(), NameRegister(), SlotRegister(),
                           VectorRegister()};
-  data->InitializePlatformSpecific(arraysize(registers), registers);
-}
-
-void LoadICProtoArrayDescriptor::InitializePlatformIndependent(
-    CallInterfaceDescriptorData* data) {
-  // kReceiver, kName, kSlot, kVector, kHandler
-  MachineType machine_types[] = {
-      MachineType::AnyTagged(), MachineType::AnyTagged(),
-      MachineType::TaggedSigned(), MachineType::AnyTagged(),
-      MachineType::AnyTagged()};
-  data->InitializePlatformIndependent(arraysize(machine_types), 0,
-                                      machine_types);
-}
-
-void LoadICProtoArrayDescriptor::InitializePlatformSpecific(
-    CallInterfaceDescriptorData* data) {
-  Register registers[] = {ReceiverRegister(), NameRegister(), SlotRegister(),
-                          VectorRegister(), HandlerRegister()};
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }
 

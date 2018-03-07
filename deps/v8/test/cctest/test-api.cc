@@ -1390,10 +1390,10 @@ THREADED_TEST(ExternalWrap) {
   expected_ptr = reinterpret_cast<void*>(1);
   TestExternalPointerWrapping();
 
-  expected_ptr = reinterpret_cast<void*>(0xdeadbeef);
+  expected_ptr = reinterpret_cast<void*>(0xDEADBEEF);
   TestExternalPointerWrapping();
 
-  expected_ptr = reinterpret_cast<void*>(0xdeadbeef + 1);
+  expected_ptr = reinterpret_cast<void*>(0xDEADBEEF + 1);
   TestExternalPointerWrapping();
 
 #if defined(V8_HOST_ARCH_X64)
@@ -1401,10 +1401,10 @@ THREADED_TEST(ExternalWrap) {
   expected_ptr = reinterpret_cast<void*>(0x400000000);
   TestExternalPointerWrapping();
 
-  expected_ptr = reinterpret_cast<void*>(0xdeadbeefdeadbeef);
+  expected_ptr = reinterpret_cast<void*>(0xDEADBEEFDEADBEEF);
   TestExternalPointerWrapping();
 
-  expected_ptr = reinterpret_cast<void*>(0xdeadbeefdeadbeef + 1);
+  expected_ptr = reinterpret_cast<void*>(0xDEADBEEFDEADBEEF + 1);
   TestExternalPointerWrapping();
 #endif
 }
@@ -7916,31 +7916,31 @@ THREADED_TEST(StringWrite) {
   v8::HandleScope scope(context->GetIsolate());
   v8::Local<String> str = v8_str("abcde");
   // abc<Icelandic eth><Unicode snowman>.
-  v8::Local<String> str2 = v8_str("abc\303\260\342\230\203");
+  v8::Local<String> str2 = v8_str("abc\xC3\xB0\xE2\x98\x83");
   v8::Local<String> str3 =
       v8::String::NewFromUtf8(context->GetIsolate(), "abc\0def",
                               v8::NewStringType::kNormal, 7)
           .ToLocalChecked();
-  // "ab" + lead surrogate + "cd" + trail surrogate + "ef"
-  uint16_t orphans[8] = { 0x61, 0x62, 0xd800, 0x63, 0x64, 0xdc00, 0x65, 0x66 };
+  // "ab" + lead surrogate + "wx" + trail surrogate + "yz"
+  uint16_t orphans[8] = {0x61, 0x62, 0xD800, 0x77, 0x78, 0xDC00, 0x79, 0x7A};
   v8::Local<String> orphans_str =
       v8::String::NewFromTwoByte(context->GetIsolate(), orphans,
                                  v8::NewStringType::kNormal, 8)
           .ToLocalChecked();
   // single lead surrogate
-  uint16_t lead[1] = { 0xd800 };
+  uint16_t lead[1] = {0xD800};
   v8::Local<String> lead_str =
       v8::String::NewFromTwoByte(context->GetIsolate(), lead,
                                  v8::NewStringType::kNormal, 1)
           .ToLocalChecked();
   // single trail surrogate
-  uint16_t trail[1] = { 0xdc00 };
+  uint16_t trail[1] = {0xDC00};
   v8::Local<String> trail_str =
       v8::String::NewFromTwoByte(context->GetIsolate(), trail,
                                  v8::NewStringType::kNormal, 1)
           .ToLocalChecked();
   // surrogate pair
-  uint16_t pair[2] = { 0xd800,  0xdc00 };
+  uint16_t pair[2] = {0xD800, 0xDC00};
   v8::Local<String> pair_str =
       v8::String::NewFromTwoByte(context->GetIsolate(), pair,
                                  v8::NewStringType::kNormal, 2)
@@ -7948,12 +7948,12 @@ THREADED_TEST(StringWrite) {
   const int kStride = 4;  // Must match stride in for loops in JS below.
   CompileRun(
       "var left = '';"
-      "for (var i = 0; i < 0xd800; i += 4) {"
+      "for (var i = 0; i < 0xD800; i += 4) {"
       "  left = left + String.fromCharCode(i);"
       "}");
   CompileRun(
       "var right = '';"
-      "for (var i = 0; i < 0xd800; i += 4) {"
+      "for (var i = 0; i < 0xD800; i += 4) {"
       "  right = String.fromCharCode(i) + right;"
       "}");
   v8::Local<v8::Object> global = context->Global();
@@ -7965,11 +7965,11 @@ THREADED_TEST(StringWrite) {
                                  .As<String>();
 
   CHECK_EQ(5, str2->Length());
-  CHECK_EQ(0xd800 / kStride, left_tree->Length());
-  CHECK_EQ(0xd800 / kStride, right_tree->Length());
+  CHECK_EQ(0xD800 / kStride, left_tree->Length());
+  CHECK_EQ(0xD800 / kStride, right_tree->Length());
 
   char buf[100];
-  char utf8buf[0xd800 * 3];
+  char utf8buf[0xD800 * 3];
   uint16_t wbuf[100];
   int len;
   int charlen;
@@ -7978,58 +7978,58 @@ THREADED_TEST(StringWrite) {
   len = str2->WriteUtf8(utf8buf, sizeof(utf8buf), &charlen);
   CHECK_EQ(9, len);
   CHECK_EQ(5, charlen);
-  CHECK_EQ(0, strcmp(utf8buf, "abc\303\260\342\230\203"));
+  CHECK_EQ(0, strcmp(utf8buf, "abc\xC3\xB0\xE2\x98\x83"));
 
   memset(utf8buf, 0x1, 1000);
   len = str2->WriteUtf8(utf8buf, 8, &charlen);
   CHECK_EQ(8, len);
   CHECK_EQ(5, charlen);
-  CHECK_EQ(0, strncmp(utf8buf, "abc\303\260\342\230\203\1", 9));
+  CHECK_EQ(0, strncmp(utf8buf, "abc\xC3\xB0\xE2\x98\x83\x01", 9));
 
   memset(utf8buf, 0x1, 1000);
   len = str2->WriteUtf8(utf8buf, 7, &charlen);
   CHECK_EQ(5, len);
   CHECK_EQ(4, charlen);
-  CHECK_EQ(0, strncmp(utf8buf, "abc\303\260\1", 5));
+  CHECK_EQ(0, strncmp(utf8buf, "abc\xC3\xB0\x01", 5));
 
   memset(utf8buf, 0x1, 1000);
   len = str2->WriteUtf8(utf8buf, 6, &charlen);
   CHECK_EQ(5, len);
   CHECK_EQ(4, charlen);
-  CHECK_EQ(0, strncmp(utf8buf, "abc\303\260\1", 5));
+  CHECK_EQ(0, strncmp(utf8buf, "abc\xC3\xB0\x01", 5));
 
   memset(utf8buf, 0x1, 1000);
   len = str2->WriteUtf8(utf8buf, 5, &charlen);
   CHECK_EQ(5, len);
   CHECK_EQ(4, charlen);
-  CHECK_EQ(0, strncmp(utf8buf, "abc\303\260\1", 5));
+  CHECK_EQ(0, strncmp(utf8buf, "abc\xC3\xB0\x01", 5));
 
   memset(utf8buf, 0x1, 1000);
   len = str2->WriteUtf8(utf8buf, 4, &charlen);
   CHECK_EQ(3, len);
   CHECK_EQ(3, charlen);
-  CHECK_EQ(0, strncmp(utf8buf, "abc\1", 4));
+  CHECK_EQ(0, strncmp(utf8buf, "abc\x01", 4));
 
   memset(utf8buf, 0x1, 1000);
   len = str2->WriteUtf8(utf8buf, 3, &charlen);
   CHECK_EQ(3, len);
   CHECK_EQ(3, charlen);
-  CHECK_EQ(0, strncmp(utf8buf, "abc\1", 4));
+  CHECK_EQ(0, strncmp(utf8buf, "abc\x01", 4));
 
   memset(utf8buf, 0x1, 1000);
   len = str2->WriteUtf8(utf8buf, 2, &charlen);
   CHECK_EQ(2, len);
   CHECK_EQ(2, charlen);
-  CHECK_EQ(0, strncmp(utf8buf, "ab\1", 3));
+  CHECK_EQ(0, strncmp(utf8buf, "ab\x01", 3));
 
   // allow orphan surrogates by default
   memset(utf8buf, 0x1, 1000);
   len = orphans_str->WriteUtf8(utf8buf, sizeof(utf8buf), &charlen);
   CHECK_EQ(13, len);
   CHECK_EQ(8, charlen);
-  CHECK_EQ(0, strcmp(utf8buf, "ab\355\240\200cd\355\260\200ef"));
+  CHECK_EQ(0, strcmp(utf8buf, "ab\xED\xA0\x80wx\xED\xB0\x80yz"));
 
-  // replace orphan surrogates with unicode replacement character
+  // replace orphan surrogates with Unicode replacement character
   memset(utf8buf, 0x1, 1000);
   len = orphans_str->WriteUtf8(utf8buf,
                                sizeof(utf8buf),
@@ -8037,9 +8037,9 @@ THREADED_TEST(StringWrite) {
                                String::REPLACE_INVALID_UTF8);
   CHECK_EQ(13, len);
   CHECK_EQ(8, charlen);
-  CHECK_EQ(0, strcmp(utf8buf, "ab\357\277\275cd\357\277\275ef"));
+  CHECK_EQ(0, strcmp(utf8buf, "ab\xEF\xBF\xBDwx\xEF\xBF\xBDyz"));
 
-  // replace single lead surrogate with unicode replacement character
+  // replace single lead surrogate with Unicode replacement character
   memset(utf8buf, 0x1, 1000);
   len = lead_str->WriteUtf8(utf8buf,
                             sizeof(utf8buf),
@@ -8047,9 +8047,9 @@ THREADED_TEST(StringWrite) {
                             String::REPLACE_INVALID_UTF8);
   CHECK_EQ(4, len);
   CHECK_EQ(1, charlen);
-  CHECK_EQ(0, strcmp(utf8buf, "\357\277\275"));
+  CHECK_EQ(0, strcmp(utf8buf, "\xEF\xBF\xBD"));
 
-  // replace single trail surrogate with unicode replacement character
+  // replace single trail surrogate with Unicode replacement character
   memset(utf8buf, 0x1, 1000);
   len = trail_str->WriteUtf8(utf8buf,
                              sizeof(utf8buf),
@@ -8057,7 +8057,7 @@ THREADED_TEST(StringWrite) {
                              String::REPLACE_INVALID_UTF8);
   CHECK_EQ(4, len);
   CHECK_EQ(1, charlen);
-  CHECK_EQ(0, strcmp(utf8buf, "\357\277\275"));
+  CHECK_EQ(0, strcmp(utf8buf, "\xEF\xBF\xBD"));
 
   // do not replace / write anything if surrogate pair does not fit the buffer
   // space
@@ -8072,14 +8072,14 @@ THREADED_TEST(StringWrite) {
   memset(utf8buf, 0x1, sizeof(utf8buf));
   len = GetUtf8Length(left_tree);
   int utf8_expected =
-      (0x80 + (0x800 - 0x80) * 2 + (0xd800 - 0x800) * 3) / kStride;
+      (0x80 + (0x800 - 0x80) * 2 + (0xD800 - 0x800) * 3) / kStride;
   CHECK_EQ(utf8_expected, len);
   len = left_tree->WriteUtf8(utf8buf, utf8_expected, &charlen);
   CHECK_EQ(utf8_expected, len);
-  CHECK_EQ(0xd800 / kStride, charlen);
-  CHECK_EQ(0xed, static_cast<unsigned char>(utf8buf[utf8_expected - 3]));
-  CHECK_EQ(0x9f, static_cast<unsigned char>(utf8buf[utf8_expected - 2]));
-  CHECK_EQ(0xc0 - kStride,
+  CHECK_EQ(0xD800 / kStride, charlen);
+  CHECK_EQ(0xED, static_cast<unsigned char>(utf8buf[utf8_expected - 3]));
+  CHECK_EQ(0x9F, static_cast<unsigned char>(utf8buf[utf8_expected - 2]));
+  CHECK_EQ(0xC0 - kStride,
            static_cast<unsigned char>(utf8buf[utf8_expected - 1]));
   CHECK_EQ(1, utf8buf[utf8_expected]);
 
@@ -8088,10 +8088,10 @@ THREADED_TEST(StringWrite) {
   CHECK_EQ(utf8_expected, len);
   len = right_tree->WriteUtf8(utf8buf, utf8_expected, &charlen);
   CHECK_EQ(utf8_expected, len);
-  CHECK_EQ(0xd800 / kStride, charlen);
-  CHECK_EQ(0xed, static_cast<unsigned char>(utf8buf[0]));
-  CHECK_EQ(0x9f, static_cast<unsigned char>(utf8buf[1]));
-  CHECK_EQ(0xc0 - kStride, static_cast<unsigned char>(utf8buf[2]));
+  CHECK_EQ(0xD800 / kStride, charlen);
+  CHECK_EQ(0xED, static_cast<unsigned char>(utf8buf[0]));
+  CHECK_EQ(0x9F, static_cast<unsigned char>(utf8buf[1]));
+  CHECK_EQ(0xC0 - kStride, static_cast<unsigned char>(utf8buf[2]));
   CHECK_EQ(1, utf8buf[utf8_expected]);
 
   memset(buf, 0x1, sizeof(buf));
@@ -8110,7 +8110,7 @@ THREADED_TEST(StringWrite) {
   CHECK_EQ(4, len);
   len = str->Write(wbuf, 0, 4);
   CHECK_EQ(4, len);
-  CHECK_EQ(0, strncmp("abcd\1", buf, 5));
+  CHECK_EQ(0, strncmp("abcd\x01", buf, 5));
   uint16_t answer2[] = {'a', 'b', 'c', 'd', 0x101};
   CHECK_EQ(0, StrNCmp16(answer2, wbuf, 5));
 
@@ -8120,7 +8120,7 @@ THREADED_TEST(StringWrite) {
   CHECK_EQ(5, len);
   len = str->Write(wbuf, 0, 5);
   CHECK_EQ(5, len);
-  CHECK_EQ(0, strncmp("abcde\1", buf, 6));
+  CHECK_EQ(0, strncmp("abcde\x01", buf, 6));
   uint16_t answer3[] = {'a', 'b', 'c', 'd', 'e', 0x101};
   CHECK_EQ(0, StrNCmp16(answer3, wbuf, 6));
 
@@ -8159,7 +8159,7 @@ THREADED_TEST(StringWrite) {
   CHECK_EQ(1, len);
   len = str->Write(wbuf, 4, 1);
   CHECK_EQ(1, len);
-  CHECK_EQ(0, strncmp("e\1", buf, 2));
+  CHECK_EQ(0, strncmp("e\x01", buf, 2));
   uint16_t answer6[] = {'e', 0x101};
   CHECK_EQ(0, StrNCmp16(answer6, wbuf, 2));
 
@@ -8169,7 +8169,7 @@ THREADED_TEST(StringWrite) {
   CHECK_EQ(1, len);
   len = str->Write(wbuf, 3, 1);
   CHECK_EQ(1, len);
-  CHECK_EQ(0, strncmp("d\1", buf, 2));
+  CHECK_EQ(0, strncmp("d\x01", buf, 2));
   uint16_t answer7[] = {'d', 0x101};
   CHECK_EQ(0, StrNCmp16(answer7, wbuf, 2));
 
@@ -8205,10 +8205,10 @@ THREADED_TEST(StringWrite) {
   CHECK_EQ(8, len);
   CHECK_EQ('X', utf8buf[8]);
   CHECK_EQ(5, charlen);
-  CHECK_EQ(0, strncmp(utf8buf, "abc\303\260\342\230\203", 8));
-  CHECK_NE(0, strcmp(utf8buf, "abc\303\260\342\230\203"));
+  CHECK_EQ(0, strncmp(utf8buf, "abc\xC3\xB0\xE2\x98\x83", 8));
+  CHECK_NE(0, strcmp(utf8buf, "abc\xC3\xB0\xE2\x98\x83"));
   utf8buf[8] = '\0';
-  CHECK_EQ(0, strcmp(utf8buf, "abc\303\260\342\230\203"));
+  CHECK_EQ(0, strcmp(utf8buf, "abc\xC3\xB0\xE2\x98\x83"));
 
   memset(utf8buf, 0x1, sizeof(utf8buf));
   utf8buf[5] = 'X';
@@ -8300,16 +8300,16 @@ THREADED_TEST(OverlongSequencesAndSurrogates) {
       "X\xf4\x90\x80Y\0",
   };
   const std::vector<std::vector<uint16_t>> unicode_expected = {
-      {0x58, 0xfffd, 0xfffd, 0x59},
-      {0x58, 0xfffd, 0xfffd, 0x59},
-      {0x58, 0xfffd, 0xfffd, 0xfffd, 0x59},
-      {0x58, 0xfffd, 0xfffd, 0xfffd, 0xfffd, 0x59},
-      {0x58, 0xfffd, 0xfffd, 0xfffd, 0x59},
-      {0x58, 0xfffd, 0xfffd, 0xfffd, 0xfffd, 0x59},
-      {0x58, 0xfffd, 0xfffd, 0x59},
-      {0x58, 0xfffd, 0xfffd, 0xfffd, 0x59},
-      {0x58, 0xfffd, 0xfffd, 0x59},
-      {0x58, 0xfffd, 0xfffd, 0xfffd, 0x59},
+      {0x58, 0xFFFD, 0xFFFD, 0x59},
+      {0x58, 0xFFFD, 0xFFFD, 0x59},
+      {0x58, 0xFFFD, 0xFFFD, 0xFFFD, 0x59},
+      {0x58, 0xFFFD, 0xFFFD, 0xFFFD, 0xFFFD, 0x59},
+      {0x58, 0xFFFD, 0xFFFD, 0xFFFD, 0x59},
+      {0x58, 0xFFFD, 0xFFFD, 0xFFFD, 0xFFFD, 0x59},
+      {0x58, 0xFFFD, 0xFFFD, 0x59},
+      {0x58, 0xFFFD, 0xFFFD, 0xFFFD, 0x59},
+      {0x58, 0xFFFD, 0xFFFD, 0x59},
+      {0x58, 0xFFFD, 0xFFFD, 0xFFFD, 0x59},
   };
   CHECK_EQ(unicode_expected.size(), arraysize(cases));
   TestUtf8DecodingAgainstReference(cases, unicode_expected);
@@ -8323,10 +8323,10 @@ THREADED_TEST(Utf16) {
       "var p = [];"
       "var plens = [20, 3, 3];"
       "p.push('01234567890123456789');"
-      "var lead = 0xd800;"
-      "var trail = 0xdc00;"
-      "p.push(String.fromCharCode(0xd800));"
-      "p.push(String.fromCharCode(0xdc00));"
+      "var lead = 0xD800;"
+      "var trail = 0xDC00;"
+      "p.push(String.fromCharCode(0xD800));"
+      "p.push(String.fromCharCode(0xDC00));"
       "var a = [];"
       "var b = [];"
       "var c = [];"
@@ -8353,8 +8353,9 @@ THREADED_TEST(Utf16) {
       "    var newc = 'x' + c[m] + c[n] + 'y';"
       "    c2.push(newc.substring(1, newc.length - 1));"
       "    var utf = alens[m] + alens[n];"  // And here.
-           // The 'n's that start with 0xdc.. are 6-8
-           // The 'm's that end with 0xd8.. are 1, 4 and 7
+                                            // The 'n's that start with 0xDC..
+                                            // are 6-8 The 'm's that end with
+                                            // 0xD8.. are 1, 4 and 7
       "    if ((m % 3) == 1 && n >= 6) utf -= 2;"
       "    a2lens.push(utf);"
       "  }"
@@ -8387,41 +8388,41 @@ THREADED_TEST(Utf16Symbol) {
 
   CompileRun(
       "var sym0 = 'benedictus';"
-      "var sym0b = 'S\303\270ren';"
-      "var sym1 = '\355\240\201\355\260\207';"
-      "var sym2 = '\360\220\220\210';"
-      "var sym3 = 'x\355\240\201\355\260\207';"
-      "var sym4 = 'x\360\220\220\210';"
+      "var sym0b = 'S\xC3\xB8ren';"
+      "var sym1 = '\xED\xA0\x81\xED\xB0\x87';"
+      "var sym2 = '\xF0\x90\x90\x88';"
+      "var sym3 = 'x\xED\xA0\x81\xED\xB0\x87';"
+      "var sym4 = 'x\xF0\x90\x90\x88';"
       "if (sym1.length != 2) throw sym1;"
-      "if (sym1.charCodeAt(1) != 0xdc07) throw sym1.charCodeAt(1);"
+      "if (sym1.charCodeAt(1) != 0xDC07) throw sym1.charCodeAt(1);"
       "if (sym2.length != 2) throw sym2;"
-      "if (sym2.charCodeAt(1) != 0xdc08) throw sym2.charCodeAt(2);"
+      "if (sym2.charCodeAt(1) != 0xDC08) throw sym2.charCodeAt(2);"
       "if (sym3.length != 3) throw sym3;"
-      "if (sym3.charCodeAt(2) != 0xdc07) throw sym1.charCodeAt(2);"
+      "if (sym3.charCodeAt(2) != 0xDC07) throw sym1.charCodeAt(2);"
       "if (sym4.length != 3) throw sym4;"
-      "if (sym4.charCodeAt(2) != 0xdc08) throw sym2.charCodeAt(2);");
+      "if (sym4.charCodeAt(2) != 0xDC08) throw sym2.charCodeAt(2);");
   Local<String> sym0 =
       v8::String::NewFromUtf8(context->GetIsolate(), "benedictus",
                               v8::NewStringType::kInternalized)
           .ToLocalChecked();
   Local<String> sym0b =
-      v8::String::NewFromUtf8(context->GetIsolate(), "S\303\270ren",
+      v8::String::NewFromUtf8(context->GetIsolate(), "S\xC3\xB8ren",
                               v8::NewStringType::kInternalized)
           .ToLocalChecked();
   Local<String> sym1 =
-      v8::String::NewFromUtf8(context->GetIsolate(), "\355\240\201\355\260\207",
+      v8::String::NewFromUtf8(context->GetIsolate(), "\xED\xA0\x81\xED\xB0\x87",
                               v8::NewStringType::kInternalized)
           .ToLocalChecked();
   Local<String> sym2 =
-      v8::String::NewFromUtf8(context->GetIsolate(), "\360\220\220\210",
+      v8::String::NewFromUtf8(context->GetIsolate(), "\xF0\x90\x90\x88",
                               v8::NewStringType::kInternalized)
           .ToLocalChecked();
   Local<String> sym3 = v8::String::NewFromUtf8(context->GetIsolate(),
-                                               "x\355\240\201\355\260\207",
+                                               "x\xED\xA0\x81\xED\xB0\x87",
                                                v8::NewStringType::kInternalized)
                            .ToLocalChecked();
   Local<String> sym4 =
-      v8::String::NewFromUtf8(context->GetIsolate(), "x\360\220\220\210",
+      v8::String::NewFromUtf8(context->GetIsolate(), "x\xF0\x90\x90\x88",
                               v8::NewStringType::kInternalized)
           .ToLocalChecked();
   v8::Local<v8::Object> global = context->Global();
@@ -8454,10 +8455,10 @@ THREADED_TEST(Utf16MissingTrailing) {
   int size = 1024 * 64;
   uint8_t* buffer = new uint8_t[size];
   for (int i = 0; i < size; i += 4) {
-    buffer[i] = 0xf0;
-    buffer[i + 1] = 0x9d;
+    buffer[i] = 0xF0;
+    buffer[i + 1] = 0x9D;
     buffer[i + 2] = 0x80;
-    buffer[i + 3] = 0x9e;
+    buffer[i + 3] = 0x9E;
   }
 
   // Now invoke the decoder without last 3 bytes
@@ -8479,9 +8480,9 @@ THREADED_TEST(Utf16Trailing3Byte) {
   int size = 1024 * 63;
   uint8_t* buffer = new uint8_t[size];
   for (int i = 0; i < size; i += 3) {
-    buffer[i] = 0xe2;
+    buffer[i] = 0xE2;
     buffer[i + 1] = 0x80;
-    buffer[i + 2] = 0xa6;
+    buffer[i + 2] = 0xA6;
   }
 
   // Now invoke the decoder without last 3 bytes
@@ -9620,20 +9621,20 @@ static void EchoSetter(Local<String> name, Local<Value> value,
 static void UnreachableGetter(
     Local<String> name,
     const v8::PropertyCallbackInfo<v8::Value>& info) {
-  CHECK(false);  // This function should not be called..
+  UNREACHABLE();  // This function should not be called..
 }
 
 
 static void UnreachableSetter(Local<String>,
                               Local<Value>,
                               const v8::PropertyCallbackInfo<void>&) {
-  CHECK(false);  // This function should not be called.
+  UNREACHABLE();  // This function should not be called.
 }
 
 
 static void UnreachableFunction(
     const v8::FunctionCallbackInfo<v8::Value>& info) {
-  CHECK(false);  // This function should not be called..
+  UNREACHABLE();  // This function should not be called..
 }
 
 
@@ -14462,8 +14463,7 @@ static void event_handler(const v8::JitCodeEvent* event) {
 
     case v8::JitCodeEvent::CODE_REMOVED:
       // Object/code removal events are currently not dispatched from the GC.
-      CHECK(false);
-      break;
+      UNREACHABLE();
 
     // For CODE_START_LINE_INFO_RECORDING event, we will create one
     // DummyJitCodeLineInfo data structure pointed by event->user_dat. We
@@ -14501,8 +14501,7 @@ static void event_handler(const v8::JitCodeEvent* event) {
 
     default:
       // Impossible event.
-      CHECK(false);
-      break;
+      UNREACHABLE();
   }
 }
 
@@ -18466,7 +18465,6 @@ TEST(SetStackLimitInThread) {
   }
 }
 
-
 THREADED_TEST(GetHeapStatistics) {
   LocalContext c1;
   v8::HandleScope scope(c1->GetIsolate());
@@ -18478,6 +18476,55 @@ THREADED_TEST(GetHeapStatistics) {
   CHECK_NE(static_cast<int>(heap_statistics.used_heap_size()), 0);
 }
 
+TEST(NumberOfNativeContexts) {
+  static const size_t kNumTestContexts = 10;
+  i::Isolate* isolate = CcTest::i_isolate();
+  i::HandleScope scope(isolate);
+  v8::Global<v8::Context> context[kNumTestContexts];
+  v8::HeapStatistics heap_statistics;
+  CHECK_EQ(0u, heap_statistics.number_of_native_contexts());
+  CcTest::isolate()->GetHeapStatistics(&heap_statistics);
+  CHECK_EQ(0u, heap_statistics.number_of_native_contexts());
+  for (size_t i = 0; i < kNumTestContexts; i++) {
+    i::HandleScope inner(isolate);
+    context[i].Reset(CcTest::isolate(), v8::Context::New(CcTest::isolate()));
+    CcTest::isolate()->GetHeapStatistics(&heap_statistics);
+    CHECK_EQ(i + 1, heap_statistics.number_of_native_contexts());
+  }
+  for (size_t i = 0; i < kNumTestContexts; i++) {
+    context[i].Reset();
+    CcTest::CollectAllGarbage(i::Heap::kAbortIncrementalMarkingMask);
+    CcTest::isolate()->GetHeapStatistics(&heap_statistics);
+    CHECK_EQ(kNumTestContexts - i - 1u,
+             heap_statistics.number_of_native_contexts());
+  }
+}
+
+TEST(NumberOfDetachedContexts) {
+  static const size_t kNumTestContexts = 10;
+  i::Isolate* isolate = CcTest::i_isolate();
+  i::HandleScope scope(isolate);
+  v8::Global<v8::Context> context[kNumTestContexts];
+  v8::HeapStatistics heap_statistics;
+  CHECK_EQ(0u, heap_statistics.number_of_detached_contexts());
+  CcTest::isolate()->GetHeapStatistics(&heap_statistics);
+  CHECK_EQ(0u, heap_statistics.number_of_detached_contexts());
+  for (size_t i = 0; i < kNumTestContexts; i++) {
+    i::HandleScope inner(isolate);
+    v8::Local<v8::Context> local = v8::Context::New(CcTest::isolate());
+    context[i].Reset(CcTest::isolate(), local);
+    local->DetachGlobal();
+    CcTest::isolate()->GetHeapStatistics(&heap_statistics);
+    CHECK_EQ(i + 1, heap_statistics.number_of_detached_contexts());
+  }
+  for (size_t i = 0; i < kNumTestContexts; i++) {
+    context[i].Reset();
+    CcTest::CollectAllGarbage(i::Heap::kAbortIncrementalMarkingMask);
+    CcTest::isolate()->GetHeapStatistics(&heap_statistics);
+    CHECK_EQ(kNumTestContexts - i - 1u,
+             heap_statistics.number_of_detached_contexts());
+  }
+}
 
 class VisitorImpl : public v8::ExternalResourceVisitor {
  public:
@@ -18723,12 +18770,12 @@ THREADED_TEST(QuietSignalingNaNs) {
   v8::TryCatch try_catch(isolate);
 
   // Special double values.
-  double snan = DoubleFromBits(0x7ff00000, 0x00000001);
-  double qnan = DoubleFromBits(0x7ff80000, 0x00000000);
-  double infinity = DoubleFromBits(0x7ff00000, 0x00000000);
-  double max_normal = DoubleFromBits(0x7fefffff, 0xffffffffu);
+  double snan = DoubleFromBits(0x7FF00000, 0x00000001);
+  double qnan = DoubleFromBits(0x7FF80000, 0x00000000);
+  double infinity = DoubleFromBits(0x7FF00000, 0x00000000);
+  double max_normal = DoubleFromBits(0x7FEFFFFF, 0xFFFFFFFFu);
   double min_normal = DoubleFromBits(0x00100000, 0x00000000);
-  double max_denormal = DoubleFromBits(0x000fffff, 0xffffffffu);
+  double max_denormal = DoubleFromBits(0x000FFFFF, 0xFFFFFFFFu);
   double min_denormal = DoubleFromBits(0x00000000, 0x00000001);
 
   // Date values are capped at +/-100000000 days (times 864e5 ms per day)
@@ -18775,9 +18822,9 @@ THREADED_TEST(QuietSignalingNaNs) {
     !defined(USE_SIMULATOR)
       // Most significant fraction bit for quiet nan is set to 0
       // on MIPS architecture. Allowed by IEEE-754.
-      CHECK_EQ(0xffe, static_cast<int>((stored_bits >> 51) & 0xfff));
+      CHECK_EQ(0xFFE, static_cast<int>((stored_bits >> 51) & 0xFFF));
 #else
-      CHECK_EQ(0xfff, static_cast<int>((stored_bits >> 51) & 0xfff));
+      CHECK_EQ(0xFFF, static_cast<int>((stored_bits >> 51) & 0xFFF));
 #endif
     }
 
@@ -18797,9 +18844,9 @@ THREADED_TEST(QuietSignalingNaNs) {
     !defined(USE_SIMULATOR)
       // Most significant fraction bit for quiet nan is set to 0
       // on MIPS architecture. Allowed by IEEE-754.
-      CHECK_EQ(0xffe, static_cast<int>((stored_bits >> 51) & 0xfff));
+      CHECK_EQ(0xFFE, static_cast<int>((stored_bits >> 51) & 0xFFF));
 #else
-      CHECK_EQ(0xfff, static_cast<int>((stored_bits >> 51) & 0xfff));
+      CHECK_EQ(0xFFF, static_cast<int>((stored_bits >> 51) & 0xFFF));
 #endif
     }
   }
@@ -22172,20 +22219,20 @@ UNINITIALIZED_TEST(IsolateEmbedderData) {
     CHECK(!i_isolate->GetData(slot));
   }
   for (uint32_t slot = 0; slot < v8::Isolate::GetNumberOfDataSlots(); ++slot) {
-    void* data = reinterpret_cast<void*>(0xacce55ed + slot);
+    void* data = reinterpret_cast<void*>(0xACCE55ED + slot);
     isolate->SetData(slot, data);
   }
   for (uint32_t slot = 0; slot < v8::Isolate::GetNumberOfDataSlots(); ++slot) {
-    void* data = reinterpret_cast<void*>(0xacce55ed + slot);
+    void* data = reinterpret_cast<void*>(0xACCE55ED + slot);
     CHECK_EQ(data, isolate->GetData(slot));
     CHECK_EQ(data, i_isolate->GetData(slot));
   }
   for (uint32_t slot = 0; slot < v8::Isolate::GetNumberOfDataSlots(); ++slot) {
-    void* data = reinterpret_cast<void*>(0xdecea5ed + slot);
+    void* data = reinterpret_cast<void*>(0xDECEA5ED + slot);
     isolate->SetData(slot, data);
   }
   for (uint32_t slot = 0; slot < v8::Isolate::GetNumberOfDataSlots(); ++slot) {
-    void* data = reinterpret_cast<void*>(0xdecea5ed + slot);
+    void* data = reinterpret_cast<void*>(0xDECEA5ED + slot);
     CHECK_EQ(data, isolate->GetData(slot));
     CHECK_EQ(data, i_isolate->GetData(slot));
   }
@@ -22316,15 +22363,12 @@ THREADED_TEST(InstanceCheckOnInstanceAccessor) {
   CheckInstanceCheckedAccessors(false);
 }
 
-
 static void EmptyInterceptorGetter(
-    Local<String> name, const v8::PropertyCallbackInfo<v8::Value>& info) {}
-
+    Local<Name> name, const v8::PropertyCallbackInfo<v8::Value>& info) {}
 
 static void EmptyInterceptorSetter(
-    Local<String> name, Local<Value> value,
+    Local<Name> name, Local<Value> value,
     const v8::PropertyCallbackInfo<v8::Value>& info) {}
-
 
 THREADED_TEST(InstanceCheckOnInstanceAccessorWithInterceptor) {
   v8::internal::FLAG_allow_natives_syntax = true;
@@ -22333,8 +22377,8 @@ THREADED_TEST(InstanceCheckOnInstanceAccessorWithInterceptor) {
 
   Local<FunctionTemplate> templ = FunctionTemplate::New(context->GetIsolate());
   Local<ObjectTemplate> inst = templ->InstanceTemplate();
-  templ->InstanceTemplate()->SetNamedPropertyHandler(EmptyInterceptorGetter,
-                                                     EmptyInterceptorSetter);
+  templ->InstanceTemplate()->SetHandler(v8::NamedPropertyHandlerConfiguration(
+      EmptyInterceptorGetter, EmptyInterceptorSetter));
   inst->SetAccessor(v8_str("foo"), InstanceCheckedGetter, InstanceCheckedSetter,
                     Local<Value>(), v8::DEFAULT, v8::None,
                     v8::AccessorSignature::New(context->GetIsolate(), templ));
@@ -22835,7 +22879,7 @@ THREADED_TEST(SemaphoreInterruption) {
 
 
 void UnreachableCallback(const v8::FunctionCallbackInfo<v8::Value>& args) {
-  CHECK(false);
+  UNREACHABLE();
 }
 
 
@@ -26412,7 +26456,7 @@ TEST(Proxy) {
   CHECK(proxy->IsProxy());
   CHECK(!target->IsProxy());
   CHECK(proxy->IsRevoked());
-  CHECK(proxy->GetTarget()->SameValue(target));
+  CHECK(proxy->GetTarget()->IsNull());
   CHECK(proxy->GetHandler()->IsNull());
 }
 

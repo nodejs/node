@@ -94,7 +94,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   Local<Promise> promise = resolver->GetPromise();
 
   AsyncCompile(i_isolate, Utils::OpenHandle(*promise),
-               ModuleWireBytes(data, data + size));
+               ModuleWireBytes(data, data + size), false);
 
   ASSIGN(Function, instantiate_impl,
          Function::New(support->GetContext(), &InstantiateCallback,

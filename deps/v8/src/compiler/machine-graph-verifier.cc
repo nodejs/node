@@ -116,10 +116,6 @@ class MachineRepresentationInferrer {
             representation_vector_[node->id()] = PromoteRepresentation(
                 LoadRepresentationOf(node->op()).representation());
             break;
-          case IrOpcode::kCheckedLoad:
-            representation_vector_[node->id()] = PromoteRepresentation(
-                CheckedLoadRepresentationOf(node->op()).representation());
-            break;
           case IrOpcode::kLoadStackPointer:
           case IrOpcode::kLoadFramePointer:
           case IrOpcode::kLoadParentFramePointer:
@@ -164,10 +160,6 @@ class MachineRepresentationInferrer {
           case IrOpcode::kProtectedStore:
             representation_vector_[node->id()] = PromoteRepresentation(
                 StoreRepresentationOf(node->op()).representation());
-            break;
-          case IrOpcode::kCheckedStore:
-            representation_vector_[node->id()] =
-                PromoteRepresentation(CheckedStoreRepresentationOf(node->op()));
             break;
           case IrOpcode::kUnalignedStore:
             representation_vector_[node->id()] = PromoteRepresentation(
@@ -273,6 +265,11 @@ class MachineRepresentationInferrer {
                   MachineRepresentation::kFloat64;
             }
             break;
+          case IrOpcode::kI32x4ReplaceLane:
+          case IrOpcode::kI32x4Splat:
+            representation_vector_[node->id()] =
+                MachineRepresentation::kSimd128;
+            break;
 #undef LABEL
           default:
             break;
@@ -376,6 +373,14 @@ class MachineRepresentationChecker {
           case IrOpcode::kI8x16ExtractLane:
             CheckValueInputRepresentationIs(node, 0,
                                             MachineRepresentation::kSimd128);
+            break;
+          case IrOpcode::kI32x4ReplaceLane:
+            CheckValueInputRepresentationIs(node, 0,
+                                            MachineRepresentation::kSimd128);
+            CheckValueInputForInt32Op(node, 1);
+            break;
+          case IrOpcode::kI32x4Splat:
+            CheckValueInputForInt32Op(node, 0);
             break;
 #define LABEL(opcode) case IrOpcode::k##opcode:
           case IrOpcode::kChangeInt32ToTagged:
@@ -562,7 +567,7 @@ class MachineRepresentationChecker {
               str << "Node #" << node->id() << ":" << *node->op()
                   << " in the machine graph is not being checked.";
               PrintDebugHelp(str, node);
-              FATAL(str.str().c_str());
+              FATAL("%s", str.str().c_str());
             }
             break;
         }
@@ -592,7 +597,7 @@ class MachineRepresentationChecker {
           << input_representation << " which doesn't have a " << representation
           << " representation.";
       PrintDebugHelp(str, node);
-      FATAL(str.str().c_str());
+      FATAL("%s", str.str().c_str());
     }
   }
 
@@ -611,7 +616,7 @@ class MachineRepresentationChecker {
         << " uses node #" << input->id() << ":" << *input->op()
         << " which doesn't have a tagged representation.";
     PrintDebugHelp(str, node);
-    FATAL(str.str().c_str());
+    FATAL("%s", str.str().c_str());
   }
 
   void CheckValueInputIsTaggedOrPointer(Node const* node, int index) {
@@ -644,7 +649,7 @@ class MachineRepresentationChecker {
           << " uses node #" << input->id() << ":" << *input->op()
           << " which doesn't have a tagged or pointer representation.";
       PrintDebugHelp(str, node);
-      FATAL(str.str().c_str());
+      FATAL("%s", str.str().c_str());
     }
   }
 
@@ -661,7 +666,7 @@ class MachineRepresentationChecker {
         str << "TypeError: node #" << input->id() << ":" << *input->op()
             << " is untyped.";
         PrintDebugHelp(str, node);
-        FATAL(str.str().c_str());
+        FATAL("%s", str.str().c_str());
         break;
       }
       default:
@@ -672,7 +677,7 @@ class MachineRepresentationChecker {
         << " uses node #" << input->id() << ":" << *input->op()
         << " which doesn't have an int32-compatible representation.";
     PrintDebugHelp(str, node);
-    FATAL(str.str().c_str());
+    FATAL("%s", str.str().c_str());
   }
 
   void CheckValueInputForInt64Op(Node const* node, int index) {
@@ -687,7 +692,7 @@ class MachineRepresentationChecker {
         str << "TypeError: node #" << input->id() << ":" << *input->op()
             << " is untyped.";
         PrintDebugHelp(str, node);
-        FATAL(str.str().c_str());
+        FATAL("%s", str.str().c_str());
         break;
       }
 
@@ -700,7 +705,7 @@ class MachineRepresentationChecker {
         << input_representation
         << " which doesn't have a kWord64 representation.";
     PrintDebugHelp(str, node);
-    FATAL(str.str().c_str());
+    FATAL("%s", str.str().c_str());
   }
 
   void CheckValueInputForFloat32Op(Node const* node, int index) {
@@ -714,7 +719,7 @@ class MachineRepresentationChecker {
         << " uses node #" << input->id() << ":" << *input->op()
         << " which doesn't have a kFloat32 representation.";
     PrintDebugHelp(str, node);
-    FATAL(str.str().c_str());
+    FATAL("%s", str.str().c_str());
   }
 
   void CheckValueInputForFloat64Op(Node const* node, int index) {
@@ -728,7 +733,7 @@ class MachineRepresentationChecker {
         << " uses node #" << input->id() << ":" << *input->op()
         << " which doesn't have a kFloat64 representation.";
     PrintDebugHelp(str, node);
-    FATAL(str.str().c_str());
+    FATAL("%s", str.str().c_str());
   }
 
   void CheckCallInputs(Node const* node) {
@@ -755,7 +760,7 @@ class MachineRepresentationChecker {
     }
     if (should_log_error) {
       PrintDebugHelp(str, node);
-      FATAL(str.str().c_str());
+      FATAL("%s", str.str().c_str());
     }
   }
 

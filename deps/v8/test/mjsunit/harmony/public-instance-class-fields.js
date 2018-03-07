@@ -52,15 +52,7 @@
     b = x;
     c = 1;
     hasOwnProperty() { return 1;}
-    static [x] = 2;
-    static b = 3;
-    static d;
   }
-
-  assertEquals(2, C.a);
-  assertEquals(3, C.b);
-  assertEquals(undefined, C.d);
-  assertEquals(undefined, C.c);
 
   let c = new C;
   assertEquals(undefined, c.a);
@@ -270,7 +262,7 @@
   let c = new C;
   assertEquals(1, c.a);
   assertEquals(undefined, c.b);
-  assertEquals(undefined, c.c1);
+  assertEquals(undefined, c[c1]);
 }
 
 {
@@ -281,10 +273,10 @@
   }
 
   class C {
-    [run(1)] = run(7);
-    [run(2)] = run(8);
+    [run(1)] = run(6);
+    [run(2)] = run(7);
     [run(3)]() { run(9);}
-    static [run(4)] = run(6);
+    [run(4)] = run(8);
     [run(5)]() { throw new Error('should not execute');};
   }
 
@@ -303,10 +295,10 @@ function x() {
     }
 
     class C {
-      [run(1)] = run(7);
-      [run(2)] = run(8);
+      [run(1)] = run(6);
+      [run(2)] = run(7);
       [run(3)]() { run(9);}
-      static [run(4)] = run(6);
+      [run(4)] = run(8);
       [run(5)]() { throw new Error('should not execute');};
     }
 
@@ -315,7 +307,7 @@ function x() {
     assertEquals([1, 2, 3, 4, 5, 6, 7, 8, 9], log);
   }
 }
-x();
+x()();
 
 {
   class C {}
@@ -637,20 +629,6 @@ x();
 }
 
 {
-  function t() {
-    return class {
-      ['x'] = 1;
-      static ['x'] = 2;
-    }
-  }
-
-  let klass = t();
-  let obj = new klass;
-  assertEquals(1, obj.x);
-  assertEquals(2, klass.x);
-}
-
-{
   new class {
     t = 1;
     constructor(t = this.t) {
@@ -673,4 +651,48 @@ x();
       }
     }
   }, ReferenceError);
+}
+
+{
+  class X {
+    p = function() { return arguments[0]; }
+  }
+
+  let x = new X;
+  assertEquals(1, x.p(1));
+}
+
+{
+  class X {
+    t = () => {
+      function p() { return arguments[0]; };
+      return p;
+    }
+  }
+
+  let x = new X;
+  let p = x.t();
+  assertEquals(1, p(1));
+}
+
+{
+  class X {
+    t = () => {
+      function p() { return eval("arguments[0]"); };
+      return p;
+    }
+  }
+
+  let x = new X;
+  let p = x.t();
+  assertEquals(1, p(1));
+}
+
+{
+  class X {
+    p = eval("(function() { return arguments[0]; })(1)");
+  }
+
+  let x = new X;
+  assertEquals(1, x.p);
 }

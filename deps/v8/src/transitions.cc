@@ -17,7 +17,7 @@ void TransitionsAccessor::Initialize() {
     encoding_ = kUninitialized;
   } else if (HeapObject::cast(raw_transitions_)->IsWeakCell()) {
     encoding_ = kWeakCell;
-  } else if (StoreHandler::IsHandler(raw_transitions_)) {
+  } else if (HeapObject::cast(raw_transitions_)->IsStoreHandler()) {
     encoding_ = kHandler;
   } else if (HeapObject::cast(raw_transitions_)->IsTransitionArray()) {
     encoding_ = kFullTransitionArray;
@@ -250,7 +250,7 @@ Object* TransitionsAccessor::SearchHandler(Name* name,
       int transition = transitions()->Search(kData, name, NONE);
       if (transition == kNotFound) return nullptr;
       Object* raw_handler = transitions()->GetRawTarget(transition);
-      if (StoreHandler::IsHandler(raw_handler)) {
+      if (raw_handler->IsStoreHandler()) {
         return StoreHandler::ValidHandlerOrNull(raw_handler, name,
                                                 out_transition);
       }

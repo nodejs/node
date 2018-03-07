@@ -439,6 +439,61 @@ RUNTIME_FUNCTION(Runtime_OptimizeObjectForAddingMultipleProperties) {
   return *object;
 }
 
+RUNTIME_FUNCTION(Runtime_ObjectValues) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(1, args.length());
+
+  CONVERT_ARG_HANDLE_CHECKED(JSReceiver, receiver, 0);
+
+  Handle<FixedArray> values;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, values,
+      JSReceiver::GetOwnValues(receiver, PropertyFilter::ENUMERABLE_STRINGS,
+                               true));
+  return *isolate->factory()->NewJSArrayWithElements(values);
+}
+
+RUNTIME_FUNCTION(Runtime_ObjectValuesSkipFastPath) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(1, args.length());
+
+  CONVERT_ARG_HANDLE_CHECKED(JSReceiver, receiver, 0);
+
+  Handle<FixedArray> value;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, value,
+      JSReceiver::GetOwnValues(receiver, PropertyFilter::ENUMERABLE_STRINGS,
+                               false));
+  return *isolate->factory()->NewJSArrayWithElements(value);
+}
+
+RUNTIME_FUNCTION(Runtime_ObjectEntries) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(1, args.length());
+
+  CONVERT_ARG_HANDLE_CHECKED(JSReceiver, receiver, 0);
+
+  Handle<FixedArray> entries;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, entries,
+      JSReceiver::GetOwnEntries(receiver, PropertyFilter::ENUMERABLE_STRINGS,
+                                true));
+  return *isolate->factory()->NewJSArrayWithElements(entries);
+}
+
+RUNTIME_FUNCTION(Runtime_ObjectEntriesSkipFastPath) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(1, args.length());
+
+  CONVERT_ARG_HANDLE_CHECKED(JSReceiver, receiver, 0);
+
+  Handle<FixedArray> entries;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, entries,
+      JSReceiver::GetOwnEntries(receiver, PropertyFilter::ENUMERABLE_STRINGS,
+                                false));
+  return *isolate->factory()->NewJSArrayWithElements(entries);
+}
 
 RUNTIME_FUNCTION(Runtime_GetProperty) {
   HandleScope scope(isolate);

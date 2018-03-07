@@ -176,7 +176,7 @@ TEST_F(WasmLoopAssignmentAnalyzerTest, Loop2) {
 }
 
 TEST_F(WasmLoopAssignmentAnalyzerTest, Malformed) {
-  byte code[] = {kExprLoop, kLocalVoid, kExprF32Neg, kExprBrTable, 0x0e, 'h',
+  byte code[] = {kExprLoop, kLocalVoid, kExprF32Neg, kExprBrTable, 0x0E, 'h',
                  'e',       'l',        'l',         'o',          ',',  ' ',
                  'w',       'o',        'r',         'l',          'd',  '!'};
   BitVector* assigned = Analyze(code, code + arraysize(code));
@@ -185,8 +185,8 @@ TEST_F(WasmLoopAssignmentAnalyzerTest, Malformed) {
 
 TEST_F(WasmLoopAssignmentAnalyzerTest, regress_642867) {
   static const byte code[] = {
-      WASM_LOOP(WASM_ZERO, kExprSetLocal, 0xfa, 0xff, 0xff, 0xff,
-                0x0f)};  // local index LEB128 0xfffffffa
+      WASM_LOOP(WASM_ZERO, kExprSetLocal, 0xFA, 0xFF, 0xFF, 0xFF,
+                0x0F)};  // local index LEB128 0xFFFFFFFA
   // Just make sure that the analysis does not crash.
   Analyze(code, code + arraysize(code));
 }

@@ -331,11 +331,7 @@ void V8Debugger::pauseOnAsyncCall(int targetContextGroupId, uintptr_t task,
   m_targetContextGroupId = targetContextGroupId;
 
   m_taskWithScheduledBreak = reinterpret_cast<void*>(task);
-  String16 currentDebuggerId =
-      debuggerIdToString(debuggerIdFor(targetContextGroupId));
-  if (currentDebuggerId != debuggerId) {
-    m_taskWithScheduledBreakDebuggerId = debuggerId;
-  }
+  m_taskWithScheduledBreakDebuggerId = debuggerId;
 }
 
 Response V8Debugger::continueToLocation(
@@ -542,19 +538,18 @@ void V8Debugger::PromiseEventOccurred(v8::debug::PromiseDebugActionType type,
   switch (type) {
     case v8::debug::kDebugAsyncFunctionPromiseCreated:
       asyncTaskScheduledForStack("async function", task, true);
-      if (!isBlackboxed) asyncTaskCandidateForStepping(task);
       break;
     case v8::debug::kDebugPromiseThen:
       asyncTaskScheduledForStack("Promise.then", task, false);
-      if (!isBlackboxed) asyncTaskCandidateForStepping(task);
+      if (!isBlackboxed) asyncTaskCandidateForStepping(task, true);
       break;
     case v8::debug::kDebugPromiseCatch:
       asyncTaskScheduledForStack("Promise.catch", task, false);
-      if (!isBlackboxed) asyncTaskCandidateForStepping(task);
+      if (!isBlackboxed) asyncTaskCandidateForStepping(task, true);
       break;
     case v8::debug::kDebugPromiseFinally:
       asyncTaskScheduledForStack("Promise.finally", task, false);
-      if (!isBlackboxed) asyncTaskCandidateForStepping(task);
+      if (!isBlackboxed) asyncTaskCandidateForStepping(task, true);
       break;
     case v8::debug::kDebugWillHandle:
       asyncTaskStartedForStack(task);
@@ -767,7 +762,7 @@ V8StackTraceId V8Debugger::storeCurrentStackTrace(
   ++m_asyncStacksCount;
   collectOldAsyncStacksIfNeeded();
 
-  asyncTaskCandidateForStepping(reinterpret_cast<void*>(id));
+  asyncTaskCandidateForStepping(reinterpret_cast<void*>(id), false);
 
   return V8StackTraceId(id, debuggerIdFor(contextGroupId));
 }
@@ -816,7 +811,7 @@ void V8Debugger::externalAsyncTaskFinished(const V8StackTraceId& parent) {
 void V8Debugger::asyncTaskScheduled(const StringView& taskName, void* task,
                                     bool recurring) {
   asyncTaskScheduledForStack(toString16(taskName), task, recurring);
-  asyncTaskCandidateForStepping(task);
+  asyncTaskCandidateForStepping(task, true);
 }
 
 void V8Debugger::asyncTaskCanceled(void* task) {
@@ -890,16 +885,23 @@ void V8Debugger::asyncTaskFinishedForStack(void* task) {
   }
 }
 
-void V8Debugger::asyncTaskCandidateForStepping(void* task) {
-  if (m_pauseOnAsyncCall) {
-    m_scheduledAsyncTask = task;
+void V8Debugger::asyncTaskCandidateForStepping(void* task, bool isLocal) {
+  int contextGroupId = currentContextGroupId();
+  if (m_pauseOnAsyncCall && contextGroupId) {
+    if (isLocal) {
+      m_scheduledAsyncCall = v8_inspector::V8StackTraceId(
+          reinterpret_cast<uintptr_t>(task), std::make_pair(0, 0));
+    } else {
+      m_scheduledAsyncCall = v8_inspector::V8StackTraceId(
+          reinterpret_cast<uintptr_t>(task), debuggerIdFor(contextGroupId));
+    }
     breakProgram(m_targetContextGroupId);
-    m_scheduledAsyncTask = nullptr;
+    m_scheduledAsyncCall = v8_inspector::V8StackTraceId();
     return;
   }
   if (!m_stepIntoAsyncCallback) return;
   DCHECK(m_targetContextGroupId);
-  if (currentContextGroupId() != m_targetContextGroupId) return;
+  if (contextGroupId != m_targetContextGroupId) return;
   m_taskWithScheduledBreak = task;
   v8::debug::ClearStepping(m_isolate);
   m_stepIntoAsyncCallback->sendSuccess();
@@ -1031,6 +1033,7 @@ std::pair<int64_t, int64_t> V8Debugger::debuggerIdFor(int contextGroupId) {
   std::pair<int64_t, int64_t> debuggerId(
       v8::debug::GetNextRandomInt64(m_isolate),
       v8::debug::GetNextRandomInt64(m_isolate));
+  if (!debuggerId.first && !debuggerId.second) ++debuggerId.first;
   m_contextGroupIdToDebuggerId.insert(
       it, std::make_pair(contextGroupId, debuggerId));
   m_serializedDebuggerIdToDebuggerId.insert(

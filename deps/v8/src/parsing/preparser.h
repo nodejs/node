@@ -956,12 +956,18 @@ class PreParser : public ParserBase<PreParser> {
                bool is_inner_function, bool may_abort, bool* ok) {
     UNREACHABLE();
   }
-  Expression ParseFunctionLiteral(Identifier name,
-                                  Scanner::Location function_name_location,
-                                  FunctionNameValidity function_name_validity,
-                                  FunctionKind kind, int function_token_pos,
-                                  FunctionLiteral::FunctionType function_type,
-                                  LanguageMode language_mode, bool* ok);
+
+  Expression ParseFunctionLiteral(
+      Identifier name, Scanner::Location function_name_location,
+      FunctionNameValidity function_name_validity, FunctionKind kind,
+      int function_token_pos, FunctionLiteral::FunctionType function_type,
+      LanguageMode language_mode,
+      ZoneList<const AstRawString*>* arguments_for_wrapped_function, bool* ok);
+
+  PreParserExpression InitializeObjectLiteral(PreParserExpression literal) {
+    return literal;
+  }
+
   LazyParsingResult ParseStatementListAndLogFunction(
       PreParserFormalParameters* formals, bool maybe_abort, bool* ok);
 
@@ -999,7 +1005,6 @@ class PreParser : public ParserBase<PreParser> {
   V8_INLINE void RewriteAsyncFunctionBody(
       PreParserStatementList body, PreParserStatement block,
       const PreParserExpression& return_value, bool* ok) {}
-  V8_INLINE void RewriteNonPattern(bool* ok) { ValidateExpression(ok); }
 
   void DeclareAndInitializeVariables(
       PreParserStatement block,
@@ -1186,8 +1191,6 @@ class PreParser : public ParserBase<PreParser> {
 
   V8_INLINE void QueueDestructuringAssignmentForRewriting(
       PreParserExpression assignment) {}
-  V8_INLINE void QueueNonPatternForRewriting(const PreParserExpression& expr,
-                                             bool* ok) {}
 
   // Helper functions for recursive descent.
   V8_INLINE bool IsEval(const PreParserIdentifier& identifier) const {
@@ -1663,10 +1666,6 @@ class PreParser : public ParserBase<PreParser> {
   V8_INLINE ZoneList<typename ExpressionClassifier::Error>*
   GetReportedErrorList() const {
     return function_state_->GetReportedErrorList();
-  }
-
-  V8_INLINE ZoneList<PreParserExpression>* GetNonPatternList() const {
-    return function_state_->non_patterns_to_rewrite();
   }
 
   V8_INLINE void CountUsage(v8::Isolate::UseCounterFeature feature) {

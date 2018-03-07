@@ -84,8 +84,7 @@ class StubCache {
   static const int kSecondaryTableBits = 9;
   static const int kSecondaryTableSize = (1 << kSecondaryTableBits);
 
-  // Some magic number used in primary and secondary hash computations.
-  static const int kPrimaryMagic = 0x3d532433;
+  // Some magic number used in the secondary hash computation.
   static const int kSecondaryMagic = 0xb16ca6e5;
 
   static int PrimaryOffsetForTesting(Name* name, Map* map) {

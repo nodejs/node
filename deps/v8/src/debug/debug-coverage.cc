@@ -344,6 +344,16 @@ bool IsBlockMode(debug::Coverage::Mode mode) {
   }
 }
 
+bool IsBinaryMode(debug::Coverage::Mode mode) {
+  switch (mode) {
+    case debug::Coverage::kBlockBinary:
+    case debug::Coverage::kPreciseBinary:
+      return true;
+    default:
+      return false;
+  }
+}
+
 void CollectBlockCoverage(Isolate* isolate, CoverageFunction* function,
                           SharedFunctionInfo* info,
                           debug::Coverage::Mode mode) {
@@ -535,14 +545,29 @@ void Coverage::SelectMode(Isolate* isolate, debug::Coverage::Mode mode) {
     case debug::Coverage::kPreciseBinary:
     case debug::Coverage::kPreciseCount: {
       HandleScope scope(isolate);
+
       // Remove all optimized function. Optimized and inlined functions do not
       // increment invocation count.
       Deoptimizer::DeoptimizeAll(isolate);
-      if (isolate->factory()
-              ->feedback_vectors_for_profiling_tools()
-              ->IsUndefined(isolate)) {
-        isolate->InitializeVectorListFromHeap();
+
+      // Root all feedback vectors to avoid early collection.
+      isolate->MaybeInitializeVectorListFromHeap();
+
+      HeapIterator heap_iterator(isolate->heap());
+      while (HeapObject* o = heap_iterator.next()) {
+        if (IsBinaryMode(mode) && o->IsSharedFunctionInfo()) {
+          // If collecting binary coverage, reset
+          // SFI::has_reported_binary_coverage to avoid optimizing / inlining
+          // functions before they have reported coverage.
+          SharedFunctionInfo* shared = SharedFunctionInfo::cast(o);
+          shared->set_has_reported_binary_coverage(false);
+        } else if (o->IsFeedbackVector()) {
+          // In any case, clear any collected invocation counts.
+          FeedbackVector* vector = FeedbackVector::cast(o);
+          vector->clear_invocation_count();
+        }
       }
+
       break;
     }
   }

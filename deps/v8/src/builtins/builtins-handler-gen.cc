@@ -23,17 +23,6 @@ TF_BUILTIN(LoadIC_StringWrapperLength, CodeStubAssembler) {
   Return(LoadStringLengthAsSmi(string));
 }
 
-TF_BUILTIN(KeyedLoadIC_Miss, CodeStubAssembler) {
-  Node* receiver = Parameter(Descriptor::kReceiver);
-  Node* name = Parameter(Descriptor::kName);
-  Node* slot = Parameter(Descriptor::kSlot);
-  Node* vector = Parameter(Descriptor::kVector);
-  Node* context = Parameter(Descriptor::kContext);
-
-  TailCallRuntime(Runtime::kKeyedLoadIC_Miss, context, receiver, name, slot,
-                  vector);
-}
-
 TF_BUILTIN(KeyedLoadIC_Slow, CodeStubAssembler) {
   Node* receiver = Parameter(Descriptor::kReceiver);
   Node* name = Parameter(Descriptor::kName);
@@ -52,18 +41,6 @@ void Builtins::Generate_StoreIC_Uninitialized(
   StoreICUninitializedGenerator::Generate(state);
 }
 
-TF_BUILTIN(KeyedStoreIC_Miss, CodeStubAssembler) {
-  Node* receiver = Parameter(Descriptor::kReceiver);
-  Node* name = Parameter(Descriptor::kName);
-  Node* value = Parameter(Descriptor::kValue);
-  Node* slot = Parameter(Descriptor::kSlot);
-  Node* vector = Parameter(Descriptor::kVector);
-  Node* context = Parameter(Descriptor::kContext);
-
-  TailCallRuntime(Runtime::kKeyedStoreIC_Miss, context, value, slot, vector,
-                  receiver, name);
-}
-
 TF_BUILTIN(KeyedStoreIC_Slow, CodeStubAssembler) {
   Node* receiver = Parameter(Descriptor::kReceiver);
   Node* name = Parameter(Descriptor::kName);
@@ -76,15 +53,6 @@ TF_BUILTIN(KeyedStoreIC_Slow, CodeStubAssembler) {
   // an IC miss that would otherwise cause a transition to the generic stub.
   TailCallRuntime(Runtime::kKeyedStoreIC_Slow, context, value, slot, vector,
                   receiver, name);
-}
-
-TF_BUILTIN(LoadGlobalIC_Miss, CodeStubAssembler) {
-  Node* name = Parameter(Descriptor::kName);
-  Node* slot = Parameter(Descriptor::kSlot);
-  Node* vector = Parameter(Descriptor::kVector);
-  Node* context = Parameter(Descriptor::kContext);
-
-  TailCallRuntime(Runtime::kLoadGlobalIC_Miss, context, name, slot, vector);
 }
 
 TF_BUILTIN(LoadGlobalIC_Slow, CodeStubAssembler) {
@@ -110,34 +78,12 @@ TF_BUILTIN(LoadIC_FunctionPrototype, CodeStubAssembler) {
   TailCallRuntime(Runtime::kLoadIC_Miss, context, receiver, name, slot, vector);
 }
 
-TF_BUILTIN(LoadIC_Miss, CodeStubAssembler) {
-  Node* receiver = Parameter(Descriptor::kReceiver);
-  Node* name = Parameter(Descriptor::kName);
-  Node* slot = Parameter(Descriptor::kSlot);
-  Node* vector = Parameter(Descriptor::kVector);
-  Node* context = Parameter(Descriptor::kContext);
-
-  TailCallRuntime(Runtime::kLoadIC_Miss, context, receiver, name, slot, vector);
-}
-
 TF_BUILTIN(LoadIC_Slow, CodeStubAssembler) {
   Node* receiver = Parameter(Descriptor::kReceiver);
   Node* name = Parameter(Descriptor::kName);
   Node* context = Parameter(Descriptor::kContext);
 
   TailCallRuntime(Runtime::kGetProperty, context, receiver, name);
-}
-
-TF_BUILTIN(StoreIC_Miss, CodeStubAssembler) {
-  Node* receiver = Parameter(Descriptor::kReceiver);
-  Node* name = Parameter(Descriptor::kName);
-  Node* value = Parameter(Descriptor::kValue);
-  Node* slot = Parameter(Descriptor::kSlot);
-  Node* vector = Parameter(Descriptor::kVector);
-  Node* context = Parameter(Descriptor::kContext);
-
-  TailCallRuntime(Runtime::kStoreIC_Miss, context, value, slot, vector,
-                  receiver, name);
 }
 
 TF_BUILTIN(StoreGlobalIC_Slow, CodeStubAssembler) {

@@ -9,10 +9,12 @@
 #include "src/external-reference-table.h"
 #include "src/objects-inl.h"
 #include "src/objects.h"
+#include "src/snapshot/code-serializer.h"
 #include "src/snapshot/serializer-common.h"
 #include "src/version.h"
 #include "src/wasm/module-compiler.h"
 #include "src/wasm/module-decoder.h"
+#include "src/wasm/wasm-code-manager.h"
 #include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-objects-inl.h"
 #include "src/wasm/wasm-objects.h"
@@ -21,20 +23,7 @@
 namespace v8 {
 namespace internal {
 namespace wasm {
-
 namespace {
-void SetRawTargetData(RelocInfo* rinfo, uint32_t value) {
-  if (rinfo->target_address_size() == sizeof(uint32_t)) {
-    *(reinterpret_cast<uint32_t*>(rinfo->target_address_address())) = value;
-    return;
-  } else {
-    DCHECK_EQ(rinfo->target_address_size(), sizeof(intptr_t));
-    DCHECK_EQ(rinfo->target_address_size(), 8);
-    *(reinterpret_cast<intptr_t*>(rinfo->target_address_address())) =
-        static_cast<intptr_t>(value);
-    return;
-  }
-}
 
 class Writer {
  public:
@@ -108,30 +97,90 @@ class Reader {
   Vector<const byte> buffer_;
 };
 
-}  // namespace
+constexpr size_t kVersionSize = 4 * sizeof(uint32_t);
 
-size_t WasmSerializedFormatVersion::GetVersionSize() { return kVersionSize; }
-
-bool WasmSerializedFormatVersion::WriteVersion(Isolate* isolate,
-                                               Vector<byte> buffer) {
-  if (buffer.size() < GetVersionSize()) return false;
+void WriteVersion(Isolate* isolate, Vector<byte> buffer) {
+  DCHECK_GE(buffer.size(), kVersionSize);
   Writer writer(buffer);
   writer.Write(SerializedData::ComputeMagicNumber(
       ExternalReferenceTable::instance(isolate)));
   writer.Write(Version::Hash());
   writer.Write(static_cast<uint32_t>(CpuFeatures::SupportedFeatures()));
   writer.Write(FlagList::Hash());
-  return true;
 }
 
-bool WasmSerializedFormatVersion::IsSupportedVersion(
-    Isolate* isolate, const Vector<const byte> buffer) {
+bool IsSupportedVersion(Isolate* isolate, const Vector<const byte> buffer) {
   if (buffer.size() < kVersionSize) return false;
   byte version[kVersionSize];
-  CHECK(WriteVersion(isolate, {version, kVersionSize}));
+  WriteVersion(isolate, {version, kVersionSize});
   if (memcmp(buffer.start(), version, kVersionSize) == 0) return true;
   return false;
 }
+
+}  // namespace
+
+enum SerializationSection { Init, Metadata, Stubs, CodeSection, Done };
+
+class V8_EXPORT_PRIVATE NativeModuleSerializer {
+ public:
+  explicit NativeModuleSerializer(Isolate*, const NativeModule*);
+  size_t Measure() const;
+  size_t Write(Vector<byte>);
+  bool IsDone() const { return state_ == Done; }
+
+ private:
+  size_t MeasureHeader() const;
+  static size_t GetCodeHeaderSize();
+  size_t MeasureCode(const WasmCode*) const;
+  size_t MeasureCopiedStubs() const;
+  FixedArray* GetHandlerTable(const WasmCode*) const;
+  ByteArray* GetSourcePositions(const WasmCode*) const;
+
+  void BufferHeader();
+  // we buffer all the stubs because they are small
+  void BufferCopiedStubs();
+  void BufferCodeInAllocatedScratch(const WasmCode*);
+  void BufferCurrentWasmCode();
+  size_t DrainBuffer(Vector<byte> dest);
+  uint32_t EncodeBuiltinOrStub(Address);
+
+  Isolate* const isolate_ = nullptr;
+  const NativeModule* const native_module_ = nullptr;
+  SerializationSection state_ = Init;
+  uint32_t index_ = 0;
+  std::vector<byte> scratch_;
+  Vector<byte> remaining_;
+  // wasm and copied stubs reverse lookup
+  std::map<Address, uint32_t> wasm_targets_lookup_;
+  // immovable builtins and runtime entries lookup
+  std::map<Address, uint32_t> reference_table_lookup_;
+  std::map<Address, uint32_t> stub_lookup_;
+  std::map<Address, uint32_t> builtin_lookup_;
+};
+
+class V8_EXPORT_PRIVATE NativeModuleDeserializer {
+ public:
+  explicit NativeModuleDeserializer(Isolate*, NativeModule*);
+  // Currently, we don't support streamed reading, yet albeit the
+  // API suggests that.
+  bool Read(Vector<const byte>);
+
+ private:
+  void ExpectHeader();
+  void Expect(size_t size);
+  bool ReadHeader();
+  bool ReadCode();
+  bool ReadStubs();
+  Address GetTrampolineOrStubFromTag(uint32_t);
+
+  Isolate* const isolate_ = nullptr;
+  NativeModule* const native_module_ = nullptr;
+  std::vector<byte> scratch_;
+  std::vector<Address> stubs_;
+  Vector<const byte> unread_;
+  size_t current_expectation_ = 0;
+  uint32_t index_ = 0;
+};
 
 NativeModuleSerializer::NativeModuleSerializer(Isolate* isolate,
                                                const NativeModule* module)
@@ -164,8 +213,8 @@ size_t NativeModuleSerializer::MeasureHeader() const {
          sizeof(
              uint32_t) +  // imported fcts - i.e. index of first wasm function
          sizeof(uint32_t) +  // table count
-         native_module_->specialization_data_.function_tables.size() *
-             2  // 2 same-sized tables, containing pointers
+         native_module_->specialization_data_.function_tables.size()
+             // function table, containing pointers
              * sizeof(GlobalHandleAddress);
 }
 
@@ -182,7 +231,6 @@ void NativeModuleSerializer::BufferHeader() {
               e = native_module_->specialization_data_.function_tables.size();
        i < e; ++i) {
     writer.Write(native_module_->specialization_data_.function_tables[i]);
-    writer.Write(native_module_->specialization_data_.signature_tables[i]);
   }
 }
 
@@ -279,7 +327,7 @@ void NativeModuleSerializer::BufferCopiedStubs() {
 
 FixedArray* NativeModuleSerializer::GetHandlerTable(
     const WasmCode* code) const {
-  if (code->kind() != WasmCode::Function) return nullptr;
+  if (code->kind() != WasmCode::kFunction) return nullptr;
   uint32_t index = code->index();
   // We write the address, the size, and then copy the code as-is, followed
   // by reloc info, followed by handler table and source positions.
@@ -294,7 +342,7 @@ FixedArray* NativeModuleSerializer::GetHandlerTable(
 
 ByteArray* NativeModuleSerializer::GetSourcePositions(
     const WasmCode* code) const {
-  if (code->kind() != WasmCode::Function) return nullptr;
+  if (code->kind() != WasmCode::kFunction) return nullptr;
   uint32_t index = code->index();
   Object* source_positions_entry =
       native_module_->compiled_module()->source_positions()->get(
@@ -372,17 +420,17 @@ void NativeModuleSerializer::BufferCodeInAllocatedScratch(
       case RelocInfo::CODE_TARGET: {
         Address orig_target = orig_iter.rinfo()->target_address();
         uint32_t tag = EncodeBuiltinOrStub(orig_target);
-        SetRawTargetData(iter.rinfo(), tag);
+        SetWasmCalleeTag(iter.rinfo(), tag);
       } break;
       case RelocInfo::WASM_CALL: {
         Address orig_target = orig_iter.rinfo()->wasm_call_address();
         uint32_t tag = wasm_targets_lookup_[orig_target];
-        SetRawTargetData(iter.rinfo(), tag);
+        SetWasmCalleeTag(iter.rinfo(), tag);
       } break;
       case RelocInfo::RUNTIME_ENTRY: {
         Address orig_target = orig_iter.rinfo()->target_address();
         uint32_t tag = reference_table_lookup_[orig_target];
-        SetRawTargetData(iter.rinfo(), tag);
+        SetWasmCalleeTag(iter.rinfo(), tag);
       } break;
       default:
         UNREACHABLE();
@@ -402,7 +450,7 @@ uint32_t NativeModuleSerializer::EncodeBuiltinOrStub(Address address) {
     DCHECK(stub_iter != stub_lookup_.end());
     uint32_t id = stub_iter->second;
     DCHECK_LT(id, std::numeric_limits<uint16_t>::max());
-    tag = id & 0x0000ffff;
+    tag = id & 0x0000FFFF;
   }
   return tag;
 }
@@ -423,15 +471,20 @@ size_t NativeModuleSerializer::Write(Vector<byte> dest) {
         dest = dest + DrainBuffer(dest);
         if (remaining_.size() == 0) {
           index_ = native_module_->num_imported_functions();
-          BufferCurrentWasmCode();
-          state_ = CodeSection;
+          if (index_ < native_module_->FunctionCount()) {
+            BufferCurrentWasmCode();
+            state_ = CodeSection;
+          } else {
+            state_ = Done;
+          }
         }
         break;
       }
       case CodeSection: {
         dest = dest + DrainBuffer(dest);
         if (remaining_.size() == 0) {
-          if (++index_ < native_module_->FunctionCount()) {
+          ++index_;  // Move to next code object.
+          if (index_ < native_module_->FunctionCount()) {
             BufferCurrentWasmCode();
           } else {
             state_ = Done;
@@ -448,18 +501,22 @@ size_t NativeModuleSerializer::Write(Vector<byte> dest) {
 }
 
 // static
-std::pair<std::unique_ptr<byte[]>, size_t>
-NativeModuleSerializer::SerializeWholeModule(
+std::pair<std::unique_ptr<const byte[]>, size_t> SerializeNativeModule(
     Isolate* isolate, Handle<WasmCompiledModule> compiled_module) {
+  if (!FLAG_wasm_jit_to_native) {
+    std::unique_ptr<ScriptData> script_data =
+        WasmCompiledModuleSerializer::SerializeWasmModule(isolate,
+                                                          compiled_module);
+    script_data->ReleaseDataOwnership();
+    size_t size = static_cast<size_t>(script_data->length());
+    return {std::unique_ptr<const byte[]>(script_data->data()), size};
+  }
   NativeModule* native_module = compiled_module->GetNativeModule();
   NativeModuleSerializer serializer(isolate, native_module);
-  size_t version_size = WasmSerializedFormatVersion::GetVersionSize();
+  size_t version_size = kVersionSize;
   size_t buff_size = serializer.Measure() + version_size;
   std::unique_ptr<byte[]> ret(new byte[buff_size]);
-  if (!WasmSerializedFormatVersion::WriteVersion(isolate,
-                                                 {ret.get(), buff_size})) {
-    return {};
-  }
+  WriteVersion(isolate, {ret.get(), buff_size});
 
   size_t written =
       serializer.Write({ret.get() + version_size, buff_size - version_size});
@@ -500,18 +557,14 @@ bool NativeModuleDeserializer::ReadHeader() {
   if (!ok) return false;
   size_t table_count = reader.Read<uint32_t>();
 
-  std::vector<GlobalHandleAddress> sigs(table_count);
   std::vector<GlobalHandleAddress> funcs(table_count);
   for (size_t i = 0; i < table_count; ++i) {
     funcs[i] = reader.Read<GlobalHandleAddress>();
-    sigs[i] = reader.Read<GlobalHandleAddress>();
   }
-  native_module_->signature_tables() = sigs;
   native_module_->function_tables() = funcs;
   // resize, so that from here on the native module can be
   // asked about num_function_tables().
   native_module_->empty_function_tables().resize(table_count);
-  native_module_->empty_signature_tables().resize(table_count);
 
   unread_ = unread_ + (start_size - reader.current_buffer().size());
   return true;
@@ -558,7 +611,7 @@ bool NativeModuleDeserializer::ReadCode() {
   }
   WasmCode* ret = native_module_->AddOwnedCode(
       code_buffer, std::move(reloc_info), reloc_size, Just(index_),
-      WasmCode::Function, constant_pool_offset, stack_slot_count,
+      WasmCode::kFunction, constant_pool_offset, stack_slot_count,
       safepoint_table_offset, protected_instructions, is_liftoff);
   if (ret == nullptr) return false;
   native_module_->SetCodeTable(index_, ret);
@@ -576,14 +629,15 @@ bool NativeModuleDeserializer::ReadCode() {
         // We only expect {undefined}. We check for that when we add code.
         iter.rinfo()->set_target_object(isolate_->heap()->undefined_value(),
                                         SKIP_WRITE_BARRIER);
+        break;
       }
       case RelocInfo::CODE_TARGET: {
-        uint32_t tag = *(reinterpret_cast<uint32_t*>(
-            iter.rinfo()->target_address_address()));
+        uint32_t tag = GetWasmCalleeTag(iter.rinfo());
         Address target = GetTrampolineOrStubFromTag(tag);
         iter.rinfo()->set_target_address(nullptr, target, SKIP_WRITE_BARRIER,
                                          SKIP_ICACHE_FLUSH);
-      } break;
+        break;
+      }
       case RelocInfo::RUNTIME_ENTRY: {
         uint32_t orig_target = static_cast<uint32_t>(
             reinterpret_cast<intptr_t>(iter.rinfo()->target_address()));
@@ -591,7 +645,8 @@ bool NativeModuleDeserializer::ReadCode() {
             ExternalReferenceTable::instance(isolate_)->address(orig_target);
         iter.rinfo()->set_target_runtime_entry(
             nullptr, address, SKIP_WRITE_BARRIER, SKIP_ICACHE_FLUSH);
-      } break;
+        break;
+      }
       default:
         break;
     }
@@ -624,25 +679,35 @@ bool NativeModuleDeserializer::ReadCode() {
 }
 
 Address NativeModuleDeserializer::GetTrampolineOrStubFromTag(uint32_t tag) {
-  if ((tag & 0x0000ffff) == 0) {
+  if ((tag & 0x0000FFFF) == 0) {
     int builtin_id = static_cast<int>(tag >> 16);
     v8::internal::Code* builtin = isolate_->builtins()->builtin(builtin_id);
     return native_module_->GetLocalAddressFor(handle(builtin));
   } else {
-    DCHECK_EQ(tag & 0xffff0000, 0);
+    DCHECK_EQ(tag & 0xFFFF0000, 0);
     return stubs_[tag];
   }
 }
 
-MaybeHandle<WasmCompiledModule> NativeModuleDeserializer::DeserializeFullBuffer(
+MaybeHandle<WasmCompiledModule> DeserializeNativeModule(
     Isolate* isolate, Vector<const byte> data, Vector<const byte> wire_bytes) {
+  if (!FLAG_wasm_jit_to_native) {
+    ScriptData script_data(data.start(), data.length());
+    Handle<FixedArray> compiled_module;
+    if (!WasmCompiledModuleSerializer::DeserializeWasmModule(
+             isolate, &script_data, wire_bytes)
+             .ToHandle(&compiled_module)) {
+      return {};
+    }
+    return Handle<WasmCompiledModule>::cast(compiled_module);
+  }
   if (!IsWasmCodegenAllowed(isolate, isolate->native_context())) {
     return {};
   }
-  if (!WasmSerializedFormatVersion::IsSupportedVersion(isolate, data)) {
+  if (!IsSupportedVersion(isolate, data)) {
     return {};
   }
-  data = data + WasmSerializedFormatVersion::GetVersionSize();
+  data = data + kVersionSize;
   ModuleResult decode_result =
       SyncDecodeWasmModule(isolate, wire_bytes.start(), wire_bytes.end(), false,
                            i::wasm::kWasmOrigin);
@@ -669,9 +734,11 @@ MaybeHandle<WasmCompiledModule> NativeModuleDeserializer::DeserializeFullBuffer(
       static_cast<int>(export_wrappers_size), TENURED);
 
   Handle<WasmCompiledModule> compiled_module = WasmCompiledModule::New(
-      isolate, shared->module(), isolate->factory()->NewFixedArray(0, TENURED),
-      export_wrappers, {}, {});
+      isolate, shared->module(), isolate->factory()->empty_fixed_array(),
+      export_wrappers, std::vector<wasm::GlobalHandleAddress>(),
+      trap_handler::IsTrapHandlerEnabled());
   compiled_module->OnWasmModuleDecodingComplete(shared);
+  script->set_wasm_compiled_module(*compiled_module);
   NativeModuleDeserializer deserializer(isolate,
                                         compiled_module->GetNativeModule());
   if (!deserializer.Read(data)) return {};

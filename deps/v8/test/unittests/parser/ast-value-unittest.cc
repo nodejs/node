@@ -41,10 +41,10 @@ TEST_F(AstValueTest, BigIntToBooleanIsTrue) {
   EXPECT_TRUE(NewBigInt("3")->ToBooleanIsTrue());
   EXPECT_TRUE(NewBigInt("0b1")->ToBooleanIsTrue());
   EXPECT_TRUE(NewBigInt("0o6")->ToBooleanIsTrue());
-  EXPECT_TRUE(NewBigInt("0xa")->ToBooleanIsTrue());
+  EXPECT_TRUE(NewBigInt("0xA")->ToBooleanIsTrue());
   EXPECT_TRUE(NewBigInt("0b0000001")->ToBooleanIsTrue());
   EXPECT_TRUE(NewBigInt("0o00005000")->ToBooleanIsTrue());
-  EXPECT_TRUE(NewBigInt("0x0000d00c0")->ToBooleanIsTrue());
+  EXPECT_TRUE(NewBigInt("0x0000D00C0")->ToBooleanIsTrue());
 }
 
 }  // namespace internal

@@ -660,11 +660,23 @@ TEST(PreParserScopeAnalysis) {
        [] { i::FLAG_harmony_public_fields = true; },
        [] { i::FLAG_harmony_public_fields = false; }},
       {"class X { static ['foo'] = 2; }; new X;",
-       [] { i::FLAG_harmony_public_fields = true; },
-       [] { i::FLAG_harmony_public_fields = false; }},
+       [] {
+         i::FLAG_harmony_public_fields = true;
+         i::FLAG_harmony_static_fields = true;
+       },
+       [] {
+         i::FLAG_harmony_public_fields = false;
+         i::FLAG_harmony_static_fields = false;
+       }},
       {"class X { ['bar'] = 1; static ['foo'] = 2; }; new X;",
-       [] { i::FLAG_harmony_public_fields = true; },
-       [] { i::FLAG_harmony_public_fields = false; }},
+       [] {
+         i::FLAG_harmony_public_fields = true;
+         i::FLAG_harmony_static_fields = true;
+       },
+       [] {
+         i::FLAG_harmony_public_fields = false;
+         i::FLAG_harmony_static_fields = false;
+       }},
   };
 
   for (unsigned outer_ix = 0; outer_ix < arraysize(outers); ++outer_ix) {

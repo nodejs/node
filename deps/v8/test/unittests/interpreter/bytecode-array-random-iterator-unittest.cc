@@ -7,6 +7,7 @@
 #include "src/interpreter/bytecode-array-builder.h"
 #include "src/interpreter/bytecode-array-random-iterator.h"
 #include "src/objects-inl.h"
+#include "test/unittests/interpreter/bytecode-utils.h"
 #include "test/unittests/test-utils.h"
 
 namespace v8 {
@@ -33,8 +34,8 @@ TEST_F(BytecodeArrayRandomIteratorTest, InvalidBeforeStart) {
   Smi* smi_1 = Smi::FromInt(-65536);
   Register reg_0(0);
   Register reg_1(1);
-  RegisterList pair(0, 2);
-  RegisterList triple(0, 3);
+  RegisterList pair = BytecodeUtils::NewRegisterList(0, 2);
+  RegisterList triple = BytecodeUtils::NewRegisterList(0, 3);
   Register param = Register::FromParameterIndex(2, builder.parameter_count());
   const AstRawString* name = ast_factory.GetOneByteString("abc");
   uint32_t feedback_slot = feedback_spec.AddLoadICSlot().ToInt();
@@ -87,8 +88,8 @@ TEST_F(BytecodeArrayRandomIteratorTest, InvalidAfterEnd) {
   Smi* smi_1 = Smi::FromInt(-65536);
   Register reg_0(0);
   Register reg_1(1);
-  RegisterList pair(0, 2);
-  RegisterList triple(0, 3);
+  RegisterList pair = BytecodeUtils::NewRegisterList(0, 2);
+  RegisterList triple = BytecodeUtils::NewRegisterList(0, 3);
   Register param = Register::FromParameterIndex(2, builder.parameter_count());
   const AstRawString* name = ast_factory.GetOneByteString("abc");
   uint32_t feedback_slot = feedback_spec.AddLoadICSlot().ToInt();
@@ -141,8 +142,8 @@ TEST_F(BytecodeArrayRandomIteratorTest, AccessesFirst) {
   Smi* smi_1 = Smi::FromInt(-65536);
   Register reg_0(0);
   Register reg_1(1);
-  RegisterList pair(0, 2);
-  RegisterList triple(0, 3);
+  RegisterList pair = BytecodeUtils::NewRegisterList(0, 2);
+  RegisterList triple = BytecodeUtils::NewRegisterList(0, 3);
   Register param = Register::FromParameterIndex(2, builder.parameter_count());
   const AstRawString* name = ast_factory.GetOneByteString("abc");
   uint32_t feedback_slot = feedback_spec.AddLoadICSlot().ToInt();
@@ -199,8 +200,8 @@ TEST_F(BytecodeArrayRandomIteratorTest, AccessesLast) {
   Smi* smi_1 = Smi::FromInt(-65536);
   Register reg_0(0);
   Register reg_1(1);
-  RegisterList pair(0, 2);
-  RegisterList triple(0, 3);
+  RegisterList pair = BytecodeUtils::NewRegisterList(0, 2);
+  RegisterList triple = BytecodeUtils::NewRegisterList(0, 3);
   Register param = Register::FromParameterIndex(2, builder.parameter_count());
   const AstRawString* name = ast_factory.GetOneByteString("abc");
   uint32_t feedback_slot = feedback_spec.AddLoadICSlot().ToInt();
@@ -258,8 +259,8 @@ TEST_F(BytecodeArrayRandomIteratorTest, RandomAccessValid) {
   Smi* smi_1 = Smi::FromInt(-65536);
   Register reg_0(0);
   Register reg_1(1);
-  RegisterList pair(0, 2);
-  RegisterList triple(0, 3);
+  RegisterList pair = BytecodeUtils::NewRegisterList(0, 2);
+  RegisterList triple = BytecodeUtils::NewRegisterList(0, 3);
   Register param = Register::FromParameterIndex(2, builder.parameter_count());
   const AstRawString* name = ast_factory.GetOneByteString("abc");
   uint32_t name_index = 2;
@@ -443,8 +444,8 @@ TEST_F(BytecodeArrayRandomIteratorTest, IteratesBytecodeArray) {
   Smi* smi_1 = Smi::FromInt(-65536);
   Register reg_0(0);
   Register reg_1(1);
-  RegisterList pair(0, 2);
-  RegisterList triple(0, 3);
+  RegisterList pair = BytecodeUtils::NewRegisterList(0, 2);
+  RegisterList triple = BytecodeUtils::NewRegisterList(0, 3);
   Register param = Register::FromParameterIndex(2, builder.parameter_count());
   const AstRawString* name = ast_factory.GetOneByteString("abc");
   uint32_t name_index = 2;
@@ -722,8 +723,8 @@ TEST_F(BytecodeArrayRandomIteratorTest, IteratesBytecodeArrayBackwards) {
   Smi* smi_1 = Smi::FromInt(-65536);
   Register reg_0(0);
   Register reg_1(1);
-  RegisterList pair(0, 2);
-  RegisterList triple(0, 3);
+  RegisterList pair = BytecodeUtils::NewRegisterList(0, 2);
+  RegisterList triple = BytecodeUtils::NewRegisterList(0, 3);
   Register param = Register::FromParameterIndex(2, builder.parameter_count());
   const AstRawString* name = ast_factory.GetOneByteString("abc");
   uint32_t name_index = 2;

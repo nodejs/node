@@ -151,6 +151,7 @@ namespace internal {
                                                                    \
   /* Identifiers (not keywords or future reserved words). */       \
   T(IDENTIFIER, nullptr, 0)                                        \
+  T(PRIVATE_NAME, nullptr, 0)                                      \
                                                                    \
   /* Future reserved words (ECMA-262, section 7.6.1.2). */         \
   T(FUTURE_STRICT_RESERVED_WORD, nullptr, 0)                       \

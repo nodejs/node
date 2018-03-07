@@ -30,16 +30,6 @@ Handle<Code> CodeFactory::RuntimeCEntry(Isolate* isolate, int result_size) {
 }
 
 // static
-Callable CodeFactory::LoadICProtoArray(Isolate* isolate,
-                                       bool throw_if_nonexistent) {
-  return Callable(
-      throw_if_nonexistent
-          ? BUILTIN_CODE(isolate, LoadICProtoArrayThrowIfNonexistent)
-          : BUILTIN_CODE(isolate, LoadICProtoArray),
-      LoadICProtoArrayDescriptor(isolate));
-}
-
-// static
 Callable CodeFactory::ApiGetter(Isolate* isolate) {
   CallApiGetterStub stub(isolate);
   return make_callable(stub);
@@ -79,22 +69,6 @@ Callable CodeFactory::StoreOwnIC(Isolate* isolate) {
 Callable CodeFactory::StoreOwnICInOptimizedCode(Isolate* isolate) {
   // TODO(ishell): Currently we use StoreOwnIC only for storing properties that
   // already exist in the boilerplate therefore we can use StoreIC.
-  return Callable(BUILTIN_CODE(isolate, StoreIC),
-                  StoreWithVectorDescriptor(isolate));
-}
-
-// static
-Callable CodeFactory::StoreGlobalIC(Isolate* isolate,
-                                    LanguageMode language_mode) {
-  // TODO(ishell): Use StoreGlobalIC[Strict]Trampoline when it's ready.
-  return Callable(BUILTIN_CODE(isolate, StoreICTrampoline),
-                  StoreDescriptor(isolate));
-}
-
-// static
-Callable CodeFactory::StoreGlobalICInOptimizedCode(Isolate* isolate,
-                                                   LanguageMode language_mode) {
-  // TODO(ishell): Use StoreGlobalIC[Strict] when it's ready.
   return Callable(BUILTIN_CODE(isolate, StoreIC),
                   StoreWithVectorDescriptor(isolate));
 }

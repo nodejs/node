@@ -170,12 +170,11 @@ namespace compiler {
   V(NumberOrHole,                 kNumber | kHole) \
   V(NumberOrOddball,              kNumber | kNullOrUndefined | kBoolean | \
                                   kHole) \
-  V(NumberOrString,               kNumber | kString) \
   V(NumericOrString,              kNumeric | kString) \
   V(NumberOrUndefined,            kNumber | kUndefined) \
   V(NumberOrUndefinedOrNullOrBoolean,  \
                                   kNumber | kNullOrUndefined | kBoolean) \
-  V(PlainPrimitive,               kNumberOrString | kBoolean | \
+  V(PlainPrimitive,               kNumber | kString | kBoolean | \
                                   kNullOrUndefined) \
   V(Primitive,                    kSymbol | kBigInt | kPlainPrimitive) \
   V(OtherUndetectableOrUndefined, kOtherUndetectable | kUndefined) \

@@ -253,11 +253,6 @@ class PipelineData {
     source_position_output_ = source_position_output;
   }
 
-  std::vector<trap_handler::ProtectedInstructionData>* protected_instructions()
-      const {
-    return protected_instructions_;
-  }
-
   JumpOptimizationInfo* jump_optimization_info() const {
     return jump_optimization_info_;
   }
@@ -435,21 +430,26 @@ class PipelineImpl final {
   template <typename Phase, typename Arg0, typename Arg1>
   void Run(Arg0 arg_0, Arg1 arg_1);
 
-  // Run the graph creation and initial optimization passes.
+  // Step A. Run the graph creation and initial optimization passes.
   bool CreateGraph();
 
-  // Run the concurrent optimization passes.
+  // B. Run the concurrent optimization passes.
   bool OptimizeGraph(Linkage* linkage);
 
-  // Run the code assembly pass.
+  // Substep B.1. Produce a scheduled graph.
+  void ComputeScheduledGraph();
+
+  // Substep B.2. Select instructions from a scheduled graph.
+  bool SelectInstructions(Linkage* linkage);
+
+  // Step C. Run the code assembly pass.
   void AssembleCode(Linkage* linkage);
 
-  // Run the code finalization pass.
+  // Step D. Run the code finalization pass.
   Handle<Code> FinalizeCode();
 
-  bool ScheduleAndSelectInstructions(Linkage* linkage, bool trim_graph);
   void RunPrintAndVerify(const char* phase, bool untyped = false);
-  Handle<Code> ScheduleAndGenerateCode(CallDescriptor* call_descriptor);
+  Handle<Code> GenerateCode(CallDescriptor* call_descriptor);
   void AllocateRegisters(const RegisterConfiguration* config,
                          CallDescriptor* descriptor, bool run_verifier);
 
@@ -803,7 +803,7 @@ PipelineCompilationJob::Status PipelineCompilationJob::PrepareJobImpl(
 
   if (!pipeline_.CreateGraph()) {
     if (isolate->has_pending_exception()) return FAILED;  // Stack overflowed.
-    return AbortOptimization(kGraphBuildingFailed);
+    return AbortOptimization(BailoutReason::kGraphBuildingFailed);
   }
 
   if (compilation_info()->is_osr()) data_.InitializeOsrHelper();
@@ -826,8 +826,8 @@ PipelineCompilationJob::Status PipelineCompilationJob::FinalizeJobImpl(
     Isolate* isolate) {
   Handle<Code> code = pipeline_.FinalizeCode();
   if (code.is_null()) {
-    if (compilation_info()->bailout_reason() == kNoReason) {
-      return AbortOptimization(kCodeGenerationFailed);
+    if (compilation_info()->bailout_reason() == BailoutReason::kNoReason) {
+      return AbortOptimization(BailoutReason::kCodeGenerationFailed);
     }
     return FAILED;
   }
@@ -964,7 +964,8 @@ PipelineWasmCompilationJob::ExecuteJobImpl() {
     pipeline_.RunPrintAndVerify("Optimized Machine", true);
   }
 
-  if (!pipeline_.ScheduleAndSelectInstructions(&linkage_, true)) return FAILED;
+  pipeline_.ComputeScheduledGraph();
+  if (!pipeline_.SelectInstructions(&linkage_)) return FAILED;
   pipeline_.AssembleCode(&linkage_);
   return SUCCEEDED;
 }
@@ -995,9 +996,7 @@ PipelineWasmCompilationJob::Status PipelineWasmCompilationJob::FinalizeJobImpl(
 }
 
 void PipelineWasmCompilationJob::ValidateImmovableEmbeddedObjects() const {
-#if !DEBUG
-  return;
-#endif
+#if DEBUG
   // We expect the only embedded objects to be those originating from
   // a snapshot, which are immovable.
   DisallowHeapAllocation no_gc;
@@ -1038,6 +1037,7 @@ void PipelineWasmCompilationJob::ValidateImmovableEmbeddedObjects() const {
     }
     CHECK(is_immovable || is_wasm || is_allowed_stub);
   }
+#endif
 }
 
 template <typename Phase>
@@ -1269,8 +1269,9 @@ struct LoopPeelingPhase {
 
     LoopTree* loop_tree =
         LoopFinder::BuildLoopTree(data->jsgraph()->graph(), temp_zone);
-    LoopPeeler::PeelInnerLoopsOfTree(data->graph(), data->common(), loop_tree,
-                                     temp_zone);
+    LoopPeeler(data->graph(), data->common(), loop_tree, temp_zone,
+               data->source_positions())
+        .PeelInnerLoopsOfTree();
   }
 };
 
@@ -1880,7 +1881,8 @@ bool PipelineImpl::OptimizeGraph(Linkage* linkage) {
   if (FLAG_turbo_escape) {
     Run<EscapeAnalysisPhase>();
     if (data->compilation_failed()) {
-      info()->AbortOptimization(kCyclicObjectStateDetectedInEscapeAnalysis);
+      info()->AbortOptimization(
+          BailoutReason::kCyclicObjectStateDetectedInEscapeAnalysis);
       data->EndPhaseKind();
       return false;
     }
@@ -1941,7 +1943,9 @@ bool PipelineImpl::OptimizeGraph(Linkage* linkage) {
 
   data->source_positions()->RemoveDecorator();
 
-  return ScheduleAndSelectInstructions(linkage, true);
+  ComputeScheduledGraph();
+
+  return SelectInstructions(linkage);
 }
 
 Handle<Code> Pipeline::GenerateCodeForCodeStub(
@@ -1982,7 +1986,7 @@ Handle<Code> Pipeline::GenerateCodeForCodeStub(
   }
 
   pipeline.Run<VerifyGraphPhase>(false, true);
-  return pipeline.ScheduleAndGenerateCode(call_descriptor);
+  return pipeline.GenerateCode(call_descriptor);
 }
 
 // static
@@ -2043,7 +2047,12 @@ Handle<Code> Pipeline::GenerateCodeForTesting(
   // TODO(rossberg): Should this really be untyped?
   pipeline.RunPrintAndVerify("Machine", true);
 
-  return pipeline.ScheduleAndGenerateCode(call_descriptor);
+  // Ensure we have a schedule.
+  if (data.schedule() == nullptr) {
+    pipeline.ComputeScheduledGraph();
+  }
+
+  return pipeline.GenerateCode(call_descriptor);
 }
 
 // static
@@ -2082,19 +2091,26 @@ bool Pipeline::AllocateRegistersForTesting(const RegisterConfiguration* config,
   return !data.compilation_failed();
 }
 
-bool PipelineImpl::ScheduleAndSelectInstructions(Linkage* linkage,
-                                                 bool trim_graph) {
+void PipelineImpl::ComputeScheduledGraph() {
+  PipelineData* data = this->data_;
+
+  // We should only schedule the graph if it is not scheduled yet.
+  DCHECK_NULL(data->schedule());
+
+  Run<LateGraphTrimmingPhase>();
+  RunPrintAndVerify("Late trimmed", true);
+
+  Run<ComputeSchedulePhase>();
+  TraceSchedule(data->info(), data->isolate(), data->schedule());
+}
+
+bool PipelineImpl::SelectInstructions(Linkage* linkage) {
   CallDescriptor* call_descriptor = linkage->GetIncomingDescriptor();
   PipelineData* data = this->data_;
 
+  // We should have a scheduled graph.
   DCHECK_NOT_NULL(data->graph());
-
-  if (trim_graph) {
-    Run<LateGraphTrimmingPhase>();
-    RunPrintAndVerify("Late trimmed", true);
-  }
-  if (data->schedule() == nullptr) Run<ComputeSchedulePhase>();
-  TraceSchedule(data->info(), data->isolate(), data->schedule());
+  DCHECK_NOT_NULL(data->schedule());
 
   if (FLAG_turbo_profiling) {
     data->set_profiler_data(BasicBlockInstrumentor::Instrument(
@@ -2138,7 +2154,7 @@ bool PipelineImpl::ScheduleAndSelectInstructions(Linkage* linkage,
   // Select and schedule instructions covering the scheduled graph.
   Run<InstructionSelectionPhase>(linkage);
   if (data->compilation_failed()) {
-    info()->AbortOptimization(kCodeGenerationFailed);
+    info()->AbortOptimization(BailoutReason::kCodeGenerationFailed);
     data->EndPhaseKind();
     return false;
   }
@@ -2177,7 +2193,8 @@ bool PipelineImpl::ScheduleAndSelectInstructions(Linkage* linkage,
 
   Run<FrameElisionPhase>();
   if (data->compilation_failed()) {
-    info()->AbortOptimization(kNotEnoughVirtualRegistersRegalloc);
+    info()->AbortOptimization(
+        BailoutReason::kNotEnoughVirtualRegistersRegalloc);
     data->EndPhaseKind();
     return false;
   }
@@ -2208,6 +2225,8 @@ Handle<Code> PipelineImpl::FinalizeCode() {
   Run<FinalizeCodePhase>();
 
   Handle<Code> code = data->code();
+  if (code.is_null()) return code;
+
   if (data->profiler_data()) {
 #if ENABLE_DISASSEMBLER
     std::ostringstream os;
@@ -2245,12 +2264,11 @@ Handle<Code> PipelineImpl::FinalizeCode() {
   return code;
 }
 
-Handle<Code> PipelineImpl::ScheduleAndGenerateCode(
-    CallDescriptor* call_descriptor) {
+Handle<Code> PipelineImpl::GenerateCode(CallDescriptor* call_descriptor) {
   Linkage linkage(call_descriptor);
 
-  // Schedule the graph, perform instruction selection and register allocation.
-  if (!ScheduleAndSelectInstructions(&linkage, false)) return Handle<Code>();
+  // Perform instruction selection and register allocation.
+  if (!SelectInstructions(&linkage)) return Handle<Code>();
 
   // Generate the final machine code.
   AssembleCode(&linkage);

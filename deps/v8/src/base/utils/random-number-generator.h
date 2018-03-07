@@ -113,8 +113,8 @@ class V8_BASE_EXPORT RandomNumberGenerator final {
   // Static and exposed for external use.
   static inline double ToDouble(uint64_t state0, uint64_t state1) {
     // Exponent for double values for [1.0 .. 2.0)
-    static const uint64_t kExponentBits = V8_UINT64_C(0x3FF0000000000000);
-    static const uint64_t kMantissaMask = V8_UINT64_C(0x000FFFFFFFFFFFFF);
+    static const uint64_t kExponentBits = uint64_t{0x3FF0000000000000};
+    static const uint64_t kMantissaMask = uint64_t{0x000FFFFFFFFFFFFF};
     uint64_t random = ((state0 + state1) & kMantissaMask) | kExponentBits;
     return bit_cast<double>(random) - 1;
   }

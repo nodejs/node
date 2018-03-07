@@ -276,6 +276,7 @@ constexpr Register kLithiumScratch = r1;  // lithium scratch.
 constexpr Register kRootRegister = r10;   // Roots array pointer.
 constexpr Register cp = r13;              // JavaScript context pointer.
 
+constexpr bool kPadArguments = false;
 constexpr bool kSimpleFPAliasing = true;
 constexpr bool kSimdMaskRegisters = false;
 
@@ -555,10 +556,6 @@ class Assembler : public AssemblerBase {
   INLINE(static Address target_address_at(Address pc, Address constant_pool));
   INLINE(static void set_target_address_at(
       Isolate* isolate, Address pc, Address constant_pool, Address target,
-      ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED));
-  INLINE(static Address target_address_at(Address pc, Code* code));
-  INLINE(static void set_target_address_at(
-      Isolate* isolate, Address pc, Code* code, Address target,
       ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED));
 
   // Return the code target address at a call site from the return address

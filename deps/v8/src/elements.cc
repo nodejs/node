@@ -12,6 +12,7 @@
 #include "src/messages.h"
 #include "src/objects-inl.h"
 #include "src/utils.h"
+#include "src/zone/zone.h"
 
 // Each concrete ElementsAccessor can handle exactly one ElementsKind,
 // several abstract ElementsAccessor classes are used to allow sharing
@@ -519,6 +520,21 @@ static Maybe<int64_t> IndexOfValueSlowPath(Isolate* isolate,
   return Just<int64_t>(-1);
 }
 
+// The InternalElementsAccessor is a helper class to expose otherwise protected
+// methods to its subclasses. Namely, we don't want to publicly expose methods
+// that take an entry (instead of an index) as an argument.
+class InternalElementsAccessor : public ElementsAccessor {
+ public:
+  explicit InternalElementsAccessor(const char* name)
+      : ElementsAccessor(name) {}
+
+  virtual uint32_t GetEntryForIndex(Isolate* isolate, JSObject* holder,
+                                    FixedArrayBase* backing_store,
+                                    uint32_t index) = 0;
+
+  virtual PropertyDetails GetDetails(JSObject* holder, uint32_t entry) = 0;
+};
+
 // Base class for element handler implementations. Contains the
 // the common logic for objects with different ElementsKinds.
 // Subclasses must specialize method for which the element
@@ -537,10 +553,10 @@ static Maybe<int64_t> IndexOfValueSlowPath(Isolate* isolate,
 // CRTP to guarantee aggressive compile time optimizations (i.e.  inlining and
 // specialization of SomeElementsAccessor methods).
 template <typename Subclass, typename ElementsTraitsParam>
-class ElementsAccessorBase : public ElementsAccessor {
+class ElementsAccessorBase : public InternalElementsAccessor {
  public:
   explicit ElementsAccessorBase(const char* name)
-      : ElementsAccessor(name) { }
+      : InternalElementsAccessor(name) {}
 
   typedef ElementsTraitsParam ElementsTraits;
   typedef typename ElementsTraitsParam::BackingStore BackingStore;
@@ -1052,35 +1068,65 @@ class ElementsAccessorBase : public ElementsAccessor {
       Isolate* isolate, Handle<JSObject> object,
       Handle<FixedArray> values_or_entries, bool get_entries, int* nof_items,
       PropertyFilter filter) {
-    int count = 0;
+    DCHECK_EQ(*nof_items, 0);
     KeyAccumulator accumulator(isolate, KeyCollectionMode::kOwnOnly,
                                ALL_PROPERTIES);
     Subclass::CollectElementIndicesImpl(
         object, handle(object->elements(), isolate), &accumulator);
     Handle<FixedArray> keys = accumulator.GetKeys();
 
-    for (int i = 0; i < keys->length(); ++i) {
+    int count = 0;
+    int i = 0;
+    ElementsKind original_elements_kind = object->GetElementsKind();
+
+    for (; i < keys->length(); ++i) {
       Handle<Object> key(keys->get(i), isolate);
-      Handle<Object> value;
       uint32_t index;
       if (!key->ToUint32(&index)) continue;
 
+      DCHECK_EQ(object->GetElementsKind(), original_elements_kind);
       uint32_t entry = Subclass::GetEntryForIndexImpl(
           isolate, *object, object->elements(), index, filter);
       if (entry == kMaxUInt32) continue;
-
       PropertyDetails details = Subclass::GetDetailsImpl(*object, entry);
 
+      Handle<Object> value;
       if (details.kind() == kData) {
         value = Subclass::GetImpl(isolate, object->elements(), entry);
       } else {
+        // This might modify the elements and/or change the elements kind.
         LookupIterator it(isolate, object, index, LookupIterator::OWN);
         ASSIGN_RETURN_ON_EXCEPTION_VALUE(
             isolate, value, Object::GetProperty(&it), Nothing<bool>());
       }
-      if (get_entries) {
-        value = MakeEntryPair(isolate, index, value);
+      if (get_entries) value = MakeEntryPair(isolate, index, value);
+      values_or_entries->set(count++, *value);
+      if (object->GetElementsKind() != original_elements_kind) break;
+    }
+
+    // Slow path caused by changes in elements kind during iteration.
+    for (; i < keys->length(); i++) {
+      Handle<Object> key(keys->get(i), isolate);
+      uint32_t index;
+      if (!key->ToUint32(&index)) continue;
+
+      if (filter & ONLY_ENUMERABLE) {
+        InternalElementsAccessor* accessor =
+            reinterpret_cast<InternalElementsAccessor*>(
+                object->GetElementsAccessor());
+        uint32_t entry = accessor->GetEntryForIndex(isolate, *object,
+                                                    object->elements(), index);
+        if (entry == kMaxUInt32) continue;
+        PropertyDetails details = accessor->GetDetails(*object, entry);
+        if (!details.IsEnumerable()) continue;
       }
+
+      Handle<Object> value;
+      LookupIterator it(isolate, object, index, LookupIterator::OWN);
+      ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, value, Object::GetProperty(&it),
+                                       Nothing<bool>());
+
+      if (get_entries) value = MakeEntryPair(isolate, index, value);
       values_or_entries->set(count++, *value);
     }
 
@@ -1710,12 +1756,14 @@ class DictionaryElementsAccessor
         return result;
       }
     }
-
+    ElementsKind original_elements_kind = receiver->GetElementsKind();
+    USE(original_elements_kind);
     Handle<NumberDictionary> dictionary(
         NumberDictionary::cast(receiver->elements()), isolate);
     // Iterate through entire range, as accessing elements out of order is
     // observable
     for (uint32_t k = start_from; k < length; ++k) {
+      DCHECK_EQ(receiver->GetElementsKind(), original_elements_kind);
       int entry = dictionary->FindEntry(isolate, k);
       if (entry == NumberDictionary::kNotFound) {
         if (search_for_hole) return Just(true);
@@ -1780,15 +1828,16 @@ class DictionaryElementsAccessor
                                          uint32_t start_from, uint32_t length) {
     DCHECK(JSObject::PrototypeHasNoElements(isolate, *receiver));
 
+    ElementsKind original_elements_kind = receiver->GetElementsKind();
+    USE(original_elements_kind);
     Handle<NumberDictionary> dictionary(
         NumberDictionary::cast(receiver->elements()), isolate);
     // Iterate through entire range, as accessing elements out of order is
     // observable.
     for (uint32_t k = start_from; k < length; ++k) {
+      DCHECK_EQ(receiver->GetElementsKind(), original_elements_kind);
       int entry = dictionary->FindEntry(isolate, k);
-      if (entry == NumberDictionary::kNotFound) {
-        continue;
-      }
+      if (entry == NumberDictionary::kNotFound) continue;
 
       PropertyDetails details = GetDetailsImpl(*dictionary, entry);
       switch (details.kind()) {
@@ -3195,13 +3244,16 @@ class TypedElementsAccessor
   }
 
   template <typename SourceTraits>
-  static void CopyBetweenBackingStores(FixedTypedArrayBase* source,
+  static void CopyBetweenBackingStores(void* source_data_ptr,
                                        BackingStore* dest, size_t length,
                                        uint32_t offset) {
-    FixedTypedArray<SourceTraits>* source_fta =
-        FixedTypedArray<SourceTraits>::cast(source);
+    DisallowHeapAllocation no_gc;
     for (uint32_t i = 0; i < length; i++) {
-      typename SourceTraits::ElementType elem = source_fta->get_scalar(i);
+      // We use scalar accessors to avoid boxing/unboxing, so there are no
+      // allocations.
+      typename SourceTraits::ElementType elem =
+          FixedTypedArray<SourceTraits>::get_scalar_from_data_ptr(
+              source_data_ptr, i);
       dest->set(offset + i, dest->from(elem));
     }
   }
@@ -3232,15 +3284,10 @@ class TypedElementsAccessor
     bool both_are_simple = HasSimpleRepresentation(source_type) &&
                            HasSimpleRepresentation(destination_type);
 
-    // We assume the source and destination don't overlap, even though they
-    // can share the same buffer. This is always true for newly allocated
-    // TypedArrays.
     uint8_t* source_data = static_cast<uint8_t*>(source_elements->DataPtr());
     uint8_t* dest_data = static_cast<uint8_t*>(destination_elements->DataPtr());
     size_t source_byte_length = NumberToSize(source->byte_length());
     size_t dest_byte_length = NumberToSize(destination->byte_length());
-    CHECK(dest_data + dest_byte_length <= source_data ||
-          source_data + source_byte_length <= dest_data);
 
     // We can simply copy the backing store if the types are the same, or if
     // we are converting e.g. Uint8 <-> Int8, as the binary representation
@@ -3248,16 +3295,25 @@ class TypedElementsAccessor
     // which have special conversion operations.
     if (same_type || (same_size && both_are_simple)) {
       size_t element_size = source->element_size();
-      std::memcpy(dest_data + offset * element_size, source_data,
-                  length * element_size);
+      std::memmove(dest_data + offset * element_size, source_data,
+                   length * element_size);
     } else {
-      // We use scalar accessors below to avoid boxing/unboxing, so there are
-      // no allocations.
+      Isolate* isolate = source->GetIsolate();
+      Zone zone(isolate->allocator(), ZONE_NAME);
+
+      // If the typedarrays are overlapped, clone the source.
+      if (dest_data + dest_byte_length > source_data &&
+          source_data + source_byte_length > dest_data) {
+        uint8_t* temp_data = zone.NewArray<uint8_t>(source_byte_length);
+        std::memcpy(temp_data, source_data, source_byte_length);
+        source_data = temp_data;
+      }
+
       switch (source->GetElementsKind()) {
-#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype, size)         \
-  case TYPE##_ELEMENTS:                                         \
-    CopyBetweenBackingStores<Type##ArrayTraits>(                \
-        source_elements, destination_elements, length, offset); \
+#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype, size)     \
+  case TYPE##_ELEMENTS:                                     \
+    CopyBetweenBackingStores<Type##ArrayTraits>(            \
+        source_data, destination_elements, length, offset); \
     break;
         TYPED_ARRAYS(TYPED_ARRAY_CASE)
         default:
@@ -3273,7 +3329,7 @@ class TypedElementsAccessor
     DisallowHeapAllocation no_gc;
     DisallowJavascriptExecution no_js(isolate);
 
-#if defined(DEBUG) || defined(ENABLE_SLOWFAST_SWITCH)
+#ifdef V8_ENABLE_FORCE_SLOW_PATH
     if (isolate->force_slow_path()) return true;
 #endif
 
@@ -3698,12 +3754,13 @@ class SloppyArgumentsElementsAccessor
                                        Handle<Object> value,
                                        uint32_t start_from, uint32_t length) {
     DCHECK(JSObject::PrototypeHasNoElements(isolate, *object));
-    Handle<Map> original_map = handle(object->map(), isolate);
+    Handle<Map> original_map(object->map(), isolate);
     Handle<SloppyArgumentsElements> elements(
         SloppyArgumentsElements::cast(object->elements()), isolate);
     bool search_for_hole = value->IsUndefined(isolate);
 
     for (uint32_t k = start_from; k < length; ++k) {
+      DCHECK_EQ(object->map(), *original_map);
       uint32_t entry =
           GetEntryForIndexImpl(isolate, *object, *elements, k, ALL_PROPERTIES);
       if (entry == kMaxUInt32) {
@@ -3739,11 +3796,12 @@ class SloppyArgumentsElementsAccessor
                                          Handle<Object> value,
                                          uint32_t start_from, uint32_t length) {
     DCHECK(JSObject::PrototypeHasNoElements(isolate, *object));
-    Handle<Map> original_map = handle(object->map(), isolate);
+    Handle<Map> original_map(object->map(), isolate);
     Handle<SloppyArgumentsElements> elements(
         SloppyArgumentsElements::cast(object->elements()), isolate);
 
     for (uint32_t k = start_from; k < length; ++k) {
+      DCHECK_EQ(object->map(), *original_map);
       uint32_t entry =
           GetEntryForIndexImpl(isolate, *object, *elements, k, ALL_PROPERTIES);
       if (entry == kMaxUInt32) {

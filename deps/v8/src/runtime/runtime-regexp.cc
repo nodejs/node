@@ -544,7 +544,7 @@ MUST_USE_RESULT static Object* StringReplaceGlobalAtomRegExpWithString(
   int pattern_len = pattern->length();
   int replacement_len = replacement->length();
 
-  FindStringIndicesDispatch(isolate, *subject, pattern, indices, 0xffffffff);
+  FindStringIndicesDispatch(isolate, *subject, pattern, indices, 0xFFFFFFFF);
 
   if (indices->empty()) return *subject;
 
@@ -834,7 +834,7 @@ RUNTIME_FUNCTION(Runtime_StringSplit) {
   int pattern_length = pattern->length();
   CHECK_LT(0, pattern_length);
 
-  if (limit == 0xffffffffu) {
+  if (limit == 0xFFFFFFFFu) {
     FixedArray* last_match_cache_unused;
     Handle<Object> cached_answer(
         RegExpResultsCache::Lookup(isolate->heap(), *subject, *pattern,
@@ -849,7 +849,7 @@ RUNTIME_FUNCTION(Runtime_StringSplit) {
     }
   }
 
-  // The limit can be very large (0xffffffffu), but since the pattern
+  // The limit can be very large (0xFFFFFFFFu), but since the pattern
   // isn't empty, we can never create more parts than ~half the length
   // of the subject.
 
@@ -890,7 +890,7 @@ RUNTIME_FUNCTION(Runtime_StringSplit) {
     });
   }
 
-  if (limit == 0xffffffffu) {
+  if (limit == 0xFFFFFFFFu) {
     if (result->HasObjectElements()) {
       RegExpResultsCache::Enter(isolate, subject, pattern, elements,
                                 isolate->factory()->empty_fixed_array(),
@@ -1804,6 +1804,7 @@ RUNTIME_FUNCTION(Runtime_RegExpReplace) {
   uint32_t next_source_position = 0;
 
   for (const auto& result : results) {
+    HandleScope handle_scope(isolate);
     Handle<Object> captures_length_obj;
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
         isolate, captures_length_obj,

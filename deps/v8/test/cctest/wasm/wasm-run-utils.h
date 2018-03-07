@@ -25,6 +25,7 @@
 #include "src/trap-handler/trap-handler.h"
 #include "src/wasm/function-body-decoder.h"
 #include "src/wasm/local-decl-encoder.h"
+#include "src/wasm/wasm-code-manager.h"
 #include "src/wasm/wasm-external-refs.h"
 #include "src/wasm/wasm-interpreter.h"
 #include "src/wasm/wasm-js.h"
@@ -50,23 +51,23 @@ constexpr uint32_t kMaxGlobalsSize = 128;
 enum WasmExecutionMode {
   kExecuteInterpreter,
   kExecuteTurbofan,
-  kExecuteLiftoff,
-  // TODO(bug:7028): Introduce another enum for simd lowering.
-  kExecuteSimdLowered
+  kExecuteLiftoff
 };
+
+enum LowerSimd : bool { kLowerSimd = true, kNoLowerSimd = false };
 
 using compiler::CallDescriptor;
 using compiler::MachineTypeForC;
 using compiler::Node;
 
 // TODO(titzer): check traps more robustly in tests.
-// Currently, in tests, we just return 0xdeadbeef from the function in which
+// Currently, in tests, we just return 0xDEADBEEF from the function in which
 // the trap occurs if the runtime context is not available to throw a JavaScript
 // exception.
 #define CHECK_TRAP32(x) \
-  CHECK_EQ(0xdeadbeef, (bit_cast<uint32_t>(x)) & 0xFFFFFFFF)
+  CHECK_EQ(0xDEADBEEF, (bit_cast<uint32_t>(x)) & 0xFFFFFFFF)
 #define CHECK_TRAP64(x) \
-  CHECK_EQ(0xdeadbeefdeadbeef, (bit_cast<uint64_t>(x)) & 0xFFFFFFFFFFFFFFFF)
+  CHECK_EQ(0xDEADBEEFDEADBEEF, (bit_cast<uint64_t>(x)) & 0xFFFFFFFFFFFFFFFF)
 #define CHECK_TRAP(x) CHECK_TRAP32(x)
 
 #define WASM_WRAPPER_RETURN_VALUE 8754
@@ -84,7 +85,7 @@ using compiler::Node;
 class TestingModuleBuilder {
  public:
   TestingModuleBuilder(Zone*, WasmExecutionMode,
-                       compiler::RuntimeExceptionSupport);
+                       compiler::RuntimeExceptionSupport, LowerSimd);
 
   void ChangeOriginToAsmjs() { test_module_.set_origin(kAsmJsOrigin); }
 
@@ -190,7 +191,7 @@ class TestingModuleBuilder {
     function_code_[index] = code;
   }
 
-  void AddIndirectFunctionTable(uint16_t* function_indexes,
+  void AddIndirectFunctionTable(const uint16_t* function_indexes,
                                 uint32_t table_size);
 
   void PopulateIndirectFunctionTable();
@@ -203,7 +204,7 @@ class TestingModuleBuilder {
 
   WasmInterpreter* interpreter() { return interpreter_; }
   bool interpret() { return interpreter_ != nullptr; }
-  bool lower_simd() { return lower_simd_; }
+  LowerSimd lower_simd() { return lower_simd_; }
   Isolate* isolate() { return isolate_; }
   Handle<WasmInstanceObject> instance_object() { return instance_object_; }
   WasmCodeWrapper GetFunctionCode(uint32_t index) {
@@ -222,6 +223,7 @@ class TestingModuleBuilder {
     if (!linked_) {
       native_module_->LinkAll();
       linked_ = true;
+      native_module_->SetExecutable(true);
     }
   }
 
@@ -242,7 +244,6 @@ class TestingModuleBuilder {
   uint32_t mem_size_;
   std::vector<Handle<Code>> function_code_;
   std::vector<GlobalHandleAddress> function_tables_;
-  std::vector<GlobalHandleAddress> signature_tables_;
   V8_ALIGNED(16) byte globals_data_[kMaxGlobalsSize];
   WasmInterpreter* interpreter_;
   WasmExecutionMode execution_mode_;
@@ -250,7 +251,7 @@ class TestingModuleBuilder {
   NativeModule* native_module_;
   bool linked_ = false;
   compiler::RuntimeExceptionSupport runtime_exception_support_;
-  bool lower_simd_;
+  LowerSimd lower_simd_;
 
   const WasmGlobal* AddGlobal(ValueType type);
 
@@ -371,9 +372,10 @@ class WasmFunctionCompiler : public compiler::GraphAndBuilders {
 class WasmRunnerBase : public HandleAndZoneScope {
  public:
   WasmRunnerBase(WasmExecutionMode execution_mode, int num_params,
-                 compiler::RuntimeExceptionSupport runtime_exception_support)
+                 compiler::RuntimeExceptionSupport runtime_exception_support,
+                 LowerSimd lower_simd)
       : zone_(&allocator_, ZONE_NAME),
-        builder_(&zone_, execution_mode, runtime_exception_support),
+        builder_(&zone_, execution_mode, runtime_exception_support, lower_simd),
         wrapper_(&zone_, num_params) {}
 
   // Builds a graph from the given Wasm code and generates the machine
@@ -452,20 +454,25 @@ class WasmRunner : public WasmRunnerBase {
   WasmRunner(WasmExecutionMode execution_mode,
              const char* main_fn_name = "main",
              compiler::RuntimeExceptionSupport runtime_exception_support =
-                 compiler::kNoRuntimeExceptionSupport)
+                 compiler::kNoRuntimeExceptionSupport,
+             LowerSimd lower_simd = kNoLowerSimd)
       : WasmRunnerBase(execution_mode, sizeof...(ParamTypes),
-                       runtime_exception_support) {
+                       runtime_exception_support, lower_simd) {
     NewFunction<ReturnType, ParamTypes...>(main_fn_name);
     if (!interpret()) {
       wrapper_.Init<ReturnType, ParamTypes...>(functions_[0]->descriptor());
     }
   }
 
+  WasmRunner(WasmExecutionMode execution_mode, LowerSimd lower_simd)
+      : WasmRunner(execution_mode, "main", compiler::kNoRuntimeExceptionSupport,
+                   lower_simd) {}
+
   ReturnType Call(ParamTypes... p) {
     DCHECK(compiled_);
     if (interpret()) return CallInterpreter(p...);
 
-    ReturnType return_value = static_cast<ReturnType>(0xdeadbeefdeadbeef);
+    ReturnType return_value = static_cast<ReturnType>(0xDEADBEEFDEADBEEF);
     WasmRunnerBase::trap_happened = false;
     auto trap_callback = []() -> void {
       WasmRunnerBase::trap_happened = true;
@@ -485,7 +492,7 @@ class WasmRunner : public WasmRunnerBase {
                                  static_cast<void*>(&return_value));
     CHECK_EQ(WASM_WRAPPER_RETURN_VALUE, result);
     return WasmRunnerBase::trap_happened
-               ? static_cast<ReturnType>(0xdeadbeefdeadbeef)
+               ? static_cast<ReturnType>(0xDEADBEEFDEADBEEF)
                : return_value;
   }
 
@@ -502,7 +509,7 @@ class WasmRunner : public WasmRunnerBase {
       return val.to<ReturnType>();
     } else if (thread->state() == WasmInterpreter::TRAPPED) {
       // TODO(titzer): return the correct trap code
-      int64_t result = 0xdeadbeefdeadbeef;
+      int64_t result = 0xDEADBEEFDEADBEEF;
       return static_cast<ReturnType>(result);
     } else {
       // TODO(titzer): falling off end

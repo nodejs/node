@@ -95,7 +95,7 @@ void StartupSerializer::SerializeWeakReferencesAndDeferred() {
   // one entry with 'undefined' to terminate the partial snapshot cache.
   Object* undefined = isolate()->heap()->undefined_value();
   VisitRootPointer(Root::kPartialSnapshotCache, &undefined);
-  isolate()->heap()->IterateWeakRoots(this, VISIT_ALL);
+  isolate()->heap()->IterateWeakRoots(this, VISIT_FOR_SERIALIZATION);
   SerializeDeferredObjects();
   Pad();
 }
@@ -122,8 +122,7 @@ void StartupSerializer::SerializeStrongReferences() {
   CHECK_NULL(isolate->thread_manager()->FirstThreadStateInUse());
   // No active or weak handles.
   CHECK(isolate->handle_scope_implementer()->blocks()->empty());
-  CHECK_EQ(0, isolate->global_handles()->global_handles_count());
-  CHECK_EQ(0, isolate->eternal_handles()->NumberOfHandles());
+
   // Visit smi roots.
   // Clear the stack limits to make the snapshot reproducible.
   // Reset it again afterwards.
@@ -131,8 +130,7 @@ void StartupSerializer::SerializeStrongReferences() {
   isolate->heap()->IterateSmiRoots(this);
   isolate->heap()->SetStackLimits();
   // First visit immortal immovables to make sure they end up in the first page.
-  isolate->heap()->IterateStrongRoots(this,
-                                      VISIT_ONLY_STRONG_FOR_SERIALIZATION);
+  isolate->heap()->IterateStrongRoots(this, VISIT_FOR_SERIALIZATION);
 }
 
 void StartupSerializer::VisitRootPointers(Root root, Object** start,
@@ -183,6 +181,37 @@ bool StartupSerializer::MustBeDeferred(HeapObject* object) {
   // serialized. But we must serialize Map objects since deserializer checks
   // that these root objects are indeed Maps.
   return !object->IsMap();
+}
+
+SerializedHandleChecker::SerializedHandleChecker(
+    Isolate* isolate, std::vector<Context*>* contexts)
+    : isolate_(isolate) {
+  AddToSet(isolate->heap()->serialized_objects());
+  for (auto const& context : *contexts) {
+    AddToSet(context->serialized_objects());
+  }
+}
+
+void SerializedHandleChecker::AddToSet(FixedArray* serialized) {
+  int length = serialized->length();
+  for (int i = 0; i < length; i++) serialized_.insert(serialized->get(i));
+}
+
+void SerializedHandleChecker::VisitRootPointers(Root root, Object** start,
+                                                Object** end) {
+  for (Object** p = start; p < end; p++) {
+    if (serialized_.find(*p) != serialized_.end()) continue;
+    PrintF("%s handle not serialized: ",
+           root == Root::kGlobalHandles ? "global" : "eternal");
+    (*p)->Print();
+    ok_ = false;
+  }
+}
+
+bool SerializedHandleChecker::CheckGlobalAndEternalHandles() {
+  isolate_->global_handles()->IterateAllRoots(this);
+  isolate_->eternal_handles()->IterateAllRoots(this);
+  return ok_;
 }
 
 }  // namespace internal

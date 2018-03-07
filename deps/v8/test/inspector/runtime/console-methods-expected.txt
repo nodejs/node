@@ -653,7 +653,7 @@ Checks console methods
         args : [
             [0] : {
                 type : string
-                value : 1
+                value : default: 1
             }
         ]
         executionContextId : <executionContextId>
@@ -692,7 +692,7 @@ Checks console methods
         args : [
             [0] : {
                 type : string
-                value : 2
+                value : default: 2
             }
         ]
         executionContextId : <executionContextId>
@@ -713,6 +713,102 @@ Checks console methods
                     url : test.js
                 }
                 [2] : {
+                    columnNumber : 0
+                    functionName : 
+                    lineNumber : 0
+                    scriptId : <scriptId>
+                    url : 
+                }
+            ]
+        }
+        timestamp : <timestamp>
+        type : count
+    }
+}
+{
+    method : Runtime.consoleAPICalled
+    params : {
+        args : [
+            [0] : {
+                type : string
+                value : default: 3
+            }
+        ]
+        executionContextId : <executionContextId>
+        stackTrace : {
+            callFrames : [
+                [0] : {
+                    columnNumber : 10
+                    functionName : testFunction
+                    lineNumber : 31
+                    scriptId : <scriptId>
+                    url : test.js
+                }
+                [1] : {
+                    columnNumber : 0
+                    functionName : 
+                    lineNumber : 0
+                    scriptId : <scriptId>
+                    url : 
+                }
+            ]
+        }
+        timestamp : <timestamp>
+        type : count
+    }
+}
+{
+    method : Runtime.consoleAPICalled
+    params : {
+        args : [
+            [0] : {
+                type : string
+                value : default: 4
+            }
+        ]
+        executionContextId : <executionContextId>
+        stackTrace : {
+            callFrames : [
+                [0] : {
+                    columnNumber : 10
+                    functionName : testFunction
+                    lineNumber : 32
+                    scriptId : <scriptId>
+                    url : test.js
+                }
+                [1] : {
+                    columnNumber : 0
+                    functionName : 
+                    lineNumber : 0
+                    scriptId : <scriptId>
+                    url : 
+                }
+            ]
+        }
+        timestamp : <timestamp>
+        type : count
+    }
+}
+{
+    method : Runtime.consoleAPICalled
+    params : {
+        args : [
+            [0] : {
+                type : string
+                value : default: 5
+            }
+        ]
+        executionContextId : <executionContextId>
+        stackTrace : {
+            callFrames : [
+                [0] : {
+                    columnNumber : 10
+                    functionName : testFunction
+                    lineNumber : 33
+                    scriptId : <scriptId>
+                    url : test.js
+                }
+                [1] : {
                     columnNumber : 0
                     functionName : 
                     lineNumber : 0

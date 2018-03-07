@@ -520,7 +520,7 @@ TEST(JSToString1) {
 
   {  // ToString(number)
     Node* r = R.ReduceUnop(op, Type::Number());
-    CHECK_EQ(IrOpcode::kJSToString, r->opcode());
+    CHECK_EQ(IrOpcode::kNumberToString, r->opcode());
   }
 
   {  // ToString(string)

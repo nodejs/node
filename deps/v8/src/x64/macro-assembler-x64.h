@@ -345,6 +345,11 @@ class TurboAssembler : public Assembler {
   void Call(ExternalReference ext);
   void Call(Label* target) { call(target); }
 
+  void RetpolineCall(Register reg);
+  void RetpolineCall(Address destination, RelocInfo::Mode rmode);
+
+  void RetpolineJump(Register reg);
+
   void CallForDeoptimization(Address target, RelocInfo::Mode rmode) {
     call(target, rmode);
   }
@@ -383,21 +388,21 @@ class TurboAssembler : public Assembler {
 
   // Calls Abort(msg) if the condition cc is not satisfied.
   // Use --debug_code to enable.
-  void Assert(Condition cc, BailoutReason reason);
+  void Assert(Condition cc, AbortReason reason);
 
   // Like Assert(), but without condition.
   // Use --debug_code to enable.
-  void AssertUnreachable(BailoutReason reason);
+  void AssertUnreachable(AbortReason reason);
 
   // Abort execution if a 64 bit register containing a 32 bit payload does not
   // have zeros in the top 32 bits, enabled via --debug-code.
   void AssertZeroExtended(Register reg);
 
   // Like Assert(), but always enabled.
-  void Check(Condition cc, BailoutReason reason);
+  void Check(Condition cc, AbortReason reason);
 
   // Print a message to stdout and abort execution.
-  void Abort(BailoutReason msg);
+  void Abort(AbortReason msg);
 
   // Check that the stack is aligned.
   void CheckStackAlignment();

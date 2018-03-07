@@ -6,6 +6,7 @@
 #define V8_OBJECTS_MODULE_H_
 
 #include "src/objects.h"
+#include "src/objects/fixed-array.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -153,15 +154,17 @@ class Module : public Struct {
   // exception (so check manually!).
   class ResolveSet;
   static MUST_USE_RESULT MaybeHandle<Cell> ResolveExport(
-      Handle<Module> module, Handle<String> name, MessageLocation loc,
-      bool must_resolve, ResolveSet* resolve_set);
+      Handle<Module> module, Handle<String> module_specifier,
+      Handle<String> export_name, MessageLocation loc, bool must_resolve,
+      ResolveSet* resolve_set);
   static MUST_USE_RESULT MaybeHandle<Cell> ResolveImport(
       Handle<Module> module, Handle<String> name, int module_request,
       MessageLocation loc, bool must_resolve, ResolveSet* resolve_set);
 
   static MUST_USE_RESULT MaybeHandle<Cell> ResolveExportUsingStarExports(
-      Handle<Module> module, Handle<String> name, MessageLocation loc,
-      bool must_resolve, ResolveSet* resolve_set);
+      Handle<Module> module, Handle<String> module_specifier,
+      Handle<String> export_name, MessageLocation loc, bool must_resolve,
+      ResolveSet* resolve_set);
 
   static MUST_USE_RESULT bool PrepareInstantiate(
       Handle<Module> module, v8::Local<v8::Context> context,
@@ -178,6 +181,11 @@ class Module : public Struct {
   static void MaybeTransitionComponent(Handle<Module> module,
                                        ZoneForwardList<Handle<Module>>* stack,
                                        Status new_status);
+
+  // Set module's status back to kUninstantiated and reset other internal state.
+  // This is used when instantiation fails.
+  static void Reset(Handle<Module> module);
+  static void ResetGraph(Handle<Module> module);
 
   // To set status to kErrored, RecordError should be used.
   void SetStatus(Status status);

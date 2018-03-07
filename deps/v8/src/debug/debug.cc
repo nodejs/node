@@ -1782,13 +1782,13 @@ void Debug::RunPromiseHook(PromiseHookType hook_type, Handle<JSPromise> promise,
         if (*code == *BUILTIN_CODE(isolate_, AsyncFunctionPromiseCreate)) {
           type = debug::kDebugAsyncFunctionPromiseCreated;
           last_frame_was_promise_builtin = true;
-        } else if (*code == *BUILTIN_CODE(isolate_, PromiseThen)) {
+        } else if (*code == *BUILTIN_CODE(isolate_, PromisePrototypeThen)) {
           type = debug::kDebugPromiseThen;
           last_frame_was_promise_builtin = true;
-        } else if (*code == *BUILTIN_CODE(isolate_, PromiseCatch)) {
+        } else if (*code == *BUILTIN_CODE(isolate_, PromisePrototypeCatch)) {
           type = debug::kDebugPromiseCatch;
           last_frame_was_promise_builtin = true;
-        } else if (*code == *BUILTIN_CODE(isolate_, PromiseFinally)) {
+        } else if (*code == *BUILTIN_CODE(isolate_, PromisePrototypeFinally)) {
           type = debug::kDebugPromiseFinally;
           last_frame_was_promise_builtin = true;
         }
@@ -2147,7 +2147,7 @@ bool Debug::PerformSideEffectCheck(Handle<JSFunction> function) {
     return false;
   }
   Deoptimizer::DeoptimizeFunction(*function);
-  if (!function->shared()->HasNoSideEffect()) {
+  if (!SharedFunctionInfo::HasNoSideEffect(handle(function->shared()))) {
     if (FLAG_trace_side_effect_free_debug_evaluate) {
       PrintF("[debug-evaluate] Function %s failed side effect check.\n",
              function->shared()->DebugName()->ToCString().get());

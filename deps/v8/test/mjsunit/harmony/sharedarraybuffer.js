@@ -89,9 +89,6 @@ function TestTypedArray(constr, elementSize, typicalElement) {
   assertEquals("[object " + constr.name + "]",
       Object.prototype.toString.call(a0));
 
-  // TODO(binji): Should this return false here? It is a view, but it doesn't
-  // view a SharedArrayBuffer...
-  assertTrue(SharedArrayBuffer.isView(a0));
   assertSame(elementSize, a0.BYTES_PER_ELEMENT);
   assertSame(30, a0.length);
   assertSame(30*elementSize, a0.byteLength);

@@ -309,6 +309,8 @@ Type::bitset BitsetType::Lub(i::Map* map) {
     case PROTOTYPE_INFO_TYPE:
     case TUPLE2_TYPE:
     case TUPLE3_TYPE:
+    case LOAD_HANDLER_TYPE:
+    case STORE_HANDLER_TYPE:
     case CONTEXT_EXTENSION_TYPE:
     case ASYNC_GENERATOR_REQUEST_TYPE:
     case CODE_DATA_CONTAINER_TYPE:

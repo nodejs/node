@@ -705,7 +705,7 @@ Handle<JSFunction> ApiNatives::CreateApiFunction(
     // that is undetectable but not callable, we need to update the types.h
     // to allow encoding this.
     CHECK(!obj->instance_call_handler()->IsUndefined(isolate));
-    map->set_is_undetectable();
+    map->set_is_undetectable(true);
   }
 
   // Mark as needs_access_check if needed.
@@ -716,20 +716,20 @@ Handle<JSFunction> ApiNatives::CreateApiFunction(
 
   // Set interceptor information in the map.
   if (!obj->named_property_handler()->IsUndefined(isolate)) {
-    map->set_has_named_interceptor();
+    map->set_has_named_interceptor(true);
     map->set_may_have_interesting_symbols(true);
   }
   if (!obj->indexed_property_handler()->IsUndefined(isolate)) {
-    map->set_has_indexed_interceptor();
+    map->set_has_indexed_interceptor(true);
   }
 
   // Mark instance as callable in the map.
   if (!obj->instance_call_handler()->IsUndefined(isolate)) {
-    map->set_is_callable();
+    map->set_is_callable(true);
     map->set_is_constructor(true);
   }
 
-  if (immutable_proto) map->set_immutable_proto(true);
+  if (immutable_proto) map->set_is_immutable_proto(true);
 
   return result;
 }

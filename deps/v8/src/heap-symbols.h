@@ -146,6 +146,7 @@
   V(promise_string, "promise")                                              \
   V(proto_string, "__proto__")                                              \
   V(prototype_string, "prototype")                                          \
+  V(proxy_string, "proxy")                                                  \
   V(Proxy_string, "Proxy")                                                  \
   V(query_colon_string, "(?:)")                                             \
   V(RangeError_string, "RangeError")                                        \
@@ -155,6 +156,7 @@
   V(reject_string, "reject")                                                \
   V(resolve_string, "resolve")                                              \
   V(return_string, "return")                                                \
+  V(revoke_string, "revoke")                                                \
   V(script_string, "script")                                                \
   V(second_string, "second")                                                \
   V(setPrototypeOf_string, "setPrototypeOf")                                \
@@ -355,5 +357,18 @@
   F(SCAVENGER_SCAVENGE_PARALLEL)                     \
   F(SCAVENGER_SCAVENGE_ROOTS)                        \
   F(SCAVENGER_SCAVENGE_WEAK)
+
+#define TRACER_BACKGROUND_SCOPES(F)               \
+  F(BACKGROUND_ARRAY_BUFFER_FREE)                 \
+  F(BACKGROUND_STORE_BUFFER)                      \
+  F(BACKGROUND_UNMAPPER)                          \
+  F(MC_BACKGROUND_EVACUATE_COPY)                  \
+  F(MC_BACKGROUND_EVACUATE_UPDATE_POINTERS)       \
+  F(MC_BACKGROUND_MARKING)                        \
+  F(MC_BACKGROUND_SWEEPING)                       \
+  F(MINOR_MC_BACKGROUND_EVACUATE_COPY)            \
+  F(MINOR_MC_BACKGROUND_EVACUATE_UPDATE_POINTERS) \
+  F(MINOR_MC_BACKGROUND_MARKING)                  \
+  F(SCAVENGER_BACKGROUND_SCAVENGE_PARALLEL)
 
 #endif  // V8_HEAP_SYMBOLS_H_

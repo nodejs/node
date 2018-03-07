@@ -367,7 +367,7 @@ void EhFrameWriter::GetEhFrame(CodeDesc* desc) {
 
 void EhFrameWriter::WriteULeb128(uint32_t value) {
   do {
-    byte chunk = value & 0x7f;
+    byte chunk = value & 0x7F;
     value >>= 7;
     if (value != 0) chunk |= 0x80;
     WriteByte(chunk);
@@ -378,7 +378,7 @@ void EhFrameWriter::WriteSLeb128(int32_t value) {
   static const int kSignBitMask = 0x40;
   bool done;
   do {
-    byte chunk = value & 0x7f;
+    byte chunk = value & 0x7F;
     value >>= 7;
     done = ((value == 0) && ((chunk & kSignBitMask) == 0)) ||
            ((value == -1) && ((chunk & kSignBitMask) != 0));
@@ -412,7 +412,7 @@ uint32_t EhFrameIterator::DecodeULeb128(const byte* encoded,
 
   do {
     DCHECK_LT(shift, 8 * static_cast<int>(sizeof(result)));
-    result |= (*current & 0x7f) << shift;
+    result |= (*current & 0x7F) << shift;
     shift += 7;
   } while (*current++ >= 128);
 
@@ -434,7 +434,7 @@ int32_t EhFrameIterator::DecodeSLeb128(const byte* encoded, int* encoded_size) {
   do {
     chunk = *current++;
     DCHECK_LT(shift, 8 * static_cast<int>(sizeof(result)));
-    result |= (chunk & 0x7f) << shift;
+    result |= (chunk & 0x7F) << shift;
     shift += 7;
   } while (chunk >= 128);
 
@@ -478,7 +478,7 @@ void EhFrameDisassembler::DumpDwarfDirectives(std::ostream& stream,  // NOLINT
 
     byte bytecode = eh_frame_iterator.GetNextByte();
 
-    if (((bytecode >> EhFrameConstants::kLocationMaskSize) & 0xff) ==
+    if (((bytecode >> EhFrameConstants::kLocationMaskSize) & 0xFF) ==
         EhFrameConstants::kLocationTag) {
       int value = (bytecode & EhFrameConstants::kLocationMask) *
                   EhFrameConstants::kCodeAlignmentFactor;
@@ -488,7 +488,7 @@ void EhFrameDisassembler::DumpDwarfDirectives(std::ostream& stream,  // NOLINT
       continue;
     }
 
-    if (((bytecode >> EhFrameConstants::kSavedRegisterMaskSize) & 0xff) ==
+    if (((bytecode >> EhFrameConstants::kSavedRegisterMaskSize) & 0xFF) ==
         EhFrameConstants::kSavedRegisterTag) {
       int32_t decoded_offset = eh_frame_iterator.GetNextULeb128();
       stream << "| " << DwarfRegisterCodeToString(
@@ -499,7 +499,7 @@ void EhFrameDisassembler::DumpDwarfDirectives(std::ostream& stream,  // NOLINT
       continue;
     }
 
-    if (((bytecode >> EhFrameConstants::kFollowInitialRuleMaskSize) & 0xff) ==
+    if (((bytecode >> EhFrameConstants::kFollowInitialRuleMaskSize) & 0xFF) ==
         EhFrameConstants::kFollowInitialRuleTag) {
       stream << "| " << DwarfRegisterCodeToString(
                             bytecode & EhFrameConstants::kLocationMask)

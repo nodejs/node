@@ -1048,7 +1048,6 @@ void MacroAssembler::AlignAndSetCSPForFrame() {
   DCHECK_GE(sp_alignment, 16);
   DCHECK(base::bits::IsPowerOfTwo(sp_alignment));
   Bic(csp, StackPointer(), sp_alignment - 1);
-  SetStackPointer(csp);
 }
 
 void TurboAssembler::BumpSystemStackPointer(const Operand& space) {
@@ -1140,22 +1139,6 @@ void MacroAssembler::SmiUntagToFloat(VRegister dst, Register src) {
   Scvtf(dst, src, kSmiShift);
 }
 
-
-void MacroAssembler::SmiTagAndPush(Register src) {
-  STATIC_ASSERT((static_cast<unsigned>(kSmiShift) == kWRegSizeInBits) &&
-                (static_cast<unsigned>(kSmiValueSize) == kWRegSizeInBits) &&
-                (kSmiTag == 0));
-  Push(src.W(), wzr);
-}
-
-
-void MacroAssembler::SmiTagAndPush(Register src1, Register src2) {
-  STATIC_ASSERT((static_cast<unsigned>(kSmiShift) == kWRegSizeInBits) &&
-                (static_cast<unsigned>(kSmiValueSize) == kWRegSizeInBits) &&
-                (kSmiTag == 0));
-  Push(src1.W(), wzr, src2.W(), wzr);
-}
-
 void TurboAssembler::JumpIfSmi(Register value, Label* smi_label,
                                Label* not_smi_label) {
   STATIC_ASSERT((kSmiTagSize == 1) && (kSmiTag == 0));
@@ -1222,7 +1205,7 @@ void MacroAssembler::ObjectTag(Register tagged_obj, Register obj) {
   if (emit_debug_code()) {
     Label ok;
     Tbz(obj, 0, &ok);
-    Abort(kObjectTagged);
+    Abort(AbortReason::kObjectTagged);
     Bind(&ok);
   }
   Orr(tagged_obj, obj, kHeapObjectTag);
@@ -1234,7 +1217,7 @@ void MacroAssembler::ObjectUntag(Register untagged_obj, Register obj) {
   if (emit_debug_code()) {
     Label ok;
     Tbnz(obj, 0, &ok);
-    Abort(kObjectNotTagged);
+    Abort(AbortReason::kObjectNotTagged);
     Bind(&ok);
   }
   Bic(untagged_obj, obj, kHeapObjectTag);
@@ -1246,7 +1229,10 @@ void TurboAssembler::Push(Handle<HeapObject> handle) {
   UseScratchRegisterScope temps(this);
   Register tmp = temps.AcquireX();
   Mov(tmp, Operand(handle));
-  Push(tmp);
+  // This is only used in test-heap.cc, for generating code that is not
+  // executed. Push a padding slot together with the handle here, to
+  // satisfy the alignment requirement.
+  Push(padreg, tmp);
 }
 
 void TurboAssembler::Push(Smi* smi) {
@@ -1355,21 +1341,31 @@ void TurboAssembler::Drop(const Register& count, uint64_t unit_size) {
 
 void TurboAssembler::DropArguments(const Register& count,
                                    ArgumentsCountMode mode) {
+  int extra_slots = 1;  // Padding slot.
   if (mode == kCountExcludesReceiver) {
-    UseScratchRegisterScope temps(this);
-    Register tmp = temps.AcquireX();
-    Add(tmp, count, 1);
-    Drop(tmp);
-  } else {
-    Drop(count);
+    // Add a slot for the receiver.
+    ++extra_slots;
   }
+  UseScratchRegisterScope temps(this);
+  Register tmp = temps.AcquireX();
+  Add(tmp, count, extra_slots);
+  Bic(tmp, tmp, 1);
+  Drop(tmp, kXRegSize);
 }
 
-void TurboAssembler::DropSlots(int64_t count, uint64_t unit_size) {
-  Drop(count, unit_size);
+void TurboAssembler::DropArguments(int64_t count, ArgumentsCountMode mode) {
+  if (mode == kCountExcludesReceiver) {
+    // Add a slot for the receiver.
+    ++count;
+  }
+  Drop(RoundUp(count, 2), kXRegSize);
 }
 
-void TurboAssembler::PushArgument(const Register& arg) { Push(arg); }
+void TurboAssembler::DropSlots(int64_t count) {
+  Drop(RoundUp(count, 2), kXRegSize);
+}
+
+void TurboAssembler::PushArgument(const Register& arg) { Push(padreg, arg); }
 
 void MacroAssembler::DropBySMI(const Register& count_smi, uint64_t unit_size) {
   DCHECK(unit_size == 0 || base::bits::IsPowerOfTwo(unit_size));

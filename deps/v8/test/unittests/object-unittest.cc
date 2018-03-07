@@ -61,7 +61,7 @@ TEST(Object, InstanceTypeListOrder) {
   current_type = InstanceType::type;                                       \
   current = static_cast<int>(current_type);                                \
   if (current > static_cast<int>(LAST_NAME_TYPE)) {                        \
-    EXPECT_EQ(last + 1, current);                                          \
+    EXPECT_LE(last + 1, current);                                          \
   }                                                                        \
   EXPECT_LT(last, current) << " INSTANCE_TYPE_LIST is not ordered: "       \
                            << "last = " << static_cast<InstanceType>(last) \
@@ -73,7 +73,7 @@ TEST(Object, InstanceTypeListOrder) {
 }
 
 TEST(Object, StructListOrder) {
-  int current = static_cast<int>(InstanceType::ACCESSOR_INFO_TYPE);
+  int current = static_cast<int>(InstanceType::ACCESS_CHECK_INFO_TYPE);
   int last = current - 1;
   ASSERT_LT(0, last);
   InstanceType current_type = static_cast<InstanceType>(current);

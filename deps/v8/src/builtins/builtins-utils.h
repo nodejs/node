@@ -85,7 +85,8 @@ class BuiltinArguments : public Arguments {
   V8_NOINLINE static Object* Builtin_Impl_Stats_##name(                       \
       int args_length, Object** args_object, Isolate* isolate) {              \
     BuiltinArguments args(args_length, args_object);                          \
-    RuntimeCallTimerScope timer(isolate, &RuntimeCallStats::Builtin_##name);  \
+    RuntimeCallTimerScope timer(isolate,                                      \
+                                RuntimeCallCounterId::kBuiltin_##name);       \
     TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.runtime"),                     \
                  "V8.Builtin_" #name);                                        \
     return Builtin_Impl_##name(args, isolate);                                \

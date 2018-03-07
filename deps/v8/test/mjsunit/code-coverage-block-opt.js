@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --no-always-opt --harmony-async-iteration --opt
+// Flags: --allow-natives-syntax --no-always-opt --opt
 // Files: test/mjsunit/code-coverage-utils.js
 
 %DebugToggleBlockCoverage(true);
@@ -39,7 +39,7 @@ TestCoverage("Partial coverage collection",
 }();                                      // 0400
 `,
 [{"start":52,"end":153,"count":0},
- {"start":127,"end":152,"count":1}]
+ {"start":121,"end":152,"count":1}]
 );
 
 %DebugToggleBlockCoverage(false);

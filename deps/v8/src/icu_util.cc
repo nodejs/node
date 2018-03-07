@@ -81,6 +81,8 @@ bool InitializeICU(const char* icu_data_file) {
 
   UErrorCode err = U_ZERO_ERROR;
   udata_setCommonData(reinterpret_cast<void*>(addr), &err);
+  // Never try to load ICU data from files.
+  udata_setFileAccess(UDATA_ONLY_PACKAGES, &err);
   return err == U_ZERO_ERROR;
 #elif ICU_UTIL_DATA_IMPL == ICU_UTIL_DATA_STATIC
   // Mac/Linux bundle the ICU data in.
@@ -110,6 +112,8 @@ bool InitializeICU(const char* icu_data_file) {
 
   UErrorCode err = U_ZERO_ERROR;
   udata_setCommonData(reinterpret_cast<void*>(g_icu_data_ptr), &err);
+  // Never try to load ICU data from files.
+  udata_setFileAccess(UDATA_ONLY_PACKAGES, &err);
   return err == U_ZERO_ERROR;
 #endif
 #endif

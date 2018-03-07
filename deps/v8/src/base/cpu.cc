@@ -356,12 +356,12 @@ CPU::CPU()
   // Interpret CPU feature information.
   if (num_ids > 0) {
     __cpuid(cpu_info, 1);
-    stepping_ = cpu_info[0] & 0xf;
-    model_ = ((cpu_info[0] >> 4) & 0xf) + ((cpu_info[0] >> 12) & 0xf0);
-    family_ = (cpu_info[0] >> 8) & 0xf;
+    stepping_ = cpu_info[0] & 0xF;
+    model_ = ((cpu_info[0] >> 4) & 0xF) + ((cpu_info[0] >> 12) & 0xF0);
+    family_ = (cpu_info[0] >> 8) & 0xF;
     type_ = (cpu_info[0] >> 12) & 0x3;
-    ext_model_ = (cpu_info[0] >> 16) & 0xf;
-    ext_family_ = (cpu_info[0] >> 20) & 0xff;
+    ext_model_ = (cpu_info[0] >> 16) & 0xF;
+    ext_family_ = (cpu_info[0] >> 20) & 0xFF;
     has_fpu_ = (cpu_info[3] & 0x00000001) != 0;
     has_cmov_ = (cpu_info[3] & 0x00008000) != 0;
     has_mmx_ = (cpu_info[3] & 0x00800000) != 0;
@@ -378,16 +378,16 @@ CPU::CPU()
 
     if (family_ == 0x6) {
       switch (model_) {
-        case 0x1c:  // SLT
+        case 0x1C:  // SLT
         case 0x26:
         case 0x36:
         case 0x27:
         case 0x35:
         case 0x37:  // SLM
-        case 0x4a:
-        case 0x4d:
-        case 0x4c:  // AMT
-        case 0x6e:
+        case 0x4A:
+        case 0x4D:
+        case 0x4C:  // AMT
+        case 0x6E:
           is_atom_ = true;
       }
     }

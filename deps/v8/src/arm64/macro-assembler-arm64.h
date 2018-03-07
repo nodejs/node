@@ -216,12 +216,6 @@ class TurboAssembler : public Assembler {
   bool allow_macro_instructions() const { return allow_macro_instructions_; }
 #endif
 
-  // Set the current stack pointer, but don't generate any code.
-  inline void SetStackPointer(const Register& stack_pointer) {
-    DCHECK(!TmpList()->IncludesAliasOf(stack_pointer));
-    sp_ = stack_pointer;
-  }
-
   // Activation support.
   void EnterFrame(StackFrame::Type type);
   void EnterFrame(StackFrame::Type type, bool load_constant_pool_pointer_reg) {
@@ -574,17 +568,18 @@ class TurboAssembler : public Assembler {
 
   // Calls Abort(msg) if the condition cond is not satisfied.
   // Use --debug_code to enable.
-  void Assert(Condition cond, BailoutReason reason);
+  void Assert(Condition cond, AbortReason reason);
 
-  void AssertSmi(Register object, BailoutReason reason = kOperandIsNotASmi);
+  void AssertSmi(Register object,
+                 AbortReason reason = AbortReason::kOperandIsNotASmi);
 
   // Like Assert(), but always enabled.
-  void Check(Condition cond, BailoutReason reason);
+  void Check(Condition cond, AbortReason reason);
 
   inline void Debug(const char* message, uint32_t code, Instr params = BREAK);
 
   // Print a message to stderr and abort execution.
-  void Abort(BailoutReason reason);
+  void Abort(AbortReason reason);
 
   // If emit_debug_code() is true, emit a run-time check to ensure that
   // StackPointer() does not point below the system stack pointer.
@@ -619,8 +614,8 @@ class TurboAssembler : public Assembler {
   static CPURegList DefaultTmpList();
   static CPURegList DefaultFPTmpList();
 
-  // Return the current stack pointer, as set by SetStackPointer.
-  inline const Register& StackPointer() const { return sp_; }
+  // Return the stack pointer.
+  inline const Register& StackPointer() const { return csp; }
 
   // Move macros.
   inline void Mvn(const Register& rd, uint64_t imm);
@@ -711,25 +706,22 @@ class TurboAssembler : public Assembler {
   inline void Drop(int64_t count, uint64_t unit_size = kXRegSize);
   inline void Drop(const Register& count, uint64_t unit_size = kXRegSize);
 
-  // Drop arguments from stack without actually accessing memory.
-  // This will currently drop 'count' arguments from the stack.
+  // Drop 'count' arguments from the stack, rounded up to a multiple of two,
+  // without actually accessing memory.
   // We assume the size of the arguments is the pointer size.
   // An optional mode argument is passed, which can indicate we need to
   // explicitly add the receiver to the count.
-  // TODO(arm64): Update this to round up the number of bytes dropped to
-  // a multiple of 16, so that we can remove jssp.
   enum ArgumentsCountMode { kCountIncludesReceiver, kCountExcludesReceiver };
   inline void DropArguments(const Register& count,
                             ArgumentsCountMode mode = kCountIncludesReceiver);
+  inline void DropArguments(int64_t count,
+                            ArgumentsCountMode mode = kCountIncludesReceiver);
 
-  // Drop slots from stack without actually accessing memory.
-  // This will currently drop 'count' slots of the given size from the stack.
-  // TODO(arm64): Update this to round up the number of bytes dropped to
-  // a multiple of 16, so that we can remove jssp.
-  inline void DropSlots(int64_t count, uint64_t unit_size = kXRegSize);
+  // Drop 'count' slots from stack, rounded up to a multiple of two, without
+  // actually accessing memory.
+  inline void DropSlots(int64_t count);
 
-  // Push a single argument to the stack.
-  // TODO(arm64): Update this to push a padding slot above the argument.
+  // Push a single argument, with padding, to the stack.
   inline void PushArgument(const Register& arg);
 
   // Re-synchronizes the system stack pointer (csp) with the current stack
@@ -769,8 +761,7 @@ class TurboAssembler : public Assembler {
   LS_MACRO_LIST(DECLARE_FUNCTION)
 #undef DECLARE_FUNCTION
 
-  // Push or pop up to 4 registers of the same width to or from the stack,
-  // using the current stack pointer as set by SetStackPointer.
+  // Push or pop up to 4 registers of the same width to or from the stack.
   //
   // If an argument register is 'NoReg', all further arguments are also assumed
   // to be 'NoReg', and are thus not pushed or popped.
@@ -784,9 +775,8 @@ class TurboAssembler : public Assembler {
   // It is not valid to pop into the same register more than once in one
   // operation, not even into the zero register.
   //
-  // If the current stack pointer (as set by SetStackPointer) is csp, then it
-  // must be aligned to 16 bytes on entry and the total size of the specified
-  // registers must also be a multiple of 16 bytes.
+  // The stack pointer must be aligned to 16 bytes on entry and the total size
+  // of the specified registers must also be a multiple of 16 bytes.
   //
   // Even if the current stack pointer is not the system stack pointer (csp),
   // Push (and derived methods) will still modify the system stack pointer in
@@ -1291,9 +1281,6 @@ class TurboAssembler : public Assembler {
   CPURegList tmp_list_;
   CPURegList fptmp_list_;
 
-  // The register to use as a stack pointer for stack operations.
-  Register sp_;
-
   bool use_real_aborts_;
 
   // Helps resolve branching to labels potentially out of range.
@@ -1707,10 +1694,6 @@ class MacroAssembler : public TurboAssembler {
   //
   // Note that registers are not checked for invalid values. Use this method
   // only if you know that the GC won't try to examine the values on the stack.
-  //
-  // This method must not be called unless the current stack pointer (as set by
-  // SetStackPointer) is the system stack pointer (csp), and is aligned to
-  // ActivationFrameAlignment().
   void PushCalleeSavedRegisters();
 
   // Restore the callee-saved registers (as defined by AAPCS64).
@@ -1719,10 +1702,6 @@ class MacroAssembler : public TurboAssembler {
   // thus come from higher addresses.
   // Floating-point registers are popped after general-purpose registers, and
   // thus come from higher addresses.
-  //
-  // This method must not be called unless the current stack pointer (as set by
-  // SetStackPointer) is the system stack pointer (csp), and is aligned to
-  // ActivationFrameAlignment().
   void PopCalleeSavedRegisters();
 
   // Align csp for a frame, as per ActivationFrameAlignment, and make it the
@@ -1752,10 +1731,6 @@ class MacroAssembler : public TurboAssembler {
   inline void SmiUntagToDouble(VRegister dst, Register src);
   inline void SmiUntagToFloat(VRegister dst, Register src);
 
-  // Tag and push in one step.
-  inline void SmiTagAndPush(Register src);
-  inline void SmiTagAndPush(Register src1, Register src2);
-
   inline void JumpIfNotSmi(Register value, Label* not_smi_label);
   inline void JumpIfBothSmi(Register value1, Register value2,
                             Label* both_smi_label,
@@ -1771,7 +1746,8 @@ class MacroAssembler : public TurboAssembler {
                                Label* not_smi_label);
 
   // Abort execution if argument is a smi, enabled via --debug-code.
-  void AssertNotSmi(Register object, BailoutReason reason = kOperandIsASmi);
+  void AssertNotSmi(Register object,
+                    AbortReason reason = AbortReason::kOperandIsASmi);
 
   inline void ObjectTag(Register tagged_obj, Register obj);
   inline void ObjectUntag(Register untagged_obj, Register obj);
@@ -1948,19 +1924,14 @@ class MacroAssembler : public TurboAssembler {
   // ---------------------------------------------------------------------------
   // Frames.
 
-  // The stack pointer has to switch between csp and jssp when setting up and
-  // destroying the exit frame. Hence preserving/restoring the registers is
-  // slightly more complicated than simple push/pop operations.
   void ExitFramePreserveFPRegs();
   void ExitFrameRestoreFPRegs();
 
   // Enter exit frame. Exit frames are used when calling C code from generated
   // (JavaScript) code.
   //
-  // The stack pointer must be jssp on entry, and will be set to csp by this
-  // function. The frame pointer is also configured, but the only other
-  // registers modified by this function are the provided scratch register, and
-  // jssp.
+  // The only registers modified by this function are the provided scratch
+  // register, the frame pointer and the stack pointer.
   //
   // The 'extra_space' argument can be used to allocate some space in the exit
   // frame that will be ignored by the GC. This space will be reserved in the
@@ -1989,10 +1960,10 @@ class MacroAssembler : public TurboAssembler {
   //  * Preserved doubles are restored (if restore_doubles is true).
   //  * The frame information is removed from the top frame.
   //  * The exit frame is dropped.
-  //  * The stack pointer is reset to jssp.
   //
   // The stack pointer must be csp on entry.
-  void LeaveExitFrame(bool save_doubles, const Register& scratch);
+  void LeaveExitFrame(bool save_doubles, const Register& scratch,
+                      const Register& scratch2);
 
   // Load the global proxy from the current context.
   void LoadGlobalProxy(Register dst) {
@@ -2042,9 +2013,8 @@ class MacroAssembler : public TurboAssembler {
   // Debugging.
 
   void AssertRegisterIsRoot(
-      Register reg,
-      Heap::RootListIndex index,
-      BailoutReason reason = kRegisterDidNotMatchExpectedRoot);
+      Register reg, Heap::RootListIndex index,
+      AbortReason reason = AbortReason::kRegisterDidNotMatchExpectedRoot);
 
   // Abort if the specified register contains the invalid color bit pattern.
   // The pattern must be in bits [1:0] of 'reg' register.

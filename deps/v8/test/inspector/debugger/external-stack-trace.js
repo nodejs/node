@@ -119,7 +119,6 @@ InspectorTest.runAsyncTestSuite([
   },
 
   async function testExternalStacks() {
-
     let debuggerId1 = (await Protocol1.Debugger.enable()).result.debuggerId;
     let debuggerId2 = (await Protocol2.Debugger.enable()).result.debuggerId;
     Protocol1.Debugger.setAsyncCallStackDepth({maxDepth: 32});

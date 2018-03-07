@@ -349,40 +349,44 @@ const int kStubMinorKeyBits = kSmiValueSize - kStubMajorKeyBits - 1;
   V(FIXED_DOUBLE_ARRAY_TYPE)                                    \
   V(FILLER_TYPE)                                                \
                                                                 \
+  V(ACCESS_CHECK_INFO_TYPE)                                     \
   V(ACCESSOR_INFO_TYPE)                                         \
   V(ACCESSOR_PAIR_TYPE)                                         \
-  V(ACCESS_CHECK_INFO_TYPE)                                     \
-  V(INTERCEPTOR_INFO_TYPE)                                      \
-  V(FUNCTION_TEMPLATE_INFO_TYPE)                                \
-  V(OBJECT_TEMPLATE_INFO_TYPE)                                  \
-  V(ALLOCATION_SITE_TYPE)                                       \
-  V(ALLOCATION_MEMENTO_TYPE)                                    \
-  V(SCRIPT_TYPE)                                                \
   V(ALIASED_ARGUMENTS_ENTRY_TYPE)                               \
-  V(PROMISE_RESOLVE_THENABLE_JOB_INFO_TYPE)                     \
-  V(PROMISE_REACTION_JOB_INFO_TYPE)                             \
+  V(ALLOCATION_MEMENTO_TYPE)                                    \
+  V(ALLOCATION_SITE_TYPE)                                       \
+  V(ASYNC_GENERATOR_REQUEST_TYPE)                               \
+  V(CONTEXT_EXTENSION_TYPE)                                     \
   V(DEBUG_INFO_TYPE)                                            \
-  V(STACK_FRAME_INFO_TYPE)                                      \
+  V(FUNCTION_TEMPLATE_INFO_TYPE)                                \
+  V(INTERCEPTOR_INFO_TYPE)                                      \
+  V(MODULE_INFO_ENTRY_TYPE)                                     \
+  V(MODULE_TYPE)                                                \
+  V(OBJECT_TEMPLATE_INFO_TYPE)                                  \
+  V(PROMISE_REACTION_JOB_INFO_TYPE)                             \
+  V(PROMISE_RESOLVE_THENABLE_JOB_INFO_TYPE)                     \
   V(PROTOTYPE_INFO_TYPE)                                        \
+  V(SCRIPT_TYPE)                                                \
+  V(STACK_FRAME_INFO_TYPE)                                      \
   V(TUPLE2_TYPE)                                                \
   V(TUPLE3_TYPE)                                                \
-  V(CONTEXT_EXTENSION_TYPE)                                     \
-  V(MODULE_TYPE)                                                \
-  V(MODULE_INFO_ENTRY_TYPE)                                     \
-  V(ASYNC_GENERATOR_REQUEST_TYPE)                               \
+                                                                \
   V(FIXED_ARRAY_TYPE)                                           \
-  V(HASH_TABLE_TYPE)                                            \
   V(DESCRIPTOR_ARRAY_TYPE)                                      \
+  V(HASH_TABLE_TYPE)                                            \
   V(TRANSITION_ARRAY_TYPE)                                      \
-  V(FEEDBACK_VECTOR_TYPE)                                       \
-  V(PROPERTY_ARRAY_TYPE)                                        \
-  V(SHARED_FUNCTION_INFO_TYPE)                                  \
+                                                                \
   V(CELL_TYPE)                                                  \
-  V(WEAK_CELL_TYPE)                                             \
+  V(CODE_DATA_CONTAINER_TYPE)                                   \
+  V(FEEDBACK_VECTOR_TYPE)                                       \
+  V(LOAD_HANDLER_TYPE)                                          \
+  V(PROPERTY_ARRAY_TYPE)                                        \
   V(PROPERTY_CELL_TYPE)                                         \
+  V(SHARED_FUNCTION_INFO_TYPE)                                  \
   V(SMALL_ORDERED_HASH_MAP_TYPE)                                \
   V(SMALL_ORDERED_HASH_SET_TYPE)                                \
-  V(CODE_DATA_CONTAINER_TYPE)                                   \
+  V(STORE_HANDLER_TYPE)                                         \
+  V(WEAK_CELL_TYPE)                                             \
                                                                 \
   V(JS_PROXY_TYPE)                                              \
   V(JS_GLOBAL_OBJECT_TYPE)                                      \
@@ -390,32 +394,34 @@ const int kStubMinorKeyBits = kSmiValueSize - kStubMajorKeyBits - 1;
   V(JS_MODULE_NAMESPACE_TYPE)                                   \
   V(JS_SPECIAL_API_OBJECT_TYPE)                                 \
   V(JS_VALUE_TYPE)                                              \
-  V(JS_MESSAGE_OBJECT_TYPE)                                     \
-  V(JS_DATE_TYPE)                                               \
   V(JS_API_OBJECT_TYPE)                                         \
   V(JS_OBJECT_TYPE)                                             \
+                                                                \
   V(JS_ARGUMENTS_TYPE)                                          \
-  V(JS_CONTEXT_EXTENSION_OBJECT_TYPE)                           \
-  V(JS_GENERATOR_OBJECT_TYPE)                                   \
-  V(JS_ASYNC_GENERATOR_OBJECT_TYPE)                             \
-  V(JS_ARRAY_TYPE)                                              \
   V(JS_ARRAY_BUFFER_TYPE)                                       \
-  V(JS_TYPED_ARRAY_TYPE)                                        \
-  V(JS_DATA_VIEW_TYPE)                                          \
-  V(JS_SET_TYPE)                                                \
+  V(JS_ARRAY_TYPE)                                              \
+  V(JS_ASYNC_FROM_SYNC_ITERATOR_TYPE)                           \
+  V(JS_ASYNC_GENERATOR_OBJECT_TYPE)                             \
+  V(JS_CONTEXT_EXTENSION_OBJECT_TYPE)                           \
+  V(JS_DATE_TYPE)                                               \
+  V(JS_ERROR_TYPE)                                              \
+  V(JS_GENERATOR_OBJECT_TYPE)                                   \
   V(JS_MAP_TYPE)                                                \
-  V(JS_SET_KEY_VALUE_ITERATOR_TYPE)                             \
-  V(JS_SET_VALUE_ITERATOR_TYPE)                                 \
   V(JS_MAP_KEY_ITERATOR_TYPE)                                   \
   V(JS_MAP_KEY_VALUE_ITERATOR_TYPE)                             \
   V(JS_MAP_VALUE_ITERATOR_TYPE)                                 \
-  V(JS_WEAK_MAP_TYPE)                                           \
-  V(JS_WEAK_SET_TYPE)                                           \
+  V(JS_MESSAGE_OBJECT_TYPE)                                     \
   V(JS_PROMISE_TYPE)                                            \
   V(JS_REGEXP_TYPE)                                             \
-  V(JS_ERROR_TYPE)                                              \
-  V(JS_ASYNC_FROM_SYNC_ITERATOR_TYPE)                           \
+  V(JS_SET_TYPE)                                                \
+  V(JS_SET_KEY_VALUE_ITERATOR_TYPE)                             \
+  V(JS_SET_VALUE_ITERATOR_TYPE)                                 \
   V(JS_STRING_ITERATOR_TYPE)                                    \
+  V(JS_WEAK_MAP_TYPE)                                           \
+  V(JS_WEAK_SET_TYPE)                                           \
+                                                                \
+  V(JS_TYPED_ARRAY_TYPE)                                        \
+  V(JS_DATA_VIEW_TYPE)                                          \
                                                                 \
   ARRAY_ITERATOR_TYPE_LIST(V)                                   \
                                                                 \
@@ -531,29 +537,38 @@ const int kStubMinorKeyBits = kSmiValueSize - kStubMajorKeyBits - 1;
 // type tags, elements in this list have to be added to the INSTANCE_TYPE_LIST
 // manually.
 #define STRUCT_LIST(V)                                                       \
+  V(ACCESS_CHECK_INFO, AccessCheckInfo, access_check_info)                   \
   V(ACCESSOR_INFO, AccessorInfo, accessor_info)                              \
   V(ACCESSOR_PAIR, AccessorPair, accessor_pair)                              \
-  V(ACCESS_CHECK_INFO, AccessCheckInfo, access_check_info)                   \
-  V(INTERCEPTOR_INFO, InterceptorInfo, interceptor_info)                     \
-  V(FUNCTION_TEMPLATE_INFO, FunctionTemplateInfo, function_template_info)    \
-  V(OBJECT_TEMPLATE_INFO, ObjectTemplateInfo, object_template_info)          \
-  V(ALLOCATION_SITE, AllocationSite, allocation_site)                        \
-  V(ALLOCATION_MEMENTO, AllocationMemento, allocation_memento)               \
-  V(SCRIPT, Script, script)                                                  \
   V(ALIASED_ARGUMENTS_ENTRY, AliasedArgumentsEntry, aliased_arguments_entry) \
-  V(PROMISE_RESOLVE_THENABLE_JOB_INFO, PromiseResolveThenableJobInfo,        \
-    promise_resolve_thenable_job_info)                                       \
+  V(ALLOCATION_MEMENTO, AllocationMemento, allocation_memento)               \
+  V(ALLOCATION_SITE, AllocationSite, allocation_site)                        \
+  V(ASYNC_GENERATOR_REQUEST, AsyncGeneratorRequest, async_generator_request) \
+  V(CONTEXT_EXTENSION, ContextExtension, context_extension)                  \
+  V(DEBUG_INFO, DebugInfo, debug_info)                                       \
+  V(FUNCTION_TEMPLATE_INFO, FunctionTemplateInfo, function_template_info)    \
+  V(INTERCEPTOR_INFO, InterceptorInfo, interceptor_info)                     \
+  V(MODULE_INFO_ENTRY, ModuleInfoEntry, module_info_entry)                   \
+  V(MODULE, Module, module)                                                  \
+  V(OBJECT_TEMPLATE_INFO, ObjectTemplateInfo, object_template_info)          \
   V(PROMISE_REACTION_JOB_INFO, PromiseReactionJobInfo,                       \
     promise_reaction_job_info)                                               \
-  V(DEBUG_INFO, DebugInfo, debug_info)                                       \
-  V(STACK_FRAME_INFO, StackFrameInfo, stack_frame_info)                      \
+  V(PROMISE_RESOLVE_THENABLE_JOB_INFO, PromiseResolveThenableJobInfo,        \
+    promise_resolve_thenable_job_info)                                       \
   V(PROTOTYPE_INFO, PrototypeInfo, prototype_info)                           \
+  V(SCRIPT, Script, script)                                                  \
+  V(STACK_FRAME_INFO, StackFrameInfo, stack_frame_info)                      \
   V(TUPLE2, Tuple2, tuple2)                                                  \
-  V(TUPLE3, Tuple3, tuple3)                                                  \
-  V(CONTEXT_EXTENSION, ContextExtension, context_extension)                  \
-  V(MODULE, Module, module)                                                  \
-  V(MODULE_INFO_ENTRY, ModuleInfoEntry, module_info_entry)                   \
-  V(ASYNC_GENERATOR_REQUEST, AsyncGeneratorRequest, async_generator_request)
+  V(TUPLE3, Tuple3, tuple3)
+
+#define DATA_HANDLER_LIST(V)                        \
+  V(LOAD_HANDLER, LoadHandler, 1, load_handler1)    \
+  V(LOAD_HANDLER, LoadHandler, 2, load_handler2)    \
+  V(LOAD_HANDLER, LoadHandler, 3, load_handler3)    \
+  V(STORE_HANDLER, StoreHandler, 0, store_handler0) \
+  V(STORE_HANDLER, StoreHandler, 1, store_handler1) \
+  V(STORE_HANDLER, StoreHandler, 2, store_handler2) \
+  V(STORE_HANDLER, StoreHandler, 3, store_handler3)
 
 // We use the full 16 bits of the instance_type field to encode heap object
 // instance types. All the high-order bits (bit 7-15) are cleared if the object
@@ -704,80 +719,90 @@ enum InstanceType : uint16_t {
   FILLER_TYPE,  // LAST_DATA_TYPE
 
   // Structs.
+  ACCESS_CHECK_INFO_TYPE,
   ACCESSOR_INFO_TYPE,
   ACCESSOR_PAIR_TYPE,
-  ACCESS_CHECK_INFO_TYPE,
-  INTERCEPTOR_INFO_TYPE,
-  FUNCTION_TEMPLATE_INFO_TYPE,
-  OBJECT_TEMPLATE_INFO_TYPE,
-  ALLOCATION_SITE_TYPE,
-  ALLOCATION_MEMENTO_TYPE,
-  SCRIPT_TYPE,
   ALIASED_ARGUMENTS_ENTRY_TYPE,
-  PROMISE_RESOLVE_THENABLE_JOB_INFO_TYPE,
-  PROMISE_REACTION_JOB_INFO_TYPE,
+  ALLOCATION_MEMENTO_TYPE,
+  ALLOCATION_SITE_TYPE,
+  ASYNC_GENERATOR_REQUEST_TYPE,
+  CONTEXT_EXTENSION_TYPE,
   DEBUG_INFO_TYPE,
-  STACK_FRAME_INFO_TYPE,
+  FUNCTION_TEMPLATE_INFO_TYPE,
+  INTERCEPTOR_INFO_TYPE,
+  MODULE_INFO_ENTRY_TYPE,
+  MODULE_TYPE,
+  OBJECT_TEMPLATE_INFO_TYPE,
+  PROMISE_REACTION_JOB_INFO_TYPE,
+  PROMISE_RESOLVE_THENABLE_JOB_INFO_TYPE,
   PROTOTYPE_INFO_TYPE,
+  SCRIPT_TYPE,
+  STACK_FRAME_INFO_TYPE,
   TUPLE2_TYPE,
   TUPLE3_TYPE,
-  CONTEXT_EXTENSION_TYPE,
-  MODULE_TYPE,
-  MODULE_INFO_ENTRY_TYPE,
-  ASYNC_GENERATOR_REQUEST_TYPE,
+
+  // FixedArrays.
   FIXED_ARRAY_TYPE,  // FIRST_FIXED_ARRAY_TYPE
-  HASH_TABLE_TYPE,
   DESCRIPTOR_ARRAY_TYPE,
+  HASH_TABLE_TYPE,
   TRANSITION_ARRAY_TYPE,  // LAST_FIXED_ARRAY_TYPE
-  FEEDBACK_VECTOR_TYPE,
-  PROPERTY_ARRAY_TYPE,
-  SHARED_FUNCTION_INFO_TYPE,
+
+  // Misc.
   CELL_TYPE,
-  WEAK_CELL_TYPE,
+  CODE_DATA_CONTAINER_TYPE,
+  FEEDBACK_VECTOR_TYPE,
+  LOAD_HANDLER_TYPE,
+  PROPERTY_ARRAY_TYPE,
   PROPERTY_CELL_TYPE,
+  SHARED_FUNCTION_INFO_TYPE,
   SMALL_ORDERED_HASH_MAP_TYPE,
   SMALL_ORDERED_HASH_SET_TYPE,
-  CODE_DATA_CONTAINER_TYPE,
+  STORE_HANDLER_TYPE,
+  WEAK_CELL_TYPE,
 
   // All the following types are subtypes of JSReceiver, which corresponds to
   // objects in the JS sense. The first and the last type in this range are
   // the two forms of function. This organization enables using the same
   // compares for checking the JS_RECEIVER and the NONCALLABLE_JS_OBJECT range.
-  JS_PROXY_TYPE,          // FIRST_JS_RECEIVER_TYPE
-  JS_GLOBAL_OBJECT_TYPE,  // FIRST_JS_OBJECT_TYPE
+  // Some of the following instance types are exposed in v8.h, so to not
+  // unnecessarily change the ABI when we introduce new instance types in the
+  // future, we leave some space between instance types.
+  JS_PROXY_TYPE = 0x0400,  // FIRST_JS_RECEIVER_TYPE
+  JS_GLOBAL_OBJECT_TYPE,   // FIRST_JS_OBJECT_TYPE
   JS_GLOBAL_PROXY_TYPE,
   JS_MODULE_NAMESPACE_TYPE,
   // Like JS_API_OBJECT_TYPE, but requires access checks and/or has
   // interceptors.
-  JS_SPECIAL_API_OBJECT_TYPE,  // LAST_SPECIAL_RECEIVER_TYPE
-  JS_VALUE_TYPE,               // LAST_CUSTOM_ELEMENTS_RECEIVER
-  JS_MESSAGE_OBJECT_TYPE,
-  JS_DATE_TYPE,
+  JS_SPECIAL_API_OBJECT_TYPE = 0x0410,  // LAST_SPECIAL_RECEIVER_TYPE
+  JS_VALUE_TYPE,                        // LAST_CUSTOM_ELEMENTS_RECEIVER
   // Like JS_OBJECT_TYPE, but created from API function.
-  JS_API_OBJECT_TYPE,
+  JS_API_OBJECT_TYPE = 0x0420,
   JS_OBJECT_TYPE,
   JS_ARGUMENTS_TYPE,
-  JS_CONTEXT_EXTENSION_OBJECT_TYPE,
-  JS_GENERATOR_OBJECT_TYPE,
-  JS_ASYNC_GENERATOR_OBJECT_TYPE,
-  JS_ARRAY_TYPE,
   JS_ARRAY_BUFFER_TYPE,
-  JS_TYPED_ARRAY_TYPE,
-  JS_DATA_VIEW_TYPE,
-  JS_SET_TYPE,
+  JS_ARRAY_TYPE,
+  JS_ASYNC_FROM_SYNC_ITERATOR_TYPE,
+  JS_ASYNC_GENERATOR_OBJECT_TYPE,
+  JS_CONTEXT_EXTENSION_OBJECT_TYPE,
+  JS_DATE_TYPE,
+  JS_ERROR_TYPE,
+  JS_GENERATOR_OBJECT_TYPE,
   JS_MAP_TYPE,
-  JS_SET_KEY_VALUE_ITERATOR_TYPE,
-  JS_SET_VALUE_ITERATOR_TYPE,
   JS_MAP_KEY_ITERATOR_TYPE,
   JS_MAP_KEY_VALUE_ITERATOR_TYPE,
   JS_MAP_VALUE_ITERATOR_TYPE,
-  JS_WEAK_MAP_TYPE,
-  JS_WEAK_SET_TYPE,
+  JS_MESSAGE_OBJECT_TYPE,
   JS_PROMISE_TYPE,
   JS_REGEXP_TYPE,
-  JS_ERROR_TYPE,
-  JS_ASYNC_FROM_SYNC_ITERATOR_TYPE,
+  JS_SET_TYPE,
+  JS_SET_KEY_VALUE_ITERATOR_TYPE,
+  JS_SET_VALUE_ITERATOR_TYPE,
   JS_STRING_ITERATOR_TYPE,
+  JS_WEAK_MAP_TYPE,
+  JS_WEAK_SET_TYPE,
+
+  JS_TYPED_ARRAY_TYPE,
+  JS_DATA_VIEW_TYPE,
 
 #define ARRAY_ITERATOR_TYPE(type) type,
   ARRAY_ITERATOR_TYPE_LIST(ARRAY_ITERATOR_TYPE)
@@ -857,55 +882,6 @@ STATIC_ASSERT(FOREIGN_TYPE == Internals::kForeignType);
 V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
                                            InstanceType instance_type);
 
-#define FIXED_ARRAY_SUB_INSTANCE_TYPE_LIST(V)    \
-  V(BYTECODE_ARRAY_CONSTANT_POOL_SUB_TYPE)       \
-  V(BYTECODE_ARRAY_HANDLER_TABLE_SUB_TYPE)       \
-  V(CODE_STUBS_TABLE_SUB_TYPE)                   \
-  V(COMPILATION_CACHE_TABLE_SUB_TYPE)            \
-  V(CONTEXT_SUB_TYPE)                            \
-  V(COPY_ON_WRITE_SUB_TYPE)                      \
-  V(DEOPTIMIZATION_DATA_SUB_TYPE)                \
-  V(DESCRIPTOR_ARRAY_SUB_TYPE)                   \
-  V(EMBEDDED_OBJECT_SUB_TYPE)                    \
-  V(ENUM_CACHE_SUB_TYPE)                         \
-  V(ENUM_INDICES_CACHE_SUB_TYPE)                 \
-  V(DEPENDENT_CODE_SUB_TYPE)                     \
-  V(DICTIONARY_ELEMENTS_SUB_TYPE)                \
-  V(DICTIONARY_PROPERTIES_SUB_TYPE)              \
-  V(EMPTY_PROPERTIES_DICTIONARY_SUB_TYPE)        \
-  V(PACKED_ELEMENTS_SUB_TYPE)                    \
-  V(FAST_PROPERTIES_SUB_TYPE)                    \
-  V(FAST_TEMPLATE_INSTANTIATIONS_CACHE_SUB_TYPE) \
-  V(HANDLER_TABLE_SUB_TYPE)                      \
-  V(JS_COLLECTION_SUB_TYPE)                      \
-  V(JS_WEAK_COLLECTION_SUB_TYPE)                 \
-  V(NOSCRIPT_SHARED_FUNCTION_INFOS_SUB_TYPE)     \
-  V(NUMBER_STRING_CACHE_SUB_TYPE)                \
-  V(OBJECT_TO_CODE_SUB_TYPE)                     \
-  V(OPTIMIZED_CODE_LITERALS_SUB_TYPE)            \
-  V(OPTIMIZED_CODE_MAP_SUB_TYPE)                 \
-  V(PROTOTYPE_USERS_SUB_TYPE)                    \
-  V(REGEXP_MULTIPLE_CACHE_SUB_TYPE)              \
-  V(RETAINED_MAPS_SUB_TYPE)                      \
-  V(SCOPE_INFO_SUB_TYPE)                         \
-  V(SCRIPT_LIST_SUB_TYPE)                        \
-  V(SERIALIZED_TEMPLATES_SUB_TYPE)               \
-  V(SHARED_FUNCTION_INFOS_SUB_TYPE)              \
-  V(SINGLE_CHARACTER_STRING_CACHE_SUB_TYPE)      \
-  V(SLOW_TEMPLATE_INSTANTIATIONS_CACHE_SUB_TYPE) \
-  V(STRING_SPLIT_CACHE_SUB_TYPE)                 \
-  V(STRING_TABLE_SUB_TYPE)                       \
-  V(TEMPLATE_INFO_SUB_TYPE)                      \
-  V(FEEDBACK_METADATA_SUB_TYPE)                  \
-  V(WEAK_NEW_SPACE_OBJECT_TO_CODE_SUB_TYPE)
-
-enum FixedArraySubInstanceType {
-#define DEFINE_FIXED_ARRAY_SUB_INSTANCE_TYPE(name) name,
-  FIXED_ARRAY_SUB_INSTANCE_TYPE_LIST(DEFINE_FIXED_ARRAY_SUB_INSTANCE_TYPE)
-#undef DEFINE_FIXED_ARRAY_SUB_INSTANCE_TYPE
-      LAST_FIXED_ARRAY_SUB_TYPE = WEAK_NEW_SPACE_OBJECT_TO_CODE_SUB_TYPE
-};
-
 // Result of an abstract relational comparison of x and y, implemented according
 // to ES6 section 7.2.11 Abstract Relational Comparison.
 enum class ComparisonResult {
@@ -921,6 +897,7 @@ bool ComparisonResultToBool(Operation op, ComparisonResult result);
 class AbstractCode;
 class AccessorPair;
 class AllocationSite;
+class ByteArray;
 class Cell;
 class ConsString;
 class DependentCode;
@@ -944,7 +921,6 @@ class RootVisitor;
 class SafepointEntry;
 class SharedFunctionInfo;
 class StringStream;
-class TypeFeedbackInfo;
 class FeedbackMetadata;
 class FeedbackVector;
 class WeakCell;
@@ -994,6 +970,7 @@ template <class C> inline bool Is(Object* obj);
   V(Constructor)                          \
   V(Context)                              \
   V(CoverageInfo)                         \
+  V(DataHandler)                          \
   V(DeoptimizationData)                   \
   V(DependentCode)                        \
   V(DescriptorArray)                      \
@@ -1062,6 +1039,7 @@ template <class C> inline bool Is(Object* obj);
   V(JSWeakCollection)                     \
   V(JSWeakMap)                            \
   V(JSWeakSet)                            \
+  V(LoadHandler)                          \
   V(Map)                                  \
   V(MapCache)                             \
   V(ModuleInfo)                           \
@@ -1093,6 +1071,7 @@ template <class C> inline bool Is(Object* obj);
   V(SmallOrderedHashMap)                  \
   V(SmallOrderedHashSet)                  \
   V(SourcePositionTableWithFrameCache)    \
+  V(StoreHandler)                         \
   V(String)                               \
   V(StringSet)                            \
   V(StringTable)                          \
@@ -1105,7 +1084,6 @@ template <class C> inline bool Is(Object* obj);
   V(TemplateObjectDescription)            \
   V(ThinString)                           \
   V(TransitionArray)                      \
-  V(TypeFeedbackInfo)                     \
   V(Undetectable)                         \
   V(UniqueName)                           \
   V(WasmInstanceObject)                   \
@@ -2204,10 +2182,12 @@ class JSReceiver: public HeapObject {
       Handle<JSReceiver> object);
 
   MUST_USE_RESULT static MaybeHandle<FixedArray> GetOwnValues(
-      Handle<JSReceiver> object, PropertyFilter filter);
+      Handle<JSReceiver> object, PropertyFilter filter,
+      bool try_fast_path = true);
 
   MUST_USE_RESULT static MaybeHandle<FixedArray> GetOwnEntries(
-      Handle<JSReceiver> object, PropertyFilter filter);
+      Handle<JSReceiver> object, PropertyFilter filter,
+      bool try_fast_path = true);
 
   static const int kHashMask = PropertyArray::HashField::kMask;
 
@@ -2391,7 +2371,8 @@ class JSObject: public JSReceiver {
                                               Handle<Map> new_map,
                                               Isolate* isolate);
   static bool UnregisterPrototypeUser(Handle<Map> user, Isolate* isolate);
-  static void InvalidatePrototypeChains(Map* map);
+  static Map* InvalidatePrototypeChains(Map* map);
+  static void InvalidatePrototypeValidityCell(JSGlobalObject* global);
 
   // Updates prototype chain tracking information when an object changes its
   // map from |old_map| to |new_map|.
@@ -2691,6 +2672,7 @@ class JSObject: public JSReceiver {
   STATIC_ASSERT(kHeaderSize == Internals::kJSObjectHeaderSize);
   static const int kMaxInObjectProperties =
       (kMaxInstanceSize - kHeaderSize) >> kPointerSizeLog2;
+  STATIC_ASSERT(kMaxInObjectProperties <= kMaxNumberOfDescriptors);
 
   class BodyDescriptor;
   // No weak fields.
@@ -2801,414 +2783,6 @@ class JSIteratorResult: public JSObject {
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSIteratorResult);
 };
 
-
-// Common superclass for FixedArrays that allow implementations to share
-// common accessors and some code paths.
-class FixedArrayBase: public HeapObject {
- public:
-  // [length]: length of the array.
-  inline int length() const;
-  inline void set_length(int value);
-
-  // Get and set the length using acquire loads and release stores.
-  inline int synchronized_length() const;
-  inline void synchronized_set_length(int value);
-
-  DECL_CAST(FixedArrayBase)
-
-  static int GetMaxLengthForNewSpaceAllocation(ElementsKind kind);
-
-  bool IsCowArray() const;
-
-  // Layout description.
-  // Length is smi tagged when it is stored.
-  static const int kLengthOffset = HeapObject::kHeaderSize;
-  static const int kHeaderSize = kLengthOffset + kPointerSize;
-};
-
-
-class FixedDoubleArray;
-class IncrementalMarking;
-
-
-// FixedArray describes fixed-sized arrays with element type Object*.
-class FixedArray: public FixedArrayBase {
- public:
-  // Setter and getter for elements.
-  inline Object* get(int index) const;
-  static inline Handle<Object> get(FixedArray* array, int index,
-                                   Isolate* isolate);
-  template <class T>
-  MaybeHandle<T> GetValue(Isolate* isolate, int index) const;
-
-  template <class T>
-  Handle<T> GetValueChecked(Isolate* isolate, int index) const;
-
-  // Return a grown copy if the index is bigger than the array's length.
-  static Handle<FixedArray> SetAndGrow(Handle<FixedArray> array, int index,
-                                       Handle<Object> value);
-
-  // Setter that uses write barrier.
-  inline void set(int index, Object* value);
-  inline bool is_the_hole(Isolate* isolate, int index);
-
-  // Setter that doesn't need write barrier.
-  inline void set(int index, Smi* value);
-  // Setter with explicit barrier mode.
-  inline void set(int index, Object* value, WriteBarrierMode mode);
-
-  // Setters for frequently used oddballs located in old space.
-  inline void set_undefined(int index);
-  inline void set_undefined(Isolate* isolate, int index);
-  inline void set_null(int index);
-  inline void set_null(Isolate* isolate, int index);
-  inline void set_the_hole(int index);
-  inline void set_the_hole(Isolate* isolate, int index);
-
-  inline Object** GetFirstElementAddress();
-  inline bool ContainsOnlySmisOrHoles();
-
-  // Gives access to raw memory which stores the array's data.
-  inline Object** data_start();
-
-  inline void FillWithHoles(int from, int to);
-
-  // Shrink length and insert filler objects.
-  void Shrink(int length);
-
-  // Copy a sub array from the receiver to dest.
-  void CopyTo(int pos, FixedArray* dest, int dest_pos, int len) const;
-
-  // Garbage collection support.
-  static constexpr int SizeFor(int length) {
-    return kHeaderSize + length * kPointerSize;
-  }
-
-  // Code Generation support.
-  static constexpr int OffsetOfElementAt(int index) { return SizeFor(index); }
-
-  // Garbage collection support.
-  inline Object** RawFieldOfElementAt(int index);
-
-  DECL_CAST(FixedArray)
-
-  // Maximal allowed size, in bytes, of a single FixedArray.
-  // Prevents overflowing size computations, as well as extreme memory
-  // consumption.
-  static const int kMaxSize = 128 * MB * kPointerSize;
-  // Maximally allowed length of a FixedArray.
-  static const int kMaxLength = (kMaxSize - kHeaderSize) / kPointerSize;
-  // Maximally allowed length for regular (non large object space) object.
-  STATIC_ASSERT(kMaxRegularHeapObjectSize < kMaxSize);
-  static const int kMaxRegularLength =
-      (kMaxRegularHeapObjectSize - kHeaderSize) / kPointerSize;
-
-  // Dispatched behavior.
-  DECL_PRINTER(FixedArray)
-  DECL_VERIFIER(FixedArray)
-#ifdef DEBUG
-  // Checks if two FixedArrays have identical contents.
-  bool IsEqualTo(FixedArray* other);
-#endif
-
-  typedef FlexibleBodyDescriptor<kHeaderSize> BodyDescriptor;
-  // No weak fields.
-  typedef BodyDescriptor BodyDescriptorWeak;
-
- protected:
-  // Set operation on FixedArray without using write barriers. Can
-  // only be used for storing old space objects or smis.
-  static inline void NoWriteBarrierSet(FixedArray* array,
-                                       int index,
-                                       Object* value);
-
- private:
-  STATIC_ASSERT(kHeaderSize == Internals::kFixedArrayHeaderSize);
-
-  DISALLOW_IMPLICIT_CONSTRUCTORS(FixedArray);
-};
-
-// FixedArray alias added only because of IsFixedArrayExact() predicate, which
-// checks for the exact instance type FIXED_ARRAY_TYPE instead of a range
-// check: [FIRST_FIXED_ARRAY_TYPE, LAST_FIXED_ARRAY_TYPE].
-class FixedArrayExact final : public FixedArray {
- public:
-  DECL_CAST(FixedArrayExact)
-};
-
-// FixedDoubleArray describes fixed-sized arrays with element type double.
-class FixedDoubleArray: public FixedArrayBase {
- public:
-  // Setter and getter for elements.
-  inline double get_scalar(int index);
-  inline uint64_t get_representation(int index);
-  static inline Handle<Object> get(FixedDoubleArray* array, int index,
-                                   Isolate* isolate);
-  inline void set(int index, double value);
-  inline void set_the_hole(Isolate* isolate, int index);
-  inline void set_the_hole(int index);
-
-  // Checking for the hole.
-  inline bool is_the_hole(Isolate* isolate, int index);
-  inline bool is_the_hole(int index);
-
-  // Garbage collection support.
-  inline static int SizeFor(int length) {
-    return kHeaderSize + length * kDoubleSize;
-  }
-
-  // Gives access to raw memory which stores the array's data.
-  inline double* data_start();
-
-  inline void FillWithHoles(int from, int to);
-
-  // Code Generation support.
-  static int OffsetOfElementAt(int index) { return SizeFor(index); }
-
-  DECL_CAST(FixedDoubleArray)
-
-  // Maximal allowed size, in bytes, of a single FixedDoubleArray.
-  // Prevents overflowing size computations, as well as extreme memory
-  // consumption.
-  static const int kMaxSize = 512 * MB;
-  // Maximally allowed length of a FixedArray.
-  static const int kMaxLength = (kMaxSize - kHeaderSize) / kDoubleSize;
-
-  // Dispatched behavior.
-  DECL_PRINTER(FixedDoubleArray)
-  DECL_VERIFIER(FixedDoubleArray)
-
-  class BodyDescriptor;
-  // No weak fields.
-  typedef BodyDescriptor BodyDescriptorWeak;
-
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(FixedDoubleArray);
-};
-
-class WeakFixedArray : public FixedArray {
- public:
-  // If |maybe_array| is not a WeakFixedArray, a fresh one will be allocated.
-  // This function does not check if the value exists already, callers must
-  // ensure this themselves if necessary.
-  static Handle<WeakFixedArray> Add(Handle<Object> maybe_array,
-                                    Handle<HeapObject> value,
-                                    int* assigned_index = nullptr);
-
-  // Returns true if an entry was found and removed.
-  bool Remove(Handle<HeapObject> value);
-
-  class NullCallback {
-   public:
-    static void Callback(Object* value, int old_index, int new_index) {}
-  };
-
-  template <class CompactionCallback>
-  void Compact();
-
-  inline Object* Get(int index) const;
-  inline void Clear(int index);
-  inline int Length() const;
-
-  inline bool IsEmptySlot(int index) const;
-  static Object* Empty() { return Smi::kZero; }
-
-  class Iterator {
-   public:
-    explicit Iterator(Object* maybe_array) : list_(nullptr) {
-      Reset(maybe_array);
-    }
-    void Reset(Object* maybe_array);
-
-    template <class T>
-    inline T* Next();
-
-   private:
-    int index_;
-    WeakFixedArray* list_;
-#ifdef DEBUG
-    int last_used_index_;
-    DisallowHeapAllocation no_gc_;
-#endif  // DEBUG
-    DISALLOW_COPY_AND_ASSIGN(Iterator);
-  };
-
-  DECL_CAST(WeakFixedArray)
-
- private:
-  static const int kLastUsedIndexIndex = 0;
-  static const int kFirstIndex = 1;
-
-  static Handle<WeakFixedArray> Allocate(
-      Isolate* isolate, int size, Handle<WeakFixedArray> initialize_from);
-
-  static void Set(Handle<WeakFixedArray> array, int index,
-                  Handle<HeapObject> value);
-  inline void clear(int index);
-
-  inline int last_used_index() const;
-  inline void set_last_used_index(int index);
-
-  // Disallow inherited setters.
-  void set(int index, Smi* value);
-  void set(int index, Object* value);
-  void set(int index, Object* value, WriteBarrierMode mode);
-  DISALLOW_IMPLICIT_CONSTRUCTORS(WeakFixedArray);
-};
-
-// Generic array grows dynamically with O(1) amortized insertion.
-//
-// ArrayList is a FixedArray with static convenience methods for adding more
-// elements. The Length() method returns the number of elements in the list, not
-// the allocated size. The number of elements is stored at kLengthIndex and is
-// updated with every insertion. The elements of the ArrayList are stored in the
-// underlying FixedArray starting at kFirstIndex.
-class ArrayList : public FixedArray {
- public:
-  enum AddMode {
-    kNone,
-    // Use this if GC can delete elements from the array.
-    kReloadLengthAfterAllocation,
-  };
-  static Handle<ArrayList> Add(Handle<ArrayList> array, Handle<Object> obj,
-                               AddMode mode = kNone);
-  static Handle<ArrayList> Add(Handle<ArrayList> array, Handle<Object> obj1,
-                               Handle<Object> obj2, AddMode = kNone);
-  static Handle<ArrayList> New(Isolate* isolate, int size);
-
-  // Returns the number of elements in the list, not the allocated size, which
-  // is length(). Lower and upper case length() return different results!
-  inline int Length() const;
-
-  // Sets the Length() as used by Elements(). Does not change the underlying
-  // storage capacity, i.e., length().
-  inline void SetLength(int length);
-  inline Object* Get(int index) const;
-  inline Object** Slot(int index);
-
-  // Set the element at index to obj. The underlying array must be large enough.
-  // If you need to grow the ArrayList, use the static Add() methods instead.
-  inline void Set(int index, Object* obj,
-                  WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
-
-  // Set the element at index to undefined. This does not change the Length().
-  inline void Clear(int index, Object* undefined);
-
-  // Return a copy of the list of size Length() without the first entry. The
-  // number returned by Length() is stored in the first entry.
-  static Handle<FixedArray> Elements(Handle<ArrayList> array);
-  bool IsFull();
-  DECL_CAST(ArrayList)
-
- private:
-  static Handle<ArrayList> EnsureSpace(Handle<ArrayList> array, int length);
-  static const int kLengthIndex = 0;
-  static const int kFirstIndex = 1;
-  DISALLOW_IMPLICIT_CONSTRUCTORS(ArrayList);
-};
-
-enum SearchMode { ALL_ENTRIES, VALID_ENTRIES };
-
-template <SearchMode search_mode, typename T>
-inline int Search(T* array, Name* name, int valid_entries = 0,
-                  int* out_insertion_index = nullptr);
-
-// ByteArray represents fixed sized byte arrays.  Used for the relocation info
-// that is attached to code objects.
-class ByteArray: public FixedArrayBase {
- public:
-  inline int Size();
-
-  // Setter and getter.
-  inline byte get(int index) const;
-  inline void set(int index, byte value);
-
-  // Copy in / copy out whole byte slices.
-  inline void copy_out(int index, byte* buffer, int length);
-  inline void copy_in(int index, const byte* buffer, int length);
-
-  // Treat contents as an int array.
-  inline int get_int(int index) const;
-  inline void set_int(int index, int value);
-
-  inline uint32_t get_uint32(int index) const;
-  inline void set_uint32(int index, uint32_t value);
-
-  // Clear uninitialized padding space. This ensures that the snapshot content
-  // is deterministic.
-  inline void clear_padding();
-
-  static int SizeFor(int length) {
-    return OBJECT_POINTER_ALIGN(kHeaderSize + length);
-  }
-  // We use byte arrays for free blocks in the heap.  Given a desired size in
-  // bytes that is a multiple of the word size and big enough to hold a byte
-  // array, this function returns the number of elements a byte array should
-  // have.
-  static int LengthFor(int size_in_bytes) {
-    DCHECK(IsAligned(size_in_bytes, kPointerSize));
-    DCHECK_GE(size_in_bytes, kHeaderSize);
-    return size_in_bytes - kHeaderSize;
-  }
-
-  // Returns data start address.
-  inline Address GetDataStartAddress();
-
-  inline int DataSize() const;
-
-  // Returns a pointer to the ByteArray object for a given data start address.
-  static inline ByteArray* FromDataStartAddress(Address address);
-
-  DECL_CAST(ByteArray)
-
-  // Dispatched behavior.
-  inline int ByteArraySize();
-  DECL_PRINTER(ByteArray)
-  DECL_VERIFIER(ByteArray)
-
-  // Layout description.
-  static const int kAlignedSize = OBJECT_POINTER_ALIGN(kHeaderSize);
-
-  // Maximal memory consumption for a single ByteArray.
-  static const int kMaxSize = 512 * MB;
-  // Maximal length of a single ByteArray.
-  static const int kMaxLength = kMaxSize - kHeaderSize;
-
-  class BodyDescriptor;
-  // No weak fields.
-  typedef BodyDescriptor BodyDescriptorWeak;
-
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(ByteArray);
-};
-
-// Wrapper class for ByteArray which can store arbitrary C++ classes, as long
-// as they can be copied with memcpy.
-template <class T>
-class PodArray : public ByteArray {
- public:
-  static Handle<PodArray<T>> New(Isolate* isolate, int length,
-                                 PretenureFlag pretenure = NOT_TENURED);
-  void copy_out(int index, T* result) {
-    ByteArray::copy_out(index * sizeof(T), reinterpret_cast<byte*>(result),
-                        sizeof(T));
-  }
-  T get(int index) {
-    T result;
-    copy_out(index, &result);
-    return result;
-  }
-  void set(int index, const T& value) {
-    copy_in(index * sizeof(T), reinterpret_cast<const byte*>(&value),
-            sizeof(T));
-  }
-  int length() { return ByteArray::length() / sizeof(T); }
-  DECL_CAST(PodArray<T>)
-
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(PodArray<T>);
-};
-
 // FreeSpace are fixed-size free memory blocks used by the heap and GC.
 // They look like heap objects (are heap object tagged and have a map) so that
 // the heap remains iterable.  They have a size and a next pointer.
@@ -3243,136 +2817,6 @@ class FreeSpace: public HeapObject {
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(FreeSpace);
-};
-
-
-// V has parameters (Type, type, TYPE, C type, element_size)
-#define TYPED_ARRAYS(V) \
-  V(Uint8, uint8, UINT8, uint8_t, 1)                                           \
-  V(Int8, int8, INT8, int8_t, 1)                                               \
-  V(Uint16, uint16, UINT16, uint16_t, 2)                                       \
-  V(Int16, int16, INT16, int16_t, 2)                                           \
-  V(Uint32, uint32, UINT32, uint32_t, 4)                                       \
-  V(Int32, int32, INT32, int32_t, 4)                                           \
-  V(Float32, float32, FLOAT32, float, 4)                                       \
-  V(Float64, float64, FLOAT64, double, 8)                                      \
-  V(Uint8Clamped, uint8_clamped, UINT8_CLAMPED, uint8_t, 1)
-
-
-class FixedTypedArrayBase: public FixedArrayBase {
- public:
-  // [base_pointer]: Either points to the FixedTypedArrayBase itself or nullptr.
-  DECL_ACCESSORS(base_pointer, Object)
-
-  // [external_pointer]: Contains the offset between base_pointer and the start
-  // of the data. If the base_pointer is a nullptr, the external_pointer
-  // therefore points to the actual backing store.
-  DECL_ACCESSORS(external_pointer, void)
-
-  // Dispatched behavior.
-  DECL_CAST(FixedTypedArrayBase)
-
-  static const int kBasePointerOffset = FixedArrayBase::kHeaderSize;
-  static const int kExternalPointerOffset = kBasePointerOffset + kPointerSize;
-  static const int kHeaderSize =
-      DOUBLE_POINTER_ALIGN(kExternalPointerOffset + kPointerSize);
-
-  static const int kDataOffset = kHeaderSize;
-
-  static const int kMaxElementSize = 8;
-
-#ifdef V8_HOST_ARCH_32_BIT
-  static const size_t kMaxByteLength = std::numeric_limits<size_t>::max();
-#else
-  static const size_t kMaxByteLength =
-      static_cast<size_t>(Smi::kMaxValue) * kMaxElementSize;
-#endif  // V8_HOST_ARCH_32_BIT
-
-  static const size_t kMaxLength = Smi::kMaxValue;
-
-  class BodyDescriptor;
-  // No weak fields.
-  typedef BodyDescriptor BodyDescriptorWeak;
-
-  inline int size() const;
-
-  static inline int TypedArraySize(InstanceType type, int length);
-  inline int TypedArraySize(InstanceType type) const;
-
-  // Use with care: returns raw pointer into heap.
-  inline void* DataPtr();
-
-  inline int DataSize() const;
-
-  inline size_t ByteLength() const;
-
- private:
-  static inline int ElementSize(InstanceType type);
-
-  inline int DataSize(InstanceType type) const;
-
-  DISALLOW_IMPLICIT_CONSTRUCTORS(FixedTypedArrayBase);
-};
-
-
-template <class Traits>
-class FixedTypedArray: public FixedTypedArrayBase {
- public:
-  typedef typename Traits::ElementType ElementType;
-  static const InstanceType kInstanceType = Traits::kInstanceType;
-
-  DECL_CAST(FixedTypedArray<Traits>)
-
-  inline ElementType get_scalar(int index);
-  static inline Handle<Object> get(FixedTypedArray* array, int index);
-  inline void set(int index, ElementType value);
-
-  static inline ElementType from(int value);
-  static inline ElementType from(uint32_t value);
-  static inline ElementType from(double value);
-
-  // This accessor applies the correct conversion from Smi, HeapNumber
-  // and undefined.
-  inline void SetValue(uint32_t index, Object* value);
-
-  DECL_PRINTER(FixedTypedArray)
-  DECL_VERIFIER(FixedTypedArray)
-
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(FixedTypedArray);
-};
-
-#define FIXED_TYPED_ARRAY_TRAITS(Type, type, TYPE, elementType, size)    \
-  STATIC_ASSERT(size <= FixedTypedArrayBase::kMaxElementSize);           \
-  class Type##ArrayTraits {                                              \
-   public: /* NOLINT */                                                  \
-    typedef elementType ElementType;                                     \
-    static const InstanceType kInstanceType = FIXED_##TYPE##_ARRAY_TYPE; \
-    static const char* Designator() { return #type " array"; }           \
-    static inline Handle<Object> ToHandle(Isolate* isolate,              \
-                                          elementType scalar);           \
-    static inline elementType defaultValue();                            \
-  };                                                                     \
-                                                                         \
-  typedef FixedTypedArray<Type##ArrayTraits> Fixed##Type##Array;
-
-TYPED_ARRAYS(FIXED_TYPED_ARRAY_TRAITS)
-
-#undef FIXED_TYPED_ARRAY_TRAITS
-
-class TemplateList : public FixedArray {
- public:
-  static Handle<TemplateList> New(Isolate* isolate, int size);
-  inline int length() const;
-  inline Object* get(int index) const;
-  inline void set(int index, Object* value);
-  static Handle<TemplateList> Add(Isolate* isolate, Handle<TemplateList> list,
-                                  Handle<Object> value);
-  DECL_CAST(TemplateList)
- private:
-  static const int kLengthIndex = 0;
-  static const int kFirstElementIndex = kLengthIndex + 1;
-  DISALLOW_IMPLICIT_CONSTRUCTORS(TemplateList);
 };
 
 class PrototypeInfo;
@@ -3779,6 +3223,7 @@ enum BuiltinFunctionId {
   kArrayKeys,
   kArrayValues,
   kArrayIteratorNext,
+  kBigIntConstructor,
   kMapSize,
   kSetSize,
   kMapIteratorNext,
@@ -3795,6 +3240,8 @@ enum BuiltinFunctionId {
   kGlobalUnescape,
   kGlobalIsFinite,
   kGlobalIsNaN,
+  kNumberConstructor,
+  kSymbolConstructor,
   kTypedArrayByteLength,
   kTypedArrayByteOffset,
   kTypedArrayEntries,
@@ -3803,6 +3250,7 @@ enum BuiltinFunctionId {
   kTypedArrayToStringTag,
   kTypedArrayValues,
   kSharedArrayBufferByteLength,
+  kStringConstructor,
   kStringIterator,
   kStringIteratorNext,
   kStringToLowerCaseIntl,
@@ -4470,48 +3918,6 @@ class JSPromise : public JSObject {
   STATIC_ASSERT(v8::Promise::kRejected == 2);
 };
 
-class TypeFeedbackInfo : public Tuple3 {
- public:
-  inline int ic_total_count();
-  inline void set_ic_total_count(int count);
-
-  inline int ic_with_type_info_count();
-  inline void change_ic_with_type_info_count(int delta);
-
-  inline int ic_generic_count();
-  inline void change_ic_generic_count(int delta);
-
-  inline void initialize_storage();
-
-  inline void change_own_type_change_checksum();
-  inline int own_type_change_checksum();
-
-  inline void set_inlined_type_change_checksum(int checksum);
-  inline bool matches_inlined_type_change_checksum(int checksum);
-
-  DECL_CAST(TypeFeedbackInfo)
-
-  static const int kStorage1Offset = kValue1Offset;
-  static const int kStorage2Offset = kValue2Offset;
-  static const int kStorage3Offset = kValue3Offset;
-
- private:
-  static const int kTypeChangeChecksumBits = 7;
-
-  class ICTotalCountField: public BitField<int, 0,
-      kSmiValueSize - kTypeChangeChecksumBits> {};  // NOLINT
-  class OwnTypeChangeChecksum: public BitField<int,
-      kSmiValueSize - kTypeChangeChecksumBits,
-      kTypeChangeChecksumBits> {};  // NOLINT
-  class ICsWithTypeInfoCountField: public BitField<int, 0,
-      kSmiValueSize - kTypeChangeChecksumBits> {};  // NOLINT
-  class InlinedTypeChangeChecksum: public BitField<int,
-      kSmiValueSize - kTypeChangeChecksumBits,
-      kTypeChangeChecksumBits> {};  // NOLINT
-
-  DISALLOW_IMPLICIT_CONSTRUCTORS(TypeFeedbackInfo);
-};
-
 class AllocationSite: public Struct {
  public:
   static const uint32_t kMaximumArrayBytesToPretransition = 8 * 1024;
@@ -4904,7 +4310,7 @@ class JSProxy: public JSReceiver {
   // [handler]: The handler property.
   DECL_ACCESSORS(handler, Object)
   // [target]: The target property.
-  DECL_ACCESSORS(target, JSReceiver)
+  DECL_ACCESSORS(target, Object)
 
   static MaybeHandle<Context> GetFunctionRealm(Handle<JSProxy> proxy);
 
@@ -5015,57 +4421,22 @@ class JSProxy: public JSReceiver {
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSProxy);
 };
 
-
-class JSCollection : public JSObject {
+// JSProxyRevocableResult is just a JSObject with a specific initial map.
+// This initial map adds in-object properties for "proxy" and "revoke".
+// See https://tc39.github.io/ecma262/#sec-proxy.revocable
+class JSProxyRevocableResult : public JSObject {
  public:
-  // [table]: the backing hash table
-  DECL_ACCESSORS(table, Object)
-
-  static const int kTableOffset = JSObject::kHeaderSize;
-  static const int kSize = kTableOffset + kPointerSize;
+  // Offsets of object fields.
+  static const int kProxyOffset = JSObject::kHeaderSize;
+  static const int kRevokeOffset = kProxyOffset + kPointerSize;
+  static const int kSize = kRevokeOffset + kPointerSize;
+  // Indices of in-object properties.
+  static const int kProxyIndex = 0;
+  static const int kRevokeIndex = 1;
 
  private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(JSCollection);
+  DISALLOW_IMPLICIT_CONSTRUCTORS(JSProxyRevocableResult);
 };
-
-
-// The JSSet describes EcmaScript Harmony sets
-// TODO(marja): When moving JSSet out of objects.h, move JSSetIterator (from
-// objects/hash-table.h) into the same file.
-class JSSet : public JSCollection {
- public:
-  DECL_CAST(JSSet)
-
-  static void Initialize(Handle<JSSet> set, Isolate* isolate);
-  static void Clear(Handle<JSSet> set);
-
-  // Dispatched behavior.
-  DECL_PRINTER(JSSet)
-  DECL_VERIFIER(JSSet)
-
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(JSSet);
-};
-
-
-// The JSMap describes EcmaScript Harmony maps
-// TODO(marja): When moving JSMap out of objects.h, move JSMapIterator (from
-// objects/hash-table.h) into the same file.
-class JSMap : public JSCollection {
- public:
-  DECL_CAST(JSMap)
-
-  static void Initialize(Handle<JSMap> map, Isolate* isolate);
-  static void Clear(Handle<JSMap> map);
-
-  // Dispatched behavior.
-  DECL_PRINTER(JSMap)
-  DECL_VERIFIER(JSMap)
-
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(JSMap);
-};
-
 
 // The [Async-from-Sync Iterator] object
 // (proposal-async-iteration/#sec-async-from-sync-iterator-objects)
@@ -5116,82 +4487,13 @@ class JSStringIterator : public JSObject {
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSStringIterator);
 };
 
-// Base class for both JSWeakMap and JSWeakSet
-class JSWeakCollection: public JSObject {
- public:
-  DECL_CAST(JSWeakCollection)
-
-  // [table]: the backing hash table mapping keys to values.
-  DECL_ACCESSORS(table, Object)
-
-  // [next]: linked list of encountered weak maps during GC.
-  DECL_ACCESSORS(next, Object)
-
-  static void Initialize(Handle<JSWeakCollection> collection, Isolate* isolate);
-  static void Set(Handle<JSWeakCollection> collection, Handle<Object> key,
-                  Handle<Object> value, int32_t hash);
-  static bool Delete(Handle<JSWeakCollection> collection, Handle<Object> key,
-                     int32_t hash);
-  static Handle<JSArray> GetEntries(Handle<JSWeakCollection> holder,
-                                    int max_entries);
-
-  static const int kTableOffset = JSObject::kHeaderSize;
-  static const int kNextOffset = kTableOffset + kPointerSize;
-  static const int kSize = kNextOffset + kPointerSize;
-
-  // Visiting policy defines whether the table and next collection fields
-  // should be visited or not.
-  enum BodyVisitingPolicy { kIgnoreWeakness, kRespectWeakness };
-
-  // Iterates the function object according to the visiting policy.
-  template <BodyVisitingPolicy>
-  class BodyDescriptorImpl;
-
-  // Visit the whole object.
-  typedef BodyDescriptorImpl<kIgnoreWeakness> BodyDescriptor;
-
-  // Don't visit table and next collection fields.
-  typedef BodyDescriptorImpl<kRespectWeakness> BodyDescriptorWeak;
-
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(JSWeakCollection);
-};
-
-
-// The JSWeakMap describes EcmaScript Harmony weak maps
-class JSWeakMap: public JSWeakCollection {
- public:
-  DECL_CAST(JSWeakMap)
-
-  // Dispatched behavior.
-  DECL_PRINTER(JSWeakMap)
-  DECL_VERIFIER(JSWeakMap)
-
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(JSWeakMap);
-};
-
-
-// The JSWeakSet describes EcmaScript Harmony weak sets
-class JSWeakSet: public JSWeakCollection {
- public:
-  DECL_CAST(JSWeakSet)
-
-  // Dispatched behavior.
-  DECL_PRINTER(JSWeakSet)
-  DECL_VERIFIER(JSWeakSet)
-
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(JSWeakSet);
-};
-
-
 // Foreign describes objects pointing from JavaScript to C structures.
 class Foreign: public HeapObject {
  public:
   // [address]: field containing the address.
   inline Address foreign_address();
-  inline void set_foreign_address(Address value);
+
+  static inline bool IsNormalized(Object* object);
 
   DECL_CAST(Foreign)
 
@@ -5211,6 +4513,12 @@ class Foreign: public HeapObject {
   typedef BodyDescriptor BodyDescriptorWeak;
 
  private:
+  friend class Heap;
+  friend class SerializerDeserializer;
+  friend class StartupSerializer;
+
+  inline void set_foreign_address(Address value);
+
   DISALLOW_IMPLICIT_CONSTRUCTORS(Foreign);
 };
 
@@ -5230,6 +4538,7 @@ class AccessorInfo: public Struct {
   DECL_ACCESSORS(expected_receiver_type, Object)
   // This directly points at a foreign C function to be used from the runtime.
   DECL_ACCESSORS(getter, Object)
+  inline bool has_getter();
   DECL_ACCESSORS(setter, Object)
   // This either points at the same as above, or a trampoline in case we are
   // running with the simulator. Use these entries from generated code.
@@ -5394,6 +4703,7 @@ class InterceptorInfo: public Struct {
   DECL_BOOLEAN_ACCESSORS(can_intercept_symbols)
   DECL_BOOLEAN_ACCESSORS(all_can_read)
   DECL_BOOLEAN_ACCESSORS(non_masking)
+  DECL_BOOLEAN_ACCESSORS(is_named)
 
   inline int flags() const;
   inline void set_flags(int flags);
@@ -5418,6 +4728,7 @@ class InterceptorInfo: public Struct {
   static const int kCanInterceptSymbolsBit = 0;
   static const int kAllCanReadBit = 1;
   static const int kNonMasking = 2;
+  static const int kNamed = 3;
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(InterceptorInfo);

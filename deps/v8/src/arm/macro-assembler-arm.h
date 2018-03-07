@@ -294,13 +294,13 @@ class TurboAssembler : public Assembler {
 
   // Calls Abort(msg) if the condition cond is not satisfied.
   // Use --debug_code to enable.
-  void Assert(Condition cond, BailoutReason reason);
+  void Assert(Condition cond, AbortReason reason);
 
   // Like Assert(), but always enabled.
-  void Check(Condition cond, BailoutReason reason);
+  void Check(Condition cond, AbortReason reason);
 
   // Print a message to stdout and abort execution.
-  void Abort(BailoutReason msg);
+  void Abort(AbortReason msg);
 
   inline bool AllowThisStubCall(CodeStub* stub);
 
@@ -578,10 +578,6 @@ class MacroAssembler : public TurboAssembler {
  public:
   MacroAssembler(Isolate* isolate, void* buffer, int size,
                  CodeObjectRequired create_code_object);
-
-  // Used for patching in calls to the deoptimizer.
-  void CallDeoptimizer(Address target);
-  static int CallDeoptimizerSize();
 
   // Swap two registers.  If the scratch register is omitted then a slightly
   // less efficient form using xor instead of mov is emitted.

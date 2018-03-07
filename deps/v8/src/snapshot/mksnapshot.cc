@@ -94,7 +94,7 @@ class SnapshotWriter {
   static void WriteSnapshotData(FILE* fp,
                                 const i::Vector<const i::byte>& blob) {
     for (int i = 0; i < blob.length(); i++) {
-      if ((i & 0x1f) == 0x1f) fprintf(fp, "\n");
+      if ((i & 0x1F) == 0x1F) fprintf(fp, "\n");
       if (i > 0) fprintf(fp, ",");
       fprintf(fp, "%u", static_cast<unsigned char>(blob.at(i)));
     }

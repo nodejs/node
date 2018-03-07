@@ -47,7 +47,7 @@ class PPCDebugger {
   void Debug();
 
  private:
-  static const Instr kBreakpointInstr = (TWI | 0x1f * B21);
+  static const Instr kBreakpointInstr = (TWI | 0x1F * B21);
   static const Instr kNopInstr = (ORI);  // ori, 0,0,0
 
   Simulator* sim_;
@@ -232,7 +232,7 @@ void PPCDebugger::Debug() {
 
         // If at a breakpoint, proceed past it.
         if ((reinterpret_cast<Instruction*>(sim_->get_pc()))
-                ->InstructionBits() == 0x7d821008) {
+                ->InstructionBits() == 0x7D821008) {
           sim_->set_pc(sim_->get_pc() + Instruction::kInstrSize);
         } else {
           sim_->ExecuteInstruction(
@@ -256,7 +256,7 @@ void PPCDebugger::Debug() {
       } else if ((strcmp(cmd, "c") == 0) || (strcmp(cmd, "cont") == 0)) {
         // If at a breakpoint, proceed past it.
         if ((reinterpret_cast<Instruction*>(sim_->get_pc()))
-                ->InstructionBits() == 0x7d821008) {
+                ->InstructionBits() == 0x7D821008) {
           sim_->set_pc(sim_->get_pc() + Instruction::kInstrSize);
         } else {
           // Execute the one instruction we broke at with breakpoints disabled.
@@ -314,7 +314,7 @@ void PPCDebugger::Debug() {
               PrintF("%3s: %f 0x%08x %08x\n",
                      GetRegConfig()->GetDoubleRegisterName(i), dvalue,
                      static_cast<uint32_t>(as_words >> 32),
-                     static_cast<uint32_t>(as_words & 0xffffffff));
+                     static_cast<uint32_t>(as_words & 0xFFFFFFFF));
             }
           } else if (arg1[0] == 'r' &&
                      (arg1[1] >= '0' && arg1[1] <= '9' &&
@@ -336,7 +336,7 @@ void PPCDebugger::Debug() {
               uint64_t as_words = bit_cast<uint64_t>(dvalue);
               PrintF("%s: %f 0x%08x %08x\n", arg1, dvalue,
                      static_cast<uint32_t>(as_words >> 32),
-                     static_cast<uint32_t>(as_words & 0xffffffff));
+                     static_cast<uint32_t>(as_words & 0xFFFFFFFF));
             } else {
               PrintF("%s unrecognized\n", arg1);
             }
@@ -664,6 +664,10 @@ void Simulator::set_last_debugger_input(char* input) {
   last_debugger_input_ = input;
 }
 
+void Simulator::SetRedirectInstruction(Instruction* instruction) {
+  instruction->SetInstructionBits(rtCallRedirInstr | kCallRtRedirected);
+}
+
 void Simulator::FlushICache(base::CustomMatcherHashMap* i_cache,
                             void* start_addr, size_t size) {
   intptr_t start = reinterpret_cast<intptr_t>(start_addr);
@@ -733,21 +737,12 @@ void Simulator::CheckICache(base::CustomMatcherHashMap* i_cache,
 }
 
 
-void Simulator::Initialize(Isolate* isolate) {
-  if (isolate->simulator_initialized()) return;
-  isolate->set_simulator_initialized(true);
-  ::v8::internal::ExternalReference::set_redirector(isolate,
-                                                    &RedirectExternalReference);
-}
-
-
 Simulator::Simulator(Isolate* isolate) : isolate_(isolate) {
   i_cache_ = isolate_->simulator_i_cache();
   if (i_cache_ == nullptr) {
     i_cache_ = new base::CustomMatcherHashMap(&ICacheMatch);
     isolate_->set_simulator_i_cache(i_cache_);
   }
-  Initialize(isolate);
 // Set up simulator support first. Some of this information is needed to
 // setup the architecture state.
 #if V8_TARGET_ARCH_PPC64
@@ -790,116 +785,6 @@ Simulator::Simulator(Isolate* isolate) : isolate_(isolate) {
 Simulator::~Simulator() {
   global_monitor_.Pointer()->RemoveProcessor(&global_monitor_processor_);
   free(stack_);
-}
-
-// When the generated code calls an external reference we need to catch that in
-// the simulator.  The external reference will be a function compiled for the
-// host architecture.  We need to call that function instead of trying to
-// execute it with the simulator.  We do that by redirecting the external
-// reference to a svc (Supervisor Call) instruction that is handled by
-// the simulator.  We write the original destination of the jump just at a known
-// offset from the svc instruction so the simulator knows what to call.
-class Redirection {
- public:
-  Redirection(Isolate* isolate, void* external_function,
-              ExternalReference::Type type)
-      : external_function_(external_function),
-        swi_instruction_(rtCallRedirInstr | kCallRtRedirected),
-        type_(type),
-        next_(nullptr) {
-    next_ = isolate->simulator_redirection();
-    Simulator::current(isolate)->FlushICache(
-        isolate->simulator_i_cache(),
-        reinterpret_cast<void*>(&swi_instruction_), Instruction::kInstrSize);
-    isolate->set_simulator_redirection(this);
-    if (ABI_USES_FUNCTION_DESCRIPTORS) {
-      function_descriptor_[0] = reinterpret_cast<intptr_t>(&swi_instruction_);
-      function_descriptor_[1] = 0;
-      function_descriptor_[2] = 0;
-    }
-  }
-
-  void* address() {
-    if (ABI_USES_FUNCTION_DESCRIPTORS) {
-      return reinterpret_cast<void*>(function_descriptor_);
-    } else {
-      return reinterpret_cast<void*>(&swi_instruction_);
-    }
-  }
-
-  void* external_function() { return external_function_; }
-  ExternalReference::Type type() { return type_; }
-
-  static Redirection* Get(Isolate* isolate, void* external_function,
-                          ExternalReference::Type type) {
-    Redirection* current = isolate->simulator_redirection();
-    for (; current != nullptr; current = current->next_) {
-      if (current->external_function_ == external_function &&
-          current->type_ == type) {
-        return current;
-      }
-    }
-    return new Redirection(isolate, external_function, type);
-  }
-
-  static Redirection* FromSwiInstruction(Instruction* swi_instruction) {
-    char* addr_of_swi = reinterpret_cast<char*>(swi_instruction);
-    char* addr_of_redirection =
-        addr_of_swi - offsetof(Redirection, swi_instruction_);
-    return reinterpret_cast<Redirection*>(addr_of_redirection);
-  }
-
-  static Redirection* FromAddress(void* address) {
-    int delta = ABI_USES_FUNCTION_DESCRIPTORS
-                    ? offsetof(Redirection, function_descriptor_)
-                    : offsetof(Redirection, swi_instruction_);
-    char* addr_of_redirection = reinterpret_cast<char*>(address) - delta;
-    return reinterpret_cast<Redirection*>(addr_of_redirection);
-  }
-
-  static void* ReverseRedirection(intptr_t reg) {
-    Redirection* redirection = FromAddress(reinterpret_cast<void*>(reg));
-    return redirection->external_function();
-  }
-
-  static void DeleteChain(Redirection* redirection) {
-    while (redirection != nullptr) {
-      Redirection* next = redirection->next_;
-      delete redirection;
-      redirection = next;
-    }
-  }
-
- private:
-  void* external_function_;
-  uint32_t swi_instruction_;
-  ExternalReference::Type type_;
-  Redirection* next_;
-  intptr_t function_descriptor_[3];
-};
-
-
-// static
-void Simulator::TearDown(base::CustomMatcherHashMap* i_cache,
-                         Redirection* first) {
-  Redirection::DeleteChain(first);
-  if (i_cache != nullptr) {
-    for (base::HashMap::Entry* entry = i_cache->Start(); entry != nullptr;
-         entry = i_cache->Next(entry)) {
-      delete static_cast<CachePage*>(entry->value);
-    }
-    delete i_cache;
-  }
-}
-
-
-void* Simulator::RedirectExternalReference(Isolate* isolate,
-                                           void* external_function,
-                                           ExternalReference::Type type) {
-  base::LockGuard<base::Mutex> lock_guard(
-      isolate->simulator_redirection_mutex());
-  Redirection* redirection = Redirection::Get(isolate, external_function, type);
-  return redirection->address();
 }
 
 
@@ -988,9 +873,9 @@ void Simulator::SetFpResult(const double& result) {
 void Simulator::TrashCallerSaveRegisters() {
 // We don't trash the registers with the return value.
 #if 0  // A good idea to trash volatile registers, needs to be done
-  registers_[2] = 0x50Bad4U;
-  registers_[3] = 0x50Bad4U;
-  registers_[12] = 0x50Bad4U;
+  registers_[2] = 0x50BAD4U;
+  registers_[3] = 0x50BAD4U;
+  registers_[12] = 0x50BAD4U;
 #endif
 }
 
@@ -1239,7 +1124,7 @@ void Simulator::Format(Instruction* instr, const char* format) {
 bool Simulator::CarryFrom(int32_t left, int32_t right, int32_t carry) {
   uint32_t uleft = static_cast<uint32_t>(left);
   uint32_t uright = static_cast<uint32_t>(right);
-  uint32_t urest = 0xffffffffU - uleft;
+  uint32_t urest = 0xFFFFFFFFU - uleft;
 
   return (uright > urest) ||
          (carry && (((uright + 1) > urest) || (uright > (urest - 1))));
@@ -1330,7 +1215,7 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
       bool stack_aligned =
           (get_register(sp) & (::v8::internal::FLAG_sim_stack_alignment - 1)) ==
           0;
-      Redirection* redirection = Redirection::FromSwiInstruction(instr);
+      Redirection* redirection = Redirection::FromInstruction(instr);
       const int kArgCount = 9;
       const int kRegisterArgCount = 8;
       int arg0_regnum = 3;
@@ -1641,7 +1526,7 @@ void Simulator::DisableStop(uint32_t code) {
 void Simulator::IncreaseStopCounter(uint32_t code) {
   DCHECK_LE(code, kMaxStopCode);
   DCHECK(isWatchedStop(code));
-  if ((watched_stops_[code].count & ~(1 << 31)) == 0x7fffffff) {
+  if ((watched_stops_[code].count & ~(1 << 31)) == 0x7FFFFFFF) {
     PrintF(
         "Stop counter for code %i has overflowed.\n"
         "Enabling this code and reseting the counter to 0.\n",
@@ -1958,10 +1843,10 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
           bit >>= 1;
         }
       } else if (mb == me + 1) {
-        mask = 0xffffffff;
+        mask = 0xFFFFFFFF;
       } else {                             // mb > me+1
         int bit = 0x80000000 >> (me + 1);  // needs to be tested
-        mask = 0xffffffff;
+        mask = 0xFFFFFFFF;
         for (; me < mb; me++) {
           mask ^= bit;
           bit >>= 1;
@@ -1987,7 +1872,7 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
       } else {
         int rb = instr->RBValue();
         uint32_t rb_val = get_register(rb);
-        sh = (rb_val & 0x1f);
+        sh = (rb_val & 0x1F);
       }
       int mb = instr->Bits(10, 6);
       int me = instr->Bits(5, 1);
@@ -2000,10 +1885,10 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
           bit >>= 1;
         }
       } else if (mb == me + 1) {
-        mask = 0xffffffff;
+        mask = 0xFFFFFFFF;
       } else {                             // mb > me+1
         int bit = 0x80000000 >> (me + 1);  // needs to be tested
-        mask = 0xffffffff;
+        mask = 0xFFFFFFFF;
         for (; me < mb; me++) {
           mask ^= bit;
           bit >>= 1;
@@ -2078,7 +1963,7 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
       int ra = instr->RAValue();
       int rb = instr->RBValue();
       uint32_t rs_val = get_register(rs);
-      uintptr_t rb_val = get_register(rb) & 0x3f;
+      uintptr_t rb_val = get_register(rb) & 0x3F;
       intptr_t result = (rb_val > 31) ? 0 : rs_val >> rb_val;
       set_register(ra, result);
       if (instr->Bit(0)) {  // RC bit set
@@ -2092,7 +1977,7 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
       int ra = instr->RAValue();
       int rb = instr->RBValue();
       uintptr_t rs_val = get_register(rs);
-      uintptr_t rb_val = get_register(rb) & 0x7f;
+      uintptr_t rb_val = get_register(rb) & 0x7F;
       intptr_t result = (rb_val > 63) ? 0 : rs_val >> rb_val;
       set_register(ra, result);
       if (instr->Bit(0)) {  // RC bit set
@@ -2160,7 +2045,7 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
       int ra = instr->RAValue();
       int rb = instr->RBValue();
       int32_t rs_val = get_register(rs);
-      intptr_t rb_val = get_register(rb) & 0x3f;
+      intptr_t rb_val = get_register(rb) & 0x3F;
       intptr_t result = (rb_val > 31) ? rs_val >> 31 : rs_val >> rb_val;
       set_register(ra, result);
       if (instr->Bit(0)) {  // RC bit set
@@ -2174,7 +2059,7 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
       int ra = instr->RAValue();
       int rb = instr->RBValue();
       intptr_t rs_val = get_register(rs);
-      intptr_t rb_val = get_register(rb) & 0x7f;
+      intptr_t rb_val = get_register(rb) & 0x7F;
       intptr_t result = (rb_val > 63) ? rs_val >> 63 : rs_val >> rb_val;
       set_register(ra, result);
       if (instr->Bit(0)) {  // RC bit set
@@ -2244,10 +2129,10 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
       float* fptr = reinterpret_cast<float*>(&val);
 #if V8_HOST_ARCH_IA32 || V8_HOST_ARCH_X64
       // Conversion using double changes sNan to qNan on ia32/x64
-      if ((val & 0x7f800000) == 0x7f800000) {
+      if ((val & 0x7F800000) == 0x7F800000) {
         int64_t dval = static_cast<int64_t>(val);
-        dval = ((dval & 0xc0000000) << 32) | ((dval & 0x40000000) << 31) |
-               ((dval & 0x40000000) << 30) | ((dval & 0x7fffffff) << 29) | 0x0;
+        dval = ((dval & 0xC0000000) << 32) | ((dval & 0x40000000) << 31) |
+               ((dval & 0x40000000) << 30) | ((dval & 0x7FFFFFFF) << 29) | 0x0;
         set_d_register(frt, dval);
       } else {
         set_d_register_from_double(frt, static_cast<double>(*fptr));
@@ -2289,9 +2174,9 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
         // Conversion using double changes sNan to qNan on ia32/x64
         int32_t sval = 0;
         int64_t dval = get_d_register(frs);
-        if ((dval & 0x7ff0000000000000) == 0x7ff0000000000000) {
-          sval = ((dval & 0xc000000000000000) >> 32) |
-                 ((dval & 0x07ffffffe0000000) >> 29);
+        if ((dval & 0x7FF0000000000000) == 0x7FF0000000000000) {
+          sval = ((dval & 0xC000000000000000) >> 32) |
+                 ((dval & 0x07FFFFFFE0000000) >> 29);
           p = &sval;
         } else {
           p = reinterpret_cast<int32_t*>(&frs_val);
@@ -2625,7 +2510,7 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
       int ra = instr->RAValue();
       int rb = instr->RBValue();
       uint32_t rs_val = get_register(rs);
-      uintptr_t rb_val = get_register(rb) & 0x3f;
+      uintptr_t rb_val = get_register(rb) & 0x3F;
       uint32_t result = (rb_val > 31) ? 0 : rs_val << rb_val;
       set_register(ra, result);
       if (instr->Bit(0)) {  // RC bit set
@@ -2639,7 +2524,7 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
       int ra = instr->RAValue();
       int rb = instr->RBValue();
       uintptr_t rs_val = get_register(rs);
-      uintptr_t rb_val = get_register(rb) & 0x7f;
+      uintptr_t rb_val = get_register(rb) & 0x7F;
       uintptr_t result = (rb_val > 63) ? 0 : rs_val << rb_val;
       set_register(ra, result);
       if (instr->Bit(0)) {  // RC bit set
@@ -3249,7 +3134,7 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
       int rt = instr->RTValue();
       intptr_t ra_val = ra == 0 ? 0 : get_register(ra);
       int offset = SIGN_EXT_IMM16(instr->Bits(15, 0));
-      uintptr_t result = ReadHU(ra_val + offset, instr) & 0xffff;
+      uintptr_t result = ReadHU(ra_val + offset, instr) & 0xFFFF;
       set_register(rt, result);
       if (opcode == LHZU) {
         set_register(ra, ra_val + offset);
@@ -3302,10 +3187,10 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
       float* fptr = reinterpret_cast<float*>(&val);
 #if V8_HOST_ARCH_IA32 || V8_HOST_ARCH_X64
       // Conversion using double changes sNan to qNan on ia32/x64
-      if ((val & 0x7f800000) == 0x7f800000) {
+      if ((val & 0x7F800000) == 0x7F800000) {
         int64_t dval = static_cast<int64_t>(val);
-        dval = ((dval & 0xc0000000) << 32) | ((dval & 0x40000000) << 31) |
-               ((dval & 0x40000000) << 30) | ((dval & 0x7fffffff) << 29) | 0x0;
+        dval = ((dval & 0xC0000000) << 32) | ((dval & 0x40000000) << 31) |
+               ((dval & 0x40000000) << 30) | ((dval & 0x7FFFFFFF) << 29) | 0x0;
         set_d_register(frt, dval);
       } else {
         set_d_register_from_double(frt, static_cast<double>(*fptr));
@@ -3347,9 +3232,9 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
         // Conversion using double changes sNan to qNan on ia32/x64
         int32_t sval = 0;
         int64_t dval = get_d_register(frs);
-        if ((dval & 0x7ff0000000000000) == 0x7ff0000000000000) {
-          sval = ((dval & 0xc000000000000000) >> 32) |
-                 ((dval & 0x07ffffffe0000000) >> 29);
+        if ((dval & 0x7FF0000000000000) == 0x7FF0000000000000) {
+          sval = ((dval & 0xC000000000000000) >> 32) |
+                 ((dval & 0x07FFFFFFE0000000) >> 29);
           p = &sval;
         } else {
           p = reinterpret_cast<int32_t*>(&frs_val);
@@ -3749,7 +3634,7 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
     case MTFSF: {
       int frb = instr->RBValue();
       int64_t frb_dval = get_d_register(frb);
-      int32_t frb_ival = static_cast<int32_t>((frb_dval)&0xffffffff);
+      int32_t frb_ival = static_cast<int32_t>((frb_dval)&0xFFFFFFFF);
       int l = instr->Bits(25, 25);
       if (l == 1) {
         fp_condition_reg_ = frb_ival;
@@ -3774,8 +3659,8 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
       int bfa = instr->Bits(20, 18);
       int cr_shift = (7 - bf) * CRWIDTH;
       int fp_shift = (7 - bfa) * CRWIDTH;
-      int field_val = (fp_condition_reg_ >> fp_shift) & 0xf;
-      condition_reg_ &= ~(0x0f << cr_shift);
+      int field_val = (fp_condition_reg_ >> fp_shift) & 0xF;
+      condition_reg_ &= ~(0x0F << cr_shift);
       condition_reg_ |= (field_val << cr_shift);
       // Clear copied exception bits
       switch (bfa) {
@@ -3826,7 +3711,7 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
       DCHECK(sh >= 0 && sh <= 63);
       DCHECK(mb >= 0 && mb <= 63);
       uintptr_t result = base::bits::RotateLeft64(rs_val, sh);
-      uintptr_t mask = 0xffffffffffffffff >> mb;
+      uintptr_t mask = 0xFFFFFFFFFFFFFFFF >> mb;
       result &= mask;
       set_register(ra, result);
       if (instr->Bit(0)) {  // RC bit set
@@ -3843,7 +3728,7 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
       DCHECK(sh >= 0 && sh <= 63);
       DCHECK(me >= 0 && me <= 63);
       uintptr_t result = base::bits::RotateLeft64(rs_val, sh);
-      uintptr_t mask = 0xffffffffffffffff << (63 - me);
+      uintptr_t mask = 0xFFFFFFFFFFFFFFFF << (63 - me);
       result &= mask;
       set_register(ra, result);
       if (instr->Bit(0)) {  // RC bit set
@@ -3860,7 +3745,7 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
       DCHECK(sh >= 0 && sh <= 63);
       DCHECK(mb >= 0 && mb <= 63);
       uintptr_t result = base::bits::RotateLeft64(rs_val, sh);
-      uintptr_t mask = (0xffffffffffffffff >> mb) & (0xffffffffffffffff << sh);
+      uintptr_t mask = (0xFFFFFFFFFFFFFFFF >> mb) & (0xFFFFFFFFFFFFFFFF << sh);
       result &= mask;
       set_register(ra, result);
       if (instr->Bit(0)) {  // RC bit set
@@ -3885,10 +3770,10 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
           bit >>= 1;
         }
       } else if (mb == me + 1) {
-        mask = 0xffffffffffffffff;
+        mask = 0xFFFFFFFFFFFFFFFF;
       } else {                                           // mb > me+1
         uintptr_t bit = 0x8000000000000000 >> (me + 1);  // needs to be tested
-        mask = 0xffffffffffffffff;
+        mask = 0xFFFFFFFFFFFFFFFF;
         for (; me < mb; me++) {
           mask ^= bit;
           bit >>= 1;
@@ -3909,12 +3794,12 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
       int rb = instr->RBValue();
       uintptr_t rs_val = get_register(rs);
       uintptr_t rb_val = get_register(rb);
-      int sh = (rb_val & 0x3f);
+      int sh = (rb_val & 0x3F);
       int mb = (instr->Bits(10, 6) | (instr->Bit(5) << 5));
       DCHECK(sh >= 0 && sh <= 63);
       DCHECK(mb >= 0 && mb <= 63);
       uintptr_t result = base::bits::RotateLeft64(rs_val, sh);
-      uintptr_t mask = 0xffffffffffffffff >> mb;
+      uintptr_t mask = 0xFFFFFFFFFFFFFFFF >> mb;
       result &= mask;
       set_register(ra, result);
       if (instr->Bit(0)) {  // RC bit set
@@ -4202,17 +4087,15 @@ void Simulator::CallInternal(byte* entry) {
   set_register(fp, r31_val);
 }
 
-
-intptr_t Simulator::Call(byte* entry, int argument_count, ...) {
-  va_list parameters;
-  va_start(parameters, argument_count);
+intptr_t Simulator::CallImpl(byte* entry, int argument_count,
+                             const intptr_t* arguments) {
   // Set up arguments
 
   // First eight arguments passed in registers r3-r10.
-  int reg_arg_count = (argument_count > 8) ? 8 : argument_count;
+  int reg_arg_count = std::min(8, argument_count);
   int stack_arg_count = argument_count - reg_arg_count;
   for (int i = 0; i < reg_arg_count; i++) {
-    set_register(i + 3, va_arg(parameters, intptr_t));
+    set_register(i + 3, arguments[i]);
   }
 
   // Remaining arguments passed on stack.
@@ -4228,10 +4111,8 @@ intptr_t Simulator::Call(byte* entry, int argument_count, ...) {
   // +2 is a hack for the LR slot + old SP on PPC
   intptr_t* stack_argument =
       reinterpret_cast<intptr_t*>(entry_stack) + kStackFrameExtraParamSlot;
-  for (int i = 0; i < stack_arg_count; i++) {
-    stack_argument[i] = va_arg(parameters, intptr_t);
-  }
-  va_end(parameters);
+  memcpy(stack_argument, arguments + reg_arg_count,
+         stack_arg_count * sizeof(*arguments));
   set_register(sp, entry_stack);
 
   CallInternal(entry);
@@ -4240,8 +4121,7 @@ intptr_t Simulator::Call(byte* entry, int argument_count, ...) {
   CHECK_EQ(entry_stack, get_register(sp));
   set_register(sp, original_stack);
 
-  intptr_t result = get_register(r3);
-  return result;
+  return get_register(r3);
 }
 
 

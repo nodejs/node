@@ -5,6 +5,7 @@
 #include "src/heap/sweeper.h"
 
 #include "src/heap/array-buffer-tracker-inl.h"
+#include "src/heap/gc-tracer.h"
 #include "src/heap/mark-compact-inl.h"
 #include "src/heap/remembered-set.h"
 #include "src/objects-inl.h"
@@ -68,21 +69,24 @@ class Sweeper::SweeperTask final : public CancelableTask {
         sweeper_(sweeper),
         pending_sweeper_tasks_(pending_sweeper_tasks),
         num_sweeping_tasks_(num_sweeping_tasks),
-        space_to_start_(space_to_start) {}
+        space_to_start_(space_to_start),
+        tracer_(isolate->heap()->tracer()) {}
 
   virtual ~SweeperTask() {}
 
  private:
   void RunInternal() final {
-    DCHECK_GE(space_to_start_, FIRST_SPACE);
+    TRACE_BACKGROUND_GC(tracer_,
+                        GCTracer::BackgroundScope::MC_BACKGROUND_SWEEPING);
+    DCHECK_GE(space_to_start_, FIRST_PAGED_SPACE);
     DCHECK_LE(space_to_start_, LAST_PAGED_SPACE);
-    const int offset = space_to_start_ - FIRST_SPACE;
-    const int num_spaces = LAST_PAGED_SPACE - FIRST_SPACE + 1;
+    const int offset = space_to_start_ - FIRST_PAGED_SPACE;
+    const int num_spaces = LAST_PAGED_SPACE - FIRST_PAGED_SPACE + 1;
     for (int i = 0; i < num_spaces; i++) {
-      const int space_id = FIRST_SPACE + ((i + offset) % num_spaces);
+      const int space_id = FIRST_PAGED_SPACE + ((i + offset) % num_spaces);
       // Do not sweep code space concurrently.
       if (static_cast<AllocationSpace>(space_id) == CODE_SPACE) continue;
-      DCHECK_GE(space_id, FIRST_SPACE);
+      DCHECK_GE(space_id, FIRST_PAGED_SPACE);
       DCHECK_LE(space_id, LAST_PAGED_SPACE);
       sweeper_->SweepSpaceFromTask(static_cast<AllocationSpace>(space_id));
     }
@@ -94,6 +98,7 @@ class Sweeper::SweeperTask final : public CancelableTask {
   base::Semaphore* const pending_sweeper_tasks_;
   base::AtomicNumber<intptr_t>* const num_sweeping_tasks_;
   AllocationSpace space_to_start_;
+  GCTracer* const tracer_;
 
   DISALLOW_COPY_AND_ASSIGN(SweeperTask);
 };
@@ -127,6 +132,7 @@ class Sweeper::IncrementalSweeperTask final : public CancelableTask {
 void Sweeper::StartSweeping() {
   CHECK(!stop_sweeper_tasks_.Value());
   sweeping_in_progress_ = true;
+  iterability_in_progress_ = true;
   MajorNonAtomicMarkingState* marking_state =
       heap_->mark_compact_collector()->non_atomic_marking_state();
   ForAllSweepingSpaces([this, marking_state](AllocationSpace space) {
@@ -144,7 +150,7 @@ void Sweeper::StartSweeperTasks() {
   if (FLAG_concurrent_sweeping && sweeping_in_progress_ &&
       !heap_->delay_sweeper_tasks_for_testing_) {
     ForAllSweepingSpaces([this](AllocationSpace space) {
-      if (space == NEW_SPACE) return;
+      DCHECK(IsValidSweepingSpace(space));
       num_sweeping_tasks_.Increment(1);
       SweeperTask* task = new SweeperTask(heap_->isolate(), this,
                                           &pending_sweeper_tasks_semaphore_,
@@ -200,6 +206,8 @@ void Sweeper::AbortAndWaitForTasks() {
 void Sweeper::EnsureCompleted() {
   if (!sweeping_in_progress_) return;
 
+  EnsureIterabilityCompleted();
+
   // If sweeping is not completed or not running at all, we try to complete it
   // here.
   ForAllSweepingSpaces(
@@ -207,22 +215,9 @@ void Sweeper::EnsureCompleted() {
 
   AbortAndWaitForTasks();
 
-  ForAllSweepingSpaces([this](AllocationSpace space) {
-    if (space == NEW_SPACE) {
-      swept_list_[NEW_SPACE].clear();
-    }
-    DCHECK(sweeping_list_[space].empty());
-  });
+  ForAllSweepingSpaces(
+      [this](AllocationSpace space) { CHECK(sweeping_list_[space].empty()); });
   sweeping_in_progress_ = false;
-}
-
-void Sweeper::EnsureNewSpaceCompleted() {
-  if (!sweeping_in_progress_) return;
-  if (!FLAG_concurrent_sweeping || sweeping_in_progress()) {
-    for (Page* p : *heap_->new_space()) {
-      SweepOrWaitUntilSweepingCompleted(p);
-    }
-  }
 }
 
 bool Sweeper::AreSweeperTasksRunning() {
@@ -281,7 +276,7 @@ int Sweeper::RawSweep(Page* p, FreeListRebuildingMode free_list_mode,
       CHECK_GT(free_end, free_start);
       size_t size = static_cast<size_t>(free_end - free_start);
       if (free_space_mode == ZAP_FREE_SPACE) {
-        memset(free_start, 0xcc, size);
+        memset(free_start, 0xCC, size);
       }
       if (free_list_mode == REBUILD_FREE_LIST) {
         freed_bytes = reinterpret_cast<PagedSpace*>(space)->UnaccountedFree(
@@ -320,7 +315,7 @@ int Sweeper::RawSweep(Page* p, FreeListRebuildingMode free_list_mode,
     CHECK_GT(p->area_end(), free_start);
     size_t size = static_cast<size_t>(p->area_end() - free_start);
     if (free_space_mode == ZAP_FREE_SPACE) {
-      memset(free_start, 0xcc, size);
+      memset(free_start, 0xCC, size);
     }
     if (free_list_mode == REBUILD_FREE_LIST) {
       freed_bytes = reinterpret_cast<PagedSpace*>(space)->UnaccountedFree(
@@ -408,6 +403,7 @@ int Sweeper::ParallelSweepPage(Page* page, AllocationSpace identity) {
   // path. This check here avoids taking the lock first, avoiding deadlocks.
   if (page->SweepingDone()) return 0;
 
+  DCHECK(IsValidSweepingSpace(identity));
   int max_freed = 0;
   {
     base::LockGuard<base::Mutex> guard(page->mutex());
@@ -423,11 +419,7 @@ int Sweeper::ParallelSweepPage(Page* page, AllocationSpace identity) {
     page->concurrent_sweeping_state().SetValue(Page::kSweepingInProgress);
     const FreeSpaceTreatmentMode free_space_mode =
         Heap::ShouldZapGarbage() ? ZAP_FREE_SPACE : IGNORE_FREE_SPACE;
-    if (identity == NEW_SPACE) {
-      RawSweep(page, IGNORE_FREE_LIST, free_space_mode);
-    } else {
-      max_freed = RawSweep(page, REBUILD_FREE_LIST, free_space_mode);
-    }
+    max_freed = RawSweep(page, REBUILD_FREE_LIST, free_space_mode);
     DCHECK(page->SweepingDone());
 
     // After finishing sweeping of a page we clean up its remembered set.
@@ -461,9 +453,9 @@ void Sweeper::ScheduleIncrementalSweepingTask() {
 void Sweeper::AddPage(AllocationSpace space, Page* page,
                       Sweeper::AddPageMode mode) {
   base::LockGuard<base::Mutex> guard(&mutex_);
+  DCHECK(IsValidSweepingSpace(space));
   DCHECK(!FLAG_concurrent_sweeping || !AreSweeperTasksRunning());
   if (mode == Sweeper::REGULAR) {
-    DCHECK_EQ(Page::kSweepingDone, page->concurrent_sweeping_state().Value());
     PrepareToBeSweptPage(space, page);
   } else {
     // Page has been temporarily removed from the sweeper. Accounting already
@@ -475,23 +467,114 @@ void Sweeper::AddPage(AllocationSpace space, Page* page,
 }
 
 void Sweeper::PrepareToBeSweptPage(AllocationSpace space, Page* page) {
-  page->concurrent_sweeping_state().SetValue(Page::kSweepingPending);
   DCHECK_GE(page->area_size(),
             static_cast<size_t>(marking_state_->live_bytes(page)));
-  if (space != NEW_SPACE) {
-    heap_->paged_space(space)->IncreaseAllocatedBytes(
-        marking_state_->live_bytes(page), page);
-  }
+  DCHECK_EQ(Page::kSweepingDone, page->concurrent_sweeping_state().Value());
+  page->ForAllFreeListCategories(
+      [](FreeListCategory* category) { DCHECK(!category->is_linked()); });
+  page->concurrent_sweeping_state().SetValue(Page::kSweepingPending);
+  heap_->paged_space(space)->IncreaseAllocatedBytes(
+      marking_state_->live_bytes(page), page);
 }
 
 Page* Sweeper::GetSweepingPageSafe(AllocationSpace space) {
   base::LockGuard<base::Mutex> guard(&mutex_);
+  DCHECK(IsValidSweepingSpace(space));
   Page* page = nullptr;
   if (!sweeping_list_[space].empty()) {
     page = sweeping_list_[space].front();
     sweeping_list_[space].pop_front();
   }
   return page;
+}
+
+void Sweeper::EnsurePageIsIterable(Page* page) {
+  AllocationSpace space = page->owner()->identity();
+  if (IsValidSweepingSpace(space)) {
+    SweepOrWaitUntilSweepingCompleted(page);
+  } else {
+    DCHECK(IsValidIterabilitySpace(space));
+    EnsureIterabilityCompleted();
+  }
+}
+
+void Sweeper::EnsureIterabilityCompleted() {
+  if (!iterability_in_progress_) return;
+
+  if (FLAG_concurrent_sweeping && iterability_task_started_) {
+    if (heap_->isolate()->cancelable_task_manager()->TryAbort(
+            iterability_task_id_) != CancelableTaskManager::kTaskAborted) {
+      iterability_task_semaphore_.Wait();
+    }
+    iterability_task_started_ = false;
+  }
+
+  for (Page* page : iterability_list_) {
+    MakeIterable(page);
+  }
+  iterability_list_.clear();
+  iterability_in_progress_ = false;
+}
+
+class Sweeper::IterabilityTask final : public CancelableTask {
+ public:
+  IterabilityTask(Isolate* isolate, Sweeper* sweeper,
+                  base::Semaphore* pending_iterability_task)
+      : CancelableTask(isolate),
+        sweeper_(sweeper),
+        pending_iterability_task_(pending_iterability_task),
+        tracer_(isolate->heap()->tracer()) {}
+
+  virtual ~IterabilityTask() {}
+
+ private:
+  void RunInternal() final {
+    TRACE_BACKGROUND_GC(tracer_,
+                        GCTracer::BackgroundScope::MC_BACKGROUND_SWEEPING);
+    for (Page* page : sweeper_->iterability_list_) {
+      sweeper_->MakeIterable(page);
+    }
+    sweeper_->iterability_list_.clear();
+    pending_iterability_task_->Signal();
+  }
+
+  Sweeper* const sweeper_;
+  base::Semaphore* const pending_iterability_task_;
+  GCTracer* const tracer_;
+
+  DISALLOW_COPY_AND_ASSIGN(IterabilityTask);
+};
+
+void Sweeper::StartIterabilityTasks() {
+  if (!iterability_in_progress_) return;
+
+  DCHECK(!iterability_task_started_);
+  if (FLAG_concurrent_sweeping && !iterability_list_.empty()) {
+    IterabilityTask* task = new IterabilityTask(heap_->isolate(), this,
+                                                &iterability_task_semaphore_);
+    iterability_task_id_ = task->id();
+    iterability_task_started_ = true;
+    V8::GetCurrentPlatform()->CallOnBackgroundThread(
+        task, v8::Platform::kShortRunningTask);
+  }
+}
+
+void Sweeper::AddPageForIterability(Page* page) {
+  DCHECK(sweeping_in_progress_);
+  DCHECK(iterability_in_progress_);
+  DCHECK(!iterability_task_started_);
+  DCHECK(IsValidIterabilitySpace(page->owner()->identity()));
+  DCHECK_EQ(Page::kSweepingDone, page->concurrent_sweeping_state().Value());
+
+  iterability_list_.push_back(page);
+  page->concurrent_sweeping_state().SetValue(Page::kSweepingPending);
+}
+
+void Sweeper::MakeIterable(Page* page) {
+  DCHECK(IsValidIterabilitySpace(page->owner()->identity()));
+  const FreeSpaceTreatmentMode free_space_mode =
+      Heap::ShouldZapGarbage() ? ZAP_FREE_SPACE : IGNORE_FREE_SPACE;
+  RawSweep(page, IGNORE_FREE_LIST, free_space_mode);
 }
 
 }  // namespace internal

@@ -120,6 +120,7 @@ class V8ConsoleMessageStorage {
   int count(int contextId, const String16& id);
   void time(int contextId, const String16& id);
   double timeEnd(int contextId, const String16& id);
+  bool hasTimer(int contextId, const String16& id);
 
  private:
   V8InspectorImpl* m_inspector;

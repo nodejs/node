@@ -4,8 +4,10 @@
 
 #include "src/wasm/wasm-code-wrapper.h"
 
-#include "src/objects.h"
+#include "src/objects-inl.h"
 #include "src/objects/code.h"
+#include "src/wasm/wasm-code-manager.h"
+#include "src/wasm/wasm-objects.h"
 
 namespace v8 {
 namespace internal {
@@ -33,6 +35,35 @@ const wasm::WasmCode* WasmCodeWrapper::GetWasmCode() const {
 }
 
 bool WasmCodeWrapper::IsCodeObject() const { return !FLAG_wasm_jit_to_native; }
+
+#ifdef ENABLE_DISASSEMBLER
+void WasmCodeWrapper::Disassemble(const char* name, Isolate* isolate,
+                                  std::ostream& os) const {
+  if (IsCodeObject()) {
+    GetCode()->Disassemble(name, os);
+  } else {
+    GetWasmCode()->Disassemble(name, isolate, os);
+  }
+}
+#endif
+
+bool WasmCodeWrapper::is_liftoff() const {
+  return IsCodeObject() ? !GetCode()->is_turbofanned()
+                        : GetWasmCode()->is_liftoff();
+}
+
+Vector<uint8_t> WasmCodeWrapper::instructions() const {
+  if (!IsCodeObject()) return GetWasmCode()->instructions();
+  Handle<Code> code = GetCode();
+  return {code->instruction_start(),
+          static_cast<size_t>(code->instruction_size())};
+}
+
+Handle<WasmInstanceObject> WasmCodeWrapper::wasm_instance() const {
+  return IsCodeObject()
+             ? handle(WasmInstanceObject::GetOwningInstanceGC(*GetCode()))
+             : handle(WasmInstanceObject::GetOwningInstance(GetWasmCode()));
+}
 
 }  // namespace internal
 }  // namespace v8

@@ -27,10 +27,10 @@
 
 #include <stdlib.h>
 
-#include "src/arm/simulator-arm.h"
 #include "src/assembler-inl.h"
 #include "src/macro-assembler.h"
 #include "src/objects-inl.h"
+#include "src/simulator.h"
 #include "src/v8.h"
 #include "test/cctest/cctest.h"
 
@@ -38,12 +38,12 @@ namespace v8 {
 namespace internal {
 namespace test_macro_assembler_arm {
 
-typedef void* (*F)(int x, int y, int p2, int p3, int p4);
+using F = void*(int x, int y, int p2, int p3, int p4);
 
 #define __ masm->
 
-typedef Object* (*F3)(void* p0, int p1, int p2, int p3, int p4);
-typedef int (*F5)(void*, void*, void*, void*, void*);
+using F3 = Object*(void* p0, int p1, int p2, int p3, int p4);
+using F5 = int(void*, void*, void*, void*, void*);
 
 TEST(LoadAndStoreWithRepresentation) {
   Isolate* isolate = CcTest::i_isolate();
@@ -129,8 +129,8 @@ TEST(LoadAndStoreWithRepresentation) {
       isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 
   // Call the function from C++.
-  F5 f = FUNCTION_CAST<F5>(code->entry());
-  CHECK(!CALL_GENERATED_CODE(isolate, f, 0, 0, 0, 0, 0));
+  auto f = GeneratedCode<F5>::FromCode(*code);
+  CHECK(!f.Call(0, 0, 0, 0, 0));
 }
 
 TEST(ExtractLane) {
@@ -239,9 +239,8 @@ TEST(ExtractLane) {
   OFStream os(stdout);
   code->Print(os);
 #endif
-  F3 f = FUNCTION_CAST<F3>(code->entry());
-  Object* dummy = CALL_GENERATED_CODE(isolate, f, &t, 0, 0, 0, 0);
-  USE(dummy);
+  auto f = GeneratedCode<F3>::FromCode(*code);
+  f.Call(&t, 0, 0, 0, 0);
   for (int i = 0; i < 4; i++) {
     CHECK_EQ(i, t.i32x4_low[i]);
     CHECK_EQ(i, t.f32x4_low[i]);
@@ -372,9 +371,8 @@ TEST(ReplaceLane) {
   OFStream os(stdout);
   code->Print(os);
 #endif
-  F3 f = FUNCTION_CAST<F3>(code->entry());
-  Object* dummy = CALL_GENERATED_CODE(isolate, f, &t, 0, 0, 0, 0);
-  USE(dummy);
+  auto f = GeneratedCode<F3>::FromCode(*code);
+  f.Call(&t, 0, 0, 0, 0);
   for (int i = 0; i < 4; i++) {
     CHECK_EQ(i, t.i32x4_low[i]);
     CHECK_EQ(i, t.f32x4_low[i]);

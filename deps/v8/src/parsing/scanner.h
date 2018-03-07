@@ -207,7 +207,7 @@ class Scanner {
   static const int kNoOctalLocation = -1;
   static const uc32 kEndOfInput = Utf16CharacterStream::kEndOfInput;
 
-  explicit Scanner(UnicodeCache* scanner_contants, int* use_counts_);
+  explicit Scanner(UnicodeCache* scanner_contants);
 
   void Initialize(Utf16CharacterStream* source, bool is_module);
 
@@ -360,6 +360,12 @@ class Scanner {
 
   bool allow_harmony_bigint() const { return allow_harmony_bigint_; }
   void set_allow_harmony_bigint(bool allow) { allow_harmony_bigint_ = allow; }
+  bool allow_harmony_private_fields() const {
+    return allow_harmony_private_fields_;
+  }
+  void set_allow_harmony_private_fields(bool allow) {
+    allow_harmony_private_fields_ = allow;
+  }
 
  private:
   // Scoped helper for saving & restoring scanner error state.
@@ -717,9 +723,11 @@ class Scanner {
   void ScanDecimalDigits();
   Token::Value ScanNumber(bool seen_period);
   Token::Value ScanIdentifierOrKeyword();
+  Token::Value ScanIdentifierOrKeywordInner(LiteralScope* literal);
   Token::Value ScanIdentifierSuffix(LiteralScope* literal, bool escaped);
 
   Token::Value ScanString();
+  Token::Value ScanPrivateName();
 
   // Scans an escape-sequence which is part of a string and adds the
   // decoded character to the current literal. Returns true if a pattern
@@ -735,8 +743,6 @@ class Scanner {
   uc32 ScanUnicodeEscape();
 
   bool is_module_;
-
-  bool IsLineTerminator(uc32 c);
 
   Token::Value ScanTemplateSpan();
 
@@ -802,10 +808,9 @@ class Scanner {
   // Whether this scanner encountered an HTML comment.
   bool found_html_comment_;
 
-  // Whether to recognize BIGINT tokens.
+  // Harmony flags to allow ESNext features.
   bool allow_harmony_bigint_;
-
-  int* use_counts_;
+  bool allow_harmony_private_fields_;
 
   MessageTemplate::Template scanner_error_;
   Location scanner_error_location_;

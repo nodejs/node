@@ -189,8 +189,8 @@ void Instrument::DumpEventMarker(unsigned marker) {
   // line.
   static Counter* counter = GetCounter("Instruction");
 
-  fprintf(output_stream_, "# %c%c @ %" PRId64 "\n", marker & 0xff,
-          (marker >> 8) & 0xff, counter->count());
+  fprintf(output_stream_, "# %c%c @ %" PRId64 "\n", marker & 0xFF,
+          (marker >> 8) & 0xFF, counter->count());
 }
 
 

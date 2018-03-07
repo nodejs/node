@@ -53,8 +53,7 @@ v8::Local<v8::FunctionTemplate> ProfilerExtension::GetNativeFunctionTemplate(
   if (name->Equals(context, v8_str(isolate, "collectSample")).FromJust()) {
     return v8::FunctionTemplate::New(isolate, ProfilerExtension::CollectSample);
   }
-  CHECK(false);
-  return v8::Local<v8::FunctionTemplate>();
+  UNREACHABLE();
 }
 
 void ProfilerExtension::StartProfiling(

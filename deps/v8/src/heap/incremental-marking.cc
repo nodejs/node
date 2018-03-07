@@ -34,7 +34,8 @@ void IncrementalMarking::Observer::Step(int bytes_allocated, Address addr,
   Heap* heap = incremental_marking_.heap();
   VMState<GC> state(heap->isolate());
   RuntimeCallTimerScope runtime_timer(
-      heap->isolate(), &RuntimeCallStats::GC_Custom_IncrementalMarkingObserver);
+      heap->isolate(),
+      RuntimeCallCounterId::kGC_Custom_IncrementalMarkingObserver);
   incremental_marking_.AdvanceIncrementalMarkingOnAllocation();
   if (incremental_marking_.black_allocation() && addr != nullptr) {
     // AdvanceIncrementalMarkingOnAllocation can start black allocation.
@@ -363,16 +364,8 @@ void IncrementalMarking::Start(GarbageCollectionReason gc_reason) {
     SetState(SWEEPING);
   }
 
-  SpaceIterator it(heap_);
-  while (it.has_next()) {
-    Space* space = it.next();
-    if (space == heap_->new_space()) {
-      space->AddAllocationObserver(&new_generation_observer_);
-    } else {
-      space->AddAllocationObserver(&old_generation_observer_);
-    }
-  }
-
+  heap_->AddAllocationObserversToAllSpaces(&old_generation_observer_,
+                                           &new_generation_observer_);
   incremental_marking_job()->Start(heap_);
 }
 
@@ -427,7 +420,7 @@ void IncrementalMarking::StartMarking() {
   IncrementalMarkingRootMarkingVisitor visitor(this);
   heap_->IterateStrongRoots(&visitor, VISIT_ONLY_STRONG);
 
-  if (FLAG_concurrent_marking) {
+  if (FLAG_concurrent_marking && heap_->use_tasks()) {
     heap_->concurrent_marking()->ScheduleTasks();
   }
 
@@ -442,9 +435,9 @@ void IncrementalMarking::StartBlackAllocation() {
   DCHECK(!black_allocation_);
   DCHECK(IsMarking());
   black_allocation_ = true;
-  heap()->old_space()->MarkAllocationInfoBlack();
-  heap()->map_space()->MarkAllocationInfoBlack();
-  heap()->code_space()->MarkAllocationInfoBlack();
+  heap()->old_space()->MarkLinearAllocationAreaBlack();
+  heap()->map_space()->MarkLinearAllocationAreaBlack();
+  heap()->code_space()->MarkLinearAllocationAreaBlack();
   if (FLAG_trace_incremental_marking) {
     heap()->isolate()->PrintWithTimestamp(
         "[IncrementalMarking] Black allocation started\n");
@@ -454,9 +447,9 @@ void IncrementalMarking::StartBlackAllocation() {
 void IncrementalMarking::PauseBlackAllocation() {
   DCHECK(FLAG_black_allocation);
   DCHECK(IsMarking());
-  heap()->old_space()->UnmarkAllocationInfo();
-  heap()->map_space()->UnmarkAllocationInfo();
-  heap()->code_space()->UnmarkAllocationInfo();
+  heap()->old_space()->UnmarkLinearAllocationArea();
+  heap()->map_space()->UnmarkLinearAllocationArea();
+  heap()->code_space()->UnmarkLinearAllocationArea();
   if (FLAG_trace_incremental_marking) {
     heap()->isolate()->PrintWithTimestamp(
         "[IncrementalMarking] Black allocation paused\n");
@@ -687,7 +680,7 @@ void IncrementalMarking::RevisitObject(HeapObject* obj) {
   DCHECK(IsMarking());
   DCHECK(FLAG_concurrent_marking || marking_state()->IsBlack(obj));
   Page* page = Page::FromAddress(obj->address());
-  if ((page->owner() != nullptr) && (page->owner()->identity() == LO_SPACE)) {
+  if (page->owner()->identity() == LO_SPACE) {
     page->ResetProgressBar();
   }
   Map* map = obj->map();
@@ -996,10 +989,14 @@ size_t IncrementalMarking::Step(size_t bytes_to_process,
       marking_worklist()->shared()->MergeGlobalPool(
           marking_worklist()->on_hold());
     }
+
+// Only print marking worklist in debug mode to save ~40KB of code size.
+#ifdef DEBUG
     if (FLAG_trace_incremental_marking && FLAG_trace_concurrent_marking &&
         FLAG_trace_gc_verbose) {
       marking_worklist()->Print();
     }
+#endif
 
     if (worklist_to_process == WorklistToProcess::kBailout) {
       bytes_processed =

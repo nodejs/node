@@ -140,20 +140,20 @@ TEST_F(WasmStreamingDecoderTest, IncompleteModuleHeader) {
 
 TEST_F(WasmStreamingDecoderTest, MagicAndVersion) {
   const uint8_t data[] = {U32_LE(kWasmMagic), U32_LE(kWasmVersion)};
-  ExpectVerifies(Vector<const uint8_t>(data, arraysize(data)), 0, 0);
+  ExpectVerifies(ArrayVector(data), 0, 0);
 }
 
 TEST_F(WasmStreamingDecoderTest, BadMagic) {
   for (uint32_t x = 1; x; x <<= 1) {
     const uint8_t data[] = {U32_LE(kWasmMagic ^ x), U32_LE(kWasmVersion)};
-    ExpectFailure(Vector<const uint8_t>(data, arraysize(data)));
+    ExpectFailure(ArrayVector(data));
   }
 }
 
 TEST_F(WasmStreamingDecoderTest, BadVersion) {
   for (uint32_t x = 1; x; x <<= 1) {
     const uint8_t data[] = {U32_LE(kWasmMagic), U32_LE(kWasmVersion ^ x)};
-    ExpectFailure(Vector<const uint8_t>(data, arraysize(data)));
+    ExpectFailure(ArrayVector(data));
   }
 }
 
@@ -170,7 +170,7 @@ TEST_F(WasmStreamingDecoderTest, OneSection) {
       0x0,                   // 5
       0x0                    // 6
   };
-  ExpectVerifies(Vector<const uint8_t>(data, arraysize(data)), 1, 0);
+  ExpectVerifies(ArrayVector(data), 1, 0);
 }
 
 TEST_F(WasmStreamingDecoderTest, OneSection_b) {
@@ -187,7 +187,7 @@ TEST_F(WasmStreamingDecoderTest, OneSection_b) {
       0x0,                   // 5
       0x0                    // 6
   };
-  ExpectVerifies(Vector<const uint8_t>(data, arraysize(data)), 1, 0);
+  ExpectVerifies(ArrayVector(data), 1, 0);
 }
 
 TEST_F(WasmStreamingDecoderTest, OneShortSection) {
@@ -201,7 +201,7 @@ TEST_F(WasmStreamingDecoderTest, OneShortSection) {
       0x0,                   // Payload
       0x0                    // 2
   };
-  ExpectVerifies(Vector<const uint8_t>(data, arraysize(data)), 1, 0);
+  ExpectVerifies(ArrayVector(data), 1, 0);
 }
 
 TEST_F(WasmStreamingDecoderTest, OneShortSection_b) {
@@ -215,7 +215,7 @@ TEST_F(WasmStreamingDecoderTest, OneShortSection_b) {
       0x0,                   // Payload
       0x0                    // 2
   };
-  ExpectVerifies(Vector<const uint8_t>(data, arraysize(data)), 1, 0);
+  ExpectVerifies(ArrayVector(data), 1, 0);
 }
 
 TEST_F(WasmStreamingDecoderTest, OneEmptySection) {
@@ -225,7 +225,7 @@ TEST_F(WasmStreamingDecoderTest, OneEmptySection) {
       0x1,                   // Section ID
       0x0                    // Section Length
   };
-  ExpectVerifies(Vector<const uint8_t>(data, arraysize(data)), 1, 0);
+  ExpectVerifies(ArrayVector(data), 1, 0);
 }
 
 TEST_F(WasmStreamingDecoderTest, OneSectionNotEnoughPayload1) {
@@ -240,7 +240,7 @@ TEST_F(WasmStreamingDecoderTest, OneSectionNotEnoughPayload1) {
       0x0,                   // 4
       0x0                    // 5
   };
-  ExpectFailure(Vector<const uint8_t>(data, arraysize(data)));
+  ExpectFailure(ArrayVector(data));
 }
 
 TEST_F(WasmStreamingDecoderTest, OneSectionNotEnoughPayload2) {
@@ -251,7 +251,7 @@ TEST_F(WasmStreamingDecoderTest, OneSectionNotEnoughPayload2) {
       0x6,                   // Section Length
       0x0                    // Payload
   };
-  ExpectFailure(Vector<const uint8_t>(data, arraysize(data)));
+  ExpectFailure(ArrayVector(data));
 }
 
 TEST_F(WasmStreamingDecoderTest, OneSectionInvalidLength) {
@@ -265,7 +265,7 @@ TEST_F(WasmStreamingDecoderTest, OneSectionInvalidLength) {
       0x80,                  // --
       0x80,                  // --
   };
-  ExpectFailure(Vector<const uint8_t>(data, arraysize(data)));
+  ExpectFailure(ArrayVector(data));
 }
 
 TEST_F(WasmStreamingDecoderTest, TwoLongSections) {
@@ -290,7 +290,7 @@ TEST_F(WasmStreamingDecoderTest, TwoLongSections) {
       0x0,                   // 6
       0x0                    // 7
   };
-  ExpectVerifies(Vector<const uint8_t>(data, arraysize(data)), 2, 0);
+  ExpectVerifies(ArrayVector(data), 2, 0);
 }
 
 TEST_F(WasmStreamingDecoderTest, TwoShortSections) {
@@ -305,7 +305,7 @@ TEST_F(WasmStreamingDecoderTest, TwoShortSections) {
       0x0,                   // Payload
       0x0,                   // 2
   };
-  ExpectVerifies(Vector<const uint8_t>(data, arraysize(data)), 2, 0);
+  ExpectVerifies(ArrayVector(data), 2, 0);
 }
 
 TEST_F(WasmStreamingDecoderTest, TwoSectionsShortLong) {
@@ -325,7 +325,7 @@ TEST_F(WasmStreamingDecoderTest, TwoSectionsShortLong) {
       0x0,                   // 6
       0x0                    // 7
   };
-  ExpectVerifies(Vector<const uint8_t>(data, arraysize(data)), 2, 0);
+  ExpectVerifies(ArrayVector(data), 2, 0);
 }
 
 TEST_F(WasmStreamingDecoderTest, TwoEmptySections) {
@@ -337,7 +337,7 @@ TEST_F(WasmStreamingDecoderTest, TwoEmptySections) {
       0x2,                   // Section ID
       0x0                    // Section Length
   };
-  ExpectVerifies(Vector<const uint8_t>(data, arraysize(data)), 2, 0);
+  ExpectVerifies(ArrayVector(data), 2, 0);
 }
 
 TEST_F(WasmStreamingDecoderTest, OneFunction) {
@@ -355,7 +355,7 @@ TEST_F(WasmStreamingDecoderTest, OneFunction) {
       0x0,                   // 5
       0x0,                   // 6
   };
-  ExpectVerifies(Vector<const uint8_t>(data, arraysize(data)), 0, 1);
+  ExpectVerifies(ArrayVector(data), 0, 1);
 }
 
 TEST_F(WasmStreamingDecoderTest, OneShortFunction) {
@@ -368,7 +368,7 @@ TEST_F(WasmStreamingDecoderTest, OneShortFunction) {
       0x1,                   // Function Length
       0x0,                   // Function
   };
-  ExpectVerifies(Vector<const uint8_t>(data, arraysize(data)), 0, 1);
+  ExpectVerifies(ArrayVector(data), 0, 1);
 }
 
 TEST_F(WasmStreamingDecoderTest, EmptyFunction) {
@@ -380,7 +380,7 @@ TEST_F(WasmStreamingDecoderTest, EmptyFunction) {
       0x1,                   // Number of Functions
       0x0,                   // Function Length
   };
-  ExpectFailure(Vector<const uint8_t>(data, arraysize(data)));
+  ExpectFailure(ArrayVector(data));
 }
 
 TEST_F(WasmStreamingDecoderTest, TwoFunctions) {
@@ -406,7 +406,7 @@ TEST_F(WasmStreamingDecoderTest, TwoFunctions) {
       0x0,                   // 6
       0x0,                   // 7
   };
-  ExpectVerifies(Vector<const uint8_t>(data, arraysize(data)), 0, 2);
+  ExpectVerifies(ArrayVector(data), 0, 2);
 }
 
 TEST_F(WasmStreamingDecoderTest, TwoFunctions_b) {
@@ -414,7 +414,7 @@ TEST_F(WasmStreamingDecoderTest, TwoFunctions_b) {
       U32_LE(kWasmMagic),    // --
       U32_LE(kWasmVersion),  // --
       kCodeSectionCode,      // Section ID
-      0xb,                   // Section Length
+      0xB,                   // Section Length
       0x2,                   // Number of Functions
       0x1,                   // Function Length
       0x0,                   // Function
@@ -427,7 +427,7 @@ TEST_F(WasmStreamingDecoderTest, TwoFunctions_b) {
       0x0,                   // 6
       0x0,                   // 7
   };
-  ExpectVerifies(Vector<const uint8_t>(data, arraysize(data)), 0, 2);
+  ExpectVerifies(ArrayVector(data), 0, 2);
 }
 
 TEST_F(WasmStreamingDecoderTest, CodeSectionLengthZero) {
@@ -437,7 +437,7 @@ TEST_F(WasmStreamingDecoderTest, CodeSectionLengthZero) {
       kCodeSectionCode,      // Section ID
       0x0,                   // Section Length
   };
-  ExpectFailure(Vector<const uint8_t>(data, arraysize(data)));
+  ExpectFailure(ArrayVector(data));
 }
 
 TEST_F(WasmStreamingDecoderTest, CodeSectionLengthTooHigh) {
@@ -445,7 +445,7 @@ TEST_F(WasmStreamingDecoderTest, CodeSectionLengthTooHigh) {
       U32_LE(kWasmMagic),    // --
       U32_LE(kWasmVersion),  // --
       kCodeSectionCode,      // Section ID
-      0xd,                   // Section Length
+      0xD,                   // Section Length
       0x2,                   // Number of Functions
       0x7,                   // Function Length
       0x0,                   // Function
@@ -458,7 +458,7 @@ TEST_F(WasmStreamingDecoderTest, CodeSectionLengthTooHigh) {
       0x1,                   // Function Length
       0x0,                   // Function
   };
-  ExpectFailure(Vector<const uint8_t>(data, arraysize(data)));
+  ExpectFailure(ArrayVector(data));
 }
 
 TEST_F(WasmStreamingDecoderTest, CodeSectionLengthTooHighZeroFunctions) {
@@ -466,7 +466,7 @@ TEST_F(WasmStreamingDecoderTest, CodeSectionLengthTooHighZeroFunctions) {
       U32_LE(kWasmMagic),    // --
       U32_LE(kWasmVersion),  // --
       kCodeSectionCode,      // Section ID
-      0xd,                   // Section Length
+      0xD,                   // Section Length
       0x0,                   // Number of Functions
   };
   ExpectFailure(ArrayVector(data));
@@ -490,7 +490,7 @@ TEST_F(WasmStreamingDecoderTest, CodeSectionLengthTooLow) {
       0x1,                   // Function Length
       0x0,                   // Function
   };
-  ExpectFailure(Vector<const uint8_t>(data, arraysize(data)));
+  ExpectFailure(ArrayVector(data));
 }
 
 TEST_F(WasmStreamingDecoderTest, CodeSectionLengthTooLowEndsInNumFunctions) {
@@ -513,7 +513,7 @@ TEST_F(WasmStreamingDecoderTest, CodeSectionLengthTooLowEndsInNumFunctions) {
       0x1,                   // Function Length
       0x0,                   // Function
   };
-  ExpectFailure(Vector<const uint8_t>(data, arraysize(data)));
+  ExpectFailure(ArrayVector(data));
 }
 
 TEST_F(WasmStreamingDecoderTest, CodeSectionLengthTooLowEndsInFunctionLength) {
@@ -538,7 +538,7 @@ TEST_F(WasmStreamingDecoderTest, CodeSectionLengthTooLowEndsInFunctionLength) {
       0x1,                   // Function Length
       0x0,                   // Function
   };
-  ExpectFailure(Vector<const uint8_t>(data, arraysize(data)));
+  ExpectFailure(ArrayVector(data));
 }
 
 TEST_F(WasmStreamingDecoderTest, NumberOfFunctionsTooHigh) {
@@ -546,7 +546,7 @@ TEST_F(WasmStreamingDecoderTest, NumberOfFunctionsTooHigh) {
       U32_LE(kWasmMagic),    // --
       U32_LE(kWasmVersion),  // --
       kCodeSectionCode,      // Section ID
-      0xb,                   // Section Length
+      0xB,                   // Section Length
       0x4,                   // Number of Functions
       0x7,                   // Function Length
       0x0,                   // Function
@@ -559,7 +559,7 @@ TEST_F(WasmStreamingDecoderTest, NumberOfFunctionsTooHigh) {
       0x1,                   // Function Length
       0x0,                   // Function
   };
-  ExpectFailure(Vector<const uint8_t>(data, arraysize(data)));
+  ExpectFailure(ArrayVector(data));
 }
 
 TEST_F(WasmStreamingDecoderTest, NumberOfFunctionsTooLow) {
@@ -567,7 +567,7 @@ TEST_F(WasmStreamingDecoderTest, NumberOfFunctionsTooLow) {
       U32_LE(kWasmMagic),    // --
       U32_LE(kWasmVersion),  // --
       kCodeSectionCode,      // Section ID
-      0xe,                   // Section Length
+      0xE,                   // Section Length
       0x2,                   // Number of Functions
       0x1,                   // Function Length
       0x0,                   // Function
@@ -583,7 +583,7 @@ TEST_F(WasmStreamingDecoderTest, NumberOfFunctionsTooLow) {
       0x0,                   // 6
       0x0,                   // 7
   };
-  ExpectFailure(Vector<const uint8_t>(data, arraysize(data)));
+  ExpectFailure(ArrayVector(data));
 }
 
 TEST_F(WasmStreamingDecoderTest, TwoCodeSections) {
@@ -601,7 +601,7 @@ TEST_F(WasmStreamingDecoderTest, TwoCodeSections) {
       0x1,                   // Function Length
       0x0,                   // Function
   };
-  ExpectFailure(Vector<const uint8_t>(data, arraysize(data)));
+  ExpectFailure(ArrayVector(data));
 }
 
 TEST_F(WasmStreamingDecoderTest, UnknownSection) {
@@ -619,7 +619,7 @@ TEST_F(WasmStreamingDecoderTest, UnknownSection) {
       0x1,                   // Name
       0x0,                   // Content
   };
-  ExpectVerifies(Vector<const uint8_t>(data, arraysize(data)), 1, 1);
+  ExpectVerifies(ArrayVector(data), 1, 1);
 }
 
 TEST_F(WasmStreamingDecoderTest, UnknownSectionSandwich) {
@@ -642,7 +642,7 @@ TEST_F(WasmStreamingDecoderTest, UnknownSectionSandwich) {
       0x1,                   // Function Length
       0x0,                   // Function
   };
-  ExpectFailure(Vector<const uint8_t>(data, arraysize(data)));
+  ExpectFailure(ArrayVector(data));
 }
 
 }  // namespace wasm

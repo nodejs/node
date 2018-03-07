@@ -5,7 +5,6 @@
 #include "src/flags.h"
 
 #include <cctype>
-#include <cerrno>
 #include <cstdlib>
 #include <sstream>
 
@@ -40,7 +39,6 @@ struct Flag {
     TYPE_INT,
     TYPE_UINT,
     TYPE_FLOAT,
-    TYPE_SIZE_T,
     TYPE_STRING,
     TYPE_ARGS
   };
@@ -83,11 +81,6 @@ struct Flag {
     return reinterpret_cast<double*>(valptr_);
   }
 
-  size_t* size_t_variable() const {
-    DCHECK(type_ == TYPE_SIZE_T);
-    return reinterpret_cast<size_t*>(valptr_);
-  }
-
   const char* string_value() const {
     DCHECK(type_ == TYPE_STRING);
     return *reinterpret_cast<const char**>(valptr_);
@@ -126,11 +119,6 @@ struct Flag {
     return *reinterpret_cast<const double*>(defptr_);
   }
 
-  size_t size_t_default() const {
-    DCHECK(type_ == TYPE_SIZE_T);
-    return *reinterpret_cast<const size_t*>(defptr_);
-  }
-
   const char* string_default() const {
     DCHECK(type_ == TYPE_STRING);
     return *reinterpret_cast<const char* const *>(defptr_);
@@ -154,8 +142,6 @@ struct Flag {
         return *uint_variable() == uint_default();
       case TYPE_FLOAT:
         return *float_variable() == float_default();
-      case TYPE_SIZE_T:
-        return *size_t_variable() == size_t_default();
       case TYPE_STRING: {
         const char* str1 = string_value();
         const char* str2 = string_default();
@@ -187,9 +173,6 @@ struct Flag {
       case TYPE_FLOAT:
         *float_variable() = float_default();
         break;
-      case TYPE_SIZE_T:
-        *size_t_variable() = size_t_default();
-        break;
       case TYPE_STRING:
         set_string_value(string_default(), false);
         break;
@@ -218,8 +201,6 @@ static const char* Type2String(Flag::FlagType type) {
     case Flag::TYPE_UINT:
       return "uint";
     case Flag::TYPE_FLOAT: return "float";
-    case Flag::TYPE_SIZE_T:
-      return "size_t";
     case Flag::TYPE_STRING: return "string";
     case Flag::TYPE_ARGS: return "arguments";
   }
@@ -245,9 +226,6 @@ std::ostream& operator<<(std::ostream& os, const Flag& flag) {  // NOLINT
       break;
     case Flag::TYPE_FLOAT:
       os << *flag.float_variable();
-      break;
-    case Flag::TYPE_SIZE_T:
-      os << *flag.size_t_variable();
       break;
     case Flag::TYPE_STRING: {
       const char* str = flag.string_value();
@@ -380,27 +358,6 @@ static Flag* FindFlag(const char* name) {
   return nullptr;
 }
 
-template <typename T>
-bool TryParseUnsigned(Flag* flag, const char* arg, const char* value,
-                      char** endp, T* out_val) {
-  // We do not use strtoul because it accepts negative numbers.
-  // Rejects values >= 2**63 when T is 64 bits wide but that
-  // seems like an acceptable trade-off.
-  uint64_t max = static_cast<uint64_t>(std::numeric_limits<T>::max());
-  errno = 0;
-  int64_t val = static_cast<int64_t>(strtoll(value, endp, 10));
-  if (val < 0 || static_cast<uint64_t>(val) > max || errno != 0) {
-    PrintF(stderr,
-           "Error: Value for flag %s of type %s is out of bounds "
-           "[0-%" PRIu64
-           "]\n"
-           "Try --help for options\n",
-           arg, Type2String(flag->type()), max);
-    return false;
-  }
-  *out_val = static_cast<T>(val);
-  return true;
-}
 
 // static
 int FlagList::SetFlagsFromCommandLine(int* argc,
@@ -465,20 +422,26 @@ int FlagList::SetFlagsFromCommandLine(int* argc,
         case Flag::TYPE_INT:
           *flag->int_variable() = static_cast<int>(strtol(value, &endp, 10));
           break;
-        case Flag::TYPE_UINT:
-          if (!TryParseUnsigned(flag, arg, value, &endp,
-                                flag->uint_variable())) {
+        case Flag::TYPE_UINT: {
+          // We do not use strtoul because it accepts negative numbers.
+          int64_t val = static_cast<int64_t>(strtoll(value, &endp, 10));
+          if (val < 0 || val > std::numeric_limits<unsigned int>::max()) {
+            PrintF(stderr,
+                   "Error: Value for flag %s of type %s is out of bounds "
+                   "[0-%" PRIu64
+                   "]\n"
+                   "Try --help for options\n",
+                   arg, Type2String(flag->type()),
+                   static_cast<uint64_t>(
+                       std::numeric_limits<unsigned int>::max()));
             return_code = j;
+            break;
           }
+          *flag->uint_variable() = static_cast<unsigned int>(val);
           break;
+        }
         case Flag::TYPE_FLOAT:
           *flag->float_variable() = strtod(value, &endp);
-          break;
-        case Flag::TYPE_SIZE_T:
-          if (!TryParseUnsigned(flag, arg, value, &endp,
-                                flag->size_t_variable())) {
-            return_code = j;
-          }
           break;
         case Flag::TYPE_STRING:
           flag->set_string_value(value ? StrDup(value) : nullptr, true);
@@ -619,10 +582,13 @@ void FlagList::PrintHelp() {
         "    run the new debugging shell\n\n"
         "Options:\n";
 
-  for (size_t i = 0; i < num_flags; ++i) {
-    Flag* f = &flags[i];
-    os << "  --" << f->name() << " (" << f->comment() << ")\n"
-       << "        type: " << Type2String(f->type()) << "  default: " << *f
+  for (const Flag& f : flags) {
+    os << "  --";
+    for (const char* c = f.name(); *c != '\0'; ++c) {
+      os << NormalizeChar(*c);
+    }
+    os << " (" << f.comment() << ")\n"
+       << "        type: " << Type2String(f.type()) << "  default: " << f
        << "\n";
   }
 }

@@ -153,20 +153,6 @@ void Scavenger::Process(OneshotBarrier* barrier) {
   } while (!done);
 }
 
-void Scavenger::RecordCopiedObject(HeapObject* obj) {
-  bool should_record = FLAG_log_gc;
-#ifdef DEBUG
-  should_record = FLAG_heap_stats;
-#endif
-  if (should_record) {
-    if (heap()->new_space()->Contains(obj)) {
-      heap()->new_space()->RecordAllocation(obj);
-    } else {
-      heap()->new_space()->RecordPromotion(obj);
-    }
-  }
-}
-
 void Scavenger::Finalize() {
   heap()->MergeAllocationSitePretenuringFeedback(local_pretenuring_feedback_);
   heap()->IncrementSemiSpaceCopiedObjectSize(copied_size_);

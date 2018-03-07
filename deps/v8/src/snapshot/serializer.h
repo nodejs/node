@@ -252,7 +252,7 @@ class Serializer : public SerializerDeserializer {
   AllocatorT allocator_;
 
 #ifdef OBJECT_PRINT
-  static const int kInstanceTypes = 256;
+  static const int kInstanceTypes = LAST_TYPE + 1;
   int* instance_type_count_;
   size_t* instance_type_size_;
 #endif  // OBJECT_PRINT

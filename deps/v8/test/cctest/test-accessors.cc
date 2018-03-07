@@ -84,36 +84,65 @@ THREADED_TEST(PropertyHandler) {
   Local<Script> setter;
   // check function instance accessors
   getter = v8_compile("var obj = new Fun(); obj.instance_foo;");
-  CHECK_EQ(900, getter->Run(env.local())
-                    .ToLocalChecked()
-                    ->Int32Value(env.local())
-                    .FromJust());
+  for (int i = 0; i < 4; i++) {
+    CHECK_EQ(900, getter->Run(env.local())
+                      .ToLocalChecked()
+                      ->Int32Value(env.local())
+                      .FromJust());
+  }
   setter = v8_compile("obj.instance_foo = 901;");
-  CHECK_EQ(901, setter->Run(env.local())
-                    .ToLocalChecked()
-                    ->Int32Value(env.local())
-                    .FromJust());
+  for (int i = 0; i < 4; i++) {
+    CHECK_EQ(901, setter->Run(env.local())
+                      .ToLocalChecked()
+                      ->Int32Value(env.local())
+                      .FromJust());
+  }
   getter = v8_compile("obj.bar;");
-  CHECK_EQ(907, getter->Run(env.local())
-                    .ToLocalChecked()
-                    ->Int32Value(env.local())
-                    .FromJust());
+  for (int i = 0; i < 4; i++) {
+    CHECK_EQ(907, getter->Run(env.local())
+                      .ToLocalChecked()
+                      ->Int32Value(env.local())
+                      .FromJust());
+  }
   setter = v8_compile("obj.bar = 908;");
-  CHECK_EQ(908, setter->Run(env.local())
-                    .ToLocalChecked()
-                    ->Int32Value(env.local())
-                    .FromJust());
+  for (int i = 0; i < 4; i++) {
+    CHECK_EQ(908, setter->Run(env.local())
+                      .ToLocalChecked()
+                      ->Int32Value(env.local())
+                      .FromJust());
+  }
   // check function static accessors
   getter = v8_compile("Fun.object_foo;");
-  CHECK_EQ(902, getter->Run(env.local())
-                    .ToLocalChecked()
-                    ->Int32Value(env.local())
-                    .FromJust());
+  for (int i = 0; i < 4; i++) {
+    CHECK_EQ(902, getter->Run(env.local())
+                      .ToLocalChecked()
+                      ->Int32Value(env.local())
+                      .FromJust());
+  }
   setter = v8_compile("Fun.object_foo = 903;");
-  CHECK_EQ(903, setter->Run(env.local())
-                    .ToLocalChecked()
-                    ->Int32Value(env.local())
-                    .FromJust());
+  for (int i = 0; i < 4; i++) {
+    CHECK_EQ(903, setter->Run(env.local())
+                      .ToLocalChecked()
+                      ->Int32Value(env.local())
+                      .FromJust());
+  }
+
+  // And now with null prototype.
+  CompileRun(env.local(), "obj.__proto__ = null;");
+  getter = v8_compile("obj.bar;");
+  for (int i = 0; i < 4; i++) {
+    CHECK_EQ(907, getter->Run(env.local())
+                      .ToLocalChecked()
+                      ->Int32Value(env.local())
+                      .FromJust());
+  }
+  setter = v8_compile("obj.bar = 908;");
+  for (int i = 0; i < 4; i++) {
+    CHECK_EQ(908, setter->Run(env.local())
+                      .ToLocalChecked()
+                      ->Int32Value(env.local())
+                      .FromJust());
+  }
 }
 
 
@@ -647,10 +676,32 @@ THREADED_TEST(GlobalObjectAccessor) {
       "    set : function() { set_value = this; }"
       "});"
       "function getter() { return x; }"
-      "function setter() { x = 1; }"
-      "for (var i = 0; i < 4; i++) { getter(); setter(); }");
-  CHECK(v8::Utils::OpenHandle(*CompileRun("getter()"))->IsJSGlobalProxy());
-  CHECK(v8::Utils::OpenHandle(*CompileRun("set_value"))->IsJSGlobalProxy());
+      "function setter() { x = 1; }");
+
+  Local<Script> check_getter = v8_compile("getter()");
+  Local<Script> check_setter = v8_compile("setter(); set_value");
+
+  // Ensure that LoadGlobalICs in getter and StoreGlobalICs setter get
+  // JSGlobalProxy as a receiver regardless of the current IC state and
+  // the order in which ICs are executed.
+  for (int i = 0; i < 10; i++) {
+    CHECK(
+        v8::Utils::OpenHandle(*check_getter->Run(env.local()).ToLocalChecked())
+            ->IsJSGlobalProxy());
+  }
+  for (int i = 0; i < 10; i++) {
+    CHECK(
+        v8::Utils::OpenHandle(*check_setter->Run(env.local()).ToLocalChecked())
+            ->IsJSGlobalProxy());
+  }
+  for (int i = 0; i < 10; i++) {
+    CHECK(
+        v8::Utils::OpenHandle(*check_getter->Run(env.local()).ToLocalChecked())
+            ->IsJSGlobalProxy());
+    CHECK(
+        v8::Utils::OpenHandle(*check_setter->Run(env.local()).ToLocalChecked())
+            ->IsJSGlobalProxy());
+  }
 }
 
 

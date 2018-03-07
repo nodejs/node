@@ -400,7 +400,7 @@ char* itoa_r(intptr_t i, char* buf, size_t sz, int base, size_t padding) {
   if (n > sz) return nullptr;
 
   if (base < 2 || base > 16) {
-    buf[0] = '\000';
+    buf[0] = '\0';
     return nullptr;
   }
 
@@ -415,7 +415,7 @@ char* itoa_r(intptr_t i, char* buf, size_t sz, int base, size_t padding) {
 
     // Make sure we can write the '-' character.
     if (++n > sz) {
-      buf[0] = '\000';
+      buf[0] = '\0';
       return nullptr;
     }
     *start++ = '-';
@@ -427,7 +427,7 @@ char* itoa_r(intptr_t i, char* buf, size_t sz, int base, size_t padding) {
   do {
     // Make sure there is still enough space left in our output buffer.
     if (++n > sz) {
-      buf[0] = '\000';
+      buf[0] = '\0';
       return nullptr;
     }
 
@@ -439,7 +439,7 @@ char* itoa_r(intptr_t i, char* buf, size_t sz, int base, size_t padding) {
   } while (j > 0 || padding > 0);
 
   // Terminate the output with a NUL character.
-  *ptr = '\000';
+  *ptr = '\0';
 
   // Conversion to ASCII actually resulted in the digits being in reverse
   // order. We can't easily generate them in forward order, as we can't tell

@@ -27,7 +27,7 @@ from testrunner.local import verbose
 from testrunner.objects import context
 
 
-DEFAULT_TESTS = ["mjsunit", "webkit"]
+DEFAULT_SUITES = ["mjsunit", "webkit", "benchmarks"]
 TIMEOUT_DEFAULT = 60
 
 # Double the timeout for these:
@@ -36,8 +36,8 @@ SLOW_ARCHS = ["arm",
 
 
 class GCFuzzer(base_runner.BaseTestRunner):
-  def __init__(self):
-    super(GCFuzzer, self).__init__()
+  def __init__(self, *args, **kwargs):
+    super(GCFuzzer, self).__init__(*args, **kwargs)
 
     self.fuzzer_rng = None
 
@@ -64,12 +64,6 @@ class GCFuzzer(base_runner.BaseTestRunner):
                             " (verbose, dots, color, mono)"),
                       choices=progress.PROGRESS_INDICATORS.keys(),
                       default="mono")
-    parser.add_option("--shard-count",
-                      help="Split testsuites into this number of shards",
-                      default=1, type="int")
-    parser.add_option("--shard-run",
-                      help="Run this shard from the split up tests.",
-                      default=1, type="int")
     parser.add_option("-t", "--timeout", help="Timeout in seconds",
                       default= -1, type="int")
     parser.add_option("--random-seed", default=0,
@@ -102,47 +96,6 @@ class GCFuzzer(base_runner.BaseTestRunner):
     self.fuzzer_rng = random.Random(options.fuzzer_random_seed)
     return True
 
-  def _shard_tests(self, tests, shard_count, shard_run):
-    if shard_count < 2:
-      return tests
-    if shard_run < 1 or shard_run > shard_count:
-      print "shard-run not a valid number, should be in [1:shard-count]"
-      print "defaulting back to running all tests"
-      return tests
-    count = 0
-    shard = []
-    for test in tests:
-      if count % shard_count == shard_run - 1:
-        shard.append(test)
-      count += 1
-    return shard
-
-  def _do_execute(self, options, args):
-    suite_paths = utils.GetSuitePaths(join(base_runner.BASE_DIR, "test"))
-
-    if len(args) == 0:
-      suite_paths = [ s for s in suite_paths if s in DEFAULT_TESTS ]
-    else:
-      args_suites = set()
-      for arg in args:
-        suite = arg.split(os.path.sep)[0]
-        if not suite in args_suites:
-          args_suites.add(suite)
-      suite_paths = [ s for s in suite_paths if s in args_suites ]
-
-    suites = []
-    for root in suite_paths:
-      suite = testsuite.TestSuite.LoadTestSuite(
-          os.path.join(base_runner.BASE_DIR, "test", root))
-      if suite:
-        suites.append(suite)
-
-    try:
-      return self._execute(args, options, suites)
-    except KeyboardInterrupt:
-      return 2
-
-
   def _calculate_n_tests(self, m, options):
     """Calculates the number of tests from m points with exponential coverage.
     The coverage is expected to be between 0.0 and 1.0.
@@ -152,8 +105,10 @@ class GCFuzzer(base_runner.BaseTestRunner):
     l = float(options.coverage_lift)
     return int(math.pow(m, (m * c + l) / (m + l)))
 
+  def _get_default_suite_names(self):
+    return DEFAULT_SUITES
 
-  def _execute(self, args, options, suites):
+  def _do_execute(self, suites, args, options):
     print(">>> Running tests for %s.%s" % (self.build_config.arch,
                                            self.mode_name))
 
@@ -179,7 +134,6 @@ class GCFuzzer(base_runner.BaseTestRunner):
                           True,  # No sorting of test cases.
                           0,  # Don't rerun failing tests.
                           0,  # No use of a rerun-failing-tests maximum.
-                          False,  # No predictable mode.
                           False,  # No no_harness mode.
                           False,  # Don't use perf data.
                           False)  # Coverage not supported.
@@ -193,14 +147,12 @@ class GCFuzzer(base_runner.BaseTestRunner):
 
     print('>>> Collection phase')
     for s in suites:
-      analysis_flags = [
-        # > 100% to not influence default incremental marking, but we need this
-        # flag to print reached incremental marking limit.
-        '--stress_marking', '1000',
-        '--trace_incremental_marking',
-      ]
-      s.tests = map(lambda t: t.CopyAddingFlags(t.variant, analysis_flags),
+      analysis_flags = ['--fuzzer-gc-analysis']
+      s.tests = map(lambda t: t.create_variant(t.variant, analysis_flags,
+                                               'analysis'),
                     s.tests)
+      for t in s.tests:
+        t.cmd = t.get_command(ctx)
 
     progress_indicator = progress.PROGRESS_INDICATORS[options.progress]()
     runner = execution.Runner(suites, progress_indicator, ctx)
@@ -211,12 +163,14 @@ class GCFuzzer(base_runner.BaseTestRunner):
     for s in suites:
       for t in s.tests:
         # Skip failed tests.
-        if s.HasUnexpectedOutput(t):
+        if t.output_proc.has_unexpected_output(runner.outputs[t]):
           print '%s failed, skipping' % t.path
           continue
-        max_limit = self._get_max_limit_reached(t)
+        max_limit = self._get_max_limit_reached(runner.outputs[t])
         if max_limit:
           test_results[t.path] = max_limit
+
+    runner = None
 
     if options.dump_results_file:
       with file("%s.%d.txt" % (options.dump_results_file, time.time()),
@@ -237,7 +191,7 @@ class GCFuzzer(base_runner.BaseTestRunner):
         if options.verbose:
           print ('%s [x%d] (max marking limit=%.02f)' %
                  (t.path, subtests_count, max_percent))
-        for _ in xrange(0, subtests_count):
+        for i in xrange(0, subtests_count):
           fuzzer_seed = self._next_fuzzer_seed()
           fuzzing_flags = [
             '--stress_marking', str(max_percent),
@@ -245,12 +199,14 @@ class GCFuzzer(base_runner.BaseTestRunner):
           ]
           if options.stress_compaction:
             fuzzing_flags.append('--stress_compaction_random')
-          s.tests.append(t.CopyAddingFlags(t.variant, fuzzing_flags))
+          s.tests.append(t.create_variant(t.variant, fuzzing_flags, i))
+      for t in s.tests:
+        t.cmd = t.get_command(ctx)
       num_tests += len(s.tests)
 
     if num_tests == 0:
       print "No tests to run."
-      return 0
+      return exit_code
 
     print(">>> Fuzzing phase (%d test cases)" % num_tests)
     progress_indicator = progress.PROGRESS_INDICATORS[options.progress]()
@@ -292,8 +248,6 @@ class GCFuzzer(base_runner.BaseTestRunner):
       if len(args) > 0:
         s.FilterTestCasesByArgs(args)
       s.FilterTestCasesByStatus(False)
-      for t in s.tests:
-        t.flags += s.GetStatusfileFlags(t)
 
       num_tests += len(s.tests)
       for t in s.tests:
@@ -304,31 +258,16 @@ class GCFuzzer(base_runner.BaseTestRunner):
 
   # Parses test stdout and returns what was the highest reached percent of the
   # incremental marking limit (0-100).
-  # Skips values >=100% since they already trigger incremental marking.
   @staticmethod
-  def _get_max_limit_reached(test):
-    def is_im_line(l):
-      return 'IncrementalMarking' in l and '% of the memory limit reached' in l
-
-    def line_to_percent(l):
-      return filter(lambda part: '%' in part, l.split(' '))[0]
-
-    def percent_str_to_float(s):
-      return float(s[:-1])
-
-    if not (test.output and test.output.stdout):
+  def _get_max_limit_reached(output):
+    if not output.stdout:
       return None
 
-    im_lines = filter(is_im_line, test.output.stdout.splitlines())
-    percents_str = map(line_to_percent, im_lines)
-    percents = map(percent_str_to_float, percents_str)
+    for l in reversed(output.stdout.splitlines()):
+      if l.startswith('### Maximum marking limit reached ='):
+        return float(l.split()[6])
 
-    # Skip >= 100%.
-    percents = filter(lambda p: p < 100, percents)
-
-    if not percents:
-      return None
-    return max(percents)
+    return None
 
   def _next_fuzzer_seed(self):
     fuzzer_seed = None

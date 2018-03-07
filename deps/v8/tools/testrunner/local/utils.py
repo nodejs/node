@@ -26,10 +26,10 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
-import os
 from os.path import exists
 from os.path import isdir
 from os.path import join
+import os
 import platform
 import re
 import subprocess

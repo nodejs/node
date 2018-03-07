@@ -180,8 +180,8 @@ InterpreterCompilationJob::Status InterpreterCompilationJob::ExecuteJobImpl() {
   RuntimeCallTimerScope runtimeTimerScope(
       parse_info()->runtime_call_stats(),
       parse_info()->on_background_thread()
-          ? &RuntimeCallStats::CompileBackgroundIgnition
-          : &RuntimeCallStats::CompileIgnition);
+          ? RuntimeCallCounterId::kCompileBackgroundIgnition
+          : RuntimeCallCounterId::kCompileIgnition);
   // TODO(lpy): add support for background compilation RCS trace.
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"), "V8.CompileIgnition");
 
@@ -201,7 +201,7 @@ InterpreterCompilationJob::Status InterpreterCompilationJob::FinalizeJobImpl(
     Isolate* isolate) {
   RuntimeCallTimerScope runtimeTimerScope(
       parse_info()->runtime_call_stats(),
-      &RuntimeCallStats::CompileIgnitionFinalization);
+      RuntimeCallCounterId::kCompileIgnitionFinalization);
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
                "V8.CompileIgnitionFinalization");
 

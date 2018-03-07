@@ -279,18 +279,6 @@ void Assembler::set_target_address_at(Isolate* isolate, Address pc,
   }
 }
 
-Address Assembler::target_address_at(Address pc, Code* code) {
-  Address constant_pool = code ? code->constant_pool() : nullptr;
-  return target_address_at(pc, constant_pool);
-}
-
-void Assembler::set_target_address_at(Isolate* isolate, Address pc, Code* code,
-                                      Address target,
-                                      ICacheFlushMode icache_flush_mode) {
-  Address constant_pool = code ? code->constant_pool() : nullptr;
-  set_target_address_at(isolate, pc, constant_pool, target, icache_flush_mode);
-}
-
 void Assembler::deserialization_set_target_internal_reference_at(
     Isolate* isolate, Address pc, Address target, RelocInfo::Mode mode) {
   Memory::Address_at(pc) = target;
@@ -303,7 +291,8 @@ Address Assembler::target_address_from_return_address(Address pc) {
 
 void Assembler::deserialization_set_special_target_at(
     Isolate* isolate, Address instruction_payload, Code* code, Address target) {
-  set_target_address_at(isolate, instruction_payload, code, target);
+  set_target_address_at(isolate, instruction_payload,
+                        code ? code->constant_pool() : nullptr, target);
 }
 
 Handle<Code> Assembler::code_target_object_handle_at(Address pc) {
@@ -330,7 +319,7 @@ void RelocInfo::apply(intptr_t delta) {
 
 Address RelocInfo::target_address() {
   DCHECK(IsCodeTarget(rmode_) || IsRuntimeEntry(rmode_) || IsWasmCall(rmode_));
-  return Assembler::target_address_at(pc_, host_);
+  return Assembler::target_address_at(pc_, constant_pool_);
 }
 
 Address RelocInfo::target_address_address() {
@@ -421,7 +410,7 @@ void RelocInfo::WipeOut(Isolate* isolate) {
     Memory::Address_at(pc_) = nullptr;
   } else if (IsCodeTarget(rmode_) || IsRuntimeEntry(rmode_)) {
     // Effectively write zero into the relocation.
-    Assembler::set_target_address_at(isolate, pc_, host_,
+    Assembler::set_target_address_at(isolate, pc_, constant_pool_,
                                      pc_ + sizeof(int32_t));
   } else {
     UNREACHABLE();
