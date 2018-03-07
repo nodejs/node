@@ -54,8 +54,7 @@ Local<Object> PipeWrap::Instantiate(Environment* env,
                                     AsyncWrap* parent,
                                     PipeWrap::SocketType type) {
   EscapableHandleScope handle_scope(env->isolate());
-  AsyncHooks::DefaultTriggerAsyncIdScope trigger_scope(env,
-                                                       parent->get_async_id());
+  AsyncHooks::DefaultTriggerAsyncIdScope trigger_scope(parent);
   CHECK_EQ(false, env->pipe_constructor_template().IsEmpty());
   Local<Function> constructor = env->pipe_constructor_template()->GetFunction();
   CHECK_EQ(false, constructor.IsEmpty());
