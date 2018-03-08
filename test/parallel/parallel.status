@@ -15,7 +15,6 @@ test-postmortem-metadata: PASS,FLAKY
 [$system==macos]
 
 [$arch==arm || $arch==arm64]
-test-npm-install:      PASS,FLAKY
 
 [$system==solaris] # Also applies to SmartOS
 
