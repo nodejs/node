@@ -54,12 +54,16 @@ const h2 = require('http2');
 
   const server = h2.createServer();
 
+  process.on('uncaughtException', common.mustCall(function(err) {
+    assert.strictEqual(err.message, 'kaboom no handler');
+  }));
+
   server.on('stream', common.mustCall(function(stream) {
-    // there is no 'error'  handler, and this will not crash
+    // there is no 'error'  handler, and this will crash
     stream.write('hello');
     stream.resume();
 
-    expected = new Error('kaboom');
+    expected = new Error('kaboom no handler');
     stream.destroy(expected);
     server.close();
   }));
