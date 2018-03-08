@@ -147,7 +147,6 @@ void Environment::Start(int argc,
 
   auto process_template = FunctionTemplate::New(isolate());
   process_template->SetClassName(FIXED_ONE_BYTE_STRING(isolate(), "process"));
-  process_template->InstanceTemplate()->SetInternalFieldCount(1);
 
   auto process_object =
       process_template->GetFunction()->NewInstance(context()).ToLocalChecked();
@@ -156,7 +155,7 @@ void Environment::Start(int argc,
   SetupProcessObject(this, argc, argv, exec_argc, exec_argv);
 
   // Used by EnvPromiseHook to know that we are on a node context.
-  process_object->SetInternalField(0, v8::Int32::New(isolate(), kNodeContextTag));
+  context()->SetAlignedPointerInEmbedderData(kContextEmbedderDataIndex + 1, (void *)kNodeContextTag);
 
   LoadAsyncWrapperInfo(this);
 
@@ -306,20 +305,12 @@ void Environment::EnvPromiseHook(v8::PromiseHookType type,
                                  v8::Local<v8::Promise> promise,
                                  v8::Local<v8::Value> parent) {
   Local<v8::Context> context = promise->CreationContext();
-  v8::Isolate *isolate = context->GetIsolate();
-  Local<v8::Object> global = context->Global();
 
-  // Make sure process is there and its first internal field is the magic value.
-  Local<v8::Value> process = global->Get(OneByteString(isolate, "process"));
-  if (!process->IsObject()) {
-    return;
-  }
-  Local<v8::Object> process_object = process.As<v8::Object>();
-  if (process_object->InternalFieldCount() < 1) {
-    return;
-  }
-  Local<v8::Value> internal_field = process_object->GetInternalField(0);
-  if (!internal_field->IsInt32() || internal_field.As<v8::Int32>()->Value() != kNodeContextTag) {
+  // Grow the embedder data if necessary to make sure we are not out of bounds
+  // when reading the magic number.
+  context->SetAlignedPointerInEmbedderData(kContextEmbedderDataIndex + 2, nullptr);
+  int magicNumber = (int)context->GetAlignedPointerFromEmbedderData(kContextEmbedderDataIndex + 1);
+  if (magicNumber != kNodeContextTag) {
     return;
   }
 
