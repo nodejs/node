@@ -8,6 +8,13 @@ const tmpdir = require('../common/tmpdir');
 
 if (process.argv[2] === 'child') {
   const trace_events = require('trace_events');
+  // Note: this test is leveraging the fact that perf_hooks
+  // will emit a very limited number of predictable trace events
+  // that we can use to quickly verify that trace events are
+  // enabled. Using the v8 and node.async_hooks targets tend
+  // to be less predictable in terms of what is actually output
+  // to the file. That said, if necessary, this test could
+  // be modified to use any trace event output.
   const { performance } = require('perf_hooks');
   trace_events.setTracingCategories('node.perf.usertiming');
   performance.mark('A');
