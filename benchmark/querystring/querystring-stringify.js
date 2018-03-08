@@ -17,7 +17,7 @@ function main({ type, n }) {
     encodemany: {
       '\u0080\u0083\u0089': 'bar',
       '\u008C\u008E\u0099': 'quux',
-      xyzzy: '\u00A5q\u00A3r'
+      'xyzzy': '\u00A5q\u00A3r'
     },
     encodelast: {
       foo: 'bar',

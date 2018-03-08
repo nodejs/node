@@ -40,7 +40,7 @@ server.listen(0, common.mustCall(() => {
   tests.forEach((test) => {
     const req = client.request({
       ':method': 'POST',
-      rstcode: test[0]
+      'rstcode': test[0]
     });
     req.on('close', common.mustCall((code) => {
       assert.strictEqual(code, test[0]);
