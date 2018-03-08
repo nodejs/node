@@ -13,8 +13,7 @@
 * American English spelling is preferred. "Capitalize" vs. "Capitalise",
   "color" vs. "colour", etc.
 * Use [serial commas][].
-* Generally avoid personal pronouns in reference documentation ("I", "you",
-  "we").
+* Avoid personal pronouns in reference documentation ("I", "you", "we").
   * Pronouns are acceptable in more colloquial documentation, like guides.
   * Use gender-neutral pronouns and mass nouns. Non-comprehensive
     examples:
