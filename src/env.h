@@ -799,17 +799,13 @@ class Environment {
 
   double* fs_stats_field_array_;
 
-  struct BeforeExitCallback {
+  struct ExitCallback {
     void (*cb_)(void* arg);
     void* arg_;
   };
-  std::list<BeforeExitCallback> before_exit_functions_;
+  std::list<ExitCallback> before_exit_functions_;
 
-  struct AtExitCallback {
-    void (*cb_)(void* arg);
-    void* arg_;
-  };
-  std::list<AtExitCallback> at_exit_functions_;
+  std::list<ExitCallback> at_exit_functions_;
 
   struct PromiseHookCallback {
     promise_hook_func cb_;
