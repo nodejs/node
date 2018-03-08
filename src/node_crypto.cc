@@ -3911,7 +3911,7 @@ bool CipherBase::Update(const char* data,
                         unsigned char** out,
                         int* out_len) {
   if (ctx_ == nullptr)
-    return 0;
+    return false;
 
   // on first update:
   if (kind_ == kDecipher && IsAuthenticatedMode() && auth_tag_len_ > 0) {
