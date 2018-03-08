@@ -18,14 +18,22 @@ const {
 const tests = [
   [NGHTTP2_NO_ERROR, false],
   [NGHTTP2_NO_ERROR, false],
-  [NGHTTP2_PROTOCOL_ERROR, true],
+  [NGHTTP2_PROTOCOL_ERROR, true, 1],
   [NGHTTP2_CANCEL, false],
-  [NGHTTP2_REFUSED_STREAM, true],
-  [NGHTTP2_INTERNAL_ERROR, true]
+  [NGHTTP2_REFUSED_STREAM, true, 7],
+  [NGHTTP2_INTERNAL_ERROR, true, 2]
 ];
 
 const server = http2.createServer();
 server.on('stream', (stream, headers) => {
+  const test = tests.find((t) => t[0] === Number(headers.rstcode));
+  if (test[1]) {
+    stream.on('error', common.expectsError({
+      type: Error,
+      code: 'ERR_HTTP2_STREAM_ERROR',
+      message: `Stream closed with error code ${test[2]}`
+    }));
+  }
   stream.close(headers.rstcode | 0);
 });
 
