@@ -1,5 +1,6 @@
 'use strict';
 const common = require('../common');
+const tmpdir = require('../common/tmpdir');
 
 // This test ensures that fs.existsSync doesn't incorrectly return false
 // (especially on Windows)
@@ -8,8 +9,6 @@ const common = require('../common');
 const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
-
-const tmpdir = require('../common/tmpdir');
 
 let dir = path.resolve(tmpdir.path);
 
