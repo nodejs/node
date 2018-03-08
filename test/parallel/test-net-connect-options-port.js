@@ -102,27 +102,33 @@ const net = require('net');
 function doConnect(args, getCb) {
   return [
     function createConnectionWithCb() {
-      return net.createConnection.apply(net, args.concat(getCb()));
+      return net.createConnection.apply(net, args.concat(getCb()))
+        .resume();
     },
     function createConnectionWithoutCb() {
       return net.createConnection.apply(net, args)
-        .on('connect', getCb());
+        .on('connect', getCb())
+        .resume();
     },
     function connectWithCb() {
-      return net.connect.apply(net, args.concat(getCb()));
+      return net.connect.apply(net, args.concat(getCb()))
+        .resume();
     },
     function connectWithoutCb() {
       return net.connect.apply(net, args)
-        .on('connect', getCb());
+        .on('connect', getCb())
+        .resume();
     },
     function socketConnectWithCb() {
       const socket = new net.Socket();
-      return socket.connect.apply(socket, args.concat(getCb()));
+      return socket.connect.apply(socket, args.concat(getCb()))
+        .resume();
     },
     function socketConnectWithoutCb() {
       const socket = new net.Socket();
       return socket.connect.apply(socket, args)
-        .on('connect', getCb());
+        .on('connect', getCb())
+        .resume();
     }
   ];
 }

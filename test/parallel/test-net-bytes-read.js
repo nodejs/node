@@ -32,6 +32,7 @@ const server = net.createServer((socket) => {
       assert.strictEqual(socket.bytesRead, prev);
       assert.strictEqual(big.length, prev);
     }));
+
+    socket.end();
   });
-  socket.end();
 });

@@ -26,6 +26,7 @@ const server = tls.createServer(options, function(s) {
   const client = tls.connect(opts, function() {
     putImmediate(client);
   });
+  client.resume();
 });
 
 function putImmediate(client) {
