@@ -6,8 +6,8 @@ if (!common.hasCrypto)
 
 const fixtures = require('../common/fixtures');
 
-// This test ensures that a http request callback is called
-// when the agent option is set
+// This test ensures that a http request callback is called when the agent
+// option is set.
 // See https://github.com/nodejs/node-v0.x-archive/issues/1531
 
 const https = require('https');

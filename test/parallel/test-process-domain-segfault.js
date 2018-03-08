@@ -23,7 +23,7 @@
 require('../common');
 
 // This test ensures that setting `process.domain` to `null` does not result in
-// node crashing with a segfault
+// node crashing with a segfault.
 // https://github.com/nodejs/node-v0.x-archive/issues/4256
 
 process.domain = null;

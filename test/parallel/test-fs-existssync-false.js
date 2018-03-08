@@ -2,7 +2,7 @@
 const common = require('../common');
 const tmpdir = require('../common/tmpdir');
 
-// This test ensures that fs.existsSync doesn't incorrectly return false
+// This test ensures that fs.existsSync doesn't incorrectly return false.
 // (especially on Windows)
 // https://github.com/nodejs/node-v0.x-archive/issues/3739
 

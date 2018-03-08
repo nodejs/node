@@ -6,7 +6,7 @@ if (!common.isWindows)
   common.skip('Windows specific test.');
 
 // This test ensures fs.realpathSync works on properly on Windows without
-// throwing ENOENT when the path involves a fileserver
+// throwing ENOENT when the path involves a fileserver.
 // https://github.com/nodejs/node-v0.x-archive/issues/3542
 
 const assert = require('assert');
