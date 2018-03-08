@@ -17,7 +17,7 @@
   * Pronouns are acceptable in more colloquial documentation, like guides.
   * Use gender-neutral pronouns and mass nouns. Non-comprehensive
     examples:
-    * OK: "they", "their", "them", "folks", "people", "developers", "cats"
+    * OK: "they", "their", "them", "folks", "people", "developers"
     * NOT OK: "his", "hers", "him", "her", "guys", "dudes"
 * When combining wrapping elements (parentheses and quotes), terminal
   punctuation should be placed:
