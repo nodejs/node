@@ -24,8 +24,7 @@ function checkForInspectSupport(flag) {
 
     cluster.on('exit', (worker, code, signal) => {
       if (worker.exitedAfterDisconnect === false) {
-        assert.fail(`For ${nodeOptions}, failed to start cluster\
- with inspect option`);
+        assert.fail(`For NODE_OPTIONS ${nodeOptions}, failed to start cluster`);
       }
     });
   }
