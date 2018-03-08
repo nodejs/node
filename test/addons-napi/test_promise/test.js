@@ -45,7 +45,9 @@ common.crashOnUnhandledRejection();
   test_promise.concludeCurrentPromise(Promise.resolve('chained answer'), true);
 }
 
-assert.strictEqual(test_promise.isPromise(test_promise.createPromise()), true);
+const promiseTypeTestPromise = test_promise.createPromise();
+assert.strictEqual(test_promise.isPromise(promiseTypeTestPromise), true);
+test_promise.concludeCurrentPromise(undefined, true);
 
 const rejectPromise = Promise.reject(-1);
 const expected_reason = -1;
