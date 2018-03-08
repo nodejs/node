@@ -8,6 +8,7 @@ using v8::FunctionCallbackInfo;
 using v8::Int32;
 using v8::Local;
 using v8::Object;
+using v8::String;
 using v8::Value;
 
 // The tracing APIs require category groups to be pointers to long-lived
@@ -132,6 +133,41 @@ static void CategoryGroupEnabled(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(*category_group_enabled > 0);
 }
 
+static void StartTracing(const FunctionCallbackInfo<Value>& args) {
+#if NODE_USE_V8_PLATFORM
+  Environment* env = Environment::GetCurrent(args);
+  Utf8Value categories(env->isolate(), args[0]);
+  std::string enabled_categories;
+  if (categories.length() > 0)
+    enabled_categories = *categories;
+
+  node::StartTracing(enabled_categories);
+#elif
+  UNREACHABLE();
+#endif
+}
+
+static void StopTracing(const FunctionCallbackInfo<Value>& args) {
+#if NODE_USE_V8_PLATFORM
+  node::StopTracing();
+#elif
+  UNREACHABLE();
+#endif
+}
+
+static void GetTracingCategories(const FunctionCallbackInfo<Value>& args) {
+#if NODE_USE_V8_PLATFORM
+  Environment* env = Environment::GetCurrent(args);
+  if (!trace_enabled_categories.empty()) {
+    Local<String> categories =
+        String::NewFromUtf8(env->isolate(),
+                            trace_enabled_categories.data(),
+                            v8::NewStringType::kNormal).ToLocalChecked();
+    return args.GetReturnValue().Set(categories);
+  }
+#endif
+}
+
 void InitializeTraceEvents(Local<Object> target,
                            Local<Value> unused,
                            Local<Context> context,
@@ -140,6 +176,9 @@ void InitializeTraceEvents(Local<Object> target,
 
   env->SetMethod(target, "emit", Emit);
   env->SetMethod(target, "categoryGroupEnabled", CategoryGroupEnabled);
+  env->SetMethod(target, "startTracing", StartTracing);
+  env->SetMethod(target, "stopTracing", StopTracing);
+  env->SetMethod(target, "getTracingCategories", GetTracingCategories);
 }
 
 }  // namespace node

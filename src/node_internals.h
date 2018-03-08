@@ -196,6 +196,8 @@ extern bool config_expose_internals;
 // it to stderr.
 extern std::string config_warning_file;  // NOLINT(runtime/string)
 
+extern std::string trace_enabled_categories;  // NOLINT(runtime/string)
+
 // Set in node.cc by ParseArgs when --pending-deprecation or
 // NODE_PENDING_DEPRECATION is used
 extern bool config_pending_deprecation;
@@ -784,6 +786,9 @@ static inline const char *errno_string(int errorno) {
     TRACING_CATEGORY_NODE ","                                                 \
     TRACING_CATEGORY_NODE "." #one ","                                        \
     TRACING_CATEGORY_NODE "." #one "." #two
+
+extern void StartTracing(const std::string& enabled_categories);
+extern void StopTracing();
 
 }  // namespace node
 

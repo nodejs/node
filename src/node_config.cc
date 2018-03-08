@@ -82,6 +82,10 @@ static void InitConfig(Local<Object> target,
     }
   }
 
+#if NODE_USE_V8_PLATFORM
+  READONLY_BOOLEAN_PROPERTY("trace_events_enabled");
+#endif
+
   if (config_experimental_vm_modules)
     READONLY_BOOLEAN_PROPERTY("experimentalVMModules");
 

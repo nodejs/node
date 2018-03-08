@@ -20,16 +20,22 @@ class TracingController : public v8::platform::tracing::TracingController {
 class Agent {
  public:
   explicit Agent(const std::string& log_file_pattern);
-  void Start(const std::string& enabled_categories);
+  void StartTracing(const std::string& enabled_categories);
+  void StopTracing();
   void Stop();
 
   TracingController* GetTracingController() { return tracing_controller_; }
 
+  uv_once_t init_once_ = UV_ONCE_INIT;
+
  private:
+  void InitializeOnce();
   static void ThreadCb(void* arg);
 
+  const std::string& log_file_pattern_;
   uv_thread_t thread_;
   uv_loop_t tracing_loop_;
+  bool initialized_ = false;
   bool started_ = false;
   TracingController* tracing_controller_ = nullptr;
 };
