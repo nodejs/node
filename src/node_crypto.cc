@@ -3008,6 +3008,45 @@ bool CipherBase::InitAuthenticated(const char *cipher_type, int iv_len,
     // When decrypting in CCM mode, this field will be set in setAuthTag().
     if (kind_ == kCipher)
       auth_tag_len_ = auth_tag_len;
+
+    // The message length is restricted to 2 ^ (15 - iv_len) - 1 bytes.
+    CHECK(iv_len >= 7 && iv_len <= 13);
+    switch (iv_len) {
+    case 13:
+    case 12:
+#if INT_MAX >= 4294967295
+    case 11:
+#endif
+#if INT_MAX >= 1099511627775
+    case 10:
+#endif
+#if INT_MAX >= 281474976710655
+    case 9:
+#endif
+#if INT_MAX >= 72057594037927935
+    case 8:
+#endif
+#if INT_MAX >= 18446744073709551615
+    case 7:
+#endif
+      max_message_size_ = (1 << (8 * (15 - iv_len))) - 1;
+      break;
+    default:
+      max_message_size_ = INT_MAX;
+    }
+  }
+
+  return true;
+}
+
+
+bool CipherBase::CheckCCMMessageLength(int message_len) {
+  CHECK_NE(ctx_, nullptr);
+  CHECK(EVP_CIPHER_CTX_mode(ctx_) == EVP_CIPH_CCM_MODE);
+
+  if (message_len > max_message_size_) {
+    env()->ThrowError("Message exceeds maximum size");
+    return false;
   }
 
   return true;
@@ -3089,6 +3128,9 @@ bool CipherBase::SetAAD(const char* data, unsigned int len, int plaintext_len) {
       return false;
     }
 
+    if (!CheckCCMMessageLength(plaintext_len))
+      return false;
+
     if (kind_ == kDecipher && !auth_tag_set_ && auth_tag_len_ > 0) {
       if (!EVP_CIPHER_CTX_ctrl(ctx_,
                                EVP_CTRL_CCM_SET_TAG,
@@ -3126,12 +3168,19 @@ void CipherBase::SetAAD(const FunctionCallbackInfo<Value>& args) {
 }
 
 
-bool CipherBase::Update(const char* data,
-                        int len,
-                        unsigned char** out,
-                        int* out_len) {
+CipherBase::UpdateResult CipherBase::Update(const char* data,
+                                            int len,
+                                            unsigned char** out,
+                                            int* out_len) {
   if (ctx_ == nullptr)
-    return false;
+    return kErrorState;
+
+  const int mode = EVP_CIPHER_CTX_mode(ctx_);
+
+  if (mode == EVP_CIPH_CCM_MODE) {
+    if (!CheckCCMMessageLength(len))
+      return kErrorMessageSize;
+  }
 
   // on first update:
   if (kind_ == kDecipher && IsAuthenticatedMode() && auth_tag_len_ > 0 &&
@@ -3153,12 +3202,11 @@ bool CipherBase::Update(const char* data,
 
   // When in CCM mode, EVP_CipherUpdate will fail if the authentication tag is
   // invalid. In that case, remember the error and throw in final().
-  const int mode = EVP_CIPHER_CTX_mode(ctx_);
   if (!r && kind_ == kDecipher && mode == EVP_CIPH_CCM_MODE) {
     pending_auth_failed_ = true;
-    return true;
+    return kSuccess;
   }
-  return r == 1;
+  return r == 1 ? kSuccess : kErrorState;
 }
 
 
@@ -3169,7 +3217,7 @@ void CipherBase::Update(const FunctionCallbackInfo<Value>& args) {
   ASSIGN_OR_RETURN_UNWRAP(&cipher, args.Holder());
 
   unsigned char* out = nullptr;
-  bool r;
+  UpdateResult r;
   int out_len = 0;
 
   // Only copy the data if we have to, because it's a string
@@ -3184,11 +3232,13 @@ void CipherBase::Update(const FunctionCallbackInfo<Value>& args) {
     r = cipher->Update(buf, buflen, &out, &out_len);
   }
 
-  if (!r) {
+  if (r != kSuccess) {
     free(out);
-    return ThrowCryptoError(env,
-                            ERR_get_error(),
-                            "Trying to add data in unsupported state");
+    if (r == kErrorState) {
+      ThrowCryptoError(env, ERR_get_error(),
+                       "Trying to add data in unsupported state");
+    }
+    return;
   }
 
   CHECK(out != nullptr || out_len == 0);

@@ -354,6 +354,11 @@ class CipherBase : public BaseObject {
     kCipher,
     kDecipher
   };
+  enum UpdateResult {
+    kSuccess,
+    kErrorMessageSize,
+    kErrorState
+  };
 
   void Init(const char* cipher_type,
             const char* key_buf,
@@ -366,7 +371,9 @@ class CipherBase : public BaseObject {
               int iv_len,
               int auth_tag_len);
   bool InitAuthenticated(const char *cipher_type, int iv_len, int auth_tag_len);
-  bool Update(const char* data, int len, unsigned char** out, int* out_len);
+  bool CheckCCMMessageLength(int message_len);
+  UpdateResult Update(const char* data, int len, unsigned char** out,
+                      int* out_len);
   bool Final(unsigned char** out, int *out_len);
   bool SetAutoPadding(bool auto_padding);
 
@@ -403,6 +410,7 @@ class CipherBase : public BaseObject {
   unsigned int auth_tag_len_;
   char auth_tag_[EVP_GCM_TLS_TAG_LEN];
   bool pending_auth_failed_;
+  int max_message_size_;
 };
 
 class Hmac : public BaseObject {

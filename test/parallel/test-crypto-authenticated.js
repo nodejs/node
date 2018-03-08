@@ -863,6 +863,36 @@ for (const test of TEST_CASES) {
   }
 }
 
+// Test that setAAD and update throw if the plaintext is too long.
+{
+  for (const ivLength of [13, 12]) {
+    const maxMessageSize = (1 << (8 * (15 - ivLength))) - 1;
+    const key = 'FxLKsqdmv0E9xrQhp0b1ZgI0K7JFZJM8';
+    const cipher = () => crypto.createCipheriv('aes-256-ccm', key,
+                                               '0'.repeat(ivLength),
+                                               {
+                                                 authTagLength: 10
+                                               });
+
+    assert.throws(() => {
+      cipher().setAAD(Buffer.alloc(0), {
+        plaintextLength: maxMessageSize + 1
+      });
+    }, /^Error: Message exceeds maximum size$/);
+
+    const msg = Buffer.alloc(maxMessageSize + 1);
+    assert.throws(() => {
+      cipher().update(msg);
+    }, /^Error: Message exceeds maximum size$/);
+
+    const c = cipher();
+    c.setAAD(Buffer.alloc(0), {
+      plaintextLength: maxMessageSize
+    });
+    c.update(msg.slice(1));
+  }
+}
+
 // Test that setAAD throws if the mode is CCM and the plaintext length has not
 // been specified.
 {
