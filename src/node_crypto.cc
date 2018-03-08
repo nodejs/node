@@ -3304,14 +3304,11 @@ bool CipherBase::SetAAD(const char* data, unsigned int len) {
   if (ctx_ == nullptr || !IsAuthenticatedMode())
     return false;
   int outlen;
-  if (!EVP_CipherUpdate(ctx_,
-                        nullptr,
-                        &outlen,
-                        reinterpret_cast<const unsigned char*>(data),
-                        len)) {
-    return false;
-  }
-  return true;
+  return EVP_CipherUpdate(ctx_,
+                          nullptr,
+                          &outlen,
+                          reinterpret_cast<const unsigned char*>(data),
+                          len);
 }
 
 
