@@ -501,6 +501,8 @@ For more information about the governance of the Node.js project, see
 **Vse Mozhet Byt** &lt;vsemozhetbyt@gmail.com&gt; (he/him)
 * [watilde](https://github.com/watilde) -
 **Daijiro Wachi** &lt;daijiro.wachi@gmail.com&gt; (he/him)
+* [watson](https://github.com/watson) -
+**Thomas Watson** &lt;w@tson.dk&gt;
 * [whitlockjc](https://github.com/whitlockjc) -
 **Jeremy Whitlock** &lt;jwhitlock@apache.org&gt;
 * [XadillaX](https://github.com/XadillaX) -
