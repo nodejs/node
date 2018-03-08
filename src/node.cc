@@ -2932,6 +2932,11 @@ void SetupProcessObject(Environment* env,
                              ProcessTitleSetter,
                              env->as_external()).FromJust());
 
+  // process.jsEngine
+  READONLY_PROPERTY(process,
+                    "jsEngine",
+                    FIXED_ONE_BYTE_STRING(env->isolate(), NODE_ENGINE));
+
   // process.version
   READONLY_PROPERTY(process,
                     "version",

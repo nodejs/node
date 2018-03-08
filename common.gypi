@@ -10,6 +10,7 @@
     'component%': 'static_library',   # NB. these names match with what V8 expects
     'msvs_multi_core_compile': '0',   # we do enable multicore compiles, but not using the V8 way
     'python%': 'python',
+    'node_engine%': 'v8',
 
     'node_shared%': 'false',
     'force_dynamic_crt%': 0,
@@ -81,6 +82,7 @@
   },
 
   'target_defaults': {
+    'defines': ['NODE_ENGINE="<(node_engine)"'],
     'default_configuration': 'Release',
     'configurations': {
       'Debug': {
