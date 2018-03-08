@@ -35,6 +35,10 @@
     # Don't bake anything extra into the snapshot.
     'v8_use_external_startup_data%': 0,
 
+    # Disable V8 untrusted code mitigations.
+    # See https://github.com/v8/v8/wiki/Untrusted-code-mitigations
+    'v8_untrusted_code_mitigations': 'false',
+
     # Some STL containers (e.g. std::vector) do not preserve ABI compatibility
     # between debug and non-debug mode.
     'disable_glibcxx_debug': 1,
