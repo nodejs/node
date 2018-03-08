@@ -65,6 +65,7 @@ It is possible to create multiple derived
 classes by providing additional arguments. The other ones will be exposed as
 properties of the main class:
 
+<!-- eslint-disable no-unreachable -->
 ```js
 E('EXAMPLE_KEY', 'Error message', TypeError, RangeError);
 
