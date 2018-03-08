@@ -441,8 +441,8 @@ bool Environment::RemovePromiseHook(promise_hook_func fn, void* arg) {
 void Environment::EnvPromiseHook(v8::PromiseHookType type,
                                  v8::Local<v8::Promise> promise,
                                  v8::Local<v8::Value> parent) {
-  v8::Isolate *isolate = Isolate::GetCurrent();
-  Local<v8::Context> context = isolate->GetCurrentContext();
+  Local<v8::Context> context = promise->CreationContext();
+  v8::Isolate *isolate = context->GetIsolate();
   Local<v8::Object> global = context->Global();
 
   // Make sure process is there and its first internal field is the magic value.
