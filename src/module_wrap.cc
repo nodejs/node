@@ -502,7 +502,8 @@ const PackageConfig& GetPackageConfig(Environment* env,
   Maybe<uv_file> check = CheckFile(path, LEAVE_OPEN_AFTER_CHECK);
   if (check.IsNothing()) {
     auto entry = env->package_json_cache.emplace(path,
-        PackageConfig { Exists::No, IsValid::Yes, HasMain::No, "", PackageMode::NONE });
+        PackageConfig { Exists::No, IsValid::Yes, HasMain::No, "",
+                        PackageMode::NONE });
     return entry.first->second;
   }
 
@@ -520,7 +521,8 @@ const PackageConfig& GetPackageConfig(Environment* env,
                            v8::NewStringType::kNormal,
                            pkg_src.length()).ToLocal(&src)) {
     auto entry = env->package_json_cache.emplace(path,
-        PackageConfig { Exists::No, IsValid::Yes, HasMain::No, "", PackageMode::NONE });
+        PackageConfig { Exists::No, IsValid::Yes, HasMain::No, "",
+                        PackageMode::NONE });
     return entry.first->second;
   }
 
@@ -530,7 +532,8 @@ const PackageConfig& GetPackageConfig(Environment* env,
   if (!JSON::Parse(env->context(), src).ToLocal(&pkg_json_v) ||
       !pkg_json_v->ToObject(env->context()).ToLocal(&pkg_json)) {
     auto entry = env->package_json_cache.emplace(path,
-        PackageConfig { Exists::Yes, IsValid::No, HasMain::No, "", PackageMode::NONE });
+        PackageConfig { Exists::Yes, IsValid::No, HasMain::No, "",
+                        PackageMode::NONE });
     return entry.first->second;
   }
 
