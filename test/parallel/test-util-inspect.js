@@ -1351,3 +1351,51 @@ util.inspect(process);
   expect = '{\n  a: \'12 45 78 01 34 \' +\n    \'67 90 23\'\n}';
   assert.strictEqual(out, expect);
 }
+
+{ // Test WeakMap
+  const obj = {};
+  const arr = [];
+  const weakMap = new WeakMap([[obj, arr], [arr, obj]]);
+  let out = util.inspect(weakMap, { showHidden: true });
+  let expect = 'WeakMap { [ [length]: 0 ] => {}, {} => [ [length]: 0 ] }';
+  assert.strictEqual(out, expect);
+
+  out = util.inspect(weakMap);
+  expect = 'WeakMap { [items unknown] }';
+  assert.strictEqual(out, expect);
+
+  out = util.inspect(weakMap, { maxArrayLength: 0, showHidden: true });
+  expect = 'WeakMap { ... more items }';
+  assert.strictEqual(out, expect);
+
+  weakMap.extra = true;
+  out = util.inspect(weakMap, { maxArrayLength: 1, showHidden: true });
+  // It is not possible to determine the output reliable.
+  expect = 'WeakMap { [ [length]: 0 ] => {}, ... more items, extra: true }';
+  const expectAlt = 'WeakMap { {} => [ [length]: 0 ], ... more items, ' +
+                    'extra: true }';
+  assert(out === expect || out === expectAlt);
+}
+
+{ // Test WeakSet
+  const weakSet = new WeakSet([{}, [1]]);
+  let out = util.inspect(weakSet, { showHidden: true });
+  let expect = 'WeakSet { [ 1, [length]: 1 ], {} }';
+  assert.strictEqual(out, expect);
+
+  out = util.inspect(weakSet);
+  expect = 'WeakSet { [items unknown] }';
+  assert.strictEqual(out, expect);
+
+  out = util.inspect(weakSet, { maxArrayLength: -2, showHidden: true });
+  expect = 'WeakSet { ... more items }';
+  assert.strictEqual(out, expect);
+
+  weakSet.extra = true;
+  out = util.inspect(weakSet, { maxArrayLength: 1, showHidden: true });
+  // It is not possible to determine the output reliable.
+  expect = 'WeakSet { {}, ... more items, extra: true }';
+  const expectAlt = 'WeakSet { [ 1, [length]: 1 ], ... more items, ' +
+                    'extra: true }';
+  assert(out === expect || out === expectAlt);
+}
