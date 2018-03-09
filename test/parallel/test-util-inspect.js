@@ -448,7 +448,7 @@ assert.strictEqual(util.inspect(-5e-324), '-5e-324');
 {
   const map = new Map();
   map.set(1, 2);
-  const vals = previewMapIterator(map.entries(), 100);
+  const vals = previewMapIterator(map.entries());
   const valsOutput = [];
   for (const o of vals) {
     valsOutput.push(o);
@@ -924,6 +924,10 @@ if (typeof Symbol !== 'undefined') {
   const keys = map.keys();
   assert.strictEqual(util.inspect(keys), '[Map Iterator] { \'foo\' }');
   assert.strictEqual(util.inspect(keys), '[Map Iterator] { \'foo\' }');
+  keys.extra = true;
+  assert.strictEqual(
+    util.inspect(keys, { maxArrayLength: 0 }),
+    '[Map Iterator] { ... more items, extra: true }');
 }
 
 // Test Set iterators.
@@ -937,6 +941,10 @@ if (typeof Symbol !== 'undefined') {
   const keys = aSet.keys();
   assert.strictEqual(util.inspect(keys), '[Set Iterator] { 1, 3 }');
   assert.strictEqual(util.inspect(keys), '[Set Iterator] { 1, 3 }');
+  keys.extra = true;
+  assert.strictEqual(
+    util.inspect(keys, { maxArrayLength: 1 }),
+    '[Set Iterator] { 1, ... more items, extra: true }');
 }
 
 // Test alignment of items in container.
