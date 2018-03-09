@@ -2287,13 +2287,7 @@ static void DLOpen(const FunctionCallbackInfo<Value>& args) {
   }
 
   if (mp->nm_version == -1) {
-    if (env->EmitNapiWarning()) {
-      if (ProcessEmitWarning(env, "N-API is an experimental feature and could "
-                                  "change at any time.").IsNothing()) {
-        dlib.Close();
-        return;
-      }
-    }
+    // N-API module this is ok
   } else if (mp->nm_version != NODE_MODULE_VERSION) {
     char errmsg[1024];
     snprintf(errmsg,
