@@ -190,8 +190,7 @@ static node_module* modlist_builtin;
 static node_module* modlist_internal;
 static node_module* modlist_linked;
 static node_module* modlist_addon;
-
-std::string trace_enabled_categories;  // NOLINT(runtime/string)
+static std::string trace_enabled_categories;  // NOLINT(runtime/string)
 static std::string trace_file_pattern =  // NOLINT(runtime/string)
   "node_trace.${rotation}.log";
 static bool abort_on_uncaught_exception = false;
@@ -312,9 +311,20 @@ static struct {
   }
 #endif  // HAVE_INSPECTOR
 
-  void StartTracingAgent() {
-    if (!trace_enabled_categories.empty())
-      tracing_agent_->StartTracing(trace_enabled_categories);
+  void EnableTracingCategories(const std::string& categories) {
+    tracing_agent_->EnableCategories(categories);
+  }
+
+  void EnableTracingCategories(const std::vector<std::string> categories) {
+    tracing_agent_->EnableCategories(categories);
+  }
+
+  void DisableTracingCategories(const std::vector<std::string> categories) {
+    tracing_agent_->DisableCategories(categories);
+  }
+
+  const std::set<std::string>& GetEnabledTracingCategories() {
+    return tracing_agent_->GetEnabledCategories();
   }
 
   void StopTracing() {
@@ -342,13 +352,20 @@ static struct {
     return true;
   }
 
-  void StartTracingAgent() {}
+  void EnableTracingCategories(const std::string& categories) {}
+  void EnableTracingCategories(const std::vector<std::string> categories) {}
+  void DisableTracingCategories(const std::vector<std::string> categories) {}
+  const std::set<std::string>& GetEnabledTracingCategories() {
+    return categories_;
+  }
   void StopTracing() {}
   void StopTracingAgent() {}
 
   NodePlatform* Platform() {
     return nullptr;
   }
+
+  std::set<std::string> categories_;
 #endif  // !NODE_USE_V8_PLATFORM
 
 #if !NODE_USE_V8_PLATFORM || !HAVE_INSPECTOR
@@ -358,15 +375,19 @@ static struct {
 #endif  //  !NODE_USE_V8_PLATFORM || !HAVE_INSPECTOR
 } v8_platform;
 
-void StartTracing(const std::string& enabled_categories) {
-  trace_enabled_categories = enabled_categories;
-  v8_platform.StartTracingAgent();
+void EnableTracingCategories(const std::vector<std::string>& categories) {
+  v8_platform.EnableTracingCategories(categories);
 }
 
-void StopTracing() {
-  trace_enabled_categories.erase();
-  v8_platform.StopTracing();
+void DisableTracingCategories(const std::vector<std::string>& categories) {
+  v8_platform.DisableTracingCategories(categories);
 }
+
+const std::set<std::string>& GetEnabledTracingCategories() {
+  return v8_platform.GetEnabledTracingCategories();
+}
+
+void StopTracing() { v8_platform.StopTracing(); }
 
 #ifdef __POSIX__
 static const unsigned kMaxSignal = 32;
@@ -4603,7 +4624,7 @@ int Start(int argc, char** argv) {
 
   v8_platform.Initialize(v8_thread_pool_size);
   // Enable tracing when argv has --trace-events-enabled.
-  v8_platform.StartTracingAgent();
+  v8_platform.EnableTracingCategories(trace_enabled_categories);
   V8::Initialize();
   performance::performance_v8_start = PERFORMANCE_NOW();
   v8_initialized = true;

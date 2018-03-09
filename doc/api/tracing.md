@@ -26,7 +26,7 @@ node --trace-event-categories v8,node,node.async_hooks server.js
 
 ```js
 const trace_events = require('trace_events');
-trace_events.setTracingCategories('v8,node,node.async_hooks');
+trace_events.enableTracingCategories('v8', 'node,node.async_hooks');
 ```
 
 Running Node.js with tracing enabled will produce log files that can be opened
@@ -38,7 +38,7 @@ be specified with `--trace-event-file-pattern` that accepts a template
 string that supports `${rotation}` and `${pid}`. For example:
 
 ```txt
-node --trace-events-enabled --trace-event-file-pattern '${pid}-${rotation}.log' server.js
+node --trace-event-file-pattern '${pid}-${rotation}.log' server.js
 ```
 
 Starting with Node.js 10.0.0, the tracing system uses the same time source
@@ -46,30 +46,60 @@ as the one used by `process.hrtime()`
 however the trace-event timestamps are expressed in microseconds,
 unlike `process.hrtime()` which returns nanoseconds.
 
+Previous versions of Node.js required use of the `--trace-events-enabled`
+command line flag to enable trace event capture. This flag is no longer
+required to enable trace events. If it is used, however, trace events are
+enabled using the default categories: `v8`, `node`, and `node.async_hooks`.
+
 ## The `trace_events` module
 
 The `trace_events` module may be used to turn trace event reporting on and off.
 
 It is accessible using `require('trace_events')`.
 
-### trace_events.setTracingCategories(categories)
+### trace_events.disableTracingCategories(...categories)
 
-* `categories` [string] A comma-separated list of category names. If
-  `categories` is `undefined`, `null`, or an empty string, capture of trace
-  events will be stopped.
+* `...categories` [string] One or more category names.
 
-Sets the currently enabled trace event category names and enables trace event
-capture.
+Disables trace event capture for the given set of category names.
 
 An error will be thrown if trace event support is not enabled in the Node.js
 binary.
 
+```js
+const trace_events = require('trace_events');
+trace_events.disableTracingCategories('v8', 'node.async_hooks');
+```
+
+To disable all currently enabled trace event categories, the
+`trace_events.getTracingCategories()` method may be used together with
+`trace_events.disableTracingCategories()`:
+
+```js
+const trace_events = require('trace_events');
+trace_events.disableTracingCategories(
+  ...trace_events.getTracingCategories());
+```
+
+### trace_events.enableTracingCategories(...categories)
+
+* `...categories` [string] One or more category names.
+
+Enables trace event capture for the given set of category names.
+
+An error will be thrown if trace event support is not enabled in the Node.js
+binary.
+
+```js
+const trace_events = require('trace_events');
+trace_events.enableTracingCategories('v8', 'node.async_hooks');
+```
+
 ### trace_events.getTracingCategories()
 
-* Return: [string]
+* Return: {string[]}
 
-Returns the current list of category names as a comma-separated list or
-`undefined`.
+Returns an Array of the currently enabled trace event categories.
 
 ```js
 const trace_events = require('trace_events');

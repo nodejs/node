@@ -38,6 +38,7 @@
 #include <stdlib.h>
 
 #include <string>
+#include <set>
 
 // Custom constants used by both node_constants.cc and node_zlib.cc
 #define Z_MIN_WINDOWBITS 8
@@ -195,8 +196,6 @@ extern bool config_expose_internals;
 // Used to redirect warning output to a file rather than sending
 // it to stderr.
 extern std::string config_warning_file;  // NOLINT(runtime/string)
-
-extern std::string trace_enabled_categories;  // NOLINT(runtime/string)
 
 // Set in node.cc by ParseArgs when --pending-deprecation or
 // NODE_PENDING_DEPRECATION is used
@@ -787,7 +786,11 @@ static inline const char *errno_string(int errorno) {
     TRACING_CATEGORY_NODE "." #one ","                                        \
     TRACING_CATEGORY_NODE "." #one "." #two
 
-extern void StartTracing(const std::string& enabled_categories);
+extern void EnableTracingCategories(
+    const std::vector<std::string>& categories);
+extern void DisableTracingCategories(
+    const std::vector<std::string>& categories);
+extern const std::set<std::string>& GetEnabledTracingCategories();
 extern void StopTracing();
 
 }  // namespace node

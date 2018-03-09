@@ -16,21 +16,25 @@ if (process.argv[2] === 'child') {
   // to the file. That said, if necessary, this test could
   // be modified to use any trace event output.
   const { performance } = require('perf_hooks');
-  trace_events.setTracingCategories('node.perf.usertiming');
+  assert.deepStrictEqual(trace_events.getTracingCategories(), []);
+  trace_events.enableTracingCategories('node.perf.usertiming');
+  assert.deepStrictEqual(trace_events.getTracingCategories(),
+                         ['node.perf.usertiming']);
   performance.mark('A');
   performance.mark('B');
   performance.measure('A to B', 'A', 'B');
-  trace_events.setTracingCategories(undefined);
+  trace_events.disableTracingCategories('node.perf.usertiming');
+  assert.deepStrictEqual(trace_events.getTracingCategories(), []);
 } else {
   tmpdir.refresh();
   process.chdir(tmpdir.path);
 
   const expectedMarks = ['A', 'B'];
   const expectedBegins = [
-    { cat: 'node.perf,node.perf.usertiming', name: 'A to B' }
+    { cat: 'node,node.perf,node.perf.usertiming', name: 'A to B' }
   ];
   const expectedEnds = [
-    { cat: 'node.perf,node.perf.usertiming', name: 'A to B' }
+    { cat: 'node,node.perf,node.perf.usertiming', name: 'A to B' }
   ];
 
   const proc = cp.fork(__filename, [ 'child' ]);
@@ -50,7 +54,8 @@ if (process.argv[2] === 'child') {
         assert.strictEqual(trace.pid, proc.pid);
         switch (trace.ph) {
           case 'R':
-            assert.strictEqual(trace.cat, 'node.perf,node.perf.usertiming');
+            assert.strictEqual(trace.cat,
+                               'node,node.perf,node.perf.usertiming');
             assert.strictEqual(trace.name, expectedMarks.shift());
             break;
           case 'b':

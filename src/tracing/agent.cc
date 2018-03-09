@@ -1,17 +1,16 @@
 #include "tracing/agent.h"
+#include "tracing/node_trace_buffer.h"
+#include "tracing/node_trace_writer.h"
+#include "env-inl.h"
 
 #include <sstream>
 #include <string>
-#include "tracing/node_trace_buffer.h"
-#include "tracing/node_trace_writer.h"
-
-#include "env-inl.h"
+#include <vector>
 
 namespace node {
 namespace tracing {
 
 using v8::platform::tracing::TraceConfig;
-using std::string;
 
 Agent::Agent(const std::string& log_file_pattern) :
     log_file_pattern_(log_file_pattern) {
@@ -32,10 +31,9 @@ void Agent::InitializeOnce() {
   tracing_controller_->Initialize(trace_buffer);
 }
 
-void Agent::StartTracing(const string& enabled_categories) {
-  TraceConfig* trace_config = new TraceConfig();
+void Agent::StartTracing() {
   tracing_controller_->StopTracing();
-  if (!enabled_categories.empty()) {
+  if (!categories_.empty()) {
     if (!started_) {
       InitializeOnce();
       // This thread should be created *after* async handles are created
@@ -45,13 +43,45 @@ void Agent::StartTracing(const string& enabled_categories) {
       CHECK_EQ(err, 0);
       started_ = true;
     }
-    std::stringstream category_list(enabled_categories);
+    TraceConfig* trace_config = new TraceConfig();
+    for (auto it = categories_.begin(); it != categories_.end(); it++) {
+      trace_config->AddIncludedCategory((*it).c_str());
+    }
+    tracing_controller_->StartTracing(trace_config);
+  }
+}
+
+void Agent::EnableCategories(const std::string& categories) {
+  if (!categories.empty()) {
+    std::stringstream category_list(categories);
     while (category_list.good()) {
       std::string category;
       getline(category_list, category, ',');
-      trace_config->AddIncludedCategory(category.c_str());
+      categories_.insert(category);
     }
-    tracing_controller_->StartTracing(trace_config);
+    StartTracing();
+  }
+}
+
+void Agent::EnableCategories(const std::vector<std::string>& categories) {
+  if (!categories.empty()) {
+    for (auto category = categories.begin();
+         category != categories.end();
+         category++) {
+      categories_.insert(*category);
+    }
+    StartTracing();
+  }
+}
+
+void Agent::DisableCategories(const std::vector<std::string>& categories) {
+  if (!categories.empty()) {
+    for (auto category = categories.begin();
+         category != categories.end();
+         category++) {
+      categories_.erase(*category);
+    }
+    StartTracing();
   }
 }
 

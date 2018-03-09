@@ -3,6 +3,7 @@
 
 namespace node {
 
+using v8::Array;
 using v8::Context;
 using v8::FunctionCallbackInfo;
 using v8::Int32;
@@ -133,23 +134,41 @@ static void CategoryGroupEnabled(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(*category_group_enabled > 0);
 }
 
-static void StartTracing(const FunctionCallbackInfo<Value>& args) {
+static void EnableTracingCategories(const FunctionCallbackInfo<Value>& args) {
 #if NODE_USE_V8_PLATFORM
   Environment* env = Environment::GetCurrent(args);
-  Utf8Value categories(env->isolate(), args[0]);
-  std::string enabled_categories;
-  if (categories.length() > 0)
-    enabled_categories = *categories;
-
-  node::StartTracing(enabled_categories);
+  CHECK(args[0]->IsArray());
+  Local<Array> categories = args[0].As<Array>();
+  size_t length = categories->Length();
+  if (length == 0)
+    return;
+  std::vector<std::string> cats;
+  for (size_t n = 0; n < length; n++) {
+    Utf8Value val(env->isolate(),
+                  categories->Get(env->context(), n).ToLocalChecked());
+    cats.push_back(*val);
+  }
+  EnableTracingCategories(cats);
 #elif
   UNREACHABLE();
 #endif
 }
 
-static void StopTracing(const FunctionCallbackInfo<Value>& args) {
+static void DisableTracingCategories(const FunctionCallbackInfo<Value>& args) {
 #if NODE_USE_V8_PLATFORM
-  node::StopTracing();
+  Environment* env = Environment::GetCurrent(args);
+  CHECK(args[0]->IsArray());
+  Local<Array> categories = args[0].As<Array>();
+  size_t length = categories->Length();
+  if (length == 0)
+    return;
+  std::vector<std::string> cats;
+  for (size_t n = 0; n < length; n++) {
+    Utf8Value val(env->isolate(),
+                  categories->Get(env->context(), n).ToLocalChecked());
+    cats.push_back(*val);
+  }
+  DisableTracingCategories(cats);
 #elif
   UNREACHABLE();
 #endif
@@ -158,13 +177,16 @@ static void StopTracing(const FunctionCallbackInfo<Value>& args) {
 static void GetTracingCategories(const FunctionCallbackInfo<Value>& args) {
 #if NODE_USE_V8_PLATFORM
   Environment* env = Environment::GetCurrent(args);
-  if (!trace_enabled_categories.empty()) {
-    Local<String> categories =
-        String::NewFromUtf8(env->isolate(),
-                            trace_enabled_categories.data(),
-                            v8::NewStringType::kNormal).ToLocalChecked();
-    return args.GetReturnValue().Set(categories);
+  auto categories = GetEnabledTracingCategories();
+  Local<Array> ret = Array::New(env->isolate(), categories.size());
+  size_t n = 0;
+  for (auto it = categories.begin(); it != categories.end(); it++) {
+    ret->Set(env->context(), n++,
+             String::NewFromUtf8(env->isolate(), (*it).c_str(),
+                         v8::NewStringType::kNormal).ToLocalChecked())
+                             .FromJust();
   }
+  args.GetReturnValue().Set(ret);
 #endif
 }
 
@@ -176,8 +198,9 @@ void InitializeTraceEvents(Local<Object> target,
 
   env->SetMethod(target, "emit", Emit);
   env->SetMethod(target, "categoryGroupEnabled", CategoryGroupEnabled);
-  env->SetMethod(target, "startTracing", StartTracing);
-  env->SetMethod(target, "stopTracing", StopTracing);
+
+  env->SetMethod(target, "enableTracingCategories", EnableTracingCategories);
+  env->SetMethod(target, "disableTracingCategories", DisableTracingCategories);
   env->SetMethod(target, "getTracingCategories", GetTracingCategories);
 }
 
