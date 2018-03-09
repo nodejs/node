@@ -41,7 +41,8 @@ static void Callback(uv_work_t* req, int ignored) {
 
   v8::Local<v8::Promise::Resolver> local =
       v8::Local<v8::Promise::Resolver>::New(isolate, persistent);
-  local->Resolve(v8::Undefined(isolate));
+  local->Resolve(isolate->GetCurrentContext(),
+                 v8::Undefined(isolate)).ToChecked();
   delete req;
 }
 
@@ -49,7 +50,8 @@ static void TestResolveAsync(const v8::FunctionCallbackInfo<v8::Value>& args) {
   v8::Isolate* isolate = args.GetIsolate();
 
   if (persistent.IsEmpty()) {
-    persistent.Reset(isolate, v8::Promise::Resolver::New(isolate));
+    persistent.Reset(isolate, v8::Promise::Resolver::New(
+        isolate->GetCurrentContext()).ToLocalChecked());
 
     uv_work_t* req = new uv_work_t;
 
