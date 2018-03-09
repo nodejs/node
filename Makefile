@@ -659,9 +659,9 @@ run-npm-install = $(PWD)/$(NPM) install --production
 find-missing-modules = \
 	cat package.json \
 	| sed -n -e '/dependencies/,/}/ p' \
-	| sed -n -e '/$(1)/,/:/ p' \
+	| sed -n -e '/"/,/":/ p' \
+	| sed '1d' \
 	| sed 's/[",]//g' \
-	| sed 's/[},]//g' \
 	| cut -f1 -d":"\
 	| while read dependency; \
 	do \
@@ -672,7 +672,7 @@ find-missing-modules = \
 			exit 1; \
 		fi \
 	done
-	
+
 tools/doc/node_modules/js-yaml/package.json:
 	cd tools/doc && $(call available-node,$(run-npm-install))
 
@@ -1089,10 +1089,15 @@ lint-md-build: tools/remark-cli/node_modules \
 .PHONY: lint-md
 ifneq ("","$(wildcard tools/remark-cli/node_modules/)")
 
-tools/find-missing-dependencies: \
+tools/find-missing-dependencies/remark-cli: \
+	tools/remark-cli/package.json
+	@echo "Checking that all the dependencies are installed on remark-cli"
+	@cd tools/remark-cli && $(call find-missing-modules,remark-cli)
+
+tools/find-missing-dependencies/remark-preset-lint-node: \
 	tools/remark-preset-lint-node/package.json
-	@echo "Checking that all the dependencies are installed"
-	@cd tools/remark-preset-lint-node && $(call find-missing-modules,remark-lint)
+	@echo "Checking that all the dependencies are installed on remark-preset-lint-node"
+	@cd tools/remark-preset-lint-node && $(call find-missing-modules,remark-preset-lint-node)
 
 LINT_MD_DOC_FILES = $(shell ls doc/**/*.md)
 run-lint-doc-md = tools/remark-cli/cli.js -q -f $(LINT_MD_DOC_FILES)
@@ -1113,7 +1118,8 @@ tools/.miscmdlintstamp: $(LINT_MD_MISC_FILES)
 	@$(call available-node,$(run-lint-misc-md))
 	@touch $@
 
-tools/.mdlintstamp: tools/find-missing-dependencies \
+tools/.mdlintstamp: tools/find-missing-dependencies/remark-cli \
+	tools/find-missing-dependencies/remark-preset-lint-node \
 	tools/.miscmdlintstamp \
 	tools/.docmdlintstamp
 
