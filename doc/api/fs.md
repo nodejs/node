@@ -422,24 +422,36 @@ Stats {
 ```
 
 ### stats.isBlockDevice()
+<!-- YAML
+added: v0.1.10
+-->
 
 * Returns: {boolean}
 
 Returns `true` if the `fs.Stats` object describes a block device.
 
 ### stats.isCharacterDevice()
+<!-- YAML
+added: v0.1.10
+-->
 
 * Returns: {boolean}
 
 Returns `true` if the `fs.Stats` object describes a character device.
 
 ### stats.isDirectory()
+<!-- YAML
+added: v0.1.10
+-->
 
 * Returns: {boolean}
 
 Returns `true` if the `fs.Stats` object describes a file system directory.
 
 ### stats.isFIFO()
+<!-- YAML
+added: v0.1.10
+-->
 
 * Returns: {boolean}
 
@@ -447,18 +459,27 @@ Returns `true` if the `fs.Stats` object describes a first-in-first-out (FIFO)
 pipe.
 
 ### stats.isFile()
+<!-- YAML
+added: v0.1.10
+-->
 
 * Returns: {boolean}
 
 Returns `true` if the `fs.Stats` object describes a regular file.
 
 ### stats.isSocket()
+<!-- YAML
+added: v0.1.10
+-->
 
 * Returns: {boolean}
 
 Returns `true` if the `fs.Stats` object describes a socket.
 
 ### stats.isSymbolicLink()
+<!-- YAML
+added: v0.1.10
+-->
 
 * Returns: {boolean}
 
@@ -521,6 +542,9 @@ The file system block size for i/o operations.
 The number of blocks allocated for this file.
 
 ### stats.atimeMs
+<!-- YAML
+added: v8.1.0
+-->
 
 * Value: {number}
 
@@ -528,6 +552,9 @@ The timestamp indicating the last time this file was accessed expressed in
 milliseconds since the POSIX Epoch.
 
 ### stats.mtimeMs
+<!-- YAML
+added: v8.1.0
+-->
 
 * Value: {number}
 
@@ -535,6 +562,9 @@ The timestamp indicating the last time this file was modified expressed in
 milliseconds since the POSIX Epoch.
 
 ### stats.ctimeMs
+<!-- YAML
+added: v8.1.0
+-->
 
 * Value: {number}
 
@@ -542,6 +572,9 @@ The timestamp indicating the last time the file status was changed expressed
 in milliseconds since the POSIX Epoch.
 
 ### stats.birthtimeMs
+<!-- YAML
+added: v8.1.0
+-->
 
 * Value: {number}
 
@@ -549,24 +582,36 @@ The timestamp indicating the creation time of this file expressed in
 milliseconds since the POSIX Epoch.
 
 ### stats.atime
+<!-- YAML
+added: v0.11.13
+-->
 
 * Value: {Date}
 
 The timestamp indicating the last time this file was accessed.
 
 ### stats.mtime
+<!-- YAML
+added: v0.11.13
+-->
 
 * Value: {Date}
 
 The timestamp indicating the last time this file was modified.
 
 ### stats.ctime
+<!-- YAML
+added: v0.11.13
+-->
 
 * Value: {Date}
 
 The timestamp indicating the last time the file status was changed.
 
 ### stats.birthtime
+<!-- YAML
+added: v0.11.13
+-->
 
 * Value: {Date}
 
