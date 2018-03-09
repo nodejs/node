@@ -2,7 +2,7 @@
 
 <!--introduced_in=v7.10.0-->
 
-> Stability: 1 - Experimental
+> Stability: 2 - Stable
 
 N-API (pronounced N as in the letter, followed by API)
 is an API for building native Addons. It is independent from
