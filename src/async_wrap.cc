@@ -27,9 +27,7 @@
 #include "v8.h"
 #include "v8-profiler.h"
 
-using v8::Array;
 using v8::Context;
-using v8::Float64Array;
 using v8::Function;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
@@ -48,7 +46,6 @@ using v8::PropertyCallbackInfo;
 using v8::RetainedObjectInfo;
 using v8::String;
 using v8::Symbol;
-using v8::TryCatch;
 using v8::Undefined;
 using v8::Value;
 
