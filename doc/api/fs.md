@@ -421,24 +421,36 @@ Stats {
 ```
 
 ### stats.isBlockDevice()
+<!-- YAML
+added: v0.1.10
+-->
 
 * Returns: {boolean}
 
 Returns `true` if the `fs.Stats` object describes a block device.
 
 ### stats.isCharacterDevice()
+<!-- YAML
+added: v0.1.10
+-->
 
 * Returns: {boolean}
 
 Returns `true` if the `fs.Stats` object describes a character device.
 
 ### stats.isDirectory()
+<!-- YAML
+added: v0.1.10
+-->
 
 * Returns: {boolean}
 
 Returns `true` if the `fs.Stats` object describes a file system directory.
 
 ### stats.isFIFO()
+<!-- YAML
+added: v0.1.10
+-->
 
 * Returns: {boolean}
 
@@ -446,18 +458,27 @@ Returns `true` if the `fs.Stats` object describes a first-in-first-out (FIFO)
 pipe.
 
 ### stats.isFile()
+<!-- YAML
+added: v0.1.10
+-->
 
 * Returns: {boolean}
 
 Returns `true` if the `fs.Stats` object describes a regular file.
 
 ### stats.isSocket()
+<!-- YAML
+added: v0.1.10
+-->
 
 * Returns: {boolean}
 
 Returns `true` if the `fs.Stats` object describes a socket.
 
 ### stats.isSymbolicLink()
+<!-- YAML
+added: v0.1.10
+-->
 
 * Returns: {boolean}
 
