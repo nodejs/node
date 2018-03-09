@@ -87,12 +87,9 @@ onboarding session.
     * When adding a `semver-*` label, add a comment explaining why you're adding
       it. Do it right away so you don't forget!
   * Please add the `author-ready` label for PRs where:
-    * the CI has been started,
-    * that have no outstanding review comments and
-    * at least one approval,
-    * pending the CI outcome,
-    * the 48/72 hour waiting rule and
-    * the necessary LGs for semver-major.
+    * the CI has been started (not necessarily finished),
+    * no outstanding review comments exist and
+    * at least one collaborator approved the PR.
 
 * [**See "Who to CC in issues"**](./onboarding-extras.md#who-to-cc-in-issues)
   * This will come more naturally over time
