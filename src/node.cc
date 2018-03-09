@@ -2286,9 +2286,8 @@ static void DLOpen(const FunctionCallbackInfo<Value>& args) {
     return;
   }
 
-  if (mp->nm_version == -1) {
-    // N-API module this is ok
-  } else if (mp->nm_version != NODE_MODULE_VERSION) {
+  // -1 is used for N-API modules
+  if ((mp->nm_version != -1) && (mp->nm_version != NODE_MODULE_VERSION)) {
     char errmsg[1024];
     snprintf(errmsg,
              sizeof(errmsg),
