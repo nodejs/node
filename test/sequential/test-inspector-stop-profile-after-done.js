@@ -25,7 +25,7 @@ async function runTests() {
          'Waiting for the debugger to disconnect...');
   await session.send({ method: 'Profiler.stop' });
   session.disconnect();
-  assert.strictEqual(0, (await child.expectShutdown()).exitCode);
+  assert.strictEqual((await child.expectShutdown()).exitCode, 0);
 }
 
 common.crashOnUnhandledRejection();
