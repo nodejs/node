@@ -346,6 +346,9 @@ stream.write('With ES6');
 added: v0.3.0
 changes:
   - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/REPLACEME
+    description: WeakMap and WeakSet entries can now be inspected as well.
+  - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/17907
     description: The `depth` default changed to Infinity.
   - version: v9.9.0
@@ -369,7 +372,8 @@ changes:
 * `object` {any} Any JavaScript primitive or Object.
 * `options` {Object}
   * `showHidden` {boolean} If `true`, the `object`'s non-enumerable symbols and
-    properties will be included in the formatted result. Defaults to `false`.
+    properties will be included in the formatted result as well as [`WeakMap`][]
+    and [`WeakSet`][] entries. Defaults to `false`.
   * `colors` {boolean} If `true`, the output will be styled with ANSI color
     codes. Defaults to `false`. Colors are customizable, see
     [Customizing `util.inspect` colors][].
@@ -378,10 +382,14 @@ changes:
   * `showProxy` {boolean} If `true`, then objects and functions that are
     `Proxy` objects will be introspected to show their `target` and `handler`
     objects. Defaults to `false`.
-  * `maxArrayLength` {number} Specifies the maximum number of array and
-    `TypedArray` elements to include when formatting. Defaults to `100`. Set to
-    `null` or `Infinity` to show all array elements. Set to `0` or negative to
-    show no array elements.
+    <!--
+    TODO(BridgeAR): Deprecate `maxArrayLength` and replace it with
+                    `maxEntries`.
+    -->
+  * `maxArrayLength` {number} Specifies the maximum number of `Array`,
+    [`TypedArray`][], [`WeakMap`][] and [`WeakSet`][] elements to include when
+    formatting. Defaults to `100`. Set to `null` or `Infinity` to show all
+    elements. Set to `0` or negative to show no elements.
   * `breakLength` {number} The length at which an object's keys are split
     across multiple lines. Set to `Infinity` to format an object as a single
     line. Defaults to 60 for legacy compatibility.
@@ -499,6 +507,25 @@ console.log(util.inspect(o, { compact: false, breakLength: 80 }));
 // single line.
 // Reducing the `breakLength` will split the "Lorem ipsum" text in smaller
 // chunks.
+```
+
+Using the `showHidden` option allows to inspect [`WeakMap`][] and [`WeakSet`][]
+entries. If there are more entries than `maxArrayLength`, there is no guarantee
+which entries are displayed. That means retrieving the same ['WeakSet'][]
+entries twice might actually result in a different output. Besides this any item
+might be collected at any point of time by the garbage collector if there is no
+strong reference left to that object. Therefore there is no guarantee to get a
+reliable output.
+
+```js
+const { inspect } = require('util');
+
+const obj = { a: 1 };
+const obj2 = { b: 2 };
+const weakSet = new WeakSet([obj, obj2]);
+
+console.log(inspect(weakSet, { showHidden: true }));
+// WeakSet { { a: 1 }, { b: 2 } }
 ```
 
 Please note that `util.inspect()` is a synchronous method that is mainly
