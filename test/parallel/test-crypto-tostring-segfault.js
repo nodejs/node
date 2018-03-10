@@ -3,6 +3,11 @@ const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
+// This test ensures that node doesn't SEGFAULT when either of
+// `crypto.createHash` or `crypto.createHmac` are given an object that defines
+// a throwing `toString`.
+// https://github.com/nodejs/node/issues/9819
+
 const assert = require('assert');
 const execFile = require('child_process').execFile;
 

@@ -1,5 +1,10 @@
 'use strict';
 require('../common');
+
+// This test ensures that `addRequest`'s Legacy API accepts `localAddress`
+// correctly instead of accepting `path`.
+// https://github.com/nodejs/node/issues/5051
+
 const assert = require('assert');
 const agent = require('http').globalAgent;
 
