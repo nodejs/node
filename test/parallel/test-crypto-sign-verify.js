@@ -65,7 +65,7 @@ common.expectsError(
                          .update('Test')
                          .update('123')
                          .verify(certPem, s1, 'base64');
-  assert.strictEqual(verified, true, 'sign and verify (base 64)');
+  assert.strictEqual(verified, true);
 }
 
 {
@@ -81,14 +81,14 @@ common.expectsError(
                        .update('Test')
                        .update('123')
                        .verify(certPem, s2, 'latin1');
-  assert.strictEqual(verified, true, 'sign and verify (latin1)');
+  assert.strictEqual(verified, true);
 
   const verStream = crypto.createVerify('SHA256');
   verStream.write('Tes');
   verStream.write('t12');
   verStream.end('3');
   verified = verStream.verify(certPem, s2, 'latin1');
-  assert.strictEqual(verified, true, 'sign and verify (stream)');
+  assert.strictEqual(verified, true);
 }
 
 {
@@ -99,14 +99,14 @@ common.expectsError(
                        .update('Test')
                        .update('123')
                        .verify(certPem, s3);
-  assert.strictEqual(verified, true, 'sign and verify (buffer)');
+  assert.strictEqual(verified, true);
 
   const verStream = crypto.createVerify('SHA1');
   verStream.write('Tes');
   verStream.write('t12');
   verStream.end('3');
   verified = verStream.verify(certPem, s3);
-  assert.strictEqual(verified, true, 'sign and verify (stream)');
+  assert.strictEqual(verified, true);
 }
 
 // Special tests for RSA_PKCS1_PSS_PADDING
@@ -177,7 +177,7 @@ common.expectsError(
                            }, s4);
           const saltLengthCorrect = getEffectiveSaltLength(signSaltLength) ===
                                     getEffectiveSaltLength(verifySaltLength);
-          assert.strictEqual(verified, saltLengthCorrect, 'verify (PSS)');
+          assert.strictEqual(verified, saltLengthCorrect);
         });
 
         // Verification using RSA_PSS_SALTLEN_AUTO should always work
@@ -188,7 +188,7 @@ common.expectsError(
                            padding: crypto.constants.RSA_PKCS1_PSS_PADDING,
                            saltLength: crypto.constants.RSA_PSS_SALTLEN_AUTO
                          }, s4);
-        assert.strictEqual(verified, true, 'verify (PSS with SALTLEN_AUTO)');
+        assert.strictEqual(verified, true);
 
         // Verifying an incorrect message should never work
         verified = crypto.createVerify(algo)
@@ -198,7 +198,7 @@ common.expectsError(
                            padding: crypto.constants.RSA_PKCS1_PSS_PADDING,
                            saltLength: crypto.constants.RSA_PSS_SALTLEN_AUTO
                          }, s4);
-        assert.strictEqual(verified, false, 'verify (PSS, incorrect)');
+        assert.strictEqual(verified, false);
       }
     });
   }
@@ -219,7 +219,7 @@ common.expectsError(
                             padding: crypto.constants.RSA_PKCS1_PSS_PADDING,
                             saltLength: vector.salt.length / 2
                           }, vector.signature, 'hex');
-    assert.strictEqual(verified, true, 'verify (PSS)');
+    assert.strictEqual(verified, true);
   }
 
   const examples = JSON.parse(fixtures.readSync('pss-vectors.json', 'utf8'));
