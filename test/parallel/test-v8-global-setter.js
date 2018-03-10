@@ -22,23 +22,13 @@
 'use strict';
 require('../common');
 const assert = require('assert');
-const readline = require('readline');
 
-const rl = readline.createInterface(process.stdin, process.stdout);
-rl.resume();
+assert.doesNotThrow(function() {
+  require('vm').runInNewContext('"use strict"; var v = 1; v = 2');
+});
 
-let hasPaused = false;
+// This test ensures v8 correctly sets a property on the global object if it
+// has a setter interceptor in strict mode.
+// https://github.com/nodejs/node-v0.x-archive/issues/6235
 
-const origPause = rl.pause;
-rl.pause = function() {
-  hasPaused = true;
-  origPause.apply(this, arguments);
-};
-
-const origSetRawMode = rl._setRawMode;
-rl._setRawMode = function(mode) {
-  assert.ok(hasPaused);
-  origSetRawMode.apply(this, arguments);
-};
-
-rl.close();
+require('vm').runInNewContext('"use strict"; var v = 1; v = 2');

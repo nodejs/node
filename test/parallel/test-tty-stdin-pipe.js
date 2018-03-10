@@ -21,8 +21,28 @@
 
 'use strict';
 require('../common');
-const assert = require('assert');
 
-assert.doesNotThrow(function() {
-  require('vm').runInNewContext('"use strict"; var v = 1; v = 2');
-});
+// This test ensures piping from `stdin` isn't broken.
+// https://github.com/nodejs/node/issues/5927
+
+const assert = require('assert');
+const readline = require('readline');
+
+const rl = readline.createInterface(process.stdin, process.stdout);
+rl.resume();
+
+let hasPaused = false;
+
+const origPause = rl.pause;
+rl.pause = function() {
+  hasPaused = true;
+  origPause.apply(this, arguments);
+};
+
+const origSetRawMode = rl._setRawMode;
+rl._setRawMode = function(mode) {
+  assert.ok(hasPaused);
+  origSetRawMode.apply(this, arguments);
+};
+
+rl.close();
