@@ -1,5 +1,10 @@
 'use strict';
 const common = require('../common');
+
+// This test ensures that port numbers are validated in *all* kinds of `listen`
+// calls. If an invalid port is supplied, ensures a `RangeError` is thrown.
+// https://github.com/nodejs/node/issues/5727
+
 const assert = require('assert');
 const net = require('net');
 
