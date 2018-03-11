@@ -88,10 +88,10 @@ soon as that condition is not met anymore.
 
 ### Handling own pull requests
 
-If you as a Collaborator open a pull request, please always start a CI right
-after (see [testing and CI](#testing-and-ci) for further information on how to
-do that) and post the link to it as well. Please also make sure that you start a
-new CI after each update (due to e.g., a change request in a review or due to
+If you as a Collaborator open a pull request, it is recommended to start a CI
+right after (see [testing and CI](#testing-and-ci) for further information on
+how to do that) and to post the link to it as well. Starting a new CI after each
+update is also recommended (due to e.g., a change request in a review or due to
 rebasing).
 
 As soon as the PR is ready to land, please go ahead and do so on your own.
