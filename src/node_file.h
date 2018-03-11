@@ -39,11 +39,11 @@ class FSReqBase : public ReqWrap<uv_fs_t> {
     encoding_ = encoding;
 
     if (data != nullptr) {
-      CHECK_EQ(data_, nullptr);
+      CHECK(!has_data_);
       buffer_.AllocateSufficientStorage(len + 1);
       buffer_.SetLengthAndZeroTerminate(len);
       memcpy(*buffer_, data, len);
-      data_ = *buffer_;
+      has_data_ = true;
     }
   }
 
@@ -54,17 +54,19 @@ class FSReqBase : public ReqWrap<uv_fs_t> {
   virtual void SetReturnValue(const FunctionCallbackInfo<Value>& args) = 0;
 
   const char* syscall() const { return syscall_; }
-  const char* data() const { return data_; }
+  const char* data() const { return has_data_ ? *buffer_ : nullptr; }
   enum encoding encoding() const { return encoding_; }
 
   size_t self_size() const override { return sizeof(*this); }
 
  private:
   enum encoding encoding_ = UTF8;
+  bool has_data_ = false;
   const char* syscall_ = nullptr;
 
-  const char* data_ = nullptr;
-  MaybeStackBuffer<char> buffer_;
+  // Typically, the content of buffer_ is something like a file name, so
+  // something around 64 bytes should be enough.
+  MaybeStackBuffer<char, 64> buffer_;
 
   DISALLOW_COPY_AND_ASSIGN(FSReqBase);
 };
