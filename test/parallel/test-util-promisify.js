@@ -195,3 +195,14 @@ const stat = promisify(fs.stat);
                `Received type ${typeof input}`
     });
 });
+
+{
+  function factory() {
+    this.getContext = function(callback) {
+      callback(null, this);
+    };
+  }
+  const instance = new factory();
+  const a = promisify(instance.getContext, instance);
+  a().then((context) => assert.strictEqual(context, instance));
+}

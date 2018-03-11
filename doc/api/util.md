@@ -660,17 +660,20 @@ Otherwise, returns `false`.
 See [`assert.deepStrictEqual()`][] for more information about deep strict
 equality.
 
-## util.promisify(original)
+## util.promisify(original[, context])
 <!-- YAML
 added: v8.0.0
 -->
 
 * `original` {Function}
+* `context` {any}
 * Returns: {Function}
 
 Takes a function following the common error-first callback style, i.e. taking
 a `(err, value) => ...` callback as the last argument, and returns a version
 that returns promises.
+
+If `context` is passed, the context of the returned function is bound to it.
 
 ```js
 const util = require('util');
