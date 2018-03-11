@@ -4,12 +4,12 @@ import common from '../common/index.js';
 import assert from 'assert';
 
 async function doTest() {
-  try {
-    await import('../fixtures/es-module-loaders/throw-undefined');
-    assert(false);
-  } catch (e) {
-    assert.strictEqual(e, undefined);
-  }
+  await assert.rejects(
+    async () => {
+      await import('../fixtures/es-module-loaders/throw-undefined');
+    },
+    (e) => e === undefined
+  );
 }
 
 doTest().then(common.mustCall());
