@@ -326,7 +326,7 @@ rejected. See [`assert.rejects()`][] for more details.
 When `assert.doesNotReject()` is called, it will immediately call the `block`
 function, and awaits for completion.
 
-Besides the async nature to await the completion behaves identical to
+Besides the async nature to await the completion behaves identically to
 [`assert.doesNotThrow()`][].
 
 ```js
@@ -844,6 +844,48 @@ assert(0);
 //   assert(0)
 ```
 
+## assert.rejects(block[, error][, message])
+<!-- YAML
+added: REPLACEME
+-->
+* `block` {Function}
+* `error` {RegExp|Function|Object}
+* `message` {any}
+
+Awaits for promise returned by function `block` to be rejected.
+
+When `assert.rejects()` is called, it will immediately call the `block`
+function, and awaits for completion.
+
+Besides the async nature to await the completion behaves identically to
+[`assert.throws()`][].
+
+If specified, `error` can be a constructor, [`RegExp`][], a validation
+function, or an object where each property will be tested for.
+
+If specified, `message` will be the message provided by the `AssertionError` if
+the block fails to reject.
+
+```js
+(async () => {
+  await assert.rejects(
+    async () => {
+      throw new Error('Wrong value');
+    },
+    Error
+  );
+})();
+```
+
+```js
+assert.rejects(
+  () => Promise.reject(new Error('Wrong value')),
+  Error
+).then(() => {
+  // ...
+});
+```
+
 ## assert.strictEqual(actual, expected[, message])
 <!-- YAML
 added: v0.1.21
@@ -877,48 +919,6 @@ If the values are not strictly equal, an `AssertionError` is thrown with a
 `message` parameter is undefined, a default error message is assigned. If the
 `message` parameter is an instance of an [`Error`][] then it will be thrown
 instead of the `AssertionError`.
-
-## assert.rejects(block[, error][, message])
-<!-- YAML
-added: REPLACEME
--->
-* `block` {Function}
-* `error` {RegExp|Function|Object}
-* `message` {any}
-
-Awaits for promise returned by function `block` to be rejected.
-
-When `assert.rejects()` is called, it will immediately call the `block`
-function, and awaits for completion.
-
-Besides the async nature to await the completion behaves identical to
-[`assert.throws()`][].
-
-If specified, `error` can be a constructor, [`RegExp`][], a validation
-function, or an object where each property will be tested for.
-
-If specified, `message` will be the message provided by the `AssertionError` if
-the block fails to reject.
-
-```js
-(async () => {
-  await assert.rejects(
-    async () => {
-      throw new Error('Wrong value');
-    },
-    Error
-  );
-})();
-```
-
-```js
-assert.rejects(
-  () => Promise.reject(new Error('Wrong value')),
-  Error
-).then(() => {
-  // ...
-});
-```
 
 ## assert.throws(block[, error][, message])
 <!-- YAML
@@ -1051,12 +1051,13 @@ second argument. This might lead to difficult-to-spot errors.
 [`WeakSet`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/WeakSet
 [`assert.deepEqual()`]: #assert_assert_deepequal_actual_expected_message
 [`assert.deepStrictEqual()`]: #assert_assert_deepstrictequal_actual_expected_message
+[`assert.doesNotThrow()`]: #assert_assert_doesnotthrow_block_error_message
 [`assert.notDeepStrictEqual()`]: #assert_assert_notdeepstrictequal_actual_expected_message
 [`assert.notStrictEqual()`]: #assert_assert_notstrictequal_actual_expected_message
 [`assert.ok()`]: #assert_assert_ok_value_message
+[`assert.rejects()`]: #assert_assert_rejects_block_error_message
 [`assert.strictEqual()`]: #assert_assert_strictequal_actual_expected_message
 [`assert.throws()`]: #assert_assert_throws_block_error_message
-[`assert.rejects()`]: #assert_assert_rejects_block_error_message
 [`strict mode`]: #assert_strict_mode
 [Abstract Equality Comparison]: https://tc39.github.io/ecma262/#sec-abstract-equality-comparison
 [Object.prototype.toString()]: https://tc39.github.io/ecma262/#sec-object.prototype.tostring
