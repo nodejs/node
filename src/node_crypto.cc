@@ -1606,6 +1606,8 @@ void SSLWrap<Base>::AddMethods(Environment* env, Local<FunctionTemplate> t) {
   HandleScope scope(env->isolate());
 
   env->SetProtoMethod(t, "getPeerCertificate", GetPeerCertificate);
+  env->SetProtoMethod(t, "getFinished", GetFinished);
+  env->SetProtoMethod(t, "getPeerFinished", GetPeerFinished);
   env->SetProtoMethod(t, "getSession", GetSession);
   env->SetProtoMethod(t, "setSession", SetSession);
   env->SetProtoMethod(t, "loadSession", LoadSession);
@@ -2117,6 +2119,52 @@ void SSLWrap<Base>::GetPeerCertificate(
   if (result.IsEmpty())
     result = Object::New(env->isolate());
   args.GetReturnValue().Set(result);
+}
+
+
+template <class Base>
+void SSLWrap<Base>::GetFinished(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+
+  Base* w;
+  ASSIGN_OR_RETURN_UNWRAP(&w, args.Holder());
+
+  // We cannot just pass nullptr to SSL_get_finished()
+  // because it would further be propagated to memcpy(),
+  // where the standard requirements as described in ISO/IEC 9899:2011
+  // sections 7.21.2.1, 7.21.1.2, and 7.1.4, would be violated.
+  // Thus, we use a dummy byte.
+  char dummy[1];
+  size_t len = SSL_get_finished(w->ssl_, dummy, sizeof dummy);
+  if (len == 0)
+    return;
+
+  char* buf = Malloc(len);
+  CHECK_EQ(len, SSL_get_finished(w->ssl_, buf, len));
+  args.GetReturnValue().Set(Buffer::New(env, buf, len).ToLocalChecked());
+}
+
+
+template <class Base>
+void SSLWrap<Base>::GetPeerFinished(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+
+  Base* w;
+  ASSIGN_OR_RETURN_UNWRAP(&w, args.Holder());
+
+  // We cannot just pass nullptr to SSL_get_peer_finished()
+  // because it would further be propagated to memcpy(),
+  // where the standard requirements as described in ISO/IEC 9899:2011
+  // sections 7.21.2.1, 7.21.1.2, and 7.1.4, would be violated.
+  // Thus, we use a dummy byte.
+  char dummy[1];
+  size_t len = SSL_get_peer_finished(w->ssl_, dummy, sizeof dummy);
+  if (len == 0)
+    return;
+
+  char* buf = Malloc(len);
+  CHECK_EQ(len, SSL_get_peer_finished(w->ssl_, buf, len));
+  args.GetReturnValue().Set(Buffer::New(env, buf, len).ToLocalChecked());
 }
 
 
