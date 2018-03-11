@@ -660,13 +660,15 @@ Otherwise, returns `false`.
 See [`assert.deepStrictEqual()`][] for more information about deep strict
 equality.
 
-## util.promisify(original[, context])
+## util.promisify(original[, options])
 <!-- YAML
 added: v8.0.0
 -->
 
 * `original` {Function}
-* `context` {any}
+* `options` {Object} Optional. Can be passed to change the default behaviour.
+  Can have the following fields:
+  * `context` {any} Context to which to bind the returning function to.
 * Returns: {Function}
 
 Takes a function following the common error-first callback style, i.e. taking
@@ -1987,7 +1989,7 @@ Deprecated predecessor of `console.log`.
 [`SharedArrayBuffer`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/SharedArrayBuffer
 [`TypedArray`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/TypedArray
 [`util.inspect()`]: #util_util_inspect_object_options
-[`util.promisify()`]: #util_util_promisify_original
+[`util.promisify()`]: #util_util_promisify_original_options
 [`util.types.isAnyArrayBuffer()`]: #util_util_types_isanyarraybuffer_value
 [`util.types.isArrayBuffer()`]: #util_util_types_isarraybuffer_value
 [`util.types.isDate()`]: #util_util_types_isdate_value

@@ -660,7 +660,7 @@ uses. For instance, _they do not use the configuration from `/etc/hosts`_.
 [`dns.reverse()`]: #dns_dns_reverse_ip_callback
 [`dns.setServers()`]: #dns_dns_setservers_servers
 [`socket.connect()`]: net.html#net_socket_connect_options_connectlistener
-[`util.promisify()`]: util.html#util_util_promisify_original
+[`util.promisify()`]: util.html#util_util_promisify_original_options
 [DNS error codes]: #dns_error_codes
 [Implementation considerations section]: #dns_implementation_considerations
 [rfc5952]: https://tools.ietf.org/html/rfc5952#section-6

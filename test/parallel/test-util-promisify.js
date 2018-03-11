@@ -203,6 +203,16 @@ const stat = promisify(fs.stat);
     };
   }
   const instance = new factory();
-  const a = promisify(instance.getContext, instance);
+  const a = promisify(instance.getContext, { context: instance });
   a().then((context) => assert.strictEqual(context, instance));
+}
+
+{
+  function fn(callback) {
+    callback(null);
+  }
+  common.expectsError(
+    () => promisify(fn, []),
+    { code: 'ERR_INVALID_ARG_TYPE', type: TypeError }
+  );
 }
