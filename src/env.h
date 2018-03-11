@@ -431,6 +431,7 @@ class Environment {
       DefaultTriggerAsyncIdScope() = delete;
       explicit DefaultTriggerAsyncIdScope(Environment* env,
                                           double init_trigger_async_id);
+      explicit DefaultTriggerAsyncIdScope(AsyncWrap* async_wrap);
       ~DefaultTriggerAsyncIdScope();
 
      private:
