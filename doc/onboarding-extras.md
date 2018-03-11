@@ -50,9 +50,7 @@ If you cannot find who to cc for a file, `git shortlog -n -s <file>` may help.
 
 ## Labels
 
-### By Subsystem
-
-Subsystems include:
+### Subsystems
 
 * `lib/*.js` (`assert`, `buffer`, etc.)
 * `build`
@@ -65,8 +63,6 @@ There may be more than one subsystem valid for any particular issue or pull
 request.
 
 ### General
-
-Please use these when possible / appropriate
 
 * `confirmed-bug` - Bugs you have verified exist
 * `discuss` - Things that need larger discussion
