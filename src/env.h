@@ -561,8 +561,8 @@ class Environment {
   static uv_key_t thread_local_env;
   static inline Environment* GetThreadLocalEnv();
 
-  inline Environment(IsolateData* isolate_data, v8::Local<v8::Context> context);
-  inline ~Environment();
+  Environment(IsolateData* isolate_data, v8::Local<v8::Context> context);
+  ~Environment();
 
   void Start(int argc,
              const char* const* argv,

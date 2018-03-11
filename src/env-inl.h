@@ -318,67 +318,6 @@ inline Environment* Environment::GetThreadLocalEnv() {
   return static_cast<Environment*>(uv_key_get(&thread_local_env));
 }
 
-inline Environment::Environment(IsolateData* isolate_data,
-                                v8::Local<v8::Context> context)
-    : isolate_(context->GetIsolate()),
-      isolate_data_(isolate_data),
-      immediate_info_(context->GetIsolate()),
-      tick_info_(context->GetIsolate()),
-      timer_base_(uv_now(isolate_data->event_loop())),
-      printed_error_(false),
-      trace_sync_io_(false),
-      abort_on_uncaught_exception_(false),
-      emit_napi_warning_(true),
-      emit_env_nonstring_warning_(true),
-      makecallback_cntr_(0),
-      should_abort_on_uncaught_toggle_(isolate_, 1),
-#if HAVE_INSPECTOR
-      inspector_agent_(new inspector::Agent(this)),
-#endif
-      handle_cleanup_waiting_(0),
-      http_parser_buffer_(nullptr),
-      fs_stats_field_array_(isolate_, kFsStatsFieldsLength),
-      context_(context->GetIsolate(), context) {
-  // We'll be creating new objects so make sure we've entered the context.
-  v8::HandleScope handle_scope(isolate());
-  v8::Context::Scope context_scope(context);
-  set_as_external(v8::External::New(isolate(), this));
-
-  AssignToContext(context, ContextInfo(""));
-
-  destroy_async_id_list_.reserve(512);
-  performance_state_.reset(new performance::performance_state(isolate()));
-  performance_state_->milestones[
-      performance::NODE_PERFORMANCE_MILESTONE_ENVIRONMENT] =
-          PERFORMANCE_NOW();
-  performance_state_->milestones[
-    performance::NODE_PERFORMANCE_MILESTONE_NODE_START] =
-        performance::performance_node_start;
-  performance_state_->milestones[
-    performance::NODE_PERFORMANCE_MILESTONE_V8_START] =
-        performance::performance_v8_start;
-
-  // By default, always abort when --abort-on-uncaught-exception was passed.
-  should_abort_on_uncaught_toggle_[0] = 1;
-}
-
-inline Environment::~Environment() {
-  v8::HandleScope handle_scope(isolate());
-
-#if HAVE_INSPECTOR
-  // Destroy inspector agent before erasing the context. The inspector
-  // destructor depends on the context still being accessible.
-  inspector_agent_.reset();
-#endif
-
-  context()->SetAlignedPointerInEmbedderData(
-      ContextEmbedderIndex::kEnvironment, nullptr);
-
-  delete[] heap_statistics_buffer_;
-  delete[] heap_space_statistics_buffer_;
-  delete[] http_parser_buffer_;
-}
-
 inline v8::Isolate* Environment::isolate() const {
   return isolate_;
 }
