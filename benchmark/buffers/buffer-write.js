@@ -34,6 +34,7 @@ const INT32 = 0x7fffffff;
 const INT48 = 0x7fffffffffff;
 const UINT8 = 0xff;
 const UINT16 = 0xffff;
+const UINT32 = 0xffffffff;
 
 const mod = {
   writeInt8: INT8,
@@ -44,8 +45,8 @@ const mod = {
   writeUInt8: UINT8,
   writeUInt16BE: UINT16,
   writeUInt16LE: UINT16,
-  writeUInt32BE: INT32,
-  writeUInt32LE: INT32,
+  writeUInt32BE: UINT32,
+  writeUInt32LE: UINT32,
   writeUIntLE: INT8,
   writeUIntBE: INT16,
   writeIntLE: INT32,
