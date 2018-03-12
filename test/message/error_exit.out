@@ -3,7 +3,11 @@ assert.js:*
   throw new AssertionError(obj);
   ^
 
-AssertionError [ERR_ASSERTION]: 1 strictEqual 2
+AssertionError [ERR_ASSERTION]: Input A expected to strictly equal input B:
++ expected - actual
+
+- 1
++ 2
     at Object.<anonymous> (*test*message*error_exit.js:*:*)
     at Module._compile (internal/modules/cjs/loader.js:*:*)
     at Object.Module._extensions..js (internal/modules/cjs/loader.js:*:*)
