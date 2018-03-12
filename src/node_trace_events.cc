@@ -177,12 +177,12 @@ static void DisableTracingCategories(const FunctionCallbackInfo<Value>& args) {
 static void GetTracingCategories(const FunctionCallbackInfo<Value>& args) {
 #if NODE_USE_V8_PLATFORM
   Environment* env = Environment::GetCurrent(args);
-  auto categories = GetEnabledTracingCategories();
+  const auto& categories = GetEnabledTracingCategories();
   Local<Array> ret = Array::New(env->isolate(), categories.size());
   size_t n = 0;
-  for (auto it = categories.begin(); it != categories.end(); it++) {
+  for (const std::string& category : categories) {
     ret->Set(env->context(), n++,
-             String::NewFromUtf8(env->isolate(), (*it).c_str(),
+             String::NewFromUtf8(env->isolate(), category.c_str(),
                          v8::NewStringType::kNormal).ToLocalChecked())
                              .FromJust();
   }

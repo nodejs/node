@@ -82,6 +82,7 @@
 
 #include <string>
 #include <vector>
+#include <unordered_set>
 
 #if defined(NODE_HAVE_I18N_SUPPORT)
 #include <unicode/uvernum.h>
@@ -315,15 +316,15 @@ static struct {
     tracing_agent_->EnableCategories(categories);
   }
 
-  void EnableTracingCategories(const std::vector<std::string> categories) {
+  void EnableTracingCategories(const std::vector<std::string>& categories) {
     tracing_agent_->EnableCategories(categories);
   }
 
-  void DisableTracingCategories(const std::vector<std::string> categories) {
+  void DisableTracingCategories(const std::vector<std::string>& categories) {
     tracing_agent_->DisableCategories(categories);
   }
 
-  const std::set<std::string>& GetEnabledTracingCategories() {
+  const std::unordered_set<std::string>& GetEnabledTracingCategories() {
     return tracing_agent_->GetEnabledCategories();
   }
 
@@ -355,7 +356,7 @@ static struct {
   void EnableTracingCategories(const std::string& categories) {}
   void EnableTracingCategories(const std::vector<std::string> categories) {}
   void DisableTracingCategories(const std::vector<std::string> categories) {}
-  const std::set<std::string>& GetEnabledTracingCategories() {
+  const std::unordered_set<std::string>& GetEnabledTracingCategories() {
     return categories_;
   }
   void StopTracing() {}
@@ -365,7 +366,7 @@ static struct {
     return nullptr;
   }
 
-  std::set<std::string> categories_;
+  std::unordered_set<std::string> categories_;
 #endif  // !NODE_USE_V8_PLATFORM
 
 #if !NODE_USE_V8_PLATFORM || !HAVE_INSPECTOR
@@ -383,7 +384,7 @@ void DisableTracingCategories(const std::vector<std::string>& categories) {
   v8_platform.DisableTracingCategories(categories);
 }
 
-const std::set<std::string>& GetEnabledTracingCategories() {
+const std::unordered_set<std::string>& GetEnabledTracingCategories() {
   return v8_platform.GetEnabledTracingCategories();
 }
 

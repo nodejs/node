@@ -6,7 +6,7 @@
 #include "v8.h"
 
 #include <string>
-#include <set>
+#include <unordered_set>
 #include <vector>
 
 namespace node {
@@ -28,7 +28,7 @@ class Agent {
   void EnableCategories(const std::string& categories);
   void EnableCategories(const std::vector<std::string>& categories);
   void DisableCategories(const std::vector<std::string>& categories);
-  const std::set<std::string>& GetEnabledCategories() const {
+  const std::unordered_set<std::string>& GetEnabledCategories() const {
     return categories_;
   }
 
@@ -44,7 +44,7 @@ class Agent {
   void StartTracing();
 
   const std::string& log_file_pattern_;
-  std::set<std::string> categories_;
+  std::unordered_set<std::string> categories_;
 
   uv_thread_t thread_;
   uv_loop_t tracing_loop_;

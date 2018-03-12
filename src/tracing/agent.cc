@@ -44,8 +44,8 @@ void Agent::StartTracing() {
       started_ = true;
     }
     TraceConfig* trace_config = new TraceConfig();
-    for (auto it = categories_.begin(); it != categories_.end(); it++) {
-      trace_config->AddIncludedCategory((*it).c_str());
+    for (const std::string& category : categories_) {
+      trace_config->AddIncludedCategory(category.c_str());
     }
     tracing_controller_->StartTracing(trace_config);
   }
@@ -65,22 +65,15 @@ void Agent::EnableCategories(const std::string& categories) {
 
 void Agent::EnableCategories(const std::vector<std::string>& categories) {
   if (!categories.empty()) {
-    for (auto category = categories.begin();
-         category != categories.end();
-         category++) {
-      categories_.insert(*category);
-    }
+    categories_.insert(categories.begin(), categories.end());
     StartTracing();
   }
 }
 
 void Agent::DisableCategories(const std::vector<std::string>& categories) {
   if (!categories.empty()) {
-    for (auto category = categories.begin();
-         category != categories.end();
-         category++) {
-      categories_.erase(*category);
-    }
+    for (const std::string& category : categories)
+      categories_.erase(category);
     StartTracing();
   }
 }
