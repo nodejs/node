@@ -44,6 +44,8 @@ const WriteEntry = warner(class WriteEntry extends MiniPass {
     this.cwd = opt.cwd || process.cwd()
     this.strict = !!opt.strict
     this.noPax = !!opt.noPax
+    this.noMtime = !!opt.noMtime
+
     if (typeof opt.onwarn === 'function')
       this.on('warn', opt.onwarn)
 
@@ -101,6 +103,9 @@ const WriteEntry = warner(class WriteEntry extends MiniPass {
   }
 
   [HEADER] () {
+    if (this.type === 'Directory' && this.portable)
+      this.noMtime = true
+
     this.header = new Header({
       path: this.path,
       linkpath: this.linkpath,
@@ -110,8 +115,7 @@ const WriteEntry = warner(class WriteEntry extends MiniPass {
       uid: this.portable ? null : this.stat.uid,
       gid: this.portable ? null : this.stat.gid,
       size: this.stat.size,
-      mtime: this.type === 'Directory' && this.portable
-        ? null : this.stat.mtime,
+      mtime: this.noMtime ? null : this.stat.mtime,
       type: this.type,
       uname: this.portable ? null :
         this.stat.uid === this.myuid ? this.myuser : '',
@@ -124,7 +128,7 @@ const WriteEntry = warner(class WriteEntry extends MiniPass {
         atime: this.portable ? null : this.header.atime,
         ctime: this.portable ? null : this.header.ctime,
         gid: this.portable ? null : this.header.gid,
-        mtime: this.header.mtime,
+        mtime: this.noMtime ? null : this.header.mtime,
         path: this.path,
         linkpath: this.linkpath,
         size: this.header.size,
@@ -294,28 +298,30 @@ const WriteEntryTar = warner(class WriteEntryTar extends MiniPass {
   constructor (readEntry, opt) {
     opt = opt || {}
     super(opt)
-    this.readEntry = readEntry
-    this.type = readEntry.type
-    this.path = readEntry.path
-    this.mode = readEntry.mode
-    if (this.mode)
-      this.mode = this.mode & 0o7777
-    this.uid = readEntry.uid
-    this.gid = readEntry.gid
-    this.uname = readEntry.uname
-    this.gname = readEntry.gname
-    this.size = readEntry.size
-    this.mtime = readEntry.mtime
-    this.atime = readEntry.atime
-    this.ctime = readEntry.ctime
-    this.linkpath = readEntry.linkpath
-    this.uname = readEntry.uname
-    this.gname = readEntry.gname
-
     this.preservePaths = !!opt.preservePaths
     this.portable = !!opt.portable
     this.strict = !!opt.strict
     this.noPax = !!opt.noPax
+    this.noMtime = !!opt.noMtime
+
+    this.readEntry = readEntry
+    this.type = readEntry.type
+    if (this.type === 'Directory' && this.portable)
+      this.noMtime = true
+
+    this.path = readEntry.path
+    this.mode = readEntry.mode
+    if (this.mode)
+      this.mode = this.mode & 0o7777
+    this.uid = this.portable ? null : readEntry.uid
+    this.gid = this.portable ? null : readEntry.gid
+    this.uname = this.portable ? null : readEntry.uname
+    this.gname = this.portable ? null : readEntry.gname
+    this.size = readEntry.size
+    this.mtime = this.noMtime ? null : readEntry.mtime
+    this.atime = this.portable ? null : readEntry.atime
+    this.ctime = this.portable ? null : readEntry.ctime
+    this.linkpath = readEntry.linkpath
 
     if (typeof opt.onwarn === 'function')
       this.on('warn', opt.onwarn)
@@ -341,7 +347,7 @@ const WriteEntryTar = warner(class WriteEntryTar extends MiniPass {
       uid: this.portable ? null : this.uid,
       gid: this.portable ? null : this.gid,
       size: this.size,
-      mtime: this.mtime,
+      mtime: this.noMtime ? null : this.mtime,
       type: this.type,
       uname: this.portable ? null : this.uname,
       atime: this.portable ? null : this.atime,
@@ -353,7 +359,7 @@ const WriteEntryTar = warner(class WriteEntryTar extends MiniPass {
         atime: this.portable ? null : this.atime,
         ctime: this.portable ? null : this.ctime,
         gid: this.portable ? null : this.gid,
-        mtime: this.mtime,
+        mtime: this.noMtime ? null : this.mtime,
         path: this.path,
         linkpath: this.linkpath,
         size: this.size,

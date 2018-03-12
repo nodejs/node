@@ -88,6 +88,7 @@ const Pack = warner(class Pack extends MiniPass {
     this.portable = !!opt.portable
     this.noDirRecurse = !!opt.noDirRecurse
     this.follow = !!opt.follow
+    this.noMtime = !!opt.noMtime
 
     this.filter = typeof opt.filter === 'function' ? opt.filter : _ => true
 
@@ -291,17 +292,17 @@ const Pack = warner(class Pack extends MiniPass {
       strict: this.strict,
       portable: this.portable,
       linkCache: this.linkCache,
-      statCache: this.statCache
+      statCache: this.statCache,
+      noMtime: this.noMtime
     }
   }
 
   [ENTRY] (job) {
     this[JOBS] += 1
     try {
-      return new this[WRITEENTRYCLASS](
-        job.path, this[ENTRYOPT](job)).on('end', _ => {
-          this[JOBDONE](job)
-        }).on('error', er => this.emit('error', er))
+      return new this[WRITEENTRYCLASS](job.path, this[ENTRYOPT](job))
+        .on('end', () => this[JOBDONE](job))
+        .on('error', er => this.emit('error', er))
     } catch (er) {
       this.emit('error', er)
     }
@@ -377,7 +378,6 @@ class PackSync extends Pack {
         const p = this.prefix ?
           job.path.slice(this.prefix.length + 1) || './'
           : job.path
-
 
         const base = p === './' ? '' : p.replace(/\/*$/, '/')
         this[ADDFSENTRY](base + entry)

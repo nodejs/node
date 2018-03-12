@@ -347,7 +347,8 @@ The `--no-shrinkwrap` argument, which will ignore an available
 package lock or shrinkwrap file and use the package.json instead.
 
 The `--no-package-lock` argument will prevent npm from creating a
-`package-lock.json` file.
+`package-lock.json` file.  When running with package-lock's disabled npm
+will not automatically prune your node modules when installing.
 
 The `--nodedir=/path/to/node/source` argument will allow npm to find the
 node source code so that npm can compile native modules.

@@ -14,6 +14,7 @@ const path = require('path')
 const pinflight = require('promise-inflight')
 const uniqueFilename = require('unique-filename')
 const which = BB.promisify(require('which'))
+const semver = require('semver')
 
 const GOOD_ENV_VARS = new Set([
   'GIT_ASKPASS',
@@ -141,9 +142,9 @@ function revs (repo, opts) {
           }
 
           if (type === 'tag') {
-            const match = ref.match(/v?(\d+\.\d+\.\d+)$/)
-            if (match) {
-              revs.versions[match[1]] = doc
+            const match = ref.match(/v?(\d+\.\d+\.\d+(?:[-+].+)?)$/)
+            if (match && semver.valid(match[1], true)) {
+              revs.versions[semver.clean(match[1], true)] = doc
             }
           }
 

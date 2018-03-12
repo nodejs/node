@@ -1,4 +1,12 @@
 
+4.2.0 / 2018-01-15
+==================
+
+  * Add support for returning an `http.Agent` instance
+  * Optimize promisifying logic
+  * Set `timeout` to null for proper cleanup
+  * Remove Node.js <= 0.11.3 special-casing from test case
+
 4.1.2 / 2017-11-20
 ==================
 
