@@ -45,3 +45,10 @@ assert.strictEqual(1, test_number.TestInt32Truncation(4294967297));
 assert.strictEqual(0, test_number.TestInt32Truncation(4294967296));
 assert.strictEqual(-1, test_number.TestInt32Truncation(4294967295));
 assert.strictEqual(3, test_number.TestInt32Truncation(4294967296 * 5 + 3));
+
+// validate that the boundaries of safe integer can be passed through
+// successfully
+assert.strictEqual(Number.MAX_SAFE_INTEGER,
+                   test_number.TestInt64Truncation(Number.MAX_SAFE_INTEGER));
+assert.strictEqual(Number.MIN_SAFE_INTEGER,
+                   test_number.TestInt64Truncation(Number.MIN_SAFE_INTEGER));
