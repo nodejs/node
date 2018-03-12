@@ -34,7 +34,7 @@ const { writeFileSync, unlinkSync } = require('fs');
 const { inspect } = require('util');
 const a = assert;
 
-const start = 'Input A expected to deepStrictEqual input B:';
+const start = 'Input A expected to strictly deep-equal input B:';
 const actExp = '+ expected - actual';
 
 assert.ok(a.AssertionError.prototype instanceof Error,
@@ -67,8 +67,21 @@ assert.throws(() => a.strictEqual(2, '2'),
 assert.throws(() => a.strictEqual(null, undefined),
               a.AssertionError, 'strictEqual(null, undefined)');
 
-assert.throws(() => a.notStrictEqual(2, 2),
-              a.AssertionError, 'notStrictEqual(2, 2)');
+assert.throws(
+  () => a.notStrictEqual(2, 2),
+  {
+    message: 'Identical input passed to notStrictEqual: 2',
+    name: 'AssertionError [ERR_ASSERTION]'
+  }
+);
+
+assert.throws(
+  () => a.notStrictEqual('a '.repeat(30), 'a '.repeat(30)),
+  {
+    message: `Identical input passed to notStrictEqual: '${'a '.repeat(30)}'`,
+    name: 'AssertionError [ERR_ASSERTION]'
+  }
+);
 
 a.notStrictEqual(2, '2');
 
@@ -245,8 +258,11 @@ function testAssertionMessage(actual, expected) {
   try {
     assert.strictEqual(actual, '');
   } catch (e) {
-    assert.strictEqual(e.message,
-                       [expected, 'strictEqual', '\'\''].join(' '));
+    assert.strictEqual(
+      e.message,
+      'Input A expected to strictly equal input B:\n+ expected - actual\n\n' +
+        `- ${expected}\n+ ''`
+    );
     assert.ok(e.generatedMessage, 'Message not marked as generated');
   }
 }
@@ -263,29 +279,34 @@ testAssertionMessage(-Infinity, '-Infinity');
 testAssertionMessage('', '""');
 testAssertionMessage('foo', '\'foo\'');
 testAssertionMessage([], '[]');
-testAssertionMessage([1, 2, 3], '[ 1, 2, 3 ]');
+testAssertionMessage([1, 2, 3], '[\n-   1,\n-   2,\n-   3\n- ]');
 testAssertionMessage(/a/, '/a/');
 testAssertionMessage(/abc/gim, '/abc/gim');
 testAssertionMessage(function f() {}, '[Function: f]');
 testAssertionMessage(function() {}, '[Function]');
 testAssertionMessage({}, '{}');
-testAssertionMessage(circular, '{ y: 1, x: [Circular] }');
-testAssertionMessage({ a: undefined, b: null }, '{ a: undefined, b: null }');
+testAssertionMessage(circular, '{\n-   y: 1,\n-   x: [Circular]\n- }');
+testAssertionMessage({ a: undefined, b: null },
+                     '{\n-   a: undefined,\n-   b: null\n- }');
 testAssertionMessage({ a: NaN, b: Infinity, c: -Infinity },
-                     '{ a: NaN, b: Infinity, c: -Infinity }');
+                     '{\n-   a: NaN,\n-   b: Infinity,\n-   c: -Infinity\n- }');
 
 // https://github.com/nodejs/node-v0.x-archive/issues/5292
 try {
   assert.strictEqual(1, 2);
 } catch (e) {
-  assert.strictEqual(e.message.split('\n')[0], '1 strictEqual 2');
+  assert.strictEqual(
+    e.message,
+    'Input A expected to strictly equal input B:\n' +
+      '+ expected - actual\n\n- 1\n+ 2'
+  );
   assert.ok(e.generatedMessage, 'Message not marked as generated');
 }
 
 try {
   assert.strictEqual(1, 2, 'oh no');
 } catch (e) {
-  assert.strictEqual(e.message.split('\n')[0], 'oh no');
+  assert.strictEqual(e.message, 'oh no');
   assert.strictEqual(e.generatedMessage, false,
                      'Message incorrectly marked as generated');
 }
@@ -361,10 +382,11 @@ assert.throws(() => { throw new Error(); }, (err) => err instanceof Error);
 // Long values should be truncated for display.
 assert.throws(() => {
   assert.strictEqual('A'.repeat(1000), '');
-}, common.expectsError({
+}, {
   code: 'ERR_ASSERTION',
-  message: /^'A{124}\.\.\. strictEqual ''$/
-}));
+  message: 'Input A expected to strictly equal input B:\n' +
+           `+ expected - actual\n\n- '${'A'.repeat(1000)}'\n+ ''`
+});
 
 {
   // Bad args to AssertionError constructor should throw TypeError.
@@ -381,12 +403,13 @@ assert.throws(() => {
   });
 }
 
-common.expectsError(
+assert.throws(
   () => assert.strictEqual(new Error('foo'), new Error('foobar')),
   {
     code: 'ERR_ASSERTION',
-    type: assert.AssertionError,
-    message: /^'Error: foo' strictEqual 'Error: foobar'$/
+    name: 'AssertionError [ERR_ASSERTION]',
+    message: 'Input A expected to strictly equal input B:\n' +
+             '+ expected - actual\n\n- [Error: foo]\n+ [Error: foobar]'
   }
 );
 
@@ -576,14 +599,15 @@ common.expectsError(
   });
 
   // notDeepEqual tests
-  message = 'Identical input passed to notDeepStrictEqual:\n[\n  1\n]';
+  message = 'Identical input passed to notDeepStrictEqual:\n\n' +
+            '  [\n    1\n  ]\n';
   assert.throws(
     () => assert.notDeepEqual([1], [1]),
     { message });
 
   message = 'Identical input passed to notDeepStrictEqual:' +
-        `\n[${'\n  1,'.repeat(18)}\n...`;
-  const data = Array(21).fill(1);
+        `\n\n  [${'\n    1,'.repeat(25)}\n  ...\n`;
+  const data = Array(31).fill(1);
   assert.throws(
     () => assert.notDeepEqual(data, data),
     { message });
@@ -873,3 +897,21 @@ assert.throws(
 // Should not throw.
 // eslint-disable-next-line no-restricted-syntax, no-throw-literal
 assert.throws(() => { throw null; }, 'foo');
+
+assert.throws(
+  () => assert.strictEqual([], []),
+  {
+    message: 'Input object identical but not reference equal:\n\n  []\n'
+  }
+);
+
+{
+  const args = (function() { return arguments; })('a');
+  assert.throws(
+    () => assert.strictEqual(args, { 0: 'a' }),
+    {
+      message: 'Input A expected to strictly equal input B:\n+ expected' +
+               " - actual\n\n- [Arguments] {\n+ {\n    '0': 'a'\n  }"
+    }
+  );
+}
