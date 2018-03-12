@@ -212,7 +212,7 @@ const stat = promisify(fs.stat);
     callback(null);
   }
   common.expectsError(
-    () => promisify(fn, []),
+    () => promisify(fn, ''),
     { code: 'ERR_INVALID_ARG_TYPE', type: TypeError }
   );
 }
