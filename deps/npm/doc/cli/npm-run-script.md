@@ -40,7 +40,7 @@ you should write:
 
 instead of
 
-	"scripts": {"test": "node_modules/.bin/tap test/\*.js"}
+	"scripts": {"test": "node_modules/.bin/tap test/\*.js"}  
 
 to run your tests.
 

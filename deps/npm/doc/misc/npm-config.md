@@ -731,6 +731,10 @@ when publishing or changing package permissions with `npm access`.
 If set to false, then ignore `package-lock.json` files when installing. This
 will also prevent _writing_ `package-lock.json` if `save` is true.
 
+When package package-locks are disabled, automatic pruning of extraneous
+modules will also be disabled.  To remove extraneous modules with
+package-locks disabled use `npm prune`.
+
 This option is an alias for `--shrinkwrap`.
 
 ### package-lock-only

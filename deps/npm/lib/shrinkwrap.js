@@ -182,7 +182,7 @@ function save (dir, pkginfo, opts, cb) {
           indent: (pkg && pkg.indent) || 2
         }
       )
-      const updated = updateLockfileMetadata(pkginfo, pkg && pkg.data)
+      const updated = updateLockfileMetadata(pkginfo, pkg && JSON.parse(pkg.raw))
       const swdata = JSON.stringify(updated, null, info.indent) + '\n'
       if (swdata === info.raw) {
         // skip writing if file is identical
@@ -244,9 +244,7 @@ function checkPackageFile (dir, name) {
     return {
       path: file,
       raw: data,
-      data: JSON.parse(data),
       indent: detectIndent(data).indent || 2
     }
   }).catch({code: 'ENOENT'}, () => {})
 }
-

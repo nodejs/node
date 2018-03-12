@@ -15,36 +15,44 @@ YARN ?= $(shell which yarn)
 PKG ?= $(if $(YARN),$(YARN),$(NODE) $(shell which npm))
 BROWSERIFY ?= $(NODE) $(BIN)/browserify
 
-.FORCE:
-
 install: node_modules
+
+browser: dist/debug.js
 
 node_modules: package.json
 	@NODE_ENV= $(PKG) install
 	@touch node_modules
 
-lint: .FORCE
-	eslint browser.js debug.js index.js node.js
-
-test-node: .FORCE
-	istanbul cover node_modules/mocha/bin/_mocha -- test/**.js
-
-test-browser: .FORCE
-	mkdir -p dist
-
+dist/debug.js: src/*.js node_modules
+	@mkdir -p dist
 	@$(BROWSERIFY) \
 		--standalone debug \
 		. > dist/debug.js
 
-	karma start --single-run
-	rimraf dist
+lint:
+	@eslint *.js src/*.js
 
-test: .FORCE
-	concurrently \
+test-node:
+	@istanbul cover node_modules/mocha/bin/_mocha -- test/**.js
+	@cat ./coverage/lcov.info | ./node_modules/coveralls/bin/coveralls.js
+
+test-browser:
+	@$(MAKE) browser
+	@karma start --single-run
+
+test-all:
+	@concurrently \
 		"make test-node" \
 		"make test-browser"
 
-coveralls:
-	cat ./coverage/lcov.info | ./node_modules/coveralls/bin/coveralls.js
+test:
+	@if [ "x$(BROWSER)" = "x" ]; then \
+		$(MAKE) test-node; \
+		else \
+		$(MAKE) test-browser; \
+	fi
 
-.PHONY: all install clean distclean
+clean:
+	rimraf dist coverage
+
+.PHONY: browser install clean lint test test-all test-node test-browser
