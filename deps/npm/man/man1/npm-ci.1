@@ -1,0 +1,79 @@
+.TH "NPM\-CI" "1" "March 2018" "" ""
+.SH "NAME"
+\fBnpm-ci\fR \- Install a project with a clean slate
+.SH SYNOPSIS
+.P
+.RS 2
+.nf
+npm ci
+.fi
+.RE
+.SH EXAMPLE
+.P
+Make sure you have a package\-lock and an up\-to\-date install:
+.P
+.RS 2
+.nf
+$ cd \./my/npm/project
+$ npm install
+added 154 packages in 10s
+$ ls | grep package\-lock
+.fi
+.RE
+.P
+Run \fB\fP in that project
+.P
+.RS 2
+.nf
+$ npm ci
+added 154 packages in 5s
+.fi
+.RE
+.P
+Configure Travis to build using \fB\fP instead of \fB\fP:
+.P
+.RS 2
+.nf
+# \.travis\.yml
+install:
+\- npm ci
+# keep the npm cache around to speed up installs
+cache:
+  directories:
+  \- "$HOME/\.npm"
+.fi
+.RE
+.SH DESCRIPTION
+.P
+This command is similar to \fB\fP, except it's meant to be used in
+automated environments such as test platforms, continuous integration, and
+deployment\. It can be significantly faster than a regular npm install by
+skipping certain user\-oriented features\. It is also more strict than a regular
+install, which can help catch errors or inconsistencies caused by the
+incrementally\-installed local environments of most npm users\.
+.P
+Concretely, the main differences between an \fB\fP call and an \fB\fP
+call are:
+.RS 0
+.IP \(bu 2
+The resulting \fB\fP is not meant for interactive development\.
+.IP \(bu 2
+The project \fBmust\fR have an existing \fB\fP or \fB\fP\|\.
+.IP \(bu 2
+If dependencies in the package lock do not match those in \fB\fP, \fB\fP will exit with an error, instead of updating the package lock\.
+.IP \(bu 2
+\fB\fP can only install entire projects at a time: individual dependencies cannot be added with this command\.
+.IP \(bu 2
+If a \fB\fP is already present, it will be automatically removed before \fB\fP begins its install\.
+.IP \(bu 2
+It will never write to \fB\fP or any of the package\-locks: installs are essentially frozen\.
+
+.RE
+.SH SEE ALSO
+.RS 0
+.IP \(bu 2
+npm help install
+.IP \(bu 2
+npm help 5 package\-locks
+
+.RE

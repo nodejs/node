@@ -1,4 +1,4 @@
-.TH "NPM\-OUTDATED" "1" "December 2017" "" ""
+.TH "NPM\-OUTDATED" "1" "March 2018" "" ""
 .SH "NAME"
 \fBnpm-outdated\fR \- Check for outdated packages
 .SH SYNOPSIS
@@ -16,24 +16,24 @@ packages are currently outdated\.
 In the output:
 .RS 0
 .IP \(bu 2
-\fBwanted\fP is the maximum version of the package that satisfies the semver
-range specified in \fBpackage\.json\fP\|\. If there's no available semver range (i\.e\.
-you're running \fBnpm outdated \-\-global\fP, or the package isn't included in
-\fBpackage\.json\fP), then \fBwanted\fP shows the currently\-installed version\.
+\fB\fP is the maximum version of the package that satisfies the semver
+range specified in \fB\fP\|\. If there's no available semver range (i\.e\.
+you're running \fB\fP, or the package isn't included in
+\fB\fP), then \fB\fP shows the currently\-installed version\.
 .IP \(bu 2
-\fBlatest\fP is the version of the package tagged as latest in the registry\.
-Running \fBnpm publish\fP with no special configuration will publish the package
-with a dist\-tag of \fBlatest\fP\|\. This may or may not be the maximum version of
+\fB\fP is the version of the package tagged as latest in the registry\.
+Running \fB\fP with no special configuration will publish the package
+with a dist\-tag of \fB\fP\|\. This may or may not be the maximum version of
 the package, or the most\-recently published version of the package, depending
 on how the package's developer manages the latest npm help dist\-tag\.
 .IP \(bu 2
-\fBlocation\fP is where in the dependency tree the package is located\. Note that
-\fBnpm outdated\fP defaults to a depth of 0, so unless you override that, you'll
+\fB\fP is where in the dependency tree the package is located\. Note that
+\fB\fP defaults to a depth of 0, so unless you override that, you'll
 always be seeing only top\-level dependencies that are outdated\.
 .IP \(bu 2
-\fBpackage type\fP (when using \fB\-\-long\fP / \fB\-l\fP) tells you whether this package is
-a \fBdependency\fP or a \fBdevDependency\fP\|\. Packages not included in \fBpackage\.json\fP
-are always marked \fBdependencies\fP\|\.
+\fB\fP (when using \fB\fP / \fB\fP) tells you whether this package is
+a \fB\fP or a \fB\fP\|\. Packages not included in \fB\fP
+are always marked \fB\fP\|\.
 
 .RE
 .SS An example
@@ -50,7 +50,7 @@ once           1\.3\.2    1\.3\.3    1\.3\.3  test\-outdated\-output
 .fi
 .RE
 .P
-With these \fBdependencies\fP:
+With these \fB\fP:
 .P
 .RS 2
 .nf
@@ -66,22 +66,19 @@ With these \fBdependencies\fP:
 A few things to note:
 .RS 0
 .IP \(bu 2
-\fBglob\fP requires \fB^5\fP, which prevents npm from installing \fBglob@6\fP, which is
+\fB\fP requires \fB\fP, which prevents npm from installing \fB\fP, which is
 outside the semver range\.
 .IP \(bu 2
 Git dependencies will always be reinstalled, because of how they're specified\.
 The installed committish might satisfy the dependency specifier (if it's
-something immutable, like a commit SHA), or it might not, so \fBnpm outdated\fP and
-\fBnpm update\fP have to fetch Git repos to check\. This is why currently doing a
+something immutable, like a commit SHA), or it might not, so \fB\fP and
+\fB\fP have to fetch Git repos to check\. This is why currently doing a
 reinstall of a Git dependency always forces a new clone and install\.
 .IP \(bu 2
-\fBnpm@3\.5\.2\fP is marked as "wanted", but "latest" is \fBnpm@3\.5\.1\fP because npm
-uses dist\-tags to manage its \fBlatest\fP and \fBnext\fP release channels\. \fBnpm update\fP
-will install the \fInewest\fR version, but \fBnpm install npm\fP (with no semver range)
-will install whatever's tagged as \fBlatest\fP\|\.
+\fB \fP\fB \fPlatest\fB \fPnext\fB \fPnpm update\fB\fPnpm install npm\fB \fPlatest`\.
 .IP \(bu 2
-\fBonce\fP is just plain out of date\. Reinstalling \fBnode_modules\fP from scratch or
-running \fBnpm update\fP will bring it up to spec\.
+\fB\fP is just plain out of date\. Reinstalling \fB\fP from scratch or
+running \fB\fP will bring it up to spec\.
 
 .RE
 .SH CONFIGURATION

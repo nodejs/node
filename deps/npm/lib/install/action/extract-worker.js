@@ -10,9 +10,9 @@ module.exports = (args, cb) => {
   const spec = parsed[0]
   const extractTo = parsed[1]
   const opts = parsed[2]
-  if (!opts.log && opts.loglevel) {
+  if (!opts.log) {
     opts.log = npmlog
-    opts.log.level = opts.loglevel
   }
+  opts.log.level = opts.loglevel || opts.log.level
   BB.resolve(extract(spec, extractTo, opts)).nodeify(cb)
 }

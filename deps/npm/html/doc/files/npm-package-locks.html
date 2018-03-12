@@ -53,7 +53,7 @@ registry, then a normal <code>npm install A</code> will install:</p>
 <pre><code>A@0.1.0
 `-- B@0.0.1
     `-- C@0.0.1
-</code></pre><p>However, if B@0.0.2 is published, then a fresh <code>npm install A</code> will
+</code></pre><p>However, if <a href="mailto:B@0.0.2">B@0.0.2</a> is published, then a fresh <code>npm install A</code> will
 install:</p>
 <pre><code>A@0.1.0
 `-- B@0.0.2
@@ -61,7 +61,7 @@ install:</p>
 </code></pre><p>assuming the new version did not modify B&#39;s dependencies. Of course,
 the new version of B could include a new version of C and any number
 of new dependencies. If such changes are undesirable, the author of A
-could specify a dependency on B@0.0.1. However, if A&#39;s author and B&#39;s
+could specify a dependency on <a href="mailto:B@0.0.1">B@0.0.1</a>. However, if A&#39;s author and B&#39;s
 author are not the same person, there&#39;s no way for A&#39;s author to say
 that he or she does not want to pull in newly published versions of C
 when B hasn&#39;t changed at all.</p>
@@ -125,6 +125,20 @@ package source to get the exact same dependency tree that you were developing
 on. Additionally, the diffs from these changes are human-readable and will
 inform you of any changes npm has made to your <code>node_modules</code>, so you can notice
 if any transitive dependencies were updated, hoisted, etc.</p>
+<h3 id="resolving-lockfile-conflicts">Resolving lockfile conflicts</h3>
+<p>Occasionally, two separate npm install will create package locks that cause
+merge conflicts in source control systems. As of <a href="mailto:`npm@5.7.0">`npm@5.7.0</a><code>, these conflicts
+can be resolved by manually fixing any</code>package.json<code>conflicts, and then
+running</code>npm install [--package-lock-only]<code>again. npm will automatically
+resolve any conflicts for you and write a merged package lock that includes all
+the dependencies from both branches in a reasonable tree. If
+`--package-lock-only` is provided, it will do this without also modifying your
+local</code>node_modules/`.</p>
+<p>To make this process seamless on git, consider installing
+<a href="https://npm.im/npm-merge-driver"><code>npm-merge-driver</code></a>, which will teach git how
+to do this itself without any user interaction. In short: <code>$ npx
+npm-merge-driver install -g</code> will let you do this, and even works with
+<a href="mailto:pre-`npm@5.7.0">pre-`npm@5.7.0</a><code>versions of npm 5, albeit a bit more noisily. Note that if</code>package.json<code>itself conflicts, you will have to resolve that by hand and run</code>npm install` manually, even with the merge driver.</p>
 <h2 id="see-also">SEE ALSO</h2>
 <ul>
 <li><a href="https://medium.com/@sdboyer/so-you-want-to-write-a-package-manager-4ae9c17d9527">https://medium.com/@sdboyer/so-you-want-to-write-a-package-manager-4ae9c17d9527</a></li>
@@ -145,4 +159,4 @@ if any transitive dependencies were updated, hoisted, etc.</p>
 <tr><td style="width:60px;height:10px;background:rgb(237,127,127)" colspan=6>&nbsp;</td><td colspan=10 style="width:10px;height:10px;background:rgb(237,127,127)">&nbsp;</td></tr>
 <tr><td colspan=5 style="width:50px;height:10px;background:#fff">&nbsp;</td><td style="width:40px;height:10px;background:rgb(237,127,127)" colspan=4>&nbsp;</td><td style="width:90px;height:10px;background:#fff" colspan=9>&nbsp;</td></tr>
 </table>
-<p id="footer">npm-package-locks &mdash; npm@5.6.0</p>
+<p id="footer">npm-package-locks &mdash; npm@5.7.1</p>

@@ -1,4 +1,4 @@
-.TH "NPM\-SCRIPTS" "7" "December 2017" "" ""
+.TH "NPM\-SCRIPTS" "7" "March 2018" "" ""
 .SH "NAME"
 \fBnpm-scripts\fR \- How npm handles the "scripts" field
 .SH DESCRIPTION
@@ -8,20 +8,18 @@ following scripts:
 .RS 0
 .IP \(bu 2
 prepublish:
-Run BEFORE the package is packed and published, as well as on local \fBnpm
-install\fP without any arguments\. (See below)
+Run BEFORE the package is packed and published, as well as on local \fB\fP without any arguments\. (See below)
 .IP \(bu 2
 prepare:
-Run both BEFORE the package is packed and published, and on local \fBnpm
-install\fP without any arguments (See below)\. This is run
-AFTER \fBprepublish\fP, but BEFORE \fBprepublishOnly\fP\|\.
+Run both BEFORE the package is packed and published, and on local \fB\fP without any arguments (See below)\. This is run
+AFTER \fB\fP, but BEFORE \fB\fP\|\.
 .IP \(bu 2
 prepublishOnly:
-Run BEFORE the package is prepared and packed, ONLY on \fBnpm publish\fP\|\. (See
+Run BEFORE the package is prepared and packed, ONLY on \fB\fP\|\. (See
 below\.)
 .IP \(bu 2
 prepack:
-run BEFORE a tarball is packed (on \fBnpm pack\fP, \fBnpm publish\fP, and when
+run BEFORE a tarball is packed (on \fB\fP, \fB\fP, and when
 installing git dependencies)
 .IP \(bu 2
 postpack:
@@ -52,41 +50,33 @@ postversion:
 Run AFTER bumping the package version, and AFTER commit\.
 .IP \(bu 2
 pretest, test, posttest:
-Run by the \fBnpm test\fP command\.
+Run by the \fB\fP command\.
 .IP \(bu 2
 prestop, stop, poststop:
-Run by the \fBnpm stop\fP command\.
+Run by the \fB\fP command\.
 .IP \(bu 2
 prestart, start, poststart:
-Run by the \fBnpm start\fP command\.
+Run by the \fB\fP command\.
 .IP \(bu 2
 prerestart, restart, postrestart:
-Run by the \fBnpm restart\fP command\. Note: \fBnpm restart\fP will run the
-stop and start scripts if no \fBrestart\fP script is provided\.
+Run by the \fB\fP command\. Note: \fB\fP will run the
+stop and start scripts if no \fB\fP script is provided\.
 .IP \(bu 2
 preshrinkwrap, shrinkwrap, postshrinkwrap:
-Run by the \fBnpm shrinkwrap\fP command\.
+Run by the \fB\fP command\.
 
 .RE
 .P
-Additionally, arbitrary scripts can be executed by running \fBnpm
-run\-script <stage>\fP\|\. \fIPre\fR and \fIpost\fR commands with matching
-names will be run for those as well (e\.g\. \fBpremyscript\fP, \fBmyscript\fP,
-\fBpostmyscript\fP)\. Scripts from dependencies can be run with `npm explore
+Additionally, arbitrary scripts can be executed by running \fB\fP\|\. \fIPre\fR and \fIpost\fR commands with matching
+names will be run for those as well (e\.g\. \fB\fP, \fB\fP,
+\fB\fP)\. Scripts from dependencies can be run with `npm explore
 .P
 <pkg> \-\- npm run <stage>`\.
 .SH PREPUBLISH AND PREPARE
 .SS DEPRECATION NOTE
 .P
-Since \fBnpm@1\.1\.71\fP, the npm CLI has run the \fBprepublish\fP script for both \fBnpm
-publish\fP and \fBnpm install\fP, because it's a convenient way to prepare a package
-for use (some common use cases are described in the section below)\.  It has
-also turned out to be, in practice, very
-confusing \fIhttps://github\.com/npm/npm/issues/10074\fR\|\.  As of \fBnpm@4\.0\.0\fP, a new
-event has been introduced, \fBprepare\fP, that preserves this existing behavior\. A
-\fInew\fR event, \fBprepublishOnly\fP has been added as a transitional strategy to
-allow users to avoid the confusing behavior of existing npm versions and only
-run on \fBnpm publish\fP (for instance, running the tests one last time to ensure
+Since \fB\fPprepublish\fB \fPnpm
+publish\fB \fPnpm install\fB\fP\fB\fPprepare\fB\fPprepublishOnly\fB \fPnpm publish` (for instance, running the tests one last time to ensure
 they're in good shape)\.
 .P
 See https://github\.com/npm/npm/issues/10074 for a much lengthier
@@ -95,7 +85,7 @@ justification, with further reading, for this change\.
 .P
 If you need to perform operations on your package before it is used, in a way
 that is not dependent on the operating system or architecture of the
-target system, use a \fBprepublish\fP script\.  This includes
+target system, use a \fB\fP script\.  This includes
 tasks such as:
 .RS 0
 .IP \(bu 2
@@ -107,18 +97,18 @@ Fetching remote resources that your package will use\.
 
 .RE
 .P
-The advantage of doing these things at \fBprepublish\fP time is that they can be done once, in a
+The advantage of doing these things at \fB\fP time is that they can be done once, in a
 single place, thus reducing complexity and variability\.
 Additionally, this means that:
 .RS 0
 .IP \(bu 2
-You can depend on \fBcoffee\-script\fP as a \fBdevDependency\fP, and thus
+You can depend on \fB\fP as a \fB\fP, and thus
 your users don't need to have it installed\.
 .IP \(bu 2
 You don't need to include minifiers in your package, reducing
 the size for your users\.
 .IP \(bu 2
-You don't need to rely on your users having \fBcurl\fP or \fBwget\fP or
+You don't need to rely on your users having \fB\fP or \fB\fP or
 other system tools on the target machines\.
 
 .RE
@@ -127,21 +117,21 @@ other system tools on the target machines\.
 npm will default some script values based on package contents\.
 .RS 0
 .IP \(bu 2
-\fB"start": "node server\.js"\fP:
-If there is a \fBserver\.js\fP file in the root of your package, then npm
-will default the \fBstart\fP command to \fBnode server\.js\fP\|\.
+\fB\fP:
+If there is a \fB\fP file in the root of your package, then npm
+will default the \fB\fP command to \fB\fP\|\.
 .IP \(bu 2
-\fB"install": "node\-gyp rebuild"\fP:
-If there is a \fBbinding\.gyp\fP file in the root of your package and you
-haven't defined your own \fBinstall\fP or \fBpreinstall\fP scripts, npm will
-default the \fBinstall\fP command to compile using node\-gyp\.
+\fB\fP:
+If there is a \fB\fP file in the root of your package and you
+haven't defined your own \fB\fP or \fB\fP scripts, npm will
+default the \fB\fP command to compile using node\-gyp\.
 
 .RE
 .SH USER
 .P
 If npm was invoked with root privileges, then it will change the uid
-to the user account or uid specified by the \fBuser\fP config, which
-defaults to \fBnobody\fP\|\.  Set the \fBunsafe\-perm\fP flag to run scripts with
+to the user account or uid specified by the \fB\fP config, which
+defaults to \fB\fP\|\.  Set the \fB\fP flag to run scripts with
 root privileges\.
 .SH ENVIRONMENT
 .P
@@ -151,7 +141,7 @@ the process\.
 .SS path
 .P
 If you depend on modules that define executable scripts, like test
-suites, then those executables will be added to the \fBPATH\fP for
+suites, then those executables will be added to the \fB\fP for
 executing the scripts\.  So, if your package\.json has this:
 .P
 .RS 2
@@ -162,24 +152,24 @@ executing the scripts\.  So, if your package\.json has this:
 .fi
 .RE
 .P
-then you could run \fBnpm start\fP to execute the \fBbar\fP script, which is
-exported into the \fBnode_modules/\.bin\fP directory on \fBnpm install\fP\|\.
+then you could run \fB\fP to execute the \fB\fP script, which is
+exported into the \fB\fP directory on \fB\fP\|\.
 .SS package\.json vars
 .P
-The package\.json fields are tacked onto the \fBnpm_package_\fP prefix\. So,
-for instance, if you had \fB{"name":"foo", "version":"1\.2\.5"}\fP in your
+The package\.json fields are tacked onto the \fB\fP prefix\. So,
+for instance, if you had \fB\fP in your
 package\.json file, then your package scripts would have the
-\fBnpm_package_name\fP environment variable set to "foo", and the
-\fBnpm_package_version\fP set to "1\.2\.5"
+\fB\fP environment variable set to "foo", and the
+\fB\fP set to "1\.2\.5"
 .SS configuration
 .P
 Configuration parameters are put in the environment with the
-\fBnpm_config_\fP prefix\. For instance, you can view the effective \fBroot\fP
-config by checking the \fBnpm_config_root\fP environment variable\.
+\fB\fP prefix\. For instance, you can view the effective \fB\fP
+config by checking the \fB\fP environment variable\.
 .SS Special: package\.json "config" object
 .P
 The package\.json "config" keys are overwritten in the environment if
-there is a config param of \fB<name>[@<version>]:<key>\fP\|\.  For example,
+there is a config param of \fB\fP\|\.  For example,
 if the package\.json has this:
 .P
 .RS 2
@@ -207,13 +197,13 @@ npm config set foo:port 80
 .RE
 .SS current lifecycle event
 .P
-Lastly, the \fBnpm_lifecycle_event\fP environment variable is set to
+Lastly, the \fB\fP environment variable is set to
 whichever stage of the cycle is being executed\. So, you could have a
 single script used for different parts of the process which switches
 based on what's currently happening\.
 .P
 Objects are flattened following this format, so if you had
-\fB{"scripts":{"install":"foo\.js"}}\fP in your package\.json, then you'd
+\fB\fP in your package\.json, then you'd
 see this in the script:
 .P
 .RS 2
@@ -236,11 +226,11 @@ For example, if your package\.json contains this:
 .fi
 .RE
 .P
-then \fBscripts/install\.js\fP will be called for the install
-and post\-install stages of the lifecycle, and \fBscripts/uninstall\.js\fP
+then \fB\fP will be called for the install
+and post\-install stages of the lifecycle, and \fB\fP
 will be called when the package is uninstalled\.  Since
-\fBscripts/install\.js\fP is running for two different phases, it would
-be wise in this case to look at the \fBnpm_lifecycle_event\fP environment
+\fB\fP is running for two different phases, it would
+be wise in this case to look at the \fB\fP environment
 variable\.
 .P
 If you want to run a make command, you can do so\.  This works just
@@ -258,7 +248,7 @@ fine:
 .RE
 .SH EXITING
 .P
-Scripts are run by passing the line as a script argument to \fBsh\fP\|\.
+Scripts are run by passing the line as a script argument to \fB\fP\|\.
 .P
 If the script exits with a code other than 0, then this will abort the
 process\.
@@ -271,7 +261,7 @@ file\.
 If you want to run a specific script at a specific lifecycle event for
 ALL packages, then you can use a hook script\.
 .P
-Place an executable file at \fBnode_modules/\.hooks/{eventname}\fP, and
+Place an executable file at \fB\fP, and
 it'll get run for all packages when they are going through that point
 in the package lifecycle for any packages installed in that root\.
 .P
@@ -288,23 +278,23 @@ only will prevent some optional features, then it's better to just
 print a warning and exit successfully\.
 .IP \(bu 2
 Try not to use scripts to do what npm can do for you\.  Read through
-npm help 5 \fBpackage\.json\fP to see all the things that you can specify and enable
+\fB\fP to see all the things that you can specify and enable
 by simply describing your package appropriately\.  In general, this
 will lead to a more robust and consistent state\.
 .IP \(bu 2
 Inspect the env to determine where to put things\.  For instance, if
-the \fBnpm_config_binroot\fP environment variable is set to \fB/home/user/bin\fP, then
-don't try to install executables into \fB/usr/local/bin\fP\|\.  The user
+the \fB\fP environment variable is set to \fB\fP, then
+don't try to install executables into \fB\fP\|\.  The user
 probably set it up that way for a reason\.
 .IP \(bu 2
 Don't prefix your script commands with "sudo"\.  If root permissions
 are required for some reason, then it'll fail with that error, and
 the user will sudo the npm command in question\.
 .IP \(bu 2
-Don't use \fBinstall\fP\|\. Use a \fB\|\.gyp\fP file for compilation, and \fBprepublish\fP
+Don't use \fB\fP\|\. Use a \fB\fP file for compilation, and \fB\fP
 for anything else\. You should almost never have to explicitly set a
 preinstall or install script\. If you are doing this, please consider if
-there is another option\. The only valid use of \fBinstall\fP or \fBpreinstall\fP
+there is another option\. The only valid use of \fB\fP or \fB\fP
 scripts is for compilation which must be done on the target architecture\.
 
 .RE

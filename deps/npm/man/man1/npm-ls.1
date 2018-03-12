@@ -1,4 +1,4 @@
-.TH "NPM\-LS" "1" "December 2017" "" ""
+.TH "NPM\-LS" "1" "March 2018" "" ""
 .SH "NAME"
 \fBnpm-ls\fR \- List installed packages
 .SH SYNOPSIS
@@ -15,14 +15,14 @@ aliases: list, la, ll
 This command will print to stdout all the versions of packages that are
 installed, as well as their dependencies, in a tree\-structure\.
 .P
-Positional arguments are \fBname@version\-range\fP identifiers, which will
+Positional arguments are \fB\fP identifiers, which will
 limit the results to only the paths to the packages named\.  Note that
 nested packages will \fIalso\fR show the paths to the specified packages\.
-For example, running \fBnpm ls promzard\fP in npm's source tree will show:
+For example, running \fB\fP in npm's source tree will show:
 .P
 .RS 2
 .nf
-npm@5.6.0 /path/to/npm
+npm@5.7.1 /path/to/npm
 └─┬ init\-package\-json@0\.0\.4
   └── promzard@0\.1\.5
 .fi
@@ -37,7 +37,7 @@ recognize potential forks of a project\.
 The tree shown is the logical dependency tree, based on package
 dependencies, not the physical layout of your node_modules folder\.
 .P
-When run as \fBll\fP or \fBla\fP, it shows extended information by default\.
+When run as \fB\fP or \fB\fP, it shows extended information by default\.
 .SH CONFIGURATION
 .SS json
 .RS 0
@@ -97,7 +97,7 @@ Default: false
 
 .RE
 .P
-Display only the dependency tree for packages in \fBdependencies\fP\|\.
+Display only the dependency tree for packages in \fB\fP\|\.
 .SS dev
 .RS 0
 .IP \(bu 2
@@ -107,7 +107,7 @@ Default: false
 
 .RE
 .P
-Display only the dependency tree for packages in \fBdevDependencies\fP\|\.
+Display only the dependency tree for packages in \fB\fP\|\.
 .SS only
 .RS 0
 .IP \(bu 2
@@ -115,9 +115,9 @@ Type: String
 
 .RE
 .P
-When "dev" or "development", is an alias to \fBdev\fP\|\.
+When "dev" or "development", is an alias to \fB\fP\|\.
 .P
-When "prod" or "production", is an alias to \fBproduction\fP\|\.
+When "prod" or "production", is an alias to \fB\fP\|\.
 .SS link
 .RS 0
 .IP \(bu 2

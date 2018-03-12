@@ -1,4 +1,4 @@
-.TH "NPM\-LOGOUT" "1" "December 2017" "" ""
+.TH "NPM\-LOGOUT" "1" "March 2018" "" ""
 .SH "NAME"
 \fBnpm-logout\fR \- Log out of the registry
 .SH SYNOPSIS
@@ -18,20 +18,20 @@ When logged into a legacy registry that uses username and password authenticatio
 clear the credentials in your user configuration\. In this case, it will \fIonly\fR affect
 the current environment\.
 .P
-If \fB\-\-scope\fP is provided, this will find the credentials for the registry
+If \fB\fP is provided, this will find the credentials for the registry
 connected to that scope, if set\.
 .SH CONFIGURATION
 .SS registry
 .P
-Default: https://registry\.npmjs\.org/
+Default: https://
 .P
-The base URL of the npm package registry\. If \fBscope\fP is also specified,
+The base URL of the npm package registry\. If \fB\fP is also specified,
 it takes precedence\.
 .SS scope
 .P
 Default: The scope of your current project, if any, otherwise none\.
 .P
-If specified, you will be logged out of the specified scope\. See npm help 7 \fBnpm\-scope\fP\|\.
+If specified, you will be logged out of the specified scope\. See \fB\fP\|\.
 .P
 .RS 2
 .nf
