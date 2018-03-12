@@ -149,7 +149,7 @@ static void EnableTracingCategories(const FunctionCallbackInfo<Value>& args) {
     cats.push_back(*val);
   }
   EnableTracingCategories(cats);
-#elif
+#else
   UNREACHABLE();
 #endif
 }
@@ -169,7 +169,7 @@ static void DisableTracingCategories(const FunctionCallbackInfo<Value>& args) {
     cats.push_back(*val);
   }
   DisableTracingCategories(cats);
-#elif
+#else
   UNREACHABLE();
 #endif
 }
