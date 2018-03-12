@@ -8791,10 +8791,9 @@ MUST_USE_RESULT Maybe<bool> FastGetOwnValuesOrEntries(
 MaybeHandle<FixedArray> GetOwnValuesOrEntries(Isolate* isolate,
                                               Handle<JSReceiver> object,
                                               PropertyFilter filter,
-                                              bool try_fast_path,
                                               bool get_entries) {
   Handle<FixedArray> values_or_entries;
-  if (try_fast_path && filter == ENUMERABLE_STRINGS) {
+  if (filter == ENUMERABLE_STRINGS) {
     Maybe<bool> fast_values_or_entries = FastGetOwnValuesOrEntries(
         isolate, object, get_entries, &values_or_entries);
     if (fast_values_or_entries.IsNothing()) return MaybeHandle<FixedArray>();
@@ -8847,17 +8846,13 @@ MaybeHandle<FixedArray> GetOwnValuesOrEntries(Isolate* isolate,
 }
 
 MaybeHandle<FixedArray> JSReceiver::GetOwnValues(Handle<JSReceiver> object,
-                                                 PropertyFilter filter,
-                                                 bool try_fast_path) {
-  return GetOwnValuesOrEntries(object->GetIsolate(), object, filter,
-                               try_fast_path, false);
+                                                 PropertyFilter filter) {
+  return GetOwnValuesOrEntries(object->GetIsolate(), object, filter, false);
 }
 
 MaybeHandle<FixedArray> JSReceiver::GetOwnEntries(Handle<JSReceiver> object,
-                                                  PropertyFilter filter,
-                                                  bool try_fast_path) {
-  return GetOwnValuesOrEntries(object->GetIsolate(), object, filter,
-                               try_fast_path, true);
+                                                  PropertyFilter filter) {
+  return GetOwnValuesOrEntries(object->GetIsolate(), object, filter, true);
 }
 
 bool Map::DictionaryElementsInPrototypeChainOnly() {
@@ -13783,18 +13778,24 @@ void JSFunction::CalculateInstanceSizeHelper(InstanceType instance_type,
                                              int requested_in_object_properties,
                                              int* instance_size,
                                              int* in_object_properties) {
+  DCHECK_LE(static_cast<unsigned>(requested_embedder_fields),
+            JSObject::kMaxEmbedderFields);
   int header_size = JSObject::GetHeaderSize(instance_type, has_prototype_slot);
   int max_nof_fields =
       (JSObject::kMaxInstanceSize - header_size) >> kPointerSizeLog2;
   CHECK_LE(max_nof_fields, JSObject::kMaxInObjectProperties);
-  *in_object_properties = Min(requested_in_object_properties, max_nof_fields);
-  CHECK_LE(requested_embedder_fields, max_nof_fields - *in_object_properties);
+  CHECK_LE(static_cast<unsigned>(requested_embedder_fields),
+           static_cast<unsigned>(max_nof_fields));
+  *in_object_properties = Min(requested_in_object_properties,
+                              max_nof_fields - requested_embedder_fields);
   *instance_size =
       header_size +
       ((requested_embedder_fields + *in_object_properties) << kPointerSizeLog2);
   CHECK_EQ(*in_object_properties,
            ((*instance_size - header_size) >> kPointerSizeLog2) -
                requested_embedder_fields);
+  CHECK_LE(static_cast<unsigned>(*instance_size),
+           static_cast<unsigned>(JSObject::kMaxInstanceSize));
 }
 
 // static

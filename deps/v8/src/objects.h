@@ -2182,12 +2182,10 @@ class JSReceiver: public HeapObject {
       Handle<JSReceiver> object);
 
   MUST_USE_RESULT static MaybeHandle<FixedArray> GetOwnValues(
-      Handle<JSReceiver> object, PropertyFilter filter,
-      bool try_fast_path = true);
+      Handle<JSReceiver> object, PropertyFilter filter);
 
   MUST_USE_RESULT static MaybeHandle<FixedArray> GetOwnEntries(
-      Handle<JSReceiver> object, PropertyFilter filter,
-      bool try_fast_path = true);
+      Handle<JSReceiver> object, PropertyFilter filter);
 
   static const int kHashMask = PropertyArray::HashField::kMask;
 
@@ -2673,6 +2671,11 @@ class JSObject: public JSReceiver {
   static const int kMaxInObjectProperties =
       (kMaxInstanceSize - kHeaderSize) >> kPointerSizeLog2;
   STATIC_ASSERT(kMaxInObjectProperties <= kMaxNumberOfDescriptors);
+  // TODO(cbruni): Revisit calculation of the max supported embedder fields.
+  static const int kMaxEmbedderFields =
+      ((1 << kFirstInobjectPropertyOffsetBitCount) - 1 - kHeaderSize) >>
+      kPointerSizeLog2;
+  STATIC_ASSERT(kMaxEmbedderFields <= kMaxInObjectProperties);
 
   class BodyDescriptor;
   // No weak fields.
