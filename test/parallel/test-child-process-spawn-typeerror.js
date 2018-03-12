@@ -30,10 +30,10 @@ const invalidcmd = 'hopefully_you_dont_have_this_on_your_machine';
 const empty = fixtures.path('empty.js');
 
 const invalidArgValueError =
-  common.expectsError({ code: 'ERR_INVALID_ARG_VALUE', type: TypeError }, 13);
+  common.expectsError({ code: 'ERR_INVALID_ARG_VALUE', type: TypeError }, 14);
 
 const invalidArgTypeError =
-  common.expectsError({ code: 'ERR_INVALID_ARG_TYPE', type: TypeError }, 11);
+  common.expectsError({ code: 'ERR_INVALID_ARG_TYPE', type: TypeError }, 10);
 
 assert.throws(function() {
   const child = spawn(invalidcmd, 'this is not an array');
@@ -53,7 +53,7 @@ assert.throws(function() {
 
 assert.throws(function() {
   spawn('');
-}, invalidArgTypeError);
+}, invalidArgValueError);
 
 assert.throws(function() {
   const file = { toString() { return null; } };
