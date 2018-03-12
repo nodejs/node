@@ -321,10 +321,16 @@ added: REPLACEME
 * `message` {any}
 
 Awaits for the promise returned by function `block` to complete and not be
-rejected. See [`assert.rejects()`][] for more details.
+rejected.
+
+Please note: Using `assert.doesNotReject()` is actually not useful because there
+is little benefit by catching a rejection and then rejecting it again. Instead,
+consider adding a comment next to the specific code path that should not reject
+and keep error messages as expressive as possible.
 
 When `assert.doesNotReject()` is called, it will immediately call the `block`
-function, and awaits for completion.
+function, and awaits for completion. See [`assert.rejects()`][] for more
+details.
 
 Besides the async nature to await the completion behaves identically to
 [`assert.doesNotThrow()`][].
