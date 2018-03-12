@@ -3009,29 +3009,11 @@ bool CipherBase::InitAuthenticated(const char *cipher_type, int iv_len,
     if (kind_ == kCipher)
       auth_tag_len_ = auth_tag_len;
 
-    // The message length is restricted to 2 ^ (15 - iv_len) - 1 bytes.
+    // The message length is restricted to 2 ^ (8 * (15 - iv_len)) - 1 bytes.
     CHECK(iv_len >= 7 && iv_len <= 13);
-    switch (iv_len) {
-    case 13:
-    case 12:
-#if INT_MAX >= 4294967295
-    case 11:
-#endif
-#if INT_MAX >= 1099511627775
-    case 10:
-#endif
-#if INT_MAX >= 281474976710655
-    case 9:
-#endif
-#if INT_MAX >= 72057594037927935
-    case 8:
-#endif
-#if INT_MAX >= 18446744073709551615
-    case 7:
-#endif
+    if (iv_len >= static_cast<int>(15.5 - log2(INT_MAX + 1.) / 8)) {
       max_message_size_ = (1 << (8 * (15 - iv_len))) - 1;
-      break;
-    default:
+    } else {
       max_message_size_ = INT_MAX;
     }
   }
