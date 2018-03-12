@@ -1,4 +1,4 @@
-.TH "NPM\-DISPUTES" "7" "December 2017" "" ""
+.TH "NPM\-DISPUTES" "7" "March 2018" "" ""
 .SH "NAME"
 \fBnpm-disputes\fR \- Handling Module Name Disputes
 .P
@@ -13,7 +13,7 @@ Conduct\.
 .SH TL;DR
 .RS 0
 .IP 1. 3
-Get the author email with \fBnpm owner ls <pkgname>\fP
+Get the author email with \fB\fP
 .IP 2. 3
 Email the author, CC support@npmjs\.com
 .IP 3. 3
@@ -29,37 +29,37 @@ some other user wants to use that name\. Here are some common ways that happens
 (each of these is based on actual events\.)
 .RS 0
 .IP 1. 3
-Alice writes a JavaScript module \fBfoo\fP, which is not node\-specific\. Alice
-doesn't use node at all\. Yusuf wants to use \fBfoo\fP in node, so he wraps it in
+Alice writes a JavaScript module \fB\fP, which is not node\-specific\. Alice
+doesn't use node at all\. Yusuf wants to use \fB\fP in node, so he wraps it in
 an npm module\. Some time later, Alice starts using node, and wants to take
 over management of her program\.
 .IP 2. 3
-Yusuf writes an npm module \fBfoo\fP, and publishes it\. Perhaps much later, Alice
-finds a bug in \fBfoo\fP, and fixes it\. She sends a pull request to Yusuf, but
+Yusuf writes an npm module \fB\fP, and publishes it\. Perhaps much later, Alice
+finds a bug in \fB\fP, and fixes it\. She sends a pull request to Yusuf, but
 Yusuf doesn't have the time to deal with it, because he has a new job and a
 new baby and is focused on his new Erlang project, and kind of not involved
-with node any more\. Alice would like to publish a new \fBfoo\fP, but can't,
+with node any more\. Alice would like to publish a new \fB\fP, but can't,
 because the name is taken\.
 .IP 3. 3
-Yusuf writes a 10\-line flow\-control library, and calls it \fBfoo\fP, and
+Yusuf writes a 10\-line flow\-control library, and calls it \fB\fP, and
 publishes it to the npm registry\. Being a simple little thing, it never
 really has to be updated\. Alice works for Foo Inc, the makers of the
-critically acclaimed and widely\-marketed \fBfoo\fP JavaScript toolkit framework\.
-They publish it to npm as \fBfoojs\fP, but people are routinely confused when
-\fBnpm install\fPfoo`` is some different thing\.
+critically acclaimed and widely\-marketed \fB\fP JavaScript toolkit framework\.
+They publish it to npm as \fB\fP, but people are routinely confused when
+\fB\fPfoo\fB\fP is some different thing\.
 .IP 4. 3
-Yusuf writes a parser for the widely\-known \fBfoo\fP file format, because he
+Yusuf writes a parser for the widely\-known \fB\fP file format, because he
 needs it for work\. Then, he gets a new job, and never updates the prototype\.
-Later on, Alice writes a much more complete \fBfoo\fP parser, but can't publish,
-because Yusuf's \fBfoo\fP is in the way\.
+Later on, Alice writes a much more complete \fB\fP parser, but can't publish,
+because Yusuf's \fB\fP is in the way\.
 .IP 5. 3
-\fBnpm owner ls foo\fP\|\. This will tell Alice the email address of the owner
+\fB\fP\|\. This will tell Alice the email address of the owner
 (Yusuf)\.
 .IP 6. 3
 Alice emails Yusuf, explaining the situation \fBas respectfully as possible\fR,
 and what she would like to do with the module name\. She adds the npm support
 staff support@npmjs\.com to the CC list of the email\. Mention in the email
-that Yusuf can run npm owner \fBadd alice foo\fP to add Alice as an owner of the
+that Yusuf can run npm owner \fB\fP to add Alice as an owner of the
 foo package\.
 .IP 7. 3
 After a reasonable amount of time, if Yusuf has not responded, or if Yusuf
@@ -120,13 +120,13 @@ here to help\.\fR
 .P
 If you think another npm publisher is infringing your trademark, such as by
 using a confusingly similar package name, email abuse@npmjs\.com with a link to
-the package or user account on  \fIhttps://npmjs\.com\fR\|\. Attach a
+the package or user account on https:// \fIhttps://npmjs\.com\fR\|\. Attach a
 copy of your trademark registration certificate\.
 .P
 If we see that the package's publisher is intentionally misleading others by
 misusing your registered mark without permission, we will transfer the package
 name to you\. Otherwise, we will contact the package publisher and ask them to
-clear up any confusion with changes to their package's \fBREADME\fP file or
+clear up any confusion with changes to their package's \fB\fP file or
 metadata\.
 .SH CHANGES
 .P

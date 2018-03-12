@@ -1,4 +1,4 @@
-.TH "NPM\-CONFIG" "7" "December 2017" "" ""
+.TH "NPM\-CONFIG" "7" "March 2018" "" ""
 .SH "NAME"
 \fBnpm-config\fR \- More than you probably want to know about npm configuration
 .SH DESCRIPTION
@@ -6,105 +6,105 @@
 npm gets its configuration values from the following sources, sorted by priority:
 .SS Command Line Flags
 .P
-Putting \fB\-\-foo bar\fP on the command line sets the \fBfoo\fP configuration
-parameter to \fB"bar"\fP\|\.  A \fB\-\-\fP argument tells the cli parser to stop
-reading flags\.  Using \fB\-\-flag\fP without specifying any value will set
-the value to \fBtrue\fP\|\.
+Putting \fB\fP on the command line sets the \fB\fP configuration
+parameter to \fB\fP\|\.  A \fB\fP argument tells the cli parser to stop
+reading flags\.  Using \fB\fP without specifying any value will set
+the value to \fB\fP\|\.
 .P
-Example: \fB\-\-flag1 \-\-flag2\fP will set both configuration parameters
-to \fBtrue\fP, while \fB\-\-flag1 \-\-flag2 bar\fP will set \fBflag1\fP to \fBtrue\fP,
-and \fBflag2\fP to \fBbar\fP\|\.  Finally, \fB\-\-flag1 \-\-flag2 \-\- bar\fP will set
-both configuration parameters to \fBtrue\fP, and the \fBbar\fP is taken
+Example: \fB\fP will set both configuration parameters
+to \fB\fP, while \fB\fP will set \fB\fP to \fB\fP,
+and \fB\fP to \fB\fP\|\.  Finally, \fB\fP will set
+both configuration parameters to \fB\fP, and the \fB\fP is taken
 as a command argument\.
 .SS Environment Variables
 .P
-Any environment variables that start with \fBnpm_config_\fP will be
+Any environment variables that start with \fB\fP will be
 interpreted as a configuration parameter\.  For example, putting
-\fBnpm_config_foo=bar\fP in your environment will set the \fBfoo\fP
-configuration parameter to \fBbar\fP\|\.  Any environment configurations that
-are not given a value will be given the value of \fBtrue\fP\|\.  Config
-values are case\-insensitive, so \fBNPM_CONFIG_FOO=bar\fP will work the
+\fB\fP in your environment will set the \fB\fP
+configuration parameter to \fB\fP\|\.  Any environment configurations that
+are not given a value will be given the value of \fB\fP\|\.  Config
+values are case\-insensitive, so \fB\fP will work the
 same\. However, please note that inside npm\-scripts \fI/misc/scripts\fR
 npm will set its own environment variables and Node will prefer
 those lowercase versions over any uppercase ones that you might set\.
 For details see this issue \fIhttps://github\.com/npm/npm/issues/14528\fR\|\.
 .P
-Notice that you need to use underscores instead of dashes, so \fB\-\-allow\-same\-version\fP
-would become \fBnpm_config_allow_same_version=true\fP\|\.
+Notice that you need to use underscores instead of dashes, so \fB\fP
+would become \fB\fP\|\.
 .SS npmrc Files
 .P
 The four relevant files are:
 .RS 0
 .IP \(bu 2
-per\-project configuration file (\fB/path/to/my/project/\.npmrc\fP)
+per\-project configuration file (\fB\fP)
 .IP \(bu 2
-per\-user configuration file (defaults to \fB$HOME/\.npmrc\fP; configurable via CLI
-option \fB\-\-userconfig\fP or environment variable \fB$NPM_CONFIG_USERCONFIG\fP)
+per\-user configuration file (defaults to \fB\fP; configurable via CLI
+option \fB\fP or environment variable \fB\fP)
 .IP \(bu 2
-global configuration file (defaults to \fB$PREFIX/etc/npmrc\fP; configurable via
-CLI option \fB\-\-globalconfig\fP or environment variable \fB$NPM_CONFIG_GLOBALCONFIG\fP)
+global configuration file (defaults to \fB\fP; configurable via
+CLI option \fB\fP or environment variable \fB\fP)
 .IP \(bu 2
-npm's built\-in configuration file (\fB/path/to/npm/npmrc\fP)
+npm's built\-in configuration file (\fB\fP)
 
 .RE
 .P
 See npm help 5 npmrc for more details\.
 .SS Default Configs
 .P
-Run \fBnpm config ls \-l\fP to see a set of configuration parameters that are
+Run \fB\fP to see a set of configuration parameters that are
 internal to npm, and are defaults if nothing else is specified\.
 .SH Shorthands and Other CLI Niceties
 .P
 The following shorthands are parsed on the command\-line:
 .RS 0
 .IP \(bu 2
-\fB\-v\fP: \fB\-\-version\fP
+\fB\fP: \fB\fP
 .IP \(bu 2
-\fB\-h\fP, \fB\-?\fP, \fB\-\-help\fP, \fB\-H\fP: \fB\-\-usage\fP
+\fB\fP, \fB\fP, \fB\fP, \fB\fP: \fB\fP
 .IP \(bu 2
-\fB\-s\fP, \fB\-\-silent\fP: \fB\-\-loglevel silent\fP
+\fB\fP, \fB\fP: \fB\fP
 .IP \(bu 2
-\fB\-q\fP, \fB\-\-quiet\fP: \fB\-\-loglevel warn\fP
+\fB\fP, \fB\fP: \fB\fP
 .IP \(bu 2
-\fB\-d\fP: \fB\-\-loglevel info\fP
+\fB\fP: \fB\fP
 .IP \(bu 2
-\fB\-dd\fP, \fB\-\-verbose\fP: \fB\-\-loglevel verbose\fP
+\fB\fP, \fB\fP: \fB\fP
 .IP \(bu 2
-\fB\-ddd\fP: \fB\-\-loglevel silly\fP
+\fB\fP: \fB\fP
 .IP \(bu 2
-\fB\-g\fP: \fB\-\-global\fP
+\fB\fP: \fB\fP
 .IP \(bu 2
-\fB\-C\fP: \fB\-\-prefix\fP
+\fB\fP: \fB\fP
 .IP \(bu 2
-\fB\-l\fP: \fB\-\-long\fP
+\fB\fP: \fB\fP
 .IP \(bu 2
-\fB\-m\fP: \fB\-\-message\fP
+\fB\fP: \fB\fP
 .IP \(bu 2
-\fB\-p\fP, \fB\-\-porcelain\fP: \fB\-\-parseable\fP
+\fB\fP, \fB\fP: \fB\fP
 .IP \(bu 2
-\fB\-reg\fP: \fB\-\-registry\fP
+\fB\fP: \fB\fP
 .IP \(bu 2
-\fB\-f\fP: \fB\-\-force\fP
+\fB\fP: \fB\fP
 .IP \(bu 2
-\fB\-desc\fP: \fB\-\-description\fP
+\fB\fP: \fB\fP
 .IP \(bu 2
-\fB\-S\fP: \fB\-\-save\fP
+\fB\fP: \fB\fP
 .IP \(bu 2
-\fB\-P\fP: \fB\-\-save\-prod\fP
+\fB\fP: \fB\fP
 .IP \(bu 2
-\fB\-D\fP: \fB\-\-save\-dev\fP
+\fB\fP: \fB\fP
 .IP \(bu 2
-\fB\-O\fP: \fB\-\-save\-optional\fP
+\fB\fP: \fB\fP
 .IP \(bu 2
-\fB\-B\fP: \fB\-\-save\-bundle\fP
+\fB\fP: \fB\fP
 .IP \(bu 2
-\fB\-E\fP: \fB\-\-save\-exact\fP
+\fB\fP: \fB\fP
 .IP \(bu 2
-\fB\-y\fP: \fB\-\-yes\fP
+\fB\fP: \fB\fP
 .IP \(bu 2
-\fB\-n\fP: \fB\-\-yes false\fP
+\fB\fP: \fB\fP
 .IP \(bu 2
-\fBll\fP and \fBla\fP commands: \fBls \-\-long\fP
+\fB\fP and \fB\fP commands: \fB\fP
 
 .RE
 .P
@@ -134,9 +134,9 @@ npm ls \-\-global \-\-parseable \-\-long \-\-loglevel info
 .RE
 .SH Per\-Package Config Settings
 .P
-When running scripts (see npm help 7 \fBnpm\-scripts\fP) the package\.json "config"
+When running scripts (see \fB\fP) the package\.json "config"
 keys are overwritten in the environment if there is a config param of
-\fB<name>[@<version>]:<key>\fP\|\.  For example, if the package\.json has
+\fB\fP\|\.  For example, if the package\.json has
 this:
 .P
 .RS 2
@@ -168,16 +168,16 @@ See npm help 5 package\.json for more information\.
 .SS access
 .RS 0
 .IP \(bu 2
-Default: \fBrestricted\fP
+Default: \fB\fP
 .IP \(bu 2
 Type: Access
 
 .RE
 .P
-When publishing scoped packages, the access level defaults to \fBrestricted\fP\|\.  If
+When publishing scoped packages, the access level defaults to \fB\fP\|\.  If
 you want your scoped package to be publicly viewable (and installable) set
-\fB\-\-access=public\fP\|\. The only valid values for \fBaccess\fP are \fBpublic\fP and
-\fBrestricted\fP\|\. Unscoped packages \fIalways\fR have an access level of \fBpublic\fP\|\.
+\fB\fP\|\. The only valid values for \fB\fP are \fB\fP and
+\fB\fP\|\. Unscoped packages \fIalways\fR have an access level of \fB\fP\|\.
 .SS allow\-same\-version
 .RS 0
 .IP \(bu 2
@@ -187,7 +187,7 @@ Type: Boolean
 
 .RE
 .P
-Prevents throwing an error when \fBnpm version\fP is used to set the new version
+Prevents throwing an error when \fB\fP is used to set the new version
 to the same value as the current version\.
 .SS always\-auth
 .RS 0
@@ -199,7 +199,7 @@ Type: Boolean
 .RE
 .P
 Force npm to always require authentication when accessing the registry,
-even for \fBGET\fP requests\.
+even for \fB\fP requests\.
 .SS also
 .RS 0
 .IP \(bu 2
@@ -209,28 +209,28 @@ Type: String
 
 .RE
 .P
-When "dev" or "development" and running local \fBnpm shrinkwrap\fP,
-\fBnpm outdated\fP, or \fBnpm update\fP, is an alias for \fB\-\-dev\fP\|\.
+When "dev" or "development" and running local \fB\fP,
+\fB\fP, or \fB\fP, is an alias for \fB\fP\|\.
 .SS auth\-type
 .RS 0
 .IP \(bu 2
-Default: \fB\|'legacy'\fP
+Default: \fB\fP
 .IP \(bu 2
-Type: \fB\|'legacy'\fP, \fB\|'sso'\fP, \fB\|'saml'\fP, \fB\|'oauth'\fP
+Type: \fB\fP, \fB\fP, \fB\fP, \fB\fP
 
 .RE
 .P
-What authentication strategy to use with \fBadduser\fP/\fBlogin\fP\|\.
+What authentication strategy to use with \fB\fP/\fB\fP\|\.
 .SS bin\-links
 .RS 0
 .IP \(bu 2
-Default: \fBtrue\fP
+Default: \fB\fP
 .IP \(bu 2
 Type: Boolean
 
 .RE
 .P
-Tells npm to create symlinks (or \fB\|\.cmd\fP shims on Windows) for package
+Tells npm to create symlinks (or \fB\fP shims on Windows) for package
 executables\.
 .P
 Set to false to have it not do this\.  This can be used to work around
@@ -239,13 +239,13 @@ ostensibly Unix systems\.
 .SS browser
 .RS 0
 .IP \(bu 2
-Default: OS X: \fB"open"\fP, Windows: \fB"start"\fP, Others: \fB"xdg\-open"\fP
+Default: OS X: \fB\fP, Windows: \fB\fP, Others: \fB\fP
 .IP \(bu 2
 Type: String
 
 .RE
 .P
-The browser that is called by the \fBnpm docs\fP command to open websites\.
+The browser that is called by the \fB\fP command to open websites\.
 .SS ca
 .RS 0
 .IP \(bu 2
@@ -265,7 +265,7 @@ ca="\-\-\-\-\-BEGIN CERTIFICATE\-\-\-\-\-\\nXXXX\\nXXXX\\n\-\-\-\-\-END CERTIFIC
 .fi
 .RE
 .P
-Set to \fBnull\fP to only allow "known" registrars, or to a specific CA cert
+Set to \fB\fP to only allow "known" registrars, or to a specific CA cert
 to trust only that specific signing authority\.
 .P
 Multiple CAs can be trusted by specifying an array of certificates:
@@ -277,29 +277,29 @@ ca[]="\.\.\."
 .fi
 .RE
 .P
-See also the \fBstrict\-ssl\fP config\.
+See also the \fB\fP config\.
 .SS cafile
 .RS 0
 .IP \(bu 2
-Default: \fBnull\fP
+Default: \fB\fP
 .IP \(bu 2
 Type: path
 
 .RE
 .P
 A path to a file containing one or multiple Certificate Authority signing
-certificates\. Similar to the \fBca\fP setting, but allows for multiple CA's, as
+certificates\. Similar to the \fB\fP setting, but allows for multiple CA's, as
 well as for the CA information to be stored in a file on disk\.
 .SS cache
 .RS 0
 .IP \(bu 2
-Default: Windows: \fB%AppData%\\npm\-cache\fP, Posix: \fB~/\.npm\fP
+Default: Windows: \fB\fP, Posix: \fB\fP
 .IP \(bu 2
 Type: path
 
 .RE
 .P
-The location of npm's cache directory\.  See npm help \fBnpm\-cache\fP
+The location of npm's cache directory\.  See \fB\fP
 .SS cache\-lock\-stale
 .RS 0
 .IP \(bu 2
@@ -339,9 +339,9 @@ Type: Number
 
 .RE
 .P
-\fBDEPRECATED\fR: This option has been deprecated in favor of \fB\-\-prefer\-online\fP\|\.
+\fBDEPRECATED\fR: This option has been deprecated in favor of \fB\fP\|\.
 .P
-\fB\-\-cache\-max=0\fP is an alias for \fB\-\-prefer\-online\fP\|\.
+\fB\fP is an alias for \fB\fP\|\.
 .SS cache\-min
 .RS 0
 .IP \(bu 2
@@ -351,13 +351,13 @@ Type: Number
 
 .RE
 .P
-\fBDEPRECATED\fR: This option has been deprecated in favor of \fB\-\-prefer\-offline\fP\|\.
+\fBDEPRECATED\fR: This option has been deprecated in favor of \fB\fP\|\.
 .P
-\fB\-\-cache\-min=9999 (or bigger)\fP is an alias for \fB\-\-prefer\-offline\fP\|\.
+\fB\fP is an alias for \fB\fP\|\.
 .SS cert
 .RS 0
 .IP \(bu 2
-Default: \fBnull\fP
+Default: \fB\fP
 .IP \(bu 2
 Type: String
 
@@ -376,23 +376,23 @@ It is \fInot\fR the path to a certificate file (and there is no "certfile" optio
 .SS cidr
 .RS 0
 .IP \(bu 2
-Default: \fBnull\fP
+Default: \fB\fP
 .IP \(bu 2
 Type: String, Array, null
 
 .RE
 .P
-This is a list of CIDR address to be used when configuring limited access tokens with the \fBnpm token create\fP command\.
+This is a list of CIDR address to be used when configuring limited access tokens with the \fB\fP command\.
 .SS color
 .RS 0
 .IP \(bu 2
 Default: true
 .IP \(bu 2
-Type: Boolean or \fB"always"\fP
+Type: Boolean or \fB\fP
 
 .RE
 .P
-If false, never shows colors\.  If \fB"always"\fP then always shows colors\.
+If false, never shows colors\.  If \fB\fP then always shows colors\.
 If true, then only prints color codes for tty file descriptors\.
 .SS depth
 .RS 0
@@ -403,13 +403,13 @@ Type: Number
 
 .RE
 .P
-The depth to go when recursing directories for \fBnpm ls\fP,
-\fBnpm cache ls\fP, and \fBnpm outdated\fP\|\.
+The depth to go when recursing directories for \fB\fP,
+\fB\fP, and \fB\fP\|\.
 .P
-For \fBnpm outdated\fP, a setting of \fBInfinity\fP will be treated as \fB0\fP
+For \fB\fP, a setting of \fB\fP will be treated as \fB\fP
 since that gives more useful information\.  To show the outdated status
 of all packages and dependents, use a large integer value,
-e\.g\., \fBnpm outdated \-\-depth 9999\fP
+e\.g\., \fB\fP
 .SS description
 .RS 0
 .IP \(bu 2
@@ -419,7 +419,7 @@ Type: Boolean
 
 .RE
 .P
-Show the description in \fBnpm search\fP
+Show the description in \fB\fP
 .SS dev
 .RS 0
 .IP \(bu 2
@@ -429,7 +429,7 @@ Type: Boolean
 
 .RE
 .P
-Install \fBdev\-dependencies\fP along with packages\.
+Install \fB\fP along with packages\.
 .SS dry\-run
 .RS 0
 .IP \(bu 2
@@ -441,20 +441,20 @@ Type: Boolean
 .P
 Indicates that you don't want npm to make any changes and that it should
 only report what it would have done\.  This can be passed into any of the
-commands that modify your local installation, eg, \fBinstall\fP, \fBupdate\fP,
-\fBdedupe\fP, \fBuninstall\fP\|\.  This is NOT currently honored by network related
-commands, eg \fBdist\-tags\fP, \fBowner\fP, \fBpublish\fP, etc\.
+commands that modify your local installation, eg, \fB\fP, \fB\fP,
+\fB\fP, \fB\fP\|\.  This is NOT currently honored by network related
+commands, eg \fB\fP, \fB\fP, \fB\fP, etc\.
 .SS editor
 .RS 0
 .IP \(bu 2
-Default: \fBEDITOR\fP environment variable if set, or \fB"vi"\fP on Posix,
-or \fB"notepad"\fP on Windows\.
+Default: \fB\fP environment variable if set, or \fB\fP on Posix,
+or \fB\fP on Windows\.
 .IP \(bu 2
 Type: path
 
 .RE
 .P
-The command to run for \fBnpm edit\fP or \fBnpm config edit\fP\|\.
+The command to run for \fB\fP or \fB\fP\|\.
 .SS engine\-strict
 .RS 0
 .IP \(bu 2
@@ -497,7 +497,7 @@ Type: Number
 
 .RE
 .P
-The "retries" config for the \fBretry\fP module to use when fetching
+The "retries" config for the \fB\fP module to use when fetching
 packages from the registry\.
 .SS fetch\-retry\-factor
 .RS 0
@@ -508,7 +508,7 @@ Type: Number
 
 .RE
 .P
-The "factor" config for the \fBretry\fP module to use when fetching
+The "factor" config for the \fB\fP module to use when fetching
 packages\.
 .SS fetch\-retry\-mintimeout
 .RS 0
@@ -519,7 +519,7 @@ Type: Number
 
 .RE
 .P
-The "minTimeout" config for the \fBretry\fP module to use when fetching
+The "minTimeout" config for the \fB\fP module to use when fetching
 packages\.
 .SS fetch\-retry\-maxtimeout
 .RS 0
@@ -530,40 +530,40 @@ Type: Number
 
 .RE
 .P
-The "maxTimeout" config for the \fBretry\fP module to use when fetching
+The "maxTimeout" config for the \fB\fP module to use when fetching
 packages\.
 .SS git
 .RS 0
 .IP \(bu 2
-Default: \fB"git"\fP
+Default: \fB\fP
 .IP \(bu 2
 Type: String
 
 .RE
 .P
 The command to use for git commands\.  If git is installed on the
-computer, but is not in the \fBPATH\fP, then set this to the full path to
+computer, but is not in the \fB\fP, then set this to the full path to
 the git binary\.
 .SS git\-tag\-version
 .RS 0
 .IP \(bu 2
-Default: \fBtrue\fP
+Default: \fB\fP
 .IP \(bu 2
 Type: Boolean
 
 .RE
 .P
-Tag the commit when using the \fBnpm version\fP command\.
+Tag the commit when using the \fB\fP command\.
 .SS commit\-hooks
 .RS 0
 .IP \(bu 2
-Default: \fBtrue\fP
+Default: \fB\fP
 .IP \(bu 2
 Type: Boolean
 
 .RE
 .P
-Run git commit hooks when using the \fBnpm version\fP command\.
+Run git commit hooks when using the \fB\fP command\.
 .SS global
 .RS 0
 .IP \(bu 2
@@ -574,16 +574,16 @@ Type: Boolean
 .RE
 .P
 Operates in "global" mode, so that packages are installed into the
-\fBprefix\fP folder instead of the current working directory\.  See
-npm help 5 \fBnpm\-folders\fP for more on the differences in behavior\.
+\fB\fP folder instead of the current working directory\.  See
+\fB\fP for more on the differences in behavior\.
 .RS 0
 .IP \(bu 2
-packages are installed into the \fB{prefix}/lib/node_modules\fP folder, instead of the
+packages are installed into the \fB\fP folder, instead of the
 current working directory\.
 .IP \(bu 2
-bin files are linked to \fB{prefix}/bin\fP
+bin files are linked to \fB\fP
 .IP \(bu 2
-man pages are linked to \fB{prefix}/share/man\fP
+man pages are linked to \fB\fP
 
 .RE
 .SS globalconfig
@@ -605,11 +605,11 @@ Type: Boolean
 
 .RE
 .P
-Causes npm to install the package into your local \fBnode_modules\fP folder with
-the same layout it uses with the global \fBnode_modules\fP folder\.  Only your
-direct dependencies will show in \fBnode_modules\fP and everything they depend
-on will be flattened in their \fBnode_modules\fP folders\.  This obviously will
-eliminate some deduping\. If used with \fBlegacy\-bundling\fP, \fBlegacy\-bundling\fP will be
+Causes npm to install the package into your local \fB\fP folder with
+the same layout it uses with the global \fB\fP folder\.  Only your
+direct dependencies will show in \fB\fP and everything they depend
+on will be flattened in their \fB\fP folders\.  This obviously will
+eliminate some deduping\. If used with \fB\fP, \fB\fP will be
 preferred\.
 .SS group
 .RS 0
@@ -625,7 +625,7 @@ user\.
 .SS heading
 .RS 0
 .IP \(bu 2
-Default: \fB"npm"\fP
+Default: \fB\fP
 .IP \(bu 2
 Type: String
 
@@ -641,9 +641,9 @@ Type: url
 
 .RE
 .P
-A proxy to use for outgoing https requests\. If the \fBHTTPS_PROXY\fP or
-\fBhttps_proxy\fP or \fBHTTP_PROXY\fP or \fBhttp_proxy\fP environment variables are set,
-proxy settings will be honored by the underlying \fBrequest\fP library\.
+A proxy to use for outgoing https requests\. If the \fB\fP or
+\fB\fP or \fB\fP or \fB\fP environment variables are set,
+proxy settings will be honored by the underlying \fB\fP library\.
 .SS if\-present
 .RS 0
 .IP \(bu 2
@@ -653,8 +653,8 @@ Type: Boolean
 
 .RE
 .P
-If true, npm will not exit with an error code when \fBrun\-script\fP is invoked for
-a script that isn't defined in the \fBscripts\fP section of \fBpackage\.json\fP\|\. This
+If true, npm will not exit with an error code when \fB\fP is invoked for
+a script that isn't defined in the \fB\fP section of \fB\fP\|\. This
 option can be used when it's desirable to optionally run a script when it's
 present and fail if the script fails\. This is useful, for example, when running
 scripts that may only apply for some builds in an otherwise generic CI setup\.
@@ -667,7 +667,7 @@ Type: Boolean
 
 .RE
 .P
-If true, npm will not run \fBprepublish\fP scripts\.
+If true, npm will not run \fB\fP scripts\.
 .SS ignore\-scripts
 .RS 0
 .IP \(bu 2
@@ -687,7 +687,7 @@ Type: path
 
 .RE
 .P
-A module that will be loaded by the \fBnpm init\fP command\.  See the
+A module that will be loaded by the \fB\fP command\.  See the
 documentation for the
 init\-package\-json \fIhttps://github\.com/isaacs/init\-package\-json\fR module
 for more information, or npm help init\.
@@ -700,7 +700,7 @@ Type: String
 
 .RE
 .P
-The value \fBnpm init\fP should use by default for the package author's name\.
+The value \fB\fP should use by default for the package author's name\.
 .SS init\-author\-email
 .RS 0
 .IP \(bu 2
@@ -710,7 +710,7 @@ Type: String
 
 .RE
 .P
-The value \fBnpm init\fP should use by default for the package author's email\.
+The value \fB\fP should use by default for the package author's email\.
 .SS init\-author\-url
 .RS 0
 .IP \(bu 2
@@ -720,7 +720,7 @@ Type: String
 
 .RE
 .P
-The value \fBnpm init\fP should use by default for the package author's homepage\.
+The value \fB\fP should use by default for the package author's homepage\.
 .SS init\-license
 .RS 0
 .IP \(bu 2
@@ -730,7 +730,7 @@ Type: String
 
 .RE
 .P
-The value \fBnpm init\fP should use by default for the package license\.
+The value \fB\fP should use by default for the package license\.
 .SS init\-version
 .RS 0
 .IP \(bu 2
@@ -740,7 +740,7 @@ Type: semver
 
 .RE
 .P
-The value that \fBnpm init\fP should use by default for the package
+The value that \fB\fP should use by default for the package
 version number, if not already set in package\.json\.
 .SS json
 .RS 0
@@ -755,11 +755,11 @@ Whether or not to output JSON data, rather than the normal output\.
 .P
 This feature is currently experimental, and the output data structures for many
 commands is either not implemented in JSON yet, or subject to change\.  Only the
-output from \fBnpm ls \-\-json\fP and \fBnpm search \-\-json\fP are currently valid\.
+output from \fB\fP and \fB\fP are currently valid\.
 .SS key
 .RS 0
 .IP \(bu 2
-Default: \fBnull\fP
+Default: \fB\fP
 .IP \(bu 2
 Type: String
 
@@ -786,7 +786,7 @@ Type: Boolean
 .P
 Causes npm to install the package such that versions of npm prior to 1\.4,
 such as the one included with node 0\.8, can install the package\.  This
-eliminates all automatic deduping\. If used with \fBglobal\-style\fP this option
+eliminates all automatic deduping\. If used with \fB\fP this option
 will be preferred\.
 .SS link
 .RS 0
@@ -835,7 +835,7 @@ Values: "silent", "error", "warn", "notice", "http", "timing", "info",
 .RE
 .P
 What level of logs to report\.  On failure, \fIall\fR logs are written to
-\fBnpm\-debug\.log\fP in the current working directory\.
+\fB\fP in the current working directory\.
 .P
 Any logs of a higher level than the setting are shown\. The default is "notice"\.
 .SS logstream
@@ -854,7 +854,7 @@ It cannot be set from the command line, but if you are using npm
 programmatically, you may wish to send logs to somewhere other than
 stderr\.
 .P
-If the \fBcolor\fP config is set to true, then this stream will receive
+If the \fB\fP config is set to true, then this stream will receive
 colored output if it is a TTY\.
 .SS logs\-max
 .RS 0
@@ -875,7 +875,7 @@ Type: Boolean
 
 .RE
 .P
-Show extended information in \fBnpm ls\fP and \fBnpm search\fP\|\.
+Show extended information in \fB\fP and \fB\fP\|\.
 .SS maxsockets
 .RS 0
 .IP \(bu 2
@@ -886,7 +886,7 @@ Type: Number
 .RE
 .P
 The maximum number of connections to use per origin (protocol/host/port
-combination)\. Passed to the \fBhttp\fP \fBAgent\fP used to make the request\.
+combination)\. Passed to the \fB\fP \fB\fP used to make the request\.
 .SS message
 .RS 0
 .IP \(bu 2
@@ -896,19 +896,19 @@ Type: String
 
 .RE
 .P
-Commit message which is used by \fBnpm version\fP when creating version commit\.
+Commit message which is used by \fB\fP when creating version commit\.
 .P
 Any "%s" in the message will be replaced with the version number\.
 .SS metrics\-registry
 .RS 0
 .IP \(bu 2
-Default: The value of  \fBregistry\fP (which defaults to "https://registry\.npmjs\.org/")
+Default: The value of  \fB\fP (which defaults to "https://
 .IP \(bu 2
 Type: String
 
 .RE
 .P
-The registry you want to send cli metrics to if \fBsend\-metrics\fP is true\.
+The registry you want to send cli metrics to if \fB\fP is true\.
 .SS node\-options
 .RS 0
 .IP \(bu 2
@@ -918,7 +918,7 @@ Type: String
 
 .RE
 .P
-Options to pass through to Node\.js via the \fBNODE_OPTIONS\fP environment
+Options to pass through to Node\.js via the \fB\fP environment
 variable\.  This does not impact how npm itself is executed but it does
 impact how lifecycle scripts are called\.
 .SS node\-version
@@ -930,7 +930,7 @@ Type: semver or false
 
 .RE
 .P
-The node version to use when checking a package's \fBengines\fP map\.
+The node version to use when checking a package's \fB\fP map\.
 .SS offline
 .RS 0
 .IP \(bu 2
@@ -941,7 +941,7 @@ Type: Boolean
 .RE
 .P
 Force offline mode: no network requests will be done during install\. To allow
-the CLI to fill in missing cache data, see \fB\-\-prefer\-offline\fP\|\.
+the CLI to fill in missing cache data, see \fB\fP\|\.
 .SS onload\-script
 .RS 0
 .IP \(bu 2
@@ -951,7 +951,7 @@ Type: path
 
 .RE
 .P
-A node module to \fBrequire()\fP when npm loads\.  Useful for programmatic
+A node module to \fB\fP when npm loads\.  Useful for programmatic
 usage\.
 .SS only
 .RS 0
@@ -962,18 +962,18 @@ Type: String
 
 .RE
 .P
-When "dev" or "development" and running local \fBnpm install\fP without any
+When "dev" or "development" and running local \fB\fP without any
 arguments, only devDependencies (and their dependencies) are installed\.
 .P
-When "dev" or "development" and running local \fBnpm ls\fP, \fBnpm outdated\fP, or
-\fBnpm update\fP, is an alias for \fB\-\-dev\fP\|\.
+When "dev" or "development" and running local \fB\fP, \fB\fP, or
+\fB\fP, is an alias for \fB\fP\|\.
 .P
-When "prod" or "production" and running local \fBnpm install\fP without any
+When "prod" or "production" and running local \fB\fP without any
 arguments, only non\-devDependencies (and their dependencies) are
 installed\.
 .P
-When "prod" or "production" and running local \fBnpm ls\fP, \fBnpm outdated\fP, or
-\fBnpm update\fP, is an alias for \fB\-\-production\fP\|\.
+When "prod" or "production" and running local \fB\fP, \fB\fP, or
+\fB\fP, is an alias for \fB\fP\|\.
 .SS optional
 .RS 0
 .IP \(bu 2
@@ -983,7 +983,7 @@ Type: Boolean
 
 .RE
 .P
-Attempt to install packages in the \fBoptionalDependencies\fP object\.  Note
+Attempt to install packages in the \fB\fP object\.  Note
 that if these packages fail to install, the overall installation
 process is not aborted\.
 .SS otp
@@ -996,7 +996,7 @@ Type: Number
 .RE
 .P
 This is a one\-time password from a two\-factor authenticator\.  It's needed
-when publishing or changing package permissions with \fBnpm access\fP\|\.
+when publishing or changing package permissions with \fB\fP\|\.
 .SS package\-lock
 .RS 0
 .IP \(bu 2
@@ -1006,10 +1006,14 @@ Type: Boolean
 
 .RE
 .P
-If set to false, then ignore \fBpackage\-lock\.json\fP files when installing\. This
-will also prevent \fIwriting\fR \fBpackage\-lock\.json\fP if \fBsave\fP is true\.
+If set to false, then ignore \fB\fP files when installing\. This
+will also prevent \fIwriting\fR \fB\fP if \fB\fP is true\.
 .P
-This option is an alias for \fB\-\-shrinkwrap\fP\|\.
+When package package\-locks are disabled, automatic pruning of extraneous
+modules will also be disabled\.  To remove extraneous modules with
+package\-locks disabled use \fB\fP\|\.
+.P
+This option is an alias for \fB\fP\|\.
 .SS package\-lock\-only
 .RS 0
 .IP \(bu 2
@@ -1019,8 +1023,8 @@ Type: Boolean
 
 .RE
 .P
-If set to true, it will update only the \fBpackage\-json\fP,
-instead of checking \fBnode_modules\fP and downloading dependencies\.
+If set to true, it will update only the \fB\fP,
+instead of checking \fB\fP and downloading dependencies\.
 .SS parseable
 .RS 0
 .IP \(bu 2
@@ -1031,7 +1035,7 @@ Type: Boolean
 .RE
 .P
 Output parseable results from commands that write to
-standard output\. For \fBnpm search\fP, this will be tab\-separated table format\.
+standard output\. For \fB\fP, this will be tab\-separated table format\.
 .SS prefer\-offline
 .RS 0
 .IP \(bu 2
@@ -1042,9 +1046,9 @@ Type: Boolean
 .RE
 .P
 If true, staleness checks for cached data will be bypassed, but missing data
-will be requested from the server\. To force full offline mode, use \fB\-\-offline\fP\|\.
+will be requested from the server\. To force full offline mode, use \fB\fP\|\.
 .P
-This option is effectively equivalent to \fB\-\-cache\-min=9999999\fP\|\.
+This option is effectively equivalent to \fB\fP\|\.
 .SS prefer\-online
 .RS 0
 .IP \(bu 2
@@ -1080,7 +1084,7 @@ Set to true to run in "production" mode\.
 .RS 0
 .IP 1. 3
 devDependencies are not installed at the topmost level when running
-local \fBnpm install\fP without any arguments\.
+local \fB\fP without any arguments\.
 .IP 2. 3
 Set the NODE_ENV="production" for lifecycle scripts\.
 
@@ -1094,10 +1098,10 @@ Type: Boolean
 
 .RE
 .P
-When set to \fBtrue\fP, npm will display a progress bar during time intensive
-operations, if \fBprocess\.stderr\fP is a TTY\.
+When set to \fB\fP, npm will display a progress bar during time intensive
+operations, if \fB\fP is a TTY\.
 .P
-Set to \fBfalse\fP to suppress the progress bar\.
+Set to \fB\fP to suppress the progress bar\.
 .SS proxy
 .RS 0
 .IP \(bu 2
@@ -1107,9 +1111,9 @@ Type: url
 
 .RE
 .P
-A proxy to use for outgoing http requests\. If the \fBHTTP_PROXY\fP or
-\fBhttp_proxy\fP environment variables are set, proxy settings will be
-honored by the underlying \fBrequest\fP library\.
+A proxy to use for outgoing http requests\. If the \fB\fP or
+\fB\fP environment variables are set, proxy settings will be
+honored by the underlying \fB\fP library\.
 .SS read\-only
 .RS 0
 .IP \(bu 2
@@ -1119,7 +1123,7 @@ Type: Boolean
 
 .RE
 .P
-This is used to mark a token as unable to publish when configuring limited access tokens with the \fBnpm token create\fP command\.
+This is used to mark a token as unable to publish when configuring limited access tokens with the \fB\fP command\.
 .SS rebuild\-bundle
 .RS 0
 .IP \(bu 2
@@ -1133,7 +1137,7 @@ Rebuild bundled dependencies after installation\.
 .SS registry
 .RS 0
 .IP \(bu 2
-Default: https://registry\.npmjs\.org/
+Default: https://
 .IP \(bu 2
 Type: url
 
@@ -1161,7 +1165,7 @@ Type: Boolean
 .P
 Save installed packages to a package\.json file as dependencies\.
 .P
-When used with the \fBnpm rm\fP command, it removes it from the \fBdependencies\fP
+When used with the \fB\fP command, it removes it from the \fB\fP
 object\.
 .P
 Only works if there is already a package\.json file present\.
@@ -1174,11 +1178,11 @@ Type: Boolean
 
 .RE
 .P
-If a package would be saved at install time by the use of \fB\-\-save\fP,
-\fB\-\-save\-dev\fP, or \fB\-\-save\-optional\fP, then also put it in the
-\fBbundleDependencies\fP list\.
+If a package would be saved at install time by the use of \fB\fP,
+\fB\fP, or \fB\fP, then also put it in the
+\fB\fP list\.
 .P
-When used with the \fBnpm rm\fP command, it removes it from the
+When used with the \fB\fP command, it removes it from the
 bundledDependencies list\.
 .SS save\-prod
 .RS 0
@@ -1189,11 +1193,11 @@ Type: Boolean
 
 .RE
 .P
-Makes sure that a package will be saved into \fBdependencies\fP specifically\. This
-is useful if a package already exists in \fBdevDependencies\fP or
-\fBoptionalDependencies\fP, but you want to move it to be a production dep\. This is
-also the default behavior if \fB\-\-save\fP is true, and neither \fB\-\-save\-dev\fP or
-\fB\-\-save\-optional\fP are true\.
+Makes sure that a package will be saved into \fB\fP specifically\. This
+is useful if a package already exists in \fB\fP or
+\fB\fP, but you want to move it to be a production dep\. This is
+also the default behavior if \fB\fP is true, and neither \fB\fP or
+\fB\fP are true\.
 .SS save\-dev
 .RS 0
 .IP \(bu 2
@@ -1203,10 +1207,10 @@ Type: Boolean
 
 .RE
 .P
-Save installed packages to a package\.json file as \fBdevDependencies\fP\|\.
+Save installed packages to a package\.json file as \fB\fP\|\.
 .P
-When used with the \fBnpm rm\fP command, it removes it from the
-\fBdevDependencies\fP object\.
+When used with the \fB\fP command, it removes it from the
+\fB\fP object\.
 .P
 Only works if there is already a package\.json file present\.
 .SS save\-exact
@@ -1218,8 +1222,8 @@ Type: Boolean
 
 .RE
 .P
-Dependencies saved to package\.json using \fB\-\-save\fP, \fB\-\-save\-dev\fP or
-\fB\-\-save\-optional\fP will be configured with an exact version rather than
+Dependencies saved to package\.json using \fB\fP, \fB\fP or
+\fB\fP will be configured with an exact version rather than
 using npm's default semver range operator\.
 .SS save\-optional
 .RS 0
@@ -1233,8 +1237,8 @@ Type: Boolean
 Save installed packages to a package\.json file as
 optionalDependencies\.
 .P
-When used with the \fBnpm rm\fP command, it removes it from the
-\fBdevDependencies\fP object\.
+When used with the \fB\fP command, it removes it from the
+\fB\fP object\.
 .P
 Only works if there is already a package\.json file present\.
 .SS save\-prefix
@@ -1247,11 +1251,11 @@ Type: String
 .RE
 .P
 Configure how versions of packages installed to a package\.json file via
-\fB\-\-save\fP or \fB\-\-save\-dev\fP get prefixed\.
+\fB\fP or \fB\fP get prefixed\.
 .P
-For example if a package has version \fB1\.2\.3\fP, by default its version is
-set to \fB^1\.2\.3\fP which allows minor upgrades for that package, but after
-\fBnpm config set save\-prefix='~'\fP it would be set to \fB~1\.2\.3\fP which only allows
+For example if a package has version \fB\fP, by default its version is
+set to \fB\fP which allows minor upgrades for that package, but after
+\fB\fP it would be set to \fB\fP which only allows
 patch upgrades\.
 .SS scope
 .RS 0
@@ -1264,42 +1268,42 @@ Type: String
 .P
 Associate an operation with a scope for a scoped registry\. Useful when logging
 in to a private registry for the first time:
-\fBnpm login \-\-scope=@organization \-\-registry=registry\.organization\.com\fP, which
-will cause \fB@organization\fP to be mapped to the registry for future installation
-of packages specified according to the pattern \fB@organization/package\fP\|\.
+\fB\fP, which
+will cause \fB\fP to be mapped to the registry for future installation
+of packages specified according to the pattern \fB\fP\|\.
 .SS script\-shell
 .RS 0
 .IP \(bu 2
-Default: \fBnull\fP
+Default: \fB\fP
 .IP \(bu 2
 Type: path
 
 .RE
 .P
-The shell to use for scripts run with the \fBnpm run\fP command\.
+The shell to use for scripts run with the \fB\fP command\.
 .SS scripts\-prepend\-node\-path
 .RS 0
 .IP \(bu 2
 Default: "warn\-only"
 .IP \(bu 2
-Type: Boolean, \fB"auto"\fP or \fB"warn\-only"\fP
+Type: Boolean, \fB\fP or \fB\fP
 
 .RE
 .P
-If set to \fBtrue\fP, add the directory in which the current \fBnode\fP executable
-resides to the \fBPATH\fP environment variable when running scripts,
-even if that means that \fBnpm\fP will invoke a different \fBnode\fP executable than
+If set to \fB\fP, add the directory in which the current \fB\fP executable
+resides to the \fB\fP environment variable when running scripts,
+even if that means that \fB\fP will invoke a different \fB\fP executable than
 the one which it is running\.
 .P
-If set to \fBfalse\fP, never modify \fBPATH\fP with that\.
+If set to \fB\fP, never modify \fB\fP with that\.
 .P
-If set to \fB"warn\-only"\fP, never modify \fBPATH\fP but print a warning if \fBnpm\fP thinks
-that you may want to run it with \fBtrue\fP, e\.g\. because the \fBnode\fP executable
-in the \fBPATH\fP is not the one \fBnpm\fP was invoked with\.
+If set to \fB\fP, never modify \fB\fP but print a warning if \fB\fP thinks
+that you may want to run it with \fB\fP, e\.g\. because the \fB\fP executable
+in the \fB\fP is not the one \fB\fP was invoked with\.
 .P
-If set to \fBauto\fP, only add that directory to the \fBPATH\fP environment variable
-if the \fBnode\fP executable with which \fBnpm\fP was invoked and the one that is found
-first on the \fBPATH\fP are different\.
+If set to \fB\fP, only add that directory to the \fB\fP environment variable
+if the \fB\fP executable with which \fB\fP was invoked and the one that is found
+first on the \fB\fP are different\.
 .SS searchexclude
 .RS 0
 .IP \(bu 2
@@ -1352,7 +1356,7 @@ Type: Boolean
 .RE
 .P
 If true, success/failure metrics will be reported to the registry stored in
-\fBmetrics\-registry\fP\|\.  These requests contain the number of successful and
+\fB\fP\|\.  These requests contain the number of successful and
 failing runs of the npm CLI and the time period overwhich those counts were
 gathered\. No identifying information is included in these requests\.
 .SS shell
@@ -1365,7 +1369,7 @@ Type: path
 
 .RE
 .P
-The shell to run for the \fBnpm explore\fP command\.
+The shell to run for the \fB\fP command\.
 .SS shrinkwrap
 .RS 0
 .IP \(bu 2
@@ -1375,10 +1379,10 @@ Type: Boolean
 
 .RE
 .P
-If set to false, then ignore \fBnpm\-shrinkwrap\.json\fP files when installing\. This
-will also prevent \fIwriting\fR \fBnpm\-shrinkwrap\.json\fP if \fBsave\fP is true\.
+If set to false, then ignore \fB\fP files when installing\. This
+will also prevent \fIwriting\fR \fB\fP if \fB\fP is true\.
 .P
-This option is an alias for \fB\-\-package\-lock\fP\|\.
+This option is an alias for \fB\fP\|\.
 .SS sign\-git\-tag
 .RS 0
 .IP \(bu 2
@@ -1388,8 +1392,8 @@ Type: Boolean
 
 .RE
 .P
-If set to true, then the \fBnpm version\fP command will tag the version
-using \fB\-s\fP to add a signature\.
+If set to true, then the \fB\fP command will tag the version
+using \fB\fP to add a signature\.
 .P
 Note that git requires you to have set up GPG keys in your git configs
 for this to work properly\.
@@ -1402,7 +1406,7 @@ Type: Number
 
 .RE
 .P
-When used with SSO\-enabled \fBauth\-type\fPs, configures how regularly the registry
+When used with SSO\-enabled \fB\fPs, configures how regularly the registry
 should be polled while the user is completing authentication\.
 .SS sso\-type
 .RS 0
@@ -1413,7 +1417,7 @@ Type: 'oauth', 'saml', or null
 
 .RE
 .P
-If \fB\-\-auth\-type=sso\fP, the type of SSO type to use\.
+If \fB\fP, the type of SSO type to use\.
 .SS strict\-ssl
 .RS 0
 .IP \(bu 2
@@ -1426,7 +1430,7 @@ Type: Boolean
 Whether or not to do SSL key validation when making requests to the
 registry via https\.
 .P
-See also the \fBca\fP config\.
+See also the \fB\fP config\.
 .SS tag
 .RS 0
 .IP \(bu 2
@@ -1439,38 +1443,37 @@ Type: String
 If you ask npm to install a package and don't tell it a specific version, then
 it will install the specified tag\.
 .P
-Also the tag that is added to the package@version specified by the \fBnpm
-tag\fP command, if no explicit tag is given\.
+Also the tag that is added to the package@version specified by the \fB\fP command, if no explicit tag is given\.
 .SS tag\-version\-prefix
 .RS 0
 .IP \(bu 2
-Default: \fB"v"\fP
+Default: \fB\fP
 .IP \(bu 2
 Type: String
 
 .RE
 .P
 If set, alters the prefix used when tagging a new version when performing a
-version increment using  \fBnpm\-version\fP\|\. To remove the prefix altogether, set it
-to the empty string: \fB""\fP\|\.
+version increment using  \fB\fP\|\. To remove the prefix altogether, set it
+to the empty string: \fB\fP\|\.
 .P
 Because other tools may rely on the convention that npm version tags look like
-\fBv1\.0\.0\fP, \fIonly use this property if it is absolutely necessary\fR\|\. In
+\fB\fP, \fIonly use this property if it is absolutely necessary\fR\|\. In
 particular, use care when overriding this setting for public packages\.
 .SS timing
 .RS 0
 .IP \(bu 2
-Default: \fBfalse\fP
+Default: \fB\fP
 .IP \(bu 2
 Type: Boolean
 
 .RE
 .P
-If true, writes an \fBnpm\-debug\fP log to \fB_logs\fP and timing information to
-\fB_timing\.json\fP, both in your cache\.  \fB_timing\.json\fP is a newline delimited
+If true, writes an \fB\fP log to \fB\fP and timing information to
+\fB\fP, both in your cache\.  \fB\fP is a newline delimited
 list of JSON objects\.  You can quickly view it with this
 json \fIhttps://www\.npmjs\.com/package/json\fR command line:
-\fBjson \-g < ~/\.npm/_timing\.json\fP\|\.
+\fB\fP\|\.
 .SS tmp
 .RS 0
 .IP \(bu 2
@@ -1515,7 +1518,7 @@ Type: Boolean
 .RE
 .P
 Set to show short usage output (like the \-H output)
-instead of complete help when doing npm help \fBnpm\-help\fP\|\.
+instead of complete help when doing \fB\fP\|\.
 .SS user
 .RS 0
 .IP \(bu 2
@@ -1548,9 +1551,9 @@ Type: Octal numeric string in range 0000\.\.0777 (0\.\.511)
 The "umask" value to use when setting the file creation mode on files
 and folders\.
 .P
-Folders and executables are given a mode which is \fB0777\fP masked against
-this value\.  Other files are given a mode which is \fB0666\fP masked against
-this value\.  Thus, the defaults are \fB0755\fP and \fB0644\fP respectively\.
+Folders and executables are given a mode which is \fB\fP masked against
+this value\.  Other files are given a mode which is \fB\fP masked against
+this value\.  Thus, the defaults are \fB\fP and \fB\fP respectively\.
 .SS user\-agent
 .RS 0
 .IP \(bu 2
@@ -1582,7 +1585,7 @@ Type: boolean
 
 .RE
 .P
-If true, output the npm version as well as node's \fBprocess\.versions\fP map, and
+If true, output the npm version as well as node's \fB\fP map, and
 exit successfully\.
 .P
 Only relevant when specified explicitly on the command line\.
@@ -1597,7 +1600,7 @@ Type: path
 .P
 The program to use to view help content\.
 .P
-Set to \fB"browser"\fP to view html help content in the default web browser\.
+Set to \fB\fP to view html help content in the default web browser\.
 .SH SEE ALSO
 .RS 0
 .IP \(bu 2

@@ -1,4 +1,4 @@
-.TH "NPM\-LINK" "1" "December 2017" "" ""
+.TH "NPM\-LINK" "1" "March 2018" "" ""
 .SH "NAME"
 \fBnpm-link\fR \- Symlink a package folder
 .SH SYNOPSIS
@@ -15,22 +15,21 @@ alias: npm ln
 .P
 Package linking is a two\-step process\.
 .P
-First, \fBnpm link\fP in a package folder will create a symlink in the global folder
-\fB{prefix}/lib/node_modules/<package>\fP that links to the package where the \fBnpm
-link\fP command was executed\. (see npm help 7 \fBnpm\-config\fP for the value of \fBprefix\fP)\. It
-will also link any bins in the package to \fB{prefix}/bin/{name}\fP\|\.
+First, \fB\fP in a package folder will create a symlink in the global folder
+\fB\fP that links to the package where the \fB\fP command was executed\. (see \fB\fP for the value of \fB\fP)\. It
+will also link any bins in the package to \fB\fP\|\.
 .P
-Next, in some other location, \fBnpm link package\-name\fP will create a
-symbolic link from globally\-installed \fBpackage\-name\fP to \fBnode_modules/\fP
+Next, in some other location, \fB\fP will create a
+symbolic link from globally\-installed \fB\fP to \fB\fP
 of the current folder\.
 .P
-Note that \fBpackage\-name\fP is taken from \fBpackage\.json\fP,
+Note that \fB\fP is taken from \fB\fP,
 not from directory name\.
 .P
-The package name can be optionally prefixed with a scope\. See npm help 7 \fBnpm\-scope\fP\|\.
+The package name can be optionally prefixed with a scope\. See \fB\fP\|\.
 The scope must be preceded by an @\-symbol and followed by a slash\.
 .P
-When creating tarballs for \fBnpm publish\fP, the linked packages are
+When creating tarballs for \fB\fP, the linked packages are
 "snapshotted" to their current state by resolving the symbolic links\.
 .P
 This is handy for installing your own stuff, so that you can work on it and
@@ -71,9 +70,9 @@ npm link node\-redis
 .RE
 .P
 That is, it first creates a global link, and then links the global
-installation target into your project's \fBnode_modules\fP folder\.
+installation target into your project's \fB\fP folder\.
 .P
-If your linked package is scoped (see npm help 7 \fBnpm\-scope\fP) your link command must
+If your linked package is scoped (see \fB\fP) your link command must
 include that scope, e\.g\.
 .P
 .RS 2

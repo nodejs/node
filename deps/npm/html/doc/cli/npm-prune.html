@@ -11,7 +11,7 @@
 
 <h1><a href="../cli/npm-prune.html">npm-prune</a></h1> <p>Remove extraneous packages</p>
 <h2 id="synopsis">SYNOPSIS</h2>
-<pre><code>npm prune [[&lt;@scope&gt;/]&lt;pkg&gt;...] [--production]
+<pre><code>npm prune [[&lt;@scope&gt;/]&lt;pkg&gt;...] [--production] [--dry-run] [--json]
 </code></pre><h2 id="description">DESCRIPTION</h2>
 <p>This command removes &quot;extraneous&quot; packages.  If a package name is
 provided, then only packages matching one of the supplied names are
@@ -20,8 +20,16 @@ removed.</p>
 package&#39;s dependencies list.</p>
 <p>If the <code>--production</code> flag is specified or the <code>NODE_ENV</code> environment
 variable is set to <code>production</code>, this command will remove the packages
-specified in your <code>devDependencies</code>. Setting <code>--production=false</code> will
+specified in your <code>devDependencies</code>. Setting <code>--no-production</code> will
 negate <code>NODE_ENV</code> being set to <code>production</code>.</p>
+<p>If the <code>--dry-run</code> flag is used then no changes will actually be made.</p>
+<p>If the <code>--json</code> flag is used then the changes <code>npm prune</code> made (or would
+have made with <code>--dry-run</code>) are printed as a JSON object.</p>
+<p>In normal operation with package-locks enabled, extraneous modules are
+pruned automatically when modules are installed and you&#39;ll only need
+this command with the <code>--production</code> flag.</p>
+<p>If you&#39;ve disabled package-locks then extraneous modules will not be removed
+and it&#39;s up to you to run <code>npm prune</code> from time-to-time to remove them.</p>
 <h2 id="see-also">SEE ALSO</h2>
 <ul>
 <li><a href="../cli/npm-uninstall.html">npm-uninstall(1)</a></li>
@@ -40,5 +48,5 @@ negate <code>NODE_ENV</code> being set to <code>production</code>.</p>
 <tr><td style="width:60px;height:10px;background:rgb(237,127,127)" colspan=6>&nbsp;</td><td colspan=10 style="width:10px;height:10px;background:rgb(237,127,127)">&nbsp;</td></tr>
 <tr><td colspan=5 style="width:50px;height:10px;background:#fff">&nbsp;</td><td style="width:40px;height:10px;background:rgb(237,127,127)" colspan=4>&nbsp;</td><td style="width:90px;height:10px;background:#fff" colspan=9>&nbsp;</td></tr>
 </table>
-<p id="footer">npm-prune &mdash; npm@5.6.0</p>
+<p id="footer">npm-prune &mdash; npm@5.7.1</p>
 

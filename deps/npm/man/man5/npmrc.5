@@ -1,12 +1,12 @@
-.TH "NPMRC" "5" "December 2017" "" ""
+.TH "NPMRC" "5" "March 2018" "" ""
 .SH "NAME"
 \fBnpmrc\fR \- The npm config files
 .SH DESCRIPTION
 .P
 npm gets its config settings from the command line, environment
-variables, and \fBnpmrc\fP files\.
+variables, and \fB\fP files\.
 .P
-The \fBnpm config\fP command can be used to update and edit the contents
+The \fB\fP command can be used to update and edit the contents
 of the user and global npmrc files\.
 .P
 For a list of available configuration options, see npm help 7 config\.
@@ -25,9 +25,9 @@ npm builtin config file (/path/to/npm/npmrc)
 
 .RE
 .P
-All npm config files are an ini\-formatted list of \fBkey = value\fP
+All npm config files are an ini\-formatted list of \fB\fP
 parameters\.  Environment variables can be replaced using
-\fB${VARIABLE_NAME}\fP\|\. For example:
+\fB\fP\|\. For example:
 .P
 .RS 2
 .nf
@@ -50,7 +50,7 @@ key[] = "second value"
 .RE
 .SS Comments
 .P
-Lines in \fB\|\.npmrc\fP files are interpreted as comments when they begin with a \fB;\fP or \fB#\fP character\. \fB\|\.npmrc\fP files are parsed by npm/ini \fIhttps://github\.com/npm/ini\fR, which specifies this comment syntax\.
+Lines in \fB\fP files are interpreted as comments when they begin with a \fB\fP or \fB\fP character\. \fB\fP files are parsed by npm/ini \fIhttps://github\.com/npm/ini\fR, which specifies this comment syntax\.
 .P
 For example:
 .P
@@ -63,8 +63,8 @@ For example:
 .RE
 .SS Per\-project config file
 .P
-When working locally in a project, a \fB\|\.npmrc\fP file in the root of the
-project (ie, a sibling of \fBnode_modules\fP and \fBpackage\.json\fP) will set
+When working locally in a project, a \fB\fP file in the root of the
+project (ie, a sibling of \fB\fP and \fB\fP) will set
 config values specific to this project\.
 .P
 Note that this only applies to the root of the project that you're
@@ -73,22 +73,22 @@ example, you can't publish a module that forces itself to install
 globally, or in a different location\.
 .P
 Additionally, this file is not read in global mode, such as when running
-\fBnpm install \-g\fP\|\.
+\fB\fP\|\.
 .SS Per\-user config file
 .P
-\fB$HOME/\.npmrc\fP (or the \fBuserconfig\fP param, if set in the environment
+\fB\fP (or the \fB\fP param, if set in the environment
 or on the command line)
 .SS Global config file
 .P
-\fB$PREFIX/etc/npmrc\fP (or the \fBglobalconfig\fP param, if set above):
-This file is an ini\-file formatted list of \fBkey = value\fP parameters\.
+\fB\fP (or the \fB\fP param, if set above):
+This file is an ini\-file formatted list of \fB\fP parameters\.
 Environment variables can be replaced as above\.
 .SS Built\-in config file
 .P
-\fBpath/to/npm/itself/npmrc\fP
+\fB\fP
 .P
 This is an unchangeable "builtin" configuration file that npm keeps
-consistent across updates\.  Set fields in here using the \fB\|\./configure\fP
+consistent across updates\.  Set fields in here using the \fB\fP
 script that comes with npm\.  This is primarily for distribution
 maintainers to override default configs in a standard and consistent
 manner\.

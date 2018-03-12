@@ -35,8 +35,11 @@ function mocks (server) {
   server.filteringRequestBody(function (r) {
     if (r.match(/\"_id\":\"org\.couchdb\.user:u\"/)) {
       return 'auth'
+    } else {
+      return 'invalid'
     }
   })
+  server.post('/-/v1/login', 'invalid').reply(404, 'not found')
   server.put('/-/user/org.couchdb.user:u', 'auth')
     .reply(201, { username: 'u', password: 'p', email: 'u@p.me' })
 }

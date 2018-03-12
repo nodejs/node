@@ -1,12 +1,12 @@
-.TH "NPM\-PACKAGE\-LOCKS" "5" "December 2017" "" ""
+.TH "NPM\-PACKAGE\-LOCKS" "5" "March 2018" "" ""
 .SH "NAME"
 \fBnpm-package-locks\fR \- An explanation of npm lockfiles
 .SH DESCRIPTION
 .P
 Conceptually, the "input" to npm help install is a npm help 5 package\.json, while its
-"output" is a fully\-formed \fBnode_modules\fP tree: a representation of the
+"output" is a fully\-formed \fB\fP tree: a representation of the
 dependencies you declared\. In an ideal world, npm would work like a pure
-function: the same \fBpackage\.json\fP should produce the exact same \fBnode_modules\fP
+function: the same \fB\fP should produce the exact same \fB\fP
 tree, any time\. In some cases, this is indeed true\. But in many others, npm is
 unable to do this\. There are multiple reasons for this:
 .RS 0
@@ -15,7 +15,7 @@ different versions of npm (or other package managers) may have been used to inst
 .IP \(bu 2
 a new version of a direct semver\-range package may have been published since the last time your packages were installed, and thus a newer version will be used\.
 .IP \(bu 2
-A dependency of one of your dependencies may have published a new version, which will update even if you used pinned dependency specifiers (\fB1\.2\.3\fP instead of \fB^1\.2\.3\fP)
+A dependency of one of your dependencies may have published a new version, which will update even if you used pinned dependency specifiers (\fB\fP instead of \fB\fP)
 .IP \(bu 2
 The registry you installed from is no longer available, or allows mutation of versions (unlike the primary npm registry), and a different version of a package exists under the same version number now\.
 
@@ -61,7 +61,7 @@ and package C:
 .RE
 .P
 If these are the only versions of A, B, and C available in the
-registry, then a normal \fBnpm install A\fP will install:
+registry, then a normal \fB\fP will install:
 .P
 .RS 2
 .nf
@@ -71,7 +71,7 @@ A@0\.1\.0
 .fi
 .RE
 .P
-However, if B@0\.0\.2 is published, then a fresh \fBnpm install A\fP will
+However, if  is published, then a fresh \fB\fP will
 install:
 .P
 .RS 2
@@ -85,7 +85,7 @@ A@0\.1\.0
 assuming the new version did not modify B's dependencies\. Of course,
 the new version of B could include a new version of C and any number
 of new dependencies\. If such changes are undesirable, the author of A
-could specify a dependency on B@0\.0\.1\. However, if A's author and B's
+could specify a dependency on \|\. However, if A's author and B's
 author are not the same person, there's no way for A's author to say
 that he or she does not want to pull in newly published versions of C
 when B hasn't changed at all\.
@@ -93,7 +93,7 @@ when B hasn't changed at all\.
 To prevent this potential issue, npm uses npm help 5 package\-lock\.json or, if present,
 npm help 5 shrinkwrap\.json\. These files are called package locks, or lockfiles\.
 .P
-Whenever you run \fBnpm install\fP, npm generates or updates your package lock,
+Whenever you run \fB\fP, npm generates or updates your package lock,
 which will look something like this:
 .P
 .RS 2
@@ -119,7 +119,7 @@ which will look something like this:
 .RE
 .P
 This file describes an \fIexact\fR, and more importantly \fIreproducible\fR
-\fBnode_modules\fP tree\. Once it's present, any future installation will base its
+\fB\fP tree\. Once it's present, any future installation will base its
 work off this file, instead of recalculating dependency versions off
 npm help 5 package\.json\.
 .P
@@ -136,11 +136,11 @@ fashion\.
 
 .RE
 .P
-If \fBpreshrinkwrap\fP, \fBshrinkwrap\fP or \fBpostshrinkwrap\fP are in the \fBscripts\fP
-property of the \fBpackage\.json\fP, they will be executed in order\. \fBpreshrinkwrap\fP
-and \fBshrinkwrap\fP are executed before the shrinkwrap, \fBpostshrinkwrap\fP is
-executed afterwards\. These scripts run for both \fBpackage\-lock\.json\fP and
-\fBnpm\-shrinkwrap\.json\fP\|\. For example to run some postprocessing on the generated
+If \fB\fP, \fB\fP or \fB\fP are in the \fB\fP
+property of the \fB\fP, they will be executed in order\. \fB\fP
+and \fB\fP are executed before the shrinkwrap, \fB\fP is
+executed afterwards\. These scripts run for both \fB\fP and
+\fB\fP\|\. For example to run some postprocessing on the generated
 file:
 .P
 .RS 2
@@ -153,24 +153,32 @@ file:
 .SS Using locked packages
 .P
 Using a locked package is no different than using any package without a package
-lock: any commands that update \fBnode_modules\fP and/or \fBpackage\.json\fP\|'s
-dependencies will automatically sync the existing lockfile\. This includes \fBnpm
-install\fP, \fBnpm rm\fP, \fBnpm update\fP, etc\. To prevent this update from happening,
-you can use the \fB\-\-no\-save\fP option to prevent saving altogether, or
-\fB\-\-no\-shrinkwrap\fP to allow \fBpackage\.json\fP to be updated while leaving
-\fBpackage\-lock\.json\fP or \fBnpm\-shrinkwrap\.json\fP intact\.
+lock: any commands that update \fB\fP and/or \fB\fP\|'s
+dependencies will automatically sync the existing lockfile\. This includes \fB\fP, \fB\fP, \fB\fP, etc\. To prevent this update from happening,
+you can use the \fB\fP option to prevent saving altogether, or
+\fB\fP to allow \fB\fP to be updated while leaving
+\fB\fP or \fB\fP intact\.
 .P
 It is highly recommended you commit the generated package lock to source
 control: this will allow anyone else on your team, your deployments, your
-CI/continuous integration, and anyone else who runs \fBnpm install\fP in your
+CI/continuous integration, and anyone else who runs \fB\fP in your
 package source to get the exact same dependency tree that you were developing
 on\. Additionally, the diffs from these changes are human\-readable and will
-inform you of any changes npm has made to your \fBnode_modules\fP, so you can notice
+inform you of any changes npm has made to your \fB\fP, so you can notice
 if any transitive dependencies were updated, hoisted, etc\.
+.SS Resolving lockfile conflicts
+.P
+Occasionally, two separate npm install will create package locks that cause
+merge conflicts in source control systems\. As of \fB\fPpackage\.json\fB \fPnpm install [\-\-package\-lock\-only]\fB \fPnode_modules/`\.
+.P
+To make this process seamless on git, consider installing
+\fB\fP \fIhttps://npm\.im/npm\-merge\-driver\fR, which will teach git how
+to do this itself without any user interaction\. In short: \fB\fP will let you do this, and even works with
+\fB\fPpackage\.json\fB\fPnpm install` manually, even with the merge driver\.
 .SH SEE ALSO
 .RS 0
 .IP \(bu 2
-https://medium\.com/@sdboyer/so\-you\-want\-to\-write\-a\-package\-manager\-4ae9c17d9527
+https://
 .IP \(bu 2
 npm help 5 package\.json
 .IP \(bu 2

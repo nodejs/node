@@ -1,4 +1,4 @@
-.TH "PACKAGE\.JSON" "5" "December 2017" "" ""
+.TH "PACKAGE\.JSON" "5" "March 2018" "" ""
 .SH "NAME"
 \fBpackage.json\fR \- Specifics of npm's package\.json handling
 .SH DESCRIPTION
@@ -7,7 +7,7 @@ This document is all you need to know about what's required in your package\.jso
 file\.  It must be actual JSON, not just a JavaScript object literal\.
 .P
 A lot of the behavior described in this document is affected by the config
-settings described in npm help 7 \fBnpm\-config\fP\|\.
+settings described in \fB\fP\|\.
 .SH name
 .P
 The \fImost\fR important things in your package\.json are the name and version fields\.
@@ -50,8 +50,8 @@ already, before you get too attached to it\. https://www\.npmjs\.com/
 
 .RE
 .P
-A name can be optionally prefixed by a scope, e\.g\. \fB@myorg/mypackage\fP\|\. See
-npm help 7 \fBnpm\-scope\fP for more detail\.
+A name can be optionally prefixed by a scope, e\.g\. \fB\fP\|\. See
+\fB\fP for more detail\.
 .SH version
 .P
 The \fImost\fR important things in your package\.json are the name and version fields\.
@@ -62,17 +62,17 @@ changes to the version\.
 .P
 Version must be parseable by
 node\-semver \fIhttps://github\.com/isaacs/node\-semver\fR, which is bundled
-with npm as a dependency\.  (\fBnpm install semver\fP to use it yourself\.)
+with npm as a dependency\.  (\fB\fP to use it yourself\.)
 .P
 More on version numbers and ranges at npm help 7 semver\.
 .SH description
 .P
 Put a description in it\.  It's a string\.  This helps people discover your
-package, as it's listed in \fBnpm search\fP\|\.
+package, as it's listed in \fB\fP\|\.
 .SH keywords
 .P
 Put keywords in it\.  It's an array of strings\.  This helps people
-discover your package as it's listed in \fBnpm search\fP\|\.
+discover your package as it's listed in \fB\fP\|\.
 .SH homepage
 .P
 The url to the project homepage\.
@@ -95,7 +95,7 @@ It should look like this:
 You can specify either one or both values\. If you want to provide only a url,
 you can specify the value for "bugs" as a simple string instead of an object\.
 .P
-If a url is provided, it will be used by the \fBnpm bugs\fP command\.
+If a url is provided, it will be used by the \fB\fP command\.
 .SH license
 .P
 You should specify a license for your package so that people know how they are
@@ -132,7 +132,7 @@ you are using a custom license, use a string value like this one:
 .fi
 .RE
 .P
-Then include a file named \fB<filename>\fP at the top level of the package\.
+Then include a file named \fB\fP at the top level of the package\.
 .P
 Some old packages used license objects or a "licenses" property containing an
 array of license objects:
@@ -179,7 +179,7 @@ unpublished package under any terms:
 .fi
 .RE
 .P
-Consider also setting \fB"private": true\fP to prevent accidental publication\.
+Consider also setting \fB\fP to prevent accidental publication\.
 .SH people fields: author, contributors
 .P
 The "author" is one person\.  "contributors" is an array of people\.  A "person"
@@ -215,74 +215,74 @@ name a folder in the array, then it will also include the files inside
 that folder (unless they would be ignored by another rule in this
 section\.)\.
 .P
-You can also provide a \fB\|\.npmignore\fP file in the root of your package or
+You can also provide a \fB\fP file in the root of your package or
 in subdirectories, which will keep files from being included\. At the
 root of your package it will not override the "files" field, but in
-subdirectories it will\. The \fB\|\.npmignore\fP file works just like a
-\fB\|\.gitignore\fP\|\. If there is a \fB\|\.gitignore\fP file, and \fB\|\.npmignore\fP is
-missing, \fB\|\.gitignore\fP\|'s contents will be used instead\.
+subdirectories it will\. The \fB\fP file works just like a
+\fB\fP\|\. If there is a \fB\fP file, and \fB\fP is
+missing, \fB\fP\|'s contents will be used instead\.
 .P
 Files included with the "package\.json#files" field \fIcannot\fR be excluded
-through \fB\|\.npmignore\fP or \fB\|\.gitignore\fP\|\.
+through \fB\fP or \fB\fP\|\.
 .P
 Certain files are always included, regardless of settings:
 .RS 0
 .IP \(bu 2
-\fBpackage\.json\fP
+\fB\fP
 .IP \(bu 2
-\fBREADME\fP
+\fB\fP
 .IP \(bu 2
-\fBCHANGES\fP / \fBCHANGELOG\fP / \fBHISTORY\fP
+\fB\fP / \fB\fP / \fB\fP
 .IP \(bu 2
-\fBLICENSE\fP / \fBLICENCE\fP
+\fB\fP / \fB\fP
 .IP \(bu 2
-\fBNOTICE\fP
+\fB\fP
 .IP \(bu 2
 The file in the "main" field
 
 .RE
 .P
-\fBREADME\fP, \fBCHANGES\fP, \fBLICENSE\fP & \fBNOTICE\fP can have any case and extension\.
+\fB\fP, \fB\fP, \fB\fP & \fB\fP can have any case and extension\.
 .P
 Conversely, some files are always ignored:
 .RS 0
 .IP \(bu 2
-\fB\|\.git\fP
+\fB\fP
 .IP \(bu 2
-\fBCVS\fP
+\fB\fP
 .IP \(bu 2
-\fB\|\.svn\fP
+\fB\fP
 .IP \(bu 2
-\fB\|\.hg\fP
+\fB\fP
 .IP \(bu 2
-\fB\|\.lock\-wscript\fP
+\fB\fP
 .IP \(bu 2
-\fB\|\.wafpickle\-N\fP
+\fB\fP
 .IP \(bu 2
-\fB\|\.*\.swp\fP
+\fB\fP
 .IP \(bu 2
-\fB\|\.DS_Store\fP
+\fB\fP
 .IP \(bu 2
-\fB\|\._*\fP
+\fB\fP
 .IP \(bu 2
-\fBnpm\-debug\.log\fP
+\fB\fP
 .IP \(bu 2
-\fB\|\.npmrc\fP
+\fB\fP
 .IP \(bu 2
-\fBnode_modules\fP
+\fB\fP
 .IP \(bu 2
-\fBconfig\.gypi\fP
+\fB\fP
 .IP \(bu 2
-\fB*\.orig\fP
+\fB\fP
 .IP \(bu 2
-\fBpackage\-lock\.json\fP (use shrinkwrap instead)
+\fB\fP (use shrinkwrap instead)
 
 .RE
 .SH main
 .P
 The main field is a module ID that is the primary entry point to your program\.
-That is, if your package is named \fBfoo\fP, and a user installs it, and then does
-\fBrequire("foo")\fP, then your main module's exports object will be returned\.
+That is, if your package is named \fB\fP, and a user installs it, and then does
+\fB\fP, then your main module's exports object will be returned\.
 .P
 This should be a module ID relative to the root of your package folder\.
 .P
@@ -294,9 +294,9 @@ A lot of packages have one or more executable files that they'd like to
 install into the PATH\. npm makes this pretty easy (in fact, it uses this
 feature to install the "npm" executable\.)
 .P
-To use this, supply a \fBbin\fP field in your package\.json which is a map of
+To use this, supply a \fB\fP field in your package\.json which is a map of
 command name to local file name\. On install, npm will symlink that file into
-\fBprefix/bin\fP for global installs, or \fB\|\./node_modules/\.bin/\fP for local
+\fB\fP for global installs, or \fB\fP for local
 installs\.
 .P
 For example, myapp could have this:
@@ -307,8 +307,8 @@ For example, myapp could have this:
 .fi
 .RE
 .P
-So, when you install myapp, it'll create a symlink from the \fBcli\.js\fP script to
-\fB/usr/local/bin/myapp\fP\|\.
+So, when you install myapp, it'll create a symlink from the \fB\fP script to
+\fB\fP\|\.
 .P
 If you have a single executable, and its name should be the name
 of the package, then you can just supply it as a string\.  For example:
@@ -331,16 +331,16 @@ would be the same as this:
 .fi
 .RE
 .P
-Please make sure that your file(s) referenced in \fBbin\fP starts with
-\fB#!/usr/bin/env node\fP, otherwise the scripts are started without the node
+Please make sure that your file(s) referenced in \fB\fP starts with
+\fB\fP, otherwise the scripts are started without the node
 executable!
 .SH man
 .P
 Specify either a single file or an array of filenames to put in place for the
-\fBman\fP program to find\.
+\fB\fP program to find\.
 .P
 If only a single file is provided, then it's installed such that it is the
-result from \fBman <pkgname>\fP, regardless of its actual filename\.  For example:
+result from \fB\fP, regardless of its actual filename\.  For example:
 .P
 .RS 2
 .nf
@@ -353,7 +353,7 @@ result from \fBman <pkgname>\fP, regardless of its actual filename\.  For exampl
 .fi
 .RE
 .P
-would link the \fB\|\./man/doc\.1\fP file in such that it is the target for \fBman foo\fP
+would link the \fB\fP file in such that it is the target for \fB\fP
 .P
 If the filename doesn't start with the package name, then it's prefixed\.
 So, this:
@@ -369,9 +369,9 @@ So, this:
 .fi
 .RE
 .P
-will create files to do \fBman foo\fP and \fBman foo\-bar\fP\|\.
+will create files to do \fB\fP and \fB\fP\|\.
 .P
-Man files must end with a number, and optionally a \fB\|\.gz\fP suffix if they are
+Man files must end with a number, and optionally a \fB\fP suffix if they are
 compressed\.  The number dictates which man section the file is installed into\.
 .P
 .RS 2
@@ -385,11 +385,11 @@ compressed\.  The number dictates which man section the file is installed into\.
 .fi
 .RE
 .P
-will create entries for \fBman foo\fP and \fBman 2 foo\fP
+will create entries for \fB\fP and \fB\fP
 .SH directories
 .P
 The CommonJS Packages \fIhttp://wiki\.commonjs\.org/wiki/Packages/1\.0\fR spec details a
-few ways that you can indicate the structure of your package using a \fBdirectories\fP
+few ways that you can indicate the structure of your package using a \fB\fP
 object\. If you look at npm's package\.json \fIhttps://registry\.npmjs\.org/npm/latest\fR,
 you'll see that it has directories for doc, lib, and man\.
 .P
@@ -400,13 +400,13 @@ Tell people where the bulk of your library is\.  Nothing special is done
 with the lib folder in any way, but it's useful meta info\.
 .SS directories\.bin
 .P
-If you specify a \fBbin\fP directory in \fBdirectories\.bin\fP, all the files in
+If you specify a \fB\fP directory in \fB\fP, all the files in
 that folder will be added\.
 .P
-Because of the way the \fBbin\fP directive works, specifying both a
-\fBbin\fP path and setting \fBdirectories\.bin\fP is an error\. If you want to
-specify individual files, use \fBbin\fP, and for all the files in an
-existing \fBbin\fP directory, use \fBdirectories\.bin\fP\|\.
+Because of the way the \fB\fP directive works, specifying both a
+\fB\fP path and setting \fB\fP is an error\. If you want to
+specify individual files, use \fB\fP, and for all the files in an
+existing \fB\fP directory, use \fB\fP\|\.
 .SS directories\.man
 .P
 A folder that is full of man pages\.  Sugar to generate a "man" array by
@@ -425,7 +425,7 @@ future\.
 .SH repository
 .P
 Specify the place where your code lives\. This is helpful for people who
-want to contribute\.  If the git repo is on GitHub, then the \fBnpm docs\fP
+want to contribute\.  If the git repo is on GitHub, then the \fB\fP
 command will be able to find you\.
 .P
 Do it like this:
@@ -449,7 +449,7 @@ directly to a VCS program without any modification\.  It should not be a url to 
 html project page that you put in your browser\.  It's for computers\.
 .P
 For GitHub, GitHub gist, Bitbucket, or GitLab repositories you can use the same
-shortcut syntax you use for \fBnpm install\fP:
+shortcut syntax you use for \fB\fP:
 .P
 .RS 2
 .nf
@@ -470,7 +470,7 @@ The "scripts" property is a dictionary containing script commands that are run
 at various times in the lifecycle of your package\.  The key is the lifecycle
 event, and the value is the command to run at that point\.
 .P
-See npm help 7 \fBnpm\-scripts\fP to find out more about writing package scripts\.
+See \fB\fP to find out more about writing package scripts\.
 .SH config
 .P
 A "config" object can be used to set configuration parameters used in package
@@ -485,10 +485,10 @@ following:
 .RE
 .P
 and then had a "start" command that then referenced the
-\fBnpm_package_config_port\fP environment variable, then the user could
-override that by doing \fBnpm config set foo:port 8001\fP\|\.
+\fB\fP environment variable, then the user could
+override that by doing \fB\fP\|\.
 .P
-See npm help 7 \fBnpm\-config\fP and npm help 7 \fBnpm\-scripts\fP for more on package
+See \fB\fP and \fB\fP for more on package
 configs\.
 .SH dependencies
 .P
@@ -498,44 +498,44 @@ space\-separated descriptors\.  Dependencies can also be identified with a
 tarball or git URL\.
 .P
 \fBPlease do not put test harnesses or transpilers in your
-\fBdependencies\fP object\.\fR  See \fBdevDependencies\fP, below\.
+\fB\fP object\.\fR  See \fB\fP, below\.
 .P
 See npm help 7 semver for more details about specifying version ranges\.
 .RS 0
 .IP \(bu 2
-\fBversion\fP Must match \fBversion\fP exactly
+\fB\fP Must match \fB\fP exactly
 .IP \(bu 2
-\fB>version\fP Must be greater than \fBversion\fP
+\fB\fP Must be greater than \fB\fP
 .IP \(bu 2
-\fB>=version\fP etc
+\fB\fP etc
 .IP \(bu 2
-\fB<version\fP
+\fB\fP
 .IP \(bu 2
-\fB<=version\fP
+\fB\fP
 .IP \(bu 2
-\fB~version\fP "Approximately equivalent to version"  See npm help 7 semver
+\fB\fP "Approximately equivalent to version"  See npm help 7 semver
 .IP \(bu 2
-\fB^version\fP "Compatible with version"  See npm help 7 semver
+\fB\fP "Compatible with version"  See npm help 7 semver
 .IP \(bu 2
-\fB1\.2\.x\fP 1\.2\.0, 1\.2\.1, etc\., but not 1\.3\.0
+\fB\fP 1\.2\.0, 1\.2\.1, etc\., but not 1\.3\.0
 .IP \(bu 2
-\fBhttp://\.\.\.\fP See 'URLs as Dependencies' below
+\fB\fP See 'URLs as Dependencies' below
 .IP \(bu 2
-\fB*\fP Matches any version
+\fB\fP Matches any version
 .IP \(bu 2
-\fB""\fP (just an empty string) Same as \fB*\fP
+\fB\fP (just an empty string) Same as \fB\fP
 .IP \(bu 2
-\fBversion1 \- version2\fP Same as \fB>=version1 <=version2\fP\|\.
+\fB\fP Same as \fB\fP\|\.
 .IP \(bu 2
-\fBrange1 || range2\fP Passes if either range1 or range2 are satisfied\.
+\fB\fP Passes if either range1 or range2 are satisfied\.
 .IP \(bu 2
-\fBgit\.\.\.\fP See 'Git URLs as Dependencies' below
+\fB\fP See 'Git URLs as Dependencies' below
 .IP \(bu 2
-\fBuser/repo\fP See 'GitHub URLs' below
+\fB\fP See 'GitHub URLs' below
 .IP \(bu 2
-\fBtag\fP A specific version tagged and published as \fBtag\fP  See npm help \fBnpm\-dist\-tag\fP
+\fB\fP A specific version tagged and published as \fB\fP  See \fB\fP
 .IP \(bu 2
-\fBpath/path/path\fP See Local Paths \fI#local\-paths\fR below
+\fB\fP See Local Paths \fI#local\-paths\fR below
 
 .RE
 .P
@@ -576,15 +576,15 @@ Git urls are of the form:
 .fi
 .RE
 .P
-\fB<protocol>\fP is one of \fBgit\fP, \fBgit+ssh\fP, \fBgit+http\fP, \fBgit+https\fP, or
-\fBgit+file\fP\|\.
+\fB\fP is one of \fB\fP, \fB\fP, \fB\fP, \fB\fP, or
+\fB\fP\|\.
 .P
-If \fB#<commit\-ish>\fP is provided, it will be used to clone exactly that
-commit\. If the commit\-ish has the format \fB#semver:<semver>\fP, \fB<semver>\fP can
+If \fB\fP is provided, it will be used to clone exactly that
+commit\. If the commit\-ish has the format \fB\fP, \fB\fP can
 be any valid semver range or exact version, and npm will look for any tags
 or refs matching that range in the remote repository, much as it would for a
-registry dependency\. If neither \fB#<commit\-ish>\fP or \fB#semver:<semver>\fP is
-specified, then \fBmaster\fP is used\.
+registry dependency\. If neither \fB\fP or \fB\fP is
+specified, then \fB\fP is used\.
 .P
 Examples:
 .P
@@ -599,7 +599,7 @@ git://github\.com/npm/npm\.git#v1\.0\.27
 .SS GitHub URLs
 .P
 As of version 1\.1\.65, you can refer to GitHub urls as just "foo":
-"user/foo\-project"\.  Just as with git URLs, a \fBcommit\-ish\fP suffix can be
+"user/foo\-project"\.  Just as with git URLs, a \fB\fP suffix can be
 included\.  For example:
 .P
 .RS 2
@@ -618,8 +618,8 @@ included\.  For example:
 .SS Local Paths
 .P
 As of version 2\.0\.0 you can provide a path to a local directory that contains a
-package\. Local paths can be saved using \fBnpm install \-S\fP or
-\fBnpm install \-\-save\fP, using any of these forms:
+package\. Local paths can be saved using \fB\fP or
+\fB\fP, using any of these forms:
 .P
 .RS 2
 .nf
@@ -631,7 +631,7 @@ package\. Local paths can be saved using \fBnpm install \-S\fP or
 .RE
 .P
 in which case they will be normalized to a relative path and added to your
-\fBpackage\.json\fP\|\. For example:
+\fB\fP\|\. For example:
 .P
 .RS 2
 .nf
@@ -654,15 +654,15 @@ If someone is planning on downloading and using your module in their
 program, then they probably don't want or need to download and build
 the external test or documentation framework that you use\.
 .P
-In this case, it's best to map these additional items in a \fBdevDependencies\fP
+In this case, it's best to map these additional items in a \fB\fP
 object\.
 .P
-These things will be installed when doing \fBnpm link\fP or \fBnpm install\fP
+These things will be installed when doing \fB\fP or \fB\fP
 from the root of a package, and can be managed like any other npm
-configuration param\.  See npm help 7 \fBnpm\-config\fP for more on the topic\.
+configuration param\.  See \fB\fP for more on the topic\.
 .P
 For build steps that are not platform\-specific, such as compiling
-CoffeeScript or other languages to JavaScript, use the \fBprepare\fP
+CoffeeScript or other languages to JavaScript, use the \fB\fP
 script to do this, and make the required package a devDependency\.
 .P
 For example:
@@ -683,14 +683,14 @@ For example:
 .fi
 .RE
 .P
-The \fBprepare\fP script will be run before publishing, so that users
+The \fB\fP script will be run before publishing, so that users
 can consume the functionality without requiring them to compile it
-themselves\.  In dev mode (ie, locally running \fBnpm install\fP), it'll
+themselves\.  In dev mode (ie, locally running \fB\fP), it'll
 run this script as well, so that you can test it easily\.
 .SH peerDependencies
 .P
 In some cases, you want to express the compatibility of your package with a
-host tool or library, while not necessarily doing a \fBrequire\fP of this host\.
+host tool or library, while not necessarily doing a \fB\fP of this host\.
 This is usually referred to as a \fIplugin\fR\|\. Notably, your module may be exposing
 a specific interface, expected and specified by the host documentation\.
 .P
@@ -708,8 +708,8 @@ For example:
 .fi
 .RE
 .P
-This ensures your package \fBtea\-latte\fP can be installed \fIalong\fR with the second
-major version of the host package \fBtea\fP only\. \fBnpm install tea\-latte\fP could
+This ensures your package \fB\fP can be installed \fIalong\fR with the second
+major version of the host package \fB\fP only\. \fB\fP could
 possibly yield the following dependency graph:
 .P
 .RS 2
@@ -719,7 +719,7 @@ possibly yield the following dependency graph:
 .fi
 .RE
 .P
-\fBNOTE: npm versions 1 and 2 will automatically install \fBpeerDependencies\fP if
+\fBNOTE: npm versions 1 and 2 will automatically install \fB\fP if
 they are not explicitly depended upon higher in the dependency tree\. In the
 next major version of npm (npm@3), this will no longer be the case\. You will
 receive a warning that the peerDependency is not installed instead\.\fR The
@@ -732,8 +732,8 @@ possible, and not to lock it down to specific patch versions\.
 .P
 Assuming the host complies with semver \fIhttp://semver\.org/\fR, only changes in
 the host package's major version will break your plugin\. Thus, if you've worked
-with every 1\.x version of the host package, use \fB"^1\.0"\fP or \fB"1\.x"\fP to express
-this\. If you depend on features introduced in 1\.5\.2, use \fB">= 1\.5\.2 < 2"\fP\|\.
+with every 1\.x version of the host package, use \fB\fP or \fB\fP to express
+this\. If you depend on features introduced in 1\.5\.2, use \fB\fP\|\.
 .SH bundledDependencies
 .P
 This defines an array of package names that will be bundled when publishing
@@ -741,8 +741,8 @@ the package\.
 .P
 In cases where you need to preserve npm packages locally or have them
 available through a single file download, you can bundle the packages in a
-tarball file by specifying the package names in the \fBbundledDependencies\fP
-array and executing \fBnpm pack\fP\|\.
+tarball file by specifying the package names in the \fB\fP
+array and executing \fB\fP\|\.
 .P
 For example:
 .P
@@ -760,18 +760,17 @@ If we define a package\.json like this:
 .fi
 .RE
 .P
-we can obtain \fBawesome\-web\-framework\-1\.0\.0\.tgz\fP file by running \fBnpm pack\fP\|\.
-This file contains the dependencies \fBrenderized\fP and \fBsuper\-streams\fP which
-can be installed in a new project by executing \fBnpm install
-awesome\-web\-framework\-1\.0\.0\.tgz\fP\|\.
+we can obtain \fB\fP file by running \fB\fP\|\.
+This file contains the dependencies \fB\fP and \fB\fP which
+can be installed in a new project by executing \fB\fP\|\.
 .P
-If this is spelled \fB"bundleDependencies"\fP, then that is also honored\.
+If this is spelled \fB\fP, then that is also honored\.
 .SH optionalDependencies
 .P
 If a dependency can be used, but you would like npm to proceed if it cannot be
-found or fails to install, then you may put it in the \fBoptionalDependencies\fP
+found or fails to install, then you may put it in the \fB\fP
 object\.  This is a map of package name to version or url, just like the
-\fBdependencies\fP object\.  The difference is that build failures do not cause
+\fB\fP object\.  The difference is that build failures do not cause
 installation to fail\.
 .P
 It is still your program's responsibility to handle the lack of the
@@ -797,8 +796,8 @@ if (foo) {
 .fi
 .RE
 .P
-Entries in \fBoptionalDependencies\fP will override entries of the same name in
-\fBdependencies\fP, so it's usually best to only put in one place\.
+Entries in \fB\fP will override entries of the same name in
+\fB\fP, so it's usually best to only put in one place\.
 .SH engines
 .P
 You can specify the version of node that your stuff works on:
@@ -825,14 +824,14 @@ are capable of properly installing your program\.  For example:
 .fi
 .RE
 .P
-Unless the user has set the \fBengine\-strict\fP config flag, this
+Unless the user has set the \fB\fP config flag, this
 field is advisory only and will only produce warnings when your package is installed as a dependency\.
 .SH engineStrict
 .P
 \fBThis feature was removed in npm 3\.0\.0\fR
 .P
 Prior to npm 3\.0\.0, this feature was used to treat this package as if the
-user had set \fBengine\-strict\fP\|\. It is no longer used\.
+user had set \fB\fP\|\. It is no longer used\.
 .SH os
 .P
 You can specify which operating systems your
@@ -853,7 +852,7 @@ just prepend the blacklisted os with a '!':
 .fi
 .RE
 .P
-The host operating system is determined by \fBprocess\.platform\fP
+The host operating system is determined by \fB\fP
 .P
 It is allowed to both blacklist, and whitelist, although there isn't any
 good reason to do this\.
@@ -868,7 +867,7 @@ you can specify which ones\.
 .fi
 .RE
 .P
-Like the \fBos\fP option, you can also blacklist architectures:
+Like the \fB\fP option, you can also blacklist architectures:
 .P
 .RS 2
 .nf
@@ -876,7 +875,7 @@ Like the \fBos\fP option, you can also blacklist architectures:
 .fi
 .RE
 .P
-The host architecture is determined by \fBprocess\.arch\fP
+The host architecture is determined by \fB\fP
 .SH preferGlobal
 .P
 \fBDEPRECATED\fR
@@ -886,13 +885,13 @@ purely there for informational purposes\. It is now recommended that you install
 any binaries as local devDependencies wherever possible\.
 .SH private
 .P
-If you set \fB"private": true\fP in your package\.json, then npm will refuse
+If you set \fB\fP in your package\.json, then npm will refuse
 to publish it\.
 .P
 This is a way to prevent accidental publication of private repositories\.  If
 you would like to ensure that a given package is only ever published to a
 specific registry (for example, an internal registry), then use the
-\fBpublishConfig\fP dictionary described below to override the \fBregistry\fP config
+\fB\fP dictionary described below to override the \fB\fP config
 param at publish\-time\.
 .SH publishConfig
 .P
@@ -904,25 +903,25 @@ to the global public registry or that a scoped module is private by default\.
 Any config values can be overridden, but of course only "tag", "registry" and
 "access" probably matter for the purposes of publishing\.
 .P
-See npm help 7 \fBnpm\-config\fP to see the list of config options that can be
+See \fB\fP to see the list of config options that can be
 overridden\.
 .SH DEFAULT VALUES
 .P
 npm will default some values based on package contents\.
 .RS 0
 .IP \(bu 2
-\fB"scripts": {"start": "node server\.js"}\fP
-If there is a \fBserver\.js\fP file in the root of your package, then npm
-will default the \fBstart\fP command to \fBnode server\.js\fP\|\.
+\fB\fP
+If there is a \fB\fP file in the root of your package, then npm
+will default the \fB\fP command to \fB\fP\|\.
 .IP \(bu 2
-\fB"scripts":{"install": "node\-gyp rebuild"}\fP
-If there is a \fBbinding\.gyp\fP file in the root of your package and you have not defined an \fBinstall\fP or \fBpreinstall\fP script, npm will
-default the \fBinstall\fP command to compile using node\-gyp\.
+\fB\fP
+If there is a \fB\fP file in the root of your package and you have not defined an \fB\fP or \fB\fP script, npm will
+default the \fB\fP command to compile using node\-gyp\.
 .IP \(bu 2
-\fB"contributors": [\.\.\.]\fP
-If there is an \fBAUTHORS\fP file in the root of your package, npm will
-treat each line as a \fBName <email> (url)\fP format, where email and url
-are optional\.  Lines which start with a \fB#\fP or are blank, will be
+\fB\fP
+If there is an \fB\fP file in the root of your package, npm will
+treat each line as a \fB\fP format, where email and url
+are optional\.  Lines which start with a \fB\fP or are blank, will be
 ignored\.
 
 .RE

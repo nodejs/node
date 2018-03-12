@@ -1,4 +1,4 @@
-.TH "NPM\-CODING\-STYLE" "7" "December 2017" "" ""
+.TH "NPM\-CODING\-STYLE" "7" "March 2018" "" ""
 .SH "NAME"
 \fBnpm-coding-style\fR \- npm's "funny" coding style
 .SH DESCRIPTION
@@ -71,14 +71,14 @@ while (foo) {
 Don't use them except in four situations:
 .RS 0
 .IP \(bu 2
-\fBfor (;;)\fP loops\.  They're actually required\.
+\fB\fP loops\.  They're actually required\.
 .IP \(bu 2
-null loops like: \fBwhile (something) ;\fP (But you'd better have a good
+null loops like: \fB\fP (But you'd better have a good
 reason for doing that\.)
 .IP \(bu 2
-\fBcase 'foo': doSomething(); break\fP
+\fB\fP
 .IP \(bu 2
-In front of a leading \fB(\fP or \fB[\fP at the start of the line\.
+In front of a leading \fB\fP or \fB\fP at the start of the line\.
 This prevents the expression from being interpreted
 as a function call or property access, respectively\.
 
@@ -101,7 +101,7 @@ for (var i = 0; i < 10; i ++) {
 .fi
 .RE
 .P
-Note that starting lines with \fB\-\fP and \fB+\fP also should be prefixed
+Note that starting lines with \fB\fP and \fB\fP also should be prefixed
 with a semicolon, but this is much less common\.
 .SH Comma First
 .P
@@ -181,20 +181,20 @@ logging the same object over and over again is not helpful\.  Logs should
 report what's happening so that it's easier to track down where a fault
 occurs\.
 .P
-Use appropriate log levels\.  See npm help 7 \fBnpm\-config\fP and search for
+Use appropriate log levels\.  See \fB\fP and search for
 "loglevel"\.
 .SH Case, naming, etc\.
 .P
-Use \fBlowerCamelCase\fP for multiword identifiers when they refer to objects,
+Use \fB\fP for multiword identifiers when they refer to objects,
 functions, methods, properties, or anything not specified in this section\.
 .P
-Use \fBUpperCamelCase\fP for class names (things that you'd pass to "new")\.
+Use \fB\fP for class names (things that you'd pass to "new")\.
 .P
-Use \fBall\-lower\-hyphen\-css\-case\fP for multiword filenames and config keys\.
+Use \fB\fP for multiword filenames and config keys\.
 .P
 Use named functions\.  They make stack traces easier to follow\.
 .P
-Use \fBCAPS_SNAKE_CASE\fP for constants, things that should never change
+Use \fB\fP for constants, things that should never change
 and are rarely used\.
 .P
 Use a single uppercase letter for function names where the function
@@ -202,12 +202,12 @@ would normally be anonymous, but needs to call itself recursively\.  It
 makes it clear that it's a "throwaway" function\.
 .SH null, undefined, false, 0
 .P
-Boolean variables and functions should always be either \fBtrue\fP or
-\fBfalse\fP\|\.  Don't set it to 0 unless it's supposed to be a number\.
+Boolean variables and functions should always be either \fB\fP or
+\fB\fP\|\.  Don't set it to 0 unless it's supposed to be a number\.
 .P
-When something is intentionally missing or removed, set it to \fBnull\fP\|\.
+When something is intentionally missing or removed, set it to \fB\fP\|\.
 .P
-Don't set things to \fBundefined\fP\|\.  Reserve that value to mean "not yet
+Don't set things to \fB\fP\|\.  Reserve that value to mean "not yet
 set to anything\."
 .P
 Boolean objects are forbidden\.

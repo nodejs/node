@@ -1,4 +1,4 @@
-.TH "NPM\-VIEW" "1" "December 2017" "" ""
+.TH "NPM\-VIEW" "1" "March 2018" "" ""
 .SH "NAME"
 \fBnpm-view\fR \- View registry info
 .SH SYNOPSIS
@@ -13,9 +13,9 @@ aliases: info, show, v
 .SH DESCRIPTION
 .P
 This command shows data about a package and prints it to the stream
-referenced by the \fBoutfd\fP config, which defaults to stdout\.
+referenced by the \fB\fP config, which defaults to stdout\.
 .P
-To show the package registry entry for the \fBconnect\fP package, you can do
+To show the package registry entry for the \fB\fP package, you can do
 this:
 .P
 .RS 2
@@ -27,7 +27,7 @@ npm view connect
 The default version is "latest" if unspecified\.
 .P
 Field names can be specified after the package descriptor\.
-For example, to show the dependencies of the \fBronn\fP package at version
+For example, to show the dependencies of the \fB\fP package at version
 0\.3\.5, you could do the following:
 .P
 .RS 2
@@ -88,7 +88,7 @@ npm view express contributors\.name contributors\.email
 .P
 "Person" fields are shown as a string if they would be shown as an
 object\.  So, for example, this will show the list of npm contributors in
-the shortened string format\.  (See npm help 5 \fBpackage\.json\fP for more on this\.)
+the shortened string format\.  (See \fB\fP for more on this\.)
 .P
 .RS 2
 .nf
@@ -106,7 +106,7 @@ npm view yui3@'>0\.5\.4' dependencies\.jsdom
 .fi
 .RE
 .P
-To show the \fBconnect\fP package version history, you can do
+To show the \fB\fP package version history, you can do
 this:
 .P
 .RS 2

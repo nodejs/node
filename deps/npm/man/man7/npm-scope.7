@@ -1,11 +1,11 @@
-.TH "NPM\-SCOPE" "7" "December 2017" "" ""
+.TH "NPM\-SCOPE" "7" "March 2018" "" ""
 .SH "NAME"
 \fBnpm-scope\fR \- Scoped packages
 .SH DESCRIPTION
 .P
 All npm packages have a name\. Some package names also have a scope\. A scope
 follows the usual rules for package names (URL\-safe characters, no leading dots
-or underscores)\. When used in package names, scopes are preceded by an \fB@\fP symbol
+or underscores)\. When used in package names, scopes are preceded by an \fB\fP symbol
 and followed by a slash, e\.g\.
 .P
 .RS 2
@@ -22,20 +22,20 @@ in your scope\. This means you don't have to worry about someone taking your
 package name ahead of you\. Thus it is also a good way to signal official packages
 for organizations\.
 .P
-Scoped packages can be published and installed as of \fBnpm@2\fP and are supported
+Scoped packages can be published and installed as of \fB\fP and are supported
 by the primary npm registry\. Unscoped packages can depend on scoped packages and
 vice versa\. The npm client is backwards\-compatible with unscoped registries,
 so it can be used to work with scoped and unscoped registries at the same time\.
 .SH Installing scoped packages
 .P
 Scoped packages are installed to a sub\-folder of the regular installation
-folder, e\.g\. if your other packages are installed in \fBnode_modules/packagename\fP,
-scoped modules will be installed in \fBnode_modules/@myorg/packagename\fP\|\. The scope
-folder (\fB@myorg\fP) is simply the name of the scope preceded by an \fB@\fP symbol, and can
+folder, e\.g\. if your other packages are installed in \fB\fP,
+scoped modules will be installed in \fB\fP\|\. The scope
+folder (\fB\fP) is simply the name of the scope preceded by an \fB\fP symbol, and can
 contain any number of scoped packages\.
 .P
 A scoped package is installed by referencing it by name, preceded by an
-\fB@\fP symbol, in \fBnpm install\fP:
+\fB\fP symbol, in \fB\fP:
 .P
 .RS 2
 .nf
@@ -43,7 +43,7 @@ npm install @myorg/mypackage
 .fi
 .RE
 .P
-Or in \fBpackage\.json\fP:
+Or in \fB\fP:
 .P
 .RS 2
 .nf
@@ -53,8 +53,8 @@ Or in \fBpackage\.json\fP:
 .fi
 .RE
 .P
-Note that if the \fB@\fP symbol is omitted, in either case, npm will instead attempt to
-install from GitHub; see npm help \fBnpm\-install\fP\|\.
+Note that if the \fB\fP symbol is omitted, in either case, npm will instead attempt to
+install from GitHub; see \fB\fP\|\.
 .SH Requiring scoped packages
 .P
 Because scoped packages are installed into a scope folder, you have to
@@ -67,10 +67,10 @@ require('@myorg/mypackage')
 .RE
 .P
 There is nothing special about the way Node treats scope folders\. This
-simply requires the \fBmypackage\fP module in the folder named \fB@myorg\fP\|\.
+simply requires the \fB\fP module in the folder named \fB\fP\|\.
 .SH Publishing scoped packages
 .P
-Scoped packages can be published from the CLI as of \fBnpm@2\fP and can be
+Scoped packages can be published from the CLI as of \fB\fP and can be
 published to any registry that supports them, including the primary npm
 registry\.
 .P
@@ -80,19 +80,18 @@ registry\.
 If you wish, you may associate a scope with a registry; see below\.
 .SS Publishing public scoped packages to the primary npm registry
 .P
-To publish a public scoped package, you must specify \fB\-\-access public\fP with
+To publish a public scoped package, you must specify \fB\fP with
 the initial publication\. This will publish the package and set access
-to \fBpublic\fP as if you had run \fBnpm access public\fP after publishing\.
+to \fB\fP as if you had run \fB\fP after publishing\.
 .SS Publishing private scoped packages to the npm registry
 .P
 To publish a private scoped package to the npm registry, you must have
 an npm Private Modules \fIhttps://www\.npmjs\.com/private\-modules\fR
 account\.
 .P
-You can then publish the module with \fBnpm publish\fP or \fBnpm publish
-\-\-access restricted\fP, and it will be present in the npm registry, with
+You can then publish the module with \fB\fP or \fB\fP, and it will be present in the npm registry, with
 restricted access\. You can then change the access permissions, if
-desired, with \fBnpm access\fP or on the npmjs\.com website\.
+desired, with \fB\fP or on the npmjs\.com website\.
 .SH Associating a scope with a registry
 .P
 Scopes can be associated with a separate registry\. This allows you to
@@ -110,7 +109,7 @@ npm login \-\-registry=http://reg\.example\.com \-\-scope=@myco
 Scopes have a many\-to\-one relationship with registries: one registry can
 host multiple scopes, but a scope only ever points to one registry\.
 .P
-You can also associate a scope with a registry using \fBnpm config\fP:
+You can also associate a scope with a registry using \fB\fP:
 .P
 .RS 2
 .nf
@@ -118,9 +117,9 @@ npm config set @myco:registry http://reg\.example\.com
 .fi
 .RE
 .P
-Once a scope is associated with a registry, any \fBnpm install\fP for a package
+Once a scope is associated with a registry, any \fB\fP for a package
 with that scope will request packages from that registry instead\. Any
-\fBnpm publish\fP for a package name that contains the scope will be published to
+\fB\fP for a package name that contains the scope will be published to
 that registry instead\.
 .SH SEE ALSO
 .RS 0

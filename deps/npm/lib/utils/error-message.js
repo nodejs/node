@@ -52,6 +52,25 @@ function errorMessage (er) {
       break
 
     case 'EJSONPARSE':
+      const path = require('path')
+      // Check whether we ran into a conflict in our own package.json
+      if (er.file === path.join(npm.prefix, 'package.json')) {
+        const isDiff = require('../install/read-shrinkwrap.js')._isDiff
+        const txt = require('fs').readFileSync(er.file, 'utf8')
+        if (isDiff(txt)) {
+          detail.push([
+            '',
+            [
+              'Merge conflict detected in your package.json.',
+              '',
+              'Please resolve the package.json conflict and retry the command:',
+              '',
+              `$ ${process.argv.join(' ')}`
+            ].join('\n')
+          ])
+          break
+        }
+      }
       short.push(['', er.message])
       short.push(['', 'File: ' + er.file])
       detail.push([

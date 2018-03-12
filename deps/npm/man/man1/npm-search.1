@@ -1,4 +1,4 @@
-.TH "NPM\-SEARCH" "1" "December 2017" "" ""
+.TH "NPM\-SEARCH" "1" "March 2018" "" ""
 .SH "NAME"
 \fBnpm-search\fR \- Search for packages
 .SH SYNOPSIS
@@ -12,23 +12,23 @@ aliases: s, se, find
 .RE
 .SH DESCRIPTION
 .P
-Search the registry for packages matching the search terms\. \fBnpm search\fP
+Search the registry for packages matching the search terms\. \fB\fP
 performs a linear, incremental, lexically\-ordered search through package
 metadata for all files in the registry\. If color is enabled, it will further
 highlight the matches in the results\.
 .P
-Additionally, using the \fB\-\-searchopts\fP and \fB\-\-searchexclude\fP options paired with
+Additionally, using the \fB\fP and \fB\fP options paired with
 more search terms will respectively include and exclude further patterns\. The
-main difference between \fB\-\-searchopts\fP and the standard search terms is that the
+main difference between \fB\fP and the standard search terms is that the
 former does not highlight results in the output and can be used for more
-fine\-grained filtering\. Additionally, both of these can be added to \fB\|\.npmrc\fP for
+fine\-grained filtering\. Additionally, both of these can be added to \fB\fP for
 default search filtering behavior\.
 .P
 Search also allows targeting of maintainers in search results, by prefixing
-their npm username with \fB=\fP\|\.
+their npm username with \fB\fP\|\.
 .P
-If a term starts with \fB/\fP, then it's interpreted as a regular expression and
-supports standard JavaScript RegExp syntax\. A trailing \fB/\fP will be ignored in
+If a term starts with \fB\fP, then it's interpreted as a regular expression and
+supports standard JavaScript RegExp syntax\. A trailing \fB\fP will be ignored in
 this case\. (Note that many regular expression characters must be escaped or
 quoted in most shells\.)
 .SS A Note on caching
@@ -42,7 +42,7 @@ Type: Boolean
 
 .RE
 .P
-Used as \fB\-\-no\-description\fP, disables search matching in package descriptions and
+Used as \fB\fP, disables search matching in package descriptions and
 suppresses display of that field in results\.
 .SS json
 .RS 0
@@ -110,7 +110,7 @@ The age of the cache, in seconds, before another registry request is made\.
 .SS registry
 .RS 0
 .IP \(bu 2
-Default: https://registry\.npmjs\.org/
+Default: https://
 .IP \(bu 2
 Type: url
 
@@ -118,7 +118,7 @@ Type: url
 .P
 Search the specified registry for modules\. If you have configured npm to point
 to a different default registry, such as your internal private module
-repository, \fBnpm search\fP will default to that registry when searching\. Pass a
+repository, \fB\fP will default to that registry when searching\. Pass a
 different registry url such as the default above in order to override this
 setting\.
 .SH SEE ALSO

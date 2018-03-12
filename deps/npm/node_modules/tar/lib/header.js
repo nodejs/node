@@ -33,9 +33,9 @@ class Header {
     this.atime = null
     this.ctime = null
 
-    if (Buffer.isBuffer(data)) {
+    if (Buffer.isBuffer(data))
       this.decode(data, off || 0)
-    } else if (data)
+    else if (data)
       this.set(data)
   }
 

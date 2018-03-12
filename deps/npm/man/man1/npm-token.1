@@ -1,4 +1,4 @@
-.TH "NPM\-TOKEN" "1" "December 2017" "" ""
+.TH "NPM\-TOKEN" "1" "March 2018" "" ""
 .SH "NAME"
 \fBnpm-token\fR \- Manage your authentication tokens
 .SH SYNOPSIS
@@ -15,9 +15,9 @@ npm token revoke <id|token>
 This list you list, create and revoke authentication tokens\.
 .RS 0
 .IP \(bu 2
-\fBnpm token list\fP:
+\fB\fP:
 Shows a table of all active authentication tokens\. You can request this as
-JSON with \fB\-\-json\fP or tab\-separated values with \fB\-\-parseable\fP\|\.
+JSON with \fB\fP or tab\-separated values with \fB\fP\|\.
 .P
 .RS 2
 .nf
@@ -41,8 +41,8 @@ JSON with \fB\-\-json\fP or tab\-separated values with \fB\-\-parseable\fP\|\.
 .fi
 .RE
 .IP \(bu 2
-\fBnpm token create [\-\-read\-only] [\-\-cidr=<cidr\-ranges>]\fP:
-Create a new authentication token\. It can be \fB\-\-read\-only\fP or accept a list of
+\fB\fP:
+Create a new authentication token\. It can be \fB\fP or accept a list of
 CIDR \fIhttps://en\.wikipedia\.org/wiki/Classless_Inter\-Domain_Routing\fR ranges to
 limit use of this token to\. This will prompt you for your password, and, if you have
 two\-factor authentication enabled, an otp\.
@@ -64,10 +64,10 @@ two\-factor authentication enabled, an otp\.
 .RE
 .RS 0
 .IP \(bu 2
-\fBnpm token revoke <token|id>\fP:
+\fB\fP:
 This removes an authentication token, making it immediately unusable\. This can accept
-both complete tokens (as you get back from \fBnpm token create\fP and will
-find in your \fB\|\.npmrc\fP) and ids as seen in the \fBnpm token list\fP output\.
-This will NOT accept the truncated token found in \fBnpm token list\fP output\.
+both complete tokens (as you get back from \fB\fP and will
+find in your \fB\fP) and ids as seen in the \fB\fP output\.
+This will NOT accept the truncated token found in \fB\fP output\.
 
 .RE

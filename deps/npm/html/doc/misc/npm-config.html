@@ -560,7 +560,7 @@ combination). Passed to the <code>http</code> <code>Agent</code> used to make th
 <p>Any &quot;%s&quot; in the message will be replaced with the version number.</p>
 <h3 id="metrics-registry">metrics-registry</h3>
 <ul>
-<li>Default: The value of  <code>registry</code> (which defaults to &quot;<a href="https://registry.npmjs.org/">https://registry.npmjs.org/</a>&quot;)</li>
+<li>Default: The value of  <code>registry</code> (which defaults to &quot;<a href="https://registry.npmjs.org/&quot;">https://registry.npmjs.org/&quot;</a>)</li>
 <li>Type: String</li>
 </ul>
 <p>The registry you want to send cli metrics to if <code>send-metrics</code> is true.</p>
@@ -628,6 +628,9 @@ when publishing or changing package permissions with <code>npm access</code>.</p
 </ul>
 <p>If set to false, then ignore <code>package-lock.json</code> files when installing. This
 will also prevent <em>writing</em> <code>package-lock.json</code> if <code>save</code> is true.</p>
+<p>When package package-locks are disabled, automatic pruning of extraneous
+modules will also be disabled.  To remove extraneous modules with
+package-locks disabled use <code>npm prune</code>.</p>
 <p>This option is an alias for <code>--shrinkwrap</code>.</p>
 <h3 id="package-lock-only">package-lock-only</h3>
 <ul>
@@ -1024,5 +1027,5 @@ exit successfully.</p>
 <tr><td style="width:60px;height:10px;background:rgb(237,127,127)" colspan=6>&nbsp;</td><td colspan=10 style="width:10px;height:10px;background:rgb(237,127,127)">&nbsp;</td></tr>
 <tr><td colspan=5 style="width:50px;height:10px;background:#fff">&nbsp;</td><td style="width:40px;height:10px;background:rgb(237,127,127)" colspan=4>&nbsp;</td><td style="width:90px;height:10px;background:#fff" colspan=9>&nbsp;</td></tr>
 </table>
-<p id="footer">npm-config &mdash; npm@5.6.0</p>
+<p id="footer">npm-config &mdash; npm@5.7.1</p>
 
