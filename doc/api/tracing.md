@@ -59,7 +59,7 @@ It is accessible using `require('trace_events')`.
 
 ### trace_events.disableTracingCategories(...categories)
 
-* `...categories` [string] One or more category names.
+* `...categories` {string} One or more category names.
 
 Disables trace event capture for the given set of category names.
 
@@ -83,7 +83,7 @@ trace_events.disableTracingCategories(
 
 ### trace_events.enableTracingCategories(...categories)
 
-* `...categories` [string] One or more category names.
+* `...categories` {string} One or more category names.
 
 Enables trace event capture for the given set of category names.
 
@@ -97,7 +97,7 @@ trace_events.enableTracingCategories('v8', 'node.async_hooks');
 
 ### trace_events.getTracingCategories()
 
-* Return: {string[]}
+* Returns: {string[]}
 
 Returns an Array of the currently enabled trace event categories.
 
