@@ -162,16 +162,22 @@ static void DestroyAsyncIdsCallback(void* arg) {
 }
 
 
-void AsyncWrap::EmitPromiseResolve(Environment* env, double async_id) {
+void Emit(Environment* env, double async_id, AsyncHooks::Fields type,
+          Local<Function> fn) {
   AsyncHooks* async_hooks = env->async_hooks();
 
-  if (async_hooks->fields()[AsyncHooks::kPromiseResolve] == 0)
+  if (async_hooks->fields()[type] == 0)
     return;
 
   Local<Value> async_id_value = Number::New(env->isolate(), async_id);
-  Local<Function> fn = env->async_hooks_promise_resolve_function();
   FatalTryCatch try_catch(env);
   USE(fn->Call(env->context(), Undefined(env->isolate()), 1, &async_id_value));
+}
+
+
+void AsyncWrap::EmitPromiseResolve(Environment* env, double async_id) {
+  Emit(env, async_id, AsyncHooks::kPromiseResolve,
+       env->async_hooks_promise_resolve_function());
 }
 
 
@@ -192,15 +198,8 @@ void AsyncWrap::EmitTraceEventBefore() {
 
 
 void AsyncWrap::EmitBefore(Environment* env, double async_id) {
-  AsyncHooks* async_hooks = env->async_hooks();
-
-  if (async_hooks->fields()[AsyncHooks::kBefore] == 0)
-    return;
-
-  Local<Value> async_id_value = Number::New(env->isolate(), async_id);
-  Local<Function> fn = env->async_hooks_before_function();
-  FatalTryCatch try_catch(env);
-  USE(fn->Call(env->context(), Undefined(env->isolate()), 1, &async_id_value));
+  Emit(env, async_id, AsyncHooks::kBefore,
+       env->async_hooks_before_function());
 }
 
 
@@ -221,17 +220,10 @@ void AsyncWrap::EmitTraceEventAfter() {
 
 
 void AsyncWrap::EmitAfter(Environment* env, double async_id) {
-  AsyncHooks* async_hooks = env->async_hooks();
-
-  if (async_hooks->fields()[AsyncHooks::kAfter] == 0)
-    return;
-
   // If the user's callback failed then the after() hooks will be called at the
   // end of _fatalException().
-  Local<Value> async_id_value = Number::New(env->isolate(), async_id);
-  Local<Function> fn = env->async_hooks_after_function();
-  FatalTryCatch try_catch(env);
-  USE(fn->Call(env->context(), Undefined(env->isolate()), 1, &async_id_value));
+  Emit(env, async_id, AsyncHooks::kAfter,
+       env->async_hooks_after_function());
 }
 
 class PromiseWrap : public AsyncWrap {
