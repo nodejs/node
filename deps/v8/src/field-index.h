@@ -123,7 +123,8 @@ class FieldIndex final {
   };
   // Offset of first inobject property from beginning of object.
   class FirstInobjectPropertyOffsetBits
-      : public BitField64<int, InObjectPropertyBits::kNext, 7> {};
+      : public BitField64<int, InObjectPropertyBits::kNext,
+                          kFirstInobjectPropertyOffsetBitCount> {};
   class IsHiddenField
       : public BitField64<bool, FirstInobjectPropertyOffsetBits::kNext, 1> {};
   STATIC_ASSERT(IsHiddenField::kNext <= 64);

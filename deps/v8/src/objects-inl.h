@@ -2431,6 +2431,7 @@ int ObjectTemplateInfo::embedder_field_count() const {
 }
 
 void ObjectTemplateInfo::set_embedder_field_count(int count) {
+  DCHECK_LE(count, JSObject::kMaxEmbedderFields);
   return set_data(
       Smi::FromInt(EmbedderFieldCount::update(Smi::ToInt(data()), count)));
 }

@@ -4019,6 +4019,19 @@ Node* CodeStubAssembler::InstanceTypeEqual(Node* instance_type, int type) {
   return Word32Equal(instance_type, Int32Constant(type));
 }
 
+Node* CodeStubAssembler::IsSpecialReceiverMap(Node* map) {
+  CSA_SLOW_ASSERT(this, IsMap(map));
+  Node* is_special = IsSpecialReceiverInstanceType(LoadMapInstanceType(map));
+  uint32_t mask =
+      Map::HasNamedInterceptorBit::kMask | Map::IsAccessCheckNeededBit::kMask;
+  USE(mask);
+  // Interceptors or access checks imply special receiver.
+  CSA_ASSERT(this,
+             SelectConstant(IsSetWord32(LoadMapBitField(map), mask), is_special,
+                            Int32Constant(1), MachineRepresentation::kWord32));
+  return is_special;
+}
+
 TNode<BoolT> CodeStubAssembler::IsDictionaryMap(SloppyTNode<Map> map) {
   CSA_SLOW_ASSERT(this, IsMap(map));
   Node* bit_field3 = LoadMapBitField3(map);
@@ -6369,38 +6382,36 @@ Node* CodeStubAssembler::DescriptorArrayNumberOfEntries(Node* descriptors) {
       descriptors, IntPtrConstant(DescriptorArray::kDescriptorLengthIndex));
 }
 
-Node* CodeStubAssembler::DescriptorNumberToIndex(
-    SloppyTNode<Uint32T> descriptor_number) {
-  Node* descriptor_size = Int32Constant(DescriptorArray::kEntrySize);
-  Node* index = Int32Mul(descriptor_number, descriptor_size);
-  return ChangeInt32ToIntPtr(index);
+namespace {
+
+Node* DescriptorNumberToIndex(CodeStubAssembler* a, Node* descriptor_number) {
+  Node* descriptor_size = a->Int32Constant(DescriptorArray::kEntrySize);
+  Node* index = a->Int32Mul(descriptor_number, descriptor_size);
+  return a->ChangeInt32ToIntPtr(index);
 }
+
+}  // namespace
 
 Node* CodeStubAssembler::DescriptorArrayToKeyIndex(Node* descriptor_number) {
   return IntPtrAdd(IntPtrConstant(DescriptorArray::ToKeyIndex(0)),
-                   DescriptorNumberToIndex(descriptor_number));
+                   DescriptorNumberToIndex(this, descriptor_number));
 }
 
 Node* CodeStubAssembler::DescriptorArrayGetSortedKeyIndex(
     Node* descriptors, Node* descriptor_number) {
-  Node* details = DescriptorArrayGetDetails(
-      TNode<DescriptorArray>::UncheckedCast(descriptors),
-      TNode<Uint32T>::UncheckedCast(descriptor_number));
+  const int details_offset = DescriptorArray::ToDetailsIndex(0) * kPointerSize;
+  Node* details = LoadAndUntagToWord32FixedArrayElement(
+      descriptors, DescriptorNumberToIndex(this, descriptor_number),
+      details_offset);
   return DecodeWord32<PropertyDetails::DescriptorPointer>(details);
 }
 
 Node* CodeStubAssembler::DescriptorArrayGetKey(Node* descriptors,
                                                Node* descriptor_number) {
   const int key_offset = DescriptorArray::ToKeyIndex(0) * kPointerSize;
-  return LoadFixedArrayElement(
-      descriptors, DescriptorNumberToIndex(descriptor_number), key_offset);
-}
-
-TNode<Uint32T> CodeStubAssembler::DescriptorArrayGetDetails(
-    TNode<DescriptorArray> descriptors, TNode<Uint32T> descriptor_number) {
-  const int details_offset = DescriptorArray::ToDetailsIndex(0) * kPointerSize;
-  return TNode<Uint32T>::UncheckedCast(LoadAndUntagToWord32FixedArrayElement(
-      descriptors, DescriptorNumberToIndex(descriptor_number), details_offset));
+  return LoadFixedArrayElement(descriptors,
+                               DescriptorNumberToIndex(this, descriptor_number),
+                               key_offset);
 }
 
 void CodeStubAssembler::DescriptorLookupBinary(Node* unique_name,
@@ -6599,21 +6610,11 @@ void CodeStubAssembler::LoadPropertyFromFastObject(Node* object, Node* map,
                                                    Variable* var_value) {
   DCHECK_EQ(MachineRepresentation::kWord32, var_details->rep());
   DCHECK_EQ(MachineRepresentation::kTagged, var_value->rep());
+  Comment("[ LoadPropertyFromFastObject");
 
   Node* details =
       LoadDetailsByKeyIndex<DescriptorArray>(descriptors, name_index);
   var_details->Bind(details);
-
-  LoadPropertyFromFastObject(object, map, descriptors, name_index, details,
-                             var_value);
-}
-
-void CodeStubAssembler::LoadPropertyFromFastObject(Node* object, Node* map,
-                                                   Node* descriptors,
-                                                   Node* name_index,
-                                                   Node* details,
-                                                   Variable* var_value) {
-  Comment("[ LoadPropertyFromFastObject");
 
   Node* location = DecodeWord32<PropertyDetails::LocationField>(details);
 
