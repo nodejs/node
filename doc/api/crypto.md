@@ -2198,13 +2198,13 @@ mode must adhere to certain restrictions when using the cipher API:
   16 bytes.
 - The length of the initialization vector (nonce) `N` must be between 7 and 13
   bytes (`7 ≤ N ≤ 13`).
-- The length of the plaintext is limited to `2^(8 * (15 - N))` bytes.
+- The length of the plaintext is limited to `2 ** (8 * (15 - N))` bytes.
 - When decrypting, the authentication tag must be set via `setAuthTag()` before
   specifying additional authenticated data and / or calling `update()`.
   Otherwise, decryption will fail and `final()` will throw an error in
   compliance with section 2.6 of [RFC 3610][].
-- It is not recommended to use stream methods such as `write(data)`, `end(data)`
-  or `pipe()` in CCM mode.
+- Using stream methods such as `write(data)`, `end(data)` or `pipe()` in CCM
+  mode might fail as CCM cannot handle more than one chunk of data per instance.
 - When passing additional authenticated data (AAD), the length of the actual
   message in bytes must be passed to `setAAD()` via the `plaintextLength`
   option. This is not necessary if no AAD is used.

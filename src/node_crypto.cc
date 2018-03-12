@@ -2877,7 +2877,7 @@ void CipherBase::Init(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[2]->IsInt32());
   // Don't assign to cipher->auth_tag_len_ directly; the value might not
   // represent a valid length at this point.
-  int auth_tag_len = args[2]->Int32Value();
+  int auth_tag_len = args[2].As<v8::Int32>()->Value();
 
   cipher->Init(*cipher_type, key_buf, key_buf_len, auth_tag_len);
 }
@@ -2965,7 +2965,7 @@ void CipherBase::InitIv(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[3]->IsInt32());
   // Don't assign to cipher->auth_tag_len_ directly; the value might not
   // represent a valid length at this point.
-  int auth_tag_len = args[3]->Int32Value();
+  int auth_tag_len = args[3].As<v8::Int32>()->Value();
 
   cipher->InitIv(*cipher_type, key_buf, key_len, iv_buf, iv_len, auth_tag_len);
 }
@@ -3142,7 +3142,7 @@ void CipherBase::SetAAD(const FunctionCallbackInfo<Value>& args) {
 
   CHECK_EQ(args.Length(), 2);
   CHECK(args[1]->IsInt32());
-  int plaintext_len = args[1]->Int32Value();
+  int plaintext_len = args[1].As<v8::Int32>()->Value();
 
   if (!cipher->SetAAD(Buffer::Data(args[0]), Buffer::Length(args[0]),
                       plaintext_len))
