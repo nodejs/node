@@ -1,7 +1,5 @@
 @if not defined DEBUG_HELPER @ECHO OFF
 
-cd %~dp0
-
 if /i "%1"=="help" goto help
 if /i "%1"=="--help" goto help
 if /i "%1"=="-help" goto help
@@ -10,6 +8,8 @@ if /i "%1"=="?" goto help
 if /i "%1"=="-?" goto help
 if /i "%1"=="--?" goto help
 if /i "%1"=="/?" goto help
+
+cd %~dp0
 
 @rem Process arguments.
 set config=Release
