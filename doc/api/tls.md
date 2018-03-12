@@ -1127,9 +1127,9 @@ changes:
   * `clientCertEngine` {string} Optional name of an OpenSSL engine which can
     provide the client certificate.
   * `handshakeTimeout` {number} Abort the connection if the SSL/TLS handshake
-    does not finish in the specified number of milliseconds. Defaults to `120`
-    seconds. A `'tlsClientError'` is emitted on the `tls.Server` object whenever
-    a handshake times out.
+    does not finish in the specified number of milliseconds. Defaults to
+    `120000` (120 seconds). A `'tlsClientError'` is emitted on the `tls.Server`
+    object whenever a handshake times out.
   * `requestCert` {boolean} If `true` the server will request a certificate from
     clients that connect and attempt to verify that certificate. Defaults to
     `false`.
