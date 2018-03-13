@@ -206,6 +206,16 @@ To read the documentation:
 $ man doc/node.1
 ```
 
+If you prefer to read the documentation in the browser and have `python` 
+installed, you can run:
+
+```console
+$ cd out/doc/api/
+$ python -m SimpleHTTPServer
+```
+
+and navigate to `http://localhost:8000` in your browser.
+
 To test if Node.js was built correctly:
 
 ```console
