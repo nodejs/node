@@ -4716,13 +4716,14 @@ int Initialize(int argc, const char** argv, const bool evaluate_stdin) {
 
   // Hack around with the argv pointer. Used for process.title = "blah --args".
   // argv won't be modified
-  uv_setup_args(argc, const_cast<char**>(argv));
+  const char** custom_argv = const_cast<const char**>(
+        uv_setup_args(argc, const_cast<char**>(argv)));
 
   // This needs to run *before* V8::Initialize().
   // Init() puts the v8 specific cmd args in exec_argc and exec_argv.
   int exec_argc = 0;
   const char** exec_argv = nullptr;
-  Init(&argc, argv, &exec_argc, &exec_argv);
+  Init(&argc, custom_argv, &exec_argc, &exec_argv);
 
   initialize::_ConfigureOpenSsl();
   initialize::_InitV8();
@@ -4734,7 +4735,7 @@ int Initialize(int argc, const char** argv, const bool evaluate_stdin) {
 
   initialize::_CreateInitialEnvironment();
   exit_code = initialize::_StartEnv(argc,
-                                    argv,
+                                    custom_argv,
                                     exec_argc,
                                     exec_argv,
                                     evaluate_stdin);
