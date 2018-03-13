@@ -142,10 +142,7 @@ to update from nodejs/node:
 * `git remote update -p` OR `git fetch --all` (I prefer the former)
 * `git merge --ff-only upstream/master` (or `REMOTENAME/BRANCH`)
 
-## best practices
+## Best practices
 
-* commit often, out to your github fork (origin), open a PR
-* when making PRs make sure to spend time on the description:
-  * every moment you spend writing a good description quarters the amount of
-    time it takes to understand your code.
-* usually prefer to only squash at the *end* of your work, depends on the change
+* When making PRs, spend time writing a thorough description.
+* Usually only squash at the end of your work.
