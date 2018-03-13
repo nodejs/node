@@ -147,10 +147,10 @@ unintentional side effects.
 Because printing to the console is an asynchronous operation, `console.log()`
 will cause the AsyncHooks callbacks to be called. Using `console.log()` or
 similar asynchronous operations inside an AsyncHooks callback function will thus
-cause an infinite recursion. An easily solution to this when debugging is
-to use a synchronous logging operation such as `fs.writeSync(1, msg)`. This
-will print to stdout because `1` is the file descriptor for stdout and will
-not invoke AsyncHooks recursively because it is synchronous.
+cause an infinite recursion. An easy solution to this when debugging is to use a
+synchronous logging operation such as `fs.writeSync(1, msg)`. This will print to
+stdout because `1` is the file descriptor for stdout and will not invoke
+AsyncHooks recursively because it is synchronous.
 
 ```js
 const fs = require('fs');
@@ -587,8 +587,8 @@ JavaScript API so that all the appropriate callbacks are called.
 
 ### `class AsyncResource()`
 
-The class `AsyncResource` was designed to be extended by the embedder's async
-resources. Using this users can easily trigger the lifetime events of their
+The class `AsyncResource` is designed to be extended by the embedder's async
+resources. Using this, users can easily trigger the lifetime events of their
 own resources.
 
 The `init` hook will trigger when an `AsyncResource` is instantiated.
