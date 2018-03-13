@@ -315,29 +315,6 @@ NODE_EXTERN v8::MaybeLocal<v8::Value> Call(
     const std::vector<v8::Local<v8::Value>>& args = {});
 
 /**
- * @brief Calls a method on a given object.
- *
- * Calls a method on a given object.
- * The function is retrieved by using the functions name.
- * Additionally, a list of parameters is passed to the called function.
- * @param object The container of the called function.
- * @param function_name The name of the function to call.
- * @param args The parameters to pass to the called function. The amount of
- * arguments must be known at compile time.
- * @return The return value of the called function.
- */
-NODE_EXTERN v8::MaybeLocal<v8::Value> Call(
-    v8::Local<v8::Object> object,
-    const std::string& function_name,
-    std::initializer_list<v8::Local<v8::Value>> args);
-
-NODE_EXTERN v8::MaybeLocal<v8::Value> Call(
-    Environment* env,
-    v8::Local<v8::Object> object,
-    const std::string& function_name,
-    std::initializer_list<v8::Local<v8::Value>> args);
-
-/**
  * @brief Calls a given method on a given object.
  *
  * Calls a given method on a given object.
@@ -351,34 +328,6 @@ NODE_EXTERN v8::MaybeLocal<v8::Value> Call(
     v8::Local<v8::Object> receiver,
     v8::Local<v8::Function> function,
     const std::vector<v8::Local<v8::Value>>& args = {});
-
-NODE_EXTERN v8::MaybeLocal<v8::Value> Call(
-    Environment* env,
-    v8::Local<v8::Object> receiver,
-    v8::Local<v8::Function> function,
-    const std::vector<v8::Local<v8::Value>>& args = {});
-
-/**
- * @brief Calls a given method on a given object.
- *
- * Calls a given method on a given object.
- * Additionally, a list of parameters is passed to the called function.
- * @param object The receiver of the given function.
- * @param function The function to be called.
- * @param args The parameters to pass to the called function. The amount of
- * arguments must be known at compile time.
- * @return The return value of the called function.
- */
-NODE_EXTERN v8::MaybeLocal<v8::Value> Call(
-    v8::Local<v8::Object> receiver,
-    v8::Local<v8::Function> function,
-    std::initializer_list<v8::Local<v8::Value>> args);
-
-NODE_EXTERN v8::MaybeLocal<v8::Value> Call(
-    Environment* env,
-    v8::Local<v8::Object> receiver,
-    v8::Local<v8::Function> function,
-    std::initializer_list<v8::Local<v8::Value>> args);
 }  // namespace node
 
 
