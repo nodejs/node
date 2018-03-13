@@ -187,7 +187,7 @@ common.expectsError(
   tmpdir.refresh();
   const filename = `${tmpdir.path}/foo.pipe`;
   const mkfifoResult = child_process.spawnSync('mkfifo', [filename]);
-  if (!mkfifoResult.error) {
+  if (!common.isWindows && !mkfifoResult.error) {
     child_process.exec(`echo "xyz foobar" > '${filename}'`);
     const stream = new fs.createReadStream(filename, { end: 1 });
     stream.data = '';
