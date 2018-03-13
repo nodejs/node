@@ -210,7 +210,7 @@ If you prefer to read the documentation in the browser,
 run the following once `make doc` is done:
 
 ```console
-$ make doconly
+$ make docopen
 ```
 
 This will open up a browser tab/window with the documentation.
