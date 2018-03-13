@@ -4477,7 +4477,7 @@ bool eventLoopIsRunning() {
 
 namespace internal {
   v8::Isolate* isolate() {
-    return _isolate;
+    return _environment->isolate();
   }
 
   Environment* environment() {
@@ -4763,6 +4763,10 @@ int Deinitialize() {
 }
 
 v8::MaybeLocal<v8::Value> Run(const std::string& path) {
+  return Run(_environment, path);
+}
+
+v8::MaybeLocal<v8::Value> Run(Environment* env, const std::string& path) {
   // TODO(cmfcmf) Read entire file into string.
   // There is most certainly a better way
   // https://stackoverflow.com/a/2602258/2560557
@@ -4770,12 +4774,17 @@ v8::MaybeLocal<v8::Value> Run(const std::string& path) {
   std::stringstream buffer;
   buffer << t.rdbuf();
 
-  return Evaluate(buffer.str());
+  return Evaluate(_environment, buffer.str());
 }
 
 v8::MaybeLocal<v8::Value> Evaluate(const std::string& js_code) {
-  EscapableHandleScope scope(_environment->isolate());
-  TryCatch try_catch(_environment->isolate());
+  return Evaluate(_environment, js_code);
+}
+
+v8::MaybeLocal<v8::Value> Evaluate(Environment* env,
+                                   const std::string& js_code) {
+  EscapableHandleScope scope(env->isolate());
+  TryCatch try_catch(env->isolate());
 
   // try_catch must be nonverbose to disable FatalException() handler,
   // we will handle exceptions ourself.
@@ -4785,12 +4794,12 @@ v8::MaybeLocal<v8::Value> Evaluate(const std::string& js_code) {
   // This is used for debugging
   // ScriptOrigin origin(filename);
   MaybeLocal<v8::Script> script = v8::Script::Compile(
-        _environment->context(),
+        env->context(),
         v8::String::NewFromUtf8(_isolate, js_code.c_str())
         /*removed param: origin*/);
 
   if (script.IsEmpty()) {
-    ReportException(_environment, try_catch);
+    ReportException(env, try_catch);
     return MaybeLocal<v8::Value>();
   }
 
@@ -4819,14 +4828,22 @@ void RunEventLoop(const std::function<void()>& callback,
 }
 
 v8::MaybeLocal<v8::Object> GetRootObject() {
-  if (context.IsEmpty()) {
-    return MaybeLocal<v8::Object>();
-  }
-  return context->Global();
+  return GetRootObject(_environment);
+}
+
+v8::MaybeLocal<v8::Object> GetRootObject(Environment* env) {
+  return env->context()->Global();
 }
 
 
 v8::MaybeLocal<v8::Value> Call(v8::Local<v8::Object> receiver,
+                               v8::Local<v8::Function> function,
+                               const std::vector<v8::Local<v8::Value>>& args) {
+  return Call(_environment, receiver, function, args);
+}
+
+v8::MaybeLocal<v8::Value> Call(Environment* env,
+                               v8::Local<v8::Object> receiver,
                                v8::Local<v8::Function> function,
                                const std::vector<v8::Local<v8::Value>>& args) {
   return function->Call(receiver,
@@ -4837,14 +4854,31 @@ v8::MaybeLocal<v8::Value> Call(v8::Local<v8::Object> receiver,
 v8::MaybeLocal<v8::Value> Call(v8::Local<v8::Object> receiver,
                                v8::Local<v8::Function> function,
                                std::initializer_list<v8::Local<Value>> args) {
-  return Call(receiver, function, std::vector<v8::Local<v8::Value>>(args));
+  return Call(_environment, receiver, function, args);
+}
+
+v8::MaybeLocal<v8::Value> Call(Environment* env,
+                               v8::Local<v8::Object> receiver,
+                               v8::Local<v8::Function> function,
+                               std::initializer_list<v8::Local<Value>> args) {
+  return Call(env,
+              receiver,
+              function,
+              std::vector<v8::Local<v8::Value>>(args));
 }
 
 v8::MaybeLocal<v8::Value> Call(v8::Local<v8::Object> object,
                                const std::string& function_name,
                                const std::vector<v8::Local<v8::Value>>& args) {
+  return Call(_environment, object, function_name, args);
+}
+
+v8::MaybeLocal<v8::Value> Call(Environment* env,
+                               v8::Local<v8::Object> object,
+                               const std::string& function_name,
+                               const std::vector<v8::Local<v8::Value>>& args) {
   MaybeLocal<v8::String> maybe_function_name =
-      v8::String::NewFromUtf8(_isolate, function_name.c_str());
+      v8::String::NewFromUtf8(env->isolate(), function_name.c_str());
 
   Local<v8::String> v8_function_name;
 
@@ -4864,18 +4898,30 @@ v8::MaybeLocal<v8::Value> Call(v8::Local<v8::Object> object,
     return MaybeLocal<v8::Value>();
   }
 
-  return Call(object, v8::Local<v8::Function>::Cast(value), args);
+  return Call(env, object, v8::Local<v8::Function>::Cast(value), args);
 }
 
 v8::MaybeLocal<v8::Value> Call(v8::Local<v8::Object> object,
                                const std::string& function_name,
                                std::initializer_list<v8::Local<Value>> args) {
-  return Call(object, function_name, std::vector<v8::Local<v8::Value>>(args));
+  return Call(_environment, object, function_name, args);
+}
+
+v8::MaybeLocal<v8::Value> Call(Environment* env,
+                               v8::Local<v8::Object> object,
+                               const std::string& function_name,
+                               std::initializer_list<v8::Local<Value>> args) {
+  return Call(env, object, function_name, std::vector<v8::Local<v8::Value>>(args));
 }
 
 v8::MaybeLocal<v8::Object> IncludeModule(const std::string& name) {
+  return IncludeModule(_environment, name);
+}
+
+v8::MaybeLocal<v8::Object> IncludeModule(Environment* env,
+                                         const std::string& name) {
   MaybeLocal<v8::String> maybe_arg =
-      v8::String::NewFromUtf8(_isolate, name.c_str());
+      v8::String::NewFromUtf8(env->isolate(), name.c_str());
 
   Local<v8::String> arg;
 
@@ -4886,13 +4932,14 @@ v8::MaybeLocal<v8::Object> IncludeModule(const std::string& name) {
 
   Local<v8::Object> root_object;
 
-  if (!GetRootObject().ToLocal(&root_object)) {
+  if (!GetRootObject(env).ToLocal(&root_object)) {
     // cannot get root object
     return MaybeLocal<v8::Object>();
   }
 
   std::vector<Local<v8::Value>> args = { arg };
 
+  // TODO: env
   MaybeLocal<v8::Value> maybe_module = Call(root_object, "require", args);
   Local<v8::Value> module;
 
@@ -4906,8 +4953,14 @@ v8::MaybeLocal<v8::Object> IncludeModule(const std::string& name) {
 
 v8::MaybeLocal<v8::Value> GetValue(v8::Local<v8::Object> object,
                                    const std::string& value_name) {
+  return GetValue(_environment, object, value_name);
+}
+
+v8::MaybeLocal<v8::Value> GetValue(Environment* env,
+                                   v8::Local<v8::Object> object,
+                                   const std::string& value_name) {
   MaybeLocal<v8::String> maybe_key =
-      v8::String::NewFromUtf8(_isolate, value_name.c_str());
+      v8::String::NewFromUtf8(env->isolate(), value_name.c_str());
 
   Local<v8::String> key;
 
@@ -4923,6 +4976,14 @@ void RegisterModule(const std::string& name,
                     const addon_context_register_func& callback,
                     void* priv,
                     const std::string& target) {
+  RegisterModule(_environment, name, callback, priv, target);
+}
+
+void RegisterModule(Environment* env,
+                    const std::string& name,
+                    const addon_context_register_func& callback,
+                    void* priv,
+                    const std::string& target) {
   node::node_module* module = new node::node_module();
 
   module->nm_version = NODE_MODULE_VERSION;
@@ -4935,18 +4996,30 @@ void RegisterModule(const std::string& name,
   node_module_register(module);
 
   if (target != "") {
-    Evaluate("const " + target + " = process.binding('" + name + "')");
+    Evaluate(env, "const " + target + " = process.binding('" + name + "')");
   }
 }
 
 void RegisterModule(const std::string& name,
                     const std::map<std::string,
-                    v8::FunctionCallback>& module_functions,
+                      v8::FunctionCallback>& module_functions,
+                    const std::string& target) {
+  RegisterModule(_environment,
+                 name,
+                 module_functions,
+                 target);
+}
+
+void RegisterModule(Environment* env,
+                    const std::string& name,
+                    const std::map<std::string,
+                      v8::FunctionCallback>& module_functions,
                     const std::string& target) {
   auto map_on_heap = new const std::map<std::string,
                                         v8::FunctionCallback>(module_functions);
 
-  RegisterModule(name,
+  RegisterModule(env,
+                 name,
                  node::_RegisterModuleCallback,
                  const_cast<std::map<std::string,
                                      v8::FunctionCallback>*>(map_on_heap),

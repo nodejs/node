@@ -118,18 +118,6 @@ NODE_EXTERN int Initialize(int argc,
  */
 NODE_EXTERN int Deinitialize();
 
-/**
- * @brief Executes the content of a given JavaScript file.
- *
- * Loads and executes the content of the given file.
- * This method returns after the script was evaluated once.
- * This means, that any pending events will not be processed as long as
- * `ProcessEvents` or `RunEventLoop` is not called.
- * @param path The path to the JavaScript file.
- * @return The return value of the given JavaScript file.
- */
-NODE_EXTERN v8::MaybeLocal<v8::Value> Run(const std::string& path);
-
 /*********************************************************
  * Handle JavaScript events
  *********************************************************/
@@ -179,6 +167,21 @@ NODE_EXTERN void StopEventLoop();
  *********************************************************/
 
 /**
+ * @brief Executes the content of a given JavaScript file.
+ *
+ * Loads and executes the content of the given file.
+ * This method returns after the script was evaluated once.
+ * This means, that any pending events will not be processed as long as
+ * `ProcessEvents` or `RunEventLoop` is not called.
+ * @param path The path to the JavaScript file.
+ * @return The return value of the given JavaScript file.
+ */
+NODE_EXTERN v8::MaybeLocal<v8::Value> Run(const std::string& path);
+
+NODE_EXTERN v8::MaybeLocal<v8::Value> Run(Environment* env,
+                                          const std::string& path);
+
+/**
  * @brief Evaluates the given JavaScript code.
  *
  * Parses and runs the given JavaScipt code.
@@ -187,6 +190,9 @@ NODE_EXTERN void StopEventLoop();
  */
 NODE_EXTERN v8::MaybeLocal<v8::Value> Evaluate(const std::string& js_code);
 
+NODE_EXTERN v8::MaybeLocal<v8::Value> Evaluate(Environment* env,
+                                               const std::string& js_code);
+
 /**
  * @brief Returns the JavaScript root object.
  *
@@ -194,6 +200,8 @@ NODE_EXTERN v8::MaybeLocal<v8::Value> Evaluate(const std::string& js_code);
  * @return The global root object.
  */
 NODE_EXTERN v8::MaybeLocal<v8::Object> GetRootObject();
+
+NODE_EXTERN v8::MaybeLocal<v8::Object> GetRootObject(Environment* env);
 
 /**
  * @brief Registers a native C++ module.
@@ -217,6 +225,12 @@ NODE_EXTERN void RegisterModule(const std::string& name,
                                 void* priv = nullptr,
                                 const std::string& target = "");
 
+NODE_EXTERN void RegisterModule(Environment* env,
+                                const std::string& name,
+                                const addon_context_register_func& callback,
+                                void* priv = nullptr,
+                                const std::string& target = "");
+
 /**
  * @brief Registers a native C++ module.
  *
@@ -231,6 +245,12 @@ NODE_EXTERN void RegisterModule(const std::string& name,
  * will *not* be registered within the global JavaScript context automatically.
  */
 NODE_EXTERN void RegisterModule(
+    const std::string& name,
+    const std::map<std::string, v8::FunctionCallback>& module_functions,
+    const std::string& target = "");
+
+NODE_EXTERN void RegisterModule(
+    Environment* env,
     const std::string& name,
     const std::map<std::string, v8::FunctionCallback>& module_functions,
     const std::string& target = "");
@@ -254,6 +274,9 @@ NODE_EXTERN void RegisterModule(
  */
 NODE_EXTERN v8::MaybeLocal<v8::Object> IncludeModule(const std::string& name);
 
+NODE_EXTERN v8::MaybeLocal<v8::Object> IncludeModule(Environment* env,
+                                                     const std::string& name);
+
 /**
  * @brief Returns a member of the given object.
  *
@@ -263,6 +286,10 @@ NODE_EXTERN v8::MaybeLocal<v8::Object> IncludeModule(const std::string& name);
  * @return The requested value.
  */
 NODE_EXTERN v8::MaybeLocal<v8::Value> GetValue(v8::Local<v8::Object> object,
+                                               const std::string& value_name);
+
+NODE_EXTERN v8::MaybeLocal<v8::Value> GetValue(Environment* env,
+                                               v8::Local<v8::Object> object,
                                                const std::string& value_name);
 
 /**
@@ -277,6 +304,12 @@ NODE_EXTERN v8::MaybeLocal<v8::Value> GetValue(v8::Local<v8::Object> object,
  * @return The return value of the called function.
  */
 NODE_EXTERN v8::MaybeLocal<v8::Value> Call(
+    v8::Local<v8::Object> object,
+    const std::string& function_name,
+    const std::vector<v8::Local<v8::Value>>& args = {});
+
+NODE_EXTERN v8::MaybeLocal<v8::Value> Call(
+    Environment* env,
     v8::Local<v8::Object> object,
     const std::string& function_name,
     const std::vector<v8::Local<v8::Value>>& args = {});
@@ -298,6 +331,12 @@ NODE_EXTERN v8::MaybeLocal<v8::Value> Call(
     const std::string& function_name,
     std::initializer_list<v8::Local<v8::Value>> args);
 
+NODE_EXTERN v8::MaybeLocal<v8::Value> Call(
+    Environment* env,
+    v8::Local<v8::Object> object,
+    const std::string& function_name,
+    std::initializer_list<v8::Local<v8::Value>> args);
+
 /**
  * @brief Calls a given method on a given object.
  *
@@ -309,6 +348,12 @@ NODE_EXTERN v8::MaybeLocal<v8::Value> Call(
  * @return The return value of the called function.
  */
 NODE_EXTERN v8::MaybeLocal<v8::Value> Call(
+    v8::Local<v8::Object> receiver,
+    v8::Local<v8::Function> function,
+    const std::vector<v8::Local<v8::Value>>& args = {});
+
+NODE_EXTERN v8::MaybeLocal<v8::Value> Call(
+    Environment* env,
     v8::Local<v8::Object> receiver,
     v8::Local<v8::Function> function,
     const std::vector<v8::Local<v8::Value>>& args = {});
@@ -325,6 +370,12 @@ NODE_EXTERN v8::MaybeLocal<v8::Value> Call(
  * @return The return value of the called function.
  */
 NODE_EXTERN v8::MaybeLocal<v8::Value> Call(
+    v8::Local<v8::Object> receiver,
+    v8::Local<v8::Function> function,
+    std::initializer_list<v8::Local<v8::Value>> args);
+
+NODE_EXTERN v8::MaybeLocal<v8::Value> Call(
+    Environment* env,
     v8::Local<v8::Object> receiver,
     v8::Local<v8::Function> function,
     std::initializer_list<v8::Local<v8::Value>> args);
