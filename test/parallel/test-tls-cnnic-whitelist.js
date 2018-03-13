@@ -28,7 +28,7 @@ const testCases = [
       rejectUnauthorized: true,
       ca: [loadPEM('fake-cnnic-root-cert')]
     },
-    errorCode: 'CERT_REVOKED'
+    errorCode: 'UNABLE_TO_VERIFY_LEAF_SIGNATURE'
   },
   // Test 1: for the fix of node#2061
   // agent6-cert.pem is signed by intermediate cert of ca3.
