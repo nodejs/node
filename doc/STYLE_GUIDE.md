@@ -14,9 +14,8 @@
   "color" vs. "colour", etc.
 * Use [serial commas][].
 * Avoid personal pronouns in reference documentation ("I", "you", "we").
-  * Pronouns are acceptable in more colloquial documentation, like guides.
-  * Use gender-neutral pronouns and mass nouns. Non-comprehensive
-    examples:
+  * Personal pronouns are acceptable in colloquial documentation such as guides.
+  * Use gender-neutral pronouns and gender-neutral plural nouns.
     * OK: "they", "their", "them", "folks", "people", "developers"
     * NOT OK: "his", "hers", "him", "her", "guys", "dudes"
 * When combining wrapping elements (parentheses and quotes), terminal
