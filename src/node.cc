@@ -4939,8 +4939,7 @@ v8::MaybeLocal<v8::Object> IncludeModule(Environment* env,
 
   std::vector<Local<v8::Value>> args = { arg };
 
-  // TODO: env
-  MaybeLocal<v8::Value> maybe_module = Call(root_object, "require", args);
+  MaybeLocal<v8::Value> maybe_module = Call(env, root_object, "require", args);
   Local<v8::Value> module;
 
   if (!maybe_module.ToLocal(&module)) {
