@@ -236,36 +236,40 @@ v8:
 	tools/make-v8.sh
 	$(MAKE) -C deps/v8 $(V8_ARCH).$(BUILDTYPE_LOWER) $(V8_BUILD_OPTIONS)
 
+.PHONY: jstest
+jstest: build-addons build-addons-napi ## Runs addon tests and JS tests
+	$(PYTHON) tools/test.py --mode=release -J \
+		$(CI_JS_SUITES) \
+		$(CI_NATIVE_SUITES)
+
 .PHONY: test
 # This does not run tests of third-party libraries inside deps.
 test: all ## Runs default tests, linters, and builds docs.
+	# Build the addons before running the tests so the test results
+	# can be displayed together
 	$(MAKE) -s build-addons
 	$(MAKE) -s build-addons-napi
-	$(MAKE) -s doc-only
-	$(MAKE) -s lint
+	$(MAKE) -s test-doc
 	$(MAKE) -s cctest
-	$(PYTHON) tools/test.py --mode=release -J \
-		$(CI_JS_SUITES) \
-		$(CI_NATIVE_SUITES) \
-		$(CI_DOC)
+	$(MAKE) -s jstest
 
 .PHONY: test-only
 test-only: all  ## For a quick test, does not run linter or build docs.
+	# Build the addons before running the tests so the test results
+	# can be displayed together
 	$(MAKE) build-addons
 	$(MAKE) build-addons-napi
 	$(MAKE) cctest
-	$(PYTHON) tools/test.py --mode=release -J \
-		$(CI_JS_SUITES) \
-		$(CI_NATIVE_SUITES)
+	$(MAKE) jstest
 
 # Used by `make coverage-test`
 test-cov: all
+	# Build the addons before running the tests so the test results
+	# can be displayed together
 	$(MAKE) build-addons
 	$(MAKE) build-addons-napi
 	# $(MAKE) cctest
-	$(PYTHON) tools/test.py --mode=release -J \
-		$(CI_JS_SUITES) \
-		$(CI_NATIVE_SUITES)
+	$(MAKE) jstest
 	$(MAKE) lint
 
 test-parallel: all
