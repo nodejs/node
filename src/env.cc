@@ -324,7 +324,7 @@ void Environment::AddPromiseHook(promise_hook_func fn, void* arg) {
     it->enable_count_++;
     return;
   }
-  promise_hooks_.push_back(PromiseHookCallback{fn, arg, 1});
+  promise_hooks_.push_back(PromiseHookCallback{fn, arg});
 
   if (promise_hooks_.size() == 1) {
     isolate_->SetPromiseHook(EnvPromiseHook);
