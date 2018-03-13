@@ -1,5 +1,7 @@
 'use strict';
 const common = require('../common');
+
+const child_process = require('child_process');
 const assert = require('assert');
 
 const fixtures = require('../common/fixtures');
@@ -146,11 +148,6 @@ stream.on('end', function() {
   }));
 }
 
-// pause and then resume immediately.
-const pauseRes = fs.createReadStream(rangeFile);
-pauseRes.pause();
-pauseRes.resume();
-
 let file7 = fs.createReadStream(rangeFile, {autoClose: false });
 file7.on('data', () => {});
 file7.on('end', function() {
@@ -171,6 +168,38 @@ function file7Next() {
   file7.on('end', function(err) {
     assert.strictEqual(file7.data, 'xyz\n');
   });
+}
+
+if (!common.isWindows) {
+  // Verify that end works when start is not specified, and we do not try to
+  // use positioned reads. This makes sure that this keeps working for
+  // non-seekable file descriptors.
+  tmpdir.refresh();
+  const filename = `${tmpdir.path}/foo.pipe`;
+  const mkfifoResult = child_process.spawnSync('mkfifo', [filename]);
+  if (!mkfifoResult.error) {
+    child_process.exec(`echo "xyz foobar" > '${filename}'`);
+    const stream = new fs.createReadStream(filename, { end: 1 });
+    stream.data = '';
+
+    stream.on('data', function(chunk) {
+      stream.data += chunk;
+    });
+
+    stream.on('end', common.mustCall(function() {
+      assert.strictEqual('xy', stream.data);
+      fs.unlinkSync(filename);
+    }));
+  } else {
+    common.printSkipMessage('mkfifo not available');
+  }
+}
+
+{
+  // pause and then resume immediately.
+  const pauseRes = fs.createReadStream(rangeFile);
+  pauseRes.pause();
+  pauseRes.resume();
 }
 
 // Just to make sure autoClose won't close the stream because of error.
