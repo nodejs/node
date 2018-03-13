@@ -587,6 +587,68 @@ const char* signo_string(int signo) {
   }
 }
 
+// These are all flags available for use with NODE_OPTIONS.
+//
+// Disallowed flags:
+//  These flags cause Node to do things other than run scripts:
+//    --version / -v
+//    --eval / -e
+//    --print / -p
+//    --check / -c
+//    --interactive / -i
+//    --prof-process
+//    --v8-options
+//  These flags are disallowed because security:
+//    --preserve-symlinks
+const char* const environment_flags[] = {
+  // Node options, sorted in `node --help` order for ease of comparison.
+  "--enable-fips",
+  "--experimental-modules",
+  "--experimenatl-repl-await",
+  "--experimental-vm-modules",
+  "--experimental-worker",
+  "--force-fips",
+  "--icu-data-dir",
+  "--inspect",
+  "--inspect-brk",
+  "--inspect-port",
+  "--loader",
+  "--napi-modules",
+  "--no-deprecation",
+  "--no-force-async-hooks-checks",
+  "--no-warnings",
+  "--openssl-config",
+  "--pending-deprecation",
+  "--redirect-warnings",
+  "--require",
+  "--throw-deprecation",
+  "--tls-cipher-list",
+  "--trace-deprecation",
+  "--trace-event-categories",
+  "--trace-event-file-pattern",
+  "--trace-events-enabled",
+  "--trace-sync-io",
+  "--trace-warnings",
+  "--track-heap-objects",
+  "--use-bundled-ca",
+  "--use-openssl-ca",
+  "--v8-pool-size",
+  "--zero-fill-buffers",
+  "-r"
+};
+
+  // V8 options (define with '_', which allows '-' or '_')
+const char* const v8_environment_flags[] = {
+  "--abort_on_uncaught_exception",
+  "--max_old_space_size",
+  "--perf_basic_prof",
+  "--perf_prof",
+  "--stack_trace_limit",
+};
+
+int v8_environment_flags_count = arraysize(v8_environment_flags);
+int environment_flags_count = arraysize(environment_flags);
+
 // Look up environment variable unless running as setuid root.
 bool SafeGetenv(const char* key, std::string* text) {
 #if !defined(__CloudABI__) && !defined(_WIN32)
