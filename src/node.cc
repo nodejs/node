@@ -4834,12 +4834,6 @@ v8::MaybeLocal<v8::Value> Call(v8::Local<v8::Object> receiver,
                         const_cast<v8::Local<v8::Value>*>(&args[0]));
 }
 
-v8::MaybeLocal<v8::Value> Call(v8::Local<v8::Object> receiver,
-                               v8::Local<v8::Function> function,
-                               std::initializer_list<v8::Local<Value>> args) {
-  return Call(receiver, function, std::vector<v8::Local<v8::Value>>(args));
-}
-
 v8::MaybeLocal<v8::Value> Call(v8::Local<v8::Object> object,
                                const std::string& function_name,
                                const std::vector<v8::Local<v8::Value>>& args) {
@@ -4865,12 +4859,6 @@ v8::MaybeLocal<v8::Value> Call(v8::Local<v8::Object> object,
   }
 
   return Call(object, v8::Local<v8::Function>::Cast(value), args);
-}
-
-v8::MaybeLocal<v8::Value> Call(v8::Local<v8::Object> object,
-                               const std::string& function_name,
-                               std::initializer_list<v8::Local<Value>> args) {
-  return Call(object, function_name, std::vector<v8::Local<v8::Value>>(args));
 }
 
 v8::MaybeLocal<v8::Object> IncludeModule(const std::string& name) {
