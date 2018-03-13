@@ -1198,8 +1198,9 @@ print(fs.createReadStream('file')).catch(console.log);
 If the loop terminates with a `break` or a `throw`, the stream will be
 destroyed. In other terms, iterating over a stream will consume the stream
 fully. 
-Note that by default file iteration would be by the chunks of the size equal 
-to `highWaterMark` value (default is 64kb for [`fs.createReadStream()`][]).
+Note that by default, async reading of the contents of the file will be
+performed by chunks of size equal to `highWaterMark` value (default is 64kb
+for [`fs.createReadStream()`][]).
 
 ### Duplex and Transform Streams
 
