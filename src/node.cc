@@ -4458,18 +4458,15 @@ class HandleScopeHeapWrapper {
 };
 
 ArrayBufferAllocator* allocator;
-Isolate::CreateParams params;
 Locker* locker;
 IsolateData* isolate_data;
-Isolate::Scope* isolate_scope;
+HandleScopeHeapWrapper* _handle_scope_wrapper = nullptr;
 Local<Context> context;
-Context::Scope* context_scope;
 bool request_stop = false;
 CmdArgs* cmd_args = nullptr;
 bool _event_loop_running = false;
 v8::Isolate* _isolate = nullptr;
 Environment* _environment = nullptr;
-HandleScopeHeapWrapper* _handle_scope_wrapper = nullptr;
 
 bool eventLoopIsRunning() {
   return _event_loop_running;
@@ -4531,32 +4528,27 @@ void _StopEnv() {
   delete _environment;
   _environment = nullptr;
 
-  delete context_scope;
-  context_scope = nullptr;
+  context->Exit();
+}
 
-  if (!context.IsEmpty()) {
-    // No need to delete the context value (delete *context),
-    // this is already done by deleting the context_scope above.
-    context.Clear();
-  }
-
+void _DeleteIsolate() {
   delete isolate_data;
   isolate_data = nullptr;
 
   delete _handle_scope_wrapper;
   _handle_scope_wrapper = nullptr;
 
-  delete isolate_scope;
-  isolate_scope = nullptr;
+  _isolate->Exit();
 
   delete locker;
   locker = nullptr;
-}
 
-void _DeleteIsolate() {
-  Mutex::ScopedLock scoped_lock(node_isolate_mutex);
-  CHECK_EQ(node_isolate, _isolate);
-  node_isolate = nullptr;
+  {
+    Mutex::ScopedLock scoped_lock(node_isolate_mutex);
+    CHECK_EQ(node_isolate, _isolate);
+    node_isolate = nullptr;
+  }
+
   _isolate->Dispose();
 
   delete allocator;
@@ -4598,6 +4590,7 @@ void _InitV8() {
 }
 
 int _CreateIsolate() {
+  Isolate::CreateParams params;
   allocator = new ArrayBufferAllocator();
   params.array_buffer_allocator = allocator;
 #ifdef NODE_ENABLE_VTUNE_PROFILING
@@ -4606,8 +4599,6 @@ int _CreateIsolate() {
 
   _isolate = Isolate::New(params);
   if (_isolate == nullptr) {
-    fprintf(stderr, "Could not create isolate.");
-    fflush(stderr);
     return 12;  // Signal internal error.
   }
 
@@ -4627,7 +4618,7 @@ int _CreateIsolate() {
 
 void _CreateInitialEnvironment() {
   locker = new Locker(_isolate);
-  isolate_scope = new Isolate::Scope(_isolate);
+  _isolate->Enter();
   _handle_scope_wrapper = new HandleScopeHeapWrapper(_isolate);
 
   isolate_data = new IsolateData(
@@ -4645,8 +4636,8 @@ void _CreateInitialEnvironment() {
   // (one in Start() 2 and one in Start() 3). Currently, we have no idea why.
   // HandleScope handle_scope(isolate);
   context = NewContext(_isolate);
-  context_scope = new Context::Scope(context);
-  _environment = new node::Environment(isolate_data, context);
+  context->Enter();
+  _environment = new Environment(isolate_data, context);
 }
 
 void _ConfigureOpenSsl() {
@@ -4716,6 +4707,7 @@ int Initialize(int argc, const char** argv, const bool evaluate_stdin) {
 
   // Hack around with the argv pointer. Used for process.title = "blah --args".
   // argv won't be modified
+  // TODO(cmfcmf): This returns argv, which therefore can't be const!
   uv_setup_args(argc, const_cast<char**>(argv));
 
   // This needs to run *before* V8::Initialize().
@@ -4738,11 +4730,7 @@ int Initialize(int argc, const char** argv, const bool evaluate_stdin) {
                                     exec_argc,
                                     exec_argv,
                                     evaluate_stdin);
-  if (exit_code != 0) {
-    return exit_code;
-  }
-
-  return 0;
+  return exit_code;
 }
 
 int Deinitialize() {
