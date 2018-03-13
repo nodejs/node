@@ -4705,7 +4705,6 @@ int Initialize(int argc, const char** argv, const bool evaluate_stdin) {
 
   // Hack around with the argv pointer. Used for process.title = "blah --args".
   // argv won't be modified
-  // TODO(cmfcmf): This returns argv, which therefore can't be const!
   uv_setup_args(argc, const_cast<char**>(argv));
 
   // This needs to run *before* V8::Initialize().
