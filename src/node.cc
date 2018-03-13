@@ -4851,22 +4851,6 @@ v8::MaybeLocal<v8::Value> Call(Environment* env,
                         const_cast<v8::Local<v8::Value>*>(&args[0]));
 }
 
-v8::MaybeLocal<v8::Value> Call(v8::Local<v8::Object> receiver,
-                               v8::Local<v8::Function> function,
-                               std::initializer_list<v8::Local<Value>> args) {
-  return Call(_environment, receiver, function, args);
-}
-
-v8::MaybeLocal<v8::Value> Call(Environment* env,
-                               v8::Local<v8::Object> receiver,
-                               v8::Local<v8::Function> function,
-                               std::initializer_list<v8::Local<Value>> args) {
-  return Call(env,
-              receiver,
-              function,
-              std::vector<v8::Local<v8::Value>>(args));
-}
-
 v8::MaybeLocal<v8::Value> Call(v8::Local<v8::Object> object,
                                const std::string& function_name,
                                const std::vector<v8::Local<v8::Value>>& args) {
@@ -4899,20 +4883,6 @@ v8::MaybeLocal<v8::Value> Call(Environment* env,
   }
 
   return Call(env, object, v8::Local<v8::Function>::Cast(value), args);
-}
-
-v8::MaybeLocal<v8::Value> Call(v8::Local<v8::Object> object,
-                               const std::string& function_name,
-                               std::initializer_list<v8::Local<Value>> args) {
-  return Call(_environment, object, function_name, args);
-}
-
-v8::MaybeLocal<v8::Value> Call(Environment* env,
-                               v8::Local<v8::Object> object,
-                               const std::string& function_name,
-                               std::initializer_list<v8::Local<Value>> args) {
-  return Call(env, object, function_name,
-              std::vector<v8::Local<v8::Value>>(args));
 }
 
 v8::MaybeLocal<v8::Object> IncludeModule(const std::string& name) {

@@ -452,4 +452,6 @@ NODE_EXTERN v8::MaybeLocal<v8::Value> Call(
     v8::Local<v8::Function> function,
     const std::vector<v8::Local<v8::Value>>& args = {});
 
+}  // namespace node
+
 #endif  // SRC_NODE_LIB_H_
