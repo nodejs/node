@@ -246,9 +246,9 @@ instances and asynchronous work scheduled by them.
 
 Users are able to define their own `type` when using the public embedder API.
 
-*Note:* It is possible to have type name collisions. Embedders are encouraged
-to use unique prefixes, such as the npm package name, to prevent collisions
-when listening to the hooks.
+It is possible to have type name collisions. Embedders are encouraged to use
+unique prefixes, such as the npm package name, to prevent collisions when
+listening to the hooks.
 
 ###### `triggerId`
 
@@ -282,10 +282,10 @@ TCPWRAP(4): trigger: 2 execution: 0
 The `TCPSERVERWRAP` is the server which receives the connections.
 
 The `TCPWRAP` is the new connection from the client. When a new
-connection is made the `TCPWrap` instance is immediately constructed. This
-happens outside of any JavaScript stack (side note: a `executionAsyncId()` of
-`0` means it's being executed from C++, with no JavaScript stack above it).
-With only that information, it would be impossible to link resources together in
+connection is made, the `TCPWrap` instance is immediately constructed. This
+happens outside of any JavaScript stack. (An `executionAsyncId()` of `0` means
+that it is being executed from C++ with no JavaScript stack above it). With only
+that information, it would be impossible to link resources together in
 terms of what caused them to be created, so `triggerAsyncId` is given the task
 of propagating what resource is responsible for the new resource's existence.
 
@@ -420,9 +420,9 @@ it only once.
 
 Called immediately after the callback specified in `before` is completed.
 
-*Note:* If an uncaught exception occurs during execution of the callback, then
-`after` will run *after* the `'uncaughtException'` event is emitted or a
-`domain`'s handler runs.
+If an uncaught exception occurs during execution of the callback, then `after`
+will run *after* the `'uncaughtException'` event is emitted or a `domain`'s
+handler runs.
 
 
 ##### `destroy(asyncId)`
@@ -432,11 +432,10 @@ Called immediately after the callback specified in `before` is completed.
 Called after the resource corresponding to `asyncId` is destroyed. It is also
 called asynchronously from the embedder API `emitDestroy()`.
 
-*Note:* Some resources depend on garbage collection for cleanup, so if a
-reference is made to the `resource` object passed to `init` it is possible that
-`destroy` will never be called, causing a memory leak in the application. If
-the resource does not depend on garbage collection, then this will not be an
-issue.
+Some resources depend on garbage collection for cleanup, so if a reference is
+made to the `resource` object passed to `init` it is possible that `destroy`
+will never be called, causing a memory leak in the application. If the resource
+does not depend on garbage collection, then this will not be an issue.
 
 ##### `promiseResolve(asyncId)`
 
@@ -447,9 +446,8 @@ invoked (either directly or through other means of resolving a promise).
 
 Note that `resolve()` does not do any observable synchronous work.
 
-*Note:* This does not necessarily mean that the `Promise` is fulfilled or
-rejected at this point, if the `Promise` was resolved by assuming the state
-of another `Promise`.
+The `Promise` is not necessarily fulfilled or rejected at this point if the
+`Promise` was resolved by assuming the state of another `Promise`.
 
 ```js
 new Promise((resolve) => resolve(true)).then((a) => {});
