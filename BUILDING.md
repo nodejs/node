@@ -206,6 +206,15 @@ To read the documentation:
 $ man doc/node.1
 ```
 
+If you prefer to read the documentation in a browser,
+run the following after `make doc` is finished:
+
+```console
+$ make docopen
+```
+
+This will open a browser with the documentation.
+
 To test if Node.js was built correctly:
 
 ```console
