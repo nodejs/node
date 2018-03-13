@@ -118,7 +118,6 @@ class EnvironmentTestFixture : public NodeTestFixture {
     }
 
     ~Env() {
-      environment_->CleanupHandles();
       node::FreeEnvironment(environment_);
       node::FreeIsolateData(isolate_data_);
       context_->Exit();
