@@ -175,7 +175,34 @@ void Environment::Start(int argc,
   uv_unref(reinterpret_cast<uv_handle_t*>(&idle_prepare_handle_));
   uv_unref(reinterpret_cast<uv_handle_t*>(&idle_check_handle_));
 
-  auto close_and_finish = [](Environment* env, uv_handle_t* handle, void* arg) {
+  // Register clean-up cb to be called to clean up the handles
+  // when the environment is freed, note that they are not cleaned in
+  // the one environment per process setup, but will be called in
+  // FreeEnvironment.
+  RegisterHandleCleanups();
+
+  if (start_profiler_idle_notifier) {
+    StartProfilerIdleNotifier();
+  }
+
+  auto process_template = FunctionTemplate::New(isolate());
+  process_template->SetClassName(FIXED_ONE_BYTE_STRING(isolate(), "process"));
+
+  auto process_object =
+      process_template->GetFunction()->NewInstance(context()).ToLocalChecked();
+  set_process_object(process_object);
+
+  SetupProcessObject(this, argc, argv, exec_argc, exec_argv);
+  LoadAsyncWrapperInfo(this);
+
+  static uv_once_t init_once = UV_ONCE_INIT;
+  uv_once(&init_once, InitThreadLocalOnce);
+  uv_key_set(&thread_local_env, this);
+}
+
+void Environment::RegisterHandleCleanups() {
+  HandleCleanupCb close_and_finish = [](Environment* env, uv_handle_t* handle,
+                                        void* arg) {
     handle->data = env;
 
     uv_close(handle, [](uv_handle_t* handle) {
@@ -199,32 +226,14 @@ void Environment::Start(int argc,
       reinterpret_cast<uv_handle_t*>(&idle_check_handle_),
       close_and_finish,
       nullptr);
-
-  if (start_profiler_idle_notifier) {
-    StartProfilerIdleNotifier();
-  }
-
-  auto process_template = FunctionTemplate::New(isolate());
-  process_template->SetClassName(FIXED_ONE_BYTE_STRING(isolate(), "process"));
-
-  auto process_object =
-      process_template->GetFunction()->NewInstance(context()).ToLocalChecked();
-  set_process_object(process_object);
-
-  SetupProcessObject(this, argc, argv, exec_argc, exec_argv);
-  LoadAsyncWrapperInfo(this);
-
-  static uv_once_t init_once = UV_ONCE_INIT;
-  uv_once(&init_once, InitThreadLocalOnce);
-  uv_key_set(&thread_local_env, this);
 }
 
 void Environment::CleanupHandles() {
-  while (HandleCleanup* hc = handle_cleanup_queue_.PopFront()) {
+  for (HandleCleanup& hc : handle_cleanup_queue_) {
     handle_cleanup_waiting_++;
-    hc->cb_(this, hc->handle_, hc->arg_);
-    delete hc;
+    hc.cb_(this, hc.handle_, hc.arg_);
   }
+  handle_cleanup_queue_.clear();
 
   while (handle_cleanup_waiting_ != 0)
     uv_run(event_loop(), UV_RUN_ONCE);
