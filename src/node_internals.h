@@ -178,6 +178,11 @@ extern bool v8_initialized;
 
 extern std::shared_ptr<PerProcessOptions> per_process_opts;
 
+extern const char* const environment_flags[];
+extern int environment_flags_count;
+extern const char* const v8_environment_flags[];
+extern int v8_environment_flags_count;
+
 // Forward declaration
 class Environment;
 
