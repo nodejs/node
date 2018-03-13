@@ -4458,18 +4458,14 @@ class HandleScopeHeapWrapper {
 };
 
 ArrayBufferAllocator* allocator;
-Isolate::CreateParams params;
 Locker* locker;
 IsolateData* isolate_data;
-Isolate::Scope* isolate_scope;
+HandleScopeHeapWrapper* _handle_scope_wrapper = nullptr;
 Local<Context> context;
-Context::Scope* context_scope;
 bool request_stop = false;
 CmdArgs* cmd_args = nullptr;
 bool _event_loop_running = false;
-v8::Isolate* _isolate = nullptr;
 Environment* _environment = nullptr;
-HandleScopeHeapWrapper* _handle_scope_wrapper = nullptr;
 
 bool eventLoopIsRunning() {
   return _event_loop_running;
@@ -4477,7 +4473,7 @@ bool eventLoopIsRunning() {
 
 namespace internal {
   v8::Isolate* isolate() {
-    return _isolate;
+    return node_isolate;
   }
 
   Environment* environment() {
@@ -4531,33 +4527,27 @@ void _StopEnv() {
   delete _environment;
   _environment = nullptr;
 
-  delete context_scope;
-  context_scope = nullptr;
+  context->Exit();
+}
 
-  if (!context.IsEmpty()) {
-    // No need to delete the context value (delete *context),
-    // this is already done by deleting the context_scope above.
-    context.Clear();
-  }
-
+void _DeleteIsolate() {
   delete isolate_data;
   isolate_data = nullptr;
 
   delete _handle_scope_wrapper;
   _handle_scope_wrapper = nullptr;
 
-  delete isolate_scope;
-  isolate_scope = nullptr;
+  node_isolate->Exit();
 
   delete locker;
   locker = nullptr;
-}
 
-void _DeleteIsolate() {
-  Mutex::ScopedLock scoped_lock(node_isolate_mutex);
-  CHECK_EQ(node_isolate, _isolate);
-  node_isolate = nullptr;
-  _isolate->Dispose();
+  {
+    Mutex::ScopedLock scoped_lock(node_isolate_mutex);
+    node_isolate->Dispose();
+    node_isolate = nullptr;
+  }
+
 
   delete allocator;
   allocator = nullptr;
@@ -4598,55 +4588,54 @@ void _InitV8() {
 }
 
 int _CreateIsolate() {
+  Isolate::CreateParams params;
   allocator = new ArrayBufferAllocator();
   params.array_buffer_allocator = allocator;
 #ifdef NODE_ENABLE_VTUNE_PROFILING
   params.code_event_handler = vTune::GetVtuneCodeEventHandler();
 #endif
 
-  _isolate = Isolate::New(params);
-  if (_isolate == nullptr) {
-    fprintf(stderr, "Could not create isolate.");
-    fflush(stderr);
+  Isolate* const isolate = Isolate::New(params);
+  if (isolate == nullptr) {
     return 12;  // Signal internal error.
   }
 
-  _isolate->AddMessageListener(OnMessage);
-  _isolate->SetAbortOnUncaughtExceptionCallback(ShouldAbortOnUncaughtException);
-  _isolate->SetMicrotasksPolicy(v8::MicrotasksPolicy::kExplicit);
-  _isolate->SetFatalErrorHandler(OnFatalError);
+  isolate->AddMessageListener(OnMessage);
+  isolate->SetAbortOnUncaughtExceptionCallback(ShouldAbortOnUncaughtException);
+  isolate->SetMicrotasksPolicy(v8::MicrotasksPolicy::kExplicit);
+  isolate->SetFatalErrorHandler(OnFatalError);
 
   {
     Mutex::ScopedLock scoped_lock(node_isolate_mutex);
     CHECK_EQ(node_isolate, nullptr);
-    node_isolate = _isolate;
+    node_isolate = isolate;
   }
 
   return 0;
 }
 
 void _CreateInitialEnvironment() {
-  locker = new Locker(_isolate);
-  isolate_scope = new Isolate::Scope(_isolate);
-  _handle_scope_wrapper = new HandleScopeHeapWrapper(_isolate);
+  locker = new Locker(node_isolate);
+  node_isolate->Enter();
+  _handle_scope_wrapper = new HandleScopeHeapWrapper(node_isolate);
 
   isolate_data = new IsolateData(
-      _isolate,
+      node_isolate,
       uv_default_loop(),
       v8_platform.Platform(),
       allocator->zero_fill_field());
 
   if (track_heap_objects) {
-    _isolate->GetHeapProfiler()->StartTrackingHeapObjects(true);
+    node_isolate->GetHeapProfiler()->StartTrackingHeapObjects(true);
   }
 
   // TODO(justus-hildebrand): in the initial Start functions,
   // two handle scopes were created
   // (one in Start() 2 and one in Start() 3). Currently, we have no idea why.
   // HandleScope handle_scope(isolate);
-  context = NewContext(_isolate);
-  context_scope = new Context::Scope(context);
-  _environment = new node::Environment(isolate_data, context);
+  context = NewContext(node_isolate);
+  context->Enter();
+  _environment = new Environment(isolate_data, context);
 }
 
 void _ConfigureOpenSsl() {
@@ -4739,11 +4728,7 @@ int Initialize(int argc, const char** argv, const bool evaluate_stdin) {
                                     exec_argc,
                                     exec_argv,
                                     evaluate_stdin);
-  if (exit_code != 0) {
-    return exit_code;
-  }
-
-  return 0;
+  return exit_code;
 }
 
 int Deinitialize() {
@@ -4787,7 +4772,7 @@ v8::MaybeLocal<v8::Value> Evaluate(const std::string& js_code) {
   // ScriptOrigin origin(filename);
   MaybeLocal<v8::Script> script = v8::Script::Compile(
         _environment->context(),
-        v8::String::NewFromUtf8(_isolate, js_code.c_str())
+        v8::String::NewFromUtf8(node_isolate, js_code.c_str())
         /*removed param: origin*/);
 
   if (script.IsEmpty()) {
@@ -4839,7 +4824,7 @@ v8::MaybeLocal<v8::Value> Call(v8::Local<v8::Object> object,
                                const std::string& function_name,
                                const std::vector<v8::Local<v8::Value>>& args) {
   MaybeLocal<v8::String> maybe_function_name =
-      v8::String::NewFromUtf8(_isolate, function_name.c_str());
+      v8::String::NewFromUtf8(node_isolate, function_name.c_str());
 
   Local<v8::String> v8_function_name;
 
@@ -4864,7 +4849,7 @@ v8::MaybeLocal<v8::Value> Call(v8::Local<v8::Object> object,
 
 v8::MaybeLocal<v8::Object> IncludeModule(const std::string& name) {
   MaybeLocal<v8::String> maybe_arg =
-      v8::String::NewFromUtf8(_isolate, name.c_str());
+      v8::String::NewFromUtf8(node_isolate, name.c_str());
 
   Local<v8::String> arg;
 
@@ -4896,7 +4881,7 @@ v8::MaybeLocal<v8::Object> IncludeModule(const std::string& name) {
 v8::MaybeLocal<v8::Value> GetValue(v8::Local<v8::Object> object,
                                    const std::string& value_name) {
   MaybeLocal<v8::String> maybe_key =
-      v8::String::NewFromUtf8(_isolate, value_name.c_str());
+      v8::String::NewFromUtf8(node_isolate, value_name.c_str());
 
   Local<v8::String> key;
 
