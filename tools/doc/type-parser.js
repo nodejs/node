@@ -18,7 +18,7 @@ const jsGlobalTypes = [
   'Array', 'ArrayBuffer', 'DataView', 'Date', 'Error', 'EvalError', 'Function',
   'Object', 'Promise', 'RangeError', 'ReferenceError', 'RegExp',
   'SharedArrayBuffer', 'SyntaxError', 'TypeError', 'TypedArray', 'URIError',
-  'Uint8Array',
+  'Uint8Array', 'Set'
 ];
 
 const customTypesMap = {
