@@ -4911,7 +4911,8 @@ v8::MaybeLocal<v8::Value> Call(Environment* env,
                                v8::Local<v8::Object> object,
                                const std::string& function_name,
                                std::initializer_list<v8::Local<Value>> args) {
-  return Call(env, object, function_name, std::vector<v8::Local<v8::Value>>(args));
+  return Call(env, object, function_name,
+              std::vector<v8::Local<v8::Value>>(args));
 }
 
 v8::MaybeLocal<v8::Object> IncludeModule(const std::string& name) {
