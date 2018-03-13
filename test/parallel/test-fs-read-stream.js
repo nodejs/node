@@ -21,7 +21,9 @@
 
 'use strict';
 const common = require('../common');
+const tmpdir = require('../common/tmpdir');
 
+const child_process = require('child_process');
 const assert = require('assert');
 const fs = require('fs');
 const fixtures = require('../common/fixtures');
@@ -176,6 +178,31 @@ common.expectsError(
   stream.on('end', common.mustCall(function() {
     assert.strictEqual('xy', stream.data);
   }));
+}
+
+{
+  // Verify that end works when start is not specified, and we do not try to
+  // use positioned reads. This makes sure that this keeps working for
+  // non-seekable file descriptors.
+  tmpdir.refresh();
+  const filename = `${tmpdir.path}/foo.pipe`;
+  const mkfifoResult = child_process.spawnSync('mkfifo', [filename]);
+  if (!mkfifoResult.error) {
+    child_process.exec(`echo "xyz foobar" > '${filename}'`);
+    const stream = new fs.createReadStream(filename, { end: 1 });
+    stream.data = '';
+
+    stream.on('data', function(chunk) {
+      stream.data += chunk;
+    });
+
+    stream.on('end', common.mustCall(function() {
+      assert.strictEqual('xy', stream.data);
+      fs.unlinkSync(filename);
+    }));
+  } else {
+    common.printSkipMessage('mkfifo not available');
+  }
 }
 
 {
