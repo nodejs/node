@@ -1,6 +1,10 @@
 'use strict';
-
 require('../common');
+
+// This test ensures that zlib throws a RangeError if the final buffer needs to
+// be larger than kMaxLength and concatenation fails.
+// https://github.com/nodejs/node/pull/1811
+
 const assert = require('assert');
 
 // Change kMaxLength for zlib to trigger the error without having to allocate
