@@ -968,7 +968,8 @@ Using [`crypto.createCipher()`][] and [`crypto.createDecipher()`][] should be
 avoided as they use a weak key derivation function (MD5 with no salt) and static
 initialization vectors. It is recommended to derive a key using
 [`crypto.pbkdf2()`][] and to use [`crypto.createCipheriv()`][] and
-[`crypto.createDecipheriv()`][] to obtain the [`Cipher`] object.
+[`crypto.createDecipheriv()`][] to obtain the [`Cipher`][] and [`Decipher`][]
+object, respectively.
 
 [`--pending-deprecation`]: cli.html#cli_pending_deprecation
 [`Buffer.allocUnsafeSlow(size)`]: buffer.html#buffer_class_method_buffer_allocunsafeslow_size
@@ -976,6 +977,7 @@ initialization vectors. It is recommended to derive a key using
 [`Buffer.from(buffer)`]: buffer.html#buffer_class_method_buffer_from_buffer
 [`Buffer.isBuffer()`]: buffer.html#buffer_class_method_buffer_isbuffer_obj
 [`Cipher`]: crypto.html#crypto_class_cipher
+[`Decipher`]: crypto.html#crypto_class_decipher
 [`assert`]: assert.html
 [`clearInterval()`]: timers.html#timers_clearinterval_timeout
 [`clearTimeout()`]: timers.html#timers_cleartimeout_timeout
