@@ -951,20 +951,19 @@ future, such assignment may result in a thrown error. Please convert the
 property to a string before assigning it to `process.env`.
 
 <a id="DEP00XX"></a>
-### DEP00XX: crypto.Decipher.finaltol
+### DEP00XX: decipher.finaltol
 
 Type: Runtime
 
-`Decipher.finaltol()` has never been documented and is currently an alias for
-[`Decipher.final()`][]. In the future, this API will likely be removed, and it
-is recommended to use [`Decipher.final()`][] instead.
+`decipher.finaltol()` has never been documented and is currently an alias for
+[`decipher.final()`][]. In the future, this API will likely be removed, and it
+is recommended to use [`decipher.final()`][] instead.
 
 [`--pending-deprecation`]: cli.html#cli_pending_deprecation
 [`Buffer.allocUnsafeSlow(size)`]: buffer.html#buffer_class_method_buffer_allocunsafeslow_size
 [`Buffer.from(array)`]: buffer.html#buffer_class_method_buffer_from_array
 [`Buffer.from(buffer)`]: buffer.html#buffer_class_method_buffer_from_buffer
 [`Buffer.isBuffer()`]: buffer.html#buffer_class_method_buffer_isbuffer_obj
-[`Decipher.final()`]: crypto.html#crypto_decipher_final_outputencoding
 [`assert`]: assert.html
 [`clearInterval()`]: timers.html#timers_clearinterval_timeout
 [`clearTimeout()`]: timers.html#timers_cleartimeout_timeout
@@ -981,6 +980,7 @@ is recommended to use [`Decipher.final()`][] instead.
 [`crypto.DEFAULT_ENCODING`]: crypto.html#crypto_crypto_default_encoding
 [`crypto.fips`]: crypto.html#crypto_crypto_fips
 [`crypto.pbkdf2()`]: crypto.html#crypto_crypto_pbkdf2_password_salt_iterations_keylen_digest_callback
+[`decipher.final()`]: crypto.html#crypto_decipher_final_outputencoding
 [`decipher.setAuthTag()`]: crypto.html#crypto_decipher_setauthtag_buffer
 [`domain`]: domain.html
 [`ecdh.setPublicKey()`]: crypto.html#crypto_ecdh_setpublickey_publickey_encoding
