@@ -180,14 +180,14 @@ common.expectsError(
   }));
 }
 
-{
+if (!common.isWindows) {
   // Verify that end works when start is not specified, and we do not try to
   // use positioned reads. This makes sure that this keeps working for
   // non-seekable file descriptors.
   tmpdir.refresh();
   const filename = `${tmpdir.path}/foo.pipe`;
   const mkfifoResult = child_process.spawnSync('mkfifo', [filename]);
-  if (!common.isWindows && !mkfifoResult.error) {
+  if (!mkfifoResult.error) {
     child_process.exec(`echo "xyz foobar" > '${filename}'`);
     const stream = new fs.createReadStream(filename, { end: 1 });
     stream.data = '';
