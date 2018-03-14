@@ -65,16 +65,10 @@ for (const testCase of cases) {
       assert.strictEqual(eventType, 'change');
     assert.strictEqual(argFilename, testCase.fileName);
 
-    common.expectsError(() => watcher.start(), {
-      code: 'ERR_FS_WATCHER_ALREADY_STARTED',
-      message: 'The watcher has already been started'
-    });
+    watcher.start();  // starting a started watcher should be a noop
     // end of test case
     watcher.close();
-    common.expectsError(() => watcher.close(), {
-      code: 'ERR_FS_WATCHER_NOT_STARTED',
-      message: 'The watcher has not been started'
-    });
+    watcher.close(); // closing a closed watcher should be a noop
   }));
 
   // long content so it's actually flushed. toUpperCase so there's real change.
