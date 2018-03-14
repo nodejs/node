@@ -112,6 +112,8 @@ NAPI_EXTERN napi_status
 napi_get_last_error_info(napi_env env,
                          const napi_extended_error_info** result);
 
+NAPI_EXTERN napi_status napi_fatal_exception(napi_env env, napi_value err);
+
 NAPI_EXTERN NAPI_NO_RETURN void napi_fatal_error(const char* location,
                                                  size_t location_len,
                                                  const char* message,
