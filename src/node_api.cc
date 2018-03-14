@@ -954,6 +954,16 @@ napi_status napi_get_last_error_info(napi_env env,
   return napi_ok;
 }
 
+void napi_fatal_exception(napi_env env) {
+  if (!env->last_exception.IsEmpty()) {
+    v8::Local<v8::Value> err = v8::Local<v8::Value>::New(
+      env->isolate, env->last_exception);
+    v8::Local<v8::Message> msg = v8::Exception::CreateMessage(
+      env->isolate, err);
+    node::FatalException(env->isolate, err, msg);
+  }
+}
+
 NAPI_NO_RETURN void napi_fatal_error(const char* location,
                                      size_t location_len,
                                      const char* message,
@@ -3353,13 +3363,7 @@ class Work : public node::AsyncResource {
       // If there was an unhandled exception in the complete callback,
       // report it as a fatal exception. (There is no JavaScript on the
       // callstack that can possibly handle it.)
-      if (!env->last_exception.IsEmpty()) {
-        v8::Local<v8::Value> err = v8::Local<v8::Value>::New(
-          env->isolate, env->last_exception);
-        v8::Local<v8::Message> msg = v8::Exception::CreateMessage(
-          env->isolate, err);
-        node::FatalException(env->isolate, err, msg);
-      }
+      napi_fatal_exception(env);
     }
   }
 
