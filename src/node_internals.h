@@ -218,6 +218,11 @@ void GetSockOrPeerName(const v8::FunctionCallbackInfo<v8::Value>& args) {
   args.GetReturnValue().Set(err);
 }
 
+void FatalException(v8::Isolate* isolate,
+                    v8::Local<v8::Value> error,
+                    v8::Local<v8::Message> message);
+
+
 void SignalExit(int signo);
 #ifdef __POSIX__
 void RegisterSignalHandler(int signal,

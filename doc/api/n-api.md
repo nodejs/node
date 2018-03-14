@@ -541,6 +541,20 @@ This API returns true if an exception is pending.
 
 This API can be called even if there is a pending JavaScript exception.
 
+#### napi_fatal_exception
+<!-- YAML
+added: REPLACEME
+-->
+```C
+napi_status napi_fatal_exception(napi_env env, napi_value err);
+```
+
+- `[in] env`: The environment that the API is invoked under.
+- `[in] err`: The error you want to pass to `uncaughtException`.
+
+Trigger an `uncaughtException` in JavaScript. Useful if an async
+callback throws an exception with no way to recover.
+
 ### Fatal Errors
 
 In the event of an unrecoverable error in a native module, a fatal error can be
