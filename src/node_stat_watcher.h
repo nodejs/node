@@ -44,6 +44,7 @@ class StatWatcher : public AsyncWrap {
   static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Start(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Stop(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void IsActive(const v8::FunctionCallbackInfo<v8::Value>& args);
 
   size_t self_size() const override { return sizeof(*this); }
 
@@ -53,6 +54,7 @@ class StatWatcher : public AsyncWrap {
                        const uv_stat_t* prev,
                        const uv_stat_t* curr);
   void Stop();
+  bool IsActive();
 
   uv_fs_poll_t* watcher_;
 };
