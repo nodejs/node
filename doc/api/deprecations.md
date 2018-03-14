@@ -950,11 +950,21 @@ deprecated if the assigned value is not a string, boolean, or number. In the
 future, such assignment may result in a thrown error. Please convert the
 property to a string before assigning it to `process.env`.
 
+<a id="DEP00XX"></a>
+### DEP00XX: crypto.Decipher.finaltol
+
+Type: Runtime
+
+`Decipher.finaltol()` has never been documented and is currently an alias for
+[`Decipher.final()`][]. In the future, this API will likely be removed, and it
+is recommended to use [`Decipher.final()`][] instead.
+
 [`--pending-deprecation`]: cli.html#cli_pending_deprecation
 [`Buffer.allocUnsafeSlow(size)`]: buffer.html#buffer_class_method_buffer_allocunsafeslow_size
 [`Buffer.from(array)`]: buffer.html#buffer_class_method_buffer_from_array
 [`Buffer.from(buffer)`]: buffer.html#buffer_class_method_buffer_from_buffer
 [`Buffer.isBuffer()`]: buffer.html#buffer_class_method_buffer_isbuffer_obj
+[`Decipher.final()`]: crypto.html#crypto_decipher_final_outputencoding
 [`assert`]: assert.html
 [`clearInterval()`]: timers.html#timers_clearinterval_timeout
 [`clearTimeout()`]: timers.html#timers_cleartimeout_timeout
