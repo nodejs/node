@@ -197,6 +197,7 @@ class Representation {
 
 
 static const int kDescriptorIndexBitCount = 10;
+static const int kFirstInobjectPropertyOffsetBitCount = 7;
 // The maximum number of descriptors we want in a descriptor array.  It should
 // fit in a page and also the following should hold:
 // kMaxNumberOfDescriptors + kFieldsAdded <= PropertyArray::kMaxLength.

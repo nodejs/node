@@ -391,10 +391,6 @@ namespace internal {
   F(ObjectCreate, 2, 1)                                         \
   F(InternalSetPrototype, 2, 1)                                 \
   F(OptimizeObjectForAddingMultipleProperties, 2, 1)            \
-  F(ObjectValues, 1, 1)                                         \
-  F(ObjectValuesSkipFastPath, 1, 1)                             \
-  F(ObjectEntries, 1, 1)                                        \
-  F(ObjectEntriesSkipFastPath, 1, 1)                            \
   F(GetProperty, 2, 1)                                          \
   F(KeyedGetProperty, 2, 1)                                     \
   F(AddNamedProperty, 4, 1)                                     \
