@@ -105,118 +105,6 @@ struct StackOfX509Deleter {
 
 using StackOfX509 = std::unique_ptr<STACK_OF(X509), StackOfX509Deleter>;
 
-#if OPENSSL_VERSION_NUMBER < 0x10100000L
-static void RSA_get0_key(const RSA* r, const BIGNUM** n, const BIGNUM** e,
-                         const BIGNUM** d) {
-  if (n != nullptr) {
-    *n = r->n;
-  }
-  if (e != nullptr) {
-    *e = r->e;
-  }
-  if (d != nullptr) {
-    *d = r->d;
-  }
-}
-
-static void DH_get0_pqg(const DH* dh, const BIGNUM** p, const BIGNUM** q,
-                        const BIGNUM** g) {
-  if (p != nullptr) {
-    *p = dh->p;
-  }
-  if (q != nullptr) {
-    *q = dh->q;
-  }
-  if (g != nullptr) {
-    *g = dh->g;
-  }
-}
-
-static int DH_set0_pqg(DH* dh, BIGNUM* p, BIGNUM* q, BIGNUM* g) {
-  if ((dh->p == nullptr && p == nullptr) ||
-      (dh->g == nullptr && g == nullptr)) {
-    return 0;
-  }
-
-  if (p != nullptr) {
-    BN_free(dh->p);
-    dh->p = p;
-  }
-  if (q != nullptr) {
-    BN_free(dh->q);
-    dh->q = q;
-  }
-  if (g != nullptr) {
-    BN_free(dh->g);
-    dh->g = g;
-  }
-
-  return 1;
-}
-
-static void DH_get0_key(const DH* dh, const BIGNUM** pub_key,
-                        const BIGNUM** priv_key) {
-  if (pub_key != nullptr) {
-    *pub_key = dh->pub_key;
-  }
-  if (priv_key != nullptr) {
-    *priv_key = dh->priv_key;
-  }
-}
-
-static int DH_set0_key(DH* dh, BIGNUM* pub_key, BIGNUM* priv_key) {
-  if (pub_key != nullptr) {
-    BN_free(dh->pub_key);
-    dh->pub_key = pub_key;
-  }
-  if (priv_key != nullptr) {
-    BN_free(dh->priv_key);
-    dh->priv_key = priv_key;
-  }
-
-  return 1;
-}
-
-static const SSL_METHOD* TLS_method() { return SSLv23_method(); }
-
-static void SSL_SESSION_get0_ticket(const SSL_SESSION* s,
-                                    const unsigned char** tick, size_t* len) {
-  *len = s->tlsext_ticklen;
-  if (tick != nullptr) {
-    *tick = s->tlsext_tick;
-  }
-}
-
-#define SSL_get_tlsext_status_type(ssl) (ssl->tlsext_status_type)
-
-static int X509_STORE_up_ref(X509_STORE* store) {
-  CRYPTO_add(&store->references, 1, CRYPTO_LOCK_X509_STORE);
-  return 1;
-}
-
-static int X509_up_ref(X509* cert) {
-  CRYPTO_add(&cert->references, 1, CRYPTO_LOCK_X509);
-  return 1;
-}
-
-#define EVP_MD_CTX_new EVP_MD_CTX_create
-#define EVP_MD_CTX_free EVP_MD_CTX_destroy
-
-HMAC_CTX* HMAC_CTX_new() {
-  HMAC_CTX* ctx = Malloc<HMAC_CTX>(1);
-  HMAC_CTX_init(ctx);
-  return ctx;
-}
-
-void HMAC_CTX_free(HMAC_CTX* ctx) {
-  if (ctx == nullptr) {
-    return;
-  }
-  HMAC_CTX_cleanup(ctx);
-  free(ctx);
-}
-#endif  // OPENSSL_VERSION_NUMBER < 0x10100000L
-
 static const char* const root_certs[] = {
 #include "node_root_certs.h"  // NOLINT(build/include_order)
 };
@@ -233,19 +121,11 @@ template void SSLWrap<TLSWrap>::AddMethods(Environment* env,
 template void SSLWrap<TLSWrap>::ConfigureSecureContext(SecureContext* sc);
 template void SSLWrap<TLSWrap>::SetSNIContext(SecureContext* sc);
 template int SSLWrap<TLSWrap>::SetCACerts(SecureContext* sc);
-#if OPENSSL_VERSION_NUMBER < 0x10100000L
-template SSL_SESSION* SSLWrap<TLSWrap>::GetSessionCallback(
-    SSL* s,
-    unsigned char* key,
-    int len,
-    int* copy);
-#else
 template SSL_SESSION* SSLWrap<TLSWrap>::GetSessionCallback(
     SSL* s,
     const unsigned char* key,
     int len,
     int* copy);
-#endif
 template int SSLWrap<TLSWrap>::NewSessionCallback(SSL* s,
                                                   SSL_SESSION* sess);
 template void SSLWrap<TLSWrap>::OnClientHello(
@@ -269,33 +149,6 @@ template int SSLWrap<TLSWrap>::SelectALPNCallback(
     unsigned int inlen,
     void* arg);
 #endif  // TLSEXT_TYPE_application_layer_protocol_negotiation
-
-#if OPENSSL_VERSION_NUMBER < 0x10100000L
-static Mutex* mutexes;
-
-static void crypto_threadid_cb(CRYPTO_THREADID* tid) {
-  static_assert(sizeof(uv_thread_t) <= sizeof(void*),
-                "uv_thread_t does not fit in a pointer");
-  CRYPTO_THREADID_set_pointer(tid, reinterpret_cast<void*>(uv_thread_self()));
-}
-
-
-static void crypto_lock_init(void) {
-  mutexes = new Mutex[CRYPTO_num_locks()];
-}
-
-
-static void crypto_lock_cb(int mode, int n, const char* file, int line) {
-  CHECK(!(mode & CRYPTO_LOCK) ^ !(mode & CRYPTO_UNLOCK));
-  CHECK(!(mode & CRYPTO_READ) ^ !(mode & CRYPTO_WRITE));
-
-  auto mutex = &mutexes[n];
-  if (mode & CRYPTO_LOCK)
-    mutex->Lock();
-  else
-    mutex->Unlock();
-}
-#endif
 
 
 static int PasswordCallback(char *buf, int size, int rwflag, void *u) {
@@ -526,6 +379,8 @@ void SecureContext::Init(const FunctionCallbackInfo<Value>& args) {
   ASSIGN_OR_RETURN_UNWRAP(&sc, args.Holder());
   Environment* env = sc->env();
 
+  int min_version = 0;
+  int max_version = 0;
   const SSL_METHOD* method = TLS_method();
 
   if (args.Length() == 1 && args[0]->IsString()) {
@@ -548,29 +403,47 @@ void SecureContext::Init(const FunctionCallbackInfo<Value>& args) {
     } else if (strcmp(*sslmethod, "SSLv3_client_method") == 0) {
       return env->ThrowError("SSLv3 methods disabled");
     } else if (strcmp(*sslmethod, "SSLv23_method") == 0) {
-      method = SSLv23_method();
+      method = TLS_method();
     } else if (strcmp(*sslmethod, "SSLv23_server_method") == 0) {
-      method = SSLv23_server_method();
+      method = TLS_server_method();
     } else if (strcmp(*sslmethod, "SSLv23_client_method") == 0) {
-      method = SSLv23_client_method();
+      method = TLS_client_method();
     } else if (strcmp(*sslmethod, "TLSv1_method") == 0) {
-      method = TLSv1_method();
+      min_version = TLS1_VERSION;
+      max_version = TLS1_VERSION;
+      method = TLS_method();
     } else if (strcmp(*sslmethod, "TLSv1_server_method") == 0) {
-      method = TLSv1_server_method();
+      min_version = TLS1_VERSION;
+      max_version = TLS1_VERSION;
+      method = TLS_server_method();
     } else if (strcmp(*sslmethod, "TLSv1_client_method") == 0) {
-      method = TLSv1_client_method();
+      min_version = TLS1_VERSION;
+      max_version = TLS1_VERSION;
+      method = TLS_client_method();
     } else if (strcmp(*sslmethod, "TLSv1_1_method") == 0) {
-      method = TLSv1_1_method();
+      min_version = TLS1_1_VERSION;
+      max_version = TLS1_1_VERSION;
+      method = TLS_method();
     } else if (strcmp(*sslmethod, "TLSv1_1_server_method") == 0) {
-      method = TLSv1_1_server_method();
+      min_version = TLS1_1_VERSION;
+      max_version = TLS1_1_VERSION;
+      method = TLS_server_method();
     } else if (strcmp(*sslmethod, "TLSv1_1_client_method") == 0) {
-      method = TLSv1_1_client_method();
+      min_version = TLS1_1_VERSION;
+      max_version = TLS1_1_VERSION;
+      method = TLS_client_method();
     } else if (strcmp(*sslmethod, "TLSv1_2_method") == 0) {
-      method = TLSv1_2_method();
+      min_version = TLS1_2_VERSION;
+      max_version = TLS1_2_VERSION;
+      method = TLS_method();
     } else if (strcmp(*sslmethod, "TLSv1_2_server_method") == 0) {
-      method = TLSv1_2_server_method();
+      min_version = TLS1_2_VERSION;
+      max_version = TLS1_2_VERSION;
+      method = TLS_server_method();
     } else if (strcmp(*sslmethod, "TLSv1_2_client_method") == 0) {
-      method = TLSv1_2_client_method();
+      min_version = TLS1_2_VERSION;
+      max_version = TLS1_2_VERSION;
+      method = TLS_client_method();
     } else {
       return env->ThrowError("Unknown method");
     }
@@ -592,7 +465,8 @@ void SecureContext::Init(const FunctionCallbackInfo<Value>& args) {
                                  SSL_SESS_CACHE_NO_INTERNAL |
                                  SSL_SESS_CACHE_NO_AUTO_CLEAR);
 
-#if OPENSSL_VERSION_NUMBER >= 0x10100000L
+  SSL_CTX_set_min_proto_version(sc->ctx_, min_version);
+  SSL_CTX_set_max_proto_version(sc->ctx_, max_version);
   // OpenSSL 1.1.0 changed the ticket key size, but the OpenSSL 1.0.x size was
   // exposed in the public API. To retain compatibility, install a callback
   // which restores the old algorithm.
@@ -603,7 +477,6 @@ void SecureContext::Init(const FunctionCallbackInfo<Value>& args) {
   }
   SSL_CTX_set_tlsext_ticket_key_cb(sc->ctx_,
                                    SecureContext::TicketCompatibilityCallback);
-#endif
 }
 
 
@@ -1061,11 +934,6 @@ void SecureContext::SetECDHCurve(const FunctionCallbackInfo<Value>& args) {
 
   node::Utf8Value curve(env->isolate(), args[0]);
 
-#if OPENSSL_VERSION_NUMBER < 0x10100000L
-  SSL_CTX_set_options(sc->ctx_, SSL_OP_SINGLE_ECDH_USE);
-  SSL_CTX_set_ecdh_auto(sc->ctx_, 1);
-#endif
-
   if (strcmp(*curve, "auto") == 0)
     return;
 
@@ -1324,17 +1192,9 @@ void SecureContext::GetTicketKeys(const FunctionCallbackInfo<Value>& args) {
   ASSIGN_OR_RETURN_UNWRAP(&wrap, args.Holder());
 
   Local<Object> buff = Buffer::New(wrap->env(), 48).ToLocalChecked();
-#if OPENSSL_VERSION_NUMBER >= 0x10100000L
   memcpy(Buffer::Data(buff), wrap->ticket_key_name_, 16);
   memcpy(Buffer::Data(buff) + 16, wrap->ticket_key_hmac_, 16);
   memcpy(Buffer::Data(buff) + 32, wrap->ticket_key_aes_, 16);
-#else
-  if (SSL_CTX_get_tlsext_ticket_keys(wrap->ctx_,
-                                     Buffer::Data(buff),
-                                     Buffer::Length(buff)) != 1) {
-    return wrap->env()->ThrowError("Failed to fetch tls ticket keys");
-  }
-#endif
 
   args.GetReturnValue().Set(buff);
 #endif  // !def(OPENSSL_NO_TLSEXT) && def(SSL_CTX_get_tlsext_ticket_keys)
@@ -1357,17 +1217,9 @@ void SecureContext::SetTicketKeys(const FunctionCallbackInfo<Value>& args) {
     return env->ThrowTypeError("Ticket keys length must be 48 bytes");
   }
 
-#if OPENSSL_VERSION_NUMBER >= 0x10100000L
   memcpy(wrap->ticket_key_name_, Buffer::Data(args[0]), 16);
   memcpy(wrap->ticket_key_hmac_, Buffer::Data(args[0]) + 16, 16);
   memcpy(wrap->ticket_key_aes_, Buffer::Data(args[0]) + 32, 16);
-#else
-  if (SSL_CTX_set_tlsext_ticket_keys(wrap->ctx_,
-                                     Buffer::Data(args[0]),
-                                     Buffer::Length(args[0])) != 1) {
-    return env->ThrowError("Failed to fetch tls ticket keys");
-  }
-#endif
 
   args.GetReturnValue().Set(true);
 #endif  // !def(OPENSSL_NO_TLSEXT) && def(SSL_CTX_get_tlsext_ticket_keys)
@@ -1375,14 +1227,6 @@ void SecureContext::SetTicketKeys(const FunctionCallbackInfo<Value>& args) {
 
 
 void SecureContext::SetFreeListLength(const FunctionCallbackInfo<Value>& args) {
-#if OPENSSL_VERSION_NUMBER < 0x10100000L
-  // |freelist_max_len| was removed in OpenSSL 1.1.0. In that version OpenSSL
-  // mallocs and frees buffers directly, without the use of a freelist.
-  SecureContext* wrap;
-  ASSIGN_OR_RETURN_UNWRAP(&wrap, args.Holder());
-
-  wrap->ctx_->freelist_max_len = args[0]->Int32Value();
-#endif
 }
 
 
@@ -1478,7 +1322,6 @@ int SecureContext::TicketKeyCallback(SSL* ssl,
 }
 
 
-#if OPENSSL_VERSION_NUMBER >= 0x10100000L
 int SecureContext::TicketCompatibilityCallback(SSL* ssl,
                                                unsigned char* name,
                                                unsigned char* iv,
@@ -1513,7 +1356,6 @@ int SecureContext::TicketCompatibilityCallback(SSL* ssl,
   }
   return 1;
 }
-#endif
 
 
 void SecureContext::CtxGetter(const FunctionCallbackInfo<Value>& info) {
@@ -1592,19 +1434,11 @@ void SSLWrap<Base>::ConfigureSecureContext(SecureContext* sc) {
 }
 
 
-#if OPENSSL_VERSION_NUMBER < 0x10100000L
-template <class Base>
-SSL_SESSION* SSLWrap<Base>::GetSessionCallback(SSL* s,
-                                               unsigned char* key,
-                                               int len,
-                                               int* copy) {
-#else
 template <class Base>
 SSL_SESSION* SSLWrap<Base>::GetSessionCallback(SSL* s,
                                                const unsigned char* key,
                                                int len,
                                                int* copy) {
-#endif
   Base* w = static_cast<Base*>(SSL_get_app_data(s));
 
   *copy = 0;
@@ -3566,14 +3400,12 @@ SignBase::~SignBase() {
 
 SignBase::Error SignBase::Init(const char* sign_type) {
   CHECK_EQ(mdctx_, nullptr);
-#if OPENSSL_VERSION_NUMBER >= 0x10100000L
   // Historically, "dss1" and "DSS1" were DSA aliases for SHA-1
   // exposed through the public API.
   if (strcmp(sign_type, "dss1") == 0 ||
       strcmp(sign_type, "DSS1") == 0) {
     sign_type = "SHA1";
   }
-#endif
   const EVP_MD* md = EVP_get_digestbyname(sign_type);
   if (md == nullptr)
     return kSignUnknownDigest;
@@ -5555,12 +5387,6 @@ void InitCryptoOnce() {
 
   SSL_library_init();
   OpenSSL_add_all_algorithms();
-
-#if OPENSSL_VERSION_NUMBER < 0x10100000L
-  crypto_lock_init();
-  CRYPTO_set_locking_callback(crypto_lock_cb);
-  CRYPTO_THREADID_set_callback(crypto_threadid_cb);
-#endif
 
 #ifdef NODE_FIPS_MODE
   /* Override FIPS settings in cnf file, if needed. */
