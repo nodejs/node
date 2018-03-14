@@ -969,7 +969,7 @@ avoided as they use a weak key derivation function (MD5 with no salt) and static
 initialization vectors. It is recommended to derive a key using
 [`crypto.pbkdf2()`][] and to use [`crypto.createCipheriv()`][] and
 [`crypto.createDecipheriv()`][] to obtain the [`Cipher`][] and [`Decipher`][]
-object, respectively.
+objects respectively.
 
 [`--pending-deprecation`]: cli.html#cli_pending_deprecation
 [`Buffer.allocUnsafeSlow(size)`]: buffer.html#buffer_class_method_buffer_allocunsafeslow_size
