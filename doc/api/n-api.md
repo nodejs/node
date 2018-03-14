@@ -543,7 +543,7 @@ This API can be called even if there is a pending JavaScript exception.
 
 #### napi_fatal_exception
 <!-- YAML
-added: TBA
+added: REPLACEME
 -->
 ```C
 napi_fatal_exception(napi_env env);
