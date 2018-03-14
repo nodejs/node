@@ -1527,7 +1527,6 @@ static void WriteString(const FunctionCallbackInfo<Value>& args) {
 
   const auto enc = ParseEncoding(env->isolate(), args[3], UTF8);
 
-  std::unique_ptr<char[]> delete_on_return;
   Local<Value> value = args[1];
   char* buf = nullptr;
   size_t len;
@@ -1555,24 +1554,42 @@ static void WriteString(const FunctionCallbackInfo<Value>& args) {
     }
   }
 
-  if (buf == nullptr) {
+  if (is_async) {  // write(fd, string, pos, enc, req)
+    CHECK_NE(req_wrap, nullptr);
     len = StringBytes::StorageSize(env->isolate(), value, enc);
-    buf = new char[len];
-    // SYNC_CALL returns on error.  Make sure to always free the memory.
-    if (!is_async) delete_on_return.reset(buf);
+    FSReqBase::FSReqBuffer& stack_buffer =
+        req_wrap->Init("write", len, enc);
     // StorageSize may return too large a char, so correct the actual length
     // by the write size
-    len = StringBytes::Write(env->isolate(), buf, len, args[1], enc);
-  }
-
-  uv_buf_t uvbuf = uv_buf_init(buf, len);
-
-  if (is_async) {  // write(fd, string, pos, enc, req)
-    AsyncCall(env, req_wrap, args, "write", UTF8, AfterInteger,
-              uv_fs_write, fd, &uvbuf, 1, pos);
+    len = StringBytes::Write(env->isolate(), *stack_buffer, len, args[1], enc);
+    stack_buffer.SetLengthAndZeroTerminate(len);
+    uv_buf_t uvbuf = uv_buf_init(*stack_buffer, len);
+    int err = uv_fs_write(env->event_loop(), req_wrap->req(),
+                          fd, &uvbuf, 1, pos, AfterInteger);
+    req_wrap->Dispatched();
+    if (err < 0) {
+      uv_fs_t* uv_req = req_wrap->req();
+      uv_req->result = err;
+      uv_req->path = nullptr;
+      AfterInteger(uv_req);  // after may delete req_wrap if there is an error
+    } else {
+      req_wrap->SetReturnValue(args);
+    }
   } else {  // write(fd, string, pos, enc, undefined, ctx)
     CHECK_EQ(argc, 6);
     fs_req_wrap req_wrap;
+    FSReqBase::FSReqBuffer stack_buffer;
+    if (buf == nullptr) {
+      len = StringBytes::StorageSize(env->isolate(), value, enc);
+      stack_buffer.AllocateSufficientStorage(len + 1);
+      // StorageSize may return too large a char, so correct the actual length
+      // by the write size
+      len = StringBytes::Write(env->isolate(), *stack_buffer,
+                               len, args[1], enc);
+      stack_buffer.SetLengthAndZeroTerminate(len);
+      buf = *stack_buffer;
+    }
+    uv_buf_t uvbuf = uv_buf_init(buf, len);
     int bytesWritten = SyncCall(env, args[5], &req_wrap, "write",
                                 uv_fs_write, fd, &uvbuf, 1, pos);
     args.GetReturnValue().Set(bytesWritten);
