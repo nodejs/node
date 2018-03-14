@@ -557,7 +557,7 @@ field which always contains the value `'TLSv1/SSLv3'`.
 For example: `{ name: 'AES256-SHA', version: 'TLSv1/SSLv3' }`
 
 See `SSL_CIPHER_get_name()` in
-https://www.openssl.org/docs/man1.0.2/ssl/SSL_CIPHER_get_name.html for more
+https://www.openssl.org/docs/man1.1.0/ssl/SSL_CIPHER_get_name.html for more
 information.
 
 ### tlsSocket.getEphemeralKeyInfo()
@@ -671,7 +671,7 @@ Example responses include:
 * `TLSv1.2`
 * `unknown`
 
-See https://www.openssl.org/docs/man1.0.2/ssl/SSL_get_version.html for more
+See https://www.openssl.org/docs/man1.1.0/ssl/SSL_get_version.html for more
 information.
 
 ### tlsSocket.getSession()
@@ -1071,8 +1071,8 @@ changes:
     [OpenSSL Options][].
   * `secureProtocol` {string} Optional SSL method to use. The possible values
     are listed as [SSL_METHODS][], use the function names as strings.
-    For example, `'SSLv3_method'` to force SSL version 3. **Default:**
-    `'SSLv23_method'`.
+    For example, `'TLSv1_2_method'` to force TLS version 1.2. **Default:**
+    `'TLS_method'`.
   * `sessionIdContext` {string} Optional opaque identifier used by servers to
     ensure session state is not shared between applications. Unused by clients.
 
@@ -1364,10 +1364,10 @@ where `secure_socket` has the same API as `pair.cleartext`.
 [Forward secrecy]: https://en.wikipedia.org/wiki/Perfect_forward_secrecy
 [OCSP request]: https://en.wikipedia.org/wiki/OCSP_stapling
 [OpenSSL Options]: crypto.html#crypto_openssl_options
-[OpenSSL cipher list format documentation]: https://www.openssl.org/docs/man1.0.2/apps/ciphers.html#CIPHER-LIST-FORMAT
+[OpenSSL cipher list format documentation]: https://www.openssl.org/docs/man1.1.0/apps/ciphers.html#CIPHER-LIST-FORMAT
 [Perfect Forward Secrecy]: #tls_perfect_forward_secrecy
-[SSL_CTX_set_timeout]: https://www.openssl.org/docs/man1.0.2/ssl/SSL_CTX_set_timeout.html
-[SSL_METHODS]: https://www.openssl.org/docs/man1.0.2/ssl/ssl.html#DEALING-WITH-PROTOCOL-METHODS
+[SSL_CTX_set_timeout]: https://www.openssl.org/docs/man1.1.0/ssl/SSL_CTX_set_timeout.html
+[SSL_METHODS]: https://www.openssl.org/docs/man1.1.0/ssl/ssl.html#Dealing-with-Protocol-Methods
 [Stream]: stream.html#stream_stream
 [TLS Session Tickets]: https://www.ietf.org/rfc/rfc5077.txt
 [TLS recommendations]: https://wiki.mozilla.org/Security/Server_Side_TLS
