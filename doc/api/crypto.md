@@ -1254,7 +1254,11 @@ This property is deprecated. Please use `crypto.setFips()` and
 ### crypto.createCipher(algorithm, password[, options])
 <!-- YAML
 added: v0.1.94
+deprecated: REPLACEME
 -->
+
+> Stability: 0 - Deprecated: Use [`crypto.createCipheriv()`][] instead.
+
 - `algorithm` {string}
 - `password` {string | Buffer | TypedArray | DataView}
 - `options` {Object} [`stream.transform` options][]
@@ -1334,7 +1338,11 @@ called.
 ### crypto.createDecipher(algorithm, password[, options])
 <!-- YAML
 added: v0.1.94
+deprecated: REPLACEME
 -->
+
+> Stability: 0 - Deprecated: Use [`crypto.createDecipheriv()`][] instead.
+
 - `algorithm` {string}
 - `password` {string | Buffer | TypedArray | DataView}
 - `options` {Object} [`stream.transform` options][]

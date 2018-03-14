@@ -959,11 +959,23 @@ Type: Runtime
 [`decipher.final()`][]. In the future, this API will likely be removed, and it
 is recommended to use [`decipher.final()`][] instead.
 
+<a id="DEP00XX"></a>
+### DEP00XX: crypto.createCipher and crypto.createDecipher
+
+Type: Documentation-only
+
+Using [`crypto.createCipher()`][] and [`crypto.createDecipher()`][] should be
+avoided as they use a weak key derivation function (MD5 with no salt) and static
+initialization vectors. It is recommended to derive a key using
+[`crypto.pbkdf2()`][] and to use [`crypto.createCipheriv()`][] and
+[`crypto.createDecipheriv()`][] to obtain the [`Cipher`] object.
+
 [`--pending-deprecation`]: cli.html#cli_pending_deprecation
 [`Buffer.allocUnsafeSlow(size)`]: buffer.html#buffer_class_method_buffer_allocunsafeslow_size
 [`Buffer.from(array)`]: buffer.html#buffer_class_method_buffer_from_array
 [`Buffer.from(buffer)`]: buffer.html#buffer_class_method_buffer_from_buffer
 [`Buffer.isBuffer()`]: buffer.html#buffer_class_method_buffer_isbuffer_obj
+[`Cipher`]: crypto.html#crypto_class_cipher
 [`assert`]: assert.html
 [`clearInterval()`]: timers.html#timers_clearinterval_timeout
 [`clearTimeout()`]: timers.html#timers_cleartimeout_timeout
@@ -976,7 +988,11 @@ is recommended to use [`decipher.final()`][] instead.
 [`child_process`]: child_process.html
 [`console.error()`]: console.html#console_console_error_data_args
 [`console.log()`]: console.html#console_console_log_data_args
+[`crypto.createCipher()`]: crypto.html#crypto_crypto_createcipher_algorithm_password_options
+[`crypto.createCipheriv()`]: crypto.html#crypto_crypto_createcipheriv_algorithm_key_iv_options
 [`crypto.createCredentials()`]: crypto.html#crypto_crypto_createcredentials_details
+[`crypto.createDecipher()`]: crypto.html#crypto_crypto_createdecipher_algorithm_password_options
+[`crypto.createDecipheriv()`]: crypto.html#crypto_crypto_createdecipheriv_algorithm_key_iv_options
 [`crypto.DEFAULT_ENCODING`]: crypto.html#crypto_crypto_default_encoding
 [`crypto.fips`]: crypto.html#crypto_crypto_fips
 [`crypto.pbkdf2()`]: crypto.html#crypto_crypto_pbkdf2_password_salt_iterations_keylen_digest_callback
