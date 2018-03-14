@@ -55,7 +55,6 @@ class FSReqBase : public ReqWrap<uv_fs_t> {
     encoding_ = encoding;
 
     buffer_.AllocateSufficientStorage(len + 1);
-    buffer_.SetLengthAndZeroTerminate(len);
     has_data_ = false;  // so that the data does not show up in error messages
     return buffer_;
   }
