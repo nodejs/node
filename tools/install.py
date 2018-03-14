@@ -183,7 +183,7 @@ def headers(action):
      'false' == variables.get('node_shared_openssl'):
     subdir_files('deps/openssl/openssl/include/openssl', 'include/node/openssl/', action)
     subdir_files('deps/openssl/config/archs', 'include/node/openssl/archs', action)
-    action(['deps/openssl/config/opensslconf.h'], 'include/node/openssl/')
+    subdir_files('deps/openssl/config', 'include/node/openssl', action)
 
   if 'false' == variables.get('node_shared_zlib'):
     action([
