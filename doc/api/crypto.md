@@ -2132,15 +2132,19 @@ is a bit field taking one of or a mix of the following flags (defined in
 * `crypto.constants.ENGINE_METHOD_DSA`
 * `crypto.constants.ENGINE_METHOD_DH`
 * `crypto.constants.ENGINE_METHOD_RAND`
-* `crypto.constants.ENGINE_METHOD_ECDH`
-* `crypto.constants.ENGINE_METHOD_ECDSA`
+* `crypto.constants.ENGINE_METHOD_EC`
 * `crypto.constants.ENGINE_METHOD_CIPHERS`
 * `crypto.constants.ENGINE_METHOD_DIGESTS`
-* `crypto.constants.ENGINE_METHOD_STORE`
 * `crypto.constants.ENGINE_METHOD_PKEY_METHS`
 * `crypto.constants.ENGINE_METHOD_PKEY_ASN1_METHS`
 * `crypto.constants.ENGINE_METHOD_ALL`
 * `crypto.constants.ENGINE_METHOD_NONE`
+
+The flags below are deprecated in OpenSSL-1.1.0.
+
+* `crypto.constants.ENGINE_METHOD_ECDH`
+* `crypto.constants.ENGINE_METHOD_ECDSA`
+* `crypto.constants.ENGINE_METHOD_STORE`
 
 ### crypto.setFips(bool)
 <!-- YAML
@@ -2472,12 +2476,8 @@ the `crypto`, `tls`, and `https` modules and are generally specific to OpenSSL.
     <td>Limit engine usage to RAND</td>
   </tr>
   <tr>
-    <td><code>ENGINE_METHOD_ECDH</code></td>
-    <td>Limit engine usage to ECDH</td>
-  </tr>
-  <tr>
-    <td><code>ENGINE_METHOD_ECDSA</code></td>
-    <td>Limit engine usage to ECDSA</td>
+    <td><code>ENGINE_METHOD_EC</code></td>
+    <td>Limit engine usage to EC</td>
   </tr>
   <tr>
     <td><code>ENGINE_METHOD_CIPHERS</code></td>
@@ -2486,10 +2486,6 @@ the `crypto`, `tls`, and `https` modules and are generally specific to OpenSSL.
   <tr>
     <td><code>ENGINE_METHOD_DIGESTS</code></td>
     <td>Limit engine usage to DIGESTS</td>
-  </tr>
-  <tr>
-    <td><code>ENGINE_METHOD_STORE</code></td>
-    <td>Limit engine usage to STORE</td>
   </tr>
   <tr>
     <td><code>ENGINE_METHOD_PKEY_METHS</code></td>
@@ -2609,7 +2605,7 @@ the `crypto`, `tls`, and `https` modules and are generally specific to OpenSSL.
 
 
 [`Buffer`]: buffer.html
-[`EVP_BytesToKey`]: https://www.openssl.org/docs/man1.0.2/crypto/EVP_BytesToKey.html
+[`EVP_BytesToKey`]: https://www.openssl.org/docs/man1.1.0/crypto/EVP_BytesToKey.html
 [`UV_THREADPOOL_SIZE`]: cli.html#cli_uv_threadpool_size_size
 [`cipher.final()`]: #crypto_cipher_final_outputencoding
 [`cipher.update()`]: #crypto_cipher_update_data_inputencoding_outputencoding
@@ -2655,7 +2651,7 @@ the `crypto`, `tls`, and `https` modules and are generally specific to OpenSSL.
 [NIST SP 800-132]: http://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-132.pdf
 [NIST SP 800-38D]: http://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-38d.pdf
 [Nonce-Disrespecting Adversaries]: https://github.com/nonce-disrespect/nonce-disrespect
-[OpenSSL's SPKAC implementation]: https://www.openssl.org/docs/man1.0.2/apps/spkac.html
+[OpenSSL's SPKAC implementation]: https://www.openssl.org/docs/man1.1.0/apps/openssl-spkac.html
 [RFC 2412]: https://www.rfc-editor.org/rfc/rfc2412.txt
 [RFC 3526]: https://www.rfc-editor.org/rfc/rfc3526.txt
 [RFC 3610]: https://www.rfc-editor.org/rfc/rfc3610.txt
