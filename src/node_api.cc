@@ -3354,10 +3354,11 @@ class Work : public node::AsyncResource {
       // report it as a fatal exception. (There is no JavaScript on the
       // callstack that can possibly handle it.)
       if (!env->last_exception.IsEmpty()) {
-        v8::TryCatch try_catch(env->isolate);
-        env->isolate->ThrowException(
-          v8::Local<v8::Value>::New(env->isolate, env->last_exception));
-        node::FatalException(env->isolate, try_catch);
+        v8::Local<v8::Value> err = v8::Local<v8::Value>::New(
+          env->isolate, env->last_exception);
+        v8::Local<v8::Message> msg = v8::Exception::CreateMessage(
+          env->isolate, err);
+        node::FatalException(env->isolate, err, msg);
       }
     }
   }
