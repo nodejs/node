@@ -293,6 +293,13 @@ v8::Local<v8::Value> V8LocalValueFromJsValue(napi_value v) {
   return local;
 }
 
+static inline void trigger_fatal_exception(
+    napi_env env, v8::Local<v8::Value> local_err) {
+  v8::Local<v8::Message> local_msg =
+    v8::Exception::CreateMessage(env->isolate, local_err);
+  node::FatalException(env->isolate, local_err, local_msg);
+}
+
 static inline napi_status V8NameFromPropertyDescriptor(napi_env env,
                                          const napi_property_descriptor* p,
                                          v8::Local<v8::Name>* result) {
@@ -965,6 +972,16 @@ napi_status napi_get_last_error_info(napi_env env,
 
   *result = &(env->last_error);
   return napi_ok;
+}
+
+napi_status napi_fatal_exception(napi_env env, napi_value err) {
+  NAPI_PREAMBLE(env);
+  CHECK_ARG(env, err);
+
+  v8::Local<v8::Value> local_err = v8impl::V8LocalValueFromJsValue(err);
+  v8impl::trigger_fatal_exception(env, local_err);
+
+  return napi_clear_last_error(env);
 }
 
 NAPI_NO_RETURN void napi_fatal_error(const char* location,
@@ -3457,10 +3474,9 @@ class Work : public node::AsyncResource {
       // report it as a fatal exception. (There is no JavaScript on the
       // callstack that can possibly handle it.)
       if (!env->last_exception.IsEmpty()) {
-        v8::TryCatch try_catch(env->isolate);
-        env->isolate->ThrowException(
-          v8::Local<v8::Value>::New(env->isolate, env->last_exception));
-        node::FatalException(env->isolate, try_catch);
+        v8::Local<v8::Value> local_err = v8::Local<v8::Value>::New(
+          env->isolate, env->last_exception);
+        v8impl::trigger_fatal_exception(env, local_err);
       }
     }
   }
