@@ -68,6 +68,7 @@ void StreamPipe::Unpipe() {
 
   // Delay the JS-facing part with SetImmediate, because this might be from
   // inside the garbage collector, so we can’t run JS here.
+  HandleScope handle_scope(env()->isolate());
   env()->SetImmediate([](Environment* env, void* data) {
     StreamPipe* pipe = static_cast<StreamPipe*>(data);
 
