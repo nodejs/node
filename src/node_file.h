@@ -22,6 +22,8 @@ namespace fs {
 
 class FSReqBase : public ReqWrap<uv_fs_t> {
  public:
+  typedef MaybeStackBuffer<char, 64> FSReqBuffer;
+
   FSReqBase(Environment* env, Local<Object> req, AsyncWrap::ProviderType type)
       : ReqWrap(env, req, type) {
     Wrap(object(), this);
@@ -32,9 +34,9 @@ class FSReqBase : public ReqWrap<uv_fs_t> {
   }
 
   void Init(const char* syscall,
-            const char* data = nullptr,
-            size_t len = 0,
-            enum encoding encoding = UTF8) {
+            const char* data,
+            size_t len,
+            enum encoding encoding) {
     syscall_ = syscall;
     encoding_ = encoding;
 
@@ -45,6 +47,17 @@ class FSReqBase : public ReqWrap<uv_fs_t> {
       memcpy(*buffer_, data, len);
       has_data_ = true;
     }
+  }
+
+  FSReqBuffer& Init(const char* syscall, size_t len,
+                    enum encoding encoding) {
+    syscall_ = syscall;
+    encoding_ = encoding;
+
+    buffer_.AllocateSufficientStorage(len + 1);
+    buffer_.SetLengthAndZeroTerminate(len);
+    has_data_ = false;  // so that the data does not show up in error messages
+    return buffer_;
   }
 
   virtual void FillStatsArray(const uv_stat_t* stat) = 0;
@@ -66,7 +79,7 @@ class FSReqBase : public ReqWrap<uv_fs_t> {
 
   // Typically, the content of buffer_ is something like a file name, so
   // something around 64 bytes should be enough.
-  MaybeStackBuffer<char, 64> buffer_;
+  FSReqBuffer buffer_;
 
   DISALLOW_COPY_AND_ASSIGN(FSReqBase);
 };
