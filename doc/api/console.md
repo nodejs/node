@@ -100,7 +100,7 @@ changes:
     Setting to `true` enables coloring while inspecting values, setting to
     `'auto'` will make color support depend on the value of the `isTTY` property
     and the value returned by `getColorDepth()` on the respective stream.
-    **Default:** `false`
+    **Default:** `'auto'`
 
 Creates a new `Console` with one or two writable stream instances. `stdout` is a
 writable stream to print log or info output. `stderr` is used for warning or
