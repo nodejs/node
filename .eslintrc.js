@@ -148,6 +148,7 @@ module.exports = {
       }
     ],
     /* eslint-disable max-len, quotes */
+    // If this list is modified, please copy the change to lib/.eslintrc.yaml
     'no-restricted-syntax': [
       'error',
       {
