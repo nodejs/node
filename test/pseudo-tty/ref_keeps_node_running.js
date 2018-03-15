@@ -12,7 +12,7 @@ handle.readStart();
 handle.onread = () => {};
 
 function isHandleActive(handle) {
-  return process._getActiveHandles().some((active) => active === handle);
+  return process.getActiveHandles().some((active) => active === handle);
 }
 
 strictEqual(isHandleActive(handle), true, 'TTY handle not initially active');

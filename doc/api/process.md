@@ -1043,6 +1043,33 @@ a code.
 Specifying a code to [`process.exit(code)`][`process.exit()`] will override any
 previous setting of `process.exitCode`.
 
+## process.getActiveHandles()
+<!-- YAML
+added: REPLACEME
+-->
+
+* Returns: {Array}
+
+Returns an array containing all handles that are preventing the Node.js process
+from exiting.
+
+```js
+console.log(`Active handles: ${util.inspect(process.getActiveHandles())}`);
+```
+
+## process.getActiveRequests()
+<!-- YAML
+added: REPLACEME
+-->
+
+* Returns: {Array}
+
+Returns an array containing all requests that are preventing the Node.js process
+from exiting.
+
+```js
+console.log(`Active requests: ${util.inspect(process.getActiveRequests())}`);
+```
 
 ## process.getegid()
 <!-- YAML

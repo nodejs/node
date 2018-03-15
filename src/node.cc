@@ -3231,8 +3231,8 @@ void SetupProcessObject(Environment* env,
   env->SetMethod(process,
                  "_stopProfilerIdleNotifier",
                  StopProfilerIdleNotifier);
-  env->SetMethod(process, "_getActiveRequests", GetActiveRequests);
-  env->SetMethod(process, "_getActiveHandles", GetActiveHandles);
+  env->SetMethod(process, "getActiveRequests", GetActiveRequests);
+  env->SetMethod(process, "getActiveHandles", GetActiveHandles);
   env->SetMethod(process, "reallyExit", Exit);
   env->SetMethod(process, "abort", Abort);
   env->SetMethod(process, "chdir", Chdir);
