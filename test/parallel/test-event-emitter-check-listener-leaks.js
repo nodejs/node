@@ -70,7 +70,7 @@ const events = require('events');
 
 // process-wide
 {
-  events.EventEmitter.defaultMaxListeners = 42;
+  events.EventEmitter.setDefaultMaxListeners(42);
   const e = new events.EventEmitter();
 
   for (let i = 0; i < 42; ++i) {
@@ -81,7 +81,7 @@ const events = require('events');
   assert.ok(e._events.fortytwo.hasOwnProperty('warned'));
   delete e._events.fortytwo.warned;
 
-  events.EventEmitter.defaultMaxListeners = 44;
+  events.EventEmitter.setDefaultMaxListeners(44);
   e.on('fortytwo', common.mustNotCall());
   assert.ok(!e._events.fortytwo.hasOwnProperty('warned'));
   e.on('fortytwo', common.mustNotCall());
@@ -90,7 +90,7 @@ const events = require('events');
 
 // but _maxListeners still has precedence over defaultMaxListeners
 {
-  events.EventEmitter.defaultMaxListeners = 42;
+  events.EventEmitter.setDefaultMaxListeners(42);
   const e = new events.EventEmitter();
   e.setMaxListeners(1);
   e.on('uno', common.mustNotCall());

@@ -5,7 +5,8 @@ const EventEmitter = require('events');
 
 const emitter = new EventEmitter();
 
-assert.strictEqual(emitter.getMaxListeners(), EventEmitter.defaultMaxListeners);
+assert.strictEqual(emitter.getMaxListeners(),
+                   EventEmitter.getDefaultMaxListeners());
 
 emitter.setMaxListeners(0);
 assert.strictEqual(emitter.getMaxListeners(), 0);

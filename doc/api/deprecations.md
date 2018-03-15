@@ -950,6 +950,13 @@ deprecated if the assigned value is not a string, boolean, or number. In the
 future, such assignment may result in a thrown error. Please convert the
 property to a string before assigning it to `process.env`.
 
+<a id="DEP00XX"></a>
+### DEP00XX: EventEmitter.defaultMaxListeners
+
+Type: Documentation-only (supports [`--pending-deprecation`][])
+
+The [`EventEmitter.defaultMaxListeners`][] property is deprecated.
+
 [`--pending-deprecation`]: cli.html#cli_pending_deprecation
 [`Buffer.allocUnsafeSlow(size)`]: buffer.html#buffer_class_method_buffer_allocunsafeslow_size
 [`Buffer.from(array)`]: buffer.html#buffer_class_method_buffer_from_array
@@ -958,6 +965,7 @@ property to a string before assigning it to `process.env`.
 [`assert`]: assert.html
 [`clearInterval()`]: timers.html#timers_clearinterval_timeout
 [`clearTimeout()`]: timers.html#timers_cleartimeout_timeout
+[`EventEmitter.defaultMaxListeners`]: events.html#events_eventemitter_defaultmaxlisteners
 [`EventEmitter.listenerCount(emitter, eventName)`]: events.html#events_eventemitter_listenercount_emitter_eventname
 [`Server.connections`]: net.html#net_server_connections
 [`Server.getConnections()`]: net.html#net_server_getconnections_callback

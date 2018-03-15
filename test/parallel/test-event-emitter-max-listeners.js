@@ -43,12 +43,10 @@ for (const obj of throwsObjs) {
   );
 
   common.expectsError(
-    () => events.defaultMaxListeners = obj,
+    () => events.setDefaultMaxListeners(obj),
     {
       code: 'ERR_OUT_OF_RANGE',
       type: RangeError,
-      message: 'The value of "defaultMaxListeners" is out of range. ' +
-               `It must be a non-negative number. Received ${obj}`
     }
   );
 }

@@ -18,7 +18,7 @@ const myConsole = new Console(stream, stream);
 process.on('warning', common.mustNotCall);
 
 stream.cork();
-for (let i = 0; i < EventEmitter.defaultMaxListeners + 1; i++) {
+for (let i = 0; i < EventEmitter.getDefaultMaxListeners() + 1; i++) {
   myConsole.log('a message');
 }
 stream.uncork();

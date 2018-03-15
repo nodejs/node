@@ -246,6 +246,7 @@ console.log(EventEmitter.listenerCount(myEmitter, 'event'));
 ### EventEmitter.defaultMaxListeners
 <!-- YAML
 added: v0.11.2
+deprecated: REPLACEME
 -->
 
 By default, a maximum of `10` listeners can be registered for any single
@@ -282,6 +283,25 @@ have the additional `emitter`, `type` and `count` properties, referring to
 the event emitter instance, the event’s name and the number of attached
 listeners, respectively.
 Its `name` property is set to `'MaxListenersExceededWarning'`.
+
+This property is deprecated. Please use `EventEmitter.getDefaultMaxListeners()`
+and `EventEmitter.setDefaultMaxListeners()` instead.
+
+### EventEmitter.getDefaultMaxListeners()
+<!-- YAML
+added: REPLACEME
+-->
+
+Returns the default max listener count.
+
+### EventEmitter.setDefaultMaxListeners(count)
+<!--YAML
+added: REPLACEME
+-->
+
+- `count` {number}
+
+Sets the default max listener count to `count`.
 
 ### emitter.addListener(eventName, listener)
 <!-- YAML

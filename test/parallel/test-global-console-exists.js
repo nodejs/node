@@ -18,7 +18,7 @@ process.on('warning', () => {
   // invoke the monkeypatched process.stderr.write
   // below.
   assert.strictEqual(writeTimes, 1);
-  EventEmitter.defaultMaxListeners = oldDefault;
+  EventEmitter.setDefaultMaxListeners(oldDefault);
   warningTimes++;
 });
 
@@ -35,8 +35,8 @@ process.stderr.write = (data) => {
   writeTimes++;
 };
 
-const oldDefault = EventEmitter.defaultMaxListeners;
-EventEmitter.defaultMaxListeners = 1;
+const oldDefault = EventEmitter.getDefaultMaxListeners();
+EventEmitter.setDefaultMaxListeners(1);
 
 const e = new EventEmitter();
 e.on('hello', () => {});
