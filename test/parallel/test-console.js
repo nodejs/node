@@ -51,9 +51,11 @@ const custom_inspect = { foo: 'bar', inspect: () => 'inspect' };
 
 const strings = [];
 const errStrings = [];
+process.stdout.isTTY = false;
 common.hijackStdout(function(data) {
   strings.push(data);
 });
+process.stderr.isTTY = false;
 common.hijackStderr(function(data) {
   errStrings.push(data);
 });
