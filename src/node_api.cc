@@ -167,6 +167,14 @@ struct napi_env__ {
     (out) = v8::type::New((buffer), (byte_offset), (length));                  \
   } while (0)
 
+#define TRIGGER_FATAL_EXCEPTION(env, local_err)                      \
+  do {                                                               \
+    v8::Local<v8::Message> local_msg = v8::Exception::CreateMessage( \
+      env->isolate, (local_err));                                    \
+    node::FatalException((env)->isolate, (local_err), local_msg);    \
+  } while (0)
+
+
 namespace {
 namespace v8impl {
 
@@ -954,14 +962,14 @@ napi_status napi_get_last_error_info(napi_env env,
   return napi_ok;
 }
 
-void napi_fatal_exception(napi_env env) {
-  if (!env->last_exception.IsEmpty()) {
-    v8::Local<v8::Value> err = v8::Local<v8::Value>::New(
-      env->isolate, env->last_exception);
-    v8::Local<v8::Message> msg = v8::Exception::CreateMessage(
-      env->isolate, err);
-    node::FatalException(env->isolate, err, msg);
-  }
+napi_status napi_fatal_exception(napi_env env, napi_value err) {
+  NAPI_PREAMBLE(env);
+  CHECK_ARG(env, err);
+
+  v8::Local<v8::Value> local_err = v8impl::V8LocalValueFromJsValue(err);
+  TRIGGER_FATAL_EXCEPTION(env, local_err);
+
+  return napi_clear_last_error(env);
 }
 
 NAPI_NO_RETURN void napi_fatal_error(const char* location,
@@ -3363,7 +3371,11 @@ class Work : public node::AsyncResource {
       // If there was an unhandled exception in the complete callback,
       // report it as a fatal exception. (There is no JavaScript on the
       // callstack that can possibly handle it.)
-      napi_fatal_exception(env);
+      if (!env->last_exception.IsEmpty()) {
+        v8::Local<v8::Value> local_err = v8::Local<v8::Value>::New(
+          env->isolate, env->last_exception);
+        TRIGGER_FATAL_EXCEPTION(env, local_err);
+      }
     }
   }
 
