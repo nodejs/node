@@ -185,8 +185,11 @@ class AsyncWrap : public BaseObject {
  private:
   friend class PromiseWrap;
 
-  // This is specifically used by the PromiseWrap constructor.
-  AsyncWrap(Environment* env, v8::Local<v8::Object> promise, bool silent);
+  AsyncWrap(Environment* env,
+            v8::Local<v8::Object> promise,
+            ProviderType provider,
+            double execution_async_id,
+            bool silent);
   inline AsyncWrap();
   const ProviderType provider_type_;
   // Because the values may be Reset(), cannot be made const.
