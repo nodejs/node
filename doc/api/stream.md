@@ -860,7 +860,8 @@ added: v0.9.4
 * `destination` {stream.Writable} The destination for writing data
 * `options` {Object} Pipe options
   * `end` {boolean} End the writer when the reader ends. Defaults to `true`.
-* Returns: {stream.Writable} making it possible to set up chains of piped streams
+* Returns: {stream.Writable} making it possible to set up chains of piped
+  streams
 
 The `readable.pipe()` method attaches a [Writable][] stream to the `readable`,
 causing it to switch automatically into flowing mode and push all of its data
