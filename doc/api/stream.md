@@ -860,7 +860,7 @@ added: v0.9.4
 * `destination` {stream.Writable} The destination for writing data
 * `options` {Object} Pipe options
   * `end` {boolean} End the writer when the reader ends. Defaults to `true`.
-* Returns {stream.Writable} making it possible to set up chains of piped streams
+* Returns: {stream.Writable} making it possible to set up chains of piped streams
 
 The `readable.pipe()` method attaches a [Writable][] stream to the `readable`,
 causing it to switch automatically into flowing mode and push all of its data
@@ -917,7 +917,7 @@ closed until the Node.js process exits, regardless of the specified options.
 added: v9.3.0
 -->
 
-* Returns {number}
+* Returns: {number}
 
 Returns the value of `highWaterMark` passed when constructing this
 `Readable`.
@@ -928,7 +928,7 @@ added: v0.9.4
 -->
 
 * `size` {number} Optional argument to specify how much data to read.
-* Returns {string|Buffer|null}
+* Returns: {string|Buffer|null}
 
 The `readable.read()` method pulls some data out of the internal buffer and
 returns it. If no data available to be read, `null` is returned. By default,
@@ -973,7 +973,7 @@ been emitted will return `null`. No runtime error will be raised.
 added: v9.4.0
 -->
 
-* Returns {number}
+* Returns: {number}
 
 This property contains the number of bytes (or objects) in the queue
 ready to be read. The value provides introspection data regarding
