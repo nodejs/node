@@ -954,6 +954,8 @@ void WasmCodeManager::FreeNativeModuleMemories(NativeModule* native_module) {
     Free(&vmem);
     DCHECK(!vmem.IsReserved());
   }
+  native_module->owned_memory_.clear();
+
   // No need to tell the GC anything if we're destroying the heap,
   // which we currently indicate by having the isolate_ as null
   if (isolate_ == nullptr) return;
