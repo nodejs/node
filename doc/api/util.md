@@ -254,6 +254,24 @@ intended as a debugging tool. Some input values can have a significant
 performance overhead that can block the event loop. Use this function
 with care and never in a hot code path.
 
+## util.formatWithOptions(inspectOptions, format[, ...args])
+<!-- YAML
+added: REPLACEME
+-->
+
+* `inspectOptions` {Object}
+* `format` {string}
+
+This function is identical to [`util.format()`][], except in that it takes
+an `inspectOptions` argument which specifies options that are passed along to
+[`util.inspect()`][].
+
+```js
+util.formatWithOptions({ colors: true }, 'See object %O', { foo: 42 });
+  // Returns 'See object { foo: 42 }', where `42` is colored as a number
+  // when printed to a terminal.
+```
+
 ## util.getSystemErrorName(err)
 <!-- YAML
 added: v9.7.0
@@ -2054,6 +2072,7 @@ Deprecated predecessor of `console.log`.
 [`Set`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Set
 [`SharedArrayBuffer`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/SharedArrayBuffer
 [`TypedArray`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/TypedArray
+[`util.format()`]: #util_util_format_format_args
 [`util.inspect()`]: #util_util_inspect_object_options
 [`util.promisify()`]: #util_util_promisify_original
 [`util.types.isAnyArrayBuffer()`]: #util_util_types_isanyarraybuffer_value
