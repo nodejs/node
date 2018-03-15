@@ -167,13 +167,6 @@ struct napi_env__ {
     (out) = v8::type::New((buffer), (byte_offset), (length));                  \
   } while (0)
 
-#define TRIGGER_FATAL_EXCEPTION(env, local_err)                      \
-  do {                                                               \
-    v8::Local<v8::Message> local_msg = v8::Exception::CreateMessage( \
-      env->isolate, (local_err));                                    \
-    node::FatalException((env)->isolate, (local_err), local_msg);    \
-  } while (0)
-
 
 namespace {
 namespace v8impl {
@@ -295,6 +288,13 @@ v8::Local<v8::Value> V8LocalValueFromJsValue(napi_value v) {
   v8::Local<v8::Value> local;
   memcpy(&local, &v, sizeof(v));
   return local;
+}
+
+static inline void trigger_fatal_exception(
+    napi_env env, v8::Local<v8::Value> local_err) {
+  v8::Local<v8::Message> local_msg =
+    v8::Exception::CreateMessage(env->isolate, local_err);
+  node::FatalException(env->isolate, local_err, local_msg);
 }
 
 static inline napi_status V8NameFromPropertyDescriptor(napi_env env,
@@ -967,7 +967,7 @@ napi_status napi_fatal_exception(napi_env env, napi_value err) {
   CHECK_ARG(env, err);
 
   v8::Local<v8::Value> local_err = v8impl::V8LocalValueFromJsValue(err);
-  TRIGGER_FATAL_EXCEPTION(env, local_err);
+  v8impl::trigger_fatal_exception(env, local_err);
 
   return napi_clear_last_error(env);
 }
@@ -3374,7 +3374,7 @@ class Work : public node::AsyncResource {
       if (!env->last_exception.IsEmpty()) {
         v8::Local<v8::Value> local_err = v8::Local<v8::Value>::New(
           env->isolate, env->last_exception);
-        TRIGGER_FATAL_EXCEPTION(env, local_err);
+        v8impl::trigger_fatal_exception(env, local_err);
       }
     }
   }
