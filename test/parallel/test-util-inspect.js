@@ -1399,3 +1399,8 @@ util.inspect(process);
                     'extra: true }';
   assert(out === expect || out === expectAlt);
 }
+
+{ // Test argument objects.
+  const args = (function() { return arguments; })('a');
+  assert.strictEqual(util.inspect(args), "[Arguments] { '0': 'a' }");
+}
