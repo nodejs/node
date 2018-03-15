@@ -183,13 +183,13 @@ extern bool config_experimental_vm_modules;
 
 // Set in node.cc by ParseArgs when --loader is used.
 // Used in node_config.cc to set a constant on process.binding('config')
-// that is used by lib/internal/bootstrap_node.js
+// that is used by lib/internal/bootstrap/node.js
 extern std::string config_userland_loader;
 
 // Set in node.cc by ParseArgs when --expose-internals or --expose_internals is
 // used.
 // Used in node_config.cc to set a constant on process.binding('config')
-// that is used by lib/internal/bootstrap_node.js
+// that is used by lib/internal/bootstrap/node.js
 extern bool config_expose_internals;
 
 // Set in node.cc by ParseArgs when --redirect-warnings= is used.

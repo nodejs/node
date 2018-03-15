@@ -4,16 +4,16 @@ events.js:*
 
 Error
     at Object.<anonymous> (*events_unhandled_error_sameline.js:*:*)
-    at Module._compile (module.js:*:*)
-    at Object.Module._extensions..js (module.js:*:*)
-    at Module.load (module.js:*:*)
-    at tryModuleLoad (module.js:*:*)
-    at Function.Module._load (module.js:*:*)
-    at Function.Module.runMain (module.js:*:*)
-    at startup (bootstrap_node.js:*:*)
-    at bootstrapNodeJSCore (bootstrap_node.js:*:*)
+    at Module._compile (internal/modules/cjs/loader.js:*:*)
+    at Object.Module._extensions..js (internal/modules/cjs/loader.js:*:*)
+    at Module.load (internal/modules/cjs/loader.js:*:*)
+    at tryModuleLoad (internal/modules/cjs/loader.js:*:*)
+    at Function.Module._load (internal/modules/cjs/loader.js:*:*)
+    at Function.Module.runMain (internal/modules/cjs/loader.js:*:*)
+    at startup (internal/bootstrap/node.js:*:*)
+    at bootstrapNodeJSCore (internal/bootstrap/node.js:*:*)
 Emitted 'error' event at:
     at Object.<anonymous> (*events_unhandled_error_sameline.js:*:*)
-    at Module._compile (module.js:*:*)
+    at Module._compile (internal/modules/cjs/loader.js:*:*)
     [... lines matching original stack trace ...]
-    at bootstrapNodeJSCore (bootstrap_node.js:*:*)
+    at bootstrapNodeJSCore (internal/bootstrap/node.js:*:*)

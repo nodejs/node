@@ -3,4 +3,4 @@ file:///*/test/fixtures/es-module-loaders/syntax-error-import.mjs:1
 import { foo, notfound } from './module-named-exports';
               ^^^^^^^^
 SyntaxError: The requested module './module-named-exports' does not provide an export named 'notfound'
-    at ModuleJob._instantiate (internal/loader/ModuleJob.js:*:*)
+    at ModuleJob._instantiate (internal/modules/esm/ModuleJob.js:*:*)
