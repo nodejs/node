@@ -777,6 +777,12 @@ Encoding provided to `util.TextDecoder()` API was not one of the
 A `Promise` that was callbackified via `util.callbackify()` was rejected with a
 falsy value.
 
+<a id="ERR_FS_FILE_TOO_LARGE"></a>
+### ERR_FS_FILE_TOO_LARGE
+
+An attempt has been made to read a file whose size is larger than the maximum
+allowed size for a `Buffer`.
+
 <a id="ERR_FS_INVALID_SYMLINK_TYPE"></a>
 ### ERR_FS_INVALID_SYMLINK_TYPE
 
