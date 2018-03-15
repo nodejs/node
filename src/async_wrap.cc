@@ -275,19 +275,20 @@ void PromiseWrap::getIsChainedPromise(Local<String> property,
     info.Holder()->GetInternalField(kIsChainedPromiseField));
 }
 
+static PromiseWrap* extractPromiseWrap(Local<Promise> promise) {
+  Local<Value> resource_object_value = promise->GetInternalField(0);
+  if (resource_object_value->IsObject()) {
+    return Unwrap<PromiseWrap>(resource_object_value.As<Object>());
+  }
+  return nullptr;
+}
+
 static void PromiseHook(PromiseHookType type, Local<Promise> promise,
                         Local<Value> parent, void* arg) {
   Environment* env = static_cast<Environment*>(arg);
-  Local<Value> resource_object_value = promise->GetInternalField(0);
-  PromiseWrap* wrap = nullptr;
-  if (resource_object_value->IsObject()) {
-    Local<Object> resource_object = resource_object_value.As<Object>();
-    wrap = Unwrap<PromiseWrap>(resource_object);
-  }
-
+  PromiseWrap* wrap = extractPromiseWrap(promise);
   if (type == PromiseHookType::kInit || wrap == nullptr) {
     bool silent = type != PromiseHookType::kInit;
-    PromiseWrap* parent_wrap = nullptr;
 
     // set parent promise's async Id as this promise's triggerAsyncId
     if (parent->IsPromise()) {
@@ -295,11 +296,7 @@ static void PromiseHook(PromiseHookType type, Local<Promise> promise,
       // is a chained promise, so we set parent promise's id as
       // current promise's triggerAsyncId
       Local<Promise> parent_promise = parent.As<Promise>();
-      Local<Value> parent_resource = parent_promise->GetInternalField(0);
-      if (parent_resource->IsObject()) {
-        parent_wrap = Unwrap<PromiseWrap>(parent_resource.As<Object>());
-      }
-
+      PromiseWrap* parent_wrap = extractPromiseWrap(parent_promise);
       if (parent_wrap == nullptr) {
         parent_wrap = PromiseWrap::New(env, parent_promise, nullptr, true);
       }
@@ -315,7 +312,7 @@ static void PromiseHook(PromiseHookType type, Local<Promise> promise,
   if (type == PromiseHookType::kBefore) {
     env->async_hooks()->push_async_ids(
       wrap->get_async_id(), wrap->get_trigger_async_id());
-      wrap->EmitTraceEventBefore();
+    wrap->EmitTraceEventBefore();
     AsyncWrap::EmitBefore(wrap->env(), wrap->get_async_id());
   } else if (type == PromiseHookType::kAfter) {
     wrap->EmitTraceEventAfter();
