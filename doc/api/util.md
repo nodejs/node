@@ -268,8 +268,8 @@ an `inspectOptions` argument which specifies options that are passed along to
 
 ```js
 util.formatWithOptions({ colors: true }, 'See object %O', { foo: 42 });
-  // Returns 'See object { foo: 42 }', where `42` is colored as a number
-  // when printed to a terminal.
+// Returns 'See object { foo: 42 }', where `42` is colored as a number
+// when printed to a terminal.
 ```
 
 ## util.getSystemErrorName(err)

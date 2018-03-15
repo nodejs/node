@@ -87,7 +87,8 @@ changes:
     description: The `ignoreErrors` option was introduced.
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/19372
-    description: The `Console` constructor now supports an `options` argument.
+    description: The `Console` constructor now supports an `options` argument,
+                 and the `colorMode` option was introduced.
 -->
 
 * `options` {Object}
@@ -95,6 +96,11 @@ changes:
   * `stderr` {stream.Writable}
   * `ignoreErrors` {boolean} Ignore errors when writing to the underlying
                              streams. **Default:** `true`.
+  * `colorMode` {boolean|string} Set color support for this `Console` instance.
+    Setting to `true` enables coloring while inspecting values, setting to
+    `'auto'` will make color support depend on the value of the `isTTY` property
+    and the value returned by `getColorDepth()` on the respective stream.
+    **Default:** `false`
 
 Creates a new `Console` with one or two writable stream instances. `stdout` is a
 writable stream to print log or info output. `stderr` is used for warning or
