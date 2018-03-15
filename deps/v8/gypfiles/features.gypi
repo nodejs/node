@@ -89,6 +89,9 @@
 
     # Controls the threshold for on-heap/off-heap Typed Arrays.
     'v8_typed_array_max_size_in_heap%': 64,
+
+    # Enable mitigations for executing untrusted code.
+    'v8_untrusted_code_mitigations%': 'true',
   },
   'target_defaults': {
     'conditions': [
@@ -142,6 +145,9 @@
       }],
       ['v8_enable_concurrent_marking==1', {
         'defines': ['V8_CONCURRENT_MARKING',],
+      }],
+      ['v8_untrusted_code_mitigations=="false"', {
+        'defines': ['DISABLE_UNTRUSTED_CODE_MITIGATIONS',],
       }],
     ],  # conditions
     'configurations': {

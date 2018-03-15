@@ -27,13 +27,17 @@
 
     # Reset this number to 0 on major V8 upgrades.
     # Increment by one for each non-official patch applied to deps/v8.
-    'v8_embedder_string': '-node.4',
+    'v8_embedder_string': '-node.5',
 
     # Enable disassembler for `--print-code` v8 options
     'v8_enable_disassembler': 1,
 
     # Don't bake anything extra into the snapshot.
     'v8_use_external_startup_data%': 0,
+
+    # Disable V8 untrusted code mitigations.
+    # See https://github.com/v8/v8/wiki/Untrusted-code-mitigations
+    'v8_untrusted_code_mitigations': 'false',
 
     # Some STL containers (e.g. std::vector) do not preserve ABI compatibility
     # between debug and non-debug mode.
