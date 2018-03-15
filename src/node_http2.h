@@ -14,6 +14,8 @@
 namespace node {
 namespace http2 {
 
+#define NODE_HTTP2_TRACING "node.http2,node.net"
+
 using v8::Array;
 using v8::Context;
 using v8::EscapableHandleScope;
@@ -755,6 +757,7 @@ class Http2Stream : public AsyncWrap,
   int64_t fd_length_ = -1;
 
   Http2StreamListener stream_listener_;
+  bool eos_ = false;
 
   friend class Http2Session;
 };
@@ -925,10 +928,16 @@ class Http2Session : public AsyncWrap, public StreamListener {
 
   void IncrementCurrentSessionMemory(uint64_t amount) {
     current_session_memory_ += amount;
+    TRACE_COUNTER_ID1(NODE_HTTP2_TRACING, "Session Memory",
+                      static_cast<uint64_t>(get_async_id()),
+                      current_session_memory_);
   }
 
   void DecrementCurrentSessionMemory(uint64_t amount) {
     current_session_memory_ -= amount;
+    TRACE_COUNTER_ID1(NODE_HTTP2_TRACING, "Session Memory",
+                      static_cast<uint64_t>(get_async_id()),
+                      current_session_memory_);
   }
 
   // Returns the current session memory including the current size of both
@@ -981,6 +990,10 @@ class Http2Session : public AsyncWrap, public StreamListener {
   inline void HandleAltSvcFrame(const nghttp2_frame* frame);
 
   // nghttp2 callbacks
+  static inline int OnBeforeFrameSend(
+      nghttp2_session* session,
+      const nghttp2_frame* frame,
+      void* user_data);
   static inline int OnBeginHeadersCallback(
       nghttp2_session* session,
       const nghttp2_frame* frame,
