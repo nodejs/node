@@ -60,8 +60,9 @@ changes:
   - version: v8.0.0
     pr-url: https://github.com/nodejs/node/pull/9744
     description: Errors that occur while writing to the underlying streams
-                 will now be ignored.
+                 will now be ignored by default.
 -->
+
 
 <!--type=class-->
 
@@ -77,9 +78,18 @@ const { Console } = require('console');
 const { Console } = console;
 ```
 
-### new Console(stdout[, stderr])
+### new Console(stdout[, stderr][, ignoreErrors])
+<!-- YAML
+changes:
+  - version: v8.0.0
+    pr-url: https://github.com/nodejs/node/pull/9744
+    description: The `ignoreErrors` option was introduced.
+-->
+
 * `stdout` {stream.Writable}
 * `stderr` {stream.Writable}
+* `ignoreErrors` {boolean} Ignore errors when writing to the underlying streams.
+                           Defaults to `true`.
 
 Creates a new `Console` with one or two writable stream instances. `stdout` is a
 writable stream to print log or info output. `stderr` is used for warning or
