@@ -13,8 +13,21 @@ napi_value MakeCallback(napi_env env, napi_callback_info info) {
   napi_value recv = args[0];
   napi_value func = args[1];
 
-  napi_make_callback(env, nullptr /* async_context */,
+  napi_status status = napi_make_callback(env, nullptr /* async_context */,
     recv, func, 0 /* argc */, nullptr /* argv */, nullptr /* result */);
+
+  bool isExceptionPending;
+  NAPI_CALL(env, napi_is_exception_pending(env, &isExceptionPending));
+  if (isExceptionPending && !(status == napi_pending_exception)) {
+    // if there is an exception pending we don't expect any
+    // other error
+    napi_value pending_error;
+    status = napi_get_and_clear_last_exception(env, &pending_error);
+    NAPI_CALL(env,
+      napi_throw_error((env),
+                        nullptr,
+                        "error when only pending exception expected"));
+  }
 
   return recv;
 }
