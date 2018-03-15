@@ -203,13 +203,13 @@ void AsyncWrap::EmitBefore(Environment* env, double async_id) {
 }
 
 
-void AsyncWrap::EmitTraceEventAfter() {
-  switch (provider_type()) {
+void AsyncWrap::EmitTraceEventAfter(ProviderType type, double async_id) {
+  switch (type) {
 #define V(PROVIDER)                                                           \
     case PROVIDER_ ## PROVIDER:                                               \
       TRACE_EVENT_NESTABLE_ASYNC_END0(                                        \
         TRACING_CATEGORY_NODE1(async_hooks),                                  \
-        #PROVIDER "_CALLBACK", static_cast<int64_t>(get_async_id()));         \
+        #PROVIDER "_CALLBACK", static_cast<int64_t>(async_id));               \
       break;
     NODE_ASYNC_PROVIDER_TYPES(V)
 #undef V
@@ -318,7 +318,7 @@ static void PromiseHook(PromiseHookType type, Local<Promise> promise,
       wrap->EmitTraceEventBefore();
     AsyncWrap::EmitBefore(wrap->env(), wrap->get_async_id());
   } else if (type == PromiseHookType::kAfter) {
-    wrap->EmitTraceEventAfter();
+    wrap->EmitTraceEventAfter(wrap->provider_type(), wrap->get_async_id());
     AsyncWrap::EmitAfter(wrap->env(), wrap->get_async_id());
     if (env->execution_async_id() == wrap->get_async_id()) {
       // This condition might not be true if async_hooks was enabled during
@@ -714,11 +714,14 @@ MaybeLocal<Value> AsyncWrap::MakeCallback(const Local<Function> cb,
                                           Local<Value>* argv) {
   EmitTraceEventBefore();
 
+  ProviderType provider = provider_type();
   async_context context { get_async_id(), get_trigger_async_id() };
   MaybeLocal<Value> ret = InternalMakeCallback(
       env(), object(), cb, argc, argv, context);
 
-  EmitTraceEventAfter();
+  // This is a static call with cached values because the `this` object may
+  // no longer be alive at this point.
+  EmitTraceEventAfter(provider, context.async_id);
 
   return ret;
 }
