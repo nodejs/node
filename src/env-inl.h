@@ -469,6 +469,14 @@ inline void Environment::set_http_parser_buffer(char* buffer) {
   http_parser_buffer_ = buffer;
 }
 
+inline bool Environment::http_parser_buffer_in_use() const {
+  return http_parser_buffer_in_use_;
+}
+
+inline void Environment::set_http_parser_buffer_in_use(bool in_use) {
+  http_parser_buffer_in_use_ = in_use;
+}
+
 inline http2::http2_state* Environment::http2_state() const {
   return http2_state_.get();
 }
@@ -482,6 +490,11 @@ inline void Environment::set_http2_state(
 inline AliasedBuffer<double, v8::Float64Array>*
 Environment::fs_stats_field_array() {
   return &fs_stats_field_array_;
+}
+
+inline std::vector<std::unique_ptr<fs::FileHandleReadWrap>>&
+Environment::file_handle_read_wrap_freelist() {
+  return file_handle_read_wrap_freelist_;
 }
 
 void Environment::CreateImmediate(native_immediate_callback cb,

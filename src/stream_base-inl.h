@@ -67,8 +67,14 @@ inline void StreamListener::OnStreamAfterWrite(WriteWrap* w, int status) {
 
 inline StreamResource::~StreamResource() {
   while (listener_ != nullptr) {
-    listener_->OnStreamDestroy();
-    RemoveStreamListener(listener_);
+    StreamListener* listener = listener_;
+    listener->OnStreamDestroy();
+    // Remove the listener if it didn’t remove itself. This makes the logic
+    // logic in `OnStreamDestroy()` implementations easier, because they
+    // may call generic cleanup functions which can just remove the
+    // listener unconditionally.
+    if (listener == listener_)
+      RemoveStreamListener(listener_);
   }
 }
 
@@ -106,23 +112,41 @@ inline void StreamResource::RemoveStreamListener(StreamListener* listener) {
   listener->previous_listener_ = nullptr;
 }
 
-
 inline uv_buf_t StreamResource::EmitAlloc(size_t suggested_size) {
+#ifdef DEBUG
+  v8::SealHandleScope handle_scope(v8::Isolate::GetCurrent());
+#endif
   return listener_->OnStreamAlloc(suggested_size);
 }
 
 inline void StreamResource::EmitRead(ssize_t nread, const uv_buf_t& buf) {
+#ifdef DEBUG
+  v8::SealHandleScope handle_scope(v8::Isolate::GetCurrent());
+#endif
   if (nread > 0)
     bytes_read_ += static_cast<uint64_t>(nread);
   listener_->OnStreamRead(nread, buf);
 }
 
 inline void StreamResource::EmitAfterWrite(WriteWrap* w, int status) {
+#ifdef DEBUG
+  v8::SealHandleScope handle_scope(v8::Isolate::GetCurrent());
+#endif
   listener_->OnStreamAfterWrite(w, status);
 }
 
 inline void StreamResource::EmitAfterShutdown(ShutdownWrap* w, int status) {
+#ifdef DEBUG
+  v8::SealHandleScope handle_scope(v8::Isolate::GetCurrent());
+#endif
   listener_->OnStreamAfterShutdown(w, status);
+}
+
+inline void StreamResource::EmitWantsWrite(size_t suggested_size) {
+#ifdef DEBUG
+  v8::SealHandleScope handle_scope(v8::Isolate::GetCurrent());
+#endif
+  listener_->OnStreamWantsWrite(suggested_size);
 }
 
 inline StreamBase::StreamBase(Environment* env) : env_(env) {
@@ -133,35 +157,16 @@ inline Environment* StreamBase::stream_env() const {
   return env_;
 }
 
-inline void StreamBase::AfterWrite(WriteWrap* req_wrap, int status) {
-  AfterRequest(req_wrap, [&]() {
-    EmitAfterWrite(req_wrap, status);
-  });
-}
-
-inline void StreamBase::AfterShutdown(ShutdownWrap* req_wrap, int status) {
-  AfterRequest(req_wrap, [&]() {
-    EmitAfterShutdown(req_wrap, status);
-  });
-}
-
-template<typename Wrap, typename EmitEvent>
-inline void StreamBase::AfterRequest(Wrap* req_wrap, EmitEvent emit) {
-  Environment* env = stream_env();
-
-  v8::HandleScope handle_scope(env->isolate());
-  v8::Context::Scope context_scope(env->context());
-
-  emit();
-  req_wrap->Dispose();
-}
-
 inline int StreamBase::Shutdown(v8::Local<v8::Object> req_wrap_obj) {
   Environment* env = stream_env();
+
+  HandleScope handle_scope(env->isolate());
+
   if (req_wrap_obj.IsEmpty()) {
     req_wrap_obj =
-        env->shutdown_wrap_constructor_function()
+        env->shutdown_wrap_template()
             ->NewInstance(env->context()).ToLocalChecked();
+    StreamReq::ResetObject(req_wrap_obj);
   }
 
   AsyncHooks::DefaultTriggerAsyncIdScope trigger_scope(GetAsyncWrap());
@@ -195,10 +200,13 @@ inline StreamWriteResult StreamBase::Write(
     }
   }
 
+  HandleScope handle_scope(env->isolate());
+
   if (req_wrap_obj.IsEmpty()) {
     req_wrap_obj =
-        env->write_wrap_constructor_function()
+        env->write_wrap_template()
             ->NewInstance(env->context()).ToLocalChecked();
+    StreamReq::ResetObject(req_wrap_obj);
   }
 
   AsyncHooks::DefaultTriggerAsyncIdScope trigger_scope(GetAsyncWrap());
@@ -387,7 +395,8 @@ void StreamBase::JSMethod(const FunctionCallbackInfo<Value>& args) {
 
 
 inline void ShutdownWrap::OnDone(int status) {
-  stream()->AfterShutdown(this, status);
+  stream()->EmitAfterShutdown(this, status);
+  Dispose();
 }
 
 inline void WriteWrap::SetAllocatedStorage(char* data, size_t size) {
@@ -405,7 +414,8 @@ inline size_t WriteWrap::StorageSize() const {
 }
 
 inline void WriteWrap::OnDone(int status) {
-  stream()->AfterWrite(this, status);
+  stream()->EmitAfterWrite(this, status);
+  Dispose();
 }
 
 inline void StreamReq::Done(int status, const char* error_str) {
@@ -418,6 +428,15 @@ inline void StreamReq::Done(int status, const char* error_str) {
 
   OnDone(status);
 }
+
+inline void StreamReq::ResetObject(v8::Local<v8::Object> obj) {
+#ifdef DEBUG
+  CHECK_GT(obj->InternalFieldCount(), StreamReq::kStreamReqField);
+#endif
+  ClearWrap(obj);
+  obj->SetAlignedPointerInInternalField(StreamReq::kStreamReqField, nullptr);
+}
+
 
 }  // namespace node
 

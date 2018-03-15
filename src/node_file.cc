@@ -26,6 +26,7 @@
 #include "node_file.h"
 
 #include "req_wrap-inl.h"
+#include "stream_base-inl.h"
 #include "string_bytes.h"
 #include "string_search.h"
 
@@ -41,7 +42,6 @@
 #endif
 
 #include <memory>
-#include <vector>
 
 namespace node {
 
@@ -115,11 +115,13 @@ using v8::Value;
 // The FileHandle object wraps a file descriptor and will close it on garbage
 // collection if necessary. If that happens, a process warning will be
 // emitted (or a fatal exception will occur if the fd cannot be closed.)
-FileHandle::FileHandle(Environment* env, int fd)
+FileHandle::FileHandle(Environment* env, int fd, Local<Object> obj)
     : AsyncWrap(env,
-                env->fd_constructor_template()
-                    ->NewInstance(env->context()).ToLocalChecked(),
-                AsyncWrap::PROVIDER_FILEHANDLE), fd_(fd) {
+                obj.IsEmpty() ? env->fd_constructor_template()
+                    ->NewInstance(env->context()).ToLocalChecked() : obj,
+                AsyncWrap::PROVIDER_FILEHANDLE),
+      StreamBase(env),
+      fd_(fd) {
   MakeWeak<FileHandle>(this);
   v8::PropertyAttribute attr =
       static_cast<v8::PropertyAttribute>(v8::ReadOnly | v8::DontDelete);
@@ -127,6 +129,19 @@ FileHandle::FileHandle(Environment* env, int fd)
                               FIXED_ONE_BYTE_STRING(env->isolate(), "fd"),
                               Integer::New(env->isolate(), fd),
                               attr).FromJust();
+}
+
+void FileHandle::New(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  CHECK(args.IsConstructCall());
+  CHECK(args[0]->IsInt32());
+
+  FileHandle* handle =
+      new FileHandle(env, args[0].As<v8::Int32>()->Value(), args.This());
+  if (args[1]->IsNumber())
+    handle->read_offset_ = args[1]->IntegerValue(env->context()).FromJust();
+  if (args[2]->IsNumber())
+    handle->read_length_ = args[2]->IntegerValue(env->context()).FromJust();
 }
 
 FileHandle::~FileHandle() {
@@ -142,10 +157,10 @@ FileHandle::~FileHandle() {
 // will crash the process immediately.
 inline void FileHandle::Close() {
   if (closed_) return;
-  closed_ = true;
   uv_fs_t req;
   int ret = uv_fs_close(env()->event_loop(), &req, fd_, nullptr);
   uv_fs_req_cleanup(&req);
+  AfterClose();
 
   struct err_detail { int ret; int fd; };
 
@@ -219,18 +234,18 @@ inline MaybeLocal<Promise> FileHandle::ClosePromise() {
   CHECK(!maybe_resolver.IsEmpty());
   Local<Promise::Resolver> resolver = maybe_resolver.ToLocalChecked();
   Local<Promise> promise = resolver.As<Promise>();
+  CHECK(!reading_);
   if (!closed_ && !closing_) {
     closing_ = true;
     CloseReq* req = new CloseReq(env(), promise, object());
     auto AfterClose = [](uv_fs_t* req) {
       CloseReq* close = static_cast<CloseReq*>(req->data);
       CHECK_NE(close, nullptr);
-      close->file_handle()->closing_ = false;
+      close->file_handle()->AfterClose();
       Isolate* isolate = close->env()->isolate();
       if (req->result < 0) {
         close->Reject(UVException(isolate, req->result, "close"));
       } else {
-        close->file_handle()->closed_ = true;
         close->Resolve();
       }
       delete close;
@@ -253,6 +268,162 @@ void FileHandle::Close(const FunctionCallbackInfo<Value>& args) {
   FileHandle* fd;
   ASSIGN_OR_RETURN_UNWRAP(&fd, args.Holder());
   args.GetReturnValue().Set(fd->ClosePromise().ToLocalChecked());
+}
+
+
+void FileHandle::ReleaseFD(const FunctionCallbackInfo<Value>& args) {
+  FileHandle* fd;
+  ASSIGN_OR_RETURN_UNWRAP(&fd, args.Holder());
+  // Just act as if this FileHandle has been closed.
+  fd->AfterClose();
+}
+
+
+void FileHandle::AfterClose() {
+  closing_ = false;
+  closed_ = true;
+  if (reading_ && !persistent().IsEmpty())
+    EmitRead(UV_EOF);
+}
+
+
+FileHandleReadWrap::FileHandleReadWrap(FileHandle* handle, Local<Object> obj)
+  : ReqWrap(handle->env(), obj, AsyncWrap::PROVIDER_FSREQWRAP),
+    file_handle_(handle) {}
+
+int FileHandle::ReadStart() {
+  if (!IsAlive() || IsClosing())
+    return UV_EOF;
+
+  reading_ = true;
+
+  if (current_read_)
+    return 0;
+
+  std::unique_ptr<FileHandleReadWrap> read_wrap;
+
+  if (read_length_ == 0) {
+    EmitRead(UV_EOF);
+    return 0;
+  }
+
+  {
+    // Create a new FileHandleReadWrap or re-use one.
+    // Either way, we need these two scopes for AsyncReset() or otherwise
+    // for creating the new instance.
+    HandleScope handle_scope(env()->isolate());
+    AsyncHooks::DefaultTriggerAsyncIdScope trigger_scope(this);
+
+    auto& freelist = env()->file_handle_read_wrap_freelist();
+    if (freelist.size() > 0) {
+      read_wrap = std::move(freelist.back());
+      freelist.pop_back();
+      read_wrap->AsyncReset();
+      read_wrap->file_handle_ = this;
+    } else {
+      Local<Object> wrap_obj = env()->filehandlereadwrap_template()
+          ->NewInstance(env()->context()).ToLocalChecked();
+      read_wrap.reset(new FileHandleReadWrap(this, wrap_obj));
+    }
+  }
+  int64_t recommended_read = 65536;
+  if (read_length_ >= 0 && read_length_ <= recommended_read)
+    recommended_read = read_length_;
+
+  read_wrap->buffer_ = EmitAlloc(recommended_read);
+  read_wrap->Dispatched();
+
+  current_read_ = std::move(read_wrap);
+
+  uv_fs_read(env()->event_loop(),
+             current_read_->req(),
+             fd_,
+             &current_read_->buffer_,
+             1,
+             read_offset_,
+             [](uv_fs_t* req) {
+    FileHandle* handle;
+    {
+      FileHandleReadWrap* req_wrap = FileHandleReadWrap::from_req(req);
+      handle = req_wrap->file_handle_;
+      CHECK_EQ(handle->current_read_.get(), req_wrap);
+    }
+
+    // ReadStart() checks whether current_read_ is set to determine whether
+    // a read is in progress. Moving it into a local variable makes sure that
+    // the ReadStart() call below doesn’t think we’re still actively reading.
+    std::unique_ptr<FileHandleReadWrap> read_wrap =
+        std::move(handle->current_read_);
+
+    int result = req->result;
+    uv_buf_t buffer = read_wrap->buffer_;
+
+    uv_fs_req_cleanup(req);
+
+    // Push the read wrap back to the freelist, or let it be destroyed
+    // once we’re exiting the current scope.
+    constexpr size_t wanted_freelist_fill = 100;
+    auto& freelist = handle->env()->file_handle_read_wrap_freelist();
+    if (freelist.size() < wanted_freelist_fill)
+      freelist.emplace_back(std::move(read_wrap));
+
+    if (result >= 0) {
+      // Read at most as many bytes as we originally planned to.
+      if (handle->read_length_ >= 0 && handle->read_length_ < result)
+        result = handle->read_length_;
+
+      // If we read data and we have an expected length, decrease it by
+      // how much we have read.
+      if (handle->read_length_ >= 0)
+        handle->read_length_ -= result;
+
+      // If we have an offset, increase it by how much we have read.
+      if (handle->read_offset_ >= 0)
+        handle->read_offset_ += result;
+    }
+
+    // Reading 0 bytes from a file always means EOF, or that we reached
+    // the end of the requested range.
+    if (result == 0)
+      result = UV_EOF;
+
+    handle->EmitRead(result, buffer);
+
+    // Start over, if EmitRead() didn’t tell us to stop.
+    if (handle->reading_)
+      handle->ReadStart();
+  });
+
+  return 0;
+}
+
+int FileHandle::ReadStop() {
+  reading_ = false;
+  return 0;
+}
+
+typedef SimpleShutdownWrap<ReqWrap<uv_fs_t>> FileHandleCloseWrap;
+
+ShutdownWrap* FileHandle::CreateShutdownWrap(Local<Object> object) {
+  return new FileHandleCloseWrap(this, object);
+}
+
+int FileHandle::DoShutdown(ShutdownWrap* req_wrap) {
+  FileHandleCloseWrap* wrap = static_cast<FileHandleCloseWrap*>(req_wrap);
+  closing_ = true;
+  wrap->Dispatched();
+  uv_fs_close(env()->event_loop(), wrap->req(), fd_, [](uv_fs_t* req) {
+    FileHandleCloseWrap* wrap = static_cast<FileHandleCloseWrap*>(
+        FileHandleCloseWrap::from_req(req));
+    FileHandle* handle = static_cast<FileHandle*>(wrap->stream());
+    handle->AfterClose();
+
+    int result = req->result;
+    uv_fs_req_cleanup(req);
+    wrap->Done(result);
+  });
+
+  return 0;
 }
 
 
@@ -1730,6 +1901,17 @@ void InitFs(Local<Object> target,
   fst->SetClassName(wrapString);
   target->Set(context, wrapString, fst->GetFunction()).FromJust();
 
+  // Create FunctionTemplate for FileHandleReadWrap. There’s no need
+  // to do anything in the constructor, so we only store the instance template.
+  Local<FunctionTemplate> fh_rw = FunctionTemplate::New(env->isolate());
+  fh_rw->InstanceTemplate()->SetInternalFieldCount(1);
+  AsyncWrap::AddWrapMethods(env, fh_rw);
+  Local<String> fhWrapString =
+      FIXED_ONE_BYTE_STRING(env->isolate(), "FileHandleReqWrap");
+  fh_rw->SetClassName(fhWrapString);
+  env->set_filehandlereadwrap_template(
+      fst->InstanceTemplate());
+
   // Create Function Template for FSReqPromise
   Local<FunctionTemplate> fpt = FunctionTemplate::New(env->isolate());
   AsyncWrap::AddWrapMethods(env, fpt);
@@ -1741,14 +1923,16 @@ void InitFs(Local<Object> target,
   env->set_fsreqpromise_constructor_template(fpo);
 
   // Create FunctionTemplate for FileHandle
-  Local<FunctionTemplate> fd = FunctionTemplate::New(env->isolate());
+  Local<FunctionTemplate> fd = env->NewFunctionTemplate(FileHandle::New);
   AsyncWrap::AddWrapMethods(env, fd);
   env->SetProtoMethod(fd, "close", FileHandle::Close);
+  env->SetProtoMethod(fd, "releaseFD", FileHandle::ReleaseFD);
   Local<ObjectTemplate> fdt = fd->InstanceTemplate();
   fdt->SetInternalFieldCount(1);
   Local<String> handleString =
        FIXED_ONE_BYTE_STRING(env->isolate(), "FileHandle");
   fd->SetClassName(handleString);
+  StreamBase::AddMethods<FileHandle>(env, fd, StreamBase::kFlagNone);
   target->Set(context, handleString, fd->GetFunction()).FromJust();
   env->set_fd_constructor_template(fdt);
 

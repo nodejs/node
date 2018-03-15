@@ -1223,6 +1223,11 @@ if the `getTrailers` callback attempts to set such header fields.
 #### http2stream.respondWithFD(fd[, headers[, options]])
 <!-- YAML
 added: v8.4.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/18936
+    description: Any readable file descriptor, not necessarily for a
+                 regular file, is supported now.
 -->
 
 * `fd` {number} A readable file descriptor.
@@ -1313,6 +1318,11 @@ if the `getTrailers` callback attempts to set such header fields.
 #### http2stream.respondWithFile(path[, headers[, options]])
 <!-- YAML
 added: v8.4.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/18936
+    description: Any readable file, not necessarily a
+                 regular file, is supported now.
 -->
 
 * `path` {string|Buffer|URL}

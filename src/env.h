@@ -48,6 +48,10 @@ struct nghttp2_rcbuf;
 
 namespace node {
 
+namespace fs {
+class FileHandleReadWrap;
+}
+
 namespace performance {
 class performance_state;
 }
@@ -218,6 +222,7 @@ struct PackageConfig {
   V(onstop_string, "onstop")                                                  \
   V(onstreamclose_string, "onstreamclose")                                    \
   V(ontrailers_string, "ontrailers")                                          \
+  V(onunpipe_string, "onunpipe")                                              \
   V(onwrite_string, "onwrite")                                                \
   V(openssl_error_stack, "opensslErrorStack")                                 \
   V(output_string, "output")                                                  \
@@ -229,6 +234,8 @@ struct PackageConfig {
   V(pbkdf2_error_string, "PBKDF2 Error")                                      \
   V(pid_string, "pid")                                                        \
   V(pipe_string, "pipe")                                                      \
+  V(pipe_target_string, "pipeTarget")                                         \
+  V(pipe_source_string, "pipeSource")                                         \
   V(port_string, "port")                                                      \
   V(preference_string, "preference")                                          \
   V(priority_string, "priority")                                              \
@@ -251,9 +258,11 @@ struct PackageConfig {
   V(session_id_string, "sessionId")                                           \
   V(shell_string, "shell")                                                    \
   V(signal_string, "signal")                                                  \
+  V(sink_string, "sink")                                                      \
   V(size_string, "size")                                                      \
   V(sni_context_err_string, "Invalid SNI context")                            \
   V(sni_context_string, "sni_context")                                        \
+  V(source_string, "source")                                                  \
   V(stack_string, "stack")                                                    \
   V(status_string, "status")                                                  \
   V(stdio_string, "stdio")                                                    \
@@ -297,6 +306,7 @@ struct PackageConfig {
   V(context, v8::Context)                                                     \
   V(domain_callback, v8::Function)                                            \
   V(fd_constructor_template, v8::ObjectTemplate)                              \
+  V(filehandlereadwrap_template, v8::ObjectTemplate)                          \
   V(fsreqpromise_constructor_template, v8::ObjectTemplate)                    \
   V(fdclose_constructor_template, v8::ObjectTemplate)                         \
   V(host_import_module_dynamically_callback, v8::Function)                    \
@@ -319,7 +329,7 @@ struct PackageConfig {
   V(script_context_constructor_template, v8::FunctionTemplate)                \
   V(script_data_constructor_function, v8::Function)                           \
   V(secure_context_constructor_template, v8::FunctionTemplate)                \
-  V(shutdown_wrap_constructor_function, v8::Function)                         \
+  V(shutdown_wrap_template, v8::ObjectTemplate)                               \
   V(tcp_constructor_template, v8::FunctionTemplate)                           \
   V(tick_callback_function, v8::Function)                                     \
   V(timers_callback_function, v8::Function)                                   \
@@ -328,7 +338,7 @@ struct PackageConfig {
   V(udp_constructor_function, v8::Function)                                   \
   V(vm_parsing_context_symbol, v8::Symbol)                                    \
   V(url_constructor_function, v8::Function)                                   \
-  V(write_wrap_constructor_function, v8::Function)                            \
+  V(write_wrap_template, v8::ObjectTemplate)                                  \
   V(fs_use_promises_symbol, v8::Symbol)
 
 class Environment;
@@ -636,11 +646,16 @@ class Environment {
 
   inline char* http_parser_buffer() const;
   inline void set_http_parser_buffer(char* buffer);
+  inline bool http_parser_buffer_in_use() const;
+  inline void set_http_parser_buffer_in_use(bool in_use);
 
   inline http2::http2_state* http2_state() const;
   inline void set_http2_state(std::unique_ptr<http2::http2_state> state);
 
   inline AliasedBuffer<double, v8::Float64Array>* fs_stats_field_array();
+
+  inline std::vector<std::unique_ptr<fs::FileHandleReadWrap>>&
+      file_handle_read_wrap_freelist();
 
   inline performance::performance_state* performance_state();
   inline std::map<std::string, uint64_t>* performance_marks();
@@ -815,12 +830,16 @@ class Environment {
   double* heap_space_statistics_buffer_ = nullptr;
 
   char* http_parser_buffer_;
+  bool http_parser_buffer_in_use_ = false;
   std::unique_ptr<http2::http2_state> http2_state_;
 
   // stat fields contains twice the number of entries because `fs.StatWatcher`
   // needs room to store data for *two* `fs.Stats` instances.
   static const int kFsStatsFieldsLength = 2 * 14;
   AliasedBuffer<double, v8::Float64Array> fs_stats_field_array_;
+
+  std::vector<std::unique_ptr<fs::FileHandleReadWrap>>
+      file_handle_read_wrap_freelist_;
 
   struct ExitCallback {
     void (*cb_)(void* arg);

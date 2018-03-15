@@ -1132,6 +1132,8 @@ void Http2StreamListener::OnStreamRead(ssize_t nread, const uv_buf_t& buf) {
   Http2Stream* stream = static_cast<Http2Stream*>(stream_);
   Http2Session* session = stream->session();
   Environment* env = stream->env();
+  HandleScope handle_scope(env->isolate());
+  Context::Scope context_scope(env->context());
 
   if (nread < 0) {
     PassReadErrorToPreviousListener(nread);
@@ -1422,6 +1424,7 @@ void Http2Session::OnStreamAfterWrite(WriteWrap* w, int status) {
 void Http2Session::MaybeScheduleWrite() {
   CHECK_EQ(flags_ & SESSION_STATE_WRITE_SCHEDULED, 0);
   if (session_ != nullptr && nghttp2_session_want_write(session_)) {
+    HandleScope handle_scope(env()->isolate());
     DEBUG_HTTP2SESSION(this, "scheduling write");
     flags_ |= SESSION_STATE_WRITE_SCHEDULED;
     env()->SetImmediate([](Environment* env, void* data) {
@@ -1632,6 +1635,8 @@ inline Http2Stream* Http2Session::SubmitRequest(
 
 // Callback used to receive inbound data from the i/o stream
 void Http2Session::OnStreamRead(ssize_t nread, const uv_buf_t& buf) {
+  HandleScope handle_scope(env()->isolate());
+  Context::Scope context_scope(env()->context());
   Http2Scope h2scope(this);
   CHECK_NE(stream_, nullptr);
   DEBUG_HTTP2SESSION2(this, "receiving %d bytes", nread);
@@ -1661,8 +1666,6 @@ void Http2Session::OnStreamRead(ssize_t nread, const uv_buf_t& buf) {
     CHECK_LE(static_cast<size_t>(nread), stream_buf_.len);
 
     Isolate* isolate = env()->isolate();
-    HandleScope scope(isolate);
-    Context::Scope context_scope(env()->context());
 
     // Create an array buffer for the read data. DATA frames will be emitted
     // as slices of this array buffer to avoid having to copy memory.
@@ -1810,7 +1813,9 @@ inline void Http2Stream::Close(int32_t code) {
 }
 
 int Http2Stream::DoShutdown(ShutdownWrap* req_wrap) {
-  CHECK(!this->IsDestroyed());
+  if (IsDestroyed())
+    return UV_EPIPE;
+
   {
     Http2Scope h2scope(this);
     flags_ |= NGHTTP2_STREAM_FLAG_SHUT;
@@ -1877,28 +1882,6 @@ inline int Http2Stream::SubmitResponse(nghttp2_nv* nva,
     options |= STREAM_OPTION_EMPTY_PAYLOAD;
 
   Http2Stream::Provider::Stream prov(this, options);
-  int ret = nghttp2_submit_response(session_->session(), id_, nva, len, *prov);
-  CHECK_NE(ret, NGHTTP2_ERR_NOMEM);
-  return ret;
-}
-
-
-// Initiate a response that contains data read from a file descriptor.
-inline int Http2Stream::SubmitFile(int fd,
-                                   nghttp2_nv* nva, size_t len,
-                                   int64_t offset,
-                                   int64_t length,
-                                   int options) {
-  CHECK(!this->IsDestroyed());
-  Http2Scope h2scope(this);
-  DEBUG_HTTP2STREAM(this, "submitting file");
-  if (options & STREAM_OPTION_GET_TRAILERS)
-    flags_ |= NGHTTP2_STREAM_FLAG_TRAILERS;
-
-  if (offset > 0) fd_offset_ = offset;
-  if (length > -1) fd_length_ = length;
-
-  Http2Stream::Provider::FD prov(this, options, fd);
   int ret = nghttp2_submit_response(session_->session(), id_, nva, len, *prov);
   CHECK_NE(ret, NGHTTP2_ERR_NOMEM);
   return ret;
@@ -2080,87 +2063,6 @@ Http2Stream::Provider::~Provider() {
   provider_.source.ptr = nullptr;
 }
 
-// The FD Provider pulls data from a file descriptor using libuv. All of the
-// data transfer occurs in C++, without any chunks being passed through JS
-// land.
-Http2Stream::Provider::FD::FD(Http2Stream* stream, int options, int fd)
-    : Http2Stream::Provider(stream, options) {
-  CHECK(!stream->IsDestroyed());
-  provider_.source.fd = fd;
-  provider_.read_callback = Http2Stream::Provider::FD::OnRead;
-}
-
-Http2Stream::Provider::FD::FD(int options, int fd)
-    : Http2Stream::Provider(options) {
-  provider_.source.fd = fd;
-  provider_.read_callback = Http2Stream::Provider::FD::OnRead;
-}
-
-ssize_t Http2Stream::Provider::FD::OnRead(nghttp2_session* handle,
-                                          int32_t id,
-                                          uint8_t* buf,
-                                          size_t length,
-                                          uint32_t* flags,
-                                          nghttp2_data_source* source,
-                                          void* user_data) {
-  Http2Session* session = static_cast<Http2Session*>(user_data);
-  Http2Stream* stream = session->FindStream(id);
-  if (stream->statistics_.first_byte_sent == 0)
-    stream->statistics_.first_byte_sent = uv_hrtime();
-
-  DEBUG_HTTP2SESSION2(session, "reading outbound file data for stream %d", id);
-  CHECK_EQ(id, stream->id());
-
-  int fd = source->fd;
-  int64_t offset = stream->fd_offset_;
-  ssize_t numchars = 0;
-
-  if (stream->fd_length_ >= 0 &&
-      stream->fd_length_ < static_cast<int64_t>(length))
-    length = stream->fd_length_;
-
-  uv_buf_t data;
-  data.base = reinterpret_cast<char*>(buf);
-  data.len = length;
-
-  uv_fs_t read_req;
-
-  if (length > 0) {
-    // TODO(addaleax): Never use synchronous I/O on the main thread.
-    numchars = uv_fs_read(session->event_loop(),
-                          &read_req,
-                          fd, &data, 1,
-                          offset, nullptr);
-    uv_fs_req_cleanup(&read_req);
-  }
-
-  // Close the stream with an error if reading fails
-  if (numchars < 0)
-    return NGHTTP2_ERR_TEMPORAL_CALLBACK_FAILURE;
-
-  // Update the read offset for the next read
-  stream->fd_offset_ += numchars;
-  stream->fd_length_ -= numchars;
-
-  DEBUG_HTTP2SESSION2(session, "sending %d bytes", numchars);
-
-  // if numchars < length, assume that we are done.
-  if (static_cast<size_t>(numchars) < length || length <= 0) {
-    DEBUG_HTTP2SESSION2(session, "no more data for stream %d", id);
-    *flags |= NGHTTP2_DATA_FLAG_EOF;
-    session->GetTrailers(stream, flags);
-    // If the stream or session gets destroyed during the GetTrailers
-    // callback, check that here and close down the stream
-    if (stream->IsDestroyed())
-      return NGHTTP2_ERR_TEMPORAL_CALLBACK_FAILURE;
-    if (session->IsDestroyed())
-      return NGHTTP2_ERR_CALLBACK_FAILURE;
-  }
-
-  stream->statistics_.sent_bytes += numchars;
-  return numchars;
-}
-
 // The Stream Provider pulls data from a linked list of uv_buf_t structs
 // built via the StreamBase API and the Streams js API.
 Http2Stream::Provider::Stream::Stream(int options)
@@ -2216,6 +2118,11 @@ ssize_t Http2Stream::Provider::Stream::OnRead(nghttp2_session* handle,
   if (amount == 0 && stream->IsWritable()) {
     CHECK(stream->queue_.empty());
     DEBUG_HTTP2SESSION2(session, "deferring stream %d", id);
+    stream->EmitWantsWrite(length);
+    if (stream->available_outbound_length_ > 0 || !stream->IsWritable()) {
+      // EmitWantsWrite() did something interesting synchronously, restart:
+      return OnRead(handle, id, buf, length, flags, source, user_data);
+    }
     return NGHTTP2_ERR_DEFERRED;
   }
 
@@ -2498,27 +2405,6 @@ void Http2Stream::Respond(const FunctionCallbackInfo<Value>& args) {
   DEBUG_HTTP2STREAM(stream, "response submitted");
 }
 
-// Initiates a response on the Http2Stream using a file descriptor to provide
-// outbound DATA frames.
-void Http2Stream::RespondFD(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-  Local<Context> context = env->context();
-  Isolate* isolate = env->isolate();
-  Http2Stream* stream;
-  ASSIGN_OR_RETURN_UNWRAP(&stream, args.Holder());
-
-  int fd = args[0]->Int32Value(context).ToChecked();
-  Local<Array> headers = args[1].As<Array>();
-
-  int64_t offset = args[2]->IntegerValue(context).ToChecked();
-  int64_t length = args[3]->IntegerValue(context).ToChecked();
-  int options = args[4]->IntegerValue(context).ToChecked();
-
-  Headers list(isolate, context, headers);
-  args.GetReturnValue().Set(stream->SubmitFile(fd, *list, list.length(),
-                                               offset, length, options));
-  DEBUG_HTTP2STREAM2(stream, "file response submitted for fd %d", fd);
-}
 
 // Submits informational headers on the Http2Stream
 void Http2Stream::Info(const FunctionCallbackInfo<Value>& args) {
@@ -2881,7 +2767,6 @@ void Initialize(Local<Object> target,
   env->SetProtoMethod(stream, "priority", Http2Stream::Priority);
   env->SetProtoMethod(stream, "pushPromise", Http2Stream::PushPromise);
   env->SetProtoMethod(stream, "info", Http2Stream::Info);
-  env->SetProtoMethod(stream, "respondFD", Http2Stream::RespondFD);
   env->SetProtoMethod(stream, "respond", Http2Stream::Respond);
   env->SetProtoMethod(stream, "rstStream", Http2Stream::RstStream);
   env->SetProtoMethod(stream, "refreshState", Http2Stream::RefreshState);
