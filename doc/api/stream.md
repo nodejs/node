@@ -860,6 +860,8 @@ added: v0.9.4
 * `destination` {stream.Writable} The destination for writing data
 * `options` {Object} Pipe options
   * `end` {boolean} End the writer when the reader ends. Defaults to `true`.
+* Returns: {stream.Writable} making it possible to set up chains of piped
+  streams
 
 The `readable.pipe()` method attaches a [Writable][] stream to the `readable`,
 causing it to switch automatically into flowing mode and push all of its data
@@ -916,7 +918,9 @@ closed until the Node.js process exits, regardless of the specified options.
 added: v9.3.0
 -->
 
-Return the value of `highWaterMark` passed when constructing this
+* Returns: {number}
+
+Returns the value of `highWaterMark` passed when constructing this
 `Readable`.
 
 ##### readable.read([size])
@@ -925,7 +929,7 @@ added: v0.9.4
 -->
 
 * `size` {number} Optional argument to specify how much data to read.
-* Return {string|Buffer|null}
+* Returns: {string|Buffer|null}
 
 The `readable.read()` method pulls some data out of the internal buffer and
 returns it. If no data available to be read, `null` is returned. By default,
@@ -969,6 +973,8 @@ been emitted will return `null`. No runtime error will be raised.
 <!-- YAML
 added: v9.4.0
 -->
+
+* Returns: {number}
 
 This property contains the number of bytes (or objects) in the queue
 ready to be read. The value provides introspection data regarding
@@ -1034,6 +1040,7 @@ added: v0.9.4
 -->
 
 * `destination` {stream.Writable} Optional specific stream to unpipe
+* Returns: {this}
 
 The `readable.unpipe()` method detaches a Writable stream previously attached
 using the [`stream.pipe()`][] method.
@@ -1135,6 +1142,7 @@ added: v0.9.4
 -->
 
 * `stream` {Stream} An "old style" readable stream
+* Returns: {this}
 
 Versions of Node.js prior to v0.10 had streams that did not implement the
 entire `stream` module API as it is currently defined. (See [Compatibility][]
@@ -1164,6 +1172,9 @@ myReader.on('readable', () => {
 <!-- YAML
 added: v8.0.0
 -->
+
+* `error` {Error} Error which will be passed as payload in `'error'` event
+* Returns: {this}
 
 Destroy the stream, and emit `'error'` and `close`. After this call, the
 readable stream will release any internal resources and subsequent calls
