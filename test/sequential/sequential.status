@@ -11,7 +11,6 @@ test-inspector-async-call-stack       : PASS, FLAKY
 test-inspector-bindings               : PASS, FLAKY
 test-inspector-debug-end              : PASS, FLAKY
 test-inspector-async-hook-setup-at-signal:  PASS, FLAKY
-test-http2-ping-flood                 : PASS, FLAKY
 
 [$system==linux]
 
