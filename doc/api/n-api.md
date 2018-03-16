@@ -1797,13 +1797,17 @@ napi_status napi_get_value_int32(napi_env env,
 - `[out] result`: C int32 primitive equivalent of the given JavaScript Number.
 
 Returns `napi_ok` if the API succeeded. If a non-number `napi_value`
-is passed in `napi_number_expected .
+is passed in `napi_number_expected`.
 
 This API returns the C int32 primitive equivalent
-of the given JavaScript Number. If the number exceeds the range of the
-32 bit integer, then the result is truncated to the equivalent of the
-bottom 32 bits. This can result in a large positive number becoming
-a negative number if the value is > 2^31 -1.
+of the given JavaScript Number.
+
+If the number exceeds the range of the 32 bit integer, then the result is
+truncated to the equivalent of the bottom 32 bits. This can result in a large
+positive number becoming a negative number if the value is > 2^31 -1.
+
+Non-finite number values (NaN, positive infinity, or negative infinity) set the
+result to zero.
 
 #### napi_get_value_int64
 <!-- YAML
@@ -1822,8 +1826,17 @@ napi_status napi_get_value_int64(napi_env env,
 Returns `napi_ok` if the API succeeded. If a non-number `napi_value`
 is passed in it returns `napi_number_expected`.
 
-This API returns the C int64 primitive equivalent of the given
-JavaScript Number.
+This API returns the C int64 primitive equivalent of the given JavaScript
+Number.
+
+Number values outside the range of
+[`Number.MIN_SAFE_INTEGER`](https://tc39.github.io/ecma262/#sec-number.min_safe_integer)
+-(2^53 - 1) -
+[`Number.MAX_SAFE_INTEGER`](https://tc39.github.io/ecma262/#sec-number.max_safe_integer)
+(2^53 - 1) will lose precision.
+
+Non-finite number values (NaN, positive infinity, or negative infinity) set the
+result to zero.
 
 #### napi_get_value_string_latin1
 <!-- YAML
