@@ -2,7 +2,6 @@
 const common = require('../common');
 const cluster = require('cluster');
 const assert = require('assert');
-const numCPUs = require('os').cpus().length;
 
 common.skipIfInspectorDisabled();
 
@@ -14,7 +13,7 @@ function checkForInspectSupport(flag) {
   process.env.NODE_OPTIONS = flag;
 
   if (cluster.isMaster) {
-    for (let i = 0; i < numCPUs; i++) {
+    for (let i = 0; i < 2; i++) {
       cluster.fork();
     }
 
