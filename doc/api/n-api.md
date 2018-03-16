@@ -615,7 +615,7 @@ are no longer required, the scope can be 'closed' and any handles associated
 with the scope are invalidated. The methods available to open/close scopes are
 [`napi_open_handle_scope`][] and [`napi_close_handle_scope`][].
 
-N-API only supports a single nested hiearchy of scopes. There is only one
+N-API only supports a single nested hierarchy of scopes. There is only one
 active scope at any time, and all new handles will be associated with that
 scope while it is active. Scopes must be closed in the reverse order from
 which they are opened. In addition, all scopes created within a native method
@@ -886,7 +886,7 @@ object to which the reference is related.
 Returns `napi_ok` if the API succeeded.
 
 If still valid, this API returns the `napi_value` representing the
-JavaScript Object associated with the `napi_ref`. Otherise, result
+JavaScript Object associated with the `napi_ref`. Otherwise, result
 will be NULL.
 
 ## Module registration
@@ -2161,7 +2161,7 @@ napi_status napi_is_arraybuffer(napi_env env, napi_value value, bool* result)
 
 Returns `napi_ok` if the API succeeded.
 
-This API checks if the Object passsed in is an array buffer.
+This API checks if the Object passed in is an array buffer.
 
 ### napi_is_buffer
 <!-- YAML
@@ -2178,7 +2178,7 @@ object.
 
 Returns `napi_ok` if the API succeeded.
 
-This API checks if the Object passsed in is a buffer.
+This API checks if the Object passed in is a buffer.
 
 ### napi_is_error
 <!-- YAML
@@ -2194,7 +2194,7 @@ napi_status napi_is_error(napi_env env, napi_value value, bool* result)
 
 Returns `napi_ok` if the API succeeded.
 
-This API checks if the Object passsed in is an Error.
+This API checks if the Object passed in is an Error.
 
 ### napi_is_typedarray
 <!-- YAML
@@ -2210,7 +2210,7 @@ napi_status napi_is_typedarray(napi_env env, napi_value value, bool* result)
 
 Returns `napi_ok` if the API succeeded.
 
-This API checks if the Object passsed in is a typed array.
+This API checks if the Object passed in is a typed array.
 
 ### napi_is_dataview
 <!-- YAML
@@ -2482,7 +2482,7 @@ and [`napi_get_element`][].
 
 Returns `napi_ok` if the API succeeded.
 
-This API returns the array of propertys for the Object passed in
+This API returns the array of properties for the Object passed in
 
 #### napi_set_property
 <!-- YAML
@@ -3290,7 +3290,7 @@ napi_status napi_create_async_work(napi_env env,
   that will be passed to possible async_hooks [`init` hooks][].
 - `[in] async_resource_name`: Identifier for the kind of resource that is
 being provided for diagnostic information exposed by the `async_hooks` API.
-- `[in] execute`: The native function which should be called to excute
+- `[in] execute`: The native function which should be called to execute
 the logic asynchronously. The given function is called from a worker pool
 thread and can execute in parallel with the main event loop thread.
 - `[in] complete`: The native function which will be called when the
