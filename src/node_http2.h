@@ -1185,12 +1185,6 @@ class Http2Session::Http2Settings : public AsyncWrap {
   void Send();
   void Done(bool ack);
 
-  size_t length() const { return count_; }
-
-  nghttp2_settings_entry* operator*() {
-    return *entries_;
-  }
-
   // Returns a Buffer instance with the serialized SETTINGS payload
   Local<Value> Pack();
 
@@ -1207,7 +1201,7 @@ class Http2Session::Http2Settings : public AsyncWrap {
   Http2Session* session_;
   uint64_t startTime_;
   size_t count_ = 0;
-  MaybeStackBuffer<nghttp2_settings_entry, IDX_SETTINGS_COUNT> entries_;
+  nghttp2_settings_entry entries_[IDX_SETTINGS_COUNT];
 };
 
 class ExternalHeader :
