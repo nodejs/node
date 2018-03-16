@@ -24,60 +24,85 @@ const common = require('../common');
 const assert = require('assert');
 const vm = require('vm');
 
-// Test 1: vm.runInNewContext
-const sandbox = {};
-let result = vm.runInNewContext(
-  'foo = "bar"; this.typeofProcess = typeof process; typeof Object;',
-  sandbox
-);
-assert.deepStrictEqual(sandbox, {
-  foo: 'bar',
-  typeofProcess: 'undefined',
-});
-assert.strictEqual(result, 'function');
+// vm.runInNewContext
+{
+  const sandbox = {};
+  const result = vm.runInNewContext(
+    'foo = "bar"; this.typeofProcess = typeof process; typeof Object;',
+    sandbox
+  );
+  assert.deepStrictEqual(sandbox, {
+    foo: 'bar',
+    typeofProcess: 'undefined',
+  });
+  assert.strictEqual(result, 'function');
+}
 
-// Test 2: vm.runInContext
-const sandbox2 = { foo: 'bar' };
-const context = vm.createContext(sandbox2);
-result = vm.runInContext(
-  'baz = foo; this.typeofProcess = typeof process; typeof Object;',
-  context
-);
-assert.deepStrictEqual(sandbox2, {
-  foo: 'bar',
-  baz: 'bar',
-  typeofProcess: 'undefined'
-});
-assert.strictEqual(result, 'function');
+// vm.runInContext
+{
+  const sandbox = { foo: 'bar' };
+  const context = vm.createContext(sandbox);
+  const result = vm.runInContext(
+    'baz = foo; this.typeofProcess = typeof process; typeof Object;',
+    context
+  );
+  assert.deepStrictEqual(sandbox, {
+    foo: 'bar',
+    baz: 'bar',
+    typeofProcess: 'undefined'
+  });
+  assert.strictEqual(result, 'function');
+}
 
-// Test 3: vm.runInThisContext
-result = vm.runInThisContext(
-  'vmResult = "foo"; Object.prototype.toString.call(process);'
-);
-assert.strictEqual(global.vmResult, 'foo');
-assert.strictEqual(result, '[object process]');
-delete global.vmResult;
+// vm.runInThisContext
+{
+  const result = vm.runInThisContext(
+    'vmResult = "foo"; Object.prototype.toString.call(process);'
+  );
+  assert.strictEqual(global.vmResult, 'foo');
+  assert.strictEqual(result, '[object process]');
+  delete global.vmResult;
+}
 
-// Test 4: vm.runInNewContext
-result = vm.runInNewContext(
-  'vmResult = "foo"; typeof process;'
-);
-assert.strictEqual(global.vmResult, undefined);
-assert.strictEqual(result, 'undefined');
+// vm.runInNewContext
+{
+  const result = vm.runInNewContext(
+    'vmResult = "foo"; typeof process;'
+  );
+  assert.strictEqual(global.vmResult, undefined);
+  assert.strictEqual(result, 'undefined');
+}
 
-// Test 5: vm.createContext
-const sandbox3 = {};
-const context2 = vm.createContext(sandbox3);
-assert.strictEqual(sandbox3, context2);
+// vm.createContext
+{
+  const sandbox = {};
+  const context = vm.createContext(sandbox);
+  assert.strictEqual(sandbox, context);
+}
 
-// Test 6: invalid arguments
+// Run script with filename
+{
+  const script = 'throw new Error("boom")';
+  const filename = 'test-boom-error';
+  const context = vm.createContext();
+
+  function checkErr(err) {
+    return err.stack.startsWith('test-boom-error:1');
+  }
+
+  assert.throws(() => vm.runInContext(script, context, filename), checkErr);
+  assert.throws(() => vm.runInNewContext(script, context, filename), checkErr);
+  assert.throws(() => vm.runInThisContext(script, filename), checkErr);
+}
+
+// Invalid arguments
 [null, 'string'].forEach((input) => {
   common.expectsError(() => {
     vm.createContext({}, input);
   }, {
     code: 'ERR_INVALID_ARG_TYPE',
     type: TypeError,
-    message: 'The "options" argument must be of type object. ' +
+    message: 'The "options" argument must be of type Object. ' +
              `Received type ${typeof input}`
   });
 });

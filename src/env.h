@@ -239,7 +239,6 @@ struct PackageConfig {
   V(port_string, "port")                                                      \
   V(preference_string, "preference")                                          \
   V(priority_string, "priority")                                              \
-  V(produce_cached_data_string, "produceCachedData")                          \
   V(promise_string, "promise")                                                \
   V(pubkey_string, "pubkey")                                                  \
   V(query_string, "query")                                                    \
