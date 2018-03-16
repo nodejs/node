@@ -595,9 +595,8 @@ void Http2Session::Close(uint32_t code, bool socket_closed) {
     Http2Scope h2scope(this);
     DEBUG_HTTP2SESSION2(this, "terminating session with code %d", code);
     CHECK_EQ(nghttp2_session_terminate_session(session_, code), 0);
-  } else {
-    if (stream_ != nullptr)
-      stream_->RemoveStreamListener(this);
+  } else if (stream_ != nullptr) {
+    stream_->RemoveStreamListener(this);
   }
 
   // If there are outstanding pings, those will need to be canceled, do
@@ -688,10 +687,6 @@ ssize_t Http2Session::OnCallbackPadding(size_t frameLen,
   Local<Context> context = env()->context();
   Context::Scope context_scope(context);
 
-#if defined(DEBUG) && DEBUG
-  CHECK(object()->Has(context, env()->ongetpadding_string()).FromJust());
-#endif
-
   AliasedBuffer<uint32_t, v8::Uint32Array>& buffer =
       env()->http2_state()->padding_buffer;
   buffer[PADDING_BUF_FRAME_LENGTH] = frameLen;
@@ -760,18 +755,14 @@ int Http2Session::OnBeginHeadersCallback(nghttp2_session* handle,
 
   Http2Stream* stream = session->FindStream(id);
   if (stream == nullptr) {
-    if (session->CanAddStream()) {
-      new Http2Stream(session, id, frame->headers.cat);
-    } else {
+    if (!session->CanAddStream()) {
       // Too many concurrent streams being opened
       nghttp2_submit_rst_stream(**session, NGHTTP2_FLAG_NONE, id,
                                 NGHTTP2_ENHANCE_YOUR_CALM);
       return NGHTTP2_ERR_TEMPORAL_CALLBACK_FAILURE;
     }
-  } else {
-    // If the stream has already been destroyed, ignore.
-    if (stream->IsDestroyed())
-      return 0;
+    new Http2Stream(session, id, frame->headers.cat);
+  } else if (!stream->IsDestroyed()) {
     stream->StartHeaders(frame->headers.cat);
   }
   return 0;
@@ -791,9 +782,7 @@ int Http2Session::OnHeaderCallback(nghttp2_session* handle,
   Http2Stream* stream = session->FindStream(id);
   CHECK_NE(stream, nullptr);
   // If the stream has already been destroyed, ignore.
-  if (stream->IsDestroyed())
-    return 0;
-  if (!stream->AddHeader(name, value, flags)) {
+  if (!stream->IsDestroyed() && !stream->AddHeader(name, value, flags)) {
     // This will only happen if the connected peer sends us more
     // than the allowed number of header items at any given time
     stream->SubmitRstStream(NGHTTP2_ENHANCE_YOUR_CALM);
@@ -859,11 +848,8 @@ int Http2Session::OnInvalidFrame(nghttp2_session* handle,
     HandleScope scope(isolate);
     Local<Context> context = env->context();
     Context::Scope context_scope(context);
-
-    Local<Value> argv[1] = {
-      Integer::New(isolate, lib_error_code),
-    };
-    session->MakeCallback(env->error_string(), arraysize(argv), argv);
+    Local<Value> argv = Integer::New(isolate, lib_error_code);
+    session->MakeCallback(env->error_string(), 1, &argv);
   }
   return 0;
 }
@@ -1071,11 +1057,8 @@ int Http2Session::OnNghttpError(nghttp2_session* handle,
     HandleScope scope(isolate);
     Local<Context> context = env->context();
     Context::Scope context_scope(context);
-
-    Local<Value> argv[1] = {
-      Integer::New(isolate, NGHTTP2_ERR_PROTO),
-    };
-    session->MakeCallback(env->error_string(), arraysize(argv), argv);
+    Local<Value> argv = Integer::New(isolate, NGHTTP2_ERR_PROTO);
+    session->MakeCallback(env->error_string(), 1, &argv);
   }
   return 0;
 }
@@ -1247,13 +1230,8 @@ void Http2Session::HandleDataFrame(const nghttp2_frame* frame) {
   DEBUG_HTTP2SESSION2(this, "handling data frame for stream %d", id);
   Http2Stream* stream = FindStream(id);
 
-  // If the stream has already been destroyed, do nothing
-  if (stream->IsDestroyed())
-    return;
-
-  if (frame->hd.flags & NGHTTP2_FLAG_END_STREAM) {
+  if (!stream->IsDestroyed() && frame->hd.flags & NGHTTP2_FLAG_END_STREAM)
     stream->EmitRead(UV_EOF);
-  }
 }
 
 
@@ -1328,11 +1306,8 @@ void Http2Session::HandlePingFrame(const nghttp2_frame* frame) {
       HandleScope scope(isolate);
       Local<Context> context = env()->context();
       Context::Scope context_scope(context);
-
-      Local<Value> argv[1] = {
-        Integer::New(isolate, NGHTTP2_ERR_PROTO),
-      };
-      MakeCallback(env()->error_string(), arraysize(argv), argv);
+      Local<Value> argv = Integer::New(isolate, NGHTTP2_ERR_PROTO);
+      MakeCallback(env()->error_string(), 1, &argv);
     }
   }
 }
@@ -1360,11 +1335,8 @@ void Http2Session::HandleSettingsFrame(const nghttp2_frame* frame) {
       HandleScope scope(isolate);
       Local<Context> context = env()->context();
       Context::Scope context_scope(context);
-
-      Local<Value> argv[1] = {
-        Integer::New(isolate, NGHTTP2_ERR_PROTO),
-      };
-      MakeCallback(env()->error_string(), arraysize(argv), argv);
+      Local<Value> argv = Integer::New(isolate, NGHTTP2_ERR_PROTO);
+      MakeCallback(env()->error_string(), 1, &argv);
     }
   } else {
     // Otherwise, notify the session about a new settings
@@ -1787,7 +1759,7 @@ int Http2Stream::DoShutdown(ShutdownWrap* req_wrap) {
   {
     Http2Scope h2scope(this);
     flags_ |= NGHTTP2_STREAM_FLAG_SHUT;
-    CHECK_NE(nghttp2_session_resume_data(session_->session(), id_),
+    CHECK_NE(nghttp2_session_resume_data(**session_, id_),
              NGHTTP2_ERR_NOMEM);
     DEBUG_HTTP2STREAM(this, "writable side shutdown");
   }
@@ -1848,7 +1820,7 @@ int Http2Stream::SubmitResponse(nghttp2_nv* nva, size_t len, int options) {
     options |= STREAM_OPTION_EMPTY_PAYLOAD;
 
   Http2Stream::Provider::Stream prov(this, options);
-  int ret = nghttp2_submit_response(session_->session(), id_, nva, len, *prov);
+  int ret = nghttp2_submit_response(**session_, id_, nva, len, *prov);
   CHECK_NE(ret, NGHTTP2_ERR_NOMEM);
   return ret;
 }
@@ -1859,7 +1831,7 @@ int Http2Stream::SubmitInfo(nghttp2_nv* nva, size_t len) {
   CHECK(!this->IsDestroyed());
   Http2Scope h2scope(this);
   DEBUG_HTTP2STREAM2(this, "sending %d informational headers", len);
-  int ret = nghttp2_submit_headers(session_->session(),
+  int ret = nghttp2_submit_headers(**session_,
                                    NGHTTP2_FLAG_NONE,
                                    id_, nullptr,
                                    nva, len, nullptr);
@@ -1874,9 +1846,9 @@ int Http2Stream::SubmitPriority(nghttp2_priority_spec* prispec,
   Http2Scope h2scope(this);
   DEBUG_HTTP2STREAM(this, "sending priority spec");
   int ret = silent ?
-      nghttp2_session_change_stream_priority(session_->session(),
+      nghttp2_session_change_stream_priority(**session_,
                                              id_, prispec) :
-      nghttp2_submit_priority(session_->session(),
+      nghttp2_submit_priority(**session_,
                               NGHTTP2_FLAG_NONE,
                               id_, prispec);
   CHECK_NE(ret, NGHTTP2_ERR_NOMEM);
@@ -1926,7 +1898,7 @@ int Http2Stream::ReadStart() {
 
   // Tell nghttp2 about our consumption of the data that was handed
   // off to JS land.
-  nghttp2_session_consume_stream(session_->session(),
+  nghttp2_session_consume_stream(**session_,
                                  id_,
                                  inbound_consumed_data_while_paused_);
   inbound_consumed_data_while_paused_ = 0;
