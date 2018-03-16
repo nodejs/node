@@ -190,60 +190,28 @@ Http2Options::Http2Options(Environment* env) {
 }
 
 void Http2Session::Http2Settings::Init() {
-  entries_.AllocateSufficientStorage(IDX_SETTINGS_COUNT);
   AliasedBuffer<uint32_t, v8::Uint32Array>& buffer =
       env()->http2_state()->settings_buffer;
   uint32_t flags = buffer[IDX_SETTINGS_COUNT];
 
   size_t n = 0;
 
-  if (flags & (1 << IDX_SETTINGS_HEADER_TABLE_SIZE)) {
-    uint32_t val = buffer[IDX_SETTINGS_HEADER_TABLE_SIZE];
-    DEBUG_HTTP2SESSION2(session_, "setting header table size: %d\n", val);
-    entries_[n].settings_id = NGHTTP2_SETTINGS_HEADER_TABLE_SIZE;
-    entries_[n].value = val;
-    n++;
+#define GRABSETTING(N, trace)                                                 \
+  if (flags & (1 << IDX_SETTINGS_##N)) {                                      \
+    uint32_t val = buffer[IDX_SETTINGS_##N];                                  \
+    DEBUG_HTTP2SESSION2(session_, "setting " trace ": %d\n", val);            \
+    entries_[n++] =                                                           \
+        nghttp2_settings_entry {NGHTTP2_SETTINGS_##N, val};                   \
   }
 
-  if (flags & (1 << IDX_SETTINGS_MAX_CONCURRENT_STREAMS)) {
-    uint32_t val = buffer[IDX_SETTINGS_MAX_CONCURRENT_STREAMS];
-    DEBUG_HTTP2SESSION2(session_, "setting max concurrent streams: %d\n", val);
-    entries_[n].settings_id = NGHTTP2_SETTINGS_MAX_CONCURRENT_STREAMS;
-    entries_[n].value = val;
-    n++;
-  }
+  GRABSETTING(HEADER_TABLE_SIZE, "header table size");
+  GRABSETTING(MAX_CONCURRENT_STREAMS, "max concurrent streams");
+  GRABSETTING(MAX_FRAME_SIZE, "max frame size");
+  GRABSETTING(INITIAL_WINDOW_SIZE, "initial window size");
+  GRABSETTING(MAX_HEADER_LIST_SIZE, "max header list size");
+  GRABSETTING(ENABLE_PUSH, "enable push");
 
-  if (flags & (1 << IDX_SETTINGS_MAX_FRAME_SIZE)) {
-    uint32_t val = buffer[IDX_SETTINGS_MAX_FRAME_SIZE];
-    DEBUG_HTTP2SESSION2(session_, "setting max frame size: %d\n", val);
-    entries_[n].settings_id = NGHTTP2_SETTINGS_MAX_FRAME_SIZE;
-    entries_[n].value = val;
-    n++;
-  }
-
-  if (flags & (1 << IDX_SETTINGS_INITIAL_WINDOW_SIZE)) {
-    uint32_t val = buffer[IDX_SETTINGS_INITIAL_WINDOW_SIZE];
-    DEBUG_HTTP2SESSION2(session_, "setting initial window size: %d\n", val);
-    entries_[n].settings_id = NGHTTP2_SETTINGS_INITIAL_WINDOW_SIZE;
-    entries_[n].value = val;
-    n++;
-  }
-
-  if (flags & (1 << IDX_SETTINGS_MAX_HEADER_LIST_SIZE)) {
-    uint32_t val = buffer[IDX_SETTINGS_MAX_HEADER_LIST_SIZE];
-    DEBUG_HTTP2SESSION2(session_, "setting max header list size: %d\n", val);
-    entries_[n].settings_id = NGHTTP2_SETTINGS_MAX_HEADER_LIST_SIZE;
-    entries_[n].value = val;
-    n++;
-  }
-
-  if (flags & (1 << IDX_SETTINGS_ENABLE_PUSH)) {
-    uint32_t val = buffer[IDX_SETTINGS_ENABLE_PUSH];
-    DEBUG_HTTP2SESSION2(session_, "setting enable push: %d\n", val);
-    entries_[n].settings_id = NGHTTP2_SETTINGS_ENABLE_PUSH;
-    entries_[n].value = val;
-    n++;
-  }
+#undef GRABSETTING
 
   count_ = n;
 }
@@ -289,7 +257,7 @@ Local<Value> Http2Session::Http2Settings::Pack() {
   ssize_t ret =
       nghttp2_pack_settings_payload(
         reinterpret_cast<uint8_t*>(Buffer::Data(buf)), len,
-        *entries_, count_);
+        &entries_[0], count_);
   if (ret >= 0)
     return buf;
   else
@@ -344,7 +312,7 @@ void Http2Session::Http2Settings::RefreshDefaults(Environment* env) {
 void Http2Session::Http2Settings::Send() {
   Http2Scope h2scope(session_);
   CHECK_EQ(nghttp2_submit_settings(**session_, NGHTTP2_FLAG_NONE,
-                                   *entries_, length()), 0);
+                                   &entries_[0], count_), 0);
 }
 
 void Http2Session::Http2Settings::Done(bool ack) {
