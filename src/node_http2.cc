@@ -848,8 +848,8 @@ int Http2Session::OnInvalidFrame(nghttp2_session* handle,
     HandleScope scope(isolate);
     Local<Context> context = env->context();
     Context::Scope context_scope(context);
-    Local<Value> argv = Integer::New(isolate, lib_error_code);
-    session->MakeCallback(env->error_string(), 1, &argv);
+    Local<Value> arg = Integer::New(isolate, lib_error_code);
+    session->MakeCallback(env->error_string(), 1, &arg);
   }
   return 0;
 }
@@ -1057,8 +1057,8 @@ int Http2Session::OnNghttpError(nghttp2_session* handle,
     HandleScope scope(isolate);
     Local<Context> context = env->context();
     Context::Scope context_scope(context);
-    Local<Value> argv = Integer::New(isolate, NGHTTP2_ERR_PROTO);
-    session->MakeCallback(env->error_string(), 1, &argv);
+    Local<Value> arg = Integer::New(isolate, NGHTTP2_ERR_PROTO);
+    session->MakeCallback(env->error_string(), 1, &arg);
   }
   return 0;
 }
@@ -1306,8 +1306,8 @@ void Http2Session::HandlePingFrame(const nghttp2_frame* frame) {
       HandleScope scope(isolate);
       Local<Context> context = env()->context();
       Context::Scope context_scope(context);
-      Local<Value> argv = Integer::New(isolate, NGHTTP2_ERR_PROTO);
-      MakeCallback(env()->error_string(), 1, &argv);
+      Local<Value> arg = Integer::New(isolate, NGHTTP2_ERR_PROTO);
+      MakeCallback(env()->error_string(), 1, &arg);
     }
   }
 }
@@ -1335,8 +1335,8 @@ void Http2Session::HandleSettingsFrame(const nghttp2_frame* frame) {
       HandleScope scope(isolate);
       Local<Context> context = env()->context();
       Context::Scope context_scope(context);
-      Local<Value> argv = Integer::New(isolate, NGHTTP2_ERR_PROTO);
-      MakeCallback(env()->error_string(), 1, &argv);
+      Local<Value> arg = Integer::New(isolate, NGHTTP2_ERR_PROTO);
+      MakeCallback(env()->error_string(), 1, &arg);
     }
   } else {
     // Otherwise, notify the session about a new settings
