@@ -4,8 +4,10 @@ const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
+const assert = require('assert');
 const http2 = require('http2');
 const net = require('net');
+
 const http2util = require('../common/http2');
 
 // Test that ping flooding causes the session to be torn down
@@ -15,13 +17,15 @@ const kPing = new http2util.PingFrame();
 
 const server = http2.createServer();
 
+let interval;
+
 server.on('stream', common.mustNotCall());
 server.on('session', common.mustCall((session) => {
-  session.on('error', common.expectsError({
-    code: 'ERR_HTTP2_ERROR',
-    message:
-      'Flooding was detected in this HTTP/2 session, and it must be closed'
-  }));
+  session.on('error', (e) => {
+    assert.strictEqual(e.code, 'ERR_HTTP2_ERROR');
+    assert(e.message.includes('Flooding was detected'));
+    clearInterval(interval);
+  });
   session.on('close', common.mustCall(() => {
     server.close();
   }));
@@ -31,9 +35,7 @@ server.listen(0, common.mustCall(() => {
   const client = net.connect(server.address().port);
 
   // nghttp2 uses a limit of 10000 items in it's outbound queue.
-  // If this number is exceeded, a flooding error is raised. Set
-  // this lim higher to account for the ones that nghttp2 is
-  // successfully able to respond to.
+  // If this number is exceeded, a flooding error is raised.
   // TODO(jasnell): Unfortunately, this test is inherently flaky because
   // it is entirely dependent on how quickly the server is able to handle
   // the inbound frames and whether those just happen to overflow nghttp2's
@@ -42,8 +44,10 @@ server.listen(0, common.mustCall(() => {
   client.on('connect', common.mustCall(() => {
     client.write(http2util.kClientMagic, () => {
       client.write(kSettings.data, () => {
-        for (let n = 0; n < 35000; n++)
-          client.write(kPing.data);
+        interval = setInterval(() => {
+          for (let n = 0; n < 10000; n++)
+            client.write(kPing.data);
+        }, 1);
       });
     });
   }));
