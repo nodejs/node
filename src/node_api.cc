@@ -2170,15 +2170,16 @@ napi_status napi_get_value_int64(napi_env env,
 
   RETURN_STATUS_IF_FALSE(env, val->IsNumber(), napi_number_expected);
 
-  // v8::Value::IntegerValue() converts NaN to INT64_MIN, inconsistent with
-  // v8::Value::Int32Value() that converts NaN to 0. So special-case NaN here.
+  // v8::Value::IntegerValue() converts NaN, +Inf, and -Inf to INT64_MIN,
+  // inconsistent with v8::Value::Int32Value() which converts those values to 0.
+  // Special-case all non-finite values to match that behavior.
   double doubleValue = val.As<v8::Number>()->Value();
-  if (std::isnan(doubleValue)) {
-    *result = 0;
-  } else {
+  if (std::isfinite(doubleValue)) {
     // Empty context: https://github.com/nodejs/node/issues/14379
     v8::Local<v8::Context> context;
     *result = val->IntegerValue(context).FromJust();
+  } else {
+    *result = 0;
   }
 
   return napi_clear_last_error(env);

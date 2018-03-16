@@ -5,50 +5,113 @@ const test_number = require(`./build/${common.buildType}/test_number`);
 
 
 // testing api calls for number
-assert.strictEqual(0, test_number.Test(0));
-assert.strictEqual(1, test_number.Test(1));
-assert.strictEqual(-1, test_number.Test(-1));
-assert.strictEqual(100, test_number.Test(100));
-assert.strictEqual(2121, test_number.Test(2121));
-assert.strictEqual(-1233, test_number.Test(-1233));
-assert.strictEqual(986583, test_number.Test(986583));
-assert.strictEqual(-976675, test_number.Test(-976675));
+function testNumber(num) {
+  assert.strictEqual(num, test_number.Test(num));
+}
 
-const num1 = 98765432213456789876546896323445679887645323232436587988766545658;
-assert.strictEqual(num1, test_number.Test(num1));
+testNumber(0);
+testNumber(-0);
+testNumber(1);
+testNumber(-1);
+testNumber(100);
+testNumber(2121);
+testNumber(-1233);
+testNumber(986583);
+testNumber(-976675);
 
-const num2 = -4350987086545760976737453646576078997096876957864353245245769809;
-assert.strictEqual(num2, test_number.Test(num2));
+testNumber(
+  98765432213456789876546896323445679887645323232436587988766545658);
+testNumber(
+  -4350987086545760976737453646576078997096876957864353245245769809);
+testNumber(Number.MIN_SAFE_INTEGER);
+testNumber(Number.MAX_SAFE_INTEGER);
+testNumber(Number.MAX_SAFE_INTEGER + 10);
 
-const num3 = Number.MAX_SAFE_INTEGER;
-assert.strictEqual(num3, test_number.Test(num3));
+testNumber(Number.MIN_VALUE);
+testNumber(Number.MAX_VALUE);
+testNumber(Number.MAX_VALUE + 10);
 
-const num4 = Number.MAX_SAFE_INTEGER + 10;
-assert.strictEqual(num4, test_number.Test(num4));
+testNumber(Number.POSITIVE_INFINITY);
+testNumber(Number.NEGATIVE_INFINITY);
+testNumber(Number.NaN);
 
-const num5 = Number.MAX_VALUE;
-assert.strictEqual(num5, test_number.Test(num5));
+// validate documented behavior when value is retrieved as 32-bit integer with
+// `napi_get_value_int32`
+function testInt32(input, expected = input) {
+  assert.strictEqual(expected, test_number.TestInt32Truncation(input));
+}
 
-const num6 = Number.MAX_VALUE + 10;
-assert.strictEqual(num6, test_number.Test(num6));
+// Test zero
+testInt32(0.0, 0);
+testInt32(-0.0, 0);
 
-const num7 = Number.POSITIVE_INFINITY;
-assert.strictEqual(num7, test_number.Test(num7));
+// Test min/max int32 range
+testInt32(-Math.pow(2, 31));
+testInt32(Math.pow(2, 31) - 1);
 
-const num8 = Number.NEGATIVE_INFINITY;
-assert.strictEqual(num8, test_number.Test(num8));
+// Test overflow scenarios
+testInt32(4294967297, 1);
+testInt32(4294967296, 0);
+testInt32(4294967295, -1);
+testInt32(4294967296 * 5 + 3, 3);
 
+// Test min/max safe integer range
+testInt32(Number.MIN_SAFE_INTEGER, 1);
+testInt32(Number.MAX_SAFE_INTEGER, -1);
 
-// validate documented behavior when value is retrieved
-// as 32 bit integer with napi_get_value_int32
-assert.strictEqual(1, test_number.TestInt32Truncation(4294967297));
-assert.strictEqual(0, test_number.TestInt32Truncation(4294967296));
-assert.strictEqual(-1, test_number.TestInt32Truncation(4294967295));
-assert.strictEqual(3, test_number.TestInt32Truncation(4294967296 * 5 + 3));
+// Test within int64_t range (with precision loss)
+testInt32(-Math.pow(2, 63) + (Math.pow(2, 9) + 1), 1024);
+testInt32(Math.pow(2, 63) - (Math.pow(2, 9) + 1), -1024);
 
-// validate that the boundaries of safe integer can be passed through
-// successfully
-assert.strictEqual(Number.MAX_SAFE_INTEGER,
-                   test_number.TestInt64Truncation(Number.MAX_SAFE_INTEGER));
-assert.strictEqual(Number.MIN_SAFE_INTEGER,
-                   test_number.TestInt64Truncation(Number.MIN_SAFE_INTEGER));
+// Test min/max double value
+testInt32(-Number.MIN_VALUE, 0);
+testInt32(Number.MIN_VALUE, 0);
+testInt32(-Number.MAX_VALUE, 0);
+testInt32(Number.MAX_VALUE, 0);
+
+// Test outside int64_t range
+testInt32(-Math.pow(2, 63) + (Math.pow(2, 9)), 0);
+testInt32(Math.pow(2, 63) - (Math.pow(2, 9)), 0);
+
+// Test non-finite numbers
+testInt32(Number.POSITIVE_INFINITY, 0);
+testInt32(Number.NEGATIVE_INFINITY, 0);
+testInt32(Number.NaN, 0);
+
+// validate documented behavior when value is retrieved as 64-bit integer with
+// `napi_get_value_int64`
+function testInt64(input, expected = input) {
+  assert.strictEqual(expected, test_number.TestInt64Truncation(input));
+}
+
+// Both V8 and ChakraCore return a sentinel value of `0x8000000000000000` when
+// the conversion goes out of range, but V8 treats it as unsigned in some cases.
+const RANGEERROR_POSITIVE = Math.pow(2, 63);
+const RANGEERROR_NEGATIVE = -Math.pow(2, 63);
+
+// Test zero
+testInt64(0.0, 0);
+testInt64(-0.0, 0);
+
+// Test min/max safe integer range
+testInt64(Number.MIN_SAFE_INTEGER);
+testInt64(Number.MAX_SAFE_INTEGER);
+
+// Test within int64_t range (with precision loss)
+testInt64(-Math.pow(2, 63) + (Math.pow(2, 9) + 1));
+testInt64(Math.pow(2, 63) - (Math.pow(2, 9) + 1));
+
+// Test min/max double value
+testInt64(-Number.MIN_VALUE, 0);
+testInt64(Number.MIN_VALUE, 0);
+testInt64(-Number.MAX_VALUE, RANGEERROR_NEGATIVE);
+testInt64(Number.MAX_VALUE, RANGEERROR_POSITIVE);
+
+// Test outside int64_t range
+testInt64(-Math.pow(2, 63) + (Math.pow(2, 9)), RANGEERROR_NEGATIVE);
+testInt64(Math.pow(2, 63) - (Math.pow(2, 9)), RANGEERROR_POSITIVE);
+
+// Test non-finite numbers
+testInt64(Number.POSITIVE_INFINITY, 0);
+testInt64(Number.NEGATIVE_INFINITY, 0);
+testInt64(Number.NaN, 0);
