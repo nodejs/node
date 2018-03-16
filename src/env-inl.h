@@ -121,7 +121,7 @@ inline Environment* Environment::AsyncHooks::env() {
 
 // Remember to keep this code aligned with pushAsyncIds() in JS.
 inline void Environment::AsyncHooks::push_async_ids(double async_id,
-                                              double trigger_async_id) {
+                                                    double trigger_async_id) {
   // Since async_hooks is experimental, do only perform the check
   // when async_hooks is enabled.
   if (fields_[kCheck] > 0) {
@@ -498,9 +498,9 @@ Environment::file_handle_read_wrap_freelist() {
 }
 
 void Environment::CreateImmediate(native_immediate_callback cb,
-                               void* data,
-                               v8::Local<v8::Object> obj,
-                               bool ref) {
+                                  void* data,
+                                  v8::Local<v8::Object> obj,
+                                  bool ref) {
   native_immediate_callbacks_.push_back({
     cb,
     data,
