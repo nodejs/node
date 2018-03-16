@@ -35,13 +35,6 @@ for (const valToTest of [
   });
 }
 
-common.expectsError(() => {
-  vm.isContext();
-}, {
-  code: 'ERR_MISSING_ARGS',
-  type: TypeError
-});
-
 assert.strictEqual(vm.isContext({}), false);
 assert.strictEqual(vm.isContext([]), false);
 

@@ -579,6 +579,9 @@ console.log(globalVar);
 added: v0.3.1
 changes:
   - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/19398
+    description: The `sandbox` option can no longer be a function.
+  - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/19016
     description: The `codeGeneration` option is supported now.
 -->

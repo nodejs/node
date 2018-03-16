@@ -9,6 +9,13 @@
 namespace node {
 namespace contextify {
 
+struct ContextOptions {
+  v8::Local<v8::String> name;
+  v8::Local<v8::String> origin;
+  v8::Local<v8::Boolean> allow_code_gen_strings;
+  v8::Local<v8::Boolean> allow_code_gen_wasm;
+};
+
 class ContextifyContext {
  protected:
   Environment* const env_;
@@ -17,11 +24,11 @@ class ContextifyContext {
  public:
   ContextifyContext(Environment* env,
                     v8::Local<v8::Object> sandbox_obj,
-                    v8::Local<v8::Object> options_obj);
+                    const ContextOptions& options);
 
   v8::Local<v8::Value> CreateDataWrapper(Environment* env);
   v8::Local<v8::Context> CreateV8Context(Environment* env,
-      v8::Local<v8::Object> sandbox_obj, v8::Local<v8::Object> options_obj);
+      v8::Local<v8::Object> sandbox_obj, const ContextOptions& options);
   static void Init(Environment* env, v8::Local<v8::Object> target);
 
   static bool AllowWasmCodeGeneration(
