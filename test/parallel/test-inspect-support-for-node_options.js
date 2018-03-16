@@ -21,10 +21,9 @@ function checkForInspectSupport(flag) {
       worker.disconnect();
     });
 
-    cluster.on('exit', (worker, code, signal) => {
-      if (worker.exitedAfterDisconnect === false) {
-        assert.fail(`For NODE_OPTIONS ${nodeOptions}, failed to start cluster`);
-      }
-    });
+    cluster.on('exit', common.mustCall((worker, code, signal) => {
+      const errMsg = `For NODE_OPTIONS ${nodeOptions}, failed to start cluster`;
+      assert.strictEqual(worker.exitedAfterDisconnect, true, errMsg);
+    }, 2));
   }
 }
