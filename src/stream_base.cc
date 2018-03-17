@@ -243,6 +243,7 @@ int StreamBase::WriteString(const FunctionCallbackInfo<Value>& args) {
     uv_buf_t* bufs = &buf;
     size_t count = 1;
     err = DoTryWrite(&bufs, &count);
+    bytes_written_ += data_size;
 
     // Immediate failure or success
     if (err != 0 || count == 0) {
