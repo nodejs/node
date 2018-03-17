@@ -6,11 +6,10 @@ const util = require('util');
 const bench = common.createBenchmark(main, {
   method: ['spread', 'assign', '_extend'],
   count: [5, 10, 20],
-  millions: [1]
+  n: [1e6]
 });
 
-function main({ millions, context, count, rest, method }) {
-  const n = millions * 1e6;
+function main({ n, context, count, rest, method }) {
 
   const src = {};
   for (let n = 0; n < count; n++)
