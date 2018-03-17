@@ -147,6 +147,7 @@ module.exports = {
         message: '__defineSetter__ is deprecated.',
       }
     ],
+
     /* eslint-disable max-len, quotes */
     'no-restricted-syntax': [
       'error',

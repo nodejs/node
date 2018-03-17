@@ -1,6 +1,6 @@
 // show the difference between calling a short js function
 // relative to a comparable C++ function.
-// Reports millions of calls per second.
+// Reports n of calls per second.
 // Note that JS speed goes up, while cxx speed stays about the same.
 'use strict';
 
@@ -28,14 +28,14 @@ assert(js() === cxx());
 
 const bench = common.createBenchmark(main, {
   type: ['js', 'cxx'],
-  millions: [1, 10, 50]
+  n: [1e6, 1e7, 5e7]
 });
 
-function main({ millions, type }) {
+function main({ n, type }) {
   const fn = type === 'cxx' ? cxx : js;
   bench.start();
-  for (var i = 0; i < millions * 1e6; i++) {
+  for (var i = 0; i < n; i++) {
     fn();
   }
-  bench.end(millions);
+  bench.end(n);
 }
