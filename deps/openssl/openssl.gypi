@@ -1268,6 +1268,9 @@
       # the real driver but that poses a security liability when an attacker
       # is able to create a malicious DLL in one of the default search paths.
       'OPENSSL_NO_HW',
+
+      # Disable NPN (Next Protocol Negotiation), superseded by ALPN.
+      'OPENSSL_NO_NEXTPROTONEG',
     ],
     'openssl_default_defines_win': [
       'MK1MF_BUILD',

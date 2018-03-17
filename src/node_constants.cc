@@ -971,11 +971,6 @@ void DefineOpenSSLConstants(Local<Object> target) {
     NODE_DEFINE_CONSTANT(target, DH_NOT_SUITABLE_GENERATOR);
 #endif
 
-#ifndef OPENSSL_NO_NEXTPROTONEG
-#define NPN_ENABLED 1
-    NODE_DEFINE_CONSTANT(target, NPN_ENABLED);
-#endif
-
 #ifdef TLSEXT_TYPE_application_layer_protocol_negotiation
 #define ALPN_ENABLED 1
     NODE_DEFINE_CONSTANT(target, ALPN_ENABLED);

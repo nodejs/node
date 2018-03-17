@@ -249,7 +249,7 @@ class SSLWrap {
   static const int64_t kExternalSize = 4448 + 1024 + 42 * 1024;
 #endif
 
-  static void InitNPN(SecureContext* sc);
+  static void ConfigureSecureContext(SecureContext* sc);
   static void AddMethods(Environment* env, v8::Local<v8::FunctionTemplate> t);
 
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
@@ -294,22 +294,6 @@ class SSLWrap {
   static void SetMaxSendFragment(
       const v8::FunctionCallbackInfo<v8::Value>& args);
 #endif  // SSL_set_max_send_fragment
-
-#ifndef OPENSSL_NO_NEXTPROTONEG
-  static void GetNegotiatedProto(
-      const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void SetNPNProtocols(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static int AdvertiseNextProtoCallback(SSL* s,
-                                        const unsigned char** data,
-                                        unsigned int* len,
-                                        void* arg);
-  static int SelectNextProtoCallback(SSL* s,
-                                     unsigned char** out,
-                                     unsigned char* outlen,
-                                     const unsigned char* in,
-                                     unsigned int inlen,
-                                     void* arg);
-#endif  // OPENSSL_NO_NEXTPROTONEG
 
   static void GetALPNNegotiatedProto(
       const v8::FunctionCallbackInfo<v8::Value>& args);

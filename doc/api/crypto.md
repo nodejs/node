@@ -2413,10 +2413,6 @@ the `crypto`, `tls`, and `https` modules and are generally specific to OpenSSL.
     <td></td>
   </tr>
   <tr>
-    <td><code>NPN_ENABLED</code></td>
-    <td></td>
-  </tr>
-  <tr>
     <td><code>ALPN_ENABLED</code></td>
     <td></td>
   </tr>

@@ -81,7 +81,6 @@ using v8::DontDelete;
 using v8::EscapableHandleScope;
 using v8::Exception;
 using v8::External;
-using v8::False;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
 using v8::HandleScope;
@@ -231,7 +230,7 @@ static X509_STORE* root_cert_store;
 // Just to generate static methods
 template void SSLWrap<TLSWrap>::AddMethods(Environment* env,
                                            Local<FunctionTemplate> t);
-template void SSLWrap<TLSWrap>::InitNPN(SecureContext* sc);
+template void SSLWrap<TLSWrap>::ConfigureSecureContext(SecureContext* sc);
 template void SSLWrap<TLSWrap>::SetSNIContext(SecureContext* sc);
 template int SSLWrap<TLSWrap>::SetCACerts(SecureContext* sc);
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
@@ -252,21 +251,6 @@ template int SSLWrap<TLSWrap>::NewSessionCallback(SSL* s,
 template void SSLWrap<TLSWrap>::OnClientHello(
     void* arg,
     const ClientHelloParser::ClientHello& hello);
-
-#ifndef OPENSSL_NO_NEXTPROTONEG
-template int SSLWrap<TLSWrap>::AdvertiseNextProtoCallback(
-    SSL* s,
-    const unsigned char** data,
-    unsigned int* len,
-    void* arg);
-template int SSLWrap<TLSWrap>::SelectNextProtoCallback(
-    SSL* s,
-    unsigned char** out,
-    unsigned char* outlen,
-    const unsigned char* in,
-    unsigned int inlen,
-    void* arg);
-#endif
 
 #ifdef NODE__HAVE_TLSEXT_STATUS_CB
 template int SSLWrap<TLSWrap>::TLSExtStatusCallback(SSL* s, void* arg);
@@ -1593,31 +1577,13 @@ void SSLWrap<Base>::AddMethods(Environment* env, Local<FunctionTemplate> t) {
   env->SetProtoMethod(t, "setMaxSendFragment", SetMaxSendFragment);
 #endif  // SSL_set_max_send_fragment
 
-#ifndef OPENSSL_NO_NEXTPROTONEG
-  env->SetProtoMethod(t, "getNegotiatedProtocol", GetNegotiatedProto);
-#endif  // OPENSSL_NO_NEXTPROTONEG
-
-#ifndef OPENSSL_NO_NEXTPROTONEG
-  env->SetProtoMethod(t, "setNPNProtocols", SetNPNProtocols);
-#endif
-
   env->SetProtoMethod(t, "getALPNNegotiatedProtocol", GetALPNNegotiatedProto);
   env->SetProtoMethod(t, "setALPNProtocols", SetALPNProtocols);
 }
 
 
 template <class Base>
-void SSLWrap<Base>::InitNPN(SecureContext* sc) {
-#ifndef OPENSSL_NO_NEXTPROTONEG
-  // Server should advertise NPN protocols
-  SSL_CTX_set_next_protos_advertised_cb(sc->ctx_,
-                                        AdvertiseNextProtoCallback,
-                                        nullptr);
-  // Client should select protocol from list of advertised
-  // If server supports NPN
-  SSL_CTX_set_next_proto_select_cb(sc->ctx_, SelectNextProtoCallback, nullptr);
-#endif  // OPENSSL_NO_NEXTPROTONEG
-
+void SSLWrap<Base>::ConfigureSecureContext(SecureContext* sc) {
 #ifdef NODE__HAVE_TLSEXT_STATUS_CB
   // OCSP stapling
   SSL_CTX_set_tlsext_status_cb(sc->ctx_, TLSExtStatusCallback);
@@ -2474,148 +2440,6 @@ void SSLWrap<Base>::GetProtocol(const FunctionCallbackInfo<Value>& args) {
 }
 
 
-#ifndef OPENSSL_NO_NEXTPROTONEG
-template <class Base>
-int SSLWrap<Base>::AdvertiseNextProtoCallback(SSL* s,
-                                              const unsigned char** data,
-                                              unsigned int* len,
-                                              void* arg) {
-  Base* w = static_cast<Base*>(SSL_get_app_data(s));
-  Environment* env = w->env();
-  HandleScope handle_scope(env->isolate());
-  Context::Scope context_scope(env->context());
-
-  auto npn_buffer =
-      w->object()->GetPrivate(
-          env->context(),
-          env->npn_buffer_private_symbol()).ToLocalChecked();
-
-  if (npn_buffer->IsUndefined()) {
-    // No initialization - no NPN protocols
-    *data = reinterpret_cast<const unsigned char*>("");
-    *len = 0;
-  } else {
-    CHECK(Buffer::HasInstance(npn_buffer));
-    *data = reinterpret_cast<const unsigned char*>(Buffer::Data(npn_buffer));
-    *len = Buffer::Length(npn_buffer);
-  }
-
-  return SSL_TLSEXT_ERR_OK;
-}
-
-
-template <class Base>
-int SSLWrap<Base>::SelectNextProtoCallback(SSL* s,
-                                           unsigned char** out,
-                                           unsigned char* outlen,
-                                           const unsigned char* in,
-                                           unsigned int inlen,
-                                           void* arg) {
-  Base* w = static_cast<Base*>(SSL_get_app_data(s));
-  Environment* env = w->env();
-  HandleScope handle_scope(env->isolate());
-  Context::Scope context_scope(env->context());
-
-  auto npn_buffer =
-      w->object()->GetPrivate(
-          env->context(),
-          env->npn_buffer_private_symbol()).ToLocalChecked();
-
-  if (npn_buffer->IsUndefined()) {
-    // We should at least select one protocol
-    // If server is using NPN
-    *out = reinterpret_cast<unsigned char*>(const_cast<char*>("http/1.1"));
-    *outlen = 8;
-
-    // set status: unsupported
-    CHECK(
-        w->object()->SetPrivate(
-            env->context(),
-            env->selected_npn_buffer_private_symbol(),
-            False(env->isolate())).FromJust());
-
-    return SSL_TLSEXT_ERR_OK;
-  }
-
-  CHECK(Buffer::HasInstance(npn_buffer));
-  const unsigned char* npn_protos =
-      reinterpret_cast<const unsigned char*>(Buffer::Data(npn_buffer));
-  size_t len = Buffer::Length(npn_buffer);
-
-  int status = SSL_select_next_proto(out, outlen, in, inlen, npn_protos, len);
-  Local<Value> result;
-  switch (status) {
-    case OPENSSL_NPN_UNSUPPORTED:
-      result = Null(env->isolate());
-      break;
-    case OPENSSL_NPN_NEGOTIATED:
-      result = OneByteString(env->isolate(), *out, *outlen);
-      break;
-    case OPENSSL_NPN_NO_OVERLAP:
-      result = False(env->isolate());
-      break;
-    default:
-      break;
-  }
-
-  CHECK(
-      w->object()->SetPrivate(
-          env->context(),
-          env->selected_npn_buffer_private_symbol(),
-          result).FromJust());
-
-  return SSL_TLSEXT_ERR_OK;
-}
-
-
-template <class Base>
-void SSLWrap<Base>::GetNegotiatedProto(
-    const FunctionCallbackInfo<Value>& args) {
-  Base* w;
-  ASSIGN_OR_RETURN_UNWRAP(&w, args.Holder());
-  Environment* env = w->env();
-
-  if (w->is_client()) {
-    auto selected_npn_buffer =
-        w->object()->GetPrivate(
-            env->context(),
-            env->selected_npn_buffer_private_symbol()).ToLocalChecked();
-    args.GetReturnValue().Set(selected_npn_buffer);
-    return;
-  }
-
-  const unsigned char* npn_proto;
-  unsigned int npn_proto_len;
-
-  SSL_get0_next_proto_negotiated(w->ssl_, &npn_proto, &npn_proto_len);
-
-  if (!npn_proto)
-    return args.GetReturnValue().Set(false);
-
-  args.GetReturnValue().Set(
-      OneByteString(args.GetIsolate(), npn_proto, npn_proto_len));
-}
-
-
-template <class Base>
-void SSLWrap<Base>::SetNPNProtocols(const FunctionCallbackInfo<Value>& args) {
-  Base* w;
-  ASSIGN_OR_RETURN_UNWRAP(&w, args.Holder());
-  Environment* env = w->env();
-
-  if (args.Length() < 1)
-    return env->ThrowTypeError("NPN protocols argument is mandatory");
-
-  THROW_AND_RETURN_IF_NOT_BUFFER(args[0], "NPN protocols");
-
-  CHECK(
-      w->object()->SetPrivate(
-          env->context(),
-          env->npn_buffer_private_symbol(),
-          args[0]).FromJust());
-}
-#endif  // OPENSSL_NO_NEXTPROTONEG
-
 #ifdef TLSEXT_TYPE_application_layer_protocol_negotiation
 template <class Base>
 int SSLWrap<Base>::SelectALPNCallback(SSL* s,
@@ -2883,7 +2707,7 @@ void SSLWrap<Base>::DestroySSL() {
 
 template <class Base>
 void SSLWrap<Base>::SetSNIContext(SecureContext* sc) {
-  InitNPN(sc);
+  ConfigureSecureContext(sc);
   CHECK_EQ(SSL_set_SSL_CTX(ssl_, sc->ctx_), sc->ctx_);
 
   SetCACerts(sc);

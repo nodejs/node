@@ -104,21 +104,16 @@ not required and a default ECDHE curve will be used. The `ecdhCurve` property
 can be used when creating a TLS Server to specify the list of names of supported
 curves to use, see [`tls.createServer()`] for more info.
 
-### ALPN, NPN, and SNI
+### ALPN and SNI
 
 <!-- type=misc -->
 
-ALPN (Application-Layer Protocol Negotiation Extension), NPN (Next
-Protocol Negotiation) and, SNI (Server Name Indication) are TLS
-handshake extensions:
+ALPN (Application-Layer Protocol Negotiation Extension) and
+SNI (Server Name Indication) are TLS handshake extensions:
 
-* ALPN/NPN - Allows the use of one TLS server for multiple protocols (HTTP,
-  SPDY, HTTP/2)
+* ALPN - Allows the use of one TLS server for multiple protocols (HTTP, HTTP/2)
 * SNI - Allows the use of one TLS server for multiple hostnames with different
   SSL certificates.
-
-Use of ALPN is recommended over NPN. The NPN extension has never been
-formally defined or documented and generally not recommended for use.
 
 ### Client-initiated renegotiation attack mitigation
 
@@ -332,12 +327,9 @@ server. If `tlsSocket.authorized` is `false`, then `socket.authorizationError`
 is set to describe how authorization failed. Note that depending on the settings
 of the TLS server, unauthorized connections may still be accepted.
 
-The `tlsSocket.npnProtocol` and `tlsSocket.alpnProtocol` properties are strings
-that contain the selected NPN and ALPN protocols, respectively. When both NPN
-and ALPN extensions are received, ALPN takes precedence over NPN and the next
-protocol is selected by ALPN.
-
-When ALPN has no selected protocol, `tlsSocket.alpnProtocol` returns `false`.
+The `tlsSocket.alpnProtocol` property is a string that contains the selected
+ALPN protocol. When ALPN has no selected protocol, `tlsSocket.alpnProtocol`
+equals `false`.
 
 The `tlsSocket.servername` property is a string containing the server name
 requested via SNI.
@@ -468,7 +460,6 @@ changes:
      (`isServer` is true) may optionally set `requestCert` to true to request a
      client certificate.
   * `rejectUnauthorized`: Optional, see [`tls.createServer()`][]
-  * `NPNProtocols`: Optional, see [`tls.createServer()`][]
   * `ALPNProtocols`: Optional, see [`tls.createServer()`][]
   * `SNICallback`: Optional, see [`tls.createServer()`][]
   * `session` {Buffer} An optional `Buffer` instance containing a TLS session.
@@ -509,9 +500,9 @@ regardless of whether or not the server's certificate has been authorized. It
 is the client's responsibility to check the `tlsSocket.authorized` property to
 determine if the server certificate was signed by one of the specified CAs. If
 `tlsSocket.authorized === false`, then the error can be found by examining the
-`tlsSocket.authorizationError` property. If either ALPN or NPN was used,
-the `tlsSocket.alpnProtocol` or `tlsSocket.npnProtocol` properties can be
-checked to determine the negotiated protocol.
+`tlsSocket.authorizationError` property. If ALPN was used, the
+`tlsSocket.alpnProtocol` property can be checked to determine the negotiated
+protocol.
 
 ### tlsSocket.address()
 <!-- YAML
@@ -841,8 +832,7 @@ changes:
     description: The `lookup` option is supported now.
   - version: v8.0.0
     pr-url: https://github.com/nodejs/node/pull/11984
-    description: The `ALPNProtocols` and `NPNProtocols` options can
-                 be `Uint8Array`s now.
+    description: The `ALPNProtocols` option can be a `Uint8Array` now.
   - version: v5.3.0, v4.7.0
     pr-url: https://github.com/nodejs/node/pull/4246
     description: The `secureContext` option is supported now.
@@ -869,12 +859,6 @@ changes:
     verified against the list of supplied CAs. An `'error'` event is emitted if
     verification fails; `err.code` contains the OpenSSL error code. Defaults to
     `true`.
-  * `NPNProtocols` {string[]|Buffer[]|Uint8Array[]|Buffer|Uint8Array}
-    An array of strings, `Buffer`s or `Uint8Array`s, or a single `Buffer` or
-    `Uint8Array` containing supported NPN protocols. `Buffer`s should have the
-    format `[len][name][len][name]...` e.g. `0x05hello0x05world`, where the
-    first byte is the length of the next protocol name. Passing an array is
-    usually much simpler, e.g. `['hello', 'world']`.
   * `ALPNProtocols`: {string[]|Buffer[]|Uint8Array[]|Buffer|Uint8Array}
     An array of strings, `Buffer`s or `Uint8Array`s, or a single `Buffer` or
     `Uint8Array` containing the supported ALPN protocols. `Buffer`s should have
@@ -1116,8 +1100,7 @@ changes:
     description: The `options` parameter can now include `clientCertEngine`.
   - version: v8.0.0
     pr-url: https://github.com/nodejs/node/pull/11984
-    description: The `ALPNProtocols` and `NPNProtocols` options can
-                 be `Uint8Array`s now.
+    description: The `ALPNProtocols` option can be a `Uint8Array` now.
   - version: v5.0.0
     pr-url: https://github.com/nodejs/node/pull/2564
     description: ALPN options are supported now.
@@ -1136,13 +1119,6 @@ changes:
   * `rejectUnauthorized` {boolean} If not `false` the server will reject any
     connection which is not authorized with the list of supplied CAs. This
     option only has an effect if `requestCert` is `true`. Defaults to `true`.
-  * `NPNProtocols` {string[]|Buffer[]|Uint8Array[]|Buffer|Uint8Array}
-    An array of strings, `Buffer`s or `Uint8Array`s, or a single `Buffer` or
-    `Uint8Array` containing supported NPN protocols. `Buffer`s should have the
-    format `[len][name][len][name]...` e.g. `0x05hello0x05world`, where the
-    first byte is the length of the next protocol name. Passing an array is
-    usually much simpler, e.g. `['hello', 'world']`.
-    (Protocols should be ordered by their priority.)
   * `ALPNProtocols`: {string[]|Buffer[]|Uint8Array[]|Buffer|Uint8Array}
     An array of strings, `Buffer`s or `Uint8Array`s, or a single `Buffer` or
     `Uint8Array` containing the supported ALPN protocols. `Buffer`s should have
@@ -1150,9 +1126,6 @@ changes:
     first byte is the length of the next protocol name. Passing an array is
     usually much simpler, e.g. `['hello', 'world']`.
     (Protocols should be ordered by their priority.)
-    When the server receives both NPN and ALPN extensions from the client,
-    ALPN takes precedence over NPN and the server does not send an NPN
-    extension to the client.
   * `SNICallback(servername, cb)` {Function} A function that will be called if
     the client supports SNI TLS extension. Two arguments will be passed when
     called: `servername` and `cb`. `SNICallback` should invoke `cb(null, ctx)`,
@@ -1333,7 +1306,6 @@ changes:
   * `server` {net.Server} An optional [`net.Server`][] instance
   * `requestCert`: Optional, see [`tls.createServer()`][]
   * `rejectUnauthorized`: Optional, see [`tls.createServer()`][]
-  * `NPNProtocols`: Optional, see [`tls.createServer()`][]
   * `ALPNProtocols`: Optional, see [`tls.createServer()`][]
   * `SNICallback`: Optional, see [`tls.createServer()`][]
   * `session` {Buffer} An optional `Buffer` instance containing a TLS session.

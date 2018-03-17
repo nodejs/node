@@ -135,7 +135,7 @@ void TLSWrap::InitSSL() {
   }
 #endif  // SSL_CTRL_SET_TLSEXT_SERVERNAME_CB
 
-  InitNPN(sc_);
+  ConfigureSecureContext(sc_);
 
   SSL_set_cert_cb(ssl_, SSLWrap<TLSWrap>::SSLCertCallback, this);
 
