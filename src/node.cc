@@ -4458,18 +4458,14 @@ class HandleScopeHeapWrapper {
 };
 
 ArrayBufferAllocator* allocator;
-Isolate::CreateParams params;
 Locker* locker;
 IsolateData* isolate_data;
-Isolate::Scope* isolate_scope;
+HandleScopeHeapWrapper* _handle_scope_wrapper = nullptr;
 Local<Context> context;
-Context::Scope* context_scope;
 bool request_stop = false;
 CmdArgs* cmd_args = nullptr;
 bool _event_loop_running = false;
-v8::Isolate* _isolate = nullptr;
 Environment* _environment = nullptr;
-HandleScopeHeapWrapper* _handle_scope_wrapper = nullptr;
 
 bool eventLoopIsRunning() {
   return _event_loop_running;
@@ -4477,7 +4473,7 @@ bool eventLoopIsRunning() {
 
 namespace internal {
   v8::Isolate* isolate() {
-    return _isolate;
+    return node_isolate;
   }
 
   Environment* environment() {
@@ -4531,33 +4527,27 @@ void _StopEnv() {
   delete _environment;
   _environment = nullptr;
 
-  delete context_scope;
-  context_scope = nullptr;
+  context->Exit();
+}
 
-  if (!context.IsEmpty()) {
-    // No need to delete the context value (delete *context),
-    // this is already done by deleting the context_scope above.
-    context.Clear();
-  }
-
+void _DeleteIsolate() {
   delete isolate_data;
   isolate_data = nullptr;
 
   delete _handle_scope_wrapper;
   _handle_scope_wrapper = nullptr;
 
-  delete isolate_scope;
-  isolate_scope = nullptr;
+  node_isolate->Exit();
 
   delete locker;
   locker = nullptr;
-}
 
-void _DeleteIsolate() {
-  Mutex::ScopedLock scoped_lock(node_isolate_mutex);
-  CHECK_EQ(node_isolate, _isolate);
-  node_isolate = nullptr;
-  _isolate->Dispose();
+  {
+    Mutex::ScopedLock scoped_lock(node_isolate_mutex);
+    node_isolate->Dispose();
+    node_isolate = nullptr;
+  }
+
 
   delete allocator;
   allocator = nullptr;
@@ -4598,55 +4588,54 @@ void _InitV8() {
 }
 
 int _CreateIsolate() {
+  Isolate::CreateParams params;
   allocator = new ArrayBufferAllocator();
   params.array_buffer_allocator = allocator;
 #ifdef NODE_ENABLE_VTUNE_PROFILING
   params.code_event_handler = vTune::GetVtuneCodeEventHandler();
 #endif
 
-  _isolate = Isolate::New(params);
-  if (_isolate == nullptr) {
-    fprintf(stderr, "Could not create isolate.");
-    fflush(stderr);
+  Isolate* const isolate = Isolate::New(params);
+  if (isolate == nullptr) {
     return 12;  // Signal internal error.
   }
 
-  _isolate->AddMessageListener(OnMessage);
-  _isolate->SetAbortOnUncaughtExceptionCallback(ShouldAbortOnUncaughtException);
-  _isolate->SetMicrotasksPolicy(v8::MicrotasksPolicy::kExplicit);
-  _isolate->SetFatalErrorHandler(OnFatalError);
+  isolate->AddMessageListener(OnMessage);
+  isolate->SetAbortOnUncaughtExceptionCallback(ShouldAbortOnUncaughtException);
+  isolate->SetMicrotasksPolicy(v8::MicrotasksPolicy::kExplicit);
+  isolate->SetFatalErrorHandler(OnFatalError);
 
   {
     Mutex::ScopedLock scoped_lock(node_isolate_mutex);
     CHECK_EQ(node_isolate, nullptr);
-    node_isolate = _isolate;
+    node_isolate = isolate;
   }
 
   return 0;
 }
 
 void _CreateInitialEnvironment() {
-  locker = new Locker(_isolate);
-  isolate_scope = new Isolate::Scope(_isolate);
-  _handle_scope_wrapper = new HandleScopeHeapWrapper(_isolate);
+  locker = new Locker(node_isolate);
+  node_isolate->Enter();
+  _handle_scope_wrapper = new HandleScopeHeapWrapper(node_isolate);
 
   isolate_data = new IsolateData(
-      _isolate,
+      node_isolate,
       uv_default_loop(),
       v8_platform.Platform(),
       allocator->zero_fill_field());
 
   if (track_heap_objects) {
-    _isolate->GetHeapProfiler()->StartTrackingHeapObjects(true);
+    node_isolate->GetHeapProfiler()->StartTrackingHeapObjects(true);
   }
 
   // TODO(justus-hildebrand): in the initial Start functions,
   // two handle scopes were created
   // (one in Start() 2 and one in Start() 3). Currently, we have no idea why.
   // HandleScope handle_scope(isolate);
-  context = NewContext(_isolate);
-  context_scope = new Context::Scope(context);
-  _environment = new node::Environment(isolate_data, context);
+  context = NewContext(node_isolate);
+  context->Enter();
+  _environment = new Environment(isolate_data, context);
 }
 
 void _ConfigureOpenSsl() {
@@ -4716,13 +4705,14 @@ int Initialize(int argc, const char** argv, const bool evaluate_stdin) {
 
   // Hack around with the argv pointer. Used for process.title = "blah --args".
   // argv won't be modified
-  uv_setup_args(argc, const_cast<char**>(argv));
+  const char** custom_argv = const_cast<const char**>(
+        uv_setup_args(argc, const_cast<char**>(argv)));
 
   // This needs to run *before* V8::Initialize().
   // Init() puts the v8 specific cmd args in exec_argc and exec_argv.
   int exec_argc = 0;
   const char** exec_argv = nullptr;
-  Init(&argc, argv, &exec_argc, &exec_argv);
+  Init(&argc, custom_argv, &exec_argc, &exec_argv);
 
   initialize::_ConfigureOpenSsl();
   initialize::_InitV8();
@@ -4734,15 +4724,11 @@ int Initialize(int argc, const char** argv, const bool evaluate_stdin) {
 
   initialize::_CreateInitialEnvironment();
   exit_code = initialize::_StartEnv(argc,
-                                    argv,
+                                    custom_argv,
                                     exec_argc,
                                     exec_argv,
                                     evaluate_stdin);
-  if (exit_code != 0) {
-    return exit_code;
-  }
-
-  return 0;
+  return exit_code;
 }
 
 int Deinitialize() {
@@ -4763,6 +4749,10 @@ int Deinitialize() {
 }
 
 v8::MaybeLocal<v8::Value> Run(const std::string& path) {
+  return Run(_environment, path);
+}
+
+v8::MaybeLocal<v8::Value> Run(Environment* env, const std::string& path) {
   // TODO(cmfcmf) Read entire file into string.
   // There is most certainly a better way
   // https://stackoverflow.com/a/2602258/2560557
@@ -4770,12 +4760,17 @@ v8::MaybeLocal<v8::Value> Run(const std::string& path) {
   std::stringstream buffer;
   buffer << t.rdbuf();
 
-  return Evaluate(buffer.str());
+  return Evaluate(_environment, buffer.str());
 }
 
 v8::MaybeLocal<v8::Value> Evaluate(const std::string& js_code) {
-  EscapableHandleScope scope(_environment->isolate());
-  TryCatch try_catch(_environment->isolate());
+  return Evaluate(_environment, js_code);
+}
+
+v8::MaybeLocal<v8::Value> Evaluate(Environment* env,
+                                   const std::string& js_code) {
+  EscapableHandleScope scope(env->isolate());
+  TryCatch try_catch(env->isolate());
 
   // try_catch must be nonverbose to disable FatalException() handler,
   // we will handle exceptions ourself.
@@ -4785,12 +4780,12 @@ v8::MaybeLocal<v8::Value> Evaluate(const std::string& js_code) {
   // This is used for debugging
   // ScriptOrigin origin(filename);
   MaybeLocal<v8::Script> script = v8::Script::Compile(
-        _environment->context(),
-        v8::String::NewFromUtf8(_isolate, js_code.c_str())
+        env->context(),
+        v8::String::NewFromUtf8(env->isolate(), js_code.c_str())
         /*removed param: origin*/);
 
   if (script.IsEmpty()) {
-    ReportException(_environment, try_catch);
+    ReportException(env, try_catch);
     return MaybeLocal<v8::Value>();
   }
 
@@ -4819,14 +4814,21 @@ void RunEventLoop(const std::function<void()>& callback,
 }
 
 v8::MaybeLocal<v8::Object> GetRootObject() {
-  if (context.IsEmpty()) {
-    return MaybeLocal<v8::Object>();
-  }
-  return context->Global();
+  return GetRootObject(_environment);
 }
 
+v8::MaybeLocal<v8::Object> GetRootObject(Environment* env) {
+  return env->context()->Global();
+}
 
 v8::MaybeLocal<v8::Value> Call(v8::Local<v8::Object> receiver,
+                               v8::Local<v8::Function> function,
+                               const std::vector<v8::Local<v8::Value>>& args) {
+  return Call(_environment, receiver, function, args);
+}
+
+v8::MaybeLocal<v8::Value> Call(Environment* env,
+                               v8::Local<v8::Object> receiver,
                                v8::Local<v8::Function> function,
                                const std::vector<v8::Local<v8::Value>>& args) {
   return function->Call(receiver,
@@ -4834,17 +4836,18 @@ v8::MaybeLocal<v8::Value> Call(v8::Local<v8::Object> receiver,
                         const_cast<v8::Local<v8::Value>*>(&args[0]));
 }
 
-v8::MaybeLocal<v8::Value> Call(v8::Local<v8::Object> receiver,
-                               v8::Local<v8::Function> function,
-                               std::initializer_list<v8::Local<Value>> args) {
-  return Call(receiver, function, std::vector<v8::Local<v8::Value>>(args));
-}
-
 v8::MaybeLocal<v8::Value> Call(v8::Local<v8::Object> object,
                                const std::string& function_name,
                                const std::vector<v8::Local<v8::Value>>& args) {
+  return Call(_environment, object, function_name, args);
+}
+
+v8::MaybeLocal<v8::Value> Call(Environment* env,
+                               v8::Local<v8::Object> object,
+                               const std::string& function_name,
+                               const std::vector<v8::Local<v8::Value>>& args) {
   MaybeLocal<v8::String> maybe_function_name =
-      v8::String::NewFromUtf8(_isolate, function_name.c_str());
+      v8::String::NewFromUtf8(env->isolate(), function_name.c_str());
 
   Local<v8::String> v8_function_name;
 
@@ -4864,18 +4867,17 @@ v8::MaybeLocal<v8::Value> Call(v8::Local<v8::Object> object,
     return MaybeLocal<v8::Value>();
   }
 
-  return Call(object, v8::Local<v8::Function>::Cast(value), args);
-}
-
-v8::MaybeLocal<v8::Value> Call(v8::Local<v8::Object> object,
-                               const std::string& function_name,
-                               std::initializer_list<v8::Local<Value>> args) {
-  return Call(object, function_name, std::vector<v8::Local<v8::Value>>(args));
+  return Call(env, object, v8::Local<v8::Function>::Cast(value), args);
 }
 
 v8::MaybeLocal<v8::Object> IncludeModule(const std::string& name) {
+  return IncludeModule(_environment, name);
+}
+
+v8::MaybeLocal<v8::Object> IncludeModule(Environment* env,
+                                         const std::string& name) {
   MaybeLocal<v8::String> maybe_arg =
-      v8::String::NewFromUtf8(_isolate, name.c_str());
+      v8::String::NewFromUtf8(env->isolate(), name.c_str());
 
   Local<v8::String> arg;
 
@@ -4886,14 +4888,14 @@ v8::MaybeLocal<v8::Object> IncludeModule(const std::string& name) {
 
   Local<v8::Object> root_object;
 
-  if (!GetRootObject().ToLocal(&root_object)) {
+  if (!GetRootObject(env).ToLocal(&root_object)) {
     // cannot get root object
     return MaybeLocal<v8::Object>();
   }
 
   std::vector<Local<v8::Value>> args = { arg };
 
-  MaybeLocal<v8::Value> maybe_module = Call(root_object, "require", args);
+  MaybeLocal<v8::Value> maybe_module = Call(env, root_object, "require", args);
   Local<v8::Value> module;
 
   if (!maybe_module.ToLocal(&module)) {
@@ -4906,8 +4908,14 @@ v8::MaybeLocal<v8::Object> IncludeModule(const std::string& name) {
 
 v8::MaybeLocal<v8::Value> GetValue(v8::Local<v8::Object> object,
                                    const std::string& value_name) {
+  return GetValue(_environment, object, value_name);
+}
+
+v8::MaybeLocal<v8::Value> GetValue(Environment* env,
+                                   v8::Local<v8::Object> object,
+                                   const std::string& value_name) {
   MaybeLocal<v8::String> maybe_key =
-      v8::String::NewFromUtf8(_isolate, value_name.c_str());
+      v8::String::NewFromUtf8(env->isolate(), value_name.c_str());
 
   Local<v8::String> key;
 
@@ -4923,6 +4931,14 @@ void RegisterModule(const std::string& name,
                     const addon_context_register_func& callback,
                     void* priv,
                     const std::string& target) {
+  RegisterModule(_environment, name, callback, priv, target);
+}
+
+void RegisterModule(Environment* env,
+                    const std::string& name,
+                    const addon_context_register_func& callback,
+                    void* priv,
+                    const std::string& target) {
   node::node_module* module = new node::node_module();
 
   module->nm_version = NODE_MODULE_VERSION;
@@ -4935,18 +4951,30 @@ void RegisterModule(const std::string& name,
   node_module_register(module);
 
   if (target != "") {
-    Evaluate("const " + target + " = process.binding('" + name + "')");
+    Evaluate(env, "const " + target + " = process.binding('" + name + "')");
   }
 }
 
 void RegisterModule(const std::string& name,
                     const std::map<std::string,
-                    v8::FunctionCallback>& module_functions,
+                      v8::FunctionCallback>& module_functions,
+                    const std::string& target) {
+  RegisterModule(_environment,
+                 name,
+                 module_functions,
+                 target);
+}
+
+void RegisterModule(Environment* env,
+                    const std::string& name,
+                    const std::map<std::string,
+                      v8::FunctionCallback>& module_functions,
                     const std::string& target) {
   auto map_on_heap = new const std::map<std::string,
                                         v8::FunctionCallback>(module_functions);
 
-  RegisterModule(name,
+  RegisterModule(env,
+                 name,
                  node::_RegisterModuleCallback,
                  const_cast<std::map<std::string,
                                      v8::FunctionCallback>*>(map_on_heap),
