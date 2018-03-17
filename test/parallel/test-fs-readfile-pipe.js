@@ -46,7 +46,7 @@ const dataExpected = `xxxxxxxxxx xxxxxxxxxx
 xxxxxxxxxx xxxxxxxxxx
 xxxxxxxxxx xxxxxxxxxx
 xxxxxxxxxx xxxxxxxxxx
-xxxxxxxxxx xxxxxxxxxx`
+xxxxxxxxxx xxxxxxxxxx`;
 tmpdir.refresh();
 fs.writeFileSync(filename, dataExpected);
 
@@ -56,8 +56,14 @@ const node = JSON.stringify(process.execPath);
 const cmd = `cat ${filename} | ${node} ${f} child`;
 exec(cmd, function(err, stdout, stderr) {
   assert.ifError(err);
-  assert.strictEqual(stdout, dataExpected, `expected to read: '${dataExpected}' but got: '${stdout}'`);
-  assert.strictEqual(stderr, '', `expected not to read anything from stderr but got: '${stderr}'`);
+  assert.strictEqual(
+    stdout,
+    dataExpected,
+    `expected to read: '${dataExpected}' but got: '${stdout}'`);
+  assert.strictEqual(
+    stderr,
+    '',
+    `expected not to read anything from stderr but got: '${stderr}'`);
   console.log('ok');
 });
 
