@@ -204,6 +204,7 @@ void PipeWrap::Open(const FunctionCallbackInfo<Value>& args) {
   int fd = args[0]->Int32Value();
 
   int err = uv_pipe_open(&wrap->handle_, fd);
+  wrap->set_fd(fd);
 
   if (err != 0)
     env->isolate()->ThrowException(UVException(err, "uv_pipe_open"));

@@ -115,12 +115,14 @@ void LibuvStreamWrap::AddMethods(Environment* env,
 
 
 int LibuvStreamWrap::GetFD() {
+#ifdef _WIN32
+  return fd_;
+#else
   int fd = -1;
-#if !defined(_WIN32)
   if (stream() != nullptr)
     uv_fileno(reinterpret_cast<uv_handle_t*>(stream()), &fd);
-#endif
   return fd;
+#endif
 }
 
 
