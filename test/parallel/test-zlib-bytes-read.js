@@ -33,13 +33,13 @@ for (const method of [
   const comp = zlib[method[0]]();
   comp.on('data', function(d) {
     compData = Buffer.concat([compData, d]);
-    assert.strictEqual(this.bytesRead, compWriter.size,
+    assert.strictEqual(this.bytesWritten, compWriter.size,
                        `Should get write size on ${method[0]} data.`);
   });
   comp.on('end', common.mustCall(function() {
-    assert.strictEqual(this.bytesRead, compWriter.size,
+    assert.strictEqual(this.bytesWritten, compWriter.size,
                        `Should get write size on ${method[0]} end.`);
-    assert.strictEqual(this.bytesRead, expectStr.length,
+    assert.strictEqual(this.bytesWritten, expectStr.length,
                        `Should get data size on ${method[0]} end.`);
 
     {
@@ -49,12 +49,12 @@ for (const method of [
       const decomp = zlib[method[1]]();
       decomp.on('data', function(d) {
         decompData = Buffer.concat([decompData, d]);
-        assert.strictEqual(this.bytesRead, decompWriter.size,
+        assert.strictEqual(this.bytesWritten, decompWriter.size,
                            `Should get write size on ${method[0]}/` +
                            `${method[1]} data.`);
       });
       decomp.on('end', common.mustCall(function() {
-        assert.strictEqual(this.bytesRead, compData.length,
+        assert.strictEqual(this.bytesWritten, compData.length,
                            `Should get compressed size on ${method[0]}/` +
                            `${method[1]} end.`);
         assert.strictEqual(decompData.toString(), expectStr,
@@ -74,14 +74,16 @@ for (const method of [
       const decomp = zlib[method[1]]();
       decomp.on('data', function(d) {
         decompData = Buffer.concat([decompData, d]);
-        assert.strictEqual(this.bytesRead, decompWriter.size,
+        assert.strictEqual(this.bytesWritten, decompWriter.size,
                            `Should get write size on ${method[0]}/` +
                            `${method[1]} data.`);
       });
       decomp.on('end', common.mustCall(function() {
-        assert.strictEqual(this.bytesRead, compData.length,
+        assert.strictEqual(this.bytesWritten, compData.length,
                            `Should get compressed size on ${method[0]}/` +
                            `${method[1]} end.`);
+        // Checking legacy name.
+        assert.strictEqual(this.bytesWritten, this.bytesRead);
         assert.strictEqual(decompData.toString(), expectStr,
                            `Should get original string on ${method[0]}/` +
                            `${method[1]} end.`);
