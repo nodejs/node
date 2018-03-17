@@ -174,8 +174,8 @@ if (!common.isWindows) {
   // Verify that end works when start is not specified, and we do not try to
   // use positioned reads. This makes sure that this keeps working for
   // non-seekable file descriptors.
-  tmpdir.refresh();
-  const filename = `${tmpdir.path}/foo.pipe`;
+  common.refreshTmpDir();
+  const filename = `${common.tmpDir}/foo.pipe`;
   const mkfifoResult = child_process.spawnSync('mkfifo', [filename]);
   if (!mkfifoResult.error) {
     child_process.exec(`echo "xyz foobar" > '${filename}'`);
