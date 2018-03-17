@@ -1,9 +1,8 @@
 // Flags: --experimental-modules
-/* eslint-disable node-core/required-modules */
-import '../common/index';
+import '../common';
 import assert from 'assert';
-import ok from './test-esm-ok.mjs';
-import json from './json.json';
+import ok from '../fixtures/es-modules/test-esm-ok.mjs';
+import json from '../fixtures/es-modules/json.json';
 
 assert(ok);
 assert.strictEqual(json.val, 42);
