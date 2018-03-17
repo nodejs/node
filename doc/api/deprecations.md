@@ -822,6 +822,16 @@ Type: Documentation-only (supports [`--pending-deprecation`][])
 Using `process.binding()` in general should be avoided. The type checking
 methods in particular can be replaced by using [`util.types`][].
 
+<a id="DEP0108"></a>
+### DEP0108: zlib.bytesRead
+
+Type: Documentation-only
+
+Deprecated alias for [`zlib.bytesWritten`][]. This original name was chosen
+because it also made sense to interpret the value as the number of bytes
+read by the engine, but is inconsistent with other streams in Node.js that
+expose values under these names.
+
 [`--pending-deprecation`]: cli.html#cli_pending_deprecation
 [`Buffer.allocUnsafeSlow(size)`]: buffer.html#buffer_class_method_buffer_allocunsafeslow_size
 [`Buffer.from(array)`]: buffer.html#buffer_class_method_buffer_from_array
