@@ -29,5 +29,14 @@ function connectDoesNotThrow(input) {
     lookup: input
   };
 
-  net.connect(opts);
+  return net.connect(opts);
+}
+
+{
+  // Verify that an error is emitted when an invalid address family is returned.
+  const s = connectDoesNotThrow((host, options, cb) => {
+    cb(null, '127.0.0.1', 100);
+  });
+
+  s.on('error', common.expectsError({ code: 'ERR_INVALID_ADDRESS_FAMILY' }));
 }
