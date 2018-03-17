@@ -971,6 +971,14 @@ initialization vectors. It is recommended to derive a key using
 [`crypto.createDecipheriv()`][] to obtain the [`Cipher`][] and [`Decipher`][]
 objects respectively.
 
+<a id="DEP0107"></a>
+### DEP0107: tls.convertNPNProtocols()
+
+Type: Runtime
+
+This was an undocumented helper function not intended for use outside Node.js
+core and obsoleted by the removal of NPN (Next Protocol Negotiation) support.
+
 [`--pending-deprecation`]: cli.html#cli_pending_deprecation
 [`Buffer.allocUnsafeSlow(size)`]: buffer.html#buffer_class_method_buffer_allocunsafeslow_size
 [`Buffer.from(array)`]: buffer.html#buffer_class_method_buffer_from_array
