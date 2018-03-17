@@ -28,9 +28,8 @@ if (common.isWindows || common.isAIX)
   common.skip(`No /dev/stdin on ${process.platform}.`);
 
 const assert = require('assert');
+const path = require('path');
 const fs = require('fs');
-
-const dataExpected = fs.readFileSync(__filename, 'utf8');
 
 if (process.argv[2] === 'child') {
   fs.readFile('/dev/stdin', function(er, data) {
@@ -40,13 +39,28 @@ if (process.argv[2] === 'child') {
   return;
 }
 
+const tmpdir = require('../common/tmpdir');
+
+const filename = path.join(tmpdir.path, '/readfile_pipe_test.txt');
+const dataExpected = `xxxxxxxxxx xxxxxxxxxx
+xxxxxxxxxx xxxxxxxxxx
+xxxxxxxxxx xxxxxxxxxx
+xxxxxxxxxx xxxxxxxxxx
+xxxxxxxxxx xxxxxxxxxx`
+tmpdir.refresh();
+fs.writeFileSync(filename, dataExpected);
+
 const exec = require('child_process').exec;
 const f = JSON.stringify(__filename);
 const node = JSON.stringify(process.execPath);
-const cmd = `cat ${f} | ${node} ${f} child`;
+const cmd = `cat ${filename} | ${node} ${f} child`;
 exec(cmd, function(err, stdout, stderr) {
   assert.ifError(err);
-  assert.strictEqual(stdout, dataExpected, `expected to read ${dataExpected} but got: ${stdout}`);
-  assert.strictEqual(stderr, '', `expected not to read anything from stderr but got: ${stderr}`);
+  assert.strictEqual(stdout, dataExpected, `expected to read: '${dataExpected}' but got: '${stdout}'`);
+  assert.strictEqual(stderr, '', `expected not to read anything from stderr but got: '${stderr}'`);
   console.log('ok');
+});
+
+process.on('exit', function() {
+  fs.unlinkSync(filename);
 });
