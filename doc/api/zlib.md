@@ -400,13 +400,28 @@ class of the compressor/decompressor classes.
 ### zlib.bytesRead
 <!-- YAML
 added: v8.1.0
+deprecated: REPLACEME
+-->
+
+> Stability: 0 - Deprecated: Use [`zlib.bytesWritten`][] instead.
+
+* {number}
+
+Deprecated alias for [`zlib.bytesWritten`][]. This original name was chosen
+because it also made sense to interpret the value as the number of bytes
+read by the engine, but is inconsistent with other streams in Node.js that
+expose values under these names.
+
+### zlib.bytesWritten
+<!-- YAML
+added: REPLACEME
 -->
 
 * {number}
 
-The `zlib.bytesRead` property specifies the number of bytes read by the engine
-before the bytes are processed (compressed or decompressed, as appropriate for
-the derived class).
+The `zlib.bytesWritten` property specifies the number of bytes written to
+the engine, before the bytes are processed (compressed or decompressed,
+as appropriate for the derived class).
 
 ### zlib.close([callback])
 <!-- YAML
@@ -763,7 +778,8 @@ Decompress a chunk of data with [Unzip][].
 [InflateRaw]: #zlib_class_zlib_inflateraw
 [Inflate]: #zlib_class_zlib_inflate
 [Memory Usage Tuning]: #zlib_memory_usage_tuning
+[options]: #zlib_class_options
 [Unzip]: #zlib_class_zlib_unzip
 [`UV_THREADPOOL_SIZE`]: cli.html#cli_uv_threadpool_size_size
-[options]: #zlib_class_options
+[`zlib.bytesWritten`]: #zlib_zlib_byteswritten
 [zlib documentation]: https://zlib.net/manual.html#Constants
