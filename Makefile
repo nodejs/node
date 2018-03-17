@@ -203,7 +203,7 @@ coverage-test: coverage-build
 	(cd lib && .$(NODE) ../node_modules/.bin/nyc report \
 		--temp-directory "$(CURDIR)/.cov_tmp" \
 		--report-dir "../coverage")
-	-(cd out && PYTHONPATH=$(CURDIR)/gcovr $(PYTHON) -m gcovr --gcov-exclude='.*deps' \
+	-(cd out && "../gcovr/scripts/gcovr" --gcov-exclude='.*deps' \
 		--gcov-exclude='.*usr' -v -r Release/obj.target \
 		--html --html-detail -o ../coverage/cxxcoverage.html \
 		--gcov-executable="$(GCOV)")
