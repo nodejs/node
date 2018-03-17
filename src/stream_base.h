@@ -247,6 +247,7 @@ class StreamResource {
 
   StreamListener* listener_ = nullptr;
   uint64_t bytes_read_ = 0;
+  uint64_t bytes_written_ = 0;
 
   friend class StreamListener;
 };
@@ -323,6 +324,9 @@ class StreamBase : public StreamResource {
 
   template <class Base>
   static void GetBytesRead(const v8::FunctionCallbackInfo<v8::Value>& args);
+
+  template <class Base>
+  static void GetBytesWritten(const v8::FunctionCallbackInfo<v8::Value>& args);
 
   template <class Base,
             int (StreamBase::*Method)(
