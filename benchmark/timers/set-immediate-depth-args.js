@@ -2,14 +2,13 @@
 
 const common = require('../common.js');
 const bench = common.createBenchmark(main, {
-  millions: [5]
+  n: [5e6]
 });
 
-function main({ millions }) {
-  const N = millions * 1e6;
+function main({ n }) {
 
   process.on('exit', function() {
-    bench.end(millions);
+    bench.end(n);
   });
 
   function cb3(n, arg2, arg3) {
@@ -43,5 +42,5 @@ function main({ millions }) {
     }
   }
   bench.start();
-  setImmediate(cb1, N);
+  setImmediate(cb1, n);
 }

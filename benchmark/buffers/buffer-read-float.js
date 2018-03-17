@@ -6,10 +6,10 @@ const bench = common.createBenchmark(main, {
   type: ['Double', 'Float'],
   endian: ['BE', 'LE'],
   value: ['zero', 'big', 'small', 'inf', 'nan'],
-  millions: [1]
+  n: [1e6]
 });
 
-function main({ noAssert, millions, type, endian, value }) {
+function main({ noAssert, n, type, endian, value }) {
   noAssert = noAssert === 'true';
   type = type || 'Double';
   const buff = Buffer.alloc(8);
@@ -34,8 +34,8 @@ function main({ noAssert, millions, type, endian, value }) {
   buff[`write${type}${endian}`](values[type][value], 0, noAssert);
 
   bench.start();
-  for (var i = 0; i !== millions * 1e6; i++) {
+  for (var i = 0; i !== n; i++) {
     buff[fn](0, noAssert);
   }
-  bench.end(millions);
+  bench.end(n);
 }

@@ -22,7 +22,7 @@ const bench = common.createBenchmark(main, {
   noAssert: ['false', 'true'],
   buffer: ['fast', 'slow'],
   type: types,
-  millions: [1]
+  n: [1e6]
 });
 
 const INT8 = 0x7f;
@@ -45,30 +45,30 @@ const mod = {
   writeUInt32LE: UINT32
 };
 
-function main({ noAssert, millions, buf, type }) {
+function main({ noAssert, n, buf, type }) {
   const clazz = buf === 'fast' ? Buffer : require('buffer').SlowBuffer;
   const buff = new clazz(8);
   const fn = `write${type || 'UInt8'}`;
 
   if (/Int/.test(fn))
-    benchInt(buff, fn, millions, noAssert);
+    benchInt(buff, fn, n, noAssert);
   else
-    benchFloat(buff, fn, millions, noAssert);
+    benchFloat(buff, fn, n, noAssert);
 }
 
-function benchInt(buff, fn, millions, noAssert) {
+function benchInt(buff, fn, n, noAssert) {
   const m = mod[fn];
   bench.start();
-  for (var i = 0; i !== millions * 1e6; i++) {
+  for (var i = 0; i !== n; i++) {
     buff[fn](i & m, 0, noAssert);
   }
-  bench.end(millions);
+  bench.end(n);
 }
 
-function benchFloat(buff, fn, millions, noAssert) {
+function benchFloat(buff, fn, n, noAssert) {
   bench.start();
-  for (var i = 0; i !== millions * 1e6; i++) {
+  for (var i = 0; i !== n * 1e6; i++) {
     buff[fn](i, 0, noAssert);
   }
-  bench.end(millions);
+  bench.end(n);
 }

@@ -22,10 +22,10 @@ const bench = common.createBenchmark(main, {
   noAssert: ['false', 'true'],
   buffer: ['fast', 'slow'],
   type: types,
-  millions: [1]
+  n: [1e6]
 });
 
-function main({ noAssert, millions, buf, type }) {
+function main({ noAssert, n, buf, type }) {
   noAssert = noAssert === 'true';
   const clazz = buf === 'fast' ? Buffer : require('buffer').SlowBuffer;
   const buff = new clazz(8);
@@ -33,8 +33,9 @@ function main({ noAssert, millions, buf, type }) {
 
   buff.writeDoubleLE(0, 0, noAssert);
   bench.start();
-  for (var i = 0; i !== millions * 1e6; i++) {
+
+  for (var i = 0; i !== n; i++) {
     buff[fn](0, noAssert);
   }
-  bench.end(millions);
+  bench.end(n);
 }

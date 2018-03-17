@@ -1,11 +1,10 @@
 'use strict';
 const common = require('../common.js');
 const bench = common.createBenchmark(main, {
-  millions: [5]
+  n: [5e6]
 });
 
-function main({ millions }) {
-  var n = millions * 1e6;
+function main({ n }) {
 
   bench.start();
   for (var i = 0; i < n; i++) {
@@ -20,6 +19,6 @@ function main({ millions }) {
   }
   function onNextTick(i) {
     if (i + 1 === n)
-      bench.end(millions);
+      bench.end(n);
   }
 }

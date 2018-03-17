@@ -1,13 +1,12 @@
 'use strict';
 const common = require('../common.js');
 const bench = common.createBenchmark(main, {
-  millions: [12]
+  n: [12e6]
 });
 
 process.maxTickDepth = Infinity;
 
-function main({ millions }) {
-  var n = millions * 1e6;
+function main({ n }) {
 
   bench.start();
   process.nextTick(onNextTick);
@@ -15,6 +14,6 @@ function main({ millions }) {
     if (--n)
       process.nextTick(onNextTick);
     else
-      bench.end(millions);
+      bench.end(n);
   }
 }
