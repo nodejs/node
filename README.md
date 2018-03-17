@@ -48,12 +48,13 @@ When looking for support, please first search for your question in these venues:
 * [Node.js Website][]
 * [Node.js Help][]
 * [Open or closed issues in the Node.js GitHub organization](https://github.com/issues?utf8=%E2%9C%93&q=sort%3Aupdated-desc+org%3Anodejs+is%3Aissue)
+
+If you didn't find an answer in one of the official resources above, you can
+search these unofficial resources:
+
 * [Questions tagged 'node.js' on StackOverflow][]
-
-If you didn't find an answer in one of the venues above, you can:
-
-* Join the **unofficial** [#node.js channel on chat.freenode.net][]. See
-<http://nodeirc.info/> for more information.
+* [#node.js channel on chat.freenode.net][]. See <http://nodeirc.info/> for more
+  information.
 
 GitHub issues are meant for tracking enhancements and bugs, not general support.
 
