@@ -26,7 +26,6 @@
 #include "handle_wrap.h"
 #include "string_bytes.h"
 
-#include <stdlib.h>
 
 namespace node {
 
