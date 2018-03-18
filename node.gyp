@@ -143,6 +143,7 @@
       'lib/internal/v8_prof_polyfill.js',
       'lib/internal/v8_prof_processor.js',
       'lib/internal/vm/Module.js',
+      'lib/internal/stream_base_commons.js',
       'lib/internal/streams/lazy_transform.js',
       'lib/internal/streams/BufferList.js',
       'lib/internal/streams/legacy.js',
