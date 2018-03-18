@@ -225,7 +225,7 @@ class StreamResource {
   // Clear the current error (i.e. that would be returned by Error()).
   virtual void ClearError();
 
-  // Transfer ownership of this tream to `listener`. The previous listener
+  // Transfer ownership of this stream to `listener`. The previous listener
   // will not receive any more callbacks while the new listener was active.
   void PushStreamListener(StreamListener* listener);
   // Remove a listener, and, if this was the currently active one,
