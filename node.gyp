@@ -145,6 +145,7 @@
       'lib/internal/v8_prof_processor.js',
       'lib/internal/vm/Module.js',
       'lib/internal/streams/lazy_transform.js',
+      'lib/internal/streams/stream_base.js',
       'lib/internal/streams/async_iterator.js',
       'lib/internal/streams/BufferList.js',
       'lib/internal/streams/duplex_base.js',
