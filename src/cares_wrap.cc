@@ -149,7 +149,6 @@ class ChannelWrap : public AsyncWrap {
 
   void Setup();
   void EnsureServers();
-  void CleanupTimer();
 
   void ModifyActivityQueryCount(int count);
 
@@ -503,7 +502,12 @@ void ChannelWrap::Setup() {
 
   /* Initialize the timeout timer. The timer won't be started until the */
   /* first socket is opened. */
-  CleanupTimer();
+  if (timer_handle_ != nullptr) {
+    auto close_cb = [](uv_handle_t* handle) {
+      delete reinterpret_cast<uv_timer_t*>(handle);
+    };
+    uv_close(reinterpret_cast<uv_handle_t*>(timer_handle_), close_cb);
+  }
   timer_handle_ = new uv_timer_t();
   timer_handle_->data = static_cast<void*>(this);
   uv_timer_init(env()->event_loop(), timer_handle_);
@@ -517,19 +521,19 @@ ChannelWrap::~ChannelWrap() {
   }
 
   ares_destroy(channel_);
-  CleanupTimer();
-}
 
-
-void ChannelWrap::CleanupTimer() {
-  if (timer_handle_ == nullptr) return;
-
-  uv_close(reinterpret_cast<uv_handle_t*>(timer_handle_),
-           [](uv_handle_t* handle) {
-    delete reinterpret_cast<uv_timer_t*>(handle);
-  });
+  if (timer_handle_ == nullptr)
+    return;
+  uv_timer_stop(timer_handle_);
+  auto close_cb = [](Environment* env, void* data) {
+    uv_close(reinterpret_cast<uv_handle_t*>(data), [](uv_handle_t* handle) {
+      delete reinterpret_cast<uv_timer_t*>(handle);
+    });
+  };
+  env()->SetUnrefImmediate(close_cb, timer_handle_);
   timer_handle_ = nullptr;
 }
+
 
 void ChannelWrap::ModifyActivityQueryCount(int count) {
   active_query_count_ += count;

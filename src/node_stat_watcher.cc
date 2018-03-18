@@ -57,11 +57,6 @@ void StatWatcher::Initialize(Environment* env, Local<Object> target) {
 }
 
 
-static void Delete(uv_handle_t* handle) {
-  delete reinterpret_cast<uv_fs_poll_t*>(handle);
-}
-
-
 StatWatcher::StatWatcher(Environment* env, Local<Object> wrap)
     : AsyncWrap(env, wrap, AsyncWrap::PROVIDER_STATWATCHER),
       watcher_(new uv_fs_poll_t) {
@@ -74,7 +69,12 @@ StatWatcher::StatWatcher(Environment* env, Local<Object> wrap)
 
 StatWatcher::~StatWatcher() {
   Stop();
-  uv_close(reinterpret_cast<uv_handle_t*>(watcher_), Delete);
+  auto close_cb = [](Environment* env, void* data) {
+    uv_close(reinterpret_cast<uv_handle_t*>(data), [](uv_handle_t* handle) {
+      delete reinterpret_cast<uv_fs_poll_t*>(handle);
+    });
+  };
+  env()->SetUnrefImmediate(close_cb, watcher_);
 }
 
 
