@@ -2615,8 +2615,13 @@ napi_status napi_escape_handle(napi_env env,
   v8impl::EscapableHandleScopeWrapper* s =
       v8impl::V8EscapableHandleScopeFromJsEscapableHandleScope(scope);
   if (!s->escape_called()) {
-    *result = v8impl::JsValueFromV8LocalValue(
-        s->Escape(v8impl::V8LocalValueFromJsValue(escapee)));
+    v8::Local<v8::Value> escapee_object =
+        v8impl::V8LocalValueFromJsValue(escapee);
+    if (escapee_object->IsUndefined()) {
+      *result = escapee;
+    } else {
+      *result = v8impl::JsValueFromV8LocalValue(s->Escape(escapee_object));
+    }
     return napi_clear_last_error(env);
   }
   return napi_set_last_error(env, napi_escape_called_twice);
