@@ -123,7 +123,7 @@ is updated whenever the `'resize'` event is emitted.
 
 ### writeStream.getColorDepth([env])
 <!-- YAML
-added: REPLACEME
+added: v9.9.0
 -->
 
 * `env` {object} A object containing the environment variables to check.

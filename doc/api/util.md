@@ -316,8 +316,8 @@ stream.write('With ES6');
 <!-- YAML
 added: v0.3.0
 changes:
-  - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/REPLACEME
+  - version: v9.9.0
+    pr-url: https://github.com/nodejs/node/pull/17576
     description: The `compact` option is supported now.
   - version: v6.6.0
     pr-url: https://github.com/nodejs/node/pull/8174
