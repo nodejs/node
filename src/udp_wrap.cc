@@ -26,7 +26,6 @@
 #include "req_wrap-inl.h"
 #include "util-inl.h"
 
-#include <stdlib.h>
 
 
 namespace node {
