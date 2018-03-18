@@ -585,7 +585,7 @@ For Example: `{ type: 'ECDH', name: 'prime256v1', size: 256 }`
 
 ### tlsSocket.getFinished()
 <!-- YAML
-added: REPLACEME
+added: v9.9.0
 -->
 
 * Returns: {Buffer|undefined} The latest `Finished` message that has been
@@ -647,7 +647,7 @@ If the peer does not provide a certificate, an empty object will be returned.
 
 ### tlsSocket.getPeerFinished()
 <!-- YAML
-added: REPLACEME
+added: v9.9.0
 -->
 
 * Returns: {Buffer|undefined} The latest `Finished` message that is expected

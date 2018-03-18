@@ -348,7 +348,7 @@ changes:
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/17907
     description: The `depth` default changed to Infinity.
-  - version: REPLACEME
+  - version: v9.9.0
     pr-url: https://github.com/nodejs/node/pull/17576
     description: The `compact` option is supported now.
   - version: v6.6.0

@@ -1294,7 +1294,7 @@ Adversaries][] for details.
 <!-- YAML
 added: v0.1.94
 changes:
-  - version: REPLACEME
+  - version: v9.9.0
     pr-url: https://github.com/nodejs/node/pull/18644
     description: The `iv` parameter may now be `null` for ciphers which do not
                  need an initialization vector.
@@ -1366,7 +1366,7 @@ to create the `Decipher` object.
 <!-- YAML
 added: v0.1.94
 changes:
-  - version: REPLACEME
+  - version: v9.9.0
     pr-url: https://github.com/nodejs/node/pull/18644
     description: The `iv` parameter may now be `null` for ciphers which do not
                  need an initialization vector.

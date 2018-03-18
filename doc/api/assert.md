@@ -15,12 +15,12 @@ For more information about the used equality comparisons see
 
 ## Strict mode
 <!-- YAML
-added: REPLACEME
+added: v9.9.0
 changes:
-  - version: REPLACEME
+  - version: v9.9.0
     pr-url: https://github.com/nodejs/node/pull/17615
     description: Added error diffs to the strict mode
-  - version: REPLACEME
+  - version: v9.9.0
     pr-url: https://github.com/nodejs/node/pull/17002
     description: Added strict mode to the assert module.
 -->
@@ -924,7 +924,7 @@ instead of the `AssertionError`.
 <!-- YAML
 added: v0.1.21
 changes:
-  - version: REPLACEME
+  - version: v9.9.0
     pr-url: https://github.com/nodejs/node/pull/17584
     description: The `error` parameter can now be an object as well.
   - version: v4.2.0
