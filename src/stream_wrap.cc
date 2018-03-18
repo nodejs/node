@@ -32,7 +32,6 @@
 #include "udp_wrap.h"
 #include "util-inl.h"
 
-#include <stdlib.h>  // abort()
 #include <string.h>  // memcpy()
 #include <limits.h>  // INT_MAX
 
