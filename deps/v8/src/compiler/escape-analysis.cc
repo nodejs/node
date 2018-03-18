@@ -623,9 +623,7 @@ void ReduceNode(const Operator* op, EscapeAnalysisTracker::Scope* current,
       break;
     }
     case IrOpcode::kTypeGuard: {
-      // The type-guard is re-introduced in the final reducer if the types
-      // don't match.
-      current->SetReplacement(current->ValueInput(0));
+      current->SetVirtualObject(current->ValueInput(0));
       break;
     }
     case IrOpcode::kReferenceEqual: {
