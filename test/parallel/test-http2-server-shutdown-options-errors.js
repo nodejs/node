@@ -18,30 +18,32 @@ const types = [
 server.on('stream', common.mustCall((stream) => {
   const session = stream.session;
 
-  types.forEach((i) => {
+  types.forEach((input) => {
     common.expectsError(
-      () => session.goaway(i),
+      () => session.goaway(input),
       {
         code: 'ERR_INVALID_ARG_TYPE',
         type: TypeError,
-        message: 'The "code" argument must be of type number'
+        message: 'The "code" argument must be of type number. Received type ' +
+                 typeof input
       }
     );
     common.expectsError(
-      () => session.goaway(0, i),
+      () => session.goaway(0, input),
       {
         code: 'ERR_INVALID_ARG_TYPE',
         type: TypeError,
-        message: 'The "lastStreamID" argument must be of type number'
+        message: 'The "lastStreamID" argument must be of type number. ' +
+                 `Received type ${typeof input}`
       }
     );
     common.expectsError(
-      () => session.goaway(0, 0, i),
+      () => session.goaway(0, 0, input),
       {
         code: 'ERR_INVALID_ARG_TYPE',
         type: TypeError,
         message: 'The "opaqueData" argument must be one of type Buffer, ' +
-                 'TypedArray, or DataView'
+                 `TypedArray, or DataView. Received type ${typeof input}`
       }
     );
   });

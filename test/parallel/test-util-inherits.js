@@ -74,13 +74,14 @@ assert.strictEqual(e.d(), 'd');
 assert.strictEqual(e.e(), 'e');
 assert.strictEqual(e.constructor, E);
 
-// should throw with invalid arguments
+// Should throw with invalid arguments
 common.expectsError(function() {
   inherits(A, {});
 }, {
   code: 'ERR_INVALID_ARG_TYPE',
   type: TypeError,
-  message: 'The "superCtor.prototype" property must be of type Function'
+  message: 'The "superCtor.prototype" property must be of type Function. ' +
+           'Received type undefined'
 });
 
 common.expectsError(function() {
@@ -88,7 +89,8 @@ common.expectsError(function() {
 }, {
   code: 'ERR_INVALID_ARG_TYPE',
   type: TypeError,
-  message: 'The "superCtor" argument must be of type Function'
+  message: 'The "superCtor" argument must be of type Function. ' +
+           'Received type object'
 });
 
 common.expectsError(function() {
@@ -96,5 +98,5 @@ common.expectsError(function() {
 }, {
   code: 'ERR_INVALID_ARG_TYPE',
   type: TypeError,
-  message: 'The "ctor" argument must be of type Function'
+  message: 'The "ctor" argument must be of type Function. Received type object'
 });

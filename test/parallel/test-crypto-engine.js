@@ -12,7 +12,7 @@ common.expectsError(
   {
     code: 'ERR_INVALID_ARG_TYPE',
     type: TypeError,
-    message: 'The "id" argument must be of type string'
+    message: 'The "id" argument must be of type string. Received type boolean'
   });
 
 common.expectsError(
@@ -20,7 +20,7 @@ common.expectsError(
   {
     code: 'ERR_INVALID_ARG_TYPE',
     type: TypeError,
-    message: 'The "flags" argument must be of type number'
+    message: 'The "flags" argument must be of type number. Received type string'
   });
 
 common.expectsError(

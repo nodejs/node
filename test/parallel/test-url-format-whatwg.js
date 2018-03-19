@@ -21,15 +21,17 @@ assert.strictEqual(
 );
 
 {
-  const expectedErr = common.expectsError({
-    code: 'ERR_INVALID_ARG_TYPE',
-    type: TypeError,
-    message: 'The "options" argument must be of type Object'
-  }, 4);
-  assert.throws(() => url.format(myURL, true), expectedErr);
-  assert.throws(() => url.format(myURL, 1), expectedErr);
-  assert.throws(() => url.format(myURL, 'test'), expectedErr);
-  assert.throws(() => url.format(myURL, Infinity), expectedErr);
+  [true, 1, 'test', Infinity].forEach((value) => {
+    assert.throws(
+      () => url.format(myURL, value),
+      {
+        code: 'ERR_INVALID_ARG_TYPE',
+        name: 'TypeError [ERR_INVALID_ARG_TYPE]',
+        message: 'The "options" argument must be of type Object. ' +
+                 `Received type ${typeof value}`
+      }
+    );
+  });
 }
 
 // Any falsy value other than undefined will be treated as false.

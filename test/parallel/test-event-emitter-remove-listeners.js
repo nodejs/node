@@ -146,12 +146,12 @@ function listener2() {}
 // Verify that the removed listener must be a function
 common.expectsError(() => {
   const ee = new EventEmitter();
-
   ee.removeListener('foo', null);
 }, {
   code: 'ERR_INVALID_ARG_TYPE',
   type: TypeError,
-  message: 'The "listener" argument must be of type Function'
+  message: 'The "listener" argument must be of type Function. ' +
+           'Received type object'
 });
 
 {

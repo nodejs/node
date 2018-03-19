@@ -53,11 +53,11 @@ server.listen(0, common.mustCall(function() {
         message: 'The "method" argument must be of type string'
       }
     );
-    common.expectsError(
+    assert.throws(
       () => request.method = true,
       {
         code: 'ERR_INVALID_ARG_TYPE',
-        type: TypeError,
+        name: 'TypeError [ERR_INVALID_ARG_TYPE]',
         message: 'The "method" argument must be of type string'
       }
     );

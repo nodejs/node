@@ -44,23 +44,15 @@ assert.notStrictEqual(flatOne, one[0]);
 assert.strictEqual(flatLong.toString(), check);
 assert.strictEqual(flatLongLen.toString(), check);
 
-assertWrongList();
-assertWrongList(null);
-assertWrongList(Buffer.from('hello'));
-assertWrongList([42]);
-assertWrongList(['hello', 'world']);
-assertWrongList(['hello', Buffer.from('world')]);
-
-function assertWrongList(value) {
-  common.expectsError(() => {
+[undefined, null, Buffer.from('hello')].forEach((value) => {
+  assert.throws(() => {
     Buffer.concat(value);
   }, {
     code: 'ERR_INVALID_ARG_TYPE',
-    type: TypeError,
-    message: 'The "list" argument must be one of type ' +
-             'Array, Buffer, or Uint8Array'
+    message: 'The "list" argument must be one of type Array, Buffer, ' +
+             `or Uint8Array. Received type ${typeof value}`
   });
-}
+});
 
 // eslint-disable-next-line node-core/crypto-check
 const random10 = common.hasCrypto ?

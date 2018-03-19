@@ -182,12 +182,12 @@ function testFtruncate(cb) {
   const fd = fs.openSync(file5, 'r+');
   process.on('exit', () => fs.closeSync(fd));
 
-  ['', false, null, {}, []].forEach((i) => {
-    common.expectsError(
-      () => fs.ftruncate(fd, i),
+  ['', false, null, {}, []].forEach((input) => {
+    assert.throws(
+      () => fs.ftruncate(fd, input),
       {
         code: 'ERR_INVALID_ARG_TYPE',
-        type: TypeError,
+        name: 'TypeError [ERR_INVALID_ARG_TYPE]',
         message: 'The "len" argument must be of type integer'
       }
     );
@@ -210,21 +210,15 @@ function testFtruncate(cb) {
   }));
 }
 
-['', false, null, undefined, {}, []].forEach((i) => {
-  common.expectsError(
-    () => fs.ftruncate(i),
-    {
-      code: 'ERR_INVALID_ARG_TYPE',
-      type: TypeError,
-      message: 'The "fd" argument must be of type integer'
-    }
-  );
-  common.expectsError(
-    () => fs.ftruncateSync(i),
-    {
-      code: 'ERR_INVALID_ARG_TYPE',
-      type: TypeError,
-      message: 'The "fd" argument must be of type integer'
-    }
-  );
+['', false, null, undefined, {}, []].forEach((input) => {
+  ['ftruncate', 'ftruncateSync'].forEach((fnName) => {
+    assert.throws(
+      () => fs[fnName](input),
+      {
+        code: 'ERR_INVALID_ARG_TYPE',
+        name: 'TypeError [ERR_INVALID_ARG_TYPE]',
+        message: 'The "fd" argument must be of type integer'
+      }
+    );
+  });
 });

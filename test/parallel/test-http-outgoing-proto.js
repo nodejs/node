@@ -79,7 +79,8 @@ common.expectsError(() => {
 }, {
   code: 'ERR_INVALID_ARG_TYPE',
   type: TypeError,
-  message: 'The first argument must be one of type string or Buffer'
+  message: 'The first argument must be one of type string or Buffer. ' +
+           'Received type undefined'
 });
 
 common.expectsError(() => {
@@ -88,7 +89,8 @@ common.expectsError(() => {
 }, {
   code: 'ERR_INVALID_ARG_TYPE',
   type: TypeError,
-  message: 'The first argument must be one of type string or Buffer'
+  message: 'The first argument must be one of type string or Buffer. ' +
+           'Received type number'
 });
 
 // addTrailers()

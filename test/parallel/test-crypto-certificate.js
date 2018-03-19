@@ -78,39 +78,26 @@ function stripLineEndings(obj) {
   return obj.replace(/\n/g, '');
 }
 
-// direct call Certificate() should return instance
+// Direct call Certificate() should return instance
 assert(Certificate() instanceof Certificate);
 
-[1, {}, [], Infinity, true, 'test', undefined, null].forEach((i) => {
-  common.expectsError(
-    () => Certificate.verifySpkac(i),
+[1, {}, [], Infinity, true, 'test', undefined, null].forEach((val) => {
+  assert.throws(
+    () => Certificate.verifySpkac(val),
     {
       code: 'ERR_INVALID_ARG_TYPE',
-      type: TypeError,
       message: 'The "spkac" argument must be one of type Buffer, TypedArray, ' +
-               'or DataView'
+               `or DataView. Received type ${typeof val}`
     }
   );
 });
 
-[1, {}, [], Infinity, true, undefined, null].forEach((i) => {
-  common.expectsError(
-    () => Certificate.exportPublicKey(i),
-    {
-      code: 'ERR_INVALID_ARG_TYPE',
-      type: TypeError,
-      message: 'The "spkac" argument must be one of type string, Buffer,' +
-               ' TypedArray, or DataView'
-    }
-  );
-
-  common.expectsError(
-    () => Certificate.exportChallenge(i),
-    {
-      code: 'ERR_INVALID_ARG_TYPE',
-      type: TypeError,
-      message: 'The "spkac" argument must be one of type string, Buffer,' +
-               ' TypedArray, or DataView'
-    }
-  );
+[1, {}, [], Infinity, true, undefined, null].forEach((val) => {
+  const errObj = {
+    code: 'ERR_INVALID_ARG_TYPE',
+    message: 'The "spkac" argument must be one of type string, Buffer,' +
+             ` TypedArray, or DataView. Received type ${typeof val}`
+  };
+  assert.throws(() => Certificate.exportPublicKey(val), errObj);
+  assert.throws(() => Certificate.exportChallenge(val), errObj);
 });

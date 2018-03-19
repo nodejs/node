@@ -317,10 +317,6 @@ try {
 
 {
   // Verify that throws() and doesNotThrow() throw on non-function block.
-  function typeName(value) {
-    return value === null ? 'null' : typeof value;
-  }
-
   const testBlockTypeError = (method, block) => {
     common.expectsError(
       () => method(block),
@@ -328,7 +324,7 @@ try {
         code: 'ERR_INVALID_ARG_TYPE',
         type: TypeError,
         message: 'The "block" argument must be of type Function. Received ' +
-                `type ${typeName(block)}`
+                 `type ${typeof block}`
       }
     );
   };
@@ -369,15 +365,15 @@ assert.throws(() => {
 {
   // Bad args to AssertionError constructor should throw TypeError.
   const args = [1, true, false, '', null, Infinity, Symbol('test'), undefined];
-  const re = /^The "options" argument must be of type Object$/;
   args.forEach((input) => {
     assert.throws(
       () => new assert.AssertionError(input),
-      common.expectsError({
+      {
         code: 'ERR_INVALID_ARG_TYPE',
-        type: TypeError,
-        message: re
-      }));
+        name: 'TypeError [ERR_INVALID_ARG_TYPE]',
+        message: 'The "options" argument must be of type Object. ' +
+                 `Received type ${typeof input}`
+      });
   });
 }
 

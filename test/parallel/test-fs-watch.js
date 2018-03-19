@@ -79,14 +79,14 @@ for (const testCase of cases) {
   }, 100);
 }
 
-[false, 1, {}, [], null, undefined].forEach((i) => {
+[false, 1, {}, [], null, undefined].forEach((input) => {
   common.expectsError(
-    () => fs.watch(i, common.mustNotCall()),
+    () => fs.watch(input, common.mustNotCall()),
     {
       code: 'ERR_INVALID_ARG_TYPE',
       type: TypeError,
-      message: 'The "filename" argument must be one of ' +
-               'type string, Buffer, or URL'
+      message: 'The "filename" argument must be one of type string, Buffer, ' +
+               `or URL. Received type ${typeof input}`
     }
   );
 });

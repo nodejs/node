@@ -10,47 +10,27 @@ const onMessage = common.mustCall((err, bytes) => {
   assert.strictEqual(bytes, buf.length);
 }, 6);
 
-const expectedError = { code: 'ERR_INVALID_ARG_TYPE',
-                        type: TypeError,
-                        message:
-  /^The "address" argument must be one of type string or falsy$/
-};
-
 const client = dgram.createSocket('udp4').bind(0, () => {
   const port = client.address().port;
 
-  // valid address: false
-  client.send(buf, port, false, onMessage);
+  // Check valid addresses
+  [false, '', null, 0, undefined].forEach((address) => {
+    client.send(buf, port, address, onMessage);
+  });
 
-  // valid address: empty string
-  client.send(buf, port, '', onMessage);
-
-  // valid address: null
-  client.send(buf, port, null, onMessage);
-
-  // valid address: 0
-  client.send(buf, port, 0, onMessage);
-
-  // valid address: undefined
-  client.send(buf, port, undefined, onMessage);
-
-  // valid address: not provided
+  // Valid address: not provided
   client.send(buf, port, onMessage);
 
-  // invalid address: object
-  common.expectsError(() => {
-    client.send(buf, port, []);
-  }, expectedError);
-
-  // invalid address: nonzero number
-  common.expectsError(() => {
-    client.send(buf, port, 1);
-  }, expectedError);
-
-  // invalid address: true
-  common.expectsError(() => {
-    client.send(buf, port, true);
-  }, expectedError);
+  // Check invalid addresses
+  [[], 1, true].forEach((invalidInput) => {
+    const expectedError = {
+      code: 'ERR_INVALID_ARG_TYPE',
+      name: 'TypeError [ERR_INVALID_ARG_TYPE]',
+      message: 'The "address" argument must be one of type string or falsy. ' +
+               `Received type ${typeof invalidInput}`
+    };
+    assert.throws(() => client.send(buf, port, invalidInput), expectedError);
+  });
 });
 
 client.unref();
