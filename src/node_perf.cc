@@ -46,7 +46,7 @@ void performance_state::Mark(enum PerformanceMilestone milestone,
   TRACE_EVENT_INSTANT_WITH_TIMESTAMP0(
       TRACING_CATEGORY_NODE1(bootstrap),
       GetPerformanceMilestoneName(milestone),
-      TRACE_EVENT_SCOPE_THREAD, ts);
+      TRACE_EVENT_SCOPE_THREAD, ts / 1000);
 }
 
 double GetCurrentTimeInMicroseconds() {
