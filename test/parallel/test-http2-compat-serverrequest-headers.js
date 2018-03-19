@@ -45,12 +45,12 @@ server.listen(0, common.mustCall(function() {
     // change the request method
     request.method = 'POST';
     assert.strictEqual(request.method, 'POST');
-    common.expectsError(
+    assert.throws(
       () => request.method = '   ',
       {
-        code: 'ERR_INVALID_ARG_TYPE',
-        type: TypeError,
-        message: 'The "method" argument must be of type string'
+        code: 'ERR_INVALID_ARG_VALUE',
+        name: 'TypeError [ERR_INVALID_ARG_VALUE]',
+        message: "The argument 'method' is invalid. Received '   '"
       }
     );
     assert.throws(
@@ -58,7 +58,8 @@ server.listen(0, common.mustCall(function() {
       {
         code: 'ERR_INVALID_ARG_TYPE',
         name: 'TypeError [ERR_INVALID_ARG_TYPE]',
-        message: 'The "method" argument must be of type string'
+        message: 'The "method" argument must be of type string. ' +
+                 'Received type boolean'
       }
     );
 
