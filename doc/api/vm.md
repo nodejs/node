@@ -469,6 +469,10 @@ overhead.
 ### script.runInNewContext([sandbox[, options]])
 <!-- YAML
 added: v0.3.1
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/19016
+    description: The `contextCodeGeneration` option is supported now.
 -->
 
 * `sandbox` {Object} An object that will be [contextified][]. If `undefined`, a
@@ -573,6 +577,10 @@ console.log(globalVar);
 ## vm.createContext([sandbox[, options]])
 <!-- YAML
 added: v0.3.1
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/19016
+    description: The `codeGeneration` option is supported now.
 -->
 
 * `sandbox` {Object}
