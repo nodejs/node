@@ -335,7 +335,7 @@ Immediately terminates the `Http2Session` and the associated `net.Socket` or
 `tls.TLSSocket`.
 
 Once destroyed, the `Http2Session` will emit the `'close'` event. If `error`
-is not undefined, an `'error'` event will be emitted immediately after the
+is not undefined, an `'error'` event will be emitted immediately before the
 `'close'` event.
 
 If there are any remaining open `Http2Streams` associated with the
@@ -816,9 +816,9 @@ added: v8.4.0
 The `'close'` event is emitted when the `Http2Stream` is destroyed. Once
 this event is emitted, the `Http2Stream` instance is no longer usable.
 
-The listener callback is passed a single argument specifying the HTTP/2 error
-code specified when closing the stream. If the code is any value other than
-`NGHTTP2_NO_ERROR` (`0`), an `'error'` event will also be emitted.
+The HTTP/2 error code used when closing the stream can be retrieved using
+the `http2stream.rstCode` property. If the code is any value other than
+`NGHTTP2_NO_ERROR` (`0`), an `'error'` event will have also been emitted.
 
 #### Event: 'error'
 <!-- YAML

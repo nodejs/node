@@ -50,8 +50,8 @@ server.listen(0, common.mustCall(() => {
       ':method': 'POST',
       'rstcode': test[0]
     });
-    req.on('close', common.mustCall((code) => {
-      assert.strictEqual(code, test[0]);
+    req.on('close', common.mustCall(() => {
+      assert.strictEqual(req.rstCode, test[0]);
       countdown.dec();
     }));
     req.on('aborted', common.mustCall());
