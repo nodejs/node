@@ -24,7 +24,7 @@ const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
-// Checks tls delay
+// Checks tls connection delay while sending and recieving data
 
 const fixtures = require('../common/fixtures');
 const assert = require('assert');
@@ -46,9 +46,9 @@ const server = net.createServer(common.mustCall((c) => {
       secureContext: tls.createSecureContext(options)
     });
 
-    s.on('data', common.mustCall((chunk) => {
+    s.on('data', (chunk) => {
       received += chunk;
-    }));
+    });
 
     s.on('end', common.mustCall(() => {
       server.close();
