@@ -104,8 +104,8 @@ if (process.argv[2] === 'child') {
     }
   });
 
-  process.on('exit', function() {
+  child.on('close', common.mustCall(function() {
     assert.strictEqual(childFlag, false);
     assert.strictEqual(parentFlag, false);
-  });
+  }));
 }
