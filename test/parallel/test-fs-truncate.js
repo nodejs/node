@@ -36,7 +36,7 @@ let stat;
 const msg = 'Using fs.truncate with a file descriptor is deprecated.' +
             ' Please use fs.ftruncate with a file descriptor instead.';
 
-// truncateSync
+// Check truncateSync
 fs.writeFileSync(filename, data);
 stat = fs.statSync(filename);
 assert.strictEqual(stat.size, 1024 * 16);
@@ -49,7 +49,7 @@ fs.truncateSync(filename);
 stat = fs.statSync(filename);
 assert.strictEqual(stat.size, 0);
 
-// ftruncateSync
+// Check ftruncateSync
 fs.writeFileSync(filename, data);
 const fd = fs.openSync(filename, 'r+');
 
@@ -64,18 +64,16 @@ fs.ftruncateSync(fd);
 stat = fs.statSync(filename);
 assert.strictEqual(stat.size, 0);
 
-// truncateSync
+// Check truncateSync
 common.expectWarning('DeprecationWarning', msg);
 fs.truncateSync(fd);
 
 fs.closeSync(fd);
 
-// async tests
+// Async tests
 testTruncate(common.mustCall(function(er) {
   assert.ifError(er);
-  testFtruncate(common.mustCall(function(er) {
-    assert.ifError(er);
-  }));
+  testFtruncate(common.mustCall(assert.ifError));
 }));
 
 function testTruncate(cb) {
@@ -104,7 +102,6 @@ function testTruncate(cb) {
     });
   });
 }
-
 
 function testFtruncate(cb) {
   fs.writeFile(filename, data, function(er) {
@@ -135,7 +132,6 @@ function testFtruncate(cb) {
     });
   });
 }
-
 
 // Make sure if the size of the file is smaller than the length then it is
 // filled with zeroes.

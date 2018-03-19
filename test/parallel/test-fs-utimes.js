@@ -111,10 +111,10 @@ function testIt(atime, mtime, callback) {
   //
   // test async code paths
   //
-  fs.utimes(tmpdir.path, atime, mtime, common.mustCall(function(err) {
+  fs.utimes(tmpdir.path, atime, mtime, common.mustCall((err) => {
     expect_ok('utimes', tmpdir.path, err, atime, mtime);
 
-    fs.utimes('foobarbaz', atime, mtime, common.mustCall(function(err) {
+    fs.utimes('foobarbaz', atime, mtime, common.mustCall((err) => {
       expect_errno('utimes', 'foobarbaz', err, 'ENOENT');
 
       // don't close this fd
@@ -124,7 +124,7 @@ function testIt(atime, mtime, callback) {
         fd = fs.openSync(tmpdir.path, 'r');
       }
 
-      fs.futimes(fd, atime, mtime, common.mustCall(function(err) {
+      fs.futimes(fd, atime, mtime, common.mustCall((err) => {
         expect_ok('futimes', fd, err, atime, mtime);
 
         common.expectsError(
@@ -148,19 +148,19 @@ function testIt(atime, mtime, callback) {
 
 const stats = fs.statSync(tmpdir.path);
 
-// run tests
+// Run tests
 const runTest = common.mustCall(testIt, 1);
 
-runTest(new Date('1982-09-10 13:37'), new Date('1982-09-10 13:37'), function() {
-  runTest(new Date(), new Date(), function() {
-    runTest(123456.789, 123456.789, function() {
-      runTest(stats.mtime, stats.mtime, function() {
-        runTest('123456', -1, function() {
+runTest(new Date('1982-09-10 13:37'), new Date('1982-09-10 13:37'), () => {
+  runTest(new Date(), new Date(), () => {
+    runTest(123456.789, 123456.789, () => {
+      runTest(stats.mtime, stats.mtime, () => {
+        runTest('123456', -1, () => {
           runTest(
             new Date('2017-04-08T17:59:38.008Z'),
             new Date('2017-04-08T17:59:38.008Z'),
-            common.mustCall(function() {
-              // done
+            common.mustCall(() => {
+              // Done
             })
           );
         });
@@ -169,7 +169,7 @@ runTest(new Date('1982-09-10 13:37'), new Date('1982-09-10 13:37'), function() {
   });
 });
 
-process.on('exit', function() {
+process.on('exit', () => {
   assert.strictEqual(tests_ok, tests_run - 2);
 });
 
