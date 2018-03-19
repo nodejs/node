@@ -28,10 +28,13 @@ the `stream` module directly.
 
 ## Organization of this Document
 
-This document is divided into two primary sections with a third section for
+This document is divided into four primary sections with a fifth section for
 additional notes. The first section explains the elements of the stream API that
 are required to *use* streams within an application. The second section explains
 the elements of the API that are required to *implement* new types of streams.
+The third section is geared towards explanations and *code examples*. The fourth
+section showcases important *npm modules* that make working with streams
+easier.
 
 ## Types of Streams
 
@@ -2223,6 +2226,10 @@ The `stream.PassThrough` class is a trivial implementation of a [Transform][]
 stream that simply passes the input bytes across to the output. Its purpose is
 primarily for examples and testing, but there are some use cases where
 `stream.PassThrough` is useful as a building block for novel sorts of streams.
+
+## Explanations and Code Examples
+
+## Important NPM Modules
 
 ## Additional Notes
 
