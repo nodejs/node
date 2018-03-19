@@ -196,6 +196,14 @@ and must be subjected to continuous integration tests on the
 [project CI server](https://ci.nodejs.org/). The pull request should have a CI
 status indicator.
 
+Do not land any Pull Requests without passing (green or yellow) CI runs. If you
+believe any failed (red or grey) CI sub-tasks are unrelated to the change in the
+Pull Request, you may re-run the sub-task to try to see if it passes. If re-runs
+of all failed sub-tasks pass, it is permissible to land the Pull Request but
+only if the initial failures are believed in good faith to be unrelated to the
+changes in the Pull Request. Otherwise, reasonable steps must be taken to
+confirm that the changes are not resulting in an unreliable test.
+
 #### Useful CI Jobs
 
 * [`node-test-pull-request`](https://ci.nodejs.org/job/node-test-pull-request/)
