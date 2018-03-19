@@ -192,9 +192,9 @@ All bugfixes require a test case which demonstrates the defect. The
 test should *fail* before the change, and *pass* after the change.
 
 All pull requests that modify executable code should also include a test case
-and be subjected to continuous integration tests on the
+and must be subjected to continuous integration tests on the
 [project CI server](https://ci.nodejs.org/). The pull request should have a CI
-status indicator if possible.
+status indicator.
 
 #### Useful CI Jobs
 
@@ -203,13 +203,9 @@ is the standard CI run we do to check Pull Requests. It triggers
 `node-test-commit`, which runs the `build-ci` and `test-ci` targets on all
 supported platforms.
 
-* [`node-test-linter`](https://ci.nodejs.org/job/node-test-linter/)
-only runs the linter targets, which is useful for changes that only affect
-comments or documentation.
-
 * [`node-test-pull-request-lite`](https://ci.nodejs.org/job/node-test-pull-request-lite/)
-only runs the linter job, as well as the tests on LinuxONE. Should only be used
-for trivial changes that do not require being tested on all platforms.
+only runs the linter job, as well as the tests on LinuxONE, which is very fast.
+This is useful for changes that only affect comments or documentation.
 
 * [`citgm-smoker`](https://ci.nodejs.org/job/citgm-smoker/)
 uses [`CitGM`](https://github.com/nodejs/citgm) to allow you to run
