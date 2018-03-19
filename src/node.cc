@@ -3027,6 +3027,15 @@ void SetupProcessObject(Environment* env,
   READONLY_PROPERTY(release, "name",
                     OneByteString(env->isolate(), NODE_RELEASE));
 
+  READONLY_PROPERTY(release, "majorVersion",
+      Integer::New(env->isolate(), NODE_MAJOR_VERSION));
+  READONLY_PROPERTY(release, "minorVersion",
+      Integer::New(env->isolate(), NODE_MINOR_VERSION));
+  READONLY_PROPERTY(release, "patchVersion",
+      Integer::New(env->isolate(), NODE_PATCH_VERSION));
+
+  READONLY_PROPERTY(release, "tag", OneByteString(env->isolate(), NODE_TAG));
+
 #if NODE_VERSION_IS_LTS
   READONLY_PROPERTY(release, "lts",
                     OneByteString(env->isolate(), NODE_VERSION_LTS_CODENAME));

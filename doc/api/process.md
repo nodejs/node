@@ -1503,6 +1503,10 @@ tarball.
   - `'Argon'` for the 4.x LTS line beginning with 4.2.0.
   - `'Boron'` for the 6.x LTS line beginning with 6.9.0.
   - `'Carbon'` for the 8.x LTS line beginning with 8.9.1.
+* `majorVersion` {number} The major version of Node.js.
+* `minorVersion` {number} The minor version of Node.js.
+* `patchVersion` {number} The patch version of Node.js.
+* `tag` {string} The semver tag for Node.js
 
 <!-- eslint-skip -->
 ```js
@@ -1511,7 +1515,11 @@ tarball.
   lts: 'Argon',
   sourceUrl: 'https://nodejs.org/download/release/v4.4.5/node-v4.4.5.tar.gz',
   headersUrl: 'https://nodejs.org/download/release/v4.4.5/node-v4.4.5-headers.tar.gz',
-  libUrl: 'https://nodejs.org/download/release/v4.4.5/win-x64/node.lib'
+  libUrl: 'https://nodejs.org/download/release/v4.4.5/win-x64/node.lib',
+  majorVersion: 4,
+  minorVersion: 4,
+  patchVersion: 5,
+  tag: '',
 }
 ```
 
