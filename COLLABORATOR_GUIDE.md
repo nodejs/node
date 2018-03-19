@@ -494,12 +494,11 @@ The TSC should serve as the final arbiter where required.
    one](https://github.com/nodejs/node/commit/b636ba8186) if unsure exactly how
    to format your commit messages.
 
-Additionally:
+Check PRs from new contributors to make sure the person's name and email address
+are correct before merging.
 
-* Double check PRs to make sure the person's _full name_ and email
-  address are correct before merging.
-* All commits should be self-contained (meaning every commit should pass all
-  tests). This makes it much easier when bisecting to find a breaking change.
+All commits should be self-contained, meaning every commit should pass all
+tests. This makes it much easier when bisecting to find a breaking change.
 
 ### Using `git-node`
 
