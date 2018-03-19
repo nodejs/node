@@ -20,7 +20,7 @@ onboarding session.
 * Prior to the onboarding session, add the new Collaborator to
   [the Collaborators team](https://github.com/orgs/nodejs/teams/collaborators).
 * Ask them if they want to join any subsystem teams. See
-  [Who to CC for Issues][who-to-cc].
+  [Who to CC in the issue tracker][who-to-cc].
 
 ## Onboarding session
 
@@ -96,7 +96,7 @@ onboarding session.
     * no outstanding review comments exist and
     * at least one collaborator approved the PR.
 
-* [**See "Who to CC in issues"**][who-to-cc]
+* See [Who to CC in the issue tracker][who-to-cc].
   * This will come more naturally over time
   * For many of the teams listed there, you can ask to be added if you are
     interested
@@ -253,4 +253,4 @@ needs to be pointed out separately during the onboarding.
 [two-factor authentication]: https://help.github.com/articles/securing-your-account-with-two-factor-authentication-2fa/
 [Updating Node.js from Upstream]: ./onboarding-extras.md#updating-nodejs-from-upstream
 [using a TOTP mobile app]: https://help.github.com/articles/configuring-two-factor-authentication-via-a-totp-mobile-app/
-[who-to-cc]: ./onboarding-extras.md#who-to-cc-in-issues
+[who-to-cc]: ../COLLABORATOR_GUIDE.md#who-to-cc-in-the-issue-tracker
