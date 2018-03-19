@@ -62,22 +62,14 @@ assert.strictEqual(typeof fs.R_OK, 'number');
 assert.strictEqual(typeof fs.W_OK, 'number');
 assert.strictEqual(typeof fs.X_OK, 'number');
 
-fs.access(__filename, common.mustCall((err) => {
-  assert.ifError(err);
-}));
-
-fs.access(__filename, fs.R_OK, common.mustCall((err) => {
-  assert.ifError(err);
-}));
+fs.access(__filename, common.mustCall(assert.ifError));
+fs.access(__filename, fs.R_OK, common.mustCall(assert.ifError));
+fs.access(readOnlyFile, fs.F_OK | fs.R_OK, common.mustCall(assert.ifError));
 
 fs.access(doesNotExist, common.mustCall((err) => {
   assert.notStrictEqual(err, null, 'error should exist');
   assert.strictEqual(err.code, 'ENOENT');
   assert.strictEqual(err.path, doesNotExist);
-}));
-
-fs.access(readOnlyFile, fs.F_OK | fs.R_OK, common.mustCall((err) => {
-  assert.ifError(err);
 }));
 
 fs.access(readOnlyFile, fs.W_OK, common.mustCall(function(err) {

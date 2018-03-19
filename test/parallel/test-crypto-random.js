@@ -80,43 +80,18 @@ process.setMaxListeners(256);
 }
 
 {
-  const buf = new Uint16Array(10);
-  const before = Buffer.from(buf.buffer).toString('hex');
-  crypto.randomFillSync(buf);
-  const after = Buffer.from(buf.buffer).toString('hex');
-  assert.notStrictEqual(before, after);
-}
-
-{
-  const buf = new Uint32Array(10);
-  const before = Buffer.from(buf.buffer).toString('hex');
-  crypto.randomFillSync(buf);
-  const after = Buffer.from(buf.buffer).toString('hex');
-  assert.notStrictEqual(before, after);
-}
-
-{
-  const buf = new Float32Array(10);
-  const before = Buffer.from(buf.buffer).toString('hex');
-  crypto.randomFillSync(buf);
-  const after = Buffer.from(buf.buffer).toString('hex');
-  assert.notStrictEqual(before, after);
-}
-
-{
-  const buf = new Float64Array(10);
-  const before = Buffer.from(buf.buffer).toString('hex');
-  crypto.randomFillSync(buf);
-  const after = Buffer.from(buf.buffer).toString('hex');
-  assert.notStrictEqual(before, after);
-}
-
-{
-  const buf = new DataView(new ArrayBuffer(10));
-  const before = Buffer.from(buf.buffer).toString('hex');
-  crypto.randomFillSync(buf);
-  const after = Buffer.from(buf.buffer).toString('hex');
-  assert.notStrictEqual(before, after);
+  [
+    new Uint16Array(10),
+    new Uint32Array(10),
+    new Float32Array(10),
+    new Float64Array(10),
+    new DataView(new ArrayBuffer(10))
+  ].forEach((buf) => {
+    const before = Buffer.from(buf.buffer).toString('hex');
+    crypto.randomFillSync(buf);
+    const after = Buffer.from(buf.buffer).toString('hex');
+    assert.notStrictEqual(before, after);
+  });
 }
 
 {
@@ -140,53 +115,20 @@ process.setMaxListeners(256);
 }
 
 {
-  const buf = new Uint16Array(10);
-  const before = Buffer.from(buf.buffer).toString('hex');
-  crypto.randomFill(buf, common.mustCall((err, buf) => {
-    assert.ifError(err);
-    const after = Buffer.from(buf.buffer).toString('hex');
-    assert.notStrictEqual(before, after);
-  }));
-}
-
-{
-  const buf = new Uint32Array(10);
-  const before = Buffer.from(buf.buffer).toString('hex');
-  crypto.randomFill(buf, common.mustCall((err, buf) => {
-    assert.ifError(err);
-    const after = Buffer.from(buf.buffer).toString('hex');
-    assert.notStrictEqual(before, after);
-  }));
-}
-
-{
-  const buf = new Float32Array(10);
-  const before = Buffer.from(buf.buffer).toString('hex');
-  crypto.randomFill(buf, common.mustCall((err, buf) => {
-    assert.ifError(err);
-    const after = Buffer.from(buf.buffer).toString('hex');
-    assert.notStrictEqual(before, after);
-  }));
-}
-
-{
-  const buf = new Float64Array(10);
-  const before = Buffer.from(buf.buffer).toString('hex');
-  crypto.randomFill(buf, common.mustCall((err, buf) => {
-    assert.ifError(err);
-    const after = Buffer.from(buf.buffer).toString('hex');
-    assert.notStrictEqual(before, after);
-  }));
-}
-
-{
-  const buf = new DataView(new ArrayBuffer(10));
-  const before = Buffer.from(buf.buffer).toString('hex');
-  crypto.randomFill(buf, common.mustCall((err, buf) => {
-    assert.ifError(err);
-    const after = Buffer.from(buf.buffer).toString('hex');
-    assert.notStrictEqual(before, after);
-  }));
+  [
+    new Uint16Array(10),
+    new Uint32Array(10),
+    new Float32Array(10),
+    new Float64Array(10),
+    new DataView(new ArrayBuffer(10))
+  ].forEach((buf) => {
+    const before = Buffer.from(buf.buffer).toString('hex');
+    crypto.randomFill(buf, common.mustCall((err, buf) => {
+      assert.ifError(err);
+      const after = Buffer.from(buf.buffer).toString('hex');
+      assert.notStrictEqual(before, after);
+    }));
+  });
 }
 
 {
