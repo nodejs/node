@@ -184,7 +184,8 @@ function testFtruncate(cb) {
       {
         code: 'ERR_INVALID_ARG_TYPE',
         name: 'TypeError [ERR_INVALID_ARG_TYPE]',
-        message: 'The "len" argument must be of type integer'
+        message: 'The "len" argument must be of type number. ' +
+                 `Received type ${typeof input}`
       }
     );
   });
@@ -213,7 +214,8 @@ function testFtruncate(cb) {
       {
         code: 'ERR_INVALID_ARG_TYPE',
         name: 'TypeError [ERR_INVALID_ARG_TYPE]',
-        message: 'The "fd" argument must be of type integer'
+        message: 'The "fd" argument must be of type number. ' +
+                 `Received type ${typeof input}`
       }
     );
   });

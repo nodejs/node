@@ -114,7 +114,8 @@ fs.open(file2, 'w', common.mustCall((err, fd) => {
       {
         code: 'ERR_INVALID_ARG_TYPE',
         type: TypeError,
-        message: 'The "mode" argument must be of type integer'
+        message: 'The "mode" argument must be of type number. ' +
+                 'Received type object'
       }
     );
 
@@ -150,7 +151,8 @@ if (fs.lchmod) {
   const errObj = {
     code: 'ERR_INVALID_ARG_TYPE',
     name: 'TypeError [ERR_INVALID_ARG_TYPE]',
-    message: 'The "fd" argument must be of type integer'
+    message: 'The "fd" argument must be of type number. ' +
+             `Received type ${typeof input}`
   };
   assert.throws(() => fs.fchmod(input, 0o000), errObj);
   assert.throws(() => fs.fchmodSync(input, 0o000), errObj);
