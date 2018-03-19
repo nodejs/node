@@ -14,7 +14,8 @@ common.expectsError(
   {
     code: 'ERR_INVALID_ARG_TYPE',
     type: TypeError,
-    message: 'The "buffer" argument must be one of type Buffer or Uint8Array'
+    message: 'The "buffer" argument must be one of type Buffer or Uint8Array.' +
+             ' Received type number'
   }
 );
 
@@ -26,8 +27,11 @@ common.expectsError(
             expected.length,
             0,
             common.mustNotCall());
-  }, { code: 'ERR_INVALID_ARG_TYPE', type: TypeError,
-       message: 'The "fd" argument must be of type integer' });
+  }, {
+    code: 'ERR_INVALID_ARG_TYPE',
+    type: TypeError,
+    message: 'The "fd" argument must be of type integer'
+  });
 });
 
 common.expectsError(() => {
@@ -56,7 +60,8 @@ common.expectsError(
   {
     code: 'ERR_INVALID_ARG_TYPE',
     type: TypeError,
-    message: 'The "buffer" argument must be one of type Buffer or Uint8Array'
+    message: 'The "buffer" argument must be one of type Buffer or Uint8Array.' +
+             ' Received type number'
   }
 );
 
@@ -67,8 +72,11 @@ common.expectsError(
                 0,
                 expected.length,
                 0);
-  }, { code: 'ERR_INVALID_ARG_TYPE', type: TypeError,
-       message: 'The "fd" argument must be of type integer' });
+  }, {
+    code: 'ERR_INVALID_ARG_TYPE',
+    type: TypeError,
+    message: 'The "fd" argument must be of type integer'
+  });
 });
 
 common.expectsError(() => {

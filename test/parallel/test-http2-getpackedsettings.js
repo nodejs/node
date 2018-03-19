@@ -99,14 +99,15 @@ http2.getPackedSettings({ enablePush: false });
     0x00, 0x00, 0x00, 0x64, 0x00, 0x06, 0x00, 0x00, 0x00, 0x64,
     0x00, 0x02, 0x00, 0x00, 0x00, 0x01]);
 
-  [1, true, '', [], {}, NaN].forEach((i) => {
+  [1, true, '', [], {}, NaN].forEach((input) => {
     common.expectsError(() => {
-      http2.getUnpackedSettings(i);
+      http2.getUnpackedSettings(input);
     }, {
       code: 'ERR_INVALID_ARG_TYPE',
       type: TypeError,
       message:
-        'The "buf" argument must be one of type Buffer, TypedArray, or DataView'
+        'The "buf" argument must be one of type Buffer, TypedArray, or ' +
+        `DataView. Received type ${typeof input}`
     });
   });
 

@@ -13,7 +13,8 @@ server.on('stream', common.mustCall((stream) => {
     {
       code: 'ERR_INVALID_ARG_TYPE',
       type: TypeError,
-      message: 'The "code" argument must be of type number'
+      message: 'The "code" argument must be of type number. ' +
+               'Received type string'
     }
   );
   stream.respond();

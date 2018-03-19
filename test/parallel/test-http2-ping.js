@@ -81,14 +81,14 @@ server.listen(0, common.mustCall(() => {
 
     // should throw if payload is not of type ArrayBufferView
     {
-      [1, true, {}, []].forEach((invalidPayload) =>
+      [1, true, {}, []].forEach((payload) =>
         common.expectsError(
-          () => client.ping(invalidPayload),
+          () => client.ping(payload),
           {
             type: TypeError,
             code: 'ERR_INVALID_ARG_TYPE',
-            message: 'The "payload" argument must be one of type' +
-                     ' Buffer, TypedArray, or DataView'
+            message: 'The "payload" argument must be one of type Buffer, ' +
+                     `TypedArray, or DataView. Received type ${typeof payload}`
           }
         )
       );
