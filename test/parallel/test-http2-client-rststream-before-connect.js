@@ -49,9 +49,9 @@ server.listen(0, common.mustCall(() => {
   // Second call doesn't do anything.
   req.close(closeCode + 1);
 
-  req.on('close', common.mustCall((code) => {
+  req.on('close', common.mustCall(() => {
     assert.strictEqual(req.destroyed, true);
-    assert.strictEqual(code, closeCode);
+    assert.strictEqual(req.rstCode, closeCode);
     server.close();
     client.close();
   }));

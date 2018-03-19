@@ -28,8 +28,8 @@ server.on('listening', common.mustCall(() => {
   const client = h2.connect(`http://localhost:${server.address().port}`);
   const req = client.request();
   req.on('headers', common.mustNotCall());
-  req.on('close', common.mustCall((code) => {
-    assert.strictEqual(h2.constants.NGHTTP2_NO_ERROR, code);
+  req.on('close', common.mustCall(() => {
+    assert.strictEqual(h2.constants.NGHTTP2_NO_ERROR, req.rstCode);
     server.close();
     client.close();
   }));

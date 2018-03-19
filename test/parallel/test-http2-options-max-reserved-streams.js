@@ -37,8 +37,8 @@ server.on('stream', common.mustCall((stream) => {
     pushedStream.respond();
     pushedStream.on('aborted', common.mustCall());
     pushedStream.on('error', common.mustNotCall());
-    pushedStream.on('close', common.mustCall((code) => {
-      assert.strictEqual(code, 8);
+    pushedStream.on('close', common.mustCall(() => {
+      assert.strictEqual(pushedStream.rstCode, 8);
       countdown.dec();
     }));
   }));

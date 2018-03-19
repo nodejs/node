@@ -36,9 +36,9 @@ server.listen(0, common.mustCall(() => {
     message: 'test'
   }));
 
-  req.on('close', common.mustCall((code) => {
+  req.on('close', common.mustCall(() => {
     assert.strictEqual(req.rstCode, NGHTTP2_INTERNAL_ERROR);
-    assert.strictEqual(code, NGHTTP2_INTERNAL_ERROR);
+    assert.strictEqual(req.rstCode, NGHTTP2_INTERNAL_ERROR);
     server.close();
     client.close();
   }));
