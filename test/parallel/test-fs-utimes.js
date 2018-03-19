@@ -101,8 +101,10 @@ function testIt(atime, mtime, callback) {
     common.expectsError(
       () => fs.futimesSync(-1, atime, mtime),
       {
-        code: 'ERR_INVALID_ARG_TYPE',
-        type: TypeError
+        code: 'ERR_OUT_OF_RANGE',
+        type: RangeError,
+        message: 'The value of "fd" is out of range. ' +
+                'It must be >= 0 && < 4294967296. Received -1'
       }
     );
     tests_run++;
@@ -130,8 +132,10 @@ function testIt(atime, mtime, callback) {
         common.expectsError(
           () => fs.futimes(-1, atime, mtime, common.mustNotCall()),
           {
-            code: 'ERR_INVALID_ARG_TYPE',
-            type: TypeError,
+            code: 'ERR_OUT_OF_RANGE',
+            type: RangeError,
+            message: 'The value of "fd" is out of range. ' +
+                    'It must be >= 0 && < 4294967296. Received -1'
           }
         );
 

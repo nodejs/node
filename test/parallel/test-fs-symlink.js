@@ -35,7 +35,7 @@ let fileTime;
 const tmpdir = require('../common/tmpdir');
 tmpdir.refresh();
 
-// test creating and reading symbolic link
+// Test creating and reading symbolic link
 const linkData = fixtures.path('/cycles/root.js');
 const linkPath = path.join(tmpdir.path, 'symlink1.js');
 
@@ -58,63 +58,29 @@ fs.symlink(linkData, linkPath, common.mustCall(function(err) {
   }));
 }));
 
-[false, 1, {}, [], null, undefined].forEach((i) => {
-  common.expectsError(
-    () => fs.symlink(i, '', common.mustNotCall()),
-    {
-      code: 'ERR_INVALID_ARG_TYPE',
-      type: TypeError,
-      message:
-        'The "target" argument must be one of type string, Buffer, or URL'
-    }
-  );
-  common.expectsError(
-    () => fs.symlink('', i, common.mustNotCall()),
-    {
-      code: 'ERR_INVALID_ARG_TYPE',
-      type: TypeError,
-      message:
-        'The "path" argument must be one of type string, Buffer, or URL'
-    }
-  );
-  common.expectsError(
-    () => fs.symlinkSync(i, ''),
-    {
-      code: 'ERR_INVALID_ARG_TYPE',
-      type: TypeError,
-      message:
-        'The "target" argument must be one of type string, Buffer, or URL'
-    }
-  );
-  common.expectsError(
-    () => fs.symlinkSync('', i),
-    {
-      code: 'ERR_INVALID_ARG_TYPE',
-      type: TypeError,
-      message:
-        'The "path" argument must be one of type string, Buffer, or URL'
-    }
-  );
+[false, 1, {}, [], null, undefined].forEach((input) => {
+  const errObj = {
+    code: 'ERR_INVALID_ARG_TYPE',
+    name: 'TypeError [ERR_INVALID_ARG_TYPE]',
+    message: 'The "target" argument must be one of type string, Buffer, or ' +
+             `URL. Received type ${typeof input}`
+  };
+  assert.throws(() => fs.symlink(input, '', common.mustNotCall()), errObj);
+  assert.throws(() => fs.symlinkSync(input, ''), errObj);
+
+  errObj.message = errObj.message.replace('target', 'path');
+  assert.throws(() => fs.symlink('', input, common.mustNotCall()), errObj);
+  assert.throws(() => fs.symlinkSync('', input), errObj);
 });
 
-common.expectsError(
-  () => fs.symlink('', '', '🍏', common.mustNotCall()),
-  {
-    code: 'ERR_FS_INVALID_SYMLINK_TYPE',
-    type: Error,
-    message:
-      'Symlink type must be one of "dir", "file", or "junction". Received "🍏"'
-  }
-);
-common.expectsError(
-  () => fs.symlinkSync('', '', '🍏'),
-  {
-    code: 'ERR_FS_INVALID_SYMLINK_TYPE',
-    type: Error,
-    message:
-      'Symlink type must be one of "dir", "file", or "junction". Received "🍏"'
-  }
-);
+const errObj = {
+  code: 'ERR_FS_INVALID_SYMLINK_TYPE',
+  name: 'Error [ERR_FS_INVALID_SYMLINK_TYPE]',
+  message:
+    'Symlink type must be one of "dir", "file", or "junction". Received "🍏"'
+};
+assert.throws(() => fs.symlink('', '', '🍏', common.mustNotCall()), errObj);
+assert.throws(() => fs.symlinkSync('', '', '🍏'), errObj);
 
 process.on('exit', function() {
   assert.notStrictEqual(linkTime, fileTime);

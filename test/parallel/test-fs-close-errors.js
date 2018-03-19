@@ -11,7 +11,8 @@ const fs = require('fs');
   const errObj = {
     code: 'ERR_INVALID_ARG_TYPE',
     name: 'TypeError [ERR_INVALID_ARG_TYPE]',
-    message: 'The "fd" argument must be of type integer'
+    message: 'The "fd" argument must be of type number. ' +
+             `Received type ${typeof input}`
   };
   assert.throws(() => fs.close(input), errObj);
   assert.throws(() => fs.closeSync(input), errObj);
