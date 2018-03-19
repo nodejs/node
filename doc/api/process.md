@@ -1890,6 +1890,20 @@ The `process.version` property returns the Node.js version string.
 console.log(`Version: ${process.version}`);
 ```
 
+## process.computedVersion
+<!-- YAML
+added: REPLACEME
+-->
+
+* {number}
+
+The `process.computedVersion` property is the result of
+`(NODE_MAJOR_VERSION << 16) + (NODE_MINOR_VERSION << 8) + NODE_PATCH_VERSION`
+
+This property is useful for inline version checks. Using the process above a
+number such as `591872` (for version `9.8.0`) may be selected and easily used
+for a version check (`process.computedVersion >= 591872`).
+
 ## process.versions
 <!-- YAML
 added: v0.2.0

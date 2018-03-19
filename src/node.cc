@@ -2937,6 +2937,13 @@ void SetupProcessObject(Environment* env,
                     "version",
                     FIXED_ONE_BYTE_STRING(env->isolate(), NODE_VERSION));
 
+  READONLY_PROPERTY(process,
+                    "computedVersion",
+                    Integer::New(env->isolate(),
+                        (NODE_MAJOR_VERSION << 16) +
+                        (NODE_MINOR_VERSION << 8) +
+                        NODE_PATCH_VERSION));
+
   // process.versions
   Local<Object> versions = Object::New(env->isolate());
   READONLY_PROPERTY(process, "versions", versions);
