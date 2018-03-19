@@ -3027,7 +3027,8 @@ void SetupProcessObject(Environment* env,
   READONLY_PROPERTY(release, "patchVersion",
       Integer::New(env->isolate(), NODE_PATCH_VERSION));
 
-  READONLY_PROPERTY(release, "tag", OneByteString(env->isolate(), NODE_TAG));
+  READONLY_PROPERTY(release, "prereleaseTag",
+      OneByteString(env->isolate(), NODE_TAG));
 
   READONLY_PROPERTY(release,
                     "computedVersion",

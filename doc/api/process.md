@@ -1506,7 +1506,13 @@ tarball.
 * `majorVersion` {number} The major version of Node.js.
 * `minorVersion` {number} The minor version of Node.js.
 * `patchVersion` {number} The patch version of Node.js.
-* `tag` {string} The semver tag for Node.js
+* `prereleaseTag` {string} The SemVer pre-release tag for Node.js.
+* `computedVersion` {number} The result of
+  `(majorVersion << 16) + (minorVersion << 8) + patchVersion`
+
+  This property is useful for inline version checks. Using the process above a
+  number such as `591872` (for version `9.8.0`) may be selected and easily used
+  for a version check (`process.computedVersion >= 591872`).
 
 <!-- eslint-skip -->
 ```js
@@ -1519,7 +1525,8 @@ tarball.
   majorVersion: 4,
   minorVersion: 4,
   patchVersion: 5,
-  tag: '',
+  prereleaseTag: '',
+  computedVersion: 263173,
 }
 ```
 
@@ -1897,20 +1904,6 @@ The `process.version` property returns the Node.js version string.
 ```js
 console.log(`Version: ${process.version}`);
 ```
-
-## process.computedVersion
-<!-- YAML
-added: REPLACEME
--->
-
-* {number}
-
-The `process.computedVersion` property is the result of
-`(NODE_MAJOR_VERSION << 16) + (NODE_MINOR_VERSION << 8) + NODE_PATCH_VERSION`
-
-This property is useful for inline version checks. Using the process above a
-number such as `591872` (for version `9.8.0`) may be selected and easily used
-for a version check (`process.computedVersion >= 591872`).
 
 ## process.versions
 <!-- YAML
