@@ -1507,12 +1507,9 @@ tarball.
 * `minorVersion` {number} The minor version of Node.js.
 * `patchVersion` {number} The patch version of Node.js.
 * `prereleaseTag` {string} The SemVer pre-release tag for Node.js.
-* `computedVersion` {number} The result of
+* `computedVersion` {number} a number representing the current version, created
+  using the following method:
   `(majorVersion << 16) + (minorVersion << 8) + patchVersion`
-
-  This property is useful for inline version checks. Using the process above a
-  number such as `591872` (for version `9.8.0`) may be selected and easily used
-  for a version check (`process.computedVersion >= 591872`).
 
 <!-- eslint-skip -->
 ```js
