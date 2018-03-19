@@ -18,3 +18,13 @@ if (versionParts[0] === '4' && versionParts[1] >= 2) {
 } else {
   assert.strictEqual(process.release.lts, undefined);
 }
+
+const {
+  majorVersion: major,
+  minorVersion: minor,
+  patchVersion: patch,
+  computedVersion,
+} = process.release;
+
+assert.strictEqual(
+  (major << 16) + (minor << 8) + patch, computedVersion);
