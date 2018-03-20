@@ -376,6 +376,9 @@ void Environment::RunAndClearNativeImmediates() {
     auto drain_list = [&]() {
       v8::TryCatch try_catch(isolate());
       for (auto it = list.begin(); it != list.end(); ++it) {
+#ifdef DEBUG
+        v8::SealHandleScope seal_handle_scope(isolate());
+#endif
         it->cb_(this, it->data_);
         if (it->refed_)
           ref_count++;
