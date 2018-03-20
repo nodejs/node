@@ -24,7 +24,11 @@ const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
-// Checks tls connection delay while sending and recieving data
+// This test tries to confirm that a TLS Socket will work as expected even if it
+// is created after the original socket has received some data.
+//
+// Ref: https://github.com/nodejs/node-v0.x-archive/issues/6940
+// Ref: https://github.com/nodejs/node-v0.x-archive/pull/6950
 
 const fixtures = require('../common/fixtures');
 const assert = require('assert');
