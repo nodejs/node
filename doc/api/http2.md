@@ -25,7 +25,7 @@ be emitted either by client-side code or server-side code.
 ### Server-side example
 
 The following illustrates a simple HTTP/2 server using the Core API.
-Since no browsers support [unencrypted HTTP/2][HTTP2 Unencrypted],
+Since no browsers support [unencrypted HTTP/2][HTTP/2 Unencrypted],
 the use of [`http2.createSecureServer()`][] is preferred.
 
 ```js
@@ -1728,7 +1728,7 @@ changes:
 Returns a `net.Server` instance that creates and manages `Http2Session`
 instances.
 
-Since no browsers support [unencrypted HTTP/2][HTTP2 Unencrypted],
+Since no browsers support [unencrypted HTTP/2][HTTP/2 Unencrypted],
 the use of [`http2.createSecureServer()`][] is preferred.
 
 ```js
@@ -3091,7 +3091,7 @@ following additional properties:
 [Compatibility API]: #http2_compatibility_api
 [HTTP/1]: http.html
 [HTTP/2]: https://tools.ietf.org/html/rfc7540
-[HTTP2 Unencrypted]: https://http2.github.io/faq/#does-http2-require-encryption
+[HTTP/2 Unencrypted]: https://http2.github.io/faq/#does-http2-require-encryption
 [HTTP2 Headers Object]: #http2_headers_object
 [HTTP2 Settings Object]: #http2_settings_object
 [HTTPS]: https.html
