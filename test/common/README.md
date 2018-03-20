@@ -86,6 +86,8 @@ Indicates if there is more than 1gb of total memory.
     regular expression must match the `message` property of the expected error.
   * `name` [&lt;string>]
     expected error must have this value for its `name` property.
+  * `info` &lt;Object> expected error must have the same `info` property
+    that is deeply equal to this value.
   * `generatedMessage` [&lt;string>]
     (`AssertionError` only) expected error must have this value for its
     `generatedMessage` property.

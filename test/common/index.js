@@ -704,6 +704,9 @@ exports.expectsError = function expectsError(fn, settings, exact) {
       }
       assert.strictEqual(typeName, type.name);
     }
+    if ('info' in settings) {
+      assert.deepStrictEqual(error.info, settings.info);
+    }
     if ('message' in settings) {
       const message = settings.message;
       if (typeof message === 'string') {
@@ -717,7 +720,7 @@ exports.expectsError = function expectsError(fn, settings, exact) {
     // Check all error properties.
     const keys = Object.keys(settings);
     for (const key of keys) {
-      if (key === 'message' || key === 'type')
+      if (key === 'message' || key === 'type' || key === 'info')
         continue;
       const actual = error[key];
       const expected = settings[key];
