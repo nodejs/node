@@ -5,7 +5,7 @@ module.exports = preprocess;
 const path = require('path');
 const fs = require('fs');
 
-const includeExpr = /^@include\s+([A-Za-z0-9-_]+)(?:\.)?([a-zA-Z]*)$/gmi;
+const includeExpr = /^@include\s+[\w-]+\.?[a-zA-Z]*$/gmi;
 const includeData = {};
 
 function preprocess(inputFile, input, cb) {
@@ -20,12 +20,12 @@ function stripComments(input) {
 function processIncludes(inputFile, input, cb) {
   const includes = input.match(includeExpr);
   if (includes === null) return cb(null, input);
-  var errState = null;
-  var incCount = includes.length;
-  if (incCount === 0) cb(null, input);
-  includes.forEach(function(include) {
-    var fname = include.replace(/^@include\s+/, '');
-    if (!fname.match(/\.md$/)) fname = `${fname}.md`;
+  let errState = null;
+  let incCount = includes.length;
+
+  includes.forEach((include) => {
+    let fname = include.replace(/^@include\s+/, '');
+    if (!/\.md$/.test(fname)) fname = `${fname}.md`;
 
     if (includeData.hasOwnProperty(fname)) {
       input = input.split(include).join(includeData[fname]);
