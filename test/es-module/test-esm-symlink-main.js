@@ -1,5 +1,6 @@
 'use strict';
 
+const common = require('../common');
 const assert = require('assert');
 const path = require('path');
 const { spawn } = require('child_process');
@@ -17,7 +18,8 @@ try {
   common.skip('insufficient privileges for symlinks');
 }
 
-spawn(process.execPath, ['--experimental-modules', '--preserve-symlinks', symlinkPath],
+spawn(process.execPath,
+      ['--experimental-modules', '--preserve-symlinks', symlinkPath],
       { stdio: 'inherit' }).on('exit', (code) => {
   assert.strictEqual(code, 0);
 });
