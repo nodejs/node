@@ -230,7 +230,7 @@ static void AsyncTaskScheduledWrapper(const FunctionCallbackInfo<Value>& args) {
 
   CHECK(args[0]->IsString());
   Local<String> task_name = args[0].As<String>();
-  String::Value task_name_value(task_name);
+  String::Value task_name_value(args.GetIsolate(), task_name);
   StringView task_name_view(*task_name_value, task_name_value.length());
 
   CHECK(args[1]->IsNumber());

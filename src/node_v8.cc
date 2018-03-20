@@ -114,7 +114,7 @@ void UpdateHeapSpaceStatisticsBuffer(const FunctionCallbackInfo<Value>& args) {
 
 void SetFlagsFromString(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[0]->IsString());
-  String::Utf8Value flags(args[0]);
+  String::Utf8Value flags(args.GetIsolate(), args[0]);
   V8::SetFlagsFromString(*flags, flags.length());
 }
 

@@ -369,7 +369,7 @@ size_t StringBytes::Write(Isolate* isolate,
         auto ext = str->GetExternalOneByteStringResource();
         nbytes = base64_decode(buf, buflen, ext->data(), ext->length());
       } else {
-        String::Value value(str);
+        String::Value value(isolate, str);
         nbytes = base64_decode(buf, buflen, *value, value.length());
       }
       *chars_written = nbytes;
@@ -380,7 +380,7 @@ size_t StringBytes::Write(Isolate* isolate,
         auto ext = str->GetExternalOneByteStringResource();
         nbytes = hex_decode(buf, buflen, ext->data(), ext->length());
       } else {
-        String::Value value(str);
+        String::Value value(isolate, str);
         nbytes = hex_decode(buf, buflen, *value, value.length());
       }
       *chars_written = nbytes;
@@ -479,7 +479,7 @@ size_t StringBytes::Size(Isolate* isolate,
       return str->Length() * sizeof(uint16_t);
 
     case BASE64: {
-      String::Value value(str);
+      String::Value value(isolate, str);
       return base64_decoded_size(*value, value.length());
     }
 

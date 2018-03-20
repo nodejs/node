@@ -1088,21 +1088,21 @@ class ContextifyScript : public BaseObject {
         PersistentToLocal(env->isolate(), wrapped_script->script_);
     Local<Script> script = unbound_script->BindToCurrentContext();
 
-    Local<Value> result;
+    MaybeLocal<Value> result;
     bool timed_out = false;
     bool received_signal = false;
     if (break_on_sigint && timeout != -1) {
       Watchdog wd(env->isolate(), timeout, &timed_out);
       SigintWatchdog swd(env->isolate(), &received_signal);
-      result = script->Run();
+      result = script->Run(env->context());
     } else if (break_on_sigint) {
       SigintWatchdog swd(env->isolate(), &received_signal);
-      result = script->Run();
+      result = script->Run(env->context());
     } else if (timeout != -1) {
       Watchdog wd(env->isolate(), timeout, &timed_out);
-      result = script->Run();
+      result = script->Run(env->context());
     } else {
-      result = script->Run();
+      result = script->Run(env->context());
     }
 
     if (timed_out || received_signal) {
@@ -1133,7 +1133,7 @@ class ContextifyScript : public BaseObject {
       return false;
     }
 
-    args.GetReturnValue().Set(result);
+    args.GetReturnValue().Set(result.ToLocalChecked());
     return true;
   }
 
