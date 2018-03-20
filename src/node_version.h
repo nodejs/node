@@ -62,6 +62,6 @@
 #define NODE_MODULE_VERSION 48 /* Node.js v6.0.0 */
 
 // the NAPI_VERSION provided by this version of the runtime
-#define NAPI_VERSION  2
+#define NAPI_VERSION  3
 
 #endif  // SRC_NODE_VERSION_H_
