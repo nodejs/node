@@ -25,9 +25,10 @@ be emitted either by client-side code or server-side code.
 ### Server-side example
 
 The following illustrates a simple HTTP/2 server using the Core API.
-Since there are no browsers known that support [unencrypted HTTP/2](HTTP/2 Unencrypted),
-the use of [`http2.createSecureServer()`][] is necessary when communicating with browser
-clients.
+Since there are no browsers known that support
+[unencrypted HTTP/2][HTTP/2 Unencrypted], the use of
+[`http2.createSecureServer()`][] is necessary when communicating
+with browser clients.
 
 ```js
 const http2 = require('http2');
@@ -1729,9 +1730,10 @@ changes:
 Returns a `net.Server` instance that creates and manages `Http2Session`
 instances.
 
-Since there are no browsers known that support [unencrypted HTTP/2](HTTP/2 Unencrypted),
-the use of [`http2.createSecureServer()`][] is necessary when communicating with browser
-clients.
+Since there are no browsers known that support
+[unencrypted HTTP/2][HTTP/2 Unencrypted], the use of
+[`http2.createSecureServer()`][] is necessary when communicating
+with browser clients.
 
 ```js
 const http2 = require('http2');
