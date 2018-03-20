@@ -585,6 +585,14 @@ void ContextifyContext::IndexedPropertyDeleterCallback(
   args.GetReturnValue().Set(false);
 }
 
+ContextifyScript* ContextifyScript::GetFromID(Environment* env, int id) {
+  auto contextify_script_it = env->id_to_script_wrap_map.find(id);
+  if (contextify_script_it == env->id_to_script_wrap_map.end())
+    return nullptr;
+
+  return reinterpret_cast<ContextifyScript*>(contextify_script_it->second);
+}
+
 void ContextifyScript::Init(Environment* env, Local<Object> target) {
   HandleScope scope(env->isolate());
   Local<String> class_name =
@@ -610,7 +618,6 @@ void ContextifyScript::Init(Environment* env, Local<Object> target) {
       .FromJust();
 }
 
-// args: code, [options]
 void ContextifyScript::New(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   Isolate* isolate = env->isolate();
@@ -671,7 +678,21 @@ void ContextifyScript::New(const FunctionCallbackInfo<Value>& args) {
         data + cached_data_buf->ByteOffset(), cached_data_buf->ByteLength());
   }
 
-  ScriptOrigin origin(filename, line_offset, column_offset);
+  Local<PrimitiveArray> host_defined_options =
+    PrimitiveArray::New(env->isolate(), 2);
+  host_defined_options->Set(0,
+      Integer::New(env->isolate(), contextify::SourceType::kScript));
+
+  ScriptOrigin origin(filename,
+                      line_offset,
+                      column_offset,
+                      v8::False(env->isolate()),      // is cross origin
+                      Local<Integer>(),               // script id
+                      Local<Value>(),                 // source map url
+                      v8::False(env->isolate()),      // is opaque
+                      v8::False(env->isolate()),      // is wasm
+                      v8::False(env->isolate()),      // is es6 module
+                      host_defined_options);          // host options
 
   ScriptCompiler::Source source(code, origin, cached_data);
   ScriptCompiler::CompileOptions compile_options =
@@ -697,8 +718,12 @@ void ContextifyScript::New(const FunctionCallbackInfo<Value>& args) {
   }
   contextify_script->script_.Reset(isolate, v8_script.ToLocalChecked());
 
+  host_defined_options->Set(1,
+      Integer::New(env->isolate(), contextify_script->GetID()));
+
+  Local<Object> that = args.This();
   if (compile_options == ScriptCompiler::kConsumeCodeCache) {
-    args.This()->Set(
+    that->Set(
         env->cached_data_rejected_string(),
         Boolean::New(isolate, source.GetCachedData()->rejected));
   } else if (produce_cached_data) {
@@ -710,12 +735,16 @@ void ContextifyScript::New(const FunctionCallbackInfo<Value>& args) {
           env,
           reinterpret_cast<const char*>(cached_data->data),
           cached_data->length);
-      args.This()->Set(env->cached_data_string(), buf.ToLocalChecked());
+      that->Set(env->cached_data_string(), buf.ToLocalChecked());
     }
-    args.This()->Set(
+    that->Set(
         env->cached_data_produced_string(),
         Boolean::New(isolate, cached_data_produced));
   }
+
+  that->Set(env->filename_string(), filename);
+
+  env->id_to_script_wrap_map[contextify_script->GetID()] = contextify_script;
 }
 
 
@@ -726,7 +755,8 @@ bool ContextifyScript::InstanceOf(Environment* env, const Local<Value>& value) {
 
 
 // args: [options]
-void ContextifyScript::RunInThisContext(const FunctionCallbackInfo<Value>& args) {
+void ContextifyScript::RunInThisContext(
+    const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
   CHECK_EQ(args.Length(), 3);
@@ -779,7 +809,8 @@ void ContextifyScript::RunInContext(const FunctionCallbackInfo<Value>& args) {
               args);
 }
 
-void ContextifyScript::DecorateErrorStack(Environment* env, const TryCatch& try_catch) {
+void ContextifyScript::DecorateErrorStack(
+    Environment* env, const TryCatch& try_catch) {
   Local<Value> exception = try_catch.Exception();
 
   if (!exception->IsObject())
@@ -830,7 +861,8 @@ bool ContextifyScript::EvalMachine(Environment* env,
   TryCatch try_catch(env->isolate());
   ContextifyScript* wrapped_script;
   ASSIGN_OR_RETURN_UNWRAP(&wrapped_script, args.Holder(), false);
-  Local<UnboundScript> unbound_script = wrapped_script->script_.Get(env->isolate());
+  Local<UnboundScript> unbound_script =
+    wrapped_script->script_.Get(env->isolate());
   Local<Script> script = unbound_script->BindToCurrentContext();
 
   MaybeLocal<Value> result;

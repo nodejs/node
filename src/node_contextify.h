@@ -16,6 +16,8 @@ struct ContextOptions {
   v8::Local<v8::Boolean> allow_code_gen_wasm;
 };
 
+enum SourceType { kScript, kModule };
+
 class ContextifyContext {
  protected:
   Environment* const env_;
@@ -100,27 +102,36 @@ class ContextifyContext {
 
 class ContextifyScript : public BaseObject {
  private:
-   v8::Persistent<v8::UnboundScript> script_;
+  Persistent<v8::UnboundScript> script_;
 
-   static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
-   static bool InstanceOf(Environment* env, const v8::Local<v8::Value>& value);
-   static void RunInThisContext(const v8::FunctionCallbackInfo<v8::Value>& args);
-   static void RunInContext(const v8::FunctionCallbackInfo<v8::Value>& args);
-   static void DecorateErrorStack(Environment* env, const v8::TryCatch& try_catch);
-   static bool EvalMachine(
-       Environment* env,
-			 const int64_t timeout,
-			 const bool display_errors,
-			 const bool break_on_sigint,
-			 const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static bool InstanceOf(Environment* env, const v8::Local<v8::Value>& value);
+  static void RunInThisContext(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void RunInContext(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void DecorateErrorStack(
+      Environment* env,
+      const v8::TryCatch& try_catch);
+  static bool EvalMachine(
+      Environment* env,
+      const int64_t timeout,
+      const bool display_errors,
+      const bool break_on_sigint,
+      const v8::FunctionCallbackInfo<v8::Value>& args);
 
  public:
   static void Init(Environment* env, v8::Local<v8::Object> target);
+  static ContextifyScript* GetFromID(Environment* env, int id);
 
   ContextifyScript(Environment* env, v8::Local<v8::Object> object)
     : BaseObject(env, object) {
       MakeWeak<ContextifyScript>(this);
   }
+
+  ~ContextifyScript() {
+    env()->id_to_script_wrap_map.erase(GetID());
+  }
+
+  inline int GetID() { return script_.Get(env()->isolate())->GetId(); }
 };
 
 }  // namespace contextify

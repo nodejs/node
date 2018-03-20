@@ -3,7 +3,7 @@
 const common = require('../common');
 const assert = require('assert');
 const { URL } = require('url');
-const vm = require('vm');
+const { runInNewContext } = require('vm');
 
 common.crashOnUnhandledRejection();
 
@@ -33,11 +33,6 @@ function expectInvalidReferrerError(result) {
 
 function expectInvalidProtocolError(result) {
   expectErrorProperty(result, 'code', 'ERR_INVALID_PROTOCOL');
-}
-
-function expectInvalidContextError(result) {
-  expectErrorProperty(result,
-    'message', 'import() called outside of main context');
 }
 
 function expectOkNamespace(result) {
@@ -75,39 +70,4 @@ function expectFsNamespace(result) {
   // protocol errors.
   expectMissingModuleError(import("node:fs"));
   expectMissingModuleError(import('http://example.com/foo.js'));
-})();
-
-// vm.runInThisContext:
-// * Supports built-ins, always
-// * Supports imports if the script has a known defined origin
-(function testRunInThisContext() {
-  // Succeeds because it's got an valid base url
-  expectFsNamespace(vm.runInThisContext(`import("fs")`, {
-    filename: __filename,
-  }));
-  expectOkNamespace(vm.runInThisContext(`import("${relativePath}")`, {
-    filename: __filename,
-  }));
-  // Rejects because it's got an invalid referrer URL.
-  // TODO(jkrems): Arguably the first two (built-in + absolute URL) could work
-  // with some additional effort.
-  expectInvalidReferrerError(vm.runInThisContext('import("fs")'));
-  expectInvalidReferrerError(vm.runInThisContext(`import("${targetURL}")`));
-  expectInvalidReferrerError(vm.runInThisContext(`import("${relativePath}")`));
-})();
-
-// vm.runInNewContext is currently completely unsupported, pending well-defined
-// semantics for per-context/realm module maps in node.
-(function testRunInNewContext() {
-  // Rejects because it's running in the wrong context
-  expectInvalidContextError(
-    vm.runInNewContext(`import("${targetURL}")`, undefined, {
-      filename: __filename,
-    })
-  );
-
-  // Rejects because it's running in the wrong context
-  expectInvalidContextError(vm.runInNewContext(`import("fs")`, undefined, {
-    filename: __filename,
-  }));
 })();

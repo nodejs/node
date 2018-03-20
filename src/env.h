@@ -163,6 +163,7 @@ struct PackageConfig {
   V(fatal_exception_string, "_fatalException")                                \
   V(fd_string, "fd")                                                          \
   V(file_string, "file")                                                      \
+  V(filename_string, "filename")                                              \
   V(fingerprint_string, "fingerprint")                                        \
   V(fingerprint256_string, "fingerprint256")                                  \
   V(flags_string, "flags")                                                    \
@@ -628,7 +629,11 @@ class Environment {
   // List of id's that have been destroyed and need the destroy() cb called.
   inline std::vector<double>* destroy_async_id_list();
 
-  std::unordered_multimap<int, loader::ModuleWrap*> module_map;
+  std::unordered_map<int, loader::ModuleWrap*> id_to_module_wrap_map;
+  std::unordered_multimap<int, loader::ModuleWrap*> module_to_module_wrap_map;
+  std::unordered_map<int, void*> id_to_script_wrap_map;
+
+  inline int get_next_module_id();
 
   std::unordered_map<std::string, loader::PackageConfig> package_json_cache;
 
@@ -864,6 +869,8 @@ class Environment {
   static void EnvPromiseHook(v8::PromiseHookType type,
                              v8::Local<v8::Promise> promise,
                              v8::Local<v8::Value> parent);
+
+  int module_id_counter_ = 0;
 
 #define V(PropertyName, TypeName) Persistent<TypeName> PropertyName ## _;
   ENVIRONMENT_STRONG_PERSISTENT_PROPERTIES(V)

@@ -445,6 +445,10 @@ inline double Environment::get_default_trigger_async_id() {
   return default_trigger_async_id;
 }
 
+inline int Environment::get_next_module_id() {
+  return module_id_counter_++;
+}
+
 inline double* Environment::heap_statistics_buffer() const {
   CHECK_NE(heap_statistics_buffer_, nullptr);
   return heap_statistics_buffer_;
