@@ -4,7 +4,8 @@ const assert = require('assert');
 
 common.expectWarning(
   'DeprecationWarning',
-  'process.assert() is deprecated. Please use the `assert` module instead.'
+  'process.assert() is deprecated. Please use the `assert` module instead.',
+  'DEP0100'
 );
 
 assert.strictEqual(process.assert(1, 'error'), undefined);

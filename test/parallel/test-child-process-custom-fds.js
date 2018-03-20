@@ -9,7 +9,7 @@ const oldSpawnSync = internalCp.spawnSync;
 {
   const msg = 'child_process: options.customFds option is deprecated. ' +
               'Use options.stdio instead.';
-  common.expectWarning('DeprecationWarning', msg);
+  common.expectWarning('DeprecationWarning', msg, 'DEP0006');
 
   const customFds = [-1, process.stdout.fd, process.stderr.fd];
   internalCp.spawnSync = common.mustCall(function(opts) {

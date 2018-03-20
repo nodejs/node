@@ -20,10 +20,10 @@ performance.maxEntries = 1;
   );
 });
 
-common.expectWarning('Warning', [
-  'Possible perf_hooks memory leak detected. There are 2 entries in the ' +
+common.expectWarning('Warning', 'Possible perf_hooks memory leak detected. ' +
+  'There are 2 entries in the ' +
   'Performance Timeline. Use the clear methods to remove entries that are no ' +
   'longer needed or set performance.maxEntries equal to a higher value ' +
-  '(currently the maxEntries is 1).']);
+  '(currently the maxEntries is 1).', common.noWarnCode);
 
 performance.mark('test');

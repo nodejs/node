@@ -30,7 +30,7 @@ const server = new net.Server();
 const expectedWarning = 'Server.connections property is deprecated. ' +
                         'Use Server.getConnections method instead.';
 
-common.expectWarning('DeprecationWarning', expectedWarning);
+common.expectWarning('DeprecationWarning', expectedWarning, 'DEP0020');
 
 // test that server.connections property is no longer enumerable now that it
 // has been marked as deprecated

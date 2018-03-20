@@ -6,7 +6,8 @@ const assert = require('assert');
 common.expectWarning(
   'DeprecationWarning',
   'assert.fail() with more than one argument is deprecated. ' +
-    'Please use assert.strictEqual() instead or only pass a message.'
+    'Please use assert.strictEqual() instead or only pass a message.',
+  'DEP0094'
 );
 
 // Two args only, operator defaults to '!='
