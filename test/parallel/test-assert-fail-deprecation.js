@@ -38,11 +38,7 @@ assert.throws(() => {
   assert.fail(typeof 1, 'object', new TypeError('another custom message'));
 }, {
   name: 'TypeError',
-  message: 'another custom message',
-  operator: undefined,
-  actual: undefined,
-  expected: undefined,
-  code: undefined
+  message: 'another custom message'
 });
 
 // No third arg (but a fourth arg)
