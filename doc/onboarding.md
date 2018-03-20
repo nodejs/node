@@ -10,8 +10,7 @@ onboarding session.
   possible to add them to the organization if they are not using two-factor
   authentication. If they cannot receive SMS messages from GitHub, try
   [using a TOTP mobile app][].
-* Announce the accepted nomination in a TSC meeting and in the TSC
-  mailing list.
+* Announce the accepted nomination on the TSC mailing list.
 * Suggest the new Collaborator install [`node-core-utils`][] and
   [set up the credentials][] for it.
 
