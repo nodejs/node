@@ -3325,7 +3325,7 @@ class Work : public node::AsyncResource {
                 void* data = nullptr)
     : AsyncResource(env->isolate,
                     async_resource,
-                    *v8::String::Utf8Value(async_resource_name)),
+                    *v8::String::Utf8Value(env->isolate, async_resource_name)),
     _env(env),
     _data(data),
     _execute(execute),

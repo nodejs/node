@@ -946,7 +946,7 @@ void IndexOfString(const FunctionCallbackInfo<Value>& args) {
   size_t result = haystack_length;
 
   if (enc == UCS2) {
-    String::Value needle_value(needle);
+    String::Value needle_value(args.GetIsolate(), needle);
     if (*needle_value == nullptr)
       return args.GetReturnValue().Set(-1);
 
@@ -979,7 +979,7 @@ void IndexOfString(const FunctionCallbackInfo<Value>& args) {
     }
     result *= 2;
   } else if (enc == UTF8) {
-    String::Utf8Value needle_value(needle);
+    String::Utf8Value needle_value(args.GetIsolate(), needle);
     if (*needle_value == nullptr)
       return args.GetReturnValue().Set(-1);
 

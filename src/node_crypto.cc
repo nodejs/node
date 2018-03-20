@@ -4807,7 +4807,7 @@ void PublicKeyCipher::Cipher(const FunctionCallbackInfo<Value>& args) {
 
   int padding = args[2]->Uint32Value();
 
-  String::Utf8Value passphrase(args[3]);
+  String::Utf8Value passphrase(args.GetIsolate(), args[3]);
 
   unsigned char* out_value = nullptr;
   size_t out_len = 0;
