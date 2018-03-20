@@ -336,13 +336,16 @@ const errMessages = {
 const ciphers = crypto.getCiphers();
 
 const expectedWarnings = common.hasFipsCrypto ?
-  [] : ['Use Cipheriv for counter mode of aes-192-gcm'];
+  [] : [['Use Cipheriv for counter mode of aes-192-gcm',
+         common.noWarnCode]];
 
 const expectedDeprecationWarnings = [0, 1, 2, 6, 9, 10, 11, 17]
-  .map((i) => `Permitting authentication tag lengths of ${i} bytes is ` +
-            'deprecated. Valid GCM tag lengths are 4, 8, 12, 13, 14, 15, 16.');
+  .map((i) => [`Permitting authentication tag lengths of ${i} bytes is ` +
+            'deprecated. Valid GCM tag lengths are 4, 8, 12, 13, 14, 15, 16.',
+               'DEP0090']);
 
-expectedDeprecationWarnings.push('crypto.DEFAULT_ENCODING is deprecated.');
+expectedDeprecationWarnings.push(['crypto.DEFAULT_ENCODING is deprecated.',
+                                  'DEP0091']);
 
 common.expectWarning({
   Warning: expectedWarnings,

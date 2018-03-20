@@ -20,7 +20,8 @@ let fdnum;
 
 common.expectWarning(
   'Warning',
-  `Closing file descriptor ${fdnum} on garbage collection`
+  `Closing file descriptor ${fdnum} on garbage collection`,
+  common.noWarnCode
 );
 
 gc();  // eslint-disable-line no-undef

@@ -236,7 +236,8 @@ testCipher2(Buffer.from('0123456789abcdef'));
   const data = Buffer.from('test-crypto-cipher-decipher');
 
   common.expectWarning('Warning',
-                       'Use Cipheriv for counter mode of aes-256-gcm');
+                       'Use Cipheriv for counter mode of aes-256-gcm',
+                       common.noWarnCode);
 
   const cipher = crypto.createCipher('aes-256-gcm', key);
   cipher.setAAD(aadbuf);

@@ -41,7 +41,8 @@ const ciphers = 'DHE-RSA-AES128-SHA256:ECDHE-RSA-AES128-SHA256';
 
 // Test will emit a warning because the DH parameter size is < 2048 bits
 common.expectWarning('SecurityWarning',
-                     'DH parameter is less than 2048 bits');
+                     'DH parameter is less than 2048 bits',
+                     common.noWarnCode);
 
 function loadDHParam(n) {
   const params = [`dh${n}.pem`];

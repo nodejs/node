@@ -48,7 +48,8 @@ const options = {
 };
 
 common.expectWarning('DeprecationWarning',
-                     '{ ecdhCurve: false } is deprecated.');
+                     '{ ecdhCurve: false } is deprecated.',
+                     'DEP0083');
 
 const server = tls.createServer(options, common.mustNotCall());
 

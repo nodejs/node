@@ -64,8 +64,8 @@ fs.ftruncateSync(fd);
 stat = fs.statSync(filename);
 assert.strictEqual(stat.size, 0);
 
-// Check truncateSync
-common.expectWarning('DeprecationWarning', msg);
+// truncateSync
+common.expectWarning('DeprecationWarning', msg, 'DEP0081');
 fs.truncateSync(fd);
 
 fs.closeSync(fd);
