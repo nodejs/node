@@ -836,7 +836,7 @@ LTS working group and the Release team.
 | `lib/domains`                            | @nodejs/domains                                                       |
 | `lib/fs`, `src/{fs,file}`                | @nodejs/fs                                                            |
 | `lib/{_}http{*}`                         | @nodejs/http                                                          |
-| `lib/inspector.js`, `src/inspector_*`    | @nodejs/v8-inspector                                                  |
+| `lib/inspector.js`, `src/inspector_*`    | @nodejs/V8-inspector                                                  |
 | `lib/internal/url`, `src/node_url`       | @nodejs/url                                                           |
 | `lib/net`                                | @bnoordhuis, @indutny, @nodejs/streams                                |
 | `lib/repl`                               | @nodejs/repl                                                          |
@@ -859,7 +859,7 @@ LTS working group and the Release team.
 | upgrading http-parser                    | @nodejs/http, @nodejs/http2                                           |
 | upgrading libuv                          | @nodejs/libuv                                                         |
 | upgrading npm                            | @fishrock123, @MylesBorins                                            |
-| upgrading V8                             | @nodejs/v8, @nodejs/post-mortem                                       |
+| upgrading V8                             | @nodejs/V8, @nodejs/post-mortem                                       |
 | Embedded use or delivery of Node.js      | @nodejs/delivery-channels                                             |
 
 When things need extra attention, are controversial, or `semver-major`:
