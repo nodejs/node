@@ -515,35 +515,35 @@ void Http2Stream::EmitStatistics() {
   Http2StreamPerformanceEntry* entry =
     new Http2StreamPerformanceEntry(env(), id_, statistics_);
   env()->SetImmediate([](Environment* env, void* data) {
-    Http2StreamPerformanceEntry* entry =
-      static_cast<Http2StreamPerformanceEntry*>(data);
-    if (HasHttp2Observer(env)) {
-      AliasedBuffer<double, v8::Float64Array>& buffer =
-          env->http2_state()->stream_stats_buffer;
-      buffer[IDX_STREAM_STATS_ID] = entry->id();
-      if (entry->first_byte() != 0) {
-        buffer[IDX_STREAM_STATS_TIMETOFIRSTBYTE] =
-            (entry->first_byte() - entry->startTimeNano()) / 1e6;
-      } else {
-        buffer[IDX_STREAM_STATS_TIMETOFIRSTBYTE] = 0;
-      }
-      if (entry->first_header() != 0) {
-        buffer[IDX_STREAM_STATS_TIMETOFIRSTHEADER] =
-            (entry->first_header() - entry->startTimeNano()) / 1e6;
-      } else {
-        buffer[IDX_STREAM_STATS_TIMETOFIRSTHEADER] = 0;
-      }
-      if (entry->first_byte_sent() != 0) {
-        buffer[IDX_STREAM_STATS_TIMETOFIRSTBYTESENT] =
-            (entry->first_byte_sent() - entry->startTimeNano()) / 1e6;
-      } else {
-        buffer[IDX_STREAM_STATS_TIMETOFIRSTBYTESENT] = 0;
-      }
-      buffer[IDX_STREAM_STATS_SENTBYTES] = entry->sent_bytes();
-      buffer[IDX_STREAM_STATS_RECEIVEDBYTES] = entry->received_bytes();
-      entry->Notify(entry->ToObject());
+    // This takes ownership, the entr is destroyed at the end of this scope.
+    std::unique_ptr<Http2StreamPerformanceEntry> entry {
+        static_cast<Http2StreamPerformanceEntry*>(data) };
+    if (!HasHttp2Observer(env))
+      return;
+    AliasedBuffer<double, v8::Float64Array>& buffer =
+        env->http2_state()->stream_stats_buffer;
+    buffer[IDX_STREAM_STATS_ID] = entry->id();
+    if (entry->first_byte() != 0) {
+      buffer[IDX_STREAM_STATS_TIMETOFIRSTBYTE] =
+          (entry->first_byte() - entry->startTimeNano()) / 1e6;
+    } else {
+      buffer[IDX_STREAM_STATS_TIMETOFIRSTBYTE] = 0;
     }
-    delete entry;
+    if (entry->first_header() != 0) {
+      buffer[IDX_STREAM_STATS_TIMETOFIRSTHEADER] =
+          (entry->first_header() - entry->startTimeNano()) / 1e6;
+    } else {
+      buffer[IDX_STREAM_STATS_TIMETOFIRSTHEADER] = 0;
+    }
+    if (entry->first_byte_sent() != 0) {
+      buffer[IDX_STREAM_STATS_TIMETOFIRSTBYTESENT] =
+          (entry->first_byte_sent() - entry->startTimeNano()) / 1e6;
+    } else {
+      buffer[IDX_STREAM_STATS_TIMETOFIRSTBYTESENT] = 0;
+    }
+    buffer[IDX_STREAM_STATS_SENTBYTES] = entry->sent_bytes();
+    buffer[IDX_STREAM_STATS_RECEIVEDBYTES] = entry->received_bytes();
+    entry->Notify(entry->ToObject());
   }, static_cast<void*>(entry));
 }
 
@@ -553,25 +553,25 @@ void Http2Session::EmitStatistics() {
   Http2SessionPerformanceEntry* entry =
     new Http2SessionPerformanceEntry(env(), statistics_, session_type_);
   env()->SetImmediate([](Environment* env, void* data) {
-    Http2SessionPerformanceEntry* entry =
-      static_cast<Http2SessionPerformanceEntry*>(data);
-    if (HasHttp2Observer(env)) {
-      AliasedBuffer<double, v8::Float64Array>& buffer =
-          env->http2_state()->session_stats_buffer;
-      buffer[IDX_SESSION_STATS_TYPE] = entry->type();
-      buffer[IDX_SESSION_STATS_PINGRTT] = entry->ping_rtt() / 1e6;
-      buffer[IDX_SESSION_STATS_FRAMESRECEIVED] = entry->frame_count();
-      buffer[IDX_SESSION_STATS_FRAMESSENT] = entry->frame_sent();
-      buffer[IDX_SESSION_STATS_STREAMCOUNT] = entry->stream_count();
-      buffer[IDX_SESSION_STATS_STREAMAVERAGEDURATION] =
-          entry->stream_average_duration();
-      buffer[IDX_SESSION_STATS_DATA_SENT] = entry->data_sent();
-      buffer[IDX_SESSION_STATS_DATA_RECEIVED] = entry->data_received();
-      buffer[IDX_SESSION_STATS_MAX_CONCURRENT_STREAMS] =
-          entry->max_concurrent_streams();
-      entry->Notify(entry->ToObject());
-    }
-    delete entry;
+    // This takes ownership, the entr is destroyed at the end of this scope.
+    std::unique_ptr<Http2SessionPerformanceEntry> entry {
+        static_cast<Http2SessionPerformanceEntry*>(data) };
+    if (!HasHttp2Observer(env))
+      return;
+    AliasedBuffer<double, v8::Float64Array>& buffer =
+        env->http2_state()->session_stats_buffer;
+    buffer[IDX_SESSION_STATS_TYPE] = entry->type();
+    buffer[IDX_SESSION_STATS_PINGRTT] = entry->ping_rtt() / 1e6;
+    buffer[IDX_SESSION_STATS_FRAMESRECEIVED] = entry->frame_count();
+    buffer[IDX_SESSION_STATS_FRAMESSENT] = entry->frame_sent();
+    buffer[IDX_SESSION_STATS_STREAMCOUNT] = entry->stream_count();
+    buffer[IDX_SESSION_STATS_STREAMAVERAGEDURATION] =
+        entry->stream_average_duration();
+    buffer[IDX_SESSION_STATS_DATA_SENT] = entry->data_sent();
+    buffer[IDX_SESSION_STATS_DATA_RECEIVED] = entry->data_received();
+    buffer[IDX_SESSION_STATS_MAX_CONCURRENT_STREAMS] =
+        entry->max_concurrent_streams();
+    entry->Notify(entry->ToObject());
   }, static_cast<void*>(entry));
 }
 
@@ -1379,6 +1379,7 @@ void Http2Session::MaybeScheduleWrite() {
 
       // Sending data may call arbitrary JS code, so keep track of
       // async context.
+      HandleScope handle_scope(env->isolate());
       InternalCallbackScope callback_scope(session);
       session->SendPendingData();
     }, static_cast<void*>(this), object());
