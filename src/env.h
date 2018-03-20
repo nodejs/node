@@ -343,6 +343,21 @@ struct PackageConfig {
   V(url_constructor_function, v8::Function)                                   \
   V(write_wrap_template, v8::ObjectTemplate)
 
+#define ENVIRONMENT_ERROR_HELPERS(V)                                          \
+  V(ERR_BUFFER_OUT_OF_BOUNDS, RangeError)                                     \
+  V(ERR_INDEX_OUT_OF_RANGE, RangeError)                                       \
+  V(ERR_INSPECTOR_ALREADY_CONNECTED, Error)                                   \
+  V(ERR_INVALID_ARG_VALUE, Error)                                             \
+  V(ERR_INVALID_ARG_TYPE, TypeError)                                          \
+  V(ERR_INVALID_CALLBACK, TypeError)                                          \
+  V(ERR_INVALID_CONSTRUCTOR_CALL, TypeError)                                  \
+  V(ERR_INVALID_THIS, TypeError)                                              \
+  V(ERR_MISSING_ARGS, TypeError)                                              \
+  V(ERR_MISSING_MODULE, Error)                                                \
+  V(ERR_OUT_OF_RANGE, RangeError)                                             \
+  V(ERR_SCRIPT_EXECUTION_INTERRUPTED, Error)                                  \
+  V(ERR_SCRIPT_EXECUTION_TIMEOUT, Error)
+
 class Environment;
 
 class IsolateData {
@@ -714,6 +729,12 @@ class Environment {
   inline v8::Local<TypeName> PropertyName() const;                            \
   inline void set_ ## PropertyName(v8::Local<TypeName> value);
   ENVIRONMENT_STRONG_PERSISTENT_PROPERTIES(V)
+#undef V
+
+#define V(code, _)                                                            \
+  inline v8::Local<v8::Value> code(const char* message) const;                \
+  inline void THROW_ ## code(const char* message) const;
+  ENVIRONMENT_ERROR_HELPERS(V)
 #undef V
 
 #if HAVE_INSPECTOR

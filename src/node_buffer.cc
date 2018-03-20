@@ -36,9 +36,9 @@
 
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
 
-#define THROW_AND_RETURN_IF_OOB(r)                                          \
-  do {                                                                      \
-    if (!(r)) return env->ThrowRangeError("Index out of range");            \
+#define THROW_AND_RETURN_IF_OOB(r)                                            \
+  do {                                                                        \
+    if (!(r)) return env->THROW_ERR_INDEX_OUT_OF_RANGE("Index out of range"); \
   } while (0)
 
 #define SLICE_START_END(start_arg, end_arg, end_max)                        \
@@ -544,7 +544,7 @@ void Copy(const FunctionCallbackInfo<Value> &args) {
     return args.GetReturnValue().Set(0);
 
   if (source_start > ts_obj_length)
-    return env->ThrowRangeError("Index out of range");
+    return env->THROW_ERR_INDEX_OUT_OF_RANGE("Index out of range");
 
   if (source_end - source_start > target_length - target_start)
     source_end = source_start + target_length - target_start;
@@ -657,7 +657,7 @@ void StringWrite(const FunctionCallbackInfo<Value>& args) {
   SPREAD_BUFFER_ARG(args.This(), ts_obj);
 
   if (!args[0]->IsString())
-    return env->ThrowTypeError("Argument must be a string");
+    return env->THROW_ERR_INVALID_ARG_TYPE("Argument must be a string");
 
   Local<String> str = args[0]->ToString(env->context()).ToLocalChecked();
 
@@ -666,7 +666,8 @@ void StringWrite(const FunctionCallbackInfo<Value>& args) {
 
   THROW_AND_RETURN_IF_OOB(ParseArrayIndex(args[1], 0, &offset));
   if (offset > ts_obj_length)
-    return env->ThrowRangeError("Offset is out of bounds");
+    return env->THROW_ERR_BUFFER_OUT_OF_BOUNDS(
+        "\"offset\" is outside of buffer bounds");
 
   THROW_AND_RETURN_IF_OOB(ParseArrayIndex(args[2], ts_obj_length - offset,
                                           &max_length));
@@ -728,9 +729,9 @@ void CompareOffset(const FunctionCallbackInfo<Value> &args) {
   THROW_AND_RETURN_IF_OOB(ParseArrayIndex(args[5], ts_obj_length, &source_end));
 
   if (source_start > ts_obj_length)
-    return env->ThrowRangeError("Index out of range");
+    return env->THROW_ERR_INDEX_OUT_OF_RANGE("Index out of range");
   if (target_start > target_length)
-    return env->ThrowRangeError("Index out of range");
+    return env->THROW_ERR_INDEX_OUT_OF_RANGE("Index out of range");
 
   CHECK_LE(source_start, source_end);
   CHECK_LE(target_start, target_end);

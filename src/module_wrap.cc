@@ -81,19 +81,20 @@ void ModuleWrap::New(const FunctionCallbackInfo<Value>& args) {
   Isolate* isolate = args.GetIsolate();
 
   if (!args.IsConstructCall()) {
-    env->ThrowError("constructor must be called using new");
+    env->THROW_ERR_INVALID_CONSTRUCTOR_CALL(
+        "constructor must be called using new");
     return;
   }
 
   if (!args[0]->IsString()) {
-    env->ThrowError("first argument is not a string");
+    env->THROW_ERR_INVALID_ARG_TYPE("first argument is not a string");
     return;
   }
 
   Local<String> source_text = args[0].As<String>();
 
   if (!args[1]->IsString()) {
-    env->ThrowError("second argument is not a string");
+    env->THROW_ERR_INVALID_ARG_TYPE("second argument is not a string");
     return;
   }
 
@@ -162,7 +163,7 @@ void ModuleWrap::Link(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   Isolate* isolate = args.GetIsolate();
   if (!args[0]->IsFunction()) {
-    env->ThrowError("first argument is not a function");
+    env->THROW_ERR_INVALID_ARG_TYPE("first argument is not a function");
     return;
   }
 
@@ -283,9 +284,10 @@ void ModuleWrap::Evaluate(const FunctionCallbackInfo<Value>& args) {
     // which this timeout is nested, so check whether one of the watchdogs
     // from this invocation is responsible for termination.
     if (timed_out) {
-      env->ThrowError("Script execution timed out.");
+      env->THROW_ERR_SCRIPT_EXECUTION_TIMEOUT("Script execution timed out.");
     } else if (received_signal) {
-      env->ThrowError("Script execution interrupted.");
+      env->THROW_ERR_SCRIPT_EXECUTION_INTERRUPTED(
+          "Script execution interrupted.");
     }
     env->isolate()->CancelTerminateExecution();
   }
@@ -666,37 +668,39 @@ void ModuleWrap::Resolve(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
   if (args.IsConstructCall()) {
-    env->ThrowError("resolve() must not be called as a constructor");
+    env->THROW_ERR_INVALID_CONSTRUCTOR_CALL(
+        "resolve() must not be called as a constructor");
     return;
   }
   if (args.Length() != 2) {
-    env->ThrowError("resolve must have exactly 2 arguments (string, string)");
+    env->THROW_ERR_INVALID_ARG_TYPE(
+        "resolve must have exactly 2 arguments (string, string)");
     return;
   }
 
   if (!args[0]->IsString()) {
-    env->ThrowError("first argument is not a string");
+    env->THROW_ERR_INVALID_ARG_TYPE("first argument is not a string");
     return;
   }
   Utf8Value specifier_utf8(env->isolate(), args[0]);
   std::string specifier_std(*specifier_utf8, specifier_utf8.length());
 
   if (!args[1]->IsString()) {
-    env->ThrowError("second argument is not a string");
+    env->THROW_ERR_INVALID_ARG_TYPE("second argument is not a string");
     return;
   }
   Utf8Value url_utf8(env->isolate(), args[1]);
   URL url(*url_utf8, url_utf8.length());
 
   if (url.flags() & URL_FLAGS_FAILED) {
-    env->ThrowError("second argument is not a URL string");
+    env->THROW_ERR_INVALID_ARG_TYPE("second argument is not a URL string");
     return;
   }
 
   Maybe<URL> result = node::loader::Resolve(env, specifier_std, url);
   if (result.IsNothing() || (result.FromJust().flags() & URL_FLAGS_FAILED)) {
     std::string msg = "Cannot find module " + specifier_std;
-    env->ThrowError(msg.c_str());
+    env->THROW_ERR_MISSING_MODULE(msg.c_str());
     return;
   }
 
@@ -749,7 +753,7 @@ void ModuleWrap::SetImportModuleDynamicallyCallback(
   Environment* env = Environment::GetCurrent(args);
   HandleScope handle_scope(iso);
   if (!args[0]->IsFunction()) {
-    env->ThrowError("first argument is not a function");
+    env->THROW_ERR_INVALID_ARG_TYPE("first argument is not a function");
     return;
   }
 
@@ -782,7 +786,7 @@ void ModuleWrap::SetInitializeImportMetaObjectCallback(
   Environment* env = Environment::GetCurrent(args);
   Isolate* isolate = env->isolate();
   if (!args[0]->IsFunction()) {
-    env->ThrowError("first argument is not a function");
+    env->THROW_ERR_INVALID_ARG_TYPE("first argument is not a function");
     return;
   }
 

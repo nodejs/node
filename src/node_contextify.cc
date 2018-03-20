@@ -242,7 +242,8 @@ void ContextifyContext::MakeContext(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
   if (!args[0]->IsObject()) {
-    return env->ThrowTypeError("sandbox argument must be an object.");
+    return env->THROW_ERR_INVALID_ARG_TYPE(
+        "sandbox argument must be an object.");
   }
   Local<Object> sandbox = args[0].As<Object>();
 
@@ -609,7 +610,7 @@ Maybe<bool> GetBreakOnSigintArg(Environment* env,
     return Just(false);
   }
   if (!options->IsObject()) {
-    env->ThrowTypeError("options must be an object");
+    env->THROW_ERR_INVALID_ARG_TYPE("options must be an object");
     return Nothing<bool>();
   }
 
@@ -628,7 +629,7 @@ Maybe<int64_t> GetTimeoutArg(Environment* env, Local<Value> options) {
     return Just<int64_t>(-1);
   }
   if (!options->IsObject()) {
-    env->ThrowTypeError("options must be an object");
+    env->THROW_ERR_INVALID_ARG_TYPE("options must be an object");
     return Nothing<int64_t>();
   }
 
@@ -645,7 +646,7 @@ Maybe<int64_t> GetTimeoutArg(Environment* env, Local<Value> options) {
   Maybe<int64_t> timeout = value->IntegerValue(env->context());
 
   if (timeout.IsJust() && timeout.ToChecked() <= 0) {
-    env->ThrowRangeError("timeout must be a positive number");
+    env->THROW_ERR_OUT_OF_RANGE("timeout must be a positive number");
     return Nothing<int64_t>();
   }
 
@@ -708,7 +709,7 @@ MaybeLocal<Context> GetContextArg(Environment* env,
 
   if (!value->IsObject()) {
     if (!value->IsNullOrUndefined()) {
-      env->ThrowTypeError(
+      env->THROW_ERR_INVALID_ARG_TYPE(
           "contextifiedSandbox argument must be an object.");
     }
     return MaybeLocal<Context>();
@@ -718,7 +719,7 @@ MaybeLocal<Context> GetContextArg(Environment* env,
       ContextifyContext::ContextFromContextifiedSandbox(
           env, value.As<Object>());
   if (!sandbox) {
-    env->ThrowTypeError(
+    env->THROW_ERR_INVALID_ARG_TYPE(
         "sandbox argument must have been converted to a context.");
     return MaybeLocal<Context>();
   }
@@ -737,7 +738,7 @@ Maybe<bool> GetDisplayErrorsArg(Environment* env,
     return Just(true);
   }
   if (!options->IsObject()) {
-    env->ThrowTypeError("options must be an object");
+    env->THROW_ERR_INVALID_ARG_TYPE("options must be an object");
     return Nothing<bool>();
   }
 
@@ -766,7 +767,7 @@ MaybeLocal<String> GetFilenameArg(Environment* env,
     return options.As<String>();
   }
   if (!options->IsObject()) {
-    env->ThrowTypeError("options must be an object");
+    env->THROW_ERR_INVALID_ARG_TYPE("options must be an object");
     return Local<String>();
   }
 
@@ -799,7 +800,8 @@ MaybeLocal<Uint8Array> GetCachedData(Environment* env,
   }
 
   if (!value->IsUint8Array()) {
-    env->ThrowTypeError("options.cachedData must be a Buffer instance");
+    env->THROW_ERR_INVALID_ARG_TYPE(
+        "options.cachedData must be a Buffer instance");
     return MaybeLocal<Uint8Array>();
   }
 
@@ -860,7 +862,8 @@ class ContextifyScript : public BaseObject {
     Environment* env = Environment::GetCurrent(args);
 
     if (!args.IsConstructCall()) {
-      return env->ThrowError("Must call vm.Script as a constructor.");
+      return env->THROW_ERR_INVALID_CONSTRUCTOR_CALL(
+          "Must call vm.Script as a constructor.");
     }
 
     ContextifyScript* contextify_script =
@@ -981,7 +984,7 @@ class ContextifyScript : public BaseObject {
 
     // Assemble arguments
     if (!args[0]->IsObject()) {
-      return env->ThrowTypeError(
+      return env->THROW_ERR_INVALID_ARG_TYPE(
           "contextifiedSandbox argument must be an object.");
     }
 
@@ -1005,7 +1008,7 @@ class ContextifyScript : public BaseObject {
     ContextifyContext* contextify_context =
         ContextifyContext::ContextFromContextifiedSandbox(env, sandbox);
     if (contextify_context == nullptr) {
-      return env->ThrowTypeError(
+      return env->THROW_ERR_INVALID_ARG_TYPE(
           "sandbox argument must have been converted to a context.");
     }
 
@@ -1075,7 +1078,7 @@ class ContextifyScript : public BaseObject {
                           const FunctionCallbackInfo<Value>& args,
                           TryCatch* try_catch) {
     if (!ContextifyScript::InstanceOf(env, args.Holder())) {
-      env->ThrowTypeError(
+      env->THROW_ERR_INVALID_THIS(
           "Script methods can only be called on script instances.");
       return false;
     }
@@ -1108,9 +1111,10 @@ class ContextifyScript : public BaseObject {
       // which this timeout is nested, so check whether one of the watchdogs
       // from this invocation is responsible for termination.
       if (timed_out) {
-        env->ThrowError("Script execution timed out.");
+        env->THROW_ERR_SCRIPT_EXECUTION_TIMEOUT("Script execution timed out.");
       } else if (received_signal) {
-        env->ThrowError("Script execution interrupted.");
+        env->THROW_ERR_SCRIPT_EXECUTION_INTERRUPTED(
+            "Script execution interrupted.");
       }
       env->isolate()->CancelTerminateExecution();
     }
