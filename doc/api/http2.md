@@ -24,8 +24,9 @@ be emitted either by client-side code or server-side code.
 
 ### Server-side example
 
-The following illustrates a simple, plain-text HTTP/2 server using the
-Core API:
+The following illustrates a simple HTTP/2 server using the Core API.
+Note the use of [`http2.createSecureServer()`][] since HTTPS is required
+for [most web browsers](https://caniuse.com/#feat=http2).
 
 ```js
 const http2 = require('http2');
@@ -252,7 +253,7 @@ and would instead register a handler for the `'stream'` event emitted by the
 ```js
 const http2 = require('http2');
 
-// Create a plain-text HTTP/2 server
+// Create a simple HTTP/2 server
 const server = http2.createServer();
 
 server.on('stream', (stream, headers) => {
@@ -1730,7 +1731,9 @@ instances.
 ```js
 const http2 = require('http2');
 
-// Create a plain-text HTTP/2 server
+// Create a simple HTTP/2 server
+// This will not work in most browsers,
+// Try http2.createSecureServer instead
 const server = http2.createServer();
 
 server.on('stream', (stream, headers) => {
