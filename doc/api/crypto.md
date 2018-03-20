@@ -1273,6 +1273,11 @@ Adversaries][] for details.
 ### crypto.createCipheriv(algorithm, key, iv[, options])
 <!-- YAML
 added: v0.1.94
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/18644
+    description: The `iv` parameter may now be `null` for ciphers which do not
+                 need an initialization vector.
 -->
 - `algorithm` {string}
 - `key` {string | Buffer | TypedArray | DataView}
@@ -1288,7 +1293,8 @@ available cipher algorithms.
 
 The `key` is the raw key used by the `algorithm` and `iv` is an
 [initialization vector][]. Both arguments must be `'utf8'` encoded strings,
-[Buffers][`Buffer`], `TypedArray`, or `DataView`s.
+[Buffers][`Buffer`], `TypedArray`, or `DataView`s. If the cipher does not need
+an initialization vector, `iv` may be `null`.
 
 ### crypto.createCredentials(details)
 <!-- YAML
@@ -1334,6 +1340,11 @@ to create the `Decipher` object.
 ### crypto.createDecipheriv(algorithm, key, iv[, options])
 <!-- YAML
 added: v0.1.94
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/18644
+    description: The `iv` parameter may now be `null` for ciphers which do not
+                 need an initialization vector.
 -->
 - `algorithm` {string}
 - `key` {string | Buffer | TypedArray | DataView}
@@ -1350,7 +1361,8 @@ available cipher algorithms.
 
 The `key` is the raw key used by the `algorithm` and `iv` is an
 [initialization vector][]. Both arguments must be `'utf8'` encoded strings,
-[Buffers][`Buffer`], `TypedArray`, or `DataView`s.
+[Buffers][`Buffer`], `TypedArray`, or `DataView`s. If the cipher does not need
+an initialization vector, `iv` may be `null`.
 
 ### crypto.createDiffieHellman(prime[, primeEncoding][, generator][, generatorEncoding])
 <!-- YAML
