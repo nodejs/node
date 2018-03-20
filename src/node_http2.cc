@@ -520,6 +520,7 @@ void Http2Stream::EmitStatistics() {
         static_cast<Http2StreamPerformanceEntry*>(data) };
     if (!HasHttp2Observer(env))
       return;
+    HandleScope handle_scope(env->isolate());
     AliasedBuffer<double, v8::Float64Array>& buffer =
         env->http2_state()->stream_stats_buffer;
     buffer[IDX_STREAM_STATS_ID] = entry->id();
@@ -558,6 +559,7 @@ void Http2Session::EmitStatistics() {
         static_cast<Http2SessionPerformanceEntry*>(data) };
     if (!HasHttp2Observer(env))
       return;
+    HandleScope handle_scope(env->isolate());
     AliasedBuffer<double, v8::Float64Array>& buffer =
         env->http2_state()->session_stats_buffer;
     buffer[IDX_SESSION_STATS_TYPE] = entry->type();
