@@ -202,7 +202,7 @@ Pull Request, you may re-run the sub-task to try to see if it passes. If re-runs
 of all failed sub-tasks pass, it is permissible to land the Pull Request but
 only if the initial failures are believed in good faith to be unrelated to the
 changes in the Pull Request. Otherwise, reasonable steps must be taken to
-confirm that the change is not resulting in an unreliable test.
+confirm that the changes are not resulting in an unreliable test.
 
 #### Useful CI Jobs
 
