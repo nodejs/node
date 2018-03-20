@@ -54,6 +54,243 @@ using ::v8::String;
 using ::v8::Value;
 using ::v8::V8;
 
+namespace {
+
+class DeoptimizeCodeThread : public v8::base::Thread {
+ public:
+  DeoptimizeCodeThread(v8::Isolate* isolate, v8::Local<v8::Context> context,
+                       const char* trigger)
+      : Thread(Options("DeoptimizeCodeThread")),
+        isolate_(isolate),
+        context_(isolate, context),
+        source_(trigger) {}
+
+  void Run() {
+    v8::Locker locker(isolate_);
+    isolate_->Enter();
+    v8::HandleScope handle_scope(isolate_);
+    v8::Local<v8::Context> context =
+        v8::Local<v8::Context>::New(isolate_, context_);
+    v8::Context::Scope context_scope(context);
+    CHECK_EQ(isolate_, v8::Isolate::GetCurrent());
+    // This code triggers deoptimization of some function that will be
+    // used in a different thread.
+    CompileRun(source_);
+    isolate_->Exit();
+  }
+
+ private:
+  v8::Isolate* isolate_;
+  Persistent<v8::Context> context_;
+  // The code that triggers the deoptimization.
+  const char* source_;
+};
+
+void UnlockForDeoptimization(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+  // Gets the pointer to the thread that will trigger the deoptimization of the
+  // code.
+  DeoptimizeCodeThread* deoptimizer =
+      reinterpret_cast<DeoptimizeCodeThread*>(isolate->GetData(0));
+  {
+    // Exits and unlocks the isolate.
+    isolate->Exit();
+    v8::Unlocker unlocker(isolate);
+    // Starts the deoptimizing thread.
+    deoptimizer->Start();
+    // Waits for deoptimization to finish.
+    deoptimizer->Join();
+  }
+  // The deoptimizing thread has finished its work, and the isolate
+  // will now be used by the current thread.
+  isolate->Enter();
+}
+
+void UnlockForDeoptimizationIfReady(
+    const v8::FunctionCallbackInfo<v8::Value>& args) {
+  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+  bool* ready_to_deoptimize = reinterpret_cast<bool*>(isolate->GetData(1));
+  if (*ready_to_deoptimize) {
+    // The test should enter here only once, so put the flag back to false.
+    *ready_to_deoptimize = false;
+    // Gets the pointer to the thread that will trigger the deoptimization of
+    // the code.
+    DeoptimizeCodeThread* deoptimizer =
+        reinterpret_cast<DeoptimizeCodeThread*>(isolate->GetData(0));
+    {
+      // Exits and unlocks the thread.
+      isolate->Exit();
+      v8::Unlocker unlocker(isolate);
+      // Starts the thread that deoptimizes the function.
+      deoptimizer->Start();
+      // Waits for the deoptimizing thread to finish.
+      deoptimizer->Join();
+    }
+    // The deoptimizing thread has finished its work, and the isolate
+    // will now be used by the current thread.
+    isolate->Enter();
+  }
+}
+}  // namespace
+
+TEST(LazyDeoptimizationMultithread) {
+  i::FLAG_allow_natives_syntax = true;
+  v8::Isolate::CreateParams create_params;
+  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  v8::Isolate* isolate = v8::Isolate::New(create_params);
+  {
+    v8::Locker locker(isolate);
+    v8::Isolate::Scope isolate_scope(isolate);
+    v8::HandleScope scope(isolate);
+    v8::Local<v8::Context> context = v8::Context::New(isolate);
+    const char* trigger_deopt = "obj = { y: 0, x: 1 };";
+
+    // We use the isolate to pass arguments to the UnlockForDeoptimization
+    // function. Namely, we pass a pointer to the deoptimizing thread.
+    DeoptimizeCodeThread deoptimize_thread(isolate, context, trigger_deopt);
+    isolate->SetData(0, &deoptimize_thread);
+    v8::Context::Scope context_scope(context);
+
+    // Create the function templace for C++ code that is invoked from
+    // JavaScript code.
+    Local<v8::FunctionTemplate> fun_templ =
+        v8::FunctionTemplate::New(isolate, UnlockForDeoptimization);
+    Local<Function> fun = fun_templ->GetFunction(context).ToLocalChecked();
+    CHECK(context->Global()
+              ->Set(context, v8_str("unlock_for_deoptimization"), fun)
+              .FromJust());
+
+    // Optimizes a function f, which will be deoptimized in another
+    // thread.
+    CompileRun(
+        "var b = false; var obj = { x: 1 };"
+        "function f() { g(); return obj.x; }"
+        "function g() { if (b) { unlock_for_deoptimization(); } }"
+        "%NeverOptimizeFunction(g);"
+        "f(); f(); %OptimizeFunctionOnNextCall(f);"
+        "f();");
+
+    // Trigger the unlocking.
+    Local<Value> v = CompileRun("b = true; f();");
+
+    // Once the isolate has been unlocked, the thread will wait for the
+    // other thread to finish its task. Once this happens, this thread
+    // continues with its execution, that is, with the execution of the
+    // function g, which then returns to f. The function f should have
+    // also been deoptimized. If the replacement did not happen on this
+    // thread's stack, then the test will fail here.
+    CHECK(v->IsNumber());
+    CHECK_EQ(1, static_cast<int>(v->NumberValue(context).FromJust()));
+  }
+  isolate->Dispose();
+}
+
+TEST(LazyDeoptimizationMultithreadWithNatives) {
+  i::FLAG_allow_natives_syntax = true;
+  v8::Isolate::CreateParams create_params;
+  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  v8::Isolate* isolate = v8::Isolate::New(create_params);
+  {
+    v8::Locker locker(isolate);
+    v8::Isolate::Scope isolate_scope(isolate);
+    v8::HandleScope scope(isolate);
+    v8::Local<v8::Context> context = v8::Context::New(isolate);
+    const char* trigger_deopt = "%DeoptimizeFunction(f);";
+
+    // We use the isolate to pass arguments to the UnlockForDeoptimization
+    // function. Namely, we pass a pointer to the deoptimizing thread.
+    DeoptimizeCodeThread deoptimize_thread(isolate, context, trigger_deopt);
+    isolate->SetData(0, &deoptimize_thread);
+    bool ready_to_deopt = false;
+    isolate->SetData(1, &ready_to_deopt);
+    v8::Context::Scope context_scope(context);
+
+    // Create the function templace for C++ code that is invoked from
+    // JavaScript code.
+    Local<v8::FunctionTemplate> fun_templ =
+        v8::FunctionTemplate::New(isolate, UnlockForDeoptimizationIfReady);
+    Local<Function> fun = fun_templ->GetFunction(context).ToLocalChecked();
+    CHECK(context->Global()
+              ->Set(context, v8_str("unlock_for_deoptimization"), fun)
+              .FromJust());
+
+    // Optimizes a function f, which will be deoptimized in another
+    // thread.
+    CompileRun(
+        "var obj = { x: 1 };"
+        "function f() { g(); return obj.x;}"
+        "function g() { "
+        "  unlock_for_deoptimization(); }"
+        "%NeverOptimizeFunction(g);"
+        "f(); f(); %OptimizeFunctionOnNextCall(f);");
+
+    // Trigger the unlocking.
+    ready_to_deopt = true;
+    isolate->SetData(1, &ready_to_deopt);
+    Local<Value> v = CompileRun("f();");
+
+    // Once the isolate has been unlocked, the thread will wait for the
+    // other thread to finish its task. Once this happens, this thread
+    // continues with its execution, that is, with the execution of the
+    // function g, which then returns to f. The function f should have
+    // also been deoptimized. Otherwise, the test will fail here.
+    CHECK(v->IsNumber());
+    CHECK_EQ(1, static_cast<int>(v->NumberValue(context).FromJust()));
+  }
+  isolate->Dispose();
+}
+
+TEST(EagerDeoptimizationMultithread) {
+  i::FLAG_allow_natives_syntax = true;
+  v8::Isolate::CreateParams create_params;
+  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  v8::Isolate* isolate = v8::Isolate::New(create_params);
+  {
+    v8::Locker locker(isolate);
+    v8::Isolate::Scope isolate_scope(isolate);
+    v8::HandleScope scope(isolate);
+    v8::Local<v8::Context> context = v8::Context::New(isolate);
+    const char* trigger_deopt = "f({y: 0, x: 1});";
+
+    // We use the isolate to pass arguments to the UnlockForDeoptimization
+    // function. Namely, we pass a pointer to the deoptimizing thread.
+    DeoptimizeCodeThread deoptimize_thread(isolate, context, trigger_deopt);
+    isolate->SetData(0, &deoptimize_thread);
+    bool ready_to_deopt = false;
+    isolate->SetData(1, &ready_to_deopt);
+    v8::Context::Scope context_scope(context);
+
+    // Create the function templace for C++ code that is invoked from
+    // JavaScript code.
+    Local<v8::FunctionTemplate> fun_templ =
+        v8::FunctionTemplate::New(isolate, UnlockForDeoptimizationIfReady);
+    Local<Function> fun = fun_templ->GetFunction(context).ToLocalChecked();
+    CHECK(context->Global()
+              ->Set(context, v8_str("unlock_for_deoptimization"), fun)
+              .FromJust());
+
+    // Optimizes a function f, which will be deoptimized by another thread.
+    CompileRun(
+        "function f(obj) { unlock_for_deoptimization(); return obj.x; }"
+        "f({x: 1}); f({x: 1});"
+        "%OptimizeFunctionOnNextCall(f);"
+        "f({x: 1});");
+
+    // Trigger the unlocking.
+    ready_to_deopt = true;
+    isolate->SetData(1, &ready_to_deopt);
+    Local<Value> v = CompileRun("f({x: 1});");
+
+    // Once the isolate has been unlocked, the thread will wait for the
+    // other thread to finish its task. Once this happens, this thread
+    // continues with its execution, that is, with the execution of the
+    // function g, which then returns to f. The function f should have
+    // also been deoptimized. Otherwise, the test will fail here.
+    CHECK(v->IsNumber());
+    CHECK_EQ(1, static_cast<int>(v->NumberValue(context).FromJust()));
+  }
+  isolate->Dispose();
+}
 
 // Migrating an isolate
 class KangarooThread : public v8::base::Thread {
