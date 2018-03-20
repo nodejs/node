@@ -704,6 +704,9 @@ exports.expectsError = function expectsError(fn, settings, exact) {
       }
       assert.strictEqual(typeName, type.name);
     }
+    if ('info' in settings) {
+      assert.deepStrictEqual(error.info, settings.info);
+    }
     if ('message' in settings) {
       const message = settings.message;
       if (typeof message === 'string') {
