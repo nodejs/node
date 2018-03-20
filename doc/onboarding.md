@@ -242,7 +242,7 @@ needs to be pointed out separately during the onboarding.
 [`core-validate-commit`]: https://github.com/evanlucas/core-validate-commit
 [`git-node`]: https://github.com/nodejs/node-core-utils/blob/master/docs/git-node.md
 [`node-core-utils`]: https://github.com/nodejs/node-core-utils
-[Landing Pull Requests]: https://github.com/nodejs/node/blob/master/COLLABORATOR_GUIDE.md#landing-pull-requests
+[Landing Pull Requests]: /doc/guides/collaborator_guide/landing-pull-requests.md
 [https://github.com/nodejs/node/commit/ce986de829457c39257cd205067602e765768fb0]: https://github.com/nodejs/node/commit/ce986de829457c39257cd205067602e765768fb0
 [Publicizing or hiding organization membership]: https://help.github.com/articles/publicizing-or-hiding-organization-membership/
 [set up the credentials]: https://github.com/nodejs/node-core-utils#setting-up-credentials
