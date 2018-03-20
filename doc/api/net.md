@@ -419,8 +419,7 @@ added: v0.1.90
 * {Buffer}
 
 Emitted when data is received.  The argument `data` will be a `Buffer` or
-`String`.  Encoding of data is set by `socket.setEncoding()`.
-(See the [Readable Stream][] section for more information.)
+`String`.  Encoding of data is set by [`socket.setEncoding()`][].
 
 Note that the **data will be lost** if there is no listener when a `Socket`
 emits a `'data'` event.
@@ -746,7 +745,7 @@ added: v0.1.90
 * Returns: {net.Socket} The socket itself.
 
 Set the encoding for the socket as a [Readable Stream][]. See
-[`stream.setEncoding()`][] for more information.
+[`readable.setEncoding()`][] for more information.
 
 ### socket.setKeepAlive([enable][, initialDelay])
 <!-- YAML
@@ -1117,9 +1116,10 @@ Returns true if input is a version 6 IP address, otherwise returns false.
 [`socket.end()`]: #net_socket_end_data_encoding
 [`socket.pause()`]: #net_socket_pause
 [`socket.resume()`]: #net_socket_resume
+[`socket.setEncoding()`]: #net_socket_setencoding_encoding
 [`socket.setTimeout()`]: #net_socket_settimeout_timeout_callback
 [`socket.setTimeout(timeout)`]: #net_socket_settimeout_timeout_callback
-[`stream.setEncoding()`]: stream.html#stream_readable_setencoding_encoding
+[`readable.setEncoding()`]: stream.html#stream_readable_setencoding_encoding
 [IPC]: #net_ipc_support
 [Identifying paths for IPC connections]: #net_identifying_paths_for_ipc_connections
 [Readable Stream]: stream.html#stream_class_stream_readable
