@@ -1521,6 +1521,11 @@ A Transform stream finished while it was still transforming.
 
 A Transform stream finished with data still in the write buffer.
 
+<a id="ERR_TTY_INIT_FAILED"></a>
+### ERR_TTY_INIT_FAILED
+
+The initialization of a TTY failed due to a system error.
+
 <a id="ERR_UNCAUGHT_EXCEPTION_CAPTURE_ALREADY_SET"></a>
 ### ERR_UNCAUGHT_EXCEPTION_CAPTURE_ALREADY_SET
 
