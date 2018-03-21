@@ -8,7 +8,7 @@ const { Writable } = require('stream');
     write: common.mustCall((buf, enc, cb) => {
       cb();
       common.expectsError(cb, {
-        code: 'ERR_STREAM_WRITE_CALLBACK_TWICE',
+        code: 'ERR_MULTIPLE_CALLBACK',
         type: Error
       });
     })
@@ -23,7 +23,7 @@ const { Writable } = require('stream');
       cb();
       process.nextTick(() => {
         common.expectsError(cb, {
-          code: 'ERR_STREAM_WRITE_CALLBACK_TWICE',
+          code: 'ERR_MULTIPLE_CALLBACK',
           type: Error
         });
       });
@@ -39,7 +39,7 @@ const { Writable } = require('stream');
       process.nextTick(cb);
       process.nextTick(() => {
         common.expectsError(cb, {
-          code: 'ERR_STREAM_WRITE_CALLBACK_TWICE',
+          code: 'ERR_MULTIPLE_CALLBACK',
           type: Error
         });
       });
