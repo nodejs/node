@@ -13,31 +13,28 @@ function arrify(value) {
 }
 
 function extractAndParseYAML(text) {
-  text = text.trim();
-
-  text = text.replace(/^<!-- YAML/, '')
+  text = text.trim()
+             .replace(/^<!-- YAML/, '')
              .replace(/-->$/, '');
 
   // js-yaml.safeLoad() throws on error
   const meta = yaml.safeLoad(text);
 
-  const added = meta.added;
-  if (added) {
+  if (meta.added) {
     // Since semver-minors can trickle down to previous major versions,
     // features may have been added in multiple versions.
-    meta.added = arrify(added);
+    meta.added = arrify(meta.added);
   }
 
-  const deprecated = meta.deprecated;
-  if (deprecated) {
+  if (meta.deprecated) {
     // Treat deprecated like added for consistency.
-    meta.deprecated = arrify(deprecated);
+    meta.deprecated = arrify(meta.deprecated);
   }
 
   meta.changes = meta.changes || [];
-  meta.changes.forEach((entry) => {
+  for (const entry of meta.changes) {
     entry.description = entry.description.replace(/^\^\s*/, '');
-  });
+  }
 
   return meta;
 }
