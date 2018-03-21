@@ -14,7 +14,8 @@ const path = require('path');
 
 const errHandler = (e) => assert.ifError(e);
 const options = Object.freeze({});
-common.refreshTmpDir();
+const tmpdir = require('../common/tmpdir');
+tmpdir.refresh();
 
 {
   assert.doesNotThrow(() =>
@@ -31,8 +32,8 @@ common.refreshTmpDir();
 }
 
 if (common.canCreateSymLink()) {
-  const sourceFile = path.resolve(common.tmpDir, 'test-readlink');
-  const linkFile = path.resolve(common.tmpDir, 'test-readlink-link');
+  const sourceFile = path.resolve(tmpdir.path, 'test-readlink');
+  const linkFile = path.resolve(tmpdir.path, 'test-readlink-link');
 
   fs.writeFileSync(sourceFile, '');
   fs.symlinkSync(sourceFile, linkFile);
@@ -44,7 +45,7 @@ if (common.canCreateSymLink()) {
 }
 
 {
-  const fileName = path.resolve(common.tmpDir, 'writeFile');
+  const fileName = path.resolve(tmpdir.path, 'writeFile');
   assert.doesNotThrow(() => fs.writeFileSync(fileName, 'ABCD', options));
   assert.doesNotThrow(() =>
     fs.writeFile(fileName, 'ABCD', options, common.mustCall(errHandler))
@@ -52,7 +53,7 @@ if (common.canCreateSymLink()) {
 }
 
 {
-  const fileName = path.resolve(common.tmpDir, 'appendFile');
+  const fileName = path.resolve(tmpdir.path, 'appendFile');
   assert.doesNotThrow(() => fs.appendFileSync(fileName, 'ABCD', options));
   assert.doesNotThrow(() =>
     fs.appendFile(fileName, 'ABCD', options, common.mustCall(errHandler))
@@ -82,7 +83,7 @@ if (common.canCreateSymLink()) {
 }
 
 {
-  const tempFileName = path.resolve(common.tmpDir, 'mkdtemp-');
+  const tempFileName = path.resolve(tmpdir.path, 'mkdtemp-');
   assert.doesNotThrow(() => fs.mkdtempSync(tempFileName, options));
   assert.doesNotThrow(() =>
     fs.mkdtemp(tempFileName, options, common.mustCall(errHandler))
@@ -90,7 +91,7 @@ if (common.canCreateSymLink()) {
 }
 
 {
-  const fileName = path.resolve(common.tmpDir, 'streams');
+  const fileName = path.resolve(tmpdir.path, 'streams');
   assert.doesNotThrow(() => {
     fs.WriteStream(fileName, options).once('open', common.mustCall(() => {
       assert.doesNotThrow(() => fs.ReadStream(fileName, options));

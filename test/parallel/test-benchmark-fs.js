@@ -1,9 +1,10 @@
 'use strict';
 
-const common = require('../common');
+require('../common');
 const runBenchmark = require('../common/benchmark');
 
-common.refreshTmpDir();
+const tmpdir = require('../common/tmpdir');
+tmpdir.refresh();
 
 runBenchmark('fs', [
   'n=1',
@@ -16,4 +17,4 @@ runBenchmark('fs', [
   'statSyncType=fstatSync',
   'encodingType=buf',
   'filesize=1024'
-], { NODE_TMPDIR: common.tmpDir, NODEJS_BENCHMARK_ZERO_ALLOWED: 1 });
+], { NODE_TMPDIR: tmpdir.path, NODEJS_BENCHMARK_ZERO_ALLOWED: 1 });

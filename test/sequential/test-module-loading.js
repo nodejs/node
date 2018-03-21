@@ -249,7 +249,8 @@ try {
 
   assert.deepStrictEqual(children, {
     'common/index.js': {
-      'common/fixtures.js': {}
+      'common/fixtures.js': {},
+      'common/tmpdir.js': {}
     },
     'fixtures/not-main-module.js': {},
     'fixtures/a.js': {

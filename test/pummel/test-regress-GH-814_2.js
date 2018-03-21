@@ -22,11 +22,12 @@
 'use strict';
 // Flags: --expose_gc
 
-const common = require('../common');
+require('../common');
 const assert = require('assert');
 
 const fs = require('fs');
-const testFileName = require('path').join(common.tmpDir, 'GH-814_test.txt');
+const tmpdir = require('../common/tmpdir');
+const testFileName = require('path').join(tmpdir.path, 'GH-814_test.txt');
 const testFD = fs.openSync(testFileName, 'w');
 console.error(`${testFileName}\n`);
 

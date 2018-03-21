@@ -3,8 +3,9 @@ const common = require('../common');
 const assert = require('assert');
 const path = require('path');
 const fs = require('fs');
-const tmp = common.tmpDir;
-common.refreshTmpDir();
+const tmpdir = require('../common/tmpdir');
+const tmp = tmpdir.path;
+tmpdir.refresh();
 const filename = path.resolve(tmp, 'truncate-file.txt');
 
 fs.writeFileSync(filename, 'hello world', 'utf8');

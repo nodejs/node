@@ -12,7 +12,8 @@ class Agent extends http.Agent {
   }
 }
 
-common.refreshTmpDir();
+const tmpdir = require('../common/tmpdir');
+tmpdir.refresh();
 
 server.listen(common.PIPE, common.mustCall(() => {
   const req = http.get({

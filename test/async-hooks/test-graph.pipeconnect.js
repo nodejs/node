@@ -6,7 +6,8 @@ const verifyGraph = require('./verify-graph');
 
 const net = require('net');
 
-common.refreshTmpDir();
+const tmpdir = require('../common/tmpdir');
+tmpdir.refresh();
 
 const hooks = initHooks();
 hooks.enable();

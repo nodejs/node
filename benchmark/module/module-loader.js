@@ -3,8 +3,8 @@ const fs = require('fs');
 const path = require('path');
 const common = require('../common.js');
 
-const { refreshTmpDir, tmpDir } = require('../../test/common');
-const benchmarkDirectory = path.join(tmpDir, 'nodejs-benchmark-module');
+const tmpdir = require('../../test/common/tmpdir');
+const benchmarkDirectory = path.join(tmpdir.path, 'nodejs-benchmark-module');
 
 const bench = common.createBenchmark(main, {
   thousands: [50],
@@ -15,7 +15,7 @@ const bench = common.createBenchmark(main, {
 function main(conf) {
   const n = +conf.thousands * 1e3;
 
-  refreshTmpDir();
+  tmpdir.refresh();
   try { fs.mkdirSync(benchmarkDirectory); } catch (e) {}
 
   for (var i = 0; i <= n; i++) {
@@ -35,7 +35,7 @@ function main(conf) {
   else
     measureDir(n, conf.useCache === 'true');
 
-  refreshTmpDir();
+  tmpdir.refresh();
 }
 
 function measureFull(n, useCache) {

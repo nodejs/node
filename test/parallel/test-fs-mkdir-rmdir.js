@@ -4,9 +4,10 @@ const common = require('../common');
 const assert = require('assert');
 const path = require('path');
 const fs = require('fs');
-const d = path.join(common.tmpDir, 'dir');
+const tmpdir = require('../common/tmpdir');
+const d = path.join(tmpdir.path, 'dir');
 
-common.refreshTmpDir();
+tmpdir.refresh();
 
 // Make sure the directory does not exist
 assert(!common.fileExists(d));

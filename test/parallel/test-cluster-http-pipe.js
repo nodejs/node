@@ -32,7 +32,8 @@ const cluster = require('cluster');
 const http = require('http');
 
 if (cluster.isMaster) {
-  common.refreshTmpDir();
+  const tmpdir = require('../common/tmpdir');
+  tmpdir.refresh();
   const worker = cluster.fork();
   worker.on('message', common.mustCall((msg) => {
     assert.strictEqual(msg, 'DONE');
