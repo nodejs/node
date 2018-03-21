@@ -32,7 +32,7 @@ release.
 <tr>
     <td valign="top">
 <b><a href="doc/changelogs/CHANGELOG_V9.md#9.9.0">9.9.0</a></b><br/>
-<a href="doc/changelogs/CHANGELOG_V9.md#9.7.1">9.8.0</a><br/>
+<a href="doc/changelogs/CHANGELOG_V9.md#9.8.0">9.8.0</a><br/>
 <a href="doc/changelogs/CHANGELOG_V9.md#9.7.1">9.7.1</a><br/>
 <a href="doc/changelogs/CHANGELOG_V9.md#9.7.0">9.7.0</a><br/>
 <a href="doc/changelogs/CHANGELOG_V9.md#9.6.1">9.6.1</a><br/>
