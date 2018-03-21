@@ -192,9 +192,17 @@ All bugfixes require a test case which demonstrates the defect. The
 test should *fail* before the change, and *pass* after the change.
 
 All pull requests that modify executable code should also include a test case
-and be subjected to continuous integration tests on the
+and must be subjected to continuous integration tests on the
 [project CI server](https://ci.nodejs.org/). The pull request should have a CI
-status indicator if possible.
+status indicator.
+
+Do not land any Pull Requests without passing (green or yellow) CI runs. If you
+believe any failed (red or grey) CI sub-tasks are unrelated to the change in the
+Pull Request, you may re-run the sub-task to try to see if it passes. If re-runs
+of all failed sub-tasks pass, it is permissible to land the Pull Request but
+only if the initial failures are believed in good faith to be unrelated to the
+changes in the Pull Request. Otherwise, reasonable steps must be taken to
+confirm that the changes are not resulting in an unreliable test.
 
 #### Useful CI Jobs
 
@@ -203,13 +211,9 @@ is the standard CI run we do to check Pull Requests. It triggers
 `node-test-commit`, which runs the `build-ci` and `test-ci` targets on all
 supported platforms.
 
-* [`node-test-linter`](https://ci.nodejs.org/job/node-test-linter/)
-only runs the linter targets, which is useful for changes that only affect
-comments or documentation.
-
 * [`node-test-pull-request-lite`](https://ci.nodejs.org/job/node-test-pull-request-lite/)
-only runs the linter job, as well as the tests on LinuxONE. Should only be used
-for trivial changes that do not require being tested on all platforms.
+only runs the linter job, as well as the tests on LinuxONE, which is very fast.
+This is useful for changes that only affect comments or documentation.
 
 * [`citgm-smoker`](https://ci.nodejs.org/job/citgm-smoker/)
 uses [`CitGM`](https://github.com/nodejs/citgm) to allow you to run
@@ -498,12 +502,11 @@ The TSC should serve as the final arbiter where required.
    one](https://github.com/nodejs/node/commit/b636ba8186) if unsure exactly how
    to format your commit messages.
 
-Additionally:
+Check PRs from new contributors to make sure the person's name and email address
+are correct before merging.
 
-* Double check PRs to make sure the person's _full name_ and email
-  address are correct before merging.
-* All commits should be self-contained (meaning every commit should pass all
-  tests). This makes it much easier when bisecting to find a breaking change.
+All commits should be self-contained, meaning every commit should pass all
+tests. This makes it much easier when bisecting to find a breaking change.
 
 ### Using `git-node`
 
