@@ -354,6 +354,19 @@ buffered writes in a more optimized manner.
 
 See also: [`writable.uncork()`][].
 
+##### writable.destroy([error])
+<!-- YAML
+added: v8.0.0
+-->
+
+* Returns: {this}
+
+Destroy the stream, and emit the passed `error` and a `close` event.
+After this call, the writable stream has ended and subsequent calls
+to `write` / `end` will give an `ERR_STREAM_DESTROYED` error.
+Implementors should not override this method,
+but instead implement [`writable._destroy`][writable-_destroy].
+
 ##### writable.end([chunk][, encoding][, callback])
 <!-- YAML
 added: v0.9.4
@@ -535,19 +548,6 @@ write('hello', () => {
 ```
 
 A Writable stream in object mode will always ignore the `encoding` argument.
-
-##### writable.destroy([error])
-<!-- YAML
-added: v8.0.0
--->
-
-* Returns: {this}
-
-Destroy the stream, and emit the passed `error` and a `close` event.
-After this call, the writable stream has ended and subsequent calls
-to `write` / `end` will give an `ERR_STREAM_DESTROYED` error.
-Implementors should not override this method,
-but instead implement [`writable._destroy`][writable-_destroy].
 
 ### Readable Streams
 
@@ -806,6 +806,20 @@ In general, the `readable.pipe()` and `'data'` event mechanisms are easier to
 understand than the `'readable'` event. However, handling `'readable'` might
 result in increased throughput.
 
+##### readable.destroy([error])
+<!-- YAML
+added: v8.0.0
+-->
+
+* `error` {Error} Error which will be passed as payload in `'error'` event
+* Returns: {this}
+
+Destroy the stream, and emit `'error'` and `close`. After this call, the
+readable stream will release any internal resources and subsequent calls
+to `push` will be ignored.
+Implementors should not override this method, but instead implement
+[`readable._destroy`][readable-_destroy].
+
 ##### readable.isPaused()
 <!-- YAML
 added: v0.11.14
@@ -913,16 +927,6 @@ to prevent memory leaks.
 The [`process.stderr`][] and [`process.stdout`][] Writable streams are never
 closed until the Node.js process exits, regardless of the specified options.
 
-##### readable.readableHighWaterMark
-<!-- YAML
-added: v9.3.0
--->
-
-* Returns: {number}
-
-Returns the value of `highWaterMark` passed when constructing this
-`Readable`.
-
 ##### readable.read([size])
 <!-- YAML
 added: v0.9.4
@@ -968,6 +972,16 @@ also be emitted.
 
 Calling [`stream.read([size])`][stream-read] after the [`'end'`][] event has
 been emitted will return `null`. No runtime error will be raised.
+
+##### readable.readableHighWaterMark
+<!-- YAML
+added: v9.3.0
+-->
+
+* Returns: {number}
+
+Returns the value of `highWaterMark` passed when constructing this
+`Readable`.
 
 ##### readable.readableLength
 <!-- YAML
@@ -1167,20 +1181,6 @@ myReader.on('readable', () => {
   myReader.read(); // etc.
 });
 ```
-
-##### readable.destroy([error])
-<!-- YAML
-added: v8.0.0
--->
-
-* `error` {Error} Error which will be passed as payload in `'error'` event
-* Returns: {this}
-
-Destroy the stream, and emit `'error'` and `close`. After this call, the
-readable stream will release any internal resources and subsequent calls
-to `push` will be ignored.
-Implementors should not override this method, but instead implement
-[`readable._destroy`][readable-_destroy].
 
 ##### readable[@@asyncIterator]
 <!-- YAML
