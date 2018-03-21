@@ -21,14 +21,14 @@ function extractAndParseYAML(text) {
   // js-yaml.safeLoad() throws on error
   const meta = yaml.safeLoad(text);
 
-  const added = meta.added || meta.Added;
+  const added = meta.added;
   if (added) {
     // Since semver-minors can trickle down to previous major versions,
     // features may have been added in multiple versions.
     meta.added = arrify(added);
   }
 
-  const deprecated = meta.deprecated || meta.Deprecated;
+  const deprecated = meta.deprecated;
   if (deprecated) {
     // Treat deprecated like added for consistency.
     meta.deprecated = arrify(deprecated);
