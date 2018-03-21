@@ -103,7 +103,7 @@ function testHttps() {
       setHost: false,
       port: this.address().port,
       rejectUnauthorized: false
-    }, cb).on('error', thrower).end();
+    }, cb).on('error', thrower);
 
     https.request({
       method: 'GET',
@@ -122,7 +122,7 @@ function testHttps() {
       setHost: 0,
       port: this.address().port,
       rejectUnauthorized: false
-    }, cb).on('error', thrower).end();
+    }, cb).on('error', thrower);
 
     https.get({
       method: 'GET',
@@ -131,6 +131,6 @@ function testHttps() {
       setHost: null,
       port: this.address().port,
       rejectUnauthorized: false
-    }, cb).on('error', thrower).end();
+    }, cb).on('error', thrower);
   });
 }
