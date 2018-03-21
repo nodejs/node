@@ -72,7 +72,7 @@ be used.
 <a id="DEP0005"></a>
 ### DEP0005: Buffer() constructor
 
-Type: Documentation-only (supports [`--pending-deprecation`][])
+Type: Runtime (supports [`--pending-deprecation`][])
 
 The `Buffer()` function and `new Buffer()` constructor are deprecated due to
 API usability issues that can potentially lead to accidental security issues.
@@ -92,6 +92,10 @@ is strongly recommended:
 * [`Buffer.from(buffer)`][] - Create a `Buffer` that copies `buffer`.
 * [`Buffer.from(string[, encoding])`][from_string_encoding] - Create a `Buffer`
   that copies `string`.
+
+As of REPLACEME, a deprecation warning is printed at runtime when
+`--pending-deprecation` is used or when the calling code is
+outside `node_modules` in order to better target developers, rather than users.
 
 <a id="DEP0006"></a>
 ### DEP0006: child\_process options.customFds
