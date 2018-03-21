@@ -1507,9 +1507,17 @@ tarball.
 * `minorVersion` {number} The minor version of Node.js.
 * `patchVersion` {number} The patch version of Node.js.
 * `prereleaseTag` {string} The SemVer pre-release tag for Node.js.
-* `computedVersion` {number} a number representing the current version, created
+* `computedVersion` {number} A number representing the current version, created
   using the following method:
   `(majorVersion << 16) + (minorVersion << 8) + patchVersion`
+* `compareVersion` {function} Perform a SemVer comparison to the release
+  version.
+    * `major`
+    * `minor`
+    * `patch`
+    * Returns: {number} `-1` if the given version is lower than the release version,
+      `0` if the given version matches the process version, and `1` if the given
+      version is greater than the release version.
 
 <!-- eslint-skip -->
 ```js
