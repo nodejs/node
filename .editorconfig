@@ -9,7 +9,7 @@ insert_final_newline = true
 [vcbuild.bat]
 end_of_line = crlf
 
-[{lib,src,test}/**.js]
+[{lib,test}/**.js]
 indent_style = space
 indent_size = 2
 
