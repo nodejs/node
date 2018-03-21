@@ -271,6 +271,9 @@
 // does nothing.
 // - category and name strings must have application lifetime (statics or
 //   literals). They may not include " chars.
+#define TRACE_EVENT_BEGIN(category_group, name, ...)                  \
+  INTERNAL_TRACE_EVENT_ADD(TRACE_EVENT_PHASE_BEGIN, category_group, name, \
+                           TRACE_EVENT_FLAG_NONE, ##__VA_ARGS__)
 #define TRACE_EVENT_BEGIN0(category_group, name)                          \
   INTERNAL_TRACE_EVENT_ADD(TRACE_EVENT_PHASE_BEGIN, category_group, name, \
                            TRACE_EVENT_FLAG_NONE)
@@ -327,6 +330,9 @@
 // is not enabled, then this does nothing.
 // - category and name strings must have application lifetime (statics or
 //   literals). They may not include " chars.
+#define TRACE_EVENT_END(category_group, name, ...)                      \
+  INTERNAL_TRACE_EVENT_ADD(TRACE_EVENT_PHASE_END, category_group, name, \
+                           TRACE_EVENT_FLAG_NONE, ##__VA_ARGS__)
 #define TRACE_EVENT_END0(category_group, name)                          \
   INTERNAL_TRACE_EVENT_ADD(TRACE_EVENT_PHASE_END, category_group, name, \
                            TRACE_EVENT_FLAG_NONE)
