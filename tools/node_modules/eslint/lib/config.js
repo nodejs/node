@@ -51,11 +51,11 @@ function hasRules(options) {
 class Config {
 
     /**
-     * @param {Object} options Options to be passed in
+     * @param {Object} providedOptions Options to be passed in
      * @param {Linter} linterContext Linter instance object
      */
-    constructor(options, linterContext) {
-        options = options || {};
+    constructor(providedOptions, linterContext) {
+        const options = providedOptions || {};
 
         this.linterContext = linterContext;
         this.plugins = new Plugins(linterContext.environments, linterContext.rules);
@@ -132,11 +132,10 @@ class Config {
                 isResolvable(`eslint-config-${config}`) ||
                 config.charAt(0) === "@";
 
-            if (!isNamedConfig) {
-                config = path.resolve(this.options.cwd, config);
-            }
-
-            this.specificConfig = ConfigFile.load(config, this);
+            this.specificConfig = ConfigFile.load(
+                isNamedConfig ? config : path.resolve(this.options.cwd, config),
+                this
+            );
         }
     }
 

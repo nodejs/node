@@ -56,7 +56,11 @@ module.exports = {
             ]
         },
 
-        fixable: "code"
+        fixable: "code",
+
+        messages: {
+            unexpected: "Expected '{{expectedOperator}}' and instead saw '{{actualOperator}}'."
+        }
     },
 
     create(context) {
@@ -134,7 +138,7 @@ module.exports = {
             context.report({
                 node,
                 loc: getOperatorLocation(node),
-                message: "Expected '{{expectedOperator}}' and instead saw '{{actualOperator}}'.",
+                messageId: "unexpected",
                 data: { expectedOperator, actualOperator: node.operator },
                 fix(fixer) {
 

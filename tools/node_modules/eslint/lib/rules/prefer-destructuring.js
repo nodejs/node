@@ -165,8 +165,10 @@ module.exports = {
             if (shouldCheck(reportNode.type, "object")) {
                 const property = rightNode.property;
 
-                if ((property.type === "Literal" && leftNode.name === property.value) || (property.type === "Identifier" &&
-                    leftNode.name === property.name)) {
+                if (
+                    (property.type === "Literal" && leftNode.name === property.value) ||
+                    (property.type === "Identifier" && leftNode.name === property.name && !rightNode.computed)
+                ) {
                     report(reportNode, "object");
                 }
             }

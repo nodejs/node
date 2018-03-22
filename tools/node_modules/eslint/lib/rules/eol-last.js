@@ -27,7 +27,11 @@ module.exports = {
             {
                 enum: ["always", "never", "unix", "windows"]
             }
-        ]
+        ],
+        messages: {
+            missing: "Newline required at end of file but not found.",
+            unexpected: "Newline not allowed at end of file."
+        }
     },
     create(context) {
 
@@ -75,7 +79,7 @@ module.exports = {
                     context.report({
                         node,
                         loc: location,
-                        message: "Newline required at end of file but not found.",
+                        messageId: "missing",
                         fix(fixer) {
                             return fixer.insertTextAfterRange([0, src.length], appendCRLF ? CRLF : LF);
                         }
@@ -86,7 +90,7 @@ module.exports = {
                     context.report({
                         node,
                         loc: location,
-                        message: "Newline not allowed at end of file.",
+                        messageId: "unexpected",
                         fix(fixer) {
                             const finalEOLs = /(?:\r?\n)+$/,
                                 match = finalEOLs.exec(sourceCode.text),

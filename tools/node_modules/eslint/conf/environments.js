@@ -15,7 +15,9 @@ const globals = require("globals");
 //------------------------------------------------------------------------------
 
 module.exports = {
-    builtin: globals.es5,
+    builtin: {
+        globals: globals.es5
+    },
     browser: {
 
         /*

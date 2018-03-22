@@ -68,7 +68,13 @@ module.exports = {
                 }
             },
             additionalProperties: false
-        }]
+        }],
+
+        messages: {
+            missingReturn: "Expected to return a value at the end of {{name}}.",
+            missingReturnValue: "{{name}} expected a return value.",
+            unexpectedReturnValue: "{{name}} expected no return value."
+        }
     },
 
     create(context) {
@@ -129,7 +135,7 @@ module.exports = {
             context.report({
                 node,
                 loc,
-                message: "Expected to return a value at the end of {{name}}.",
+                messageId: "missingReturn",
                 data: { name }
             });
         }
@@ -143,7 +149,7 @@ module.exports = {
                     codePath,
                     hasReturn: false,
                     hasReturnValue: false,
-                    message: "",
+                    messageId: "",
                     node
                 };
             },
@@ -163,17 +169,16 @@ module.exports = {
                 if (!funcInfo.hasReturn) {
                     funcInfo.hasReturn = true;
                     funcInfo.hasReturnValue = hasReturnValue;
-                    funcInfo.message = "{{name}} expected {{which}} return value.";
+                    funcInfo.messageId = hasReturnValue ? "missingReturnValue" : "unexpectedReturnValue";
                     funcInfo.data = {
                         name: funcInfo.node.type === "Program"
                             ? "Program"
-                            : lodash.upperFirst(astUtils.getFunctionNameWithKind(funcInfo.node)),
-                        which: hasReturnValue ? "a" : "no"
+                            : lodash.upperFirst(astUtils.getFunctionNameWithKind(funcInfo.node))
                     };
                 } else if (funcInfo.hasReturnValue !== hasReturnValue) {
                     context.report({
                         node,
-                        message: funcInfo.message,
+                        messageId: funcInfo.messageId,
                         data: funcInfo.data
                     });
                 }

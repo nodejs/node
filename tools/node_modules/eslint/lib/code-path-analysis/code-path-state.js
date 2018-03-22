@@ -164,13 +164,13 @@ function removeConnection(prevSegments, nextSegments) {
  * Creates looping path.
  *
  * @param {CodePathState} state - The instance.
- * @param {CodePathSegment[]} fromSegments - Segments which are source.
- * @param {CodePathSegment[]} toSegments - Segments which are destination.
+ * @param {CodePathSegment[]} unflattenedFromSegments - Segments which are source.
+ * @param {CodePathSegment[]} unflattenedToSegments - Segments which are destination.
  * @returns {void}
  */
-function makeLooped(state, fromSegments, toSegments) {
-    fromSegments = CodePathSegment.flattenUnusedSegments(fromSegments);
-    toSegments = CodePathSegment.flattenUnusedSegments(toSegments);
+function makeLooped(state, unflattenedFromSegments, unflattenedToSegments) {
+    const fromSegments = CodePathSegment.flattenUnusedSegments(unflattenedFromSegments);
+    const toSegments = CodePathSegment.flattenUnusedSegments(unflattenedToSegments);
 
     const end = Math.min(fromSegments.length, toSegments.length);
 

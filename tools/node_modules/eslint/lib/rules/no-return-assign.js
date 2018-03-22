@@ -46,11 +46,12 @@ module.exports = {
                     return;
                 }
 
-                let parent = node.parent;
+                let currentChild = node;
+                let parent = currentChild.parent;
 
                 // Find ReturnStatement or ArrowFunctionExpression in ancestors.
                 while (parent && !SENTINEL_TYPE.test(parent.type)) {
-                    node = parent;
+                    currentChild = parent;
                     parent = parent.parent;
                 }
 
@@ -60,7 +61,7 @@ module.exports = {
                         node: parent,
                         message: "Return statement should not contain assignment."
                     });
-                } else if (parent && parent.type === "ArrowFunctionExpression" && parent.body === node) {
+                } else if (parent && parent.type === "ArrowFunctionExpression" && parent.body === currentChild) {
                     context.report({
                         node: parent,
                         message: "Arrow function should not return assignment."

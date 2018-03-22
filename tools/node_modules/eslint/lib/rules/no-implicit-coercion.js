@@ -20,7 +20,6 @@ const ALLOWABLE_OPERATORS = ["~", "!!", "+", "*"];
  * @returns {Object} The parsed and normalized option object.
  */
 function parseOptions(options) {
-    options = options || {};
     return {
         boolean: "boolean" in options ? Boolean(options.boolean) : true,
         number: "number" in options ? Boolean(options.number) : true,
@@ -186,7 +185,7 @@ module.exports = {
     },
 
     create(context) {
-        const options = parseOptions(context.options[0]);
+        const options = parseOptions(context.options[0] || {});
         const sourceCode = context.getSourceCode();
 
         /**
@@ -197,8 +196,6 @@ module.exports = {
          * @returns {void}
          */
         function report(node, recommendation, shouldFix) {
-            shouldFix = typeof shouldFix === "undefined" ? true : shouldFix;
-
             context.report({
                 node,
                 message: "use `{{recommendation}}` instead.",
@@ -233,7 +230,7 @@ module.exports = {
                 if (!operatorAllowed && options.boolean && isDoubleLogicalNegating(node)) {
                     const recommendation = `Boolean(${sourceCode.getText(node.argument.argument)})`;
 
-                    report(node, recommendation);
+                    report(node, recommendation, true);
                 }
 
                 // ~foo.indexOf(bar)
@@ -249,7 +246,7 @@ module.exports = {
                 if (!operatorAllowed && options.number && node.operator === "+" && !isNumeric(node.argument)) {
                     const recommendation = `Number(${sourceCode.getText(node.argument)})`;
 
-                    report(node, recommendation);
+                    report(node, recommendation, true);
                 }
             },
 
@@ -264,7 +261,7 @@ module.exports = {
                 if (nonNumericOperand) {
                     const recommendation = `Number(${sourceCode.getText(nonNumericOperand)})`;
 
-                    report(node, recommendation);
+                    report(node, recommendation, true);
                 }
 
                 // "" + foo
@@ -272,7 +269,7 @@ module.exports = {
                 if (!operatorAllowed && options.string && isConcatWithEmptyString(node)) {
                     const recommendation = `String(${sourceCode.getText(getNonEmptyOperand(node))})`;
 
-                    report(node, recommendation);
+                    report(node, recommendation, true);
                 }
             },
 
@@ -285,7 +282,7 @@ module.exports = {
                     const code = sourceCode.getText(getNonEmptyOperand(node));
                     const recommendation = `${code} = String(${code})`;
 
-                    report(node, recommendation);
+                    report(node, recommendation, true);
                 }
             }
         };

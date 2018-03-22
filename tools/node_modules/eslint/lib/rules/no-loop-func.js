@@ -20,9 +20,9 @@
  *      `null`.
  */
 function getContainingLoopNode(node) {
-    let parent = node.parent;
+    for (let currentNode = node; currentNode.parent; currentNode = currentNode.parent) {
+        const parent = currentNode.parent;
 
-    while (parent) {
         switch (parent.type) {
             case "WhileStatement":
             case "DoWhileStatement":
@@ -31,7 +31,7 @@ function getContainingLoopNode(node) {
             case "ForStatement":
 
                 // `init` is outside of the loop.
-                if (parent.init !== node) {
+                if (parent.init !== currentNode) {
                     return parent;
                 }
                 break;
@@ -40,7 +40,7 @@ function getContainingLoopNode(node) {
             case "ForOfStatement":
 
                 // `right` is outside of the loop.
-                if (parent.right !== node) {
+                if (parent.right !== currentNode) {
                     return parent;
                 }
                 break;
@@ -55,9 +55,6 @@ function getContainingLoopNode(node) {
             default:
                 break;
         }
-
-        node = parent;
-        parent = node.parent;
     }
 
     return null;
@@ -73,12 +70,13 @@ function getContainingLoopNode(node) {
  * @returns {ASTNode} The most outer loop node.
  */
 function getTopLoopNode(node, excludedNode) {
-    let retv = node;
     const border = excludedNode ? excludedNode.range[1] : 0;
+    let retv = node;
+    let containingLoopNode = node;
 
-    while (node && node.range[0] >= border) {
-        retv = node;
-        node = getContainingLoopNode(node);
+    while (containingLoopNode && containingLoopNode.range[0] >= border) {
+        retv = containingLoopNode;
+        containingLoopNode = getContainingLoopNode(containingLoopNode);
     }
 
     return retv;

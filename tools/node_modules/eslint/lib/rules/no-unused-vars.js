@@ -65,7 +65,7 @@ module.exports = {
     create(context) {
         const sourceCode = context.getSourceCode();
 
-        const REST_PROPERTY_TYPE = /^(?:Experimental)?RestProperty$/;
+        const REST_PROPERTY_TYPE = /^(?:RestElement|(?:Experimental)?RestProperty)$/;
 
         const config = {
             vars: "all",

@@ -25,7 +25,15 @@ module.exports = {
             {
                 enum: ["always", "never"]
             }
-        ]
+        ],
+
+        messages: {
+            unexpectedSpaceBefore: "There should be no space before '{{tokenValue}}'.",
+            unexpectedSpaceAfter: "There should be no space after '{{tokenValue}}'.",
+
+            missingSpaceBefore: "A space is required before '{{tokenValue}}'.",
+            missingSpaceAfter: "A space is required after '{{tokenValue}}'."
+        }
     },
 
     create(context) {
@@ -47,7 +55,7 @@ module.exports = {
             context.report({
                 node,
                 loc: token.loc.start,
-                message: "There should be no space after '{{tokenValue}}'.",
+                messageId: "unexpectedSpaceAfter",
                 data: {
                     tokenValue: token.value
                 },
@@ -68,7 +76,7 @@ module.exports = {
             context.report({
                 node,
                 loc: token.loc.start,
-                message: "There should be no space before '{{tokenValue}}'.",
+                messageId: "unexpectedSpaceBefore",
                 data: {
                     tokenValue: token.value
                 },
@@ -88,7 +96,7 @@ module.exports = {
             context.report({
                 node,
                 loc: token.loc.start,
-                message: "A space is required after '{{tokenValue}}'.",
+                messageId: "missingSpaceAfter",
                 data: {
                     tokenValue: token.value
                 },
@@ -108,7 +116,7 @@ module.exports = {
             context.report({
                 node,
                 loc: token.loc.start,
-                message: "A space is required before '{{tokenValue}}'.",
+                messageId: "missingSpaceBefore",
                 data: {
                     tokenValue: token.value
                 },

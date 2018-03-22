@@ -505,12 +505,9 @@ module.exports = {
          */
         function getParentNodeByType(node, type, stopAtList) {
             let parent = node.parent;
+            const stopAtSet = new Set(stopAtList || ["Program"]);
 
-            if (!stopAtList) {
-                stopAtList = ["Program"];
-            }
-
-            while (parent.type !== type && stopAtList.indexOf(parent.type) === -1 && parent.type !== "Program") {
+            while (parent.type !== type && !stopAtSet.has(parent.type) && parent.type !== "Program") {
                 parent = parent.parent;
             }
 
@@ -941,18 +938,18 @@ module.exports = {
         /**
          * Returns the expected indentation for the case statement
          * @param {ASTNode} node node to examine
-         * @param {int} [switchIndent] indent for switch statement
+         * @param {int} [providedSwitchIndent] indent for switch statement
          * @returns {int} indent size
          */
-        function expectedCaseIndent(node, switchIndent) {
+        function expectedCaseIndent(node, providedSwitchIndent) {
             const switchNode = (node.type === "SwitchStatement") ? node : node.parent;
+            const switchIndent = typeof providedSwitchIndent === "undefined"
+                ? getNodeIndent(switchNode).goodChar
+                : providedSwitchIndent;
             let caseIndent;
 
             if (caseIndentStore[switchNode.loc.start.line]) {
                 return caseIndentStore[switchNode.loc.start.line];
-            }
-            if (typeof switchIndent === "undefined") {
-                switchIndent = getNodeIndent(switchNode).goodChar;
             }
 
             if (switchNode.cases.length > 0 && options.SwitchCase === 0) {

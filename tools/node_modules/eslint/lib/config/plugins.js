@@ -120,6 +120,26 @@ class Plugins {
                 throw pluginLoadErr;
             }
 
+            // This step is costly, so skip if debug is disabled
+            if (debug.enabled) {
+                const resolvedPath = require.resolve(longName);
+
+                let version = null;
+
+                try {
+                    version = require(`${longName}/package.json`).version;
+                } catch (e) {
+
+                    // Do nothing
+                }
+
+                const loadedPluginAndVersion = version
+                    ? `${longName}@${version}`
+                    : `${longName}, version unknown`;
+
+                debug(`Loaded plugin ${pluginName} (${loadedPluginAndVersion}) (from ${resolvedPath})`);
+            }
+
             this.define(pluginName, plugin);
         }
     }

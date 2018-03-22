@@ -131,7 +131,7 @@ module.exports = {
          *
          */
         function canHaveShorthand(property) {
-            return (property.kind !== "set" && property.kind !== "get" && property.type !== "SpreadProperty" && property.type !== "ExperimentalSpreadProperty");
+            return (property.kind !== "set" && property.kind !== "get" && property.type !== "SpreadElement" && property.type !== "SpreadProperty" && property.type !== "ExperimentalSpreadProperty");
         }
 
         /**
@@ -233,10 +233,11 @@ module.exports = {
             const keyText = sourceCode.text.slice(firstKeyToken.range[0], lastKeyToken.range[1]);
             let keyPrefix = "";
 
+            if (node.value.async) {
+                keyPrefix += "async ";
+            }
             if (node.value.generator) {
-                keyPrefix = "*";
-            } else if (node.value.async) {
-                keyPrefix = "async ";
+                keyPrefix += "*";
             }
 
             if (node.value.type === "FunctionExpression") {
@@ -273,10 +274,11 @@ module.exports = {
             const keyText = sourceCode.text.slice(firstKeyToken.range[0], lastKeyToken.range[1]);
             let functionHeader = "function";
 
+            if (node.value.async) {
+                functionHeader = `async ${functionHeader}`;
+            }
             if (node.value.generator) {
-                functionHeader = "function*";
-            } else if (node.value.async) {
-                functionHeader = "async function";
+                functionHeader = `${functionHeader}*`;
             }
 
             return fixer.replaceTextRange([node.range[0], lastKeyToken.range[1]], `${keyText}: ${functionHeader}`);

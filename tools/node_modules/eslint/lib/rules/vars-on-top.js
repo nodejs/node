@@ -125,23 +125,13 @@ module.exports = {
         //--------------------------------------------------------------------------
 
         return {
-            VariableDeclaration(node) {
-                const ancestors = context.getAncestors();
-                let parent = ancestors.pop();
-                let grandParent = ancestors.pop();
-
-                if (node.kind === "var") { // check variable is `var` type and not `let` or `const`
-                    if (parent.type === "ExportNamedDeclaration") {
-                        node = parent;
-                        parent = grandParent;
-                        grandParent = ancestors.pop();
-                    }
-
-                    if (parent.type === "Program") { // That means its a global variable
-                        globalVarCheck(node, parent);
-                    } else {
-                        blockScopeVarCheck(node, parent, grandParent);
-                    }
+            "VariableDeclaration[kind='var']"(node) {
+                if (node.parent.type === "ExportNamedDeclaration") {
+                    globalVarCheck(node.parent, node.parent.parent);
+                } else if (node.parent.type === "Program") {
+                    globalVarCheck(node, node.parent);
+                } else {
+                    blockScopeVarCheck(node, node.parent, node.parent.parent);
                 }
             }
         };

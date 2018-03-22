@@ -41,7 +41,12 @@ module.exports = {
             }
         ],
 
-        fixable: "code"
+        fixable: "code",
+
+        messages: {
+            useDot: "[{{key}}] is better written in dot notation.",
+            useBrackets: ".{{key}} is a syntax error."
+        }
     },
 
     create(context) {
@@ -71,9 +76,9 @@ module.exports = {
 
                 context.report({
                     node: node.property,
-                    message: "[{{propertyValue}}] is better written in dot notation.",
+                    messageId: "useDot",
                     data: {
-                        propertyValue: formattedValue
+                        key: formattedValue
                     },
                     fix(fixer) {
                         const leftBracket = sourceCode.getTokenAfter(node.object, astUtils.isOpeningBracketToken);
@@ -124,9 +129,9 @@ module.exports = {
                 ) {
                     context.report({
                         node: node.property,
-                        message: ".{{propertyName}} is a syntax error.",
+                        messageId: "useBrackets",
                         data: {
-                            propertyName: node.property.name
+                            key: node.property.name
                         },
                         fix(fixer) {
                             const dot = sourceCode.getTokenBefore(node.property);

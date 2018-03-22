@@ -157,8 +157,9 @@ function processText(text, configHelper, filename, fix, allowInlineConfig, repor
         fileExtension = path.extname(filename);
     }
 
-    filename = filename || "<text>";
-    debug(`Linting ${filename}`);
+    const effectiveFilename = filename || "<text>";
+
+    debug(`Linting ${effectiveFilename}`);
     const config = configHelper.getConfig(filePath);
 
     if (config.plugins) {
@@ -177,18 +178,18 @@ function processText(text, configHelper, filename, fix, allowInlineConfig, repor
     const autofixingEnabled = typeof fix !== "undefined" && (!processor || processor.supportsAutofix);
 
     const fixedResult = linter.verifyAndFix(text, config, {
-        filename,
+        filename: effectiveFilename,
         allowInlineConfig,
         reportUnusedDisableDirectives,
         fix: !!autofixingEnabled && fix,
-        preprocess: processor && (rawText => processor.preprocess(rawText, filename)),
-        postprocess: processor && (problemLists => processor.postprocess(problemLists, filename))
+        preprocess: processor && (rawText => processor.preprocess(rawText, effectiveFilename)),
+        postprocess: processor && (problemLists => processor.postprocess(problemLists, effectiveFilename))
     });
 
     const stats = calculateStatsPerFile(fixedResult.messages);
 
     const result = {
-        filePath: filename,
+        filePath: effectiveFilename,
         messages: fixedResult.messages,
         errorCount: stats.errorCount,
         warningCount: stats.warningCount,
@@ -302,10 +303,10 @@ function getCacheFile(cacheFile, cwd) {
      * make sure the path separators are normalized for the environment/os
      * keeping the trailing path separator if present
      */
-    cacheFile = path.normalize(cacheFile);
+    const normalizedCacheFile = path.normalize(cacheFile);
 
-    const resolvedCacheFile = path.resolve(cwd, cacheFile);
-    const looksLikeADirectory = cacheFile[cacheFile.length - 1] === path.sep;
+    const resolvedCacheFile = path.resolve(cwd, normalizedCacheFile);
+    const looksLikeADirectory = normalizedCacheFile.slice(-1) === path.sep;
 
     /**
      * return the name for the cache file in case the provided parameter is a directory
@@ -368,16 +369,16 @@ class CLIEngine {
 
     /**
      * Creates a new instance of the core CLI engine.
-     * @param {CLIEngineOptions} options The options for this instance.
+     * @param {CLIEngineOptions} providedOptions The options for this instance.
      * @constructor
      */
-    constructor(options) {
+    constructor(providedOptions) {
 
-        options = Object.assign(
+        const options = Object.assign(
             Object.create(null),
             defaultOptions,
             { cwd: process.cwd() },
-            options
+            providedOptions
         );
 
         /**
@@ -605,20 +606,21 @@ class CLIEngine {
             ignoredPaths = new IgnoredPaths(options);
 
         // resolve filename based on options.cwd (for reporting, ignoredPaths also resolves)
-        if (filename && !path.isAbsolute(filename)) {
-            filename = path.resolve(options.cwd, filename);
-        }
 
-        if (filename && ignoredPaths.contains(filename)) {
+        const resolvedFilename = filename && !path.isAbsolute(filename)
+            ? path.resolve(options.cwd, filename)
+            : filename;
+
+        if (resolvedFilename && ignoredPaths.contains(resolvedFilename)) {
             if (warnIgnored) {
-                results.push(createIgnoreResult(filename, options.cwd));
+                results.push(createIgnoreResult(resolvedFilename, options.cwd));
             }
         } else {
             results.push(
                 processText(
                     text,
                     configHelper,
-                    filename,
+                    resolvedFilename,
                     options.fix,
                     options.allowInlineConfig,
                     options.reportUnusedDisableDirectives,
@@ -672,31 +674,30 @@ class CLIEngine {
      */
     getFormatter(format) {
 
-
         // default is stylish
-        format = format || "stylish";
+        const resolvedFormatName = format || "stylish";
 
         // only strings are valid formatters
-        if (typeof format === "string") {
+        if (typeof resolvedFormatName === "string") {
 
             // replace \ with / for Windows compatibility
-            format = format.replace(/\\/g, "/");
+            const normalizedFormatName = resolvedFormatName.replace(/\\/g, "/");
 
             const cwd = this.options ? this.options.cwd : process.cwd();
-            const namespace = naming.getNamespaceFromTerm(format);
+            const namespace = naming.getNamespaceFromTerm(normalizedFormatName);
 
             let formatterPath;
 
             // if there's a slash, then it's a file
-            if (!namespace && format.indexOf("/") > -1) {
-                formatterPath = path.resolve(cwd, format);
+            if (!namespace && normalizedFormatName.indexOf("/") > -1) {
+                formatterPath = path.resolve(cwd, normalizedFormatName);
             } else {
                 try {
-                    const npmFormat = naming.normalizePackageName(format, "eslint-formatter");
+                    const npmFormat = naming.normalizePackageName(normalizedFormatName, "eslint-formatter");
 
                     formatterPath = resolver.resolve(npmFormat, `${cwd}/node_modules`);
                 } catch (e) {
-                    formatterPath = `./formatters/${format}`;
+                    formatterPath = `./formatters/${normalizedFormatName}`;
                 }
             }
 

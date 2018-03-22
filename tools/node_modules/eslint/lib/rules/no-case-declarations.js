@@ -17,7 +17,11 @@ module.exports = {
             url: "https://eslint.org/docs/rules/no-case-declarations"
         },
 
-        schema: []
+        schema: [],
+
+        messages: {
+            unexpected: "Unexpected lexical declaration in case block."
+        }
     },
 
     create(context) {
@@ -47,7 +51,7 @@ module.exports = {
                     if (isLexicalDeclaration(statement)) {
                         context.report({
                             node,
-                            message: "Unexpected lexical declaration in case block."
+                            messageId: "unexpected"
                         });
                     }
                 }

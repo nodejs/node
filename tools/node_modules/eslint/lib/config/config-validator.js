@@ -98,7 +98,8 @@ function validateRuleSchema(rule, localOptions) {
  * @param {{create: Function}|null} rule The rule that the config is being validated for
  * @param {string} ruleId The rule's unique name.
  * @param {array|number} options The given options for the rule.
- * @param {string} source The name of the configuration source to report in any errors.
+ * @param {string|null} source The name of the configuration source to report in any errors. If null or undefined,
+ * no source is prepended to the message.
  * @returns {void}
  */
 function validateRuleOptions(rule, ruleId, options, source) {
@@ -112,7 +113,13 @@ function validateRuleOptions(rule, ruleId, options, source) {
             validateRuleSchema(rule, Array.isArray(options) ? options.slice(1) : []);
         }
     } catch (err) {
-        throw new Error(`${source}:\n\tConfiguration for rule "${ruleId}" is invalid:\n${err.message}`);
+        const enhancedMessage = `Configuration for rule "${ruleId}" is invalid:\n${err.message}`;
+
+        if (typeof source === "string") {
+            throw new Error(`${source}:\n\t${enhancedMessage}`);
+        } else {
+            throw new Error(enhancedMessage);
+        }
     }
 }
 
