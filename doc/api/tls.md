@@ -678,6 +678,7 @@ Example responses include:
 * `TLSv1`
 * `TLSv1.1`
 * `TLSv1.2`
+* `TLSv1.3`
 * `unknown`
 
 See https://www.openssl.org/docs/man1.0.2/ssl/SSL_get_version.html for more
