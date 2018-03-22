@@ -3,7 +3,7 @@
 
 static bool exceptionWasPending = false;
 
-napi_value returnException(napi_env env, napi_callback_info info) {
+static napi_value returnException(napi_env env, napi_callback_info info) {
   size_t argc = 1;
   napi_value args[1];
   NAPI_CALL(env, napi_get_cb_info(env, info, &argc, args, NULL, NULL));
@@ -22,7 +22,7 @@ napi_value returnException(napi_env env, napi_callback_info info) {
   return NULL;
 }
 
-napi_value allowException(napi_env env, napi_callback_info info) {
+static napi_value allowException(napi_env env, napi_callback_info info) {
   size_t argc = 1;
   napi_value args[1];
   NAPI_CALL(env, napi_get_cb_info(env, info, &argc, args, NULL, NULL));
@@ -38,22 +38,54 @@ napi_value allowException(napi_env env, napi_callback_info info) {
   return NULL;
 }
 
-napi_value wasPending(napi_env env, napi_callback_info info) {
+static napi_value wasPending(napi_env env, napi_callback_info info) {
   napi_value result;
   NAPI_CALL(env, napi_get_boolean(env, exceptionWasPending, &result));
 
   return result;
 }
 
-napi_value Init(napi_env env, napi_value exports) {
+static void finalizer(napi_env env, void *data, void *hint) {
+  NAPI_CALL_RETURN_VOID(env,
+      napi_throw_error(env, NULL, "Error during Finalize"));
+}
+
+static napi_value createExternal(napi_env env, napi_callback_info info) {
+  napi_value external;
+
+  NAPI_CALL(env,
+      napi_create_external(env, NULL, finalizer, NULL, &external));
+
+  return external;
+}
+
+static char buffer_data[12];
+
+static napi_value createExternalBuffer(napi_env env, napi_callback_info info) {
+  napi_value buffer;
+  NAPI_CALL(env, napi_create_external_buffer(env, sizeof(buffer_data),
+      buffer_data, finalizer, NULL, &buffer));
+  return buffer;
+}
+
+static napi_value Init(napi_env env, napi_value exports) {
   napi_property_descriptor descriptors[] = {
     DECLARE_NAPI_PROPERTY("returnException", returnException),
     DECLARE_NAPI_PROPERTY("allowException", allowException),
     DECLARE_NAPI_PROPERTY("wasPending", wasPending),
+    DECLARE_NAPI_PROPERTY("createExternal", createExternal),
+    DECLARE_NAPI_PROPERTY("createExternalBuffer", createExternalBuffer),
   };
-
   NAPI_CALL(env, napi_define_properties(
       env, exports, sizeof(descriptors) / sizeof(*descriptors), descriptors));
+
+  napi_value error, code, message;
+  NAPI_CALL(env, napi_create_string_utf8(env, "Error during Init",
+      NAPI_AUTO_LENGTH, &message));
+  NAPI_CALL(env, napi_create_string_utf8(env, "", NAPI_AUTO_LENGTH, &code));
+  NAPI_CALL(env, napi_create_error(env, code, message, &error));
+  NAPI_CALL(env, napi_set_named_property(env, error, "binding", exports));
+  NAPI_CALL(env, napi_throw(env, error));
 
   return exports;
 }
