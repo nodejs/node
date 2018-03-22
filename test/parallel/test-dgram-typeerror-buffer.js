@@ -20,9 +20,14 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
+require('../common');
+
 // Remove this test once we support sending strings.
 
-require('../common');
+// This test ensures that a TypeError is raised when the argument to `send()`
+// or `sendto()` is anything but a Buffer.
+// https://github.com/nodejs/node-v0.x-archive/issues/4496
+
 const assert = require('assert');
 const dgram = require('dgram');
 
