@@ -149,6 +149,8 @@ There are two ECMAScript 2017 syntax changes: `async` functions, and trailing co
 Because ECMAScript 2018 is still under development, we are implementing features as they are finalized. Currently, Espree supports:
 
 * Invalid escape sequences in tagged template literals
+* Rest/spread properties
+* Async Iteration
 
 ### How do you determine which experimental features to support?
 

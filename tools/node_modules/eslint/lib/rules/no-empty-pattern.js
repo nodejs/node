@@ -17,19 +17,23 @@ module.exports = {
             url: "https://eslint.org/docs/rules/no-empty-pattern"
         },
 
-        schema: []
+        schema: [],
+
+        messages: {
+            unexpected: "Unexpected empty {{type}} pattern."
+        }
     },
 
     create(context) {
         return {
             ObjectPattern(node) {
                 if (node.properties.length === 0) {
-                    context.report({ node, message: "Unexpected empty object pattern." });
+                    context.report({ node, messageId: "unexpected", data: { type: "object" } });
                 }
             },
             ArrayPattern(node) {
                 if (node.elements.length === 0) {
-                    context.report({ node, message: "Unexpected empty array pattern." });
+                    context.report({ node, messageId: "unexpected", data: { type: "array" } });
                 }
             }
         };

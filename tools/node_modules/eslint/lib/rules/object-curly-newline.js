@@ -10,6 +10,7 @@
 //------------------------------------------------------------------------------
 
 const astUtils = require("../ast-utils");
+const lodash = require("lodash");
 
 //------------------------------------------------------------------------------
 // Helpers
@@ -73,19 +74,58 @@ function normalizeOptionValue(value) {
  * Normalizes a given option value.
  *
  * @param {string|Object|undefined} options - An option value to parse.
- * @returns {{ObjectExpression: {multiline: boolean, minProperties: number}, ObjectPattern: {multiline: boolean, minProperties: number}}} Normalized option object.
+ * @returns {{
+ *   ObjectExpression: {multiline: boolean, minProperties: number, consistent: boolean},
+ *   ObjectPattern: {multiline: boolean, minProperties: number, consistent: boolean},
+ *   ImportDeclaration: {multiline: boolean, minProperties: number, consistent: boolean},
+ *   ExportNamedDeclaration : {multiline: boolean, minProperties: number, consistent: boolean}
+ * }} Normalized option object.
  */
 function normalizeOptions(options) {
-    if (options && (options.ObjectExpression || options.ObjectPattern)) {
+    const isNodeSpecificOption = lodash.overSome([lodash.isPlainObject, lodash.isString]);
+
+    if (lodash.isPlainObject(options) && lodash.some(options, isNodeSpecificOption)) {
         return {
             ObjectExpression: normalizeOptionValue(options.ObjectExpression),
-            ObjectPattern: normalizeOptionValue(options.ObjectPattern)
+            ObjectPattern: normalizeOptionValue(options.ObjectPattern),
+            ImportDeclaration: normalizeOptionValue(options.ImportDeclaration),
+            ExportNamedDeclaration: normalizeOptionValue(options.ExportDeclaration)
         };
     }
 
     const value = normalizeOptionValue(options);
 
-    return { ObjectExpression: value, ObjectPattern: value };
+    return { ObjectExpression: value, ObjectPattern: value, ImportDeclaration: value, ExportNamedDeclaration: value };
+}
+
+/**
+ * Determines if ObjectExpression, ObjectPattern, ImportDeclaration or ExportNamedDeclaration
+ * node needs to be checked for missing line breaks
+ *
+ * @param {ASTNode} node - Node under inspection
+ * @param {Object} options - option specific to node type
+ * @param {Token} first - First object property
+ * @param {Token} last - Last object property
+ * @returns {boolean} `true` if node needs to be checked for missing line breaks
+ */
+function areLineBreaksRequired(node, options, first, last) {
+    let objectProperties;
+
+    if (node.type === "ObjectExpression" || node.type === "ObjectPattern") {
+        objectProperties = node.properties;
+    } else {
+
+        // is ImportDeclaration or ExportNamedDeclaration
+        objectProperties = node.specifiers
+            .filter(s => s.type === "ImportSpecifier" || s.type === "ExportSpecifier");
+    }
+
+    return objectProperties.length >= options.minProperties ||
+        (
+            options.multiline &&
+            objectProperties.length > 0 &&
+            first.loc.start.line !== last.loc.end.line
+        );
 }
 
 //------------------------------------------------------------------------------
@@ -109,7 +149,9 @@ module.exports = {
                         type: "object",
                         properties: {
                             ObjectExpression: OPTION_VALUE,
-                            ObjectPattern: OPTION_VALUE
+                            ObjectPattern: OPTION_VALUE,
+                            ImportDeclaration: OPTION_VALUE,
+                            ExportDeclaration: OPTION_VALUE
                         },
                         additionalProperties: false,
                         minProperties: 1
@@ -125,32 +167,37 @@ module.exports = {
 
         /**
          * Reports a given node if it violated this rule.
-         *
-         * @param {ASTNode} node - A node to check. This is an ObjectExpression node or an ObjectPattern node.
-         * @param {{multiline: boolean, minProperties: number}} options - An option object.
+         * @param {ASTNode} node - A node to check. This is an ObjectExpression, ObjectPattern, ImportDeclaration or ExportNamedDeclaration node.
+         * @param {{multiline: boolean, minProperties: number, consistent: boolean}} options - An option object.
          * @returns {void}
          */
         function check(node) {
             const options = normalizedOptions[node.type];
+
+            if (
+                (node.type === "ImportDeclaration" &&
+                    !node.specifiers.some(specifier => specifier.type === "ImportSpecifier")) ||
+                (node.type === "ExportNamedDeclaration" &&
+                    !node.specifiers.some(specifier => specifier.type === "ExportSpecifier"))
+            ) {
+                return;
+            }
+
             const openBrace = sourceCode.getFirstToken(node, token => token.value === "{");
+
             let closeBrace;
 
             if (node.typeAnnotation) {
                 closeBrace = sourceCode.getTokenBefore(node.typeAnnotation);
             } else {
-                closeBrace = sourceCode.getLastToken(node);
+                closeBrace = sourceCode.getLastToken(node, token => token.value === "}");
             }
 
             let first = sourceCode.getTokenAfter(openBrace, { includeComments: true });
             let last = sourceCode.getTokenBefore(closeBrace, { includeComments: true });
-            const needsLinebreaks = (
-                node.properties.length >= options.minProperties ||
-                (
-                    options.multiline &&
-                    node.properties.length > 0 &&
-                    first.loc.start.line !== last.loc.end.line
-                )
-            );
+
+            const needsLineBreaks = areLineBreaksRequired(node, options, first, last);
+
             const hasCommentsFirstToken = astUtils.isCommentToken(first);
             const hasCommentsLastToken = astUtils.isCommentToken(last);
 
@@ -165,7 +212,7 @@ module.exports = {
             first = sourceCode.getTokenAfter(openBrace);
             last = sourceCode.getTokenBefore(closeBrace);
 
-            if (needsLinebreaks) {
+            if (needsLineBreaks) {
                 if (astUtils.isTokenOnSameLine(openBrace, first)) {
                     context.report({
                         message: "Expected a line break after this opening brace.",
@@ -244,7 +291,9 @@ module.exports = {
 
         return {
             ObjectExpression: check,
-            ObjectPattern: check
+            ObjectPattern: check,
+            ImportDeclaration: check,
+            ExportNamedDeclaration: check
         };
     }
 };

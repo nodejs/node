@@ -28,10 +28,13 @@ The easiest way to install acorn is with [`npm`][npm].
 npm install acorn
 ```
 
-Alternately, download the source.
+Alternately, you can download the source and build acorn yourself:
 
 ```sh
 git clone https://github.com/acornjs/acorn.git
+cd acorn
+npm install
+npm run build
 ```
 
 ## Components
@@ -447,9 +450,16 @@ looseParser.extend("readToken", function(nextMethod) {
  
  Plugins for ECMAScript proposals:
  
+ - [`acorn-stage3`](https://github.com/acornjs/acorn-stage3): Parse most stage 3 proposals, bundling:
+   - [`acorn-async-iteration`](https://github.com/acornjs/acorn-async-iteration): Parse [async iteration proposal](https://github.com/tc39/proposal-async-iteration)
+   - [`acorn-bigint`](https://github.com/acornjs/acorn-bigint): Parse [BigInt proposal](https://github.com/tc39/proposal-bigint)
+   - [`acorn-class-fields`](https://github.com/acornjs/acorn-class-fields): Parse [class fields proposal](https://github.com/tc39/proposal-class-fields)
+   - [`acorn-dynamic-import`](https://github.com/kesne/acorn-dynamic-import): Parse [import() proposal](https://github.com/tc39/proposal-dynamic-import)
+   - [`acorn-import-meta`](https://github.com/acornjs/acorn-import-meta): Parse [import.meta proposal](https://github.com/tc39/proposal-import-meta)
+   - [`acorn-numeric-separator`](https://github.com/acornjs/acorn-numeric-separator): Parse [numeric separator proposal](https://github.com/tc39/proposal-numeric-separator)
+   - [`acorn-optional-catch-binding`](https://github.com/acornjs/acorn-optional-catch-binding): Parse [optional catch binding proposal](https://github.com/tc39/proposal-optional-catch-binding)
+   - [`acorn-private-methods`](https://github.com/acornjs/acorn-private-methods): parse [private methods, getters and setters proposal](https://github.com/tc39/proposal-private-methods)
+   - [`acorn5-object-spread`](https://github.com/adrianheine/acorn5-object-spread): Parse [Object Rest/Spread Properties proposal](https://github.com/tc39/proposal-object-rest-spread)
  - [`acorn-object-rest-spread`](https://github.com/victor-homyakov/acorn-object-rest-spread): Parse [Object Rest/Spread Properties proposal](https://github.com/tc39/proposal-object-rest-spread)
- - [`acorn5-object-spread`](https://github.com/adrianheine/acorn5-object-spread): Parse [Object Rest/Spread Properties proposal](https://github.com/tc39/proposal-object-rest-spread)
  - [`acorn-es7`](https://github.com/angelozerr/acorn-es7): Parse [decorator syntax proposal](https://github.com/wycats/javascript-decorators)
  - [`acorn-static-class-property-initializer`](https://github.com/victor-homyakov/acorn-static-class-property-initializer): Partial support for static class properties from [ES Class Fields & Static Properties Proposal](https://github.com/tc39/proposal-class-public-fields) to support static property initializers in [React components written as ES6+ classes](https://babeljs.io/blog/2015/06/07/react-on-es6-plus)
- - [`acorn-dynamic-import`](https://github.com/kesne/acorn-dynamic-import): Parse [import() proposal](https://github.com/tc39/proposal-dynamic-import)
- - [`acorn-async-iteration`](https://github.com/adrianheine/acorn-async-iteration): Parse [async iteration proposal](https://github.com/tc39/proposal-async-iteration)

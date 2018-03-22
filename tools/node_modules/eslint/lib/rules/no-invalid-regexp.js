@@ -8,7 +8,10 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-const espree = require("espree");
+const RegExpValidator = require("regexpp").RegExpValidator;
+const validator = new RegExpValidator({ ecmaVersion: 2018 });
+const validFlags = /[gimuys]/g;
+const undefined1 = void 0;
 
 //------------------------------------------------------------------------------
 // Rule Definition
@@ -40,10 +43,14 @@ module.exports = {
     create(context) {
 
         const options = context.options[0];
-        let allowedFlags = "";
+        let allowedFlags = null;
 
         if (options && options.allowConstructorFlags) {
-            allowedFlags = options.allowConstructorFlags.join("");
+            const temp = options.allowConstructorFlags.join("").replace(validFlags, "");
+
+            if (temp) {
+                allowedFlags = new RegExp(`[${temp}]`, "gi");
+            }
         }
 
         /**
@@ -57,51 +64,61 @@ module.exports = {
         }
 
         /**
-         * Validate strings passed to the RegExp constructor
-         * @param {ASTNode} node node to evaluate
-         * @returns {void}
-         * @private
+         * Check syntax error in a given pattern.
+         * @param {string} pattern The RegExp pattern to validate.
+         * @param {boolean} uFlag The Unicode flag.
+         * @returns {string|null} The syntax error.
          */
-        function check(node) {
-            if (node.callee.type === "Identifier" && node.callee.name === "RegExp" && isString(node.arguments[0])) {
-                let flags = isString(node.arguments[1]) ? node.arguments[1].value : "";
+        function validateRegExpPattern(pattern, uFlag) {
+            try {
+                validator.validatePattern(pattern, undefined1, undefined1, uFlag);
+                return null;
+            } catch (err) {
+                return err.message;
+            }
+        }
 
-                if (allowedFlags) {
-                    flags = flags.replace(new RegExp(`[${allowedFlags}]`, "gi"), "");
-                }
-
-                try {
-                    void new RegExp(node.arguments[0].value);
-                } catch (e) {
-                    context.report({
-                        node,
-                        message: "{{message}}.",
-                        data: e
-                    });
-                }
-
-                if (flags) {
-
-                    try {
-                        espree.parse(`/./${flags}`, context.parserOptions);
-                    } catch (ex) {
-                        context.report({
-                            node,
-                            message: "Invalid flags supplied to RegExp constructor '{{flags}}'.",
-                            data: {
-                                flags
-                            }
-                        });
-                    }
-                }
-
+        /**
+         * Check syntax error in a given flags.
+         * @param {string} flags The RegExp flags to validate.
+         * @returns {string|null} The syntax error.
+         */
+        function validateRegExpFlags(flags) {
+            try {
+                validator.validateFlags(flags);
+                return null;
+            } catch (err) {
+                return `Invalid flags supplied to RegExp constructor '${flags}'`;
             }
         }
 
         return {
-            CallExpression: check,
-            NewExpression: check
-        };
+            "CallExpression, NewExpression"(node) {
+                if (node.callee.type !== "Identifier" || node.callee.name !== "RegExp" || !isString(node.arguments[0])) {
+                    return;
+                }
+                const pattern = node.arguments[0].value;
+                let flags = isString(node.arguments[1]) ? node.arguments[1].value : "";
 
+                if (allowedFlags) {
+                    flags = flags.replace(allowedFlags, "");
+                }
+
+                // If flags are unknown, check both are errored or not.
+                const message = validateRegExpFlags(flags) || (
+                    flags
+                        ? validateRegExpPattern(pattern, flags.indexOf("u") !== -1)
+                        : validateRegExpPattern(pattern, true) && validateRegExpPattern(pattern, false)
+                );
+
+                if (message) {
+                    context.report({
+                        node,
+                        message: "{{message}}.",
+                        data: { message }
+                    });
+                }
+            }
+        };
     }
 };

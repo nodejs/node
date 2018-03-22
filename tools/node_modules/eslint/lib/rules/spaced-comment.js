@@ -17,10 +17,7 @@ const astUtils = require("../ast-utils");
  * @returns {string} An escaped string.
  */
 function escape(s) {
-    const isOneChar = s.length === 1;
-
-    s = lodash.escapeRegExp(s);
-    return isOneChar ? s : `(?:${s})`;
+    return `(?:${lodash.escapeRegExp(s)})`;
 }
 
 /**
@@ -40,11 +37,10 @@ function escapeAndRepeat(s) {
  * @returns {string[]} A marker list.
  */
 function parseMarkersOption(markers) {
-    markers = markers ? markers.slice(0) : [];
 
     // `*` is a marker for JSDoc comments.
     if (markers.indexOf("*") === -1) {
-        markers.push("*");
+        return markers.concat("*");
     }
 
     return markers;
@@ -244,7 +240,7 @@ module.exports = {
         const balanced = config.block && config.block.balanced;
 
         const styleRules = ["block", "line"].reduce((rule, type) => {
-            const markers = parseMarkersOption(config[type] && config[type].markers || config.markers);
+            const markers = parseMarkersOption(config[type] && config[type].markers || config.markers || []);
             const exceptions = config[type] && config[type].exceptions || config.exceptions || [];
             const endNeverPattern = "[ \t]+$";
 

@@ -33,7 +33,7 @@ module.exports = {
         const TAGGED_TEMPLATE_MESSAGE = "Unexpected newline between template tag and template literal.";
         const DIVISION_MESSAGE = "Unexpected newline between numerator and division operator.";
 
-        const REGEX_FLAG_MATCHER = /^[gimuy]+$/;
+        const REGEX_FLAG_MATCHER = /^[gimsuy]+$/;
 
         const sourceCode = context.getSourceCode();
 

@@ -26,7 +26,12 @@ module.exports = {
             }
         ],
 
-        fixable: "code"
+        fixable: "code",
+
+        messages: {
+            expectedDotAfterObject: "Expected dot to be on same line as object.",
+            expectedDotBeforeProperty: "Expected dot to be on same line as property."
+        }
     },
 
     create(context) {
@@ -58,7 +63,7 @@ module.exports = {
                         context.report({
                             node,
                             loc: dot.loc.start,
-                            message: "Expected dot to be on same line as object.",
+                            messageId: "expectedDotAfterObject",
                             fix: fixer => fixer.replaceTextRange([obj.range[1], prop.range[0]], `${neededTextAfterObj}.${textBeforeDot}${textAfterDot}`)
                         });
                     }
@@ -66,7 +71,7 @@ module.exports = {
                     context.report({
                         node,
                         loc: dot.loc.start,
-                        message: "Expected dot to be on same line as property.",
+                        messageId: "expectedDotBeforeProperty",
                         fix: fixer => fixer.replaceTextRange([obj.range[1], prop.range[0]], `${textBeforeDot}${textAfterDot}.`)
                     });
                 }
