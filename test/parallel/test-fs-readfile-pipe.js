@@ -28,7 +28,6 @@ if (common.isWindows || common.isAIX)
   common.skip(`No /dev/stdin on ${process.platform}.`);
 
 const assert = require('assert');
-const path = require('path');
 const fs = require('fs');
 
 if (process.argv[2] === 'child') {
@@ -39,16 +38,10 @@ if (process.argv[2] === 'child') {
   return;
 }
 
-const tmpdir = require('../common/tmpdir');
+const fixtures = require('../common/fixtures');
 
-const filename = path.join(tmpdir.path, '/readfile_pipe_test.txt');
-const dataExpected = `xxxxxxxxxx xxxxxxxxxx
-xxxxxxxxxx xxxxxxxxxx
-xxxxxxxxxx xxxxxxxxxx
-xxxxxxxxxx xxxxxxxxxx
-xxxxxxxxxx xxxxxxxxxx`;
-tmpdir.refresh();
-fs.writeFileSync(filename, dataExpected);
+const filename = fixtures.path('readfile_pipe_test.txt');
+const dataExpected = fs.readFileSync(filename).toString();
 
 const exec = require('child_process').exec;
 const f = JSON.stringify(__filename);
@@ -65,8 +58,4 @@ exec(cmd, function(err, stdout, stderr) {
     '',
     `expected not to read anything from stderr but got: '${stderr}'`);
   console.log('ok');
-});
-
-process.on('exit', function() {
-  fs.unlinkSync(filename);
 });
