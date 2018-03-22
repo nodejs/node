@@ -18,7 +18,11 @@ module.exports = {
             url: "https://eslint.org/docs/rules/no-delete-var"
         },
 
-        schema: []
+        schema: [],
+
+        messages: {
+            unexpected: "Variables should not be deleted."
+        }
     },
 
     create(context) {
@@ -27,7 +31,7 @@ module.exports = {
 
             UnaryExpression(node) {
                 if (node.operator === "delete" && node.argument.type === "Identifier") {
-                    context.report({ node, message: "Variables should not be deleted." });
+                    context.report({ node, messageId: "unexpected" });
                 }
             }
         };

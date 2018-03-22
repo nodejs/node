@@ -18,7 +18,11 @@ module.exports = {
             url: "https://eslint.org/docs/rules/no-dupe-args"
         },
 
-        schema: []
+        schema: [],
+
+        messages: {
+            unexpected: "Duplicate param '{{name}}'."
+        }
     },
 
     create(context) {
@@ -54,7 +58,7 @@ module.exports = {
                 if (defs.length >= 2) {
                     context.report({
                         node,
-                        message: "Duplicate param '{{name}}'.",
+                        messageId: "unexpected",
                         data: { name: variable.name }
                     });
                 }

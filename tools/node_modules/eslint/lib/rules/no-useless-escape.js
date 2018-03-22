@@ -25,8 +25,8 @@ function union(setA, setB) {
 }
 
 const VALID_STRING_ESCAPES = union(new Set("\\nrvtbfux"), astUtils.LINEBREAKS);
-const REGEX_GENERAL_ESCAPES = new Set("\\bcdDfnrsStvwWxu0123456789]");
-const REGEX_NON_CHARCLASS_ESCAPES = union(REGEX_GENERAL_ESCAPES, new Set("^/.$*+?[{}|()B"));
+const REGEX_GENERAL_ESCAPES = new Set("\\bcdDfnpPrsStvwWxu0123456789]");
+const REGEX_NON_CHARCLASS_ESCAPES = union(REGEX_GENERAL_ESCAPES, new Set("^/.$*+?[{}|()Bk"));
 
 /**
  * Parses a regular expression into a list of characters with character class info.

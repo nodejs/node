@@ -50,7 +50,11 @@ module.exports = {
                     }
                 ]
             }
-        ]
+        ],
+
+        messages: {
+            complex: "{{name}} has a complexity of {{complexity}}."
+        }
     },
 
     create(context) {
@@ -96,7 +100,7 @@ module.exports = {
             if (complexity > THRESHOLD) {
                 context.report({
                     node,
-                    message: "{{name}} has a complexity of {{complexity}}.",
+                    messageId: "complex",
                     data: { name, complexity }
                 });
             }

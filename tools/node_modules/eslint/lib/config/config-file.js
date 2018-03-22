@@ -400,25 +400,29 @@ function applyExtends(config, configContext, filePath, relativeTo) {
     }
 
     // Make the last element in an array take the highest precedence
-    config = configExtends.reduceRight((previousValue, parentPath) => {
+    return configExtends.reduceRight((previousValue, parentPath) => {
         try {
+            let extensionPath;
+
             if (parentPath.startsWith("eslint:")) {
-                parentPath = getEslintCoreConfigPath(parentPath);
+                extensionPath = getEslintCoreConfigPath(parentPath);
             } else if (isFilePath(parentPath)) {
 
                 /*
                  * If the `extends` path is relative, use the directory of the current configuration
                  * file as the reference point. Otherwise, use as-is.
                  */
-                parentPath = (path.isAbsolute(parentPath)
+                extensionPath = (path.isAbsolute(parentPath)
                     ? parentPath
                     : path.join(relativeTo || path.dirname(filePath), parentPath)
                 );
+            } else {
+                extensionPath = parentPath;
             }
-            debug(`Loading ${parentPath}`);
+            debug(`Loading ${extensionPath}`);
 
             // eslint-disable-next-line no-use-before-define
-            return ConfigOps.merge(load(parentPath, configContext, relativeTo), previousValue);
+            return ConfigOps.merge(load(extensionPath, configContext, relativeTo), previousValue);
         } catch (e) {
 
             /*
@@ -432,8 +436,6 @@ function applyExtends(config, configContext, filePath, relativeTo) {
         }
 
     }, config);
-
-    return config;
 }
 
 /**
@@ -463,13 +465,20 @@ function resolve(filePath, relativeTo) {
 
         normalizedPackageName = naming.normalizePackageName(pluginName, "eslint-plugin");
         debug(`Attempting to resolve ${normalizedPackageName}`);
-        filePath = resolver.resolve(normalizedPackageName, getLookupPath(relativeTo));
-        return { filePath, configName, configFullName };
+
+        return {
+            filePath: resolver.resolve(normalizedPackageName, getLookupPath(relativeTo)),
+            configName,
+            configFullName
+        };
     }
     normalizedPackageName = naming.normalizePackageName(filePath, "eslint-config");
     debug(`Attempting to resolve ${normalizedPackageName}`);
-    filePath = resolver.resolve(normalizedPackageName, getLookupPath(relativeTo));
-    return { filePath, configFullName: filePath };
+
+    return {
+        filePath: resolver.resolve(normalizedPackageName, getLookupPath(relativeTo)),
+        configFullName: filePath
+    };
 
 
 }

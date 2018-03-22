@@ -20,7 +20,10 @@ module.exports = {
             url: "https://eslint.org/docs/rules/no-debugger"
         },
         fixable: "code",
-        schema: []
+        schema: [],
+        messages: {
+            unexpected: "Unexpected 'debugger' statement."
+        }
     },
 
     create(context) {
@@ -29,7 +32,7 @@ module.exports = {
             DebuggerStatement(node) {
                 context.report({
                     node,
-                    message: "Unexpected 'debugger' statement.",
+                    messageId: "unexpected",
                     fix(fixer) {
                         if (astUtils.STATEMENT_LIST_PARENTS.has(node.parent.type)) {
                             return fixer.remove(node);

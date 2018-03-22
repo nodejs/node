@@ -227,9 +227,9 @@ In all cases, make sure your plugins' peerDependencies have been installed as we
 
 Yes, ESLint natively supports parsing JSX syntax (this must be enabled in [configuration](https://eslint.org/docs/user-guide/configuring)). Please note that supporting JSX syntax *is not* the same as supporting React. React applies specific semantics to JSX syntax that ESLint doesn't recognize. We recommend using [eslint-plugin-react](https://www.npmjs.com/package/eslint-plugin-react) if you are using React and want React semantics.
 
-### What about ECMAScript 6 support?
+### What ECMAScript versions does ESLint support?
 
-ESLint has full support for ECMAScript 6. By default, this support is off. You can enable ECMAScript 6 syntax and global variables through [configuration](https://eslint.org/docs/user-guide/configuring).
+ESLint has full support for ECMAScript 3, 5 (default), 2015, 2016, 2017, and 2018. You can set your desired ECMAScript syntax (and other settings, like global variables or your target environments) through [configuration](https://eslint.org/docs/user-guide/configuring).
 
 ### What about experimental features?
 

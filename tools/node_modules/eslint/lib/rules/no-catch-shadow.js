@@ -24,7 +24,11 @@ module.exports = {
             url: "https://eslint.org/docs/rules/no-catch-shadow"
         },
 
-        schema: []
+        schema: [],
+
+        messages: {
+            mutable: "Value of '{{name}}' may be overwritten in IE 8 and earlier."
+        }
     },
 
     create(context) {
@@ -61,7 +65,7 @@ module.exports = {
                 }
 
                 if (paramIsShadowing(scope, node.param.name)) {
-                    context.report({ node, message: "Value of '{{name}}' may be overwritten in IE 8 and earlier.", data: { name: node.param.name } });
+                    context.report({ node, messageId: "mutable", data: { name: node.param.name } });
                 }
             }
         };

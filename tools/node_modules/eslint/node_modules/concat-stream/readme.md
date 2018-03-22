@@ -62,7 +62,7 @@ var a = new Uint8Array(3)
 a[0] = 97; a[1] = 98; a[2] = 99
 write.write(a)
 write.write('!')
-write.end(Buffer('!!1'))
+write.end(Buffer.from('!!1'))
 ```
 
 See `test/` for more examples

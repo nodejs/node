@@ -23,17 +23,18 @@ const NAMESPACE_REGEX = /^@.*\//i;
  * @private
  */
 function normalizePackageName(name, prefix) {
+    let normalizedName = name;
 
     /**
      * On Windows, name can come in with Windows slashes instead of Unix slashes.
      * Normalize to Unix first to avoid errors later on.
      * https://github.com/eslint/eslint/issues/5644
      */
-    if (name.indexOf("\\") > -1) {
-        name = pathUtil.convertPathToPosix(name);
+    if (normalizedName.indexOf("\\") > -1) {
+        normalizedName = pathUtil.convertPathToPosix(normalizedName);
     }
 
-    if (name.charAt(0) === "@") {
+    if (normalizedName.charAt(0) === "@") {
 
         /**
          * it's a scoped package
@@ -42,21 +43,21 @@ function normalizePackageName(name, prefix) {
         const scopedPackageShortcutRegex = new RegExp(`^(@[^/]+)(?:/(?:${prefix})?)?$`),
             scopedPackageNameRegex = new RegExp(`^${prefix}(-|$)`);
 
-        if (scopedPackageShortcutRegex.test(name)) {
-            name = name.replace(scopedPackageShortcutRegex, `$1/${prefix}`);
-        } else if (!scopedPackageNameRegex.test(name.split("/")[1])) {
+        if (scopedPackageShortcutRegex.test(normalizedName)) {
+            normalizedName = normalizedName.replace(scopedPackageShortcutRegex, `$1/${prefix}`);
+        } else if (!scopedPackageNameRegex.test(normalizedName.split("/")[1])) {
 
             /**
              * for scoped packages, insert the prefix after the first / unless
              * the path is already @scope/eslint or @scope/eslint-xxx-yyy
              */
-            name = name.replace(/^@([^/]+)\/(.*)$/, `@$1/${prefix}-$2`);
+            normalizedName = normalizedName.replace(/^@([^/]+)\/(.*)$/, `@$1/${prefix}-$2`);
         }
-    } else if (name.indexOf(`${prefix}-`) !== 0) {
-        name = `${prefix}-${name}`;
+    } else if (normalizedName.indexOf(`${prefix}-`) !== 0) {
+        normalizedName = `${prefix}-${normalizedName}`;
     }
 
-    return name;
+    return normalizedName;
 }
 
 /**

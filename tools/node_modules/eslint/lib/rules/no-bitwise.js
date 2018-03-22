@@ -46,7 +46,11 @@ module.exports = {
                 },
                 additionalProperties: false
             }
-        ]
+        ],
+
+        messages: {
+            unexpected: "Unexpected use of '{{operator}}'."
+        }
     },
 
     create(context) {
@@ -60,7 +64,7 @@ module.exports = {
          * @returns {void}
          */
         function report(node) {
-            context.report({ node, message: "Unexpected use of '{{operator}}'.", data: { operator: node.operator } });
+            context.report({ node, messageId: "unexpected", data: { operator: node.operator } });
         }
 
         /**

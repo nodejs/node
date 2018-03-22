@@ -91,7 +91,11 @@ module.exports = {
                 },
                 additionalProperties: false
             }
-        ]
+        ],
+
+        messages: {
+            unexpected: "eval can be harmful."
+        }
     },
 
     create(context) {
@@ -147,20 +151,19 @@ module.exports = {
          * @returns {void}
          */
         function report(node) {
-            let locationNode = node;
             const parent = node.parent;
+            const locationNode = node.type === "MemberExpression"
+                ? node.property
+                : node;
 
-            if (node.type === "MemberExpression") {
-                locationNode = node.property;
-            }
-            if (parent.type === "CallExpression" && parent.callee === node) {
-                node = parent;
-            }
+            const reportNode = parent.type === "CallExpression" && parent.callee === node
+                ? parent
+                : node;
 
             context.report({
-                node,
+                node: reportNode,
                 loc: locationNode.loc.start,
-                message: "eval can be harmful."
+                messageId: "unexpected"
             });
         }
 

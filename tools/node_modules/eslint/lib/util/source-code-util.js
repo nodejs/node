@@ -55,50 +55,47 @@ function getSourceCodeOfFile(filename, options) {
 
 /**
  * Gets the SourceCode of a single file, or set of files.
- * @param   {string[]|string}  patterns   A filename, directory name, or glob,
- *                                        or an array of them
- * @param   {Object}           [options]  A CLIEngine options object. If not provided,
- *                                        the default cli options will be used.
- * @param   {progressCallback} [cb]       Callback for reporting execution status
- * @returns {Object}                      The SourceCode of all processed files.
+ * @param {string[]|string} patterns A filename, directory name, or glob, or an array of them
+ * @param {Object} [providedOptions] A CLIEngine options object. If not provided, the default cli options will be used.
+ * @param {progressCallback} [providedCallback] Callback for reporting execution status
+ * @returns {Object} The SourceCode of all processed files.
  */
-function getSourceCodeOfFiles(patterns, options, cb) {
+function getSourceCodeOfFiles(patterns, providedOptions, providedCallback) {
     const sourceCodes = {};
-    let opts;
-
-    if (typeof patterns === "string") {
-        patterns = [patterns];
-    }
+    const globPatternsList = typeof patterns === "string" ? [patterns] : patterns;
+    let options, callback;
 
     const defaultOptions = Object.assign({}, baseDefaultOptions, { cwd: process.cwd() });
 
-    if (typeof options === "undefined") {
-        opts = defaultOptions;
-    } else if (typeof options === "function") {
-        cb = options;
-        opts = defaultOptions;
-    } else if (typeof options === "object") {
-        opts = Object.assign({}, defaultOptions, options);
+    if (typeof providedOptions === "undefined") {
+        options = defaultOptions;
+        callback = null;
+    } else if (typeof providedOptions === "function") {
+        callback = providedOptions;
+        options = defaultOptions;
+    } else if (typeof providedOptions === "object") {
+        options = Object.assign({}, defaultOptions, providedOptions);
+        callback = providedCallback;
     }
-    debug("constructed options:", opts);
-    patterns = globUtil.resolveFileGlobPatterns(patterns, opts);
+    debug("constructed options:", options);
+    const resolvedPatterns = globUtil.resolveFileGlobPatterns(globPatternsList, options);
 
-    const filenames = globUtil.listFilesToProcess(patterns, opts)
+    const filenames = globUtil.listFilesToProcess(resolvedPatterns, options)
         .filter(fileInfo => !fileInfo.ignored)
         .reduce((files, fileInfo) => files.concat(fileInfo.filename), []);
 
     if (filenames.length === 0) {
-        debug(`Did not find any files matching pattern(s): ${patterns}`);
+        debug(`Did not find any files matching pattern(s): ${resolvedPatterns}`);
     }
     filenames.forEach(filename => {
-        const sourceCode = getSourceCodeOfFile(filename, opts);
+        const sourceCode = getSourceCodeOfFile(filename, options);
 
         if (sourceCode) {
             debug("got sourceCode of", filename);
             sourceCodes[filename] = sourceCode;
         }
-        if (cb) {
-            cb(filenames.length); // eslint-disable-line callback-return
+        if (callback) {
+            callback(filenames.length); // eslint-disable-line callback-return
         }
     });
     return sourceCodes;

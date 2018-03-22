@@ -5,6 +5,44 @@
 
 "use strict";
 
+const RegExpValidator = require("regexpp").RegExpValidator;
+const collector = new class {
+    constructor() {
+        this.ecmaVersion = 2018;
+        this._source = "";
+        this._controlChars = [];
+        this._validator = new RegExpValidator(this);
+    }
+
+    onPatternEnter() {
+        this._controlChars = [];
+    }
+
+    onCharacter(start, end, cp) {
+        if (cp >= 0x00 &&
+            cp <= 0x1F &&
+            (
+                this._source.codePointAt(start) === cp ||
+                this._source.slice(start, end).startsWith("\\x") ||
+                this._source.slice(start, end).startsWith("\\u")
+            )
+        ) {
+            this._controlChars.push(`\\x${`0${cp.toString(16)}`.slice(-2)}`);
+        }
+    }
+
+    collectControlChars(regexpStr) {
+        try {
+            this._source = regexpStr;
+            this._validator.validatePattern(regexpStr); // Call onCharacter hook
+        } catch (err) {
+
+            // Ignore syntax errors in RegExp.
+        }
+        return this._controlChars;
+    }
+}();
+
 //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
@@ -18,7 +56,11 @@ module.exports = {
             url: "https://eslint.org/docs/rules/no-control-regex"
         },
 
-        schema: []
+        schema: [],
+
+        messages: {
+            unexpected: "Unexpected control character(s) in regular expression: {{controlChars}}."
+        }
     },
 
     create(context) {
@@ -26,95 +68,36 @@ module.exports = {
         /**
          * Get the regex expression
          * @param {ASTNode} node node to evaluate
-         * @returns {*} Regex if found else null
+         * @returns {RegExp|null} Regex if found else null
          * @private
          */
-        function getRegExp(node) {
-            if (node.value instanceof RegExp) {
-                return node.value;
+        function getRegExpPattern(node) {
+            if (node.regex) {
+                return node.regex.pattern;
             }
-            if (typeof node.value === "string") {
-
-                const parent = context.getAncestors().pop();
-
-                if ((parent.type === "NewExpression" || parent.type === "CallExpression") &&
-                    parent.callee.type === "Identifier" && parent.callee.name === "RegExp"
-                ) {
-
-                    // there could be an invalid regular expression string
-                    try {
-                        return new RegExp(node.value);
-                    } catch (ex) {
-                        return null;
-                    }
-                }
+            if (typeof node.value === "string" &&
+                (node.parent.type === "NewExpression" || node.parent.type === "CallExpression") &&
+                node.parent.callee.type === "Identifier" &&
+                node.parent.callee.name === "RegExp" &&
+                node.parent.arguments[0] === node
+            ) {
+                return node.value;
             }
 
             return null;
         }
 
-
-        const controlChar = /[\x00-\x1f]/g; // eslint-disable-line no-control-regex
-        const consecutiveSlashes = /\\+/g;
-        const consecutiveSlashesAtEnd = /\\+$/g;
-        const stringControlChar = /\\x[01][0-9a-f]/ig;
-        const stringControlCharWithoutSlash = /x[01][0-9a-f]/ig;
-
-        /**
-         * Return a list of the control characters in the given regex string
-         * @param {string} regexStr regex as string to check
-         * @returns {array} returns a list of found control characters on given string
-         * @private
-         */
-        function getControlCharacters(regexStr) {
-
-            // check control characters, if RegExp object used
-            const controlChars = regexStr.match(controlChar) || [];
-
-            let stringControlChars = [];
-
-            // check substr, if regex literal used
-            const subStrIndex = regexStr.search(stringControlChar);
-
-            if (subStrIndex > -1) {
-
-                // is it escaped, check backslash count
-                const possibleEscapeCharacters = regexStr.slice(0, subStrIndex).match(consecutiveSlashesAtEnd);
-
-                const hasControlChars = possibleEscapeCharacters === null || !(possibleEscapeCharacters[0].length % 2);
-
-                if (hasControlChars) {
-                    stringControlChars = regexStr.slice(subStrIndex, -1)
-                        .split(consecutiveSlashes)
-                        .filter(Boolean)
-                        .map(x => {
-                            const match = x.match(stringControlCharWithoutSlash) || [x];
-
-                            return `\\${match[0]}`;
-                        });
-                }
-            }
-
-            return controlChars.map(x => {
-                const hexCode = `0${x.charCodeAt(0).toString(16)}`.slice(-2);
-
-                return `\\x${hexCode}`;
-            }).concat(stringControlChars);
-        }
-
         return {
             Literal(node) {
-                const regex = getRegExp(node);
+                const pattern = getRegExpPattern(node);
 
-                if (regex) {
-                    const computedValue = regex.toString();
-
-                    const controlCharacters = getControlCharacters(computedValue);
+                if (pattern) {
+                    const controlCharacters = collector.collectControlChars(pattern);
 
                     if (controlCharacters.length > 0) {
                         context.report({
                             node,
-                            message: "Unexpected control character(s) in regular expression: {{controlChars}}.",
+                            messageId: "unexpected",
                             data: {
                                 controlChars: controlCharacters.join(", ")
                             }

@@ -22,7 +22,7 @@ module.exports = {
             {
                 oneOf: [
                     {
-                        enum: ["always", "never"]
+                        enum: ["always", "never", "consecutive"]
                     },
                     {
                         type: "object",
@@ -31,13 +31,13 @@ module.exports = {
                                 type: "boolean"
                             },
                             var: {
-                                enum: ["always", "never"]
+                                enum: ["always", "never", "consecutive"]
                             },
                             let: {
-                                enum: ["always", "never"]
+                                enum: ["always", "never", "consecutive"]
                             },
                             const: {
-                                enum: ["always", "never"]
+                                enum: ["always", "never", "consecutive"]
                             }
                         },
                         additionalProperties: false
@@ -46,10 +46,10 @@ module.exports = {
                         type: "object",
                         properties: {
                             initialized: {
-                                enum: ["always", "never"]
+                                enum: ["always", "never", "consecutive"]
                             },
                             uninitialized: {
-                                enum: ["always", "never"]
+                                enum: ["always", "never", "consecutive"]
                             }
                         },
                         additionalProperties: false
@@ -60,10 +60,9 @@ module.exports = {
     },
 
     create(context) {
-
-        const MODE_ALWAYS = "always",
-            MODE_NEVER = "never";
-
+        const MODE_ALWAYS = "always";
+        const MODE_NEVER = "never";
+        const MODE_CONSECUTIVE = "consecutive";
         const mode = context.options[0] || MODE_ALWAYS;
 
         const options = {};
@@ -273,6 +272,147 @@ module.exports = {
             return true;
         }
 
+        /**
+         * Checks a given VariableDeclaration node for errors.
+         * @param {ASTNode} node The VariableDeclaration node to check
+         * @returns {void}
+         * @private
+         */
+        function checkVariableDeclaration(node) {
+            const parent = node.parent;
+            const type = node.kind;
+
+            if (!options[type]) {
+                return;
+            }
+
+            const declarations = node.declarations;
+            const declarationCounts = countDeclarations(declarations);
+            const mixedRequires = declarations.some(isRequire) && !declarations.every(isRequire);
+
+            if (options[type].initialized === MODE_ALWAYS) {
+                if (options.separateRequires && mixedRequires) {
+                    context.report({
+                        node,
+                        message: "Split requires to be separated into a single block."
+                    });
+                }
+            }
+
+            // consecutive
+            const nodeIndex = (parent.body && parent.body.length > 0 && parent.body.indexOf(node)) || 0;
+
+            if (nodeIndex > 0) {
+                const previousNode = parent.body[nodeIndex - 1];
+                const isPreviousNodeDeclaration = previousNode.type === "VariableDeclaration";
+
+                if (isPreviousNodeDeclaration && previousNode.kind === type) {
+                    const previousDeclCounts = countDeclarations(previousNode.declarations);
+
+                    if (options[type].initialized === MODE_CONSECUTIVE && options[type].uninitialized === MODE_CONSECUTIVE) {
+                        context.report({
+                            node,
+                            message: "Combine this with the previous '{{type}}' statement.",
+                            data: {
+                                type
+                            }
+                        });
+                    } else if (options[type].initialized === MODE_CONSECUTIVE && declarationCounts.initialized > 0 && previousDeclCounts.initialized > 0) {
+                        context.report({
+                            node,
+                            message: "Combine this with the previous '{{type}}' statement with initialized variables.",
+                            data: {
+                                type
+                            }
+                        });
+                    } else if (options[type].uninitialized === MODE_CONSECUTIVE &&
+                            declarationCounts.uninitialized > 0 &&
+                            previousDeclCounts.uninitialized > 0) {
+                        context.report({
+                            node,
+                            message: "Combine this with the previous '{{type}}' statement with uninitialized variables.",
+                            data: {
+                                type
+                            }
+                        });
+                    }
+                }
+            }
+
+            // always
+            if (!hasOnlyOneStatement(type, declarations)) {
+                if (options[type].initialized === MODE_ALWAYS && options[type].uninitialized === MODE_ALWAYS) {
+                    context.report({
+                        node,
+                        message: "Combine this with the previous '{{type}}' statement.",
+                        data: {
+                            type
+                        }
+                    });
+                } else {
+                    if (options[type].initialized === MODE_ALWAYS && declarationCounts.initialized > 0) {
+                        context.report({
+                            node,
+                            message: "Combine this with the previous '{{type}}' statement with initialized variables.",
+                            data: {
+                                type
+                            }
+                        });
+                    }
+                    if (options[type].uninitialized === MODE_ALWAYS && declarationCounts.uninitialized > 0) {
+                        if (node.parent.left === node && (node.parent.type === "ForInStatement" || node.parent.type === "ForOfStatement")) {
+                            return;
+                        }
+                        context.report({
+                            node,
+                            message: "Combine this with the previous '{{type}}' statement with uninitialized variables.",
+                            data: {
+                                type
+                            }
+                        });
+                    }
+                }
+            }
+
+            // never
+            if (parent.type !== "ForStatement" || parent.init !== node) {
+                const totalDeclarations = declarationCounts.uninitialized + declarationCounts.initialized;
+
+                if (totalDeclarations > 1) {
+                    if (options[type].initialized === MODE_NEVER && options[type].uninitialized === MODE_NEVER) {
+
+                        // both initialized and uninitialized
+                        context.report({
+                            node,
+                            message: "Split '{{type}}' declarations into multiple statements.",
+                            data: {
+                                type
+                            }
+                        });
+                    } else if (options[type].initialized === MODE_NEVER && declarationCounts.initialized > 0) {
+
+                        // initialized
+                        context.report({
+                            node,
+                            message: "Split initialized '{{type}}' declarations into multiple statements.",
+                            data: {
+                                type
+                            }
+                        });
+                    } else if (options[type].uninitialized === MODE_NEVER && declarationCounts.uninitialized > 0) {
+
+                        // uninitialized
+                        context.report({
+                            node,
+                            message: "Split uninitialized '{{type}}' declarations into multiple statements.",
+                            data: {
+                                type
+                            }
+                        });
+                    }
+                }
+            }
+        }
 
         //--------------------------------------------------------------------------
         // Public API
@@ -288,104 +428,7 @@ module.exports = {
             ForInStatement: startBlock,
             ForOfStatement: startBlock,
             SwitchStatement: startBlock,
-
-            VariableDeclaration(node) {
-                const parent = node.parent;
-                const type = node.kind;
-
-                if (!options[type]) {
-                    return;
-                }
-
-                const declarations = node.declarations;
-                const declarationCounts = countDeclarations(declarations);
-                const mixedRequires = declarations.some(isRequire) && !declarations.every(isRequire);
-
-                if (options[type].initialized === MODE_ALWAYS) {
-                    if (options.separateRequires && mixedRequires) {
-                        context.report({
-                            node,
-                            message: "Split requires to be separated into a single block."
-                        });
-                    }
-                }
-
-                // always
-                if (!hasOnlyOneStatement(type, declarations)) {
-                    if (options[type].initialized === MODE_ALWAYS && options[type].uninitialized === MODE_ALWAYS) {
-                        context.report({
-                            node,
-                            message: "Combine this with the previous '{{type}}' statement.",
-                            data: {
-                                type
-                            }
-                        });
-                    } else {
-                        if (options[type].initialized === MODE_ALWAYS) {
-                            context.report({
-                                node,
-                                message: "Combine this with the previous '{{type}}' statement with initialized variables.",
-                                data: {
-                                    type
-                                }
-                            });
-                        }
-                        if (options[type].uninitialized === MODE_ALWAYS) {
-                            if (node.parent.left === node && (node.parent.type === "ForInStatement" || node.parent.type === "ForOfStatement")) {
-                                return;
-                            }
-                            context.report({
-                                node,
-                                message: "Combine this with the previous '{{type}}' statement with uninitialized variables.",
-                                data: {
-                                    type
-                                }
-                            });
-                        }
-                    }
-                }
-
-                // never
-                if (parent.type !== "ForStatement" || parent.init !== node) {
-                    const totalDeclarations = declarationCounts.uninitialized + declarationCounts.initialized;
-
-                    if (totalDeclarations > 1) {
-
-                        if (options[type].initialized === MODE_NEVER && options[type].uninitialized === MODE_NEVER) {
-
-                            // both initialized and uninitialized
-                            context.report({
-                                node,
-                                message: "Split '{{type}}' declarations into multiple statements.",
-                                data: {
-                                    type
-                                }
-                            });
-                        } else if (options[type].initialized === MODE_NEVER && declarationCounts.initialized > 0) {
-
-                            // initialized
-                            context.report({
-                                node,
-                                message: "Split initialized '{{type}}' declarations into multiple statements.",
-                                data: {
-                                    type
-                                }
-                            });
-                        } else if (options[type].uninitialized === MODE_NEVER && declarationCounts.uninitialized > 0) {
-
-                            // uninitialized
-                            context.report({
-                                node,
-                                message: "Split uninitialized '{{type}}' declarations into multiple statements.",
-                                data: {
-                                    type
-                                }
-                            });
-                        }
-                    }
-                }
-            },
-
+            VariableDeclaration: checkVariableDeclaration,
             "ForStatement:exit": endBlock,
             "ForOfStatement:exit": endBlock,
             "ForInStatement:exit": endBlock,

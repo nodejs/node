@@ -101,25 +101,32 @@ module.exports = {
 
         return {
             Literal(node) {
-                let parent = node.parent,
-                    value = node.value,
-                    raw = node.raw;
                 const okTypes = detectObjects ? [] : ["ObjectExpression", "Property", "AssignmentExpression"];
 
                 if (!isNumber(node)) {
                     return;
                 }
 
+                let fullNumberNode;
+                let parent;
+                let value;
+                let raw;
+
                 // For negative magic numbers: update the value and parent node
-                if (parent.type === "UnaryExpression" && parent.operator === "-") {
-                    node = parent;
+                if (node.parent.type === "UnaryExpression" && node.parent.operator === "-") {
+                    fullNumberNode = node.parent;
+                    parent = fullNumberNode.parent;
+                    value = -node.value;
+                    raw = `-${node.raw}`;
+                } else {
+                    fullNumberNode = node;
                     parent = node.parent;
-                    value = -value;
-                    raw = `-${raw}`;
+                    value = node.value;
+                    raw = node.raw;
                 }
 
                 if (shouldIgnoreNumber(value) ||
-                    shouldIgnoreParseInt(parent, node) ||
+                    shouldIgnoreParseInt(parent, fullNumberNode) ||
                     shouldIgnoreArrayIndexes(parent) ||
                     shouldIgnoreJSXNumbers(parent)) {
                     return;
@@ -128,7 +135,7 @@ module.exports = {
                 if (parent.type === "VariableDeclarator") {
                     if (enforceConst && parent.parent.kind !== "const") {
                         context.report({
-                            node,
+                            node: fullNumberNode,
                             message: "Number constants declarations must use 'const'."
                         });
                     }
@@ -137,7 +144,7 @@ module.exports = {
                     (parent.type === "AssignmentExpression" && parent.left.type === "Identifier")
                 ) {
                     context.report({
-                        node,
+                        node: fullNumberNode,
                         message: "No magic number: {{raw}}.",
                         data: {
                             raw

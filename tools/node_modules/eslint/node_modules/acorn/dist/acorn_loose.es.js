@@ -1,5 +1,7 @@
 import { Node, SourceLocation, Token, addLooseExports, defaultOptions, getLineInfo, isNewLine, lineBreak, lineBreakG, tokTypes, tokenizer } from './acorn.es';
 
+function noop() {}
+
 // Registered plugins
 var pluginsLoose = {};
 
@@ -10,6 +12,8 @@ var LooseParser = function LooseParser(input, options) {
   this.options = this.toks.options;
   this.input = this.toks.input;
   this.tok = this.last = {type: tokTypes.eof, start: 0, end: 0};
+  this.tok.validateRegExpFlags = noop;
+  this.tok.validateRegExpPattern = noop;
   if (this.options.locations) {
     var here = this.toks.curPosition();
     this.tok.loc = new SourceLocation(this.toks, here, here);
@@ -269,7 +273,7 @@ lp.resetTo = function(pos) {
   var ch = this.input.charAt(pos - 1);
   this.toks.exprAllowed = !ch || /[[{(,;:?/*=+\-~!|&%^<>]/.test(ch) ||
     /[enwfd]/.test(ch) &&
-    /\b(keywords|case|else|return|throw|new|in|(instance|type)of|delete|void)$/.test(this.input.slice(pos - 10, pos));
+    /\b(case|else|return|throw|new|in|(instance|type)?of|delete|void)$/.test(this.input.slice(pos - 10, pos));
 
   if (this.options.locations) {
     this.toks.curLine = 1;
@@ -343,7 +347,9 @@ lp$1.parseStatement = function() {
     return this.finishNode(node, "DoWhileStatement")
 
   case tokTypes._for:
-    this.next();
+    this.next(); // `for` keyword
+    var isAwait = this.options.ecmaVersion >= 9 && this.inAsync && this.eatContextual("await");
+
     this.pushCx();
     this.expect(tokTypes.parenL);
     if (this.tok.type === tokTypes.semi) { return this.parseFor(node, null) }
@@ -351,13 +357,20 @@ lp$1.parseStatement = function() {
     if (isLet || this.tok.type === tokTypes._var || this.tok.type === tokTypes._const) {
       var init$1 = this.parseVar(true, isLet ? "let" : this.tok.value);
       if (init$1.declarations.length === 1 && (this.tok.type === tokTypes._in || this.isContextual("of"))) {
+        if (this.options.ecmaVersion >= 9 && this.tok.type !== tokTypes._in) {
+          node.await = isAwait;
+        }
         return this.parseForIn(node, init$1)
       }
       return this.parseFor(node, init$1)
     }
     var init = this.parseExpression(true);
-    if (this.tok.type === tokTypes._in || this.isContextual("of"))
-      { return this.parseForIn(node, this.toAssignable(init)) }
+    if (this.tok.type === tokTypes._in || this.isContextual("of")) {
+      if (this.options.ecmaVersion >= 9 && this.tok.type !== tokTypes._in) {
+        node.await = isAwait;
+      }
+      return this.parseForIn(node, this.toAssignable(init))
+    }
     return this.parseFor(node, init)
 
   case tokTypes._function:
@@ -582,8 +595,9 @@ lp$1.parseClass = function(isStatement) {
     if (!method.computed &&
         method.key.type === "Identifier" && method.key.name === "async" && this$1.tok.type !== tokTypes.parenL &&
         !this$1.canInsertSemicolon()) {
-      this$1.parsePropertyName(method);
       isAsync = true;
+      isGenerator = this$1.options.ecmaVersion >= 9 && this$1.eat(tokTypes.star);
+      this$1.parsePropertyName(method);
     } else {
       isAsync = false;
     }
@@ -1128,6 +1142,12 @@ lp$2.parseObj = function() {
   if (this.curIndent + 1 < indent) { indent = this.curIndent; line = this.curLineStart; }
   while (!this.closes(tokTypes.braceR, indent, line)) {
     var prop = this$1.startNode(), isGenerator = (void 0), isAsync = (void 0), start = (void 0);
+    if (this$1.options.ecmaVersion >= 9 && this$1.eat(tokTypes.ellipsis)) {
+      prop.argument = this$1.parseMaybeAssign();
+      node.properties.push(this$1.finishNode(prop, "SpreadElement"));
+      this$1.eat(tokTypes.comma);
+      continue
+    }
     if (this$1.options.ecmaVersion >= 6) {
       start = this$1.storeCurrentPos();
       prop.method = false;
@@ -1136,8 +1156,9 @@ lp$2.parseObj = function() {
     }
     this$1.parsePropertyName(prop);
     if (this$1.toks.isAsyncProp(prop)) {
-      this$1.parsePropertyName(prop);
       isAsync = true;
+      isGenerator = this$1.options.ecmaVersion >= 9 && this$1.eat(tokTypes.star);
+      this$1.parsePropertyName(prop);
     } else {
       isAsync = false;
     }
@@ -1238,16 +1259,17 @@ lp$2.toAssignable = function(node, binding) {
     return this.dummyIdent()
   } else if (node.type == "ObjectExpression") {
     node.type = "ObjectPattern";
-    var props = node.properties;
-    for (var i = 0, list = props; i < list.length; i += 1)
+    for (var i = 0, list = node.properties; i < list.length; i += 1)
       {
       var prop = list[i];
 
-      this$1.toAssignable(prop.value, binding);
+      this$1.toAssignable(prop, binding);
     }
   } else if (node.type == "ArrayExpression") {
     node.type = "ArrayPattern";
     this.toAssignableList(node.elements, binding);
+  } else if (node.type == "Property") {
+    this.toAssignable(node.value, binding);
   } else if (node.type == "SpreadElement") {
     node.type = "RestElement";
     this.toAssignable(node.argument, binding);

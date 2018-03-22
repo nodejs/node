@@ -186,7 +186,7 @@ options:
 
 The following table show availlable styles (e.g. "canonical",
 "binary"...) available for each tag (.e.g. !!null, !!int ...). Yaml
-ouput is shown on the right side after `=>` (default setting) or `->`:
+output is shown on the right side after `=>` (default setting) or `->`:
 
 ``` none
 !!null
