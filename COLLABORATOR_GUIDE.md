@@ -406,8 +406,8 @@ recommended but not required.
 __Deprecation__ refers to the identification of Public APIs that should no
 longer be used.
 
-Once specific bits of code are marked as being Deprecated, they are no longer
-covered by the typical current or Long Term Support policies.
+Once APIs are Deprecated, they are no longer covered by the current or
+[Long Term Support][LTS] policies.
 
 Node.js uses three Deprecation levels:
 
@@ -416,9 +416,9 @@ Node.js uses three Deprecation levels:
   notice indicating the deprecated status is added to the API documentation
   but no functional changes are implemented in the code. There will be no
   runtime deprecation warnings emitted for such deprecations by default.
-  Documentation-only deprecations may trigger an opt-in only runtime warning
-  when Node.js is launched with the [`--pending-deprecation`][] flag (or its
-  alternative, `NODE_PENDING_DEPRECATION=1` environment variable).
+  Documentation-only deprecations may trigger an runtime warning when Node.js
+  is launched with the [`--pending-deprecation`][] flag, or the
+  `NODE_PENDING_DEPRECATION=1` environment variable is set.
 
 * *Runtime Deprecation* refers to the use of process warnings emitted at
   runtime the first time that a deprecated API is used. A command-line
@@ -428,9 +428,9 @@ Node.js uses three Deprecation levels:
   deprecated status.
 
 * *End-of-life* refers to APIs that have gone through Runtime Deprecation and
-  are no longer subject to the semantic-versioning and support policies used by
-  the project. Backward-incompatible changes or even complete removal of such
-  code may occur at any time.
+  are no longer subject to the semantic versioning and [support policies](LTS)
+  used by the project. Backward-incompatible changes including complete removal
+  of such APIs may occur at any time.
 
 Documentation-Only Deprecations may be handled as semver-minor or semver-major
 changes. Such deprecations have no impact on the successful operation of running
@@ -456,9 +456,8 @@ a Runtime Deprecation until the next major release.)
 
 No API can be moved to End-of-life without first having gone through a
 Runtime Deprecation cycle. However, there is no requirement that deprecated
-code must progress ultimately to *End-of-Life*. It is possible, and at times
-preferable, for code that is documentation-only or runtime deprecated to
-remain so indefinitely.
+code must progress ultimately to *End-of-Life*. Documentation-only and runtime
+deprecations may remain indefinitely.
 
 A best effort will be made to communicate pending deprecations and associated
 mitigations with the ecosystem as soon as possible (preferably before the pull
@@ -838,3 +837,4 @@ LTS working group and the Release team.
 [node-core-utils-credentials]: https://github.com/nodejs/node-core-utils#setting-up-credentials
 ["Merge Pull Request"]: https://help.github.com/articles/merging-a-pull-request/#merging-a-pull-request-on-github
 [flaky tests]: https://github.com/nodejs/node/issues?q=is%3Aopen+is%3Aissue+label%3A%22CI+%2F+flaky+test%22
+[LTS]: https://github.com/nodejs/Release
