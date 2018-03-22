@@ -1,9 +1,25 @@
 'use strict';
+// Flags: --expose-gc
 
 const common = require('../../common');
-const test_exception = require(`./build/${common.buildType}/test_exception`);
 const assert = require('assert');
 const theError = new Error('Some error');
+
+// The test module throws an error during Init, but in order for its exports to
+// not be lost, it attaches them to the error's "bindings" property. This way,
+// we can make sure that exceptions thrown during the module initialization
+// phase are propagated through require() into JavaScript.
+// https://github.com/nodejs/node/issues/19437
+const test_exception = (function() {
+  let resultingException;
+  try {
+    require(`./build/${common.buildType}/test_exception`);
+  } catch (anException) {
+    resultingException = anException;
+  }
+  assert.strictEqual(resultingException.message, 'Error during Init');
+  return resultingException.binding;
+})();
 
 {
   const throwTheError = () => { throw theError; };
@@ -50,3 +66,15 @@ const theError = new Error('Some error');
                      'Exception state did not remain clear as expected,' +
                      ` .wasPending() returned ${exception_pending}`);
 }
+
+// Make sure that exceptions that occur during finalization are propagated.
+function testFinalize(binding) {
+  let x = test_exception[binding]();
+  x = null;
+  assert.throws(() => { global.gc(); }, /Error during Finalize/);
+
+  // To assuage the linter's concerns.
+  (function() {})(x);
+}
+testFinalize('createExternal');
+testFinalize('createExternalBuffer');
