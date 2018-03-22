@@ -302,7 +302,8 @@ encoding, `Buffer` objects will be passed to the callback instead.
 
 If this method is invoked as its [`util.promisify()`][]ed version, it returns
 a Promise for an object with `stdout` and `stderr` properties. In case of an
-error, a rejected promise is returned, with the same `error` object given in the
+error (including any error resulting in an exit code other than 0), a rejected
+promise is returned, with the same `error` object given in the
 callback, but with an additional two properties `stdout` and `stderr`.
 
 ```js
