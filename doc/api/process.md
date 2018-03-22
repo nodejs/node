@@ -1515,9 +1515,9 @@ tarball.
     * `major`
     * `minor`
     * `patch`
-    * Returns: {number} `-1` if the given version is lower than the release version,
-      `0` if the given version matches the process version, and `1` if the given
-      version is greater than the release version.
+    * Returns: {number} `-1` if the given version is lower than the release
+      version, `0` if the given version matches the process version, and `1`
+      if the given version is greater than the release version.
 
 <!-- eslint-skip -->
 ```js
