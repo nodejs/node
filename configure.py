@@ -388,6 +388,12 @@ parser.add_option('--with-etw',
     dest='with_etw',
     help='build with ETW (default is true on Windows)')
 
+parser.add_option('--use-largepages',
+    action='store_true',
+    dest='node_use_large_pages',
+    help='build with Large Pages support. This feature is supported only on Linux kernel' +
+         '>= 2.6.38 with Transparent Huge pages enabled')
+
 intl_optgroup.add_option('--with-intl',
     action='store',
     dest='with_intl',
@@ -997,6 +1003,24 @@ def configure_node(o):
        'DTrace is currently only supported on SunOS, MacOS or Linux systems.')
   else:
     o['variables']['node_use_dtrace'] = 'false'
+
+  if options.node_use_large_pages and flavor != 'linux':
+    raise Exception(
+      'Large pages are supported only on Linux Systems.')
+  if options.node_use_large_pages and flavor == 'linux':
+    if options.shared or options.enable_static:
+      raise Exception(
+        'Large pages are supported only while creating node executable.')
+    if target_arch!="x64":
+      raise Exception(
+        'Large pages are supported only x64 platform.')
+    # Example full version string: 2.6.32-696.28.1.el6.x86_64
+    FULL_KERNEL_VERSION=os.uname()[2]
+    KERNEL_VERSION=FULL_KERNEL_VERSION.split('-')[0]
+    if KERNEL_VERSION < "2.6.38":
+      raise Exception(
+        'Large pages need Linux kernel version >= 2.6.38')
+  o['variables']['node_use_large_pages'] = b(options.node_use_large_pages)
 
   if options.no_ifaddrs:
     o['defines'] += ['SUNOS_NO_IFADDRS']
