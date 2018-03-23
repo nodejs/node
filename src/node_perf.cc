@@ -347,9 +347,9 @@ void Timerify(const FunctionCallbackInfo<Value>& args) {
 }
 
 
-void Init(Local<Object> target,
-          Local<Value> unused,
-          Local<Context> context) {
+void Initialize(Local<Object> target,
+                Local<Value> unused,
+                Local<Context> context) {
   Environment* env = Environment::GetCurrent(context);
   Isolate* isolate = env->isolate();
   performance_state* state = env->performance_state();
@@ -418,4 +418,4 @@ void Init(Local<Object> target,
 }  // namespace performance
 }  // namespace node
 
-NODE_BUILTIN_MODULE_CONTEXT_AWARE(performance, node::performance::Init)
+NODE_BUILTIN_MODULE_CONTEXT_AWARE(performance, node::performance::Initialize)

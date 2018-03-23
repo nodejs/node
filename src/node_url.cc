@@ -2290,10 +2290,10 @@ static void SetURLConstructor(const FunctionCallbackInfo<Value>& args) {
   env->set_url_constructor_function(args[0].As<Function>());
 }
 
-static void Init(Local<Object> target,
-                 Local<Value> unused,
-                 Local<Context> context,
-                 void* priv) {
+static void Initialize(Local<Object> target,
+                       Local<Value> unused,
+                       Local<Context> context,
+                       void* priv) {
   Environment* env = Environment::GetCurrent(context);
   env->SetMethod(target, "parse", Parse);
   env->SetMethod(target, "encodeAuth", EncodeAuthSet);
@@ -2313,4 +2313,4 @@ static void Init(Local<Object> target,
 }  // namespace url
 }  // namespace node
 
-NODE_BUILTIN_MODULE_CONTEXT_AWARE(url, node::url::Init)
+NODE_BUILTIN_MODULE_CONTEXT_AWARE(url, node::url::Initialize)

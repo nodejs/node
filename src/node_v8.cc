@@ -119,9 +119,9 @@ void SetFlagsFromString(const FunctionCallbackInfo<Value>& args) {
 }
 
 
-void InitializeV8Bindings(Local<Object> target,
-                          Local<Value> unused,
-                          Local<Context> context) {
+void Initialize(Local<Object> target,
+                Local<Value> unused,
+                Local<Context> context) {
   Environment* env = Environment::GetCurrent(context);
 
   env->SetMethod(target, "cachedDataVersionTag", CachedDataVersionTag);
@@ -201,4 +201,4 @@ void InitializeV8Bindings(Local<Object> target,
 
 }  // namespace node
 
-NODE_BUILTIN_MODULE_CONTEXT_AWARE(v8, node::InitializeV8Bindings)
+NODE_BUILTIN_MODULE_CONTEXT_AWARE(v8, node::Initialize)

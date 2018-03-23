@@ -1155,9 +1155,9 @@ class ContextifyScript : public BaseObject {
 };
 
 
-void InitContextify(Local<Object> target,
-                    Local<Value> unused,
-                    Local<Context> context) {
+void Initialize(Local<Object> target,
+                Local<Value> unused,
+                Local<Context> context) {
   Environment* env = Environment::GetCurrent(context);
   ContextifyContext::Init(env, target);
   ContextifyScript::Init(env, target);
@@ -1166,4 +1166,4 @@ void InitContextify(Local<Object> target,
 }  // namespace contextify
 }  // namespace node
 
-NODE_BUILTIN_MODULE_CONTEXT_AWARE(contextify, node::contextify::InitContextify)
+NODE_BUILTIN_MODULE_CONTEXT_AWARE(contextify, node::contextify::Initialize)
