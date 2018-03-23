@@ -5719,7 +5719,7 @@ void SetFipsCrypto(const FunctionCallbackInfo<Value>& args) {
 }
 #endif /* NODE_FIPS_MODE */
 
-void InitCrypto(Local<Object> target,
+void Initialize(Local<Object> target,
                 Local<Value> unused,
                 Local<Context> context,
                 void* priv) {
@@ -5791,4 +5791,4 @@ void InitCrypto(Local<Object> target,
 }  // namespace crypto
 }  // namespace node
 
-NODE_BUILTIN_MODULE_CONTEXT_AWARE(crypto, node::crypto::InitCrypto)
+NODE_BUILTIN_MODULE_CONTEXT_AWARE(crypto, node::crypto::Initialize)

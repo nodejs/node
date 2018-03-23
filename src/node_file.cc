@@ -1856,10 +1856,10 @@ static void Mkdtemp(const FunctionCallbackInfo<Value>& args) {
   }
 }
 
-void InitFs(Local<Object> target,
-            Local<Value> unused,
-            Local<Context> context,
-            void* priv) {
+void Initialize(Local<Object> target,
+                Local<Value> unused,
+                Local<Context> context,
+                void* priv) {
   Environment* env = Environment::GetCurrent(context);
 
   env->SetMethod(target, "access", Access);
@@ -1975,4 +1975,4 @@ void InitFs(Local<Object> target,
 
 }  // end namespace node
 
-NODE_BUILTIN_MODULE_CONTEXT_AWARE(fs, node::fs::InitFs)
+NODE_BUILTIN_MODULE_CONTEXT_AWARE(fs, node::fs::Initialize)

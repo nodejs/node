@@ -4664,7 +4664,7 @@ void RegisterBuiltinModules() {
 }  // namespace node
 
 #if !HAVE_INSPECTOR
-void InitEmptyBindings() {}
+void Initialize() {}
 
-NODE_BUILTIN_MODULE_CONTEXT_AWARE(inspector, InitEmptyBindings)
+NODE_BUILTIN_MODULE_CONTEXT_AWARE(inspector, Initialize)
 #endif  // !HAVE_INSPECTOR

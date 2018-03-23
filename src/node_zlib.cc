@@ -681,10 +681,10 @@ class ZCtx : public AsyncWrap {
 };
 
 
-void InitZlib(Local<Object> target,
-              Local<Value> unused,
-              Local<Context> context,
-              void* priv) {
+void Initialize(Local<Object> target,
+                Local<Value> unused,
+                Local<Context> context,
+                void* priv) {
   Environment* env = Environment::GetCurrent(context);
   Local<FunctionTemplate> z = env->NewFunctionTemplate(ZCtx::New);
 
@@ -709,4 +709,4 @@ void InitZlib(Local<Object> target,
 }  // anonymous namespace
 }  // namespace node
 
-NODE_BUILTIN_MODULE_CONTEXT_AWARE(zlib, node::InitZlib)
+NODE_BUILTIN_MODULE_CONTEXT_AWARE(zlib, node::Initialize)
