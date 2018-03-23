@@ -68,48 +68,55 @@ if (process.argv[2] === 'child') {
   // testcase
   const child = fork(process.argv[1], ['child']);
 
-  let childFlag = false;
-  let parentFlag = false;
+  let exitEmitted = false;
+  let disconnectEmitted = false;
+  let gotMessage = false;
 
   // when calling .disconnect the event should emit
   // and the disconnected flag should be true.
   child.on('disconnect', common.mustCall(function() {
-    parentFlag = child.connected;
+    assert.strictEqual(child.connected, false);
+
+    disconnectEmitted = true;
   }));
 
   // the process should also self terminate without using signals
-  child.on('exit', common.mustCall());
+  child.on('exit', common.mustCall(function(code, signal) {
+    assert.strictEqual(disconnectEmitted, true);
+    assert.strictEqual(code, 0);
+    assert.strictEqual(signal, null);
+
+    exitEmitted = true;
+  }));
 
   // when child is listening
   child.on('message', function(obj) {
-    if (obj && obj.msg === 'ready') {
+    assert.ok(obj && obj.msg === 'ready');
 
-      // connect to child using TCP to know if disconnect was emitted
-      const socket = net.connect(obj.port);
+    gotMessage = true;
 
-      socket.on('data', function(data) {
-        data = data.toString();
+    // connect to child using TCP to know if disconnect was emitted
+    const socket = net.connect(obj.port);
 
-        // ready to be disconnected
-        if (data === 'ready') {
-          child.disconnect();
-          assert.throws(
-            child.disconnect.bind(child),
-            {
-              code: 'ERR_IPC_DISCONNECTED'
-            });
-          return;
-        }
+    socket.setEncoding('utf-8');
 
-        // disconnect is emitted
-        childFlag = (data === 'true');
-      });
+    socket.on('data', function(data) {
+      // ready to be disconnected
+      if (data === 'ready') {
+        child.disconnect();
+        assert.throws(child.disconnect.bind(child),
+                      { code: 'ERR_IPC_DISCONNECTED' });
+        return;
+      }
 
-    }
+      assert.strictEqual(data, 'false');
+    });
   });
 
-  process.on('exit', function() {
-    assert.strictEqual(childFlag, false);
-    assert.strictEqual(parentFlag, false);
-  });
+  // The process emits 'close' after all streams have flushed and it has exited.
+  child.on('close', common.mustCall(function() {
+    assert.strictEqual(disconnectEmitted, true);
+    assert.strictEqual(exitEmitted, true);
+    assert.strictEqual(gotMessage, true);
+  }));
 }
