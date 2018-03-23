@@ -21,8 +21,8 @@ const {
 } = constants;
 
 assert.strictEqual(counts[NODE_PERFORMANCE_ENTRY_TYPE_NODE], 0);
-assert.strictEqual(counts[NODE_PERFORMANCE_ENTRY_TYPE_MARK], 1);
-assert.strictEqual(counts[NODE_PERFORMANCE_ENTRY_TYPE_MEASURE], 1);
+assert.strictEqual(counts[NODE_PERFORMANCE_ENTRY_TYPE_MARK], 0);
+assert.strictEqual(counts[NODE_PERFORMANCE_ENTRY_TYPE_MEASURE], 0);
 assert.strictEqual(counts[NODE_PERFORMANCE_ENTRY_TYPE_GC], 0);
 assert.strictEqual(counts[NODE_PERFORMANCE_ENTRY_TYPE_FUNCTION], 0);
 
@@ -67,7 +67,7 @@ assert.strictEqual(counts[NODE_PERFORMANCE_ENTRY_TYPE_FUNCTION], 0);
   const countdown =
     new Countdown(3, () => {
       observer.disconnect();
-      assert.strictEqual(counts[NODE_PERFORMANCE_ENTRY_TYPE_MARK], 1);
+      assert.strictEqual(counts[NODE_PERFORMANCE_ENTRY_TYPE_MARK], 0);
     });
 
   function callback(list, obs) {
@@ -76,9 +76,9 @@ assert.strictEqual(counts[NODE_PERFORMANCE_ENTRY_TYPE_FUNCTION], 0);
     assert.strictEqual(entries.length, 1);
     countdown.dec();
   }
-  assert.strictEqual(counts[NODE_PERFORMANCE_ENTRY_TYPE_MARK], 1);
+  assert.strictEqual(counts[NODE_PERFORMANCE_ENTRY_TYPE_MARK], 0);
   observer.observe({ entryTypes: ['mark'] });
-  assert.strictEqual(counts[NODE_PERFORMANCE_ENTRY_TYPE_MARK], 2);
+  assert.strictEqual(counts[NODE_PERFORMANCE_ENTRY_TYPE_MARK], 1);
   performance.mark('test1');
   performance.mark('test2');
   performance.mark('test3');
@@ -89,14 +89,14 @@ assert.strictEqual(counts[NODE_PERFORMANCE_ENTRY_TYPE_FUNCTION], 0);
 {
   const observer =
     new PerformanceObserver(common.mustCall(callback, 1));
-  assert.strictEqual(counts[NODE_PERFORMANCE_ENTRY_TYPE_MARK], 1);
+  assert.strictEqual(counts[NODE_PERFORMANCE_ENTRY_TYPE_MARK], 0);
 
   function callback(list, obs) {
     assert.strictEqual(obs, observer);
     const entries = list.getEntries();
     assert.strictEqual(entries.length, 3);
     observer.disconnect();
-    assert.strictEqual(counts[NODE_PERFORMANCE_ENTRY_TYPE_MARK], 1);
+    assert.strictEqual(counts[NODE_PERFORMANCE_ENTRY_TYPE_MARK], 0);
 
     {
       const entriesByName = list.getEntriesByName('test1');
@@ -129,7 +129,7 @@ assert.strictEqual(counts[NODE_PERFORMANCE_ENTRY_TYPE_FUNCTION], 0);
   // Do this twice to make sure it doesn't throw
   observer.observe({ entryTypes: ['mark', 'measure'], buffered: true });
   // Even tho we called twice, count should be 1
-  assert.strictEqual(counts[NODE_PERFORMANCE_ENTRY_TYPE_MARK], 2);
+  assert.strictEqual(counts[NODE_PERFORMANCE_ENTRY_TYPE_MARK], 1);
   performance.mark('test1');
   performance.mark('test2');
   performance.measure('test3', 'test1', 'test2');
