@@ -608,7 +608,7 @@ that has a loop which iterates through the elements in a large array:
 ```C
 for (int i = 0; i < 1000000; i++) {
   napi_value result;
-  napi_status status = napi_get_element(e object, i, &result);
+  napi_status status = napi_get_element(e, object, i, &result);
   if (status != napi_ok) {
     break;
   }
@@ -645,7 +645,7 @@ for (int i = 0; i < 1000000; i++) {
     break;
   }
   napi_value result;
-  status = napi_get_element(e object, i, &result);
+  status = napi_get_element(e, object, i, &result);
   if (status != napi_ok) {
     break;
   }
