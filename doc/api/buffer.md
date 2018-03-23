@@ -5,26 +5,14 @@
 
 > Stability: 2 - Stable
 
-Prior to the introduction of [`TypedArray`] in [`ECMAScript 2015`] (ES6), the
-JavaScript language had no mechanism for reading or manipulating streams
-of binary data. The `Buffer` class was introduced as part of the Node.js
-API to make it possible to interact with octet streams in the context of things
-like TCP streams and file system operations.
-
-Now that [`TypedArray`] has been added in ES6, the `Buffer` class implements the
-[`Uint8Array`] API in a manner that is more optimized and suitable for Node.js'
-use cases.
-
-Instances of the `Buffer` class are similar to arrays of integers but
-correspond to fixed-sized, raw memory allocations outside the V8 heap.
-The size of the `Buffer` is established when it is created and cannot be
-resized.
+The `Buffer` class is a sub-class of `Uint8Array` that provides additional
+options for fast, efficient memory operations.
 
 The `Buffer` class is a global within Node.js, making it unlikely that one
 would need to ever use `require('buffer').Buffer`.
 
 ```js
-// Creates a zero-filled Buffer of length 10.
+// Creates a zero-filled Buffer of length 10
 const buf1 = Buffer.alloc(10);
 
 // Creates a Buffer of length 10, filled with 0x1.
@@ -46,89 +34,32 @@ const buf5 = Buffer.from('tést');
 const buf6 = Buffer.from('tést', 'latin1');
 ```
 
-## `Buffer.from()`, `Buffer.alloc()`, and `Buffer.allocUnsafe()`
+`Buffer` lengths are fixed when they are created and cannot be resized.
 
-In versions of Node.js prior to v6, `Buffer` instances were created using the
-`Buffer` constructor function, which allocates the returned `Buffer`
-differently based on what arguments are provided:
+## Creating new `Buffer` instances
 
-* Passing a number as the first argument to `Buffer()` (e.g. `new Buffer(10)`),
-  allocates a new `Buffer` object of the specified size. Prior to Node.js 8.0.0,
-  the memory allocated for such `Buffer` instances is *not* initialized and
-  *can contain sensitive data*. Such `Buffer` instances *must* be subsequently
-  initialized by using either [`buf.fill(0)`][`buf.fill()`] or by writing to the
-  `Buffer` completely. While this behavior is *intentional* to improve
-  performance, development experience has demonstrated that a more explicit
-  distinction is required between creating a fast-but-uninitialized `Buffer`
-  versus creating a slower-but-safer `Buffer`. Starting in Node.js 8.0.0,
-  `Buffer(num)` and `new Buffer(num)` will return a `Buffer` with initialized
-  memory.
-* Passing a string, array, or `Buffer` as the first argument copies the
-  passed object's data into the `Buffer`.
-* Passing an [`ArrayBuffer`] or a [`SharedArrayBuffer`] returns a `Buffer` that
-  shares allocated memory with the given array buffer.
+`Buffer` instances are created using one of several constructor methods:
 
-Because the behavior of `new Buffer()` changes significantly based on the type
-of value passed as the first argument, applications that do not properly
-validate the input arguments passed to `new Buffer()`, or that fail to
-appropriately initialize newly allocated `Buffer` content, can inadvertently
-introduce security and reliability issues into their code.
-
-To make the creation of `Buffer` instances more reliable and less error prone,
-the various forms of the `new Buffer()` constructor have been **deprecated**
-and replaced by separate `Buffer.from()`, [`Buffer.alloc()`], and
-[`Buffer.allocUnsafe()`] methods.
-
-*Developers should migrate all existing uses of the `new Buffer()` constructors
-to one of these new APIs.*
-
-* [`Buffer.from(array)`] returns a new `Buffer` containing a *copy* of the provided
-  octets.
+* [`Buffer.from(array)`] - Create a new `Buffer` containing a *copy* of the
+  provided octets.
 * [`Buffer.from(arrayBuffer[, byteOffset [, length]])`][`Buffer.from(arrayBuffer)`]
-  returns a new `Buffer` that *shares* the same allocated memory as the given
+  - Create a new `Buffer` that *shares* the same allocated memory as the given
   [`ArrayBuffer`].
-* [`Buffer.from(buffer)`] returns a new `Buffer` containing a *copy* of the
+* [`Buffer.from(buffer)`] - Create a new `Buffer` containing a *copy* of the
   contents of the given `Buffer`.
-* [`Buffer.from(string[, encoding])`][`Buffer.from(string)`] returns a new `Buffer`
-  containing a *copy* of the provided string.
-* [`Buffer.alloc(size[, fill[, encoding]])`][`Buffer.alloc()`] returns a "filled"
-  `Buffer` instance of the specified size. This method can be significantly
+* [`Buffer.from(string[, encoding])`][`Buffer.from(string)`] - Create a new
+  `Buffer` containing a *copy* of the provided string.
+* [`Buffer.alloc(size[, fill[, encoding]])`][`Buffer.alloc()`] - Create a
+  "filled" `Buffer` instance of the specified size. This method can be
   slower than [`Buffer.allocUnsafe(size)`][`Buffer.allocUnsafe()`] but ensures
   that newly created `Buffer` instances never contain old and potentially
   sensitive data.
 * [`Buffer.allocUnsafe(size)`][`Buffer.allocUnsafe()`] and
-  [`Buffer.allocUnsafeSlow(size)`][`Buffer.allocUnsafeSlow()`] each return a
+  [`Buffer.allocUnsafeSlow(size)`][`Buffer.allocUnsafeSlow()`] each create a
   new `Buffer` of the specified `size` whose content *must* be initialized
   using either [`buf.fill(0)`][`buf.fill()`] or written to completely.
 
-`Buffer` instances returned by [`Buffer.allocUnsafe()`] *may* be allocated off
-a shared internal memory pool if `size` is less than or equal to half
-[`Buffer.poolSize`]. Instances returned by [`Buffer.allocUnsafeSlow()`] *never*
-use the shared internal memory pool.
-
-### The `--zero-fill-buffers` command line option
-<!-- YAML
-added: v5.10.0
--->
-
-Node.js can be started using the `--zero-fill-buffers` command line option to
-force all newly allocated `Buffer` instances created using either
-`new Buffer(size)`, [`Buffer.allocUnsafe()`], [`Buffer.allocUnsafeSlow()`] or
-`new SlowBuffer(size)` to be *automatically zero-filled* upon creation. Use of
-this flag *changes the default behavior* of these methods and *can have a significant
-impact* on performance. Use of the `--zero-fill-buffers` option is recommended
-only when necessary to enforce that newly allocated `Buffer` instances cannot
-contain potentially sensitive data.
-
-Example:
-
-```txt
-$ node --zero-fill-buffers
-> Buffer.allocUnsafe(5);
-<Buffer 00 00 00 00 00>
-```
-
-### What makes `Buffer.allocUnsafe()` and `Buffer.allocUnsafeSlow()` "unsafe"?
+### Why are `Buffer.allocUnsafe()` and `Buffer.allocUnsafeSlow()` "unsafe"?
 
 When calling [`Buffer.allocUnsafe()`] and [`Buffer.allocUnsafeSlow()`], the
 segment of allocated memory is *uninitialized* (it is not zeroed-out). While
@@ -286,8 +217,8 @@ function:
 
 ## Buffers and ES6 iteration
 
-`Buffer` instances can be iterated over using the [`ECMAScript 2015`] (ES6) `for..of`
-syntax.
+`Buffer` instances can be iterated over using the [`ECMAScript 2015`] (ES6)
+`for..of` syntax.
 
 Example:
 
@@ -307,193 +238,6 @@ Additionally, the [`buf.values()`], [`buf.keys()`], and
 [`buf.entries()`] methods can be used to create iterators.
 
 ## Class: Buffer
-
-The `Buffer` class is a global type for dealing with binary data directly.
-It can be constructed in a variety of ways.
-
-### new Buffer(array)
-<!-- YAML
-deprecated: v6.0.0
-changes:
-  - version: v7.2.1
-    pr-url: https://github.com/nodejs/node/pull/9529
-    description: Calling this constructor no longer emits a deprecation warning.
-  - version: v7.0.0
-    pr-url: https://github.com/nodejs/node/pull/8169
-    description: Calling this constructor emits a deprecation warning now.
--->
-
-> Stability: 0 - Deprecated: Use [`Buffer.from(array)`] instead.
-
-* `array` {integer[]} An array of bytes to copy from.
-
-Allocates a new `Buffer` using an `array` of octets.
-
-Example:
-
-```js
-// Creates a new Buffer containing the UTF-8 bytes of the string 'buffer'
-const buf = new Buffer([0x62, 0x75, 0x66, 0x66, 0x65, 0x72]);
-```
-
-### new Buffer(arrayBuffer[, byteOffset [, length]])
-<!-- YAML
-added: v3.0.0
-deprecated: v6.0.0
-changes:
-  - version: v7.2.1
-    pr-url: https://github.com/nodejs/node/pull/9529
-    description: Calling this constructor no longer emits a deprecation warning.
-  - version: v7.0.0
-    pr-url: https://github.com/nodejs/node/pull/8169
-    description: Calling this constructor emits a deprecation warning now.
-  - version: v6.0.0
-    pr-url: https://github.com/nodejs/node/pull/4682
-    description: The `byteOffset` and `length` parameters are supported now.
--->
-
-> Stability: 0 - Deprecated: Use
-> [`Buffer.from(arrayBuffer[, byteOffset [, length]])`][`Buffer.from(arrayBuffer)`]
-> instead.
-
-* `arrayBuffer` {ArrayBuffer|SharedArrayBuffer} An [`ArrayBuffer`],
-  [`SharedArrayBuffer`] or the `.buffer` property of a [`TypedArray`].
-* `byteOffset` {integer} Index of first byte to expose. **Default:** `0`
-* `length` {integer} Number of bytes to expose.
-  **Default:** `arrayBuffer.length - byteOffset`
-
-This creates a view of the [`ArrayBuffer`] or [`SharedArrayBuffer`] without
-copying the underlying memory. For example, when passed a reference to the
-`.buffer` property of a [`TypedArray`] instance, the newly created `Buffer` will
-share the same allocated memory as the [`TypedArray`].
-
-The optional `byteOffset` and `length` arguments specify a memory range within
-the `arrayBuffer` that will be shared by the `Buffer`.
-
-Example:
-
-```js
-const arr = new Uint16Array(2);
-
-arr[0] = 5000;
-arr[1] = 4000;
-
-// Shares memory with `arr`
-const buf = new Buffer(arr.buffer);
-
-console.log(buf);
-// Prints: <Buffer 88 13 a0 0f>
-
-// Changing the original Uint16Array changes the Buffer also
-arr[1] = 6000;
-
-console.log(buf);
-// Prints: <Buffer 88 13 70 17>
-```
-
-### new Buffer(buffer)
-<!-- YAML
-deprecated: v6.0.0
-changes:
-  - version: v7.2.1
-    pr-url: https://github.com/nodejs/node/pull/9529
-    description: Calling this constructor no longer emits a deprecation warning.
-  - version: v7.0.0
-    pr-url: https://github.com/nodejs/node/pull/8169
-    description: Calling this constructor emits a deprecation warning now.
--->
-
-> Stability: 0 - Deprecated: Use [`Buffer.from(buffer)`] instead.
-
-* `buffer` {Buffer} An existing `Buffer` to copy data from.
-
-Copies the passed `buffer` data onto a new `Buffer` instance.
-
-Example:
-
-```js
-const buf1 = new Buffer('buffer');
-const buf2 = new Buffer(buf1);
-
-buf1[0] = 0x61;
-
-console.log(buf1.toString());
-// Prints: auffer
-console.log(buf2.toString());
-// Prints: buffer
-```
-
-### new Buffer(size)
-<!-- YAML
-deprecated: v6.0.0
-changes:
-  - version: v8.0.0
-    pr-url: https://github.com/nodejs/node/pull/12141
-    description: new Buffer(size) will return zero-filled memory by default.
-  - version: v7.2.1
-    pr-url: https://github.com/nodejs/node/pull/9529
-    description: Calling this constructor no longer emits a deprecation warning.
-  - version: v7.0.0
-    pr-url: https://github.com/nodejs/node/pull/8169
-    description: Calling this constructor emits a deprecation warning now.
--->
-
-> Stability: 0 - Deprecated: Use [`Buffer.alloc()`] instead (also see
-> [`Buffer.allocUnsafe()`]).
-
-* `size` {integer} The desired length of the new `Buffer`.
-
-Allocates a new `Buffer` of `size` bytes.  If the `size` is larger than
-[`buffer.constants.MAX_LENGTH`] or smaller than 0, a [`RangeError`] will be
-thrown. A zero-length `Buffer` will be created if `size` is 0.
-
-Prior to Node.js 8.0.0, the underlying memory for `Buffer` instances
-created in this way is *not initialized*. The contents of a newly created
-`Buffer` are unknown and *may contain sensitive data*. Use
-[`Buffer.alloc(size)`][`Buffer.alloc()`] instead to initialize a `Buffer`
-to zeroes.
-
-Example:
-
-```js
-const buf = new Buffer(10);
-
-console.log(buf);
-// Prints: <Buffer 00 00 00 00 00 00 00 00 00 00>
-```
-
-### new Buffer(string[, encoding])
-<!-- YAML
-deprecated: v6.0.0
-changes:
-  - version: v7.2.1
-    pr-url: https://github.com/nodejs/node/pull/9529
-    description: Calling this constructor no longer emits a deprecation warning.
-  - version: v7.0.0
-    pr-url: https://github.com/nodejs/node/pull/8169
-    description: Calling this constructor emits a deprecation warning now.
--->
-
-> Stability: 0 - Deprecated:
-> Use [`Buffer.from(string[, encoding])`][`Buffer.from(string)`] instead.
-
-* `string` {string} String to encode.
-* `encoding` {string} The encoding of `string`. **Default:** `'utf8'`
-
-Creates a new `Buffer` containing the given JavaScript string `string`. If
-provided, the `encoding` parameter identifies the character encoding of `string`.
-
-```js
-const buf1 = new Buffer('this is a tést');
-const buf2 = new Buffer('7468697320697320612074c3a97374', 'hex');
-
-console.log(buf1.toString());
-// Prints: this is a tést
-console.log(buf2.toString());
-// Prints: this is a tést
-console.log(buf1.toString('ascii'));
-// Prints: this is a tC)st
-```
 
 ### Class Method: Buffer.alloc(size[, fill[, encoding]])
 <!-- YAML
@@ -2603,6 +2347,245 @@ Represents the largest `length` that a `string` primitive can have, counted
 in UTF-16 code units.
 
 This value may depend on the JS engine that is being used.
+
+## The `--zero-fill-buffers` command line option
+<!-- YAML
+added: v5.10.0
+-->
+Node.js can be started using the `--zero-fill-buffers` command line option to
+force all newly allocated `Buffer` instances created using either
+`new Buffer(size)`, [`Buffer.allocUnsafe()`], [`Buffer.allocUnsafeSlow()`] or
+`new SlowBuffer(size)` to be *automatically zero-filled* upon creation. Use of
+this flag *changes the default behavior* of these methods and *can have a significant
+impact* on performance. Use of the `--zero-fill-buffers` option is recommended
+only when necessary to enforce that newly allocated `Buffer` instances cannot
+contain potentially sensitive data.
+
+Example:
+
+```txt
+$ node --zero-fill-buffers
+> Buffer.allocUnsafe(5);
+<Buffer 00 00 00 00 00>
+```
+
+## Deprecated `new Buffer()` Constructors
+
+In versions of Node.js prior to 6.0.0, `Buffer` instances were created using the
+`new Buffer()` constructor function, which allocates the returned `Buffer`
+differently based on what arguments are provided:
+
+* Passing a number as the first argument to `Buffer()` (e.g. `new Buffer(10)`),
+  allocates a new `Buffer` object of the specified size. Prior to Node.js 8.0.0,
+  the memory allocated for such `Buffer` instances is *not* initialized and
+  *can contain sensitive data*. Such `Buffer` instances *must* be subsequently
+  initialized by using either [`buf.fill(0)`][`buf.fill()`] or by writing to the
+  `Buffer` completely. While this behavior is *intentional* to improve
+  performance, development experience has demonstrated that a more explicit
+  distinction is required between creating a fast-but-uninitialized `Buffer`
+  versus creating a slower-but-safer `Buffer`. Starting in Node.js 8.0.0,
+  `Buffer(num)` and `new Buffer(num)` will return a `Buffer` with initialized
+  memory.
+* Passing a string, array, or `Buffer` as the first argument copies the
+  passed object's data into the `Buffer`.
+* Passing an [`ArrayBuffer`] or a [`SharedArrayBuffer`] returns a `Buffer` that
+  shares allocated memory with the given array buffer.
+
+Because the behavior of `new Buffer()` changes significantly based on the type
+of value passed as the first argument, applications that do not properly
+validate the input arguments passed to `new Buffer()`, or that fail to
+appropriately initialize newly allocated `Buffer` content, can inadvertently
+introduce security and reliability issues into their code.
+
+To make the creation of `Buffer` instances more reliable and less error-prone,
+the various forms of the `new Buffer()` constructor have been **deprecated**
+and replaced by the separate `Buffer.from()`, [`Buffer.alloc()`], and
+[`Buffer.allocUnsafe()`] methods.
+
+
+### new Buffer(array)
+<!-- YAML
+deprecated: v6.0.0
+changes:
+  - version: v7.2.1
+    pr-url: https://github.com/nodejs/node/pull/9529
+    description: Calling this constructor no longer emits a deprecation warning.
+  - version: v7.0.0
+    pr-url: https://github.com/nodejs/node/pull/8169
+    description: Calling this constructor emits a deprecation warning now.
+-->
+
+> Stability: 0 - Deprecated: Use [`Buffer.from(array)`] instead.
+
+* `array` {integer[]} An array of bytes to copy from.
+
+Allocates a new `Buffer` using an `array` of octets.
+
+Example:
+
+```js
+// Creates a new Buffer containing the UTF-8 bytes of the string 'buffer'
+const buf = new Buffer([0x62, 0x75, 0x66, 0x66, 0x65, 0x72]);
+```
+
+### new Buffer(arrayBuffer[, byteOffset [, length]])
+<!-- YAML
+added: v3.0.0
+deprecated: v6.0.0
+changes:
+  - version: v7.2.1
+    pr-url: https://github.com/nodejs/node/pull/9529
+    description: Calling this constructor no longer emits a deprecation warning.
+  - version: v7.0.0
+    pr-url: https://github.com/nodejs/node/pull/8169
+    description: Calling this constructor emits a deprecation warning now.
+  - version: v6.0.0
+    pr-url: https://github.com/nodejs/node/pull/4682
+    description: The `byteOffset` and `length` parameters are supported now.
+-->
+
+> Stability: 0 - Deprecated: Use
+> [`Buffer.from(arrayBuffer[, byteOffset [, length]])`][`Buffer.from(arrayBuffer)`]
+> instead.
+
+* `arrayBuffer` {ArrayBuffer|SharedArrayBuffer} An [`ArrayBuffer`],
+  [`SharedArrayBuffer`] or the `.buffer` property of a [`TypedArray`].
+* `byteOffset` {integer} Index of first byte to expose. **Default:** `0`
+* `length` {integer} Number of bytes to expose.
+  **Default:** `arrayBuffer.length - byteOffset`
+
+This creates a view of the [`ArrayBuffer`] or [`SharedArrayBuffer`] without
+copying the underlying memory. For example, when passed a reference to the
+`.buffer` property of a [`TypedArray`] instance, the newly created `Buffer` will
+share the same allocated memory as the [`TypedArray`].
+
+The optional `byteOffset` and `length` arguments specify a memory range within
+the `arrayBuffer` that will be shared by the `Buffer`.
+
+Example:
+
+```js
+const arr = new Uint16Array(2);
+
+arr[0] = 5000;
+arr[1] = 4000;
+
+// Shares memory with `arr`
+const buf = new Buffer(arr.buffer);
+
+console.log(buf);
+// Prints: <Buffer 88 13 a0 0f>
+
+// Changing the original Uint16Array changes the Buffer also
+arr[1] = 6000;
+
+console.log(buf);
+// Prints: <Buffer 88 13 70 17>
+```
+
+### new Buffer(buffer)
+<!-- YAML
+deprecated: v6.0.0
+changes:
+  - version: v7.2.1
+    pr-url: https://github.com/nodejs/node/pull/9529
+    description: Calling this constructor no longer emits a deprecation warning.
+  - version: v7.0.0
+    pr-url: https://github.com/nodejs/node/pull/8169
+    description: Calling this constructor emits a deprecation warning now.
+-->
+
+> Stability: 0 - Deprecated: Use [`Buffer.from(buffer)`] instead.
+
+* `buffer` {Buffer} An existing `Buffer` to copy data from.
+
+Copies the passed `buffer` data onto a new `Buffer` instance.
+
+Example:
+
+```js
+const buf1 = new Buffer('buffer');
+const buf2 = new Buffer(buf1);
+
+buf1[0] = 0x61;
+
+console.log(buf1.toString());
+// Prints: auffer
+console.log(buf2.toString());
+// Prints: buffer
+```
+
+### new Buffer(size)
+<!-- YAML
+deprecated: v6.0.0
+changes:
+  - version: v8.0.0
+    pr-url: https://github.com/nodejs/node/pull/12141
+    description: new Buffer(size) will return zero-filled memory by default.
+  - version: v7.2.1
+    pr-url: https://github.com/nodejs/node/pull/9529
+    description: Calling this constructor no longer emits a deprecation warning.
+  - version: v7.0.0
+    pr-url: https://github.com/nodejs/node/pull/8169
+    description: Calling this constructor emits a deprecation warning now.
+-->
+
+> Stability: 0 - Deprecated: Use [`Buffer.alloc()`] instead (also see
+> [`Buffer.allocUnsafe()`]).
+
+* `size` {integer} The desired length of the new `Buffer`.
+
+Allocates a new `Buffer` of `size` bytes.  If the `size` is larger than
+[`buffer.constants.MAX_LENGTH`] or smaller than 0, a [`RangeError`] will be
+thrown. A zero-length `Buffer` will be created if `size` is 0.
+
+Prior to Node.js 8.0.0, the underlying memory for `Buffer` instances
+created in this way is *not initialized*. The contents of a newly created
+`Buffer` are unknown and *may contain sensitive data*. Use
+[`Buffer.alloc(size)`][`Buffer.alloc()`] instead to initialize a `Buffer`
+to zeroes.
+
+Example:
+
+```js
+const buf = new Buffer(10);
+
+console.log(buf);
+// Prints: <Buffer 00 00 00 00 00 00 00 00 00 00>
+```
+
+### new Buffer(string[, encoding])
+<!-- YAML
+deprecated: v6.0.0
+changes:
+  - version: v7.2.1
+    pr-url: https://github.com/nodejs/node/pull/9529
+    description: Calling this constructor no longer emits a deprecation warning.
+  - version: v7.0.0
+    pr-url: https://github.com/nodejs/node/pull/8169
+    description: Calling this constructor emits a deprecation warning now.
+-->
+
+> Stability: 0 - Deprecated:
+> Use [`Buffer.from(string[, encoding])`][`Buffer.from(string)`] instead.
+
+* `string` {string} String to encode.
+* `encoding` {string} The encoding of `string`. **Default:** `'utf8'`
+
+Creates a new `Buffer` containing the given JavaScript string `string`. If
+provided, the `encoding` parameter identifies the character encoding of `string`.
+
+```js
+const buf1 = new Buffer('this is a tést');
+const buf2 = new Buffer('7468697320697320612074c3a97374', 'hex');
+
+console.log(buf1.toString());
+// Prints: this is a tést
+console.log(buf2.toString());
+// Prints: this is a tést
+console.log(buf1.toString('ascii'));
+// Prints: this is a tC)st
+```
 
 [`ArrayBuffer#slice()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/ArrayBuffer/slice
 [`ArrayBuffer`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/ArrayBuffer
