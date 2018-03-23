@@ -48,7 +48,7 @@ const buf6 = Buffer.from('tést', 'latin1');
 
 ## `Buffer.from()`, `Buffer.alloc()`, and `Buffer.allocUnsafe()`
 
-In versions of Node.js prior to v6, `Buffer` instances were created using the
+In versions of Node.js prior to 6.0.0, `Buffer` instances were created using the
 `Buffer` constructor function, which allocates the returned `Buffer`
 differently based on what arguments are provided:
 
