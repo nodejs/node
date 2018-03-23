@@ -76,7 +76,7 @@ TEST(function test_reverse_bogus(done) {
 
 TEST(function test_resolve4_ttl(done) {
   const req = dns.resolve4(addresses.INET4_HOST, {
-    ttl: true
+    ttl: true, search: false
   }, function(err, result) {
     assert.ifError(err);
     assert.ok(result.length > 0);
@@ -99,7 +99,7 @@ TEST(function test_resolve4_ttl(done) {
 
 TEST(function test_resolve6_ttl(done) {
   const req = dns.resolve6(addresses.INET6_HOST, {
-    ttl: true
+    ttl: true, search: false
   }, function(err, result) {
     assert.ifError(err);
     assert.ok(result.length > 0);

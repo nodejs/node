@@ -619,6 +619,14 @@ class QueryWrap : public AsyncWrap {
                static_cast<void*>(this));
   }
 
+  void AresSearch(const char* name,
+                  int dnsclass,
+                  int type) {
+    channel_->EnsureServers();
+    ares_search(channel_->cares_channel(), name, dnsclass, type, Callback,
+                static_cast<void*>(this));
+  }
+
   static void CaresAsyncClose(uv_handle_t* handle) {
     uv_async_t* async = reinterpret_cast<uv_async_t*>(handle);
     auto data = static_cast<struct CaresAsyncData*>(async->data);
@@ -1360,7 +1368,20 @@ class QueryAWrap: public QueryWrap {
   }
 
   int Send(const char* name) override {
-    AresQuery(name, ns_c_in, ns_t_a);
+    auto prop_value = GetField("search");
+    bool bSearch = false;
+
+    if (!prop_value.IsEmpty()) {
+      auto search_prop = prop_value.ToLocalChecked()->ToBoolean();
+      bSearch = search_prop->Value();
+    }
+
+    if (bSearch) {
+      AresSearch(name, ns_c_in, ns_t_a);
+    } else {
+      AresQuery(name, ns_c_in, ns_t_a);
+    }
+
     return 0;
   }
 
@@ -1404,7 +1425,20 @@ class QueryAaaaWrap: public QueryWrap {
   }
 
   int Send(const char* name) override {
-    AresQuery(name, ns_c_in, ns_t_aaaa);
+    auto prop_value = GetField("search");
+    bool bSearch = false;
+
+    if (!prop_value.IsEmpty()) {
+      auto search_prop = prop_value.ToLocalChecked()->ToBoolean();
+      bSearch = search_prop->Value();
+    }
+
+    if (bSearch) {
+      AresSearch(name, ns_c_in, ns_t_a);
+    } else {
+      AresQuery(name, ns_c_in, ns_t_a);
+    }
+
     return 0;
   }
 

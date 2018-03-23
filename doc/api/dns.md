@@ -285,6 +285,9 @@ changes:
     When `true`, the callback receives an array of
     `{ address: '1.2.3.4', ttl: 60 }` objects rather than an array of strings,
     with the TTL expressed in seconds.
+  - `search` {boolean} Resolve the DNS using the local domain name or the search 
+    list for host-name lookup.
+    When `true`, the resolve will use the search list which can create extra dns queries.
 - `callback` {Function}
   - `err` {Error}
   - `addresses` {string[] | Object[]}
@@ -310,6 +313,9 @@ changes:
     When `true`, the callback receives an array of
     `{ address: '0:1:2:3:4:5:6:7', ttl: 60 }` objects rather than an array of
     strings, with the TTL expressed in seconds.
+  - `search` {boolean} Resolve the DNS using the local domain name or the search 
+    list for host-name lookup.
+    When `true`, the resolve will use the search list which can create extra dns queries.
 - `callback` {Function}
   - `err` {Error}
   - `addresses` {string[] | Object[]}
