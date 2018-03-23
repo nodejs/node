@@ -18,9 +18,9 @@ use cases.
 Instances of the `Buffer` class are similar to arrays of integers but
 correspond to fixed-sized, raw memory allocations outside the V8 heap.
 The size of the `Buffer` is established when it is created and cannot be
-resized.
+changed.
 
-The `Buffer` class is a global within Node.js, making it unlikely that one
+The `Buffer` class is within the global scope, making it unlikely that one
 would need to ever use `require('buffer').Buffer`.
 
 ```js
