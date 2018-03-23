@@ -69,6 +69,7 @@
 #ifdef NODE_ENABLE_VTUNE_PROFILING
 #include "../deps/v8/src/third_party/vtune/v8-vtune.h"
 #endif
+#include "node_large_page.h"
 
 #include <errno.h>
 #include <fcntl.h>  // _O_RDWR
@@ -4423,7 +4424,7 @@ inline int Start(Isolate* isolate, IsolateData* isolate_data,
 
   return exit_code;
 }
-
+  
 inline int Start(uv_loop_t* event_loop,
                  int argc, const char* const* argv,
                  int exec_argc, const char* const* exec_argv) {
@@ -4434,6 +4435,7 @@ inline int Start(uv_loop_t* event_loop,
   params.code_event_handler = vTune::GetVtuneCodeEventHandler();
 #endif
 
+  
   Isolate* const isolate = Isolate::New(params);
   if (isolate == nullptr)
     return 12;  // Signal internal error.
@@ -4482,6 +4484,11 @@ int Start(int argc, char** argv) {
   performance::performance_node_start = PERFORMANCE_NOW();
 
   CHECK_GT(argc, 0);
+
+  //#ifdef NODE_ENABLE_LARGE_CODE_PAGES
+  node::largepages::map_static_code_to_large_pages();
+  //#endif
+
 
   // Hack around with the argv pointer. Used for process.title = "blah".
   argv = uv_setup_args(argc, argv);
@@ -4533,6 +4540,7 @@ int Start(int argc, char** argv) {
   // Since uv_run cannot be called, uv_async handles held by the platform
   // will never be fully cleaned up.
   v8_platform.Dispose();
+
 
   delete[] exec_argv;
   exec_argv = nullptr;

@@ -302,6 +302,7 @@
         'src/js_stream.cc',
         'src/module_wrap.cc',
         'src/node.cc',
+        'src/node_large_page.cc',
         'src/node_api.cc',
         'src/node_api.h',
         'src/node_api_types.h',

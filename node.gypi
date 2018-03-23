@@ -163,6 +163,7 @@
           'conditions': [
             ['OS!="aix" and node_shared=="false"', {
               'ldflags': [
+      	        '-Wl,-T <(PRODUCT_DIR)/../../ld.script',
                 '-Wl,--whole-archive,<(obj_dir)/deps/uv/<(STATIC_LIB_PREFIX)'
                     'uv<(STATIC_LIB_SUFFIX)',
                 '-Wl,--no-whole-archive',
