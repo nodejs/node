@@ -1,7 +1,6 @@
 # Buffer
 
 <!--introduced_in=v0.1.90-->
-<!--lint disable maximum-line-length-->
 
 > Stability: 2 - Stable
 
@@ -81,7 +80,7 @@ to one of these new APIs.*
 
 * [`Buffer.from(array)`] returns a new `Buffer` that *contains a copy* of the
   provided octets.
-* [`Buffer.from(arrayBuffer[, byteOffset [, length]])`][`Buffer.from(arrayBuffer)`]
+* [`Buffer.from(arrayBuffer[, byteOffset[, length]])`][`Buffer.from(arrayBuf)`]
   returns a new `Buffer` that *shares the same allocated memory* as the given
   [`ArrayBuffer`].
 * [`Buffer.from(buffer)`] returns a new `Buffer` that *contains a copy* of the
@@ -273,7 +272,7 @@ function:
 
 * [`Buffer.from(array)`]
 * [`Buffer.from(buffer)`]
-* [`Buffer.from(arrayBuffer[, byteOffset [, length]])`][`Buffer.from(arrayBuffer)`]
+* [`Buffer.from(arrayBuffer[, byteOffset[, length]])`][`Buffer.from(arrayBuf)`]
 * [`Buffer.from(string[, encoding])`][`Buffer.from(string)`]
 
 ## Buffers and iteration
@@ -348,7 +347,7 @@ changes:
 -->
 
 > Stability: 0 - Deprecated: Use
-> [`Buffer.from(arrayBuffer[, byteOffset [, length]])`][`Buffer.from(arrayBuffer)`]
+> [`Buffer.from(arrayBuffer[, byteOffset[, length]])`][`Buffer.from(arrayBuf)`]
 > instead.
 
 * `arrayBuffer` {ArrayBuffer|SharedArrayBuffer} An [`ArrayBuffer`],
@@ -2215,8 +2214,8 @@ changes:
 
 Writes `value` to `buf` at the specified `offset` with specified endian
 format (`writeInt16BE()` writes big endian, `writeInt16LE()` writes little
-endian). `value` *should* be a valid signed 16-bit integer. Behavior is undefined
-when `value` is anything other than a signed 16-bit integer.
+endian). `value` *should* be a valid signed 16-bit integer. Behavior is
+undefined when `value` is anything other than a signed 16-bit integer.
 
 `value` is interpreted and written as a two's complement signed integer.
 
@@ -2248,8 +2247,8 @@ changes:
 
 Writes `value` to `buf` at the specified `offset` with specified endian
 format (`writeInt32BE()` writes big endian, `writeInt32LE()` writes little
-endian). `value` *should* be a valid signed 32-bit integer. Behavior is undefined
-when `value` is anything other than a signed 32-bit integer.
+endian). `value` *should* be a valid signed 32-bit integer. Behavior is
+undefined when `value` is anything other than a signed 32-bit integer.
 
 `value` is interpreted and written as a two's complement signed integer.
 
@@ -2607,7 +2606,7 @@ This value may depend on the JS engine that is being used.
 [`Buffer.allocUnsafe()`]: #buffer_class_method_buffer_allocunsafe_size
 [`Buffer.allocUnsafeSlow()`]: #buffer_class_method_buffer_allocunsafeslow_size
 [`Buffer.from(array)`]: #buffer_class_method_buffer_from_array
-[`Buffer.from(arrayBuffer)`]: #buffer_class_method_buffer_from_arraybuffer_byteoffset_length
+[`Buffer.from(arrayBuf)`]: #buffer_class_method_buffer_from_arraybuffer_byteoffset_length
 [`Buffer.from(buffer)`]: #buffer_class_method_buffer_from_buffer
 [`Buffer.from(string)`]: #buffer_class_method_buffer_from_string_encoding
 [`Buffer.poolSize`]: #buffer_class_property_buffer_poolsize
