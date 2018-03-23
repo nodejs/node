@@ -604,6 +604,15 @@
             'src/tls_wrap.h'
           ],
         }],
+        [ 'node_use_large_pages=="true" and OS=="linux"', {
+          'defines': [ 'NODE_ENABLE_LARGE_CODE_PAGES=1' ],
+          # The current implementation of Large Pages is under Linux.
+          # Other implementations are possible but not currently supported.
+          'sources': [
+            'src/large_pages/node_large_page.cc',
+            'src/large_pages/node_large_page.h'
+          ],
+        }],
         [ 'use_openssl_def==1', {
           # TODO(bnoordhuis) Make all platforms export the same list of symbols.
           # Teach mkssldef.py to generate linker maps that UNIX linkers understand.
