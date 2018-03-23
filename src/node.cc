@@ -1269,8 +1269,7 @@ void AppendExceptionLine(Environment* env,
   ScriptOrigin origin = message->GetScriptOrigin();
   node::Utf8Value filename(env->isolate(), message->GetScriptResourceName());
   const char* filename_string = *filename;
-  Maybe<int> line_number_maybe = message->GetLineNumber(env->context());
-  int linenum = line_number_maybe.FromJust();
+  int linenum = message->GetLineNumber(env->context()).FromJust();
   // Print line of source code.
   MaybeLocal<String> source_line_maybe = message->GetSourceLine(env->context());
   node::Utf8Value sourceline(env->isolate(),
