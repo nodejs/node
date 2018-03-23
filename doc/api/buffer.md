@@ -38,7 +38,7 @@ const buf6 = Buffer.from('tést', 'latin1');
 
 ## Creating new `Buffer` instances
 
-`Buffer` instances are created using one of several construtor methods:
+`Buffer` instances are created using one of several constructor methods:
 
 * [`Buffer.from(array)`] - Create a new `Buffer` containing a *copy* of the
   provided octets.
@@ -55,7 +55,7 @@ const buf6 = Buffer.from('tést', 'latin1');
   that newly created `Buffer` instances never contain old and potentially
   sensitive data.
 * [`Buffer.allocUnsafe(size)`][`Buffer.allocUnsafe()`] and
-  [`Buffer.allocUnsafeSlow(size)`][`Buffer.allocUnsafeSlow()`] each Create a
+  [`Buffer.allocUnsafeSlow(size)`][`Buffer.allocUnsafeSlow()`] each create a
   new `Buffer` of the specified `size` whose content *must* be initialized
   using either [`buf.fill(0)`][`buf.fill()`] or written to completely.
 
@@ -2397,7 +2397,7 @@ validate the input arguments passed to `new Buffer()`, or that fail to
 appropriately initialize newly allocated `Buffer` content, can inadvertently
 introduce security and reliability issues into their code.
 
-To make the creation of `Buffer` instances more reliable and less error prone,
+To make the creation of `Buffer` instances more reliable and less error-prone,
 the various forms of the `new Buffer()` constructor have been **deprecated**
 and replaced by the separate `Buffer.from()`, [`Buffer.alloc()`], and
 [`Buffer.allocUnsafe()`] methods.
