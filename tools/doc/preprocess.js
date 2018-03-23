@@ -10,7 +10,8 @@ const commentExpr = /^@\/\/.*$/gmi;
 
 function processIncludes(inputFile, input, cb) {
   const includes = input.match(includeExpr);
-  if (includes === null) return cb(null, input.replace(commentExpr, ''));
+  if (includes === null)
+    return cb(null, input.replace(commentExpr, ''));
 
   let errState = null;
   let incCount = includes.length;
@@ -30,7 +31,8 @@ function processIncludes(inputFile, input, cb) {
             `${inc}\n<!-- [end-include:${fname}] -->\n`;
       input = input.split(`${include}\n`).join(`${inc}\n`);
 
-      if (incCount === 0) return cb(null, input.replace(commentExpr, ''));
+      if (incCount === 0)
+        return cb(null, input.replace(commentExpr, ''));
     });
   });
 }
