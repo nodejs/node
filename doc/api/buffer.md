@@ -68,11 +68,10 @@ differently based on what arguments are provided:
 * Passing an [`ArrayBuffer`] or a [`SharedArrayBuffer`] returns a `Buffer` that
   shares allocated memory with the given array buffer.
 
-Because the behavior of `new Buffer()` changes significantly based on the type
-of value passed as the first argument, applications that do not properly
-validate the input arguments passed to `new Buffer()`, or that fail to
-appropriately initialize newly allocated `Buffer` content, can inadvertently
-introduce security and reliability issues into their code.
+Because the behavior of `new Buffer()` is different depending on the type of the
+first argument, security and reliability issues can be inadvertantly introduced
+into applications when argument validation or `Buffer` initialization are not
+performed.
 
 To make the creation of `Buffer` instances more reliable and less error prone,
 the various forms of the `new Buffer()` constructor have been **deprecated**
