@@ -33,10 +33,6 @@ stdout in excess of that limit without the output being captured, the child
 process will block waiting for the pipe buffer to accept more data. This is
 identical to the behavior of pipes in the shell. Use the `{ stdio: 'ignore' }`
 option if the output will not be consumed.
-It is possible to stream data through these pipes in a non-blocking way. Note,
-however, that some programs use line-buffered I/O internally. While that does
-not affect Node.js, it can mean that data sent to the child process may not be
-immediately consumed.
 
 The [`child_process.spawn()`][] method spawns the child process asynchronously,
 without blocking the Node.js event loop. The [`child_process.spawnSync()`][]
