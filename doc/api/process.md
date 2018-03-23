@@ -1205,6 +1205,20 @@ console.log(process.getgroups());         // [ 27, 30, 46, 1000 ]
 This function is only available on POSIX platforms (i.e. not Windows or
 Android).
 
+## process.jsEngine
+<!-- YAML
+added: REPLACEME
+-->
+
+* {string}
+
+The `process.jsEngine` property returns the JavaScript engine type. It will
+return `v8` when the V8 engine is being used.
+
+```js
+console.log(`Engine: ${process.jsEngine}`);
+```
+
 ## process.kill(pid[, signal])
 <!-- YAML
 added: v0.0.6
