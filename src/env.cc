@@ -371,7 +371,7 @@ void Environment::RunAndClearNativeImmediates() {
   size_t count = native_immediate_callbacks_.size();
   if (count > 0) {
     size_t ref_count = 0;
-    std::vector<NativeImmediateCallback> list;
+    std::list<NativeImmediateCallback> list;
     native_immediate_callbacks_.swap(list);
     auto drain_list = [&]() {
       v8::TryCatch try_catch(isolate());
@@ -383,8 +383,7 @@ void Environment::RunAndClearNativeImmediates() {
           FatalException(isolate(), try_catch);
           // Bail out, remove the already executed callbacks from list
           // and set up a new TryCatch for the other pending callbacks.
-          std::move_backward(it, list.end(), list.begin() + (list.end() - it));
-          list.resize(list.end() - it);
+          list.erase(list.begin(), it);
           return true;
         }
       }

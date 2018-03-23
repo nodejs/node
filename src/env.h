@@ -850,7 +850,7 @@ class Environment {
     std::unique_ptr<Persistent<v8::Object>> keep_alive_;
     bool refed_;
   };
-  std::vector<NativeImmediateCallback> native_immediate_callbacks_;
+  std::list<NativeImmediateCallback> native_immediate_callbacks_;
   void RunAndClearNativeImmediates();
   static void CheckImmediate(uv_check_t* handle);
 
