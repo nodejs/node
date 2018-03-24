@@ -734,6 +734,9 @@ changes:
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/18399
     description: The `cwd` option is supported now.
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/17412
+    description: The `windowsHide` option is supported now.
   - version: 8.2.0
     pr-url: https://github.com/nodejs/node/pull/14140
     description: The `inspectPort` option is supported now.
