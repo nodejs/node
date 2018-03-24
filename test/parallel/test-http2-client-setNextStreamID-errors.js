@@ -48,7 +48,8 @@ server.listen(0, common.mustCall(() => {
         {
           type: TypeError,
           code: 'ERR_INVALID_ARG_TYPE',
-          message: 'The "id" argument must be of type number'
+          message: 'The "id" argument must be of type number. Received type ' +
+                   typeof value
         }
       );
     });

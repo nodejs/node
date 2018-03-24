@@ -79,22 +79,22 @@ server.listen(0, common.mustCall(() => {
       message: 'HTTP2 ping cancelled'
     })));
 
-    // should throw if payload is not of type ArrayBufferView
+    // Should throw if payload is not of type ArrayBufferView
     {
-      [1, true, {}, []].forEach((invalidPayload) =>
+      [1, true, {}, []].forEach((payload) =>
         common.expectsError(
-          () => client.ping(invalidPayload),
+          () => client.ping(payload),
           {
             type: TypeError,
             code: 'ERR_INVALID_ARG_TYPE',
-            message: 'The "payload" argument must be one of type' +
-                     ' Buffer, TypedArray, or DataView'
+            message: 'The "payload" argument must be one of type Buffer, ' +
+                     `TypedArray, or DataView. Received type ${typeof payload}`
           }
         )
       );
     }
 
-    // should throw if payload length is not 8
+    // Should throw if payload length is not 8
     {
       const shortPayload = Buffer.from('abcdefg');
       const longPayload = Buffer.from('abcdefghi');
@@ -110,7 +110,7 @@ server.listen(0, common.mustCall(() => {
       );
     }
 
-    // should throw error is callback is not of type function
+    // Should throw error is callback is not of type function
     {
       const payload = Buffer.from('abcdefgh');
       [1, true, {}, []].forEach((invalidCallback) =>

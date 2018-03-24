@@ -131,52 +131,47 @@ fs.stat(__filename, common.mustCall(function(err, s) {
   });
 }));
 
-['', false, null, undefined, {}, []].forEach((i) => {
-  common.expectsError(
-    () => fs.fstat(i),
-    {
-      code: 'ERR_INVALID_ARG_TYPE',
-      type: TypeError,
-      message: 'The "fd" argument must be of type integer'
-    }
-  );
-  common.expectsError(
-    () => fs.fstatSync(i),
-    {
-      code: 'ERR_INVALID_ARG_TYPE',
-      type: TypeError,
-      message: 'The "fd" argument must be of type integer'
-    }
-  );
+['', false, null, undefined, {}, []].forEach((input) => {
+  ['fstat', 'fstatSync'].forEach((fnName) => {
+    assert.throws(
+      () => fs[fnName](input),
+      {
+        code: 'ERR_INVALID_ARG_TYPE',
+        name: 'TypeError [ERR_INVALID_ARG_TYPE]',
+        message: 'The "fd" argument must be of type number. ' +
+                 `Received type ${typeof input}`
+      }
+    );
+  });
 });
 
-[false, 1, {}, [], null, undefined].forEach((i) => {
-  common.expectsError(
-    () => fs.lstat(i, common.mustNotCall()),
+[false, 1, {}, [], null, undefined].forEach((input) => {
+  assert.throws(
+    () => fs.lstat(input, common.mustNotCall()),
     {
       code: 'ERR_INVALID_ARG_TYPE',
-      type: TypeError
+      name: 'TypeError [ERR_INVALID_ARG_TYPE]'
     }
   );
-  common.expectsError(
-    () => fs.lstatSync(i),
+  assert.throws(
+    () => fs.lstatSync(input),
     {
       code: 'ERR_INVALID_ARG_TYPE',
-      type: TypeError
+      name: 'TypeError [ERR_INVALID_ARG_TYPE]'
     }
   );
-  common.expectsError(
-    () => fs.stat(i, common.mustNotCall()),
+  assert.throws(
+    () => fs.stat(input, common.mustNotCall()),
     {
       code: 'ERR_INVALID_ARG_TYPE',
-      type: TypeError
+      name: 'TypeError [ERR_INVALID_ARG_TYPE]'
     }
   );
-  common.expectsError(
-    () => fs.statSync(i),
+  assert.throws(
+    () => fs.statSync(input),
     {
       code: 'ERR_INVALID_ARG_TYPE',
-      type: TypeError
+      name: 'TypeError [ERR_INVALID_ARG_TYPE]'
     }
   );
 });

@@ -13,8 +13,8 @@ const {
   Object.create(null),
   new Date(),
   new (class Foo {})()
-].forEach((i) => {
-  assertIsObject(i, 'foo', 'Object');
+].forEach((input) => {
+  assertIsObject(input, 'foo', 'Object');
 });
 
 [
@@ -25,11 +25,12 @@ const {
   Infinity,
   [],
   [{}]
-].forEach((i) => {
-  common.expectsError(() => assertIsObject(i, 'foo', 'Object'),
+].forEach((input) => {
+  common.expectsError(() => assertIsObject(input, 'foo', 'Object'),
                       {
                         code: 'ERR_INVALID_ARG_TYPE',
-                        message: /^The "foo" argument must be of type Object$/
+                        message: 'The "foo" argument must be of type Object. ' +
+                                 `Received type ${typeof input}`
                       });
 });
 
@@ -38,5 +39,5 @@ assertWithinRange('foo', 1, 0, 2);
 common.expectsError(() => assertWithinRange('foo', 1, 2, 3),
                     {
                       code: 'ERR_HTTP2_INVALID_SETTING_VALUE',
-                      message: /^Invalid value for setting "foo": 1$/
+                      message: 'Invalid value for setting "foo": 1'
                     });

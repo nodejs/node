@@ -43,7 +43,8 @@ server.on('stream', common.mustCall((stream) => {
       {
         type: TypeError,
         code: 'ERR_INVALID_ARG_TYPE',
-        message: 'The "fd" argument must be of type number'
+        message: 'The "fd" argument must be of type number. Received type ' +
+                 typeof types[type]
       }
     );
   });

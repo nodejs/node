@@ -1,47 +1,37 @@
 'use strict';
-const common = require('../common');
+require('../common');
+const assert = require('assert');
 const dgram = require('dgram');
 const socket = dgram.createSocket('udp4');
 
-const errorMessageOffset =
-  /^The "offset" argument must be of type number$/;
-
-common.expectsError(() => {
-  socket.sendto();
-}, {
+const errObj = {
   code: 'ERR_INVALID_ARG_TYPE',
-  type: TypeError,
-  message: errorMessageOffset
-});
+  name: 'TypeError [ERR_INVALID_ARG_TYPE]',
+  message: 'The "offset" argument must be of type number. Received type ' +
+           'undefined'
+};
+assert.throws(() => socket.sendto(), errObj);
 
-common.expectsError(() => {
-  socket.sendto('buffer', 1, 'offset', 'port', 'address', 'cb');
-}, {
-  code: 'ERR_INVALID_ARG_TYPE',
-  type: TypeError,
-  message: /^The "length" argument must be of type number$/
-});
+errObj.message = 'The "length" argument must be of type number. Received ' +
+                 'type string';
+assert.throws(
+  () => socket.sendto('buffer', 1, 'offset', 'port', 'address', 'cb'),
+  errObj);
 
-common.expectsError(() => {
-  socket.sendto('buffer', 'offset', 1, 'port', 'address', 'cb');
-}, {
-  code: 'ERR_INVALID_ARG_TYPE',
-  type: TypeError,
-  message: errorMessageOffset
-});
+errObj.message = 'The "offset" argument must be of type number. Received ' +
+                 'type string';
+assert.throws(
+  () => socket.sendto('buffer', 'offset', 1, 'port', 'address', 'cb'),
+  errObj);
 
-common.expectsError(() => {
-  socket.sendto('buffer', 1, 1, 10, false, 'cb');
-}, {
-  code: 'ERR_INVALID_ARG_TYPE',
-  type: TypeError,
-  message: /^The "address" argument must be of type string$/
-});
+errObj.message = 'The "address" argument must be of type string. Received ' +
+                 'type boolean';
+assert.throws(
+  () => socket.sendto('buffer', 1, 1, 10, false, 'cb'),
+  errObj);
 
-common.expectsError(() => {
-  socket.sendto('buffer', 1, 1, false, 'address', 'cb');
-}, {
-  code: 'ERR_INVALID_ARG_TYPE',
-  type: TypeError,
-  message: /^The "port" argument must be of type number$/
-});
+errObj.message = 'The "port" argument must be of type number. Received ' +
+                 'type boolean';
+assert.throws(
+  () => socket.sendto('buffer', 1, 1, false, 'address', 'cb'),
+  errObj);

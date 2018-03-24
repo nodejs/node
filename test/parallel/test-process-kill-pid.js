@@ -38,24 +38,14 @@ const assert = require('assert');
 //
 // process.pid, String(process.pid): ourself
 
-const invalidPidArgument = common.expectsError({
-  code: 'ERR_INVALID_ARG_TYPE',
-  type: TypeError,
-  message: 'The "pid" argument must be of type number'
-}, 6);
-
-assert.throws(function() { process.kill('SIGTERM'); },
-              invalidPidArgument);
-assert.throws(function() { process.kill(null); },
-              invalidPidArgument);
-assert.throws(function() { process.kill(undefined); },
-              invalidPidArgument);
-assert.throws(function() { process.kill(+'not a number'); },
-              invalidPidArgument);
-assert.throws(function() { process.kill(1 / 0); },
-              invalidPidArgument);
-assert.throws(function() { process.kill(-1 / 0); },
-              invalidPidArgument);
+['SIGTERM', null, undefined, NaN, Infinity, -Infinity].forEach((val) => {
+  assert.throws(() => process.kill(val), {
+    code: 'ERR_INVALID_ARG_TYPE',
+    name: 'TypeError [ERR_INVALID_ARG_TYPE]',
+    message: 'The "pid" argument must be of type number. ' +
+             `Received type ${typeof val}`
+  });
+});
 
 // Test that kill throws an error for unknown signal names
 common.expectsError(() => process.kill(0, 'test'), {

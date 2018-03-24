@@ -70,12 +70,13 @@ const {
 }
 
 {
-  [1, {}, [], null, undefined, Infinity].forEach((i) => {
-    common.expectsError(() => performance.timerify(i),
+  [1, {}, [], null, undefined, Infinity].forEach((input) => {
+    common.expectsError(() => performance.timerify(input),
                         {
                           code: 'ERR_INVALID_ARG_TYPE',
                           type: TypeError,
-                          message: 'The "fn" argument must be of type Function'
+                          message: 'The "fn" argument must be of type ' +
+                                   `Function. Received type ${typeof input}`
                         });
   });
 }

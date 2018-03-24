@@ -90,36 +90,6 @@ common.expectsError(() => {
   message: /.+ does not match \S/
 });
 
-// // Test ERR_INVALID_ARG_TYPE
-assert.strictEqual(errors.message('ERR_INVALID_ARG_TYPE', ['a', 'b']),
-                   'The "a" argument must be of type b');
-assert.strictEqual(errors.message('ERR_INVALID_ARG_TYPE', ['a', ['b']]),
-                   'The "a" argument must be of type b');
-assert.strictEqual(errors.message('ERR_INVALID_ARG_TYPE', ['a', ['b', 'c']]),
-                   'The "a" argument must be one of type b or c');
-assert.strictEqual(errors.message('ERR_INVALID_ARG_TYPE',
-                                  ['a', ['b', 'c', 'd']]),
-                   'The "a" argument must be one of type b, c, or d');
-assert.strictEqual(errors.message('ERR_INVALID_ARG_TYPE', ['a', 'b', 'c']),
-                   'The "a" argument must be of type b. Received type string');
-assert.strictEqual(errors.message('ERR_INVALID_ARG_TYPE',
-                                  ['a', 'b', undefined]),
-                   'The "a" argument must be of type b. Received type ' +
-                   'undefined');
-assert.strictEqual(errors.message('ERR_INVALID_ARG_TYPE',
-                                  ['a', 'b', null]),
-                   'The "a" argument must be of type b. Received type null');
-assert.strictEqual(errors.message('ERR_INVALID_ARG_TYPE', ['a', 'not b']),
-                   'The "a" argument must not be of type b');
-assert.strictEqual(errors.message('ERR_INVALID_ARG_TYPE', ['a.b', 'not c']),
-                   'The "a.b" property must not be of type c');
-assert.strictEqual(
-  errors.message('ERR_INVALID_ARG_TYPE', ['first argument', 'c']),
-  'The first argument must be of type c');
-assert.strictEqual(
-  errors.message('ERR_INVALID_ARG_TYPE', [['a', 'b', 'c'], 'not d']),
-  'The "a", "b", "c" arguments must not be of type d');
-
 // Test ERR_INVALID_FD_TYPE
 assert.strictEqual(errors.message('ERR_INVALID_FD_TYPE', ['a']),
                    'Unsupported fd type: a');

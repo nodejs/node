@@ -71,7 +71,8 @@ const s = http.createServer(common.mustCall((req, res) => {
         {
           code: 'ERR_INVALID_ARG_TYPE',
           type: TypeError,
-          message: 'The "name" argument must be of type string'
+          message: 'The "name" argument must be of type string. ' +
+                   'Received type undefined'
         }
       );
       common.expectsError(
@@ -79,7 +80,8 @@ const s = http.createServer(common.mustCall((req, res) => {
         {
           code: 'ERR_INVALID_ARG_TYPE',
           type: TypeError,
-          message: 'The "name" argument must be of type string'
+          message: 'The "name" argument must be of type string. ' +
+                   'Received type undefined'
         }
       );
 
@@ -122,7 +124,8 @@ const s = http.createServer(common.mustCall((req, res) => {
           {
             code: 'ERR_INVALID_ARG_TYPE',
             type: TypeError,
-            message: 'The "name" argument must be of type string'
+            message: 'The "name" argument must be of type string. ' +
+                     `Received type ${typeof val}`
           }
         );
       });

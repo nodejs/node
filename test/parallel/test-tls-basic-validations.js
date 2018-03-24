@@ -26,7 +26,8 @@ common.expectsError(() => tls.createServer({ handshakeTimeout: 'abcd' }),
                     {
                       code: 'ERR_INVALID_ARG_TYPE',
                       type: TypeError,
-                      message: 'The "timeout" argument must be of type number'
+                      message: 'The "options.handshakeTimeout" property must ' +
+                               'be of type number. Received type string'
                     }
 );
 

@@ -41,30 +41,17 @@ server.listen(0, common.mustCall(function() {
     response.removeHeader(denormalised);
     assert.strictEqual(response.hasHeader(denormalised), false);
 
-    common.expectsError(
-      () => response.hasHeader(),
-      {
-        code: 'ERR_INVALID_ARG_TYPE',
-        type: TypeError,
-        message: 'The "name" argument must be of type string'
-      }
-    );
-    common.expectsError(
-      () => response.getHeader(),
-      {
-        code: 'ERR_INVALID_ARG_TYPE',
-        type: TypeError,
-        message: 'The "name" argument must be of type string'
-      }
-    );
-    common.expectsError(
-      () => response.removeHeader(),
-      {
-        code: 'ERR_INVALID_ARG_TYPE',
-        type: TypeError,
-        message: 'The "name" argument must be of type string'
-      }
-    );
+    ['hasHeader', 'getHeader', 'removeHeader'].forEach((fnName) => {
+      assert.throws(
+        () => response[fnName](),
+        {
+          code: 'ERR_INVALID_ARG_TYPE',
+          name: 'TypeError [ERR_INVALID_ARG_TYPE]',
+          message: 'The "name" argument must be of type string. Received ' +
+                   'type undefined'
+        }
+      );
+    });
 
     [
       ':status',
@@ -95,11 +82,12 @@ server.listen(0, common.mustCall(function() {
       message: 'Invalid value "undefined" for header "foo-bar"'
     });
     common.expectsError(
-      () => response.setHeader(), // header name undefined
+      () => response.setHeader(), // Header name undefined
       {
         code: 'ERR_INVALID_ARG_TYPE',
         type: TypeError,
-        message: 'The "name" argument must be of type string'
+        message: 'The "name" argument must be of type string. Received type ' +
+                 'undefined'
       }
     );
     common.expectsError(

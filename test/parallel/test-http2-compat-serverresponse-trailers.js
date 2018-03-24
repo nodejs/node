@@ -40,11 +40,12 @@ server.listen(0, common.mustCall(() => {
       }
     );
     common.expectsError(
-      () => response.setTrailer(), // trailer name undefined
+      () => response.setTrailer(), // Trailer name undefined
       {
         code: 'ERR_INVALID_ARG_TYPE',
         type: TypeError,
-        message: 'The "name" argument must be of type string'
+        message: 'The "name" argument must be of type string. Received type ' +
+                 'undefined'
       }
     );
     common.expectsError(
