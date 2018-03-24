@@ -406,9 +406,6 @@ recommended but not required.
 __Deprecation__ refers to the identification of Public APIs that should no
 longer be used.
 
-Once APIs are Deprecated, they are no longer covered by the current or
-[Long Term Support][LTS] policies.
-
 Node.js uses three Deprecation levels:
 
 * *Documentation-Only Deprecation* refers to elements of the Public API that are
@@ -416,8 +413,8 @@ Node.js uses three Deprecation levels:
   notice indicating the deprecated status is added to the API documentation
   but no functional changes are implemented in the code. There will be no
   runtime deprecation warnings emitted for such deprecations by default.
-  Documentation-only deprecations may trigger an runtime warning when Node.js
-  is launched with the [`--pending-deprecation`][] flag, or the
+  Documentation-only deprecations may trigger a runtime warning when Node.js
+  is started with the [`--pending-deprecation`][] flag or the
   `NODE_PENDING_DEPRECATION=1` environment variable is set.
 
 * *Runtime Deprecation* refers to the use of process warnings emitted at
@@ -428,9 +425,9 @@ Node.js uses three Deprecation levels:
   deprecated status.
 
 * *End-of-life* refers to APIs that have gone through Runtime Deprecation and
-  are no longer subject to the semantic versioning and [support policies](LTS)
-  used by the project. Backward-incompatible changes including complete removal
-  of such APIs may occur at any time.
+  are no longer subject to the semantic versioning rules used by the project.
+  Backward-incompatible changes including complete removal of such APIs may occur
+  at any time.
 
 Documentation-Only Deprecations may be handled as semver-minor or semver-major
 changes. Such deprecations have no impact on the successful operation of running
@@ -837,4 +834,3 @@ LTS working group and the Release team.
 [node-core-utils-credentials]: https://github.com/nodejs/node-core-utils#setting-up-credentials
 ["Merge Pull Request"]: https://help.github.com/articles/merging-a-pull-request/#merging-a-pull-request-on-github
 [flaky tests]: https://github.com/nodejs/node/issues?q=is%3Aopen+is%3Aissue+label%3A%22CI+%2F+flaky+test%22
-[LTS]: https://github.com/nodejs/Release
