@@ -698,6 +698,9 @@ values are `"rr"` and `"none"`.
 <!-- YAML
 added: v0.7.1
 changes:
+  - version: v9.5.0
+    pr-url: https://github.com/nodejs/node/pull/18399
+    description: The `cwd` option is supported now.
   - version: 8.2.0
     pr-url: https://github.com/nodejs/node/pull/14140
     description: The `inspectPort` option is supported now.
