@@ -23,6 +23,7 @@ struct StreamWriteResult {
   bool async;
   int err;
   WriteWrap* wrap;
+  size_t bytes;
 };
 
 
