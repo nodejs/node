@@ -194,13 +194,15 @@ inline StreamWriteResult StreamBase::Write(
   Environment* env = stream_env();
   int err;
 
+  size_t total_bytes = 0;
   for (size_t i = 0; i < count; ++i)
-    bytes_written_ += bufs[i].len;
+    total_bytes += bufs[i].len;
+  bytes_written_ += total_bytes;
 
   if (send_handle == nullptr) {
     err = DoTryWrite(&bufs, &count);
     if (err != 0 || count == 0) {
-      return StreamWriteResult { false, err, nullptr };
+      return StreamWriteResult { false, err, nullptr, total_bytes };
     }
   }
 
@@ -230,7 +232,7 @@ inline StreamWriteResult StreamBase::Write(
     ClearError();
   }
 
-  return StreamWriteResult { async, err, req_wrap };
+  return StreamWriteResult { async, err, req_wrap, total_bytes };
 }
 
 template <typename OtherBase>
