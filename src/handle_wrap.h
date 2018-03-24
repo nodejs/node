@@ -70,7 +70,8 @@ class HandleWrap : public AsyncWrap {
 
   inline uv_handle_t* GetHandle() const { return handle_; }
 
-  void Close(v8::Local<v8::Value> close_callback = v8::Local<v8::Value>());
+  virtual void Close(
+      v8::Local<v8::Value> close_callback = v8::Local<v8::Value>());
 
  protected:
   HandleWrap(Environment* env,
