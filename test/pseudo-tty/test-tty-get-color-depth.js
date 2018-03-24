@@ -5,9 +5,6 @@ const assert = require('assert').strict;
 /* eslint-disable no-restricted-properties */
 const { WriteStream } = require('tty');
 
-const NODE_DISABLE_COLORS = process.env.NODE_DISABLE_COLORS;
-delete process.env.NODE_DISABLE_COLORS;
-
 const fd = common.getTTYfd();
 const writeStream = new WriteStream(fd);
 
@@ -65,5 +62,3 @@ const writeStream = new WriteStream(fd);
   assert.equal(writeStream.getColorDepth({}), depth2);
   Object.defineProperty(process, 'platform', platform);
 }
-
-process.env.NODE_DISABLE_COLORS = NODE_DISABLE_COLORS;
