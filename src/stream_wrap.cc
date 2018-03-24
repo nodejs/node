@@ -373,6 +373,11 @@ void LibuvStreamWrap::AfterUvWrite(uv_write_t* req, int status) {
   req_wrap->Done(status);
 }
 
+void LibuvStreamWrap::Close(v8::Local<v8::Value> close_callback) {
+  ReadStop();
+  HandleWrap::Close(close_callback);
+}
+
 }  // namespace node
 
 NODE_BUILTIN_MODULE_CONTEXT_AWARE(stream_wrap,
