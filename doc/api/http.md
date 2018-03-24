@@ -1858,7 +1858,8 @@ changes:
     details. Any [`Duplex`][] stream is a valid return value.
   * `timeout` {number}: A number specifying the socket timeout in milliseconds.
     This will set the timeout before the socket is connected.
-  * `setHost` {boolean}: Specifies whether or not to automatically add the `Host` header. Defaults to `true`.
+  * `setHost` {boolean}: Specifies whether or not to automatically add the
+    `Host` header. Defaults to `true`.
 * `callback` {Function}
 * Returns: {http.ClientRequest}
 
