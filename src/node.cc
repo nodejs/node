@@ -3032,13 +3032,6 @@ void SetupProcessObject(Environment* env,
   READONLY_PROPERTY(release, "prereleaseTag",
       OneByteString(env->isolate(), NODE_TAG));
 
-  READONLY_PROPERTY(release,
-                    "computedVersion",
-                    Integer::New(env->isolate(),
-                        (NODE_MAJOR_VERSION << 16) +
-                        (NODE_MINOR_VERSION << 8) +
-                        NODE_PATCH_VERSION));
-
 #if NODE_VERSION_IS_LTS
   READONLY_PROPERTY(release, "lts",
                     OneByteString(env->isolate(), NODE_VERSION_LTS_CODENAME));

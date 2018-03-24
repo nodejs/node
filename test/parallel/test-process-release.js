@@ -23,13 +23,8 @@ const {
   majorVersion: major,
   minorVersion: minor,
   patchVersion: patch,
-  computedVersion,
-  compareVersion,
+  prereleaseTag: prerelease
 } = process.release;
 
-assert.strictEqual(
-  (major << 16) + (minor << 8) + patch, computedVersion);
-
-assert.strictEqual(0, compareVersion(major, minor, patch));
-assert.strictEqual(1, compareVersion(major, minor, patch + 1));
-assert.strictEqual(-1, compareVersion(major - 1, minor, patch));
+assert.strictEqual(process.versions.node,
+                   `${major}.${minor}.${patch}${prerelease}`);
