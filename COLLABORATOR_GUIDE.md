@@ -199,22 +199,23 @@ status indicator if possible.
 #### Useful CI Jobs
 
 * [`node-test-pull-request`](https://ci.nodejs.org/job/node-test-pull-request/)
-is the standard CI run we do to check Pull Requests. It triggers `node-test-commit`,
-which runs the `build-ci` and `test-ci` targets on all supported platforms.
+is the standard CI run we do to check Pull Requests. It triggers 
+`node-test-commit`, which runs the `build-ci` and `test-ci` targets on all 
+supported platforms.
 
 * [`node-test-linter`](https://ci.nodejs.org/job/node-test-linter/)
-only runs the linter targets, which is useful for changes that only affect comments
-or documentation.
+only runs the linter targets, which is useful for changes that only affect 
+comments or documentation.
 
 * [`node-test-pull-request-lite`](https://ci.nodejs.org/job/node-test-pull-request-lite/)
-only runs the linter job, as well as the tests on LinuxONE. Should only be used for
-trivial changes that do not require being tested on all platforms.
+only runs the linter job, as well as the tests on LinuxONE. Should only be used 
+for trivial changes that do not require being tested on all platforms.
 
 * [`citgm-smoker`](https://ci.nodejs.org/job/citgm-smoker/)
-uses [`CitGM`](https://github.com/nodejs/citgm) to allow you to run `npm install && npm test`
-on a large selection of common modules. This is useful to check whether a
-change will cause breakage in the ecosystem. To test Node.js ABI changes
-you can run [`citgm-abi-smoker`](https://ci.nodejs.org/job/citgm-abi-smoker/).
+uses [`CitGM`](https://github.com/nodejs/citgm) to allow you to run `npm 
+install && npm test` on a large selection of common modules. This is useful to 
+check whether a change will cause breakage in the ecosystem. To test Node.js 
+ABI changes you can run [`citgm-abi-smoker`](https://ci.nodejs.org/job/citgm-abi-smoker/).
 
 * [`node-stress-single-test`](https://ci.nodejs.org/job/node-stress-single-test/)
 is designed to allow one to run a group of tests over and over on a specific
@@ -554,8 +555,8 @@ Apply external patches:
 $ curl -L https://github.com/nodejs/node/pull/xxx.patch | git am --whitespace=fix
 ```
 
-If the merge fails even though recent CI runs were successful, then a 3-way merge may
-be required.  In this case try:
+If the merge fails even though recent CI runs were successful, then a 3-way 
+merge may be required.  In this case try:
 
 ```text
 $ git am --abort
@@ -563,8 +564,9 @@ $ curl -L https://github.com/nodejs/node/pull/xxx.patch | git am -3 --whitespace
 ```
 If the 3-way merge succeeds you can proceed, but make sure to check the changes
 against the original PR carefully and build/test on at least one platform
-before landing. If the 3-way merge fails, then it is most likely that a conflicting
-PR has landed since the CI run and you will have to ask the author to rebase.
+before landing. If the 3-way merge fails, then it is most likely that a 
+conflicting PR has landed since the CI run and you will have to ask the author 
+to rebase.
 
 Check and re-review the changes:
 

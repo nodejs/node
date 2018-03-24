@@ -184,9 +184,9 @@ in the ECMAScript specification.
 
 * {any}
 
-If the `module.status` is `'errored'`, this property contains the exception thrown
-by the module during evaluation. If the status is anything else, accessing this
-property will result in a thrown exception.
+If the `module.status` is `'errored'`, this property contains the exception 
+thrown by the module during evaluation. If the status is anything else, 
+accessing this property will result in a thrown exception.
 
 *Note*: `undefined` cannot be used for cases where there is not a thrown
 exception due to possible ambiguity with `throw undefined;`.
@@ -803,9 +803,9 @@ local scope, so the value `localVar` is changed. In this way
 
 ## Example: Running an HTTP Server within a VM
 
-When using either [`script.runInThisContext()`][] or [`vm.runInThisContext()`][], the
-code is executed within the current V8 global context. The code passed
-to this VM context will have its own isolated scope.
+When using either [`script.runInThisContext()`][] or 
+[`vm.runInThisContext()`][], the code is executed within the current V8 global 
+context. The code passed to this VM context will have its own isolated scope.
 
 In order to run a simple web server using the `http` module the code passed to
 the context must either call `require('http')` on its own, or have a reference

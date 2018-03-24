@@ -34,8 +34,8 @@ Support is divided into three tiers:
 ### Supported platforms
 
 The community does not build or test against end-of-life distributions (EoL).
-Thus we do not recommend that you use Node on end-of-life or unsupported platforms
-in production.
+Thus we do not recommend that you use Node on end-of-life or unsupported 
+platforms in production.
 
 |  System      | Support type | Version                          | Architectures        | Notes            |
 |--------------|--------------|----------------------------------|----------------------|------------------|
@@ -108,9 +108,11 @@ installed, you can find them under the menu `Xcode -> Open Developer Tool ->
 More Developer Tools...`. This step will install `clang`, `clang++`, and
 `make`.
 * After building, you may want to setup [firewall rules](tools/macosx-firewall.sh)
-to avoid popups asking to accept incoming network connections when running tests:
+to avoid popups asking to accept incoming network connections when running 
+tests:
 
-If the path to your build directory contains a space, the build will likely fail.
+If the path to your build directory contains a space, the build will likely 
+fail.
 
 ```console
 $ sudo ./tools/macosx-firewall.sh
@@ -233,8 +235,8 @@ Prerequisites:
 * **Optional** (to build the MSI): the [WiX Toolset v3.11](http://wixtoolset.org/releases/)
   and the [Wix Toolset Visual Studio 2017 Extension](https://marketplace.visualstudio.com/items?itemName=RobMensching.WixToolsetVisualStudio2017Extension).
 
-If the path to your build directory contains a space or a non-ASCII character, the
-build will likely fail.
+If the path to your build directory contains a space or a non-ASCII character, 
+the build will likely fail.
 
 ```console
 > .\vcbuild

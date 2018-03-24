@@ -449,7 +449,8 @@ added: v8.0.0
 * `label` {string} Defaults to `'default'`.
 
 This method does not display anything unless used in the inspector. The
-`console.markTimeline()` method is the deprecated form of [`console.timeStamp()`][].
+`console.markTimeline()` method is the deprecated form of 
+[`console.timeStamp()`][].
 
 ### console.profile([label])
 <!-- YAML
@@ -514,7 +515,8 @@ added: v8.0.0
 * `label` {string} Defaults to `'default'`.
 
 This method does not display anything unless used in the inspector. The
-`console.timelineEnd()` method is the deprecated form of [`console.timeEnd()`][].
+`console.timelineEnd()` method is the deprecated form of 
+[`console.timeEnd()`][].
 
 [`console.error()`]: #console_console_error_data_args
 [`console.group()`]: #console_console_group_label
