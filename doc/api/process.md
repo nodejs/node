@@ -1474,6 +1474,11 @@ console.log(`The parent process is pid ${process.ppid}`);
 <!-- YAML
 added: v3.0.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/19438
+    description: The `majorVersion`, `minorVersion`, `patchVersion`,
+                 `prereleaseTag`, `computedVersion` and `compareVersion`
+                 properties are now supported.
   - version: v4.2.0
     pr-url: https://github.com/nodejs/node/pull/3212
     description: The `lts` property is now supported.
