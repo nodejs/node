@@ -489,6 +489,8 @@ $ bash -c 'exec -a customArgv0 ./node'
 added: v7.1.0
 -->
 
+* {Object}
+
 If the Node.js process was spawned with an IPC channel (see the
 [Child Process][] documentation), the `process.channel`
 property is a reference to the IPC channel. If no IPC channel exists, this
@@ -921,7 +923,7 @@ console.log(process.env.test);
 added: v0.7.7
 -->
 
-* {Object}
+* {Array}
 
 The `process.execArgv` property returns the set of Node.js-specific command-line
 options passed when the Node.js process was launched. These options do not
@@ -1250,6 +1252,8 @@ debugger, see [Signal Events][].
 added: v0.1.17
 -->
 
+* {Object}
+
 The `process.mainModule` property provides an alternative way of retrieving
 [`require.main`][]. The difference is that if the main module changes at
 runtime, [`require.main`][] may still refer to the original main module in
@@ -1478,6 +1482,8 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/3212
     description: The `lts` property is now supported.
 -->
+
+* {Object}
 
 The `process.release` property returns an Object containing metadata related to
 the current release, including URLs for the source tarball and headers-only
