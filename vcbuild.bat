@@ -170,6 +170,9 @@ if "%target%"=="Clean" rmdir /S /Q %~dp0deps\icu
 call tools\msvs\find_python.cmd
 if errorlevel 1 goto :exit
 
+call tools\msvs\find_nasm.cmd
+if errorlevel 1 echo Could not find NASM, it will not be used.
+
 call :getnodeversion || exit /b 1
 
 if defined TAG set configure_flags=%configure_flags% --tag=%TAG%
