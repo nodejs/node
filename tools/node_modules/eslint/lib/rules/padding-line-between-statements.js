@@ -358,6 +358,12 @@ const StatementTypes = {
             node.loc.start.line !== node.loc.end.line &&
             isBlockLikeStatement(sourceCode, node)
     },
+    "multiline-expression": {
+        test: (node, sourceCode) =>
+            node.loc.start.line !== node.loc.end.line &&
+            node.type === "ExpressionStatement" &&
+            !isDirectivePrologue(node, sourceCode)
+    },
 
     block: newNodeTypeTester("BlockStatement"),
     empty: newNodeTypeTester("EmptyStatement"),
@@ -467,13 +473,15 @@ module.exports = {
          * @private
          */
         function match(node, type) {
-            while (node.type === "LabeledStatement") {
-                node = node.body;
+            let innerStatementNode = node;
+
+            while (innerStatementNode.type === "LabeledStatement") {
+                innerStatementNode = innerStatementNode.body;
             }
             if (Array.isArray(type)) {
-                return type.some(match.bind(null, node));
+                return type.some(match.bind(null, innerStatementNode));
             }
-            return StatementTypes[type].test(node, sourceCode);
+            return StatementTypes[type].test(innerStatementNode, sourceCode);
         }
 
         /**

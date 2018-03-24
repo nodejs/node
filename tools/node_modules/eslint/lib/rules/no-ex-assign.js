@@ -20,7 +20,11 @@ module.exports = {
             url: "https://eslint.org/docs/rules/no-ex-assign"
         },
 
-        schema: []
+        schema: [],
+
+        messages: {
+            unexpected: "Do not assign to the exception parameter."
+        }
     },
 
     create(context) {
@@ -32,7 +36,7 @@ module.exports = {
          */
         function checkVariable(variable) {
             astUtils.getModifyingReferences(variable.references).forEach(reference => {
-                context.report({ node: reference.identifier, message: "Do not assign to the exception parameter." });
+                context.report({ node: reference.identifier, messageId: "unexpected" });
             });
         }
 

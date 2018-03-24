@@ -30,10 +30,12 @@ function isConcatenation(node) {
  * @returns {ASTNode} the top binary expression node in parents of a given node.
  */
 function getTopConcatBinaryExpression(node) {
-    while (isConcatenation(node.parent)) {
-        node = node.parent;
+    let currentNode = node;
+
+    while (isConcatenation(currentNode.parent)) {
+        currentNode = currentNode.parent;
     }
-    return node;
+    return currentNode;
 }
 
 /**

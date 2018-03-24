@@ -26,7 +26,11 @@ module.exports = {
 
         schema: [],
 
-        fixable: "code"
+        fixable: "code",
+
+        messages: {
+            unexpected: "This label '{{name}}' is unnecessary."
+        }
     },
 
     create(context) {
@@ -109,7 +113,7 @@ module.exports = {
                     if (info.breakable && info.label && info.label.name === labelNode.name) {
                         context.report({
                             node: labelNode,
-                            message: "This label '{{name}}' is unnecessary.",
+                            messageId: "unexpected",
                             data: labelNode,
                             fix: fixer => fixer.removeRange([sourceCode.getFirstToken(node).range[1], labelNode.range[1]])
                         });

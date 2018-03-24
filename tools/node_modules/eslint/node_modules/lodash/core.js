@@ -13,7 +13,7 @@
   var undefined;
 
   /** Used as the semantic version number. */
-  var VERSION = '4.17.4';
+  var VERSION = '4.17.5';
 
   /** Error message constants. */
   var FUNC_ERROR_TEXT = 'Expected a function';
@@ -48,6 +48,9 @@
   /** Used to match HTML entities and HTML characters. */
   var reUnescapedHtml = /[&<>"']/g,
       reHasUnescapedHtml = RegExp(reUnescapedHtml.source);
+
+  /** Used to detect unsigned integer values. */
+  var reIsUint = /^(?:0|[1-9]\d*)$/;
 
   /** Used to map characters to HTML entities. */
   var htmlEscapes = {
@@ -1160,26 +1163,6 @@
   }
 
   /**
-   * Used by `_.defaults` to customize its `_.assignIn` use to assign properties
-   * of source objects to the destination object for all destination properties
-   * that resolve to `undefined`.
-   *
-   * @private
-   * @param {*} objValue The destination value.
-   * @param {*} srcValue The source value.
-   * @param {string} key The key of the property to assign.
-   * @param {Object} object The parent object of `objValue`.
-   * @returns {*} Returns the value to assign.
-   */
-  function customDefaultsAssignIn(objValue, srcValue, key, object) {
-    if (objValue === undefined ||
-        (eq(objValue, objectProto[key]) && !hasOwnProperty.call(object, key))) {
-      return srcValue;
-    }
-    return objValue;
-  }
-
-  /**
    * A specialized version of `baseIsEqualDeep` for arrays with support for
    * partial deep comparisons.
    *
@@ -1364,6 +1347,48 @@
    */
   function isFlattenable(value) {
     return isArray(value) || isArguments(value);
+  }
+
+  /**
+   * Checks if `value` is a valid array-like index.
+   *
+   * @private
+   * @param {*} value The value to check.
+   * @param {number} [length=MAX_SAFE_INTEGER] The upper bounds of a valid index.
+   * @returns {boolean} Returns `true` if `value` is a valid index, else `false`.
+   */
+  function isIndex(value, length) {
+    var type = typeof value;
+    length = length == null ? MAX_SAFE_INTEGER : length;
+
+    return !!length &&
+      (type == 'number' ||
+        (type != 'symbol' && reIsUint.test(value))) &&
+          (value > -1 && value % 1 == 0 && value < length);
+  }
+
+  /**
+   * Checks if the given arguments are from an iteratee call.
+   *
+   * @private
+   * @param {*} value The potential iteratee value argument.
+   * @param {*} index The potential iteratee index or key argument.
+   * @param {*} object The potential iteratee object argument.
+   * @returns {boolean} Returns `true` if the arguments are from an iteratee call,
+   *  else `false`.
+   */
+  function isIterateeCall(value, index, object) {
+    if (!isObject(object)) {
+      return false;
+    }
+    var type = typeof index;
+    if (type == 'number'
+          ? (isArrayLike(object) && isIndex(index, object.length))
+          : (type == 'string' && index in object)
+        ) {
+      return eq(object[index], value);
+    }
+    return false;
   }
 
   /**
@@ -3099,39 +3124,6 @@
   });
 
   /**
-   * This method is like `_.assignIn` except that it accepts `customizer`
-   * which is invoked to produce the assigned values. If `customizer` returns
-   * `undefined`, assignment is handled by the method instead. The `customizer`
-   * is invoked with five arguments: (objValue, srcValue, key, object, source).
-   *
-   * **Note:** This method mutates `object`.
-   *
-   * @static
-   * @memberOf _
-   * @since 4.0.0
-   * @alias extendWith
-   * @category Object
-   * @param {Object} object The destination object.
-   * @param {...Object} sources The source objects.
-   * @param {Function} [customizer] The function to customize assigned values.
-   * @returns {Object} Returns `object`.
-   * @see _.assignWith
-   * @example
-   *
-   * function customizer(objValue, srcValue) {
-   *   return _.isUndefined(objValue) ? srcValue : objValue;
-   * }
-   *
-   * var defaults = _.partialRight(_.assignInWith, customizer);
-   *
-   * defaults({ 'a': 1 }, { 'b': 2 }, { 'a': 3 });
-   * // => { 'a': 1, 'b': 2 }
-   */
-  var assignInWith = createAssigner(function(object, source, srcIndex, customizer) {
-    copyObject(source, keysIn(source), object, customizer);
-  });
-
-  /**
    * Creates an object that inherits from the `prototype` object. If a
    * `properties` object is given, its own enumerable string keyed properties
    * are assigned to the created object.
@@ -3191,9 +3183,35 @@
    * _.defaults({ 'a': 1 }, { 'b': 2 }, { 'a': 3 });
    * // => { 'a': 1, 'b': 2 }
    */
-  var defaults = baseRest(function(args) {
-    args.push(undefined, customDefaultsAssignIn);
-    return assignInWith.apply(undefined, args);
+  var defaults = baseRest(function(object, sources) {
+    object = Object(object);
+
+    var index = -1;
+    var length = sources.length;
+    var guard = length > 2 ? sources[2] : undefined;
+
+    if (guard && isIterateeCall(sources[0], sources[1], guard)) {
+      length = 1;
+    }
+
+    while (++index < length) {
+      var source = sources[index];
+      var props = keysIn(source);
+      var propsIndex = -1;
+      var propsLength = props.length;
+
+      while (++propsIndex < propsLength) {
+        var key = props[propsIndex];
+        var value = object[key];
+
+        if (value === undefined ||
+            (eq(value, objectProto[key]) && !hasOwnProperty.call(object, key))) {
+          object[key] = source[key];
+        }
+      }
+    }
+
+    return object;
   });
 
   /**

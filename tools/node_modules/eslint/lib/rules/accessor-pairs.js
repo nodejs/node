@@ -58,11 +58,11 @@ function isPropertyDescriptor(node) {
      * Object.defineProperties(obj, {foo: {set: ...}})
      * Object.create(proto, {foo: {set: ...}})
      */
-    node = node.parent.parent;
+    const grandparent = node.parent.parent;
 
-    return node.type === "ObjectExpression" && (
-        isArgumentOfMethodCall(node, 1, "Object", "create") ||
-        isArgumentOfMethodCall(node, 1, "Object", "defineProperties")
+    return grandparent.type === "ObjectExpression" && (
+        isArgumentOfMethodCall(grandparent, 1, "Object", "create") ||
+        isArgumentOfMethodCall(grandparent, 1, "Object", "defineProperties")
     );
 }
 
@@ -89,7 +89,11 @@ module.exports = {
                 }
             },
             additionalProperties: false
-        }]
+        }],
+        messages: {
+            getter: "Getter is not present.",
+            setter: "Setter is not present."
+        }
     },
     create(context) {
         const config = context.options[0] || {};
@@ -140,9 +144,9 @@ module.exports = {
             }
 
             if (checkSetWithoutGet && isSetPresent && !isGetPresent) {
-                context.report({ node, message: "Getter is not present." });
+                context.report({ node, messageId: "getter" });
             } else if (checkGetWithoutSet && isGetPresent && !isSetPresent) {
-                context.report({ node, message: "Setter is not present." });
+                context.report({ node, messageId: "setter" });
             }
         }
 

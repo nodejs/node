@@ -24,17 +24,6 @@ function isProhibitedIdentifier(name) {
 }
 
 /**
- * Reports the given node and identifier name.
- * @param {RuleContext} context The ESLint rule context.
- * @param {ASTNode} node The node to report on.
- * @param {string} identifierName The name of the identifier.
- * @returns {void}
- */
-function report(context, node, identifierName) {
-    context.report(node, "Unexpected {{name}}.", { name: identifierName });
-}
-
-/**
  * Finds the eslint-scope reference in the given scope.
  * @param {Object} scope The scope to search.
  * @param {ASTNode} node The identifier node.
@@ -92,7 +81,11 @@ module.exports = {
             url: "https://eslint.org/docs/rules/no-alert"
         },
 
-        schema: []
+        schema: [],
+
+        messages: {
+            unexpected: "Unexpected {{name}}."
+        }
     },
 
     create(context) {
@@ -103,17 +96,25 @@ module.exports = {
 
                 // without window.
                 if (callee.type === "Identifier") {
-                    const identifierName = callee.name;
+                    const name = callee.name;
 
                     if (!isShadowed(currentScope, callee) && isProhibitedIdentifier(callee.name)) {
-                        report(context, node, identifierName);
+                        context.report({
+                            node,
+                            messageId: "unexpected",
+                            data: { name }
+                        });
                     }
 
                 } else if (callee.type === "MemberExpression" && isGlobalThisReferenceOrGlobalWindow(currentScope, callee.object)) {
-                    const identifierName = getPropertyName(callee);
+                    const name = getPropertyName(callee);
 
-                    if (isProhibitedIdentifier(identifierName)) {
-                        report(context, node, identifierName);
+                    if (isProhibitedIdentifier(name)) {
+                        context.report({
+                            node,
+                            messageId: "unexpected",
+                            data: { name }
+                        });
                     }
                 }
 

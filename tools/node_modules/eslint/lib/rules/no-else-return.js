@@ -34,7 +34,12 @@ module.exports = {
             },
             additionalProperties: false
         }],
-        fixable: "code"
+
+        fixable: "code",
+
+        messages: {
+            unexpected: "Unnecessary 'else' after 'return'."
+        }
     },
 
     create(context) {
@@ -52,7 +57,7 @@ module.exports = {
         function displayReport(node) {
             context.report({
                 node,
-                message: "Unnecessary 'else' after 'return'.",
+                messageId: "unexpected",
                 fix: fixer => {
                     const sourceCode = context.getSourceCode();
                     const startToken = sourceCode.getFirstToken(node);
@@ -212,8 +217,6 @@ module.exports = {
          */
         function checkIfWithoutElse(node) {
             const parent = node.parent;
-            let consequents,
-                alternate;
 
             /*
              * Fixing this would require splitting one statement into two, so no error should
@@ -223,12 +226,15 @@ module.exports = {
                 return;
             }
 
-            for (consequents = []; node.type === "IfStatement"; node = node.alternate) {
-                if (!node.alternate) {
+            const consequents = [];
+            let alternate;
+
+            for (let currentNode = node; currentNode.type === "IfStatement"; currentNode = currentNode.alternate) {
+                if (!currentNode.alternate) {
                     return;
                 }
-                consequents.push(node.consequent);
-                alternate = node.alternate;
+                consequents.push(currentNode.consequent);
+                alternate = currentNode.alternate;
             }
 
             if (consequents.every(alwaysReturns)) {

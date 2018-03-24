@@ -18,7 +18,11 @@ module.exports = {
             url: "https://eslint.org/docs/rules/no-div-regex"
         },
 
-        schema: []
+        schema: [],
+
+        messages: {
+            unexpected: "A regular expression literal can be confused with '/='."
+        }
     },
 
     create(context) {
@@ -30,7 +34,7 @@ module.exports = {
                 const token = sourceCode.getFirstToken(node);
 
                 if (token.type === "RegularExpression" && token.value[1] === "=") {
-                    context.report({ node, message: "A regular expression literal can be confused with '/='." });
+                    context.report({ node, messageId: "unexpected" });
                 }
             }
         };

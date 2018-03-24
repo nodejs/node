@@ -21,7 +21,7 @@
  * 4. `[gimuy]*`: optional regexp flags
  * 5. `$`: fix the match at the end of the string
  */
-const regex = /^\/([^\\[]|\\.|\[([^\\\]]|\\.)+])*\/[gimuy]*$/;
+const regex = /^\/([^\\[]|\\.|\[([^\\\]]|\\.)+])*\/[gimuys]*$/;
 
 //------------------------------------------------------------------------------
 // Rule Definition
@@ -36,7 +36,11 @@ module.exports = {
             url: "https://eslint.org/docs/rules/no-empty-character-class"
         },
 
-        schema: []
+        schema: [],
+
+        messages: {
+            unexpected: "Empty class."
+        }
     },
 
     create(context) {
@@ -48,7 +52,7 @@ module.exports = {
                 const token = sourceCode.getFirstToken(node);
 
                 if (token.type === "RegularExpression" && !regex.test(token.value)) {
-                    context.report({ node, message: "Empty class." });
+                    context.report({ node, messageId: "unexpected" });
                 }
             }
 

@@ -17,7 +17,11 @@ module.exports = {
             url: "https://eslint.org/docs/rules/block-scoped-var"
         },
 
-        schema: []
+        schema: [],
+
+        messages: {
+            outOfScope: "'{{name}}' used outside of binding context."
+        }
     },
 
     create(context) {
@@ -48,7 +52,7 @@ module.exports = {
         function report(reference) {
             const identifier = reference.identifier;
 
-            context.report({ node: identifier, message: "'{{name}}' used outside of binding context.", data: { name: identifier.name } });
+            context.report({ node: identifier, messageId: "outOfScope", data: { name: identifier.name } });
         }
 
         /**
