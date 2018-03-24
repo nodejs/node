@@ -423,8 +423,8 @@ stream.write('data ');
 process.nextTick(() => stream.uncork());
 ```
 
-If the [`writable.cork()`][] method is called multiple times on a stream, the same
-number of calls to `writable.uncork()` must be called to flush the buffered
+If the [`writable.cork()`][] method is called multiple times on a stream, the
+same number of calls to `writable.uncork()` must be called to flush the buffered
 data.
 
 ```js
@@ -619,8 +619,8 @@ possible states:
 
 When `readable.readableFlowing` is `null`, no mechanism for consuming the
 streams data is provided so the stream will not generate its data. While in this
-state, attaching a listener for the `'data'` event, calling the `readable.pipe()`
-method, or calling the `readable.resume()` method will switch
+state, attaching a listener for the `'data'` event, calling the
+`readable.pipe()` method, or calling the `readable.resume()` method will switch
 `readable.readableFlowing` to `true`, causing the Readable to begin
 actively emitting events as data is generated.
 
@@ -1267,8 +1267,11 @@ on the type of stream being created, as detailed in the chart below:
       <p>[Writable](#stream_class_stream_writable)</p>
     </td>
     <td>
-      <p><code>[_write][stream-_write]</code>, <code>[_writev][stream-_writev]</code>,
-      <code>[_final][stream-_final]</code></p>
+      <p>
+        <code>[_write][stream-_write]</code>,
+        <code>[_writev][stream-_writev]</code>,
+        <code>[_final][stream-_final]</code>
+      </p>
     </td>
   </tr>
   <tr>
@@ -1279,8 +1282,11 @@ on the type of stream being created, as detailed in the chart below:
       <p>[Duplex](#stream_class_stream_duplex)</p>
     </td>
     <td>
-      <p><code>[_read][stream-_read]</code>, <code>[_write][stream-_write]</code>, <code>[_writev][stream-_writev]</code>,
-      <code>[_final][stream-_final]</code></p>
+      <p>
+        <code>[_read][stream-_read]</code>,
+        <code>[_write][stream-_write]</code>,
+        <code>[_writev][stream-_writev]</code>,
+        <code>[_final][stream-_final]</code></p>
     </td>
   </tr>
   <tr>
@@ -1291,8 +1297,11 @@ on the type of stream being created, as detailed in the chart below:
       <p>[Transform](#stream_class_stream_transform)</p>
     </td>
     <td>
-      <p><code>[_transform][stream-_transform]</code>, <code>[_flush][stream-_flush]</code>,
-      <code>[_final][stream-_final]</code></p>
+      <p>
+        <code>[_transform][stream-_transform]</code>,
+        <code>[_flush][stream-_flush]</code>,
+        <code>[_final][stream-_final]</code>
+      </p>
     </td>
   </tr>
 </table>
@@ -1601,8 +1610,8 @@ constructor and implement the `readable._read()` method.
     a single value instead of a Buffer of size n. Defaults to `false`
   * `read` {Function} Implementation for the [`stream._read()`][stream-_read]
     method.
-  * `destroy` {Function} Implementation for the [`stream._destroy()`][readable-_destroy]
-    method.
+  * `destroy` {Function} Implementation for the
+    [`stream._destroy()`][readable-_destroy] method.
 
 ```js
 const { Readable } = require('stream');

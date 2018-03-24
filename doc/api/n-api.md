@@ -139,9 +139,9 @@ create a scope before invoking any functions that can result in the creation
 of JavaScript values.
 
 Handle scopes are created using [`napi_open_handle_scope`][] and are destroyed
-using [`napi_close_handle_scope`][]. Closing the scope can indicate to the GC that
-all `napi_value`s created during the lifetime of the handle scope are no longer
-referenced from the current stack frame.
+using [`napi_close_handle_scope`][]. Closing the scope can indicate to the GC
+that all `napi_value`s created during the lifetime of the handle scope are no
+longer referenced from the current stack frame.
 
 For more details, review the [Object Lifetime Management][].
 
@@ -667,7 +667,8 @@ current scope and the lifespan of the handle changes from the current
 scope to that of the outer scope.
 
 The methods available to open/close escapable scopes are
-[`napi_open_escapable_handle_scope`][] and [`napi_close_escapable_handle_scope`][].
+[`napi_open_escapable_handle_scope`][] and
+[`napi_close_escapable_handle_scope`][].
 
 The request to promote a handle is made through [`napi_escape_handle`][] which
 can only be called once.
@@ -1370,8 +1371,8 @@ TypedArray objects provide an array-like view over an underlying data buffer
 where each element has the same underlying binary scalar datatype.
 
 It's required that (length * size_of_element) + byte_offset should
-be <= the size in bytes of the array passed in. If not, a RangeError exception is
-raised.
+be <= the size in bytes of the array passed in. If not, a RangeError exception
+is raised.
 
 JavaScript TypedArray Objects are described in
 [Section 22.2][] of the ECMAScript Language Specification.
@@ -1616,10 +1617,11 @@ its length.
 
 *WARNING*: Use caution while using this API. The lifetime of the underlying data
 buffer is managed by the ArrayBuffer even after it's returned. A
-possible safe way to use this API is in conjunction with [`napi_create_reference`][],
-which can be used to guarantee control over the lifetime of the
-ArrayBuffer. It's also safe to use the returned data buffer within the same
-callback as long as there are no calls to other APIs that might trigger a GC.
+possible safe way to use this API is in conjunction with
+[`napi_create_reference`][], which can be used to guarantee control over the
+lifetime of the ArrayBuffer. It's also safe to use the returned data buffer
+within the same callback as long as there are no calls to other APIs that might
+trigger a GC.
 
 #### napi_get_buffer_info
 <!-- YAML
@@ -1894,8 +1896,8 @@ napi_status napi_get_value_string_utf16(napi_env env,
 passed in, the length of the string (in 2-byte code units) is returned.
 - `[in] bufsize`: Size of the destination buffer. When this value is
 insufficient, the returned string will be truncated.
-- `[out] result`: Number of 2-byte code units copied into the buffer, excluding the null
-terminator.
+- `[out] result`: Number of 2-byte code units copied into the buffer, excluding
+the null terminator.
 
 Returns `napi_ok` if the API succeeded. If a non-String `napi_value`
 is passed in it returns `napi_string_expected`.
@@ -2755,8 +2757,8 @@ Returns `napi_ok` if the API succeeded.
 
 This method allows the efficient definition of multiple properties on a given
 object. The properties are defined using property descriptors (See
-[`napi_property_descriptor`][]). Given an array of such property descriptors, this
-API will set the properties on the object one at a time, as defined by
+[`napi_property_descriptor`][]). Given an array of such property descriptors,
+this API will set the properties on the object one at a time, as defined by
 DefineOwnProperty (described in [Section 9.1.6][] of the ECMA262 specification).
 
 ## Working with JavaScript Functions
@@ -3167,8 +3169,8 @@ This API may modify the prototype chain of the wrapper object. Afterward,
 additional manipulation of the wrapper's prototype chain may cause
 `napi_unwrap()` to fail.
 
-Calling napi_wrap() a second time on an object will return an error. To associate
-another native instance with the object, use napi_remove_wrap() first.
+Calling napi_wrap() a second time on an object will return an error. To
+associate another native instance with the object, use napi_remove_wrap() first.
 
 ### napi_unwrap
 <!-- YAML
