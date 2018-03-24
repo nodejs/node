@@ -265,7 +265,7 @@ assert.throws(
     code: 'ERR_OUT_OF_RANGE',
     name: 'RangeError [ERR_OUT_OF_RANGE]',
     message: 'The value of "size" is out of range. ' +
-             'It must be >= 0 && <= 2147483647. Received 4294967296'
+             `It must be >= 0 && <= ${kMaxPossibleLength}. Received 4294967296`
   }
 );
 
