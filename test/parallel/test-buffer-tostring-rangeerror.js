@@ -1,10 +1,13 @@
 'use strict';
-
 const common = require('../common');
+
+// This test ensures that Node.js throws a RangeError when trying to convert a
+// gigantic buffer into a string.
+// Regression test for https://github.com/nodejs/node/issues/649.
+
 const assert = require('assert');
 const SlowBuffer = require('buffer').SlowBuffer;
 
-// Regression test for https://github.com/nodejs/node/issues/649.
 const len = 1422561062959;
 const message = common.expectsError({
   code: 'ERR_INVALID_OPT_VALUE',

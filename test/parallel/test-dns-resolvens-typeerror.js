@@ -21,18 +21,25 @@
 
 'use strict';
 const common = require('../common');
+
+// This test ensures `dns.resolveNs()` does not raise a C++-land assertion error
+// and throw a JavaScript TypeError instead.
+// Issue https://github.com/nodejs/node-v0.x-archive/issues/7070
+
 const dns = require('dns');
 
-// Should not raise assertion error.
-// Issue https://github.com/nodejs/node-v0.x-archive/issues/7070
-common.expectsError(() => dns.resolveNs([]), // bad name
-                    {
-                      code: 'ERR_INVALID_ARG_TYPE',
-                      type: TypeError,
-                      message: /^The "name" argument must be of type string/
-                    });
-common.expectsError(() => dns.resolveNs(''), // bad callback
-                    {
-                      code: 'ERR_INVALID_CALLBACK',
-                      type: TypeError
-                    });
+common.expectsError(
+  () => dns.resolveNs([]), // bad name
+  {
+    code: 'ERR_INVALID_ARG_TYPE',
+    type: TypeError,
+    message: /^The "name" argument must be of type string/
+  }
+);
+common.expectsError(
+  () => dns.resolveNs(''), // bad callback
+  {
+    code: 'ERR_INVALID_CALLBACK',
+    type: TypeError
+  }
+);
