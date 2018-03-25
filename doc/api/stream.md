@@ -1662,16 +1662,24 @@ Custom Readable streams *must* call the `new stream.Readable([options])`
 constructor and implement the `readable._read()` method.
 
 #### new stream.Readable([options])
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/19559
+    description: The `skipChunkCheck` option is supported now.
+-->
 
 * `options` {Object}
   * `highWaterMark` {number} The maximum [number of bytes][hwm-gotcha] to store
     in the internal buffer before ceasing to read from the underlying resource.
-    Defaults to `16384` (16kb), or `16` for `objectMode` streams
+    Defaults to `16384` (16kb), or `16` for `objectMode` streams.
   * `encoding` {string} If specified, then buffers will be decoded to
-    strings using the specified encoding. Defaults to `null`
+    strings using the specified encoding. Defaults to `null`.
   * `objectMode` {boolean} Whether this stream should behave
     as a stream of objects. Meaning that [`stream.read(n)`][stream-read] returns
-    a single value instead of a Buffer of size n. Defaults to `false`
+    a single value instead of a Buffer of size n. Defaults to `false`.
+  * `skipChunkCheck` {boolean} Make [`stream.push()`][stream-push] skip type
+    checking. Defaults to `false`.
   * `read` {Function} Implementation for the [`stream._read()`][stream-_read]
     method.
   * `destroy` {Function} Implementation for the
