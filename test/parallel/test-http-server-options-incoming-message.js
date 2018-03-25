@@ -16,7 +16,7 @@ class MyIncomingMessage extends http.IncomingMessage {
   }
 }
 
-const server = http.Server({
+const server = http.createServer({
   IncomingMessage: MyIncomingMessage
 }, common.mustCall(function(req, res) {
   assert.strictEqual(req.getUserAgent(), 'node-test');
