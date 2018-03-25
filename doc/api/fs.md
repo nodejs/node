@@ -2302,6 +2302,9 @@ error on Windows and an `ENOTDIR` error on POSIX.
 <!-- YAML
 added: v0.0.2
 changes:
+  - version: v9.9.0
+    pr-url: https://github.com/nodejs/node/pull/18801
+    description: The `as` and `as+` modes are supported now.
   - version: v7.6.0
     pr-url: https://github.com/nodejs/node/pull/10739
     description: The `path` parameter can be a WHATWG `URL` object using `file:`
