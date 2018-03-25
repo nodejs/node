@@ -528,6 +528,12 @@ The numeric group identifier of the group that owns the file (POSIX).
 
 A numeric device identifier if the file is considered "special".
 
+### stats.size
+
+* Value: {number}
+
+The size of the file in bytes.
+
 ### stats.blksize
 
 * Value: {number}
