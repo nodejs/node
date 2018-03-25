@@ -1481,6 +1481,9 @@ changes:
   - version: v4.2.0
     pr-url: https://github.com/nodejs/node/pull/3212
     description: The `lts` property is now supported.
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/19587
+    description: Add SemVer properties.
 -->
 
 * {Object}
@@ -1509,6 +1512,10 @@ tarball.
   - `'Argon'` for the 4.x LTS line beginning with 4.2.0.
   - `'Boron'` for the 6.x LTS line beginning with 6.9.0.
   - `'Carbon'` for the 8.x LTS line beginning with 8.9.1.
+* `majorVersion` {number} The major version of Node.js.
+* `minorVersion` {number} The minor version of Node.js.
+* `patchVersion` {number} The patch version of Node.js.
+* `prereleaseTag` {string} The SemVer pre-release tag for Node.js.
 
 <!-- eslint-skip -->
 ```js
@@ -1517,13 +1524,35 @@ tarball.
   lts: 'Argon',
   sourceUrl: 'https://nodejs.org/download/release/v4.4.5/node-v4.4.5.tar.gz',
   headersUrl: 'https://nodejs.org/download/release/v4.4.5/node-v4.4.5-headers.tar.gz',
-  libUrl: 'https://nodejs.org/download/release/v4.4.5/win-x64/node.lib'
+  libUrl: 'https://nodejs.org/download/release/v4.4.5/win-x64/node.lib',
+  majorVersion: 4,
+  minorVersion: 4,
+  patchVersion: 5,
+  prereleaseTag: '',
+  compareVersion: [Function: compareVersion]
 }
 ```
 
+
 In custom builds from non-release versions of the source tree, only the
-`name` property may be present. The additional properties should not be
-relied upon to exist.
+`name` property and SemVer properties may be present. The additional properties
+should not be relied upon to exist.
+
+## process.release.compareVersion(major, minor, patch[, tag])
+<!-- YAML
+added: REPLACEME
+-->
+
+Perform a SemVer comparison to the release version.
+
+* `major` {string | number} The major version to compare or a string containing
+  the entire version.
+* `minor` {number} The minor version number to compare.
+* `patch` {number} The patch version to compare.
+* `tag` {string} The pre-release tag to compare.
+* Returns: {number} `1` if the given version is lower than the release version,
+  `0` if the given version matches the process version, and `-1` if the given
+  version is greater than the release version.
 
 ## process.send(message[, sendHandle[, options]][, callback])
 <!-- YAML

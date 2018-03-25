@@ -18,3 +18,19 @@ if (versionParts[0] === '4' && versionParts[1] >= 2) {
 } else {
   assert.strictEqual(process.release.lts, undefined);
 }
+
+const {
+  majorVersion: major,
+  minorVersion: minor,
+  patchVersion: patch,
+  prereleaseTag: tag,
+  compareVersion,
+} = process.release;
+
+assert.strictEqual(0, compareVersion(major, minor, patch, tag));
+
+assert.strictEqual(-1, compareVersion(major, minor, patch + 1, tag));
+assert.strictEqual(1, compareVersion(major - 1, minor, patch, tag));
+
+if (!tag)
+  assert.strictEqual(1, compareVersion(major, minor, patch, 'notrealtag'));
