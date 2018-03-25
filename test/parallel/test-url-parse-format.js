@@ -581,7 +581,7 @@ const parseTests = {
     href: 'git+http://github.com/joyent/node.git'
   },
 
-  // if local1@domain1 is uses as a relative URL it may
+  // If local1@domain1 is uses as a relative URL it may
   // be parse into auth@hostname, but here there is no
   // way to make it work in url.parse, I add the test to be explicit
   'local1@domain1': {

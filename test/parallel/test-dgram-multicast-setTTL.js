@@ -43,6 +43,6 @@ socket.on('listening', common.mustCall(() => {
     message: 'The "ttl" argument must be of type number. Received type string'
   });
 
-  // close the socket
+  // Close the socket
   socket.close();
 }));

@@ -203,7 +203,7 @@ settings do not take effect until the `'localSettings'` event is emitted.
 session.settings({ enablePush: false });
 
 session.on('localSettings', (settings) => {
-  /* use the new settings */
+  /* Use the new settings */
 });
 ```
 
@@ -218,7 +218,7 @@ of the remote settings.
 
 ```js
 session.on('remoteSettings', (settings) => {
-  /* use the new settings */
+  /* Use the new settings */
 });
 ```
 
@@ -1928,7 +1928,7 @@ Returns a `ClientHttp2Session` instance.
 const http2 = require('http2');
 const client = http2.connect('https://localhost:1234');
 
-/* use the client */
+/* Use the client */
 
 client.close();
 ```

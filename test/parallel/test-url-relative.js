@@ -383,7 +383,7 @@ relativeTests2.forEach(function(relativeTest) {
                      ` == ${e}\n  actual=${a}`);
 });
 
-// if format and parse are inverse operations then
+// If format and parse are inverse operations then
 // resolveObject(parse(x), y) == parse(resolve(x, y))
 
 // format: [from, path, expected]

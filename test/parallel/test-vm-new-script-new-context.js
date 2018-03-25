@@ -54,7 +54,7 @@ const Script = require('vm').Script;
   script.runInNewContext();
   assert.strictEqual(5, global.hello);
 
-  // cleanup
+  // Cleanup
   delete global.hello;
 }
 

@@ -30,9 +30,9 @@ let testURL;
 function check(request) {
   // url.parse should not mess with the method
   assert.strictEqual(request.method, 'POST');
-  // everything else should be right
+  // Everything else should be right
   assert.strictEqual(request.url, '/asdf?qwer=zxcv');
-  // the host header should use the url.parse.hostname
+  // The host header should use the url.parse.hostname
   assert.strictEqual(request.headers.host,
                      `${testURL.hostname}:${testURL.port}`);
 }

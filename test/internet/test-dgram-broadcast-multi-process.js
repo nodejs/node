@@ -64,7 +64,7 @@ if (process.argv[2] !== 'child') {
   let done = 0;
   let timer = null;
 
-  // exit the test if it doesn't succeed within TIMEOUT
+  // Exit the test if it doesn't succeed within TIMEOUT
   timer = setTimeout(function() {
     console.error('[PARENT] Responses were not received within %d ms.',
                   TIMEOUT);
@@ -75,7 +75,7 @@ if (process.argv[2] !== 'child') {
     process.exit(1);
   }, TIMEOUT);
 
-  // launch child processes
+  // Launch child processes
   for (let x = 0; x < listeners; x++) {
     (function() {
       const worker = fork(process.argv[1], ['child']);
@@ -83,7 +83,7 @@ if (process.argv[2] !== 'child') {
 
       worker.messagesReceived = [];
 
-      // handle the death of workers
+      // Handle the death of workers
       worker.on('exit', function(code, signal) {
         // don't consider this the true death if the worker
         // has finished successfully
@@ -113,7 +113,7 @@ if (process.argv[2] !== 'child') {
           listening += 1;
 
           if (listening === listeners) {
-            // all child process are listening, so start sending
+            // All child process are listening, so start sending
             sendSocket.sendNext();
           }
         } else if (msg.message) {
