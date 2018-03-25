@@ -24,6 +24,7 @@ const common = require('../common');
 const assert = require('assert');
 const http = require('http');
 const net = require('net');
+const util = require('util');
 
 let outstanding_reqs = 0;
 
@@ -102,7 +103,7 @@ server.on('listening', function() {
   }, function(res) {
     res.on('end', function() {
       assert.ok('x-foo' in res.trailers,
-                'Client doesn\'t see trailers in res.trailers');
+                `${util.inspect(res.trailers)} misses the 'x-foo' property`);
       outstanding_reqs--;
       if (outstanding_reqs === 0) {
         server.close();
