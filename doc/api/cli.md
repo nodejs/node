@@ -75,6 +75,10 @@ Identical to `-e` but prints the result.
 added:
   - v5.0.0
   - v4.2.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/19600
+    description: The `--require` option is now supported when checking a file.
 -->
 
 Syntax check the script without executing.
