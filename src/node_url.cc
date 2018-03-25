@@ -1325,7 +1325,7 @@ void URL::Parse(const char* input,
 
   bool atflag = false;  // Set when @ has been seen.
   bool square_bracket_flag = false;  // Set inside of [...]
-  bool inside_password_flag = false;  // Set after a : after an username.
+  bool password_token_seen_flag = false;  // Set after a : after an username.
 
   std::string buffer;
 
@@ -1639,12 +1639,12 @@ void URL::Parse(const char* input,
             const char bch = buffer[n];
             if (bch == ':') {
               url->flags |= URL_FLAGS_HAS_PASSWORD;
-              if (!inside_password_flag) {
-                inside_password_flag = true;
+              if (!password_token_seen_flag) {
+                password_token_seen_flag = true;
                 continue;
               }
             }
-            if (inside_password_flag) {
+            if (password_token_seen_flag) {
               AppendOrEscape(&url->password, bch, USERINFO_ENCODE_SET);
             } else {
               AppendOrEscape(&url->username, bch, USERINFO_ENCODE_SET);
