@@ -168,11 +168,13 @@ struct PackageConfig {
   V(fingerprint_string, "fingerprint")                                        \
   V(fingerprint256_string, "fingerprint256")                                  \
   V(flags_string, "flags")                                                    \
+  V(fragment_string, "fragment")                                              \
   V(get_data_clone_error_string, "_getDataCloneError")                        \
   V(get_shared_array_buffer_id_string, "_getSharedArrayBufferId")             \
   V(gid_string, "gid")                                                        \
   V(handle_string, "handle")                                                  \
   V(homedir_string, "homedir")                                                \
+  V(host_string, "host")                                                      \
   V(hostmaster_string, "hostmaster")                                          \
   V(ignore_string, "ignore")                                                  \
   V(infoaccess_string, "infoAccess")                                          \
@@ -229,6 +231,7 @@ struct PackageConfig {
   V(order_string, "order")                                                    \
   V(owner_string, "owner")                                                    \
   V(parse_error_string, "Parse Error")                                        \
+  V(password_string, "password")                                              \
   V(path_string, "path")                                                      \
   V(pending_handle_string, "pendingHandle")                                   \
   V(pbkdf2_error_string, "PBKDF2 Error")                                      \
@@ -242,6 +245,7 @@ struct PackageConfig {
   V(produce_cached_data_string, "produceCachedData")                          \
   V(promise_string, "promise")                                                \
   V(pubkey_string, "pubkey")                                                  \
+  V(query_string, "query")                                                    \
   V(raw_string, "raw")                                                        \
   V(read_host_object_string, "_readHostObject")                               \
   V(readable_string, "readable")                                              \
@@ -250,6 +254,7 @@ struct PackageConfig {
   V(rename_string, "rename")                                                  \
   V(replacement_string, "replacement")                                        \
   V(retry_string, "retry")                                                    \
+  V(scheme_string, "scheme")                                                  \
   V(serial_string, "serial")                                                  \
   V(scopeid_string, "scopeid")                                                \
   V(serial_number_string, "serialNumber")                                     \
