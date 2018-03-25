@@ -468,7 +468,7 @@ Would generate the output:
 
 ## process.argv0
 <!-- YAML
-added: 6.4.0
+added: v6.4.0
 -->
 
 * {string}
@@ -694,7 +694,7 @@ module.exports.foo();
 
 ## process.emitWarning(warning[, options])
 <!-- YAML
-added: 8.0.0
+added: v8.0.0
 -->
 
 * `warning` {string|Error} The warning to emit.
