@@ -38,14 +38,12 @@ for (const expectedDoc of expectedDocs) {
   assert.ok(actualDocs.includes(expectedDoc), `${expectedDoc} does not exist`);
 }
 
-// Test that all the actual documents match to the relative links in the TOC.
+// Test that all the actual documents match to the relative links in the TOC
+// and that they are not empty files.
 for (const actualDoc of actualDocs) {
   assert.ok(
     expectedDocs.includes(actualDoc), `${actualDoc} does not not match TOC`);
-}
 
-// Test that all the actual documents are not empty files.
-for (const actualDoc of actualDocs) {
   assert.ok(
     fs.statSync(path.join(apiPath, actualDoc)).size !== 0,
     `${actualDoc} is empty`
