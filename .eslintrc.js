@@ -226,6 +226,10 @@ module.exports = {
     'space-in-parens': ['error', 'never'],
     'space-infix-ops': 'error',
     'space-unary-ops': 'error',
+    'spaced-comment': ['error', 'always', {
+      'block': { 'balanced': true },
+      'exceptions': ['-']
+    }],
     'unicode-bom': 'error',
 
     // ECMAScript 6

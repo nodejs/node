@@ -32,8 +32,6 @@ const options = {
   host: '127.0.0.1',
 };
 
-//http.globalAgent.maxSockets = 15;
-
 const server = http.createServer(function(req, res) {
   const m = /\/(.*)/.exec(req.url);
   const reqid = parseInt(m[1], 10);

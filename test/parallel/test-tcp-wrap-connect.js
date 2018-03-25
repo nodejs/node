@@ -33,8 +33,6 @@ function makeConnection() {
   };
 }
 
-/////
-
 let connectCount = 0;
 let endCount = 0;
 let shutdownCount = 0;
