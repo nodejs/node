@@ -365,7 +365,7 @@ Emitted when the `fs.ReadStream`'s file descriptor has been opened.
 
 ### readStream.bytesRead
 <!-- YAML
-added: 6.4.0
+added: v6.4.0
 -->
 
 * Value: {number}
