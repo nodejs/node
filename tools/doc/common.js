@@ -3,10 +3,8 @@
 const yaml = require('js-yaml');
 
 function isYAMLBlock(text) {
-  return !!text.match(/^<!-- YAML/);
+  return /^<!-- YAML/.test(text);
 }
-
-exports.isYAMLBlock = isYAMLBlock;
 
 function arrify(value) {
   return Array.isArray(value) ? value : [value];
@@ -32,11 +30,8 @@ function extractAndParseYAML(text) {
   }
 
   meta.changes = meta.changes || [];
-  for (const entry of meta.changes) {
-    entry.description = entry.description.replace(/^\^\s*/, '');
-  }
 
   return meta;
 }
 
-exports.extractAndParseYAML = extractAndParseYAML;
+module.exports = { isYAMLBlock, extractAndParseYAML };
