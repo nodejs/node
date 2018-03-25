@@ -704,7 +704,7 @@ changes:
   - version: v9.4.0
     pr-url: https://github.com/nodejs/node/pull/17412
     description: The `windowsHide` option is supported now.
-  - version: 8.2.0
+  - version: v8.2.0
     pr-url: https://github.com/nodejs/node/pull/14140
     description: The `inspectPort` option is supported now.
   - version: v6.4.0
