@@ -49,7 +49,7 @@ function nextRequest() {
         // throws error:
         nextRequest();
         // works just fine:
-        //process.nextTick(nextRequest);
+        // process.nextTick(nextRequest);
       }
     }));
     response.resume();

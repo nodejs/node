@@ -203,7 +203,7 @@ settings do not take effect until the `'localSettings'` event is emitted.
 session.settings({ enablePush: false });
 
 session.on('localSettings', (settings) => {
-  /** use the new settings **/
+  /* use the new settings */
 });
 ```
 
@@ -218,7 +218,7 @@ of the remote settings.
 
 ```js
 session.on('remoteSettings', (settings) => {
-  /** use the new settings **/
+  /* use the new settings */
 });
 ```
 
@@ -280,7 +280,7 @@ activity on the `Http2Session` after the configured number of milliseconds.
 
 ```js
 session.setTimeout(2000);
-session.on('timeout', () => { /** .. **/ });
+session.on('timeout', () => { /* .. */ });
 ```
 
 #### http2session.alpnProtocol
@@ -706,8 +706,8 @@ const {
 const req = clientSession.request({ [HTTP2_HEADER_PATH]: '/' });
 req.on('response', (headers) => {
   console.log(headers[HTTP2_HEADER_STATUS]);
-  req.on('data', (chunk) => { /** .. **/ });
-  req.on('end', () => { /** .. **/ });
+  req.on('data', (chunk) => { /* .. */ });
+  req.on('end', () => { /* .. */ });
 });
 ```
 
@@ -1928,7 +1928,7 @@ Returns a `ClientHttp2Session` instance.
 const http2 = require('http2');
 const client = http2.connect('https://localhost:1234');
 
-/** use the client **/
+/* use the client */
 
 client.close();
 ```

@@ -56,7 +56,7 @@ var timer = setTimeout(function() {
 
 child.on('exit', function(code) {
   console.error('exit %d from gen %d', code, gen + 1);
-  //clearTimeout(timer);
+  // clearTimeout(timer);
 });
 
 child.stdout.pipe(process.stdout);

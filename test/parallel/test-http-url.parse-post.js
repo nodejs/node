@@ -28,11 +28,11 @@ const url = require('url');
 let testURL;
 
 function check(request) {
-  //url.parse should not mess with the method
+  // url.parse should not mess with the method
   assert.strictEqual(request.method, 'POST');
-  //everything else should be right
+  // everything else should be right
   assert.strictEqual(request.url, '/asdf?qwer=zxcv');
-  //the host header should use the url.parse.hostname
+  // the host header should use the url.parse.hostname
   assert.strictEqual(request.headers.host,
                      `${testURL.hostname}:${testURL.port}`);
 }

@@ -24,7 +24,7 @@ function reqHandler(req, res) {
       `Wrong host header for req[${req.url}]: ${req.headers.host}`);
   }
   res.writeHead(200, {});
-  //process.nextTick(function() { res.end('ok'); });
+  // process.nextTick(function() { res.end('ok'); });
   res.end('ok');
 }
 
@@ -55,7 +55,7 @@ function testHttps() {
       method: 'GET',
       path: `/${counter++}`,
       host: 'localhost',
-      //agent: false,
+      // agent: false,
       port: this.address().port,
       rejectUnauthorized: false
     }, cb).on('error', thrower);
@@ -64,7 +64,7 @@ function testHttps() {
       method: 'GET',
       path: `/${counter++}`,
       host: 'localhost',
-      //agent: false,
+      // agent: false,
       port: this.address().port,
       rejectUnauthorized: false
     }, cb).on('error', thrower).end();
@@ -73,7 +73,7 @@ function testHttps() {
       method: 'POST',
       path: `/${counter++}`,
       host: 'localhost',
-      //agent: false,
+      // agent: false,
       port: this.address().port,
       rejectUnauthorized: false
     }, cb).on('error', thrower).end();
@@ -82,7 +82,7 @@ function testHttps() {
       method: 'PUT',
       path: `/${counter++}`,
       host: 'localhost',
-      //agent: false,
+      // agent: false,
       port: this.address().port,
       rejectUnauthorized: false
     }, cb).on('error', thrower).end();
@@ -91,7 +91,7 @@ function testHttps() {
       method: 'DELETE',
       path: `/${counter++}`,
       host: 'localhost',
-      //agent: false,
+      // agent: false,
       port: this.address().port,
       rejectUnauthorized: false
     }, cb).on('error', thrower).end();

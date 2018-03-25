@@ -27,7 +27,7 @@ export function allowGlobals(...whitelist) {
 }
 
 export function leakedGlobals() {
-  //add possible expected globals
+  // add possible expected globals
   if (global.gc) {
     knownGlobals.push(global.gc);
   }

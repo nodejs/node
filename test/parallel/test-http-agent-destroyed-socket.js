@@ -47,7 +47,6 @@ const server = http.createServer(common.mustCall((req, res) => {
     request1.socket.on('close', common.mustCall());
     response.resume();
     response.on('end', common.mustCall(() => {
-      /////////////////////////////////
       //
       // THE IMPORTANT PART
       //

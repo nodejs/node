@@ -48,7 +48,7 @@ server.on('listening', function() {
   });
 
   c.on('data', function(chunk) {
-    //console.log(chunk);
+    // console.log(chunk);
     res_buffer += chunk;
   });
 
@@ -78,7 +78,7 @@ server.on('listening', function() {
   });
 
   c.on('data', function(chunk) {
-    //console.log(chunk);
+    // console.log(chunk);
     res_buffer += chunk;
     if (/0\r\n/.test(res_buffer)) { // got the end.
       outstanding_reqs--;
@@ -103,7 +103,7 @@ server.on('listening', function() {
     headers: {}
   }, function(res) {
     res.on('end', function() {
-      //console.log(res.trailers);
+      // console.log(res.trailers);
       assert.ok('x-foo' in res.trailers, 'Client doesn\'t see trailers.');
       outstanding_reqs--;
       if (outstanding_reqs === 0) {

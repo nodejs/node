@@ -56,7 +56,7 @@ if (process.argv[2] === 'pipe') {
   const args = [process.argv[1], 'parent'];
   const parent = childProcess.spawn(process.execPath, args);
 
-  //got any stderr or std data
+  // got any stderr or std data
   let stdoutData = false;
   parent.stdout.on('data', function() {
     stdoutData = true;

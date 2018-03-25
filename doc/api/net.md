@@ -914,7 +914,7 @@ in the [`net.createServer()`][] section:
 ```js
 const net = require('net');
 const client = net.createConnection({ port: 8124 }, () => {
-  //'connect' listener
+  // 'connect' listener
   console.log('connected to server!');
   client.write('world!\r\n');
 });

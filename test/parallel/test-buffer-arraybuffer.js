@@ -132,7 +132,7 @@ assert.throws(function() {
   // If length can be converted to a number, it will be.
   assert.deepStrictEqual(Buffer.from(ab, 0, [1]), Buffer.from(ab, 0, 1));
 
-  //If length is Infinity, throw.
+  // If length is Infinity, throw.
   common.expectsError(() => {
     Buffer.from(ab, 0, Infinity);
   }, {
