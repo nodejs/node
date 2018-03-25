@@ -68,9 +68,8 @@ const TEST_CASES = [
     ct: 'dda53a4059aa17b88756984995f7bba3c636cc44',
     tag: 'd2a35e5c611e5e3d2258360241c5b045', tampered: false },
 
-  // Following test cases are from
-  //   http://csrc.nist.gov/groups/ST/toolkit/BCM/documents/
-  //    proposedmodes/gcm/gcm-revised-spec.pdf
+  // Following test cases are from "The Galois/Counter Mode of Operation (GCM)"
+  // by D. McGrew and J. Viega, published by NIST.
 
   // Test case 1
   { algo: 'aes-128-gcm',
