@@ -25,7 +25,6 @@
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #include "aliased_buffer.h"
-#include "ares.h"
 #if HAVE_INSPECTOR
 #include "inspector_agent.h"
 #endif
