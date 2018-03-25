@@ -260,7 +260,7 @@ assert.throws(function() {
 
 /**
  * Check if the stream function uses utf8 as a default encoding.
- **/
+ */
 
 function testEncoding(options, assertionHash) {
   const hash = crypto.createHash('sha256', options);
