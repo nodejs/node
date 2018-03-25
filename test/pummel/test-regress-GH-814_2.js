@@ -38,9 +38,7 @@ tailProc.stdout.on('data', tailCB);
 function tailCB(data) {
   PASS = !data.toString().includes('.');
 
-  if (PASS) {
-    // console.error('i');
-  } else {
+  if (!PASS) {
     console.error('[FAIL]\n DATA -> ');
     console.error(data);
     console.error('\n');
@@ -79,14 +77,12 @@ function writer() {
         bufPool.length = 0;
       }
       process.nextTick(writer);
-      // console.error('o');
     }
   }
 
 }
 
 function writerCB(err, written) {
-  // console.error('cb.');
   assert.ifError(err);
 }
 

@@ -32,7 +32,6 @@ function newBuffer(size, value) {
   while (size--) {
     buffer[size] = value;
   }
-  // buffer[buffer.length-2]= 0x0d;
   buffer[buffer.length - 1] = 0x0a;
   return buffer;
 }

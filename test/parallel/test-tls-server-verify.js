@@ -227,12 +227,7 @@ function runClient(prefix, port, options, cb) {
     }
   });
 
-  // client.stdout.pipe(process.stdout);
-
   client.on('exit', function(code) {
-    // assert.strictEqual(
-    //  0, code,
-    //  `${prefix}${options.name}: s_client exited with error code ${code}`);
     if (options.shouldReject) {
       assert.strictEqual(
         true, rejected,
