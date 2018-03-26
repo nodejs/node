@@ -424,9 +424,9 @@ void DeserializerContext::ReadRawBytes(
   args.GetReturnValue().Set(offset);
 }
 
-void InitializeSerdesBindings(Local<Object> target,
-                              Local<Value> unused,
-                              Local<Context> context) {
+void Initialize(Local<Object> target,
+                Local<Value> unused,
+                Local<Context> context) {
   Environment* env = Environment::GetCurrent(context);
   Local<FunctionTemplate> ser =
       env->NewFunctionTemplate(SerializerContext::New);
@@ -483,4 +483,4 @@ void InitializeSerdesBindings(Local<Object> target,
 }  // anonymous namespace
 }  // namespace node
 
-NODE_BUILTIN_MODULE_CONTEXT_AWARE(serdes, node::InitializeSerdesBindings)
+NODE_BUILTIN_MODULE_CONTEXT_AWARE(serdes, node::Initialize)
