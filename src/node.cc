@@ -244,6 +244,11 @@ bool config_experimental_modules = false;
 // that is used by lib/vm.js
 bool config_experimental_vm_modules = false;
 
+// Set in node.cc by ParseArgs when --experimental-repl-await is used.
+// Used in node_config.cc to set a constant on process.binding('config')
+// that is used by lib/repl.js.
+bool config_experimental_repl_await = false;
+
 // Set in node.cc by ParseArgs when --loader is used.
 // Used in node_config.cc to set a constant on process.binding('config')
 // that is used by lib/internal/bootstrap/node.js
@@ -3468,6 +3473,10 @@ static void PrintHelp() {
 #if defined(NODE_HAVE_I18N_SUPPORT)
          "  --experimental-modules     experimental ES Module support\n"
          "                             and caching modules\n"
+#endif  // defined(NODE_HAVE_I18N_SUPPORT)
+         "  --experimental-repl-await  experimental await keyword support\n"
+         "                             in REPL\n"
+#if defined(NODE_HAVE_I18N_SUPPORT)
          "  --experimental-vm-modules  experimental ES Module support\n"
          "                             in vm module\n"
 #endif  // defined(NODE_HAVE_I18N_SUPPORT)
@@ -3627,6 +3636,7 @@ static void CheckIfAllowedInEnv(const char* exe, bool is_env,
     // Node options, sorted in `node --help` order for ease of comparison.
     "--enable-fips",
     "--experimental-modules",
+    "--experimental-repl-await",
     "--experimental-vm-modules",
     "--expose-http2",   // keep as a non-op through v9.x
     "--force-fips",
@@ -3823,6 +3833,8 @@ static void ParseArgs(int* argc,
       new_v8_argc += 1;
     } else if (strcmp(arg, "--experimental-vm-modules") == 0) {
       config_experimental_vm_modules = true;
+    } else if (strcmp(arg, "--experimental-repl-await") == 0) {
+      config_experimental_repl_await = true;
     }  else if (strcmp(arg, "--loader") == 0) {
       const char* module = argv[index + 1];
       if (!config_experimental_modules) {
