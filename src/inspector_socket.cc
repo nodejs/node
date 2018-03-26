@@ -141,8 +141,6 @@ static void remove_from_beginning(std::vector<char>* buffer, size_t count) {
   buffer->erase(buffer->begin(), buffer->begin() + count);
 }
 
-// Cleanup
-
 static const char CLOSE_FRAME[] = {'\x88', '\x00'};
 
 enum ws_decode_result {
@@ -158,15 +156,6 @@ static void generate_accept_string(const std::string& client_key,
   SHA1(reinterpret_cast<const unsigned char*>(&input[0]), input.size(),
        reinterpret_cast<unsigned char*>(hash));
   node::base64_encode(hash, sizeof(hash), *buffer, sizeof(*buffer));
-}
-
-static bool IsOneOf(const std::string& host,
-                    const std::vector<std::string>& hosts) {
-  for (const std::string& candidate : hosts) {
-    if (node::StringEqualNoCase(host.data(), candidate.data()))
-      return true;
-  }
-  return false;
 }
 
 static std::string TrimPort(const std::string& host) {
@@ -190,16 +179,6 @@ static bool IsIPAddress(const std::string& host) {
       return false;
   }
   return quads == 3;
-}
-
-// This is a value coming from the interface, it can only be IPv4 or IPv6
-// address string.
-static bool IsIPv4Localhost(const std::string& host) {
-  std::string v6_tunnel_prefix = "::ffff:";
-  if (host.substr(0, v6_tunnel_prefix.length()) == v6_tunnel_prefix)
-    return IsIPv4Localhost(host.substr(v6_tunnel_prefix.length()));
-  std::string localhost_net = "127.";
-  return host.substr(0, localhost_net.length()) == localhost_net;
 }
 
 // Constants for hybi-10 frame format.
@@ -600,17 +579,9 @@ class HttpHandler : public ProtocolHandler {
 
   bool IsAllowedHost(const std::string& host_with_port) const {
     std::string host = TrimPort(host_with_port);
-    if (host.empty())
-      return false;
-    if (IsIPAddress(host))
-       return true;
-    std::string socket_host = GetHost();
-    if (IsIPv4Localhost(socket_host)) {
-      return IsOneOf(host, { "localhost" });
-    } else if (socket_host == "::1") {
-      return IsOneOf(host, { "localhost", "localhost6" });
-    }
-    return true;
+    return host.empty() || IsIPAddress(host)
+           || node::StringEqualNoCase(host.data(), "localhost")
+           || node::StringEqualNoCase(host.data(), "localhost6");
   }
 
   bool parsing_value_;
